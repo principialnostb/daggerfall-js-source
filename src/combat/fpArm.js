@@ -6764,7 +6764,16 @@ export function createFpArm() {
       // window, never the size. Every host's body and every peer's draws
       // through here.
       const body = visibleRangeBounds(thirdMesh.ranges, thirdBodyBox, CARRIED_SLOTS);
-      const anchor = transformPoint(model, 0, 0, body ? (body.minZ + body.maxZ) / 2 : (minZ + maxZ) / 2);
+      // MWHEAD-LEVEL: aim the sprite camera at the upper body/head, not the torso midpoint.
+      // When the third-person camera gets close, aiming at the midpoint creates a steep downward
+      // ray from the player's eye to the NPC's chest. The camera-facing card then leans with that
+      // ray and makes the head visually collapse toward the shoulders. Keep the aim near head
+      // height so close-range viewing preserves the familiar eye-level silhouette without scaling
+      // the model or distorting its skeleton. Use the body-only bounds so carried weapons cannot
+      // move this point.
+      const anchor = transformPoint(model, 0, 0, body
+        ? body.minZ + (body.maxZ - body.minZ) * 0.88
+        : minZ + (maxZ - minZ) * 0.88);
       // MW-D43b: the body is a Morrowind MESH, so it takes the arm's
       // dial, not the sprite standard - the same fix MW-D43 made for
       // the first-person pass and missed here.
