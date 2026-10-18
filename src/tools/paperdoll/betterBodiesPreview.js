@@ -5,6 +5,7 @@ import { betterBodiesFemaleAssetUrls } from '../../formats/morrowind/mwBetterBod
 import { parseNif } from '../../formats/morrowind/mwNifFile.js';
 import { flattenNif } from '../../formats/morrowind/mwNifMesh.js';
 import { decodeDds } from '../../formats/morrowind/mwDdsFile.js';
+import { buildSkeleton, skeletonSpaceMatrices, skinBatch, GRAPH_ROOT } from '../../formats/morrowind/mwSkin.js';
 
 /* global THREE */
 const canvas = document.getElementById('view');
@@ -78,6 +79,10 @@ async function load() {
     const ddsBytes = new Uint8Array(await ddsResponse.arrayBuffer());
     const nif = parseNif(nifBytes);
     const batches = flattenNif(nif);
+    const skeleton = buildSkeleton(nif);
+    // Use the NIF's rest pose with the project's CPU skinning reference.
+    const pose = new Map([...skeleton.nodes].map(([ref, node]) => [ref, node.rest]));
+    const skelMats = skeletonSpaceMatrices(skeleton, pose, GRAPH_ROOT);
     const decoded = decodeDds(ddsBytes, { levels: 1 });
     const mip = decoded.mips[0];
     const imageData = new ImageData(new Uint8ClampedArray(mip.rgba), mip.width, mip.height);
@@ -96,16 +101,25 @@ async function load() {
     let drawable = 0;
     let vertexCount = 0;
     let triangleCount = 0;
+    let skinnedCount = 0;
     for (const batch of batches) {
       if (!batch.positions?.length || !batch.indices?.length) continue;
+      let positions = batch.positions;
+      let normals = batch.normals;
+      if (batch.skinned && batch.skin) {
+        positions = new Float32Array(batch.positions.length);
+        normals = new Float32Array(batch.normals?.length ?? batch.positions.length);
+        skinBatch(batch, skeleton, pose, skelMats, positions, normals);
+        skinnedCount++;
+      }
       const geometry = new THREE.BufferGeometry();
-      geometry.setAttribute('position', new THREE.BufferAttribute(new Float32Array(batch.positions), 3));
-      if (batch.normals?.length === batch.positions.length) {
-        geometry.setAttribute('normal', new THREE.BufferAttribute(new Float32Array(batch.normals), 3));
+      geometry.setAttribute('position', new THREE.BufferAttribute(new Float32Array(positions), 3));
+      if (normals?.length === positions.length) {
+        geometry.setAttribute('normal', new THREE.BufferAttribute(new Float32Array(normals), 3));
       } else {
         geometry.computeVertexNormals();
       }
-      if (batch.uvs?.length === batch.positions.length / 3 * 2) {
+      if (batch.uvs?.length === positions.length / 3 * 2) {
         geometry.setAttribute('uv', new THREE.BufferAttribute(new Float32Array(batch.uvs), 2));
       }
       geometry.setIndex(Array.from(batch.indices));
@@ -121,7 +135,7 @@ async function load() {
       mesh.name = batch.name || 'NIF shape ' + drawable;
       group.add(mesh);
       drawable++;
-      vertexCount += batch.positions.length / 3;
+      vertexCount += positions.length / 3;
       triangleCount += batch.indices.length / 3;
     }
 
@@ -140,9 +154,9 @@ async function load() {
     updateCamera();
     statusText(
       'Better Bodies female NIF — isolated preview\n' +
-      'Meshes: ' + drawable + ' · vertices: ' + vertexCount + ' · triangles: ' + triangleCount + '\n' +
+      'Meshes: ' + drawable + ' · skinned: ' + skinnedCount + ' · vertices: ' + vertexCount + ' · triangles: ' + triangleCount + '\n' +
       'Texture: ' + mip.width + ' × ' + mip.height + ' DDS → RGBA8\n' +
-      'Static bind-pose geometry; live-game skeleton/animation not connected.'
+      'NIF rest pose with CPU skinning; live-game animation/skeleton not connected.'
     );
   } catch (error) {
     console.error('[Better Bodies preview]', error);
