@@ -809,6 +809,33 @@ function shieldMeshOf(armo, female, bodyById, notes) {
   return { model: armo.model, recordId: null, ground: true };
 }
 
+/**
+ * Body surfaces whose skinning should drive each clothing panel. Clothing NIFs often
+ * carry sparse or rigid weights; borrowing the wearer's matching body skin makes
+ * trousers follow groin/thigh/knee deformation instead of pulling against the body.
+ * Slots use playerBodyRows' canonical names (not the display names in ARMO_PART).
+ */
+const CLOTHING_SKIN_FROM = Object.freeze({
+  chest: Object.freeze(['chest', 'groin']),
+  groin: Object.freeze(['groin', 'upperleg', 'knee']),
+  'right upper leg': Object.freeze(['upperleg', 'knee', 'groin']),
+  'left upper leg': Object.freeze(['upperleg', 'knee', 'groin']),
+  'right knee': Object.freeze(['knee', 'upperleg']),
+  'left knee': Object.freeze(['knee', 'upperleg']),
+  'right upper arm': Object.freeze(['upperarm', 'forearm']),
+  'left upper arm': Object.freeze(['upperarm', 'forearm']),
+  'right forearm': Object.freeze(['forearm', 'upperarm', 'wrist']),
+  'left forearm': Object.freeze(['forearm', 'upperarm', 'wrist']),
+  'right wrist': Object.freeze(['wrist', 'forearm', 'hand']),
+  'left wrist': Object.freeze(['wrist', 'forearm', 'hand']),
+  'right hand': Object.freeze(['hand', 'wrist']),
+  'left hand': Object.freeze(['hand', 'wrist']),
+  'right ankle': Object.freeze(['ankle', 'foot', 'knee']),
+  'left ankle': Object.freeze(['ankle', 'foot', 'knee']),
+  'right foot': Object.freeze(['foot', 'ankle']),
+  'left foot': Object.freeze(['foot', 'ankle']),
+});
+
 /** One record's part references, claimed at one priority. */
 function composeRefs(rec, prio, female, bodyById, claim, notes, piece = null) {
   for (const ref of rec.parts ?? []) {
@@ -826,6 +853,8 @@ function composeRefs(rec, prio, female, bodyById, claim, notes, piece = null) {
     claim(ref.part, prio, {
       slot: `${row.name} (${rec.id})`, partName: row.name,
       bones: row.bones, model: body.model, recordId: id, piece,
+      ...(piece?.kind === 'clothing' && CLOTHING_SKIN_FROM[row.name]
+        ? { skinFrom: CLOTHING_SKIN_FROM[row.name] } : {}),
     });
   }
 }
