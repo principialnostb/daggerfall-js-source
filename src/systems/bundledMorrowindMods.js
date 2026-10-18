@@ -4,7 +4,7 @@ import { makeVendoredArchive } from './urlArchive.js';
 
 const IN_BROWSER = typeof window !== 'undefined';
 const FILES = IN_BROWSER
-  ? import.meta.glob('../../Morrowind Textures/**/*.{nif,dds,tga,esm,esp}', {
+  ? import.meta.glob('../../Morrowind Textures/**/*.{nif,NIF,dds,DDS,tga,TGA,esm,ESM,esp,ESP}', {
       eager: true, query: '?url', import: 'default',
     })
   : {};
