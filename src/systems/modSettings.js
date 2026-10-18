@@ -1015,6 +1015,8 @@ export const MOD_SETTINGS = Object.freeze({
       'AutoTogglePerspective.OnTransitionInterior': Object.freeze({ default: 0, options: EOTB_VIEWS, get description() { return t('mods.eyeOfTheBeholder.AutoTogglePerspective.OnTransitionInterior.description', 'Which view to take on stepping indoors.'); } }),
       'AutoTogglePerspective.OnTransitionExterior': Object.freeze({ default: 0, options: EOTB_VIEWS, get description() { return t('mods.eyeOfTheBeholder.AutoTogglePerspective.OnTransitionExterior.description', 'Which view to take on stepping back outside.'); } }),
       'Graphics.Enable': Object.freeze({ default: true, get description() { return t('mods.eyeOfTheBeholder.Graphics.Enable.description', 'Toggle the player graphic'); } }),
+      // Smart PaperDoll: use the live PaperDoll RGBA composite as a shallow voxel model in third person.
+      'Graphics.SmartPaperDoll': Object.freeze({ default: false, get description() { return t('mods.eyeOfTheBeholder.Graphics.SmartPaperDoll.description', 'Draw the equipped PaperDoll as a shallow voxel model in third person. Falls back to the current body if the composite is unavailable.'); } }),
       // DISC23-B (2026-09-24, Gryphoth and Scratchie on Discord: "EOTB comes with 16 ground models and different
       // mounted models, it would be nice to be able to change our models like in the original mod" / "the game is not
       // allowing us to choose between the different index slots"): the mod's two SLIDERS, kept sliders (0-15, 0-4, as
