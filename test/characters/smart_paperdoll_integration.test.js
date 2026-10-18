@@ -10,6 +10,7 @@ test('Smart PaperDoll is opt-in and lives in the existing EoTB setting store', (
   const card = read('../../src/ui/skinCard.js');
   assert.match(card, /modSetting\(VENDOR, 'Graphics\.SmartPaperDoll'\)/);
   assert.match(card, /setModSetting\(VENDOR, 'Graphics\.SmartPaperDoll', !smart\)/);
+  assert.match(card, /if \(smart\) \{[\s\S]*?standard on-foot and mounted presets are suspended/);
 });
 
 test('Smart PaperDoll is checked before either existing third-person body lane and falls through when unavailable', () => {
