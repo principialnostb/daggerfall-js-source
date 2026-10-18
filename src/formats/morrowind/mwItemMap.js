@@ -853,7 +853,8 @@ function composeRefs(rec, prio, female, bodyById, claim, notes, piece = null) {
       slot: `${row.name} (${rec.id})`, partName: row.name,
       bones: row.bones, model: body.model, recordId: id, piece,
       ...(piece?.kind === 'clothing' && CLOTHING_FIT_SLOTS[row.name]
-        ? { fitBodySlots: CLOTHING_FIT_SLOTS[row.name] } : {}),
+        ? { fitBodySlots: CLOTHING_FIT_SLOTS[row.name],
+            fitMode: DF_CLOTHING_ROWS[piece.name ?? CLOTHING_NAME[piece.templateIndex]]?.type === MW_CLOTHING_TYPE.Pants ? 'conform' : 'clearance' } : {}),
     });
   }
 }
