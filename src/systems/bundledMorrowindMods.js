@@ -28,18 +28,25 @@ for (const [source, url] of Object.entries(FILES)) {
   if (modAt < 0) continue;
   const isHighResolutionFemale = highResFemaleAt >= 0;
   const rel = p.slice(modAt);
-  // Mod archives are commonly packed as <package>/Data Files/Meshes|Textures.
-  // The runtime archive contract is Data-Files-relative, so strip the outer
-  // package and Data Files prefix before indexing assets. Keep `rel` intact
-  // below for plugin identity/load order.
-  const dataPath = rel.replace(/^.*?\/data files\//i, '');
+  // Most Morrowind packages use <package>/Data Files/Meshes|Textures.
+  // The high-resolution female texture archive is an exception: it ships
+  // selectable variants directly as Nude_No_Hair/Textures, Nude_Body_Hair/
+  // Textures, Underwear/Textures and Hands/Textures. Normalize those variant
+  // paths to the same Data-Files-relative texture keys the renderer requests.
+  const dataPath = isHighResolutionFemale
+    ? rel.replace(/^.*?\/textures\//i, 'Textures/')
+    : rel.replace(/^.*?\/data files\//i, '');
   const m = dataPath.match(/^(Meshes|Textures)\/(.+)\.(nif|dds|tga)$/i);
   if (m) {
     const root = m[1].toLowerCase() === 'meshes' ? 'meshes' : 'textures';
-    // This package is a TEXTURE-ONLY trial. Never let its optional/alternate
-    // meshes replace the live Better Bodies geometry or its manually fixed UVs.
+    // Texture-only trial: never replace the live body geometry or its manually
+    // fixed UVs. Use the clean nude skin by default and the package's compatible
+    // high-resolution hand textures; ignore the alternate body-hair/underwear
+    // variants so their same-named files cannot win by glob enumeration order.
     if (isHighResolutionFemale) {
       if (root !== 'textures') continue;
+      const variant = rel.split('/')[0].toLowerCase();
+      if (variant !== 'nude_no_hair' && variant !== 'hands') continue;
       highResolutionFemaleTextureUrls[(root + '/' + m[2] + '.' + m[3]).toLowerCase()] = url;
     } else {
       assetUrls[(root + '/' + m[2] + '.' + m[3]).toLowerCase()] = url;
