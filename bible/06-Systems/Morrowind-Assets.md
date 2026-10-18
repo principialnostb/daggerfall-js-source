@@ -353,6 +353,30 @@ A texture changes surface detail, not the outline of a trouser mesh. If pants lo
 
 The currently good-looking blue pants are the visual control item. The new Better Clothes Retextured layer explicitly skips every texture path containing `pant` or `trouser`, so it cannot overwrite any candidate pants key. Existing Intelligent Textures/Vurt pants selection remains as before. Compare the same character, camera angle, distance and equipment before/after; once the actual blue-pants key is identified, a specific alternative can be tested deliberately rather than changing it as a side effect. Do not alter the camera/grounding fixes or the existing armor-fitting script as part of texture selection.
 
+### Pants-to-body fitting (MW-BB-FIT2)
+
+The existing triangle-BVH clearance fitter in `src/formats/morrowind/mwSkinTransfer.js`
+moves a private clothing position buffer toward the measured body surface; it
+does not rewrite the NIF, texture, UVs, or body mesh. For pants, the caller uses
+`fitMode: 'conform'`, a small 0.18-unit fabric clearance, and the body slots
+`groin`, `upperleg`, and `knee`.
+
+The fitter now also receives the side of the clothing part (left/right). Each
+body surface is tagged with the BODY slot and skeleton bone used to bind it.
+When fitting a sided leg panel, the search keeps shared groin surfaces but
+excludes the opposite thigh/calf. This prevents a baggy trouser vertex from
+snapping to the other leg merely because that surface is closer. The new
+`MW-FIT2` fixture pins this case, including preservation of the garment's UVs.
+
+This is a geometry-fit improvement, not a claim of perfect cloth simulation:
+it conforms the rest-pose mesh to the nearest selected surface, and does not
+remesh the cloth or solve cloth folds. Validate in-game from front, side and
+rear, at idle and while running. If a seam or crotch deforms badly, record the
+exact clothing record/body slot and fix that region rather than globally
+increasing clearance. Keep the blue pants as the unchanged visual control and
+do not alter camera grounding or the existing armor-fitting rules.
+
+
 ### How to verify what actually wins
 
 In the browser console, run:
