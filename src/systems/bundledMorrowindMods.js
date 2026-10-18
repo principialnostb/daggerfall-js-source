@@ -1,5 +1,16 @@
-// Bundled Morrowind mod assets. Runtime NIF/DDS/TGA files and plugin records
-// are served through the same archive and record-reader contracts as user data.
+// Bundled Morrowind replacement assets for the mod packs checked into
+// Morrowind Textures. The archive keys match the paths stored in NIF files.
+//
+// Priority inside this archive (later packages win exact-path collisions):
+//   Better Bodies Nude textures (required fallback for the existing BB body)
+//   Intelligent Textures 00 Core (base game texture refresh; no atlas files)
+//   Better Clothes Retextured (clothing textures and meshes)
+//   Better Morrowind Armor (base Data Files + Complete Armor Joints patch)
+//   Westly's Faces Refurbished (head/hair meshes and textures)
+//
+// The failed High Resolution Better Body Female Textures and old Better Heads
+// packages are deliberately not discovered here. The active Better Bodies NIF
+// and its user-corrected UV data are not replaced by this module.
 import { makeVendoredArchive } from './urlArchive.js';
 
 const IN_BROWSER = typeof window !== 'undefined';
@@ -10,66 +21,94 @@ const FILES = IN_BROWSER
   : {};
 
 const norm = (s) => String(s).replace(/\\/g, '/').toLowerCase();
-const assetUrls = {};
-const highResolutionFemaleTextureUrls = {};
+const assetUrls = Object.create(null);
+const packageCounts = Object.create(null);
 const pluginUrls = new Map();
 
+const addAsset = (bucket, key, url, packageName) => {
+  bucket[norm(key)] = url;
+  packageCounts[packageName] = (packageCounts[packageName] ?? 0) + 1;
+};
+const relAfter = (path, lower, marker) => {
+  const at = lower.indexOf(marker);
+  return at < 0 ? null : path.slice(at + marker.length);
+};
+const addDataFilesAsset = (rel, url, packageName, allowMeshes = true) => {
+  const match = rel.match(/^data files\\/(meshes|textures)\\/(.+\\.(?:nif|dds|tga))$/i);
+  if (!match) return false;
+  const root = match[1].toLowerCase();
+  if (root === 'meshes' && !allowMeshes) return false;
+  addAsset(assetUrls, root + '/' + match[2], url, packageName);
+  return true;
+};
+
 for (const [source, url] of Object.entries(FILES)) {
-  const p = source.replace(/\\/g, '/');
-  const lower = p.toLowerCase();
-  const clothesAt = lower.indexOf('/clothes/');
-  const headsAt = lower.indexOf('/better heads/');
-  const highResFemaleAt = lower.indexOf('/high resolution better body female textures/');
-  const modAt = clothesAt >= 0 ? clothesAt + '/clothes/'.length
-    : headsAt >= 0 ? headsAt + '/better heads/'.length
-      : highResFemaleAt >= 0
-        ? highResFemaleAt + '/high resolution better body female textures/'.length
-        : -1;
-  if (modAt < 0) continue;
-  const isHighResolutionFemale = highResFemaleAt >= 0;
-  const rel = p.slice(modAt);
-  // Most Morrowind packages use <package>/Data Files/Meshes|Textures.
-  // The high-resolution female texture archive is an exception: it ships
-  // selectable variants directly as Nude_No_Hair/Textures, Nude_Body_Hair/
-  // Textures, Underwear/Textures and Hands/Textures. Normalize those variant
-  // paths to the same Data-Files-relative texture keys the renderer requests.
-  const dataPath = isHighResolutionFemale
-    ? rel.replace(/^.*?\/textures\//i, 'Textures/')
-    : rel.replace(/^.*?\/data files\//i, '');
-  const m = dataPath.match(/^(Meshes|Textures)\/(.+)\.(nif|dds|tga)$/i);
-  if (m) {
-    const root = m[1].toLowerCase() === 'meshes' ? 'meshes' : 'textures';
-    // Texture-only trial: never replace the live body geometry or its manually
-    // fixed UVs. Use the clean nude skin by default and the package's compatible
-    // high-resolution hand textures; ignore the alternate body-hair/underwear
-    // variants so their same-named files cannot win by glob enumeration order.
-    if (isHighResolutionFemale) {
-      if (root !== 'textures') continue;
-      const variant = rel.split('/')[0].toLowerCase();
-      if (variant !== 'nude_no_hair' && variant !== 'hands') continue;
-      highResolutionFemaleTextureUrls[(root + '/' + m[2] + '.' + m[3]).toLowerCase()] = url;
-    } else {
-      assetUrls[(root + '/' + m[2] + '.' + m[3]).toLowerCase()] = url;
+  const path = source.replace(/\\/g, '/');
+  const lower = path.toLowerCase();
+
+  // Base Better Bodies skin textures are retained as a fallback only. This
+  // keeps the existing BB body functional without activating the failed
+  // high-resolution female texture replacer.
+  const bbRel = relAfter(path, lower, '/better bodies/');
+  if (bbRel && /^nude\\/data files\\/textures\\//i.test(bbRel)) {
+    const rel = bbRel.replace(/^nude\\/data files\\//i, '');
+    const match = rel.match(/^textures\\/(.+\\.(?:dds|tga))$/i);
+    if (match) addAsset(assetUrls, 'textures/' + match[1], url, 'Better Bodies fallback');
+    continue;
+  }
+
+  // Intelligent Textures: only the standard 00 Core texture set is safe as
+  // a direct replacer. 01 Atlas Textures requires matching atlas meshes and is
+  // intentionally excluded to prevent UV/atlas mismatches.
+  const itRel = relAfter(path, lower, '/intelligent textures/');
+  if (itRel) {
+    const match = itRel.match(/^00 core\\/textures\\/(.+\\.(?:dds|tga))$/i);
+    if (match) addAsset(assetUrls, 'textures/' + match[1], url, 'Intelligent Textures 00 Core');
+    continue;
+  }
+
+  // Better Clothes Retextured ships paths relative to Data Files already.
+  const clothesRel = relAfter(path, lower, '/better clothes retextured/');
+  if (clothesRel) {
+    const match = clothesRel.match(/^(meshes|textures)\\/(.+\\.(?:nif|dds|tga))$/i);
+    if (match) addAsset(assetUrls, match[1] + '/' + match[2], url, 'Better Clothes Retextured');
+    continue;
+  }
+
+  // Better Morrowind Armor has several mutually exclusive compatibility
+  // patches. Load the main Data Files and the explicitly compatible Complete
+  // Armor Joints add-on only; never merge Chaos Heart, LeFemm, Snow Prince,
+  // no-Tribunal, HiRez Armor, or DeFemm alternatives automatically.
+  const armorRel = relAfter(path, lower, '/better morrowind armor/');
+  if (armorRel) {
+    let rel = armorRel;
+    let packageName = 'Better Morrowind Armor';
+    if (/^complete armor joints\\/data files\\//i.test(rel)) {
+      rel = rel.replace(/^complete armor joints\\//i, '');
+      packageName = 'Complete Armor Joints';
+    } else if (!/^data files\\//i.test(rel)) {
+      continue;
+    }
+    if (addDataFilesAsset(rel, url, packageName)) continue;
+
+    // The main plugin is exposed to the existing bundled-plugin reader.
+    // Optional DeFemm and compatibility ESPs are intentionally not loaded.
+    if (packageName === 'Better Morrowind Armor'
+      && /^data files\\/better morrowind armor\\.esp$/i.test(rel)) {
+      const key = 'bundled:' + rel.slice('data files/'.length);
+      pluginUrls.set(norm(key), { key, url, base: 'better morrowind armor.esp' });
     }
     continue;
   }
-  if (isHighResolutionFemale || !/\.(esm|esp)$/i.test(rel)) continue;
-  const base = rel.split('/').pop().toLowerCase();
-  const isClothesPlugin = base === 'ale_clothing_v1.esp';
-  const isHeadPlugin = base === 'better heads.esm'
-    || base === 'better heads tribunal addon.esm'
-    || base === 'better heads bloodmoon addon.esm'
-    || /^bh_.*\.esm$/i.test(base);
-  if (isClothesPlugin || isHeadPlugin) {
-    const key = 'bundled:' + rel;
-    pluginUrls.set(norm(key), { key, url, base });
+
+  // Westly's Faces Refurbished: race head/hair meshes and their textures.
+  const facesRel = relAfter(path, lower, "/westly's faces refurbished/");
+  if (facesRel) {
+    const rel = facesRel.replace(/^data files\\//i, '');
+    const match = rel.match(/^(meshes|textures)\\/(.+\\.(?:nif|dds|tga))$/i);
+    if (match) addAsset(assetUrls, match[1] + '/' + match[2], url, "Westly's Faces Refurbished");
   }
 }
-
-// Give the high-resolution female skin textures explicit precedence over the
-// standard Better Bodies texture files, independent of glob enumeration order.
-// Only matching texture paths are replaced; missing files keep the existing skin.
-Object.assign(assetUrls, highResolutionFemaleTextureUrls);
 
 const fetchBytes = async (url) => {
   const response = await fetch(url);
@@ -78,29 +117,13 @@ const fetchBytes = async (url) => {
 };
 
 let _archive = null;
-let _highResolutionFemaleTextureArchive = null;
-
-// Only the explicitly selected high-resolution female skin/hand textures
-// outrank stale loose copies of these exact Better Bodies keys.
-export function highResolutionFemaleTextureArchive() {
-  return (_highResolutionFemaleTextureArchive ??= makeVendoredArchive(highResolutionFemaleTextureUrls, fetchBytes));
-}
 
 export function bundledMorrowindModsArchive() {
   return (_archive ??= makeVendoredArchive(assetUrls, fetchBytes));
 }
 
 export function bundledMorrowindPluginNames() {
-  const all = [...pluginUrls.values()];
-  const rank = ({ base }) => {
-    const n = base.toLowerCase();
-    if (n === 'better heads.esm') return 0;
-    if (n === 'better heads tribunal addon.esm') return 1;
-    if (n === 'better heads bloodmoon addon.esm') return 2;
-    if (n === 'ale_clothing_v1.esp') return 4;
-    return 3;
-  };
-  return all.sort((a, b) => rank(a) - rank(b) || a.key.localeCompare(b.key)).map((x) => x.key);
+  return [...pluginUrls.values()].map((entry) => entry.key);
 }
 
 export async function loadBundledMorrowindPlugin(name) {
@@ -108,24 +131,19 @@ export async function loadBundledMorrowindPlugin(name) {
   return entry ? fetchBytes(entry.url) : null;
 }
 
-
-// Browser-console diagnostic for the High Resolution Better Body texture trial.
-// Reports the exact bundled URL chosen for each key and verifies that the
-// browser can fetch representative DDS files. It does not mutate game state.
+// Browser-console report for validating the new pack selection and real file
+// fetches. This checks archive selection, not final GPU/material appearance.
 export async function inspectBundledMorrowindTextures() {
   const archive = bundledMorrowindModsArchive();
-  const keys = Object.keys(assetUrls).filter((key) =>
-    /^textures\/bb\/(?:bb_skinf|bb_handf)_.*\.dds$/i.test(key)
-  ).sort();
-  const highResKeys = Object.keys(highResolutionFemaleTextureUrls).sort();
   const candidates = [
     'textures/bb/bb_skinf_de.dds',
-    'textures/bb/bb_skinf_no.dds',
     'textures/bb/bb_handf_de.dds',
-    'textures/bb/bb_handf_no.dds',
+    'textures/tx_a_steel_cuirass01.dds',
+    'textures/bc/bc_common_shirt_t.dds',
+    'textures/b_n_dark elf_f_head_01.dds',
   ];
   const checks = await Promise.all(candidates.map(async (key) => {
-    const url = assetUrls[key] ?? null;
+    const url = assetUrls[norm(key)] ?? null;
     const row = {
       key,
       inArchive: archive.has(key),
@@ -149,8 +167,6 @@ export async function inspectBundledMorrowindTextures() {
         const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
         row.height = view.getUint32(12, true);
         row.width = view.getUint32(16, true);
-      } else {
-        row.error = 'Response is not a DDS file';
       }
     } catch (error) {
       row.fetch = 'failed';
@@ -159,22 +175,17 @@ export async function inspectBundledMorrowindTextures() {
     return row;
   }));
   const report = {
-    fileDiscovery: {
-      browser: IN_BROWSER,
-      discoveredSourceFiles: Object.keys(FILES).length,
-      selectedHighResolutionFemaleTextureKeys: highResKeys.length,
-      selectedKeys: highResKeys,
-      bodyAndHandTextureKeysInArchive: keys,
-    },
+    browser: IN_BROWSER,
+    discoveredSourceFiles: Object.keys(FILES).length,
+    selectedAssetKeys: Object.keys(assetUrls).length,
+    selectedPackageAssetCounts: { ...packageCounts },
+    bundledPlugins: bundledMorrowindPluginNames(),
     representativeFetches: checks,
-    note: 'This verifies bundled URL selection and browser fetch only. It does not yet prove which texture path the live NIF renderer requests.',
+    note: 'High Resolution Better Body Female Textures and Better Heads are not selected by this loader.',
   };
-  console.table(checks.map(({ key, inArchive, alreadyLoaded, fetch, bytes, width, height, url, error }) =>
-    ({ key, inArchive, alreadyLoaded, fetch, bytes, width, height, url, error })));
-  console.log('[Better Bodies texture diagnostic]', report);
+  console.table(checks);
+  console.log('[Bundled Morrowind texture packs]', report);
   return report;
 }
 
-if (IN_BROWSER) {
-  window.inspectBundledMorrowindTextures = inspectBundledMorrowindTextures;
-}
+if (IN_BROWSER) window.inspectBundledMorrowindTextures = inspectBundledMorrowindTextures;
