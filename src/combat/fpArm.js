@@ -4949,7 +4949,7 @@ export function createFpArm({ playerAppearance = false } = {}) {
         movementBase = base; movementStance = stance;
         return;
       }
-      if (!(movementState && movementState.playing && movementGroup === composed.group)) {
+      if (!(movementState && movementState.playing && movementGroup === composed.group && !preferenceChanged)) {
         const startPoint = movementGroup === composed.group ? clipCompletion(movementState) : 0;
         const femaleWalk = Number(modSetting('morrowind-animation', 'FemaleWalk') ?? 0) === 1;
         const movementSources = rig().sources.filter((source) => isWalkVariantEnabled(source, femaleWalk));
