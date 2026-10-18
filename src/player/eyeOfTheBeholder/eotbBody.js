@@ -44,6 +44,8 @@
 import { eotbCamera } from './eotbCamera.js';
 import { setEotbBodyReady, setEotbDrawBody, setEotbPlayerState } from '../mwView.js';
 import { modSettingIfDeclared, modSettingsOf, modSettingsGeneration } from '../../systems/modSettings.js';
+import { playerEntity } from '../../characters/playerEntity.js';
+import { EQUIP_SLOTS } from '../../characters/paperdoll/paperdoll.js';
 import {
   chooseTable, deathTable, ORIENTATIONS, orientationFor, facingFor, boatForwardOf, frameTime, speedMod, frameCount, isFootstepFrame,
   stateFor, STATE_TABLES, STRING, meleeAnimTickTime, RANGED_TICK, SPELL_TICK, LYCAN_TICK, DEATH_TICK,
@@ -120,10 +122,15 @@ function look() {
   let s = {};
   try { s = modSettingsOf('eye-of-the-beholder'); } catch { s = {}; }
   const smartPaperDoll = modSettingIfDeclared('eye-of-the-beholder', 'Graphics.SmartPaperDoll') === true;
+  // EOTB-CUIRASS1: the Light Fighter is a whole painted sprite with its cuirass baked in.
+  // Until a separate armor layer exists, use a shipped body-visible animated set when ChestArmor is empty.
+  // It shares the EOTB table/orientation contract, so spriteFor keeps animation and turning intact.
+  const chestArmor = playerEntity.equip?.slots?.[EQUIP_SLOTS.ChestArmor] ?? null;
+  const smartSkin = chestArmor ? 0 : 17; // 0 = Light Fighter female; 17 = female Acrobat (class-skin index 1)
   return {
-    // SMART-PAPERDOLL: this mode's target is specifically Light Fighter (female), Graphics.OnFoot index 0.
-    // Other skin selections remain untouched when the mode is OFF.
-    onFoot: smartPaperDoll ? 0 : (s['Graphics.OnFoot'] ?? 0),
+    // Smart PaperDoll: Light Fighter female while cuirass is equipped; animated female body fallback when removed.
+    // With the setting OFF, keep the configured skin exactly as before.
+    onFoot: smartPaperDoll ? smartSkin : (s['Graphics.OnFoot'] ?? 0),
     onHorse: s['Graphics.OnHorse'] ?? 0,
     readyStance: s['Graphics.ReadyStance'] ?? 2,
     graphic: s['Graphics.Enable'] !== false,                   // "Toggle the player graphic" - ToggleBillboard's argument
@@ -223,6 +230,10 @@ export function createEotbBody({ count = spriteCount, urlFor = eotbSpriteUrl, de
     // people for a second. `preload` is a no-op for what is already up.
     if (renderer && (was.onFoot !== cfg.onFoot || was.onHorse !== cfg.onHorse)) preload();
     return cfg;
+  }
+  // Equipment changes do not bump the mod-settings generation; follow the live equip table.
+  function refreshEquipmentSkin() {
+    if (look().onFoot !== cfg.onFoot) reload();
   }
   /** the frame's state, as bodyState shapes it */
   let last = bodyState();
@@ -926,7 +937,8 @@ export function createEotbBody({ count = spriteCount, urlFor = eotbSpriteUrl, de
      * is still decoding.
      */
     ready() {
-      if (cfgGeneration !== modSettingsGeneration()) reload();   // AUDIT 68 S15-eotb-settings-snapshot: every lane frame asks here first
+      if (cfgGeneration !== modSettingsGeneration()) reload();
+      else refreshEquipmentSkin();   // AUDIT 68 S15-eotb-settings-snapshot: every lane frame asks here first
       if (!renderer || !cfg.enabled) return false;
       if (modSettingIfDeclared('eye-of-the-beholder', 'Enabled') === false) return false;
       return count() > 0 && firstUp;
@@ -939,6 +951,8 @@ export function createEotbBody({ count = spriteCount, urlFor = eotbSpriteUrl, de
      * `feet`, `yaw`).
      */
     tick(dt, state = {}) {
+      if (cfgGeneration !== modSettingsGeneration()) reload();
+      else refreshEquipmentSkin();
       last = bodyState(state);
       if (renderer && last.lycanthropyType !== preloadedForm) preload(true);   // PR-WW1: a curse caught (or changed) fetches its own beast
       if (renderer && last.horseLook !== preloadedLook) preloadHorse();   // COATS1: a look chosen fetches its mounted tables whole, as a set chosen does
