@@ -59,7 +59,7 @@ function sphereFaces(cx, cy, cz, rx, ry, rz, color, rings = 7, segments = 12) {
 }
 
 export function buildSmartPaperDollLayers({ skin = SKIN, boot = BOOT, garments = [] } = {}) {
-  const body = feminineMorph(buildNeutralBody({ skin, boot }, { build: DEFAULT_BUILD }));
+  const body = feminineMorph(buildNeutralBody({ skin, boot: skin }, { build: DEFAULT_BUILD }));
   // Two small, connected chest forms give the torso a female silhouette while remaining
   // in the torso animation group; they are geometry, not painted pixels.
   const bust = [
