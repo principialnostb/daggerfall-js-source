@@ -2383,6 +2383,7 @@ export function bindPartsInto(assembly, parts) {
         if (geomFilter && !shapeMatchesBone(batch.name, geomFilter)) continue;
         // The full-body Better Bodies NIF bypasses ordinary per-slot skin rows.
         // Apply the same worn-slot shadows section-by-section before drawing it.
+        if (part.slot === 'betterBodies' && Array.isArray(part.showSlots) && !betterBodiesSectionVisible(batch.name, part.showSlots)) continue;
         if (part.slot === 'betterBodies' && betterBodiesSectionShadowed(batch.name, part.hideSlots)) continue;
         // MW-D7: the piece KEEPS its batch, and `positions` is its own
         // buffer - never an alias of batch.positions, which poseAssembly
@@ -3208,18 +3209,24 @@ function applyPre(positions, pre) {
  * Names are the NIF section names (for example "Tri Chest"), while shadows
  * are ARMO_PART keys such as "chest" and "hand:right".
  */
-function betterBodiesSectionShadowed(shapeName, shadows = []) {
-  const name = String(shapeName || '').trim().toLowerCase().replace(/^tri\s+/, '');
+function betterBodiesSectionKey(shapeName) {
+  const name = String(shapeName || '').trim().toLowerCase().replace(/^tri\\s+/, '');
   const sideRegion = /^(left|right) (hand|wrist|forearm|upper arm|foot|ankle|knee|upper leg)$/.exec(name);
-  let shadow = null;
-  if (name === 'chest' || name === 'groin' || name === 'neck' || name === 'head' || name === 'hair' || name === 'tail') {
-    shadow = name;
-  } else if (sideRegion) {
-    const side = sideRegion[1] === 'left' ? 'left' : 'right';
-    const region = ({ 'upper arm': 'upperarm', 'upper leg': 'upperleg' })[sideRegion[2]] ?? sideRegion[2];
-    shadow = `${region}:${side}`;
-  }
-  return Boolean(shadow && (shadows ?? []).includes(shadow));
+  if (name === 'chest' || name === 'groin' || name === 'neck' || name === 'head' || name === 'hair' || name === 'tail') return name;
+  if (!sideRegion) return null;
+  const side = sideRegion[1];
+  const region = ({ 'upper arm': 'upperarm', 'upper leg': 'upperleg' })[sideRegion[2]] ?? sideRegion[2];
+  return `${region}:${side}`;
+}
+
+function betterBodiesSectionShadowed(shapeName, shadows = []) {
+  const key = betterBodiesSectionKey(shapeName);
+  return Boolean(key && (shadows ?? []).includes(key));
+}
+
+function betterBodiesSectionVisible(shapeName, showSlots = []) {
+  const key = betterBodiesSectionKey(shapeName);
+  return Boolean(key && (showSlots ?? []).includes(key));
 }
 
 export function shapeMatchesBone(shapeName, bone) {
