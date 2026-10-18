@@ -159,7 +159,8 @@ export async function diagnoseBetterBodiesTextureResolution(race = 'de') {
   ]);
   const archives = await loadMorrowindArchives();
   const archiveLabel = (archive, index) => {
-    if (Array.isArray(archive.names)) return `bundled/vendored archive #${index} (${archive.names.length} keys)`;
+    if (archive.vendored) return `vendored archive #${index} (${archive.names.length} keys)`;
+    if (Array.isArray(archive.names)) return `loose user files archive #${index} (${archive.names.length} keys)`;
     if (typeof archive.list === 'function') return `Morrowind BSA archive #${index} (${archive.fileCount ?? archive.list().length} keys)`;
     return `archive #${index}`;
   };
