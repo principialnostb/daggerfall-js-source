@@ -7,7 +7,7 @@
 ## Findings from the existing renderer
 
 - The live PaperDoll composite correctly follows race, gender, equipment, dyes and texture overrides, but it is a flattened RGBA image.
-- `src/characters/paperDollVoxel.js` turns that composite into a shallow extrusion. It has no semantic body regions, skeleton, skin weights, real rear surfaces or material separation.
+- `src/characters/paperDollVoxel.js` turns that composite into a shallow extrusion. It has no semantic body regions, skeleton, skin weights, real rear surfaces or material separation. The production `mwView` override no longer calls this module.
 - The Morrowind player rig in `src/combat/fpArm.js` already has a real third-person skeleton, body/armor assembly, weapon attachments and movement/combat animation-state selection.
 - `src/render/characterSprite.js` already supports camera-dependent low-resolution capture of a posed 3D rig. This is the mechanism behind the convincing multi-angle appearance of built-in third-person characters.
 
