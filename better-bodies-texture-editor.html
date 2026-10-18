@@ -53,6 +53,7 @@ const ctx = canvas.getContext('2d', { willReadFrequently: true });
 const status = document.getElementById('status');
 const buttons = Object.fromEntries(['undo','clear','cancel','png','json','reset'].map(id => [id, document.getElementById(id)]));
 let original = null;
+let current = null;
 let selection = null;
 let drag = null;
 let history = [];
@@ -71,12 +72,12 @@ function copyImageData(data) {
   return new ImageData(new Uint8ClampedArray(data.data), data.width, data.height);
 }
 function saveHistory() {
-  history.push({ image: copyImageData(ctx.getImageData(0, 0, canvas.width, canvas.height)), edits: JSON.parse(JSON.stringify(edits)) });
+  history.push({ image: copyImageData(current), edits: JSON.parse(JSON.stringify(edits)) });
   if (history.length > 40) history.shift();
   enable();
 }
 function render() {
-  if (original) ctx.putImageData(original, 0, 0);
+  if (current) ctx.putImageData(current, 0, 0);
   if (selection) {
     ctx.save();
     ctx.strokeStyle = '#fff';
@@ -138,13 +139,12 @@ canvas.addEventListener('pointerup', () => {
     const after = {x:selection.x,y:selection.y};
     if (before.x !== after.x || before.y !== after.y) {
       saveHistory();
-      // Restore original patch source from the saved frame, then clear source and place it at target.
-      // The current frame has previewed the moved patch, so rebuild from the pre-operation snapshot.
-      const snapshot = history[history.length-1].image;
-      ctx.putImageData(snapshot,0,0);
+      // Commit from the last stable image, not the temporary drag preview.
+      ctx.putImageData(current,0,0);
       const patch = drag.patch;
       ctx.clearRect(before.x,before.y,selection.w,selection.h);
       ctx.putImageData(patch,after.x,after.y);
+      current = ctx.getImageData(0,0,canvas.width,canvas.height);
       edits.push({id:++serial, action:'move', from:before, to:after, width:selection.w, height:selection.h});
     } else render();
   }
@@ -160,21 +160,23 @@ function downloadBlob(blob, name) {
 function undo() {
   const prev = history.pop();
   if (!prev) return;
-  ctx.putImageData(prev.image,0,0); edits = prev.edits;
+  current = copyImageData(prev.image); ctx.putImageData(current,0,0); edits = prev.edits;
   selection = null; drag = null; render(); enable();
 }
 buttons.undo.addEventListener('click', undo);
 buttons.clear.addEventListener('click', () => {
   if (!selection) return;
   saveHistory();
+  ctx.putImageData(current,0,0);
   ctx.clearRect(selection.x,selection.y,selection.w,selection.h);
+  current = ctx.getImageData(0,0,canvas.width,canvas.height);
   edits.push({id:++serial,action:'clear',rect:{...selection}});
   selection = null; render(); enable();
 });
 buttons.cancel.addEventListener('click', () => { selection=null; drag=null; render(); enable(); });
 buttons.reset.addEventListener('click', () => {
   if (!original || !confirm('Discard all edits and reload the original texture?')) return;
-  ctx.putImageData(original,0,0); history=[]; edits=[]; selection=null; drag=null; serial=0; render(); enable();
+  current = copyImageData(original); ctx.putImageData(current,0,0); history=[]; edits=[]; selection=null; drag=null; serial=0; render(); enable();
 });
 buttons.png.addEventListener('click', () => canvas.toBlob(blob => {
   if (blob) downloadBlob(blob,'bb_skinf_no-edited.png');
@@ -204,7 +206,8 @@ try {
   const mip = decoded.mips[0];
   canvas.width=mip.width; canvas.height=mip.height;
   original = new ImageData(new Uint8ClampedArray(mip.rgba),mip.width,mip.height);
-  ctx.putImageData(original,0,0);
+  current = copyImageData(original);
+  ctx.putImageData(current,0,0);
   // Fit atlas to the available viewport without changing its underlying pixel dimensions.
   const fitWidth = Math.max(320, Math.min(window.innerWidth-32, 1200));
   canvas.style.width = fitWidth+'px';
