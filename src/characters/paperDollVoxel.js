@@ -1,6 +1,6 @@
-// Smart PaperDoll: convert the live RGBA paperdoll composite into a shallow voxel mesh.
-// The input is the exact image already composed by ui/paperDoll.js, so dyes, armor,
-// clothing, texture replacements and race-specific art stay in sync with the inventory.
+// SMART-PAPERDOLL: third-person entry point. Legacy RGBA-to-voxel helpers remain
+// exported for regression coverage, but the live draw now uses an independent
+// animated body rig from smartPaperDollRig.js rather than the inventory composite.
 import { paperDollFigurePixels, paperDollFigureStatus, requestPaperDollFigureRefresh } from '../ui/paperDoll.js';
 import { packCharacterFaces } from '../render/characterMesh.js';
 import { trs } from '../world/mat4.js';
