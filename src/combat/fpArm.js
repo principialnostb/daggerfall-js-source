@@ -87,6 +87,7 @@ import { WEAPONS } from '../characters/weapons.js';
 import { materialName } from '../systems/item/itemInfo.js';
 import { composeWornArmor, composeWornModest, shadowSkinRows, fpWornAdds, mwArmorRecords, mwClothingRecord, CLOTHING_NAME, werewolfRobeOf, firstPersonPartGroup } from '../formats/morrowind/mwItemMap.js';   // WEREWOLF1: the robe and its first-person ladder; NUDE-FLATS: the upper weld
 import { showNudity } from '../characters/nudeFlats.js';   // NUDE-FLATS: Show Nudity, the weld's switch
+import { modSetting } from '../systems/modSettings.js';   // SMART-PAPERDOLL: the world rig keeps its native body; allow the real bare chest when enabled
 import { getPref } from '../systems/uiPrefs.js';   // MW-STEEL1: the Steel Helm switch, read where the worn set is composed
 import { skinMips, skinUseOf, skinUseKey } from '../characters/werewolfSkin.js';   // SHADOW-FANG: the werewolf's skin, a law over its own textures
 import { correctTexturePath, correctActorModelPath, wrapModes, warningImage, decodeTextureImage } from '../formats/morrowind/mwTexture.js';
@@ -2777,7 +2778,7 @@ export async function buildFpArm({
     // player's own figure and every peer's, each drawn by the viewer's setting as the classic doll is.
     const worn = werewolf
       ? composeWornArmor({ pieces: robe ? [{ kind: 'record', record: robe, reserve: 'robe' }] : [], armors: [], clothes: [], bodyPool: parts, female })
-      : composeWornModest({ pieces: armor ?? [], armors: armors ?? [], clothes: clothes ?? [], bodyPool: parts, female, colourOf, helmStyle }, showNudity());
+      : composeWornModest({ pieces: armor ?? [], armors: armors ?? [], clothes: clothes ?? [], bodyPool: parts, female, colourOf, helmStyle }, showNudity() || modSetting('eye-of-the-beholder', 'Graphics.SmartPaperDoll') === true);
     // AUDIT C7: which of the two it is - Bloodmoon.esm not attached, or attached and naming no robe (a mod's master)
     if (werewolf && !robe) {
       worn.notes.push(esmNames.some((n) => /^bloodmoon\.esm$/i.test(n))
