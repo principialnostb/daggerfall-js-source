@@ -2131,14 +2131,28 @@ async function buildTpBody({
     ]);
     const partBytes = [];
     if (betterBodiesPart) partBytes.push(betterBodiesPart);
+    // Every known body bone can select the corresponding skinned shape in the
+    // full-body Better Bodies NIF. This list is derived from the same slot map
+    // used for vanilla body parts, so the fitter has no female-specific bone
+    // assumptions.
+    const betterBodiesBones = [...new Set(Object.values(PART_BONES).flat())];
     for (const row of [...skinRows, ...worn.adds]) {
       const path = `meshes/${row.model}`;
       const arc = find(path);
       if (!arc) { missing.push(`${row.slot}: ${path} is not in your archives`); continue; }
-      // partName rides along: a worn add's slot is a label carrying its
-      // record id, and the binder's part rules key on the part itself.
-      partBytes.push({ slot: row.slot, partName: row.partName, bones: row.bones, bytes: nifBytes(arc, path),
-        ...ownBodyPart(row, rows, find) });   // MW-BRIG2: the body under it; MW-BRIG3: the part it is fitted onto
+      const isWornAdd = worn.adds.includes(row);
+      // For female Better Bodies builds, use the actual replacement body as
+      // the skin/fit surface for worn equipment, not the thinner vanilla slot
+      // meshes. Keep the source separate from the body row list: the latter
+      // intentionally contains only head/hair while Better Bodies is active.
+      const bbFit = !!(betterBodiesPart && isWornAdd);
+      partBytes.push({
+        slot: row.slot, partName: row.partName, bones: row.bones, bytes: nifBytes(arc, path),
+        ...(bbFit
+          ? { skinFrom: [{ slot: 'betterBodies', bytes: betterBodiesPart.bytes, bones: betterBodiesBones }],
+              fitSurface: 'betterBodies' }
+          : ownBodyPart(row, rows, find)),
+      });   // MW-BRIG2 / MW-BB-FIT2
     }
     if (!partBytes.length) {
       return { ok: false, stage: 'parts', error: werewolf ? 'no werewolf body mesh resolved - its robe, head and hair are Bloodmoon\'s' : `no third-person body mesh resolved for race "${race}"`, notes: missing, rows };
