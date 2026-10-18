@@ -6910,8 +6910,8 @@ export function createFpArm({ playerAppearance = false } = {}) {
       // the gait. Recomputing it from every animated frame makes the root bounce as
       // the feet alternately rise and fall. Until a standing pose is seen, retain the
       // current bound so first-frame rendering still has a valid ground correction.
-      if (body && thirdGroundMinZ == null && !movementState && !jumpState) thirdGroundMinZ = body.minZ;
-      const supportMinZ = Number.isFinite(thirdGroundMinZ) ? thirdGroundMinZ : body?.minZ;
+      if (playerAppearance && body && thirdGroundMinZ == null && !movementState && !jumpState) thirdGroundMinZ = body.minZ;
+      const supportMinZ = playerAppearance && Number.isFinite(thirdGroundMinZ) ? thirdGroundMinZ : body?.minZ;
       const groundedModel = !horse && body && Number.isFinite(supportMinZ) ? groundThirdPersonModel(model, supportMinZ, feet[1]) : model;
       const center = transformPoint(groundedModel, (minX + maxX) / 2, (minY + maxY) / 2, (minZ + maxZ) / 2);
       // MWNPC16: the shape it casts, where it is asked (an NPC's lane - net/peer/peerBodies.js `casts`, which never asks it of a
