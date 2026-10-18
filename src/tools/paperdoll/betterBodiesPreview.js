@@ -1,7 +1,7 @@
 // Isolated, non-invasive preview of the Better Bodies female NIF.
 // Uses the project's own NIF flattener and DDS decoder; it does not modify
 // the live player renderer or the inventory PaperDoll.
-import { betterBodiesFemaleAssetUrls } from '../../formats/morrowind/mwBetterBodies.js';
+import { betterBodiesFemaleAssetUrls, loadBetterBodiesFemaleUvEdits } from '../../formats/morrowind/mwBetterBodies.js';
 import { parseNif } from '../../formats/morrowind/mwNifFile.js';
 import { flattenNif } from '../../formats/morrowind/mwNifMesh.js';
 import { decodeDds } from '../../formats/morrowind/mwDdsFile.js';
@@ -21,7 +21,20 @@ const uvInputs = {
 };
 const uvResetButton = document.getElementById('uvReset');
 const uvExportButton = document.getElementById('uvExport');
+const gearFileInput = document.getElementById('gearFile');
+const gearVisibleInput = document.getElementById('gearVisible');
+const gearInputs = {
+  x: document.getElementById('gearX'),
+  y: document.getElementById('gearY'),
+  z: document.getElementById('gearZ'),
+  scale: document.getElementById('gearScale'),
+};
+const gearResetButton = document.getElementById('gearReset');
+const gearExportButton = document.getElementById('gearExport');
+const gearInfo = document.getElementById('gearInfo');
 const meshRecords = [];
+let gearFileName = '';
+let gearLoaded = false;
 let selectedMesh = null;
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
 renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
@@ -48,6 +61,9 @@ let lastX = 0;
 let lastY = 0;
 const group = new THREE.Group();
 scene.add(group);
+const gearGroup = new THREE.Group();
+gearGroup.visible = false;
+group.add(gearGroup);
 
 function updateCamera() {
   pitch = Math.max(-1.25, Math.min(1.25, pitch));
@@ -158,6 +174,114 @@ uvExportButton.addEventListener('click', () => {
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 });
 
+function applyGearTransform() {
+  if (!gearLoaded) return;
+  gearGroup.position.set(
+    Number(gearInputs.x.value) || 0,
+    Number(gearInputs.y.value) || 0,
+    Number(gearInputs.z.value) || 0,
+  );
+  const scale = Number(gearInputs.scale.value);
+  gearGroup.scale.setScalar(Number.isFinite(scale) && scale > 0 ? scale : 1);
+  gearGroup.visible = gearVisibleInput.checked;
+}
+function clearGearGroup() {
+  while (gearGroup.children.length) {
+    const child = gearGroup.children[0];
+    gearGroup.remove(child);
+    child.geometry?.dispose();
+    if (Array.isArray(child.material)) child.material.forEach(material => material.dispose());
+    else child.material?.dispose();
+  }
+}
+for (const input of Object.values(gearInputs)) input.addEventListener('input', applyGearTransform);
+gearVisibleInput.addEventListener('change', applyGearTransform);
+gearResetButton.addEventListener('click', () => {
+  for (const input of Object.values(gearInputs)) input.value = input === gearInputs.scale ? '1' : '0';
+  applyGearTransform();
+});
+gearExportButton.addEventListener('click', () => {
+  if (!gearLoaded) return;
+  const payload = {
+    format: 'better-bodies-equipment-fit-v1',
+    sourceFile: gearFileName,
+    targetBody: 'Morrowind Textures/Better Bodies/Nude/Data Files/Meshes/bb/bb_skinf_no.nif',
+    coordinateSpace: 'NIF local axes; offsets are applied before the shared preview Z-up rotation',
+    note: 'Preview-only static transform. This does not change the NIF, bone weights, or in-game equipment attachment.',
+    transform: {
+      x: Number(gearInputs.x.value) || 0,
+      y: Number(gearInputs.y.value) || 0,
+      z: Number(gearInputs.z.value) || 0,
+      scale: Number(gearInputs.scale.value) || 1,
+    },
+  };
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = 'better-bodies-equipment-fit.json'; a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+});
+gearFileInput.addEventListener('change', async () => {
+  const file = gearFileInput.files?.[0];
+  if (!file) return;
+  gearInfo.textContent = 'Loading ' + file.name + '…';
+  try {
+    const nif = parseNif(new Uint8Array(await file.arrayBuffer()));
+    const batches = flattenNif(nif);
+    const skeleton = buildSkeleton(nif);
+    const pose = new Map([...skeleton.nodes].map(([ref, node]) => [ref, node.rest]));
+    const mats = skeletonSpaceMatrices(skeleton, pose, GRAPH_ROOT);
+    clearGearGroup();
+    let shapes = 0, vertices = 0, triangles = 0, skinned = 0;
+    for (const batch of batches) {
+      if (!batch.positions?.length || !batch.indices?.length) continue;
+      let positions = batch.positions;
+      let normals = batch.normals;
+      if (batch.skinned && batch.skin) {
+        positions = new Float32Array(batch.positions.length);
+        normals = new Float32Array(batch.normals?.length ?? batch.positions.length);
+        skinBatch(batch, skeleton, pose, mats, positions, normals);
+        skinned++;
+      }
+      const geometry = new THREE.BufferGeometry();
+      geometry.setAttribute('position', new THREE.BufferAttribute(new Float32Array(positions), 3));
+      if (normals?.length === positions.length) geometry.setAttribute('normal', new THREE.BufferAttribute(new Float32Array(normals), 3));
+      else geometry.computeVertexNormals();
+      geometry.setIndex(Array.from(batch.indices));
+      geometry.computeBoundingSphere();
+      const material = new THREE.MeshStandardMaterial({
+        color: 0xff914d, roughness: 0.8, metalness: 0.05,
+        transparent: true, opacity: 0.72, depthWrite: false,
+        side: THREE.DoubleSide,
+      });
+      const mesh = new THREE.Mesh(geometry, material);
+      mesh.name = batch.name || 'Equipment shape ' + shapes;
+      gearGroup.add(mesh);
+      shapes++;
+      vertices += positions.length / 3;
+      triangles += batch.indices.length / 3;
+    }
+    if (!shapes) throw new Error('NIF parsed but contains no drawable triangles.');
+    gearFileName = file.name;
+    gearLoaded = true;
+    for (const input of Object.values(gearInputs)) input.disabled = false;
+    gearVisibleInput.disabled = false;
+    gearResetButton.disabled = false;
+    gearExportButton.disabled = false;
+    gearVisibleInput.checked = true;
+    for (const input of Object.values(gearInputs)) input.value = input === gearInputs.scale ? '1' : '0';
+    applyGearTransform();
+    gearInfo.textContent = file.name + '\\nShapes: ' + shapes + ' · skinned: ' + skinned +
+      '\\nVertices: ' + vertices + ' · triangles: ' + triangles +
+      '\\nOrange is the uploaded equipment mesh. Adjust offsets/scale to diagnose the baked placement; export saves the preview transform.';
+  } catch (error) {
+    clearGearGroup();
+    gearLoaded = false;
+    gearInfo.textContent = 'Could not preview NIF: ' + String(error?.stack || error);
+    console.error('[Better Bodies equipment preview]', error);
+  }
+});
+
 async function load() {
   try {
     const [nifResponse, ddsResponse] = await Promise.all([
@@ -253,6 +377,22 @@ async function load() {
       drawable++;
       vertexCount += positions.length / 3;
       triangleCount += batch.indices.length / 3;
+    }
+
+    // Start from the exact checked-in UV transforms that are also used by the live body.
+    // The editor can then refine them; export still contains only non-default sections.
+    const savedUvEdits = await loadBetterBodiesFemaleUvEdits();
+    for (const edit of savedUvEdits) {
+      const record = meshRecords.find(item => item.index === edit.meshIndex);
+      if (!record || !edit.transform) continue;
+      const t = edit.transform;
+      record.transform = {
+        u: Number.isFinite(t.u) ? t.u : 0,
+        v: Number.isFinite(t.v) ? t.v : 0,
+        su: Number.isFinite(t.su) ? t.su : 1,
+        sv: Number.isFinite(t.sv) ? t.sv : 1,
+      };
+      applyUvTransform(record);
     }
 
     // NetImmerse/Morrowind NIFs commonly author Z-up coordinates.
