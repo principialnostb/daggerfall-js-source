@@ -1,46 +1,64 @@
-# Smart PaperDoll: true multi-angle body plan
+# Smart PaperDoll: rigged, camera-dependent character rendering
 
-## Requirement clarified
+## Product requirement
 
-The goal is not to wobble a front-facing paperdoll cutout. The result must behave like the game's existing third-person bodies: readable from front, profile, rear and elevated angles; full torso/hip/leg volume; armor that follows the body and remains rigid where appropriate; and the same movement/combat state changes as the existing player rig. Female secondary chest motion is an additional layer, not a substitute for body animation.
+Smart PaperDoll must retain the player's live appearance choices (race, gender, dyes, clothing, armor and texture overrides) while rendering a genuinely volumetric character. As the camera orbits, the silhouette and visible surfaces must be newly projected from the current view. Walking, turning, jumping, weapon actions, hit reactions and death must stay synchronized with the game's existing character animation. This is not a request to rotate a front-facing image or make a thin extrusion thicker.
 
-## Findings in the current codebase
+## Audit findings
 
-### Existing third-person body is already a real animated 3D assembly
+### Existing third-person renderer
 
-- `src/combat/fpArm.js` builds the third-person body in `buildTpBody()` using `tpSkeletonPath()`, `playerBodyRows()`, `resolveBodyParts()`, `composeWornArmor()`, and the Morrowind NIF/KF animation sources (`tpAnimSources()`). This assembly has real body parts, armor, weapon attachments and a skeleton.
-- The same file's `drawThird()` draws the posed assembly and keeps the body's shadow and weapon state coherent.
-- `src/render/characterSprite.js`'s `drawRigSpriteBox()` renders that posed 3D assembly from the current camera ray into a low-resolution render target, then composites the view-facing sprite. It therefore re-renders from the camera's azimuth as the player orbits the character; it is not a single front-facing texture rotated around a vertical axis.
-- Animation state selection and pose evaluation live in the Morrowind animation path in `fpArm.js` and `src/formats/morrowind/mwFirstPerson.js`. They already cover movement, turning, jumps, weapon stance/attack and other transitions.
-- `src/ui/paperDoll.js` produces one flattened RGBA image. By the time it reaches `paperDollVoxel.js`, semantic layer boundaries, material types, body-part masks, rear surfaces and skeleton weights have been lost.
-- `src/characters/paperDollVoxel.js` currently extrudes each occupied image pixel by a constant 5.5 cm. This makes a shallow voxel relief, not a body volume. The side surfaces are edge colors from the front silhouette, and the back is a copy of the front. That cannot produce a credible rear silhouette, hip/glute volume, side armor plates or real joint articulation.
+- `src/combat/fpArm.js` builds the third-person Morrowind body through `buildTpBody()`, `tpSkeletonPath()`, `playerBodyRows()`, `resolveBodyParts()`, `composeWornArmor()`, and `tpAnimSources()`.
+- The existing path owns the skeleton, animation selection, posed body, armor/clothing assembly, weapon attachments and combat transitions. Treat it as the source of truth; do not introduce a second movement/combat state machine.
+- `src/render/characterSprite.js` includes `drawRigSpriteBox()`, which captures the posed 3D assembly into a low-resolution view-facing sprite from the current camera direction. Reuse this camera-dependent capture path rather than rotating one fixed portrait.
+- `src/ui/paperDoll.js` composes the live appearance into one flattened RGBA image. It preserves the visible appearance, but loses the semantic layer boundaries, material identities, hidden surfaces and skin weights needed to reconstruct a complete 3D character by itself.
+- `src/characters/paperDollVoxel.js` extrudes the flattened image by about 5.5 cm. The rear is a copy of the front, so it is a useful integration/prototype fallback but cannot meet the multi-angle volume requirement.
 
-## Architectural conclusion
+## Final architectural decisions
 
-The correct reference is the existing third-person Morrowind rig plus the camera-dependent sprite capture, not the voxel extrusion.
+1. **One animation authority.** Reuse the existing third-person skeleton, animation clips/state selection, weapon attachments, body-part visibility, and pose timing. Smart PaperDoll must not maintain an independent walk/attack timeline.
+2. **Geometry and appearance are separate inputs.** The rig/body/armor meshes provide volume and articulation. PaperDoll equipment and character state provide the appearance/equipment choices, dyes, textures and material overrides. The flattened composite may be retained for UI and as a fallback, not treated as sufficient 3D source data.
+3. **Prefer authentic assets.** Use compatible existing body, clothing and armor meshes with their real rear/side geometry and material assignments. Where no suitable mesh exists, use a documented fitted proxy. Never claim a front-only image can reveal accurate hidden surfaces.
+4. **Render from the live camera.** Feed the posed model into the existing low-resolution camera-dependent sprite capture on camera-orientation changes (or each view where required). Cache only derived captures/meshes with explicit invalidation on pose, equipment, race/gender, texture/dye, and renderer-context changes. A cache must not turn the 3D character into a fixed directional portrait.
+5. **Secondary motion is a layer on the real pose.** Add subtle, damped female chest motion only after identifying suitable skeleton bones or localized skinned vertices. Apply it before final skinning/capture. Soft cloth may follow a supported body region; rigid cuirasses/plate armor must stay rigid and must not be deformed by the chest spring.
+6. **Keep the current fallback until parity is demonstrated.** Existing PaperDoll rendering must remain selectable if asset mapping or rig capture is unavailable. Do not remove the fallback based only on unit tests.
+7. **One active development branch.** `feature/smart-paperdoll-animation` is the canonical Smart PaperDoll work branch. New experiments and architecture findings belong there; do not create more topic branches. `feature/smart-paperdoll-fix` remains the historical integration baseline while the prototype is developed.
 
-A front-only paperdoll image does not contain enough information to recover the true rear appearance or hidden side geometry. A credible implementation must combine authored 3D shape with the PaperDoll's appearance data; it must not claim to infer accurate backside armor from a front image alone.
+## Implementation sequence
 
-## Proposed implementation phases
+### Phase A — inventory and bridge design
+- Trace the existing body-build, armor composition, animation pose and sprite-capture APIs in source.
+- Identify the minimal reusable API and the exact data required from the live PaperDoll equipment records.
+- Define deterministic appearance-to-body/armor mapping and cache invalidation.
+- Add small tests for mapping decisions and fallback behavior before replacing the render path.
 
-1. **Keep the existing camera and animation pipeline as the source of truth.** Reuse the third-person rig's skeleton, clip selection, weapon attachment, body-part hiding, and camera-dependent `drawRigSpriteBox` rendering. Avoid creating a second independent walk/attack state machine.
-2. **Separate shape from appearance.** The 3D rig supplies the body volume and joints. The PaperDoll supplies identity, dyes and equipped-item choices. Use the actual Morrowind armor/clothing meshes when available, so plate, cuirass, boots, gloves and robes have real rear and side geometry.
-3. **Map appearance deliberately.** Build a layer/material resolver from the live PaperDoll equipment records. Preserve per-item texture/material identity and dye values instead of baking all layers into one image. For pieces without a compatible 3D asset, use a documented fallback: a fitted low-poly proxy with a generated front UV, side strips sampled from edge colors, and a conservative rear material—not a flat slab.
-4. **Female secondary motion on the rig.** Inspect the selected skeleton and skin weights for a chest/spine/breast region. If the rig has suitable bones, add a bounded critically damped spring to the pose before skinning. If it does not, add a localized corrective deformation to the body mesh after skinning. Do not deform the whole torso or rigid cuirass. Outfit policy: soft cloth may follow the body; rigid armor remains attached to its authored bones.
-5. **Reuse the combat animation timeline.** Add secondary motion to the already selected idle/walk/run/jump/attack/hit/death pose. Drive it from actual movement/animation phase and landing events, not solely from noisy frame-to-frame world-position deltas.
-6. **Quality and safety gates.** Keep the current working PaperDoll draw as a selectable fallback until all races, genders, armor sets, camera azimuths and attacks pass. Test profile/rear/overhead views, weapon grip alignment, armor occlusion, shadows, frame-time and cache invalidation after equipment changes.
+### Phase B — first real rigged slice
+- Build or reuse the existing third-person body assembly from the player's live race/gender and equipment state.
+- Render the posed body through the existing camera-dependent sprite capture.
+- Preserve weapon attachment, shadows, scale, camera lanes and existing fallback behavior.
+- Make at least one complete outfit render credibly from front, profile and rear views before expanding coverage.
+
+### Phase C — equipment coverage and motion
+- Add real armor/clothing mappings incrementally; use fitted proxies only for unsupported items.
+- Reuse idle/walk/run/turn/jump/attack/hit/death poses from the existing animation path.
+- Add localized female chest secondary motion only for compatible body/outfit combinations. Rigid armor must remain undeformed.
+
+### Phase D — verification
+- Run targeted tests, lint/type checks, full tests and production build where supported.
+- Test in browser/gameplay across camera azimuths including rear/profile and overhead, genders, races, armor/clothing, weapons, movement/combat, first/third person, Morrowind/EotB camera lanes, shadows and equipment refresh.
+- Measure frame cost and cache invalidation; do not claim completion without recorded results.
 
 ## Acceptance checklist
 
-- Camera orbit produces a true new projection of the body, not a rotated front image.
-- Back and side silhouettes have actual volume and authored or defensible material data.
-- Arms and legs articulate independently with the existing walk/run/turn/jump clips.
-- Attacks, block/cast, hit reaction and death remain in sync with weapon attachments.
-- Armor pieces are not stretched by the chest spring.
-- Female chest secondary motion is subtle, bounded, damped and different for idle, walk, run, jump and landing.
-- First-person, third-person, both camera lanes, shadows and PaperDoll equipment refresh continue to work.
-- Build, tests and browser verification pass before the PR is considered ready to merge.
+- [ ] Orbiting the camera produces a new projection of a volumetric posed model.
+- [ ] Rear and side surfaces use real mesh geometry or an explicitly documented fitted proxy.
+- [ ] Existing animation states and weapon attachment remain synchronized.
+- [ ] Appearance changes update the rig/materials without stale captures.
+- [ ] Female secondary motion is subtle, damped and localized.
+- [ ] Rigid armor is not stretched by secondary motion.
+- [ ] Existing fallback remains functional.
+- [ ] Tests, build and in-game/browser verification results are recorded.
 
-## Status of the current animation branch
+## Current status
 
-The procedural motion module in this branch is only a proof of concept on the extruded PaperDoll mesh. It does not meet the true multi-angle / full-body rig requirement above and must not be presented as the finished implementation. The next implementation step should be a rig-and-appearance bridge, not larger vertex offsets on the front-image extrusion.
+The current animation branch is a prototype on the shallow extruded composite. Its motion unit tests validate the math, not visual parity. The next production step is the appearance-to-existing-rig bridge and camera-dependent capture integration. No claim of full rigged implementation or completed gameplay validation should be made until those steps are implemented and tested.
