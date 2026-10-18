@@ -2311,6 +2311,21 @@ export function bindPartsInto(assembly, parts) {
         notes.push(`${part.slot} @ ${bone}: ${err.message}`);
         continue;
       }
+      // Better Bodies: apply the checked-in atlas corrections to this part's
+      // flattened skin sections before they are packed for the live renderer.
+      // The Better Bodies body is authored as skinned sections in NIF order.
+      if (Array.isArray(part.uvEdits) && bound.skinned) {
+        for (const edit of part.uvEdits) {
+          const batch = bound.skinned[edit.meshIndex];
+          const transform = edit.transform;
+          if (!batch?.uvs || !transform) continue;
+          const { u = 0, v = 0, su = 1, sv = 1 } = transform;
+          for (let i = 0; i + 1 < batch.uvs.length; i += 2) {
+            batch.uvs[i] = batch.uvs[i] * su + u;
+            batch.uvs[i + 1] = batch.uvs[i + 1] * sv + v;
+          }
+        }
+      }
       const bonePiecesBefore = pieces.length;
       // RULE 40's report: skipped influences draw wrong, not invisibly,
       // so the card must say WHY a finger sags or a strip collapses.
