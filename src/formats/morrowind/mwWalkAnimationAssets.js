@@ -41,11 +41,11 @@ export async function loadWalkAnimationAssets({ female = false, femaleWalk = fal
   try {
     if (standard) {
       const data = await bytes(standard);
-      if (data) selected.push({ name: standard.path, bytes: data });
+      if (data) selected.push({ name: standard.path, bytes: data, variant: 'standard' });
     }
-    if (female && femaleWalk && feminineFemale) {
+    if (female && feminineFemale) {
       const data = await bytes(feminineFemale);
-      if (data) selected.push({ name: feminineFemale.path, bytes: data });
+      if (data) selected.push({ name: feminineFemale.path, bytes: data, variant: 'female' });
     }
   } catch (error) {
     console.warn('[Morrowind animations] bundled walk set unavailable; archive animations remain active:', String(error?.message ?? error));
@@ -60,4 +60,14 @@ export function inspectWalkAnimationAssets() {
     standardFemale: standardFemale?.path ?? null,
     feminineFemale: feminineFemale?.path ?? null,
   };
+}
+
+/** The engine's walk group family; this intentionally excludes sneak/run/turn. */
+export function isWalkAnimationGroup(name) {
+  return /^walk/i.test(String(name ?? ''));
+}
+
+/** Live preference gate used by the movement resolver. Non-walk sources are untouched. */
+export function isWalkVariantEnabled(source, femaleWalk) {
+  return !source?.walkOnly || source.walkVariant !== 'female' || !!femaleWalk;
 }

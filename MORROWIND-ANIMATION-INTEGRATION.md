@@ -1,6 +1,6 @@
 # Morrowind character animation integration — v4 audit
 
-Status: audit baseline and implementation criteria. This document does not claim that the runtime animation changes below are already implemented.
+Status: audit plus MW-ANIM-1 runtime integration. The female gait selector is consumed by the gameplay third-person movement resolver; in-game visual validation remains outstanding.
 
 ## Working branch and asset source
 
@@ -80,3 +80,8 @@ The loader parses both sets with the existing NIF/KF parser and adds only text k
 The earlier selectActorAnimSource helper in mwAnim.js was only a pure selector and did not connect to the gameplay controller; this runtime path is now the consumer. The broader Morrowind Animation Overhaul and Axel's mixed idle/run/walk set are not made global defaults: their wider scope needs separate group-by-group compatibility review before enabling them.
 
 Verification note: code and tests still require a local build and in-game visual check for gait, foot sliding, transitions, and archive/network failure behavior. No visual gameplay claim is made by this commit.
+
+
+### Live gait switching correction
+
+Both the Standard and Female walk sources are loaded for female rigs. The movement resolver gates the female override on the saved choice every frame and treats a choice change as a movement-source change, so switching the setting while walking can replace the active walk clip without requiring an equipment swap or scene reload. Only walk groups are considered; other animation groups keep the original source priority.

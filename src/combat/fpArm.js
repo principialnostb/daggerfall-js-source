@@ -84,7 +84,7 @@ import { DFPalette } from '../formats/dfPalette.js';
 import { raceArt } from '../systems/races.js';
 import { appStorage } from '../systems/appStorage.js';   // DA1: the storage seam
 import { modSetting } from '../systems/modSettings.js';
-import { loadWalkAnimationAssets } from '../formats/morrowind/mwWalkAnimationAssets.js';
+import { loadWalkAnimationAssets, isWalkAnimationGroup, isWalkVariantEnabled } from '../formats/morrowind/mwWalkAnimationAssets.js';
 import { drawRigSpriteBox, MW_THIRD_PERSON_PIXEL } from '../render/characterSprite.js';
 import { WEAPONS } from '../characters/weapons.js';
 import { materialName } from '../systems/item/itemInfo.js';
@@ -2257,16 +2257,15 @@ async function buildTpBody({
     // The separate Feminine Walk Cycle is a female-only, walk-only override;
     // other actions keep the game's own sources and priority.
     if (!werewolf && !beast) {
-      const femaleWalk = female && Number(modSetting('morrowind-animation', 'FemaleWalk') ?? 0) === 1;
-      const walkAssets = await loadWalkAnimationAssets({ female, femaleWalk });
+      const walkAssets = await loadWalkAnimationAssets({ female, femaleWalk: true });
       for (const asset of walkAssets) {
         const report = await clipReport({ kfBytes: asset.bytes, skeleton: arm.skeleton, group: FP_IDLE_BASE });
         if (!report.ok) {
           missing.push(`walk animation ${asset.name}: ${report.error}`);
           continue;
         }
-        const walkKeys = report.keys.filter((key) => /^walk[^:]*:\s/.test(String(key.text || '').toLowerCase()));
-        const walkGroups = report.groups.filter((name) => /^walk/i.test(name));
+        const walkKeys = report.keys.filter((key) => isWalkAnimationGroup(String(key.text || '').split(':')[0]));
+        const walkGroups = report.groups.filter(isWalkAnimationGroup);
         if (!walkGroups.length || !walkKeys.length) {
           missing.push(`walk animation ${asset.name}: no usable walk groups; vanilla source retained`);
           continue;
@@ -2280,6 +2279,7 @@ async function buildTpBody({
           binding: report.binding,
           wouldAccumRoot: accumRootRef(arm.skeleton, report.trackMap),
           walkOnly: true,
+          walkVariant: asset.variant,
         });
       }
     }
@@ -4780,7 +4780,7 @@ export function createFpArm({ playerAppearance = false } = {}) {
   }
 
   function resetMovement() {
-    movementState = null; movementGroup = null; movementSource = null; movementBase = null;
+    movementState = null; movementGroup = null; movementSource = null; movementBase = null; movementWalkPreference = null;
     movementStance = null;
   }
 
@@ -4937,8 +4937,11 @@ export function createFpArm({ playerAppearance = false } = {}) {
     // frame - the port's old gate keyed on the movestate name alone and
     // kept the bare-handed walk playing with the sword out.
     const stance = stanceOf();   // MWNPC9: a non-biped's bare walk
-    const fresh = !(movementState && movementState.playing
+    const walkPreference = base.startsWith('walk') && Number(modSetting('morrowind-animation', 'FemaleWalk') ?? 0) === 1;
+    const preferenceChanged = movementWalkPreference !== (base.startsWith('walk') ? walkPreference : null);
+    const fresh = preferenceChanged || !(movementState && movementState.playing
       && movementBase === base && movementStance === stance);
+    if (fresh) movementWalkPreference = base.startsWith('walk') ? walkPreference : null;
     if (fresh) {
       const composed = composeMovementGroup(base, stance, hasGroup);
       if (!composed.group) {
@@ -4948,7 +4951,9 @@ export function createFpArm({ playerAppearance = false } = {}) {
       }
       if (!(movementState && movementState.playing && movementGroup === composed.group)) {
         const startPoint = movementGroup === composed.group ? clipCompletion(movementState) : 0;
-        const pick = pickAnimSource(rig().sources, composed.group, resetClip,
+        const femaleWalk = Number(modSetting('morrowind-animation', 'FemaleWalk') ?? 0) === 1;
+        const movementSources = rig().sources.filter((source) => isWalkVariantEnabled(source, femaleWalk));
+        const pick = pickAnimSource(movementSources, composed.group, resetClip,
           { loopFallback: true, loopCount: Infinity, startPoint });
         if (!pick) {
           resetMovement();
