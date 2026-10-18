@@ -2332,6 +2332,13 @@ export function bindPartsInto(assembly, parts) {
           }
         }
       }
+      // Better Bodies is one NIF but its named skinned sections correspond to
+      // Morrowind's independently occluded body slots. Hide only sections
+      // claimed by worn equipment; keep all uncovered skin visible.
+      if (part.slot === 'betterBodies' && Array.isArray(part.hiddenSlots) && part.hiddenSlots.length) {
+        const hidden = new Set(part.hiddenSlots);
+        bound.skinned = bound.skinned.filter((batch) => !hidden.has(betterBodiesShadowSlot(batch.name)));
+      }
       const bonePiecesBefore = pieces.length;
       // RULE 40's report: skipped influences draw wrong, not invisibly,
       // so the card must say WHY a finger sags or a strip collapses.
@@ -3193,6 +3200,17 @@ function applyPre(positions, pre) {
  *  shape name, with Morrowind's "Tri " convention stripped first. A shape
  *  with NO name matches everything, because a nameless shape in a
  *  one-shape part file is the part. */
+/** Map a Better Bodies NIF section to the slot whose equipment shadows it. */
+function betterBodiesShadowSlot(shapeName) {
+  const name = String(shapeName || '').trim().toLowerCase().replace(/^tri\\s+/, '').replace(/\\s+/g, ' ');
+  if (name === 'chest' || name === 'groin' || name === 'neck') return name;
+  const match = name.match(/^(left|right) (hand|wrist|forearm|upper arm|foot|ankle|knee|upper leg)$/);
+  if (!match) return null;
+  const [, side, part] = match;
+  const slotPart = ({ 'upper arm': 'upperarm', 'upper leg': 'upperleg' })[part] ?? part;
+  return `${slotPart}:${side}`;
+}
+
 export function shapeMatchesBone(shapeName, bone) {
   const name = String(shapeName || '').trim().toLowerCase();
   if (!name) return true;
