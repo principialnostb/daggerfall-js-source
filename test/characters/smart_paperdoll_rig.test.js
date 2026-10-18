@@ -17,7 +17,9 @@ test('garments are separate selectable geometry layers and unknown names are ign
   assert.deepEqual(dressed.garments, ['Casual Dress']);
   assert.ok(dressed.faces.length > bare.faces.length);
   assert.ok(SMART_PAPERDOLL_LAYERS.includes('Casual Dress'));
-  assert.ok(!dressed.faces.every((f) => f.g === 'body'));
+  assert.equal(dressed.layers.length, 3);
+  assert.equal(dressed.layers[2].name, 'Casual Dress');
+  assert.ok(dressed.layers[2].faces.length > 0);
 });
 
 test('gender silhouette morph does not move the canonical vertical joint positions', () => {
