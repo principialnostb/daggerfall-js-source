@@ -24,8 +24,12 @@ test('Smart PaperDoll is checked before either existing third-person body lane a
 
 test('voxel conversion consumes the finished PaperDoll RGBA composite and reuses the world character renderer', () => {
   const voxels = read('../../src/characters/paperDollVoxel.js');
-  assert.match(voxels, /import \{ paperDollFigurePixels \} from '\.\.\/ui\/paperDoll\.js'/);
+  assert.match(voxels, /import \{ paperDollFigurePixels, requestPaperDollFigureRefresh \} from '\.\.\/ui\/paperDoll\.js'/);
   assert.match(voxels, /image\.rgba/);
   assert.match(voxels, /renderer\.drawCharacter\(mesh, model\)/);
   assert.match(voxels, /image\.version/);
+  assert.match(voxels, /if \(!image\) \{\s*requestPaperDollFigureRefresh\(\);/);
+  const doll = read('../../src/ui/paperDoll.js');
+  assert.match(doll, /export function requestPaperDollFigureRefresh\(\)/);
+  assert.match(doll, /void refreshPaperDoll\(_lastEntity\)/);
 });
