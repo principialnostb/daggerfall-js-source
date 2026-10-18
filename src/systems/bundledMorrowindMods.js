@@ -22,7 +22,12 @@ for (const [source, url] of Object.entries(FILES)) {
     : headsAt >= 0 ? headsAt + '/better heads/'.length : -1;
   if (modAt < 0) continue;
   const rel = p.slice(modAt);
-  const m = rel.match(/^(Meshes|Textures)\/(.+)\.(nif|dds|tga)$/i);
+  // Mod archives are commonly packed as <package>/Data Files/Meshes|Textures.
+  // The runtime archive contract is Data-Files-relative, so strip the outer
+  // package and Data Files prefix before indexing assets. Keep `rel` intact
+  // below for plugin identity/load order.
+  const dataPath = rel.replace(/^.*?\/data files\//i, '');
+  const m = dataPath.match(/^(Meshes|Textures)\/(.+)\.(nif|dds|tga)$/i);
   if (m) {
     const root = m[1].toLowerCase() === 'meshes' ? 'meshes' : 'textures';
     assetUrls[(root + '/' + m[2] + '.' + m[3]).toLowerCase()] = url;
