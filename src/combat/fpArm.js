@@ -4095,7 +4095,7 @@ export function createFpArm({ playerAppearance = false } = {}) {
     // Local chest/hip vertex morphs need CPU-skinned positions before upload. Keep this
     // choice isolated to the third-person player body; FP hands and inventory art stay separate.
     const morph = playerAppearance ? getBodyMorphs() : null;
-    const geometryMorph = !!morph && (Math.abs(Number(morph.breastSize) || 0) > 1e-4 || Math.abs(Number(morph.buttockSize) || 0) > 1e-4);
+    const geometryMorph = !!morph && ['breastSize', 'buttockSize', 'hipWidth', 'waistWidth'].some((key) => Math.abs(Number(morph[key]) || 0) > 1e-4);
     if (geometryMorph) {
       if (thirdMesh && thirdMesh.skin) releaseThirdMesh();
       thirdSkin = null;
