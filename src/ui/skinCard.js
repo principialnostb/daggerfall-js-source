@@ -164,6 +164,15 @@ export function skinCard(doc, { sets: offer = skinSets } = {}) {
     root.append(el('h3', null, 'Skin'));
     const w = wornSkin();
     const sets = offer();
+    const smart = modSetting(VENDOR, 'Graphics.SmartPaperDoll') === true;
+    root.append(el('p', 'meta', 'Smart PaperDoll builds a shallow voxel model from the live equipped PaperDoll composite. The current sprite or Morrowind body remains the fallback if the composite is unavailable.'));
+    const smartActs = el('div', 'acts');
+    const smartButton = el('button', `act${smart ? ' primary' : ''}`, `Smart PaperDoll: ${smart ? 'ON' : 'OFF'}`);
+    smartButton.type = 'button';
+    smartButton.setAttribute('aria-pressed', smart ? 'true' : 'false');
+    smartButton.onclick = () => { setModSetting(VENDOR, 'Graphics.SmartPaperDoll', !smart); paint(); };
+    smartActs.append(smartButton);
+    root.append(smartActs);
     if (!w.on) {
       root.append(el('p', 'meta', 'Your third-person look is Eye of the Beholder\u2019s. It is off, so you have no sprite body to dress.'));
       const acts = el('div', 'acts');
