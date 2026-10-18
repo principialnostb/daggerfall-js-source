@@ -432,9 +432,9 @@ export function createEotbBody({ count = spriteCount, urlFor = eotbSpriteUrl, de
       const ny = (y + 0.5) / height;
       for (let x = 0; x < width; x++) {
         const nx = (x + 0.5) / width;
-        const torso = slots.chestArmor && nx >= 0.20 && nx <= 0.80 && ny >= 0.40 && ny <= 0.70;
-        const head = slots.head && nx >= 0.34 && nx <= 0.66 && ny >= 0.755 && ny <= 0.955;
-        const feet = slots.feet && nx >= 0.24 && nx <= 0.76 && ny >= 0.015 && ny <= 0.125;
+        const torso = slots.chestArmor && nx >= 0.20 && nx <= 0.80 && ny >= 0.43 && ny <= 0.73;
+        const head = slots.head && nx >= 0.34 && nx <= 0.66 && ny >= 0.785 && ny <= 0.985;
+        const feet = slots.feet && nx >= 0.24 && nx <= 0.76 && ny >= 0.045 && ny <= 0.155;
         if (!(torso || head || feet)) continue;
         const si = (y * width + x) * 4;
         if (rgba[si + 3] === 0) continue;
