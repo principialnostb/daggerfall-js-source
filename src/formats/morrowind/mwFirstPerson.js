@@ -1,4 +1,5 @@
 import { getBodyMorphs } from '../../characters/bodyMorphs.js';
+import { fitGarmentClearance } from './mwSkinTransfer.js';
 // MW-D: THE DIAGNOSTIC, and it deliberately draws nothing.
 //
 // The Morrowind import arc was reverted whole on 2026-08-28 after three
