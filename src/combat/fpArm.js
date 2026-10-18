@@ -2527,7 +2527,7 @@ async function renderHeadAssembly(renderer, cat, { skeletonPath, skinRows, heads
  *  or null (no data attached, no renderer, no head for the race, the skeleton or a mesh or a texture not in hand).
  *  @param {{ renderer?: any, race?: string|null, female?: boolean, faceIndex?: number, npcFace?: { head: number, hair: number }|null, ownHeads?: boolean, vampire?: boolean, werewolf?: boolean, skin?: string|null, armor?: any[]|null, px?: number, ph?: number, deps?: any }} [opts] */
 export async function headPortrait({ renderer, race, female = false, faceIndex = 0, npcFace = null, vampire = false, werewolf = false, skin = null, armor = null, ownHeads = false, px = 128, ph = px, deps = null } = {}) {
-  if (getPref('morrowind3dPaperDoll')) return null;
+  if (!getPref('morrowind3dPaperDoll')) return null;
   if (!renderer || !race) return null;
   const d = deps || await import('../scenes/dataSource.js');
   const cat = await headCatalogOf(d);
@@ -6831,7 +6831,7 @@ export function createFpArm() {
      *  the classic icon stands (never traps). Cached per record, size
      *  and dye per data generation. */
     itemIcon(item, { size = 96 } = {}) {
-      if (getPref('morrowind3dInventoryIcons')) return null;
+      if (!getPref('morrowind3dInventoryIcons')) return null;
       if (!(built && built.ok && built.catalog && renderer) || !item) return null;
       const cat = built.catalog;
       // MW-LOAD: the door above. A lazily opened archive holds none of
@@ -6874,7 +6874,7 @@ export function createFpArm() {
      *  the parse names) before it renders. Cached per record and size
      *  per data generation, with the icons. */
     async mountPicture(item, { px = 256 } = {}) {
-      if (getPref('morrowind3dInventoryIcons')) return null;
+      if (!getPref('morrowind3dInventoryIcons')) return null;
       if (!(built && built.ok && built.catalog && renderer) || !item) return null;
       const cat = built.catalog;
       const stamp = api.mountPictureStamp();   // AUDIT DYE-ICON 4: what the picture is good for - the host's own question
@@ -6923,7 +6923,7 @@ export function createFpArm() {
      *  the panel then keeps the classic doll (never traps). Display
      *  only by Mac's decision: unequip stays with the item list. */
     figure({ yaw = 0, height = 384 } = {}) {
-      if (getPref('morrowind3dPaperDoll')) return null;
+      if (!getPref('morrowind3dPaperDoll')) return null;
       // AUDIT 33 F1: a built body, not an ACTIVE wheel - the inventory
       // is opened from first person, where the wheel is off.
       if (!(built && built.ok && thirdBuilt && thirdBuilt.ok && renderer)) return null;
