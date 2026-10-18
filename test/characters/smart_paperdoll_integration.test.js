@@ -38,3 +38,18 @@ test('voxel conversion consumes the finished PaperDoll RGBA composite and reuses
   assert.match(voxels, /Figure composite is not ready/);
   assert.match(voxels, /Mesh creation threw an exception/);
 });
+
+test('Smart PaperDoll fills unequipped EoTB regions from the live equip table with original-frame fallback', () => {
+  const body = read('../../src/player/eyeOfTheBeholder/eotbBody.js');
+  const rig = read('../../src/combat/weapon/weaponRig.js');
+  assert.match(rig, /smartPaperDollEquipment:[\s\S]*?chestArmor: !!worn\[EQUIP_SLOTS\.ChestArmor\]/);
+  assert.match(rig, /feet: !!worn\[EQUIP_SLOTS\.Feet\]/);
+  assert.match(rig, /head: !!worn\[EQUIP_SLOTS\.Head\]/);
+  assert.match(body, /function composeSmartBody\(width, height, source, wornBits\)/);
+  assert.match(body, /!wornBits\.chestArmor && ny >= 0\.29/);
+  assert.match(body, /!wornBits\.feet && ny >= 0\.875/);
+  assert.match(body, /!wornBits\.head && ny >= 0\.045/);
+  assert.match(body, /catch \{ colors = looked; \}/);
+  assert.match(body, /renderer\.uploadTexture\(s\.archive, variantRec, \{ width, height, colors: px \}\)/);
+  assert.match(body, /renderer\.createBillboardBatch\(s\.archive, renderRec\(s\)/);
+});
