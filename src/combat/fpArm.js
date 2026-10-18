@@ -4041,8 +4041,8 @@ export function createFpArm() {
   // the front, side, and rear instead of looking wider in only one camera angle.
   // A very small height reduction balances the broader shoulders/torso without
   // changing animation tracks, first-person arms, race records, or source NIFs.
-  const THIRD_PERSON_HORIZONTAL_SCALE = 1.10;
-  const THIRD_PERSON_HEIGHT_SCALE = 0.98;
+  const THIRD_PERSON_HORIZONTAL_SCALE = 1.22;
+  const THIRD_PERSON_HEIGHT_SCALE = 0.96;
   /** MW-D24 / MWNPC16: the third body's world model matrix at `feet` facing `yaw`, `grow` times its size about its feet
    *  (drawThird's own placement, one home for the draw and the cast). */
   function thirdModel(feet, yaw, grow = 1) {
