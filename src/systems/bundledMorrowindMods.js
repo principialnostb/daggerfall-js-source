@@ -108,10 +108,13 @@ for (const [source, url] of Object.entries(FILES)) {
 
     // The main plugin is exposed to the existing bundled-plugin reader.
     // Optional DeFemm and compatibility ESPs are intentionally not loaded.
-    if (packageName === 'Better Morrowind Armor'
-      && /^data files\/better morrowind armor\.esp$/i.test(rel)) {
-      const key = 'bundled:' + rel.slice('data files/'.length);
-      pluginUrls.set(norm(key), { key, url, base: 'better morrowind armor.esp' });
+    if ((packageName === 'Better Morrowind Armor'
+        && /^data files\/better morrowind armor\.esp$/i.test(rel))
+      || (packageName === 'Complete Armor Joints'
+        && /^data files\/complete armor joints\.esp$/i.test(rel))) {
+      const base = rel.slice('data files/'.length);
+      const key = 'bundled:' + base;
+      pluginUrls.set(norm(key), { key, url, base: base.toLowerCase() });
     }
     continue;
   }
@@ -151,7 +154,15 @@ export function bundledMorrowindModsArchive() {
 }
 
 export function bundledMorrowindPluginNames() {
-  return [...pluginUrls.values()].map((entry) => entry.key);
+  const rank = ({ base }) => {
+    const name = base.toLowerCase();
+    if (name === 'better morrowind armor.esp') return 0;
+    if (name === 'complete armor joints.esp') return 1;
+    return 2;
+  };
+  return [...pluginUrls.values()]
+    .sort((a, b) => rank(a) - rank(b) || a.key.localeCompare(b.key))
+    .map((entry) => entry.key);
 }
 
 export async function loadBundledMorrowindPlugin(name) {
