@@ -1,64 +1,30 @@
-# Smart PaperDoll sprite-sheet generation
+# Smart PaperDoll: offline frame/mask prototype
 
-This workflow uses the repository's real EotB animation tables to extract archive-112364 sprite keys and PNG dimensions, then generates one reference-guided sheet through fal.ai and slices it into per-key PNGs. Generated art is still unreviewed and is not automatically enabled in runtime.
+**fal.ai has been removed from this workflow.** This script makes no network calls, needs no API key, and does not install any external service client.
 
-## Verified original sprite path
+## Source archive
 
-The original archive-112364 texture path is:
+The verified original texture path is:
 
 `vendor/eye-of-the-beholder/Textures/112364/112364_15-0.png`
 
-It is under `vendor/eye-of-the-beholder`, **not** `vendor/class-skins`. Archive 112364 is the EotB foot archive. The extractor checks each corresponding PNG on disk and stops with an error if a source frame is missing. It obtains keys through the real `spriteFor()`, `STATE_TABLES`, and `frameCount()` implementations rather than inventing record/frame numbers.
+It is under `vendor/eye-of-the-beholder`, not `vendor/class-skins`.
 
-## Run in Windows PowerShell
+## Commands
 
 From the repository root:
 
-1. Create the keys JSON from real tables (16 real, evenly sampled keys for a 4×4 preview):
+```powershell
+node tools/extractSmartPaperdollKeys.mjs --limit 16 --out tools/smart-paperdoll-keys.json
+node tools/smartPaperdollSpriteSheet.mjs --keys tools/smart-paperdoll-keys.json
+```
 
-   ```powershell
-   node tools/extractSmartPaperdollKeys.mjs --limit 16 --out tools/smart-paperdoll-keys.json
-   ```
+The first command is intended to export real `spriteFor()` keys and original PNG dimensions. The second reads the real source PNGs, writes pixel-identical source-shaped candidate PNGs, and emits RGBA black/white masks in `vendor/smart-paperdoll/Textures/masks` (white = selected region, black = preserve). It also writes `vendor/smart-paperdoll/generated/offline-manifest.json`.
 
-   To export every unique archive-112364 frame key reachable from all 12 on-foot animation tables:
+## Important limitation — not game-ready art
 
-   ```powershell
-   node tools/extractSmartPaperdollKeys.mjs --all --out tools/smart-paperdoll-keys-all.json
-   ```
+This offline script is a **mask/asset plumbing prototype**, not an art generator. It preserves the original sprite pixels; it does not remove armor, synthesize a body underneath it, or invent matching animation poses. Its geometric masks are provisional and must not be used as authoritative armor-removal masks without checking frames individually.
 
-   Each JSON entry includes `key`, original `width`/`height`, a real `orientation` and `mirror` value, source path, and all table/frame/orientation contexts that resolved to that key.
+The runtime compositor in `src/player/eyeOfTheBeholder/eotbBody.js` is **not connected to these files yet**. In particular, the current code does not yet read per-item equipped state and choose a different body layer. Until that integration is implemented and tested, the game should continue drawing the original sprite. No claim is made that removing the cuirass or boots changes the appearance yet.
 
-2. Install the fal.ai API client locally (does not save it as a project dependency):
-
-   ```powershell
-   npm.cmd install --no-save @fal-ai/client
-   ```
-
-3. Create a key at https://fal.ai/dashboard/keys and keep it private:
-
-   ```powershell
-   $env:FAL_KEY = "YOUR_FAL_KEY"
-   ```
-
-4. Generate one 4×4 sheet using the two body-shape references and the **verified original texture** for palette/style reference:
-
-   ```powershell
-   node tools/smartPaperdollSpriteSheet.mjs --reference Reference/First.png --reference Reference/Second.png --reference vendor/eye-of-the-beholder/Textures/112364/112364_15-0.png --keys tools/smart-paperdoll-keys.json --rows 4 --cols 4 --palette-reference vendor/eye-of-the-beholder/Textures/112364/112364_15-0.png
-   ```
-
-   Do not share or commit `FAL_KEY`.
-
-## Output
-
-- `vendor/smart-paperdoll/generated/sprite-sheet.png` — generated sheet.
-- `vendor/smart-paperdoll/generated/generated-manifest.json` — metadata.
-- `vendor/smart-paperdoll/Textures/body/<archive>_<record>-<frame>.png` — frames.
-
-The generator removes edge-connected magenta, resizes with nearest-neighbour, quantizes to at most 256 colors (using the original texture's palette when supplied), and clears hidden RGB in transparent pixels.
-
-## Important limits
-
-- The extractor produces real source keys and original canvas dimensions; it does **not** prove that newly generated poses match those frames.
-- The current generator makes a 4×4 preview (16 keys), not every frame in the animation set. For all frames, the generated sheet must have enough cells and the generator's row/column arguments must match the complete keys file; a single 2K image may not have enough pixels for every source frame at usable resolution.
-- Review every frame against its original before enabling it. This tool does not generate separate armor/body masks and does not connect the compositor.
-- Until the art is reviewed and the compositor is implemented, runtime continues to use the original EotB sprite.
+This file deliberately avoids the previous hosted generation path. A useful replacement body asset must be authored or sourced as pose-matched pixel art for each required record/frame; simply recoloring or reusing the same generated pose would create obvious animation/angle errors.
