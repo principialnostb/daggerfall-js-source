@@ -4,8 +4,9 @@
 // Priority inside this archive (later packages win exact-path collisions):
 //   Better Bodies Nude textures (required fallback for the existing BB body)
 //   Intelligent Textures 00 Core (base game texture refresh; no atlas files)
-//   Better Clothes Retextured (clothing textures and meshes)
+//   Vurt's Better Clothes Retexture (clothing and armor textures)
 //   Better Morrowind Armor (base Data Files + Complete Armor Joints patch)
+//   Westly's Fine Clothiers of Tamriel (clothing meshes/textures + plugin)
 //   Westly's Faces Refurbished (head/hair meshes and textures)
 //
 // The failed High Resolution Better Body Female Textures and old Better Heads
@@ -18,8 +19,10 @@ const FILES = IN_BROWSER
   ? import.meta.glob([
       '../../Morrowind Textures/Better Bodies/Nude/Data Files/Textures/**/*.{dds,DDS,tga,TGA}',
       '../../Morrowind Textures/Intelligent Textures/00 Core/textures/**/*.{dds,DDS,tga,TGA}',
-      '../../Morrowind Textures/Better Clothes Retextured/meshes/**/*.{nif,NIF}',
-      '../../Morrowind Textures/Better Clothes Retextured/textures/**/*.{dds,DDS,tga,TGA}',
+      "../../Morrowind Textures/Vurt's Better Clothes Retexture/textures/**/*.{dds,DDS,tga,TGA}",
+      "../../Morrowind Textures/Westly's Fine Clothiers of Tamriel/Meshes/**/*.{nif,NIF}",
+      "../../Morrowind Textures/Westly's Fine Clothiers of Tamriel/Textures/**/*.{dds,DDS,tga,TGA}",
+      "../../Morrowind Textures/Westly's Fine Clothiers of Tamriel/Westly_Presents_FCOT.esp",
       '../../Morrowind Textures/Better Morrowind Armor/Data Files/**/*.{nif,NIF,dds,DDS,tga,TGA,esp,ESP}',
       '../../Morrowind Textures/Better Morrowind Armor/Complete Armor Joints/Data Files/**/*.{nif,NIF,dds,DDS,tga,TGA,esp,ESP}',
       "../../Morrowind Textures/Westly's Faces Refurbished/Data Files/**/*.{nif,NIF,dds,DDS,tga,TGA}",
@@ -32,7 +35,8 @@ const norm = (s) => String(s).replace(/\\/g, '/').toLowerCase();
 const assetUrls = Object.create(null);
 const baseBodyTextureUrls = Object.create(null);
 const intelligentTextureUrls = Object.create(null);
-const clothesTextureUrls = Object.create(null);
+const vurtClothesTextureUrls = Object.create(null);
+const clothierAssetUrls = Object.create(null);
 const armorTextureUrls = Object.create(null);
 const armorJointsUrls = Object.create(null);
 const faceTextureUrls = Object.create(null);
@@ -80,11 +84,27 @@ for (const [source, url] of Object.entries(FILES)) {
     continue;
   }
 
-  // Better Clothes Retextured ships paths relative to Data Files already.
-  const clothesRel = relAfter(path, lower, '/better clothes retextured/');
-  if (clothesRel) {
-    const match = clothesRel.match(/^(meshes|textures)\/(.+\.(?:nif|dds|tga))$/i);
-    if (match) addAsset(clothesTextureUrls, match[1] + '/' + match[2], url, 'Better Clothes Retextured');
+  // Vurt's pack is a loose texture override: its paths are relative to the
+  // game's Textures directory. It replaces the older Better Clothes
+  // Retextured pack, which is intentionally no longer selected.
+  const vurtRel = relAfter(path, lower, "/vurt's better clothes retexture/");
+  if (vurtRel) {
+    const match = vurtRel.match(/^textures\/(.+\.(?:dds|tga))$/i);
+    if (match) addAsset(vurtClothesTextureUrls, 'textures/' + match[1], url, "Vurt's Better Clothes Retexture");
+    continue;
+  }
+
+  // Westly's Fine Clothiers ships meshes/textures directly under its own
+  // Meshes/Textures roots, plus an ESP that defines its added clothing.
+  const clothierRel = relAfter(path, lower, "/westly's fine clothiers of tamriel/");
+  if (clothierRel) {
+    const match = clothierRel.match(/^(meshes|textures)\/(.+\.(?:nif|dds|tga))$/i);
+    if (match) addAsset(clothierAssetUrls, match[1] + '/' + match[2], url, "Westly's Fine Clothiers of Tamriel");
+    if (/^westly_presents_fcot\.esp$/i.test(clothierRel)) {
+      const base = clothierRel;
+      const key = 'bundled:' + base;
+      pluginUrls.set(norm(key), { key, url, base: base.toLowerCase() });
+    }
     continue;
   }
 
@@ -135,9 +155,10 @@ Object.assign(
   assetUrls,
   baseBodyTextureUrls,
   intelligentTextureUrls,
-  clothesTextureUrls,
+  vurtClothesTextureUrls,
   armorTextureUrls,
   armorJointsUrls,
+  clothierAssetUrls,
   faceTextureUrls,
 );
 
@@ -158,7 +179,8 @@ export function bundledMorrowindPluginNames() {
     const name = base.toLowerCase();
     if (name === 'better morrowind armor.esp') return 0;
     if (name === 'complete armor joints.esp') return 1;
-    return 2;
+    if (name === 'westly_presents_fcot.esp') return 2;
+    return 3;
   };
   return [...pluginUrls.values()]
     .sort((a, b) => rank(a) - rank(b) || a.key.localeCompare(b.key))
@@ -178,7 +200,8 @@ export async function inspectBundledMorrowindTextures() {
     'textures/bb/bb_skinf_de.dds',
     'textures/bb/bb_handf_de.dds',
     'textures/tx_a_steel_cuirass01.dds',
-    'textures/bc/bc_common_shirt_t.dds',
+    'textures/tx_c_c_shirtcom01.dds',
+    'meshes/brz/war_brnzh_robe1f.nif',
     'textures/wfr/bv/wfr_f01.dds',
   ];
   const checks = await Promise.all(candidates.map(async (key) => {
