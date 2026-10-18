@@ -5,7 +5,7 @@
 //   Better Bodies Nude textures (required fallback for the existing BB body)
 //   Intelligent Textures 00 Core (base game texture refresh; no atlas files)
 //   Vurt's Better Clothes Retexture (broad fallback override)
-//   Better Clothes Retextured (targeted clothing texture overrides only)
+//   Better Clothes Retextured (targeted non-pants texture overrides only)
 //   Better Morrowind Armor (base Data Files + Complete Armor Joints patch)
 //   Westly's Fine Clothiers of Tamriel (clothing meshes/textures + plugin)
 //   Westly's Faces Refurbished (head/hair meshes and textures)
@@ -89,8 +89,9 @@ for (const [source, url] of Object.entries(FILES)) {
 
   // Vurt's broad texture pack is a fallback for matching game texture paths.
   // Better Clothes Retextured is applied after it for its own exact paths,
-  // but only textures are included: its NIFs may change UVs and are not
-  // allowed to silently replace the current body/equipment geometry.
+  // but only non-pants textures are included: pants stay on the existing
+  // texture selection as the visual control. Its NIFs may change UVs and
+  // are not allowed to silently replace current body/equipment geometry.
   const betterClothesRel = relAfter(path, lower, '/better clothes retextured/');
   if (betterClothesRel) {
     const match = betterClothesRel.match(/^textures\/(.+\.(?:dds|tga))$/i);
