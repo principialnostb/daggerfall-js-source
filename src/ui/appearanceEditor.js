@@ -2,7 +2,8 @@ import { BODY_MORPH_FIELDS, getBodyMorphs, setBodyMorph, resetBodyMorphs } from 
 
 const GROUPS = [
   ['Основные пропорции', ['height', 'bodyWidth', 'shoulderWidth']],
-  ['Корпус, грудь и ягодицы', ['torsoScale', 'breastSize', 'buttockSize', 'headScale']],
+  ['Корпус, грудь и талия', ['torsoScale', 'breastSize', 'waistWidth', 'headScale']],
+  ['Бёдра и ягодицы', ['hipWidth', 'buttockSize']],
   ['Конечности', ['armScale', 'legScale', 'legGap']],
 ];
 const labelByKey = new Map(BODY_MORPH_FIELDS.map(([key, label]) => [key, label]));
@@ -26,7 +27,7 @@ export function openAppearanceEditor({ fpArm, onClose = () => {} } = {}) {
   preview.style.cssText = 'width:min(100%,380px);height:auto;max-height:66%;object-fit:contain;cursor:grab;touch-action:none;background:radial-gradient(ellipse,#373741 0%,#17171c 68%);border:1px solid #444;border-radius:6px;';
   const previewHint = document.createElement('div');
   previewHint.style.cssText = 'font-size:12px;color:#aaa;text-align:center;line-height:1.5;';
-  previewHint.textContent = 'Настройки сохраняются автоматически. Изменения формы груди и ягодиц применяются к геометрии тела.';
+  previewHint.textContent = 'Настройки сохраняются автоматически. Ползунки изменяют геометрию модели игрока.';
   const controls = document.createElement('div');
   controls.style.cssText = 'overflow:auto;min-height:0;padding:18px 20px;';
   const top = document.createElement('div');
@@ -111,7 +112,7 @@ export function openAppearanceEditor({ fpArm, onClose = () => {} } = {}) {
         ctx.fillStyle = '#b9b9c2'; ctx.font = '14px system-ui'; ctx.textAlign = 'center';
         ctx.fillText('Загрузка 3D-модели…', preview.width / 2, preview.height / 2);
       }
-      previewHint.textContent = 'Ожидаю игровую 3D-модель. Ползунки сохраняются; предпросмотр подключится, когда модель будет готова.';
+      previewHint.textContent = 'Ожидаю модель игрока из игрового рига. Ползунки сохраняются и применятся сразу после готовности модели.';
       if (!retryTimer) retryTimer = window.setTimeout(() => { retryTimer = 0; drawPreview(); }, 250);
       return;
     }
