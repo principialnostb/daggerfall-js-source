@@ -2070,7 +2070,7 @@ async function buildTpBody({
         }
         // Rebind all body sections to the active female skeleton and carry
         // the latest per-section UV transforms from the user's JSON.
-        betterBodiesPart = { slot: 'betterBodies', bones: [], bytes, uvEdits };
+        betterBodiesPart = { slot: 'betterBodies', bones: [], bytes, uvEdits, hideSlots: worn.shadows };
         // The adapter is refreshed on each build so the live texture follows
         // the checked-in asset even after a dev-server reload.
         const textureAdapter = archives.find((a) => a.__betterBodiesFemaleTexture);
