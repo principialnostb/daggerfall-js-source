@@ -761,7 +761,17 @@ export function createWeaponRig({ renderer, canvas, fetchBytes, palette, audio, 
     // swings on screen.
     animCtx: playerWeapon.animCtx(),
     concealment: entity ? concealmentFlags(entity) : null,
-    hipLantern: !!entity && lanternAtWaist(entity.lightSource),   // HT-WAIST: the lit lantern hangs at the sprite's hip, and swings as it walks
+    hipLantern: !!entity && lanternAtWaist(entity.lightSource),
+    // Smart PaperDoll: feed the billboard the actual live worn slots from the same equip table
+    // that the inventory mutates. Head/Feet are DFU's enum names for helmet/boots.
+    smartPaperDollEquipment: entity ? (() => {
+      const worn = equipTableOf(entity);
+      return {
+        chestArmor: !!worn[EQUIP_SLOTS.ChestArmor],
+        feet: !!worn[EQUIP_SLOTS.Feet],
+        head: !!worn[EQUIP_SLOTS.Head],
+      };
+    })() : null,   // HT-WAIST: the lit lantern hangs at the sprite's hip, and swings as it walks
   });
   const bindBody = () => eotbBody.attach(renderer, eotbState);
   bindBody();
