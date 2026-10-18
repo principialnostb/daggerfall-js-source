@@ -83,6 +83,8 @@ import { CifRciFile } from '../formats/cifRciFile.js';
 import { DFPalette } from '../formats/dfPalette.js';
 import { raceArt } from '../systems/races.js';
 import { appStorage } from '../systems/appStorage.js';   // DA1: the storage seam
+import { modSetting } from '../systems/modSettings.js';
+import { loadWalkAnimationAssets } from '../formats/morrowind/mwWalkAnimationAssets.js';
 import { drawRigSpriteBox, MW_THIRD_PERSON_PIXEL } from '../render/characterSprite.js';
 import { WEAPONS } from '../characters/weapons.js';
 import { materialName } from '../systems/item/itemInfo.js';
@@ -2250,6 +2252,36 @@ async function buildTpBody({
         trackMap: one.trackMap, binding: one.binding,
         wouldAccumRoot: accumRootRef(arm.skeleton, one.trackMap),
       });
+    }
+    // MW-ANIM-1: The uploaded Simply Walking set replaces WALK groups only.
+    // The separate Feminine Walk Cycle is a female-only, walk-only override;
+    // other actions keep the game's own sources and priority.
+    if (!werewolf && !beast) {
+      const femaleWalk = female && Number(modSetting('morrowind-animation', 'FemaleWalk') ?? 0) === 1;
+      const walkAssets = await loadWalkAnimationAssets({ female, femaleWalk });
+      for (const asset of walkAssets) {
+        const report = await clipReport({ kfBytes: asset.bytes, skeleton: arm.skeleton, group: FP_IDLE_BASE });
+        if (!report.ok) {
+          missing.push(`walk animation ${asset.name}: ${report.error}`);
+          continue;
+        }
+        const walkKeys = report.keys.filter((key) => /^walk[^:]*:\s/.test(String(key.text || '').toLowerCase()));
+        const walkGroups = report.groups.filter((name) => /^walk/i.test(name));
+        if (!walkGroups.length || !walkKeys.length) {
+          missing.push(`walk animation ${asset.name}: no usable walk groups; vanilla source retained`);
+          continue;
+        }
+        sources.push({
+          name: asset.name,
+          keys: walkKeys,
+          groups: walkGroups,
+          groupSet: new Set(walkGroups),
+          trackMap: report.trackMap,
+          binding: report.binding,
+          wouldAccumRoot: accumRootRef(arm.skeleton, report.trackMap),
+          walkOnly: true,
+        });
+      }
     }
     const groupSet = new Set(sources.flatMap((so) => so.groups));
     const idleProbe = composeStanceGroup(FP_IDLE_BASE, animWeaponType(resolvedWeapon.mwType, true), (n) => groupSet.has(n));

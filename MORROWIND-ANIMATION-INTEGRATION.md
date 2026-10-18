@@ -69,3 +69,14 @@ This is a working **viewer-level diagnostic selector**, not yet a claim that the
 The exterior and dungeon hosts now tell the player motor when body facing should follow the view. While standing or ordinary walking, the body yaw is latched and the camera can orbit without turning the body. First-person frames keep the latch synchronized so entering third person does not inherit a stale angle. Running, held attack input, or a non-idle exterior weapon animation resumes view-facing; climb-owned body yaw and seat/draw yaw still take precedence. This changes orientation only; it does not rewrite movement input or animation clips.
 
 Regression coverage is in `test/player/bodyYawFacing.test.js`. In-game visual verification is still required for transitions between walking, running, attack, climbing, and mounted states.
+
+
+## Runtime implementation — MW-ANIM-1
+
+The gameplay third-person body builder now loads the checked-in Simply Walking Purist Edition KF as a walk-group source for male and female actors. For female actors, the Mods settings entry **Morrowind Character Animations → FemaleWalk** defaults to **Standard** and can be changed to **Female**. Female mode appends the separate Feminine Walk Cycle as a higher-priority source.
+
+The loader parses both sets with the existing NIF/KF parser and adds only text keys/groups whose group name starts with `walk`. That restriction is intentional: these packs cannot replace idle, running, weapon stances, attacks, jump, or death animations by accident. Missing files, failed HTTP loads, or packs without usable walk groups fall back to the game's existing sources. The choice does not change meshes, skeletons, Better Bodies, clothing, or camera/body-facing logic.
+
+The earlier selectActorAnimSource helper in mwAnim.js was only a pure selector and did not connect to the gameplay controller; this runtime path is now the consumer. The broader Morrowind Animation Overhaul and Axel's mixed idle/run/walk set are not made global defaults: their wider scope needs separate group-by-group compatibility review before enabling them.
+
+Verification note: code and tests still require a local build and in-game visual check for gait, foot sliding, transitions, and archive/network failure behavior. No visual gameplay claim is made by this commit.

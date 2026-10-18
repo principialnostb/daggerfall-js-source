@@ -1643,6 +1643,20 @@ export const MOD_SETTINGS = Object.freeze({
       // LEGACY-HOME (Legacy-Arc section 10b; Mac: "itll be default on but can be toggled off").
       'Legacy.Family In World': Object.freeze({ default: true, description: 'Your living family stands in the world when you are not playing them: at the family home (or in your seat\u2019s town, if the line holds no house), about their day. Speak with one to play as them.' }),
     }),
+  }),,
+
+  // MW-ANIM-1: runtime walk clips are loaded from the uploaded Simply Walking
+  // assets. The choice is consumed by the third-person body builder, not a viewer.
+  'morrowind-animation': Object.freeze({
+    title: 'Morrowind Character Animations',
+    author: 'Port integration',
+    keys: Object.freeze({
+      FemaleWalk: Object.freeze({
+        default: 0,
+        options: lazyWords('Standard', 'Female'),
+        description: 'Female gait only. Standard uses the Simply Walking Purist Edition female set; Female overrides walk groups with the separate Feminine Walk Cycle. Male characters, idle, run and combat groups are unaffected by this choice.',
+      }),
+    }),
   }),
 });
 
