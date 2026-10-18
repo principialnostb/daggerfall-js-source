@@ -92,6 +92,7 @@ let eotbCartYields = () => false;
  */
 let _standInWas = false;
 let _beastInSprite = false;
+let smartPaperDollViewAttemptLogged = false;
 function standInEdge({ fpEye, feet, yaw, pitch }) {
   const now = !!fpArm.standingIn?.();
   if (now) _beastInSprite = _beastInSprite || eotbLane();
@@ -724,7 +725,13 @@ export function mwViewHides() {
 export function mwViewDrawBody(canvas, { proj, view, eye, feet, yaw, viewYaw = yaw, face = null }) {
   // SMART-PAPERDOLL: one opt-in body across both existing third-person lanes. It consumes the
   // exact RGBA composite already used by the inventory; a missing composite leaves the old lane intact.
-  if (mwCamera.thirdPerson() && modSetting('eye-of-the-beholder', 'Graphics.SmartPaperDoll') === true
+  const smartPaperDollEnabled = mwCamera.thirdPerson()
+    && modSetting('eye-of-the-beholder', 'Graphics.SmartPaperDoll') === true;
+  if (smartPaperDollEnabled && !smartPaperDollViewAttemptLogged) {
+    smartPaperDollViewAttemptLogged = true;
+    console.info('[SmartPaperDoll] third-person override is active; attempting composite draw');
+  }
+  if (smartPaperDollEnabled
       && fpArm.drawSmartPaperDoll(canvas, { feet, yaw, grow: face?.grow > 1 ? face.grow : 1 })) {
     spriteFigure = null;
     spriteFacing = null;
