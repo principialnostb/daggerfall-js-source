@@ -1,5 +1,4 @@
 import { getBodyMorphs } from '../../characters/bodyMorphs.js';
-import { fitGarmentClearance } from './mwSkinTransfer.js';
 // MW-D: THE DIAGNOSTIC, and it deliberately draws nothing.
 //
 // The Morrowind import arc was reverted whole on 2026-08-28 after three
@@ -3164,20 +3163,10 @@ function bindSkinnedFromBody(assembly, part, bones) {
       notes.push(`${part.slot}: no ${part.fitTo} to fit it to - drawn at its baked height`);
     }
   }
-  // MW-BB-FIT2: when the caller supplies a real target surface (Better Bodies
-  // for the current female build), fit against that surface, independent of the
-  // garment's legacy fitTo metadata. Keep the old fitTo path as a fallback.
-  const fitSlot = part.fitSurface || part.fitTo;
-  if (fitSlot) {
-    const fitSources = sources.filter((s) => slotOf.get(s) === fitSlot);
-    if (fitSources.length) {
-      worn = worn.map((g) => fitGarmentClearance(g, fitSources, ctx));
-      const changed = worn.reduce((n, g) => n + (g.clearanceFit?.adjusted ?? 0), 0);
-      if (changed) notes.push(`${part.slot}: triangle-surface clearance adjusted ${changed} garment vertices against ${fitSlot}`);
-    } else {
-      notes.push(`${part.slot}: fit surface ${fitSlot} unavailable; clearance pass skipped`);
-    }
-  }
+  // Clearance fitting is deliberately not applied at runtime yet. The first
+  // BVH prototype's signed-normal heuristic is not reliable enough on concave
+  // body regions; validate garment placement in the isolated browser preview
+  // before enabling geometric vertex pushes in the live assembly.
   for (const g of worn) {
     for (const batch of transferSkin(g, sources, ctx)) {
       pieces.push({ slot: part.slot, bone: bones[0] ?? null, kind: 'skinned', mirrored: false,
