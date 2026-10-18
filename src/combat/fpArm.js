@@ -4036,13 +4036,17 @@ export function createFpArm() {
   function releaseThirdMesh() { releaseGpu(thirdMesh); thirdMesh = null; thirdSkin = null; }   // MWNPC1: a rebuilt mesh lays its pieces out again
   /** AUDIT OW3 J6 / MWNPC16: metres a Morrowind unit, `grow` times (the travel view's OW-BIG, MWNPC10's larger body). */
   const thirdUnit = (grow) => (grow > 1 ? grow : 1) / MW_UNITS_PER_METER;
+  // MWV2-PROPORTIONS: broaden the third-person silhouette slightly without changing height,
+  // first-person arms, race data, animation tracks, or the underlying NIF assets.
+  // Keep this conservative; it is the first isolated visual-tuning pass.
+  const THIRD_PERSON_WIDTH_SCALE = 1.12;
   /** MW-D24 / MWNPC16: the third body's world model matrix at `feet` facing `yaw`, `grow` times its size about its feet
    *  (drawThird's own placement, one home for the draw and the cast). */
   function thirdModel(feet, yaw, grow = 1) {
     const u = thirdUnit(grow);
     const yawDeg = (yaw * 180 / Math.PI) + 180;
     const rs = (built && built.raceScale) || { weight: 1, height: 1 };
-    return multiply(trs(feet[0], feet[1], feet[2], 0, yawDeg, 0, -u * rs.weight, u * rs.height, u * rs.weight), NIF_TO_PASS);
+    return multiply(trs(feet[0], feet[1], feet[2], 0, yawDeg, 0, -u * rs.weight * THIRD_PERSON_WIDTH_SCALE, u * rs.height, u * rs.weight), NIF_TO_PASS);
   }
   /** PR-BOW1 / MWNPC16: the posed box drawThird folds over what it draws (the shown ranges'), else the assembly's. */
   function thirdBox() {
@@ -6743,7 +6747,7 @@ export function createFpArm() {
       thirdMesh.offWeaponGlow = offGlow;
       const padLooks = offGlow ? [glowLook, offGlow.look].filter(Boolean) : glowLook;
       const halfH = ((maxZ - minZ) * u * rs.height) / 2;
-      const halfW = (Math.hypot(maxX - minX, maxY - minY) * u * rs.weight) / 2;
+      const halfW = (Math.hypot(maxX - minX, maxY - minY) * u * rs.weight * THIRD_PERSON_WIDTH_SCALE) / 2;
       const center = transformPoint(model, (minX + maxX) / 2, (minY + maxY) / 2, (minZ + maxZ) / 2);
       // MWNPC16: the shape it casts, where it is asked (an NPC's lane - net/peer/peerBodies.js `casts`, which never asks it of a
       // body the travel view grows: OW-BIG's law, no giant's shadow), at its size (MWNPC10's boss stands larger, and casts
@@ -6808,9 +6812,9 @@ export function createFpArm() {
       const u = thirdUnit(grow);
       const { minX, minY, minZ, maxX, maxY, maxZ } = box;
       const halfH = ((maxZ - minZ) * u * rs.height) / 2;
-      const halfW = (Math.hypot(maxX - minX, maxY - minY) * u * rs.weight) / 2;
+      const halfW = (Math.hypot(maxX - minX, maxY - minY) * u * rs.weight * THIRD_PERSON_WIDTH_SCALE) / 2;
       const reach = renderer.shadowReachSphere;
-      const mid = Math.hypot(((minX + maxX) / 2) * u * rs.weight, ((minY + maxY) / 2) * u * rs.weight, ((minZ + maxZ) / 2) * u * rs.height);
+      const mid = Math.hypot(((minX + maxX) / 2) * u * rs.weight * THIRD_PERSON_WIDTH_SCALE, ((minY + maxY) / 2) * u * rs.weight, ((minZ + maxZ) / 2) * u * rs.height);
       if (reach && !renderer.shadowReachSphere(feet[0], feet[1], feet[2], Math.hypot(halfW, halfH) + mid)) return false;
       const model = thirdModel(feet, yaw, grow);
       const center = transformPoint(model, (minX + maxX) / 2, (minY + maxY) / 2, (minZ + maxZ) / 2);
