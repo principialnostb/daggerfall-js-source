@@ -30,6 +30,12 @@ const FILES = IN_BROWSER
 
 const norm = (s) => String(s).replace(/\/g, '/').toLowerCase();
 const assetUrls = Object.create(null);
+const baseBodyTextureUrls = Object.create(null);
+const intelligentTextureUrls = Object.create(null);
+const clothesTextureUrls = Object.create(null);
+const armorTextureUrls = Object.create(null);
+const armorJointsUrls = Object.create(null);
+const faceTextureUrls = Object.create(null);
 const packageCounts = Object.create(null);
 const pluginUrls = new Map();
 
@@ -41,12 +47,11 @@ const relAfter = (path, lower, marker) => {
   const at = lower.indexOf(marker);
   return at < 0 ? null : path.slice(at + marker.length);
 };
-const addDataFilesAsset = (rel, url, packageName, allowMeshes = true) => {
+const addDataFilesAsset = (rel, url, packageName, bucket) => {
   const match = rel.match(/^data files\/(meshes|textures)\/(.+\.(?:nif|dds|tga))$/i);
   if (!match) return false;
   const root = match[1].toLowerCase();
-  if (root === 'meshes' && !allowMeshes) return false;
-  addAsset(assetUrls, root + '/' + match[2], url, packageName);
+  addAsset(bucket, root + '/' + match[2], url, packageName);
   return true;
 };
 
@@ -61,7 +66,7 @@ for (const [source, url] of Object.entries(FILES)) {
   if (bbRel && /^nude\/data files\/textures\//i.test(bbRel)) {
     const rel = bbRel.replace(/^nude\/data files\//i, '');
     const match = rel.match(/^textures\/(.+\.(?:dds|tga))$/i);
-    if (match) addAsset(assetUrls, 'textures/' + match[1], url, 'Better Bodies fallback');
+    if (match) addAsset(baseBodyTextureUrls, 'textures/' + match[1], url, 'Better Bodies fallback');
     continue;
   }
 
@@ -71,7 +76,7 @@ for (const [source, url] of Object.entries(FILES)) {
   const itRel = relAfter(path, lower, '/intelligent textures/');
   if (itRel) {
     const match = itRel.match(/^00 core\/textures\/(.+\.(?:dds|tga))$/i);
-    if (match) addAsset(assetUrls, 'textures/' + match[1], url, 'Intelligent Textures 00 Core');
+    if (match) addAsset(intelligentTextureUrls, 'textures/' + match[1], url, 'Intelligent Textures 00 Core');
     continue;
   }
 
@@ -79,7 +84,7 @@ for (const [source, url] of Object.entries(FILES)) {
   const clothesRel = relAfter(path, lower, '/better clothes retextured/');
   if (clothesRel) {
     const match = clothesRel.match(/^(meshes|textures)\/(.+\.(?:nif|dds|tga))$/i);
-    if (match) addAsset(assetUrls, match[1] + '/' + match[2], url, 'Better Clothes Retextured');
+    if (match) addAsset(clothesTextureUrls, match[1] + '/' + match[2], url, 'Better Clothes Retextured');
     continue;
   }
 
@@ -91,13 +96,15 @@ for (const [source, url] of Object.entries(FILES)) {
   if (armorRel) {
     let rel = armorRel;
     let packageName = 'Better Morrowind Armor';
+    let bucket = armorTextureUrls;
     if (/^complete armor joints\/data files\//i.test(rel)) {
       rel = rel.replace(/^complete armor joints\//i, '');
       packageName = 'Complete Armor Joints';
+      bucket = armorJointsUrls;
     } else if (!/^data files\//i.test(rel)) {
       continue;
     }
-    if (addDataFilesAsset(rel, url, packageName)) continue;
+    if (addDataFilesAsset(rel, url, packageName, bucket)) continue;
 
     // The main plugin is exposed to the existing bundled-plugin reader.
     // Optional DeFemm and compatibility ESPs are intentionally not loaded.
@@ -114,9 +121,22 @@ for (const [source, url] of Object.entries(FILES)) {
   if (facesRel) {
     const rel = facesRel.replace(/^data files\//i, '');
     const match = rel.match(/^(meshes|textures)\/(.+\.(?:nif|dds|tga))$/i);
-    if (match) addAsset(assetUrls, match[1] + '/' + match[2], url, "Westly's Faces Refurbished");
+    if (match) addAsset(faceTextureUrls, match[1] + '/' + match[2], url, "Westly's Faces Refurbished");
   }
 }
+
+// Apply package precedence explicitly, independent of glob enumeration order.
+// BMA and its joint patch outrank generic texture replacements where UVs differ;
+// Westly's head/hair assets win last for their own model and texture keys.
+Object.assign(
+  assetUrls,
+  baseBodyTextureUrls,
+  intelligentTextureUrls,
+  clothesTextureUrls,
+  armorTextureUrls,
+  armorJointsUrls,
+  faceTextureUrls,
+);
 
 const fetchBytes = async (url) => {
   const response = await fetch(url);
