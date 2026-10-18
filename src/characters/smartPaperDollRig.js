@@ -79,6 +79,7 @@ let cachedRenderer = null;
 let cachedRig = null;
 let cachedKey = '';
 let lastTick = 0;
+let lastFeet = null;
 let garments = [];
 
 export function setSmartPaperDollLayers(next = []) {
@@ -96,6 +97,7 @@ export function clearSmartPaperDollRig() {
   cachedRig = null;
   cachedKey = '';
   lastTick = 0;
+  lastFeet = null;
 }
 
 export function drawSmartPaperDollRig(renderer, { feet, yaw = 0, grow = 1 } = {}) {
@@ -112,7 +114,9 @@ export function drawSmartPaperDollRig(renderer, { feet, yaw = 0, grow = 1 } = {}
   const now = Date.now();
   const dt = lastTick ? Math.min(0.05, Math.max(0, (now - lastTick) / 1000)) : 1 / 60;
   lastTick = now;
-  cachedRig.setGait(1); // canonical walk cycle; the host camera supplies root travel
+  const moving = !!lastFeet && Math.hypot(feet[0] - lastFeet[0], feet[2] - lastFeet[2]) > 0.0005;
+  lastFeet = [feet[0], feet[1], feet[2]];
+  cachedRig.setGait(moving ? 1 : 3); // walk while the world position advances; idle sway otherwise
   cachedRig.update(dt);
   const scale = cachedRig.scale * (Number.isFinite(grow) && grow > 0 ? grow : 1);
   const model = trs(feet[0], feet[1] - cachedRig.liveFootY * scale, feet[2], 0, yaw * 180 / Math.PI, 0, scale, scale, scale);
