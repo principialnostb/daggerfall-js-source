@@ -817,6 +817,8 @@ export function paperDollFigureStatus() {
     hasArt: !!_art,
     hasDeps: !!_deps,
     hasEntity: !!_lastEntity,
+    race: _lastEntity?.race ?? null,
+    gender: _lastEntity?.gender ?? 'male',
     hasFigurePixels: !!_figurePixels,
     figureWidth: _figurePixels?.width ?? null,
     figureHeight: _figurePixels?.height ?? null,
