@@ -2889,7 +2889,7 @@ export async function buildFpArm({
         if (!archives.some((a) => a.__betterBodiesFemaleTexture)) {
           archives.push({
             __betterBodiesFemaleTexture: true,
-            has: (path) => /(?:^|[\\/])bb_skinf_no\\.dds$/i.test(String(path || '')),
+            has: (path) => /(?:^|[\\/])bb_skinf_no\.dds$/i.test(String(path || '')),
             loaded: () => true,
             load: async () => null,
             get: () => textureBytes,
@@ -2898,7 +2898,7 @@ export async function buildFpArm({
         const textureAdapter = archives.find((a) => a.__betterBodiesFemaleTexture);
         if (textureAdapter) textureAdapter.get = () => textureBytes;
         for (const cacheKey of TEXTURE_CACHE.keys()) {
-          if (/bb_skinf_no\\.dds$/i.test(cacheKey)) TEXTURE_CACHE.delete(cacheKey);
+          if (/bb_skinf_no\.dds$/i.test(cacheKey)) TEXTURE_CACHE.delete(cacheKey);
         }
         betterBodiesFpArms = {
           slot: 'betterBodies',
