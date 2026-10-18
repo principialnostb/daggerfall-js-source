@@ -3210,7 +3210,7 @@ function applyPre(positions, pre) {
  * are ARMO_PART keys such as "chest" and "hand:right".
  */
 function betterBodiesSectionKey(shapeName) {
-  const name = String(shapeName || '').trim().toLowerCase().replace(/^tri\\s+/, '');
+  const name = String(shapeName || '').trim().toLowerCase().replace(/^tri\s+/, '');
   const sideRegion = /^(left|right) (hand|wrist|forearm|upper arm|foot|ankle|knee|upper leg)$/.exec(name);
   if (name === 'chest' || name === 'groin' || name === 'neck' || name === 'head' || name === 'hair' || name === 'tail') return name;
   if (!sideRegion) return null;
