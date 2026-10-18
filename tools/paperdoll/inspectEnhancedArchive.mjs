@@ -4,7 +4,6 @@
 // dimensions and opaque bounds so the layered sprite set can be mapped safely.
 import fs from 'node:fs';
 import path from 'node:path';
-import os from 'node:os';
 import { spawnSync } from 'node:child_process';
 import { PNG } from 'pngjs';
 
