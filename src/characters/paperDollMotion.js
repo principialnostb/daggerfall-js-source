@@ -102,7 +102,6 @@ export function stepSmartPaperDollMotion(state, {
  * depth offsets; female chest pixels get a damped, low-amplitude spring response.
  */
 export function deformSmartPaperDollVertices(base, motion, {
-  height = 1.8,
   gender = 'male',
   out = null,
 } = {}) {
