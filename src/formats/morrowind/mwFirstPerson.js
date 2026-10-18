@@ -2302,8 +2302,12 @@ export function bindPartsInto(assembly, parts) {
       notes.push(`${part.slot}: ${err.message}`);
       continue;
     }
+    // Prefer the actual rendered Better Bodies surface when present; otherwise use the matching BODY records.
+    // This is geometry-only fitting, not weight transfer, so the full-body replacement is safe as a filtered surface.
+    const bodyReplacement = parts.find((candidate) => candidate.slot === 'betterBodies')?.bytes ?? null;
+    const fitSourceNifs = part.fitSources?.map((src) => bodyReplacement ? { ...src, bytes: bodyReplacement } : src) ?? [];
     // Clothing fit is a private vertex-position pass; the garment keeps its authored skinning/material path.
-    const fitSources = part.fitSources?.length ? bindGarmentFitSources(assembly, part.fitSources) : [];
+    const fitSources = fitSourceNifs.length ? bindGarmentFitSources(assembly, fitSourceNifs) : [];
     const fitCtx = fitSources.length ? clothingFitContext(assembly) : null;
     // MW-D6: the nameless-shape extension binds ONCE for the part; a
     // NAMED shape binds once PER SIDE, filtered. See the block below.
