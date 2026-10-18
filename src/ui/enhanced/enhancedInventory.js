@@ -2162,19 +2162,6 @@ function equippedList() {
     dollFrame.append(el('span', 'worntile', '\u25c7'), el('span', 'wornslot', 'Avatar'));
   }
   map.append(dollFrame);
-  // MWV2-APPEARANCE: open the player body editor from the worn/equipment panel.
-  if (!deps.loot && deps.fpArm) {
-    const appearanceButton = el('button', 'mw-appearance-open', 'Редактировать внешность');
-    appearanceButton.type = 'button';
-    appearanceButton.title = 'Настроить пропорции тела персонажа';
-    appearanceButton.style.cssText = 'display:block;margin:8px auto 0;padding:7px 10px;max-width:100%;border:1px solid #9a8352;border-radius:3px;background:#262329;color:#e5d3a2;font:inherit;font-size:12px;cursor:pointer;';
-    appearanceButton.addEventListener('click', (event) => {
-      event.preventDefault();
-      event.stopPropagation();
-      openAppearanceEditor({ fpArm: deps.fpArm });
-    });
-    dollFrame.append(appearanceButton);
-  }
   // AC-COMPARE: THE OVERALL FIGURE ON THE CHARACTER - a plaque at the head of the figure's column (the doll's own first
   // row, over it), whatever stands there: the doll, the Morrowind body or the empty frame (ui/armourCard.js)
   // TEMP-UI: AND THE FELT TEMPERATURE beside it - the same cell's other corner, while Climates & Calories is on
@@ -3990,6 +3977,18 @@ function render() {
     if (name) title.append(el('span', 'pack-who', name));
     who.append(title);
     head.append(who);
+    // MWV2-APPEARANCE: keep the editor beside the character name, immediately before Codex.
+    if (!deps.loot && deps.fpArm) {
+      const appearanceButton = el('button', 'act mw-appearance-open', 'Внешность');
+      appearanceButton.type = 'button';
+      appearanceButton.title = 'Настроить доступные пропорции тела персонажа';
+      appearanceButton.onclick = (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        openAppearanceEditor({ fpArm: deps.fpArm });
+      };
+      head.append(appearanceButton);
+    }
     // PACK-PHONE (FIELD BUGS 2026-09-30, "we dont really need paperdoll on phone or at least if it could be hidden"):
     // THE BODY IS A CHOICE ON A PHONE. The sheet hides the figure on a touch phone unless the shell carries `showdoll`,
     // and draws this button there alone; the choice is the player's own shelf, so the pack opens as it was left.
