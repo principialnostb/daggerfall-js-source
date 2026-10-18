@@ -723,10 +723,9 @@ export function mwViewHides() {
 /** The third-person body composite, after the host's world draw. A
  *  no-op in first person or when the body cannot draw. */
 export function mwViewDrawBody(canvas, { proj, view, eye, feet, yaw, viewYaw = yaw, face = null }) {
-  // SMART-PAPERDOLL: one opt-in body across both existing third-person lanes. It consumes the
-  // exact RGBA composite already used by the inventory; a missing composite leaves the old lane intact.
-  // The wheel can be owned by either camera lane. In the EotB lane, mwCamera
-  // correctly remains in first person, so ask EotB for the active perspective.
+  // Smart PaperDoll must use the same posed 3D body and camera-dependent sprite capture as
+  // built-in characters. A flattened PaperDoll composite cannot provide real rear/side geometry.
+  // The EotB lane owns a separate body renderer and remains on its native path.
   const smartPaperDollThirdPerson = eotbLane()
     ? eotbCamera.thirdPerson()
     : mwCamera.thirdPerson();
@@ -734,36 +733,37 @@ export function mwViewDrawBody(canvas, { proj, view, eye, feet, yaw, viewYaw = y
     && modSetting('eye-of-the-beholder', 'Graphics.SmartPaperDoll') === true;
   if (smartPaperDollEnabled && !smartPaperDollViewAttemptLogged) {
     smartPaperDollViewAttemptLogged = true;
-    console.info('[SmartPaperDoll] third-person override is active; attempting composite draw');
+    console.info('[SmartPaperDoll] using the existing rigged third-person body renderer');
   }
-  if (smartPaperDollEnabled
-      && fpArm.drawSmartPaperDoll(canvas, { feet, yaw, grow: face?.grow > 1 ? face.grow : 1 })) {
+
+  // EOTB4: the sprite lane draws its own body. `eotbLane()` already requires
+  // `eotbBodyReady()`, so this arm cannot be reached with nothing to draw.
+  if (eotbLane()) {
+    const drawn = drawEotbBody(canvas, { proj, view, eye, feet, yaw: viewYaw, face });
+    spriteFigure = drawn ? eotbFigure() : null;
+    spriteFacing = drawn ? eotbFacing() : null;
+    return drawn;
+  }
+
+  lastCamera = { proj, view, feet, yaw };
+  if (!mwCamera.thirdPerson()) return false;
+  const grow = face?.grow > 1 ? face.grow : 1;
+  const horse = saddled && ownHorse
+    ? horseRig.picture(ownHorse, horseFeetUnder(feet, yaw, grow), yaw, grow)
+    : null;
+  // This path uses the real skeleton, worn body/armor meshes, existing animation state,
+  // weapon attachments and drawRigSpriteBox camera-facing capture. Do not replace it with
+  // the shallow PaperDoll voxel extrusion; the latter remains only a fallback/prototype.
+  const drawn = fpArm.drawThird(canvas, {
+    proj, view, eye, feet, yaw, grow, up: face?.up ?? null, horse,
+  });
+  if (smartPaperDollEnabled && drawn) {
     spriteFigure = null;
     spriteFacing = null;
     return true;
   }
-  // EOTB4: the sprite lane draws its own body. `eotbLane()` already
-  // requires `eotbBodyReady()`, so this arm cannot be reached with
-  // nothing to draw - the gate and the draw are the same question
-  // asked once.
-  // EOTB-IL: the BODY decides - it is active in third person, and in
-  // first person while `Graphics.FirstPersonBillboard` is not None
-  // (ToggleOffset, IL_2307-IL_2353), where it draws behind the eye
-  // AUDIT CLIMB-ARC N1: the sprite lane's `yaw` is its QUAD's plane and its camera's (eotbBody.js) - the view's - never
-  // the body's on the wall (CLIMB5 handed it the body's, and a hanging player looking along the wall saw the sprite
-  // edge-on); the Morrowind body below turns to the wall (`yaw`, the body's)
-  if (eotbLane()) { const drawn = drawEotbBody(canvas, { proj, view, eye, feet, yaw: viewYaw, face }); spriteFigure = drawn ? eotbFigure() : null; spriteFacing = drawn ? eotbFacing() : null; return drawn; }   // AUDIT DEEP R-2: `face` - the travel view's basis for the quad; SERAPH-WINGS: the figure it drew kept for the aura on its back
-  lastCamera = { proj, view, feet, yaw };   // COATS3D: the frame's camera, for the horse in first person (mwViewDrawSaddle)
-  if (!mwCamera.thirdPerson()) return false;
-  // COATS3D: astride, the horse under the body - placed at the body's own feet and facing this draw, in its picture
-  const grow = face?.grow > 1 ? face.grow : 1;
-  const horse = saddled && ownHorse ? horseRig.picture(ownHorse, horseFeetUnder(feet, yaw, grow), yaw, grow) : null;
-  // AUDIT OW3 J6: OW-BIG's grown traveller is the Morrowind body's too - `face.grow` (player/travelCamera.js tvOwnGrow)
-  // reached the sprite body alone, and under the travel view the Morrowind body stood a speck at its own size.
-  // AUDIT OW4 J6: and `face.up` - its quad leaned as the sprite lane's is (eotbBody.js), not upright under a pitched picture
-  return fpArm.drawThird(canvas, { proj, view, eye, feet, yaw, grow: face?.grow > 1 ? face.grow : 1, up: face?.up ?? null, horse });
+  return drawn;
 }
-
 /** SHADOW-CLOAK: the third-person Morrowind body's named bones where they stand this frame, in its own frame
  *  (fpArm.thirdBones) - or null: the sprite lane's body has no bones, and first person poses no third-person body. */
 export function mwViewBodyBones(names) {
