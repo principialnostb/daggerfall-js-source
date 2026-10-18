@@ -1,0 +1,70 @@
+1.1.1:
+-Added atlas maps for Project Atlas
+-Added missing Yagrum Bagarn textures
+-Better Telvanni and emperor parasol textures
+-Better bark textures
+-Better Bitter Coast and Grazelands textures
+-Better altmer and dunmer face textures
+-Better glassware, redware, pottery, potion, metal and miscellaneous textures
+-Better Baar Dau textures
+-Better rat and netch textures
+
+1.1.2:
+-Better daedric ruin textures
+-Better sewer textures
+-Better leaf textures
+-Better wood textures
+-Better thatch textures
+-Better Solstheim textures
+-Better Huntsman textures
+-Better rug textures
+-Better Hlaalu textures
+-Better Sixth House textures
+-Better lockbox textures
+-Better sign textures
+-Better mudflats texture
+-Better shack textures
+-Better ship textures
+-Better West Gash ground textures
+-Better Common textures
+-Better Kwama textures
+-Better Golden Saint textures
+
+1.2.0:
+-Almost full remake of the entire mod with significantly better textures
+-Particle textures are now covered
+-Unofficial plugin textures are now covered
+-Textures from PfP's expansion fixes are now covered
+
+1.﻿2.1:
+-Better armor and weapon textures
+-Better, less noisy coast textures
+-Better Vanilla, Tribunal and Bloodmoon creature textures
+-Better cherrywood, crate and coat of arms textures
+-Better dwemer textures
+-Several improvements for miscellaneous Bloodmoon textures
+-Better urn textures
+-Better imperial textures
+-Better metal and trim textures
+
+1.3.0:
+-Another major remake of the mod featuring clearer, more detailed textures with significantly less artifacts
+
+1.4.0:
+-Almost complete rebuild of the mod featuring better, cleaner textures for nearly everything
+-Several bug fixes, mainly for expansion textures
+
+1.4.0b:
+-Removed problematic bookmark textures
+-Added correct atlas for BC mushrooms (thanks to Necrolesian)
+
+1.4.1:
+-Reverted some textures to 1.3.0
+-Improved many textures
+-Fixed some issues
+
+1.4.1b:
+-Fixed the Karstangz-Bcharn and Vivec floor textures
+
+2.0:
+-Full remake of the mod featuring the highest quality of IT to date, as well as many new scratch made textures
