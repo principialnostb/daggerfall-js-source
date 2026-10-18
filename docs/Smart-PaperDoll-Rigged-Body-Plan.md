@@ -12,7 +12,7 @@ Smart PaperDoll must retain the player's live appearance choices (race, gender, 
 - The existing path owns the skeleton, animation selection, posed body, armor/clothing assembly, weapon attachments and combat transitions. Treat it as the source of truth; do not introduce a second movement/combat state machine.
 - `src/render/characterSprite.js` includes `drawRigSpriteBox()`, which captures the posed 3D assembly into a low-resolution view-facing sprite from the current camera direction. Reuse this camera-dependent capture path rather than rotating one fixed portrait.
 - `src/ui/paperDoll.js` composes the live appearance into one flattened RGBA image. It preserves the visible appearance, but loses the semantic layer boundaries, material identities, hidden surfaces and skin weights needed to reconstruct a complete 3D character by itself.
-- `src/characters/paperDollVoxel.js` extrudes the flattened image by about 5.5 cm. The rear is a copy of the front, so it is a useful integration/prototype fallback but cannot meet the multi-angle volume requirement.
+- `src/characters/paperDollVoxel.js` extrudes the flattened image by about 5.5 cm. The rear is a copy of the front, so it cannot meet the multi-angle volume requirement. The `mwView` override no longer routes through this module; the voxel code remains an isolated prototype, not the production body renderer.
 
 ## Final architectural decisions
 
@@ -21,7 +21,7 @@ Smart PaperDoll must retain the player's live appearance choices (race, gender, 
 3. **Prefer authentic assets.** Use compatible existing body, clothing and armor meshes with their real rear/side geometry and material assignments. Where no suitable mesh exists, use a documented fitted proxy. Never claim a front-only image can reveal accurate hidden surfaces.
 4. **Render from the live camera.** Feed the posed model into the existing low-resolution camera-dependent sprite capture on camera-orientation changes (or each view where required). Cache only derived captures/meshes with explicit invalidation on pose, equipment, race/gender, texture/dye, and renderer-context changes. A cache must not turn the 3D character into a fixed directional portrait.
 5. **Secondary motion is a layer on the real pose.** Add subtle, damped female chest motion only after identifying suitable skeleton bones or localized skinned vertices. Apply it before final skinning/capture. Soft cloth may follow a supported body region; rigid cuirasses/plate armor must stay rigid and must not be deformed by the chest spring.
-6. **Keep the current fallback until parity is demonstrated.** Existing PaperDoll rendering must remain selectable if asset mapping or rig capture is unavailable. Do not remove the fallback based only on unit tests.
+6. **Preserve native rig behavior.** The current Morrowind third-person rig path is the safe rendering path while appearance mapping is developed. Do not re-enable the shallow voxel override as the main body. If the rig cannot be built, preserve the engine's existing failure/fallback behavior.
 7. **One active development branch.** `feature/smart-paperdoll-animation` is the canonical Smart PaperDoll work branch. New experiments and architecture findings belong there; do not create more topic branches. `feature/smart-paperdoll-fix` remains the historical integration baseline while the prototype is developed.
 
 ## Implementation sequence
@@ -61,4 +61,4 @@ Smart PaperDoll must retain the player's live appearance choices (race, gender, 
 
 ## Current status
 
-The current animation branch is a prototype on the shallow extruded composite. Its motion unit tests validate the math, not visual parity. The next production step is the appearance-to-existing-rig bridge and camera-dependent capture integration. No claim of full rigged implementation or completed gameplay validation should be made until those steps are implemented and tested.
+The first renderer-routing slice is committed: when Smart PaperDoll is enabled in the Morrowind third-person lane, `mwViewDrawBody()` now uses the existing posed third-person rig and its camera-dependent sprite capture instead of drawing the flattened voxel composite. The obsolete `fpArm.drawSmartPaperDoll()` hook was removed. This gives the correct geometry/animation renderer, but it is not yet the full appearance bridge: exact parity for PaperDoll dyes/texture overrides and item-by-item equipment mapping still needs implementation and in-game verification. The voxel module remains isolated prototype code. No full-completion or gameplay-validation claim is made.
