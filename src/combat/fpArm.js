@@ -81,7 +81,7 @@ import { CifRciFile } from '../formats/cifRciFile.js';
 import { DFPalette } from '../formats/dfPalette.js';
 import { raceArt } from '../systems/races.js';
 import { appStorage } from '../systems/appStorage.js';   // DA1: the storage seam
-import { drawRigSpriteBox } from '../render/characterSprite.js';
+import { drawRigSpriteBox, MW_THIRD_PERSON_PIXEL } from '../render/characterSprite.js';
 import { WEAPONS } from '../characters/weapons.js';
 import { materialName } from '../systems/item/itemInfo.js';
 import { composeWornArmor, composeWornModest, shadowSkinRows, fpWornAdds, mwArmorRecords, mwClothingRecord, CLOTHING_NAME, werewolfRobeOf, firstPersonPartGroup } from '../formats/morrowind/mwItemMap.js';   // WEREWOLF1: the robe and its first-person ladder; NUDE-FLATS: the upper weld
@@ -2527,6 +2527,7 @@ async function renderHeadAssembly(renderer, cat, { skeletonPath, skinRows, heads
  *  or null (no data attached, no renderer, no head for the race, the skeleton or a mesh or a texture not in hand).
  *  @param {{ renderer?: any, race?: string|null, female?: boolean, faceIndex?: number, npcFace?: { head: number, hair: number }|null, ownHeads?: boolean, vampire?: boolean, werewolf?: boolean, skin?: string|null, armor?: any[]|null, px?: number, ph?: number, deps?: any }} [opts] */
 export async function headPortrait({ renderer, race, female = false, faceIndex = 0, npcFace = null, vampire = false, werewolf = false, skin = null, armor = null, ownHeads = false, px = 128, ph = px, deps = null } = {}) {
+  if (getPref('morrowindThirdPersonOnly')) return null;
   if (!renderer || !race) return null;
   const d = deps || await import('../scenes/dataSource.js');
   const cat = await headCatalogOf(d);
@@ -3785,7 +3786,7 @@ export function createFpArm() {
     return nonBiped() && !isRealWeapon(t) ? MW_WEAPON_TYPE.None : t;
   };
 
-  const active = () => !standIn && !!(built && built.ok && mesh && renderer && camera && (actionState || movementState || jumpState || idleState)
+  const active = () => !standIn && !getPref('morrowindThirdPersonOnly') && !!(built && built.ok && mesh && renderer && camera && (actionState || movementState || jumpState || idleState)
     && viewMode === 'first');
   // MWNPC4 (AUDIT, 2026-10-09): a body in its recoil or its death stands too - die() resets every other state, so a
   // dying body answered false here, its lane let it go (PeerBodies._standing) and its corpse flat drew instead
@@ -6775,10 +6776,10 @@ export function createFpArm() {
       // is OF the horse - its middle is the anchor, so the figure is the rider on it, sized where the horse stands
       if (horse && horse.mesh && horse.model && horse.box) {
         const u = spriteBoxUnion({ center, halfW, halfH }, horse.box);
-        drawRigSpriteBox(renderer, canvas, thirdMesh, model, { ...u, anchor: horse.box.anchor, hitFlash, conceal, up, fx, also: [{ mesh: horse.mesh, model: horse.model }], glowLook: padLooks }, proj, view, eye, MW_ARM_PIXEL);
+        drawRigSpriteBox(renderer, canvas, thirdMesh, model, { ...u, anchor: horse.box.anchor, hitFlash, conceal, up, fx, also: [{ mesh: horse.mesh, model: horse.model }], glowLook: padLooks }, proj, view, eye, MW_THIRD_PERSON_PIXEL);
         return true;
       }
-      drawRigSpriteBox(renderer, canvas, thirdMesh, model, { center, halfW, halfH, anchor, hitFlash, conceal, up, fx, glowLook: padLooks }, proj, view, eye, MW_ARM_PIXEL);   // HITFLASH1: a struck peer's body flashes
+      drawRigSpriteBox(renderer, canvas, thirdMesh, model, { center, halfW, halfH, anchor, hitFlash, conceal, up, fx, glowLook: padLooks }, proj, view, eye, MW_THIRD_PERSON_PIXEL);   // HITFLASH1: a struck peer's body flashes
       return true;
     },
 
@@ -6821,6 +6822,7 @@ export function createFpArm() {
      *  the classic icon stands (never traps). Cached per record, size
      *  and dye per data generation. */
     itemIcon(item, { size = 96 } = {}) {
+      if (getPref('morrowindThirdPersonOnly')) return null;
       if (!(built && built.ok && built.catalog && renderer) || !item) return null;
       const cat = built.catalog;
       // MW-LOAD: the door above. A lazily opened archive holds none of
@@ -6863,6 +6865,7 @@ export function createFpArm() {
      *  the parse names) before it renders. Cached per record and size
      *  per data generation, with the icons. */
     async mountPicture(item, { px = 256 } = {}) {
+      if (getPref('morrowindThirdPersonOnly')) return null;
       if (!(built && built.ok && built.catalog && renderer) || !item) return null;
       const cat = built.catalog;
       const stamp = api.mountPictureStamp();   // AUDIT DYE-ICON 4: what the picture is good for - the host's own question
@@ -6911,6 +6914,7 @@ export function createFpArm() {
      *  the panel then keeps the classic doll (never traps). Display
      *  only by Mac's decision: unequip stays with the item list. */
     figure({ yaw = 0, height = 384 } = {}) {
+      if (getPref('morrowindThirdPersonOnly')) return null;
       // AUDIT 33 F1: a built body, not an ACTIVE wheel - the inventory
       // is opened from first person, where the wheel is off.
       if (!(built && built.ok && thirdBuilt && thirdBuilt.ok && renderer)) return null;

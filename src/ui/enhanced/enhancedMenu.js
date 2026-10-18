@@ -3056,6 +3056,7 @@ export function morrowindCard({ count = morrowindDataCount(), armState = fpArm.s
     [t('menu.mw.data', 'Data'), t('menu.mw.archives', '{n, plural, =0 {none attached} one {# archive attached} other {# archives attached}}', { n: count || 0 })],
     ...(count ? [[t('menu.mw.arms', 'Arms'), morrowindArmsLine(armState)]] : []),
   ]));
+  mw.append(el('p', 'meta', t('menu.mw.thirdOnlyState', 'Только Third Person: {state}', { state: getPref('morrowindThirdPersonOnly') ? 'Вкл' : 'Выкл' })));
   const attach = async () => {
     const ds = await import('../../scenes/dataSource.js');
     const n = await ds.pickMorrowindFiles();
@@ -3068,6 +3069,7 @@ export function morrowindCard({ count = morrowindDataCount(), armState = fpArm.s
     render();
   };
   const actions = [{ label: t('menu.mw.attach', 'Attach data'), primary: !count, onClick: attach }];
+  actions.push({ label: 'Только Third Person', onClick: () => { setPref('morrowindThirdPersonOnly', !getPref('morrowindThirdPersonOnly')); render(); } });
   // MWA2 (2026-09-16): the door that removes the data itself - the one off there is now. Routed through the same
   // confirm-before-destroy pattern as Delete Save.
   if (count) {
@@ -3076,6 +3078,7 @@ export function morrowindCard({ count = morrowindDataCount(), armState = fpArm.s
       t('menu.mw.removeBody', 'This clears the Morrowind files from this browser and unloads the arms. You can attach them again later.'),
       t('menu.packs.removeYes', 'Remove'),
       async () => {
+        setPref('morrowindThirdPersonOnly', false);
         fpArm.unload();
         const ds = await import('../../scenes/dataSource.js');
         await ds.clearStoredMorrowind();

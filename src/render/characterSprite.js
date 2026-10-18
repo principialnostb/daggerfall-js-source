@@ -14,6 +14,9 @@ import { CHAR_PIXEL, CHAR_SPRITE_RT_SIZE } from './renderer.js';
 import { getPref } from '../systems/uiPrefs.js';   // BODY-CARD: the billboard look, read where the card is stood
 import { glowPad } from './weaponGlowGlsl.js';   // WEAPON-GLOW1 (AUDIT MW-3): a glowing weapon's outline's room - a leaf
 
+// MW-TP-SHARP: Morrowind third-person meshes get one render texel per screen pixel, not the FP viewmodel's chunky 3px dial.
+export const MW_THIRD_PERSON_PIXEL = 1;
+
 /** World up - landAnchor's vertical when it is handed none, and the upright card's (BODY-CARD). */
 const WORLD_UP = Object.freeze([0, 1, 0]);
 /** BODY-DEPTH: the picture's near plane (its far is twice its reach - drawRigSpriteBox). */
