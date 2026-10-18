@@ -100,7 +100,7 @@ export function openAppearanceEditor({ fpArm, onClose = () => {} } = {}) {
   function drawPreview() {
     if (closed) return;
     let pixels = null;
-    try { pixels = fpArm?.figure?.({ yaw, height: 384 }) ?? null; } catch { pixels = null; }
+    try { pixels = fpArm?.figure?.({ yaw, height: 384, force: true }) ?? null; } catch { pixels = null; }
     if (!pixels?.data || !pixels.width || !pixels.height) {
       // The game may not have built the third-person rig yet. Keep the character visible
       // by borrowing the image already displayed in the equipment window instead of
