@@ -3567,6 +3567,20 @@ export function gpuSkinOn(renderer, search) {
   return !!(renderer && typeof renderer.createSkinnedCharacterMesh === 'function') && pageParam('gpuskin', search) !== 'off';
 }
 
+/**
+ * Place a posed third-person body on its actor's feet without mutating the shared model matrix.
+ * NIF Z is the source body's vertical axis; transform the measured lowest body point into world space,
+ * then correct only the model translation along world Y.
+ */
+export function groundThirdPersonModel(model, bodyMinZ, feetY) {
+  if (!model || model.length < 16 || !Number.isFinite(bodyMinZ) || !Number.isFinite(feetY)) return model;
+  const lowest = transformPoint(model, 0, 0, bodyMinZ);
+  if (!lowest || !Number.isFinite(lowest[1])) return model;
+  const grounded = model.slice();
+  grounded[13] += feetY - lowest[1];
+  return grounded;
+}
+
 export function createFpArm({ playerAppearance = false } = {}) {
   let renderer = null;
   let camera = null;
@@ -6928,7 +6942,10 @@ export function createFpArm({ playerAppearance = false } = {}) {
       const cameraDistance = Math.hypot(center[0] - eye[0], center[1] - eye[1], center[2] - eye[2]);
       const cameraPitchRatio = cameraDistance > 1e-6 ? Math.abs(center[1] - eye[1]) / cameraDistance : 0;
       if (!horse && !conceal && (cameraDistance < 2.25 || cameraPitchRatio > 0.18)) {
-        renderer.drawCharacter(thirdMesh, model);
+        // Use the body's own bounds, not carried gear, to keep feet planted as the view moves.
+        const body = visibleRangeBounds(thirdMesh.ranges, thirdBodyBox, CARRIED_SLOTS);
+        const groundedModel = body ? groundThirdPersonModel(model, body.minZ, feet[1]) : model;
+        renderer.drawCharacter(thirdMesh, groundedModel);
         return true;
       }
       if (horse && horse.mesh && horse.model && horse.box) {
