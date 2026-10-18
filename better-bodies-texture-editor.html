@@ -29,7 +29,9 @@
   <h1>Better Bodies — texture atlas editor</h1>
   <div class="toolbar">
     <button id="undo" disabled>Undo (Ctrl+Z)</button>
-    <button id="clear" class="danger" disabled>Clear selected pixels (Delete)</button>
+    <button id="clear" class="danger" disabled>Clear selected pixels (transparent)</button>
+    <label>Paint color <input id="paintColor" type="color" value="#c58d75"></label>
+    <button id="fill" disabled>Fill selected area with color</button>
     <button id="cancel" disabled>Cancel selection (Esc)</button>
     <button id="png" disabled>Export edited PNG</button>
     <button id="json" disabled>Export edit coordinates JSON</button>
@@ -51,7 +53,8 @@ import { decodeDds } from './src/formats/morrowind/mwDdsFile.js';
 const canvas = document.getElementById('atlas');
 const ctx = canvas.getContext('2d', { willReadFrequently: true });
 const status = document.getElementById('status');
-const buttons = Object.fromEntries(['undo','clear','cancel','png','json','reset'].map(id => [id, document.getElementById(id)]));
+const buttons = Object.fromEntries(['undo','clear','fill','cancel','png','json','reset'].map(id => [id, document.getElementById(id)]));
+const paintColor = document.getElementById('paintColor');
 let original = null;
 let current = null;
 let selection = null;
@@ -63,6 +66,7 @@ let serial = 0;
 function enable() {
   buttons.undo.disabled = history.length === 0;
   buttons.clear.disabled = !selection;
+  buttons.fill.disabled = !selection;
   buttons.cancel.disabled = !selection;
   buttons.png.disabled = !original;
   buttons.json.disabled = !original;
@@ -164,6 +168,19 @@ function undo() {
   selection = null; drag = null; render(); enable();
 }
 buttons.undo.addEventListener('click', undo);
+buttons.fill.addEventListener('click', () => {
+  if (!selection) return;
+  saveHistory();
+  ctx.putImageData(current,0,0);
+  const hex = paintColor.value.slice(1);
+  const rgb = [parseInt(hex.slice(0,2),16),parseInt(hex.slice(2,4),16),parseInt(hex.slice(4,6),16)];
+  const patch = ctx.getImageData(selection.x,selection.y,selection.w,selection.h);
+  for (let i=0;i<patch.data.length;i+=4) { patch.data[i]=rgb[0]; patch.data[i+1]=rgb[1]; patch.data[i+2]=rgb[2]; patch.data[i+3]=255; }
+  ctx.putImageData(patch,selection.x,selection.y);
+  current = ctx.getImageData(0,0,canvas.width,canvas.height);
+  edits.push({id:++serial,action:'fill',rect:{...selection},color:paintColor.value});
+  selection=null; render(); enable();
+});
 buttons.clear.addEventListener('click', () => {
   if (!selection) return;
   saveHistory();
@@ -212,7 +229,7 @@ try {
   const fitWidth = Math.max(320, Math.min(window.innerWidth-32, 1200));
   canvas.style.width = fitWidth+'px';
   canvas.style.height = Math.round(fitWidth*canvas.height/canvas.width)+'px';
-  status.textContent = 'Loaded '+mip.width+' × '+mip.height+' DDS texture. Select a patch, move it, or clear it. PNG export preserves transparency.';
+  status.textContent = 'Loaded '+mip.width+' × '+mip.height+' DDS texture. Select a patch, move it, paint over it, or clear it. PNG export preserves transparency.';
   enable();
 } catch (err) {
   status.textContent = 'Could not load DDS: '+String(err?.stack || err);
