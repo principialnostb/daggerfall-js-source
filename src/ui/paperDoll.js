@@ -368,7 +368,12 @@ export function requestPaperDollFigureRefresh() {
   if (_figurePixels || !_art || !_deps || !_lastEntity) return false;
   if (_smartRefreshRequestedEntity === _lastEntity) return false;
   _smartRefreshRequestedEntity = _lastEntity;
-  void refreshPaperDoll(_lastEntity).catch(() => {
+  void refreshPaperDoll(_lastEntity).catch((error) => {
+    _figureComposeError = error?.message ?? String(error);
+    if (_lastFigureComposeWarning !== _figureComposeError) {
+      console.warn('[SmartPaperDoll] PaperDoll refresh failed:', error);
+      _lastFigureComposeWarning = _figureComposeError;
+    }
     if (_smartRefreshRequestedEntity === _lastEntity) _smartRefreshRequestedEntity = null;
   });
   return true;
