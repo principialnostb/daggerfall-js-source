@@ -2755,16 +2755,34 @@ export function posePartClocks(assembly, value, { frameTime = value, slots = WEA
   return moved;
 }
 
-// Player-only local vertex morphs. The Morrowind body slots are separate skin batches
-// ('chest' and 'groin'), so deform their posed vertices rather than scaling the whole skeleton.
-// NIF character meshes are Z-up; +Y is the chest/front side in the authored body coordinate space.
+// Player-only local vertex morphs. Body parts are separate skinned batches; alter the
+// posed player vertices, never the shared source arrays or NPC/item geometry.
+function recalculateMorphedNormals(piece) {
+  const p = piece.positions, idx = piece.indices;
+  if (!p || !idx) return;
+  const n = piece.normals && piece.normals.length === p.length ? piece.normals : new Float32Array(p.length);
+  n.fill(0);
+  for (let k = 0; k + 2 < idx.length; k += 3) {
+    const ia = idx[k] * 3, ib = idx[k + 1] * 3, ic = idx[k + 2] * 3;
+    const abx = p[ib] - p[ia], aby = p[ib + 1] - p[ia + 1], abz = p[ib + 2] - p[ia + 2];
+    const acx = p[ic] - p[ia], acy = p[ic + 1] - p[ia + 1], acz = p[ic + 2] - p[ia + 2];
+    const nx = aby * acz - abz * acy, ny = abz * acx - abx * acz, nz = abx * acy - aby * acx;
+    for (const j of [ia, ib, ic]) { n[j] += nx; n[j + 1] += ny; n[j + 2] += nz; }
+  }
+  for (let i = 0; i + 2 < n.length; i += 3) {
+    const len = Math.hypot(n[i], n[i + 1], n[i + 2]);
+    if (len > 1e-8) { n[i] /= len; n[i + 1] /= len; n[i + 2] /= len; }
+  }
+  piece.normals = n;
+}
+
 function deformPlayerBodyGeometry(piece, morph) {
-  const amount = piece.slot === 'chest'
-    ? Math.max(-1, Math.min(1, Number(morph?.breastSize) || 0))
-    : piece.slot === 'groin'
-      ? Math.max(-1, Math.min(1, Number(morph?.buttockSize) || 0))
-      : 0;
-  if (!amount || (piece.slot !== 'chest' && piece.slot !== 'groin')) return;
+  const slot = String(piece.slot || '').toLowerCase();
+  const breast = slot === 'chest' ? clampMorph(morph?.breastSize) : 0;
+  const buttock = slot === 'groin' ? clampMorph(morph?.buttockSize) : 0;
+  const hip = (slot === 'groin' || slot === 'upperleg') ? clampMorph(morph?.hipWidth) : 0;
+  const waist = slot === 'chest' ? clampMorph(morph?.waistWidth) : 0;
+  if (!breast && !buttock && !hip && !waist) return;
   const p = piece.positions;
   if (!p || p.length < 9) return;
   let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity, minZ = Infinity, maxZ = -Infinity;
@@ -2781,25 +2799,41 @@ function deformPlayerBodyGeometry(piece, morph) {
   const clamp01 = (v) => Math.max(0, Math.min(1, v));
   for (let i = 0; i + 2 < p.length; i += 3) {
     const x = p[i], y = p[i + 1], z = p[i + 2];
-    const nx = (x - cx) / halfX;
-    const nz = (z - minZ) / spanZ;
-    if (piece.slot === 'chest') {
-      // Two soft lobes across the upper chest, with a front-only depth falloff.
-      const vertical = Math.exp(-Math.pow((nz - 0.66) / 0.24, 2));
-      const lobes = Math.exp(-Math.pow((Math.abs(nx) - 0.34) / 0.28, 2));
-      const front = clamp01((y - cy) / (halfY * 0.38));
-      const w = vertical * lobes * front;
-      p[i + 1] += amount * halfY * 0.34 * w;
-      p[i] += Math.sign(x - cx) * amount * halfX * 0.045 * w;
-    } else {
-      // Broad rear-side volume around the upper pelvis; keep the abdomen/front unchanged.
-      const vertical = Math.exp(-Math.pow((nz - 0.60) / 0.27, 2));
-      const rear = clamp01((cy - y) / (halfY * 0.38));
+    const nx = (x - cx) / halfX, ny = (y - cy) / halfY, nz = (z - minZ) / spanZ;
+    if (breast) {
+      // Soft paired lobes, expanding the chest depth in both directions so
+      // the result remains visible even if a race mesh uses the opposite Y convention.
+      const vertical = Math.exp(-Math.pow((nz - 0.63) / 0.24, 2));
+      const lobes = Math.exp(-Math.pow((Math.abs(nx) - 0.32) / 0.27, 2));
+      const depth = clamp01((Math.abs(ny) - 0.10) / 0.55);
+      const w = vertical * lobes * depth;
+      p[i + 1] += Math.sign(ny) * breast * halfY * 0.48 * w;
+      p[i] += Math.sign(nx) * breast * halfX * 0.035 * w;
+    }
+    if (buttock) {
+      // Rear side of the groin batch; the waist/front is deliberately left alone.
+      const vertical = Math.exp(-Math.pow((nz - 0.57) / 0.30, 2));
+      const rear = clamp01((-ny - 0.08) / 0.48);
       const w = vertical * rear;
-      p[i + 1] -= amount * halfY * 0.38 * w;
-      p[i] += Math.sign(x - cx) * amount * halfX * 0.085 * w;
+      p[i + 1] -= buttock * halfY * 0.55 * w;
+      p[i] += Math.sign(nx) * buttock * halfX * 0.07 * w;
+    }
+    if (hip) {
+      const vertical = slot === 'groin'
+        ? Math.exp(-Math.pow((nz - 0.70) / 0.28, 2))
+        : Math.exp(-Math.pow((nz - 0.82) / 0.25, 2));
+      const w = vertical * Math.min(1, Math.abs(nx) + 0.15);
+      p[i] += Math.sign(nx) * hip * halfX * 0.30 * w;
+    }
+    if (waist) {
+      const vertical = Math.exp(-Math.pow((nz - 0.38) / 0.16, 2));
+      p[i] += nx * waist * halfX * 0.24 * vertical;
     }
   }
+  recalculateMorphedNormals(piece);
+}
+function clampMorph(value) {
+  return Math.max(-1, Math.min(1, Number(value) || 0));
 }
 
 export function poseAssembly(assembly, { tracks = null, sampleTrack = null,
