@@ -13,7 +13,6 @@ export const SMART_PAPERDOLL_LAYERS = Object.freeze([
 ]);
 
 const SKIN = [[92, 58, 42], [130, 86, 64], [170, 121, 91], [205, 158, 125], [231, 190, 157]];
-const BOOT = [[35, 27, 22], [58, 44, 34], [83, 63, 48], [112, 86, 64], [142, 112, 85]];
 const DEFAULT_BUILD = Object.freeze({ torso: 1.02, shoulder: 0.94, arm: 0.96, hand: 0.94, neck: 0.96, skull: 0.96, jaw: 0.90, leg: 1.06 });
 
 function normalOf(points) {
@@ -58,7 +57,7 @@ function sphereFaces(cx, cy, cz, rx, ry, rz, color, rings = 7, segments = 12) {
   return out;
 }
 
-export function buildSmartPaperDollLayers({ skin = SKIN, boot = BOOT, garments = [] } = {}) {
+export function buildSmartPaperDollLayers({ skin = SKIN, garments = [] } = {}) {
   const body = feminineMorph(buildNeutralBody({ skin, boot: skin }, { build: DEFAULT_BUILD }));
   // Two small, connected chest forms give the torso a female silhouette while remaining
   // in the torso animation group; they are geometry, not painted pixels.
