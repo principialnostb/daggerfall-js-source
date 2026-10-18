@@ -2329,7 +2329,9 @@ export function bindPartsInto(assembly, parts) {
           const original = bound.skinned[i];
           if (geomFitCandidate(original, part)) {
             const fitted = fitGarmentClearance(original, fitSources, fitCtx, {
-              clearance: 0.2, maxDistance: 2.5, maxPush: 1.25,
+              clearance: part.fitMode === 'conform' ? 0.18 : 0.2,
+              maxDistance: part.fitMode === 'conform' ? 4.0 : 2.5,
+              maxPush: 1.25, conform: part.fitMode === 'conform',
             });
             if (fitted !== original) bound.skinned[i] = fitted;
           }
