@@ -331,7 +331,7 @@ requests. Unmatched files are inert.
 | 1 | Better Bodies — Nude | Textures under `Data Files/Textures` only | Safe fallback for the already-integrated Better Bodies body. The active body NIF and `bb_skinf_no-uv-edits.json` are not replaced here. |
 | 2 | Intelligent Textures — `00 Core` | Standard loose textures only | Broad baseline for vanilla Morrowind textures. `01 Atlas Textures` is excluded because atlas textures require their matching atlas meshes/UVs; mixing only one side can scramble mapping. |
 | 3 | Vurt's Better Clothes Retexture | Loose DDS/TGA texture paths | Broad texture override for paths it actually shares with the game. It is not allowed to override geometry merely because a pack contains it. |
-| 4 | Better Clothes Retextured | Textures only; no NIFs | Targeted final override for its own exact texture paths, after Intelligent Textures/Vurt. Its mesh files are deliberately excluded because they can carry UV changes and could disturb the current working equipment/body fitting. |
+| 4 | Better Clothes Retextured | Non-pants textures only; no NIFs | Targeted final override for its own exact non-pants texture paths, after Intelligent Textures/Vurt. Pants/trouser texture keys are held back so this pass cannot change the blue-pants control. Its mesh files are excluded because they can carry UV changes and could disturb the current working equipment/body fitting. |
 | 5 | Better Morrowind Armor | Main `Data Files` NIF/DDS/TGA assets and its main ESP | Armor-specific mesh/texture set. This is a geometry pack, not just a texture overlay; it wins matching armor keys so its mesh/UVs stay paired with its textures. |
 | 6 | Complete Armor Joints | Its `Data Files` assets and ESP | The selected compatibility add-on is loaded after the base armor pack. Other mutually exclusive BMA options are not auto-merged. |
 | 7 | Westly's Fine Clothiers of Tamriel | Meshes, textures and `Westly_Presents_FCOT.esp` | Adds its own clothing/content rather than being treated as a universal replacement for standard pants. Its plugin is needed for the added item records. |
@@ -342,7 +342,7 @@ requests. Unmatched files are inert.
 - **High Resolution Better Body Female Textures** — disabled after the earlier in-game result looked blurry and did not establish a reliable visual improvement. It must not override the currently working Better Bodies skin.
 - **Old Better Heads** — not discovered by this loader; the previous integration attempt could make the unhelmeted head disappear.
 - **Intelligent Textures `01 Atlas Textures`** — excluded without the corresponding atlas meshes.
-- **Better Clothes Retextured NIFs** — excluded from the texture pass to avoid silently replacing UV/geometry. A mesh can be reconsidered only as a separate, measured geometry change.
+- **Better Clothes Retextured NIFs and pants textures** — excluded from this pass. NIFs can change UVs/geometry; pants textures are withheld to protect the blue-pants reference until its exact asset key is identified. Reconsider either only as a separate, measured change.
 - **Alternative Better Morrowind Armor patches** — Chaos Heart, LeFemm/DeFemm, Snow Prince, no-Tribunal and HiRez compatibility variants are not merged automatically. They are alternatives, not additive packs; enabling several together can create incompatible mesh/texture/plugin combinations.
 - **Seamless DMRA body replacement** — not enabled; it would compete with the current Better Bodies geometry.
 - **Westly's Fine Clothiers is not used as a blanket standard-clothing replacer** — its extra clothing and its own assets are kept for their own keys/items.
@@ -351,7 +351,7 @@ requests. Unmatched files are inert.
 
 A texture changes surface detail, not the outline of a trouser mesh. If pants look square, the cause can be the NIF silhouette, UV mapping, body intersection, or the fitting transform; a higher-resolution DDS alone cannot make the legs narrower. Therefore this selection does not add another general clothing-mesh override on top of the current fitting solution.
 
-The currently good-looking blue pants are the visual control item. Keep them unchanged while checking each newly selected pack. Compare the same character, camera angle, distance and equipment before/after; if the blue-pants asset key is shared by a candidate pack, verify the actual winning URL in the browser diagnostic before accepting that override. Do not alter the camera/grounding fixes or the existing armor-fitting script as part of texture selection.
+The currently good-looking blue pants are the visual control item. The new Better Clothes Retextured layer explicitly skips every texture path containing `pant` or `trouser`, so it cannot overwrite any candidate pants key. Existing Intelligent Textures/Vurt pants selection remains as before. Compare the same character, camera angle, distance and equipment before/after; once the actual blue-pants key is identified, a specific alternative can be tested deliberately rather than changing it as a side effect. Do not alter the camera/grounding fixes or the existing armor-fitting script as part of texture selection.
 
 ### How to verify what actually wins
 
