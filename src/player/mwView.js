@@ -722,6 +722,14 @@ export function mwViewHides() {
 /** The third-person body composite, after the host's world draw. A
  *  no-op in first person or when the body cannot draw. */
 export function mwViewDrawBody(canvas, { proj, view, eye, feet, yaw, viewYaw = yaw, face = null }) {
+  // SMART-PAPERDOLL: one opt-in body across both existing third-person lanes. It consumes the
+  // exact RGBA composite already used by the inventory; a missing composite leaves the old lane intact.
+  if (mwCamera.thirdPerson() && modSetting('eye-of-the-beholder', 'Graphics.SmartPaperDoll') === true
+      && fpArm.drawSmartPaperDoll(canvas, { feet, yaw, grow: face?.grow > 1 ? face.grow : 1 })) {
+    spriteFigure = null;
+    spriteFacing = null;
+    return true;
+  }
   // EOTB4: the sprite lane draws its own body. `eotbLane()` already
   // requires `eotbBodyReady()`, so this arm cannot be reached with
   // nothing to draw - the gate and the draw are the same question
