@@ -2381,6 +2381,9 @@ export function bindPartsInto(assembly, parts) {
         const nameless = !String(batch.name || '').trim();
         if (nameless && tookNameless) continue;
         if (geomFilter && !shapeMatchesBone(batch.name, geomFilter)) continue;
+        // The full-body Better Bodies NIF bypasses ordinary per-slot skin rows.
+        // Apply the same worn-slot shadows section-by-section before drawing it.
+        if (part.slot === 'betterBodies' && betterBodiesSectionShadowed(batch.name, part.hideSlots)) continue;
         // MW-D7: the piece KEEPS its batch, and `positions` is its own
         // buffer - never an alias of batch.positions, which poseAssembly
         // reads every frame. Aliasing them is the runaway the viewer
@@ -3197,6 +3200,28 @@ function applyPre(positions, pre) {
  *  shape name, with Morrowind's "Tri " convention stripped first. A shape
  *  with NO name matches everything, because a nameless shape in a
  *  one-shape part file is the part. */
+/**
+ * Better Bodies is one full-body NIF, unlike Morrowind's separate BODY
+ * records. Ordinary slot shadows therefore do not hide its geometry unless
+ * the matching section is omitted here; otherwise breasts/back/limbs remain
+ * drawn through a cuirass or gauntlet even though the armor's own slot wins.
+ * Names are the NIF section names (for example "Tri Chest"), while shadows
+ * are ARMO_PART keys such as "chest" and "hand:right".
+ */
+function betterBodiesSectionShadowed(shapeName, shadows = []) {
+  const name = String(shapeName || '').trim().toLowerCase().replace(/^tri\\s+/, '');
+  const sideRegion = /^(left|right) (hand|wrist|forearm|upper arm|foot|ankle|knee|upper leg)$/.exec(name);
+  let shadow = null;
+  if (name === 'chest' || name === 'groin' || name === 'neck' || name === 'head' || name === 'hair' || name === 'tail') {
+    shadow = name;
+  } else if (sideRegion) {
+    const side = sideRegion[1] === 'left' ? 'left' : 'right';
+    const region = ({ 'upper arm': 'upperarm', 'upper leg': 'upperleg' })[sideRegion[2]] ?? sideRegion[2];
+    shadow = `${region}:${side}`;
+  }
+  return Boolean(shadow && (shadows ?? []).includes(shadow));
+}
+
 export function shapeMatchesBone(shapeName, bone) {
   const name = String(shapeName || '').trim().toLowerCase();
   if (!name) return true;
