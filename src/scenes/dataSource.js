@@ -684,7 +684,15 @@ export const loadMorrowindArmRecords = async (fileName) => {
   if (!_mwRecordsCache || _mwRecordsCache.gen !== _mwGeneration) _mwRecordsCache = { gen: _mwGeneration, files: new Map() };
   const cache = _mwRecordsCache;   // AUDIT 68 S18-mw-cache-stale-generation: loadMorrowindFile's law
   if (cache.files.has(fileName)) return cache.files.get(fileName);
-  const blob = await assetBlob(MW_STORE, fileName);
+  let blob;
+  if (String(fileName).startsWith('bundled:')) {
+    const bundled = await import('../systems/bundledMorrowindMods.js');
+    const bytes = await bundled.loadBundledMorrowindPlugin(fileName);
+    if (!bytes) return null;
+    blob = new Blob([bytes]);
+  } else {
+    blob = await assetBlob(MW_STORE, fileName);
+  }
   if (!blob) return null;
   const { extractArmRecords, isArmRecords, ARM_RECORDS_VERSION } = await import('../formats/morrowind/mwFirstPerson.js');
   const key = `${ARM_RECORDS_PREFIX}:v${ARM_RECORDS_VERSION}:${fileName}:${blob.size}:${await sampleStamp(blob)}`;
@@ -749,6 +757,14 @@ async function _openMorrowindArchives(gen) {
       if (bytes) loose.set(n, bytes);
     }
     archives.push(makeLooseArchive(loose));
+  }
+  // Bundled Clothes / Better Heads assets follow user loose files (which win
+  // collisions) and precede retail BSA archives.
+  try {
+    const bundled = await import('../systems/bundledMorrowindMods.js');
+    archives.push(bundled.bundledMorrowindModsArchive());
+  } catch (err) {
+    console.warn('bundled Morrowind mods: ' + err.message);
   }
   // WS1: Weapon Sheathing's vendored scabbards and bone addons, after
   // the player's own loose files (a replacer wins) and before every

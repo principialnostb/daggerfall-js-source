@@ -297,3 +297,22 @@ using the shared weapon rig; no host-specific geometry or animation changes.
 This fixes selection, not authored grip transforms or scale. Retail archive checks
 and visual evidence accompany the separate handoff; full live-scene acceptance
 remains a release check.
+
+
+## Bundled Clothes and Better Heads
+
+The runtime archive in `src/systems/bundledMorrowindMods.js` mounts the checked-in
+NIF/DDS/TGA files from `Morrowind Textures/Clothes` and
+`Morrowind Textures/Better Heads` at their Data Files-relative paths. Player
+loose files remain higher priority; bundled mod assets override files in retail
+BSAs when no player override exists.
+
+The same module exposes the bundled Better Heads master/expansion/race-pack
+plugins and Aleanne Clothes v1. The existing TES3 record reader loads their
+BODY, ARMO and CLOT records alongside attached masters. Face pools resolve
+duplicate BODY IDs using the last loaded record, so a Better Heads replacement
+is not masked by the earlier vanilla record.
+
+The Clothes folder contains `ale_clothing_v1.esp` but not its documented
+`ale_clothing_v0.esp` dependency. Items supplied only by v0 are therefore not
+part of this integration; the v1 records and assets are loaded as provided.

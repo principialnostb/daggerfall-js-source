@@ -1683,8 +1683,16 @@ export function facePools(parts, race, female, { has = null, own: ownAsked = fal
   if (own && (!has || [...own.heads, ...own.hairs].every((r) => has(`meshes/${r.model}`)))) return { heads: own.heads, hairs: own.hairs };
   const want = String(race || '').toLowerCase();
   const pool = (slot) => {
-    const forSlot = (parts ?? []).filter((p) => p.race === want && p.slot === slot
-      && p.skin && p.playable && !p.firstPerson);
+    // Later masters override earlier records with the same ID. Deduplicate
+    // before sorting, otherwise a vanilla BODY record can mask Better Heads'
+    // replacement mesh because the stable sort preserves the earlier entry.
+    const latest = new Map();
+    for (const p of parts ?? []) {
+      if (p.race === want && p.slot === slot && p.skin && p.playable && !p.firstPerson) {
+        latest.set(String(p.id).toLowerCase(), p);
+      }
+    }
+    const forSlot = [...latest.values()];
     const sexed = forSlot.filter((p) => p.female === !!female);
     return (sexed.length ? sexed : forSlot.filter((p) => !p.female))
       .slice().sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
