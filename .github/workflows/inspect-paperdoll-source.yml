@@ -1,0 +1,42 @@
+name: inspect-paperdoll-source
+
+on:
+  push:
+    branches:
+      - smart-paperdoll-animated
+    paths:
+      - "paperdoll enhanced.rar"
+      - "tools/paperdoll/inspectEnhancedArchive.mjs"
+      - ".github/workflows/inspect-paperdoll-source.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: smart-paperdoll-animated
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install archive extractor
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y 7zip
+      - name: Install project dependencies
+        run: npm ci --ignore-scripts
+      - name: Extract nested archives and index source images
+        run: node tools/paperdoll/inspectEnhancedArchive.mjs --archive "paperdoll enhanced.rar" --out build/paperdoll-source
+      - name: Publish extracted source and manifest for inspection
+        uses: actions/upload-artifact@v4
+        with:
+          name: paperdoll-source-inspection
+          path: build/paperdoll-source/
+          if-no-files-found: error
+          retention-days: 2
