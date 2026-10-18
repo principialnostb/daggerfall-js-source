@@ -809,6 +809,32 @@ function shieldMeshOf(armo, female, bodyById, notes) {
   return { model: armo.model, recordId: null, ground: true };
 }
 
+/**
+ * Body surfaces used to geometrically fit clothing panels. This deliberately
+ * does not opt clothing into the separate skin-transfer renderer: the original
+ * NIF remains responsible for its UVs, material and bone weights.
+ */
+const CLOTHING_FIT_SLOTS = Object.freeze({
+  chest: Object.freeze(['chest', 'groin']),
+  groin: Object.freeze(['groin', 'upperleg', 'knee']),
+  'right upper leg': Object.freeze(['upperleg', 'knee', 'groin']),
+  'left upper leg': Object.freeze(['upperleg', 'knee', 'groin']),
+  'right knee': Object.freeze(['knee', 'upperleg']),
+  'left knee': Object.freeze(['knee', 'upperleg']),
+  'right upper arm': Object.freeze(['upperarm', 'forearm']),
+  'left upper arm': Object.freeze(['upperarm', 'forearm']),
+  'right forearm': Object.freeze(['forearm', 'upperarm', 'wrist']),
+  'left forearm': Object.freeze(['forearm', 'upperarm', 'wrist']),
+  'right wrist': Object.freeze(['wrist', 'forearm', 'hand']),
+  'left wrist': Object.freeze(['wrist', 'forearm', 'hand']),
+  'right hand': Object.freeze(['hand', 'wrist']),
+  'left hand': Object.freeze(['hand', 'wrist']),
+  'right ankle': Object.freeze(['ankle', 'foot']),
+  'left ankle': Object.freeze(['ankle', 'foot']),
+  'right foot': Object.freeze(['foot', 'ankle']),
+  'left foot': Object.freeze(['foot', 'ankle']),
+});
+
 /** One record's part references, claimed at one priority. */
 function composeRefs(rec, prio, female, bodyById, claim, notes, piece = null) {
   for (const ref of rec.parts ?? []) {
@@ -826,6 +852,8 @@ function composeRefs(rec, prio, female, bodyById, claim, notes, piece = null) {
     claim(ref.part, prio, {
       slot: `${row.name} (${rec.id})`, partName: row.name,
       bones: row.bones, model: body.model, recordId: id, piece,
+      ...(piece?.kind === 'clothing' && CLOTHING_FIT_SLOTS[row.name]
+        ? { fitBodySlots: CLOTHING_FIT_SLOTS[row.name] } : {}),
     });
   }
 }
