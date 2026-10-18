@@ -73,7 +73,7 @@ function extractTree(source, destination, depth) {
   nested.sort();
   for (let i = 0; i < nested.length; i++) {
     const nestedPath = nested[i];
-    const nestedOut = path.join(output, 'nested', String(archiveRecords.length).padStart(4, '0'));
+    const nestedOut = path.join(extractionRoot, '__nested', String(archiveRecords.length).padStart(4, '0'));
     extractTree(nestedPath, nestedOut, depth + 1);
   }
 }
