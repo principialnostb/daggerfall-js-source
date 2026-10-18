@@ -1,20 +1,20 @@
 # Smart PaperDoll — установка, проверка и откат
 
-Smart PaperDoll is an opt-in third-person player body. The existing `SMART PAPERDOLL: ON/OFF` control and `Graphics.SmartPaperDoll` setting remain the only switch; this work does not alter the control or its default.
+Smart PaperDoll — необязательная модель игрока для вида от третьего лица. Существующая кнопка `SMART PAPERDOLL: ON/OFF` и настройка `Graphics.SmartPaperDoll` остаются единственным переключателем. Эта работа не меняет кнопку и её значение по умолчанию.
 
-## Current animated-rig prototype
+## Текущий прототип анимированного рига
 
-The world draw now uses `src/characters/smartPaperDollRig.js`, an independently assembled rig rather than converting the finished inventory portrait into voxels:
+Отрисовка в игровом мире теперь использует `src/characters/smartPaperDollRig.js`: отдельную самостоятельно собранную модель, а не вокселизацию готового изображения персонажа из окна инвентаря.
 
-- Builds a separate 3D body from the project's loft geometry and applies a feminine silhouette morph plus explicit chest geometry.
-- Uses the shared `createCharacterRig` / `animateTarget` animation runtime. The body uses an idle sway when stationary and the walk cycle when the player's world position advances.
-- Exposes the body, body details and each optional garment as separate geometry layers in `buildSmartPaperDollLayers()`. Garments can be selected through `setSmartPaperDollLayers([...])`; available first-pass draped pieces are exported as `SMART_PAPERDOLL_LAYERS`.
-- The first pass uses project-authored geometry and palette ramps. It is a working foundation, not yet a pixel-perfect reconstruction of the original Light Fighter female sprite or a complete equipment-to-geometry mapping.
-- First-person rendering and the standard third-person body path when the switch is OFF are not intentionally changed.
+- Тело строится из геометрии рига проекта; затем применяется морфология женского силуэта и добавляется отдельная геометрия груди.
+- Используется общий анимационный механизм `createCharacterRig` / `animateTarget`. При неподвижности включается idle-покачивание, при движении позиции игрока — цикл ходьбы.
+- `buildSmartPaperDollLayers()` предоставляет тело, детали тела и каждый предмет одежды отдельными геометрическими слоями. Комплекты можно менять через `setSmartPaperDollLayers([...])`; первые доступные драпированные элементы перечислены в `SMART_PAPERDOLL_LAYERS`.
+- Первая версия использует самостоятельно построенную геометрию и цветовые палитры проекта. Это рабочая основа, но пока не пиксель-в-пиксель реконструкция оригинального женского Light Fighter и не полная привязка геометрии к фактически надетому игровому снаряжению.
+- Рендеринг от первого лица и стандартная модель при выключенном переключателе намеренно не меняются.
 
-## Verify
+## Проверка
 
-Use Node.js 20.19+ or 22.12+ as required by `package.json`.
+Требуется Node.js 20.19+ или 22.12+, как указано в `package.json`.
 
 ```powershell
 npm test -- --test-name-pattern="Smart PaperDoll|paperdoll rig|voxel"
@@ -22,9 +22,9 @@ npm run lint
 npm run build
 ```
 
-The tests cover the existing switch, independent rig integration, generated body geometry, optional garment layers and the legacy voxel conversion helpers.
+Тесты проверяют существующий переключатель, подключение независимого рига, построение геометрии тела, опциональные слои одежды и совместимость старых вспомогательных функций вокселизации.
 
-## Roll back
+## Откат
 
-1. Turn Smart PaperDoll OFF using the existing control.
-2. To remove this prototype entirely, revert the commits on `smart-paperdoll-animated`. The stable `main` and `smart-paperdoll` branches are not changed by this work.
+1. Выключите Smart PaperDoll существующей кнопкой.
+2. Чтобы полностью убрать прототип, отмените его коммиты в `smart-paperdoll-animated`. Ветки `main` и `smart-paperdoll` этой работой не изменялись.
