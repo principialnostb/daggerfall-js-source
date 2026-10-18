@@ -1,7 +1,8 @@
 import { BODY_MORPH_FIELDS, getBodyMorphs, setBodyMorph, resetBodyMorphs } from '../characters/bodyMorphs.js';
 
 const GROUPS = [
-  ['Тело', ['height', 'bodyWidth', 'shoulderWidth']],
+  ['Основные пропорции', ['height', 'bodyWidth', 'shoulderWidth']],
+  ['Корпус и голова', ['torsoScale', 'headScale']],
   ['Конечности', ['armScale', 'legScale', 'legGap']],
 ];
 const labelByKey = new Map(BODY_MORPH_FIELDS.map(([key, label]) => [key, label]));
@@ -21,7 +22,7 @@ export function openAppearanceEditor({ fpArm, onClose = () => {} } = {}) {
   const heading = document.createElement('div');
   heading.innerHTML = '<div style="font-size:21px;font-weight:700;letter-spacing:.03em">Редактирование внешности</div><div style="color:#aaa;margin-top:6px">Зажми модель и вращай мышью</div>';
   const preview = document.createElement('canvas');
-  preview.width = 384; preview.height = 384;
+  preview.width = 512; preview.height = 512;
   preview.style.cssText = 'width:min(100%,380px);height:auto;max-height:66%;object-fit:contain;cursor:grab;touch-action:none;background:radial-gradient(ellipse,#373741 0%,#17171c 68%);border:1px solid #444;border-radius:6px;';
   const previewHint = document.createElement('div');
   previewHint.style.cssText = 'font-size:12px;color:#aaa;text-align:center;line-height:1.5;';
@@ -66,7 +67,7 @@ export function openAppearanceEditor({ fpArm, onClose = () => {} } = {}) {
   }
   const actions = document.createElement('div');
   actions.style.cssText = 'display:flex;gap:8px;flex-wrap:wrap;position:sticky;bottom:-18px;background:#17171c;padding:12px 0 2px;border-top:1px solid #3e3e45;';
-  const reset = makeButton('Сбросить');
+  const reset = makeButton('Сбросить по умолчанию');
   reset.addEventListener('click', () => {
     resetBodyMorphs();
     for (const input of inputs.values()) { input.value = '0'; input.dispatchEvent(new Event('input')); }
@@ -100,7 +101,7 @@ export function openAppearanceEditor({ fpArm, onClose = () => {} } = {}) {
   function drawPreview() {
     if (closed) return;
     let pixels = null;
-    try { pixels = fpArm?.figure?.({ yaw, height: 384, force: true }) ?? null; } catch { pixels = null; }
+    try { pixels = fpArm?.figure?.({ yaw, height: 512, force: true }) ?? null; } catch { pixels = null; }
     if (!pixels?.data || !pixels.width || !pixels.height) {
       // The game may not have built the third-person rig yet. Keep the character visible
       // by borrowing the image already displayed in the equipment window instead of
@@ -124,9 +125,23 @@ export function openAppearanceEditor({ fpArm, onClose = () => {} } = {}) {
       return;
     }
     previewHint.textContent = 'Настройки сохраняются автоматически. Зажми модель и вращай мышью.';
-    if (preview.width !== pixels.width) preview.width = pixels.width;
-    if (preview.height !== pixels.height) preview.height = pixels.height;
-    try { preview.getContext('2d')?.putImageData(new ImageData(pixels.data, pixels.width, pixels.height), 0, 0); } catch { /* ImageData unavailable */ }
+    // Render the native sprite larger, then scale it to the full preview area with
+    // smoothing disabled so the original Morrowind pixels stay crisp.
+    if (preview.width !== 512) preview.width = 512;
+    if (preview.height !== 512) preview.height = 512;
+    const ctx = preview.getContext('2d');
+    if (ctx) {
+      ctx.clearRect(0, 0, preview.width, preview.height);
+      try {
+        const source = document.createElement('canvas');
+        source.width = pixels.width; source.height = pixels.height;
+        source.getContext('2d')?.putImageData(new ImageData(pixels.data, pixels.width, pixels.height), 0, 0);
+        const scale = Math.min((preview.width * 0.94) / pixels.width, (preview.height * 0.94) / pixels.height);
+        ctx.imageSmoothingEnabled = false;
+        ctx.drawImage(source, (preview.width - pixels.width * scale) / 2, (preview.height - pixels.height * scale) / 2,
+          pixels.width * scale, pixels.height * scale);
+      } catch { /* keep the preview canvas usable if ImageData is unavailable */ }
+    }
   }
   function close() {
     if (closed) return;
