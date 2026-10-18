@@ -15,7 +15,15 @@ import { makeVendoredArchive } from './urlArchive.js';
 
 const IN_BROWSER = typeof window !== 'undefined';
 const FILES = IN_BROWSER
-  ? import.meta.glob('../../Morrowind Textures/**/*.{nif,NIF,dds,DDS,tga,TGA,esm,ESM,esp,ESP}', {
+  ? import.meta.glob([
+      '../../Morrowind Textures/Better Bodies/Nude/Data Files/Textures/**/*.{dds,DDS,tga,TGA}',
+      '../../Morrowind Textures/Intelligent Textures/00 Core/textures/**/*.{dds,DDS,tga,TGA}',
+      '../../Morrowind Textures/Better Clothes Retextured/meshes/**/*.{nif,NIF}',
+      '../../Morrowind Textures/Better Clothes Retextured/textures/**/*.{dds,DDS,tga,TGA}',
+      '../../Morrowind Textures/Better Morrowind Armor/Data Files/**/*.{nif,NIF,dds,DDS,tga,TGA,esp,ESP}',
+      '../../Morrowind Textures/Better Morrowind Armor/Complete Armor Joints/Data Files/**/*.{nif,NIF,dds,DDS,tga,TGA,esp,ESP}',
+      "../../Morrowind Textures/Westly's Faces Refurbished/Data Files/**/*.{nif,NIF,dds,DDS,tga,TGA}",
+    ], {
       eager: true, query: '?url', import: 'default',
     })
   : {};
@@ -140,7 +148,7 @@ export async function inspectBundledMorrowindTextures() {
     'textures/bb/bb_handf_de.dds',
     'textures/tx_a_steel_cuirass01.dds',
     'textures/bc/bc_common_shirt_t.dds',
-    'textures/b_n_dark elf_f_head_01.dds',
+    'textures/wfr/bv/wfr_f01.dds',
   ];
   const checks = await Promise.all(candidates.map(async (key) => {
     const url = assetUrls[norm(key)] ?? null;
