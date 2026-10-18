@@ -4,7 +4,8 @@
 // Priority inside this archive (later packages win exact-path collisions):
 //   Better Bodies Nude textures (required fallback for the existing BB body)
 //   Intelligent Textures 00 Core (base game texture refresh; no atlas files)
-//   Vurt's Better Clothes Retexture (clothing and armor textures)
+//   Vurt's Better Clothes Retexture (broad fallback override)
+//   Better Clothes Retextured (targeted clothing texture overrides only)
 //   Better Morrowind Armor (base Data Files + Complete Armor Joints patch)
 //   Westly's Fine Clothiers of Tamriel (clothing meshes/textures + plugin)
 //   Westly's Faces Refurbished (head/hair meshes and textures)
@@ -20,6 +21,7 @@ const FILES = IN_BROWSER
       '../../Morrowind Textures/Better Bodies/Nude/Data Files/Textures/**/*.{dds,DDS,tga,TGA}',
       '../../Morrowind Textures/Intelligent Textures/00 Core/textures/**/*.{dds,DDS,tga,TGA}',
       "../../Morrowind Textures/Vurt's Better Clothes Retexture/textures/**/*.{dds,DDS,tga,TGA}",
+      '../../Morrowind Textures/Better Clothes Retextured/textures/**/*.{dds,DDS,tga,TGA}',
       "../../Morrowind Textures/Westly's Fine Clothiers of Tamriel/Meshes/**/*.{nif,NIF}",
       "../../Morrowind Textures/Westly's Fine Clothiers of Tamriel/Textures/**/*.{dds,DDS,tga,TGA}",
       "../../Morrowind Textures/Westly's Fine Clothiers of Tamriel/Westly_Presents_FCOT.esp",
@@ -36,6 +38,7 @@ const assetUrls = Object.create(null);
 const baseBodyTextureUrls = Object.create(null);
 const intelligentTextureUrls = Object.create(null);
 const vurtClothesTextureUrls = Object.create(null);
+const betterClothesTextureUrls = Object.create(null);
 const clothierAssetUrls = Object.create(null);
 const armorTextureUrls = Object.create(null);
 const armorJointsUrls = Object.create(null);
@@ -84,9 +87,20 @@ for (const [source, url] of Object.entries(FILES)) {
     continue;
   }
 
+  // Vurt's broad texture pack is a fallback for matching game texture paths.
+  // Better Clothes Retextured is applied after it for its own exact paths,
+  // but only textures are included: its NIFs may change UVs and are not
+  // allowed to silently replace the current body/equipment geometry.
+  const betterClothesRel = relAfter(path, lower, '/better clothes retextured/');
+  if (betterClothesRel) {
+    const match = betterClothesRel.match(/^textures\\/(.+\\.(?:dds|tga))$/i);
+    if (match) addAsset(betterClothesTextureUrls, 'textures/' + match[1], url, 'Better Clothes Retextured (textures only)');
+    continue;
+  }
+
   // Vurt's pack is a loose texture override: its paths are relative to the
-  // game's Textures directory. It replaces the older Better Clothes
-  // Retextured pack, which is intentionally no longer selected.
+  // game's Textures directory. Better Clothes Retextured, when it supplies
+  // the same exact path, takes precedence in the next layer.
   const vurtRel = relAfter(path, lower, "/vurt's better clothes retexture/");
   if (vurtRel) {
     const match = vurtRel.match(/^textures\/(.+\.(?:dds|tga))$/i);
@@ -156,6 +170,7 @@ Object.assign(
   baseBodyTextureUrls,
   intelligentTextureUrls,
   vurtClothesTextureUrls,
+  betterClothesTextureUrls,
   armorTextureUrls,
   armorJointsUrls,
   clothierAssetUrls,
