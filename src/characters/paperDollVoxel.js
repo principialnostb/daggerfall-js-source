@@ -1,7 +1,7 @@
 // Smart PaperDoll: convert the live RGBA paperdoll composite into a shallow voxel mesh.
 // The input is the exact image already composed by ui/paperDoll.js, so dyes, armor,
 // clothing, texture replacements and race-specific art stay in sync with the inventory.
-import { paperDollFigurePixels } from '../ui/paperDoll.js';
+import { paperDollFigurePixels, requestPaperDollFigureRefresh } from '../ui/paperDoll.js';
 import { packCharacterFaces } from '../render/characterMesh.js';
 import { trs } from '../world/mat4.js';
 
@@ -140,7 +140,13 @@ function meshFor(renderer, image) {
  * is not ready so mwView can preserve its existing Morrowind/EotB fallback.
  */
 export function drawSmartPaperDoll(renderer, { feet, yaw = 0, grow = 1 } = {}) {
-  const image = paperDollFigurePixels();
+  let image = paperDollFigurePixels();
+  // The inventory normally triggers composition, but the world can be the first screen opened.
+  // Kick the same async compositor once; subsequent frames pick up its completed live composite.
+  if (!image) {
+    requestPaperDollFigureRefresh();
+    image = paperDollFigurePixels();
+  }
   if (!image || !feet || feet.length < 3) {
     clearSmartPaperDoll();
     return false;
