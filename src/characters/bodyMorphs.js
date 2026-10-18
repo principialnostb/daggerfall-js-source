@@ -1,12 +1,14 @@
 // Character body morph settings for the Morrowind player.
 // Values are normalized to [-1, 1] and persisted per browser profile.
 export const BODY_MORPH_FIELDS = [
+  ['height', 'Рост', 'overall'],
+  ['bodyWidth', 'Ширина тела', 'overall'],
   ['shoulderWidth', 'Ширина плеч', 'shoulders'],
+  ['torsoScale', 'Масштаб корпуса', 'torso'],
+  ['headScale', 'Размер головы', 'head'],
   ['armScale', 'Масштаб рук', 'arms'],
   ['legScale', 'Масштаб ног', 'legs'],
   ['legGap', 'Расстояние между ногами', 'legs'],
-  ['height', 'Рост', 'overall'],
-  ['bodyWidth', 'Общая ширина тела', 'overall'],
 ];
 const KEY = 'mw-character-body-morphs-v1';
 const defaults = Object.freeze(Object.fromEntries(BODY_MORPH_FIELDS.map(([key]) => [key, 0])));
