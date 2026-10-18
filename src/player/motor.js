@@ -516,7 +516,8 @@ export class PlayerMotor {
     this.parkoured = null;       // 'mantle' | 'vault' for the frame a move starts (the fatigue/tally consumer, as `jumped`)
     this.climbEvents = [];       // CLIMB4: the frame's climb events ({ type, ... }) - the feel's and the sounds' (climbFeel.js, climbSounds.js)
     this._bodyYaw = null;        // CLIMB5: the body's own yaw while it is not the view's (bodyYawFor) - null when it is
-    this._bodyYawOff = null;     // AUDIT CLIMB-ARC N4: off the wall, the body's offset from the view, decaying - null when none
+    this._bodyYawOff = null;
+    this._thirdPersonLookYaw = null; // MW-D40: body facing latched separately from camera orbit while standing/walking     // AUDIT CLIMB-ARC N4: off the wall, the body's offset from the view, decaying - null when none
     this._pkJumpLatch = false;   // AUDIT CLIMB1 F7: Jump held through a move is spent on it - the next jump is a fresh press
     this._pkArm = null;          // the tap catch: a fresh Jump's catch armed for its jump ({ t, air }) - PARKOUR_ARM_GRACE_S
     this._pkJumpWas = false;     // ...the key's last step, for the press's edge
@@ -1868,7 +1869,18 @@ export class PlayerMotor {
   }
   /** CLIMB5: the yaw the body is drawn at (third person) for a view at `viewYaw` - the view's own, except on the climb
    *  and the moment after it, when it turns to the wall and back (BODY_TURN_TAU). */
-  bodyYawFor(viewYaw) { return this.drawYaw ?? this._bodyYaw ?? (this._bodyYawOff == null ? viewYaw : viewYaw + this._bodyYawOff); }   // WAGONS3: a bench's facing first
+  /** The body follows the view only when the host says movement/combat needs it.
+   *  In ordinary standing/walking, mouse-look orbits the camera without
+   *  rotating the actor. First-person calls pass faceView to keep the latch
+   *  current when perspective changes. Climbing and seats retain precedence. */
+  bodyYawFor(viewYaw, { faceView = false } = {}) {
+    if (this.drawYaw != null) return this.drawYaw;
+    if (this._bodyYaw != null) return this._bodyYaw;
+    if (this._bodyYawOff != null) return viewYaw + this._bodyYawOff;
+    if (!Number.isFinite(viewYaw)) return viewYaw;
+    if (faceView || this._thirdPersonLookYaw == null) this._thirdPersonLookYaw = viewYaw;
+    return this._thirdPersonLookYaw;
+  }   // MW-D40; WAGONS3: a bench's facing first
   /** CLIMB2: hanging from a lip. */
   get hanging() { return this._wall?.mode === 'hang'; }
   /** CLIMB2: the grip the HUD shows ({ amount, low }) - on the wall, and while it comes back after; null otherwise. */

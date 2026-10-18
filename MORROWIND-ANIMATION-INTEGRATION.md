@@ -62,3 +62,10 @@ The Morrowind Mesh Viewer now has a persisted `female walk: Standard/Female` sel
 - The setting does not modify meshes, textures, body proportions, or skeleton geometry.
 
 This is a working **viewer-level diagnostic selector**, not yet a claim that the gameplay actor controller has been wired to the preference. The reviewed code paths do not establish a connected third-person gameplay animation loop or the requested mouse-turn state gate. Those gameplay changes must be integrated at the actual controller/renderer seam rather than faked in this viewer.
+
+
+## Implementation update — independent third-person body facing (MW-D40)
+
+The exterior and dungeon hosts now tell the player motor when body facing should follow the view. While standing or ordinary walking, the body yaw is latched and the camera can orbit without turning the body. First-person frames keep the latch synchronized so entering third person does not inherit a stale angle. Running, held attack input, or a non-idle exterior weapon animation resumes view-facing; climb-owned body yaw and seat/draw yaw still take precedence. This changes orientation only; it does not rewrite movement input or animation clips.
+
+Regression coverage is in `test/player/bodyYawFacing.test.js`. In-game visual verification is still required for transitions between walking, running, attack, climbing, and mounted states.
