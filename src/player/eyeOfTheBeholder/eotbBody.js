@@ -378,16 +378,38 @@ export function createEotbBody({ count = spriteCount, urlFor = eotbSpriteUrl, de
    */
   let smartBodyPixels = null;
   let smartBodyPixelsPending = null;
+  let smartBodyLoadReported = false;
+  let smartBodyLoadFailedReported = false;
+  let smartSlotBitsReported = null;
   async function loadSmartBodyPixels() {
     if (smartBodyPixels) return smartBodyPixels;
     if (!smartBodyPixelsPending) {
-      smartBodyPixelsPending = decode(smartBodyTextureUrl('BODY17I0.IMG.png'))
-        .then((pixels) => {
-          if (!pixels || pixels.length !== 53 * 110) return null;
-          smartBodyPixels = pixels;
-          return pixels;
+      const url = smartBodyTextureUrl('BODY17I0.IMG.png');
+      console.log('[SmartPaperDoll] attempting body PNG load:', url);
+      if (!url) {
+        smartBodyLoadFailedReported = true;
+        console.error('[SmartPaperDoll] PNG URL missing from Vite glob. Check vendor/smart-paperdoll/Textures/body/ and restart Vite.');
+        return null;
+      }
+      smartBodyPixelsPending = decode(url)
+        .then((image) => {
+          // decodeSprite returns { width, height, colors }; the previous code treated it as a raw array,
+          // so this condition rejected every successful load and silently disabled the compositor.
+          if (!image || image.width !== 53 || image.height !== 110 || !image.colors || image.colors.length !== 53 * 110) {
+            smartBodyLoadFailedReported = true;
+            console.error('[SmartPaperDoll] PNG decoded with unexpected shape:', image && { width: image.width, height: image.height, pixels: image.colors?.length });
+            return null;
+          }
+          smartBodyPixels = image;
+          smartBodyLoadReported = true;
+          console.log('[SmartPaperDoll] body PNG load SUCCESS:', url, image.width + 'x' + image.height);
+          return image;
         })
-        .catch(() => null)
+        .catch((error) => {
+          smartBodyLoadFailedReported = true;
+          console.error('[SmartPaperDoll] body PNG load FAILED:', url, error);
+          return null;
+        })
         .finally(() => { smartBodyPixelsPending = null; });
     }
     return smartBodyPixelsPending;
@@ -395,31 +417,44 @@ export function createEotbBody({ count = spriteCount, urlFor = eotbSpriteUrl, de
   async function composeSmartBody(width, height, source, wornBits) {
     if (!source || !wornBits || (wornBits.chestArmor && wornBits.feet && wornBits.head)) return source;
     if (source.length !== width * height) return source;
-    const body = await loadSmartBodyPixels();
-    if (!body) return source;
+    const slots = { chestArmor: !wornBits.chestArmor, head: !wornBits.head, feet: !wornBits.feet };
+    const slotBits = `${wornBits.chestArmor ? 1 : 0}${wornBits.feet ? 1 : 0}${wornBits.head ? 1 : 0}`;
+    if (slotBits !== smartSlotBitsReported) {
+      smartSlotBitsReported = slotBits;
+      console.log('[SmartPaperDoll] equipment state (true=equipped):', { ...wornBits }, '| empty slots:', Object.keys(slots).filter((k) => slots[k]));
+    }
+    const bodyImage = await loadSmartBodyPixels();
+    const body = bodyImage?.colors ?? null;
     const colors = new Uint32Array(source);
     const rgba = new Uint8Array(colors.buffer, colors.byteOffset, colors.byteLength);
-    const bodyRgba = new Uint8Array(body.buffer, body.byteOffset, body.byteLength);
+    const bodyRgba = body ? new Uint8Array(body.buffer, body.byteOffset, body.byteLength) : null;
     for (let y = 0; y < height; y++) {
       const ny = (y + 0.5) / height;
       for (let x = 0; x < width; x++) {
         const nx = (x + 0.5) / width;
-        const torso = !wornBits.chestArmor && nx >= 0.20 && nx <= 0.80 && ny >= 0.40 && ny <= 0.70;
-        const head = !wornBits.head && nx >= 0.34 && nx <= 0.66 && ny >= 0.755 && ny <= 0.955;
-        const feet = !wornBits.feet && nx >= 0.24 && nx <= 0.76 && ny >= 0.015 && ny <= 0.125;
+        const torso = slots.chestArmor && nx >= 0.20 && nx <= 0.80 && ny >= 0.40 && ny <= 0.70;
+        const head = slots.head && nx >= 0.34 && nx <= 0.66 && ny >= 0.755 && ny <= 0.955;
+        const feet = slots.feet && nx >= 0.24 && nx <= 0.76 && ny >= 0.015 && ny <= 0.125;
         if (!(torso || head || feet)) continue;
         const si = (y * width + x) * 4;
         if (rgba[si + 3] === 0) continue;
         const bx = Math.min(52, Math.floor((x + 0.5) * 53 / width));
         const by = Math.min(109, Math.floor((y + 0.5) * 110 / height));
-        const bi = (by * 53 + bx) * 4;
-        if (bodyRgba[bi + 3] === 0) continue;
-        rgba[si] = bodyRgba[bi];
-        rgba[si + 1] = bodyRgba[bi + 1];
-        rgba[si + 2] = bodyRgba[bi + 2];
+        if (bodyRgba) {
+          const bi = (by * 53 + bx) * 4;
+          if (bodyRgba[bi + 3] !== 0) {
+            rgba[si] = bodyRgba[bi];
+            rgba[si + 1] = bodyRgba[bi + 1];
+            rgba[si + 2] = bodyRgba[bi + 2];
+            continue;
+          }
+        }
+        // Red diagnostic fallback: prove slot detection and frame composition even without usable PNG art.
+        rgba[si] = 255; rgba[si + 1] = 0; rgba[si + 2] = 0;
         // Keep the original alpha and every pixel outside the selected region.
       }
     }
+    if (!body) console.warn('[SmartPaperDoll] RED FALLBACK applied: PNG unavailable; slot/compositor path is running.');
     return colors;
   }
   async function pixels(key) {
