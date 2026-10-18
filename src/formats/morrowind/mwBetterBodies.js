@@ -142,3 +142,103 @@ export async function loadBetterBodiesFemaleUvEdits() {
   }
   return uvEditsPromise;
 }
+
+
+// End-to-end browser diagnostic: parse the race-specific Better Bodies NIF,
+// apply Morrowind's canonical texture-path rules, and identify the first live
+// archive that will satisfy each path. This intentionally does not change
+// archive order or player/NPC rendering.
+export async function diagnoseBetterBodiesTextureResolution(race = 'de') {
+  const raceKey = String(race || 'de').toLowerCase().replace(/[^a-z]/g, '');
+  const modelPath = `meshes/bb/bb_skinf_${raceKey}.nif`;
+  const [{ loadMorrowindArchives }, { correctTexturePath }, { parseNif }, { flattenNif }] = await Promise.all([
+    import('../../scenes/dataSource.js'),
+    import('./mwTexture.js'),
+    import('./mwNifFile.js'),
+    import('./mwNifMesh.js'),
+  ]);
+  const archives = await loadMorrowindArchives();
+  const archiveLabel = (archive, index) => {
+    if (Array.isArray(archive.names)) return `bundled/vendored archive #${index} (${archive.names.length} keys)`;
+    if (typeof archive.list === 'function') return `Morrowind BSA archive #${index} (${archive.fileCount ?? archive.list().length} keys)`;
+    return `archive #${index}`;
+  };
+  const archiveDetails = archives.map((archive, index) => ({
+    index,
+    label: archiveLabel(archive, index),
+    has: typeof archive.has === 'function',
+    matchingSkinTextureKeys: (Array.isArray(archive.names) ? archive.names : typeof archive.list === 'function' ? archive.list() : [])
+      .filter((key) => /^textures\/bb\/(?:bb_skinf|bb_handf)_.*\.dds$/i.test(key))
+      .slice(0, 30),
+  }));
+
+  const modelArchiveIndex = archives.findIndex((archive) => archive.has?.(modelPath));
+  const report = {
+    race: raceKey,
+    modelPath,
+    archiveCount: archives.length,
+    archiveOrder: archiveDetails.map(({ index, label }) => ({ index, label })),
+    model: { found: modelArchiveIndex >= 0, archiveIndex: modelArchiveIndex, textureFiles: [], error: null },
+    textures: [],
+    note: 'The first archive with has(path) is the winning source under the current ordered archive resolver. This checks the race-specific NIF and live archive table, not only the static URL map.',
+  };
+  if (modelArchiveIndex < 0) {
+    report.model.error = 'Race-specific Better Bodies NIF was not found in the loaded archive list.';
+    console.log('[Better Bodies live texture resolution]', report);
+    return report;
+  }
+
+  let nif;
+  try {
+    const bytes = await archives[modelArchiveIndex].load(modelPath);
+    nif = parseNif(bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes));
+  } catch (error) {
+    report.model.error = String(error?.message ?? error);
+    console.log('[Better Bodies live texture resolution]', report);
+    return report;
+  }
+  const batches = flattenNif(nif);
+  report.model.textureFiles = [...new Set(batches.map((batch) => batch.material?.textureFile).filter(Boolean))];
+
+  for (const authoredPath of report.model.textureFiles) {
+    const exists = (key) => archives.some((archive) => archive.has?.(key));
+    const correctedPath = correctTexturePath(authoredPath, exists);
+    const winningArchiveIndex = archives.findIndex((archive) => archive.has?.(correctedPath));
+    const row = {
+      authoredPath,
+      correctedPath,
+      found: winningArchiveIndex >= 0,
+      winningArchiveIndex,
+      winningArchive: winningArchiveIndex >= 0 ? archiveLabel(archives[winningArchiveIndex], winningArchiveIndex) : null,
+      fetch: null,
+      bytes: null,
+      width: null,
+      height: null,
+      error: null,
+    };
+    if (winningArchiveIndex >= 0) {
+      try {
+        const bytes = await archives[winningArchiveIndex].load(correctedPath);
+        row.bytes = bytes.byteLength;
+        if (bytes.byteLength >= 20 && bytes[0] === 0x44 && bytes[1] === 0x44 && bytes[2] === 0x53 && bytes[3] === 0x20) {
+          const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+          row.height = view.getUint32(12, true);
+          row.width = view.getUint32(16, true);
+        }
+        row.fetch = 'archive-load-ok';
+      } catch (error) {
+        row.fetch = 'archive-load-failed';
+        row.error = String(error?.message ?? error);
+      }
+    }
+    report.textures.push(row);
+  }
+
+  console.table(report.textures);
+  console.log('[Better Bodies live texture resolution]', report);
+  return report;
+}
+
+if (typeof window !== 'undefined') {
+  window.diagnoseBetterBodiesTextureResolution = diagnoseBetterBodiesTextureResolution;
+}
