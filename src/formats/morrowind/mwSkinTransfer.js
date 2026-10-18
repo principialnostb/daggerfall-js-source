@@ -329,12 +329,22 @@ function nearestSurfacePoint(p, root, normals, maxDistance2) {
  * it does not remesh the garment or infer designer intent.
  */
 export function fitGarmentClearance(garment, sources, ctx, {
-  clearance = 0.35, maxDistance = 3.0, maxPush = 2.5, conform = false,
+  clearance = 0.35, maxDistance = 3.0, maxPush = 2.5, conform = false, side = null,
 } = {}) {
   if (!garment?.positions?.length || !sources?.length) return garment;
   const surfaces = [];
+  const wantedSide = side === 'left' || side === 'right' ? side : null;
   for (const batch of sources) {
     if (!batch?.positions?.length || !batch?.indices?.length) continue;
+    // Keep groin surfaces shared, but never let a left/right leg panel snap
+    // to the other thigh or calf. The caller tags each source with the BODY
+    // slot and bone used to bind it; untagged legacy callers keep old behavior.
+    if (wantedSide && batch.fitSlot && batch.fitSlot !== 'groin' && batch.fitBone) {
+      const bone = String(batch.fitBone).toLowerCase();
+      const sourceSide = /\\b(?:l|left)\\b/.test(bone) ? 'left'
+        : /\\b(?:r|right)\\b/.test(bone) ? 'right' : null;
+      if (sourceSide && sourceSide !== wantedSide) continue;
+    }
     const posed = new Float32Array(batch.positions.length);
     ctx.skinBatch(batch, ctx.skeleton, ctx.pose, ctx.mats, posed, null);
     const normals = new Float32Array(posed.length);
