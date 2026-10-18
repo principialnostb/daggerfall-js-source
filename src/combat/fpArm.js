@@ -6937,8 +6937,10 @@ export function createFpArm() {
      *  {width, height, data} or null when no third-person body stands -
      *  the panel then keeps the classic doll (never traps). Display
      *  only by Mac's decision: unequip stays with the item list. */
-    figure({ yaw = 0, height = 384 } = {}) {
-      if (!getPref('morrowind3dPaperDoll')) return null;
+    figure({ yaw = 0, height = 384, force = false } = {}) {
+      // The editor explicitly asks for a preview; do not let the inventory-display preference
+      // suppress it. The built rig and renderer are still required below.
+      if (!force && !getPref('morrowind3dPaperDoll')) return null;
       // AUDIT 33 F1: a built body, not an ACTIVE wheel - the inventory
       // is opened from first person, where the wheel is off.
       if (!(built && built.ok && thirdBuilt && thirdBuilt.ok && renderer)) return null;
