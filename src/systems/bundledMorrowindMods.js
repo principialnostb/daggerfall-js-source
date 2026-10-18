@@ -99,3 +99,74 @@ export async function loadBundledMorrowindPlugin(name) {
   const entry = pluginUrls.get(norm(name));
   return entry ? fetchBytes(entry.url) : null;
 }
+
+
+// Browser-console diagnostic for the High Resolution Better Body texture trial.
+// Reports the exact bundled URL chosen for each key and verifies that the
+// browser can fetch representative DDS files. It does not mutate game state.
+export async function inspectBundledMorrowindTextures() {
+  const archive = bundledMorrowindModsArchive();
+  const keys = Object.keys(assetUrls).filter((key) =>
+    /^textures\/bb\/(?:bb_skinf|bb_handf)_.*\.dds$/i.test(key)
+  ).sort();
+  const highResKeys = Object.keys(highResolutionFemaleTextureUrls).sort();
+  const candidates = [
+    'textures/bb/bb_skinf_de.dds',
+    'textures/bb/bb_skinf_no.dds',
+    'textures/bb/bb_handf_de.dds',
+    'textures/bb/bb_handf_no.dds',
+  ];
+  const checks = await Promise.all(candidates.map(async (key) => {
+    const url = assetUrls[key] ?? null;
+    const row = {
+      key,
+      inArchive: archive.has(key),
+      alreadyLoaded: archive.loaded(key),
+      url,
+      fetch: 'not-found',
+      bytes: null,
+      width: null,
+      height: null,
+      error: null,
+    };
+    if (!url) return row;
+    try {
+      const response = await fetch(url);
+      row.fetch = response.status;
+      if (!response.ok) return row;
+      const bytes = new Uint8Array(await response.arrayBuffer());
+      row.bytes = bytes.byteLength;
+      if (bytes.byteLength >= 20 && bytes[0] === 0x44 && bytes[1] === 0x44
+        && bytes[2] === 0x53 && bytes[3] === 0x20) {
+        const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+        row.height = view.getUint32(12, true);
+        row.width = view.getUint32(16, true);
+      } else {
+        row.error = 'Response is not a DDS file';
+      }
+    } catch (error) {
+      row.fetch = 'failed';
+      row.error = String(error?.message ?? error);
+    }
+    return row;
+  }));
+  const report = {
+    fileDiscovery: {
+      browser: IN_BROWSER,
+      discoveredSourceFiles: Object.keys(FILES).length,
+      selectedHighResolutionFemaleTextureKeys: highResKeys.length,
+      selectedKeys: highResKeys,
+      bodyAndHandTextureKeysInArchive: keys,
+    },
+    representativeFetches: checks,
+    note: 'This verifies bundled URL selection and browser fetch only. It does not yet prove which texture path the live NIF renderer requests.',
+  };
+  console.table(checks.map(({ key, inArchive, alreadyLoaded, fetch, bytes, width, height, url, error }) =>
+    ({ key, inArchive, alreadyLoaded, fetch, bytes, width, height, url, error })));
+  console.log('[Better Bodies texture diagnostic]', report);
+  return report;
+}
+
+if (IN_BROWSER) {
+  window.inspectBundledMorrowindTextures = inspectBundledMorrowindTextures;
+}
