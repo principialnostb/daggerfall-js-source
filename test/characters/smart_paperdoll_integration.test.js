@@ -24,18 +24,17 @@ test('Smart PaperDoll is checked before either existing third-person body lane a
   assert.match(arm, /if \(!thirdActive\(\) \|\| !canvas \|\| !feet\) return false/);
 });
 
-test('Smart PaperDoll uses an independent animated rig instead of voxelising the inventory portrait', () => {
-  const rig = read('../../src/characters/smartPaperDollRig.js');
-  assert.match(rig, /buildNeutralBody/);
-  assert.match(rig, /createCharacterRig/);
-  assert.match(rig, /feminineMorph/);
-  assert.match(rig, /sphereFaces\(-0\.075/);
-  assert.match(rig, /drapedPiece/);
-  assert.match(rig, /setSmartPaperDollLayers/);
-  assert.match(rig, /cachedRig\.update\(dt\)/);
-  assert.match(rig, /renderer\.drawCharacter\(cachedRig\.mesh, model\)/);
-  const entry = read('../../src/characters/paperDollVoxel.js');
-  assert.match(entry, /drawSmartPaperDollRig\(renderer, \{ feet, yaw, grow \}\)/);
-  assert.match(entry, /clearSmartPaperDollRig\(\)/);
-  assert.doesNotMatch(entry.slice(entry.indexOf('export function drawSmartPaperDoll(')), /paperDollFigurePixels\(/);
+test('voxel conversion consumes the finished PaperDoll RGBA composite and reuses the world character renderer', () => {
+  const voxels = read('../../src/characters/paperDollVoxel.js');
+  assert.match(voxels, /import \{ paperDollFigurePixels, paperDollFigureStatus, requestPaperDollFigureRefresh \} from '\.\.\/ui\/paperDoll\.js'/);
+  assert.match(voxels, /image\.rgba/);
+  assert.match(voxels, /renderer\.drawCharacter\(mesh, model\)/);
+  assert.match(voxels, /image\.version/);
+  assert.match(voxels, /if \(!image\) \{\s*requestPaperDollFigureRefresh\(\);/);
+  const doll = read('../../src/ui/paperDoll.js');
+  assert.match(doll, /export function requestPaperDollFigureRefresh\(\)/);
+  assert.match(doll, /void refreshPaperDoll\(_lastEntity\)/);
+  assert.match(doll, /export function paperDollFigureStatus\(\)/);
+  assert.match(voxels, /Figure composite is not ready/);
+  assert.match(voxels, /Mesh creation threw an exception/);
 });
