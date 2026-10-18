@@ -46,9 +46,12 @@ test('Smart PaperDoll fills unequipped EoTB regions from the live equip table wi
   assert.match(rig, /feet: !!worn\[EQUIP_SLOTS\.Feet\]/);
   assert.match(rig, /head: !!worn\[EQUIP_SLOTS\.Head\]/);
   assert.match(body, /function composeSmartBody\(width, height, source, wornBits\)/);
-  assert.match(body, /!wornBits\.chestArmor && ny >= 0\.29/);
-  assert.match(body, /!wornBits\.feet && ny >= 0\.875/);
-  assert.match(body, /!wornBits\.head && ny >= 0\.045/);
+  assert.match(body, /const colors = new Uint32Array\(source\)/);
+  assert.match(body, /const rgba = new Uint8Array\(colors\.buffer, colors\.byteOffset, colors\.byteLength\)/);
+  assert.match(body, /!wornBits\.chestArmor && nx >= 0\.20 && nx <= 0\.80 && ny >= 0\.30 && ny <= 0\.60/);
+  assert.match(body, /!wornBits\.feet && nx >= 0\.24 && nx <= 0\.76 && ny >= 0\.875 && ny <= 0\.985/);
+  assert.match(body, /!wornBits\.head && nx >= 0\.34 && nx <= 0\.66 && ny >= 0\.045 && ny <= 0\.245/);
+  assert.match(body, /if \(rgba\[i \+ 3\] === 0\) continue/);
   assert.match(body, /catch \{ colors = looked; \}/);
   assert.match(body, /renderer\.uploadTexture\(s\.archive, variantRec, \{ width, height, colors: px \}\)/);
   assert.match(body, /renderer\.createBillboardBatch\(s\.archive, renderRec\(s\)/);
