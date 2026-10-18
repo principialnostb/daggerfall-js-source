@@ -6926,7 +6926,8 @@ export function createFpArm({ playerAppearance = false } = {}) {
       // retain the established sprite pass at distance. Keep mounted pairs in
       // the sprite pass so rider and horse remain one coherent picture.
       const cameraDistance = Math.hypot(center[0] - eye[0], center[1] - eye[1], center[2] - eye[2]);
-      if (!horse && !conceal && cameraDistance < 2.25) {
+      const cameraPitchRatio = cameraDistance > 1e-6 ? Math.abs(center[1] - eye[1]) / cameraDistance : 0;
+      if (!horse && !conceal && (cameraDistance < 2.25 || cameraPitchRatio > 0.18)) {
         renderer.drawCharacter(thirdMesh, model);
         return true;
       }
