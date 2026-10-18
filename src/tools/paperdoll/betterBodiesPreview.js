@@ -277,6 +277,10 @@ gearFileInput.addEventListener('change', async () => {
   } catch (error) {
     clearGearGroup();
     gearLoaded = false;
+    for (const input of Object.values(gearInputs)) input.disabled = true;
+    gearVisibleInput.disabled = true;
+    gearResetButton.disabled = true;
+    gearExportButton.disabled = true;
     gearInfo.textContent = 'Could not preview NIF: ' + String(error?.stack || error);
     console.error('[Better Bodies equipment preview]', error);
   }
