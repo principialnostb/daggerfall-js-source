@@ -48,7 +48,7 @@ const relAfter = (path, lower, marker) => {
   return at < 0 ? null : path.slice(at + marker.length);
 };
 const addDataFilesAsset = (rel, url, packageName, bucket) => {
-  const match = rel.match(/^data files\/(meshes|textures)\/(.+\.(?:nif|dds|tga))$/i);
+  const match = rel.match(/^data files\/(meshes|textures|icons)\/(.+\.(?:nif|dds|tga))$/i);
   if (!match) return false;
   const root = match[1].toLowerCase();
   addAsset(bucket, root + '/' + match[2], url, packageName);
