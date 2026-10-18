@@ -2775,6 +2775,12 @@ export function poseAssembly(assembly, { tracks = null, sampleTrack = null,
     for (const [ref, node] of skeleton.nodes) {
       const name = String(node.name || '').toLowerCase().replace(/[^a-z0-9]/g, '');
       let factor = 1;
+      // Preserve the last in-game baseline that the user reported as a slight improvement.
+      if (name.includes('pelvis') || name.endsWith('hip')) factor *= 1.08;
+      else if (name.includes('spine') || name.includes('chest')) factor *= 1.06;
+      else if (name.includes('clavicle') || name.includes('shoulder')) factor *= 1.035;
+      else if (name.includes('thigh')) factor *= 1.045;
+      else if (name.includes('upperarm')) factor *= 0.97;
       if (name.includes('pelvis') || name.endsWith('hip')) {
         factor *= scaled(name, 'pelvisWidth', 0.12);
         factor *= scaled(name, 'buttockVolume', 0.06);
