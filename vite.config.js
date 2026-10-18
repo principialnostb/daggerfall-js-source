@@ -114,6 +114,8 @@ function buildTagMeta() {
 // (lattymoy.github.io/daggerfall-js-source/) and from the apex of the
 // custom domain (daggerfalljs.dev, U64) without a rebuild.
 export default defineConfig({
+  // Better Bodies model assets are referenced with new URL() so Node tests do not load binaries as modules.
+  assetsInclude: ['**/*.nif', '**/*.dds'],
   base: './',
   build: {
     target: 'es2022',
