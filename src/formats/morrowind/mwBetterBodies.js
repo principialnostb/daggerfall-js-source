@@ -13,6 +13,7 @@
 // and production builds without embedding their binary contents in JavaScript.
 import betterBodiesFemaleNifUrl from '../../../Morrowind Textures/Better Bodies/Nude/Data Files/Meshes/bb/bb_skinf_no.nif?url';
 import betterBodiesFemaleTextureUrl from '../../../Morrowind Textures/Better Bodies/Nude/Data Files/Textures/bb/bb_skinf_no.dds?url';
+import betterBodiesFemaleUvEditsUrl from '../../../bb_skinf_no-uv-edits.json?url';
 import { parseNif, deref } from './mwNifFile.js';
 import { flattenNif } from './mwNifMesh.js';
 import { buildSkeleton } from './mwSkin.js';
@@ -116,3 +117,28 @@ export const betterBodiesFemaleAssetUrls = Object.freeze({
   model: betterBodiesFemaleNifUrl,
   texture: betterBodiesFemaleTextureUrl,
 });
+
+
+let uvEditsPromise = null;
+
+/**
+ * Load the user's current UV corrections from the checked-in JSON file.
+ * The preview editor and the live third-person body share this exact data,
+ * so a later coordinate adjustment does not need a second hard-coded copy.
+ */
+export async function loadBetterBodiesFemaleUvEdits() {
+  if (!uvEditsPromise) {
+    uvEditsPromise = fetch(betterBodiesFemaleUvEditsUrl).then(async (response) => {
+      if (!response.ok) throw new Error('Better Bodies UV edits failed to load: HTTP ' + response.status);
+      const payload = await response.json();
+      if (payload?.format !== 'better-bodies-nif-uv-edits-v1' || !Array.isArray(payload.edits)) {
+        throw new Error('Better Bodies UV edits have an unsupported format.');
+      }
+      return payload.edits;
+    }).catch((error) => {
+      uvEditsPromise = null;
+      throw error;
+    });
+  }
+  return uvEditsPromise;
+}
