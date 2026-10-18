@@ -2040,12 +2040,11 @@ async function buildTpBody({
     // WEREWOLF1: the wolf's head and hair, by id - every other skin slot is empty, the robe is the body
     const rows = werewolf ? werewolfHeadRows(parts) : playerBodyRows(parts, race, female, { beast, faceIndex, faceMatch, vampire, walk, has: exists, ownHeads });   // MWNPC14: a vampire's head; MWNPC17: an NPC's own; AUDIT MW-HEADS1: the port's own heads where these archives carry them
     const missing = [];
-    // Better Bodies is a loose, complete female body mesh. Start with the
-    // checked-in version only for a bare human female; equipped body pieces
-    // continue through the existing slot-aware vanilla path until their
-    // occlusion/fit rules are authored for the full-body mesh.
+    // Better Bodies replaces the human female skin whether naked or dressed.
+    // Worn equipment still goes through Morrowind's normal slot arbitration;
+    // its shadows are applied to the individual named sections of this mesh.
     let betterBodiesPart = null;
-    if (female && !beast && !werewolf && !vampire && !(worn.adds?.length)) {
+    if (female && !beast && !werewolf && !vampire) {
       try {
         const [nifResponse, textureResponse, uvEdits] = await Promise.all([
           fetch(betterBodiesFemaleAssetUrls.model),
@@ -2070,7 +2069,7 @@ async function buildTpBody({
         }
         // Rebind all body sections to the active female skeleton and carry
         // the latest per-section UV transforms from the user's JSON.
-        betterBodiesPart = { slot: 'betterBodies', bones: [], bytes, uvEdits };
+        betterBodiesPart = { slot: 'betterBodies', bones: [], bytes, uvEdits, hiddenSlots: worn.shadows ?? [] };
         // The adapter is refreshed on each build so the live texture follows
         // the checked-in asset even after a dev-server reload.
         const textureAdapter = archives.find((a) => a.__betterBodiesFemaleTexture);
@@ -2095,10 +2094,6 @@ async function buildTpBody({
         missing.push(reason);
         console.warn('[Better Bodies] falling back to standard Morrowind body:', reason);
       }
-    } else if (female && !beast && !werewolf && !vampire) {
-      console.info('[Better Bodies] using standard body because worn equipment is present', {
-        wornAdds: worn.adds?.length ?? 0,
-      });
     }
     // MW-D29/D31: the worn verdicts arrive COMPOSED - one arbitration
     // in buildFpArm serves both rigs. shadowSkinRows applies the
@@ -2141,8 +2136,15 @@ async function buildTpBody({
       if (!arc) { missing.push(`${row.slot}: ${path} is not in your archives`); continue; }
       // partName rides along: a worn add's slot is a label carrying its
       // record id, and the binder's part rules key on the part itself.
+      const bodyPart = ownBodyPart(row, rows, find);
+      // Port-authored garments whose skin is transferred from the wearer must
+      // use the same Better Bodies sections that are actually being rendered,
+      // not the vanilla BODY NIF hidden behind the replacement mesh.
+      if (betterBodiesPart && Array.isArray(bodyPart.skinFrom)) {
+        bodyPart.skinFrom = bodyPart.skinFrom.map((source) => ({ ...source, bytes: betterBodiesPart.bytes }));
+      }
       partBytes.push({ slot: row.slot, partName: row.partName, bones: row.bones, bytes: nifBytes(arc, path),
-        ...ownBodyPart(row, rows, find) });   // MW-BRIG2: the body under it; MW-BRIG3: the part it is fitted onto
+        ...bodyPart });   // MW-BRIG2: the body under it; MW-BRIG3: the part it is fitted onto
     }
     if (!partBytes.length) {
       return { ok: false, stage: 'parts', error: werewolf ? 'no werewolf body mesh resolved - its robe, head and hair are Bloodmoon\'s' : `no third-person body mesh resolved for race "${race}"`, notes: missing, rows };
