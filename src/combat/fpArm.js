@@ -3787,7 +3787,9 @@ export function createFpArm({ playerAppearance = false } = {}) {
     return nonBiped() && !isRealWeapon(t) ? MW_WEAPON_TYPE.None : t;
   };
 
-  const active = () => !standIn && !getPref('morrowindThirdPersonOnly') && !!(built && built.ok && mesh && renderer && camera && (actionState || movementState || jumpState || idleState)
+  // Keep the Morrowind first-person rig independent from the Third-Person-only world-body/UI preference.
+  // Inventory icons and PaperDoll have their own switches; this gate must not silently suppress 3D hands/weapons.
+  const active = () => !standIn && !!(built && built.ok && mesh && renderer && camera && (actionState || movementState || jumpState || idleState)
     && viewMode === 'first');
   // MWNPC4 (AUDIT, 2026-10-09): a body in its recoil or its death stands too - die() resets every other state, so a
   // dying body answered false here, its lane let it go (PeerBodies._standing) and its corpse flat drew instead
