@@ -77,6 +77,7 @@ import {
   placeAtBone,   // TWO-HANDS AUDIT 2: a blade placed at rest, for the pair's guard (bladePictureHeight)
 } from '../formats/morrowind/mwFirstPerson.js';
 import { PART_BONES, dfRaceKeyOf } from '../formats/morrowind/mwNpc.js';
+import { betterBodiesFemaleAssetUrls, loadBetterBodiesFemaleUvEdits } from '../formats/morrowind/mwBetterBodies.js';
 import { portraitFeatures, headFeatures, hairFeatures, matchFace, FACE_MATCH_VERSION } from '../formats/morrowind/mwFaceMatch.js';
 import { CifRciFile } from '../formats/cifRciFile.js';
 import { DFPalette } from '../formats/dfPalette.js';
@@ -2039,6 +2040,47 @@ async function buildTpBody({
     // WEREWOLF1: the wolf's head and hair, by id - every other skin slot is empty, the robe is the body
     const rows = werewolf ? werewolfHeadRows(parts) : playerBodyRows(parts, race, female, { beast, faceIndex, faceMatch, vampire, walk, has: exists, ownHeads });   // MWNPC14: a vampire's head; MWNPC17: an NPC's own; AUDIT MW-HEADS1: the port's own heads where these archives carry them
     const missing = [];
+    // Better Bodies is a loose, complete female body mesh. Start with the
+    // checked-in version only for a bare human female; equipped body pieces
+    // continue through the existing slot-aware vanilla path until their
+    // occlusion/fit rules are authored for the full-body mesh.
+    let betterBodiesPart = null;
+    if (female && !beast && !werewolf && !vampire && !(worn.adds?.length)) {
+      try {
+        const [nifResponse, textureResponse, uvEdits] = await Promise.all([
+          fetch(betterBodiesFemaleAssetUrls.model),
+          fetch(betterBodiesFemaleAssetUrls.texture),
+          loadBetterBodiesFemaleUvEdits(),
+        ]);
+        if (!nifResponse.ok) throw new Error('NIF HTTP ' + nifResponse.status);
+        if (!textureResponse.ok) throw new Error('DDS HTTP ' + textureResponse.status);
+        const bytes = new Uint8Array(await nifResponse.arrayBuffer());
+        const textureBytes = new Uint8Array(await textureResponse.arrayBuffer());
+        // Make the checked-in DDS visible to the same texture resolver used by
+        // all other NIF parts. The adapter only claims this one exact texture.
+        const virtualTexturePath = 'textures/bb/bb_skinf_no.dds';
+        if (!archives.some((a) => a.__betterBodiesFemaleTexture)) {
+          archives.push({
+            __betterBodiesFemaleTexture: true,
+            has: (path) => /(?:^|[\\/])bb_skinf_no\.dds$/i.test(String(path || '')),
+            loaded: () => true,
+            load: async () => null,
+            get: () => textureBytes,
+          });
+        }
+        // Rebind all body sections to the active female skeleton and carry
+        // the latest per-section UV transforms from the user's JSON.
+        betterBodiesPart = { slot: 'betterBodies', bones: [], bytes, uvEdits };
+        // The adapter is refreshed on each build so the live texture follows
+        // the checked-in asset even after a dev-server reload.
+        const textureAdapter = archives.find((a) => a.__betterBodiesFemaleTexture);
+        if (textureAdapter) textureAdapter.get = () => textureBytes;
+        // Keep the intended resolver path explicit for diagnostics.
+        betterBodiesPart.texturePath = virtualTexturePath;
+      } catch (error) {
+        missing.push('Better Bodies female skin unavailable: ' + String(error?.message ?? error));
+      }
+    }
     // MW-D29/D31: the worn verdicts arrive COMPOSED - one arbitration
     // in buildFpArm serves both rigs. shadowSkinRows applies the
     // shadows to the skin rows' bone lists so a right gauntlet hides
@@ -2048,6 +2090,11 @@ async function buildTpBody({
     let skinRows = shadowSkinRows(
       rows.filter((r) => r.record).map((r) => ({ slot: r.slot, bones: PART_BONES[r.slot] ?? [], model: r.record.model })),
       worn.shadows);
+    if (betterBodiesPart) {
+      // The full-body NIF includes chest, groin, arms, legs, hands and feet;
+      // only keep the separate head/hair pieces from the race skin set.
+      skinRows = skinRows.filter((row) => row.slot === 'head' || row.slot === 'hair');
+    }
     // WEREWOLF1: the wolf's hair only while its head is the skin's (npcanimation.cpp:654 - PRT_Head's priority <= 1)
     if (werewolf && worn.shadows.includes('head')) skinRows = skinRows.filter((r) => r.slot !== 'hair');
     for (const row of rows) {
@@ -2068,6 +2115,7 @@ async function buildTpBody({
       ...hipLanternPartPaths({ hipLight, allLights, has: archiveHas(archives) }),   // HT-WAIST
     ]);
     const partBytes = [];
+    if (betterBodiesPart) partBytes.push(betterBodiesPart);
     for (const row of [...skinRows, ...worn.adds]) {
       const path = `meshes/${row.model}`;
       const arc = find(path);
