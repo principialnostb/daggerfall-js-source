@@ -2140,19 +2140,14 @@ async function buildTpBody({
       const path = `meshes/${row.model}`;
       const arc = find(path);
       if (!arc) { missing.push(`${row.slot}: ${path} is not in your archives`); continue; }
-      const isWornAdd = worn.adds.includes(row);
-      // For female Better Bodies builds, use the actual replacement body as
-      // the skin/fit surface for worn equipment, not the thinner vanilla slot
-      // meshes. Keep the source separate from the body row list: the latter
-      // intentionally contains only head/hair while Better Bodies is active.
-      const bbFit = !!(betterBodiesPart && isWornAdd);
+      // Keep each worn item's authored skin source and attach bones. The
+      // full-body Better Bodies mesh is a render replacement, not a valid
+      // universal weight-transfer source: nearest-surface skin transfer across
+      // the whole body can assign cuirass/glove vertices to leg bones.
       partBytes.push({
         slot: row.slot, partName: row.partName, bones: row.bones, bytes: nifBytes(arc, path),
-        ...(bbFit
-          ? { skinFrom: [{ slot: 'betterBodies', bytes: betterBodiesPart.bytes, bones: betterBodiesBones }],
-              fitSurface: 'betterBodies' }
-          : ownBodyPart(row, rows, find)),
-      });   // MW-BRIG2 / MW-BB-FIT2
+        ...ownBodyPart(row, rows, find),
+      });   // MW-BRIG2
     }
     if (!partBytes.length) {
       return { ok: false, stage: 'parts', error: werewolf ? 'no werewolf body mesh resolved - its robe, head and hair are Bloodmoon\'s' : `no third-person body mesh resolved for race "${race}"`, notes: missing, rows };
