@@ -229,7 +229,12 @@ export function setEotbComeSailAway(mod) {
   eotbCamera.setLog((text) => { if (modSetting('eye-of-the-beholder', 'Enabled')) console.log(text); });
 }
 export function eotbLane() {
-  if (fpArm.canThirdPerson()) return false;          // the Morrowind body wins where it exists
+  // SMART-PAPERDOLL: ON explicitly selects the configured Eye Of The Beholder
+  // animated on-foot skin for the world character, even when the Morrowind
+  // rig is available. OFF retains the original Morrowind-first selection.
+  let smartPaperDoll = false;
+  try { smartPaperDoll = modSetting('eye-of-the-beholder', 'Graphics.SmartPaperDoll') === true; } catch {}
+  if (!smartPaperDoll && fpArm.canThirdPerson()) return false;
   try {
     if (!modSetting('eye-of-the-beholder', 'Enabled')) return false;
   } catch { return false; }                          // not vendored: no lane
