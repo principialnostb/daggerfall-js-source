@@ -2762,62 +2762,36 @@ export function poseAssembly(assembly, { tracks = null, sampleTrack = null,
   // MIRROR-BIND: an arm mirrored across the picture is mirrored by the binds of the skins it wears (mirrorBindsOf)
   if (mirror?.plane && mirror.plane.binds === undefined) mirror.plane.binds = mirrorBindsOf(assembly);
   const pose = fns.poseSkeleton(skeleton, tracks, sampleTrack, time, { accumRoot });
-  // MWV2-PROPORTIONS: optional player-only silhouette tuning for the world third-person rig.
-  // Work in the sampled pose (not source vertices), so CPU and GPU skinning use the same shape
-  // and animation continues to drive the bones normally. Only known body landmarks are touched.
+  // MWV2-PROPORTIONS: only expose controls with a direct transform in this skeleton pose.
+  // These are bone-subtree scales, not vertex morphs: they cannot create local bust/waist/buttock volume.
   if (bodyProportions) {
     const morph = typeof bodyProportions === 'object' ? bodyProportions : getBodyMorphs();
     const amount = (key) => Math.max(-1, Math.min(1, Number(morph[key]) || 0));
-    const scaled = (name, key, strength) => {
-      const v = amount(key);
-      return v === 0 ? 1 : 1 + v * strength;
-    };
+    const scaled = (key, strength) => 1 + amount(key) * strength;
     for (const [ref, node] of skeleton.nodes) {
-      const name = String(node.name || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+      const rawName = String(node.name || '').toLowerCase();
+      const name = rawName.replace(/[^a-z0-9]/g, '');
       let factor = 1;
-      // Preserve the last in-game baseline that the user reported as a slight improvement.
+      // Keep the previously tested shoulder adjustment as the baseline.
       if (name.includes('pelvis') || name.endsWith('hip')) factor *= 1.08;
       else if (name.includes('spine') || name.includes('chest')) factor *= 1.06;
       else if (name.includes('clavicle') || name.includes('shoulder')) factor *= 1.035;
       else if (name.includes('thigh')) factor *= 1.045;
       else if (name.includes('upperarm')) factor *= 0.97;
-      if (name.includes('pelvis') || name.endsWith('hip')) {
-        factor *= scaled(name, 'pelvisWidth', 0.12);
-        factor *= scaled(name, 'buttockVolume', 0.06);
-        factor *= scaled(name, 'buttockProjection', 0.04);
+      if (name.includes('clavicle') || name.includes('shoulder')) factor *= scaled('shoulderWidth', 0.10);
+      if (name.includes('upperarm') || name.includes('forearm') || name.includes('wrist')) factor *= scaled('armScale', 0.10);
+      if (name.includes('thigh') || name.includes('calf') || name.includes('shin') || name.includes('ankle')) {
+        factor *= scaled('legScale', 0.10);
       }
-      if (name.includes('spine') || name.includes('chest')) {
-        factor *= scaled(name, 'ribcageWidth', 0.08);
-        factor *= scaled(name, 'bustVolume', 0.035);
-        factor *= scaled(name, 'bodyWidth', 0.08);
-        factor *= scaled(name, 'waistWidth', -0.035);
-        factor *= scaled(name, 'bellyVolume', 0.025);
-        factor *= scaled(name, 'fullness', 0.04);
-      }
-      if (name.includes('clavicle') || name.includes('shoulder')) factor *= scaled(name, 'shoulderWidth', 0.10);
-      if (name.includes('upperarm') || name.includes('forearm') || name.includes('wrist')) {
-        factor *= scaled(name, 'armThickness', 0.10);
-        factor *= scaled(name, 'armLength', 0.04);
-      }
-      if (name.includes('thigh')) {
-        factor *= scaled(name, 'thighThickness', 0.10);
-        factor *= scaled(name, 'legLength', 0.035);
-      }
-      if (name.includes('calf') || name.includes('shin') || name.includes('ankle')) {
-        factor *= scaled(name, 'calfThickness', 0.10);
-        factor *= scaled(name, 'legLength', 0.035);
-      }
-      if (name.includes('neck') || name.includes('head')) factor *= scaled(name, 'height', 0.015);
       const current = pose.get(ref);
       if (current && factor !== 1) {
         const scale = typeof current.scale === 'number' ? current.scale : 1;
         pose.set(ref, { ...current, scale: scale * factor });
       }
-      // NIF skeletons commonly name the paired leg bones L/R Thigh or L/R Calf.
-      // Spread their local X origins for a modest stance-width adjustment.
+      // Translation-based leg spacing is only applied to paired, explicitly named leg bones.
       if (current && amount('legGap') !== 0 && (name.includes('thigh') || name.includes('calf') || name.includes('shin'))) {
-        const left = /(^|[^a-z])left([^a-z]|$)/.test(String(node.name || '').toLowerCase()) || /l(thigh|calf|shin)$/.test(name);
-        const right = /(^|[^a-z])right([^a-z]|$)/.test(String(node.name || '').toLowerCase()) || /r(thigh|calf|shin)$/.test(name);
+        const left = /(^|[^a-z])left([^a-z]|$)/.test(rawName) || /l(thigh|calf|shin)$/.test(name);
+        const right = /(^|[^a-z])right([^a-z]|$)/.test(rawName) || /r(thigh|calf|shin)$/.test(name);
         if (left || right) {
           const translation = Array.isArray(current.translation) ? [...current.translation] : [0, 0, 0];
           translation[0] = (Number(translation[0]) || 0) + (left ? 1 : -1) * amount('legGap') * 1.5;
