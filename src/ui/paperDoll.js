@@ -182,6 +182,8 @@ let _art = null;      // indexed bitmaps + palette
 let _live = null;     // { tex } - the current composite
 let _pixels = null;   // U59: the same composite as RGBA, for the DOM
 let _figurePixels = null;   // SMART-PAPERDOLL: same item/body layers, with the backdrop left transparent
+let _figureComposeError = null;   // SMART-PAPERDOLL: retain why the transparent world figure could not be composed
+let _lastFigureComposeWarning = null;
 let _lastEntity = null;   // SMART-PAPERDOLL: the player's latest entity, for a first world-view compose
 let _smartRefreshRequestedEntity = null;   // avoid starting the same missing-composite refresh every frame
 /** DFMOD1-E (Enhanced Plus: "the paperdoll doesn't get the texture update") - WHICH ATTACHED-MOD SET THE COMPOSITE
@@ -342,6 +344,8 @@ export async function preloadPaperDollArt(deps, ident = {}) {
     _live = null;   // the composite is stale: recompose on the next draw
     _pixels = null;   // U59: and the DOM's copy of it, or a Khajiit draws the Breton doll
     _figurePixels = null;   // SMART-PAPERDOLL: never keep the prior identity's silhouette
+    _figureComposeError = null;
+    _lastFigureComposeWarning = null;
     _layout = [];   // and its click mask with it
   } catch { console.warn('[paperdoll] BODY/FACE/SCBG art unavailable; the panel stays bare'); }
 }
@@ -668,7 +672,17 @@ export async function refreshPaperDoll(entity) {
     // SMART-PAPERDOLL: the figure needs the same live layers but not SCBG/pack backdrop.
     // The transparent copy is rebuilt only on a paperdoll refresh, never in the frame loop.
     let figureOut = null;
-    try { figureOut = (await composeDoll(_art, _deps, entity, { background: false, scale: composeScale() })).out; } catch { /* retain the classic body if the silhouette cannot be composed */ }
+    try {
+      figureOut = (await composeDoll(_art, _deps, entity, { background: false, scale: composeScale() })).out;
+      _figureComposeError = figureOut ? null : 'transparent compositor returned no pixel buffer';
+      _lastFigureComposeWarning = null;
+    } catch (error) {
+      _figureComposeError = error?.message ?? String(error);
+      if (_lastFigureComposeWarning !== _figureComposeError) {
+        console.warn('[SmartPaperDoll] transparent figure composition failed:', error);
+        _lastFigureComposeWarning = _figureComposeError;
+      }
+    }
     const key = `paperdoll_v${++_version}`;
     const prevKey = _live?.key ?? null;
     // U59: the composite is KEPT, not just uploaded. `out` is already
@@ -792,6 +806,22 @@ export function slotAtPaperDoll(px, py) {
 export const paperDollPixels = () => _pixels;
 /** SMART-PAPERDOLL: the current figure layers with the backdrop omitted and alpha preserved. */
 export const paperDollFigurePixels = () => _figurePixels;
+/** SMART-PAPERDOLL: inspect the live compositor prerequisites and last failure from DevTools. */
+export function paperDollFigureStatus() {
+  return {
+    hasArt: !!_art,
+    hasDeps: !!_deps,
+    hasEntity: !!_lastEntity,
+    hasFigurePixels: !!_figurePixels,
+    figureWidth: _figurePixels?.width ?? null,
+    figureHeight: _figurePixels?.height ?? null,
+    version: _figurePixels?.version ?? null,
+    refreshing: _refreshing,
+    pending: !!_pending,
+    requestLatched: !!_smartRefreshRequestedEntity,
+    lastComposeError: _figureComposeError,
+  };
+}
 
 
 /**
