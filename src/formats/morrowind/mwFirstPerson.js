@@ -2755,12 +2755,33 @@ export function posePartClocks(assembly, value, { frameTime = value, slots = WEA
 }
 
 export function poseAssembly(assembly, { tracks = null, sampleTrack = null,
-  time = 0, accumRoot = null, neckPitch = 0, neckAim = 0, neckOffset = null, climb = null, skin = true, mirror = null, run = null, hold = null } = {}) {
+  time = 0, accumRoot = null, neckPitch = 0, neckAim = 0, neckOffset = null, climb = null, skin = true, mirror = null, run = null, hold = null, bodyProportions = false } = {}) {
   const { fns, skeleton, pieces } = assembly;
   if (!fns || !skeleton) return assembly;
   // MIRROR-BIND: an arm mirrored across the picture is mirrored by the binds of the skins it wears (mirrorBindsOf)
   if (mirror?.plane && mirror.plane.binds === undefined) mirror.plane.binds = mirrorBindsOf(assembly);
   const pose = fns.poseSkeleton(skeleton, tracks, sampleTrack, time, { accumRoot });
+  // MWV2-PROPORTIONS: optional player-only silhouette tuning for the world third-person rig.
+  // Work in the sampled pose (not source vertices), so CPU and GPU skinning use the same shape
+  // and animation continues to drive the bones normally. Only known body landmarks are touched.
+  if (bodyProportions) {
+    for (const [ref, node] of skeleton.nodes) {
+      const name = String(node.name || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+      let factor = 1;
+      if (name.endsWith('pelvis') || name === 'pelvis') factor = 1.08;
+      else if (name.includes('spine1') || name.endsWith('chest')) factor = 1.06;
+      else if (name.includes('clavicle')) factor = 1.035;
+      else if (name.includes('thigh')) factor = 1.045;
+      else if (name.includes('upperarm')) factor = 0.97;
+      if (factor !== 1) {
+        const current = pose.get(ref);
+        if (current) {
+          const scale = typeof current.scale === 'number' ? current.scale : 1;
+          pose.set(ref, { ...current, scale: scale * factor });
+        }
+      }
+    }
+  }
   // TWO-HANDS (bible/05-Combat/Two-Hands.md): THE SECOND HAND - an arm, or the whole body, as the mirror of another
   // (combat/twoHands/mirrorRig.js), straight over the clip's pose and under every law that follows it (the neck's look, the
   // climb's hands): a left-hand blow, a second weapon held up. An arm read from ANOTHER clip (`clip`: the idle under a
