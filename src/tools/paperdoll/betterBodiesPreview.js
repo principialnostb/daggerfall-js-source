@@ -271,9 +271,9 @@ gearFileInput.addEventListener('change', async () => {
     gearVisibleInput.checked = true;
     for (const input of Object.values(gearInputs)) input.value = input === gearInputs.scale ? '1' : '0';
     applyGearTransform();
-    gearInfo.textContent = file.name + '\\nShapes: ' + shapes + ' · skinned: ' + skinned +
-      '\\nVertices: ' + vertices + ' · triangles: ' + triangles +
-      '\\nOrange is the uploaded equipment mesh. Adjust offsets/scale to diagnose the baked placement; export saves the preview transform.';
+    gearInfo.textContent = file.name + '\nShapes: ' + shapes + ' · skinned: ' + skinned +
+      '\nVertices: ' + vertices + ' · triangles: ' + triangles +
+      '\nOrange is the uploaded equipment mesh. Adjust offsets/scale to diagnose the baked placement; export saves the preview transform.';
   } catch (error) {
     clearGearGroup();
     gearLoaded = false;
