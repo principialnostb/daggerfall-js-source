@@ -2332,7 +2332,7 @@ export function bindPartsInto(assembly, parts) {
         for (let i = 0; i < bound.skinned.length; i++) {
           const original = bound.skinned[i];
           if (geomFitCandidate(original, part)) {
-            const sideMatch = String(part.partName ?? part.slot).toLowerCase().match(/\\b(left|right)\\b/);
+            const sideMatch = String(part.partName ?? part.slot).toLowerCase().match(/\b(left|right)\b/);
             const fitted = fitGarmentClearance(original, fitSources, fitCtx, {
               clearance: part.fitMode === 'conform' ? 0.18 : 0.2,
               maxDistance: part.fitMode === 'conform' ? 4.0 : 2.5,
@@ -3166,7 +3166,7 @@ function bindGarmentFitSources(assembly, fitSources) {
       const ref = skeleton.byName.get(bone.toLowerCase());
       const mirrored = (skeleton.nodes.get(ref)?.name ?? '').includes('Left');
       for (const batch of bound.attached) {
-        sources.push(sourceSkin(batch, { attachRef: bound.attachRef, mirrored, boneOffset: bound.boneOffset || null }));
+        sources.push({ ...sourceSkin(batch, { attachRef: bound.attachRef, mirrored, boneOffset: bound.boneOffset || null }), fitSlot: src.slot, fitBone: bone });
       }
     }
   }
