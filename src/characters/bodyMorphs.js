@@ -2,22 +2,11 @@
 // Values are normalized to [-1, 1] and persisted per browser profile.
 export const BODY_MORPH_FIELDS = [
   ['shoulderWidth', 'Ширина плеч', 'shoulders'],
-  ['bustVolume', 'Объём груди', 'chest'],
-  ['ribcageWidth', 'Ширина грудной клетки', 'chest'],
-  ['armThickness', 'Толщина рук', 'arms'],
-  ['armLength', 'Длина рук', 'arms'],
-  ['waistWidth', 'Ширина талии', 'torso'],
-  ['bellyVolume', 'Объём живота', 'torso'],
-  ['pelvisWidth', 'Ширина таза', 'hips'],
-  ['buttockVolume', 'Объём ягодиц', 'hips'],
-  ['buttockProjection', 'Выступ ягодиц', 'hips'],
+  ['armScale', 'Масштаб рук', 'arms'],
+  ['legScale', 'Масштаб ног', 'legs'],
   ['legGap', 'Расстояние между ногами', 'legs'],
-  ['thighThickness', 'Толщина бёдер', 'legs'],
-  ['calfThickness', 'Толщина голеней', 'legs'],
-  ['legLength', 'Длина ног', 'legs'],
   ['height', 'Рост', 'overall'],
-  ['fullness', 'Общая полнота', 'overall'],
-  ['bodyWidth', 'Ширина корпуса', 'overall'],
+  ['bodyWidth', 'Общая ширина тела', 'overall'],
 ];
 const KEY = 'mw-character-body-morphs-v1';
 const defaults = Object.freeze(Object.fromEntries(BODY_MORPH_FIELDS.map(([key]) => [key, 0])));
