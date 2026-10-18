@@ -9,7 +9,7 @@
 // world pass is untouched (the standard excludes it). Sizing is
 // PROJECTION-EXACT (project center and head, divide) - analytic fov
 // estimates disagree with the true projection at high pitch.
-import { multiply, ortho, lookAt as makeLookAt, perspective, transformPoint, trs } from '../world/mat4.js';
+import { multiply, ortho, lookAt, perspective, transformPoint, trs } from '../world/mat4.js';
 import { CHAR_PIXEL, CHAR_SPRITE_RT_SIZE } from './renderer.js';
 import { getPref } from '../systems/uiPrefs.js';   // BODY-CARD: the billboard look, read where the card is stood
 import { glowPad } from './weaponGlowGlsl.js';   // WEAPON-GLOW1 (AUDIT MW-3): a glowing weapon's outline's room - a leaf
@@ -165,7 +165,7 @@ export function drawRigSpriteBox(renderer, canvas, mesh, rigMat, { center, halfW
   // two - the 4 m that always stood; a body the travel view grows (OW-BIG, up to x12) was sliced by the fixed planes
   const reach = Math.max(4, halfW + boxH + 1);
   const miniEye = [center[0] - camDir[0] * reach, center[1] - camDir[1] * reach, center[2] - camDir[2] * reach];
-  const sProj = ortho(halfW, halfH, PICTURE_NEAR, 2 * reach), sView = makeLookAt(miniEye, center, [0, 1, 0]);
+  const sProj = ortho(halfW, halfH, PICTURE_NEAR, 2 * reach), sView = lookAt(miniEye, center, [0, 1, 0]);
   // BODY-DEPTH: where its texels stand - only for a quad square to the ray (BODY-LEAN's); a card of its own vertical keeps
   // its own depth
   const depth = up == null && qUp !== WORLD_UP ? pictureDepth(camDir, center, at, reach) : null;
