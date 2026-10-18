@@ -20,7 +20,7 @@ const FILES = IN_BROWSER
     })
   : {};
 
-const norm = (s) => String(s).replace(/\\/g, '/').toLowerCase();
+const norm = (s) => String(s).replace(/\/g, '/').toLowerCase();
 const assetUrls = Object.create(null);
 const packageCounts = Object.create(null);
 const pluginUrls = new Map();
@@ -34,7 +34,7 @@ const relAfter = (path, lower, marker) => {
   return at < 0 ? null : path.slice(at + marker.length);
 };
 const addDataFilesAsset = (rel, url, packageName, allowMeshes = true) => {
-  const match = rel.match(/^data files\\/(meshes|textures)\\/(.+\\.(?:nif|dds|tga))$/i);
+  const match = rel.match(/^data files\/(meshes|textures)\/(.+\.(?:nif|dds|tga))$/i);
   if (!match) return false;
   const root = match[1].toLowerCase();
   if (root === 'meshes' && !allowMeshes) return false;
@@ -43,16 +43,16 @@ const addDataFilesAsset = (rel, url, packageName, allowMeshes = true) => {
 };
 
 for (const [source, url] of Object.entries(FILES)) {
-  const path = source.replace(/\\/g, '/');
+  const path = source.replace(/\/g, '/');
   const lower = path.toLowerCase();
 
   // Base Better Bodies skin textures are retained as a fallback only. This
   // keeps the existing BB body functional without activating the failed
   // high-resolution female texture replacer.
   const bbRel = relAfter(path, lower, '/better bodies/');
-  if (bbRel && /^nude\\/data files\\/textures\\//i.test(bbRel)) {
-    const rel = bbRel.replace(/^nude\\/data files\\//i, '');
-    const match = rel.match(/^textures\\/(.+\\.(?:dds|tga))$/i);
+  if (bbRel && /^nude\/data files\/textures\//i.test(bbRel)) {
+    const rel = bbRel.replace(/^nude\/data files\//i, '');
+    const match = rel.match(/^textures\/(.+\.(?:dds|tga))$/i);
     if (match) addAsset(assetUrls, 'textures/' + match[1], url, 'Better Bodies fallback');
     continue;
   }
@@ -62,7 +62,7 @@ for (const [source, url] of Object.entries(FILES)) {
   // intentionally excluded to prevent UV/atlas mismatches.
   const itRel = relAfter(path, lower, '/intelligent textures/');
   if (itRel) {
-    const match = itRel.match(/^00 core\\/textures\\/(.+\\.(?:dds|tga))$/i);
+    const match = itRel.match(/^00 core\/textures\/(.+\.(?:dds|tga))$/i);
     if (match) addAsset(assetUrls, 'textures/' + match[1], url, 'Intelligent Textures 00 Core');
     continue;
   }
@@ -70,7 +70,7 @@ for (const [source, url] of Object.entries(FILES)) {
   // Better Clothes Retextured ships paths relative to Data Files already.
   const clothesRel = relAfter(path, lower, '/better clothes retextured/');
   if (clothesRel) {
-    const match = clothesRel.match(/^(meshes|textures)\\/(.+\\.(?:nif|dds|tga))$/i);
+    const match = clothesRel.match(/^(meshes|textures)\/(.+\.(?:nif|dds|tga))$/i);
     if (match) addAsset(assetUrls, match[1] + '/' + match[2], url, 'Better Clothes Retextured');
     continue;
   }
@@ -83,10 +83,10 @@ for (const [source, url] of Object.entries(FILES)) {
   if (armorRel) {
     let rel = armorRel;
     let packageName = 'Better Morrowind Armor';
-    if (/^complete armor joints\\/data files\\//i.test(rel)) {
-      rel = rel.replace(/^complete armor joints\\//i, '');
+    if (/^complete armor joints\/data files\//i.test(rel)) {
+      rel = rel.replace(/^complete armor joints\//i, '');
       packageName = 'Complete Armor Joints';
-    } else if (!/^data files\\//i.test(rel)) {
+    } else if (!/^data files\//i.test(rel)) {
       continue;
     }
     if (addDataFilesAsset(rel, url, packageName)) continue;
@@ -94,7 +94,7 @@ for (const [source, url] of Object.entries(FILES)) {
     // The main plugin is exposed to the existing bundled-plugin reader.
     // Optional DeFemm and compatibility ESPs are intentionally not loaded.
     if (packageName === 'Better Morrowind Armor'
-      && /^data files\\/better morrowind armor\\.esp$/i.test(rel)) {
+      && /^data files\/better morrowind armor\.esp$/i.test(rel)) {
       const key = 'bundled:' + rel.slice('data files/'.length);
       pluginUrls.set(norm(key), { key, url, base: 'better morrowind armor.esp' });
     }
@@ -104,8 +104,8 @@ for (const [source, url] of Object.entries(FILES)) {
   // Westly's Faces Refurbished: race head/hair meshes and their textures.
   const facesRel = relAfter(path, lower, "/westly's faces refurbished/");
   if (facesRel) {
-    const rel = facesRel.replace(/^data files\\//i, '');
-    const match = rel.match(/^(meshes|textures)\\/(.+\\.(?:nif|dds|tga))$/i);
+    const rel = facesRel.replace(/^data files\//i, '');
+    const match = rel.match(/^(meshes|textures)\/(.+\.(?:nif|dds|tga))$/i);
     if (match) addAsset(assetUrls, match[1] + '/' + match[2], url, "Westly's Faces Refurbished");
   }
 }
