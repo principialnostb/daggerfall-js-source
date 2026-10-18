@@ -11,7 +11,7 @@ const clamp = (n) => Math.max(-1, Math.min(1, n));
 export function openAppearanceEditor({ fpArm, onClose = () => {} } = {}) {
   if (typeof document === 'undefined' || !document.body) return null;
   document.getElementById('mw-appearance-editor')?.remove();
-  let yaw = 0, frame = 0, closed = false;
+  let yaw = 0, frame = 0, retryTimer = 0, closed = false;
   const root = document.createElement('div');
   root.id = 'mw-appearance-editor';
   root.style.cssText = 'position:fixed;inset:0;z-index:10050;background:rgba(8,8,12,.88);display:flex;align-items:center;justify-content:center;padding:18px;color:#eee;font:14px system-ui,sans-serif;';
@@ -103,27 +103,19 @@ export function openAppearanceEditor({ fpArm, onClose = () => {} } = {}) {
     let pixels = null;
     try { pixels = fpArm?.figure?.({ yaw, height: 512, force: true }) ?? null; } catch { pixels = null; }
     if (!pixels?.data || !pixels.width || !pixels.height) {
-      // The game may not have built the third-person rig yet. Keep the character visible
-      // by borrowing the image already displayed in the equipment window instead of
-      // replacing it with a misleading "not ready" state.
-      const source = document.querySelector('.wornmap-doll canvas, .wornmap-doll img');
+      // Never substitute the equipment PaperDoll here: that image is not the
+      // model being morphed and cannot reflect yaw or live geometry changes.
       const ctx = preview.getContext('2d');
       if (ctx) {
         ctx.clearRect(0, 0, preview.width, preview.height);
-        if (source && ((source instanceof HTMLCanvasElement && source.width) || (source instanceof HTMLImageElement && source.complete && source.naturalWidth))) {
-          const w = source instanceof HTMLCanvasElement ? source.width : source.naturalWidth;
-          const h = source instanceof HTMLCanvasElement ? source.height : source.naturalHeight;
-          const scale = Math.min((preview.width * 0.88) / w, (preview.height * 0.88) / h);
-          ctx.drawImage(source, (preview.width - w * scale) / 2, (preview.height - h * scale) / 2, w * scale, h * scale);
-          previewHint.textContent = 'Пока показано изображение из окна экипировки. Вращение и live-превью включатся, когда 3D-модель будет доступна.';
-        } else {
-          ctx.fillStyle = '#b9b9c2'; ctx.font = '14px system-ui'; ctx.textAlign = 'center';
-          ctx.fillText('Нет доступного изображения', preview.width / 2, preview.height / 2);
-          previewHint.textContent = 'Силуэт будет показан, когда игра соберёт модель персонажа.';
-        }
+        ctx.fillStyle = '#b9b9c2'; ctx.font = '14px system-ui'; ctx.textAlign = 'center';
+        ctx.fillText('Загрузка 3D-модели…', preview.width / 2, preview.height / 2);
       }
+      previewHint.textContent = 'Ожидаю игровую 3D-модель. Ползунки сохраняются; предпросмотр подключится, когда модель будет готова.';
+      if (!retryTimer) retryTimer = window.setTimeout(() => { retryTimer = 0; drawPreview(); }, 250);
       return;
     }
+    if (retryTimer) { window.clearTimeout(retryTimer); retryTimer = 0; }
     previewHint.textContent = 'Настройки сохраняются автоматически. Зажми модель и вращай мышью.';
     // Render the native sprite larger, then scale it to the full preview area with
     // smoothing disabled so the original Morrowind pixels stay crisp.
@@ -147,6 +139,7 @@ export function openAppearanceEditor({ fpArm, onClose = () => {} } = {}) {
     if (closed) return;
     closed = true;
     if (frame) cancelAnimationFrame(frame);
+    if (retryTimer) window.clearTimeout(retryTimer);
     window.removeEventListener('keydown', keydown);
     root.remove(); onClose();
   }
