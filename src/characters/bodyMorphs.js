@@ -5,6 +5,8 @@ export const BODY_MORPH_FIELDS = [
   ['bodyWidth', 'Ширина тела', 'overall'],
   ['shoulderWidth', 'Ширина плеч', 'shoulders'],
   ['torsoScale', 'Масштаб корпуса', 'torso'],
+  ['breastSize', 'Размер груди', 'chest'],
+  ['buttockSize', 'Объём ягодиц', 'hips'],
   ['headScale', 'Размер головы', 'head'],
   ['armScale', 'Масштаб рук', 'arms'],
   ['legScale', 'Масштаб ног', 'legs'],
