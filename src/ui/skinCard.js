@@ -184,6 +184,10 @@ export function skinCard(doc, { sets: offer = skinSets } = {}) {
       return;
     }
     root.append(el('p', 'meta', 'How you look in third person, and to other players online who do not see you in a Morrowind body.'));
+    if (smart) {
+      root.append(el('p', 'meta skinhint', 'Smart PaperDoll is active. The standard on-foot and mounted presets are suspended until you turn Smart PaperDoll off.'));
+      return { root, paint };
+    }
     // the look sends only a CHOSEN set, so until one is pressed the others see this player's class
     if (!w.chosen) root.append(el('p', 'meta skinhint', 'Until you choose one, other players see you as your class.'));
     panel('On foot', FOOT, sets.foot, w.foot, FOOT_GROUPS);
