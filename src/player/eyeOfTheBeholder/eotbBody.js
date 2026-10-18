@@ -119,8 +119,11 @@ export const FOOTSTEP_VOLUME_SCALE = Object.freeze({ thirdPerson: 2, firstPerson
 function look() {
   let s = {};
   try { s = modSettingsOf('eye-of-the-beholder'); } catch { s = {}; }
+  const smartPaperDoll = modSettingIfDeclared('eye-of-the-beholder', 'Graphics.SmartPaperDoll') === true;
   return {
-    onFoot: s['Graphics.OnFoot'] ?? 0,
+    // SMART-PAPERDOLL: this mode's target is specifically Light Fighter (female), Graphics.OnFoot index 0.
+    // Other skin selections remain untouched when the mode is OFF.
+    onFoot: smartPaperDoll ? 0 : (s['Graphics.OnFoot'] ?? 0),
     onHorse: s['Graphics.OnHorse'] ?? 0,
     readyStance: s['Graphics.ReadyStance'] ?? 2,
     graphic: s['Graphics.Enable'] !== false,                   // "Toggle the player graphic" - ToggleBillboard's argument
