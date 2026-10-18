@@ -3456,7 +3456,7 @@ export function gpuSkinOn(renderer, search) {
   return !!(renderer && typeof renderer.createSkinnedCharacterMesh === 'function') && pageParam('gpuskin', search) !== 'off';
 }
 
-export function createFpArm() {
+export function createFpArm({ playerAppearance = false } = {}) {
   let renderer = null;
   let camera = null;
   let built = null;
@@ -4050,7 +4050,7 @@ export function createFpArm() {
     const u = thirdUnit(grow);
     const yawDeg = (yaw * 180 / Math.PI) + 180;
     const rs = (built && built.raceScale) || { weight: 1, height: 1 };
-    const morph = getBodyMorphs();
+    const morph = playerAppearance ? getBodyMorphs() : { bodyWidth: 0, height: 0 };
     const width = 1 + Math.max(-1, Math.min(1, Number(morph.bodyWidth) || 0)) * 0.18;
     const height = 1 + Math.max(-1, Math.min(1, Number(morph.height) || 0)) * 0.15;
     return multiply(trs(feet[0], feet[1], feet[2], 0, yawDeg, 0,
@@ -6296,7 +6296,7 @@ export function createFpArm() {
             climb: thirdClimb(climbWorld, cam),   // CLIMB6
             mirror: mirrorFor('third', t, dt),   // TWO-HANDS: the second hand - the pair's left arm, a left-hand blow
             hold: rifleHold('third', t),   // RIFLE-STANCE: the long gun in the hands
-            bodyProportions: getBodyMorphs(),   // MWV2-PROPORTIONS: live saved body settings in the shared CPU/GPU pose
+            bodyProportions: playerAppearance ? getBodyMorphs() : false,   // MWV2-PROPORTIONS: player instance only
             skin: !thirdSkinReady(t),   // MWNPC1: the skin in the vertex shader - the pose is the skeleton alone
           });
           uploadThirdMesh(t);
@@ -6977,7 +6977,7 @@ export function createFpArm() {
           sampleTrack,
           time: pose.state.startTime,
           accumRoot: t.accumRoot,
-          bodyProportions: getBodyMorphs(),   // MWV2-APPEARANCE: same saved morphs in the rotatable inventory preview
+          bodyProportions: playerAppearance ? getBodyMorphs() : false,   // MWV2-APPEARANCE: player instance only
           mirror: portraitMirror(),   // TWO-HANDS AUDIT
         });
       }
@@ -7000,7 +7000,7 @@ export function createFpArm() {
       }
       const u = 1 / MW_UNITS_PER_METER;
       const rs = (built && built.raceScale) || { weight: 1, height: 1 };
-      const morph = getBodyMorphs();
+      const morph = playerAppearance ? getBodyMorphs() : { bodyWidth: 0, height: 0 };
       const width = 1 + Math.max(-1, Math.min(1, Number(morph.bodyWidth) || 0)) * 0.18;
       const heightScale = 1 + Math.max(-1, Math.min(1, Number(morph.height) || 0)) * 0.15;
       // feet at the origin, facing the viewer: drawThird's +180 makes yaw
@@ -7159,7 +7159,7 @@ export function createFpArm() {
   return api;
 }
 
-export const fpArm = createFpArm();
+export const fpArm = createFpArm({ playerAppearance: true });
 
 /** SHADOW-FANG (AUDIT D2) test seam: has the build already painted `image` in `skin` for `use` (the frame then only
  *  finds it)? */
