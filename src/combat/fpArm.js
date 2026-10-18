@@ -3894,6 +3894,10 @@ export function createFpArm({ playerAppearance = false } = {}) {
   /** BEAST-SELF: the arm and the body stand aside for a transformed lycanthrope (setStandIn) - no Morrowind beast */
   let standIn = false;
   let thirdBuilt = null;
+  // MW-TP-GROUND-SMOOTH: freeze the support height from a standing pose. A posed
+  // range's minZ changes as the legs swing; grounding against that moving bound
+  // translates the entire actor every frame and makes the pelvis/legs bob.
+  let thirdGroundMinZ = null;
   let thirdMesh = null;
   let thirdPacked = null;
   let thirdSkin = null;          // MWNPC1: the third body's GPU skin layout (formats/morrowind/mwGpuSkin.js), while it skins on the GPU
@@ -5248,6 +5252,7 @@ export function createFpArm({ playerAppearance = false } = {}) {
         // named note, and the machine stands back up in first person -
         // the one view that cannot be missing.
         thirdBuilt = res && res.ok ? (res.third || null) : null;
+        thirdGroundMinZ = null; // a rebuilt body/equipment set needs a fresh standing support height
         viewMode = res && res.ok && res.creature && thirdBuilt ? 'third' : 'first';   // MWNPC9: a creature is its body, from the first frame
         wornKey = fpWeaponKey(opts && opts.weapon, !!(opts && opts.hasAmmo));
         // TWO-HANDS: a new rig measures its clips afresh, and holds the left hand's weapon the build bound (AUDIT 2: the one
@@ -5316,7 +5321,7 @@ export function createFpArm({ playerAppearance = false } = {}) {
       releaseMesh(); built = null; packed = null;
       offKey = null; pendingOff = undefined; strikeSides.clear(); mirrorCarry.first = {}; mirrorCarry.third = {};   // TWO-HANDS
       held = null; heldMemo = null; lastFrame = null; drewLast = false;   // MAP3: the sheet goes with the rig
-      releaseThirdMesh(); thirdBuilt = null; thirdPacked = null; viewMode = 'first';
+      releaseThirdMesh(); thirdBuilt = null; thirdGroundMinZ = null; thirdPacked = null; viewMode = 'first';
       movementState = null; movementGroup = null; movementSource = null; movementBase = null;
       jumpState = null; jumpGroup = null; jumpSource = null; jumpStance = null; jumpKind = null;   // MW-D39
       lastYaw = null; turnDir = 0; turnHold = 0;
@@ -6901,7 +6906,13 @@ export function createFpArm({ playerAppearance = false } = {}) {
       // That made the feet jump vertically when the camera crossed the path
       // switch, even though the pose and actor feet had not changed.
       const body = visibleRangeBounds(thirdMesh.ranges, thirdBodyBox, CARRIED_SLOTS);
-      const groundedModel = !horse && body ? groundThirdPersonModel(model, body.minZ, feet[1]) : model;
+      // Capture support height only from a standing pose, then keep it stable through
+      // the gait. Recomputing it from every animated frame makes the root bounce as
+      // the feet alternately rise and fall. Until a standing pose is seen, retain the
+      // current bound so first-frame rendering still has a valid ground correction.
+      if (body && thirdGroundMinZ == null && !movementState && !jumpState) thirdGroundMinZ = body.minZ;
+      const supportMinZ = Number.isFinite(thirdGroundMinZ) ? thirdGroundMinZ : body?.minZ;
+      const groundedModel = !horse && body && Number.isFinite(supportMinZ) ? groundThirdPersonModel(model, supportMinZ, feet[1]) : model;
       const center = transformPoint(groundedModel, (minX + maxX) / 2, (minY + maxY) / 2, (minZ + maxZ) / 2);
       // MWNPC16: the shape it casts, where it is asked (an NPC's lane - net/peer/peerBodies.js `casts`, which never asks it of a
       // body the travel view grows: OW-BIG's law, no giant's shadow), at its size (MWNPC10's boss stands larger, and casts
@@ -6947,7 +6958,11 @@ export function createFpArm({ playerAppearance = false } = {}) {
       // the sprite pass so rider and horse remain one coherent picture.
       const cameraDistance = Math.hypot(center[0] - eye[0], center[1] - eye[1], center[2] - eye[2]);
       const cameraPitchRatio = cameraDistance > 1e-6 ? Math.abs(center[1] - eye[1]) / cameraDistance : 0;
-      if (!horse && !conceal && (cameraDistance < 2.25 || cameraPitchRatio > 0.18)) {
+      // The local player stays on the real 3D mesh at every distance and pitch.
+      // Switching that one actor between a camera-facing card and the mesh as the
+      // camera crosses a pitch threshold causes a visible pelvis/leg pop while the
+      // upper body looks comparatively stable. NPCs keep the established LOD rule.
+      if (!horse && !conceal && (playerAppearance || cameraDistance < 2.25 || cameraPitchRatio > 0.18)) {
         // Use the same grounded matrix as the sprite path above.
         renderer.drawCharacter(thirdMesh, groundedModel);
         return true;
