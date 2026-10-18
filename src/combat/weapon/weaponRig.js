@@ -81,6 +81,28 @@ import { createHandheldTorches, isHeldLight } from '../../systems/handheldTorche
 import { lanternAtWaist } from '../../systems/playerTorch.js';   // HT-WAIST: a lantern hung at the waist is in no hand - the ladder, the Morrowind body and the sprite ask the one question
 import { liveVampirism } from '../../systems/racialLive.js';   // PORTRAIT3D: a vampire's body wears the race's vampire head
 import { isTransformedLycanthrope, liveLycanthropy } from '../../systems/lycanthropy.js';   // WW1: Weapon Widget's FPSWeaponClone, beside the machine; AUDIT-EOTB2: the sprite's form
+// FP-VIEWMODEL diagnostics: read from the browser console with
+// (await import('/src/combat/weapon/weaponRig.js')).morrowindFpDebug()
+const _fpViewDebug = { lastBuild: null, lastDraw: null, lastFallback: null, lastGate: null };
+export function morrowindFpDebug() {
+  let arm = null;
+  try { arm = fpArm.status(); } catch (err) { arm = { statusError: String(err?.message ?? err) }; }
+  const mesh = fpArm.mesh?.() ?? null;
+  return {
+    ..._fpViewDebug,
+    prefThirdPersonOnly: getPref('morrowindThirdPersonOnly'),
+    dataCount: morrowindDataCount(),
+    dataFingerprint: morrowindDataFingerprint(),
+    arm,
+    gpuMesh: mesh ? {
+      exists: true, dead: !!mesh._dead, vao: !!mesh.vao,
+      ranges: Array.isArray(mesh.ranges) ? mesh.ranges.length : null,
+      visibleRanges: Array.isArray(mesh.ranges) ? mesh.ranges.filter(r => !r.hidden).length : null,
+      slots: Array.isArray(mesh.ranges) ? mesh.ranges.map(r => ({ slot: r.slot, hidden: !!r.hidden, texture: !!r.tex })) : null,
+    } : { exists: false },
+  };
+}
+
 import { concealmentFlags } from '../../systems/effects.js';   // EOTB-IL: PlayerBillboard.UpdateMaterial reads the player's own IsInvisible / IsAShade / IsBlending
 import { getBool, getInt } from '../../systems/settings/settings.js';   // EOTB-IL: PlayerBillboard.LateUpdate reads DaggerfallUnity.Settings.BowDrawback
 import { modSetting } from '../../systems/modSettings.js';   // WW1: its Enabled
@@ -290,7 +312,14 @@ export async function autoBuildArms(entity, { dataCount = morrowindDataCount, me
   if (_armsIntent && _armsIntent !== intent) await _armsIntent.done;
   // MWA4: the attached files are the switch - MWA1's `mwArms` pref (and MWA2's On/Off row over it) is retired, and
   // Remove data is the off (ui/enhanced/enhancedMenu.js morrowindCard)
-  if (!entity?.chargenDone || !(dataCount() > 0) || standing(entity)) return null;
+  if (!entity?.chargenDone || !(dataCount() > 0) || standing(entity)) {
+    _fpViewDebug.lastBuild = {
+      ok: false, skipped: true, chargenDone: !!entity?.chargenDone,
+      dataCount: dataCount(), alreadyStanding: !!standing(entity),
+      reason: !entity?.chargenDone ? 'chargen-not-done' : !(dataCount() > 0) ? 'no-morrowind-data' : 'arm-already-standing',
+    };
+    return null;
+  }
   // AUDIT 65 XL-6: the boot menu only COUNTS the store now (names, no
   // sizes), so this can run before the host bootstrap's fingerprint
   // lands - and fpArm keys its kept face verdict on that print. Measure
@@ -298,6 +327,7 @@ export async function autoBuildArms(entity, { dataCount = morrowindDataCount, me
   // and not a dozen mesh parses on every launch.
   if (measured() == null) await measure().catch(() => 0);
   const res = await buildArmsFor(entity);
+  _fpViewDebug.lastBuild = res ? { ...res } : { ok: false, skipped: true, reason: 'build-returned-null' };
   if (!res?.ok && !res?.queued) console.warn(`[arms] boot build refused - ${res?.stage}: ${res?.error}`);   // AUDIT MW-TORCH F6: a build queued behind one in flight is not a refusal
   return res;
 }
@@ -2251,7 +2281,19 @@ export function createWeaponRig({ renderer, canvas, fetchBytes, palette, audio, 
       // TWO-HANDS: THE RUNNING HANDS ARE NOT A WEAPON EITHER (an empty-handed run is often a sheathed one)
       const runHands = !!c && twoHands.running && !fpArm.active() && !eotbHidesWeapon() && !sheetWindowUp();
       const armsRun = fpArm.active() && !!fpArm.runPosed?.();
-      if (paralyzed || (!shown() && !torchOnly && !sheetOnly && !shieldRect && !gunSliding && !armCasts && !armsClimb && !runHands && !armsRun)) return;
+      const gate = {
+        paralyzed: !!paralyzed, shown: !!shown(), torchOnly: !!torchOnly, sheetOnly: !!sheetOnly,
+        shieldRect: !!shieldRect, gunSliding: !!gunSliding, armCasts: !!armCasts,
+        armsClimb: !!armsClimb, runHands: !!runHands, armsRun: !!armsRun,
+        armActive: !!fpArm.active(), running: !!twoHands.running,
+        sheathed: !!playerWeapon.sheathed, sheetWindowUp: !!sheetWindowUp(),
+        eotbHidesWeapon: !!eotbHidesWeapon(),
+      };
+      _fpViewDebug.lastGate = gate;
+      if (paralyzed || (!shown() && !torchOnly && !sheetOnly && !shieldRect && !gunSliding && !armCasts && !armsClimb && !runHands && !armsRun)) {
+        _fpViewDebug.lastDraw = { reason: 'draw-gate-rejected', ...gate };
+        return;
+      }
       // THE ONE SEAM. The arm draws whole and RETURNS, or it is inactive
       // and the classic sprite draws exactly as it always has. The return
       // is load-bearing: without it both composite and the player sees a
@@ -2301,9 +2343,33 @@ export function createWeaponRig({ renderer, canvas, fetchBytes, palette, audio, 
         if (pairUp() && shown()) twoHands.drawPair(renderer, c, { ...o, running: runDrawn, artFor: (hand) => artFor(playerWeapon.handItem(hand)), glowFor: (hand) => glowOf(playerWeapon.handItem(hand)) });   // WEAPON-GLOW1: each hand's own element
         return;
       }
-      _armDrewLast = !eotbHidesWeapon() && fpArm.active();   // MAP3: the two lines below draw the arm exactly when this is true
-      if (eotbHidesWeapon()) return;
-      if (fpArm.active()) { fpArm.draw(c); return; }
+      const armActive = fpArm.active();
+      if (eotbHidesWeapon()) {
+        _fpViewDebug.lastDraw = { armActive, drew: false, reason: 'compatibility-hides-weapon', canvas: c ? { width: c.width, height: c.height, clientWidth: c.clientWidth, clientHeight: c.clientHeight } : null };
+        _armDrewLast = false;
+        return;
+      }
+      if (armActive) {
+        const drew = !!fpArm.draw(c);
+        _armDrewLast = drew;
+        _fpViewDebug.lastDraw = {
+          armActive, drew, reason: drew ? 'morrowind-model-drew' : 'fpArm.draw-returned-false',
+          canvas: c ? { width: c.width, height: c.height, clientWidth: c.clientWidth, clientHeight: c.clientHeight } : null,
+          arm: fpArm.status(),
+        };
+        // If the model predicate is true but draw() rejects its camera/eye/frame,
+        // do not suppress the classic weapon or running hands as well.
+        if (drew) return;
+        _fpViewDebug.lastFallback = { reason: 'morrowind-draw-failed', running: !!twoHands.running, shown: !!shown(), sheathed: !!playerWeapon.sheathed };
+        if (c && twoHands.running && !sheetWindowUp() && !shown()) {
+          twoHands.drawRun(renderer, c, artFor(null), { widget, widgetOn: widgetOn(), shown: false, tint: fpTint, offsetHeight: weaponOffsetHeight() - climbDrop(_climbLower, c.height) });
+          _fpViewDebug.lastFallback.runningHandsDrawn = true;
+          return;
+        }
+      } else {
+        _armDrewLast = false;
+        _fpViewDebug.lastDraw = { armActive: false, drew: false, reason: 'morrowind-model-inactive', arm: fpArm.status(), canvas: c ? { width: c.width, height: c.height, clientWidth: c.clientWidth, clientHeight: c.clientHeight } : null };
+      }
       // MAP-WEAPON (2026-09-19, Mac: "when opening up the enhanced map,
       // your unsheathed weapon can still be seen") - THE SPRITE LANE HAS
       // NO ANSWER FOR A WINDOW THAT DOES NOT COVER THE SCREEN.

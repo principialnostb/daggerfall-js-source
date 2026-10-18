@@ -964,10 +964,21 @@ export class PeerBodies {
         const f = b.feet, vz = view[2] * f[0] + view[6] * f[1] + view[10] * f[2] + view[14];
         if (vz > CAPSULE_HEIGHT) continue;
       }
-      // WB9h: seen, and its skin behind its clocks (the view swung onto it past the margin since the frame stepped it) -
-      // posed now, where its clocks stand, before it is drawn
-      if (b.stale) {
-        try { b.rig.update(0, { pose: true, effectsDt: b.bank }); b.bank = 0; b.stale = false; b.owed = false; b.posedAt = this._frame; } catch (e) { this._fail(b, `update threw: ${e?.message ?? e}`); continue; }
+      // MW-TP-SMOOTH: every visible body must be posed at this frame's animation time.
+      // Distance cadence and the crowd skin budget may leave its mesh one or two frames
+      // behind its clocks; drawing that stale mesh makes running visibly stutter as the
+      // camera zooms out. The clocks already advanced in _step, so pose with dt=0 here:
+      // no extra animation time, just sample the current pose before rendering. Bodies
+      // outside the view still skip skinning, preserving the main crowd optimisation.
+      if (b.stale || b.posedAt !== this._frame) {
+        try {
+          b.rig.update(0, { pose: true, effectsDt: b.bank });
+          b.bank = 0;
+          b.posed = true;
+          b.stale = false;
+          b.owed = false;
+          b.posedAt = this._frame;
+        } catch (e) { this._fail(b, `update threw: ${e?.message ?? e}`); continue; }
       }
       const horse = b.horse && b.cam?.saddle ? this._horses()?.picture(b.horse, horseFeetUnder(b.feet, b.yaw, g), b.yaw, g) ?? null : null;   // COATS3D: astride, the horse in the body's picture
       try { if (b.rig.drawThird(canvas, { proj, view, eye, feet: b.feet, yaw: b.yaw, hitFlash: flashOf ? flashOf(b.id) : 0, conceal: b.veil ?? null, grow: g, up: this._cam?.up ?? null, fx, cast, anchored, horse })) drawn++; } catch (e) { this._fail(b, `draw threw: ${e?.message ?? e}`); }   // AUDIT MWBODY A1; HITFLASH1: a struck body flashes red; INVIS-LOOK: a concealed one blends; OW-PEERS: grown and leaned under the Overworld; MWNPC16: its own shadow; COATS3D: astride, its horse

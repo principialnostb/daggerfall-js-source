@@ -2656,7 +2656,11 @@ export async function bootExterior(canvas, renderer, params, status) {
       sound: (clip, volume, pitch) => audio.playOneShot(clip, volume, pitch),   // TECH-FX: the technique's layer over the swing's own
     },
   });
-  autoBuildArms(playerEntity);   // MWA1: the arms at boot, when the switch is on and the archives are attached
+  // MWA1 / FP-VIEWMODEL: finish the first-person rig build before the host starts drawing.
+  // While this was fire-and-forget, the weapon rig could enter play on the classic 2D
+  // sprite lane before the model build had resolved; waiting here makes boot expose a
+  // concrete build failure instead of silently looking like the 2D implementation.
+  await autoBuildArms(playerEntity);
   // M2 (the AUDIT 23 hosts-2 priority row): SPELLCASTING ABOVE GROUND.
   // One engine per page, mode-aware deps - exterior mode targets the
   // live guards through the SAME damage door as melee; interior mode

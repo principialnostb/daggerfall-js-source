@@ -1,3 +1,4 @@
+import { openAppearanceEditor } from '../appearanceEditor.js';
 // ═══════════════════════════════════════════════════════════════════
 // U53 — THE ENHANCED PACK, and THE SLOT MAP
 //
@@ -3976,6 +3977,18 @@ function render() {
     if (name) title.append(el('span', 'pack-who', name));
     who.append(title);
     head.append(who);
+    // MWV2-APPEARANCE: keep the editor beside the character name, immediately before Codex.
+    if (!deps.loot && deps.fpArm) {
+      const appearanceButton = el('button', 'act mw-appearance-open', 'Внешность');
+      appearanceButton.type = 'button';
+      appearanceButton.title = 'Настроить доступные пропорции тела персонажа';
+      appearanceButton.onclick = (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        openAppearanceEditor({ fpArm: deps.fpArm });
+      };
+      head.append(appearanceButton);
+    }
     // PACK-PHONE (FIELD BUGS 2026-09-30, "we dont really need paperdoll on phone or at least if it could be hidden"):
     // THE BODY IS A CHOICE ON A PHONE. The sheet hides the figure on a touch phone unless the shell carries `showdoll`,
     // and draws this button there alone; the choice is the player's own shelf, so the pack opens as it was left.

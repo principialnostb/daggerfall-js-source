@@ -1,3 +1,4 @@
+import { getBodyMorphs } from '../characters/bodyMorphs.js';
 // MW-D8: THE MORROWIND FIRST-PERSON ARM, IN THE GAME.
 //
 // Seven stages of this arc shipped diagnostics and nothing touched the
@@ -76,12 +77,13 @@ import {
   placeAtBone,   // TWO-HANDS AUDIT 2: a blade placed at rest, for the pair's guard (bladePictureHeight)
 } from '../formats/morrowind/mwFirstPerson.js';
 import { PART_BONES, dfRaceKeyOf } from '../formats/morrowind/mwNpc.js';
+import { betterBodiesFemaleAssetUrls, loadBetterBodiesFemaleUvEdits } from '../formats/morrowind/mwBetterBodies.js';
 import { portraitFeatures, headFeatures, hairFeatures, matchFace, FACE_MATCH_VERSION } from '../formats/morrowind/mwFaceMatch.js';
 import { CifRciFile } from '../formats/cifRciFile.js';
 import { DFPalette } from '../formats/dfPalette.js';
 import { raceArt } from '../systems/races.js';
 import { appStorage } from '../systems/appStorage.js';   // DA1: the storage seam
-import { drawRigSpriteBox } from '../render/characterSprite.js';
+import { drawRigSpriteBox, MW_THIRD_PERSON_PIXEL } from '../render/characterSprite.js';
 import { WEAPONS } from '../characters/weapons.js';
 import { materialName } from '../systems/item/itemInfo.js';
 import { composeWornArmor, composeWornModest, shadowSkinRows, fpWornAdds, mwArmorRecords, mwClothingRecord, CLOTHING_NAME, werewolfRobeOf, firstPersonPartGroup } from '../formats/morrowind/mwItemMap.js';   // WEREWOLF1: the robe and its first-person ladder; NUDE-FLATS: the upper weld
@@ -977,6 +979,20 @@ const ESM_MASTERS = Object.freeze(['morrowind.esm', 'tribunal.esm', 'bloodmoon.e
  * round: there the first archive that has a path answers it.
  * @param {string[]} names
  */
+/** Include bundled mod plugins after retail masters and before user overrides. */
+async function morrowindRecordLoadOrder(d) {
+  const stored = (await d.storedMorrowindNames()).filter((n) => /\.es[mp]$/i.test(n));
+  if (!stored.some((n) => /\.esm$/i.test(n))) return [];
+  const masters = stored.filter((n) => ['morrowind.esm', 'tribunal.esm', 'bloodmoon.esm'].includes(String(n).split(/[\\/]/).pop().toLowerCase()));
+  const userMods = stored.filter((n) => !masters.includes(n));
+  let bundled = [];
+  try {
+    const mods = await import('../systems/bundledMorrowindMods.js');
+    bundled = mods.bundledMorrowindPluginNames();
+  } catch {}
+  return esmLoadOrder([...masters, ...bundled, ...userMods]);
+}
+
 export function esmLoadOrder(names) {
   // AUDIT MW-NPC II G2: the masters by their WHOLE names - by prefix, "Morrowind Patch.esm" ranked as Morrowind's own
   // and, stored before it (' ' sorts before '.'), lost every record it patched to the master it patches
@@ -1963,13 +1979,17 @@ export function resolveWeaponParts({ weapon, hasAmmo = false, allWeapons, find, 
  *  hides the very chest it copies; hidden is not drawn, and the skin is still the body's). Nothing for a retail add,
  *  nor for a model the port ships skinned (the steel plate, MW-STEEL4). */
 export function ownBodyPaths(add, rows) {
-  return (add.skinFrom ?? []).flatMap((slot) => rows
+  const slots = add.fitBodySlots ?? add.skinFrom ?? [];
+  return slots.flatMap((slot) => rows
     .filter((r) => r.record && r.slot === slot).map((r) => ({ slot, path: `meshes/${r.record.model}` })));
 }
 
-/** ...and what the binder takes beside the add's own mesh: those bodies' bytes out of the loaded archives, and the part
- *  it is fitted onto (MW-BRIG3 `fitTo`). Nothing at all for an add that is not skinned from the body. */
+/** Resolve the wearer's body NIFs once. Geometry fitting keeps the garment's own renderer/material path;
+ *  the legacy skinFrom path remains available for existing armor that explicitly opts into it. */
 export function ownBodyPart(add, rows, find) {
+  if (add.fitBodySlots) return {
+    fitSources: ownBodyPaths(add, rows).map((b) => ({ slot: b.slot, bytes: nifBytes(find(b.path), b.path) })).filter((b) => b.bytes),
+  };
   if (!add.skinFrom) return {};
   return {
     skinFrom: ownBodyPaths(add, rows).map((b) => ({ slot: b.slot, bytes: nifBytes(find(b.path), b.path) })).filter((b) => b.bytes),
@@ -2038,6 +2058,62 @@ async function buildTpBody({
     // WEREWOLF1: the wolf's head and hair, by id - every other skin slot is empty, the robe is the body
     const rows = werewolf ? werewolfHeadRows(parts) : playerBodyRows(parts, race, female, { beast, faceIndex, faceMatch, vampire, walk, has: exists, ownHeads });   // MWNPC14: a vampire's head; MWNPC17: an NPC's own; AUDIT MW-HEADS1: the port's own heads where these archives carry them
     const missing = [];
+    // Better Bodies is the base body for every human female build, including
+    // builds with equipped armor or clothing. Worn pieces are still composed
+    // through the normal slot-aware path and layered over this body; do not
+    // silently switch the player back to vanilla skin when equipment changes.
+    let betterBodiesPart = null;
+    if (female && !beast && !werewolf && !vampire) {
+      try {
+        const [nifResponse, textureResponse, uvEdits] = await Promise.all([
+          fetch(betterBodiesFemaleAssetUrls.model),
+          fetch(betterBodiesFemaleAssetUrls.texture),
+          loadBetterBodiesFemaleUvEdits(),
+        ]);
+        if (!nifResponse.ok) throw new Error('NIF HTTP ' + nifResponse.status);
+        if (!textureResponse.ok) throw new Error('DDS HTTP ' + textureResponse.status);
+        const bytes = new Uint8Array(await nifResponse.arrayBuffer());
+        const textureBytes = new Uint8Array(await textureResponse.arrayBuffer());
+        // Make the checked-in DDS visible to the same texture resolver used by
+        // all other NIF parts. The adapter only claims this one exact texture.
+        const virtualTexturePath = 'textures/bb/bb_skinf_no.dds';
+        if (!archives.some((a) => a.__betterBodiesFemaleTexture)) {
+          archives.push({
+            __betterBodiesFemaleTexture: true,
+            has: (path) => /(?:^|[\\/])bb_skinf_no\.dds$/i.test(String(path || '')),
+            loaded: () => true,
+            load: async () => null,
+            get: () => textureBytes,
+          });
+        }
+        // Rebind all body sections to the active female skeleton and carry
+        // the latest per-section UV transforms from the user's JSON.
+        betterBodiesPart = { slot: 'betterBodies', bones: [], bytes, uvEdits, hideSlots: worn.shadows };
+        // The adapter is refreshed on each build so the live texture follows
+        // the checked-in asset even after a dev-server reload.
+        const textureAdapter = archives.find((a) => a.__betterBodiesFemaleTexture);
+        if (textureAdapter) textureAdapter.get = () => textureBytes;
+        // The texture name may already have a generation-scoped negative cache
+        // entry from the vanilla archive lookup. The loose Better Bodies DDS
+        // is authoritative for this one basename, so discard that stale answer.
+        for (const key of TEXTURE_CACHE.keys()) {
+          if (/bb_skinf_no\.dds$/i.test(key)) TEXTURE_CACHE.delete(key);
+        }
+        // Keep the intended resolver path explicit for diagnostics.
+        betterBodiesPart.texturePath = virtualTexturePath;
+        console.info('[Better Bodies] female body asset loaded', {
+          modelBytes: bytes.byteLength,
+          textureBytes: textureBytes.byteLength,
+          uvEdits: uvEdits.length,
+          female,
+          wornAdds: worn.adds?.length ?? 0,
+        });
+      } catch (error) {
+        const reason = 'Better Bodies female skin unavailable: ' + String(error?.message ?? error);
+        missing.push(reason);
+        console.warn('[Better Bodies] falling back to standard Morrowind body:', reason);
+      }
+    }
     // MW-D29/D31: the worn verdicts arrive COMPOSED - one arbitration
     // in buildFpArm serves both rigs. shadowSkinRows applies the
     // shadows to the skin rows' bone lists so a right gauntlet hides
@@ -2047,6 +2123,11 @@ async function buildTpBody({
     let skinRows = shadowSkinRows(
       rows.filter((r) => r.record).map((r) => ({ slot: r.slot, bones: PART_BONES[r.slot] ?? [], model: r.record.model })),
       worn.shadows);
+    if (betterBodiesPart) {
+      // The full-body NIF includes chest, groin, arms, legs, hands and feet;
+      // only keep the separate head/hair pieces from the race skin set.
+      skinRows = skinRows.filter((row) => row.slot === 'head' || row.slot === 'hair');
+    }
     // WEREWOLF1: the wolf's hair only while its head is the skin's (npcanimation.cpp:654 - PRT_Head's priority <= 1)
     if (werewolf && worn.shadows.includes('head')) skinRows = skinRows.filter((r) => r.slot !== 'hair');
     for (const row of rows) {
@@ -2067,14 +2148,19 @@ async function buildTpBody({
       ...hipLanternPartPaths({ hipLight, allLights, has: archiveHas(archives) }),   // HT-WAIST
     ]);
     const partBytes = [];
+    if (betterBodiesPart) partBytes.push(betterBodiesPart);
     for (const row of [...skinRows, ...worn.adds]) {
       const path = `meshes/${row.model}`;
       const arc = find(path);
       if (!arc) { missing.push(`${row.slot}: ${path} is not in your archives`); continue; }
-      // partName rides along: a worn add's slot is a label carrying its
-      // record id, and the binder's part rules key on the part itself.
-      partBytes.push({ slot: row.slot, partName: row.partName, bones: row.bones, bytes: nifBytes(arc, path),
-        ...ownBodyPart(row, rows, find) });   // MW-BRIG2: the body under it; MW-BRIG3: the part it is fitted onto
+      // Keep each worn item's authored skin source and attach bones. The
+      // full-body Better Bodies mesh is a render replacement, not a valid
+      // universal weight-transfer source: nearest-surface skin transfer across
+      // the whole body can assign cuirass/glove vertices to leg bones.
+      partBytes.push({
+        slot: row.slot, partName: row.partName, bones: row.bones, bytes: nifBytes(arc, path),
+        ...ownBodyPart(row, rows, find),
+      });   // MW-BRIG2
     }
     if (!partBytes.length) {
       return { ok: false, stage: 'parts', error: werewolf ? 'no werewolf body mesh resolved - its robe, head and hair are Bloodmoon\'s' : `no third-person body mesh resolved for race "${race}"`, notes: missing, rows };
@@ -2230,7 +2316,7 @@ async function buildCreatureBody({ creature, flies = false, deps = null }) {
     const d = deps || await import('../scenes/dataSource.js');
     const archives = await d.loadMorrowindArchives();
     if (!archives.length) return { ok: false, stage: 'data', error: 'no Morrowind .bsa attached' };
-    const esmNames = esmLoadOrder((await d.storedMorrowindNames()).filter((n) => /\.esm$/i.test(n)));   // AUDIT MW-NPC D6
+    const esmNames = await morrowindRecordLoadOrder(d);   // AUDIT MW-NPC D6
     if (!esmNames.length) return { ok: false, stage: 'data', error: 'no Morrowind .esm attached - the creature records live there' };
     const gen = adoptMemoGeneration(d.morrowindDataGeneration);
     const found = new Map();
@@ -2392,7 +2478,7 @@ function headCatalogOf(d) {
   const promise = (async () => {
     const archives = await d.loadMorrowindArchives();
     if (!archives.length) return null;
-    const esmNames = esmLoadOrder((await d.storedMorrowindNames()).filter((n) => /\.esm$/i.test(n)));
+    const esmNames = await morrowindRecordLoadOrder(d);
     if (!esmNames.length) return null;
     const parts = [], armors = [], races = new Map();
     for (const n of esmNames) {
@@ -2527,6 +2613,7 @@ async function renderHeadAssembly(renderer, cat, { skeletonPath, skinRows, heads
  *  or null (no data attached, no renderer, no head for the race, the skeleton or a mesh or a texture not in hand).
  *  @param {{ renderer?: any, race?: string|null, female?: boolean, faceIndex?: number, npcFace?: { head: number, hair: number }|null, ownHeads?: boolean, vampire?: boolean, werewolf?: boolean, skin?: string|null, armor?: any[]|null, px?: number, ph?: number, deps?: any }} [opts] */
 export async function headPortrait({ renderer, race, female = false, faceIndex = 0, npcFace = null, vampire = false, werewolf = false, skin = null, armor = null, ownHeads = false, px = 128, ph = px, deps = null } = {}) {
+  if (!getPref('morrowind3dPaperDoll')) return null;
   if (!renderer || !race) return null;
   const d = deps || await import('../scenes/dataSource.js');
   const cat = await headCatalogOf(d);
@@ -2621,7 +2708,7 @@ export async function buildFpArm({
     // Reading all of them is also what the engine does - later masters
     // add to and override earlier ones - so this is the load order
     // rather than a workaround for it. AUDIT MW-NPC D6: in that order - the store answers alphabetically.
-    const esmNames = esmLoadOrder((await d.storedMorrowindNames()).filter((n) => /\.esm$/i.test(n)));
+    const esmNames = await morrowindRecordLoadOrder(d);
     if (!esmNames.length) {
       return { ok: false, stage: 'data', error: 'no Morrowind .esm attached - the body records live there, not in the .bsa' };
     }
@@ -2801,6 +2888,49 @@ export async function buildFpArm({
       if (ARM_PARTS.includes(slot)) continue;
       if (rec && rec.model) wanted.push({ slot, record: rec.id, firstPerson: true, path: `meshes/${rec.model}` });
     }
+    // Better Bodies' full female mesh is also the source for first-person
+    // hands/arms. Keep only its arm sections in this view; the old .1st BODY
+    // hand meshes remain the fallback if the asset cannot be loaded.
+    let betterBodiesFpArms = null;
+    if (female && !beast && !werewolf && !vampire) {
+      try {
+        const [nifResponse, textureResponse, uvEdits] = await Promise.all([
+          fetch(betterBodiesFemaleAssetUrls.model),
+          fetch(betterBodiesFemaleAssetUrls.texture),
+          loadBetterBodiesFemaleUvEdits(),
+        ]);
+        if (!nifResponse.ok) throw new Error('NIF HTTP ' + nifResponse.status);
+        if (!textureResponse.ok) throw new Error('DDS HTTP ' + textureResponse.status);
+        const bytes = new Uint8Array(await nifResponse.arrayBuffer());
+        const textureBytes = new Uint8Array(await textureResponse.arrayBuffer());
+        const virtualTexturePath = 'textures/bb/bb_skinf_no.dds';
+        if (!archives.some((a) => a.__betterBodiesFemaleTexture)) {
+          archives.push({
+            __betterBodiesFemaleTexture: true,
+            has: (path) => /(?:^|[\\/])bb_skinf_no\.dds$/i.test(String(path || '')),
+            loaded: () => true,
+            load: async () => null,
+            get: () => textureBytes,
+          });
+        }
+        const textureAdapter = archives.find((a) => a.__betterBodiesFemaleTexture);
+        if (textureAdapter) textureAdapter.get = () => textureBytes;
+        for (const cacheKey of TEXTURE_CACHE.keys()) {
+          if (/bb_skinf_no\.dds$/i.test(cacheKey)) TEXTURE_CACHE.delete(cacheKey);
+        }
+        betterBodiesFpArms = {
+          slot: 'betterBodies',
+          bones: [],
+          bytes,
+          uvEdits,
+          texturePath: virtualTexturePath,
+          showSlots: ['hand:left', 'hand:right', 'wrist:left', 'wrist:right', 'forearm:left', 'forearm:right', 'upperarm:left', 'upperarm:right'],
+          hideSlots: worn.fpShadows ?? worn.shadows,
+        };
+      } catch (error) {
+        console.warn('[Better Bodies] first-person arms unavailable; using standard Morrowind arms:', String(error?.message ?? error));
+      }
+    }
     const partBytes = [];
     const missing = [];
     // The fp skin wears the same shadows: a right gauntlet hides the
@@ -2808,7 +2938,7 @@ export async function buildFpArm({
     // the body. MW-FIT1: less what a part the fp does not draw would
     // hide - a pauldron's upper arm stays the skin's here.
     const fpRows = shadowSkinRows(
-      wanted.filter((w) => w.path).map((w) => ({ slot: w.slot, bones: PART_BONES[w.slot] ?? [], path: w.path })),
+      wanted.filter((w) => w.path && !(betterBodiesFpArms && ARM_PARTS.includes(w.slot))).map((w) => ({ slot: w.slot, bones: PART_BONES[w.slot] ?? [], path: w.path })),
       worn.fpShadows ?? worn.shadows);
     for (const w of wanted) {
       if (!w.path) { missing.push(`${w.slot}: no record for this actor`); continue; }
@@ -2839,6 +2969,7 @@ export async function buildFpArm({
       ...torchPartPaths({ torch, allLights, has: archiveHas(archives) }),   // MW-D51
       ...sourcePaths,
     ]);
+    if (betterBodiesFpArms) partBytes.push(betterBodiesFpArms);
     for (const w of fpRows) {
       const arc = find(w.path);
       if (!arc) { missing.push(`${w.slot}: ${w.path} is not in your archives`); continue; }
@@ -3454,7 +3585,21 @@ export function gpuSkinOn(renderer, search) {
   return !!(renderer && typeof renderer.createSkinnedCharacterMesh === 'function') && pageParam('gpuskin', search) !== 'off';
 }
 
-export function createFpArm() {
+/**
+ * Place a posed third-person body on its actor's feet without mutating the shared model matrix.
+ * NIF Z is the source body's vertical axis; transform the measured lowest body point into world space,
+ * then correct only the model translation along world Y.
+ */
+export function groundThirdPersonModel(model, bodyMinZ, feetY) {
+  if (!model || model.length < 16 || !Number.isFinite(bodyMinZ) || !Number.isFinite(feetY)) return model;
+  const lowest = transformPoint(model, 0, 0, bodyMinZ);
+  if (!lowest || !Number.isFinite(lowest[1])) return model;
+  const grounded = model.slice();
+  grounded[13] += feetY - lowest[1];
+  return grounded;
+}
+
+export function createFpArm({ playerAppearance = false } = {}) {
   let renderer = null;
   let camera = null;
   let built = null;
@@ -3767,6 +3912,10 @@ export function createFpArm() {
   /** BEAST-SELF: the arm and the body stand aside for a transformed lycanthrope (setStandIn) - no Morrowind beast */
   let standIn = false;
   let thirdBuilt = null;
+  // MW-TP-GROUND-SMOOTH: freeze the support height from a standing pose. A posed
+  // range's minZ changes as the legs swing; grounding against that moving bound
+  // translates the entire actor every frame and makes the pelvis/legs bob.
+  let thirdGroundMinZ = null;
   let thirdMesh = null;
   let thirdPacked = null;
   let thirdSkin = null;          // MWNPC1: the third body's GPU skin layout (formats/morrowind/mwGpuSkin.js), while it skins on the GPU
@@ -3785,6 +3934,8 @@ export function createFpArm() {
     return nonBiped() && !isRealWeapon(t) ? MW_WEAPON_TYPE.None : t;
   };
 
+  // Keep the Morrowind first-person rig independent from the Third-Person-only world-body/UI preference.
+  // Inventory icons and PaperDoll have their own switches; this gate must not silently suppress 3D hands/weapons.
   const active = () => !standIn && !!(built && built.ok && mesh && renderer && camera && (actionState || movementState || jumpState || idleState)
     && viewMode === 'first');
   // MWNPC4 (AUDIT, 2026-10-09): a body in its recoil or its death stands too - die() resets every other state, so a
@@ -4035,13 +4186,26 @@ export function createFpArm() {
   function releaseThirdMesh() { releaseGpu(thirdMesh); thirdMesh = null; thirdSkin = null; }   // MWNPC1: a rebuilt mesh lays its pieces out again
   /** AUDIT OW3 J6 / MWNPC16: metres a Morrowind unit, `grow` times (the travel view's OW-BIG, MWNPC10's larger body). */
   const thirdUnit = (grow) => (grow > 1 ? grow : 1) / MW_UNITS_PER_METER;
+  // MWV2-PROPORTIONS: a coherent third-person body proportion pass.
+  // Scale BOTH horizontal axes together so the silhouette gains body volume from
+  // the front, side, and rear instead of looking wider in only one camera angle.
+  // A very small height reduction balances the broader shoulders/torso without
+  // changing animation tracks, first-person arms, race records, or source NIFs.
+  const THIRD_PERSON_HORIZONTAL_SCALE = 1.22;
+  const THIRD_PERSON_HEIGHT_SCALE = 0.96;
   /** MW-D24 / MWNPC16: the third body's world model matrix at `feet` facing `yaw`, `grow` times its size about its feet
    *  (drawThird's own placement, one home for the draw and the cast). */
   function thirdModel(feet, yaw, grow = 1) {
     const u = thirdUnit(grow);
     const yawDeg = (yaw * 180 / Math.PI) + 180;
     const rs = (built && built.raceScale) || { weight: 1, height: 1 };
-    return multiply(trs(feet[0], feet[1], feet[2], 0, yawDeg, 0, -u * rs.weight, u * rs.height, u * rs.weight), NIF_TO_PASS);
+    const morph = playerAppearance ? getBodyMorphs() : { bodyWidth: 0, height: 0 };
+    const width = 1 + Math.max(-1, Math.min(1, Number(morph.bodyWidth) || 0)) * 0.18;
+    const height = 1 + Math.max(-1, Math.min(1, Number(morph.height) || 0)) * 0.15;
+    return multiply(trs(feet[0], feet[1], feet[2], 0, yawDeg, 0,
+      -u * rs.weight * THIRD_PERSON_HORIZONTAL_SCALE * width,
+      u * rs.height * THIRD_PERSON_HEIGHT_SCALE * height,
+      u * rs.weight * THIRD_PERSON_HORIZONTAL_SCALE * width), NIF_TO_PASS);
   }
   /** PR-BOW1 / MWNPC16: the posed box drawThird folds over what it draws (the shown ranges'), else the assembly's. */
   function thirdBox() {
@@ -4075,6 +4239,15 @@ export function createFpArm() {
    * and the CPU skin draws it as it always did. The door shut mid-session lets a skinned mesh go.
    */
   function thirdSkinReady(t) {
+    // Local chest/hip vertex morphs need CPU-skinned positions before upload. Keep this
+    // choice isolated to the third-person player body; FP hands and inventory art stay separate.
+    const morph = playerAppearance ? getBodyMorphs() : null;
+    const geometryMorph = !!morph && ['breastSize', 'buttockSize', 'hipWidth', 'waistWidth'].some((key) => Math.abs(Number(morph[key]) || 0) > 1e-4);
+    if (geometryMorph) {
+      if (thirdMesh && thirdMesh.skin) releaseThirdMesh();
+      thirdSkin = null;
+      return false;
+    }
     if (!gpuSkinOn(renderer)) { if (thirdMesh && thirdMesh.skin) releaseThirdMesh(); return false; }
     if (thirdSkin && skinSamePieces(thirdSkin, t.arm.pieces)) return true;
     if (thirdSkinRefused === t.arm.pieces) return false;
@@ -5097,6 +5270,7 @@ export function createFpArm() {
         // named note, and the machine stands back up in first person -
         // the one view that cannot be missing.
         thirdBuilt = res && res.ok ? (res.third || null) : null;
+        thirdGroundMinZ = null; // a rebuilt body/equipment set needs a fresh standing support height
         viewMode = res && res.ok && res.creature && thirdBuilt ? 'third' : 'first';   // MWNPC9: a creature is its body, from the first frame
         wornKey = fpWeaponKey(opts && opts.weapon, !!(opts && opts.hasAmmo));
         // TWO-HANDS: a new rig measures its clips afresh, and holds the left hand's weapon the build bound (AUDIT 2: the one
@@ -5165,7 +5339,7 @@ export function createFpArm() {
       releaseMesh(); built = null; packed = null;
       offKey = null; pendingOff = undefined; strikeSides.clear(); mirrorCarry.first = {}; mirrorCarry.third = {};   // TWO-HANDS
       held = null; heldMemo = null; lastFrame = null; drewLast = false;   // MAP3: the sheet goes with the rig
-      releaseThirdMesh(); thirdBuilt = null; thirdPacked = null; viewMode = 'first';
+      releaseThirdMesh(); thirdBuilt = null; thirdGroundMinZ = null; thirdPacked = null; viewMode = 'first';
       movementState = null; movementGroup = null; movementSource = null; movementBase = null;
       jumpState = null; jumpGroup = null; jumpSource = null; jumpStance = null; jumpKind = null;   // MW-D39
       lastYaw = null; turnDir = 0; turnHold = 0;
@@ -6281,6 +6455,7 @@ export function createFpArm() {
             climb: thirdClimb(climbWorld, cam),   // CLIMB6
             mirror: mirrorFor('third', t, dt),   // TWO-HANDS: the second hand - the pair's left arm, a left-hand blow
             hold: rifleHold('third', t),   // RIFLE-STANCE: the long gun in the hands
+            bodyProportions: playerAppearance ? getBodyMorphs() : false,   // MWV2-PROPORTIONS: player instance only
             skin: !thirdSkinReady(t),   // MWNPC1: the skin in the vertex shader - the pose is the skeleton alone
           });
           uploadThirdMesh(t);
@@ -6741,13 +6916,26 @@ export function createFpArm() {
       const offGlow = offGlowShown();
       thirdMesh.offWeaponGlow = offGlow;
       const padLooks = offGlow ? [glowLook, offGlow.look].filter(Boolean) : glowLook;
-      const halfH = ((maxZ - minZ) * u * rs.height) / 2;
-      const halfW = (Math.hypot(maxX - minX, maxY - minY) * u * rs.weight) / 2;
-      const center = transformPoint(model, (minX + maxX) / 2, (minY + maxY) / 2, (minZ + maxZ) / 2);
+      const halfH = ((maxZ - minZ) * u * rs.height * THIRD_PERSON_HEIGHT_SCALE) / 2;
+      const halfW = (Math.hypot(maxX - minX, maxY - minY) * u * rs.weight * THIRD_PERSON_HORIZONTAL_SCALE) / 2;
+      // MW-TP-GROUND: use the same foot correction for BOTH render paths.
+      // Previously only the close/pitched 3D path grounded the posed mesh;
+      // the distance/angle-dependent sprite path kept the uncorrected matrix.
+      // That made the feet jump vertically when the camera crossed the path
+      // switch, even though the pose and actor feet had not changed.
+      const body = visibleRangeBounds(thirdMesh.ranges, thirdBodyBox, CARRIED_SLOTS);
+      // Capture support height only from a standing pose, then keep it stable through
+      // the gait. Recomputing it from every animated frame makes the root bounce as
+      // the feet alternately rise and fall. Until a standing pose is seen, retain the
+      // current bound so first-frame rendering still has a valid ground correction.
+      if (playerAppearance && body && thirdGroundMinZ == null && !movementState && !jumpState) thirdGroundMinZ = body.minZ;
+      const supportMinZ = playerAppearance && Number.isFinite(thirdGroundMinZ) ? thirdGroundMinZ : body?.minZ;
+      const groundedModel = !horse && body && Number.isFinite(supportMinZ) ? groundThirdPersonModel(model, supportMinZ, feet[1]) : model;
+      const center = transformPoint(groundedModel, (minX + maxX) / 2, (minY + maxY) / 2, (minZ + maxZ) / 2);
       // MWNPC16: the shape it casts, where it is asked (an NPC's lane - net/peer/peerBodies.js `casts`, which never asks it of a
       // body the travel view grows: OW-BIG's law, no giant's shadow), at its size (MWNPC10's boss stands larger, and casts
       // so); never a veiled body's - a concealed foe and a ghost cast nothing, as their flats never did
-      if (cast && !conceal && renderer.recordShadowBody) castBody(model, center, halfW, halfH, anchored);
+      if (cast && !conceal && renderer.recordShadowBody) castBody(groundedModel, center, halfW, halfH, anchored);
       // PR-BOW1: THE PICTURE IS OF THE BODY. The sprite is true world
       // size, so its size on screen is set by where its quad stands -
       // and that was the box centre, which is not the body: a longsword
@@ -6762,8 +6950,16 @@ export function createFpArm() {
       // (characterSprite.js drawRigSpriteBox's `anchor`): the box is the
       // window, never the size. Every host's body and every peer's draws
       // through here.
-      const body = visibleRangeBounds(thirdMesh.ranges, thirdBodyBox, CARRIED_SLOTS);
-      const anchor = transformPoint(model, 0, 0, body ? (body.minZ + body.maxZ) / 2 : (minZ + maxZ) / 2);
+      // MWHEAD-LEVEL: aim the sprite camera at the upper body/head, not the torso midpoint.
+      // When the third-person camera gets close, aiming at the midpoint creates a steep downward
+      // ray from the player's eye to the NPC's chest. The camera-facing card then leans with that
+      // ray and makes the head visually collapse toward the shoulders. Keep the aim near head
+      // height so close-range viewing preserves the familiar eye-level silhouette without scaling
+      // the model or distorting its skeleton. Use the body-only bounds so carried weapons cannot
+      // move this point.
+      const anchor = transformPoint(groundedModel, 0, 0, body
+        ? body.minZ + (body.maxZ - body.minZ) * 0.88
+        : minZ + (maxZ - minZ) * 0.88);
       // MW-D43b: the body is a Morrowind MESH, so it takes the arm's
       // dial, not the sprite standard - the same fix MW-D43 made for
       // the first-person pass and missed here.
@@ -6773,12 +6969,28 @@ export function createFpArm() {
       // COATS3D: ASTRIDE, ONE PICTURE. `horse` ({ mesh, model, box } - world/horseRig.js, stepped this frame) is drawn in
       // the body's own picture, under the same depth: the window grows to hold the horse's box as well, and the picture
       // is OF the horse - its middle is the anchor, so the figure is the rider on it, sized where the horse stands
-      if (horse && horse.mesh && horse.model && horse.box) {
-        const u = spriteBoxUnion({ center, halfW, halfH }, horse.box);
-        drawRigSpriteBox(renderer, canvas, thirdMesh, model, { ...u, anchor: horse.box.anchor, hitFlash, conceal, up, fx, also: [{ mesh: horse.mesh, model: horse.model }], glowLook: padLooks }, proj, view, eye, MW_ARM_PIXEL);
+      // MW-TP-NEAR: the billboard is a camera-facing projection, not a 3D body.
+      // At arm's length its legs visibly flatten and the perspective no longer
+      // matches the floor. Draw the actual posed mesh in the world pass nearby;
+      // retain the established sprite pass at distance. Keep mounted pairs in
+      // the sprite pass so rider and horse remain one coherent picture.
+      const cameraDistance = Math.hypot(center[0] - eye[0], center[1] - eye[1], center[2] - eye[2]);
+      const cameraPitchRatio = cameraDistance > 1e-6 ? Math.abs(center[1] - eye[1]) / cameraDistance : 0;
+      // The local player stays on the real 3D mesh at every distance and pitch.
+      // Switching that one actor between a camera-facing card and the mesh as the
+      // camera crosses a pitch threshold causes a visible pelvis/leg pop while the
+      // upper body looks comparatively stable. NPCs keep the established LOD rule.
+      if (!horse && !conceal && (playerAppearance || cameraDistance < 2.25 || cameraPitchRatio > 0.18)) {
+        // Use the same grounded matrix as the sprite path above.
+        renderer.drawCharacter(thirdMesh, groundedModel);
         return true;
       }
-      drawRigSpriteBox(renderer, canvas, thirdMesh, model, { center, halfW, halfH, anchor, hitFlash, conceal, up, fx, glowLook: padLooks }, proj, view, eye, MW_ARM_PIXEL);   // HITFLASH1: a struck peer's body flashes
+      if (horse && horse.mesh && horse.model && horse.box) {
+        const u = spriteBoxUnion({ center, halfW, halfH }, horse.box);
+        drawRigSpriteBox(renderer, canvas, thirdMesh, groundedModel, { ...u, anchor: horse.box.anchor, hitFlash, conceal, up, fx, also: [{ mesh: horse.mesh, model: horse.model }], glowLook: padLooks }, proj, view, eye, MW_THIRD_PERSON_PIXEL);
+        return true;
+      }
+      drawRigSpriteBox(renderer, canvas, thirdMesh, groundedModel, { center, halfW, halfH, anchor, hitFlash, conceal, up, fx, glowLook: padLooks }, proj, view, eye, MW_THIRD_PERSON_PIXEL);   // HITFLASH1: a struck peer's body flashes
       return true;
     },
 
@@ -6797,10 +7009,10 @@ export function createFpArm() {
       const rs = (built && built.raceScale) || { weight: 1, height: 1 };
       const u = thirdUnit(grow);
       const { minX, minY, minZ, maxX, maxY, maxZ } = box;
-      const halfH = ((maxZ - minZ) * u * rs.height) / 2;
-      const halfW = (Math.hypot(maxX - minX, maxY - minY) * u * rs.weight) / 2;
+      const halfH = ((maxZ - minZ) * u * rs.height * THIRD_PERSON_HEIGHT_SCALE) / 2;
+      const halfW = (Math.hypot(maxX - minX, maxY - minY) * u * rs.weight * THIRD_PERSON_HORIZONTAL_SCALE) / 2;
       const reach = renderer.shadowReachSphere;
-      const mid = Math.hypot(((minX + maxX) / 2) * u * rs.weight, ((minY + maxY) / 2) * u * rs.weight, ((minZ + maxZ) / 2) * u * rs.height);
+      const mid = Math.hypot(((minX + maxX) / 2) * u * rs.weight * THIRD_PERSON_HORIZONTAL_SCALE, ((minY + maxY) / 2) * u * rs.weight * THIRD_PERSON_HORIZONTAL_SCALE, ((minZ + maxZ) / 2) * u * rs.height * THIRD_PERSON_HEIGHT_SCALE);
       if (reach && !renderer.shadowReachSphere(feet[0], feet[1], feet[2], Math.hypot(halfW, halfH) + mid)) return false;
       const model = thirdModel(feet, yaw, grow);
       const center = transformPoint(model, (minX + maxX) / 2, (minY + maxY) / 2, (minZ + maxZ) / 2);
@@ -6821,6 +7033,7 @@ export function createFpArm() {
      *  the classic icon stands (never traps). Cached per record, size
      *  and dye per data generation. */
     itemIcon(item, { size = 96 } = {}) {
+      if (!getPref('morrowind3dInventoryIcons')) return null;
       if (!(built && built.ok && built.catalog && renderer) || !item) return null;
       const cat = built.catalog;
       // MW-LOAD: the door above. A lazily opened archive holds none of
@@ -6863,6 +7076,7 @@ export function createFpArm() {
      *  the parse names) before it renders. Cached per record and size
      *  per data generation, with the icons. */
     async mountPicture(item, { px = 256 } = {}) {
+      if (!getPref('morrowind3dInventoryIcons')) return null;
       if (!(built && built.ok && built.catalog && renderer) || !item) return null;
       const cat = built.catalog;
       const stamp = api.mountPictureStamp();   // AUDIT DYE-ICON 4: what the picture is good for - the host's own question
@@ -6910,7 +7124,10 @@ export function createFpArm() {
      *  {width, height, data} or null when no third-person body stands -
      *  the panel then keeps the classic doll (never traps). Display
      *  only by Mac's decision: unequip stays with the item list. */
-    figure({ yaw = 0, height = 384 } = {}) {
+    figure({ yaw = 0, height = 384, force = false } = {}) {
+      // The editor explicitly asks for a preview; do not let the inventory-display preference
+      // suppress it. The built rig and renderer are still required below.
+      if (!force && !getPref('morrowind3dPaperDoll')) return null;
       // AUDIT 33 F1: a built body, not an ACTIVE wheel - the inventory
       // is opened from first person, where the wheel is off.
       if (!(built && built.ok && thirdBuilt && thirdBuilt.ok && renderer)) return null;
@@ -6939,17 +7156,20 @@ export function createFpArm() {
       // Deterministic, so the panel's cache is exact and two renders of
       // one wardrobe are one picture.
       const pose = portraitPose(t);
-      thirdSkinReady(t);   // MWNPC1: posed on the CPU (its exact boxes frame it), drawn through the palette
-      if (pose) {
-        if (t.hipHang) t.hipHang.rot.set(PLUMB);   // HT-WAIST: a still portrait, a plumb lantern (stepHipSwing re-swings it)
-        poseAssembly(t.arm, {
-          tracks: pose.source.trackMap,
-          sampleTrack,
-          time: pose.state.startTime,
-          accumRoot: t.accumRoot,
-          mirror: portraitMirror(),   // TWO-HANDS AUDIT
-        });
-      }
+      // A portrait must be posed even when this race/rig has no named idle group.
+      // Previously a null portraitPose skipped poseAssembly entirely, so sliders changed
+      // saved values but the preview kept uploading the last unmodified mesh.
+      thirdSkinReady(t);   // MWNPC1: release the GPU path while local vertex morphs are active
+      if (t.hipHang) t.hipHang.rot.set(PLUMB);   // HT-WAIST: a still portrait, a plumb lantern (stepHipSwing re-swings it)
+      poseAssembly(t.arm, {
+        tracks: pose?.source?.trackMap ?? null,
+        sampleTrack,
+        time: pose?.state?.startTime ?? 0,
+        accumRoot: t.accumRoot,
+        bodyProportions: playerAppearance ? getBodyMorphs() : false,   // MWV2-APPEARANCE: player instance only
+        mirror: portraitMirror(),   // TWO-HANDS AUDIT
+        skin: true,   // portraits must apply CPU vertex morphs before upload
+      });
       uploadThirdMesh(t);
       // PX26 F1 (Mac: weapons and shields are not on the menu sprite):
       // THE FIGURE IS A PORTRAIT, NOT THE WORLD. The wheel hides the
@@ -6969,10 +7189,14 @@ export function createFpArm() {
       }
       const u = 1 / MW_UNITS_PER_METER;
       const rs = (built && built.raceScale) || { weight: 1, height: 1 };
+      const morph = playerAppearance ? getBodyMorphs() : { bodyWidth: 0, height: 0 };
+      const width = 1 + Math.max(-1, Math.min(1, Number(morph.bodyWidth) || 0)) * 0.18;
+      const heightScale = 1 + Math.max(-1, Math.min(1, Number(morph.height) || 0)) * 0.15;
       // feet at the origin, facing the viewer: drawThird's +180 makes yaw
       // 0 face -Z in pass space, and the eye below sits on +Z.
       const yawDeg = (yaw * 180 / Math.PI) + 180;
-      const model = multiply(trs(0, 0, 0, 0, yawDeg, 0, -u * rs.weight, u * rs.height, u * rs.weight), NIF_TO_PASS);
+      const model = multiply(trs(0, 0, 0, 0, yawDeg, 0,
+        -u * rs.weight * width, u * rs.height * heightScale, u * rs.weight * width), NIF_TO_PASS);
       // PR-BOW1b (2026-09-24): FRAMED ON WHAT IT DRAWS, AT THE BODY'S
       // SCALE - after the flags above, off the per-range boxes the upload
       // just folded (portraitWindow). It framed meshBounds over EVERY
@@ -7002,6 +7226,12 @@ export function createFpArm() {
         notes: built && built.notes,
         binding: built && built.binding,
         weapon: built && built.ok ? built.weapon : null,
+        // MW-FP-DIAG: distinguish a genuinely late NIF/texture swap from the animation's attach key.
+        weaponSwapBusy: !!busy,
+        weaponSwapQueued: !!pendingWeapon,
+        weaponFailed: built && built.weaponFailed ? String(built.weaponFailed) : null,
+        weaponVisible: !!weaponShown,
+        sheathed: !!sheathed,
         spellReady,                       // MW-D39
         casting: upper === UPPER_BODY.Casting,
         weaponInHand: weaponInHand(),     // MW-CAST1: the casting hands are empty
@@ -7118,7 +7348,7 @@ export function createFpArm() {
   return api;
 }
 
-export const fpArm = createFpArm();
+export const fpArm = createFpArm({ playerAppearance: true });
 
 /** SHADOW-FANG (AUDIT D2) test seam: has the build already painted `image` in `skin` for `use` (the frame then only
  *  finds it)? */

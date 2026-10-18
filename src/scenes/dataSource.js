@@ -684,7 +684,15 @@ export const loadMorrowindArmRecords = async (fileName) => {
   if (!_mwRecordsCache || _mwRecordsCache.gen !== _mwGeneration) _mwRecordsCache = { gen: _mwGeneration, files: new Map() };
   const cache = _mwRecordsCache;   // AUDIT 68 S18-mw-cache-stale-generation: loadMorrowindFile's law
   if (cache.files.has(fileName)) return cache.files.get(fileName);
-  const blob = await assetBlob(MW_STORE, fileName);
+  let blob;
+  if (String(fileName).startsWith('bundled:')) {
+    const bundled = await import('../systems/bundledMorrowindMods.js');
+    const bytes = await bundled.loadBundledMorrowindPlugin(fileName);
+    if (!bytes) return null;
+    blob = new Blob([bytes]);
+  } else {
+    blob = await assetBlob(MW_STORE, fileName);
+  }
   if (!blob) return null;
   const { extractArmRecords, isArmRecords, ARM_RECORDS_VERSION } = await import('../formats/morrowind/mwFirstPerson.js');
   const key = `${ARM_RECORDS_PREFIX}:v${ARM_RECORDS_VERSION}:${fileName}:${blob.size}:${await sampleStamp(blob)}`;
@@ -734,6 +742,9 @@ async function _openMorrowindArchives(gen) {
   };
   names.sort((a, b) => rank(a) - rank(b));
   const archives = [];
+  // The failed high-resolution female skin replacer is disabled. The new
+  // texture/model packs are loaded as one deterministic bundled archive below;
+  // user-provided loose files still retain the normal highest precedence.
   // MW-D40: LOOSE FILES FIRST - the engine's own data-files-over-BSA
   // law. Every stored non-archive asset joins one {has, get} duck
   // ranked ahead of every .bsa, so a mod's meshes/textures/sounds
@@ -749,6 +760,14 @@ async function _openMorrowindArchives(gen) {
       if (bytes) loose.set(n, bytes);
     }
     archives.push(makeLooseArchive(loose));
+  }
+  // Bundled replacement packs follow user loose files (which win collisions)
+  // and precede retail BSA archives.
+  try {
+    const bundled = await import('../systems/bundledMorrowindMods.js');
+    archives.push(bundled.bundledMorrowindModsArchive());
+  } catch (err) {
+    console.warn('bundled Morrowind mods: ' + err.message);
   }
   // WS1: Weapon Sheathing's vendored scabbards and bone addons, after
   // the player's own loose files (a replacer wins) and before every

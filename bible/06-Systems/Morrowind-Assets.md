@@ -297,3 +297,96 @@ using the shared weapon rig; no host-specific geometry or animation changes.
 This fixes selection, not authored grip transforms or scale. Retail archive checks
 and visual evidence accompany the separate handoff; full live-scene acceptance
 remains a release check.
+
+
+## Bundled Morrowind visual packs (morrowind.v3)
+
+The current implementation lives in `src/systems/bundledMorrowindMods.js`.
+It discovers checked-in assets at build time with Vite's `import.meta.glob`,
+converts each selected file into a canonical Morrowind Data Files key
+(`textures/...`, `meshes/...`, or `icons/...`), and exposes the resulting
+virtual archive to the existing Morrowind asset reader. It does not rewrite
+NIFs or textures on disk.
+
+### Runtime lookup and precedence
+
+For an exact asset key, the effective precedence is:
+
+1. **Player-attached loose Data Files** — highest priority; local user fixes win.
+2. **Selected bundled visual packs** — the priority list below resolves collisions
+   inside this virtual archive.
+3. **Attached retail/mod BSA archives** — fallback when neither of the above
+   provides the requested key, following the existing archive search order.
+
+The pack priority is explicit in `Object.assign`, not dependent on glob/file
+enumeration order. Later buckets win only when their normalized keys are
+identical. A pack does not globally replace another pack: it supplies only the
+files that were discovered and whose canonical paths match what a NIF or record
+requests. Unmatched files are inert.
+
+### Selected packs and why
+
+| Order | Pack | What is enabled | Reason / constraint |
+|---|---|---|---|
+| 1 | Better Bodies — Nude | Textures under `Data Files/Textures` only | Safe fallback for the already-integrated Better Bodies body. The active body NIF and `bb_skinf_no-uv-edits.json` are not replaced here. |
+| 2 | Intelligent Textures — `00 Core` | Standard loose textures only | Broad baseline for vanilla Morrowind textures. `01 Atlas Textures` is excluded because atlas textures require their matching atlas meshes/UVs; mixing only one side can scramble mapping. |
+| 3 | Vurt's Better Clothes Retexture | Loose DDS/TGA texture paths | Broad texture override for paths it actually shares with the game. It is not allowed to override geometry merely because a pack contains it. |
+| 4 | Better Clothes Retextured | Non-pants textures only; no NIFs | Targeted final override for its own exact non-pants texture paths, after Intelligent Textures/Vurt. Pants/trouser texture keys are held back so this pass cannot change the blue-pants control. Its mesh files are excluded because they can carry UV changes and could disturb the current working equipment/body fitting. |
+| 5 | Better Morrowind Armor | Main `Data Files` NIF/DDS/TGA assets and its main ESP | Armor-specific mesh/texture set. This is a geometry pack, not just a texture overlay; it wins matching armor keys so its mesh/UVs stay paired with its textures. |
+| 6 | Complete Armor Joints | Its `Data Files` assets and ESP | The selected compatibility add-on is loaded after the base armor pack. Other mutually exclusive BMA options are not auto-merged. |
+| 7 | Westly's Fine Clothiers of Tamriel | Meshes, textures and `Westly_Presents_FCOT.esp` | Adds its own clothing/content rather than being treated as a universal replacement for standard pants. Its plugin is needed for the added item records. |
+| 8 | Westly's Faces Refurbished | Data Files NIF/DDS/TGA assets | Separate head/hair visual layer. It wins exact matching head/hair paths, but its in-game face selection still requires a runtime check; path discovery alone does not prove every race/sex resolves to the intended head. |
+
+### Deliberately excluded
+
+- **High Resolution Better Body Female Textures** — disabled after the earlier in-game result looked blurry and did not establish a reliable visual improvement. It must not override the currently working Better Bodies skin.
+- **Old Better Heads** — not discovered by this loader; the previous integration attempt could make the unhelmeted head disappear.
+- **Intelligent Textures `01 Atlas Textures`** — excluded without the corresponding atlas meshes.
+- **Better Clothes Retextured NIFs and pants textures** — excluded from this pass. NIFs can change UVs/geometry; pants textures are withheld to protect the blue-pants reference until its exact asset key is identified. Reconsider either only as a separate, measured change.
+- **Alternative Better Morrowind Armor patches** — Chaos Heart, LeFemm/DeFemm, Snow Prince, no-Tribunal and HiRez compatibility variants are not merged automatically. They are alternatives, not additive packs; enabling several together can create incompatible mesh/texture/plugin combinations.
+- **Seamless DMRA body replacement** — not enabled; it would compete with the current Better Bodies geometry.
+- **Westly's Fine Clothiers is not used as a blanket standard-clothing replacer** — its extra clothing and its own assets are kept for their own keys/items.
+
+### Pants, silhouette and the blue-pants control
+
+A texture changes surface detail, not the outline of a trouser mesh. If pants look square, the cause can be the NIF silhouette, UV mapping, body intersection, or the fitting transform; a higher-resolution DDS alone cannot make the legs narrower. Therefore this selection does not add another general clothing-mesh override on top of the current fitting solution.
+
+The currently good-looking blue pants are the visual control item. The new Better Clothes Retextured layer explicitly skips every texture path containing `pant` or `trouser`, so it cannot overwrite any candidate pants key. Existing Intelligent Textures/Vurt pants selection remains as before. Compare the same character, camera angle, distance and equipment before/after; once the actual blue-pants key is identified, a specific alternative can be tested deliberately rather than changing it as a side effect. Do not alter the camera/grounding fixes or the existing armor-fitting script as part of texture selection.
+
+### Pants-to-body fitting (MW-BB-FIT2)
+
+The existing triangle-BVH clearance fitter in `src/formats/morrowind/mwSkinTransfer.js`
+moves a private clothing position buffer toward the measured body surface; it
+does not rewrite the NIF, texture, UVs, or body mesh. For pants, the caller uses
+`fitMode: 'conform'`, a small 0.18-unit fabric clearance, and the body slots
+`groin`, `upperleg`, and `knee`.
+
+The fitter now also receives the side of the clothing part (left/right). Each
+body surface is tagged with the BODY slot and skeleton bone used to bind it.
+When fitting a sided leg panel, the search keeps shared groin surfaces but
+excludes the opposite thigh/calf. This prevents a baggy trouser vertex from
+snapping to the other leg merely because that surface is closer. The new
+`MW-FIT2` fixture pins this case, including preservation of the garment's UVs.
+
+This is a geometry-fit improvement, not a claim of perfect cloth simulation:
+it conforms the rest-pose mesh to the nearest selected surface, and does not
+remesh the cloth or solve cloth folds. Validate in-game from front, side and
+rear, at idle and while running. If a seam or crotch deforms badly, record the
+exact clothing record/body slot and fix that region rather than globally
+increasing clearance. Keep the blue pants as the unchanged visual control and
+do not alter camera grounding or the existing armor-fitting rules.
+
+
+### How to verify what actually wins
+
+In the browser console, run:
+
+```js
+await inspectBundledMorrowindTextures()
+```
+
+The report lists discovered source-file count, selected canonical asset count, per-pack counts, bundled plugin names, and representative fetch status/size. It validates path selection and fetchability; it does **not** judge the rendered appearance or prove a head is selected correctly. For a specific texture, inspect the canonical key in `assetUrls` in the debugger and confirm the returned URL points into the intended pack. The final acceptance step is still an in-game visual check.
+
+### Current confidence and future changes
+
+This is a technically selective load order based on the pack layouts, path collisions, known mesh/UV dependencies and the prior in-game Better Bodies results. Binary DDS files have not been visually ranked side-by-side by this loader or documentation process, so the priority order is not a claim that every texture in one pack is artistically superior. Change one layer at a time and record the exact canonical key, winning pack, in-game result and whether the relevant mesh changed. Keep geometry/UV experiments separate from texture-only changes; this makes regressions attributable and preserves the current blue-pants reference.

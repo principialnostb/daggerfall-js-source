@@ -224,3 +224,189 @@ export function transferSkin(garment, sources, ctx) {
   });
   return out;
 }
+
+
+/**
+ * MW-BB-FIT2: triangle-surface garment clearance solver.
+ *
+ * Unlike the first vertex-nearest pilot, this queries the actual triangles of
+ * each skinned source surface, uses the closest point on a triangle and
+ * interpolates its vertex normal. A small BVH avoids an O(garment vertices *
+ * body vertices) scan. This is still a clearance solver, not a full volumetric
+ * collision solver: callers must supply the actual target body surfaces in
+ * the same rest-pose coordinate frame as the garment.
+ */
+function closestPointTriangle(p, a, b, c) {
+  const sub = (x, y) => [x[0] - y[0], x[1] - y[1], x[2] - y[2]];
+  const dot = (x, y) => x[0] * y[0] + x[1] * y[1] + x[2] * y[2];
+  const ab = sub(b, a), ac = sub(c, a), ap = sub(p, a);
+  const d1 = dot(ab, ap), d2 = dot(ac, ap);
+  if (d1 <= 0 && d2 <= 0) return { point: a, bary: [1, 0, 0] };
+  const bp = sub(p, b), d3 = dot(ab, bp), d4 = dot(ac, bp);
+  if (d3 >= 0 && d4 <= d3) return { point: b, bary: [0, 1, 0] };
+  const vc = d1 * d4 - d3 * d2;
+  if (vc <= 0 && d1 >= 0 && d3 <= 0) {
+    const v = d1 / (d1 - d3);
+    return { point: [a[0] + v * ab[0], a[1] + v * ab[1], a[2] + v * ab[2]], bary: [1 - v, v, 0] };
+  }
+  const cp = sub(p, c), d5 = dot(ab, cp), d6 = dot(ac, cp);
+  if (d6 >= 0 && d5 <= d6) return { point: c, bary: [0, 0, 1] };
+  const vb = d5 * d2 - d1 * d6;
+  if (vb <= 0 && d2 >= 0 && d6 <= 0) {
+    const w = d2 / (d2 - d6);
+    return { point: [a[0] + w * ac[0], a[1] + w * ac[1], a[2] + w * ac[2]], bary: [1 - w, 0, w] };
+  }
+  const va = d3 * d6 - d5 * d4;
+  if (va <= 0 && d4 - d3 >= 0 && d5 - d6 >= 0) {
+    const w = (d4 - d3) / ((d4 - d3) + (d5 - d6));
+    return { point: [b[0] + w * (c[0] - b[0]), b[1] + w * (c[1] - b[1]), b[2] + w * (c[2] - b[2])], bary: [0, 1 - w, w] };
+  }
+  const denom = 1 / (va + vb + vc);
+  const v = vb * denom, w = vc * denom;
+  return { point: [a[0] + ab[0] * v + ac[0] * w, a[1] + ab[1] * v + ac[1] * w, a[2] + ab[2] * v + ac[2] * w], bary: [1 - v - w, v, w] };
+}
+const boxDistance2 = (p, box) => {
+  let d = 0;
+  for (let k = 0; k < 3; k++) {
+    const delta = p[k] < box.min[k] ? box.min[k] - p[k] : p[k] > box.max[k] ? p[k] - box.max[k] : 0;
+    d += delta * delta;
+  }
+  return d;
+};
+function buildSurfaceBvh(positions, indices, normals) {
+  const triangles = [];
+  for (let i = 0; i + 2 < indices.length; i += 3) {
+    const ids = [indices[i], indices[i + 1], indices[i + 2]];
+    if (ids.some((v) => v * 3 + 2 >= positions.length)) continue;
+    const pts = ids.map((v) => [positions[v * 3], positions[v * 3 + 1], positions[v * 3 + 2]]);
+    const min = [0, 1, 2].map((k) => Math.min(...pts.map((p) => p[k])));
+    const max = [0, 1, 2].map((k) => Math.max(...pts.map((p) => p[k])));
+    triangles.push({ ids, pts, min, max, center: min.map((v, k) => (v + max[k]) * 0.5) });
+  }
+  const build = (items) => {
+    const min = [0, 1, 2].map((k) => Math.min(...items.map((t) => t.min[k])));
+    const max = [0, 1, 2].map((k) => Math.max(...items.map((t) => t.max[k])));
+    if (items.length <= 8) return { min, max, items };
+    let axis = 0;
+    if (max[1] - min[1] > max[axis] - min[axis]) axis = 1;
+    if (max[2] - min[2] > max[axis] - min[axis]) axis = 2;
+    items.sort((a, b) => a.center[axis] - b.center[axis]);
+    const mid = items.length >> 1;
+    return { min, max, left: build(items.slice(0, mid)), right: build(items.slice(mid)) };
+  };
+  return triangles.length ? build(triangles) : null;
+}
+function nearestSurfacePoint(p, root, normals, maxDistance2) {
+  let best = null, bestD2 = maxDistance2;
+  const visit = (node) => {
+    if (!node || boxDistance2(p, node) >= bestD2) return;
+    if (node.items) {
+      for (const tri of node.items) {
+        const hit = closestPointTriangle(p, ...tri.pts);
+        const dx = p[0] - hit.point[0], dy = p[1] - hit.point[1], dz = p[2] - hit.point[2];
+        const d2 = dx * dx + dy * dy + dz * dz;
+        if (d2 >= bestD2) continue;
+        const n = [0, 1, 2].map((k) => tri.ids.reduce((sum, id, q) => sum + normals[id * 3 + k] * hit.bary[q], 0));
+        const len = Math.hypot(...n);
+        if (len < 1e-8) continue;
+        bestD2 = d2;
+        best = { point: hit.point, normal: n.map((v) => v / len), distance2: d2 };
+      }
+      return;
+    }
+    const dl = node.left ? boxDistance2(p, node.left) : Infinity;
+    const dr = node.right ? boxDistance2(p, node.right) : Infinity;
+    if (dl < dr) { visit(node.left); visit(node.right); } else { visit(node.right); visit(node.left); }
+  };
+  visit(root);
+  return best;
+}
+
+/**
+ * Move only the garment's private position buffer outward where it intersects
+ * or violates clearance against source triangles. Source geometry, textures,
+ * UVs and NIF bytes are not modified. This is a conservative first-order pass:
+ * it does not remesh the garment or infer designer intent.
+ */
+export function fitGarmentClearance(garment, sources, ctx, {
+  clearance = 0.35, maxDistance = 3.0, maxPush = 2.5, conform = false, side = null,
+} = {}) {
+  if (!garment?.positions?.length || !sources?.length) return garment;
+  const surfaces = [];
+  const wantedSide = side === 'left' || side === 'right' ? side : null;
+  for (const batch of sources) {
+    if (!batch?.positions?.length || !batch?.indices?.length) continue;
+    // Keep groin surfaces shared, but never let a left/right leg panel snap
+    // to the other thigh or calf. The caller tags each source with the BODY
+    // slot and bone used to bind it; untagged legacy callers keep old behavior.
+    if (wantedSide && batch.fitSlot && batch.fitSlot !== 'groin' && batch.fitBone) {
+      const bone = String(batch.fitBone).toLowerCase();
+      const sourceSide = /\b(?:l|left)\b/.test(bone) ? 'left'
+        : /\b(?:r|right)\b/.test(bone) ? 'right' : null;
+      if (sourceSide && sourceSide !== wantedSide) continue;
+    }
+    const posed = new Float32Array(batch.positions.length);
+    ctx.skinBatch(batch, ctx.skeleton, ctx.pose, ctx.mats, posed, null);
+    const normals = new Float32Array(posed.length);
+    const I = batch.indices;
+    for (let t = 0; t + 2 < I.length; t += 3) {
+      const ids = [I[t], I[t + 1], I[t + 2]];
+      const ia = ids[0] * 3, ib = ids[1] * 3, ic = ids[2] * 3;
+      if (ic + 2 >= posed.length || ib + 2 >= posed.length || ia + 2 >= posed.length) continue;
+      const ax = posed[ib] - posed[ia], ay = posed[ib + 1] - posed[ia + 1], az = posed[ib + 2] - posed[ia + 2];
+      const bx = posed[ic] - posed[ia], by = posed[ic + 1] - posed[ia + 1], bz = posed[ic + 2] - posed[ia + 2];
+      const n = [ay * bz - az * by, az * bx - ax * bz, ax * by - ay * bx];
+      const len = Math.hypot(...n);
+      if (len < 1e-10) continue;
+      for (const id of ids) for (let k = 0; k < 3; k++) normals[id * 3 + k] += n[k] / len;
+    }
+    // Orient normals consistently away from this surface's centroid as a
+    // fallback for NIFs whose triangle winding differs. This is approximate
+    // for concave surfaces; signed-distance classification remains a limitation.
+    let center = [0, 0, 0], count = posed.length / 3;
+    for (let i = 0; i < posed.length; i += 3) for (let k = 0; k < 3; k++) center[k] += posed[i + k] / Math.max(1, count);
+    for (let i = 0; i < normals.length; i += 3) {
+      const len = Math.hypot(normals[i], normals[i + 1], normals[i + 2]);
+      if (len > 1e-10) {
+        for (let k = 0; k < 3; k++) normals[i + k] /= len;
+        const dot = (posed[i] - center[0]) * normals[i] + (posed[i + 1] - center[1]) * normals[i + 1] + (posed[i + 2] - center[2]) * normals[i + 2];
+        if (dot < 0) for (let k = 0; k < 3; k++) normals[i + k] *= -1;
+      }
+    }
+    const bvh = buildSurfaceBvh(posed, I, normals);
+    if (bvh) surfaces.push({ bvh, normals });
+  }
+  if (!surfaces.length) return garment;
+  const positions = Float32Array.from(garment.positions);
+  let adjusted = 0;
+  for (let i = 0; i + 2 < positions.length; i += 3) {
+    const p = [positions[i], positions[i + 1], positions[i + 2]];
+    let best = null;
+    for (const surface of surfaces) {
+      const hit = nearestSurfacePoint(p, surface.bvh, surface.normals, maxDistance * maxDistance);
+      if (hit && (!best || hit.distance2 < best.distance2)) best = hit;
+    }
+    if (!best) continue;
+    const signed = (p[0] - best.point[0]) * best.normal[0]
+      + (p[1] - best.point[1]) * best.normal[1]
+      + (p[2] - best.point[2]) * best.normal[2];
+    if (conform) {
+      // Pants are often authored with a much larger volume than the current
+      // body. Project their vertices onto the nearest body surface plus a
+      // small fabric clearance instead of only pushing intersections outward.
+      const target = [0, 1, 2].map((k) => best.point[k] + best.normal[k] * clearance);
+      if (Math.hypot(p[0] - target[0], p[1] - target[1], p[2] - target[2]) > 1e-4) {
+        positions[i] = target[0]; positions[i + 1] = target[1]; positions[i + 2] = target[2];
+        adjusted++;
+      }
+      continue;
+    }
+    if (signed >= clearance) continue;
+    const push = Math.min(maxPush, clearance - signed);
+    positions[i] += best.normal[0] * push;
+    positions[i + 1] += best.normal[1] * push;
+    positions[i + 2] += best.normal[2] * push;
+    adjusted++;
+  }
+  return adjusted ? { ...garment, positions, clearanceFit: { adjusted, clearance, solver: 'triangle-bvh' } } : garment;
+}
