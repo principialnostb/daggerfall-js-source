@@ -2075,11 +2075,30 @@ async function buildTpBody({
         // the checked-in asset even after a dev-server reload.
         const textureAdapter = archives.find((a) => a.__betterBodiesFemaleTexture);
         if (textureAdapter) textureAdapter.get = () => textureBytes;
+        // The texture name may already have a generation-scoped negative cache
+        // entry from the vanilla archive lookup. The loose Better Bodies DDS
+        // is authoritative for this one basename, so discard that stale answer.
+        for (const key of TEXTURE_CACHE.keys()) {
+          if (/bb_skinf_no\.dds$/i.test(key)) TEXTURE_CACHE.delete(key);
+        }
         // Keep the intended resolver path explicit for diagnostics.
         betterBodiesPart.texturePath = virtualTexturePath;
+        console.info('[Better Bodies] female body asset loaded', {
+          modelBytes: bytes.byteLength,
+          textureBytes: textureBytes.byteLength,
+          uvEdits: uvEdits.length,
+          female,
+          wornAdds: worn.adds?.length ?? 0,
+        });
       } catch (error) {
-        missing.push('Better Bodies female skin unavailable: ' + String(error?.message ?? error));
+        const reason = 'Better Bodies female skin unavailable: ' + String(error?.message ?? error);
+        missing.push(reason);
+        console.warn('[Better Bodies] falling back to standard Morrowind body:', reason);
       }
+    } else if (female && !beast && !werewolf && !vampire) {
+      console.info('[Better Bodies] using standard body because worn equipment is present', {
+        wornAdds: worn.adds?.length ?? 0,
+      });
     }
     // MW-D29/D31: the worn verdicts arrive COMPOSED - one arbitration
     // in buildFpArm serves both rigs. shadowSkinRows applies the
