@@ -93,7 +93,7 @@ for (const [source, url] of Object.entries(FILES)) {
   // allowed to silently replace the current body/equipment geometry.
   const betterClothesRel = relAfter(path, lower, '/better clothes retextured/');
   if (betterClothesRel) {
-    const match = betterClothesRel.match(/^textures\\/(.+\\.(?:dds|tga))$/i);
+    const match = betterClothesRel.match(/^textures\/(.+\.(?:dds|tga))$/i);
     if (match) addAsset(betterClothesTextureUrls, 'textures/' + match[1], url, 'Better Clothes Retextured (textures only)');
     continue;
   }
