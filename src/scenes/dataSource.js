@@ -742,6 +742,15 @@ async function _openMorrowindArchives(gen) {
   };
   names.sort((a, b) => rank(a) - rank(b));
   const archives = [];
+  // HRBB1: the selected high-resolution Better Bodies textures are a
+  // targeted replacer, so they outrank stale loose copies of these same keys.
+  // Other bundled mods retain normal precedence below user loose files.
+  try {
+    const bundled = await import('../systems/bundledMorrowindMods.js');
+    archives.push(bundled.highResolutionFemaleTextureArchive());
+  } catch (err) {
+    console.warn('high-resolution Better Bodies textures: ' + err.message);
+  }
   // MW-D40: LOOSE FILES FIRST - the engine's own data-files-over-BSA
   // law. Every stored non-archive asset joins one {has, get} duck
   // ranked ahead of every .bsa, so a mod's meshes/textures/sounds
