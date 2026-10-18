@@ -1,0 +1,7 @@
+The two textures here are extra alternates. 
+
+The first one is a backup of a face I redid of the original FoV Redguard females. I have included the original one as an alternate in case some people might prefer it. The file name is the same so if you want to restore that face then simply copy the BH_DS_RG_f_H_03.dds file to the Textures/BH directory. If you want to see the difference between the two faces I have included a jpg with a side by side comparison of the faces in game called RG_F_3_Before_After.jpg also in this directory, The face on the left labelled new face is the modified version I made that is included in Better Heads by default. The face on the left is Arathrax's original face for Fov. I tried my best in redoing this face but the eyebrows are still not symmetrical because the UVmapping warps in odd ways above the eyes and I no longer have access to the original Max file to fix it. After spending too much time with it, I decided that was as good as I could get it, but if someone else can come up with something better than let me know. :)
+
+The second texture FP_Orc_f_hair_05fan02.dds is an alternate version of the Orc feather helm. The version is a solid multicolor fan semicircle like one of the Ashlander hairs. If you absolutely hate the feather helm, you can use this texture instead just copy this file to the Textures/BH directory.
+
+-Motoki

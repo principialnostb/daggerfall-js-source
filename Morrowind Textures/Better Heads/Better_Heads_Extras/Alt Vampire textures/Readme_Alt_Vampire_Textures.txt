@@ -1,0 +1,3 @@
+These are an alternate selection of vampire textures. If you don't like the default undead style vampires that come with Better Heads, but prefer a more attractive style of vampire similar to Rhedd's, then you may want to use these textures instead.
+
+To install, copy the entire contents of this directory to the Textures/BH directory and say yes if you are asked whether you want to overwrite the existing files.
