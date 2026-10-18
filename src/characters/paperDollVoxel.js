@@ -1,7 +1,7 @@
 // Smart PaperDoll: convert the live RGBA paperdoll composite into a shallow voxel mesh.
 // The input is the exact image already composed by ui/paperDoll.js, so dyes, armor,
 // clothing, texture replacements and race-specific art stay in sync with the inventory.
-import { paperDollPixels } from '../ui/paperDoll.js';
+import { paperDollFigurePixels } from '../ui/paperDoll.js';
 import { packCharacterFaces } from '../render/characterMesh.js';
 import { trs } from '../world/mat4.js';
 
@@ -46,7 +46,19 @@ function resamplePixels(image, maxWidth, maxHeight) {
       ];
     }
   }
-  return { width, height, cells };
+  let minX = width, minY = height, maxX = -1, maxY = -1;
+  for (let y = 0; y < height; y++) for (let x = 0; x < width; x++) {
+    if (!cells[y * width + x]) continue;
+    minX = Math.min(minX, x); minY = Math.min(minY, y);
+    maxX = Math.max(maxX, x); maxY = Math.max(maxY, y);
+  }
+  if (maxX < minX || maxY < minY) return null;
+  const croppedWidth = maxX - minX + 1, croppedHeight = maxY - minY + 1;
+  const cropped = new Array(croppedWidth * croppedHeight).fill(null);
+  for (let y = 0; y < croppedHeight; y++) for (let x = 0; x < croppedWidth; x++) {
+    cropped[y * croppedWidth + x] = cells[(y + minY) * width + x + minX];
+  }
+  return { width: croppedWidth, height: croppedHeight, cells: cropped };
 }
 
 function quad(faces, points, normal, color) {
@@ -128,7 +140,7 @@ function meshFor(renderer, image) {
  * is not ready so mwView can preserve its existing Morrowind/EotB fallback.
  */
 export function drawSmartPaperDoll(renderer, { feet, yaw = 0, grow = 1 } = {}) {
-  const image = paperDollPixels();
+  const image = paperDollFigurePixels();
   if (!image || !feet || feet.length < 3) {
     clearSmartPaperDoll();
     return false;
@@ -137,7 +149,7 @@ export function drawSmartPaperDoll(renderer, { feet, yaw = 0, grow = 1 } = {}) {
   if (!mesh) return false;
   const scale = Number.isFinite(grow) && grow > 0 ? grow : 1;
   // Same world-facing convention as fpArm's thirdModel: the local portrait faces +Z.
-  const model = trs(feet[0], feet[1], feet[2], 0, yaw * 180 / Math.PI + 180, 0, scale, scale, scale);
+  const model = trs(feet[0], feet[1], feet[2], 0, yaw * 180 / Math.PI, 0, scale, scale, scale);
   renderer.drawCharacter(mesh, model);
   return true;
 }
