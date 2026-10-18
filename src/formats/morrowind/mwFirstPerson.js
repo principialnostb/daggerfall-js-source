@@ -3201,7 +3201,7 @@ function applyPre(positions, pre) {
  *  with NO name matches everything, because a nameless shape in a
  *  one-shape part file is the part. */
 /** Map a Better Bodies NIF section to the slot whose equipment shadows it. */
-function betterBodiesShadowSlot(shapeName) {
+export function betterBodiesShadowSlot(shapeName) {
   const name = String(shapeName || '').trim().toLowerCase().replace(/^tri\s+/, '').replace(/\s+/g, ' ');
   if (name === 'chest' || name === 'groin' || name === 'neck') return name;
   const match = name.match(/^(left|right) (hand|wrist|forearm|upper arm|foot|ankle|knee|upper leg)$/);
