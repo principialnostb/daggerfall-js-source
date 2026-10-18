@@ -11,6 +11,7 @@ const FILES = IN_BROWSER
 
 const norm = (s) => String(s).replace(/\\/g, '/').toLowerCase();
 const assetUrls = {};
+const highResolutionFemaleTextureUrls = {};
 const pluginUrls = new Map();
 
 for (const [source, url] of Object.entries(FILES)) {
@@ -18,9 +19,14 @@ for (const [source, url] of Object.entries(FILES)) {
   const lower = p.toLowerCase();
   const clothesAt = lower.indexOf('/clothes/');
   const headsAt = lower.indexOf('/better heads/');
+  const highResFemaleAt = lower.indexOf('/high resolution better body female textures/');
   const modAt = clothesAt >= 0 ? clothesAt + '/clothes/'.length
-    : headsAt >= 0 ? headsAt + '/better heads/'.length : -1;
+    : headsAt >= 0 ? headsAt + '/better heads/'.length
+      : highResFemaleAt >= 0
+        ? highResFemaleAt + '/high resolution better body female textures/'.length
+        : -1;
   if (modAt < 0) continue;
+  const isHighResolutionFemale = highResFemaleAt >= 0;
   const rel = p.slice(modAt);
   // Mod archives are commonly packed as <package>/Data Files/Meshes|Textures.
   // The runtime archive contract is Data-Files-relative, so strip the outer
@@ -30,10 +36,17 @@ for (const [source, url] of Object.entries(FILES)) {
   const m = dataPath.match(/^(Meshes|Textures)\/(.+)\.(nif|dds|tga)$/i);
   if (m) {
     const root = m[1].toLowerCase() === 'meshes' ? 'meshes' : 'textures';
-    assetUrls[(root + '/' + m[2] + '.' + m[3]).toLowerCase()] = url;
+    // This package is a TEXTURE-ONLY trial. Never let its optional/alternate
+    // meshes replace the live Better Bodies geometry or its manually fixed UVs.
+    if (isHighResolutionFemale) {
+      if (root !== 'textures') continue;
+      highResolutionFemaleTextureUrls[(root + '/' + m[2] + '.' + m[3]).toLowerCase()] = url;
+    } else {
+      assetUrls[(root + '/' + m[2] + '.' + m[3]).toLowerCase()] = url;
+    }
     continue;
   }
-  if (!/\.(esm|esp)$/i.test(rel)) continue;
+  if (isHighResolutionFemale || !/\.(esm|esp)$/i.test(rel)) continue;
   const base = rel.split('/').pop().toLowerCase();
   const isClothesPlugin = base === 'ale_clothing_v1.esp';
   const isHeadPlugin = base === 'better heads.esm'
@@ -45,6 +58,11 @@ for (const [source, url] of Object.entries(FILES)) {
     pluginUrls.set(norm(key), { key, url, base });
   }
 }
+
+// Give the high-resolution female skin textures explicit precedence over the
+// standard Better Bodies texture files, independent of glob enumeration order.
+// Only matching texture paths are replaced; missing files keep the existing skin.
+Object.assign(assetUrls, highResolutionFemaleTextureUrls);
 
 const fetchBytes = async (url) => {
   const response = await fetch(url);
