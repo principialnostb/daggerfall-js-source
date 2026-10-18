@@ -72,8 +72,9 @@ export async function inspectBetterBodiesFemale() {
     vertices: batch.positions ? batch.positions.length / 3 : 0,
     triangles: batch.indices ? batch.indices.length / 3 : 0,
     skinned: Boolean(batch.skinned && batch.skin),
-    texture: batch.texture ?? batch.material?.texture ?? null,
+    texture: batch.material?.textureFile ?? null,
     boneCount: batch.skin?.bones?.length ?? 0,
+    bones: (batch.skin?.bones ?? []).map((bone) => bone.name || '(unnamed)'),
   })).filter((shape) => shape.vertices > 0 && shape.triangles > 0);
 
   const roots = (nif.roots ?? []).map((ref) => {
@@ -83,6 +84,10 @@ export async function inspectBetterBodiesFemale() {
 
   const totalVertices = shapes.reduce((sum, shape) => sum + shape.vertices, 0);
   const totalTriangles = shapes.reduce((sum, shape) => sum + shape.triangles, 0);
+  const modelBoneNames = [...skeleton.byName.keys()].sort();
+  const usedBoneNames = [...new Set(shapes.flatMap((shape) => shape.bones))].sort();
+  const missingSkeletonBones = usedBoneNames.filter((name) => name && name !== '(unnamed)' && !skeleton.byName.has(name));
+  const textureFiles = [...new Set(shapes.map((shape) => shape.texture).filter(Boolean))];
   return {
     ok: shapes.length > 0,
     stage: shapes.length ? 'geometry' : 'empty-geometry',
@@ -93,6 +98,10 @@ export async function inspectBetterBodiesFemale() {
     roots,
     skeletonNodes: skeleton.nodes.size,
     namedBones: skeleton.byName.size,
+    modelBoneNames,
+    usedBoneNames,
+    missingSkeletonBones,
+    textureFiles,
     shapes,
     totalVertices,
     totalTriangles,
