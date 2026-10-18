@@ -28,7 +28,7 @@ const FILES = IN_BROWSER
     })
   : {};
 
-const norm = (s) => String(s).replace(/\/g, '/').toLowerCase();
+const norm = (s) => String(s).replace(/\\/g, '/').toLowerCase();
 const assetUrls = Object.create(null);
 const baseBodyTextureUrls = Object.create(null);
 const intelligentTextureUrls = Object.create(null);
@@ -56,7 +56,7 @@ const addDataFilesAsset = (rel, url, packageName, bucket) => {
 };
 
 for (const [source, url] of Object.entries(FILES)) {
-  const path = source.replace(/\/g, '/');
+  const path = source.replace(/\\/g, '/');
   const lower = path.toLowerCase();
 
   // Base Better Bodies skin textures are retained as a fallback only. This
