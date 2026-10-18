@@ -51,3 +51,14 @@ The files above are source candidates, not proof of runtime compatibility. A NIF
 - Regression checks for standing camera orbit, ordinary walking camera orbit, run turning, combat turning, and existing camera/Better Bodies behavior.
 - Run the relevant tests, lint/type checks, and build. A passing unit suite cannot substitute for in-game visual verification of gait, foot sliding, clipping, and transitions.
 - Record any test that could not be run (for example, no local game assets/runtime) instead of claiming it passed.
+
+
+## Implementation update — viewer animation source selector
+
+The Morrowind Mesh Viewer now has a persisted `female walk: Standard/Female` selector. When both standard and female `.kf` files are loaded into the viewer, filenames containing `female` are registered as the female source; other `.kf` files are the standard source. Selection is made per animation group:
+
+- Female actor + Female preference + a group name containing `walk`: use the female source only if it contains that group.
+- Otherwise use the standard source (male actors, idle, run, combat, and missing female groups).
+- The setting does not modify meshes, textures, body proportions, or skeleton geometry.
+
+This is a working **viewer-level diagnostic selector**, not yet a claim that the gameplay actor controller has been wired to the preference. The reviewed code paths do not establish a connected third-person gameplay animation loop or the requested mouse-turn state gate. Those gameplay changes must be integrated at the actual controller/renderer seam rather than faked in this viewer.

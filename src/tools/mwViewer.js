@@ -31,6 +31,7 @@ import {
   resetClip,
   advanceClip,
   isLoopingAnimation,
+  selectActorAnimSource,
 } from '../formats/morrowind/mwAnim.js';
 import { buildSkeleton, poseSkeleton, skeletonSpaceMatrices, skinBatch, accumRootRef, GRAPH_ROOT } from '../formats/morrowind/mwSkin.js';
 import { bindPart, attachmentTransform } from '../formats/morrowind/mwCharacter.js';
@@ -43,6 +44,8 @@ const $ = (id) => document.getElementById(id);
 const canvas = $('c');
 const statusEl = $('status');
 const meshSel = $('meshsel');
+const femaleWalkSel = $('femalewalksel');
+try { femaleWalkSel.value = localStorage.getItem('mw-female-walk') === 'female' ? 'female' : 'standard'; } catch { femaleWalkSel.value = 'standard'; }
 
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
 renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
@@ -157,9 +160,8 @@ let loaded = null; // { name, group, batches, skinnedMeshes, skeleton }
 let allMeshNames = [];
 // Animation state. A dropped .kf overrides a mesh's inline tracks - the
 // retail xbase_anim.kf arrangement.
-let kfTracks = null;
-let kfGroups = null;
-let kfKeys = null;
+const kfSources = { standard: null, female: null };
+let pendingNpcFemale = false;
 // ESM state: parsed records + the skin index, for NPC assembly.
 let esm = null;
 let esmSkins = null;
@@ -220,7 +222,9 @@ async function loadNpc(id) {
     setStatus(`${a.npc.name}: base skeleton ${a.animFile} not in archive`);
     return;
   }
+  pendingNpcFemale = !!a.npc.female;
   loadNifBytes(bsa.get(baseKey), baseKey);
+  pendingNpcFemale = false;
   // MW-D21: THE PARTS RIDE THE ONE ASSEMBLY DOOR. What stood here was a
   // per-part loop that attached paired limbs at their FIRST bone only
   // (Mac's missing right arm and right leg), applied no rule 15 filter,
@@ -303,7 +307,7 @@ function poseNpcAsm(opts) {
 // answers can disagree (a group the listing names and the law refuses)
 // and the page shows the refusal instead of freezing on the listing.
 const anim = {
-  tracks: null, groups: null, keys: [], clip: null,
+  tracks: null, groups: null, keys: [], clip: null, sources: null,
   accumRoot: null, playing: null, last: 0, seek: null,
 };
 const animSel = $('animsel');
@@ -313,26 +317,32 @@ function wireAnimation(nif) {
   const inlineTracks = extractTracks(nif);
   const rawTextKeys = collectTextKeys(nif);
   const inlineGroups = parseAnimGroups(rawTextKeys);
-  anim.tracks = kfTracks && kfTracks.size ? kfTracks : inlineTracks;
-  anim.groups = kfGroups && kfGroups.size ? kfGroups : inlineGroups;
-  anim.keys = kfKeys && kfKeys.length ? kfKeys : normalizeTextKeys(rawTextKeys);
-  // Rule 56's pick, made ONCE per track set instead of every frame -
-  // the same skeleton and tracks always answer the same ref, so the
-  // per-frame recompute was waste wearing a second-home face.
-  anim.accumRoot =
-    loaded && loaded.skeleton ? accumRootRef(loaded.skeleton, anim.tracks) : null;
+  const inlineSource = { tracks: inlineTracks, groups: inlineGroups, keys: normalizeTextKeys(rawTextKeys) };
+  const standardSource = kfSources.standard || inlineSource;
+  const femaleSource = kfSources.female;
+  anim.sources = { standard: standardSource, female: femaleSource };
+  for (const source of Object.values(anim.sources)) {
+    if (source && loaded && loaded.skeleton) source.accumRoot = accumRootRef(loaded.skeleton, source.tracks);
+  }
+  anim.tracks = standardSource.tracks;
+  anim.groups = standardSource.groups;
+  anim.keys = standardSource.keys;
+  anim.accumRoot = standardSource.accumRoot ?? null;
   anim.playing = null;
   anim.clip = null;
   anim.seek = null;
   animSel.innerHTML = '';
-  const usable = skinnedMeshes.length && anim.tracks.size && anim.groups.size;
+  const names = new Set(anim.groups.keys());
+  if (femaleSource?.groups) for (const name of femaleSource.groups.keys()) names.add(name);
+  const usable = skinnedMeshes.length && names.size > 0 &&
+    (standardSource.tracks.size || femaleSource?.tracks?.size);
   animSel.style.display = usable ? '' : 'none';
   if (!usable) return;
   const bind = document.createElement('option');
   bind.value = '';
   bind.textContent = 'bind pose';
   animSel.appendChild(bind);
-  for (const name of anim.groups.keys()) {
+  for (const name of names) {
     const opt = document.createElement('option');
     opt.value = name;
     opt.textContent = `anim: ${name}`;
@@ -346,6 +356,16 @@ function wireAnimation(nif) {
 }
 
 function startGroup(name) {
+  const source = selectActorAnimSource(anim.sources, name, {
+    female: !!(loaded && loaded.npcFemale),
+    femaleWalk: femaleWalkSel.value,
+  }) || anim.sources?.standard;
+  if (source) {
+    anim.tracks = source.tracks;
+    anim.groups = source.groups;
+    anim.keys = source.keys;
+    anim.accumRoot = source.accumRoot ?? null;
+  }
   anim.playing = name || null;
   anim.clip = null;
   anim.seek = null;
@@ -628,9 +648,7 @@ function loadNifBytes(bytes, name) {
   disposeLoaded();
   // A dropped .kf rides the mesh it was dropped on; a fresh load starts
   // from that mesh's own inline animation again.
-  kfTracks = null;
-  kfGroups = null;
-  kfKeys = null;
+  // Explicitly loaded .kf sources remain available when switching meshes.
   try {
     const nif = parseNif(bytes);
     const batches = flattenNif(nif);
@@ -647,7 +665,7 @@ function loadNifBytes(bytes, name) {
         });
       }
     });
-    loaded = { name, group, batches, skinnedMeshes, skeleton: buildSkeleton(nif), parts: [] };
+    loaded = { name, nif, group, batches, skinnedMeshes, skeleton: buildSkeleton(nif), parts: [], npcFemale: pendingNpcFemale };
     debugDump(name, batches);
     // The attach-bone list follows the loaded skeleton.
     const attachSel = $('attachsel');
@@ -722,12 +740,13 @@ async function takeFiles(files) {
     } else if (lower.endsWith('.kf')) {
       try {
         const kfNif = parseNif(bytes);
-        kfTracks = extractTracks(kfNif);
+        const tracks = extractTracks(kfNif);
         const kfRawKeys = collectTextKeys(kfNif);
-        kfGroups = parseAnimGroups(kfRawKeys);
-        kfKeys = normalizeTextKeys(kfRawKeys);
-        setStatus(`${f.name}: ${kfTracks.size} bone tracks, ${kfGroups.size} groups`);
-        if (loaded) wireAnimation(kfNif);
+        const source = { tracks, groups: parseAnimGroups(kfRawKeys), keys: normalizeTextKeys(kfRawKeys) };
+        const kind = /female/i.test(f.name) ? 'female' : 'standard';
+        kfSources[kind] = source;
+        setStatus(`${f.name}: ${tracks.size} bone tracks, ${source.groups.size} groups (${kind} source)`);
+        if (loaded) wireAnimation(loaded.nif);
       } catch (err) {
         setStatus(`${f.name}\n${err.message}`);
       }
@@ -751,6 +770,10 @@ meshSel.addEventListener('change', () => {
   else loadNifBytes(bsa.get(meshSel.value), meshSel.value);
 });
 animSel.addEventListener('change', () => startGroup(animSel.value));
+femaleWalkSel.addEventListener('change', () => {
+  try { localStorage.setItem('mw-female-walk', femaleWalkSel.value); } catch { /* private browsing */ }
+  if (animSel.value) startGroup(animSel.value);
+});
 $('filter').addEventListener('input', () => {
   refreshMeshList();
   refreshNpcList();

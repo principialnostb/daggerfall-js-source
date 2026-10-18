@@ -10,6 +10,6 @@ Working branch for implementation: [`morrowind.v4`](https://github.com/principia
 - [Female walk reference](https://www.nexusmods.com/morrowind/mods/43129) — candidate for a female-only walk choice. The asset tree also contains `Simply Walking/Feminine Walk Cycle/Meshes/xbase_anim_female.kf`.
 - `Morrowind Animation Overhaul` and `Axel's Sexy Walk Fixed` are present as additional reference candidates. They should not be activated by default without compatibility checks; broad replacements can change more than the intended female walking animation.
 
-Selection, compatibility criteria, camera-turn behavior, and required tests are documented in [MORROWIND-ANIMATION-INTEGRATION.md](MORROWIND-ANIMATION-INTEGRATION.md).
+Selection, compatibility criteria, camera-turn behavior, and required tests are documented in [MORROWIND-ANIMATION-INTEGRATION.md](MORROWIND-ANIMATION-INTEGRATION.md). The Morrowind Mesh Viewer exposes a persisted Standard/Female source selector for walk groups; this is a diagnostic integration, not the in-game controller setting.
 
 Keep downloaded mod archives outside the repository where possible and respect each author's permissions and redistribution requirements.
