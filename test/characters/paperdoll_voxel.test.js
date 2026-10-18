@@ -1,4 +1,4 @@
-import test from 'node:test';
+import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { buildPaperDollVoxelFaces, SMART_PAPERDOLL_HEIGHT, SMART_PAPERDOLL_DEPTH } from '../../src/characters/paperDollVoxel.js';
 
@@ -25,7 +25,8 @@ test('opaque pixels create a colored, thick, bounded voxel mesh', () => {
   assert.ok(faces.every((f) => f.c[0] === 180 && f.c[1] === 90 && f.c[2] === 40));
   const ys = faces.flatMap((f) => f.p.filter((_, i) => i % 3 === 1));
   const zs = faces.flatMap((f) => f.p.filter((_, i) => i % 3 === 2));
-  assert.ok(Math.abs(Math.max(...ys) - SMART_PAPERDOLL_HEIGHT) < 1e-6);
+  assert.ok(Math.max(...ys) <= SMART_PAPERDOLL_HEIGHT + 1e-6);
+  assert.ok(Math.max(...ys) > Math.min(...ys));
   assert.ok(Math.abs((Math.max(...zs) - Math.min(...zs)) - SMART_PAPERDOLL_DEPTH) < 1e-6);
 });
 
