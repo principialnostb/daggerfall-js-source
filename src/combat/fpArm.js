@@ -6969,6 +6969,7 @@ export function createFpArm() {
           sampleTrack,
           time: pose.state.startTime,
           accumRoot: t.accumRoot,
+          bodyProportions: getBodyMorphs(),   // MWV2-APPEARANCE: same saved morphs in the rotatable inventory preview
           mirror: portraitMirror(),   // TWO-HANDS AUDIT
         });
       }
