@@ -3693,6 +3693,7 @@ export function createFpArm({ playerAppearance = false } = {}) {
   let movementGroup = null;
   let movementSource = null;
   let movementBase = null;
+  let movementWalkPreference = null;
   let movementStance = null;
   let movementRate = 1;
   // MW-D39: THE FOURTH SLOT - JUMP. Priority_Jump sits BELOW
