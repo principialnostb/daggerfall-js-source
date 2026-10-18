@@ -2040,12 +2040,12 @@ async function buildTpBody({
     // WEREWOLF1: the wolf's head and hair, by id - every other skin slot is empty, the robe is the body
     const rows = werewolf ? werewolfHeadRows(parts) : playerBodyRows(parts, race, female, { beast, faceIndex, faceMatch, vampire, walk, has: exists, ownHeads });   // MWNPC14: a vampire's head; MWNPC17: an NPC's own; AUDIT MW-HEADS1: the port's own heads where these archives carry them
     const missing = [];
-    // Better Bodies is a loose, complete female body mesh. Start with the
-    // checked-in version only for a bare human female; equipped body pieces
-    // continue through the existing slot-aware vanilla path until their
-    // occlusion/fit rules are authored for the full-body mesh.
+    // Better Bodies is the base body for every human female build, including
+    // builds with equipped armor or clothing. Worn pieces are still composed
+    // through the normal slot-aware path and layered over this body; do not
+    // silently switch the player back to vanilla skin when equipment changes.
     let betterBodiesPart = null;
-    if (female && !beast && !werewolf && !vampire && !(worn.adds?.length)) {
+    if (female && !beast && !werewolf && !vampire) {
       try {
         const [nifResponse, textureResponse, uvEdits] = await Promise.all([
           fetch(betterBodiesFemaleAssetUrls.model),
@@ -2095,10 +2095,6 @@ async function buildTpBody({
         missing.push(reason);
         console.warn('[Better Bodies] falling back to standard Morrowind body:', reason);
       }
-    } else if (female && !beast && !werewolf && !vampire) {
-      console.info('[Better Bodies] using standard body because worn equipment is present', {
-        wornAdds: worn.adds?.length ?? 0,
-      });
     }
     // MW-D29/D31: the worn verdicts arrive COMPOSED - one arbitration
     // in buildFpArm serves both rigs. shadowSkinRows applies the
