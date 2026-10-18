@@ -341,8 +341,8 @@ export function fitGarmentClearance(garment, sources, ctx, {
     // slot and bone used to bind it; untagged legacy callers keep old behavior.
     if (wantedSide && batch.fitSlot && batch.fitSlot !== 'groin' && batch.fitBone) {
       const bone = String(batch.fitBone).toLowerCase();
-      const sourceSide = /\\b(?:l|left)\\b/.test(bone) ? 'left'
-        : /\\b(?:r|right)\\b/.test(bone) ? 'right' : null;
+      const sourceSide = /\b(?:l|left)\b/.test(bone) ? 'left'
+        : /\b(?:r|right)\b/.test(bone) ? 'right' : null;
       if (sourceSide && sourceSide !== wantedSide) continue;
     }
     const posed = new Float32Array(batch.positions.length);
