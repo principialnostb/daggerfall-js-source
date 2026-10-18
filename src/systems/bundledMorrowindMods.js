@@ -78,6 +78,14 @@ const fetchBytes = async (url) => {
 };
 
 let _archive = null;
+let _highResolutionFemaleTextureArchive = null;
+
+// Only the explicitly selected high-resolution female skin/hand textures
+// outrank stale loose copies of these exact Better Bodies keys.
+export function highResolutionFemaleTextureArchive() {
+  return (_highResolutionFemaleTextureArchive ??= makeVendoredArchive(highResolutionFemaleTextureUrls, fetchBytes));
+}
+
 export function bundledMorrowindModsArchive() {
   return (_archive ??= makeVendoredArchive(assetUrls, fetchBytes));
 }
