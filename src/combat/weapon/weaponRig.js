@@ -83,7 +83,7 @@ import { liveVampirism } from '../../systems/racialLive.js';   // PORTRAIT3D: a 
 import { isTransformedLycanthrope, liveLycanthropy } from '../../systems/lycanthropy.js';   // WW1: Weapon Widget's FPSWeaponClone, beside the machine; AUDIT-EOTB2: the sprite's form
 // FP-VIEWMODEL diagnostics: read from the browser console with
 // (await import('/src/combat/weapon/weaponRig.js')).morrowindFpDebug()
-const _fpViewDebug = { lastBuild: null, lastDraw: null, lastFallback: null };
+const _fpViewDebug = { lastBuild: null, lastDraw: null, lastFallback: null, lastGate: null };
 export function morrowindFpDebug() {
   let arm = null;
   try { arm = fpArm.status(); } catch (err) { arm = { statusError: String(err?.message ?? err) }; }
@@ -2281,7 +2281,19 @@ export function createWeaponRig({ renderer, canvas, fetchBytes, palette, audio, 
       // TWO-HANDS: THE RUNNING HANDS ARE NOT A WEAPON EITHER (an empty-handed run is often a sheathed one)
       const runHands = !!c && twoHands.running && !fpArm.active() && !eotbHidesWeapon() && !sheetWindowUp();
       const armsRun = fpArm.active() && !!fpArm.runPosed?.();
-      if (paralyzed || (!shown() && !torchOnly && !sheetOnly && !shieldRect && !gunSliding && !armCasts && !armsClimb && !runHands && !armsRun)) return;
+      const gate = {
+        paralyzed: !!paralyzed, shown: !!shown(), torchOnly: !!torchOnly, sheetOnly: !!sheetOnly,
+        shieldRect: !!shieldRect, gunSliding: !!gunSliding, armCasts: !!armCasts,
+        armsClimb: !!armsClimb, runHands: !!runHands, armsRun: !!armsRun,
+        armActive: !!fpArm.active(), running: !!twoHands.running,
+        sheathed: !!playerWeapon.sheathed, sheetWindowUp: !!sheetWindowUp(),
+        eotbHidesWeapon: !!eotbHidesWeapon(),
+      };
+      _fpViewDebug.lastGate = gate;
+      if (paralyzed || (!shown() && !torchOnly && !sheetOnly && !shieldRect && !gunSliding && !armCasts && !armsClimb && !runHands && !armsRun)) {
+        _fpViewDebug.lastDraw = { reason: 'draw-gate-rejected', ...gate };
+        return;
+      }
       // THE ONE SEAM. The arm draws whole and RETURNS, or it is inactive
       // and the classic sprite draws exactly as it always has. The return
       // is load-bearing: without it both composite and the player sees a
