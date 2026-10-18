@@ -2257,9 +2257,9 @@ async function buildTpBody({
     // The separate Feminine Walk Cycle is a female-only, walk-only override;
     // other actions keep the game's own sources and priority.
     if (!werewolf && !beast) {
-      const walkAssets = await loadWalkAnimationAssets({ female, femaleWalk: true });
+      const walkAssets = await loadWalkAnimationAssets({ female });
       for (const asset of walkAssets) {
-        const report = await clipReport({ kfBytes: asset.bytes, skeleton: arm.skeleton, group: FP_IDLE_BASE });
+        const report = await cachedClipReport(gen, skeletonPath, asset.name, () => asset.bytes, arm.skeleton);
         if (!report.ok) {
           missing.push(`walk animation ${asset.name}: ${report.error}`);
           continue;
