@@ -11,9 +11,12 @@
 //
 // Vite's ?url imports make these two checked-in resources addressable in dev
 // and production builds without embedding their binary contents in JavaScript.
-import betterBodiesFemaleNifUrl from '../../../Morrowind Textures/Better Bodies/Nude/Data Files/Meshes/bb/bb_skinf_no.nif?url';
-import betterBodiesFemaleTextureUrl from '../../../Morrowind Textures/Better Bodies/Nude/Data Files/Textures/bb/bb_skinf_no.dds?url';
-import betterBodiesFemaleUvEditsUrl from '../../../bb_skinf_no-uv-edits.json?url';
+// Keep asset URLs as URL objects rather than ?url imports: the latter make
+// Node's test runner try to load binary NIF/DDS files as JavaScript whenever
+// the character rig is imported outside Vite.
+const betterBodiesFemaleNifUrl = new URL('../../../Morrowind Textures/Better Bodies/Nude/Data Files/Meshes/bb/bb_skinf_no.nif', import.meta.url).href;
+const betterBodiesFemaleTextureUrl = new URL('../../../Morrowind Textures/Better Bodies/Nude/Data Files/Textures/bb/bb_skinf_no.dds', import.meta.url).href;
+const betterBodiesFemaleUvEditsUrl = new URL('../../../bb_skinf_no-uv-edits.json', import.meta.url).href;
 import { parseNif, deref } from './mwNifFile.js';
 import { flattenNif } from './mwNifMesh.js';
 import { buildSkeleton } from './mwSkin.js';
