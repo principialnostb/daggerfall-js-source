@@ -1,3 +1,4 @@
+import { openAppearanceEditor } from '../appearanceEditor.js';
 // ═══════════════════════════════════════════════════════════════════
 // U53 — THE ENHANCED PACK, and THE SLOT MAP
 //
@@ -2161,6 +2162,19 @@ function equippedList() {
     dollFrame.append(el('span', 'worntile', '\u25c7'), el('span', 'wornslot', 'Avatar'));
   }
   map.append(dollFrame);
+  // MWV2-APPEARANCE: open the player body editor from the worn/equipment panel.
+  if (!deps.loot && deps.fpArm) {
+    const appearanceButton = el('button', 'mw-appearance-open', 'Редактировать внешность');
+    appearanceButton.type = 'button';
+    appearanceButton.title = 'Настроить пропорции тела персонажа';
+    appearanceButton.style.cssText = 'display:block;margin:8px auto 0;padding:7px 10px;max-width:100%;border:1px solid #9a8352;border-radius:3px;background:#262329;color:#e5d3a2;font:inherit;font-size:12px;cursor:pointer;';
+    appearanceButton.addEventListener('click', (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      openAppearanceEditor({ fpArm: deps.fpArm });
+    });
+    dollFrame.append(appearanceButton);
+  }
   // AC-COMPARE: THE OVERALL FIGURE ON THE CHARACTER - a plaque at the head of the figure's column (the doll's own first
   // row, over it), whatever stands there: the doll, the Morrowind body or the empty frame (ui/armourCard.js)
   // TEMP-UI: AND THE FELT TEMPERATURE beside it - the same cell's other corner, while Climates & Calories is on
