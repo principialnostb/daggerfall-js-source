@@ -4,6 +4,11 @@
 import { paperDollFigurePixels, paperDollFigureStatus, requestPaperDollFigureRefresh } from '../ui/paperDoll.js';
 import { packCharacterFaces } from '../render/characterMesh.js';
 import { trs } from '../world/mat4.js';
+import {
+  createSmartPaperDollMotionState,
+  deformSmartPaperDollVertices,
+  stepSmartPaperDollMotion,
+} from './paperDollMotion.js';
 
 export const SMART_PAPERDOLL_HEIGHT = 1.8;
 export const SMART_PAPERDOLL_MAX_WIDTH = 56;
@@ -112,6 +117,9 @@ export function buildPaperDollVoxelFaces(image, {
 let cachedRenderer = null;
 let cachedVersion = null;
 let cachedMesh = null;
+let cachedPacked = null;
+let animatedPacked = null;
+let motionState = createSmartPaperDollMotionState();
 let smartPaperDollLastErrorKey = null;
 
 function reportSmartPaperDollError(reason, details = {}) {
@@ -128,6 +136,9 @@ export function clearSmartPaperDoll() {
   cachedRenderer = null;
   cachedVersion = null;
   cachedMesh = null;
+  cachedPacked = null;
+  animatedPacked = null;
+  motionState = createSmartPaperDollMotionState();
 }
 
 function meshFor(renderer, image) {
@@ -137,9 +148,12 @@ function meshFor(renderer, image) {
   clearSmartPaperDoll();
   const faces = buildPaperDollVoxelFaces(image);
   if (!faces.length) return null;
-  cachedMesh = renderer.createCharacterMesh(packCharacterFaces(faces));
+  cachedPacked = packCharacterFaces(faces);
+  animatedPacked = new Float32Array(cachedPacked.length);
+  cachedMesh = renderer.createCharacterMesh(cachedPacked);
   cachedRenderer = renderer;
   cachedVersion = version;
+  motionState = createSmartPaperDollMotionState();
   return cachedMesh;
 }
 
@@ -198,6 +212,13 @@ export function drawSmartPaperDoll(renderer, { feet, yaw = 0, grow = 1 } = {}) {
   }
 
   smartPaperDollLastErrorKey = null;
+  const status = paperDollFigureStatus();
+  const gender = status.gender === 'female' ? 'female' : 'male';
+  const motion = stepSmartPaperDollMotion(motionState, { feet, yaw, gender });
+  if (cachedPacked && animatedPacked && typeof renderer.updateCharacterMesh === 'function') {
+    const posed = deformSmartPaperDollVertices(cachedPacked, motion, { gender, out: animatedPacked });
+    renderer.updateCharacterMesh(mesh, posed);
+  }
   const scale = Number.isFinite(grow) && grow > 0 ? grow : 1;
   // Same world-facing convention as fpArm's thirdModel: the local portrait faces +Z.
   const model = trs(feet[0], feet[1], feet[2], 0, yaw * 180 / Math.PI, 0, scale, scale, scale);
