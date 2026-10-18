@@ -3202,7 +3202,7 @@ function applyPre(positions, pre) {
  *  one-shape part file is the part. */
 /** Map a Better Bodies NIF section to the slot whose equipment shadows it. */
 function betterBodiesShadowSlot(shapeName) {
-  const name = String(shapeName || '').trim().toLowerCase().replace(/^tri\\s+/, '').replace(/\\s+/g, ' ');
+  const name = String(shapeName || '').trim().toLowerCase().replace(/^tri\s+/, '').replace(/\s+/g, ' ');
   if (name === 'chest' || name === 'groin' || name === 'neck') return name;
   const match = name.match(/^(left|right) (hand|wrist|forearm|upper arm|foot|ankle|knee|upper leg)$/);
   if (!match) return null;
