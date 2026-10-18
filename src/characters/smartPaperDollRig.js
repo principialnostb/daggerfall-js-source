@@ -67,8 +67,12 @@ export function buildSmartPaperDollLayers({ skin = SKIN, boot = BOOT, garments =
     ...sphereFaces( 0.075, 1.445, 0.105, 0.057, 0.052, 0.050, skin[skin.length - 1]),
   ];
   const valid = [...new Set(garments)].filter((name) => SMART_PAPERDOLL_LAYERS.includes(name));
-  const clothing = valid.flatMap((name) => drapedPiece(name, DRAPE_MATERIAL[name]?.ramp ?? [[48,40,32],[100,84,64],[160,140,108],[210,190,154]]));
-  return { faces: [...body, ...bust, ...clothing], garments: valid };
+  const clothingLayers = valid.map((name) => ({
+    name,
+    faces: drapedPiece(name, DRAPE_MATERIAL[name]?.ramp ?? [[48,40,32],[100,84,64],[160,140,108],[210,190,154]]),
+  }));
+  const layers = [{ name: 'body', faces: body }, { name: 'body-detail', faces: bust }, ...clothingLayers];
+  return { faces: layers.flatMap((layer) => layer.faces), garments: valid, layers };
 }
 
 let cachedRenderer = null;
