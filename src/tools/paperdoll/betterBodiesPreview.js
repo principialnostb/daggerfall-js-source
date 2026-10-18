@@ -96,24 +96,26 @@ function selectMesh(record) {
   for (const button of meshList.querySelectorAll('button')) {
     button.classList.toggle('active', Number(button.dataset.meshIndex) === record.index);
   }
-  for (const input of Object.values(uvInputs)) input.disabled = false;
-  uvResetButton.disabled = false;
-  uvExportButton.disabled = false;
+  const hasUvs = Boolean(record.baseUvs && record.bounds);
+  for (const input of Object.values(uvInputs)) input.disabled = !hasUvs;
+  uvResetButton.disabled = !hasUvs;
+  uvExportButton.disabled = meshRecords.every(item => item.transform.u === 0 && item.transform.v === 0 && item.transform.su === 1 && item.transform.sv === 1);
   uvInputs.u.value = record.transform.u;
   uvInputs.v.value = record.transform.v;
   uvInputs.su.value = record.transform.su;
   uvInputs.sv.value = record.transform.sv;
   const b = record.bounds;
   uvInfo.textContent = 'Mesh #' + record.index + ': ' + record.name +
-    '\\nVertices: ' + record.vertexCount + ' · triangles: ' + record.triangleCount +
-    '\\nUV min: (' + b.minU.toFixed(5) + ', ' + b.minV.toFixed(5) + ')' +
-    '\\nUV max: (' + b.maxU.toFixed(5) + ', ' + b.maxV.toFixed(5) + ')' +
-    '\\nOffset: (' + record.transform.u + ', ' + record.transform.v + ')' +
-    '\\nScale: (' + record.transform.su + ', ' + record.transform.sv + ')';
+    '\nVertices: ' + record.vertexCount + ' · triangles: ' + record.triangleCount +
+    (b ? '\nUV min: (' + b.minU.toFixed(5) + ', ' + b.minV.toFixed(5) + ')' +
+      '\nUV max: (' + b.maxU.toFixed(5) + ', ' + b.maxV.toFixed(5) + ')' +
+      '\nOffset: (' + record.transform.u + ', ' + record.transform.v + ')' +
+      '\nScale: (' + record.transform.su + ', ' + record.transform.sv + ')'
+      : '\nThis mesh has no UV coordinates to edit.');
 }
 function applyUvTransform(record) {
   const attr = record.mesh.geometry.getAttribute('uv');
-  if (!attr) return;
+  if (!attr || !record.baseUvs) return;
   const { u, v, su, sv } = record.transform;
   for (let i = 0; i < record.baseUvs.length; i += 2) {
     attr.setXY(i / 2, record.baseUvs[i] * su + u, record.baseUvs[i + 1] * sv + v);
@@ -235,22 +237,19 @@ async function load() {
         triangleCount: batch.indices.length / 3,
         transform: { u: 0, v: 0, su: 1, sv: 1 },
       };
-      if (record.baseUvs && record.bounds) {
-        meshRecords.push(record);
-        const option = document.createElement('button');
-        option.className = 'mesh-option';
-        option.dataset.meshIndex = String(record.index);
-        option.innerHTML = '';
-        const title = document.createElement('span');
-        title.textContent = '#' + record.index + ' — ' + record.name;
-        const detail = document.createElement('small');
-        detail.textContent = record.vertexCount + ' verts · ' + record.triangleCount + ' tris · UV ' +
-          record.bounds.minU.toFixed(2) + ',' + record.bounds.minV.toFixed(2) + ' → ' +
-          record.bounds.maxU.toFixed(2) + ',' + record.bounds.maxV.toFixed(2);
-        option.append(title, detail);
-        option.addEventListener('click', () => selectMesh(record));
-        meshList.appendChild(option);
-      }
+          meshRecords.push(record);
+      const option = document.createElement('button');
+      option.className = 'mesh-option';
+      option.dataset.meshIndex = String(record.index);
+      const title = document.createElement('span');
+      title.textContent = '#' + record.index + ' — ' + record.name;
+      const detail = document.createElement('small');
+      detail.textContent = record.vertexCount + ' verts · ' + record.triangleCount + ' tris' +
+        (record.bounds ? ' · UV ' + record.bounds.minU.toFixed(2) + ',' + record.bounds.minV.toFixed(2) + ' → ' +
+          record.bounds.maxU.toFixed(2) + ',' + record.bounds.maxV.toFixed(2) : ' · no UVs');
+      option.append(title, detail);
+      option.addEventListener('click', () => selectMesh(record));
+      meshList.appendChild(option);
       drawable++;
       vertexCount += positions.length / 3;
       triangleCount += batch.indices.length / 3;
@@ -273,8 +272,9 @@ async function load() {
       'Better Bodies female NIF — isolated preview\n' +
       'Meshes: ' + drawable + ' · skinned: ' + skinnedCount + ' · vertices: ' + vertexCount + ' · triangles: ' + triangleCount + '\n' +
       'Texture: ' + mip.width + ' × ' + mip.height + ' DDS → RGBA8\n' +
-      'NIF rest pose with CPU skinning; live-game animation/skeleton not connected.'
+      'Select a mesh in the right panel to inspect or adjust its UV mapping.'
     );
+    if (meshRecords.length) selectMesh(meshRecords[0]);
   } catch (error) {
     console.error('[Better Bodies preview]', error);
     statusText('Preview failed\n' + String(error?.stack || error));
