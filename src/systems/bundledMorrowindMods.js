@@ -94,7 +94,9 @@ for (const [source, url] of Object.entries(FILES)) {
   const betterClothesRel = relAfter(path, lower, '/better clothes retextured/');
   if (betterClothesRel) {
     const match = betterClothesRel.match(/^textures\/(.+\.(?:dds|tga))$/i);
-    if (match) addAsset(betterClothesTextureUrls, 'textures/' + match[1], url, 'Better Clothes Retextured (textures only)');
+    if (match && !/(?:pant|trouser)/i.test(match[1])) {
+      addAsset(betterClothesTextureUrls, 'textures/' + match[1], url, 'Better Clothes Retextured (non-pants textures only)');
+    }
     continue;
   }
 
