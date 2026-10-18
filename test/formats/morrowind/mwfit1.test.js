@@ -169,3 +169,28 @@ test('MW-FIT2: trousers conform to the nearest body surface while preserving the
   assert.equal(fitted.material, garment.material, 'the garment keeps its authored material');
   assert.deepEqual(body.positions, bodyBefore, 'the body source geometry is never mutated');
 });
+
+test('MW-FIT2: left and right trouser panels only conform to their own leg surface even when the opposite leg is closer', () => {
+  const plane = (x, fitBone) => ({
+    positions: Float32Array.from([x, -2, -2, x, 2, -2, x, 2, 2, x, -2, 2]),
+    indices: Uint16Array.from([0, 1, 2, 0, 2, 3]),
+    fitSlot: 'upperleg',
+    fitBone,
+  });
+  const left = plane(-1, 'Bip01 L Thigh');
+  const right = plane(-0.85, 'Bip01 R Thigh'); // deliberately closer to the garment
+  const garment = {
+    positions: Float32Array.from([-0.9, -0.2, -0.2, -0.9, 0.2, -0.2, -0.9, 0, 0.2]),
+    indices: Uint16Array.from([0, 1, 2]),
+    uvs: Float32Array.from([0, 0, 1, 0, 0.5, 1]),
+  };
+  const ctx = { skinBatch: (batch, _skeleton, _pose, _mats, out) => out.set(batch.positions) };
+  const fitted = fitGarmentClearance(garment, [left, right], ctx, {
+    clearance: 0.18, maxDistance: 4, conform: true, side: 'left',
+  });
+  for (let i = 0; i < fitted.positions.length; i += 3) {
+    assert.ok(Math.abs(fitted.positions[i] - (-0.82)) < 1e-5,
+      'the left trouser panel follows the left thigh rather than the closer right thigh');
+  }
+  assert.deepEqual(fitted.uvs, garment.uvs, 'side-aware fitting preserves authored UVs');
+});
