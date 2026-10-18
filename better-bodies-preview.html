@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Better Bodies — NIF preview</title>
+<style>
+  html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#15151c;color:#e7e7ef;font:14px system-ui,sans-serif}
+  canvas{display:block;width:100%;height:100%}
+  #status{position:fixed;top:12px;left:12px;max-width:min(520px,calc(100vw - 48px));padding:10px 12px;background:#20202bcc;border:1px solid #444452;border-radius:8px;white-space:pre-wrap;line-height:1.4;pointer-events:none}
+  #help{position:fixed;bottom:12px;left:12px;color:#b7b7c6;background:#20202bcc;padding:8px 10px;border-radius:8px;pointer-events:none}
+</style>
+</head>
+<body>
+<canvas id="view"></canvas>
+<div id="status">Loading Better Bodies NIF…</div>
+<div id="help">Drag to orbit · wheel to zoom · preview only (does not replace the player)</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script type="module" src="/src/tools/paperdoll/betterBodiesPreview.js"></script>
+</body>
+</html>
