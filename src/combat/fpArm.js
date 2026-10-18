@@ -82,7 +82,6 @@ import { DFPalette } from '../formats/dfPalette.js';
 import { raceArt } from '../systems/races.js';
 import { appStorage } from '../systems/appStorage.js';   // DA1: the storage seam
 import { drawRigSpriteBox } from '../render/characterSprite.js';
-import { drawSmartPaperDoll as drawSmartPaperDollMesh } from '../characters/paperDollVoxel.js';   // SMART-PAPERDOLL: the live PaperDoll composite, in the shared body pass
 import { WEAPONS } from '../characters/weapons.js';
 import { materialName } from '../systems/item/itemInfo.js';
 import { composeWornArmor, composeWornModest, shadowSkinRows, fpWornAdds, mwArmorRecords, mwClothingRecord, CLOTHING_NAME, werewolfRobeOf, firstPersonPartGroup } from '../formats/morrowind/mwItemMap.js';   // WEREWOLF1: the robe and its first-person ladder; NUDE-FLATS: the upper weld
@@ -6702,11 +6701,6 @@ export function createFpArm() {
      * (chirality-true by MW-D23's measurement) already shows it.
      * Winding is safe: drawCharacter disables CULL_FACE.
      */
-    /** SMART-PAPERDOLL: the live PaperDoll composite drawn through the world's character program. */
-    drawSmartPaperDoll(canvas, { feet, yaw = 0, grow = 1 } = {}) {
-      if (!renderer || !canvas || !feet) return false;
-      return drawSmartPaperDollMesh(renderer, { feet, yaw, grow });
-    },
     drawThird(canvas, { proj, view, eye, feet, yaw, hitFlash = 0, conceal = null, grow = 1, up = null, fx = null, cast = false, anchored = false, horse = null }) {   // MWNPC5: `fx` a foe's tells (renderer.js drawCharacterSpriteQuad); MWNPC16: `cast` - the body's own shadow (AUDIT MWNPC16-18 A3: `anchored` one that never walks); COATS3D: `horse` the one under the body
       if (!thirdActive() || !canvas || !feet) return false;
       const t = thirdBuilt;
