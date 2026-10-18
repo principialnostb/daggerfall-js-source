@@ -725,10 +725,23 @@ export function mwViewHides() {
 export function mwViewDrawBody(canvas, { proj, view, eye, feet, yaw, viewYaw = yaw, face = null }) {
   // SMART-PAPERDOLL: keep the world character on the native third-person rig.
   // The inventory RGBA composite is a flat portrait and cannot preserve the
-  // world body's skeleton, per-slot skin shadows, or hand-held weapon. The
-  // normal drawThird path below already composes the actor's live body parts
-  // and worn adds from the current equipment state, so it must remain the
-  // world renderer when the setting is enabled as well as when it is disabled.
+  // world body's skeleton, per-slot skin shadows, or hand-held weapon.
+  // Preserve the existing EotB lane's behavior; this feature targets the
+  // Morrowind third-person rig only.
+  if (eotbLane()) {
+    const smartPaperDollEnabled = eotbCamera.thirdPerson()
+      && modSetting('eye-of-the-beholder', 'Graphics.SmartPaperDoll') === true;
+    if (smartPaperDollEnabled && !smartPaperDollViewAttemptLogged) {
+      smartPaperDollViewAttemptLogged = true;
+      console.info('[SmartPaperDoll] third-person override is active; attempting composite draw');
+    }
+    if (smartPaperDollEnabled
+        && fpArm.drawSmartPaperDoll(canvas, { feet, yaw, grow: face?.grow > 1 ? face.grow : 1 })) {
+      spriteFigure = null;
+      spriteFacing = null;
+      return true;
+    }
+  }
   // EOTB4: the sprite lane draws its own body. `eotbLane()` already
   // requires `eotbBodyReady()`, so this arm cannot be reached with
   // nothing to draw - the gate and the draw are the same question
