@@ -15,7 +15,7 @@ test('Smart PaperDoll is opt-in and lives in the existing EoTB setting store', (
 
 test('Smart PaperDoll is checked before either existing third-person body lane and falls through when unavailable', () => {
   const view = read('../../src/player/mwView.js');
-  assert.match(view, /mwCamera\.thirdPerson\(\) && modSetting\('eye-of-the-beholder', 'Graphics\.SmartPaperDoll'\) === true/);
+  assert.match(view, /const smartPaperDollEnabled = mwCamera\.thirdPerson\(\)\s*&&\s*modSetting\('eye-of-the-beholder', 'Graphics\.SmartPaperDoll'\) === true/);
   assert.match(view, /fpArm\.drawSmartPaperDoll\(canvas, \{ feet, yaw, grow:/);
   assert.match(view, /third-person override is active; attempting composite draw/);
   assert.match(view, /if \(eotbLane\(\)\) \{ const drawn = drawEotbBody/);
