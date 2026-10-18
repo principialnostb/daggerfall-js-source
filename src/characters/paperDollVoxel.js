@@ -112,11 +112,12 @@ export function buildPaperDollVoxelFaces(image, {
 let cachedRenderer = null;
 let cachedVersion = null;
 let cachedMesh = null;
-let smartPaperDollLastError = null;
+let smartPaperDollLastErrorKey = null;
 
 function reportSmartPaperDollError(reason, details = {}) {
-  if (smartPaperDollLastError === reason) return;
-  smartPaperDollLastError = reason;
+  const key = `${reason}:${JSON.stringify(details)}`;
+  if (smartPaperDollLastErrorKey === key) return;
+  smartPaperDollLastErrorKey = key;
   console.warn(`[SmartPaperDoll] ${reason}`, details);
 }
 
@@ -196,7 +197,7 @@ export function drawSmartPaperDoll(renderer, { feet, yaw = 0, grow = 1 } = {}) {
     return false;
   }
 
-  smartPaperDollLastError = null;
+  smartPaperDollLastErrorKey = null;
   const scale = Number.isFinite(grow) && grow > 0 ? grow : 1;
   // Same world-facing convention as fpArm's thirdModel: the local portrait faces +Z.
   const model = trs(feet[0], feet[1], feet[2], 0, yaw * 180 / Math.PI, 0, scale, scale, scale);
