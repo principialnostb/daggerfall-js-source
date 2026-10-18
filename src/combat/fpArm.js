@@ -7015,6 +7015,12 @@ export function createFpArm() {
         notes: built && built.notes,
         binding: built && built.binding,
         weapon: built && built.ok ? built.weapon : null,
+        // MW-FP-DIAG: distinguish a genuinely late NIF/texture swap from the animation's attach key.
+        weaponSwapBusy: !!busy,
+        weaponSwapQueued: !!pendingWeapon,
+        weaponFailed: built && built.weaponFailed ? String(built.weaponFailed) : null,
+        weaponVisible: !!weaponShown,
+        sheathed: !!sheathed,
         spellReady,                       // MW-D39
         casting: upper === UPPER_BODY.Casting,
         weaponInHand: weaponInHand(),     // MW-CAST1: the casting hands are empty
