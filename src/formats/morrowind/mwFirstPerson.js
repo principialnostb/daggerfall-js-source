@@ -2316,7 +2316,13 @@ export function bindPartsInto(assembly, parts) {
       // The Better Bodies body is authored as skinned sections in NIF order.
       if (Array.isArray(part.uvEdits) && bound.skinned) {
         for (const edit of part.uvEdits) {
-          const batch = bound.skinned[edit.meshIndex];
+          // JSON meshIndex comes from flattenNif's drawable-section order.
+          // bindPart can omit non-skinned sections, so prefer the stable NIF
+          // section name and use the index only as a compatibility fallback.
+          const wantedName = String(edit.name || '').trim().toLowerCase();
+          const batch = (wantedName
+            ? bound.skinned.find((candidate) => String(candidate.name || '').trim().toLowerCase() === wantedName)
+            : null) ?? bound.skinned[edit.meshIndex];
           const transform = edit.transform;
           if (!batch?.uvs || !transform) continue;
           const { u = 0, v = 0, su = 1, sv = 1 } = transform;
