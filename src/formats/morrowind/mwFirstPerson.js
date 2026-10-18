@@ -3164,12 +3164,19 @@ function bindSkinnedFromBody(assembly, part, bones) {
       notes.push(`${part.slot}: no ${part.fitTo} to fit it to - drawn at its baked height`);
     }
   }
-  // MW-BB-FIT1: first pilot is restricted to explicitly configured fitTo
-  // garments. It works on a private geometry copy and leaves the body/UVs intact.
-  if (part.fitTo) {
-    worn = worn.map((g) => fitGarmentClearance(g, sources.filter((s) => slotOf.has(s) && slotOf.get(s) === part.fitTo), ctx));
-    const changed = worn.reduce((n, g) => n + (g.clearanceFit?.adjusted ?? 0), 0);
-    if (changed) notes.push(`${part.slot}: automatic body clearance adjusted ${changed} garment vertices`);
+  // MW-BB-FIT2: when the caller supplies a real target surface (Better Bodies
+  // for the current female build), fit against that surface, independent of the
+  // garment's legacy fitTo metadata. Keep the old fitTo path as a fallback.
+  const fitSlot = part.fitSurface || part.fitTo;
+  if (fitSlot) {
+    const fitSources = sources.filter((s) => slotOf.get(s) === fitSlot);
+    if (fitSources.length) {
+      worn = worn.map((g) => fitGarmentClearance(g, fitSources, ctx));
+      const changed = worn.reduce((n, g) => n + (g.clearanceFit?.adjusted ?? 0), 0);
+      if (changed) notes.push(`${part.slot}: triangle-surface clearance adjusted ${changed} garment vertices against ${fitSlot}`);
+    } else {
+      notes.push(`${part.slot}: fit surface ${fitSlot} unavailable; clearance pass skipped`);
+    }
   }
   for (const g of worn) {
     for (const batch of transferSkin(g, sources, ctx)) {
