@@ -4,6 +4,7 @@
 import { paperDollFigurePixels, paperDollFigureStatus, requestPaperDollFigureRefresh } from '../ui/paperDoll.js';
 import { packCharacterFaces } from '../render/characterMesh.js';
 import { trs } from '../world/mat4.js';
+import { drawSmartPaperDollRig, clearSmartPaperDollRig } from './smartPaperDollRig.js';
 
 export const SMART_PAPERDOLL_HEIGHT = 1.8;
 export const SMART_PAPERDOLL_MAX_WIDTH = 56;
@@ -122,6 +123,7 @@ function reportSmartPaperDollError(reason, details = {}) {
 }
 
 export function clearSmartPaperDoll() {
+  clearSmartPaperDollRig();
   if (cachedMesh && cachedRenderer?.destroyMesh) {
     try { cachedRenderer.destroyMesh(cachedMesh); } catch { /* a lost WebGL context is already releasing its resources */ }
   }
@@ -148,66 +150,15 @@ function meshFor(renderer, image) {
  * is not ready so mwView can preserve its existing Morrowind/EotB fallback.
  */
 export function drawSmartPaperDoll(renderer, { feet, yaw = 0, grow = 1 } = {}) {
-  let image = paperDollFigurePixels();
-  // The inventory normally triggers composition, but the world can be the first screen opened.
-  // Kick the same async compositor once; subsequent frames pick up its completed live composite.
-  if (!image) {
-    const requestAccepted = requestPaperDollFigureRefresh();
-    image = paperDollFigurePixels();
-    if (!image) reportSmartPaperDollError('Figure composite is not ready', {
-      requestAccepted,
-      status: paperDollFigureStatus(),
-    });
-  }
-  if (!image || !feet || feet.length < 3) {
-    if (image && (!feet || feet.length < 3)) {
-      reportSmartPaperDollError('Player position is missing or invalid', {
-        hasFeet: !!feet,
-        feetLength: feet?.length,
-        feet,
-      });
-    }
-    clearSmartPaperDoll();
-    return false;
-  }
-
-  let mesh;
+  // SMART-PAPERDOLL RIG: use our own animated geometry, not a voxelisation
+  // of the already assembled inventory portrait. The existing UI toggle and
+  // third-person draw seam remain unchanged.
   try {
-    mesh = meshFor(renderer, image);
+    return drawSmartPaperDollRig(renderer, { feet, yaw, grow });
   } catch (error) {
-    reportSmartPaperDollError('Mesh creation threw an exception', {
-      message: error?.message ?? String(error),
-      imageWidth: image.width,
-      imageHeight: image.height,
-      hasCreateCharacterMesh: typeof renderer?.createCharacterMesh === 'function',
-      hasDrawCharacter: typeof renderer?.drawCharacter === 'function',
-    });
-    return false;
-  }
-  if (!mesh) {
-    reportSmartPaperDollError('Mesh creation returned no mesh', {
-      imageWidth: image.width,
-      imageHeight: image.height,
-      voxelFaces: buildPaperDollVoxelFaces(image).length,
-      hasRenderer: !!renderer,
-      hasCreateCharacterMesh: typeof renderer?.createCharacterMesh === 'function',
-      hasDrawCharacter: typeof renderer?.drawCharacter === 'function',
-      status: paperDollFigureStatus(),
-    });
-    return false;
-  }
-
-  smartPaperDollLastErrorKey = null;
-  const scale = Number.isFinite(grow) && grow > 0 ? grow : 1;
-  // Same world-facing convention as fpArm's thirdModel: the local portrait faces +Z.
-  const model = trs(feet[0], feet[1], feet[2], 0, yaw * 180 / Math.PI, 0, scale, scale, scale);
-  try {
-    renderer.drawCharacter(mesh, model);
-  } catch (error) {
-    reportSmartPaperDollError('Renderer drawCharacter failed', {
+    reportSmartPaperDollError('Independent rig draw failed', {
       message: error?.message ?? String(error),
     });
     return false;
   }
-  return true;
 }
