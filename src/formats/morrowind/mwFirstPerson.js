@@ -2779,6 +2779,8 @@ export function poseAssembly(assembly, { tracks = null, sampleTrack = null,
       else if (name.includes('thigh')) factor *= 1.045;
       else if (name.includes('upperarm')) factor *= 0.97;
       if (name.includes('clavicle') || name.includes('shoulder')) factor *= scaled('shoulderWidth', 0.10);
+      if (name.includes('spine') || name.includes('chest')) factor *= scaled('torsoScale', 0.10);
+      if (name.includes('head')) factor *= scaled('headScale', 0.10);
       if (name.includes('upperarm') || name.includes('forearm') || name.includes('wrist')) factor *= scaled('armScale', 0.10);
       if (name.includes('thigh') || name.includes('calf') || name.includes('shin') || name.includes('ankle')) {
         factor *= scaled('legScale', 0.10);
