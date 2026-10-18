@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 1,
+  "status": "art-pending",
+  "description": "Smart PaperDoll per-frame layer contract for EotB. No generated body or armor pixels are included yet.",
+  "baseSkin": {
+    "name": "Light Fighter (female)",
+    "archive": 112364,
+    "classSkinIndex": 0
+  },
+  "keyFormat": "<archive>_<record>-<frame>",
+  "orientationSource": "spriteFor(table, orientation, frame, look)",
+  "mirrorPolicy": "Reuse EotB spriteFor mirror result; mirror body and equipment layers together.",
+  "layers": {
+    "body": {
+      "directory": "vendor/smart-paperdoll/Textures/body",
+      "format": "PNG RGBA",
+      "required": true,
+      "notes": "One transparent PNG for every required source sprite key. Match the source frame canvas dimensions and anchor exactly."
+    },
+    "cuirass": {
+      "directory": "vendor/smart-paperdoll/Textures/armor/cuirass",
+      "format": "PNG RGBA",
+      "requiredWhenEquipped": true,
+      "notes": "Transparent overlay aligned to the corresponding body PNG; alpha must be zero outside the armor pixels."
+    }
+  },
+  "fallback": "Until body art and the compositor are implemented and validated, keep the original EotB sprite. Never substitute a different class-skin archive to simulate removing armor."
+}
