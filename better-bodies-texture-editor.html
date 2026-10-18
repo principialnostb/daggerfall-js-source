@@ -20,7 +20,9 @@
   #wrap { overflow:auto; max-height:calc(100vh - 170px); border:1px solid #41434c; background-color:#282a31;
     background-image:linear-gradient(45deg,#34363e 25%,transparent 25%),linear-gradient(-45deg,#34363e 25%,transparent 25%),linear-gradient(45deg,transparent 75%,#34363e 75%),linear-gradient(-45deg,transparent 75%,#34363e 75%);
     background-size:20px 20px; background-position:0 0,0 10px,10px -10px,-10px 0; }
-  canvas { display:block; max-width:none; image-rendering:pixelated; cursor:crosshair; touch-action:none; }
+  canvas { display:block; max-width:none; image-rendering:pixelated; cursor:crosshair; touch-action:none; user-select:none; -webkit-user-select:none; }
+  #wrap { position:relative; }
+  #status { min-height:1.5em; }
   .danger { border-color:#9b5555; }
 </style>
 </head>
@@ -83,12 +85,23 @@ function saveHistory() {
 function render() {
   if (current) ctx.putImageData(current, 0, 0);
   if (selection) {
+    // Draw a high-contrast, double outline so the selection remains visible
+    // even when the atlas is scaled down in the browser.
     ctx.save();
-    ctx.strokeStyle = '#fff';
-    ctx.lineWidth = Math.max(1, canvas.width / 900);
-    ctx.setLineDash([6,4]);
+    ctx.setLineDash([]);
+    ctx.lineWidth = Math.max(2, canvas.width / 500);
+    ctx.strokeStyle = '#111';
+    ctx.strokeRect(selection.x + .5, selection.y + .5, selection.w, selection.h);
+    ctx.lineWidth = Math.max(1, canvas.width / 1000);
+    ctx.strokeStyle = '#00ffff';
     ctx.strokeRect(selection.x + .5, selection.y + .5, selection.w, selection.h);
     ctx.restore();
+    status.textContent = 'Selection: x=' + selection.x + ', y=' + selection.y +
+      ', width=' + selection.w + ', height=' + selection.h +
+      '. Drag inside to move; use Clear or Fill to edit.';
+  } else if (original) {
+    status.textContent = 'Texture ' + canvas.width + ' × ' + canvas.height +
+      '. Drag with the left mouse button to draw a selection rectangle.';
   }
 }
 function point(e) {
@@ -136,8 +149,11 @@ canvas.addEventListener('pointermove', e => {
   }
   if (drag.kind === 'select') render();
 });
-canvas.addEventListener('pointerup', () => {
+canvas.addEventListener('pointerup', e => {
   if (!drag) return;
+  // Use the pointer-up position too; some browsers coalesce pointermove events.
+  const endPoint = point(e);
+  if (drag.kind === 'select') selection = normalizeRect(drag.start, endPoint);
   if (drag.kind === 'move') {
     const before = drag.origin;
     const after = {x:selection.x,y:selection.y};
@@ -195,9 +211,16 @@ buttons.reset.addEventListener('click', () => {
   if (!original || !confirm('Discard all edits and reload the original texture?')) return;
   current = copyImageData(original); ctx.putImageData(current,0,0); history=[]; edits=[]; selection=null; drag=null; serial=0; render(); enable();
 });
-buttons.png.addEventListener('click', () => canvas.toBlob(blob => {
-  if (blob) downloadBlob(blob,'bb_skinf_no-edited.png');
-},'image/png'));
+buttons.png.addEventListener('click', () => {
+  // Export only texture pixels, never the visible selection outline.
+  const exportCanvas = document.createElement('canvas');
+  exportCanvas.width = current.width;
+  exportCanvas.height = current.height;
+  exportCanvas.getContext('2d').putImageData(current, 0, 0);
+  exportCanvas.toBlob(blob => {
+    if (blob) downloadBlob(blob,'bb_skinf_no-edited.png');
+  },'image/png');
+});
 buttons.json.addEventListener('click', () => {
   const payload = {
     format:'better-bodies-texture-edits-v1',
