@@ -2870,6 +2870,49 @@ export async function buildFpArm({
       if (ARM_PARTS.includes(slot)) continue;
       if (rec && rec.model) wanted.push({ slot, record: rec.id, firstPerson: true, path: `meshes/${rec.model}` });
     }
+    // Better Bodies' full female mesh is also the source for first-person
+    // hands/arms. Keep only its arm sections in this view; the old .1st BODY
+    // hand meshes remain the fallback if the asset cannot be loaded.
+    let betterBodiesFpArms = null;
+    if (female && !beast && !werewolf && !vampire) {
+      try {
+        const [nifResponse, textureResponse, uvEdits] = await Promise.all([
+          fetch(betterBodiesFemaleAssetUrls.model),
+          fetch(betterBodiesFemaleAssetUrls.texture),
+          loadBetterBodiesFemaleUvEdits(),
+        ]);
+        if (!nifResponse.ok) throw new Error('NIF HTTP ' + nifResponse.status);
+        if (!textureResponse.ok) throw new Error('DDS HTTP ' + textureResponse.status);
+        const bytes = new Uint8Array(await nifResponse.arrayBuffer());
+        const textureBytes = new Uint8Array(await textureResponse.arrayBuffer());
+        const virtualTexturePath = 'textures/bb/bb_skinf_no.dds';
+        if (!archives.some((a) => a.__betterBodiesFemaleTexture)) {
+          archives.push({
+            __betterBodiesFemaleTexture: true,
+            has: (path) => /(?:^|[\\/])bb_skinf_no\\.dds$/i.test(String(path || '')),
+            loaded: () => true,
+            load: async () => null,
+            get: () => textureBytes,
+          });
+        }
+        const textureAdapter = archives.find((a) => a.__betterBodiesFemaleTexture);
+        if (textureAdapter) textureAdapter.get = () => textureBytes;
+        for (const cacheKey of TEXTURE_CACHE.keys()) {
+          if (/bb_skinf_no\\.dds$/i.test(cacheKey)) TEXTURE_CACHE.delete(cacheKey);
+        }
+        betterBodiesFpArms = {
+          slot: 'betterBodies',
+          bones: [],
+          bytes,
+          uvEdits,
+          texturePath: virtualTexturePath,
+          showSlots: ['hand:left', 'hand:right', 'wrist:left', 'wrist:right', 'forearm:left', 'forearm:right', 'upperarm:left', 'upperarm:right'],
+          hideSlots: worn.fpShadows ?? worn.shadows,
+        };
+      } catch (error) {
+        console.warn('[Better Bodies] first-person arms unavailable; using standard Morrowind arms:', String(error?.message ?? error));
+      }
+    }
     const partBytes = [];
     const missing = [];
     // The fp skin wears the same shadows: a right gauntlet hides the
@@ -2877,7 +2920,7 @@ export async function buildFpArm({
     // the body. MW-FIT1: less what a part the fp does not draw would
     // hide - a pauldron's upper arm stays the skin's here.
     const fpRows = shadowSkinRows(
-      wanted.filter((w) => w.path).map((w) => ({ slot: w.slot, bones: PART_BONES[w.slot] ?? [], path: w.path })),
+      wanted.filter((w) => w.path && !(betterBodiesFpArms && ARM_PARTS.includes(w.slot))).map((w) => ({ slot: w.slot, bones: PART_BONES[w.slot] ?? [], path: w.path })),
       worn.fpShadows ?? worn.shadows);
     for (const w of wanted) {
       if (!w.path) { missing.push(`${w.slot}: no record for this actor`); continue; }
@@ -2908,6 +2951,7 @@ export async function buildFpArm({
       ...torchPartPaths({ torch, allLights, has: archiveHas(archives) }),   // MW-D51
       ...sourcePaths,
     ]);
+    if (betterBodiesFpArms) partBytes.push(betterBodiesFpArms);
     for (const w of fpRows) {
       const arc = find(w.path);
       if (!arc) { missing.push(`${w.slot}: ${w.path} is not in your archives`); continue; }
