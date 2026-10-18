@@ -44,6 +44,7 @@
 import { eotbCamera } from './eotbCamera.js';
 import { setEotbBodyReady, setEotbDrawBody, setEotbPlayerState } from '../mwView.js';
 import { modSettingIfDeclared, modSettingsOf, modSettingsGeneration } from '../../systems/modSettings.js';
+import { EQUIP_SLOTS } from '../../characters/paperdoll/paperdoll.js'; // Smart PaperDoll: actual classic equip-slot indices
 import {
   chooseTable, deathTable, ORIENTATIONS, orientationFor, facingFor, boatForwardOf, frameTime, speedMod, frameCount, isFootstepFrame,
   stateFor, STATE_TABLES, STRING, meleeAnimTickTime, RANGED_TICK, SPELL_TICK, LYCAN_TICK, DEATH_TICK,
@@ -214,6 +215,8 @@ export function createEotbBody({ count = spriteCount, urlFor = eotbSpriteUrl, de
   let clipSwing = null;   // AUDIT PRE-MERGE 0929 S1: the blow the last melee or claw clip was started for
   let cfg = look();
   let cfgGeneration = modSettingsGeneration();
+  // Live worn slots are supplied by weaponRig from the entity's canonical equip table.
+  let smartWorn = { chestArmor: true, feet: true, head: true };
   function reload() {
     const was = cfg;
     cfg = look(); cfgGeneration = modSettingsGeneration();
@@ -363,7 +366,28 @@ export function createEotbBody({ count = spriteCount, urlFor = eotbSpriteUrl, de
     return true;
   }
 
-  const cacheKey = (s) => `${s.archive}:${s.rec}`;
+  const smartLayerBits = () => cfg.onFoot === 0 && modSettingIfDeclared('eye-of-the-beholder', 'Graphics.SmartPaperDoll') === true
+    ? `${smartWorn.chestArmor ? 1 : 0}${smartWorn.feet ? 1 : 0}${smartWorn.head ? 1 : 0}` : '000';
+  const renderRec = (s) => { const bits = smartLayerBits(); return bits === '000' ? s.rec : `${s.rec}~sp${bits}`; };
+  const cacheKey = (s) => `${s.archive}:${renderRec(s)}`;
+  /** Prototype skin-fill compositor: recolors only opaque pixels in bounded regions.
+   *  If no gear-state seam exists or a slot is worn, that region is untouched. */
+  function composeSmartBody(width, height, source, wornBits) {
+    if (!source || !wornBits || (wornBits.chestArmor && wornBits.feet && wornBits.head)) return source;
+    const colors = new Uint8Array(source);
+    const skin = [184, 137, 99]; // flat retro skin-tone placeholder; alpha and palette grid remain hard-edged
+    for (let y = 0; y < height; y++) for (let x = 0; x < width; x++) {
+      const i = (y * width + x) * 4;
+      if (colors[i + 3] === 0) continue;
+      const nx = (x + 0.5) / width, ny = (y + 0.5) / height;
+      const torso = !wornBits.chestArmor && ny >= 0.29 && ny <= 0.57 && nx >= 0.32 && nx <= 0.68;
+      const head = !wornBits.head && ny >= 0.045 && ny <= 0.245 && nx >= 0.34 && nx <= 0.66;
+      const feet = !wornBits.feet && ny >= 0.875 && ny <= 0.985 && nx >= 0.24 && nx <= 0.76;
+      if (!(torso || head || feet)) continue;
+      colors[i] = skin[0]; colors[i + 1] = skin[1]; colors[i + 2] = skin[2];
+    }
+    return colors;
+  }
   async function pixels(key) {
     let p = decoded.get(key);
     if (!p) {
@@ -386,12 +410,17 @@ export function createEotbBody({ count = spriteCount, urlFor = eotbSpriteUrl, de
       const img = await pixels(s.key);
       if (tex.get(cacheKey(s)) !== p) return null;   // COATS1: let go while in flight (a look left behind) - never uploaded
       if (!img) throw new Error(`${s.key}: no art`);
-      const { width, height, colors } = lookedPixels(s, img);   // COATS1: the mount's look, dyed first
+      const { width, height, colors: looked } = lookedPixels(s, img);   // COATS1: the mount's look, dyed first
+      // Smart PaperDoll's mechanism test: modify only the currently unequipped regions before mirroring/upload.
+      // Errors fall through the original source pixels; this never changes the animation/orientation selection.
+      let colors = looked;
+      try { if (smartLayerBits() !== '000') colors = composeSmartBody(width, height, looked, smartWorn); } catch { colors = looked; }
       // the MIRROR is applied here, on the way to the upload, because
       // the renderer's billboard batch has no flip - a mirrored sprite
       // is its own pixels under its own key (`s.rec`, EOTB5)
       const px = s.mirror ? flipRows(colors, width, height) : colors;
-      renderer.uploadTexture(s.archive, s.rec, { width, height, colors: px });
+      const variantRec = renderRec(s);
+      renderer.uploadTexture(s.archive, variantRec, { width, height, colors: px });
       return { w: width, h: height };
     })();
     tex.set(cacheKey(s), p);
@@ -947,6 +976,13 @@ export function createEotbBody({ count = spriteCount, urlFor = eotbSpriteUrl, de
       if (cfgGeneration !== modSettingsGeneration()) reload();
       else refreshEquipmentSkin();
       last = bodyState(state);
+      if (state.smartPaperDollEquipment && typeof state.smartPaperDollEquipment === 'object') {
+        smartWorn = {
+          chestArmor: state.smartPaperDollEquipment.chestArmor !== false,
+          feet: state.smartPaperDollEquipment.feet !== false,
+          head: state.smartPaperDollEquipment.head !== false,
+        };
+      }
       if (renderer && last.lycanthropyType !== preloadedForm) preload(true);   // PR-WW1: a curse caught (or changed) fetches its own beast
       if (renderer && last.horseLook !== preloadedLook) preloadHorse();   // COATS1: a look chosen fetches its mounted tables whole, as a set chosen does
       stepHorseQueue();   // AUDIT COATS3D A6: a few a frame
@@ -997,7 +1033,7 @@ export function createEotbBody({ count = spriteCount, urlFor = eotbSpriteUrl, de
         const key = `${cacheKey(s)}|${grow}`;
         if (!batch || batchRec !== key) {
           if (batch) renderer.destroyBillboardBatch?.(batch);
-          batch = renderer.createBillboardBatch(s.archive, s.rec, grow > 1 ? { w: size.w * grow, h: size.h * grow } : size, [[0, 0, 0]]);
+          batch = renderer.createBillboardBatch(s.archive, renderRec(s), grow > 1 ? { w: size.w * grow, h: size.h * grow } : size, [[0, 0, 0]]);
           batch.origin = [0, 0, 0];
           batch.selfCard = grow === 1;   // DISC24-C: the player's own body - it casts as drawn, into the maps redrawn every frame (render/shadowPass.js SELF CARD); OW-BIG: a grown one casts no giant's shadow
           batch.noShadow = grow > 1;   // AUDIT OW5 R2: OW-BIG's giant casts NOTHING - selfCard off was never that (render/shadowPass.js: it only keeps the card out of the lamps' maps when it is not the player's own; the sun's cascades drew the tenfold card, a fifty-metre shadow at a low sun, and the lamps' maps baked it)
