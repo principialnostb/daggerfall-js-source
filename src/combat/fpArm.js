@@ -6895,11 +6895,18 @@ export function createFpArm({ playerAppearance = false } = {}) {
       const padLooks = offGlow ? [glowLook, offGlow.look].filter(Boolean) : glowLook;
       const halfH = ((maxZ - minZ) * u * rs.height * THIRD_PERSON_HEIGHT_SCALE) / 2;
       const halfW = (Math.hypot(maxX - minX, maxY - minY) * u * rs.weight * THIRD_PERSON_HORIZONTAL_SCALE) / 2;
-      const center = transformPoint(model, (minX + maxX) / 2, (minY + maxY) / 2, (minZ + maxZ) / 2);
+      // MW-TP-GROUND: use the same foot correction for BOTH render paths.
+      // Previously only the close/pitched 3D path grounded the posed mesh;
+      // the distance/angle-dependent sprite path kept the uncorrected matrix.
+      // That made the feet jump vertically when the camera crossed the path
+      // switch, even though the pose and actor feet had not changed.
+      const body = visibleRangeBounds(thirdMesh.ranges, thirdBodyBox, CARRIED_SLOTS);
+      const groundedModel = !horse && body ? groundThirdPersonModel(model, body.minZ, feet[1]) : model;
+      const center = transformPoint(groundedModel, (minX + maxX) / 2, (minY + maxY) / 2, (minZ + maxZ) / 2);
       // MWNPC16: the shape it casts, where it is asked (an NPC's lane - net/peer/peerBodies.js `casts`, which never asks it of a
       // body the travel view grows: OW-BIG's law, no giant's shadow), at its size (MWNPC10's boss stands larger, and casts
       // so); never a veiled body's - a concealed foe and a ghost cast nothing, as their flats never did
-      if (cast && !conceal && renderer.recordShadowBody) castBody(model, center, halfW, halfH, anchored);
+      if (cast && !conceal && renderer.recordShadowBody) castBody(groundedModel, center, halfW, halfH, anchored);
       // PR-BOW1: THE PICTURE IS OF THE BODY. The sprite is true world
       // size, so its size on screen is set by where its quad stands -
       // and that was the box centre, which is not the body: a longsword
@@ -6914,7 +6921,6 @@ export function createFpArm({ playerAppearance = false } = {}) {
       // (characterSprite.js drawRigSpriteBox's `anchor`): the box is the
       // window, never the size. Every host's body and every peer's draws
       // through here.
-      const body = visibleRangeBounds(thirdMesh.ranges, thirdBodyBox, CARRIED_SLOTS);
       // MWHEAD-LEVEL: aim the sprite camera at the upper body/head, not the torso midpoint.
       // When the third-person camera gets close, aiming at the midpoint creates a steep downward
       // ray from the player's eye to the NPC's chest. The camera-facing card then leans with that
@@ -6922,7 +6928,7 @@ export function createFpArm({ playerAppearance = false } = {}) {
       // height so close-range viewing preserves the familiar eye-level silhouette without scaling
       // the model or distorting its skeleton. Use the body-only bounds so carried weapons cannot
       // move this point.
-      const anchor = transformPoint(model, 0, 0, body
+      const anchor = transformPoint(groundedModel, 0, 0, body
         ? body.minZ + (body.maxZ - body.minZ) * 0.88
         : minZ + (maxZ - minZ) * 0.88);
       // MW-D43b: the body is a Morrowind MESH, so it takes the arm's
@@ -6942,18 +6948,16 @@ export function createFpArm({ playerAppearance = false } = {}) {
       const cameraDistance = Math.hypot(center[0] - eye[0], center[1] - eye[1], center[2] - eye[2]);
       const cameraPitchRatio = cameraDistance > 1e-6 ? Math.abs(center[1] - eye[1]) / cameraDistance : 0;
       if (!horse && !conceal && (cameraDistance < 2.25 || cameraPitchRatio > 0.18)) {
-        // Use the body's own bounds, not carried gear, to keep feet planted as the view moves.
-        const body = visibleRangeBounds(thirdMesh.ranges, thirdBodyBox, CARRIED_SLOTS);
-        const groundedModel = body ? groundThirdPersonModel(model, body.minZ, feet[1]) : model;
+        // Use the same grounded matrix as the sprite path above.
         renderer.drawCharacter(thirdMesh, groundedModel);
         return true;
       }
       if (horse && horse.mesh && horse.model && horse.box) {
         const u = spriteBoxUnion({ center, halfW, halfH }, horse.box);
-        drawRigSpriteBox(renderer, canvas, thirdMesh, model, { ...u, anchor: horse.box.anchor, hitFlash, conceal, up, fx, also: [{ mesh: horse.mesh, model: horse.model }], glowLook: padLooks }, proj, view, eye, MW_THIRD_PERSON_PIXEL);
+        drawRigSpriteBox(renderer, canvas, thirdMesh, groundedModel, { ...u, anchor: horse.box.anchor, hitFlash, conceal, up, fx, also: [{ mesh: horse.mesh, model: horse.model }], glowLook: padLooks }, proj, view, eye, MW_THIRD_PERSON_PIXEL);
         return true;
       }
-      drawRigSpriteBox(renderer, canvas, thirdMesh, model, { center, halfW, halfH, anchor, hitFlash, conceal, up, fx, glowLook: padLooks }, proj, view, eye, MW_THIRD_PERSON_PIXEL);   // HITFLASH1: a struck peer's body flashes
+      drawRigSpriteBox(renderer, canvas, thirdMesh, groundedModel, { center, halfW, halfH, anchor, hitFlash, conceal, up, fx, glowLook: padLooks }, proj, view, eye, MW_THIRD_PERSON_PIXEL);   // HITFLASH1: a struck peer's body flashes
       return true;
     },
 
