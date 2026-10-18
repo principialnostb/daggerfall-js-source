@@ -1,7 +1,7 @@
 // Smart PaperDoll: convert the live RGBA paperdoll composite into a shallow voxel mesh.
 // The input is the exact image already composed by ui/paperDoll.js, so dyes, armor,
 // clothing, texture replacements and race-specific art stay in sync with the inventory.
-import { paperDollFigurePixels, requestPaperDollFigureRefresh } from '../ui/paperDoll.js';
+import { paperDollFigurePixels, paperDollFigureStatus, requestPaperDollFigureRefresh } from '../ui/paperDoll.js';
 import { packCharacterFaces } from '../render/characterMesh.js';
 import { trs } from '../world/mat4.js';
 
@@ -112,6 +112,13 @@ export function buildPaperDollVoxelFaces(image, {
 let cachedRenderer = null;
 let cachedVersion = null;
 let cachedMesh = null;
+let smartPaperDollLastError = null;
+
+function reportSmartPaperDollError(reason, details = {}) {
+  if (smartPaperDollLastError === reason) return;
+  smartPaperDollLastError = reason;
+  console.warn(`[SmartPaperDoll] ${reason}`, details);
+}
 
 export function clearSmartPaperDoll() {
   if (cachedMesh && cachedRenderer?.destroyMesh) {
@@ -144,18 +151,62 @@ export function drawSmartPaperDoll(renderer, { feet, yaw = 0, grow = 1 } = {}) {
   // The inventory normally triggers composition, but the world can be the first screen opened.
   // Kick the same async compositor once; subsequent frames pick up its completed live composite.
   if (!image) {
-    requestPaperDollFigureRefresh();
+    const requestAccepted = requestPaperDollFigureRefresh();
     image = paperDollFigurePixels();
+    if (!image) reportSmartPaperDollError('Figure composite is not ready', {
+      requestAccepted,
+      status: paperDollFigureStatus(),
+    });
   }
   if (!image || !feet || feet.length < 3) {
+    if (image && (!feet || feet.length < 3)) {
+      reportSmartPaperDollError('Player position is missing or invalid', {
+        hasFeet: !!feet,
+        feetLength: feet?.length,
+        feet,
+      });
+    }
     clearSmartPaperDoll();
     return false;
   }
-  const mesh = meshFor(renderer, image);
-  if (!mesh) return false;
+
+  let mesh;
+  try {
+    mesh = meshFor(renderer, image);
+  } catch (error) {
+    reportSmartPaperDollError('Mesh creation threw an exception', {
+      message: error?.message ?? String(error),
+      imageWidth: image.width,
+      imageHeight: image.height,
+      hasCreateCharacterMesh: typeof renderer?.createCharacterMesh === 'function',
+      hasDrawCharacter: typeof renderer?.drawCharacter === 'function',
+    });
+    return false;
+  }
+  if (!mesh) {
+    reportSmartPaperDollError('Mesh creation returned no mesh', {
+      imageWidth: image.width,
+      imageHeight: image.height,
+      voxelFaces: buildPaperDollVoxelFaces(image).length,
+      hasRenderer: !!renderer,
+      hasCreateCharacterMesh: typeof renderer?.createCharacterMesh === 'function',
+      hasDrawCharacter: typeof renderer?.drawCharacter === 'function',
+      status: paperDollFigureStatus(),
+    });
+    return false;
+  }
+
+  smartPaperDollLastError = null;
   const scale = Number.isFinite(grow) && grow > 0 ? grow : 1;
   // Same world-facing convention as fpArm's thirdModel: the local portrait faces +Z.
   const model = trs(feet[0], feet[1], feet[2], 0, yaw * 180 / Math.PI, 0, scale, scale, scale);
-  renderer.drawCharacter(mesh, model);
+  try {
+    renderer.drawCharacter(mesh, model);
+  } catch (error) {
+    reportSmartPaperDollError('Renderer drawCharacter failed', {
+      message: error?.message ?? String(error),
+    });
+    return false;
+  }
   return true;
 }
