@@ -1,10 +1,8 @@
 import { BODY_MORPH_FIELDS, getBodyMorphs, setBodyMorph, resetBodyMorphs } from '../characters/bodyMorphs.js';
 
 const GROUPS = [
-  ['Верх тела', ['shoulderWidth', 'bustVolume', 'ribcageWidth', 'armThickness', 'armLength']],
-  ['Талия и таз', ['waistWidth', 'bellyVolume', 'pelvisWidth', 'buttockVolume', 'buttockProjection']],
-  ['Ноги', ['legGap', 'thighThickness', 'calfThickness', 'legLength']],
-  ['Общие пропорции', ['height', 'fullness', 'bodyWidth']],
+  ['Тело', ['height', 'bodyWidth', 'shoulderWidth']],
+  ['Конечности', ['armScale', 'legScale', 'legGap']],
 ];
 const labelByKey = new Map(BODY_MORPH_FIELDS.map(([key, label]) => [key, label]));
 const clamp = (n) => Math.max(-1, Math.min(1, n));
@@ -27,7 +25,7 @@ export function openAppearanceEditor({ fpArm, onClose = () => {} } = {}) {
   preview.style.cssText = 'width:min(100%,380px);height:auto;max-height:66%;object-fit:contain;cursor:grab;touch-action:none;background:radial-gradient(ellipse,#373741 0%,#17171c 68%);border:1px solid #444;border-radius:6px;';
   const previewHint = document.createElement('div');
   previewHint.style.cssText = 'font-size:12px;color:#aaa;text-align:center;line-height:1.5;';
-  previewHint.textContent = 'Настройки сохраняются автоматически в этом браузере.';
+  previewHint.textContent = 'Настройки сохраняются автоматически. Масштаб меняет силуэт модели; отдельные формы груди и ягодиц пока не поддерживаются скелетом.';
   const controls = document.createElement('div');
   controls.style.cssText = 'overflow:auto;min-height:0;padding:18px 20px;';
   const top = document.createElement('div');
@@ -104,10 +102,28 @@ export function openAppearanceEditor({ fpArm, onClose = () => {} } = {}) {
     let pixels = null;
     try { pixels = fpArm?.figure?.({ yaw, height: 384 }) ?? null; } catch { pixels = null; }
     if (!pixels?.data || !pixels.width || !pixels.height) {
+      // The game may not have built the third-person rig yet. Keep the character visible
+      // by borrowing the image already displayed in the equipment window instead of
+      // replacing it with a misleading "not ready" state.
+      const source = document.querySelector('.wornmap-doll canvas, .wornmap-doll img');
       const ctx = preview.getContext('2d');
-      if (ctx) { ctx.clearRect(0, 0, preview.width, preview.height); ctx.fillStyle = '#b9b9c2'; ctx.font = '14px system-ui'; ctx.textAlign = 'center'; ctx.fillText('Модель пока не готова', preview.width / 2, preview.height / 2); }
+      if (ctx) {
+        ctx.clearRect(0, 0, preview.width, preview.height);
+        if (source && ((source instanceof HTMLCanvasElement && source.width) || (source instanceof HTMLImageElement && source.complete && source.naturalWidth))) {
+          const w = source instanceof HTMLCanvasElement ? source.width : source.naturalWidth;
+          const h = source instanceof HTMLCanvasElement ? source.height : source.naturalHeight;
+          const scale = Math.min((preview.width * 0.88) / w, (preview.height * 0.88) / h);
+          ctx.drawImage(source, (preview.width - w * scale) / 2, (preview.height - h * scale) / 2, w * scale, h * scale);
+          previewHint.textContent = 'Пока показано изображение из окна экипировки. Вращение и live-превью включатся, когда 3D-модель будет доступна.';
+        } else {
+          ctx.fillStyle = '#b9b9c2'; ctx.font = '14px system-ui'; ctx.textAlign = 'center';
+          ctx.fillText('Нет доступного изображения', preview.width / 2, preview.height / 2);
+          previewHint.textContent = 'Силуэт будет показан, когда игра соберёт модель персонажа.';
+        }
+      }
       return;
     }
+    previewHint.textContent = 'Настройки сохраняются автоматически. Зажми модель и вращай мышью.';
     if (preview.width !== pixels.width) preview.width = pixels.width;
     if (preview.height !== pixels.height) preview.height = pixels.height;
     try { preview.getContext('2d')?.putImageData(new ImageData(pixels.data, pixels.width, pixels.height), 0, 0); } catch { /* ImageData unavailable */ }
