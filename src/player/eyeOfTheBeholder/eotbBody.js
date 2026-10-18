@@ -370,21 +370,35 @@ export function createEotbBody({ count = spriteCount, urlFor = eotbSpriteUrl, de
     ? `${smartWorn.chestArmor ? 1 : 0}${smartWorn.feet ? 1 : 0}${smartWorn.head ? 1 : 0}` : 'off';
   const renderRec = (s) => { const bits = smartLayerBits(s); return bits === 'off' ? s.rec : `${s.rec}~sp${bits}`; };
   const cacheKey = (s) => `${s.archive}:${renderRec(s)}`;
-  /** Prototype skin-fill compositor: recolors only opaque pixels in bounded regions.
-   *  If no gear-state seam exists or a slot is worn, that region is untouched. */
+  /** Prototype skin-fill compositor.
+   *  `lookedPixels` returns packed Color32 pixels (Uint32Array), NOT a
+   *  byte-per-entry RGBA array. Edit a byte view of that same RGBA buffer
+   *  and return the original packed-pixel shape expected by uploadTexture.
+   *  The normalized rectangles are exclusive per equipment slot; transparent
+   *  pixels remain untouched, including their alpha. */
   function composeSmartBody(width, height, source, wornBits) {
     if (!source || !wornBits || (wornBits.chestArmor && wornBits.feet && wornBits.head)) return source;
-    const colors = new Uint8Array(source);
-    const skin = [184, 137, 99]; // flat retro skin-tone placeholder; alpha and palette grid remain hard-edged
-    for (let y = 0; y < height; y++) for (let x = 0; x < width; x++) {
-      const i = (y * width + x) * 4;
-      if (colors[i + 3] === 0) continue;
-      const nx = (x + 0.5) / width, ny = (y + 0.5) / height;
-      const torso = !wornBits.chestArmor && ny >= 0.29 && ny <= 0.57 && nx >= 0.32 && nx <= 0.68;
-      const head = !wornBits.head && ny >= 0.045 && ny <= 0.245 && nx >= 0.34 && nx <= 0.66;
-      const feet = !wornBits.feet && ny >= 0.875 && ny <= 0.985 && nx >= 0.24 && nx <= 0.76;
-      if (!(torso || head || feet)) continue;
-      colors[i] = skin[0]; colors[i + 1] = skin[1]; colors[i + 2] = skin[2];
+    if (source.length !== width * height) return source;
+    const colors = new Uint32Array(source);
+    const rgba = new Uint8Array(colors.buffer, colors.byteOffset, colors.byteLength);
+    const skin = [180, 140, 120]; // explicit opaque retro skin tone; alpha is preserved
+    for (let y = 0; y < height; y++) {
+      const ny = (y + 0.5) / height;
+      for (let x = 0; x < width; x++) {
+        const nx = (x + 0.5) / width;
+        // Each slot has its own bounded mask: torso 20–80% x / 30–60% y,
+        // head 34–66% x / 4.5–24.5% y, feet 24–76% x / 87.5–98.5% y.
+        const torso = !wornBits.chestArmor && nx >= 0.20 && nx <= 0.80 && ny >= 0.30 && ny <= 0.60;
+        const head = !wornBits.head && nx >= 0.34 && nx <= 0.66 && ny >= 0.045 && ny <= 0.245;
+        const feet = !wornBits.feet && nx >= 0.24 && nx <= 0.76 && ny >= 0.875 && ny <= 0.985;
+        if (!(torso || head || feet)) continue;
+        const i = (y * width + x) * 4;
+        if (rgba[i + 3] === 0) continue; // never paint transparent background
+        rgba[i] = skin[0];
+        rgba[i + 1] = skin[1];
+        rgba[i + 2] = skin[2];
+        // Preserve the original non-zero alpha and all pixels outside the mask.
+      }
     }
     return colors;
   }
