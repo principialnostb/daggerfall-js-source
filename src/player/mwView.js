@@ -725,7 +725,12 @@ export function mwViewHides() {
 export function mwViewDrawBody(canvas, { proj, view, eye, feet, yaw, viewYaw = yaw, face = null }) {
   // SMART-PAPERDOLL: one opt-in body across both existing third-person lanes. It consumes the
   // exact RGBA composite already used by the inventory; a missing composite leaves the old lane intact.
-  const smartPaperDollEnabled = mwCamera.thirdPerson()
+  // The wheel can be owned by either camera lane. In the EotB lane, mwCamera
+  // correctly remains in first person, so ask EotB for the active perspective.
+  const smartPaperDollThirdPerson = eotbLane()
+    ? eotbCamera.thirdPerson()
+    : mwCamera.thirdPerson();
+  const smartPaperDollEnabled = smartPaperDollThirdPerson
     && modSetting('eye-of-the-beholder', 'Graphics.SmartPaperDoll') === true;
   if (smartPaperDollEnabled && !smartPaperDollViewAttemptLogged) {
     smartPaperDollViewAttemptLogged = true;
