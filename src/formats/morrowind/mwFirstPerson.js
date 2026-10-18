@@ -3163,6 +3163,13 @@ function bindSkinnedFromBody(assembly, part, bones) {
       notes.push(`${part.slot}: no ${part.fitTo} to fit it to - drawn at its baked height`);
     }
   }
+  // MW-BB-FIT1: first pilot is restricted to explicitly configured fitTo
+  // garments. It works on a private geometry copy and leaves the body/UVs intact.
+  if (part.fitTo) {
+    worn = worn.map((g) => fitGarmentClearance(g, sources.filter((s) => slotOf.has(s) && slotOf.get(s) === part.fitTo), ctx));
+    const changed = worn.reduce((n, g) => n + (g.clearanceFit?.adjusted ?? 0), 0);
+    if (changed) notes.push(`${part.slot}: automatic body clearance adjusted ${changed} garment vertices`);
+  }
   for (const g of worn) {
     for (const batch of transferSkin(g, sources, ctx)) {
       pieces.push({ slot: part.slot, bone: bones[0] ?? null, kind: 'skinned', mirrored: false,
