@@ -364,7 +364,7 @@ export function fitGarmentClearance(garment, sources, ctx, {
       }
     }
     const bvh = buildSurfaceBvh(posed, I, normals);
-    if (bvh) surfaces.push({ bvh });
+    if (bvh) surfaces.push({ bvh, normals });
   }
   if (!surfaces.length) return garment;
   const positions = Float32Array.from(garment.positions);
@@ -373,7 +373,7 @@ export function fitGarmentClearance(garment, sources, ctx, {
     const p = [positions[i], positions[i + 1], positions[i + 2]];
     let best = null;
     for (const surface of surfaces) {
-      const hit = nearestSurfacePoint(p, surface.bvh, surface.bvh ? null : null, maxDistance * maxDistance);
+      const hit = nearestSurfacePoint(p, surface.bvh, surface.normals, maxDistance * maxDistance);
       if (hit && (!best || hit.distance2 < best.distance2)) best = hit;
     }
     if (!best) continue;
