@@ -168,7 +168,7 @@ export { MW_BODY_PARTS, isFirstPersonId } from './mwEsmFile.js';
 import { MW_BODY_PARTS, isFirstPersonId } from './mwEsmFile.js';
 import FACE_TABLE from '../mwFaceTable.json' with { type: 'json' };
 import { GRAPH_ROOT, ACCUM_ROOT_NAMES } from './mwSkin.js';
-import { transferSkin, sourceSkin, fitLift, liftBatch } from './mwSkinTransfer.js';   // MW-BRIG2: a worn model skinned from the body under it; MW-BRIG3: and fitted onto it
+import { transferSkin, sourceSkin, fitLift, liftBatch, fitGarmentClearance } from './mwSkinTransfer.js';   // MW-BRIG2: a worn model skinned from the body under it; MW-BRIG3: and fitted onto it
 import { getTextKeyTime, animVelocity, collectTextKeys, normalizeTextKeys, clipGroups, resetClip, parseAnimGroups, extractTracks } from './mwAnim.js';
 import { mat33Mul } from './mwNifMesh.js';   // AUDIT 68 S11-affine-dup: the one row-major 3x3 product
 import { batchMoves, posePartBatch, nodeAffineAt, nodeClockAt, clockFor } from './mwPartClock.js';   // MW-BOW1: a part's own clock
@@ -2302,6 +2302,9 @@ export function bindPartsInto(assembly, parts) {
       notes.push(`${part.slot}: ${err.message}`);
       continue;
     }
+    // Clothing fit is a private vertex-position pass; the garment keeps its authored skinning/material path.
+    const fitSources = part.fitSources?.length ? bindGarmentFitSources(assembly, part.fitSources) : [];
+    const fitCtx = fitSources.length ? clothingFitContext(assembly) : null;
     // MW-D6: the nameless-shape extension binds ONCE for the part; a
     // NAMED shape binds once PER SIDE, filtered. See the block below.
     let tookNameless = false;
@@ -2318,6 +2321,19 @@ export function bindPartsInto(assembly, parts) {
       } catch (err) {
         notes.push(`${part.slot} @ ${bone}: ${err.message}`);
         continue;
+      }
+      // Clothing geometry clearance against the current body. No skin weights, UVs,
+      // material records or source NIF bytes are changed.
+      if (fitCtx && bound.skinned.length) {
+        for (let i = 0; i < bound.skinned.length; i++) {
+          const original = bound.skinned[i];
+          if (geomFitCandidate(original, part)) {
+            const fitted = fitGarmentClearance(original, fitSources, fitCtx, {
+              clearance: 0.2, maxDistance: 2.5, maxPush: 1.25,
+            });
+            if (fitted !== original) bound.skinned[i] = fitted;
+          }
+        }
       }
       // Better Bodies: apply the checked-in atlas corrections to this part's
       // flattened skin sections before they are packed for the live renderer.
@@ -3107,6 +3123,54 @@ export function armPieceRows(pieces) {
     triangles: p.indices ? p.indices.length / 3 : 0,
     bounds: meshBounds([p]),
   }));
+}
+
+/**
+ * Bind body surfaces for clothing clearance fitting. The garment itself keeps
+ * its authored skinning, UVs and material; only its private vertex positions
+ * are adjusted against these already-bound body surfaces.
+ */
+function bindGarmentFitSources(assembly, fitSources) {
+  const mod = assembly.fns;
+  const { skeleton, notes } = assembly;
+  const sources = [];
+  for (const src of fitSources) {
+    let srcNif;
+    try { srcNif = mod.parseNif(src.bytes); }
+    catch (err) { notes.push(`clothing fit: body ${src.slot}: ${err.message}`); continue; }
+    for (const bone of mod.PART_BONES[src.slot] ?? []) {
+      if (!skeleton.byName.has(bone.toLowerCase())) continue;
+      let bound;
+      try { bound = mod.bindPart(skeleton, srcNif, { attachBone: bone }); }
+      catch { continue; }
+      if (bound.skinned.length) {
+        let tookNameless = false;
+        for (const batch of bound.skinned) {
+          const nameless = !String(batch.name || '').trim();
+          if (nameless ? tookNameless : !shapeMatchesBone(batch.name, bone)) continue;
+          if (nameless) tookNameless = true;
+          sources.push(batch);
+        }
+        continue;
+      }
+      const ref = skeleton.byName.get(bone.toLowerCase());
+      const mirrored = (skeleton.nodes.get(ref)?.name ?? '').includes('Left');
+      for (const batch of bound.attached) {
+        sources.push(sourceSkin(batch, { attachRef: bound.attachRef, mirrored, boneOffset: bound.boneOffset || null }));
+      }
+    }
+  }
+  return sources;
+}
+
+function geomFitCandidate(batch, part) {
+  return !!part.fitSources?.length && !!batch?.positions?.length && !!batch?.indices?.length;
+}
+
+function clothingFitContext(assembly) {
+  const mod = assembly.fns;
+  const pose = mod.poseSkeleton(assembly.skeleton, null, null, 0, {});
+  return { skeleton: assembly.skeleton, pose, mats: mod.skelMats(assembly.skeleton, pose, GRAPH_ROOT), skinBatch: mod.skinBatch };
 }
 
 /**
