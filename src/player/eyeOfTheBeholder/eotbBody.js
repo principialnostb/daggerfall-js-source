@@ -366,9 +366,9 @@ export function createEotbBody({ count = spriteCount, urlFor = eotbSpriteUrl, de
     return true;
   }
 
-  const smartLayerBits = () => cfg.onFoot === 0 && modSettingIfDeclared('eye-of-the-beholder', 'Graphics.SmartPaperDoll') === true
+  const smartLayerBits = (s = null) => cfg.onFoot === 0 && (!s || s.archive === 112364) && modSettingIfDeclared('eye-of-the-beholder', 'Graphics.SmartPaperDoll') === true
     ? `${smartWorn.chestArmor ? 1 : 0}${smartWorn.feet ? 1 : 0}${smartWorn.head ? 1 : 0}` : 'off';
-  const renderRec = (s) => { const bits = smartLayerBits(); return bits === 'off' ? s.rec : `${s.rec}~sp${bits}`; };
+  const renderRec = (s) => { const bits = smartLayerBits(s); return bits === 'off' ? s.rec : `${s.rec}~sp${bits}`; };
   const cacheKey = (s) => `${s.archive}:${renderRec(s)}`;
   /** Prototype skin-fill compositor: recolors only opaque pixels in bounded regions.
    *  If no gear-state seam exists or a slot is worn, that region is untouched. */
@@ -414,7 +414,7 @@ export function createEotbBody({ count = spriteCount, urlFor = eotbSpriteUrl, de
       // Smart PaperDoll's mechanism test: modify only the currently unequipped regions before mirroring/upload.
       // Errors fall through the original source pixels; this never changes the animation/orientation selection.
       let colors = looked;
-      try { if (smartLayerBits() !== 'off') colors = composeSmartBody(width, height, looked, smartWorn); } catch { colors = looked; }
+      try { if (smartLayerBits(s) !== 'off') colors = composeSmartBody(width, height, looked, smartWorn); } catch { colors = looked; }
       // the MIRROR is applied here, on the way to the upload, because
       // the renderer's billboard batch has no flip - a mirrored sprite
       // is its own pixels under its own key (`s.rec`, EOTB5)
