@@ -25,6 +25,11 @@
   button{background:#343742;color:#fff;border:1px solid #5a5d68;border-radius:5px;padding:7px;cursor:pointer}
   button:disabled{opacity:.4;cursor:not-allowed}
   #uvInfo{font:12px/1.5 ui-monospace,monospace;white-space:pre-wrap;color:#b8d9ff;background:#171920;padding:8px;border-radius:5px}
+  .section{border-top:1px solid #41434c;margin-top:14px;padding-top:12px}
+  .section h3{font-size:14px;margin:0 0 7px}
+  .section input[type=file]{width:100%;font-size:12px;margin:5px 0}
+  .section .hint{font-size:11px;color:#aeb4c5;line-height:1.4}
+  .checkrow{display:flex;gap:7px;align-items:center;font-size:12px;margin:7px 0}
 </style>
 </head>
 <body>
@@ -50,6 +55,23 @@
       <button id="uvExport" disabled>Export UV edits JSON</button>
     </div>
     <p>Note: this selects NIF mesh sections, not individual texture pixels. UV changes remap the selected mesh section to another area of the atlas; the separate texture editor is for painting/clearing pixels.</p>
+    <div class="section">
+      <h3>Equipment fit preview</h3>
+      <p class="hint">Load a cuirass, gloves, or another NIF to display it over the body. This is a static geometry preview; it does not alter the game or guess skin weights.</p>
+      <label>Equipment NIF <input id="gearFile" type="file" accept=".nif,application/octet-stream"></label>
+      <div class="checkrow"><input id="gearVisible" type="checkbox" checked disabled><label for="gearVisible">Show equipment overlay</label></div>
+      <div class="fields">
+        <label>X offset <input id="gearX" type="number" step="0.1" value="0" disabled></label>
+        <label>Y offset <input id="gearY" type="number" step="0.1" value="0" disabled></label>
+        <label>Z offset <input id="gearZ" type="number" step="0.1" value="0" disabled></label>
+        <label>Scale <input id="gearScale" type="number" step="0.01" min="0.01" value="1" disabled></label>
+      </div>
+      <div class="actions">
+        <button id="gearReset" disabled>Reset equipment transform</button>
+        <button id="gearExport" disabled>Export fit coordinates JSON</button>
+      </div>
+      <div id="gearInfo" class="hint">No equipment loaded.</div>
+    </div>
   </aside>
 </div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
