@@ -2332,10 +2332,14 @@ export function bindPartsInto(assembly, parts) {
         for (let i = 0; i < bound.skinned.length; i++) {
           const original = bound.skinned[i];
           if (geomFitCandidate(original, part)) {
+            const sideMatch = String(part.partName ?? part.slot).toLowerCase().match(/\\b(left|right)\\b/);
             const fitted = fitGarmentClearance(original, fitSources, fitCtx, {
               clearance: part.fitMode === 'conform' ? 0.18 : 0.2,
               maxDistance: part.fitMode === 'conform' ? 4.0 : 2.5,
               maxPush: 1.25, conform: part.fitMode === 'conform',
+              // A leg panel must not snap to the opposite thigh just because
+              // baggy source geometry happens to be closer to that surface.
+              side: sideMatch?.[1] ?? null,
             });
             if (fitted !== original) bound.skinned[i] = fitted;
           }
@@ -3155,7 +3159,7 @@ function bindGarmentFitSources(assembly, fitSources) {
           const nameless = !String(batch.name || '').trim();
           if (nameless ? tookNameless : !shapeMatchesBone(batch.name, bone)) continue;
           if (nameless) tookNameless = true;
-          sources.push(batch);
+          sources.push({ ...batch, fitSlot: src.slot, fitBone: bone });
         }
         continue;
       }
