@@ -3209,7 +3209,7 @@ function applyPre(positions, pre) {
  * are ARMO_PART keys such as "chest" and "hand:right".
  */
 function betterBodiesSectionShadowed(shapeName, shadows = []) {
-  const name = String(shapeName || '').trim().toLowerCase().replace(/^tri\\s+/, '');
+  const name = String(shapeName || '').trim().toLowerCase().replace(/^tri\s+/, '');
   const sideRegion = /^(left|right) (hand|wrist|forearm|upper arm|foot|ankle|knee|upper leg)$/.exec(name);
   let shadow = null;
   if (name === 'chest' || name === 'groin' || name === 'neck' || name === 'head' || name === 'hair' || name === 'tail') {
