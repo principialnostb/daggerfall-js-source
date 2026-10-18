@@ -59,7 +59,7 @@ export function openAppearanceEditor({ fpArm, onClose = () => {} } = {}) {
         const value = clamp(Number(input.value));
         setBodyMorph(key, value);
         output.textContent = String(Math.round(value * 100)) + '%';
-        window.dispatchEvent(new CustomEvent('mw-body-morph-change', { detail: getBodyMorphs() }));
+        window.dispatchEvent(new window.CustomEvent('mw-body-morph-change', { detail: getBodyMorphs() }));
         drawPreview();
       });
       inputs.set(key, input); row.append(name, input, output); group.append(row);
@@ -71,7 +71,7 @@ export function openAppearanceEditor({ fpArm, onClose = () => {} } = {}) {
   const reset = makeButton('Сбросить по умолчанию');
   reset.addEventListener('click', () => {
     resetBodyMorphs();
-    for (const input of inputs.values()) { input.value = '0'; input.dispatchEvent(new Event('input')); }
+    for (const input of inputs.values()) { input.value = '0'; input.dispatchEvent(new window.Event('input')); }
   });
   const done = makeButton('Готово', true); done.addEventListener('click', close);
   actions.append(reset, done); controls.append(actions);
