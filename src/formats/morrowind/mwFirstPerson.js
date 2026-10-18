@@ -2808,11 +2808,20 @@ export function poseAssembly(assembly, { tracks = null, sampleTrack = null,
         factor *= scaled(name, 'legLength', 0.035);
       }
       if (name.includes('neck') || name.includes('head')) factor *= scaled(name, 'height', 0.015);
-      if (factor !== 1) {
-        const current = pose.get(ref);
-        if (current) {
-          const scale = typeof current.scale === 'number' ? current.scale : 1;
-          pose.set(ref, { ...current, scale: scale * factor });
+      const current = pose.get(ref);
+      if (current && factor !== 1) {
+        const scale = typeof current.scale === 'number' ? current.scale : 1;
+        pose.set(ref, { ...current, scale: scale * factor });
+      }
+      // NIF skeletons commonly name the paired leg bones L/R Thigh or L/R Calf.
+      // Spread their local X origins for a modest stance-width adjustment.
+      if (current && amount('legGap') !== 0 && (name.includes('thigh') || name.includes('calf') || name.includes('shin'))) {
+        const left = /(^|[^a-z])left([^a-z]|$)/.test(String(node.name || '').toLowerCase()) || /l(thigh|calf|shin)$/.test(name);
+        const right = /(^|[^a-z])right([^a-z]|$)/.test(String(node.name || '').toLowerCase()) || /r(thigh|calf|shin)$/.test(name);
+        if (left || right) {
+          const translation = Array.isArray(current.translation) ? [...current.translation] : [0, 0, 0];
+          translation[0] = (Number(translation[0]) || 0) + (left ? 1 : -1) * amount('legGap') * 1.5;
+          pose.set(ref, { ...(pose.get(ref) || current), translation });
         }
       }
     }
