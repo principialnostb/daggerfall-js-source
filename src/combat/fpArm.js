@@ -6980,18 +6980,20 @@ export function createFpArm({ playerAppearance = false } = {}) {
       // Deterministic, so the panel's cache is exact and two renders of
       // one wardrobe are one picture.
       const pose = portraitPose(t);
-      thirdSkinReady(t);   // MWNPC1: posed on the CPU (its exact boxes frame it), drawn through the palette
-      if (pose) {
-        if (t.hipHang) t.hipHang.rot.set(PLUMB);   // HT-WAIST: a still portrait, a plumb lantern (stepHipSwing re-swings it)
-        poseAssembly(t.arm, {
-          tracks: pose.source.trackMap,
-          sampleTrack,
-          time: pose.state.startTime,
-          accumRoot: t.accumRoot,
-          bodyProportions: playerAppearance ? getBodyMorphs() : false,   // MWV2-APPEARANCE: player instance only
-          mirror: portraitMirror(),   // TWO-HANDS AUDIT
-        });
-      }
+      // A portrait must be posed even when this race/rig has no named idle group.
+      // Previously a null portraitPose skipped poseAssembly entirely, so sliders changed
+      // saved values but the preview kept uploading the last unmodified mesh.
+      thirdSkinReady(t);   // MWNPC1: release the GPU path while local vertex morphs are active
+      if (t.hipHang) t.hipHang.rot.set(PLUMB);   // HT-WAIST: a still portrait, a plumb lantern (stepHipSwing re-swings it)
+      poseAssembly(t.arm, {
+        tracks: pose?.source?.trackMap ?? null,
+        sampleTrack,
+        time: pose?.state?.startTime ?? 0,
+        accumRoot: t.accumRoot,
+        bodyProportions: playerAppearance ? getBodyMorphs() : false,   // MWV2-APPEARANCE: player instance only
+        mirror: portraitMirror(),   // TWO-HANDS AUDIT
+        skin: true,   // portraits must apply CPU vertex morphs before upload
+      });
       uploadThirdMesh(t);
       // PX26 F1 (Mac: weapons and shields are not on the menu sprite):
       // THE FIGURE IS A PORTRAIT, NOT THE WORLD. The wheel hides the
