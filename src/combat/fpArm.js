@@ -2131,11 +2131,6 @@ async function buildTpBody({
     ]);
     const partBytes = [];
     if (betterBodiesPart) partBytes.push(betterBodiesPart);
-    // Every known body bone can select the corresponding skinned shape in the
-    // full-body Better Bodies NIF. This list is derived from the same slot map
-    // used for vanilla body parts, so the fitter has no female-specific bone
-    // assumptions.
-    const betterBodiesBones = [...new Set(Object.values(PART_BONES).flat())];
     for (const row of [...skinRows, ...worn.adds]) {
       const path = `meshes/${row.model}`;
       const arc = find(path);
