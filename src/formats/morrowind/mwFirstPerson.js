@@ -2755,10 +2755,58 @@ export function posePartClocks(assembly, value, { frameTime = value, slots = WEA
   return moved;
 }
 
+// Player-only local vertex morphs. The Morrowind body slots are separate skin batches
+// ('chest' and 'groin'), so deform their posed vertices rather than scaling the whole skeleton.
+// NIF character meshes are Z-up; +Y is the chest/front side in the authored body coordinate space.
+function deformPlayerBodyGeometry(piece, morph) {
+  const amount = piece.slot === 'chest'
+    ? Math.max(-1, Math.min(1, Number(morph?.breastSize) || 0))
+    : piece.slot === 'groin'
+      ? Math.max(-1, Math.min(1, Number(morph?.buttockSize) || 0))
+      : 0;
+  if (!amount || (piece.slot !== 'chest' && piece.slot !== 'groin')) return;
+  const p = piece.positions;
+  if (!p || p.length < 9) return;
+  let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity, minZ = Infinity, maxZ = -Infinity;
+  for (let i = 0; i + 2 < p.length; i += 3) {
+    const x = p[i], y = p[i + 1], z = p[i + 2];
+    if (!Number.isFinite(x + y + z)) continue;
+    minX = Math.min(minX, x); maxX = Math.max(maxX, x);
+    minY = Math.min(minY, y); maxY = Math.max(maxY, y);
+    minZ = Math.min(minZ, z); maxZ = Math.max(maxZ, z);
+  }
+  const halfX = (maxX - minX) * 0.5, halfY = (maxY - minY) * 0.5, spanZ = maxZ - minZ;
+  if (!(halfX > 1e-5 && halfY > 1e-5 && spanZ > 1e-5)) return;
+  const cx = (minX + maxX) * 0.5, cy = (minY + maxY) * 0.5;
+  const clamp01 = (v) => Math.max(0, Math.min(1, v));
+  for (let i = 0; i + 2 < p.length; i += 3) {
+    const x = p[i], y = p[i + 1], z = p[i + 2];
+    const nx = (x - cx) / halfX;
+    const nz = (z - minZ) / spanZ;
+    if (piece.slot === 'chest') {
+      // Two soft lobes across the upper chest, with a front-only depth falloff.
+      const vertical = Math.exp(-Math.pow((nz - 0.66) / 0.24, 2));
+      const lobes = Math.exp(-Math.pow((Math.abs(nx) - 0.34) / 0.28, 2));
+      const front = clamp01((y - cy) / (halfY * 0.38));
+      const w = vertical * lobes * front;
+      p[i + 1] += amount * halfY * 0.34 * w;
+      p[i] += Math.sign(x - cx) * amount * halfX * 0.045 * w;
+    } else {
+      // Broad rear-side volume around the upper pelvis; keep the abdomen/front unchanged.
+      const vertical = Math.exp(-Math.pow((nz - 0.60) / 0.27, 2));
+      const rear = clamp01((cy - y) / (halfY * 0.38));
+      const w = vertical * rear;
+      p[i + 1] -= amount * halfY * 0.38 * w;
+      p[i] += Math.sign(x - cx) * amount * halfX * 0.085 * w;
+    }
+  }
+}
+
 export function poseAssembly(assembly, { tracks = null, sampleTrack = null,
   time = 0, accumRoot = null, neckPitch = 0, neckAim = 0, neckOffset = null, climb = null, skin = true, mirror = null, run = null, hold = null, bodyProportions = false } = {}) {
   const { fns, skeleton, pieces } = assembly;
   if (!fns || !skeleton) return assembly;
+  const geometryMorph = bodyProportions ? (typeof bodyProportions === 'object' ? bodyProportions : getBodyMorphs()) : null;
   // MIRROR-BIND: an arm mirrored across the picture is mirrored by the binds of the skins it wears (mirrorBindsOf)
   if (mirror?.plane && mirror.plane.binds === undefined) mirror.plane.binds = mirrorBindsOf(assembly);
   const pose = fns.poseSkeleton(skeleton, tracks, sampleTrack, time, { accumRoot });
@@ -2845,6 +2893,7 @@ export function poseAssembly(assembly, { tracks = null, sampleTrack = null,
   for (const p of pieces) {
     if (p.kind === 'skinned') {
       fns.skinBatch(p.batch, skeleton, pose, mats, p.positions, p.normals ?? null);   // MW-SMOOTH: and its normals
+      if (geometryMorph) deformPlayerBodyGeometry(p, geometryMorph);
     } else {
       const at = fns.attachmentTransform(mats, p.attachRef);
       const placed = p.hang ? hangAffine(at, p.hang) : at;   // HT-WAIST
