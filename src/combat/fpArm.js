@@ -6289,6 +6289,7 @@ export function createFpArm() {
             climb: thirdClimb(climbWorld, cam),   // CLIMB6
             mirror: mirrorFor('third', t, dt),   // TWO-HANDS: the second hand - the pair's left arm, a left-hand blow
             hold: rifleHold('third', t),   // RIFLE-STANCE: the long gun in the hands
+            bodyProportions: true,   // MWV2-PROPORTIONS: shape the player silhouette in the shared CPU/GPU pose
             skin: !thirdSkinReady(t),   // MWNPC1: the skin in the vertex shader - the pose is the skeleton alone
           });
           uploadThirdMesh(t);
