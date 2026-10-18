@@ -2,7 +2,7 @@ import { BODY_MORPH_FIELDS, getBodyMorphs, setBodyMorph, resetBodyMorphs } from 
 
 const GROUPS = [
   ['Основные пропорции', ['height', 'bodyWidth', 'shoulderWidth']],
-  ['Корпус и голова', ['torsoScale', 'headScale']],
+  ['Корпус, грудь и ягодицы', ['torsoScale', 'breastSize', 'buttockSize', 'headScale']],
   ['Конечности', ['armScale', 'legScale', 'legGap']],
 ];
 const labelByKey = new Map(BODY_MORPH_FIELDS.map(([key, label]) => [key, label]));
@@ -26,7 +26,7 @@ export function openAppearanceEditor({ fpArm, onClose = () => {} } = {}) {
   preview.style.cssText = 'width:min(100%,380px);height:auto;max-height:66%;object-fit:contain;cursor:grab;touch-action:none;background:radial-gradient(ellipse,#373741 0%,#17171c 68%);border:1px solid #444;border-radius:6px;';
   const previewHint = document.createElement('div');
   previewHint.style.cssText = 'font-size:12px;color:#aaa;text-align:center;line-height:1.5;';
-  previewHint.textContent = 'Настройки сохраняются автоматически. Масштаб меняет силуэт модели; отдельные формы груди и ягодиц пока не поддерживаются скелетом.';
+  previewHint.textContent = 'Настройки сохраняются автоматически. Изменения формы груди и ягодиц применяются к геометрии тела.';
   const controls = document.createElement('div');
   controls.style.cssText = 'overflow:auto;min-height:0;padding:18px 20px;';
   const top = document.createElement('div');
