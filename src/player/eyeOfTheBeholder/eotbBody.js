@@ -370,34 +370,54 @@ export function createEotbBody({ count = spriteCount, urlFor = eotbSpriteUrl, de
     ? `${smartWorn.chestArmor ? 1 : 0}${smartWorn.feet ? 1 : 0}${smartWorn.head ? 1 : 0}` : 'off';
   const renderRec = (s) => { const bits = smartLayerBits(s); return bits === 'off' ? s.rec : `${s.rec}~sp${bits}`; };
   const cacheKey = (s) => `${s.archive}:${renderRec(s)}`;
-  /** Prototype skin-fill compositor.
-   *  `lookedPixels` returns packed Color32 pixels (Uint32Array), NOT a
-   *  byte-per-entry RGBA array. Edit a byte view of that same RGBA buffer
-   *  and return the original packed-pixel shape expected by uploadTexture.
-   *  The normalized rectangles are exclusive per equipment slot; transparent
-   *  pixels remain untouched, including their alpha. */
-  function composeSmartBody(width, height, source, wornBits) {
+  /**
+   * Smart PaperDoll pixel-art overlay.
+   * Prepared source PNGs are resized offline with nearest-neighbour sampling.
+   * The ORIGINAL animation frame alpha is the silhouette mask; anatomical
+   * bounds limit which equipment slot is replaced. Missing art is a no-op.
+   */
+  let smartBodyPixels = null;
+  let smartBodyPixelsPending = null;
+  async function loadSmartBodyPixels() {
+    if (smartBodyPixels) return smartBodyPixels;
+    if (!smartBodyPixelsPending) {
+      smartBodyPixelsPending = decode('/vendor/smart-paperdoll/Textures/body/BODY17I0.IMG.png')
+        .then((pixels) => {
+          if (!pixels || pixels.length !== 53 * 110) return null;
+          smartBodyPixels = pixels;
+          return pixels;
+        })
+        .catch(() => null)
+        .finally(() => { smartBodyPixelsPending = null; });
+    }
+    return smartBodyPixelsPending;
+  }
+  async function composeSmartBody(width, height, source, wornBits) {
     if (!source || !wornBits || (wornBits.chestArmor && wornBits.feet && wornBits.head)) return source;
     if (source.length !== width * height) return source;
+    const body = await loadSmartBodyPixels();
+    if (!body) return source;
     const colors = new Uint32Array(source);
     const rgba = new Uint8Array(colors.buffer, colors.byteOffset, colors.byteLength);
-    const skin = [180, 140, 120]; // explicit opaque retro skin tone; alpha is preserved
+    const bodyRgba = new Uint8Array(body.buffer, body.byteOffset, body.byteLength);
     for (let y = 0; y < height; y++) {
       const ny = (y + 0.5) / height;
       for (let x = 0; x < width; x++) {
         const nx = (x + 0.5) / width;
-        // Each slot has its own bounded mask: torso 20–80% x / 30–60% y,
-        // head 34–66% x / 4.5–24.5% y, feet 24–76% x / 87.5–98.5% y.
         const torso = !wornBits.chestArmor && nx >= 0.20 && nx <= 0.80 && ny >= 0.30 && ny <= 0.60;
         const head = !wornBits.head && nx >= 0.34 && nx <= 0.66 && ny >= 0.045 && ny <= 0.245;
         const feet = !wornBits.feet && nx >= 0.24 && nx <= 0.76 && ny >= 0.875 && ny <= 0.985;
         if (!(torso || head || feet)) continue;
-        const i = (y * width + x) * 4;
-        if (rgba[i + 3] === 0) continue; // never paint transparent background
-        rgba[i] = skin[0];
-        rgba[i + 1] = skin[1];
-        rgba[i + 2] = skin[2];
-        // Preserve the original non-zero alpha and all pixels outside the mask.
+        const si = (y * width + x) * 4;
+        if (rgba[si + 3] === 0) continue;
+        const bx = Math.min(52, Math.floor((x + 0.5) * 53 / width));
+        const by = Math.min(109, Math.floor((y + 0.5) * 110 / height));
+        const bi = (by * 53 + bx) * 4;
+        if (bodyRgba[bi + 3] === 0) continue;
+        rgba[si] = bodyRgba[bi];
+        rgba[si + 1] = bodyRgba[bi + 1];
+        rgba[si + 2] = bodyRgba[bi + 2];
+        // Keep the original alpha and every pixel outside the selected region.
       }
     }
     return colors;
@@ -428,7 +448,7 @@ export function createEotbBody({ count = spriteCount, urlFor = eotbSpriteUrl, de
       // Smart PaperDoll's mechanism test: modify only the currently unequipped regions before mirroring/upload.
       // Errors fall through the original source pixels; this never changes the animation/orientation selection.
       let colors = looked;
-      try { if (smartLayerBits(s) !== 'off') colors = composeSmartBody(width, height, looked, smartWorn); } catch { colors = looked; }
+      try { if (smartLayerBits(s) !== 'off') colors = await composeSmartBody(width, height, looked, smartWorn); } catch { colors = looked; }
       // the MIRROR is applied here, on the way to the upload, because
       // the renderer's billboard batch has no flip - a mirrored sprite
       // is its own pixels under its own key (`s.rec`, EOTB5)
