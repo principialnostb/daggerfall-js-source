@@ -3196,10 +3196,6 @@ function applyPre(positions, pre) {
   return out;
 }
 
-/** RULE 15's filter, verbatim: a case-insensitive PREFIX match on the
- *  shape name, with Morrowind's "Tri " convention stripped first. A shape
- *  with NO name matches everything, because a nameless shape in a
- *  one-shape part file is the part. */
 /** Map a Better Bodies NIF section to the slot whose equipment shadows it. */
 export function betterBodiesShadowSlot(shapeName) {
   const name = String(shapeName || '').trim().toLowerCase().replace(/^tri\s+/, '').replace(/\s+/g, ' ');
@@ -3211,6 +3207,10 @@ export function betterBodiesShadowSlot(shapeName) {
   return `${slotPart}:${side}`;
 }
 
+/** RULE 15's filter, verbatim: a case-insensitive PREFIX match on the
+ *  shape name, with Morrowind's "Tri " convention stripped first. A shape
+ *  with NO name matches everything, because a nameless shape in a
+ *  one-shape part file is the part. */
 export function shapeMatchesBone(shapeName, bone) {
   const name = String(shapeName || '').trim().toLowerCase();
   if (!name) return true;
