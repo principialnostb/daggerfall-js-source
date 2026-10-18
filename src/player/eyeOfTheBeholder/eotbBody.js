@@ -51,7 +51,7 @@ import {
   meleeStrokeFrames, forwardFrames, holdDrawFrames, mirrorFlips, mirrorRevertTime,
   DELAYED_FRAMES, ORIENTATION_TIME, signedAngleY, tableMoveSpeed, portrayedYaw,
 } from './eotbBillboard.js';
-import { spriteFor, eotbSpriteUrl, spriteCount, spriteSize, spriteOffset, flipRows, worldOrderColors, lookedPixels } from './eotbSprite.js';
+import { spriteFor, eotbSpriteUrl, spriteCount, spriteSize, spriteOffset, flipRows, worldOrderColors, lookedPixels, smartBodyTextureUrl } from './eotbSprite.js';
 import { decodePng } from '../../systems/textureReplacement.js';   // EOTB-FLIP: the one PNG decoder the world's other PNG billboards take
 import { horseLookCode, horseLookOfCode, lookSuffix } from '../../systems/horse/horseCoats.js';   // COATS1: the ridden horse's look
 import { getMeleeWeaponAnimTime } from '../../characters/weaponStates.js';   // [IL] GetMeleeAnimTickTime reads FormulaHelper's own
@@ -381,7 +381,7 @@ export function createEotbBody({ count = spriteCount, urlFor = eotbSpriteUrl, de
   async function loadSmartBodyPixels() {
     if (smartBodyPixels) return smartBodyPixels;
     if (!smartBodyPixelsPending) {
-      smartBodyPixelsPending = decode('/vendor/smart-paperdoll/Textures/body/BODY17I0.IMG.png')
+      smartBodyPixelsPending = decode(smartBodyTextureUrl('BODY17I0.IMG.png'))
         .then((pixels) => {
           if (!pixels || pixels.length !== 53 * 110) return null;
           smartBodyPixels = pixels;
