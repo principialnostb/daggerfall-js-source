@@ -224,3 +224,82 @@ export function transferSkin(garment, sources, ctx) {
   });
   return out;
 }
+
+
+/**
+ * MW-BB-FIT1: conservative, non-destructive clearance pass for a garment before
+ * skin transfer. It changes only the garment's private position buffer; source
+ * body batches, UVs, topology and NIF bytes are never mutated.
+ *
+ * This first pass is intentionally limited to vertices close to the body
+ * surface. Vertex normals are reconstructed from the posed source triangles
+ * and oriented away from each source section's centroid. It is a heuristic,
+ * not a substitute for triangle/BVH signed-distance fitting; callers should
+ * enable it only for garments already configured with skinFrom/fitTo.
+ */
+export function fitGarmentClearance(garment, sources, ctx, {
+  clearance = 0.35, maxDistance = 2.0, maxPush = 1.5,
+} = {}) {
+  if (!garment?.positions?.length || !sources?.length) return garment;
+  const surfaces = [];
+  for (const batch of sources) {
+    if (!batch?.positions?.length || !batch?.indices?.length) continue;
+    const posed = new Float32Array(batch.positions.length);
+    ctx.skinBatch(batch, ctx.skeleton, ctx.pose, ctx.mats, posed, null);
+    const normals = new Float32Array(posed.length);
+    const count = posed.length / 3;
+    let cx = 0, cy = 0, cz = 0;
+    for (let i = 0; i < count; i++) { cx += posed[i * 3]; cy += posed[i * 3 + 1]; cz += posed[i * 3 + 2]; }
+    if (!count) continue;
+    cx /= count; cy /= count; cz /= count;
+    const I = batch.indices;
+    for (let t = 0; t + 2 < I.length; t += 3) {
+      const ia = I[t] * 3, ib = I[t + 1] * 3, ic = I[t + 2] * 3;
+      if (ic + 2 >= posed.length || ib + 2 >= posed.length || ia + 2 >= posed.length) continue;
+      const ax = posed[ib] - posed[ia], ay = posed[ib + 1] - posed[ia + 1], az = posed[ib + 2] - posed[ia + 2];
+      const bx = posed[ic] - posed[ia], by = posed[ic + 1] - posed[ia + 1], bz = posed[ic + 2] - posed[ia + 2];
+      let nx = ay * bz - az * by, ny = az * bx - ax * bz, nz = ax * by - ay * bx;
+      const len = Math.hypot(nx, ny, nz);
+      if (len < 1e-10) continue;
+      nx /= len; ny /= len; nz /= len;
+      const mx = (posed[ia] + posed[ib] + posed[ic]) / 3 - cx;
+      const my = (posed[ia + 1] + posed[ib + 1] + posed[ic + 1]) / 3 - cy;
+      const mz = (posed[ia + 2] + posed[ib + 2] + posed[ic + 2]) / 3 - cz;
+      if (nx * mx + ny * my + nz * mz < 0) { nx = -nx; ny = -ny; nz = -nz; }
+      for (const j of [ia, ib, ic]) { normals[j] += nx; normals[j + 1] += ny; normals[j + 2] += nz; }
+    }
+    for (let i = 0; i < normals.length; i += 3) {
+      const len = Math.hypot(normals[i], normals[i + 1], normals[i + 2]);
+      if (len > 1e-10) { normals[i] /= len; normals[i + 1] /= len; normals[i + 2] /= len; }
+    }
+    surfaces.push({ posed, normals, count });
+  }
+  if (!surfaces.length) return garment;
+  const positions = Float32Array.from(garment.positions);
+  let adjusted = 0;
+  for (let v = 0; v + 2 < positions.length; v += 3) {
+    const x = positions[v], y = positions[v + 1], z = positions[v + 2];
+    let best = null, bestD2 = maxDistance * maxDistance;
+    for (const s of surfaces) {
+      for (let j = 0; j < s.count; j++) {
+        const k = j * 3;
+        const nx = s.normals[k], ny = s.normals[k + 1], nz = s.normals[k + 2];
+        if (Math.hypot(nx, ny, nz) < 0.5) continue;
+        const dx = x - s.posed[k], dy = y - s.posed[k + 1], dz = z - s.posed[k + 2];
+        const d2 = dx * dx + dy * dy + dz * dz;
+        if (d2 < bestD2) { bestD2 = d2; best = { k, nx, ny, nz, dx, dy, dz }; }
+      }
+    }
+    if (!best) continue;
+    const signed = best.dx * best.nx + best.dy * best.ny + best.dz * best.nz;
+    if (signed >= clearance) continue;
+    // Do not pull a vertex across the body surface: only move along the
+    // outward normal, with a hard cap so a bad local normal cannot explode.
+    const push = Math.min(maxPush, clearance - signed);
+    positions[v] += best.nx * push;
+    positions[v + 1] += best.ny * push;
+    positions[v + 2] += best.nz * push;
+    adjusted++;
+  }
+  return adjusted ? { ...garment, positions, clearanceFit: { adjusted, clearance } } : garment;
+}
