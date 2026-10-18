@@ -1,3 +1,4 @@
+import { getBodyMorphs } from '../../characters/bodyMorphs.js';
 // MW-D: THE DIAGNOSTIC, and it deliberately draws nothing.
 //
 // The Morrowind import arc was reverted whole on 2026-08-28 after three
@@ -2765,14 +2766,42 @@ export function poseAssembly(assembly, { tracks = null, sampleTrack = null,
   // Work in the sampled pose (not source vertices), so CPU and GPU skinning use the same shape
   // and animation continues to drive the bones normally. Only known body landmarks are touched.
   if (bodyProportions) {
+    const morph = typeof bodyProportions === 'object' ? bodyProportions : getBodyMorphs();
+    const amount = (key) => Math.max(-1, Math.min(1, Number(morph[key]) || 0));
+    const scaled = (name, key, strength) => {
+      const v = amount(key);
+      return v === 0 ? 1 : 1 + v * strength;
+    };
     for (const [ref, node] of skeleton.nodes) {
       const name = String(node.name || '').toLowerCase().replace(/[^a-z0-9]/g, '');
       let factor = 1;
-      if (name.endsWith('pelvis') || name === 'pelvis') factor = 1.08;
-      else if (name.includes('spine1') || name.endsWith('chest')) factor = 1.06;
-      else if (name.includes('clavicle')) factor = 1.035;
-      else if (name.includes('thigh')) factor = 1.045;
-      else if (name.includes('upperarm')) factor = 0.97;
+      if (name.includes('pelvis') || name.endsWith('hip')) {
+        factor *= scaled(name, 'pelvisWidth', 0.12);
+        factor *= scaled(name, 'buttockVolume', 0.06);
+        factor *= scaled(name, 'buttockProjection', 0.04);
+      }
+      if (name.includes('spine') || name.includes('chest')) {
+        factor *= scaled(name, 'ribcageWidth', 0.08);
+        factor *= scaled(name, 'bustVolume', 0.035);
+        factor *= scaled(name, 'bodyWidth', 0.08);
+        factor *= scaled(name, 'waistWidth', -0.035);
+        factor *= scaled(name, 'bellyVolume', 0.025);
+        factor *= scaled(name, 'fullness', 0.04);
+      }
+      if (name.includes('clavicle') || name.includes('shoulder')) factor *= scaled(name, 'shoulderWidth', 0.10);
+      if (name.includes('upperarm') || name.includes('forearm') || name.includes('wrist')) {
+        factor *= scaled(name, 'armThickness', 0.10);
+        factor *= scaled(name, 'armLength', 0.04);
+      }
+      if (name.includes('thigh')) {
+        factor *= scaled(name, 'thighThickness', 0.10);
+        factor *= scaled(name, 'legLength', 0.035);
+      }
+      if (name.includes('calf') || name.includes('shin') || name.includes('ankle')) {
+        factor *= scaled(name, 'calfThickness', 0.10);
+        factor *= scaled(name, 'legLength', 0.035);
+      }
+      if (name.includes('neck') || name.includes('head')) factor *= scaled(name, 'height', 0.015);
       if (factor !== 1) {
         const current = pose.get(ref);
         if (current) {
