@@ -1979,13 +1979,17 @@ export function resolveWeaponParts({ weapon, hasAmmo = false, allWeapons, find, 
  *  hides the very chest it copies; hidden is not drawn, and the skin is still the body's). Nothing for a retail add,
  *  nor for a model the port ships skinned (the steel plate, MW-STEEL4). */
 export function ownBodyPaths(add, rows) {
-  return (add.skinFrom ?? []).flatMap((slot) => rows
+  const slots = add.fitBodySlots ?? add.skinFrom ?? [];
+  return slots.flatMap((slot) => rows
     .filter((r) => r.record && r.slot === slot).map((r) => ({ slot, path: `meshes/${r.record.model}` })));
 }
 
-/** ...and what the binder takes beside the add's own mesh: those bodies' bytes out of the loaded archives, and the part
- *  it is fitted onto (MW-BRIG3 `fitTo`). Nothing at all for an add that is not skinned from the body. */
+/** Resolve the wearer's body NIFs once. Geometry fitting keeps the garment's own renderer/material path;
+ *  the legacy skinFrom path remains available for existing armor that explicitly opts into it. */
 export function ownBodyPart(add, rows, find) {
+  if (add.fitBodySlots) return {
+    fitSources: ownBodyPaths(add, rows).map((b) => ({ slot: b.slot, bytes: nifBytes(find(b.path), b.path) })).filter((b) => b.bytes),
+  };
   if (!add.skinFrom) return {};
   return {
     skinFrom: ownBodyPaths(add, rows).map((b) => ({ slot: b.slot, bytes: nifBytes(find(b.path), b.path) })).filter((b) => b.bytes),
