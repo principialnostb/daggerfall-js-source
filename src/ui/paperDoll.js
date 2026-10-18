@@ -552,7 +552,7 @@ async function loadOverrideArt(file, record, deps, palette) {
  * while the inventory shows the player's own, untouched.
  * `background` false leaves the panel clear (a peer's billboard).
  */
-async function composeDoll(art, deps, entity, { background = true, scale: S = 1 } = {}) {
+async function composeDoll(art, deps, entity, { background = true, scale: S = 1, bareBody = false } = {}) {
   const OW = PAPERDOLL_W * S, OH = PAPERDOLL_H * S;   // DFMOD4: the composite, S texels per doll pixel
   const out = new Uint8Array(OW * OH * 4);
   const layout = [];
@@ -586,7 +586,7 @@ async function composeDoll(art, deps, entity, { background = true, scale: S = 1 
   const worn = table.filter(Boolean).map((it) => ({ it, t: getTemplate(it.templateIndex) })).filter((w) => w.t);
   // cloak interiors first (BlitCloakInterior: cloak2 then cloak1,
   // the template's own record = the interior image)
-  for (const slot of suppress ? [] : [EQUIP_SLOTS.Cloak2, EQUIP_SLOTS.Cloak1]) {
+  for (const slot of (suppress || bareBody) ? [] : [EQUIP_SLOTS.Cloak2, EQUIP_SLOTS.Cloak1]) {
     const it = table[slot];
     if (!it || !CLOAK_TEMPLATES.has(it.templateIndex)) continue;
     const t = getTemplate(it.templateIndex);
@@ -614,7 +614,7 @@ async function composeDoll(art, deps, entity, { background = true, scale: S = 1 
     // way, and the two slot tests only decide whether a weld would
     // show around real clothes. The setting ships False, which is
     // why the port drawing the welds unconditionally looked right.
-    if (!getBool('ChildGuard', 'PlayerNudity')) {
+    if (!bareBody && !getBool('ChildGuard', 'PlayerNudity')) {
       if (!table[EQUIP_SLOTS.ChestClothes] && !table[EQUIP_SLOTS.ChestArmor]) blit(out, art.clothed, art.palette, { rows: [0, split], S });
       if (!table[EQUIP_SLOTS.LegsClothes]) blit(out, art.clothed, art.palette, { rows: [split, art.clothed.bmp.height], S });
     }
@@ -624,7 +624,7 @@ async function composeDoll(art, deps, entity, { background = true, scale: S = 1 
     blit(out, headArt ?? art.head, art.palette, { S });
   }
   // items ascending drawOrder (BlitItems)
-  const ordered = suppress ? [] : paperdollOrder(worn.map((w) => ({ ...w.it, drawOrder: w.t.drawOrderOrEffect })));
+  const ordered = (suppress || bareBody) ? [] : paperdollOrder(worn.map((w) => ({ ...w.it, drawOrder: w.t.drawOrderOrEffect })));
   for (const it of ordered) {
     const res = paperdollItemImage(it, { gender: deps.gender, race: deps.race });
     if (!res) continue;
@@ -678,7 +678,7 @@ export async function refreshPaperDoll(entity) {
     // The transparent copy is rebuilt only on a paperdoll refresh, never in the frame loop.
     let figureOut = null;
     try {
-      figureOut = (await composeDoll(_art, _deps, entity, { background: false, scale: composeScale() })).out;
+      figureOut = (await composeDoll(_art, _deps, entity, { background: false, scale: composeScale(), bareBody: true })).out;
       _figureComposeError = figureOut ? null : 'transparent compositor returned no pixel buffer';
       _lastFigureComposeWarning = null;
     } catch (error) {
