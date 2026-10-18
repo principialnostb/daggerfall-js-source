@@ -181,6 +181,7 @@ export function paperdollItemImage(item, { gender = 'male', race = 'Breton' } = 
 let _art = null;      // indexed bitmaps + palette
 let _live = null;     // { tex } - the current composite
 let _pixels = null;   // U59: the same composite as RGBA, for the DOM
+let _figurePixels = null;   // SMART-PAPERDOLL: same item/body layers, with the backdrop left transparent
 /** DFMOD1-E (Enhanced Plus: "the paperdoll doesn't get the texture update") - WHICH ATTACHED-MOD SET THE COMPOSITE
  *  WAS MADE FROM. The art set (backdrop, body, head) was loaded once at the host's boot, which runs BEFORE the
  *  mods' registration lands, and nothing asked again unless the identity drifted: the doll kept the classic art for
@@ -338,6 +339,7 @@ export async function preloadPaperDollArt(deps, ident = {}) {
     if (_live) { deps.renderer?.releaseTexture?.('img', _live.key); }
     _live = null;   // the composite is stale: recompose on the next draw
     _pixels = null;   // U59: and the DOM's copy of it, or a Khajiit draws the Breton doll
+    _figurePixels = null;   // SMART-PAPERDOLL: never keep the prior identity's silhouette
     _layout = [];   // and its click mask with it
   } catch { console.warn('[paperdoll] BODY/FACE/SCBG art unavailable; the panel stays bare'); }
 }
@@ -643,6 +645,10 @@ export async function refreshPaperDoll(entity) {
     const bgName = overrideName && await loadOverrideArt(overrideName, 0, _deps, _art.palette) ? overrideName : _art.bg.name;   // composeDoll's own choice (an override that did not load falls to the racial art)
     const packBg = bgName ? await packImgTexture(_deps.renderer, bgName) : null;
     const { out, layout, bgSize, width: OW, height: OH } = await composeDoll(_art, _deps, entity, { background: !packBg, scale: composeScale() });   // DFMOD4: 4x with a texture mod
+    // SMART-PAPERDOLL: the figure needs the same live layers but not SCBG/pack backdrop.
+    // The transparent copy is rebuilt only on a paperdoll refresh, never in the frame loop.
+    let figureOut = null;
+    try { figureOut = (await composeDoll(_art, _deps, entity, { background: false, scale: composeScale() })).out; } catch { /* retain the classic body if the silhouette cannot be composed */ }
     const key = `paperdoll_v${++_version}`;
     const prevKey = _live?.key ?? null;
     // U59: the composite is KEPT, not just uploaded. `out` is already
@@ -652,6 +658,7 @@ export async function refreshPaperDoll(entity) {
     // draw the same avatar the classic window draws, without a second
     // compositor reading the same laws again.
     _pixels = { width: OW, height: OH, rgba: out, version: _version, density: OW / PAPERDOLL_W };   // DFMOD4: texels per doll pixel
+    _figurePixels = figureOut ? { width: OW, height: OH, rgba: figureOut, version: _version, density: OW / PAPERDOLL_W } : null;   // SMART-PAPERDOLL
     _composedGen = gen;   // DFMOD1-E
     _live = { key, tex: _deps.renderer.uploadTexture('img', key, { width: OW, height: OH, colors: new Uint32Array(out.buffer) }), packBg: packBg ? { tex: packBg, w: bgSize[0], h: bgSize[1] } : null };
     // AUDIT 17e F27 / EVERY ALLOCATION HAS AN OWNER: each refresh mints
@@ -763,6 +770,8 @@ export function slotAtPaperDoll(px, py) {
  * shows without one.
  */
 export const paperDollPixels = () => _pixels;
+/** SMART-PAPERDOLL: the current figure layers with the backdrop omitted and alpha preserved. */
+export const paperDollFigurePixels = () => _figurePixels;
 
 
 /**
@@ -800,4 +809,5 @@ export const _debugPaperDoll = () => ({ live: !!_live, layers: _layout.map((l) =
  *  against real records in paperdoll.test.js under ARENA2_PATH. */
 export function _setPaperDollPixelsForTests(rgba, w = PAPERDOLL_W, h = PAPERDOLL_H) {
   _pixels = rgba ? { width: w, height: h, rgba, version: ++_version } : null;
+  _figurePixels = _pixels;   // synthetic fixtures stand for the already-transparent figure
 }
