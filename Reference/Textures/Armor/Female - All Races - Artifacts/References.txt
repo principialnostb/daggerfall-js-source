@@ -1,0 +1,19 @@
+These should work with both vanilla paperdolls and Paperdoll Enhanced.
+
+Redrawn Artifacts
+9 = Lord's Mail
+12 = Mask of Clavicus
+15 = Necromancer's Amulet (and the Locator device thing with the Archaelogists' Guild if installed)
+18 = Ring of Namira
+17 = Ring of Khajiit
+22 = Spell Breaker
+23 = Staff of Magnus
+0 = Auriel's Bow
+1 = Auriel's Shield
+2 - Azura's Star
+3 - Chrysamere
+4 = Chrysamere
+24 = Volendrung
+26 = Warlock's Ring
+
+

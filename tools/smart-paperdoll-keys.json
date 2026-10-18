@@ -1,0 +1,372 @@
+[
+  {
+    "key": "112364_0-0",
+    "width": 53,
+    "height": 110,
+    "orientation": 0,
+    "mirror": false,
+    "archive": 112364,
+    "record": 0,
+    "frame": 0,
+    "source": "vendor/eye-of-the-beholder/Textures/112364/112364_0-0.png",
+    "contexts": [
+      {
+        "table": "Idle",
+        "animationFrame": 0,
+        "orientation": 0,
+        "mirror": false
+      }
+    ]
+  },
+  {
+    "key": "112364_5-1",
+    "width": 60,
+    "height": 113,
+    "orientation": 0,
+    "mirror": false,
+    "archive": 112364,
+    "record": 5,
+    "frame": 1,
+    "source": "vendor/eye-of-the-beholder/Textures/112364/112364_5-1.png",
+    "contexts": [
+      {
+        "table": "Move",
+        "animationFrame": 1,
+        "orientation": 0,
+        "mirror": false
+      }
+    ]
+  },
+  {
+    "key": "112364_5-3",
+    "width": 60,
+    "height": 113,
+    "orientation": 0,
+    "mirror": false,
+    "archive": 112364,
+    "record": 5,
+    "frame": 3,
+    "source": "vendor/eye-of-the-beholder/Textures/112364/112364_5-3.png",
+    "contexts": [
+      {
+        "table": "Move",
+        "animationFrame": 3,
+        "orientation": 0,
+        "mirror": false
+      }
+    ]
+  },
+  {
+    "key": "112364_10-1",
+    "width": 108,
+    "height": 135,
+    "orientation": 0,
+    "mirror": false,
+    "archive": 112364,
+    "record": 10,
+    "frame": 1,
+    "source": "vendor/eye-of-the-beholder/Textures/112364/112364_10-1.png",
+    "contexts": [
+      {
+        "table": "Death",
+        "animationFrame": 1,
+        "orientation": 0,
+        "mirror": false
+      }
+    ]
+  },
+  {
+    "key": "112364_21-0",
+    "width": 122,
+    "height": 120,
+    "orientation": 1,
+    "mirror": true,
+    "archive": 112364,
+    "record": 21,
+    "frame": 0,
+    "source": "vendor/eye-of-the-beholder/Textures/112364/112364_21-0.png",
+    "contexts": [
+      {
+        "table": "MoveMelee",
+        "animationFrame": 0,
+        "orientation": 1,
+        "mirror": true
+      },
+      {
+        "table": "MoveMelee",
+        "animationFrame": 0,
+        "orientation": 7,
+        "mirror": false
+      }
+    ]
+  },
+  {
+    "key": "112364_26-0",
+    "width": 122,
+    "height": 120,
+    "orientation": 1,
+    "mirror": true,
+    "archive": 112364,
+    "record": 26,
+    "frame": 0,
+    "source": "vendor/eye-of-the-beholder/Textures/112364/112364_26-0.png",
+    "contexts": [
+      {
+        "table": "AttackMelee",
+        "animationFrame": 0,
+        "orientation": 1,
+        "mirror": true
+      },
+      {
+        "table": "AttackMelee",
+        "animationFrame": 0,
+        "orientation": 7,
+        "mirror": false
+      }
+    ]
+  },
+  {
+    "key": "112364_26-2",
+    "width": 122,
+    "height": 120,
+    "orientation": 1,
+    "mirror": true,
+    "archive": 112364,
+    "record": 26,
+    "frame": 2,
+    "source": "vendor/eye-of-the-beholder/Textures/112364/112364_26-2.png",
+    "contexts": [
+      {
+        "table": "AttackMelee",
+        "animationFrame": 2,
+        "orientation": 1,
+        "mirror": true
+      },
+      {
+        "table": "AttackMelee",
+        "animationFrame": 2,
+        "orientation": 7,
+        "mirror": false
+      }
+    ]
+  },
+  {
+    "key": "112364_26-4",
+    "width": 122,
+    "height": 120,
+    "orientation": 1,
+    "mirror": true,
+    "archive": 112364,
+    "record": 26,
+    "frame": 4,
+    "source": "vendor/eye-of-the-beholder/Textures/112364/112364_26-4.png",
+    "contexts": [
+      {
+        "table": "AttackMelee",
+        "animationFrame": 4,
+        "orientation": 1,
+        "mirror": true
+      },
+      {
+        "table": "AttackMelee",
+        "animationFrame": 4,
+        "orientation": 7,
+        "mirror": false
+      }
+    ]
+  },
+  {
+    "key": "112364_32-0",
+    "width": 91,
+    "height": 133,
+    "orientation": 2,
+    "mirror": true,
+    "archive": 112364,
+    "record": 32,
+    "frame": 0,
+    "source": "vendor/eye-of-the-beholder/Textures/112364/112364_32-0.png",
+    "contexts": [
+      {
+        "table": "IdleRanged",
+        "animationFrame": 0,
+        "orientation": 2,
+        "mirror": true
+      },
+      {
+        "table": "IdleRanged",
+        "animationFrame": 0,
+        "orientation": 6,
+        "mirror": false
+      }
+    ]
+  },
+  {
+    "key": "112364_37-1",
+    "width": 91,
+    "height": 133,
+    "orientation": 2,
+    "mirror": true,
+    "archive": 112364,
+    "record": 37,
+    "frame": 1,
+    "source": "vendor/eye-of-the-beholder/Textures/112364/112364_37-1.png",
+    "contexts": [
+      {
+        "table": "MoveRanged",
+        "animationFrame": 1,
+        "orientation": 2,
+        "mirror": true
+      },
+      {
+        "table": "MoveRanged",
+        "animationFrame": 1,
+        "orientation": 6,
+        "mirror": false
+      }
+    ]
+  },
+  {
+    "key": "112364_42-1",
+    "width": 91,
+    "height": 133,
+    "orientation": 2,
+    "mirror": true,
+    "archive": 112364,
+    "record": 42,
+    "frame": 1,
+    "source": "vendor/eye-of-the-beholder/Textures/112364/112364_42-1.png",
+    "contexts": [
+      {
+        "table": "AttackRanged",
+        "animationFrame": 1,
+        "orientation": 2,
+        "mirror": true
+      },
+      {
+        "table": "AttackRanged",
+        "animationFrame": 1,
+        "orientation": 6,
+        "mirror": false
+      }
+    ]
+  },
+  {
+    "key": "112364_42-3",
+    "width": 91,
+    "height": 133,
+    "orientation": 2,
+    "mirror": true,
+    "archive": 112364,
+    "record": 42,
+    "frame": 3,
+    "source": "vendor/eye-of-the-beholder/Textures/112364/112364_42-3.png",
+    "contexts": [
+      {
+        "table": "AttackRanged",
+        "animationFrame": 3,
+        "orientation": 2,
+        "mirror": true
+      },
+      {
+        "table": "AttackRanged",
+        "animationFrame": 3,
+        "orientation": 6,
+        "mirror": false
+      }
+    ]
+  },
+  {
+    "key": "112364_48-1",
+    "width": 113,
+    "height": 134,
+    "orientation": 3,
+    "mirror": true,
+    "archive": 112364,
+    "record": 48,
+    "frame": 1,
+    "source": "vendor/eye-of-the-beholder/Textures/112364/112364_48-1.png",
+    "contexts": [
+      {
+        "table": "IdleSpell",
+        "animationFrame": 1,
+        "orientation": 3,
+        "mirror": true
+      },
+      {
+        "table": "IdleSpell",
+        "animationFrame": 1,
+        "orientation": 5,
+        "mirror": false
+      }
+    ]
+  },
+  {
+    "key": "112364_53-1",
+    "width": 113,
+    "height": 134,
+    "orientation": 3,
+    "mirror": true,
+    "archive": 112364,
+    "record": 53,
+    "frame": 1,
+    "source": "vendor/eye-of-the-beholder/Textures/112364/112364_53-1.png",
+    "contexts": [
+      {
+        "table": "MoveSpell",
+        "animationFrame": 1,
+        "orientation": 3,
+        "mirror": true
+      },
+      {
+        "table": "MoveSpell",
+        "animationFrame": 1,
+        "orientation": 5,
+        "mirror": false
+      }
+    ]
+  },
+  {
+    "key": "112364_58-1",
+    "width": 113,
+    "height": 134,
+    "orientation": 3,
+    "mirror": true,
+    "archive": 112364,
+    "record": 58,
+    "frame": 1,
+    "source": "vendor/eye-of-the-beholder/Textures/112364/112364_58-1.png",
+    "contexts": [
+      {
+        "table": "AttackSpell",
+        "animationFrame": 1,
+        "orientation": 3,
+        "mirror": true
+      },
+      {
+        "table": "AttackSpell",
+        "animationFrame": 1,
+        "orientation": 5,
+        "mirror": false
+      }
+    ]
+  },
+  {
+    "key": "112364_59-3",
+    "width": 102,
+    "height": 132,
+    "orientation": 4,
+    "mirror": false,
+    "archive": 112364,
+    "record": 59,
+    "frame": 3,
+    "source": "vendor/eye-of-the-beholder/Textures/112364/112364_59-3.png",
+    "contexts": [
+      {
+        "table": "AttackSpell",
+        "animationFrame": 3,
+        "orientation": 4,
+        "mirror": false
+      }
+    ]
+  }
+]
