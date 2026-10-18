@@ -2789,7 +2789,7 @@ export function poseAssembly(assembly, { tracks = null, sampleTrack = null,
         pose.set(ref, { ...current, scale: scale * factor });
       }
       // Translation-based leg spacing is only applied to paired, explicitly named leg bones.
-      if (current && amount('legGap') !== 0 && (name.includes('thigh') || name.includes('calf') || name.includes('shin'))) {
+      if (current && amount('legGap') !== 0 && name.includes('thigh')) {
         const left = /(^|[^a-z])left([^a-z]|$)/.test(rawName) || /l(thigh|calf|shin)$/.test(name);
         const right = /(^|[^a-z])right([^a-z]|$)/.test(rawName) || /r(thigh|calf|shin)$/.test(name);
         if (left || right) {
