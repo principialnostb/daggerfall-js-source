@@ -182,6 +182,8 @@ let _art = null;      // indexed bitmaps + palette
 let _live = null;     // { tex } - the current composite
 let _pixels = null;   // U59: the same composite as RGBA, for the DOM
 let _figurePixels = null;   // SMART-PAPERDOLL: same item/body layers, with the backdrop left transparent
+let _lastEntity = null;   // SMART-PAPERDOLL: the player's latest entity, for a first world-view compose
+let _smartRefreshRequestedEntity = null;   // avoid starting the same missing-composite refresh every frame
 /** DFMOD1-E (Enhanced Plus: "the paperdoll doesn't get the texture update") - WHICH ATTACHED-MOD SET THE COMPOSITE
  *  WAS MADE FROM. The art set (backdrop, body, head) was loaded once at the host's boot, which runs BEFORE the
  *  mods' registration lands, and nothing asked again unless the identity drifted: the doll kept the classic art for
@@ -346,11 +348,27 @@ export async function preloadPaperDollArt(deps, ident = {}) {
 
 /** Load the art for whatever identity the entity currently carries
  *  (chargen writes race/gender/faceIndex onto it). */
-export const preloadPaperDollForEntity = (deps, entity, context = 'town') =>
-  preloadPaperDollArt(deps, {
+export const preloadPaperDollForEntity = (deps, entity, context = 'town') => {
+  if (entity && entity !== _lastEntity) _smartRefreshRequestedEntity = null;
+  if (entity) _lastEntity = entity;
+  return preloadPaperDollArt(deps, {
     race: entity?.race ?? 'Breton', gender: entity?.gender ?? 'male',
     faceIndex: entity?.faceIndex ?? 0, context,
   });
+};
+
+/** SMART-PAPERDOLL: the world view may be the first consumer of the figure composite.
+ * Ask the existing compositor to build it from the latest player entity instead of
+ * permanently falling back to Eye of the Beholder's selected sprite preset. */
+export function requestPaperDollFigureRefresh() {
+  if (_figurePixels || !_art || !_deps || !_lastEntity) return false;
+  if (_smartRefreshRequestedEntity === _lastEntity) return false;
+  _smartRefreshRequestedEntity = _lastEntity;
+  void refreshPaperDoll(_lastEntity).catch(() => {
+    if (_smartRefreshRequestedEntity === _lastEntity) _smartRefreshRequestedEntity = null;
+  });
+  return true;
+}
 export const paperDollArtLoaded = () => !!_art;
 
 /** Blit an indexed bitmap into the 110x184 RGBA composite at its
@@ -616,6 +634,8 @@ async function composeDoll(art, deps, entity, { background = true, scale: S = 1 
 }
 
 export async function refreshPaperDoll(entity) {
+  if (entity && entity !== _lastEntity) _smartRefreshRequestedEntity = null;
+  if (entity) _lastEntity = entity;
   if (!_art || !_deps) return;
   // AUDIT 17e F16 / ASYNC NEVER DROPS: this guard used to DISCARD a
   // refresh requested while one was in flight, so an equip landing
