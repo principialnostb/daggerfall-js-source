@@ -39,6 +39,11 @@ const URLS = IN_BROWSER
     ...import.meta.glob('../../../vendor/class-skins/Textures/*/*.png', { eager: true, query: '?url', import: 'default' }),
   }
   : {};
+const SMART_BODY_URLS = IN_BROWSER
+  ? import.meta.glob('../../../vendor/smart-paperdoll/Textures/body/*.png', { eager: true, query: '?url', import: 'default' })
+  : {};
+const SMART_BODY_BY_NAME = Object.fromEntries(Object.entries(SMART_BODY_URLS).map(([p, u]) => [p.split('/').pop(), u]));
+export const smartBodyTextureUrl = (name) => SMART_BODY_BY_NAME[name] ?? null;
 
 /** `<archive>_<record>-<frame>` -> the built asset's URL. */
 const BY_KEY = Object.fromEntries(
