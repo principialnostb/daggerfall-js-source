@@ -61,7 +61,7 @@ The Morrowind Mesh Viewer now has a persisted `female walk: Standard/Female` sel
 - Otherwise use the standard source (male actors, idle, run, combat, and missing female groups).
 - The setting does not modify meshes, textures, body proportions, or skeleton geometry.
 
-This is a working **viewer-level diagnostic selector**, not yet a claim that the gameplay actor controller has been wired to the preference. The reviewed code paths do not establish a connected third-person gameplay animation loop or the requested mouse-turn state gate. Those gameplay changes must be integrated at the actual controller/renderer seam rather than faked in this viewer.
+This paragraph records the initial diagnostic-only stage. It is superseded by the MW-ANIM-1 gameplay integration below, which connects the setting to the third-person movement resolver.
 
 
 ## Implementation update — independent third-person body facing (MW-D40)

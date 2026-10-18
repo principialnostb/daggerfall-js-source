@@ -34,7 +34,7 @@ async function bytes(entry) {
  * the female-only gait override. Callers must filter these sources to walk
  * groups so a full .kf can never silently replace idle/run/combat clips.
  */
-export async function loadWalkAnimationAssets({ female = false, femaleWalk = false } = {}) {
+export async function loadWalkAnimationAssets({ female = false } = {}) {
   if (!IN_BROWSER) return [];
   const standard = female ? standardFemale : standardMale;
   const selected = [];
