@@ -16,7 +16,7 @@
 // the character rig is imported outside Vite.
 const betterBodiesFemaleNifUrl = new URL('../../../Morrowind Textures/Better Bodies/Nude/Data Files/Meshes/bb/bb_skinf_no.nif', import.meta.url).href;
 const betterBodiesFemaleTextureUrl = new URL('../../../Morrowind Textures/Better Bodies/Nude/Data Files/Textures/bb/bb_skinf_no.dds', import.meta.url).href;
-const betterBodiesFemaleUvEditsUrl = new URL('../../../bb_skinf_no-uv-edits.json', import.meta.url).href;
+import betterBodiesFemaleUvEdits from '../../../bb_skinf_no-uv-edits.json' with { type: 'json' };
 import { parseNif, deref } from './mwNifFile.js';
 import { flattenNif } from './mwNifMesh.js';
 import { buildSkeleton } from './mwSkin.js';
@@ -131,9 +131,8 @@ let uvEditsPromise = null;
  */
 export async function loadBetterBodiesFemaleUvEdits() {
   if (!uvEditsPromise) {
-    uvEditsPromise = fetch(betterBodiesFemaleUvEditsUrl).then(async (response) => {
-      if (!response.ok) throw new Error('Better Bodies UV edits failed to load: HTTP ' + response.status);
-      const payload = await response.json();
+    uvEditsPromise = Promise.resolve().then(() => {
+      const payload = betterBodiesFemaleUvEdits;
       if (payload?.format !== 'better-bodies-nif-uv-edits-v1' || !Array.isArray(payload.edits)) {
         throw new Error('Better Bodies UV edits have an unsupported format.');
       }
