@@ -31,8 +31,10 @@
   <h1>Better Bodies — texture atlas editor</h1>
   <div class="toolbar">
     <button id="undo" disabled>Undo (Ctrl+Z)</button>
+    <button id="brush" disabled>Brush: off</button>
+    <label>Brush size <input id="brushSize" type="number" min="1" max="32" step="1" value="3" style="width:64px"></label>
     <button id="clear" class="danger" disabled>Clear selected pixels (transparent)</button>
-    <label>Paint color <input id="paintColor" type="color" value="#c58d75"></label>
+    <label>Paint color <input id="paintColor" type="color" value="#9d554d"></label>
     <button id="fill" disabled>Fill selected area with color</button>
     <button id="cancel" disabled>Cancel selection (Esc)</button>
     <button id="png" disabled>Export edited PNG</button>
@@ -40,8 +42,7 @@
     <button id="reset" disabled>Reload original</button>
   </div>
   <div class="hint">
-    Drag on an empty area to select a rectangular patch. Drag inside the selected patch to move it.
-    Clear removes the selected pixels (transparent). Ctrl+Z undoes an operation. Export the PNG and JSON and commit both if you want me to integrate the result.
+    Use Brush to paint directly onto the texture atlas (small brush for details such as nipple color); turn it off to use rectangular selection/move. Ctrl+Z undoes strokes and other operations. Export PNG and JSON to preserve the edits.
   </div>
 </header>
 <main>
@@ -55,8 +56,10 @@ import { decodeDds } from './src/formats/morrowind/mwDdsFile.js';
 const canvas = document.getElementById('atlas');
 const ctx = canvas.getContext('2d', { willReadFrequently: true });
 const status = document.getElementById('status');
-const buttons = Object.fromEntries(['undo','clear','fill','cancel','png','json','reset'].map(id => [id, document.getElementById(id)]));
+const buttons = Object.fromEntries(['undo','brush','clear','fill','cancel','png','json','reset'].map(id => [id, document.getElementById(id)]));
 const paintColor = document.getElementById('paintColor');
+const brushSizeInput = document.getElementById('brushSize');
+let brushEnabled = false;
 let original = null;
 let current = null;
 let selection = null;
@@ -67,7 +70,10 @@ let serial = 0;
 
 function enable() {
   buttons.undo.disabled = history.length === 0;
-  buttons.clear.disabled = !selection;
+  buttons.brush.disabled = !original;
+  buttons.brush.textContent = 'Brush: ' + (brushEnabled ? 'on' : 'off');
+  buttons.brush.style.borderColor = brushEnabled ? '#55d6a8' : '';
+  buttons.clear.disabled = !selection || brushEnabled;
   buttons.fill.disabled = !selection;
   buttons.cancel.disabled = !selection;
   buttons.png.disabled = !original;
@@ -123,10 +129,42 @@ function selectionStart(p) {
 function normalizeRect(a,b) {
   return {x:Math.min(a.x,b.x),y:Math.min(a.y,b.y),w:Math.abs(a.x-b.x)+1,h:Math.abs(a.y-b.y)+1};
 }
+function paintDot(p) {
+  const size = Math.max(1, Math.min(32, Math.round(Number(brushSizeInput.value) || 1)));
+  const hex = paintColor.value.slice(1);
+  ctx.fillStyle = '#' + hex;
+  ctx.beginPath();
+  ctx.arc(p.x + 0.5, p.y + 0.5, size / 2, 0, Math.PI * 2);
+  ctx.fill();
+}
+function paintSegment(a, b) {
+  const size = Math.max(1, Math.min(32, Math.round(Number(brushSizeInput.value) || 1)));
+  ctx.strokeStyle = paintColor.value;
+  ctx.lineWidth = size;
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+  ctx.beginPath();
+  ctx.moveTo(a.x + 0.5, a.y + 0.5);
+  ctx.lineTo(b.x + 0.5, b.y + 0.5);
+  ctx.stroke();
+}
+buttons.brush.addEventListener('click', () => {
+  brushEnabled = !brushEnabled;
+  if (brushEnabled) { selection = null; drag = null; }
+  render(); enable();
+});
 canvas.addEventListener('pointerdown', e => {
   if (!original) return;
   const p = point(e);
   canvas.setPointerCapture(e.pointerId);
+  if (brushEnabled) {
+    saveHistory();
+    drag = {kind:'paint', previous:p, color:paintColor.value};
+    paintDot(p);
+    current = ctx.getImageData(0,0,canvas.width,canvas.height);
+    status.textContent = 'Painting atlas pixels · brush size ' + brushSizeInput.value + ' px. Ctrl+Z undoes this stroke.';
+    return;
+  }
   if (inside(p, selection)) {
     drag = {kind:'move', start:p, origin:{x:selection.x,y:selection.y}, patch:cropSelection()};
   } else {
@@ -137,6 +175,13 @@ canvas.addEventListener('pointerdown', e => {
 canvas.addEventListener('pointermove', e => {
   if (!drag) return;
   const p = point(e);
+  if (drag.kind === 'paint') {
+    paintColor.value = drag.color;
+    paintSegment(drag.previous, p);
+    drag.previous = p;
+    current = ctx.getImageData(0,0,canvas.width,canvas.height);
+    return;
+  }
   if (drag.kind === 'select') {
     selection = normalizeRect(drag.start,p);
   } else if (drag.kind === 'move') {
@@ -153,6 +198,12 @@ canvas.addEventListener('pointerup', e => {
   if (!drag) return;
   // Use the pointer-up position too; some browsers coalesce pointermove events.
   const endPoint = point(e);
+  if (drag.kind === 'paint') {
+    paintSegment(drag.previous, endPoint);
+    current = ctx.getImageData(0,0,canvas.width,canvas.height);
+    edits.push({id:++serial,action:'paint',color:drag.color,brushSize:Math.max(1,Math.min(32,Math.round(Number(brushSizeInput.value)||1))),lastPoint:endPoint});
+    drag = null; render(); enable(); return;
+  }
   if (drag.kind === 'select') selection = normalizeRect(drag.start, endPoint);
   if (drag.kind === 'move') {
     const before = drag.origin;
@@ -171,7 +222,10 @@ canvas.addEventListener('pointerup', e => {
   drag = null;
   render(); enable();
 });
-canvas.addEventListener('pointercancel', () => { drag=null; render(); });
+canvas.addEventListener('pointercancel', () => {
+  if (drag?.kind === 'paint' && current) { ctx.putImageData(current,0,0); }
+  drag=null; render(); enable();
+});
 function downloadBlob(blob, name) {
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a'); a.href=url; a.download=name; a.click();
@@ -228,7 +282,7 @@ buttons.json.addEventListener('click', () => {
     width:canvas.width,height:canvas.height,
     coordinateOrigin:'top-left; pixel units; rectangles are inclusive-size (width/height)',
     edits,
-    note:'Moves and clears are destructive pixel edits to the texture atlas, not mesh UV remaps.'
+    note:'Moves, clears, fills and brush strokes are destructive pixel edits to the texture atlas, not mesh UV remaps.'
   };
   downloadBlob(new Blob([JSON.stringify(payload,null,2)],{type:'application/json'}),'bb_skinf_no-edits.json');
 });
