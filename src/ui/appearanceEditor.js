@@ -116,7 +116,7 @@ export function openAppearanceEditor({ fpArm, onClose = () => {} } = {}) {
 
   async function buildPreviewRig() {
     if (closed || previewBuildPending || previewRig || !fpArm?.createAppearancePreviewRig) {
-      if (!fpArm?.createAppearancePreviewRig) previewError = 'Отдельная 3D-сборка недоступна для этого игрового рига.';
+      if (!fpArm?.createAppearancePreviewRig) { previewError = 'Отдельная 3D-сборка недоступна для этого игрового рига.'; drawPreview(); }
       return;
     }
     previewBuildPending = true;
