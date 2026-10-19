@@ -3,7 +3,7 @@
 // Runtime body and skin URLs are selected by the actor's race and sex from the
 // checked-in race variants. The diagnostic below remains a Nord-female probe;
 // it is not evidence that every race/sex combination has been visually validated.
-// Vite's asset glob keeps the source files addressable without embedding binary data.
+// A pinned remote asset manifest keeps the source files addressable without embedding binary data.
 const IN_BROWSER = typeof window !== 'undefined';
 import { getUnderwearEnabled } from '../../characters/bodyMorphs.js';
 import { modSetting } from '../../systems/modSettings.js';

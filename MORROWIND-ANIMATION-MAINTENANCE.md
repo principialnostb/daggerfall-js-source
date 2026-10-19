@@ -14,7 +14,7 @@ The full `Morrowind Textures/` binary directory is deliberately not stored in th
 
 | Responsibility | Implementation | Current behavior |
 |---|---|---|
-| Discover bundled walk KF files | `src/formats/morrowind/mwWalkAnimationAssets.js` | Vite `import.meta.glob` includes Simply Walking and Axel's female files only. |
+| Discover bundled walk KF files | `src/formats/morrowind/mwWalkAnimationAssets.js` + `src/systems/morrowindAssetManifest.js` | The pinned manifest resolves Simply Walking and Axel's female clips to immutable raw-file URLs; clip bytes are fetched on demand. |
 | Parse KF / bind tracks to the active skeleton | `src/combat/fpArm.js` + `src/formats/morrowind/mwAnim.js` | Replacement tracks are parsed against the current rig. A failed parse or incompatible source is skipped and the game/archive source remains available. |
 | Restrict replacement to walk groups | `isWalkAnimationGroup`, `isWalkAnimationKey` in `mwWalkAnimationAssets.js`; source filtering in `fpArm.js` | Only groups beginning with `walk` and text-key records containing a walk-group line are copied into replacement sources. Idle, run, turn, sneak, combat, jump, and death groups are not imported from these walk packs. |
 | Choose a clip while walking | `walkVariantForActor()` in `mwWalkAnimationAssets.js`, called from `src/combat/fpArm.js` | Player, male NPC, and female NPC settings are resolved independently. The preference is checked again on a walk-group change and can trigger a live re-pick. |
