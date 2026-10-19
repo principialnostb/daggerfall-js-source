@@ -188,14 +188,34 @@ export const CATEGORIES = Object.freeze([
       "GUI/LargeHUD", "GUI/LargeHUDDocked", "GUI/LargeHUDUndockedScale", "GUI/LargeHUDUndockedAlignment", "GUI/LargeHUDUndockedOffsetWeapon",
       "GUI/LargeHUDOffsetHorse"]),
   ]),
-  // ANIM-UI2: animation sources are selected independently by responsibility.
-  // Keep all player choices first, then NPC choices. Add a category only when
-  // it has a real runtime-backed selector; do not render empty placeholder groups.
+  // ANIM-UI3: stable animation taxonomy, including categories whose packs
+  // are not yet legally/technically integrated. info: rows are explicitly
+  // informational; they must never masquerade as functional toggles.
   tab("animations", "Animations", [
     sec("player-movement", "Игрок · Бег / ходьба", [
       "feat:morrowind-player-walk-animation"]),
+    sec("player-posture", "Игрок · Стойка / повороты / скрытность", [
+      "info:player-posture"]),
+    sec("player-combat", "Игрок · Бой / атаки / блок", [
+      "info:player-combat"]),
+    sec("player-magic", "Игрок · Магия / применение заклинаний", [
+      "info:player-magic"]),
+    sec("player-actions", "Игрок · Действия / взаимодействие", [
+      "info:player-actions"]),
+    sec("player-traversal", "Игрок · Прыжки / плавание / падения", [
+      "info:player-traversal"]),
+    sec("player-reactions", "Игрок · Получение урона / смерть", [
+      "info:player-reactions"]),
     sec("npc-movement", "NPC · Бег / ходьба", [
       "feat:morrowind-male-npc-walk-animation", "feat:morrowind-female-npc-walk-animation"]),
+    sec("npc-idle", "NPC · Ожидание / повороты / скрытность", [
+      "info:npc-idle"]),
+    sec("npc-combat", "NPC · Бой / атаки / блок", [
+      "info:npc-combat"]),
+    sec("npc-actions", "NPC · Действия / взаимодействие", [
+      "info:npc-actions"]),
+    sec("npc-reactions", "NPC · Получение урона / смерть", [
+      "info:npc-reactions"]),
   ]),
   tab("mods", "Mods & files", [
     sec("files", "Your files", [
