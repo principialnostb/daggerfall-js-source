@@ -1869,10 +1869,9 @@ export class PlayerMotor {
   }
   /** CLIMB5: the yaw the body is drawn at (third person) for a view at `viewYaw` - the view's own, except on the climb
    *  and the moment after it, when it turns to the wall and back (BODY_TURN_TAU). */
-  /** The body follows the view only when the host says movement/combat needs it.
-   *  In ordinary standing/walking, mouse-look orbits the camera without
-   *  rotating the actor. First-person calls pass faceView to keep the latch
-   *  current when perspective changes. Climbing and seats retain precedence. */
+  /** The host passes faceView during movement, first-person look, running,
+   *  and combat. Only a stationary third-person actor keeps its last yaw while
+   *  the camera orbits. Climbing and seats retain precedence. */
   bodyYawFor(viewYaw, { faceView = false } = {}) {
     // Seats and active climbs own their facing before ordinary locomotion.
     if (this.drawYaw != null) return this.drawYaw;
