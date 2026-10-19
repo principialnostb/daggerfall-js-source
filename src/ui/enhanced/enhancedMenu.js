@@ -1704,7 +1704,7 @@ function paneExit(body) {
 // graphicsPresets.js). The pause window draws the same screen, condensed as PX10 had it: the rows that act in play.
 
 let optQuery = '';          // ORG2: the search, over every tab - kept across a repaint, cleared by a tab change
-let animationSection = 'player-walk'; // ANIM-UI4: the animation sub-page currently selected
+let animationSection = 'locomotion'; // ANIM-UI5: the shared animation family currently selected
 let optFilter = 'all';      // ORG2: 'all' | 'changed' | a KINDS id
 let pickedFeature = null;   // ORG2: the Features row the help pane reads (pickedKey is DFU's key)
 let optScrollTo = null;     // ORG2: a row to bring into view after the next paint (the mods' list sends you to one)
@@ -1766,7 +1766,23 @@ function itemKinds(item) {
 function itemText(item, pool) {
   if (isSettingItem(item)) return `${labelOf(item)} ${helpOf(item)} ${item}`;
   if (item.startsWith('feat:')) { const f = FEATURES.find((x) => x.id === item.slice(5)); return f ? featureSearchText(f) : ''; }
-  if (item.startsWith('info:')) return ({ 'player-run': 'player run running sprint locomotion', 'player-posture': 'player idle turn sneak posture stance', 'player-combat': 'player combat attack block hit weapon', 'player-magic': 'player magic spell cast', 'player-actions': 'player actions interaction use activate', 'player-traversal': 'player jump swim fall movement', 'player-reactions': 'player hit damage death knockdown', 'npc-run': 'npc run running sprint locomotion', 'npc-idle': 'npc idle turn sneak posture', 'npc-combat': 'npc combat attack block hit weapon', 'npc-actions': 'npc actions interaction daily use', 'npc-reactions': 'npc hit damage death fall' })[item.slice(5)] ?? '';
+  if (item.startsWith('label:')) return item.slice(6) === 'player' ? 'player игрок' : 'npc нпс';
+  if (item.startsWith('info:')) return ({
+    'player-run': 'player run running sprint locomotion',
+    'player-posture': 'player idle turn sneak posture stance',
+    'player-combat': 'player combat attack block hit weapon',
+    'player-magic': 'player magic spell cast',
+    'player-actions': 'player actions interaction use activate',
+    'player-traversal': 'player jump swim fall movement',
+    'player-reactions': 'player hit damage death knockdown',
+    'npc-run': 'npc run running sprint locomotion',
+    'npc-idle': 'npc idle turn sneak posture',
+    'npc-combat': 'npc combat attack block hit weapon',
+    'npc-magic': 'npc magic spell cast',
+    'npc-actions': 'npc actions interaction daily use',
+    'npc-traversal': 'npc jump swim fall movement',
+    'npc-reactions': 'npc hit damage death fall',
+  })[item.slice(5)] ?? '';
   if (item.startsWith('port:')) return pool.get(item.slice(5))?.textContent ?? '';
   if (item === 'preset:graphics') return 'quality preset graphics low medium high ultra performance';
   if (item === 'link:overhauls') return 'overhauls looks textures vanilla enhanced sounds interface';
@@ -1806,20 +1822,26 @@ function itemNodes(item, ctx) {
     const f = FEATURES.find((x) => x.id === item.slice(5));
     return f ? [mark(featureTile(f))] : [];
   }
+  if (item.startsWith('label:')) {
+    const actor = item.slice(6) === 'player' ? 'Игрок' : 'NPC';
+    return [el('h4', 'animation-actor-heading', actor)];
+  }
   if (item.startsWith('info:')) {
     const copy = {
-      'player-run': ['Источник анимации', 'Отдельный совместимый источник бега пока не подключён. Выбор ходьбы не подменяет анимацию бега.'],
-      'player-posture': ['Источник анимации', 'Здесь находятся Idle, Turn, Sneak и переходы стойки. Источники замен пока не подключены.'],
-      'player-combat': ['Источник анимации', 'Сюда относятся атаки по типам оружия, замахи, попадания и блок. Morrowind Animation Overhaul содержит такие группы, но не активирован: требуется разрешение на перенос ресурсов и отдельная проверка совместимости.'],
-      'player-magic': ['Источник анимации', 'Отдельного совместимого и разрешённого источника заклинаний сейчас нет.'],
-      'player-actions': ['Источник анимации', 'Сюда относятся использование предметов, открытие/закрытие, взаимодействие и прочие действия вне боя.'],
-      'player-traversal': ['Источник анимации', 'Сюда относятся Jump, Swim, Fall и другие специальные перемещения.'],
-      'player-reactions': ['Источник анимации', 'Сюда относятся Hit, Knockdown и Death.'],
-      'npc-run': ['Источник анимации', 'Отдельный совместимый источник бега NPC пока не подключён.'],
-      'npc-idle': ['Источник анимации', 'Сюда относятся Idle, Turn и Sneak NPC. OpenMW Dynamic Actors (#54782) сохранён как кандидат для анализа, но не подключён как источник клипов.'],
-      'npc-combat': ['Источник анимации', 'Отдельного активного боевого реплейсера нет. Morrowind Animation Overhaul не активирован; не смешивать его с walk-паками.'],
-      'npc-actions': ['Источник анимации', 'Сюда относятся повседневные действия и взаимодействия NPC; runtime-источник пока не реализован.'],
-      'npc-reactions': ['Источник анимации', 'Сюда относятся попадания, реакции, падения и смерть NPC; runtime-источник пока не реализован.'],
+      'player-run': ['Бег', 'Бег остаётся на штатных игровых клипах. Simply Walking заменяет только группы ходьбы; отдельный совместимый источник бега пока не подключён.'],
+      'player-posture': ['Повороты / стойка / скрытность', 'Idle, Turn, Sneak и переходы стойки. Совместимый внешний источник этих групп пока не подключён.'],
+      'player-combat': ['Бой / атаки / блок', 'Атаки по типам оружия, замахи, попадания и блок. Morrowind Animation Overhaul не подключён: перед переносом ресурсов нужно подтвердить разрешения и совместимость.'],
+      'player-magic': ['Магия / заклинания', 'Совместимый и разрешённый внешний источник заклинаний пока не подключён.'],
+      'player-actions': ['Действия / взаимодействие', 'Использование предметов, открытие/закрытие и прочие действия вне боя. Источник замены пока не подключён.'],
+      'player-traversal': ['Прыжки / плавание / падения', 'Jump, Swim, Fall и другие специальные перемещения остаются на штатных клипах.'],
+      'player-reactions': ['Получение урона / падение / смерть', 'Hit, Knockdown и Death остаются на штатных клипах.'],
+      'npc-run': ['Бег', 'Бег NPC остаётся на штатных игровых клипах. Отдельный совместимый источник бега пока не подключён.'],
+      'npc-idle': ['Повороты / стойка / скрытность', 'Idle, Turn и Sneak NPC. OpenMW Dynamic Actors (#54782) оставлен кандидатом для анализа, но не подключён как источник клипов.'],
+      'npc-combat': ['Бой / атаки / блок', 'Активного совместимого боевого реплейсера NPC пока нет. Morrowind Animation Overhaul не подключён; не смешивать его с walk-паками.'],
+      'npc-magic': ['Магия / заклинания', 'Отдельный совместимый источник магии NPC пока не подключён.'],
+      'npc-actions': ['Действия / взаимодействие', 'Повседневные действия и взаимодействия NPC пока используют штатные клипы.'],
+      'npc-traversal': ['Прыжки / плавание / падения', 'Специальные перемещения NPC пока используют штатные клипы.'],
+      'npc-reactions': ['Получение урона / падение / смерть', 'Попадания, реакции, падения и смерть NPC пока используют штатные клипы.'],
     }[item.slice(5)];
     if (!copy) return [];
     const card = el('div', 'dcard animation-source-card');
@@ -1916,25 +1938,18 @@ function paintOptionsBody(body, { pause = false } = {}) {
   if (tab.id === 'animations' && !q) {
     const nav = el('nav', 'sec-jump animation-switches');
     nav.setAttribute('aria-label', 'Animation categories');
-    const groups = [
-      ['Игрок', sections.filter(({ s }) => s.id.startsWith('player-'))],
-      ['NPC', sections.filter(({ s }) => s.id.startsWith('npc-'))],
-    ];
-    for (const [groupName, entries] of groups) {
-      const group = el('div', 'animation-switch-group');
-      group.append(el('div', 'meta animation-switch-label', groupName));
-      const buttons = el('div', 'animation-switch-buttons');
-      for (const { s } of entries) {
-        const label = s.title.replace(/^Игрок · /, '').replace(/^NPC · /, '');
-        const b = el('button', `sec-jumpbtn animation-switch${animationSection === s.id ? ' is-active' : ''}`, label);
-        b.type = 'button';
-        b.setAttribute('aria-pressed', String(animationSection === s.id));
-        b.onclick = () => { animationSection = s.id; paintOptionsBody(body, { pause }); };
-        buttons.append(b);
-      }
-      group.append(buttons);
-      nav.append(group);
+    const group = el('div', 'animation-switch-group');
+    group.append(el('div', 'meta animation-switch-label', 'Раздел анимаций'));
+    const buttons = el('div', 'animation-switch-buttons');
+    for (const { s } of sections) {
+      const b = el('button', `sec-jumpbtn animation-switch${animationSection === s.id ? ' is-active' : ''}`, s.title);
+      b.type = 'button';
+      b.setAttribute('aria-pressed', String(animationSection === s.id));
+      b.onclick = () => { animationSection = s.id; paintOptionsBody(body, { pause }); };
+      buttons.append(b);
     }
+    group.append(buttons);
+    nav.append(group);
     body.append(nav);
     const selected = sections.find(({ s }) => s.id === animationSection) ?? sections[0];
     if (selected) {
