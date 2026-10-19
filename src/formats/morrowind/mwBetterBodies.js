@@ -5,13 +5,25 @@
 // it is not evidence that every race/sex combination has been visually validated.
 // Vite's asset glob keeps the source files addressable without embedding binary data.
 const IN_BROWSER = typeof window !== 'undefined';
-const bodyModelUrls = IN_BROWSER
+import { getUnderwearEnabled } from '../../characters/bodyMorphs.js';
+
+const nudeBodyModelUrls = IN_BROWSER
   ? import.meta.glob('../../../Morrowind Textures/Better Bodies/Nude/Data Files/Meshes/bb/bb_skin*.nif', {
       eager: true, query: '?url', import: 'default',
     })
   : {};
-const bodyTextureUrls = IN_BROWSER
+const nudeBodyTextureUrls = IN_BROWSER
   ? import.meta.glob('../../../Morrowind Textures/Better Bodies/Nude/Data Files/Textures/bb/bb_skin*.dds', {
+      eager: true, query: '?url', import: 'default',
+    })
+  : {};
+const underwearBodyModelUrls = IN_BROWSER
+  ? import.meta.glob('../../../Morrowind Textures/Better Bodies/Underwear/Data Files/Meshes/bb/bb_skin*.nif', {
+      eager: true, query: '?url', import: 'default',
+    })
+  : {};
+const underwearBodyTextureUrls = IN_BROWSER
+  ? import.meta.glob('../../../Morrowind Textures/Better Bodies/Underwear/Data Files/Textures/bb/bb_skin*.dds', {
       eager: true, query: '?url', import: 'default',
     })
   : {};
@@ -25,26 +37,36 @@ const compactRaceName = (race) => String(
   race && typeof race === 'object' ? (race.name ?? race.race ?? race.id ?? '') : (race ?? ''),
 ).toLowerCase().replace(/[^a-z]/g, '');
 
-/** Resolve a Better Bodies base mesh + skin as one race/sex-matched pair.
- * Unknown races return null rather than silently receiving the Nord female skin. */
-export function betterBodiesAssetUrls({ race = 'Nord', female = false } = {}) {
+/** Resolve a Better Bodies mesh and the matching race skin.
+ * Female actors deliberately share the Nord-female mesh: it is the shape
+ * validated in better-bodies-preview.html. Only the skin texture varies by race.
+ * Underwear and nude variants use the same rule and their own asset folders. */
+export function betterBodiesAssetUrls({ race = 'Nord', female = false, underwear = getUnderwearEnabled() } = {}) {
   const raceName = compactRaceName(race);
   const raceKey = RACE_CODES[raceName] ?? (Object.values(RACE_CODES).includes(raceName) ? raceName : null);
   if (!raceKey) return null;
   const genderKey = female ? 'f' : 'm';
-  const stem = `bb_skin${genderKey}_${raceKey}`;
-  const findUrl = (table, extension) => {
+  const textureStem = `bb_skin${genderKey}_${raceKey}`;
+  const geometryRaceKey = female ? 'no' : raceKey;
+  const modelStem = `bb_skin${genderKey}_${geometryRaceKey}`;
+  const modelTable = underwear ? underwearBodyModelUrls : nudeBodyModelUrls;
+  const textureTable = underwear ? underwearBodyTextureUrls : nudeBodyTextureUrls;
+  const findUrl = (table, stem, extension) => {
     const entry = Object.entries(table).find(([path]) => path.toLowerCase().endsWith(`/${stem}.${extension}`));
     return entry?.[1] ?? null;
   };
-  const model = findUrl(bodyModelUrls, 'nif');
-  const texture = findUrl(bodyTextureUrls, 'dds');
+  const model = findUrl(modelTable, modelStem, 'nif');
+  const texture = findUrl(textureTable, textureStem, 'dds');
   if (!model || !texture) return null;
-  return Object.freeze({ model, texture, texturePath: `textures/bb/${stem}.dds`, raceKey, female: !!female });
+  return Object.freeze({
+    model, texture, texturePath: `textures/bb/${textureStem}.dds`,
+    raceKey, geometryRaceKey, female: !!female, underwear: !!underwear,
+  });
 }
 
-// Compatibility alias for the isolated Nord-female diagnostic preview.
-export const betterBodiesFemaleAssetUrls = betterBodiesAssetUrls({ race: 'Nord', female: true });
+// The standalone HTML diagnostic intentionally stays fully nude, independent
+// of the game's saved underwear preference.
+export const betterBodiesFemaleAssetUrls = betterBodiesAssetUrls({ race: 'Nord', female: true, underwear: false });
 import { parseNif, deref } from './mwNifFile.js';
 import { flattenNif } from './mwNifMesh.js';
 import { buildSkeleton } from './mwSkin.js';
