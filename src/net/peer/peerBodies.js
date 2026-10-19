@@ -15,8 +15,8 @@
 // are (buildFpArm, with the peer's look mapped onto the same inputs
 // weaponRig's armBuildOptsOf maps the entity onto), switched to the
 // third-person view, stepped once a frame, and drawn by its own
-// drawThird at the peer's feet - the same sprite-box pass the player's
-// body takes (MW-D24).
+// drawThird at the peer's feet - opaque bodies use the world-space skinned-mesh pass;
+// only veiled bodies use the sprite-box compositor (MW-TP-MESH-ALL).
 //
 // THE GATE is the host's: the enhanced skin and Morrowind data
 // attached (MWA4: the files are the arms' switch - MWA1's `mwArms` pref
