@@ -2,11 +2,14 @@
 // Files are bundled by Vite as URLs; their bytes are parsed by the same NIF/KF
 // reader used for the game's archives. This module deliberately does not touch
 // meshes or skeleton geometry.
+import { modSetting } from '../../systems/modSettings.js';
+
 const IN_BROWSER = typeof window !== 'undefined';
 const FILES = IN_BROWSER
   ? import.meta.glob([
       '../../../Morrowind Textures/Simply Walking/**/*.{kf,KF}',
       "../../../Morrowind Textures/Axel's Sexy Walk Fixed/Animation/axel fixed/female/*.{kf,KF}",
+      '../../Morrowind Textures/Morrowind Animation Overhaul/Data Files/Meshes/*.{kf,KF}',
     ], {
       eager: true, query: '?url', import: 'default',
     })
@@ -23,6 +26,8 @@ const puristFemale = entries.find((e) => e.lower.includes('/simply walking puris
 const feminineFemale = entries.find((e) => e.lower.includes('/simply walking/feminine walk cycle/meshes/xbase_anim_female.kf'));
 const axelFemale = entries.find((e) => e.lower.includes("/axel's sexy walk fixed/animation/axel fixed/female/walkforward;.kf"));
 const axelRunFemale = entries.find((e) => e.lower.includes("/axel's sexy walk fixed/animation/axel fixed/female/runforward;.kf"));
+const overhaulMale = entries.find((e) => e.lower.includes('/morrowind animation overhaul/data files/meshes/xbase_anim.kf'));
+const overhaulFemale = entries.find((e) => e.lower.includes('/morrowind animation overhaul/data files/meshes/xbase_anim_female.kf'));
 
 const cache = new Map();
 let warnedMissingWalkAssets = false;
@@ -60,6 +65,9 @@ export async function loadWalkAnimationAssets({ female = false } = {}) {
     { entry: axelFemale, variant: 'axel', family: 'walk' },
     { entry: axelRunFemale, variant: 'axel', family: 'run' },
   ] : [];
+  const overhaul = modSetting('morrowind-animation', 'AnimationOverhaul') === 1
+    ? { entry: female ? overhaulFemale : overhaulMale, variant: 'overhaul', family: 'all' }
+    : null;
   const selected = [];
   if (!simplyCandidates.some(({ entry }) => entry) && !warnedMissingWalkAssets) {
     warnedMissingWalkAssets = true;
@@ -74,6 +82,10 @@ export async function loadWalkAnimationAssets({ female = false } = {}) {
     if (feminineCandidate?.entry) {
       const data = await bytes(feminineCandidate.entry);
       if (data) selected.push({ name: feminineCandidate.entry.path, bytes: data, variant: feminineCandidate.variant, walkVariant: feminineCandidate.variant, family: feminineCandidate.family, animationFamily: feminineCandidate.family, walkOnly: true, runOnly: false });
+    }
+    if (overhaul?.entry) {
+      const data = await bytes(overhaul.entry);
+      if (data) selected.push({ name: overhaul.entry.path, bytes: data, variant: 'overhaul', walkVariant: 'overhaul', family: 'all', animationFamily: 'all', walkOnly: false, runOnly: false, animationOverhaul: true });
     }
     for (const { entry, variant, family } of overrides) {
       if (!entry) {
@@ -102,6 +114,9 @@ export function inspectWalkAnimationAssets() {
     feminineCycleEnabledAsIndependentVariant: !!feminineFemale,
     axelFemale: axelFemale?.path ?? null,
     axelRunFemale: axelRunFemale?.path ?? null,
+    overhaulMale: overhaulMale?.path ?? null,
+    overhaulFemale: overhaulFemale?.path ?? null,
+    overhaulEnabled: modSetting('morrowind-animation', 'AnimationOverhaul') === 1,
   };
 }
 
