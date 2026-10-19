@@ -1654,18 +1654,18 @@ export const MOD_SETTINGS = Object.freeze({
     keys: Object.freeze({
       PlayerWalkSource: Object.freeze({
         default: 0,
-        options: lazyWords('Standard', 'Feminine Walk Cycle', "Axel's Sexy Walk Fixed", 'Vanilla'),
-        description: "Player walk source. Standard uses Simply Walking Purist Edition; Feminine Walk Cycle uses its separate female KF; Axel's Sexy Walk Fixed uses only Axel's WalkForward clip; Vanilla keeps the game's/archive walk. Non-walk groups are not replaced.",
+        options: lazyWords('Vanilla', 'Simply Walking', "Axel's Sexy Walk Fixed"),
+        description: "Player walk source. Vanilla keeps the game's/archive walk. Simply Walking selects the Purist Edition walk for male characters and the Feminine Walk Cycle for female characters. Axel's Sexy Walk Fixed is an alternative female walk clip only. Other animation groups are unaffected.",
       }),
       NpcMaleWalk: Object.freeze({
         default: 0,
-        options: lazyWords('Standard', 'Vanilla'),
-        description: 'Male NPC walk source. Standard uses Simply Walking Purist Edition; Vanilla keeps the original game walk. Other animation groups are unaffected.',
+        options: lazyWords('Vanilla', 'Simply Walking'),
+        description: "Male NPC walk source. Vanilla keeps the game's/archive walk; Simply Walking uses the male Purist Edition source. Other animation groups are unaffected.",
       }),
       NpcFemaleWalk: Object.freeze({
         default: 0,
-        options: lazyWords('Standard', 'Female (Axel)', 'Vanilla'),
-        description: "Female NPC walk source. Standard uses Simply Walking Purist Edition; Female (Axel) uses Axel's WalkForward clip; Vanilla keeps the game's/archive walk. Other animation groups are unaffected.",
+        options: lazyWords('Vanilla', 'Simply Walking', "Axel's Sexy Walk Fixed"),
+        description: "Female NPC walk source. Vanilla keeps the game's/archive walk; Simply Walking uses the Feminine Walk Cycle source; Axel's Sexy Walk Fixed is an alternative female walk clip. Other animation groups are unaffected.",
       }),
       // Legacy key retained so old stored data is not silently redefined.
       // Runtime no longer reads this key; actor-scoped settings are independent.
