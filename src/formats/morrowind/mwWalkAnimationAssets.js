@@ -81,7 +81,7 @@ export function isWalkAnimationGroup(name) {
  * Keep the record if ANY line names a walk group; looking only before the first colon silently drops many valid
  * animation keys and makes the replacement KF appear to have no usable walk animation. */
 export function isWalkAnimationKey(key) {
-  return String(key?.text ?? '').split(/\\r?\\n/).some((line) => {
+  return String(key?.text ?? '').split(/\r?\n/).some((line) => {
     const colon = line.indexOf(':');
     return colon > 0 && isWalkAnimationGroup(line.slice(0, colon).trim());
   });

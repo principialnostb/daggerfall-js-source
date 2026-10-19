@@ -24,8 +24,8 @@ test('MW-ANIM-1: female gait preference gates only the female walk source', () =
 
 test('MW-ANIM-1: walk keys survive additional text-key lines before the group marker', () => {
   assert.equal(isWalkAnimationKey({ text: 'WalkForward: Start' }), true);
-  assert.equal(isWalkAnimationKey({ text: 'SoundGen: Left\\nWalkForward: Start' }), true);
-  assert.equal(isWalkAnimationKey({ text: 'SoundGen: Right\\r\\nWalkForward: Loop Start' }), true);
+  assert.equal(isWalkAnimationKey({ text: 'SoundGen: Left\nWalkForward: Start' }), true);
+  assert.equal(isWalkAnimationKey({ text: 'SoundGen: Right\r\nWalkForward: Loop Start' }), true);
   assert.equal(isWalkAnimationKey({ text: 'SoundGen: Left' }), false);
-  assert.equal(isWalkAnimationKey({ text: 'Idle: Start\\nSoundGen: Left' }), false);
+  assert.equal(isWalkAnimationKey({ text: 'Idle: Start\nSoundGen: Left' }), false);
 });
