@@ -1138,7 +1138,9 @@ export async function bootDungeon(canvas, renderer, params, status) {
     renderer.setWorldViewport(worldViewportRect(canvas.clientWidth, canvas.clientHeight));   // E5: ViewportChanger.Update, every frame
     renderer.beginFrame(proj, view, INTERIOR_LIGHT_DIR, WORLD_FRAME);   // AUDIT-EL F5: a WORLD frame - the lane replays its records for this one
     if (walkMode) {
-      const faceBodyToView = !mwv.thirdPerson || !player.standing || player.isRunning || rightHeld || swipeHeld || swingKeyLatch;
+      // Match exterior/global-view facing: any directional input (including S) makes the body follow the aim even if the standing flag is stale for this frame.
+      const bodyHasMoveInput = Math.abs(Number(player.moveForward) || 0) > 1e-3 || Math.abs(Number(player.moveStrafe) || 0) > 1e-3;
+      const faceBodyToView = !mwv.thirdPerson || bodyHasMoveInput || !player.standing || player.isRunning || rightHeld || swipeHeld || swingKeyLatch;
       mwViewDrawBody(canvas, { proj, view, eye: mwv.eye, feet: player.bodyFeetAt(), yaw: player.bodyYawFor(cam.yaw, { faceView: faceBodyToView }), viewYaw: cam.yaw });   // MW-D40: orbit independently on foot/walk; preserve run/combat facing
     }
     if (ctx.staticBatch) renderer.drawMesh(ctx.staticBatch, BATCH_IDENTITY, null);   // PERF5: the level's static models, one call per texture (keys resolved in the merge)
