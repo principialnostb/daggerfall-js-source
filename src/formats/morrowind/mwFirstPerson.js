@@ -3020,12 +3020,29 @@ export function poseAssembly(assembly, { tracks = null, sampleTrack = null,
   for (const p of pieces) {
     if (p.kind === 'skinned') {
       fns.skinBatch(p.batch, skeleton, pose, mats, p.positions, p.normals ?? null);   // MW-SMOOTH: and its normals
-      if (geometryMorph) deformPlayerBodyGeometry(p, geometryMorph);
     } else {
       const at = fns.attachmentTransform(mats, p.attachRef);
       const placed = p.hang ? hangAffine(at, p.hang) : at;   // HT-WAIST
       placeAtBone(p.source, placed, p.mirrored, p.positions, p.boneOffset);
       if (p.normals && p.sourceNormals) placeNormalsAtBone(p.sourceNormals, placed, p.mirrored, p.normals);   // MW-SMOOTH
+    }
+  }
+  if (geometryMorph) {
+    // Measure the body once after skinning all body pieces. Every mesh island
+    // then uses the same anatomical coordinate frame, instead of its own local
+    // bounds (which made sliders behave like arbitrary per-piece scaling).
+    const bodySlots = new Set(['betterbodies', 'chest', 'groin', 'upperleg', 'lowerleg', 'foot', 'hand']);
+    const bodyPieces = pieces.filter((p) => p.kind === 'skinned' && bodySlots.has(String(p.slot || '').toLowerCase()) && p.positions?.length);
+    const bodyBounds = { minX: Infinity, maxX: -Infinity, minY: Infinity, maxY: -Infinity, minZ: Infinity, maxZ: -Infinity };
+    for (const p of bodyPieces) for (let i = 0; i + 2 < p.positions.length; i += 3) {
+      const x = p.positions[i], y = p.positions[i + 1], z = p.positions[i + 2];
+      if (!Number.isFinite(x + y + z)) continue;
+      bodyBounds.minX = Math.min(bodyBounds.minX, x); bodyBounds.maxX = Math.max(bodyBounds.maxX, x);
+      bodyBounds.minY = Math.min(bodyBounds.minY, y); bodyBounds.maxY = Math.max(bodyBounds.maxY, y);
+      bodyBounds.minZ = Math.min(bodyBounds.minZ, z); bodyBounds.maxZ = Math.max(bodyBounds.maxZ, z);
+    }
+    if (Number.isFinite(bodyBounds.minX)) {
+      for (const p of bodyPieces) deformPlayerBodyGeometry(p, geometryMorph, bodyBounds);
     }
   }
   assembly.pose = pose;
