@@ -5,15 +5,16 @@
 import { modSetting } from '../../systems/modSettings.js';
 
 const IN_BROWSER = typeof window !== 'undefined';
-const FILES = IN_BROWSER
-  ? import.meta.glob([
-      '../../../Morrowind Textures/Simply Walking/**/*.{kf,KF}',
-      "../../../Morrowind Textures/Axel's Sexy Walk Fixed/Animation/axel fixed/female/*.{kf,KF}",
-      '../../../Morrowind Textures/Morrowind Animation Overhaul/Data Files/Meshes/*.{kf,KF}',
-    ], {
-      eager: true, query: '?url', import: 'default',
-    })
-  : {};
+import { MORROWIND_ASSET_PATHS, morrowindAssetUrl } from '../../systems/morrowindAssetManifest.js';
+const WALK_PATH_MATCHERS = [
+  /^Simply Walking\/.*\.kf$/i,
+  /^Axel's Sexy Walk Fixed\/Animation\/axel fixed\/female\/.*\.kf$/i,
+  /^Morrowind Animation Overhaul\/Data Files\/Meshes\/.*\.kf$/i,
+];
+const FILES = IN_BROWSER ? Object.fromEntries(
+  MORROWIND_ASSET_PATHS.filter((path) => WALK_PATH_MATCHERS.some((pattern) => pattern.test(path)))
+    .map((path) => [`../../../Morrowind Textures/${path}`, morrowindAssetUrl(path)]),
+) : {};
 
 const norm = (value) => String(value).replace(/\\/g, '/').toLowerCase();
 const entries = Object.entries(FILES).map(([path, url]) => ({ path: path.replace(/\\/g, '/'), lower: norm(path), url }));

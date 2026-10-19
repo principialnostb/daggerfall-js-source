@@ -18,29 +18,22 @@ import { modSetting } from './modSettings.js';
 import { getBodyHairEnabled, getUnderwearEnabled } from '../characters/bodyMorphs.js';
 
 const IN_BROWSER = typeof window !== 'undefined';
-const FILES = IN_BROWSER
-  ? import.meta.glob([
-      '../../Morrowind Textures/Better Bodies/Nude/Data Files/Textures/**/*.{dds,DDS,tga,TGA}',
-      '../../Morrowind Textures/High Resolution Better Body Female Textures/Hands/Textures/**/*.{dds,DDS,tga,TGA}',
-      '../../Morrowind Textures/High Resolution Better Body Female Textures/Nude_No_Hair/Textures/**/*.{dds,DDS,tga,TGA}',
-      '../../Morrowind Textures/High Resolution Better Body Female Textures/Underwear/Textures/**/*.{dds,DDS,tga,TGA}',
-      '../../Morrowind Textures/High Resolution Better Body Female Textures/Nude_Body_Hair/Textures/**/*.{dds,DDS,tga,TGA}',
-      '../../Morrowind Textures/Seamless DMRA body replacer/Meshes/**/*.{nif,NIF}',
-      '../../Morrowind Textures/Seamless DMRA body replacer/Textures/**/*.{dds,DDS,tga,TGA}',
-      '../../Morrowind Textures/Intelligent Textures/00 Core/textures/**/*.{dds,DDS,tga,TGA}',
-      "../../Morrowind Textures/Vurt's Better Clothes Retexture/textures/**/*.{dds,DDS,tga,TGA}",
-      '../../Morrowind Textures/Better Clothes Retextured/textures/**/*.{dds,DDS,tga,TGA}',
-      '../../Morrowind Textures/Better Clothes Retextured/meshes/**/*.{nif,NIF}',
-      "../../Morrowind Textures/Westly's Fine Clothiers of Tamriel/Meshes/**/*.{nif,NIF}",
-      "../../Morrowind Textures/Westly's Fine Clothiers of Tamriel/Textures/**/*.{dds,DDS,tga,TGA}",
-      "../../Morrowind Textures/Westly's Fine Clothiers of Tamriel/Westly_Presents_FCOT.esp",
-      "../../Morrowind Textures/Westly's Faces Refurbished/Data Files/**/*.{nif,NIF,dds,DDS,tga,TGA}",
-      '../../Morrowind Textures/Better Morrowind Armor/Data Files/**/*.{nif,NIF,dds,DDS,tga,TGA,esp,ESP}',
-      '../../Morrowind Textures/Better Morrowind Armor/Complete Armor Joints/Data Files/**/*.{nif,NIF,dds,DDS,tga,TGA,esp,ESP}',
-    ], {
-      eager: true, query: '?url', import: 'default',
-    })
-  : {};
+import { MORROWIND_ASSET_PATHS, morrowindAssetUrl } from './morrowindAssetManifest.js';
+const BUNDLED_PATH_MATCHERS = [
+  /^Better Bodies\/Nude\/Data Files\/Textures\/.*\.(?:dds|tga)$/i,
+  /^High Resolution Better Body Female Textures\/(?:Hands\/Textures|Nude_No_Hair\/Textures|Underwear\/Textures|Nude_Body_Hair\/Textures)\/.*\.(?:dds|tga)$/i,
+  /^Seamless DMRA body replacer\/(?:Meshes\/.*\.nif|Textures\/.*\.(?:dds|tga))$/i,
+  /^Intelligent Textures\/00 Core\/textures\/.*\.(?:dds|tga)$/i,
+  /^Vurt's Better Clothes Retexture\/textures\/.*\.(?:dds|tga)$/i,
+  /^Better Clothes Retextured\/(?:textures\/.*\.(?:dds|tga)|meshes\/.*\.nif)$/i,
+  /^Westly's Fine Clothiers of Tamriel\/(?:Meshes\/.*\.nif|Textures\/.*\.(?:dds|tga)|Westly_Presents_FCOT\.esp)$/i,
+  /^Westly's Faces Refurbished\/Data Files\/.*\.(?:nif|dds|tga)$/i,
+  /^Better Morrowind Armor\/(?:Data Files\/.*\.(?:nif|dds|tga|esp)|Complete Armor Joints\/Data Files\/.*\.(?:nif|dds|tga|esp))$/i,
+];
+const FILES = IN_BROWSER ? Object.fromEntries(
+  MORROWIND_ASSET_PATHS.filter((path) => BUNDLED_PATH_MATCHERS.some((pattern) => pattern.test(path)))
+    .map((path) => [`../../Morrowind Textures/${path}`, morrowindAssetUrl(path)]),
+) : {};
 
 const norm = (s) => String(s).replace(/\\/g, '/').toLowerCase();
 const assetUrls = Object.create(null);
