@@ -188,69 +188,53 @@ export const CATEGORIES = Object.freeze([
       "GUI/LargeHUD", "GUI/LargeHUDDocked", "GUI/LargeHUDUndockedScale", "GUI/LargeHUDUndockedAlignment", "GUI/LargeHUDUndockedOffsetWeapon",
       "GUI/LargeHUDOffsetHorse"]),
   ]),
-  // ANIM-UI6: broad animation families are separated from their independently
-  // configurable clip groups. A pack selector belongs only to the clip family
-  // it actually replaces; a walk choice must not implicitly own run/idle/combat.
+  // ANIM-UI6: broad animation families are separated from independently configurable clip groups.
+  // A source selector belongs only to the family it actually replaces.
   tab("animations", "Анимации", [
     sec("locomotion", "Передвижение", [
-      "label:player", "info:player-run",
-      "label:npc", "info:npc-run",
+      "info:player-run", "info:npc-run",
     ]),
-    sec("walking", "Ходьба", [
+    sec("player-movement", "Ходьба — игрок", [
       "label:player", "feat:morrowind-player-walk-animation",
+    ]),
+    sec("npc-movement", "Ходьба — NPC", [
       "label:npc", "feat:morrowind-male-npc-walk-animation", "feat:morrowind-female-npc-walk-animation",
     ]),
-    sec("running", "Бег", [
-      "label:player", "info:player-run",
-      "label:npc", "info:npc-run",
-    ]),
     sec("turning", "Повороты и развороты", [
-      "label:player", "info:player-posture",
-      "label:npc", "info:npc-idle",
+      "info:player-turning", "info:npc-turning",
     ]),
     sec("idle", "Стойка и ожидание", [
-      "label:player", "info:player-posture",
-      "label:npc", "info:npc-idle",
+      "info:player-idle", "info:npc-idle",
     ]),
     sec("sneak", "Скрытность", [
-      "label:player", "info:player-posture",
-      "label:npc", "info:npc-idle",
+      "info:player-sneak", "info:npc-sneak",
     ]),
     sec("attacks", "Атаки", [
-      "label:player", "info:player-combat",
-      "label:npc", "info:npc-combat",
+      "info:player-attacks", "info:npc-attacks",
     ]),
     sec("blocking", "Блокирование и защита", [
-      "label:player", "info:player-combat",
-      "label:npc", "info:npc-combat",
+      "info:player-blocking", "info:npc-blocking",
     ]),
     sec("magic", "Магия и заклинания", [
-      "label:player", "info:player-magic",
-      "label:npc", "info:npc-magic",
+      "info:player-magic", "info:npc-magic",
     ]),
     sec("actions", "Действия и взаимодействие", [
-      "label:player", "info:player-actions",
-      "label:npc", "info:npc-actions",
+      "info:player-actions", "info:npc-actions",
     ]),
     sec("jumping", "Прыжки", [
-      "label:player", "info:player-traversal",
-      "label:npc", "info:npc-traversal",
+      "info:player-jumping", "info:npc-jumping",
     ]),
     sec("swimming", "Плавание", [
-      "label:player", "info:player-traversal",
-      "label:npc", "info:npc-traversal",
+      "info:player-swimming", "info:npc-swimming",
     ]),
     sec("falling", "Падение и приземление", [
-      "label:player", "info:player-traversal",
-      "label:npc", "info:npc-traversal",
+      "info:player-falling", "info:npc-falling",
     ]),
     sec("damage", "Получение урона", [
-      "label:player", "info:player-reactions",
-      "label:npc", "info:npc-reactions",
+      "info:player-damage", "info:npc-damage",
     ]),
     sec("death", "Смерть", [
-      "label:player", "info:player-reactions",
-      "label:npc", "info:npc-reactions",
+      "info:player-death", "info:npc-death",
     ]),
   ]),
   tab("textures", "Текстуры", [
