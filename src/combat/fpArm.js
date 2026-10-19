@@ -5035,7 +5035,7 @@ export function createFpArm({ playerAppearance = false } = {}) {
         movementState = pick.state;
         movementSource = pick.source;
         if (pick.source?.walkOnly) {
-          console.info('[Morrowind animations] playing replacement walk group:', composed.group, 'from', pick.source.name);
+          console.info('[Morrowind animations] playing replacement locomotion group:', composed.group, 'from', pick.source.name);
         }
       }
       movementBase = base; movementStance = stance;
