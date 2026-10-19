@@ -11,9 +11,47 @@
 //
 // Vite's ?url imports make these two checked-in resources addressable in dev
 // and production builds without embedding their binary contents in JavaScript.
-import betterBodiesFemaleNifUrl from '../../../Morrowind Textures/Better Bodies/Nude/Data Files/Meshes/bb/bb_skinf_no.nif?url';
-import betterBodiesFemaleTextureUrl from '../../../Morrowind Textures/Better Bodies/Nude/Data Files/Textures/bb/bb_skinf_no.dds?url';
+const IN_BROWSER = typeof window !== 'undefined';
+const bodyModelUrls = IN_BROWSER
+  ? import.meta.glob('../../../Morrowind Textures/Better Bodies/Nude/Data Files/Meshes/bb/bb_skin*.nif', {
+      eager: true, query: '?url', import: 'default',
+    })
+  : {};
+const bodyTextureUrls = IN_BROWSER
+  ? import.meta.glob('../../../Morrowind Textures/Better Bodies/Nude/Data Files/Textures/bb/bb_skin*.dds', {
+      eager: true, query: '?url', import: 'default',
+    })
+  : {};
 import betterBodiesFemaleUvEditsUrl from '../../../bb_skinf_no-uv-edits.json?url';
+
+const RACE_CODES = Object.freeze({
+  breton: 'br', darkelf: 'de', highelf: 'he', imperial: 'im',
+  nord: 'no', orc: 'or', redguard: 'rg', woodelf: 'we',
+});
+const compactRaceName = (race) => String(
+  race && typeof race === 'object' ? (race.name ?? race.race ?? race.id ?? '') : (race ?? ''),
+).toLowerCase().replace(/[^a-z]/g, '');
+
+/** Resolve a Better Bodies base mesh + skin as one race/sex-matched pair.
+ * Unknown races return null rather than silently receiving the Nord female skin. */
+export function betterBodiesAssetUrls({ race = 'Nord', female = false } = {}) {
+  const raceName = compactRaceName(race);
+  const raceKey = RACE_CODES[raceName] ?? (Object.values(RACE_CODES).includes(raceName) ? raceName : null);
+  if (!raceKey) return null;
+  const genderKey = female ? 'f' : 'm';
+  const stem = `bb_skin${genderKey}_${raceKey}`;
+  const findUrl = (table, extension) => {
+    const entry = Object.entries(table).find(([path]) => path.toLowerCase().endsWith(`/${stem}.${extension}`));
+    return entry?.[1] ?? null;
+  };
+  const model = findUrl(bodyModelUrls, 'nif');
+  const texture = findUrl(bodyTextureUrls, 'dds');
+  if (!model || !texture) return null;
+  return Object.freeze({ model, texture, texturePath: `textures/bb/${stem}.dds`, raceKey, female: !!female });
+}
+
+// Compatibility alias for the isolated Nord-female diagnostic preview.
+export const betterBodiesFemaleAssetUrls = betterBodiesAssetUrls({ race: 'Nord', female: true });
 import { parseNif, deref } from './mwNifFile.js';
 import { flattenNif } from './mwNifMesh.js';
 import { buildSkeleton } from './mwSkin.js';
@@ -29,7 +67,7 @@ import { buildSkeleton } from './mwSkin.js';
 export async function inspectBetterBodiesFemale() {
   let response;
   try {
-    response = await fetch(betterBodiesFemaleNifUrl);
+    response = await fetch(betterBodiesFemaleAssetUrls.model);
   } catch (error) {
     return { ok: false, stage: 'fetch', error: String(error?.message ?? error) };
   }
@@ -38,7 +76,7 @@ export async function inspectBetterBodiesFemale() {
       ok: false,
       stage: 'fetch',
       status: response.status,
-      modelUrl: betterBodiesFemaleNifUrl,
+      modelUrl: betterBodiesFemaleAssetUrls.model,
       error: 'Could not fetch the Better Bodies NIF asset from this build.',
     };
   }
@@ -50,7 +88,7 @@ export async function inspectBetterBodiesFemale() {
     return {
       ok: false,
       stage: 'parse',
-      modelUrl: betterBodiesFemaleNifUrl,
+      modelUrl: betterBodiesFemaleAssetUrls.model,
       error: String(error?.message ?? error),
     };
   }
@@ -62,7 +100,7 @@ export async function inspectBetterBodiesFemale() {
     return {
       ok: false,
       stage: 'flatten',
-      modelUrl: betterBodiesFemaleNifUrl,
+      modelUrl: betterBodiesFemaleAssetUrls.model,
       error: String(error?.message ?? error),
     };
   }
@@ -92,8 +130,8 @@ export async function inspectBetterBodiesFemale() {
   return {
     ok: shapes.length > 0,
     stage: shapes.length ? 'geometry' : 'empty-geometry',
-    modelUrl: betterBodiesFemaleNifUrl,
-    textureUrl: betterBodiesFemaleTextureUrl,
+    modelUrl: betterBodiesFemaleAssetUrls.model,
+    textureUrl: betterBodiesFemaleAssetUrls.texture,
     nifVersion: '4.0.0.2',
     recordCount: nif.records.length,
     roots,
@@ -114,8 +152,8 @@ export async function inspectBetterBodiesFemale() {
 }
 
 export const betterBodiesFemaleAssetUrls = Object.freeze({
-  model: betterBodiesFemaleNifUrl,
-  texture: betterBodiesFemaleTextureUrl,
+  model: betterBodiesFemaleAssetUrls.model,
+  texture: betterBodiesFemaleAssetUrls.texture,
 });
 
 
