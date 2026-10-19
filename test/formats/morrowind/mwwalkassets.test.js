@@ -7,6 +7,7 @@ test('MW-ANIM-1: bundled walk asset inventory is safe to import in Node', () => 
   assert.equal(assets.browser, false);
   assert.equal(assets.standardMale, null);
   assert.equal(assets.feminineFemale, null);
+  assert.equal(assets.puristFemale, null);
   assert.equal(assets.axelFemale, null);
 });
 test('MW-ANIM-1: only walk groups are overridden', () => {
