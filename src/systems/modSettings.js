@@ -1645,16 +1645,16 @@ export const MOD_SETTINGS = Object.freeze({
     }),
   }),
 
-  // MW-ANIM-1: runtime walk clips are loaded from the uploaded Simply Walking
-  // assets. The choice is consumed by the third-person body builder, not a viewer.
+  // MW-ANIM-1: female walk preference. The third option uses only Axel's
+  // WalkForward clip; its bundled idle/run files are deliberately not selected.
   'morrowind-animation': Object.freeze({
     title: 'Female Walk Style',
     author: 'Port integration',
     keys: Object.freeze({
       FemaleWalk: Object.freeze({
         default: 0,
-        options: lazyWords('Standard', 'Female'),
-        description: 'Female gait only. Standard uses the Simply Walking Purist Edition female set; Female overrides walk groups with the separate Feminine Walk Cycle. Male characters, idle, run and combat groups are unaffected by this choice.',
+        options: lazyWords('Standard', 'Female', 'Female 2'),
+        description: 'Female gait only. Standard uses the base female walk, Female uses Feminine Walk Cycle, and Female 2 uses Axel’s WalkForward clip. Male characters and non-walk groups are unaffected.',
       }),
     }),
   }),
