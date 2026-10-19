@@ -188,13 +188,13 @@ export const CATEGORIES = Object.freeze([
       "GUI/LargeHUD", "GUI/LargeHUDDocked", "GUI/LargeHUDUndockedScale", "GUI/LargeHUDUndockedAlignment", "GUI/LargeHUDUndockedOffsetWeapon",
       "GUI/LargeHUDOffsetHorse"]),
   ]),
-  // ANIM-UI1: animation sources have their own home. Keep the actor order explicit:
-  // player controls first, then NPC controls. New animation families should be
-  // added here by responsibility (movement, combat, actions), not buried in Mods.
+  // ANIM-UI2: animation sources are selected independently by responsibility.
+  // Keep all player choices first, then NPC choices. Add a category only when
+  // it has a real runtime-backed selector; do not render empty placeholder groups.
   tab("animations", "Animations", [
-    sec("player-movement", "Player · Running & walking", [
-      "feat:morrowind-character-animations", "feat:morrowind-player-walk-animation"]),
-    sec("npc-movement", "NPC · Running & walking", [
+    sec("player-movement", "Игрок · Бег / ходьба", [
+      "feat:morrowind-player-walk-animation"]),
+    sec("npc-movement", "NPC · Бег / ходьба", [
       "feat:morrowind-male-npc-walk-animation", "feat:morrowind-female-npc-walk-animation"]),
   ]),
   tab("mods", "Mods & files", [
