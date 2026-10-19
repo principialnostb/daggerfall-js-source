@@ -127,3 +127,10 @@ This intentionally trades some GPU work for stable perspective, leg placement, a
 - Within each actor group, each animation family has one mutually exclusive source selector; **Vanilla is always option zero / first**. Vanilla means the original game/archive source for that family, not globally disabling animation.
 - **Simply Walking** is one player-facing pack. Its files are assigned by inspecting their actual KF groups: Purist Edition supplies the male walk source; Feminine Walk Cycle supplies the female walk source. Do not expose Feminine Walk Cycle as a separate top-level pack choice when it is the female component of Simply Walking.
 - Before defining or combining any future UI family, inspect the actual KF/NIF files, text keys and README/permissions. Establish which animation groups each file contains, then map them to families. Never infer the family structure from a mod title alone.
+
+
+## First-person movement hands (ANIM-HANDS1)
+
+The Morrowind first-person mesh is also the source of the player's visible hands while running and jumping. The weapon draw gate in `src/combat/weapon/weaponRig.js` previously admitted that mesh for a weapon, spell, climb, or a sufficiently weighted run-hand pump, but not for a jump clip or a run clip whose custom pump had not crossed its threshold. That meant the rig could already have a valid movement pose and still never be drawn while unarmed. The gate now accepts `fpArm.movementPosed()`, which is true for an active first-person run clip or jump clip (while respecting death, held-map and climbing states). This keeps the current character's own Morrowind/Better Bodies hand geometry and lets the existing pose drive it; it does not substitute the classic Daggerfall hand sprite.
+
+This is a source-level correction only. Run, jump, strike, held-map, climb and equipped-weapon transitions still need an in-game visual pass. Do not mark the hand visibility issue verified until tested in first person with an empty hand and with the current skin.
