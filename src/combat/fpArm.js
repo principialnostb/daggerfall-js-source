@@ -129,6 +129,30 @@ function rewriteBetterBodiesTextureStem(bytes, fromStem, toStem) {
 const betterBodiesTextureBytes = new Map();
 const betterBodiesTextureBasename = (path) => String(path || '')
   .replaceAll(String.fromCharCode(92), '/').split('/').pop().toLowerCase();
+const BETTER_BODIES_FEMALE_SKIN_TONES = Object.freeze({
+  br: [1.06, 0.91, 0.84], de: [0.73, 0.70, 0.88],
+  he: [1.10, 0.94, 0.72], im: [1.04, 0.87, 0.78],
+  no: [1.00, 0.98, 0.94], or: [0.70, 0.88, 0.62],
+  rg: [0.92, 0.70, 0.54], we: [0.96, 0.82, 0.66],
+});
+function tintBetterBodiesFemaleSkin(image, textureFile) {
+  const match = /bb_skinf_(br|de|he|im|no|or|rg|we)\\.dds$/i.exec(String(textureFile || '').replaceAll(String.fromCharCode(92), '/'));
+  if (!match || !image?.mips?.length) return image;
+  const raceKey = match[1].toLowerCase();
+  const tone = BETTER_BODIES_FEMALE_SKIN_TONES[raceKey];
+  if (!tone || raceKey === 'no') return image;
+  for (const mip of image.mips) {
+    const rgba = mip?.rgba;
+    if (!rgba) continue;
+    for (let i = 0; i + 3 < rgba.length; i += 4) {
+      if (rgba[i + 3] === 0) continue;
+      rgba[i] = Math.min(255, (rgba[i] * tone[0] + 0.5) | 0);
+      rgba[i + 1] = Math.min(255, (rgba[i + 1] * tone[1] + 0.5) | 0);
+      rgba[i + 2] = Math.min(255, (rgba[i + 2] * tone[2] + 0.5) | 0);
+    }
+  }
+  return image;
+}
 function registerBetterBodiesRaceTexture(archives, texturePath, textureBytes) {
   const basename = betterBodiesTextureBasename(texturePath);
   betterBodiesTextureBytes.set(basename, textureBytes);
@@ -270,7 +294,7 @@ async function preloadArmTextures(pieces, archives, gen = null) {
     const arc = archives.find((a) => a.has(path));
     if (!arc || (typeof arc.loaded === 'function' && !arc.loaded(path))) return;   // collectArmTextures says why
     let image;
-    try { image = await decodeTextureOffThread(path, arc.get(path)); } catch (err) {
+    try { image = tintBetterBodiesFemaleSkin(await decodeTextureOffThread(path, arc.get(path)), file); } catch (err) {
       // AUDIT MW-TEXTHREAD F4: THE DECODER'S REFUSAL IS KEPT TOO. The
       // decoder is pure, so the same bytes refuse again on any thread;
       // left unkept, collectArmTextures decoded the whole file a second
@@ -3409,7 +3433,7 @@ export function collectArmTextures(pieces, archives, gen = null) {
       // .dds probe misses (resourcehelpers.cpp:112-114), and feeding
       // that to decodeDds turned a texture the archives DO carry into
       // the magenta warning.
-      const entry = { ok: true, path, image: decodeTextureImage(path, arc.get(path).slice()) };
+      const entry = { ok: true, path, image: tintBetterBodiesFemaleSkin(decodeTextureImage(path, arc.get(path).slice()), file) };
       out.set(file, entry);
       if (gen !== null) TEXTURE_CACHE.set(`${gen}:${file}`, entry);
     } catch (err) {
