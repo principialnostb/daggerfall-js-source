@@ -2849,6 +2849,7 @@ function deformPlayerBodyGeometry(piece, morph, bodyBounds) {
   const amount = (key) => clampMorph(morph?.[key]);
   const gauss = (v, center, width) => Math.exp(-Math.pow((v - center) / width, 2));
   const bodyWidth = 1 + amount('bodyWidth') * 0.18;
+  const bodyFullness = 1 + amount('bodyFullness') * 0.14;
   const bodyHeight = 1 + amount('height') * 0.15;
   const shoulder = amount('shoulderWidth');
   const ribcage = amount('ribcageWidth');
@@ -2873,7 +2874,7 @@ function deformPlayerBodyGeometry(piece, morph, bodyBounds) {
     const nx = (ox - cx) / halfX, ny = (oy - cy) / halfY;
     const nz = (oz - minZ) / spanZ;
     let x = cx + (ox - cx) * bodyWidth;
-    let y = cy + (oy - cy);
+    let y = cy + (oy - cy) * bodyFullness;
     let z = minZ + (oz - minZ) * bodyHeight;
 
     // Anatomical falloff uses the whole body's bounds, not each tiny mesh
