@@ -2,27 +2,12 @@
 // Values are normalized to [-1, 1] and persisted per browser profile.
 export const BODY_MORPH_FIELDS = [
   ['height', 'Рост', 'overall'],
+  ['height', 'Рост', 'overall'],
   ['bodyWidth', 'Ширина тела', 'overall'],
-  ['bodyFullness', 'Общая полнота', 'overall'],
-  ['shoulderWidth', 'Ширина плеч', 'shoulders'],
-  ['ribcageWidth', 'Ширина грудной клетки', 'torso'],
-  ['breastSize', 'Объём груди', 'chest'],
-  ['breastProjection', 'Выступ груди', 'chest'],
-  ['waistWidth', 'Ширина талии', 'torso'],
-  ['abdomenVolume', 'Объём живота', 'torso'],
-  ['hipWidth', 'Ширина таза', 'hips'],
-  ['buttockSize', 'Объём ягодиц', 'hips'],
-  ['buttockProjection', 'Выступ ягодиц', 'hips'],
-  ['headScale', 'Размер головы', 'head'],
-  ['armThickness', 'Толщина рук', 'arms'],
-  ['armLength', 'Длина рук', 'arms'],
-  ['thighThickness', 'Толщина бёдер', 'legs'],
-  ['calfThickness', 'Толщина голеней', 'legs'],
-  ['legLength', 'Длина ног', 'legs'],
-  ['legGap', 'Расстояние между ногами', 'legs'],
 ];
 const KEY = 'mw-character-body-morphs-v1';
 const UNDERWEAR_KEY = 'mw-character-underwear-v1';
+const IDENTITY_KEY = 'mw-character-appearance-identity-v1';
 const defaults = Object.freeze(Object.fromEntries(BODY_MORPH_FIELDS.map(([key]) => [key, 0])));
 let cached = null;
 export function getBodyMorphs() {
@@ -62,4 +47,24 @@ export function setUnderwearEnabled(enabled) {
   const value = !!enabled;
   try { globalThis.localStorage?.setItem(UNDERWEAR_KEY, value ? 'true' : 'false'); } catch { /* storage may be disabled */ }
   return value;
+}
+
+/** Appearance-only identity override. It changes the rendered race/face, not character attributes or skills. */
+export function getAppearanceIdentity() {
+  try {
+    const saved = JSON.parse(globalThis.localStorage?.getItem(IDENTITY_KEY) || 'null');
+    if (!saved || typeof saved !== 'object') return null;
+    const race = String(saved.race || '').trim().toLowerCase();
+    const faceIndex = Number(saved.faceIndex);
+    if (!race || !Number.isInteger(faceIndex) || faceIndex < 0 || faceIndex > 9) return null;
+    return { race, faceIndex };
+  } catch { return null; }
+}
+export function setAppearanceIdentity({ race, faceIndex } = {}) {
+  const normalizedRace = String(race || '').trim().toLowerCase();
+  const index = Number(faceIndex);
+  if (!normalizedRace || !Number.isInteger(index) || index < 0 || index > 9) return getAppearanceIdentity();
+  const identity = { race: normalizedRace, faceIndex: index };
+  try { globalThis.localStorage?.setItem(IDENTITY_KEY, JSON.stringify(identity)); } catch { /* storage may be disabled */ }
+  return identity;
 }
