@@ -188,32 +188,23 @@ export const CATEGORIES = Object.freeze([
       "GUI/LargeHUD", "GUI/LargeHUDDocked", "GUI/LargeHUDUndockedScale", "GUI/LargeHUDUndockedAlignment", "GUI/LargeHUDUndockedOffsetWeapon",
       "GUI/LargeHUDOffsetHorse"]),
   ]),
-  // ANIM-UI6: broad animation families are separated from independently configurable clip groups.
-  // A source selector belongs only to the family it actually replaces.
+  // ANIM-UI6: each major animation family contains smaller, independently
+  // selectable clip groups. Only the walk family currently has external selectors;
+  // the remaining cards explicitly show their Vanilla fallback until a compatible pack is wired.
   tab("animations", "Анимации", [
     sec("locomotion", "Передвижение", [
-      "info:player-run", "info:npc-run",
-    ]),
-    sec("player-movement", "Ходьба — игрок", [
-      "label:player", "feat:morrowind-player-walk-animation",
-    ]),
-    sec("npc-movement", "Ходьба — NPC", [
+      "label:walking", "label:player", "feat:morrowind-player-walk-animation",
       "label:npc", "feat:morrowind-male-npc-walk-animation", "feat:morrowind-female-npc-walk-animation",
+      "label:running", "info:player-run", "info:npc-run",
     ]),
-    sec("turning", "Повороты и развороты", [
-      "info:player-turning", "info:npc-turning",
+    sec("posture", "Положение и скрытность", [
+      "label:turning", "info:player-turning", "info:npc-turning",
+      "label:idle", "info:player-idle", "info:npc-idle",
+      "label:sneak", "info:player-sneak", "info:npc-sneak",
     ]),
-    sec("idle", "Стойка и ожидание", [
-      "info:player-idle", "info:npc-idle",
-    ]),
-    sec("sneak", "Скрытность", [
-      "info:player-sneak", "info:npc-sneak",
-    ]),
-    sec("attacks", "Атаки", [
-      "info:player-attacks", "info:npc-attacks",
-    ]),
-    sec("blocking", "Блокирование и защита", [
-      "info:player-blocking", "info:npc-blocking",
+    sec("combat", "Бой", [
+      "label:attacks", "info:player-attacks", "info:npc-attacks",
+      "label:blocking", "info:player-blocking", "info:npc-blocking",
     ]),
     sec("magic", "Магия и заклинания", [
       "info:player-magic", "info:npc-magic",
@@ -221,20 +212,14 @@ export const CATEGORIES = Object.freeze([
     sec("actions", "Действия и взаимодействие", [
       "info:player-actions", "info:npc-actions",
     ]),
-    sec("jumping", "Прыжки", [
-      "info:player-jumping", "info:npc-jumping",
+    sec("traversal", "Специальное передвижение", [
+      "label:jumping", "info:player-jumping", "info:npc-jumping",
+      "label:swimming", "info:player-swimming", "info:npc-swimming",
+      "label:falling", "info:player-falling", "info:npc-falling",
     ]),
-    sec("swimming", "Плавание", [
-      "info:player-swimming", "info:npc-swimming",
-    ]),
-    sec("falling", "Падение и приземление", [
-      "info:player-falling", "info:npc-falling",
-    ]),
-    sec("damage", "Получение урона", [
-      "info:player-damage", "info:npc-damage",
-    ]),
-    sec("death", "Смерть", [
-      "info:player-death", "info:npc-death",
+    sec("reactions", "Реакции", [
+      "label:damage", "info:player-damage", "info:npc-damage",
+      "label:death", "info:player-death", "info:npc-death",
     ]),
   ]),
   tab("textures", "Текстуры", [
