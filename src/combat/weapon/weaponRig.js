@@ -2281,16 +2281,19 @@ export function createWeaponRig({ renderer, canvas, fetchBytes, palette, audio, 
       // TWO-HANDS: THE RUNNING HANDS ARE NOT A WEAPON EITHER (an empty-handed run is often a sheathed one)
       const runHands = !!c && twoHands.running && !fpArm.active() && !eotbHidesWeapon() && !sheetWindowUp();
       const armsRun = fpArm.active() && !!fpArm.runPosed?.();
+      // A posed first-person Morrowind rig is itself the hands' picture during
+      // an unarmed run or jump. Do not let the weapon-only draw gate hide it.
+      const armsMovement = fpArm.active() && !!fpArm.movementPosed?.();
       const gate = {
         paralyzed: !!paralyzed, shown: !!shown(), torchOnly: !!torchOnly, sheetOnly: !!sheetOnly,
         shieldRect: !!shieldRect, gunSliding: !!gunSliding, armCasts: !!armCasts,
-        armsClimb: !!armsClimb, runHands: !!runHands, armsRun: !!armsRun,
+        armsClimb: !!armsClimb, runHands: !!runHands, armsRun: !!armsRun, armsMovement: !!armsMovement,
         armActive: !!fpArm.active(), running: !!twoHands.running,
         sheathed: !!playerWeapon.sheathed, sheetWindowUp: !!sheetWindowUp(),
         eotbHidesWeapon: !!eotbHidesWeapon(),
       };
       _fpViewDebug.lastGate = gate;
-      if (paralyzed || (!shown() && !torchOnly && !sheetOnly && !shieldRect && !gunSliding && !armCasts && !armsClimb && !runHands && !armsRun)) {
+      if (paralyzed || (!shown() && !torchOnly && !sheetOnly && !shieldRect && !gunSliding && !armCasts && !armsClimb && !runHands && !armsRun && !armsMovement)) {
         _fpViewDebug.lastDraw = { reason: 'draw-gate-rejected', ...gate };
         return;
       }
