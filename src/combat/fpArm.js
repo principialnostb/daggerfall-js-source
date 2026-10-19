@@ -3670,6 +3670,11 @@ export function createFpArm({ playerAppearance = false } = {}) {
   // not the last time someone pressed Build.
   let wornEquipKey = null;
   let lastBuildOpts = null;
+  // MW-ANIM-BLEND: transition source is the last raw third-person pose, not a stale clip clock.
+  let thirdPoseState = null;
+  let thirdPoseSource = null;
+  let thirdBlendFrom = null;
+  let thirdBlendElapsed = 0;
 
   // MW-D12: TWO CLIP SLOTS, because Morrowind's first-person arm plays
   // TWO animations and the port had one.
@@ -6494,10 +6499,21 @@ export function createFpArm({ playerAppearance = false } = {}) {
         // same, so the next posing frame lands where the clock is.
         if (pose) {
           posePartClocks(t.arm, weaponClockValue(), { frameTime: partClock });   // MW-BOW1: the bow draws, the arrow with it
+          // MW-ANIM-BLEND: cross-fade every third-person clip transition (walk/idle/run/jump/attack) over a short fixed window.
+          if (thirdPoseState !== state || thirdPoseSource !== poseSource) {
+            thirdBlendFrom = t.arm.rawPose instanceof Map ? new Map(t.arm.rawPose) : null;
+            thirdBlendElapsed = 0;
+            thirdPoseState = state;
+            thirdPoseSource = poseSource;
+          }
+          thirdBlendElapsed += Math.max(0, dt);
+          const thirdBlendWeight = thirdBlendFrom ? Math.min(1, thirdBlendElapsed / 0.16) : 1;
           poseAssembly(t.arm, {
             tracks: tOverlay ? overlayFor(tBase, t.leftArm) : tBase,
             sampleTrack: tOverlay ? overlaySample : sampleTrack,
             time: poseTime(state),   // MS1: a backhand's window runs backwards
+            blendFrom: thirdBlendFrom,
+            blendWeight: thirdBlendWeight,
             accumRoot: t.accumRoot,
             climb: thirdClimb(climbWorld, cam),   // CLIMB6
             mirror: mirrorFor('third', t, dt),   // TWO-HANDS: the second hand - the pair's left arm, a left-hand blow
@@ -6505,6 +6521,7 @@ export function createFpArm({ playerAppearance = false } = {}) {
             bodyProportions: playerAppearance ? getBodyMorphs() : false,   // MWV2-PROPORTIONS: player instance only
             skin: !thirdSkinReady(t),   // MWNPC1: the skin in the vertex shader - the pose is the skeleton alone
           });
+          if (thirdBlendWeight >= 1) thirdBlendFrom = null;
           uploadThirdMesh(t);
           // MAC-Q: the body's particle systems, on the clock its parts ride
           stepRigEffects(t.arm, { dt: effectsDt, clock: tOverlay ? overlayClock : poseTime(state), renderer, mesh: thirdMesh, textures: t.textures, hidden: effectHidden });

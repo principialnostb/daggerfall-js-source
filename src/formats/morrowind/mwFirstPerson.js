@@ -167,7 +167,7 @@ const zstr = (bytes, s, n) => {
 export { MW_BODY_PARTS, isFirstPersonId } from './mwEsmFile.js';
 import { MW_BODY_PARTS, isFirstPersonId } from './mwEsmFile.js';
 import FACE_TABLE from '../mwFaceTable.json' with { type: 'json' };
-import { GRAPH_ROOT, ACCUM_ROOT_NAMES } from './mwSkin.js';
+import { GRAPH_ROOT, ACCUM_ROOT_NAMES, blendPoseMaps } from './mwSkin.js';
 import { transferSkin, sourceSkin, fitLift, liftBatch, fitGarmentClearance } from './mwSkinTransfer.js';   // MW-BRIG2: a worn model skinned from the body under it; MW-BRIG3: and fitted onto it
 import { getTextKeyTime, animVelocity, collectTextKeys, normalizeTextKeys, clipGroups, resetClip, parseAnimGroups, extractTracks } from './mwAnim.js';
 import { mat33Mul } from './mwNifMesh.js';   // AUDIT 68 S11-affine-dup: the one row-major 3x3 product
@@ -2896,13 +2896,16 @@ function clampMorph(value) {
 }
 
 export function poseAssembly(assembly, { tracks = null, sampleTrack = null,
-  time = 0, accumRoot = null, neckPitch = 0, neckAim = 0, neckOffset = null, climb = null, skin = true, mirror = null, run = null, hold = null, bodyProportions = false } = {}) {
+  time = 0, accumRoot = null, neckPitch = 0, neckAim = 0, neckOffset = null, climb = null, skin = true, mirror = null, run = null, hold = null, bodyProportions = false, blendFrom = null, blendWeight = 1 } = {}) {
   const { fns, skeleton, pieces } = assembly;
   if (!fns || !skeleton) return assembly;
   const geometryMorph = bodyProportions ? (typeof bodyProportions === 'object' ? bodyProportions : getBodyMorphs()) : null;
   // MIRROR-BIND: an arm mirrored across the picture is mirrored by the binds of the skins it wears (mirrorBindsOf)
   if (mirror?.plane && mirror.plane.binds === undefined) mirror.plane.binds = mirrorBindsOf(assembly);
-  const pose = fns.poseSkeleton(skeleton, tracks, sampleTrack, time, { accumRoot });
+  const sampledPose = fns.poseSkeleton(skeleton, tracks, sampleTrack, time, { accumRoot });
+  // Keep raw animation data separate from morph/neck/climb edits for the next transition.
+  assembly.rawPose = new Map(sampledPose);
+  const pose = blendFrom && blendWeight < 1 ? blendPoseMaps(blendFrom, sampledPose, blendWeight) : new Map(sampledPose);
   // MWV2-PROPORTIONS: only expose controls with a direct transform in this skeleton pose.
   // These are bone-subtree scales, not vertex morphs: they cannot create local bust/waist/buttock volume.
   if (bodyProportions) {
