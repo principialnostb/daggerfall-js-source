@@ -1952,15 +1952,41 @@ export function modSettingsOf(vendor) {
  *  (the EOTB camera and body) re-reads when there is something new
  *  rather than never - the same idiom as `morrowindDataGeneration`. */
 let _generation = 0;
+const _modSettingNotices = new Map();
 export const modSettingsGeneration = () => _generation;
+
+/** The latest dependency/conflict resolution message attached to a setting row. */
+export function modSettingNotice(vendor, key) {
+  return _modSettingNotices.get(`${vendor}/${key}`) ?? '';
+}
 
 export function setModSetting(vendor, key, value) {
   const def = declaredKey(vendor, key);
   if (!def) throw new Error(`setModSetting: ${vendor}/${key} is not a declared switch`);
   const m = load();
   const v = coerce(def, value);
+  const notices = [];
+  _modSettingNotices.clear();
+
+  // Morrowind texture/equipment pack dependency: Complete Armor Joints is an
+  // add-on, not a standalone replacer. Enabling it also enables its required
+  // base pack; disabling the base pack turns the add-on off to prevent a
+  // misleading "enabled" state that would not load any joint meshes.
+  if (vendor === 'morrowind-textures' && key === 'CompleteArmorJoints' && v === true) {
+    const base = declaredKey(vendor, 'BetterMorrowindArmor');
+    if (base && modSetting(vendor, 'BetterMorrowindArmor') !== true) {
+      (m[vendor] ??= {}).BetterMorrowindArmor = true;
+      notices.push(['CompleteArmorJoints', 'Включён необходимый набор: Better Morrowind Armor']);
+    }
+  }
   (m[vendor] ??= {})[key] = v;
+  if (vendor === 'morrowind-textures' && key === 'BetterMorrowindArmor' && v === false
+      && modSetting(vendor, 'CompleteArmorJoints') === true) {
+    m[vendor].CompleteArmorJoints = false;
+    notices.push(['BetterMorrowindArmor', 'Отключён: Complete Armor Joints']);
+  }
   for (const r of SWITCH_RESETS) if (r.vendor === vendor && r.key === key) m[vendor][r.stamp] = true;   // DISC20-E: chosen after the reset - kept
+  for (const [noticeKey, message] of notices) _modSettingNotices.set(`${vendor}/${noticeKey}`, message);
   save();
   _generation++;
   return v;
@@ -1998,4 +2024,4 @@ export function flattenModPreset(vendor, values) {
 }
 
 /** For tests: forget everything. */
-export function _resetModSettings() { memory = null; _generation++; _loadedForGame.clear(); try { appStorage()?.removeItem(STORE_KEY); } catch { /* none */ } }
+export function _resetModSettings() { memory = null; _modSettingNotices.clear(); _generation++; _loadedForGame.clear(); try { appStorage()?.removeItem(STORE_KEY); } catch { /* none */ } }
