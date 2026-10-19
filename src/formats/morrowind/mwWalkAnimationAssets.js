@@ -22,6 +22,7 @@ const standardMale = entries.find((e) => e.lower.includes('/simply walking puris
 const puristFemale = entries.find((e) => e.lower.includes('/simply walking purist edition/meshes/xbase_anim_female.kf'));
 const feminineFemale = entries.find((e) => e.lower.includes('/simply walking/feminine walk cycle/meshes/xbase_anim_female.kf'));
 const axelFemale = entries.find((e) => e.lower.includes("/axel's sexy walk fixed/animation/axel fixed/female/walkforward;.kf"));
+const axelRunFemale = entries.find((e) => e.lower.includes("/axel's sexy walk fixed/animation/axel fixed/female/runforward;.kf"));
 
 const cache = new Map();
 let warnedMissingWalkAssets = false;
@@ -48,23 +49,26 @@ async function bytes(entry) {
 export async function loadWalkAnimationAssets({ female = false } = {}) {
   if (!IN_BROWSER) return [];
   const simplyCandidates = female
-    ? [{ entry: puristFemale, variant: 'simply' }, { entry: feminineFemale, variant: 'simply' }]
-    : [{ entry: standardMale, variant: 'simply' }];
+    ? [{ entry: puristFemale, variant: 'simply', family: 'walk' }, { entry: feminineFemale, variant: 'simply', family: 'walk' }]
+    : [{ entry: standardMale, variant: 'simply', family: 'walk' }];
   // Keep both female candidates under the same visible Simply Walking option.
   // fpArm filters each KF down to walk groups and picks the last valid source.
-  const overrides = female ? [{ entry: axelFemale, variant: 'axel' }] : [];
+  const overrides = female ? [
+    { entry: axelFemale, variant: 'axel', family: 'walk' },
+    { entry: axelRunFemale, variant: 'axel', family: 'run' },
+  ] : [];
   const selected = [];
   if (!simplyCandidates.some(({ entry }) => entry) && !warnedMissingWalkAssets) {
     warnedMissingWalkAssets = true;
     console.warn('[Morrowind animations] Vite did not resolve any Simply Walking KF source.', inspectWalkAnimationAssets());
   }
   try {
-    for (const { entry, variant } of simplyCandidates) {
+    for (const { entry, variant, family } of simplyCandidates) {
       if (!entry) continue;
       const data = await bytes(entry);
-      if (data) selected.push({ name: entry.path, bytes: data, variant, walkVariant: variant, walkOnly: true });
+      if (data) selected.push({ name: entry.path, bytes: data, variant, walkVariant: variant, family, walkOnly: true });
     }
-    for (const { entry, variant } of overrides) {
+    for (const { entry, variant, family } of overrides) {
       if (!entry) {
         console.warn('[Morrowind animations] Vite did not resolve optional female walk source:', variant, inspectWalkAnimationAssets());
         continue;
@@ -89,6 +93,7 @@ export function inspectWalkAnimationAssets() {
     puristFemale: puristFemale?.path ?? null,
     feminineFemale: feminineFemale?.path ?? null,
     axelFemale: axelFemale?.path ?? null,
+    axelRunFemale: axelRunFemale?.path ?? null,
   };
 }
 
@@ -96,6 +101,12 @@ export function inspectWalkAnimationAssets() {
 export function isWalkAnimationGroup(name) {
   return /^walk/i.test(String(name ?? ''));
 }
+
+/** Axel's pack has a separate RunForward clip; keep run and walk in the same locomotion selector. */
+export function isRunAnimationGroup(name) {
+  return /^run/i.test(String(name ?? ''));
+}
+
 
 /** A text-key record can contain several newline-separated entries (e.g. SoundGen before WalkForward).
  * Keep the record if ANY line names a walk group; looking only before the first colon silently drops many valid
@@ -106,6 +117,14 @@ export function isWalkAnimationKey(key) {
     return colon > 0 && isWalkAnimationGroup(line.slice(0, colon).trim());
   });
 }
+
+export function isRunAnimationKey(key) {
+  return String(key?.text ?? '').split(/\r?\n/).some((line) => {
+    const colon = line.indexOf(':');
+    return colon > 0 && isRunAnimationGroup(line.slice(0, colon).trim());
+  });
+}
+
 
 /**
  * Resolve the persisted numeric choice for one rig to a source variant.
