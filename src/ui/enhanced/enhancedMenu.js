@@ -1765,6 +1765,7 @@ function itemKinds(item) {
 function itemText(item, pool) {
   if (isSettingItem(item)) return `${labelOf(item)} ${helpOf(item)} ${item}`;
   if (item.startsWith('feat:')) { const f = FEATURES.find((x) => x.id === item.slice(5)); return f ? featureSearchText(f) : ''; }
+  if (item.startsWith('info:')) return ({ 'player-posture': 'player idle turn sneak posture stance', 'player-combat': 'player combat attack block hit weapon', 'player-magic': 'player magic spell cast', 'player-actions': 'player actions interaction use activate', 'player-traversal': 'player jump swim fall movement', 'player-reactions': 'player hit damage death knockdown', 'npc-idle': 'npc idle turn sneak posture', 'npc-combat': 'npc combat attack block hit weapon', 'npc-actions': 'npc actions interaction daily use', 'npc-reactions': 'npc hit damage death fall' })[item.slice(5)] ?? '';
   if (item.startsWith('port:')) return pool.get(item.slice(5))?.textContent ?? '';
   if (item === 'preset:graphics') return 'quality preset graphics low medium high ultra performance';
   if (item === 'link:overhauls') return 'overhauls looks textures vanilla enhanced sounds interface';
@@ -1803,6 +1804,24 @@ function itemNodes(item, ctx) {
   if (item.startsWith('feat:')) {
     const f = FEATURES.find((x) => x.id === item.slice(5));
     return f ? [mark(featureTile(f))] : [];
+  }
+  if (item.startsWith('info:')) {
+    const copy = {
+      'player-posture': ['Пак пока не подключён', 'В эту категорию относятся Idle, Turn, Sneak и переходы стойки. Walk-паки сюда не попадают.'],
+      'player-combat': ['Пак пока не подключён', 'Сюда относятся атаки по типам оружия, замахи, попадания и блок. Morrowind Animation Overhaul содержит такие группы, но не активирован: требуется разрешение на перенос ресурсов и отдельная проверка совместимости.'],
+      'player-magic': ['Пак пока не подключён', 'Отдельного совместимого и разрешённого источника заклинаний сейчас нет.'],
+      'player-actions': ['Пак пока не подключён', 'Сюда относятся использование предметов, открытие/закрытие, взаимодействие и прочие действия вне боя.'],
+      'player-traversal': ['Пак пока не подключён', 'Сюда относятся Jump, Swim, Fall и другие специальные перемещения.'],
+      'player-reactions': ['Пак пока не подключён', 'Сюда относятся Hit, Knockdown и Death.'],
+      'npc-idle': ['Пак пока не подключён', 'Сюда относятся Idle, Turn и Sneak NPC. OpenMW Dynamic Actors (#54782) сохранён как кандидат для анализа, но не подключён как источник клипов.'],
+      'npc-combat': ['Пак пока не подключён', 'Отдельного активного боевого реплейсера нет. Morrowind Animation Overhaul не активирован; не смешивать его с walk-паками.'],
+      'npc-actions': ['Пак пока не подключён', 'Сюда относятся повседневные действия и взаимодействия NPC; runtime-источник пока не реализован.'],
+      'npc-reactions': ['Пак пока не подключён', 'Сюда относятся попадания, реакции, падения и смерть NPC; runtime-источник пока не реализован.'],
+    }[item.slice(5)];
+    if (!copy) return [];
+    const card = el('div', 'dcard');
+    card.append(el('h3', null, copy[0]), el('p', 'meta', copy[1]));
+    return [card];
   }
   if (item === 'port:language') { const r = pool.get('language'); const pack = r ? translationPackRow() : null; return r ? [mark(r), ...(pack ? [pack] : [])] : []; }   // L10N3b: the translation pack rides under the language row
   if (item.startsWith('port:')) { const r = pool.get(item.slice(5)); return r ? [mark(r)] : []; }
