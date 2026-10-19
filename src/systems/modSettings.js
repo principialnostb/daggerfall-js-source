@@ -1660,7 +1660,7 @@ export const MOD_SETTINGS = Object.freeze({
       NpcMaleWalk: Object.freeze({
         default: 0,
         options: lazyWords('Standard', 'Vanilla'),
-        description: 'Male NPC walk source. Standard uses Simply Walking Purist Edition; Vanilla keeps the game's/archive walk. Other animation groups are unaffected.',
+        description: 'Male NPC walk source. Standard uses Simply Walking Purist Edition; Vanilla keeps the original game walk. Other animation groups are unaffected.',
       }),
       NpcFemaleWalk: Object.freeze({
         default: 0,
