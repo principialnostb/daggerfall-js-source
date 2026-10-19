@@ -120,23 +120,25 @@ The v4 idle body-yaw latch was rolled back after the reported runtime symptom re
 
 ## Actor-specific walk controls update — 2026-10-19
 
-The **Settings → Animations** page has actor-first, category-specific sub-pages. The selected category is shown on its own; the controls are not a single list with labels. Walk sources persist independently through the existing mod-settings store, with **Vanilla first**:
+The **Settings → Animations** page uses shared animation-family sub-pages, not actor-first navigation. The top-level families are **Ходьба / бег**, **Повороты / стойка / скрытность**, **Бой / атаки / блок**, **Магия / заклинания**, **Действия / взаимодействие**, **Прыжки / плавание / падения**, and **Получение урона / падение / смерть**. Inside each selected family, player controls are listed first, then NPC controls. Walking and running remain one locomotion family; the active walk packs only replace walk groups, so run stays vanilla until a separate compatible run source is wired. Walk sources persist independently through the existing mod-settings store, with **Vanilla first**:
 
 - Player: Vanilla / Simply Walking / Axel's Sexy Walk Fixed.
 - Male NPCs: Vanilla / Simply Walking.
-- Female NPCs: Vanilla / Simply Walking / Axel's Sexy Walk Fixed. `Vanilla` preserves the game's/archive walk source. The previous `FemaleWalk` key is retained as a compatibility declaration, but the runtime now reads `PlayerWalkSource`, `NpcMaleWalk`, and `NpcFemaleWalk`. Actor routing is implemented in `walkVariantForActor()` in `src/formats/morrowind/mwWalkAnimationAssets.js`; the shared rig's movement resolver supplies build identity and filters the sources accordingly. `Vanilla` excludes bundled walk-only sources while preserving archive animation groups. Remote player bodies follow the player selector; NPC bodies use the sex-specific NPC selector.
+- Female NPCs: Vanilla / Simply Walking / Axel's Sexy Walk Fixed.
+
+**Simply Walking** is the one player-facing pack choice. Its male source is the Purist Edition KF; its female source is the internal Feminine Walk Cycle KF. The female component is not exposed as a separate pack. `Vanilla` preserves the game's/archive walk source. The previous `FemaleWalk` key is retained for compatibility, but the runtime reads `PlayerWalkSource`, `NpcMaleWalk`, and `NpcFemaleWalk`. Actor routing is implemented in `walkVariantForActor()` in `src/formats/morrowind/mwWalkAnimationAssets.js`; the shared rig's movement resolver supplies build identity and filters the sources accordingly. `Vanilla` excludes bundled walk-only sources while preserving archive animation groups. Remote player bodies follow the player selector; NPC bodies use the sex-specific NPC selector.
 
 The actor mapping and Vanilla filter have regression assertions in `test/formats/morrowind/mwwalkassets.test.js`. This is code-level validation only: this environment did not run the complete test/lint/type/build pipeline or an in-game visual pass. In-game verification remains necessary for correct actor classification, foot sliding, clipping, and transitions.
 
 
 ## Animation settings navigation (ANIM-UI1, 2026-10-19)
 
-Animation controls now have a dedicated **Settings → Animations** tab rather than being discovered through the general mod index. Choices are organized by responsibility, not by whole-pack toggles: **Игрок → Бег / ходьба**, then **NPC → Бег / ходьба**. This actor-first layout is the initial scaffold for the broader resource-selection system: add movement, combat/strikes, and actions/interactions as independent responsibilities when their source packs and runtime group filters are actually implemented. Do not expose empty controls or claim an animation family is supported merely because its files exist.
+Animation controls have a dedicated **Settings → Animations** tab. The first-level switchers are shared animation families; each selected family shows **Игрок** controls first and **NPC** controls second. Walking and running are grouped together as locomotion rather than split into separate categories. Only source choices backed by a runtime consumer are selectable; other families show Vanilla-only status until compatible sources are integrated.
 
 
 ## Animation settings taxonomy (2026-10-19)
 
-The **Settings → Animations** tab now reserves independent sections for player and NPC animation families: walk/run, idle/turn/sneak, combat/attacks/block, magic, actions/interactions, traversal (jump/swim/fall), and hit/death reactions. Only walk-source selectors are currently functional. Other sections explicitly state that no source pack is integrated yet; these are roadmap categories, not pretend controls.
+The **Settings → Animations** tab groups controls by shared family: walk/run, turn/stance/sneak, combat/attacks/block, magic, actions/interactions, traversal (jump/swim/fall), and hit/death reactions. Within each family, player settings precede NPC settings. Only walk-source selectors are currently functional. Other sections explicitly state that no compatible source pack is integrated yet; they are not pretend controls.
 
 Pack-to-category audit:
 - **Simply Walking Purist Edition**: runtime intentionally imports only walk groups; assigned to walk/movement.
