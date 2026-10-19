@@ -34,10 +34,11 @@ test('MW-ANIM-1: walk keys survive additional text-key lines before the group ma
   assert.equal(isWalkAnimationKey({ text: 'Idle: Start\nSoundGen: Left' }), false);
 });
 
-test('MW-ANIM-1: player, male NPC, and female NPC walk settings resolve independently', () => {
+test('MW-ANIM-2: player, male NPC, and female NPC walk settings resolve independently', () => {
   assert.equal(walkVariantForActor({ player: true, playerChoice: 0 }), 'standard');
   assert.equal(walkVariantForActor({ player: true, playerChoice: 1 }), 'female');
   assert.equal(walkVariantForActor({ player: true, playerChoice: 2 }), 'female2');
+  assert.equal(walkVariantForActor({ player: true, playerChoice: 3 }), 'vanilla');
 
   assert.equal(walkVariantForActor({ female: false, npcMaleChoice: 0 }), 'standard');
   assert.equal(walkVariantForActor({ female: false, npcMaleChoice: 1 }), 'vanilla');
