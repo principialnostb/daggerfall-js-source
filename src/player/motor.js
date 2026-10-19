@@ -3268,6 +3268,13 @@ export class PlayerMotor {
     // recorded as deferred).
     this.moveForward = input.forward || 0;
     this.moveStrafe = input.strafe || 0; this.moveYaw = yaw;   // AUDIT PRE-MERGE 0929 D1/D2: and the yaw they were turned by
+    // MW-D40 FIX: standing means IsStandingStill, not IsGrounded. It was
+    // left true on the ordinary grounded movement path, so the exterior
+    // host never enabled view-facing while walking; the body kept its
+    // initial yaw even as the player moved. Backwards input (S) is still
+    // movement: the body faces the camera/aim while the motor moves in
+    // the opposite direction, matching the sprite/global-view behaviour.
+    this.standing = this.grounded && this.moveForward === 0 && this.moveStrafe === 0;
 
     // fwd = (sin, 0, cos); screen-right = (cos, 0, -sin) - Unity's
     // own. HANDEDNESS (mat4's law): the projection now mirrors NDC x,

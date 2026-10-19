@@ -16,6 +16,7 @@ const standardFemale = entries.find((e) => e.lower.includes('/simply walking pur
 const feminineFemale = entries.find((e) => e.lower.includes('/simply walking/feminine walk cycle/meshes/xbase_anim_female.kf'));
 
 const cache = new Map();
+let warnedMissingWalkAssets = false;
 async function bytes(entry) {
   if (!entry) return null;
   let pending = cache.get(entry.url);
@@ -38,6 +39,10 @@ export async function loadWalkAnimationAssets({ female = false } = {}) {
   if (!IN_BROWSER) return [];
   const standard = female ? standardFemale : standardMale;
   const selected = [];
+  if ((!standard || (female && !feminineFemale)) && !warnedMissingWalkAssets) {
+    warnedMissingWalkAssets = true;
+    console.warn('[Morrowind animations] Vite did not resolve one or more requested KF assets.', inspectWalkAnimationAssets());
+  }
   try {
     if (standard) {
       const data = await bytes(standard);
@@ -48,7 +53,12 @@ export async function loadWalkAnimationAssets({ female = false } = {}) {
       if (data) selected.push({ name: feminineFemale.path, bytes: data, variant: 'female' });
     }
   } catch (error) {
-    console.warn('[Morrowind animations] bundled walk set unavailable; archive animations remain active:', String(error?.message ?? error));
+    console.warn('[Morrowind animations] bundled walk set failed to load; archive animations remain active:', String(error?.message ?? error));
+    return [];
+  }
+  if (!selected.length && !warnedMissingWalkAssets) {
+    warnedMissingWalkAssets = true;
+    console.warn('[Morrowind animations] no bundled walk KF was selected.', inspectWalkAnimationAssets());
   }
   return selected;
 }

@@ -2261,13 +2261,19 @@ async function buildTpBody({
       for (const asset of walkAssets) {
         const report = await cachedClipReport(gen, skeletonPath, asset.name, () => asset.bytes, arm.skeleton);
         if (!report.ok) {
-          missing.push(`walk animation ${asset.name}: ${report.error}`);
+          const reason = `walk animation ${asset.name}: ${report.error}`;
+          missing.push(reason);
+          console.warn('[Morrowind animations] replacement KF could not be parsed/bound; vanilla walk retained:', reason);
           continue;
         }
         const walkKeys = report.keys.filter((key) => isWalkAnimationGroup(String(key.text || '').split(':')[0]));
         const walkGroups = report.groups.filter(isWalkAnimationGroup);
         if (!walkGroups.length || !walkKeys.length) {
-          missing.push(`walk animation ${asset.name}: no usable walk groups; vanilla source retained`);
+          const reason = `walk animation ${asset.name}: no usable walk groups; vanilla source retained`;
+          missing.push(reason);
+          console.warn('[Morrowind animations] replacement KF has no recognised walk groups; vanilla walk retained:', {
+            asset: asset.name, groups: report.groups, keyCount: report.keys.length,
+          });
           continue;
         }
         sources.push({
@@ -4965,6 +4971,9 @@ export function createFpArm({ playerAppearance = false } = {}) {
         movementGroup = composed.group;
         movementState = pick.state;
         movementSource = pick.source;
+        if (pick.source?.walkOnly) {
+          console.info('[Morrowind animations] playing replacement walk group:', composed.group, 'from', pick.source.name);
+        }
       }
       movementBase = base; movementStance = stance;
       // MW-D29: the clip speed refreshes on EVERY state change, not only
