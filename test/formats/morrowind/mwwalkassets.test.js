@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { inspectWalkAnimationAssets, isWalkAnimationGroup, isWalkAnimationKey, isRunAnimationGroup, isRunAnimationKey, isWalkVariantEnabled, walkVariantForActor } from '../../src/formats/morrowind/mwWalkAnimationAssets.js';
+import { inspectWalkAnimationAssets, isWalkAnimationGroup, isWalkAnimationKey, isRunAnimationGroup, isRunAnimationKey, isWalkVariantEnabled, isRunVariantEnabled, walkVariantForActor, runVariantForActor } from '../../src/formats/morrowind/mwWalkAnimationAssets.js';
 
 test('MW-ANIM-1: bundled walk asset inventory is safe to import in Node', () => {
   const assets = inspectWalkAnimationAssets();
@@ -20,10 +20,10 @@ test('MW-ANIM-1: only walk groups are overridden', () => {
   assert.equal(isRunAnimationGroup('WalkForward'), false);
 });
 test('MW-ANIM-1: female gait preference gates only the female walk source', () => {
-  assert.equal(isWalkVariantEnabled({ walkOnly: true, walkVariant: 'simply' }, 'vanilla'), false);
-  assert.equal(isWalkVariantEnabled({ walkOnly: true, walkVariant: 'simply' }, 'simply'), true);
-  assert.equal(isWalkVariantEnabled({ walkOnly: true, walkVariant: 'axel' }, 'simply'), false);
-  assert.equal(isWalkVariantEnabled({ walkOnly: true, walkVariant: 'axel' }, 'axel'), true);
+  assert.equal(isWalkVariantEnabled({ walkOnly: true, animationFamily: 'walk', walkVariant: 'simply' }, 'vanilla'), false);
+  assert.equal(isWalkVariantEnabled({ walkOnly: true, animationFamily: 'walk', walkVariant: 'simply' }, 'simply'), true);
+  assert.equal(isWalkVariantEnabled({ walkOnly: true, animationFamily: 'walk', walkVariant: 'axel' }, 'simply'), false);
+  assert.equal(isWalkVariantEnabled({ walkOnly: true, animationFamily: 'walk', walkVariant: 'axel' }, 'axel'), true);
   assert.equal(isWalkVariantEnabled({ name: 'vanilla' }, false), true);
 });
 
@@ -56,4 +56,22 @@ test('MW-ANIM-1: Vanilla disables bundled walk replacements only', () => {
   assert.equal(isWalkVariantEnabled({ walkOnly: true, walkVariant: 'simply' }, 'vanilla'), false);
   assert.equal(isWalkVariantEnabled({ walkOnly: true, walkVariant: 'axel' }, 'vanilla'), false);
   assert.equal(isWalkVariantEnabled({ name: 'archive animation' }, 'vanilla'), true);
+});
+
+test('MW-ANIM-3: walk and run preferences gate only their own clip families', () => {
+  const walk = { walkOnly: true, animationFamily: 'walk', walkVariant: 'axel' };
+  const run = { walkOnly: true, animationFamily: 'run', walkVariant: 'axel' };
+  assert.equal(isWalkVariantEnabled(walk, 'vanilla'), false);
+  assert.equal(isWalkVariantEnabled(run, 'vanilla'), true);
+  assert.equal(isRunVariantEnabled(run, 'vanilla'), false);
+  assert.equal(isRunVariantEnabled(walk, 'vanilla'), true);
+  assert.equal(isRunVariantEnabled(run, 'axel'), true);
+  assert.equal(isRunVariantEnabled({ name: 'archive animation' }, 'axel'), true);
+});
+test('MW-ANIM-3: run choices resolve independently for player and female NPC', () => {
+  assert.equal(runVariantForActor({ player: true, playerChoice: 0 }), 'vanilla');
+  assert.equal(runVariantForActor({ player: true, playerChoice: 1 }), 'axel');
+  assert.equal(runVariantForActor({ female: true, npcFemaleChoice: 1 }), 'axel');
+  assert.equal(runVariantForActor({ female: false, npcFemaleChoice: 1 }), 'vanilla');
+  assert.equal(runVariantForActor({ ownHeads: true, female: true, playerChoice: 1 }), 'axel');
 });
