@@ -77,7 +77,7 @@ import {
   placeAtBone,   // TWO-HANDS AUDIT 2: a blade placed at rest, for the pair's guard (bladePictureHeight)
 } from '../formats/morrowind/mwFirstPerson.js';
 import { PART_BONES, dfRaceKeyOf } from '../formats/morrowind/mwNpc.js';
-import { betterBodiesFemaleAssetUrls, loadBetterBodiesFemaleUvEdits } from '../formats/morrowind/mwBetterBodies.js';
+import { betterBodiesAssetUrls, loadBetterBodiesFemaleUvEdits } from '../formats/morrowind/mwBetterBodies.js';
 import { portraitFeatures, headFeatures, hairFeatures, matchFace, FACE_MATCH_VERSION } from '../formats/morrowind/mwFaceMatch.js';
 import { CifRciFile } from '../formats/cifRciFile.js';
 import { DFPalette } from '../formats/dfPalette.js';
@@ -93,6 +93,25 @@ import { showNudity } from '../characters/nudeFlats.js';   // NUDE-FLATS: Show N
 import { getPref } from '../systems/uiPrefs.js';   // MW-STEEL1: the Steel Helm switch, read where the worn set is composed
 import { skinMips, skinUseOf, skinUseKey } from '../characters/werewolfSkin.js';   // SHADOW-FANG: the werewolf's skin, a law over its own textures
 import { correctTexturePath, correctActorModelPath, wrapModes, warningImage, decodeTextureImage } from '../formats/morrowind/mwTexture.js';
+const betterBodiesTextureBytes = new Map();
+const betterBodiesTextureBasename = (path) => String(path || '').replace(/\\\\/g, '/').split('/').pop().toLowerCase();
+function registerBetterBodiesRaceTexture(archives, texturePath, textureBytes) {
+  const basename = betterBodiesTextureBasename(texturePath);
+  betterBodiesTextureBytes.set(basename, textureBytes);
+  let adapter = archives.find((archive) => archive.__betterBodiesRaceTexture);
+  if (!adapter) {
+    adapter = {
+      __betterBodiesRaceTexture: true,
+      has: (path) => /(?:^|[\\\\/])bb_skin[fm]_(?:br|de|he|im|no|or|rg|we)\\.dds$/i.test(String(path || '')),
+      loaded: () => true,
+      load: async () => null,
+      get: (path) => betterBodiesTextureBytes.get(betterBodiesTextureBasename(path)) ?? null,
+    };
+    archives.push(adapter);
+  }
+  return adapter;
+}
+
 import { decodeTextureOffThread } from '../formats/morrowind/mwTextureClient.js';   // MW-TEXTHREAD: the preload's decodes, in the pool
 import { diffuseAt, emissiveAt } from '../formats/morrowind/mwNifMesh.js';   // MWT2: the emission the pass has always resolved and never read
 import { fpLightingOn } from './fpsWeapon.js';   // MAC-P: the first-person lighting switch, shared with the classic sprite it stands in for
@@ -2060,58 +2079,39 @@ async function buildTpBody({
     // WEREWOLF1: the wolf's head and hair, by id - every other skin slot is empty, the robe is the body
     const rows = werewolf ? werewolfHeadRows(parts) : playerBodyRows(parts, race, female, { beast, faceIndex, faceMatch, vampire, walk, has: exists, ownHeads });   // MWNPC14: a vampire's head; MWNPC17: an NPC's own; AUDIT MW-HEADS1: the port's own heads where these archives carry them
     const missing = [];
-    // Better Bodies is the base body for every human female build, including
-    // builds with equipped armor or clothing. Worn pieces are still composed
-    // through the normal slot-aware path and layered over this body; do not
-    // silently switch the player back to vanilla skin when equipment changes.
+    // Better Bodies is selected by the actor's own race and sex. The matching
+    // texture is registered by basename, so concurrent NPC builds cannot overwrite
+    // one another's skin bytes through a shared "current texture" adapter.
     let betterBodiesPart = null;
-    if (female && !beast && !werewolf && !vampire) {
+    if (!beast && !werewolf && !vampire) {
       try {
+        const asset = betterBodiesAssetUrls({ race, female });
+        if (!asset) throw new Error(`no Better Bodies asset for race "${String(race)}" / ${female ? 'female' : 'male'}`);
         const [nifResponse, textureResponse, uvEdits] = await Promise.all([
-          fetch(betterBodiesFemaleAssetUrls.model),
-          fetch(betterBodiesFemaleAssetUrls.texture),
-          loadBetterBodiesFemaleUvEdits(),
+          fetch(asset.model),
+          fetch(asset.texture),
+          female && asset.raceKey === 'no' ? loadBetterBodiesFemaleUvEdits() : Promise.resolve([]),
         ]);
         if (!nifResponse.ok) throw new Error('NIF HTTP ' + nifResponse.status);
         if (!textureResponse.ok) throw new Error('DDS HTTP ' + textureResponse.status);
         const bytes = new Uint8Array(await nifResponse.arrayBuffer());
         const textureBytes = new Uint8Array(await textureResponse.arrayBuffer());
-        // Make the checked-in DDS visible to the same texture resolver used by
-        // all other NIF parts. The adapter only claims this one exact texture.
-        const virtualTexturePath = 'textures/bb/bb_skinf_no.dds';
-        if (!archives.some((a) => a.__betterBodiesFemaleTexture)) {
-          archives.push({
-            __betterBodiesFemaleTexture: true,
-            has: (path) => /(?:^|[\\/])bb_skinf_no\.dds$/i.test(String(path || '')),
-            loaded: () => true,
-            load: async () => null,
-            get: () => textureBytes,
-          });
-        }
-        // Rebind all body sections to the active female skeleton and carry
-        // the latest per-section UV transforms from the user's JSON.
-        betterBodiesPart = { slot: 'betterBodies', bones: [], bytes, uvEdits, hideSlots: worn.shadows };
-        // The adapter is refreshed on each build so the live texture follows
-        // the checked-in asset even after a dev-server reload.
-        const textureAdapter = archives.find((a) => a.__betterBodiesFemaleTexture);
-        if (textureAdapter) textureAdapter.get = () => textureBytes;
-        // The texture name may already have a generation-scoped negative cache
-        // entry from the vanilla archive lookup. The loose Better Bodies DDS
-        // is authoritative for this one basename, so discard that stale answer.
+        registerBetterBodiesRaceTexture(archives, asset.texturePath, textureBytes);
+        betterBodiesPart = {
+          slot: 'betterBodies', bones: [], bytes, uvEdits, hideSlots: worn.shadows,
+          texturePath: asset.texturePath,
+        };
+        const basename = betterBodiesTextureBasename(asset.texturePath);
         for (const key of TEXTURE_CACHE.keys()) {
-          if (/bb_skinf_no\.dds$/i.test(key)) TEXTURE_CACHE.delete(key);
+          if (betterBodiesTextureBasename(key) === basename) TEXTURE_CACHE.delete(key);
         }
-        // Keep the intended resolver path explicit for diagnostics.
-        betterBodiesPart.texturePath = virtualTexturePath;
-        console.info('[Better Bodies] female body asset loaded', {
-          modelBytes: bytes.byteLength,
-          textureBytes: textureBytes.byteLength,
-          uvEdits: uvEdits.length,
-          female,
+        console.info('[Better Bodies] race/sex body asset loaded', {
+          raceKey: asset.raceKey, female, modelBytes: bytes.byteLength,
+          textureBytes: textureBytes.byteLength, uvEdits: uvEdits.length,
           wornAdds: worn.adds?.length ?? 0,
         });
       } catch (error) {
-        const reason = 'Better Bodies female skin unavailable: ' + String(error?.message ?? error);
+        const reason = 'Better Bodies race/sex skin unavailable: ' + String(error?.message ?? error);
         missing.push(reason);
         console.warn('[Better Bodies] falling back to standard Morrowind body:', reason);
       }
@@ -2926,47 +2926,35 @@ export async function buildFpArm({
       if (ARM_PARTS.includes(slot)) continue;
       if (rec && rec.model) wanted.push({ slot, record: rec.id, firstPerson: true, path: `meshes/${rec.model}` });
     }
-    // Better Bodies' full female mesh is also the source for first-person
-    // hands/arms. Keep only its arm sections in this view; the old .1st BODY
-    // hand meshes remain the fallback if the asset cannot be loaded.
+    // Use the same race/sex-matched body asset for first-person hands; only
+    // its arm/hand slots are drawn here. Vanilla part meshes remain the fallback.
     let betterBodiesFpArms = null;
-    if (female && !beast && !werewolf && !vampire) {
+    if (!beast && !werewolf && !vampire) {
       try {
+        const asset = betterBodiesAssetUrls({ race, female });
+        if (!asset) throw new Error(`no Better Bodies asset for race "${String(race)}" / ${female ? 'female' : 'male'}`);
         const [nifResponse, textureResponse, uvEdits] = await Promise.all([
-          fetch(betterBodiesFemaleAssetUrls.model),
-          fetch(betterBodiesFemaleAssetUrls.texture),
-          loadBetterBodiesFemaleUvEdits(),
+          fetch(asset.model),
+          fetch(asset.texture),
+          female && asset.raceKey === 'no' ? loadBetterBodiesFemaleUvEdits() : Promise.resolve([]),
         ]);
         if (!nifResponse.ok) throw new Error('NIF HTTP ' + nifResponse.status);
         if (!textureResponse.ok) throw new Error('DDS HTTP ' + textureResponse.status);
         const bytes = new Uint8Array(await nifResponse.arrayBuffer());
         const textureBytes = new Uint8Array(await textureResponse.arrayBuffer());
-        const virtualTexturePath = 'textures/bb/bb_skinf_no.dds';
-        if (!archives.some((a) => a.__betterBodiesFemaleTexture)) {
-          archives.push({
-            __betterBodiesFemaleTexture: true,
-            has: (path) => /(?:^|[\\/])bb_skinf_no\.dds$/i.test(String(path || '')),
-            loaded: () => true,
-            load: async () => null,
-            get: () => textureBytes,
-          });
-        }
-        const textureAdapter = archives.find((a) => a.__betterBodiesFemaleTexture);
-        if (textureAdapter) textureAdapter.get = () => textureBytes;
+        registerBetterBodiesRaceTexture(archives, asset.texturePath, textureBytes);
+        const basename = betterBodiesTextureBasename(asset.texturePath);
         for (const cacheKey of TEXTURE_CACHE.keys()) {
-          if (/bb_skinf_no\.dds$/i.test(cacheKey)) TEXTURE_CACHE.delete(cacheKey);
+          if (betterBodiesTextureBasename(cacheKey) === basename) TEXTURE_CACHE.delete(cacheKey);
         }
         betterBodiesFpArms = {
-          slot: 'betterBodies',
-          bones: [],
-          bytes,
-          uvEdits,
-          texturePath: virtualTexturePath,
+          slot: 'betterBodies', bones: [], bytes, uvEdits,
+          texturePath: asset.texturePath,
           showSlots: ['hand:left', 'hand:right', 'wrist:left', 'wrist:right', 'forearm:left', 'forearm:right', 'upperarm:left', 'upperarm:right'],
           hideSlots: worn.fpShadows ?? worn.shadows,
         };
       } catch (error) {
-        console.warn('[Better Bodies] first-person arms unavailable; using standard Morrowind arms:', String(error?.message ?? error));
+        console.warn('[Better Bodies] first-person race/sex arms unavailable; using standard Morrowind arms:', String(error?.message ?? error));
       }
     }
     const partBytes = [];
