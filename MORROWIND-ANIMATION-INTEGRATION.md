@@ -17,7 +17,7 @@ The existing asset tree includes these candidates:
 
 - `Morrowind Textures/Simply Walking/Simply Walking Purist Edition/meshes/xbase_anim.kf` — the male/standard skeleton animation set candidate.
 - `Morrowind Textures/Simply Walking/Simply Walking Purist Edition/meshes/xbase_anim_female.kf` — female animation set candidate bundled alongside the standard set.
-- `Morrowind Textures/Simply Walking/Feminine Walk Cycle/Meshes/xbase_anim_female.kf` — a separate female-walk candidate.
+- `Morrowind Textures/Simply Walking/Feminine Walk Cycle/Meshes/xbase_anim_female.kf` — the internal female-walk component of the user-facing Simply Walking pack.
 - `Morrowind Textures/Morrowind Animation Overhaul/Data Files/Meshes/Xbase_anim.kf` and `Xbase_anim_female.kf` — a broader animation overhaul candidate; do not select it as the default blindly because it can replace more than the walking cycle.
 - `Morrowind Textures/Axel's Sexy Walk Fixed/Animation/axel fixed/female/WalkForward;.kf` — a narrow female walk clip candidate, with idle/run clips also present.
 
@@ -140,7 +140,7 @@ The **Settings → Animations** tab now reserves independent sections for player
 
 Pack-to-category audit:
 - **Simply Walking Purist Edition**: runtime intentionally imports only walk groups; assigned to walk/movement.
-- **Feminine Walk Cycle**: alternate female walk group source; assigned to player walk/movement.
+- **Simply Walking**: one user-facing pack; male characters use Purist Edition and female characters use the internal Feminine Walk Cycle source.
 - **Axel's Sexy Walk Fixed**: runtime imports only `WalkForward;.kf`; its `Idle4`, `Idle5`, and `RunForward` files are present in the pack but deliberately not active.
 - **Morrowind Animation Overhaul**: files include broader movement and combat groups, but are not wired into gameplay. The repository audit records a restriction on reusing/converting these assets without permission.
 - **OpenMW Dynamic Actors (#54782)**: candidate reference, not a runtime animation provider in this port.
