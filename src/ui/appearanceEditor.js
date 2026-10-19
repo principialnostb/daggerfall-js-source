@@ -178,7 +178,7 @@ export function openAppearanceEditor({ fpArm, onClose = () => {} } = {}) {
   if (typeof document === 'undefined' || !document.body) return null;
   document.getElementById('mw-appearance-editor')?.remove();
 
-  let yaw = 0, zoom = 1, frame = 0, closed = false, previewRig = null, previewBuildPending = false, previewError = '';
+  let yaw = 0, zoom = 1, frame = 0, closed = false, previewRig = null, previewBuildPending = false, previewRebuildRequested = false, previewError = '';
   const root = document.createElement('div');
   root.id = 'mw-appearance-editor';
   const style = document.createElement('style');
@@ -240,11 +240,14 @@ export function openAppearanceEditor({ fpArm, onClose = () => {} } = {}) {
   const underwearCopy = document.createElement('span'); underwearCopy.innerHTML = '<strong>Нижнее бельё</strong><small>Выключено — голая модель; включено — вариант тела с бельём.</small>';
   underwearRow.append(underwearToggle, underwearCopy); controlsHead.append(underwearRow);
   underwearToggle.addEventListener('change', async () => {
-    const enabled = setUnderwearEnabled(underwearToggle.checked);
+    setUnderwearEnabled(underwearToggle.checked);
     statusMessage.style.display = 'block'; statusMessage.textContent = 'Пересборка модели…';
+    // If the first preview build is still loading, queue a second build after
+    // it settles. Otherwise the checkbox could persist the new value while
+    // leaving the already-started underwear model on screen.
+    if (previewBuildPending) previewRebuildRequested = true;
+    previewRig?.unload?.(); previewRig = null; previewError = '';
     try {
-      if (typeof fpArm?.setUnderwearEnabled === 'function') await fpArm.setUnderwearEnabled(enabled);
-      previewRig?.unload?.(); previewRig = null; previewError = '';
       await buildPreviewRig();
     } catch (error) { previewError = String(error?.message || error); }
     drawPreview();
@@ -369,21 +372,38 @@ export function openAppearanceEditor({ fpArm, onClose = () => {} } = {}) {
   });
 
   async function buildPreviewRig() {
-    if (closed || previewBuildPending || previewRig || !fpArm?.createAppearancePreviewRig) {
+    if (closed || previewRig || !fpArm?.createAppearancePreviewRig) {
       if (!fpArm?.createAppearancePreviewRig) { previewError = 'Отдельная 3D-сборка недоступна для этого игрового рига.'; drawPreview(); }
       return;
     }
+    if (previewBuildPending) {
+      previewRebuildRequested = true;
+      return;
+    }
+    // This build starts after any previous one has settled and therefore
+    // reads the latest saved underwear choice through betterBodiesAssetUrls.
+    previewRebuildRequested = false;
     previewBuildPending = true;
     try {
       const result = await fpArm.createAppearancePreviewRig();
-      if (closed) { result?.rig?.unload?.(); return; }
-      if (result?.ok && result.rig) previewRig = result.rig;
-      else previewError = result?.error || 'Не удалось собрать отдельную модель.';
+      if (closed || previewRebuildRequested) {
+        result?.rig?.unload?.();
+      } else if (result?.ok && result.rig) {
+        previewRig = result.rig;
+      } else {
+        previewError = result?.error || 'Не удалось собрать отдельную модель.';
+      }
     } catch (error) {
-      previewError = String(error?.message || error);
+      if (!previewRebuildRequested) previewError = String(error?.message || error);
     } finally {
       previewBuildPending = false;
-      drawPreview();
+      if (previewRebuildRequested && !closed) {
+        previewRebuildRequested = false;
+        previewRig?.unload?.(); previewRig = null; previewError = '';
+        void buildPreviewRig();
+      } else {
+        drawPreview();
+      }
     }
   }
 
