@@ -27,14 +27,14 @@ This document is the operational inventory: what is in the repository, what the 
    - `Morrowind Textures/Simply Walking/Simply Walking Purist Edition/meshes/xbase_anim.kf`
    - `Morrowind Textures/Simply Walking/Simply Walking Purist Edition/meshes/xbase_anim_female.kf`
 
-   Role: current Standard source for male and female biped rigs. It is a walk-animation source in this port, not a wholesale replacement of the skeleton's entire animation library. The runtime filters out non-walk groups even if the KF contains them.
+   Role: the male walking source inside the user-facing Simply Walking pack. The bundled female KF is not selected as the public female walk variant; the runtime uses Feminine Walk Cycle for women. This remains a walk-only source, not a wholesale replacement of the skeleton's animation library.
 
    Reference: [Nexus Mods #49785 — Simply Walking (Remastered)](https://www.nexusmods.com/morrowind/mods/49785). The asset directory identifies the selected variant as “Purist Edition”; do not silently swap in the weapon-sheathing or run-inclusive variants without a deliberate review.
 
 2. **Simply Walking — Feminine Walk Cycle**  
    File: `Morrowind Textures/Simply Walking/Feminine Walk Cycle/Meshes/xbase_anim_female.kf`
 
-   Role: alternate female walk source exposed as its own **Feminine Walk Cycle** option for the player. It is not the same as the Purist Edition female base file. It is intentionally kept as a separate player choice because the player selector lists each walk source by its actual pack name; the female-NPC selector does not expose this option.
+   Role: the internal female-walk component of the single user-facing **Simply Walking** pack. It is not shown as a separate pack choice. The player and female-NPC selectors both resolve to this source when **Simply Walking** is selected.
 
 3. **Axel's Sexy Walk Fixed**  
    File used by runtime: `Morrowind Textures/Axel's Sexy Walk Fixed/Animation/axel fixed/female/WalkForward;.kf`
@@ -67,17 +67,17 @@ A broad KF can contain tracks for many bones and text keys for several groups. N
 
 ## Animation settings home — taxonomy scaffold in v4
 
-The Settings screen has a dedicated **Animations** tab (`src/ui/settings/settingsMap.js`), separate from `Mods & files`. The taxonomy is grouped by actor and responsibility: movement, posture/turn/sneak, combat/attacks/block, magic, actions/interactions, traversal, and damage/death reactions. NPC categories are separate from player categories. The walk source selectors are live; the remaining categories are explicitly marked **Пак пока не подключён** until a source is legally reusable, validated against the rig, and wired to a category-specific runtime resolver. Informational rows are not toggles and cannot change gameplay.
+The Settings screen has a dedicated **Animations** tab (`src/ui/settings/settingsMap.js`), separate from `Mods & files`. Actor and animation-family controls are actual selectable sub-pages: the chosen category alone is shown, rather than a long list of headings. Player and NPC groups are separate. Walk selectors are live; categories without an integrated source show a disabled, selected **Vanilla** choice and explain the current limit.
 
 ## Actor-specific selectors — implemented in v4
 
-The Animations page exposes three independent persisted controls:
+The Animations page exposes three independent persisted controls, with **Vanilla first**:
 
-- **Игрок · Бег / ходьба** — Standard / Feminine Walk Cycle / Axel's Sexy Walk Fixed / Vanilla.
-- **NPC · Бег / ходьба (men)** — Standard / Vanilla.
-- **NPC · Бег / ходьба (women)** — Standard / Female (Axel) / Vanilla.
+- **Игрок · Ходьба** — Vanilla / Simply Walking / Axel's Sexy Walk Fixed.
+- **NPC · Ходьба (men)** — Vanilla / Simply Walking.
+- **NPC · Ходьба (women)** — Vanilla / Simply Walking / Axel's Sexy Walk Fixed.
 
-The setting keys live in `src/systems/modSettings.js`; the three controls are declared in `src/systems/features.js`. The old `FemaleWalk` key remains declared so its stored data is not silently redefined, but the gameplay resolver no longer reads it and no automatic migration has been added. After this change, choose the desired value in the player walk selector; new choices are read through the existing `modSetting` store.
+The setting keys live in `src/systems/modSettings.js`; the three controls are declared in `src/systems/features.js`. The old `FemaleWalk` key remains declared for compatibility, but the gameplay resolver no longer reads it. The option-order migration translates saved values from the former selectors once, preserving existing Standard/Vanilla/Axel choices.
 
 Actor routing is centralized in `walkVariantForActor()` in `src/formats/morrowind/mwWalkAnimationAssets.js` and consumed by the movement resolver in `src/combat/fpArm.js`:
 
@@ -86,7 +86,7 @@ Actor routing is centralized in `walkVariantForActor()` in `src/formats/morrowin
 - male NPC bodies use `NpcMaleWalk`;
 - `Vanilla` excludes bundled walk-only sources while leaving archive sources and all non-walk groups available.
 
-The choices are mutually exclusive per actor and category, rather than independent pack toggles. That is intentional: two gait packs must not compete for the same group. Standard is Simply Walking Purist Edition; the player can additionally choose the Feminine Walk Cycle or Axel's clip, while female NPCs can choose Axel's clip. The Feminine Walk Cycle is not offered as an NPC option. **Vanilla** means keep the game's/archive walk source; it is a source choice, not a global animation-off switch.
+The choices are mutually exclusive per actor and category, rather than independent pack toggles. That is intentional: two gait packs must not compete for the same group. Simply Walking resolves by actor sex: Purist Edition for male characters and Feminine Walk Cycle for female characters. Axel's Sexy Walk Fixed is a separate female-only alternative. The same internal pack structure is used consistently for player and female NPCs. **Vanilla** means keep the game's/archive walk source; it is a source choice, not a global animation-off switch.
 
 Automated coverage for the pure actor/source mapping and the Vanilla filter is in `test/formats/morrowind/mwwalkassets.test.js`. This source-level wiring is implemented, but **in-game validation is still outstanding**: confirm that the NPC build path's `female` / `ownHeads` metadata is correct for every population, and visually check gait, foot sliding, and transitions. Do not call the feature fully verified until that check is performed. This environment has not run the repository's full test/lint/type/build commands.
 
