@@ -15,6 +15,11 @@ const FILES = IN_BROWSER
 const norm = (value) => String(value).replace(/\\/g, '/').toLowerCase();
 const entries = Object.entries(FILES).map(([path, url]) => ({ path: path.replace(/\\/g, '/'), lower: norm(path), url }));
 const standardMale = entries.find((e) => e.lower.includes('/simply walking purist edition/meshes/xbase_anim.kf'));
+// The combined Simply Walking pack includes a female set in Purist Edition as
+// well as the dedicated Feminine Walk Cycle. Try the dedicated cycle last (it
+// wins when it has the requested group); the Purist female KF remains a real
+// fallback if the dedicated file cannot supply a valid clip for this skeleton.
+const puristFemale = entries.find((e) => e.lower.includes('/simply walking purist edition/meshes/xbase_anim_female.kf'));
 const feminineFemale = entries.find((e) => e.lower.includes('/simply walking/feminine walk cycle/meshes/xbase_anim_female.kf'));
 const axelFemale = entries.find((e) => e.lower.includes("/axel's sexy walk fixed/animation/axel fixed/female/walkforward;.kf"));
 
@@ -34,29 +39,30 @@ async function bytes(entry) {
 }
 
 /**
- * Returns the one gender-matched Simply Walking source plus (for female rigs)
- * the optional Axel walk clip. The gameplay resolver selects one by saved preference.
+ * Returns gender-matched Simply Walking source candidates plus (for female rigs)
+ * the optional Axel walk clip. Female candidates share one user-facing choice;
+ * reverse-priority resolution tries Feminine Walk Cycle first, then Purist's female KF.
  * Only each source's walk groups/keys are admitted, so idle/run/combat clips
  * from a broader .kf are never substituted.
  */
 export async function loadWalkAnimationAssets({ female = false } = {}) {
   if (!IN_BROWSER) return [];
-  const standard = female ? feminineFemale : standardMale;
-  // Load both female-only candidates once; fpArm's movement resolver chooses
-  // the saved preference on each walk-group change. This keeps live switching
-  // possible without reloading the rig or ever loading Axel's idle/run clips.
-  const overrides = female
-    ? [{ entry: axelFemale, variant: 'axel' }]
-    : [];
+  const simplyCandidates = female
+    ? [{ entry: puristFemale, variant: 'simply' }, { entry: feminineFemale, variant: 'simply' }]
+    : [{ entry: standardMale, variant: 'simply' }];
+  // Keep both female candidates under the same visible Simply Walking option.
+  // fpArm filters each KF down to walk groups and picks the last valid source.
+  const overrides = female ? [{ entry: axelFemale, variant: 'axel' }] : [];
   const selected = [];
-  if (!standard && !warnedMissingWalkAssets) {
+  if (!simplyCandidates.some(({ entry }) => entry) && !warnedMissingWalkAssets) {
     warnedMissingWalkAssets = true;
-    console.warn('[Morrowind animations] Vite did not resolve the Simply Walking KF source.', inspectWalkAnimationAssets());
+    console.warn('[Morrowind animations] Vite did not resolve any Simply Walking KF source.', inspectWalkAnimationAssets());
   }
   try {
-    if (standard) {
-      const data = await bytes(standard);
-      if (data) selected.push({ name: standard.path, bytes: data, variant: 'simply', walkVariant: 'simply', walkOnly: true });
+    for (const { entry, variant } of simplyCandidates) {
+      if (!entry) continue;
+      const data = await bytes(entry);
+      if (data) selected.push({ name: entry.path, bytes: data, variant, walkVariant: variant, walkOnly: true });
     }
     for (const { entry, variant } of overrides) {
       if (!entry) {
@@ -80,6 +86,7 @@ export function inspectWalkAnimationAssets() {
   return {
     browser: IN_BROWSER,
     standardMale: standardMale?.path ?? null,
+    puristFemale: puristFemale?.path ?? null,
     feminineFemale: feminineFemale?.path ?? null,
     axelFemale: axelFemale?.path ?? null,
   };
