@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { inspectWalkAnimationAssets, isWalkAnimationGroup, isWalkVariantEnabled } from '../../src/formats/morrowind/mwWalkAnimationAssets.js';
+import { inspectWalkAnimationAssets, isWalkAnimationGroup, isWalkAnimationKey, isWalkVariantEnabled } from '../../src/formats/morrowind/mwWalkAnimationAssets.js';
 
 test('MW-ANIM-1: bundled walk asset inventory is safe to import in Node', () => {
   const assets = inspectWalkAnimationAssets();
@@ -20,4 +20,12 @@ test('MW-ANIM-1: female gait preference gates only the female walk source', () =
   assert.equal(isWalkVariantEnabled({ walkOnly: true, walkVariant: 'female' }, false), false);
   assert.equal(isWalkVariantEnabled({ walkOnly: true, walkVariant: 'female' }, true), true);
   assert.equal(isWalkVariantEnabled({ name: 'vanilla' }, false), true);
+});
+
+test('MW-ANIM-1: walk keys survive additional text-key lines before the group marker', () => {
+  assert.equal(isWalkAnimationKey({ text: 'WalkForward: Start' }), true);
+  assert.equal(isWalkAnimationKey({ text: 'SoundGen: Left\\nWalkForward: Start' }), true);
+  assert.equal(isWalkAnimationKey({ text: 'SoundGen: Right\\r\\nWalkForward: Loop Start' }), true);
+  assert.equal(isWalkAnimationKey({ text: 'SoundGen: Left' }), false);
+  assert.equal(isWalkAnimationKey({ text: 'Idle: Start\\nSoundGen: Left' }), false);
 });

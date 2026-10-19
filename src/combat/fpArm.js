@@ -84,7 +84,7 @@ import { DFPalette } from '../formats/dfPalette.js';
 import { raceArt } from '../systems/races.js';
 import { appStorage } from '../systems/appStorage.js';   // DA1: the storage seam
 import { modSetting } from '../systems/modSettings.js';
-import { loadWalkAnimationAssets, isWalkAnimationGroup, isWalkVariantEnabled } from '../formats/morrowind/mwWalkAnimationAssets.js';
+import { loadWalkAnimationAssets, isWalkAnimationGroup, isWalkAnimationKey, isWalkVariantEnabled } from '../formats/morrowind/mwWalkAnimationAssets.js';
 import { drawRigSpriteBox, MW_THIRD_PERSON_PIXEL } from '../render/characterSprite.js';
 import { WEAPONS } from '../characters/weapons.js';
 import { materialName } from '../systems/item/itemInfo.js';
@@ -2266,7 +2266,7 @@ async function buildTpBody({
           console.warn('[Morrowind animations] replacement KF could not be parsed/bound; vanilla walk retained:', reason);
           continue;
         }
-        const walkKeys = report.keys.filter((key) => isWalkAnimationGroup(String(key.text || '').split(':')[0]));
+        const walkKeys = report.keys.filter((key) => isWalkAnimationKey(key));
         const walkGroups = report.groups.filter(isWalkAnimationGroup);
         if (!walkGroups.length || !walkKeys.length) {
           const reason = `walk animation ${asset.name}: no usable walk groups; vanilla source retained`;

@@ -1874,11 +1874,23 @@ export class PlayerMotor {
    *  rotating the actor. First-person calls pass faceView to keep the latch
    *  current when perspective changes. Climbing and seats retain precedence. */
   bodyYawFor(viewYaw, { faceView = false } = {}) {
+    // A seat/draw transform always owns facing. A live climb also owns it,
+    // but a stale climb-release offset must never suppress a movement-facing
+    // request: that is exactly what lets S walk backwards while the camera
+    // looks at the character's face in the Morrowind third-person view.
     if (this.drawYaw != null) return this.drawYaw;
+    if (this.climbFacing != null) {
+      if (this._bodyYaw != null) return this._bodyYaw;
+      if (this._bodyYawOff != null) return viewYaw + this._bodyYawOff;
+    }
+    if (!Number.isFinite(viewYaw)) return viewYaw;
+    if (faceView) {
+      this._thirdPersonLookYaw = viewYaw;
+      return viewYaw;
+    }
     if (this._bodyYaw != null) return this._bodyYaw;
     if (this._bodyYawOff != null) return viewYaw + this._bodyYawOff;
-    if (!Number.isFinite(viewYaw)) return viewYaw;
-    if (faceView || this._thirdPersonLookYaw == null) this._thirdPersonLookYaw = viewYaw;
+    if (this._thirdPersonLookYaw == null) this._thirdPersonLookYaw = viewYaw;
     return this._thirdPersonLookYaw;
   }   // MW-D40; WAGONS3: a bench's facing first
   /** CLIMB2: hanging from a lip. */
