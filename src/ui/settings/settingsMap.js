@@ -199,7 +199,7 @@ export const CATEGORIES = Object.freeze([
       "label:walking-npc", "feat:morrowind-male-npc-walk-animation", "feat:morrowind-female-npc-walk-animation",
     ]),
     sec("posture", "Положение и скрытность", [
-      "feat:morrowind-animation-overhaul",
+      "feat:morrowind-animation-overhaul", "feat:morrowind-animation-blending",
       "label:turning", "info:player-turning", "info:npc-turning",
       "label:idle", "info:player-idle", "info:npc-idle",
       "label:sneak", "info:player-sneak", "info:npc-sneak",
