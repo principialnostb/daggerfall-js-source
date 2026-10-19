@@ -60,9 +60,17 @@ const CARDS = ['card:morrowind', 'card:packs', 'card:peerSprites', 'card:nightSo
 test('MW-TEXTURE-PACKS: optional texture packs default off; Complete Armor Joints resolves its dependency visibly', () => {
   fresh();
   assert.equal(modSetting('morrowind-textures', 'BetterBodies'), true);
+  assert.equal(modSetting('morrowind-textures', 'SeamlessDMRA'), false);
   for (const key of ['IntelligentTextures', 'VurtsBetterClothes', 'BetterClothesRetextured', 'BetterMorrowindArmor', 'CompleteArmorJoints', 'WestlysFineClothiers', 'WestlysFacesRefurbished']) {
     assert.equal(modSetting('morrowind-textures', key), false, key + ' defaults off');
   }
+  setModSetting('morrowind-textures', 'SeamlessDMRA', true);
+  assert.equal(modSetting('morrowind-textures', 'BetterBodies'), true);
+  assert.match(modSettingNotice('morrowind-textures', 'SeamlessDMRA'), /Seamless DMRA/);
+  setModSetting('morrowind-textures', 'BetterBodies', false);
+  assert.equal(modSetting('morrowind-textures', 'SeamlessDMRA'), false);
+  assert.equal(modSettingNotice('morrowind-textures', 'BetterBodies'), 'Отключён: Seamless DMRA body replacer');
+  fresh();
   setModSetting('morrowind-textures', 'CompleteArmorJoints', true);
   assert.equal(modSetting('morrowind-textures', 'BetterMorrowindArmor'), true);
   assert.equal(modSettingNotice('morrowind-textures', 'CompleteArmorJoints'), 'Включён необходимый набор: Better Morrowind Armor');
