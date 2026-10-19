@@ -1977,7 +1977,10 @@ function tabSections(tab, ctx) {
       if (tab.id === 'animations' && clipGroup && clipGroup !== animationClipGroup) return [];
       return itemNodes(item, { ...ctx, fold });
     });
-    if (nodes.length) out.push({ s, nodes });
+    // Keep every animation section in the first-level selector even when its
+    // currently selected nested group belongs to another section. Otherwise
+    // choosing Ходьба would make the other section buttons disappear.
+    if (nodes.length || tab.id === 'animations') out.push({ s, nodes });
   }
   return { sections: out, fold };
 }
