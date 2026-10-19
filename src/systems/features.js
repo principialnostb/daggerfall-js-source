@@ -1247,7 +1247,7 @@ export const FEATURES = Object.freeze([
   Object.freeze({
     id: 'morrowind-player-walk-animation',
     group: 'character',
-    get title() { return 'Ходьба игрока'; },
+    get title() { return 'Ходьба'; },
     get note() { return MOD_SETTINGS['morrowind-animation'].keys.PlayerWalkSource.description; },
     get effect() { return t('features.effect.atOnce', 'Takes effect at once.'); },
     kinds: Object.freeze(['mod']),
@@ -1256,7 +1256,7 @@ export const FEATURES = Object.freeze([
   Object.freeze({
     id: 'morrowind-male-npc-walk-animation',
     group: 'character',
-    get title() { return 'Мужчины — ходьба'; },
+    get title() { return 'Мужчины'; },
     get note() { return MOD_SETTINGS['morrowind-animation'].keys.NpcMaleWalk.description; },
     get effect() { return t('features.effect.atOnce', 'Takes effect at once.'); },
     kinds: Object.freeze(['mod']),
@@ -1265,7 +1265,7 @@ export const FEATURES = Object.freeze([
   Object.freeze({
     id: 'morrowind-female-npc-walk-animation',
     group: 'character',
-    get title() { return 'Женщины — ходьба'; },
+    get title() { return 'Женщины'; },
     get note() { return MOD_SETTINGS['morrowind-animation'].keys.NpcFemaleWalk.description; },
     get effect() { return t('features.effect.atOnce', 'Takes effect at once.'); },
     kinds: Object.freeze(['mod']),
