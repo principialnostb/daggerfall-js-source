@@ -18,7 +18,7 @@ Walking and running are independent preferences in `MOD_SETTINGS['morrowind-anim
 
 - `PlayerWalkSource`, `NpcMaleWalk`, `NpcFemaleWalk` select walking sources.
 - `PlayerRunSource`, `NpcFemaleRun` select running sources.
-- Male NPC running currently remains Vanilla because no compatible replacement run asset is connected.
+- Male NPC running remains Vanilla because no compatible male replacement run asset is connected. Player and female-NPC run choices are independent of their walk choices; Axel is available only on female rigs.
 
 The loader marks each bundled source with `animationFamily: 'walk' | 'run'`. The movement resolver chooses the appropriate preference from the current group, and the gates only filter their own family. Therefore selecting Axel for running does not disable or override the chosen walking source, and selecting a walk pack does not claim the RunForward group. Missing or unsupported clips fall back to the game's/archive source.
 
