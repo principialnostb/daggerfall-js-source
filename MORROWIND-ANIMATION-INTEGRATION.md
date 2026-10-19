@@ -155,7 +155,7 @@ The UI taxonomy must remain visible even when a category has no active source. A
 
 - **Vanilla is always the first option** in every animation source selector. A category's selection is exclusive within that category; changing walk source must not affect combat, idle, jump, magic, or interaction groups.
 - **Simply Walking is one user-facing pack**, not two independent options. Its contents are assigned by inspecting actual files and their animation groups: the male walk source is `Simply Walking Purist Edition/meshes/xbase_anim.kf`; the female walk source is `Feminine Walk Cycle/Meshes/xbase_anim_female.kf`. The latter is an internal component of the Simply Walking choice. It should not be exposed as a separate top-level pack when it is serving the same role within the combined pack.
-- **Axel's Sexy Walk Fixed** is a separate alternative for female walking. Only `WalkForward;.kf` is loaded; idle/run files are not silently enabled by selecting a walk pack.
+- **Axel's Sexy Walk Fixed** is a separate alternative for female locomotion. `WalkForward;.kf` is filtered to walk groups and `RunForward;.kf` to run groups; both share the combined walk/run selector. `Idle4;.kf` and `Idle5;.kf` remain unconnected until the gameplay idle resolver is verified.
 - Before combining or presenting any future packs, inspect their README/permissions and enumerate their actual KF/NIF animation groups and text keys. Assign each source to the animation families it really contains (walk, run, idle, combat, actions, etc.), verify skeleton/group compatibility, then expose one mutually exclusive selector per family. Do not infer scope from the mod title or directory name alone, and do not show a selector as functional until its runtime consumer exists.
 - **Settings UI rule:** animation families are switchable sub-pages inside Settings → Animations. The chosen sub-page alone displays its controls; they are not a single long list with headings. Player and NPC families are independent. Informational/Vanilla-only categories must not pretend an unintegrated pack is selectable.
 
@@ -163,3 +163,8 @@ The UI taxonomy must remain visible even when a category has no active source. A
 ### Combined locomotion source update (2026-10-19)
 
 The selected source is now resolved for both walking and running groups. Axel contributes its verified `WalkForward` and `RunForward` files; Simply Walking contributes only walk groups, so its selection leaves run groups on the original archive source. Fresh-install defaults are Vanilla. Existing saved choices are preserved. Source wiring is complete for these two Axel clips, but runtime visual verification is still outstanding.
+
+
+## Axel run source (2026-10-19)
+
+The female `RunForward;.kf` is now wired beside Axel's `WalkForward;.kf` under the shared walk/run setting. The resolver applies the actor's selected locomotion source to both `walk*` and `run*` groups, with Vanilla remaining the default. This is code-level integration; in-game gait, foot sliding, and transitions still need validation.
