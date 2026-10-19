@@ -136,7 +136,7 @@ const BETTER_BODIES_FEMALE_SKIN_TONES = Object.freeze({
   rg: [0.92, 0.70, 0.54], we: [0.96, 0.82, 0.66],
 });
 function tintBetterBodiesFemaleSkin(image, textureFile) {
-  const match = /bb_skinf_(br|de|he|im|no|or|rg|we)\.dds$/i.exec(String(textureFile || '').replaceAll(String.fromCharCode(92), '/'));
+  const match = /bb_skinf_(br|de|he|im|no|or|rg|we)\.(?:dds|tga|targa|bmp)$/i.exec(String(textureFile || '').replaceAll(String.fromCharCode(92), '/'));
   if (!match || !image?.mips?.length) return image;
   const raceKey = match[1].toLowerCase();
   const tone = BETTER_BODIES_FEMALE_SKIN_TONES[raceKey];
