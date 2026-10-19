@@ -224,16 +224,46 @@ export const CATEGORIES = Object.freeze([
       "label:death", "info:player-death", "info:npc-death",
     ]),
   ]),
-  tab("textures", "Текстуры", [
-    sec("texture-packs", "Паки текстур и замены", [
-      "feat:mw-textures-high-resolution-bodies", "feat:mw-textures-intelligent",
-      "feat:mw-textures-vurt-clothes", "feat:mw-textures-better-clothes",
-      "feat:mw-textures-better-armor", "feat:mw-textures-armor-joints",
-      "feat:mw-textures-westly-clothiers", "feat:mw-textures-westly-faces",
-      "card:packs",
+  tab("mods", "Mods & files", [
+    sec("files", "Your files", [
+      "card:morrowind", "card:packs"]),
+    sec("dfu", "Daggerfall Unity's mod system", [
+      "Enhancements/LypyL_ModSystem", "Enhancements/AssetInjection", "Enhancements/CompressModdedTextures", "Experimental/CustomBooksImport",
+      "Daggerfall/MyDaggerfallPath", "Daggerfall/MyDaggerfallUnitySavePath", "Daggerfall/MyDaggerfallUnityScreenshotsPath"]),
+    sec("index", "Every mod", [
+      "mods-index"]),
+  ]),
+  tab("animations", "Анимации", [
+    sec("locomotion", "Передвижение", [
+      "group:running", "label:running-player", "feat:morrowind-player-run-animation",
+      "label:running-npc", "info:npc-run", "feat:morrowind-female-npc-run-animation",
+      "group:walking", "label:walking-player", "feat:morrowind-player-walk-animation",
+      "label:walking-npc", "feat:morrowind-male-npc-walk-animation", "feat:morrowind-female-npc-walk-animation",
     ]),
-    sec("texture-sources", "Источники и приоритеты", [
-      "link:overhauls",
+    sec("posture", "Положение и скрытность", [
+      "feat:morrowind-animation-overhaul", "feat:morrowind-animation-blending",
+      "label:turning", "info:player-turning", "info:npc-turning",
+      "label:idle", "info:player-idle", "info:npc-idle",
+      "label:sneak", "info:player-sneak", "info:npc-sneak",
+    ]),
+    sec("combat", "Бой", [
+      "label:attacks", "info:player-attacks", "info:npc-attacks",
+      "label:blocking", "info:player-blocking", "info:npc-blocking",
+    ]),
+    sec("magic", "Магия и заклинания", [
+      "info:player-magic", "info:npc-magic",
+    ]),
+    sec("actions", "Действия и взаимодействие", [
+      "info:player-actions", "info:npc-actions",
+    ]),
+    sec("traversal", "Специальное передвижение", [
+      "label:jumping", "info:player-jumping", "info:npc-jumping",
+      "label:swimming", "info:player-swimming", "info:npc-swimming",
+      "label:falling", "info:player-falling", "info:npc-falling",
+    ]),
+    sec("reactions", "Реакции", [
+      "label:damage", "info:player-damage", "info:npc-damage",
+      "label:death", "info:player-death", "info:npc-death",
     ]),
   ]),
   tab("bodies", "Тела", [
@@ -241,14 +271,14 @@ export const CATEGORIES = Object.freeze([
       "feat:mw-better-bodies", "feat:mw-seamless-dmra", "feat:mw-npc-bodies", "feat:mw-billboard-look",
     ]),
   ]),
-  tab("mods", "Mods & files", [
-    sec("files", "Your files", [
-      "card:morrowind"]),
-    sec("dfu", "Daggerfall Unity's mod system", [
-      "Enhancements/LypyL_ModSystem", "Enhancements/AssetInjection", "Enhancements/CompressModdedTextures", "Experimental/CustomBooksImport",
-      "Daggerfall/MyDaggerfallPath", "Daggerfall/MyDaggerfallUnitySavePath", "Daggerfall/MyDaggerfallUnityScreenshotsPath"]),
-    sec("index", "Every mod", [
-      "mods-index"]),
+  tab("textures", "Текстуры", [
+    sec("texture-sources", "Источники и приоритеты", [
+      "feat:mw-textures-high-resolution-bodies", "feat:mw-textures-intelligent",
+      "feat:mw-textures-vurt-clothes", "feat:mw-textures-better-clothes",
+      "feat:mw-textures-better-armor", "feat:mw-textures-armor-joints",
+      "feat:mw-textures-westly-clothiers", "feat:mw-textures-westly-faces",
+      "link:overhauls",
+    ]),
   ]),
 ]);
 
