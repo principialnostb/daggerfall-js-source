@@ -37,21 +37,19 @@ const compactRaceName = (race) => String(
   race && typeof race === 'object' ? (race.name ?? race.race ?? race.id ?? '') : (race ?? ''),
 ).toLowerCase().replace(/[^a-z]/g, '');
 
-/** Resolve a Better Bodies mesh and the matching race skin.
- * Female actors deliberately share the Nord-female mesh: it is the shape
- * validated in better-bodies-preview.html. Only the skin texture varies by race.
- * Underwear and nude variants use the same rule and their own asset folders. */
+/** Resolve a Better Bodies mesh and matching skin for the actor's race and sex.
+ * Both female and male actors use their race-specific mesh and texture when the
+ * corresponding Better Bodies asset exists. Underwear and nude variants use the
+ * same race selection in their respective asset folders. */
 export function betterBodiesAssetUrls({ race = 'Nord', female = false, underwear = getUnderwearEnabled() } = {}) {
   const raceName = compactRaceName(race);
   const raceKey = RACE_CODES[raceName] ?? (Object.values(RACE_CODES).includes(raceName) ? raceName : null);
   if (!raceKey) return null;
   const genderKey = female ? 'f' : 'm';
-  const geometryRaceKey = female ? 'no' : raceKey;
+  const geometryRaceKey = raceKey;
   const modelStem = `bb_skin${genderKey}_${geometryRaceKey}`;
-  // Female skin uses the Nord DDS as the UV-matched base for the shared Nord mesh.
-  // fpArm applies the actor race's skin tone after decoding, through the normal texture pipeline.
-  const sourceTextureStem = `bb_skin${genderKey}_${female ? 'no' : raceKey}`;
-  const textureRaceKey = female ? 'no' : raceKey;
+  const sourceTextureStem = `bb_skin${genderKey}_${raceKey}`;
+  const textureRaceKey = raceKey;
   const textureStem = `bb_skin${genderKey}_${textureRaceKey}`;
   const modelTable = underwear ? underwearBodyModelUrls : nudeBodyModelUrls;
   const textureTable = underwear ? underwearBodyTextureUrls : nudeBodyTextureUrls;
