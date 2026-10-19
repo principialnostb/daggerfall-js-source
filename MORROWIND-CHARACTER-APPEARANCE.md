@@ -36,7 +36,7 @@ UV-edit caution: the checked-in UV-edit JSON was authored for the Nord female me
 - `src/characters/bodyMorphs.js` stores normalized body-morph values for the player.
 - `src/ui/appearanceEditor.js` currently requests a rendered image from `fpArm.figure()`. It is a view of the current gameplay rig, not an independently assembled appearance model.
 - The editor currently has twelve body controls grouped into basic proportions, torso/chest/waist, hips/buttocks, and limbs. It has no race selector, no independent zoom control, and no separate race/sex-specific body preview builder.
-- **Current morph implementation is incomplete:** `height` and `bodyWidth` affect the overall third-person model scale. The `breastSize`, `buttockSize`, `hipWidth`, and `waistWidth` values currently disable the GPU skinning path but do not themselves deform vertex positions. The remaining sliders are stored and displayed but have no corresponding geometry deformation yet. They must not be described as fully functional until vertex/bone transforms are implemented and tested.
+- **Current morph implementation is incomplete:** `height` and `bodyWidth` affect the overall third-person model scale. The `breastSize`, `buttockSize`, `hipWidth`, and `waistWidth` values do not themselves deform vertex positions. A stale fallback that forced CPU skinning for these unused values has been removed; local geometry morphs still need to be implemented. The remaining sliders are stored and displayed but have no corresponding geometry deformation yet. They must not be described as fully functional until vertex/bone transforms are implemented and tested.
 - The equipment PaperDoll must not be substituted for the preview: it is not the live morphed 3D body.
 
 ## Target architecture
