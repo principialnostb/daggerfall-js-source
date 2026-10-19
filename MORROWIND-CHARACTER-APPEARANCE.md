@@ -42,11 +42,11 @@ UV-edit caution: the checked-in UV-edit JSON was authored for the Nord female me
 
 ### Editor UI presentation update (2026-10-19)
 
-- [x] Reworked `src/ui/appearanceEditor.js` into a cohesive dark, muted-green/brass editor surface instead of a collection of inline-styled boxes. The preview and controls now share a visual system with restrained borders, spacing, typography, grouped control panels, clearer hierarchy, and consistent button states.
+- [x] Reworked `src/ui/appearanceEditor.js` with a Morrowind-inspired charcoal/stone palette, aged-brass borders, warm gold highlights, serif typography, and squared beveled controls. The preview and controls now share a visual system with restrained borders, spacing, typography, grouped control panels, clearer hierarchy, and consistent button states.
 - [x] Expanded the preview column and canvas, added a responsive layout for narrow screens, and clarified the drag-to-rotate and zoom controls. The reset-view action resets both yaw and zoom; the body reset updates all displayed values and dispatches the shared morph-change event.
 - [x] Kept the existing dedicated preview-rig pathway and real currently selected head/hair assembly. No 2D portrait cards or invented face/hair presets were added.
 - [ ] Visual QA in the running game/browser is still required at desktop and mobile widths. The UI refresh does not by itself improve the underlying deformation algorithms.
-- [ ] The 12 current sliders remain early generic controls. Their labels and grouping are now clearer, but calibration and visibly correct anatomy-specific deformations are still outstanding; do not describe the full body-morph system as complete.
+- [ ] The preview requests the dedicated rig in neutral mode, bypassing the weapon-derived portrait stance, and asks for up to 1024 pixels of render height. Slider input rerenders the separate rig immediately. The 12 sliders remain early generic controls; calibration and visibly correct anatomy-specific deformations are still outstanding.
 
 ## Target architecture
 
