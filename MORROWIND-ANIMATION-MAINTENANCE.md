@@ -1,10 +1,14 @@
 # Morrowind animation packs — maintainer map
 
-Branch: `Dev`  
+Branch: `morrowind.v4`  
 Last audited: 2026-10-19  
 Primary integration note: [MORROWIND-ANIMATION-INTEGRATION.md](./MORROWIND-ANIMATION-INTEGRATION.md)
 
 This document is the operational inventory: what is in the repository, what the browser runtime actually loads, what it deliberately does not load, and what remains unfinished. A file being present under `Morrowind Textures/` does **not** mean it is active.
+
+## Asset storage boundary
+
+The full `Morrowind Textures/` binary directory is deliberately not stored in this branch. `src/systems/morrowindAssetManifest.js` enumerates the 7,452 asset paths consumed by the browser and pins their URLs to immutable Dev commit `a7128529d7dd7ca562f1bd4833911a249d2d9da2`. Loaders fetch assets only when requested. The source pack is not considered integrated merely because its paths are listed: the runtime selection and fallback logic below still determines which files are actually used.
 
 ## Runtime map
 

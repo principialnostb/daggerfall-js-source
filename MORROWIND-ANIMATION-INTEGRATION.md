@@ -6,10 +6,10 @@ Status: runtime gait selection, input-driven third-person facing, and native pos
 
 ## Working branch and asset source
 
-- Code changes belong on [`Dev`](https://github.com/principialnostb/daggerfall-js-source/tree/Dev).
-- The canonical uploaded mod/resource collection is [`Morrowind Textures` on `morrowind.v3`](https://github.com/principialnostb/daggerfall-js-source/tree/morrowind.v3/Morrowind%20Textures).
-- At the audit baseline, the `Morrowind Textures` tree in `morrowind.v4` has the same Git tree SHA as the directory in `morrowind.v3` (`79a532e1e39d79e18e97d55ecc05d5892a8afec7`). Do not re-copy or regenerate the asset tree without first verifying a real difference. Git reuses identical tree/blob objects; a branch link is useful for documentation, but is not itself a runtime asset loader.
-- Keep new application code and tests in `Dev`. Treat `morrowind.v3` as a read-only source of uploaded assets and reference implementations.
+- Application code and tests for this work now belong on [`morrowind.v4`](https://github.com/principialnostb/daggerfall-js-source/tree/morrowind.v4); `Dev` is preserved as the working-source snapshot.
+- To avoid checking the multi-gigabyte binary pack into this branch, `Morrowind Textures/` is intentionally absent from `morrowind.v4`. `src/systems/morrowindAssetManifest.js` contains the paths consumed by the runtime loaders and pins their immutable raw-file source to Dev commit `a7128529d7dd7ca562f1bd4833911a249d2d9da2`.
+- `src/systems/bundledMorrowindMods.js`, `src/formats/morrowind/mwBetterBodies.js`, and `src/formats/morrowind/mwWalkAnimationAssets.js` resolve their asset URLs through that manifest. This is a runtime loader, not merely a documentation link; the binary files are fetched on demand from `raw.githubusercontent.com`.
+- Keep the manifest source commit pinned unless the asset tree is intentionally updated. When changing the source pack, regenerate the manifest from the new Dev tree, check the relevant path filters, and update the asset-manifest tests. Do not silently switch the URL root to a moving branch.
 
 ## Animation resources identified
 
