@@ -2326,10 +2326,11 @@ async function buildTpBody({
           console.warn('[Morrowind animations] replacement KF could not be parsed/bound; vanilla walk retained:', reason);
           continue;
         }
+        const isOverhaul = asset.family === 'all' || asset.animationOverhaul === true;
         const isFamilyGroup = asset.family === 'run' ? isRunAnimationGroup : isWalkAnimationGroup;
         const isFamilyKey = asset.family === 'run' ? isRunAnimationKey : isWalkAnimationKey;
-        const familyKeys = report.keys.filter(isFamilyKey);
-        const familyGroups = report.groups.filter(isFamilyGroup);
+        const familyKeys = isOverhaul ? report.keys : report.keys.filter(isFamilyKey);
+        const familyGroups = isOverhaul ? report.groups : report.groups.filter(isFamilyGroup);
         if (!familyGroups.length || !familyKeys.length) {
           const reason = `locomotion animation ${asset.name}: no usable ${asset.family || 'walk'} groups; vanilla source retained`;
           missing.push(reason);
@@ -2348,6 +2349,7 @@ async function buildTpBody({
           wouldAccumRoot: accumRootRef(arm.skeleton, report.trackMap),
           walkOnly: asset.family === 'walk',
           runOnly: asset.family === 'run',
+          animationOverhaul: isOverhaul,
           animationFamily: asset.family,
           walkVariant: asset.variant,
         });
