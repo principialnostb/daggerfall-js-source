@@ -103,3 +103,12 @@ This is the target contract, not a statement that all stages are implemented:
 - These changes address the preview's CSS aspect-ratio distortion and the editor's visual mismatch. They do not constitute a verified fix for every possible NIF/skeleton alignment issue; that still requires a visual runtime check against the v3 preview and in-game character.
 
 - The editor's neutral preview now poses the rig from the NIF skeleton's rest transforms rather than sampling the first frame of the idle animation. This avoids idle-clip offsets being mistaken for neutral anatomy. Runtime verification is still required for the complete race/sex matrix.
+
+
+### Follow-up morph correctness fixes (2026-10-19)
+
+- [x] Removed the second world-space width/height scale from `thirdModel()`. The same `bodyWidth` and `height` values were already applied to body vertices in `poseAssembly()`; applying them again to the actor transform doubled the effect and also scaled equipment/framing. The actor transform now applies only race scale, while the body morph remains geometry-owned like the preview.
+- [x] Restricted leg-spacing deformation to the leg silhouette with separate upper/lower-leg falloff. The previous broad vertical threshold also moved the outer pelvis and could make this control appear to change overall body/hip scale.
+- [x] Separated breast expansion from rear-surface movement: breast volume/projection now push the front chest surface and add lateral volume; buttock controls remain restricted to the rear-facing surface. This avoids the previous breast control moving both the front and back of the torso.
+- [x] Applied a final brass-accent pass to the editor's slider tracks, handles, focus state, underwear toggle and primary action so the in-game settings palette is consistent across interactive controls as well as the frame.
+- [ ] Build and in-game visual regression are still required. These source-level corrections have been committed, but no browser/game render was available in this pass; do not mark the coordinate/texture/underwear end-to-end checks complete until they are exercised in the running game.
