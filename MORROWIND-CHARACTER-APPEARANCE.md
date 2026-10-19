@@ -42,9 +42,9 @@ UV-edit caution: the checked-in UV-edit JSON was authored for the Nord female me
 
 ### Preview regression isolation (2026-10-19)
 
-- The editor's standalone preview temporarily opts out of Better Bodies replacement meshes while retaining the separate player-appearance rig and vertex morphs. This is a scoped preview choice, not a general rollback of Better Bodies or the gameplay renderer.
+- The editor's standalone preview now uses the same race/sex-resolved Better Bodies base mesh and matching skin texture as the live player build. The previous explicit `useBetterBodies: false` was unjustified: it forced the editor onto standard Morrowind geometry even though Better Bodies is the game's active body path. The dedicated preview rig remains separate; only its base-body selection was corrected.
 - A follow-up failure was traced to option propagation: `buildTpBody()` checked `useBetterBodies` but did not declare or receive that option. The resulting `ReferenceError` was caught by the body-build fallback, leaving the preview without its third-person model. The option is now explicitly declared in `buildTpBody()` and passed from `buildFpArm()`; this fixes the build failure without changing the in-world Better Bodies default.
-- The current editor preview still uses the compatible standard Morrowind body while the live world can use Better Bodies. The intended final path remains a dedicated Better Bodies preview using its own compatible rest/bind skeleton, then race-appropriate skin tinting and anatomical morphs. The separate HTML tool is a geometry/UV diagnostic, not proof that this integrated path is complete.
+- The editor preview requests Better Bodies explicitly (`useBetterBodies: true`) and relies on `buildTpBody()` to resolve the matching body NIF/DDS for the current race and sex. Unsupported races or unavailable assets still take the existing logged fallback path. The preview uses its own rig and rest pose; it must not borrow a screenshot or animation pose from the live character. The separate HTML tool is a geometry/UV diagnostic, not proof that this integrated path is complete.
 - Runtime visual verification is still required: confirm the 3D figure appears, that the underwear toggle rebuilds the selected variant, and that sliders update the preview and player without distortion.
 
 ### Body morph and underwear update (2026-10-19)
@@ -72,7 +72,7 @@ UV-edit caution: the checked-in UV-edit JSON was authored for the Nord female me
 2. Resolve the base body and hand meshes by race + sex. Resolve their matching skin textures using the same race + sex key. If a specific asset is absent or fails to parse, log the exact requested path and use a deliberate fallback; never silently use the Nord female skin on another race.
 3. Resolve the head and hair from the same actor's race/sex-compatible pools. The improved face matcher may choose among candidates inside that pool; it must not override the race/sex constraint.
 4. Assemble the body and head on a compatible skeleton, apply body morphs, then compose clothing/armor using the existing slot-aware fit path. Equipment may hide covered skin slots, but it must not replace the selected race/sex identity.
-5. The editor must own a separate preview scene and model instance, built from the selected race/sex body and skin with no clothing. The target is a real separately assembled Better Bodies NIF with race/sex-matched skin, the player's actual head and hair, and editor-applied morphs. The isolated rig path is implemented at source level; full in-game visual and race/sex matrix validation remains. Slider changes must update that preview immediately and update the player's stored morph state; they must not rebuild or borrow a screenshot of the live gameplay actor. Provide drag rotation, zoom in/out, and reset. Until real alternate head/hair meshes are selectable, do not show fake face/hair preset controls. Keep the preview model at a useful close framing.
+5. The editor owns a separate preview rig and model instance, built from the selected race/sex Better Bodies body and matching skin when supported, with no clothing or equipment. It uses the player's actual current head and hair and applies the same body-morph state to the preview and player. Slider changes update the preview immediately; they must not borrow a screenshot or animation pose from the live gameplay actor. Drag rotation, zoom and reset are implemented. Until real alternate head/hair meshes are selectable, do not show fake face/hair preset controls. Keep the preview model at a useful close framing. Full in-game visual and race/sex matrix validation remains outstanding.
 6. Apply the same race/sex resolution rules to player and NPC builds. Player editor choices do not globally change NPC identity.
 
 ## Intended ownership and precedence
@@ -96,7 +96,7 @@ This is the target contract, not a statement that all stages are implemented:
 - [ ] Special forms do not accidentally inherit the ordinary humanoid Better Bodies body.
 - [ ] UV coordinates are checked for each distinct mesh layout before corrections are shared.
 - [x] Source-level: bare-body preview builds a separate NIF rig from the player's current race/sex/head/hair options, strips equipment, and supports drag rotation and zoom.
-- [ ] In-game: verify the preview build succeeds on a real save, stands in a calm unarmed pose, and every slider produces a correct visible change across race/sex variants.
+- [ ] In-game: verify the Better Bodies preview build succeeds on a real save, stands in a calm unarmed pose, and every slider produces a correct visible change across race/sex variants.
 - [ ] Clothing and armor still fit and cover the selected body correctly.
 - [ ] Missing assets produce an explicit diagnostic and a documented fallback.
 - [ ] Build/tests and in-game checks are recorded separately; source inspection alone is not visual validation.
