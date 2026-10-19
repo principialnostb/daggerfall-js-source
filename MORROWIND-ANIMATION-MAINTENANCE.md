@@ -102,3 +102,10 @@ Automated coverage for the pure actor/source mapping and the Vanilla filter is i
 - [ ] Test forward, backward, and strafing movement; check foot sliding and orientation.
 - [ ] Run `npm test`, relevant Morrowind animation tests, lint, type checks, and build where a local checkout is available.
 - [ ] Record in-game checks separately from automated test results.
+
+
+## MW-TP-MESH-ALL — Morrowind third-person representation
+
+The Morrowind actor pass now draws the posed skinned mesh at every camera distance and pitch for non-concealed actors. The prior distance/pitch LOD changed between a perspective mesh and a camera-facing sprite. That representation switch could make legs jump in depth near the threshold, distort the apparent body when viewing from below/above, and expose the finite sprite render-target resolution at distance. Mounted horse/rider pairs are drawn as two world meshes in the same frame (horse first, grounded rider second) instead of a single camera-facing sprite. Concealment remains on the sprite compositor because its dissolve/fade effect is implemented there; that path is effect-driven, not camera-distance-driven.
+
+This intentionally trades some GPU work for stable perspective, leg placement, and non-pixelated Morrowind models. Validate crowded scenes and mounted NPCs in the browser before considering a separate performance LOD; any future LOD must preserve a stable representation across camera pitch and distance and must not collapse the horse/rider pair into a low-resolution card.
