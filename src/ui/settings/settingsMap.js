@@ -199,29 +199,29 @@ export const CATEGORIES = Object.freeze([
       "label:walking-npc", "feat:morrowind-male-npc-walk-animation", "feat:morrowind-female-npc-walk-animation",
     ]),
     sec("posture", "Положение и скрытность", [
-      "feat:morrowind-animation-overhaul", "feat:morrowind-animation-blending",
-      "label:turning", "info:player-turning", "info:npc-turning",
-      "label:idle", "info:player-idle", "info:npc-idle",
-      "label:sneak", "info:player-sneak", "info:npc-sneak",
+      "group:general", "feat:morrowind-animation-overhaul", "feat:morrowind-animation-blending",
+      "group:turning", "label:turning", "info:player-turning", "info:npc-turning",
+      "group:idle", "label:idle", "info:player-idle", "info:npc-idle",
+      "group:sneak", "label:sneak", "info:player-sneak", "info:npc-sneak",
     ]),
     sec("combat", "Бой", [
-      "label:attacks", "info:player-attacks", "info:npc-attacks",
-      "label:blocking", "info:player-blocking", "info:npc-blocking",
+      "group:attacks", "label:attacks", "info:player-attacks", "info:npc-attacks",
+      "group:blocking", "label:blocking", "info:player-blocking", "info:npc-blocking",
     ]),
     sec("magic", "Магия и заклинания", [
-      "info:player-magic", "info:npc-magic",
+      "group:magic", "info:player-magic", "info:npc-magic",
     ]),
     sec("actions", "Действия и взаимодействие", [
-      "info:player-actions", "info:npc-actions",
+      "group:actions", "info:player-actions", "info:npc-actions",
     ]),
     sec("traversal", "Специальное передвижение", [
-      "label:jumping", "info:player-jumping", "info:npc-jumping",
-      "label:swimming", "info:player-swimming", "info:npc-swimming",
-      "label:falling", "info:player-falling", "info:npc-falling",
+      "group:jumping", "label:jumping", "info:player-jumping", "info:npc-jumping",
+      "group:swimming", "label:swimming", "info:player-swimming", "info:npc-swimming",
+      "group:falling", "label:falling", "info:player-falling", "info:npc-falling",
     ]),
     sec("reactions", "Реакции", [
-      "label:damage", "info:player-damage", "info:npc-damage",
-      "label:death", "info:player-death", "info:npc-death",
+      "group:damage", "label:damage", "info:player-damage", "info:npc-damage",
+      "group:death", "label:death", "info:player-death", "info:npc-death",
     ]),
   ]),
   tab("textures", "Текстуры", [

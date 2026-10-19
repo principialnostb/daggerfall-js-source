@@ -4299,13 +4299,13 @@ export function createFpArm({ playerAppearance = false } = {}) {
     const u = thirdUnit(grow);
     const yawDeg = (yaw * 180 / Math.PI) + 180;
     const rs = (built && built.raceScale) || { weight: 1, height: 1 };
-    const morph = playerAppearance ? getBodyMorphs() : { bodyWidth: 0, height: 0 };
-    const width = 1 + Math.max(-1, Math.min(1, Number(morph.bodyWidth) || 0)) * 0.18;
-    const height = 1 + Math.max(-1, Math.min(1, Number(morph.height) || 0)) * 0.15;
+    // Body width/height are applied once in deformPlayerBodyGeometry. Applying
+    // them again to the world matrix doubled those controls and made the preview
+    // disagree with the body geometry, so the placement transform stays neutral.
     return multiply(trs(feet[0], feet[1], feet[2], 0, yawDeg, 0,
-      -u * rs.weight * THIRD_PERSON_HORIZONTAL_SCALE * width,
-      u * rs.height * THIRD_PERSON_HEIGHT_SCALE * height,
-      u * rs.weight * THIRD_PERSON_HORIZONTAL_SCALE * width), NIF_TO_PASS);
+      -u * rs.weight * THIRD_PERSON_HORIZONTAL_SCALE,
+      u * rs.height * THIRD_PERSON_HEIGHT_SCALE,
+      u * rs.weight * THIRD_PERSON_HORIZONTAL_SCALE), NIF_TO_PASS);
   }
   /** PR-BOW1 / MWNPC16: the posed box drawThird folds over what it draws (the shown ranges'), else the assembly's. */
   function thirdBox() {
@@ -4339,9 +4339,26 @@ export function createFpArm({ playerAppearance = false } = {}) {
    * and the CPU skin draws it as it always did. The door shut mid-session lets a skinned mesh go.
    */
   function thirdSkinReady(t) {
-    // Local chest/hip vertex morphs are not implemented yet. Persisted slider values
-    // must not silently force the CPU-skinning path until a real vertex transform
-    // is applied; that path changes performance and can mask pose/visibility bugs.
+    // The anatomical editor morphs skinned vertices after CPU skinning. The GPU
+    // path uploads the unmodified source stream and therefore hides every
+    // localized slider change in the preview and live third-person body.
+    // Switch to CPU skinning only while a geometry control is non-zero; headScale
+    // is a skeleton transform and remains compatible with GPU skinning.
+    if (playerAppearance) {
+      const morph = getBodyMorphs();
+      const geometryKeys = [
+        'height', 'bodyWidth', 'bodyFullness', 'shoulderWidth', 'ribcageWidth',
+        'breastSize', 'breastProjection', 'waistWidth', 'abdomenVolume', 'hipWidth',
+        'buttockSize', 'buttockProjection', 'armThickness', 'armLength',
+        'thighThickness', 'calfThickness', 'legLength', 'legGap',
+      ];
+      const geometryMorphActive = geometryKeys.some((key) => Math.abs(Number(morph[key]) || 0) > 0.0001);
+      if (geometryMorphActive) {
+        if (thirdSkin || thirdMesh?.skin) releaseThirdMesh();
+        thirdSkinRefused = null;
+        return false;
+      }
+    }
     if (!gpuSkinOn(renderer)) { if (thirdMesh && thirdMesh.skin) releaseThirdMesh(); return false; }
     if (thirdSkin && skinSamePieces(thirdSkin, t.arm.pieces)) return true;
     if (thirdSkinRefused === t.arm.pieces) return false;

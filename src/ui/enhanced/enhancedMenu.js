@@ -1705,7 +1705,19 @@ function paneExit(body) {
 
 let optQuery = '';          // ORG2: the search, over every tab - kept across a repaint, cleared by a tab change
 let animationSection = 'locomotion'; // ANIM-UI5: the shared animation family currently selected
-let animationClipGroup = 'walking'; // ANIM-UI7: nested clip family selected inside the animation section
+const ANIMATION_SUBGROUPS = Object.freeze({
+  locomotion: [['walking', 'Ходьба'], ['running', 'Бег']],
+  posture: [['general', 'Общие настройки'], ['turning', 'Повороты и развороты'], ['idle', 'Стойка и ожидание'], ['sneak', 'Скрытность']],
+  combat: [['attacks', 'Атаки'], ['blocking', 'Блокирование']],
+  magic: [['magic', 'Заклинания']],
+  actions: [['actions', 'Действия и взаимодействие']],
+  traversal: [['jumping', 'Прыжки'], ['swimming', 'Плавание'], ['falling', 'Падение и приземление']],
+  reactions: [['damage', 'Получение урона'], ['death', 'Смерть']],
+});
+const DEFAULT_ANIMATION_SUBGROUP = Object.freeze(Object.fromEntries(
+  Object.entries(ANIMATION_SUBGROUPS).map(([section, groups]) => [section, groups[0][0]]),
+));
+let animationClipGroup = 'walking'; // Each section owns a valid nested-selector default.
 let optFilter = 'all';      // ORG2: 'all' | 'changed' | a KINDS id
 let pickedFeature = null;   // ORG2: the Features row the help pane reads (pickedKey is DFU's key)
 let optScrollTo = null;     // ORG2: a row to bring into view after the next paint (the mods' list sends you to one)
@@ -1767,7 +1779,15 @@ function itemKinds(item) {
 function itemText(item, pool) {
   if (isSettingItem(item)) return `${labelOf(item)} ${helpOf(item)} ${item}`;
   if (item.startsWith('feat:')) { const f = FEATURES.find((x) => x.id === item.slice(5)); return f ? featureSearchText(f) : ''; }
-  if (item.startsWith('group:')) return ({ walking: 'ходьба walking walk', running: 'бег running run' })[item.slice(6)] ?? '';
+  if (item.startsWith('group:')) return ({
+    general: 'общие настройки general options',
+    walking: 'ходьба walking walk', running: 'бег running run',
+    turning: 'повороты развороты turning turn', idle: 'стойка ожидание idle stance', sneak: 'скрытность sneak stealth',
+    attacks: 'атаки attacks combat weapon strike', blocking: 'блокирование защита blocking block guard',
+    magic: 'магия заклинания magic spell cast', actions: 'действия взаимодействие actions interaction',
+    jumping: 'прыжки jumping jump', swimming: 'плавание swimming swim', falling: 'падение приземление falling landing',
+    damage: 'получение урона damage hit hurt', death: 'смерть death dying',
+  })[item.slice(6)] ?? '';
   if (item.startsWith('label:')) return ({
     player: 'player игрок', npc: 'npc нпс',
     walking: 'ходьба walking walk', running: 'бег running run',
@@ -1848,7 +1868,7 @@ function itemNodes(item, ctx) {
   }
   if (item.startsWith('group:')) {
     const group = item.slice(6);
-    const labels = { walking: 'Ходьба', running: 'Бег' };
+    const labels = Object.fromEntries(Object.values(ANIMATION_SUBGROUPS).flat().map(([id, label]) => [id, label]));
     const button = el('button', `sec-jumpbtn animation-switch animation-clip-group${animationClipGroup === group ? ' is-active' : ''}`, labels[group] ?? group);
     button.type = 'button';
     button.setAttribute('aria-expanded', String(animationClipGroup === group));
@@ -1951,7 +1971,8 @@ function tabSections(tab, ctx) {
     const nodes = s.items.flatMap((item) => {
       if (tab.id === 'animations' && item.startsWith('group:')) {
         clipGroup = item.slice(6);
-        return itemNodes(item, { ...ctx, fold });
+        // Structural marker only; the visible choice is a dedicated sub-navigation strip.
+        return [];
       }
       if (tab.id === 'animations' && clipGroup && clipGroup !== animationClipGroup) return [];
       return itemNodes(item, { ...ctx, fold });
@@ -2010,7 +2031,11 @@ function paintOptionsBody(body, { pause = false } = {}) {
       const b = el('button', `sec-jumpbtn animation-switch${animationSection === s.id ? ' is-active' : ''}`, s.title);
       b.type = 'button';
       b.setAttribute('aria-pressed', String(animationSection === s.id));
-      b.onclick = () => { animationSection = s.id; paintOptionsBody(body, { pause }); };
+      b.onclick = () => {
+        animationSection = s.id;
+        animationClipGroup = DEFAULT_ANIMATION_SUBGROUP[s.id] ?? 'walking';
+        paintOptionsBody(body, { pause });
+      };
       buttons.append(b);
     }
     group.append(buttons);
@@ -2018,6 +2043,24 @@ function paintOptionsBody(body, { pause = false } = {}) {
     body.append(nav);
     const selected = sections.find(({ s }) => s.id === animationSection) ?? sections[0];
     if (selected) {
+      const subgroups = ANIMATION_SUBGROUPS[selected.s.id] ?? [];
+      if (subgroups.length) {
+        const subnav = el('nav', 'sec-jump animation-subgroups');
+        subnav.setAttribute('aria-label', 'Конкретная настройка анимации');
+        const subnavGroup = el('div', 'animation-switch-group');
+        subnavGroup.append(el('div', 'meta animation-switch-label', 'Настройка'));
+        const buttons = el('div', 'animation-switch-buttons');
+        for (const [id, title] of subgroups) {
+          const b = el('button', `sec-jumpbtn animation-switch animation-clip-group${animationClipGroup === id ? ' is-active' : ''}`, title);
+          b.type = 'button';
+          b.setAttribute('aria-pressed', String(animationClipGroup === id));
+          b.onclick = () => { animationClipGroup = id; paintOptionsBody(body, { pause }); };
+          buttons.append(b);
+        }
+        subnavGroup.append(buttons);
+        subnav.append(subnavGroup);
+        body.append(subnav);
+      }
       const n = selected.nodes.filter(isOptionNode).length;
       body.append(sectionHead(tab, selected.s, n), ...selected.nodes);
     } else body.append(empty('Nothing here'));
