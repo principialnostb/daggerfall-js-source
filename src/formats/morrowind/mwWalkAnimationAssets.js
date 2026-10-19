@@ -113,7 +113,7 @@ export function walkVariantForActor({
   playerChoice = 0, npcMaleChoice = 0, npcFemaleChoice = 0,
 } = {}) {
   const index = (value, max) => Math.max(0, Math.min(max, Number(value) || 0));
-  if (player || ownHeads) return ['standard', 'female', 'female2'][index(playerChoice, 2)];
+  if (player || ownHeads) return ['standard', 'female', 'female2', 'vanilla'][index(playerChoice, 3)];
   if (female) return ['standard', 'female2', 'vanilla'][index(npcFemaleChoice, 2)];
   return ['standard', 'vanilla'][index(npcMaleChoice, 1)];
 }
