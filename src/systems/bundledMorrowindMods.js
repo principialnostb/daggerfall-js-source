@@ -20,6 +20,8 @@ const IN_BROWSER = typeof window !== 'undefined';
 const FILES = IN_BROWSER
   ? import.meta.glob([
       '../../Morrowind Textures/Better Bodies/Nude/Data Files/Textures/**/*.{dds,DDS,tga,TGA}',
+      '../../Morrowind Textures/High Resolution Better Body Female Textures/Hands/Textures/**/*.{dds,DDS,tga,TGA}',
+      '../../Morrowind Textures/High Resolution Better Body Female Textures/Nude_No_Hair/Textures/**/*.{dds,DDS,tga,TGA}',
       '../../Morrowind Textures/Seamless DMRA body replacer/Meshes/**/*.{nif,NIF}',
       '../../Morrowind Textures/Seamless DMRA body replacer/Textures/**/*.{dds,DDS,tga,TGA}',
       '../../Morrowind Textures/Intelligent Textures/00 Core/textures/**/*.{dds,DDS,tga,TGA}',
@@ -39,6 +41,7 @@ const FILES = IN_BROWSER
 const norm = (s) => String(s).replace(/\\/g, '/').toLowerCase();
 const assetUrls = Object.create(null);
 const baseBodyTextureUrls = Object.create(null);
+const highResolutionFemaleTextureUrls = Object.create(null);
 const intelligentTextureUrls = Object.create(null);
 const vurtClothesTextureUrls = Object.create(null);
 const betterClothesTextureUrls = Object.create(null);
@@ -68,6 +71,7 @@ const addDataFilesAsset = (rel, url, packageName, bucket) => {
 
 const packEnabled = Object.freeze({
   betterBodies: modSetting('morrowind-textures', 'BetterBodies') !== false || modSetting('morrowind-textures', 'SeamlessDMRA') === true, // DMRA uses the BB base skin.
+  highResolutionFemaleTextures: modSetting('morrowind-textures', 'HighResolutionBetterBodyFemaleTextures') !== false,
   dmra: modSetting('morrowind-textures', 'SeamlessDMRA') === true,
   intelligentTextures: !!modSetting('morrowind-textures', 'IntelligentTextures'),
   vurtClothes: !!modSetting('morrowind-textures', 'VurtsBetterClothes'),
@@ -99,6 +103,19 @@ for (const [source, url] of Object.entries(FILES)) {
     const rel = bbRel.replace(/^nude\/data files\//i, '');
     const match = rel.match(/^textures\/(.+\.(?:dds|tga))$/i);
     if (match) addAsset(baseBodyTextureUrls, 'textures/' + match[1], url, 'Better Bodies fallback');
+    continue;
+  }
+
+  // High Resolution Better Body Female Textures: use the no-hair body skin
+  // set and the matching high-resolution hand textures. These replace only
+  // texture keys, never the project's corrected Better Bodies NIF/UV geometry.
+  // This avoids the old failure mode where a pack's NIF silently overwrote
+  // bb_skinf_no.nif and invalidated the user-corrected UV coordinates.
+  const highResRel = relAfter(path, lower, '/high resolution better body female textures/');
+  if (highResRel) {
+    if (!packEnabled.highResolutionFemaleTextures || !packEnabled.betterBodies) continue;
+    const match = highResRel.match(/^(?:hands\/textures|nude_no_hair\/textures)\/(bb\/.+\.(?:dds|tga))$/i);
+    if (match) addAsset(highResolutionFemaleTextureUrls, 'textures/' + match[1], url, 'High Resolution Better Body Female Textures');
     continue;
   }
 
@@ -203,6 +220,7 @@ for (const [source, url] of Object.entries(FILES)) {
 Object.assign(
   assetUrls,
   baseBodyTextureUrls,
+  highResolutionFemaleTextureUrls,
   dmraAssetUrls,
   intelligentTextureUrls,
   vurtClothesTextureUrls,
@@ -250,6 +268,7 @@ export async function inspectBundledMorrowindTextures() {
   const candidates = [
     'textures/bb/bb_skinf_de.dds',
     'textures/bb/bb_handf_de.dds',
+    'textures/bb/bb_handf_de.dds',
     'textures/tx_a_steel_cuirass01.dds',
     'textures/tx_c_c_shirtcom01.dds',
     'meshes/brz/war_brnzh_robe1f.nif',
@@ -295,7 +314,7 @@ export async function inspectBundledMorrowindTextures() {
     activeOptionalPacks: Object.entries(packEnabled).filter(([name, enabled]) => name !== 'betterBodies' && enabled).map(([name]) => name),
     bundledPlugins: bundledMorrowindPluginNames(),
     representativeFetches: checks,
-    note: 'High Resolution Better Body Female Textures and Better Heads are not selected by this loader.',
+    note: 'High Resolution Better Body Female Textures supplies high-resolution female body and hand textures; its NIF meshes are intentionally not used so corrected UV geometry remains intact.',
   };
   console.table(checks);
   console.log('[Bundled Morrowind texture packs]', report);
