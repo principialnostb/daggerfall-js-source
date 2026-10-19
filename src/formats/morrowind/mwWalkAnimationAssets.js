@@ -59,11 +59,11 @@ export async function loadWalkAnimationAssets({ female = false, femaleWalk = 'st
   try {
     if (standard) {
       const data = await bytes(standard);
-      if (data) selected.push({ name: standard.path, bytes: data, variant: 'standard', walkOnly: true });
+      if (data) selected.push({ name: standard.path, bytes: data, variant: 'standard', walkVariant: 'standard', walkOnly: true });
     }
     if (override) {
       const data = await bytes(override);
-      if (data) selected.push({ name: override.path, bytes: data, variant: femaleWalk, walkOnly: true });
+      if (data) selected.push({ name: override.path, bytes: data, variant: femaleWalk, walkVariant: femaleWalk, walkOnly: true });
     }
   } catch (error) {
     console.warn('[Morrowind animations] bundled walk set failed to load; archive animations remain active:', String(error?.message ?? error));
