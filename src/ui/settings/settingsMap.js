@@ -242,8 +242,7 @@ export const CATEGORIES = Object.freeze([
       "card:packs",
     ]),
     sec("texture-sources", "Источники и приоритеты", [
-      "link:overhauls", "feat:dungeon-wall-style", "Video/RandomDungeonTextures", "Video/MainFilterMode", "GUI/GUIFilterMode", "GUI/VideoFilterMode",
-      "Video/EnableTextureArrays", "GUI/AccelerateUICopyTexture",
+      "link:overhauls",
     ]),
   ]),
   tab("bodies", "Тела", [
