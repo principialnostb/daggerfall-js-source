@@ -1652,6 +1652,11 @@ export const MOD_SETTINGS = Object.freeze({
     title: 'Animations',
     author: 'Port integration',
     keys: Object.freeze({
+      AnimationOverhaul: Object.freeze({
+        default: 0,
+        options: lazyWords('Vanilla', 'Morrowind Animation Overhaul'),
+        description: 'Replaces supported third-person human, elf and orc animation groups (movement, idle, combat, spells and actions). Does not support Argonian/Khajiit rigs or first-person animations. The choice is read when a character rig is built; rebuild/reload the character after changing it. Animation Blending (MWSE) remains Vanilla because MWSE Lua scripts cannot run in this browser port.',
+      }),
       PlayerWalkSource: Object.freeze({
         default: 0,
         options: lazyWords('Vanilla', 'Simply Walking', 'Feminine Walk Cycle', "Axel's Sexy Walk Fixed"),
