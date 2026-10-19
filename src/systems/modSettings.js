@@ -1654,8 +1654,8 @@ export const MOD_SETTINGS = Object.freeze({
     keys: Object.freeze({
       PlayerWalkSource: Object.freeze({
         default: 0,
-        options: lazyWords('Vanilla', 'Simply Walking', "Axel's Sexy Walk Fixed"),
-        description: "Player walking source. Vanilla keeps the game's/archive walk. Simply Walking replaces supported walk groups; Axel's Sexy Walk Fixed replaces its supported female walk groups. Running is configured separately. Unsupported groups fall back to the game/archive source.",
+        options: lazyWords('Vanilla', 'Simply Walking', 'Feminine Walk Cycle', "Axel's Sexy Walk Fixed"),
+        description: "Player walking source. Vanilla keeps the game's/archive walk. Simply Walking, Feminine Walk Cycle, and Axel's Sexy Walk Fixed are independent walk-only sources for supported groups; the feminine cycle and Axel are female-only. Running is configured separately. Unsupported groups fall back to the game/archive source.",
       }),
       PlayerRunSource: Object.freeze({
         default: 0,
@@ -1669,8 +1669,8 @@ export const MOD_SETTINGS = Object.freeze({
       }),
       NpcFemaleWalk: Object.freeze({
         default: 0,
-        options: lazyWords('Vanilla', 'Simply Walking', "Axel's Sexy Walk Fixed"),
-        description: "Female NPC walking source. Vanilla keeps the game/archive walk. Simply Walking replaces supported walk groups; Axel's Sexy Walk Fixed replaces its supported female walk groups. Running is configured separately. Unsupported groups fall back to the game/archive source.",
+        options: lazyWords('Vanilla', 'Simply Walking', 'Feminine Walk Cycle', "Axel's Sexy Walk Fixed"),
+        description: "Female NPC walking source. Vanilla, Simply Walking, Feminine Walk Cycle, and Axel's Sexy Walk Fixed are independent walk-only choices. Running is configured separately. Unsupported groups fall back to the game/archive source.",
       }),
       NpcFemaleRun: Object.freeze({
         default: 0,
