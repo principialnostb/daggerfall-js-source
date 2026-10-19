@@ -2835,59 +2835,90 @@ function recalculateMorphedNormals(piece) {
   piece.normals = n;
 }
 
-function deformPlayerBodyGeometry(piece, morph) {
+function deformPlayerBodyGeometry(piece, morph, bodyBounds) {
   const slot = String(piece.slot || '').toLowerCase();
-  const breast = slot === 'chest' ? clampMorph(morph?.breastSize) : 0;
-  const buttock = slot === 'groin' ? clampMorph(morph?.buttockSize) : 0;
-  const hip = (slot === 'groin' || slot === 'upperleg') ? clampMorph(morph?.hipWidth) : 0;
-  const waist = slot === 'chest' ? clampMorph(morph?.waistWidth) : 0;
-  if (!breast && !buttock && !hip && !waist) return;
+  const isBody = slot === 'betterbodies' || ['chest', 'groin', 'upperleg', 'lowerleg', 'foot', 'hand'].includes(slot);
+  if (!isBody) return;
   const p = piece.positions;
-  if (!p || p.length < 9) return;
-  let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity, minZ = Infinity, maxZ = -Infinity;
-  for (let i = 0; i + 2 < p.length; i += 3) {
-    const x = p[i], y = p[i + 1], z = p[i + 2];
-    if (!Number.isFinite(x + y + z)) continue;
-    minX = Math.min(minX, x); maxX = Math.max(maxX, x);
-    minY = Math.min(minY, y); maxY = Math.max(maxY, y);
-    minZ = Math.min(minZ, z); maxZ = Math.max(maxZ, z);
-  }
-  const halfX = (maxX - minX) * 0.5, halfY = (maxY - minY) * 0.5, spanZ = maxZ - minZ;
-  if (!(halfX > 1e-5 && halfY > 1e-5 && spanZ > 1e-5)) return;
+  if (!p || p.length < 9 || !bodyBounds) return;
+  const { minX, maxX, minY, maxY, minZ, maxZ } = bodyBounds;
+  const halfX = Math.max(1e-5, (maxX - minX) * 0.5);
+  const halfY = Math.max(1e-5, (maxY - minY) * 0.5);
+  const spanZ = Math.max(1e-5, maxZ - minZ);
   const cx = (minX + maxX) * 0.5, cy = (minY + maxY) * 0.5;
-  const clamp01 = (v) => Math.max(0, Math.min(1, v));
+  const amount = (key) => clampMorph(morph?.[key]);
+  const gauss = (v, center, width) => Math.exp(-Math.pow((v - center) / width, 2));
+  const bodyWidth = 1 + amount('bodyWidth') * 0.18;
+  const bodyHeight = 1 + amount('height') * 0.15;
+  const shoulder = amount('shoulderWidth');
+  const ribcage = amount('ribcageWidth');
+  const breast = amount('breastSize');
+  const breastProjection = amount('breastProjection');
+  const waist = amount('waistWidth');
+  const abdomen = amount('abdomenVolume');
+  const hip = amount('hipWidth');
+  const buttock = amount('buttockSize');
+  const buttockProjection = amount('buttockProjection');
+  const arms = amount('armThickness');
+  const armLength = amount('armLength');
+  const thighs = amount('thighThickness');
+  const calves = amount('calfThickness');
+  const legLength = amount('legLength');
+  const legGap = amount('legGap');
+  const hipLine = minZ + spanZ * 0.49;
+  const shoulderLine = minZ + spanZ * 0.78;
   for (let i = 0; i + 2 < p.length; i += 3) {
-    const x = p[i], y = p[i + 1], z = p[i + 2];
-    const nx = (x - cx) / halfX, ny = (y - cy) / halfY, nz = (z - minZ) / spanZ;
-    if (breast) {
-      // Soft paired lobes, expanding the chest depth in both directions so
-      // the result remains visible even if a race mesh uses the opposite Y convention.
-      const vertical = Math.exp(-Math.pow((nz - 0.63) / 0.24, 2));
-      const lobes = Math.exp(-Math.pow((Math.abs(nx) - 0.32) / 0.27, 2));
-      const depth = clamp01((Math.abs(ny) - 0.10) / 0.55);
-      const w = vertical * lobes * depth;
-      p[i + 1] += Math.sign(ny) * breast * halfY * 0.48 * w;
-      p[i] += Math.sign(nx) * breast * halfX * 0.035 * w;
+    const ox = p[i], oy = p[i + 1], oz = p[i + 2];
+    if (!Number.isFinite(ox + oy + oz)) continue;
+    const nx = (ox - cx) / halfX, ny = (oy - cy) / halfY;
+    const nz = (oz - minZ) / spanZ;
+    let x = cx + (ox - cx) * bodyWidth;
+    let y = cy + (oy - cy);
+    let z = minZ + (oz - minZ) * bodyHeight;
+
+    // Anatomical falloff uses the whole body's bounds, not each tiny mesh
+    // island's local bounds. This keeps a multi-part Better Bodies NIF coherent.
+    const shoulderZone = gauss(nz, 0.78, 0.085);
+    const ribcageZone = gauss(nz, 0.68, 0.105);
+    const breastZone = gauss(nz, 0.685, 0.075) * gauss(Math.abs(nx), 0.20, 0.16);
+    const waistZone = gauss(nz, 0.56, 0.07);
+    const abdomenZone = gauss(nz, 0.525, 0.085);
+    const hipZone = gauss(nz, 0.47, 0.09);
+    const buttockZone = gauss(nz, 0.465, 0.09);
+    const armZone = (Math.abs(nx) > 0.22 ? 1 : 0) * gauss(nz, 0.65, 0.18);
+    const thighZone = (Math.abs(nx) > 0.07 ? 1 : 0) * gauss(nz, 0.31, 0.105);
+    const calfZone = (Math.abs(nx) > 0.045 ? 1 : 0) * gauss(nz, 0.15, 0.08);
+    x += nx * halfX * (shoulder * 0.13 * shoulderZone + ribcage * 0.11 * ribcageZone);
+    x += nx * halfX * waist * 0.14 * waistZone;
+    x += nx * halfX * hip * 0.18 * hipZone;
+    // Chest/bust volume and projection are deliberately separate controls.
+    const bust = breast * 0.16 + breastProjection * 0.19;
+    y += Math.sign(ny || 1) * halfY * bust * breastZone;
+    y += Math.sign(ny || 1) * halfY * abdomen * 0.14 * abdomenZone;
+    // Negative local Y is the rear side in Morrowind body space.
+    const rear = Math.max(0, Math.min(1, (-ny - 0.02) / 0.55));
+    y -= halfY * (buttock * 0.15 + buttockProjection * 0.19) * buttockZone * rear;
+    x += Math.sign(nx || 1) * halfX * arms * 0.055 * armZone;
+    y += Math.sign(ny || 1) * halfY * arms * 0.045 * armZone;
+    x += Math.sign(nx || 1) * halfX * thighs * 0.09 * thighZone;
+    y += Math.sign(ny || 1) * halfY * thighs * 0.065 * thighZone;
+    x += Math.sign(nx || 1) * halfX * calves * 0.075 * calfZone;
+    y += Math.sign(ny || 1) * halfY * calves * 0.055 * calfZone;
+    // Move the lower limbs apart symmetrically; this is a position morph,
+    // not a bone scale, so it cannot make the whole body look larger.
+    if (nz < 0.47 && Math.abs(nx) > 0.035) {
+      const lowerLegWeight = Math.max(0, Math.min(1, (0.49 - nz) / 0.20));
+      x += Math.sign(nx) * halfX * legGap * 0.10 * lowerLegWeight;
     }
-    if (buttock) {
-      // Rear side of the groin batch; the waist/front is deliberately left alone.
-      const vertical = Math.exp(-Math.pow((nz - 0.57) / 0.30, 2));
-      const rear = clamp01((-ny - 0.08) / 0.48);
-      const w = vertical * rear;
-      p[i + 1] -= buttock * halfY * 0.55 * w;
-      p[i] += Math.sign(nx) * buttock * halfX * 0.07 * w;
+    if (legLength) {
+      const lower = Math.max(0, Math.min(1, (0.50 - nz) / 0.50));
+      z += (oz - hipLine) * legLength * 0.12 * lower;
     }
-    if (hip) {
-      const vertical = slot === 'groin'
-        ? Math.exp(-Math.pow((nz - 0.70) / 0.28, 2))
-        : Math.exp(-Math.pow((nz - 0.82) / 0.25, 2));
-      const w = vertical * Math.min(1, Math.abs(nx) + 0.15);
-      p[i] += Math.sign(nx) * hip * halfX * 0.30 * w;
+    if (armLength && armZone > 0) {
+      const lowerArm = Math.max(0, Math.min(1, (shoulderLine - oz) / (spanZ * 0.28)));
+      z += (oz - shoulderLine) * armLength * 0.10 * lowerArm * armZone;
     }
-    if (waist) {
-      const vertical = Math.exp(-Math.pow((nz - 0.38) / 0.16, 2));
-      p[i] += nx * waist * halfX * 0.24 * vertical;
-    }
+    p[i] = x; p[i + 1] = y; p[i + 2] = z;
   }
   recalculateMorphedNormals(piece);
 }
