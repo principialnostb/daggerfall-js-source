@@ -28,6 +28,10 @@ test('MW-D40: first-person sync, climb facing and seats retain precedence', () =
   assert.equal(player.bodyYawFor(-1, { faceView: true }), -1, 'movement-facing overrides a stale climb yaw');
   player._bodyYawOff = 0.7;
   assert.equal(player.bodyYawFor(0.6, { faceView: true }), 0.6, 'movement-facing overrides the climb-release offset');
+  assert.equal(player.bodyYawFor(2.2), 0.6, 'idle after movement keeps the latest facing instead of resurrecting a stale offset');
+  player._bodyYaw = 1.9;
+  assert.equal(player.bodyYawFor(-0.4, { faceView: true }), -0.4, 'view-facing clears a stale body yaw');
+  assert.equal(player.bodyYawFor(0.8), -0.4, 'idle keeps the direction established by the last view-facing frame');
   player.drawYaw = -2.8;
   assert.equal(player.bodyYawFor(0), -2.8, 'seat/draw yaw wins over every body mode');
 });
