@@ -5269,6 +5269,34 @@ export function createFpArm({ playerAppearance = false } = {}) {
 
   const api = {
     attach(r, cam) { renderer = r || null; camera = cam || null; },
+    /**
+     * Build an editor-owned copy of this actor's current body/head/hair identity.
+     * It shares only the renderer and source asset/dependency references; the
+     * skeleton, assembled meshes, animation state and render target work are owned
+     * by a new rig. Equipment is intentionally omitted so the editor previews nude.
+     */
+    async createAppearancePreviewRig() {
+      if (!lastBuildOpts || !renderer) return { ok: false, error: 'The live character has not finished building.' };
+      const previewRig = createFpArm({ playerAppearance: true });
+      previewRig.attach(renderer, camera);
+      const opts = {
+        ...lastBuildOpts,
+        armor: [],
+        weapon: null,
+        offWeapon: null,
+        hasAmmo: false,
+        ammoCount: 0,
+        torch: false,
+        hipLight: false,
+        spellReady: false,
+      };
+      const builtPreview = await previewRig.build(opts);
+      if (!builtPreview?.ok) {
+        previewRig.unload();
+        return { ok: false, error: builtPreview?.error || builtPreview?.stage || 'Could not build the preview model.' };
+      }
+      return { ok: true, rig: previewRig };
+    },
     active,
     ready,
     /** MWA3: WHO the standing arm was built for - the identity third
