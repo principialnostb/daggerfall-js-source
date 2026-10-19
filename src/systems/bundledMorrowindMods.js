@@ -25,7 +25,7 @@ const BUNDLED_PATH_MATCHERS = [
   /^Seamless DMRA body replacer\/(?:Meshes\/.*\.nif|Textures\/.*\.(?:dds|tga))$/i,
   /^Intelligent Textures\/00 Core\/textures\/.*\.(?:dds|tga)$/i,
   /^Vurt's Better Clothes Retexture\/textures\/.*\.(?:dds|tga)$/i,
-  /^Better Clothes Retextured\/(?:textures\/.*\.(?:dds|tga)|meshes\/.*\.nif)$/i,
+  /^Better Clothes Retextured\/textures\/.*\.(?:dds|tga)$/i,
   /^Westly's Fine Clothiers of Tamriel\/(?:Meshes\/.*\.nif|Textures\/.*\.(?:dds|tga)|Westly_Presents_FCOT\.esp)$/i,
   /^Westly's Faces Refurbished\/Data Files\/.*\.(?:nif|dds|tga)$/i,
   /^Better Morrowind Armor\/(?:Data Files\/.*\.(?:nif|dds|tga|esp)|Complete Armor Joints\/Data Files\/.*\.(?:nif|dds|tga|esp))$/i,
@@ -45,7 +45,6 @@ const highResolutionFemaleHandUrls = Object.create(null);
 const intelligentTextureUrls = Object.create(null);
 const vurtClothesTextureUrls = Object.create(null);
 const betterClothesTextureUrls = Object.create(null);
-const betterClothesMeshUrls = Object.create(null);
 const clothierAssetUrls = Object.create(null);
 const armorTextureUrls = Object.create(null);
 const armorJointsUrls = Object.create(null);
@@ -146,11 +145,11 @@ for (const [source, url] of Object.entries(FILES)) {
   const betterClothesRel = relAfter(path, lower, '/better clothes retextured/');
   if (betterClothesRel) {
     if (!packEnabled.betterClothes) continue;
-    const meshMatch = betterClothesRel.match(/^meshes\/(.+\.nif)$/i);
     const textureMatch = betterClothesRel.match(/^textures\/(.+\.(?:dds|tga))$/i);
-    if (meshMatch) {
-      addAsset(betterClothesMeshUrls, 'meshes/' + meshMatch[1], url, 'Better Clothes Retextured meshes');
-    } else if (textureMatch && !/(?:pant|trouser)/i.test(textureMatch[1])) {
+    // Keep this pack texture-only. Its NIF meshes can carry different UVs and
+    // coarse pants geometry; the existing garment fitter must adapt the active
+    // clothing mesh to Better Bodies instead of silently replacing that mesh.
+    if (textureMatch && !/(?:pant|trouser)/i.test(textureMatch[1])) {
       addAsset(betterClothesTextureUrls, 'textures/' + textureMatch[1], url, 'Better Clothes Retextured (non-pants textures only)');
     }
     continue;
@@ -236,7 +235,6 @@ Object.assign(
   intelligentTextureUrls,
   vurtClothesTextureUrls,
   betterClothesTextureUrls,
-  betterClothesMeshUrls,
   armorTextureUrls,
   armorJointsUrls,
   clothierAssetUrls,

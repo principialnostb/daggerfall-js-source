@@ -31,4 +31,6 @@ test('MW-REMOTE-ASSETS: source URLs encode path segments without changing archiv
     'https://raw.githubusercontent.com/principialnostb/daggerfall-js-source/a7128529d7dd7ca562f1bd4833911a249d2d9da2/Morrowind%20Textures/Better%20Bodies/Nude/Data%20Files/Meshes/bb/bb_skinf_no.nif',
   );
   assert.ok(morrowindAssetUrl("Axel's Sexy Walk Fixed/Animation/axel fixed/female/WalkForward;.kf").includes('Axel%27s%20Sexy%20Walk%20Fixed'));
+  assert.equal(MORROWIND_ASSET_PATHS.some((path) => path.startsWith('Better Clothes Retextured/meshes/')), false,
+    'Better Clothes Retextured must not replace garment geometry; the runtime fitter handles body conformity');
 });
