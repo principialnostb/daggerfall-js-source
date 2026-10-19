@@ -53,8 +53,8 @@ test('MW-ANIM-2: player, male NPC, and female NPC walk settings resolve independ
 });
 
 test('MW-ANIM-1: Vanilla disables bundled walk replacements only', () => {
-  assert.equal(isWalkVariantEnabled({ walkOnly: true, walkVariant: 'simply' }, 'vanilla'), false);
-  assert.equal(isWalkVariantEnabled({ walkOnly: true, walkVariant: 'axel' }, 'vanilla'), false);
+  assert.equal(isWalkVariantEnabled({ walkOnly: true, animationFamily: 'walk', walkVariant: 'simply' }, 'vanilla'), false);
+  assert.equal(isWalkVariantEnabled({ walkOnly: true, animationFamily: 'walk', walkVariant: 'axel' }, 'vanilla'), false);
   assert.equal(isWalkVariantEnabled({ name: 'archive animation' }, 'vanilla'), true);
 });
 
