@@ -356,3 +356,13 @@ test('MW-D42: the bow\'s hit is held for the arm\'s release, and never swallowed
     Object.assign(fpArm, saved);
   }
 });
+
+
+test('weaponRig: the Morrowind first-person skin is drawn for unarmed run and jump poses', () => {
+  const armSource = readFileSync(join(ROOT, 'src/combat/fpArm.js'), 'utf8');
+  const hostSource = readFileSync(join(ROOT, 'src/combat/weapon/weaponRig.js'), 'utf8');
+  assert.ok(armSource.includes('movementPosed()'), 'the Morrowind arm rig exposes its movement pose state');
+  assert.ok(armSource.includes('!!jumpState?.playing'), 'jump clips keep the rig drawable even without a weapon');
+  assert.ok(hostSource.includes('const armsMovement = fpArm.active() && !!fpArm.movementPosed?.();'), 'the weapon host reads the movement pose');
+  assert.ok(hostSource.includes('&& !armsMovement)'), 'the draw gate does not suppress the posed skin arms');
+});
