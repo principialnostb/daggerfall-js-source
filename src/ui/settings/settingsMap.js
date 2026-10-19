@@ -188,42 +188,6 @@ export const CATEGORIES = Object.freeze([
       "GUI/LargeHUD", "GUI/LargeHUDDocked", "GUI/LargeHUDUndockedScale", "GUI/LargeHUDUndockedAlignment", "GUI/LargeHUDUndockedOffsetWeapon",
       "GUI/LargeHUDOffsetHorse"]),
   ]),
-  // ANIM-UI6: each major animation family contains smaller, independently
-  // selectable clip groups. The full third-person overhaul is separate from
-  // walk/run overrides; unsupported groups retain the game's Vanilla source.
-  tab("animations", "Анимации", [
-    sec("locomotion", "Передвижение", [
-      "group:running", "label:running-player", "feat:morrowind-player-run-animation",
-      "label:running-npc", "info:npc-run", "feat:morrowind-female-npc-run-animation",
-      "group:walking", "label:walking-player", "feat:morrowind-player-walk-animation",
-      "label:walking-npc", "feat:morrowind-male-npc-walk-animation", "feat:morrowind-female-npc-walk-animation",
-    ]),
-    sec("posture", "Положение и скрытность", [
-      "feat:morrowind-animation-overhaul", "feat:morrowind-animation-blending",
-      "label:turning", "info:player-turning", "info:npc-turning",
-      "label:idle", "info:player-idle", "info:npc-idle",
-      "label:sneak", "info:player-sneak", "info:npc-sneak",
-    ]),
-    sec("combat", "Бой", [
-      "label:attacks", "info:player-attacks", "info:npc-attacks",
-      "label:blocking", "info:player-blocking", "info:npc-blocking",
-    ]),
-    sec("magic", "Магия и заклинания", [
-      "info:player-magic", "info:npc-magic",
-    ]),
-    sec("actions", "Действия и взаимодействие", [
-      "info:player-actions", "info:npc-actions",
-    ]),
-    sec("traversal", "Специальное передвижение", [
-      "label:jumping", "info:player-jumping", "info:npc-jumping",
-      "label:swimming", "info:player-swimming", "info:npc-swimming",
-      "label:falling", "info:player-falling", "info:npc-falling",
-    ]),
-    sec("reactions", "Реакции", [
-      "label:damage", "info:player-damage", "info:npc-damage",
-      "label:death", "info:player-death", "info:npc-death",
-    ]),
-  ]),
   tab("mods", "Mods & files", [
     sec("files", "Your files", [
       "card:morrowind", "card:packs"]),
