@@ -46,9 +46,12 @@ export function betterBodiesAssetUrls({ race = 'Nord', female = false, underwear
   const raceKey = RACE_CODES[raceName] ?? (Object.values(RACE_CODES).includes(raceName) ? raceName : null);
   if (!raceKey) return null;
   const genderKey = female ? 'f' : 'm';
-  const textureStem = `bb_skin${genderKey}_${raceKey}`;
   const geometryRaceKey = female ? 'no' : raceKey;
   const modelStem = `bb_skin${genderKey}_${geometryRaceKey}`;
+  // Female skin uses the Nord DDS as the UV-matched base for the shared Nord mesh.
+  // fpArm applies the actor race's skin tone after decoding, through the normal texture pipeline.
+  const sourceTextureStem = `bb_skin${genderKey}_${female ? 'no' : raceKey}`;
+  const textureStem = `bb_skin${genderKey}_${raceKey}`;
   const modelTable = underwear ? underwearBodyModelUrls : nudeBodyModelUrls;
   const textureTable = underwear ? underwearBodyTextureUrls : nudeBodyTextureUrls;
   const findUrl = (table, stem, extension) => {
@@ -56,7 +59,7 @@ export function betterBodiesAssetUrls({ race = 'Nord', female = false, underwear
     return entry?.[1] ?? null;
   };
   const model = findUrl(modelTable, modelStem, 'nif');
-  const texture = findUrl(textureTable, textureStem, 'dds');
+  const texture = findUrl(textureTable, sourceTextureStem, 'dds');
   if (!model || !texture) return null;
   return Object.freeze({
     model, texture, texturePath: `textures/bb/${textureStem}.dds`,
