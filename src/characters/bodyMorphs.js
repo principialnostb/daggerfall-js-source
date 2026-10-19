@@ -21,6 +21,7 @@ export const BODY_MORPH_FIELDS = [
   ['legGap', 'Расстояние между ногами', 'legs'],
 ];
 const KEY = 'mw-character-body-morphs-v1';
+const UNDERWEAR_KEY = 'mw-character-underwear-v1';
 const defaults = Object.freeze(Object.fromEntries(BODY_MORPH_FIELDS.map(([key]) => [key, 0])));
 let cached = null;
 export function getBodyMorphs() {
@@ -49,4 +50,13 @@ export function resetBodyMorphs() {
   cached = { ...defaults };
   try { globalThis.localStorage?.setItem(KEY, JSON.stringify(cached)); } catch { /* storage may be disabled */ }
   return { ...cached };
+}
+
+export function getUnderwearEnabled() {
+  try { return globalThis.localStorage?.getItem(UNDERWEAR_KEY) === 'true'; } catch { return false; }
+}
+export function setUnderwearEnabled(enabled) {
+  const value = !!enabled;
+  try { globalThis.localStorage?.setItem(UNDERWEAR_KEY, value ? 'true' : 'false'); } catch { /* storage may be disabled */ }
+  return value;
 }
