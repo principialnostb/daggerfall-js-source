@@ -1667,8 +1667,8 @@ export const MOD_SETTINGS = Object.freeze({
         options: lazyWords('Standard', 'Female (Axel)', 'Vanilla'),
         description: "Female NPC walk source. Standard uses Simply Walking Purist Edition; Female (Axel) uses Axel's WalkForward clip; Vanilla disables bundled walk replacements. Other animation groups are unaffected.",
       }),
-      // Legacy saved value retained for backwards compatibility. Runtime
-      // selection now reads the three actor-scoped keys above.
+      // Legacy key retained so old stored data is not silently redefined.
+      // Runtime no longer reads this key; actor-scoped settings are independent.
       FemaleWalk: Object.freeze({
         default: 0,
         options: lazyWords('Standard', 'Feminine Walk Cycle', "Axel's Sexy Walk Fixed"),
