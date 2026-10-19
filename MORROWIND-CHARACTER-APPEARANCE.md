@@ -27,9 +27,9 @@ Under `Morrowind Textures/Better Bodies/Nude/Data Files/`, the checked-in collec
 
 For each key, the tree contains `bb_skinf_<key>.nif/.dds`, `bb_skinm_<key>.nif/.dds`, `bb_handf_<key>.nif/.dds`, and `bb_handm_<key>.nif/.dds`. These are available source assets, not proof that every variant is currently used by the game.
 
-Implementation update (2026-10-19): `src/formats/morrowind/mwBetterBodies.js` now resolves the body NIF and DDS by race key + sex for all eight supported races, and `src/combat/fpArm.js` uses that pair for both third-person body assembly and first-person arm/hand slots. The texture adapter is keyed by texture basename and the downloaded bytes are cached by URL so concurrent NPC builds with different races do not share a mutable 'current skin'. Unsupported races (including Argonian/Khajiit, which have no Better Bodies files in this pack) fall back to the existing game body with an explicit diagnostic. This is source-level wiring; it has not yet been validated in-game across the race/sex matrix.
+Implementation update (2026-10-19): male Better Bodies bodies continue to use the matching race/sex NIF and DDS. Female actors now share the Nord-female NIF geometry used by `better-bodies-preview.html`, while their DDS remains race-specific. The same geometry choice applies to Nude and Underwear asset sets. Since the NIF stores its texture filename internally, `fpArm.js` rewrites the race stem in a private copy of the NIF bytes before parsing; cached source bytes are not mutated. The texture adapter is keyed by texture basename, and downloaded bytes are cached by URL. Unsupported races (including Argonian/Khajiit, which have no Better Bodies files in this pack) retain the existing fallback. This is source-level wiring; in-game visual verification remains outstanding.
 
-UV-edit caution: the checked-in UV-edit JSON was authored for the Nord female mesh and is currently applied only to that exact variant. Other female races and all male variants use their own checked-in NIF UVs without this custom edit. Do not copy the Nord correction indices to another mesh until mesh identity and UV layout have been verified; per-race visual inspection is still required.
+UV-edit note: `bb_skinf_no-uv-edits.json` is applied to every female body because every female race now uses the same Nord-female geometry. Male meshes retain their own embedded UVs and do not receive this correction. The UV data is mesh-section-specific and must not be reused on a different geometry.
 
 ### Body morphs and appearance editor
 
@@ -56,8 +56,8 @@ UV-edit caution: the checked-in UV-edit JSON was authored for the Nord female me
 
 ### Body morph and underwear update (2026-10-19)
 
-- [x] The Better Bodies resolver now supports the matching race/sex meshes and textures from both `Better Bodies/Nude` and `Better Bodies/Underwear`. The editor checkbox selects between these asset sets; the default is Nude.
-- [x] The underwear preference is persisted separately from morph sliders. Toggling it through the editor requests a player-rig rebuild, and the editor rebuilds its isolated preview so the selected body variant is visible there too. When underwear is enabled, subsequent body builds (including after equipment changes) read the same preference.
+- [x] The Better Bodies resolver supports both `Better Bodies/Nude` and `Better Bodies/Underwear`. Female actors share the Nord-female geometry from the HTML preview; the race-specific DDS is selected from the same variant folder. The saved underwear preference defaults to enabled, and explicitly turning it off selects the fully nude asset set.
+- [x] The underwear preference is persisted separately from morph sliders. Toggling the checkbox rebuilds the editor's isolated preview so the selected variant is visible there. Subsequent world-body builds read the saved preference; the current live world rig is not force-rebuilt immediately by the checkbox.
 - [x] Replaced the former fixed pelvis/chest/shoulder/thigh scale offsets with localized vertex morphs based on shared whole-body bounds. New controls cover ribcage width, breast volume/projection, abdomen volume, buttock volume/projection, arm thickness/length, thigh/calf thickness, leg length and leg spacing. Body width and height now use the same vertex deformation in the preview and world model rather than portrait-only scaling.
 - [x] While any body morph is non-zero, the third-person body uses the CPU skinning path so the deformed vertices are actually uploaded to the world renderer. The ordinary GPU skinning path remains available when all morph values are reset.
 - [x] The editor now uses compact settings-menu styling, filled range tracks with tactile handles, numeric value chips, and filters for anatomical control groups.
@@ -77,10 +77,10 @@ UV-edit caution: the checked-in UV-edit JSON was authored for the Nord female me
 ## Target architecture
 
 1. Resolve the actor identity first: actor type (player/NPC), race, sex, and special form (beast, werewolf, vampire, etc.). Preserve the current special-form exclusions unless a compatible asset set is explicitly implemented.
-2. Resolve the base body and hand meshes by race + sex. Resolve their matching skin textures using the same race + sex key. If a specific asset is absent or fails to parse, log the exact requested path and use a deliberate fallback; never silently use the Nord female skin on another race.
+2. Resolve the base body by actor identity. Male bodies use race + sex geometry; female bodies use the Nord-female geometry selected as the visual baseline, with the DDS still selected by the actor's race. Use the corresponding Nude/Underwear folder according to the saved preference. Never silently use the Nord female skin on another race.
 3. Resolve the head and hair from the same actor's race/sex-compatible pools. The improved face matcher may choose among candidates inside that pool; it must not override the race/sex constraint.
 4. Assemble the body and head on a compatible skeleton, apply body morphs, then compose clothing/armor using the existing slot-aware fit path. Equipment may hide covered skin slots, but it must not replace the selected race/sex identity.
-5. The editor owns a separate preview rig and model instance, built from the selected race/sex Better Bodies body and matching skin when supported, with no clothing or equipment. It uses the player's actual current head and hair and applies the same body-morph state to the preview and player. Slider changes update the preview immediately; they must not borrow a screenshot or animation pose from the live gameplay actor. Drag rotation, zoom and reset are implemented. Until real alternate head/hair meshes are selectable, do not show fake face/hair preset controls. Keep the preview model at a useful close framing. Full in-game visual and race/sex matrix validation remains outstanding.
+5. The editor owns a separate preview rig and model instance, built from the shared Nord-female geometry and the player's race-specific skin when the player is female, with no clothing or equipment. It uses the player's actual current head and hair and applies the same body-morph state to the preview and player. Slider changes update the preview immediately; they must not borrow a screenshot or animation pose from the live gameplay actor. Drag rotation, zoom and reset are implemented. Until real alternate head/hair meshes are selectable, do not show fake face/hair preset controls. Keep the preview model at a useful close framing. Full in-game visual and race/sex matrix validation remains outstanding.
 6. Apply the same race/sex resolution rules to player and NPC builds. Player editor choices do not globally change NPC identity.
 
 ## Intended ownership and precedence
@@ -97,7 +97,7 @@ This is the target contract, not a statement that all stages are implemented:
 
 ## Required validation matrix
 
-- [x] Resolver and live body/hand assembly select matching race/sex body NIF + skin DDS for all eight available Better Bodies race keys (source-level wiring only).
+- [x] Source-level resolver selects a race-specific DDS for all eight Better Bodies race keys; male bodies use race-specific geometry and female bodies use shared Nord-female geometry (source-level wiring only).
 - [ ] All eight races × male/female: in-game body, hand, and texture rendering visually verified.
 - [ ] Player and NPCs independently use their own race and sex.
 - [ ] Head/hair candidates stay inside the same race/sex pool as the actor.
