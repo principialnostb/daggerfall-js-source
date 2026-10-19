@@ -2892,12 +2892,14 @@ function deformPlayerBodyGeometry(piece, morph, bodyBounds) {
     x += nx * halfX * (shoulder * 0.13 * shoulderZone + ribcage * 0.11 * ribcageZone);
     x += nx * halfX * waist * 0.14 * waistZone;
     x += nx * halfX * hip * 0.18 * hipZone;
-    // Chest/bust volume and projection are deliberately separate controls.
-    const bust = breast * 0.16 + breastProjection * 0.19;
-    y += Math.sign(ny || 1) * halfY * bust * breastZone;
-    y += Math.sign(ny || 1) * halfY * abdomen * 0.14 * abdomenZone;
+    // Breast controls affect the front of the chest, not the back surface.
     // Negative local Y is the rear side in Morrowind body space.
+    const front = Math.max(0, Math.min(1, (ny - 0.015) / 0.42));
     const rear = Math.max(0, Math.min(1, (-ny - 0.02) / 0.55));
+    const bust = breast * 0.15 + breastProjection * 0.20;
+    x += Math.sign(nx || 1) * halfX * (breast * 0.055) * breastZone * front;
+    y += halfY * bust * breastZone * front;
+    y += Math.sign(ny || 1) * halfY * abdomen * 0.14 * abdomenZone;
     y -= halfY * (buttock * 0.15 + buttockProjection * 0.19) * buttockZone * rear;
     x += Math.sign(nx || 1) * halfX * arms * 0.055 * armZone;
     y += Math.sign(ny || 1) * halfY * arms * 0.045 * armZone;
@@ -2905,11 +2907,14 @@ function deformPlayerBodyGeometry(piece, morph, bodyBounds) {
     y += Math.sign(ny || 1) * halfY * thighs * 0.065 * thighZone;
     x += Math.sign(nx || 1) * halfX * calves * 0.075 * calfZone;
     y += Math.sign(ny || 1) * halfY * calves * 0.055 * calfZone;
-    // Move the lower limbs apart symmetrically; this is a position morph,
-    // not a bone scale, so it cannot make the whole body look larger.
-    if (nz < 0.47 && Math.abs(nx) > 0.035) {
-      const lowerLegWeight = Math.max(0, Math.min(1, (0.49 - nz) / 0.20));
-      x += Math.sign(nx) * halfX * legGap * 0.10 * lowerLegWeight;
+    // Leg spacing is restricted to the leg silhouette. The old broad
+    // nz < 0.47 gate also moved the outer pelvis and made this control read
+    // as a whole-body scale/hip-width change.
+    if (nz < 0.43 && Math.abs(nx) > 0.105) {
+      const upperLegWeight = gauss(nz, 0.31, 0.13);
+      const lowerLegWeight = gauss(nz, 0.13, 0.10);
+      const limbWeight = Math.max(upperLegWeight, lowerLegWeight);
+      x += Math.sign(nx) * halfX * legGap * 0.075 * limbWeight;
     }
     if (legLength) {
       const lower = Math.max(0, Math.min(1, (0.50 - nz) / 0.50));
