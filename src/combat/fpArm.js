@@ -7040,11 +7040,9 @@ export function createFpArm({ playerAppearance = false } = {}) {
       // COATS3D: ASTRIDE, ONE PICTURE. `horse` ({ mesh, model, box } - world/horseRig.js, stepped this frame) is drawn in
       // the body's own picture, under the same depth: the window grows to hold the horse's box as well, and the picture
       // is OF the horse - its middle is the anchor, so the figure is the rider on it, sized where the horse stands
-      // MW-TP-NEAR: the billboard is a camera-facing projection, not a 3D body.
-      // At arm's length its legs visibly flatten and the perspective no longer
-      // matches the floor. Draw the actual posed mesh in the world pass nearby;
-      // retain the established sprite pass at distance. Keep mounted pairs in
-      // the sprite pass so rider and horse remain one coherent picture.
+      // MW-TP-MESH-ALL: non-concealed Morrowind actors and mounts stay on
+      // the posed world mesh at every distance. Sprite composition is reserved
+      // for effects such as concealment, whose fade is implemented in that pass.
       // MW-TP-MESH-ALL: Morrowind actors use their posed mesh at every distance and pitch.
       // The old distance/pitch LOD switched between a perspective mesh and a camera-facing
       // sprite. Around the threshold, leg depth and grounding visibly popped; at distance,
