@@ -54,7 +54,9 @@ export function resetBodyMorphs() {
 }
 
 export function getUnderwearEnabled() {
-  try { return globalThis.localStorage?.getItem(UNDERWEAR_KEY) === 'true'; } catch { return false; }
+  // Underwear is the safe/default in-game appearance; explicitly saved false
+  // selects the fully nude Better Bodies variant in the appearance preview.
+  try { return globalThis.localStorage?.getItem(UNDERWEAR_KEY) !== 'false'; } catch { return true; }
 }
 export function setUnderwearEnabled(enabled) {
   const value = !!enabled;
