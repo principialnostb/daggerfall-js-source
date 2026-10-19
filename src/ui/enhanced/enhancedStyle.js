@@ -455,6 +455,7 @@ select, input, textarea { font: inherit; }
    that may be deleted. Disclosure, not deletion. */
 .panes { display: grid; grid-template-columns: 178px minmax(280px, 1fr) minmax(280px, 340px); gap: var(--gap); background: var(--iron); height: 100%; min-height: 0; }
 .subrail { background: var(--ink); overflow: auto; padding: 8px 0; }
+.subrail-custom-divider { height: 0; margin: 9px 12px 7px; border-top: 1px solid rgba(180, 158, 112, 0.42); }
 .list { background: var(--slate); overflow: auto; }
 .detail { background: #12161b; overflow: auto; }
 
@@ -5476,7 +5477,8 @@ ${tierMarkCss({ wash: (k) => TIER_MARKS[k], washAlpha: 0.2, edge: '#0b0805', sel
 .px-setwrap .subrail { display: flex; flex-direction: row; flex-wrap: wrap; gap: 2px;
   width: auto; border-right: 0; border-bottom: 2px solid rgba(125,116,96,0.45);
   padding: 4px 6px 6px; overflow: visible; }
-.px-setwrap .subbtn { width: auto; min-height: 40px; padding: 6px 12px; font-size: 14px;   /* ORG2: a strip of tabs, not a column */
+.px-setwrap .subrail-custom-divider { flex: 0 0 100%; margin: 8px 0 4px; }
+ .px-setwrap .subbtn { width: auto; min-height: 40px; padding: 6px 12px; font-size: 14px;   /* ORG2: a strip of tabs, not a column */
   display: flex; align-items: center; gap: 8px;
   color: #d8cfae; text-shadow: 2px 2px 0 rgba(0,0,0,0.8); }
 .px-setwrap .subbtn.on { color: rgb(243,239,44); text-shadow: 2px 2px 0 rgb(93,77,12); }
