@@ -5726,6 +5726,8 @@ ${tierMarkCss({ wash: (k) => TIER_MARKS[k], washAlpha: 0.2, edge: '#0b0805', sel
 .animation-switch-label { flex: 0 0 48px; padding-top: 9px; font-family: var(--data); letter-spacing: 0.08em; text-transform: uppercase; }
 .animation-switch-buttons { display: flex; flex: 1 1 auto; flex-wrap: wrap; gap: 4px; min-width: 0; }
 .sec-jumpbtn.animation-switch.is-active { color: var(--bone); border-color: var(--brass); background: rgba(180, 151, 91, 0.14); }
+.animation-source-options { display: flex; gap: 4px; padding: 0 0 8px; }
+.animation-source-options .sec-jumpbtn:disabled { opacity: 1; cursor: default; }
 .sec-jumpbtn:focus-visible { outline: 2px solid var(--brass); outline-offset: 1px; }
 .sec-head { padding: 22px 18px 8px; scroll-margin-top: 100px; border-bottom: 1px solid #20262e; }
 .sec-title { display: flex; align-items: baseline; gap: 8px; }
