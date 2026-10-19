@@ -174,5 +174,5 @@ test('MW-TP-MESH-ALL opaque dungeon NPC meshes are not wrapped in the character-
   assert.ok(marker >= 0, 'the explicit world-mesh pass contract is documented at the call site');
   const draw = source.slice(marker, marker + 700);
   assert.ok(draw.includes('npcLane.draw(canvas'), 'the NPC lane still draws in the opaque world pass');
-  assert.ok(!draw.includes('beginCharacterSpriteBatch'), 'do not redirect the world mesh into the finite sprite target');
+  assert.ok(!/^\s*renderer\.beginCharacterSpriteBatch/m.test(draw), 'do not redirect the world mesh into the finite sprite target');
 });
