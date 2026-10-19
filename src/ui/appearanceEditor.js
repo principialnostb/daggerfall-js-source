@@ -12,7 +12,7 @@ const clamp = (n) => Math.max(-1, Math.min(1, n));
 export function openAppearanceEditor({ fpArm, onClose = () => {} } = {}) {
   if (typeof document === 'undefined' || !document.body) return null;
   document.getElementById('mw-appearance-editor')?.remove();
-  let yaw = 0, zoom = 1, frame = 0, retryTimer = 0, closed = false, selectedRace = 'DarkElf', selectedFemale = true, selectedFace = 0, selectedHair = 0;
+  let yaw = 0, zoom = 1, frame = 0, retryTimer = 0, closed = false, selectedRace = 'DarkElf', selectedFemale = true, selectedFace = 0, selectedHair = 0, faceCanvases = [];
   const root = document.createElement('div');
   root.id = 'mw-appearance-editor';
   root.style.cssText = 'position:fixed;inset:0;z-index:10050;background:rgba(8,8,12,.88);display:flex;align-items:center;justify-content:center;padding:18px;color:#eee;font:14px system-ui,sans-serif;';
@@ -68,8 +68,8 @@ export function openAppearanceEditor({ fpArm, onClose = () => {} } = {}) {
   identity.append(hairSelect); controls.append(identity);
   const refreshFaces = async () => {
     faceGrid.replaceChildren();
-    for (let i = 0; i < 10; i++) { const b = makeButton('Лицо ' + (i+1)); b.style.cssText += 'padding:2px;min-height:48px;'; b.addEventListener('click', () => { selectedFace=i; [...faceGrid.children].forEach((x,j)=>x.style.borderColor=j===i?'#d3b36a':'#666'); window.dispatchEvent(new CustomEvent('mw-appearance-identity-change',{detail:{race:selectedRace,female:selectedFemale,faceIndex:selectedFace,hairIndex:selectedHair}})); }); faceGrid.append(b); }
-    try { const { loadFaceCanvases } = await import('./facePortrait.js'); const faces = await loadFaceCanvases(selectedRace, selectedFemale?'female':'male',{scale:2}); [...faceGrid.children].forEach((b,i)=>{ if(faces[i]) { b.textContent=''; const c=document.createElement('canvas'); c.width=56;c.height=64;c.style.cssText='width:100%;height:100%;';c.getContext('2d')?.drawImage(faces[i],0,0,56,64);b.append(c); } }); } catch {}
+    for (let i = 0; i < 10; i++) { const b = makeButton('Лицо ' + (i+1)); b.style.cssText += 'padding:2px;min-height:48px;'; b.addEventListener('click', () => { selectedFace=i; drawPreview(); [...faceGrid.children].forEach((x,j)=>x.style.borderColor=j===i?'#d3b36a':'#666'); window.dispatchEvent(new CustomEvent('mw-appearance-identity-change',{detail:{race:selectedRace,female:selectedFemale,faceIndex:selectedFace,hairIndex:selectedHair}})); }); faceGrid.append(b); }
+    try { const { loadFaceCanvases } = await import('./facePortrait.js'); faceCanvases = await loadFaceCanvases(selectedRace, selectedFemale?'female':'male',{scale:2}); [...faceGrid.children].forEach((b,i)=>{ if(faceCanvases[i]) { b.textContent=''; const c=document.createElement('canvas'); c.width=56;c.height=64;c.style.cssText='width:100%;height:100%;';c.getContext('2d')?.drawImage(faceCanvases[i],0,0,56,64);b.append(c); } }); } catch { faceCanvases = []; }
   };
   const updateIdentity = () => { selectedRace=raceSelect.value; selectedFemale=sexSelect.value==='female'; selectedFace=0; selectedHair=Number(hairSelect.value)||0; window.dispatchEvent(new CustomEvent('mw-appearance-identity-change',{detail:{race:selectedRace,female:selectedFemale,faceIndex:selectedFace,hairIndex:selectedHair}})); refreshFaces(); drawPreview(); };
   raceSelect.addEventListener('change', updateIdentity); sexSelect.addEventListener('change', updateIdentity); hairSelect.addEventListener('change', updateIdentity); refreshFaces();
@@ -137,7 +137,7 @@ export function openAppearanceEditor({ fpArm, onClose = () => {} } = {}) {
 
   function drawPreview() {
     if (closed) return;
-    renderProceduralPreview(preview, { yaw, zoom, morphs: getBodyMorphs(), female: selectedFemale, hairIndex: selectedHair, race: selectedRace });
+    renderProceduralPreview(preview, { yaw, zoom, morphs: getBodyMorphs(), female: selectedFemale, hairIndex: selectedHair, race: selectedRace, faceCanvas: faceCanvases[selectedFace] });
     previewHint.textContent = 'Независимая процедурная модель: ползунки меняют её пропорции сразу; игровой риг не используется.';
   }
   function close() {
@@ -183,6 +183,7 @@ function renderProceduralPreview(canvas, state) {
   if (state.race === 'Argonian') { oval(-.06,headY-.03,.012,.025,'#527c63'); oval(.06,headY-.03,.012,.025,'#527c63'); }
   oval(0,-.01,.17*(1+(m.buttockSize||0)*.3),.1,skin);
   ctx.restore();
+  if (state.faceCanvas && front > .2) { ctx.save(); ctx.beginPath(); ctx.ellipse(cx + side*.015*unit, h*.52 + headY*unit, head*unit*.68, head*unit*.82, 0, 0, Math.PI*2); ctx.clip(); ctx.drawImage(state.faceCanvas, cx + side*.015*unit - head*unit*.68, h*.52 + headY*unit - head*unit*.82, head*unit*1.36, head*unit*1.64); ctx.restore(); }
   ctx.fillStyle='#eee'; ctx.font='600 18px system-ui'; ctx.textAlign='center'; ctx.fillText('ПРЕДПРОСМОТР ТЕЛА',cx,30);
   ctx.fillStyle='#aaa'; ctx.font='12px system-ui'; ctx.fillText('НЕЗАВИСИМАЯ МОДЕЛЬ · БЕЗ ОДЕЖДЫ',cx,h-18);
 }
