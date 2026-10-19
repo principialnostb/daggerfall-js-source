@@ -108,6 +108,24 @@ async function loadBetterBodiesAssetBytes(url, label) {
   }
   return new Uint8Array(await pending);
 }
+
+// Female actors share the Nord-female body geometry, but still need the DDS
+// for their own race. NIF texture paths are embedded in the binary; rewrite
+// the same-length race stem in this private byte copy before parsing it.
+function rewriteBetterBodiesTextureStem(bytes, fromStem, toStem) {
+  if (!bytes || fromStem === toStem) return bytes;
+  const from = new TextEncoder().encode(fromStem);
+  const to = new TextEncoder().encode(toStem);
+  if (from.length !== to.length) return bytes;
+  outer: for (let i = 0; i <= bytes.length - from.length; i++) {
+    for (let j = 0; j < from.length; j++) {
+      if (bytes[i + j] !== from[j]) continue outer;
+    }
+    bytes.set(to, i);
+    i += from.length - 1;
+  }
+  return bytes;
+}
 const betterBodiesTextureBytes = new Map();
 const betterBodiesTextureBasename = (path) => String(path || '')
   .replaceAll(String.fromCharCode(92), '/').split('/').pop().toLowerCase();
@@ -2103,11 +2121,17 @@ async function buildTpBody({
       try {
         const asset = betterBodiesAssetUrls({ race, female });
         if (!asset) throw new Error(`no Better Bodies asset for race "${String(race)}" / ${female ? 'female' : 'male'}`);
-        const [bytes, textureBytes, uvEdits] = await Promise.all([
+        const [rawBytes, textureBytes, uvEdits] = await Promise.all([
           loadBetterBodiesAssetBytes(asset.model, 'NIF'),
           loadBetterBodiesAssetBytes(asset.texture, 'DDS'),
           female && asset.geometryRaceKey === 'no' ? loadBetterBodiesFemaleUvEdits() : Promise.resolve([]),
         ]);
+        const genderKey = female ? 'f' : 'm';
+        const bytes = rewriteBetterBodiesTextureStem(
+          rawBytes,
+          `bb_skin${genderKey}_${asset.geometryRaceKey}`,
+          `bb_skin${genderKey}_${asset.raceKey}`,
+        );
         registerBetterBodiesRaceTexture(archives, asset.texturePath, textureBytes);
         betterBodiesPart = {
           slot: 'betterBodies', bones: [], bytes, uvEdits, hideSlots: worn.shadows,
@@ -2947,11 +2971,17 @@ export async function buildFpArm({
       try {
         const asset = betterBodiesAssetUrls({ race, female });
         if (!asset) throw new Error(`no Better Bodies asset for race "${String(race)}" / ${female ? 'female' : 'male'}`);
-        const [bytes, textureBytes, uvEdits] = await Promise.all([
+        const [rawBytes, textureBytes, uvEdits] = await Promise.all([
           loadBetterBodiesAssetBytes(asset.model, 'NIF'),
           loadBetterBodiesAssetBytes(asset.texture, 'DDS'),
           female && asset.geometryRaceKey === 'no' ? loadBetterBodiesFemaleUvEdits() : Promise.resolve([]),
         ]);
+        const genderKey = female ? 'f' : 'm';
+        const bytes = rewriteBetterBodiesTextureStem(
+          rawBytes,
+          `bb_skin${genderKey}_${asset.geometryRaceKey}`,
+          `bb_skin${genderKey}_${asset.raceKey}`,
+        );
         registerBetterBodiesRaceTexture(archives, asset.texturePath, textureBytes);
         const basename = betterBodiesTextureBasename(asset.texturePath);
         for (const cacheKey of TEXTURE_CACHE.keys()) {
