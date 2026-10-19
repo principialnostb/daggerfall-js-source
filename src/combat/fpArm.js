@@ -1,4 +1,4 @@
-import { getBodyMorphs } from '../characters/bodyMorphs.js';
+import { getBodyMorphs, getUnderwearEnabled, setUnderwearEnabled as persistUnderwearEnabled } from '../characters/bodyMorphs.js';
 // MW-D8: THE MORROWIND FIRST-PERSON ARM, IN THE GAME.
 //
 // Seven stages of this arc shipped diagnostics and nothing touched the
@@ -2101,12 +2101,13 @@ async function buildTpBody({
     let betterBodiesPart = null;
     if (!beast && !werewolf && !vampire) {
       try {
-        const asset = betterBodiesAssetUrls({ race, female });
+        const underwear = getUnderwearEnabled();
+        const asset = betterBodiesAssetUrls({ race, female, underwear });
         if (!asset) throw new Error(`no Better Bodies asset for race "${String(race)}" / ${female ? 'female' : 'male'}`);
         const [bytes, textureBytes, uvEdits] = await Promise.all([
           loadBetterBodiesAssetBytes(asset.model, 'NIF'),
           loadBetterBodiesAssetBytes(asset.texture, 'DDS'),
-          female && asset.raceKey === 'no' ? loadBetterBodiesFemaleUvEdits() : Promise.resolve([]),
+          female && asset.raceKey === 'no' && !underwear ? loadBetterBodiesFemaleUvEdits() : Promise.resolve([]),
         ]);
         registerBetterBodiesRaceTexture(archives, asset.texturePath, textureBytes);
         betterBodiesPart = {
@@ -2118,7 +2119,7 @@ async function buildTpBody({
           if (String(key).toLowerCase().endsWith(basename)) TEXTURE_CACHE.delete(key);
         }
         console.info('[Better Bodies] race/sex body asset loaded', {
-          raceKey: asset.raceKey, female, modelBytes: bytes.byteLength,
+          raceKey: asset.raceKey, female, underwear, modelBytes: bytes.byteLength,
           textureBytes: textureBytes.byteLength, uvEdits: uvEdits.length,
           wornAdds: worn.adds?.length ?? 0,
         });
@@ -5280,6 +5281,15 @@ export function createFpArm({ playerAppearance = false } = {}) {
      * skeleton, assembled meshes, animation state and render target work are owned
      * by a new rig. Equipment is intentionally omitted so the editor previews nude.
      */
+    async setUnderwearEnabled(enabled) {
+      const value = persistUnderwearEnabled(enabled);
+      if (playerAppearance && lastBuildOpts) {
+        // Rebuild both player body assemblies from the selected Nude/Underwear NIF.
+        // api.build owns the existing busy/queue rules and preserves actor identity.
+        await api.build({ ...lastBuildOpts });
+      }
+      return value;
+    },
     async createAppearancePreviewRig() {
       if (!lastBuildOpts || !renderer) return { ok: false, error: 'The live character has not finished building.' };
       const previewRig = createFpArm({ playerAppearance: true });
