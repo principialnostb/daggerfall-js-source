@@ -8,7 +8,7 @@ This document is the operational inventory: what is in the repository, what the 
 
 ## Asset storage boundary
 
-The full `Morrowind Textures/` binary directory is deliberately not stored in this branch. `src/systems/morrowindAssetManifest.js` enumerates the 7,411 asset paths consumed by the browser and pins their URLs to immutable Dev commit `a7128529d7dd7ca562f1bd4833911a249d2d9da2`. Loaders fetch assets only when requested. The source pack is not considered integrated merely because its paths are listed: the runtime selection and fallback logic below still determines which files are actually used.
+The full `Morrowind Textures/` binary directory is deliberately not stored in this branch. `src/systems/morrowindAssetManifest.js` enumerates the 7,448 asset paths consumed by the browser and pins their URLs to immutable Dev commit `a7128529d7dd7ca562f1bd4833911a249d2d9da2`. Loaders fetch assets only when requested. The source pack is not considered integrated merely because its paths are listed: the runtime selection and fallback logic below still determines which files are actually used.
 
 ## Runtime map
 
