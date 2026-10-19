@@ -34,8 +34,8 @@ import { segment, sampleKeyGroup } from './mwKeys.js';
  */
 export function selectActorAnimSource(sources, groupName, { female = false, femaleWalk = 'standard' } = {}) {
   const standard = sources?.standard ?? null;
-  if (!female || femaleWalk !== 'female' || !/walk/i.test(String(groupName || ''))) return standard;
-  const variant = sources?.female ?? null;
+  if (!female || !['female', 'female2'].includes(femaleWalk) || !/^walk/i.test(String(groupName || ''))) return standard;
+  const variant = sources?.[femaleWalk] ?? null;
   if (!variant || !variant.groups || !findAnimGroup(variant.groups, groupName)) return standard;
   return variant;
 }
