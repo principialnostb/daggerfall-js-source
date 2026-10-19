@@ -402,7 +402,7 @@ export function openAppearanceEditor({ fpArm, onClose = () => {} } = {}) {
       const viewportHeight = Math.max(1, Math.round(preview.clientHeight || 1080));
       if (preview.width !== viewportWidth) preview.width = viewportWidth;
       if (preview.height !== viewportHeight) preview.height = viewportHeight;
-      const image = previewRig.figure({ yaw, height: Math.min(1024, Math.max(640, Math.round(viewportHeight * 0.95))), force: true, neutral: true });
+      const image = previewRig.figure({ yaw, height: Math.round(760 * zoom), force: true });
       const ctx = preview.getContext('2d');
       if (!ctx) return;
       ctx.clearRect(0, 0, preview.width, preview.height);
