@@ -7318,7 +7318,10 @@ export function createFpArm({ playerAppearance = false } = {}) {
       const win = portraitWindow(thirdMesh.ranges, model, figureBodyBox);
       if (!(win && win.halfW > 0 && win.halfH > 0)) return null;
       const halfH = win.halfH * 1.06;
-      const halfW = win.halfW * 1.06;
+      // Leave horizontal breathing room around the full body. The skinned
+      // hand vertices can extend past conservative posed range boxes, so the
+      // old 6% margin clipped fingertips despite visible space in the editor.
+      const halfW = win.halfW * 1.28;
       const center = win.center;
       const ph = Math.min(CHAR_SPRITE_RT_SIZE, Math.max(2, Math.round(height)));
       const pw = Math.min(CHAR_SPRITE_RT_SIZE, Math.max(2, Math.round(ph * halfW / halfH)));
