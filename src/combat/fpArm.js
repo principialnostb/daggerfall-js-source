@@ -5394,8 +5394,19 @@ export function createFpArm({ playerAppearance = false } = {}) {
       previewRig.attach(renderer, camera);
       const opts = {
         ...lastBuildOpts,
-        ...(race ? { race, beast: null } : {}),
-        ...(Number.isInteger(faceIndex) ? { faceIndex } : {}),
+        // Identity is the editor's draft, never inherited from the currently built actor.
+        // Do not let a live transformation/creature/NPC face mask the chosen player race.
+        race: String(race || lastBuildOpts.race || 'nord'),
+        faceIndex: Number.isInteger(faceIndex) ? faceIndex : (lastBuildOpts.faceIndex | 0),
+        beast: null,
+        werewolf: false,
+        vampire: false,
+        creature: null,
+        npcFace: null,
+        ownHeads: true,
+        // The editor preview must render the draft identity, not the saved/live identity.
+        // build() normally applies the persisted identity to player-appearance rigs.
+        appearanceIdentityDraft: true,
         armor: [],
         weapon: null,
         offWeapon: null,
