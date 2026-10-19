@@ -6,10 +6,10 @@ Status: runtime gait selection, input-driven third-person facing, and native pos
 
 ## Working branch and asset source
 
-- Code changes belong on [`Dev`](https://github.com/principialnostb/daggerfall-js-source/tree/morrowind.v4).
+- Code changes belong on [`Dev`](https://github.com/principialnostb/daggerfall-js-source/tree/Dev).
 - The canonical uploaded mod/resource collection is [`Morrowind Textures` on `morrowind.v3`](https://github.com/principialnostb/daggerfall-js-source/tree/morrowind.v3/Morrowind%20Textures).
 - At the audit baseline, the `Morrowind Textures` tree in `morrowind.v4` has the same Git tree SHA as the directory in `morrowind.v3` (`79a532e1e39d79e18e97d55ecc05d5892a8afec7`). Do not re-copy or regenerate the asset tree without first verifying a real difference. Git reuses identical tree/blob objects; a branch link is useful for documentation, but is not itself a runtime asset loader.
-- Keep new application code and tests in `morrowind.v4`. Treat `morrowind.v3` as a read-only source of uploaded assets and reference implementations.
+- Keep new application code and tests in `Dev`. Treat `morrowind.v3` as a read-only source of uploaded assets and reference implementations.
 
 ## Animation resources identified
 
