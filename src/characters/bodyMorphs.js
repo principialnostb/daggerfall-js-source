@@ -3,6 +3,7 @@
 export const BODY_MORPH_FIELDS = [
   ['height', 'Рост', 'overall'],
   ['bodyWidth', 'Ширина тела', 'overall'],
+  ['bodyFullness', 'Общая полнота', 'overall'],
   ['shoulderWidth', 'Ширина плеч', 'shoulders'],
   ['ribcageWidth', 'Ширина грудной клетки', 'torso'],
   ['breastSize', 'Объём груди', 'chest'],
