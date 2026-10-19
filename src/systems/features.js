@@ -1282,6 +1282,18 @@ export const FEATURES = Object.freeze([
     kinds: Object.freeze(['mod']),
     control: Object.freeze({ store: 'mods', vendor: 'morrowind-textures', key }),
   })),
+  // MAO: full third-person KF replacement. The loader uses the selected
+  // sex-matched source for supported human/elf/orc rigs; the original source
+  // remains available as the Vanilla fallback.
+  Object.freeze({
+    id: 'morrowind-animation-overhaul',
+    group: 'character',
+    title: 'Morrowind Animation Overhaul',
+    get note() { return MOD_SETTINGS['morrowind-animation'].keys.AnimationOverhaul.description; },
+    effect: 'After rebuilding the character rig.',
+    kinds: Object.freeze(['mod']),
+    control: Object.freeze({ store: 'mods', vendor: 'morrowind-animation', key: 'AnimationOverhaul' }),
+  }),
   // MW-ANIM-2: actor-scoped walk selectors. Each row is a category-specific
   // source choice, persisted independently and consumed by the walk resolver.
   Object.freeze({
