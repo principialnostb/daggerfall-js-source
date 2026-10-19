@@ -35,9 +35,10 @@ async function bytes(entry) {
 }
 
 /**
- * Returns a standard walk source for the actor's skeleton and, optionally,
- * the female-only gait override. Callers must filter these sources to walk
- * groups so a full .kf can never silently replace idle/run/combat clips.
+ * Returns the standard source and (for female rigs) the two optional walk
+ * overrides. The gameplay movement resolver selects one by saved preference.
+ * Only each source's walk groups/keys are admitted, so idle/run/combat clips
+ * from a broader .kf are never substituted.
  */
 export async function loadWalkAnimationAssets({ female = false } = {}) {
   if (!IN_BROWSER) return [];
