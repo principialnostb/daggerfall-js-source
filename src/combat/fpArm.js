@@ -5451,7 +5451,7 @@ export function createFpArm({ playerAppearance = false } = {}) {
       // The appearance editor stores an appearance-only identity. Apply it to every
       // subsequent player rig rebuild (equipment changes included), so closing the
       // editor or rebuilding the rig cannot silently restore the original face/race.
-      if (playerAppearance && opts && !opts.werewolf) {
+      if (playerAppearance && opts && !opts.werewolf && !opts.appearanceIdentityDraft) {
         const appearanceIdentity = getAppearanceIdentity();
         if (appearanceIdentity) opts = { ...opts, race: appearanceIdentity.race, faceIndex: appearanceIdentity.faceIndex, beast: null };
       }
