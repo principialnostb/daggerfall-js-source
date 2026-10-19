@@ -5334,6 +5334,15 @@ export function createFpArm({ playerAppearance = false } = {}) {
      * skeleton, assembled meshes, animation state and render target work are owned
      * by a new rig. Equipment is intentionally omitted so the editor previews nude.
      */
+    /**
+     * Rebuild the live actor after a global body-asset preference changes.
+     * buildFpArm resolves the Better Bodies underwear/nude asset at build time,
+     * so a stored preference alone cannot change the already assembled meshes.
+     */
+    async refreshBodyVariant() {
+      if (!lastBuildOpts) return { ok: false, error: 'The live character has not finished building.' };
+      return this.build({ ...lastBuildOpts });
+    },
     async createAppearancePreviewRig() {
       if (!lastBuildOpts || !renderer) return { ok: false, error: 'The live character has not finished building.' };
       const previewRig = createFpArm({ playerAppearance: true });
