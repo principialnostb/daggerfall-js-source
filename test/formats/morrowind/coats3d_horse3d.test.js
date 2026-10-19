@@ -490,7 +490,8 @@ test('COATS3D AUDIT the view test: a horse wholly behind the eye or past a side 
   assert.equal(rig.draw(h, canvas, { proj: new Float32Array(P), view: new Float32Array(I), eye: [0, 0, 0] }), false, 'behind the eye: no picture');
   rig.step(h, { feet: [0, 0, -20], yaw: 0, dt: 0 });
   assert.equal(rig.draw(h, canvas, { proj: new Float32Array(P), view: new Float32Array(I), eye: [0, 0, 0] }), true, 'ahead: drawn');
-  assert.equal(r.sprites.length, 1);
+  assert.equal(r.worldDraws.length, 1, 'the in-view horse stays on the 3D mesh path');
+  assert.equal(r.sprites.length, 0);
 });
 
 test('COATS3D AUDIT the road\'s 3D horses give their palettes back through the rig that made them - the gate down under a beast\'s stand-in, the rig alive', async () => {
