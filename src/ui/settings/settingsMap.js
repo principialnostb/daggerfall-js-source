@@ -79,7 +79,7 @@ export const CATEGORIES = Object.freeze([
     sec("light", "Your light", [
       "feat:torches-from-items", "Enhancements/PlayerTorchFromItems", "feat:mod-handheld-torches"]),
     sec("character", "Character & survival", [
-      "feat:morrowind-character-animations", "feat:mod-oblivion-remaster-leveling", "feat:mod-project-legacy", "feat:mod-climates-calories", "feat:mod-roleplay-realism"]),
+      "feat:mod-oblivion-remaster-leveling", "feat:mod-project-legacy", "feat:mod-climates-calories", "feat:mod-roleplay-realism"]),
     sec("moving", "Climbing & gathering", [
       "feat:enhanced-climbing", "Enhancements/AdvancedClimbing", "feat:mod-foraging"]),
     sec("start", "Starting a new game", [
@@ -187,6 +187,15 @@ export const CATEGORIES = Object.freeze([
     sec("largehud", "Large status bar", [
       "GUI/LargeHUD", "GUI/LargeHUDDocked", "GUI/LargeHUDUndockedScale", "GUI/LargeHUDUndockedAlignment", "GUI/LargeHUDUndockedOffsetWeapon",
       "GUI/LargeHUDOffsetHorse"]),
+  ]),
+  // ANIM-UI1: animation sources have their own home. Keep the actor order explicit:
+  // player controls first, then NPC controls. New animation families should be
+  // added here by responsibility (movement, combat, actions), not buried in Mods.
+  tab("animations", "Animations", [
+    sec("player-movement", "Player · Running & walking", [
+      "feat:morrowind-character-animations", "feat:morrowind-player-walk-animation"]),
+    sec("npc-movement", "NPC · Running & walking", [
+      "feat:morrowind-male-npc-walk-animation", "feat:morrowind-female-npc-walk-animation"]),
   ]),
   tab("mods", "Mods & files", [
     sec("files", "Your files", [
