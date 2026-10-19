@@ -1142,12 +1142,9 @@ export async function bootDungeon(canvas, renderer, params, status) {
       // fixed-step snapshot; the render can occur between motor updates.
       const bodyHasMoveInput = Math.abs(Number(axes.forward) || 0) > 1e-3 || Math.abs(Number(axes.strafe) || 0) > 1e-3;
       const faceBodyToView = !mwv.thirdPerson || bodyHasMoveInput || player.isRunning || rightHeld || swipeHeld || swingKeyLatch;
-      const resolvedBodyYaw = player.bodyYawFor(cam.yaw, { faceView: faceBodyToView });
-      // Keep seats and active climb poses in charge; otherwise movement faces
-      // the current aim, including S/backpedal, just like the global sprite view.
-      const bodyYaw = player.drawYaw == null && player.climbFacing == null && faceBodyToView
-        ? cam.yaw : resolvedBodyYaw;
-      mwViewDrawBody(canvas, { proj, view, eye: mwv.eye, feet: player.bodyFeetAt(), yaw: bodyYaw, viewYaw: cam.yaw });   // MW-D40b
+      // Keep the original v3 facing contract in dungeons as well: the model
+      // follows the current view yaw, without a separate idle-facing latch.
+      mwViewDrawBody(canvas, { proj, view, eye: mwv.eye, feet: player.bodyFeetAt(), yaw: player.bodyYawFor(cam.yaw), viewYaw: cam.yaw });   // restore v3 body-facing behavior
     }
     if (ctx.staticBatch) renderer.drawMesh(ctx.staticBatch, BATCH_IDENTITY, null);   // PERF5: the level's static models, one call per texture (keys resolved in the merge)
     for (const d of ctx.drawList) if (!d._batched) renderer.drawMesh(d.mesh, d.matrix, d.texRemap ?? ctx.texRemap);   // AUDIT PRE-MERGE 1003 W4: a climate-free model's own table
