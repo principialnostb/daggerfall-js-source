@@ -1869,31 +1869,7 @@ export class PlayerMotor {
   }
   /** CLIMB5: the yaw the body is drawn at (third person) for a view at `viewYaw` - the view's own, except on the climb
    *  and the moment after it, when it turns to the wall and back (BODY_TURN_TAU). */
-  /** The host passes faceView during movement, first-person look, running,
-   *  and combat. Only a stationary third-person actor keeps its last yaw while
-   *  the camera orbits. Climbing and seats retain precedence. */
-  bodyYawFor(viewYaw, { faceView = false } = {}) {
-    // Seats and active climbs own their facing before ordinary locomotion.
-    if (this.drawYaw != null) return this.drawYaw;
-    if (this.climbFacing != null) {
-      if (this._bodyYaw != null) return this._bodyYaw;
-      if (this._bodyYawOff != null) return viewYaw + this._bodyYawOff;
-    }
-    if (!Number.isFinite(viewYaw)) return viewYaw;
-    // First-person look and explicit run/combat/movement aim keep the body
-    // aligned to the view. Clear climb-release leftovers before latching it.
-    if (faceView) {
-      this._bodyYaw = null;
-      this._bodyYawOff = null;
-      this._thirdPersonLookYaw = viewYaw;
-      return viewYaw;
-    }
-    // While idle in third person, camera orbit is independent of body facing.
-    if (this._bodyYaw != null) return this._bodyYaw;
-    if (this._bodyYawOff != null) return viewYaw + this._bodyYawOff;
-    if (this._thirdPersonLookYaw == null) this._thirdPersonLookYaw = viewYaw;
-    return this._thirdPersonLookYaw;
-  }   // MW-D40; WAGONS3: a bench's facing first
+  bodyYawFor(viewYaw) { return this.drawYaw ?? this._bodyYaw ?? (this._bodyYawOff == null ? viewYaw : viewYaw + this._bodyYawOff); }   // WAGONS3: a bench's facing first
   /** CLIMB2: hanging from a lip. */
   get hanging() { return this._wall?.mode === 'hang'; }
   /** CLIMB2: the grip the HUD shows ({ amount, low }) - on the wall, and while it comes back after; null otherwise. */
