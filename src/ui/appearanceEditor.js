@@ -177,7 +177,7 @@ export function openAppearanceEditor({ fpArm, onClose = () => {} } = {}) {
   if (typeof document === 'undefined' || !document.body) return null;
   document.getElementById('mw-appearance-editor')?.remove();
 
-  let yaw = 0, zoom = 1, frame = 0, closed = false, previewRig = null, previewBuildPending = false, previewRebuildRequested = false, previewError = '', previewRebuildTimer = 0;
+  let yaw = 0, zoom = 1, frame = 0, closed = false, previewRig = null, previewBuildPending = false, previewRebuildRequested = false, previewError = '', previewRebuildTimer = 0, previewRetryTimer = 0, previewRetryCount = 0;
   const initialIdentity = fpArm?.builtFor?.() || {};
   const savedIdentity = getAppearanceIdentity();
   let selectedRace = String(savedIdentity?.race || initialIdentity.race || 'nord').toLowerCase();
@@ -501,14 +501,21 @@ export function openAppearanceEditor({ fpArm, onClose = () => {} } = {}) {
       if (closed || previewRebuildRequested) {
         result?.rig?.unload?.();
       } else if (result?.ok && result.rig) {
+        previewRetryCount = 0;
+        if (previewRetryTimer) clearTimeout(previewRetryTimer);
+        previewRetryTimer = 0;
         const previousRig = previewRig;
         previewRig = result.rig;
         if (previousRig && previousRig !== previewRig) previousRig.unload?.();
       } else {
         previewError = result?.error || 'Не удалось собрать отдельную модель.';
+        schedulePreviewRetry(previewError);
       }
     } catch (error) {
-      if (!previewRebuildRequested) previewError = String(error?.message || error);
+      if (!previewRebuildRequested) {
+        previewError = String(error?.message || error);
+        schedulePreviewRetry(previewError);
+      }
     } finally {
       previewBuildPending = false;
       if (previewRebuildRequested && !closed) {
@@ -519,6 +526,20 @@ export function openAppearanceEditor({ fpArm, onClose = () => {} } = {}) {
         drawPreview();
       }
     }
+  }
+
+  function schedulePreviewRetry(message) {
+    // The editor can be opened during character creation or while the live
+    // renderer is still rebuilding. A failed first attempt must not leave an
+    // empty preview until the player touches a slider.
+    if (closed || previewRig || previewRetryTimer || previewRetryCount >= 24) return;
+    const transient = /has not finished building|renderer|not ready|загруз|собирается/i.test(String(message || ''));
+    if (!transient) return;
+    previewRetryCount++;
+    previewRetryTimer = setTimeout(() => {
+      previewRetryTimer = 0;
+      if (!closed && !previewRig) void buildPreviewRig();
+    }, 250);
   }
 
   function drawPreview() {
@@ -562,7 +583,9 @@ export function openAppearanceEditor({ fpArm, onClose = () => {} } = {}) {
     closed = true;
     if (frame) cancelAnimationFrame(frame);
     if (previewRebuildTimer) clearTimeout(previewRebuildTimer);
+    if (previewRetryTimer) clearTimeout(previewRetryTimer);
     previewRebuildTimer = 0;
+    previewRetryTimer = 0;
     resizeObserver?.disconnect?.();
     previewRig?.unload?.(); previewRig = null;
     window.removeEventListener('keydown', keydown);

@@ -2065,6 +2065,11 @@ function paintOptionsBody(body, { pause = false } = {}) {
             const owner = Object.entries(ANIMATION_SUBGROUPS)
               .find(([, groups]) => groups.some(([groupId]) => groupId === id))?.[0];
             if (!owner) return;
+            // Explicitly restore the Animations page before repainting. The
+            // selector may survive a search/tab round-trip, and relying on
+            // the previously captured category made the walk selector appear
+            // clickable while repainting a different pane.
+            category = 'animations';
             animationSection = owner;
             animationClipGroup = id;
             pickedFeature = null;
