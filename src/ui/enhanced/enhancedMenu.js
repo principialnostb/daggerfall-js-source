@@ -3722,7 +3722,7 @@ export function featureTile(f) {
   if (vendor) {
     const mods = modModules(vendor);
     const dials = modDials(vendor);
-    const keys = modKeyRows(vendor, bindings());   // UXB1-F
+    const keys = vendor === 'morrowind-textures' ? [] : modKeyRows(vendor, bindings());   // MW-TEXTURE-PACKS: these switches already have one row each in the Textures tab
     if (mods.length || dials.length || keys.length) {
       const open = featureOpen === f.id;
       const b = el('button', 'ft-tile-more');
