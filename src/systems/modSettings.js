@@ -1653,17 +1653,17 @@ export const MOD_SETTINGS = Object.freeze({
     author: 'Port integration',
     keys: Object.freeze({
       PlayerWalkSource: Object.freeze({
-        default: 1,
+        default: 0,
         options: lazyWords('Vanilla', 'Simply Walking', "Axel's Sexy Walk Fixed"),
         description: "Player walk source. Vanilla keeps the game's/archive walk. Simply Walking automatically uses the matching walk for the player's character. Axel's Sexy Walk Fixed is an alternative female walk. Other animation groups are unaffected.",
       }),
       NpcMaleWalk: Object.freeze({
-        default: 1,
+        default: 0,
         options: lazyWords('Vanilla', 'Simply Walking'),
         description: "Male NPC walk source. Vanilla keeps the game's/archive walk; Simply Walking selects the pack's male walk. Other animation groups are unaffected.",
       }),
       NpcFemaleWalk: Object.freeze({
-        default: 1,
+        default: 0,
         options: lazyWords('Vanilla', 'Simply Walking', "Axel's Sexy Walk Fixed"),
         description: "Female NPC walk source. Vanilla keeps the game's/archive walk; Simply Walking uses the Feminine Walk Cycle source; Axel's Sexy Walk Fixed is an alternative female walk clip. Other animation groups are unaffected.",
       }),
