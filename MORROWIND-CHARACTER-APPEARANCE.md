@@ -69,7 +69,8 @@ This is the target contract, not a statement that all stages are implemented:
 - [ ] Head/hair candidates stay inside the same race/sex pool as the actor.
 - [ ] Special forms do not accidentally inherit the ordinary humanoid Better Bodies body.
 - [ ] UV coordinates are checked for each distinct mesh layout before corrections are shared.
-- [ ] Bare-body preview matches the selected race/sex, changes live with every morph slider, and supports drag rotation and zoom.
+- [x] Source-level: bare-body preview builds a separate NIF rig from the player's current race/sex/head/hair options, strips equipment, and supports drag rotation and zoom.
+- [ ] In-game: verify the preview build succeeds on a real save, stands in a calm unarmed pose, and every slider produces a correct visible change across race/sex variants.
 - [ ] Clothing and armor still fit and cover the selected body correctly.
 - [ ] Missing assets produce an explicit diagnostic and a documented fallback.
 - [ ] Build/tests and in-game checks are recorded separately; source inspection alone is not visual validation.
