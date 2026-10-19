@@ -1,4 +1,4 @@
-import { getBodyMorphs } from '../characters/bodyMorphs.js';
+import { getBodyMorphs, getAppearanceIdentity, setAppearanceIdentity } from '../characters/bodyMorphs.js';
 // MW-D8: THE MORROWIND FIRST-PERSON ARM, IN THE GAME.
 //
 // Seven stages of this arc shipped diagnostics and nothing touched the
@@ -5343,6 +5343,13 @@ export function createFpArm({ playerAppearance = false } = {}) {
       if (!lastBuildOpts) return { ok: false, error: 'The live character has not finished building.' };
       return this.build({ ...lastBuildOpts });
     },
+    /** Save and rebuild the live player's appearance-only race/face selection. */
+    async applyAppearanceIdentity(identity = {}) {
+      const saved = setAppearanceIdentity(identity);
+      if (!saved) return { ok: false, error: 'Invalid appearance selection.' };
+      if (!lastBuildOpts) return { ok: false, error: 'The live character has not finished building.' };
+      return this.build({ ...lastBuildOpts, race: saved.race, faceIndex: saved.faceIndex, beast: null });
+    },
     async createAppearancePreviewRig({ race = null, faceIndex = null } = {}) {
       if (!lastBuildOpts || !renderer) return { ok: false, error: 'The live character has not finished building.' };
       const previewRig = createFpArm({ playerAppearance: true });
@@ -5392,6 +5399,13 @@ export function createFpArm({ playerAppearance = false } = {}) {
     get frames() { return frames; },
 
     async build(opts) {
+      // The appearance editor stores an appearance-only identity. Apply it to every
+      // subsequent player rig rebuild (equipment changes included), so closing the
+      // editor or rebuilding the rig cannot silently restore the original face/race.
+      if (playerAppearance && opts && !opts.werewolf) {
+        const appearanceIdentity = getAppearanceIdentity();
+        if (appearanceIdentity) opts = { ...opts, race: appearanceIdentity.race, faceIndex: appearanceIdentity.faceIndex, beast: null };
+      }
       // AUDIT MW-TORCH F6: A BUILD THAT ARRIVES MID-BUILD IS QUEUED, the
       // law PX25/PX26 gave the worn table and the hand. autoBuildArms's
       // door is reached by a load landing while the last load's build
