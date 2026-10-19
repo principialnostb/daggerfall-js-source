@@ -40,19 +40,19 @@ UV-edit note: `bb_skinf_no-uv-edits.json` is applied to every female body becaus
 - The editor has 19 persisted body controls grouped by anatomical region. Breast, breast projection, waist, abdomen, hip, buttock, shoulder, ribcage, arm, thigh, calf, limb length, leg spacing, body width, overall fullness and height now use localized vertex morphs in a shared whole-body coordinate frame; head size uses a head-bone scale. These are early generic transforms based on approximate body-height zones, not calibrated per race/sex/NIF. Visual QA is still required to confirm natural falloffs and fit with equipment.
 - The equipment PaperDoll must not be substituted for the preview: it is not the live morphed 3D body.
 
-### Preview isolation from the live body bind (2026-10-19)
+### Shared female body baseline and isolated editor preview (2026-10-19)
 
-- [x] The appearance editor now has a preview-only build flag. The editor's female preview uses the Nord-female Better Bodies NIF geometry from `better-bodies-preview.html` for every supported race, while retaining the selected race's DDS and current race-specific head/hair. The NIF's embedded texture stem is rewritten in a private byte copy (same-length race keys only), so the selected skin DDS resolves without mutating shared source assets.
-- [x] The isolated preview binds that Better Bodies mesh against its own embedded NIF skeleton. This flag is passed only by `createAppearancePreviewRig()`; the live player and NPC builds keep their existing skeleton selection and race-specific body path. Do not interpret this as a gameplay fix.
-- [x] The editor was returned to the first working dedicated-rig draw path: portrait pose and original zoom-scaled render height, rather than the later forced neutral-preview path. The 19 morph controls still update persisted values, dispatch `mw-body-morph-change`, and redraw immediately.
-- [ ] Runtime visual QA remains necessary: verify the body is continuous, the selected race texture and face are correct, and every morph produces a visible, coherent change. No browser/game render or build/test run has been performed in this code-edit pass.
+- Female actors use the Nord-female Better Bodies NIF geometry shown by `better-bodies-preview.html`; their race-specific DDS and current race-specific head/hair remain selected from the actor identity. This resolver is shared by world/player body builds and the editor's dedicated preview rig; it is not a preview-only geometry override.
+- The NIF's embedded texture stem is rewritten in a private byte copy when the geometry race key differs from the actor's skin race key. This preserves the Nord-female shape while resolving the correct race texture without mutating cached source bytes.
+- The editor still owns a separate rig and animation/skeleton state. It does not borrow the live character's rendered screenshot. Its established portrait draw path and the 19 live morph controls are retained.
+- The standalone HTML diagnostic remains intentionally nude, regardless of the saved in-game underwear preference. It is the geometry reference, not the live game renderer.
+- Runtime visual QA remains necessary: verify the body is continuous, race-specific skin and face are correct, and every morph produces a visible, coherent change. No browser/game render or build/test run has been performed in this code-edit pass.
 
-### Preview regression isolation (2026-10-19)
+### Body selection and preview regression notes (2026-10-19)
 
-- The editor's standalone preview now uses the same race/sex-resolved Better Bodies base mesh and matching skin texture as the live player build. The previous explicit `useBetterBodies: false` was unjustified: it forced the editor onto standard Morrowind geometry even though Better Bodies is the game's active body path. The dedicated preview rig remains separate; only its base-body selection was corrected.
-- A follow-up failure was traced to option propagation: `buildTpBody()` checked `useBetterBodies` but did not declare or receive that option. The resulting `ReferenceError` was caught by the body-build fallback, leaving the preview without its third-person model. The option is now explicitly declared in `buildTpBody()` and passed from `buildFpArm()`; this fixes the build failure without changing the in-world Better Bodies default.
-- The editor preview requests Better Bodies explicitly (`useBetterBodies: true`). Its female geometry and skin selection are preview-specific as described above; the live player/NPC build path is not changed by that override. Unsupported races or unavailable assets still take the existing logged fallback path. The preview uses its own rig; it must not borrow a screenshot from the live character. The separate HTML tool is a geometry/UV diagnostic, not proof that this integrated path is complete.
-- Runtime visual verification is still required: confirm the 3D figure appears, that the underwear toggle rebuilds the selected variant, and that sliders update the preview and player without distortion.
+- The Better Bodies resolver now chooses the female geometry baseline globally, not just in the editor. Male bodies remain race-specific. Unsupported races or unavailable assets retain the existing logged fallback path.
+- The underwear preference defaults to enabled and is read whenever a body rig is built. The editor checkbox rebuilds its isolated preview immediately; it does not currently force an immediate rebuild of the already-running world rig. The saved choice applies to subsequent body builds, including equipment-triggered rebuilds.
+- Runtime visual verification is still required: confirm the 3D figure appears, that Nude/Underwear selection is correct, and that sliders update the preview and player without distortion.
 
 ### Body morph and underwear update (2026-10-19)
 
