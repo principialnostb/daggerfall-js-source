@@ -3441,7 +3441,20 @@ export function tileStates(f) {   // FT18: exported for the All off pins, which 
     }
     return null;
   }
-  // a vendored mod's Enabled - the player's online too (MODS-ONLINE-2), but for the road switches the room's ground depends on
+  // A vendored mod may expose a choice (MultipleChoiceKey), not an Enabled
+  // switch. Treating every mod control as boolean made FemaleWalk appear as
+  // Off/On and never exposed its Standard/Female options.
+  const def = MOD_SETTINGS[c.vendor]?.keys?.[c.key];
+  if (isChoiceKey(def)) {
+    const raw = Number(modSetting(c.vendor, c.key));
+    const fallback = Number.isInteger(Number(def.default)) ? Number(def.default) : 0;
+    const at = Number.isInteger(raw) && raw >= 0 && raw < def.options.length
+      ? raw : Math.max(0, Math.min(def.options.length - 1, fallback));
+    return { labels: Array.from(def.options, (label) => String(label)), at,
+      locked: onlineForcedModSetting(c.vendor, c.key) !== undefined,
+      set: (i) => setModSetting(c.vendor, c.key, i) };
+  }
+  // A vendored mod's Enabled - the player's online too (MODS-ONLINE-2), but for the road switches the room's ground depends on
   const on = modSetting(c.vendor, c.key) === true || modSetting(c.vendor, c.key) === 'True';
   return { labels: ['Off', 'On'], shown: toggleWords(), at: on ? 1 : 0,
     locked: onlineForcedModSetting(c.vendor, c.key) !== undefined,
