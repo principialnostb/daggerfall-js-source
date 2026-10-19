@@ -2141,7 +2141,7 @@ async function buildTpBody({
     // texture is registered by basename, so concurrent NPC builds cannot overwrite
     // one another's skin bytes through a shared "current texture" adapter.
     let betterBodiesPart = null;
-    if (getPref('mwBetterBodies') !== false && !beast && !werewolf && !vampire) {
+    if (modSetting('morrowind-textures', 'BetterBodies') !== false && !beast && !werewolf && !vampire) {
       try {
         const asset = betterBodiesAssetUrls({ race, female });
         if (!asset) throw new Error(`no Better Bodies asset for race "${String(race)}" / ${female ? 'female' : 'male'}`);
@@ -2991,7 +2991,7 @@ export async function buildFpArm({
     // Use the same race/sex-matched body asset for first-person hands; only
     // its arm/hand slots are drawn here. Vanilla part meshes remain the fallback.
     let betterBodiesFpArms = null;
-    if (getPref('mwBetterBodies') !== false && !beast && !werewolf && !vampire) {
+    if (modSetting('morrowind-textures', 'BetterBodies') !== false && !beast && !werewolf && !vampire) {
       try {
         const asset = betterBodiesAssetUrls({ race, female });
         if (!asset) throw new Error(`no Better Bodies asset for race "${String(race)}" / ${female ? 'female' : 'male'}`);
