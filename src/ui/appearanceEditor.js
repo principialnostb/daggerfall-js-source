@@ -12,7 +12,7 @@ const clamp = (n) => Math.max(-1, Math.min(1, n));
 export function openAppearanceEditor({ fpArm, onClose = () => {} } = {}) {
   if (typeof document === 'undefined' || !document.body) return null;
   document.getElementById('mw-appearance-editor')?.remove();
-  let yaw = 0, zoom = 1, frame = 0, retryTimer = 0, closed = false, selectedRace = 'DarkElf', selectedFemale = true, selectedFace = 0, selectedHair = 0, faceCanvases = [];
+  let yaw = 0, zoom = 1, frame = 0, closed = false, previewRig = null, previewBuildPending = false, previewError = '';
   const root = document.createElement('div');
   root.id = 'mw-appearance-editor';
   root.style.cssText = 'position:fixed;inset:0;z-index:10050;background:rgba(8,8,12,.88);display:flex;align-items:center;justify-content:center;padding:18px;color:#eee;font:14px system-ui,sans-serif;';
@@ -21,7 +21,7 @@ export function openAppearanceEditor({ fpArm, onClose = () => {} } = {}) {
   const previewSide = document.createElement('div');
   previewSide.style.cssText = 'display:flex;flex-direction:column;align-items:center;justify-content:space-between;padding:18px;background:linear-gradient(#222229,#111115);min-height:0;';
   const heading = document.createElement('div');
-  heading.innerHTML = '<div style="font-size:21px;font-weight:700;letter-spacing:.03em">Редактирование внешности</div><div style="color:#aaa;margin-top:6px">Зажми модель и вращай мышью</div>';
+  heading.innerHTML = '<div style="font-size:21px;font-weight:700;letter-spacing:.03em">Редактирование внешности</div><div style="color:#aaa;margin-top:6px">Отдельная 3D-модель · перетаскивай для вращения</div>';
   const preview = document.createElement('canvas');
   preview.width = 720; preview.height = 820;
   preview.style.cssText = 'width:100%;height:100%;min-height:0;flex:1;object-fit:contain;cursor:grab;touch-action:none;background:radial-gradient(ellipse,#373741 0%,#17171c 68%);border:1px solid #444;border-radius:6px;';
@@ -40,7 +40,7 @@ export function openAppearanceEditor({ fpArm, onClose = () => {} } = {}) {
   previewTools.append(zoomOut, zoomLabel, zoomIn, zoomReset);
   const previewHint = document.createElement('div');
   previewHint.style.cssText = 'font-size:12px;color:#aaa;text-align:center;line-height:1.5;';
-  previewHint.textContent = 'Настройки сохраняются автоматически. Ползунки изменяют геометрию модели игрока.';
+  previewHint.textContent = 'Загрузка отдельной 3D-модели персонажа…';
   const controls = document.createElement('div');
   controls.style.cssText = 'overflow:auto;min-height:0;padding:18px 20px;';
   const top = document.createElement('div');
@@ -51,28 +51,6 @@ export function openAppearanceEditor({ fpArm, onClose = () => {} } = {}) {
   top.append(closeBtn); controls.append(top);
   const inputs = new Map();
   const initial = getBodyMorphs();
-  const identity = document.createElement('fieldset'); identity.style.cssText = 'border:1px solid #45454e;border-radius:6px;margin:0 0 14px;padding:10px 12px;';
-  const raceLabel = document.createElement('label'); raceLabel.textContent = 'Раса ';
-  const raceSelect = document.createElement('select'); raceSelect.style.cssText = 'margin:4px;padding:7px;background:#29292f;color:#eee;';
-  const races = [['Breton','Бретон'],['Redguard','Редгард'],['Nord','Норд'],['DarkElf','Данмер'],['HighElf','Альтмер'],['WoodElf','Босмер'],['Khajiit','Каджит'],['Argonian','Аргониан']];
-  for (const pair of races) { const option = document.createElement('option'); option.value = pair[0]; option.textContent = pair[1]; raceSelect.append(option); }
-  raceSelect.value = selectedRace;
-  const sexSelect = document.createElement('select'); sexSelect.style.cssText = raceSelect.style.cssText;
-  for (const pair of [['female','Женский'],['male','Мужской']]) { const option = document.createElement('option'); option.value = pair[0]; option.textContent = pair[1]; sexSelect.append(option); }
-  identity.append(raceLabel, raceSelect, sexSelect);
-  const faceLabel = document.createElement('div'); faceLabel.textContent = 'Лицо'; faceLabel.style.cssText = 'margin:8px 0 4px;color:#e2c98c;'; identity.append(faceLabel);
-  const faceGrid = document.createElement('div'); faceGrid.style.cssText = 'display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:5px;'; identity.append(faceGrid);
-  const hairLabel = document.createElement('div'); hairLabel.textContent = 'Причёска'; hairLabel.style.cssText = 'margin:10px 0 4px;color:#e2c98c;'; identity.append(hairLabel);
-  const hairSelect = document.createElement('select'); hairSelect.style.cssText = raceSelect.style.cssText;
-  for (const pair of [['0','Короткая'],['1','Длинная'],['2','Собранная'],['3','Распущенная'],['4','Косы'],['5','Без волос']]) { const option = document.createElement('option'); option.value = pair[0]; option.textContent = pair[1]; hairSelect.append(option); }
-  identity.append(hairSelect); controls.append(identity);
-  const refreshFaces = async () => {
-    faceGrid.replaceChildren();
-    for (let i = 0; i < 10; i++) { const b = makeButton('Лицо ' + (i+1)); b.style.cssText += 'padding:2px;min-height:48px;'; b.addEventListener('click', () => { selectedFace=i; drawPreview(); [...faceGrid.children].forEach((x,j)=>x.style.borderColor=j===i?'#d3b36a':'#666'); window.dispatchEvent(new CustomEvent('mw-appearance-identity-change',{detail:{race:selectedRace,female:selectedFemale,faceIndex:selectedFace,hairIndex:selectedHair}})); }); faceGrid.append(b); }
-    try { const { loadFaceCanvases } = await import('./facePortrait.js'); faceCanvases = await loadFaceCanvases(selectedRace, selectedFemale?'female':'male',{scale:2}); [...faceGrid.children].forEach((b,i)=>{ if(faceCanvases[i]) { b.textContent=''; const c=document.createElement('canvas'); c.width=56;c.height=64;c.style.cssText='width:100%;height:100%;';c.getContext('2d')?.drawImage(faceCanvases[i],0,0,56,64);b.append(c); } }); } catch { faceCanvases = []; }
-  };
-  const updateIdentity = () => { selectedRace=raceSelect.value; selectedFemale=sexSelect.value==='female'; selectedFace=0; selectedHair=Number(hairSelect.value)||0; window.dispatchEvent(new CustomEvent('mw-appearance-identity-change',{detail:{race:selectedRace,female:selectedFemale,faceIndex:selectedFace,hairIndex:selectedHair}})); refreshFaces(); drawPreview(); };
-  raceSelect.addEventListener('change', updateIdentity); sexSelect.addEventListener('change', updateIdentity); hairSelect.addEventListener('change', updateIdentity); refreshFaces();
   for (const [groupName, keys] of GROUPS) {
     const group = document.createElement('fieldset');
     group.style.cssText = 'border:1px solid #45454e;border-radius:6px;margin:0 0 14px;padding:10px 12px 12px;';
@@ -118,6 +96,7 @@ export function openAppearanceEditor({ fpArm, onClose = () => {} } = {}) {
   window.addEventListener('keydown', keydown);
   document.body.append(root);
   drawPreview();
+  void buildPreviewRig();
 
   let drag = null;
   preview.addEventListener('pointerdown', (e) => {
@@ -135,16 +114,59 @@ export function openAppearanceEditor({ fpArm, onClose = () => {} } = {}) {
   preview.addEventListener('pointerup', release);
   preview.addEventListener('pointercancel', release);
 
+  async function buildPreviewRig() {
+    if (closed || previewBuildPending || previewRig || !fpArm?.createAppearancePreviewRig) {
+      if (!fpArm?.createAppearancePreviewRig) previewError = 'Отдельная 3D-сборка недоступна для этого игрового рига.';
+      return;
+    }
+    previewBuildPending = true;
+    try {
+      const result = await fpArm.createAppearancePreviewRig();
+      if (closed) { result?.rig?.unload?.(); return; }
+      if (result?.ok && result.rig) previewRig = result.rig;
+      else previewError = result?.error || 'Не удалось собрать отдельную модель.';
+    } catch (error) {
+      previewError = String(error?.message || error);
+    } finally {
+      previewBuildPending = false;
+      drawPreview();
+    }
+  }
   function drawPreview() {
     if (closed) return;
-    renderProceduralPreview(preview, { yaw, zoom, morphs: getBodyMorphs(), female: selectedFemale, hairIndex: selectedHair, race: selectedRace, faceCanvas: faceCanvases[selectedFace] });
-    previewHint.textContent = 'Независимая процедурная модель: ползунки меняют её пропорции сразу; игровой риг не используется.';
+    if (!previewRig) {
+      const ctx = preview.getContext('2d');
+      if (!ctx) return;
+      ctx.clearRect(0, 0, preview.width, preview.height);
+      ctx.fillStyle = '#ddd'; ctx.font = '16px system-ui'; ctx.textAlign = 'center';
+      ctx.fillText(previewError || 'Сборка отдельной 3D-модели…', preview.width / 2, preview.height / 2);
+      previewHint.textContent = previewError || 'Собирается отдельная модель из игровых ресурсов.';
+      return;
+    }
+    try {
+      const image = previewRig.figure({ yaw, height: Math.round(760 * zoom), force: true });
+      const ctx = preview.getContext('2d');
+      if (!ctx) return;
+      ctx.clearRect(0, 0, preview.width, preview.height);
+      if (!image?.data) { previewHint.textContent = 'Модель собрана, но рендер предпросмотра недоступен.'; return; }
+      const imageCanvas = document.createElement('canvas');
+      imageCanvas.width = image.width; imageCanvas.height = image.height;
+      const imageCtx = imageCanvas.getContext('2d');
+      if (!imageCtx) return;
+      imageCtx.putImageData(new ImageData(image.data, image.width, image.height), 0, 0);
+      const scale = Math.min((preview.width * .94) / image.width, (preview.height * .94) / image.height);
+      const dw = image.width * scale, dh = image.height * scale;
+      ctx.drawImage(imageCanvas, (preview.width - dw) / 2, (preview.height - dh) / 2, dw, dh);
+      previewHint.textContent = 'Отдельная NIF-модель без экипировки. Поза — спокойная стойка без оружия.';
+    } catch (error) {
+      previewHint.textContent = 'Ошибка рендера модели: ' + String(error?.message || error);
+    }
   }
   function close() {
     if (closed) return;
     closed = true;
     if (frame) cancelAnimationFrame(frame);
-    if (retryTimer) window.clearTimeout(retryTimer);
+    previewRig?.unload?.(); previewRig = null;
     window.removeEventListener('keydown', keydown);
     root.remove(); onClose();
   }
