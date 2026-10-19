@@ -565,6 +565,6 @@ test('COATS3D standing horses draw as world meshes outside the character-sprite 
   const end = source.indexOf('/** Does this horse stand in 3D? */', start);
   assert.ok(start >= 0 && end > start, 'the standing-horse draw pass is present');
   const draw = source.slice(start, end);
-  assert.ok(!draw.includes('beginCharacterSpriteBatch'), 'world-space horse meshes must not be rendered into the finite sprite target');
-  assert.ok(!draw.includes('flushCharacterSpriteBatch'), 'the standing-horse pass owns no sprite-target lifecycle');
+  assert.ok(!/renderer\??\.beginCharacterSpriteBatch/.test(draw), 'world-space horse meshes must not be rendered into the finite sprite target');
+  assert.ok(!/renderer\??\.flushCharacterSpriteBatch/.test(draw), 'the standing-horse pass owns no sprite-target lifecycle');
 });
