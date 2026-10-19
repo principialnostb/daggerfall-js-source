@@ -23,6 +23,7 @@ export const BODY_MORPH_FIELDS = [
 ];
 const KEY = 'mw-character-body-morphs-v1';
 const UNDERWEAR_KEY = 'mw-character-underwear-v1';
+const BODY_HAIR_KEY = 'mw-character-body-hair-v1';
 const IDENTITY_KEY = 'mw-character-appearance-identity-v1';
 const defaults = Object.freeze(Object.fromEntries(BODY_MORPH_FIELDS.map(([key]) => [key, 0])));
 let cached = null;
@@ -62,6 +63,15 @@ export function getUnderwearEnabled() {
 export function setUnderwearEnabled(enabled) {
   const value = !!enabled;
   try { globalThis.localStorage?.setItem(UNDERWEAR_KEY, value ? 'true' : 'false'); } catch { /* storage may be disabled */ }
+  return value;
+}
+
+export function getBodyHairEnabled() {
+  try { return globalThis.localStorage?.getItem(BODY_HAIR_KEY) === 'true'; } catch { return false; }
+}
+export function setBodyHairEnabled(enabled) {
+  const value = !!enabled;
+  try { globalThis.localStorage?.setItem(BODY_HAIR_KEY, value ? 'true' : 'false'); } catch { /* storage may be disabled */ }
   return value;
 }
 
