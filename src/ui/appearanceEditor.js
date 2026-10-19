@@ -248,6 +248,15 @@ export function openAppearanceEditor({ fpArm, onClose = () => {} } = {}) {
     if (previewBuildPending) previewRebuildRequested = true;
     previewRig?.unload?.(); previewRig = null; previewError = '';
     try {
+      // The preference selects the NIF only when an actor is built. Rebuild the
+      // live game rig as well as the editor-owned preview; otherwise the checkbox
+      // changes storage/preview but leaves the in-game body mesh untouched.
+      if (typeof fpArm?.refreshBodyVariant === 'function') {
+        const refreshed = await fpArm.refreshBodyVariant();
+        if (refreshed?.ok === false && !refreshed?.queued) {
+          previewError = refreshed.error || 'Не удалось обновить модель персонажа в игре.';
+        }
+      }
       await buildPreviewRig();
     } catch (error) { previewError = String(error?.message || error); }
     drawPreview();
