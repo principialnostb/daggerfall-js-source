@@ -177,7 +177,7 @@ export function openAppearanceEditor({ fpArm, onClose = () => {} } = {}) {
   if (typeof document === 'undefined' || !document.body) return null;
   document.getElementById('mw-appearance-editor')?.remove();
 
-  let yaw = 0, zoom = 1, frame = 0, morphPreviewTimer = 0, closed = false, previewRig = null, previewBuildPending = false, previewRebuildRequested = false, previewError = '';
+  let yaw = 0, zoom = 1, frame = 0, morphPreviewTimer = 0, previewRetryTimer = 0, previewBuildAttempts = 0, closed = false, previewRig = null, previewBuildPending = false, previewRebuildRequested = false, previewError = '';
   const initialIdentity = fpArm?.builtFor?.() || {};
   const savedIdentity = getAppearanceIdentity();
   let selectedRace = String(savedIdentity?.race || initialIdentity.race || 'nord').toLowerCase();
@@ -496,15 +496,47 @@ export function openAppearanceEditor({ fpArm, onClose = () => {} } = {}) {
         result?.rig?.unload?.();
       } else if (result?.ok && result.rig) {
         previewRig = result.rig;
+        previewBuildAttempts = 0;
+        if (previewRetryTimer) window.clearTimeout(previewRetryTimer);
+        previewRetryTimer = 0;
+        previewError = '';
       } else {
-        previewError = result?.error || 'Не удалось собрать отдельную модель.';
+        const reason = String(result?.error || '');
+        // The editor may open before the initial player rig/renderer is ready.
+        // Retry transient readiness failures instead of leaving a blank preview
+        // until the player changes a slider or selects another race.
+        const transient = /has not finished building|not ready|renderer|already building/i.test(reason);
+        if (transient && previewBuildAttempts < 12) {
+          previewBuildAttempts++;
+          previewError = '';
+          if (previewRetryTimer) window.clearTimeout(previewRetryTimer);
+          previewRetryTimer = window.setTimeout(() => {
+            previewRetryTimer = 0;
+            if (!closed && !previewRig) void buildPreviewRig();
+          }, 250);
+        } else {
+          previewError = result?.error || 'Не удалось собрать отдельную модель.';
+        }
       }
     } catch (error) {
-      if (!previewRebuildRequested) previewError = String(error?.message || error);
+      const message = String(error?.message || error);
+      if (!previewRebuildRequested && previewBuildAttempts < 12 && /not ready|renderer|building/i.test(message)) {
+        previewBuildAttempts++;
+        previewError = '';
+        if (previewRetryTimer) window.clearTimeout(previewRetryTimer);
+        previewRetryTimer = window.setTimeout(() => {
+          previewRetryTimer = 0;
+          if (!closed && !previewRig) void buildPreviewRig();
+        }, 250);
+      } else if (!previewRebuildRequested) {
+        previewError = message;
+      }
     } finally {
       previewBuildPending = false;
       if (previewRebuildRequested && !closed) {
         previewRebuildRequested = false;
+        if (previewRetryTimer) window.clearTimeout(previewRetryTimer);
+        previewRetryTimer = 0;
         previewRig?.unload?.(); previewRig = null; previewError = '';
         void buildPreviewRig();
       } else {
@@ -554,7 +586,9 @@ export function openAppearanceEditor({ fpArm, onClose = () => {} } = {}) {
     closed = true;
     if (frame) cancelAnimationFrame(frame);
     if (morphPreviewTimer) window.clearTimeout(morphPreviewTimer);
+    if (previewRetryTimer) window.clearTimeout(previewRetryTimer);
     morphPreviewTimer = 0;
+    previewRetryTimer = 0;
     resizeObserver?.disconnect?.();
     previewRig?.unload?.(); previewRig = null;
     window.removeEventListener('keydown', keydown);

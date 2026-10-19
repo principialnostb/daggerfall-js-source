@@ -1852,10 +1852,14 @@ function itemNodes(item, ctx) {
     const button = el('button', `sec-jumpbtn animation-switch animation-clip-group${animationClipGroup === group ? ' is-active' : ''}`, labels[group] ?? group);
     button.type = 'button';
     button.setAttribute('aria-expanded', String(animationClipGroup === group));
-    button.onclick = () => {
+    button.addEventListener('click', (event) => {
+      // Keep clip-family navigation local to this control. The settings shell
+      // has outer click handlers too, and must not consume this selection.
+      event.preventDefault();
+      event.stopPropagation();
       animationClipGroup = group;
       if (ctx.body) paintOptionsBody(ctx.body, { pause: ctx.pause });
-    };
+    });
     return [button];
   }
   if (item.startsWith('label:')) {
