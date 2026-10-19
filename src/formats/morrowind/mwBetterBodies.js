@@ -144,10 +144,6 @@ export async function inspectBetterBodiesFemale() {
   };
 }
 
-export const betterBodiesFemaleAssetUrls = Object.freeze({
-  model: betterBodiesFemaleAssetUrls.model,
-  texture: betterBodiesFemaleAssetUrls.texture,
-});
 
 
 let uvEditsPromise = null;
