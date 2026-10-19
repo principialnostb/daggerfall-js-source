@@ -274,7 +274,7 @@ export function openAppearanceEditor({ fpArm, onClose = () => {} } = {}) {
     setBodyHairEnabled(bodyHairToggle.checked);
     statusMessage.style.display = 'block'; statusMessage.textContent = 'Пересборка текстур модели…';
     if (previewBuildPending) previewRebuildRequested = true;
-    previewRig?.unload?.(); previewRig = null; previewError = '';
+    previewError = '';
     try {
       if (typeof fpArm?.refreshBodyVariant === 'function') {
         const refreshed = await fpArm.refreshBodyVariant();
@@ -282,15 +282,15 @@ export function openAppearanceEditor({ fpArm, onClose = () => {} } = {}) {
           previewError = refreshed.error || 'Не удалось обновить текстуру игрового персонажа.';
         }
       }
-      await buildPreviewRig();
+      await buildPreviewRig({ replace: true });
     } catch (error) { previewError = String(error?.message || error); }
     drawPreview();
   });
   const rebuildRacePreview = () => {
-    previewRig?.unload?.(); previewRig = null; previewError = '';
+    previewError = '';
     statusMessage.style.display = 'block'; statusMessage.textContent = 'Загрузка расы и 3D-моделей лица…';
     if (previewBuildPending) previewRebuildRequested = true;
-    else void buildPreviewRig();
+    else void buildPreviewRig({ replace: true });
     window.dispatchEvent(new CustomEvent('mw-appearance-race-preview-change', { detail: { race: selectedRace, faceIndex: selectedFace } }));
   };
   // Race/face controls are a draft: only the editor-owned preview changes here.
@@ -306,7 +306,7 @@ export function openAppearanceEditor({ fpArm, onClose = () => {} } = {}) {
     // it settles. Otherwise the checkbox could persist the new value while
     // leaving the already-started underwear model on screen.
     if (previewBuildPending) previewRebuildRequested = true;
-    previewRig?.unload?.(); previewRig = null; previewError = '';
+    previewError = '';
     try {
       // The preference selects the NIF only when an actor is built. Rebuild the
       // live game rig as well as the editor-owned preview; otherwise the checkbox
@@ -317,7 +317,7 @@ export function openAppearanceEditor({ fpArm, onClose = () => {} } = {}) {
           previewError = refreshed.error || 'Не удалось обновить модель персонажа в игре.';
         }
       }
-      await buildPreviewRig();
+      await buildPreviewRig({ replace: true });
     } catch (error) { previewError = String(error?.message || error); }
     drawPreview();
   });
@@ -475,16 +475,16 @@ export function openAppearanceEditor({ fpArm, onClose = () => {} } = {}) {
         previewRebuildRequested = true;
         return;
       }
-      previewRig?.unload?.();
-      previewRig = null;
       previewError = '';
+      // Keep the last good model on screen while the replacement is built;
+      // otherwise every slider drag clears the preview and looks like a no-op.
       drawPreview();
-      void buildPreviewRig();
+      void buildPreviewRig({ replace: true });
     }, 220);
   }
 
-  async function buildPreviewRig() {
-    if (closed || previewRig || !fpArm?.createAppearancePreviewRig) {
+  async function buildPreviewRig({ replace = false } = {}) {
+    if (closed || (!replace && previewRig) || !fpArm?.createAppearancePreviewRig) {
       if (!fpArm?.createAppearancePreviewRig) { previewError = 'Отдельная 3D-сборка недоступна для этого игрового рига.'; drawPreview(); }
       return;
     }
@@ -501,7 +501,9 @@ export function openAppearanceEditor({ fpArm, onClose = () => {} } = {}) {
       if (closed || previewRebuildRequested) {
         result?.rig?.unload?.();
       } else if (result?.ok && result.rig) {
+        const previousRig = previewRig;
         previewRig = result.rig;
+        if (previousRig && previousRig !== previewRig) previousRig.unload?.();
       } else {
         previewError = result?.error || 'Не удалось собрать отдельную модель.';
       }
@@ -511,8 +513,8 @@ export function openAppearanceEditor({ fpArm, onClose = () => {} } = {}) {
       previewBuildPending = false;
       if (previewRebuildRequested && !closed) {
         previewRebuildRequested = false;
-        previewRig?.unload?.(); previewRig = null; previewError = '';
-        void buildPreviewRig();
+        previewError = '';
+        void buildPreviewRig({ replace: true });
       } else {
         drawPreview();
       }
