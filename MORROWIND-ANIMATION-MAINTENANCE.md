@@ -67,7 +67,7 @@ A broad KF can contain tracks for many bones and text keys for several groups. N
 
 ## Animation settings home — taxonomy scaffold in v4
 
-The Settings screen has a dedicated **Animations** tab (`src/ui/settings/settingsMap.js`), separate from `Mods & files`. Actor and animation-family controls are actual selectable sub-pages: the chosen category alone is shown, rather than a long list of headings. Player and NPC groups are separate. Walk selectors are live; categories without an integrated source show a disabled, selected **Vanilla** choice and explain the current limit.
+The Settings screen has a dedicated **Animations** tab (`src/ui/settings/settingsMap.js`), separate from `Mods & files`. The top-level switchers are shared animation families, not actor-specific lists: **Ходьба / бег**, **Повороты / стойка / скрытность**, **Бой / атаки / блок**, **Магия / заклинания**, **Действия / взаимодействие**, **Прыжки / плавание / падения**, and **Получение урона / падение / смерть**. Each selected family displays the **Игрок** controls first and the **NPC** controls second. Walk/run stays one family because these are related locomotion states, and the currently bundled walk packs do not replace run clips. Families without an integrated source show a disabled Vanilla-only choice rather than a fake selector.
 
 ## Actor-specific selectors — implemented in v4
 
@@ -118,3 +118,12 @@ This intentionally trades some GPU work for stable perspective, leg placement, a
 - **Axel's Sexy Walk Fixed** is a separate alternative for female walking. Only `WalkForward;.kf` is loaded; idle/run files are not silently enabled by selecting a walk pack.
 - Before combining or presenting any future packs, inspect their README/permissions and enumerate their actual KF/NIF animation groups and text keys. Assign each source to the animation families it really contains (walk, run, idle, combat, actions, etc.), verify skeleton/group compatibility, then expose one mutually exclusive selector per family. Do not infer scope from the mod title or directory name alone, and do not show a selector as functional until its runtime consumer exists.
 - **Settings UI rule:** animation families are switchable sub-pages inside Settings → Animations. The chosen sub-page alone displays its controls; they are not a single long list with headings. Player and NPC families are independent. Informational/Vanilla-only categories must not pretend an unintegrated pack is selectable.
+
+
+## UI taxonomy rule (ANIM-UI5)
+
+- Do not split **walking** and **running** into separate top-level settings families when the pack/runtime group model treats them as locomotion together. The shared family is **Ходьба / бег**.
+- Family buttons are the first level. Inside the selected family, render the **Игрок** controls first, then the **NPC** controls. Do not create separate player-vs-NPC family button rows.
+- Within each actor group, each animation family has one mutually exclusive source selector; **Vanilla is always option zero / first**. Vanilla means the original game/archive source for that family, not globally disabling animation.
+- **Simply Walking** is one player-facing pack. Its files are assigned by inspecting their actual KF groups: Purist Edition supplies the male walk source; Feminine Walk Cycle supplies the female walk source. Do not expose Feminine Walk Cycle as a separate top-level pack choice when it is the female component of Simply Walking.
+- Before defining or combining any future UI family, inspect the actual KF/NIF files, text keys and README/permissions. Establish which animation groups each file contains, then map them to families. Never infer the family structure from a mod title alone.
