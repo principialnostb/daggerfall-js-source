@@ -224,7 +224,10 @@ export const CATEGORIES = Object.freeze([
     ]),
   ]),
   tab("textures", "Текстуры", [
-    sec("texture-packs", "Паки текстур", [
+    sec("texture-packs", "Паки текстур и замены", [
+      "feat:mw-textures-intelligent", "feat:mw-textures-vurt-clothes", "feat:mw-textures-better-clothes",
+      "feat:mw-textures-better-armor", "feat:mw-textures-armor-joints",
+      "feat:mw-textures-westly-clothiers", "feat:mw-textures-westly-faces",
       "card:packs",
     ]),
     sec("texture-sources", "Источники и приоритеты", [
