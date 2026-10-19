@@ -6645,7 +6645,11 @@ export function createFpArm({ playerAppearance = false } = {}) {
             thirdPoseSource = poseSource;
           }
           thirdBlendElapsed += Math.max(0, dt);
-          const thirdBlendWeight = thirdBlendFrom ? Math.min(1, thirdBlendElapsed / 0.16) : 1;
+          const blendChoice = Math.max(0, Math.min(3, Number(modSetting('morrowind-animation', 'AnimationBlendDuration')) || 0));
+          const blendDuration = [0, 0.16, 0.25, 0.4][blendChoice];
+          const thirdBlendWeight = thirdBlendFrom && blendDuration > 0
+            ? Math.min(1, thirdBlendElapsed / blendDuration)
+            : 1;
           poseAssembly(t.arm, {
             tracks: tOverlay ? overlayFor(tBase, t.leftArm) : tBase,
             sampleTrack: tOverlay ? overlaySample : sampleTrack,
