@@ -39,31 +39,32 @@ async function bytes(entry) {
  * the female-only gait override. Callers must filter these sources to walk
  * groups so a full .kf can never silently replace idle/run/combat clips.
  */
-export async function loadWalkAnimationAssets({ female = false, femaleWalk = 'standard' } = {}) {
+export async function loadWalkAnimationAssets({ female = false } = {}) {
   if (!IN_BROWSER) return [];
   const standard = female ? standardFemale : standardMale;
-  const override = !female ? null : femaleWalk === 'female2' ? axelFemale : femaleWalk === 'female' ? feminineFemale : null;
+  // Load both female-only candidates once; fpArm's movement resolver chooses
+  // the saved preference on each walk-group change. This keeps live switching
+  // possible without reloading the rig or ever loading Axel's idle/run clips.
+  const overrides = female
+    ? [{ entry: feminineFemale, variant: 'female' }, { entry: axelFemale, variant: 'female2' }]
+    : [];
   const selected = [];
   if (!standard && !warnedMissingWalkAssets) {
     warnedMissingWalkAssets = true;
     console.warn('[Morrowind animations] Vite did not resolve the standard KF asset.', inspectWalkAnimationAssets());
-  }
-  if (female && femaleWalk === 'female' && !feminineFemale && !warnedMissingWalkAssets) {
-    warnedMissingWalkAssets = true;
-    console.warn('[Morrowind animations] Vite did not resolve Feminine Walk Cycle.', inspectWalkAnimationAssets());
-  }
-  if (female && femaleWalk === 'female2' && !axelFemale && !warnedMissingWalkAssets) {
-    warnedMissingWalkAssets = true;
-    console.warn('[Morrowind animations] Vite did not resolve Axel Female 2 walk clip.', inspectWalkAnimationAssets());
   }
   try {
     if (standard) {
       const data = await bytes(standard);
       if (data) selected.push({ name: standard.path, bytes: data, variant: 'standard', walkVariant: 'standard', walkOnly: true });
     }
-    if (override) {
-      const data = await bytes(override);
-      if (data) selected.push({ name: override.path, bytes: data, variant: femaleWalk, walkVariant: femaleWalk, walkOnly: true });
+    for (const { entry, variant } of overrides) {
+      if (!entry) {
+        console.warn('[Morrowind animations] Vite did not resolve optional female walk source:', variant, inspectWalkAnimationAssets());
+        continue;
+      }
+      const data = await bytes(entry);
+      if (data) selected.push({ name: entry.path, bytes: data, variant, walkVariant: variant, walkOnly: true });
     }
   } catch (error) {
     console.warn('[Morrowind animations] bundled walk set failed to load; archive animations remain active:', String(error?.message ?? error));
@@ -75,7 +76,6 @@ export async function loadWalkAnimationAssets({ female = false, femaleWalk = 'st
   }
   return selected;
 }
-
 export function inspectWalkAnimationAssets() {
   return {
     browser: IN_BROWSER,
