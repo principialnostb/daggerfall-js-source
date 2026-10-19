@@ -4,7 +4,10 @@
 // meshes or skeleton geometry.
 const IN_BROWSER = typeof window !== 'undefined';
 const FILES = IN_BROWSER
-  ? import.meta.glob('../../../Morrowind Textures/Simply Walking/**/*.{kf,KF}', {
+  ? import.meta.glob([
+      '../../../Morrowind Textures/Simply Walking/**/*.{kf,KF}',
+      "../../../Morrowind Textures/Axel's Sexy Walk Fixed/Animation/axel fixed/female/*.{kf,KF}",
+    ], {
       eager: true, query: '?url', import: 'default',
     })
   : {};
@@ -14,6 +17,7 @@ const entries = Object.entries(FILES).map(([path, url]) => ({ path: path.replace
 const standardMale = entries.find((e) => e.lower.includes('/simply walking purist edition/meshes/xbase_anim.kf'));
 const standardFemale = entries.find((e) => e.lower.includes('/simply walking purist edition/meshes/xbase_anim_female.kf'));
 const feminineFemale = entries.find((e) => e.lower.includes('/simply walking/feminine walk cycle/meshes/xbase_anim_female.kf'));
+const axelFemale = entries.find((e) => e.lower.includes("/axel's sexy walk fixed/animation/axel fixed/female/walkforward;.kf"));
 
 const cache = new Map();
 let warnedMissingWalkAssets = false;
@@ -35,22 +39,31 @@ async function bytes(entry) {
  * the female-only gait override. Callers must filter these sources to walk
  * groups so a full .kf can never silently replace idle/run/combat clips.
  */
-export async function loadWalkAnimationAssets({ female = false } = {}) {
+export async function loadWalkAnimationAssets({ female = false, femaleWalk = 'standard' } = {}) {
   if (!IN_BROWSER) return [];
   const standard = female ? standardFemale : standardMale;
+  const override = !female ? null : femaleWalk === 'female2' ? axelFemale : femaleWalk === 'female' ? feminineFemale : null;
   const selected = [];
-  if ((!standard || (female && !feminineFemale)) && !warnedMissingWalkAssets) {
+  if (!standard && !warnedMissingWalkAssets) {
     warnedMissingWalkAssets = true;
-    console.warn('[Morrowind animations] Vite did not resolve one or more requested KF assets.', inspectWalkAnimationAssets());
+    console.warn('[Morrowind animations] Vite did not resolve the standard KF asset.', inspectWalkAnimationAssets());
+  }
+  if (female && femaleWalk === 'female' && !feminineFemale && !warnedMissingWalkAssets) {
+    warnedMissingWalkAssets = true;
+    console.warn('[Morrowind animations] Vite did not resolve Feminine Walk Cycle.', inspectWalkAnimationAssets());
+  }
+  if (female && femaleWalk === 'female2' && !axelFemale && !warnedMissingWalkAssets) {
+    warnedMissingWalkAssets = true;
+    console.warn('[Morrowind animations] Vite did not resolve Axel Female 2 walk clip.', inspectWalkAnimationAssets());
   }
   try {
     if (standard) {
       const data = await bytes(standard);
-      if (data) selected.push({ name: standard.path, bytes: data, variant: 'standard' });
+      if (data) selected.push({ name: standard.path, bytes: data, variant: 'standard', walkOnly: true });
     }
-    if (female && feminineFemale) {
-      const data = await bytes(feminineFemale);
-      if (data) selected.push({ name: feminineFemale.path, bytes: data, variant: 'female' });
+    if (override) {
+      const data = await bytes(override);
+      if (data) selected.push({ name: override.path, bytes: data, variant: femaleWalk, walkOnly: true });
     }
   } catch (error) {
     console.warn('[Morrowind animations] bundled walk set failed to load; archive animations remain active:', String(error?.message ?? error));
@@ -69,6 +82,7 @@ export function inspectWalkAnimationAssets() {
     standardMale: standardMale?.path ?? null,
     standardFemale: standardFemale?.path ?? null,
     feminineFemale: feminineFemale?.path ?? null,
+    axelFemale: axelFemale?.path ?? null,
   };
 }
 
@@ -88,6 +102,8 @@ export function isWalkAnimationKey(key) {
 }
 
 /** Live preference gate used by the movement resolver. Non-walk sources are untouched. */
-export function isWalkVariantEnabled(source, femaleWalk) {
-  return !source?.walkOnly || source.walkVariant !== 'female' || !!femaleWalk;
+export function isWalkVariantEnabled(source, femaleWalk = 'standard') {
+  if (!source?.walkOnly || !source?.walkVariant || source.walkVariant === 'standard') return true;
+  const selected = typeof femaleWalk === 'boolean' ? (femaleWalk ? 'female' : 'standard') : String(femaleWalk);
+  return source.walkVariant === selected;
 }
