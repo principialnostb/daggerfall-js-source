@@ -8077,8 +8077,11 @@ export async function buildDungeonContext(deps, dfLocation, blocks, climateBaseT
     if (npcLane) {
       npcLane.end(dt, eye);
       for (const f of _npcStood) { const b = f.dead ? f.corpseBatch : f.batch; if (b) b.castOnly = npcLane.has('foe', foeId(f)); }
-      renderer.beginCharacterSpriteBatch?.();
-      try { npcLane.draw(canvas, { proj, view, eye }); } finally { renderer.flushCharacterSpriteBatch?.(); }
+      // MW-TP-MESH-ALL: drawThird now emits opaque Morrowind bodies directly in world space.
+      // Wrapping this call in the character-sprite target silently reintroduced the old finite-resolution
+      // card path: close bodies compressed and distant skin/limbs pixelated. Veiled bodies own their
+      // sprite compositor in drawVeiled(), after the opaque world pass.
+      npcLane.draw(canvas, { proj, view, eye });
     }
     for (const b of _corpseWasCast) if (!b.castOnly) _corpseLate.push(b);   // AUDIT MW-NPC II H3: its body gone this frame (the cut, the switch) - its flat on this frame after all
     if (_corpseLate.length) renderer.drawBillboards(_corpseLate, new Float32Array([-view[0], -view[4], -view[8]]), UP_Y);   // (the level's pass drew it cast-only, ahead of the sync)
