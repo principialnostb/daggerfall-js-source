@@ -188,9 +188,14 @@ export const CATEGORIES = Object.freeze([
       "GUI/LargeHUD", "GUI/LargeHUDDocked", "GUI/LargeHUDUndockedScale", "GUI/LargeHUDUndockedAlignment", "GUI/LargeHUDUndockedOffsetWeapon",
       "GUI/LargeHUDOffsetHorse"]),
   ]),
-  // ANIM-UI6: each major animation family contains smaller, independently
-  // selectable clip groups. The full third-person overhaul is separate from
-  // walk/run overrides; unsupported groups retain the game's Vanilla source.
+  tab("mods", "Mods & files", [
+    sec("files", "Your files", [
+      "card:morrowind", "card:packs"]),
+    sec("dfu", "Daggerfall Unity's mod system", [
+      "Enhancements/LypyL_ModSystem", "Enhancements/AssetInjection", "Enhancements/CompressModdedTextures", "Experimental/CustomBooksImport",
+      "Daggerfall/MyDaggerfallPath", "Daggerfall/MyDaggerfallUnitySavePath", "Daggerfall/MyDaggerfallUnityScreenshotsPath"]),
+    sec("index", "Every mod", [
+      "mods-index"]),
   tab("animations", "Анимации", [
     sec("locomotion", "Передвижение", [
       "group:running", "label:running-player", "feat:morrowind-player-run-animation",
@@ -224,31 +229,22 @@ export const CATEGORIES = Object.freeze([
       "group:death", "label:death", "info:player-death", "info:npc-death",
     ]),
   ]),
+  tab("bodies", "Тела", [
+    sec("morrowind-bodies", "Модели тел Morrowind", [
+      "feat:mw-better-bodies", "feat:mw-seamless-dmra", "feat:mw-npc-bodies", "feat:mw-billboard-look",
+    ]),
+  ]),
   tab("textures", "Текстуры", [
     sec("texture-packs", "Паки текстур и замены", [
       "feat:mw-textures-high-resolution-bodies", "feat:mw-textures-intelligent",
       "feat:mw-textures-vurt-clothes", "feat:mw-textures-better-clothes",
       "feat:mw-textures-better-armor", "feat:mw-textures-armor-joints",
       "feat:mw-textures-westly-clothiers", "feat:mw-textures-westly-faces",
-      "card:packs",
     ]),
     sec("texture-sources", "Источники и приоритеты", [
       "link:overhauls",
     ]),
   ]),
-  tab("bodies", "Тела", [
-    sec("morrowind-bodies", "Модели тел Morrowind", [
-      "feat:mw-better-bodies", "feat:mw-seamless-dmra", "feat:mw-npc-bodies", "feat:mw-billboard-look",
-    ]),
-  ]),
-  tab("mods", "Mods & files", [
-    sec("files", "Your files", [
-      "card:morrowind"]),
-    sec("dfu", "Daggerfall Unity's mod system", [
-      "Enhancements/LypyL_ModSystem", "Enhancements/AssetInjection", "Enhancements/CompressModdedTextures", "Experimental/CustomBooksImport",
-      "Daggerfall/MyDaggerfallPath", "Daggerfall/MyDaggerfallUnitySavePath", "Daggerfall/MyDaggerfallUnityScreenshotsPath"]),
-    sec("index", "Every mod", [
-      "mods-index"]),
   ]),
 ]);
 
