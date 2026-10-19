@@ -64,7 +64,7 @@ const addDataFilesAsset = (rel, url, packageName, bucket) => {
 };
 
 const packEnabled = Object.freeze({
-  betterBodies: true, // Better Bodies is the core body default; its skin is a fallback layer.
+  betterBodies: modSetting('morrowind-textures', 'BetterBodies') !== false, // Enabled by default; its skin is a fallback layer.
   intelligentTextures: !!modSetting('morrowind-textures', 'IntelligentTextures'),
   vurtClothes: !!modSetting('morrowind-textures', 'VurtsBetterClothes'),
   betterClothes: !!modSetting('morrowind-textures', 'BetterClothesRetextured'),
@@ -83,6 +83,7 @@ for (const [source, url] of Object.entries(FILES)) {
   // high-resolution female texture replacer.
   const bbRel = relAfter(path, lower, '/better bodies/');
   if (bbRel && /^nude\/data files\/textures\//i.test(bbRel)) {
+    if (!packEnabled.betterBodies) continue;
     const rel = bbRel.replace(/^nude\/data files\//i, '');
     const match = rel.match(/^textures\/(.+\.(?:dds|tga))$/i);
     if (match) addAsset(baseBodyTextureUrls, 'textures/' + match[1], url, 'Better Bodies fallback');
