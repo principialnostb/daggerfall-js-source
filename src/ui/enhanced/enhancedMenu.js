@@ -193,7 +193,7 @@ import { openPlusPadBinds, plusPadLegend } from '../plus/plusPadBinds.js';   // 
 import { plusBindsOpen, resetPlusDpad } from '../plus/plusPad.js';
 import { peerBindBusy } from '../peerMenuBindCard.js';   // PEERMENU1   // PADPLUS10: the window over this one answers its own keys
 import { modKeyRows } from '../../systems/controlsConfig.js';   // UXB1-F: a mod's keys, read-only on its tile
-import { MOD_SETTINGS, modSetting, setModSetting, onlineModSetting, isIntKey, isFloatKey, isChoiceKey, isTextKey, isTupleKey } from '../../systems/modSettings.js';   // REALM P0.2: onlineModSetting, the room's value for a key it owns (whole mods included)
+import { MOD_SETTINGS, modSetting, setModSetting, modSettingNotice, onlineModSetting, isIntKey, isFloatKey, isChoiceKey, isTextKey, isTupleKey } from '../../systems/modSettings.js';   // REALM P0.2: onlineModSetting, the room's value for a key it owns (whole mods included)
 import { keyCodeForDomCode, KEYCODE_NONE } from '../../systems/keyCodes.js';   // HT1: a TextKey's capture spells the key as Unity would
 import { isOnlinePage, onlineForcedPref, onlineForcedModSetting, onlineForcedSetting, onlineWholeModKey, ONLINE_ROOM_MOD_KEYS } from '../../systems/online/onlineLane.js';   // OL1: online is the enhanced lane, whole - a forced switch is shown locked   // ROADS 24; DS1: the integer keys; UL1: the choice keys
 import { onlineSyncPlan, applyOnlineSync, lastOnlineSync, undoOnlineSync } from '../../systems/online/onlineSync.js';   // UXB1-E: the room's rules, copied home
@@ -3592,13 +3592,13 @@ export function tileStates(f) {   // FT18: exported for the All off pins, which 
       ? raw : Math.max(0, Math.min(def.options.length - 1, fallback));
     return { labels: Array.from(def.options, (label) => String(label)), at,
       locked: onlineForcedModSetting(c.vendor, c.key) !== undefined,
-      set: (i) => setModSetting(c.vendor, c.key, i) };
+      set: (i) => { const value = setModSetting(c.vendor, c.key, i); TILE_AFTER[c.key]?.(); return value; } };
   }
   // A vendored mod's Enabled - the player's online too (MODS-ONLINE-2), but for the road switches the room's ground depends on
   const on = modSetting(c.vendor, c.key) === true || modSetting(c.vendor, c.key) === 'True';
   return { labels: ['Off', 'On'], shown: toggleWords(), at: on ? 1 : 0,
     locked: onlineForcedModSetting(c.vendor, c.key) !== undefined,
-    set: (i) => setModSetting(c.vendor, c.key, i === 1) };
+    set: (i) => { const value = setModSetting(c.vendor, c.key, i === 1); TILE_AFTER[c.key]?.(); return value; } };
 }
 /** L10N4: what a two-state bar SHOWS for its law's ['Off', 'On'] - the labels stay the law's words (All off, the
  *  switch reading and Restore find Off by them), the shown words are the player's language. */
@@ -3631,7 +3631,8 @@ const rebuildMorrowindBody = async () => {
 };
 const TILE_AFTER = Object.freeze({
   mwSheathing: rebuildMorrowindBody,
-  mwSteelHelm: rebuildMorrowindBody,   // MW-STEEL1: the steel helm's style, closed or open, on the standing body at once
+  mwSteelHelm: rebuildMorrowindBody,
+  BetterBodies: rebuildMorrowindBody,   // MW-STEEL1: the steel helm's style, closed or open, on the standing body at once
 });
 
 /**
@@ -3704,6 +3705,8 @@ export function featureTile(f) {
   if (st) ctl.append(segBar(st, f.title));
   else ctl.append(featureRow(f));
   tile.append(ctl);
+  const settingNotice = c.store === 'mods' ? modSettingNotice(c.vendor, c.key) : '';
+  if (settingNotice) tile.append(el('p', 'meta ft-tile-notice', settingNotice));
 
   // the drawer's door: a mod's modules and dials.
   //
