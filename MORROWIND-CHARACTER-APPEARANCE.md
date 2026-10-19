@@ -93,3 +93,11 @@ This is the target contract, not a statement that all stages are implemented:
 - [ ] Clothing and armor still fit and cover the selected body correctly.
 - [ ] Missing assets produce an explicit diagnostic and a documented fallback.
 - [ ] Build/tests and in-game checks are recorded separately; source inspection alone is not visual validation.
+
+
+## Editor preview corrections — 2026-10-19
+
+- The preview canvas now resizes its backing bitmap to the rendered viewport dimensions. Previously a fixed 900×1080 backing bitmap was stretched to the editor's responsive panel, which distorted the displayed character on common wide layouts and made the click-to-select body zones disagree with the visible figure.
+- The appearance editor now uses the same restrained charcoal-and-brass visual language as the enhanced game UI: dark framed panels, warm gold focus states, square beveled controls, and serif headings instead of the previous green-tinted custom palette.
+- `bb_skinf_no-uv-edits.json` from `morrowind.v3` is included by the Better Bodies asset resolver in `morrowind.v4`. It contains **UV texture-coordinate transforms per NIF mesh section**, not world-space/body vertex coordinates. It is useful for aligning the skin texture, but it cannot repair a skeletal bind or a body mesh whose parts are spatially displaced.
+- These changes address the preview's CSS aspect-ratio distortion and the editor's visual mismatch. They do not constitute a verified fix for every possible NIF/skeleton alignment issue; that still requires a visual runtime check against the v3 preview and in-game character.

@@ -65,6 +65,37 @@ const STYLE = `
 #mw-appearance-editor .mw-status-message{position:absolute;left:18px;right:18px;top:50%;transform:translateY(-50%);text-align:center;padding:18px;color:#deded3;font-size:13px;pointer-events:none}
 @media(max-width:850px){#mw-appearance-editor .mw-editor-shell{height:96vh}#mw-appearance-editor .mw-main{grid-template-columns:minmax(0,1fr) minmax(310px,.9fr)}#mw-appearance-editor .mw-preview-side{padding:12px}#mw-appearance-editor .mw-controls-head{padding:15px}#mw-appearance-editor .mw-control-list{padding:10px}#mw-appearance-editor .mw-slider-row{grid-template-columns:95px minmax(60px,1fr) 36px;gap:7px}}
 @media(max-width:650px){#mw-appearance-editor{padding:0}#mw-appearance-editor .mw-editor-shell{width:100%;height:100dvh;min-height:0;border-radius:0;border:0}#mw-appearance-editor .mw-topbar{padding:12px 14px}#mw-appearance-editor .mw-title{font-size:16px}#mw-appearance-editor .mw-subtitle{font-size:11px}#mw-appearance-editor .mw-state{display:none}#mw-appearance-editor .mw-main{grid-template-columns:1fr;grid-template-rows:minmax(230px,.85fr) minmax(0,1.15fr)}#mw-appearance-editor .mw-preview-side{padding:10px;grid-template-rows:auto minmax(0,1fr) auto}#mw-appearance-editor .mw-preview-head{padding-bottom:6px}#mw-appearance-editor .mw-preview-tools{padding-top:7px}#mw-appearance-editor .mw-controls{border-left:0;border-top:1px solid var(--mw-line)}#mw-appearance-editor .mw-controls-head{padding:12px 15px}#mw-appearance-editor .mw-controls-head h2{font-size:17px}#mw-appearance-editor .mw-control-list{padding:9px 12px}#mw-appearance-editor .mw-group{margin-bottom:8px}#mw-appearance-editor .mw-footer{padding:10px 12px}#mw-appearance-editor .mw-footer-note{display:none}#mw-appearance-editor .mw-hint{max-width:46%;font-size:10px}}
+/* Shared visual language with the game's enhanced menu and inventory: charcoal panels, brass focus, square bevels. */
+#mw-appearance-editor{--mw-bg:#17191c;--mw-panel:#202328;--mw-panel-raised:#292d33;--mw-line:#454a52;--mw-text:#e8e1d2;--mw-muted:#aaa79f;--mw-accent:#b99a5b;--mw-accent-strong:#e1c783;background:rgba(4,5,7,.86);font-family:Georgia,'Times New Roman',serif}
+#mw-appearance-editor .mw-editor-shell{background:var(--mw-bg);border:1px solid #8c7548;outline:1px solid #29251d;box-shadow:0 0 0 3px #090a0c,0 24px 80px #000e}
+#mw-appearance-editor .mw-topbar{background:linear-gradient(#303238,#24272c 55%,#1b1d21);border-bottom:1px solid #786541}
+#mw-appearance-editor .mw-mark{border:1px solid #8b754a;color:#e1c783;background:#17191d;box-shadow:inset 0 0 0 2px #393127}
+#mw-appearance-editor .mw-state{border-color:#5e5038;border-radius:2px;color:#e1d2ad;background:#28251f}
+#mw-appearance-editor .mw-state:before{background:#c7a45c;box-shadow:0 0 7px #c7a45c55}
+#mw-appearance-editor .mw-preview-side{background:radial-gradient(ellipse at 50% 38%,#34373b 0,#25282d 45%,#17191c 82%)}
+#mw-appearance-editor .mw-section-title{color:#e1c783;letter-spacing:.08em}
+#mw-appearance-editor .mw-canvas-wrap{border:1px solid #66583e;border-radius:2px;background:radial-gradient(ellipse at 50% 40%,#35383d 0,#25282d 48%,#17191c 82%)}
+#mw-appearance-editor .mw-controls{border-left:1px solid #45413a;background:#1b1d21}
+#mw-appearance-editor .mw-controls-head{border-bottom:1px solid #49443a}
+#mw-appearance-editor .mw-controls-head h2{color:#e8e1d2;font-family:Georgia,'Times New Roman',serif;font-weight:700}
+#mw-appearance-editor .mw-zone-btn{color:#d3c8ad;background:#25272b;border-color:#4b463b;border-radius:2px}
+#mw-appearance-editor .mw-zone-btn.active{background:#51452e;color:#fff0c8;border-color:#c5a35c;box-shadow:inset 0 -2px #d8b96f}
+#mw-appearance-editor .mw-underwear{border-color:#514939;background:#24241f;color:#e8e1d2}
+#mw-appearance-editor .mw-group{border-color:#45413a;border-radius:2px;background:#222429}
+#mw-appearance-editor .mw-group-head{border-bottom-color:#49443a;background:#2b2d32}
+#mw-appearance-editor .mw-group-title{color:#e1c783}
+#mw-appearance-editor .mw-slider-row{border-bottom-color:#383a3f}
+#mw-appearance-editor .mw-slider-label{color:#e2ddd2}
+#mw-appearance-editor input[type=range]{border-color:#5b513d;background:linear-gradient(90deg,#b99a5b 0%,#b99a5b var(--range-fill,50%),#303238 var(--range-fill,50%),#303238 100%)}
+#mw-appearance-editor input[type=range]::-webkit-slider-thumb{border-color:#e2c783;background:linear-gradient(#f0d99c,#a98543);box-shadow:0 1px 3px #0009}
+#mw-appearance-editor input[type=range]::-moz-range-thumb{border-color:#e2c783;border-radius:1px;background:linear-gradient(#f0d99c,#a98543);box-shadow:0 1px 3px #0009}
+#mw-appearance-editor .mw-footer{border-top-color:#45413a;background:#191b1f}
+#mw-appearance-editor .mw-btn{border-color:#62563e;border-radius:2px;background:linear-gradient(#37383b,#25272b);color:#e7dfcf;font-family:Georgia,'Times New Roman',serif}
+#mw-appearance-editor .mw-btn:hover{background:#454039;border-color:#c2a15d}
+#mw-appearance-editor .mw-btn-primary{border-color:#d3b46a;background:linear-gradient(#e2c982,#a78342);color:#1b1914}
+#mw-appearance-editor .mw-btn-primary:hover{background:linear-gradient(#f0dba0,#c29d53);border-color:#f0dba0}
+#mw-appearance-editor .mw-close{border-radius:2px}
+#mw-appearance-editor .mw-status-message{color:#e8e1d2}
 `;
 
 export function openAppearanceEditor({ fpArm, onClose = () => {} } = {}) {
@@ -219,6 +250,13 @@ export function openAppearanceEditor({ fpArm, onClose = () => {} } = {}) {
   const keydown = (e) => { if (e.key === 'Escape') close(); };
   window.addEventListener('keydown', keydown);
   document.body.append(root);
+  const resizeObserver = typeof ResizeObserver === 'function'
+    ? new ResizeObserver(() => {
+      if (frame) return;
+      frame = requestAnimationFrame(() => { frame = 0; drawPreview(); });
+    })
+    : null;
+  resizeObserver?.observe(preview);
   drawPreview();
   void buildPreviewRig();
 
@@ -282,7 +320,13 @@ export function openAppearanceEditor({ fpArm, onClose = () => {} } = {}) {
       return;
     }
     try {
-      const image = previewRig.figure({ yaw, height: Math.min(1024, Math.max(640, Math.round(preview.height * 0.95))), force: true, neutral: true });
+      // Match the backing bitmap to the real viewport. A fixed 900x1080 bitmap
+      // stretched by CSS compressed the model on wide layouts.
+      const viewportWidth = Math.max(1, Math.round(preview.clientWidth || 900));
+      const viewportHeight = Math.max(1, Math.round(preview.clientHeight || 1080));
+      if (preview.width !== viewportWidth) preview.width = viewportWidth;
+      if (preview.height !== viewportHeight) preview.height = viewportHeight;
+      const image = previewRig.figure({ yaw, height: Math.min(1024, Math.max(640, Math.round(viewportHeight * 0.95))), force: true, neutral: true });
       const ctx = preview.getContext('2d');
       if (!ctx) return;
       ctx.clearRect(0, 0, preview.width, preview.height);
@@ -313,6 +357,7 @@ export function openAppearanceEditor({ fpArm, onClose = () => {} } = {}) {
     if (closed) return;
     closed = true;
     if (frame) cancelAnimationFrame(frame);
+    resizeObserver?.disconnect?.();
     previewRig?.unload?.(); previewRig = null;
     window.removeEventListener('keydown', keydown);
     root.remove(); onClose();
