@@ -40,6 +40,12 @@ UV-edit caution: the checked-in UV-edit JSON was authored for the Nord female me
 - The editor has 19 persisted body controls grouped by anatomical region. Breast, breast projection, waist, abdomen, hip, buttock, shoulder, ribcage, arm, thigh, calf, limb length, leg spacing, body width, overall fullness and height now use localized vertex morphs in a shared whole-body coordinate frame; head size uses a head-bone scale. These are early generic transforms based on approximate body-height zones, not calibrated per race/sex/NIF. Visual QA is still required to confirm natural falloffs and fit with equipment.
 - The equipment PaperDoll must not be substituted for the preview: it is not the live morphed 3D body.
 
+### Preview regression isolation (2026-10-19)
+
+- The editor's standalone preview temporarily opts out of Better Bodies replacement meshes while retaining the separate player-appearance rig and vertex morphs. This restores the known-good race/sex body assembly instead of binding Better Bodies' source mesh through the gameplay skeleton, which caused the preview geometry to distort.
+- This is a containment fix, not the final asset goal: the preview does **not** currently prove that the Better Bodies geometry/texture pair is rendered correctly. The correct next implementation is a preview path that skins the Better Bodies NIF against its own compatible bind skeleton (as `better-bodies-preview.html` does), then applies race skin tinting and anatomical morphs without reusing the incompatible gameplay bind. Do not re-enable Better Bodies in the editor preview until that path is validated.
+- In-world Better Bodies selection remains enabled; the opt-out is scoped to `createAppearancePreviewRig()` only. Runtime visual verification is still required.
+
 ### Body morph and underwear update (2026-10-19)
 
 - [x] The Better Bodies resolver now supports the matching race/sex meshes and textures from both `Better Bodies/Nude` and `Better Bodies/Underwear`. The editor checkbox selects between these asset sets; the default is Nude.
