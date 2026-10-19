@@ -120,7 +120,7 @@ The v4 idle body-yaw latch was rolled back after the reported runtime symptom re
 
 ## Actor-specific walk controls update — 2026-10-19
 
-The **Settings → Animations** page uses shared animation-family sub-pages, not actor-first navigation. The top-level families are **Ходьба / бег**, **Повороты / стойка / скрытность**, **Бой / атаки / блок**, **Магия / заклинания**, **Действия / взаимодействие**, **Прыжки / плавание / падения**, and **Получение урона / падение / смерть**. Inside each selected family, player controls are listed first, then NPC controls. Walking and running remain one locomotion family; the active walk packs only replace walk groups, so run stays vanilla until a separate compatible run source is wired. Walk sources persist independently through the existing mod-settings store, with **Vanilla first**:
+The **Settings → Animations** page uses shared animation-family sub-pages, not actor-first navigation. The top-level families are **Ходьба / бег**, **Повороты / стойка / скрытность**, **Бой / атаки / блок**, **Магия / заклинания**, **Действия / взаимодействие**, **Прыжки / плавание / падения**, and **Получение урона / падение / смерть**. Inside each selected family, player controls are listed first, then NPC controls. Walking and running remain one locomotion family; the active walk packs only replace walk groups, so run stays vanilla until a separate compatible run source is wired. Locomotion sources persist independently through the existing mod-settings store, with **Vanilla first**:
 
 - Player: Vanilla / Simply Walking / Axel's Sexy Walk Fixed.
 - Male NPCs: Vanilla / Simply Walking.
@@ -143,7 +143,7 @@ The **Settings → Animations** tab groups controls by shared family: walk/run, 
 Pack-to-category audit:
 - **Simply Walking Purist Edition**: runtime intentionally imports only walk groups; assigned to walk/movement.
 - **Simply Walking**: one user-facing pack; male characters use Purist Edition and female characters use the internal Feminine Walk Cycle source.
-- **Axel's Sexy Walk Fixed**: runtime imports only `WalkForward;.kf`; its `Idle4`, `Idle5`, and `RunForward` files are present in the pack but deliberately not active.
+- **Axel's Sexy Walk Fixed**: runtime imports `WalkForward;.kf` for walking and `RunForward;.kf` for running under the same locomotion selector. `Idle4;.kf` and `Idle5;.kf` remain inactive until the engine's idle-state/group resolver is confirmed to request those exact optional groups.
 - **Morrowind Animation Overhaul**: files include broader movement and combat groups, but are not wired into gameplay. The repository audit records a restriction on reusing/converting these assets without permission.
 - **OpenMW Dynamic Actors (#54782)**: candidate reference, not a runtime animation provider in this port.
 - **Animation Blending (#53779)**: MWSE Lua plugin is not executable in this browser runtime; pose blending is a separate native JS feature, not a clip category.
