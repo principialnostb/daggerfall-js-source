@@ -2081,8 +2081,14 @@ function paintOptionsBody(body, { pause = false } = {}) {
         subnav.append(subnavGroup);
         body.append(subnav);
       }
-      const n = selected.nodes.filter(isOptionNode).length;
-      body.append(sectionHead(tab, selected.s, n), ...selected.nodes);
+      // Subgroup selectors are already rendered in the top navigation. Remove
+      // the in-list marker buttons as well, otherwise one subgroup (often Ходьба)
+      // appears again below the other group's settings and looks missing initially.
+      const nodes = subgroups.length
+        ? selected.nodes.filter((node) => !node.classList?.contains('animation-clip-group'))
+        : selected.nodes;
+      const n = nodes.filter(isOptionNode).length;
+      body.append(sectionHead(tab, selected.s, n), ...nodes);
     } else body.append(empty('Nothing here'));
   } else {
     if (sections.length >= 3 && !pause) {
