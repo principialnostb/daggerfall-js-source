@@ -40,6 +40,17 @@ UV-edit caution: the checked-in UV-edit JSON was authored for the Nord female me
 - The editor currently has twelve body controls grouped into basic proportions, torso/chest/waist, hips/buttocks, and limbs. Values are persisted and supplied to the preview rig. Breast/waist/buttock/hip values deform body-piece vertices; shoulder/torso/head/arm/leg controls scale matching skeleton bones; leg spacing offsets paired thigh bones. These are early generic transforms, not calibrated per race/sex/NIF, and some controls may have weak or inconsistent visual impact depending on skeleton naming and mesh slot. `height` and `bodyWidth` still apply an overall model scale in the portrait renderer.
 - The equipment PaperDoll must not be substituted for the preview: it is not the live morphed 3D body.
 
+### Body morph and underwear update (2026-10-19)
+
+- [x] The Better Bodies resolver now supports the matching race/sex meshes and textures from both `Better Bodies/Nude` and `Better Bodies/Underwear`. The editor checkbox selects between these asset sets; the default is Nude.
+- [x] The underwear preference is persisted separately from morph sliders. Toggling it through the editor requests a player-rig rebuild, and the editor rebuilds its isolated preview so the selected body variant is visible there too. When underwear is enabled, subsequent body builds (including after equipment changes) read the same preference.
+- [x] Replaced the former fixed pelvis/chest/shoulder/thigh scale offsets with localized vertex morphs based on shared whole-body bounds. New controls cover ribcage width, breast volume/projection, abdomen volume, buttock volume/projection, arm thickness/length, thigh/calf thickness, leg length and leg spacing. Body width and height now use the same vertex deformation in the preview and world model rather than portrait-only scaling.
+- [x] While any body morph is non-zero, the third-person body uses the CPU skinning path so the deformed vertices are actually uploaded to the world renderer. The ordinary GPU skinning path remains available when all morph values are reset.
+- [x] The editor now uses compact settings-menu styling, filled range tracks with tactile handles, numeric value chips, and filters for anatomical control groups.
+- [x] `better-bodies-preview.html` and `src/tools/paperdoll/betterBodiesPreview.js` are already present in `morrowind.v4`; the tool selects NIF mesh sections for UV inspection, not named anatomical bones. It is useful for inspecting source geometry, but it is not itself an anatomical morph editor.
+- [ ] Run the game and validate that Nude/Underwear selection is correct for each supported race/sex, that equipment rebuilds preserve the preference, and that the local morph falloffs look natural on the actual NIF meshes.
+- [ ] The anatomy zones use approximate whole-body coordinates. The new controls have distinct vertex transforms, but they still need visual calibration against each Better Bodies mesh and sex. Do not claim the sliders are fully production-calibrated until this QA is complete.
+
 ### Editor UI presentation update (2026-10-19)
 
 - [x] Reworked `src/ui/appearanceEditor.js` with a Morrowind-inspired charcoal/stone palette, aged-brass borders, warm gold highlights, serif typography, and squared beveled controls. The preview and controls now share a visual system with restrained borders, spacing, typography, grouped control panels, clearer hierarchy, and consistent button states.
