@@ -228,6 +228,23 @@ for (const [source, url] of Object.entries(FILES)) {
   }
 }
 
+
+// Apply package precedence explicitly, independent of glob enumeration order.
+// BMA and its joint patch outrank generic texture replacements where UVs differ;
+// Westly's head/hair assets win last for their own model and texture keys.
+Object.assign(
+  assetUrls,
+  baseBodyTextureUrls,
+  dmraAssetUrls,
+  intelligentTextureUrls,
+  vurtClothesTextureUrls,
+  betterClothesTextureUrls,
+  armorTextureUrls,
+  armorJointsUrls,
+  clothierAssetUrls,
+  faceTextureUrls,
+);
+
 // High-resolution body textures are selected lazily. Underwear/body-hair are
 // editor preferences and may change while the game is running; a fixed URL map
 // here would keep serving the first texture until a page reload. The archive
@@ -260,21 +277,6 @@ for (const key of highResolutionKeys) {
   };
 }
 
-// Apply package precedence explicitly, independent of glob enumeration order.
-// BMA and its joint patch outrank generic texture replacements where UVs differ;
-// Westly's head/hair assets win last for their own model and texture keys.
-Object.assign(
-  assetUrls,
-  baseBodyTextureUrls,
-  dmraAssetUrls,
-  intelligentTextureUrls,
-  vurtClothesTextureUrls,
-  betterClothesTextureUrls,
-  armorTextureUrls,
-  armorJointsUrls,
-  clothierAssetUrls,
-  faceTextureUrls,
-);
 
 const fetchBytes = async (url) => {
   const response = await fetch(url);
