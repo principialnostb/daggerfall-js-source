@@ -70,7 +70,7 @@ export async function loadWalkAnimationAssets({ female = false } = {}) {
     }
     for (const { entry, variant, family } of overrides) {
       if (!entry) {
-        console.warn('[Morrowind animations] Vite did not resolve optional female walk source:', variant, inspectWalkAnimationAssets());
+        console.warn('[Morrowind animations] Vite did not resolve optional female locomotion source:', family, variant, inspectWalkAnimationAssets());
         continue;
       }
       const data = await bytes(entry);
