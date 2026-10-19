@@ -101,3 +101,12 @@ Both the Standard and Female walk sources are loaded for female rigs. The moveme
 - The loader resolves the actual checked-in KF files from `Morrowind Textures/Simply Walking`. It logs the selected replacement source when a walk clip starts; failed URL resolution, parse/binding errors, and missing walk groups log warnings and fall back to the game's source.
 - The `53779` Animation Blending download is an MWSE Lua plugin, not a browser JavaScript module. The port uses its own native pose cross-fade implementation; it does not execute the Lua script. That implementation still requires in-game verification.
 - Nexus `60253` Morrowind Animation Overhaul explicitly disallows conversion to other games and asset use without permission. Its attack/combat KF files are therefore **not wired into this public port** without author permission. The currently integrated Simply Walking/Feminine Walk Cycle resources are walk-only; attacks remain the original game's clips.
+
+
+### Body-facing regression follow-up (2026-10-19)
+
+The v3 baseline passed the camera yaw directly into the third-person body renderer; MW-D40 introduced an idle-facing latch so the camera can orbit without turning a stationary actor. The latch must not preserve climb-release state after ordinary movement resumes. A stale `_bodyYaw` or `_bodyYawOff` could otherwise be returned again when movement ended, making the model appear locked to an old direction even though the camera and movement input had changed.
+
+When view-facing resumes outside an active climb or seat, the motor now clears those stale overrides and stores the current view yaw as the new idle-facing value. This follows the global 2D-sprite lane's intended control rule at the host seam: use the current view direction when movement/first-person/combat requires it, but keep the last valid facing while the camera orbits during idle. The 2D sprite's billboard plane itself remains camera-facing; the 3D Morrowind rig still receives its own body yaw.
+
+Regression tests cover stale body yaw and climb-release offset cleanup, including the transition back to idle. These are source-level tests; a browser build and in-game check are still required to confirm the reported frozen-facing issue is gone in both exterior and dungeon scenes.
