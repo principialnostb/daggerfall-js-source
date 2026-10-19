@@ -94,6 +94,12 @@ import { getPref } from '../systems/uiPrefs.js';   // MW-STEEL1: the Steel Helm 
 import { skinMips, skinUseOf, skinUseKey } from '../characters/werewolfSkin.js';   // SHADOW-FANG: the werewolf's skin, a law over its own textures
 import { correctTexturePath, correctActorModelPath, wrapModes, warningImage, decodeTextureImage } from '../formats/morrowind/mwTexture.js';
 const betterBodiesAssetByteCache = new Map();
+const BODY_GEOMETRY_MORPH_KEYS = Object.freeze([
+  'height', 'bodyWidth', 'bodyFullness', 'shoulderWidth', 'ribcageWidth',
+  'breastSize', 'breastProjection', 'waistWidth', 'abdomenVolume', 'hipWidth',
+  'buttockSize', 'buttockProjection', 'armThickness', 'armLength',
+  'thighThickness', 'calfThickness', 'legLength', 'legGap',
+]);
 async function loadBetterBodiesAssetBytes(url, label) {
   let pending = betterBodiesAssetByteCache.get(url);
   if (!pending) {
@@ -4346,13 +4352,9 @@ export function createFpArm({ playerAppearance = false } = {}) {
     // is a skeleton transform and remains compatible with GPU skinning.
     if (playerAppearance) {
       const morph = getBodyMorphs();
-      const geometryKeys = [
-        'height', 'bodyWidth', 'bodyFullness', 'shoulderWidth', 'ribcageWidth',
-        'breastSize', 'breastProjection', 'waistWidth', 'abdomenVolume', 'hipWidth',
-        'buttockSize', 'buttockProjection', 'armThickness', 'armLength',
-        'thighThickness', 'calfThickness', 'legLength', 'legGap',
-      ];
-      const geometryMorphActive = geometryKeys.some((key) => Math.abs(Number(morph[key]) || 0) > 0.0001);
+      const geometryMorphActive = BODY_GEOMETRY_MORPH_KEYS.some(
+        (key) => Math.abs(Number(morph[key]) || 0) > 0.0001,
+      );
       if (geometryMorphActive) {
         if (thirdSkin || thirdMesh?.skin) releaseThirdMesh();
         thirdSkinRefused = null;
