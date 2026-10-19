@@ -84,7 +84,7 @@ import { DFPalette } from '../formats/dfPalette.js';
 import { raceArt } from '../systems/races.js';
 import { appStorage } from '../systems/appStorage.js';   // DA1: the storage seam
 import { modSetting } from '../systems/modSettings.js';
-import { loadWalkAnimationAssets, isWalkAnimationGroup, isWalkAnimationKey, isRunAnimationGroup, isRunAnimationKey, isWalkVariantEnabled, walkVariantForActor } from '../formats/morrowind/mwWalkAnimationAssets.js';
+import { loadWalkAnimationAssets, isWalkAnimationGroup, isWalkAnimationKey, isRunAnimationGroup, isRunAnimationKey, isWalkVariantEnabled, isRunVariantEnabled, walkVariantForActor, runVariantForActor } from '../formats/morrowind/mwWalkAnimationAssets.js';
 import { drawRigSpriteBox, MW_THIRD_PERSON_PIXEL } from '../render/characterSprite.js';
 import { WEAPONS } from '../characters/weapons.js';
 import { materialName } from '../systems/item/itemInfo.js';
@@ -2346,7 +2346,9 @@ async function buildTpBody({
           trackMap: report.trackMap,
           binding: report.binding,
           wouldAccumRoot: accumRootRef(arm.skeleton, report.trackMap),
-          walkOnly: true,
+          walkOnly: asset.family === 'walk',
+          runOnly: asset.family === 'run',
+          animationFamily: asset.family,
           walkVariant: asset.variant,
         });
       }
@@ -3756,7 +3758,7 @@ export function createFpArm({ playerAppearance = false } = {}) {
   let movementGroup = null;
   let movementSource = null;
   let movementBase = null;
-  let movementWalkPreference = null;
+  let movementClipPreference = null;
   let movementStance = null;
   let movementRate = 1;
   // MW-D39: THE FOURTH SLOT - JUMP. Priority_Jump sits BELOW
@@ -4843,7 +4845,7 @@ export function createFpArm({ playerAppearance = false } = {}) {
   }
 
   function resetMovement() {
-    movementState = null; movementGroup = null; movementSource = null; movementBase = null; movementWalkPreference = null;
+    movementState = null; movementGroup = null; movementSource = null; movementBase = null; movementClipPreference = null;
     movementStance = null;
   }
 
@@ -5000,18 +5002,30 @@ export function createFpArm({ playerAppearance = false } = {}) {
     // frame - the port's old gate keyed on the movestate name alone and
     // kept the bare-handed walk playing with the sword out.
     const stance = stanceOf();   // MWNPC9: a non-biped's bare walk
-    const walkPreference = /^(?:walk|run)/i.test(base) ? walkVariantForActor({
+    const isWalkingGroup = isWalkAnimationGroup(base);
+    const isRunningGroup = isRunAnimationGroup(base);
+    const actorOptions = {
       player: playerAppearance,
       ownHeads: !!lastBuildOpts?.ownHeads,
       female: !!lastBuildOpts?.female,
+    };
+    const movementPreference = isWalkingGroup ? walkVariantForActor({
+      ...actorOptions,
       playerChoice: modSetting('morrowind-animation', 'PlayerWalkSource') ?? 0,
       npcMaleChoice: modSetting('morrowind-animation', 'NpcMaleWalk') ?? 0,
       npcFemaleChoice: modSetting('morrowind-animation', 'NpcFemaleWalk') ?? 0,
-    }) : false;
-    const preferenceChanged = movementWalkPreference !== (/^(?:walk|run)/i.test(base) ? walkPreference : null);
+    }) : isRunningGroup ? runVariantForActor({
+      ...actorOptions,
+      playerChoice: modSetting('morrowind-animation', 'PlayerRunSource') ?? 0,
+      npcMaleChoice: 0,
+      npcFemaleChoice: modSetting('morrowind-animation', 'NpcFemaleRun') ?? 0,
+    }) : null;
+    const preferenceKey = isWalkingGroup ? `walk:${movementPreference}`
+      : isRunningGroup ? `run:${movementPreference}` : null;
+    const preferenceChanged = movementClipPreference !== preferenceKey;
     const fresh = preferenceChanged || !(movementState && movementState.playing
       && movementBase === base && movementStance === stance);
-    if (fresh) movementWalkPreference = /^(?:walk|run)/i.test(base) ? walkPreference : null;
+    if (fresh) movementClipPreference = preferenceKey;
     if (fresh) {
       const composed = composeMovementGroup(base, stance, hasGroup);
       if (!composed.group) {
@@ -5021,8 +5035,11 @@ export function createFpArm({ playerAppearance = false } = {}) {
       }
       if (!(movementState && movementState.playing && movementGroup === composed.group && !preferenceChanged)) {
         const startPoint = movementGroup === composed.group ? clipCompletion(movementState) : 0;
-        const walkChoice = walkPreference || 'standard';
-        const movementSources = rig().sources.filter((source) => isWalkVariantEnabled(source, walkChoice));
+        const movementSources = rig().sources.filter((source) => {
+          if (isWalkingGroup) return isWalkVariantEnabled(source, movementPreference ?? 'vanilla');
+          if (isRunningGroup) return isRunVariantEnabled(source, movementPreference ?? 'vanilla');
+          return !source?.walkOnly && !source?.runOnly;
+        });
         const pick = pickAnimSource(movementSources, composed.group, resetClip,
           { loopFallback: true, loopCount: Infinity, startPoint });
         if (!pick) {
