@@ -1853,12 +1853,19 @@ function itemNodes(item, ctx) {
     button.type = 'button';
     button.setAttribute('aria-expanded', String(animationClipGroup === group));
     button.addEventListener('click', (event) => {
-      // Keep clip-family navigation local to this control. The settings shell
-      // has outer click handlers too, and must not consume this selection.
+      // This is a nested selector, not a settings-row action. Keep the outer
+      // menu from interpreting the click, update the selected clip family,
+      // and repaint the same live body node so the matching controls replace
+      // the previous family's controls immediately.
       event.preventDefault();
       event.stopPropagation();
+      animationSection = 'locomotion';
       animationClipGroup = group;
-      if (ctx.body) paintOptionsBody(ctx.body, { pause: ctx.pause });
+      const body = ctx.body;
+      if (!body || !body.isConnected) return;
+      paintOptionsBody(body, { pause: ctx.pause });
+      // Keep the family selector in view after the section is repainted.
+      body.querySelector('.animation-clip-group.is-active')?.scrollIntoView?.({ block: 'nearest', inline: 'nearest' });
     });
     return [button];
   }
