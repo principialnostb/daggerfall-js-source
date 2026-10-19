@@ -177,7 +177,7 @@ export function openAppearanceEditor({ fpArm, onClose = () => {} } = {}) {
   if (typeof document === 'undefined' || !document.body) return null;
   document.getElementById('mw-appearance-editor')?.remove();
 
-  let yaw = 0, zoom = 1, frame = 0, morphPreviewTimer = 0, closed = false, previewRig = null, previewBuildPending = false, previewRebuildRequested = false, previewError = '';
+  let yaw = 0, zoom = 1, frame = 0, closed = false, previewRig = null, previewBuildPending = false, previewRebuildRequested = false, previewError = '';
   const initialIdentity = fpArm?.builtFor?.() || {};
   const savedIdentity = getAppearanceIdentity();
   let selectedRace = String(savedIdentity?.race || initialIdentity.race || 'nord').toLowerCase();
@@ -365,8 +365,10 @@ export function openAppearanceEditor({ fpArm, onClose = () => {} } = {}) {
         output.textContent = formatValue(value);
         input.style.setProperty('--range-fill', (((value + 1) / 2) * 100) + '%');
         window.dispatchEvent(new CustomEvent('mw-body-morph-change', { detail: getBodyMorphs() }));
+        // figure({ force: true }) re-poses and re-skins the already-built preview
+        // with the latest morph values. Do not unload/rebuild the rig for a slider:
+        // that caused a visible delay and made the preview look stale while dragging.
         drawPreview();
-        schedulePreviewRigRebuild();
       });
       inputs.set(key, input); outputs.set(key, output);
       row.append(name, input, output); fields.append(row);
@@ -387,7 +389,6 @@ export function openAppearanceEditor({ fpArm, onClose = () => {} } = {}) {
     }
     window.dispatchEvent(new CustomEvent('mw-body-morph-change', { detail: state }));
     drawPreview();
-    schedulePreviewRigRebuild();
   });
   const done = makeButton('Готово', true, 'mw-btn-primary');
   done.addEventListener('click', async () => {
@@ -459,23 +460,6 @@ export function openAppearanceEditor({ fpArm, onClose = () => {} } = {}) {
   preview.addEventListener('pointercancel', release);
 
 
-  // Morphs are applied during poseAssembly, but a preview rig can retain
-  // assembled/cached mesh state across frames. Rebuild once the user pauses
-  // slider input so the displayed geometry is guaranteed to use the latest
-  // saved proportions without rebuilding on every pointer event.
-  function schedulePreviewRigRebuild() {
-    if (morphPreviewTimer) window.clearTimeout(morphPreviewTimer);
-    morphPreviewTimer = window.setTimeout(() => {
-      morphPreviewTimer = 0;
-      if (closed) return;
-      previewRig?.unload?.();
-      previewRig = null;
-      previewError = '';
-      statusMessage.style.display = 'block';
-      statusMessage.textContent = 'Обновление пропорций модели…';
-      void buildPreviewRig();
-    }, 180);
-  }
 
   async function buildPreviewRig() {
     if (closed || previewRig || !fpArm?.createAppearancePreviewRig) {
@@ -553,8 +537,6 @@ export function openAppearanceEditor({ fpArm, onClose = () => {} } = {}) {
     if (closed) return;
     closed = true;
     if (frame) cancelAnimationFrame(frame);
-    if (morphPreviewTimer) window.clearTimeout(morphPreviewTimer);
-    morphPreviewTimer = 0;
     resizeObserver?.disconnect?.();
     previewRig?.unload?.(); previewRig = null;
     window.removeEventListener('keydown', keydown);
