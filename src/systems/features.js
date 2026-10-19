@@ -1207,7 +1207,8 @@ export const FEATURES = Object.freeze([
     note: 'Uses the Better Bodies body meshes and matching race/sex skin for the player. Off restores the standard Morrowind body meshes and hands. This does not change NPC body rendering.',
     effect: 'Takes effect when the body is rebuilt.',
     kinds: Object.freeze(['enhanced']),
-    control: Object.freeze({ store: 'prefs', key: 'mwBetterBodies', initial: true, online: 'player' }),
+    get note() { return MOD_SETTINGS['morrowind-textures'].keys.BetterBodies.description; },
+    control: Object.freeze({ store: 'mods', vendor: 'morrowind-textures', key: 'BetterBodies' }),
   }),
   // MWNPC5b (2026-10-09, Mac: "I wanna do everything and ensure that performance isnt affected"): THE PEOPLE IN
   // MORROWIND BODIES - the NPC lanes (characters/npcBodies.js) under ONE frame budget (MWNPC11, NPC_FRAME_TIERS): Off, the
