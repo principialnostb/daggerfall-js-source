@@ -158,3 +158,8 @@ The UI taxonomy must remain visible even when a category has no active source. A
 - **Axel's Sexy Walk Fixed** is a separate alternative for female walking. Only `WalkForward;.kf` is loaded; idle/run files are not silently enabled by selecting a walk pack.
 - Before combining or presenting any future packs, inspect their README/permissions and enumerate their actual KF/NIF animation groups and text keys. Assign each source to the animation families it really contains (walk, run, idle, combat, actions, etc.), verify skeleton/group compatibility, then expose one mutually exclusive selector per family. Do not infer scope from the mod title or directory name alone, and do not show a selector as functional until its runtime consumer exists.
 - **Settings UI rule:** animation families are switchable sub-pages inside Settings → Animations. The chosen sub-page alone displays its controls; they are not a single long list with headings. Player and NPC families are independent. Informational/Vanilla-only categories must not pretend an unintegrated pack is selectable.
+
+
+### Combined locomotion source update (2026-10-19)
+
+The selected source is now resolved for both walking and running groups. Axel contributes its verified `WalkForward` and `RunForward` files; Simply Walking contributes only walk groups, so its selection leaves run groups on the original archive source. Fresh-install defaults are Vanilla. Existing saved choices are preserved. Source wiring is complete for these two Axel clips, but runtime visual verification is still outstanding.
