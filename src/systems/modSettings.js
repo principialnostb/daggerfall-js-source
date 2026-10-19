@@ -1653,17 +1653,17 @@ export const MOD_SETTINGS = Object.freeze({
     author: 'Port integration',
     keys: Object.freeze({
       PlayerWalkSource: Object.freeze({
-        default: 0,
+        default: 1,
         options: lazyWords('Vanilla', 'Simply Walking', "Axel's Sexy Walk Fixed"),
         description: "Player walk source. Vanilla keeps the game's/archive walk. Simply Walking selects the Purist Edition walk for male characters and the Feminine Walk Cycle for female characters. Axel's Sexy Walk Fixed is an alternative female walk clip only. Other animation groups are unaffected.",
       }),
       NpcMaleWalk: Object.freeze({
-        default: 0,
+        default: 1,
         options: lazyWords('Vanilla', 'Simply Walking'),
         description: "Male NPC walk source. Vanilla keeps the game's/archive walk; Simply Walking uses the male Purist Edition source. Other animation groups are unaffected.",
       }),
       NpcFemaleWalk: Object.freeze({
-        default: 0,
+        default: 1,
         options: lazyWords('Vanilla', 'Simply Walking', "Axel's Sexy Walk Fixed"),
         description: "Female NPC walk source. Vanilla keeps the game's/archive walk; Simply Walking uses the Feminine Walk Cycle source; Axel's Sexy Walk Fixed is an alternative female walk clip. Other animation groups are unaffected.",
       }),
@@ -1724,6 +1724,29 @@ export const RETIRED_KEYS = Object.freeze([
 ]);
 function migrate(m) {
   let changed = false;
+  // ANIM-UI4: the visible option order changed to Vanilla first. Translate the
+  // prior numeric indices once, so a saved Standard/Simply Walking choice is
+  // not silently changed to Vanilla when the labels are reordered.
+  const animation = m?.['morrowind-animation'];
+  if (animation && animation['WalkSourceChoices@ANIM-UI4'] !== true) {
+    const walkKeys = ['PlayerWalkSource', 'NpcMaleWalk', 'NpcFemaleWalk'];
+    if (walkKeys.some((key) => Object.hasOwn(animation, key))) {
+      if (Object.hasOwn(animation, 'PlayerWalkSource')) {
+        const old = Math.trunc(Number(animation.PlayerWalkSource));
+        animation.PlayerWalkSource = ({ 0: 1, 1: 1, 2: 2, 3: 0 })[old] ?? 1;
+      }
+      if (Object.hasOwn(animation, 'NpcMaleWalk')) {
+        const old = Math.trunc(Number(animation.NpcMaleWalk));
+        animation.NpcMaleWalk = ({ 0: 1, 1: 0 })[old] ?? 1;
+      }
+      if (Object.hasOwn(animation, 'NpcFemaleWalk')) {
+        const old = Math.trunc(Number(animation.NpcFemaleWalk));
+        animation.NpcFemaleWalk = ({ 0: 1, 1: 2, 2: 0 })[old] ?? 1;
+      }
+      animation['WalkSourceChoices@ANIM-UI4'] = true;
+      changed = true;
+    }
+  }
   for (const { vendor, key } of RETIRED_KEYS) {
     const held = m?.[vendor];
     if (!held || !Object.hasOwn(held, key)) continue;
