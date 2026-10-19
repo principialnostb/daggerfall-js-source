@@ -1138,10 +1138,16 @@ export async function bootDungeon(canvas, renderer, params, status) {
     renderer.setWorldViewport(worldViewportRect(canvas.clientWidth, canvas.clientHeight));   // E5: ViewportChanger.Update, every frame
     renderer.beginFrame(proj, view, INTERIOR_LIGHT_DIR, WORLD_FRAME);   // AUDIT-EL F5: a WORLD frame - the lane replays its records for this one
     if (walkMode) {
-      // Match exterior/global-view facing: any directional input (including S) makes the body follow the aim even if the standing flag is stale for this frame.
-      const bodyHasMoveInput = Math.abs(Number(player.moveForward) || 0) > 1e-3 || Math.abs(Number(player.moveStrafe) || 0) > 1e-3;
+      // MW-D40b: use this frame's resolved axes rather than the motor's last
+      // fixed-step snapshot; the render can occur between motor updates.
+      const bodyHasMoveInput = Math.abs(Number(axes.forward) || 0) > 1e-3 || Math.abs(Number(axes.strafe) || 0) > 1e-3;
       const faceBodyToView = !mwv.thirdPerson || bodyHasMoveInput || player.isRunning || rightHeld || swipeHeld || swingKeyLatch;
-      mwViewDrawBody(canvas, { proj, view, eye: mwv.eye, feet: player.bodyFeetAt(), yaw: player.bodyYawFor(cam.yaw, { faceView: faceBodyToView }), viewYaw: cam.yaw });   // MW-D40: orbit independently on foot/walk; preserve run/combat facing
+      const resolvedBodyYaw = player.bodyYawFor(cam.yaw, { faceView: faceBodyToView });
+      // Keep seats and active climb poses in charge; otherwise movement faces
+      // the current aim, including S/backpedal, just like the global sprite view.
+      const bodyYaw = player.drawYaw == null && player.climbFacing == null && faceBodyToView
+        ? cam.yaw : resolvedBodyYaw;
+      mwViewDrawBody(canvas, { proj, view, eye: mwv.eye, feet: player.bodyFeetAt(), yaw: bodyYaw, viewYaw: cam.yaw });   // MW-D40b
     }
     if (ctx.staticBatch) renderer.drawMesh(ctx.staticBatch, BATCH_IDENTITY, null);   // PERF5: the level's static models, one call per texture (keys resolved in the merge)
     for (const d of ctx.drawList) if (!d._batched) renderer.drawMesh(d.mesh, d.matrix, d.texRemap ?? ctx.texRemap);   // AUDIT PRE-MERGE 1003 W4: a climate-free model's own table
