@@ -93,6 +93,21 @@ import { showNudity } from '../characters/nudeFlats.js';   // NUDE-FLATS: Show N
 import { getPref } from '../systems/uiPrefs.js';   // MW-STEEL1: the Steel Helm switch, read where the worn set is composed
 import { skinMips, skinUseOf, skinUseKey } from '../characters/werewolfSkin.js';   // SHADOW-FANG: the werewolf's skin, a law over its own textures
 import { correctTexturePath, correctActorModelPath, wrapModes, warningImage, decodeTextureImage } from '../formats/morrowind/mwTexture.js';
+const betterBodiesAssetByteCache = new Map();
+async function loadBetterBodiesAssetBytes(url, label) {
+  let pending = betterBodiesAssetByteCache.get(url);
+  if (!pending) {
+    pending = fetch(url).then(async (response) => {
+      if (!response.ok) throw new Error(`${label} HTTP ${response.status}`);
+      return new Uint8Array(await response.arrayBuffer());
+    }).catch((error) => {
+      betterBodiesAssetByteCache.delete(url);
+      throw error;
+    });
+    betterBodiesAssetByteCache.set(url, pending);
+  }
+  return new Uint8Array(await pending);
+}
 const betterBodiesTextureBytes = new Map();
 const betterBodiesTextureBasename = (path) => String(path || '')
   .replaceAll(String.fromCharCode(92), '/').split('/').pop().toLowerCase();
@@ -2091,15 +2106,11 @@ async function buildTpBody({
       try {
         const asset = betterBodiesAssetUrls({ race, female });
         if (!asset) throw new Error(`no Better Bodies asset for race "${String(race)}" / ${female ? 'female' : 'male'}`);
-        const [nifResponse, textureResponse, uvEdits] = await Promise.all([
-          fetch(asset.model),
-          fetch(asset.texture),
+        const [bytes, textureBytes, uvEdits] = await Promise.all([
+          loadBetterBodiesAssetBytes(asset.model, 'NIF'),
+          loadBetterBodiesAssetBytes(asset.texture, 'DDS'),
           female && asset.raceKey === 'no' ? loadBetterBodiesFemaleUvEdits() : Promise.resolve([]),
         ]);
-        if (!nifResponse.ok) throw new Error('NIF HTTP ' + nifResponse.status);
-        if (!textureResponse.ok) throw new Error('DDS HTTP ' + textureResponse.status);
-        const bytes = new Uint8Array(await nifResponse.arrayBuffer());
-        const textureBytes = new Uint8Array(await textureResponse.arrayBuffer());
         registerBetterBodiesRaceTexture(archives, asset.texturePath, textureBytes);
         betterBodiesPart = {
           slot: 'betterBodies', bones: [], bytes, uvEdits, hideSlots: worn.shadows,
@@ -2937,15 +2948,11 @@ export async function buildFpArm({
       try {
         const asset = betterBodiesAssetUrls({ race, female });
         if (!asset) throw new Error(`no Better Bodies asset for race "${String(race)}" / ${female ? 'female' : 'male'}`);
-        const [nifResponse, textureResponse, uvEdits] = await Promise.all([
-          fetch(asset.model),
-          fetch(asset.texture),
+        const [bytes, textureBytes, uvEdits] = await Promise.all([
+          loadBetterBodiesAssetBytes(asset.model, 'NIF'),
+          loadBetterBodiesAssetBytes(asset.texture, 'DDS'),
           female && asset.raceKey === 'no' ? loadBetterBodiesFemaleUvEdits() : Promise.resolve([]),
         ]);
-        if (!nifResponse.ok) throw new Error('NIF HTTP ' + nifResponse.status);
-        if (!textureResponse.ok) throw new Error('DDS HTTP ' + textureResponse.status);
-        const bytes = new Uint8Array(await nifResponse.arrayBuffer());
-        const textureBytes = new Uint8Array(await textureResponse.arrayBuffer());
         registerBetterBodiesRaceTexture(archives, asset.texturePath, textureBytes);
         const basename = betterBodiesTextureBasename(asset.texturePath);
         for (const cacheKey of TEXTURE_CACHE.keys()) {
