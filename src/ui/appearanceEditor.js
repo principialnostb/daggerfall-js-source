@@ -1,20 +1,24 @@
 import { BODY_MORPH_FIELDS, getBodyMorphs, setBodyMorph, resetBodyMorphs } from '../characters/bodyMorphs.js';
 
 const GROUPS = [
-  { title: 'Силуэт', description: 'Общие пропорции персонажа', keys: ['height', 'bodyWidth', 'shoulderWidth'] },
-  { title: 'Торс', description: 'Грудная клетка, грудь и талия', keys: ['torsoScale', 'breastSize', 'waistWidth'] },
-  { title: 'Таз и голова', description: 'Пропорции головы, таза и ягодиц', keys: ['hipWidth', 'buttockSize', 'headScale'] },
-  { title: 'Конечности', description: 'Объём рук и ног, расстояние между ногами', keys: ['armScale', 'legScale', 'legGap'] },
+  { id: 'all', title: 'Все параметры', description: 'Полный набор пропорций', keys: ['height', 'bodyWidth', 'shoulderWidth', 'ribcageWidth', 'breastSize', 'breastProjection', 'waistWidth', 'abdomenVolume', 'hipWidth', 'buttockSize', 'buttockProjection', 'headScale', 'armThickness', 'armLength', 'thighThickness', 'calfThickness', 'legLength', 'legGap'] },
+  { id: 'shape', title: 'Силуэт', description: 'Общие пропорции', keys: ['height', 'bodyWidth'] },
+  { id: 'chest', title: 'Плечи и грудь', description: 'Плечевой пояс, грудная клетка и грудь', keys: ['shoulderWidth', 'ribcageWidth', 'breastSize', 'breastProjection'] },
+  { id: 'torso', title: 'Талия и живот', description: 'Центральная часть корпуса', keys: ['waistWidth', 'abdomenVolume'] },
+  { id: 'hips', title: 'Таз и ягодицы', description: 'Ширина таза и объём ягодиц', keys: ['hipWidth', 'buttockSize', 'buttockProjection'] },
+  { id: 'arms', title: 'Руки', description: 'Толщина и длина рук', keys: ['armThickness', 'armLength'] },
+  { id: 'legs', title: 'Ноги', description: 'Бёдра, голени, длина и постановка ног', keys: ['thighThickness', 'calfThickness', 'legLength', 'legGap'] },
+  { id: 'head', title: 'Голова', description: 'Масштаб головы', keys: ['headScale'] },
 ];
 const labelByKey = new Map(BODY_MORPH_FIELDS.map(([key, label]) => [key, label]));
 const clamp = (n) => Math.max(-1, Math.min(1, n));
 
 const STYLE = `
-#mw-appearance-editor{--mw-bg:#171914;--mw-panel:#25271f;--mw-panel-raised:#343327;--mw-line:#756344;--mw-text:#e8dcc0;--mw-muted:#b9aa87;--mw-accent:#b69a60;--mw-accent-strong:#e0c783;position:fixed;inset:0;z-index:10050;display:flex;align-items:center;justify-content:center;padding:clamp(10px,2vw,28px);background:rgba(7,9,7,.82);color:var(--mw-text);font:14px/1.45 Georgia,"Times New Roman",serif}
+#mw-appearance-editor{--mw-bg:#181b18;--mw-panel:#222722;--mw-panel-raised:#2b312b;--mw-line:#465047;--mw-text:#e4e9df;--mw-muted:#aeb9aa;--mw-accent:#8ea77b;--mw-accent-strong:#c6dcae;position:fixed;inset:0;z-index:10050;display:flex;align-items:center;justify-content:center;padding:clamp(10px,2vw,28px);background:rgba(7,9,7,.82);color:var(--mw-text);font:14px/1.45 Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif}
 #mw-appearance-editor *{box-sizing:border-box}
 #mw-appearance-editor button,#mw-appearance-editor input{font:inherit}
 #mw-appearance-editor .mw-editor-shell{width:min(1440px,100%);height:min(940px,94vh);min-height:480px;display:grid;grid-template-rows:auto minmax(0,1fr);overflow:hidden;background:var(--mw-bg);border:2px solid #8e784b;outline:1px solid #3c3524;box-shadow:0 0 0 4px #100f0b,0 24px 80px #000d}
-#mw-appearance-editor .mw-topbar{display:flex;align-items:center;justify-content:space-between;gap:20px;padding:17px 22px;border-bottom:1px solid var(--mw-line);background:linear-gradient(#3b3a2d,#292a21 55%,#22231c)}
+#mw-appearance-editor .mw-topbar{display:flex;align-items:center;justify-content:space-between;gap:20px;padding:17px 22px;border-bottom:1px solid var(--mw-line);background:linear-gradient(#303831,#252b25 55%,#1f241f)}
 #mw-appearance-editor .mw-brand{display:flex;align-items:center;gap:13px;min-width:0}
 #mw-appearance-editor .mw-mark{display:grid;place-items:center;width:38px;height:38px;flex:0 0 38px;border:1px solid #756648;border-radius:0;color:var(--mw-accent-strong);font-size:24px;background:#1b1c16;box-shadow:inset 0 0 0 3px #353326}
 #mw-appearance-editor .mw-title{font-size:18px;font-weight:750;letter-spacing:.01em}
@@ -34,14 +38,14 @@ const STYLE = `
 #mw-appearance-editor .mw-tool-group{display:flex;align-items:center;gap:6px}
 #mw-appearance-editor .mw-zoom-value{min-width:48px;text-align:center;color:#e6e2d6;font-size:12px;font-variant-numeric:tabular-nums}
 #mw-appearance-editor .mw-hint{max-width:50%;text-align:right;color:var(--mw-muted);font-size:11px}
-#mw-appearance-editor .mw-controls{display:flex;flex-direction:column;min-height:0;overflow:hidden;border-left:1px solid var(--mw-line);background:#1d201c}
+#mw-appearance-editor .mw-controls{display:flex;flex-direction:column;min-height:0;overflow:hidden;border-left:1px solid var(--mw-line);background:#1b201b}
 #mw-appearance-editor .mw-controls-head{padding:20px 22px 15px;border-bottom:1px solid var(--mw-line)}
 #mw-appearance-editor .mw-controls-head h2{font-size:20px;line-height:1.2;margin:0;font-weight:750}
 #mw-appearance-editor .mw-controls-head p{font-size:12px;color:var(--mw-muted);margin:7px 0 0}
 #mw-appearance-editor .mw-control-list{min-height:0;overflow:auto;padding:15px 18px 20px;scrollbar-color:#59604f transparent;scrollbar-width:thin}
-#mw-appearance-editor .mw-group{margin:0 0 12px;padding:0;border:1px solid var(--mw-line);border-radius:0;background:#26271f;overflow:hidden}
-#mw-appearance-editor .mw-group-head{padding:11px 13px;border-bottom:1px solid #363d32;background:#272b24}
-#mw-appearance-editor .mw-group-title{font-size:13px;font-weight:700;color:#e9dfc6}
+#mw-appearance-editor .mw-group{margin:0 0 12px;padding:0;border:1px solid var(--mw-line);border-radius:0;background:#252c25;overflow:hidden}
+#mw-appearance-editor .mw-group-head{padding:11px 13px;border-bottom:1px solid #363d32;background:#2c342c}
+#mw-appearance-editor .mw-group-title{font-size:13px;font-weight:700;color:#dce6d6}
 #mw-appearance-editor .mw-group-note{margin-top:2px;font-size:11px;color:var(--mw-muted)}
 #mw-appearance-editor .mw-group-fields{padding:6px 13px 9px}
 #mw-appearance-editor .mw-slider-row{display:grid;grid-template-columns:minmax(105px,1fr) minmax(80px,1.25fr) 42px;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid #34392f}
@@ -51,10 +55,10 @@ const STYLE = `
 #mw-appearance-editor output{color:var(--mw-accent-strong);font-size:11px;text-align:right;font-variant-numeric:tabular-nums}
 #mw-appearance-editor .mw-footer{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:13px 18px;border-top:1px solid var(--mw-line);background:#1a1d19}
 #mw-appearance-editor .mw-footer-note{color:var(--mw-muted);font-size:11px}
-#mw-appearance-editor .mw-btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;min-height:34px;padding:7px 11px;border:1px solid #535b4b;border-radius:0;background:linear-gradient(#454333,#302f24);color:#e8dcc0;font-size:12px;font-weight:650;cursor:pointer;transition:background .15s,border-color .15s,transform .15s}
-#mw-appearance-editor .mw-btn:hover{background:#363d30;border-color:#798368}
+#mw-appearance-editor .mw-btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;min-height:34px;padding:7px 11px;border:1px solid #4c594a;border-radius:0;background:linear-gradient(#333c33,#252d25);color:#dfe7dc;font-size:12px;font-weight:650;cursor:pointer;transition:background .15s,border-color .15s,transform .15s}
+#mw-appearance-editor .mw-btn:hover{background:#3a4839;border-color:#8ea77b}
 #mw-appearance-editor .mw-btn:active{transform:translateY(1px)}
-#mw-appearance-editor .mw-btn-primary{border-color:#c5a66c;background:linear-gradient(#d7bb75,#a8894e);color:#201f17}
+#mw-appearance-editor .mw-btn-primary{border-color:#a6c392;background:linear-gradient(#c4d9b4,#78986a);color:#172017}
 #mw-appearance-editor .mw-btn-primary:hover{background:#ddc18a;border-color:#ddc18a}
 #mw-appearance-editor .mw-btn-icon{width:34px;padding:0;font-size:17px}
 #mw-appearance-editor .mw-close{width:34px;height:34px;padding:0;border-radius:8px;font-size:19px}
