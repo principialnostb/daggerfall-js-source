@@ -7045,8 +7045,6 @@ export function createFpArm({ playerAppearance = false } = {}) {
       // matches the floor. Draw the actual posed mesh in the world pass nearby;
       // retain the established sprite pass at distance. Keep mounted pairs in
       // the sprite pass so rider and horse remain one coherent picture.
-      const cameraDistance = Math.hypot(center[0] - eye[0], center[1] - eye[1], center[2] - eye[2]);
-      const cameraPitchRatio = cameraDistance > 1e-6 ? Math.abs(center[1] - eye[1]) / cameraDistance : 0;
       // MW-TP-MESH-ALL: Morrowind actors use their posed mesh at every distance and pitch.
       // The old distance/pitch LOD switched between a perspective mesh and a camera-facing
       // sprite. Around the threshold, leg depth and grounding visibly popped; at distance,
