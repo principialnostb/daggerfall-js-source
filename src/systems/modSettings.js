@@ -1645,16 +1645,17 @@ export const MOD_SETTINGS = Object.freeze({
     }),
   }),
 
-  // MW-ANIM-1: female walk preference. The third option uses only Axel's
-  // WalkForward clip; its bundled idle/run files are deliberately not selected.
+  // MW-ANIM-1: player gait source. Keep the options named after their
+  // actual packs so "Female" cannot ambiguously refer to two different KF files.
+  // The numeric values are kept stable for existing saved mod settings.
   'morrowind-animation': Object.freeze({
-    title: 'Female Walk Style',
+    title: 'Player Walk Animation',
     author: 'Port integration',
     keys: Object.freeze({
       FemaleWalk: Object.freeze({
         default: 0,
-        options: lazyWords('Standard', 'Female', 'Female 2'),
-        description: 'Female gait only. Standard uses the base female walk, Female uses Feminine Walk Cycle, and Female 2 uses Axel’s WalkForward clip. Male characters and non-walk groups are unaffected.',
+        options: lazyWords('Standard', 'Feminine Walk Cycle', "Axel's Sexy Walk Fixed"),
+        description: "Player walk source. Standard uses Simply Walking Purist Edition; Feminine Walk Cycle uses its separate female KF; Axel's Sexy Walk Fixed uses only Axel's WalkForward clip. These choices do not replace idle, run, combat, or other animation groups.",
       }),
     }),
   }),
