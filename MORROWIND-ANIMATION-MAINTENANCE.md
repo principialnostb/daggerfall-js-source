@@ -73,7 +73,7 @@ The Mods page now exposes three independent persisted controls:
 - **Male NPC Walk Animation** — Standard / Vanilla.
 - **Female NPC Walk Animation** — Standard / Female (Axel) / Vanilla.
 
-The setting keys live in `src/systems/modSettings.js`; the three controls are declared in `src/systems/features.js`. The old `FemaleWalk` key remains declared for backwards compatibility, but the gameplay resolver no longer reads it. New choices are read through the existing `modSetting` store.
+The setting keys live in `src/systems/modSettings.js`; the three controls are declared in `src/systems/features.js`. The old `FemaleWalk` key remains declared so its stored data is not silently redefined, but the gameplay resolver no longer reads it and no automatic migration has been added. After this change, choose the desired value in the new Player Walk Animation control; new choices are read through the existing `modSetting` store.
 
 Actor routing is centralized in `walkVariantForActor()` in `src/formats/morrowind/mwWalkAnimationAssets.js` and consumed by the movement resolver in `src/combat/fpArm.js`:
 
