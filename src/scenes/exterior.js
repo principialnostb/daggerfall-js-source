@@ -5897,13 +5897,11 @@ export async function bootExterior(canvas, renderer, params, status) {
       Math.abs(Number(player.moveForward) || 0) > 1e-3 ||
       Math.abs(Number(player.moveStrafe) || 0) > 1e-3;
     const faceBodyToView = !mwv.thirdPerson || bodyHasMoveInput || player.isRunning || rightHeld || swipeHeld || swingKeyLatch || (!!weaponState && weaponState !== 'Idle');
-    const resolvedBodyYaw = player.bodyYawFor(cam.yaw, { faceView: faceBodyToView });
-    // Match the classic global sprite lane: movement/run/combat faces the
-    // current view/aim, including intentional backpedalling; only a stationary
-    // third-person body stays latched while the camera orbits independently.
-    const bodyYaw = player.drawYaw == null && player.climbFacing == null && faceBodyToView
-      ? cam.yaw : resolvedBodyYaw;
-    mwViewDrawBody(canvas, { proj, view, eye, feet: player.bodyFeetAt(), yaw: bodyYaw, viewYaw: cam.yaw });   // MW-D42
+    // Restore the v3 facing contract: the 3D body follows the current view yaw,
+    // just like the classic global-sprite lane's aim-facing rule. Do not latch
+    // a separate third-person yaw here; that gate left the 3D model facing a
+    // stale direction while camera-relative movement continued.
+    mwViewDrawBody(canvas, { proj, view, eye, feet: player.bodyFeetAt(), yaw: player.bodyYawFor(cam.yaw), viewYaw: cam.yaw });   // restore v3 body-facing behavior
     hcc.draw3d(canvas, { eye, proj, view });   // COATS3D: Horse Cart and Cargo's horses, 3D on the Morrowind lane
     mwViewDrawWagon(renderer, texRemap, streetCull);   // EOTB-IL: the cart, when the transport is the cart; PERF-WAGON: by the street's view test
     camps.draw(renderer, texRemap, streetCull);   // SURV3: the tents; PERF-WAGON: by the street's view test
