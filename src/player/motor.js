@@ -1885,6 +1885,11 @@ export class PlayerMotor {
     }
     if (!Number.isFinite(viewYaw)) return viewYaw;
     if (faceView) {
+      // Once the player resumes view-facing, discard any climb-release yaw
+      // that survived its transition. Otherwise the next idle frame can
+      // resurrect that stale angle and make the actor look permanently fixed.
+      this._bodyYaw = null;
+      this._bodyYawOff = null;
       this._thirdPersonLookYaw = viewYaw;
       return viewYaw;
     }
