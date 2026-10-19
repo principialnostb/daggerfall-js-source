@@ -96,6 +96,35 @@ const STYLE = `
 #mw-appearance-editor .mw-btn-primary:hover{background:linear-gradient(#f0dba0,#c29d53);border-color:#f0dba0}
 #mw-appearance-editor .mw-close{border-radius:2px}
 #mw-appearance-editor .mw-status-message{color:#e8e1d2}
+
+/* Final palette pass: match the in-game ESC settings panel and carry the brass
+   accent through interactive controls, not only the frame and headings. */
+#mw-appearance-editor input[type=range]{
+  border-color:#62563e;
+  background:linear-gradient(90deg,#c3a15d 0%,#c3a15d var(--range-fill,50%),#303035 var(--range-fill,50%),#303035 100%);
+  height:8px;
+}
+#mw-appearance-editor input[type=range]::-webkit-slider-thumb{
+  width:15px;height:19px;border:1px solid #f0d99b;
+  background:linear-gradient(#f3dda0,#a78343);
+  box-shadow:0 0 0 2px #1c1d20,0 1px 5px #000a;
+}
+#mw-appearance-editor input[type=range]::-moz-range-thumb{
+  width:15px;height:19px;border:1px solid #f0d99b;border-radius:0;
+  background:linear-gradient(#f3dda0,#a78343);
+  box-shadow:0 0 0 2px #1c1d20,0 1px 5px #000a;
+}
+#mw-appearance-editor .mw-group-head{background:linear-gradient(#303035,#27282d)}
+#mw-appearance-editor .mw-group-title{color:#e1c783}
+#mw-appearance-editor .mw-slider-row:focus-within{background:#302b22}
+#mw-appearance-editor .mw-slider-row:focus-within .mw-slider-label{color:#fff0c8}
+#mw-appearance-editor .mw-btn{font-family:Georgia,'Times New Roman',serif;letter-spacing:.01em}
+#mw-appearance-editor .mw-btn-primary{border-color:#e0c47c;background:linear-gradient(#e0c47c,#a78649);color:#1b1b1d}
+#mw-appearance-editor .mw-btn-primary:hover{background:linear-gradient(#f0d99b,#c19b53);border-color:#f0d99b}
+#mw-appearance-editor .mw-underwear input{accent-color:#c3a15d}
+#mw-appearance-editor .mw-preview-tools .mw-btn{border-color:#5d523d}
+#mw-appearance-editor .mw-zoom-value{color:#e1c783}
+@media(prefers-reduced-motion:reduce){#mw-appearance-editor .mw-btn{transition:none}}
 `;
 
 export function openAppearanceEditor({ fpArm, onClose = () => {} } = {}) {
