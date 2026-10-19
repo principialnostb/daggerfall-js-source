@@ -5883,24 +5883,7 @@ export async function bootExterior(canvas, renderer, params, status) {
     renderer.setWorldViewport(worldViewportRect(canvas.clientWidth, canvas.clientHeight));   // E5: ViewportChanger.Update, every frame
     renderer.beginFrame(proj, view, sunDirection(minute), WORLD_FRAME);   // AUDIT-EL F5: a WORLD frame - the lane replays its records for this one
     renderer.setCloudShadow(sky?.cloudShadow ?? null);   // VC4: the frame's deck, for the body and everything before the terrain
-    const weaponState = weaponRig.playerWeapon.machine?.state;
-    // MW-D40b: use the exact input axes resolved for THIS frame, not the motor's
-    // last fixed-step snapshot. The render can run between motor steps, and a
-    // stale zero there made the mesh keep its old yaw while the capsule moved.
-    // Include this render frame's resolved axes and the motor's most
-    // recent walk input. Render and fixed-step updates are not phase-locked;
-    // relying on only one snapshot can incorrectly latch the body while it
-    // is still moving.
-    const bodyHasMoveInput =
-      Math.abs(Number(axes.forward) || 0) > 1e-3 ||
-      Math.abs(Number(axes.strafe) || 0) > 1e-3 ||
-      Math.abs(Number(player.moveForward) || 0) > 1e-3 ||
-      Math.abs(Number(player.moveStrafe) || 0) > 1e-3;
-    const faceBodyToView = !mwv.thirdPerson || bodyHasMoveInput || player.isRunning || rightHeld || swipeHeld || swingKeyLatch || (!!weaponState && weaponState !== 'Idle');
-    // Restore the v3 facing contract: the 3D body follows the current view yaw,
-    // just like the classic global-sprite lane's aim-facing rule. Do not latch
-    // a separate third-person yaw here; that gate left the 3D model facing a
-    // stale direction while camera-relative movement continued.
+    // Restore v3: the body renderer follows view yaw; no idle-facing gate.
     mwViewDrawBody(canvas, { proj, view, eye, feet: player.bodyFeetAt(), yaw: player.bodyYawFor(cam.yaw), viewYaw: cam.yaw });   // restore v3 body-facing behavior
     hcc.draw3d(canvas, { eye, proj, view });   // COATS3D: Horse Cart and Cargo's horses, 3D on the Morrowind lane
     mwViewDrawWagon(renderer, texRemap, streetCull);   // EOTB-IL: the cart, when the transport is the cart; PERF-WAGON: by the street's view test
