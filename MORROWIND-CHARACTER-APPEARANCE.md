@@ -44,7 +44,7 @@ UV-edit caution: the checked-in UV-edit JSON was authored for the Nord female me
 
 - The editor's standalone preview now uses the same race/sex-resolved Better Bodies base mesh and matching skin texture as the live player build. The previous explicit `useBetterBodies: false` was unjustified: it forced the editor onto standard Morrowind geometry even though Better Bodies is the game's active body path. The dedicated preview rig remains separate; only its base-body selection was corrected.
 - A follow-up failure was traced to option propagation: `buildTpBody()` checked `useBetterBodies` but did not declare or receive that option. The resulting `ReferenceError` was caught by the body-build fallback, leaving the preview without its third-person model. The option is now explicitly declared in `buildTpBody()` and passed from `buildFpArm()`; this fixes the build failure without changing the in-world Better Bodies default.
-- The editor preview requests Better Bodies explicitly (`useBetterBodies: true`) and relies on `buildTpBody()` to resolve the matching body NIF/DDS for the current race and sex. Unsupported races or unavailable assets still take the existing logged fallback path. The preview uses its own rig and rest pose; it must not borrow a screenshot or animation pose from the live character. The separate HTML tool is a geometry/UV diagnostic, not proof that this integrated path is complete.
+- The editor preview requests Better Bodies explicitly (`useBetterBodies: true`) and relies on `buildTpBody()` to resolve the matching body NIF/DDS for the current race and sex. Unsupported races or unavailable assets still take the existing logged fallback path. The preview uses its own rig; it must not borrow a screenshot from the live character. The separate HTML tool is a geometry/UV diagnostic, not proof that this integrated path is complete.
 - Runtime visual verification is still required: confirm the 3D figure appears, that the underwear toggle rebuilds the selected variant, and that sliders update the preview and player without distortion.
 
 ### Body morph and underwear update (2026-10-19)
@@ -64,7 +64,8 @@ UV-edit caution: the checked-in UV-edit JSON was authored for the Nord female me
 - [x] Expanded the preview column and canvas, added a responsive layout for narrow screens, and clarified the drag-to-rotate and zoom controls. The reset-view action resets both yaw and zoom; the body reset updates all displayed values and dispatches the shared morph-change event.
 - [x] Kept the existing dedicated preview-rig pathway and real currently selected head/hair assembly. No 2D portrait cards or invented face/hair presets were added.
 - [ ] Visual QA in the running game/browser is still required at desktop and mobile widths. The UI refresh does not by itself improve the underlying deformation algorithms.
-- [ ] The preview requests the dedicated rig in neutral mode, bypassing the weapon-derived portrait stance, and asks for up to 1024 pixels of render height. Slider input rerenders the separate rig immediately. The 18 sliders now have distinct anatomical transforms and the preview supports clicking approximate body regions to filter the relevant controls; calibration remains outstanding.
+- [x] Restored the editor's first working dedicated-rig draw path: it renders the rig's established portrait pose at the original zoom-scaled height instead of forcing the later `neutral: true` path. This is scoped to `src/ui/appearanceEditor.js`; no world/NPC body or Better Bodies gameplay selection was reverted. Slider input still calls `setBodyMorph`, emits `mw-body-morph-change`, and redraws the dedicated rig immediately.
+- [ ] Verify in the running game that the restored pose no longer shows the disconnected body and that all 19 sliders produce visible, anatomically coherent changes. This source change is not a claim that the shared body deformation itself is fixed.
 
 ## Target architecture
 
@@ -109,7 +110,7 @@ This is the target contract, not a statement that all stages are implemented:
 - `bb_skinf_no-uv-edits.json` from `morrowind.v3` is included by the Better Bodies asset resolver in `morrowind.v4`. It contains **UV texture-coordinate transforms per NIF mesh section**, not world-space/body vertex coordinates. It is useful for aligning the skin texture, but it cannot repair a skeletal bind or a body mesh whose parts are spatially displaced.
 - These changes address the preview's CSS aspect-ratio distortion and the editor's visual mismatch. They do not constitute a verified fix for every possible NIF/skeleton alignment issue; that still requires a visual runtime check against the v3 preview and in-game character.
 
-- The editor's neutral preview now poses the rig from the NIF skeleton's rest transforms rather than sampling the first frame of the idle animation. This avoids idle-clip offsets being mistaken for neutral anatomy. Runtime verification is still required for the complete race/sex matrix.
+- The editor no longer forces the later neutral-preview path; it uses the earlier dedicated-rig portrait pose that preceded the neutral-mode change. The body morph controls remain live and redraw the preview after each input. Runtime verification is still required for the complete race/sex matrix.
 
 
 ### Follow-up morph correctness fixes (2026-10-19)
