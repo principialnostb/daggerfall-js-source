@@ -5349,7 +5349,7 @@ export function createFpArm({ playerAppearance = false } = {}) {
       previewRig.attach(renderer, camera);
       const opts = {
         ...lastBuildOpts,
-        ...(race ? { race } : {}),
+        ...(race ? { race, beast: null } : {}),
         ...(Number.isInteger(faceIndex) ? { faceIndex } : {}),
         armor: [],
         weapon: null,
