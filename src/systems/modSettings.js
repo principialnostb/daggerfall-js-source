@@ -1665,7 +1665,7 @@ export const MOD_SETTINGS = Object.freeze({
       NpcMaleWalk: Object.freeze({
         default: 0,
         options: lazyWords('Vanilla', 'Simply Walking'),
-        description: "Male NPC locomotion source. Vanilla keeps the game/archive walk and run. Simply Walking replaces supported male walk groups; running and unsupported groups remain on the game/archive source.",
+        description: "Male NPC walking source. Vanilla keeps the game/archive walk. Simply Walking replaces supported male walk groups; running and unsupported groups remain on the game/archive source.",
       }),
       NpcFemaleWalk: Object.freeze({
         default: 0,
