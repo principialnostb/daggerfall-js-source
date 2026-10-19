@@ -6,12 +6,12 @@
 // Vite's asset glob keeps the source files addressable without embedding binary data.
 const IN_BROWSER = typeof window !== 'undefined';
 const bodyModelUrls = IN_BROWSER
-  ? import.meta.glob('../../../Morrowind Textures/Better Bodies/{Nude,Underwear}/Data Files/Meshes/bb/bb_skin*.nif', {
+  ? import.meta.glob('../../../Morrowind Textures/Better Bodies/Nude/Data Files/Meshes/bb/bb_skin*.nif', {
       eager: true, query: '?url', import: 'default',
     })
   : {};
 const bodyTextureUrls = IN_BROWSER
-  ? import.meta.glob('../../../Morrowind Textures/Better Bodies/{Nude,Underwear}/Data Files/Textures/bb/bb_skin*.dds', {
+  ? import.meta.glob('../../../Morrowind Textures/Better Bodies/Nude/Data Files/Textures/bb/bb_skin*.dds', {
       eager: true, query: '?url', import: 'default',
     })
   : {};
@@ -27,21 +27,20 @@ const compactRaceName = (race) => String(
 
 /** Resolve a Better Bodies base mesh + skin as one race/sex-matched pair.
  * Unknown races return null rather than silently receiving the Nord female skin. */
-export function betterBodiesAssetUrls({ race = 'Nord', female = false, underwear = false } = {}) {
+export function betterBodiesAssetUrls({ race = 'Nord', female = false } = {}) {
   const raceName = compactRaceName(race);
   const raceKey = RACE_CODES[raceName] ?? (Object.values(RACE_CODES).includes(raceName) ? raceName : null);
   if (!raceKey) return null;
   const genderKey = female ? 'f' : 'm';
   const stem = `bb_skin${genderKey}_${raceKey}`;
-  const root = underwear ? '/underwear/' : '/nude/';
   const findUrl = (table, extension) => {
-    const entry = Object.entries(table).find(([path]) => path.toLowerCase().includes(root) && path.toLowerCase().endsWith(`/${stem}.${extension}`));
+    const entry = Object.entries(table).find(([path]) => path.toLowerCase().endsWith(`/${stem}.${extension}`));
     return entry?.[1] ?? null;
   };
   const model = findUrl(bodyModelUrls, 'nif');
   const texture = findUrl(bodyTextureUrls, 'dds');
   if (!model || !texture) return null;
-  return Object.freeze({ model, texture, texturePath: `textures/bb/${stem}.dds`, raceKey, female: !!female, underwear: !!underwear });
+  return Object.freeze({ model, texture, texturePath: `textures/bb/${stem}.dds`, raceKey, female: !!female });
 }
 
 // Compatibility alias for the isolated Nord-female diagnostic preview.

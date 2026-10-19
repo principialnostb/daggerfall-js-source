@@ -1,4 +1,4 @@
-import { getBodyMorphs, getUnderwearEnabled, setUnderwearEnabled as persistUnderwearEnabled } from '../characters/bodyMorphs.js';
+import { getBodyMorphs } from '../characters/bodyMorphs.js';
 // MW-D8: THE MORROWIND FIRST-PERSON ARM, IN THE GAME.
 //
 // Seven stages of this arc shipped diagnostics and nothing touched the
@@ -111,23 +111,6 @@ async function loadBetterBodiesAssetBytes(url, label) {
 const betterBodiesTextureBytes = new Map();
 const betterBodiesTextureBasename = (path) => String(path || '')
   .replaceAll(String.fromCharCode(92), '/').split('/').pop().toLowerCase();
-// Replace a same-length ASCII texture stem in a private NIF copy. Better Bodies race keys
-// are all two characters, so NIF string lengths and record offsets remain unchanged.
-function rewriteNifAsciiStem(bytes, from, to) {
-  if (from.length !== to.length || from === to) return bytes;
-  const out = new Uint8Array(bytes);
-  const pattern = Array.from(from, (c) => c.charCodeAt(0));
-  const replacement = Array.from(to, (c) => c.charCodeAt(0));
-  for (let i = 0; i <= out.length - pattern.length; i++) {
-    let match = true;
-    for (let j = 0; j < pattern.length; j++) if (out[i + j] !== pattern[j]) { match = false; break; }
-    if (!match) continue;
-    for (let j = 0; j < replacement.length; j++) out[i + j] = replacement[j];
-    i += pattern.length - 1;
-  }
-  return out;
-}
-
 function registerBetterBodiesRaceTexture(archives, texturePath, textureBytes) {
   const basename = betterBodiesTextureBasename(texturePath);
   betterBodiesTextureBytes.set(basename, textureBytes);
@@ -2090,8 +2073,6 @@ export function bareHeadRows(rows, worn, pieces, werewolf = false) {
  */
 async function buildTpBody({
   race, female, beast, faceIndex, faceMatch, weapon, hasAmmo, worn, archives, parts, allWeapons, find, gen = null,
-  useBetterBodies = true,
-  appearancePreview = false,   // APPEARANCE PREVIEW: use the Better Bodies mesh's own skeleton only in the isolated editor rig
   torch = false, allLights = [],   // MW-D51
   sheathing = true, ammoCount = null,   // WS1: the holster, and the quiver's count (null: a full quiver when there is ammunition)
   hipLight = false,   // HT-WAIST: a lit lantern at the waist
@@ -2109,7 +2090,7 @@ async function buildTpBody({
     await loadFromArchives(archives, [skeletonPath]);
     const skelArc = find(skeletonPath);
     if (!skelArc) return { ok: false, stage: 'skeleton', error: `${skeletonPath} is not in your archives` };
-    let skeletonBytes = nifBytes(skelArc, skeletonPath);
+    const skeletonBytes = nifBytes(skelArc, skeletonPath);
 
     // WEREWOLF1: the wolf's head and hair, by id - every other skin slot is empty, the robe is the body
     const rows = werewolf ? werewolfHeadRows(parts) : playerBodyRows(parts, race, female, { beast, faceIndex, faceMatch, vampire, walk, has: exists, ownHeads });   // MWNPC14: a vampire's head; MWNPC17: an NPC's own; AUDIT MW-HEADS1: the port's own heads where these archives carry them
@@ -2118,29 +2099,15 @@ async function buildTpBody({
     // texture is registered by basename, so concurrent NPC builds cannot overwrite
     // one another's skin bytes through a shared "current texture" adapter.
     let betterBodiesPart = null;
-    if (!beast && !werewolf && !vampire && useBetterBodies) {
+    if (!beast && !werewolf && !vampire) {
       try {
-        const underwear = playerAppearance ? getUnderwearEnabled() : false;
-        const asset = betterBodiesAssetUrls({ race, female, underwear });
+        const asset = betterBodiesAssetUrls({ race, female });
         if (!asset) throw new Error(`no Better Bodies asset for race "${String(race)}" / ${female ? 'female' : 'male'}`);
-        // The editor's female silhouette is deliberately based on the same Nord-female
-        // Better Bodies geometry shown by better-bodies-preview.html. Keep the selected
-        // race's DDS and face, and rewrite the mesh's equal-length texture stem to match.
-        const previewGeometry = appearancePreview && female
-          ? betterBodiesAssetUrls({ race: 'Nord', female: true, underwear })
-          : asset;
-        if (!previewGeometry) throw new Error('Nord female Better Bodies preview mesh is unavailable');
-        const [sourceBytes, textureBytes, uvEdits] = await Promise.all([
-          loadBetterBodiesAssetBytes(previewGeometry.model, 'NIF'),
+        const [bytes, textureBytes, uvEdits] = await Promise.all([
+          loadBetterBodiesAssetBytes(asset.model, 'NIF'),
           loadBetterBodiesAssetBytes(asset.texture, 'DDS'),
-          female && !underwear && (asset.raceKey === 'no' || appearancePreview) ? loadBetterBodiesFemaleUvEdits() : Promise.resolve([]),
+          female && asset.raceKey === 'no' ? loadBetterBodiesFemaleUvEdits() : Promise.resolve([]),
         ]);
-        const bytes = appearancePreview && female
-          ? rewriteNifAsciiStem(sourceBytes, 'bb_skinf_no', `bb_skinf_${asset.raceKey}`)
-          : sourceBytes;
-        // The isolated editor binds this body against its own embedded skeleton.
-        // The live world/NPC rigs keep their existing vanilla skeleton selection.
-        if (appearancePreview) skeletonBytes = bytes;
         registerBetterBodiesRaceTexture(archives, asset.texturePath, textureBytes);
         betterBodiesPart = {
           slot: 'betterBodies', bones: [], bytes, uvEdits, hideSlots: worn.shadows,
@@ -2151,7 +2118,7 @@ async function buildTpBody({
           if (String(key).toLowerCase().endsWith(basename)) TEXTURE_CACHE.delete(key);
         }
         console.info('[Better Bodies] race/sex body asset loaded', {
-          raceKey: asset.raceKey, female, underwear, modelBytes: bytes.byteLength,
+          raceKey: asset.raceKey, female, modelBytes: bytes.byteLength,
           textureBytes: textureBytes.byteLength, uvEdits: uvEdits.length,
           wornAdds: worn.adds?.length ?? 0,
         });
@@ -2732,8 +2699,6 @@ export async function headPortrait({ renderer, race, female = false, faceIndex =
 
 export async function buildFpArm({
   race, female = false, beast = null, faceIndex = 0, weapon = null, hasAmmo = false, armor = null, deps = null,
-  useBetterBodies = true,
-  appearancePreview = false,   // APPEARANCE PREVIEW: isolated Better Bodies skeleton/geometry path
   torch = false,   // MW-D51: a lit Daggerfall torch in hand at the build
   sheathing = true, ammoCount = null,   // WS1: the holster on the third-person body, and the quiver's count
   hipLight = false,   // HT-WAIST: a lit lantern hung at the waist at the build (the third-person body's alone)
@@ -3110,7 +3075,7 @@ export async function buildFpArm({
     catalog.magic = magic;   // MW-SPELLFX1: and the magic the world's spell effects draw with
     // MW-D24: the THIRD-PERSON BODY, while the same archives are open.
     // Its refusal is a note on the card, never the arm's refusal.
-    const tpBody = (wornNow) => buildTpBody({ race, female, beast, faceIndex, faceMatch, weapon, hasAmmo, worn: wornNow, archives, parts, allWeapons, find, gen, useBetterBodies, appearancePreview, torch, allLights, sheathing, ammoCount, hipLight, werewolf, skin: werewolf ? skin : null, vampire: !!vampire, walk: npcFace, ownHeads: !!ownHeads });   // (the wolf's rows read no face)   // MW-D51; WS1; HT-WAIST; WEREWOLF1; SHADOW-FANG; MWNPC14; MWNPC17
+    const tpBody = (wornNow) => buildTpBody({ race, female, beast, faceIndex, faceMatch, weapon, hasAmmo, worn: wornNow, archives, parts, allWeapons, find, gen, torch, allLights, sheathing, ammoCount, hipLight, werewolf, skin: werewolf ? skin : null, vampire: !!vampire, walk: npcFace, ownHeads: !!ownHeads });   // (the wolf's rows read no face)   // MW-D51; WS1; HT-WAIST; WEREWOLF1; SHADOW-FANG; MWNPC14; MWNPC17
     let third = arm.ok ? await tpBody(worn) : null;
     // AUDIT MW-FOLK1 (L2-F2): AN OUTFIT THAT BOUND NOTHING HIDES NOTHING AND DRESSES NOTHING. Its `hides` took the skin
     // under it and its `covers` stood the modesty shirt down at the composition, before its mesh was read; one whose mesh
@@ -3670,7 +3635,7 @@ export function groundThirdPersonModel(model, bodyMinZ, feetY) {
   return grounded;
 }
 
-export function createFpArm({ playerAppearance = false, useBetterBodies = true, appearancePreview = false } = {}) {
+export function createFpArm({ playerAppearance = false } = {}) {
   let renderer = null;
   let camera = null;
   let built = null;
@@ -4276,15 +4241,13 @@ export function createFpArm({ playerAppearance = false, useBetterBodies = true, 
     const u = thirdUnit(grow);
     const yawDeg = (yaw * 180 / Math.PI) + 180;
     const rs = (built && built.raceScale) || { weight: 1, height: 1 };
-    // Appearance width/height are vertex morphs in poseAssembly. Applying
-    // them again to the actor transform doubled those controls in the world
-    // (and scaled equipment/camera framing as if the whole actor were resized).
-    // Keep the actor transform race-scaled only; body proportions are owned by
-    // the same geometry deformation used by the editor preview.
+    const morph = playerAppearance ? getBodyMorphs() : { bodyWidth: 0, height: 0 };
+    const width = 1 + Math.max(-1, Math.min(1, Number(morph.bodyWidth) || 0)) * 0.18;
+    const height = 1 + Math.max(-1, Math.min(1, Number(morph.height) || 0)) * 0.15;
     return multiply(trs(feet[0], feet[1], feet[2], 0, yawDeg, 0,
-      -u * rs.weight * THIRD_PERSON_HORIZONTAL_SCALE,
-      u * rs.height * THIRD_PERSON_HEIGHT_SCALE,
-      u * rs.weight * THIRD_PERSON_HORIZONTAL_SCALE), NIF_TO_PASS);
+      -u * rs.weight * THIRD_PERSON_HORIZONTAL_SCALE * width,
+      u * rs.height * THIRD_PERSON_HEIGHT_SCALE * height,
+      u * rs.weight * THIRD_PERSON_HORIZONTAL_SCALE * width), NIF_TO_PASS);
   }
   /** PR-BOW1 / MWNPC16: the posed box drawThird folds over what it draws (the shown ranges'), else the assembly's. */
   function thirdBox() {
@@ -4318,14 +4281,9 @@ export function createFpArm({ playerAppearance = false, useBetterBodies = true, 
    * and the CPU skin draws it as it always did. The door shut mid-session lets a skinned mesh go.
    */
   function thirdSkinReady(t) {
-    // Vertex morphs are CPU-side today. While any body morph is active, use the
-    // same posed vertex path as the editor so changes are visible in the world too.
-    const morphs = getBodyMorphs();
-    const hasVertexMorph = Object.values(morphs).some((value) => Number(value) !== 0);
-    if (hasVertexMorph) {
-      if (thirdMesh && thirdMesh.skin) releaseThirdMesh();
-      return false;
-    }
+    // Local chest/hip vertex morphs are not implemented yet. Persisted slider values
+    // must not silently force the CPU-skinning path until a real vertex transform
+    // is applied; that path changes performance and can mask pose/visibility bugs.
     if (!gpuSkinOn(renderer)) { if (thirdMesh && thirdMesh.skin) releaseThirdMesh(); return false; }
     if (thirdSkin && skinSamePieces(thirdSkin, t.arm.pieces)) return true;
     if (thirdSkinRefused === t.arm.pieces) return false;
@@ -5322,18 +5280,9 @@ export function createFpArm({ playerAppearance = false, useBetterBodies = true, 
      * skeleton, assembled meshes, animation state and render target work are owned
      * by a new rig. Equipment is intentionally omitted so the editor previews nude.
      */
-    async setUnderwearEnabled(enabled) {
-      const value = persistUnderwearEnabled(enabled);
-      if (playerAppearance && lastBuildOpts) {
-        // Rebuild both player body assemblies from the selected Nude/Underwear NIF.
-        // api.build owns the existing busy/queue rules and preserves actor identity.
-        await api.build({ ...lastBuildOpts });
-      }
-      return value;
-    },
     async createAppearancePreviewRig() {
       if (!lastBuildOpts || !renderer) return { ok: false, error: 'The live character has not finished building.' };
-      const previewRig = createFpArm({ playerAppearance: true, useBetterBodies: true, appearancePreview: true });
+      const previewRig = createFpArm({ playerAppearance: true });
       previewRig.attach(renderer, camera);
       const opts = {
         ...lastBuildOpts,
@@ -5391,7 +5340,7 @@ export function createFpArm({ playerAppearance = false, useBetterBodies = true, 
       buildingOpts = opts ?? null;   // MW-EARLY
       const gen = buildGen;
       try {
-        const res = await buildFpArm({ ...opts, useBetterBodies: playerAppearance ? useBetterBodies : true, appearancePreview: playerAppearance && appearancePreview });
+        const res = await buildFpArm(opts);
         // AUDIT MW-TORCH F7: unloaded while the archives were open (the
         // pack's Off, Remove data): the result is dead on arrival, not
         // installed over the unload.
@@ -7317,9 +7266,7 @@ export function createFpArm({ playerAppearance = false, useBetterBodies = true, 
       // START, the standing frame Morrowind's own inventory doll holds.
       // Deterministic, so the panel's cache is exact and two renders of
       // one wardrobe are one picture.
-      // The appearance editor asks for a true bind/rest pose, not the first frame of an idle clip.
-      // An idle clip can move individual bones away from their rest transforms and make a neutral preview look disconnected.
-      const pose = neutral ? null : portraitPose(t);
+      const pose = portraitPose(t, { neutral });
       // A portrait must be posed even when this race/rig has no named idle group.
       // Previously a null portraitPose skipped poseAssembly entirely, so sliders changed
       // saved values but the preview kept uploading the last unmodified mesh.
@@ -7353,10 +7300,9 @@ export function createFpArm({ playerAppearance = false, useBetterBodies = true, 
       }
       const u = 1 / MW_UNITS_PER_METER;
       const rs = (built && built.raceScale) || { weight: 1, height: 1 };
-      // bodyWidth and height are vertex morphs shared with the world body;
-      // do not apply a second, portrait-only model scale here.
-      const width = 1;
-      const heightScale = 1;
+      const morph = playerAppearance ? getBodyMorphs() : { bodyWidth: 0, height: 0 };
+      const width = 1 + Math.max(-1, Math.min(1, Number(morph.bodyWidth) || 0)) * 0.18;
+      const heightScale = 1 + Math.max(-1, Math.min(1, Number(morph.height) || 0)) * 0.15;
       // feet at the origin, facing the viewer: drawThird's +180 makes yaw
       // 0 face -Z in pass space, and the eye below sits on +Z.
       const yawDeg = (yaw * 180 / Math.PI) + 180;
