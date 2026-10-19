@@ -1,14 +1,7 @@
-import { BODY_MORPH_FIELDS, getBodyMorphs, setBodyMorph, resetBodyMorphs, getUnderwearEnabled, setUnderwearEnabled } from '../characters/bodyMorphs.js';
+import { BODY_MORPH_FIELDS, getBodyMorphs, setBodyMorph, resetBodyMorphs, getUnderwearEnabled, setUnderwearEnabled, getAppearanceIdentity, setAppearanceIdentity } from '../characters/bodyMorphs.js';
 
 const GROUPS = [
-  { id: 'all', title: 'Все параметры', description: 'Полный набор пропорций', keys: ['height', 'bodyWidth', 'bodyFullness', 'shoulderWidth', 'ribcageWidth', 'breastSize', 'breastProjection', 'waistWidth', 'abdomenVolume', 'hipWidth', 'buttockSize', 'buttockProjection', 'headScale', 'armThickness', 'armLength', 'thighThickness', 'calfThickness', 'legLength', 'legGap'] },
-  { id: 'shape', title: 'Силуэт', description: 'Общие пропорции', keys: ['height', 'bodyWidth', 'bodyFullness'] },
-  { id: 'chest', title: 'Плечи и грудь', description: 'Плечевой пояс, грудная клетка и грудь', keys: ['shoulderWidth', 'ribcageWidth', 'breastSize', 'breastProjection'] },
-  { id: 'torso', title: 'Талия и живот', description: 'Центральная часть корпуса', keys: ['waistWidth', 'abdomenVolume'] },
-  { id: 'hips', title: 'Таз и ягодицы', description: 'Ширина таза и объём ягодиц', keys: ['hipWidth', 'buttockSize', 'buttockProjection'] },
-  { id: 'arms', title: 'Руки', description: 'Толщина и длина рук', keys: ['armThickness', 'armLength'] },
-  { id: 'legs', title: 'Ноги', description: 'Бёдра, голени, длина и постановка ног', keys: ['thighThickness', 'calfThickness', 'legLength', 'legGap'] },
-  { id: 'head', title: 'Голова', description: 'Масштаб головы', keys: ['headScale'] },
+  { id: 'all', title: 'Реально доступные параметры', description: 'Только параметры, подключённые к игровому рендеру', keys: ['height', 'bodyWidth'] },
 ];
 const labelByKey = new Map(BODY_MORPH_FIELDS.map(([key, label]) => [key, label]));
 const clamp = (n) => Math.max(-1, Math.min(1, n));
@@ -180,8 +173,9 @@ export function openAppearanceEditor({ fpArm, onClose = () => {} } = {}) {
 
   let yaw = 0, zoom = 1, frame = 0, closed = false, previewRig = null, previewBuildPending = false, previewRebuildRequested = false, previewError = '';
   const initialIdentity = fpArm?.builtFor?.() || {};
-  let selectedRace = String(initialIdentity.race || 'nord').toLowerCase();
-  let selectedFace = Math.max(0, Math.min(9, Number(initialIdentity.faceIndex) || 0));
+  const savedIdentity = getAppearanceIdentity();
+  let selectedRace = String(savedIdentity?.race || initialIdentity.race || 'nord').toLowerCase();
+  let selectedFace = Math.max(0, Math.min(9, Number(savedIdentity?.faceIndex ?? initialIdentity.faceIndex) || 0));
   const root = document.createElement('div');
   root.id = 'mw-appearance-editor';
   const style = document.createElement('style');
@@ -272,8 +266,18 @@ export function openAppearanceEditor({ fpArm, onClose = () => {} } = {}) {
     else void buildPreviewRig();
     window.dispatchEvent(new CustomEvent('mw-appearance-race-preview-change', { detail: { race: selectedRace, faceIndex: selectedFace } }));
   };
-  raceSelect.addEventListener('change', () => { selectedRace = raceSelect.value; rebuildRacePreview(); });
-  faceSelect.addEventListener('change', () => { selectedFace = Number(faceSelect.value) || 0; rebuildRacePreview(); });
+  const applyIdentity = async () => {
+    const identity = setAppearanceIdentity({ race: selectedRace, faceIndex: selectedFace });
+    if (typeof fpArm?.applyAppearanceIdentity === 'function') {
+      const result = await fpArm.applyAppearanceIdentity(identity);
+      if (result?.ok === false && !result?.queued) {
+        previewError = result.error || 'Не удалось применить внешность к игровому персонажу.';
+      }
+    }
+    rebuildRacePreview();
+  };
+  raceSelect.addEventListener('change', () => { selectedRace = raceSelect.value; void applyIdentity(); });
+  faceSelect.addEventListener('change', () => { selectedFace = Number(faceSelect.value) || 0; void applyIdentity(); });
   underwearToggle.addEventListener('change', async () => {
     setUnderwearEnabled(underwearToggle.checked);
     statusMessage.style.display = 'block'; statusMessage.textContent = 'Пересборка модели…';
