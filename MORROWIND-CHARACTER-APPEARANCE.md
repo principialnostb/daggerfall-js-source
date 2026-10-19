@@ -46,6 +46,7 @@ UV-edit note: `bb_skinf_no-uv-edits.json` is applied to every female body becaus
 - The NIF's embedded texture stem is rewritten in a private byte copy when the geometry race key differs from the actor's skin race key. This preserves the Nord-female shape while resolving the correct race texture without mutating cached source bytes.
 - The editor still owns a separate rig and animation/skeleton state. It does not borrow the live character's rendered screenshot. Its established portrait draw path and the 19 live morph controls are retained.
 - The standalone HTML diagnostic remains intentionally nude, regardless of the saved in-game underwear preference. It is the geometry reference, not the live game renderer.
+- The portrait renderer's horizontal framing margin was widened to avoid clipping fingertips when the skinned hand vertices extend beyond conservative posed range bounds. This is a source-level framing adjustment; confirm it visually in the running editor.
 - Runtime visual QA remains necessary: verify the body is continuous, race-specific skin and face are correct, and every morph produces a visible, coherent change. No browser/game render or build/test run has been performed in this code-edit pass.
 
 ### Body selection and preview regression notes (2026-10-19)
