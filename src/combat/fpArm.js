@@ -2073,6 +2073,7 @@ export function bareHeadRows(rows, worn, pieces, werewolf = false) {
  */
 async function buildTpBody({
   race, female, beast, faceIndex, faceMatch, weapon, hasAmmo, worn, archives, parts, allWeapons, find, gen = null,
+  useBetterBodies = true,   // APPEARANCE PREVIEW: preview-specific base-body selection
   torch = false, allLights = [],   // MW-D51
   sheathing = true, ammoCount = null,   // WS1: the holster, and the quiver's count (null: a full quiver when there is ammunition)
   hipLight = false,   // HT-WAIST: a lit lantern at the waist
@@ -3077,7 +3078,7 @@ export async function buildFpArm({
     catalog.magic = magic;   // MW-SPELLFX1: and the magic the world's spell effects draw with
     // MW-D24: the THIRD-PERSON BODY, while the same archives are open.
     // Its refusal is a note on the card, never the arm's refusal.
-    const tpBody = (wornNow) => buildTpBody({ race, female, beast, faceIndex, faceMatch, weapon, hasAmmo, worn: wornNow, archives, parts, allWeapons, find, gen, torch, allLights, sheathing, ammoCount, hipLight, werewolf, skin: werewolf ? skin : null, vampire: !!vampire, walk: npcFace, ownHeads: !!ownHeads });   // (the wolf's rows read no face)   // MW-D51; WS1; HT-WAIST; WEREWOLF1; SHADOW-FANG; MWNPC14; MWNPC17
+    const tpBody = (wornNow) => buildTpBody({ race, female, beast, faceIndex, faceMatch, weapon, hasAmmo, worn: wornNow, archives, parts, allWeapons, find, gen, useBetterBodies, torch, allLights, sheathing, ammoCount, hipLight, werewolf, skin: werewolf ? skin : null, vampire: !!vampire, walk: npcFace, ownHeads: !!ownHeads });   // (the wolf's rows read no face)   // MW-D51; WS1; HT-WAIST; WEREWOLF1; SHADOW-FANG; MWNPC14; MWNPC17
     let third = arm.ok ? await tpBody(worn) : null;
     // AUDIT MW-FOLK1 (L2-F2): AN OUTFIT THAT BOUND NOTHING HIDES NOTHING AND DRESSES NOTHING. Its `hides` took the skin
     // under it and its `covers` stood the modesty shirt down at the composition, before its mesh was read; one whose mesh
