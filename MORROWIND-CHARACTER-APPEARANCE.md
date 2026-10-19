@@ -40,6 +40,14 @@ UV-edit caution: the checked-in UV-edit JSON was authored for the Nord female me
 - The editor currently has twelve body controls grouped into basic proportions, torso/chest/waist, hips/buttocks, and limbs. Values are persisted and supplied to the preview rig. Breast/waist/buttock/hip values deform body-piece vertices; shoulder/torso/head/arm/leg controls scale matching skeleton bones; leg spacing offsets paired thigh bones. These are early generic transforms, not calibrated per race/sex/NIF, and some controls may have weak or inconsistent visual impact depending on skeleton naming and mesh slot. `height` and `bodyWidth` still apply an overall model scale in the portrait renderer.
 - The equipment PaperDoll must not be substituted for the preview: it is not the live morphed 3D body.
 
+### Editor UI presentation update (2026-10-19)
+
+- [x] Reworked `src/ui/appearanceEditor.js` into a cohesive dark, muted-green/brass editor surface instead of a collection of inline-styled boxes. The preview and controls now share a visual system with restrained borders, spacing, typography, grouped control panels, clearer hierarchy, and consistent button states.
+- [x] Expanded the preview column and canvas, added a responsive layout for narrow screens, and clarified the drag-to-rotate and zoom controls. The reset-view action resets both yaw and zoom; the body reset updates all displayed values and dispatches the shared morph-change event.
+- [x] Kept the existing dedicated preview-rig pathway and real currently selected head/hair assembly. No 2D portrait cards or invented face/hair presets were added.
+- [ ] Visual QA in the running game/browser is still required at desktop and mobile widths. The UI refresh does not by itself improve the underlying deformation algorithms.
+- [ ] The 12 current sliders remain early generic controls. Their labels and grouping are now clearer, but calibration and visibly correct anatomy-specific deformations are still outstanding; do not describe the full body-morph system as complete.
+
 ## Target architecture
 
 1. Resolve the actor identity first: actor type (player/NPC), race, sex, and special form (beast, werewolf, vampire, etc.). Preserve the current special-form exclusions unless a compatible asset set is explicitly implemented.
