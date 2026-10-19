@@ -17,6 +17,15 @@ test('MW-D40: movement, running and combat can resume view-facing and then relat
   assert.equal(player.bodyYawFor(-0.7, { faceView: true }), -0.7);
 });
 
+
+test('MW-D41: third-person walking faces its movement heading, then latches on idle', () => {
+  const player = new PlayerMotor(null);
+  assert.equal(player.bodyYawFor(0.2, { moveYaw: 2.4 }), 2.4, 'walking uses movement heading instead of orbit yaw');
+  assert.equal(player.bodyYawFor(-1.1), 2.4, 'stopping preserves the last locomotion heading');
+  assert.equal(player.bodyYawFor(-0.8, { faceView: true }), -0.8, 'first-person or explicit run/combat facing syncs to the view');
+  assert.equal(player.bodyYawFor(1.7), -0.8, 'idle after view-facing keeps the latest view heading');
+});
+
 test('MW-D40: first-person sync, climb facing and seats retain precedence', () => {
   const player = new PlayerMotor(null);
   player.bodyYawFor(0.2);
