@@ -2937,43 +2937,20 @@ export function poseAssembly(assembly, { tracks = null, sampleTrack = null,
   // Keep raw animation data separate from morph/neck/climb edits for the next transition.
   assembly.rawPose = new Map(sampledPose);
   const pose = blendFrom && blendWeight < 1 ? blendPoseMaps(blendFrom, sampledPose, blendWeight) : new Map(sampledPose);
-  // MWV2-PROPORTIONS: only expose controls with a direct transform in this skeleton pose.
-  // These are bone-subtree scales, not vertex morphs: they cannot create local bust/waist/buttock volume.
+  // Morphs needing an anatomical region are applied to body vertices below,
+  // using shared whole-body bounds. Only head scale remains a bone transform;
+  // uniform limb scales made unrelated controls behave like overall body scale.
   if (bodyProportions) {
     const morph = typeof bodyProportions === 'object' ? bodyProportions : getBodyMorphs();
-    const amount = (key) => Math.max(-1, Math.min(1, Number(morph[key]) || 0));
-    const scaled = (key, strength) => 1 + amount(key) * strength;
-    for (const [ref, node] of skeleton.nodes) {
-      const rawName = String(node.name || '').toLowerCase();
-      const name = rawName.replace(/[^a-z0-9]/g, '');
-      let factor = 1;
-      // Keep the previously tested shoulder adjustment as the baseline.
-      if (name.includes('pelvis') || name.endsWith('hip')) factor *= 1.08;
-      else if (name.includes('spine') || name.includes('chest')) factor *= 1.06;
-      else if (name.includes('clavicle') || name.includes('shoulder')) factor *= 1.035;
-      else if (name.includes('thigh')) factor *= 1.045;
-      else if (name.includes('upperarm')) factor *= 0.97;
-      if (name.includes('clavicle') || name.includes('shoulder')) factor *= scaled('shoulderWidth', 0.10);
-      if (name.includes('spine') || name.includes('chest')) factor *= scaled('torsoScale', 0.10);
-      if (name.includes('head')) factor *= scaled('headScale', 0.10);
-      if (name.includes('upperarm') || name.includes('forearm') || name.includes('wrist')) factor *= scaled('armScale', 0.10);
-      if (name.includes('thigh') || name.includes('calf') || name.includes('shin') || name.includes('ankle')) {
-        factor *= scaled('legScale', 0.10);
-      }
-      const current = pose.get(ref);
-      if (current && factor !== 1) {
+    const headScale = 1 + Math.max(-1, Math.min(1, Number(morph.headScale) || 0)) * 0.12;
+    if (headScale !== 1) {
+      for (const [ref, node] of skeleton.nodes) {
+        const name = String(node.name || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+        if (!name.includes('head')) continue;
+        const current = pose.get(ref);
+        if (!current) continue;
         const scale = typeof current.scale === 'number' ? current.scale : 1;
-        pose.set(ref, { ...current, scale: scale * factor });
-      }
-      // Translation-based leg spacing is only applied to paired, explicitly named leg bones.
-      if (current && amount('legGap') !== 0 && name.includes('thigh')) {
-        const left = /(^|[^a-z])left([^a-z]|$)/.test(rawName) || /l(thigh|calf|shin)$/.test(name);
-        const right = /(^|[^a-z])right([^a-z]|$)/.test(rawName) || /r(thigh|calf|shin)$/.test(name);
-        if (left || right) {
-          const translation = Array.isArray(current.translation) ? [...current.translation] : [0, 0, 0];
-          translation[0] = (Number(translation[0]) || 0) + (left ? 1 : -1) * amount('legGap') * 1.5;
-          pose.set(ref, { ...(pose.get(ref) || current), translation });
-        }
+        pose.set(ref, { ...current, scale: scale * headScale });
       }
     }
   }
