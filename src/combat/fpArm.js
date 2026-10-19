@@ -2099,7 +2099,7 @@ async function buildTpBody({
     // texture is registered by basename, so concurrent NPC builds cannot overwrite
     // one another's skin bytes through a shared "current texture" adapter.
     let betterBodiesPart = null;
-    if (!beast && !werewolf && !vampire) {
+    if (!beast && !werewolf && !vampire && useBetterBodies) {
       try {
         const underwear = playerAppearance ? getUnderwearEnabled() : false;
         const asset = betterBodiesAssetUrls({ race, female, underwear });
@@ -2700,6 +2700,7 @@ export async function headPortrait({ renderer, race, female = false, faceIndex =
 
 export async function buildFpArm({
   race, female = false, beast = null, faceIndex = 0, weapon = null, hasAmmo = false, armor = null, deps = null,
+  useBetterBodies = true,   // APPEARANCE PREVIEW: isolate the legacy preview from BB until its own bind-pose renderer is used
   torch = false,   // MW-D51: a lit Daggerfall torch in hand at the build
   sheathing = true, ammoCount = null,   // WS1: the holster on the third-person body, and the quiver's count
   hipLight = false,   // HT-WAIST: a lit lantern hung at the waist at the build (the third-person body's alone)
@@ -3636,7 +3637,7 @@ export function groundThirdPersonModel(model, bodyMinZ, feetY) {
   return grounded;
 }
 
-export function createFpArm({ playerAppearance = false } = {}) {
+export function createFpArm({ playerAppearance = false, useBetterBodies = true } = {}) {
   let renderer = null;
   let camera = null;
   let built = null;
@@ -5299,7 +5300,7 @@ export function createFpArm({ playerAppearance = false } = {}) {
     },
     async createAppearancePreviewRig() {
       if (!lastBuildOpts || !renderer) return { ok: false, error: 'The live character has not finished building.' };
-      const previewRig = createFpArm({ playerAppearance: true });
+      const previewRig = createFpArm({ playerAppearance: true, useBetterBodies: false });
       previewRig.attach(renderer, camera);
       const opts = {
         ...lastBuildOpts,
@@ -5357,7 +5358,7 @@ export function createFpArm({ playerAppearance = false } = {}) {
       buildingOpts = opts ?? null;   // MW-EARLY
       const gen = buildGen;
       try {
-        const res = await buildFpArm(opts);
+        const res = await buildFpArm({ ...opts, useBetterBodies: playerAppearance ? useBetterBodies : true });
         // AUDIT MW-TORCH F7: unloaded while the archives were open (the
         // pack's Off, Remove data): the result is dead on arrival, not
         // installed over the unload.
