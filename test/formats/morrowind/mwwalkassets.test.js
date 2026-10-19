@@ -60,7 +60,7 @@ test('MW-ANIM-1: Vanilla disables bundled walk replacements only', () => {
 
 test('MW-ANIM-3: walk and run preferences gate only their own clip families', () => {
   const walk = { walkOnly: true, animationFamily: 'walk', walkVariant: 'axel' };
-  const run = { walkOnly: true, animationFamily: 'run', walkVariant: 'axel' };
+  const run = { runOnly: true, animationFamily: 'run', walkVariant: 'axel' };
   assert.equal(isWalkVariantEnabled(walk, 'vanilla'), false);
   assert.equal(isWalkVariantEnabled(run, 'vanilla'), true);
   assert.equal(isRunVariantEnabled(run, 'vanilla'), false);
@@ -70,7 +70,8 @@ test('MW-ANIM-3: walk and run preferences gate only their own clip families', ()
 });
 test('MW-ANIM-3: run choices resolve independently for player and female NPC', () => {
   assert.equal(runVariantForActor({ player: true, playerChoice: 0 }), 'vanilla');
-  assert.equal(runVariantForActor({ player: true, playerChoice: 1 }), 'axel');
+  assert.equal(runVariantForActor({ player: true, female: true, playerChoice: 1 }), 'axel');
+  assert.equal(runVariantForActor({ player: true, female: false, playerChoice: 1 }), 'vanilla');
   assert.equal(runVariantForActor({ female: true, npcFemaleChoice: 1 }), 'axel');
   assert.equal(runVariantForActor({ female: false, npcFemaleChoice: 1 }), 'vanilla');
   assert.equal(runVariantForActor({ ownHeads: true, female: true, playerChoice: 1 }), 'axel');
