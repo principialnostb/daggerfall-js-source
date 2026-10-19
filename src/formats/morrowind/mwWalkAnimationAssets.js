@@ -18,10 +18,9 @@ const FILES = IN_BROWSER
 const norm = (value) => String(value).replace(/\\/g, '/').toLowerCase();
 const entries = Object.entries(FILES).map(([path, url]) => ({ path: path.replace(/\\/g, '/'), lower: norm(path), url }));
 const standardMale = entries.find((e) => e.lower.includes('/simply walking purist edition/meshes/xbase_anim.kf'));
-// The combined Simply Walking pack includes a female set in Purist Edition as
-// well as the dedicated Feminine Walk Cycle. Try the dedicated cycle last (it
-// wins when it has the requested group); the Purist female KF remains a real
-// fallback if the dedicated file cannot supply a valid clip for this skeleton.
+// Keep the general female walk and Feminine Walk Cycle as distinct selectable
+// variants. The resolver filters each source to its declared family and chooses
+// the selected variant only; unsupported groups retain the game's own source.
 const puristFemale = entries.find((e) => e.lower.includes('/simply walking purist edition/meshes/xbase_anim_female.kf'));
 const feminineFemale = entries.find((e) => e.lower.includes('/simply walking/feminine walk cycle/meshes/xbase_anim_female.kf'));
 const axelFemale = entries.find((e) => e.lower.includes("/axel's sexy walk fixed/animation/axel fixed/female/walkforward;.kf"));
@@ -45,11 +44,10 @@ async function bytes(entry) {
 }
 
 /**
- * Returns gender-matched Simply Walking source candidates plus (for female rigs)
- * Axel's optional female walk and run clips. Female candidates share one user-facing choice;
- * reverse-priority resolution tries Feminine Walk Cycle first, then Purist's female KF.
- * Only the source's assigned group family is admitted, so idle/combat clips
- * from a broader .kf are never substituted.
+ * Returns selected source candidates for Simply Walking, the independent Feminine
+ * Walk Cycle, Axel's female locomotion clips, and the optional full MAO set.
+ * The full overhaul is admitted only when explicitly selected; the Vanilla
+ * source remains available for unsupported races and any groups absent in the pack.
  */
 export async function loadWalkAnimationAssets({ female = false } = {}) {
   if (!IN_BROWSER) return [];
@@ -59,8 +57,8 @@ export async function loadWalkAnimationAssets({ female = false } = {}) {
   const feminineCandidate = female
     ? { entry: feminineFemale, variant: 'feminine', family: 'walk' }
     : null;
-  // Keep both female candidates under the same visible Simply Walking option.
-  // fpArm filters each KF down to walk groups and picks the last valid source.
+  // Each female walk pack has its own visible option. fpArm filters the KF
+  // down to the walk family and only admits the chosen variant.
   const overrides = female ? [
     { entry: axelFemale, variant: 'axel', family: 'walk' },
     { entry: axelRunFemale, variant: 'axel', family: 'run' },
