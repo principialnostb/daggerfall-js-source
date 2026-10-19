@@ -54,6 +54,7 @@ function withRows(fn) {
 }
 
 const SPECIAL = ['preset:graphics', 'link:overhauls', 'bindings', 'mods-index'];
+const INFO = ['player-run','npc-run','player-turning','npc-turning','player-idle','npc-idle','player-sneak','npc-sneak','player-attacks','npc-attacks','player-blocking','npc-blocking','player-magic','npc-magic','player-actions','npc-actions','player-jumping','npc-jumping','player-swimming','npc-swimming','player-falling','npc-falling','player-damage','npc-damage','player-death','npc-death'];
 const CARDS = ['card:morrowind', 'card:packs', 'card:peerSprites', 'card:nightSounds'];
 
 test('ORG2: the map is TOTAL and DISJOINT over every option - each of DFU\'s keys, each Features row and each of the port\'s own rows stands in exactly one section of one tab (mutant: a row dropped, or placed twice)', () => {
@@ -77,6 +78,8 @@ test('ORG2: the map is TOTAL and DISJOINT over every option - each of DFU\'s key
     if (isSettingItem(item)) assert.ok(ALL_KEYS.includes(item), `${item} is mapped but is not one of DFU's keys`);
     else if (item.startsWith('feat:')) assert.ok(row(item.slice(5)), `${item} is mapped but is no Features row`);
     else if (item.startsWith('port:')) assert.ok(pool.has(item.slice(5)), `${item} is mapped but no builder draws it`);
+    else if (item.startsWith('info:')) assert.ok(INFO.includes(item.slice(5)), `${item} is a known animation info card`);
+    else if (item.startsWith('label:')) assert.ok(['player','npc'].includes(item.slice(6)), `${item} is a known actor label`);
     else assert.ok(CARDS.includes(item) || SPECIAL.includes(item), `${item} is a piece the screen does not know`);
   }
   for (const k of ALL_KEYS) assert.ok(seen.has(k), `${k} has no place - it would vanish from the screen`);
@@ -88,7 +91,7 @@ test('ORG2: the map is TOTAL and DISJOINT over every option - each of DFU\'s key
 });
 
 test('ORG2: Graphics leads, with the preset at its head, and the tabs a player looks for in the order they look (mutant: the preset or a tab moved)', () => {
-  assert.deepEqual(CATEGORY_IDS, ['graphics', 'gameplay', 'combat', 'world', 'interface', 'audio', 'controls', 'accessibility', 'animations', 'mods']);
+  assert.deepEqual(CATEGORY_IDS, ['graphics', 'gameplay', 'combat', 'world', 'interface', 'audio', 'controls', 'accessibility', 'animations', 'textures', 'bodies', 'mods']);
   assert.deepEqual(whereIs('feat:morrowind-character-animations')?.tab.id, 'animations');
   assert.deepEqual(whereIs('feat:morrowind-player-walk-animation')?.section.id, 'player-movement');
   assert.deepEqual(whereIs('feat:morrowind-male-npc-walk-animation')?.section.id, 'npc-movement');
