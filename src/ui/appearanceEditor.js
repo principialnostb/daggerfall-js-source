@@ -51,7 +51,7 @@ const STYLE = `
 #mw-appearance-editor .mw-slider-row{display:grid;grid-template-columns:minmax(105px,1fr) minmax(80px,1.25fr) 42px;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid #34392f}
 #mw-appearance-editor .mw-slider-row:last-child{border-bottom:0}
 #mw-appearance-editor .mw-slider-label{font-size:12px;color:#e2e2d8}
-#mw-appearance-editor input[type=range]{width:100%;margin:0;accent-color:var(--mw-accent);cursor:pointer}
+#mw-appearance-editor input[type=range]{appearance:none;width:100%;margin:0;cursor:pointer;height:7px;border:1px solid #4d5b4b;background:linear-gradient(90deg,#8ea77b 0%,#8ea77b var(--range-fill,50%),#303830 var(--range-fill,50%),#303830 100%);outline:none}#mw-appearance-editor input[type=range]::-webkit-slider-thumb{appearance:none;width:12px;height:17px;border:1px solid #c8d9bc;background:linear-gradient(#d3e3c8,#7f9a6b);box-shadow:0 1px 3px #0008}#mw-appearance-editor input[type=range]::-moz-range-thumb{width:12px;height:17px;border:1px solid #c8d9bc;border-radius:0;background:linear-gradient(#d3e3c8,#7f9a6b);box-shadow:0 1px 3px #0008}
 #mw-appearance-editor output{color:var(--mw-accent-strong);font-size:11px;text-align:right;font-variant-numeric:tabular-nums}
 #mw-appearance-editor .mw-footer{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:13px 18px;border-top:1px solid var(--mw-line);background:#1a1d19}
 #mw-appearance-editor .mw-footer-note{color:var(--mw-muted);font-size:11px}
