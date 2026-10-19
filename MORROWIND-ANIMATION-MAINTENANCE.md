@@ -1,6 +1,6 @@
 # Morrowind animation packs — maintainer map
 
-Branch: `morrowind.v4`  
+Branch: `Dev`  
 Last audited: 2026-10-19  
 Primary integration note: [MORROWIND-ANIMATION-INTEGRATION.md](./MORROWIND-ANIMATION-INTEGRATION.md)
 
@@ -14,7 +14,7 @@ This document is the operational inventory: what is in the repository, what the 
 | Parse KF / bind tracks to the active skeleton | `src/combat/fpArm.js` + `src/formats/morrowind/mwAnim.js` | Replacement tracks are parsed against the current rig. A failed parse or incompatible source is skipped and the game/archive source remains available. |
 | Restrict replacement to walk groups | `isWalkAnimationGroup`, `isWalkAnimationKey` in `mwWalkAnimationAssets.js`; source filtering in `fpArm.js` | Only groups beginning with `walk` and text-key records containing a walk-group line are copied into replacement sources. Idle, run, turn, sneak, combat, jump, and death groups are not imported from these walk packs. |
 | Choose a clip while walking | `walkVariantForActor()` in `mwWalkAnimationAssets.js`, called from `src/combat/fpArm.js` | Player, male NPC, and female NPC settings are resolved independently. The preference is checked again on a walk-group change and can trigger a live re-pick. |
-| UI / persisted mod setting | `src/ui/settings/settingsMap.js`, `src/systems/modSettings.js`, `src/systems/features.js` | Settings → Animations separates actor groups and responsibilities. Current implemented category: Игрок · Бег / ходьба, then NPC · Бег / ходьба. Each actor has its own source selector. |
+| UI / persisted mod setting | `src/ui/settings/settingsMap.js`, `src/systems/modSettings.js`, `src/systems/features.js` | Settings → Анимации separates broad families, then nested Ходьба / Бег selectors, then Игрок / NPC controls. Walking has source selectors; running is visibly separate but remains Vanilla until a compatible run source is connected. |
 | Animation cross-fade | gameplay pose layer described in `MORROWIND-ANIMATION-INTEGRATION.md`; regression tests include `test/formats/morrowind/mwposeblend.test.js` | Native JavaScript blending, not execution of the downloaded MWSE Lua plugin. It smooths pose changes; it does not supply new animation clips. |
 | Camera/body facing | movement/body-facing host and `test/player/bodyYawFacing.test.js` | Separate concern from walk-source selection. Do not modify this while changing gait choices unless a regression proves the coupling. |
 
