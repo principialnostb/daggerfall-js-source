@@ -5973,6 +5973,14 @@ export function createFpArm({ playerAppearance = false } = {}) {
     /** TWO-HANDS: the first-person arms are posed on the run - the pump's weight on the hands, no sheet in them, no stone
      *  under them. The rig opens its draw gate on it (a sheathed run is the everyday one), as it does for the climb. */
     runPosed() { return viewMode === 'first' && runPump.w >= 0.5 && !held && !climbHands; },
+    // The Morrowind first-person rig must be drawn for unarmed locomotion too:
+    // otherwise the draw gate suppresses the skin's own arms on a vanilla run
+    // clip or while a jump clip is active, even though poseAssembly has posed them.
+    movementPosed() {
+      if (viewMode !== 'first' || held || climbHands) return false;
+      const group = String(movementState?.group ?? '');
+      return runPump.w >= 0.5 || /^run/i.test(group) || !!jumpState?.playing;
+    },
     /** TWO-HANDS: the pins' read. */
     handsState() {
       const arm = built && built.ok ? built.arm : null;
