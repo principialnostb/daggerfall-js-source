@@ -1216,7 +1216,7 @@ export const FEATURES = Object.freeze([
     group: 'character',
     title: 'Seamless DMRA · женская геометрия',
     get note() { return MOD_SETTINGS['morrowind-textures'].keys.SeamlessDMRA.description; },
-    effect: 'Takes effect at once.',
+    effect: 'Геометрия — сразу; дополнительные карты — после перезагрузки.',
     kinds: Object.freeze(['mod']),
     control: Object.freeze({ store: 'mods', vendor: 'morrowind-textures', key: 'SeamlessDMRA' }),
   }),
