@@ -5886,7 +5886,7 @@ export async function bootExterior(canvas, renderer, params, status) {
     const weaponState = weaponRig.playerWeapon.machine?.state;
     // Use the motor's live movement axes as the primary signal. `standing` is also consumed by fatigue/stealth and can lag one fixed step (or be rewritten by a special movement path); it must not suppress facing while W/A/S/D is held. In global/sprite view, backward input moves opposite the view while the body still faces the aim.
     const bodyHasMoveInput = Math.abs(Number(player.moveForward) || 0) > 1e-3 || Math.abs(Number(player.moveStrafe) || 0) > 1e-3;
-    const faceBodyToView = !mwv.thirdPerson || bodyHasMoveInput || !player.standing || player.isRunning || rightHeld || swipeHeld || swingKeyLatch || (!!weaponState && weaponState !== 'Idle');
+    const faceBodyToView = !mwv.thirdPerson || bodyHasMoveInput || player.isRunning || rightHeld || swipeHeld || swingKeyLatch || (!!weaponState && weaponState !== 'Idle');
     mwViewDrawBody(canvas, { proj, view, eye, feet: player.bodyFeetAt(), yaw: player.bodyYawFor(cam.yaw, { faceView: faceBodyToView }), viewYaw: cam.yaw });   // MW-D40: orbit independently on foot/walk; preserve run/combat facing
     hcc.draw3d(canvas, { eye, proj, view });   // COATS3D: Horse Cart and Cargo's horses, 3D on the Morrowind lane
     mwViewDrawWagon(renderer, texRemap, streetCull);   // EOTB-IL: the cart, when the transport is the cart; PERF-WAGON: by the street's view test

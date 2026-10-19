@@ -1,6 +1,6 @@
 # Morrowind character animation integration — v4 audit
 
-Status: audit plus MW-ANIM-1 runtime integration. The female gait selector is consumed by the gameplay third-person movement resolver; in-game visual validation remains outstanding.
+Status: runtime gait selection, input-driven third-person facing, and native pose cross-fades are implemented on this branch. In-game visual validation remains outstanding; no claim is made that combat clips themselves have been replaced.
 
 ## Working branch and asset source
 
@@ -70,6 +70,14 @@ The exterior and dungeon hosts tell the player motor when body facing should fol
 
 Regression coverage is in `test/player/bodyYawFacing.test.js`. In-game visual verification is still required for transitions between walking, running, attack, climbing, and mounted states.
 
+
+## Runtime implementation — MW-ANIM-BLEND
+
+A native JavaScript cross-fade now blends the third-person skeleton's previous raw local pose into the next sampled pose over 160 ms. It uses quaternion spherical interpolation for rotations and linear interpolation for translations/scales; the blend is applied before body morphs, neck/climb adjustments, skinning and attachments. It runs at the gameplay pose layer, not by executing the downloaded MWSE Lua script. This is the port-side implementation of Animation Blending's core visual behavior, so it can smooth transitions for existing walk, idle, run, jump and attack clips even when their source animation has not been replaced.
+
+The facing gate is also input-driven in both exterior and dungeon hosts: W/A/S/D input makes the body follow the current aim, including S moving backward while the model faces the camera. With no movement input and no run/combat action, the body yaw remains latched while the camera orbits. The stale/derived `standing` flag is deliberately not used as the only movement signal.
+
+**Important scope distinction:** blending does not create new attack keyframes. The current runtime loader still restricts Simply Walking and Feminine Walk Cycle to walk groups, so attack clips remain the original game clips. Morrowind Animation Overhaul (Nexus #60253) includes broader combat replacements, but its published permissions explicitly prohibit conversion to other games and asset reuse without permission; it is therefore not wired into this public port branch. A permission-cleared source or an author-approved conversion is needed before its attack clips can be integrated.
 
 ## Runtime implementation — MW-ANIM-1
 
