@@ -4282,9 +4282,14 @@ export function createFpArm({ playerAppearance = false } = {}) {
    * and the CPU skin draws it as it always did. The door shut mid-session lets a skinned mesh go.
    */
   function thirdSkinReady(t) {
-    // Local chest/hip vertex morphs are not implemented yet. Persisted slider values
-    // must not silently force the CPU-skinning path until a real vertex transform
-    // is applied; that path changes performance and can mask pose/visibility bugs.
+    // Vertex morphs are CPU-side today. While any body morph is active, use the
+    // same posed vertex path as the editor so changes are visible in the world too.
+    const morphs = getBodyMorphs();
+    const hasVertexMorph = Object.values(morphs).some((value) => Number(value) !== 0);
+    if (hasVertexMorph) {
+      if (thirdMesh && thirdMesh.skin) releaseThirdMesh();
+      return false;
+    }
     if (!gpuSkinOn(renderer)) { if (thirdMesh && thirdMesh.skin) releaseThirdMesh(); return false; }
     if (thirdSkin && skinSamePieces(thirdSkin, t.arm.pieces)) return true;
     if (thirdSkinRefused === t.arm.pieces) return false;
