@@ -9,7 +9,7 @@ const FILES = IN_BROWSER
   ? import.meta.glob([
       '../../../Morrowind Textures/Simply Walking/**/*.{kf,KF}',
       "../../../Morrowind Textures/Axel's Sexy Walk Fixed/Animation/axel fixed/female/*.{kf,KF}",
-      '../../Morrowind Textures/Morrowind Animation Overhaul/Data Files/Meshes/*.{kf,KF}',
+      '../../../Morrowind Textures/Morrowind Animation Overhaul/Data Files/Meshes/*.{kf,KF}',
     ], {
       eager: true, query: '?url', import: 'default',
     })
@@ -74,6 +74,10 @@ export async function loadWalkAnimationAssets({ female = false } = {}) {
     console.warn('[Morrowind animations] Vite did not resolve any Simply Walking KF source.', inspectWalkAnimationAssets());
   }
   try {
+    if (overhaul?.entry) {
+      const data = await bytes(overhaul.entry);
+      if (data) selected.push({ name: overhaul.entry.path, bytes: data, variant: 'overhaul', walkVariant: 'overhaul', family: 'all', animationFamily: 'all', walkOnly: false, runOnly: false, animationOverhaul: true });
+    }
     for (const { entry, variant, family } of simplyCandidates) {
       if (!entry) continue;
       const data = await bytes(entry);
@@ -82,10 +86,6 @@ export async function loadWalkAnimationAssets({ female = false } = {}) {
     if (feminineCandidate?.entry) {
       const data = await bytes(feminineCandidate.entry);
       if (data) selected.push({ name: feminineCandidate.entry.path, bytes: data, variant: feminineCandidate.variant, walkVariant: feminineCandidate.variant, family: feminineCandidate.family, animationFamily: feminineCandidate.family, walkOnly: true, runOnly: false });
-    }
-    if (overhaul?.entry) {
-      const data = await bytes(overhaul.entry);
-      if (data) selected.push({ name: overhaul.entry.path, bytes: data, variant: 'overhaul', walkVariant: 'overhaul', family: 'all', animationFamily: 'all', walkOnly: false, runOnly: false, animationOverhaul: true });
     }
     for (const { entry, variant, family } of overrides) {
       if (!entry) {
