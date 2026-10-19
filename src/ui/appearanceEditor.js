@@ -205,7 +205,7 @@ export function openAppearanceEditor({ fpArm, onClose = () => {} } = {}) {
   previewSide.className = 'mw-preview-side';
   const previewHead = document.createElement('div');
   previewHead.className = 'mw-preview-head';
-  previewHead.innerHTML = '<div><div class="mw-section-title">Предпросмотр модели</div><div class="mw-section-note">Вращайте модель; изменения внешности применяются сразу</div></div>';
+  previewHead.innerHTML = '<div><div class="mw-section-title">Предпросмотр модели</div><div class="mw-section-note">Раса и лицо сохраняются только после нажатия «Готово»</div></div>';
   const canvasWrap = document.createElement('div');
   canvasWrap.className = 'mw-canvas-wrap';
   const preview = document.createElement('canvas');
@@ -272,18 +272,11 @@ export function openAppearanceEditor({ fpArm, onClose = () => {} } = {}) {
     else void buildPreviewRig();
     window.dispatchEvent(new CustomEvent('mw-appearance-race-preview-change', { detail: { race: selectedRace, faceIndex: selectedFace } }));
   };
-  const applyIdentity = async () => {
-    const identity = setAppearanceIdentity({ race: selectedRace, faceIndex: selectedFace });
-    if (typeof fpArm?.applyAppearanceIdentity === 'function') {
-      const result = await fpArm.applyAppearanceIdentity(identity);
-      if (result?.ok === false && !result?.queued) {
-        previewError = result.error || 'Не удалось применить внешность к игровому персонажу.';
-      }
-    }
-    rebuildRacePreview();
-  };
-  raceSelect.addEventListener('change', () => { selectedRace = raceSelect.value; void applyIdentity(); });
-  faceSelect.addEventListener('change', () => { selectedFace = Number(faceSelect.value) || 0; void applyIdentity(); });
+  // Race/face controls are a draft: only the editor-owned preview changes here.
+  // Persistence and mutation of the live player are reserved for the explicit Done action.
+  const previewIdentityDraft = () => rebuildRacePreview();
+  raceSelect.addEventListener('change', () => { selectedRace = raceSelect.value; previewIdentityDraft(); });
+  faceSelect.addEventListener('change', () => { selectedFace = Number(faceSelect.value) || 0; previewIdentityDraft(); });
   underwearToggle.addEventListener('change', async () => {
     setUnderwearEnabled(underwearToggle.checked);
     statusMessage.style.display = 'block'; statusMessage.textContent = 'Пересборка модели…';
@@ -359,7 +352,7 @@ export function openAppearanceEditor({ fpArm, onClose = () => {} } = {}) {
   }
 
   const footer = document.createElement('footer'); footer.className = 'mw-footer';
-  const footerNote = document.createElement('div'); footerNote.className = 'mw-footer-note'; footerNote.textContent = 'Изменения применяются сразу';
+  const footerNote = document.createElement('div'); footerNote.className = 'mw-footer-note'; footerNote.textContent = 'Раса и лицо — после «Готово»; пропорции тела меняются сразу';
   const footerActions = document.createElement('div'); footerActions.className = 'mw-tool-group';
   const reset = makeButton('Сбросить параметры');
   reset.addEventListener('click', () => {
@@ -372,7 +365,35 @@ export function openAppearanceEditor({ fpArm, onClose = () => {} } = {}) {
     window.dispatchEvent(new CustomEvent('mw-body-morph-change', { detail: state }));
     drawPreview();
   });
-  const done = makeButton('Готово', true, 'mw-btn-primary'); done.addEventListener('click', close);
+  const done = makeButton('Готово', true, 'mw-btn-primary');
+  done.addEventListener('click', async () => {
+    done.disabled = true;
+    const previousLabel = done.textContent;
+    done.textContent = 'Применение…';
+    try {
+      const identity = setAppearanceIdentity({ race: selectedRace, faceIndex: selectedFace });
+      if (typeof fpArm?.applyAppearanceIdentity === 'function') {
+        const result = await fpArm.applyAppearanceIdentity(identity);
+        if (result?.ok === false && !result?.queued) {
+          previewError = result.error || 'Не удалось применить внешность к игровому персонажу.';
+          statusMessage.style.display = 'block';
+          statusMessage.textContent = previewError;
+          drawPreview();
+          done.disabled = false;
+          done.textContent = previousLabel;
+          return;
+        }
+      }
+      close();
+    } catch (error) {
+      previewError = String(error?.message || error);
+      statusMessage.style.display = 'block';
+      statusMessage.textContent = 'Не удалось применить внешность: ' + previewError;
+      done.disabled = false;
+      done.textContent = previousLabel;
+      drawPreview();
+    }
+  });
   footerActions.append(reset, done); footer.append(footerNote, footerActions);
 
   previewSide.append(previewHead, canvasWrap, previewTools);
