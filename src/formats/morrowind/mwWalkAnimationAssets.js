@@ -66,7 +66,7 @@ export async function loadWalkAnimationAssets({ female = false } = {}) {
     for (const { entry, variant, family } of simplyCandidates) {
       if (!entry) continue;
       const data = await bytes(entry);
-      if (data) selected.push({ name: entry.path, bytes: data, variant, walkVariant: variant, family, walkOnly: true });
+      if (data) selected.push({ name: entry.path, bytes: data, variant, walkVariant: variant, family, animationFamily: family, walkOnly: family === 'walk', runOnly: family === 'run' });
     }
     for (const { entry, variant, family } of overrides) {
       if (!entry) {
@@ -102,7 +102,7 @@ export function isWalkAnimationGroup(name) {
   return /^walk/i.test(String(name ?? ''));
 }
 
-/** Axel's pack has a separate RunForward clip; keep run and walk in the same locomotion selector. */
+/** Axel's pack has a separate RunForward clip; it is controlled by the independent run selector. */
 export function isRunAnimationGroup(name) {
   return /^run/i.test(String(name ?? ''));
 }
@@ -142,12 +142,28 @@ export function walkVariantForActor({
   return ['vanilla', 'simply'][index(npcMaleChoice, 1)];
 }
 
-/** Live preference gate used by the movement resolver. Non-walk sources are untouched. */
-export function isWalkVariantEnabled(source, walkChoice = 'standard') {
+/** Live preference gates for the two independent locomotion families. */
+export function isWalkVariantEnabled(source, walkChoice = 'vanilla') {
   const selected = typeof walkChoice === 'boolean' ? (walkChoice ? 'female' : 'standard') : String(walkChoice);
-  // Vanilla is an explicit source policy: keep archive/game clips and omit
-  // every bundled walk-only replacement. It must not disable non-walk sources.
   if (selected === 'vanilla') return !source?.walkOnly;
   if (!source?.walkOnly) return true;
   return source.walkVariant === selected;
+}
+
+export function isRunVariantEnabled(source, runChoice = 'vanilla') {
+  const selected = String(runChoice ?? 'vanilla');
+  if (selected === 'vanilla') return !source?.runOnly;
+  if (!source?.runOnly) return true;
+  return source.walkVariant === selected;
+}
+
+/** Resolve the independent run preference for one actor. Axel only ships a female run clip. */
+export function runVariantForActor({
+  player = false, ownHeads = false, female = false,
+  playerChoice = 0, npcMaleChoice = 0, npcFemaleChoice = 0,
+} = {}) {
+  const index = (value, max) => Math.max(0, Math.min(max, Number(value) || 0));
+  if (player || ownHeads) return female && index(playerChoice, 1) === 1 ? 'axel' : 'vanilla';
+  if (female) return index(npcFemaleChoice, 1) === 1 ? 'axel' : 'vanilla';
+  return ['vanilla'][index(npcMaleChoice, 0)];
 }
