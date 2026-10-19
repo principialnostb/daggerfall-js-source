@@ -1275,6 +1275,24 @@ export const FEATURES = Object.freeze([
   // MW-ANIM-2: actor-scoped walk selectors. Each row is a category-specific
   // source choice, persisted independently and consumed by the walk resolver.
   Object.freeze({
+    id: 'morrowind-player-run-animation',
+    group: 'character',
+    get title() { return 'Бег игрока'; },
+    get note() { return MOD_SETTINGS['morrowind-animation'].keys.PlayerRunSource.description; },
+    get effect() { return t('features.effect.atOnce', 'Takes effect at once.'); },
+    kinds: Object.freeze(['mod']),
+    control: Object.freeze({ store: 'mods', vendor: 'morrowind-animation', key: 'PlayerRunSource' }),
+  }),
+  Object.freeze({
+    id: 'morrowind-female-npc-run-animation',
+    group: 'character',
+    get title() { return 'Бег NPC · женщины'; },
+    get note() { return MOD_SETTINGS['morrowind-animation'].keys.NpcFemaleRun.description; },
+    get effect() { return t('features.effect.atOnce', 'Takes effect at once.'); },
+    kinds: Object.freeze(['mod']),
+    control: Object.freeze({ store: 'mods', vendor: 'morrowind-animation', key: 'NpcFemaleRun' }),
+  }),
+  Object.freeze({
     id: 'morrowind-player-walk-animation',
     group: 'character',
     get title() { return 'Ходьба / бег'; },
