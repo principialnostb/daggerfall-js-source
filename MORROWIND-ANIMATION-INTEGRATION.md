@@ -120,13 +120,11 @@ The v4 idle body-yaw latch was rolled back after the reported runtime symptom re
 
 ## Actor-specific walk controls update — 2026-10-19
 
-The **Settings → Animations** page now has actor-first, category-specific selectors. The player section appears first, followed by NPC settings. The current live category is **Бег / ходьба**; each selector persists independently through the existing mod-settings store:
+The **Settings → Animations** page has actor-first, category-specific sub-pages. The selected category is shown on its own; the controls are not a single list with labels. Walk sources persist independently through the existing mod-settings store, with **Vanilla first**:
 
-- Player: Standard / Feminine Walk Cycle / Axel's Sexy Walk Fixed.
-- Male NPCs: Standard / Vanilla.
-- Female NPCs: Standard / Female (Axel) / Vanilla.
-
-The player selector offers Standard / Feminine Walk Cycle / Axel's Sexy Walk Fixed / Vanilla; male NPCs offer Standard / Vanilla; female NPCs offer Standard / Female (Axel) / Vanilla. `Vanilla` preserves the game's/archive walk source. The previous `FemaleWalk` key is retained as a compatibility declaration, but the runtime now reads `PlayerWalkSource`, `NpcMaleWalk`, and `NpcFemaleWalk`. Actor routing is implemented in `walkVariantForActor()` in `src/formats/morrowind/mwWalkAnimationAssets.js`; the shared rig's movement resolver supplies build identity and filters the sources accordingly. `Vanilla` excludes bundled walk-only sources while preserving archive animation groups. Remote player bodies follow the player selector; NPC bodies use the sex-specific NPC selector.
+- Player: Vanilla / Simply Walking / Axel's Sexy Walk Fixed.
+- Male NPCs: Vanilla / Simply Walking.
+- Female NPCs: Vanilla / Simply Walking / Axel's Sexy Walk Fixed. `Vanilla` preserves the game's/archive walk source. The previous `FemaleWalk` key is retained as a compatibility declaration, but the runtime now reads `PlayerWalkSource`, `NpcMaleWalk`, and `NpcFemaleWalk`. Actor routing is implemented in `walkVariantForActor()` in `src/formats/morrowind/mwWalkAnimationAssets.js`; the shared rig's movement resolver supplies build identity and filters the sources accordingly. `Vanilla` excludes bundled walk-only sources while preserving archive animation groups. Remote player bodies follow the player selector; NPC bodies use the sex-specific NPC selector.
 
 The actor mapping and Vanilla filter have regression assertions in `test/formats/morrowind/mwwalkassets.test.js`. This is code-level validation only: this environment did not run the complete test/lint/type/build pipeline or an in-game visual pass. In-game verification remains necessary for correct actor classification, foot sliding, clipping, and transitions.
 
