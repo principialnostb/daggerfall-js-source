@@ -1873,25 +1873,32 @@ export class PlayerMotor {
    *  In ordinary standing/walking, mouse-look orbits the camera without
    *  rotating the actor. First-person calls pass faceView to keep the latch
    *  current when perspective changes. Climbing and seats retain precedence. */
-  bodyYawFor(viewYaw, { faceView = false } = {}) {
-    // A seat/draw transform always owns facing. A live climb also owns it,
-    // but a stale climb-release offset must never suppress a movement-facing
-    // request: that is exactly what lets S walk backwards while the camera
-    // looks at the character's face in the Morrowind third-person view.
+  bodyYawFor(viewYaw, { faceView = false, moveYaw = null } = {}) {
+    // Seats and active climbs own their facing before ordinary locomotion.
     if (this.drawYaw != null) return this.drawYaw;
     if (this.climbFacing != null) {
       if (this._bodyYaw != null) return this._bodyYaw;
       if (this._bodyYawOff != null) return viewYaw + this._bodyYawOff;
     }
     if (!Number.isFinite(viewYaw)) return viewYaw;
+    // First-person look and explicit run/combat aim keep the body aligned to
+    // the view. Clear climb-release leftovers before latching the new heading.
     if (faceView) {
-      // Once the player resumes view-facing, discard any climb-release yaw
-      // that survived its transition. Otherwise the next idle frame can
-      // resurrect that stale angle and make the actor look permanently fixed.
       this._bodyYaw = null;
       this._bodyYawOff = null;
       this._thirdPersonLookYaw = viewYaw;
       return viewYaw;
+    }
+    // Ordinary third-person walking follows the actual locomotion heading,
+    // not the orbit camera. This is the 3D equivalent of the classic sprite
+    // lane's actor-facing direction and prevents sideways/backwards gait when
+    // the camera is freely orbiting. The resulting heading becomes the idle
+    // latch when movement stops.
+    if (Number.isFinite(moveYaw)) {
+      this._bodyYaw = null;
+      this._bodyYawOff = null;
+      this._thirdPersonLookYaw = moveYaw;
+      return moveYaw;
     }
     if (this._bodyYaw != null) return this._bodyYaw;
     if (this._bodyYawOff != null) return viewYaw + this._bodyYawOff;
