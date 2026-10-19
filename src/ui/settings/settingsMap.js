@@ -47,7 +47,7 @@ export const CATEGORIES = Object.freeze([
     sec("plants", "Plants, trees & wind", [
       "feat:grass", "feat:wind", "feat:mod-windfall", "feat:mod-low-poly-trees", "feat:mod-seasons-iliac-bay"]),
     sec("looks", "Textures & looks", [
-      "link:overhauls", "feat:dungeon-wall-style", "Video/RandomDungeonTextures", "Video/MainFilterMode", "GUI/GUIFilterMode", "GUI/VideoFilterMode",
+      "feat:dungeon-wall-style", "Video/RandomDungeonTextures", "Video/MainFilterMode", "GUI/GUIFilterMode", "GUI/VideoFilterMode",
       "Video/EnableTextureArrays", "GUI/AccelerateUICopyTexture"]),
     sec("retro", "Retro look", [
       "Video/RetroRenderingMode", "Video/PostProcessingInRetroMode", "Video/UseMipMapsInRetroMode", "Video/RetroModeAspectCorrection",
@@ -99,7 +99,7 @@ export const CATEGORIES = Object.freeze([
     sec("weapons", "Weapons in hand", [
       "feat:weapon-glow", "feat:mod-weapon-widget", "feat:mod-shield-widget", "feat:mod-readied-spellcasting-hands", "feat:mod-diverse-weapons", "feat:bows-left-hand", "Enhancements/BowLeftHandWithSwitching"]),
     sec("morrowind", "With Morrowind data", [
-      "feat:mod-weapon-sheathing", "feat:steel-helm", "feat:mw-spell-effects", "feat:mw-npc-bodies", "feat:mw-billboard-look"]),
+      "feat:mod-weapon-sheathing", "feat:steel-helm", "feat:mw-spell-effects"]),
     sec("aftermath", "Seeing & bleeding", [
       "feat:enhanced-combat-visuals", "feat:blood"]),
     sec("sea", "At sea", [
@@ -188,42 +188,88 @@ export const CATEGORIES = Object.freeze([
       "GUI/LargeHUD", "GUI/LargeHUDDocked", "GUI/LargeHUDUndockedScale", "GUI/LargeHUDUndockedAlignment", "GUI/LargeHUDUndockedOffsetWeapon",
       "GUI/LargeHUDOffsetHorse"]),
   ]),
-  // ANIM-UI5: categories describe animation families, shared by player and NPCs.
-  // Within each family, the player's controls come first and NPC controls follow.
-  // Keep walk/run together: movement packs and the engine's locomotion state are not independent UI categories.
-  tab("animations", "Animations", [
-    sec("locomotion", "Ходьба / бег", [
-      "label:player", "feat:morrowind-player-walk-animation", "info:player-run",
-      "label:npc", "feat:morrowind-male-npc-walk-animation", "feat:morrowind-female-npc-walk-animation", "info:npc-run",
+  // ANIM-UI6: broad animation families are separated from their independently
+  // configurable clip groups. A pack selector belongs only to the clip family
+  // it actually replaces; a walk choice must not implicitly own run/idle/combat.
+  tab("animations", "Анимации", [
+    sec("locomotion", "Передвижение", [
+      "label:player", "info:player-run",
+      "label:npc", "info:npc-run",
     ]),
-    sec("posture", "Повороты / стойка / скрытность", [
+    sec("walking", "Ходьба", [
+      "label:player", "feat:morrowind-player-walk-animation",
+      "label:npc", "feat:morrowind-male-npc-walk-animation", "feat:morrowind-female-npc-walk-animation",
+    ]),
+    sec("running", "Бег", [
+      "label:player", "info:player-run",
+      "label:npc", "info:npc-run",
+    ]),
+    sec("turning", "Повороты и развороты", [
       "label:player", "info:player-posture",
       "label:npc", "info:npc-idle",
     ]),
-    sec("combat", "Бой / атаки / блок", [
+    sec("idle", "Стойка и ожидание", [
+      "label:player", "info:player-posture",
+      "label:npc", "info:npc-idle",
+    ]),
+    sec("sneak", "Скрытность", [
+      "label:player", "info:player-posture",
+      "label:npc", "info:npc-idle",
+    ]),
+    sec("attacks", "Атаки", [
       "label:player", "info:player-combat",
       "label:npc", "info:npc-combat",
     ]),
-    sec("magic", "Магия / заклинания", [
+    sec("blocking", "Блокирование и защита", [
+      "label:player", "info:player-combat",
+      "label:npc", "info:npc-combat",
+    ]),
+    sec("magic", "Магия и заклинания", [
       "label:player", "info:player-magic",
       "label:npc", "info:npc-magic",
     ]),
-    sec("actions", "Действия / взаимодействие", [
+    sec("actions", "Действия и взаимодействие", [
       "label:player", "info:player-actions",
       "label:npc", "info:npc-actions",
     ]),
-    sec("traversal", "Прыжки / плавание / падения", [
+    sec("jumping", "Прыжки", [
       "label:player", "info:player-traversal",
       "label:npc", "info:npc-traversal",
     ]),
-    sec("reactions", "Получение урона / падение / смерть", [
+    sec("swimming", "Плавание", [
+      "label:player", "info:player-traversal",
+      "label:npc", "info:npc-traversal",
+    ]),
+    sec("falling", "Падение и приземление", [
+      "label:player", "info:player-traversal",
+      "label:npc", "info:npc-traversal",
+    ]),
+    sec("damage", "Получение урона", [
+      "label:player", "info:player-reactions",
+      "label:npc", "info:npc-reactions",
+    ]),
+    sec("death", "Смерть", [
       "label:player", "info:player-reactions",
       "label:npc", "info:npc-reactions",
     ]),
   ]),
+  tab("textures", "Текстуры", [
+    sec("texture-packs", "Паки текстур", [
+      "card:packs",
+    ]),
+    sec("texture-sources", "Источники и приоритеты", [
+      "link:overhauls", "feat:dungeon-wall-style", "Video/RandomDungeonTextures", "Video/MainFilterMode", "GUI/GUIFilterMode", "GUI/VideoFilterMode",
+      "Video/EnableTextureArrays", "GUI/AccelerateUICopyTexture",
+    ]),
+  ]),
+  tab("bodies", "Тела", [
+    sec("morrowind-bodies", "Модели тел Morrowind", [
+      "feat:mw-npc-bodies", "feat:mw-billboard-look",
+    ]),
+  ]),
   tab("mods", "Mods & files", [
     sec("files", "Your files", [
-      "card:morrowind", "card:packs"]),
+      "card:morrowind"]),
     sec("dfu", "Daggerfall Unity's mod system", [
       "Enhancements/LypyL_ModSystem", "Enhancements/AssetInjection", "Enhancements/CompressModdedTextures", "Experimental/CustomBooksImport",
       "Daggerfall/MyDaggerfallPath", "Daggerfall/MyDaggerfallUnitySavePath", "Daggerfall/MyDaggerfallUnityScreenshotsPath"]),
