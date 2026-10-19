@@ -103,7 +103,7 @@ test('ORG2: the map is TOTAL and DISJOINT over every option - each of DFU\'s key
     else if (item.startsWith('port:')) assert.ok(pool.has(item.slice(5)), `${item} is mapped but no builder draws it`);
     else if (item.startsWith('info:')) assert.ok(INFO.includes(item.slice(5)), `${item} is a known animation info card`);
     else if (item.startsWith('label:')) assert.ok(['player','npc','walking-player','walking-npc','running-player','running-npc','walking','running','turning','idle','sneak','attacks','blocking','jumping','swimming','falling','damage','death'].includes(item.slice(6)), `${item} is a known animation label`);
-    else if (item.startsWith('group:')) assert.ok(['walking','running'].includes(item.slice(6)), `${item} is a known nested animation group`);
+    else if (item.startsWith('group:')) assert.ok(['general','walking','running','turning','idle','sneak','attacks','blocking','magic','actions','jumping','swimming','falling','damage','death'].includes(item.slice(6)), `${item} is a known nested animation group`);
     else assert.ok(CARDS.includes(item) || SPECIAL.includes(item), `${item} is a piece the screen does not know`);
   }
   for (const k of ALL_KEYS) assert.ok(seen.has(k), `${k} has no place - it would vanish from the screen`);
@@ -127,6 +127,12 @@ test('ORG2: Graphics leads, with the preset at its head, and the tabs a player l
   assert.deepEqual(whereIs('feat:morrowind-female-npc-walk-animation')?.section.id, 'locomotion');
   assert.deepEqual(whereIs('group:walking')?.section.id, 'locomotion');
   assert.deepEqual(whereIs('group:running')?.section.id, 'locomotion');
+  for (const [group, section] of [
+    ['general', 'posture'], ['turning', 'posture'], ['idle', 'posture'], ['sneak', 'posture'],
+    ['attacks', 'combat'], ['blocking', 'combat'], ['magic', 'magic'], ['actions', 'actions'],
+    ['jumping', 'traversal'], ['swimming', 'traversal'], ['falling', 'traversal'],
+    ['damage', 'reactions'], ['death', 'reactions'],
+  ]) assert.equal(whereIs(`group:${group}`)?.section.id, section, `group:${group} is in its own animation section`);
   const g = CATEGORIES[0];
   assert.deepEqual(g.sections[0].items, ['preset:graphics'], 'Quality first, the preset alone in it');
   for (const id of PRESET_ROWS) assert.equal(whereIs(`feat:${id}`)?.tab.id, 'graphics', `${id}, a row the preset sets, is on the same tab`);
