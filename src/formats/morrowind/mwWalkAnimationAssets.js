@@ -34,8 +34,8 @@ async function bytes(entry) {
 }
 
 /**
- * Returns the standard source and (for female rigs) the two optional walk
- * overrides. The gameplay movement resolver selects one by saved preference.
+ * Returns the one gender-matched Simply Walking source plus (for female rigs)
+ * the optional Axel walk clip. The gameplay resolver selects one by saved preference.
  * Only each source's walk groups/keys are admitted, so idle/run/combat clips
  * from a broader .kf are never substituted.
  */
