@@ -117,3 +117,15 @@ Regression tests cover stale body yaw and climb-release offset cleanup, includin
 ## Facing regression rollback — 2026-10-19
 
 The v4 idle body-yaw latch was rolled back after the reported runtime symptom remained unchanged: the 3D model ignored view rotation even in first person and locomotion ran sideways/backwards. The previous latch changed the render-facing contract without proving that the separate camera/movement/rig paths were synchronized in every scene. Exterior and dungeon now use the v3 contract again: absent a climb/seat override, the rendered 3D body yaw follows `cam.yaw`. This deliberately restores the known original cursor/view-facing behavior rather than retaining a speculative idle-orbit feature. The `Female Walk Style` selector remains independent; it does not own or modify body yaw. The source-level regression test now checks the v3-facing contract. In-game confirmation is still required.
+
+## Actor-specific walk controls update — 2026-10-19
+
+The Mods page now has separate controls for **Player Walk Animation**, **Male NPC Walk Animation**, and **Female NPC Walk Animation**. Their settings are persisted through the existing mod-settings store:
+
+- Player: Standard / Feminine Walk Cycle / Axel's Sexy Walk Fixed.
+- Male NPCs: Standard / Vanilla.
+- Female NPCs: Standard / Female (Axel) / Vanilla.
+
+The previous `FemaleWalk` key is retained as a compatibility declaration, but the runtime now reads `PlayerWalkSource`, `NpcMaleWalk`, and `NpcFemaleWalk`. Actor routing is implemented in `walkVariantForActor()` in `src/formats/morrowind/mwWalkAnimationAssets.js`; the shared rig's movement resolver supplies build identity and filters the sources accordingly. `Vanilla` excludes bundled walk-only sources while preserving archive animation groups. Remote player bodies follow the player selector; NPC bodies use the sex-specific NPC selector.
+
+The actor mapping and Vanilla filter have regression assertions in `test/formats/morrowind/mwwalkassets.test.js`. This is code-level validation only: this environment did not run the complete test/lint/type/build pipeline or an in-game visual pass. In-game verification remains necessary for correct actor classification, foot sliding, clipping, and transitions.
