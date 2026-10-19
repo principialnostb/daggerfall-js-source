@@ -3,6 +3,23 @@
 export const BODY_MORPH_FIELDS = [
   ['height', 'Рост', 'overall'],
   ['bodyWidth', 'Ширина тела', 'overall'],
+  ['bodyFullness', 'Общая полнота', 'overall'],
+  ['shoulderWidth', 'Ширина плеч', 'shoulders'],
+  ['ribcageWidth', 'Ширина грудной клетки', 'torso'],
+  ['breastSize', 'Объём груди', 'chest'],
+  ['breastProjection', 'Выступ груди', 'chest'],
+  ['waistWidth', 'Ширина талии', 'torso'],
+  ['abdomenVolume', 'Объём живота', 'torso'],
+  ['hipWidth', 'Ширина таза', 'hips'],
+  ['buttockSize', 'Объём ягодиц', 'hips'],
+  ['buttockProjection', 'Выступ ягодиц', 'hips'],
+  ['headScale', 'Размер головы', 'head'],
+  ['armThickness', 'Толщина рук', 'arms'],
+  ['armLength', 'Длина рук', 'arms'],
+  ['thighThickness', 'Толщина бёдер', 'legs'],
+  ['calfThickness', 'Толщина голеней', 'legs'],
+  ['legLength', 'Длина ног', 'legs'],
+  ['legGap', 'Расстояние между ногами', 'legs'],
 ];
 const KEY = 'mw-character-body-morphs-v1';
 const UNDERWEAR_KEY = 'mw-character-underwear-v1';
