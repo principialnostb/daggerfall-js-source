@@ -1,16 +1,9 @@
-// Better Bodies integration probe for the Morrowind third-person character pipeline.
+// Better Bodies asset resolver for the Morrowind character pipeline.
 //
-// This deliberately starts as an opt-in probe, not a replacement for the live
-// player body: it lets us verify that the repository's actual Better Bodies
-// NIF can be read by DFO's existing Morrowind NIF parser before we touch the
-// player assembly, bone binding, or equipment rules.
-//
-// Run in the browser console on the morrowind.v2 build:
-//   const bb = await import('/src/formats/morrowind/mwBetterBodies.js');
-//   console.log(await bb.inspectBetterBodiesFemale());
-//
-// Vite's ?url imports make these two checked-in resources addressable in dev
-// and production builds without embedding their binary contents in JavaScript.
+// Runtime body and skin URLs are selected by the actor's race and sex from the
+// checked-in race variants. The diagnostic below remains a Nord-female probe;
+// it is not evidence that every race/sex combination has been visually validated.
+// Vite's asset glob keeps the source files addressable without embedding binary data.
 const IN_BROWSER = typeof window !== 'undefined';
 const bodyModelUrls = IN_BROWSER
   ? import.meta.glob('../../../Morrowind Textures/Better Bodies/Nude/Data Files/Meshes/bb/bb_skin*.nif', {
