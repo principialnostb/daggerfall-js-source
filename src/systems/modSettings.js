@@ -1676,6 +1676,22 @@ export const MOD_SETTINGS = Object.freeze({
       }),
     }),
   }),
+  // MW-TEXTURE-PACKS: optional Morrowind asset layers. These are OFF by default;
+  // the browser archive is assembled from these choices at startup. A page/game
+  // reload is required after changing one because NIF/texture archives are cached.
+  'morrowind-textures': Object.freeze({
+    title: 'Morrowind texture and equipment packs',
+    author: 'Port integration',
+    keys: Object.freeze({
+      IntelligentTextures: Object.freeze({ default: false, get description() { return 'Use Intelligent Textures 00 Core. The 01 Atlas Textures set is excluded because it requires matching atlas meshes.'; } }),
+      VurtsBetterClothes: Object.freeze({ default: false, get description() { return 'Use Vurt\'s Better Clothes Retexture for matching clothing texture paths.'; } }),
+      BetterClothesRetextured: Object.freeze({ default: false, get description() { return 'Use Better Clothes Retextured for matching non-pants texture paths. Pants remain on their existing textures as a fit-quality control.'; } }),
+      BetterMorrowindArmor: Object.freeze({ default: false, get description() { return 'Use Better Morrowind Armor meshes, textures and base plugin. Incompatible alternative armor patches are not loaded automatically.'; } }),
+      CompleteArmorJoints: Object.freeze({ default: false, get description() { return 'Use the Complete Armor Joints add-on for Better Morrowind Armor. Requires Better Morrowind Armor.'; } }),
+      WestlysFineClothiers: Object.freeze({ default: false, get description() { return 'Use Westly\'s Fine Clothiers meshes, textures and plugin.'; } }),
+      WestlysFacesRefurbished: Object.freeze({ default: false, get description() { return 'Use Westly\'s Faces Refurbished head and hair meshes/textures.'; } }),
+    }),
+  }),
 });
 
 let memory = null;
