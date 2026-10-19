@@ -84,7 +84,7 @@ import { DFPalette } from '../formats/dfPalette.js';
 import { raceArt } from '../systems/races.js';
 import { appStorage } from '../systems/appStorage.js';   // DA1: the storage seam
 import { modSetting } from '../systems/modSettings.js';
-import { loadWalkAnimationAssets, isWalkAnimationGroup, isWalkAnimationKey, isWalkVariantEnabled } from '../formats/morrowind/mwWalkAnimationAssets.js';
+import { loadWalkAnimationAssets, isWalkAnimationGroup, isWalkAnimationKey, isWalkVariantEnabled, walkVariantForActor } from '../formats/morrowind/mwWalkAnimationAssets.js';
 import { drawRigSpriteBox, MW_THIRD_PERSON_PIXEL } from '../render/characterSprite.js';
 import { WEAPONS } from '../characters/weapons.js';
 import { materialName } from '../systems/item/itemInfo.js';
@@ -4949,21 +4949,14 @@ export function createFpArm({ playerAppearance = false } = {}) {
     // frame - the port's old gate keyed on the movestate name alone and
     // kept the bare-handed walk playing with the sword out.
     const stance = stanceOf();   // MWNPC9: a non-biped's bare walk
-    const walkPreference = base.startsWith('walk') ? (() => {
-      // This rig factory is shared by the local player, remote player bodies,
-      // and NPC bodies. Select by the identity captured at build time rather
-      // than applying one global female preference to every actor.
-      const opts = lastBuildOpts ?? {};
-      const read = (key, options) => {
-        const value = Math.max(0, Math.min(options.length - 1, Number(modSetting('morrowind-animation', key) ?? 0) || 0));
-        return options[value];
-      };
-      if (playerAppearance || opts.ownHeads) {
-        return read('PlayerWalkSource', ['standard', 'female', 'female2']);
-      }
-      if (opts.female) return read('NpcFemaleWalk', ['standard', 'female2', 'vanilla']);
-      return read('NpcMaleWalk', ['standard', 'vanilla']);
-    })() : false;
+    const walkPreference = base.startsWith('walk') ? walkVariantForActor({
+      player: playerAppearance,
+      ownHeads: !!lastBuildOpts?.ownHeads,
+      female: !!lastBuildOpts?.female,
+      playerChoice: modSetting('morrowind-animation', 'PlayerWalkSource') ?? 0,
+      npcMaleChoice: modSetting('morrowind-animation', 'NpcMaleWalk') ?? 0,
+      npcFemaleChoice: modSetting('morrowind-animation', 'NpcFemaleWalk') ?? 0,
+    }) : false;
     const preferenceChanged = movementWalkPreference !== (base.startsWith('walk') ? walkPreference : null);
     const fresh = preferenceChanged || !(movementState && movementState.playing
       && movementBase === base && movementStance === stance);
