@@ -10,9 +10,9 @@
 //   Westly's Fine Clothiers of Tamriel (clothing meshes/textures + plugin)
 //   Westly's Faces Refurbished (head/hair meshes and textures)
 //
-// The failed High Resolution Better Body Female Textures and old Better Heads
-// packages are deliberately not discovered here. The active Better Bodies NIF
-// and its user-corrected UV data are not replaced by this module.
+// High Resolution Better Body Female Textures is included as a texture-only
+// layer; its alternate NIFs never replace the project's corrected UV geometry.
+
 import { makeVendoredArchive } from './urlArchive.js';
 import { modSetting } from './modSettings.js';
 import { getBodyHairEnabled, getUnderwearEnabled } from '../characters/bodyMorphs.js';
@@ -45,6 +45,10 @@ const norm = (s) => String(s).replace(/\\/g, '/').toLowerCase();
 const assetUrls = Object.create(null);
 const baseBodyTextureUrls = Object.create(null);
 const highResolutionFemaleTextureUrls = Object.create(null);
+const highResolutionFemaleUnderwearUrls = Object.create(null);
+const highResolutionFemaleNoHairUrls = Object.create(null);
+const highResolutionFemaleBodyHairUrls = Object.create(null);
+const highResolutionFemaleHandUrls = Object.create(null);
 const intelligentTextureUrls = Object.create(null);
 const vurtClothesTextureUrls = Object.create(null);
 const betterClothesTextureUrls = Object.create(null);
@@ -120,15 +124,11 @@ for (const [source, url] of Object.entries(FILES)) {
     const match = highResRel.match(/^(hands\/textures|nude_no_hair\/textures|underwear\/textures|nude_body_hair\/textures)\/(bb\/.+\.(?:dds|tga))$/i);
     if (match) {
       const variant = match[1].toLowerCase();
-      const isHands = variant === 'hands/textures';
-      const isUnderwear = variant === 'underwear/textures';
-      const isHair = variant === 'nude_body_hair/textures';
-      const selectedVariant = isHands
-        || (getUnderwearEnabled() ? isUnderwear : (!isHair && !isUnderwear && !getBodyHairEnabled()));
-      const selectedHairVariant = !getUnderwearEnabled() && getBodyHairEnabled() && isHair;
-      if (selectedVariant || selectedHairVariant) {
-        addAsset(highResolutionFemaleTextureUrls, 'textures/' + match[2], url, 'High Resolution Better Body Female Textures');
-      }
+      const bucket = variant === 'hands/textures' ? highResolutionFemaleHandUrls
+        : variant === 'underwear/textures' ? highResolutionFemaleUnderwearUrls
+          : variant === 'nude_body_hair/textures' ? highResolutionFemaleBodyHairUrls
+            : highResolutionFemaleNoHairUrls;
+      addAsset(bucket, 'textures/' + match[2], url, 'High Resolution Better Body Female Textures');
     }
     continue;
   }
@@ -228,13 +228,44 @@ for (const [source, url] of Object.entries(FILES)) {
   }
 }
 
+// High-resolution body textures are selected lazily. Underwear/body-hair are
+// editor preferences and may change while the game is running; a fixed URL map
+// here would keep serving the first texture until a page reload. The archive
+// resolves the correct variant when each key is loaded, and its cache is
+// recreated when the preference signature changes.
+const highResolutionKeys = new Set([
+  ...Object.keys(highResolutionFemaleTextureUrls),
+  ...Object.keys(highResolutionFemaleUnderwearUrls),
+  ...Object.keys(highResolutionFemaleNoHairUrls),
+  ...Object.keys(highResolutionFemaleBodyHairUrls),
+  ...Object.keys(highResolutionFemaleHandUrls),
+]);
+for (const key of highResolutionKeys) {
+  assetUrls[key] = () => {
+    if (highResolutionFemaleHandUrls[key]) return highResolutionFemaleHandUrls[key];
+    if (getUnderwearEnabled()) {
+      return highResolutionFemaleUnderwearUrls[key]
+        ?? highResolutionFemaleNoHairUrls[key]
+        ?? highResolutionFemaleBodyHairUrls[key]
+        ?? baseBodyTextureUrls[key];
+    }
+    if (getBodyHairEnabled()) {
+      return highResolutionFemaleBodyHairUrls[key]
+        ?? highResolutionFemaleNoHairUrls[key]
+        ?? baseBodyTextureUrls[key];
+    }
+    return highResolutionFemaleNoHairUrls[key]
+      ?? highResolutionFemaleBodyHairUrls[key]
+      ?? baseBodyTextureUrls[key];
+  };
+}
+
 // Apply package precedence explicitly, independent of glob enumeration order.
 // BMA and its joint patch outrank generic texture replacements where UVs differ;
 // Westly's head/hair assets win last for their own model and texture keys.
 Object.assign(
   assetUrls,
   baseBodyTextureUrls,
-  highResolutionFemaleTextureUrls,
   dmraAssetUrls,
   intelligentTextureUrls,
   vurtClothesTextureUrls,
@@ -252,9 +283,19 @@ const fetchBytes = async (url) => {
 };
 
 let _archive = null;
+let _archiveSignature = '';
 
 export function bundledMorrowindModsArchive() {
-  return (_archive ??= makeVendoredArchive(assetUrls, fetchBytes));
+  const signature = [
+    getUnderwearEnabled() ? 'underwear' : 'nude',
+    getBodyHairEnabled() ? 'body-hair' : 'no-body-hair',
+    ...Object.entries(packEnabled).map(([name, enabled]) => name + ':' + (enabled ? '1' : '0')),
+  ].join('|');
+  if (!_archive || signature !== _archiveSignature) {
+    _archive = makeVendoredArchive(assetUrls, fetchBytes);
+    _archiveSignature = signature;
+  }
+  return _archive;
 }
 
 export function bundledMorrowindPluginNames() {
@@ -289,7 +330,8 @@ export async function inspectBundledMorrowindTextures() {
     'textures/wfr/bv/wfr_f01.dds',
   ];
   const checks = await Promise.all(candidates.map(async (key) => {
-    const url = assetUrls[norm(key)] ?? null;
+    const entry = assetUrls[norm(key)] ?? null;
+    const url = typeof entry === 'function' ? await entry() : entry;
     const row = {
       key,
       inArchive: archive.has(key),
