@@ -1264,8 +1264,9 @@ export const FEATURES = Object.freeze([
   // the character played when the mod is on (at creation, or at the first load of a character made before it), and its
   // model is the family's for good - so the switch lands at once for the tree and the key, and a family keeps its model.
   modFeature('project-legacy', () => t('features.mod.projectLegacy.effect', 'Takes effect at once; a family keeps the model it was founded with.'), 'character'),
-  // MW-TEXTURE-PACKS: individually selectable layers; all optional packs default off.
+  // MW-TEXTURE-PACKS: individually selectable layers; optional packs default off.
   ...[
+    ['mw-textures-high-resolution-bodies', 'High Resolution Better Body Female Textures', 'HighResolutionBetterBodyFemaleTextures'],
     ['mw-textures-intelligent', 'Intelligent Textures · 00 Core', 'IntelligentTextures'],
     ['mw-textures-vurt-clothes', "Vurt\'s Better Clothes Retexture", 'VurtsBetterClothes'],
     ['mw-textures-better-clothes', 'Better Clothes Retextured', 'BetterClothesRetextured'],
