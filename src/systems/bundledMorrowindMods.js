@@ -27,7 +27,6 @@ const FILES = IN_BROWSER
       "../../Morrowind Textures/Westly's Fine Clothiers of Tamriel/Westly_Presents_FCOT.esp",
       '../../Morrowind Textures/Better Morrowind Armor/Data Files/**/*.{nif,NIF,dds,DDS,tga,TGA,esp,ESP}',
       '../../Morrowind Textures/Better Morrowind Armor/Complete Armor Joints/Data Files/**/*.{nif,NIF,dds,DDS,tga,TGA,esp,ESP}',
-      "../../Morrowind Textures/Westly's Faces Refurbished/Data Files/**/*.{nif,NIF,dds,DDS,tga,TGA}",
     ], {
       eager: true, query: '?url', import: 'default',
     })
