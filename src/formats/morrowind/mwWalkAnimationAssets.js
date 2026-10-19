@@ -41,9 +41,9 @@ async function bytes(entry) {
 
 /**
  * Returns gender-matched Simply Walking source candidates plus (for female rigs)
- * the optional Axel walk clip. Female candidates share one user-facing choice;
+ * Axel's optional female walk and run clips. Female candidates share one user-facing choice;
  * reverse-priority resolution tries Feminine Walk Cycle first, then Purist's female KF.
- * Only each source's walk groups/keys are admitted, so idle/run/combat clips
+ * Only the source's assigned group family is admitted, so idle/combat clips
  * from a broader .kf are never substituted.
  */
 export async function loadWalkAnimationAssets({ female = false } = {}) {
@@ -74,7 +74,7 @@ export async function loadWalkAnimationAssets({ female = false } = {}) {
         continue;
       }
       const data = await bytes(entry);
-      if (data) selected.push({ name: entry.path, bytes: data, variant, walkVariant: variant, walkOnly: true });
+      if (data) selected.push({ name: entry.path, bytes: data, variant, walkVariant: variant, family, walkOnly: true });
     }
   } catch (error) {
     console.warn('[Morrowind animations] bundled walk set failed to load; archive animations remain active:', String(error?.message ?? error));
