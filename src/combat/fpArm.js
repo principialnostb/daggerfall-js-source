@@ -111,6 +111,23 @@ async function loadBetterBodiesAssetBytes(url, label) {
 const betterBodiesTextureBytes = new Map();
 const betterBodiesTextureBasename = (path) => String(path || '')
   .replaceAll(String.fromCharCode(92), '/').split('/').pop().toLowerCase();
+// Replace a same-length ASCII texture stem in a private NIF copy. Better Bodies race keys
+// are all two characters, so NIF string lengths and record offsets remain unchanged.
+function rewriteNifAsciiStem(bytes, from, to) {
+  if (from.length !== to.length || from === to) return bytes;
+  const out = new Uint8Array(bytes);
+  const pattern = Array.from(from, (c) => c.charCodeAt(0));
+  const replacement = Array.from(to, (c) => c.charCodeAt(0));
+  for (let i = 0; i <= out.length - pattern.length; i++) {
+    let match = true;
+    for (let j = 0; j < pattern.length; j++) if (out[i + j] !== pattern[j]) { match = false; break; }
+    if (!match) continue;
+    for (let j = 0; j < replacement.length; j++) out[i + j] = replacement[j];
+    i += pattern.length - 1;
+  }
+  return out;
+}
+
 function registerBetterBodiesRaceTexture(archives, texturePath, textureBytes) {
   const basename = betterBodiesTextureBasename(texturePath);
   betterBodiesTextureBytes.set(basename, textureBytes);
@@ -2073,7 +2090,8 @@ export function bareHeadRows(rows, worn, pieces, werewolf = false) {
  */
 async function buildTpBody({
   race, female, beast, faceIndex, faceMatch, weapon, hasAmmo, worn, archives, parts, allWeapons, find, gen = null,
-  useBetterBodies = true,   // APPEARANCE PREVIEW: preview-specific base-body selection
+  useBetterBodies = true,
+  appearancePreview = false,   // APPEARANCE PREVIEW: use the Better Bodies mesh's own skeleton only in the isolated editor rig
   torch = false, allLights = [],   // MW-D51
   sheathing = true, ammoCount = null,   // WS1: the holster, and the quiver's count (null: a full quiver when there is ammunition)
   hipLight = false,   // HT-WAIST: a lit lantern at the waist
@@ -2091,7 +2109,7 @@ async function buildTpBody({
     await loadFromArchives(archives, [skeletonPath]);
     const skelArc = find(skeletonPath);
     if (!skelArc) return { ok: false, stage: 'skeleton', error: `${skeletonPath} is not in your archives` };
-    const skeletonBytes = nifBytes(skelArc, skeletonPath);
+    let skeletonBytes = nifBytes(skelArc, skeletonPath);
 
     // WEREWOLF1: the wolf's head and hair, by id - every other skin slot is empty, the robe is the body
     const rows = werewolf ? werewolfHeadRows(parts) : playerBodyRows(parts, race, female, { beast, faceIndex, faceMatch, vampire, walk, has: exists, ownHeads });   // MWNPC14: a vampire's head; MWNPC17: an NPC's own; AUDIT MW-HEADS1: the port's own heads where these archives carry them
@@ -2105,11 +2123,24 @@ async function buildTpBody({
         const underwear = playerAppearance ? getUnderwearEnabled() : false;
         const asset = betterBodiesAssetUrls({ race, female, underwear });
         if (!asset) throw new Error(`no Better Bodies asset for race "${String(race)}" / ${female ? 'female' : 'male'}`);
-        const [bytes, textureBytes, uvEdits] = await Promise.all([
-          loadBetterBodiesAssetBytes(asset.model, 'NIF'),
+        // The editor's female silhouette is deliberately based on the same Nord-female
+        // Better Bodies geometry shown by better-bodies-preview.html. Keep the selected
+        // race's DDS and face, and rewrite the mesh's equal-length texture stem to match.
+        const previewGeometry = appearancePreview && female
+          ? betterBodiesAssetUrls({ race: 'Nord', female: true, underwear })
+          : asset;
+        if (!previewGeometry) throw new Error('Nord female Better Bodies preview mesh is unavailable');
+        const [sourceBytes, textureBytes, uvEdits] = await Promise.all([
+          loadBetterBodiesAssetBytes(previewGeometry.model, 'NIF'),
           loadBetterBodiesAssetBytes(asset.texture, 'DDS'),
-          female && asset.raceKey === 'no' && !underwear ? loadBetterBodiesFemaleUvEdits() : Promise.resolve([]),
+          female && !underwear && (asset.raceKey === 'no' || appearancePreview) ? loadBetterBodiesFemaleUvEdits() : Promise.resolve([]),
         ]);
+        const bytes = appearancePreview && female
+          ? rewriteNifAsciiStem(sourceBytes, 'bb_skinf_no', `bb_skinf_${asset.raceKey}`)
+          : sourceBytes;
+        // The isolated editor binds this body against its own embedded skeleton.
+        // The live world/NPC rigs keep their existing vanilla skeleton selection.
+        if (appearancePreview) skeletonBytes = bytes;
         registerBetterBodiesRaceTexture(archives, asset.texturePath, textureBytes);
         betterBodiesPart = {
           slot: 'betterBodies', bones: [], bytes, uvEdits, hideSlots: worn.shadows,
@@ -2701,7 +2732,8 @@ export async function headPortrait({ renderer, race, female = false, faceIndex =
 
 export async function buildFpArm({
   race, female = false, beast = null, faceIndex = 0, weapon = null, hasAmmo = false, armor = null, deps = null,
-  useBetterBodies = true,   // APPEARANCE PREVIEW: isolate the legacy preview from BB until its own bind-pose renderer is used
+  useBetterBodies = true,
+  appearancePreview = false,   // APPEARANCE PREVIEW: isolated Better Bodies skeleton/geometry path
   torch = false,   // MW-D51: a lit Daggerfall torch in hand at the build
   sheathing = true, ammoCount = null,   // WS1: the holster on the third-person body, and the quiver's count
   hipLight = false,   // HT-WAIST: a lit lantern hung at the waist at the build (the third-person body's alone)
@@ -3078,7 +3110,7 @@ export async function buildFpArm({
     catalog.magic = magic;   // MW-SPELLFX1: and the magic the world's spell effects draw with
     // MW-D24: the THIRD-PERSON BODY, while the same archives are open.
     // Its refusal is a note on the card, never the arm's refusal.
-    const tpBody = (wornNow) => buildTpBody({ race, female, beast, faceIndex, faceMatch, weapon, hasAmmo, worn: wornNow, archives, parts, allWeapons, find, gen, useBetterBodies, torch, allLights, sheathing, ammoCount, hipLight, werewolf, skin: werewolf ? skin : null, vampire: !!vampire, walk: npcFace, ownHeads: !!ownHeads });   // (the wolf's rows read no face)   // MW-D51; WS1; HT-WAIST; WEREWOLF1; SHADOW-FANG; MWNPC14; MWNPC17
+    const tpBody = (wornNow) => buildTpBody({ race, female, beast, faceIndex, faceMatch, weapon, hasAmmo, worn: wornNow, archives, parts, allWeapons, find, gen, useBetterBodies, appearancePreview, torch, allLights, sheathing, ammoCount, hipLight, werewolf, skin: werewolf ? skin : null, vampire: !!vampire, walk: npcFace, ownHeads: !!ownHeads });   // (the wolf's rows read no face)   // MW-D51; WS1; HT-WAIST; WEREWOLF1; SHADOW-FANG; MWNPC14; MWNPC17
     let third = arm.ok ? await tpBody(worn) : null;
     // AUDIT MW-FOLK1 (L2-F2): AN OUTFIT THAT BOUND NOTHING HIDES NOTHING AND DRESSES NOTHING. Its `hides` took the skin
     // under it and its `covers` stood the modesty shirt down at the composition, before its mesh was read; one whose mesh
@@ -3638,7 +3670,7 @@ export function groundThirdPersonModel(model, bodyMinZ, feetY) {
   return grounded;
 }
 
-export function createFpArm({ playerAppearance = false, useBetterBodies = true } = {}) {
+export function createFpArm({ playerAppearance = false, useBetterBodies = true, appearancePreview = false } = {}) {
   let renderer = null;
   let camera = null;
   let built = null;
@@ -5301,7 +5333,7 @@ export function createFpArm({ playerAppearance = false, useBetterBodies = true }
     },
     async createAppearancePreviewRig() {
       if (!lastBuildOpts || !renderer) return { ok: false, error: 'The live character has not finished building.' };
-      const previewRig = createFpArm({ playerAppearance: true, useBetterBodies: true });
+      const previewRig = createFpArm({ playerAppearance: true, useBetterBodies: true, appearancePreview: true });
       previewRig.attach(renderer, camera);
       const opts = {
         ...lastBuildOpts,
@@ -5359,7 +5391,7 @@ export function createFpArm({ playerAppearance = false, useBetterBodies = true }
       buildingOpts = opts ?? null;   // MW-EARLY
       const gen = buildGen;
       try {
-        const res = await buildFpArm({ ...opts, useBetterBodies: playerAppearance ? useBetterBodies : true });
+        const res = await buildFpArm({ ...opts, useBetterBodies: playerAppearance ? useBetterBodies : true, appearancePreview: playerAppearance && appearancePreview });
         // AUDIT MW-TORCH F7: unloaded while the archives were open (the
         // pack's Off, Remove data): the result is dead on arrival, not
         // installed over the unload.
