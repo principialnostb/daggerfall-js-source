@@ -149,3 +149,12 @@ Pack-to-category audit:
 - **Animation Blending (#53779)**: MWSE Lua plugin is not executable in this browser runtime; pose blending is a separate native JS feature, not a clip category.
 
 The UI taxonomy must remain visible even when a category has no active source. Add controls only when they have a real resolver and conflict policy; never represent an informational placeholder as a working selector.
+
+
+## User-facing pack and category policy (2026-10-19)
+
+- **Vanilla is always the first option** in every animation source selector. A category's selection is exclusive within that category; changing walk source must not affect combat, idle, jump, magic, or interaction groups.
+- **Simply Walking is one user-facing pack**, not two independent options. Its contents are assigned by inspecting actual files and their animation groups: the male walk source is `Simply Walking Purist Edition/meshes/xbase_anim.kf`; the female walk source is `Feminine Walk Cycle/Meshes/xbase_anim_female.kf`. The latter is an internal component of the Simply Walking choice. It should not be exposed as a separate top-level pack when it is serving the same role within the combined pack.
+- **Axel's Sexy Walk Fixed** is a separate alternative for female walking. Only `WalkForward;.kf` is loaded; idle/run files are not silently enabled by selecting a walk pack.
+- Before combining or presenting any future packs, inspect their README/permissions and enumerate their actual KF/NIF animation groups and text keys. Assign each source to the animation families it really contains (walk, run, idle, combat, actions, etc.), verify skeleton/group compatibility, then expose one mutually exclusive selector per family. Do not infer scope from the mod title or directory name alone, and do not show a selector as functional until its runtime consumer exists.
+- **Settings UI rule:** animation families are switchable sub-pages inside Settings → Animations. The chosen sub-page alone displays its controls; they are not a single long list with headings. Player and NPC families are independent. Informational/Vanilla-only categories must not pretend an unintegrated pack is selectable.
