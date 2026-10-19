@@ -129,3 +129,8 @@ The Mods page now has separate controls for **Player Walk Animation**, **Male NP
 The previous `FemaleWalk` key is retained as a compatibility declaration, but the runtime now reads `PlayerWalkSource`, `NpcMaleWalk`, and `NpcFemaleWalk`. Actor routing is implemented in `walkVariantForActor()` in `src/formats/morrowind/mwWalkAnimationAssets.js`; the shared rig's movement resolver supplies build identity and filters the sources accordingly. `Vanilla` excludes bundled walk-only sources while preserving archive animation groups. Remote player bodies follow the player selector; NPC bodies use the sex-specific NPC selector.
 
 The actor mapping and Vanilla filter have regression assertions in `test/formats/morrowind/mwwalkassets.test.js`. This is code-level validation only: this environment did not run the complete test/lint/type/build pipeline or an in-game visual pass. In-game verification remains necessary for correct actor classification, foot sliding, clipping, and transitions.
+
+
+## Animation settings navigation (ANIM-UI1, 2026-10-19)
+
+Animation controls now have a dedicated **Settings → Animations** tab rather than being discovered through the general mod index. The first live section is **Player · Running & walking**, followed by **NPC · Running & walking**. This actor-first layout is the initial scaffold for the broader resource-selection system: add movement, combat/strikes, and actions/interactions as independent responsibilities when their source packs and runtime group filters are actually implemented. Do not expose empty controls or claim an animation family is supported merely because its files exist.
