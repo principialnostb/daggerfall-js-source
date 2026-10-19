@@ -189,8 +189,8 @@ export const CATEGORIES = Object.freeze([
       "GUI/LargeHUDOffsetHorse"]),
   ]),
   // ANIM-UI6: each major animation family contains smaller, independently
-  // selectable clip groups. Only the walk family currently has external selectors;
-  // the remaining cards explicitly show their Vanilla fallback until a compatible pack is wired.
+  // selectable clip groups. The full third-person overhaul is separate from
+  // walk/run overrides; unsupported groups retain the game's Vanilla source.
   tab("animations", "Анимации", [
     sec("locomotion", "Передвижение", [
       "group:running", "label:running-player", "feat:morrowind-player-run-animation",
@@ -199,6 +199,7 @@ export const CATEGORIES = Object.freeze([
       "label:walking-npc", "feat:morrowind-male-npc-walk-animation", "feat:morrowind-female-npc-walk-animation",
     ]),
     sec("posture", "Положение и скрытность", [
+      "feat:morrowind-animation-overhaul",
       "label:turning", "info:player-turning", "info:npc-turning",
       "label:idle", "info:player-idle", "info:npc-idle",
       "label:sneak", "info:player-sneak", "info:npc-sneak",
