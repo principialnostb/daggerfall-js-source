@@ -92,8 +92,11 @@ test('ORG2: the map is TOTAL and DISJOINT over every option - each of DFU\'s key
 
 test('ORG2: Graphics leads, with the preset at its head, and the tabs a player looks for in the order they look (mutant: the preset or a tab moved)', () => {
   assert.deepEqual(CATEGORY_IDS, ['graphics', 'gameplay', 'combat', 'world', 'interface', 'audio', 'controls', 'accessibility', 'animations', 'textures', 'bodies', 'mods']);
-  assert.deepEqual(whereIs('feat:morrowind-character-animations')?.tab.id, 'animations');
   assert.deepEqual(whereIs('feat:morrowind-player-walk-animation')?.section.id, 'player-movement');
+  assert.deepEqual(whereIs('info:player-run')?.section.id, 'locomotion');
+  assert.deepEqual(whereIs('info:npc-run')?.section.id, 'locomotion');
+  assert.equal(whereIs('card:packs')?.tab.id, 'textures');
+  assert.equal(whereIs('feat:mw-npc-bodies')?.tab.id, 'bodies');
   assert.deepEqual(whereIs('feat:morrowind-male-npc-walk-animation')?.section.id, 'npc-movement');
   assert.deepEqual(whereIs('feat:morrowind-female-npc-walk-animation')?.section.id, 'npc-movement');
   const g = CATEGORIES[0];
