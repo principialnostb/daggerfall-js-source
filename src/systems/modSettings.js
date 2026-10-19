@@ -1655,7 +1655,12 @@ export const MOD_SETTINGS = Object.freeze({
       PlayerWalkSource: Object.freeze({
         default: 0,
         options: lazyWords('Vanilla', 'Simply Walking', "Axel's Sexy Walk Fixed"),
-        description: "Player locomotion source. Vanilla keeps the game's/archive walk and run. Simply Walking replaces supported walk groups; Axel's Sexy Walk Fixed replaces its supported female walk and RunForward groups. Unsupported groups fall back to the game/archive source.",
+        description: "Player walking source. Vanilla keeps the game's/archive walk. Simply Walking replaces supported walk groups; Axel's Sexy Walk Fixed replaces its supported female walk groups. Running is configured separately. Unsupported groups fall back to the game/archive source.",
+      }),
+      PlayerRunSource: Object.freeze({
+        default: 0,
+        options: lazyWords('Vanilla', "Axel's Sexy Walk Fixed"),
+        description: "Player running source. Axel's RunForward clip is available only for female player rigs; male players and unsupported run groups remain Vanilla. This choice does not change walking.",
       }),
       NpcMaleWalk: Object.freeze({
         default: 0,
@@ -1665,7 +1670,12 @@ export const MOD_SETTINGS = Object.freeze({
       NpcFemaleWalk: Object.freeze({
         default: 0,
         options: lazyWords('Vanilla', 'Simply Walking', "Axel's Sexy Walk Fixed"),
-        description: "Female NPC locomotion source. Vanilla keeps the game/archive walk and run. Simply Walking replaces supported walk groups; Axel's Sexy Walk Fixed replaces its supported female walk and RunForward groups. Unsupported groups fall back to the game/archive source.",
+        description: "Female NPC walking source. Vanilla keeps the game/archive walk. Simply Walking replaces supported walk groups; Axel's Sexy Walk Fixed replaces its supported female walk groups. Running is configured separately. Unsupported groups fall back to the game/archive source.",
+      }),
+      NpcFemaleRun: Object.freeze({
+        default: 0,
+        options: lazyWords('Vanilla', "Axel's Sexy Walk Fixed"),
+        description: "Female NPC running source. Axel's RunForward clip replaces supported female NPC run groups; unsupported groups remain Vanilla. This choice does not change walking.",
       }),
       // Legacy key retained so old stored data is not silently redefined.
       // Runtime no longer reads this key; actor-scoped settings are independent.
