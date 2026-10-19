@@ -103,8 +103,11 @@ export function isWalkAnimationKey(key) {
 }
 
 /** Live preference gate used by the movement resolver. Non-walk sources are untouched. */
-export function isWalkVariantEnabled(source, femaleWalk = 'standard') {
+export function isWalkVariantEnabled(source, walkChoice = 'standard') {
+  const selected = typeof walkChoice === 'boolean' ? (walkChoice ? 'female' : 'standard') : String(walkChoice);
+  // Vanilla is an explicit source policy: keep archive/game clips and omit
+  // every bundled walk-only replacement. It must not disable non-walk sources.
+  if (selected === 'vanilla') return !source?.walkOnly;
   if (!source?.walkOnly || !source?.walkVariant || source.walkVariant === 'standard') return true;
-  const selected = typeof femaleWalk === 'boolean' ? (femaleWalk ? 'female' : 'standard') : String(femaleWalk);
   return source.walkVariant === selected;
 }
