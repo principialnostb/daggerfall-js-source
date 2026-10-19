@@ -1242,15 +1242,34 @@ export const FEATURES = Object.freeze([
   // the character played when the mod is on (at creation, or at the first load of a character made before it), and its
   // model is the family's for good - so the switch lands at once for the tree and the key, and a family keeps its model.
   modFeature('project-legacy', () => t('features.mod.projectLegacy.effect', 'Takes effect at once; a family keeps the model it was founded with.'), 'character'),
-  // MW-ANIM-1: expose the actual runtime gait selector on the Mods page. This is a choice, not an Enabled switch.
+  // MW-ANIM-1: actor-scoped walk source controls. Each row is wired to a
+  // persisted setting consumed by the walk resolver; none is a decorative toggle.
   Object.freeze({
-    id: 'morrowind-character-animations',
+    id: 'morrowind-player-walk-animation',
     group: 'character',
-    get title() { return MOD_SETTINGS['morrowind-animation'].title; },
-    get note() { return MOD_SETTINGS['morrowind-animation'].keys.FemaleWalk.description; },
+    get title() { return 'Player Walk Animation'; },
+    get note() { return MOD_SETTINGS['morrowind-animation'].keys.PlayerWalkSource.description; },
     get effect() { return t('features.effect.atOnce', 'Takes effect at once.'); },
     kinds: Object.freeze(['mod']),
-    control: Object.freeze({ store: 'mods', vendor: 'morrowind-animation', key: 'FemaleWalk' }),
+    control: Object.freeze({ store: 'mods', vendor: 'morrowind-animation', key: 'PlayerWalkSource' }),
+  }),
+  Object.freeze({
+    id: 'morrowind-male-npc-walk-animation',
+    group: 'character',
+    get title() { return 'Male NPC Walk Animation'; },
+    get note() { return MOD_SETTINGS['morrowind-animation'].keys.NpcMaleWalk.description; },
+    get effect() { return t('features.effect.atOnce', 'Takes effect at once.'); },
+    kinds: Object.freeze(['mod']),
+    control: Object.freeze({ store: 'mods', vendor: 'morrowind-animation', key: 'NpcMaleWalk' }),
+  }),
+  Object.freeze({
+    id: 'morrowind-female-npc-walk-animation',
+    group: 'character',
+    get title() { return 'Female NPC Walk Animation'; },
+    get note() { return MOD_SETTINGS['morrowind-animation'].keys.NpcFemaleWalk.description; },
+    get effect() { return t('features.effect.atOnce', 'Takes effect at once.'); },
+    kinds: Object.freeze(['mod']),
+    control: Object.freeze({ store: 'mods', vendor: 'morrowind-animation', key: 'NpcFemaleWalk' }),
   }),
   // FT10 (2026-09-14): DFU'S OWN DUNGEON ENHANCEMENTS - three of the
   // Enhancements section's switches, each read by the port at the point
