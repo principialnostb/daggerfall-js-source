@@ -177,12 +177,14 @@ export function openAppearanceEditor({ fpArm, onClose = () => {} } = {}) {
       const name = document.createElement('span'); name.className = 'mw-slider-label'; name.textContent = labelByKey.get(key) || key;
       const input = document.createElement('input');
       input.type = 'range'; input.min = '-1'; input.max = '1'; input.step = '0.01'; input.value = String(initial[key] ?? 0);
+      input.style.setProperty('--range-fill', (((Number(input.value) + 1) / 2) * 100) + '%');
       input.setAttribute('aria-label', name.textContent);
       const output = document.createElement('output'); output.textContent = formatValue(Number(input.value));
       input.addEventListener('input', () => {
         const value = clamp(Number(input.value));
         setBodyMorph(key, value);
         output.textContent = formatValue(value);
+        input.style.setProperty('--range-fill', (((value + 1) / 2) * 100) + '%');
         window.dispatchEvent(new CustomEvent('mw-body-morph-change', { detail: getBodyMorphs() }));
         drawPreview();
       });
@@ -201,6 +203,7 @@ export function openAppearanceEditor({ fpArm, onClose = () => {} } = {}) {
     for (const [key, input] of inputs) {
       input.value = String(state[key] ?? 0);
       outputs.get(key).textContent = formatValue(Number(input.value));
+      input.style.setProperty('--range-fill', (((Number(input.value) + 1) / 2) * 100) + '%');
     }
     window.dispatchEvent(new CustomEvent('mw-body-morph-change', { detail: state }));
     drawPreview();
