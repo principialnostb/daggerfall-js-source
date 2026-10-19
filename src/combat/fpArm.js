@@ -2135,7 +2135,7 @@ async function buildTpBody({
     const skeletonBytes = nifBytes(skelArc, skeletonPath);
 
     // WEREWOLF1: the wolf's head and hair, by id - every other skin slot is empty, the robe is the body
-    const rows = werewolf ? werewolfHeadRows(parts) : playerBodyRows(parts, race, female, { beast, faceIndex, faceMatch, faceRace: female && !vampire ? 'Nord' : race, vampire, walk, has: exists, ownHeads });   // MWNPC14: a vampire's head; MWNPC17: an NPC's own; AUDIT MW-HEADS1: the port's own heads where these archives carry them
+    const rows = werewolf ? werewolfHeadRows(parts) : playerBodyRows(parts, race, female, { beast, faceIndex, faceMatch, faceRace: race, vampire, walk, has: exists, ownHeads });   // MWNPC14: a vampire's head; MWNPC17: an NPC's own; AUDIT MW-HEADS1: the port's own heads where these archives carry them
     const missing = [];
     // Better Bodies is selected by the actor's own race and sex. The matching
     // texture is registered by basename, so concurrent NPC builds cannot overwrite
@@ -5343,12 +5343,14 @@ export function createFpArm({ playerAppearance = false } = {}) {
       if (!lastBuildOpts) return { ok: false, error: 'The live character has not finished building.' };
       return this.build({ ...lastBuildOpts });
     },
-    async createAppearancePreviewRig() {
+    async createAppearancePreviewRig({ race = null, faceIndex = null } = {}) {
       if (!lastBuildOpts || !renderer) return { ok: false, error: 'The live character has not finished building.' };
       const previewRig = createFpArm({ playerAppearance: true });
       previewRig.attach(renderer, camera);
       const opts = {
         ...lastBuildOpts,
+        ...(race ? { race } : {}),
+        ...(Number.isInteger(faceIndex) ? { faceIndex } : {}),
         armor: [],
         weapon: null,
         offWeapon: null,
@@ -7380,11 +7382,12 @@ export function createFpArm({ playerAppearance = false } = {}) {
       // in its cell. The window is what is drawn at this yaw, and no wider.
       const win = portraitWindow(thirdMesh.ranges, model, figureBodyBox);
       if (!(win && win.halfW > 0 && win.halfH > 0)) return null;
-      const halfH = win.halfH * 1.06;
-      // Leave horizontal breathing room around the full body. The skinned
-      // hand vertices can extend past conservative posed range boxes, so the
-      // old 6% margin clipped fingertips despite visible space in the editor.
-      const halfW = win.halfW * 1.28;
+      // The preview is a full-body editor, not a tightly cropped inventory icon.
+      // Posed hands/forearms can extend beyond conservative per-range bounds, and
+      // the canvas then crops them even when its own CSS has spare space. Use a
+      // deliberately generous orthographic frame on both axes.
+      const halfH = win.halfH * 1.24;
+      const halfW = win.halfW * 1.55;
       const center = win.center;
       const ph = Math.min(CHAR_SPRITE_RT_SIZE, Math.max(2, Math.round(height)));
       const pw = Math.min(CHAR_SPRITE_RT_SIZE, Math.max(2, Math.round(ph * halfW / halfH)));
