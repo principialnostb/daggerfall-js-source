@@ -4339,10 +4339,15 @@ export function createFpArm({ playerAppearance = false } = {}) {
    *  pick kept per body and group, so a repaint picks nothing twice.
    *  Null when the body's .kf names no idle this stance can reach. */
   const portraitPicks = new WeakMap();   // third body -> Map(group -> pick)
-  function portraitPose(t) {
+  function portraitPose(t, { neutral = false } = {}) {
     if (!t || !t.ok || !t.sources) return null;
+    // The appearance editor is not an inventory doll: it must not inherit
+    // the weapon-derived combat idle/guard stance. Ask the body's own
+    // animation sources for the unarmed base idle only.
     const type = animWeaponType(t.mwType ?? (built && built.mwType), false, spellReady);
-    const composed = composeStanceGroup(FP_IDLE_BASE, type, (n) => anySourceHasGroup(t.sources, n));
+    const composed = neutral
+      ? { group: anySourceHasGroup(t.sources, FP_IDLE_BASE) ? FP_IDLE_BASE : null }
+      : composeStanceGroup(FP_IDLE_BASE, type, (n) => anySourceHasGroup(t.sources, n));
     if (!composed.group) return null;
     let memo = portraitPicks.get(t);
     if (!memo) { memo = new Map(); portraitPicks.set(t, memo); }
@@ -7230,7 +7235,7 @@ export function createFpArm({ playerAppearance = false } = {}) {
      *  {width, height, data} or null when no third-person body stands -
      *  the panel then keeps the classic doll (never traps). Display
      *  only by Mac's decision: unequip stays with the item list. */
-    figure({ yaw = 0, height = 384, force = false } = {}) {
+    figure({ yaw = 0, height = 384, force = false, neutral = false } = {}) {
       // The editor explicitly asks for a preview; do not let the inventory-display preference
       // suppress it. The built rig and renderer are still required below.
       if (!force && !getPref('morrowind3dPaperDoll')) return null;
@@ -7261,7 +7266,7 @@ export function createFpArm({ playerAppearance = false } = {}) {
       // START, the standing frame Morrowind's own inventory doll holds.
       // Deterministic, so the panel's cache is exact and two renders of
       // one wardrobe are one picture.
-      const pose = portraitPose(t);
+      const pose = portraitPose(t, { neutral });
       // A portrait must be posed even when this race/rig has no named idle group.
       // Previously a null portraitPose skipped poseAssembly entirely, so sliders changed
       // saved values but the preview kept uploading the last unmodified mesh.
