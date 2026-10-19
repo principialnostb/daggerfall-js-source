@@ -5888,13 +5888,16 @@ export async function bootExterior(canvas, renderer, params, status) {
     // last fixed-step snapshot. The render can run between motor steps, and a
     // stale zero there made the mesh keep its old yaw while the capsule moved.
     const bodyHasMoveInput = Math.abs(Number(axes.forward) || 0) > 1e-3 || Math.abs(Number(axes.strafe) || 0) > 1e-3;
-    const faceBodyToView = !mwv.thirdPerson || bodyHasMoveInput || player.isRunning || rightHeld || swipeHeld || swingKeyLatch || (!!weaponState && weaponState !== 'Idle');
-    const resolvedBodyYaw = player.bodyYawFor(cam.yaw, { faceView: faceBodyToView });
-    // In normal locomotion the Morrowind mesh must follow the aim, not merely
-    // the movement vector. Keep seat and climb-owned facing authoritative.
-    const bodyYaw = player.drawYaw == null && player.climbFacing == null && faceBodyToView
-      ? cam.yaw : resolvedBodyYaw;
-    mwViewDrawBody(canvas, { proj, view, eye, feet: player.bodyFeetAt(), yaw: bodyYaw, viewYaw: cam.yaw });   // MW-D40b
+    const bodyUsesViewFacing = !mwv.thirdPerson || player.isRunning || rightHeld || swipeHeld || swingKeyLatch || (!!weaponState && weaponState !== 'Idle');
+    // In third-person walking, use the motor's resolved movement heading.
+    // Running/combat and first-person keep the original view-facing behavior;
+    // standing in third-person leaves the last body heading latched while the
+    // camera orbits independently.
+    const movementYaw = bodyHasMoveInput && !bodyUsesViewFacing
+      ? (Number.isFinite(player.moveYaw) ? player.moveYaw : cam.yaw)
+      : null;
+    const bodyYaw = player.bodyYawFor(cam.yaw, { faceView: bodyUsesViewFacing, moveYaw: movementYaw });
+    mwViewDrawBody(canvas, { proj, view, eye, feet: player.bodyFeetAt(), yaw: bodyYaw, viewYaw: cam.yaw });   // MW-D41
     hcc.draw3d(canvas, { eye, proj, view });   // COATS3D: Horse Cart and Cargo's horses, 3D on the Morrowind lane
     mwViewDrawWagon(renderer, texRemap, streetCull);   // EOTB-IL: the cart, when the transport is the cart; PERF-WAGON: by the street's view test
     camps.draw(renderer, texRemap, streetCull);   // SURV3: the tents; PERF-WAGON: by the street's view test
