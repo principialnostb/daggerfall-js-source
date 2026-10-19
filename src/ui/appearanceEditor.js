@@ -237,7 +237,7 @@ export function openAppearanceEditor({ fpArm, onClose = () => {} } = {}) {
   controls.className = 'mw-controls';
   const controlsHead = document.createElement('div');
   controlsHead.className = 'mw-controls-head';
-  controlsHead.innerHTML = '<h2>Внешность персонажа</h2><p>Сначала выберите расу и лицо, затем настройте пропорции тела. В предпросмотре используются игровые 3D-модели головы и волос; Better Faces отключён.</p>';
+  controlsHead.innerHTML = '<h2>Внешность персонажа</h2><p>Сначала выберите расу и лицо, затем настройте пропорции тела. Предпросмотр использует игровые 3D-модели головы и волос; доступные замены лиц подключаются через настройки модификаций.</p>';
   const raceRow = document.createElement('label'); raceRow.className = 'mw-underwear';
   const raceLabel = document.createElement('span'); raceLabel.textContent = 'Раса';
   const raceSelect = document.createElement('select'); raceSelect.setAttribute('aria-label', 'Раса персонажа');
@@ -266,8 +266,8 @@ export function openAppearanceEditor({ fpArm, onClose = () => {} } = {}) {
   const underwearCopy = document.createElement('span'); underwearCopy.innerHTML = '<strong>Нижнее бельё</strong><small>Выключено — голая модель; включено — вариант тела с бельём.</small>';
   underwearRow.append(underwearToggle, underwearCopy);
   const bodyHairRow = document.createElement('label'); bodyHairRow.className = 'mw-underwear';
-  const bodyHairToggle = document.createElement('input'); bodyHairToggle.type = 'checkbox'; bodyHairToggle.checked = getBodyHairEnabled();
-  const bodyHairCopy = document.createElement('span'); bodyHairCopy.innerHTML = '<strong>Волосы на теле</strong><small>Использует соответствующую текстуру High Resolution Better Bodies.</small>';
+  const bodyHairToggle = document.createElement('input'); bodyHairToggle.type = 'checkbox'; bodyHairToggle.checked = getBodyHairEnabled(); bodyHairToggle.disabled = underwearToggle.checked;
+  const bodyHairCopy = document.createElement('span'); bodyHairCopy.innerHTML = '<strong>Волосы на теле</strong><small>Для голой модели; отключите нижнее бельё. Нужен High Resolution Better Body Female Textures.</small>';
   bodyHairRow.append(bodyHairToggle, bodyHairCopy);
   controlsHead.append(raceRow, faceRow, underwearRow, bodyHairRow);
   bodyHairToggle.addEventListener('change', async () => {
@@ -299,6 +299,7 @@ export function openAppearanceEditor({ fpArm, onClose = () => {} } = {}) {
   raceSelect.addEventListener('change', () => { selectedRace = raceSelect.value; previewIdentityDraft(); });
   faceSelect.addEventListener('change', () => { selectedFace = Number(faceSelect.value) || 0; previewIdentityDraft(); });
   underwearToggle.addEventListener('change', async () => {
+    bodyHairToggle.disabled = underwearToggle.checked;
     setUnderwearEnabled(underwearToggle.checked);
     statusMessage.style.display = 'block'; statusMessage.textContent = 'Пересборка модели…';
     // If the first preview build is still loading, queue a second build after
