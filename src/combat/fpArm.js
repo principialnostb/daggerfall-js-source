@@ -118,10 +118,7 @@ function registerBetterBodiesRaceTexture(archives, texturePath, textureBytes) {
   if (!adapter) {
     adapter = {
       __betterBodiesRaceTexture: true,
-      has: (path) => {
-        const name = betterBodiesTextureBasename(path);
-        return /^bb_skin[fm]_(br|de|he|im|no|or|rg|we)/i.test(name) && name.endsWith('.dds');
-      },
+      has: (path) => betterBodiesTextureBytes.has(betterBodiesTextureBasename(path)),
       loaded: () => true,
       load: async () => null,
       get: (path) => betterBodiesTextureBytes.get(betterBodiesTextureBasename(path)) ?? null,
