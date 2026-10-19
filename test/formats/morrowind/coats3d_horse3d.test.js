@@ -557,3 +557,14 @@ test('COATS3D AUDIT the dye: a hue jittered under nought wraps to the reds, neve
   }
   assert.ok(dyed > 30, `the seeds' shades dyed (${dyed})`);
 });
+
+
+test('COATS3D standing horses draw as world meshes outside the character-sprite target', () => {
+  const source = rd('src/world/standingHorses.js');
+  const start = source.indexOf('draw(canvas, { proj, view, eye: eyeAt, up = null })');
+  const end = source.indexOf('/** Does this horse stand in 3D? */', start);
+  assert.ok(start >= 0 && end > start, 'the standing-horse draw pass is present');
+  const draw = source.slice(start, end);
+  assert.ok(!draw.includes('beginCharacterSpriteBatch'), 'world-space horse meshes must not be rendered into the finite sprite target');
+  assert.ok(!draw.includes('flushCharacterSpriteBatch'), 'the standing-horse pass owns no sprite-target lifecycle');
+});
