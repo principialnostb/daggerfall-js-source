@@ -65,9 +65,9 @@ Walk-only source filtering is the key isolation boundary. In the current code, S
 
 A broad KF can contain tracks for many bones and text keys for several groups. Never enable it wholesale as a walk replacement. Confirm group names, key timing, skeleton binding, loop markers, and root-motion behavior before integrating any additional group family.
 
-## Animation settings home — implemented in v4
+## Animation settings home — taxonomy scaffold in v4
 
-The Settings screen has a dedicated **Animations** tab (`src/ui/settings/settingsMap.js`), separate from `Mods & files`. Controls are organized by actor first, then by responsibility: **Игрок → Бег / ходьба**, followed by **NPC → Бег / ходьба**. The walk dropdowns select a source; they are not global pack enable/disable switches. Combat and Actions / Interaction categories should be added when each has a real independently selectable runtime implementation. Do not show empty headings or imply that an unimplemented category works.
+The Settings screen has a dedicated **Animations** tab (`src/ui/settings/settingsMap.js`), separate from `Mods & files`. The taxonomy is grouped by actor and responsibility: movement, posture/turn/sneak, combat/attacks/block, magic, actions/interactions, traversal, and damage/death reactions. NPC categories are separate from player categories. The walk source selectors are live; the remaining categories are explicitly marked **Пак пока не подключён** until a source is legally reusable, validated against the rig, and wired to a category-specific runtime resolver. Informational rows are not toggles and cannot change gameplay.
 
 ## Actor-specific selectors — implemented in v4
 
