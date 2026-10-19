@@ -1210,6 +1210,16 @@ export const FEATURES = Object.freeze([
     get note() { return MOD_SETTINGS['morrowind-textures'].keys.BetterBodies.description; },
     control: Object.freeze({ store: 'mods', vendor: 'morrowind-textures', key: 'BetterBodies' }),
   }),
+  // DMRA is a female-only geometry variant of the Better Bodies base.
+  Object.freeze({
+    id: 'mw-seamless-dmra',
+    group: 'character',
+    title: 'Seamless DMRA · женская геометрия',
+    get note() { return MOD_SETTINGS['morrowind-textures'].keys.SeamlessDMRA.description; },
+    effect: 'Takes effect at once.',
+    kinds: Object.freeze(['mod']),
+    control: Object.freeze({ store: 'mods', vendor: 'morrowind-textures', key: 'SeamlessDMRA' }),
+  }),
   // MWNPC5b (2026-10-09, Mac: "I wanna do everything and ensure that performance isnt affected"): THE PEOPLE IN
   // MORROWIND BODIES - the NPC lanes (characters/npcBodies.js) under ONE frame budget (MWNPC11, NPC_FRAME_TIERS): Off, the
   // classic sprites; Near, the nearest 24 a frame within a street's width, whoever they are; All, 48 across a square. The
