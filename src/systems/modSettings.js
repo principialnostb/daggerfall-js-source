@@ -1694,6 +1694,7 @@ export const MOD_SETTINGS = Object.freeze({
     author: 'Port integration',
     keys: Object.freeze({
       BetterBodies: Object.freeze({ default: true, conflictGroup: 'morrowind-body-geometry', conflictLabel: 'Better Bodies', get description() { return 'Use the Better Bodies body meshes and matching race/sex skin for the player. Off restores the standard Morrowind body meshes and first-person arms.'; } }),
+      SeamlessDMRA: Object.freeze({ default: false, get description() { return 'Use Seamless DMRA female body geometry in place of the base Better Bodies female mesh. Better Bodies remains the base skin and male-body source; only one female body mesh is selected at a time.'; } }),
       IntelligentTextures: Object.freeze({ default: false, get description() { return 'Use Intelligent Textures 00 Core. The 01 Atlas Textures set is excluded because it requires matching atlas meshes.'; } }),
       VurtsBetterClothes: Object.freeze({ default: false, get description() { return 'Use Vurt\'s Better Clothes Retexture for matching clothing texture paths.'; } }),
       BetterClothesRetextured: Object.freeze({ default: false, get description() { return 'Use Better Clothes Retextured for matching non-pants texture paths. Pants remain on their existing textures as a fit-quality control.'; } }),
@@ -1995,6 +1996,24 @@ export function setModSetting(vendor, key, value) {
       }
     }
     if (disabled.length) notices.push([vendor, key, disabled.map((label) => `Отключён: ${label}`).join('; ')]);
+  }
+
+  // DMRA is a female-geometry variant that relies on Better Bodies' base skin
+  // and male-body source. Keep that base enabled, while the resolver selects
+  // exactly one female mesh (DMRA when selected, Better Bodies otherwise).
+  if (vendor === 'morrowind-textures' && key === 'SeamlessDMRA' && v === true) {
+    if (modSetting(vendor, 'BetterBodies') !== true) {
+      (m[vendor] ??= {}).BetterBodies = true;
+      notices.push([vendor, 'SeamlessDMRA', 'Включён необходимый базовый набор: Better Bodies']);
+    } else {
+      notices.push([vendor, 'SeamlessDMRA', 'Для женских моделей выбран Seamless DMRA вместо базовой геометрии Better Bodies']);
+    }
+  }
+  (m[vendor] ??= {})[key] = v;
+  if (vendor === 'morrowind-textures' && key === 'BetterBodies' && v === false
+      && modSetting(vendor, 'SeamlessDMRA') === true) {
+    m[vendor].SeamlessDMRA = false;
+    notices.push([vendor, 'BetterBodies', 'Отключён: Seamless DMRA body replacer']);
   }
 
   // Morrowind texture/equipment pack dependency: Complete Armor Joints is an
