@@ -34,7 +34,7 @@ This document is the operational inventory: what is in the repository, what the 
 2. **Simply Walking — Feminine Walk Cycle**  
    File: `Morrowind Textures/Simply Walking/Feminine Walk Cycle/Meshes/xbase_anim_female.kf`
 
-   Role: alternate female walk source currently exposed as the old “Female” option. It is not the same as the Purist Edition female base file. This is the option that should be removed from the final player-facing choices if the agreed UX is one source per pack and the Axel option is renamed to “Female”.
+   Role: alternate female walk source exposed as its own **Feminine Walk Cycle** option for the player. It is not the same as the Purist Edition female base file. It is intentionally kept as a separate player choice because the player selector lists each walk source by its actual pack name; the female-NPC selector does not expose this option.
 
 3. **Axel's Sexy Walk Fixed**  
    File used by runtime: `Morrowind Textures/Axel's Sexy Walk Fixed/Animation/axel fixed/female/WalkForward;.kf`
