@@ -253,7 +253,7 @@ test('COATS3D the markings on the 3D horse: a pinto\'s two flanks their own, the
 
 /** A recording renderer: the GL half's doors, as the hosts' renderer answers them. */
 function recordingRenderer() {
-  const r = { made: { meshes: 0, palettes: 0, textures: 0 }, released: { palettes: 0, textures: 0 }, uploads: 0, sprites: [], overlays: 0, queued: [] };
+  const r = { made: { meshes: 0, palettes: 0, textures: 0 }, released: { palettes: 0, textures: 0 }, uploads: 0, sprites: [], worldDraws: [], overlays: 0, queued: [] };
   Object.assign(r, {
     createSkinnedCharacterMesh: (stream, o) => { r.made.meshes++; return { vao: {}, vbo: {}, count: stream.length / o.floats, floats: o.floats, skin: r.createSkinPalette(o) }; },
     createSkinPalette: (o) => { r.made.palettes++; return { tex: { id: r.made.palettes }, ...o }; },
@@ -261,6 +261,7 @@ function recordingRenderer() {
     createCharacterTexture: (mips) => { r.made.textures++; return { mips: mips.length, id: r.made.textures }; },
     releaseCharacterTexture: () => { r.released.textures++; },
     updateSkinPalette: () => { r.uploads++; },
+    drawCharacter: (mesh, model) => { r.worldDraws.push({ mesh, model }); },
     renderCharacterSprite: (mesh, model, proj, view, pw, ph, o) => { r.sprites.push({ mesh, pw, ph, also: o?.also ?? null }); return {}; },
     drawCharacterSpriteQuad: () => {},
     drawScreenOverlayQuad: () => { r.overlays++; },
@@ -326,7 +327,8 @@ test('COATS3D the seat and the draws: the seat rides the Spine\'s stride over th
   const bx = rig.box(h);
   assert.ok(bx.halfH > 1 && bx.halfW > 1.2 && bx.anchor[1] > 0.9);
   assert.equal(rig.draw(h, { clientWidth: 900, clientHeight: 600 }, { proj: new Float32Array(16).fill(0).map((_, i) => (i % 5 ? 0 : 1)), view: new Float32Array([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]), eye: [0, 1.5, -6] }), true);
-  assert.equal(r.sprites.length, 1, 'alone: one picture through the sprite pass');
+  assert.equal(r.worldDraws.length, 1, 'alone: the posed 3D horse stays in the world mesh pass at every distance');
+  assert.equal(r.sprites.length, 0, 'no finite-resolution sprite target to pixelate or compress the horse');
   assert.equal(rig.drawFirstPerson(h, { clientWidth: 900, clientHeight: 600 }, { proj: new Float32Array(16), view: new Float32Array(16) }), true);
   assert.deepEqual([r.sprites.at(-1).pw, r.sprites.at(-1).ph, r.overlays], [300, 200, 1], 'first person: the screen at the arm\'s dial, laid over it');
   const pic = rig.picture(h, [0, 0, 0], 0, 3);
