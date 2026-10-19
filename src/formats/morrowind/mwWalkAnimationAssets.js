@@ -1,7 +1,7 @@
 // Runtime loader for the animation packs uploaded to the Morrowind Textures tree.
-// Files are bundled by Vite as URLs; their bytes are parsed by the same NIF/KF
-// reader used for the game's archives. This module deliberately does not touch
-// meshes or skeleton geometry.
+// Asset URLs come from the pinned remote manifest; clip bytes are fetched on
+// demand and parsed by the same KF reader used for the game's archives. This
+// module deliberately does not touch meshes or skeleton geometry.
 import { modSetting } from '../../systems/modSettings.js';
 
 const IN_BROWSER = typeof window !== 'undefined';

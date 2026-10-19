@@ -1,5 +1,5 @@
-// Bundled Morrowind replacement assets for the mod packs checked into
-// Morrowind Textures. The archive keys match the paths stored in NIF files.
+// Bundled Morrowind replacement assets from the pinned Dev asset tree.
+// The archive keys match the paths stored in NIF files.
 //
 // Priority inside this archive (later packages win exact-path collisions):
 //   Better Bodies Nude textures (required fallback for the existing BB body)
