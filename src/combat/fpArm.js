@@ -77,7 +77,7 @@ import {
   placeAtBone,   // TWO-HANDS AUDIT 2: a blade placed at rest, for the pair's guard (bladePictureHeight)
 } from '../formats/morrowind/mwFirstPerson.js';
 import { PART_BONES, dfRaceKeyOf } from '../formats/morrowind/mwNpc.js';
-import { betterBodiesAssetUrls, loadBetterBodiesFemaleUvEdits } from '../formats/morrowind/mwBetterBodies.js';
+import { betterBodiesAssetUrls } from '../formats/morrowind/mwBetterBodies.js';
 import { portraitFeatures, headFeatures, hairFeatures, matchFace, FACE_MATCH_VERSION } from '../formats/morrowind/mwFaceMatch.js';
 import { CifRciFile } from '../formats/cifRciFile.js';
 import { DFPalette } from '../formats/dfPalette.js';
