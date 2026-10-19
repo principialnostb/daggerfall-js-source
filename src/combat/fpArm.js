@@ -3004,7 +3004,7 @@ export async function buildFpArm({
         const bytes = rewriteBetterBodiesTextureStem(
           rawBytes,
           `bb_skin${genderKey}_${asset.geometryRaceKey}`,
-          `bb_skin${genderKey}_${asset.raceKey}`,
+          `bb_skin${genderKey}_${asset.textureRaceKey}`,
         );
         registerBetterBodiesRaceTexture(archives, asset.texturePath, textureBytes);
         const basename = betterBodiesTextureBasename(asset.texturePath);
