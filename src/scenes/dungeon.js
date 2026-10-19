@@ -1138,12 +1138,7 @@ export async function bootDungeon(canvas, renderer, params, status) {
     renderer.setWorldViewport(worldViewportRect(canvas.clientWidth, canvas.clientHeight));   // E5: ViewportChanger.Update, every frame
     renderer.beginFrame(proj, view, INTERIOR_LIGHT_DIR, WORLD_FRAME);   // AUDIT-EL F5: a WORLD frame - the lane replays its records for this one
     if (walkMode) {
-      // MW-D40b: use this frame's resolved axes rather than the motor's last
-      // fixed-step snapshot; the render can occur between motor updates.
-      const bodyHasMoveInput = Math.abs(Number(axes.forward) || 0) > 1e-3 || Math.abs(Number(axes.strafe) || 0) > 1e-3;
-      const faceBodyToView = !mwv.thirdPerson || bodyHasMoveInput || player.isRunning || rightHeld || swipeHeld || swingKeyLatch;
-      // Keep the original v3 facing contract in dungeons as well: the model
-      // follows the current view yaw, without a separate idle-facing latch.
+      // Restore v3: the body renderer follows view yaw; no idle-facing gate.
       mwViewDrawBody(canvas, { proj, view, eye: mwv.eye, feet: player.bodyFeetAt(), yaw: player.bodyYawFor(cam.yaw), viewYaw: cam.yaw });   // restore v3 body-facing behavior
     }
     if (ctx.staticBatch) renderer.drawMesh(ctx.staticBatch, BATCH_IDENTITY, null);   // PERF5: the level's static models, one call per texture (keys resolved in the merge)
