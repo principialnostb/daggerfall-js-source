@@ -1738,7 +1738,7 @@ export function curatedAnswersFace(pools, race, female, faceIndex, faceTable = F
   return !!c && !!poolRecord(pools.heads, c.head) && !!poolRecord(pools.hairs, c.hair);
 }
 
-export function playerBodyRows(parts, race, female, { beast = false, faceIndex = 0, faceTable = FACE_TABLE, faceMatch = null, vampire = false, walk = null, has = null, ownHeads = false } = {}) {   // MWNPC14: `vampire` the race's vampire head; MWNPC17: `walk` an NPC's { head, hair }; AUDIT MW-HEADS1: `has` the archives' (facePools); MW-HEADS2: `ownHeads` a player's - the port's own heads
+export function playerBodyRows(parts, race, female, { beast = false, faceIndex = 0, faceTable = FACE_TABLE, faceMatch = null, faceRace = race, vampire = false, walk = null, has = null, ownHeads = false } = {}) {   // MWNPC14: `vampire` the race's vampire head; MWNPC17: `walk` an NPC's { head, hair }; AUDIT MW-HEADS1: `has` the archives' (facePools); MW-HEADS2: `ownHeads` a player's - the port's own heads
   const want = String(race || '').toLowerCase();
   // MW-D32: the sweep slots resolve through getBodyParts-whole
   // (npcanimation.cpp:1167-1297 - LAST proper match wins, male-for-
@@ -1770,7 +1770,7 @@ export function playerBodyRows(parts, race, female, { beast = false, faceIndex =
   // authored by eye. A curated id wins when the pool carries it; an id
   // the archives do not carry falls back to the walk (never traps),
   // and the row's verdict says which happened.
-  const curated = curatedFace(race, female, faceIndex, faceTable);
+  const curated = curatedFace(faceRace, female, faceIndex, faceTable);
   // The sex law, list-shaped: the matching sex's pool, else the male
   // pool retail relies on - never a mix, or the index would walk across
   // sexes. AUDIT MW-A F2: the sort and the index are the FACE'S law and
@@ -1780,7 +1780,7 @@ export function playerBodyRows(parts, race, female, { beast = false, faceIndex =
   // AUDIT 68 S11-facepools-dup: facePools IS that law - the pools the
   // matcher measured are the pools walked here, by construction (the
   // same `has`: AUDIT MW-HEADS1).
-  const pools = facePools(parts, race, female, { has, own: ownHeads });
+  const pools = facePools(parts, faceRace, female, { has, own: ownHeads });
   for (const slot of ['head', 'hair']) {
     const sorted = slot === 'head' ? pools.heads : pools.hairs;
     let chosen = null;
@@ -1817,7 +1817,7 @@ export function playerBodyRows(parts, race, female, { beast = false, faceIndex =
   }
   // MWNPC14: A VAMPIRE'S FACE - the race's vampire head over the one walked (npcanimation.cpp updateNpcBase: the head
   // model is getVampireHead's when there is one, the hair the actor's own); none for the race and the face stands
-  const vamp = vampire ? vampireHeadRecord(parts, race, female) : null;
+  const vamp = vampire ? vampireHeadRecord(parts, faceRace, female) : null;
   if (vamp) {
     const row = rows.find((r) => r.slot === 'head');
     if (row) { row.record = vamp; row.verdict = 'third-person record found, a vampire\'s (getVampireHead)'; }
