@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { inspectWalkAnimationAssets, isWalkAnimationGroup, isWalkAnimationKey, isWalkVariantEnabled, walkVariantForActor } from '../../src/formats/morrowind/mwWalkAnimationAssets.js';
+import { inspectWalkAnimationAssets, isWalkAnimationGroup, isWalkAnimationKey, isRunAnimationGroup, isRunAnimationKey, isWalkVariantEnabled, walkVariantForActor } from '../../src/formats/morrowind/mwWalkAnimationAssets.js';
 
 test('MW-ANIM-1: bundled walk asset inventory is safe to import in Node', () => {
   const assets = inspectWalkAnimationAssets();
@@ -9,12 +9,15 @@ test('MW-ANIM-1: bundled walk asset inventory is safe to import in Node', () => 
   assert.equal(assets.feminineFemale, null);
   assert.equal(assets.puristFemale, null);
   assert.equal(assets.axelFemale, null);
+  assert.equal(assets.axelRunFemale, null);
 });
 test('MW-ANIM-1: only walk groups are overridden', () => {
   assert.equal(isWalkAnimationGroup('WalkForward'), true);
   assert.equal(isWalkAnimationGroup('walkforward1h'), true);
   assert.equal(isWalkAnimationGroup('RunForward'), false);
   assert.equal(isWalkAnimationGroup('Idle'), false);
+  assert.equal(isRunAnimationGroup('RunForward'), true);
+  assert.equal(isRunAnimationGroup('WalkForward'), false);
 });
 test('MW-ANIM-1: female gait preference gates only the female walk source', () => {
   assert.equal(isWalkVariantEnabled({ walkOnly: true, walkVariant: 'simply' }, 'vanilla'), false);
