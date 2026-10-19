@@ -2101,7 +2101,7 @@ async function buildTpBody({
     let betterBodiesPart = null;
     if (!beast && !werewolf && !vampire) {
       try {
-        const underwear = getUnderwearEnabled();
+        const underwear = playerAppearance ? getUnderwearEnabled() : false;
         const asset = betterBodiesAssetUrls({ race, female, underwear });
         if (!asset) throw new Error(`no Better Bodies asset for race "${String(race)}" / ${female ? 'female' : 'male'}`);
         const [bytes, textureBytes, uvEdits] = await Promise.all([
