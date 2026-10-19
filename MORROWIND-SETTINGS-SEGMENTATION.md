@@ -10,7 +10,7 @@ The new dedicated tabs are:
 - **Текстуры** — pack access and texture/overhaul entry points.
 - **Тела** — Morrowind body rendering switches; Better Bodies is enabled by default.
 
-The `morrowind-textures` settings vendor owns independent switches for the optional texture/equipment layers. They default off (Vanilla); Better Bodies is the single default-on body geometry selection. The browser's bundled archive is built from saved choices at startup, so changing an optional texture pack requires a page/game reload.
+The `morrowind-textures` settings vendor owns independent switches for the optional texture/equipment layers. They default off (Vanilla); Better Bodies is the default-on base body system; Seamless DMRA is an optional female-geometry variant selected instead of the base female mesh. The browser's bundled archive is built from saved choices at startup, so changing an optional texture pack requires a page/game reload.
 
 ## Animation selector boundaries
 
