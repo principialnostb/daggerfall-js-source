@@ -30,6 +30,7 @@ const FILES = IN_BROWSER
       '../../Morrowind Textures/Intelligent Textures/00 Core/textures/**/*.{dds,DDS,tga,TGA}',
       "../../Morrowind Textures/Vurt's Better Clothes Retexture/textures/**/*.{dds,DDS,tga,TGA}",
       '../../Morrowind Textures/Better Clothes Retextured/textures/**/*.{dds,DDS,tga,TGA}',
+      '../../Morrowind Textures/Better Clothes Retextured/meshes/**/*.{nif,NIF}',
       "../../Morrowind Textures/Westly's Fine Clothiers of Tamriel/Meshes/**/*.{nif,NIF}",
       "../../Morrowind Textures/Westly's Fine Clothiers of Tamriel/Textures/**/*.{dds,DDS,tga,TGA}",
       "../../Morrowind Textures/Westly's Fine Clothiers of Tamriel/Westly_Presents_FCOT.esp",
@@ -52,6 +53,7 @@ const highResolutionFemaleHandUrls = Object.create(null);
 const intelligentTextureUrls = Object.create(null);
 const vurtClothesTextureUrls = Object.create(null);
 const betterClothesTextureUrls = Object.create(null);
+const betterClothesMeshUrls = Object.create(null);
 const clothierAssetUrls = Object.create(null);
 const armorTextureUrls = Object.create(null);
 const armorJointsUrls = Object.create(null);
@@ -152,9 +154,12 @@ for (const [source, url] of Object.entries(FILES)) {
   const betterClothesRel = relAfter(path, lower, '/better clothes retextured/');
   if (betterClothesRel) {
     if (!packEnabled.betterClothes) continue;
-    const match = betterClothesRel.match(/^textures\/(.+\.(?:dds|tga))$/i);
-    if (match && !/(?:pant|trouser)/i.test(match[1])) {
-      addAsset(betterClothesTextureUrls, 'textures/' + match[1], url, 'Better Clothes Retextured (non-pants textures only)');
+    const meshMatch = betterClothesRel.match(/^meshes\/(.+\.nif)$/i);
+    const textureMatch = betterClothesRel.match(/^textures\/(.+\.(?:dds|tga))$/i);
+    if (meshMatch) {
+      addAsset(betterClothesMeshUrls, 'meshes/' + meshMatch[1], url, 'Better Clothes Retextured meshes');
+    } else if (textureMatch && !/(?:pant|trouser)/i.test(textureMatch[1])) {
+      addAsset(betterClothesTextureUrls, 'textures/' + textureMatch[1], url, 'Better Clothes Retextured (non-pants textures only)');
     }
     continue;
   }
@@ -239,6 +244,7 @@ Object.assign(
   intelligentTextureUrls,
   vurtClothesTextureUrls,
   betterClothesTextureUrls,
+  betterClothesMeshUrls,
   armorTextureUrls,
   armorJointsUrls,
   clothierAssetUrls,
