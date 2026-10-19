@@ -179,6 +179,9 @@ export function openAppearanceEditor({ fpArm, onClose = () => {} } = {}) {
   document.getElementById('mw-appearance-editor')?.remove();
 
   let yaw = 0, zoom = 1, frame = 0, closed = false, previewRig = null, previewBuildPending = false, previewRebuildRequested = false, previewError = '';
+  const initialIdentity = fpArm?.builtFor?.() || {};
+  let selectedRace = String(initialIdentity.race || 'nord').toLowerCase();
+  let selectedFace = Math.max(0, Math.min(9, Number(initialIdentity.faceIndex) || 0));
   const root = document.createElement('div');
   root.id = 'mw-appearance-editor';
   const style = document.createElement('style');
@@ -234,11 +237,43 @@ export function openAppearanceEditor({ fpArm, onClose = () => {} } = {}) {
   controls.className = 'mw-controls';
   const controlsHead = document.createElement('div');
   controlsHead.className = 'mw-controls-head';
-  controlsHead.innerHTML = '<h2>Пропорции тела</h2><p>Изменения видны в предпросмотре сразу после движения ползунка.</p>';
+  controlsHead.innerHTML = '<h2>Внешность персонажа</h2><p>Сначала выберите расу и лицо, затем настройте пропорции тела. В предпросмотре используются игровые 3D-модели головы и волос; Better Faces отключён.</p>';
+  const raceRow = document.createElement('label'); raceRow.className = 'mw-underwear';
+  const raceLabel = document.createElement('span'); raceLabel.textContent = 'Раса';
+  const raceSelect = document.createElement('select'); raceSelect.setAttribute('aria-label', 'Раса персонажа');
+  raceSelect.style.cssText = 'margin-left:auto;max-width:58%;min-width:150px;background:#171b21;color:#e9e4d9;border:1px solid #62513a;padding:7px;font:inherit';
+  const raceOptions = [
+    ['breton','Бретон'],['dark elf','Тёмный эльф'],['high elf','Высокий эльф'],['imperial','Имперец'],
+    ['nord','Норд'],['orc','Орк'],['redguard','Редгард'],['wood elf','Лесной эльф'],
+    ['argonian','Аргонианин'],['khajiit','Каджит'],
+  ];
+  for (const [value,label] of raceOptions) { const option=document.createElement('option'); option.value=value; option.textContent=label; raceSelect.append(option); }
+  if (![...raceSelect.options].some(o=>o.value===selectedRace)) {
+    const compact = selectedRace.replace(/[^a-z]/g,'');
+    const matched = raceOptions.find(([value])=>value.replace(/[^a-z]/g,'')===compact);
+    selectedRace = matched?.[0] || 'nord';
+  }
+  raceSelect.value = selectedRace;
+  raceRow.append(raceLabel, raceSelect);
+  const faceRow = document.createElement('label'); faceRow.className = 'mw-underwear';
+  const faceLabel = document.createElement('span'); faceLabel.textContent = 'Лицо и причёска';
+  const faceSelect = document.createElement('select'); faceSelect.setAttribute('aria-label', 'Вариант лица и причёски');
+  faceSelect.style.cssText = raceSelect.style.cssText;
+  for (let i=0;i<10;i++) { const option=document.createElement('option'); option.value=String(i); option.textContent='Вариант '+(i+1); faceSelect.append(option); }
+  faceSelect.value=String(selectedFace); faceRow.append(faceLabel,faceSelect);
   const underwearRow = document.createElement('label'); underwearRow.className = 'mw-underwear';
   const underwearToggle = document.createElement('input'); underwearToggle.type = 'checkbox'; underwearToggle.checked = getUnderwearEnabled();
   const underwearCopy = document.createElement('span'); underwearCopy.innerHTML = '<strong>Нижнее бельё</strong><small>Выключено — голая модель; включено — вариант тела с бельём.</small>';
-  underwearRow.append(underwearToggle, underwearCopy); controlsHead.append(underwearRow);
+  underwearRow.append(underwearToggle, underwearCopy); controlsHead.append(raceRow, faceRow, underwearRow);
+  const rebuildRacePreview = () => {
+    previewRig?.unload?.(); previewRig = null; previewError = '';
+    statusMessage.style.display = 'block'; statusMessage.textContent = 'Загрузка расы и 3D-моделей лица…';
+    if (previewBuildPending) previewRebuildRequested = true;
+    else void buildPreviewRig();
+    window.dispatchEvent(new CustomEvent('mw-appearance-race-preview-change', { detail: { race: selectedRace, faceIndex: selectedFace } }));
+  };
+  raceSelect.addEventListener('change', () => { selectedRace = raceSelect.value; rebuildRacePreview(); });
+  faceSelect.addEventListener('change', () => { selectedFace = Number(faceSelect.value) || 0; rebuildRacePreview(); });
   underwearToggle.addEventListener('change', async () => {
     setUnderwearEnabled(underwearToggle.checked);
     statusMessage.style.display = 'block'; statusMessage.textContent = 'Пересборка модели…';
@@ -394,7 +429,7 @@ export function openAppearanceEditor({ fpArm, onClose = () => {} } = {}) {
     previewRebuildRequested = false;
     previewBuildPending = true;
     try {
-      const result = await fpArm.createAppearancePreviewRig();
+      const result = await fpArm.createAppearancePreviewRig({ race: selectedRace, faceIndex: selectedFace });
       if (closed || previewRebuildRequested) {
         result?.rig?.unload?.();
       } else if (result?.ok && result.rig) {
