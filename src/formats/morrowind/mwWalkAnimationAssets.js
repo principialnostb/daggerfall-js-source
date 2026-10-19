@@ -49,8 +49,11 @@ async function bytes(entry) {
 export async function loadWalkAnimationAssets({ female = false } = {}) {
   if (!IN_BROWSER) return [];
   const simplyCandidates = female
-    ? [{ entry: puristFemale, variant: 'simply', family: 'walk' }, { entry: feminineFemale, variant: 'simply', family: 'walk' }]
+    ? [{ entry: puristFemale, variant: 'simply', family: 'walk' }]
     : [{ entry: standardMale, variant: 'simply', family: 'walk' }];
+  const feminineCandidate = female
+    ? { entry: feminineFemale, variant: 'feminine', family: 'walk' }
+    : null;
   // Keep both female candidates under the same visible Simply Walking option.
   // fpArm filters each KF down to walk groups and picks the last valid source.
   const overrides = female ? [
@@ -67,6 +70,10 @@ export async function loadWalkAnimationAssets({ female = false } = {}) {
       if (!entry) continue;
       const data = await bytes(entry);
       if (data) selected.push({ name: entry.path, bytes: data, variant, walkVariant: variant, family, animationFamily: family, walkOnly: family === 'walk', runOnly: family === 'run' });
+    }
+    if (feminineCandidate?.entry) {
+      const data = await bytes(feminineCandidate.entry);
+      if (data) selected.push({ name: feminineCandidate.entry.path, bytes: data, variant: feminineCandidate.variant, walkVariant: feminineCandidate.variant, family: feminineCandidate.family, animationFamily: feminineCandidate.family, walkOnly: true, runOnly: false });
     }
     for (const { entry, variant, family } of overrides) {
       if (!entry) {
@@ -92,6 +99,7 @@ export function inspectWalkAnimationAssets() {
     standardMale: standardMale?.path ?? null,
     puristFemale: puristFemale?.path ?? null,
     feminineFemale: feminineFemale?.path ?? null,
+    feminineCycleEnabledAsIndependentVariant: !!feminineFemale,
     axelFemale: axelFemale?.path ?? null,
     axelRunFemale: axelRunFemale?.path ?? null,
   };
@@ -137,8 +145,11 @@ export function walkVariantForActor({
   playerChoice = 0, npcMaleChoice = 0, npcFemaleChoice = 0,
 } = {}) {
   const index = (value, max) => Math.max(0, Math.min(max, Number(value) || 0));
-  if (player || ownHeads) return ['vanilla', 'simply', 'axel'][index(playerChoice, 2)];
-  if (female) return ['vanilla', 'simply', 'axel'][index(npcFemaleChoice, 2)];
+  if (player || ownHeads) {
+    if (!female) return ['vanilla', 'simply'][index(playerChoice, 1)];
+    return ['vanilla', 'simply', 'feminine', 'axel'][index(playerChoice, 3)];
+  }
+  if (female) return ['vanilla', 'simply', 'feminine', 'axel'][index(npcFemaleChoice, 3)];
   return ['vanilla', 'simply'][index(npcMaleChoice, 1)];
 }
 
