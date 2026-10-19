@@ -1649,23 +1649,23 @@ export const MOD_SETTINGS = Object.freeze({
   // consumer in fpArm.js. Keep choices mutually exclusive: two KF sources
   // must never compete to own the same walk group for one actor.
   'morrowind-animation': Object.freeze({
-    title: 'Morrowind Walk Animations',
+    title: 'Animations',
     author: 'Port integration',
     keys: Object.freeze({
       PlayerWalkSource: Object.freeze({
         default: 0,
-        options: lazyWords('Standard', 'Feminine Walk Cycle', "Axel's Sexy Walk Fixed"),
-        description: "Local player walk source. Standard uses Simply Walking Purist Edition; Feminine Walk Cycle uses its separate female KF; Axel's Sexy Walk Fixed uses only Axel's WalkForward clip. Non-walk groups are not replaced.",
+        options: lazyWords('Standard', 'Feminine Walk Cycle', "Axel's Sexy Walk Fixed", 'Vanilla'),
+        description: "Player walk source. Standard uses Simply Walking Purist Edition; Feminine Walk Cycle uses its separate female KF; Axel's Sexy Walk Fixed uses only Axel's WalkForward clip; Vanilla keeps the game's/archive walk. Non-walk groups are not replaced.",
       }),
       NpcMaleWalk: Object.freeze({
         default: 0,
         options: lazyWords('Standard', 'Vanilla'),
-        description: 'Male NPC walk source. Standard uses Simply Walking Purist Edition; Vanilla disables bundled walk replacements for male NPCs. Other animation groups are unaffected.',
+        description: 'Male NPC walk source. Standard uses Simply Walking Purist Edition; Vanilla keeps the game's/archive walk. Other animation groups are unaffected.',
       }),
       NpcFemaleWalk: Object.freeze({
         default: 0,
         options: lazyWords('Standard', 'Female (Axel)', 'Vanilla'),
-        description: "Female NPC walk source. Standard uses Simply Walking Purist Edition; Female (Axel) uses Axel's WalkForward clip; Vanilla disables bundled walk replacements. Other animation groups are unaffected.",
+        description: "Female NPC walk source. Standard uses Simply Walking Purist Edition; Female (Axel) uses Axel's WalkForward clip; Vanilla keeps the game's/archive walk. Other animation groups are unaffected.",
       }),
       // Legacy key retained so old stored data is not silently redefined.
       // Runtime no longer reads this key; actor-scoped settings are independent.
