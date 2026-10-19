@@ -27,9 +27,9 @@ Under `Morrowind Textures/Better Bodies/Nude/Data Files/`, the checked-in collec
 
 For each key, the tree contains `bb_skinf_<key>.nif/.dds`, `bb_skinm_<key>.nif/.dds`, `bb_handf_<key>.nif/.dds`, and `bb_handm_<key>.nif/.dds`. These are available source assets, not proof that every variant is currently used by the game.
 
-Current implementation limitation: `src/formats/morrowind/mwBetterBodies.js` statically imports only `bb_skinf_no.nif`, `bb_skinf_no.dds`, and the associated `bb_skinf_no-uv-edits.json`. The live build path in `src/combat/fpArm.js` applies this hard-coded body/texture pair only to eligible female characters. It does **not yet** select a Better Bodies model and skin by every actor's race and sex. Do not claim full racial coverage until this is replaced with an explicit race/sex resolver and tested against all 32 body/hand variants.
+Implementation update (2026-10-19): `src/formats/morrowind/mwBetterBodies.js` now resolves the body NIF and DDS by race key + sex for all eight supported races, and `src/combat/fpArm.js` uses that pair for both third-person body assembly and first-person arm/hand slots. The texture adapter is keyed by texture basename and the downloaded bytes are cached by URL so concurrent NPC builds with different races do not share a mutable 'current skin'. Unsupported races (including Argonian/Khajiit, which have no Better Bodies files in this pack) fall back to the existing game body with an explicit diagnostic. This is source-level wiring; it has not yet been validated in-game across the race/sex matrix.
 
-The existing UV-edit JSON was authored for the Nord female mesh. Reuse it for another race or sex only after verifying the corresponding NIF's mesh identity and UV layout; never blindly apply one race's per-mesh correction indices to a different geometry.
+UV-edit caution: the checked-in UV-edit JSON was authored for the Nord female mesh and is currently applied only to that exact variant. Other female races and all male variants use their own checked-in NIF UVs without this custom edit. Do not copy the Nord correction indices to another mesh until mesh identity and UV layout have been verified; per-race visual inspection is still required.
 
 ### Body morphs and appearance editor
 
@@ -61,7 +61,8 @@ This is the target contract, not a statement that all stages are implemented:
 
 ## Required validation matrix
 
-- [ ] All eight races × male/female: body, hand, and texture path resolve to matching race/sex keys.
+- [x] Resolver and live body/hand assembly select matching race/sex body NIF + skin DDS for all eight available Better Bodies race keys (source-level wiring only).
+- [ ] All eight races × male/female: in-game body, hand, and texture rendering visually verified.
 - [ ] Player and NPCs independently use their own race and sex.
 - [ ] Head/hair candidates stay inside the same race/sex pool as the actor.
 - [ ] Special forms do not accidentally inherit the ordinary humanoid Better Bodies body.
