@@ -2211,6 +2211,13 @@ function paneSettings(pane, { pause = false } = {}) {
 
   const rail = el('div', 'subrail');
   for (const cat of CATEGORIES) {
+    // Separate the game's built-in settings categories from our custom pages.
+    // Mods & files remains the final native category; custom pages start below it.
+    if (cat.id === 'animations') {
+      const divider = el('div', 'subrail-custom-divider');
+      divider.setAttribute('aria-hidden', 'true');
+      rail.append(divider);
+    }
     const on = cat.id === category && !optQuery.trim();
     const b = el('button', `subbtn${on ? ' on' : ''}`, cat.title);
     b.dataset.tab = cat.id;
