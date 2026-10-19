@@ -7310,9 +7310,10 @@ export function createFpArm({ playerAppearance = false } = {}) {
       }
       const u = 1 / MW_UNITS_PER_METER;
       const rs = (built && built.raceScale) || { weight: 1, height: 1 };
-      const morph = playerAppearance ? getBodyMorphs() : { bodyWidth: 0, height: 0 };
-      const width = 1 + Math.max(-1, Math.min(1, Number(morph.bodyWidth) || 0)) * 0.18;
-      const heightScale = 1 + Math.max(-1, Math.min(1, Number(morph.height) || 0)) * 0.15;
+      // bodyWidth and height are vertex morphs shared with the world body;
+      // do not apply a second, portrait-only model scale here.
+      const width = 1;
+      const heightScale = 1;
       // feet at the origin, facing the viewer: drawThird's +180 makes yaw
       // 0 face -Z in pass space, and the eye below sits on +Z.
       const yawDeg = (yaw * 180 / Math.PI) + 180;
