@@ -144,7 +144,7 @@ export function openAppearanceEditor({ fpArm, onClose = () => {} } = {}) {
       return;
     }
     try {
-      const image = previewRig.figure({ yaw, height: Math.round(760 * zoom), force: true });
+      const image = previewRig.figure({ yaw, height: 760, force: true });
       const ctx = preview.getContext('2d');
       if (!ctx) return;
       ctx.clearRect(0, 0, preview.width, preview.height);
@@ -154,7 +154,7 @@ export function openAppearanceEditor({ fpArm, onClose = () => {} } = {}) {
       const imageCtx = imageCanvas.getContext('2d');
       if (!imageCtx) return;
       imageCtx.putImageData(new ImageData(image.data, image.width, image.height), 0, 0);
-      const scale = Math.min((preview.width * .94) / image.width, (preview.height * .94) / image.height);
+      const scale = Math.min((preview.width * .94) / image.width, (preview.height * .94) / image.height) * zoom;
       const dw = image.width * scale, dh = image.height * scale;
       ctx.drawImage(imageCanvas, (preview.width - dw) / 2, (preview.height - dh) / 2, dw, dh);
       previewHint.textContent = 'Отдельная NIF-модель без экипировки. Поза — спокойная стойка без оружия.';
