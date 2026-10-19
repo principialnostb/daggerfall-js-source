@@ -7000,7 +7000,13 @@ export function createFpArm({ playerAppearance = false } = {}) {
       // the feet alternately rise and fall. Until a standing pose is seen, retain the
       // current bound so first-frame rendering still has a valid ground correction.
       if (playerAppearance && body && thirdGroundMinZ == null && !movementState && !jumpState) thirdGroundMinZ = body.minZ;
-      const supportMinZ = playerAppearance && Number.isFinite(thirdGroundMinZ) ? thirdGroundMinZ : body?.minZ;
+      // MW-TP-GROUND-NPC: NPCs do not necessarily get a standing frame before
+      // they start walking. Latch their first posed support height once instead
+      // of feeding each animated frame's changing leg minimum back into the root
+      // transform; that feedback makes the feet/pelvis bob and the legs appear to
+      // twitch, especially from a low upward camera angle.
+      if (!playerAppearance && body && thirdGroundMinZ == null) thirdGroundMinZ = body.minZ;
+      const supportMinZ = Number.isFinite(thirdGroundMinZ) ? thirdGroundMinZ : body?.minZ;
       const groundedModel = !horse && body && Number.isFinite(supportMinZ) ? groundThirdPersonModel(model, supportMinZ, feet[1]) : model;
       const center = transformPoint(groundedModel, (minX + maxX) / 2, (minY + maxY) / 2, (minZ + maxZ) / 2);
       // MWNPC16: the shape it casts, where it is asked (an NPC's lane - net/peer/peerBodies.js `casts`, which never asks it of a
