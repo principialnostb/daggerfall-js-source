@@ -1,4 +1,4 @@
-import { BODY_MORPH_FIELDS, getBodyMorphs, setBodyMorph, resetBodyMorphs, getUnderwearEnabled, setUnderwearEnabled, getAppearanceIdentity, setAppearanceIdentity } from '../characters/bodyMorphs.js';
+import { BODY_MORPH_FIELDS, getBodyMorphs, setBodyMorph, resetBodyMorphs, getUnderwearEnabled, setUnderwearEnabled, getBodyHairEnabled, setBodyHairEnabled, getAppearanceIdentity, setAppearanceIdentity } from '../characters/bodyMorphs.js';
 
 const GROUPS = [
   { id: 'all', title: 'Общие пропорции', description: 'Масштаб и общий силуэт', keys: ['height', 'bodyWidth', 'bodyFullness'] },
@@ -264,7 +264,28 @@ export function openAppearanceEditor({ fpArm, onClose = () => {} } = {}) {
   const underwearRow = document.createElement('label'); underwearRow.className = 'mw-underwear';
   const underwearToggle = document.createElement('input'); underwearToggle.type = 'checkbox'; underwearToggle.checked = getUnderwearEnabled();
   const underwearCopy = document.createElement('span'); underwearCopy.innerHTML = '<strong>Нижнее бельё</strong><small>Выключено — голая модель; включено — вариант тела с бельём.</small>';
-  underwearRow.append(underwearToggle, underwearCopy); controlsHead.append(raceRow, faceRow, underwearRow);
+  underwearRow.append(underwearToggle, underwearCopy);
+  const bodyHairRow = document.createElement('label'); bodyHairRow.className = 'mw-underwear';
+  const bodyHairToggle = document.createElement('input'); bodyHairToggle.type = 'checkbox'; bodyHairToggle.checked = getBodyHairEnabled();
+  const bodyHairCopy = document.createElement('span'); bodyHairCopy.innerHTML = '<strong>Волосы на теле</strong><small>Использует соответствующую текстуру High Resolution Better Bodies.</small>';
+  bodyHairRow.append(bodyHairToggle, bodyHairCopy);
+  controlsHead.append(raceRow, faceRow, underwearRow, bodyHairRow);
+  bodyHairToggle.addEventListener('change', async () => {
+    setBodyHairEnabled(bodyHairToggle.checked);
+    statusMessage.style.display = 'block'; statusMessage.textContent = 'Пересборка текстур модели…';
+    if (previewBuildPending) previewRebuildRequested = true;
+    previewRig?.unload?.(); previewRig = null; previewError = '';
+    try {
+      if (typeof fpArm?.refreshBodyVariant === 'function') {
+        const refreshed = await fpArm.refreshBodyVariant();
+        if (refreshed?.ok === false && !refreshed?.queued) {
+          previewError = refreshed.error || 'Не удалось обновить текстуру игрового персонажа.';
+        }
+      }
+      await buildPreviewRig();
+    } catch (error) { previewError = String(error?.message || error); }
+    drawPreview();
+  });
   const rebuildRacePreview = () => {
     previewRig?.unload?.(); previewRig = null; previewError = '';
     statusMessage.style.display = 'block'; statusMessage.textContent = 'Загрузка расы и 3D-моделей лица…';
