@@ -1645,17 +1645,34 @@ export const MOD_SETTINGS = Object.freeze({
     }),
   }),
 
-  // MW-ANIM-1: player gait source. Keep the options named after their
-  // actual packs so "Female" cannot ambiguously refer to two different KF files.
-  // The numeric values are kept stable for existing saved mod settings.
+  // MW-ANIM-1: actor-scoped gait sources. Each setting has a real runtime
+  // consumer in fpArm.js. Keep choices mutually exclusive: two KF sources
+  // must never compete to own the same walk group for one actor.
   'morrowind-animation': Object.freeze({
-    title: 'Player Walk Animation',
+    title: 'Morrowind Walk Animations',
     author: 'Port integration',
     keys: Object.freeze({
+      PlayerWalkSource: Object.freeze({
+        default: 0,
+        options: lazyWords('Standard', 'Feminine Walk Cycle', "Axel's Sexy Walk Fixed"),
+        description: "Local player walk source. Standard uses Simply Walking Purist Edition; Feminine Walk Cycle uses its separate female KF; Axel's Sexy Walk Fixed uses only Axel's WalkForward clip. Non-walk groups are not replaced.",
+      }),
+      NpcMaleWalk: Object.freeze({
+        default: 0,
+        options: lazyWords('Standard', 'Vanilla'),
+        description: 'Male NPC walk source. Standard uses Simply Walking Purist Edition; Vanilla disables bundled walk replacements for male NPCs. Other animation groups are unaffected.',
+      }),
+      NpcFemaleWalk: Object.freeze({
+        default: 0,
+        options: lazyWords('Standard', 'Female (Axel)', 'Vanilla'),
+        description: "Female NPC walk source. Standard uses Simply Walking Purist Edition; Female (Axel) uses Axel's WalkForward clip; Vanilla disables bundled walk replacements. Other animation groups are unaffected.",
+      }),
+      // Legacy saved value retained for backwards compatibility. Runtime
+      // selection now reads the three actor-scoped keys above.
       FemaleWalk: Object.freeze({
         default: 0,
         options: lazyWords('Standard', 'Feminine Walk Cycle', "Axel's Sexy Walk Fixed"),
-        description: "Player walk source. Standard uses Simply Walking Purist Edition; Feminine Walk Cycle uses its separate female KF; Axel's Sexy Walk Fixed uses only Axel's WalkForward clip. These choices do not replace idle, run, combat, or other animation groups.",
+        description: 'Legacy setting retained for migration compatibility; new runtime selection uses the actor-specific walk settings above.',
       }),
     }),
   }),
