@@ -3632,7 +3632,8 @@ const rebuildMorrowindBody = async () => {
 const TILE_AFTER = Object.freeze({
   mwSheathing: rebuildMorrowindBody,
   mwSteelHelm: rebuildMorrowindBody,
-  BetterBodies: rebuildMorrowindBody,   // MW-STEEL1: the steel helm's style, closed or open, on the standing body at once
+  BetterBodies: rebuildMorrowindBody,
+  SeamlessDMRA: rebuildMorrowindBody,   // MW-STEEL1: the steel helm's style, closed or open, on the standing body at once
 });
 
 /**
