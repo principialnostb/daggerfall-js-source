@@ -102,6 +102,22 @@ export function isWalkAnimationKey(key) {
   });
 }
 
+/**
+ * Resolve the persisted numeric choice for one rig to a source variant.
+ * Player/remote-player bodies use the player choice; ordinary NPC bodies use
+ * their own sex-specific choice. The returned 'vanilla' value excludes only
+ * bundled walk-only sources and leaves every other animation source intact.
+ */
+export function walkVariantForActor({
+  player = false, ownHeads = false, female = false,
+  playerChoice = 0, npcMaleChoice = 0, npcFemaleChoice = 0,
+} = {}) {
+  const index = (value, max) => Math.max(0, Math.min(max, Number(value) || 0));
+  if (player || ownHeads) return ['standard', 'female', 'female2'][index(playerChoice, 2)];
+  if (female) return ['standard', 'female2', 'vanilla'][index(npcFemaleChoice, 2)];
+  return ['standard', 'vanilla'][index(npcMaleChoice, 1)];
+}
+
 /** Live preference gate used by the movement resolver. Non-walk sources are untouched. */
 export function isWalkVariantEnabled(source, walkChoice = 'standard') {
   const selected = typeof walkChoice === 'boolean' ? (walkChoice ? 'female' : 'standard') : String(walkChoice);
