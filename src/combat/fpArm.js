@@ -4242,13 +4242,15 @@ export function createFpArm({ playerAppearance = false } = {}) {
     const u = thirdUnit(grow);
     const yawDeg = (yaw * 180 / Math.PI) + 180;
     const rs = (built && built.raceScale) || { weight: 1, height: 1 };
-    const morph = playerAppearance ? getBodyMorphs() : { bodyWidth: 0, height: 0 };
-    const width = 1 + Math.max(-1, Math.min(1, Number(morph.bodyWidth) || 0)) * 0.18;
-    const height = 1 + Math.max(-1, Math.min(1, Number(morph.height) || 0)) * 0.15;
+    // Appearance width/height are vertex morphs in poseAssembly. Applying
+    // them again to the actor transform doubled those controls in the world
+    // (and scaled equipment/camera framing as if the whole actor were resized).
+    // Keep the actor transform race-scaled only; body proportions are owned by
+    // the same geometry deformation used by the editor preview.
     return multiply(trs(feet[0], feet[1], feet[2], 0, yawDeg, 0,
-      -u * rs.weight * THIRD_PERSON_HORIZONTAL_SCALE * width,
-      u * rs.height * THIRD_PERSON_HEIGHT_SCALE * height,
-      u * rs.weight * THIRD_PERSON_HORIZONTAL_SCALE * width), NIF_TO_PASS);
+      -u * rs.weight * THIRD_PERSON_HORIZONTAL_SCALE,
+      u * rs.height * THIRD_PERSON_HEIGHT_SCALE,
+      u * rs.weight * THIRD_PERSON_HORIZONTAL_SCALE), NIF_TO_PASS);
   }
   /** PR-BOW1 / MWNPC16: the posed box drawThird folds over what it draws (the shown ranges'), else the assembly's. */
   function thirdBox() {
