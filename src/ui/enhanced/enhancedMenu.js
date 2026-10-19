@@ -2057,7 +2057,15 @@ function paintOptionsBody(body, { pause = false } = {}) {
           const b = el('button', `sec-jumpbtn animation-switch animation-clip-group${animationClipGroup === id ? ' is-active' : ''}`, title);
           b.type = 'button';
           b.setAttribute('aria-pressed', String(animationClipGroup === id));
-          b.onclick = () => { animationClipGroup = id; paintOptionsBody(body, { pause }); };
+          b.onclick = () => {
+            // Keep the parent family and selected clip group in sync. The old
+            // handler only changed the subgroup, leaving stale section state
+            // after navigation/search repaint and making Ходьба appear inert.
+            animationSection = selected.s.id;
+            animationClipGroup = id;
+            pickedFeature = null;
+            paintOptionsBody(body, { pause });
+          };
           buttons.append(b);
         }
         subnavGroup.append(buttons);

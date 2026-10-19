@@ -177,7 +177,7 @@ export function openAppearanceEditor({ fpArm, onClose = () => {} } = {}) {
   if (typeof document === 'undefined' || !document.body) return null;
   document.getElementById('mw-appearance-editor')?.remove();
 
-  let yaw = 0, zoom = 1, frame = 0, closed = false, previewRig = null, previewBuildPending = false, previewRebuildRequested = false, previewError = '';
+  let yaw = 0, zoom = 1, frame = 0, closed = false, previewRig = null, previewBuildPending = false, previewRebuildRequested = false, previewError = '', previewRebuildTimer = 0;
   const initialIdentity = fpArm?.builtFor?.() || {};
   const savedIdentity = getAppearanceIdentity();
   let selectedRace = String(savedIdentity?.race || initialIdentity.race || 'nord').toLowerCase();
@@ -369,6 +369,10 @@ export function openAppearanceEditor({ fpArm, onClose = () => {} } = {}) {
         // with the latest morph values. Do not unload/rebuild the rig for a slider:
         // that caused a visible delay and made the preview look stale while dragging.
         drawPreview();
+        // Force a fresh isolated rig after the live slider settles. This is a
+        // fallback for NIF/skin combinations whose cached CPU/GPU mesh does
+        // not visibly reflect a pose-only morph update during the same frame.
+        schedulePreviewRebuild();
       });
       inputs.set(key, input); outputs.set(key, output);
       row.append(name, input, output); fields.append(row);
@@ -389,6 +393,7 @@ export function openAppearanceEditor({ fpArm, onClose = () => {} } = {}) {
     }
     window.dispatchEvent(new CustomEvent('mw-body-morph-change', { detail: state }));
     drawPreview();
+    schedulePreviewRebuild();
   });
   const done = makeButton('Готово', true, 'mw-btn-primary');
   done.addEventListener('click', async () => {
@@ -460,6 +465,23 @@ export function openAppearanceEditor({ fpArm, onClose = () => {} } = {}) {
   preview.addEventListener('pointercancel', release);
 
 
+
+  function schedulePreviewRebuild() {
+    if (previewRebuildTimer) clearTimeout(previewRebuildTimer);
+    previewRebuildTimer = setTimeout(() => {
+      previewRebuildTimer = 0;
+      if (closed) return;
+      if (previewBuildPending) {
+        previewRebuildRequested = true;
+        return;
+      }
+      previewRig?.unload?.();
+      previewRig = null;
+      previewError = '';
+      drawPreview();
+      void buildPreviewRig();
+    }, 220);
+  }
 
   async function buildPreviewRig() {
     if (closed || previewRig || !fpArm?.createAppearancePreviewRig) {
@@ -537,6 +559,8 @@ export function openAppearanceEditor({ fpArm, onClose = () => {} } = {}) {
     if (closed) return;
     closed = true;
     if (frame) cancelAnimationFrame(frame);
+    if (previewRebuildTimer) clearTimeout(previewRebuildTimer);
+    previewRebuildTimer = 0;
     resizeObserver?.disconnect?.();
     previewRig?.unload?.(); previewRig = null;
     window.removeEventListener('keydown', keydown);
