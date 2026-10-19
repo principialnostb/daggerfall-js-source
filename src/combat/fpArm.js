@@ -4281,15 +4281,9 @@ export function createFpArm({ playerAppearance = false } = {}) {
    * and the CPU skin draws it as it always did. The door shut mid-session lets a skinned mesh go.
    */
   function thirdSkinReady(t) {
-    // Local chest/hip vertex morphs need CPU-skinned positions before upload. Keep this
-    // choice isolated to the third-person player body; FP hands and inventory art stay separate.
-    const morph = playerAppearance ? getBodyMorphs() : null;
-    const geometryMorph = !!morph && ['breastSize', 'buttockSize', 'hipWidth', 'waistWidth'].some((key) => Math.abs(Number(morph[key]) || 0) > 1e-4);
-    if (geometryMorph) {
-      if (thirdMesh && thirdMesh.skin) releaseThirdMesh();
-      thirdSkin = null;
-      return false;
-    }
+    // Local chest/hip vertex morphs are not implemented yet. Persisted slider values
+    // must not silently force the CPU-skinning path until a real vertex transform
+    // is applied; that path changes performance and can mask pose/visibility bugs.
     if (!gpuSkinOn(renderer)) { if (thirdMesh && thirdMesh.skin) releaseThirdMesh(); return false; }
     if (thirdSkin && skinSamePieces(thirdSkin, t.arm.pieces)) return true;
     if (thirdSkinRefused === t.arm.pieces) return false;
