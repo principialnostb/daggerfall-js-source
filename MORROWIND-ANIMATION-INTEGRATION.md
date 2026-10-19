@@ -134,3 +134,18 @@ The actor mapping and Vanilla filter have regression assertions in `test/formats
 ## Animation settings navigation (ANIM-UI1, 2026-10-19)
 
 Animation controls now have a dedicated **Settings → Animations** tab rather than being discovered through the general mod index. Choices are organized by responsibility, not by whole-pack toggles: **Игрок → Бег / ходьба**, then **NPC → Бег / ходьба**. This actor-first layout is the initial scaffold for the broader resource-selection system: add movement, combat/strikes, and actions/interactions as independent responsibilities when their source packs and runtime group filters are actually implemented. Do not expose empty controls or claim an animation family is supported merely because its files exist.
+
+
+## Animation settings taxonomy (2026-10-19)
+
+The **Settings → Animations** tab now reserves independent sections for player and NPC animation families: walk/run, idle/turn/sneak, combat/attacks/block, magic, actions/interactions, traversal (jump/swim/fall), and hit/death reactions. Only walk-source selectors are currently functional. Other sections explicitly state that no source pack is integrated yet; these are roadmap categories, not pretend controls.
+
+Pack-to-category audit:
+- **Simply Walking Purist Edition**: runtime intentionally imports only walk groups; assigned to walk/movement.
+- **Feminine Walk Cycle**: alternate female walk group source; assigned to player walk/movement.
+- **Axel's Sexy Walk Fixed**: runtime imports only `WalkForward;.kf`; its `Idle4`, `Idle5`, and `RunForward` files are present in the pack but deliberately not active.
+- **Morrowind Animation Overhaul**: files include broader movement and combat groups, but are not wired into gameplay. The repository audit records a restriction on reusing/converting these assets without permission.
+- **OpenMW Dynamic Actors (#54782)**: candidate reference, not a runtime animation provider in this port.
+- **Animation Blending (#53779)**: MWSE Lua plugin is not executable in this browser runtime; pose blending is a separate native JS feature, not a clip category.
+
+The UI taxonomy must remain visible even when a category has no active source. Add controls only when they have a real resolver and conflict policy; never represent an informational placeholder as a working selector.
