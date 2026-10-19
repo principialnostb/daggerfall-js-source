@@ -7047,15 +7047,20 @@ export function createFpArm({ playerAppearance = false } = {}) {
       // the sprite pass so rider and horse remain one coherent picture.
       const cameraDistance = Math.hypot(center[0] - eye[0], center[1] - eye[1], center[2] - eye[2]);
       const cameraPitchRatio = cameraDistance > 1e-6 ? Math.abs(center[1] - eye[1]) / cameraDistance : 0;
-      // The local player stays on the real 3D mesh at every distance and pitch.
-      // Switching that one actor between a camera-facing card and the mesh as the
-      // camera crosses a pitch threshold causes a visible pelvis/leg pop while the
-      // upper body looks comparatively stable. NPCs keep the established LOD rule.
-      if (!horse && !conceal && (playerAppearance || cameraDistance < 2.25 || cameraPitchRatio > 0.18)) {
-        // Use the same grounded matrix as the sprite path above.
+      // MW-TP-MESH-ALL: Morrowind actors use their posed mesh at every distance and pitch.
+      // The old distance/pitch LOD switched between a perspective mesh and a camera-facing
+      // sprite. Around the threshold, leg depth and grounding visibly popped; at distance,
+      // the sprite's finite render target made skin and limbs pixelate. Do not switch
+      // representations based on camera position: keep the exact same skinned pose.
+      // Mounted pairs must stay in one representation too. Draw the horse first, then the
+      // rider with its grounded model, rather than baking both into a camera-facing card.
+      if (!conceal) {
+        if (horse && horse.mesh && horse.model) renderer.drawCharacter(horse.mesh, horse.model);
         renderer.drawCharacter(thirdMesh, groundedModel);
         return true;
       }
+      // Concealment still uses the sprite compositor because its dissolve/fade contract
+      // is implemented there. This is an explicit effect path, not a camera-distance LOD.
       if (horse && horse.mesh && horse.model && horse.box) {
         const u = spriteBoxUnion({ center, halfW, halfH }, horse.box);
         drawRigSpriteBox(renderer, canvas, thirdMesh, groundedModel, { ...u, anchor: horse.box.anchor, hitFlash, conceal, up, fx, also: [{ mesh: horse.mesh, model: horse.model }], glowLook: padLooks }, proj, view, eye, MW_THIRD_PERSON_PIXEL);
