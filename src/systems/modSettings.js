@@ -1980,11 +1980,11 @@ export function setModSetting(vendor, key, value) {
         if (otherDef.conflictGroup !== def.conflictGroup || modSetting(otherVendor, otherKey) !== true) continue;
         (m[otherVendor] ??= {})[otherKey] = false;
         const label = otherDef.conflictLabel ?? otherKey;
-        notices.push([otherKey, `Отключён: ${label}`]);
+        notices.push([otherVendor, otherKey, `Отключён: ${label}`]);
         disabled.push(label);
       }
     }
-    if (disabled.length) notices.push([key, disabled.map((label) => `Отключён: ${label}`).join('; ')]);
+    if (disabled.length) notices.push([vendor, key, disabled.map((label) => `Отключён: ${label}`).join('; ')]);
   }
 
   // Morrowind texture/equipment pack dependency: Complete Armor Joints is an
@@ -1995,17 +1995,17 @@ export function setModSetting(vendor, key, value) {
     const base = declaredKey(vendor, 'BetterMorrowindArmor');
     if (base && modSetting(vendor, 'BetterMorrowindArmor') !== true) {
       (m[vendor] ??= {}).BetterMorrowindArmor = true;
-      notices.push(['CompleteArmorJoints', 'Включён необходимый набор: Better Morrowind Armor']);
+      notices.push([vendor, 'CompleteArmorJoints', 'Включён необходимый набор: Better Morrowind Armor']);
     }
   }
   (m[vendor] ??= {})[key] = v;
   if (vendor === 'morrowind-textures' && key === 'BetterMorrowindArmor' && v === false
       && modSetting(vendor, 'CompleteArmorJoints') === true) {
     m[vendor].CompleteArmorJoints = false;
-    notices.push(['BetterMorrowindArmor', 'Отключён: Complete Armor Joints']);
+    notices.push([vendor, 'BetterMorrowindArmor', 'Отключён: Complete Armor Joints']);
   }
   for (const r of SWITCH_RESETS) if (r.vendor === vendor && r.key === key) m[vendor][r.stamp] = true;   // DISC20-E: chosen after the reset - kept
-  for (const [noticeKey, message] of notices) _modSettingNotices.set(`${vendor}/${noticeKey}`, message);
+  for (const [noticeVendor, noticeKey, message] of notices) _modSettingNotices.set(`${noticeVendor}/${noticeKey}`, message);
   save();
   _generation++;
   return v;
