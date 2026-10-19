@@ -5977,7 +5977,7 @@ export function createFpArm({ playerAppearance = false } = {}) {
     // otherwise the draw gate suppresses the skin's own arms on a vanilla run
     // clip or while a jump clip is active, even though poseAssembly has posed them.
     movementPosed() {
-      if (viewMode !== 'first' || held || climbHands) return false;
+      if (viewMode !== 'first' || dead || held || climbHands) return false;
       const group = String(movementState?.group ?? '');
       return runPump.w >= 0.5 || /^run/i.test(group) || !!jumpState?.playing;
     },
