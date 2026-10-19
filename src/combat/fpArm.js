@@ -94,7 +94,8 @@ import { getPref } from '../systems/uiPrefs.js';   // MW-STEEL1: the Steel Helm 
 import { skinMips, skinUseOf, skinUseKey } from '../characters/werewolfSkin.js';   // SHADOW-FANG: the werewolf's skin, a law over its own textures
 import { correctTexturePath, correctActorModelPath, wrapModes, warningImage, decodeTextureImage } from '../formats/morrowind/mwTexture.js';
 const betterBodiesTextureBytes = new Map();
-const betterBodiesTextureBasename = (path) => String(path || '').split('/').pop().split('\\\\').pop().toLowerCase();
+const betterBodiesTextureBasename = (path) => String(path || '')
+  .replaceAll(String.fromCharCode(92), '/').split('/').pop().toLowerCase();
 function registerBetterBodiesRaceTexture(archives, texturePath, textureBytes) {
   const basename = betterBodiesTextureBasename(texturePath);
   betterBodiesTextureBytes.set(basename, textureBytes);
@@ -102,7 +103,10 @@ function registerBetterBodiesRaceTexture(archives, texturePath, textureBytes) {
   if (!adapter) {
     adapter = {
       __betterBodiesRaceTexture: true,
-      has: (path) => /^bb_skin[fm]_(?:br|de|he|im|no|or|rg|we)\\.dds$/i.test(betterBodiesTextureBasename(path)),
+      has: (path) => {
+        const name = betterBodiesTextureBasename(path);
+        return /^bb_skin[fm]_(br|de|he|im|no|or|rg|we)/i.test(name) && name.endsWith('.dds');
+      },
       loaded: () => true,
       load: async () => null,
       get: (path) => betterBodiesTextureBytes.get(betterBodiesTextureBasename(path)) ?? null,
