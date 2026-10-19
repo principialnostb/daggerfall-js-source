@@ -1660,7 +1660,7 @@ export const MOD_SETTINGS = Object.freeze({
       AnimationBlendDuration: Object.freeze({
         default: 1,
         options: lazyWords('Vanilla', 'Smooth · 0.16 s', 'Smooth · 0.25 s', 'Smooth · 0.40 s'),
-        description: 'Browser-native port of Animation Blending for the player in third person. Smooths transitions between supported player clips; Vanilla disables the cross-fade. The original MWSE Lua script and its per-animation YAML rules are not executable in this browser port, and NPC/creature blending is not changed by this control.',
+        description: 'Browser-native port of Animation Blending for third-person character rigs. Smooths transitions between supported clips; Vanilla disables the cross-fade. The original MWSE Lua script and its per-animation YAML rules are not executable in this browser port, and first-person animation is unchanged.',
       }),
       PlayerWalkSource: Object.freeze({
         default: 0,
