@@ -2029,8 +2029,24 @@ function paintOptionsBody(body, { pause = false } = {}) {
     body.append(nav);
     const selected = sections.find(({ s }) => s.id === animationSection) ?? sections[0];
     if (selected) {
-      const n = selected.nodes.filter(isOptionNode).length;
-      body.append(sectionHead(tab, selected.s, n), ...selected.nodes);
+      const isLocomotion = tab.id === 'animations' && selected.s.id === 'locomotion';
+      // Keep the walk/run selector at the top of the locomotion section.
+      // The group markers live between their settings in settingsMap; rendering
+      // them inline put "Ходьба" after every running control, below the fold.
+      const nodes = isLocomotion
+        ? selected.nodes.filter((node) => !node.classList?.contains('animation-clip-group'))
+        : selected.nodes;
+      const n = nodes.filter(isOptionNode).length;
+      body.append(sectionHead(tab, selected.s, n));
+      if (isLocomotion) {
+        const switches = el('div', 'animation-switch-buttons animation-clip-group-switches');
+        for (const group of ['running', 'walking']) {
+          const button = itemNodes(`group:${group}`, { ...ctx, fold })[0];
+          if (button) switches.append(button);
+        }
+        body.append(switches);
+      }
+      body.append(...nodes);
     } else body.append(empty('Nothing here'));
   } else {
     if (sections.length >= 3 && !pause) {
