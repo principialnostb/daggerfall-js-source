@@ -6,7 +6,7 @@ Status: runtime gait selection, input-driven third-person facing, and native pos
 
 ## Working branch and asset source
 
-- Code changes belong on [`morrowind.v4`](https://github.com/principialnostb/daggerfall-js-source/tree/morrowind.v4).
+- Code changes belong on [`Dev`](https://github.com/principialnostb/daggerfall-js-source/tree/morrowind.v4).
 - The canonical uploaded mod/resource collection is [`Morrowind Textures` on `morrowind.v3`](https://github.com/principialnostb/daggerfall-js-source/tree/morrowind.v3/Morrowind%20Textures).
 - At the audit baseline, the `Morrowind Textures` tree in `morrowind.v4` has the same Git tree SHA as the directory in `morrowind.v3` (`79a532e1e39d79e18e97d55ecc05d5892a8afec7`). Do not re-copy or regenerate the asset tree without first verifying a real difference. Git reuses identical tree/blob objects; a branch link is useful for documentation, but is not itself a runtime asset loader.
 - Keep new application code and tests in `morrowind.v4`. Treat `morrowind.v3` as a read-only source of uploaded assets and reference implementations.
@@ -143,7 +143,7 @@ The **Settings → Animations** tab groups controls by shared family: walk/run, 
 Pack-to-category audit:
 - **Simply Walking Purist Edition**: runtime intentionally imports only walk groups; assigned to walk/movement.
 - **Simply Walking**: one user-facing pack; male characters use Purist Edition and female characters use the internal Feminine Walk Cycle source.
-- **Axel's Sexy Walk Fixed**: runtime imports `WalkForward;.kf` for walking and `RunForward;.kf` for running under the same locomotion selector. `Idle4;.kf` and `Idle5;.kf` remain inactive until the engine's idle-state/group resolver is confirmed to request those exact optional groups.
+- **Axel's Sexy Walk Fixed**: runtime imports `WalkForward;.kf` for walking and `RunForward;.kf` for running under independent persisted selectors. `Idle4;.kf` and `Idle5;.kf` remain inactive until the engine's idle-state/group resolver is confirmed to request those exact optional groups.
 - **Morrowind Animation Overhaul**: files include broader movement and combat groups, but are not wired into gameplay. The repository audit records a restriction on reusing/converting these assets without permission.
 - **OpenMW Dynamic Actors (#54782)**: candidate reference, not a runtime animation provider in this port.
 - **Animation Blending (#53779)**: MWSE Lua plugin is not executable in this browser runtime; pose blending is a separate native JS feature, not a clip category.
