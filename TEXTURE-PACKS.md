@@ -10,7 +10,8 @@ Working branch for implementation: [`Dev`](https://github.com/principialnostb/da
 - **Intelligent Textures · 00 Core**, **Vurt's Better Clothes Retexture**, **Better Clothes Retextured**, **Better Morrowind Armor**, **Complete Armor Joints**, **Westly's Fine Clothiers of Tamriel**, and **Westly's Faces Refurbished** — individually selectable and default off. The settings-backed archive includes only enabled layers when the app starts; reload after changing these choices.
 - **Complete Armor Joints** is an add-on: enabling it enables Better Morrowind Armor; disabling the base pack disables the joints add-on and shows a notice on the affected setting.
 - Texture layers with overlapping paths intentionally coexist in a defined precedence order; they are not treated as mutually exclusive if they can safely complement each other.
-- **Seamless DMRA**, the failed high-resolution Better Body female texture package, and atlas-only Intelligent Textures are not currently selectable replacements. DMRA is not wired into the player/NPC body resolver, the high-resolution texture attempt was unreliable, and atlas textures need their matching atlas meshes. Keeping them out of the active archive avoids silent geometry/UV conflicts.
+- **Seamless DMRA** is now an optional female body-geometry variant under Settings → Тела. It selects its own female NIF in place of the base Better Bodies female mesh while retaining Better Bodies as the base skin and male-body source. The resolver never draws both female meshes at once. Its optional normal/specular maps are included in the bundled archive when the setting is enabled at startup.
+- The failed high-resolution Better Body female texture package and atlas-only Intelligent Textures remain excluded: the former was unreliable, and the latter needs matching atlas meshes to avoid UV mismatches.
 
 ## Animation source candidates
 
