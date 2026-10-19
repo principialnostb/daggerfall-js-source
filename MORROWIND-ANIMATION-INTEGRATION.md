@@ -1,6 +1,6 @@
 # Morrowind character animation integration — v4 audit
 
-Status: runtime gait selection, input-driven third-person facing, and native pose cross-fades are implemented on this branch. In-game visual validation remains outstanding; no claim is made that combat clips themselves have been replaced.
+Status: runtime gait selection, input-driven third-person facing, and native pose cross-fades are implemented on this branch. In-game visual validation remains outstanding; no claim is made that combat clips themselves have been replaced. The facing gate was hardened again in commit b63dfffc: it reads this render frame's movement axes and explicitly supplies view yaw during ordinary locomotion, while preserving seat/climb ownership.
 
 ## Working branch and asset source
 
@@ -93,3 +93,11 @@ Verification note: code and tests still require a local build and in-game visual
 ### Live gait switching correction
 
 Both the Standard and Female walk sources are loaded for female rigs. The movement resolver gates the female override on the saved choice every frame and treats a choice change as a movement-source change, so switching the setting while walking can replace the active walk clip without requiring an equipment swap or scene reload. Only walk groups are considered; other animation groups keep the original source priority.
+
+
+## Current integration boundary (2026-10-19)
+
+- The visible selector is named **Female Walk Style** and appears under **Settings → Gameplay → Character & survival** (and the matching Features tile). It has **Standard** and **Female** choices; the option affects female walk groups only.
+- The loader resolves the actual checked-in KF files from `Morrowind Textures/Simply Walking`. It logs the selected replacement source when a walk clip starts; failed URL resolution, parse/binding errors, and missing walk groups log warnings and fall back to the game's source.
+- The `53779` Animation Blending download is an MWSE Lua plugin, not a browser JavaScript module. The port uses its own native pose cross-fade implementation; it does not execute the Lua script. That implementation still requires in-game verification.
+- Nexus `60253` Morrowind Animation Overhaul explicitly disallows conversion to other games and asset use without permission. Its attack/combat KF files are therefore **not wired into this public port** without author permission. The currently integrated Simply Walking/Feminine Walk Cycle resources are walk-only; attacks remain the original game's clips.

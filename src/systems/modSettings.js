@@ -1648,7 +1648,7 @@ export const MOD_SETTINGS = Object.freeze({
   // MW-ANIM-1: runtime walk clips are loaded from the uploaded Simply Walking
   // assets. The choice is consumed by the third-person body builder, not a viewer.
   'morrowind-animation': Object.freeze({
-    title: 'Morrowind Character Animations',
+    title: 'Female Walk Style',
     author: 'Port integration',
     keys: Object.freeze({
       FemaleWalk: Object.freeze({
