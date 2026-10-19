@@ -65,25 +65,26 @@ Walk-only source filtering is the key isolation boundary. In the current code, S
 
 A broad KF can contain tracks for many bones and text keys for several groups. Never enable it wholesale as a walk replacement. Confirm group names, key timing, skeleton binding, loop markers, and root-motion behavior before integrating any additional group family.
 
-## Current UX limitation and required next implementation
+## Actor-specific selectors — implemented in v4
 
-The current UI now exposes a **player walk-source choice** with pack-specific labels: Standard, Feminine Walk Cycle, and Axel's Sexy Walk Fixed. The numeric values remain 0/1/2 so saved settings keep their meaning. This is functional for the player walk resolver, but it does **not yet meet** the requested final controls:
+The Mods page now exposes three independent persisted controls:
 
-- a player-only selector listing each walk pack/source separately (the current selector is one mutually-exclusive choice, intentionally preventing conflicting simultaneous gait overrides);
-- independent NPC male and NPC female selectors;
-- an unambiguous per-pack state (“Disabled / Standard / Female”) where applicable;
-- a single deterministic source resolution when more than one pack is enabled.
+- **Player Walk Animation** — Standard / Feminine Walk Cycle / Axel's Sexy Walk Fixed.
+- **Male NPC Walk Animation** — Standard / Vanilla.
+- **Female NPC Walk Animation** — Standard / Female (Axel) / Vanilla.
 
-Do not add decorative settings without consumers. The next implementation must first trace whether the actor's identity (local player, remote player, male NPC, female NPC) reaches the movement animation resolver. Add that identity explicitly if necessary, then select the setting for that actor class. Settings must be persisted using the existing `modSetting` / mod-settings store, not a new ad-hoc localStorage key. The resolver must choose exactly one winning source for a given actor and walk group; it must never blend two different authored gait clips together simply because two toggles are enabled.
+The setting keys live in `src/systems/modSettings.js`; the three controls are declared in `src/systems/features.js`. The old `FemaleWalk` key remains declared for backwards compatibility, but the gameplay resolver no longer reads it. New choices are read through the existing `modSetting` store.
 
-Recommended final resolution contract:
+Actor routing is centralized in `walkVariantForActor()` in `src/formats/morrowind/mwWalkAnimationAssets.js` and consumed by the movement resolver in `src/combat/fpArm.js`:
 
-- **Player:** explicit walk source choice, with the selected pack shown by name. “Standard” means the Purist Edition base walk. The Axel option should be labelled “Female” only if the runtime uses its female `WalkForward` clip; do not relabel the Feminine Walk Cycle and Axel source identically.
-- **Male NPCs:** Standard = current Purist Edition male walk unless in-game testing shows that the original archive gait is the better baseline.
-- **Female NPCs:** Standard = current Purist Edition female walk; Female = Axel's Sexy Walk Fixed, per the requested NPC behavior. Remove the old Feminine Walk Cycle option from the NPC-facing selector if that is the chosen mapping.
-- **Fallback:** if a chosen source is absent, fails to fetch/parse, or lacks the requested group, fall back to the next explicitly ranked valid source and log the chosen source once. Never leave the actor with a missing movement clip.
+- local player and peer/player bodies (`playerAppearance` or `ownHeads`) use `PlayerWalkSource`;
+- female NPC bodies use `NpcFemaleWalk`;
+- male NPC bodies use `NpcMaleWalk`;
+- `Vanilla` excludes bundled walk-only sources while leaving archive sources and all non-walk groups available.
 
-These actor-specific controls are **not marked complete** until the identity reaches the runtime consumer, the setting changes the source actually played, tests cover each actor class and fallback, and an in-game check confirms the gait. This is intentionally stated plainly so future maintenance does not mistake the current global choice for the requested separated design.
+The choices are mutually exclusive per actor, rather than independent pack toggles. That is intentional: two gait packs must not compete for the same group. Standard is Simply Walking Purist Edition; the player can additionally choose the Feminine Walk Cycle or Axel's clip, while female NPCs can choose Axel's clip. The Feminine Walk Cycle is not offered as an NPC option. This gives the player access to each available player walk source without making conflicting overrides possible.
+
+Automated coverage for the pure actor/source mapping and the Vanilla filter is in `test/formats/morrowind/mwwalkassets.test.js`. This source-level wiring is implemented, but **in-game validation is still outstanding**: confirm that the NPC build path's `female` / `ownHeads` metadata is correct for every population, and visually check gait, foot sliding, and transitions. Do not call the feature fully verified until that check is performed. This environment has not run the repository's full test/lint/type/build commands.
 
 ## Validation checklist for every animation change
 
