@@ -2,6 +2,8 @@
 
 Status: runtime gait selection, input-driven third-person facing, and native pose cross-fades are implemented on this branch. In-game visual validation remains outstanding; no claim is made that combat clips themselves have been replaced. The facing gate was hardened again in commit b63dfffc: it reads this render frame's movement axes and explicitly supplies view yaw during ordinary locomotion, while preserving seat/climb ownership.
 
+> **Maintenance inventory:** see [MORROWIND-ANIMATION-MAINTENANCE.md](./MORROWIND-ANIMATION-MAINTENANCE.md) for the pack-by-pack inventory, current runtime boundaries, unresolved player/NPC selector requirements, and validation checklist. The inventory explicitly distinguishes assets present in the repository from assets actually consumed by the runtime.
+
 ## Working branch and asset source
 
 - Code changes belong on [`morrowind.v4`](https://github.com/principialnostb/daggerfall-js-source/tree/morrowind.v4).
