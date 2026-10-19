@@ -17,7 +17,7 @@ import { CATEGORIES, CATEGORY_IDS, whereIs, optionPath, isSettingItem, keysOf } 
 import { GRAPHICS_PRESETS, PRESET_ROWS, presetNow } from '../../src/systems/graphicsPresets.js';
 import { ALL_KEYS, DEFAULTS, effectiveSettings, setValue, _resetForTests as resetSettings } from '../../src/systems/settings/settings.js';
 import { getPref, setPref, PREF_DEFAULTS, _resetForTests as resetPrefs } from '../../src/systems/uiPrefs.js';
-import { _resetModSettings } from '../../src/systems/modSettings.js';
+import { _resetModSettings, modSetting, setModSetting, modSettingNotice } from '../../src/systems/modSettings.js';
 import { _resetRenderScaleDoor } from '../../src/systems/renderScale.js';
 import { restAloneText } from '../../src/systems/party/partyRestLaw.js';
 import { tileStates, defaultSegment, applyGraphicsPreset, portPool, restoreTabDefaults } from '../../src/ui/enhanced/enhancedMenu.js';
@@ -56,6 +56,21 @@ function withRows(fn) {
 const SPECIAL = ['preset:graphics', 'link:overhauls', 'bindings', 'mods-index'];
 const INFO = ['player-run','npc-run','player-turning','npc-turning','player-idle','npc-idle','player-sneak','npc-sneak','player-attacks','npc-attacks','player-blocking','npc-blocking','player-magic','npc-magic','player-actions','npc-actions','player-jumping','npc-jumping','player-swimming','npc-swimming','player-falling','npc-falling','player-damage','npc-damage','player-death','npc-death'];
 const CARDS = ['card:morrowind', 'card:packs', 'card:peerSprites', 'card:nightSounds'];
+
+test('MW-TEXTURE-PACKS: optional texture packs default off; Complete Armor Joints resolves its dependency visibly', () => {
+  fresh();
+  assert.equal(modSetting('morrowind-textures', 'BetterBodies'), true);
+  for (const key of ['IntelligentTextures', 'VurtsBetterClothes', 'BetterClothesRetextured', 'BetterMorrowindArmor', 'CompleteArmorJoints', 'WestlysFineClothiers', 'WestlysFacesRefurbished']) {
+    assert.equal(modSetting('morrowind-textures', key), false, key + ' defaults off');
+  }
+  setModSetting('morrowind-textures', 'CompleteArmorJoints', true);
+  assert.equal(modSetting('morrowind-textures', 'BetterMorrowindArmor'), true);
+  assert.equal(modSettingNotice('morrowind-textures', 'CompleteArmorJoints'), 'Включён необходимый набор: Better Morrowind Armor');
+  setModSetting('morrowind-textures', 'BetterMorrowindArmor', false);
+  assert.equal(modSetting('morrowind-textures', 'CompleteArmorJoints'), false);
+  assert.equal(modSettingNotice('morrowind-textures', 'BetterMorrowindArmor'), 'Отключён: Complete Armor Joints');
+  fresh();
+});
 
 test('ORG2: the map is TOTAL and DISJOINT over every option - each of DFU\'s keys, each Features row and each of the port\'s own rows stands in exactly one section of one tab (mutant: a row dropped, or placed twice)', () => {
   const seen = new Map();
