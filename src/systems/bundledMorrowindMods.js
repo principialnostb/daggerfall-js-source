@@ -14,6 +14,7 @@
 // packages are deliberately not discovered here. The active Better Bodies NIF
 // and its user-corrected UV data are not replaced by this module.
 import { makeVendoredArchive } from './urlArchive.js';
+import { modSetting } from './modSettings.js';
 
 const IN_BROWSER = typeof window !== 'undefined';
 const FILES = IN_BROWSER
@@ -25,6 +26,7 @@ const FILES = IN_BROWSER
       "../../Morrowind Textures/Westly's Fine Clothiers of Tamriel/Meshes/**/*.{nif,NIF}",
       "../../Morrowind Textures/Westly's Fine Clothiers of Tamriel/Textures/**/*.{dds,DDS,tga,TGA}",
       "../../Morrowind Textures/Westly's Fine Clothiers of Tamriel/Westly_Presents_FCOT.esp",
+      "../../Morrowind Textures/Westly's Faces Refurbished/Data Files/**/*.{nif,NIF,dds,DDS,tga,TGA}",
       '../../Morrowind Textures/Better Morrowind Armor/Data Files/**/*.{nif,NIF,dds,DDS,tga,TGA,esp,ESP}',
       '../../Morrowind Textures/Better Morrowind Armor/Complete Armor Joints/Data Files/**/*.{nif,NIF,dds,DDS,tga,TGA,esp,ESP}',
     ], {
@@ -61,6 +63,17 @@ const addDataFilesAsset = (rel, url, packageName, bucket) => {
   return true;
 };
 
+const packEnabled = Object.freeze({
+  betterBodies: true, // Better Bodies is the core body default; its skin is a fallback layer.
+  intelligentTextures: !!modSetting('morrowind-textures', 'IntelligentTextures'),
+  vurtClothes: !!modSetting('morrowind-textures', 'VurtsBetterClothes'),
+  betterClothes: !!modSetting('morrowind-textures', 'BetterClothesRetextured'),
+  betterArmor: !!modSetting('morrowind-textures', 'BetterMorrowindArmor'),
+  armorJoints: !!modSetting('morrowind-textures', 'CompleteArmorJoints'),
+  clothiers: !!modSetting('morrowind-textures', 'WestlysFineClothiers'),
+  faces: !!modSetting('morrowind-textures', 'WestlysFacesRefurbished'),
+});
+
 for (const [source, url] of Object.entries(FILES)) {
   const path = source.replace(/\\/g, '/');
   const lower = path.toLowerCase();
@@ -81,6 +94,7 @@ for (const [source, url] of Object.entries(FILES)) {
   // intentionally excluded to prevent UV/atlas mismatches.
   const itRel = relAfter(path, lower, '/intelligent textures/');
   if (itRel) {
+    if (!packEnabled.intelligentTextures) continue;
     const match = itRel.match(/^00 core\/textures\/(.+\.(?:dds|tga))$/i);
     if (match) addAsset(intelligentTextureUrls, 'textures/' + match[1], url, 'Intelligent Textures 00 Core');
     continue;
@@ -93,6 +107,7 @@ for (const [source, url] of Object.entries(FILES)) {
   // are not allowed to silently replace current body/equipment geometry.
   const betterClothesRel = relAfter(path, lower, '/better clothes retextured/');
   if (betterClothesRel) {
+    if (!packEnabled.betterClothes) continue;
     const match = betterClothesRel.match(/^textures\/(.+\.(?:dds|tga))$/i);
     if (match && !/(?:pant|trouser)/i.test(match[1])) {
       addAsset(betterClothesTextureUrls, 'textures/' + match[1], url, 'Better Clothes Retextured (non-pants textures only)');
@@ -105,6 +120,7 @@ for (const [source, url] of Object.entries(FILES)) {
   // the same exact path, takes precedence in the next layer.
   const vurtRel = relAfter(path, lower, "/vurt's better clothes retexture/");
   if (vurtRel) {
+    if (!packEnabled.vurtClothes) continue;
     const match = vurtRel.match(/^textures\/(.+\.(?:dds|tga))$/i);
     if (match) addAsset(vurtClothesTextureUrls, 'textures/' + match[1], url, "Vurt's Better Clothes Retexture");
     continue;
@@ -114,6 +130,7 @@ for (const [source, url] of Object.entries(FILES)) {
   // Meshes/Textures roots, plus an ESP that defines its added clothing.
   const clothierRel = relAfter(path, lower, "/westly's fine clothiers of tamriel/");
   if (clothierRel) {
+    if (!packEnabled.clothiers) continue;
     const match = clothierRel.match(/^(meshes|textures)\/(.+\.(?:nif|dds|tga))$/i);
     if (match) addAsset(clothierAssetUrls, match[1] + '/' + match[2], url, "Westly's Fine Clothiers of Tamriel");
     if (/^westly_presents_fcot\.esp$/i.test(clothierRel)) {
@@ -130,6 +147,8 @@ for (const [source, url] of Object.entries(FILES)) {
   // no-Tribunal, HiRez Armor, or DeFemm alternatives automatically.
   const armorRel = relAfter(path, lower, '/better morrowind armor/');
   if (armorRel) {
+    const isJointsPack = /^complete armor joints\/data files\//i.test(armorRel);
+    if (isJointsPack ? (!packEnabled.betterArmor || !packEnabled.armorJoints) : !packEnabled.betterArmor) continue;
     let rel = armorRel;
     let packageName = 'Better Morrowind Armor';
     let bucket = armorTextureUrls;
@@ -158,6 +177,7 @@ for (const [source, url] of Object.entries(FILES)) {
   // Westly's Faces Refurbished: race head/hair meshes and their textures.
   const facesRel = relAfter(path, lower, "/westly's faces refurbished/");
   if (facesRel) {
+    if (!packEnabled.faces) continue;
     const rel = facesRel.replace(/^data files\//i, '');
     const match = rel.match(/^(meshes|textures)\/(.+\.(?:nif|dds|tga))$/i);
     if (match) addAsset(faceTextureUrls, match[1] + '/' + match[2], url, "Westly's Faces Refurbished");
@@ -258,6 +278,7 @@ export async function inspectBundledMorrowindTextures() {
     discoveredSourceFiles: Object.keys(FILES).length,
     selectedAssetKeys: Object.keys(assetUrls).length,
     selectedPackageAssetCounts: { ...packageCounts },
+    activeOptionalPacks: Object.entries(packEnabled).filter(([name, enabled]) => name !== 'betterBodies' && enabled).map(([name]) => name),
     bundledPlugins: bundledMorrowindPluginNames(),
     representativeFetches: checks,
     note: 'High Resolution Better Body Female Textures and Better Heads are not selected by this loader.',
