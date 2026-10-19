@@ -1317,7 +1317,7 @@ export const FEATURES = Object.freeze([
   Object.freeze({
     id: 'morrowind-player-walk-animation',
     group: 'character',
-    get title() { return 'Ходьба / бег'; },
+    get title() { return 'Ходьба игрока'; },
     get note() { return MOD_SETTINGS['morrowind-animation'].keys.PlayerWalkSource.description; },
     get effect() { return t('features.effect.atOnce', 'Takes effect at once.'); },
     kinds: Object.freeze(['mod']),
