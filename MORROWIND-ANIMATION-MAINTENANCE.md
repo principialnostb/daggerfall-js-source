@@ -39,7 +39,7 @@ This document is the operational inventory: what is in the repository, what the 
 3. **Axel's Sexy Walk Fixed**  
    File used by runtime: `Morrowind Textures/Axel's Sexy Walk Fixed/Animation/axel fixed/female/WalkForward;.kf`
 
-   Role: alternate female `WalkForward` clip. The pack also contains `Idle4;.kf`, `Idle5;.kf`, and `RunForward;.kf`; those are intentionally **not** loaded by the walk loader. This is a deliberate isolation boundary, not an omission to “fix” by loading every file.
+   Role: alternate female locomotion. `WalkForward;.kf` is filtered to walk groups and `RunForward;.kf` to run groups, both controlled by the same walk/run selector. `Idle4;.kf` and `Idle5;.kf` remain unconnected until the gameplay idle resolver is audited for whether it requests those optional groups.
 
    Reference: the user has confirmed this walk is visibly connected and working in-game.
 
@@ -67,7 +67,7 @@ A broad KF can contain tracks for many bones and text keys for several groups. N
 
 ## Animation settings home — taxonomy scaffold in v4
 
-The Settings screen has a dedicated **Animations** tab (`src/ui/settings/settingsMap.js`), separate from `Mods & files`. The top-level switchers are shared animation families, not actor-specific lists: **Ходьба / бег**, **Повороты / стойка / скрытность**, **Бой / атаки / блок**, **Магия / заклинания**, **Действия / взаимодействие**, **Прыжки / плавание / падения**, and **Получение урона / падение / смерть**. Each selected family displays the **Игрок** controls first and the **NPC** controls second. Walk/run stays one family because these are related locomotion states, and the currently bundled walk packs do not replace run clips. Families without an integrated source show a disabled Vanilla-only choice rather than a fake selector.
+The Settings screen has a dedicated **Animations** tab (`src/ui/settings/settingsMap.js`), separate from `Mods & files`. The top-level switchers are shared animation families, not actor-specific lists: **Ходьба / бег**, **Повороты / стойка / скрытность**, **Бой / атаки / блок**, **Магия / заклинания**, **Действия / взаимодействие**, **Прыжки / плавание / падения**, and **Получение урона / падение / смерть**. Each selected family displays the **Игрок** controls first and the **NPC** controls second. Walk/run stays one family because these are related locomotion states, and Simply Walking is walk-only; Axel's checked-in RunForward clip is integrated into the same locomotion selector as its WalkForward clip. Families without an integrated source show a disabled Vanilla-only choice rather than a fake selector.
 
 ## Actor-specific selectors — implemented in v4
 
