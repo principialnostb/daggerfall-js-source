@@ -177,7 +177,7 @@ export function openAppearanceEditor({ fpArm, onClose = () => {} } = {}) {
   if (typeof document === 'undefined' || !document.body) return null;
   document.getElementById('mw-appearance-editor')?.remove();
 
-  let yaw = 0, zoom = 1, frame = 0, closed = false, previewRig = null, previewBuildPending = false, previewRebuildRequested = false, previewError = '', previewRebuildTimer = 0, previewRetryTimer = 0, previewRetryCount = 0;
+  let yaw = 0, zoom = 1, frame = 0, closed = false, previewRig = null, previewBuildPending = false, previewRebuildRequested = false, previewError = '', previewRebuildTimer = 0, previewRetryTimer = 0, previewRetryCount = 0, previewFrameRetryTimer = 0, previewFrameRetryCount = 0;
   const initialIdentity = fpArm?.builtFor?.() || {};
   const savedIdentity = getAppearanceIdentity();
   let selectedRace = String(savedIdentity?.race || initialIdentity.race || 'nord').toLowerCase();
@@ -557,10 +557,23 @@ export function openAppearanceEditor({ fpArm, onClose = () => {} } = {}) {
       ctx.clearRect(0, 0, preview.width, preview.height);
       if (!image?.data) {
         statusMessage.style.display = 'block';
-        statusMessage.textContent = 'Модель собрана, но изображение недоступно.';
-        previewHint.textContent = 'Ошибка отображения';
+        statusMessage.textContent = 'Подготавливается изображение модели…';
+        previewHint.textContent = 'Загрузка предпросмотра';
+        // The isolated rig can finish its build one frame before its posed
+        // third-person mesh is ready for figure(). Poll the first frames so
+        // the user does not have to touch a slider to wake the preview up.
+        if (!previewFrameRetryTimer && previewFrameRetryCount < 24) {
+          previewFrameRetryCount++;
+          previewFrameRetryTimer = setTimeout(() => {
+            previewFrameRetryTimer = 0;
+            if (!closed && previewRig) drawPreview();
+          }, 125);
+        }
         return;
       }
+      previewFrameRetryCount = 0;
+      if (previewFrameRetryTimer) clearTimeout(previewFrameRetryTimer);
+      previewFrameRetryTimer = 0;
       statusMessage.style.display = 'none';
       const imageCanvas = document.createElement('canvas');
       imageCanvas.width = image.width; imageCanvas.height = image.height;
@@ -584,8 +597,10 @@ export function openAppearanceEditor({ fpArm, onClose = () => {} } = {}) {
     if (frame) cancelAnimationFrame(frame);
     if (previewRebuildTimer) clearTimeout(previewRebuildTimer);
     if (previewRetryTimer) clearTimeout(previewRetryTimer);
+    if (previewFrameRetryTimer) clearTimeout(previewFrameRetryTimer);
     previewRebuildTimer = 0;
     previewRetryTimer = 0;
+    previewFrameRetryTimer = 0;
     resizeObserver?.disconnect?.();
     previewRig?.unload?.(); previewRig = null;
     window.removeEventListener('keydown', keydown);
