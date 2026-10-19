@@ -8063,9 +8063,9 @@ export async function buildDungeonContext(deps, dfLocation, blocks, climateBaseT
       _drawSprite(renderer, canvas, f.rig, mat, proj, view, eye);
     }
     // MWNPC5b: THE DEAD IN THEIR BODIES - the death played where they fell (the pose's `dd`), the corpse flat casting its
-    // shadow alone while the body lies there; the living stand first (the lane's priority). Then the frame's bodies,
-    // synced, drawn in one bind of the sprite target (MWNPC2), and every offered foe's billboard cast-only where its
-    // body stands - after the sync, so a body arriving or leaving is never a frame drawn twice or not at all.
+    // shadow alone while the body lies there; the living stand first (the lane's priority). Then the frame's bodies
+    // are synced and drawn as opaque world-space meshes (MW-TP-MESH-ALL), and every offered foe's billboard is cast-only
+    // where its body stands - after the sync, so a body arriving or leaving is never drawn twice or not at all.
     _corpseWasCast.length = 0; _corpseLate.length = 0;
     for (const f of foes) {
       if (f.corpseBatch?.castOnly) _corpseWasCast.push(f.corpseBatch);
