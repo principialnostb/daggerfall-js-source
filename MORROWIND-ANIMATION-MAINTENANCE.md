@@ -67,9 +67,9 @@ A broad KF can contain tracks for many bones and text keys for several groups. N
 
 ## Current UX limitation and required next implementation
 
-The current UI still exposes a **single global “Female Walk Style” choice** with three values: Standard, Female, Female 2. This is functional for the existing player walk resolver, but it does **not yet meet** the requested final controls:
+The current UI now exposes a **player walk-source choice** with pack-specific labels: Standard, Feminine Walk Cycle, and Axel's Sexy Walk Fixed. The numeric values remain 0/1/2 so saved settings keep their meaning. This is functional for the player walk resolver, but it does **not yet meet** the requested final controls:
 
-- a player-only selector listing each walk pack/source separately;
+- a player-only selector listing each walk pack/source separately (the current selector is one mutually-exclusive choice, intentionally preventing conflicting simultaneous gait overrides);
 - independent NPC male and NPC female selectors;
 - an unambiguous per-pack state (“Disabled / Standard / Female”) where applicable;
 - a single deterministic source resolution when more than one pack is enabled.
