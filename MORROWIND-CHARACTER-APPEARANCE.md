@@ -42,9 +42,10 @@ UV-edit caution: the checked-in UV-edit JSON was authored for the Nord female me
 
 ### Preview regression isolation (2026-10-19)
 
-- The editor's standalone preview temporarily opts out of Better Bodies replacement meshes while retaining the separate player-appearance rig and vertex morphs. This restores the known-good race/sex body assembly instead of binding Better Bodies' source mesh through the gameplay skeleton, which caused the preview geometry to distort.
-- This is a containment fix, not the final asset goal: the preview does **not** currently prove that the Better Bodies geometry/texture pair is rendered correctly. The correct next implementation is a preview path that skins the Better Bodies NIF against its own compatible bind skeleton (as `better-bodies-preview.html` does), then applies race skin tinting and anatomical morphs without reusing the incompatible gameplay bind. Do not re-enable Better Bodies in the editor preview until that path is validated.
-- In-world Better Bodies selection remains enabled; the opt-out is scoped to `createAppearancePreviewRig()` only. Runtime visual verification is still required.
+- The editor's standalone preview temporarily opts out of Better Bodies replacement meshes while retaining the separate player-appearance rig and vertex morphs. This is a scoped preview choice, not a general rollback of Better Bodies or the gameplay renderer.
+- A follow-up failure was traced to option propagation: `buildTpBody()` checked `useBetterBodies` but did not declare or receive that option. The resulting `ReferenceError` was caught by the body-build fallback, leaving the preview without its third-person model. The option is now explicitly declared in `buildTpBody()` and passed from `buildFpArm()`; this fixes the build failure without changing the in-world Better Bodies default.
+- The current editor preview still uses the compatible standard Morrowind body while the live world can use Better Bodies. The intended final path remains a dedicated Better Bodies preview using its own compatible rest/bind skeleton, then race-appropriate skin tinting and anatomical morphs. The separate HTML tool is a geometry/UV diagnostic, not proof that this integrated path is complete.
+- Runtime visual verification is still required: confirm the 3D figure appears, that the underwear toggle rebuilds the selected variant, and that sliders update the preview and player without distortion.
 
 ### Body morph and underwear update (2026-10-19)
 
@@ -59,7 +60,7 @@ UV-edit caution: the checked-in UV-edit JSON was authored for the Nord female me
 
 ### Editor UI presentation update (2026-10-19)
 
-- [x] Reworked `src/ui/appearanceEditor.js` toward the game's developer settings UI: restrained green-grey surfaces, compact sans-serif typography, square controls, filled range tracks, and high-contrast value chips. The preview and controls now share a visual system with restrained borders, spacing, typography, grouped control panels, clearer hierarchy, and consistent button states.
+- [x] Reworked `src/ui/appearanceEditor.js` toward the shipped Enhanced settings skin: blue-black/stone surfaces, bone text, brass accents, condensed data typography and display-serif headings. The preview and controls share the same palette tokens and consistent focus/hover states.
 - [x] Expanded the preview column and canvas, added a responsive layout for narrow screens, and clarified the drag-to-rotate and zoom controls. The reset-view action resets both yaw and zoom; the body reset updates all displayed values and dispatches the shared morph-change event.
 - [x] Kept the existing dedicated preview-rig pathway and real currently selected head/hair assembly. No 2D portrait cards or invented face/hair presets were added.
 - [ ] Visual QA in the running game/browser is still required at desktop and mobile widths. The UI refresh does not by itself improve the underlying deformation algorithms.
