@@ -23,8 +23,8 @@ import { ANIMALS_ARCHIVE, ANIMAL_SOUND_BY_RECORD, SOUND } from '../systems/sound
 
 /** The most standing horses a host stands in 3D at once, nearest first (a town's square holds a handful). */
 export const STANDING_HORSES_MAX = 8;
-/** How far from the eye a standing horse stands in 3D, metres - past it, Daggerfall's sprite. */
-export const STANDING_HORSE_RANGE = 60;
+/** Standing horses stay as 3D meshes at every distance. The count is bounded below, so there is no need to swap distant horses to pixelated billboards. */
+export const STANDING_HORSE_RANGE = Infinity;
 /** A horse already standing keeps its place this much past the cut (npcBodies.js NPC_BUDGET_HYSTERESIS's law). */
 export const STANDING_HORSE_HOLD = 1.15;
 /** A horse's ball for the view test: its middle this far over its feet, this reach round it (metres - the Courser is
@@ -112,18 +112,17 @@ export function createStandingHorses({ renderer = null, max = STANDING_HORSES_MA
       for (const [k, e] of stood) if (e.frame !== frameNo) letGo(k, e);   // a Map deletes the entry it is on safely
       return standing;
     },
-    /** The horses stepped this frame, in a character-sprite bind of their own (none opened for none) - flushed
-     *  whatever throws. Answers how many drew. */
+    /** COATS3D: standing horses are world-space skinned meshes, not sprite cards.
+     *  Do not wrap this pass in beginCharacterSpriteBatch: that redirects their
+     *  world draw into the finite character target, causing near-body compression
+     *  and distance pixelation despite horseRig.draw's mesh-only path. */
     draw(canvas, { proj, view, eye: eyeAt, up = null }) {
       if (!rig) return 0;
-      let drawn = 0, open = false;
-      try {
-        for (const e of stood.values()) {
-          if (e.stepped !== frameNo) continue;
-          if (!open) { renderer?.beginCharacterSpriteBatch?.(); open = true; }
-          if (rig.draw(e.horse, canvas, { proj, view, eye: eyeAt, up })) drawn++;
-        }
-      } finally { if (open) renderer?.flushCharacterSpriteBatch?.(); }
+      let drawn = 0;
+      for (const e of stood.values()) {
+        if (e.stepped !== frameNo) continue;
+        if (rig.draw(e.horse, canvas, { proj, view, eye: eyeAt, up })) drawn++;
+      }
       return drawn;
     },
     /** Does this horse stand in 3D? */

@@ -3,18 +3,26 @@
 export const BODY_MORPH_FIELDS = [
   ['height', 'Рост', 'overall'],
   ['bodyWidth', 'Ширина тела', 'overall'],
+  ['bodyFullness', 'Общая полнота', 'overall'],
   ['shoulderWidth', 'Ширина плеч', 'shoulders'],
-  ['torsoScale', 'Масштаб корпуса', 'torso'],
-  ['breastSize', 'Размер груди', 'chest'],
-  ['buttockSize', 'Объём ягодиц', 'hips'],
-  ['hipWidth', 'Ширина бёдер', 'hips'],
+  ['ribcageWidth', 'Ширина грудной клетки', 'torso'],
+  ['breastSize', 'Объём груди', 'chest'],
+  ['breastProjection', 'Выступ груди', 'chest'],
   ['waistWidth', 'Ширина талии', 'torso'],
+  ['abdomenVolume', 'Объём живота', 'torso'],
+  ['hipWidth', 'Ширина таза', 'hips'],
+  ['buttockSize', 'Объём ягодиц', 'hips'],
+  ['buttockProjection', 'Выступ ягодиц', 'hips'],
   ['headScale', 'Размер головы', 'head'],
-  ['armScale', 'Масштаб рук', 'arms'],
-  ['legScale', 'Масштаб ног', 'legs'],
+  ['armThickness', 'Толщина рук', 'arms'],
+  ['armLength', 'Длина рук', 'arms'],
+  ['thighThickness', 'Толщина бёдер', 'legs'],
+  ['calfThickness', 'Толщина голеней', 'legs'],
+  ['legLength', 'Длина ног', 'legs'],
   ['legGap', 'Расстояние между ногами', 'legs'],
 ];
 const KEY = 'mw-character-body-morphs-v1';
+const UNDERWEAR_KEY = 'mw-character-underwear-v1';
 const defaults = Object.freeze(Object.fromEntries(BODY_MORPH_FIELDS.map(([key]) => [key, 0])));
 let cached = null;
 export function getBodyMorphs() {
@@ -43,4 +51,15 @@ export function resetBodyMorphs() {
   cached = { ...defaults };
   try { globalThis.localStorage?.setItem(KEY, JSON.stringify(cached)); } catch { /* storage may be disabled */ }
   return { ...cached };
+}
+
+export function getUnderwearEnabled() {
+  // Underwear is the safe/default in-game appearance; explicitly saved false
+  // selects the fully nude Better Bodies variant in the appearance preview.
+  try { return globalThis.localStorage?.getItem(UNDERWEAR_KEY) !== 'false'; } catch { return true; }
+}
+export function setUnderwearEnabled(enabled) {
+  const value = !!enabled;
+  try { globalThis.localStorage?.setItem(UNDERWEAR_KEY, value ? 'true' : 'false'); } catch { /* storage may be disabled */ }
+  return value;
 }

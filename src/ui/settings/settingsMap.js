@@ -188,6 +188,39 @@ export const CATEGORIES = Object.freeze([
       "GUI/LargeHUD", "GUI/LargeHUDDocked", "GUI/LargeHUDUndockedScale", "GUI/LargeHUDUndockedAlignment", "GUI/LargeHUDUndockedOffsetWeapon",
       "GUI/LargeHUDOffsetHorse"]),
   ]),
+  // ANIM-UI5: categories describe animation families, shared by player and NPCs.
+  // Within each family, the player's controls come first and NPC controls follow.
+  // Keep walk/run together: movement packs and the engine's locomotion state are not independent UI categories.
+  tab("animations", "Animations", [
+    sec("locomotion", "Ходьба / бег", [
+      "label:player", "feat:morrowind-player-walk-animation", "info:player-run",
+      "label:npc", "feat:morrowind-male-npc-walk-animation", "feat:morrowind-female-npc-walk-animation", "info:npc-run",
+    ]),
+    sec("posture", "Повороты / стойка / скрытность", [
+      "label:player", "info:player-posture",
+      "label:npc", "info:npc-idle",
+    ]),
+    sec("combat", "Бой / атаки / блок", [
+      "label:player", "info:player-combat",
+      "label:npc", "info:npc-combat",
+    ]),
+    sec("magic", "Магия / заклинания", [
+      "label:player", "info:player-magic",
+      "label:npc", "info:npc-magic",
+    ]),
+    sec("actions", "Действия / взаимодействие", [
+      "label:player", "info:player-actions",
+      "label:npc", "info:npc-actions",
+    ]),
+    sec("traversal", "Прыжки / плавание / падения", [
+      "label:player", "info:player-traversal",
+      "label:npc", "info:npc-traversal",
+    ]),
+    sec("reactions", "Получение урона / падение / смерть", [
+      "label:player", "info:player-reactions",
+      "label:npc", "info:npc-reactions",
+    ]),
+  ]),
   tab("mods", "Mods & files", [
     sec("files", "Your files", [
       "card:morrowind", "card:packs"]),

@@ -22,7 +22,7 @@
 // Not a DFU member: Daggerfall's horse is a sprite. Ledger A (COATS3D).
 import { HORSE_MODEL_URL, HORSE_PICTURE_URLS, horseSkinStream, horsePaletteShape, horsePoseScratch, horseGait, stepHorseGait, writeHorsePalette, startTexelMap, rgbaMips, horseHide } from './horseModel.js';
 import { dyeHorseTexelRows, horseLookCode, horseLookOfCode } from '../systems/horse/horseCoats.js';
-import { drawRigSpriteBox } from '../render/characterSprite.js';
+import { drawRigSpriteBox, MW_THIRD_PERSON_PIXEL } from '../render/characterSprite.js';
 import { MW_ARM_PIXEL, CHAR_SPRITE_RT_SIZE } from '../render/renderer.js';
 import { decodePng } from '../systems/textureReplacement.js';
 import { multiply, trs, transformPoint } from './mat4.js';
@@ -207,13 +207,19 @@ export function createHorseRig({ renderer, fetchJson = (u) => fetch(u).then((r) 
     return { center, halfW, halfH, anchor };
   }
 
-  /** A horse alone, through the sprite pass at the Morrowind body's dial - none out of the view (AUDIT COATS3D A12: a
-   *  horse behind the eye was skinned and drawn all the same, and one at the eye's plane a whole-screen tile). */
+  /** A horse alone. Keep the skinned world mesh at every distance: baking it to a finite
+   *  camera-facing target caused its near-side rump/barrel/head to appear vertically compressed
+   *  as the camera approached, and made the coat visibly pixelate at distance. Concealment
+   *  remains on the sprite compositor because that path owns the dissolve effect. */
   function draw(h, canvas, { proj, view, eye, up = null, conceal = null, hitFlash = 0 }) {
     if (!h?.model || !canvas) return false;
     const bx = box(h);
     if (outOfView(bx.center, Math.hypot(bx.halfW, bx.halfH), view, proj)) return false;
-    drawRigSpriteBox(renderer, canvas, h.mesh, h.model, { ...bx, up, conceal, hitFlash }, proj, view, eye, MW_ARM_PIXEL);
+    if (!conceal) {
+      renderer.drawCharacter(h.mesh, h.model);
+      return true;
+    }
+    drawRigSpriteBox(renderer, canvas, h.mesh, h.model, { ...bx, up, conceal, hitFlash }, proj, view, eye, MW_THIRD_PERSON_PIXEL);
     return true;
   }
 

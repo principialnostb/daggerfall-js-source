@@ -77,12 +77,14 @@ import {
   placeAtBone,   // TWO-HANDS AUDIT 2: a blade placed at rest, for the pair's guard (bladePictureHeight)
 } from '../formats/morrowind/mwFirstPerson.js';
 import { PART_BONES, dfRaceKeyOf } from '../formats/morrowind/mwNpc.js';
-import { betterBodiesFemaleAssetUrls, loadBetterBodiesFemaleUvEdits } from '../formats/morrowind/mwBetterBodies.js';
+import { betterBodiesAssetUrls } from '../formats/morrowind/mwBetterBodies.js';
 import { portraitFeatures, headFeatures, hairFeatures, matchFace, FACE_MATCH_VERSION } from '../formats/morrowind/mwFaceMatch.js';
 import { CifRciFile } from '../formats/cifRciFile.js';
 import { DFPalette } from '../formats/dfPalette.js';
 import { raceArt } from '../systems/races.js';
 import { appStorage } from '../systems/appStorage.js';   // DA1: the storage seam
+import { modSetting } from '../systems/modSettings.js';
+import { loadWalkAnimationAssets, isWalkAnimationGroup, isWalkAnimationKey, isRunAnimationGroup, isRunAnimationKey, isWalkVariantEnabled, walkVariantForActor } from '../formats/morrowind/mwWalkAnimationAssets.js';
 import { drawRigSpriteBox, MW_THIRD_PERSON_PIXEL } from '../render/characterSprite.js';
 import { WEAPONS } from '../characters/weapons.js';
 import { materialName } from '../systems/item/itemInfo.js';
@@ -91,6 +93,83 @@ import { showNudity } from '../characters/nudeFlats.js';   // NUDE-FLATS: Show N
 import { getPref } from '../systems/uiPrefs.js';   // MW-STEEL1: the Steel Helm switch, read where the worn set is composed
 import { skinMips, skinUseOf, skinUseKey } from '../characters/werewolfSkin.js';   // SHADOW-FANG: the werewolf's skin, a law over its own textures
 import { correctTexturePath, correctActorModelPath, wrapModes, warningImage, decodeTextureImage } from '../formats/morrowind/mwTexture.js';
+const betterBodiesAssetByteCache = new Map();
+async function loadBetterBodiesAssetBytes(url, label) {
+  let pending = betterBodiesAssetByteCache.get(url);
+  if (!pending) {
+    pending = fetch(url).then(async (response) => {
+      if (!response.ok) throw new Error(`${label} HTTP ${response.status}`);
+      return new Uint8Array(await response.arrayBuffer());
+    }).catch((error) => {
+      betterBodiesAssetByteCache.delete(url);
+      throw error;
+    });
+    betterBodiesAssetByteCache.set(url, pending);
+  }
+  return new Uint8Array(await pending);
+}
+
+// Female actors share the Nord-female body geometry, but still need the DDS
+// for their own race. NIF texture paths are embedded in the binary; rewrite
+// the same-length race stem in this private byte copy before parsing it.
+function rewriteBetterBodiesTextureStem(bytes, fromStem, toStem) {
+  if (!bytes || fromStem === toStem) return bytes;
+  const from = new TextEncoder().encode(fromStem);
+  const to = new TextEncoder().encode(toStem);
+  if (from.length !== to.length) return bytes;
+  outer: for (let i = 0; i <= bytes.length - from.length; i++) {
+    for (let j = 0; j < from.length; j++) {
+      if (bytes[i + j] !== from[j]) continue outer;
+    }
+    bytes.set(to, i);
+    i += from.length - 1;
+  }
+  return bytes;
+}
+const betterBodiesTextureBytes = new Map();
+const betterBodiesTextureBasename = (path) => String(path || '')
+  .replaceAll(String.fromCharCode(92), '/').split('/').pop().toLowerCase();
+const BETTER_BODIES_FEMALE_SKIN_TONES = Object.freeze({
+  br: [1.06, 0.91, 0.84], de: [0.73, 0.70, 0.88],
+  he: [1.10, 0.94, 0.72], im: [1.04, 0.87, 0.78],
+  no: [1.00, 0.98, 0.94], or: [0.70, 0.88, 0.62],
+  rg: [0.92, 0.70, 0.54], we: [0.96, 0.82, 0.66],
+});
+function tintBetterBodiesFemaleSkin(image, textureFile) {
+  const match = /bb_skinf_(br|de|he|im|no|or|rg|we)\.(?:dds|tga|targa|bmp)$/i.exec(String(textureFile || '').replaceAll(String.fromCharCode(92), '/'));
+  if (!match || !image?.mips?.length) return image;
+  const raceKey = match[1].toLowerCase();
+  const tone = BETTER_BODIES_FEMALE_SKIN_TONES[raceKey];
+  if (!tone || raceKey === 'no') return image;
+  for (const mip of image.mips) {
+    const rgba = mip?.rgba;
+    if (!rgba) continue;
+    for (let i = 0; i + 3 < rgba.length; i += 4) {
+      if (rgba[i + 3] === 0) continue;
+      rgba[i] = Math.min(255, (rgba[i] * tone[0] + 0.5) | 0);
+      rgba[i + 1] = Math.min(255, (rgba[i + 1] * tone[1] + 0.5) | 0);
+      rgba[i + 2] = Math.min(255, (rgba[i + 2] * tone[2] + 0.5) | 0);
+    }
+  }
+  return image;
+}
+function registerBetterBodiesRaceTexture(archives, texturePath, textureBytes) {
+  const basename = betterBodiesTextureBasename(texturePath);
+  betterBodiesTextureBytes.set(basename, textureBytes);
+  let adapter = archives.find((archive) => archive.__betterBodiesRaceTexture);
+  if (!adapter) {
+    adapter = {
+      __betterBodiesRaceTexture: true,
+      has: (path) => betterBodiesTextureBytes.has(betterBodiesTextureBasename(path)),
+      loaded: () => true,
+      load: async () => null,
+      get: (path) => betterBodiesTextureBytes.get(betterBodiesTextureBasename(path)) ?? null,
+    };
+    archives.push(adapter);
+  }
+  return adapter;
+}
+
 import { decodeTextureOffThread } from '../formats/morrowind/mwTextureClient.js';   // MW-TEXTHREAD: the preload's decodes, in the pool
 import { diffuseAt, emissiveAt } from '../formats/morrowind/mwNifMesh.js';   // MWT2: the emission the pass has always resolved and never read
 import { fpLightingOn } from './fpsWeapon.js';   // MAC-P: the first-person lighting switch, shared with the classic sprite it stands in for
@@ -215,7 +294,7 @@ async function preloadArmTextures(pieces, archives, gen = null) {
     const arc = archives.find((a) => a.has(path));
     if (!arc || (typeof arc.loaded === 'function' && !arc.loaded(path))) return;   // collectArmTextures says why
     let image;
-    try { image = await decodeTextureOffThread(path, arc.get(path)); } catch (err) {
+    try { image = tintBetterBodiesFemaleSkin(await decodeTextureOffThread(path, arc.get(path)), file); } catch (err) {
       // AUDIT MW-TEXTHREAD F4: THE DECODER'S REFUSAL IS KEPT TOO. The
       // decoder is pure, so the same bytes refuse again on any thread;
       // left unkept, collectArmTextures decoded the whole file a second
@@ -2058,58 +2137,41 @@ async function buildTpBody({
     // WEREWOLF1: the wolf's head and hair, by id - every other skin slot is empty, the robe is the body
     const rows = werewolf ? werewolfHeadRows(parts) : playerBodyRows(parts, race, female, { beast, faceIndex, faceMatch, vampire, walk, has: exists, ownHeads });   // MWNPC14: a vampire's head; MWNPC17: an NPC's own; AUDIT MW-HEADS1: the port's own heads where these archives carry them
     const missing = [];
-    // Better Bodies is the base body for every human female build, including
-    // builds with equipped armor or clothing. Worn pieces are still composed
-    // through the normal slot-aware path and layered over this body; do not
-    // silently switch the player back to vanilla skin when equipment changes.
+    // Better Bodies is selected by the actor's own race and sex. The matching
+    // texture is registered by basename, so concurrent NPC builds cannot overwrite
+    // one another's skin bytes through a shared "current texture" adapter.
     let betterBodiesPart = null;
-    if (female && !beast && !werewolf && !vampire) {
+    if (!beast && !werewolf && !vampire) {
       try {
-        const [nifResponse, textureResponse, uvEdits] = await Promise.all([
-          fetch(betterBodiesFemaleAssetUrls.model),
-          fetch(betterBodiesFemaleAssetUrls.texture),
-          loadBetterBodiesFemaleUvEdits(),
+        const asset = betterBodiesAssetUrls({ race, female });
+        if (!asset) throw new Error(`no Better Bodies asset for race "${String(race)}" / ${female ? 'female' : 'male'}`);
+        const [rawBytes, textureBytes, uvEdits] = await Promise.all([
+          loadBetterBodiesAssetBytes(asset.model, 'NIF'),
+          loadBetterBodiesAssetBytes(asset.texture, 'DDS'),
+          Promise.resolve([]) /* diagnostic: preserve source NIF UVs; compare against the dark-elf reference */,
         ]);
-        if (!nifResponse.ok) throw new Error('NIF HTTP ' + nifResponse.status);
-        if (!textureResponse.ok) throw new Error('DDS HTTP ' + textureResponse.status);
-        const bytes = new Uint8Array(await nifResponse.arrayBuffer());
-        const textureBytes = new Uint8Array(await textureResponse.arrayBuffer());
-        // Make the checked-in DDS visible to the same texture resolver used by
-        // all other NIF parts. The adapter only claims this one exact texture.
-        const virtualTexturePath = 'textures/bb/bb_skinf_no.dds';
-        if (!archives.some((a) => a.__betterBodiesFemaleTexture)) {
-          archives.push({
-            __betterBodiesFemaleTexture: true,
-            has: (path) => /(?:^|[\\/])bb_skinf_no\.dds$/i.test(String(path || '')),
-            loaded: () => true,
-            load: async () => null,
-            get: () => textureBytes,
-          });
-        }
-        // Rebind all body sections to the active female skeleton and carry
-        // the latest per-section UV transforms from the user's JSON.
-        betterBodiesPart = { slot: 'betterBodies', bones: [], bytes, uvEdits, hideSlots: worn.shadows };
-        // The adapter is refreshed on each build so the live texture follows
-        // the checked-in asset even after a dev-server reload.
-        const textureAdapter = archives.find((a) => a.__betterBodiesFemaleTexture);
-        if (textureAdapter) textureAdapter.get = () => textureBytes;
-        // The texture name may already have a generation-scoped negative cache
-        // entry from the vanilla archive lookup. The loose Better Bodies DDS
-        // is authoritative for this one basename, so discard that stale answer.
+        const genderKey = female ? 'f' : 'm';
+        const bytes = rewriteBetterBodiesTextureStem(
+          rawBytes,
+          `bb_skin${genderKey}_${asset.geometryRaceKey}`,
+          `bb_skin${genderKey}_${asset.raceKey}`,
+        );
+        registerBetterBodiesRaceTexture(archives, asset.texturePath, textureBytes);
+        betterBodiesPart = {
+          slot: 'betterBodies', bones: [], bytes, uvEdits, hideSlots: worn.shadows,
+          texturePath: asset.texturePath,
+        };
+        const basename = betterBodiesTextureBasename(asset.texturePath);
         for (const key of TEXTURE_CACHE.keys()) {
-          if (/bb_skinf_no\.dds$/i.test(key)) TEXTURE_CACHE.delete(key);
+          if (String(key).toLowerCase().endsWith(basename)) TEXTURE_CACHE.delete(key);
         }
-        // Keep the intended resolver path explicit for diagnostics.
-        betterBodiesPart.texturePath = virtualTexturePath;
-        console.info('[Better Bodies] female body asset loaded', {
-          modelBytes: bytes.byteLength,
-          textureBytes: textureBytes.byteLength,
-          uvEdits: uvEdits.length,
-          female,
+        console.info('[Better Bodies] race/sex body asset loaded', {
+          raceKey: asset.raceKey, female, modelBytes: bytes.byteLength,
+          textureBytes: textureBytes.byteLength, uvEdits: uvEdits.length,
           wornAdds: worn.adds?.length ?? 0,
         });
       } catch (error) {
-        const reason = 'Better Bodies female skin unavailable: ' + String(error?.message ?? error);
+        const reason = 'Better Bodies race/sex skin unavailable: ' + String(error?.message ?? error);
         missing.push(reason);
         console.warn('[Better Bodies] falling back to standard Morrowind body:', reason);
       }
@@ -2250,6 +2312,44 @@ async function buildTpBody({
         trackMap: one.trackMap, binding: one.binding,
         wouldAccumRoot: accumRootRef(arm.skeleton, one.trackMap),
       });
+    }
+    // MW-ANIM-1: The uploaded Simply Walking set replaces WALK groups only.
+    // The separate Feminine Walk Cycle is a female-only, walk-only override;
+    // other actions keep the game's own sources and priority.
+    if (!werewolf && !beast) {
+      const walkAssets = await loadWalkAnimationAssets({ female });
+      for (const asset of walkAssets) {
+        const report = await cachedClipReport(gen, skeletonPath, asset.name, () => asset.bytes, arm.skeleton);
+        if (!report.ok) {
+          const reason = `walk animation ${asset.name}: ${report.error}`;
+          missing.push(reason);
+          console.warn('[Morrowind animations] replacement KF could not be parsed/bound; vanilla walk retained:', reason);
+          continue;
+        }
+        const isFamilyGroup = asset.family === 'run' ? isRunAnimationGroup : isWalkAnimationGroup;
+        const isFamilyKey = asset.family === 'run' ? isRunAnimationKey : isWalkAnimationKey;
+        const familyKeys = report.keys.filter(isFamilyKey);
+        const familyGroups = report.groups.filter(isFamilyGroup);
+        if (!familyGroups.length || !familyKeys.length) {
+          const reason = `locomotion animation ${asset.name}: no usable ${asset.family || 'walk'} groups; vanilla source retained`;
+          missing.push(reason);
+          console.warn('[Morrowind animations] replacement KF has no recognised locomotion groups; vanilla source retained:', {
+            asset: asset.name, family: asset.family || 'walk', groups: report.groups, keyCount: report.keys.length,
+          });
+          continue;
+        }
+        sources.push({
+          name: asset.name,
+          keys: familyKeys,
+          groups: familyGroups,
+          groupSet: new Set(familyGroups),
+          trackMap: report.trackMap,
+          binding: report.binding,
+          wouldAccumRoot: accumRootRef(arm.skeleton, report.trackMap),
+          walkOnly: true,
+          walkVariant: asset.variant,
+        });
+      }
     }
     const groupSet = new Set(sources.flatMap((so) => so.groups));
     const idleProbe = composeStanceGroup(FP_IDLE_BASE, animWeaponType(resolvedWeapon.mwType, true), (n) => groupSet.has(n));
@@ -2888,47 +2988,37 @@ export async function buildFpArm({
       if (ARM_PARTS.includes(slot)) continue;
       if (rec && rec.model) wanted.push({ slot, record: rec.id, firstPerson: true, path: `meshes/${rec.model}` });
     }
-    // Better Bodies' full female mesh is also the source for first-person
-    // hands/arms. Keep only its arm sections in this view; the old .1st BODY
-    // hand meshes remain the fallback if the asset cannot be loaded.
+    // Use the same race/sex-matched body asset for first-person hands; only
+    // its arm/hand slots are drawn here. Vanilla part meshes remain the fallback.
     let betterBodiesFpArms = null;
-    if (female && !beast && !werewolf && !vampire) {
+    if (!beast && !werewolf && !vampire) {
       try {
-        const [nifResponse, textureResponse, uvEdits] = await Promise.all([
-          fetch(betterBodiesFemaleAssetUrls.model),
-          fetch(betterBodiesFemaleAssetUrls.texture),
-          loadBetterBodiesFemaleUvEdits(),
+        const asset = betterBodiesAssetUrls({ race, female });
+        if (!asset) throw new Error(`no Better Bodies asset for race "${String(race)}" / ${female ? 'female' : 'male'}`);
+        const [rawBytes, textureBytes, uvEdits] = await Promise.all([
+          loadBetterBodiesAssetBytes(asset.model, 'NIF'),
+          loadBetterBodiesAssetBytes(asset.texture, 'DDS'),
+          Promise.resolve([]) /* diagnostic: preserve source NIF UVs; compare against the dark-elf reference */,
         ]);
-        if (!nifResponse.ok) throw new Error('NIF HTTP ' + nifResponse.status);
-        if (!textureResponse.ok) throw new Error('DDS HTTP ' + textureResponse.status);
-        const bytes = new Uint8Array(await nifResponse.arrayBuffer());
-        const textureBytes = new Uint8Array(await textureResponse.arrayBuffer());
-        const virtualTexturePath = 'textures/bb/bb_skinf_no.dds';
-        if (!archives.some((a) => a.__betterBodiesFemaleTexture)) {
-          archives.push({
-            __betterBodiesFemaleTexture: true,
-            has: (path) => /(?:^|[\\/])bb_skinf_no\.dds$/i.test(String(path || '')),
-            loaded: () => true,
-            load: async () => null,
-            get: () => textureBytes,
-          });
-        }
-        const textureAdapter = archives.find((a) => a.__betterBodiesFemaleTexture);
-        if (textureAdapter) textureAdapter.get = () => textureBytes;
+        const genderKey = female ? 'f' : 'm';
+        const bytes = rewriteBetterBodiesTextureStem(
+          rawBytes,
+          `bb_skin${genderKey}_${asset.geometryRaceKey}`,
+          `bb_skin${genderKey}_${asset.raceKey}`,
+        );
+        registerBetterBodiesRaceTexture(archives, asset.texturePath, textureBytes);
+        const basename = betterBodiesTextureBasename(asset.texturePath);
         for (const cacheKey of TEXTURE_CACHE.keys()) {
-          if (/bb_skinf_no\.dds$/i.test(cacheKey)) TEXTURE_CACHE.delete(cacheKey);
+          if (String(cacheKey).toLowerCase().endsWith(basename)) TEXTURE_CACHE.delete(cacheKey);
         }
         betterBodiesFpArms = {
-          slot: 'betterBodies',
-          bones: [],
-          bytes,
-          uvEdits,
-          texturePath: virtualTexturePath,
+          slot: 'betterBodies', bones: [], bytes, uvEdits,
+          texturePath: asset.texturePath,
           showSlots: ['hand:left', 'hand:right', 'wrist:left', 'wrist:right', 'forearm:left', 'forearm:right', 'upperarm:left', 'upperarm:right'],
           hideSlots: worn.fpShadows ?? worn.shadows,
         };
       } catch (error) {
-        console.warn('[Better Bodies] first-person arms unavailable; using standard Morrowind arms:', String(error?.message ?? error));
+        console.warn('[Better Bodies] first-person race/sex arms unavailable; using standard Morrowind arms:', String(error?.message ?? error));
       }
     }
     const partBytes = [];
@@ -3343,7 +3433,7 @@ export function collectArmTextures(pieces, archives, gen = null) {
       // .dds probe misses (resourcehelpers.cpp:112-114), and feeding
       // that to decodeDds turned a texture the archives DO carry into
       // the magenta warning.
-      const entry = { ok: true, path, image: decodeTextureImage(path, arc.get(path).slice()) };
+      const entry = { ok: true, path, image: tintBetterBodiesFemaleSkin(decodeTextureImage(path, arc.get(path).slice()), file) };
       out.set(file, entry);
       if (gen !== null) TEXTURE_CACHE.set(`${gen}:${file}`, entry);
     } catch (err) {
@@ -3632,6 +3722,11 @@ export function createFpArm({ playerAppearance = false } = {}) {
   // not the last time someone pressed Build.
   let wornEquipKey = null;
   let lastBuildOpts = null;
+  // MW-ANIM-BLEND: transition source is the last raw third-person pose, not a stale clip clock.
+  let thirdPoseState = null;
+  let thirdPoseSource = null;
+  let thirdBlendFrom = null;
+  let thirdBlendElapsed = 0;
 
   // MW-D12: TWO CLIP SLOTS, because Morrowind's first-person arm plays
   // TWO animations and the port had one.
@@ -3661,6 +3756,7 @@ export function createFpArm({ playerAppearance = false } = {}) {
   let movementGroup = null;
   let movementSource = null;
   let movementBase = null;
+  let movementWalkPreference = null;
   let movementStance = null;
   let movementRate = 1;
   // MW-D39: THE FOURTH SLOT - JUMP. Priority_Jump sits BELOW
@@ -4239,15 +4335,9 @@ export function createFpArm({ playerAppearance = false } = {}) {
    * and the CPU skin draws it as it always did. The door shut mid-session lets a skinned mesh go.
    */
   function thirdSkinReady(t) {
-    // Local chest/hip vertex morphs need CPU-skinned positions before upload. Keep this
-    // choice isolated to the third-person player body; FP hands and inventory art stay separate.
-    const morph = playerAppearance ? getBodyMorphs() : null;
-    const geometryMorph = !!morph && ['breastSize', 'buttockSize', 'hipWidth', 'waistWidth'].some((key) => Math.abs(Number(morph[key]) || 0) > 1e-4);
-    if (geometryMorph) {
-      if (thirdMesh && thirdMesh.skin) releaseThirdMesh();
-      thirdSkin = null;
-      return false;
-    }
+    // Local chest/hip vertex morphs are not implemented yet. Persisted slider values
+    // must not silently force the CPU-skinning path until a real vertex transform
+    // is applied; that path changes performance and can mask pose/visibility bugs.
     if (!gpuSkinOn(renderer)) { if (thirdMesh && thirdMesh.skin) releaseThirdMesh(); return false; }
     if (thirdSkin && skinSamePieces(thirdSkin, t.arm.pieces)) return true;
     if (thirdSkinRefused === t.arm.pieces) return false;
@@ -4303,10 +4393,15 @@ export function createFpArm({ playerAppearance = false } = {}) {
    *  pick kept per body and group, so a repaint picks nothing twice.
    *  Null when the body's .kf names no idle this stance can reach. */
   const portraitPicks = new WeakMap();   // third body -> Map(group -> pick)
-  function portraitPose(t) {
+  function portraitPose(t, { neutral = false } = {}) {
     if (!t || !t.ok || !t.sources) return null;
+    // The appearance editor is not an inventory doll: it must not inherit
+    // the weapon-derived combat idle/guard stance. Ask the body's own
+    // animation sources for the unarmed base idle only.
     const type = animWeaponType(t.mwType ?? (built && built.mwType), false, spellReady);
-    const composed = composeStanceGroup(FP_IDLE_BASE, type, (n) => anySourceHasGroup(t.sources, n));
+    const composed = neutral
+      ? { group: anySourceHasGroup(t.sources, FP_IDLE_BASE) ? FP_IDLE_BASE : null }
+      : composeStanceGroup(FP_IDLE_BASE, type, (n) => anySourceHasGroup(t.sources, n));
     if (!composed.group) return null;
     let memo = portraitPicks.get(t);
     if (!memo) { memo = new Map(); portraitPicks.set(t, memo); }
@@ -4748,7 +4843,7 @@ export function createFpArm({ playerAppearance = false } = {}) {
   }
 
   function resetMovement() {
-    movementState = null; movementGroup = null; movementSource = null; movementBase = null;
+    movementState = null; movementGroup = null; movementSource = null; movementBase = null; movementWalkPreference = null;
     movementStance = null;
   }
 
@@ -4905,8 +5000,18 @@ export function createFpArm({ playerAppearance = false } = {}) {
     // frame - the port's old gate keyed on the movestate name alone and
     // kept the bare-handed walk playing with the sword out.
     const stance = stanceOf();   // MWNPC9: a non-biped's bare walk
-    const fresh = !(movementState && movementState.playing
+    const walkPreference = /^(?:walk|run)/i.test(base) ? walkVariantForActor({
+      player: playerAppearance,
+      ownHeads: !!lastBuildOpts?.ownHeads,
+      female: !!lastBuildOpts?.female,
+      playerChoice: modSetting('morrowind-animation', 'PlayerWalkSource') ?? 0,
+      npcMaleChoice: modSetting('morrowind-animation', 'NpcMaleWalk') ?? 0,
+      npcFemaleChoice: modSetting('morrowind-animation', 'NpcFemaleWalk') ?? 0,
+    }) : false;
+    const preferenceChanged = movementWalkPreference !== (/^(?:walk|run)/i.test(base) ? walkPreference : null);
+    const fresh = preferenceChanged || !(movementState && movementState.playing
       && movementBase === base && movementStance === stance);
+    if (fresh) movementWalkPreference = /^(?:walk|run)/i.test(base) ? walkPreference : null;
     if (fresh) {
       const composed = composeMovementGroup(base, stance, hasGroup);
       if (!composed.group) {
@@ -4914,9 +5019,11 @@ export function createFpArm({ playerAppearance = false } = {}) {
         movementBase = base; movementStance = stance;
         return;
       }
-      if (!(movementState && movementState.playing && movementGroup === composed.group)) {
+      if (!(movementState && movementState.playing && movementGroup === composed.group && !preferenceChanged)) {
         const startPoint = movementGroup === composed.group ? clipCompletion(movementState) : 0;
-        const pick = pickAnimSource(rig().sources, composed.group, resetClip,
+        const walkChoice = walkPreference || 'standard';
+        const movementSources = rig().sources.filter((source) => isWalkVariantEnabled(source, walkChoice));
+        const pick = pickAnimSource(movementSources, composed.group, resetClip,
           { loopFallback: true, loopCount: Infinity, startPoint });
         if (!pick) {
           resetMovement();
@@ -4927,6 +5034,9 @@ export function createFpArm({ playerAppearance = false } = {}) {
         movementGroup = composed.group;
         movementState = pick.state;
         movementSource = pick.source;
+        if (pick.source?.walkOnly) {
+          console.info('[Morrowind animations] playing replacement walk group:', composed.group, 'from', pick.source.name);
+        }
       }
       movementBase = base; movementStance = stance;
       // MW-D29: the clip speed refreshes on EVERY state change, not only
@@ -5218,6 +5328,34 @@ export function createFpArm({ playerAppearance = false } = {}) {
 
   const api = {
     attach(r, cam) { renderer = r || null; camera = cam || null; },
+    /**
+     * Build an editor-owned copy of this actor's current body/head/hair identity.
+     * It shares only the renderer and source asset/dependency references; the
+     * skeleton, assembled meshes, animation state and render target work are owned
+     * by a new rig. Equipment is intentionally omitted so the editor previews nude.
+     */
+    async createAppearancePreviewRig() {
+      if (!lastBuildOpts || !renderer) return { ok: false, error: 'The live character has not finished building.' };
+      const previewRig = createFpArm({ playerAppearance: true });
+      previewRig.attach(renderer, camera);
+      const opts = {
+        ...lastBuildOpts,
+        armor: [],
+        weapon: null,
+        offWeapon: null,
+        hasAmmo: false,
+        ammoCount: 0,
+        torch: false,
+        hipLight: false,
+        spellReady: false,
+      };
+      const builtPreview = await previewRig.build(opts);
+      if (!builtPreview?.ok) {
+        previewRig.unload();
+        return { ok: false, error: builtPreview?.error || builtPreview?.stage || 'Could not build the preview model.' };
+      }
+      return { ok: true, rig: previewRig };
+    },
     active,
     ready,
     /** MWA3: WHO the standing arm was built for - the identity third
@@ -5914,6 +6052,14 @@ export function createFpArm({ playerAppearance = false } = {}) {
     /** TWO-HANDS: the first-person arms are posed on the run - the pump's weight on the hands, no sheet in them, no stone
      *  under them. The rig opens its draw gate on it (a sheathed run is the everyday one), as it does for the climb. */
     runPosed() { return viewMode === 'first' && runPump.w >= 0.5 && !held && !climbHands; },
+    // The Morrowind first-person rig must be drawn for unarmed locomotion too:
+    // otherwise the draw gate suppresses the skin's own arms on a vanilla run
+    // clip or while a jump clip is active, even though poseAssembly has posed them.
+    movementPosed() {
+      if (viewMode !== 'first' || dead || held || climbHands) return false;
+      const group = String(movementState?.group ?? '');
+      return runPump.w >= 0.5 || /^run/i.test(group) || !!jumpState?.playing;
+    },
     /** TWO-HANDS: the pins' read. */
     handsState() {
       const arm = built && built.ok ? built.arm : null;
@@ -6447,10 +6593,21 @@ export function createFpArm({ playerAppearance = false } = {}) {
         // same, so the next posing frame lands where the clock is.
         if (pose) {
           posePartClocks(t.arm, weaponClockValue(), { frameTime: partClock });   // MW-BOW1: the bow draws, the arrow with it
+          // MW-ANIM-BLEND: cross-fade every third-person clip transition (walk/idle/run/jump/attack) over a short fixed window.
+          if (thirdPoseState !== state || thirdPoseSource !== poseSource) {
+            thirdBlendFrom = t.arm.rawPose instanceof Map ? new Map(t.arm.rawPose) : null;
+            thirdBlendElapsed = 0;
+            thirdPoseState = state;
+            thirdPoseSource = poseSource;
+          }
+          thirdBlendElapsed += Math.max(0, dt);
+          const thirdBlendWeight = thirdBlendFrom ? Math.min(1, thirdBlendElapsed / 0.16) : 1;
           poseAssembly(t.arm, {
             tracks: tOverlay ? overlayFor(tBase, t.leftArm) : tBase,
             sampleTrack: tOverlay ? overlaySample : sampleTrack,
             time: poseTime(state),   // MS1: a backhand's window runs backwards
+            blendFrom: thirdBlendFrom,
+            blendWeight: thirdBlendWeight,
             accumRoot: t.accumRoot,
             climb: thirdClimb(climbWorld, cam),   // CLIMB6
             mirror: mirrorFor('third', t, dt),   // TWO-HANDS: the second hand - the pair's left arm, a left-hand blow
@@ -6458,6 +6615,7 @@ export function createFpArm({ playerAppearance = false } = {}) {
             bodyProportions: playerAppearance ? getBodyMorphs() : false,   // MWV2-PROPORTIONS: player instance only
             skin: !thirdSkinReady(t),   // MWNPC1: the skin in the vertex shader - the pose is the skeleton alone
           });
+          if (thirdBlendWeight >= 1) thirdBlendFrom = null;
           uploadThirdMesh(t);
           // MAC-Q: the body's particle systems, on the clock its parts ride
           stepRigEffects(t.arm, { dt: effectsDt, clock: tOverlay ? overlayClock : poseTime(state), renderer, mesh: thirdMesh, textures: t.textures, hidden: effectHidden });
@@ -6929,7 +7087,13 @@ export function createFpArm({ playerAppearance = false } = {}) {
       // the feet alternately rise and fall. Until a standing pose is seen, retain the
       // current bound so first-frame rendering still has a valid ground correction.
       if (playerAppearance && body && thirdGroundMinZ == null && !movementState && !jumpState) thirdGroundMinZ = body.minZ;
-      const supportMinZ = playerAppearance && Number.isFinite(thirdGroundMinZ) ? thirdGroundMinZ : body?.minZ;
+      // MW-TP-GROUND-NPC: NPCs do not necessarily get a standing frame before
+      // they start walking. Latch their first posed support height once instead
+      // of feeding each animated frame's changing leg minimum back into the root
+      // transform; that feedback makes the feet/pelvis bob and the legs appear to
+      // twitch, especially from a low upward camera angle.
+      if (!playerAppearance && body && thirdGroundMinZ == null) thirdGroundMinZ = body.minZ;
+      const supportMinZ = Number.isFinite(thirdGroundMinZ) ? thirdGroundMinZ : body?.minZ;
       const groundedModel = !horse && body && Number.isFinite(supportMinZ) ? groundThirdPersonModel(model, supportMinZ, feet[1]) : model;
       const center = transformPoint(groundedModel, (minX + maxX) / 2, (minY + maxY) / 2, (minZ + maxZ) / 2);
       // MWNPC16: the shape it casts, where it is asked (an NPC's lane - net/peer/peerBodies.js `casts`, which never asks it of a
@@ -6969,22 +7133,23 @@ export function createFpArm({ playerAppearance = false } = {}) {
       // COATS3D: ASTRIDE, ONE PICTURE. `horse` ({ mesh, model, box } - world/horseRig.js, stepped this frame) is drawn in
       // the body's own picture, under the same depth: the window grows to hold the horse's box as well, and the picture
       // is OF the horse - its middle is the anchor, so the figure is the rider on it, sized where the horse stands
-      // MW-TP-NEAR: the billboard is a camera-facing projection, not a 3D body.
-      // At arm's length its legs visibly flatten and the perspective no longer
-      // matches the floor. Draw the actual posed mesh in the world pass nearby;
-      // retain the established sprite pass at distance. Keep mounted pairs in
-      // the sprite pass so rider and horse remain one coherent picture.
-      const cameraDistance = Math.hypot(center[0] - eye[0], center[1] - eye[1], center[2] - eye[2]);
-      const cameraPitchRatio = cameraDistance > 1e-6 ? Math.abs(center[1] - eye[1]) / cameraDistance : 0;
-      // The local player stays on the real 3D mesh at every distance and pitch.
-      // Switching that one actor between a camera-facing card and the mesh as the
-      // camera crosses a pitch threshold causes a visible pelvis/leg pop while the
-      // upper body looks comparatively stable. NPCs keep the established LOD rule.
-      if (!horse && !conceal && (playerAppearance || cameraDistance < 2.25 || cameraPitchRatio > 0.18)) {
-        // Use the same grounded matrix as the sprite path above.
+      // MW-TP-MESH-ALL: non-concealed Morrowind actors and mounts stay on
+      // the posed world mesh at every distance. Sprite composition is reserved
+      // for effects such as concealment, whose fade is implemented in that pass.
+      // MW-TP-MESH-ALL: Morrowind actors use their posed mesh at every distance and pitch.
+      // The old distance/pitch LOD switched between a perspective mesh and a camera-facing
+      // sprite. Around the threshold, leg depth and grounding visibly popped; at distance,
+      // the sprite's finite render target made skin and limbs pixelate. Do not switch
+      // representations based on camera position: keep the exact same skinned pose.
+      // Mounted pairs must stay in one representation too. Draw the horse first, then the
+      // rider with its grounded model, rather than baking both into a camera-facing card.
+      if (!conceal) {
+        if (horse && horse.mesh && horse.model) renderer.drawCharacter(horse.mesh, horse.model);
         renderer.drawCharacter(thirdMesh, groundedModel);
         return true;
       }
+      // Concealment still uses the sprite compositor because its dissolve/fade contract
+      // is implemented there. This is an explicit effect path, not a camera-distance LOD.
       if (horse && horse.mesh && horse.model && horse.box) {
         const u = spriteBoxUnion({ center, halfW, halfH }, horse.box);
         drawRigSpriteBox(renderer, canvas, thirdMesh, groundedModel, { ...u, anchor: horse.box.anchor, hitFlash, conceal, up, fx, also: [{ mesh: horse.mesh, model: horse.model }], glowLook: padLooks }, proj, view, eye, MW_THIRD_PERSON_PIXEL);
@@ -7124,7 +7289,7 @@ export function createFpArm({ playerAppearance = false } = {}) {
      *  {width, height, data} or null when no third-person body stands -
      *  the panel then keeps the classic doll (never traps). Display
      *  only by Mac's decision: unequip stays with the item list. */
-    figure({ yaw = 0, height = 384, force = false } = {}) {
+    figure({ yaw = 0, height = 384, force = false, neutral = false } = {}) {
       // The editor explicitly asks for a preview; do not let the inventory-display preference
       // suppress it. The built rig and renderer are still required below.
       if (!force && !getPref('morrowind3dPaperDoll')) return null;
@@ -7155,7 +7320,7 @@ export function createFpArm({ playerAppearance = false } = {}) {
       // START, the standing frame Morrowind's own inventory doll holds.
       // Deterministic, so the panel's cache is exact and two renders of
       // one wardrobe are one picture.
-      const pose = portraitPose(t);
+      const pose = portraitPose(t, { neutral });
       // A portrait must be posed even when this race/rig has no named idle group.
       // Previously a null portraitPose skipped poseAssembly entirely, so sliders changed
       // saved values but the preview kept uploading the last unmodified mesh.
@@ -7207,7 +7372,10 @@ export function createFpArm({ playerAppearance = false } = {}) {
       const win = portraitWindow(thirdMesh.ranges, model, figureBodyBox);
       if (!(win && win.halfW > 0 && win.halfH > 0)) return null;
       const halfH = win.halfH * 1.06;
-      const halfW = win.halfW * 1.06;
+      // Leave horizontal breathing room around the full body. The skinned
+      // hand vertices can extend past conservative posed range boxes, so the
+      // old 6% margin clipped fingertips despite visible space in the editor.
+      const halfW = win.halfW * 1.28;
       const center = win.center;
       const ph = Math.min(CHAR_SPRITE_RT_SIZE, Math.max(2, Math.round(height)));
       const pw = Math.min(CHAR_SPRITE_RT_SIZE, Math.max(2, Math.round(ph * halfW / halfH)));

@@ -1644,6 +1644,38 @@ export const MOD_SETTINGS = Object.freeze({
       'Legacy.Family In World': Object.freeze({ default: true, description: 'Your living family stands in the world when you are not playing them: at the family home (or in your seat\u2019s town, if the line holds no house), about their day. Speak with one to play as them.' }),
     }),
   }),
+
+  // MW-ANIM-1: actor-scoped gait sources. Each setting has a real runtime
+  // consumer in fpArm.js. Keep choices mutually exclusive: two KF sources
+  // must never compete to own the same walk group for one actor.
+  'morrowind-animation': Object.freeze({
+    title: 'Animations',
+    author: 'Port integration',
+    keys: Object.freeze({
+      PlayerWalkSource: Object.freeze({
+        default: 0,
+        options: lazyWords('Vanilla', 'Simply Walking', "Axel's Sexy Walk Fixed"),
+        description: "Player locomotion source. Vanilla keeps the game's/archive walk and run. Simply Walking replaces supported walk groups; Axel's Sexy Walk Fixed replaces its supported female walk and RunForward groups. Unsupported groups fall back to the game/archive source.",
+      }),
+      NpcMaleWalk: Object.freeze({
+        default: 0,
+        options: lazyWords('Vanilla', 'Simply Walking'),
+        description: "Male NPC locomotion source. Vanilla keeps the game/archive walk and run. Simply Walking replaces supported male walk groups; running and unsupported groups remain on the game/archive source.",
+      }),
+      NpcFemaleWalk: Object.freeze({
+        default: 0,
+        options: lazyWords('Vanilla', 'Simply Walking', "Axel's Sexy Walk Fixed"),
+        description: "Female NPC locomotion source. Vanilla keeps the game/archive walk and run. Simply Walking replaces supported walk groups; Axel's Sexy Walk Fixed replaces its supported female walk and RunForward groups. Unsupported groups fall back to the game/archive source.",
+      }),
+      // Legacy key retained so old stored data is not silently redefined.
+      // Runtime no longer reads this key; actor-scoped settings are independent.
+      FemaleWalk: Object.freeze({
+        default: 0,
+        options: lazyWords('Standard', 'Feminine Walk Cycle', "Axel's Sexy Walk Fixed"),
+        description: 'Legacy setting retained for migration compatibility; new runtime selection uses the actor-specific walk settings above.',
+      }),
+    }),
+  }),
 });
 
 let memory = null;
@@ -1692,6 +1724,29 @@ export const RETIRED_KEYS = Object.freeze([
 ]);
 function migrate(m) {
   let changed = false;
+  // ANIM-UI4: the visible option order changed to Vanilla first. Translate the
+  // prior numeric indices once, so a saved Standard/Simply Walking choice is
+  // not silently changed to Vanilla when the labels are reordered.
+  const animation = m?.['morrowind-animation'];
+  if (animation && animation['WalkSourceChoices@ANIM-UI4'] !== true) {
+    const walkKeys = ['PlayerWalkSource', 'NpcMaleWalk', 'NpcFemaleWalk'];
+    if (walkKeys.some((key) => Object.hasOwn(animation, key))) {
+      if (Object.hasOwn(animation, 'PlayerWalkSource')) {
+        const old = Math.trunc(Number(animation.PlayerWalkSource));
+        animation.PlayerWalkSource = ({ 0: 1, 1: 1, 2: 2, 3: 0 })[old] ?? 1;
+      }
+      if (Object.hasOwn(animation, 'NpcMaleWalk')) {
+        const old = Math.trunc(Number(animation.NpcMaleWalk));
+        animation.NpcMaleWalk = ({ 0: 1, 1: 0 })[old] ?? 1;
+      }
+      if (Object.hasOwn(animation, 'NpcFemaleWalk')) {
+        const old = Math.trunc(Number(animation.NpcFemaleWalk));
+        animation.NpcFemaleWalk = ({ 0: 1, 1: 2, 2: 0 })[old] ?? 1;
+      }
+      animation['WalkSourceChoices@ANIM-UI4'] = true;
+      changed = true;
+    }
+  }
   for (const { vendor, key } of RETIRED_KEYS) {
     const held = m?.[vendor];
     if (!held || !Object.hasOwn(held, key)) continue;

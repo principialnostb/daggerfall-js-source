@@ -516,7 +516,8 @@ export class PlayerMotor {
     this.parkoured = null;       // 'mantle' | 'vault' for the frame a move starts (the fatigue/tally consumer, as `jumped`)
     this.climbEvents = [];       // CLIMB4: the frame's climb events ({ type, ... }) - the feel's and the sounds' (climbFeel.js, climbSounds.js)
     this._bodyYaw = null;        // CLIMB5: the body's own yaw while it is not the view's (bodyYawFor) - null when it is
-    this._bodyYawOff = null;     // AUDIT CLIMB-ARC N4: off the wall, the body's offset from the view, decaying - null when none
+    this._bodyYawOff = null;
+    this._thirdPersonLookYaw = null; // MW-D40: body facing latched separately from camera orbit while standing/walking     // AUDIT CLIMB-ARC N4: off the wall, the body's offset from the view, decaying - null when none
     this._pkJumpLatch = false;   // AUDIT CLIMB1 F7: Jump held through a move is spent on it - the next jump is a fresh press
     this._pkArm = null;          // the tap catch: a fresh Jump's catch armed for its jump ({ t, air }) - PARKOUR_ARM_GRACE_S
     this._pkJumpWas = false;     // ...the key's last step, for the press's edge
@@ -3256,6 +3257,13 @@ export class PlayerMotor {
     // recorded as deferred).
     this.moveForward = input.forward || 0;
     this.moveStrafe = input.strafe || 0; this.moveYaw = yaw;   // AUDIT PRE-MERGE 0929 D1/D2: and the yaw they were turned by
+    // MW-D40 FIX: standing means IsStandingStill, not IsGrounded. It was
+    // left true on the ordinary grounded movement path, so the exterior
+    // host never enabled view-facing while walking; the body kept its
+    // initial yaw even as the player moved. Backwards input (S) is still
+    // movement: the body faces the camera/aim while the motor moves in
+    // the opposite direction, matching the sprite/global-view behaviour.
+    this.standing = this.grounded && this.moveForward === 0 && this.moveStrafe === 0;
 
     // fwd = (sin, 0, cos); screen-right = (cos, 0, -sin) - Unity's
     // own. HANDEDNESS (mat4's law): the projection now mirrors NDC x,

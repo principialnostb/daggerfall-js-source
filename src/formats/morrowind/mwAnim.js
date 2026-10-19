@@ -26,6 +26,20 @@ import { segment, sampleKeyGroup } from './mwKeys.js';
 // --- text keys and groups --------------------------------------------------
 
 /** Every text key in the file, sorted by time. */
+/**
+ * Pick an animation source for an actor's requested group.
+ * Female preference is scoped to female actors and walk groups only.
+ * Missing female groups fall back to the standard source.
+ * Source shape: { tracks: Map, groups: Map, keys: Array, accumRoot?: number }.
+ */
+export function selectActorAnimSource(sources, groupName, { female = false, femaleWalk = 'standard' } = {}) {
+  const standard = sources?.standard ?? null;
+  if (!female || !['female', 'female2'].includes(femaleWalk) || !/^walk/i.test(String(groupName || ''))) return standard;
+  const variant = sources?.[femaleWalk] ?? null;
+  if (!variant || !variant.groups || !findAnimGroup(variant.groups, groupName)) return standard;
+  return variant;
+}
+
 export function collectTextKeys(nif) {
   const keys = [];
   for (const rec of nif.records) {

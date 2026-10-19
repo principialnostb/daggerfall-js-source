@@ -167,7 +167,7 @@ const zstr = (bytes, s, n) => {
 export { MW_BODY_PARTS, isFirstPersonId } from './mwEsmFile.js';
 import { MW_BODY_PARTS, isFirstPersonId } from './mwEsmFile.js';
 import FACE_TABLE from '../mwFaceTable.json' with { type: 'json' };
-import { GRAPH_ROOT, ACCUM_ROOT_NAMES } from './mwSkin.js';
+import { GRAPH_ROOT, ACCUM_ROOT_NAMES, blendPoseMaps } from './mwSkin.js';
 import { transferSkin, sourceSkin, fitLift, liftBatch, fitGarmentClearance } from './mwSkinTransfer.js';   // MW-BRIG2: a worn model skinned from the body under it; MW-BRIG3: and fitted onto it
 import { getTextKeyTime, animVelocity, collectTextKeys, normalizeTextKeys, clipGroups, resetClip, parseAnimGroups, extractTracks } from './mwAnim.js';
 import { mat33Mul } from './mwNifMesh.js';   // AUDIT 68 S11-affine-dup: the one row-major 3x3 product
@@ -2835,59 +2835,96 @@ function recalculateMorphedNormals(piece) {
   piece.normals = n;
 }
 
-function deformPlayerBodyGeometry(piece, morph) {
+function deformPlayerBodyGeometry(piece, morph, bodyBounds) {
   const slot = String(piece.slot || '').toLowerCase();
-  const breast = slot === 'chest' ? clampMorph(morph?.breastSize) : 0;
-  const buttock = slot === 'groin' ? clampMorph(morph?.buttockSize) : 0;
-  const hip = (slot === 'groin' || slot === 'upperleg') ? clampMorph(morph?.hipWidth) : 0;
-  const waist = slot === 'chest' ? clampMorph(morph?.waistWidth) : 0;
-  if (!breast && !buttock && !hip && !waist) return;
+  const isBody = slot === 'betterbodies' || ['chest', 'groin', 'upperleg', 'lowerleg', 'foot', 'hand'].includes(slot);
+  if (!isBody) return;
   const p = piece.positions;
-  if (!p || p.length < 9) return;
-  let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity, minZ = Infinity, maxZ = -Infinity;
-  for (let i = 0; i + 2 < p.length; i += 3) {
-    const x = p[i], y = p[i + 1], z = p[i + 2];
-    if (!Number.isFinite(x + y + z)) continue;
-    minX = Math.min(minX, x); maxX = Math.max(maxX, x);
-    minY = Math.min(minY, y); maxY = Math.max(maxY, y);
-    minZ = Math.min(minZ, z); maxZ = Math.max(maxZ, z);
-  }
-  const halfX = (maxX - minX) * 0.5, halfY = (maxY - minY) * 0.5, spanZ = maxZ - minZ;
-  if (!(halfX > 1e-5 && halfY > 1e-5 && spanZ > 1e-5)) return;
+  if (!p || p.length < 9 || !bodyBounds) return;
+  const { minX, maxX, minY, maxY, minZ, maxZ } = bodyBounds;
+  const halfX = Math.max(1e-5, (maxX - minX) * 0.5);
+  const halfY = Math.max(1e-5, (maxY - minY) * 0.5);
+  const spanZ = Math.max(1e-5, maxZ - minZ);
   const cx = (minX + maxX) * 0.5, cy = (minY + maxY) * 0.5;
-  const clamp01 = (v) => Math.max(0, Math.min(1, v));
+  const amount = (key) => clampMorph(morph?.[key]);
+  const gauss = (v, center, width) => Math.exp(-Math.pow((v - center) / width, 2));
+  const bodyWidth = 1 + amount('bodyWidth') * 0.18;
+  const bodyFullness = 1 + amount('bodyFullness') * 0.14;
+  const bodyHeight = 1 + amount('height') * 0.15;
+  const shoulder = amount('shoulderWidth');
+  const ribcage = amount('ribcageWidth');
+  const breast = amount('breastSize');
+  const breastProjection = amount('breastProjection');
+  const waist = amount('waistWidth');
+  const abdomen = amount('abdomenVolume');
+  const hip = amount('hipWidth');
+  const buttock = amount('buttockSize');
+  const buttockProjection = amount('buttockProjection');
+  const arms = amount('armThickness');
+  const armLength = amount('armLength');
+  const thighs = amount('thighThickness');
+  const calves = amount('calfThickness');
+  const legLength = amount('legLength');
+  const legGap = amount('legGap');
+  const hipLine = minZ + spanZ * 0.49;
+  const shoulderLine = minZ + spanZ * 0.78;
   for (let i = 0; i + 2 < p.length; i += 3) {
-    const x = p[i], y = p[i + 1], z = p[i + 2];
-    const nx = (x - cx) / halfX, ny = (y - cy) / halfY, nz = (z - minZ) / spanZ;
-    if (breast) {
-      // Soft paired lobes, expanding the chest depth in both directions so
-      // the result remains visible even if a race mesh uses the opposite Y convention.
-      const vertical = Math.exp(-Math.pow((nz - 0.63) / 0.24, 2));
-      const lobes = Math.exp(-Math.pow((Math.abs(nx) - 0.32) / 0.27, 2));
-      const depth = clamp01((Math.abs(ny) - 0.10) / 0.55);
-      const w = vertical * lobes * depth;
-      p[i + 1] += Math.sign(ny) * breast * halfY * 0.48 * w;
-      p[i] += Math.sign(nx) * breast * halfX * 0.035 * w;
+    const ox = p[i], oy = p[i + 1], oz = p[i + 2];
+    if (!Number.isFinite(ox + oy + oz)) continue;
+    const nx = (ox - cx) / halfX, ny = (oy - cy) / halfY;
+    const nz = (oz - minZ) / spanZ;
+    let x = cx + (ox - cx) * bodyWidth;
+    let y = cy + (oy - cy) * bodyFullness;
+    let z = minZ + (oz - minZ) * bodyHeight;
+
+    // Anatomical falloff uses the whole body's bounds, not each tiny mesh
+    // island's local bounds. This keeps a multi-part Better Bodies NIF coherent.
+    const shoulderZone = gauss(nz, 0.78, 0.085);
+    const ribcageZone = gauss(nz, 0.68, 0.105);
+    const breastZone = gauss(nz, 0.685, 0.075) * gauss(Math.abs(nx), 0.20, 0.16);
+    const waistZone = gauss(nz, 0.56, 0.07);
+    const abdomenZone = gauss(nz, 0.525, 0.085);
+    const hipZone = gauss(nz, 0.47, 0.09);
+    const buttockZone = gauss(nz, 0.465, 0.09);
+    const armZone = (Math.abs(nx) > 0.22 ? 1 : 0) * gauss(nz, 0.65, 0.18);
+    const thighZone = (Math.abs(nx) > 0.07 ? 1 : 0) * gauss(nz, 0.31, 0.105);
+    const calfZone = (Math.abs(nx) > 0.045 ? 1 : 0) * gauss(nz, 0.15, 0.08);
+    x += nx * halfX * (shoulder * 0.13 * shoulderZone + ribcage * 0.11 * ribcageZone);
+    x += nx * halfX * waist * 0.14 * waistZone;
+    x += nx * halfX * hip * 0.18 * hipZone;
+    // Breast controls affect the front of the chest, not the back surface.
+    // Negative local Y is the rear side in Morrowind body space.
+    const front = Math.max(0, Math.min(1, (ny - 0.015) / 0.42));
+    const rear = Math.max(0, Math.min(1, (-ny - 0.02) / 0.55));
+    const bust = breast * 0.15 + breastProjection * 0.20;
+    x += Math.sign(nx || 1) * halfX * (breast * 0.055) * breastZone * front;
+    y += halfY * bust * breastZone * front;
+    y += Math.sign(ny || 1) * halfY * abdomen * 0.14 * abdomenZone;
+    y -= halfY * (buttock * 0.15 + buttockProjection * 0.19) * buttockZone * rear;
+    x += Math.sign(nx || 1) * halfX * arms * 0.055 * armZone;
+    y += Math.sign(ny || 1) * halfY * arms * 0.045 * armZone;
+    x += Math.sign(nx || 1) * halfX * thighs * 0.09 * thighZone;
+    y += Math.sign(ny || 1) * halfY * thighs * 0.065 * thighZone;
+    x += Math.sign(nx || 1) * halfX * calves * 0.075 * calfZone;
+    y += Math.sign(ny || 1) * halfY * calves * 0.055 * calfZone;
+    // Leg spacing is restricted to the leg silhouette. The old broad
+    // nz < 0.47 gate also moved the outer pelvis and made this control read
+    // as a whole-body scale/hip-width change.
+    if (nz < 0.43 && Math.abs(nx) > 0.105) {
+      const upperLegWeight = gauss(nz, 0.31, 0.13);
+      const lowerLegWeight = gauss(nz, 0.13, 0.10);
+      const limbWeight = Math.max(upperLegWeight, lowerLegWeight);
+      x += Math.sign(nx) * halfX * legGap * 0.075 * limbWeight;
     }
-    if (buttock) {
-      // Rear side of the groin batch; the waist/front is deliberately left alone.
-      const vertical = Math.exp(-Math.pow((nz - 0.57) / 0.30, 2));
-      const rear = clamp01((-ny - 0.08) / 0.48);
-      const w = vertical * rear;
-      p[i + 1] -= buttock * halfY * 0.55 * w;
-      p[i] += Math.sign(nx) * buttock * halfX * 0.07 * w;
+    if (legLength) {
+      const lower = Math.max(0, Math.min(1, (0.50 - nz) / 0.50));
+      z += (oz - hipLine) * legLength * 0.12 * lower;
     }
-    if (hip) {
-      const vertical = slot === 'groin'
-        ? Math.exp(-Math.pow((nz - 0.70) / 0.28, 2))
-        : Math.exp(-Math.pow((nz - 0.82) / 0.25, 2));
-      const w = vertical * Math.min(1, Math.abs(nx) + 0.15);
-      p[i] += Math.sign(nx) * hip * halfX * 0.30 * w;
+    if (armLength && armZone > 0) {
+      const lowerArm = Math.max(0, Math.min(1, (shoulderLine - oz) / (spanZ * 0.28)));
+      z += (oz - shoulderLine) * armLength * 0.10 * lowerArm * armZone;
     }
-    if (waist) {
-      const vertical = Math.exp(-Math.pow((nz - 0.38) / 0.16, 2));
-      p[i] += nx * waist * halfX * 0.24 * vertical;
-    }
+    p[i] = x; p[i + 1] = y; p[i + 2] = z;
   }
   recalculateMorphedNormals(piece);
 }
@@ -2896,50 +2933,30 @@ function clampMorph(value) {
 }
 
 export function poseAssembly(assembly, { tracks = null, sampleTrack = null,
-  time = 0, accumRoot = null, neckPitch = 0, neckAim = 0, neckOffset = null, climb = null, skin = true, mirror = null, run = null, hold = null, bodyProportions = false } = {}) {
+  time = 0, accumRoot = null, neckPitch = 0, neckAim = 0, neckOffset = null, climb = null, skin = true, mirror = null, run = null, hold = null, bodyProportions = false, blendFrom = null, blendWeight = 1 } = {}) {
   const { fns, skeleton, pieces } = assembly;
   if (!fns || !skeleton) return assembly;
   const geometryMorph = bodyProportions ? (typeof bodyProportions === 'object' ? bodyProportions : getBodyMorphs()) : null;
   // MIRROR-BIND: an arm mirrored across the picture is mirrored by the binds of the skins it wears (mirrorBindsOf)
   if (mirror?.plane && mirror.plane.binds === undefined) mirror.plane.binds = mirrorBindsOf(assembly);
-  const pose = fns.poseSkeleton(skeleton, tracks, sampleTrack, time, { accumRoot });
-  // MWV2-PROPORTIONS: only expose controls with a direct transform in this skeleton pose.
-  // These are bone-subtree scales, not vertex morphs: they cannot create local bust/waist/buttock volume.
+  const sampledPose = fns.poseSkeleton(skeleton, tracks, sampleTrack, time, { accumRoot });
+  // Keep raw animation data separate from morph/neck/climb edits for the next transition.
+  assembly.rawPose = new Map(sampledPose);
+  const pose = blendFrom && blendWeight < 1 ? blendPoseMaps(blendFrom, sampledPose, blendWeight) : new Map(sampledPose);
+  // Morphs needing an anatomical region are applied to body vertices below,
+  // using shared whole-body bounds. Only head scale remains a bone transform;
+  // uniform limb scales made unrelated controls behave like overall body scale.
   if (bodyProportions) {
     const morph = typeof bodyProportions === 'object' ? bodyProportions : getBodyMorphs();
-    const amount = (key) => Math.max(-1, Math.min(1, Number(morph[key]) || 0));
-    const scaled = (key, strength) => 1 + amount(key) * strength;
-    for (const [ref, node] of skeleton.nodes) {
-      const rawName = String(node.name || '').toLowerCase();
-      const name = rawName.replace(/[^a-z0-9]/g, '');
-      let factor = 1;
-      // Keep the previously tested shoulder adjustment as the baseline.
-      if (name.includes('pelvis') || name.endsWith('hip')) factor *= 1.08;
-      else if (name.includes('spine') || name.includes('chest')) factor *= 1.06;
-      else if (name.includes('clavicle') || name.includes('shoulder')) factor *= 1.035;
-      else if (name.includes('thigh')) factor *= 1.045;
-      else if (name.includes('upperarm')) factor *= 0.97;
-      if (name.includes('clavicle') || name.includes('shoulder')) factor *= scaled('shoulderWidth', 0.10);
-      if (name.includes('spine') || name.includes('chest')) factor *= scaled('torsoScale', 0.10);
-      if (name.includes('head')) factor *= scaled('headScale', 0.10);
-      if (name.includes('upperarm') || name.includes('forearm') || name.includes('wrist')) factor *= scaled('armScale', 0.10);
-      if (name.includes('thigh') || name.includes('calf') || name.includes('shin') || name.includes('ankle')) {
-        factor *= scaled('legScale', 0.10);
-      }
-      const current = pose.get(ref);
-      if (current && factor !== 1) {
+    const headScale = 1 + Math.max(-1, Math.min(1, Number(morph.headScale) || 0)) * 0.12;
+    if (headScale !== 1) {
+      for (const [ref, node] of skeleton.nodes) {
+        const name = String(node.name || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+        if (!name.includes('head')) continue;
+        const current = pose.get(ref);
+        if (!current) continue;
         const scale = typeof current.scale === 'number' ? current.scale : 1;
-        pose.set(ref, { ...current, scale: scale * factor });
-      }
-      // Translation-based leg spacing is only applied to paired, explicitly named leg bones.
-      if (current && amount('legGap') !== 0 && name.includes('thigh')) {
-        const left = /(^|[^a-z])left([^a-z]|$)/.test(rawName) || /l(thigh|calf|shin)$/.test(name);
-        const right = /(^|[^a-z])right([^a-z]|$)/.test(rawName) || /r(thigh|calf|shin)$/.test(name);
-        if (left || right) {
-          const translation = Array.isArray(current.translation) ? [...current.translation] : [0, 0, 0];
-          translation[0] = (Number(translation[0]) || 0) + (left ? 1 : -1) * amount('legGap') * 1.5;
-          pose.set(ref, { ...(pose.get(ref) || current), translation });
-        }
+        pose.set(ref, { ...current, scale: scale * headScale });
       }
     }
   }
@@ -2986,12 +3003,29 @@ export function poseAssembly(assembly, { tracks = null, sampleTrack = null,
   for (const p of pieces) {
     if (p.kind === 'skinned') {
       fns.skinBatch(p.batch, skeleton, pose, mats, p.positions, p.normals ?? null);   // MW-SMOOTH: and its normals
-      if (geometryMorph) deformPlayerBodyGeometry(p, geometryMorph);
     } else {
       const at = fns.attachmentTransform(mats, p.attachRef);
       const placed = p.hang ? hangAffine(at, p.hang) : at;   // HT-WAIST
       placeAtBone(p.source, placed, p.mirrored, p.positions, p.boneOffset);
       if (p.normals && p.sourceNormals) placeNormalsAtBone(p.sourceNormals, placed, p.mirrored, p.normals);   // MW-SMOOTH
+    }
+  }
+  if (geometryMorph) {
+    // Measure the body once after skinning all body pieces. Every mesh island
+    // then uses the same anatomical coordinate frame, instead of its own local
+    // bounds (which made sliders behave like arbitrary per-piece scaling).
+    const bodySlots = new Set(['betterbodies', 'chest', 'groin', 'upperleg', 'lowerleg', 'foot', 'hand']);
+    const bodyPieces = pieces.filter((p) => p.kind === 'skinned' && bodySlots.has(String(p.slot || '').toLowerCase()) && p.positions?.length);
+    const bodyBounds = { minX: Infinity, maxX: -Infinity, minY: Infinity, maxY: -Infinity, minZ: Infinity, maxZ: -Infinity };
+    for (const p of bodyPieces) for (let i = 0; i + 2 < p.positions.length; i += 3) {
+      const x = p.positions[i], y = p.positions[i + 1], z = p.positions[i + 2];
+      if (!Number.isFinite(x + y + z)) continue;
+      bodyBounds.minX = Math.min(bodyBounds.minX, x); bodyBounds.maxX = Math.max(bodyBounds.maxX, x);
+      bodyBounds.minY = Math.min(bodyBounds.minY, y); bodyBounds.maxY = Math.max(bodyBounds.maxY, y);
+      bodyBounds.minZ = Math.min(bodyBounds.minZ, z); bodyBounds.maxZ = Math.max(bodyBounds.maxZ, z);
+    }
+    if (Number.isFinite(bodyBounds.minX)) {
+      for (const p of bodyPieces) deformPlayerBodyGeometry(p, geometryMorph, bodyBounds);
     }
   }
   assembly.pose = pose;

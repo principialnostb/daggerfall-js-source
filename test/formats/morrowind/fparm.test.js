@@ -3315,3 +3315,11 @@ test('PX33: a weapon swap notifies the panel, like every other settlement', asyn
   assert.match(body.slice(fin), /for \(const fn of listeners\)/,
     'and notifies the panel there, so a throw still repaints');
 });
+
+test('MW-TP-GROUND-NPC: NPC foot support is latched once instead of following every animated leg minimum', () => {
+  const src = rd('src/combat/fpArm.js');
+  assert.match(src, /if \(!playerAppearance && body && thirdGroundMinZ == null\) thirdGroundMinZ = body\.minZ;/,
+    'an NPC that begins in motion latches its first posed support height');
+  assert.match(src, /const supportMinZ = Number\.isFinite\(thirdGroundMinZ\) \? thirdGroundMinZ : body\?\.minZ;/,
+    'subsequent animation frames do not feed their changing leg height back into the root transform');
+});

@@ -166,3 +166,13 @@ test('MWNPC5b-e THE FOE HOSTS, ENUMERATED: every module that dresses a foe\'s bi
     assert.equal(wired, state === 'wired', `${p}: ${state}`);
   }
 });
+
+
+test('MW-TP-MESH-ALL opaque dungeon NPC meshes are not wrapped in the character-sprite target', () => {
+  const source = rd('src/scenes/dungeonContext.js');
+  const marker = source.indexOf('// MW-TP-MESH-ALL: drawThird now emits opaque Morrowind bodies directly in world space.');
+  assert.ok(marker >= 0, 'the explicit world-mesh pass contract is documented at the call site');
+  const draw = source.slice(marker, marker + 700);
+  assert.ok(draw.includes('npcLane.draw(canvas'), 'the NPC lane still draws in the opaque world pass');
+  assert.ok(!/^\s*renderer\.beginCharacterSpriteBatch/m.test(draw), 'do not redirect the world mesh into the finite sprite target');
+});

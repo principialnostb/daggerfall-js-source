@@ -70,6 +70,67 @@ export function quatToMat33(q) {   // MW-SPELLFX1: exported - an effect mesh's k
   ]);
 }
 
+// MW-ANIM-BLEND: cross-fade sampled local poses without linearly mixing
+// rotation matrices (which would shear the skeleton mid-transition).
+function quatFromMat33(m) {
+  const trace = m[0] + m[4] + m[8];
+  let w, x, y, z;
+  if (trace > 0) {
+    const s = Math.sqrt(Math.max(0, trace + 1)) * 2 || 1;
+    w = 0.25 * s; x = (m[7] - m[5]) / s; y = (m[2] - m[6]) / s; z = (m[3] - m[1]) / s;
+  } else if (m[0] > m[4] && m[0] > m[8]) {
+    const s = Math.sqrt(Math.max(0, 1 + m[0] - m[4] - m[8])) * 2 || 1;
+    w = (m[7] - m[5]) / s; x = 0.25 * s; y = (m[1] + m[3]) / s; z = (m[2] + m[6]) / s;
+  } else if (m[4] > m[8]) {
+    const s = Math.sqrt(Math.max(0, 1 + m[4] - m[0] - m[8])) * 2 || 1;
+    w = (m[2] - m[6]) / s; x = (m[1] + m[3]) / s; y = 0.25 * s; z = (m[5] + m[7]) / s;
+  } else {
+    const s = Math.sqrt(Math.max(0, 1 + m[8] - m[0] - m[4])) * 2 || 1;
+    w = (m[3] - m[1]) / s; x = (m[2] + m[6]) / s; y = (m[5] + m[7]) / s; z = 0.25 * s;
+  }
+  const n = Math.hypot(w, x, y, z) || 1;
+  return [w / n, x / n, y / n, z / n];
+}
+function slerpPoseQuat(a, b, t) {
+  let dot = a.reduce((sum, v, i) => sum + v * b[i], 0);
+  let end = b;
+  if (dot < 0) { dot = -dot; end = b.map((v) => -v); }
+  if (dot > 0.9995) {
+    const q = a.map((v, i) => v + (end[i] - v) * t);
+    const n = Math.hypot(...q) || 1;
+    return q.map((v) => v / n);
+  }
+  const theta = Math.acos(Math.max(-1, Math.min(1, dot)));
+  const sinTheta = Math.sin(theta) || 1;
+  const wa = Math.sin((1 - t) * theta) / sinTheta;
+  const wb = Math.sin(t * theta) / sinTheta;
+  return a.map((v, i) => v * wa + end[i] * wb);
+}
+
+/** Blend sampled skeleton-local transforms; weight 0 is from, weight 1 is to. */
+export function blendPoseMaps(from, to, weight) {
+  const t = Math.max(0, Math.min(1, Number(weight) || 0));
+  if (!from || t >= 1) return new Map(to || []);
+  if (t <= 0) return new Map(from);
+  const out = new Map();
+  for (const [ref, target] of to || []) {
+    const source = from.get(ref) || target;
+    const ar = source?.rotation, br = target?.rotation;
+    let rotation = br;
+    if (ar?.length === 9 && br?.length === 9) {
+      rotation = quatToMat33(slerpPoseQuat(quatFromMat33(ar), quatFromMat33(br), t));
+    }
+    const at = source?.translation, bt = target?.translation;
+    const translation = at?.length >= 3 && bt?.length >= 3
+      ? [0, 1, 2].map((i) => (Number(at[i]) || 0) + ((Number(bt[i]) || 0) - (Number(at[i]) || 0)) * t)
+      : bt;
+    const as = Number(source?.scale), bs = Number(target?.scale);
+    const scale = Number.isFinite(as) && Number.isFinite(bs) ? as + (bs - as) * t : target?.scale;
+    out.set(ref, { ...target, rotation, translation, scale });
+  }
+  return out;
+}
+
 /**
  * Build the skeleton: every node in the graph with its rest transform
  * and parent link.

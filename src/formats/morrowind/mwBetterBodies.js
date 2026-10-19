@@ -1,19 +1,75 @@
-// Better Bodies integration probe for the Morrowind third-person character pipeline.
+// Better Bodies asset resolver for the Morrowind character pipeline.
 //
-// This deliberately starts as an opt-in probe, not a replacement for the live
-// player body: it lets us verify that the repository's actual Better Bodies
-// NIF can be read by DFO's existing Morrowind NIF parser before we touch the
-// player assembly, bone binding, or equipment rules.
-//
-// Run in the browser console on the morrowind.v2 build:
-//   const bb = await import('/src/formats/morrowind/mwBetterBodies.js');
-//   console.log(await bb.inspectBetterBodiesFemale());
-//
-// Vite's ?url imports make these two checked-in resources addressable in dev
-// and production builds without embedding their binary contents in JavaScript.
-import betterBodiesFemaleNifUrl from '../../../Morrowind Textures/Better Bodies/Nude/Data Files/Meshes/bb/bb_skinf_no.nif?url';
-import betterBodiesFemaleTextureUrl from '../../../Morrowind Textures/Better Bodies/Nude/Data Files/Textures/bb/bb_skinf_no.dds?url';
+// Runtime body and skin URLs are selected by the actor's race and sex from the
+// checked-in race variants. The diagnostic below remains a Nord-female probe;
+// it is not evidence that every race/sex combination has been visually validated.
+// Vite's asset glob keeps the source files addressable without embedding binary data.
+const IN_BROWSER = typeof window !== 'undefined';
+import { getUnderwearEnabled } from '../../characters/bodyMorphs.js';
+
+const nudeBodyModelUrls = IN_BROWSER
+  ? import.meta.glob('../../../Morrowind Textures/Better Bodies/Nude/Data Files/Meshes/bb/bb_skin*.nif', {
+      eager: true, query: '?url', import: 'default',
+    })
+  : {};
+const nudeBodyTextureUrls = IN_BROWSER
+  ? import.meta.glob('../../../Morrowind Textures/Better Bodies/Nude/Data Files/Textures/bb/bb_skin*.dds', {
+      eager: true, query: '?url', import: 'default',
+    })
+  : {};
+const underwearBodyModelUrls = IN_BROWSER
+  ? import.meta.glob('../../../Morrowind Textures/Better Bodies/Underwear/Data Files/Meshes/bb/bb_skin*.nif', {
+      eager: true, query: '?url', import: 'default',
+    })
+  : {};
+const underwearBodyTextureUrls = IN_BROWSER
+  ? import.meta.glob('../../../Morrowind Textures/Better Bodies/Underwear/Data Files/Textures/bb/bb_skin*.dds', {
+      eager: true, query: '?url', import: 'default',
+    })
+  : {};
 import betterBodiesFemaleUvEditsUrl from '../../../bb_skinf_no-uv-edits.json?url';
+
+const RACE_CODES = Object.freeze({
+  breton: 'br', darkelf: 'de', highelf: 'he', imperial: 'im',
+  nord: 'no', orc: 'or', redguard: 'rg', woodelf: 'we',
+});
+const compactRaceName = (race) => String(
+  race && typeof race === 'object' ? (race.name ?? race.race ?? race.id ?? '') : (race ?? ''),
+).toLowerCase().replace(/[^a-z]/g, '');
+
+/** Resolve a Better Bodies mesh and the matching race skin.
+ * Female actors deliberately share the Nord-female mesh: it is the shape
+ * validated in better-bodies-preview.html. Only the skin texture varies by race.
+ * Underwear and nude variants use the same rule and their own asset folders. */
+export function betterBodiesAssetUrls({ race = 'Nord', female = false, underwear = getUnderwearEnabled() } = {}) {
+  const raceName = compactRaceName(race);
+  const raceKey = RACE_CODES[raceName] ?? (Object.values(RACE_CODES).includes(raceName) ? raceName : null);
+  if (!raceKey) return null;
+  const genderKey = female ? 'f' : 'm';
+  const geometryRaceKey = female ? 'no' : raceKey;
+  const modelStem = `bb_skin${genderKey}_${geometryRaceKey}`;
+  // Female skin uses the Nord DDS as the UV-matched base for the shared Nord mesh.
+  // fpArm applies the actor race's skin tone after decoding, through the normal texture pipeline.
+  const sourceTextureStem = `bb_skin${genderKey}_${female ? 'no' : raceKey}`;
+  const textureStem = `bb_skin${genderKey}_${raceKey}`;
+  const modelTable = underwear ? underwearBodyModelUrls : nudeBodyModelUrls;
+  const textureTable = underwear ? underwearBodyTextureUrls : nudeBodyTextureUrls;
+  const findUrl = (table, stem, extension) => {
+    const entry = Object.entries(table).find(([path]) => path.toLowerCase().endsWith(`/${stem}.${extension}`));
+    return entry?.[1] ?? null;
+  };
+  const model = findUrl(modelTable, modelStem, 'nif');
+  const texture = findUrl(textureTable, sourceTextureStem, 'dds');
+  if (!model || !texture) return null;
+  return Object.freeze({
+    model, texture, texturePath: `textures/bb/${textureStem}.dds`,
+    raceKey, geometryRaceKey, female: !!female, underwear: !!underwear,
+  });
+}
+
+// The standalone HTML diagnostic intentionally stays fully nude, independent
+// of the game's saved underwear preference.
+export const betterBodiesFemaleAssetUrls = betterBodiesAssetUrls({ race: 'Nord', female: true, underwear: false });
 import { parseNif, deref } from './mwNifFile.js';
 import { flattenNif } from './mwNifMesh.js';
 import { buildSkeleton } from './mwSkin.js';
@@ -29,7 +85,7 @@ import { buildSkeleton } from './mwSkin.js';
 export async function inspectBetterBodiesFemale() {
   let response;
   try {
-    response = await fetch(betterBodiesFemaleNifUrl);
+    response = await fetch(betterBodiesFemaleAssetUrls.model);
   } catch (error) {
     return { ok: false, stage: 'fetch', error: String(error?.message ?? error) };
   }
@@ -38,7 +94,7 @@ export async function inspectBetterBodiesFemale() {
       ok: false,
       stage: 'fetch',
       status: response.status,
-      modelUrl: betterBodiesFemaleNifUrl,
+      modelUrl: betterBodiesFemaleAssetUrls.model,
       error: 'Could not fetch the Better Bodies NIF asset from this build.',
     };
   }
@@ -50,7 +106,7 @@ export async function inspectBetterBodiesFemale() {
     return {
       ok: false,
       stage: 'parse',
-      modelUrl: betterBodiesFemaleNifUrl,
+      modelUrl: betterBodiesFemaleAssetUrls.model,
       error: String(error?.message ?? error),
     };
   }
@@ -62,7 +118,7 @@ export async function inspectBetterBodiesFemale() {
     return {
       ok: false,
       stage: 'flatten',
-      modelUrl: betterBodiesFemaleNifUrl,
+      modelUrl: betterBodiesFemaleAssetUrls.model,
       error: String(error?.message ?? error),
     };
   }
@@ -92,8 +148,8 @@ export async function inspectBetterBodiesFemale() {
   return {
     ok: shapes.length > 0,
     stage: shapes.length ? 'geometry' : 'empty-geometry',
-    modelUrl: betterBodiesFemaleNifUrl,
-    textureUrl: betterBodiesFemaleTextureUrl,
+    modelUrl: betterBodiesFemaleAssetUrls.model,
+    textureUrl: betterBodiesFemaleAssetUrls.texture,
     nifVersion: '4.0.0.2',
     recordCount: nif.records.length,
     roots,
@@ -113,10 +169,6 @@ export async function inspectBetterBodiesFemale() {
   };
 }
 
-export const betterBodiesFemaleAssetUrls = Object.freeze({
-  model: betterBodiesFemaleNifUrl,
-  texture: betterBodiesFemaleTextureUrl,
-});
 
 
 let uvEditsPromise = null;
