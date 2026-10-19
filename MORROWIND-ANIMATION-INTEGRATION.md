@@ -81,24 +81,24 @@ The facing gate is also input-driven in both exterior and dungeon hosts: W/A/S/D
 
 ## Runtime implementation — MW-ANIM-1
 
-The declared **Female Walk Style** choice is exposed through the Features/Mods choice control, with **Standard**, **Female**, and **Female 2** options. The source loader and pure animation-source selector understand the three values, but this audit found no import of `loadWalkAnimationAssets` in the live gameplay body path. Therefore, the existence of the selector and loader must not be mistaken for proof that changing the option currently replaces the in-game gait; that gameplay consumer still needs to be connected and verified. The Morrowind Mesh Viewer is a separate diagnostic consumer.
+The **Female Walk Style** choice is exposed through the Features/Mods choice control, with **Standard**, **Female**, and **Female 2** options. The gameplay consumer is `src/combat/fpArm.js`: it loads the bundled walk-only sources when the player rig is built, filters them at the movement resolver using the saved numeric choice (0/1/2), and re-picks a walk clip when that preference changes. The Morrowind Mesh Viewer remains a separate diagnostic consumer.
 
 The loader parses both sets with the existing NIF/KF parser and adds only text keys/groups whose group name starts with `walk`. Text-key records can contain multiple newline-separated entries; the filter must retain a record when ANY line names a walk group (for example, a preceding `SoundGen: Left` line must not hide `WalkForward: Start`). That restriction is intentional: these packs cannot replace idle, running, weapon stances, attacks, jump, or death animations by accident. Missing files, failed HTTP loads, or packs without usable walk groups fall back to the game's existing sources. The choice does not change meshes, skeletons, Better Bodies, clothing, or camera/body-facing logic.
 
-The `selectActorAnimSource` helper is still a pure selector, not a gameplay controller. This distinction matters: no selector should be described as live gameplay integration until the actual actor animation resolver consumes it. Axel's pack contains idle and run files as well as `WalkForward;.kf`; Female 2 intentionally targets only that walk clip, and does not opt into Axel's idle/run clips.
+The `selectActorAnimSource` helper is a separate viewer selector; gameplay uses the source list and movement resolver in `fpArm.js`. Axel's pack contains idle and run files as well as `WalkForward;.kf`; Female 2 intentionally loads only that walk clip, and does not opt into Axel's idle/run clips.
 
 Verification note: code and tests still require a local build and in-game visual check for gait, foot sliding, transitions, and archive/network failure behavior. A source filter bug was found during follow-up review: the first implementation examined only the text before the first colon in a key record, so records with a leading SoundGen line could lose their WalkForward marker and silently fall back to vanilla. The loader now checks every line in each text-key record. No visual gameplay claim is made by this commit.
 
 
 ### Live gait switching correction
 
-The asset loader can load the selected Standard/Female/Female 2 source and marks replacements as walk-only. The current repository audit did not find a gameplay call site for that loader, so live switching, saved-setting consumption, and clip replacement are not yet claimed as verified.
+The asset loader loads the standard source and both female-only walk candidates for a female rig. The movement resolver maps saved choice 0/1/2 to Standard/Female/Female 2 and filters replacement sources at walk-group selection, so idle/run/combat remain on the existing source priority.
 
 
 ## Current integration boundary (2026-10-19)
 
-- The visible **Female Walk Style** selector offers **Standard**, **Female**, and **Female 2**. The declared choice is exposed in the Features/Mods interface; this is not yet proof of in-game gait switching.
-- The loader resolves the Standard/Female files from `Morrowind Textures/Simply Walking` and Axel's `WalkForward;.kf` from `Morrowind Textures/Axel's Sexy Walk Fixed/Animation/axel fixed/female`. It does not select Axel's idle/run files.
+- The visible **Female Walk Style** selector offers **Standard**, **Female**, and **Female 2** in the Features/Mods interface.
+- The gameplay rig loader resolves Standard/Female files from `Morrowind Textures/Simply Walking` and Axel's `WalkForward;.kf` from `Morrowind Textures/Axel's Sexy Walk Fixed/Animation/axel fixed/female`. It does not load Axel's idle/run files into the runtime walk source list.
 - The `53779` Animation Blending download is an MWSE Lua plugin, not a browser JavaScript module. The port uses its own native pose cross-fade implementation; it does not execute the Lua script. That implementation still requires in-game verification.
 - Nexus `60253` Morrowind Animation Overhaul explicitly disallows conversion to other games and asset use without permission. Its attack/combat KF files are therefore **not wired into this public port** without author permission. The currently integrated Simply Walking/Feminine Walk Cycle resources are walk-only; attacks remain the original game's clips.
 
