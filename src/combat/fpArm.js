@@ -2124,7 +2124,7 @@ async function buildTpBody({
         const [rawBytes, textureBytes, uvEdits] = await Promise.all([
           loadBetterBodiesAssetBytes(asset.model, 'NIF'),
           loadBetterBodiesAssetBytes(asset.texture, 'DDS'),
-          female && asset.geometryRaceKey === 'no' ? loadBetterBodiesFemaleUvEdits() : Promise.resolve([]),
+          Promise.resolve([]) /* diagnostic: preserve source NIF UVs; compare against the dark-elf reference */,
         ]);
         const genderKey = female ? 'f' : 'm';
         const bytes = rewriteBetterBodiesTextureStem(
@@ -2974,7 +2974,7 @@ export async function buildFpArm({
         const [rawBytes, textureBytes, uvEdits] = await Promise.all([
           loadBetterBodiesAssetBytes(asset.model, 'NIF'),
           loadBetterBodiesAssetBytes(asset.texture, 'DDS'),
-          female && asset.geometryRaceKey === 'no' ? loadBetterBodiesFemaleUvEdits() : Promise.resolve([]),
+          Promise.resolve([]) /* diagnostic: preserve source NIF UVs; compare against the dark-elf reference */,
         ]);
         const genderKey = female ? 'f' : 'm';
         const bytes = rewriteBetterBodiesTextureStem(
