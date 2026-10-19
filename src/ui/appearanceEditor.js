@@ -1,4 +1,4 @@
-import { BODY_MORPH_FIELDS, getBodyMorphs, setBodyMorph, resetBodyMorphs } from '../characters/bodyMorphs.js';
+import { BODY_MORPH_FIELDS, getBodyMorphs, setBodyMorph, resetBodyMorphs, getUnderwearEnabled, setUnderwearEnabled } from '../characters/bodyMorphs.js';
 
 const GROUPS = [
   { id: 'all', title: 'Все параметры', description: 'Полный набор пропорций', keys: ['height', 'bodyWidth', 'shoulderWidth', 'ribcageWidth', 'breastSize', 'breastProjection', 'waistWidth', 'abdomenVolume', 'hipWidth', 'buttockSize', 'buttockProjection', 'headScale', 'armThickness', 'armLength', 'thighThickness', 'calfThickness', 'legLength', 'legGap'] },
@@ -42,7 +42,7 @@ const STYLE = `
 #mw-appearance-editor .mw-controls-head{padding:20px 22px 15px;border-bottom:1px solid var(--mw-line)}
 #mw-appearance-editor .mw-controls-head h2{font-size:20px;line-height:1.2;margin:0;font-weight:750}
 #mw-appearance-editor .mw-controls-head p{font-size:12px;color:var(--mw-muted);margin:7px 0 0}
-#mw-appearance-editor .mw-control-list{min-height:0;overflow:auto;padding:15px 18px 20px;scrollbar-color:#59604f transparent;scrollbar-width:thin}
+#mw-appearance-editor .mw-control-list{min-height:0;overflow:auto;padding:15px 18px 20px;scrollbar-color:#59604f transparent;scrollbar-width:thin}#mw-appearance-editor .mw-zone-nav{display:flex;flex-wrap:wrap;gap:5px;padding:10px 14px;border-bottom:1px solid #394239;background:#202620}#mw-appearance-editor .mw-zone-btn{min-height:29px;padding:5px 8px;font-size:11px;font-weight:600;color:#c6d2c1;background:#252d25;border-color:#3f4c3e}#mw-appearance-editor .mw-zone-btn.active{background:#52664a;color:#f1f7eb;border-color:#9ab48a;box-shadow:inset 0 -2px #c5dcb5}#mw-appearance-editor .mw-group[hidden]{display:none}#mw-appearance-editor .mw-underwear{display:flex;align-items:center;gap:10px;margin-top:12px;padding:10px 12px;border:1px solid #465047;background:#202620;color:#dfe7dc;font-size:12px}#mw-appearance-editor .mw-underwear input{width:16px;height:16px;accent-color:#8ea77b}#mw-appearance-editor .mw-underwear small{display:block;color:#aeb9aa;font-size:11px;margin-top:2px}
 #mw-appearance-editor .mw-group{margin:0 0 12px;padding:0;border:1px solid var(--mw-line);border-radius:0;background:#252c25;overflow:hidden}
 #mw-appearance-editor .mw-group-head{padding:11px 13px;border-bottom:1px solid #363d32;background:#2c342c}
 #mw-appearance-editor .mw-group-title{font-size:13px;font-weight:700;color:#dce6d6}
@@ -127,14 +127,46 @@ export function openAppearanceEditor({ fpArm, onClose = () => {} } = {}) {
   controls.className = 'mw-controls';
   const controlsHead = document.createElement('div');
   controlsHead.className = 'mw-controls-head';
-  controlsHead.innerHTML = '<h2>Пропорции тела</h2><p>Настройки применяются сразу. Значения показаны относительно базовой модели.</p>';
+  controlsHead.innerHTML = '<h2>Пропорции тела</h2><p>Изменения видны в предпросмотре сразу после движения ползунка.</p>';
+  const underwearRow = document.createElement('label'); underwearRow.className = 'mw-underwear';
+  const underwearToggle = document.createElement('input'); underwearToggle.type = 'checkbox'; underwearToggle.checked = getUnderwearEnabled();
+  const underwearCopy = document.createElement('span'); underwearCopy.innerHTML = '<strong>Нижнее бельё</strong><small>Выключено — голая модель; включено — вариант тела с бельём.</small>';
+  underwearRow.append(underwearToggle, underwearCopy); controlsHead.append(underwearRow);
+  underwearToggle.addEventListener('change', async () => {
+    const enabled = setUnderwearEnabled(underwearToggle.checked);
+    statusMessage.style.display = 'block'; statusMessage.textContent = 'Пересборка модели…';
+    try {
+      if (typeof fpArm?.setUnderwearEnabled === 'function') await fpArm.setUnderwearEnabled(enabled);
+      previewRig?.unload?.(); previewRig = null; previewError = '';
+      await buildPreviewRig();
+    } catch (error) { previewError = String(error?.message || error); }
+    drawPreview();
+  });
+  const zoneNav = document.createElement('nav'); zoneNav.className = 'mw-zone-nav'; zoneNav.setAttribute('aria-label', 'Выбор группы частей тела');
   const controlList = document.createElement('div'); controlList.className = 'mw-control-list';
   const inputs = new Map();
   const outputs = new Map();
   const initial = getBodyMorphs();
+  let activeZone = 'all';
+  const zoneButtons = new Map();
+  for (const zone of GROUPS) {
+    const button = makeButton(zone.id === 'all' ? 'Все параметры' : zone.title);
+    button.classList.add('mw-zone-btn');
+    button.classList.toggle('active', zone.id === activeZone);
+    button.setAttribute('aria-pressed', zone.id === activeZone ? 'true' : 'false');
+    button.addEventListener('click', () => {
+      activeZone = zone.id;
+      for (const [id, item] of zoneButtons) {
+        item.classList.toggle('active', id === activeZone);
+        item.setAttribute('aria-pressed', id === activeZone ? 'true' : 'false');
+      }
+      for (const item of controlList.querySelectorAll('.mw-group')) item.hidden = activeZone === 'all' ? item.dataset.zone !== 'all' : item.dataset.zone !== activeZone;
+    });
+    zoneButtons.set(zone.id, button); zoneNav.append(button);
+  }
 
   for (const groupInfo of GROUPS) {
-    const group = document.createElement('section'); group.className = 'mw-group';
+    const group = document.createElement('section'); group.className = 'mw-group'; group.dataset.zone = groupInfo.id; group.hidden = groupInfo.id !== 'all';
     const groupHead = document.createElement('div'); groupHead.className = 'mw-group-head';
     const groupTitle = document.createElement('div'); groupTitle.className = 'mw-group-title'; groupTitle.textContent = groupInfo.title;
     const groupNote = document.createElement('div'); groupNote.className = 'mw-group-note'; groupNote.textContent = groupInfo.description;
@@ -177,7 +209,7 @@ export function openAppearanceEditor({ fpArm, onClose = () => {} } = {}) {
   footerActions.append(reset, done); footer.append(footerNote, footerActions);
 
   previewSide.append(previewHead, canvasWrap, previewTools);
-  controls.append(controlsHead, controlList, footer);
+  controls.append(controlsHead, zoneNav, controlList, footer);
   main.append(previewSide, controls);
   shell.append(topbar, main); root.append(shell);
   root.addEventListener('click', (e) => { if (e.target === root) close(); });
