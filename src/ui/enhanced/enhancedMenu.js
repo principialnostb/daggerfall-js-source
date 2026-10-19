@@ -1766,7 +1766,15 @@ function itemKinds(item) {
 function itemText(item, pool) {
   if (isSettingItem(item)) return `${labelOf(item)} ${helpOf(item)} ${item}`;
   if (item.startsWith('feat:')) { const f = FEATURES.find((x) => x.id === item.slice(5)); return f ? featureSearchText(f) : ''; }
-  if (item.startsWith('label:')) return item.slice(6) === 'player' ? 'player игрок' : 'npc нпс';
+  if (item.startsWith('label:')) return ({
+    player: 'player игрок', npc: 'npc нпс',
+    walking: 'ходьба walking walk', running: 'бег running run',
+    turning: 'повороты развороты turning turn', idle: 'стойка ожидание idle stance',
+    sneak: 'скрытность sneak stealth', attacks: 'атаки attacks',
+    blocking: 'блокирование защита blocking block', jumping: 'прыжки jumping jump',
+    swimming: 'плавание swimming swim', falling: 'падение приземление falling landing',
+    damage: 'получение урона damage hit', death: 'смерть death',
+  })[item.slice(6)] ?? '';
   if (item.startsWith('info:')) return ({
     'player-run': 'player передвижение бег run running sprint locomotion',
     'npc-run': 'npc передвижение бег run running sprint locomotion',
@@ -1835,8 +1843,14 @@ function itemNodes(item, ctx) {
     return f ? [mark(featureTile(f))] : [];
   }
   if (item.startsWith('label:')) {
-    const actor = item.slice(6) === 'player' ? 'Игрок' : 'NPC';
-    return [el('h4', 'animation-actor-heading', actor)];
+    const labels = {
+      player: 'Игрок', npc: 'NPC', walking: 'Ходьба', running: 'Бег',
+      turning: 'Повороты и развороты', idle: 'Стойка и ожидание', sneak: 'Скрытность',
+      attacks: 'Атаки', blocking: 'Блокирование и защита',
+      jumping: 'Прыжки', swimming: 'Плавание', falling: 'Падение и приземление',
+      damage: 'Получение урона', death: 'Смерть',
+    };
+    return [el('h4', 'animation-actor-heading', labels[item.slice(6)] ?? item.slice(6))];
   }
   if (item.startsWith('info:')) {
     const copy = {
