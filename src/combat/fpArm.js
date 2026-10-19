@@ -4949,7 +4949,7 @@ export function createFpArm({ playerAppearance = false } = {}) {
     // frame - the port's old gate keyed on the movestate name alone and
     // kept the bare-handed walk playing with the sword out.
     const stance = stanceOf();   // MWNPC9: a non-biped's bare walk
-    const walkPreference = base.startsWith('walk') && Number(modSetting('morrowind-animation', 'FemaleWalk') ?? 0) === 1;
+    const walkPreference = base.startsWith('walk') ? Math.max(0, Math.min(2, Number(modSetting('morrowind-animation', 'FemaleWalk') ?? 0) || 0)) : false;
     const preferenceChanged = movementWalkPreference !== (base.startsWith('walk') ? walkPreference : null);
     const fresh = preferenceChanged || !(movementState && movementState.playing
       && movementBase === base && movementStance === stance);
@@ -4963,7 +4963,8 @@ export function createFpArm({ playerAppearance = false } = {}) {
       }
       if (!(movementState && movementState.playing && movementGroup === composed.group && !preferenceChanged)) {
         const startPoint = movementGroup === composed.group ? clipCompletion(movementState) : 0;
-        const femaleWalk = Number(modSetting('morrowind-animation', 'FemaleWalk') ?? 0) === 1;
+        const walkPreferenceIndex = Math.max(0, Math.min(2, Number(modSetting('morrowind-animation', 'FemaleWalk') ?? 0) || 0));
+        const femaleWalk = ['standard', 'female', 'female2'][walkPreferenceIndex];
         const movementSources = rig().sources.filter((source) => isWalkVariantEnabled(source, femaleWalk));
         const pick = pickAnimSource(movementSources, composed.group, resetClip,
           { loopFallback: true, loopCount: Infinity, startPoint });
