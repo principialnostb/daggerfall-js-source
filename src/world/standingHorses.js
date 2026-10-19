@@ -23,8 +23,8 @@ import { ANIMALS_ARCHIVE, ANIMAL_SOUND_BY_RECORD, SOUND } from '../systems/sound
 
 /** The most standing horses a host stands in 3D at once, nearest first (a town's square holds a handful). */
 export const STANDING_HORSES_MAX = 8;
-/** How far from the eye a standing horse stands in 3D, metres - past it, Daggerfall's sprite. */
-export const STANDING_HORSE_RANGE = 60;
+/** Standing horses stay as 3D meshes at every distance. The count is bounded below, so there is no need to swap distant horses to pixelated billboards. */
+export const STANDING_HORSE_RANGE = Infinity;
 /** A horse already standing keeps its place this much past the cut (npcBodies.js NPC_BUDGET_HYSTERESIS's law). */
 export const STANDING_HORSE_HOLD = 1.15;
 /** A horse's ball for the view test: its middle this far over its feet, this reach round it (metres - the Courser is
