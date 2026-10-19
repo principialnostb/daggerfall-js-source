@@ -1253,6 +1253,24 @@ export const FEATURES = Object.freeze([
   // the character played when the mod is on (at creation, or at the first load of a character made before it), and its
   // model is the family's for good - so the switch lands at once for the tree and the key, and a family keeps its model.
   modFeature('project-legacy', () => t('features.mod.projectLegacy.effect', 'Takes effect at once; a family keeps the model it was founded with.'), 'character'),
+  // MW-TEXTURE-PACKS: individually selectable layers; all optional packs default off.
+  ...[
+    ['mw-textures-intelligent', 'Intelligent Textures · 00 Core', 'IntelligentTextures'],
+    ['mw-textures-vurt-clothes', "Vurt\'s Better Clothes Retexture", 'VurtsBetterClothes'],
+    ['mw-textures-better-clothes', 'Better Clothes Retextured', 'BetterClothesRetextured'],
+    ['mw-textures-better-armor', 'Better Morrowind Armor', 'BetterMorrowindArmor'],
+    ['mw-textures-armor-joints', 'Complete Armor Joints', 'CompleteArmorJoints'],
+    ['mw-textures-westly-clothiers', "Westly\'s Fine Clothiers of Tamriel", 'WestlysFineClothiers'],
+    ['mw-textures-westly-faces', "Westly\'s Faces Refurbished", 'WestlysFacesRefurbished'],
+  ].map(([id, title, key]) => Object.freeze({
+    id,
+    group: 'world',
+    title,
+    get note() { return MOD_SETTINGS['morrowind-textures'].keys[key].description; },
+    effect: 'После перезагрузки игры.',
+    kinds: Object.freeze(['mod']),
+    control: Object.freeze({ store: 'mods', vendor: 'morrowind-textures', key }),
+  })),
   // MW-ANIM-2: actor-scoped walk selectors. Each row is a category-specific
   // source choice, persisted independently and consumed by the walk resolver.
   Object.freeze({
