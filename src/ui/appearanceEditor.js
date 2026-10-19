@@ -95,7 +95,7 @@ export function openAppearanceEditor({ fpArm, onClose = () => {} } = {}) {
   previewSide.className = 'mw-preview-side';
   const previewHead = document.createElement('div');
   previewHead.className = 'mw-preview-head';
-  previewHead.innerHTML = '<div><div class="mw-section-title">Предпросмотр модели</div><div class="mw-section-note">Зажмите и ведите мышь, чтобы вращать</div></div>';
+  previewHead.innerHTML = '<div><div class="mw-section-title">Предпросмотр модели</div><div class="mw-section-note">Вращайте модель; щёлкните по области тела для выбора параметров</div></div>';
   const canvasWrap = document.createElement('div');
   canvasWrap.className = 'mw-canvas-wrap';
   const preview = document.createElement('canvas');
@@ -223,13 +223,16 @@ export function openAppearanceEditor({ fpArm, onClose = () => {} } = {}) {
   void buildPreviewRig();
 
   let drag = null;
+  let suppressPreviewClick = false;
   preview.addEventListener('pointerdown', (e) => {
-    drag = { x: e.clientX, yaw };
+    suppressPreviewClick = false;
+    drag = { x: e.clientX, y: e.clientY, yaw };
     preview.setPointerCapture?.(e.pointerId);
     preview.style.cursor = 'grabbing';
   });
   preview.addEventListener('pointermove', (e) => {
     if (!drag) return;
+    if (Math.abs(e.clientX - drag.x) > 4 || Math.abs(e.clientY - drag.y) > 4) suppressPreviewClick = true;
     yaw = drag.yaw + (e.clientX - drag.x) * 0.018;
     if (frame) return;
     frame = requestAnimationFrame(() => { frame = 0; drawPreview(); });
@@ -237,6 +240,19 @@ export function openAppearanceEditor({ fpArm, onClose = () => {} } = {}) {
   const release = () => { drag = null; preview.style.cursor = 'grab'; };
   preview.addEventListener('pointerup', release);
   preview.addEventListener('pointercancel', release);
+  preview.addEventListener('click', (e) => {
+    if (suppressPreviewClick) { suppressPreviewClick = false; return; }
+    const rect = preview.getBoundingClientRect();
+    const x = (e.clientX - rect.left) / Math.max(1, rect.width);
+    const y = (e.clientY - rect.top) / Math.max(1, rect.height);
+    let zone = 'legs';
+    if (y < 0.19) zone = 'head';
+    else if (x < 0.29 || x > 0.71) zone = y < 0.68 ? 'arms' : 'legs';
+    else if (y < 0.40) zone = 'chest';
+    else if (y < 0.53) zone = 'torso';
+    else if (y < 0.66) zone = 'hips';
+    zoneButtons.get(zone)?.click();
+  });
 
   async function buildPreviewRig() {
     if (closed || previewBuildPending || previewRig || !fpArm?.createAppearancePreviewRig) {
