@@ -5301,7 +5301,7 @@ export function createFpArm({ playerAppearance = false, useBetterBodies = true }
     },
     async createAppearancePreviewRig() {
       if (!lastBuildOpts || !renderer) return { ok: false, error: 'The live character has not finished building.' };
-      const previewRig = createFpArm({ playerAppearance: true, useBetterBodies: false });
+      const previewRig = createFpArm({ playerAppearance: true, useBetterBodies: true });
       previewRig.attach(renderer, camera);
       const opts = {
         ...lastBuildOpts,
