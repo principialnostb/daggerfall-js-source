@@ -2,7 +2,6 @@
 // Values are normalized to [-1, 1] and persisted per browser profile.
 export const BODY_MORPH_FIELDS = [
   ['height', 'Рост', 'overall'],
-  ['height', 'Рост', 'overall'],
   ['bodyWidth', 'Ширина тела', 'overall'],
 ];
 const KEY = 'mw-character-body-morphs-v1';
