@@ -1,8 +1,8 @@
 import { BODY_MORPH_FIELDS, getBodyMorphs, setBodyMorph, resetBodyMorphs, getUnderwearEnabled, setUnderwearEnabled } from '../characters/bodyMorphs.js';
 
 const GROUPS = [
-  { id: 'all', title: 'Все параметры', description: 'Полный набор пропорций', keys: ['height', 'bodyWidth', 'shoulderWidth', 'ribcageWidth', 'breastSize', 'breastProjection', 'waistWidth', 'abdomenVolume', 'hipWidth', 'buttockSize', 'buttockProjection', 'headScale', 'armThickness', 'armLength', 'thighThickness', 'calfThickness', 'legLength', 'legGap'] },
-  { id: 'shape', title: 'Силуэт', description: 'Общие пропорции', keys: ['height', 'bodyWidth'] },
+  { id: 'all', title: 'Все параметры', description: 'Полный набор пропорций', keys: ['height', 'bodyWidth', 'bodyFullness', 'shoulderWidth', 'ribcageWidth', 'breastSize', 'breastProjection', 'waistWidth', 'abdomenVolume', 'hipWidth', 'buttockSize', 'buttockProjection', 'headScale', 'armThickness', 'armLength', 'thighThickness', 'calfThickness', 'legLength', 'legGap'] },
+  { id: 'shape', title: 'Силуэт', description: 'Общие пропорции', keys: ['height', 'bodyWidth', 'bodyFullness'] },
   { id: 'chest', title: 'Плечи и грудь', description: 'Плечевой пояс, грудная клетка и грудь', keys: ['shoulderWidth', 'ribcageWidth', 'breastSize', 'breastProjection'] },
   { id: 'torso', title: 'Талия и живот', description: 'Центральная часть корпуса', keys: ['waistWidth', 'abdomenVolume'] },
   { id: 'hips', title: 'Таз и ягодицы', description: 'Ширина таза и объём ягодиц', keys: ['hipWidth', 'buttockSize', 'buttockProjection'] },
