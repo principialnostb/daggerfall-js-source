@@ -1,4 +1,4 @@
-import { BODY_MORPH_FIELDS, getBodyMorphs, setBodyMorph, resetBodyMorphs, getUnderwearEnabled, setUnderwearEnabled, getBodyHairEnabled, setBodyHairEnabled, getAppearanceIdentity, setAppearanceIdentity } from '../characters/bodyMorphs.js';
+import { BODY_MORPH_FIELDS, getBodyMorphs, setBodyMorph, getUnderwearEnabled, setUnderwearEnabled, getBodyHairEnabled, setBodyHairEnabled, getAppearanceIdentity, setAppearanceIdentity } from '../characters/bodyMorphs.js';
 
 const GROUPS = [
   { id: 'all', title: 'Общие пропорции', description: 'Масштаб и общий силуэт', keys: ['height', 'bodyWidth', 'bodyFullness'] },
@@ -326,6 +326,9 @@ export function openAppearanceEditor({ fpArm, onClose = () => {} } = {}) {
   const inputs = new Map();
   const outputs = new Map();
   const initial = getBodyMorphs();
+  // Body sliders are draft state, just like race/face. Do not mutate the live
+  // actor or persistent settings until the user confirms with Done.
+  let draftMorphs = { ...initial };
   let activeZone = 'all';
   const zoneButtons = new Map();
   for (const zone of GROUPS) {
@@ -361,12 +364,10 @@ export function openAppearanceEditor({ fpArm, onClose = () => {} } = {}) {
       const output = document.createElement('output'); output.textContent = formatValue(Number(input.value));
       input.addEventListener('input', () => {
         const value = clamp(Number(input.value));
-        setBodyMorph(key, value);
+        draftMorphs[key] = value;
         output.textContent = formatValue(value);
         input.style.setProperty('--range-fill', (((value + 1) / 2) * 100) + '%');
-        window.dispatchEvent(new CustomEvent('mw-body-morph-change', { detail: getBodyMorphs() }));
         drawPreview();
-        schedulePreviewRigRebuild();
       });
       inputs.set(key, input); outputs.set(key, output);
       row.append(name, input, output); fields.append(row);
@@ -375,19 +376,17 @@ export function openAppearanceEditor({ fpArm, onClose = () => {} } = {}) {
   }
 
   const footer = document.createElement('footer'); footer.className = 'mw-footer';
-  const footerNote = document.createElement('div'); footerNote.className = 'mw-footer-note'; footerNote.textContent = 'Раса и лицо — после «Готово»; пропорции тела меняются сразу';
+  const footerNote = document.createElement('div'); footerNote.className = 'mw-footer-note'; footerNote.textContent = 'Изменения внешности применяются после нажатия «Готово»';
   const footerActions = document.createElement('div'); footerActions.className = 'mw-tool-group';
   const reset = makeButton('Сбросить параметры');
   reset.addEventListener('click', () => {
-    const state = resetBodyMorphs();
+    draftMorphs = Object.fromEntries(BODY_MORPH_FIELDS.map(([key]) => [key, 0]));
     for (const [key, input] of inputs) {
-      input.value = String(state[key] ?? 0);
+      input.value = String(draftMorphs[key] ?? 0);
       outputs.get(key).textContent = formatValue(Number(input.value));
       input.style.setProperty('--range-fill', (((Number(input.value) + 1) / 2) * 100) + '%');
     }
-    window.dispatchEvent(new CustomEvent('mw-body-morph-change', { detail: state }));
     drawPreview();
-    schedulePreviewRigRebuild();
   });
   const done = makeButton('Готово', true, 'mw-btn-primary');
   done.addEventListener('click', async () => {
@@ -408,6 +407,10 @@ export function openAppearanceEditor({ fpArm, onClose = () => {} } = {}) {
           return;
         }
       }
+      // Commit body morphs only after confirmation. The preview used draftMorphs
+      // directly, so cancelling the editor leaves the live character untouched.
+      for (const [key] of BODY_MORPH_FIELDS) setBodyMorph(key, draftMorphs[key] ?? 0);
+      window.dispatchEvent(new CustomEvent('mw-body-morph-change', { detail: { ...draftMorphs } }));
       setAppearanceIdentity(identity);
       close();
     } catch (error) {
@@ -554,7 +557,7 @@ export function openAppearanceEditor({ fpArm, onClose = () => {} } = {}) {
       return;
     }
     try {
-      const image = previewRig.figure({ yaw, height: Math.min(1024, Math.max(640, Math.round(preview.height * 0.95))), force: true, neutral: true });
+      const image = previewRig.figure({ yaw, height: Math.min(1024, Math.max(640, Math.round(preview.height * 0.95))), force: true, neutral: true, bodyProportions: draftMorphs });
       const ctx = preview.getContext('2d');
       if (!ctx) return;
       ctx.clearRect(0, 0, preview.width, preview.height);
