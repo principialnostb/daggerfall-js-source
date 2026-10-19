@@ -45,7 +45,10 @@ const canvas = $('c');
 const statusEl = $('status');
 const meshSel = $('meshsel');
 const femaleWalkSel = $('femalewalksel');
-try { femaleWalkSel.value = localStorage.getItem('mw-female-walk') === 'female' ? 'female' : 'standard'; } catch { femaleWalkSel.value = 'standard'; }
+try {
+  const savedWalk = localStorage.getItem('mw-female-walk');
+  femaleWalkSel.value = ['standard', 'female', 'female2'].includes(savedWalk) ? savedWalk : 'standard';
+} catch { femaleWalkSel.value = 'standard'; }
 
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
 renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
@@ -160,7 +163,7 @@ let loaded = null; // { name, group, batches, skinnedMeshes, skeleton }
 let allMeshNames = [];
 // Animation state. A dropped .kf overrides a mesh's inline tracks - the
 // retail xbase_anim.kf arrangement.
-const kfSources = { standard: null, female: null };
+const kfSources = { standard: null, female: null, female2: null };
 let pendingNpcFemale = false;
 // ESM state: parsed records + the skin index, for NPC assembly.
 let esm = null;
@@ -320,7 +323,8 @@ function wireAnimation(nif) {
   const inlineSource = { tracks: inlineTracks, groups: inlineGroups, keys: normalizeTextKeys(rawTextKeys) };
   const standardSource = kfSources.standard || inlineSource;
   const femaleSource = kfSources.female;
-  anim.sources = { standard: standardSource, female: femaleSource };
+  const female2Source = kfSources.female2;
+  anim.sources = { standard: standardSource, female: femaleSource, female2: female2Source };
   for (const source of Object.values(anim.sources)) {
     if (source && loaded && loaded.skeleton) source.accumRoot = accumRootRef(loaded.skeleton, source.tracks);
   }
@@ -334,8 +338,9 @@ function wireAnimation(nif) {
   animSel.innerHTML = '';
   const names = new Set(anim.groups.keys());
   if (femaleSource?.groups) for (const name of femaleSource.groups.keys()) names.add(name);
+  if (female2Source?.groups) for (const name of female2Source.groups.keys()) names.add(name);
   const usable = skinnedMeshes.length && names.size > 0 &&
-    (standardSource.tracks.size || femaleSource?.tracks?.size);
+    (standardSource.tracks.size || femaleSource?.tracks?.size || female2Source?.tracks?.size);
   animSel.style.display = usable ? '' : 'none';
   if (!usable) return;
   const bind = document.createElement('option');
@@ -743,7 +748,7 @@ async function takeFiles(files) {
         const tracks = extractTracks(kfNif);
         const kfRawKeys = collectTextKeys(kfNif);
         const source = { tracks, groups: parseAnimGroups(kfRawKeys), keys: normalizeTextKeys(kfRawKeys) };
-        const kind = /female/i.test(f.name) ? 'female' : 'standard';
+        const kind = /walkforward;?\.kf/i.test(f.name) ? 'female2' : /female/i.test(f.name) ? 'female' : 'standard';
         kfSources[kind] = source;
         setStatus(`${f.name}: ${tracks.size} bone tracks, ${source.groups.size} groups (${kind} source)`);
         if (loaded) wireAnimation(loaded.nif);
