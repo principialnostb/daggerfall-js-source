@@ -20,6 +20,8 @@ const IN_BROWSER = typeof window !== 'undefined';
 const FILES = IN_BROWSER
   ? import.meta.glob([
       '../../Morrowind Textures/Better Bodies/Nude/Data Files/Textures/**/*.{dds,DDS,tga,TGA}',
+      '../../Morrowind Textures/Seamless DMRA body replacer/Meshes/**/*.{nif,NIF}',
+      '../../Morrowind Textures/Seamless DMRA body replacer/Textures/**/*.{dds,DDS,tga,TGA}',
       '../../Morrowind Textures/Intelligent Textures/00 Core/textures/**/*.{dds,DDS,tga,TGA}',
       "../../Morrowind Textures/Vurt's Better Clothes Retexture/textures/**/*.{dds,DDS,tga,TGA}",
       '../../Morrowind Textures/Better Clothes Retextured/textures/**/*.{dds,DDS,tga,TGA}',
@@ -44,6 +46,7 @@ const clothierAssetUrls = Object.create(null);
 const armorTextureUrls = Object.create(null);
 const armorJointsUrls = Object.create(null);
 const faceTextureUrls = Object.create(null);
+const dmraAssetUrls = Object.create(null);
 const packageCounts = Object.create(null);
 const pluginUrls = new Map();
 
@@ -64,7 +67,8 @@ const addDataFilesAsset = (rel, url, packageName, bucket) => {
 };
 
 const packEnabled = Object.freeze({
-  betterBodies: modSetting('morrowind-textures', 'BetterBodies') !== false, // Enabled by default; its skin is a fallback layer.
+  betterBodies: modSetting('morrowind-textures', 'BetterBodies') !== false || modSetting('morrowind-textures', 'SeamlessDMRA') === true, // DMRA uses the BB base skin.
+  dmra: modSetting('morrowind-textures', 'SeamlessDMRA') === true,
   intelligentTextures: !!modSetting('morrowind-textures', 'IntelligentTextures'),
   vurtClothes: !!modSetting('morrowind-textures', 'VurtsBetterClothes'),
   betterClothes: !!modSetting('morrowind-textures', 'BetterClothesRetextured'),
@@ -77,6 +81,14 @@ const packEnabled = Object.freeze({
 for (const [source, url] of Object.entries(FILES)) {
   const path = source.replace(/\\/g, '/');
   const lower = path.toLowerCase();
+
+  const dmraRel = relAfter(path, lower, '/seamless dmra body replacer/');
+  if (dmraRel) {
+    if (!packEnabled.dmra) continue;
+    const match = dmraRel.match(/^(meshes|textures)\/(.+\.(?:nif|dds|tga))$/i);
+    if (match) addAsset(dmraAssetUrls, match[1].toLowerCase() + '/' + match[2], url, 'Seamless DMRA body replacer');
+    continue;
+  }
 
   // Base Better Bodies skin textures are retained as a fallback only. This
   // keeps the existing BB body functional without activating the failed
@@ -191,6 +203,7 @@ for (const [source, url] of Object.entries(FILES)) {
 Object.assign(
   assetUrls,
   baseBodyTextureUrls,
+  dmraAssetUrls,
   intelligentTextureUrls,
   vurtClothesTextureUrls,
   betterClothesTextureUrls,
