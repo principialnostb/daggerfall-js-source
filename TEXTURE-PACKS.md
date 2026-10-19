@@ -2,7 +2,15 @@
 
 The uploaded asset collection is maintained at [`Morrowind Textures` on `morrowind.v3`](https://github.com/principialnostb/daggerfall-js-source/tree/morrowind.v3/Morrowind%20Textures). The same directory tree is already present on `morrowind.v4` at the audit baseline and has the same Git tree SHA; verify changes before copying it again. Git object storage reuses identical trees/blobs, but a Markdown link alone does not make the files available to a runtime.
 
-Working branch for implementation: [`morrowind.v4`](https://github.com/principialnostb/daggerfall-js-source/tree/morrowind.v4). Keep source assets in the existing tree and put runtime code, tests, and integration documentation in the working branch.
+Working branch for implementation: [`Dev`](https://github.com/principialnostb/daggerfall-js-source/tree/Dev). Keep source assets in the existing tree and put runtime code, tests, and integration documentation in this branch.
+
+## Current optional texture/equipment switches
+
+- **Better Bodies** — default on; the player's body and first-person arms fall back to standard Morrowind meshes when switched off.
+- **Intelligent Textures · 00 Core**, **Vurt's Better Clothes Retexture**, **Better Clothes Retextured**, **Better Morrowind Armor**, **Complete Armor Joints**, **Westly's Fine Clothiers of Tamriel**, and **Westly's Faces Refurbished** — individually selectable and default off. The settings-backed archive includes only enabled layers when the app starts; reload after changing these choices.
+- **Complete Armor Joints** is an add-on: enabling it enables Better Morrowind Armor; disabling the base pack disables the joints add-on and shows a notice on the affected setting.
+- Texture layers with overlapping paths intentionally coexist in a defined precedence order; they are not treated as mutually exclusive if they can safely complement each other.
+- **Seamless DMRA**, the failed high-resolution Better Body female texture package, and atlas-only Intelligent Textures are not currently selectable replacements. DMRA is not wired into the player/NPC body resolver, the high-resolution texture attempt was unreliable, and atlas textures need their matching atlas meshes. Keeping them out of the active archive avoids silent geometry/UV conflicts.
 
 ## Animation source candidates
 
