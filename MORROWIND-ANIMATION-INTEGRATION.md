@@ -66,7 +66,7 @@ This paragraph records the initial diagnostic-only stage. It is superseded by th
 
 ## Implementation update — independent third-person body facing (MW-D40)
 
-The exterior and dungeon hosts now tell the player motor when body facing should follow the view. While standing or ordinary walking, the body yaw is latched and the camera can orbit without turning the body. First-person frames keep the latch synchronized so entering third person does not inherit a stale angle. Running, held attack input, or a non-idle exterior weapon animation resumes view-facing; climb-owned body yaw and seat/draw yaw still take precedence. This changes orientation only; it does not rewrite movement input or animation clips.
+The exterior and dungeon hosts tell the player motor when body facing should follow the view. While standing still in third person, body yaw stays latched so the camera can orbit around the character. Once the player moves, body facing follows the view again; running and held attack input also resume view-facing. First-person frames keep the latch synchronized so entering third person does not inherit a stale angle. Climb-owned body yaw and seat/draw yaw still take precedence. This changes orientation only; it does not rewrite movement input or animation clips.
 
 Regression coverage is in `test/player/bodyYawFacing.test.js`. In-game visual verification is still required for transitions between walking, running, attack, climbing, and mounted states.
 
