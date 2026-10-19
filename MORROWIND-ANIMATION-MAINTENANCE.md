@@ -14,7 +14,7 @@ This document is the operational inventory: what is in the repository, what the 
 | Parse KF / bind tracks to the active skeleton | `src/combat/fpArm.js` + `src/formats/morrowind/mwAnim.js` | Replacement tracks are parsed against the current rig. A failed parse or incompatible source is skipped and the game/archive source remains available. |
 | Restrict replacement to walk groups | `isWalkAnimationGroup`, `isWalkAnimationKey` in `mwWalkAnimationAssets.js`; source filtering in `fpArm.js` | Only groups beginning with `walk` and text-key records containing a walk-group line are copied into replacement sources. Idle, run, turn, sneak, combat, jump, and death groups are not imported from these walk packs. |
 | Choose a clip while walking | `walkVariantForActor()` in `mwWalkAnimationAssets.js`, called from `src/combat/fpArm.js` | Player, male NPC, and female NPC settings are resolved independently. The preference is checked again on a walk-group change and can trigger a live re-pick. |
-| UI / persisted mod setting | `src/systems/modSettings.js`, `src/systems/features.js` | Three Mods-page controls: Player Walk Animation, Male NPC Walk Animation, Female NPC Walk Animation. |
+| UI / persisted mod setting | `src/systems/modSettings.js`, `src/systems/features.js` | Three controls in Settings → Animations: Walk animation source (player), Male NPC walk source, Female NPC walk source. |
 | Animation cross-fade | gameplay pose layer described in `MORROWIND-ANIMATION-INTEGRATION.md`; regression tests include `test/formats/morrowind/mwposeblend.test.js` | Native JavaScript blending, not execution of the downloaded MWSE Lua plugin. It smooths pose changes; it does not supply new animation clips. |
 | Camera/body facing | movement/body-facing host and `test/player/bodyYawFacing.test.js` | Separate concern from walk-source selection. Do not modify this while changing gait choices unless a regression proves the coupling. |
 
@@ -64,6 +64,15 @@ Walk-only source filtering is the key isolation boundary. In the current code, S
 - **Idle, run, turn, sneak, jump, death, spells, combat:** no replacement should be inferred from a pack's folder name. Check the loader's explicit group filter and its call sites.
 
 A broad KF can contain tracks for many bones and text keys for several groups. Never enable it wholesale as a walk replacement. Confirm group names, key timing, skeleton binding, loop markers, and root-motion behavior before integrating any additional group family.
+
+## Animation settings home — implemented in v4
+
+The Settings screen has a dedicated **Animations** tab (`src/ui/settings/settingsMap.js`). It is deliberately separate from `Mods & files`: animation sources are a player-facing resource choice, not a generic mod-management switch. The first pass keeps the list compact and actor-first:
+
+- **Player · Running & walking** — the Morrowind character-animation feature plus the player's walk-source selector.
+- **NPC · Running & walking** — male NPC walk source, then female NPC walk source.
+
+Only categories with actual controls are shown; empty Combat / Actions sections are not added as decoration. As those families get real independent selectors, add their controls under clearly named responsibility sections and preserve actor-specific separation. A pack with several animation families should be represented as a choice in each relevant family, not as one global on/off override.
 
 ## Actor-specific selectors — implemented in v4
 
