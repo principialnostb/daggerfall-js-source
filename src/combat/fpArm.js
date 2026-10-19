@@ -2118,7 +2118,7 @@ async function buildTpBody({
         };
         const basename = betterBodiesTextureBasename(asset.texturePath);
         for (const key of TEXTURE_CACHE.keys()) {
-          if (betterBodiesTextureBasename(key) === basename) TEXTURE_CACHE.delete(key);
+          if (String(key).toLowerCase().endsWith(basename)) TEXTURE_CACHE.delete(key);
         }
         console.info('[Better Bodies] race/sex body asset loaded', {
           raceKey: asset.raceKey, female, modelBytes: bytes.byteLength,
@@ -2958,7 +2958,7 @@ export async function buildFpArm({
         registerBetterBodiesRaceTexture(archives, asset.texturePath, textureBytes);
         const basename = betterBodiesTextureBasename(asset.texturePath);
         for (const cacheKey of TEXTURE_CACHE.keys()) {
-          if (betterBodiesTextureBasename(cacheKey) === basename) TEXTURE_CACHE.delete(cacheKey);
+          if (String(cacheKey).toLowerCase().endsWith(basename)) TEXTURE_CACHE.delete(cacheKey);
         }
         betterBodiesFpArms = {
           slot: 'betterBodies', bones: [], bytes, uvEdits,
