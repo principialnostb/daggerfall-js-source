@@ -173,43 +173,6 @@ export function openAppearanceEditor({ fpArm, onClose = () => {} } = {}) {
   return { close };
 }
 
-// Editor-owned preview geometry. This intentionally does not call fpArm.figure() or read a gameplay screenshot.
-function renderProceduralPreview(canvas, state) {
-  const ctx = canvas.getContext('2d'); if (!ctx) return;
-  const w = canvas.width, h = canvas.height, m = state.morphs;
-  ctx.clearRect(0, 0, w, h);
-  const cx = w / 2, unit = Math.min(w * .38, h * .38) * state.zoom;
-  const side = Math.sin(state.yaw), front = Math.cos(state.yaw);
-  const oval = (x,y,rx,ry,color) => { ctx.fillStyle=color; ctx.beginPath(); ctx.ellipse(cx+x*unit,h*.52+y*unit,Math.max(1,rx*unit),Math.max(1,ry*unit),0,0,Math.PI*2); ctx.fill(); };
-  const line = (x1,y1,x2,y2,r,color) => { ctx.strokeStyle=color; ctx.lineCap='round'; ctx.lineWidth=Math.max(2,r*unit*2); ctx.beginPath(); ctx.moveTo(cx+x1*unit,h*.52+y1*unit); ctx.lineTo(cx+x2*unit,h*.52+y2*unit); ctx.stroke(); };
-  const tones = { Breton:'#c99578', Redguard:'#8a563a', Nord:'#dfb18c', DarkElf:'#8b6b82', HighElf:'#d9b47d', WoodElf:'#b9a77a', Khajiit:'#b78c62', Argonian:'#6d9a79' }; const skin = tones[state.race] || '#c89a7b';
-  const shoulder = (.22 + (m.shoulderWidth||0)*.055) * Math.max(.18,Math.abs(front));
-  const torso = (.19 + (m.torsoScale||0)*.045) * Math.max(.18,Math.abs(front));
-  const hips = (.17 + (m.hipWidth||0)*.045) * Math.max(.18,Math.abs(front));
-  const waist = (.14 + (m.waistWidth||0)*.04) * Math.max(.18,Math.abs(front));
-  const arms = .045 + (m.armScale||0)*.016, legs = .055 + (m.legScale||0)*.018;
-  ctx.fillStyle='rgba(0,0,0,.22)'; ctx.beginPath(); ctx.ellipse(cx,h*.91,unit*.42,unit*.07,0,0,Math.PI*2); ctx.fill();
-  ctx.save(); ctx.translate(0,h*.52); ctx.scale(1,1+(m.height||0)*.12); ctx.translate(0,-h*.52);
-  line(-shoulder,-.19,-shoulder*1.45,.04,arms,skin); line(-shoulder*1.45,.04,-shoulder*1.3,.28,arms*.8,skin);
-  line(shoulder,-.19,shoulder*1.45,.04,arms,skin); line(shoulder*1.45,.04,shoulder*1.3,.28,arms*.8,skin);
-  line(-hips*.6,0,-hips*.7,.28,legs,skin); line(-hips*.7,.28,-hips*.72,.58,legs*.8,skin);
-  line(hips*.6,0,hips*.7,.28,legs,skin); line(hips*.7,.28,hips*.72,.58,legs*.8,skin);
-  oval(0,-.01,hips,.15,skin); oval(0,-.14,waist,.16,skin); oval(0,-.29,torso,.22,skin); oval(0,-.37,shoulder,.1,skin); oval(0,-.45,.055,.08,skin);
-  const headY=-.56-(m.headScale||0)*.02, head=.095+(m.headScale||0)*.015;
-  oval(side*.015,headY,head*(1+Math.abs(side)*.12),head*1.2,skin);
-  if (front > -.2) { oval(side*.02+.03*front,headY+.01,.016,.023,skin); oval(-.03,headY-.012,.009,.006,'#30242a'); oval(.03,headY-.012,.009,.006,'#30242a'); oval(0,headY+.04,.018,.004,'#50302b'); }
-  const hair=['#30221c','#39271f','#443027','#4b3328','#50352c','#aaa39a'][Math.max(0,Math.min(5,state.hairIndex||0))];
-  if ((state.hairIndex||0)!==5) { oval(0,headY-.055,head*1.12,head*.45,hair); if ([1,3,4].includes(state.hairIndex||0)) { line(-.07,headY-.04,-.09,headY+.12,.025,hair); line(.07,headY-.04,.09,headY+.12,.025,hair); } }
-  if (state.female) { oval(-.085,-.27,.07*(1+(m.breastSize||0)*.4),.065,skin); oval(.085,-.27,.07*(1+(m.breastSize||0)*.4),.065,skin); }
-  if (state.race === 'Khajiit') { oval(-.045,headY-.06,.025,.04,skin); oval(.045,headY-.06,.025,.04,skin); }
-  if (state.race === 'Argonian') { oval(-.06,headY-.03,.012,.025,'#527c63'); oval(.06,headY-.03,.012,.025,'#527c63'); }
-  oval(0,-.01,.17*(1+(m.buttockSize||0)*.3),.1,skin);
-  ctx.restore();
-  if (state.faceCanvas && front > .2) { ctx.save(); ctx.beginPath(); ctx.ellipse(cx + side*.015*unit, h*.52 + headY*unit, head*unit*.68, head*unit*.82, 0, 0, Math.PI*2); ctx.clip(); ctx.drawImage(state.faceCanvas, cx + side*.015*unit - head*unit*.68, h*.52 + headY*unit - head*unit*.82, head*unit*1.36, head*unit*1.64); ctx.restore(); }
-  ctx.fillStyle='#eee'; ctx.font='600 18px system-ui'; ctx.textAlign='center'; ctx.fillText('ПРЕДПРОСМОТР ТЕЛА',cx,30);
-  ctx.fillStyle='#aaa'; ctx.font='12px system-ui'; ctx.fillText('НЕЗАВИСИМАЯ МОДЕЛЬ · БЕЗ ОДЕЖДЫ',cx,h-18);
-}
-
 function makeButton(text, primary = false) {
   const button = document.createElement('button');
   button.type = 'button'; button.textContent = text;
