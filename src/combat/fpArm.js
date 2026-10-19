@@ -7348,7 +7348,7 @@ export function createFpArm({ playerAppearance = false } = {}) {
      *  {width, height, data} or null when no third-person body stands -
      *  the panel then keeps the classic doll (never traps). Display
      *  only by Mac's decision: unequip stays with the item list. */
-    figure({ yaw = 0, height = 384, force = false, neutral = false } = {}) {
+    figure({ yaw = 0, height = 384, force = false, neutral = false, bodyProportions = null } = {}) {
       // The editor explicitly asks for a preview; do not let the inventory-display preference
       // suppress it. The built rig and renderer are still required below.
       if (!force && !getPref('morrowind3dPaperDoll')) return null;
@@ -7390,7 +7390,7 @@ export function createFpArm({ playerAppearance = false } = {}) {
         sampleTrack,
         time: pose?.state?.startTime ?? 0,
         accumRoot: t.accumRoot,
-        bodyProportions: playerAppearance ? getBodyMorphs() : false,   // MWV2-APPEARANCE: player instance only
+        bodyProportions: playerAppearance ? (bodyProportions && typeof bodyProportions === 'object' ? bodyProportions : getBodyMorphs()) : false,   // MWV2-APPEARANCE: editor draft or persisted player proportions
         mirror: portraitMirror(),   // TWO-HANDS AUDIT
         skin: true,   // portraits must apply CPU vertex morphs before upload
       });
@@ -7413,7 +7413,7 @@ export function createFpArm({ playerAppearance = false } = {}) {
       }
       const u = 1 / MW_UNITS_PER_METER;
       const rs = (built && built.raceScale) || { weight: 1, height: 1 };
-      const morph = playerAppearance ? getBodyMorphs() : { bodyWidth: 0, height: 0 };
+      const morph = playerAppearance ? (bodyProportions && typeof bodyProportions === 'object' ? bodyProportions : getBodyMorphs()) : { bodyWidth: 0, height: 0 };
       const width = 1 + Math.max(-1, Math.min(1, Number(morph.bodyWidth) || 0)) * 0.18;
       const heightScale = 1 + Math.max(-1, Math.min(1, Number(morph.height) || 0)) * 0.15;
       // feet at the origin, facing the viewer: drawThird's +180 makes yaw
