@@ -1873,7 +1873,7 @@ export class PlayerMotor {
    *  In ordinary standing/walking, mouse-look orbits the camera without
    *  rotating the actor. First-person calls pass faceView to keep the latch
    *  current when perspective changes. Climbing and seats retain precedence. */
-  bodyYawFor(viewYaw, { faceView = false, moveYaw = null } = {}) {
+  bodyYawFor(viewYaw, { faceView = false } = {}) {
     // Seats and active climbs own their facing before ordinary locomotion.
     if (this.drawYaw != null) return this.drawYaw;
     if (this.climbFacing != null) {
@@ -1881,25 +1881,15 @@ export class PlayerMotor {
       if (this._bodyYawOff != null) return viewYaw + this._bodyYawOff;
     }
     if (!Number.isFinite(viewYaw)) return viewYaw;
-    // First-person look and explicit run/combat aim keep the body aligned to
-    // the view. Clear climb-release leftovers before latching the new heading.
+    // First-person look and explicit run/combat/movement aim keep the body
+    // aligned to the view. Clear climb-release leftovers before latching it.
     if (faceView) {
       this._bodyYaw = null;
       this._bodyYawOff = null;
       this._thirdPersonLookYaw = viewYaw;
       return viewYaw;
     }
-    // Ordinary third-person walking follows the actual locomotion heading,
-    // not the orbit camera. This is the 3D equivalent of the classic sprite
-    // lane's actor-facing direction and prevents sideways/backwards gait when
-    // the camera is freely orbiting. The resulting heading becomes the idle
-    // latch when movement stops.
-    if (Number.isFinite(moveYaw)) {
-      this._bodyYaw = null;
-      this._bodyYawOff = null;
-      this._thirdPersonLookYaw = moveYaw;
-      return moveYaw;
-    }
+    // While idle in third person, camera orbit is independent of body facing.
     if (this._bodyYaw != null) return this._bodyYaw;
     if (this._bodyYawOff != null) return viewYaw + this._bodyYawOff;
     if (this._thirdPersonLookYaw == null) this._thirdPersonLookYaw = viewYaw;
