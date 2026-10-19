@@ -45,7 +45,6 @@ const FILES = IN_BROWSER
 const norm = (s) => String(s).replace(/\\/g, '/').toLowerCase();
 const assetUrls = Object.create(null);
 const baseBodyTextureUrls = Object.create(null);
-const highResolutionFemaleTextureUrls = Object.create(null);
 const highResolutionFemaleUnderwearUrls = Object.create(null);
 const highResolutionFemaleNoHairUrls = Object.create(null);
 const highResolutionFemaleBodyHairUrls = Object.create(null);
@@ -257,7 +256,6 @@ Object.assign(
 // resolves the correct variant when each key is loaded, and its cache is
 // recreated when the preference signature changes.
 const highResolutionKeys = new Set([
-  ...Object.keys(highResolutionFemaleTextureUrls),
   ...Object.keys(highResolutionFemaleUnderwearUrls),
   ...Object.keys(highResolutionFemaleNoHairUrls),
   ...Object.keys(highResolutionFemaleBodyHairUrls),
