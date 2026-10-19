@@ -7281,7 +7281,9 @@ export function createFpArm({ playerAppearance = false } = {}) {
       // START, the standing frame Morrowind's own inventory doll holds.
       // Deterministic, so the panel's cache is exact and two renders of
       // one wardrobe are one picture.
-      const pose = portraitPose(t, { neutral });
+      // The appearance editor asks for a true bind/rest pose, not the first frame of an idle clip.
+      // An idle clip can move individual bones away from their rest transforms and make a neutral preview look disconnected.
+      const pose = neutral ? null : portraitPose(t);
       // A portrait must be posed even when this race/rig has no named idle group.
       // Previously a null portraitPose skipped poseAssembly entirely, so sliders changed
       // saved values but the preview kept uploading the last unmodified mesh.
