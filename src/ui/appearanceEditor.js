@@ -371,7 +371,7 @@ export function openAppearanceEditor({ fpArm, onClose = () => {} } = {}) {
     const previousLabel = done.textContent;
     done.textContent = 'Применение…';
     try {
-      const identity = setAppearanceIdentity({ race: selectedRace, faceIndex: selectedFace });
+      const identity = { race: selectedRace, faceIndex: selectedFace };
       if (typeof fpArm?.applyAppearanceIdentity === 'function') {
         const result = await fpArm.applyAppearanceIdentity(identity);
         if (result?.ok === false && !result?.queued) {
@@ -384,6 +384,7 @@ export function openAppearanceEditor({ fpArm, onClose = () => {} } = {}) {
           return;
         }
       }
+      setAppearanceIdentity(identity);
       close();
     } catch (error) {
       previewError = String(error?.message || error);
