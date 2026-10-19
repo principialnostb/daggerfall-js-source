@@ -1808,22 +1808,30 @@ function itemNodes(item, ctx) {
   }
   if (item.startsWith('info:')) {
     const copy = {
-      'player-run': ['Vanilla', 'Отдельный совместимый источник бега пока не подключён. Выбор ходьбы не подменяет анимацию бега.'],
-      'player-posture': ['Vanilla', 'Здесь находятся Idle, Turn, Sneak и переходы стойки. Источники замен пока не подключены.'],
-      'player-combat': ['Vanilla', 'Сюда относятся атаки по типам оружия, замахи, попадания и блок. Morrowind Animation Overhaul содержит такие группы, но не активирован: требуется разрешение на перенос ресурсов и отдельная проверка совместимости.'],
-      'player-magic': ['Vanilla', 'Отдельного совместимого и разрешённого источника заклинаний сейчас нет.'],
-      'player-actions': ['Vanilla', 'Сюда относятся использование предметов, открытие/закрытие, взаимодействие и прочие действия вне боя.'],
-      'player-traversal': ['Vanilla', 'Сюда относятся Jump, Swim, Fall и другие специальные перемещения.'],
-      'player-reactions': ['Vanilla', 'Сюда относятся Hit, Knockdown и Death.'],
-      'npc-run': ['Vanilla', 'Отдельный совместимый источник бега NPC пока не подключён.'],
-      'npc-idle': ['Vanilla', 'Сюда относятся Idle, Turn и Sneak NPC. OpenMW Dynamic Actors (#54782) сохранён как кандидат для анализа, но не подключён как источник клипов.'],
-      'npc-combat': ['Vanilla', 'Отдельного активного боевого реплейсера нет. Morrowind Animation Overhaul не активирован; не смешивать его с walk-паками.'],
-      'npc-actions': ['Vanilla', 'Сюда относятся повседневные действия и взаимодействия NPC; runtime-источник пока не реализован.'],
-      'npc-reactions': ['Vanilla', 'Сюда относятся попадания, реакции, падения и смерть NPC; runtime-источник пока не реализован.'],
+      'player-run': ['Источник анимации', 'Отдельный совместимый источник бега пока не подключён. Выбор ходьбы не подменяет анимацию бега.'],
+      'player-posture': ['Источник анимации', 'Здесь находятся Idle, Turn, Sneak и переходы стойки. Источники замен пока не подключены.'],
+      'player-combat': ['Источник анимации', 'Сюда относятся атаки по типам оружия, замахи, попадания и блок. Morrowind Animation Overhaul содержит такие группы, но не активирован: требуется разрешение на перенос ресурсов и отдельная проверка совместимости.'],
+      'player-magic': ['Источник анимации', 'Отдельного совместимого и разрешённого источника заклинаний сейчас нет.'],
+      'player-actions': ['Источник анимации', 'Сюда относятся использование предметов, открытие/закрытие, взаимодействие и прочие действия вне боя.'],
+      'player-traversal': ['Источник анимации', 'Сюда относятся Jump, Swim, Fall и другие специальные перемещения.'],
+      'player-reactions': ['Источник анимации', 'Сюда относятся Hit, Knockdown и Death.'],
+      'npc-run': ['Источник анимации', 'Отдельный совместимый источник бега NPC пока не подключён.'],
+      'npc-idle': ['Источник анимации', 'Сюда относятся Idle, Turn и Sneak NPC. OpenMW Dynamic Actors (#54782) сохранён как кандидат для анализа, но не подключён как источник клипов.'],
+      'npc-combat': ['Источник анимации', 'Отдельного активного боевого реплейсера нет. Morrowind Animation Overhaul не активирован; не смешивать его с walk-паками.'],
+      'npc-actions': ['Источник анимации', 'Сюда относятся повседневные действия и взаимодействия NPC; runtime-источник пока не реализован.'],
+      'npc-reactions': ['Источник анимации', 'Сюда относятся попадания, реакции, падения и смерть NPC; runtime-источник пока не реализован.'],
     }[item.slice(5)];
     if (!copy) return [];
-    const card = el('div', 'dcard');
-    card.append(el('h3', null, copy[0]), el('p', 'meta', copy[1]));
+    const card = el('div', 'dcard animation-source-card');
+    card.append(el('h3', null, copy[0]));
+    const choices = el('div', 'animation-source-options');
+    const vanilla = el('button', 'sec-jumpbtn animation-switch is-active', 'Vanilla');
+    vanilla.type = 'button';
+    vanilla.disabled = true;
+    vanilla.setAttribute('aria-pressed', 'true');
+    vanilla.setAttribute('aria-label', 'Vanilla — единственный подключённый источник в этой категории');
+    choices.append(vanilla);
+    card.append(choices, el('p', 'meta', copy[1]));
     return [card];
   }
   if (item === 'port:language') { const r = pool.get('language'); const pack = r ? translationPackRow() : null; return r ? [mark(r), ...(pack ? [pack] : [])] : []; }   // L10N3b: the translation pack rides under the language row
