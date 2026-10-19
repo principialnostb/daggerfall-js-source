@@ -157,7 +157,7 @@ export function openAppearanceEditor({ fpArm, onClose = () => {} } = {}) {
   }
 
   const footer = document.createElement('footer'); footer.className = 'mw-footer';
-  const footerNote = document.createElement('div'); footerNote.className = 'mw-footer-note'; footerNote.textContent = 'Параметры сохраняются автоматически';
+  const footerNote = document.createElement('div'); footerNote.className = 'mw-footer-note'; footerNote.textContent = 'Изменения применяются сразу';
   const footerActions = document.createElement('div'); footerActions.className = 'mw-tool-group';
   const reset = makeButton('Сбросить параметры');
   reset.addEventListener('click', () => {
@@ -227,7 +227,7 @@ export function openAppearanceEditor({ fpArm, onClose = () => {} } = {}) {
       return;
     }
     try {
-      const image = previewRig.figure({ yaw, height: 920, force: true });
+      const image = previewRig.figure({ yaw, height: Math.min(1024, Math.max(640, Math.round(preview.height * 0.95))), force: true, neutral: true });
       const ctx = preview.getContext('2d');
       if (!ctx) return;
       ctx.clearRect(0, 0, preview.width, preview.height);
