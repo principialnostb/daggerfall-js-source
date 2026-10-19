@@ -1198,6 +1198,17 @@ export const FEATURES = Object.freeze([
     kinds: Object.freeze(['enhanced']),
     control: Object.freeze({ store: 'prefs', key: 'mwSpellEffects', initial: true, online: 'player' }),
   }),
+  // MW-BB-SETTINGS: the player's own body geometry. Better Bodies is the selected default;
+  // switching it off restores the standard Morrowind body and first-person arms.
+  Object.freeze({
+    id: 'mw-better-bodies',
+    group: 'character',
+    title: 'Better Bodies',
+    note: 'Uses the Better Bodies body meshes and matching race/sex skin for the player. Off restores the standard Morrowind body meshes and hands. This does not change NPC body rendering.',
+    effect: 'Takes effect when the body is rebuilt.',
+    kinds: Object.freeze(['enhanced']),
+    control: Object.freeze({ store: 'prefs', key: 'mwBetterBodies', initial: true, online: 'player' }),
+  }),
   // MWNPC5b (2026-10-09, Mac: "I wanna do everything and ensure that performance isnt affected"): THE PEOPLE IN
   // MORROWIND BODIES - the NPC lanes (characters/npcBodies.js) under ONE frame budget (MWNPC11, NPC_FRAME_TIERS): Off, the
   // classic sprites; Near, the nearest 24 a frame within a street's width, whoever they are; All, 48 across a square. The
