@@ -1283,6 +1283,15 @@ export const FEATURES = Object.freeze([
     kinds: Object.freeze(['mod']),
     control: Object.freeze({ store: 'mods', vendor: 'morrowind-textures', key }),
   })),
+  Object.freeze({
+    id: 'morrowind-animation-blending',
+    group: 'character',
+    title: 'Плавность переходов анимаций',
+    get note() { return MOD_SETTINGS['morrowind-animation'].keys.AnimationBlendDuration.description; },
+    effect: 'Takes effect immediately.',
+    kinds: Object.freeze(['mod']),
+    control: Object.freeze({ store: 'mods', vendor: 'morrowind-animation', key: 'AnimationBlendDuration' }),
+  }),
   // MAO: full third-person KF replacement. The loader uses the selected
   // sex-matched source for supported human/elf/orc rigs; the original source
   // remains available as the Vanilla fallback.
