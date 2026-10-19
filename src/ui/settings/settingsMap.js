@@ -233,7 +233,7 @@ export const CATEGORIES = Object.freeze([
   ]),
   tab("bodies", "Тела", [
     sec("morrowind-bodies", "Модели тел Morrowind", [
-      "feat:mw-npc-bodies", "feat:mw-billboard-look",
+      "feat:mw-better-bodies", "feat:mw-npc-bodies", "feat:mw-billboard-look",
     ]),
   ]),
   tab("mods", "Mods & files", [
