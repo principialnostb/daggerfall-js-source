@@ -1683,6 +1683,7 @@ export const MOD_SETTINGS = Object.freeze({
     title: 'Morrowind texture and equipment packs',
     author: 'Port integration',
     keys: Object.freeze({
+      BetterBodies: Object.freeze({ default: true, get description() { return 'Use the Better Bodies body meshes and matching race/sex skin for the player. Off restores the standard Morrowind body meshes and first-person arms.'; } }),
       IntelligentTextures: Object.freeze({ default: false, get description() { return 'Use Intelligent Textures 00 Core. The 01 Atlas Textures set is excluded because it requires matching atlas meshes.'; } }),
       VurtsBetterClothes: Object.freeze({ default: false, get description() { return 'Use Vurt\'s Better Clothes Retexture for matching clothing texture paths.'; } }),
       BetterClothesRetextured: Object.freeze({ default: false, get description() { return 'Use Better Clothes Retextured for matching non-pants texture paths. Pants remain on their existing textures as a fit-quality control.'; } }),
