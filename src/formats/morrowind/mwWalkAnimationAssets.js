@@ -15,7 +15,6 @@ const FILES = IN_BROWSER
 const norm = (value) => String(value).replace(/\\/g, '/').toLowerCase();
 const entries = Object.entries(FILES).map(([path, url]) => ({ path: path.replace(/\\/g, '/'), lower: norm(path), url }));
 const standardMale = entries.find((e) => e.lower.includes('/simply walking purist edition/meshes/xbase_anim.kf'));
-const standardFemale = entries.find((e) => e.lower.includes('/simply walking purist edition/meshes/xbase_anim_female.kf'));
 const feminineFemale = entries.find((e) => e.lower.includes('/simply walking/feminine walk cycle/meshes/xbase_anim_female.kf'));
 const axelFemale = entries.find((e) => e.lower.includes("/axel's sexy walk fixed/animation/axel fixed/female/walkforward;.kf"));
 
@@ -42,12 +41,12 @@ async function bytes(entry) {
  */
 export async function loadWalkAnimationAssets({ female = false } = {}) {
   if (!IN_BROWSER) return [];
-  const standard = female ? standardFemale : standardMale;
+  const standard = female ? feminineFemale : standardMale;
   // Load both female-only candidates once; fpArm's movement resolver chooses
   // the saved preference on each walk-group change. This keeps live switching
   // possible without reloading the rig or ever loading Axel's idle/run clips.
   const overrides = female
-    ? [{ entry: feminineFemale, variant: 'female' }, { entry: axelFemale, variant: 'female2' }]
+    ? [{ entry: axelFemale, variant: 'axel' }]
     : [];
   const selected = [];
   if (!standard && !warnedMissingWalkAssets) {
@@ -57,7 +56,7 @@ export async function loadWalkAnimationAssets({ female = false } = {}) {
   try {
     if (standard) {
       const data = await bytes(standard);
-      if (data) selected.push({ name: standard.path, bytes: data, variant: 'standard', walkVariant: 'standard', walkOnly: true });
+      if (data) selected.push({ name: standard.path, bytes: data, variant: 'standard', walkVariant: 'simply', walkOnly: true });
     }
     for (const { entry, variant } of overrides) {
       if (!entry) {
@@ -81,7 +80,6 @@ export function inspectWalkAnimationAssets() {
   return {
     browser: IN_BROWSER,
     standardMale: standardMale?.path ?? null,
-    standardFemale: standardFemale?.path ?? null,
     feminineFemale: feminineFemale?.path ?? null,
     axelFemale: axelFemale?.path ?? null,
   };
@@ -113,9 +111,9 @@ export function walkVariantForActor({
   playerChoice = 0, npcMaleChoice = 0, npcFemaleChoice = 0,
 } = {}) {
   const index = (value, max) => Math.max(0, Math.min(max, Number(value) || 0));
-  if (player || ownHeads) return ['standard', 'female', 'female2', 'vanilla'][index(playerChoice, 3)];
-  if (female) return ['standard', 'female2', 'vanilla'][index(npcFemaleChoice, 2)];
-  return ['standard', 'vanilla'][index(npcMaleChoice, 1)];
+  if (player || ownHeads) return ['vanilla', 'simply', 'axel'][index(playerChoice, 2)];
+  if (female) return ['vanilla', 'simply', 'axel'][index(npcFemaleChoice, 2)];
+  return ['vanilla', 'simply'][index(npcMaleChoice, 1)];
 }
 
 /** Live preference gate used by the movement resolver. Non-walk sources are untouched. */
@@ -124,6 +122,6 @@ export function isWalkVariantEnabled(source, walkChoice = 'standard') {
   // Vanilla is an explicit source policy: keep archive/game clips and omit
   // every bundled walk-only replacement. It must not disable non-walk sources.
   if (selected === 'vanilla') return !source?.walkOnly;
-  if (!source?.walkOnly || !source?.walkVariant || source.walkVariant === 'standard') return true;
+  if (!source?.walkOnly) return true;
   return source.walkVariant === selected;
 }
