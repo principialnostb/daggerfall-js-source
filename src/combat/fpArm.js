@@ -2106,7 +2106,7 @@ async function buildTpBody({
         const [bytes, textureBytes, uvEdits] = await Promise.all([
           loadBetterBodiesAssetBytes(asset.model, 'NIF'),
           loadBetterBodiesAssetBytes(asset.texture, 'DDS'),
-          female && asset.raceKey === 'no' ? loadBetterBodiesFemaleUvEdits() : Promise.resolve([]),
+          female && asset.geometryRaceKey === 'no' ? loadBetterBodiesFemaleUvEdits() : Promise.resolve([]),
         ]);
         registerBetterBodiesRaceTexture(archives, asset.texturePath, textureBytes);
         betterBodiesPart = {
@@ -2950,7 +2950,7 @@ export async function buildFpArm({
         const [bytes, textureBytes, uvEdits] = await Promise.all([
           loadBetterBodiesAssetBytes(asset.model, 'NIF'),
           loadBetterBodiesAssetBytes(asset.texture, 'DDS'),
-          female && asset.raceKey === 'no' ? loadBetterBodiesFemaleUvEdits() : Promise.resolve([]),
+          female && asset.geometryRaceKey === 'no' ? loadBetterBodiesFemaleUvEdits() : Promise.resolve([]),
         ]);
         registerBetterBodiesRaceTexture(archives, asset.texturePath, textureBytes);
         const basename = betterBodiesTextureBasename(asset.texturePath);
