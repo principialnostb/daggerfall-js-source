@@ -84,7 +84,7 @@ import { DFPalette } from '../formats/dfPalette.js';
 import { raceArt } from '../systems/races.js';
 import { appStorage } from '../systems/appStorage.js';   // DA1: the storage seam
 import { modSetting } from '../systems/modSettings.js';
-import { loadWalkAnimationAssets, isWalkAnimationGroup, isWalkAnimationKey, isWalkVariantEnabled, walkVariantForActor } from '../formats/morrowind/mwWalkAnimationAssets.js';
+import { loadWalkAnimationAssets, isWalkAnimationGroup, isWalkAnimationKey, isRunAnimationGroup, isRunAnimationKey, isWalkVariantEnabled, walkVariantForActor } from '../formats/morrowind/mwWalkAnimationAssets.js';
 import { drawRigSpriteBox, MW_THIRD_PERSON_PIXEL } from '../render/characterSprite.js';
 import { WEAPONS } from '../characters/weapons.js';
 import { materialName } from '../systems/item/itemInfo.js';
@@ -2281,21 +2281,23 @@ async function buildTpBody({
           console.warn('[Morrowind animations] replacement KF could not be parsed/bound; vanilla walk retained:', reason);
           continue;
         }
-        const walkKeys = report.keys.filter((key) => isWalkAnimationKey(key));
-        const walkGroups = report.groups.filter(isWalkAnimationGroup);
-        if (!walkGroups.length || !walkKeys.length) {
-          const reason = `walk animation ${asset.name}: no usable walk groups; vanilla source retained`;
+        const isFamilyGroup = asset.family === 'run' ? isRunAnimationGroup : isWalkAnimationGroup;
+        const isFamilyKey = asset.family === 'run' ? isRunAnimationKey : isWalkAnimationKey;
+        const familyKeys = report.keys.filter(isFamilyKey);
+        const familyGroups = report.groups.filter(isFamilyGroup);
+        if (!familyGroups.length || !familyKeys.length) {
+          const reason = `locomotion animation ${asset.name}: no usable ${asset.family || 'walk'} groups; vanilla source retained`;
           missing.push(reason);
-          console.warn('[Morrowind animations] replacement KF has no recognised walk groups; vanilla walk retained:', {
-            asset: asset.name, groups: report.groups, keyCount: report.keys.length,
+          console.warn('[Morrowind animations] replacement KF has no recognised locomotion groups; vanilla source retained:', {
+            asset: asset.name, family: asset.family || 'walk', groups: report.groups, keyCount: report.keys.length,
           });
           continue;
         }
         sources.push({
           name: asset.name,
-          keys: walkKeys,
-          groups: walkGroups,
-          groupSet: new Set(walkGroups),
+          keys: familyKeys,
+          groups: familyGroups,
+          groupSet: new Set(familyGroups),
           trackMap: report.trackMap,
           binding: report.binding,
           wouldAccumRoot: accumRootRef(arm.skeleton, report.trackMap),
@@ -4948,7 +4950,7 @@ export function createFpArm({ playerAppearance = false } = {}) {
     // frame - the port's old gate keyed on the movestate name alone and
     // kept the bare-handed walk playing with the sword out.
     const stance = stanceOf();   // MWNPC9: a non-biped's bare walk
-    const walkPreference = base.startsWith('walk') ? walkVariantForActor({
+    const walkPreference = /^(?:walk|run)/i.test(base) ? walkVariantForActor({
       player: playerAppearance,
       ownHeads: !!lastBuildOpts?.ownHeads,
       female: !!lastBuildOpts?.female,
@@ -4956,10 +4958,10 @@ export function createFpArm({ playerAppearance = false } = {}) {
       npcMaleChoice: modSetting('morrowind-animation', 'NpcMaleWalk') ?? 0,
       npcFemaleChoice: modSetting('morrowind-animation', 'NpcFemaleWalk') ?? 0,
     }) : false;
-    const preferenceChanged = movementWalkPreference !== (base.startsWith('walk') ? walkPreference : null);
+    const preferenceChanged = movementWalkPreference !== (/^(?:walk|run)/i.test(base) ? walkPreference : null);
     const fresh = preferenceChanged || !(movementState && movementState.playing
       && movementBase === base && movementStance === stance);
-    if (fresh) movementWalkPreference = base.startsWith('walk') ? walkPreference : null;
+    if (fresh) movementWalkPreference = /^(?:walk|run)/i.test(base) ? walkPreference : null;
     if (fresh) {
       const composed = composeMovementGroup(base, stance, hasGroup);
       if (!composed.group) {
