@@ -2,13 +2,15 @@
 
 ## Purpose
 
-The settings screen uses `src/ui/settings/settingsMap.js` as its single taxonomy. Each tab is a broad domain; sections group related features; `label:` rows introduce narrower clip groups inside a section. The map is total and disjoint: every settings key, feature, port row, and screen-owned card must appear exactly once. `test/systems/org2_options.test.js` pins that contract.
+The settings screen uses `src/ui/settings/settingsMap.js` as its single taxonomy. Each tab is a broad domain and sections group related features. Animation sections support nested `group:` selectors: for example, `Анимации → Передвижение → Ходьба/Бег → Игрок/NPC`. Selecting a clip group shows only its controls; adding a future clip family means adding a new group and its actor-scoped controls to the same map. The map is total and disjoint: every settings key, feature, port row, and screen-owned card must appear exactly once. `test/systems/org2_options.test.js` pins that contract.
 
 The new dedicated tabs are:
 
 - **Анимации** — grouped by broad family and narrower clip group.
 - **Текстуры** — pack access and texture/overhaul entry points.
-- **Тела** — Morrowind body rendering switches.
+- **Тела** — Morrowind body rendering switches; Better Bodies is enabled by default.
+
+The `morrowind-textures` settings vendor owns independent switches for the optional texture/equipment layers. They default off (Vanilla); Better Bodies is the single default-on body geometry selection. The browser's bundled archive is built from saved choices at startup, so changing an optional texture pack requires a page/game reload.
 
 ## Animation selector boundaries
 
@@ -33,4 +35,4 @@ Before exposing a new choice in the UI:
 5. Add tests proving that the selector filters only its family and leaves every other family on its current source.
 6. Keep unsupported families visibly Vanilla until a compatible source is wired. Do not show a functional-looking selector that changes nothing.
 
-The posture, attacks, blocking, magic, actions, special movement, damage, and death groups are segmented in the interface, but remain Vanilla information cards until compatible replacement sources are integrated. This is intentional and must not be described as completed runtime pack support.
+The posture, attacks, blocking, magic, actions, special movement, damage, and death groups remain Vanilla information cards until compatible replacement sources are integrated. Running is independently visible and has separate Игрок/NPC cards; it remains Vanilla until a compatible run source is connected. This is intentional and must not be described as completed runtime pack support.
