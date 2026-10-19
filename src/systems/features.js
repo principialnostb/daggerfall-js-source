@@ -1242,12 +1242,12 @@ export const FEATURES = Object.freeze([
   // the character played when the mod is on (at creation, or at the first load of a character made before it), and its
   // model is the family's for good - so the switch lands at once for the tree and the key, and a family keeps its model.
   modFeature('project-legacy', () => t('features.mod.projectLegacy.effect', 'Takes effect at once; a family keeps the model it was founded with.'), 'character'),
-  // MW-ANIM-1: actor-scoped walk source controls. Each row is wired to a
-  // persisted setting consumed by the walk resolver; none is a decorative toggle.
+  // MW-ANIM-2: actor-scoped walk selectors. Each row is a category-specific
+  // source choice, persisted independently and consumed by the walk resolver.
   Object.freeze({
     id: 'morrowind-player-walk-animation',
     group: 'character',
-    get title() { return 'Walk animation source'; },
+    get title() { return 'Ходьба — источник анимации'; },
     get note() { return MOD_SETTINGS['morrowind-animation'].keys.PlayerWalkSource.description; },
     get effect() { return t('features.effect.atOnce', 'Takes effect at once.'); },
     kinds: Object.freeze(['mod']),
@@ -1256,7 +1256,7 @@ export const FEATURES = Object.freeze([
   Object.freeze({
     id: 'morrowind-male-npc-walk-animation',
     group: 'character',
-    get title() { return 'Male NPC walk source'; },
+    get title() { return 'Мужчины — ходьба'; },
     get note() { return MOD_SETTINGS['morrowind-animation'].keys.NpcMaleWalk.description; },
     get effect() { return t('features.effect.atOnce', 'Takes effect at once.'); },
     kinds: Object.freeze(['mod']),
@@ -1265,7 +1265,7 @@ export const FEATURES = Object.freeze([
   Object.freeze({
     id: 'morrowind-female-npc-walk-animation',
     group: 'character',
-    get title() { return 'Female NPC walk source'; },
+    get title() { return 'Женщины — ходьба'; },
     get note() { return MOD_SETTINGS['morrowind-animation'].keys.NpcFemaleWalk.description; },
     get effect() { return t('features.effect.atOnce', 'Takes effect at once.'); },
     kinds: Object.freeze(['mod']),
