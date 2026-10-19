@@ -193,10 +193,10 @@ export const CATEGORIES = Object.freeze([
   // the remaining cards explicitly show their Vanilla fallback until a compatible pack is wired.
   tab("animations", "Анимации", [
     sec("locomotion", "Передвижение", [
-      "group:walking", "label:walking-player", "feat:morrowind-player-walk-animation",
-      "label:walking-npc", "feat:morrowind-male-npc-walk-animation", "feat:morrowind-female-npc-walk-animation",
       "group:running", "label:running-player", "feat:morrowind-player-run-animation",
       "label:running-npc", "info:npc-run", "feat:morrowind-female-npc-run-animation",
+      "group:walking", "label:walking-player", "feat:morrowind-player-walk-animation",
+      "label:walking-npc", "feat:morrowind-male-npc-walk-animation", "feat:morrowind-female-npc-walk-animation",
     ]),
     sec("posture", "Положение и скрытность", [
       "label:turning", "info:player-turning", "info:npc-turning",
