@@ -8,6 +8,7 @@ test('MW-ANIM-1: bundled walk asset inventory is safe to import in Node', () => 
   assert.equal(assets.standardMale, null);
   assert.equal(assets.standardFemale, null);
   assert.equal(assets.feminineFemale, null);
+  assert.equal(assets.axelFemale, null);
 });
 test('MW-ANIM-1: only walk groups are overridden', () => {
   assert.equal(isWalkAnimationGroup('WalkForward'), true);
@@ -18,7 +19,10 @@ test('MW-ANIM-1: only walk groups are overridden', () => {
 test('MW-ANIM-1: female gait preference gates only the female walk source', () => {
   assert.equal(isWalkVariantEnabled({ walkOnly: true, walkVariant: 'standard' }, false), true);
   assert.equal(isWalkVariantEnabled({ walkOnly: true, walkVariant: 'female' }, false), false);
-  assert.equal(isWalkVariantEnabled({ walkOnly: true, walkVariant: 'female' }, true), true);
+  assert.equal(isWalkVariantEnabled({ walkOnly: true, walkVariant: 'female' }, 'female'), true);
+  assert.equal(isWalkVariantEnabled({ walkOnly: true, walkVariant: 'female' }, 'female2'), false);
+  assert.equal(isWalkVariantEnabled({ walkOnly: true, walkVariant: 'female2' }, 'female2'), true);
+  assert.equal(isWalkVariantEnabled({ walkOnly: true, walkVariant: 'female2' }, 'female'), false);
   assert.equal(isWalkVariantEnabled({ name: 'vanilla' }, false), true);
 });
 
