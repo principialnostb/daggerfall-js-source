@@ -1699,7 +1699,7 @@ export const MOD_SETTINGS = Object.freeze({
     author: 'Port integration',
     keys: Object.freeze({
       BetterBodies: Object.freeze({ default: true, conflictGroup: 'morrowind-body-geometry', conflictLabel: 'Better Bodies', get description() { return 'Use the Better Bodies body meshes and matching race/sex skin for the player. Off restores the standard Morrowind body meshes and first-person arms.'; } }),
-      HighResolutionBetterBodyFemaleTextures: Object.freeze({ default: true, get description() { return 'Use the high-resolution female Better Bodies skin and hand textures. Keeps the project-corrected Better Bodies mesh and UV coordinates; requires Better Bodies.'; } }),
+      HighResolutionBetterBodyFemaleTextures: Object.freeze({ default: true, get description() { return 'Use the high-resolution female Better Bodies skin and hand textures, with underwear, body-hair and no-hair variants selected in the appearance editor. Keeps the project-corrected Better Bodies mesh and UV coordinates; requires Better Bodies.'; } }),
       SeamlessDMRA: Object.freeze({ default: false, get description() { return 'Use Seamless DMRA female body geometry in place of the base Better Bodies female mesh. Better Bodies remains the base skin and male-body source; only one female body mesh is selected at a time.'; } }),
       IntelligentTextures: Object.freeze({ default: false, get description() { return 'Use Intelligent Textures 00 Core. The 01 Atlas Textures set is excluded because it requires matching atlas meshes.'; } }),
       VurtsBetterClothes: Object.freeze({ default: false, get description() { return 'Use Vurt\'s Better Clothes Retexture for matching clothing texture paths.'; } }),
