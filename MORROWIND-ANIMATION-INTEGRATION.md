@@ -100,7 +100,7 @@ The asset loader loads the standard source and both female-only walk candidates 
 ## Current integration boundary (2026-10-19)
 
 - The visible **Female Walk Style** selector offers **Standard**, **Female**, and **Female 2** in the Features/Mods interface.
-- The gameplay rig loader resolves Standard/Female files from `Morrowind Textures/Simply Walking` and Axel's `WalkForward;.kf` from `Morrowind Textures/Axel's Sexy Walk Fixed/Animation/axel fixed/female`. It does not load Axel's idle/run files into the runtime walk source list.
+- The gameplay rig loader resolves Simply Walking by actor sex and Axel's `WalkForward;.kf` + `RunForward;.kf` from `Morrowind Textures/Axel's Sexy Walk Fixed/Animation/axel fixed/female`. Both Axel clips are filtered to their own group family and controlled by the combined walk/run selector; `Idle4;.kf` and `Idle5;.kf` remain unconnected pending an idle-resolver audit.
 - The `53779` Animation Blending download is an MWSE Lua plugin, not a browser JavaScript module. The port uses its own native pose cross-fade implementation; it does not execute the Lua script. That implementation still requires in-game verification.
 - Nexus `60253` Morrowind Animation Overhaul explicitly disallows conversion to other games and asset use without permission. Its attack/combat KF files are therefore **not wired into this public port** without author permission. The currently integrated Simply Walking/Feminine Walk Cycle resources are walk-only; attacks remain the original game's clips.
 
