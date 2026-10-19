@@ -51,12 +51,12 @@ export async function loadWalkAnimationAssets({ female = false } = {}) {
   const selected = [];
   if (!standard && !warnedMissingWalkAssets) {
     warnedMissingWalkAssets = true;
-    console.warn('[Morrowind animations] Vite did not resolve the standard KF asset.', inspectWalkAnimationAssets());
+    console.warn('[Morrowind animations] Vite did not resolve the Simply Walking KF source.', inspectWalkAnimationAssets());
   }
   try {
     if (standard) {
       const data = await bytes(standard);
-      if (data) selected.push({ name: standard.path, bytes: data, variant: 'standard', walkVariant: 'simply', walkOnly: true });
+      if (data) selected.push({ name: standard.path, bytes: data, variant: 'simply', walkVariant: 'simply', walkOnly: true });
     }
     for (const { entry, variant } of overrides) {
       if (!entry) {
@@ -72,7 +72,7 @@ export async function loadWalkAnimationAssets({ female = false } = {}) {
   }
   if (!selected.length && !warnedMissingWalkAssets) {
     warnedMissingWalkAssets = true;
-    console.warn('[Morrowind animations] no bundled walk KF was selected.', inspectWalkAnimationAssets());
+    console.warn('[Morrowind animations] no bundled walk KF source was selected.', inspectWalkAnimationAssets());
   }
   return selected;
 }
