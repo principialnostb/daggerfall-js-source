@@ -1683,7 +1683,7 @@ export const MOD_SETTINGS = Object.freeze({
     title: 'Morrowind texture and equipment packs',
     author: 'Port integration',
     keys: Object.freeze({
-      BetterBodies: Object.freeze({ default: true, get description() { return 'Use the Better Bodies body meshes and matching race/sex skin for the player. Off restores the standard Morrowind body meshes and first-person arms.'; } }),
+      BetterBodies: Object.freeze({ default: true, conflictGroup: 'morrowind-body-geometry', conflictLabel: 'Better Bodies', get description() { return 'Use the Better Bodies body meshes and matching race/sex skin for the player. Off restores the standard Morrowind body meshes and first-person arms.'; } }),
       IntelligentTextures: Object.freeze({ default: false, get description() { return 'Use Intelligent Textures 00 Core. The 01 Atlas Textures set is excluded because it requires matching atlas meshes.'; } }),
       VurtsBetterClothes: Object.freeze({ default: false, get description() { return 'Use Vurt\'s Better Clothes Retexture for matching clothing texture paths.'; } }),
       BetterClothesRetextured: Object.freeze({ default: false, get description() { return 'Use Better Clothes Retextured for matching non-pants texture paths. Pants remain on their existing textures as a fit-quality control.'; } }),
@@ -1967,6 +1967,25 @@ export function setModSetting(vendor, key, value) {
   const v = coerce(def, value);
   const notices = [];
   _modSettingNotices.clear();
+
+  // Generic exclusive-resource rule: every setting may declare a conflictGroup.
+  // Turning one member on disables any other active member of that same group,
+  // regardless of which vendor/store owns it. This is used for body geometry
+  // replacements and can be reused for future overlapping animation/armor packs.
+  if (v === true && def.conflictGroup) {
+    const disabled = [];
+    for (const [otherVendor, vendorDef] of Object.entries(MOD_SETTINGS)) {
+      for (const [otherKey, otherDef] of Object.entries(vendorDef.keys ?? {})) {
+        if (otherVendor === vendor && otherKey === key) continue;
+        if (otherDef.conflictGroup !== def.conflictGroup || modSetting(otherVendor, otherKey) !== true) continue;
+        (m[otherVendor] ??= {})[otherKey] = false;
+        const label = otherDef.conflictLabel ?? otherKey;
+        notices.push([otherKey, `Отключён: ${label}`]);
+        disabled.push(label);
+      }
+    }
+    if (disabled.length) notices.push([key, disabled.map((label) => `Отключён: ${label}`).join('; ')]);
+  }
 
   // Morrowind texture/equipment pack dependency: Complete Armor Joints is an
   // add-on, not a standalone replacer. Enabling it also enables its required
