@@ -1705,6 +1705,7 @@ function paneExit(body) {
 
 let optQuery = '';          // ORG2: the search, over every tab - kept across a repaint, cleared by a tab change
 let animationSection = 'locomotion'; // ANIM-UI5: the shared animation family currently selected
+let animationClipGroup = 'walking'; // ANIM-UI7: nested clip family selected inside the animation section
 let optFilter = 'all';      // ORG2: 'all' | 'changed' | a KINDS id
 let pickedFeature = null;   // ORG2: the Features row the help pane reads (pickedKey is DFU's key)
 let optScrollTo = null;     // ORG2: a row to bring into view after the next paint (the mods' list sends you to one)
@@ -1766,9 +1767,12 @@ function itemKinds(item) {
 function itemText(item, pool) {
   if (isSettingItem(item)) return `${labelOf(item)} ${helpOf(item)} ${item}`;
   if (item.startsWith('feat:')) { const f = FEATURES.find((x) => x.id === item.slice(5)); return f ? featureSearchText(f) : ''; }
+  if (item.startsWith('group:')) return ({ walking: 'ходьба walking walk', running: 'бег running run' })[item.slice(6)] ?? '';
   if (item.startsWith('label:')) return ({
     player: 'player игрок', npc: 'npc нпс',
     walking: 'ходьба walking walk', running: 'бег running run',
+    'walking-player': 'ходьба игрок player', 'walking-npc': 'ходьба npc нпс',
+    'running-player': 'бег игрок player', 'running-npc': 'бег npc нпс',
     turning: 'повороты развороты turning turn', idle: 'стойка ожидание idle stance',
     sneak: 'скрытность sneak stealth', attacks: 'атаки attacks',
     blocking: 'блокирование защита blocking block', jumping: 'прыжки jumping jump',
@@ -1842,9 +1846,24 @@ function itemNodes(item, ctx) {
     const f = FEATURES.find((x) => x.id === item.slice(5));
     return f ? [mark(featureTile(f))] : [];
   }
+  if (item.startsWith('group:')) {
+    const group = item.slice(6);
+    const labels = { walking: 'Ходьба', running: 'Бег' };
+    const button = el('button', `sec-jumpbtn animation-switch animation-clip-group${animationClipGroup === group ? ' is-active' : ''}`, labels[group] ?? group);
+    button.type = 'button';
+    button.setAttribute('aria-expanded', String(animationClipGroup === group));
+    button.onclick = () => {
+      animationClipGroup = group;
+      if (ctx.body) paintOptionsBody(ctx.body, { pause: ctx.pause });
+    };
+    return [button];
+  }
   if (item.startsWith('label:')) {
     const labels = {
-      player: 'Игрок', npc: 'NPC', walking: 'Ходьба', running: 'Бег',
+      player: 'Игрок', npc: 'NPC',
+      'walking-player': 'Игрок', 'walking-npc': 'NPC',
+      'running-player': 'Игрок', 'running-npc': 'NPC',
+      walking: 'Ходьба', running: 'Бег',
       turning: 'Повороты и развороты', idle: 'Стойка и ожидание', sneak: 'Скрытность',
       attacks: 'Атаки', blocking: 'Блокирование и защита',
       jumping: 'Прыжки', swimming: 'Плавание', falling: 'Падение и приземление',
@@ -1928,7 +1947,15 @@ function tabSections(tab, ctx) {
   const fold = [];
   const out = [];
   for (const s of tab.sections) {
-    const nodes = s.items.flatMap((item) => itemNodes(item, { ...ctx, fold }));
+    let clipGroup = null;
+    const nodes = s.items.flatMap((item) => {
+      if (tab.id === 'animations' && item.startsWith('group:')) {
+        clipGroup = item.slice(6);
+        return itemNodes(item, { ...ctx, fold });
+      }
+      if (tab.id === 'animations' && clipGroup && clipGroup !== animationClipGroup) return [];
+      return itemNodes(item, { ...ctx, fold });
+    });
     if (nodes.length) out.push({ s, nodes });
   }
   return { sections: out, fold };
@@ -1954,7 +1981,7 @@ function tabCount(tab, ctx) {
  *  every render. */
 function paintOptionsBody(body, { pause = false } = {}) {
   const pool = portPool({ pause });
-  const ctx = { pool, pause };
+  const ctx = { pool, pause, body };
   body.replaceChildren();
   const q = optQuery.trim();
   if (q) {
