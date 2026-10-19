@@ -294,7 +294,7 @@ async function preloadArmTextures(pieces, archives, gen = null) {
     const arc = archives.find((a) => a.has(path));
     if (!arc || (typeof arc.loaded === 'function' && !arc.loaded(path))) return;   // collectArmTextures says why
     let image;
-    try { image = tintBetterBodiesFemaleSkin(await decodeTextureOffThread(path, arc.get(path)), file); } catch (err) {
+    try { image = await decodeTextureOffThread(path, arc.get(path)); } catch (err) {
       // AUDIT MW-TEXTHREAD F4: THE DECODER'S REFUSAL IS KEPT TOO. The
       // decoder is pure, so the same bytes refuse again on any thread;
       // left unkept, collectArmTextures decoded the whole file a second
