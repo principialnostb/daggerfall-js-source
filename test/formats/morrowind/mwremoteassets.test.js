@@ -15,6 +15,7 @@ test('MW-REMOTE-ASSETS: mod files are sourced from a pinned asset commit, not co
 test('MW-REMOTE-ASSETS: the integrated packs have their runtime files in the manifest', () => {
   for (const path of [
     'Better Bodies/Nude/Data Files/Meshes/bb/bb_skinf_no.nif',
+    'Better Bodies/Nude/Data Files/Textures/bb/bb_handf_no.dds',
     'Better Bodies/Underwear/Data Files/Textures/bb/bb_skinf_no.dds',
     'High Resolution Better Body Female Textures/Nude_No_Hair/Textures/bb/bb_skinf_no.dds',
     'High Resolution Better Body Female Textures/Hands/Textures/bb/bb_handf_no.dds',
