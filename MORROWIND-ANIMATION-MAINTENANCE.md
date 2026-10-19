@@ -14,7 +14,7 @@ This document is the operational inventory: what is in the repository, what the 
 | Parse KF / bind tracks to the active skeleton | `src/combat/fpArm.js` + `src/formats/morrowind/mwAnim.js` | Replacement tracks are parsed against the current rig. A failed parse or incompatible source is skipped and the game/archive source remains available. |
 | Restrict replacement to walk groups | `isWalkAnimationGroup`, `isWalkAnimationKey` in `mwWalkAnimationAssets.js`; source filtering in `fpArm.js` | Only groups beginning with `walk` and text-key records containing a walk-group line are copied into replacement sources. Idle, run, turn, sneak, combat, jump, and death groups are not imported from these walk packs. |
 | Choose a clip while walking | `walkVariantForActor()` in `mwWalkAnimationAssets.js`, called from `src/combat/fpArm.js` | Player, male NPC, and female NPC settings are resolved independently. The preference is checked again on a walk-group change and can trigger a live re-pick. |
-| UI / persisted mod setting | `src/systems/modSettings.js`, `src/systems/features.js` | Three controls in Settings → Animations: Walk animation source (player), Male NPC walk source, Female NPC walk source. |
+| UI / persisted mod setting | `src/ui/settings/settingsMap.js`, `src/systems/modSettings.js`, `src/systems/features.js` | Settings → Animations separates actor groups and responsibilities. Current implemented category: Игрок · Бег / ходьба, then NPC · Бег / ходьба. Each actor has its own source selector. |
 | Animation cross-fade | gameplay pose layer described in `MORROWIND-ANIMATION-INTEGRATION.md`; regression tests include `test/formats/morrowind/mwposeblend.test.js` | Native JavaScript blending, not execution of the downloaded MWSE Lua plugin. It smooths pose changes; it does not supply new animation clips. |
 | Camera/body facing | movement/body-facing host and `test/player/bodyYawFacing.test.js` | Separate concern from walk-source selection. Do not modify this while changing gait choices unless a regression proves the coupling. |
 
@@ -67,22 +67,17 @@ A broad KF can contain tracks for many bones and text keys for several groups. N
 
 ## Animation settings home — implemented in v4
 
-The Settings screen has a dedicated **Animations** tab (`src/ui/settings/settingsMap.js`). It is deliberately separate from `Mods & files`: animation sources are a player-facing resource choice, not a generic mod-management switch. The first pass keeps the list compact and actor-first:
-
-- **Player · Running & walking** — the Morrowind character-animation feature plus the player's walk-source selector.
-- **NPC · Running & walking** — male NPC walk source, then female NPC walk source.
-
-Only categories with actual controls are shown; empty Combat / Actions sections are not added as decoration. As those families get real independent selectors, add their controls under clearly named responsibility sections and preserve actor-specific separation. A pack with several animation families should be represented as a choice in each relevant family, not as one global on/off override.
+The Settings screen has a dedicated **Animations** tab (`src/ui/settings/settingsMap.js`), separate from `Mods & files`. Controls are organized by actor first, then by responsibility: **Игрок → Бег / ходьба**, followed by **NPC → Бег / ходьба**. The walk dropdowns select a source; they are not global pack enable/disable switches. Combat and Actions / Interaction categories should be added when each has a real independently selectable runtime implementation. Do not show empty headings or imply that an unimplemented category works.
 
 ## Actor-specific selectors — implemented in v4
 
-The Mods page now exposes three independent persisted controls:
+The Animations page exposes three independent persisted controls:
 
-- **Player Walk Animation** — Standard / Feminine Walk Cycle / Axel's Sexy Walk Fixed.
-- **Male NPC Walk Animation** — Standard / Vanilla.
-- **Female NPC Walk Animation** — Standard / Female (Axel) / Vanilla.
+- **Игрок · Бег / ходьба** — Standard / Feminine Walk Cycle / Axel's Sexy Walk Fixed / Vanilla.
+- **NPC · Бег / ходьба (men)** — Standard / Vanilla.
+- **NPC · Бег / ходьба (women)** — Standard / Female (Axel) / Vanilla.
 
-The setting keys live in `src/systems/modSettings.js`; the three controls are declared in `src/systems/features.js`. The old `FemaleWalk` key remains declared so its stored data is not silently redefined, but the gameplay resolver no longer reads it and no automatic migration has been added. After this change, choose the desired value in the new Player Walk Animation control; new choices are read through the existing `modSetting` store.
+The setting keys live in `src/systems/modSettings.js`; the three controls are declared in `src/systems/features.js`. The old `FemaleWalk` key remains declared so its stored data is not silently redefined, but the gameplay resolver no longer reads it and no automatic migration has been added. After this change, choose the desired value in the player walk selector; new choices are read through the existing `modSetting` store.
 
 Actor routing is centralized in `walkVariantForActor()` in `src/formats/morrowind/mwWalkAnimationAssets.js` and consumed by the movement resolver in `src/combat/fpArm.js`:
 
@@ -91,7 +86,7 @@ Actor routing is centralized in `walkVariantForActor()` in `src/formats/morrowin
 - male NPC bodies use `NpcMaleWalk`;
 - `Vanilla` excludes bundled walk-only sources while leaving archive sources and all non-walk groups available.
 
-The choices are mutually exclusive per actor, rather than independent pack toggles. That is intentional: two gait packs must not compete for the same group. Standard is Simply Walking Purist Edition; the player can additionally choose the Feminine Walk Cycle or Axel's clip, while female NPCs can choose Axel's clip. The Feminine Walk Cycle is not offered as an NPC option. This gives the player access to each available player walk source without making conflicting overrides possible.
+The choices are mutually exclusive per actor and category, rather than independent pack toggles. That is intentional: two gait packs must not compete for the same group. Standard is Simply Walking Purist Edition; the player can additionally choose the Feminine Walk Cycle or Axel's clip, while female NPCs can choose Axel's clip. The Feminine Walk Cycle is not offered as an NPC option. **Vanilla** means keep the game's/archive walk source; it is a source choice, not a global animation-off switch.
 
 Automated coverage for the pure actor/source mapping and the Vanilla filter is in `test/formats/morrowind/mwwalkassets.test.js`. This source-level wiring is implemented, but **in-game validation is still outstanding**: confirm that the NPC build path's `female` / `ownHeads` metadata is correct for every population, and visually check gait, foot sliding, and transitions. Do not call the feature fully verified until that check is performed. This environment has not run the repository's full test/lint/type/build commands.
 
