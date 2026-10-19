@@ -6,6 +6,7 @@
 // Vite's asset glob keeps the source files addressable without embedding binary data.
 const IN_BROWSER = typeof window !== 'undefined';
 import { getUnderwearEnabled } from '../../characters/bodyMorphs.js';
+import { modSetting } from '../../systems/modSettings.js';
 
 const nudeBodyModelUrls = IN_BROWSER
   ? import.meta.glob('../../../Morrowind Textures/Better Bodies/Nude/Data Files/Meshes/bb/bb_skin*.nif', {
@@ -24,6 +25,11 @@ const underwearBodyModelUrls = IN_BROWSER
   : {};
 const underwearBodyTextureUrls = IN_BROWSER
   ? import.meta.glob('../../../Morrowind Textures/Better Bodies/Underwear/Data Files/Textures/bb/bb_skin*.dds', {
+      eager: true, query: '?url', import: 'default',
+    })
+  : {};
+const dmraFemaleBodyModelUrls = IN_BROWSER
+  ? import.meta.glob('../../../Morrowind Textures/Seamless DMRA body replacer/Meshes/bb/bb_skinf_*.nif', {
       eager: true, query: '?url', import: 'default',
     })
   : {};
@@ -57,12 +63,16 @@ export function betterBodiesAssetUrls({ race = 'Nord', female = false, underwear
     const entry = Object.entries(table).find(([path]) => path.toLowerCase().endsWith(`/${stem}.${extension}`));
     return entry?.[1] ?? null;
   };
-  const model = findUrl(modelTable, modelStem, 'nif');
+  // Seamless DMRA is a female-only geometry alternative. It keeps the selected
+  // Better Bodies skin/underwear texture, but only its own female mesh is used.
+  const dmraEnabled = female && modSetting('morrowind-textures', 'SeamlessDMRA') === true;
+  const dmraModel = dmraEnabled ? findUrl(dmraFemaleBodyModelUrls, modelStem, 'nif') : null;
+  const model = dmraModel ?? findUrl(modelTable, modelStem, 'nif');
   const texture = findUrl(textureTable, sourceTextureStem, 'dds');
   if (!model || !texture) return null;
   return Object.freeze({
     model, texture, texturePath: `textures/bb/${textureStem}.dds`,
-    raceKey, textureRaceKey, geometryRaceKey, female: !!female, underwear: !!underwear,
+    raceKey, textureRaceKey, geometryRaceKey, female: !!female, underwear: !!underwear, bodyVariant: dmraModel ? 'Seamless DMRA' : 'Better Bodies',
   });
 }
 
