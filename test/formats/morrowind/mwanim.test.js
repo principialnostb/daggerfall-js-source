@@ -844,12 +844,14 @@ test('MW-D33: the accum root\'s accumulated axes are ZEROED, not pinned to rest'
 test('mwanim: female walk source is scoped to female walk groups only', () => {
   const standard = { name: 'standard', groups: new Map([['WalkForward', {}], ['Idle', {}]]) };
   const female = { name: 'female', groups: new Map([['WalkForward', {}], ['WalkBack', {}], ['Idle', {}]]) };
-  const sources = { standard, female };
+  const female2 = { name: 'female2', groups: new Map([['WalkForward', {}], ['Idle', {}]]) };
+  const sources = { standard, female, female2 };
   assert.equal(selectActorAnimSource(sources, 'WalkForward', { female: true, femaleWalk: 'female' }), female);
   assert.equal(selectActorAnimSource(sources, 'WalkBack', { female: true, femaleWalk: 'female' }), female);
-  assert.equal(selectActorAnimSource(sources, 'Idle', { female: true, femaleWalk: 'female' }), standard);
-  assert.equal(selectActorAnimSource(sources, 'WalkForward', { female: false, femaleWalk: 'female' }), standard);
+  assert.equal(selectActorAnimSource(sources, 'WalkForward', { female: true, femaleWalk: 'female2' }), female2);
+  assert.equal(selectActorAnimSource(sources, 'Idle', { female: true, femaleWalk: 'female2' }), standard);
+  assert.equal(selectActorAnimSource(sources, 'WalkForward', { female: false, femaleWalk: 'female2' }), standard);
   assert.equal(selectActorAnimSource(sources, 'WalkForward', { female: true, femaleWalk: 'standard' }), standard);
   assert.equal(selectActorAnimSource({ standard, female: { name: 'female', groups: new Map([['Idle', {}]]) } }, 'WalkForward', { female: true, femaleWalk: 'female' }), standard);
-  assert.equal(selectActorAnimSource({ standard }, 'WalkForward', { female: true, femaleWalk: 'female' }), standard);
+  assert.equal(selectActorAnimSource({ standard }, 'WalkForward', { female: true, femaleWalk: 'female2' }), standard);
 });
