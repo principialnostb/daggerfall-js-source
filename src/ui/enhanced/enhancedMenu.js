@@ -1705,7 +1705,7 @@ function paneExit(body) {
 
 let optQuery = '';          // ORG2: the search, over every tab - kept across a repaint, cleared by a tab change
 const selectedSectionByTab = { animations: 'locomotion' }; // The open section for each settings tab.
-let animationClipGroup = 'walking'; // ANIM-UI7: nested clip family selected inside the animation section
+let animationClipGroup = 'walking'; // Nested animation subgroup currently selected.
 let optFilter = 'all';      // ORG2: 'all' | 'changed' | a KINDS id
 let pickedFeature = null;   // ORG2: the Features row the help pane reads (pickedKey is DFU's key)
 let optScrollTo = null;     // ORG2: a row to bring into view after the next paint (the mods' list sends you to one)
@@ -1848,7 +1848,7 @@ function itemNodes(item, ctx) {
   }
   if (item.startsWith('group:')) {
     const group = item.slice(6);
-    const labels = { walking: 'Ходьба', running: 'Бег' };
+    const labels = { walking: 'Ходьба', running: 'Бег', posture: 'Положение и скрытность', turning: 'Повороты и развороты', idle: 'Стойка и ожидание' };
     const button = el('button', `sec-jumpbtn animation-switch animation-clip-group${animationClipGroup === group ? ' is-active' : ''}`, labels[group] ?? group);
     button.type = 'button';
     button.setAttribute('aria-expanded', String(animationClipGroup === group));
@@ -1859,7 +1859,7 @@ function itemNodes(item, ctx) {
       // the previous family's controls immediately.
       event.preventDefault();
       event.stopPropagation();
-      selectedSectionByTab.animations = 'locomotion';
+      selectedSectionByTab.animations = ['walking', 'running'].includes(group) ? 'locomotion' : 'posture';
       animationClipGroup = group;
       const body = ctx.body;
       if (!body || !body.isConnected) return;
@@ -2033,20 +2033,22 @@ function paintOptionsBody(body, { pause = false } = {}) {
     body.append(nav);
     const selected = sections.find(({ s }) => s.id === selectedId) ?? sections[0];
     if (selected) {
-      const isLocomotion = tab.id === 'animations' && selected.s.id === 'locomotion';
-      // Keep the walk/run selector at the top of the locomotion section.
-      const nodes = isLocomotion
+      const isAnimationSection = tab.id === 'animations';
+      const nodes = isAnimationSection
         ? selected.nodes.filter((node) => !node.classList?.contains('animation-clip-group'))
         : selected.nodes;
       const n = nodes.filter(isOptionNode).length;
       body.append(sectionHead(tab, selected.s, n));
-      if (isLocomotion) {
+      if (isAnimationSection) {
         const switches = el('div', 'animation-switch-buttons animation-clip-group-switches');
-        for (const group of ['running', 'walking']) {
+        const groups = selected.s.id === 'locomotion'
+          ? ['running', 'walking']
+          : selected.s.id === 'posture' ? ['posture', 'turning', 'idle'] : [];
+        for (const group of groups) {
           const button = itemNodes(`group:${group}`, { ...ctx, fold })[0];
           if (button) switches.append(button);
         }
-        body.append(switches);
+        if (switches.childElementCount) body.append(switches);
       }
       body.append(...nodes);
     } else body.append(empty('Nothing here'));
