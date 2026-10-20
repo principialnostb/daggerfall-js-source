@@ -1848,7 +1848,13 @@ function itemNodes(item, ctx) {
   }
   if (item.startsWith('group:')) {
     const group = item.slice(6);
-    const labels = { walking: 'Ходьба', running: 'Бег', posture: 'Положение и скрытность', turning: 'Повороты и развороты', idle: 'Стойка и ожидание' };
+    const labels = {
+      walking: 'Ходьба', running: 'Бег',
+      posture: 'Положение и скрытность', turning: 'Повороты и развороты', idle: 'Стойка и ожидание',
+      attacks: 'Атаки', blocking: 'Блокирование и защита',
+      jumping: 'Прыжки', swimming: 'Плавание', falling: 'Падение и приземление',
+      damage: 'Получение урона', death: 'Смерть',
+    };
     const button = el('button', `sec-jumpbtn animation-switch animation-clip-group${animationClipGroup === group ? ' is-active' : ''}`, labels[group] ?? group);
     button.type = 'button';
     button.setAttribute('aria-expanded', String(animationClipGroup === group));
@@ -1859,7 +1865,14 @@ function itemNodes(item, ctx) {
       // the previous family's controls immediately.
       event.preventDefault();
       event.stopPropagation();
-      selectedSectionByTab.animations = ['walking', 'running'].includes(group) ? 'locomotion' : 'posture';
+      const sectionForGroup = {
+        walking: 'locomotion', running: 'locomotion',
+        posture: 'posture', turning: 'posture', idle: 'posture',
+        attacks: 'combat', blocking: 'combat',
+        jumping: 'traversal', swimming: 'traversal', falling: 'traversal',
+        damage: 'reactions', death: 'reactions',
+      };
+      selectedSectionByTab.animations = sectionForGroup[group] ?? 'posture';
       animationClipGroup = group;
       const body = ctx.body;
       if (!body || !body.isConnected) return;
@@ -2046,9 +2059,14 @@ function paintOptionsBody(body, { pause = false } = {}) {
       body.append(sectionHead(tab, selected.s, n));
       if (isAnimationSection) {
         const switches = el('div', 'animation-switch-buttons animation-clip-group-switches');
-        const groups = selected.s.id === 'locomotion'
-          ? ['running', 'walking']
-          : selected.s.id === 'posture' ? ['posture', 'turning', 'idle'] : [];
+        const groupsBySection = {
+          locomotion: ['running', 'walking'],
+          posture: ['posture', 'turning', 'idle'],
+          combat: ['attacks', 'blocking'],
+          traversal: ['jumping', 'swimming', 'falling'],
+          reactions: ['damage', 'death'],
+        };
+        const groups = groupsBySection[selected.s.id] ?? [];
         for (const group of groups) {
           const button = itemNodes(`group:${group}`, { ...ctx, fold })[0];
           if (button) switches.append(button);
