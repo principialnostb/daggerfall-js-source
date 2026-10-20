@@ -2115,6 +2115,7 @@ export function bareHeadRows(rows, worn, pieces, werewolf = false) {
  */
 async function buildTpBody({
   race, female, beast, faceIndex, faceMatch, weapon, hasAmmo, worn, archives, parts, allWeapons, find, gen = null,
+  appearanceHeadId = null, appearanceHairId = null,
   torch = false, allLights = [],   // MW-D51
   sheathing = true, ammoCount = null,   // WS1: the holster, and the quiver's count (null: a full quiver when there is ammunition)
   hipLight = false,   // HT-WAIST: a lit lantern at the waist
@@ -2135,7 +2136,7 @@ async function buildTpBody({
     const skeletonBytes = nifBytes(skelArc, skeletonPath);
 
     // WEREWOLF1: the wolf's head and hair, by id - every other skin slot is empty, the robe is the body
-    const rows = werewolf ? werewolfHeadRows(parts) : playerBodyRows(parts, race, female, { beast, faceIndex, faceMatch, faceRace: race, vampire, walk, has: exists, ownHeads });   // MWNPC14: a vampire's head; MWNPC17: an NPC's own; AUDIT MW-HEADS1: the port's own heads where these archives carry them
+    const rows = werewolf ? werewolfHeadRows(parts) : playerBodyRows(parts, race, female, { beast, faceIndex, faceMatch, faceRace: race, vampire, walk, has: exists, ownHeads, appearanceHeadId, appearanceHairId });   // MWNPC14: a vampire's head; MWNPC17: an NPC's own; AUDIT MW-HEADS1: the port's own heads where these archives carry them
     const missing = [];
     // Better Bodies is selected by the actor's own race and sex. The matching
     // texture is registered by basename, so concurrent NPC builds cannot overwrite
@@ -2750,7 +2751,7 @@ export async function headPortrait({ renderer, race, female = false, faceIndex =
 }
 
 export async function buildFpArm({
-  race, female = false, beast = null, faceIndex = 0, weapon = null, hasAmmo = false, armor = null, deps = null,
+  race, female = false, beast = null, faceIndex = 0, appearanceHeadId = null, appearanceHairId = null, weapon = null, hasAmmo = false, armor = null, deps = null,
   torch = false,   // MW-D51: a lit Daggerfall torch in hand at the build
   sheathing = true, ammoCount = null,   // WS1: the holster on the third-person body, and the quiver's count
   hipLight = false,   // HT-WAIST: a lit lantern hung at the waist at the build (the third-person body's alone)
@@ -3133,7 +3134,7 @@ export async function buildFpArm({
     catalog.magic = magic;   // MW-SPELLFX1: and the magic the world's spell effects draw with
     // MW-D24: the THIRD-PERSON BODY, while the same archives are open.
     // Its refusal is a note on the card, never the arm's refusal.
-    const tpBody = (wornNow) => buildTpBody({ race, female, beast, faceIndex, faceMatch, weapon, hasAmmo, worn: wornNow, archives, parts, allWeapons, find, gen, torch, allLights, sheathing, ammoCount, hipLight, werewolf, skin: werewolf ? skin : null, vampire: !!vampire, walk: npcFace, ownHeads: !!ownHeads });   // (the wolf's rows read no face)   // MW-D51; WS1; HT-WAIST; WEREWOLF1; SHADOW-FANG; MWNPC14; MWNPC17
+    const tpBody = (wornNow) => buildTpBody({ race, female, beast, faceIndex, faceMatch, weapon, hasAmmo, worn: wornNow, archives, parts, allWeapons, find, gen, torch, allLights, sheathing, ammoCount, hipLight, werewolf, skin: werewolf ? skin : null, vampire: !!vampire, walk: npcFace, ownHeads: !!ownHeads, appearanceHeadId, appearanceHairId });   // (the wolf's rows read no face)   // MW-D51; WS1; HT-WAIST; WEREWOLF1; SHADOW-FANG; MWNPC14; MWNPC17
     let third = arm.ok ? await tpBody(worn) : null;
     // AUDIT MW-FOLK1 (L2-F2): AN OUTFIT THAT BOUND NOTHING HIDES NOTHING AND DRESSES NOTHING. Its `hides` took the skin
     // under it and its `covers` stood the modesty shirt down at the composition, before its mesh was read; one whose mesh
@@ -5367,9 +5368,42 @@ export function createFpArm({ playerAppearance = false } = {}) {
       const saved = setAppearanceIdentity(identity);
       if (!saved) return { ok: false, error: 'Invalid appearance selection.' };
       if (!lastBuildOpts) return { ok: false, error: 'The live character has not finished building.' };
-      return this.build({ ...lastBuildOpts, race: saved.race, faceIndex: saved.faceIndex, beast: null });
+      return this.build({
+        ...lastBuildOpts, race: saved.race, faceIndex: saved.faceIndex, beast: null,
+        ...(typeof saved.female === 'boolean' ? { female: saved.female } : {}),
+        appearanceHeadId: saved.headId, appearanceHairId: saved.hairId,
+      });
     },
-    async createAppearancePreviewRig({ race = null, faceIndex = null } = {}) {
+    async getAppearanceChoices({ race = null, female = false, faceIndex = 0 } = {}) {
+      const d = await import('../scenes/dataSource.js');
+      const cat = await headCatalogOf(d);
+      if (!cat) return { ok: false, error: 'Morrowind data is not loaded.' };
+      const raceKey = String(race || lastBuildOpts?.race || 'nord');
+      const exists = archiveHas(cat.archives);
+      const pools = facePools(cat.parts, raceKey, !!female, { has: exists, own: true });
+      const unique = (items) => {
+        const seen = new Set();
+        return items.filter((item) => {
+          const key = String(item.model || item.id || '').toLowerCase();
+          if (!key || seen.has(key)) return false;
+          seen.add(key);
+          return true;
+        }).map((item) => ({ id: item.id, model: item.model, label: String(item.id).replace(/[_]+/g, ' ') }));
+      };
+      const heads = unique(pools.heads);
+      const hairs = unique(pools.hairs);
+      const index = Number.isInteger(faceIndex) ? faceIndex : 0;
+      const faceMatch = await faceMatchOf({ race: raceKey, female: !!female, faceIndex: index, pools, archives: cat.archives, gen: cat.gen, d });
+      const rows = playerBodyRows(cat.parts, raceKey, !!female, { faceIndex: index, faceMatch, has: exists, ownHeads: true });
+      return {
+        ok: true, heads, hairs,
+        selected: {
+          headId: rows.find((row) => row.slot === 'head')?.record?.id ?? heads[0]?.id ?? null,
+          hairId: rows.find((row) => row.slot === 'hair')?.record?.id ?? hairs[0]?.id ?? null,
+        },
+      };
+    },
+    async createAppearancePreviewRig({ race = null, female = null, faceIndex = null, headId = null, hairId = null } = {}) {
       if (!lastBuildOpts || !renderer) return { ok: false, error: 'The live character has not finished building.' };
       const previewRig = createFpArm({ playerAppearance: true });
       previewRig.attach(renderer, camera);
@@ -5378,7 +5412,10 @@ export function createFpArm({ playerAppearance = false } = {}) {
         // Identity is the editor's draft, never inherited from the currently built actor.
         // Do not let a live transformation/creature/NPC face mask the chosen player race.
         race: String(race || lastBuildOpts.race || 'nord'),
+        female: typeof female === 'boolean' ? female : !!lastBuildOpts.female,
         faceIndex: Number.isInteger(faceIndex) ? faceIndex : (lastBuildOpts.faceIndex | 0),
+        appearanceHeadId: headId || null,
+        appearanceHairId: hairId || null,
         beast: null,
         werewolf: false,
         vampire: false,
@@ -5434,7 +5471,11 @@ export function createFpArm({ playerAppearance = false } = {}) {
       // editor or rebuilding the rig cannot silently restore the original face/race.
       if (playerAppearance && opts && !opts.werewolf && !opts.appearanceIdentityDraft) {
         const appearanceIdentity = getAppearanceIdentity();
-        if (appearanceIdentity) opts = { ...opts, race: appearanceIdentity.race, faceIndex: appearanceIdentity.faceIndex, beast: null };
+        if (appearanceIdentity) opts = {
+          ...opts, race: appearanceIdentity.race, faceIndex: appearanceIdentity.faceIndex, beast: null,
+          ...(typeof appearanceIdentity.female === 'boolean' ? { female: appearanceIdentity.female } : {}),
+          appearanceHeadId: appearanceIdentity.headId, appearanceHairId: appearanceIdentity.hairId,
+        };
       }
       // AUDIT MW-TORCH F6: A BUILD THAT ARRIVES MID-BUILD IS QUEUED, the
       // law PX25/PX26 gave the worn table and the hand. autoBuildArms's
