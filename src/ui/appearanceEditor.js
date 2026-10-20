@@ -209,7 +209,7 @@ export function openAppearanceEditor({ fpArm, onClose = () => {} } = {}) {
   previewSide.className = 'mw-preview-side';
   const previewHead = document.createElement('div');
   previewHead.className = 'mw-preview-head';
-  previewHead.innerHTML = '<div><div class="mw-section-title">Предпросмотр модели</div><div class="mw-section-note">Раса и лицо сохраняются только после нажатия «Готово»</div></div>';
+  previewHead.innerHTML = '<div><div class="mw-section-title">Предпросмотр модели</div><div class="mw-section-note">Раса, пол, лицо и причёска сохраняются после нажатия «Готово»</div></div>';
   const canvasWrap = document.createElement('div');
   canvasWrap.className = 'mw-canvas-wrap';
   const preview = document.createElement('canvas');
