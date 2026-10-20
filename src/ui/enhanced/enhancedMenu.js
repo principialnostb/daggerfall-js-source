@@ -2196,8 +2196,10 @@ function paneSettings(pane, { pause = false } = {}) {
       render();
     };
     if (on) b.append(el('span', 'more-dot'));
-    // Visually separate the custom Morrowind settings from the game's settings.
-    if (cat.id === 'animations') b.style.marginTop = '14px';
+    // Keep the custom Morrowind settings as one visually distinct block.
+    // The responsive stylesheet handles the vertical rail and horizontal chip strips separately.
+    if (['animations', 'bodies', 'textures'].includes(cat.id)) b.classList.add('custom-settings-tab');
+    if (cat.id === 'animations') b.classList.add('custom-settings-start');
     rail.append(b);
   }
 
