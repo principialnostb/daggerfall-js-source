@@ -1704,7 +1704,7 @@ function paneExit(body) {
 // graphicsPresets.js). The pause window draws the same screen, condensed as PX10 had it: the rows that act in play.
 
 let optQuery = '';          // ORG2: the search, over every tab - kept across a repaint, cleared by a tab change
-let animationSection = 'locomotion'; // ANIM-UI5: the shared animation family currently selected
+const selectedSectionByTab = { animations: 'locomotion' }; // The open section for each settings tab.
 let animationClipGroup = 'walking'; // ANIM-UI7: nested clip family selected inside the animation section
 let optFilter = 'all';      // ORG2: 'all' | 'changed' | a KINDS id
 let pickedFeature = null;   // ORG2: the Features row the help pane reads (pickedKey is DFU's key)
@@ -1859,7 +1859,7 @@ function itemNodes(item, ctx) {
       // the previous family's controls immediately.
       event.preventDefault();
       event.stopPropagation();
-      animationSection = 'locomotion';
+      selectedSectionByTab.animations = 'locomotion';
       animationClipGroup = group;
       const body = ctx.body;
       if (!body || !body.isConnected) return;
@@ -2011,28 +2011,29 @@ function paintOptionsBody(body, { pause = false } = {}) {
   const tab = CATEGORIES.find((c) => c.id === category) ?? CATEGORIES[0];
   if (tab.id === 'mods' && isOnlinePage()) body.append(el('p', 'meta opt-note', noteText(ONLINE_MODS_NOTE)));   // MODS-ONLINE-2: said once, over the mods; L10N4: in the player's language
   const { sections, fold } = tabSections(tab, ctx);
-  if (tab.id === 'animations' && !q) {
+  if (sections.length > 1) {
+    // Every multi-section tab uses the same compact section picker: only the
+    // selected section is rendered, instead of stacking every section vertically.
     const nav = el('nav', 'sec-jump animation-switches');
-    nav.setAttribute('aria-label', 'Animation categories');
+    nav.setAttribute('aria-label', `${tab.title} sections`);
     const group = el('div', 'animation-switch-group');
-    group.append(el('div', 'meta animation-switch-label', 'Раздел анимаций'));
+    group.append(el('div', 'meta animation-switch-label', 'Раздел'));
     const buttons = el('div', 'animation-switch-buttons');
+    const selectedId = selectedSectionByTab[tab.id] ?? sections[0].s.id;
     for (const { s } of sections) {
-      const b = el('button', `sec-jumpbtn animation-switch${animationSection === s.id ? ' is-active' : ''}`, s.title);
+      const b = el('button', `sec-jumpbtn animation-switch${selectedId === s.id ? ' is-active' : ''}`, s.title);
       b.type = 'button';
-      b.setAttribute('aria-pressed', String(animationSection === s.id));
-      b.onclick = () => { animationSection = s.id; paintOptionsBody(body, { pause }); };
+      b.setAttribute('aria-pressed', String(selectedId === s.id));
+      b.onclick = () => { selectedSectionByTab[tab.id] = s.id; paintOptionsBody(body, { pause }); };
       buttons.append(b);
     }
     group.append(buttons);
     nav.append(group);
     body.append(nav);
-    const selected = sections.find(({ s }) => s.id === animationSection) ?? sections[0];
+    const selected = sections.find(({ s }) => s.id === selectedId) ?? sections[0];
     if (selected) {
       const isLocomotion = tab.id === 'animations' && selected.s.id === 'locomotion';
       // Keep the walk/run selector at the top of the locomotion section.
-      // The group markers live between their settings in settingsMap; rendering
-      // them inline put "Ходьба" after every running control, below the fold.
       const nodes = isLocomotion
         ? selected.nodes.filter((node) => !node.classList?.contains('animation-clip-group'))
         : selected.nodes;
@@ -2049,21 +2050,9 @@ function paintOptionsBody(body, { pause = false } = {}) {
       body.append(...nodes);
     } else body.append(empty('Nothing here'));
   } else {
-    if (sections.length >= 3 && !pause) {
-      const strip = el('nav', 'sec-jump');
-      strip.setAttribute('aria-label', 'Sections');
-      for (const { s } of sections) {
-        const b = el('button', 'sec-jumpbtn', s.title);
-        b.type = 'button';
-        b.onclick = () => document.getElementById(`sec-${tab.id}-${s.id}`)?.scrollIntoView({ block: 'start' });
-        strip.append(b);
-      }
-      body.append(strip);
-    }
-    const many = sections.length > 1;
     for (const { s, nodes } of sections) {
       const n = nodes.filter(isOptionNode).length;
-      if (many) body.append(sectionHead(tab, s, n));
+      if (sections.length > 1) body.append(sectionHead(tab, s, n));
       body.append(...nodes);
     }
   }
