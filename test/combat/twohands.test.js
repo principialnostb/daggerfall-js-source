@@ -10,7 +10,7 @@ import { join } from 'node:path';
 import {
   HANDS_MODE, DUAL_TYPES, dualEligible, handsModeOf, twoHanded, otherHand, strikeHandOf, FLURRY_WINDOW,
   mirrorStrike, mirrorRect, MIRROR_UV, handOnLeft, DUAL, offHandToHit, offHandBurden, offHandHold, offHandDamage, OFF_HAND_BLOW,
-  GUARD, guardStep, guardOffset, RUN_STEP_M, RUN_PUMP, runPhaseStep, runHandsWanted, pumpOf, runWeightStep, easeTo,
+  GUARD, guardStep, guardOffset, RUN_STEP_M, RUN_PUMP, runPhaseStep, runHandsWanted, runHandsSlotsEmpty, pumpOf, runWeightStep, easeTo,
   RUN_3D, pumpTarget3D, MELEE_PAINTED_ARM, strikePicture, runPhaseOfBob, runHandsKept,
 } from '../../src/combat/twoHands/handsLaw.js';
 import { PlayerWeapon, handDesc } from '../../src/combat/playerWeapon.js';
@@ -1308,4 +1308,15 @@ test('TWO-HANDS weaponTypeForItem and handDesc: a hand\'s item read as the law r
   assert.deepEqual(handDesc(null), null);
   assert.deepEqual(handDesc(KATANA), { item: KATANA, type: weaponTypeForItem(KATANA), hands: ITEM_HANDS.Either, shield: false });
   assert.equal(handDesc(CLAYMORE).hands, ITEM_HANDS.Both);
+});
+
+
+test('TWO-HANDS: a sheathed weapon no longer occupies the hands during a run', () => {
+  assert.equal(runHandsSlotsEmpty({ rightOccupied: true, sheathed: true }), true,
+    'an equipped but sheathed weapon leaves both hands free for the run pump');
+  assert.equal(runHandsSlotsEmpty({ rightOccupied: true, sheathed: false }), false,
+    'a drawn weapon still occupies the hand');
+  assert.equal(runHandsSlotsEmpty({ leftOccupied: true, sheathed: true, shieldInHand: true }), false,
+    'a shield still occupies the hand even while the weapon is sheathed');
+  assert.equal(runHandsSlotsEmpty({}), true, 'no equipped items means empty hands');
 });
