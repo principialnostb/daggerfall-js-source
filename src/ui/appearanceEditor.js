@@ -185,7 +185,7 @@ export function openAppearanceEditor({ fpArm, onClose = () => {} } = {}) {
   let selectedFace = Math.max(0, Math.min(9, Number(savedIdentity?.faceIndex ?? initialIdentity.faceIndex) || 0));
   let selectedHead = savedIdentity?.headId || null;
   let selectedHair = savedIdentity?.hairId || null;
-  let choicesRequest = 0;
+  let choicesRequest = 0, appearanceAuditLogged = false;
   const root = document.createElement('div');
   root.id = 'mw-appearance-editor';
   const style = document.createElement('style');
@@ -338,6 +338,13 @@ export function openAppearanceEditor({ fpArm, onClose = () => {} } = {}) {
       const result = await fpArm.getAppearanceChoices({ race: selectedRace, female: selectedFemale, faceIndex: selectedFace });
       if (closed || request !== choicesRequest) return;
       if (!result?.ok) throw new Error(result?.error || 'Не удалось получить список моделей.');
+      if (!appearanceAuditLogged && Array.isArray(result.audit)) {
+        appearanceAuditLogged = true;
+        const duplicates = result.audit.reduce((sum, pool) => sum + pool.duplicateHeads + pool.duplicateHairs, 0);
+        console.info('[Appearance editor] race/sex head-hair pool audit', {
+          combinations: result.audit.length, duplicateModelEntriesRemoved: duplicates, pools: result.audit,
+        });
+      }
       selectedHead = fillModelSelect(headSelect, result.heads || [], selectedHead || result.selected?.headId, 'Нет доступных моделей лица');
       selectedHair = fillModelSelect(hairSelect, result.hairs || [], selectedHair || result.selected?.hairId, 'Нет доступных моделей причёсок');
       if (rebuild) rebuildRacePreview();
