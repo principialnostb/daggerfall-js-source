@@ -2025,7 +2025,12 @@ function paintOptionsBody(body, { pause = false } = {}) {
       const b = el('button', `sec-jumpbtn animation-switch${selectedId === s.id ? ' is-active' : ''}`, s.title);
       b.type = 'button';
       b.setAttribute('aria-pressed', String(selectedId === s.id));
-      b.onclick = () => { selectedSectionByTab[tab.id] = s.id; paintOptionsBody(body, { pause }); };
+      b.onclick = () => {
+        selectedSectionByTab[tab.id] = s.id;
+        if (tab.id === 'animations' && s.id === 'posture') animationClipGroup = 'posture';
+        if (tab.id === 'animations' && s.id === 'locomotion' && !['walking', 'running'].includes(animationClipGroup)) animationClipGroup = 'walking';
+        paintOptionsBody(body, { pause });
+      };
       buttons.append(b);
     }
     group.append(buttons);
