@@ -3869,7 +3869,7 @@ export function createFpArm({ playerAppearance = false } = {}) {
   let offKey = null, pendingOff;
   const mirrorCarry = { first: {}, third: {} };
   const strikeSides = new Map();
-  const runPump = { wanted: false, speed: 0, w: 0, phase: 0, given: null, targets: null };
+  const runPump = { wanted: false, running: false, speed: 0, w: 0, phase: 0, given: null, targets: null };
   const pairGuard = { L: 0, R: 0 };   // TWO-HANDS AUDIT: each hand's guard weight - the arm lowered while the other strikes
   let guardDipMemo = null;   // TWO-HANDS AUDIT 2: the guard's angles, per rig and bound blades (guardDipNow)
   let heldMemo = null;           // { base, spec, inner, tracks, sampler }
@@ -6155,8 +6155,9 @@ export function createFpArm({ playerAppearance = false } = {}) {
      *  the metres a second over the ground its stride walks by, and - when the rig has one - the stride's `phase` itself
      *  (the head bob's clock as the stroke's, handsLaw.js: one step one stroke, the right forward as the left foot falls),
      *  which the pump then takes as it stands instead of walking its own. Every frame; a frame without a phase walks. */
-    setRunHands(wanted, { speed = 0, phase = null } = {}) {
+    setRunHands(wanted, { speed = 0, phase = null, running = false } = {}) {
       runPump.wanted = !!wanted;
+      runPump.running = !!running;
       runPump.speed = Number.isFinite(speed) ? speed : 0;
       runPump.given = Number.isFinite(phase) ? phase : null;
     },
@@ -6169,7 +6170,10 @@ export function createFpArm({ playerAppearance = false } = {}) {
     movementPosed() {
       if (viewMode !== 'first' || dead || held || climbHands) return false;
       const group = String(movementState?.group ?? '');
-      return runPump.w >= 0.5 || /^run/i.test(group) || !!jumpState?.playing;
+      // Physical running is an independent draw reason: some race/stance
+      // animation sets lack a usable first-person run clip, but the hands
+      // still belong on screen and the run pump may pose them separately.
+      return runPump.running || runPump.wanted || runPump.w >= 0.5 || /^run/i.test(group) || !!jumpState?.playing;
     },
     /** TWO-HANDS: the pins' read. */
     handsState() {
