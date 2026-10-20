@@ -1738,7 +1738,7 @@ export function curatedAnswersFace(pools, race, female, faceIndex, faceTable = F
   return !!c && !!poolRecord(pools.heads, c.head) && !!poolRecord(pools.hairs, c.hair);
 }
 
-export function playerBodyRows(parts, race, female, { beast = false, faceIndex = 0, faceTable = FACE_TABLE, faceMatch = null, faceRace = race, vampire = false, walk = null, has = null, ownHeads = false } = {}) {   // MWNPC14: `vampire` the race's vampire head; MWNPC17: `walk` an NPC's { head, hair }; AUDIT MW-HEADS1: `has` the archives' (facePools); MW-HEADS2: `ownHeads` a player's - the port's own heads
+export function playerBodyRows(parts, race, female, { beast = false, faceIndex = 0, faceTable = FACE_TABLE, faceMatch = null, faceRace = race, vampire = false, walk = null, has = null, ownHeads = false, appearanceHeadId = null, appearanceHairId = null } = {}) {   // MWNPC14: `vampire` the race's vampire head; MWNPC17: `walk` an NPC's { head, hair }; AUDIT MW-HEADS1: `has` the archives' (facePools); MW-HEADS2: `ownHeads` a player's - the port's own heads
   const want = String(race || '').toLowerCase();
   // MW-D32: the sweep slots resolve through getBodyParts-whole
   // (npcanimation.cpp:1167-1297 - LAST proper match wins, male-for-
@@ -1806,6 +1806,14 @@ export function playerBodyRows(parts, race, female, { beast = false, faceIndex =
       if (!chosen) {
         chosen = sorted[((faceIndex % sorted.length) + sorted.length) % sorted.length];
         how = wantId ? `derived (curated "${wantId}" is not in these archives)` : 'derived';
+      }
+      // The character editor's independent head/hair selections override the
+      // portrait-derived pair, but only when the requested model exists in this
+      // race/sex pool. NPC seed-walks remain authoritative.
+      if (!walk) {
+        const appearanceId = slot === 'head' ? appearanceHeadId : appearanceHairId;
+        const explicit = appearanceId ? poolRecord(sorted, appearanceId) : null;
+        if (explicit) { chosen = explicit; how = 'selected in appearance editor'; }
       }
     }
     rows.push({
