@@ -471,7 +471,7 @@ select, input, textarea { font: inherit; }
    gesture applies to. */
 .subbtn .more-dot { display: none; }
 /* Custom Morrowind settings are grouped beneath the built-in categories. */
-.subrail .custom-settings-group { display: flex; flex-direction: column; margin-top: 14px; }
+.subrail .custom-settings-group { display: flex; flex-direction: column; margin-top: 24px; }
 
 .row {
   display: flex; align-items: center; gap: 14px; width: 100%;
@@ -648,7 +648,7 @@ select, input, textarea { font: inherit; }
   .subrail { flex-wrap: wrap; overflow-x: auto; overflow-y: auto; }
   .subrail .custom-settings-group {
     display: flex; flex-direction: row; flex-wrap: nowrap; flex: 0 0 100%;
-    gap: 0; margin-top: 8px; border-top: 0; overflow-x: auto;
+    gap: 0; margin-top: 16px; border-top: 0; overflow-x: auto;
   }
   .subbtn .count { float: none; margin-left: 7px; }
   /* THE ONLY WAY TO THE CATEGORY CARD ON A PHONE (AUDIT F8), so the
@@ -5492,7 +5492,7 @@ ${tierMarkCss({ wash: (k) => TIER_MARKS[k], washAlpha: 0.2, edge: '#0b0805', sel
 /* Custom settings form their own second row without a separator line. */
 .px-setwrap .subrail .custom-settings-group {
   display: flex; flex-direction: row; flex-wrap: wrap; flex: 0 0 100%;
-  gap: 2px; margin-top: 8px; border-left: 0; padding-left: 0;
+  gap: 2px; margin-top: 16px; border-left: 0; padding-left: 0;
 }
 .px-setwrap .list { flex: 1; overflow-y: auto; padding: 8px 12px 12px; background: none; }   /* PX10b: the old sheet's slate panel, off */
 .px-setwrap .row { min-height: 44px; }
