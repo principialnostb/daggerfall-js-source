@@ -2717,7 +2717,7 @@ async function renderHeadAssembly(renderer, cat, { skeletonPath, skinRows, heads
  *  port's own heads where its race has them, as a player's body wears them (MW-HEADS2). `{ width, height, data }`
  *  or null (no data attached, no renderer, no head for the race, the skeleton or a mesh or a texture not in hand).
  *  @param {{ renderer?: any, race?: string|null, female?: boolean, faceIndex?: number, npcFace?: { head: number, hair: number }|null, ownHeads?: boolean, vampire?: boolean, werewolf?: boolean, skin?: string|null, armor?: any[]|null, px?: number, ph?: number, deps?: any }} [opts] */
-export async function headPortrait({ renderer, race, female = false, faceIndex = 0, npcFace = null, vampire = false, werewolf = false, skin = null, armor = null, ownHeads = false, px = 128, ph = px, deps = null } = {}) {
+export async function headPortrait({ renderer, race, female = false, faceIndex = 0, npcFace = null, vampire = false, werewolf = false, skin = null, armor = null, ownHeads = false, appearanceHeadId = null, appearanceHairId = null, px = 128, ph = px, deps = null } = {}) {
   if (!getPref('morrowind3dPaperDoll')) return null;
   if (!renderer || !race) return null;
   const d = deps || await import('../scenes/dataSource.js');
@@ -2728,8 +2728,10 @@ export async function headPortrait({ renderer, race, female = false, faceIndex =
   const beast = !!(raceRec && raceRec.radt && raceRec.beast);   // AUDIT MW-A F1: the race record's own bit, as the build reads it
   const pools = werewolf || npcFace ? null : facePools(cat.parts, race, female, { has: exists, own: ownHeads });
   const faceMatch = await faceMatchOf({ race, female, faceIndex, werewolf, npcFace, pools, archives: cat.archives, gen: cat.gen, d });
-  const rows = (werewolf ? werewolfHeadRows(cat.parts) : playerBodyRows(cat.parts, race, female, { beast, faceIndex, faceMatch, vampire, walk: npcFace, has: exists, ownHeads }))
-    .filter((r) => r.slot === 'head' || r.slot === 'hair');
+  const rows = (werewolf ? werewolfHeadRows(cat.parts) : playerBodyRows(cat.parts, race, female, {
+    beast, faceIndex, faceMatch, vampire, walk: npcFace, has: exists, ownHeads,
+    appearanceHeadId: npcFace ? null : appearanceHeadId, appearanceHairId: npcFace ? null : appearanceHairId,
+  })).filter((r) => r.slot === 'head' || r.slot === 'hair');
   if (!rows.some((r) => r.slot === 'head' && r.record)) return null;
   // what is worn on the head, composed as the body composes it - the wolf wears nothing (WEREWOLF1), and the clothes
   // are no head's (a cloak, a robe: their dyes are measured for the body alone)
