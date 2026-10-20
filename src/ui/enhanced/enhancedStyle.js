@@ -470,8 +470,8 @@ select, input, textarea { font: inherit; }
    shows on the ACTIVE tab only, because that is the only tab the
    gesture applies to. */
 .subbtn .more-dot { display: none; }
-/* Custom Morrowind settings form a separate block below the built-in categories. */
-.subrail .subbtn.custom-settings-start { margin-top: 14px; }
+/* Custom Morrowind settings are grouped beneath the built-in categories. */
+.subrail .custom-settings-group { display: flex; flex-direction: column; margin-top: 14px; }
 
 .row {
   display: flex; align-items: center; gap: 14px; width: 100%;
@@ -644,9 +644,11 @@ select, input, textarea { font: inherit; }
     padding: 12px 15px;
   }
   .subbtn.on { border-left: 0; border-bottom-color: var(--brass); }
-  /* The narrow-screen rail is a horizontal strip, not a vertical list. */
-  .subrail .subbtn.custom-settings-start {
-    margin-top: 0; margin-left: 16px;
+  /* Keep the built-in tabs on the first line and the custom group on the next. */
+  .subrail { flex-wrap: wrap; overflow-x: auto; overflow-y: auto; }
+  .subrail .custom-settings-group {
+    display: flex; flex-direction: row; flex-wrap: nowrap; flex: 0 0 100%;
+    gap: 0; margin-top: 8px; border-top: 0; overflow-x: auto;
   }
   .subbtn .count { float: none; margin-left: 7px; }
   /* THE ONLY WAY TO THE CATEGORY CARD ON A PHONE (AUDIT F8), so the
