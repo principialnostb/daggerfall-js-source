@@ -69,10 +69,14 @@ export async function playerHeadImage(who, { px = 128, ph = px, renderer = portr
     const [{ armBuildOptsOf }, { liveLycanthropy }] = await Promise.all([import('../combat/weapon/weaponRig.js'), import('../systems/lycanthropy.js')]);
     if (liveLycanthropy(who)?.isTransformed && !armBuildOptsOf(who).werewolf) return null;   // the wereboar: no Morrowind boar
     const o = armBuildOptsOf(who);
+    const identity = getAppearanceIdentity();
     return headPortrait({
-      renderer, race: o.race, female: o.female, faceIndex: o.faceIndex, armor: o.armor,
+      renderer, race: identity?.race || o.race,
+      female: typeof identity?.female === 'boolean' ? identity.female : o.female,
+      faceIndex: identity?.faceIndex ?? o.faceIndex, armor: o.armor,
       vampire: o.vampire, werewolf: o.werewolf, skin: o.skin, ownHeads: o.ownHeads,
-      appearanceHeadId: o.appearanceHeadId, appearanceHairId: o.appearanceHairId, px, ph,
+      appearanceHeadId: identity?.headId || o.appearanceHeadId,
+      appearanceHairId: identity?.hairId || o.appearanceHairId, px, ph,
     });
   }
   const identity = who.npc ? null : getAppearanceIdentity();
