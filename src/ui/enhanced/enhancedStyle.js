@@ -470,6 +470,8 @@ select, input, textarea { font: inherit; }
    shows on the ACTIVE tab only, because that is the only tab the
    gesture applies to. */
 .subbtn .more-dot { display: none; }
+/* Custom Morrowind settings form a separate block below the built-in categories. */
+.subrail .subbtn.custom-settings-start { margin-top: 14px; }
 
 .row {
   display: flex; align-items: center; gap: 14px; width: 100%;
@@ -5481,6 +5483,12 @@ ${tierMarkCss({ wash: (k) => TIER_MARKS[k], washAlpha: 0.2, edge: '#0b0805', sel
   color: #d8cfae; text-shadow: 2px 2px 0 rgba(0,0,0,0.8); }
 .px-setwrap .subbtn.on { color: rgb(243,239,44); text-shadow: 2px 2px 0 rgb(93,77,12); }
 .px-setwrap .subbtn .count { font-size: 11px; }
+/* In the pause-window chip strip, separate the custom block sideways instead of
+   applying a vertical margin that misaligns the wrapped tabs. */
+.px-setwrap .subrail .subbtn.custom-settings-start {
+  margin-top: 0; margin-left: 12px; border-left: 1px solid rgba(192,138,62,0.7);
+  padding-left: 16px;
+}
 .px-setwrap .list { flex: 1; overflow-y: auto; padding: 8px 12px 12px; background: none; }   /* PX10b: the old sheet's slate panel, off */
 .px-setwrap .row { min-height: 44px; }
 /* AUDIT MERGE-PLUS D7: A LABEL IS NEVER CUT FOR ITS VALUE. On a 320px phone the skin's name ("Enhanced Plus") took
