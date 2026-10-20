@@ -2019,7 +2019,8 @@ function paintOptionsBody(body, { pause = false } = {}) {
     const group = el('div', 'animation-switch-group');
     group.append(el('div', 'meta animation-switch-label', 'Раздел'));
     const buttons = el('div', 'animation-switch-buttons');
-    const selectedId = selectedSectionByTab[tab.id] ?? sections[0].s.id;
+    const rememberedId = selectedSectionByTab[tab.id];
+    const selectedId = sections.some(({ s }) => s.id === rememberedId) ? rememberedId : sections[0].s.id;
     for (const { s } of sections) {
       const b = el('button', `sec-jumpbtn animation-switch${selectedId === s.id ? ' is-active' : ''}`, s.title);
       b.type = 'button';
