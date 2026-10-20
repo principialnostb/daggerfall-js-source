@@ -340,6 +340,10 @@ The design is not complete merely because the settings UI displays source names.
 11. Compatibility is validated for the runtime version, not inferred solely from matching file names.
 12. Representative in-game checks cover player and NPC animation, first-/third-person paths where applicable, body/skin combinations, equipment, and the affected world/texture domains.
 
+## Upstream updates and regression history
+
+The source-selection architecture must be validated against the exact upstream revision and resource inputs used by a build. See [Upstream compatibility and regression control](bible/01-Overview/Upstream-Compatibility.md) for checkpoint records, merge validation, regression logs, `git bisect`, and the distinction between integrating upstream changes and distributing a tested fork build through the launcher. This workflow is a target contract until the corresponding checks and automation are implemented.
+
 ## 18. Scope and implementation status
 
 This document defines the target architecture and acceptance contract. A rule described here is not proof that every domain, manifest field, snapshot mechanism, comparison screen, or test is already implemented.
