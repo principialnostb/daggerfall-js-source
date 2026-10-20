@@ -2168,6 +2168,7 @@ function paneSettings(pane, { pause = false } = {}) {
   const pool = portPool({ pause });
 
   const rail = el('div', 'subrail');
+  const customSettingsGroup = el('div', 'custom-settings-group');
   for (const cat of CATEGORIES) {
     const on = cat.id === category && !optQuery.trim();
     const b = el('button', `subbtn${on ? ' on' : ''}`, cat.title);
@@ -2196,12 +2197,15 @@ function paneSettings(pane, { pause = false } = {}) {
       render();
     };
     if (on) b.append(el('span', 'more-dot'));
-    // Keep the custom Morrowind settings as one visually distinct block.
-    // The responsive stylesheet handles the vertical rail and horizontal chip strips separately.
-    if (['animations', 'bodies', 'textures'].includes(cat.id)) b.classList.add('custom-settings-tab');
-    if (cat.id === 'animations') b.classList.add('custom-settings-start');
-    rail.append(b);
+    // Keep the custom Morrowind settings together, below the built-in categories.
+    if (['animations', 'bodies', 'textures'].includes(cat.id)) {
+      b.classList.add('custom-settings-tab');
+      customSettingsGroup.append(b);
+    } else {
+      rail.append(b);
+    }
   }
+  if (customSettingsGroup.childElementCount) rail.append(customSettingsGroup);
 
   const list = el('div', 'list');
   const body = el('div', 'opt-body');
