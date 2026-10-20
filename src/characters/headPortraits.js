@@ -17,6 +17,7 @@
 import { portraitRenderer } from '../render/portraitRenderer.js';
 import { EQUIP_SLOTS, equipTableOf } from '../systems/equip.js';
 import { getPref } from '../systems/uiPrefs.js';
+import { getAppearanceIdentity } from './bodyMorphs.js';
 
 /** The shape a door that draws a head at its record's own size draws it at (the party's plate, the family's and the
  *  succession's cards, the escorts' column): the widest of FACE##I0.CIF's heads is 31 x 32 (ui/partyPanel.js
@@ -68,11 +69,19 @@ export async function playerHeadImage(who, { px = 128, ph = px, renderer = portr
     const [{ armBuildOptsOf }, { liveLycanthropy }] = await Promise.all([import('../combat/weapon/weaponRig.js'), import('../systems/lycanthropy.js')]);
     if (liveLycanthropy(who)?.isTransformed && !armBuildOptsOf(who).werewolf) return null;   // the wereboar: no Morrowind boar
     const o = armBuildOptsOf(who);
-    return headPortrait({ renderer, race: o.race, female: o.female, faceIndex: o.faceIndex, armor: o.armor, vampire: o.vampire, werewolf: o.werewolf, skin: o.skin, ownHeads: o.ownHeads, px, ph });
+    return headPortrait({
+      renderer, race: o.race, female: o.female, faceIndex: o.faceIndex, armor: o.armor,
+      vampire: o.vampire, werewolf: o.werewolf, skin: o.skin, ownHeads: o.ownHeads,
+      appearanceHeadId: o.appearanceHeadId, appearanceHairId: o.appearanceHairId, px, ph,
+    });
   }
+  const identity = who.npc ? null : getAppearanceIdentity();
   return headPortrait({
-    renderer, race: mwRaceId(who.race ?? 'Breton'), female: who.gender === 'female',
-    faceIndex: Number.isInteger(who.faceIndex) ? who.faceIndex : 0, ownHeads: !who.npc, px, ph,
+    renderer, race: identity?.race || mwRaceId(who.race ?? 'Breton'),
+    female: typeof identity?.female === 'boolean' ? identity.female : who.gender === 'female',
+    faceIndex: identity?.faceIndex ?? (Number.isInteger(who.faceIndex) ? who.faceIndex : 0),
+    appearanceHeadId: identity?.headId, appearanceHairId: identity?.hairId,
+    ownHeads: !who.npc, px, ph,
   });
 }
 
