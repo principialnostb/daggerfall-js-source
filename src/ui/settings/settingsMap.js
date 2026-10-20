@@ -214,8 +214,8 @@ export const CATEGORIES = Object.freeze([
       "label:idle", "info:player-idle", "info:npc-idle",
     ]),
     sec("combat", "Бой", [
-      "label:attacks", "info:player-attacks", "info:npc-attacks",
-      "label:blocking", "info:player-blocking", "info:npc-blocking",
+      "group:attacks", "label:attacks", "info:player-attacks", "info:npc-attacks",
+      "group:blocking", "label:blocking", "info:player-blocking", "info:npc-blocking",
     ]),
     sec("magic", "Магия и заклинания", [
       "info:player-magic", "info:npc-magic",
@@ -224,13 +224,13 @@ export const CATEGORIES = Object.freeze([
       "info:player-actions", "info:npc-actions",
     ]),
     sec("traversal", "Специальное передвижение", [
-      "label:jumping", "info:player-jumping", "info:npc-jumping",
-      "label:swimming", "info:player-swimming", "info:npc-swimming",
-      "label:falling", "info:player-falling", "info:npc-falling",
+      "group:jumping", "label:jumping", "info:player-jumping", "info:npc-jumping",
+      "group:swimming", "label:swimming", "info:player-swimming", "info:npc-swimming",
+      "group:falling", "label:falling", "info:player-falling", "info:npc-falling",
     ]),
     sec("reactions", "Реакции", [
-      "label:damage", "info:player-damage", "info:npc-damage",
-      "label:death", "info:player-death", "info:npc-death",
+      "group:damage", "label:damage", "info:player-damage", "info:npc-damage",
+      "group:death", "label:death", "info:player-death", "info:npc-death",
     ]),
   ]),
   tab("bodies", "Тела", [
