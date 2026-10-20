@@ -5382,7 +5382,7 @@ export function createFpArm({ playerAppearance = false } = {}) {
       if (!cat) return { ok: false, error: 'Morrowind data is not loaded.' };
       const raceKey = String(race || lastBuildOpts?.race || 'nord');
       const exists = archiveHas(cat.archives);
-      const pools = facePools(cat.parts, raceKey, !!female, { has: exists, own: true });
+      const poolsFor = (raceName, isFemale) => facePools(cat.parts, raceName, isFemale, { has: exists, own: true });
       const unique = (items) => {
         const seen = new Set();
         return items.filter((item) => {
@@ -5392,13 +5392,26 @@ export function createFpArm({ playerAppearance = false } = {}) {
           return true;
         }).map((item) => ({ id: item.id, model: item.model, label: String(item.id).replace(/[_]+/g, ' ') }));
       };
+      // Audit every playable race/sex pool, not just the currently displayed
+      // one. Duplicate mesh paths are collapsed independently for heads/hairs.
+      const raceKeys = ['breton', 'dark elf', 'high elf', 'imperial', 'nord', 'orc', 'redguard', 'wood elf', 'argonian', 'khajiit'];
+      const audit = raceKeys.flatMap((name) => [false, true].map((isFemale) => {
+        const pool = poolsFor(name, isFemale);
+        const heads = unique(pool.heads), hairs = unique(pool.hairs);
+        return {
+          race: name, female: isFemale,
+          headCount: pool.heads.length, uniqueHeads: heads.length, duplicateHeads: pool.heads.length - heads.length,
+          hairCount: pool.hairs.length, uniqueHairs: hairs.length, duplicateHairs: pool.hairs.length - hairs.length,
+        };
+      }));
+      const pools = poolsFor(raceKey, !!female);
       const heads = unique(pools.heads);
       const hairs = unique(pools.hairs);
       const index = Number.isInteger(faceIndex) ? faceIndex : 0;
       const faceMatch = await faceMatchOf({ race: raceKey, female: !!female, faceIndex: index, pools, archives: cat.archives, gen: cat.gen, d });
       const rows = playerBodyRows(cat.parts, raceKey, !!female, { faceIndex: index, faceMatch, has: exists, ownHeads: true });
       return {
-        ok: true, heads, hairs,
+        ok: true, heads, hairs, audit,
         selected: {
           headId: rows.find((row) => row.slot === 'head')?.record?.id ?? heads[0]?.id ?? null,
           hairId: rows.find((row) => row.slot === 'hair')?.record?.id ?? hairs[0]?.id ?? null,
