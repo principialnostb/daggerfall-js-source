@@ -181,7 +181,11 @@ export function openAppearanceEditor({ fpArm, onClose = () => {} } = {}) {
   const initialIdentity = fpArm?.builtFor?.() || {};
   const savedIdentity = getAppearanceIdentity();
   let selectedRace = String(savedIdentity?.race || initialIdentity.race || 'nord').toLowerCase();
+  let selectedFemale = typeof savedIdentity?.female === 'boolean' ? savedIdentity.female : !!initialIdentity.female;
   let selectedFace = Math.max(0, Math.min(9, Number(savedIdentity?.faceIndex ?? initialIdentity.faceIndex) || 0));
+  let selectedHead = savedIdentity?.headId || null;
+  let selectedHair = savedIdentity?.hairId || null;
+  let choicesRequest = 0;
   const root = document.createElement('div');
   root.id = 'mw-appearance-editor';
   const style = document.createElement('style');
@@ -237,7 +241,7 @@ export function openAppearanceEditor({ fpArm, onClose = () => {} } = {}) {
   controls.className = 'mw-controls';
   const controlsHead = document.createElement('div');
   controlsHead.className = 'mw-controls-head';
-  controlsHead.innerHTML = '<h2>Внешность персонажа</h2><p>Сначала выберите расу и лицо, затем настройте пропорции тела. Предпросмотр использует игровые 3D-модели головы и волос; доступные замены лиц подключаются через настройки модификаций.</p>';
+  controlsHead.innerHTML = '<h2>Внешность персонажа</h2><p>Выберите расу и пол, затем отдельно настройте модель лица и причёску. В списках показаны уникальные модели из доступных игровых ресурсов; повторяющиеся модели скрыты.</p>';
   const raceRow = document.createElement('label'); raceRow.className = 'mw-underwear';
   const raceLabel = document.createElement('span'); raceLabel.textContent = 'Раса';
   const raceSelect = document.createElement('select'); raceSelect.setAttribute('aria-label', 'Раса персонажа');
@@ -255,12 +259,25 @@ export function openAppearanceEditor({ fpArm, onClose = () => {} } = {}) {
   }
   raceSelect.value = selectedRace;
   raceRow.append(raceLabel, raceSelect);
+  const sexRow = document.createElement('label'); sexRow.className = 'mw-underwear';
+  const sexLabel = document.createElement('span'); sexLabel.textContent = 'Пол';
+  const sexSelect = document.createElement('select'); sexSelect.setAttribute('aria-label', 'Пол персонажа');
+  sexSelect.style.cssText = raceSelect.style.cssText;
+  for (const [value, label] of [['male', 'Мужской'], ['female', 'Женский']]) {
+    const option = document.createElement('option'); option.value = value; option.textContent = label; sexSelect.append(option);
+  }
+  sexSelect.value = selectedFemale ? 'female' : 'male';
+  sexRow.append(sexLabel, sexSelect);
   const faceRow = document.createElement('label'); faceRow.className = 'mw-underwear';
-  const faceLabel = document.createElement('span'); faceLabel.textContent = 'Лицо и причёска';
-  const faceSelect = document.createElement('select'); faceSelect.setAttribute('aria-label', 'Вариант лица и причёски');
-  faceSelect.style.cssText = raceSelect.style.cssText;
-  for (let i=0;i<10;i++) { const option=document.createElement('option'); option.value=String(i); option.textContent='Вариант '+(i+1); faceSelect.append(option); }
-  faceSelect.value=String(selectedFace); faceRow.append(faceLabel,faceSelect);
+  const faceLabel = document.createElement('span'); faceLabel.textContent = 'Лицо';
+  const headSelect = document.createElement('select'); headSelect.setAttribute('aria-label', 'Модель лица');
+  headSelect.style.cssText = raceSelect.style.cssText;
+  faceRow.append(faceLabel, headSelect);
+  const hairRow = document.createElement('label'); hairRow.className = 'mw-underwear';
+  const hairLabel = document.createElement('span'); hairLabel.textContent = 'Причёска';
+  const hairSelect = document.createElement('select'); hairSelect.setAttribute('aria-label', 'Модель причёски');
+  hairSelect.style.cssText = raceSelect.style.cssText;
+  hairRow.append(hairLabel, hairSelect);
   const underwearRow = document.createElement('label'); underwearRow.className = 'mw-underwear';
   const underwearToggle = document.createElement('input'); underwearToggle.type = 'checkbox'; underwearToggle.checked = getUnderwearEnabled();
   const underwearCopy = document.createElement('span'); underwearCopy.innerHTML = '<strong>Нижнее бельё</strong><small>Выключено — голая модель; включено — вариант тела с бельём.</small>';
@@ -269,7 +286,7 @@ export function openAppearanceEditor({ fpArm, onClose = () => {} } = {}) {
   const bodyHairToggle = document.createElement('input'); bodyHairToggle.type = 'checkbox'; bodyHairToggle.checked = getBodyHairEnabled(); bodyHairToggle.disabled = underwearToggle.checked;
   const bodyHairCopy = document.createElement('span'); bodyHairCopy.innerHTML = '<strong>Волосы на теле</strong><small>Для голой модели; отключите нижнее бельё. Нужен High Resolution Better Body Female Textures.</small>';
   bodyHairRow.append(bodyHairToggle, bodyHairCopy);
-  controlsHead.append(raceRow, faceRow, underwearRow, bodyHairRow);
+  controlsHead.append(raceRow, sexRow, faceRow, hairRow, underwearRow, bodyHairRow);
   bodyHairToggle.addEventListener('change', async () => {
     setBodyHairEnabled(bodyHairToggle.checked);
     statusMessage.style.display = 'block'; statusMessage.textContent = 'Пересборка текстур модели…';
@@ -288,16 +305,60 @@ export function openAppearanceEditor({ fpArm, onClose = () => {} } = {}) {
   });
   const rebuildRacePreview = () => {
     previewRig?.unload?.(); previewRig = null; previewError = '';
-    statusMessage.style.display = 'block'; statusMessage.textContent = 'Загрузка расы и 3D-моделей лица…';
+    statusMessage.style.display = 'block'; statusMessage.textContent = 'Загрузка выбранных моделей лица и причёски…';
     if (previewBuildPending) previewRebuildRequested = true;
     else void buildPreviewRig();
-    window.dispatchEvent(new CustomEvent('mw-appearance-race-preview-change', { detail: { race: selectedRace, faceIndex: selectedFace } }));
+    window.dispatchEvent(new CustomEvent('mw-appearance-race-preview-change', { detail: {
+      race: selectedRace, female: selectedFemale, faceIndex: selectedFace, headId: selectedHead, hairId: selectedHair,
+    } }));
   };
-  // Race/face controls are a draft: only the editor-owned preview changes here.
-  // Persistence and mutation of the live player are reserved for the explicit Done action.
-  const previewIdentityDraft = () => rebuildRacePreview();
-  raceSelect.addEventListener('change', () => { selectedRace = raceSelect.value; previewIdentityDraft(); });
-  faceSelect.addEventListener('change', () => { selectedFace = Number(faceSelect.value) || 0; previewIdentityDraft(); });
+  const fillModelSelect = (select, items, selectedId, emptyLabel) => {
+    select.replaceChildren();
+    if (!items.length) {
+      const option = document.createElement('option'); option.value = ''; option.textContent = emptyLabel; select.append(option);
+      select.disabled = true; return '';
+    }
+    select.disabled = false;
+    for (const item of items) {
+      const option = document.createElement('option'); option.value = item.id; option.textContent = item.label; select.append(option);
+    }
+    const chosen = items.some((item) => item.id === selectedId) ? selectedId : items[0].id;
+    select.value = chosen;
+    return chosen;
+  };
+  async function refreshAppearanceChoices({ rebuild = true } = {}) {
+    const request = ++choicesRequest;
+    if (typeof fpArm?.getAppearanceChoices !== 'function') {
+      previewError = 'Список моделей лица и причёсок недоступен.';
+      drawPreview();
+      return;
+    }
+    statusMessage.style.display = 'block'; statusMessage.textContent = 'Поиск доступных моделей…';
+    try {
+      const result = await fpArm.getAppearanceChoices({ race: selectedRace, female: selectedFemale, faceIndex: selectedFace });
+      if (closed || request !== choicesRequest) return;
+      if (!result?.ok) throw new Error(result?.error || 'Не удалось получить список моделей.');
+      selectedHead = fillModelSelect(headSelect, result.heads || [], selectedHead || result.selected?.headId, 'Нет доступных моделей лица');
+      selectedHair = fillModelSelect(hairSelect, result.hairs || [], selectedHair || result.selected?.hairId, 'Нет доступных моделей причёсок');
+      if (rebuild) rebuildRacePreview();
+    } catch (error) {
+      if (closed || request !== choicesRequest) return;
+      previewError = String(error?.message || error);
+      statusMessage.textContent = 'Ошибка списка моделей: ' + previewError;
+      drawPreview();
+    }
+  }
+  // Identity controls are draft-only; the live player changes only on «Готово».
+  raceSelect.addEventListener('change', () => {
+    selectedRace = raceSelect.value; selectedHead = null; selectedHair = null;
+    void refreshAppearanceChoices();
+  });
+  sexSelect.addEventListener('change', () => {
+    selectedFemale = sexSelect.value === 'female'; selectedHead = null; selectedHair = null;
+    void refreshAppearanceChoices();
+  });
+  headSelect.addEventListener('change', () => { selectedHead = headSelect.value || null; rebuildRacePreview(); });
+  hairSelect.addEventListener('change', () => { selectedHair = hairSelect.value || null; rebuildRacePreview(); });
   underwearToggle.addEventListener('change', async () => {
     bodyHairToggle.disabled = underwearToggle.checked;
     setUnderwearEnabled(underwearToggle.checked);
@@ -394,7 +455,7 @@ export function openAppearanceEditor({ fpArm, onClose = () => {} } = {}) {
     const previousLabel = done.textContent;
     done.textContent = 'Применение…';
     try {
-      const identity = { race: selectedRace, faceIndex: selectedFace };
+      const identity = { race: selectedRace, female: selectedFemale, faceIndex: selectedFace, headId: selectedHead, hairId: selectedHair };
       if (typeof fpArm?.applyAppearanceIdentity === 'function') {
         const result = await fpArm.applyAppearanceIdentity(identity);
         if (result?.ok === false && !result?.queued) {
@@ -440,7 +501,7 @@ export function openAppearanceEditor({ fpArm, onClose = () => {} } = {}) {
     : null;
   resizeObserver?.observe(preview);
   drawPreview();
-  void buildPreviewRig();
+  void refreshAppearanceChoices({ rebuild: false }).then(() => buildPreviewRig());
 
   let drag = null;
   let suppressPreviewClick = false;
@@ -494,7 +555,7 @@ export function openAppearanceEditor({ fpArm, onClose = () => {} } = {}) {
     previewRebuildRequested = false;
     previewBuildPending = true;
     try {
-      const result = await fpArm.createAppearancePreviewRig({ race: selectedRace, faceIndex: selectedFace });
+      const result = await fpArm.createAppearancePreviewRig({ race: selectedRace, female: selectedFemale, faceIndex: selectedFace, headId: selectedHead, hairId: selectedHair });
       if (closed || previewRebuildRequested) {
         result?.rig?.unload?.();
       } else if (result?.ok && result.rig) {
