@@ -1434,7 +1434,7 @@ test('MW-D27: the faceIndex THREAD is unbroken, swept at the source', () => {
   // PIN MOVED (MWNPC17, section 25): and an NPC's walked head and hair
   // PIN MOVED (AUDIT MW-HEADS1): and the archives' directory, so the port's own heads stand only where their archive is
   // PIN MOVED (MW-HEADS2): and whether the body is a player's - the port's own heads are a player's alone
-  assert.match(arm, /playerBodyRows\(parts, race, female, \{ beast, faceIndex, faceMatch(, vampire(, walk(, has: exists(, ownHeads)?)?)?)?(, appearanceHeadId, appearanceHairId)? \}\)/,
+  assert.match(arm, /playerBodyRows\(parts, race, female, \{ beast, faceIndex, faceMatch, faceRace: race, vampire, walk, has: exists, ownHeads, appearanceHeadId, appearanceHairId \}\)/,
     'the body build no longer hands the face and explicit editor selections to the picker');
   // TR2: the menu's inline opts moved into weaponRig's ONE HOME - the
   // sweep follows the thread there (menu -> buildArmsFor ->
