@@ -644,6 +644,11 @@ select, input, textarea { font: inherit; }
     padding: 12px 15px;
   }
   .subbtn.on { border-left: 0; border-bottom-color: var(--brass); }
+  /* The narrow-screen rail is a horizontal strip, not a vertical list. */
+  .subrail .subbtn.custom-settings-start {
+    margin-top: 0; margin-left: 12px; border-left: 1px solid rgba(192,138,62,0.7);
+    padding-left: 16px;
+  }
   .subbtn .count { float: none; margin-left: 7px; }
   /* THE ONLY WAY TO THE CATEGORY CARD ON A PHONE (AUDIT F8), so the
      gesture needs to be visible. Active tab only - it is the only tab
