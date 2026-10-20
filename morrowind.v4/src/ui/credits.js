@@ -1,0 +1,606 @@
+// ═══════════════════════════════════════════════════════════════════
+// CREDITS - who made what the port carries (CR1, Mac's call 2026-08-30:
+// "as we integrate these I really want to give credit to the mod
+// developer who created it").
+//
+// ONE TABLE, ON THE SCREEN. Every third-party work in the tree has a
+// row here, and the About pane renders the rows; a README in vendor/
+// credits the author to whoever reads the repo, and this credits them
+// to whoever plays the game, which is the audience that matters to a
+// modder. test/systems/credits.test.js sweeps vendor/ against this list both
+// ways, so a work cannot be vendored without a row and a row cannot
+// name a folder that is gone.
+//
+// Two kinds of row, kept apart on the screen because they are owed
+// differently:
+//   - BUILT ON: the game itself and the source the game began as a 1:1 port of (SCOPE1: now its reference).
+//   - MODS: a modder's own work, carried with the author's permission
+//     (never without - the roads were removed whole for exactly that).
+//     `vendor` names the folder whose README records the permission.
+//
+// No URLs are invented: a contact is what the author's own manifest
+// says it is.
+//
+// L10N4: the sentences are the player's language - what a work is, the
+// terms it is carried under, and the words around a name ("and
+// contributors", "through the Nexus page") - each a getter over t(), so
+// the About pane reads them as it draws, never English frozen at load.
+// The names stay as they are: a work's title, its author, its version,
+// its link, its folder.
+//
+// L10N6: the translations are credited as the works are, one row a
+// language (translationCredits, below the table).
+// ═══════════════════════════════════════════════════════════════════
+
+import { t, availableLocales, intlLocale, BASE_LOCALE, PSEUDO_LOCALE } from '../systems/textManager.js';
+
+export const CREDITS = Object.freeze({
+  builtOn: Object.freeze([
+    Object.freeze({
+      title: 'The Elder Scrolls II: Daggerfall',
+      author: 'Bethesda Softworks',
+      get what() { return t('credits.daggerfall.what', 'The game. Every byte of art, sound, text and world data comes from the ARENA2 folder the player supplies; none ships with the port.'); },
+    }),
+    Object.freeze({
+      title: 'Daggerfall Unity',
+      get author() { return t('credits.author.andContributors', '{name} and contributors', { name: 'Gavin Clayton (Interkarma)' }); },
+      get what() { return t('credits.dfu.what', 'The source this game began as a 1:1 translation of, and still reads as its reference. Its quest scripts, book index, settings tables, TEXT.RSC string table, interaction-mode icons and mouse cursor are vendored verbatim (MIT License).'); },
+      vendor: Object.freeze(['dfu-quests', 'dfu-books', 'dfu-settings', 'dfu-text', 'dfu-icons', 'dfu-cursor']),
+      link: 'https://github.com/Interkarma/daggerfall-unity',
+    }),
+    Object.freeze({
+      title: 'Silkscreen',
+      version: '1.001',
+      get author() { return t('credits.author.projectAuthors', 'The {project} Project Authors', { project: 'Silkscreen' }); },
+      get what() { return t('credits.silkscreen.what', 'One glyph: the digit five of the enhanced skin\'s numbers. Pixelify Sans draws its 5 with a cut corner that reads as an 8, so the five is Silkscreen\'s, subset to that code point and carried inline (FIX-D).'); },
+      get terms() { return t('credits.silkscreen.terms', 'SIL Open Font License 1.1 (the OFL travels with the glyph in vendor/silkscreen-five/).'); },
+      vendor: Object.freeze(['silkscreen-five']),
+      link: 'https://github.com/googlefonts/silkscreen',
+    }),
+    Object.freeze({
+      title: 'Project Raum',
+      author: 'Mac (Lattymoy)',
+      get what() { return t('credits.raum.what', 'The book a Daggerfall book is read in under the enhanced skin (EB1): project-raum\'s physical journal - the leather cover that flips open, the two-page spreads, the leaves that turn as a cloth fold about the spine, the fore-edge stack and the slide up from below the screen - and its torn, stained paper. The words on its pages are Daggerfall\'s, in Daggerfall\'s own faces.'); },
+      get terms() { return t('credits.raum.terms', 'The author\'s own work, vendored from his repository (2026-09-12); see vendor/raum-book/README.md.'); },
+      vendor: Object.freeze(['raum-book']),
+      link: 'https://github.com/Lattymoy/project-raum',
+    }),
+    Object.freeze({
+      get title() { return t('credits.vorbis.title', 'Vorbis setup headers for FSB5'); },
+      // CSA-A: two codebook headers FMOD strips from a Unity audio clip, needed to turn Come Sail Away's sounds back into Ogg files
+      get author() { return t('credits.vorbis.author', 'The {project} authors, and the {foundation} ({library})', { project: 'vgmstream', foundation: 'Xiph.org Foundation', library: 'libvorbis' }); },
+      get what() { return t('credits.vorbis.what', 'Two Vorbis setup headers - an encoder\u2019s codebooks, the same for every stream encoded at that mode - that a Unity audio clip names by checksum and does not carry. With them, Come Sail Away\u2019s five sounds are the author\u2019s own Vorbis audio, packet for packet, in a rebuilt Ogg file (CSA-A).'); },
+      get terms() { return t('credits.vorbis.terms', 'From vgmstream\u2019s table (its ISC-style licence) and libvorbis\u2019s own encoder output (BSD-3-Clause, Xiph.org); both licences travel with the files in vendor/vorbis-fsb-setups/.'); },
+      vendor: Object.freeze(['vorbis-fsb-setups']),
+      link: 'https://github.com/vgmstream/vgmstream',
+    }),
+    Object.freeze({
+      get title() { return t('credits.classSkins.title', 'Daggerfall class skins'); },
+      // SKIN2: an art pack, not a mod (no switch, so no Features row) - Mac's ExistingClasses archive. It names no author for the pack (one folder
+      // names Kamer, for the bounty hunter), so the screen says so rather than crediting a guess; the record is open in
+      // vendor/class-skins/README.md and the registry row.
+      get author() { return t('credits.author.unnamed', 'Unnamed ({source})', { source: 'ExistingClasses' }); },
+      get what() { return t('credits.classSkins.what', 'Daggerfall\u2019s own classes to wear in third person (SKIN2): the acrobat, assassin, burglar, bounty hunter, dark acolyte, Dark Brotherhood, healer, monk, nightblade, pirate and sorcerer, most in both sexes, and the vanilla adventurer - twenty redrawn sheets, chosen on your profile\u2019s Skin card beside Eye of the Beholder\u2019s sets.'); },
+      get terms() { return t('credits.classSkins.terms', 'Carried by the artists\u2019 permission, on Mac\u2019s word - the archive states no licence. The 1,683 pictures vendored as shipped (their names mapped to the archive\u2019s in class-skins.files.json); see vendor/class-skins/README.md for the open permission record.'); },
+      vendor: Object.freeze(['class-skins']),
+    }),
+  ]),
+  mods: Object.freeze([
+    Object.freeze({
+      title: 'Meaner Monsters',
+      version: '1.5.2',
+      author: 'Ralzar',
+      get what() { return t('credits.meanerMonsters.what', 'Twenty monsters made meaner: their damage, health, level and armour rewritten (rats, bats and zombies gentler), werewolves and wereboars drawn a fifth larger, the dragonling two and a half times its size with a corpse to match. Ported 1:1 from the shipped 1.5.2 (characters/meanerMonsters.js); both lanes, under its own switch in Settings. With the combat overhaul on, Kirk.O\u2019s edit of these numbers takes over, as in Daggerfall Unity.'); },
+      get terms() { return t('credits.meanerMonsters.terms', 'Carried under its MIT License - the permission the source header grants (Copyright (C) 2020 Ralzar; Author: Hazelnut & Ralzar); see vendor/meanerMonsters/README.md.'); },
+      get contact() { return t('credits.contact.manifest', '{contact} (the manifest\u2019s ContactInfo)', { contact: 'forums.dfworkshop.com' }); },
+      vendor: Object.freeze(['meanerMonsters']),
+      link: 'https://github.com/Ralzar81/Meaner-Monsters',
+    }),
+    Object.freeze({
+      title: 'Unleveled Loot',
+      version: '1.1.2',
+      author: 'Ralzar',
+      get what() { return t('credits.unleveledLoot.what', 'Loot and shop stock that do not scale to your level: weapon and armour materials roll by your luck, the shop\u2019s quality and the dungeon\u2019s kind; a corpse\u2019s gold is divided by your level and multiplied by your luck; Daedra and Orcs may drop their own metal; any material can stand in for another. Ported 1:1 from the shipped 1.1.2 (systems/unleveledLoot.js); both lanes, under its own tile in Settings.'); },
+      get terms() { return t('credits.unleveledLoot.terms', 'Carried under its MIT License - the permission the source header grants (Copyright (C) 2020 Ralzar); see vendor/unleveledLoot/README.md.'); },
+      get contact() { return t('credits.unleveledLoot.contact', '{author}, through the Nexus page the manifest names as its ContactInfo ({page})', { author: 'Ralzar', page: 'daggerfallunity mod 135' }); },
+      vendor: Object.freeze(['unleveledLoot']),
+      link: 'https://github.com/Ralzar81/Unleveled-Loot',
+    }),
+    Object.freeze({
+      title: 'Physical Combat And Armor Overhaul',
+      version: '1.44',
+      author: 'Kirk.O',
+      get what() { return t('credits.pcaao.what', 'The combat overhaul: armour reduces the damage you take instead of your chance to be hit, skills and stats decide the hit, weapons and armour wear by their kind and material (his Believable Equipment Characteristics And Durability, built in), shields block by their material and your stats, critical strikes multiply damage, monsters have their own hides, and his edit of Ralzar\u2019s Meaner Monsters and Roleplay Realism\u2019s archery follow those mods\u2019 own switches. Ported 1:1 from the shipped 1.44 (combat/pcaao.js); both lanes, under its own tile in Settings.'); },
+      get terms() { return t('credits.pcaao.terms', 'Ported from the shipped .dfmod and the public source (github.com/magicono43/DFU-Mod_Physical-Combat-And-Armor-Overhaul, no licence stated); see vendor/pcaao/README.md for the permission.'); },
+      get contact() { return t('credits.contact.manifest', '{contact} (the manifest\u2019s ContactInfo)', { contact: 'kirkoliveri@gmail.com' }); },
+      vendor: Object.freeze(['pcaao']),
+      link: 'https://github.com/magicono43/DFU-Mod_Physical-Combat-And-Armor-Overhaul',
+    }),
+    Object.freeze({
+      title: 'Weapon Widget',
+      version: '1.6',
+      author: 'RedRoryOTheGlen',
+      get what() { return t('credits.weaponWidget.what', 'The first-person weapon sprite handled anew (WW1): swings that wind up from the idle pose and recover, the sprite in the hand you swing with, a sheathe that slides it off the screen, a walking bob, look inertia, stepped movement, double-size idle textures off the mod\u2019s own bundle, and a recoil on a hit, a parry or a miss - the same channels moving the Morrowind arms.'); },
+      get terms() { return t('credits.weaponWidget.terms', 'Ported 1:1 from the shipped bundle, read off its compiled script method by method; see vendor/weapon-widget/README.md for the permission record.'); },
+      get contact() { return t('credits.contact.nexus', '{author}, through the Nexus page ({page})', { author: 'RedRoryOTheGlen', page: 'daggerfallunity mod 860' }); },
+      vendor: Object.freeze(['weapon-widget']),
+      link: 'https://www.nexusmods.com/daggerfallunity/mods/860',
+    }),
+    Object.freeze({
+      title: 'Diverse Weapons',
+      version: '1.7.3',
+      author: 'RealAKP',
+      get what() { return t('credits.diverseWeapons.what', 'A first-person sprite set for every weapon, in every metal, plain and enchanted (DW1) - eighteen weapons where the classic art has one sprite per weapon class - with Weapon Widget\u2019s double-scale idles and the inventory icons to match. The sprites ship with the port (DW2), re-encoded pixel for pixel from the mod\u2019s bundle; the port carries the one line of script it ships and the law in Daggerfall Unity that line switches on.'); },
+      get terms() { return t('credits.diverseWeapons.terms', 'The script is MIT by its own header and carried verbatim; the sprites are the author\u2019s own paintings, carried under public/art/diverse-weapons/ as Shield Widget\u2019s are. See vendor/diverse-weapons/README.md for the permission record.'); },
+      get contact() { return t('credits.contact.nexus', '{author}, through the Nexus page ({page})', { author: 'RealAKP', page: 'daggerfallunity mod 242' }); },
+      vendor: Object.freeze(['diverse-weapons']),
+      link: 'https://www.nexusmods.com/daggerfallunity/mods/242',
+    }),
+    Object.freeze({
+      title: 'GrimoireUI',
+      version: '1.2',
+      author: 'LordSquacquerone',
+      get what() { return t('credits.grimoireUi.what', 'Daggerfall\u2019s own screens redrawn at three times the detail - parchment and wood in place of the rock, a spellbook that is a book, new lettering and its two fonts - worn over the classic screens as the first UI Overhaul (OVH2).'); },
+      get terms() { return t('credits.grimoireUi.terms', 'The pack\u2019s pictures and fonts are the author\u2019s own art, carried byte for byte under public/art/grimoire-ui/. See vendor/grimoire-ui/README.md for the permission record.'); },
+      get contact() { return t('credits.contact.nexus', '{author}, through the Nexus page ({page})', { author: 'LordSquacquerone', page: 'daggerfallunity mod 1222' }); },
+      vendor: Object.freeze(['grimoire-ui']),
+      link: 'https://www.nexusmods.com/daggerfallunity/mods/1222',
+    }),
+    Object.freeze({
+      title: 'Roleplay & Realism: Items',
+      version: '1.3',
+      author: 'Hazelnut & Ralzar',
+      get what() { return t('credits.rrItems.what', 'Two new weapons (the Archer\u2019s Axe and the Light Flail) and a light and a medium armor set in every metal, with their own inventory and paper-doll art (RRI1); the mod\u2019s changes to what items weigh and cost; and, in the slices that follow, its loot tables, enemy kits, starting kits and shop stock.'); },
+      get terms() { return t('credits.rrItems.terms', 'Ported 1:1 from the author\u2019s own source (MIT, every script\u2019s header), vendored verbatim; the 280 sprites are the authors\u2019 own art, carried under public/art/roleplay-realism-items/. See vendor/roleplay-realism-items/README.md for the permission record.'); },
+      get contact() { return t('credits.contact.forumsOrNexus', '{author}, through the DFU forums ({forums}) or the Nexus page ({page})', { author: 'Hazelnut', forums: 'forums.dfworkshop.net', page: 'daggerfallunity mod 61' }); },
+      vendor: Object.freeze(['roleplay-realism-items']),
+      link: 'https://www.nexusmods.com/daggerfallunity/mods/61',
+    }),
+    Object.freeze({
+      title: 'Roleplay & Realism',
+      version: '1.8',
+      author: 'Hazelnut',
+      get what() { return t('credits.rr.what', 'The mod\u2019s formula and rule modules (RR1): bows that hit and hurt by how long they were drawn, no climbing with a weapon out, swing speed blended from speed and strength, material to-hit bonuses moderated, armor worn by the blow, the classic strength bonus, bank loans by level, ships boarded from port towns only, an encumbrance penalty, lights doused leaving a dungeon by day, a purification potion that cures poison, class enemies remixed by class, the Thieves Guild and Dark Brotherhood expelling with prejudice, Fighters teaching hand-to-hand, and a bed you can click to sleep in; its NPC variants, enhanced riding, refined training and the Master Armorer quest line follow in later slices.'); },
+      get terms() { return t('credits.rr.terms', 'Ported 1:1 from the author\u2019s own source (MIT, every script\u2019s header), vendored verbatim. See vendor/roleplay-realism/README.md for the permission record.'); },
+      get contact() { return t('credits.contact.forumsOrNexus', '{author}, through the DFU forums ({forums}) or the Nexus page ({page})', { author: 'Hazelnut', forums: 'forums.dfworkshop.net', page: 'daggerfallunity mod 16' }); },
+      vendor: Object.freeze(['roleplay-realism']),
+      link: 'https://www.nexusmods.com/daggerfallunity/mods/16',
+    }),
+    Object.freeze({
+      title: 'Shield Widget',
+      version: '1.6',
+      author: 'RedRoryOTheGlen',
+      get what() { return t('credits.shieldWidget.what', 'A shield in the first-person view (SW1), which classic Daggerfall never drew: the equipped shield\u2019s own sprite in its metal, battering through three tiers of art as its condition falls, sliding off-screen or into the corner when you sheathe, swing or cast, with a walking bob, look inertia, stepped movement, a frame-by-frame raise and lower, and a recoil that rings and rocks it when a blow lands on the arm it covers.'); },
+      get terms() { return t('credits.shieldWidget.terms', 'Ported 1:1 from the shipped bundle, read off its compiled script method by method; the mod\u2019s own 600 sprites vendored, re-encoded as indexed PNG and lossless for every drawn pixel - see vendor/shield-widget/README.md for the permission record and the measurement.'); },
+      get contact() { return t('credits.contact.nexus', '{author}, through the Nexus page ({page})', { author: 'RedRoryOTheGlen', page: 'daggerfallunity mod 733' }); },
+      vendor: Object.freeze(['shield-widget']),
+      link: 'https://www.nexusmods.com/daggerfallunity/mods/733',
+    }),
+    Object.freeze({
+      title: 'Weapon Sheathing',
+      version: '1.6',
+      author: 'Greatness7',
+      get what() { return t('credits.weaponSheathing.what', 'A sheathed Morrowind weapon stays on the body, on the hip or the back, in its own scabbard, with a quiver for a bow (WS1): the seventy-one scabbard meshes and three skeleton addons vendored, the OpenMW mechanism ported for the port\u2019s third-person body. The scabbards are by akortunov, Greatness7, Heinrich, London Rook, Lord Berandas, Melchior Dahrk, MementoMoritius, Petethegoat, PikachunoTM and Remiros, as the shipped readme credits them.'); },
+      get terms() { return t('credits.weaponSheathing.terms', 'The mod\u2019s own permission: free to use with credit and no fee; see vendor/weapon-sheathing/README.md and WeaponSheathing.txt.'); },
+      get contact() { return t('credits.contact.nexus', '{author}, through the Nexus page ({page})', { author: 'Greatness7', page: 'morrowind mod 46069' }); },
+      vendor: Object.freeze(['weapon-sheathing']),
+      link: 'https://www.nexusmods.com/morrowind/mods/46069',
+    }),
+    Object.freeze({
+      title: 'Handheld Torches',
+      version: '1.4.1',
+      author: 'RedRoryOTheGlen',
+      get what() { return t('credits.handheldTorches.what', 'A lit light needs a free hand (HT1): drawing a weapon that takes both stows or drops the torch, and a hand freed lights it again; keys to ignite or douse, to drop, and to throw a torch that can set a foe alight; a first-person hand holding the light with the widget\u2019s bob, inertia and steps; dropped torches burn on the ground, light the room and can be picked up - and survive a save.'); },
+      get terms() { return t('credits.handheldTorches.terms', 'Ported 1:1 from the shipped bundle, read off its compiled script method by method; the mod\u2019s own textures vendored - see vendor/handheld-torches/README.md for the permission record.'); },
+      get contact() { return t('credits.contact.nexus', '{author}, through the Nexus page ({page})', { author: 'RedRoryOTheGlen', page: 'daggerfallunity mod 780' }); },
+      vendor: Object.freeze(['handheld-torches']),
+      link: 'https://www.nexusmods.com/daggerfallunity/mods/780',
+    }),
+    Object.freeze({
+      title: 'Climates & Calories',
+      version: '1.7.1',
+      author: 'Ralzar',
+      get what() { return t('credits.climatesCalories.what', 'The survival arc (SURV): a felt temperature from climate, season, hour, weather, clothes and armour; hunger, thirst, sleep and wetness as needs; food that spoils; camps and campfires; a rest priced by where you sleep - in four tiers in Settings: Off, Boons (the default: neglect costs nothing, and a body kept fed, watered and rested earns bonuses), Casual (a need met costs nothing and a need neglected only lends out stamina, repaid when it is met) and Hard (the whole arc: attributes, health, sickness and the rest). Overhauled from the mod\u2019s rules rather than ported - its numbers were the starting point - with its own item art vendored: the foods\u2019 spoiled faces, raw meat and the waterskin.'); },
+      get terms() { return t('credits.climatesCalories.terms', 'Overhauled with the author\u2019s permission, relayed by Mac (2026-09-17): not a 1:1 port; the rules were read off the shipped bundle\u2019s compiled script and rebuilt, and the mod\u2019s own item art is carried - see vendor/climates-calories/README.md.'); },
+      get contact() { return t('credits.contact.forumsManifest', '{author}, through the DFU forums (the manifest\u2019s ContactInfo)', { author: 'Ralzar' }); },
+      vendor: Object.freeze(['climates-calories']),
+      link: 'https://www.nexusmods.com/daggerfallunity/mods/49',
+    }),
+    Object.freeze({
+      title: 'World Tooltips',
+      version: '1.1',
+      author: 'jefetienne',
+      get what() { return t('credits.worldTooltips.what', 'A name under the crosshair for whatever you are looking at (WORLD-HOVER): a person, a shop sign and the hours it keeps, a door and its lock level, the dungeon you would walk into, a lever, a wheel, a ladder, a bookshelf, a Daedra at a summoning, and what a chest or a body holds. The mod\u2019s naming ladder ported 1:1 from its own source, in its own order, extension API included - worn in the enhanced skin\u2019s own dress at the reticle, where the port\u2019s loot plaque already stood, rather than the mod\u2019s Daggerfall tooltip panel.'); },
+      get terms() { return t('credits.worldTooltips.terms', 'Carried under its MIT License - the permission the source grants (Copyright (c) 2009-2018 jefetienne), beside Daggerfall Workshop\u2019s own; see vendor/world-tooltips/README.md.'); },
+      get contact() { return t('credits.contact.forumsManifest', '{author}, through the DFU forums (the manifest\u2019s ContactInfo)', { author: 'jefetienne' }); },
+      vendor: Object.freeze(['world-tooltips']),
+      link: 'https://www.nexusmods.com/daggerfallunity/mods/158',
+    }),
+    Object.freeze({
+      title: 'Readied Spellcasting Hands',
+      version: '1.3',
+      author: 'jefetienne',
+      what: 'Your hands raised while a spell is readied (RSH1): until the click, the spell\u2019s own element\u2019s casting hands hold their first frame where the screen stood empty - and the cast plays on from them. The mod\u2019s coroutine ported 1:1 from its own source onto the port\u2019s FPSSpellCasting (which the mod copies unchanged), in the classic first-person lane.',
+      terms: 'Carried under its MIT License - the permission the source grants (Copyright (c) 2009-2018 jefetienne), beside Daggerfall Workshop\u2019s own; see vendor/readied-spellcasting-hands/README.md.',
+      contact: 'jefetienne, through the DFU forums (the manifest\u2019s ContactInfo)',
+      vendor: Object.freeze(['readied-spellcasting-hands']),
+      link: 'https://www.nexusmods.com/daggerfallunity/mods/91',
+    }),
+    Object.freeze({
+      title: 'Windmills of Daggerfall',
+      version: '2.0',
+      author: 'Kamer',
+      get what() { return t('credits.windmills.what', 'The windmill: the tower and its sails, the machinery inside with its turning gear and roller, the seventeen climate and season skins, and the seven farms he chose to stand them on. Enhanced skin only; the classic lane sees Daggerfall\'s own farms.'); },
+      get terms() { return t('credits.windmills.terms', 'Vendored with the author\'s permission (2026-08-29).'); },
+      contact: 'DFU Discord',
+      vendor: Object.freeze(['windmills-kamer']),
+    }),
+    // WOD1: Kamer's second - AFTER the mill, which the CR1 gate finds
+    // first by his name.
+    Object.freeze({
+      title: 'World of Daggerfall',
+      version: '2.0',
+      author: 'Kamer',
+      get what() { return t('credits.worldOfDaggerfall.what', 'The wilderness: his 65 layouts - bandit camps and forts, ruins, shrines, mountains and rock fields - named at 227,938 places across the Iliac Bay and stood where his loader stands them, one to a map pixel, on ground levelled under each as his loader levels it, with the bandits, bears, warriors and treasure they hold, and the camp he pitched outside Privateer’s Hold. Ported 1:1 from the source his own bundle ships.'); },
+      get terms() { return t('credits.worldOfDaggerfall.terms', 'Vendored with the author’s permission, confirmed by Mac (2026-09-23); see vendor/world-of-daggerfall/README.md.'); },
+      get contact() { return t('credits.contact.dfuForums', 'DFU forums'); },
+      vendor: Object.freeze(['world-of-daggerfall']),
+      link: 'https://www.nexusmods.com/daggerfallunity/mods/181',
+    }),
+    // LPT1: Kamer's sixth (beside his wilderness), under the handle his manifest signs it with
+    Object.freeze({
+      title: 'Low Poly Trees',
+      version: '5',
+      author: 'SquidKamer',
+      what: 'The wilderness\u2019s trees, bushes and stumps in 3D: his 253 low-poly models standing where Daggerfall\u2019s nature flats stood, each tree its own size and turn, the same model\u2019s picture beyond the near ground so the view keeps its whole reach. Their leaves and bark are painted from your own Daggerfall pictures - and from Seasons of the Iliac Bay\u2019s, so they turn with the seasons.',
+      terms: 'Vendored on Mac\u2019s word (2026-10-05); SquidKamer\u2019s permission is still to be recorded - see vendor/low-poly-trees/README.md.',
+      contact: 'DFU Discord',
+      vendor: Object.freeze(['low-poly-trees']),
+    }),
+    Object.freeze({
+      title: 'Basic Roads',
+      version: '1.3.1',
+      author: 'Hazelnut',
+      get what() { return t('credits.basicRoads.what', 'The roads and tracks of the Iliac Bay: the hand-drawn network of which pixels carry a road or a track and which way each leaves, and the painter that lays them into the terrain. Both skins; the map draws them too.'); },
+      get terms() { return t('credits.basicRoads.terms', 'Vendored with the author\'s permission (2026-09-02). The painter is MIT (Copyright (C) 2020 Hazelnut).'); },
+      get contact() { return t('credits.contact.dfuForums', 'DFU forums'); },
+      vendor: Object.freeze(['roads-hazelnut']),
+      link: 'https://github.com/ajrb/dfunity-mods',
+    }),
+    Object.freeze({
+      title: 'Travel Options',
+      version: '1.11',
+      author: 'Hazelnut',
+      get what() { return t('credits.travelOptions.what', 'The journey you walk: the travel map and its popup choose between Daggerfall\u2019s own fast travel and a TIME ACCELERATED trip across the real world, with a control panel to steer it, encounters and locations to pause it, and Basic Roads\u2019 own roads and tracks to follow with a key. The travel map gains his ports filter, his five-texel page with the network drawn on it, a location-information key and a marked location. The autopilot class is Jedidia\u2019s, from Tedious Travel.'); },
+      get terms() { return t('credits.travelOptions.terms', 'Code MIT (Copyright (C) 2020 Hazelnut; PlayerAutoPilot Copyright (C) 2019 Jedidia). The three UI textures are re-encodes of the mod\u2019s own art, vendored with the author\u2019s permission (2026-09-17); see vendor/travel-options/README.md.'); },
+      contact: 'forums.dfworkshop.net',
+      vendor: Object.freeze(['travel-options']),
+      link: 'https://github.com/ajrb/dfunity-mods',
+    }),
+    Object.freeze({
+      title: 'Dynamic Skies',
+      version: '2.3.4',
+      get author() { return t('credits.author.pair', '{first} and {second}', { first: 'BadLuckBurt', second: 'carademono' }); },
+      get what() { return t('credits.dynamicSkies.what', 'The sky under the enhanced environments: a procedural skybox (built on Feral Pug\'s extension of Unity\'s procedural sky) with its sun and atmosphere, two textured cloud layers per weather, twinkling stars, Masser and Secunda on their orbits and DFU\'s phases, its own fog colours and distances, a longer sunrise and sunset, a lightning flash under thunder, and pixel snow. Carried 1:1 - the shader, the presets and the textures are the mod\'s own. The classic lane keeps Daggerfall\'s painted sky.'); },
+      get terms() { return t('credits.dynamicSkies.terms', 'Vendored with the authors\' permission (2026-09-04); see vendor/dynamic-skies/README.md.'); },
+      get contact() { return t('credits.contact.discordServer', '{server} Discord server', { server: 'Lysandus\' Tomb' }); },
+      vendor: Object.freeze(['dynamic-skies']),
+      link: 'https://github.com/drcarademono/dynamic-skies',
+    }),
+    Object.freeze({
+      title: 'Seasons of the Iliac Bay',
+      version: '1.1',
+      author: 'RosyTheRascal',
+      get what() { return t('credits.seasons.what', 'The turning of the year on the woodland, hills, haunted and mountain flats: autumn, spring and winter repaints of the trees, rocks and plants, drawn at the mod\'s own size. The mod\'s script (its seasons, archives and checks) is ported; its textures are read from your own copy of the mod at play time and are not in this repository.'); },
+      get terms() { return t('credits.seasons.terms', 'Ported with the author\'s permission (2026-09-05); see vendor/seasons-iliac-bay/README.md.'); },
+      get contact() { return t('credits.contact.discordServer', '{server} Discord server', { server: 'Lysandus\' Tomb' }); },
+      vendor: Object.freeze(['seasons-iliac-bay']),
+    }),
+    Object.freeze({
+      title: 'Ambient Text',
+      version: '1.8',
+      author: 'Regnier',
+      get what() { return t('credits.ambientText.what', 'An unobtrusive line about where you are, now and then (AT1): 918 of the author\u2019s own, keyed to the kind of place you stand in, the kind of dungeon you are under, the hour and the weather. It reads the location rect, the climate and the sky, says nothing indoors, and goes quiet for longer after it has spoken.'); },
+      get terms() { return t('credits.ambientText.terms', 'Ported 1:1 from the shipped bundle, read off its compiled script method by method; the mod\u2019s own text table vendored - see vendor/ambient-text/README.md for the permission record.'); },
+      contact: 'forums.dfworkshop.net',
+      vendor: Object.freeze(['ambient-text']),
+    }),
+    Object.freeze({
+      title: 'Eye Of The Beholder',
+      version: '2.1',
+      author: 'RedRoryOTheGlen',
+      get what() { return t('credits.eyeOfTheBeholder.what', 'Third person for a player with no Morrowind data (EOTB): the camera swings out behind your shoulder on the wheel, clears walls on its own, and you are drawn as the mod\u2019s own sprite - eight ways round, with its idle, walk, attack and spell states on foot and in the saddle.'); },
+      get terms() { return t('credits.eyeOfTheBeholder.terms', 'The camera and the player sprite ported from the shipped bundle, read off its compiled script method by method - its attack and death animations, footsteps and cart are NOT ported; the mod\u2019s own 3035 sprites vendored, re-encoded as indexed PNG and lossless for every drawn pixel - see vendor/eye-of-the-beholder/README.md for the permission record and the measurement.'); },
+      contact: 'rmufrancisco@gmail.com',
+      vendor: Object.freeze(['eye-of-the-beholder']),
+    }),
+    Object.freeze({
+      title: 'Immersive Footsteps',
+      version: '1.01',
+      author: 'Kirk.O',
+      get what() { return t('credits.immersiveFootsteps.what', 'Footsteps that sound like the ground (IF1): grass, gravel, sand, mud and snow by climate and tile outdoors, path stone and shallow or deep water, a building\u2019s tile, stone or wood floor read off its own textures, a dungeon\u2019s water, and boots of leather, chain or plate on stone; armour that sways as you walk, by what you wear; and the mod\u2019s own landing and splash sounds. Two clip qualities.'); },
+      get terms() { return t('credits.immersiveFootsteps.terms', 'Ported 1:1 from the author\u2019s own MIT sources (the two C# scripts the shipped bundle was built from, vendored); the mod\u2019s 210 sound clips vendored as the author ships them - see vendor/immersive-footsteps/README.md for the permission record.'); },
+      contact: 'forums.dfworkshop.net',
+      vendor: Object.freeze(['immersive-footsteps']),
+    }),
+    Object.freeze({
+      title: 'Better Ambience',
+      version: '0.1.4',
+      author: 'Joshua Steinhauer',
+      get what() { return t('credits.betterAmbience.what', 'The camera shakes when you are hurt, by how much of you the blow took (BA1); a dungeon gets its own fog colour and its own light, rolled from its name, and a stone reverb over every sound; rain is heard indoors, muffled, and at a dungeon\u2019s door; and its own footsteps with an armour clank, kept off beside Immersive Footsteps as that mod\u2019s author asks.'); },
+      get terms() { return t('credits.betterAmbience.terms', 'Ported 1:1 from the sixteen sources the shipped bundle carries, under the author\u2019s MIT licence; the 29 clips the mod asks for vendored from the author\u2019s repository - see vendor/better-ambience/README.md for the permission record. The rain and snow particle tweaks have no twin: the port\u2019s precipitation is its own.'); },
+      contact: 'forums.dfworkshop.net',
+      vendor: Object.freeze(['better-ambience']),
+    }),
+    Object.freeze({
+      title: 'Oblivion Remaster Like Leveling',
+      version: '0.5.3',
+      // THE ONE ROW ON THIS SCREEN WHOSE AUTHOR IS NOT KNOWN. Nothing
+      // in the shipped archive names them - no licence file, no script
+      // header, an empty author field in the `.omwaddon` - so the
+      // screen says so and names the page the mod comes from, rather
+      // than crediting a guess. The record is open in
+      // vendor/oblivion-remaster-leveling/README.md and in the
+      // registry row, and it is filled in the moment Mac has the name.
+      get author() { return t('credits.author.unnamed', 'Unnamed ({source})', { source: 'Nexus Morrowind 56569' }); },
+      get what() { return t('credits.oblivionLeveling.what', 'An alternative way to level, offered when you make a character (ORL1): every skill you raise fills a hundred-point bar instead of Daggerfall\u2019s skill sum - your primaries and majors fastest, your minors next, everything else slowest - with whatever spills over carried into the next level; and levelling up hands you a purse of virtues to spend across a few of your attributes, with Luck priced higher — how many, across how many, and what Luck costs are all yours to set on the mod’s own tile. The first MORROWIND mod in the port: it is an OpenMW Lua mod, ported 1:1 from the author\u2019s own source (systems/oblivionLeveling.js), in both lanes.'); },
+      get terms() { return t('credits.oblivionLeveling.terms', 'Carried by the author\u2019s permission, on Mac\u2019s word - the archive states no licence and names no author. Ported 1:1 from the shipped Lua, which is vendored whole; see vendor/oblivion-remaster-leveling/README.md for the open permission record.'); },
+      vendor: Object.freeze(['oblivion-remaster-leveling']),
+    }),
+    Object.freeze({
+      title: 'Horse Cart and Cargo',
+      version: '1.0.0-rc12',
+      author: 'demifiend000',
+      get what() { return t('credits.horseCart.what', 'Your horse and wagon as things in the world (HCC): left where you dismount, following you or waiting on command, the horse hitched to the wagon and the pair mounted by walking up to them, summoned outdoors, the wagon reached from an entrance it is parked near, its cargo showing by weight and its wheels turning. Online, the others see them where you left them.'); },
+      get terms() { return t('credits.horseCart.terms', 'Ported 1:1 from the shipped bundle, read off its compiled assembly method by method; the mod\u2019s own horse art vendored out of the assembly - see vendor/horse-cart-and-cargo/README.md for the permission record.'); },
+      get contact() { return t('credits.contact.nexus', '{author}, through the Nexus page ({page})', { author: 'demifiend000', page: 'daggerfallunity mod 1374' }); },
+      vendor: Object.freeze(['horse-cart-and-cargo']),
+      link: 'https://www.nexusmods.com/daggerfallunity/mods/1374',
+    }),
+    Object.freeze({
+      title: 'Project Legacy',
+      version: '0.4.1',
+      author: 'Lattymoy, Gh\u00f0\u00a7\u2020 and Positronico',
+      what: 'Your family and its tree (LEGACY1-LEGACY4, LEGACY-HOME): an heir to carry your line on when you fall - a sibling, a child or a newborn of your blood, born with what the blood and the hearth hand down - and siblings to play between, in a Bloodline house where a death is final or an Enduring one where it costs years; the remains of the fallen and their heirloom, recovered and laid to rest; the family living in the world when you are not playing them, at the family home, met to be played. The pause window\u2019s Family tab, in the Enhanced Plus stone and brass.',
+      terms: 'The author\u2019s own - Mac is Lattymoy, the mod\u2019s first-named author, and gave his permission in handing it over. Read off the shipped assembly and rebuilt with every bug fixed - see vendor/project-legacy/README.md for the permission record.',
+      vendor: Object.freeze(['project-legacy']),
+    }),
+    Object.freeze({
+      title: 'Aquatic Sprites',
+      version: '1.0',
+      author: 'Cliffworms',
+      get what() { return t('credits.aquaticSprites.what', 'The underwater sprites Daggerfall ships and never places - weed, coral and shells - set into three of its flooded dungeon blocks, 119 of them, exactly where the author put them (AS1).'); },
+      get terms() { return t('credits.aquaticSprites.terms', 'Distributed under the author’s own terms, which ask only for credit: “The mod may be distributed/translated without my authorization as long as I am credited as the author.” The author’s edits are vendored; the blocks are rebuilt from your own game files - see vendor/aquatic-sprites/README.md for the permission record.'); },
+      get contact() { return t('credits.contact.nexus', '{author}, through the Nexus page ({page})', { author: 'Cliffworms', page: 'daggerfallunity mod 276' }); },
+      vendor: Object.freeze(['aquatic-sprites']),
+      link: 'https://www.nexusmods.com/daggerfallunity/mods/276',
+    }),
+    Object.freeze({
+      title: 'Detailed Ships',
+      version: '1.0.0',
+      author: 'Cliffworms',
+      get what() { return t('credits.detailedShips.what', 'The two ships you can own, revamped inside and out (DS1): rigging, crates and barrels, tenders, rudders and railings on deck; your quarters, the crew’s, a kitchen, a cargo hold, an armory and a shrine to Kynareth below, with sailors to talk to. The Kynareth statue is King of Worms’ and Zoran’s, as the author’s readme credits it; the pieces the mod borrows from Ninelan’s Daggerfall Expanded Textures are the port’s own stand-ins.'); },
+      get terms() { return t('credits.detailedShips.terms', 'Distributed under the author’s own terms, which ask only for credit: “The mod may be distributed/translated without my authorization as long as I am credited as the author.” The author’s edits and drawings are vendored; the ships and the classic pictures are rebuilt from your own game files - see vendor/detailed-ships/README.md for the permission record.'); },
+      get contact() { return t('credits.contact.nexus', '{author}, through the Nexus page ({page})', { author: 'Cliffworms', page: 'daggerfallunity mod 1080' }); },
+      vendor: Object.freeze(['detailed-ships']),
+      link: 'https://www.nexusmods.com/daggerfallunity/mods/1080',
+    }),
+    // WD3: carademono's two town mods, one entry each (two vendors, two pages).
+    Object.freeze({
+      title: 'Beautiful Villages of Daggerfall',
+      version: '1.4.2',
+      author: 'carademono',
+      what: 'The villages, hamlets, farms, manors and temples of the Iliac Bay laid out again, and the roadside taverns rebuilt (WD3) - 7,317 places, exactly as the author arranged them. The pieces it borrows from other mods (Daggerfall Expanded Textures, the RMB Resource Pack and others) are, most of them, the port\u2019s own stand-ins.',
+      terms: 'Ported 1:1 from the shipped bundle - every town as the author\u2019s edit over your own game files - see vendor/beautiful-villages/README.md for the permission record.',
+      contact: 'carademono, through the Lysandus\u2019 Tomb Discord server',
+      vendor: Object.freeze(['beautiful-villages']),
+      link: 'https://www.nexusmods.com/daggerfallunity/mods/566',
+    }),
+    Object.freeze({
+      title: 'Beautiful Cities of Daggerfall',
+      version: '0.5.0',
+      author: 'carademono',
+      what: 'The cities of the Iliac Bay laid out again (WD3) - districts, walls, gates, markets and docks, 410 cities exactly as the author arranged them. Most of the pieces it borrows from other mods are the port\u2019s own stand-ins.',
+      terms: 'Ported 1:1 from the shipped bundle - every city as the author\u2019s edit over your own game files - see vendor/beautiful-cities/README.md for the permission record.',
+      contact: 'carademono, through the Lysandus\u2019 Tomb Discord server',
+      vendor: Object.freeze(['beautiful-cities']),
+      link: 'https://www.nexusmods.com/daggerfallunity/mods/720',
+    }),
+    // VE4: carademono's third - the Texture Overhaul's first pack, worn from the Overhauls screen.
+    Object.freeze({
+      title: 'Vanilla Enhanced',
+      version: '3.4.7',
+      author: 'carademono',
+      what: 'Daggerfall’s own textures remastered - the ground’s tile sets, the trees, rocks and plants, the city walls and the dungeons - worn from the Texture Overhaul card (VE4). Its add-ons Masked Roads (with Kokey) and Snowless Swamps and Jungles are switches on the same card.',
+      terms: 'The author’s repaints of Daggerfall’s textures, carried byte for byte under public/art/vanilla-enhanced/ from the mod’s public repository - the one exception Port-Doctrine records to its rule that a render of game data is game data. See vendor/vanilla-enhanced/README.md for the permission record.',
+      contact: 'carademono, through the Lysandus’ Tomb Discord server',
+      vendor: Object.freeze(['vanilla-enhanced']),
+      link: 'https://www.nexusmods.com/daggerfallunity/mods/273',
+    }),
+    // WA1: Kamer's third - after the mill and the wilderness, which the CR1
+    // gate finds first by his name.
+    Object.freeze({
+      title: 'Warm Ashes - Ships',
+      version: '1.1',
+      author: 'Kamer',
+      get what() { return t('credits.warmAshes.what', 'Encounters on ships and ocean fast travel (WA1): a voyage by ship across the sea can be ambushed by pirates - you are put on your ship\u2019s deck with your crew, a ship lent if you own none, the raiders\u2019 vessels standing off - and once they are beaten you are set ashore where you were bound. His four quests and six ship-block variants, and his quest action, ported 1:1 off the mod\u2019s compiled script.'); },
+      get terms() { return t('credits.warmAshes.terms', 'Ported 1:1 from the shipped bundle - the quests verbatim, the ship blocks as his edit over your own game files, the script read off its IL - see vendor/warm-ashes-ships/README.md for the permission record.'); },
+      contact: 'DFU Discord',
+      vendor: Object.freeze(['warm-ashes-ships']),
+      link: 'https://www.nexusmods.com/daggerfallunity/mods/985',
+    }),
+    // RAID1: Kamer's fourth, and the first he made for this port - no public
+    // page to link.
+    Object.freeze({
+      title: 'World Events - Raiding Parties',
+      version: '1.1',
+      author: 'Kamer',
+      get what() { return t('credits.raidingParties.what', 'Towns raided (RAID1): each day knights, bandits or orcs fall on towns across the Iliac Bay for two hours (online, ten real minutes); stand in one and the raiders come, with the town’s watch beside you, and drive off 15 to 25 of them to cleanse it - a region’s standing, its people’s, a knightly order’s and the Fighters Guild’s rising for a player who fought. Ported off the mod’s compiled script, with its own bugs fixed.'); },
+      get terms() { return t('credits.raidingParties.terms', 'Made by Kamer for this port and ported off the script’s IL, with his own bugs fixed - see vendor/world-events-raiding-parties/README.md for the permission record.'); },
+      contact: 'DFU Discord',
+      vendor: Object.freeze(['world-events-raiding-parties']),
+    }),
+    // ARENA1: Kamer's fifth - after his raiding parties.
+    Object.freeze({
+      title: 'Daggerfall Arena',
+      version: '1.0',
+      author: 'Kamer',
+      what: 'The colosseum: his arena model, its tiers, torches and braziers, and the 32-block dungeon beneath it - stood in the middle of Daggerfall city as the Arena of Daggerfall, its undercroft below. Drawn in the player\u2019s own Daggerfall pictures; the parts of it that are Daggerfall\u2019s own dungeon pieces are read from the player\u2019s game.',
+      terms: 'Vendored with the author\u2019s permission, relayed by Mac (2026-10-02); see vendor/daggerfall-arena/README.md.',
+      contact: 'DFU Discord',
+      vendor: Object.freeze(['daggerfall-arena']),
+    }),
+    Object.freeze({
+      title: 'Iliac Puddle No More',
+      version: '1.2.2',
+      author: 'jet082',
+      get what() { return t('credits.iliacPuddle.what', 'The Iliac Puddle made the Iliac Bay (DW-A to DW-E5): the sea carved out under its water, a seafloor falling away from every coast to as deep as 250 metres, a surface you see from above and below, and open-water swimming - diving, surfacing, a stroke for a burst of speed, a shore to climb out onto and your breath to watch - with the deep\u2019s own fog and light; weed, coral and schools of fish on the seafloor, the foes of the deep, and wrecks and sunken treasure to find under their guard. Ported 1:1 off the mod\u2019s compiled assembly.'); },
+      get terms() { return t('credits.iliacPuddle.terms', 'Ported 1:1 from the shipped bundle, read off its compiled assembly; the coastline it bakes from Daggerfall\u2019s own files is rebuilt from yours - see vendor/iliac-puddle-no-more/README.md for the permission record.'); },
+      get contact() { return t('credits.contact.nexus', '{author}, through the Nexus page ({page})', { author: 'jet082', page: 'daggerfallunity mod 1304' }); },
+      vendor: Object.freeze(['iliac-puddle-no-more']),
+      link: 'https://www.nexusmods.com/daggerfallunity/mods/1304',
+    }),
+    Object.freeze({
+      title: 'There’s a Hole in the Bottom of the Ocean',
+      version: '1.1.0',
+      author: 'jet082',
+      get what() { return t('credits.oceanHoles.what', 'Blue holes in the deep (OH-A to OH-F): far out on Iliac Puddle No More’s bay the seafloor falls away into a black pit under a plume of miasma, and swimming down into it leads to a drowned dungeon of the abyss - lightless and flooded, its fire things gone and the deep’s own creatures in their place, its loot a material better. Ported 1:1 off the mod’s compiled assembly.'); },
+      get terms() { return t('credits.oceanHoles.terms', 'Ported 1:1 from the shipped bundle, read off its compiled assembly - see vendor/ocean-holes/README.md for the permission record.'); },
+      get contact() { return t('credits.contact.nexus', '{author}, through the Nexus page ({page})', { author: 'jet082', page: 'daggerfallunity mod 1313' }); },
+      vendor: Object.freeze(['ocean-holes']),
+      link: 'https://www.nexusmods.com/daggerfallunity/mods/1313',
+    }),
+    Object.freeze({
+      title: 'Come Sail Away',
+      version: '2.1',
+      author: 'RedRoryOTheGlen',
+      get what() { return t('credits.comeSailAway.what', 'A boat of your own and the sailing to go with it (CSA-A to CSA-J): buy one as its parts or its deed, put it in the water (the deed near a port) and take the helm - row with the oars or raise the sails and let the wind carry you, trim them to it, watch the waves go by and pack the boat up to carry it on. His boats, their sails and oars, the wind widget, the waves and the sounds, ported 1:1 off the mod\u2019s compiled assembly.'); },
+      get terms() { return t('credits.comeSailAway.terms', 'Ported 1:1 from the shipped bundle, read off its compiled assembly; his own pictures and sounds vendored, and the waves\u2019 snow rebuilt from your own Daggerfall files - see vendor/come-sail-away/README.md for the permission record.'); },
+      get contact() { return t('credits.contact.nexus', '{author}, through the Nexus page ({page})', { author: 'RedRoryOTheGlen', page: 'daggerfallunity mod 1131' }); },
+      vendor: Object.freeze(['come-sail-away']),
+      link: 'https://www.nexusmods.com/daggerfallunity/mods/1131',
+    }),
+    // FORAGE1: Harbinger451's, with the four quest actions it needs restated
+    // from Jagget's Quest Actions Extension (nothing of that mod carried).
+    Object.freeze({
+      title: 'Foraging',
+      version: '1.7',
+      author: 'Harbinger451',
+      get what() { return t('credits.foraging.what', 'Work for a living in the wilderness (FORAGE1): use a Wood-Axe to chop wood, a Pick-Axe to mine gems and metals, a Sickle to cut plants, a Spade to rob graves, a Fishing-Net to fish and a Basket to forage for food - by daylight, away from towns and foes, as your attributes, the climate and the season allow - and fetch firewood for commoners and nobles. Its quests need four actions from Jagget\u2019s Quest Actions Extension, restated here with thanks.'); },
+      get terms() { return t('credits.foraging.terms', 'Ported 1:1 from the shipped bundle - the quests verbatim, the script read off its IL, his own textures carried; six bugs mended and recorded - see vendor/foraging/README.md for the permission record.'); },
+      vendor: Object.freeze(['foraging']),
+    }),
+    // IT1: kkgobkk's carriages at the gates.
+    Object.freeze({
+      title: 'Immersive Travel',
+      version: '1.5',
+      author: 'kkgobkk',
+      what: 'Carriages at the city gates (IT1): a carriage, its horses and a driver wait outside the walled cities, and the driver takes you to a town or village for a fare - a daily fee on top of any nights at an inn. Online, the driver\u2019s carriage is the fast travel over land. Ported 1:1 off the mod\u2019s compiled assembly.',
+      terms: 'Ported 1:1 from the shipped bundle, read off its compiled assembly; the four gate blocks as the author\u2019s edit over your own game files - see vendor/immersive-travel/README.md for the permission record.',
+      contact: 'kkgobkk, through the Nexus page (daggerfallunity mod 986)',
+      vendor: Object.freeze(['immersive-travel']),
+      link: 'https://www.nexusmods.com/daggerfallunity/mods/986',
+    }),
+    // PI1: demifiend000's items in the world as themselves.
+    Object.freeze({
+      title: 'Physical Items',
+      version: '0.1.29',
+      author: 'demifiend000',
+      what: 'Items in the world as themselves (PI1): a fallen foe\u2019s gear is thrown out round the body and picked up piece by piece, and Shift-clicking an item in your pack drops it in front of you - each wearing its own picture, its Morrowind one when Morrowind data is attached, and the port\u2019s rarity glow. Ported off the mod\u2019s compiled assembly.',
+      terms: 'Ported from the shipped bundle, read off its compiled assembly; it carries no art - see vendor/physical-items/README.md for the permission record.',
+      contact: 'demifiend000, through the Nexus page (daggerfallunity mod 1411)',
+      vendor: Object.freeze(['physical-items']),
+      link: 'https://www.nexusmods.com/daggerfallunity/mods/1411',
+    }),
+    // HAZE1 / WINDFALL1 / SNOWFALL1 / ALIKR1 (2026-10-08, Mac: "We have permission to use and
+    // implement everything into the codebase"): the four environment mods, handed over together.
+    Object.freeze({
+      title: 'Heat Haze',
+      version: '1.0.1',
+      author: 'demifiend000',
+      what: 'The desert\u2019s shimmer by day (HAZE1): in the deserts\u2019 sunny and cloudy hours the far land and the sky waver as the heat rises, fading in after sunrise and out before sunset. Ported off the mod\u2019s compiled assembly and its compiled shader; part of the enhanced outdoors.',
+      terms: 'Ported from the shipped bundle, read off its compiled assembly and shader; carried on Mac\u2019s word of the author\u2019s permission - see vendor/heat-haze/README.md for the permission record.',
+      contact: 'demifiend000, through the Nexus page (daggerfallunity mod 1397)',
+      vendor: Object.freeze(['heat-haze']),
+      link: 'https://www.nexusmods.com/daggerfallunity/mods/1397',
+    }),
+    Object.freeze({
+      title: 'Windfall',
+      version: '1.0.0',
+      author: 'demifiend000',
+      what: 'Wind that changes by the day (WINDFALL1): trees and plants sway and shiver each by its kind, some days turn windy or stormy, gusts come and go with their own sounds, and leaves blow off the trees and snow off the winter boughs. Ported off the mod\u2019s compiled assembly, its own leaves, flakes and sounds carried; part of the enhanced outdoors.',
+      terms: 'Ported from the shipped bundle, read off its compiled assembly; its pictures and sounds carried on Mac\u2019s word of the author\u2019s permission - see vendor/windfall/README.md for the permission record.',
+      contact: 'demifiend000, through the Nexus page (daggerfallunity mod 1396)',
+      vendor: Object.freeze(['windfall']),
+      link: 'https://www.nexusmods.com/daggerfallunity/mods/1396',
+    }),
+    Object.freeze({
+      title: 'Snowfall',
+      version: '1.0.5',
+      author: 'demifiend000',
+      what: 'The winter ground under the author\u2019s snow (SNOWFALL1): Daggerfall\u2019s winter tiles repainted, worn with the enhanced outdoors.',
+      terms: 'Its winter ground carried from the shipped bundle on Mac\u2019s word of the author\u2019s permission (Port-Doctrine\u2019s second exception) - see vendor/snowfall/README.md for the permission record.',
+      contact: 'demifiend000, through the Nexus page (daggerfallunity mod 1401)',
+      vendor: Object.freeze(['snowfall']),
+      link: 'https://www.nexusmods.com/daggerfallunity/mods/1401',
+    }),
+    Object.freeze({
+      title: 'Sands of the Alik\u2019r',
+      version: '2',
+      author: 'Unnamed (Nexus mod 1390)',
+      what: 'The desert\u2019s ground repainted (ALIKR1): pale dune sand with ripples over Daggerfall\u2019s own desert tiles, worn with the enhanced outdoors.',
+      terms: 'Its pictures carried byte for byte on Mac\u2019s word of the author\u2019s permission (Port-Doctrine\u2019s second exception); the archive names no author - see vendor/sands-of-the-alikr/README.md for the permission record.',
+      vendor: Object.freeze(['sands-of-the-alikr']),
+      link: 'https://www.nexusmods.com/daggerfallunity/mods/1390',
+    }),
+    // KG3 (bible/11-Multiplayer/Kings-Gambit.md section 10.7): the bundle names no author - the credits' own unnamed form
+    // until the owner names them (CR1 asks every row for an author; AUDIT KG C17)
+    Object.freeze({
+      get title() { return t('credits.kingsGambit.title', 'The King\u2019s Gambit'); },   // the game's name as its table says it (L10N4)
+      version: '1',
+      get author() { return t('credits.author.unnamed', 'Unnamed ({source})', { source: 'thekingsgambit.dfmod' }); },
+      get what() { return t('credits.kingsGambit.what', 'A battle of armies and kings, played at a tavern\u2019s card table against its regulars or online against another player (KG): its rules and the innkeeper\u2019s play ported 1:1 off the compiled script, its units the Iliac Hand cards\u2019 pictures and its kings the Bay deck\u2019s.'); },
+      get terms() { return t('credits.kingsGambit.terms', 'Ported from the shipped bundle, read off its compiled script method by method, with the permission the owner recorded (2026-10-13); the bundle names no author - see vendor/kings-gambit/README.md for the permission record.'); },
+      vendor: Object.freeze(['kings-gambit']),
+    }),
+  ]),
+});
+
+/** Names as the player's language lists them ("A, B and C"). */
+const listOf = (names) => {
+  try { return new Intl.ListFormat(intlLocale(), { type: 'conjunction' }).format(names); } catch { return names.join(', '); }
+};
+
+/** L10N6: THE TRANSLATIONS, credited as the works are - one row a language the game holds text for, English and the
+ *  pseudo-locale aside (textManager availableLocales, as scenes/localeData.js registers them): its name in itself,
+ *  whose words they are, and a bundled pack's terms and source. Mac's decisions (Localization-Arc.md): a machine draft
+ *  says it is one; the people who translate or check a language are credited by name (`locales/<tag>/translators.json`);
+ *  a pack is bundled only on its authors' terms, and those travel with it. A pack the player installed is their own -
+ *  the Language row says so, the credits do not. Read as the About pane draws it, so every sentence is the player's
+ *  language's. */
+export function translationCredits(infos = availableLocales()) {
+  return infos.filter((i) => i.code !== BASE_LOCALE && i.code !== PSEUDO_LOCALE && !i.hidden).map((i) => {
+    const people = i.translators ?? [];
+    const pack = i.bundled ?? null;
+    const lines = [];
+    if (i.source === 'machine') {
+      lines.push(people.length
+        ? t('credits.l10n.checked', 'The port\'s own words are a machine translation by Claude, checked and corrected by {names}.', { names: listOf(people) })
+        : t('credits.l10n.machine', 'The port\'s own words are a machine translation by Claude, still being checked. A fix from a speaker is welcome.'));
+    } else {
+      lines.push(people.length
+        ? t('credits.l10n.people', 'The port\'s own words translated by {names}.', { names: listOf(people) })
+        : t('credits.l10n.community', 'The port\'s own words translated by the community.'));
+    }
+    if (pack) lines.push(t('credits.l10n.bundled', 'Daggerfall\'s own text is {pack}, carried with its authors\' permission.', { pack: pack.name }));
+    const authors = [...(pack?.authors ?? []), ...people];
+    return Object.freeze({
+      code: i.code,
+      title: i.name,
+      author: authors.length ? listOf(authors) : 'Claude (Anthropic)',
+      what: lines.join(' '),
+      ...(pack ? { terms: t('credits.l10n.terms', '{license}: {terms}', { license: pack.license, terms: pack.terms }) } : {}),
+      ...(pack && /^https?:\/\//.test(pack.source) ? { link: pack.source } : {}),
+    });
+  });
+}

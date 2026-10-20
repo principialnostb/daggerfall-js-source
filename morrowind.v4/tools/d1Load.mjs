@@ -1,0 +1,97 @@
+#!/usr/bin/env node
+// D1-LOAD (2026-10-11, from play: the account service stayed slow after SEAT-CAP and SEAT-LEASE - "So it works, but it
+// takes forever to load"; the owner: "do whatever is the most detailed. I dont want band aid fixes") - WHAT IS FILLING
+// THE ONE DATABASE, READ BY THE OPERATOR. Every request and every cron firing writes one point to Workers Analytics
+// Engine (server-account/src/metrics.js: the route, its wall ms, its D1 statements, its D1 WAIT, its rows read and
+// written), and nothing ever read them back but a person with the SQL API at hand. This builds the questions, and
+// .github/workflows/d1-load.yml asks them with the deploy's token, by hand, beside D1's own query insights. It writes
+// nothing.
+//
+//   node tools/d1Load.mjs --sql <name> [hours]   one question's SQL (routes | minutes | cron | errors)
+//   node tools/d1Load.mjs --names                the questions' names, one a line
+//   node tools/d1Load.mjs --table <name> <file>  an answer (the SQL API's JSON) as a Markdown table
+//
+// THE WEIGHT IS THE SAMPLE'S: Analytics Engine samples under load, and each point carries `_sample_interval`, the
+// points it stands for - every count and sum here is weighted by it, as metrics.js's own example query is.
+
+import { readFileSync } from 'node:fs';
+import { isMain } from './lib/isMain.mjs';
+
+/** The dataset the service writes (server-account/wrangler.toml's [[analytics_engine_datasets]]). */
+export const DATASET = 'daggerfall_accounts';
+/** The longest window asked - a week; the shortest an hour. */
+export const HOURS_MAX = 168;
+
+/** A window in whole hours, 1 to HOURS_MAX, or throw: digits only, so nothing in it can reach the SQL. */
+export function loadHours(raw) {
+  const s = String(raw ?? '').trim();
+  if (s === '') return 1;
+  const h = /^[0-9]{1,3}$/.test(s) ? Number(s) : NaN;
+  if (!Number.isSafeInteger(h) || h < 1 || h > HOURS_MAX) throw new Error(`not a window: ${JSON.stringify(raw)} - whole hours, 1 to ${HOURS_MAX}`);
+  return h;
+}
+
+const since = (h) => `timestamp > NOW() - INTERVAL '${loadHours(h)}' HOUR`;
+/** Weighted sums of the point's doubles (metrics.js names each). */
+const W = {
+  n: 'SUM(_sample_interval)',
+  waitS: 'SUM(double5 * _sample_interval) / 1000',
+  stmts: 'SUM(double3 * _sample_interval)',
+  read: 'SUM(double6 * _sample_interval)',
+  written: 'SUM(double4 * _sample_interval)',
+};
+
+/**
+ * THE QUESTIONS, each `[name, title, columns, sql(hours)]`:
+ * - routes: every route and the cron's jobs by the D1 WAIT they spent in all - the database's time, most first - with
+ *   how often each was asked, its statements and rows, its p95 wall time;
+ * - minutes: the window minute by minute - requests, D1 wait, statements - so a once-a-minute spike shows as a row;
+ * - cron: the clock's own jobs (`CRON` points), each its firings, failures, statements and wait;
+ * - errors: every answer that was not a 2xx, by route, status and its one word (an `overloaded` 500 among them).
+ */
+export const QUESTIONS = Object.freeze([
+  ['routes', 'D1 wait by route (the database\'s time, most first)', ['route', 'method', 'requests', 'd1_wait_s', 'statements', 'rows_read', 'rows_written', 'p95_ms'],
+    (h) => `SELECT blob1 AS route, blob2 AS method, ${W.n} AS requests, ${W.waitS} AS d1_wait_s, ${W.stmts} AS statements, ${W.read} AS rows_read, ${W.written} AS rows_written, quantileWeighted(0.95)(double1, _sample_interval) AS p95_ms FROM ${DATASET} WHERE ${since(h)} GROUP BY route, method ORDER BY d1_wait_s DESC LIMIT 40`],
+  ['minutes', 'Minute by minute', ['minute', 'requests', 'd1_wait_s', 'statements', 'rows_written'],
+    (h) => `SELECT toStartOfInterval(timestamp, INTERVAL '1' MINUTE) AS minute, ${W.n} AS requests, ${W.waitS} AS d1_wait_s, ${W.stmts} AS statements, ${W.written} AS rows_written FROM ${DATASET} WHERE ${since(h)} GROUP BY minute ORDER BY minute DESC LIMIT 180`],
+  ['cron', 'The clock\'s jobs', ['job', 'firings', 'failed', 'd1_wait_s', 'statements', 'changed', 'p95_ms'],
+    (h) => `SELECT blob1 AS job, ${W.n} AS firings, SUM(IF(blob3 = '200', 0, 1) * _sample_interval) AS failed, ${W.waitS} AS d1_wait_s, ${W.stmts} AS statements, ${W.written} AS changed, quantileWeighted(0.95)(double1, _sample_interval) AS p95_ms FROM ${DATASET} WHERE ${since(h)} AND blob2 = 'CRON' GROUP BY job ORDER BY d1_wait_s DESC`],
+  ['errors', 'Answers that were not 2xx', ['route', 'status', 'word', 'requests'],
+    (h) => `SELECT blob1 AS route, blob3 AS status, blob4 AS word, ${W.n} AS requests FROM ${DATASET} WHERE ${since(h)} AND NOT startsWith(blob3, '2') GROUP BY route, status, word ORDER BY requests DESC LIMIT 40`],
+]);
+
+const questionOf = (name) => {
+  const q = QUESTIONS.find(([n]) => n === name);
+  if (!q) throw new Error(`no question ${JSON.stringify(name)} - one of ${QUESTIONS.map(([n]) => n).join(', ')}`);
+  return q;
+};
+/** One question's SQL over the last `hours`, asked as JSON. */
+export const loadSql = (name, hours) => `${questionOf(name)[3](hours)} FORMAT JSON`;
+
+const cell = (v) => {
+  if (v == null) return '';
+  const n = typeof v === 'number' ? v : (/^-?\d+(\.\d+)?$/.test(String(v)) ? Number(v) : null);
+  if (n == null) return String(v).replace(/\|/g, '\\|');
+  return Number.isInteger(n) ? n.toLocaleString('en-US') : n.toLocaleString('en-US', { maximumFractionDigits: 1 });
+};
+/**
+ * An answer as a Markdown table under its title - the columns the question names, in order. An answer that carries
+ * none is said so; one that is not the SQL API's JSON throws, so the run fails where it broke.
+ * @param {string} name @param {any} answer the SQL API's body (`{ data: [...] }`)
+ */
+export function loadTable(name, answer) {
+  const [, title, cols] = questionOf(name);
+  const rows = answer?.data;
+  if (!Array.isArray(rows)) throw new Error(`${name}: the answer carries no rows - ${JSON.stringify(answer).slice(0, 300)}`);
+  const head = `**${title}**\n\n`;
+  if (!rows.length) return `${head}No points in the window.\n`;
+  return `${head}| ${cols.join(' | ')} |\n|${cols.map(() => '---').join('|')}|\n${rows.map((r) => `| ${cols.map((c) => cell(r[c])).join(' | ')} |`).join('\n')}\n`;
+}
+
+if (isMain(import.meta.url)) {
+  const [flag, a, b] = process.argv.slice(2);
+  if (flag === '--names') console.log(QUESTIONS.map(([n]) => n).join('\n'));
+  else if (flag === '--sql') console.log(loadSql(a, b));
+  else if (flag === '--table') process.stdout.write(loadTable(a, JSON.parse(readFileSync(b, 'utf8'))));
+  else { console.error('usage: d1Load.mjs --names | --sql <name> [hours] | --table <name> <answer.json>'); process.exit(2); }
+}
