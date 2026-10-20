@@ -174,3 +174,175 @@ This is a file inventory, not an activation list. Current code already integrate
 7. Validate each domain in-game before marking its provider `integrated`.
 
 The first migration target should be animation walk/run because it already has working source files and a runtime consumer. Hair, faces, bodies, clothing, and armor should follow as separate domains; they must not be bundled into one generic "character appearance pack" switch.
+
+## 10. Why deterministic source selection exists
+
+The source-selection system is not merely a mod toggle UI. Its purpose is to make the build's effective assets explainable, reproducible, independently configurable, and safe to update.
+
+Without explicit source ownership, a file can change because a package was copied over another directory, a glob happens to enumerate files in a different order, a new upstream patch changes a path, or a loader applies an implicit override. In that situation the visible settings no longer describe what the game actually uses. Users cannot reliably compare alternatives, preserve a preferred older result, or determine why a character looks different after an update.
+
+The architecture must therefore guarantee these properties:
+
+- **Explicit choice:** every selectable domain has a persisted source selection or a documented default.
+- **Stable meaning:** a setting ID represents the same domain across UI label changes and releases.
+- **Predictable resolution:** the same source catalog, profile, runtime context, and compatibility rules resolve to the same effective provider and asset.
+- **Isolation:** changing one domain does not silently change unrelated domains.
+- **Reproducibility:** a selected source points to a known version or immutable snapshot, not merely to a mutable folder called `latest`.
+- **Explainability:** diagnostics can say what was requested, what was actually resolved, and why a fallback or rejection occurred.
+- **Reversibility:** a user can return to a previous known-good source without reconstructing files manually.
+- **Update safety:** incorporating upstream code does not automatically replace the user's selected asset sources or rewrite their pinned baseline.
+
+Determinism applies to source resolution and configuration. It does not by itself guarantee pixel-identical output across different browsers, GPUs, renderer revisions, or graphics settings. Those are separate reproducibility dimensions and should be recorded where exact visual comparison requires them.
+
+## 11. Source roles: Morrowind, Vanilla, and resource packs
+
+These are source roles with distinct update policies. They are not three names for the same directory, and none should silently overwrite another.
+
+### Morrowind — current upstream/developer implementation
+
+In the relevant selector, **Morrowind** means the resource implementation supplied by the current DFO developer version incorporated into this build. The exact upstream repository/ref and incorporated commit must be recorded in source metadata. It is a tracked, updateable source.
+
+- It may change when a newer upstream revision is integrated.
+- A change in this source must not mutate Vanilla snapshots or third-party package contents.
+- New or changed upstream resources should be discoverable and testable before being made the default for another source/domain.
+- The label is a UI concept for this source role; it must not be used as a substitute for a commit, asset manifest, or content identity.
+
+### Vanilla — pinned baseline of this customized build
+
+**Vanilla means the known baseline chosen for this DFO build**, not “whatever the newest developers call vanilla” and not a live alias to the current upstream branch.
+
+- It points to an immutable snapshot/manifest of the baseline assets used when the build's Vanilla source was established.
+- It has a stable source ID and version identity. A display name alone is insufficient.
+- Updating or merging upstream code must not refresh the snapshot implicitly.
+- Replacing the baseline is a deliberate, separately reviewed operation that creates a new snapshot/version; it must not retroactively alter profiles pinned to the old snapshot.
+- If a Vanilla asset is missing or invalid, the resolver must report the condition and apply the documented domain-local fallback. It must not silently substitute a newer upstream file while continuing to claim the effective source is Vanilla.
+
+This distinction protects a user's preference for the current/default animation set even if a future upstream patch changes gait, timing, arm movement, or animation grouping.
+
+### Resource packs — separately versioned alternatives
+
+A resource pack is an installable collection, not a global priority rule. It may contribute to one or many domains, but only explicitly selected and compatible contributions become active.
+
+- Each pack/provider has stable IDs, a version, an asset manifest, scope, compatibility metadata, and an integration/validation status.
+- Selecting one contribution must not activate unrelated assets in the same pack.
+- A pack update is a new version; it must not silently mutate a pinned version used by a saved profile.
+- A pack can be selected for one domain while another domain uses Morrowind, Vanilla, or a different pack, subject to compatibility constraints.
+- The UI must not offer an unavailable or unvalidated provider as though it were ready for use.
+
+### These roles are not quality rankings
+
+Morrowind is not automatically “best” because it is newest; Vanilla is not automatically “best” because it is the baseline; a mod is not automatically “best” because it is specialized. Source roles describe provenance and update policy, not quality. The user chooses among valid options after testing and comparison.
+
+## 12. Upstream integration and update lifecycle
+
+Upstream code integration and asset-source selection are related but separate operations.
+
+**Integrating a developer revision** updates the code and source catalog available to the build. **Selecting an asset source** determines which compatible resource a domain actually uses. One operation must not implicitly perform the other.
+
+Recommended lifecycle:
+
+1. **Record the starting point.** Identify the currently integrated upstream revision and the current Vanilla snapshot/manifest before merging new upstream changes.
+2. **Integrate upstream code into `Dev`.** Resolve code conflicts without replacing independent source-selection logic or deleting project-specific work.
+3. **Inventory resource changes.** Compare the incoming revision with the previously integrated revision: added, changed, removed, renamed, or newly referenced assets and animation groups.
+4. **Update the Morrowind source manifest.** Point it to the incorporated revision and describe the newly available resources. Do not edit the Vanilla manifest as a side effect.
+5. **Validate changes.** Check parsing, required animation groups/tracks, skeleton assumptions, mesh/texture dependencies, actor/race/sex scope, and runtime consumers.
+6. **Expose valid alternatives.** Make new resources selectable only when the resolver can actually load them. Mark incomplete entries as unintegrated, blocked, or requiring validation.
+7. **Compare before promotion.** Test the upstream result against the pinned Vanilla source and relevant resource packs. A new source must not become the user's choice solely because it arrived in a patch.
+8. **Preserve profile state.** Existing domain selections remain unchanged unless a migration is required to keep a removed/renamed provider valid. Any migration must be explicit, versioned, and diagnosable.
+9. **Promote deliberately.** If the project owner wants the new result to become the new Vanilla baseline, create a new immutable snapshot/version as a separate reviewed action.
+10. **Keep rollback possible.** Retain the prior source identity and asset manifest for as long as saved profiles or supported releases may refer to it.
+
+A code merge can change animation logic, parsing, renderer behavior, or runtime contracts. Such changes may require compatibility work even when the asset selection remains pinned. Therefore, pinning resources is not a promise that every old asset will work with every future runtime; compatibility must be validated against the current code.
+
+## 13. Version identity, snapshots, and content integrity
+
+Mutable branch names such as `Dev`, `main`, or `latest` are useful for development but are not sufficient identities for reproducible asset sources.
+
+A source/snapshot record should contain, where applicable:
+
+- stable source/provider ID and schema version;
+- human-readable label;
+- source role: upstream, pinned baseline, or resource pack;
+- upstream repository and incorporated commit/ref;
+- pack release/version and manifest revision;
+- exact relative asset paths and animation group names;
+- content hashes for files or a canonical manifest hash;
+- declared domains and runtime scope;
+- compatibility constraints and dependencies;
+- integration/validation status and diagnostic notes.
+
+A snapshot is immutable once published. If any included file or mapping changes, create a new snapshot identity. Hashes help detect accidental mutation and distinguish two packages that use the same display name. They do not replace parsing or compatibility tests.
+
+The implementation should not duplicate all files unnecessarily. Immutable manifests can reference content-addressed or otherwise version-pinned assets, and unchanged files can be shared safely, provided the referenced content cannot mutate under the old identity.
+
+## 14. Profiles and independent domain selections
+
+The persisted configuration is a set of selections by stable domain ID, optionally scoped by actor/context. It is not a single “active mod pack” flag.
+
+Conceptually, a profile records:
+
+- profile schema/version;
+- domain ID → selected provider/source ID;
+- pinned provider or snapshot version where reproducibility is required;
+- intentional overlay order for domains that support overlays;
+- compatibility exceptions only when explicitly supported;
+- enough source-catalog identity to diagnose unavailable selections.
+
+The profile must not rely solely on human-readable labels or filesystem enumeration order. If a provider is renamed, its stable ID should remain the same. If it is replaced incompatibly, create a new provider/version identity and migrate deliberately.
+
+A user may, for example, select upstream walk animation, pinned Vanilla run animation, a specific body provider, and a separate texture provider. This combination is valid only if the declared compatibility checks pass. If a provider covers several groups as one inseparable set, the UI must present it at that set's actual replacement granularity rather than pretending each group can be chosen independently.
+
+Changing a selection must affect only the addressed domain and any explicitly declared dependants. It must not reset unrelated domains, switch an entire pack on, or rewrite the profile's other selections.
+
+## 15. Comparison and promotion workflow
+
+The purpose of preserving multiple sources is to let the owner make informed choices as the project evolves, not to add complexity for its own sake.
+
+For each changed or newly available provider, the system should make it possible to answer:
+
+- What changed relative to the previous upstream revision or pinned baseline?
+- Which domains and exact assets/groups are affected?
+- Which races, sexes, actors, equipment states, and animation states are in scope?
+- Is the provider integrated, compatible, and runtime-tested?
+- What are the known limitations and fallback paths?
+- Which profiles currently select the old or new provider?
+
+Automated comparison can identify changed files, group names, metadata, and hashes. It cannot reliably determine subjective visual quality. Animation timing, foot sliding, arm pose, body/clothing clipping, texture seams, readability, and style consistency still require representative runtime tests and human review.
+
+Promotion is an explicit decision: a provider can remain an optional alternative, become the selected provider for a particular domain, or be used as the source for a newly published Vanilla snapshot. These are distinct operations and must not be conflated.
+
+## 16. Failure, fallback, and diagnostics
+
+Fallback is scoped to the smallest domain that can be safely recovered.
+
+- If a selected walk provider is missing, do not reset run, idle, bodies, or textures.
+- If a mesh requires a particular UV/texture layout, do not silently combine it with an incompatible texture source.
+- If a source references a missing animation group, report the requested group/provider and the effective fallback.
+- If the saved provider is no longer available, preserve the user's intent in diagnostics and choose only the documented compatible fallback; do not silently rewrite the persisted selection to a different provider.
+- If a fallback changes the effective source, the UI/debug record must distinguish the requested source from the effective source.
+
+A successful fallback prevents a crash; it does not mean the requested provider is valid. The catalog must retain the incompatibility or missing-resource status so the issue can be fixed.
+
+## 17. Acceptance criteria for deterministic source management
+
+The design is not complete merely because the settings UI displays source names. At minimum, tests should demonstrate:
+
+1. The same catalog, profile, context, and compatibility rules resolve to the same provider and asset.
+2. Updating the upstream source does not change the Vanilla snapshot hash or contents.
+3. Updating one provider/domain does not change unrelated domain selections.
+4. A profile survives restart and code/resource updates without silent selection changes.
+5. A missing or incompatible resource triggers a domain-local fallback and an actionable diagnostic.
+6. Resource enumeration order cannot change the winner for an exclusive domain.
+7. Explicit texture overlay order is stable and separately tested.
+8. Migration from legacy settings is versioned, idempotent, and preserves old effective behavior where possible.
+9. A UI selector corresponds to a real resolver consumer and a provider that is actually available.
+10. A new Vanilla baseline can be published without overwriting the previous snapshot referenced by existing profiles.
+11. Compatibility is validated for the runtime version, not inferred solely from matching file names.
+12. Representative in-game checks cover player and NPC animation, first-/third-person paths where applicable, body/skin combinations, equipment, and the affected world/texture domains.
+
+## 18. Scope and implementation status
+
+This document defines the target architecture and acceptance contract. A rule described here is not proof that every domain, manifest field, snapshot mechanism, comparison screen, or test is already implemented.
+
+Implementation status must be recorded per provider/domain and supported by code/tests. The rollout should preserve current effective behavior first, move existing working selectors to the resolver, and expand to additional domains only when their real runtime consumers and compatibility checks exist. Do not mark a source as integrated solely because its files are present in the repository.
+
