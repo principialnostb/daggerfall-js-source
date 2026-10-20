@@ -1434,8 +1434,8 @@ test('MW-D27: the faceIndex THREAD is unbroken, swept at the source', () => {
   // PIN MOVED (MWNPC17, section 25): and an NPC's walked head and hair
   // PIN MOVED (AUDIT MW-HEADS1): and the archives' directory, so the port's own heads stand only where their archive is
   // PIN MOVED (MW-HEADS2): and whether the body is a player's - the port's own heads are a player's alone
-  assert.match(arm, /playerBodyRows\(parts, race, female, \{ beast, faceIndex, faceMatch(, vampire(, walk(, has: exists(, ownHeads)?)?)?)? \}\)/,
-    'the body build no longer hands the face to the picker');
+  assert.match(arm, /playerBodyRows\(parts, race, female, \{ beast, faceIndex, faceMatch, faceRace: race, vampire, walk, has: exists, ownHeads, appearanceHeadId, appearanceHairId \}\)/,
+    'the body build no longer hands the face and explicit editor selections to the picker');
   // TR2: the menu's inline opts moved into weaponRig's ONE HOME - the
   // sweep follows the thread there (menu -> buildArmsFor ->
   // armBuildOptsOf -> fpArm.build), because a sweep of a door that no
@@ -2066,6 +2066,30 @@ test('MW-D35: head and hair features, and the match picks by measured likeness',
   assert.equal(bald.hair, 'black_short');
   // nothing measurable -> nulls, and the walk stands.
   assert.deepEqual(matchFace(null, heads, hairs).head, null);
+});
+
+test('appearance editor: independent face and hair overrides stay inside the selected race/sex pool', () => {
+  const P = (id, slot, female = false) => ({
+    id, slot, race: 'fprace', female, skin: true, playable: true, firstPerson: false, model: `f/${id}.nif`,
+  });
+  const parts = [
+    P('b_head_01', 'head'), P('b_head_02', 'head'),
+    P('b_hair_01', 'hair'), P('b_hair_02', 'hair'),
+    P('b_head_f1', 'head', true), P('b_hair_f1', 'hair', true),
+  ];
+  const resolve = (female, options) => new Map(playerBodyRows(parts, 'fprace', female, {
+    faceIndex: 0, faceTable: {}, ...options,
+  }).map((row) => [row.slot, row]));
+  const male = resolve(false, { appearanceHeadId: 'b_head_02', appearanceHairId: 'b_hair_02' });
+  assert.equal(male.get('head').record.id, 'b_head_02');
+  assert.equal(male.get('hair').record.id, 'b_hair_02');
+  assert.match(male.get('head').verdict, /selected in appearance editor/);
+  const invalid = resolve(false, { appearanceHeadId: 'not_in_pool', appearanceHairId: 'not_in_pool' });
+  assert.equal(invalid.get('head').record.id, 'b_head_01', 'invalid face choice falls back to the race/sex pool');
+  assert.equal(invalid.get('hair').record.id, 'b_hair_01', 'invalid hairstyle falls back to the race/sex pool');
+  const female = resolve(true, { appearanceHeadId: 'b_head_f1', appearanceHairId: 'b_hair_f1' });
+  assert.equal(female.get('head').record.id, 'b_head_f1', 'female face stays in the female pool');
+  assert.equal(female.get('hair').record.id, 'b_hair_f1', 'female hairstyle stays in the female pool');
 });
 
 test('MW-D35: precedence - curated over matched over the walk, and the wiring', () => {
