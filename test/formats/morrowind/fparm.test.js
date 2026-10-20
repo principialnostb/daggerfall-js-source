@@ -3347,3 +3347,14 @@ test('MW-TP-GROUND-NPC: NPC foot support is latched once instead of following ev
   assert.match(src, /const supportMinZ = Number\.isFinite\(thirdGroundMinZ\) \? thirdGroundMinZ : body\?\.minZ;/,
     'subsequent animation frames do not feed their changing leg height back into the root transform');
 });
+
+
+test('MW first-person arms: physical running opens the draw gate without a run clip', () => {
+  const arm = createFpArm();
+  arm.setRunHands(false, { running: true });
+  assert.equal(arm.movementPosed(), true,
+    'the first-person body must remain drawable even if this race or stance has no usable run clip');
+  arm.setRunHands(false, { running: false });
+  assert.equal(arm.movementPosed(), false,
+    'the running draw reason closes when movement stops and no run/jump pose is active');
+});
