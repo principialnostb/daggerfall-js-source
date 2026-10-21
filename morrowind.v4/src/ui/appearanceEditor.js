@@ -79,6 +79,22 @@ const STYLE = `
 @media(max-width:850px){#mw-appearance-editor .mw-editor-shell{height:96vh}#mw-appearance-editor .mw-main{grid-template-columns:minmax(0,1fr) minmax(310px,.9fr)}#mw-appearance-editor .mw-preview-side{padding:12px}#mw-appearance-editor .mw-controls-head{padding:15px}#mw-appearance-editor .mw-control-list{padding:10px}#mw-appearance-editor .mw-slider-row{grid-template-columns:95px minmax(60px,1fr) 36px;gap:7px}}
 #mw-appearance-editor .mw-identity-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
 @media(max-width:650px){#mw-appearance-editor .mw-identity-grid{grid-template-columns:1fr}#mw-appearance-editor .mw-choice-grid{grid-template-columns:1fr}#mw-appearance-editor .mw-options-grid{grid-template-columns:1fr}#mw-appearance-editor{padding:0}#mw-appearance-editor .mw-editor-shell{width:100%;height:100dvh;min-height:0;border-radius:0;border:0}#mw-appearance-editor .mw-topbar{padding:12px 14px}#mw-appearance-editor .mw-title{font-size:16px}#mw-appearance-editor .mw-subtitle{font-size:11px}#mw-appearance-editor .mw-state{display:none}#mw-appearance-editor .mw-main{grid-template-columns:1fr;grid-template-rows:minmax(230px,.85fr) minmax(0,1.15fr)}#mw-appearance-editor .mw-preview-side{padding:10px;grid-template-rows:auto minmax(0,1fr) auto}#mw-appearance-editor .mw-preview-head{padding-bottom:6px}#mw-appearance-editor .mw-preview-tools{padding-top:7px}#mw-appearance-editor .mw-controls{border-left:0;border-top:1px solid var(--mw-line)}#mw-appearance-editor .mw-controls-head{padding:12px 15px}#mw-appearance-editor .mw-controls-head h2{font-size:17px}#mw-appearance-editor .mw-control-list{padding:9px 12px}#mw-appearance-editor .mw-group{margin-bottom:8px}#mw-appearance-editor .mw-footer{padding:10px 12px}#mw-appearance-editor .mw-footer-note{display:none}#mw-appearance-editor .mw-hint{max-width:46%;font-size:10px}}
+
+#mw-appearance-editor .mw-identity-grid{gap:7px 8px}
+#mw-appearance-editor .mw-identity-grid>.mw-underwear{margin:0;min-height:39px;border-color:#514939;background:#24241f;padding:6px 8px}
+#mw-appearance-editor .mw-identity-grid>.mw-underwear select{width:100%;min-width:0;background:#171b21;color:#e9e4d9;border:1px solid #62513a;padding:7px;font:inherit}
+#mw-appearance-editor .mw-choice-grid,#mw-appearance-editor .mw-choice-group{display:contents}
+#mw-appearance-editor .mw-choice-title{display:none}
+#mw-appearance-editor .mw-advanced-toggle{display:flex;width:calc(100% - 28px);margin:12px 14px 0;min-height:42px;justify-content:space-between;text-align:left;border-color:#8b7044;background:linear-gradient(#37332b,#28251f);color:#e1c783;font-weight:700}
+#mw-appearance-editor .mw-advanced-toggle:after{content:"＋";font-size:16px}
+#mw-appearance-editor .mw-advanced-toggle[aria-expanded="true"]:after{content:"−"}
+#mw-appearance-editor .mw-advanced-note{margin:6px 16px 10px;color:#aaa79f;font-size:11px;line-height:1.4}
+#mw-appearance-editor .mw-advanced-panel[hidden]{display:none}
+#mw-appearance-editor .mw-advanced-panel{display:flex;flex-direction:column;min-height:0;overflow:hidden;flex:1}
+#mw-appearance-editor .mw-advanced-panel .mw-zone-nav{flex:0 0 auto}
+#mw-appearance-editor .mw-advanced-panel .mw-control-list{min-height:0;flex:1}
+@media(max-width:650px){#mw-appearance-editor .mw-advanced-toggle{width:calc(100% - 24px);margin:9px 12px 0}#mw-appearance-editor .mw-advanced-note{margin:5px 13px 8px}}
+
 /* Shared visual language with the game's enhanced menu and inventory: charcoal panels, brass focus, square bevels. */
 #mw-appearance-editor{--mw-bg:#17191c;--mw-panel:#202328;--mw-panel-raised:#292d33;--mw-line:#454a52;--mw-text:#e8e1d2;--mw-muted:#aaa79f;--mw-accent:#b99a5b;--mw-accent-strong:#e1c783;background:rgba(4,5,7,.86);font-family:Georgia,'Times New Roman',serif}
 #mw-appearance-editor .mw-editor-shell{background:var(--mw-bg);border:1px solid #8c7548;outline:1px solid #29251d;box-shadow:0 0 0 3px #090a0c,0 24px 80px #000e}
@@ -300,9 +316,9 @@ export function openAppearanceEditor({ fpArm, onClose = () => {} } = {}) {
   const hairGroup = document.createElement('section'); hairGroup.className = 'mw-choice-group';
   const hairTitle = document.createElement('h3'); hairTitle.className = 'mw-choice-title'; hairTitle.textContent = 'Прическа';
   hairGroup.append(hairTitle, hairRow);
-  const choiceGrid = document.createElement('div'); choiceGrid.className = 'mw-choice-grid';
-  choiceGrid.append(faceGroup, hairGroup);
-  identityGrid.append(sexRow, raceRow);
+  // Keep face and hairstyle controls in the same visual system as sex and race.
+  // Separate rows make the four identity selectors feel like one coherent settings group.
+  identityGrid.append(sexRow, raceRow, faceRow, hairRow);
   const optionsGrid = document.createElement('div'); optionsGrid.className = 'mw-options-grid';
   const underwearRow = document.createElement('label'); underwearRow.className = 'mw-underwear';
   const underwearToggle = document.createElement('input'); underwearToggle.type = 'checkbox'; underwearToggle.checked = getUnderwearEnabled();
@@ -313,7 +329,7 @@ export function openAppearanceEditor({ fpArm, onClose = () => {} } = {}) {
   const bodyHairCopy = document.createElement('span'); bodyHairCopy.innerHTML = '<strong>Волосы на теле</strong><small>Для голой модели; отключите нижнее бельё. Нужен High Resolution Better Body Female Textures.</small>';
   bodyHairRow.append(bodyHairToggle, bodyHairCopy);
   optionsGrid.append(underwearRow, bodyHairRow);
-  controlsHead.append(identityGrid, choiceGrid, optionsGrid);
+  controlsHead.append(identityGrid, optionsGrid);
   bodyHairToggle.addEventListener('change', async () => {
     setBodyHairEnabled(bodyHairToggle.checked);
     statusMessage.style.display = 'block'; statusMessage.textContent = 'Пересборка текстур модели…';
@@ -417,6 +433,21 @@ export function openAppearanceEditor({ fpArm, onClose = () => {} } = {}) {
       await buildPreviewRig();
     } catch (error) { previewError = String(error?.message || error); }
     drawPreview();
+  });
+  const advancedToggle = makeButton('Расширенные параметры тела', false, 'mw-advanced-toggle');
+  advancedToggle.type = 'button';
+  advancedToggle.setAttribute('aria-expanded', 'false');
+  const advancedNote = document.createElement('p');
+  advancedNote.className = 'mw-advanced-note';
+  advancedNote.textContent = 'Функция находится в разработке: часть параметров пока работает неточно или не влияет на модель.';
+  const advancedPanel = document.createElement('div');
+  advancedPanel.className = 'mw-advanced-panel';
+  advancedPanel.hidden = true;
+  advancedToggle.addEventListener('click', () => {
+    const expanded = advancedPanel.hidden;
+    advancedPanel.hidden = !expanded;
+    advancedToggle.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+    advancedToggle.textContent = expanded ? 'Скрыть расширенные параметры тела' : 'Расширенные параметры тела';
   });
   const zoneNav = document.createElement('nav'); zoneNav.className = 'mw-zone-nav'; zoneNav.setAttribute('aria-label', 'Выбор группы частей тела');
   const controlList = document.createElement('div'); controlList.className = 'mw-control-list';
@@ -522,7 +553,8 @@ export function openAppearanceEditor({ fpArm, onClose = () => {} } = {}) {
   footerActions.append(reset, done); footer.append(footerNote, footerActions);
 
   previewSide.append(previewHead, canvasWrap, previewTools);
-  controls.append(controlsHead, zoneNav, controlList, footer);
+  advancedPanel.append(zoneNav, controlList);
+  controls.append(controlsHead, advancedToggle, advancedNote, advancedPanel, footer);
   main.append(previewSide, controls);
   shell.append(topbar, main); root.append(shell);
   root.addEventListener('click', (e) => { if (e.target === root) close(); });
