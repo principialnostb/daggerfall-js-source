@@ -65,6 +65,19 @@ Walk-only source filtering is the key isolation boundary. In the current code, S
 
 A broad KF can contain tracks for many bones and text keys for several groups. Never enable it wholesale as a walk replacement. Confirm group names, key timing, skeleton binding, loop markers, and root-motion behavior before integrating any additional group family.
 
+## First-person and hit-reaction providers — scoped integration
+
+The **Animations** feature group now exposes two source selectors with Vanilla as the first option:
+
+- **First-person animation source** — Vanilla, ReAnimation v3, or OpenMW Dynamic Animations (first-person locomotion only). ReAnimation v3 remains the default to preserve the existing runtime behavior. The selector is mutually exclusive: providers are never merged into one unordered pool. Each selected KF is parsed and bound to the active first-person rig; unsupported or missing groups fall back to archive sources.
+- **Hit-reaction source** — Vanilla or Hit Reactions Animated v2. The loader is gated by this choice and the consumer admits only groups whose names begin with hit, stagger, or death. It does not replace locomotion, idle, or weapon-attack groups.
+
+### OpenMW Dynamic Animations boundary
+
+The original pack's Dynamic Animations.omwscripts, Lua controllers, per-actor NPC/creature presets, and YAML blending rules are **not executed** by the browser runtime. The initial port deliberately selects only the pack's xbase_anim.1st directional Walk*, Run*, and Sneak* *_base;.kf clips. It excludes IdleSneak, SneakMovement; Skip, poses, third-person human clips, and creature/race-specific sets. This is a clip-source integration, not a claim that OpenMW's dynamic speed/state logic has been ported. Validate the selected clips in-game before treating their motion timing as verified.
+
+The provider selection and path whitelist have regression coverage in test/formats/morrowind/mwwalkassets.test.js. The repository was updated remotely; local npm test, lint, type-check, build, and in-game visual validation have not been run in this environment.
+
 ## Animation settings home — taxonomy scaffold in v4
 
 The Settings screen has a dedicated **Animations** tab (`src/ui/settings/settingsMap.js`), separate from `Mods & files`. The top-level switchers are shared animation families, not actor-specific lists: **Ходьба / бег**, **Повороты / стойка / скрытность**, **Бой / атаки / блок**, **Магия / заклинания**, **Действия / взаимодействие**, **Прыжки / плавание / падения**, and **Получение урона / падение / смерть**. Inside **Передвижение**, **Ходьба** and **Бег** are separate nested selectors. Each opens actor-specific controls for **Игрок** and **NPC**. Simply Walking changes only walk groups; Axel's `WalkForward;.kf` and `RunForward;.kf` are wired to separate persisted settings. The female NPC run selector is independent; male NPC running remains Vanilla because no compatible male run replacement is bundled. Families without an integrated source show a disabled Vanilla-only choice rather than a fake selector.
