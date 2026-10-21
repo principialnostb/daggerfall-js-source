@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { inspectWalkAnimationAssets, isWalkAnimationGroup, isWalkAnimationKey, isRunAnimationGroup, isRunAnimationKey, isWalkVariantEnabled, isRunVariantEnabled, walkVariantForActor, runVariantForActor, dynamicWalkStyleForActor, aliasDynamicWalkSource } from '../../src/formats/morrowind/mwWalkAnimationAssets.js';
+import { inspectWalkAnimationAssets, isWalkAnimationGroup, isWalkAnimationKey, isRunAnimationGroup, isRunAnimationKey, isWalkVariantEnabled, isRunVariantEnabled, walkVariantForActor, runVariantForActor, dynamicWalkStyleForActor, aliasDynamicWalkSource, idleVariantForActor, dynamicIdleVariantForActor, isIdleVariantEnabled, aliasDynamicIdleSource } from '../../src/formats/morrowind/mwWalkAnimationAssets.js';
 
 test('MW-ANIM-1: bundled walk asset inventory is safe to import in Node', () => {
   const assets = inspectWalkAnimationAssets();
@@ -114,4 +114,34 @@ test('MW-ANIM-PACKS: dynamic group aliases are applied only to a selected source
   assert.ok(aliased.groups.includes('walkforward2c'));
   assert.ok(aliased.keys.some((key) => key.text === 'walkforward1h: loop start'));
   assert.equal(aliased.keys.length, 36);
+});
+
+test('MW-ANIM-PACKS: NPC idle provider and variant selection are deterministic', () => {
+  assert.equal(idleVariantForActor({ female: false, npcMaleChoice: 1 }), 'dynamic');
+  assert.equal(idleVariantForActor({ female: true, npcFemaleChoice: 1 }), 'dynamic');
+  assert.equal(idleVariantForActor({ player: true, npcFemaleChoice: 1 }), 'vanilla');
+  assert.equal(dynamicIdleVariantForActor({ race: 'Breton', faceIndex: 3 }), dynamicIdleVariantForActor({ race: 'Breton', faceIndex: 3 }));
+  assert.ok(['2', '3', '6'].includes(dynamicIdleVariantForActor({ race: 'Breton', faceIndex: 3 })));
+  assert.equal(isIdleVariantEnabled({ idleOnly: true, idleVariant: 'dynamic' }, 'vanilla'), false);
+  assert.equal(isIdleVariantEnabled({ idleOnly: true, idleVariant: 'dynamic' }, 'dynamic'), true);
+  assert.equal(isIdleVariantEnabled({ name: 'archive source' }, 'dynamic'), true);
+});
+
+test('MW-ANIM-PACKS: Dynamic Animations idle groups alias only on a selected source copy', () => {
+  const source = {
+    dynamicIdleAlias: true,
+    groups: ['idle3_copy'],
+    keys: [{ time: 0, text: 'idle3_copy: start' }, { time: 1, text: 'idle3_copy: stop' }],
+    groupSet: new Set(['idle3_copy']),
+    idleOnly: true,
+    idleVariant: 'dynamic',
+  };
+  const aliased = aliasDynamicIdleSource(source);
+  assert.equal(source.dynamicIdleAlias, true);
+  assert.deepEqual(source.groups, ['idle3_copy']);
+  assert.equal(aliased.dynamicIdleAlias, false);
+  assert.ok(aliased.groups.includes('idle'));
+  assert.ok(aliased.groups.includes('idle1h'));
+  assert.ok(aliased.keys.some((key) => key.text === 'idle2c: stop'));
+  assert.equal(aliased.keys.length, 24);
 });
