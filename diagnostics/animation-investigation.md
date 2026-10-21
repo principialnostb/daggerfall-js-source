@@ -112,3 +112,17 @@ The first implementation milestone is complete only when a tester can reproduce 
 6. Where was the log written, or why could it not be written there?
 
 This section specifies the target architecture. The existing animation diagnostic export remains the current behavior until persistent desktop file output and broader instrumentation are implemented.
+
+
+## Runtime implementation status (2026-10-21)
+
+The first runtime milestone is implemented in `src/systems/morrowindDiagnostics.js` and wired into animation asset loading:
+
+- schema-v2 events include timestamps, session IDs, sequence numbers, subsystem, stage, outcome and reason codes;
+- browser mode keeps a bounded localStorage history and exposes the console commands above for JSON export/copy/download;
+- desktop mode appends JSONL under `<userData>/Game/diagnostics/` when the channel-managed game store is active, otherwise under `<userData>/Diagnostics/diagnostics/` because install directories may be read-only;
+- canonical session streams live in `sessions/<session-id>.jsonl`; attributed events are also written to `mods/<mod-id>.jsonl`;
+- the desktop IPC accepts events only from the game window, limits batch/event size and sanitizes file names; write failures are non-fatal;
+- animation asset reads record start/success/failure events, and pack-load failures record the archive fallback.
+
+This is a first vertical slice, not yet full animation/texture/body coverage. Next instrumentation points are parse/bind validation, candidate ranking and rejected candidates, final selection versus actual playback, texture resolution/cache/fallback, and body/rig compatibility. Runtime log output should not be committed to source control.

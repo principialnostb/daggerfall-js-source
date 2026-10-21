@@ -1791,6 +1791,44 @@ ipcMain.on('dagger:game-up', (e) => {
   if (gameWindow && !gameWindow.isDestroyed() && e.sender === gameWindow.webContents) gameStore?.bootDone();
 });
 
+// Morrowind diagnostics: accept structured events only from the game window, never the launcher.
+const DIAGNOSTIC_MAX_BATCH = 100;
+const DIAGNOSTIC_MAX_EVENT_BYTES = 32 * 1024;
+function diagnosticRoot() {
+  const root = gameStore ? GAME_ROOT() : path.join(app.getPath('userData'), 'Diagnostics');
+  return path.join(root, 'diagnostics');
+}
+function safeModSlug(value) {
+  const slug = String(value ?? 'unknown').normalize('NFKD').toLowerCase().replace(/[^a-z0-9._-]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 80);
+  return slug || 'unknown';
+}
+ipcMain.on('dagger:diagnostics-append', (e, batch) => {
+  if (!gameWindow || gameWindow.isDestroyed() || e.sender !== gameWindow.webContents) { e.returnValue = { ok: false, error: 'UNAUTHORIZED_SENDER' }; return; }
+  if (!Array.isArray(batch) || batch.length > DIAGNOSTIC_MAX_BATCH) { e.returnValue = { ok: false, error: 'INVALID_BATCH' }; return; }
+  try {
+    const root = diagnosticRoot();
+    const sessionDir = path.join(root, 'sessions');
+    const modDir = path.join(root, 'mods');
+    fs.mkdirSync(sessionDir, { recursive: true });
+    fs.mkdirSync(modDir, { recursive: true });
+    for (const raw of batch) {
+      if (!raw || typeof raw !== 'object' || Array.isArray(raw)) continue;
+      const line = JSON.stringify(raw);
+      if (Buffer.byteLength(line, 'utf8') > DIAGNOSTIC_MAX_EVENT_BYTES) continue;
+      const sessionId = safeModSlug(raw.sessionId ?? 'session-unknown');
+      fs.appendFileSync(path.join(sessionDir, sessionId + '.jsonl'), line + '\n', { encoding: 'utf8', mode: 0o600 });
+      if (raw.modId || raw.modName) {
+        const modId = safeModSlug(raw.modId ?? raw.modName);
+        fs.appendFileSync(path.join(modDir, modId + '.jsonl'), line + '\n', { encoding: 'utf8', mode: 0o600 });
+      }
+    }
+    e.returnValue = { ok: true, directory: root };
+  } catch (error) {
+    console.warn('[diagnostics] local write failed:', error?.message ?? error);
+    e.returnValue = { ok: false, error: String(error?.code ?? 'WRITE_FAILED') };
+  }
+});
+
 // The preload asks for its storage root synchronously at page boot -
 // storage must exist before the first module reads a setting.
 ipcMain.on('dagger:user-data-path', (e) => { e.returnValue = app.getPath('userData'); });

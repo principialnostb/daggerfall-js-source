@@ -3,6 +3,7 @@
 // reader used for the game's archives. This module deliberately does not touch
 // meshes or skeleton geometry.
 import { modSetting } from '../../systems/modSettings.js';
+import { recordMorrowindDiagnostic } from '../../systems/morrowindDiagnostics.js';
 
 const IN_BROWSER = typeof window !== 'undefined';
 const FILES = IN_BROWSER
@@ -76,12 +77,21 @@ const overhaulFemale = entries.find((e) => e.lower.includes('/morrowind animatio
 const cache = new Map();
 let warnedMissingWalkAssets = false;
 async function bytes(entry) {
-  if (!entry) return null;
+  if (!entry) {
+    recordMorrowindDiagnostic({ subsystem: 'animation', stage: 'asset-read', outcome: 'skipped', reasonCode: 'ASSET_ENTRY_MISSING' });
+    return null;
+  }
+  recordMorrowindDiagnostic({ subsystem: 'animation', stage: 'asset-read', outcome: 'started', sourcePath: entry.path, assetType: 'kf' });
   let pending = cache.get(entry.url);
   if (!pending) {
     pending = fetch(entry.url).then(async (response) => {
-      if (!response.ok) throw new Error('HTTP ' + response.status + ' loading ' + entry.path);
-      return new Uint8Array(await response.arrayBuffer());
+      if (!response.ok) {
+        recordMorrowindDiagnostic({ subsystem: 'animation', stage: 'asset-read', severity: 'error', outcome: 'error', sourcePath: entry.path, assetType: 'kf', reasonCode: 'ASSET_HTTP_ERROR', httpStatus: response.status });
+        throw new Error('HTTP ' + response.status + ' loading ' + entry.path);
+      }
+      const data = new Uint8Array(await response.arrayBuffer());
+      recordMorrowindDiagnostic({ subsystem: 'animation', stage: 'asset-read', outcome: 'ok', sourcePath: entry.path, assetType: 'kf', byteLength: data.byteLength });
+      return data;
     });
     cache.set(entry.url, pending);
   }
@@ -139,6 +149,7 @@ export async function loadWalkAnimationAssets({ female = false } = {}) {
       if (data) selected.push({ name: entry.path, bytes: data, variant, walkVariant: variant, family, animationFamily: family, walkOnly: family === 'walk', runOnly: family === 'run' });
     }
   } catch (error) {
+    recordMorrowindDiagnostic({ subsystem: 'animation', stage: 'candidate-load', severity: 'error', outcome: 'fallback', reasonCode: 'ANIMATION_PACK_LOAD_FAILED', detail: String(error?.message ?? error), fallback: 'archive-animations' });
     console.warn('[Morrowind animations] bundled walk set failed to load; archive animations remain active:', String(error?.message ?? error));
     return [];
   }
@@ -146,6 +157,7 @@ export async function loadWalkAnimationAssets({ female = false } = {}) {
     warnedMissingWalkAssets = true;
     console.warn('[Morrowind animations] no bundled walk KF source was selected.', inspectWalkAnimationAssets());
   }
+  recordMorrowindDiagnostic({ subsystem: 'animation', stage: 'candidate-load', outcome: 'ok', actorContext: female ? 'female' : 'male', selectedCount: selected.length, selectedAssets: selected.map((item) => ({ sourcePath: item.name, provider: item.variant, family: item.family })) });
   return selected;
 }
 /** Resolve the mutually exclusive first-person provider from persisted settings. */
