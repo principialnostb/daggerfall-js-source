@@ -85,7 +85,7 @@ import { raceArt } from '../systems/races.js';
 import { appStorage } from '../systems/appStorage.js';   // DA1: the storage seam
 import { modSetting } from '../systems/modSettings.js';
 import { loadWalkAnimationAssets, isWalkAnimationGroup, isWalkAnimationKey, isRunAnimationGroup, isRunAnimationKey, isWalkVariantEnabled, isRunVariantEnabled, walkVariantForActor, runVariantForActor } from '../formats/morrowind/mwWalkAnimationAssets.js';
-import { loadHitReactionAnimationAssets, ANIMATION_PACK_IDS, selectDeterministicReactionGroup } from '../formats/morrowind/mwAnimationPackAssets.js';
+import { loadHitReactionAnimationAssets, loadReAnimationAnimationAssets, ANIMATION_PACK_IDS, selectDeterministicReactionGroup } from '../formats/morrowind/mwAnimationPackAssets.js';
 import { drawRigSpriteBox, MW_THIRD_PERSON_PIXEL } from '../render/characterSprite.js';
 import { WEAPONS } from '../characters/weapons.js';
 import { materialName } from '../systems/item/itemInfo.js';
@@ -3120,6 +3120,20 @@ export async function buildFpArm({
     const mwType = resolvedWeapon.mwType;
 
     const sourceBytes = sourcePaths.map((p) => ({ name: p, bytes: find(p).get(p).slice() }));
+    // ReAnimation v3 is a first-person source provider, not a third-person walk pack.
+    // Load only the current weapon family's canonical core clips; alternate attack variants
+    // stay out until the resolver can choose them by explicit action/variant metadata.
+    if (!werewolf && modSetting('morrowind-animation', 'PlayerFirstPersonSource') === 1) {
+      const shortGroup = weaponShortGroup(mwType) || 'hh';
+      const reAnimationAssets = await loadReAnimationAnimationAssets({ weaponShortGroup: shortGroup });
+      for (const asset of reAnimationAssets) {
+        sourceBytes.push({
+          name: asset.path, bytes: asset.bytes,
+          animationPackId: ANIMATION_PACK_IDS.reanimation,
+          animationFamily: asset.family,
+        });
+      }
+    }
 
     if (!partBytes.length) {
       // "no record for this actor" is a dead end for whoever reads it.
@@ -3233,6 +3247,7 @@ export async function buildFpArm({
         // What THIS source would choose. The Animation's actual accum
         // root is picked below, and it is not per-source.
         wouldAccumRoot: accumRootRef(arm.skeleton, one.trackMap),
+        ...(sb.animationPackId ? { animationPackId: sb.animationPackId, animationFamily: sb.animationFamily } : {}),
       });
     }
     // hasAnimation: ANY source. The reverse search below picks WHICH.
