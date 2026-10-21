@@ -597,6 +597,65 @@ export function unequipWeaponHideMode({ animationStarted, detachKeyTime, reverse
   return detachKeyTime >= 0 ? 'detach-key' : 'animation-end';
 }
 
+/**
+ * Text keys only prove that a clip window exists; they do not prove that its
+ * tracks move any bone in the active rig. A few KF providers ship valid
+ * unequip markers around a static/foreign-rig window. Detect that before
+ * accepting the window, so sheathing can fall back to the known-working
+ * equip motion played backwards.
+ */
+export function animationWindowHasMotion(source, state, skeleton) {
+  if (!state || !(state.stopTime > state.startTime)
+    || typeof source?.trackMap?.get !== 'function' || !skeleton?.nodes) return false;
+
+  const start = state.startTime;
+  const span = state.stopTime - start;
+  const times = new Set(Array.from({ length: 9 }, (_, i) => start + span * i / 8));
+  const addKeys = (keys) => {
+    for (const key of keys ?? []) {
+      if (Number.isFinite(key?.time) && key.time >= start && key.time <= state.stopTime) times.add(key.time);
+    }
+  };
+
+  for (const [, node] of skeleton.nodes) {
+    const track = source.trackMap.get(String(node.name ?? '').toLowerCase());
+    if (!track) continue;
+    addKeys(track.rotationKeys);
+    for (const group of track.xyzRotations ?? []) addKeys(group?.keys);
+    addKeys(track.translations?.keys);
+    addKeys(track.scales?.keys);
+    const orderedTimes = [...times].sort((a, b) => a - b);
+    let baseline = null;
+    try {
+      for (const time of orderedTimes) {
+        const sample = sampleTrack(track, time);
+        if (!baseline) { baseline = sample; continue; }
+        const differs = (a, b, rotation = false) => {
+          if (a == null || b == null) return a !== b;
+          if (Array.isArray(a) && Array.isArray(b)) {
+            if (a.length !== b.length) return true;
+            if (rotation && a.length === 4) {
+              const dot = a.reduce((sum, value, i) => sum + value * b[i], 0);
+              const na = Math.hypot(...a), nb = Math.hypot(...b);
+              return na > 0 && nb > 0 ? 1 - Math.min(1, Math.abs(dot) / (na * nb)) > 1e-5
+                : a.some((value, i) => Math.abs(value - b[i]) > 1e-5);
+            }
+            return a.some((value, i) => Math.abs(value - b[i]) > 1e-5);
+          }
+          return Number.isFinite(a) && Number.isFinite(b)
+            ? Math.abs(a - b) > 1e-5 : a !== b;
+        };
+        if (differs(baseline.rotation, sample.rotation, true)
+          || differs(baseline.translation, sample.translation)
+          || differs(baseline.scale, sample.scale)) return true;
+      }
+    } catch {
+      // An unreadable track cannot establish that the window is animated.
+    }
+  }
+  return false;
+}
+
 /** Choose a graceful first-person fallback when a provider has no unequip window. */
 export function unequipActionPlan({ unequipStarted, equipStarted, detachKeyTime = -1 }) {
   if (unequipStarted) {
@@ -6231,12 +6290,24 @@ export function createFpArm({ playerAppearance = false } = {}) {
         upper = UPPER_BODY.Unequipping;
         const detach = keyTime(UNEQUIP_KEYS.detach);
         const unequipStarted = playAction(UNEQUIP_KEYS.start, UNEQUIP_KEYS.stop, 0);
-        // Some first-person packs (including weapon-class-specific ReAnimation
-        // sets) have an equip window but no unequip window for this group.
-        // Play the same hand motion backwards instead of dropping the weapon
-        // and snapping straight to the bare-hand idle.
-        const equipStarted = !unequipStarted && playAction(EQUIP_KEYS.start, EQUIP_KEYS.stop, 0, true);
-        const plan = unequipActionPlan({ unequipStarted, equipStarted, detachKeyTime: detach });
+        const unequipHasMotion = unequipStarted
+          && animationWindowHasMotion(actionSource, actionState, built.arm.skeleton);
+        if (unequipStarted && !unequipHasMotion) {
+          logAnimationDiagnostic(`fp-unequip-static-window|${weaponGroup}|${actionSource?.name ?? 'unknown'}`, {
+            family: 'first-person-weapon-sheathing-v1',
+            event: 'unequip-window-has-no-matching-bone-motion',
+            weaponGroup,
+            animationSource: actionSource?.name ?? null,
+            activeRigSkeleton: built.arm.skeletonPath ?? null,
+            clipStartTime: actionState?.startTime ?? null,
+            clipStopTime: actionState?.stopTime ?? null,
+            fallback: 'play equip section backwards',
+          });
+        }
+        // A window with text markers but no changing transforms is not a usable
+        // sheathing animation. Use the working equip motion in reverse instead.
+        const equipStarted = !unequipHasMotion && playAction(EQUIP_KEYS.start, EQUIP_KEYS.stop, 0, true);
+        const plan = unequipActionPlan({ unequipStarted: unequipHasMotion, equipStarted, detachKeyTime: detach });
         if (plan.kind === 'immediate') {
           hideWeaponAtUnequipEnd = false;
           hideWeaponAtUnequipEndReason = null;
