@@ -241,7 +241,7 @@ export function idleVariantForActor({
 }
 
 export function dynamicIdleVariantForActor({
-  female = false, player = false, race = '', faceIndex = 0, appearanceHeadId = '',
+  player = false, race = '', faceIndex = 0, appearanceHeadId = '',
 } = {}) {
   if (player) return '2';
   const seed = `${String(race).toLowerCase()}|${String(faceIndex)}|${String(appearanceHeadId).toLowerCase()}|idle`;
@@ -277,6 +277,7 @@ export function aliasDynamicIdleSource(source) {
 /** Live preference gates for the two independent locomotion families. */
 export function isWalkVariantEnabled(source, walkChoice = 'vanilla') {
   const selected = typeof walkChoice === 'boolean' ? (walkChoice ? 'female' : 'standard') : String(walkChoice);
+  if (source?.idleOnly) return false;
   if (selected === 'vanilla') return !source?.walkOnly;
   if (!source?.walkOnly) return true;
   return source.walkVariant === selected;
@@ -284,6 +285,7 @@ export function isWalkVariantEnabled(source, walkChoice = 'vanilla') {
 
 export function isRunVariantEnabled(source, runChoice = 'vanilla') {
   const selected = String(runChoice ?? 'vanilla');
+  if (source?.idleOnly) return false;
   if (selected === 'vanilla') return !source?.runOnly;
   if (!source?.runOnly) return true;
   return source.walkVariant === selected;
