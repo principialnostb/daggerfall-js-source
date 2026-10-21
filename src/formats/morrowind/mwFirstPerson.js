@@ -2963,11 +2963,15 @@ export function deformPlayerBodyGeometry(piece, morph, bodyBounds, skeleton = nu
     x += nx * halfX * waist * 0.14 * waistZone;
     x += nx * halfX * hip * 0.18 * hipZone;
 
-    // Breast volume/projection are front-only; buttock controls are rear-only.
+    // Size controls change volume in two dimensions; projection controls only
+    // front/back depth. Keeping these channels separate makes the sliders
+    // semantically independent instead of scaled aliases of the same Y offset.
     const front = Math.max(0, Math.min(1, (ny - 0.015) / 0.42));
     const rear = Math.max(0, Math.min(1, (-ny - 0.02) / 0.55));
+    x += nx * halfX * breast * 0.065 * breastZone * front;
     y += halfY * (breast * 0.15 + breastProjection * 0.20) * breastZone * front;
     y += Math.sign(ny || 1) * halfY * abdomen * 0.14 * abdomenZone;
+    x += nx * halfX * buttock * 0.07 * buttockZone * rear;
     y -= halfY * (buttock * 0.15 + buttockProjection * 0.19) * buttockZone * rear;
 
     // Limb controls have separate masks and cannot bleed into torso width controls.
