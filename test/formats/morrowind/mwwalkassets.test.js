@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { inspectWalkAnimationAssets, isWalkAnimationGroup, isWalkAnimationKey, isRunAnimationGroup, isRunAnimationKey, isWalkVariantEnabled, isRunVariantEnabled, walkVariantForActor, runVariantForActor, firstPersonAnimationProviderForChoice, isOpenMWDynamicFirstPersonClip } from '../../src/formats/morrowind/mwWalkAnimationAssets.js';
+import { inspectWalkAnimationAssets, isWalkAnimationGroup, isWalkAnimationKey, isRunAnimationGroup, isRunAnimationKey, isWalkVariantEnabled, isRunVariantEnabled, walkVariantForActor, runVariantForActor, firstPersonAnimationProviderForChoice, isOpenMWDynamicFirstPersonClip, openMWDynamicFirstPersonGroup } from '../../src/formats/morrowind/mwWalkAnimationAssets.js';
 
 test('MW-ANIM-1: bundled walk asset inventory is safe to import in Node', () => {
   const assets = inspectWalkAnimationAssets();
@@ -95,6 +95,10 @@ test('MW-ANIM-4: OpenMW Dynamic Animations admits only directional first-person 
   ]) {
     assert.equal(isOpenMWDynamicFirstPersonClip(base + clip), true, clip);
   }
+  assert.equal(openMWDynamicFirstPersonGroup(base + 'WalkForward_base;.kf'), 'WalkForward');
+  assert.equal(openMWDynamicFirstPersonGroup(base + 'RunBack_base;.kf'), 'RunBack');
+  assert.equal(openMWDynamicFirstPersonGroup(base + 'SneakRight_base;.kf'), 'SneakRight');
+  assert.equal(openMWDynamicFirstPersonGroup(base + 'IdleSneak_base;.kf'), null);
   assert.equal(isOpenMWDynamicFirstPersonClip(base + 'IdleSneak_base;.kf'), false);
   assert.equal(isOpenMWDynamicFirstPersonClip(base + 'SneakMovement; Skip.kf'), false);
   assert.equal(isOpenMWDynamicFirstPersonClip('Mods/Animations/OpenMW Dynamic Animations/animations/xbase_anim/WalkForward_base11;.kf'), false);
