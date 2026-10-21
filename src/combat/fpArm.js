@@ -84,7 +84,7 @@ import { DFPalette } from '../formats/dfPalette.js';
 import { raceArt } from '../systems/races.js';
 import { appStorage } from '../systems/appStorage.js';   // DA1: the storage seam
 import { modSetting } from '../systems/modSettings.js';
-import { loadWalkAnimationAssets, loadFirstPersonAnimationAssets, loadHitReactionAnimationAssets, loadOpenMWDynamicThirdPersonAnimationAssets, selectOpenMWDynamicAnimationVariants, isWalkAnimationGroup, isWalkAnimationKey, isRunAnimationGroup, isRunAnimationKey, isWalkVariantEnabled, isRunVariantEnabled, walkVariantForActor, runVariantForActor, remapAnimationGroupKeys, hitReactionTargetGroup, hitReactionTransitionBlend } from '../formats/morrowind/mwWalkAnimationAssets.js';
+import { loadWalkAnimationAssets, loadFirstPersonAnimationAssets, loadHitReactionAnimationAssets, loadOpenMWDynamicThirdPersonAnimationAssets, selectOpenMWDynamicAnimationVariants, isWalkAnimationGroup, isWalkAnimationKey, isRunAnimationGroup, isRunAnimationKey, isWalkVariantEnabled, isRunVariantEnabled, walkVariantForActor, runVariantForActor, remapAnimationGroupKeys, normalizeAnimationGroupKeys, hitReactionTargetGroup, hitReactionTransitionBlend } from '../formats/morrowind/mwWalkAnimationAssets.js';
 import { drawRigSpriteBox, MW_THIRD_PERSON_PIXEL } from '../render/characterSprite.js';
 import { WEAPONS } from '../characters/weapons.js';
 import { materialName } from '../systems/item/itemInfo.js';
@@ -2336,15 +2336,24 @@ async function buildTpBody({
         }
         const sourceGroup = String(asset.sourceGroup ?? '').toLowerCase();
         const targetGroup = String(asset.targetGroup ?? '').toLowerCase();
-        const aliases = new Set([sourceGroup, sourceGroup.replace(/^[xz]/, ''), targetGroup,
-          `x${targetGroup}`, `z${targetGroup}`]);
-        const sourceGroups = report.groups.filter((name) => aliases.has(String(name).toLowerCase()));
-        const keys = remapAnimationGroupKeys(report.keys, sourceGroups, targetGroup);
-        if (!sourceGroups.length || !keys.length) {
+        let groups;
+        let keys;
+        if (targetGroup === 'armposes') {
+          const poseGroups = report.groups.filter((name) => /^arms/i.test(name));
+          const sourceGroups = poseGroups.length ? poseGroups : report.groups;
+          groups = [...new Set(sourceGroups.map((name) => String(name).toLowerCase()))];
+          keys = normalizeAnimationGroupKeys(report.keys, sourceGroups);
+        } else {
+          const aliases = new Set([sourceGroup, sourceGroup.replace(/^[xz]/, ''), targetGroup,
+            `x${targetGroup}`, `z${targetGroup}`]);
+          const sourceGroups = report.groups.filter((name) => aliases.has(String(name).toLowerCase()));
+          keys = remapAnimationGroupKeys(report.keys, sourceGroups, targetGroup);
+          groups = sourceGroups.length ? [targetGroup] : [];
+        }
+        if (!groups.length || !keys.length) {
           missing.push(`OpenMW Dynamic Animations clip ${asset.name}: no compatible ${targetGroup} group; archive source retained`);
           continue;
         }
-        const groups = [targetGroup];
         sourcePaths.push(asset.name);
         sources.push({
           name: asset.name, keys, groups, groupSet: new Set(groups),
@@ -2565,12 +2574,21 @@ async function buildCreatureBody({ creature, flies = false, deps = null }) {
       }
       const sourceGroup = String(asset.sourceGroup ?? '').toLowerCase();
       const targetGroup = String(asset.targetGroup ?? '').toLowerCase();
-      const aliases = new Set([sourceGroup, sourceGroup.replace(/^[xz]/, ''), targetGroup,
-        `x${targetGroup}`, `z${targetGroup}`]);
-      const sourceGroups = report.groups.filter((name) => aliases.has(String(name).toLowerCase()));
-      const keys = remapAnimationGroupKeys(report.keys, sourceGroups, targetGroup);
-      if (!sourceGroups.length || !keys.length) continue;
-      const groups = [targetGroup];
+      let groups;
+      let keys;
+      if (targetGroup === 'armposes') {
+        const poseGroups = report.groups.filter((name) => /^arms/i.test(name));
+        const sourceGroups = poseGroups.length ? poseGroups : report.groups;
+        groups = [...new Set(sourceGroups.map((name) => String(name).toLowerCase()))];
+        keys = normalizeAnimationGroupKeys(report.keys, sourceGroups);
+      } else {
+        const aliases = new Set([sourceGroup, sourceGroup.replace(/^[xz]/, ''), targetGroup,
+          `x${targetGroup}`, `z${targetGroup}`]);
+        const sourceGroups = report.groups.filter((name) => aliases.has(String(name).toLowerCase()));
+        keys = remapAnimationGroupKeys(report.keys, sourceGroups, targetGroup);
+        groups = sourceGroups.length ? [targetGroup] : [];
+      }
+      if (!groups.length || !keys.length) continue;
       sourcePaths.push(asset.name);
       sources.push({
         name: asset.name, keys, groups, groupSet: new Set(groups),
