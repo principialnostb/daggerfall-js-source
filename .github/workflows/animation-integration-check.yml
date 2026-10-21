@@ -15,6 +15,10 @@ on:
       - '.github/workflows/animation-integration-check.yml'
   workflow_dispatch:
 
+concurrency:
+  group: animation-check-${{ github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: read
 
