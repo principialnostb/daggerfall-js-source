@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  ANIMATION_PACK_IDS, ANIMATION_PACK_PROVIDERS, animationPackFamily, inspectAnimationPackAssets, listAnimationPackAssets, loadHitReactionAnimationAssets, loadReAnimationAnimationAssets,
+  ANIMATION_PACK_IDS, ANIMATION_PACK_PROVIDERS, animationPackFamily, inspectAnimationPackAssets, listAnimationPackAssets, loadHitReactionAnimationAssets, loadReAnimationAnimationAssets, loadDynamicIdleAnimationAsset,
   resolveAnimationPackProvider, selectDeterministicReactionGroup, reAnimationPrefixesForWeaponGroup, selectStableAnimationVariant,
 } from '../../src/formats/morrowind/mwAnimationPackAssets.js';
 
@@ -95,4 +95,8 @@ test('MW-ANIM-PACKS: ReAnimation action variants are selected by a stable semant
   assert.equal(first?.pick, selectStableAnimationVariant(candidates, 'weapontwohand|chop')?.pick);
   assert.ok(['a', 'm', 'z'].includes(first?.pick));
   assert.equal(selectStableAnimationVariant([], 'weapontwohand|chop'), null);
+});
+
+test('MW-ANIM-PACKS: Dynamic Animations idle asset loader is safe outside the browser', async () => {
+  assert.equal(await loadDynamicIdleAnimationAsset({ female: false, variant: '3' }), null);
 });
