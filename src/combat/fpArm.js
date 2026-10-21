@@ -4463,6 +4463,24 @@ export function createFpArm({ playerAppearance = false } = {}) {
     return `${prefix}${1 + ((((roll | 0) % n) + n) % n)}`;
   }
 
+  // New pack clips are selected from an explicit provider and a sorted group list.
+  // The caller's deterministic roll chooses the variant; filesystem/glob order never does.
+  function choosePackReactionGroup(kind, roll) {
+    if (modSetting('morrowind-animation', 'HitReactionSource') !== 1) return null;
+    const sources = rig()?.sources ?? [];
+    const groups = [...new Set(sources
+      .filter((source) => source.animationPackId === ANIMATION_PACK_IDS.hitReactions)
+      .flatMap((source) => source.groups ?? []))]
+      .map((group) => String(group).toLowerCase())
+      .filter((group) => kind === 'death'
+        ? group.startsWith('death') && !group.includes('dremora')
+        : group === 'hitreact' || group.startsWith('stagger'))
+      .sort();
+    if (!groups.length) return null;
+    const index = ((((roll | 0) % groups.length) + groups.length) % groups.length);
+    return groups[index];
+  }
+
   /** The source currently posing the arm - the one that won the clip
    *  being drawn, because its tracks are the ones the pose reads. */
   let poseSource = null;
@@ -6469,8 +6487,11 @@ export function createFpArm({ playerAppearance = false } = {}) {
      *  and a recoil still playing takes no other (refreshHitRecoilAnims returns while `isPlaying(mCurrentHit)`). */
     hurt(roll = 0) {
       if (!built || !built.ok || dead || hitState) return false;
-      const g = chooseRandomGroup('hit', roll);
-      const pick = g ? pickAnimSource(rig().sources, g, resetClip, {}) : null;
+      const sources = rig()?.sources ?? [];
+      const packGroup = choosePackReactionGroup('hit', roll);
+      const packPick = packGroup ? pickAnimSource(sources, packGroup, resetClip, {}) : null;
+      const vanillaGroup = chooseRandomGroup('hit', roll);
+      const pick = packPick ?? (vanillaGroup ? pickAnimSource(sources, vanillaGroup, resetClip, {}) : null);
       if (!pick) return false;
       hitState = pick.state; hitSource = pick.source;
       return true;
@@ -6482,8 +6503,11 @@ export function createFpArm({ playerAppearance = false } = {}) {
      *  which a loaded game hands a corpse. A body that carries no death stops where it stood. */
     die(roll = 0, { startPoint = 0 } = {}) {
       if (!built || !built.ok) return false;
-      const g = chooseRandomGroup('death', roll);
-      const pick = g ? pickAnimSource(rig().sources, g, resetClip, { startPoint, loopCount: 0 }) : null;   // playDeath's loops: 0
+      const sources = rig()?.sources ?? [];
+      const packGroup = choosePackReactionGroup('death', roll);
+      const packPick = packGroup ? pickAnimSource(sources, packGroup, resetClip, { startPoint, loopCount: 0 }) : null;
+      const vanillaGroup = chooseRandomGroup('death', roll);
+      const pick = packPick ?? (vanillaGroup ? pickAnimSource(sources, vanillaGroup, resetClip, { startPoint, loopCount: 0 }) : null);   // playDeath's loops: 0
       dead = true;
       actionState = null; actionSource = null; holdWindUp = false; attackType = null; blowPlan = null;
       upper = sheathed ? UPPER_BODY.None : UPPER_BODY.WeaponEquipped;
