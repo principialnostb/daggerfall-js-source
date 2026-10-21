@@ -556,16 +556,22 @@ export function walkVariantForActor({
 } = {}) {
   const index = (value, max) => Math.max(0, Math.min(max, Number(value) || 0));
   if (player || ownHeads) {
-    if (!female) return ['vanilla', 'simply'][index(playerChoice, 1)];
-    return ['vanilla', 'simply', 'feminine', 'axel'][index(playerChoice, 3)];
+    if (!female) return ['original', 'vanilla', 'simply'][index(playerChoice, 2)];
+    return ['original', 'vanilla', 'simply', 'feminine', 'axel'][index(playerChoice, 4)];
   }
-  if (female) return ['vanilla', 'simply', 'feminine', 'axel'][index(npcFemaleChoice, 3)];
-  return ['vanilla', 'simply'][index(npcMaleChoice, 1)];
+  if (female) return ['original', 'vanilla', 'simply', 'feminine', 'axel'][index(npcFemaleChoice, 4)];
+  return ['original', 'vanilla', 'simply'][index(npcMaleChoice, 2)];
 }
 
 /** Live preference gates for the two independent locomotion families. */
+function isBundledModSource(source) {
+  const path = String(source?.name ?? source?.path ?? '').replace(/\\/g, '/').toLowerCase();
+  return path.includes('/mods/') || path.startsWith('mods/');
+}
+
 export function isWalkVariantEnabled(source, walkChoice = 'vanilla') {
   const selected = typeof walkChoice === 'boolean' ? (walkChoice ? 'female' : 'standard') : String(walkChoice);
+  if (selected === 'original') return !isBundledModSource(source);
   if (selected === 'vanilla') return !source?.walkOnly;
   if (!source?.walkOnly) return true;
   return source.walkVariant === selected;
@@ -573,6 +579,7 @@ export function isWalkVariantEnabled(source, walkChoice = 'vanilla') {
 
 export function isRunVariantEnabled(source, runChoice = 'vanilla') {
   const selected = String(runChoice ?? 'vanilla');
+  if (selected === 'original') return !isBundledModSource(source);
   if (selected === 'vanilla') return !source?.runOnly;
   if (!source?.runOnly) return true;
   return source.walkVariant === selected;
@@ -584,7 +591,7 @@ export function runVariantForActor({
   playerChoice = 0, npcMaleChoice = 0, npcFemaleChoice = 0,
 } = {}) {
   const index = (value, max) => Math.max(0, Math.min(max, Number(value) || 0));
-  if (player || ownHeads) return female && index(playerChoice, 1) === 1 ? 'axel' : 'vanilla';
-  if (female) return index(npcFemaleChoice, 1) === 1 ? 'axel' : 'vanilla';
-  return ['vanilla'][index(npcMaleChoice, 0)];
+  if (player || ownHeads) return index(playerChoice, 2) === 2 && female ? 'axel' : (index(playerChoice, 2) === 0 ? 'original' : 'vanilla');
+  if (female) return index(npcFemaleChoice, 2) === 2 ? 'axel' : (index(npcFemaleChoice, 2) === 0 ? 'original' : 'vanilla');
+  return ['original'][index(npcMaleChoice, 0)];
 }
