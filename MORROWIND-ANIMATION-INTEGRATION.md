@@ -173,3 +173,26 @@ The female `RunForward;.kf` is now wired beside Axel's `WalkForward;.kf` under t
 ## Asset-root migration — 2026-10-21
 
 The repository's mod assets now live under `Mods/Animations`, `Mods/Textures`, and `Mods/Bodies`. The gameplay walk loader was updated to discover Simply Walking and Axel's clips from `Mods/Animations`; the previous `Morrowind Textures` paths no longer resolve. Morrowind Animation Overhaul remains excluded from runtime discovery pending explicit permission for reuse/conversion. The new ReAnimation and Hit Reactions packs are present as source assets only; they are not considered integrated until their first-person/third-person rig compatibility, animation groups, and deterministic group resolver are verified. OpenMW Dynamic Animations is reference material, not executable browser code.
+
+
+## New animation packs audit — 2026-10-21
+
+The following three Nexus sources are in scope for the next integration slice:
+
+- [ReAnimation v3 — Complete, first-person animation pack (#52596)](https://www.nexusmods.com/morrowind/mods/52596?tab=files). The repository already stages its first-person KF assets under `Mods/Animations/ReAnimation v3 - Complete - first-person animation pack/00 Core/Animations/xbase_anim.1st/`. It is a **first-person** source; it must be routed through the first-person rig/clip resolver, never through the third-person walk loader.
+- [OpenMW Dynamic Animations (#57633)](https://www.nexusmods.com/morrowind/mods/57633?tab=files). Assets are staged under `Mods/Animations/OpenMW Dynamic Animations/`, including race-specific and first-person clips. Its OpenMW Lua scripts/configuration are not executable in the browser port. Integrate only individual KF clips whose groups and skeleton bindings have been verified; do not claim parity with its Lua-driven dynamic selection.
+- [Hit Reactions Animated — OpenMW (#56594)](https://www.nexusmods.com/morrowind/mods/56594?tab=files). Assets are staged under `Mods/Animations/Hit Reactions Animated v2 -- OpenMW/`. This is a **third-person reaction/death-group** provider and must have its own narrowly filtered group resolver. It must not replace the complete actor animation source or become active merely because the files exist.
+
+### Deterministic source-resolution contract
+
+1. **Explicit family ownership.** Each source declares one or more allowed animation families (first-person combat, locomotion, hit reaction, death, etc.). A source cannot participate in a family it has not explicitly registered for.
+2. **Stable priority, no directory-order wins.** Resolve a request from an explicit ordered source list: selected mod source, then compatible fallback sources, then the original archive source. Sort discovered paths before building that list. Never let filesystem/glob enumeration order determine which duplicate group wins.
+3. **Actor and rig compatibility first.** Check first-person versus third-person rig, race/sex-specific skeleton namespace, required bone tracks, and the requested text-key group before admitting a clip. Incompatible or absent groups fall back without disturbing unrelated families.
+4. **Filter by parsed group/key data.** Do not route files by filename alone. Read KF/NIF text keys, require a playable Start/Stop interval, and keep only the registered group names. Hit-reaction sources must not take over death, idle, locomotion, or combat groups unless separately declared and tested.
+5. **No OpenMW/MWSE runtime assumptions.** Lua scripts, event hooks, OpenMW settings, and MCM configuration are source/reference material only. Reimplement a behavior in native JavaScript with tests before presenting it as integrated.
+6. **One choice per actor and family.** Settings are exclusive within an actor/family pair. Player first-person choices are independent of third-person player/NPC choices. Randomized behavior, if ever added, must use a stable actor/request seed; current integration should prefer a fixed, documented priority rather than runtime randomness.
+7. **Safe failure and observability.** Parsing, fetch, or bone-binding failure must retain the archive source and produce a diagnostic naming the source and requested group. No missing mod asset may make the base animation set unavailable.
+
+### Current implementation status
+
+The three resource trees are present, but this alone does not mean their animations are live. The current walk loader intentionally discovers only Simply Walking and Axel's Sexy Walk Fixed. ReAnimation v3, OpenMW Dynamic Animations, and Hit Reactions Animated still need separate, family-scoped runtime consumers and regression tests. Do not add them to the walk glob as a shortcut. Validation must include deterministic duplicate resolution, group isolation, incompatible-rig fallback, and the relevant first-person/third-person transitions.
