@@ -18,6 +18,7 @@ test('MW-ANIM-PACKS: pack discovery is safe outside the browser', () => {
 
 test('MW-ANIM-PACKS: each asset family is classified explicitly', () => {
   assert.equal(animationPackFamily(ANIMATION_PACK_IDS.reanimation, 'x2cChop.kf'), 'combat');
+  assert.equal(animationPackFamily(ANIMATION_PACK_IDS.reanimation, 'xThrownKnifeThrow.kf'), 'combat');
   assert.equal(animationPackFamily(ANIMATION_PACK_IDS.reanimation, 'x1hMovement.kf'), 'locomotion');
   assert.equal(animationPackFamily(ANIMATION_PACK_IDS.dynamic, 'WalkForward_base15;.kf'), 'walk');
   assert.equal(animationPackFamily(ANIMATION_PACK_IDS.dynamic, 'RunBack_base;.kf'), 'run');
