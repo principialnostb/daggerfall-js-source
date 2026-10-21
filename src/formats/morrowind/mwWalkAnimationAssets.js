@@ -64,7 +64,7 @@ const OPENMW_DYNAMIC_THIRD_PERSON_FILES = IN_BROWSER
 const norm = (value) => String(value).replace(/\\/g, '/').toLowerCase();
 function modIdForPath(value) {
   const normalized = norm(value);
-  const marker = '/mods/';
+  const marker = '/mods/animations/';
   const start = normalized.indexOf(marker);
   if (start < 0) return 'unknown';
   const name = normalized.slice(start + marker.length).split('/')[0];
@@ -413,6 +413,7 @@ export async function loadOpenMWDynamicThirdPersonAnimationAssets({ skeletonPath
       console.warn('[Morrowind animations] OpenMW third-person KF failed to load; archive source retained:', entry.path, String(error?.message ?? error));
     }
   }
+  recordMorrowindDiagnostic({ subsystem: 'animation', stage: 'candidate-load-summary', outcome: 'ok', actorContext: folder, requestedProvider: 'openmw-dynamic-animations', candidateCount: files.length, selectedCount: result.length, selectedAssets: result.map((item) => ({ modId: modIdForPath(item.name), sourcePath: item.name, targetGroup: item.targetGroup, sourceGroup: item.sourceGroup })) });
   return result;
 }
 
