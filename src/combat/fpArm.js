@@ -4341,10 +4341,22 @@ export function createFpArm({ playerAppearance = false } = {}) {
    * layout refused - a vertex past the shader's influences - answers false for that list, its sentence on the notes,
    * and the CPU skin draws it as it always did. The door shut mid-session lets a skinned mesh go.
    */
-  function thirdSkinReady(t) {
-    // Local chest/hip vertex morphs are not implemented yet. Persisted slider values
-    // must not silently force the CPU-skinning path until a real vertex transform
-    // is applied; that path changes performance and can mask pose/visibility bugs.
+  function thirdSkinReady(t, bodyProportions = null) {
+    // Local vertex morphs modify the CPU-skinned output positions. The GPU path
+    // uploads the bind-pose stream only once and updates bone palettes, so it
+    // cannot display those edits. When any player morph is active, deliberately
+    // drop the GPU layout and use the CPU path for both posing and mesh upload.
+    // Accept the editor's draft values here: they are not persisted until Done.
+    const morphs = playerAppearance
+      ? (bodyProportions && typeof bodyProportions === 'object' ? bodyProportions : getBodyMorphs())
+      : null;
+    const morphActive = morphs && Object.values(morphs).some((value) => Math.abs(Number(value) || 0) > 1e-6);
+    if (morphActive) {
+      if (thirdMesh && thirdMesh.skin) releaseThirdMesh();
+      thirdSkin = null;
+      thirdSkinRefused = null;
+      return false;
+    }
     if (!gpuSkinOn(renderer)) { if (thirdMesh && thirdMesh.skin) releaseThirdMesh(); return false; }
     if (thirdSkin && skinSamePieces(thirdSkin, t.arm.pieces)) return true;
     if (thirdSkinRefused === t.arm.pieces) return false;
@@ -7443,7 +7455,7 @@ export function createFpArm({ playerAppearance = false } = {}) {
       // A portrait must be posed even when this race/rig has no named idle group.
       // Previously a null portraitPose skipped poseAssembly entirely, so sliders changed
       // saved values but the preview kept uploading the last unmodified mesh.
-      thirdSkinReady(t);   // MWNPC1: release the GPU path while local vertex morphs are active
+      thirdSkinReady(t, bodyProportions);   // MWV2-APPEARANCE: draft morphs require CPU skinning
       if (t.hipHang) t.hipHang.rot.set(PLUMB);   // HT-WAIST: a still portrait, a plumb lantern (stepHipSwing re-swings it)
       poseAssembly(t.arm, {
         tracks: pose?.source?.trackMap ?? null,
