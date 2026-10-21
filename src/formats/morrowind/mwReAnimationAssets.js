@@ -37,22 +37,20 @@ async function read(entry) {
  */
 export async function loadReAnimationAssets() {
   if (!IN_BROWSER) return [];
-  const loaded = [];
-  for (const entry of entries) {
+  return Promise.all(entries.map(async (entry) => {
     try {
-      loaded.push({
+      return {
         name: entry.path,
         bytes: await read(entry),
         optional: true,
         animationPack: 'reanimation-v3',
-      });
+      };
     } catch (error) {
       console.warn('[ReAnimation v3] optional first-person source failed to load; archive source retained:', entry.path, String(error?.message ?? error));
+      return null;
     }
-  }
-  return loaded;
+  })).then((loaded) => loaded.filter(Boolean));
 }
-
 export function inspectReAnimationAssets() {
   return {
     browser: IN_BROWSER,
