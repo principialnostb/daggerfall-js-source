@@ -7652,7 +7652,9 @@ export function createFpArm({ playerAppearance = false } = {}) {
         // weighs run.w . (1 - climb.w) and the climb climb.w; under a sheet raised, the run's weight alone, easing out.
         // No choosing: the slot took the climb OR the run, and the frame a climb started (a sheet came up) the run's
         // hands were dropped whole - a wrist 1.0 units in a frame where the stroke moves it 0.08 - and came back whole
-        run: firstRun(cam),
+        // FORK-FP-RUN: let the native first-person run clip pose the bare hands.
+        // The procedural fist-pump IK produces malformed-looking hands on this rig.
+        run: null,
         mirror: mirrorFor('first', built, dt),   // TWO-HANDS: the second hand - the pair's left arm, a left-hand blow
         hold: rifleHold('first', built),   // RIFLE-STANCE: the long gun in the hands, the low ready or the aim
         // Rule 56's accum root is STICKY and rig-wide, so it does not
