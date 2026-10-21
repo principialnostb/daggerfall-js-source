@@ -37,6 +37,8 @@ test('MW-ANIM-1: female gait preference gates only the female walk source', () =
   assert.equal(isWalkVariantEnabled({ walkOnly: true, animationFamily: 'walk', walkVariant: 'axel' }, 'simply'), false);
   assert.equal(isWalkVariantEnabled({ walkOnly: true, animationFamily: 'walk', walkVariant: 'axel' }, 'axel'), true);
   assert.equal(isWalkVariantEnabled({ name: 'vanilla' }, false), true);
+  assert.equal(isWalkVariantEnabled({ name: 'Mods/Animations/pack/walk.kf' }, 'original'), false);
+  assert.equal(isWalkVariantEnabled({ name: 'archive animation' }, 'original'), true);
 });
 
 test('MW-ANIM-1: walk keys survive additional text-key lines before the group marker', () => {
@@ -50,18 +52,21 @@ test('MW-ANIM-1: walk keys survive additional text-key lines before the group ma
 });
 
 test('MW-ANIM-2: player, male NPC, and female NPC walk settings resolve independently', () => {
-  assert.equal(walkVariantForActor({ player: true, playerChoice: 0 }), 'vanilla');
-  assert.equal(walkVariantForActor({ player: true, playerChoice: 1 }), 'simply');
-  assert.equal(walkVariantForActor({ player: true, playerChoice: 2 }), 'axel');
+  assert.equal(walkVariantForActor({ player: true, playerChoice: 0 }), 'original');
+  assert.equal(walkVariantForActor({ player: true, playerChoice: 1 }), 'vanilla');
+  assert.equal(walkVariantForActor({ player: true, playerChoice: 2 }), 'simply');
+  assert.equal(walkVariantForActor({ player: true, playerChoice: 4 }), 'axel');
 
-  assert.equal(walkVariantForActor({ female: false, npcMaleChoice: 0 }), 'vanilla');
-  assert.equal(walkVariantForActor({ female: false, npcMaleChoice: 1 }), 'simply');
+  assert.equal(walkVariantForActor({ female: false, npcMaleChoice: 0 }), 'original');
+  assert.equal(walkVariantForActor({ female: false, npcMaleChoice: 1 }), 'vanilla');
+  assert.equal(walkVariantForActor({ female: false, npcMaleChoice: 2 }), 'simply');
 
-  assert.equal(walkVariantForActor({ female: true, npcFemaleChoice: 0 }), 'vanilla');
-  assert.equal(walkVariantForActor({ female: true, npcFemaleChoice: 1 }), 'simply');
-  assert.equal(walkVariantForActor({ female: true, npcFemaleChoice: 2 }), 'axel');
+  assert.equal(walkVariantForActor({ female: true, npcFemaleChoice: 0 }), 'original');
+  assert.equal(walkVariantForActor({ female: true, npcFemaleChoice: 1 }), 'vanilla');
+  assert.equal(walkVariantForActor({ female: true, npcFemaleChoice: 2 }), 'simply');
+  assert.equal(walkVariantForActor({ female: true, npcFemaleChoice: 4 }), 'axel');
 
-  assert.equal(walkVariantForActor({ ownHeads: true, female: true, playerChoice: 2, npcFemaleChoice: 0 }), 'axel');
+  assert.equal(walkVariantForActor({ ownHeads: true, female: true, playerChoice: 4, npcFemaleChoice: 0 }), 'axel');
 });
 
 test('MW-ANIM-1: Vanilla disables bundled walk replacements only', () => {
@@ -81,12 +86,14 @@ test('MW-ANIM-3: walk and run preferences gate only their own clip families', ()
   assert.equal(isRunVariantEnabled({ name: 'archive animation' }, 'axel'), true);
 });
 test('MW-ANIM-3: run choices resolve independently for player and female NPC', () => {
-  assert.equal(runVariantForActor({ player: true, playerChoice: 0 }), 'vanilla');
-  assert.equal(runVariantForActor({ player: true, female: true, playerChoice: 1 }), 'axel');
-  assert.equal(runVariantForActor({ player: true, female: false, playerChoice: 1 }), 'vanilla');
-  assert.equal(runVariantForActor({ female: true, npcFemaleChoice: 1 }), 'axel');
+  assert.equal(runVariantForActor({ player: true, playerChoice: 0 }), 'original');
+  assert.equal(runVariantForActor({ player: true, playerChoice: 1 }), 'vanilla');
+  assert.equal(runVariantForActor({ player: true, female: true, playerChoice: 2 }), 'axel');
+  assert.equal(runVariantForActor({ player: true, female: false, playerChoice: 2 }), 'vanilla');
+  assert.equal(runVariantForActor({ female: true, npcFemaleChoice: 2 }), 'axel');
+  assert.equal(runVariantForActor({ female: true, npcFemaleChoice: 1 }), 'vanilla');
   assert.equal(runVariantForActor({ female: false, npcFemaleChoice: 1 }), 'vanilla');
-  assert.equal(runVariantForActor({ ownHeads: true, female: true, playerChoice: 1 }), 'axel');
+  assert.equal(runVariantForActor({ ownHeads: true, female: true, playerChoice: 2 }), 'axel');
 });
 
 
