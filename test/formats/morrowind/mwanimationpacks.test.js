@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  ANIMATION_PACK_IDS, ANIMATION_PACK_PROVIDERS, animationPackFamily, inspectAnimationPackAssets, listAnimationPackAssets,
+  ANIMATION_PACK_IDS, ANIMATION_PACK_PROVIDERS, animationPackFamily, inspectAnimationPackAssets, listAnimationPackAssets, loadHitReactionAnimationAssets,
   resolveAnimationPackProvider, selectDeterministicReactionGroup,
 } from '../../src/formats/morrowind/mwAnimationPackAssets.js';
 
@@ -33,7 +33,7 @@ test('MW-ANIM-PACKS: unknown and non-animation files never acquire a gameplay fa
   assert.equal(animationPackFamily(ANIMATION_PACK_IDS.dynamic, 'animation-config.yaml'), 'other');
 });
 
-test('MW-ANIM-PACKS: every new pack has explicit domains and an honest inactive status', () => {
+test('MW-ANIM-PACKS: every new pack has explicit domains and an honest status', () => {
   assert.equal(ANIMATION_PACK_PROVIDERS.length, 3);
   assert.deepEqual(ANIMATION_PACK_PROVIDERS.map((provider) => provider.status), [
     'present-unintegrated', 'present-unintegrated', 'needs-validation',
@@ -67,4 +67,8 @@ test('MW-ANIM-PACKS: reaction variants use a sorted deterministic candidate list
   assert.equal(selectDeterministicReactionGroup(groups, 'death', 0), 'deathback');
   assert.equal(selectDeterministicReactionGroup(['DeathDremora1', 'DeathDremora2'], 'death', 0), null);
   assert.equal(selectDeterministicReactionGroup([], 'hit', 0), null);
+});
+
+test('MW-ANIM-PACKS: hit reaction assets safely fall back to no bundled data outside the browser', async () => {
+  assert.deepEqual(await loadHitReactionAnimationAssets(), []);
 });
