@@ -85,7 +85,7 @@ import { raceArt } from '../systems/races.js';
 import { appStorage } from '../systems/appStorage.js';   // DA1: the storage seam
 import { modSetting } from '../systems/modSettings.js';
 import { loadWalkAnimationAssets, isWalkAnimationGroup, isWalkAnimationKey, isRunAnimationGroup, isRunAnimationKey, isWalkVariantEnabled, isRunVariantEnabled, walkVariantForActor, runVariantForActor, dynamicWalkStyleForActor, aliasDynamicWalkSource, idleVariantForActor, dynamicIdleVariantForActor, isIdleVariantEnabled, aliasDynamicIdleSource } from '../formats/morrowind/mwWalkAnimationAssets.js';
-import { loadHitReactionAnimationAssets, loadReAnimationAnimationAssets, loadDynamicIdleAnimationAsset, ANIMATION_PACK_IDS, selectDeterministicReactionGroup, selectStableAnimationVariant, aliasReAnimationAttackGroups } from '../formats/morrowind/mwAnimationPackAssets.js';
+import { loadHitReactionAnimationAssets, loadReAnimationAnimationAssets, loadDynamicIdleAnimationAsset, ANIMATION_PACK_IDS, selectDeterministicReactionGroup, selectStableAnimationVariant, expandReAnimationAttackSources } from '../formats/morrowind/mwAnimationPackAssets.js';
 import { drawRigSpriteBox, MW_THIRD_PERSON_PIXEL } from '../render/characterSprite.js';
 import { WEAPONS } from '../characters/weapons.js';
 import { materialName } from '../systems/item/itemInfo.js';
@@ -3278,9 +3278,9 @@ export async function buildFpArm({
         wouldAccumRoot: accumRootRef(arm.skeleton, one.trackMap),
         ...(sb.animationPackId ? { animationPackId: sb.animationPackId, animationFamily: sb.animationFamily } : {}),
       };
-      sources.push(sb.animationPackId === ANIMATION_PACK_IDS.reanimation
-        ? aliasReAnimationAttackGroups(source)
-        : source);
+      sources.push(...(sb.animationPackId === ANIMATION_PACK_IDS.reanimation
+        ? expandReAnimationAttackSources(source)
+        : [source]));
     }
     // hasAnimation: ANY source. The reverse search below picks WHICH.
     const groupSet = new Set(sources.flatMap((so) => so.groups));
