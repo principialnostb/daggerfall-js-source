@@ -125,6 +125,8 @@ test('ORG2: Graphics leads, with the preset at its head, and the tabs a player l
   assert.equal(whereIs('feat:mw-better-bodies')?.tab.id, 'bodies');
   assert.equal(whereIs('feat:mw-npc-bodies')?.tab.id, 'bodies');
   assert.deepEqual(whereIs('feat:morrowind-female-npc-walk-animation')?.section.id, 'locomotion');
+  assert.deepEqual(whereIs('feat:morrowind-first-person-animation-source')?.section.id, 'posture');
+  assert.deepEqual(whereIs('feat:morrowind-hit-reaction-animation-source')?.section.id, 'reactions');
   assert.deepEqual(whereIs('group:walking')?.section.id, 'locomotion');
   assert.deepEqual(whereIs('group:running')?.section.id, 'locomotion');
   const g = CATEGORIES[0];
