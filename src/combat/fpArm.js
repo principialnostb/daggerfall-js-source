@@ -2356,20 +2356,31 @@ async function buildTpBody({
         });
       }
     }
-    // ReAnimation v3: first-person clip files only, validated against this rig.
-    // The stable provider order follows the archive sources so only matching
-    // groups are overridden; every absent group retains the original fallback.
+    // First-person animation provider: one selected pack at a time. OpenMW Dynamic
+    // Animations is deliberately restricted to locomotion groups; all other groups
+    // stay on the archive source and the OpenMW Lua state machine is not executed.
     if (!werewolf && !beast && /\.1st\.nif$/i.test(skeletonPath)) {
       const assets = await loadFirstPersonAnimationAssets();
       for (const asset of assets) {
         const report = await cachedClipReport(gen, skeletonPath, asset.name, () => asset.bytes, arm.skeleton);
-        if (!report.ok) { missing.push(`ReAnimation clip ${asset.name}: ${report.error}`); continue; }
-        if (!report.groups.length || !report.keys.length) continue;
+        if (!report.ok) { missing.push(`First-person clip ${asset.name}: ${report.error}`); continue; }
+        const dynamicLocomotion = asset.variant === 'openmw-dynamic-first-person';
+        const groups = dynamicLocomotion
+          ? report.groups.filter((name) => /^(?:x)?(?:walk|run|sneak)/i.test(name))
+          : report.groups;
+        const allowed = new Set(groups.map((name) => name.toLowerCase()));
+        const keys = dynamicLocomotion
+          ? report.keys.filter((key) => String(key?.text ?? '').split(/\r?\n/).some((line) => {
+            const colon = line.indexOf(':');
+            return colon > 0 && allowed.has(line.slice(0, colon).trim().toLowerCase());
+          }))
+          : report.keys;
+        if (!groups.length || !keys.length) continue;
         sources.push({
-          name: asset.name, keys: report.keys, groups: report.groups,
-          groupSet: new Set(report.groups), trackMap: report.trackMap, binding: report.binding,
+          name: asset.name, keys, groups,
+          groupSet: new Set(groups), trackMap: report.trackMap, binding: report.binding,
           wouldAccumRoot: accumRootRef(arm.skeleton, report.trackMap),
-          animationFamily: 'first-person', animationPack: 'reanimation-v3',
+          animationFamily: 'first-person', animationPack: asset.variant,
         });
       }
     }
