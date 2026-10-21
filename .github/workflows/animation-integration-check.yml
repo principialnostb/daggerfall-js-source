@@ -11,6 +11,10 @@ on:
       - 'src/systems/features.js'
       - 'src/ui/settings/settingsMap.js'
       - 'test/formats/morrowind/mwwalkassets.test.js'
+      - 'test/formats/morrowind/mwanimsource.test.js'
+      - 'test/formats/morrowind/fparm.test.js'
+      - 'test/formats/morrowind/mwnpc9_creatures.test.js'
+      - 'test/net/peer/mwbody1.test.js'
       - 'test/systems/org2_options.test.js'
       - 'test/systems/features.test.js'
       - '.github/workflows/animation-integration-check.yml'
@@ -38,5 +42,5 @@ jobs:
       - run: npm ci
       - run: npx eslint --no-cache src/combat/fpArm.js src/formats/morrowind/mwWalkAnimationAssets.js src/systems/modSettings.js src/systems/features.js src/ui/settings/settingsMap.js test/formats/morrowind/mwwalkassets.test.js test/systems/org2_options.test.js test/systems/features.test.js
       - run: npm run types
-      - run: npm test
+      - run: node --test test/formats/morrowind/mwwalkassets.test.js test/formats/morrowind/mwanimsource.test.js test/formats/morrowind/fparm.test.js test/formats/morrowind/mwnpc9_creatures.test.js test/net/peer/mwbody1.test.js test/systems/org2_options.test.js test/systems/features.test.js
       - run: npm run build
