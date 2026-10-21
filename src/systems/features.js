@@ -1370,6 +1370,15 @@ export const FEATURES = Object.freeze([
     control: Object.freeze({ store: 'mods', vendor: 'morrowind-animation', key: 'NpcFemaleWalk' }),
   }),
   Object.freeze({
+    id: 'morrowind-player-idle-animation',
+    group: 'character',
+    title: 'Игрок · idle от третьего лица',
+    get note() { return MOD_SETTINGS['morrowind-animation'].keys.PlayerIdleSource.description; },
+    effect: 'Takes effect at once.',
+    kinds: Object.freeze(['mod']),
+    control: Object.freeze({ store: 'mods', vendor: 'morrowind-animation', key: 'PlayerIdleSource' }),
+  }),
+  Object.freeze({
     id: 'morrowind-male-npc-idle-animation',
     group: 'character',
     title: 'Простой idle NPC · мужчины',
