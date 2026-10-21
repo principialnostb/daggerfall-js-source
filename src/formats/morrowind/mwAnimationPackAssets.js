@@ -168,7 +168,7 @@ export function selectDeterministicReactionGroup(groups, kind, roll = 0) {
  * Unsupported weapon families return no candidates and therefore retain archive animations. */
 export function reAnimationPrefixesForWeaponGroup(weaponShortGroup = '') {
   const prefixesByGroup = {
-    '1s': ['xdagger'],
+    '1s': ['xdagger', 'x1s'],
     '1h': ['x1h'],
     '2c': ['x2c'],
     '2w': ['x2w'],
