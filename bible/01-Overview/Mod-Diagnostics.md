@@ -50,3 +50,16 @@ The current runtime diagnostics add a structured trail around the actual animati
 This is deliberately not a claim that every animation application path is instrumented. The events establish what the loader selected and loaded; they do not yet prove that a requested animation group was ultimately bound and sampled by every gameplay consumer. Treat missing events as an observability gap, not proof of success. The separate animation integration and maintenance documents remain the source of truth for provider rules and compatibility constraints.
 
 These hooks cover the real loader seams currently instrumented, not every possible model path. Other model/body/animation paths should emit the same event contract as those paths are instrumented; a lack of an event must not be interpreted as proof that a resource loaded successfully.
+
+## Actual movement-source selection events (2026-10-21)
+
+The gameplay movement resolver in `src/combat/fpArm.js` now emits a versioned `movement-source-selection` diagnostic whenever it re-picks a movement clip. This extends coverage beyond replacement-only locomotion logs:
+
+- `rig`, `actor`, and `group` identify the resolved skeleton, actor lane (`player`, `peer-player`, `female-npc`, or `male-or-unknown-npc`), and requested composed group.
+- `preference` records the active walk/run preference where applicable; non-locomotion movement groups report the resolver's vanilla/default path.
+- `candidateCount` records how many sources survived the family filter before clip selection.
+- `file`, `sourcePack`, and `animationFamily` identify the actual selected source. Archive or unlabeled sources are explicitly marked rather than mistaken for a replacement pack.
+- `selected: false` plus `fallback: no-compatible-source` records a failed pick, including the group for which no source supplied usable start/stop keys.
+
+Events use the `movement-selection-v1` deduplication namespace so earlier stored diagnostics do not suppress the new event schema. As with the existing collector, this is a best-effort browser-local log; it proves the resolver's source decision, not that the rendered pose looked correct. Check a fresh exported JSON after reproducing a walk/run transition and inspect the event's `group`, `file`, and `sourcePack` fields.
+
