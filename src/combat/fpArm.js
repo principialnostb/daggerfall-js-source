@@ -2366,7 +2366,7 @@ async function buildTpBody({
     // OpenMW Dynamic Animations: one stable third-person idle variant per NPC.
     // Keep the custom group names raw in the inventory; refreshIdle aliases them only
     // when the corresponding idle provider is selected.
-    if (!werewolf && !beast && !playerBody) {
+    if (!werewolf && !beast) {
       const idleVariant = dynamicIdleVariantForActor({ race, faceIndex, appearanceHeadId });
       const idleAsset = await loadDynamicIdleAnimationAsset({ female, variant: idleVariant });
       if (idleAsset) {
@@ -4594,6 +4594,7 @@ export function createFpArm({ playerAppearance = false } = {}) {
     }
     const requestedIdlePreference = idleVariantForActor({
       player: playerAppearance, ownHeads: !!lastBuildOpts?.ownHeads, female: !!lastBuildOpts?.female,
+      playerChoice: modSetting('morrowind-animation', 'PlayerIdleSource') ?? 0,
       npcMaleChoice: modSetting('morrowind-animation', 'NpcMaleIdleSource') ?? 0,
       npcFemaleChoice: modSetting('morrowind-animation', 'NpcFemaleIdleSource') ?? 0,
     });
