@@ -4506,13 +4506,42 @@ export function createFpArm({ playerAppearance = false } = {}) {
   const keyTime = (action) => (weaponGroup && rig()
     ? sourcesKeyTime(rig().sources, `${weaponGroup}: ${action}`) : -1);
 
+  /** Pick an action clip from the selected ReAnimation family when it contains the exact
+   * requested window. A stable hash of weapon group + attack type selects among compatible
+   * variants; every phase of the same attack resolves the same candidate, and Vanilla remains
+   * the fallback when no pack clip has the requested keys. */
+  function pickFirstPersonActionSource(sources, group, start, stop, startPoint = 0, actionType = null) {
+    const options = { start, stop, startPoint };
+    if (modSetting('morrowind-animation', 'PlayerFirstPersonSource') !== 1) {
+      return pickAnimSource(sources, group, resetClip, options);
+    }
+    const inferredType = actionType || String(start ?? '').match(/^([a-z]+)/i)?.[1] || '';
+    if (!['chop', 'slash', 'thrust', 'shoot'].includes(inferredType.toLowerCase())) {
+      return pickAnimSource(sources, group, resetClip, options);
+    }
+    const candidates = (sources ?? [])
+      .filter((source) => source.animationPackId === ANIMATION_PACK_IDS.reanimation
+        && source.animationFamily === 'combat')
+      .map((source) => ({ source, pick: pickAnimSource([source], group, resetClip, options) }))
+      .filter((candidate) => candidate.pick)
+      .sort((a, b) => String(a.source.name).localeCompare(String(b.source.name)));
+    if (!candidates.length) return pickAnimSource(sources, group, resetClip, options);
+    const seed = `${String(group).toLowerCase()}|${inferredType.toLowerCase()}`;
+    let hash = 2166136261;
+    for (let i = 0; i < seed.length; i++) {
+      hash ^= seed.charCodeAt(i);
+      hash = Math.imul(hash, 16777619);
+    }
+    return candidates[(hash >>> 0) % candidates.length].pick;
+  }
+
   /** Play a section of the weapon group. Returns FALSE and leaves the
    *  slot empty when the file has no such window - it never substitutes
    *  a different one, because a substituted attack animation is the
    *  reverted arc's whole failure mode in miniature. */
   function playAction(start, stop, startPoint = 0, reversed = false) {
     if (!rig() || !weaponGroup) return false;
-    const pick = pickAnimSource(rig().sources, weaponGroup, resetClip, { start, stop, startPoint });
+    const pick = pickFirstPersonActionSource(rig().sources, weaponGroup, start, stop, startPoint);
     if (!pick) {
       actionState = null;
       notes.push(`${weaponGroup}: no source has "${weaponGroup}: ${start}" and "${weaponGroup}: ${stop}"`);
@@ -4684,7 +4713,7 @@ export function createFpArm({ playerAppearance = false } = {}) {
     const key = `${rigKey}:${weaponGroup}:${type}`;
     if (strikeSides.has(key)) return strikeSides.get(key);
     let side = null;
-    const pick = weaponGroup && r.sources ? pickAnimSource(r.sources, weaponGroup, resetClip, { start: `${type} start`, stop: `${type} hit` }) : null;
+    const pick = weaponGroup && r.sources ? pickFirstPersonActionSource(r.sources, weaponGroup, `${type} start`, `${type} hit`, 0, type) : null;
     const t0 = pick ? getTextKeyTime(pick.source.keys, `${weaponGroup}: ${type} start`) : -1;
     const t1 = pick ? getTextKeyTime(pick.source.keys, `${weaponGroup}: ${type} hit`) : -1;
     if (t0 >= 0 && t1 >= 0 && r.arm && r.arm.fns && r.arm.skeleton) {
