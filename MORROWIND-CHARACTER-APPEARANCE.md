@@ -162,4 +162,12 @@ Do not continue tuning global height thresholds or torso-width percentiles as th
 4. Replace overlapping guessed masks only after the report shows where they fail. Keep overall controls explicitly broad; make named controls use separately defined region weights with documented anchors and falloffs.
 5. Add regression coverage using captured measurements from real Better Bodies NIF variants, not only a synthetic point cloud. Record source-level tests separately from build, browser-preview and in-game visual checks.
 
+#### Implementation update — bone-weight gating (2026-10-21)
+
+The production deformation path now uses recognizable NIF skin-influence names to gate per-vertex membership for trunk, shoulder, pelvis, arm, thigh and calf controls. This is a structural change from classifying every vertex by the animated silhouette alone. Coordinates still subdivide nearby trunk regions such as breast, ribcage, waist and abdomen; bone weights cannot distinguish those adjacent areas by themselves.
+
+This is a partial correction, not proof that every slider is visually correct. The current shared bounds are still measured after skinning, and torso subdivisions still use overlapping height falloffs. If the actual Better Bodies NIF uses bone names outside the recognized patterns, the diagnostic must report those names and the mapping must be extended from observed data rather than guessed.
+
+Validation required before calling this resolved: run the focused body-morph test, inspect bone-name coverage on actual assembled Better Bodies meshes, and measure each isolated slider's vertex displacement on real mesh data. A synthetic unit test is not visual or in-game validation.
+
 **Not yet done:** no production morph algorithm was changed as part of this investigation; no build, automated test run, browser render, or in-game visual check has been performed. The existing torso-mask commits remain unverified.
