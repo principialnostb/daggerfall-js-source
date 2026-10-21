@@ -2367,7 +2367,7 @@ async function buildTpBody({
     // Keep the custom group names raw in the inventory; refreshIdle aliases them only
     // when the corresponding idle provider is selected.
     if (!werewolf && !beast) {
-      const idleVariant = dynamicIdleVariantForActor({ race, faceIndex, appearanceHeadId });
+      const idleVariant = dynamicIdleVariantForActor({ player: playerBody, race, faceIndex, appearanceHeadId });
       const idleAsset = await loadDynamicIdleAnimationAsset({ female, variant: idleVariant });
       if (idleAsset) {
         const report = await cachedClipReport(gen, skeletonPath, idleAsset.path, () => idleAsset.bytes, arm.skeleton);
