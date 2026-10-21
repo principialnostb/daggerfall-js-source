@@ -2848,7 +2848,7 @@ async function renderHeadAssembly(renderer, cat, { skeletonPath, skinRows, heads
  *  `skin`); and what is worn on it (`armor`, the build's own list - a helm, a hooded outfit); a player's (`ownHeads`) the
  *  port's own heads where its race has them, as a player's body wears them (MW-HEADS2). `{ width, height, data }`
  *  or null (no data attached, no renderer, no head for the race, the skeleton or a mesh or a texture not in hand).
- *  @param {{ renderer?: any, race?: string|null, female?: boolean, faceIndex?: number, npcFace?: { head: number, hair: number }|null, ownHeads?: boolean, vampire?: boolean, werewolf?: boolean, skin?: string|null, armor?: any[]|null, px?: number, ph?: number, deps?: any }} [opts] */
+ *  @param {{ renderer?: any, race?: string|null, female?: boolean, faceIndex?: number, npcFace?: { head: number, hair: number }|null, ownHeads?: boolean, vampire?: boolean, werewolf?: boolean, skin?: string|null, armor?: any[]|null, appearanceHeadId?: string|null, appearanceHairId?: string|null, px?: number, ph?: number, deps?: any }} [opts] */
 export async function headPortrait({ renderer, race, female = false, faceIndex = 0, npcFace = null, vampire = false, werewolf = false, skin = null, armor = null, ownHeads = false, appearanceHeadId = null, appearanceHairId = null, px = 128, ph = px, deps = null } = {}) {
   if (!getPref('morrowind3dPaperDoll')) return null;
   if (!renderer || !race) return null;
