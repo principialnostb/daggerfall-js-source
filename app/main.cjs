@@ -1791,6 +1791,45 @@ ipcMain.on('dagger:game-up', (e) => {
   if (gameWindow && !gameWindow.isDestroyed() && e.sender === gameWindow.webContents) gameStore?.bootDone();
 });
 
+// MOD-DIAG1: best-effort, bounded NDJSON diagnostics. Only the actual game window may write;
+// renderer-controlled values can select a sanitized mod filename, never a path.
+const DIAGNOSTIC_LEVELS = new Set(['debug', 'info', 'warn', 'error']);
+const diagnosticText = (value, limit = 1200) => String(value ?? '').replace(/[\u0000-\u001f\u007f]/g, ' ').slice(0, limit);
+const diagnosticModFile = (value) => {
+  const name = diagnosticText(value || 'core', 240).replace(/\\/g, '/').split('/').pop()
+    .replace(/[^a-zA-Z0-9._ -]/g, '_').trim().slice(0, 120);
+  return (name || 'unknown-mod') + '.ndjson';
+};
+let diagnosticWriteQueue = Promise.resolve();
+ipcMain.on('dagger:diagnostic', (e, raw) => {
+  if (!gameWindow || gameWindow.isDestroyed() || e.sender !== gameWindow.webContents) return;
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return;
+  try {
+    const details = raw.details && typeof raw.details === 'object' && !Array.isArray(raw.details) ? raw.details : {};
+    const record = {
+      timestamp: /^\d{4}-\d\d-\d\dT/.test(raw.timestamp ?? '') ? diagnosticText(raw.timestamp, 40) : new Date().toISOString(),
+      sessionId: diagnosticText(raw.sessionId, 100),
+      sequence: Number.isSafeInteger(raw.sequence) && raw.sequence >= 0 ? raw.sequence : 0,
+      level: DIAGNOSTIC_LEVELS.has(raw.level) ? raw.level : 'info',
+      phase: diagnosticText(raw.phase || 'runtime', 100),
+      action: diagnosticText(raw.action || 'event', 120),
+      modId: diagnosticText(raw.modId || 'core', 240),
+      resource: raw.resource == null ? null : diagnosticText(raw.resource, 500),
+      message: diagnosticText(raw.message, 2000),
+      details,
+    };
+    if (Buffer.byteLength(JSON.stringify(record), 'utf8') > 16000) record.details = { note: 'details omitted: record exceeded 16 KB' };
+    const line = JSON.stringify(record) + '\n';
+    const root = path.join(app.getPath('userData'), 'Diagnostics');
+    const modPath = path.join(root, 'mods', diagnosticModFile(record.modId));
+    diagnosticWriteQueue = diagnosticWriteQueue.then(async () => {
+      await fs.promises.mkdir(path.dirname(modPath), { recursive: true });
+      await fs.promises.appendFile(path.join(root, 'integration.ndjson'), line, 'utf8');
+      await fs.promises.appendFile(modPath, line, 'utf8');
+    }).catch((error) => { console.error('[diagnostics] log write failed:', error?.message ?? error); });
+  } catch (error) { console.error('[diagnostics] rejected malformed record:', error?.message ?? error); }
+});
+
 // The preload asks for its storage root synchronously at page boot -
 // storage must exist before the first module reads a setting.
 ipcMain.on('dagger:user-data-path', (e) => { e.returnValue = app.getPath('userData'); });
