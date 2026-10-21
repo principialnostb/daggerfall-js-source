@@ -1265,14 +1265,14 @@ export const FEATURES = Object.freeze([
   modFeature('project-legacy', () => t('features.mod.projectLegacy.effect', 'Takes effect at once; a family keeps the model it was founded with.'), 'character'),
   // MW-TEXTURE-PACKS: individually selectable layers; optional packs default off.
   ...[
-    ['mw-textures-high-resolution-bodies', 'High Resolution Better Body Female Textures', 'HighResolutionBetterBodyFemaleTextures'],
-    ['mw-textures-intelligent', 'Intelligent Textures · 00 Core', 'IntelligentTextures'],
-    ['mw-textures-vurt-clothes', "Vurt\'s Better Clothes Retexture", 'VurtsBetterClothes'],
-    ['mw-textures-better-clothes', 'Better Clothes Retextured', 'BetterClothesRetextured'],
-    ['mw-textures-better-armor', 'Better Morrowind Armor', 'BetterMorrowindArmor'],
-    ['mw-textures-armor-joints', 'Complete Armor Joints', 'CompleteArmorJoints'],
-    ['mw-textures-westly-clothiers', "Westly\'s Fine Clothiers of Tamriel", 'WestlysFineClothiers'],
-    ['mw-textures-westly-faces', "Westly\'s Faces Refurbished", 'WestlysFacesRefurbished'],
+    ['mw-textures-high-resolution-bodies', 'High Resolution Better Body Female Textures', 'HighResolutionBetterBodyFemaleTexturesSource'],
+    ['mw-textures-intelligent', 'Intelligent Textures · 00 Core', 'IntelligentTexturesSource'],
+    ['mw-textures-vurt-clothes', "Vurt\'s Better Clothes Retexture", 'VurtsBetterClothesSource'],
+    ['mw-textures-better-clothes', 'Better Clothes Retextured', 'BetterClothesRetexturedSource'],
+    ['mw-textures-better-armor', 'Better Morrowind Armor', 'BetterMorrowindArmorSource'],
+    ['mw-textures-armor-joints', 'Complete Armor Joints', 'CompleteArmorJointsSource'],
+    ['mw-textures-westly-clothiers', "Westly\'s Fine Clothiers of Tamriel", 'WestlysFineClothiersSource'],
+    ['mw-textures-westly-faces', "Westly\'s Faces Refurbished", 'WestlysFacesRefurbishedSource'],
   ].map(([id, title, key]) => Object.freeze({
     id,
     group: 'world',
