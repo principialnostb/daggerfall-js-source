@@ -2884,7 +2884,41 @@ export function deformPlayerBodyGeometry(piece, morph, bodyBounds) {
   const legGap = amount('legGap');
   const hipLine = minZ + spanZ * 0.49;
   const shoulderLine = minZ + spanZ * 0.78;
-  for (let i = 0; i + 2 < p.length; i += 3) {
+
+  // Prefer authored NIF skin influences over guessing anatomy from the animated
+  // silhouette. Coordinates still subdivide the trunk, while bone weights gate
+  // trunk, shoulder, pelvis, arm, thigh and calf membership.
+  const vertexCount = Math.floor(p.length / 3);
+  const boneRegions = {
+    trunk: new Float32Array(vertexCount), shoulder: new Float32Array(vertexCount),
+    pelvis: new Float32Array(vertexCount), arm: new Float32Array(vertexCount),
+    thigh: new Float32Array(vertexCount), calf: new Float32Array(vertexCount),
+  };
+  const boneList = piece.batch?.skin?.bones;
+  let hasRecognizedBoneRegions = false;
+  const addBoneWeights = (target, bone) => {
+    hasRecognizedBoneRegions = true;
+    const indices = bone.indices || [], weights = bone.weights || [];
+    for (let k = 0; k < indices.length; k++) {
+      const vertex = indices[k];
+      if (vertex < 0 || vertex >= vertexCount) continue;
+      target[vertex] = Math.min(1, target[vertex] + Math.max(0, Number(weights[k]) || 0));
+    }
+  };
+  for (const bone of boneList || []) {
+    const name = String(bone.name || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+    if (!name) continue;
+    if (/spine|chest|torso|abdomen|pelvis|hip|ribcage/.test(name)) addBoneWeights(boneRegions.trunk, bone);
+    if (/pelvis|hip/.test(name)) addBoneWeights(boneRegions.pelvis, bone);
+    if (/clavicle|shoulder|spine[123]|chest/.test(name)) addBoneWeights(boneRegions.shoulder, bone);
+    if (/upperarm|lowerarm|forearm|arm|wrist|hand|clavicle/.test(name)) addBoneWeights(boneRegions.arm, bone);
+    if (/thigh|upperleg|upleg|femur/.test(name)) addBoneWeights(boneRegions.thigh, bone);
+    if (/calf|lowerleg|ankle|foot/.test(name)) addBoneWeights(boneRegions.calf, bone);
+  }
+  const roleWeight = (role, vertex, fallback) =>
+    hasRecognizedBoneRegions ? boneRegions[role][vertex] : fallback;
+
+  for (let i = 0, vertex = 0; i + 2 < p.length; i += 3, vertex++) {
     const ox = p[i], oy = p[i + 1], oz = p[i + 2];
     if (!Number.isFinite(ox + oy + oz)) continue;
     const nx = (ox - cx) / halfX, ny = (oy - cy) / halfY;
@@ -2900,17 +2934,18 @@ export function deformPlayerBodyGeometry(piece, morph, bodyBounds) {
     // Torso controls use torso-relative width. The former mask used ax,
     // normalized by the widest points of the entire body; when arms were
     // spread, its "torso" region expanded sideways and included arm vertices.
-    const torsoCore = 1 - smoothstep(0.72, 1.12, torsoAx);
-    const shoulderZone = gauss(nz, 0.78, 0.065) * torsoCore;
+    const torsoCore = (1 - smoothstep(0.72, 1.12, torsoAx)) * roleWeight('trunk', vertex, 1);
+    const shoulderZone = gauss(nz, 0.78, 0.065) * torsoCore * roleWeight('shoulder', vertex, 1);
     const ribcageZone = gauss(nz, 0.68, 0.075) * torsoCore;
     const breastZone = gauss(nz, 0.685, 0.065) * gauss(torsoAx, 0.38, 0.28) * torsoCore;
     const waistZone = gauss(nz, 0.56, 0.055) * torsoCore;
     const abdomenZone = gauss(nz, 0.525, 0.07) * torsoCore;
-    const hipZone = gauss(nz, 0.47, 0.065) * torsoCore;
-    const buttockZone = gauss(nz, 0.465, 0.07) * torsoCore;
-    const armZone = gauss(ax, 0.40, 0.12) * gauss(nz, 0.65, 0.15);
-    const thighZone = (ax > 0.07 ? 1 : 0) * gauss(nz, 0.31, 0.085);
-    const calfZone = (ax > 0.045 ? 1 : 0) * gauss(nz, 0.15, 0.065);
+    const pelvisWeight = roleWeight('pelvis', vertex, 1);
+    const hipZone = gauss(nz, 0.47, 0.065) * torsoCore * pelvisWeight;
+    const buttockZone = gauss(nz, 0.465, 0.07) * torsoCore * pelvisWeight;
+    const armZone = gauss(ax, 0.40, 0.12) * gauss(nz, 0.65, 0.15) * roleWeight('arm', vertex, 1);
+    const thighZone = (ax > 0.07 ? 1 : 0) * gauss(nz, 0.31, 0.085) * roleWeight('thigh', vertex, 1);
+    const calfZone = (ax > 0.045 ? 1 : 0) * gauss(nz, 0.15, 0.065) * roleWeight('calf', vertex, 1);
 
     // Broad controls are intentionally broad; all named controls below are
     // confined to their own anatomical masks instead of sharing a height band.
@@ -2940,7 +2975,10 @@ export function deformPlayerBodyGeometry(piece, morph, bodyBounds) {
 
     // Leg spacing only affects limb regions, not the pelvis or hip silhouette.
     if (nz < 0.43 && ax > 0.105) {
-      const limbWeight = Math.max(gauss(nz, 0.31, 0.10), gauss(nz, 0.13, 0.075));
+      const limbWeight = Math.max(
+        gauss(nz, 0.31, 0.10) * roleWeight('thigh', vertex, 1),
+        gauss(nz, 0.13, 0.075) * roleWeight('calf', vertex, 1),
+      );
       x += Math.sign(nx) * halfX * legGap * 0.075 * limbWeight;
     }
     if (legLength) {
