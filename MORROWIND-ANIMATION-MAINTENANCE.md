@@ -65,18 +65,17 @@ Walk-only source filtering is the key isolation boundary. In the current code, S
 
 A broad KF can contain tracks for many bones and text keys for several groups. Never enable it wholesale as a walk replacement. Confirm group names, key timing, skeleton binding, loop markers, and root-motion behavior before integrating any additional group family.
 
-## First-person and hit-reaction providers — scoped integration
+## First-person, OpenMW Dynamic Animations, and hit-reaction providers
 
-The **Animations** feature group now exposes two source selectors with Vanilla as the first option:
+These providers are connected to the gameplay source lists in `src/combat/fpArm.js`; they are not merely present in the asset tree.
 
-- **First-person animation source** — Vanilla, ReAnimation v3, or OpenMW Dynamic Animations (first-person locomotion only). ReAnimation v3 remains the default to preserve the existing runtime behavior. The selector is mutually exclusive: providers are never merged into one unordered pool. Each selected KF is parsed and bound to the active first-person rig; unsupported or missing groups fall back to archive sources.
-- **Hit-reaction source** — Vanilla or Hit Reactions Animated v2. The loader is gated by this choice and the consumer admits only groups whose names begin with hit, stagger, or death. It does not replace locomotion, idle, or weapon-attack groups.
+- **First-person source selector:** Vanilla / ReAnimation v3 / ReAnimation v3 + OpenMW Dynamic Animations. ReAnimation clips are loaded on the actual first-person build after archive sources and their group prefixes are normalized. The third option adds directional walk/run/sneak clips as a higher-priority overlay for those movement groups.
+- **OpenMW Dynamic Animations (third person):** a separate Settings control enables rig-matched KF sources for standard male, female, beast, race-specific and supported creature folders. The adapter maps authored variant names (for example, `walkforward_base15`) to the canonical group requested by the JavaScript animation state machine. A deterministic per-actor hash selects variants; the default `base15` forward gait is preferred where present. Explicit walk/run selectors are appended later and retain priority for their own groups.
+- **Hit Reactions Animated v2:** the loader first selects the active skeleton family. The runtime remaps `HitReact` and `Stagger*` clips into `hit1..hitN`, and `Death*` clips into `death1..deathN`, which are the groups the current combat state machine requests. Clip sources with parse errors, no usable text keys, or no tracks bound to the active rig are rejected and archive sources remain available.
 
-### OpenMW Dynamic Animations boundary
+The original OpenMW Lua controllers and YAML files are reference inputs, not executable plugins in the browser. Their clip-source behavior is ported into JavaScript; this does not mean OpenMW's entire original NPC-by-NPC profile database or every transition rule is executed byte-for-byte. In-game visual validation is required to verify foot timing, root motion, attack sections, death poses, and skeleton-specific track coverage.
 
-The original pack's Dynamic Animations.omwscripts, Lua controllers, per-actor NPC/creature presets, and YAML blending rules are **not executed** by the browser runtime. The initial port deliberately selects only the pack's xbase_anim.1st directional Walk*, Run*, and Sneak* *_base;.kf clips. It excludes IdleSneak, SneakMovement; Skip, poses, third-person human clips, and creature/race-specific sets. This is a clip-source integration, not a claim that OpenMW's dynamic speed/state logic has been ported. Validate the selected clips in-game before treating their motion timing as verified.
-
-The provider selection and path whitelist have regression coverage in test/formats/morrowind/mwwalkassets.test.js. The repository was updated remotely; local npm test, lint, type-check, build, and in-game visual validation have not been run in this environment.
+Regression coverage is in `test/formats/morrowind/mwwalkassets.test.js`, `test/systems/org2_options.test.js`, and `test/systems/features.test.js`. Full `npm test` and build have not been run in this environment.
 
 ## Animation settings home — taxonomy scaffold in v4
 
