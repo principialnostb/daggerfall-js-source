@@ -213,3 +213,10 @@ The root runtime now excludes pelvis/hip bones from the trunk influence set, gat
 **Important source-of-truth note:** the repository contains a second copy under `morrowind.v4/src/`. It is not byte-identical to the root runtime; the root test suite imports `src/`. Do not assume a fix in one copy changes the other. Before any release or merge, explicitly establish which tree the target build consumes and either sync the intended patch or document the snapshot boundary.
 
 **Validation status:** source and regression tests were updated, but the test suite and in-game/browser visual validation have not been executed in this pass. Do not mark the slider problem resolved until the focused test passes and each control is measured on actual supported NIF body meshes.
+
+
+### Preview refresh regression found on 2026-10-21
+
+- The appearance editor defined a debounced `schedulePreviewRigRebuild()` because the preview rig can retain assembled/cached mesh state, but neither the slider `input` handler nor the reset handler called it. Both handlers only redrew the existing rig. This meant the documented cache invalidation path was dead code, so slider changes could redraw stale assembled geometry even while draft values and labels changed.
+- `src/ui/appearanceEditor.js` now schedules the debounced preview-rig rebuild after slider input and after resetting all morphs. This is a targeted preview invalidation fix, not proof that anatomical masks are correctly calibrated for every Better Bodies NIF.
+- Remaining verification: run the body-morph unit tests and visually test each slider against the real preview rig. Existing synthetic vertex-cloud tests only prove that formulas move selected artificial vertices; they do not validate the shipped NIF's skin influence mapping or anatomical locality. Do not describe the editor as fixed until that validation is complete.
