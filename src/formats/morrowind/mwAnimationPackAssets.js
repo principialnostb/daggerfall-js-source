@@ -187,8 +187,9 @@ export function reAnimationPrefixesForWeaponGroup(weaponShortGroup = '') {
   const prefixesByGroup = {
     '1s': ['xdagger', 'x1s'],
     '1h': ['x1h'],
+    '1b': ['x1h'],
     '2c': ['x2c'],
-    '2w': ['x2w'],
+    '2w': ['x2w', 'x2h'],
     bow: ['xbow'],
     crossbow: ['xcrossbow'],
     '1t': ['x1t', 'xthrownknife', 'xthrownstar'],
