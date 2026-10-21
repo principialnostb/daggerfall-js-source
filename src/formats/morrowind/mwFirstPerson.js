@@ -2854,9 +2854,9 @@ export function deformPlayerBodyGeometry(piece, morph, bodyBounds) {
   const halfY = Math.max(1e-5, (maxY - minY) * 0.5);
   const spanZ = Math.max(1e-5, maxZ - minZ);
   const cx = (minX + maxX) * 0.5, cy = (minY + maxY) * 0.5;
-  // bodyBounds.torsoHalfX is estimated from the torso-height cross-section,
-  // not from the full silhouette: outstretched arms must not redefine the
-  // width scale used to classify torso vertices.
+  // Both centre and half-width come from the torso-height cross-section.
+  // Asymmetric/outstretched arms must not shift or widen torso masks.
+  const torsoCenterX = Number.isFinite(bodyBounds.torsoCenterX) ? bodyBounds.torsoCenterX : cx;
   const torsoHalfX = Math.max(1e-5, Number(bodyBounds.torsoHalfX) || halfX);
   const amount = (key) => clampMorph(morph?.[key]);
   const gauss = (v, center, width) => Math.exp(-Math.pow((v - center) / width, 2));
@@ -2889,7 +2889,7 @@ export function deformPlayerBodyGeometry(piece, morph, bodyBounds) {
     if (!Number.isFinite(ox + oy + oz)) continue;
     const nx = (ox - cx) / halfX, ny = (oy - cy) / halfY;
     const ax = Math.abs(nx);
-    const torsoAx = Math.abs(ox - cx) / torsoHalfX;
+    const torsoAx = Math.abs(ox - torsoCenterX) / torsoHalfX;
     const nz = (oz - minZ) / spanZ;
     let x = ox, y = oy, z = oz;
 
@@ -3058,16 +3058,20 @@ export function poseAssembly(assembly, { tracks = null, sampleTrack = null,
       // band. A robust percentile rejects most arm-tip outliers while keeping
       // this coordinate frame shared by all separately skinned body pieces.
       const spanZ = Math.max(1e-5, bodyBounds.maxZ - bodyBounds.minZ);
-      const cx = (bodyBounds.minX + bodyBounds.maxX) * 0.5;
-      const torsoRadii = [];
+      const torsoXs = [];
       for (const p of bodyPieces) for (let i = 0; i + 2 < p.positions.length; i += 3) {
         const x = p.positions[i], y = p.positions[i + 1], z = p.positions[i + 2];
         if (!Number.isFinite(x + y + z)) continue;
         const nz = (z - bodyBounds.minZ) / spanZ;
-        if (nz >= 0.53 && nz <= 0.75) torsoRadii.push(Math.abs(x - cx));
+        if (nz >= 0.53 && nz <= 0.75) torsoXs.push(x);
       }
-      if (torsoRadii.length) {
+      if (torsoXs.length) {
+        torsoXs.sort((a, b) => a - b);
+        const centerIndex = Math.floor((torsoXs.length - 1) * 0.5);
+        const torsoCenterX = torsoXs[centerIndex];
+        const torsoRadii = torsoXs.map((x) => Math.abs(x - torsoCenterX));
         torsoRadii.sort((a, b) => a - b);
+        bodyBounds.torsoCenterX = torsoCenterX;
         bodyBounds.torsoHalfX = torsoRadii[Math.floor((torsoRadii.length - 1) * 0.72)];
       }
       for (const p of bodyPieces) deformPlayerBodyGeometry(p, geometryMorph, bodyBounds);
