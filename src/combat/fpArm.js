@@ -2537,6 +2537,32 @@ async function buildCreatureBody({ creature, flies = false, deps = null }) {
       sources.push({ name: p, keys: one.keys, groups: one.groups, groupSet: new Set(one.groups), trackMap: one.trackMap, binding: one.binding,
         wouldAccumRoot: accumRootRef(arm.skeleton, one.trackMap) });
     }
+    // OpenMW Dynamic Animations also ships rig-specific creature clips. Apply
+    // the same deterministic group adapter used for bipedal bodies; a missing or
+    // incompatible clip never replaces the creature's archive source.
+    const dynamicAssets = await loadOpenMWDynamicThirdPersonAnimationAssets({ skeletonPath: modelPath, race: rec.id });
+    const selectedDynamicAssets = selectOpenMWDynamicAnimationVariants(dynamicAssets, `${rec.id}|${modelPath}`);
+    for (const asset of selectedDynamicAssets) {
+      const report = await cachedClipReport(gen, modelPath, asset.name, () => asset.bytes, arm.skeleton);
+      if (!report.ok) {
+        arm.notes?.push(`OpenMW Dynamic Animations creature clip ${asset.name}: ${report.error}`);
+        continue;
+      }
+      const sourceGroup = String(asset.sourceGroup ?? '').toLowerCase();
+      const targetGroup = String(asset.targetGroup ?? '').toLowerCase();
+      const aliases = new Set([sourceGroup, sourceGroup.replace(/^[xz]/, ''), targetGroup,
+        `x${targetGroup}`, `z${targetGroup}`]);
+      const sourceGroups = report.groups.filter((name) => aliases.has(String(name).toLowerCase()));
+      const keys = remapAnimationGroupKeys(report.keys, sourceGroups, targetGroup);
+      if (!sourceGroups.length || !keys.length) continue;
+      const groups = [targetGroup];
+      sources.push({
+        name: asset.name, keys, groups, groupSet: new Set(groups),
+        trackMap: report.trackMap, binding: report.binding,
+        wouldAccumRoot: accumRootRef(arm.skeleton, report.trackMap),
+        animationFamily: 'dynamic-third-person', animationPack: 'openmw-dynamic-animations',
+      });
+    }
     const groupSet = new Set(sources.flatMap((so) => so.groups));
     const idlePick = groupSet.has(FP_IDLE_BASE) ? pickAnimSource(sources, FP_IDLE_BASE, resetClip, { loopFallback: true }) : null;
     if (!idlePick) return { ok: false, stage: 'clip', error: `no source gives "${FP_IDLE_BASE}" a start and a stop key`, notes: arm.notes };
