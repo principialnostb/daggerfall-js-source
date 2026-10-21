@@ -185,7 +185,7 @@ export function openAppearanceEditor({ fpArm, onClose = () => {} } = {}) {
   if (typeof document === 'undefined' || !document.body) return null;
   document.getElementById('mw-appearance-editor')?.remove();
 
-  let yaw = 0, zoom = 1, frame = 0, morphPreviewTimer = 0, previewRetryTimer = 0, previewBuildAttempts = 0, closed = false, previewRig = null, previewBuildPending = false, previewRebuildRequested = false, previewError = '';
+  let yaw = 0, zoom = 1, frame = 0, previewDrawFrame = 0, lastInteractiveDrawAt = 0, morphPreviewTimer = 0, previewRetryTimer = 0, previewBuildAttempts = 0, closed = false, previewRig = null, previewBuildPending = false, previewRebuildRequested = false, previewError = '';
   const initialIdentity = fpArm?.builtFor?.() || {};
   const savedIdentity = getAppearanceIdentity();
   let selectedRace = String(savedIdentity?.race || initialIdentity.race || 'nord').toLowerCase();
@@ -447,10 +447,9 @@ export function openAppearanceEditor({ fpArm, onClose = () => {} } = {}) {
         draftMorphs[key] = value;
         output.textContent = formatValue(value);
         input.style.setProperty('--range-fill', (((value + 1) / 2) * 100) + '%');
-        drawPreview();
-        // The preview rig caches its assembled geometry. Rebuild after slider
-        // input settles so the latest draft morphs are applied to a fresh rig.
-        schedulePreviewRigRebuild();
+        // Re-pose the existing preview assembly. Rebuilding it here re-reads
+        // model/texture resources for a change that only affects vertex positions.
+        schedulePreviewDraw();
       });
       inputs.set(key, input); outputs.set(key, output);
       row.append(name, input, output); fields.append(row);
@@ -469,8 +468,7 @@ export function openAppearanceEditor({ fpArm, onClose = () => {} } = {}) {
       outputs.get(key).textContent = formatValue(Number(input.value));
       input.style.setProperty('--range-fill', (((Number(input.value) + 1) / 2) * 100) + '%');
     }
-    drawPreview();
-    schedulePreviewRigRebuild();
+    schedulePreviewDraw();
   });
   const done = makeButton('Готово', true, 'mw-btn-primary');
   done.addEventListener('click', async () => {
@@ -546,21 +544,28 @@ export function openAppearanceEditor({ fpArm, onClose = () => {} } = {}) {
   preview.addEventListener('pointercancel', release);
 
 
-  // Morphs are applied during poseAssembly, but a preview rig can retain
-  // assembled/cached mesh state across frames. Rebuild once the user pauses
-  // slider input so the displayed geometry is guaranteed to use the latest
-  // saved proportions without rebuilding on every pointer event.
-  function schedulePreviewRigRebuild() {
+  // Morph changes only require re-posing and re-rendering the already-built
+  // preview rig. Throttle expensive CPU skinning to about 30 fps while dragging,
+  // render at a smaller size during interaction, then restore full quality once
+  // the slider settles. Never reload NIFs/textures for a vertex-morph change.
+  function schedulePreviewDraw() {
+    if (!previewDrawFrame) {
+      const drawInteractiveFrame = (timestamp) => {
+        previewDrawFrame = 0;
+        if (closed) return;
+        if (timestamp - lastInteractiveDrawAt < 33) {
+          previewDrawFrame = requestAnimationFrame(drawInteractiveFrame);
+          return;
+        }
+        lastInteractiveDrawAt = timestamp;
+        drawPreview(true);
+      };
+      previewDrawFrame = requestAnimationFrame(drawInteractiveFrame);
+    }
     if (morphPreviewTimer) window.clearTimeout(morphPreviewTimer);
     morphPreviewTimer = window.setTimeout(() => {
       morphPreviewTimer = 0;
-      if (closed) return;
-      previewRig?.unload?.();
-      previewRig = null;
-      previewError = '';
-      statusMessage.style.display = 'block';
-      statusMessage.textContent = 'Обновление пропорций модели…';
-      void buildPreviewRig();
+      if (!closed) drawPreview(false);
     }, 180);
   }
 
@@ -632,7 +637,7 @@ export function openAppearanceEditor({ fpArm, onClose = () => {} } = {}) {
     }
   }
 
-  function drawPreview() {
+  function drawPreview(interactive = false) {
     if (closed) return;
     if (!previewRig) {
       statusMessage.style.display = 'block';
@@ -641,7 +646,10 @@ export function openAppearanceEditor({ fpArm, onClose = () => {} } = {}) {
       return;
     }
     try {
-      const image = previewRig.figure({ yaw, height: Math.min(1024, Math.max(640, Math.round(preview.height * 0.95))), force: true, neutral: true, bodyProportions: draftMorphs });
+      const targetHeight = interactive
+        ? Math.min(512, Math.max(320, Math.round(preview.height * 0.45)))
+        : Math.min(1024, Math.max(640, Math.round(preview.height * 0.95)));
+      const image = previewRig.figure({ yaw, height: targetHeight, force: true, neutral: true, bodyProportions: draftMorphs });
       const ctx = preview.getContext('2d');
       if (!ctx) return;
       ctx.clearRect(0, 0, preview.width, preview.height);
@@ -672,6 +680,7 @@ export function openAppearanceEditor({ fpArm, onClose = () => {} } = {}) {
     if (closed) return;
     closed = true;
     if (frame) cancelAnimationFrame(frame);
+    if (previewDrawFrame) cancelAnimationFrame(previewDrawFrame);
     if (morphPreviewTimer) window.clearTimeout(morphPreviewTimer);
     if (previewRetryTimer) window.clearTimeout(previewRetryTimer);
     morphPreviewTimer = 0;
