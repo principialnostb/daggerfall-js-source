@@ -38,6 +38,7 @@
 // ═══════════════════════════════════════════════════════════════════
 
 import { decodeTextureImage } from './mwTexture.js';
+import { modDiagnostics } from '../../systems/modDiagnostics.js';
 
 /** The most workers the pool opens. A build asks for dozens of decodes
  *  at once; past a few the cores are the limit, not the pool. */
@@ -78,7 +79,11 @@ export function createTexturePool({ workerFactory = null, size = texturePoolSize
     ?? ((textureThreadDisabled() || typeof Worker === 'undefined') ? null : defaultWorkerFactory);
   const here = (path, bytes, levels) => {
     try { return Promise.resolve(decodeTextureImage(path, bytes, levels == null ? undefined : { levels })); }
-    catch (e) { return Promise.reject(Object.assign(e instanceof Error ? e : new Error(String(e)), { decoderError: true })); }
+    catch (e) {
+      const error = Object.assign(e instanceof Error ? e : new Error(String(e)), { decoderError: true });
+      modDiagnostics.record({ level: 'error', phase: 'texture-decode', action: 'texture-decode-failed', modId: 'morrowind-textures', resource: path, message: error.message, details: { decoder: 'main-thread', byteLength: bytes?.byteLength ?? null, levels: levels ?? null } });
+      return Promise.reject(error);
+    }
   };
   const slots = [];   // { w, jobs: Map<id, {path, bytes, levels, resolve, reject}> }
   let dead = !factory;
@@ -114,7 +119,7 @@ export function createTexturePool({ workerFactory = null, size = texturePoolSize
     // the jobs it held go back to this thread - the caller's bytes are still whole
     for (const j of slot.jobs.values()) { stats.onThread++; here(j.path, j.bytes, j.levels).then(j.resolve, j.reject); }
     slot.jobs.clear();
-    if (!slots.length && opened >= size) { dead = true; console.warn('[mw textures] workers unavailable; decoding on the main thread -', why); }
+    if (!slots.length && opened >= size) { dead = true; console.warn('[mw textures] workers unavailable; decoding on the main thread -', why); modDiagnostics.record({ level: 'warn', phase: 'texture-decode', action: 'worker-pool-fallback', modId: 'morrowind-textures', resource: 'worker-pool', message: String(why ?? 'worker unavailable'), details: { fallback: 'main-thread', poolSize: size } }); }
     rest();
   };
   const open = () => {
@@ -129,7 +134,11 @@ export function createTexturePool({ workerFactory = null, size = texturePoolSize
         if (!j) return;
         slot.jobs.delete(m.id);
         if (m.t === 'image') j.resolve(m.image);
-        else j.reject(Object.assign(new Error(m.message ?? 'mw texture worker error'), { decoderError: true }));
+        else {
+          const error = Object.assign(new Error(m.message ?? 'mw texture worker error'), { decoderError: true });
+          modDiagnostics.record({ level: 'error', phase: 'texture-decode', action: 'texture-decode-failed', modId: 'morrowind-textures', resource: j.path, message: error.message, details: { decoder: 'worker', byteLength: j.bytes?.byteLength ?? null, levels: j.levels ?? null } });
+          j.reject(error);
+        }
         rest();
       };
       slots.push(slot);
