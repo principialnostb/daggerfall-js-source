@@ -5493,12 +5493,47 @@ export function createFpArm({ playerAppearance = false } = {}) {
         });
         const pick = pickAnimSource(movementSources, composed.group, resetClip,
           { loopFallback: true, loopCount: Infinity, startPoint });
+        // Record the actual gameplay resolver result, not just successful
+        // replacement-pack loads. This distinguishes a selected archive clip
+        // from a replacement candidate that was discovered but rejected.
+        const diagnosticRig = rig()?.skeletonPath ?? (viewMode === 'third' ? TP_BASE_MODEL : FP_BASE_MODEL);
+        const diagnosticActor = playerAppearance ? 'player'
+          : lastBuildOpts?.ownHeads ? 'peer-player'
+            : lastBuildOpts?.female ? 'female-npc' : 'male-or-unknown-npc';
         if (!pick) {
+          logAnimationDiagnostic(
+            `movement-selection-v1|${diagnosticRig}|${diagnosticActor}|${composed.group}|no-compatible-source`,
+            {
+              family: 'movement-source-selection',
+              rig: diagnosticRig,
+              actor: diagnosticActor,
+              group: composed.group,
+              preference: movementPreference ?? 'vanilla',
+              candidateCount: movementSources.length,
+              selected: false,
+              fallback: 'no-compatible-source',
+            },
+          );
           resetMovement();
           notes.push(`movement: no source gives "${composed.group}" a start and a stop key`);
           movementBase = base; movementStance = stance;   // AUDIT MWBODY A14: remembered, or the note is pushed again every frame
           return;
         }
+        logAnimationDiagnostic(
+          `movement-selection-v1|${diagnosticRig}|${diagnosticActor}|${composed.group}|${pick.source?.name ?? 'unknown-source'}`,
+          {
+            family: 'movement-source-selection',
+            rig: diagnosticRig,
+            actor: diagnosticActor,
+            group: composed.group,
+            preference: movementPreference ?? 'vanilla',
+            candidateCount: movementSources.length,
+            file: pick.source?.name ?? null,
+            sourcePack: pick.source?.walkVariant ?? pick.source?.variant ?? 'archive-or-unlabelled',
+            animationFamily: pick.source?.animationFamily ?? pick.source?.family ?? 'archive-or-unlabelled',
+            selected: true,
+          },
+        );
         movementGroup = composed.group;
         movementState = pick.state;
         movementSource = pick.source;
