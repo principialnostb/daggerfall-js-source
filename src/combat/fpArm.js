@@ -2330,6 +2330,10 @@ async function buildTpBody({
           missing.push(`OpenMW Dynamic Animations clip ${asset.name}: ${report.error}`);
           continue;
         }
+        if (!(report.binding?.matched?.length)) {
+          missing.push(`OpenMW Dynamic Animations clip ${asset.name}: no tracks bind to this rig; archive source retained`);
+          continue;
+        }
         const sourceGroup = String(asset.sourceGroup ?? '').toLowerCase();
         const targetGroup = String(asset.targetGroup ?? '').toLowerCase();
         const aliases = new Set([sourceGroup, sourceGroup.replace(/^[xz]/, ''), targetGroup,
@@ -2402,6 +2406,10 @@ async function buildTpBody({
       for (const asset of assets) {
         const report = await cachedClipReport(gen, skeletonPath, asset.name, () => asset.bytes, arm.skeleton);
         if (!report.ok) { missing.push(`Hit reaction clip ${asset.name}: ${report.error}`); continue; }
+        if (!(report.binding?.matched?.length)) {
+          missing.push(`Hit reaction clip ${asset.name}: no tracks bind to this rig; archive reaction retained`);
+          continue;
+        }
         const sourceGroups = report.groups.filter((name) => reactionGroup.test(name));
         if (!sourceGroups.length) {
           missing.push(`Hit reaction clip ${asset.name}: no hit/stagger/death group; archive fallback retained`);
@@ -2546,6 +2554,10 @@ async function buildCreatureBody({ creature, flies = false, deps = null }) {
       const report = await cachedClipReport(gen, modelPath, asset.name, () => asset.bytes, arm.skeleton);
       if (!report.ok) {
         arm.notes?.push(`OpenMW Dynamic Animations creature clip ${asset.name}: ${report.error}`);
+        continue;
+      }
+      if (!(report.binding?.matched?.length)) {
+        arm.notes?.push(`OpenMW Dynamic Animations creature clip ${asset.name}: no tracks bind to this rig; archive source retained`);
         continue;
       }
       const sourceGroup = String(asset.sourceGroup ?? '').toLowerCase();
@@ -3321,6 +3333,10 @@ export async function buildFpArm({
         const report = await cachedClipReport(gen, skeletonPath, asset.name, () => asset.bytes, arm.skeleton);
         if (!report.ok) {
           missing.push(`First-person clip ${asset.name}: ${report.error}`);
+          continue;
+        }
+        if (!(report.binding?.matched?.length)) {
+          missing.push(`First-person clip ${asset.name}: no tracks bind to this rig; archive source retained`);
           continue;
         }
         const dynamicLocomotion = asset.variant === 'openmw-dynamic-first-person';
