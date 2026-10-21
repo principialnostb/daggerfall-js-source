@@ -1,5 +1,5 @@
-// Bundled Morrowind replacement assets for the mod packs checked into
-// Morrowind Textures. The archive keys match the paths stored in NIF files.
+// Bundled Morrowind replacement assets for packs under Mods/Textures and
+// Mods/Bodies. Archive keys match the game-relative paths stored in NIF files.
 //
 // Priority inside this archive (later packages win exact-path collisions):
 //   Better Bodies Nude textures (required fallback for the existing BB body)
@@ -20,23 +20,23 @@ import { getBodyHairEnabled, getUnderwearEnabled } from '../characters/bodyMorph
 const IN_BROWSER = typeof window !== 'undefined';
 const FILES = IN_BROWSER
   ? import.meta.glob([
-      '../../Morrowind Textures/Better Bodies/Nude/Data Files/Textures/**/*.{dds,DDS,tga,TGA}',
-      '../../Morrowind Textures/High Resolution Better Body Female Textures/Hands/Textures/**/*.{dds,DDS,tga,TGA}',
-      '../../Morrowind Textures/High Resolution Better Body Female Textures/Nude_No_Hair/Textures/**/*.{dds,DDS,tga,TGA}',
-      '../../Morrowind Textures/High Resolution Better Body Female Textures/Underwear/Textures/**/*.{dds,DDS,tga,TGA}',
-      '../../Morrowind Textures/High Resolution Better Body Female Textures/Nude_Body_Hair/Textures/**/*.{dds,DDS,tga,TGA}',
-      '../../Morrowind Textures/Seamless DMRA body replacer/Meshes/**/*.{nif,NIF}',
-      '../../Morrowind Textures/Seamless DMRA body replacer/Textures/**/*.{dds,DDS,tga,TGA}',
-      '../../Morrowind Textures/Intelligent Textures/00 Core/textures/**/*.{dds,DDS,tga,TGA}',
-      "../../Morrowind Textures/Vurt's Better Clothes Retexture/textures/**/*.{dds,DDS,tga,TGA}",
-      '../../Morrowind Textures/Better Clothes Retextured/textures/**/*.{dds,DDS,tga,TGA}',
-      '../../Morrowind Textures/Better Clothes Retextured/meshes/**/*.{nif,NIF}',
-      "../../Morrowind Textures/Westly's Fine Clothiers of Tamriel/Meshes/**/*.{nif,NIF}",
-      "../../Morrowind Textures/Westly's Fine Clothiers of Tamriel/Textures/**/*.{dds,DDS,tga,TGA}",
-      "../../Morrowind Textures/Westly's Fine Clothiers of Tamriel/Westly_Presents_FCOT.esp",
-      "../../Morrowind Textures/Westly's Faces Refurbished/Data Files/**/*.{nif,NIF,dds,DDS,tga,TGA}",
-      '../../Morrowind Textures/Better Morrowind Armor/Data Files/**/*.{nif,NIF,dds,DDS,tga,TGA,esp,ESP}',
-      '../../Morrowind Textures/Better Morrowind Armor/Complete Armor Joints/Data Files/**/*.{nif,NIF,dds,DDS,tga,TGA,esp,ESP}',
+      '../../Mods/Bodies/Better Bodies/Nude/Data Files/Textures/**/*.{dds,DDS,tga,TGA}',
+      '../../Mods/Bodies/High Resolution Better Body Female Textures/Hands/Textures/**/*.{dds,DDS,tga,TGA}',
+      '../../Mods/Bodies/High Resolution Better Body Female Textures/Nude_No_Hair/Textures/**/*.{dds,DDS,tga,TGA}',
+      '../../Mods/Bodies/High Resolution Better Body Female Textures/Underwear/Textures/**/*.{dds,DDS,tga,TGA}',
+      '../../Mods/Bodies/High Resolution Better Body Female Textures/Nude_Body_Hair/Textures/**/*.{dds,DDS,tga,TGA}',
+      '../../Mods/Bodies/Seamless DMRA body replacer/Meshes/**/*.{nif,NIF}',
+      '../../Mods/Bodies/Seamless DMRA body replacer/Textures/**/*.{dds,DDS,tga,TGA}',
+      '../../Mods/Textures/Intelligent Textures/00 Core/textures/**/*.{dds,DDS,tga,TGA}',
+      "../../Mods/Textures/Vurt's Better Clothes Retexture/textures/**/*.{dds,DDS,tga,TGA}",
+      '../../Mods/Textures/Better Clothes Retextured/textures/**/*.{dds,DDS,tga,TGA}',
+      '../../Mods/Textures/Better Clothes Retextured/meshes/**/*.{nif,NIF}',
+      "../../Mods/Textures/Westly's Fine Clothiers of Tamriel/Meshes/**/*.{nif,NIF}",
+      "../../Mods/Textures/Westly's Fine Clothiers of Tamriel/Textures/**/*.{dds,DDS,tga,TGA}",
+      "../../Mods/Textures/Westly's Fine Clothiers of Tamriel/Westly_Presents_FCOT.esp",
+      "../../Mods/Textures/Westly's Faces Refurbished/Data Files/**/*.{nif,NIF,dds,DDS,tga,TGA}",
+      '../../Mods/Textures/Better Morrowind Armor/Data Files/**/*.{nif,NIF,dds,DDS,tga,TGA,esp,ESP}',
+      '../../Mods/Textures/Better Morrowind Armor/Complete Armor Joints/Data Files/**/*.{nif,NIF,dds,DDS,tga,TGA,esp,ESP}',
     ], {
       eager: true, query: '?url', import: 'default',
     })
