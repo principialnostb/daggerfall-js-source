@@ -82,8 +82,8 @@ export const ANIMATION_PACK_PROVIDERS = Object.freeze([
     id: 'reanimation-v3.first-person',
     packId: PACKS.reanimation,
     domains: Object.freeze(['animation.player.firstPerson.locomotion', 'animation.player.firstPerson.stance', 'animation.player.firstPerson.attack']),
-    status: 'present-unintegrated',
-    reason: 'KF inventory is available; weapon/action-specific source mapping and permission review remain required.',
+    status: 'needs-validation',
+    reason: 'Canonical core KF sources are wired to first-person rigs by weapon family; alternate attack behavior, complete weapon coverage, and in-game compatibility remain outstanding.',
   }),
   Object.freeze({
     id: 'dynamic-animations.locomotion',
@@ -166,8 +166,7 @@ export function selectDeterministicReactionGroup(groups, kind, roll = 0) {
 
 /** Load the ReAnimation core KF sources relevant to the current first-person weapon family.
  * Unsupported weapon families return no candidates and therefore retain archive animations. */
-export async function loadReAnimationAnimationAssets({ weaponShortGroup = '' } = {}) {
-  if (!IN_BROWSER) return [];
+export function reAnimationPrefixesForWeaponGroup(weaponShortGroup = '') {
   const prefixesByGroup = {
     '1s': ['xdagger'],
     '1h': ['x1h'],
@@ -178,8 +177,13 @@ export async function loadReAnimationAnimationAssets({ weaponShortGroup = '' } =
     '1t': ['x1t', 'xthrownknife', 'xthrownstar'],
     hh: ['xh2h', 'xhh'],
   };
-  const prefixes = prefixesByGroup[normalize(weaponShortGroup)];
-  if (!prefixes?.length) return [];
+  return prefixesByGroup[normalize(weaponShortGroup)] ?? [];
+}
+
+export async function loadReAnimationAnimationAssets({ weaponShortGroup = '' } = {}) {
+  if (!IN_BROWSER) return [];
+  const prefixes = reAnimationPrefixesForWeaponGroup(weaponShortGroup);
+  if (!prefixes.length) return [];
   const candidates = listAnimationPackAssets({ packId: PACKS.reanimation, skeleton: 'xbase_anim.1st' })
     .filter((asset) => {
       const name = basename(asset.relativePath).replace(/\.kf$/, '');
