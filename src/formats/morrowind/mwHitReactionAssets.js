@@ -29,9 +29,12 @@ async function read(entry) {
   return new Uint8Array(await pending);
 }
 
-export async function loadHitReactionAssets() {
+export async function loadHitReactionAssets({ female = false } = {}) {
   if (!IN_BROWSER) return [];
-  const loaded = await Promise.all(entries.map(async (entry) => {
+  const rigEntries = entries.filter((entry) => female
+    ? entry.path.toLowerCase().includes('/xbase_anim_female/')
+    : entry.path.toLowerCase().includes('/xbase_anim/') && !entry.path.toLowerCase().includes('/xbase_anim_female/'));
+  const loaded = await Promise.all(rigEntries.map(async (entry) => {
     try {
       return { name: entry.path, bytes: await read(entry), optional: true, animationPack: 'hit-reactions-v2' };
     } catch (error) {
