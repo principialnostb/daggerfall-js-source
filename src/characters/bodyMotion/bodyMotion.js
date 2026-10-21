@@ -276,27 +276,17 @@ export function createBodyMotion() {
       const bp = bpNow;
       const k = bp ? bp.w : 0;
       const wind = bp ? bp.wind * k : 0;
-      // FORK-MERGE: when unarmed, leave the original clip completely untouched.
-      // The fork's vanilla walk/run/idle are authoritative; the upstream overlay is
-      // only useful for weapon carry poses.
-      if (cls === 'free' && !bp) { last = null; return null; }
+      // FORK-MERGE: the fork's original clips own unarmed movement AND every melee
+      // strike. The upstream overlay is only applied to weapon carry between attacks.
+      // Even a small chest turn during a strike shifts the weapon's animated arc, so
+      // leave the complete attack pose untouched from wind-up through follow-through.
+      if (cls === 'free' || bp) { last = null; return null; }
 
       const gp = gaitPose(gait, gi, body);
-      // During attacks, keep the fork's original attack clip in charge of both arms.
-      // The upstream melee hand keys made third-person strikes worse, so only borrow
-      // a restrained chest turn; never replace the clip's striking-hand choreography.
-      const strikeChest = bp ? {
-        yaw: bp.chest[0] * RAD * wind * 0.30,
-        roll: bp.chest[1] * RAD * wind * 0.30,
-        pitch: bp.chest[2] * RAD * wind * 0.30,
-      } : null;
       const plan = {
         w,
-        ...(strikeChest ? { chest: strikeChest } : {}),
-        ...(!bp ? {
-          armW: { L: armW.L, R: armW.R },
-          arms: (ctx) => handsFor(ctx, gp, null, null),
-        } : {}),
+        armW: { L: armW.L, R: armW.R },
+        arms: (ctx) => handsFor(ctx, gp, null, null),
       };
       const report = solveBody(skeleton, pose, rootRef, skelMats, plan);
       last = { gp, bp, report };
