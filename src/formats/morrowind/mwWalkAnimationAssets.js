@@ -174,10 +174,17 @@ export function openMWDynamicFirstPersonGroup(path) {
   return match[1].toLowerCase();
 }
 
-/** These packs are authored for the male xbase_anim.1st rig only. */
+/**
+ * ReAnimation and ODAR ship first-person KF files under xbase_anim.1st.
+ * The female first-person rig uses the same named animation channels; clipReport
+ * binds each KF by track name and rejects clips that cannot bind, so allow the
+ * female skeleton through the same compatibility gate instead of silently
+ * leaving every female first-person action on the archive source.
+ */
 export function isFirstPersonAnimationRigCompatible(skeletonPath) {
   const normalized = norm(skeletonPath);
-  return normalized.slice(normalized.lastIndexOf('/') + 1) === 'xbase_anim.1st.nif';
+  const filename = normalized.slice(normalized.lastIndexOf('/') + 1);
+  return /^(?:x?base_anim(?:_female)?\.1st\.nif)$/.test(filename);
 }
 
 /** Load one selected first-person provider in stable path order. */
