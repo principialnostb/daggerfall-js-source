@@ -130,3 +130,33 @@ This is the target contract, not a statement that all stages are implemented:
 - [x] Separated breast expansion from rear-surface movement: breast volume/projection now push the front chest surface and add lateral volume; buttock controls remain restricted to the rear-facing surface. This avoids the previous breast control moving both the front and back of the torso.
 - [x] Applied a final brass-accent pass to the editor's slider tracks, handles, focus state, underwear toggle and primary action so the in-game settings palette is consistent across interactive controls as well as the frame.
 - [ ] Build and in-game visual regression are still required. These source-level corrections have been committed, but no browser/game render was available in this pass; do not mark the coordinate/texture/underwear end-to-end checks complete until they are exercised in the running game.
+
+
+## Body-morph diagnostic findings (2026-10-21)
+
+The following results were reported from direct slider manipulation in the character editor. They describe observed behavior of the current mesh deformation, not intended anatomy. The UI labels should communicate the actual effect, and the body-morph panel must remain explicitly marked as in development until the deformation logic is calibrated.
+
+| Control key | Observed effect | UI wording / status |
+| --- | --- | --- |
+| `shoulderWidth` | Changes ribcage width rather than shoulder width. | «Ширина грудной клетки» |
+| `ribcageWidth` | Changes the lower torso below the ribcage, including its side areas. | «Ширина нижней части корпуса» |
+| `breastSize` | Changes abdomen shape/volume rather than breast volume. | «Объём живота» |
+| `breastProjection` | Changes abdomen protrusion rather than breast projection. | «Выпуклость живота» |
+| `waistWidth` | Changes the groin area and the outer hip sides near the groin. | «Ширина паховой зоны» |
+| `abdomenVolume` | Simultaneously deforms the buttocks and groin area. | «Объём живота (влияет на ягодицы и пах)» |
+| `hipWidth` | No visible effect. | Mark as not working; keep available only as a diagnostic control. |
+| `buttockSize` | Slightly changes the lower buttock area. | Weak effect warning. |
+| `buttockProjection` | Slightly changes buttock projection; effect is nearly imperceptible. | Weak effect warning. |
+| `armThickness` | Changes apparent arm width in a front view, not overall volume. | «Ширина рук (вид спереди)» |
+| `armLength` | No visible effect. | Mark as not working; keep available only as a diagnostic control. |
+| `thighThickness` | Changes knee separation/position in the vertical plane, rather than thigh thickness. | «Положение коленей (бёдра)» |
+| `calfThickness` | Also changes knee separation/position in the vertical plane. | «Положение коленей (голени)» |
+| `legLength` | Changes lower-leg/calf length, not thigh length. | «Длина голеней» |
+| `legGap` | Changes knee and foot spacing together in the vertical plane. | «Расстояние между коленями и стопами» |
+| `height` | Raises the torso while the head remains at its original static point. | «Высота корпуса (голова остаётся на месте)» |
+| `bodyWidth` | Works as expected. | Keep «Ширина тела». |
+| `bodyFullness` | Controls body thickness in side view (front-to-back depth). | «Толщина тела (вид сбоку)». |
+
+The face and hairstyle selectors should visually match the sex and race selectors: one consistent identity-control grid, with no visually separate or foreign-looking cards. Body sliders are placed behind **«Расширенные параметры тела»** with the notice **«Функция находится в разработке»**. The notice is required because several controls have incorrect, weak, or no effect.
+
+Validation remains outstanding: after correcting the UI, test every control on the live preview and compare front/side views. Do not describe the underlying deformation behavior as fixed solely because the labels have been updated.
