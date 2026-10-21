@@ -9,6 +9,8 @@ const FILES = IN_BROWSER
   ? import.meta.glob([
       '../../../Mods/Animations/Simply Walking/**/*.{kf,KF}',
       "../../../Mods/Animations/Axel's Sexy Walk Fixed/Animation/axel fixed/female/*.{kf,KF}",
+      '../../../Mods/Animations/OpenMW Dynamic Animations/animations/xbase_anim/**/*.kf',
+      '../../../Mods/Animations/OpenMW Dynamic Animations/animations/xbase_anim_female/**/*.kf',
       // Morrowind Animation Overhaul is intentionally excluded pending explicit reuse permission.
     ], {
       eager: true, query: '?url', import: 'default',
@@ -25,6 +27,8 @@ const puristFemale = entries.find((e) => e.lower.includes('/simply walking puris
 const feminineFemale = entries.find((e) => e.lower.includes('/simply walking/feminine walk cycle/meshes/xbase_anim_female.kf'));
 const axelFemale = entries.find((e) => e.lower.includes("/axel's sexy walk fixed/animation/axel fixed/female/walkforward;.kf"));
 const axelRunFemale = entries.find((e) => e.lower.includes("/axel's sexy walk fixed/animation/axel fixed/female/runforward;.kf"));
+const dynamicMaleWalk = entries.find((e) => e.lower.includes('/openmw dynamic animations/animations/xbase_anim/walkforward_mw15;.kf'));
+const dynamicFemaleWalk = entries.find((e) => e.lower.includes('/openmw dynamic animations/animations/xbase_anim_female/walkforward_mwf15;.kf'));
 const overhaulMale = entries.find((e) => e.lower.includes('/morrowind animation overhaul/data files/meshes/xbase_anim.kf'));
 const overhaulFemale = entries.find((e) => e.lower.includes('/morrowind animation overhaul/data files/meshes/xbase_anim_female.kf'));
 
@@ -63,6 +67,11 @@ export async function loadWalkAnimationAssets({ female = false } = {}) {
     { entry: axelFemale, variant: 'axel', family: 'walk' },
     { entry: axelRunFemale, variant: 'axel', family: 'run' },
   ] : [];
+  const dynamicCandidate = {
+    entry: female ? dynamicFemaleWalk : dynamicMaleWalk,
+    variant: 'dynamic',
+    family: 'walk',
+  };
   const overhaul = modSetting('morrowind-animation', 'AnimationOverhaul') === 1
     ? { entry: female ? overhaulFemale : overhaulMale, variant: 'overhaul', family: 'all' }
     : null;
@@ -84,6 +93,10 @@ export async function loadWalkAnimationAssets({ female = false } = {}) {
     if (feminineCandidate?.entry) {
       const data = await bytes(feminineCandidate.entry);
       if (data) selected.push({ name: feminineCandidate.entry.path, bytes: data, variant: feminineCandidate.variant, walkVariant: feminineCandidate.variant, family: feminineCandidate.family, animationFamily: feminineCandidate.family, walkOnly: true, runOnly: false });
+    }
+    if (dynamicCandidate.entry) {
+      const data = await bytes(dynamicCandidate.entry);
+      if (data) selected.push({ name: dynamicCandidate.entry.path, bytes: data, variant: 'dynamic', walkVariant: 'dynamic', family: 'walk', animationFamily: 'walk', walkOnly: true, runOnly: false });
     }
     for (const { entry, variant, family } of overrides) {
       if (!entry) {
@@ -112,6 +125,8 @@ export function inspectWalkAnimationAssets() {
     feminineCycleEnabledAsIndependentVariant: !!feminineFemale,
     axelFemale: axelFemale?.path ?? null,
     axelRunFemale: axelRunFemale?.path ?? null,
+    dynamicMaleWalk: dynamicMaleWalk?.path ?? null,
+    dynamicFemaleWalk: dynamicFemaleWalk?.path ?? null,
     overhaulMale: overhaulMale?.path ?? null,
     overhaulFemale: overhaulFemale?.path ?? null,
     overhaulEnabled: modSetting('morrowind-animation', 'AnimationOverhaul') === 1,
@@ -159,11 +174,11 @@ export function walkVariantForActor({
 } = {}) {
   const index = (value, max) => Math.max(0, Math.min(max, Number(value) || 0));
   if (player || ownHeads) {
-    if (!female) return ['vanilla', 'simply'][index(playerChoice, 1)];
-    return ['vanilla', 'simply', 'feminine', 'axel'][index(playerChoice, 3)];
+    if (!female) return ['vanilla', 'simply', 'simply', 'simply', 'dynamic'][index(playerChoice, 4)];
+    return ['vanilla', 'simply', 'feminine', 'axel', 'dynamic'][index(playerChoice, 4)];
   }
-  if (female) return ['vanilla', 'simply', 'feminine', 'axel'][index(npcFemaleChoice, 3)];
-  return ['vanilla', 'simply'][index(npcMaleChoice, 1)];
+  if (female) return ['vanilla', 'simply', 'feminine', 'axel', 'dynamic'][index(npcFemaleChoice, 4)];
+  return ['vanilla', 'simply', 'dynamic'][index(npcMaleChoice, 2)];
 }
 
 /** Live preference gates for the two independent locomotion families. */
