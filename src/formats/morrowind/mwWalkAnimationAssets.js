@@ -193,7 +193,10 @@ export async function loadFirstPersonAnimationAssets({ skeletonPath } = {}) {
   const files = catalogs.flatMap(({ files: catalog, variant }) => Object.entries(catalog)
     .map(([path, url]) => ({ path: path.replace(/\\\\/g, '/'), url, variant }))
     .filter((entry) => entry.variant !== 'openmw-dynamic-first-person' || isOpenMWDynamicFirstPersonClip(entry.path)))
-    .sort((a, b) => a.path.localeCompare(b.path));
+    // The source search is reverse-priority: dynamic locomotion is last so it
+    // overrides ReAnimation only where both define the same movement group.
+    .sort((a, b) => Number(a.variant === 'openmw-dynamic-first-person') - Number(b.variant === 'openmw-dynamic-first-person')
+      || a.path.localeCompare(b.path));
   const result = [];
   for (const entry of files) {
     try {
