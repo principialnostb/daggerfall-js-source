@@ -85,7 +85,7 @@ test('MW-ANIM-4: first-person providers are limited to the skeleton they ship fo
   assert.equal(isFirstPersonAnimationRigCompatible('meshes/xbase_anim.nif'), false);
 });
 
-test('MW-ANIM-4: first-person provider choice is exclusive and stable', () => {
+test('MW-ANIM-4: first-person source modes and layered providers are stable', () => {
   assert.equal(firstPersonAnimationProviderForChoice(0), 'vanilla');
   assert.equal(firstPersonAnimationProviderForChoice(1), 'reanimation-v3');
   assert.equal(firstPersonAnimationProviderForChoice(2), 'reanimation-v3+openmw-dynamic-first-person');
