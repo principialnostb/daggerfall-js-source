@@ -85,7 +85,7 @@ import { raceArt } from '../systems/races.js';
 import { appStorage } from '../systems/appStorage.js';   // DA1: the storage seam
 import { modSetting } from '../systems/modSettings.js';
 import { loadWalkAnimationAssets, isWalkAnimationGroup, isWalkAnimationKey, isRunAnimationGroup, isRunAnimationKey, isWalkVariantEnabled, isRunVariantEnabled, walkVariantForActor, runVariantForActor } from '../formats/morrowind/mwWalkAnimationAssets.js';
-import { loadHitReactionAnimationAssets, ANIMATION_PACK_IDS } from '../formats/morrowind/mwAnimationPackAssets.js';
+import { loadHitReactionAnimationAssets, ANIMATION_PACK_IDS, selectDeterministicReactionGroup } from '../formats/morrowind/mwAnimationPackAssets.js';
 import { drawRigSpriteBox, MW_THIRD_PERSON_PIXEL } from '../render/characterSprite.js';
 import { WEAPONS } from '../characters/weapons.js';
 import { materialName } from '../systems/item/itemInfo.js';
@@ -4467,18 +4467,10 @@ export function createFpArm({ playerAppearance = false } = {}) {
   // The caller's deterministic roll chooses the variant; filesystem/glob order never does.
   function choosePackReactionGroup(kind, roll) {
     if (modSetting('morrowind-animation', 'HitReactionSource') !== 1) return null;
-    const sources = rig()?.sources ?? [];
-    const groups = [...new Set(sources
+    const groups = (rig()?.sources ?? [])
       .filter((source) => source.animationPackId === ANIMATION_PACK_IDS.hitReactions)
-      .flatMap((source) => source.groups ?? []))]
-      .map((group) => String(group).toLowerCase())
-      .filter((group) => kind === 'death'
-        ? group.startsWith('death') && !group.includes('dremora')
-        : group === 'hitreact' || group.startsWith('stagger'))
-      .sort();
-    if (!groups.length) return null;
-    const index = ((((roll | 0) % groups.length) + groups.length) % groups.length);
-    return groups[index];
+      .flatMap((source) => source.groups ?? []);
+    return selectDeterministicReactionGroup(groups, kind, roll);
   }
 
   /** The source currently posing the arm - the one that won the clip
