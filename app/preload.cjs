@@ -53,6 +53,8 @@ contextBridge.exposeInMainWorld('daggerShell', {
     // - the word that it came up, which proves a version on trial (app/main.cjs dagger:game-up, gameStore.bootDone)
     ipcRenderer.send('dagger:game-up');
   },
+  // MOD-DIAG1: asynchronous, best-effort event transport. The main process validates the sender and the record.
+  diagnostics: { write: (record) => { try { ipcRenderer.send('dagger:diagnostic', record); } catch { /* diagnostics must not break the game */ } } },
   // FPS-VSYNC (AUDIT 28e): this launch lifted Chromium's wait (VSync off when it started) - the page paces its frames
   framesLifted: ipcRenderer.sendSync('dagger:frames-lifted') === true,
   storage: {
