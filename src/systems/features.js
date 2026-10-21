@@ -1301,6 +1301,15 @@ export const FEATURES = Object.freeze([
     kinds: Object.freeze(['mod']),
     control: Object.freeze({ store: 'mods', vendor: 'morrowind-animation', key: 'HitReactionSource' }),
   }),
+  Object.freeze({
+    id: 'morrowind-first-person-animation-pack',
+    group: 'character',
+    title: 'Анимации от первого лица',
+    get note() { return MOD_SETTINGS['morrowind-animation'].keys.PlayerFirstPersonSource.description; },
+    effect: 'Takes effect after the first-person rig is rebuilt.',
+    kinds: Object.freeze(['mod']),
+    control: Object.freeze({ store: 'mods', vendor: 'morrowind-animation', key: 'PlayerFirstPersonSource' }),
+  }),
   // MAO: full third-person KF replacement. The loader uses the selected
   // sex-matched source for supported human/elf/orc rigs; the original source
   // remains available as the Vanilla fallback.
