@@ -191,7 +191,7 @@ export async function loadFirstPersonAnimationAssets({ skeletonPath } = {}) {
     ...(provider.includes('openmw-dynamic-first-person') ? [{ files: OPENMW_DYNAMIC_FIRST_PERSON_FILES, variant: 'openmw-dynamic-first-person' }] : []),
   ];
   const files = catalogs.flatMap(({ files: catalog, variant }) => Object.entries(catalog)
-    .map(([path, url]) => ({ path: path.replace(/\\\\/g, '/'), url, variant }))
+    .map(([path, url]) => ({ path: path.replace(/\\/g, '/'), url, variant }))
     .filter((entry) => entry.variant !== 'openmw-dynamic-first-person' || isOpenMWDynamicFirstPersonClip(entry.path)))
     // The source search is reverse-priority: dynamic locomotion is last so it
     // overrides ReAnimation only where both define the same movement group.
@@ -243,14 +243,14 @@ export function normalizeAnimationGroupKeys(keys, allowedGroups = null) {
   const out = [];
   for (const key of keys ?? []) {
     const mapped = [];
-    for (const line of String(key?.text ?? '').split(/\\r?\\n/)) {
+    for (const line of String(key?.text ?? '').split(/\r?\n/)) {
       const colon = line.indexOf(':');
       if (colon <= 0) continue;
       const group = line.slice(0, colon).trim().toLowerCase();
       if (accepted && !accepted.has(group)) continue;
       mapped.push(group + line.slice(colon));
     }
-    if (mapped.length) out.push({ ...key, text: mapped.join('\\n') });
+    if (mapped.length) out.push({ ...key, text: mapped.join('\n') });
   }
   return out;
 }
@@ -279,12 +279,12 @@ export function remapAnimationGroupKeys(keys, sourceGroups, targetGroup) {
 export function openMWDynamicThirdPersonTargetGroup(path) {
   const normalized = norm(path);
   if (!normalized.includes('/openmw dynamic animations/animations/')) return null;
-  const filename = normalized.slice(normalized.lastIndexOf('/') + 1).replace(/\\.kf$/i, '').replace(/;\\s*skip$/i, '').replace(/;$/, '');
+  const filename = normalized.slice(normalized.lastIndexOf('/') + 1).replace(/\.kf$/i, '').replace(/;\s*skip$/i, '').replace(/;$/, '');
   const stem = filename.replace(/^(?:x|z)/, '');
   const locomotion = stem.match(/^(walk|run|sneak|swim|swimrun)(forward|back|left|right)(?:_(?:base|dirn|march|mw|noble)[a-z0-9]*)?$/);
   if (locomotion) return `${locomotion[1]}${locomotion[2]}`;
   if (stem === 'armposes') return 'armposes';
-  const idle = stem.match(/^idle(\\d*)(?:_copy)?$/);
+  const idle = stem.match(/^idle(\d*)(?:_copy)?$/);
   if (idle) return `idle${idle[1]}`;
   if (/^arms[a-z]+$/.test(stem)) return stem;
   if (/^(?:jump|turnleft|turnright|readypose|zillarescale)$/.test(stem)) return stem;
@@ -294,7 +294,7 @@ export function openMWDynamicThirdPersonTargetGroup(path) {
 /** Source group name as authored in the mod's KF, before canonical remapping. */
 export function openMWDynamicThirdPersonSourceGroup(path) {
   const normalized = norm(path);
-  const filename = normalized.slice(normalized.lastIndexOf('/') + 1).replace(/\\.kf$/i, '').replace(/;\\s*skip$/i, '').replace(/;$/, '');
+  const filename = normalized.slice(normalized.lastIndexOf('/') + 1).replace(/\.kf$/i, '').replace(/;\s*skip$/i, '').replace(/;$/, '');
   return filename.toLowerCase();
 }
 
@@ -345,10 +345,10 @@ export async function loadOpenMWDynamicThirdPersonAnimationAssets({ skeletonPath
   if (!IN_BROWSER || modSetting('morrowind-animation', 'OpenMWDynamicAnimations') !== 1) return [];
   const normalizedSkeleton = norm(skeletonPath);
   const skeletonFile = normalizedSkeleton.slice(normalizedSkeleton.lastIndexOf('/') + 1);
-  const folder = skeletonFile.replace(/\\.nif$/i, '');
+  const folder = skeletonFile.replace(/\.nif$/i, '');
   const isArgonianBeast = String(race).toLowerCase() === 'argonian' && /base_animkna$/i.test(folder);
   const files = Object.entries(OPENMW_DYNAMIC_THIRD_PERSON_FILES)
-    .map(([path, url]) => ({ path: path.replace(/\\\\/g, '/'), url }))
+    .map(([path, url]) => ({ path: path.replace(/\\/g, '/'), url }))
     .filter((entry) => {
       const p = norm(entry.path);
       if (!p.includes('/animations/')) return false;
