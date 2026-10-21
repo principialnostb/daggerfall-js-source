@@ -4639,7 +4639,36 @@ export function createFpArm({ playerAppearance = false } = {}) {
    *  reverted arc's whole failure mode in miniature. */
   function playAction(start, stop, startPoint = 0, reversed = false) {
     if (!rig() || !weaponGroup) return false;
-    const pick = pickAnimSource(rig().sources, weaponGroup, resetClip, { start, stop, startPoint });
+    const sources = rig().sources ?? [];
+    const options = { start, stop, startPoint };
+    const providerChoice = Number(modSetting('morrowind-animation', 'FirstPersonSource') ?? 0);
+    const reAnimationEnabled = providerChoice === 1 || providerChoice === 3;
+    const actionType = String(start ?? '').match(/(?:^|\\s)(chop|slash|thrust|shoot|throw)(?:\\s|$)/i)?.[1]?.toLowerCase();
+    let pick = null;
+    // ReAnimation clips are not a blanket replacement for every group. For
+    // attacks, choose only a clip that contains this exact action window;
+    // unsupported weapon/action combinations must keep the archive animation.
+    if (reAnimationEnabled && ['chop', 'slash', 'thrust', 'shoot', 'throw'].includes(actionType)) {
+      const vanillaSources = sources.filter((source) => source.animationPack !== 'reanimation-v3');
+      const candidates = sources
+        .filter((source) => source.animationPack === 'reanimation-v3')
+        .map((source) => ({ source, pick: pickAnimSource([source], weaponGroup, resetClip, options) }))
+        .filter((candidate) => candidate.pick);
+      if (candidates.length) {
+        const seed = `${String(weaponGroup).toLowerCase()}|${actionType}`;
+        let hash = 2166136261;
+        for (let i = 0; i < seed.length; i++) {
+          hash ^= seed.charCodeAt(i);
+          hash = Math.imul(hash, 16777619);
+        }
+        candidates.sort((a, b) => String(a.source.name).localeCompare(String(b.source.name)));
+        pick = candidates[(hash >>> 0) % candidates.length].pick;
+      } else {
+        pick = pickAnimSource(vanillaSources, weaponGroup, resetClip, options);
+      }
+    } else {
+      pick = pickAnimSource(sources, weaponGroup, resetClip, options);
+    }
     if (!pick) {
       actionState = null;
       notes.push(`${weaponGroup}: no source has "${weaponGroup}: ${start}" and "${weaponGroup}: ${stop}"`);
