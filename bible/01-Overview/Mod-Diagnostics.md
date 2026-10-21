@@ -34,6 +34,19 @@ Registration records use `action: 'register'` plus a `domain` and `resource`. Re
 
 - The Daggerfall Unity `.dfmod` registry reports discovery counts, resolved load order, registration state, dependency-sort failure, missing/failed indexes, duplicate texture names, bundle-open failures/timeouts and texture-decode failures.
 - Morrowind animation providers report selected asset counts per pack/rig and per-file load failures for walk, first-person, dynamic third-person and hit-reaction clips. The archive fallback is named when retained.
+- First-person animation selection now also reports an incompatible rig, an enabled provider with no eligible files, and a provider whose candidate clips all failed to load. Optional female locomotion files that Vite did not resolve are reported individually. An empty OpenMW third-person result is a warning, not a misleading successful selection.
+
+## Animation diagnostics: previous versus current
+
+The earlier animation workflow included the Morrowind Mesh Viewer and source-selection messages. Those are useful for inspecting a file or confirming which group a source exposes, but they do not by themselves prove that gameplay requested a compatible rig, resolved a provider, loaded any eligible clips, or retained the archive fallback.
+
+The current runtime diagnostics add a structured trail around the actual animation asset-loader boundaries:
+
+- `animation-discovery`: optional files and provider catalogs that were not resolved.
+- `animation-selection`: incompatible rig, no eligible candidates, empty loaded set, and successful per-provider counts.
+- `animation-load`: per-file fetch/read failures with the rig and archive fallback recorded.
+
+This is deliberately not a claim that every animation application path is instrumented. The events establish what the loader selected and loaded; they do not yet prove that a requested animation group was ultimately bound and sampled by every gameplay consumer. Treat missing events as an observability gap, not proof of success. The separate animation integration and maintenance documents remain the source of truth for provider rules and compatibility constraints.
 - Morrowind bundled body/texture assets report selected pack/configuration summaries and failed asset fetches; the Morrowind texture worker reports decoder failures and worker-pool fallback.
 
 These hooks cover the real loader seams currently instrumented, not every possible model path. Other model/body/animation paths should emit the same event contract as those paths are instrumented; a lack of an event must not be interpreted as proof that a resource loaded successfully.
