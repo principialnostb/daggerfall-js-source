@@ -1674,8 +1674,8 @@ export const MOD_SETTINGS = Object.freeze({
       }),
       PlayerWalkSource: Object.freeze({
         default: 0,
-        options: lazyWords('Vanilla', 'Simply Walking', 'Feminine Walk Cycle', "Axel's Sexy Walk Fixed"),
-        description: "Player walking source. Vanilla keeps the game's/archive walk. Simply Walking, Feminine Walk Cycle, and Axel's Sexy Walk Fixed are independent walk-only sources for supported groups; the feminine cycle and Axel are female-only. Running is configured separately. Unsupported groups fall back to the game/archive source.",
+        options: lazyWords('Vanilla', 'Simply Walking', 'Feminine Walk Cycle', "Axel's Sexy Walk Fixed", 'OpenMW Dynamic Animations'),
+        description: "Player walking source. Vanilla keeps the game's/archive walk. Simply Walking, Feminine Walk Cycle, Axel's Sexy Walk Fixed, and OpenMW Dynamic Animations are independent walk-only sources for supported groups. Dynamic Animations supplies a deterministic forward-walk variant; other directions fall back to the game/archive source. Running is configured separately.",
       }),
       PlayerRunSource: Object.freeze({
         default: 0,
@@ -1684,13 +1684,13 @@ export const MOD_SETTINGS = Object.freeze({
       }),
       NpcMaleWalk: Object.freeze({
         default: 0,
-        options: lazyWords('Vanilla', 'Simply Walking'),
-        description: "Male NPC walking source. Vanilla keeps the game/archive walk. Simply Walking replaces supported male walk groups; running and unsupported groups remain on the game/archive source.",
+        options: lazyWords('Vanilla', 'Simply Walking', 'OpenMW Dynamic Animations'),
+        description: "Male NPC walking source. Vanilla keeps the game/archive walk. Simply Walking replaces supported male walk groups; OpenMW Dynamic Animations selects a stable per-actor forward-walk variant. Other directions and unsupported groups remain on the game/archive source.",
       }),
       NpcFemaleWalk: Object.freeze({
         default: 0,
-        options: lazyWords('Vanilla', 'Simply Walking', 'Feminine Walk Cycle', "Axel's Sexy Walk Fixed"),
-        description: "Female NPC walking source. Vanilla, Simply Walking, Feminine Walk Cycle, and Axel's Sexy Walk Fixed are independent walk-only choices. Running is configured separately. Unsupported groups fall back to the game/archive source.",
+        options: lazyWords('Vanilla', 'Simply Walking', 'Feminine Walk Cycle', "Axel's Sexy Walk Fixed", 'OpenMW Dynamic Animations'),
+        description: "Female NPC walking source. Vanilla, Simply Walking, Feminine Walk Cycle, Axel's Sexy Walk Fixed, and OpenMW Dynamic Animations are independent walk-only choices. Dynamic Animations selects a stable per-actor forward-walk variant. Running is configured separately; other directions and unsupported groups fall back to the game/archive source.",
       }),
       NpcFemaleRun: Object.freeze({
         default: 0,
