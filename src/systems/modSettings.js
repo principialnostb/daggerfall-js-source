@@ -1662,6 +1662,11 @@ export const MOD_SETTINGS = Object.freeze({
         options: lazyWords('Vanilla', 'Smooth · 0.16 s', 'Smooth · 0.25 s', 'Smooth · 0.40 s'),
         description: 'Browser-native port of Animation Blending for third-person character rigs. Smooths transitions between supported clips; Vanilla disables the cross-fade. The original MWSE Lua script and its per-animation YAML rules are not executable in this browser port, and first-person animation is unchanged.',
       }),
+      PlayerFirstPersonSource: Object.freeze({
+        default: 0,
+        options: lazyWords('Vanilla', 'ReAnimation v3'),
+        description: 'First-person animation source. ReAnimation v3 contributes only its 00 Core first-person KF files. Each file is parsed and bound against the active first-person rig; incompatible files are skipped and the game/archive source remains the fallback. OpenMW/MWSE scripts and optional compatibility patches are not executed by the browser port.',
+      }),
       PlayerWalkSource: Object.freeze({
         default: 0,
         options: lazyWords('Vanilla', 'Simply Walking', 'Feminine Walk Cycle', "Axel's Sexy Walk Fixed"),
