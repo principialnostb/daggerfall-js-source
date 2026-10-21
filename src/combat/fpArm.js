@@ -5171,7 +5171,7 @@ export function createFpArm({ playerAppearance = false } = {}) {
         const movementSources = rig().sources.filter((source) => {
           if (isWalkingGroup) return isWalkVariantEnabled(source, movementPreference ?? 'vanilla');
           if (isRunningGroup) return isRunVariantEnabled(source, movementPreference ?? 'vanilla');
-          return !source?.walkOnly && !source?.runOnly;
+          return !source?.walkOnly && !source?.runOnly && !source?.idleOnly;
         }).map((source) => isWalkingGroup && movementPreference === 'dynamic'
           ? aliasDynamicWalkSource(source)
           : source);
