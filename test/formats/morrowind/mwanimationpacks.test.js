@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   ANIMATION_PACK_IDS, ANIMATION_PACK_PROVIDERS, animationPackFamily, inspectAnimationPackAssets, listAnimationPackAssets,
-  resolveAnimationPackProvider,
+  resolveAnimationPackProvider, selectDeterministicReactionGroup,
 } from '../../src/formats/morrowind/mwAnimationPackAssets.js';
 
 test('MW-ANIM-PACKS: pack discovery is safe outside the browser', () => {
@@ -53,4 +53,14 @@ test('MW-ANIM-PACKS: unresolved providers fall back to Vanilla rather than winni
   const wrongDomain = resolveAnimationPackProvider('animation.player.firstPerson.attack', 'hit-reactions-v2.reactions');
   assert.equal(wrongDomain.effective, 'vanilla');
   assert.equal(wrongDomain.fallback, true);
+});
+
+test('MW-ANIM-PACKS: reaction variants use a sorted deterministic candidate list', () => {
+  const groups = ['StaggerRight', 'HitReact', 'StaggerBack', 'StaggerRight', 'DeathBack'];
+  assert.equal(selectDeterministicReactionGroup(groups, 'hit', 0), 'hitreact');
+  assert.equal(selectDeterministicReactionGroup(groups, 'hit', 1), 'staggerback');
+  assert.equal(selectDeterministicReactionGroup(groups, 'hit', 2), 'staggerright');
+  assert.equal(selectDeterministicReactionGroup(groups, 'death', 0), 'deathback');
+  assert.equal(selectDeterministicReactionGroup(['DeathDremora1', 'DeathDremora2'], 'death', 0), null);
+  assert.equal(selectDeterministicReactionGroup([], 'hit', 0), null);
 });
