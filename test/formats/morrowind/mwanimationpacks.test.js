@@ -50,7 +50,7 @@ test('MW-ANIM-PACKS: unresolved providers fall back to Vanilla rather than winni
   assert.equal(dynamic.effective, 'dynamic-animations.locomotion');
   assert.equal(dynamic.fallback, false);
   assert.equal(dynamic.provider, 'dynamic-animations.locomotion');
-  assert.match(dynamic.reason, /backward\/side movement, sneak\/run, player idle/);
+  assert.match(dynamic.reason, /backward\/side movement, sneak\/run, first-person idle/);
   const dynamicIdle = resolveAnimationPackProvider('animation.npc.idle', 'dynamic-animations.locomotion');
   assert.equal(dynamicIdle.effective, 'dynamic-animations.locomotion');
   assert.equal(dynamicIdle.fallback, false);
