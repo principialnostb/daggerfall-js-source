@@ -95,10 +95,39 @@ import { skinMips, skinUseOf, skinUseKey } from '../characters/werewolfSkin.js';
 import { correctTexturePath, correctActorModelPath, wrapModes, warningImage, decodeTextureImage } from '../formats/morrowind/mwTexture.js';
 
 const animationDiagnosticKeys = new Set();
+const animationDiagnosticLog = globalThis.__morrowindAnimationDiagnostics
+  ?? (globalThis.__morrowindAnimationDiagnostics = []);
+
 function logAnimationDiagnostic(key, detail) {
   if (animationDiagnosticKeys.has(key)) return;
   animationDiagnosticKeys.add(key);
-  console.info('[Morrowind animation diagnostic]', detail);
+  const entry = { timestamp: new Date().toISOString(), ...detail };
+  animationDiagnosticLog.push(entry);
+  console.info('[Morrowind animation diagnostic]', entry);
+}
+
+// In DevTools, run downloadMorrowindAnimationDiagnostics() to save all
+// collected structured animation diagnostics as one JSON file.
+if (typeof globalThis.downloadMorrowindAnimationDiagnostics !== 'function') {
+  globalThis.downloadMorrowindAnimationDiagnostics = () => {
+    if (typeof document === 'undefined' || typeof Blob === 'undefined' || typeof URL?.createObjectURL !== 'function') {
+      console.warn('[Morrowind animation diagnostic] File download is unavailable in this environment.');
+      return;
+    }
+    const payload = {
+      generatedAt: new Date().toISOString(),
+      count: animationDiagnosticLog.length,
+      entries: animationDiagnosticLog,
+    };
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = `morrowind-animation-diagnostics-${new Date().toISOString().replace(/[:.]/g, '-')}.json`;
+    anchor.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    console.info(`[Morrowind animation diagnostic] Exported ${payload.count} entries.`);
+  };
 }
 
 /** Adapt ReAnimation's Alt/Sub group names to the runtime's canonical weapon groups. */
@@ -5371,6 +5400,13 @@ export function createFpArm({ playerAppearance = false } = {}) {
         movementState = pick.state;
         movementSource = pick.source;
         if (pick.source?.walkOnly) {
+          logAnimationDiagnostic(`locomotion-selection|${skeletonPath}|${composed.group}|${pick.source.name}`, {
+            family: 'replacement-locomotion-selection',
+            rig: skeletonPath,
+            group: composed.group,
+            file: pick.source.name,
+            selected: true,
+          });
           console.info('[Morrowind animations] playing replacement locomotion group:', composed.group, 'from', pick.source.name);
         }
       }
