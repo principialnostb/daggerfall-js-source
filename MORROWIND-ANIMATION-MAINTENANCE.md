@@ -153,3 +153,16 @@ The runtime now loads the checked-in `RunForward;.kf` as part of Axel's single l
 - ReAnimation v3 and Hit Reactions Animated v2 are currently staged source assets, not active runtime providers. Their clips must not be routed into the live resolver solely by filename or folder order. ReAnimation targets first-person animation groups; Hit Reactions targets third-person reaction/death groups and needs its own actor/group-scoped provider path.
 - OpenMW Dynamic Animations is reference material and its MWSE/OpenMW behavior is not executed by the browser runtime.
 - Verification status after the folder move: the paths in the runtime glob have been corrected at source level. Full test/lint/build and in-game visual checks have not yet been run in this environment.
+
+
+## Deterministic intake for the three additional animation packs — 2026-10-21
+
+The registry and tests in `src/formats/morrowind/mwAnimationPackCatalog.js` make the intake state explicit by stable provider ID, animation domain, source root, and permission/integration status. It is inventory/gating metadata, not a runtime loader; a folder appearing in `Mods/Animations` never activates it.
+
+- **ReAnimation v3** (`reanimation-v3`): first-person groups, staged in the repository but blocked from use. Its Nexus permissions prohibit conversion to other games and restrict redistribution. Do not route its KF files into DFO unless the author grants explicit permission.
+- **OpenMW Dynamic Animations** (`openmw-dynamic-animations`): static KF/YAML candidates for third-person idle/locomotion, first-person locomotion, and race-specific animation. Staged pending asset/group inventory, skeleton compatibility, permission review, and a real consumer. Its `.omwscripts`/Lua behavior is not executed by the browser runtime.
+- **Hit Reactions Animated v2** (`hit-reactions-animated-v2`): third-person hit/stagger/death domains, blocked because its Nexus permissions require the author's permission to use the assets and prohibit conversion to other games.
+
+The catalog resolver is fail-closed and deterministic: Vanilla is explicit, unknown providers and domain mismatches fall back to Vanilla, staged providers are not runtime-selectable, and permission-blocked providers return `permission-required`. No new animation selector is exposed until a provider has a verified runtime consumer. The next implementation step is to obtain the necessary permissions, inventory actual animation groups/text keys, validate skeleton compatibility, and then integrate each allowed domain with its own selector and fallback tests.
+
+Validation limitation: this GitHub-side change adds catalog logic and unit tests, but the test suite, lint/type checks, build, and in-game visual checks have not been run in this environment.
