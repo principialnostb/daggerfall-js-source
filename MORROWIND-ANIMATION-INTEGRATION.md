@@ -1,6 +1,6 @@
 # Morrowind character animation integration — v4 audit
 
-Status: runtime gait selection, input-driven third-person facing, and native pose cross-fades are implemented on this branch. In-game visual validation remains outstanding; no claim is made that combat clips themselves have been replaced. The facing gate was hardened again in commit b63dfffc: it reads this render frame's movement axes and explicitly supplies view yaw during ordinary locomotion, while preserving seat/climb ownership.
+Status: the runtime now consumes the three animation packs through its actual first-person, third-person, and creature source lists. ReAnimation is attached to the first-person rig; OpenMW Dynamic Animations is layered as directional first-person locomotion plus deterministic rig-matched third-person/creature variants; Hit Reactions Animated clips are adapted to the runtime's hit/death group names. Original OpenMW/MWSE Lua files are not executed. Automated test/build and in-game visual validation remain outstanding.
 
 > **Maintenance inventory:** see [MORROWIND-ANIMATION-MAINTENANCE.md](./MORROWIND-ANIMATION-MAINTENANCE.md) for the pack-by-pack inventory, current runtime boundaries, unresolved player/NPC selector requirements, and validation checklist. The inventory explicitly distinguishes assets present in the repository from assets actually consumed by the runtime.
 
@@ -196,3 +196,15 @@ The following three Nexus sources are in scope for the next integration slice:
 ### Current implementation status
 
 The three packs have separate runtime consumers and visible source selectors under Settings → Анимации: **Анимации от первого лица** selects Vanilla / ReAnimation v3 / OpenMW Dynamic Animations, and **Реакции на попадания** selects Vanilla / Hit Reactions Animated v2. The first-person sources are mutually exclusive, paths are sorted before loading, and both packs are admitted only for the compatible `xbase_anim.1st.nif` rig. Female and beast first-person rigs retain archive animations instead of attempting incompatible clips. OpenMW Dynamic Animations is limited to explicitly mapped directional walk/run/sneak clips; its Lua controllers and YAML blending rules are not run. Hit Reactions Animated is filtered first by the active third-person skeleton family (male, female, beast), then to reaction/death groups, so clips from another rig cannot win a duplicate-group conflict. Missing or incompatible clips leave the archive source available. Regression tests cover the rig selector and settings map; running the full test/build suite and in-game validation remains outstanding.
+
+
+## Animation pack wiring — 2026-10-21
+
+The source-provider wiring was corrected after tracing the actual build paths: the former first-person provider block sat in the third-person body builder behind a `*.1st.nif` guard, so it could never run for that builder's third-person skeleton. First-person packs are now loaded after the archive sources in the actual `fpAnimSources` build, before the runtime computes available groups and selects its idle/action/movement clips.
+
+- **ReAnimation v3:** all bundled first-person KF clips are parsed against the active first-person skeleton and their text-key group names are normalized case-insensitively. The source remains additive to the archive list, so absent groups fall back to the archive.
+- **OpenMW Dynamic Animations:** the third first-person selector option layers directional walk/run/sneak clips over ReAnimation rather than replacing ReAnimation wholesale. Dynamic movement groups are normalized to the runtime's lowercase names. A separate Settings control enables rig-matched third-person and creature KF variants; one variant per canonical group is selected deterministically, with the general `walkforward_base15` gait preferred when available. Explicit Simply Walking/Axel selectors retain priority for their walk/run groups.
+- **Hit Reactions Animated v2:** custom `HitReact` and `Stagger*` source groups are remapped into the contiguous `hit1..hitN` sequence used by the combat state machine; `Death*` clips map into `death1..deathN`. The active rig's matching asset folder is selected first, and clips with no bound tracks are rejected.
+- **Safe fallback:** malformed clips, missing group keys, or clips whose tracks do not bind to the active skeleton are skipped; archive sources remain available. The code does not change body meshes, skeleton geometry, or textures.
+
+Regression tests cover group remapping, lowercase movement groups, deterministic variant selection, and the Settings registration. The repository's full `npm test`, build, and in-game visual checks have not been executed in this environment; do not treat the tests as passing until CI or a local run confirms them.
