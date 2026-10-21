@@ -86,6 +86,7 @@ import { appStorage } from '../systems/appStorage.js';   // DA1: the storage sea
 import { modSetting } from '../systems/modSettings.js';
 import { loadWalkAnimationAssets, isWalkAnimationGroup, isWalkAnimationKey, isRunAnimationGroup, isRunAnimationKey, isWalkVariantEnabled, isRunVariantEnabled, walkVariantForActor, runVariantForActor } from '../formats/morrowind/mwWalkAnimationAssets.js';
 import { loadReAnimationAssets } from '../formats/morrowind/mwReAnimationAssets.js';
+import { loadHitReactionAssets, isHitReactionGroup, isDeathReactionGroup, isHitReactionKey, isDeathReactionKey, chooseReactionGroup } from '../formats/morrowind/mwHitReactionAssets.js';
 import { drawRigSpriteBox, MW_THIRD_PERSON_PIXEL } from '../render/characterSprite.js';
 import { WEAPONS } from '../characters/weapons.js';
 import { materialName } from '../systems/item/itemInfo.js';
@@ -2354,6 +2355,36 @@ async function buildTpBody({
           animationOverhaul: isOverhaul,
           animationFamily: asset.family,
           walkVariant: asset.variant,
+        });
+      }
+    }
+    // Hit Reactions is a separate third-person provider. It contributes only
+    // parsed hit/stagger/death groups; unrelated locomotion, attack and idle groups
+    // stay owned by their existing sources. The choice is opt-in and actor-rig scoped.
+    if (!werewolf && !beast && modSetting('morrowind-animation', 'NpcHitReactionSource') === 1) {
+      const reactionAssets = await loadHitReactionAssets();
+      for (const asset of reactionAssets) {
+        const report = await cachedClipReport(gen, skeletonPath, asset.name, () => asset.bytes, arm.skeleton);
+        if (!report.ok) {
+          missing.push(`optional Hit Reactions source skipped (${asset.name}): ${report.error}`);
+          continue;
+        }
+        const groups = report.groups.filter((group) => isHitReactionGroup(group) || isDeathReactionGroup(group));
+        const keys = report.keys.filter((key) => isHitReactionKey(key) || isDeathReactionKey(key));
+        if (!groups.length || !keys.length) {
+          missing.push(`optional Hit Reactions source has no recognised reaction/death groups: ${asset.name}`);
+          continue;
+        }
+        sources.push({
+          name: asset.name,
+          keys,
+          groups,
+          groupSet: new Set(groups),
+          trackMap: report.trackMap,
+          binding: report.binding,
+          wouldAccumRoot: accumRootRef(arm.skeleton, report.trackMap),
+          animationPack: asset.animationPack,
+          reactionOnly: true,
         });
       }
     }
@@ -6463,8 +6494,11 @@ export function createFpArm({ playerAppearance = false } = {}) {
      *  and a recoil still playing takes no other (refreshHitRecoilAnims returns while `isPlaying(mCurrentHit)`). */
     hurt(roll = 0) {
       if (!built || !built.ok || dead || hitState) return false;
-      const g = chooseRandomGroup('hit', roll);
-      const pick = g ? pickAnimSource(rig().sources, g, resetClip, {}) : null;
+      const sources = rig().sources;
+      const g = modSetting('morrowind-animation', 'NpcHitReactionSource') === 1
+        ? (chooseReactionGroup(sources, 'hit', roll) ?? chooseRandomGroup('hit', roll))
+        : chooseRandomGroup('hit', roll);
+      const pick = g ? pickAnimSource(sources, g, resetClip, {}) : null;
       if (!pick) return false;
       hitState = pick.state; hitSource = pick.source;
       return true;
@@ -6476,8 +6510,11 @@ export function createFpArm({ playerAppearance = false } = {}) {
      *  which a loaded game hands a corpse. A body that carries no death stops where it stood. */
     die(roll = 0, { startPoint = 0 } = {}) {
       if (!built || !built.ok) return false;
-      const g = chooseRandomGroup('death', roll);
-      const pick = g ? pickAnimSource(rig().sources, g, resetClip, { startPoint, loopCount: 0 }) : null;   // playDeath's loops: 0
+      const sources = rig().sources;
+      const g = modSetting('morrowind-animation', 'NpcHitReactionSource') === 1
+        ? (chooseReactionGroup(sources, 'death', roll) ?? chooseRandomGroup('death', roll))
+        : chooseRandomGroup('death', roll);
+      const pick = g ? pickAnimSource(sources, g, resetClip, { startPoint, loopCount: 0 }) : null;   // playDeath's loops: 0
       dead = true;
       actionState = null; actionSource = null; holdWindUp = false; attackType = null; blowPlan = null;
       upper = sheathed ? UPPER_BODY.None : UPPER_BODY.WeaponEquipped;
