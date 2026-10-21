@@ -582,6 +582,17 @@ export const UPPER_BODY_NAME = Object.freeze(
   Object.fromEntries(Object.entries(UPPER_BODY).map(([k, v]) => [v, k])),
 );
 
+/**
+ * Choose when a held 3D weapon is hidden during the first-person
+ * unequip animation. Some animation packs omit the "unequip detach"
+ * text key; in that case the weapon must remain visible through the
+ * hand's return motion and disappear only when the section ends.
+ */
+export function unequipWeaponHideMode({ animationStarted, detachKeyTime }) {
+  if (!animationStarted) return 'immediate';
+  return detachKeyTime >= 0 ? 'detach-key' : 'animation-end';
+}
+
 /** setAccurateAiming's argument, verbatim. Casting sits above
  *  AttackEnd in the reference's enum and is out of scope here, so the
  *  test is the same shape with one fewer state above the line. */
@@ -4293,6 +4304,8 @@ export function createFpArm({ playerAppearance = false } = {}) {
   let attackStrength = 1;
   let sheathed = true;
   let weaponShown = false;
+  let hideWeaponAtUnequipEnd = false;
+  let unequipDiagnosticSequence = 0;
   // MW-D16: the held round. FALSE at build, because the reference does
   // not attach one until a "shoot attach" key fires - a freshly drawn bow
   // is empty until you start to draw it, and only the CROSSBOW reloads
@@ -5609,7 +5622,17 @@ export function createFpArm({ playerAppearance = false } = {}) {
     // character.cpp:1074-1087), gated there on Equipping/Unequipping
     // exactly as the machine is here.
     if (action === EQUIP_KEYS.attach) weaponShown = true;
-    else if (action === UNEQUIP_KEYS.detach) weaponShown = false;
+    else if (action === UNEQUIP_KEYS.detach) {
+      weaponShown = false;
+      hideWeaponAtUnequipEnd = false;
+      logAnimationDiagnostic(`fp-unequip-detach|${weaponGroup}|${actionSource?.name ?? 'unknown'}`, {
+        family: 'first-person-weapon-sheathing-v1',
+        event: 'weapon-hidden-at-detach-key',
+        weaponGroup,
+        animationSource: actionSource?.name ?? null,
+        keyTime: time,
+      });
+    }
     // RULE 24's ranged actions (character.cpp:1153-1165). Two keys
     // attach and one releases, and "shoot follow attach" is the second
     // attach - the round that goes on the string during the
@@ -5753,7 +5776,21 @@ export function createFpArm({ playerAppearance = false } = {}) {
       case UPPER_BODY.Unequipping:
         // :1857-1859 - THIS is where the weapon type becomes None, and
         // with it the stance drops to the bare "idle" of rule 10's
-        // endless loop.
+        // endless loop. If this animation pack has no detach text key,
+        // keep the weapon visible until this exact boundary instead of
+        // making it vanish at the beginning of the hand's return motion.
+        if (hideWeaponAtUnequipEnd) {
+          weaponShown = false;
+          hideWeaponAtUnequipEnd = false;
+          logAnimationDiagnostic(`fp-unequip-end-hide|${weaponGroup}|${actionSource?.name ?? 'unknown'}`, {
+            family: 'first-person-weapon-sheathing-v1',
+            event: 'weapon-hidden-at-unequip-end',
+            weaponGroup,
+            animationSource: actionSource?.name ?? null,
+            animationStopTime: actionState?.stopTime ?? null,
+            fallbackReason: 'missing unequip detach text key',
+          });
+        }
         actionState = null; actionSource = null;
         upper = UPPER_BODY.None;
         sheathed = true;
@@ -6138,17 +6175,42 @@ export function createFpArm({ playerAppearance = false } = {}) {
           return true;
         }
         upper = UPPER_BODY.Unequipping;
-        // If the file has no "unequip detach" key the weapon is hidden
-        // by hand, immediately (:1412-1414).
         const detach = keyTime(UNEQUIP_KEYS.detach);
-        if (!playAction(UNEQUIP_KEYS.start, UNEQUIP_KEYS.stop, 0)) {
+        const actionStarted = playAction(UNEQUIP_KEYS.start, UNEQUIP_KEYS.stop, 0);
+        const hideMode = unequipWeaponHideMode({ animationStarted: actionStarted, detachKeyTime: detach });
+        if (!actionStarted) {
+          // No usable unequip section exists at all: there is no return
+          // motion to preserve, so finish synchronously as before.
+          hideWeaponAtUnequipEnd = false;
           upper = UPPER_BODY.None; sheathed = true; weaponShown = false; arrowShown = false;
+          logAnimationDiagnostic(`fp-unequip-no-clip|${weaponGroup}|${++unequipDiagnosticSequence}`, {
+            family: 'first-person-weapon-sheathing-v1',
+            event: 'unequip-animation-unavailable',
+            weaponGroup,
+            animationSource: actionSource?.name ?? null,
+            fallbackReason: 'no playable unequip start/stop section',
+            weaponHiddenImmediately: true,
+          });
           refreshWeaponGroup(); refreshIdle(true);
           return true;
         }
-        if (detach < 0) weaponShown = false;
-        // detachArrow() (character.cpp:1410), unconditionally, as the
-        // unequip section starts - not at its "unequip detach" key.
+        hideWeaponAtUnequipEnd = hideMode === 'animation-end';
+        if (hideMode === 'detach-key') hideWeaponAtUnequipEnd = false;
+        if (hideMode === 'animation-end') {
+          // The clip exists but does not declare when the blade leaves
+          // the hand. Defer hiding until stepUpper observes completion.
+          logAnimationDiagnostic(`fp-unequip-missing-detach|${weaponGroup}|${++unequipDiagnosticSequence}`, {
+            family: 'first-person-weapon-sheathing-v1',
+            event: 'unequip-detach-key-missing',
+            weaponGroup,
+            animationSource: actionSource?.name ?? null,
+            animationStartTime: actionState?.startTime ?? null,
+            animationStopTime: actionState?.stopTime ?? null,
+            fallback: 'hide weapon at animation end',
+          });
+        }
+        // A real detach marker hides the weapon at the intended point.
+        // detachArrow() is unconditional at section start in the reference.
         arrowShown = false;
         return true;
       }
