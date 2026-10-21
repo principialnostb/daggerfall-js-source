@@ -224,7 +224,7 @@ export function remapAnimationGroupKeys(keys, sourceGroups, targetGroup) {
   if (!accepted.size || !target) return [];
   const out = [];
   for (const key of keys ?? []) {
-    const lines = String(key?.text ?? '').split(/\\r?\\n/);
+    const lines = String(key?.text ?? '').split(/\r?\n/);
     const mapped = [];
     for (const line of lines) {
       const colon = line.indexOf(':');
@@ -232,7 +232,7 @@ export function remapAnimationGroupKeys(keys, sourceGroups, targetGroup) {
       const group = line.slice(0, colon).trim().toLowerCase();
       if (accepted.has(group)) mapped.push(target + line.slice(colon));
     }
-    if (mapped.length) out.push({ ...key, text: mapped.join('\\n') });
+    if (mapped.length) out.push({ ...key, text: mapped.join('\n') });
   }
   return out;
 }
