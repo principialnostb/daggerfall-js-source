@@ -4498,11 +4498,12 @@ export function createFpArm({ playerAppearance = false } = {}) {
    *  keeps, so the same blow plays the same recoil on every machine, and no random stream of the port's is drawn).
    *  Null when the body carries none - the reference's roll then names a group that is not there,
    *  and plays nothing. */
-  function chooseRandomGroup(prefix, roll) {
+  function chooseRandomGroup(prefix, roll, sourcesOverride = null) {
     const r = rig();
-    if (!r || !r.sources) return null;
+    const sources = sourcesOverride ?? r?.sources;
+    if (!sources) return null;
     let n = 0;
-    while (anySourceHasGroup(r.sources, `${prefix}${n + 1}`)) n++;
+    while (anySourceHasGroup(sources, `${prefix}${n + 1}`)) n++;
     if (!n) return null;
     return `${prefix}${1 + ((((roll | 0) % n) + n) % n)}`;
   }
@@ -6569,8 +6570,9 @@ export function createFpArm({ playerAppearance = false } = {}) {
       const sources = rig()?.sources ?? [];
       const packGroup = choosePackReactionGroup('hit', roll);
       const packPick = packGroup ? pickAnimSource(sources, packGroup, resetClip, {}) : null;
-      const vanillaGroup = chooseRandomGroup('hit', roll);
-      const pick = packPick ?? (vanillaGroup ? pickAnimSource(sources, vanillaGroup, resetClip, {}) : null);
+      const vanillaSources = sources.filter((source) => source.animationPackId !== ANIMATION_PACK_IDS.hitReactions);
+      const vanillaGroup = chooseRandomGroup('hit', roll, vanillaSources);
+      const pick = packPick ?? (vanillaGroup ? pickAnimSource(vanillaSources, vanillaGroup, resetClip, {}) : null);
       if (!pick) return false;
       hitState = pick.state; hitSource = pick.source;
       return true;
@@ -6585,8 +6587,9 @@ export function createFpArm({ playerAppearance = false } = {}) {
       const sources = rig()?.sources ?? [];
       const packGroup = choosePackReactionGroup('death', roll);
       const packPick = packGroup ? pickAnimSource(sources, packGroup, resetClip, { startPoint, loopCount: 0 }) : null;
-      const vanillaGroup = chooseRandomGroup('death', roll);
-      const pick = packPick ?? (vanillaGroup ? pickAnimSource(sources, vanillaGroup, resetClip, { startPoint, loopCount: 0 }) : null);   // playDeath's loops: 0
+      const vanillaSources = sources.filter((source) => source.animationPackId !== ANIMATION_PACK_IDS.hitReactions);
+      const vanillaGroup = chooseRandomGroup('death', roll, vanillaSources);
+      const pick = packPick ?? (vanillaGroup ? pickAnimSource(vanillaSources, vanillaGroup, resetClip, { startPoint, loopCount: 0 }) : null);   // playDeath's loops: 0
       dead = true;
       actionState = null; actionSource = null; holdWindUp = false; attackType = null; blowPlan = null;
       upper = sheathed ? UPPER_BODY.None : UPPER_BODY.WeaponEquipped;
