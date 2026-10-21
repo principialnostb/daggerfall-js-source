@@ -4536,22 +4536,23 @@ export function createFpArm({ playerAppearance = false } = {}) {
    * the fallback when no pack clip has the requested keys. */
   function pickFirstPersonActionSource(sources, group, start, stop, startPoint = 0, actionType = null) {
     const options = { start, stop, startPoint };
+    const vanillaSources = (sources ?? []).filter((source) => source.animationPackId !== ANIMATION_PACK_IDS.reanimation);
     if (modSetting('morrowind-animation', 'PlayerFirstPersonSource') !== 1) {
-      return pickAnimSource(sources, group, resetClip, options);
+      return pickAnimSource(vanillaSources, group, resetClip, options);
     }
     const inferredType = actionType || String(start ?? '').match(/^([a-z]+)/i)?.[1] || '';
     if (!['chop', 'slash', 'thrust', 'shoot'].includes(inferredType.toLowerCase())) {
-      return pickAnimSource(sources, group, resetClip, options);
+      return pickAnimSource(vanillaSources, group, resetClip, options);
     }
     const candidates = (sources ?? [])
       .filter((source) => source.animationPackId === ANIMATION_PACK_IDS.reanimation
         && source.animationFamily === 'combat')
       .map((source) => ({ source, pick: pickAnimSource([source], group, resetClip, options) }))
       .filter((candidate) => candidate.pick);
-    if (!candidates.length) return pickAnimSource(sources, group, resetClip, options);
+    if (!candidates.length) return pickAnimSource(vanillaSources, group, resetClip, options);
     const seed = `${String(group).toLowerCase()}|${inferredType.toLowerCase()}`;
     return selectStableAnimationVariant(candidates, seed)?.pick
-      ?? pickAnimSource(sources, group, resetClip, options);
+      ?? pickAnimSource(vanillaSources, group, resetClip, options);
   }
 
   /** Play a section of the weapon group. Returns FALSE and leaves the
