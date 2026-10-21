@@ -67,10 +67,11 @@ test('MW-ANIM-PACKS: unresolved providers fall back to Vanilla rather than winni
 });
 
 test('MW-ANIM-PACKS: reaction variants use a sorted deterministic candidate list', () => {
-  const groups = ['StaggerRight', 'HitReact', 'StaggerBack', 'StaggerRight', 'DeathBack'];
-  assert.equal(selectDeterministicReactionGroup(groups, 'hit', 0), 'hitreact');
-  assert.equal(selectDeterministicReactionGroup(groups, 'hit', 1), 'staggerback');
-  assert.equal(selectDeterministicReactionGroup(groups, 'hit', 2), 'staggerright');
+  const groups = ['StaggerRight', 'HitReact4', 'HitReact1', 'StaggerBack', 'StaggerRight', 'DeathBack'];
+  assert.equal(selectDeterministicReactionGroup(groups, 'hit', 0), 'hitreact1');
+  assert.equal(selectDeterministicReactionGroup(groups, 'hit', 1), 'hitreact4');
+  assert.equal(selectDeterministicReactionGroup(groups, 'hit', 2), 'staggerback');
+  assert.equal(selectDeterministicReactionGroup(groups, 'hit', 3), 'staggerright');
   assert.equal(selectDeterministicReactionGroup(groups, 'death', 0), 'deathback');
   assert.equal(selectDeterministicReactionGroup(['DeathDremora1', 'DeathDremora2'], 'death', 0), null);
   assert.equal(selectDeterministicReactionGroup([], 'hit', 0), null);
