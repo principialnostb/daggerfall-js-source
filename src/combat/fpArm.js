@@ -612,7 +612,15 @@ export function animationWindowHasMotion(source, state, skeleton) {
   const span = state.stopTime - start;
   const sampleTimes = Array.from({ length: 9 }, (_, i) => start + span * i / 8);
   for (const [, node] of skeleton.nodes) {
-    const track = source.trackMap.get(String(node.name ?? '').toLowerCase());
+    // A first-person KF can move a weapon attachment, root, or other
+    // non-arm node while leaving the rendered hands static. That is not a
+    // usable sheathing pose: the renderer's arm meshes are driven by the
+    // left/right arm chain. Only let those tracks validate the unequip
+    // window; otherwise setSheathed must use the known-working equip clip
+    // in reverse instead of accepting a false-positive and snapping away.
+    const boneName = String(node.name ?? '');
+    if (!/(?:^|\\s)[lr]\\s+(?:clavicle|upper\\s*arm|fore\\s*arm|hand|finger\\d*)\\b/i.test(boneName)) continue;
+    const track = source.trackMap.get(boneName.toLowerCase());
     if (!track) continue;
     const times = new Set(sampleTimes);
     const addKeys = (keys) => {
