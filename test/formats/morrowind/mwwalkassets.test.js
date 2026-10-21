@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { inspectWalkAnimationAssets, isWalkAnimationGroup, isWalkAnimationKey, isRunAnimationGroup, isRunAnimationKey, isWalkVariantEnabled, isRunVariantEnabled, walkVariantForActor, runVariantForActor, dynamicWalkStyleForActor } from '../../src/formats/morrowind/mwWalkAnimationAssets.js';
+import { inspectWalkAnimationAssets, isWalkAnimationGroup, isWalkAnimationKey, isRunAnimationGroup, isRunAnimationKey, isWalkVariantEnabled, isRunVariantEnabled, walkVariantForActor, runVariantForActor, dynamicWalkStyleForActor, aliasDynamicWalkSource } from '../../src/formats/morrowind/mwWalkAnimationAssets.js';
 
 test('MW-ANIM-1: bundled walk asset inventory is safe to import in Node', () => {
   const assets = inspectWalkAnimationAssets();
@@ -90,4 +90,28 @@ test('MW-ANIM-PACKS: Dynamic Animations style selection is stable for the same a
     .includes(dynamicWalkStyleForActor(actor)));
   assert.equal(dynamicWalkStyleForActor({ female: true, player: true }), 'base15');
   assert.equal(dynamicWalkStyleForActor({ female: false, player: true }), 'base15');
+});
+
+test('MW-ANIM-PACKS: dynamic group aliases are applied only to a selected source copy', () => {
+  const source = {
+    dynamicGroupAlias: true,
+    groups: ['walkforward_base15'],
+    keys: [
+      { time: 0, text: 'walkforward_base15: start' },
+      { time: 1, text: 'walkforward_base15: loop start' },
+      { time: 2, text: 'walkforward_base15: stop' },
+    ],
+    groupSet: new Set(['walkforward_base15']),
+    walkOnly: true,
+    walkVariant: 'dynamic',
+  };
+  const aliased = aliasDynamicWalkSource(source);
+  assert.equal(source.dynamicGroupAlias, true);
+  assert.deepEqual(source.groups, ['walkforward_base15']);
+  assert.equal(aliased.dynamicGroupAlias, false);
+  assert.ok(aliased.groups.includes('walkforward'));
+  assert.ok(aliased.groups.includes('walkforward1h'));
+  assert.ok(aliased.groups.includes('walkforward2c'));
+  assert.ok(aliased.keys.some((key) => key.text === 'walkforward1h: loop start'));
+  assert.equal(aliased.keys.length, 36);
 });
