@@ -196,6 +196,7 @@ export const CATEGORIES = Object.freeze([
       "Daggerfall/MyDaggerfallPath", "Daggerfall/MyDaggerfallUnitySavePath", "Daggerfall/MyDaggerfallUnityScreenshotsPath"]),
     sec("index", "Every mod", [
       "mods-index"]),
+  ]),
   tab("animations", "Анимации", [
     sec("locomotion", "Передвижение", [
       "group:running", "label:running-player", "feat:morrowind-player-run-animation",
@@ -204,20 +205,23 @@ export const CATEGORIES = Object.freeze([
       "label:walking-npc", "feat:morrowind-male-npc-walk-animation", "feat:morrowind-female-npc-walk-animation",
     ]),
     sec("posture", "Положение и скрытность", [
-      "group:general", "feat:morrowind-animation-overhaul", "feat:morrowind-animation-blending",
-      "group:turning", "label:turning", "info:player-turning", "info:npc-turning",
-      "group:idle", "label:idle", "info:player-idle", "info:npc-idle",
-      "group:sneak", "label:sneak", "info:player-sneak", "info:npc-sneak",
+      "group:posture",
+      "feat:morrowind-animation-overhaul", "feat:morrowind-animation-blending",
+      "label:sneak", "info:player-sneak", "info:npc-sneak",
+      "group:turning",
+      "label:turning", "info:player-turning", "info:npc-turning",
+      "group:idle",
+      "label:idle", "info:player-idle", "info:npc-idle",
     ]),
     sec("combat", "Бой", [
       "group:attacks", "label:attacks", "info:player-attacks", "info:npc-attacks",
       "group:blocking", "label:blocking", "info:player-blocking", "info:npc-blocking",
     ]),
     sec("magic", "Магия и заклинания", [
-      "group:magic", "info:player-magic", "info:npc-magic",
+      "info:player-magic", "info:npc-magic",
     ]),
     sec("actions", "Действия и взаимодействие", [
-      "group:actions", "info:player-actions", "info:npc-actions",
+      "info:player-actions", "info:npc-actions",
     ]),
     sec("traversal", "Специальное передвижение", [
       "group:jumping", "label:jumping", "info:player-jumping", "info:npc-jumping",
@@ -242,7 +246,6 @@ export const CATEGORIES = Object.freeze([
       "feat:mw-textures-westly-clothiers", "feat:mw-textures-westly-faces",
       "link:overhauls",
     ]),
-  ]),
   ]),
 ]);
 

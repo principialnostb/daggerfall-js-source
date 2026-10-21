@@ -115,7 +115,7 @@ import { castRate } from '../../systems/castSpeed.js';   // CAST-SPEED: the rate
 import '../swingLaw.js';   // AUDIT PRE-MERGE 0929 S5: SWING-LAW's reader of the weapon in the hand, registered as it loads - every rig's
 import { walkSpeed } from '../../player/motor.js';   // WW1: GetBaseSpeed's walk arm
 import { localizedText, t } from '../../systems/textManager.js';   // L10N3d: DFU's Internal_Strings, read in the player's language; TWO-HANDS: the lead's two lines, the port's own
-import { HANDS_MODE, twoHanded, runHandsWanted, runHandsKept, runPhaseOfBob } from '../twoHands/handsLaw.js';   // TWO-HANDS: how the hands are held, and when they run
+import { HANDS_MODE, twoHanded, runHandsWanted, runHandsKept, runPhaseOfBob, runHandsSlotsEmpty, RUN_PUMP } from '../twoHands/handsLaw.js';   // TWO-HANDS: how the hands are held, and when they run
 import { stepTechnique, claimShot, techniqueFlying, TECHNIQUE_ACTION } from '../techniques.js';   // TECH1: the technique key - every host's rig steps the one runner
 import '../../systems/martialPowers.js';   // MARTIAL3/4 (bible/05-Combat/Martial-Specialisations.md): what the martial paths and the weapons past 100 DO - registered at import, so every host's rig (exterior.js, world.js, worldModes.js' interiors, dungeonContext.js' dungeons) has them
 import { techniqueHands } from '../technique/techniqueFx.js';   // TECH-FX: a technique's push of the first-person layer
@@ -549,7 +549,13 @@ export function createWeaponRig({ renderer, canvas, fetchBytes, palette, audio, 
   const handsEmpty = () => {
     if (!bindWorn || !entity) return false;
     const slots = entity.equip?.slots;
-    if (slots?.[EQUIP_SLOTS.RightHand] || slots?.[EQUIP_SLOTS.LeftHand]) return false;
+    const right = slots?.[EQUIP_SLOTS.RightHand], left = slots?.[EQUIP_SLOTS.LeftHand];
+    const shieldInHand = [right, left].some((item) => item && isShieldTemplate(item.templateIndex));
+    // Equipment slots persist while a weapon is sheathed. The run pump is
+    // for what is actually held, not every item still assigned to a slot.
+    if (!runHandsSlotsEmpty({
+      rightOccupied: !!right, leftOccupied: !!left, sheathed: !!playerWeapon.sheathed, shieldInHand,
+    })) return false;
     if (lightInHand() || racialFpsWeapon(entity)) return false;
     if (spellArmed() || fpsSpellCasting.isPlayingAnim || actTool() || sheetWindowUp()) return false;
     return (entity.equipCountdown ?? 0) <= 0;
@@ -604,11 +610,13 @@ export function createWeaponRig({ renderer, canvas, fetchBytes, palette, audio, 
     _runAir = aloft ? _runAir + dt : 0;
     const wanted = runHandsKept({ wanted: runHandsWanted(body), aloft, wasWanted: _runWanted, airSeconds: _runAir });
     _runWanted = wanted;
+    const running = !!mv.running && !body.standing && body.grounded && !body.crouching
+      && !body.riding && !body.swimming && !climbing && speed >= RUN_PUMP.MIN_SPEED;
     twoHands.step(dt, {
       mode: pairUp() ? playerWeapon.handsMode : HANDS_MODE.Single, machine: playerWeapon.machine, strike: playerWeapon.strikeInFlight,
       leftHanded: handedFlip(), standing: !!mv.standing, run: { wanted: wanted && handsLane, punching: attacking, speed, bob: mv.bobTimer },
     });
-    fpArm.setRunHands?.(wanted, { speed, phase: Number.isFinite(mv.bobTimer) ? runPhaseOfBob(mv.bobTimer) : null });   // AUDIT: the arms on the head bob's clock too
+    fpArm.setRunHands?.(wanted, { speed, phase: Number.isFinite(mv.bobTimer) ? runPhaseOfBob(mv.bobTimer) : null, running });   // AUDIT: the arms on the head bob's clock too
   }
   const widgetOn = () => modSetting('weapon-widget', 'Enabled');
   // SW1: the shield's own component. Its sprites come from the player's

@@ -1,25 +1,25 @@
 // Character body morph settings for the Morrowind player.
 // Values are normalized to [-1, 1] and persisted per browser profile.
 export const BODY_MORPH_FIELDS = [
-  ['height', 'Рост', 'overall'],
+  ['height', 'Высота туловища (голова неподвижна)', 'overall'],
   ['bodyWidth', 'Ширина тела', 'overall'],
-  ['bodyFullness', 'Общая полнота', 'overall'],
-  ['shoulderWidth', 'Ширина плеч', 'shoulders'],
-  ['ribcageWidth', 'Ширина грудной клетки', 'torso'],
-  ['breastSize', 'Объём груди', 'chest'],
-  ['breastProjection', 'Выступ груди', 'chest'],
-  ['waistWidth', 'Ширина талии', 'torso'],
-  ['abdomenVolume', 'Объём живота', 'torso'],
-  ['hipWidth', 'Ширина таза', 'hips'],
-  ['buttockSize', 'Объём ягодиц', 'hips'],
-  ['buttockProjection', 'Выступ ягодиц', 'hips'],
+  ['bodyFullness', 'Толщина тела (вид сбоку)', 'overall'],
+  ['shoulderWidth', 'Ширина грудной клетки', 'shoulders'],
+  ['ribcageWidth', 'Ширина нижнего туловища', 'torso'],
+  ['breastSize', 'Выпуклость живота', 'chest'],
+  ['breastProjection', 'Выступ живота', 'chest'],
+  ['waistWidth', 'Ширина паховой области', 'torso'],
+  ['abdomenVolume', 'Объём живота и ягодиц', 'torso'],
+  ['hipWidth', 'Ширина таза · не влияет', 'hips'],
+  ['buttockSize', 'Объём нижней части ягодиц (слабо)', 'hips'],
+  ['buttockProjection', 'Выступ ягодиц назад (слабо)', 'hips'],
   ['headScale', 'Размер головы', 'head'],
-  ['armThickness', 'Толщина рук', 'arms'],
-  ['armLength', 'Длина рук', 'arms'],
-  ['thighThickness', 'Толщина бёдер', 'legs'],
-  ['calfThickness', 'Толщина голеней', 'legs'],
-  ['legLength', 'Длина ног', 'legs'],
-  ['legGap', 'Расстояние между ногами', 'legs'],
+  ['armThickness', 'Ширина рук (вид спереди)', 'arms'],
+  ['armLength', 'Длина рук · не влияет', 'arms'],
+  ['thighThickness', 'Разведение коленей (бёдра)', 'legs'],
+  ['calfThickness', 'Разведение коленей (голени)', 'legs'],
+  ['legLength', 'Длина голеней', 'legs'],
+  ['legGap', 'Разведение коленей и стоп', 'legs'],
 ];
 const KEY = 'mw-character-body-morphs-v1';
 const UNDERWEAR_KEY = 'mw-character-underwear-v1';
@@ -75,7 +75,7 @@ export function setBodyHairEnabled(enabled) {
   return value;
 }
 
-/** Appearance-only identity override. It changes the rendered race/face, not character attributes or skills. */
+/** Appearance-only identity override. It changes the rendered race/sex/head/hair, not character attributes or skills. */
 export function getAppearanceIdentity() {
   try {
     const saved = JSON.parse(globalThis.localStorage?.getItem(IDENTITY_KEY) || 'null');
@@ -83,14 +83,33 @@ export function getAppearanceIdentity() {
     const race = String(saved.race || '').trim().toLowerCase();
     const faceIndex = Number(saved.faceIndex);
     if (!race || !Number.isInteger(faceIndex) || faceIndex < 0 || faceIndex > 9) return null;
-    return { race, faceIndex };
+    const cleanPartId = (value) => {
+      const id = String(value || '').trim();
+      return id && id.length <= 160 && /^[a-z0-9_ -]+$/i.test(id) ? id : null;
+    };
+    return {
+      race, faceIndex,
+      female: typeof saved.female === 'boolean' ? saved.female : null,
+      headId: cleanPartId(saved.headId),
+      hairId: cleanPartId(saved.hairId),
+    };
   } catch { return null; }
 }
-export function setAppearanceIdentity({ race, faceIndex } = {}) {
+export function setAppearanceIdentity({ race, faceIndex, female, headId, hairId } = {}) {
   const normalizedRace = String(race || '').trim().toLowerCase();
   const index = Number(faceIndex);
   if (!normalizedRace || !Number.isInteger(index) || index < 0 || index > 9) return getAppearanceIdentity();
-  const identity = { race: normalizedRace, faceIndex: index };
+  const cleanPartId = (value) => {
+    const id = String(value || '').trim();
+    return id && id.length <= 160 && /^[a-z0-9_ -]+$/i.test(id) ? id : null;
+  };
+  const identity = {
+    race, faceIndex: index,
+    ...(typeof female === 'boolean' ? { female } : {}),
+    ...(cleanPartId(headId) ? { headId: cleanPartId(headId) } : {}),
+    ...(cleanPartId(hairId) ? { hairId: cleanPartId(hairId) } : {}),
+  };
+  identity.race = normalizedRace;
   try { globalThis.localStorage?.setItem(IDENTITY_KEY, JSON.stringify(identity)); } catch { /* storage may be disabled */ }
-  return identity;
+  return { ...identity, female: typeof identity.female === 'boolean' ? identity.female : null, headId: identity.headId ?? null, hairId: identity.hairId ?? null };
 }

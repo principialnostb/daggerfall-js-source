@@ -384,6 +384,12 @@ export function runHandsWanted({ running = false, standing = false, grounded = t
     && !!emptyHands && speed >= RUN_PUMP.MIN_SPEED;
 }
 
+/** A weapon in an equipment slot is not occupying a hand while sheathed. A shield still occupies its hand. */
+export function runHandsSlotsEmpty({ rightOccupied = false, leftOccupied = false, sheathed = false, shieldInHand = false } = {}) {
+  if (shieldInHand) return false;
+  return !!sheathed || (!rightOccupied && !leftOccupied);
+}
+
 /**
  * One hand's place in the pump at stride phase `phase`: `{ dx, dy, frame, s }` - dx a share of the view's width toward
  * the middle (+), dy a share of the frame's height DOWN (never up: 0 at the top of the stroke, its foot on the view's

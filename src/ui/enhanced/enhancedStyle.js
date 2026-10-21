@@ -455,7 +455,6 @@ select, input, textarea { font: inherit; }
    that may be deleted. Disclosure, not deletion. */
 .panes { display: grid; grid-template-columns: 178px minmax(280px, 1fr) minmax(280px, 340px); gap: var(--gap); background: var(--iron); height: 100%; min-height: 0; }
 .subrail { background: var(--ink); overflow: auto; padding: 8px 0; }
-.subrail-custom-divider { height: 0; margin: 9px 12px 7px; border-top: 1px solid rgba(180, 158, 112, 0.42); }
 .list { background: var(--slate); overflow: auto; }
 .detail { background: #12161b; overflow: auto; }
 
@@ -471,6 +470,8 @@ select, input, textarea { font: inherit; }
    shows on the ACTIVE tab only, because that is the only tab the
    gesture applies to. */
 .subbtn .more-dot { display: none; }
+/* Custom Morrowind settings are grouped beneath the built-in categories. */
+.subrail .custom-settings-group { display: flex; flex-direction: column; margin-top: 24px; }
 
 .row {
   display: flex; align-items: center; gap: 14px; width: 100%;
@@ -643,6 +644,12 @@ select, input, textarea { font: inherit; }
     padding: 12px 15px;
   }
   .subbtn.on { border-left: 0; border-bottom-color: var(--brass); }
+  /* Keep the built-in tabs on the first line and the custom group on the next. */
+  .subrail { flex-wrap: wrap; overflow-x: auto; overflow-y: auto; }
+  .subrail .custom-settings-group {
+    display: flex; flex-direction: row; flex-wrap: nowrap; flex: 0 0 100%;
+    gap: 0; margin-top: 16px; border-top: 0; overflow-x: auto;
+  }
   .subbtn .count { float: none; margin-left: 7px; }
   /* THE ONLY WAY TO THE CATEGORY CARD ON A PHONE (AUDIT F8), so the
      gesture needs to be visible. Active tab only - it is the only tab
@@ -5477,12 +5484,16 @@ ${tierMarkCss({ wash: (k) => TIER_MARKS[k], washAlpha: 0.2, edge: '#0b0805', sel
 .px-setwrap .subrail { display: flex; flex-direction: row; flex-wrap: wrap; gap: 2px;
   width: auto; border-right: 0; border-bottom: 2px solid rgba(125,116,96,0.45);
   padding: 4px 6px 6px; overflow: visible; }
-.px-setwrap .subrail-custom-divider { flex: 0 0 100%; margin: 8px 0 4px; }
- .px-setwrap .subbtn { width: auto; min-height: 40px; padding: 6px 12px; font-size: 14px;   /* ORG2: a strip of tabs, not a column */
+.px-setwrap .subbtn { width: auto; min-height: 40px; padding: 6px 12px; font-size: 14px;   /* ORG2: a strip of tabs, not a column */
   display: flex; align-items: center; gap: 8px;
   color: #d8cfae; text-shadow: 2px 2px 0 rgba(0,0,0,0.8); }
 .px-setwrap .subbtn.on { color: rgb(243,239,44); text-shadow: 2px 2px 0 rgb(93,77,12); }
 .px-setwrap .subbtn .count { font-size: 11px; }
+/* Custom settings form their own second row without a separator line. */
+.px-setwrap .subrail .custom-settings-group {
+  display: flex; flex-direction: row; flex-wrap: wrap; flex: 0 0 100%;
+  gap: 2px; margin-top: 16px; border-left: 0; padding-left: 0;
+}
 .px-setwrap .list { flex: 1; overflow-y: auto; padding: 8px 12px 12px; background: none; }   /* PX10b: the old sheet's slate panel, off */
 .px-setwrap .row { min-height: 44px; }
 /* AUDIT MERGE-PLUS D7: A LABEL IS NEVER CUT FOR ITS VALUE. On a 320px phone the skin's name ("Enhanced Plus") took

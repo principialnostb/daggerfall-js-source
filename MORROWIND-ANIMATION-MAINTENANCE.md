@@ -1,20 +1,16 @@
 # Morrowind animation packs — maintainer map
 
-Branch: `morrowind.v4`  
+Branch: `Dev`  
 Last audited: 2026-10-19  
 Primary integration note: [MORROWIND-ANIMATION-INTEGRATION.md](./MORROWIND-ANIMATION-INTEGRATION.md)
 
 This document is the operational inventory: what is in the repository, what the browser runtime actually loads, what it deliberately does not load, and what remains unfinished. A file being present under `Morrowind Textures/` does **not** mean it is active.
 
-## Asset storage boundary
-
-The full `Morrowind Textures/` binary directory is deliberately not stored in this branch. `src/systems/morrowindAssetManifest.js` enumerates the 7,464 asset paths consumed by the browser and pins their URLs to immutable Dev commit `a7128529d7dd7ca562f1bd4833911a249d2d9da2`. Loaders fetch assets only when requested. The source pack is not considered integrated merely because its paths are listed: the runtime selection and fallback logic below still determines which files are actually used.
-
 ## Runtime map
 
 | Responsibility | Implementation | Current behavior |
 |---|---|---|
-| Discover bundled walk KF files | `src/formats/morrowind/mwWalkAnimationAssets.js` + `src/systems/morrowindAssetManifest.js` | The pinned manifest resolves Simply Walking and Axel's female clips to immutable raw-file URLs; clip bytes are fetched on demand. |
+| Discover bundled walk KF files | `src/formats/morrowind/mwWalkAnimationAssets.js` | Vite `import.meta.glob` includes Simply Walking and Axel's female files only. |
 | Parse KF / bind tracks to the active skeleton | `src/combat/fpArm.js` + `src/formats/morrowind/mwAnim.js` | Replacement tracks are parsed against the current rig. A failed parse or incompatible source is skipped and the game/archive source remains available. |
 | Restrict replacement to walk groups | `isWalkAnimationGroup`, `isWalkAnimationKey` in `mwWalkAnimationAssets.js`; source filtering in `fpArm.js` | Only groups beginning with `walk` and text-key records containing a walk-group line are copied into replacement sources. Idle, run, turn, sneak, combat, jump, and death groups are not imported from these walk packs. |
 | Choose a clip while walking | `walkVariantForActor()` in `mwWalkAnimationAssets.js`, called from `src/combat/fpArm.js` | Player, male NPC, and female NPC settings are resolved independently. The preference is checked again on a walk-group change and can trigger a live re-pick. |

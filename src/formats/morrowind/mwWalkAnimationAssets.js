@@ -1,20 +1,19 @@
 // Runtime loader for the animation packs uploaded to the Morrowind Textures tree.
-// Asset URLs come from the pinned remote manifest; clip bytes are fetched on
-// demand and parsed by the same KF reader used for the game's archives. This
-// module deliberately does not touch meshes or skeleton geometry.
+// Files are bundled by Vite as URLs; their bytes are parsed by the same NIF/KF
+// reader used for the game's archives. This module deliberately does not touch
+// meshes or skeleton geometry.
 import { modSetting } from '../../systems/modSettings.js';
 
 const IN_BROWSER = typeof window !== 'undefined';
-import { MORROWIND_ASSET_PATHS, morrowindAssetUrl } from '../../systems/morrowindAssetManifest.js';
-const WALK_PATH_MATCHERS = [
-  /^Simply Walking\/.*\.kf$/i,
-  /^Axel's Sexy Walk Fixed\/Animation\/axel fixed\/female\/.*\.kf$/i,
-  /^Morrowind Animation Overhaul\/Data Files\/Meshes\/.*\.kf$/i,
-];
-const FILES = IN_BROWSER ? Object.fromEntries(
-  MORROWIND_ASSET_PATHS.filter((path) => WALK_PATH_MATCHERS.some((pattern) => pattern.test(path)))
-    .map((path) => [`../../../Morrowind Textures/${path}`, morrowindAssetUrl(path)]),
-) : {};
+const FILES = IN_BROWSER
+  ? import.meta.glob([
+      '../../../Morrowind Textures/Simply Walking/**/*.{kf,KF}',
+      "../../../Morrowind Textures/Axel's Sexy Walk Fixed/Animation/axel fixed/female/*.{kf,KF}",
+      '../../../Morrowind Textures/Morrowind Animation Overhaul/Data Files/Meshes/*.{kf,KF}',
+    ], {
+      eager: true, query: '?url', import: 'default',
+    })
+  : {};
 
 const norm = (value) => String(value).replace(/\\/g, '/').toLowerCase();
 const entries = Object.entries(FILES).map(([path, url]) => ({ path: path.replace(/\\/g, '/'), lower: norm(path), url }));

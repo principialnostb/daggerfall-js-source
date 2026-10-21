@@ -1,5 +1,5 @@
-// Bundled Morrowind replacement assets from the pinned Dev asset tree.
-// The archive keys match the paths stored in NIF files.
+// Bundled Morrowind replacement assets for the mod packs checked into
+// Morrowind Textures. The archive keys match the paths stored in NIF files.
 //
 // Priority inside this archive (later packages win exact-path collisions):
 //   Better Bodies Nude textures (required fallback for the existing BB body)
@@ -18,22 +18,29 @@ import { modSetting } from './modSettings.js';
 import { getBodyHairEnabled, getUnderwearEnabled } from '../characters/bodyMorphs.js';
 
 const IN_BROWSER = typeof window !== 'undefined';
-import { MORROWIND_ASSET_PATHS, morrowindAssetUrl } from './morrowindAssetManifest.js';
-const BUNDLED_PATH_MATCHERS = [
-  /^Better Bodies\/Nude\/Data Files\/Textures\/.*\.(?:dds|tga)$/i,
-  /^High Resolution Better Body Female Textures\/(?:Hands\/Textures|Nude_No_Hair\/Textures|Underwear\/Textures|Nude_Body_Hair\/Textures)\/.*\.(?:dds|tga)$/i,
-  /^Seamless DMRA body replacer\/(?:Meshes\/.*\.nif|Textures\/.*\.(?:dds|tga))$/i,
-  /^Intelligent Textures\/00 Core\/textures\/.*\.(?:dds|tga)$/i,
-  /^Vurt's Better Clothes Retexture\/textures\/.*\.(?:dds|tga)$/i,
-  /^Better Clothes Retextured\/textures\/.*\.(?:dds|tga)$/i,
-  /^Westly's Fine Clothiers of Tamriel\/(?:Meshes\/.*\.nif|Textures\/.*\.(?:dds|tga)|Westly_Presents_FCOT\.esp)$/i,
-  /^Westly's Faces Refurbished\/Data Files\/.*\.(?:nif|dds|tga)$/i,
-  /^Better Morrowind Armor\/(?:Data Files\/.*\.(?:nif|dds|tga|esp)|Complete Armor Joints\/Data Files\/.*\.(?:nif|dds|tga|esp))$/i,
-];
-const FILES = IN_BROWSER ? Object.fromEntries(
-  MORROWIND_ASSET_PATHS.filter((path) => BUNDLED_PATH_MATCHERS.some((pattern) => pattern.test(path)))
-    .map((path) => [`../../Morrowind Textures/${path}`, morrowindAssetUrl(path)]),
-) : {};
+const FILES = IN_BROWSER
+  ? import.meta.glob([
+      '../../Morrowind Textures/Better Bodies/Nude/Data Files/Textures/**/*.{dds,DDS,tga,TGA}',
+      '../../Morrowind Textures/High Resolution Better Body Female Textures/Hands/Textures/**/*.{dds,DDS,tga,TGA}',
+      '../../Morrowind Textures/High Resolution Better Body Female Textures/Nude_No_Hair/Textures/**/*.{dds,DDS,tga,TGA}',
+      '../../Morrowind Textures/High Resolution Better Body Female Textures/Underwear/Textures/**/*.{dds,DDS,tga,TGA}',
+      '../../Morrowind Textures/High Resolution Better Body Female Textures/Nude_Body_Hair/Textures/**/*.{dds,DDS,tga,TGA}',
+      '../../Morrowind Textures/Seamless DMRA body replacer/Meshes/**/*.{nif,NIF}',
+      '../../Morrowind Textures/Seamless DMRA body replacer/Textures/**/*.{dds,DDS,tga,TGA}',
+      '../../Morrowind Textures/Intelligent Textures/00 Core/textures/**/*.{dds,DDS,tga,TGA}',
+      "../../Morrowind Textures/Vurt's Better Clothes Retexture/textures/**/*.{dds,DDS,tga,TGA}",
+      '../../Morrowind Textures/Better Clothes Retextured/textures/**/*.{dds,DDS,tga,TGA}',
+      '../../Morrowind Textures/Better Clothes Retextured/meshes/**/*.{nif,NIF}',
+      "../../Morrowind Textures/Westly's Fine Clothiers of Tamriel/Meshes/**/*.{nif,NIF}",
+      "../../Morrowind Textures/Westly's Fine Clothiers of Tamriel/Textures/**/*.{dds,DDS,tga,TGA}",
+      "../../Morrowind Textures/Westly's Fine Clothiers of Tamriel/Westly_Presents_FCOT.esp",
+      "../../Morrowind Textures/Westly's Faces Refurbished/Data Files/**/*.{nif,NIF,dds,DDS,tga,TGA}",
+      '../../Morrowind Textures/Better Morrowind Armor/Data Files/**/*.{nif,NIF,dds,DDS,tga,TGA,esp,ESP}',
+      '../../Morrowind Textures/Better Morrowind Armor/Complete Armor Joints/Data Files/**/*.{nif,NIF,dds,DDS,tga,TGA,esp,ESP}',
+    ], {
+      eager: true, query: '?url', import: 'default',
+    })
+  : {};
 
 const norm = (s) => String(s).replace(/\\/g, '/').toLowerCase();
 const assetUrls = Object.create(null);
@@ -45,6 +52,7 @@ const highResolutionFemaleHandUrls = Object.create(null);
 const intelligentTextureUrls = Object.create(null);
 const vurtClothesTextureUrls = Object.create(null);
 const betterClothesTextureUrls = Object.create(null);
+const betterClothesMeshUrls = Object.create(null);
 const clothierAssetUrls = Object.create(null);
 const armorTextureUrls = Object.create(null);
 const armorJointsUrls = Object.create(null);
@@ -145,11 +153,11 @@ for (const [source, url] of Object.entries(FILES)) {
   const betterClothesRel = relAfter(path, lower, '/better clothes retextured/');
   if (betterClothesRel) {
     if (!packEnabled.betterClothes) continue;
+    const meshMatch = betterClothesRel.match(/^meshes\/(.+\.nif)$/i);
     const textureMatch = betterClothesRel.match(/^textures\/(.+\.(?:dds|tga))$/i);
-    // Keep this pack texture-only. Its NIF meshes can carry different UVs and
-    // coarse pants geometry; the existing garment fitter must adapt the active
-    // clothing mesh to Better Bodies instead of silently replacing that mesh.
-    if (textureMatch && !/(?:pant|trouser)/i.test(textureMatch[1])) {
+    if (meshMatch) {
+      addAsset(betterClothesMeshUrls, 'meshes/' + meshMatch[1], url, 'Better Clothes Retextured meshes');
+    } else if (textureMatch && !/(?:pant|trouser)/i.test(textureMatch[1])) {
       addAsset(betterClothesTextureUrls, 'textures/' + textureMatch[1], url, 'Better Clothes Retextured (non-pants textures only)');
     }
     continue;
@@ -235,6 +243,7 @@ Object.assign(
   intelligentTextureUrls,
   vurtClothesTextureUrls,
   betterClothesTextureUrls,
+  betterClothesMeshUrls,
   armorTextureUrls,
   armorJointsUrls,
   clothierAssetUrls,

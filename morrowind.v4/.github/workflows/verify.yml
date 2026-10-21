@@ -1,0 +1,110 @@
+# FLOW1 (2026-09-26, Mac: "is there a way to really ensure we have a faster workflow with the same standards?"):
+# THE ONE VERIFICATION, IN PARALLEL.
+#
+# `npm run check` ran lint, the types, the whole suite and the build one
+# after another in one job - ~7 minutes - and it ran twice for every
+# change: the PR's check, then again on main before the site deployed.
+# This is the same check, split into jobs that run at once: lint and the
+# types, the suite in four shards balanced by recorded times
+# (tools/testShards.mjs - every test file in exactly one shard), and the
+# build. Nothing is skipped and nothing is weaker: every file still runs,
+# every part must pass. The PR's check (check.yml) and the deploy
+# (deploy.yml) both call it, so they cannot drift apart.
+#
+# REL-FAST (2026-10-15): the desktop release's gate calls it too
+# (release-desktop.yml), so the release waits on the same parallel check
+# rather than `npm run check` in series - and no checkout here keeps a
+# token in .git/config (AUDIT INSTALL L1-1's law for that workflow).
+#
+# The shard count is in two places that must agree - the matrix and the
+# `/4` - and test/tooling/flow1_ci.test.js holds them together.
+#
+# EG6a (2026-10-12): and THE COURSE SWEEP - every Elite Breach course crossed
+# step by step by the real player motor, `sweep` seeds a band (25 here;
+# relay-deploy.yml asks 500), in eg-sweep.yml's four band jobs beside the
+# shards. test/tooling/eg6a_sweep.test.js holds the wiring.
+name: verify
+
+on:
+  workflow_call:
+    inputs:
+      ref:
+        description: The commit to verify (empty - the caller's own).
+        type: string
+        default: ""
+      build:
+        description: Run the build as a part (the deploy builds its own site).
+        type: boolean
+        default: true
+      sweep:
+        description: Seeds a band the course sweep crosses with the real motor (eg-sweep.yml) - 25 on a pull request, 500 before a relay deploy.
+        type: number
+        default: 25
+
+permissions:
+  contents: read
+
+jobs:
+  static:
+    name: lint and types
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
+          persist-credentials: false   # REL-FAST: nothing here pushes - the release's gate too (AUDIT INSTALL L1-1)
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Lint
+        run: npm run lint
+      - name: Type-check
+        run: npm run types
+
+  test:
+    name: tests ${{ matrix.shard }}/4
+    runs-on: ubuntu-latest
+    strategy:
+      # every shard reports, so one red run shows every failing file
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
+          persist-credentials: false   # REL-FAST: nothing here pushes - the release's gate too (AUDIT INSTALL L1-1)
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Test shard ${{ matrix.shard }} of 4
+        run: node tools/testShards.mjs ${{ matrix.shard }}/4
+
+  sweep:
+    uses: ./.github/workflows/eg-sweep.yml
+    with:
+      ref: ${{ inputs.ref }}
+      seeds: ${{ inputs.sweep }}
+
+  build:
+    if: ${{ inputs.build }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
+          persist-credentials: false   # REL-FAST: nothing here pushes - the release's gate too (AUDIT INSTALL L1-1)
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Build
+        run: npm run build

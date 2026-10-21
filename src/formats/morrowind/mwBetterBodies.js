@@ -3,20 +3,36 @@
 // Runtime body and skin URLs are selected by the actor's race and sex from the
 // checked-in race variants. The diagnostic below remains a Nord-female probe;
 // it is not evidence that every race/sex combination has been visually validated.
-// A pinned remote asset manifest keeps the source files addressable without embedding binary data.
+// Vite's asset glob keeps the source files addressable without embedding binary data.
 const IN_BROWSER = typeof window !== 'undefined';
 import { getUnderwearEnabled } from '../../characters/bodyMorphs.js';
 import { modSetting } from '../../systems/modSettings.js';
 
-import { MORROWIND_ASSET_PATHS, morrowindAssetUrl } from '../../systems/morrowindAssetManifest.js';
-const assetUrlTable = (predicate) => IN_BROWSER ? Object.fromEntries(
-  MORROWIND_ASSET_PATHS.filter(predicate).map((path) => [`../../../Morrowind Textures/${path}`, morrowindAssetUrl(path)]),
-) : {};
-const nudeBodyModelUrls = assetUrlTable((path) => /^Better Bodies\/Nude\/Data Files\/Meshes\/bb\/bb_skin.*\.nif$/i.test(path));
-const nudeBodyTextureUrls = assetUrlTable((path) => /^Better Bodies\/Nude\/Data Files\/Textures\/bb\/bb_skin.*\.dds$/i.test(path));
-const underwearBodyModelUrls = assetUrlTable((path) => /^Better Bodies\/Underwear\/Data Files\/Meshes\/bb\/bb_skin.*\.nif$/i.test(path));
-const underwearBodyTextureUrls = assetUrlTable((path) => /^Better Bodies\/Underwear\/Data Files\/Textures\/bb\/bb_skin.*\.dds$/i.test(path));
-const dmraFemaleBodyModelUrls = assetUrlTable((path) => /^Seamless DMRA body replacer\/Meshes\/bb\/bb_skinf_.*\.nif$/i.test(path));
+const nudeBodyModelUrls = IN_BROWSER
+  ? import.meta.glob('../../../Morrowind Textures/Better Bodies/Nude/Data Files/Meshes/bb/bb_skin*.nif', {
+      eager: true, query: '?url', import: 'default',
+    })
+  : {};
+const nudeBodyTextureUrls = IN_BROWSER
+  ? import.meta.glob('../../../Morrowind Textures/Better Bodies/Nude/Data Files/Textures/bb/bb_skin*.dds', {
+      eager: true, query: '?url', import: 'default',
+    })
+  : {};
+const underwearBodyModelUrls = IN_BROWSER
+  ? import.meta.glob('../../../Morrowind Textures/Better Bodies/Underwear/Data Files/Meshes/bb/bb_skin*.nif', {
+      eager: true, query: '?url', import: 'default',
+    })
+  : {};
+const underwearBodyTextureUrls = IN_BROWSER
+  ? import.meta.glob('../../../Morrowind Textures/Better Bodies/Underwear/Data Files/Textures/bb/bb_skin*.dds', {
+      eager: true, query: '?url', import: 'default',
+    })
+  : {};
+const dmraFemaleBodyModelUrls = IN_BROWSER
+  ? import.meta.glob('../../../Morrowind Textures/Seamless DMRA body replacer/Meshes/bb/bb_skinf_*.nif', {
+      eager: true, query: '?url', import: 'default',
+    })
+  : {};
 import betterBodiesFemaleUvEditsUrl from '../../../bb_skinf_no-uv-edits.json?url';
 
 const RACE_CODES = Object.freeze({

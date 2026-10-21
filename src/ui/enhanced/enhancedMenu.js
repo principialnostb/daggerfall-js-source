@@ -1704,20 +1704,8 @@ function paneExit(body) {
 // graphicsPresets.js). The pause window draws the same screen, condensed as PX10 had it: the rows that act in play.
 
 let optQuery = '';          // ORG2: the search, over every tab - kept across a repaint, cleared by a tab change
-let animationSection = 'locomotion'; // ANIM-UI5: the shared animation family currently selected
-const ANIMATION_SUBGROUPS = Object.freeze({
-  locomotion: [['walking', 'Ходьба'], ['running', 'Бег']],
-  posture: [['general', 'Общие настройки'], ['turning', 'Повороты и развороты'], ['idle', 'Стойка и ожидание'], ['sneak', 'Скрытность']],
-  combat: [['attacks', 'Атаки'], ['blocking', 'Блокирование']],
-  magic: [['magic', 'Заклинания']],
-  actions: [['actions', 'Действия и взаимодействие']],
-  traversal: [['jumping', 'Прыжки'], ['swimming', 'Плавание'], ['falling', 'Падение и приземление']],
-  reactions: [['damage', 'Получение урона'], ['death', 'Смерть']],
-});
-const DEFAULT_ANIMATION_SUBGROUP = Object.freeze(Object.fromEntries(
-  Object.entries(ANIMATION_SUBGROUPS).map(([section, groups]) => [section, groups[0][0]]),
-));
-let animationClipGroup = 'walking'; // Each section owns a valid nested-selector default.
+const selectedSectionByTab = { animations: 'locomotion' }; // The open section for each settings tab.
+let animationClipGroup = 'walking'; // Nested animation subgroup currently selected.
 let optFilter = 'all';      // ORG2: 'all' | 'changed' | a KINDS id
 let pickedFeature = null;   // ORG2: the Features row the help pane reads (pickedKey is DFU's key)
 let optScrollTo = null;     // ORG2: a row to bring into view after the next paint (the mods' list sends you to one)
@@ -1779,15 +1767,7 @@ function itemKinds(item) {
 function itemText(item, pool) {
   if (isSettingItem(item)) return `${labelOf(item)} ${helpOf(item)} ${item}`;
   if (item.startsWith('feat:')) { const f = FEATURES.find((x) => x.id === item.slice(5)); return f ? featureSearchText(f) : ''; }
-  if (item.startsWith('group:')) return ({
-    general: 'общие настройки general options',
-    walking: 'ходьба walking walk', running: 'бег running run',
-    turning: 'повороты развороты turning turn', idle: 'стойка ожидание idle stance', sneak: 'скрытность sneak stealth',
-    attacks: 'атаки attacks combat weapon strike', blocking: 'блокирование защита blocking block guard',
-    magic: 'магия заклинания magic spell cast', actions: 'действия взаимодействие actions interaction',
-    jumping: 'прыжки jumping jump', swimming: 'плавание swimming swim', falling: 'падение приземление falling landing',
-    damage: 'получение урона damage hit hurt', death: 'смерть death dying',
-  })[item.slice(6)] ?? '';
+  if (item.startsWith('group:')) return ({ walking: 'ходьба walking walk', running: 'бег running run' })[item.slice(6)] ?? '';
   if (item.startsWith('label:')) return ({
     player: 'player игрок', npc: 'npc нпс',
     walking: 'ходьба walking walk', running: 'бег running run',
@@ -1868,14 +1848,38 @@ function itemNodes(item, ctx) {
   }
   if (item.startsWith('group:')) {
     const group = item.slice(6);
-    const labels = Object.fromEntries(Object.values(ANIMATION_SUBGROUPS).flat().map(([id, label]) => [id, label]));
+    const labels = {
+      walking: 'Ходьба', running: 'Бег',
+      posture: 'Положение и скрытность', turning: 'Повороты и развороты', idle: 'Стойка и ожидание',
+      attacks: 'Атаки', blocking: 'Блокирование и защита',
+      jumping: 'Прыжки', swimming: 'Плавание', falling: 'Падение и приземление',
+      damage: 'Получение урона', death: 'Смерть',
+    };
     const button = el('button', `sec-jumpbtn animation-switch animation-clip-group${animationClipGroup === group ? ' is-active' : ''}`, labels[group] ?? group);
     button.type = 'button';
     button.setAttribute('aria-expanded', String(animationClipGroup === group));
-    button.onclick = () => {
+    button.addEventListener('click', (event) => {
+      // This is a nested selector, not a settings-row action. Keep the outer
+      // menu from interpreting the click, update the selected clip family,
+      // and repaint the same live body node so the matching controls replace
+      // the previous family's controls immediately.
+      event.preventDefault();
+      event.stopPropagation();
+      const sectionForGroup = {
+        walking: 'locomotion', running: 'locomotion',
+        posture: 'posture', turning: 'posture', idle: 'posture',
+        attacks: 'combat', blocking: 'combat',
+        jumping: 'traversal', swimming: 'traversal', falling: 'traversal',
+        damage: 'reactions', death: 'reactions',
+      };
+      selectedSectionByTab.animations = sectionForGroup[group] ?? 'posture';
       animationClipGroup = group;
-      if (ctx.body) paintOptionsBody(ctx.body, { pause: ctx.pause });
-    };
+      const body = ctx.body;
+      if (!body || !body.isConnected) return;
+      paintOptionsBody(body, { pause: ctx.pause });
+      // Keep the family selector in view after the section is repainted.
+      body.querySelector('.animation-clip-group.is-active')?.scrollIntoView?.({ block: 'nearest', inline: 'nearest' });
+    });
     return [button];
   }
   if (item.startsWith('label:')) {
@@ -1971,16 +1975,12 @@ function tabSections(tab, ctx) {
     const nodes = s.items.flatMap((item) => {
       if (tab.id === 'animations' && item.startsWith('group:')) {
         clipGroup = item.slice(6);
-        // Structural marker only; the visible choice is a dedicated sub-navigation strip.
-        return [];
+        return itemNodes(item, { ...ctx, fold });
       }
       if (tab.id === 'animations' && clipGroup && clipGroup !== animationClipGroup) return [];
       return itemNodes(item, { ...ctx, fold });
     });
-    // Keep every animation section in the first-level selector even when its
-    // currently selected nested group belongs to another section. Otherwise
-    // choosing Ходьба would make the other section buttons disappear.
-    if (nodes.length || tab.id === 'animations') out.push({ s, nodes });
+    if (nodes.length) out.push({ s, nodes });
   }
   return { sections: out, fold };
 }
@@ -2024,19 +2024,24 @@ function paintOptionsBody(body, { pause = false } = {}) {
   const tab = CATEGORIES.find((c) => c.id === category) ?? CATEGORIES[0];
   if (tab.id === 'mods' && isOnlinePage()) body.append(el('p', 'meta opt-note', noteText(ONLINE_MODS_NOTE)));   // MODS-ONLINE-2: said once, over the mods; L10N4: in the player's language
   const { sections, fold } = tabSections(tab, ctx);
-  if (tab.id === 'animations' && !q) {
+  if (sections.length > 1) {
+    // Every multi-section tab uses the same compact section picker: only the
+    // selected section is rendered, instead of stacking every section vertically.
     const nav = el('nav', 'sec-jump animation-switches');
-    nav.setAttribute('aria-label', 'Animation categories');
+    nav.setAttribute('aria-label', `${tab.title} sections`);
     const group = el('div', 'animation-switch-group');
-    group.append(el('div', 'meta animation-switch-label', 'Раздел анимаций'));
+    group.append(el('div', 'meta animation-switch-label', 'Раздел'));
     const buttons = el('div', 'animation-switch-buttons');
+    const rememberedId = selectedSectionByTab[tab.id];
+    const selectedId = sections.some(({ s }) => s.id === rememberedId) ? rememberedId : sections[0].s.id;
     for (const { s } of sections) {
-      const b = el('button', `sec-jumpbtn animation-switch${animationSection === s.id ? ' is-active' : ''}`, s.title);
+      const b = el('button', `sec-jumpbtn animation-switch${selectedId === s.id ? ' is-active' : ''}`, s.title);
       b.type = 'button';
-      b.setAttribute('aria-pressed', String(animationSection === s.id));
+      b.setAttribute('aria-pressed', String(selectedId === s.id));
       b.onclick = () => {
-        animationSection = s.id;
-        animationClipGroup = DEFAULT_ANIMATION_SUBGROUP[s.id] ?? 'walking';
+        selectedSectionByTab[tab.id] = s.id;
+        if (tab.id === 'animations' && s.id === 'posture') animationClipGroup = 'posture';
+        if (tab.id === 'animations' && s.id === 'locomotion' && !['walking', 'running'].includes(animationClipGroup)) animationClipGroup = 'walking';
         paintOptionsBody(body, { pause });
       };
       buttons.append(b);
@@ -2044,68 +2049,36 @@ function paintOptionsBody(body, { pause = false } = {}) {
     group.append(buttons);
     nav.append(group);
     body.append(nav);
-    const selected = sections.find(({ s }) => s.id === animationSection) ?? sections[0];
+    const selected = sections.find(({ s }) => s.id === selectedId) ?? sections[0];
     if (selected) {
-      const subgroups = ANIMATION_SUBGROUPS[selected.s.id] ?? [];
-      if (subgroups.length) {
-        const subnav = el('nav', 'sec-jump animation-subgroups');
-        subnav.setAttribute('aria-label', 'Конкретная настройка анимации');
-        const subnavGroup = el('div', 'animation-switch-group');
-        subnavGroup.append(el('div', 'meta animation-switch-label', 'Настройка'));
-        const buttons = el('div', 'animation-switch-buttons');
-        for (const [id, title] of subgroups) {
-          const b = el('button', `sec-jumpbtn animation-switch animation-clip-group${animationClipGroup === id ? ' is-active' : ''}`, title);
-          b.type = 'button';
-          b.setAttribute('aria-pressed', String(animationClipGroup === id));
-          b.onclick = () => {
-            // Resolve the owning section from the group itself, not from the
-            // section captured by a previous paint. This keeps the Ходьба/Бег
-            // selector functional after changing tabs, searching, or returning
-            // from another animation family.
-            const owner = Object.entries(ANIMATION_SUBGROUPS)
-              .find(([, groups]) => groups.some(([groupId]) => groupId === id))?.[0];
-            if (!owner) return;
-            // Explicitly restore the Animations page before repainting. The
-            // selector may survive a search/tab round-trip, and relying on
-            // the previously captured category made the walk selector appear
-            // clickable while repainting a different pane.
-            category = 'animations';
-            animationSection = owner;
-            animationClipGroup = id;
-            pickedFeature = null;
-            paintOptionsBody(body, { pause });
-          };
-          buttons.append(b);
-        }
-        subnavGroup.append(buttons);
-        subnav.append(subnavGroup);
-        body.append(subnav);
-      }
-      // Subgroup selectors are already rendered in the top navigation. Remove
-      // the in-list marker buttons as well, otherwise one subgroup (often Ходьба)
-      // appears again below the other group's settings and looks missing initially.
-      const nodes = subgroups.length
+      const isAnimationSection = tab.id === 'animations';
+      const nodes = isAnimationSection
         ? selected.nodes.filter((node) => !node.classList?.contains('animation-clip-group'))
         : selected.nodes;
       const n = nodes.filter(isOptionNode).length;
-      body.append(sectionHead(tab, selected.s, n), ...nodes);
+      body.append(sectionHead(tab, selected.s, n));
+      if (isAnimationSection) {
+        const switches = el('div', 'animation-switch-buttons animation-clip-group-switches');
+        const groupsBySection = {
+          locomotion: ['running', 'walking'],
+          posture: ['posture', 'turning', 'idle'],
+          combat: ['attacks', 'blocking'],
+          traversal: ['jumping', 'swimming', 'falling'],
+          reactions: ['damage', 'death'],
+        };
+        const groups = groupsBySection[selected.s.id] ?? [];
+        for (const group of groups) {
+          const button = itemNodes(`group:${group}`, { ...ctx, fold })[0];
+          if (button) switches.append(button);
+        }
+        if (switches.childElementCount) body.append(switches);
+      }
+      body.append(...nodes);
     } else body.append(empty('Nothing here'));
   } else {
-    if (sections.length >= 3 && !pause) {
-      const strip = el('nav', 'sec-jump');
-      strip.setAttribute('aria-label', 'Sections');
-      for (const { s } of sections) {
-        const b = el('button', 'sec-jumpbtn', s.title);
-        b.type = 'button';
-        b.onclick = () => document.getElementById(`sec-${tab.id}-${s.id}`)?.scrollIntoView({ block: 'start' });
-        strip.append(b);
-      }
-      body.append(strip);
-    }
-    const many = sections.length > 1;
     for (const { s, nodes } of sections) {
       const n = nodes.filter(isOptionNode).length;
-      if (many) body.append(sectionHead(tab, s, n));
+      if (sections.length > 1) body.append(sectionHead(tab, s, n));
       body.append(...nodes);
     }
   }
@@ -2210,14 +2183,8 @@ function paneSettings(pane, { pause = false } = {}) {
   const pool = portPool({ pause });
 
   const rail = el('div', 'subrail');
+  const customSettingsGroup = el('div', 'custom-settings-group');
   for (const cat of CATEGORIES) {
-    // Separate the game's built-in settings categories from our custom pages.
-    // Mods & files remains the final native category; custom pages start below it.
-    if (cat.id === 'animations') {
-      const divider = el('div', 'subrail-custom-divider');
-      divider.setAttribute('aria-hidden', 'true');
-      rail.append(divider);
-    }
     const on = cat.id === category && !optQuery.trim();
     const b = el('button', `subbtn${on ? ' on' : ''}`, cat.title);
     b.dataset.tab = cat.id;
@@ -2245,10 +2212,15 @@ function paneSettings(pane, { pause = false } = {}) {
       render();
     };
     if (on) b.append(el('span', 'more-dot'));
-    // Visually separate the custom Morrowind settings from the game's settings.
-    if (cat.id === 'animations') b.style.marginTop = '14px';
-    rail.append(b);
+    // Keep the custom Morrowind settings together, below the built-in categories.
+    if (['animations', 'bodies', 'textures'].includes(cat.id)) {
+      b.classList.add('custom-settings-tab');
+      customSettingsGroup.append(b);
+    } else {
+      rail.append(b);
+    }
   }
+  if (customSettingsGroup.childElementCount) rail.append(customSettingsGroup);
 
   const list = el('div', 'list');
   const body = el('div', 'opt-body');
