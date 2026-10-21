@@ -101,7 +101,7 @@ export const ANIMATION_PACK_PROVIDERS = Object.freeze([
   }),
 ]);
 
-/** Only an explicitly integrated provider can resolve away from Vanilla. */
+/** Only a provider with a declared runtime consumer can resolve away from Vanilla; pending validation is returned as a reason. */
 export function resolveAnimationPackProvider(domain, selection = 'vanilla') {
   if (!selection || selection === 'vanilla') {
     return { requested: selection || 'vanilla', effective: 'vanilla', provider: null, fallback: false, reason: 'Vanilla selected' };
