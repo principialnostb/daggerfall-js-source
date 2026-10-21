@@ -231,6 +231,49 @@ export function aliasDynamicWalkSource(source) {
   };
 }
 
+/** NPC idle provider choice; player idles stay Vanilla because this pack's idle clips are third-person. */
+export function idleVariantForActor({
+  player = false, ownHeads = false, female = false, npcMaleChoice = 0, npcFemaleChoice = 0,
+} = {}) {
+  if (player || ownHeads) return 'vanilla';
+  const choice = Number(female ? npcFemaleChoice : npcMaleChoice) || 0;
+  return choice === 1 ? 'dynamic' : 'vanilla';
+}
+
+export function dynamicIdleVariantForActor({
+  female = false, player = false, race = '', faceIndex = 0, appearanceHeadId = '',
+} = {}) {
+  if (player) return '2';
+  const seed = `${String(race).toLowerCase()}|${String(faceIndex)}|${String(appearanceHeadId).toLowerCase()}|idle`;
+  let hash = 2166136261;
+  for (let i = 0; i < seed.length; i++) {
+    hash ^= seed.charCodeAt(i);
+    hash = Math.imul(hash, 16777619);
+  }
+  return ['2', '3', '6'][(hash >>> 0) % 3];
+}
+
+export function isIdleVariantEnabled(source, selected = 'vanilla') {
+  if (!source?.idleOnly) return true;
+  return selected === 'dynamic' && source.idleVariant === 'dynamic';
+}
+
+/** Remap one custom idle group to the engine's stance-aware idle groups only when selected. */
+export function aliasDynamicIdleSource(source) {
+  if (!source?.dynamicIdleAlias) return source;
+  const sourceGroups = (source.groups ?? []).filter((group) => /^idle[236]_copy$/i.test(String(group)));
+  if (!sourceGroups.length) return source;
+  const suffixes = ['', '1h', '1s', '1b', '2c', '2b', '2w', 'bow', 'crossbow', '1t', 'hh', 'spell'];
+  const targets = suffixes.map((suffix) => `idle${suffix}`);
+  const keys = (source.keys ?? []).flatMap((key) => {
+    const colon = String(key.text ?? '').indexOf(': ');
+    if (colon < 0 || !sourceGroups.includes(String(key.text).slice(0, colon).toLowerCase())) return [key];
+    return targets.map((target) => ({ ...key, text: target + String(key.text).slice(colon) }));
+  });
+  const groups = [...(source.groups ?? []).filter((group) => !sourceGroups.includes(String(group).toLowerCase())), ...targets];
+  return { ...source, keys, groups, groupSet: new Set(groups), dynamicIdleAlias: false };
+}
+
 /** Live preference gates for the two independent locomotion families. */
 export function isWalkVariantEnabled(source, walkChoice = 'vanilla') {
   const selected = typeof walkChoice === 'boolean' ? (walkChoice ? 'female' : 'standard') : String(walkChoice);
