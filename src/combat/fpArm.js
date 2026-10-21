@@ -85,7 +85,7 @@ import { raceArt } from '../systems/races.js';
 import { appStorage } from '../systems/appStorage.js';   // DA1: the storage seam
 import { modSetting } from '../systems/modSettings.js';
 import { loadWalkAnimationAssets, isWalkAnimationGroup, isWalkAnimationKey, isRunAnimationGroup, isRunAnimationKey, isWalkVariantEnabled, isRunVariantEnabled, walkVariantForActor, runVariantForActor, dynamicWalkStyleForActor, aliasDynamicWalkSource, idleVariantForActor, dynamicIdleVariantForActor, isIdleVariantEnabled, aliasDynamicIdleSource } from '../formats/morrowind/mwWalkAnimationAssets.js';
-import { loadHitReactionAnimationAssets, loadReAnimationAnimationAssets, loadDynamicIdleAnimationAsset, ANIMATION_PACK_IDS, selectDeterministicReactionGroup, selectStableAnimationVariant } from '../formats/morrowind/mwAnimationPackAssets.js';
+import { loadHitReactionAnimationAssets, loadReAnimationAnimationAssets, loadDynamicIdleAnimationAsset, ANIMATION_PACK_IDS, selectDeterministicReactionGroup, selectStableAnimationVariant, aliasReAnimationAttackGroups } from '../formats/morrowind/mwAnimationPackAssets.js';
 import { drawRigSpriteBox, MW_THIRD_PERSON_PIXEL } from '../render/characterSprite.js';
 import { WEAPONS } from '../characters/weapons.js';
 import { materialName } from '../systems/item/itemInfo.js';
@@ -3270,14 +3270,17 @@ export async function buildFpArm({
           notes: [...missing, ...(arm.notes || [])], rows: wanted,
         };
       }
-      sources.push({
+      const source = {
         name: sb.name, keys: one.keys, groups: one.groups, groupSet: new Set(one.groups),
         trackMap: one.trackMap, binding: one.binding,
         // What THIS source would choose. The Animation's actual accum
         // root is picked below, and it is not per-source.
         wouldAccumRoot: accumRootRef(arm.skeleton, one.trackMap),
         ...(sb.animationPackId ? { animationPackId: sb.animationPackId, animationFamily: sb.animationFamily } : {}),
-      });
+      };
+      sources.push(sb.animationPackId === ANIMATION_PACK_IDS.reanimation
+        ? aliasReAnimationAttackGroups(source)
+        : source);
     }
     // hasAnimation: ANY source. The reverse search below picks WHICH.
     const groupSet = new Set(sources.flatMap((so) => so.groups));
