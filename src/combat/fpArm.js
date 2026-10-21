@@ -4755,6 +4755,14 @@ export function createFpArm({ playerAppearance = false } = {}) {
     } else {
       pick = pickAnimSource(sources, weaponGroup, resetClip, options);
     }
+    logAnimationDiagnostic(`fp-action|${weaponGroup}|${start}|${stop}`, {
+      family: 'first-person-action-selection', weaponGroup, start, stop,
+      providerChoice, reAnimationEnabled, actionType,
+      selectedFile: pick?.source?.name ?? null,
+      selectedPack: pick?.source?.animationPack ?? 'archive-or-vanilla',
+      selectedGroups: pick?.source?.groups ?? [],
+      found: !!pick,
+    });
     if (!pick) {
       actionState = null;
       notes.push(`${weaponGroup}: no source has "${weaponGroup}: ${start}" and "${weaponGroup}: ${stop}"`);
