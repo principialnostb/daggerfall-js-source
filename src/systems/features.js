@@ -1206,18 +1206,18 @@ export const FEATURES = Object.freeze([
     title: 'Better Bodies',
     effect: 'Takes effect at once.',
     kinds: Object.freeze(['enhanced']),
-    get note() { return MOD_SETTINGS['morrowind-textures'].keys.BetterBodies.description; },
-    control: Object.freeze({ store: 'mods', vendor: 'morrowind-textures', key: 'BetterBodies' }),
+    get note() { return MOD_SETTINGS['morrowind-textures'].keys.BetterBodiesSource.description; },
+    control: Object.freeze({ store: 'mods', vendor: 'morrowind-textures', key: 'BetterBodiesSource' }),
   }),
   // DMRA is a female-only geometry variant of the Better Bodies base.
   Object.freeze({
     id: 'mw-seamless-dmra',
     group: 'character',
     title: 'Seamless DMRA · женская геометрия',
-    get note() { return MOD_SETTINGS['morrowind-textures'].keys.SeamlessDMRA.description; },
+    get note() { return MOD_SETTINGS['morrowind-textures'].keys.SeamlessDMRASource.description; },
     effect: 'Геометрия — сразу; дополнительные карты — после перезагрузки.',
     kinds: Object.freeze(['mod']),
-    control: Object.freeze({ store: 'mods', vendor: 'morrowind-textures', key: 'SeamlessDMRA' }),
+    control: Object.freeze({ store: 'mods', vendor: 'morrowind-textures', key: 'SeamlessDMRASource' }),
   }),
   // MWNPC5b (2026-10-09, Mac: "I wanna do everything and ensure that performance isnt affected"): THE PEOPLE IN
   // MORROWIND BODIES - the NPC lanes (characters/npcBodies.js) under ONE frame budget (MWNPC11, NPC_FRAME_TIERS): Off, the
