@@ -84,7 +84,7 @@ import { DFPalette } from '../formats/dfPalette.js';
 import { raceArt } from '../systems/races.js';
 import { appStorage } from '../systems/appStorage.js';   // DA1: the storage seam
 import { modSetting } from '../systems/modSettings.js';
-import { loadWalkAnimationAssets, isWalkAnimationGroup, isWalkAnimationKey, isRunAnimationGroup, isRunAnimationKey, isWalkVariantEnabled, isRunVariantEnabled, walkVariantForActor, runVariantForActor } from '../formats/morrowind/mwWalkAnimationAssets.js';
+import { loadWalkAnimationAssets, loadFirstPersonAnimationAssets, loadHitReactionAnimationAssets, isWalkAnimationGroup, isWalkAnimationKey, isRunAnimationGroup, isRunAnimationKey, isWalkVariantEnabled, isRunVariantEnabled, walkVariantForActor, runVariantForActor } from '../formats/morrowind/mwWalkAnimationAssets.js';
 import { drawRigSpriteBox, MW_THIRD_PERSON_PIXEL } from '../render/characterSprite.js';
 import { WEAPONS } from '../characters/weapons.js';
 import { materialName } from '../systems/item/itemInfo.js';
@@ -2353,6 +2353,46 @@ async function buildTpBody({
           animationOverhaul: isOverhaul,
           animationFamily: asset.family,
           walkVariant: asset.variant,
+        });
+      }
+    }
+    // ReAnimation v3: first-person clip files only, validated against this rig.
+    // The stable provider order follows the archive sources so only matching
+    // groups are overridden; every absent group retains the original fallback.
+    if (!werewolf && !beast && /\.1st\.nif$/i.test(skeletonPath)) {
+      const assets = await loadFirstPersonAnimationAssets();
+      for (const asset of assets) {
+        const report = await cachedClipReport(gen, skeletonPath, asset.name, () => asset.bytes, arm.skeleton);
+        if (!report.ok) { missing.push(`ReAnimation clip ${asset.name}: ${report.error}`); continue; }
+        if (!report.groups.length || !report.keys.length) continue;
+        sources.push({
+          name: asset.name, keys: report.keys, groups: report.groups,
+          groupSet: new Set(report.groups), trackMap: report.trackMap, binding: report.binding,
+          wouldAccumRoot: accumRootRef(arm.skeleton, report.trackMap),
+          animationFamily: 'first-person', animationPack: 'reanimation-v3',
+        });
+      }
+    }
+    // Hit Reactions Animated v2: third-person only, and only reaction/death
+    // groups. Do not let the pack take ownership of locomotion or weapon groups.
+    if (!werewolf && !beast && !/\.1st\.nif$/i.test(skeletonPath)) {
+      const assets = await loadHitReactionAnimationAssets();
+      const reactionGroup = /^(?:x)?(?:hit|stagger|death)/i;
+      for (const asset of assets) {
+        const report = await cachedClipReport(gen, skeletonPath, asset.name, () => asset.bytes, arm.skeleton);
+        if (!report.ok) { missing.push(`Hit reaction clip ${asset.name}: ${report.error}`); continue; }
+        const groups = report.groups.filter((name) => reactionGroup.test(name));
+        const allowed = new Set(groups.map((name) => name.toLowerCase()));
+        const keys = report.keys.filter((key) => String(key?.text ?? '').split(/\r?\n/).some((line) => {
+          const colon = line.indexOf(':');
+          return colon > 0 && allowed.has(line.slice(0, colon).trim().toLowerCase());
+        }));
+        if (!groups.length || !keys.length) continue;
+        sources.push({
+          name: asset.name, keys, groups, groupSet: new Set(groups),
+          trackMap: report.trackMap, binding: report.binding,
+          wouldAccumRoot: accumRootRef(arm.skeleton, report.trackMap),
+          animationFamily: 'hit-reaction', animationPack: 'hit-reactions-v2',
         });
       }
     }
