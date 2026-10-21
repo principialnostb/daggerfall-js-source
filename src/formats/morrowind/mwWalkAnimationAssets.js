@@ -147,8 +147,8 @@ export async function loadWalkAnimationAssets({ female = false } = {}) {
 }
 /** Resolve the mutually exclusive first-person provider from persisted settings. */
 export function firstPersonAnimationProviderForChoice(choice = 1) {
-  return ['vanilla', 'reanimation-v3', 'reanimation-v3+openmw-dynamic-first-person'][
-    Math.max(0, Math.min(2, Math.trunc(Number(choice) || 0)))
+  return ['vanilla', 'reanimation-v3', 'openmw-dynamic-first-person', 'reanimation-v3+openmw-dynamic-first-person'][
+    Math.max(0, Math.min(3, Math.trunc(Number(choice) || 0)))
   ];
 }
 
