@@ -30,6 +30,12 @@ const fights = (opts, seeds) => seeds.map((seed) => H.revenantFight({ ...opts, s
 // PIN MOVED (FLIGHT-FIRST, test/systems/revenant/flightfirst.test.js): a fleeing foe runs at twice its walk now, and a runner at Speed
 // and Running 50 no longer runs it down on flat ground - the flight's pins below chase as a fast runner does
 const FAST = runSpeed(90, 90);
+/** UNQUIET (Revenants.md section 46): the fastest runner there is - from rank 2 an Orc BOLTS (revenantUnquiet.js CRAFT.BOLT_PACE)
+ *  and outruns FAST; only a runner at Speed and Running 100 keeps up with it. */
+const FASTEST = runSpeed(100, 100);
+/** A chaser faster than any player (a test device, not a build): it reaches a bolting Orc and strikes it as it runs, so its
+ *  last stand mid-run and its band's rally mid-scatter are still read. */
+const HOUND = FASTEST * 1.4;
 
 test('FEUD HARNESS THE FAULT: risen in its last stand as it runs, its run is over - the motor no longer flees, and the flee law asks nothing more of it (mutants: the run left running)', () => {
   const was = getPref('lootRarity');
@@ -37,7 +43,7 @@ test('FEUD HARNESS THE FAULT: risen in its last stand as it runs, its run is ove
   try {
     N._resetRevenantForTests(); globalThis.localStorage.clear();
     const me = { isPlayer: true, name: 'Ayla Stormwind', characterId: 'char-feudharness', level: 10, items: [] };
-    const r = N.revenantDeed(me, { mobileType: M.Orc, level: 10, champion: 'mighty', health: 1, maxHealth: 50, team: 'Monster' }, 'fled', { mobileType: M.Orc, rolls: () => 0, now: 1 });
+    const r = N.revenantDeed(me, { mobileType: M.Orc, level: 10, champion: 'mighty', unquiet: true, health: 1, maxHealth: 50, team: 'Monster' }, 'fled', { mobileType: M.Orc, rolls: () => 0, now: 1 });
     r.rank = 3; r.out = false;
     const entity = { mobileType: M.Orc, level: 10, health: 60, maxHealth: 60, team: 'Monster', items: [] };
     N.applyRevenant(entity, r, { now: 2 });
@@ -78,34 +84,46 @@ test('FEUD HARNESS ITS BAND PRESSES: its kin swing at me while I strike its mast
   assert.equal(sum(dodge, 'bandHits'), 0, 'the dodger is out of every one');
 });
 
-test('FEUD HARNESS ITS FLIGHT: under a fifth of its health it may run - striking nothing as it runs, its band scattering from it; chased at a run it is brought down (no escape on flat ground, no fight left hanging); let go, it escapes and the fight is over, `fled` (mutants: the flight unasked; it strikes as it runs; the escape unread; the band unscattered; the chase at a walk)', () => {
+test('FEUD HARNESS ITS FLIGHT: under a fifth of its health it may run - striking nothing as it runs, its band scattering from it; chased by the fastest runner it is brought down, most of the time (UNQUIET: from rank 2 an Orc bolts - a fast runner is outrun; no fight left hanging); let go, it escapes and the fight is over, `fled` (mutants: the flight unasked; it strikes as it runs; the escape unread; the band unscattered; the chase at a walk)', () => {
   const step = EnemyAttack.prototype.update;
   let struckRunning = 0;
   EnemyAttack.prototype.update = function (dt, ai, ...rest) { if (ai?.fleeLeft > 0 && ai.vitals?.()?.revenant) struckRunning++; return step.call(this, dt, ai, ...rest); };
   let rows;
-  try { rows = fights({ rank: 3, mode: 'trade', runner: FAST }, SEEDS(40)); } finally { EnemyAttack.prototype.update = step; }
+  try { rows = fights({ rank: 3, mode: 'trade', runner: FASTEST }, SEEDS(40)); } finally { EnemyAttack.prototype.update = step; }
+  // UNQUIET: a fast runner (90) no longer runs a rank-3 Orc down - it bolts; every flight from FAST gets away
+  assert.ok(fights({ rank: 3, mode: 'trade', runner: FAST }, SEEDS(40)).filter((x) => x.flight).every((x) => x.end === 'fled'), 'a bolt outruns a fast runner');
   assert.equal(struckRunning, 0, 'running, its attack is never stepped (the pools\' `continue`)');
   const ran = rows.filter((x) => x.flight);
   assert.ok(ran.length >= 3, `some run (${ran.length})`);
   assert.ok(ran.every((x) => x.scattered === x.band), 'its band scatters from it');
-  assert.ok(ran.every((x) => x.end === 'knelt' || x.end === 'tore'), 'run down');
-  assert.ok(ran.some((x) => x.stoodInFlight), 'some rise in their last stand as they run - and fight on to their end');
+  const got = ran.filter((x) => x.end === 'fled').length;   // UNQUIET: a bolt keeps a few away even from the fastest at its heels
+  assert.ok(got <= Math.ceil(ran.length * 0.2), `run down, most of them (${got} of ${ran.length} got away)`);
+  assert.ok(ran.filter((x) => x.end !== 'fled').every((x) => x.end === 'knelt' || x.end === 'tore'), 'the rest knelt or tore away');
+  // PIN MOVED (UNQUIET, Revenants.md section 46): a rank-3 Orc BOLTS, and even the fastest runner only keeps pace - none is
+  // struck as it runs, so none rises in its last stand mid-run here; a chaser faster than any player still finds it
+  assert.ok(ran.every((x) => !x.stoodInFlight), 'never struck down as it bolts');
+  const hounded = fights({ rank: 3, mode: 'trade', runner: HOUND }, SEEDS(40)).filter((x) => x.flight);
+  assert.ok(hounded.some((x) => x.stoodInFlight), 'struck as it runs, some rise in their last stand mid-run - and fight on to their end');
+  assert.ok(hounded.every((x) => x.end === 'knelt' || x.end === 'tore'), 'the hound runs every one down');
   assert.ok(ran.some((x) => x.cornered), 'some are run down and cornered');   // PIN MOVED (FLIGHT-FIRST): a fast runner at a rank-3's heels finds its last stand first, never its kneel mid-run (`caught` - test/systems/revenant/flightfirst.test.js, rank 1)
   const long = ran.filter((x) => x.t - x.flightAt > F.BAND_SCATTER_S + 0.5);
   assert.ok(long.length > 0 && long.every((x) => x.bandGone === x.band), 'its scattered band gone when its run is spent');
   assert.ok(ran.filter((x) => x.t - x.flightAt < F.BAND_SCATTER_S - 0.5).every((x) => x.bandGone === 0), 'not before');
-  const let_ = fights({ rank: 3, mode: 'trade', chase: false, runner: FAST }, ran.map((x) => rows.indexOf(x) + 1));
+  const let_ = fights({ rank: 3, mode: 'trade', chase: false, runner: FASTEST }, ran.map((x) => rows.indexOf(x) + 1));
   assert.ok(let_.filter((x) => x.flight).length > 0 && let_.filter((x) => x.flight).every((x) => x.end === 'fled'), 'let go, it escapes');
   assert.ok(fights({ rank: 3, mode: 'trade', flight: false }, SEEDS(40)).every((x) => !x.flight && x.end !== 'fled'), 'no flight: none');
 });
 
 test('FEUD HARNESS RANK 5\'S RALLY: at its stand its band\'s survivors to it; its band scattered by its flight, RALLY_KIN of its kin through a portal (mutants: the rally unasked; the portal unopened; the count moved)', () => {
-  const rows = fights({ rank: 5, mode: 'trade', runner: FAST }, SEEDS(40));
+  const rows = fights({ rank: 5, mode: 'trade', runner: HOUND }, SEEDS(40));   // UNQUIET: its bolt struck mid-run only by a chaser past any player's run - its stand while its band still scatters
   const stood = rows.filter((x) => x.stood);
   assert.ok(stood.some((x) => x.rallied === x.band && x.portal === 0), 'its band standing: to it');
   const portal = stood.filter((x) => x.portal > 0);
   assert.ok(portal.length > 0, 'a portal');
   assert.ok(portal.every((x) => x.portal === F.RALLY_KIN && x.rallied === 0 && x.scattered === x.band), 'none standing - its kin through a portal');
+  const midFlight = stood.filter((x) => x.stoodInFlight && x.scattered === x.band);
+  assert.ok(midFlight.length > 0, 'a stand mid-flight, its band still scattering from it');
+  assert.ok(midFlight.every((x) => x.rallied === 0), 'a kin scattering is no survivor to rally - its kin through a portal');
   assert.ok(fights({ rank: 3, mode: 'trade' }, SEEDS(10)).every((x) => x.rallied === 0 && x.portal === 0), 'rank 3: no rally');
 });
 

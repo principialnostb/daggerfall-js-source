@@ -54,7 +54,7 @@ function me(id = 'char-rvn8') {
   equipItem(p, w);
   return p;
 }
-const killer = () => ({ mobileType: M.Orc, level: 6, champion: 'mighty', health: 50, maxHealth: 50, team: 'Monster' });
+const killer = () => ({ mobileType: M.Orc, level: 6, champion: 'mighty', unquiet: true, health: 50, maxHealth: 50, team: 'Monster' });
 function slain(p, e = killer()) { return N.revenantDeed(p, e, 'slew', { mobileType: M.Orc, rolls: () => 0 }); }
 
 test('RVN8 THE LAW: at most three held; never a quest item, a summoned piece, the Materials Bag, gold or a locked piece (mutants: the cap moved; any exclusion dropped)', () => {
@@ -196,12 +196,18 @@ test('RVN8 BACK: carried at every stand (once); slain carrying it, the record le
 
 test('RVN8 THE CAP AND THE SAVE: the cap never buries one holding a piece; the save\'s copy of what it took wins over the app\'s mirror - a load never brings back a piece the save holds (mutants: one holding a piece buried; the mirror\'s copy kept)', () => {
   const p = me();
+  // PIN MOVED (UNQUIET, Revenants.md section 46): none rises past the cap - the cap buries only for a deserter coming back
+  const sw = N.revenantDeed(p, { ...killer(), champion: 'swift' }, 'fled', { mobileType: M.Orc, rolls: () => 0 });
+  N.revenantSpared(p, { revenant: { id: sw.id } }, { state: 'away' });
   const r = slain(p);
   N.revenantTakes(p, { online: true });
   assert.equal(r.took.length, 1);
   r.rank = 1; r.born = -1; r.out = false;   // the weakest, the oldest, not standing - the one the cap would bury first
-  for (let i = 0; i < N.REVENANT_MAX; i++) N.revenantDeed(p, { ...killer(), champion: 'swift' }, 'fled', { mobileType: M.Orc, rolls: () => 0 });
-  assert.ok(N.revenantById(r.id), 'never buried while it holds a piece');
+  for (let i = 0; i < N.REVENANT_MAX - 1; i++) N.revenantDeed(p, { ...killer(), champion: 'swift' }, 'fled', { mobileType: M.Orc, rolls: () => 0 });
+  assert.equal(N.livingRevenants().length, N.REVENANT_MAX);
+  N.revenantDeserts(p, N.revenantById(sw.id), { now: 50 });
+  assert.ok(N.livingRevenants().some((x) => x.id === r.id), 'never buried while it holds a piece');
+  assert.equal(N.livingRevenants().length, N.REVENANT_MAX, 'the cap holds');
   // the save's copy wins: a save made before the theft knows no piece; the mirror (newer) does
   N._resetRevenantForTests(); _store.clear();
   const q = me('char-rvn8s');

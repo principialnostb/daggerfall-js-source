@@ -9,13 +9,15 @@
 // Dressed by the stone-and-brass kit's roles (ui/enhanced/enhancedFrame.js FRAME_ROLES: a row a tile, the portrait a well, the
 // rank a chip) - this sheet writes geometry and the words' colours alone, as the stats card's does.
 
-import { revenantsFor, revenantOn, revenantHeld, revenantPortrait, revenantRankNumeral, REVENANT_MAX, REVENANT_MIN_RENOWN, takenName } from '../../systems/revenant/revenant.js';   // RENOWN-GATE: a held one says so
+import { revenantsFor, revenantOn, revenantHeld, revenantPortrait, revenantRankNumeral, REVENANT_MAX, REVENANT_MAX_RANK, REVENANT_MIN_RENOWN, takenName } from '../../systems/revenant/revenant.js';   // RENOWN-GATE: a held one says so
 import { ownMinutes } from '../../systems/worldTick.js';
 import { requestFittedIcon, fittedImg } from '../textureCanvas.js';
 import { PERSONALITIES } from '../../systems/revenant/revenantPersonality.js';   // REVENANT-VOICE: who each is
 import { WEAK_NAMES, WEAK_HINTS, weaknessKind, willMatters, LAST_STAND_RANK, lastStandHealth, signatureStamp, bandMembers, bandName, WRATH_MAX, loyaltyLabel } from '../../systems/revenant/revenantFeud.js';   // RVN3: its weakness, its will; RVN4: its last stand; RVN5: its signature; RVN6: its band
 import { tacticsSwitchOn } from '../../ai/tactics.js';   // RVN5: a signature is a telegraph - the Enhanced AI switch's
 import { artWords } from '../../systems/revenant/revenantArts.js';   // RVN-ARTS: its art, as it would use it on me - or for me, sworn
+import { ambitionOf, ambitionWords, woundWords, craftWords, revenantCraft, CRAFT, DREAD, sanitizeWounds, trailWarm, trailHours, daysToHeal, healWords } from '../../systems/revenant/revenantUnquiet.js';   // UNQUIET (Revenants.md section 46): its craft, its wounds, its ambition, the Dread
+import { t } from '../../systems/textManager.js';   // L10N4: UNQUIET's words through the text core
 
 export const REVENANT_PAGE_SECTIONS = Object.freeze([['revenants', 'Revenants']]);
 export const REVENANT_PAGE_STYLE_ID = 'revenant-page-css';
@@ -84,10 +86,16 @@ export function agoWords(minute, now) {
 /** When a living revenant will come, in words: out in the world now, due (any road), or in so long. RENOWN-GATE: or
  *  held under its Renown (systems/revenant/revenant.js revenantHeld), when neither "any road" nor a day would be true. */
 export function comeWords(r, now, held = revenantHeld()) {
+  // UNQUIET (Revenants.md section 46): the Dread waits at home, whoever is out (AUDIT UNQUIET: but held, none is at home -
+  // revenant.js revenantForLair - and it says so)
+  if (r.dread && !held) return { tag: t('rvn.unq.page.dreadTag', 'The Dread'), cls: 'is-out', line: t('rvn.unq.page.dreadCome', 'It waits for you in {lair} and will not come to you again. Go to it.', { lair: r.lair?.name ?? '' }) };
   if (r.out) return { tag: 'Abroad', cls: 'is-out', line: 'Out in the world, looking for you.' };
   if (held) return { tag: 'Held', cls: 'is-waiting', line: `It will not come for you before Renown ${REVENANT_MIN_RENOWN}.` };
+  // UNQUIET II (section 47): its trail warm - gone to ground to recover, and findable there (AUDIT UNQUIET: "weakened", never
+  // "wounded" - its wounds are what the player left on it, and heal by their own law)
+  if (trailWarm(r, now)) return { tag: t('rvn.unq.page.woundedTag', 'Weakened'), cls: '', line: t('rvn.unq.page.woundedCome', 'Recovering in {lair}, whole again in {hours, plural, one {# hour} other {# hours}}. Find it there.', { lair: r.lair?.name ?? '', hours: trailHours(r, now) }) };
   const left = r.dueAt - now;
-  if (left <= 0) return { tag: 'Hunting', cls: '', line: 'Hunting you - it may come on any road.' };
+  if (left <= 0) return { tag: 'Hunting', cls: '', line: 'Hunting you. It may appear on any road.' };
   const days = Math.round(left / 1440);
   return { tag: 'Biding', cls: 'is-waiting', line: days >= 1 ? `It will come for you in about ${plural(days, 'day')}.` : `It will come for you within the day.` };
 }
@@ -105,6 +113,7 @@ const DEED_WORDS = Object.freeze({
   slew: 'killed you', fled: 'escaped', returned: 'came back', fell: 'fell', yielded: 'yielded', executed: 'executed', spared: 'spared', released: 'released',
   // RVN1 (bible/12-Enhanced-AI/Feud-Arc.md section 26): the deeds FEUD adds, worded with the union
   felled: 'felled your companion', routed: 'routed you', festered: 'grew bolder', deserted: 'deserted you', betrayed: 'betrayed you', laststand: 'made its last stand',
+  ascended: 'became the Dread',   // UNQUIET (Revenants.md section 46)
 });
 /** A deed in words - RVN10 (bible/12-Enhanced-AI/Feud-Arc.md 21.1): a felling by the companion's name it keeps. */
 export const historyWords = (d) => (d?.deed === 'felled' && typeof d.ally === 'string' && d.ally ? `felled ${d.ally}` : d?.deed === 'fled' && d.unbroken === true ? 'escaped unbroken' : DEED_WORDS[d?.deed] ?? String(d?.deed ?? ''));   // RVN12b (24.1): an escape unbroken
@@ -141,12 +150,12 @@ export const learnedChips = (r) => (r?.learned ?? []).filter((a) => ADAPT_NAMES[
 export function tookWords(r) {
   const names = (r?.took ?? []).map((it) => takenName(it)).filter(Boolean);   // RVN12b: the pieces it took, by the names the pack shows (AUDIT FEUD: their article gone after "your")
   if (!names.length) return '';
-  return `Took: your ${names.length > 1 ? `${names.slice(0, -1).join(', ')} and ${names.at(-1)}` : names[0]} - take ${names.length > 1 ? 'them' : 'it'} back from it.`;
+  return `Took: your ${names.length > 1 ? `${names.slice(0, -1).join(', ')} and ${names.at(-1)}` : names[0]}. Take ${names.length > 1 ? 'them' : 'it'} back from it.`;
 }
 /** RVN12b (24.1): RVN9's festering - its wrath as pips (filled of WRATH_MAX), and its words; none without a wrath. */
 export function festerPips(r) {
   const w = Math.max(0, Math.min(WRATH_MAX, r?.wrath | 0));
-  return { filled: w, of: WRATH_MAX, words: w ? `Festering: ${w} of ${WRATH_MAX} - it grows stronger the longer you leave it.` : '' };
+  return { filled: w, of: WRATH_MAX, words: w ? `Festering: ${w} of ${WRATH_MAX}. It grows stronger the longer you leave it.` : '' };
 }
 /** RVN12b (24.1): a sworn one's loyalty on this page - its number and its word (the Companions page draws its bar). */
 export const swornLoyaltyWords = (r) => (Number.isFinite(r?.companion?.loyalty) ? `Loyalty: ${r.companion.loyalty} - ${loyaltyLabel(r.companion.loyalty)}.` : '');
@@ -158,8 +167,8 @@ export function weaknessWords(r) {
   if (k === 1) return `Weakness: ${WEAK_HINTS[weaknessKind(r.weak)] ?? 'Something'}.`;
   return 'Weakness: unknown.';
 }
-/** RVN3 (14.2): from rank 3, the rule of its will. */
-export const willWords = (r) => (willMatters(r?.rank) ? 'Its will must be broken - strike its weakness, stagger it, or dodge its blow perfectly.' : '');   // FEUD BALANCE (Feud-Arc.md OPEN 22)
+/** RVN3 (14.2): from its will's rank (revenantFeud.js WILL_RANK - UNQUIET: rank 2, it was 3), the rule of its will. */
+export const willWords = (r) => (willMatters(r?.rank) ? 'Its will must be broken. Strike its weakness, stagger it, or evade its blow at the last moment.' : '');   // FEUD BALANCE (Feud-Arc.md OPEN 22)
 /** RVN4 (section 15): from rank 3, its last stand - once a fight it rises again from the edge of death. */
 export const lastStandWords = (r) => ((r?.rank | 0) >= LAST_STAND_RANK ? `Last stand: once a fight it rises again, at ${Math.round(lastStandHealth(r.rank) * 100)}% of its health.` : '');
 /** RVN5 (section 16; RVN12 completes the page): what its signature does, by its shape (a pyre's by its element). */
@@ -197,10 +206,40 @@ export function bandWords(r, kindName = (t) => String(t)) {
 /** RVN7 (18.1; RVN12 completes the page): where it goes to ground - its lair as the player knows it. RENOWN-GATE: held,
  *  neither the map's mark nor the towns' word (systems/revenant/revenant.js revenantMapMarks, revenantRumor) is promised. */
 export function lairWords(r, held = revenantHeld()) {
-  if (!r?.lair?.name) return 'Lair: none - it roams.';
+  if (!r?.lair?.name) return 'Lair: none. It roams.';
   if (held) return r.lairKnown ? `Lair: ${r.lair.name}.` : 'Lair: unknown.';
-  return r.lairKnown ? `Lair: ${r.lair.name} - on your map.` : 'Lair: unknown - the towns about it may have heard.';   // RVN7c: and marked
+  return r.lairKnown ? `Lair: ${r.lair.name}, marked on your map.` : 'Lair: unknown. Nearby towns may have heard of it.';   // RVN7c: and marked
 }
+/** UNQUIET (Revenants.md section 46): the wounds the player left on it, each with what it does. */
+export function woundLine(r, now = null, held = revenantHeld()) {
+  const ws = sanitizeWounds(r?.wounds).map((w) => woundWords(w)).filter(Boolean);
+  if (!ws.length) return '';
+  const line = t('rvn.unq.page.wounds', 'Wounds you left: {list}.', { list: ws.map((w) => `${w.name} (${w.effect})`).join(', ') });
+  // UNQUIET III (section 48): left alone, they heal. AUDIT UNQUIET: only where they do - never the Dread's (it festers no
+  // more), one out in the world, nor while held (revenant.js revenantFester passes all three by)
+  const heals = Number.isFinite(now) && !r?.dread && !r?.out && !held;
+  const days = heals ? daysToHeal(r?.woundDay, Math.floor(now / 1440), r?.wounds) : 0;
+  return days ? `${line} ${healWords(days)}` : line;
+}
+/** UNQUIET: how it gets away - its craft from rank II, a plain run before; the Dread never runs. */
+export function craftLine(r) {
+  if (r?.dread) return t('rvn.unq.page.dreadWill', 'At home it has nowhere to run: it never flees, and kneels at the end.');
+  const c = craftWords(revenantCraft(r?.mobileType, r?.rank));
+  return c ? t('rvn.unq.page.craft', 'Its flight: {name} - {effect}.', { name: c.name, effect: c.effect })
+    : t('rvn.unq.page.craftYoung', 'Its flight: it runs. From rank {rank} it will break away in its own way.', { rank: revenantRankNumeral(CRAFT.RANK) });
+}
+/** UNQUIET: what it does while it waits (none for the Dread - it waits at home). */
+export function ambitionLine(r) {
+  if (r?.dread) return '';
+  const a = ambitionWords(ambitionOf(r?.personality));
+  return a ? t('rvn.unq.page.ambition', 'Its ambition: {name} - {effect}.', { name: a.name, effect: a.effect }) : '';
+}
+/** UNQUIET: its blood since its last rank - one more kill and it climbs (AUDIT UNQUIET: a companion is felled, never
+ *  killed); and its tear-aways (revenantUnquiet.js TEAR_RANK) - once more its will holds, and it climbs. */
+export const bloodLine = (r) => ((r?.blood | 0) >= 1 && (r?.rank | 0) < REVENANT_MAX_RANK ? t('rvn.unq.page.blood', 'If it kills you once more, or fells one more companion, it grows bolder.') : '');
+export const tearLine = (r) => ((r?.tears | 0) >= 1 && (r?.rank | 0) < REVENANT_MAX_RANK ? t('rvn.unq.page.tears', 'If its will holds at your killing blow once more, it grows bolder.') : '');
+/** UNQUIET: the Dread's two last stands. */
+export const dreadStandLine = (r) => (r?.dread ? t('rvn.unq.page.dreadStand', 'Last stands: twice in a fight it rises again, at {first}% and at {second}% of its health.', { first: Math.round(lastStandHealth(r.rank) * 100), second: Math.round(DREAD.SECOND_STAND * 100) }) : '');
 /** Its scars, newest first and each once - the ways it was hurt and what it learned (a deed's scar is the history's). */
 export function scarWords(r) {
   const seen = new Set();
@@ -251,7 +290,7 @@ function row(el, r, now, kindName) {
   if (P) text.append(el('span', 'rvn-blurb', P.blurb));
   if (r.sworn) {   // REVENANT-COMPANION: it walks with the player now - the Companions page keeps it
     const st = r.companion?.state ?? 'with';
-    text.append(el('span', 'rvn-come', st === 'with' ? 'Sworn to you - at your side.' : st === 'resting' ? 'Sworn to you - recovering from a fall.' : 'Sworn to you - away, waiting for your call.'));
+    text.append(el('span', 'rvn-come', st === 'with' ? 'Sworn to you, at your side.' : st === 'resting' ? 'Sworn to you, recovering from a fall.' : 'Sworn to you, away until you call it.'));
     const loy = swornLoyaltyWords(r);   // RVN12b (24.1): for the sworn, its loyalty
     if (loy) text.append(el('span', 'rvn-will', loy));
     item.append(face(el, r), text);
@@ -271,10 +310,12 @@ function row(el, r, now, kindName) {
     text.append(el('span', 'rvn-effects', chips.map((c) => `${c.name} - ${c.effect}.`).join(' ')));
   }
   if (!fallen) text.append(el('span', 'rvn-weak', weaknessWords(r)));   // RVN3: its weakness, as I know it
-  const will = fallen ? '' : willWords(r);
+  const will = fallen || r.dread ? '' : willWords(r);
   if (will) text.append(el('span', 'rvn-will', will));
-  const stand = fallen ? '' : lastStandWords(r);   // RVN4
+  const stand = fallen ? '' : r.dread ? dreadStandLine(r) : lastStandWords(r);   // RVN4; UNQUIET: the Dread's two
   if (stand) text.append(el('span', 'rvn-will', stand));
+  // UNQUIET (Revenants.md section 46): how it gets away, the wounds I left on it, what it does while it waits, its blood
+  for (const line of fallen ? [] : [craftLine(r), woundLine(r, now), ambitionLine(r), bloodLine(r), tearLine(r)]) if (line) text.append(el('span', 'rvn-will', line));
   const sig = fallen ? '' : signatureWords(r);   // RVN5
   if (sig) text.append(el('span', 'rvn-will', sig));
   const art = fallen ? '' : artWords(r);   // RVN-ARTS (Revenants.md section 41)
@@ -312,11 +353,16 @@ export function drawRevenantsPage(detail, rerender, { el, divider, player = null
   const living = all.filter((r) => !r.defeated && !r.sworn).sort((a, b) => b.rank - a.rank || a.dueAt - b.dueAt);
   const sworn = all.filter((r) => r.sworn && !r.defeated).sort((a, b) => b.rank - a.rank);   // REVENANT-COMPANION
   const fallen = all.filter((r) => r.defeated).sort((a, b) => (b.defeatedAt ?? 0) - (a.defeatedAt ?? 0));
-  detail.append(divider(`Revenants (${living.length} of ${REVENANT_MAX})`));
+  detail.append(divider(`Revenants (${living.filter((r) => !r.dread).length} of ${REVENANT_MAX})`));   // AUDIT UNQUIET: the cap counts those that hunt - the Dread waits
   if (!living.length) {
+    // UNQUIET (Revenants.md section 46): only a foe marked Unquiet rises - and far likelier by getting away than by a kill
+    const lead = all.length ? t('rvn.unq.page.noneNow', 'None hunts you now.') : t('rvn.unq.page.noneYet', 'No foe has earned your name yet.');
+    const how = revenantHeld()
+      ? t('rvn.unq.page.howHeld', 'From Renown {renown}, an elite or champion marked Unquiet that escapes you, or kills you, will remember you and come back for you.', { renown: REVENANT_MIN_RENOWN })
+      : t('rvn.unq.page.how', 'An elite or champion marked Unquiet that escapes you, or kills you, will remember you and come back for you.');
     detail.append(el('p', 'px-note', revenantOn()
-      ? (all.length ? 'None hunts you now. ' : 'No foe has earned your name yet. ') + (revenantHeld() ? `From Renown ${REVENANT_MIN_RENOWN}, an` : 'An') + ' elite or a champion that kills you - or breaks, runs and gets away - will remember you, and come back for you.'   // AUDIT (2026-10-02): the sworn and the fallen below are revenants too; RENOWN-GATE: and when they begin
-      : 'Revenants come with Loot rarity, which is off.'));
+      ? `${lead} ${how}`   // AUDIT (2026-10-02): the sworn and the fallen below are revenants too; RENOWN-GATE: and when they begin
+      : 'Revenants need Loot rarity, which is off.'));
   } else {
     const list = el('div', 'rvn-list');
     for (const r of living) list.append(row(el, r, now, kindName));

@@ -62,7 +62,7 @@ export function feudOf(entity, open = true) {
   const dmg = {};
   for (const k of FEUD_CLASSES) dmg[k] = 0;
   const place = entity._feudPlace === 'building' || entity._feudPlace === 'dungeon' ? entity._feudPlace : 'street';
-  entity._feud = { dmg, silver: 0, staggers: 0, dodged: 0, perfect: 0, backHits: 0, backstab: false, weak: 0, night: !!c?.night, place, start: Number.isFinite(c?.now) ? c.now : 0 };
+  entity._feud = { dmg, silver: 0, staggers: 0, dodged: 0, perfect: 0, backHits: 0, backstab: false, weak: 0, night: !!c?.night, place, start: Number.isFinite(c?.now) ? c.now : 0, last: null };   // UNQUIET: `last` - the class of the last harm that reached it (the blow that broke it leaves its wound)
   return entity._feud;
 }
 
@@ -73,6 +73,7 @@ export function noteFeudHarm(entity, cls, n, { silver = false, metal = null } = 
   const l = feudOf(entity);
   if (!l) return;
   l.dmg[FEUD_CLASSES.includes(cls) ? cls : 'other'] += n;
+  l.last = FEUD_CLASSES.includes(cls) ? cls : 'other';   // UNQUIET (bible/06-Systems/Revenants.md section 46): the blow that broke it
   if (silver) l.silver += n;
   if (feudWeakBlow(entity, { cls, metal })) {
     l.weak++;

@@ -48,7 +48,7 @@ beforeEach(() => {
   RC.setRetinuePlayer(me);
   setWorldMinutes(DAY * 10);
 });
-const orc = (o = {}) => ({ mobileType: M.Orc, level: 6, champion: 'mighty', health: 5, maxHealth: 50, team: 'Monster', ...o });
+const orc = (o = {}) => ({ mobileType: M.Orc, level: 6, champion: 'mighty', unquiet: true, health: 5, maxHealth: 50, team: 'Monster', ...o });
 const made = (deedName = 'fled', o = {}) => N.revenantDeed(me, orc(), deedName, { mobileType: M.Orc, rolls: () => 0, ...o });
 function sworn(state = 'with', { loyalty = 5, personality = 'brutal' } = {}) {
   const r = made();
@@ -124,7 +124,7 @@ test('AUDIT FEUD 2 R2: BY ANY ROAD - a leaving its twelve-deed history has scrol
   const S1 = modSaveRecords(); const S1items = me.items.slice();
   N.revenantDeserts(me, N.revenantById(s.id), { now: DAY * 11 });
   for (let i = 0; i < 6; i++) {
-    const e = { mobileType: s.mobileType, level: 6, health: 100, maxHealth: 100, items: [], champion: 'mighty' };
+    const e = { mobileType: s.mobileType, level: 6, health: 100, maxHealth: 100, items: [], champion: 'mighty', unquiet: true };
     N.applyRevenant(e, N.revenantById(s.id), { now: DAY * (12 + i) });
     N.revenantDeed(me, e, 'fled', { mobileType: s.mobileType, rolls: () => 0, now: DAY * (12 + i) + 10 });
   }
@@ -143,7 +143,12 @@ test('AUDIT FEUD 2 R3: WHAT IT HELD, ON A RECORD SINCE FORGOTTEN - the save\'s l
   N.revenantHandBack(me, N.revenantById(a.id));
   N.revenantSpared(me, { revenant: { id: a.id } }, { state: 'away' });
   N.revenantDeserts(me, N.revenantById(a.id), { now: DAY * 11 });
-  for (let i = 0; i < 5; i++) N.revenantDeed(me, orc({ level: 9 }), 'fled', { mobileType: M.Orc, rolls: () => 0, now: DAY * 12 + i });
+  // UNQUIET (Revenants.md section 46): no birth past REVENANT_MAX buries one any more - a deserter living again past it
+  // does: one more sworn, two more born, and that sworn one deserting forgets the weakest, oldest (this one)
+  const b = N.revenantDeed(me, orc({ level: 9 }), 'fled', { mobileType: M.Orc, rolls: () => 0, now: DAY * 12 });
+  N.revenantSpared(me, { revenant: { id: b.id } }, { state: 'away' });
+  for (let i = 1; i < N.REVENANT_MAX; i++) N.revenantDeed(me, orc({ level: 9 }), 'fled', { mobileType: M.Orc, rolls: () => 0, now: DAY * 12 + i });
+  N.revenantDeserts(me, N.revenantById(b.id), { now: DAY * 13 });
   assert.equal(N.revenantById(a.id), null, 'buried by the cap');
   restoreModSaveRecords(save); me.items = savedItems.slice();
   N.revenantRecord(me, a.id);

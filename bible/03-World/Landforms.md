@@ -860,21 +860,27 @@ Roads network, in scratch, with the slice's own functions:
   ring's vertex with the row off and 212 m with it on (AUDIT LANDFORMS): the
   lift scales that gap and opens none. The extremes widen with the relief
   (726 -> 1,174 m), which is the ring's own law at taller heights.
-- TWO BUILDS IN ONE ROOM (AUDIT LANDFORMS C2). Nothing keeps builds apart
-  online: `worldRoom` carries no ground tag, the relay reads no client build,
-  a deploy reloads no open tab (updateNotice.js), and the macOS and portable
-  desktop copies never update themselves. A player on a build without the row
-  and one with it share a room on two grounds - each draws the other at the
-  sender's height (interiors ride the exterior frame), so in a town they part
-  by the town's lift: at the location pixels median 0 m, 75th percentile
-  10.9 m, 90th 184 m, 99th 492 m (97 of 410 cities over 10 m, Makilliweyn about
-  390 m) - until the old tab reloads or the old copy updates. No earlier ground
-  slice kept builds apart either (TERRAIN-SCALE1, WOD1, WD3, DW-A..D bumped
-  nothing; a RELAY_VERSION bump restarts the relay and the old tabs reconnect
-  into the same rooms). Real separation is a relay change - a ground law in
-  the world hello, GATE_BRAIN_MIN's shape, or a tag in `worldRoom` - and
-  Mac's call. The room's memory (WORLD1) holds dungeon and building places
-  only, no exterior height.
+- TWO BUILDS IN ONE ROOM (AUDIT LANDFORMS C2; GROUND-GATE, 2026-10-17,
+  `01-Overview/bugs/Field-Bugs-2026-10-17f.md` - Mac's call: "Relay turns old
+  builds away"). Each client draws a peer at the sender's height on its own
+  ground (interiors ride the exterior frame), so two grounds in one room part
+  by the difference: in a town by the town's lift, at the location pixels
+  median 0 m, 75th percentile 10.9 m, 90th 184 m, 99th 492 m (97 of 410
+  cities over 10 m, Makilliweyn about 390 m) - and at the Oblivion Gate in the
+  Alik'r the field saw the whole crowd tens of metres over the sand. A deploy
+  reloads no open tab (updateNotice.js), and the macOS and portable desktop
+  copies never update themselves. A ground room's hello (net/wire.js
+  groundRoom: a cell, a building's or a dungeon's place, a battle, an owned
+  room) now says the ground its build stands on (`gl`, GROUND_LAW), and while
+  the relay setting `groundGate` is on (`/relay groundGate on`), the relay
+  refuses one that says less or none, telling the player to update. The
+  ground is held to a print recorded under that law
+  (`test/net/fb1017f_groundgate.test.js`, `tools/groundPrint.mjs`), so a
+  slice that moves the ground moves GROUND_LAW and RELAY_VERSION with it. The
+  print reads the kernel's shaped ground over the synthetic world; a ground
+  that moves only on the real data (a World of Daggerfall site, a location's
+  blend) is outside it, and its slice names the bump itself. The room's
+  memory (WORLD1) holds dungeon and building places only, no exterior height.
 - A RECORD BY A PATH, ACROSS A CHANGE OF THE ROW (THE SAVES, above): the mod's
   SmoothRoads smooths DFU's own road and not the landforms' level bed, so a
   record on a road from before the row lands within 1.6 m over or 2.0 m under

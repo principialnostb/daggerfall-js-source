@@ -47,7 +47,7 @@ function swornOne() {
   S.registerCompanionCount('revenant', () => RC.revenantsWithYou().length);
   RC.setRetinuePlayer(me);
   const mobileType = MOBILE_TYPES.Orc;
-  const r = N.revenantDeed(me, { mobileType, level: 6, champion: 'mighty', health: 5, maxHealth: 50, team: 'Orcs' }, 'fled', { mobileType, rolls: at(0) });
+  const r = N.revenantDeed(me, { mobileType, level: 6, champion: 'mighty', unquiet: true, health: 5, maxHealth: 50, team: 'Orcs' }, 'fled', { mobileType, rolls: at(0) });   // UNQUIET (Revenants.md section 46): a marked foe
   return N.revenantSpared(me, { revenant: { id: r.id } }, { state: 'with' });
 }
 const feudSave = () => ({ level: 1, goldPieces: 0, items: [], wagonItems: [], bankAccounts: [], houses: [], modData: { [N.REVENANT_SAVE]: JSON.parse(JSON.stringify(modSaveRecords()[N.REVENANT_SAVE])) } });
@@ -95,7 +95,7 @@ test('ITEM-WALK A: the load\'s item repairs reach every list a save holds - besi
   const sworn = swornOne();
   RC.revenantParty().packOf(sworn.id).push(stale());
   const mobileType = MOBILE_TYPES.Orc;
-  const living = N.revenantDeed(me, { mobileType, level: 6, champion: 'mighty', health: 5, maxHealth: 50, team: 'Orcs' }, 'fled', { mobileType, rolls: at(0) });
+  const living = N.revenantDeed(me, { mobileType, level: 6, champion: 'mighty', unquiet: true, health: 5, maxHealth: 50, team: 'Orcs' }, 'fled', { mobileType, rolls: at(0) });
   N.revenantById(living.id).took = [stale()];   // what it took, as a build before the fix kept it
   const feud = JSON.parse(JSON.stringify(modSaveRecords()[N.REVENANT_SAVE]));
   const shelf = { day: 3, items: [] };   // a guild's day's Buy shelf (GUILD-SHELF), bought down

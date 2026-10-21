@@ -36,14 +36,16 @@ beforeEach(() => {
 
 const LAIR = Object.freeze({ px: 106, py: 100, name: 'Tomb of Vaness', region: 3 });
 function made(p, { mobileType = M.Orc, scars = true, weak = 'fire', lair = LAIR } = {}) {
-  const r = N.revenantDeed(p, { mobileType, level: 6, champion: 'mighty', health: 5, maxHealth: 50, team: 'Monster' }, 'fled', { mobileType, rolls: () => 0 });
+  const r = N.revenantDeed(p, { mobileType, level: 6, champion: 'mighty', unquiet: true, health: 5, maxHealth: 50, team: 'Monster' }, 'fled', { mobileType, rolls: () => 0 });
   r.lair = lair ? { ...lair } : null; r.lairKnown = false; r.weak = weak; r.weakKnown = 0;
   r.scars = scars ? [{ k: 'blade', at: 0 }] : [];
+  r.personality = 'brutal';   // UNQUIET (Revenants.md section 46): an ambition of vengeance - its rumour's last sentence, VENGEANCE below
   return r;
 }
 const seq = (...v) => { let i = 0; return () => v[Math.min(i++, v.length - 1)]; };
 const fresh = () => ({ numAnswersGivenTellMeAboutOrRumors: 0, isSpyMaster: false });
 const HERE = Object.freeze({ px: 100, py: 100, region: 7 });
+const VENGEANCE = ' Word is it asks after you by name.';
 
 test('RVN7b THE NUMBERS: one in two carries its weakness, one in three of those named; the hints by its kind (mutants: any moved)', () => {
   assert.equal(F.RUMOR_WEAK, 0.5);
@@ -56,7 +58,7 @@ test('RVN7b THE WORDS: within reach, one time in 0.35 - its kind (scarred or not
   const p = me();
   const r = made(p);
   const s = fresh();
-  assert.equal(N.revenantRumor(HERE, s, { rolls: seq(0.34, 0, 0.9) }), `They say a scarred orc called ${r.name} has been seen near Tomb of Vaness, a long walk to the east.`);
+  assert.equal(N.revenantRumor(HERE, s, { rolls: seq(0.34, 0, 0.9) }), `They say a scarred orc called ${r.name} has been seen near Tomb of Vaness, a long walk to the east.${VENGEANCE}`);
   assert.equal(s.numAnswersGivenTellMeAboutOrRumors, 1, 'the answer spent');
   assert.equal(r.lairKnown, true, 'its lair known');
   N._resetRevenantForTests();   // the mirror read back from the save: its lair known there too
@@ -71,15 +73,15 @@ test('RVN7b THE WORDS: within reach, one time in 0.35 - its kind (scarred or not
   // its kind with no scar, the ways and the distances
   N._resetRevenantForTests(); _store.clear();
   const o = made(p, { scars: false, lair: { px: 100, py: 96, name: 'North Barrow', region: 3 } });
-  assert.equal(N.revenantRumor(HERE, fresh(), { rolls: seq(0, 0, 0.9) }), `They say an orc called ${o.name} has been seen near North Barrow, half a day's walk to the north.`);
+  assert.equal(N.revenantRumor(HERE, fresh(), { rolls: seq(0, 0, 0.9) }), `They say an orc called ${o.name} has been seen near North Barrow, half a day's walk to the north.${VENGEANCE}`);
   o.lair = { px: 90, py: 110, name: 'Deep Hole', region: 3 };
-  assert.equal(N.revenantRumor(HERE, fresh(), { rolls: seq(0, 0, 0.9) }), `They say an orc called ${o.name} has been seen near Deep Hole, a day's ride to the south-west.`);
+  assert.equal(N.revenantRumor(HERE, fresh(), { rolls: seq(0, 0, 0.9) }), `They say an orc called ${o.name} has been seen near Deep Hole, a day's ride to the south-west.${VENGEANCE}`);
   o.lair = { px: 102, py: 101, name: 'Near Den', region: 3 };
-  assert.match(N.revenantRumor(HERE, fresh(), { rolls: seq(0, 0, 0.9) }), /near Near Den, a short walk to the (south-)?east\.$/);
+  assert.match(N.revenantRumor(HERE, fresh(), { rolls: seq(0, 0, 0.9) }), /near Near Den, a short walk to the (south-)?east\. Word is it asks after you by name\.$/);
   o.lair = { px: 103, py: 103, name: 'Square Den', region: 3 };
-  assert.match(N.revenantRumor(HERE, fresh(), { rolls: seq(0, 0, 0.9) }), /near Square Den, a short walk to the south-east\.$/, 'the boards\' measure: the longer side');
+  assert.match(N.revenantRumor(HERE, fresh(), { rolls: seq(0, 0, 0.9) }), /near Square Den, a short walk to the south-east\. Word is it asks after you by name\.$/, 'the boards\' measure: the longer side');
   o.lair = { px: 100, py: 100, name: 'Under Town', region: 3 };
-  assert.match(N.revenantRumor(HERE, fresh(), { rolls: seq(0, 0, 0.9) }), /seen in Under Town, close by\.$/);
+  assert.match(N.revenantRumor(HERE, fresh(), { rolls: seq(0, 0, 0.9) }), /seen in Under Town, close by\. Word is it asks after you by name\.$/);
 });
 
 test('RVN7b THE GATES: a person with no answer left has none (a spymaster always does); out of reach and of its region, none - in its region however far, one; the sworn, the fallen and one with no lair, none; the switch off, none (mutants: each gate dropped)', () => {
@@ -115,7 +117,7 @@ test('RVN7b THE GATES: a person with no answer left has none (a spymaster always
 test('RVN7b THE PICK AND THE WEAKNESS: of several in reach, the roll\'s; one in two carries its weakness - hinted by its kind, one in three named - and what the player knows of it never goes back (mutants: the first always; the weakness always or never; named always; the known forgotten)', () => {
   const p = me();
   const a = made(p, { lair: { ...LAIR, name: 'A Den' } });
-  N.revenantDeed(p, { mobileType: M.Orc, level: 6, champion: 'mighty', health: 5, maxHealth: 50, team: 'Monster' }, 'fled', { mobileType: M.Orc, rolls: () => 0 });
+  N.revenantDeed(p, { mobileType: M.Orc, level: 6, champion: 'mighty', unquiet: true, health: 5, maxHealth: 50, team: 'Monster' }, 'fled', { mobileType: M.Orc, rolls: () => 0 });
   const b = N.revenantsFor(p).find((x) => x !== a);
   b.lair = { ...LAIR, name: 'B Den' }; b.weak = 'silver'; b.weakKnown = 0;
   assert.match(N.revenantRumor(HERE, fresh(), { rolls: seq(0, 0, 0.9) }), /A Den/);

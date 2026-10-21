@@ -21,6 +21,8 @@ A **special** foe: an elite (`systems/eliteFoes.js`), a LOOT7 champion (`systems
 It must be level 3 or more (LOOT7's floor), and never the city watch, an ally, or a quest's foe
 (`revenantCandidate`). With the **Loot rarity** row off nothing here happens: no revenant is made, flees or returns.
 Online, under **Renown 10**, a character's revenants are held (RENOWN-GATE, section 39): none is made, flees or returns.
+**UNQUIET** (section 46): only a special foe carrying **the mark** (one in four - "Unquiet Elite Orc") rises, none while
+three hunt the player, and a marked foe breaks at 35% on three rolls in four. The table below is the law as it began.
 
 Two deeds make one:
 
@@ -179,22 +181,23 @@ Every number is a named constant at the top of `systems/revenant/revenant.js`:
 |---|---|
 | `REVENANT_MIN_LEVEL` | 3 |
 | `REVENANT_MIN_RENOWN` | 10 (online - RENOWN-GATE, section 39) |
-| `REVENANT_MAX` | 5 |
+| `REVENANT_MAX` | 3 (UNQUIET, section 46: none rises while three hunt the player; it was 5) |
 | `REVENANT_MAX_RANK` | 5 |
-| `REVENANT_FLEE_HEALTH` / `_YOUNG` | 0.2 / 0.35 (FLIGHT-FIRST: ranks 1-2) |
-| `REVENANT_FLEE_CHANCE` / `_YOUNG` / `_REVENANT` | 0.05 / 0.8 (ranks 1-2) / 0.15 (rank 3 and up) |
+| `REVENANT_FLEE_HEALTH` / `_YOUNG` | 0.2 / 0.35 (FLIGHT-FIRST: under the will's rank; UNQUIET: a marked foe too) |
+| `REVENANT_FLEE_CHANCE` / `_YOUNG` / `_REVENANT` | 0.75 (a marked foe - UNQUIET; it was 0.05) / 0.8 (rank 1) / 0.35 (rank 2 and up - the will's rank, UNQUIET; it was 0.15 from rank 3) |
 | `REVENANT_FLEE_SECONDS` | 8 |
 | `REVENANT_FLEE_PACE` | 2 (its run, a share of its walk - FLIGHT-FIRST) |
 | `REVENANT_ESCAPE_NEAR` | 12 (20 until FLIGHT-FIRST) |
 | `REVENANT_ESCAPE_DISTANCE` | 45 |
-| `REVENANT_RETURN_MIN/MAX_MINUTES` | 1440 / 4320 |
+| `REVENANT_RETURN_MIN/MAX_MINUTES` | 2880 / 5760 (UNQUIET; it was 1440 / 4320 - vengeance 1440 / 2880, section 46) |
 | `REVENANT_RETURN_CHANCE` | 0.4 (0.5 until RENOWN-GATE) |
 | `REVENANT_LOST_MINUTES` | 360 |
-| `REVENANT_HEALTH_PER_RANK` | 0.25 |
-| `REVENANT_DAMAGE_PER_RANK` | 0.1 |
-| `REVENANT_LEVEL_PER_RANK` | 2 |
+| `REVENANT_HEALTH_PER_RANK` | 0.4 (UNQUIET; it was 0.25 - a sworn one keeps 0.25) |
+| `REVENANT_DAMAGE_PER_RANK` | 0.15 (UNQUIET; it was 0.1 - a sworn one keeps 0.1) |
+| `REVENANT_LEVEL_PER_RANK` | 3 (UNQUIET; it was 2) |
 | `REVENANT_TAUNT_DISTANCE` | 25 |
 | `REVENANT_LOOT` | see section 4 |
+| UNQUIET's own | `revenantUnquiet.js` and `unquietMark.js` - section 46 |
 
 ## 9. Every host
 
@@ -242,7 +245,8 @@ Mac: "They should have their own unique personalities that affect their speach. 
 Mac: "Players should have the option to kill or spare"; "the choice popup should reuse the loot menu".
 
 - **The yield**: the blow that would kill one of the player's revenants (any blow - the revenant is the player's own;
-  never the player's own Disintegrate - since RVN-OWNERS-CHOICE, section 15, no one else's whole blow is a kill)
+  since RVN-OWNERS-CHOICE, section 15, no one else's whole blow is a kill, and since RVN-OWN-KNEEL, section 15, nor is the
+  player's own Disintegrate - it passes the last stand and the will and kneels it here)
   leaves it at 1 health on its knees (`systems/revenant/revenantFate.js beginYield`): its fight and its run over, its hurt's
   last frame held with a breath now and then (`MobileUnit.heldPose`), no blow reaches it, no foe hunts it
   (`enemyTargets.js`), never in the save. Its plea is said in its voice; its record notes the deed. Its
@@ -301,6 +305,15 @@ enhanced plus UI feature."
   (Call - refused, and saying why, while the slots are full or it is still hurt; its rest), **Release** asked twice.
 - **Its words**: as it arrives when called, as it is sent away or released, when it falls, now and then as it goes into
   a fight or over a kill (a minute between each one's, twenty seconds between any) - all in its voice.
+- **In the open zone (COMPANION-DROP, FIELD BUGS 2026-10-19f; the owner, 2026-10-19: "Bag drops; no send-off in
+  zone")**: the one at my side there - `swornAtYourSide`, the first walking with me as the record lists it, the one the
+  zone stands (PVPDUNGEONS; the rest wait outside the zone) - carries its pack and its kit at stake with mine: a death
+  there drops them as it drops my bag (`11-Multiplayer/Wild-Zone.md` section 4,
+  `wildDropLaw.js:"export function wildPacks"`). So it is never sent away nor on an errand from my side there
+  (`revenantCompanions.js:"export const leaveRefusal = (r) =>"` - the roster says it, and the slots' hold sends
+  another), nothing of mine is given as kit to one waiting outside the zone, and knocked out there it hands me its pack
+  and its kit before it goes, said once (`revenantCompanions.js:"function leftWithYou(r)"`; one carrying nothing hands
+  nothing and says nothing - AUDIT FB1019f B4): nothing it carries leaves the zone but at my side.
 
 ## 14. The portals and the dissolve (COMPANION-PORTAL, DISSOLVE)
 
@@ -347,9 +360,18 @@ is a foe's whole blow, a companion's, and a stat drained to zero, whose tick nam
 choice is offered, not taken. (The drain's tick returns every 0.2 s while the stat stays at zero, so at rank 3 and up the
 first tick makes the last stand and the next tears it away unless its will is broken - it escapes, to come again; the
 owner's own Disintegrate or a broken will still closes that fight. The audit of the branch, 2026-10-16.) My own
-Disintegrate and my own Razor still kill outright, as sections 19 and 20 say.
+Disintegrate and my own Razor still kill outright, as sections 19 and 20 say (until RVN-OWN-KNEEL, below).
 DEPARTURE from sections 11, 19 and 20 as written ("a Disintegrate kills it outright" - whosever it was): the rule they
 recorded is the owner's alone now. Pinned by `test/systems/revenant/fb1016b_rvnownerschoice.test.js`.
+
+**RVN-OWN-KNEEL** (FIELD BUGS 2026-10-17g; Discord #general, Dude7ox: "Disintegrate just outright kills your rev with no
+option to hire"; the owner: "Hmm thought I fixed this"): **no blow skips the kill-or-spare.** The owner's own whole blow
+- a Disintegrate, the Razor's whole-health strike - still passes over the last stand and the will, the Disintegrate's
+edge (sections 19, 20), and then kneels it like any killing blow: alive at 1, its record open, Kill or Spare offered
+(both doors' yield gate asks `revenantFate.js ownersWholeKill` of the will alone). A host that cannot open the choice
+(`exterior.js`, no `fates`) lets it die as before. DEPARTURE from RVN-OWNERS-CHOICE's "my own Disintegrate and my own
+Razor still kill outright" and from sections 19 and 20 as written. Pinned by
+`test/systems/revenant/fb1017g_rvnownkneel.test.js`; the record, `01-Overview/bugs/Field-Bugs-2026-10-17g.md`.
 
 ## 16. The audit (2026-10-02, Mac: "Audit everything and ensure perfection")
 
@@ -424,8 +446,9 @@ sky reads day), weighs twice on a wind-up, and no adaptation takes from it. The 
 "Weakness" word, a hiss, its card - and under half its health, unknown, it flinches from it (a hint). From rank 3 its
 will must be broken in the fight: strike its weakness, or stagger it twice (since FEUD BALANCE, section 34: stagger it
 once, or dodge one of its blows perfectly). Unbroken at the killing blow it does not
-kneel - it tears away into the smoke, an escape that ranks it up. A Disintegrate kills it outright - its owner's own
-(RVN-OWNERS-CHOICE, section 15: anyone else's is a killing blow like any). The page says its
+kneel - it tears away into the smoke, an escape that ranks it up. A Disintegrate - its owner's own - passes its will
+and kneels it (RVN-OWN-KNEEL, section 15; until 2026-10-17 it killed it outright; RVN-OWNERS-CHOICE: anyone else's is a
+killing blow like any). The page says its
 weakness as known and the will's rule. The law: `bible/12-Enhanced-AI/Feud-Arc.md` section 14 and its RVN3 record.
 
 ## 20. The last stand (FEUD RVN4, 2026-10-04)
@@ -434,7 +457,8 @@ From rank 3, once a fight, the blow that would kneel or kill a revenant brings i
 its health by rank (since FEUD BALANCE, section 34: 30%, 35% or 40%) - roaring: for 1.2 seconds no blow reaches it, and (Enhanced AI on) an iron ring about its feet lands
 as the roar ends; with the switch off it stands and roars. Then phase two for the rest of the fight: heavier and quicker
 blows, more Speed, shorter wind-ups and cooldowns, chains of three, iron one in two, an ember rim and a tenth more size.
-A Disintegrate still kills - its owner's own (RVN-OWNERS-CHOICE, section 15). The page names it from rank 3. The law:
+A Disintegrate - its owner's own - passes the last stand and kneels it (RVN-OWN-KNEEL, section 15; until 2026-10-17 it
+killed it). The page names it from rank 3. The law:
 `bible/12-Enhanced-AI/Feud-Arc.md` section 15 and its RVN4 record.
 
 ## 21. Signature blows (FEUD RVN5, 2026-10-04)
@@ -475,7 +499,11 @@ in the quest log ("Hunt: Grushnak the Butcher" - the way there from where the pl
 forgets the lair until it is heard of again.
 
 **The lair stand (RVN7d).** Enter its lair while it lives, unsworn, and is due or its lair known, and it is there - at
-the dungeon's far end, resting with its band (a first blow may be a backstab), its gold a quarter richer. Rest in its
+the dungeon's far end (LAIR-REACH and LAIR-WALK, 2026-10-19: the farthest a walk from the way in reaches on the
+dungeon's navmesh - with no navmesh (the Enhanced AI off offline, a bake that failed) or nothing on its floor, the
+farthest interior marker - never a border cap's pocket, where it once stood out of every player's reach; LAIR-HOME: and there even
+when the road had stood it a moment before, unless that body is in a fight with you or kneels for your judgement - one
+revenant, one body, the body it left withdrawn; `01-Overview/bugs/Field-Bugs-2026-10-19.md`), resting with its band (a first blow may be a backstab), its gold a quarter richer. Rest in its
 lair while it is due and it wakes you, standing over you. Any rest underground may be a due revenant's return. The law:
 `bible/12-Enhanced-AI/Feud-Arc.md` section 18 and its RVN7a-d records.
 
@@ -487,6 +515,19 @@ after which it only gloats. The wake box says what it took. It carries what it t
 the body, execute it and it is in the pile, spare it and it hands it back ("It's yours. It always was."); let it escape
 and it keeps it. A revenant holding a piece is never forgotten to make room. The law: `bible/12-Enhanced-AI/Feud-Arc.md`
 section 19 and its RVN8 record.
+
+LETTERS-HOME (FIELD BUGS 2026-10-18b, `01-Overview/bugs/Field-Bugs-2026-10-18b.md`): a LETTER OF CREDIT is gold, and
+it never takes one. "Gold" was read as the coin alone, so a letter - worth hundreds of thousands, by far the pack's most
+valuable piece - was in every draw. A letter one took before is the player's again at the next load; a deserter's
+letter comes back with its gold.
+
+STEED-KEPT (FIELD BUGS 2026-10-19f, a player's private report - their horse gone after a death in a dungeon; the owner,
+2026-10-19: "Exclude, and return taken ones"): it never takes what never changes hands, as the open zone's death reads
+it - a horse or a cart (owning one is having it in the pack), a deed (Daggerfall's, and a ship's deed or her packed
+parts) or the spellbook (`revenant.js:"export const revenantMayTake = (item) =>"`); a bound piece stays its own (AUDIT
+625 W2). A stable's horse beside a worn longsword was drawn one death in six. One it took before comes home to the pack
+at the next load, from the save's own copy, and is said once ("Grushnak the Butcher could not keep your Horse. It is
+back in your pack."); a deserter's ship's deed comes back with the rest. The law: `12-Enhanced-AI/Feud-Arc.md` section 19.
 
 ## 25. Festering (FEUD RVN9, 2026-10-04)
 
@@ -765,7 +806,10 @@ A sworn revenant wears what the player gives it. `systems/revenant/revenantGear.
   item lists customs and the load's repairs read (`net/realm/realmGoldLaw.js stashedItemLists`, AUDIT RVN G10: customs
   itself moves gold and letters, never a piece) and the realm's own (`systems/item/possessedItems.js`) - a release hands
   it back with its pack, and a deserter or a betrayer weighs it with its pack (`splitPack` - it keeps the more valuable
-  half). Abroad, its kit goes with it: nothing is given or taken back (AUDIT RVN F10).
+  half). Abroad, its kit goes with it: nothing is given or taken back (AUDIT RVN F10). COMPANION-DROP (FIELD BUGS
+  2026-10-19f, section 13): in the open zone the kit of the one at my side drops with my bag at a death there, as its pack
+  does - DECIDED there, named: its pieces are mine, given from the pack and taken back at will, worn by it and never by me,
+  so my own worn law is not theirs - and nothing of mine is given to one waiting outside the zone.
 - **Its weight abroad** (`gearPower`, section 42): a twentieth of a point a piece worn, and its tier's share more (Magic
   0.1, Rare 0.2, Legendary 0.35), at most two (AUDIT RVN G8 - ten Common pieces weighed what three Legendaries did).
 - **The page**: the Companions page's **Gear** opens a sheet under its card - a well a slot it may fill (a beast's the
@@ -1093,8 +1137,8 @@ further is its shortest (`rvnWayTo`: Awakened Art is four from the Oath). Giving
 CAPTAIN-TREE's law, not the Firmament's silver and gold: the sky is the oath's, kept in the save and the mirror as its
 loyalty is (`sanitizeCompanion` reads it back through the law, its level and its rank - a hand-made sky is cut to what it
 may hold), and a deserter or a betrayer leaves with no oath and no sky. Every reading of its stars - its stats, Awakened Art -
-comes through the same door at its record's points (`rvnStatsOf`, `rvnAwakened`). Set abroad, the oath refuses ("It is
-abroad - set its stars when it is back." - `swornStarsRefusal`), as its kit's acts do (AUDIT RVN F10).
+comes through the same door at its record's points (`rvnStatsOf`, `rvnAwakened`). Set abroad, the oath refuses ("It's away on a
+mission. Set its stars when it returns." - `swornStarsRefusal`), as its kit's acts do (AUDIT RVN F10).
 
 **What the stars do** (`rvnStarStats`, each a share, each sum kept within `RVN_STAR_LEAST`..`RVN_STAR_MOST`) is read where
 the revenant's own numbers are read:
@@ -1151,12 +1195,14 @@ right-pressed (or held), taken back with those joined only through it; Accept gi
 sky stays pending and the window says why. The side panel, under the bar wherever a long name ends it, says what its stars
 do, each aspect, and its art: its own, awakened, or what Awakened Art would teach it. The window takes the focus as it opens
 and gives it back to the Stars button as it closes; while it stands it is on the overlays' stack, so the QuickDial's key
-asks it first, as the Firmament's own window does - an unaccepted sky is never dropped unasked (section 45 S8, S21, S22).
+asks it first, and so do the F5 sheet's own keys (`10-UI/Growth.md` section 6, AUDIT GROWTH LANE4-1) - an unaccepted sky is
+never dropped unasked (section 45 S8, S21, S22).
 
 **The doors**: the Companions page (`ui/companionRoster.js`) says each sworn one's level and the stars it has to set ("Level
 3 · 2 stars to set", gold while any wait) and gives it **Stars** (none abroad). Its sky is laid over the pause window as the
-Firmament is over the Stats page - `ui/firmamentOver.js revenantStarsOver`, the Firmament's own door built once (`overPage`)
-for both - from either door that draws the page (`ui/pauseDoor.js`, `ui/charSheetDoor.js`), and the page is put back on
+Firmament was over the Stats page - `ui/firmamentOver.js revenantStarsOver`, the door the Firmament had, built once (`overPage`)
+for both (GROWTH3 drew the Firmament in the pause window's Growth tab and its door went; this one stays - the owner, of a
+Growth-tab page for it: "Keep it on the companion page", `10-UI/Growth.md` section 1) - from either door that draws the page (`ui/pauseDoor.js`, `ui/charSheetDoor.js`), and the page is put back on
 Companions when it closes (`enhancedMenu.js` lands on `at: 'companions'`). Offline and online alike: the sky is the save's.
 The mission sheet's days are its own road's ("Black Marsh - 82 hours, danger V").
 
@@ -1229,3 +1275,461 @@ lines this audit moved and were re-aimed by content, each still dead - 25 of sec
 lists, with `captaintree.json`, 419 dead, 0 survived. One record, RVN-STARS-hard-rest-whole, survived the first sweep: S27's clamp in the same wake cut a whole
 rest to the starred one, so the pin read the clamp, not the return - the return's rest is now pinned on `returnFromErrand`
 itself.
+
+## 46. The Unquiet (UNQUIET, 2026-10-17)
+
+The owner: "With revenants becoming a full fledge game loop. They need to become harder, rarer, revenants need more of a
+chance to flee instead of relying on player death, we need to go deeper on the experience and make it something insanely
+deep."
+
+Revenants are the port's own system; Daggerfall and DFU have none. The DFU members this section reads are named where it
+reads them, and each departure is named there too. The law is `src/systems/revenant/revenantUnquiet.js` (UNQUIET's
+numbers and pure laws; the flight's own numbers, `REVENANT_FLEE_*`, stay `revenant.js`'s) and
+`src/systems/revenant/unquietMark.js` (the mark, a leaf). `revenant.js` keeps the record, its deeds and its doors.
+AUDIT UNQUIET (section 49) corrected this section where the audit found it untrue; each correction is named there.
+
+### 46.1 Rarer - the mark, the cap of three, the days
+
+- **THE MARK.** One special foe in four (`UNQUIET_MARK`, 0.25) is **Unquiet**, and only a marked foe can rise. A
+  revenant already is no newcomer and needs no mark. Every other elite and champion dies where it falls, whatever it
+  does. The mark is drawn on the foe's voice id (`_voiceId`, `characterId.js mintCharacterId` - the id its name and its
+  voice are drawn on) by an FNV hash, so no die moves. It is drawn once, as the foe is made its own (`promoteEliteFoe`
+  and `applyChampion` with `own`; never a puppet, whose owner's word stands - the dungeon's builders clear a puppet's,
+  each client having drawn its own), and it is kept on the body. Its title says so: "Unquiet Elite Orc", "Unquiet Mighty
+  Orc" (`foeTitle.js`). A foe of the open zone or the sand never wears it (`isUnquiet`), though its promotion drew it
+  before its tag.
+- **THE GATE.** The mark is drawn only with the arc on and not held (the Loot rarity row, RENOWN-GATE), only while fewer
+  than three hunt the player (`huntingRevenants` - the Dread is not counted), and only on a foe that could ever rise:
+  never the watch, an ally, a band's follower, a zone foe, a bout's fighter, one under level 3, or a revenant. A closed
+  gate stores nothing. A mark drawn before the third rose stays: that foe rises only if one of the three is gone by then.
+- **THREE AT MOST.** `REVENANT_MAX` is 3 (it was 5). While three hunt the player **none rises** (`revenantCandidate`,
+  and the deed asks again of the body itself - `revenantDeed`). It used to bury the weakest, oldest to make room; now
+  none is buried and no nemesis is lost to a newcomer. A deserter or a betrayer coming back past the cap still buries the
+  weakest, oldest, as before - never one standing, one holding a piece of mine, or the Dread. A kinsman's killer handed
+  to an heir (LEGACY6) joins the heir's three past the cap and buries none.
+- **THE DAYS.** It comes back in **two to four days** (`REVENANT_RETURN_MIN/MAX_MINUTES`, 2880 / 5760; it was one to
+  three). A revenant of vengeance comes sooner (46.6).
+
+### 46.2 Born of flight, ranked by surviving
+
+- **A MARKED FOE BREAKS.** A marked foe breaks at the young line, **35%** of its health, on **one roll in two**
+  (`REVENANT_FLEE_CHANCE` 0.5), and runs as a bolt does (`REVENANT_FLEE_PACE_MARKED` 2.5). It was 5% at a fifth, so
+  nearly every revenant was born of the player's death. An unmarked one never runs. (AUDIT UNQUIET: it shipped at three
+  rolls in four at a revenant's pace, 2 - a runner at Speed and Running 62 cornered every flight, a slow one let three and
+  a half times as many be born.) A flight that can no longer make a revenant - the cap filled behind it, the page held -
+  turns and fights (`cornered`).
+- **THE WILL FROM RANK II.** `revenantFeud.js WILL_RANK` is 2 (it was 3). A rank-I revenant runs as FLIGHT-FIRST made
+  it (35% on 80%). From rank II its will takes over: it tears away at the killing blow unless its will is broken
+  (section 19), and it runs at a fifth on **35%** (`REVENANT_FLEE_CHANCE_REVENANT`; it was 15%).
+- **RANKED BY SURVIVING.** A revenant ranks up each time it survives the fight: **every escape or slip** from the
+  choice (the `fled` deed) and every time the **player runs** from it (`routed`). Its will's **tear-away** (a `fled`
+  deed too, unbroken) ranks it only **every second time** (`TEAR_RANK` 2, its `tears`), and a kill of the player or a
+  companion felled only **every second time** (`BLOOD_RANK` 2, its `blood`). Each count rides the save, and any rank-up
+  - by a deed, a festering or a betrayal - spends both. It used to be every deed after the first. The page says when one
+  more kill, or one more tear-away, will rank it. (AUDIT UNQUIET: a tear-away ranked it every time, so a player who won
+  every fight by trading blows ranked a revenant from rank II at almost every meeting - 44% of such revenants became the
+  Dread.)
+
+### 46.3 Harder
+
+Each rank weighs more. Health is **+40%** a rank, blows **+15%**, and a class foe's level **+3** a rank
+(`REVENANT_HEALTH_PER_RANK` / `_DAMAGE_` / `_LEVEL_`; they were 0.25, 0.1 and 2). A sworn one keeps the old weight
+(`revenantCompanions.js SWORN_HEALTH_PER_RANK` 0.25, `SWORN_DAMAGE_PER_RANK` 0.1): the oath is the player's reward,
+already weighed by RVN-STARS (section 44), and the new weight is a foe's alone. With the will from rank II and a flight
+that gets away (46.4), a revenant is hard to bring down in more ways than its health.
+
+**Measured** (`tools/tellDuel.mjs --feud`, 150 fights a cell, a Longsword):
+
+- A rank-1 revenant fought never running takes 6.5 s to its end, up from 5.9 s (the same run on the law before UNQUIET).
+  A rank-5 one takes 21.0 s, up from 16.1 s.
+- Rank 5 over rank 1 is **3.24** trading and **3.22** dodging (it was 2.73 / 2.69). The rank's target band moved with the
+  ask, from 2-3 to 2.5-3.5 ("about three times" - `12-Enhanced-AI/Feud-Arc.md` section 28).
+- The will's targets hold. By its weakness 100%, by dodging 92.2%, by trading 12.6%. A perfect dodger is struck by none
+  of a trader's telegraphed blows, in 97.9% of its time.
+- From rank III, about a third of the fights now end in a real flight: 47, 45 and 57 of 150 at ranks III-V (they were
+  29, 24 and 24).
+- At rank II, a trader's fight ends in a kneel 16% of the time (it was 37%). The rest end in a tear-away or a flight:
+  its will holds from rank II.
+- AUDIT UNQUIET re-ran it on the audited law: every cell the same, to the hundredth (its changes move no single fight -
+  the harness fights a revenant, never a marked foe, and an Orc bolts).
+
+### 46.4 Its flight craft
+
+From rank II (`CRAFT.RANK`) a revenant breaks away **in its own way**, chosen by its kind (`fleeCraftOf`). The page
+says which, and how to answer it.
+
+| Craft | Who | What it does | The answer |
+|---|---|---|---|
+| **Smoke** | any other person (a class foe) | DFU's Chameleon (`chameleonNormal`) on it for two magic rounds (`SMOKE_ROUNDS` - its first round runs as it lands, AssignBundle's), the door's `vanish` puff where it stood, and it runs; lost to sight - the Enhanced skin draws it faint, the classic not at all | a blow still finds it (and the Enhanced skin shows it a moment at one that lands - `combatVisuals.js`'s reveal) |
+| **Blink** | a caster, a spirit, a lich, a nymph, an orc shaman, every daedra and atronach (never the imp: under level 3, it never rises) | it stands to its rift at **half its walk** (`BLINK_PACE` 0.5), and **0.8 s** on (`BLINK_DELAY`) the rift opens: its body dissolves in the arcane violet over **600 ms** (`BLINK_MS`), and it is gone - an escape however near | silence it or hold it before the rift opens and it only runs this flight; a blow as it fades closes the rift and it runs on, at a run's pace |
+| **Sink** | the walking dead (skeleton, zombie, mummy, vampire) and the spriggan | it stands (`SINK_PACE` 0.05 - the motor's flee takes no pace of none) and goes into the ground over **200 + 1,400 ms** in the earth's tint - an escape however near | a blow as it sinks breaks it: it rises **cornered** and runs no more - its will may still tear it away at the killing blow (from rank II) |
+| **Bolt** | everything else (beasts, monsters) | it runs at **2.5 times its walk** (`BOLT_PACE`; every other run is FLIGHT-FIRST's 2) | bring it down from range - and break its will before the killing blow, or it tears away - or be very fast: only a Speed-and-Running-100 runner corners it, measured below |
+
+- **WHERE IT RUNS.** The craft lives inside the one flee law, `revenant.js revenantFleeStep`, which both pools ask
+  each frame. `beginCraft` starts it with `start`. `craftStep` answers `gone` (the pool's escape), `broken` (cornered)
+  or nothing. While a blink fades or a sink goes under, the distance's verdicts wait. A last stand, a kneel or a
+  tear-away mid-flight puts the craft down (`endCraft`, in `revenantFate.js`), and lifts its smoke. The look is the pools'
+  own dissolve (`f.portalFx`, as the tear-away's), and the puff is the scene's door (`playerDoor.js fx`, `hostMagic.js` -
+  the magic engine's `vanish` technique).
+- **ITS CLOCK.** The craft runs on the pool's frame (`dt`, the foe's own - `foeFrameDt`), and its dissolve is drawn on
+  the same time. AUDIT UNQUIET: it ran on the wall's, so a pool held still (a window over the game, a hidden tab) let a
+  blink or a sink finish unseen.
+- **DFU.** The Chameleon is DFU's own effect and kind, run as an AssignBundle runs a bundle. A Normal concealment ends
+  at its bearer's own blow (EntityEffectManager.BreakNormalPowerConcealmentEffects, `systems/concealment.js`), and a
+  runner strikes none. DEPARTURE: DFU's EnemyMotor flee is a walk away and nothing more. The blink, the sink and the
+  bolt are the port's own, on the port's flee (FLIGHT-FIRST).
+- **MEASURED** (the flight probe: a rank-3 Orc bolting from 4 m, a chaser holding its line at the player's run speed,
+  31 flights each): a runner at Speed and Running 50 (8.1 m/s) lets every flight get away; at 90/90 (10.94 m/s), every
+  flight; at 100/100 (11.71 m/s), 28 of 31 are cornered. At 2.6 nobody could catch one, and at 2.3 a 90/90 runner
+  cornered most, so 2.5 holds.
+
+### 46.5 Its wounds
+
+The blow that broke it leaves **a wound** on its record (`woundOf`). The class is the ledger's `last`
+(`feudLedger.js noteFeudHarm` - the class of the last harm that reached it). A wound is taken at every escape (the
+`fled` deed) - never by a kill or by the player's flight, since it was never broken then. It keeps **three**
+(`WOUND.MAX`): a fourth pushes the oldest out, and a wound taken again is the newest. Left alone, its oldest heals
+(section 48.2). The escape's card says it, as do the tear-away's and the slip's: "It bears the wound you left: Lamed."
+(AUDIT UNQUIET: "your mark" read as THE MARK's word.)
+
+| Wound | From | At its stand |
+|---|---|---|
+| Bled | a blade | 90% health |
+| Cracked | a blunt weapon or a fist | 70% poise (it staggers more easily - its edge's `poise`) |
+| Maimed | an axe | 90% blows |
+| Lamed | an arrow | Speed -15 |
+| Burned, Frostbitten, Stormstruck, Blighted, Hexed | fire, frost, shock, poison, magic | -15 on its saving throw against that element (its edge's `resist`, over a learned resistance) |
+
+The player's blows make its weaknesses: the next fight with it is shaped by how the last one ended.
+
+### 46.6 Its ambition
+
+What it does while it is away follows who it is (`ambitionOf`, by REVENANT-VOICE's personality - derived, never
+stored):
+
+| Ambition | Who | While it waits |
+|---|---|---|
+| **Vengeance** | brutal, zealous, unhinged | due in **one to two days** (`AMBITION.VENGEANCE_DUE`), and it takes **55%** of the encounter rolls (`VENGEANCE_RETURN`; another takes `REVENANT_RETURN_CHANCE`'s 40%) |
+| **Mastery** | honourable, arrogant, cold | it trains: a wrath **two** days past its due day and every **two** more (`FESTER_DAYS` / `FESTER_EVERY`; RVN9's three and three), so it grows bolder every two days, not three - "Grushnak grows bolder - it has been training." (AUDIT UNQUIET: it said "twice as fast"; it is half as fast again) |
+| **Plunder** | witty, humorous, craven, weary | it raids the roads: its hoard is **+25%** gold for each whole day past its due day, at most **3x** (`PLUNDER_PER_DAY`, `PLUNDER_MOST`) - the longer you leave it, the richer it is |
+
+A town's rumour of it says what it does ("Word is it asks after you by name.").
+
+### 46.7 The Dread
+
+A rank-V revenant that **gets away once more**, with a lair to go to, **ascends** (`mayAscend`) - by an escape or its
+will's tear-away (whose card is the ascension's), never by a slip from the choice: the player held it beaten. **One
+Dread at a time** (`DREAD.MAX` 1): another rank-V one waits at rank V while it lives. It takes the epithet
+"the Dread" (now the ascended's alone - the risen epithets no longer carry it), the `ascended` deed and
+its card ("Grushnak will run no more. It has gone to ground in the Tomb of Vaness - the Dread now - and waits for you
+there."), and its lair is known.
+
+- **AT HOME.** It never comes on the road again (`revenantToReturn`). It is always at home in its lair, known or due or
+  not (`revenantForLair`). It festers no more. Every town knows where it is, however far ("They say Grushnak the Dread
+  has gone to ground in the Tomb of Vaness, and that nobody who goes in comes out."). Its hunt in the log says: "The
+  Dread will not come to you again. Go to it."
+- **ITS STAND.** It has half again its health (`DREAD.HEALTH` 1.5) and **two last stands**: its rank's, then a quarter
+  of its health (`STANDS`, `SECOND_STAND`). Phase two comes once - the second stand rises in the fury it already has.
+  It **never runs** and its **will never holds**: at home it has nowhere to tear away to, so it kneels at the end, and
+  the player chooses. Destroyed, its **trophy is a Legendary** always (section 47.3); its drop is its rank's, and
+  its gold **three times** over (`DREAD.GOLD`) - or a plunderer's own hoard where that is more (`hoardOf`), never the two
+  multiplied. (AUDIT UNQUIET: it dropped a Legendary as well as its trophy, and its gold was x3 times a plunderer's x3
+  times the lair's x1.25 - up to x11.25.)
+- **KEPT.** It does **not** count among the three that hunt the player - it hunts no one - and the cap never buries it.
+  (AUDIT UNQUIET: it counted, and never coming back, three of them shut the arc for good.) Read back, only a rank-V,
+  unsworn record is the Dread. Sworn, it is home no longer. An older save's living, unascended record wearing "the
+  Dread" (a risen name before UNQUIET) is given a risen name again, drawn from its id.
+
+The way to stop it is the will: a rank-V revenant whose will is broken kneels, and one whose will holds tears away at
+the killing blow - an escape, and it becomes the Dread.
+
+### 46.8 What was not built
+
+- **Trails.** An escape leaving a trail to a refuge, catchable for a while, needed a world position stood by a host -
+  built in section 47 on the doors the hosts already had.
+- **No hierarchy.** Revenants do not rank among themselves, lead one another, or fight over places. Each is the player's
+  own memory, alone. A warband (RVN6) is its master's kin, not other revenants.
+
+### 46.9 Words, hosts, pins
+
+**The words.** Every new line goes through `t()` (`rvn.unq.*`, `rvn.kicker.ascended`), drafted in the 13 drafting
+languages. The page (`revenantPage.js`) adds four lines to a living one's row - its flight, the wounds you left, its
+ambition, its blood - and for the Dread its home, its two stands and no will line. The empty page says who rises ("An
+elite or a champion marked Unquiet that kills you - or, far likelier, breaks, runs and gets away"). The card gains the
+`ascended` kind (`revenantCard.js`, a deep red edge).
+
+THE FOUR HOSTS (rule 17e): the craft runs inside `revenantFleeStep`, the flee law both pools ask - `scenes/exteriorFoes.js`
+(the pool `scenes/world.js`, `scenes/worldModes.js`'s buildings and `scenes/exterior.js` each create) WIRED, and
+`scenes/dungeonContext.js` WIRED for a foe of the player's alone (REVENANT-DUNGEON's gate). The mark rides the pools'
+own promotion and champion draw: the street pool hands a puppet's champion `own: false`. The puff is the scene's door
+(`hostMagic.js`, which every host's magic engine sets). No host function grew (`hostceiling.test.js`).
+
+PIN MOVED: about forty revenant test files mark their fixture foes `unquiet: true` (the mark is drawn on a random id) and
+make room for the cap of three. `test/systems/revenant.test.js` (DEEDS AND RANKS - the blood rule, the cap; the due days
+by ambition), `flightfirst.test.js` (the roll and the line: 0.75, WILL_RANK 2), `rvn3_weak.test.js` and
+`feudbalance.test.js` (the will at rank II), `rvn4_stand.test.js` and `rvn6_band.test.js` (a rank-II master's will),
+`rvn7b_rumor.test.js` (the ambition's sentence), `rvn9_fester.test.js` and `auditfeud.test.js` (no revenant of mastery),
+`rvn10_deeds.test.js` (the third felling ranks it), `rvn11c_betray.test.js` (a brutal betrayer due by vengeance's days),
+`rvn2_adapt.test.js` (its wounds on its edge), `feudwire.test.js`, `feudharness.test.js` (only a 100/100 runner corners a
+bolt), `renowngate.test.js` (the return's share by ambition; the page's words), `loot7_champions.test.js` (`own`),
+`rvn11b_desert.test.js` (a deserter due by its ambition's days), `tell1_poise.test.js` (a rank's 40%; the sworn one's own
+weight), `fb1012d_allyrace.test.js` (the stamp carries the Dread after its person), `foeforge.test.js` (FOE-FORGE's
+`PEER_REVENANT_PUPPETS_MAX` is three kept and six sworn - 9, it was 11), and the arena ladder's, `itemwalk`'s and
+audit544's fixtures, marked. 23 older mutant records named lines this slice moved and were re-aimed by content.
+
+Pinned: `test/systems/revenant/unquiet.test.js` (25); `tools/mutants/unquiet.json` (137, all dead). Every revenant list was
+swept again on the slice (44 lists, 1,731 records - 1,729 to be killed and two recorded equivalents): nine mutants lived where the cap of three, the will at rank II and the
+bolt had taken their pins' ground. The burials A6 and RVN8 guard, and REVENANT-no-cap, never happened now that none rises
+past the cap; they are pinned through a deserter coming back past it. RVN9's one out was the one slain to make room. A
+sink close enough to have been cornered anyway. Vengeance's days read at the roll's bottom. RVN3's will mutant was rank 2,
+the law now (re-aimed at 3). FEUD HARNESS's stand mid-run and its rally mid-scatter were never reached by a runner a bolt
+outruns; a chaser past any player's run now reads them. Each pin was rewritten, and all nine now die - 1,729 dead, the two
+equivalents as recorded.
+
+## 47. The hunt (UNQUIET II, 2026-10-18)
+
+The owner: "Keep building" - UNQUIET (section 46) asked "we need to go deeper on the experience". Section 46 made a
+revenant live by getting away. This section makes the getting away the start of a hunt, warns of its coming, and pays
+for the Dread. Every piece runs through doors the hosts already have, so no host grew. The law is
+`src/systems/revenant/revenantUnquiet.js` (`HUNT`, `trailWarm`, `trailHours`, `trailWords`, `omenWords`); the record,
+its deeds and its doors are `revenant.js`'s.
+
+### 47.1 The trail
+
+- **AN ESCAPE LEAVES ONE.** A getting-away **in the open** - an escape, the will's tear-away, or a slip from the choice
+  (the `fled` deed) - goes to ground in the nearest den in reach (section 48.3) and leaves a **trail** to it. Its lair is
+  **known at once** - the map's red circle and the hunt in the quest log. The trail stays warm for **twelve hours** of
+  the character's clock (`HUNT.MINUTES` 720, the record's `trail`, saved), and the page and the hunt never say more than
+  twelve (a trail is held within them of the character's clock, should a reload under a newer mirror set it further).
+- **NO TRAIL.** A kill, the player's flight, or a getting-away with no den in reach (its old lair stands - no trail to it)
+  leaves none. Nor does one underground: its lair is the dungeon it is in, and AUDIT UNQUIET found that re-entering it at
+  once stood it weakened again and again, a Dread in five re-entries. Neither does the Dread, nor its ascent: it is at
+  home for good. A hunt given up (the log's Abandon) cools its trail with its lair.
+- **THE ESCAPE'S CARD** ends with where it leads: "Its trail leads to the Tomb of Vaness. It has gone to ground there to
+  recover - catch it before it is whole again." The tear-away's and the slip's cards end so too.
+- **FOUND ON IT.** Entering its lair finds it there, since a known lair is enough (RVN7d's `revenantForLair`). Found
+  while the trail is warm, it stands at **60%** of its health (`HUNT.HEALTH`): it went to ground to recover, and has
+  not. Whatever comes of the fight, the trail is followed (`trail` 0). Found after it cools, it stands whole.
+- **THE HUNT AND THE PAGE.** While the trail is warm, the hunt in the quest log adds "Weakened - it went to ground here
+  to recover. 11 hours before it is whole again." The Revenants page tags it **Weakened** - "Gone to ground in the Tomb
+  of Vaness to recover - 11 hours before it is whole again. Find it there." Held (RENOWN-GATE) it says held, since no
+  lair stands one then. ("Weakened", "recover": AUDIT UNQUIET - "wounded" and "heal" are its wounds' words, on their own
+  law, section 48.2.)
+
+So a flight is no longer only a loss of the fight. The player who follows it at once meets it wounded, in a place of the
+game's choosing - the loop the owner asked for: harder, rarer, and fled from rather than killed by.
+
+### 47.2 Omens
+
+- **ITS COMING, FORETOLD.** The day a revenant falls due, the notice step - the encounter tick's own question - answers
+  with an **omen** card ("An omen", a dusk-blue edge) in its ambition's words:
+  - vengeance: "You feel eyes on your back. Grushnak is hunting you again."
+  - mastery: "Word reaches you that Grushnak is ready to face you again."
+  - plunder: "Travellers speak of Grushnak on the roads again. It is coming for you."
+- **ONCE AN ABSENCE.** The record's `omen` holds the due minute it was foretold for, and it rides the save. A stand gone
+  unfought (`revenantPresence`'s pushback) is the same absence: its omen moves with its due minute, and is not said
+  again. An older record with no omen kept reads as foretold, so a load is no burst of them. A card already waiting (a
+  kill's, a festering's, a deserter's) is said first, the omen at the next tick.
+- **NEVER** for one out in the world, the Dread (at home), the sworn, the held, with the switch off, or a Night-stalker's
+  by day (it comes only by night).
+
+### 47.3 The Dread's trophy
+
+Destroying the Dread (REVENANT-FATE's kill) drops its trophy as a **Legendary** always (`revenantTrophy.js`): its
+tier's roll is drawn first all the same, and its name and kind are still its own. It is the Dread's one Legendary:
+AUDIT UNQUIET took the Legendary its drop also carried (section 46.7) - two from one fight, and a pump.
+
+### 47.4 Hosts and pins
+
+THE FOUR HOSTS (rule 17e): no host line. The trail is the deed's (`revenantDeed`, which every pool's doors call), and its
+stand is the lair's: `scenes/dungeonContext.js`'s `standLairRevenant`, already WIRED (RVN7d), through `revenantForLair`
+and `applyRevenant`. The omen rides `takeRevenantNotice`, which the encounter tick of `scenes/world.js` (`runEncounterTick`)
+and `scenes/exterior.js` already asks. `scenes/worldModes.js` and `scenes/dungeonContext.js` ask no notice of their own -
+FLAGGED, unchanged: an omen waits for the open world's next tick. `scenes/exterior.js` (the bench) has no `lairHere` on
+its door - FLAGGED, unchanged: an escape there goes to ground by the lair's own law and leaves no trail. The page, the
+card and the trophy are the UI's and the fate's.
+
+PIN MOVED: `test/systems/revenant/rvn7a_lair.test.js` reads the lair's own law through deeds that leave no trail (a kill,
+my flight). `unquiet.test.js`'s escape card carries the trail after the wound.
+
+Pinned: `test/systems/revenant/unquiet2_hunt.test.js` (8); `tools/mutants/unquiet2.json` (29, all dead). The neighbouring
+lists were re-swept on it (`rvn7a`, `rvn7c`, `rvn9`, `rvn12b`, `revenantfate`, `unquiet`, `rvn1`, `revenant`): 418 dead.
+
+## 48. Training, healing, the nearest den (UNQUIET III, 2026-10-18)
+
+The owner: "Do it", of the three next steps put to them after section 47. The first gives a revenant of mastery a counter to the
+player's own habit. The second puts a cost on leaving a revenant unhunted: its wounds heal. The third makes a flight's
+den the nearest one, so the hunt starts close by. The law is `src/systems/revenant/revenantUnquiet.js` (`trainLesson`,
+`trainedHow`, `WOUND.HEAL_DAYS`, `healsOn`, `daysToHeal`, `nearestLair`). Its record, its deeds and its day loop are
+`revenant.js`'s.
+
+### 48.1 It trains against you
+
+- **WHEN.** A revenant of **mastery** (section 46.6) trains on its training days, the same days its festering counts
+  (two days past its due day and every two more).
+- **WHAT.** It learns the adaptation (RVN2's, `revenantFeud.js lessonOf`) answering the habit its scars name most - its
+  scars are the record of how the player has fought it (RVN1). Among equals, the latest counts. My running and the
+  night teach no training: they are lessons a fight teaches (RVN10, RVN2), not ones a dummy does. Nor does an element:
+  a resistance is learned in a fight, where RVN2 never stacks one on what its career already resists - the record keeps
+  no career, so training drills weapons and habits alone (AUDIT UNQUIET: it trained a resistance into an immunity).
+  One lesson a catch-up: days caught up at once teach one, as the one card says.
+- **ROOM.** It trains only into a lesson's room - fewer than its rank's lessons, ADAPT_MAX at most - so training never
+  trades a lesson away. One it already holds passes the lesson to the next habit.
+- **THE CARD.** "Grushnak has been training - it has learned to answer your blade." The kicker is **Trained**, with an
+  old-gold edge. A rank won the same day takes the card instead (mastery's festering card already says "it has been
+  training"), and a card already waiting is said first. The habit's word is its own key in the text core, so it reads in
+  the player's language.
+- **NEVER** a revenant of vengeance or plunder. Their days are spent hunting or on the roads.
+
+### 48.2 Its wounds heal
+
+- **LEFT ALONE.** A revenant's oldest wound heals every **five days** (`WOUND.HEAL_DAYS`; AUDIT UNQUIET - at three,
+  94.5% of wounds healed before a road's return found them), counted from the day it took its last (`woundDay`, saved; a
+  new wound starts the count again). Healing runs in the character's own day loop (RVN9's), caught up as festering is.
+  A wound's day is held to the character's (no later than today); a kinsman's killer handed to an heir heals from the
+  heir's day, and a deserter's or a betrayer's from the day it left (an oath stood the count).
+- **NEVER** for one out in the world, nor the Dread: it keeps what it has, as it keeps its home. Nor while held.
+- **THE PAGE** says when, where it heals: "Wounds you left: Lamed (a lamed leg - it runs slower). The oldest heals in 4
+  days unless you find it first." Never of the Dread, one out, or while held.
+
+The hunt (section 47) is now a choice with a cost on both sides: follow its trail at once and find it wounded, or leave
+it, and it heals - and, if it trains, learns.
+
+### 48.3 The nearest den
+
+A revenant that gets away **in the open** goes to ground in the **nearest dungeon in reach** of where it fled (the door's
+map pixel and its dungeons - RVN7a's `lairHere`; the boards' measure, the longer side; the earlier listed among equals).
+Its trail (section 47) leads there, so the hunt starts close by - and only there. A kill, my flight and a betrayal keep
+the lair's own law (RVN7a's pick by its id's bearing). Underground there is no map pixel, so its lair is that dungeon,
+as before, and no trail. A rank-V revenant that ascends from an escape goes to ground for good in the den nearest its
+last flight.
+
+### 48.4 Hosts and pins
+
+THE FOUR HOSTS (rule 17e): no host line. Training and healing ride `revenantFester`, the notice step's own day count,
+which `scenes/world.js` and `scenes/exterior.js` ask (`scenes/worldModes.js` and `scenes/dungeonContext.js` FLAGGED, as
+section 47). The nearest den reads the door's `lairHere` (`scenes/world.js` names the dungeons in reach), and
+`scenes/dungeonContext.js`'s names itself underground - both already WIRED (RVN7a). `scenes/exterior.js` (the bench)
+has none - FLAGGED, as section 47.4.
+
+PIN MOVED: `rvn7a_lair.test.js`'s source pin reads the nearest den before the lair's own law. `unquiet.test.js`
+gains the wound's healing days.
+
+Pinned: `test/systems/revenant/unquiet3_train.test.js` (6); `tools/mutants/unquiet3.json` (28, all dead). Five mutants
+lived on the first sweep:
+
+- Two named code that changed nothing. The underground check is redundant, because `nearestLair` answers none without a
+  map pixel, so it was dropped. A habit missing its own key fell back to the same English word, so the fallback is now
+  none.
+- Three wanted sharper cases: a wound day unknown, an unnamed dungeon nearest, and a den farther on one side.
+
+The neighbouring lists were re-swept (`rvn7a`, `rvn9`, `rvn2`, `rvn11b`, `rvn12b`, `unquiet`, `unquiet2`): 335 dead.
+
+## 49. AUDIT UNQUIET - the Unquiet audited (2026-10-18)
+
+The owner: "Audit everything and ensure absolute perfection" - sections 46 to 48 (PR #1008), read cold by five lanes on
+the frozen branch (DO NOT FIX WHILE THE VERIFIER IS READING held: no edit until every lane had reported): A the law and the
+record, B the pools and the flight, C the words in 14 languages, the comments and the docs, D the balance, measured, E
+online and the saves. About eighty findings, many found twice, and the lanes' open questions (Q); every one fixed,
+pinned or decided below. Each lane's probes are kept
+in its session's scratchpad, not the tree.
+
+**The worst (S2).** A peer's puppet wears its owner's revenant's name with no id of mine, so `revenantCandidate` read it as
+"a revenant already" and asked neither the mark nor the cap: its kill of me made a fourth past the cap, and the cap
+buried one of mine for it. A marked foe running when the cap filled behind it escaped into nothing - no kill, no loot. And
+the Dread was a lock and a pump at once: counted among the three and never coming back, three of them shut the arc, and
+each dropped two Legendaries and up to x11.25 gold, a lair loop making one in five re-entries.
+
+| # | Lane | Finding | Done |
+|---|---|---|---|
+| U1 | A | a peer's puppet (its owner's name, no id of mine) skipped the mark and the cap - a fourth born, one of mine buried | the birth asks the mark and the cap of the body itself (`revenantDeed`); another client's foe is no candidate (`rec.puppet`) |
+| U2 | B | the cap's race: a marked foe running when the cap filled vanished into nothing | a flight that can make no revenant turns and fights (`cornered`) |
+| U3 | A, E | an heir's inherited killer kept the fallen's clocks: its wounds never healed, the page said "3 days" forever; a reload stretched a trail | the heir's clocks (its wounds' day today, no trail, no omen); every clock held to the character's at the day's ask; the hours never past twelve |
+| U4 | B, D | the craft ran on the wall's clock: a pool held still (a window over the game, a hidden tab) let a blink or a sink finish unseen | the pool's frame (`dt`, `foeFrameDt`), its dissolve drawn on the same time |
+| U5 | A | training skipped RVN2's career guard: a lesson could stack a resistance into an immunity | training drills no element (the record keeps no career) |
+| U6 | C | "grows bolder twice as fast" - it is every two days, not three | the words in 14 languages, the comments, 46.6 |
+| U7 | C | a struck sinker "fights to the end" - its will still tears it away | "rises, cornered, and runs no more" |
+| U8 | C, A, E | the page said the Dread's oldest wound heals (and an out or a held one's) | said only where they heal; a held Dread says held |
+| U9 | D | a birth by flight was the chaser's Speed: at pace 2 a 62/62 runner cornered every flight, a slow one let 3.5 times as many be born | a marked foe bolts (`REVENANT_FLEE_PACE_MARKED` 2.5) on one roll in two (`REVENANT_FLEE_CHANCE` 0.5) |
+| U10 | D | the Dread counted toward the cap and never came back: a passive player held 2.78 of 3 at 40 hours, the cap shut 80% of them | not counted (`huntingRevenants`); one at a time (`DREAD.MAX` 1) |
+| U11 | D | the Dread a pump: two Legendaries a kill, gold to x11.25; the lair loop (an escape underground, re-entered at once, stood weakened) a Dread in five re-entries; a slip ascended | its drop its rank's (its trophy the Legendary); its hoard the Dread's or a plunderer's, the more (`hoardOf`); a slip never ascends; the trail only to the den an open escape chose |
+| U12 | A | a rank won by festering or betrayal kept the blood it counted | every rank spends blood and tear-aways |
+| U13 | A, D | an ascension by the will's tear-away was never announced; the tear-away's and the slip's cards dropped the wound and the trail | the unbroken card gives way to the ascension's; every getting-away's card ends as the escape's (`revenantEscapeTail`) |
+| U14 | A, B, E | the zone's foes and the sand's fighters were marked (the draw comes before their tag) - "Unquiet" on a foe that never rises | `isUnquiet` and `foeTitle` refuse them |
+| U15 | B, E | the dungeon marked a host's puppets on each client, each its own draw (157 of 400 rooms disagreed) | the builders clear a puppet's mark |
+| U16 | A | a hunt given up kept its trail warm - "find it there" of a lair no longer named | the trail cools with the lair |
+| U17 | B | a craft put down left its smoke on a kneeling one (the classic skin drew it not at all) | `endCraft` lifts the smoke |
+| U18 | B, C | "each blow that lands shows it" - not on the classic skin | "lost to sight - a blow still finds it", true on both |
+| U19 | C | card bodies mixed languages - an English base, a translated tail | the escape's, the tear-away's and the slip's bodies and the escape line through `t()` (5 keys) |
+| U20 | C | "a kill of a companion" - a companion is felled | "one more companion felled" |
+| U21 | C | "heal" named two laws (the trail's twelve hours, a wound's days); the trail's tag said "Wounded" | the trail "recovers", "whole again"; the tag **Weakened** |
+| U22 | C | 48.1's card order was wrong | a rank won the same day takes the card |
+| U23 | C | the omen's held case was untested, its mutant too broad | pinned; re-aimed at the held gate alone |
+| U24 | B, C | no craft pin through a pool; the HOST-SPLIT pin read a file that is not there (`exteriorBoot.js`) and never `exterior.js` | the craft through the real street pool, held by a still pool; the four hosts read |
+| U25 | D | the tear-away a getting-away: a trader ranked a revenant at almost every meeting from rank II, and 44% became the Dread | `TEAR_RANK` 2 (its `tears`, saved; the page says one more) |
+| U26 | D | at three days 94.5% of wounds healed before a road's return found them | `WOUND.HEAL_DAYS` 5 |
+| U27 | D | a blinker was out of a blade's reach before its rift opened (0 of 47 answered in melee) | it stands to its rift at half its walk (`CRAFT.BLINK_PACE` 0.5), runs plain once put down |
+| U28 | E | an heir's due days by ambition unpinned | pinned (vengeance's) |
+| U29 | E | the cap's paths disagreed: an heir's killer was trimmed loaded and not otherwise | it joins past the cap on both paths, burying none |
+| U30 | E | an omen again after a stand's pushback; a burst of them loading an older save | the pushback keeps it; an older record reads as foretold |
+| U31 | E | three pins branched on a random personality | each sets one |
+| U32 | A | the cap counted before the mirror was read in | the mirror first (and the birth counts after it) |
+| U33 | A | an older escape's wound named on a later card | none left, none told |
+| U34 | A | two training days caught up taught two lessons and told one | one a catch-up |
+| U35 | A, C, E | an older save's "the Dread" on a record never ascended | a risen name again, drawn from its id |
+| U36 | B | the imp a blinker, and never a revenant (level 2) | dropped |
+| U37 | B | 47.4 and 48.4 silent on the bench (`exterior.js` has no `lairHere`) | FLAGGED there |
+| U38 | C | English nits: "staggers easier", "never closed", "your mark" (THE MARK's word) | "more easily", "will not close", "the wound you left" |
+| U39 | C | drafts: ko "두 번 다시" reads "never again"; ru "При Известности от"; da and nb "Synk" a verb | "두 차례 다시"; "Начиная с Известности"; "Synkning", "Synking" (and their glossaries) |
+| U40 | C | comments and docs: 46.1's cross-reference, 48's lead, 46.8's trails, the stale comments (a deserter's days, the will's rank, the candidate, the flee pace), `woundedEdge` "never below none", "every number in one place", "ends with", 46.3's baseline, 46.9's count, Feud-Arc 28's cell and the harness's doc, test titles, `Systems.md`, the ledger's list, "getting away" | each corrected |
+| U41 | E | `wounded` on the stamp, never read | removed |
+| U42 | A, Q | a rite's faithful markable: an escaped Summoner left its rite unbroken for good | never a candidate (`rec.riteRole`) |
+| U43 | B, E | online: a peer sees no craft, no "Unquiet", and a puppet stands without its wounds' poise and resistance | decided: the mark is its owner's (only the owner's revenant rises from it - "Unquiet" on a peer's screen would promise what is not theirs); the craft's look and the wounds on the wire are a field and a relay version of their own, owed - a peer's blow on a wounded puppet lands as on an unwounded one |
+| U44 | E | BAL11's hero threat over UNQUIET's weights (a rank-5 elite warlord at level 30, Renown 50: lane E's estimate 7.1 lives, the old weights' 4.6) | decided: both multiply a rank 1 and a rank 5 alike, so the rank's weight (UNQUIET's ask, 3.24) holds; the curve is BAL11's (`05-Combat/Balance-Arc.md` section 17) |
+| U45 | B | "Unquiet" stays on a foe after the cap fills | decided: the mark is what the foe is; it rises if one of the three is gone by then (`unquietMark.js`'s header) |
+| U46 | E | a deserter or a betrayer coming back past the cap still buries the weakest, oldest | decided: RVN11b's law - its leaving is the player's neglect's story |
+| U47 | Q | its wounds through an heir, an oath, a desertion | decided: the heir's killer keeps the fallen's blows, healing from the heir's day; a deserter's or a betrayer's heal from the day it left (an oath stood the count) |
+| U48 | Q | a poison's tick or a companion's blow breaks a sink or a blink | decided: any harm that reaches it breaks it |
+| U49 | Q | two revenants with one den | decided: the stronger stands first (RVN7d's order); the other waits |
+| U50 | D, Q | the mark drawn again on a reload (9 of 40 loads) | decided: the mark is its stand's (`unquietMark.js`); with the Dread's purse cut, nothing pays for redrawing it |
+| U51 | Q | an unmarked special under 35% asks the flee law each frame | decided: the cheap tests first, and nothing made per frame |
+
+Outside the arc, two mutant records answered on the sweep: `LEGACY6-death-untold` named `decideDeath`'s line (the online
+window's), which its offline test never reaches - re-aimed at the door's own; and `AF-D2-rout-puppet` and
+`UNQUIET-dread-buried` guarded what U1 and U10 now hold, so the redundant lines went with their records.
+
+**The measure after** (lane D's probes re-run on the audited law):
+
+- The duel harness (`tools/tellDuel.mjs --feud`, 150 fights a cell): every cell the same, to the hundredth - the audit
+  moves no single fight. Every target holds (rank 5 over rank 1, 3.24 trading and 3.22 dodging).
+- A marked elite breaks and gets away in 51% of its fights for every chaser up to Speed and Running 90 (it was 75% for a
+  slow one and 0% for a 90/90); only a 100/100 runner corners it. A revenant born per special foe met: 0.127 to 0.152 by
+  how often it kills the player (it was 0.187 to 0.200; before UNQUIET 0.053 to 0.242).
+- A blinker at Speed and Running 50: the chaser is within 0.2 m as the rift opens (it was 6.2 m).
+- Wounds kept to a road's return: 65.9%, and a revenant of vengeance's 95.9% (they were 5.5% and 63.6%).
+- Forty hours, simulated (lane D's model, the harness's outcomes): a passive trader's fights hold at 0.95 an hour to the
+  end (they fell to 0.16 as Dreads filled the cap), one Dread at most (it was 2.78), the cap binding 62% of hours (80%).
+  A trader who hunts makes 4.8 Dreads (9.4) and 5.5 Legendaries from them (18.6); a dodger who hunts, 0.24 (0.51).
+  The lair loop no longer stands a Dread at all. The Dread's purse at a level-20 lair: 10,285 gold, a plunderer's 10,348
+  (30,831), and one Legendary an execution - its trophy - with its rank's own chance beside it.
+
+THE FOUR HOSTS (rule 17e): `scenes/exteriorFoes.js` and `scenes/dungeonContext.js` hand the flee law the foe's own frame
+(`dt`) and the escape its `slip`, each on its own line; the dungeon's two builders clear a puppet's mark on theirs.
+`scenes/world.js`, `scenes/worldModes.js` and `scenes/exterior.js` unchanged. No host function grew (`hostceiling.test.js`).
+
+PIN MOVED: `unquiet.test.js` (the flight's 0.5; `CRAFT.BLINK_PACE`; the smoke's and the sink's and the bolt's words; five
+heal days; "the wound you left"; `DREAD.MAX`; the Dread's drop its rank's; the Dread kept and uncounted; the imp; the
+four hosts read), `unquiet2_hunt.test.js` (recover, whole again, Weakened; no `wounded` flag), `unquiet3_train.test.js`
+(five days), `flightfirst.test.js` (0.5), `rvn3_weak.test.js` (a first tear-away counts, the second ranks),
+`revenant.test.js` (the pool's `dt`; a fixed id), `rvn12b_page.test.js` (the pools' `slip`), `rvn7a_lair.test.js` (the
+den named apart), `revenant_audit.test.js` (room made before a forgotten id's birth), `rvn6_band.test.js` (its mirror
+cleared with its list - the deed reads it in first), `renowngate.test.js` and `rvn11b_desert.test.js` (a set
+personality), `l10n4_hardcoded.test.js` (`revenant.js` 77 to 73, `revenantFate.js` 15 to 14).
+
+Pinned: `test/systems/revenant/auditunquiet.test.js` (27); `tools/mutants/auditunquiet.json` (77), all dead. 55 records
+named lines this audit moved and were re-aimed by content (`unquiet.json` 22, `unquiet2.json` 11, `unquiet3.json` 7,
+`rvn11c.json` 2, `rvn12b.json` 2, `auditfeud.json`, `flightfirst.json`, `revenantaudit.json`, `rvn10.json`,
+`rvn11b.json`, `rvn3.json`, `rvn7c.json`, `rvn7d.json`, `rvn8.json`, `rvn9.json` and `legacy6.json` 1 each), each still
+dead; five whose law went with U11 or became redundant were dropped. Every
+revenant list was swept on the audited law (42 lists, 1,755 records): 1,749 dead, the two equivalents as recorded, and the
+four survivors above, each answered and dead or gone.

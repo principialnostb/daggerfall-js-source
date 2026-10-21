@@ -132,8 +132,8 @@
   {
     "name": "FOE-FORGE-revenant-bound",
     "file": "src/scenes/exteriorFoes.js",
-    "old": "export const PEER_REVENANT_PUPPETS_MAX = 11;",
-    "new": "export const PEER_REVENANT_PUPPETS_MAX = 12;",
+    "old": "export const PEER_REVENANT_PUPPETS_MAX = 9;",
+    "new": "export const PEER_REVENANT_PUPPETS_MAX = 10;",
     "why": "the bound moved off the character's own numbers",
     "tests": [
       "test/scenes/foeforge.test.js"

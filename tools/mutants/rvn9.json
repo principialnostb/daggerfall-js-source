@@ -83,7 +83,7 @@
   {
     "name": "RVN9-day-twice",
     "file": "src/systems/revenant/revenant.js",
-    "old": "  if (day <= _state.lastDay) return [];   // the encounter tick's every ask: nothing new. AUDIT FEUD: nor a clock behind it (a reload of an older save) - the mirror counted those days; none counts twice\n",
+    "old": "  if (day <= _state.lastDay) { if (clamped) persist(); return []; }   // the encounter tick's every ask: nothing new. AUDIT FEUD: nor a clock behind it (a reload of an older save) - the mirror counted those days; none counts twice\n",
     "new": "",
     "tests": [
       "test/systems/rvn9_fester.test.js",
@@ -111,8 +111,8 @@
   {
     "name": "RVN9-out-festers",
     "file": "src/systems/revenant/revenant.js",
-    "old": "      if (r.out || !festersOn(",
-    "new": "      if (!festersOn(",
+    "old": "      if (r.out || r.dread) continue;",
+    "new": "      if (r.dread) continue;",
     "tests": [
       "test/systems/rvn9_fester.test.js"
     ]
@@ -210,8 +210,8 @@
   {
     "name": "RVN9-card-words",
     "file": "src/systems/revenant/revenant.js",
-    "old": "  const body = `${r.given} grows bolder - it has waited too long.`;",
-    "new": "  const body = `${r.given} grows bolder.`;",
+    "old": ": `${r.given} grows bolder. It has waited too long.`;",
+    "new": ": `${r.given} grows bolder.`;",
     "tests": [
       "test/systems/rvn9_fester.test.js"
     ]

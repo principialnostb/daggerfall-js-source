@@ -17,6 +17,7 @@ globalThis.localStorage = {
 const N = await import('../../src/systems/revenant/revenant.js');
 const F = await import('../../src/systems/revenant/revenantFeud.js');
 const RC = await import('../../src/systems/revenant/revenantCompanions.js');
+const { ambitionOf, AMBITION } = await import('../../src/systems/revenant/revenantUnquiet.js');
 const S = await import('../../src/systems/companionSlots.js');
 const { setPref, _resetForTests } = await import('../../src/systems/uiPrefs.js');
 const { setWorldMinutes } = await import('../../src/systems/worldTick.js');
@@ -38,7 +39,7 @@ beforeEach(() => {
   setWorldMinutes(DAY * 10);
 });
 function sworn(state = 'away', { loyalty = 10, mobileType = M.Orc } = {}) {
-  const r = N.revenantDeed(me, { mobileType, level: 6, champion: 'mighty', health: 5, maxHealth: 50, team: 'Monster' }, 'fled', { mobileType, rolls: () => 0 });
+  const r = N.revenantDeed(me, { mobileType, level: 6, champion: 'mighty', unquiet: true, health: 5, maxHealth: 50, team: 'Monster' }, 'fled', { mobileType, rolls: () => 0 });
   const s = N.revenantSpared(me, { revenant: { id: r.id } }, { state });
   s.companion.loyalty = loyalty;
   return s;
@@ -83,9 +84,10 @@ test('RVN11b THE DAY\'S ROLL: after the day\'s loyalty move, under 20 a roll und
 
 // ── the deserter ────────────────────────────────────────────────────
 
-test('RVN11b THE DESERTER: no longer sworn - a living revenant, its rank kept, "the Oathbreaker" whatever its rank, the deed at that day, due in one to three days, its notice and card (mutants: still sworn; the rank moved; a risen epithet; due at once; the card missing)', () => {
+test('RVN11b THE DESERTER: no longer sworn - a living revenant, its rank kept, "the Oathbreaker" whatever its rank, the deed at that day, due in its ambition\'s days, its notice and card (mutants: still sworn; the rank moved; a risen epithet; due at once; the card missing)', () => {
   const r = sworn('away', { loyalty: 3 });
   r.rank = 4;
+  r.personality = 'brutal';   // AUDIT UNQUIET (Revenants.md section 49): one ambition, every run - vengeance's days
   N.revenantFester(me, at(10, () => 0));
   N.revenantFester(me, at(11, () => 0));
   const x = N.revenantById(r.id);
@@ -93,7 +95,10 @@ test('RVN11b THE DESERTER: no longer sworn - a living revenant, its rank kept, "
   assert.equal(x.epithet, 'the Oathbreaker');
   assert.equal(x.name, `${x.given} the Oathbreaker`);
   assert.deepEqual(x.history.at(-1), { deed: 'deserted', at: DAY * 11 });
-  assert.ok(x.dueAt >= DAY * 11 + N.REVENANT_RETURN_MIN_MINUTES && x.dueAt <= DAY * 11 + N.REVENANT_RETURN_MAX_MINUTES);
+  // PIN MOVED (UNQUIET, Revenants.md section 46): due by its ambition's days - vengeance one to two, any other two to four
+  assert.equal(ambitionOf(x.personality), 'vengeance');
+  const [lo, hi] = AMBITION.VENGEANCE_DUE;
+  assert.ok(x.dueAt >= DAY * 11 + lo && x.dueAt <= DAY * 11 + hi);
   assert.ok(N.livingRevenants().includes(x));
   const ev = N.takeRevenantNotice(me, at(11, () => 0));
   assert.deepEqual([ev.kind, ev.kicker], ['deserted', 'Oathbreaker']);
@@ -131,7 +136,7 @@ test('RVN11b THE CAP: a deserter living again past REVENANT_MAX forgets the weak
   N.revenantById(r.id).rank = 1;
   const weak = [];
   for (let i = 0; i < N.REVENANT_MAX; i++) {
-    const x = N.revenantDeed(me, { mobileType: M.Orc, level: 6, champion: 'mighty', health: 5, maxHealth: 50, team: 'Monster' }, 'fled', { mobileType: M.Orc, rolls: () => 0, now: 100 + i });
+    const x = N.revenantDeed(me, { mobileType: M.Orc, level: 6, champion: 'mighty', unquiet: true, health: 5, maxHealth: 50, team: 'Monster' }, 'fled', { mobileType: M.Orc, rolls: () => 0, now: 100 + i });
     x.rank = 2; weak.push(x);
   }
   N.revenantFester(me, at(10, () => 0));

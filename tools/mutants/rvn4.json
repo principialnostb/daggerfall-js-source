@@ -92,7 +92,7 @@
   {
     "name": "RVN4-once-unmarked",
     "file": "src/systems/revenant/revenantFate.js",
-    "old": "  f._lastStood = true;\n  f.fleeing = false;",
+    "old": "  f._lastStood = !(r?.dread && f._stands < DREAD.STANDS);\n  f.fleeing = false;",
     "new": "  f.fleeing = false;",
     "tests": [
       "test/systems/revenant/rvn4_stand.test.js"
@@ -101,7 +101,7 @@
   {
     "name": "RVN4-the-health-unset",
     "file": "src/systems/revenant/revenantFate.js",
-    "old": "  e.health = Math.max(1, Math.round((e.maxHealth || 1) * lastStandHealth(r?.rank)));",
+    "old": "  e.health = Math.max(1, Math.round((e.maxHealth || 1) * (r?.dread ? dreadStandHealth(f._stands, lastStandHealth(r.rank)) : lastStandHealth(r?.rank))));",
     "new": "  e.health = 1;",
     "tests": [
       "test/systems/revenant/rvn4_stand.test.js"
@@ -200,7 +200,7 @@
   {
     "name": "RVN4-the-card-unsaid",
     "file": "src/systems/revenant/revenant.js",
-    "old": "  const body = `${r.given} rises again - its last stand.`;",
+    "old": "  const body = `${r.given} rises again for its last stand.`;",
     "new": "  const body = `${r.given} fights on.`;",
     "tests": [
       "test/systems/revenant/rvn4_stand.test.js"

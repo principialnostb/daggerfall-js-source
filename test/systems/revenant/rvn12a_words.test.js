@@ -32,7 +32,8 @@ const OWN_WORD = { learned: 'how', signature: 'move', stole: 'item', felled_retu
 const me = { isPlayer: true, name: 'Ayla Stormwind', characterId: 'char-rvn12a', level: 8, items: [] };
 beforeEach(() => { _resetForTests(); setPref('lootRarity', true); N._resetRevenantForTests(); _store.clear(); });
 function rec(over = {}) {
-  const r = N.revenantDeed(me, { mobileType: M.Orc, level: 6, champion: 'mighty', health: 5, maxHealth: 50, team: 'Monster' }, 'fled', { mobileType: M.Orc, rolls: () => 0 });
+  for (const x of N.livingRevenants().slice(0, Math.max(0, N.livingRevenants().length - N.REVENANT_MAX + 1))) N.revenantSlain(me, { revenant: { id: x.id } });   // UNQUIET (Revenants.md section 46): none rises while three hunt me - room made
+  const r = N.revenantDeed(me, { mobileType: M.Orc, level: 6, champion: 'mighty', unquiet: true, health: 5, maxHealth: 50, team: 'Monster' }, 'fled', { mobileType: M.Orc, rolls: () => 0 });
   return Object.assign(r, { personality: 'cold', history: [{ deed: 'fled', at: 1 }], took: [], learned: [], returns: 0, kills: 0, rank: 1 }, over);
 }
 

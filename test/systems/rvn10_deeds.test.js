@@ -38,7 +38,7 @@ const me = (id = 'char-rvn10') => ({
   isPlayer: true, name: 'Ayla Stormwind', characterId: id, items: [], stats: stats(), skills: new Array(35).fill(30), level: 10,
   career: {}, activeEffects: [], health: 100, maxHealth: 100, magicka: 0, maxMagicka: 1000, armorValues: new Array(7).fill(100),
 });
-const orc = (over = {}) => ({ mobileType: M.Orc, level: 6, health: 60, maxHealth: 60, team: 'Orcs', champion: 'mighty', ...over });
+const orc = (over = {}) => ({ mobileType: M.Orc, level: 6, health: 60, maxHealth: 60, team: 'Orcs', champion: 'mighty', unquiet: true, ...over });
 /** A pool's record as the doors and the door's foes hold it: on me, hostile, detecting me. */
 const rec = (over = {}, ai = {}) => ({ mobileType: M.Orc, gender: 'male', archive: null, dead: false, entity: orc(), ai: { isHostile: true, detected: true, targetIsLocalPlayer: true, ...ai }, ...over });
 const T0 = 1_000_000;
@@ -69,7 +69,7 @@ test('RVN10 THE LAW: 70 m and under half; a fight carried on a harm within 30 s;
 
 // ── felled ──────────────────────────────────────────────────────────
 
-test('RVN10 FELLED: the deed on its striker, the companion named on the deed and in its epithet; it stands out; no kill and no escape counted; a revenant already ranks up (mutants: not out; an escape counted; the name dropped)', () => {
+test('RVN10 FELLED: the deed on its striker, the companion named on the deed and in its epithet; it stands out; no kill and no escape counted; a revenant already ranks up - every second felling (UNQUIET) (mutants: not out; an escape counted; the name dropped)', () => {
   const p = me();
   const by = rec();
   const r = N.revenantFelled(p, by, 'Borgakh', { now: 500, rolls: () => 0 });
@@ -82,6 +82,8 @@ test('RVN10 FELLED: the deed on its striker, the companion named on the deed and
   assert.equal(by.entity.revenant.id, r.id, 'the striker wears its name at once');
   const again = N.revenantFelled(p, by, 'Aldric', { now: 600, rolls: () => 0 });
   assert.equal(again, r);
+  assert.deepEqual([r.rank, r.blood, r.epithet], [1, 1, 'Bane of Borgakh'], 'UNQUIET (Revenants.md section 46): a felling is blood - it ranks every second time');
+  N.revenantFelled(p, by, 'Aldric', { now: 650, rolls: () => 0 });
   assert.equal(r.rank, 2, 'a revenant already ranks up');
   assert.equal(r.epithet, 'Bane of Aldric', 'never the one it wears');
 });
@@ -245,13 +247,13 @@ test('RVN10 THE CARDS, THE PAGE, THE SAVE: Felled and Routed told; the page says
   const ev = N.revenantFelledEvent(r, 'Borgakh');
   assert.deepEqual([ev.kind, ev.kicker, ev.body, ev.line], ['felled', 'Felled', `${r.given} felled Borgakh. It will remember this.`, `${r.name} felled Borgakh.`]);
   r.rank = 3;
-  assert.equal(N.revenantFelledEvent(r, 'Borgakh').body, `${r.given} felled Borgakh. Now rank III - it will remember this.`);
+  assert.equal(N.revenantFelledEvent(r, 'Borgakh').body, `${r.given} felled Borgakh. It is rank III now, and will remember this.`);
   assert.equal(N.revenantFelledEvent(r, null).line, `${r.name} felled your companion.`);
   const q = N.revenantRouted(p, rec(), { now: 600, rolls: () => 0 });
   const rv = N.revenantRoutedEvent(q);
   assert.deepEqual([rv.kind, rv.kicker, rv.body], ['routed', 'Routed', `You ran from ${q.given}. It will remember this.`]);
   q.rank = 2;
-  assert.equal(N.revenantRoutedEvent(q).body, `You ran from ${q.given}. Now rank II - it will remember this.`);
+  assert.equal(N.revenantRoutedEvent(q).body, `You ran from ${q.given}. It is rank II now, and will remember this.`);
   assert.equal(historyWords({ deed: 'felled', at: 1, ally: 'Borgakh' }), 'felled Borgakh');
   assert.equal(historyWords({ deed: 'felled', at: 1 }), 'felled your companion');
   assert.equal(historyWords({ deed: 'routed', at: 1 }), 'routed you');

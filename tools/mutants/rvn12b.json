@@ -155,8 +155,8 @@
   {
     "name": "RVN12b-street-unhanded",
     "file": "src/scenes/exteriorFoes.js",
-    "old": "archive: f.archive, unbroken });",
-    "new": "archive: f.archive });",
+    "old": "archive: f.archive, unbroken, slip });",
+    "new": "archive: f.archive, slip });",
     "tests": [
       "test/systems/revenant/rvn12b_page.test.js"
     ]
@@ -164,8 +164,8 @@
   {
     "name": "RVN12b-deep-unhanded",
     "file": "src/scenes/dungeonContext.js",
-    "old": "archive: f.mobileArchive, unbroken });",
-    "new": "archive: f.mobileArchive });",
+    "old": "archive: f.mobileArchive, unbroken, slip });",
+    "new": "archive: f.mobileArchive, slip });",
     "tests": [
       "test/systems/revenant/rvn12b_page.test.js"
     ]

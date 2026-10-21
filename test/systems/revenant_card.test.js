@@ -47,7 +47,7 @@ const player = (id = 'char-c') => ({
   isPlayer: true, name: 'Ayla Stormwind', characterId: id, items: [], stats: stats(), skills: new Array(35).fill(30), level: 5,
   career: {}, activeEffects: [], health: 100, maxHealth: 100, magicka: 0, maxMagicka: 1000, armorValues: new Array(7).fill(100),
 });
-const orc = (over = {}) => ({ mobileType: MOBILE_TYPES.OrcWarlord, level: 9, health: 60, maxHealth: 60, team: 'Orcs', champion: 'mighty', ...over });
+const orc = (over = {}) => ({ mobileType: MOBILE_TYPES.OrcWarlord, level: 9, health: 60, maxHealth: 60, team: 'Orcs', champion: 'mighty', unquiet: true, ...over });
 const tick = () => new Promise((r) => setTimeout(r, 0));
 function fresh() {
   _resetForTests(); setPref('lootRarity', true);
@@ -220,6 +220,7 @@ test('REVENANT-PAGE: the living strongest first - name, rank, kind and trait, wh
   const a = N.revenantDeed(me, orc(), 'slew', { now: 0, rolls: () => 0 });
   const b = N.revenantDeed(me, orc({ champion: 'swift' }), 'fled', { now: 0, rolls: () => 0 });
   N.revenantDeed(me, { ...orc(), revenant: { id: b.id } }, 'slew', { now: 10, rolls: () => 0 });
+  N.revenantDeed(me, { ...orc(), revenant: { id: b.id } }, 'slew', { now: 11, rolls: () => 0 });   // UNQUIET (Revenants.md section 46): a kill ranks it every second time
   const c = N.revenantDeed(me, orc({ champion: 'stalwart' }), 'slew', { now: 0, rolls: () => 0 });
   N.revenantSlain(me, { revenant: { id: c.id } }, { now: 20 });
   const doc = fakeDocument(); globalThis.document = doc;
@@ -234,7 +235,7 @@ test('REVENANT-PAGE: the living strongest first - name, rank, kind and trait, wh
     const rows = byClass(detail, 'rvn-row');
     assert.equal(rows.length, 3);
     assert.match(rows[0].textContent, new RegExp(b.name), 'the strongest first');
-    assert.match(rows[0].textContent, /escaped you once/i); assert.match(rows[0].textContent, /killed you once/i);
+    assert.match(rows[0].textContent, /escaped you once/i); assert.match(rows[0].textContent, /killed you twice/i);
     assert.match(rows[1].textContent, new RegExp(a.name));
     assert.ok(rows[2].classList.contains('is-fallen'), 'the fallen last');
     assert.equal(words.filter((w) => w === 'Fallen').length, 1);
@@ -253,7 +254,7 @@ test('REVENANT-PAGE: the living strongest first - name, rank, kind and trait, wh
     setPref('lootRarity', false);
     const off = el('div', 'px-sys');
     P.drawRevenantsPage(off, () => {}, { el, divider, player: player('char-none') });
-    assert.match(off.textContent, /come with Loot rarity, which is off/);
+    assert.match(off.textContent, /Revenants need Loot rarity, which is off\./);
     assert.equal(P.revenantPageShown(player('char-none')), false, 'off and none: no page on the rail');
   } finally { P._setRevenantPageIconForTests(null); delete globalThis.document; }
   const m = read('src/ui/enhanced/enhancedMenu.js');
@@ -363,7 +364,11 @@ test('REVENANT AAA: the forgotten and the long-fallen leave TOMBSTONES a merge k
   const me = player('char-tomb');
   const first = N.revenantDeed(me, orc(), 'fled', { now: 0, rolls: () => 0 });
   const save = JSON.parse(JSON.stringify(modSave()));
-  for (let i = 1; i <= N.REVENANT_MAX; i++) { const x = N.revenantDeed(me, orc({ champion: 'swift' }), 'fled', { now: i, rolls: () => 0 }); x.rank = 2; }
+  // UNQUIET (Revenants.md section 46): no birth past the cap buries one now - a deserter living again past it does
+  const s = N.revenantDeed(me, orc({ champion: 'swift' }), 'fled', { now: 1, rolls: () => 0 });
+  N.revenantSpared(me, { revenant: { id: s.id } }, { state: 'away' });
+  for (let i = 1; i < N.REVENANT_MAX; i++) { const x = N.revenantDeed(me, orc({ champion: 'swift' }), 'fled', { now: 1 + i, rolls: () => 0 }); x.rank = 2; }
+  N.revenantDeserts(me, N.revenantById(s.id), { now: 50 });
   assert.equal(N.revenantById(first.id), null, 'past the cap the weakest, oldest is forgotten');
   assert.equal(N.livingRevenants().length, N.REVENANT_MAX);
   restore(save);

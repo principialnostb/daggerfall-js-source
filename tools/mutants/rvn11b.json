@@ -110,8 +110,8 @@
   {
     "name": "RVN11b-still-sworn",
     "file": "src/systems/revenant/revenant.js",
-    "old": "  r.sworn = false; r.fate = null; r.companion = null; r.out = false;\n  r.epithet = REVENANT_EPITHETS.deserted[0];",
-    "new": "  r.fate = null; r.out = false;\n  r.epithet = REVENANT_EPITHETS.deserted[0];",
+    "old": "  r.sworn = false; r.fate = null; r.companion = null; r.out = false;\n  if (r.wounds?.length) r.woundDay",
+    "new": "  r.fate = null; r.out = false;\n  if (r.wounds?.length) r.woundDay",
     "tests": [
       "test/systems/rvn11b_desert.test.js"
     ]
@@ -137,7 +137,7 @@
   {
     "name": "RVN11b-due-at-once",
     "file": "src/systems/revenant/revenant.js",
-    "old": "  r.dueAt = dueFrom(now, rolls);\n  r.notice = 'deserted';",
+    "old": "  r.dueAt = dueFrom(now, rolls, r);   // UNQUIET: by its ambition\n  r.notice = 'deserted';",
     "new": "  r.dueAt = now;\n  r.notice = 'deserted';",
     "tests": [
       "test/systems/rvn11b_desert.test.js"
@@ -218,8 +218,8 @@
   {
     "name": "RVN11b-card-missing",
     "file": "src/systems/revenant/revenant.js",
-    "old": " : r.notice === 'deserted' ? revenantDesertEvent(r, { playerName: player.name }) : null;",
-    "new": " : null;",
+    "old": " : r.notice === 'deserted' ? revenantDesertEvent(r, { playerName: player.name }) : r.notice === 'trained'",
+    "new": " : r.notice === 'deserted' ? null : r.notice === 'trained'",
     "tests": [
       "test/systems/rvn11b_desert.test.js"
     ]

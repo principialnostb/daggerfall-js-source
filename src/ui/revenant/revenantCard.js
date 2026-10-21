@@ -149,6 +149,12 @@ body .rvncard.is-errand { border-left-color: #4f7fa8; }
 body .rvncard.is-errand .rvncard-kicker { color: #9fc2e8; }
 body .rvncard.is-errand_back { border-left-color: #4f9a62; }
 body .rvncard.is-errand_back .rvncard-kicker { color: #8fc7a0; }
+body .rvncard.is-ascended { border-left-color: #2a0a12; box-shadow: inset 0 0 0 1px #7a1020; }
+body .rvncard.is-ascended .rvncard-kicker { color: #e0485e; }
+body .rvncard.is-omen { border-left-color: #5c6f94; }
+body .rvncard.is-omen .rvncard-kicker { color: #a9bce0; }
+body .rvncard.is-trained { border-left-color: #8a7a3a; }
+body .rvncard.is-trained .rvncard-kicker { color: #d8c27a; }
 body .rvncard.is-art { border-left-color: #c9822e; }
 body .rvncard.is-art .rvncard-kicker { color: #e0a54a; }
 body .rvncard .rvncard-sr {

@@ -53,7 +53,7 @@ const stats = () => ({ strength: 50, intelligence: 50, willpower: 50, agility: 5
 const me = () => ({ isPlayer: true, name: 'Ayla Stormwind', characterId: 'char-rvn2', level: 5, stats: stats(), skills: new Array(35).fill(40), skillUses: new Array(35).fill(0), career: {}, activeEffects: [], items: [], health: 50, maxHealth: 60, magicka: 0, maxMagicka: 100, armorValues: new Array(7).fill(100) });
 const foe = ({ mobileType = M.Orc, level = 6, plain = false } = {}) => {
   const e = makeEnemyEntity(mobileType, ENEMY_BASICS[mobileType], { ...stats(), attackModifierFlags: 0 }, level, () => 0.5);
-  if (!plain) e.champion = 'mighty';
+  if (!plain) { e.champion = 'mighty'; e.unquiet = true; }   // UNQUIET (Revenants.md section 46): a marked one - the only one that may rise
   return e;
 };
 /** A stand-in revenant: `learned` stood on it as a stand does (systems/revenant/revenant.js revenantStamp's shape). */
@@ -115,7 +115,8 @@ test('RVN2 THE FOLD AT THE REAL DEED: one lesson a deed, at most its rank\'s, th
   const stood = foe();
   N.applyRevenant(stood, r);
   assert.deepEqual(stood.revenant.learned, r.learned);
-  assert.equal(stood.revenant.edge.poise, 1.4);
+  assert.deepEqual(r.wounds, ['lamed', 'cracked', 'burned'], 'UNQUIET (Revenants.md section 46): each flight its wound - the blow that broke it - three kept');
+  assert.equal(stood.revenant.edge.poise, 1.4 * 0.7, 'Braced - and Cracked, the blunt blow it fled from');
   // an element its career shrugs off teaches the next lesson, at the real deed
   const d = foe({ mobileType: M.FireDaedra, level: 12 });
   d.career = { ...(d.career ?? {}), resistanceFlags: 8 };

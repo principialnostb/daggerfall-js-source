@@ -41,7 +41,7 @@ function fresh() {
   RC.setRetinuePlayer(me);
 }
 function sworn(state = 'with', { rank = 2, mobileType = MOBILE_TYPES.Orc } = {}) {
-  const r = N.revenantDeed(me, { mobileType, level: 6, champion: 'mighty', health: 5, maxHealth: 50, team: 'Orcs' }, 'fled', { mobileType, rolls: () => 0 });
+  const r = N.revenantDeed(me, { mobileType, level: 6, champion: 'mighty', unquiet: true, health: 5, maxHealth: 50, team: 'Orcs' }, 'fled', { mobileType, rolls: () => 0 });
   r.rank = rank;
   return N.revenantSpared(me, { revenant: { id: r.id } }, { state });
 }
@@ -292,7 +292,7 @@ test('COMPANION-ROSTER the page: the slots a strip of wells (who stands in each,
   // Release asks
   buttons(d, 'Release')[0].onclick();
   d = draw();
-  assert.match(d.textContent, new RegExp(`Release ${a.name.replace(/[.*+?^${}()|[\]\\']/g, '\\$&')}\\? Its oath is given back`));
+  assert.match(d.textContent, new RegExp(`Release ${a.name.replace(/[.*+?^${}()|[\]\\']/g, '\\$&')}\\? It is freed from its oath`));
   assert.ok(N.revenantById(a.id).sworn, 'not at one press');
   buttons(d, 'Release')[0].onclick();
   assert.equal(N.revenantById(a.id).fate, 'released');

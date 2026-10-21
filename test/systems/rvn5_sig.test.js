@@ -86,7 +86,7 @@ test('RVN5 THE LAW: from rank 2; x2.0, 12-18 s, iron from rank 3, its ember, its
   assert.equal(three.iron, true, 'rank 3: iron');
   // the stand carries it: the deed's and the return's stamp
   const p = me();
-  const r = N.revenantDeed(p, { mobileType: M.Orc, level: 6, champion: 'mighty', health: 5, maxHealth: 50, team: 'Monster' }, 'fled', { mobileType: M.Orc, rolls: () => 0 });
+  const r = N.revenantDeed(p, { mobileType: M.Orc, level: 6, champion: 'mighty', unquiet: true, health: 5, maxHealth: 50, team: 'Monster' }, 'fled', { mobileType: M.Orc, rolls: () => 0 });
   assert.equal(r.rank, 1);
   const e1 = { mobileType: M.Orc, level: 6, health: 50, maxHealth: 50 };
   N.applyRevenant(e1, r);
@@ -395,7 +395,7 @@ test('RVN5 ON THE REAL STREET POOL: its signature called once a stand - the card
   const p = me();
   const strikes = [], ids = [];
   const pool = rig(p, strikes, ids);
-  const r = N.revenantDeed(p, { mobileType: M.Spriggan, level: 6, champion: 'mighty', health: 5, maxHealth: 50, team: 'Monster' }, 'fled', { mobileType: M.Spriggan, rolls: () => 0 });
+  const r = N.revenantDeed(p, { mobileType: M.Spriggan, level: 6, champion: 'mighty', unquiet: true, health: 5, maxHealth: 50, team: 'Monster' }, 'fled', { mobileType: M.Spriggan, rolls: () => 0 });
   r.rank = 2; r.sig = F.drawSignature(r.id, r.mobileType);   // as its rank-up draws it (RVN1's pin)
   assert.equal(r.sig, 'pyre', 'a spriggan\'s signature the pyre');
   const f = await pool.spawnFoe(M.Spriggan, [0, 0, 0], { feetGiven: true, level: 6, revenant: r });

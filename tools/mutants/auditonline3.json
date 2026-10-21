@@ -110,8 +110,8 @@
   {
     "name": "F6-the-hello-forgets-its-token",
     "file": "src/net/online.js",
-    "old": "      const frame = this._helloFrame(tok);",
-    "new": "      const frame = this._helloFrame();",
+    "old": "      const frame = this._helloFrame(tok, room);",
+    "new": "      const frame = this._helloFrame(null, room);",
     "tests": [
       "test/net/auditonline3.test.js"
     ]

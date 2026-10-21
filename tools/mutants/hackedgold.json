@@ -28,27 +28,27 @@
   },
   {
     "name": "HACKED-GOLD-the-grant-receiver-lands-a-letter",
-    "file": "src/scenes/exteriorFoes.js",
-    "old": "      const grant = notCarried(peerHanded(validLootList(data.grant)));",
-    "new": "      const grant = notCarried(validLootList(data.grant));",
+    "file": "src/scenes/bodyLootHost.js",
+    "old": "    const grant = notCarried(peerHanded(validLootList(data.grant)));",
+    "new": "    const grant = notCarried(validLootList(data.grant));",
     "tests": [
       "test/systems/hackedgold.test.js"
     ]
   },
   {
     "name": "HACKED-GOLD-the-owner-grants-its-letter",
-    "file": "src/scenes/exteriorFoes.js",
-    "old": "    const stays = items.filter(neverPeerHanded);\n    if (stays.length) { const go = items.filter((it) => !neverPeerHanded(it)); items.length = 0; items.push(...go, ...stays); }\n    let n = items.length - stays.length;",
-    "new": "    const stays = [];\n    let n = items.length;",
+    "file": "src/net/bodyLoot.js",
+    "old": "if (!piece || neverPeerHanded(piece)) return null;",
+    "new": "if (!piece) return null;",
     "tests": [
       "test/systems/hackedgold.test.js"
     ]
   },
   {
     "name": "HACKED-GOLD-the-body-counts-its-letter",
-    "file": "src/scenes/exteriorFoes.js",
-    "old": "Math.min(255, peerHanded(f.entity?.items ?? []).length)",
-    "new": "Math.min(255, f.entity?.items?.length | 0)",
+    "file": "src/scenes/bodyLootHost.js",
+    "old": "return Math.min(255, n); };",
+    "new": "return Math.min(255, n + st.own.length); };",
     "tests": [
       "test/systems/hackedgold.test.js"
     ]
@@ -195,7 +195,7 @@
   {
     "name": "HACKED-GOLD-the-law-version-unmoved",
     "file": "src/systems/item/itemLaw.js",
-    "old": "export const ITEM_LAW_VERSION = 7;",
+    "old": "export const ITEM_LAW_VERSION = 8;",
     "new": "export const ITEM_LAW_VERSION = 3;",
     "tests": [
       "test/systems/item/int1_itemlaw.test.js",
@@ -205,12 +205,13 @@
   {
     "name": "HACKED-GOLD-account-version-unmoved",
     "file": "server-account/src/service.js",
-    "old": "export const ACCOUNT_VERSION = 'acct153';",
+    "old": "export const ACCOUNT_VERSION = 'acct165';",
     "new": "export const ACCOUNT_VERSION = 'acct123';",
     "tests": [
       "test/systems/tech1_roster.test.js",
       "test/server/realm1.test.js"
-    ]
+    ],
+    "note": "LEAN-READS (PIN MOVED): acct164 (acct159, acct160, acct161, acct162 then acct163 on its branch, renumbered past QL12, WB14, JUNGLE-WOODS, NAME-WORDS and PURSE-MEND at the merges). PURSE-MEND and COMPANION-DROP (PIN MOVED): acct163 (acct162 on its branch, renumbered past NAME-WORDS at the merge). JUNGLE-WOODS (PIN MOVED): acct161 (acct159 then acct160 on its branch, renumbered past QL12 and WB14 at the merges). QL12 (PIN MOVED): acct159."
   },
   {
     "name": "HACKED-GOLD-the-worn-offer-unworn",

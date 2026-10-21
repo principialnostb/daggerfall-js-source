@@ -114,29 +114,31 @@ test('RVN7a THE DEED through the door: a deed in the open world picks its lair a
   const p = me();
   let here = { px: 100, py: 100, dungeons: [D(106, 100, 'East Keep', 3), D(94, 100, 'West Crypt', 3), D(100, 94, 'North Barrow', 3), D(100, 106, 'South Mine', 3)] };
   setPlayerDoor({ foes: () => [], feet: () => [0, 0, 0], hurtFoe: () => {}, castOnPlayer: () => {}, lairHere: () => here });
-  const foe = { mobileType: M.Orc, level: 6, champion: 'mighty', health: 5, maxHealth: 50, team: 'Monster' };
-  const r = N.revenantDeed(p, foe, 'fled', { mobileType: M.Orc, rolls: () => 0 });
+  const foe = { mobileType: M.Orc, level: 6, champion: 'mighty', unquiet: true, health: 5, maxHealth: 50, team: 'Monster' };
+  // PIN MOVED (UNQUIET II, Revenants.md section 47): an escape's trail makes its lair known - the lair's own law is read
+  // here through deeds that leave none (a kill, my flight); unquiet.test.js pins the trail
+  const r = N.revenantDeed(p, foe, 'slew', { mobileType: M.Orc, rolls: () => 0 });
   assert.ok(r.lair, 'a lair');
   assert.deepEqual(r.lair, F.pickLair(r.id, 100, 100, here.dungeons));
   assert.equal(r.lairKnown, false);
   const first = r.lair;
   r.lairKnown = true;
   here = { px: 300, py: 300, dungeons: [D(306, 300, 'Elsewhere', 9)] };
-  N.revenantDeed(p, foe, 'fled', { mobileType: M.Orc, rolls: () => 0 });
+  N.revenantDeed(p, foe, 'routed', { mobileType: M.Orc, rolls: () => 0 });
   assert.deepEqual(r.lair, first, 'kept');
   assert.equal(r.lairKnown, true, 'and still known');
   here = { underground: D(first.px, first.py, first.name, first.region) };
-  N.revenantDeed(p, foe, 'fled', { mobileType: M.Orc, rolls: () => 0 });
+  N.revenantDeed(p, foe, 'routed', { mobileType: M.Orc, rolls: () => 0 });
   assert.equal(r.lairKnown, true, 'a deed in its own lair: still known');
   here = { underground: D(40, 41, 'The Pit', 5) };
-  N.revenantDeed(p, foe, 'fled', { mobileType: M.Orc, rolls: () => 0 });
+  N.revenantDeed(p, foe, 'routed', { mobileType: M.Orc, rolls: () => 0 });
   assert.deepEqual(r.lair, D(40, 41, 'The Pit', 5), 'moved underground');
   assert.equal(r.lairKnown, false, 'a lair moved is unheard of');
   // the record saves it
   assert.deepEqual(F.feudFields({ ...r }, { id: r.id, mobileType: r.mobileType, rank: r.rank }).lair, D(40, 41, 'The Pit', 5));
   // with no door, or none in reach, it roams
   setPlayerDoor(null);
-  const lone = N.revenantDeed(p, { mobileType: M.Orc, level: 6, champion: 'mighty', health: 5, maxHealth: 50, team: 'Monster' }, 'fled', { mobileType: M.Orc, rolls: () => 0 });
+  const lone = N.revenantDeed(p, { mobileType: M.Orc, level: 6, champion: 'mighty', unquiet: true, health: 5, maxHealth: 50, team: 'Monster' }, 'fled', { mobileType: M.Orc, rolls: () => 0 });
   assert.notEqual(lone, r, 'a new one');
   assert.equal(lone.lair, null);
 });
@@ -148,12 +150,14 @@ test('RVN7a THE HOSTS: the world host\'s door names my map pixel and the named d
   const d = read('src/scenes/dungeonContext.js');
   assert.match(d, /return \{ underground: \{ px: p\.x, py: p\.y, name: String\(dfLocation\.name\), region: dfLocation\.regionIndex \?\? -1 \} \};/);
   assert.match(read('src/scenes/hostMagic.js'), /lairHere: \(\) => \{ try \{ return lairHere\?\.\(\) \?\? null; \} catch \{ return null; \} \},/);
-  assert.match(read('src/systems/revenant/revenant.js'), /const lair = lairAfter\(r, playerDoor\(\)\?\.lairHere\?\.\(\) \?\? null\);\n\s*if \(!sameLair\(lair, r\.lair\)\) \{ r\.lair = lair; r\.lairKnown = false; \}/);
+  // PIN MOVED (UNQUIET III, Revenants.md section 48): one that got away in the open goes to ground in the nearest den - else its lair's own law
+  // PIN MOVED again (AUDIT UNQUIET, section 49): the den named apart - its trail leads only there
+  assert.match(read('src/systems/revenant/revenant.js'), /const here = playerDoor\(\)\?\.lairHere\?\.\(\) \?\? null;\n\s*const den = deedName === 'fled' && !r\.dread && here \? nearestLair\(here\.px, here\.py, here\.dungeons\) : null;\n\s*const lair = den \?\? lairAfter\(r, here\);[^\n]*\n\s*if \(!sameLair\(lair, r\.lair\)\) \{ r\.lair = lair; r\.lairKnown = false; \}/);
 });
 
 test('RVN7a the page: its lair as I know it - roaming, unknown, or named (mutants: a lair unknown named)', () => {
-  assert.equal(lairWords({ lair: null }), 'Lair: none - it roams.');
-  assert.equal(lairWords({ lair: D(1, 2, 'Tomb of Vaness'), lairKnown: false }), 'Lair: unknown - the towns about it may have heard.');
-  assert.equal(lairWords({ lair: D(1, 2, 'Tomb of Vaness'), lairKnown: true }), 'Lair: Tomb of Vaness - on your map.');   // PIN MOVED (RVN7c: and marked on the map)
+  assert.equal(lairWords({ lair: null }), 'Lair: none. It roams.');
+  assert.equal(lairWords({ lair: D(1, 2, 'Tomb of Vaness'), lairKnown: false }), 'Lair: unknown. Nearby towns may have heard of it.');
+  assert.equal(lairWords({ lair: D(1, 2, 'Tomb of Vaness'), lairKnown: true }), 'Lair: Tomb of Vaness, marked on your map.');   // PIN MOVED (RVN7c: and marked on the map)
   assert.match(read('src/ui/revenant/revenantPage.js'), /if \(!fallen\) text\.append\(el\('span', 'rvn-will', lairWords\(r\)\)\);   \/\/ RVN7/);
 });

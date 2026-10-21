@@ -122,7 +122,8 @@ wait for the Enhanced AI switch; the rest work without it (section 2.1).
 1. **A rank is a stat stick.** FACT: `revenant.js applyRevenant` multiplies health by 1 + 0.25 a rank and blows by
    1 + 0.1 a rank. It fights the same way at rank 5 as at rank 1.
 2. **Every one ends kneeling.** FACT: `revenantFate.js revenantMayYield` - any killing blow (but Disintegrate's - since
-   RVN-OWNERS-CHOICE, 2026-10-16, but the owner's own whole blow) on a living, unsworn revenant of mine yields it.
+   RVN-OWNERS-CHOICE, 2026-10-16, but the owner's own whole blow; since RVN-OWN-KNEEL, 2026-10-17, that one too) on a
+   living, unsworn revenant of mine yields it.
    Every revenant ends at the kill-or-spare choice, and the trophy (Legendary 12% + 5% a rank above the first) is
    rolled at the yield.
 3. **It never learns.** Nothing records how the player fought it; nothing it does depends on it.
@@ -637,7 +638,8 @@ holds passes the lesson to the next of the fight's scars - `revenantFeud.lessonO
 - Disintegrate's whole kill still kills (`_whole`) - the owner's own alone since RVN-OWNERS-CHOICE (FIELD BUGS
   2026-10-16, `06-Systems/Revenants.md` section 15): a party member's, a foe's or a drained stat's whole blow is a
   killing blow like any, and the will asks of it (`revenantFate.js ownersWholeKill`). A departure from this line as
-  written.
+  written. RVN-OWN-KNEEL (FIELD BUGS 2026-10-17g): the owner's own passes the will and KNEELS it - the kill-or-spare is
+  never skipped - a second departure.
 - With the Enhanced AI switch off there is no stagger, so its weakness alone breaks it (2.1).
 - The page tells the player the rule (24.1). OPEN 11.
 
@@ -650,7 +652,8 @@ before the yield in both damage doors (`exteriorFoes.js damageFoe`, `dungeonCont
 `revenantLastStand(f)`, ahead of the soul trap, so no soul is taken by that blow. RVN-OWNERS-CHOICE (FIELD BUGS
 2026-10-16, `06-Systems/Revenants.md` section 15): a whole blow passes over it only as the owner's own
 (`revenantFate.js ownersWholeKill`) - a party member's Disintegrate brings it, as any killing blow does; the RVN4
-record's "never against a Disintegrate's whole" is the owner's Disintegrate alone.
+record's "never against a Disintegrate's whole" is the owner's Disintegrate alone. RVN-OWN-KNEEL (FIELD BUGS
+2026-10-17e): past the stand, the owner's Disintegrate kneels it, never kills it.
 
 ### 15.2 What
 
@@ -780,7 +783,15 @@ deed underground makes that dungeon its lair.
 
 - Entering the lair while it is living, unsworn and not out, and **due or known**, stands it at the layout marker
   farthest from the entrance once the layout has stood (`dungeonContext.js spawnLooseFoe`), with a new revenant arm in
-  `buildFoeAt` (`applyRevenant`, `grantRevenantLoot`, its taunt) and its band about it.
+  `buildFoeAt` (`applyRevenant`, `grantRevenantLoot`, its taunt) and its band about it. LAIR-REACH (FIELD BUGS
+  2026-10-19, `01-Overview/bugs/Field-Bugs-2026-10-19.md`): the farthest of SD-REACH's candidates - an interior block's
+  enemy marker, out of the water where any is (`dungeonContext.js` `dungeonEnd`, the Rift's own end) - never a border
+  cap's, where the raw markers stood it in a pocket no walk reaches. LAIR-WALK: of those, the farthest a walk from the way
+  in reaches on the dungeon's navmesh - its floor flooded once from the first frame's feet (`navmesh.js reachableFrom`;
+  AUDIT FB1019 B1) - else the farthest layout marker on it, else SD-REACH's end; the lair waits for the bake,
+  `LAIR_WALK_WAIT_MS` at most. LAIR-HOME: "not out" is now "its body not here, in a fight with me (its harm on me, or my
+  feud with it open - AUDIT FB1019 C3), kneeling, or standing up" - one out on the road goes home, the road body it left
+  stale for good and withdrawn (`revenant.js goesHome`, `revenantStale`; C1).
 - **Found resting**: unaware (idle, not hunting) until it sees or hears the player, so a first blow may be a backstab
   (not on a Watchful one). Its drop's gold x1.25 (`LAIR_GOLD`).
 - **Gates**: REVENANT-DUNGEON's - a foe of the player's alone (offline; online, a loose foe of mine on the SUMMON-SYNC
@@ -808,6 +819,28 @@ deed underground makes that dungeon its lair.
 - **What**: one piece - the most valuable of the equipped weapon and the pack's five most valuable pieces, drawn on its
   id and its kill count. Never a quest item, a summoned piece, the Materials Bag or gold, and **never a locked piece**
   (LOCK1's promise, "A LOCKED PIECE STAYS YOURS" - OPEN 16). At most three held (`TOOK_MAX`); past that it only gloats.
+  LETTERS-HOME (FIELD BUGS 2026-10-18b): "gold" is a letter of credit too - `revenantMayTake` read the coin alone
+  (`isGoldPieces`), so a letter was takeable and, worth its face, the likeliest drawn. It refuses one now (`peerWord.js
+  isLetterOfCredit`), a deserter's or a betrayer's letter comes back with its gold (`splitPack` asks the same law), and a
+  letter a record took before is handed home at the mirror's merge (`ensureMirror`, from the save's copy of `took` - the
+  pack it came out of is that save's, so never twice).
+  STEED-KEPT (FIELD BUGS 2026-10-19f; THE OWNER'S DECISION, 2026-10-19: "Exclude, and return taken ones"): and never
+  what never changes hands, as the open zone's death reads it (`wildDropLaw.js wildCanLose`) - a VEHICLE or a DEED (the
+  zone's own groups, `WILD_NEVER_GROUPS`: a horse, every cart; the decor's kept-back list, `DECOR_OWN_KEPT_BACK`: a house's
+  or a ship's deed as Daggerfall files them, and the spellbook with them - KEEP-SPELLBOOK's "Your spellbook never leaves
+  you"), or a SHIP'S DEED or her PARTS (`realmTradeLaw.js BOAT_TEMPLATES` - a deed handed on is a second boat). Owning a
+  horse or a cart is having it in the pack (DFU's `Items.Contains(Transportation, Horse)`), so a stable's horse - worth
+  more than most of a pack - was drawn one death in six beside a worn longsword and four spare weapons, and "vanished":
+  not in the pack, not at the stable. DECIDED, named (the owner left it to the slice): a BOUND piece stays its own, as
+  AUDIT 625 W2 pinned it ("RVN8 names its own exclusions") - by the zone's reasoning, which keeps a bound piece at a death
+  because a death's remains are anyone's, while what a revenant takes never rides to another player (its body hands what
+  it carried to its owner alone - `bodyLoot.js shareableRecord`, `peerWord.js neverPeerHanded`); and by RVN8's own,
+  which refuses what must never leave the pack (the pack-only wallet, itself bound) and lets a slain or spared one give
+  back the rest. THE RETURN: the mirror's merge now hands home every
+  piece `revenantMayTake` refuses (LETTERS-HOME's hand-back, widened) into the pack - where the game keeps owned
+  transport, the very horse the stable sold - each said ONCE, as the owner asked (`revenant.js:"export const tookHomeLine = (r, item) =>"`, through
+  `notify.js hudTextWhenShown`: the merge can run before a host stands); a returning letter is said now too, one law,
+  one word. A deserter's or a betrayer's split asks the same law, so a ship's deed in its pack comes back with the rest.
 - **Moved**: `equip.unequipItem`, out of `entity.items`, onto the record's `took` (items are plain objects - the sworn
   pack's precedent). **The save's copy wins** (REVENANT-FATE's audit rule for a pack): the mirror never brings back a
   piece the save holds.
@@ -1064,7 +1097,7 @@ gets the value in the last column.
 | `ADAPT_MAX` | 3 (at most the rank) | 13.1 |
 | the adaptations (`revenantFeud.js ADAPT`) | section 13.2's table; an element +25 (RVN2) | 13.2 |
 | the weakness / daylight | x1.5 / x1.25 | 14.1 |
-| `WILL_RANK` / `WILL_STAGGERS` | 3 / 2 (FEUD BALANCE: 1, a perfect dodge counted) | 14.2 |
+| `WILL_RANK` / `WILL_STAGGERS` | 3 (UNQUIET: 2 - `06-Systems/Revenants.md` 46.2) / 2 (FEUD BALANCE: 1, a perfect dodge counted) | 14.2 |
 | `LAST_STAND_HEALTH` rank 3 / 4 / 5 | 0.35 / 0.45 / 0.55 (FEUD BALANCE: 0.30 / 0.35 / 0.40) | 15.2 |
 | `LAST_STAND_ROAR` | 1.2 s | 15.2 |
 | phase two | blows x1.2, +20 Speed, wind-ups x0.85, cooldowns x0.7 | 15.2 |
@@ -1096,7 +1129,7 @@ revenant at each rank; a thousand seeded fights a cell. It prints a table, and t
 | Massive means massive | no single blow of a non-weakness weapon at a giant's front breaks it |
 | Dodging pays | a perfect dodger takes a tenth of the telegraphed blows a trader does or fewer, and is no slower to bring a rank-3 revenant to its end - what dodging buys: the will (below), and the blows not taken (FEUD BALANCE, OPEN 24; it read "kills a rank-3 revenant at least 25% faster than one who trades blows") |
 | The will is learnable | a rank-3 revenant fought with its weakness kneels 90% of the time or more; without it, but dodging, 70% or more; by trading blows alone, 20% or less (measured with the reference longsword - a heavy weapon's poise breaks are its own way to the will) |
-| A rank means something | a rank-5 revenant takes about 2.5 times a rank-1's time to kill |
+| A rank means something | a rank-5 revenant takes about three times a rank-1's time to kill, 2.5 to 3.5 (UNQUIET, `06-Systems/Revenants.md` section 46 - the owner: "harder"; it was about 2.5, 2 to 3) |
 | Fair | no telegraphed blow lands on a player who leaves its shape inside its first 70% |
 
 **Measured (AUDIT TELL, AUDIT FEUD - the records at the foot; `tools/tellDuel.mjs`).** TELL's four hold. Of RVN's, the
@@ -1117,7 +1150,14 @@ weakness 100%, by dodging 93.1%, by trading 11.5%; rank 5 over rank 1, 2.67 trad
 the pools give a revenant - its band and its flight (the FEUD HARNESS record) - and measured again: the will by dodging
 88.0%, by its weakness 100%, by trading 11.4%; a perfect dodger struck by none of a trader's telegraphed blows (0 in a
 thousand fights), in 99.2% of its time; rank 5 over rank 1, 2.69 trading and 2.62 dodging - every target holds. The
-duel alone and never running, measured beside them, is AUDIT FEUD 2's to the fight (12.7% and 94.6%).
+duel alone and never running, measured beside them, is AUDIT FEUD 2's to the fight (12.7% and 94.6%). **UNQUIET**
+(`06-Systems/Revenants.md` section 46 - the owner: "harder") made each rank weigh more (+40% health, +15% blows a rank) and
+moved the will to rank II, and measured again (150 fights a cell): the will by dodging 92.2%, by its weakness 100%, by
+trading 12.6%; a perfect dodger struck by none of a trader's telegraphed blows, in 97.9% of its time; rank 5 over rank 1,
+3.24 trading and 3.22 dodging (rank 1 never running 6.5 s, rank 5 21.0 s - they were 5.9 and 16.1). The rank's band moved
+with it, from 2 to 3 to 2.5 to 3.5 (`tools/tellDuel.mjs FEUD_TARGETS.RANK_RATIO`): a rank-5 revenant now takes about three
+times a rank-1's time, which is the "harder" asked - every other target holds where it held. AUDIT UNQUIET
+(`06-Systems/Revenants.md` section 49) re-ran it on the audited law: every cell the same, to the hundredth.
 
 ## 29. Tests, mutants and probes
 
@@ -2238,7 +2278,8 @@ and `dungeonContext.js`.
   x LAIR_GOLD when `lairStand`); `spawnLooseFoe` and `_spawnEncounter` carry the record (a returning person's gender and
   level - `revenantSpawnOptions`).
 - **The stand** - `standLairRevenant`, asked once a visit on the first frame (`_lairAsked`): at the layout marker
-  farthest from the entrance (`dungeon.enterMarker`, else the start marker), a loose foe of mine (online on the room's
+  farthest from the entrance (`dungeon.enterMarker`, else the start marker; LAIR-REACH: among SD-REACH's candidates,
+  `dungeonEnd`; LAIR-WALK: the farthest of them a walk reaches on the navmesh, else of every layout marker, asked once the bake has landed or failed, `LAIR_WALK_WAIT_MS` at most), a loose foe of mine (online on the room's
   SUMMON-SYNC lane, never a room's layout foe), FOUND RESTING (`detected` false, no target - a first blow may be a
   backstab, never on a Watchful one: RVN2's door), its band about it.
 - **Its band underground** - RVN6's law in the dungeon's pool: `standDungeonBand` (PlaceFoeFreely's ring, loose - the
@@ -2287,6 +2328,9 @@ and `dungeonContext.js`.
 - **Not built here** - its next taunt's word on it (RVN12, `{item}`); the page's *Took* (RVN12).
 - Pins `test/systems/rvn8_took.test.js` (6). Mutants `tools/mutants/rvn8.json` (34): 34 dead. Mutant record re-aimed by
   content (1): `revenantaudit`'s A6 (the cap's filter now spares a holder too) - judged again: dead.
+- STEED-KEPT (FIELD BUGS 2026-10-19f, section 19): `test/systems/revenant/fb1019f_steedkept.test.js` (4);
+  `tools/mutants/fb1019f_steedkept.json` (7, all dead); `fb1018b_letters.json`'s LETTERS-HOME-letter-takeable is
+  `equivalent` now (the letter refused through a second door, the kept-back list).
 
 ### RVN9 - BUILT 2026-10-04 (the loot-rarity row on; every host's encounter tick)
 

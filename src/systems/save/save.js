@@ -32,7 +32,7 @@ import { getWorldVariationSaveData, restoreWorldVariationData, clearWorldDataVar
 import { snapshotAutomap, restoreAutomap } from '../automap/automap.js';   // A1: dictAutomapDungeonsDiscoveryState rides SaveData_v1
 import { createSceneCache, snapshotSceneCache, restoreSceneCache } from '../sceneCache.js';   // P1
 import { seedCustomSpellIndex } from '../spell/spellMaker.js';   // S1: made spells carry their own record
-import { isPathId, pathWitnessed } from '../arcanePaths.js';   // SCHOOLS1: the specialisation's id, read through its own table
+import { isPathId, pathWitnessed, pathFindings } from '../arcanePaths.js';   // SCHOOLS1: the specialisation's id, read through its own table
 import { isMartialPathId } from '../martialPaths.js';   // MARTIAL1: the martial specialisation's id, read through its own table
 import { seedBundleSeq, effectKindLoaded } from '../effects.js';   // X10: the live-bundle counter's restore half; AUDIT PRE-MERGE 0928 S3: a mod's effect restores only while its mod is loaded
 import { repairLostCurses } from '../curseRepair.js';   // CURSE-REPAIR1: a curse the round clock pruned, given back
@@ -40,8 +40,11 @@ import { repairUnmintedConditions, repoolWeaponConditions } from '../conditionRe
 import { restackStones, nameEmbers, PORTAL_GIFT, givePortalGift } from '../gate/gateSpoils.js';   // SS1: Sigil Stones saved before they stacked, folded into one stack; WB12a: and named Deadlands Embers
 import { WALLET_GIFT, giveWalletGift } from '../walletItem.js';   // WALLET1: a character from before the wallet is given one, once
 import { BINDER_GIFT, giveBinderGift, cleanBinders } from '../iliac/iliacItems.js';   // CARDS8: and a Card Binder with the starter deck, once
+import { foldStrayWeirKeys } from '../eliteGates/weirKey.js';   // KEY-FACE: a Weir Key's face anywhere but the pack, folded away
+import { foldStrayFaces } from '../festival/soulCake.js';   // WITCH1: and the Witches' Festival's, the same law
 import '../professions/profTemplates.js';   // PROF2: the ores, ingots and stone a pack may hold, known to every scene a save loads in
 import '../rest/restItems.js';   // REST6: the seven rest supplies (1700-1706), known to every scene a save loads in
+import { repairPartsWeights } from '../comeSailAway/comeSailAwayItems.js';   // PARTS-WEIGHT: a boat's parts weighed as her hull alone
 import { repairRarityNames, repairRarityBases } from '../loot/lootRarity.js';   // DISC29-B: a Magic or Rare Roleplay & Realism: Items piece given back its make's word; RARITY-WEAR: a rolled wand worn as an Amulet
 import { SOCIAL_GROUPS } from '../../formats/factionFile.js';   // AUDIT 24
 import { travelMapSaveData, restoreTravelMapSaveData } from '../travel/travelMapState.js';   // U41: TravelMapSaveData
@@ -355,9 +358,9 @@ export function snapshotPlayer(entity, { position = null, pose = null, classicMi
   snap.lefayTribute = normalTribute(entity.lefayTribute);   // LEFAY1: the flowers laid at Julian LeFay's monument - how many, and the newest where they lay
   snap.masteredSkills = Array.isArray(entity.masteredSkills) ? [...entity.masteredSkills] : [];   // SOFTCAP4: the permanent 2/2/1 masteries
   snap.masteryPrompted = Array.isArray(entity.masteryPrompted) ? [...entity.masteryPrompted] : [];   // SOFTCAP4: the skills already asked about
-  snap.arcanePath = isPathId(entity.arcanePath) ? entity.arcanePath : null;   // SCHOOLS1: the permanent specialisation (systems/arcanePaths.js)
+  snap.arcanePath = isPathId(entity.arcanePath) ? entity.arcanePath : null;   // SCHOOLS1: the specialisation (systems/arcanePaths.js; given up only by systems/specReset.js)
   snap.pathPrompted = entity.pathPrompted === true;   // SCHOOLS1: the one ask, made
-  snap.martialPath = isMartialPathId(entity.martialPath) ? entity.martialPath : null;   // MARTIAL1: the permanent martial specialisation (systems/martialPaths.js)
+  snap.martialPath = isMartialPathId(entity.martialPath) ? entity.martialPath : null;   // MARTIAL1: the martial specialisation (systems/martialPaths.js; given up only by systems/specReset.js)
   snap.martialPrompted = entity.martialPrompted === true;   // MARTIAL1: its one ask, made
   snap.career = entity.career ? { ...entity.career } : null;   // plain CFG data
   // AUDIT MARTIAL L3 F1: the permanent martial path's MIRROR, in the one record every older build carries whole - an older
@@ -367,6 +370,10 @@ export function snapshotPlayer(entity, { position = null, pose = null, classicMi
   if (snap.career) {
     delete snap.career.martialMirror;
     if (snap.martialPath) snap.career.martialMirror = { path: snap.martialPath, of: snap.characterId };
+    // AUDIT SPEC-RESET L2-1: and the arcane path's, written for none too. The book's witness (restorePlayer) had been the
+    // arcane path's only memory across an older build's carry, and SPEC-RESET leaves a path given up's signature spell in
+    // the book: the carry gave the path back with the 200,000 still spent, or swapped a newer choice for it, free
+    snap.career.arcaneMirror = { path: snap.arcanePath, prompted: snap.pathPrompted, of: snap.characterId };
   }
   snap.items = (entity.items ?? []).map((it) => ({ ...it }));
   // E4: `data.playerEntity.goldPieces = entity.GoldPieces`
@@ -748,9 +755,18 @@ export function repairItemLists(repairLists) {
     const n = repairRarityBases(list);
     if (n) console.info(`[save] RARITY-WEAR: ${n} rolled piece(s) on a base nothing can wear moved to one a slot takes`);
   }
+  // HELD-BASE (FIELD BUGS 2026-10-18f) mends the mint alone: AUDIT FB1018f L1-1 - a load that moved a saved piece's base
+  // rewrote the print the realm ledger follows it by (server-account/src/judge.js ledgerPrintOf, templateIndex:material),
+  // and the next checkpoint read an honest piece as forged and held its player. A piece a save kept stays as it was.
   // AUDIT CARDS-6 A6: every card worth its tier's worth (iliacItems.js cleanBinders - a card minted before CARDS9 carried
   // a coin's) in every list, not the pack's alone: one in the wagon, the bag or a house chest kept its coin after a load
   for (const list of repairLists) cleanBinders(list);
+  // PARTS-WEIGHT (FIELD BUGS 2026-10-18e): a boat's parts weigh her timbers alone now - parts her hold had made too heavy
+  // to lift, in a chest or anywhere, given her hull's packed weight (comeSailAwayItems.js repairPartsWeights)
+  for (const list of repairLists) {
+    const n = repairPartsWeights(list);
+    if (n) console.info(`[save] PARTS-WEIGHT: ${n} boat parts item(s) weighed as their hull alone`);
+  }
 }
 
 /** PORTAL1 (AUDIT PORTAL1 U9): how many saves this page has restored - every load, whichever host runs it, passes the one
@@ -830,9 +846,16 @@ export function restorePlayer(entity, snap, spellsByIndex = null) {
   // career's mirror bears witness to the choice that build dropped, already asked
   const mirror = snap.career?.martialMirror;
   if (snap.martialPath === undefined && isMartialPathId(mirror?.path) && mirror.of === snap.characterId) { entity.martialPath = mirror.path; entity.martialPrompted = true; }
+  // AUDIT SPEC-RESET L2-1: the arcane mirror says the choice an older build dropped - a path the judge holds lawful (both
+  // its schools mastered, pathFindings), or none - and the book's witness (below, once the spellbook is back) is read only
+  // for a save that carries no such mirror
+  const arcMirror = snap.career?.arcaneMirror;
+  const arcMirrored = snap.arcanePath === undefined && arcMirror?.of === snap.characterId
+    && (arcMirror.path === null || (isPathId(arcMirror.path) && !pathFindings({ arcanePath: arcMirror.path, masteredSkills: snap.masteredSkills }).length));
+  if (arcMirrored) { entity.arcanePath = arcMirror.path; entity.pathPrompted = arcMirror.prompted === true; }
   entity._mentor = null;   // SOFTCAP1: recomputed by the party frame, never restored
   entity.career = snap.career ? { ...snap.career } : entity.career;
-  if (snap.career) delete entity.career.martialMirror;   // AUDIT MARTIAL L3 F1: the mirror is the save's, never the live career's
+  if (snap.career) { delete entity.career.martialMirror; delete entity.career.arcaneMirror; }   // AUDIT MARTIAL L3 F1: a mirror is the save's, never the live career's
   entity.items = snap.items.map((it) => setItemFields(it));   // JAN1: SetItem's two writes on every item in (a copy, as before)
   entity.wagonItems = (snap.wagonItems ?? []).map((it) => setItemFields(it));   // W-slice (pre-W saves restore empty); JAN1: set on the way in
   entity.bagItems = (snap.bagItems ?? []).map((it) => setItemFields(it));   // BAG1: a save written before holds none
@@ -848,6 +871,16 @@ export function restorePlayer(entity, snap, spellsByIndex = null) {
   // ITEM-WALK: and every other list the save holds (savedItemLists), by the one runner (repairItemLists)
   const repairLists = savedItemLists(snap, entity);   // BAG1: and the bag's
   repairItemLists(repairLists);
+  // FIELD BUGS 2026-10-19f KEY-FACE: A WEIR KEY'S FACE IS THE PACK'S ALONE (systems/eliteGates/weirKey.js foldStrayWeirKeys) -
+  // one in any other list the save holds (the wagon, a storage piece, a ship's hold, a companion's pack, a body) or set
+  // out in a room (`decorOwn`) was stowed before its row was pack-only, or thrown on a body and never taken up: folded
+  // away here, in the same place and for the same hosts as the repairs above. The pack keeps its own; the account's
+  // balance restacks it.
+  const strayLists = repairLists.filter((l) => l !== entity.items), strayRooms = arrayOf(snap.sceneCache?.scenes).map((s) => s?.decorOwn);
+  const strayKeys = foldStrayWeirKeys(strayLists, strayRooms);
+  if (strayKeys) console.info(`[save] KEY-FACE: ${strayKeys} Weir Key face(s) outside the pack folded away - the account holds the keys`);
+  const strayFaces = foldStrayFaces(strayLists, strayRooms);   // WITCH1: and the festival's Soul Cakes and Hearth Offerings, the same law
+  if (strayFaces) console.info(`[save] KEY-FACE: ${strayFaces} festival face(s) outside the pack folded away - the account holds them`);
   entity.rentedRooms = (snap.rentedRooms ?? []).map((r) => ({ ...r }));   // U39: the rented rooms (pre-U39 saves restore empty)
   // JAN1 (2026-09-18, Janome: CRASH `region 17 is outside the 0 bank accounts`, a softlock at the bank): a pre-B1 save
   // restored an EMPTY table, which is truthy, so worldModes' `??= createBankAccounts` never minted one and every bank
@@ -1121,7 +1154,7 @@ export function restorePlayer(entity, snap, spellsByIndex = null) {
   seedCustomSpellIndex(entity.spells);
   // AUDIT SCHOOLS L3 F2: a save an OLDER BUILD carried has no `arcanePath` key at all (a newer one writes null for none)
   // and keeps its signature spell whole - the book bears witness to the permanent choice that build dropped
-  if (snap.arcanePath === undefined && !entity.arcanePath) {
+  if (snap.arcanePath === undefined && !arcMirrored && !entity.arcanePath) {
     const witnessed = pathWitnessed(entity.spells, entity.masteredSkills);
     if (witnessed) { entity.arcanePath = witnessed; entity.pathPrompted = true; }
   }

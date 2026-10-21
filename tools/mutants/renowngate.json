@@ -198,8 +198,8 @@
   {
     "name": "RENOWN-GATE-page-note-unsaid",
     "file": "src/ui/revenant/revenantPage.js",
-    "old": "(revenantHeld() ? `From Renown ${REVENANT_MIN_RENOWN}, an` : 'An')",
-    "new": "'An'",
+    "old": "    const how = revenantHeld()\n",
+    "new": "    const how = false\n",
     "tests": ["test/systems/renowngate.test.js"]
   },
   {

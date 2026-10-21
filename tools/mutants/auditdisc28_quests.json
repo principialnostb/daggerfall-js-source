@@ -159,7 +159,7 @@
   },
   {
     "name": "AD28Q-K2-map-not-restamped",
-    "file": "src/scenes/world.js",
+    "file": "src/scenes/exteriorAutomapToggle.js",
     "old": "    restampQuestNames(locId, { ...questBuildingSource, currentMapID: () => dfLoc.mapTableData?.mapId ?? 0 });   // the plan's own town\n",
     "new": "",
     "tests": [
@@ -295,8 +295,8 @@
   {
     "name": "AD28Q-J2-cell-orphan-unmarked",
     "file": "src/scenes/exteriorFoes.js",
-    "old": "    _pupPending.set(key, { ...r, _quest: qt, _orphanMine: true });",
-    "new": "    _pupPending.set(key, { ...r, _quest: qt });",
+    "old": "    _pupPending.set(key, { ...r, _quest: qt, _orphanMine: true, _cp: cp != null });",
+    "new": "    _pupPending.set(key, { ...r, _quest: qt, _cp: cp != null });",
     "tests": [
       "test/systems/quest/auditdisc28_quests.test.js"
     ]

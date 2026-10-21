@@ -289,8 +289,9 @@ const { releaseTactics } = await import('../src/ai/tactics.js');
 
 /** Section 28's RVN targets: the telegraphed blows a perfect dodger takes, at most this share of a trader's, its time to
  *  the end no longer (FEUD BALANCE, OPEN 24 - it was its time, at most 0.75 of the trader's); the will's kneels; a rank-5's
- *  time over a rank-1's in this band ("about 2.5 times"). */
-export const FEUD_TARGETS = Object.freeze({ DODGE_SPARES: 0.1, KNEEL_WEAK: 0.9, KNEEL_DODGE: 0.7, KNEEL_TRADE_MAX: 0.2, RANK_RATIO: Object.freeze([2, 3]) });
+ *  time over a rank-1's in this band - about three times (UNQUIET, Revenants.md section 46 - the owner: "harder": each rank
+ *  weighs more, 3.24 trading and 3.22 dodging measured; it was about 2.5, the band 2 to 3). */
+export const FEUD_TARGETS = Object.freeze({ DODGE_SPARES: 0.1, KNEEL_WEAK: 0.9, KNEEL_DODGE: 0.7, KNEEL_TRADE_MAX: 0.2, RANK_RATIO: Object.freeze([2.5, 3.5]) });
 const WALK = walkSpeed(50);   // player/motor.js: DFU's walk at Speed 50 (4.43 m/s)
 const RUN = runSpeed(50, 50);   // FEUD HARNESS: ...and its run at Running 50 (8.10 m/s) - the chase of a fleeing one
 const CLOSE = 0.25;           // the dodger and the trader close to this inside their reach
@@ -330,7 +331,7 @@ export function revenantFight({ type = M.Orc, weapon = 'Longsword', rank = 3, mo
     const ent = foe.entity;
     ent.level = Math.max(ent.level | 0, RV.REVENANT_MIN_LEVEL);
     const player = makePlayer(weapon, { material: metalFor(type) });
-    const r = RV.revenantDeed(FEUD_ME, { mobileType: type, level: ent.level, champion: 'mighty', health: 1, maxHealth: 50, team: 'Monster', _voiceId: `duel-${seed}` }, 'fled', { mobileType: type, rolls: () => 0, now: 1 });   // AUDIT FEUD 2: its id the seed's - its draws (name, personality, signature, kin) with it
+    const r = RV.revenantDeed(FEUD_ME, { mobileType: type, level: ent.level, champion: 'mighty', unquiet: true, health: 1, maxHealth: 50, team: 'Monster', _voiceId: `duel-${seed}` }, 'fled', { mobileType: type, rolls: () => 0, now: 1 });   // AUDIT FEUD 2: its id the seed's - its draws (name, personality, signature, kin) with it
     Object.assign(r, { rank, learned: [], wrath: 0, weak: weak ? weaponFeudClass(player.item).cls : 'fire', out: false });
     if (rank >= SIG_RANK && !r.sig) r.sig = drawSignature(r.id, r.mobileType);   // AUDIT FEUD 2: its signature, as a deed that ranks it to 2 draws it
     RV.applyRevenant(ent, r, { now: 2 });

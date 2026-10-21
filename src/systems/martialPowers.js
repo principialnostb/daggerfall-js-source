@@ -64,6 +64,7 @@ import { regenBarred } from './courtRules.js';   // WBX6: the Deadlands keep no 
 import { maxFatigue } from './statMods.js';
 import { showFollowUp } from '../ui/hitNumbers.js';   // a follow-up's own number (ROSE-SEEN)
 import { KNIGHT_CITY_WATCH } from '../characters/mobile/mobileTypes.js';
+import { healthShare } from '../combat/healthShare.js';   // FIELD BUGS 2026-10-18f RELAY-SHARE: a body's share of its health, the one law
 import { hudText } from './notify.js';
 import { t } from './textManager.js';
 
@@ -103,7 +104,7 @@ export function awakeMartialId(entity) {
   return martialAwake(entity)?.id ?? null;
 }
 const me = () => playerDoor()?.player?.() ?? playerEntity;
-const share = (e) => (Number.isFinite(e?.health) && e.maxHealth > 0 ? e.health / e.maxHealth : 1);
+const share = (e) => healthShare(e) ?? 1;   // FIELD BUGS 2026-10-18f RELAY-SHARE: the one law - a body the relay runs reads its word (Gutting Lunge there too)
 const undeadOrDaedra = (e) => { const g = foeGroup(e); return g === 'undead' || g === 'daedra'; };
 const neverCounts = (e) => e?.mobileType === KNIGHT_CITY_WATCH || e?.team === 'PlayerAlly' || e?.mobileTeam === 'PlayerAlly';
 /** A foe of mine the port may answer: a body that is no player's, no ward's. */
@@ -123,7 +124,7 @@ function again(entity, amount, word) {
   const n = Math.max(1, Math.round(amount));
   const door = playerDoor();
   const f = door?.foes?.().find((x) => x.entity === entity) ?? null;
-  if (!f?.dead) showFollowUp(n, word);   // AUDIT MARTIAL L1 N1: the owed one's number too (the loot's again - ROSE-SEEN)
+  if (!f?.dead) showFollowUp(n, word, entity);   // AUDIT MARTIAL L1 N1: the owed one's number too (the loot's again - ROSE-SEEN); FIELD BUGS 2026-10-20f LANDED-WORD: never a claim on a body whose room says what lands
   if (f) { if (!f.dead) door.hurtFoe(f, n); return; }
   oweFoe(entity, n);
 }
@@ -233,7 +234,7 @@ export function martialEvade(entity) {
   if (!id || !pendingPlayerBlow()) return false;
   const oneIn = id === 'bladedancer' ? N.dancersStep.oneIn : id === 'shadowdancer' && _now() < _s.evadeUntil ? N.phantomStrike.oneIn : 0;
   if (!(oneIn > 0) || !(_rand() < 1 / oneIn)) return false;
-  say(t('martial.say.evade', 'You slip the blow.'));
+  say(t('martial.say.evade', 'You dodge the attack.'));
   return true;
 }
 /** THE HURT: Stand Firm - a hurt that takes me across its line, while ready; never one a death save turned aside.

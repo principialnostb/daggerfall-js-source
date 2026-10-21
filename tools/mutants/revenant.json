@@ -47,8 +47,8 @@
   {
     "name": "REVENANT-no-rank-up",
     "file": "src/systems/revenant/revenant.js",
-    "old": "    r.rank = Math.min(REVENANT_MAX_RANK, r.rank + 1);",
-    "new": "    r.rank = Math.min(REVENANT_MAX_RANK, r.rank);",
+    "old": "      r.rank += 1;\n      r.epithet = revenantEpithet(deedName",
+    "new": "      r.rank += 0;\n      r.epithet = revenantEpithet(deedName",
     "tests": [
       "test/systems/revenant.test.js"
     ]
@@ -59,7 +59,9 @@
     "old": "  if (living.length > REVENANT_MAX) {",
     "new": "  if (living.length > REVENANT_MAX * 10) {",
     "tests": [
-      "test/systems/revenant.test.js"
+      "test/systems/revenant.test.js",
+      "test/systems/revenant/unquiet.test.js",
+      "test/systems/revenant/revenant_audit.test.js"
     ]
   },
   {
@@ -74,8 +76,8 @@
   {
     "name": "REVENANT-early",
     "file": "src/systems/revenant/revenant.js",
-    "old": "  const due = living.filter((r) => r.dueAt <= now && (night",
-    "new": "  const due = living.filter((r) => r.dueAt <= now + 99999 && (night",
+    "old": "  const due = living.filter((r) => !r.dread && r.dueAt <= now && (night",
+    "new": "  const due = living.filter((r) => !r.dread && r.dueAt <= now + 99999 && (night",
     "tests": [
       "test/systems/revenant.test.js"
     ]
@@ -155,8 +157,8 @@
   {
     "name": "FOE-TITLE-the-elite-unnamed",
     "file": "src/systems/foeTitle.js",
-    "old": "  return entity?.eliteFoe ? `Elite ${named}` : named;",
-    "new": "  return named;",
+    "old": "  const special = entity?.eliteFoe ? `Elite ${named}` : named;",
+    "new": "  const special = named;",
     "tests": [
       "test/systems/elitefloor_foetitle.test.js"
     ]
@@ -335,7 +337,7 @@
   {
     "name": "REVENANT-AAA-no-claim",
     "file": "src/systems/revenant/revenant.js",
-    "old": "  due[0].out = true;\n",
+    "old": "  claim(due[0]);\n",
     "new": "",
     "tests": [
       "test/systems/revenant_card.test.js"
@@ -344,8 +346,8 @@
   {
     "name": "REVENANT-AAA-the-claim-never-freed",
     "file": "src/systems/revenant/revenant.js",
-    "old": "  if (r && r.out && !r.defeated && !r.gone) { r.out = false; r.outAt = 0; }",
-    "new": "  /* kept */",
+    "old": "  r.out = false; r.outAt = 0;\n}",
+    "new": "  /* kept */\n}",
     "tests": [
       "test/systems/revenant_card.test.js"
     ]

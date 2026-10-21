@@ -110,10 +110,10 @@ test('TELL1: every multiplier of a foe\'s health writes what it stood - an elite
   const r = { id: 'x', name: 'Grushnak the Butcher', rank: 2, returns: 0, history: [] };
   const re = { maxHealth: 40, health: 40 };
   rv.applyRevenant(re, r, { now: 0 });
-  assert.equal(re.healthMult, 1.5); assert.equal(kindHealth(re), 40);
+  assert.equal(re.healthMult, 1.8); assert.equal(kindHealth(re), 40);   // PIN MOVED (UNQUIET, Revenants.md section 46): +40% health a rank (it was 25%)
   assert.match(rd('src/scenes/dungeonContext.js'), /entity\.maxHealth = Math\.max\(1, Math\.round\(entity\.maxHealth \* ELITE_HEALTH_SCALE\)\);\n\s*entity\.health = entity\.maxHealth;\n\s*entity\.healthMult = \(entity\.healthMult \?\? 1\) \* ELITE_HEALTH_SCALE;/);
   assert.match(rd('src/scenes/riteHost.js'), /f\.entity\.healthMult = \(f\.entity\.healthMult \?\? 1\) \* RITE_SUMMONER_HEALTH;/);
-  assert.match(rd('src/systems/revenant/revenantCompanions.js'), /entity\.healthMult = \(entity\.healthMult \?\? 1\) \* \(1 \+ REVENANT_HEALTH_PER_RANK \* rank\) \* starHealth;/);
+  assert.match(rd('src/systems/revenant/revenantCompanions.js'), /entity\.healthMult = \(entity\.healthMult \?\? 1\) \* \(1 \+ SWORN_HEALTH_PER_RANK \* rank\) \* starHealth;/);
 });
 
 test('TELL1: a blow\'s class - blunt, axe, long blade, short blade, hands, claws, two-handed on top, an arrow, a spell\'s landing (its round nothing), a peer\'s, nothing else', () => {

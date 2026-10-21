@@ -85,7 +85,8 @@ test('EG-ZM THE TIMERS ROW\'S DOOR (section 20): where the host hands the boards
   assert.equal(all(v3.root, 'tm-door').length, 0);
   // THE PAUSE FACE: a handoff, as the sheet's doors - and a door that opened nothing resumes
   const menu = rd('src/ui/enhanced/enhancedMenu.js');
-  assert.match(menu, /\nconst timersDoor = \(fn\) => \{ onAction\('handoff'\); if \(!fn\(\)\) onAction\('resume'\); \};\n/);
+  // PIN MOVED (AUDIT GROWTH LANE2-3): a Growth face under the window is asked first, then the hand-off as before
+  assert.match(menu, /\nconst timersDoor = \(fn\) => \{\n\s*if \(pauseTab === 'growth' && growthAsks\(\)\) \{ [^\n]*return; \}\n\s*onAction\('handoff'\); if \(!fn\(\)\) onAction\('resume'\);\n\};\n/);
   assert.match(menu, /timersWindow\(document, \{ read: \(\) => hooks\.timers\?\.\(\{ ask: true \}\) \?\? null, onClose: [^\n]*, door: timersDoor \}\);/);
 });
 
@@ -178,7 +179,7 @@ test('EG-ZM THE BOARDS\' ONE DOOR (ui/eliteGates/egBoardWindow.js createEgBoardD
   assert.equal(eClosed, 1, 'the panel standing closed first');
   // THE HOST: the one door, and its three ways in
   const w = rd('src/scenes/world.js');
-  assert.match(w, /const egBoardDoor = createEgBoardDoor\(\{\n\s*open: \(o\) => openEgBoard\(\{ doc: document, classic: !isEnhancedPlus\(\), fetchBoard: \(\) => _accountEg\.board\(\), listPickerReady: listPickerArtLoaded, runs: \(\) => egRecapsKept\(appStorage\(\)\), \.\.\.o \}\),[^\n]*\n\s*slot: \{ top: \(\) => modes\?\.topWindow\?\.\(\) \?\? null, mount: \(w\) => modes\?\.mountWindow\?\.\(w\), close: \(w\) => modes\?\.closeWindow\?\.\(w\) \},/);   // PIN MOVED (AUDIT EG V, c: L7-19 - the boards' door carries this device's last runs, their sixth tab)
+  assert.match(w, /const egWindowSlot = \{ top: \(\) => modes\?\.topWindow\?\.\(\) \?\? null, mount: \(w\) => modes\?\.mountWindow\?\.\(w\), close: \(w\) => modes\?\.closeWindow\?\.\(w\) \};[^\n]*\n\s*const egBoardDoor = createEgBoardDoor\(\{\n\s*open: \(o\) => openEgBoard\(\{ doc: document, classic: !isEnhancedPlus\(\), fetchBoard: \(\) => _accountEg\.board\(\), listPickerReady: listPickerArtLoaded, runs: \(\) => egRecapsKept\(appStorage\(\)\), \.\.\.o \}\),[^\n]*\n\s*slot: egWindowSlot,/);   // PIN MOVED (AUDIT EG V, c: L7-19 - the boards' door carries this device's last runs, their sixth tab; AUDIT STAKE-ROW - the slot the boards share with the start window's list, egWindowSlot)
   assert.match(w, /board: \(\) => egBoardDoor\(\),   \/\/ EG-E2: `\/breach board`/);
   assert.match(w, /doors: egClient \? \{ board: \(\) => egBoardDoor\(\) \} : null,/);
   assert.match(w, /const egStartWindow = \(o\) => openEgStartWindow\(\{\n\s*\.\.\.o,\n\s*board: \(onClosed\) => egBoardDoor\(onClosed\),/);

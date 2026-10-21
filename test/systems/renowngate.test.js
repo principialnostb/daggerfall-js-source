@@ -22,6 +22,7 @@ globalThis.localStorage = {
 };
 
 const N = await import('../../src/systems/revenant/revenant.js');
+const { ambitionOf, AMBITION } = await import('../../src/systems/revenant/revenantUnquiet.js');   // UNQUIET: the return's share by its ambition
 const P = await import('../../src/ui/revenant/revenantPage.js');
 const E = await import('../../src/systems/eliteFoes.js');
 const { rollSearchElite } = await import('../../src/systems/searchables.js');
@@ -36,7 +37,7 @@ const { createExteriorFoes } = await import('../../src/scenes/exteriorFoes.js');
 const read = (p) => hostText(p);
 const DAY = 1440;
 const me = (id = 'char-renowngate') => ({ isPlayer: true, name: 'Ayla Stormwind', characterId: id, level: 10, stats: {}, skills: [], career: {}, activeEffects: [], items: [], health: 100, maxHealth: 100 });
-const orc = (over = {}) => ({ mobileType: M.Orc, level: 6, health: 5, maxHealth: 50, team: 'Monster', champion: 'mighty', ...over });
+const orc = (over = {}) => ({ mobileType: M.Orc, level: 6, health: 5, maxHealth: 50, team: 'Monster', champion: 'mighty', unquiet: true, ...over });
 /** The page's door, as scenes/world.js sets it: offline, or online with the Renown it knows (null: not yet). */
 const offline = () => setSigilOnline(false);
 const online = (renown = null) => { setSigilOnline(true); setSigilRenown(renown); };
@@ -195,14 +196,17 @@ test('RENOWN-GATE HELD, NONE IS MADE OR RUNS: under Renown 10 online no special 
 test('RENOWN-GATE HELD, NONE RETURNS: a due revenant takes no roll and is never claimed under Renown 10; from 10 on two rolls in five (mutants: the return\'s gate dropped; the chance moved either way)', () => {
   const p = me();
   const r = made(p, { dueAt: 0 });
+  r.personality = 'cold';   // AUDIT UNQUIET (Revenants.md section 49): one ambition, every run - not vengeance, its share REVENANT_RETURN_CHANCE
   const now = DAY * 9;
   online(9);
   assert.equal(N.revenantToReturn(p, { now, rolls: () => 0 }), null, 'held');
   assert.equal(r.out, false, 'and not claimed');
   online(10);
-  assert.equal(N.revenantToReturn(p, { now, rolls: () => 0.4 }), null, 'the roll at two in five passes it by');
+  assert.notEqual(ambitionOf(r.personality), 'vengeance');
+  const chance = N.REVENANT_RETURN_CHANCE;   // UNQUIET (Revenants.md section 46): a revenant of vengeance takes more of the rolls (AMBITION.VENGEANCE_RETURN - unquiet.test.js)
+  assert.equal(N.revenantToReturn(p, { now, rolls: () => chance }), null, 'the roll at its share passes it by');
   assert.equal(r.out, false);
-  assert.equal(N.revenantToReturn(p, { now, rolls: () => 0.39 }), r, 'under it, it comes');
+  assert.equal(N.revenantToReturn(p, { now, rolls: () => chance - 0.01 }), r, 'under it, it comes');
   assert.equal(r.out, true, 'claimed');
   N.releaseRevenantStand(r);
   offline();
@@ -285,9 +289,9 @@ test('RENOWN-GATE THE PAGE SAYS SO: a held one is Held, "not before Renown 10" -
   online(10); assert.equal(P.comeWords(r, 0).tag, 'Hunting');
   assert.equal(P.lairWords(r, true), 'Lair: The Pit.', 'held: no map promised');
   assert.equal(P.lairWords({ lair: { name: 'The Pit' }, lairKnown: false }, true), 'Lair: unknown.', 'nor the towns');
-  assert.equal(P.lairWords(r, false), 'Lair: The Pit - on your map.');
+  assert.equal(P.lairWords(r, false), 'Lair: The Pit, marked on your map.');
   online(9); assert.equal(P.lairWords(r), 'Lair: The Pit.', 'the page\'s door read');
-  online(10); assert.equal(P.lairWords(r), 'Lair: The Pit - on your map.');
+  online(10); assert.equal(P.lairWords(r), 'Lair: The Pit, marked on your map.');
   // none: the note
   const note = () => {
     const kids = [];
@@ -298,9 +302,9 @@ test('RENOWN-GATE THE PAGE SAYS SO: a held one is Held, "not before Renown 10" -
     return kids.map((k) => k.textContent).join(' | ');
   };
   online(9);
-  assert.match(note(), /No foe has earned your name yet\. From Renown 10, an elite or a champion that kills you/);
+  assert.match(note(), /No foe has earned your name yet\. From Renown 10, an elite or champion marked Unquiet that escapes you, or kills you, will remember you and come back for you\./);   // UNQUIET (Revenants.md section 46): only the marked rise
   online(10);
-  assert.match(note(), /No foe has earned your name yet\. An elite or a champion that kills you/);
+  assert.match(note(), /No foe has earned your name yet\. An elite or champion marked Unquiet that escapes you/);
 });
 
 test('RENOWN-GATE THE HOSTS: the gate lives in the laws - the open world\'s call and a save\'s word in the pool, both searches\' one roll, the dungeon\'s pick never asked; the page\'s door set by the streaming world alone, the bench offline, the interiors\' one elite the arena\'s bout; no host reads the gate itself', () => {

@@ -19,6 +19,7 @@ globalThis.localStorage = {
 const N = await import('../../src/systems/revenant/revenant.js');
 const F = await import('../../src/systems/revenant/revenantFeud.js');
 const RC = await import('../../src/systems/revenant/revenantCompanions.js');
+const { AMBITION } = await import('../../src/systems/revenant/revenantUnquiet.js');
 const S = await import('../../src/systems/companionSlots.js');
 const { setPref, _resetForTests } = await import('../../src/systems/uiPrefs.js');
 const { setWorldMinutes } = await import('../../src/systems/worldTick.js');
@@ -47,8 +48,11 @@ function sworn(state = 'with', { loyalty = 5, personality = 'brutal', rank = 1 }
   // RVN-ARTS (AUDIT RVN): never a Mender - its art heals the very hurt this moment reads (a sworn one's Mending answers a
   // hurt that leaves me low, Revenants.md section 41), and its id - the art's draw - is the deed's own random one
   let r;
-  do r = N.revenantDeed(me, { mobileType: M.Orc, level: 6, champion: 'mighty', health: 5, maxHealth: 50, team: 'Monster' }, 'fled', { mobileType: M.Orc, rolls: () => 0 });
-  while (artOf(r) === 'mending');
+  for (;;) {
+    r = N.revenantDeed(me, { mobileType: M.Orc, level: 6, champion: 'mighty', unquiet: true, health: 5, maxHealth: 50, team: 'Monster' }, 'fled', { mobileType: M.Orc, rolls: () => 0 });
+    if (artOf(r) !== 'mending') break;
+    N.revenantSlain(me, { revenant: { id: r.id } });   // UNQUIET (Revenants.md section 46): a Mender put down - none rises while three hunt me
+  }
   r.rank = rank;
   const s = N.revenantSpared(me, { revenant: { id: r.id } }, { state });
   s.companion.loyalty = loyalty;
@@ -97,7 +101,7 @@ test('RVN11c THE TURN: not sworn, its rank up (never past 5; its signature at 2)
   assert.ok(F.SIGNATURES.includes(x.sig), 'its signature drawn at rank 2');
   assert.equal(x.name, `${x.given} the Betrayer`);
   assert.deepEqual(x.history.at(-1), { deed: 'betrayed', at: DAY * 10 + 5 });
-  assert.equal(x.dueAt, DAY * 10 + 5 + N.REVENANT_RETURN_MIN_MINUTES);
+  assert.equal(x.dueAt, DAY * 10 + 5 + AMBITION.VENGEANCE_DUE[0]);   // PIN MOVED (UNQUIET, Revenants.md section 46): a brutal betrayer wants vengeance - due by its ambition's days
   assert.equal(party.party.some((y) => y.name === r.id), false);
   N.revenantSpared(me, { revenant: { id: r.id } }, { state: 'with' });
   assert.notEqual(party.party.find((y) => y.name === r.id), m, 'its member forgotten');
@@ -139,7 +143,7 @@ test('RVN11c ITS CARD: Betrayed - "Grushnak turns on you!" (mutants: the kicker;
 
 test('RVN11c THE HOSTS: the pools stand a turned revenant (no band, no return); the world turns it before the layer\'s frame - its card, its body lifted (no portal), the hostile stood at its feet and set on me (mutants: each seam unwired; the band stood; the portal; after the frame)', () => {
   const x = read('src/scenes/exteriorFoes.js');
-  assert.match(x, /revenant = null, eliteFoe = undefined, turned = false, band = true(?:, zoneGiant = null)? \} = \{\}\) \{/);   // ZONE-GIANTS: the open zone's giant index after it
+  assert.match(x, /revenant = null, eliteFoe = undefined, turned = false, band = true(?:, zoneGiant = null)?(?:, grantKind = null)? \} = \{\}\) \{/);   // ZONE-GIANTS: the open zone's giant index after it; PIN MOVED (GRANT3, Spawn-Grants.md section 13: a stand's grant's kind after it)
   assert.match(x, /if \(revenant && !puppet\) applyRevenant\(entity, revenant, \{ turned \}\);/);
   assert.match(x, /if \(revenant && band && !puppet && !allied && entity\.revenant\) Promise\.resolve\(\)\.then\(\(\) => standBand\(/);
   const d = read('src/scenes/dungeonContext.js');

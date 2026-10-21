@@ -53,7 +53,7 @@ const me = () => ({ isPlayer: true, name: 'Ayla Stormwind', characterId: 'char-r
 /** A real foe entity - a champion orc (a candidate) unless `plain`. */
 const orc = ({ plain = false, mobileType = M.Orc, level = 6 } = {}) => {
   const e = makeEnemyEntity(mobileType, ENEMY_BASICS[mobileType], { ...stats(), attackModifierFlags: 0 }, level, () => 0.5);
-  if (!plain) e.champion = 'mighty';
+  if (!plain) { e.champion = 'mighty'; e.unquiet = true; }   // UNQUIET (Revenants.md section 46): a marked one - the only one that may rise
   return e;
 };
 /** My blow, through the real formulas, until it lands. */
@@ -355,12 +355,12 @@ test('RVN1 THE FOLD: the deed (revenantDeed - the kill and both escapes) takes t
   assert.equal(r.sig, null, 'no signature at rank 1');
   setWorldMinutes(1440 * 4 + 720);
   L.noteFeudHarm(o, 'blade', 9); L.noteFeudHarm(o, 'arrow', 8); L.noteFeudHarm(o, 'frost', 8);   // 36% leads nothing
-  const r2 = N.revenantDeed(p, o, 'slew', { rolls: () => 0.5, now: 9000 });
+  const r2 = N.revenantDeed(p, o, 'fled', { rolls: () => 0.5, now: 9000 });   // UNQUIET (Revenants.md section 46): an escape ranks it - a kill only every second time
   assert.equal(r2, r);
   assert.equal(r.rank, 2);
   assert.ok(F.isSignature(r.sig), `drawn at rank 2 (${r.sig})`);
   assert.equal(r.sig, F.drawSignature(r.id, r.mobileType), 'on its id');
-  assert.deepEqual(r.scars.slice(-2), [{ k: 'mixed', at: 9000 }, { k: 'slew', at: 9000 }]);
+  assert.deepEqual(r.scars.slice(-2), [{ k: 'mixed', at: 9000 }, { k: 'fled', at: 9000 }]);
   assert.equal(r.fights, 2);
   // a plain foe: no record, and its ledger (none was ever opened) - and a judged one's taken all the same
   const j = orc();
@@ -485,6 +485,7 @@ test('RVN1 THE DRAWS ON ITS ID: one id, one weakness, signature and kin - every 
     o.career = { ...(o.career ?? {}), resistanceFlags: 16 };
     const r = N.revenantDeed(p, o, 'fled', { rolls: () => 0.5 });
     assert.ok(F.isWeakness(r.weak) && r.weak !== 'frost', `born against its career (${r.weak})`);
+    N._resetRevenantForTests(); _store.clear();   // UNQUIET (Revenants.md section 46): none rises while three hunt me - each born alone
   }
   assert.equal(read('src/systems/revenant/revenantFeud.js').includes('Math.random'), false, 'no draw on Math.random');
 });

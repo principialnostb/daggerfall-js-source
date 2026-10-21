@@ -44,7 +44,7 @@ beforeEach(() => {
   setWindupAtMeListener(null);
 });
 function sworn(state = 'with', { mobileType = M.Orc, loyalty = 60 } = {}) {
-  const r = N.revenantDeed(me, { mobileType, level: 6, champion: 'mighty', health: 5, maxHealth: 50, team: 'Monster' }, 'fled', { mobileType, rolls: () => 0 });
+  const r = N.revenantDeed(me, { mobileType, level: 6, champion: 'mighty', unquiet: true, health: 5, maxHealth: 50, team: 'Monster' }, 'fled', { mobileType, rolls: () => 0 });
   const s = N.revenantSpared(me, { revenant: { id: r.id } }, { state });
   s.companion.loyalty = loyalty;
   return s;
@@ -150,8 +150,8 @@ test('RVN11a THE WITNESS: one of its own kind executed - each sworn one at my si
 test('RVN11a DEVOTED\'S BLOWS: at 90 its stand strikes x1.1 over its rank\'s; at 89 not (mutants: unread; the line moved)', () => {
   const blows = (loyalty) => { const r = sworn('with', { loyalty }); const e = { maxHealth: 50, health: 50 }; RC.applySwornStrength(e, N.revenantById(r.id)); return e.damageScale; };
   const rank = N.revenantById(sworn('with').id).rank;
-  assert.ok(Math.abs(blows(90) - (1 + N.REVENANT_DAMAGE_PER_RANK * rank) * 1.1) < 1e-9);
-  assert.ok(Math.abs(blows(89) - (1 + N.REVENANT_DAMAGE_PER_RANK * rank)) < 1e-9);
+  assert.ok(Math.abs(blows(90) - (1 + RC.SWORN_DAMAGE_PER_RANK * rank) * 1.1) < 1e-9);   // UNQUIET (Revenants.md section 46): a sworn one's rank is its own (SWORN_DAMAGE_PER_RANK)
+  assert.ok(Math.abs(blows(89) - (1 + RC.SWORN_DAMAGE_PER_RANK * rank)) < 1e-9);
 });
 
 test('RVN11a DEVOTED\'S WARNING: the real cues tell the host a wind-up at me as it begins (once a blow; never one at another); a Devoted one standing here is its voice; its words; the host\'s back test and wait (mutants: the hook unwired; told every frame; a peer\'s wind-up told; a Loyal one warning; the back unread)', () => {

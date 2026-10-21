@@ -137,8 +137,8 @@
   {
     "name": "RVN11c-rank-kept",
     "file": "src/systems/revenant/revenant.js",
-    "old": "  r.rank = Math.min(REVENANT_MAX_RANK, r.rank + 1);\n  if (r.rank >= SIG_RANK && !r.sig) r.sig = drawSignature(r.id, r.mobileType);\n  r.epithet = REVENANT_EPITHETS.betrayed[0];",
-    "new": "  if (r.rank >= SIG_RANK && !r.sig) r.sig = drawSignature(r.id, r.mobileType);\n  r.epithet = REVENANT_EPITHETS.betrayed[0];",
+    "old": "  r.rank = Math.min(REVENANT_MAX_RANK, r.rank + 1);\n  r.blood = 0; r.tears = 0;",
+    "new": "  r.blood = 0; r.tears = 0;",
     "tests": [
       "test/systems/rvn11c_betray.test.js"
     ]
@@ -146,8 +146,8 @@
   {
     "name": "RVN11c-past-five",
     "file": "src/systems/revenant/revenant.js",
-    "old": "  r.rank = Math.min(REVENANT_MAX_RANK, r.rank + 1);\n  if (r.rank >= SIG_RANK && !r.sig) r.sig = drawSignature(r.id, r.mobileType);\n  r.epithet = REVENANT_EPITHETS.betrayed[0];",
-    "new": "  r.rank = r.rank + 1;\n  if (r.rank >= SIG_RANK && !r.sig) r.sig = drawSignature(r.id, r.mobileType);\n  r.epithet = REVENANT_EPITHETS.betrayed[0];",
+    "old": "  r.rank = Math.min(REVENANT_MAX_RANK, r.rank + 1);\n  r.blood = 0; r.tears = 0;",
+    "new": "  r.rank = r.rank + 1;\n  r.blood = 0; r.tears = 0;",
     "tests": [
       "test/systems/rvn11c_betray.test.js"
     ]
@@ -182,7 +182,7 @@
   {
     "name": "RVN11c-due-unset",
     "file": "src/systems/revenant/revenant.js",
-    "old": "  r.dueAt = dueFrom(now, rolls);   // should it get away\n",
+    "old": "  r.dueAt = dueFrom(now, rolls, r);   // should it get away (UNQUIET: by its ambition)\n",
     "new": "",
     "tests": [
       "test/systems/rvn11c_betray.test.js"

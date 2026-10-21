@@ -2,7 +2,7 @@
 // accomplish and more detailed", then "Go"). The character's day against the store's `lastDay`, whole days caught up
 // (seven at most): a living, unsworn, not-out revenant three days past its due day gains a wrath, and another every
 // three days more - health +10% and blows +5% a wrath at its stand, and facing it clears it. At three it ranks up on its
-// own (the `festered` deed, a new epithet, "Grushnak grows bolder - it has waited too long.") and its wrath goes back to
+// own (the `festered` deed, a new epithet, "Grushnak grows bolder. It has waited too long.") and its wrath goes back to
 // none; never past rank 5, where its wrath stops at three.
 // Pinned: the numbers and the day's law; the catch-up (the first count, whole days, seven at most, a clock wound back);
 // the wrath and the rank-up; who festers; rank 5; the card through the notice; the stand's health and blows, cleared;
@@ -34,8 +34,10 @@ beforeEach(() => {
 });
 
 function made(p, { dueDay = 10, rank = 1 } = {}) {
-  const r = N.revenantDeed(p, { mobileType: M.Orc, level: 6, champion: 'mighty', health: 5, maxHealth: 50, team: 'Monster' }, 'fled', { mobileType: M.Orc, rolls: () => 0, now: DAY * dueDay - 600 });
+  for (const x of N.livingRevenants().slice(0, Math.max(0, N.livingRevenants().length - N.REVENANT_MAX + 1))) N.revenantSlain(p, { revenant: { id: x.id } });   // UNQUIET (Revenants.md section 46): none rises while three hunt me - room made
+  const r = N.revenantDeed(p, { mobileType: M.Orc, level: 6, champion: 'mighty', unquiet: true, health: 5, maxHealth: 50, team: 'Monster' }, 'fled', { mobileType: M.Orc, rolls: () => 0, now: DAY * dueDay - 600 });
   r.dueAt = DAY * dueDay + 300; r.rank = rank; r.wrath = 0; r.out = false; r.notice = null;
+  r.personality = 'brutal';   // UNQUIET (Revenants.md section 46): no revenant of mastery here - it festers twice as fast (unquiet.test.js pins it)
   return r;
 }
 const at = (day) => ({ now: DAY * day + 60, rolls: () => 0 });
@@ -75,7 +77,7 @@ test('RVN9 THE DAYS: the first count only sets the day; then each whole day caug
   const ev = N.takeRevenantNotice(p, at(22));
   assert.equal(ev.kind, 'festered');
   assert.equal(ev.kicker, 'Grows bolder');
-  assert.equal(ev.body, `${r.given} grows bolder - it has waited too long.`);
+  assert.equal(ev.body, `${r.given} grows bolder. It has waited too long.`);
   assert.equal(r.notice, null);
   // the notice's step itself counts the days (the encounter tick asks it, never the festering alone)
   const q = made(p, { dueDay: 30 });
@@ -105,11 +107,11 @@ test('RVN9 THE CATCH-UP: a long absence counts seven days at most; a clock wound
 
 test('RVN9 WHO FESTERS: the living, unsworn, not out - never one standing, sworn or fallen; at rank 5 its wrath stops at three and it never ranks past it (mutants: one out festering; the sworn; past rank 5)', () => {
   const p = me();
+  const sworn = made(p); sworn.sworn = true;   // UNQUIET (Revenants.md section 46): the sworn and the fallen first - none of the four slain to make room under the cap
+  const fallen = made(p); fallen.defeated = true;
   const out = made(p);
-  const sworn = made(p);
-  const fallen = made(p);
   const top = made(p, { rank: 5 });
-  out.out = true; sworn.sworn = true; fallen.defeated = true;
+  out.out = true;
   N.revenantFester(p, at(10));
   for (let d = 11; d <= 40; d++) N.revenantFester(p, at(d));
   assert.equal(out.wrath, 0, 'standing');

@@ -15,7 +15,7 @@ test('audit544: a mirrored companion rest completes after eight hours on an olde
   N._resetRevenantForTests(); RC._resetRetinueForTests(); store.clear();
   const me = { isPlayer: true, name: 'Audit', characterId: 'audit-rest', level: 8, health: 100, maxHealth: 100 };
   RC.setRetinuePlayer(me);
-  const e = { mobileType: MOBILE_TYPES.Orc, level: 6, champion: 'mighty', health: 5, maxHealth: 50, team: 'Orcs' };
+  const e = { mobileType: MOBILE_TYPES.Orc, level: 6, champion: 'mighty', unquiet: true, health: 5, maxHealth: 50, team: 'Orcs' };   // UNQUIET (Revenants.md section 46): marked - only a marked foe rises
   const r = N.revenantDeed(me, e, 'fled', { now: 0, rolls: () => 0 });
   N.revenantSpared(me, { revenant: { id: r.id } }, { state: 'with' });
   let wakes = 0;

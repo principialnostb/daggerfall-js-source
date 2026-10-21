@@ -53,10 +53,10 @@ test('SERVER-POST the box: a sitting\'s first look says what waits, a later one 
   assert.deepEqual(said[1].post.map((p) => p.subject), ['Another']);
   assert.equal(postNoticeText(said[1]), `Post from ${POST_SENDER}: "Another". Open the mailbox beside the hourglass in the pause menu, or type /mail.`);
   assert.equal(postNoticeText({ kind: 'new', post: [{ from: POST_SENDER, subject: 'The Hourlock', item: { name: 'The Hourlock' } }] }),
-    `Post from ${POST_SENDER}: "The Hourlock" - The Hourlock is waiting for you. Open the mailbox beside the hourglass in the pause menu, or type /mail.`, 'a gift said by name');
+    `Post from ${POST_SENDER}: "The Hourlock", with The Hourlock to claim. Open the mailbox beside the hourglass in the pause menu, or type /mail.`, 'a gift said by name');
   // AUDIT SERVER-POST: the thirteen's first word of the Hourlock is a sitting's first look - one waiting gift, by name
   assert.equal(postNoticeText({ kind: 'waiting', count: 1, post: [{ from: POST_SENDER, subject: "Hour's First", item: { name: 'The Hourlock' }, claimed: false }] }),
-    `Post from ${POST_SENDER}: "Hour's First" - The Hourlock is waiting for you. Open the mailbox beside the hourglass in the pause menu, or type /mail.`);
+    `Post from ${POST_SENDER}: "Hour's First", with The Hourlock to claim. Open the mailbox beside the hourglass in the pause menu, or type /mail.`);
   // read, it no longer counts; a gift counts until it is claimed
   const gift = box.post.find((p) => p.item);
   assert.equal((await box.open(gift.id)).ok, true);
@@ -385,11 +385,12 @@ test('AUDIT SERVER-POST the doors: /mail opens the mailbox on either skin and wh
   assert.ok(HOST_COMMANDS.includes('mail') && HOST_COMMANDS.includes('mailbox'));
   assert.ok(HELP_LINES.some((l) => l.startsWith('/mail - ')), '/help says it');
   const world = src('src/scenes/world.js');
-  assert.match(world, /if \(\/\^\\\/mail\(box\)\?\$\/i\.test\(text\.trim\(\)\)\) \{\n[^\n]*if \(!postSource\(\)\)[^\n]*\n\s*if \(!modes\?\.openPauseAt\?\.\('mailbox'\)\) hudCtx\.togglePause\(\{ at: 'mailbox' \}\);/);
+  // PIN MOVED (PRIVATE-REPORT): the line read by chatCommands.js mailboxCommandOf - `/mail` and `/mailbox` the mailbox, `/bug` its form
+  assert.match(world, /\{ const at = mailboxCommandOf\(text\); if \(at\) \{[^\n]*\n[^\n]*if \(!postSource\(\)\)[^\n]*\n\s*if \(!modes\?\.openPauseAt\?\.\(at\)\) hudCtx\.togglePause\(\{ at \}\);/);
   const modes = src('src/scenes/worldModes.js');
   assert.match(modes, /openPauseAt: \(at\) => \{\n\s*if \(mode === 'dungeon' && dungeonCtx\) \{ dungeonCtx\.togglePause\(\{ at \}\); return true; \}\n\s*if \(mode === 'interior' && interiorCtx\) \{ interiorKeyCtx\.togglePause\(\{ at \}\); return true; \}\n\s*return false;/, 'indoors and underground, their own pause');
   const door = src('src/ui/pauseDoor.js');
-  assert.match(door, /if \(hooks\.at === 'mailbox' && typeof document !== 'undefined'\) return enhancedPauseOverlay\(show, hooks\);/, 'either skin');
+  assert.match(door, /if \(\(hooks\.at === 'mailbox' \|\| hooks\.at === 'report'\) && typeof document !== 'undefined'\) return enhancedPauseOverlay\(show, hooks\);/, 'either skin');   // PIN MOVED (PRIVATE-REPORT): and `/bug` (its form, at `report`)
   assert.ok(door.indexOf("hooks.at === 'mailbox'") < door.indexOf('if (isEnhanced() && typeof document'), 'before the skin is asked');
   assert.match(door, /\.filter\(\(n\) => !n\.closest\?\.\('\[inert\]'\)\);/, 'Tab never into what is out of reach');
   const menu = src('src/ui/enhanced/enhancedMenu.js');

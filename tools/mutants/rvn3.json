@@ -36,10 +36,10 @@
     ]
   },
   {
-    "name": "RVN3-the-will-at-rank-2",
+    "name": "RVN3-the-will-at-rank-3",
     "file": "src/systems/revenant/revenantFeud.js",
     "old": "export const willMatters = (rank) => (rank | 0) >= WILL_RANK;",
-    "new": "export const willMatters = (rank) => (rank | 0) >= 2;",
+    "new": "export const willMatters = (rank) => (rank | 0) >= 3;",
     "tests": [
       "test/systems/rvn3_weak.test.js"
     ]
@@ -256,8 +256,8 @@
   {
     "name": "RVN3-the-flinch-a-voice",
     "file": "src/systems/revenant/revenant.js",
-    "old": "  const body = found ? `${name} - its weakness, laid bare.` : (FLINCH_LINES[r?.weak] ?? 'It shies from something.');",
-    "new": "  const body = found ? `${name} - its weakness, laid bare.` : 'It shies from something.';",
+    "old": "  const body = found ? `Its weakness laid bare: ${name}.` : (FLINCH_LINES[r?.weak] ?? 'It shies from something.');",
+    "new": "  const body = found ? `Its weakness laid bare: ${name}.` : 'It shies from something.';",
     "tests": [
       "test/systems/rvn3_weak.test.js"
     ]
@@ -265,8 +265,8 @@
   {
     "name": "RVN3-the-unbroken-words",
     "file": "src/systems/revenant/revenant.js",
-    "old": "  const body = `${r.given} staggers into the smoke, unbroken.`;",
-    "new": "  const body = `${r.given} got away.`;",
+    "old": "t('rvn.unq.unbroken', '{given} staggers into the smoke, unbroken.', { given: r.given })",
+    "new": "t('rvn.unq.unbroken', '{given} got away.', { given: r.given })",
     "tests": [
       "test/systems/rvn3_weak.test.js"
     ]
@@ -274,7 +274,7 @@
   {
     "name": "RVN3-the-will-unread",
     "file": "src/systems/revenant/revenantFate.js",
-    "old": "  return !!r && willMatters(r.rank) && !willBroken(f.entity._feud);",
+    "old": "  return !!r && !r.dread && willMatters(r.rank) && !willBroken(f.entity._feud);",
     "new": "  return false;",
     "tests": [
       "test/systems/rvn3_weak.test.js"
@@ -283,8 +283,8 @@
   {
     "name": "RVN3-the-will-ignores-the-fight",
     "file": "src/systems/revenant/revenantFate.js",
-    "old": "  return !!r && willMatters(r.rank) && !willBroken(f.entity._feud);",
-    "new": "  return !!r && willMatters(r.rank);",
+    "old": "  return !!r && !r.dread && willMatters(r.rank) && !willBroken(f.entity._feud);",
+    "new": "  return !!r && !r.dread && willMatters(r.rank);",
     "tests": [
       "test/systems/rvn3_weak.test.js"
     ]
@@ -319,11 +319,12 @@
   {
     "name": "RVN3-the-street-kneels-unbroken",
     "file": "src/scenes/exteriorFoes.js",
-    "old": "if (revenantWillHolds(f)) tearAway(f); else yieldFoe(f); return; }",
+    "old": "if (!ownersWholeKill(_whole, { fromPlayer, peer }) && revenantWillHolds(f)) tearAway(f); else yieldFoe(f); return; }",
     "new": "yieldFoe(f); return; }",
     "tests": [
       "test/systems/rvn3_weak.test.js"
-    ]
+    ],
+    "note": "FIELD BUGS 2026-10-17g RVN-OWN-KNEEL (PIN MOVED): re-aimed by content - the owner's own whole blow passes the stand and the will and kneels it; the yield gate asks ownersWholeKill of the will alone."
   },
   {
     "name": "RVN3-the-street-tear-touchable",
@@ -373,11 +374,12 @@
   {
     "name": "RVN3-the-dungeon-kneels-unbroken",
     "file": "src/scenes/dungeonContext.js",
-    "old": "if (revenantWillHolds(foe)) tearAwayDungeonFoe(foe); else yieldDungeonFoe(foe); return; }",
+    "old": "if (!ownersWholeKill(_whole, { fromPlayer, peer }) && revenantWillHolds(foe)) tearAwayDungeonFoe(foe); else yieldDungeonFoe(foe); return; }",
     "new": "yieldDungeonFoe(foe); return; }",
     "tests": [
       "test/systems/rvn3_weak.test.js"
-    ]
+    ],
+    "note": "FIELD BUGS 2026-10-17g RVN-OWN-KNEEL (PIN MOVED): re-aimed by content - the owner's own whole blow passes the stand and the will and kneels it; the yield gate asks ownersWholeKill of the will alone."
   },
   {
     "name": "RVN3-the-dungeon-tear-touchable",

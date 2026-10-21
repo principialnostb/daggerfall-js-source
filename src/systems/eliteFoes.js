@@ -26,8 +26,9 @@ import { applyRarity, rarityEligible, rarityChances, championSource, corpseSourc
 import { goldStack } from './inventory.js';
 import { isAmmunition } from './item/itemTemplates.js';
 import { KNIGHT_CITY_WATCH } from '../characters/mobile/mobileTypes.js';   // ELITE-FLOOR: the watch is never an elite
-import { ENEMY_BASICS } from '../characters/enemy/enemyBasics.js';   // ELITE-FLOOR: a kind's own level, the same on every client
+import { ENEMY_BASICS, isClassEnemyId } from '../characters/enemy/enemyBasics.js';   // ELITE-FLOOR: a kind's own level, the same on every client
 import { renownOpens } from './sigil/sigil.js';   // RENOWN-GATE: the page's Renown, the door every Renown-woken power reads
+import { markUnquiet } from './revenant/unquietMark.js';   // UNQUIET (Revenants.md section 46): one elite in four carries the mark - its own, never a puppet's
 
 /** Health and damage, times the foe's own (rolled, before any Elite Dungeon doubling - an elite is 5x, not 10x). */
 export const ELITE_FOE_HEALTH_MULT = 5;
@@ -116,6 +117,7 @@ export function promoteEliteFoe(entity, { own = true, eliteDungeon = false, supe
   }
   const prior = Number.isFinite(entity.damageScale) && entity.damageScale > 0 ? entity.damageScale : 1;
   entity.damageScale = prior * (superDungeon ? ELITE_FOE_SUPER_DUNGEON_DAMAGE_MULT : eliteDungeon ? ELITE_FOE_ELITE_DUNGEON_DAMAGE_MULT : ELITE_FOE_DAMAGE_MULT);   // SD4a: a Super dungeon's
+  if (own) markUnquiet(entity);   // UNQUIET: the mark that lets it rise, drawn on its own
   return true;
 }
 
@@ -160,7 +162,7 @@ export function pickDungeonElites(enemies, key, { elite = true, count = null, cl
   // AUDIT BAL (bible/05-Combat/Balance-Arc.md section 10): `classLevel` the level this dungeon's class foes are built
   // at - offline one client builds them, so the host hands it and a new character's level-1 Knight is no elite; online
   // it stays Infinity (each client builds its own, and the pick must be every client's)
-  const kindLevel = (t) => (t >= 128 ? classLevel : (ENEMY_BASICS[t]?.level ?? 0));
+  const kindLevel = (t) => (isClassEnemyId(t) ? classLevel : (ENEMY_BASICS[t]?.level ?? 0));
   enemies.forEach((e, i) => { if (e && !e.allied && e.reaction !== 'passive' && e.champion == null && kindLevel(e.mobileType) >= ELITE_FOE_MIN_LEVEL) pool.push(i); });   // never a LOOT7 champion (systems/champions.js; its trait index, 0 a trait too) - one or the other
   let n = 0;
   while (n < want && pool.length) {

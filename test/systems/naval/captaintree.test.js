@@ -180,7 +180,7 @@ test('CAPTAIN-TREE the exchange: the captain\'s `trade` closes a share of the sp
   assert.deepEqual(exchangeOf(port, day, {}, 9).map((r) => [r.sell, r.buy]), exchangeOf(port, day, {}, TRADE_MOST).map((r) => [r.sell, r.buy]), 'the cap');
   assert.equal(TRADE_MOST, 0.75);
   const office = rd('src/scenes/harbourOffice.js');
-  assert.equal(office.split('exchangeOf(port, day, L.dealtAt(port.key, day), L.stats?.().trade)').length - 1, 3, 'the board, a purchase and a sale read the same prices');
+  assert.equal(office.split('exchangeOf(port, day, L.dealtAt(port.key, day), L.stats?.().trade, townAt(port))').length - 1, 3, 'the board, a purchase and a sale read the same prices');   // PIN MOVED (SEA-TRADE): and the port town's factors
 });
 
 test('CAPTAIN-TREE the hosts read the stars where the ship\'s own numbers are read: the sea fight\'s worth, aim, my shot and its fire, my ram and its foul; Come Sail Away\'s oars and helm through the refit seam; the Fleet\'s refit a ship of mine\'s alone (PIN: the seams)', () => {
@@ -293,7 +293,7 @@ test('REFIT-ORES the refit\'s words, the Fleet page\'s and the shipyard\'s: her 
   assert.equal(w.name, 'Guns III');
   assert.equal(w.gain, 'Broadside damage: +24% now, +28% with the next refit.');
   assert.equal(w.asks, 'Next: 6,000 gold, 4 Steel (you have 4), 10 Iron (you have 12).');
-  assert.match(w.melt, /Melts down weapons and armour you carry for 1 Steel/);
+  assert.match(w.melt, /Melts down weapons and armor you carry for 1 Steel/);
   assert.equal(w.lock, 'Needs captain level 3.');
   const done = refitRowWords({ ...row, tier: 12, share: 0.6, next: null });
   assert.deepEqual(done, { name: 'Guns XII', gain: 'Broadside damage: +60%.', asks: null, melt: null, lock: null });
@@ -312,8 +312,8 @@ test('CAPTAIN-TREE the window\'s words: every star named, its half and kind; a s
   assert.deepEqual(starLines(starOf('m_wind')), [{ text: 'Speed under sail +12%', neg: false }, { text: 'Speed under oars -12%', neg: true }]);
   assert.deepEqual(skySummary(['helm', 'c_rel1', 'm_hold1']).map((l) => l.key), ['cargo', 'reload'], 'CAPTAIN_STATS\' order');
   assert.equal(starRefusal(['helm'], 'm_way1', 1), null);
-  assert.equal(starRefusal(['helm'], 'm_wind', 3), 'Reaching this star costs 5 points. You have 3. You get one point per captain level.');
-  assert.equal(starRefusal(['helm'], 'm_way1', 0), 'Reaching this star costs 1 point. You have 0. You get one point per captain level.');
+  assert.equal(starRefusal(['helm'], 'm_wind', 3), 'Reaching this star costs 5 points. You have 3. You get one point per captain level after the first.');
+  assert.equal(starRefusal(['helm'], 'm_way1', 0), 'Reaching this star costs 1 point. You have 0. You get one point per captain level after the first.');
   assert.equal(starRefusal(['helm'], 'nope', 9), 'Unknown star.');
   assert.equal(starRefusal(['helm', 'm_way1'], 'm_way1', 0), null, 'held');
 });
@@ -373,7 +373,7 @@ test('CAPTAIN-TREE the window: a star pressed sets the whole way to it while the
     w.take('c_rel1');
     assert.deepEqual(w.model().changes, { added: 2, removed: 0 });
     assert.equal(w.tryClose(), false, 'asked first');
-    assert.match(f.text(host), /You have changes that aren't accepted/);
+    assert.match(f.text(host), /You have unaccepted changes\. Press Accept to keep them, or close again to discard them\./);
     w.accept();
     assert.deepEqual(L.tree(), ['helm', 'm_way1', 'c_rel1']);
     assert.equal(changed, 1);

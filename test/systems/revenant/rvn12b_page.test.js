@@ -30,7 +30,7 @@ const { modSaveRecords, restoreModSaveRecords } = await import('../../../src/sys
 const read = (p) => readFileSync(new URL(`../../../${p}`, import.meta.url), 'utf8');
 const me = { isPlayer: true, name: 'Ayla Stormwind', characterId: 'char-rvn12b', level: 8, items: [] };
 beforeEach(() => { _resetForTests(); setPref('lootRarity', true); N._resetRevenantForTests(); _store.clear(); });
-const made = (deedName = 'fled', opts = {}) => N.revenantDeed(me, { mobileType: M.Orc, level: 6, champion: 'mighty', health: 5, maxHealth: 50, team: 'Monster' }, deedName, { mobileType: M.Orc, rolls: () => 0, ...opts });
+const made = (deedName = 'fled', opts = {}) => N.revenantDeed(me, { mobileType: M.Orc, level: 6, champion: 'mighty', unquiet: true, health: 5, maxHealth: 50, team: 'Monster' }, deedName, { mobileType: M.Orc, rolls: () => 0, ...opts });
 function draw() {
   const nodes = [];
   const el = (tag, cls = '', text = '') => {
@@ -53,10 +53,10 @@ test('RVN12b WHAT IT LEARNED: chips, each its name and what it does, oldest firs
 
 test('RVN12b WHAT IT TOOK, ITS FESTERING, A SWORN ONE\'S LOYALTY: in words - each piece by its pack name; three pips, filled by its wrath (none without one); its loyalty and its word (mutants: a piece unnamed; the pips unfilled; the word wrong)', () => {
   const a = createWeapon(W.Longsword, 1, () => 0.5), b = createWeapon(W.Dagger, 1, () => 0.5);
-  assert.equal(PG.tookWords({ took: [a] }), `Took: your ${itemLongName(a)} - take it back from it.`);
-  assert.equal(PG.tookWords({ took: [a, b] }), `Took: your ${itemLongName(a)} and ${itemLongName(b)} - take them back from it.`);
+  assert.equal(PG.tookWords({ took: [a] }), `Took: your ${itemLongName(a)}. Take it back from it.`);
+  assert.equal(PG.tookWords({ took: [a, b] }), `Took: your ${itemLongName(a)} and ${itemLongName(b)}. Take them back from it.`);
   assert.equal(PG.tookWords({ took: [] }), '');
-  assert.deepEqual(PG.festerPips({ wrath: 2 }), { filled: 2, of: 3, words: 'Festering: 2 of 3 - it grows stronger the longer you leave it.' });
+  assert.deepEqual(PG.festerPips({ wrath: 2 }), { filled: 2, of: 3, words: 'Festering: 2 of 3. It grows stronger the longer you leave it.' });
   assert.deepEqual(PG.festerPips({ wrath: 9 }).filled, 3);
   assert.equal(PG.festerPips({}).words, '');
   assert.equal(PG.swornLoyaltyWords({ companion: { loyalty: 92 } }), 'Loyalty: 92 - Devoted.');
@@ -74,7 +74,7 @@ test('RVN12b AN ESCAPE UNBROKEN: the deed remembers it (through the save), the p
   assert.equal(PG.historyWords({ deed: 'fled', at: 1 }), 'escaped');
   assert.equal(made('fled', { now: 70 }).history.at(-1).unbroken, undefined);
   for (const [file, arch] of [['src/scenes/exteriorFoes.js', 'f.archive'], ['src/scenes/dungeonContext.js', 'f.mobileArchive']]) {
-    assert.ok(read(file).includes(`revenantDeed(playerEntity, f.entity, 'fled', { mobileType: f.mobileType, gender: f.gender, rec: f, archive: ${arch}, unbroken });`), file);
+    assert.ok(read(file).includes(`revenantDeed(playerEntity, f.entity, 'fled', { mobileType: f.mobileType, gender: f.gender, rec: f, archive: ${arch}, unbroken, slip });`), file);   // PIN MOVED (AUDIT UNQUIET, Revenants.md section 49): and a slip, which never ascends
   }
 });
 
@@ -103,5 +103,5 @@ test('RVN12b THE CARD\'S EDGES: a last stand blood with an ember rim, a signatur
   assert.match(css, /\.rvncard\.is-signature \{ border-left-color: #a8332a; \}/);
   assert.match(css, /\.rvncard\.is-stole \{ border-left-color: #c9822e; \}/);
   assert.match(css, /\.rvncard\.is-betrayed \{ border-left-color: #0b0b0b; \}/);
-  for (const k of ['felled', 'festered', 'lair', 'weakness', 'routed', 'unbroken', 'deserted', 'warn', 'errand', 'errand_back', 'art']) assert.match(css, new RegExp(`\\.rvncard\\.is-${k}[,\\s][^{]*\\{ border-left-color`), k);   // AUDIT RVN D7: RVN-ERRAND's and RVN-ARTS' cards too
+  for (const k of ['felled', 'festered', 'lair', 'weakness', 'routed', 'unbroken', 'deserted', 'warn', 'errand', 'errand_back', 'art', 'ascended']) assert.match(css, new RegExp(`\\.rvncard\\.is-${k}[,\\s][^{]*\\{ border-left-color`), k);   // AUDIT RVN D7: RVN-ERRAND's and RVN-ARTS' cards too; UNQUIET's Dread
 });

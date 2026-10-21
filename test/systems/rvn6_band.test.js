@@ -22,6 +22,7 @@ globalThis.localStorage = {
 };
 
 const N = await import('../../src/systems/revenant/revenant.js');
+const { feudOf } = await import('../../src/systems/feudLedger.js');
 const F = await import('../../src/systems/revenant/revenantFeud.js');
 const RC = await import('../../src/systems/revenant/revenantCompanions.js');
 const S = await import('../../src/systems/companionSlots.js');
@@ -113,7 +114,7 @@ const careers = (() => {
 })();
 const stubTex = { getSize: () => ({ width: 64, height: 100 }), getScale: () => ({ width: 0, height: 0 }), recordCount: 20, getFrameCount: () => 5 };
 let portalsOpened = 0;
-function rig(p) {
+function rig(p, { fates = true } = {}) {
   const renderer = {
     createBillboardBatch: (archive, record, size) => { if (archive === 'portal' || archive === 'PORTAL' || /portal/i.test(String(archive))) portalsOpened++; return { archive, record, size, conceal: undefined, dissolve: undefined, origin: null }; },
     destroyBillboardBatch: () => {}, destroyBatch: () => {}, textures: new Map(), uploadTexture: () => ({}), uploadEmissionTexture: () => ({}),
@@ -124,17 +125,18 @@ function rig(p) {
     getTexture: async () => stubTex, uploadRecordFrame: () => {},
     currentMinute: () => 1000, currentPixelKey: () => '3,12', inLocation: () => true,
     playerEntity: p, audio: null, onPlayerHurt: () => {}, rolls: () => 0.5, rand: () => 0.9, say: (l) => said.push(l),
-    fates: true, dropLoot: () => {}, shake: () => {},
+    fates, dropLoot: () => {}, shake: () => {},
   });
 }
 const frame = (pool, n = 1) => { for (let i = 0; i < n; i++) { T += 0.016; pool.update(0.016, [0, 0, 30], [0, 1.6, 30]); } };
 const settle = async () => { for (let i = 0; i < 6; i++) await new Promise((r) => setTimeout(r, 0)); };
 function orcRecord(p, rank) {
-  const r = N.revenantDeed(p, { mobileType: M.Orc, level: 6, champion: 'mighty', health: 5, maxHealth: 50, team: 'Monster' }, 'fled', { mobileType: M.Orc, rolls: () => 0 });
+  const r = N.revenantDeed(p, { mobileType: M.Orc, level: 6, champion: 'mighty', unquiet: true, health: 5, maxHealth: 50, team: 'Monster' }, 'fled', { mobileType: M.Orc, rolls: () => 0 });
   r.rank = rank;
   if (rank >= F.SIG_RANK) r.sig = F.drawSignature(r.id, r.mobileType);   // as its rank-up draws it (RVN1's pin)
   return r;
 }
+const breakWill = (f) => { const l = feudOf(f.entity); assert.ok(l, 'its ledger open'); l.staggers = 1; };
 async function stood(p, rank, { pool = rig(p), fill = 0 } = {}) {
   for (let i = 0; i < fill; i++) await pool.spawnFoe(M.Rat, [20 + i * 2, 0, 20], { feetGiven: true });
   const r = orcRecord(p, rank);
@@ -161,11 +163,11 @@ test('RVN6 ON THE REAL STREET POOL: a rank-3 one stands with the first two of it
     assert.equal(g.entity.revenant ?? null, null);
     assert.equal(g.transient, true, 'no save carries it');
     assert.equal(foeTitle(g.entity, 'Orc'), `Orc of ${g.entity.bandName}`);
-    assert.equal(N.revenantCandidate({ ...g.entity, champion: 'mighty' }), false, 'never a revenant, whatever it wears');
+    assert.equal(N.revenantCandidate({ ...g.entity, champion: 'mighty', unquiet: true }), false, 'never a revenant, whatever it wears');
   }
   assert.equal(pool.snapshotWorld().length, 0, 'neither it nor its band in the save');
   for (const [rank, n] of [[2, 1], [4, 3], [1, 0]]) {
-    N._resetRevenantForTests();
+    N._resetRevenantForTests(); _store.clear();   // AUDIT UNQUIET: and the mirror - the deed reads it in before it counts the cap
     const s = await stood(p, rank);
     assert.equal(s.band.length, n, `rank ${rank}`);
   }
@@ -201,6 +203,7 @@ test('RVN6 THE SCATTER: its master kneels - each follower runs from it (DFU\'s f
   const p = me();
   const { pool, f, band } = await stood(p, 2);
   assert.equal(band.length, 1);
+  breakWill(f);   // UNQUIET (Revenants.md section 46): a rank-2 one's will must be broken (WILL_RANK 2) - or it tears away
   pool.damageFoe(f, 99999, [0, 0, 3], null, { fromPlayer: true });
   assert.ok(f.yielded, 'it kneels');
   const g = band[0];
@@ -216,9 +219,11 @@ test('RVN6 THE SCATTER: its master kneels - each follower runs from it (DFU\'s f
   assert.equal(g.dead, true, 'gone');
   assert.equal(g.escaped, true);
   assert.ok(!g.corpse, 'no body');
-  // a death (a Disintegrate's whole - no kneel) scatters its band too
+  // a death scatters its band too - PIN MOVED (RVN-OWN-KNEEL, FIELD BUGS 2026-10-17g: my own Disintegrate kneels it now,
+  // so the death here is a host's with no fates, exterior.js's)
   N._resetRevenantForTests(); said = [];
-  const d = await stood(p, 2);
+  const d = await stood(p, 2, { pool: rig(p, { fates: false }) });
+  breakWill(d.f);
   d.pool.damageFoe(d.f, 99999, [0, 0, 3], null, { fromPlayer: true, whole: true });
   assert.equal(d.f.dead, true);
   assert.equal(d.band[0].scattering, true);
@@ -272,7 +277,8 @@ test('RVN4 RANK 5, built with RVN6: at its last stand its band\'s survivors run 
   c.f.roaring.until -= 5000;
   frame(c.pool);   // its roar spent - blows reach it again
   c.pool.damageFoe(c.f, 99999, [0, 0, 3], null, { fromPlayer: true, whole: true });
-  assert.equal(c.f.dead, true);
+  // PIN MOVED (RVN-OWN-KNEEL, FIELD BUGS 2026-10-17g: my own kill - a Disintegrate's whole - passes the stand and the will and KNEELS it)
+  assert.ok(c.f.yielded, 'my kill kneels it - and a kneel scatters as a death does');
   assert.ok(c.pool.foes.filter((g) => g.retinueOf === c.r.id && !g.dead).every((g) => g.scattering));
   assert.equal(said.filter((l) => /scatters/.test(l)).length, 1);
 });

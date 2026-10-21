@@ -144,12 +144,12 @@ test('SCHOOLS1 THE CHOICE: two mastered schools open their path, three open thre
   assert.deepEqual(AP.pathChoices(three).map((p) => p.id), ['riftwalker', 'warden', 'necromancer']);
   assert.equal(AP.pathRefusal(three, 'seer'), 'Master Illusion and Mysticism first.');
   assert.equal(AP.choosePath(three, 'seer').ok, false);
-  assert.equal(AP.pathRefusal(three, 'nobody'), 'No such specialisation.');
+  assert.equal(AP.pathRefusal(three, 'nobody'), 'No such specialization.');
   const r = AP.choosePath(three, 'warden');
-  assert.deepEqual(r, { ok: true, text: 'Specialisation chosen: Warden.' });   // PIN MOVED (AUDIT MARTIAL L4 M1): one line the screen holds - where it is sold is the card's
+  assert.deepEqual(r, { ok: true, text: 'Specialization chosen: Warden.' });   // PIN MOVED (AUDIT MARTIAL L4 M1): one line the screen holds - where it is sold is the card's
   assert.equal(three.arcanePath, 'warden');
   assert.deepEqual(AP.pathChoices(three), [], 'chosen: nothing more open');
-  assert.deepEqual(AP.choosePath(three, 'necromancer'), { ok: false, text: 'Your specialisation is already chosen: Warden.' });
+  assert.deepEqual(AP.choosePath(three, 'necromancer'), { ok: false, text: 'Your specialization is already chosen: Warden.' });
   assert.equal(three.arcanePath, 'warden', 'permanent');
   // offline the switch: off opens nothing and refuses
   const off = mage([RES, MYS]);
@@ -163,12 +163,12 @@ test('SCHOOLS1 THE CHOICE: two mastered schools open their path, three open thre
   assert.equal(AP.nextPathChoice(ask)?.id, 'necromancer');
   ask.pathPrompted = true;
   assert.equal(AP.nextPathChoice(ask), null, 'asked once - the skill screen keeps it');
-  // the box: what it does, that it is permanent
+  // the box: what it does, and what undoing it costs
   const rows = AP.pathChoiceRows(mage([ALT, RES, MYS]), 'necromancer');
-  assert.deepEqual(rows, ['Specialise as Necromancer?', 'Restoration and Mysticism', '',
-    'Death\'s Due: Each foe you kill returns 5% of your health and 5% of your magicka.',
-    'Siphon Life (signature spell): 50% of what it lands heals you.', '', 'This decision cannot be undone.',
-    '2 other specialisations are open to you.']);
+  assert.deepEqual(rows, ['Specialize as Necromancer?', 'Restoration and Mysticism', '',   // PIN MOVED (VOICE2): American spelling
+    'Death\'s Due: Each kill restores 5% of your health and 5% of your magicka.',
+    'Siphon Life (signature spell): Heals you for 50% of the damage dealt.', '', 'Resetting it later costs 200,000 gold.',   // PIN MOVED (SPEC-RESET)
+    '2 other specializations are open to you.']);   // PIN MOVED (VOICE2): specialization (Voice.md rule 8)
   assert.equal(AP.pathChoiceRows(mage([ALT, RES, MYS]), 'necromancer', { others: false }).length, 7);
 });
 
@@ -215,6 +215,7 @@ test('SCHOOLS1 THE SAVE: the path and its one ask round-trip; an id no table hol
   assert.equal(forged.arcanePath, null, 'no such path');
   const old = structuredClone(playerEntity);
   const { arcanePath: _a, pathPrompted: _b, ...before } = snap;
+  before.career = { ...before.career }; delete before.career.arcaneMirror;   // PIN MOVED (AUDIT SPEC-RESET L2-1): a save from before the arc carries no mirror either
   restorePlayer(old, { ...before, spells: [] });   // and no book to bear witness (an older build's save with one: audit_schools)
   assert.equal(old.arcanePath, null, 'a save from before the arc');
   assert.equal(old.pathPrompted, false);

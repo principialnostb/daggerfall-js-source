@@ -24,23 +24,28 @@ const { setPref } = await import('../../../src/systems/uiPrefs.js');
 const { MOBILE_TYPES: M } = await import('../../../src/characters/mobile/mobileTypes.js');
 
 setPref('lootRarity', true);
-const orc = (over = {}) => ({ mobileType: M.Orc, level: 10, health: 60, maxHealth: 60, team: 'Monster', champion: 'mighty', ...over });
+const orc = (over = {}) => ({ mobileType: M.Orc, level: 10, health: 60, maxHealth: 60, team: 'Monster', champion: 'mighty', unquiet: true, ...over });
 const rev = (rank, over = {}) => orc({ champion: undefined, revenant: { id: `ff-${rank}`, rank }, ...over });
 const SEEDS = (n) => Array.from({ length: n }, (_, i) => 1 + i);
 const fights = (opts, n) => SEEDS(n).map((seed) => H.revenantFight({ weapon: 'Longsword', mode: 'trade', ...opts, seed }));
 
-test('FLIGHT-FIRST THE ROLL AND THE LINE: an elite or a champion runs at a fifth on 5%; a revenant under its will\'s rank at 35% on 80%; from its will\'s rank at a fifth on 15% (mutants: the young roll the old one\'s; the young line the old one\'s; the will\'s rank read as young)', () => {
+test('FLIGHT-FIRST THE ROLL AND THE LINE (UNQUIET, Revenants.md section 46): a marked elite or champion runs at 35% on 50% - an unmarked one never; a revenant under its will\'s rank (rank 1) at 35% on 80%; from its will\'s rank (2) at a fifth on 35% (mutants: the young roll the old one\'s; the young line the old one\'s; the will\'s rank read as young)', () => {
   assert.deepEqual([N.REVENANT_FLEE_HEALTH, N.REVENANT_FLEE_HEALTH_YOUNG], [0.2, 0.35]);
-  assert.deepEqual([N.REVENANT_FLEE_CHANCE, N.REVENANT_FLEE_CHANCE_YOUNG, N.REVENANT_FLEE_CHANCE_REVENANT], [0.05, 0.8, 0.15]);
-  assert.equal(F.WILL_RANK, 3);
+  // PIN MOVED (UNQUIET, Revenants.md section 46 - the owner: "more of a chance to flee instead of relying on player
+  // death"): a MARKED foe runs at the young line on 75% (it was 5% at a fifth); the will from rank 2 (it was 3), and a
+  // revenant past it on 35% (it was 15%). PIN MOVED again (AUDIT UNQUIET, section 49): a marked foe on 50%, at a bolt's
+  // pace - at 75% and the old pace births were the chaser's Speed, not the roll's
+  assert.deepEqual([N.REVENANT_FLEE_CHANCE, N.REVENANT_FLEE_CHANCE_YOUNG, N.REVENANT_FLEE_CHANCE_REVENANT], [0.5, 0.8, 0.35]);
+  assert.equal(F.WILL_RANK, 2);
   const runs = (e, roll) => N.rollRevenantFlee(e, () => roll);
-  assert.deepEqual([runs(orc(), 0.049), runs(orc(), 0.051)], [true, false], 'a champion: its very small chance');
-  for (const rank of [1, 2]) assert.deepEqual([runs(rev(rank), 0.79), runs(rev(rank), 0.81)], [true, false], `rank ${rank}: its flight is its way out`);
-  for (const rank of [3, 4, 5]) assert.deepEqual([runs(rev(rank), 0.149), runs(rev(rank), 0.151)], [true, false], `rank ${rank}: its will is`);
+  assert.deepEqual([runs(orc(), 0.499), runs(orc(), 0.501)], [true, false], 'a marked champion: one in two');
+  assert.equal(runs(orc({ unquiet: false }), 0), false, 'an unmarked one never');
+  for (const rank of [1]) assert.deepEqual([runs(rev(rank), 0.79), runs(rev(rank), 0.81)], [true, false], `rank ${rank}: its flight is its way out`);
+  for (const rank of [2, 3, 4, 5]) assert.deepEqual([runs(rev(rank), 0.349), runs(rev(rank), 0.351)], [true, false], `rank ${rank}: its will is`);
   const under = (e, share) => N.revenantFleeHealth({ ...e, health: e.maxHealth * share });
-  assert.deepEqual([under(orc(), 0.19), under(orc(), 0.21)], [true, false], 'a champion: a fifth');
-  for (const rank of [1, 2]) assert.deepEqual([under(rev(rank), 0.34), under(rev(rank), 0.36)], [true, false], `rank ${rank}: 35%`);
-  for (const rank of [3, 5]) assert.deepEqual([under(rev(rank), 0.19), under(rev(rank), 0.21)], [true, false], `rank ${rank}: a fifth`);
+  assert.deepEqual([under(orc(), 0.34), under(orc(), 0.36)], [true, false], 'a marked champion: 35% (UNQUIET - it was a fifth)');
+  for (const rank of [1]) assert.deepEqual([under(rev(rank), 0.34), under(rev(rank), 0.36)], [true, false], `rank ${rank}: 35%`);
+  for (const rank of [2, 3, 5]) assert.deepEqual([under(rev(rank), 0.19), under(rev(rank), 0.21)], [true, false], `rank ${rank}: a fifth`);
   assert.equal(under(rev(1), 0), false, 'a dead one never');
 });
 

@@ -29,7 +29,7 @@ const me = { isPlayer: true, name: 'Ayla Stormwind', characterId: 'char-feudbala
 beforeEach(() => { _resetForTests(); setPref('lootRarity', true); N._resetRevenantForTests(); _store.clear(); });
 /** A rank-`rank` revenant stood on a real entity, its pool record (`f`) as the doors hold it. */
 function stood(rank = 3) {
-  const r = N.revenantDeed(me, { mobileType: M.Orc, level: 6, champion: 'mighty', health: 5, maxHealth: 50, team: 'Monster' }, 'fled', { mobileType: M.Orc, rolls: () => 0 });
+  const r = N.revenantDeed(me, { mobileType: M.Orc, level: 6, champion: 'mighty', unquiet: true, health: 5, maxHealth: 50, team: 'Monster' }, 'fled', { mobileType: M.Orc, rolls: () => 0 });
   r.rank = rank;
   const entity = { mobileType: M.Orc, level: 6, health: 60, maxHealth: 60, team: 'Monster', items: [] };
   N.applyRevenant(entity, r);
@@ -55,11 +55,11 @@ test('FEUD BALANCE THE WILL, THROUGH THE LEDGER: a rank-3 one\'s will holds unti
   const g = stood(3);
   L.noteFeud(g.entity, 'staggers');
   assert.equal(FT.revenantWillHolds(g), false, 'my stagger broke it');
-  assert.equal(FT.revenantWillHolds(stood(2)), false, 'under rank 3 there is no will to break');
+  assert.equal(FT.revenantWillHolds(stood(1)), false, 'under rank 2 there is no will to break');   // PIN MOVED (UNQUIET, Revenants.md section 46): the will from rank 2
 });
 
 test('FEUD BALANCE THE PAGE: its will\'s rule says all three ways; its last stand its new share (mutants: the old words)', () => {
-  assert.equal(PG.willWords({ rank: 3 }), 'Its will must be broken - strike its weakness, stagger it, or dodge its blow perfectly.');
+  assert.equal(PG.willWords({ rank: 3 }), 'Its will must be broken. Strike its weakness, stagger it, or evade its blow at the last moment.');
   assert.equal(PG.lastStandWords({ rank: 4 }), 'Last stand: once a fight it rises again, at 35% of its health.');
 });
 

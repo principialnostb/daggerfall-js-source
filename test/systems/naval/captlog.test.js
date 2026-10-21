@@ -44,7 +44,7 @@ test('CAPT-LOG what a rank brings in its crown\'s harbours: the table - the ship
   assert.equal(perksOf(4, 25), RANK_PERKS[0], 'hunted: no favours');
   assert.equal(perksOf(9), RANK_PERKS[4], 'past the top, the top');
   // PIN MOVED (AUDIT CAPTAIN'S SEA B15): the discount the shipwright's repairs and powder - his stores and grog are what they cost
-  assert.equal(perkWords(RANK_PERKS[3]), 'the shipwright\'s repairs and powder 15% off - the harbour board pays 30% more, 2 more offers a day - a letter of marque - the Admiralty\'s Carrack - seasoned hands hired');
+  assert.equal(perkWords(RANK_PERKS[3]), 'the shipwright\'s repairs and powder 15% off - the harbor board pays 30% more, 2 more offers a day - a letter of marque - the Admiralty\'s Carrack - seasoned hands hired');
   assert.equal(perkWords(RANK_PERKS[0]), '');
 });
 
@@ -225,7 +225,7 @@ test('CAPT-MARQUE at sea: under a letter a RIVAL\'s lawful ship struck is the ri
   s.host._sea.get(own).ship.flag = 'Wayrest';
   s.host._charge('fire', own);
   assert.equal(s.held(), null, 'torn up');
-  assert.ok(s.log.mid.some((t) => /letter of marque is torn up/.test(t)));
+  assert.ok(s.log.mid.some((t) => /letter of marque is revoked/.test(t)));
   assert.deepEqual(s.law.crimes.at(-1), [crownRegion('Wayrest'), CRIMES.Piracy]);
   const host = rd('src/scenes/naval/navalHost.js');
   assert.match(host, /for \(const w of sea\.values\(\)\) if \(w\.ship\.cls\.faction === 'navy' && w\.ship\.flag !== signed && dist2d\(w\.ship\.pos, s\.pos\) < WITNESS_RANGE\) provoke\(w\.ship, by, clock\);/, 'the signing crown\'s navy looks on');
@@ -240,14 +240,14 @@ test('CAPT-LOG the world\'s wiring: one ledger a world host, in its own save slo
   assert.match(w, /marque: \(\) => captainLedger\.marque\(Math\.floor\(playerTicker\.ownMinutes\)\),/);
   assert.match(w, /deed: \(act, cls, o\) => \{ const r = captainLedger\.deed\(act, cls, o\); captainSay\(\); return r; \},/);
   assert.match(w, /worth: \(items\) => navalLootWorth\(items\),/);
-  assert.match(w, /captain: fleetHost \? \{ model: \(\) => captainPage\.model\(\), openStars: \(\) => captainPage\.openStars\(\) \} : null,/);   // PIN MOVED (AUDIT CAPTAIN'S SEA L15): beside the Fleet's
+  assert.match(w, /captain: fleetHost \? \{ model: \(\) => captainPage\.model\(\), openStars: \(\) => captainPage\.openStars\(\), stars: \(\) => captainPage\.stars\(\) \} : null,/);   // PIN MOVED (AUDIT CAPTAIN'S SEA L15): beside the Fleet's - PIN MOVED (GROWTH3): and the stars' deps, drawn in the Growth tab
   const host = rd('src/scenes/naval/navalHost.js');
   assert.match(host, /if \(boat\) \{ const v = boatPose\(boat\)\.velocity; deps\.captain\?\.sailed\?\.\(Math\.hypot\(v\[0\], v\[2\]\) \* Math\.min\(Math\.max\(0, dt\), FRAME_STEP_S \* FRAME_STEPS_MAX\)\); \}/);
   // PIN MOVED (AUDIT CAPTAIN'S SEA L12): the hold's own items counted, each once (the captain's own things put in and taken
   // out again were counted every pass)
   assert.match(host, /tallyPlunder\(all\.filter\(\(it\) => !left\.includes\(it\)\)\);/);
   assert.match(host, /deps\.captain\?\.note\?\.\('claimed'\);/);
-  assert.match(rd('src/ui/enhanced/enhancedMenu.js'), /captain: \(d\) => drawCaptainPage\(d, render, \{ \.\.\.kit, door: \(fn\) => \{ onAction\('handoff'\); if \(fn\(\) === false\) onAction\('resume'\); \} \}\),/);
+  assert.match(rd('src/ui/enhanced/enhancedMenu.js'), /captain: \(d\) => drawCaptainPage\(d, render, \{ \.\.\.kit, door: \(fn\) => \{ onAction\('handoff'\); if \(fn\(\) === false\) onAction\('resume'\); \}, growth: \(\) => \{ setGrowthSection\('captain'\); pauseTab = 'growth'; render\(\); \} \}\),/);   // PIN MOVED (GROWTH3): the stars' button goes to the Growth tab
 });
 
 /** The player's boat wrecked where a pirate alongside boards her at once (navaudit_boarding.test.js's own). */

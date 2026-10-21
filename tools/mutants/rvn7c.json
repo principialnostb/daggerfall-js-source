@@ -146,8 +146,8 @@
   {
     "name": "RVN7c-abandon-unsaved",
     "file": "src/systems/revenant/revenant.js",
-    "old": "  r.lairKnown = false;\n  touch(r);\n  persist();\n  return true;",
-    "new": "  r.lairKnown = false;\n  touch(r);\n  return true;",
+    "old": "  r.lairKnown = false;\n  r.trail = 0;   // AUDIT UNQUIET: and its trail with it - the page said \"find it there\" of a lair it no longer named\n  touch(r);\n  persist();\n  return true;",
+    "new": "  r.lairKnown = false;\n  r.trail = 0;   // AUDIT UNQUIET: and its trail with it - the page said \"find it there\" of a lair it no longer named\n  touch(r);\n  return true;",
     "tests": [
       "test/systems/rvn7c_map.test.js"
     ]
@@ -309,7 +309,7 @@
   {
     "name": "RVN7c-page-off-the-map",
     "file": "src/ui/revenant/revenantPage.js",
-    "old": "  return r.lairKnown ? `Lair: ${r.lair.name} - on your map.` :",
+    "old": "  return r.lairKnown ? `Lair: ${r.lair.name}, marked on your map.` :",
     "new": "  return r.lairKnown ? `Lair: ${r.lair.name}.` :",
     "tests": [
       "test/systems/rvn7c_map.test.js"

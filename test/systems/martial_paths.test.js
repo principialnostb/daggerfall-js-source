@@ -186,13 +186,13 @@ test('MARTIAL1 THE CHOICE: two weapon skills mastered open their path; the choic
   assert.equal(AP.choosePath(sw, 'bloodmage').ok, true);
   assert.equal(MP.chooseMartialPath(sw, 'blademaster').ok, true, 'the arcane path closes nothing of the martial');
   assert.equal(AP.pathHeld(sw)?.id, 'bloodmage'); assert.equal(MP.martialHeld(sw)?.id, 'blademaster');
-  // the words: the box's rows, its two skills, its permanence, each path's numbers in its own words
+  // the words: the box's rows, its two skills, its reset's price, each path's numbers in its own words
   const rows = MP.martialChoiceRows(fighter([LB, AR]), 'ranger');
-  assert.equal(rows[0], 'Martial specialisation: Ranger?'); assert.equal(rows[1], 'Long Blade and Archery');   // PIN MOVED (AUDIT MARTIAL L4 L4): never the arcane ask's words
-  assert.ok(rows.includes('This decision cannot be undone.'));
-  assert.match(MP.martialPowerRows(MP.MARTIAL_BY_ID.vanguard).join(' '), /10% lighter.*Judgement \(signature technique\).*8 metres.*2\.5 metres.*4% of your health.*3 foes/);
-  assert.match(MP.martialPowerRows(MP.MARTIAL_BY_ID.berserker).join(' '), /Below 50%.*20% harder.*10%.*Savage Whirl.*3 metres.*8 seconds, 10%/);
-  assert.match(MP.martialOpenRows([MP.MARTIAL_BY_ID.ranger, MP.MARTIAL_BY_ID.vanguard]).join(' '), /2 martial specialisations are open to you: Ranger, Vanguard/);
+  assert.equal(rows[0], 'Martial specialization: Ranger?'); assert.equal(rows[1], 'Long Blade and Archery');   // PIN MOVED (AUDIT MARTIAL L4 L4): never the arcane ask's words
+  assert.ok(rows.includes('Resetting it later costs 200,000 gold.'));   // PIN MOVED (SPEC-RESET): the paid reset's price, where it said permanent
+  assert.match(MP.martialPowerRows(MP.MARTIAL_BY_ID.vanguard).join(' '), /10% less damage.*Judgement \(signature technique\).*8 meters.*2\.5 meters.*4% of your health.*3 enemies/);
+  assert.match(MP.martialPowerRows(MP.MARTIAL_BY_ID.berserker).join(' '), /Below 50%.*20% more damage.*10%.*Savage Whirl.*3 meters.*8 seconds.*10%/);
+  assert.match(MP.martialOpenRows([MP.MARTIAL_BY_ID.ranger, MP.MARTIAL_BY_ID.vanguard]).join(' '), /2 martial specializations are open to you: Ranger, Vanguard/);   // PIN MOVED (VOICE2): specialization (Voice.md rule 8)
 });
 
 test('MARTIAL1 THE SAVE: the martial path and its one ask round-trip beside the arcane path; an id no table holds reads as none; a save from before the arc has none (mutants: the path dropped on save; an unknown id kept)', () => {
@@ -603,9 +603,8 @@ test('MARTIAL THE SEAMS: every host\'s rig registers the powers; the one ask, th
   assert.match(shared, /entity\.martialPrompted = true;/);
   const sheet = src('src/ui/charsheet.js');
   assert.match(sheet, /action === 'KeyW' \|\| action === 'w'\)\) \{ this\._martialPrompt\(\); return; \}/);
-  const menu = src('src/ui/enhanced/enhancedMenu.js');
-  assert.match(menu, /if \(mt\) specCard\(detail, \{ title: t\('pause\.master\.martial\.title', 'Martial Specialisation'\)/);
-  assert.match(src('src/ui/enhanced/enhancedCharSheet.js'), /choose: \(id\) => chooseMartialPath\(e, id\),/);
+  // PIN MOVED (GROWTH2, bible/10-UI/Growth.md section 5): the enhanced card is the Growth tab's guide, reading the same law
+  assert.match(src('src/ui/growth/specGuide.js'), /pair: \(p\) => p\.skills, pairText: martialSkillsText, ask: \(e, id\) => martialChoiceRows\(e, id\), choose: chooseMartialPath,/);
   assert.match(src('src/combat/playerWeapon.js'), /if \(techOn\(foe\)\) tellTechniqueLanded\(tb, foe, blow\);/);
   assert.match(src('src/combat/arrowFlight.js'), /if \(m\.technique && !playerBody\(foe\)\) tellTechniqueLanded\(m\.technique, foe, dmg\);/);
   // BAL10: both mods' arms hand the swing reader's word on, and the sheet's estimate reads the fists' modifiers as the cores do

@@ -11,7 +11,7 @@
   {
     "name": "FLIGHT-FIRST-young-line-the-old-ones",
     "file": "src/systems/revenant/revenant.js",
-    "old": "(youngRevenant(entity) ? REVENANT_FLEE_HEALTH_YOUNG : REVENANT_FLEE_HEALTH)",
+    "old": "(!entity.revenant || youngRevenant(entity) ? REVENANT_FLEE_HEALTH_YOUNG : REVENANT_FLEE_HEALTH)",
     "new": "REVENANT_FLEE_HEALTH",
     "tests": [
       "test/systems/revenant/flightfirst.test.js"
@@ -56,7 +56,7 @@
   {
     "name": "FLIGHT-FIRST-the-pace-unpassed",
     "file": "src/systems/revenant/revenant.js",
-    "old": "f.ai.flee(feet, REVENANT_FLEE_SECONDS, REVENANT_FLEE_PACE);",
+    "old": "f.ai.flee(feet, REVENANT_FLEE_SECONDS, f.entity.revenant ? craftPace(craft, REVENANT_FLEE_PACE) : REVENANT_FLEE_PACE_MARKED);",
     "new": "f.ai.flee(feet, REVENANT_FLEE_SECONDS);",
     "tests": [
       "test/systems/revenant/flightfirst.test.js"

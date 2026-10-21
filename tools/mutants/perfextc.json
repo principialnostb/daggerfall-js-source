@@ -531,11 +531,12 @@
  {
   "name": "PERF-EXT24-a-lent-slice-is-counted-in-every-sample-after",
   "file": "src/systems/frameClock.js",
-  "old": "  lent = 0;\n  open = null;",
-  "new": "  open = null;",
+  "old": "  lent = 0;\n  const stamp = open;",
+  "new": "  const stamp = open;",
   "tests": [
    "test/systems/buildslice.test.js"
-  ]
+  ],
+  "note": "AUDIT FB1018D L2-1 (re-aimed by content): the frame's stamp is kept between the two lines now."
  },
  {
   "name": "PERF-EXT24-the-interval-is-the-mean-a-hitch-drags",
@@ -586,8 +587,8 @@
  {
   "name": "PERF-EXT24-the-stream-never-ends-so-its-age-guard-trips-at-once-next-time",
   "file": "src/scenes/world.js",
-  "old": "    if (!queue.length) _streamSince = null;   // PERF-EXT24: and ends with the queue",
-  "new": "    // PERF-EXT24: and ends with the queue",
+  "old": "    if (!state.owes(queue)) _streamSince = null;   // PERF-EXT24: and ends with the queue (QUEUE-OWED: with what it still owes)",
+  "new": "    // PERF-EXT24: and ends with the queue (QUEUE-OWED: with what it still owes)",
   "tests": [
    "test/systems/buildslice.test.js"
   ]
@@ -911,8 +912,8 @@
  {
   "name": "PERF-EXT24-review-awaited-is-inferred-from-an-idle-pump-again",
   "file": "src/scenes/world.js",
-  "old": "awaited: _awaitedBuilds > 0 }),",
-  "new": "awaited: _streamSince == null }),",
+  "old": "awaited: _awaitedBuilds > 0, overworld: !!travelView?.active }),",
+  "new": "awaited: _streamSince == null, overworld: !!travelView?.active }),",
   "tests": [
    "test/systems/buildslice.test.js"
   ]
