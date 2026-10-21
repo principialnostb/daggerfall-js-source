@@ -2362,7 +2362,7 @@ async function buildTpBody({
     // parsed hit/stagger/death groups; unrelated locomotion, attack and idle groups
     // stay owned by their existing sources. The choice is opt-in and actor-rig scoped.
     if (!werewolf && !beast && modSetting('morrowind-animation', 'NpcHitReactionSource') === 1) {
-      const reactionAssets = await loadHitReactionAssets();
+      const reactionAssets = await loadHitReactionAssets({ female });
       for (const asset of reactionAssets) {
         const report = await cachedClipReport(gen, skeletonPath, asset.name, () => asset.bytes, arm.skeleton);
         if (!report.ok) {
