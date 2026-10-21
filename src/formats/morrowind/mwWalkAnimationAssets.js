@@ -307,11 +307,11 @@ export function selectOpenMWDynamicAnimationVariants(assets, seed = '') {
     // keep the general base15 gait unless no compatible base15 exists.
     if (group === 'walkforward') {
       const preferred = [
-        /walkforward_base15[;.]?kf$/i,
-        /walkforward_mw15[;.]?kf$/i,
-        /walkforward_base13[;.]?kf$/i,
-        /walkforward_base11[;.]?kf$/i,
-        /walkforward_dirn15[;.]?kf$/i,
+        /walkforward_base15;?\.kf$/i,
+        /walkforward_mw15;?\.kf$/i,
+        /walkforward_base13;?\.kf$/i,
+        /walkforward_base11;?\.kf$/i,
+        /walkforward_dirn15;?\.kf$/i,
       ];
       const chosen = preferred.map((pattern) => candidates.find((asset) => pattern.test(String(asset.name)))).find(Boolean);
       if (chosen) { selected.push(chosen); continue; }
