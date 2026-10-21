@@ -355,11 +355,24 @@ export async function loadOpenMWDynamicThirdPersonAnimationAssets({ skeletonPath
   return result;
 }
 
-/** OpenMW Hit Reactions' stagger-to-anything recovery rule: cubicOut over 0.5 s. */
-export function hitReactionRecoveryBlend(fromSource, progress) {
-  if (fromSource?.animationPack !== 'hit-reactions-v2' || fromSource?.reactionKind !== 'stagger') return null;
+/** OpenMW Hit Reactions' per-KF entry and stagger-recovery transition rules. */
+export function hitReactionTransitionBlend(fromSource, toSource, progress) {
   const t = Math.max(0, Math.min(1, Number(progress) || 0));
-  return { duration: 0.5, weight: 1 - Math.pow(1 - t, 3) };
+  if (toSource?.animationPack === 'hit-reactions-v2') {
+    // xHitReact.yaml: sineOut/0.1 s; every stagger/death KF's own YAML: sineOut/0.08 s.
+    const duration = toSource.reactionKind === 'hit' ? 0.1 : 0.08;
+    return { duration, easing: 'sineOut', weight: Math.sin(t * Math.PI / 2) };
+  }
+  if (fromSource?.animationPack === 'hit-reactions-v2' && fromSource?.reactionKind === 'stagger') {
+    // animation-config.yaml: stagger* -> * uses cubicOut/0.5 s.
+    return { duration: 0.5, easing: 'cubicOut', weight: 1 - Math.pow(1 - t, 3) };
+  }
+  return null;
+}
+
+/** Backwards-compatible helper for callers/tests concerned only with recovery. */
+export function hitReactionRecoveryBlend(fromSource, progress) {
+  return hitReactionTransitionBlend(fromSource, null, progress);
 }
 
 /** The target group consumed by the existing combat state machine. */
