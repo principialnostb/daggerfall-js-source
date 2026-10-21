@@ -36,7 +36,7 @@ test('MW-ANIM-PACKS: unknown and non-animation files never acquire a gameplay fa
 test('MW-ANIM-PACKS: every new pack has explicit domains and an honest inactive status', () => {
   assert.equal(ANIMATION_PACK_PROVIDERS.length, 3);
   assert.deepEqual(ANIMATION_PACK_PROVIDERS.map((provider) => provider.status), [
-    'present-unintegrated', 'present-unintegrated', 'present-unintegrated',
+    'present-unintegrated', 'present-unintegrated', 'needs-validation',
   ]);
   assert.ok(ANIMATION_PACK_PROVIDERS.every((provider) => provider.id && provider.domains.length));
 });
@@ -53,6 +53,10 @@ test('MW-ANIM-PACKS: unresolved providers fall back to Vanilla rather than winni
   const wrongDomain = resolveAnimationPackProvider('animation.player.firstPerson.attack', 'hit-reactions-v2.reactions');
   assert.equal(wrongDomain.effective, 'vanilla');
   assert.equal(wrongDomain.fallback, true);
+  const reaction = resolveAnimationPackProvider('animation.actor.hitReaction', 'hit-reactions-v2.reactions');
+  assert.equal(reaction.effective, 'hit-reactions-v2.reactions');
+  assert.equal(reaction.fallback, false);
+  assert.match(reaction.reason, /visual, timing, and skeleton compatibility/);
 });
 
 test('MW-ANIM-PACKS: reaction variants use a sorted deterministic candidate list', () => {
