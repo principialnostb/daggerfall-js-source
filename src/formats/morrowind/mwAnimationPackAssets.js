@@ -96,7 +96,7 @@ export const ANIMATION_PACK_PROVIDERS = Object.freeze([
     packId: PACKS.dynamic,
     domains: Object.freeze(['animation.player.walk', 'animation.npc.walk', 'animation.npc.idle']),
     status: 'needs-validation',
-    reason: 'Forward-walk variants and NPC Idle2/Idle3/Idle6 clips are wired with stable per-actor selection; backward/side movement, sneak/run, player idle, speed caps, and race-specific OpenMW behavior remain unported.',
+    reason: 'Forward-walk variants and NPC Idle2/Idle3/Idle6 clips are wired with stable per-actor selection; backward/side movement, sneak/run, first-person idle, speed caps, and race-specific OpenMW behavior remain unported.',
   }),
   Object.freeze({
     id: 'hit-reactions-v2.reactions',
