@@ -33,7 +33,7 @@ export function animationPackFamily(packId, path) {
   if (packId === PACKS.reanimation) {
     if (/movement|runbounce|runforward|walkforward|sneakmovement|sneakidle|jump/.test(name)) return 'locomotion';
     if (/idle|guard|torch|tension/.test(name)) return 'idle';
-    if (/chop|slash|thrust|shoot|strike|attack|recoil|altattacks|handtohand|crossbow|bow/.test(name)) return 'combat';
+    if (/chop|slash|thrust|shoot|strike|attack|recoil|altattacks|handtohand|crossbow|bow|thrownknife|thrownstar/.test(name)) return 'combat';
     if (/equneq|equip|unequip|throw/.test(name)) return 'actions';
     return 'other';
   }
