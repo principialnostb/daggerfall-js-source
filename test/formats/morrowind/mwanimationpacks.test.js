@@ -77,7 +77,7 @@ test('MW-ANIM-PACKS: hit reaction assets safely fall back to no bundled data out
 });
 
 test('MW-ANIM-PACKS: ReAnimation maps only known weapon families to canonical clip sets', () => {
-  assert.deepEqual(reAnimationPrefixesForWeaponGroup('1s'), ['xdagger']);
+  assert.deepEqual(reAnimationPrefixesForWeaponGroup('1s'), ['xdagger', 'x1s']);
   assert.deepEqual(reAnimationPrefixesForWeaponGroup('2c'), ['x2c']);
   assert.deepEqual(reAnimationPrefixesForWeaponGroup('crossbow'), ['xcrossbow']);
   assert.deepEqual(reAnimationPrefixesForWeaponGroup('hh'), ['xh2h', 'xhh']);
