@@ -61,7 +61,7 @@ const entries = Object.entries(FILES)
     const packId = Object.keys(ROOTS).find((id) => lowerPath.includes(normalize(ROOTS[id])));
     if (!packId) return null;
     const relativePath = normalizedPath.slice(normalizedPath.toLowerCase().indexOf(ROOTS[packId].toLowerCase()) + ROOTS[packId].length);
-    const skeleton = relativePath.split('/')[0].toLowerCase();
+    const skeleton = packId === PACKS.reanimation ? 'xbase_anim.1st' : relativePath.split('/')[0].toLowerCase();
     return {
       packId,
       path: normalizedPath,
