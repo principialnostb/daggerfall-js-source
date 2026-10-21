@@ -19,7 +19,7 @@ import { assembleFirstPersonArm, poseAssembly } from '../../src/formats/morrowin
 import { composeWornArmor, composeWornModest, fpWornAdds, itemMapCoverage, mwItemReport, CLOTHING_NAME, DF_CLOTHING_DYE_RGB } from '../../src/formats/morrowind/mwItemMap.js';
 import { ARMOR_MATERIAL } from '../../src/systems/armorMaterials.js';
 import { CLASSIC_ARMOR_TEMPLATE } from '../../src/characters/ownModels/ownArmorModels.js';
-import { CLOAK_NAMES, CLOAK_PAINTINGS, CLOAK_DYE_PAINTING, ownCloakFor, ownCloakModelPaths, cloakModel, isCloakSlot } from '../../src/characters/ownModels/ownClothingModels.js';
+import { CLOAK_NAMES, CLOAK_PAINTINGS, CLOAK_DYE_PAINTING, ownCloakFor, ownCloakModelPaths, cloakModel, simplyCloakModel, SIMPLY_CLOAK_MODEL_PATHS, isCloakSlot } from '../../src/characters/ownModels/ownClothingModels.js';
 import { CLOAK_CLEARANCE, CLOAK_PUSH_LIMIT, HIP_PITCH_LIMIT, SLUNG_PITCH_LIMIT, cloakSheet, sheetCellKey, fitCloakOver, fitStowedGear, surfaceSamples } from '../../src/formats/morrowind/mwCloakFit.js';
 import { readPng } from '../../tools/pngIO.mjs';
 import { readFbx } from '../../tools/fbxRead.mjs';
@@ -94,7 +94,9 @@ test('MW-CAPE-RIGID: the cloak is its object in the scene\'s placement (smoothed
 test('MW-CLOAK1: the Casual and Formal Cloak, a man\'s and a woman\'s, wear it in their dye\'s painting - Aquamarine the blue, Yellow the light brown - claiming no slot and hiding nothing; one cloak drawn of two', () => {
   assert.deepEqual(Object.entries(CLOTHING_NAME).filter(([, n]) => CLOAK_NAMES.includes(n)).map(([i]) => Number(i)), [154, 155, 191, 192]);
   assert.equal(CLOAK_DYE_PAINTING.length, DF_CLOTHING_DYE_RGB.length);
-  assert.deepEqual(CLOAK_DYE_PAINTING.map((p, dye) => ownCloakFor({ kind: 'clothing', name: 'Formal Cloak', dye }).model), CLOAK_DYE_PAINTING.map(cloakModel));
+  assert.deepEqual(CLOAK_DYE_PAINTING.map((p, dye) => ownCloakFor({ kind: 'clothing', name: 'Formal Cloak', dye }).model), CLOAK_DYE_PAINTING.map(simplyCloakModel));
+  assert.deepEqual(SIMPLY_CLOAK_MODEL_PATHS.map((p) => p.split('/').pop()), CLOAK_DYE_PAINTING.filter((p, i, a) => a.indexOf(p) === i).map(simplyCloakModel).filter((p, i, a) => a.indexOf(p) === i));
+  assert.equal(ownCloakFor({ kind: 'clothing', name: 'Formal Cloak', dye: 0 }, { style: 'classic' }).model, 'cloak_blue.nif');
   assert.equal(ownCloakFor({ kind: 'clothing', name: 'Casual Cloak', dye: 7 }).painting, 'blue', 'Aquamarine');
   assert.equal(ownCloakFor({ kind: 'clothing', name: 'Casual Cloak', dye: 8 }).painting, 'light_brown', 'Yellow');
   assert.equal(ownCloakFor({ kind: 'clothing', name: 'Casual Cloak', dye: 99 }).painting, 'blue', 'a dye out of range wears Daggerfall\'s default');
@@ -107,7 +109,7 @@ test('MW-CLOAK1: the Casual and Formal Cloak, a man\'s and a woman\'s, wear it i
   assert.deepEqual(cloaked.shadows, plate.shadows);
   assert.deepEqual(cloaked.notes, []);
   const add = cloaked.adds.at(-1);
-  assert.deepEqual({ ...add, piece: null }, { slot: 'cloak (daggerfall_cloak)', partName: 'cloak', bones: [], model: 'cloak_red.nif', recordId: 'daggerfall_cloak', piece: null });
+  assert.deepEqual({ ...add, piece: null }, { slot: 'cloak (daggerfall_cloak)', partName: 'cloak', bones: [], model: 'common_cape_red_skins.nif', recordId: 'daggerfall_cloak', piece: null });
   assert.equal(add.piece, CLOAK);
   assert.ok(isCloakSlot(add.slot) && !isCloakSlot('cuirass (daggerfall_steel_cuirass)'));
   assert.deepEqual(fpWornAdds(cloaked.adds), fpWornAdds(plate.adds), 'the first person never draws it');

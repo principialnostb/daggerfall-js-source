@@ -27,16 +27,31 @@ export const CLOAK_DYE_PAINTING = Object.freeze(['blue', 'grey', 'red', 'dark_br
 
 export const cloakModel = (painting) => `cloak_${painting}.nif`;
 
-/** The cloak a worn garment wears - `{ id, model, painting }` - or null for every garment that is not a cloak. A dye
- *  out of range wears the first (Daggerfall's own default, Blue). */
-export function ownCloakFor(piece) {
+// Simply Animated Cloaks, ported into this app's own asset archive. These are the actual skinned meshes
+// shipped by the mod, not the OpenMW Lua scripts: the renderer binds their skin to the live Morrowind rig.
+export const SIMPLY_CLOAK_MODEL_BY_PAINTING = Object.freeze({
+  blue: 'common_cape_blue_skins.nif',
+  grey: 'common_cape_grey_skins.nif',
+  red: 'common_cape_red_skins.nif',
+  dark_brown: 'common_cape_black_skins.nif',
+  purple: 'common_cape_brwn_blue_skins.nif',
+  light_brown: 'common_cape_brown_skins.nif',
+  white: 'common_cape_03_b_skins.nif',
+  green: 'common_cape_green_skins.nif',
+});
+export const simplyCloakModel = (painting) => SIMPLY_CLOAK_MODEL_BY_PAINTING[painting] ?? SIMPLY_CLOAK_MODEL_BY_PAINTING.blue;
+export const SIMPLY_CLOAK_MODEL_PATHS = Object.freeze([...new Set(Object.values(SIMPLY_CLOAK_MODEL_BY_PAINTING))].map((p) => `meshes/${p}`));
+
+/** The worn cloak. Simply Animated is now the runtime default; pass style="classic" to retain the original ported cloak. */
+export function ownCloakFor(piece, { style = 'simply-animated' } = {}) {
   if (!piece || piece.kind !== 'clothing' || !CLOAK_NAMES.includes(piece.name)) return null;
   const painting = CLOAK_DYE_PAINTING[piece.dye | 0] ?? CLOAK_DYE_PAINTING[0];
-  return Object.freeze({ id: 'daggerfall_cloak', model: cloakModel(painting), painting });
+  const model = style === 'classic' ? cloakModel(painting) : simplyCloakModel(painting);
+  return Object.freeze({ id: 'daggerfall_cloak', model, painting });
 }
 
-/** Every mesh path the cloak can ask for - the coverage walk's (each ships, test/tooling/mwcloak1.test.js). */
-export const ownCloakModelPaths = () => CLOAK_PAINTINGS.map((p) => `meshes/${cloakModel(p)}`);
+/** All shipped cloak meshes, classic and animated, for the asset-coverage walk. */
+export const ownCloakModelPaths = () => [...CLOAK_PAINTINGS.map((p) => `meshes/${cloakModel(p)}`), ...SIMPLY_CLOAK_MODEL_PATHS];
 
 /** Is a bound piece's slot the cloak's? The composer labels the add `cloak (<id>)`, as every worn add is labelled
  *  `<part> (<record id>)`, and no part of ARMO_PART is named "cloak". */
