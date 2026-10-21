@@ -189,21 +189,32 @@ const STYLE = `
   background:#211b13;color:#e9c17d;font:700 9px/1.2 'Barlow Semi Condensed',system-ui,sans-serif;
   letter-spacing:.1em;white-space:nowrap;
 }
-#mw-appearance-editor .mw-main{grid-template-columns:minmax(0,.82fr) minmax(520px,1.18fr)}
-#mw-appearance-editor .mw-editor-shell{width:min(1600px,100%);height:min(980px,96vh)}
+#mw-appearance-editor .mw-main{grid-template-columns:minmax(0,.68fr) minmax(560px,1.32fr)}
+#mw-appearance-editor .mw-editor-shell{width:min(1760px,100%);height:min(1100px,98vh)}
 #mw-appearance-editor .mw-identity-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;padding:12px 18px;border-bottom:1px solid #303843;background:#12161b}
 #mw-appearance-editor .mw-identity-grid .mw-underwear{margin:0;min-width:0;padding:8px 10px;gap:8px;border-color:#303843;background:#1a1f25}
 #mw-appearance-editor .mw-identity-grid .mw-underwear select{margin-left:auto;max-width:64%;min-width:0;width:64%;background:#11151a;color:#e9e4d9;border:1px solid #62513a;padding:7px;font:inherit;font-size:12px;overflow:hidden;text-overflow:ellipsis}
 #mw-appearance-editor .mw-identity-grid .mw-underwear > span:first-child{min-width:0}
 #mw-appearance-editor .mw-identity-grid .mw-underwear.mw-wide{grid-column:1/-1}
-#mw-appearance-editor .mw-identity-grid .mw-experimental-toggle{grid-column:1/-1;margin-top:0;min-height:38px;padding:7px 10px;border-color:#4b4232;background:linear-gradient(#22252a,#191c21);color:#d7c6a3;box-shadow:none}
-#mw-appearance-editor .mw-experimental-toggle:hover{border-color:#a77d3c;background:linear-gradient(#2b2a27,#202126)}
-#mw-appearance-editor .mw-experimental-toggle[aria-expanded="true"]{background:#25241f;border-color:#a77d3c}
-#mw-appearance-editor .mw-slider-row{grid-template-columns:minmax(145px,1fr) minmax(150px,1.45fr) 44px;gap:12px;padding:10px 0}
-#mw-appearance-editor .mw-slider-label{font-size:13px;line-height:1.25}
-#mw-appearance-editor .mw-control-list{padding:16px 22px 22px}
-@media(max-width:850px){#mw-appearance-editor .mw-main{grid-template-columns:minmax(0,.72fr) minmax(400px,1.28fr)}#mw-appearance-editor .mw-slider-row{grid-template-columns:minmax(100px,1fr) minmax(120px,1.5fr) 42px;gap:8px}#mw-appearance-editor .mw-identity-grid{padding:10px;gap:7px}}
-@media(max-width:650px){#mw-appearance-editor .mw-main{grid-template-rows:minmax(210px,.7fr) minmax(0,1.3fr)}#mw-appearance-editor .mw-identity-grid{grid-template-columns:1fr;padding:9px 12px}#mw-appearance-editor .mw-identity-grid .mw-underwear.mw-wide{grid-column:1}#mw-appearance-editor .mw-slider-row{grid-template-columns:minmax(90px,1fr) minmax(90px,1fr) 38px;gap:7px;padding:8px 0}#mw-appearance-editor .mw-control-list{padding:9px 12px}}
+#mw-appearance-editor .mw-identity-grid .mw-appearance-choice{grid-column:1/-1;min-height:42px}
+#mw-appearance-editor .mw-identity-grid .mw-choice-label{flex:0 0 155px;color:#e9c17d;font-family:'Barlow Semi Condensed',system-ui,sans-serif;font-size:12px;font-weight:700;letter-spacing:.055em;text-transform:uppercase}
+#mw-appearance-editor .mw-identity-grid .mw-appearance-choice select{flex:1;width:auto;max-width:none}
+#mw-appearance-editor .mw-identity-grid .mw-experimental-toggle{grid-column:1/-1;margin:2px 0 0;min-height:48px;padding:9px 13px;border:1px solid #79613b;background:linear-gradient(180deg,#292a2b 0%,#1a1d22 100%);color:#ead8b2;box-shadow:inset 3px 0 #c08a3e;justify-content:flex-start;text-align:left;gap:11px}
+#mw-appearance-editor .mw-experimental-toggle:hover{border-color:#d0a45c;background:linear-gradient(180deg,#35312a 0%,#222127 100%)}
+#mw-appearance-editor .mw-experimental-toggle[aria-expanded="true"]{border-color:#c08a3e;background:linear-gradient(180deg,#302b22 0%,#1e2024 100%)}
+#mw-appearance-editor .mw-morph-icon{display:grid;place-items:center;flex:0 0 27px;height:27px;border:1px solid #6e5937;color:#e9c17d;font-size:15px}
+#mw-appearance-editor .mw-morph-copy{display:flex;flex:1;flex-direction:column;gap:2px;min-width:0}
+#mw-appearance-editor .mw-morph-copy strong{font-size:13px;font-weight:700;letter-spacing:.025em}
+#mw-appearance-editor .mw-morph-copy small{color:#a9a394;font:10px/1.3 'Barlow Semi Condensed',system-ui,sans-serif;letter-spacing:.035em}
+#mw-appearance-editor .mw-morph-chevron{color:#d0ad6b;font-size:17px;transition:transform .15s}
+#mw-appearance-editor .mw-experimental-toggle[aria-expanded="true"] .mw-morph-chevron{transform:rotate(180deg)}
+#mw-appearance-editor .mw-control-list{flex:1 1 auto;min-height:0;overflow:auto;overscroll-behavior:contain}
+#mw-appearance-editor .mw-zone-nav{flex:0 0 auto}
+#mw-appearance-editor .mw-slider-row{grid-template-columns:minmax(165px,1fr) minmax(190px,1.5fr) 46px;gap:14px;padding:11px 0}
+#mw-appearance-editor .mw-slider-label{font-size:13px;line-height:1.3}
+#mw-appearance-editor .mw-control-list{padding:12px 22px 18px}
+@media(max-width:850px){#mw-appearance-editor .mw-main{grid-template-columns:minmax(0,.62fr) minmax(390px,1.38fr)}#mw-appearance-editor .mw-slider-row{grid-template-columns:minmax(115px,1fr) minmax(140px,1.4fr) 40px;gap:8px}#mw-appearance-editor .mw-identity-grid{padding:9px 10px;gap:6px}#mw-appearance-editor .mw-identity-grid .mw-choice-label{flex-basis:120px}}
+@media(max-width:650px){#mw-appearance-editor .mw-main{grid-template-rows:minmax(190px,.62fr) minmax(0,1.38fr)}#mw-appearance-editor .mw-identity-grid{grid-template-columns:1fr;padding:8px 10px;gap:6px}#mw-appearance-editor .mw-identity-grid .mw-underwear.mw-wide,#mw-appearance-editor .mw-identity-grid .mw-appearance-choice{grid-column:1}#mw-appearance-editor .mw-identity-grid .mw-choice-label{flex-basis:95px;font-size:11px}#mw-appearance-editor .mw-slider-row{grid-template-columns:minmax(90px,1fr) minmax(95px,1.1fr) 36px;gap:7px;padding:8px 0}#mw-appearance-editor .mw-control-list{padding:8px 12px}#mw-appearance-editor .mw-experimental-toggle{gap:7px}#mw-appearance-editor .mw-morph-copy small{display:none}}
 #mw-appearance-editor .mw-zone-nav[hidden],
 #mw-appearance-editor .mw-control-list[hidden]{display:none!important}
 `;
@@ -295,15 +306,15 @@ export function openAppearanceEditor({ fpArm, onClose = () => {} } = {}) {
   raceSelect.value = selectedRace;
   raceRow.append(raceLabel, raceSelect);
   const genderRow = document.createElement('label'); genderRow.className = 'mw-underwear';
-  const genderLabel = document.createElement('span'); genderLabel.textContent = 'Пол';
+  const genderLabel = document.createElement('span'); genderLabel.textContent = 'Пол персонажа';
   const genderSelect = document.createElement('select'); genderSelect.setAttribute('aria-label', 'Пол персонажа');
   for (const [value,label] of [['male','Мужской'],['female','Женский']]) { const option=document.createElement('option'); option.value=value; option.textContent=label; genderSelect.append(option); }
   genderSelect.value = selectedFemale ? 'female' : 'male'; genderRow.append(genderLabel,genderSelect);
-  const faceRow = document.createElement('label'); faceRow.className = 'mw-underwear';
-  const faceLabel = document.createElement('span'); faceLabel.textContent = 'Лицо';
+  const faceRow = document.createElement('label'); faceRow.className = 'mw-underwear mw-appearance-choice mw-face-choice';
+  const faceLabel = document.createElement('span'); faceLabel.className = 'mw-choice-label'; faceLabel.textContent = 'Лицо персонажа';
   const faceSelect = document.createElement('select'); faceSelect.setAttribute('aria-label', 'Выбор лица');
-  const hairRow = document.createElement('label'); hairRow.className = 'mw-underwear';
-  const hairLabel = document.createElement('span'); hairLabel.textContent = 'Причёска';
+  const hairRow = document.createElement('label'); hairRow.className = 'mw-underwear mw-appearance-choice mw-hair-choice';
+  const hairLabel = document.createElement('span'); hairLabel.className = 'mw-choice-label'; hairLabel.textContent = 'Причёска';
   const hairSelect = document.createElement('select'); hairSelect.setAttribute('aria-label', 'Выбор причёски');
   const fillPartSelect = (select, parts, kind, selectedId) => {
     select.replaceChildren();
@@ -329,16 +340,31 @@ export function openAppearanceEditor({ fpArm, onClose = () => {} } = {}) {
   const bodyHairToggle = document.createElement('input'); bodyHairToggle.type = 'checkbox'; bodyHairToggle.checked = getBodyHairEnabled(); bodyHairToggle.disabled = underwearToggle.checked;
   const bodyHairCopy = document.createElement('span'); bodyHairCopy.innerHTML = '<strong>Волосы на теле</strong><small>Для голой модели; отключите нижнее бельё. Нужен High Resolution Better Body Female Textures.</small>';
   bodyHairRow.append(bodyHairToggle, bodyHairCopy);
-  const morphToggle = makeButton('Дополнительные пропорции тела');
+  const morphToggle = makeButton('Настроить телосложение');
   morphToggle.classList.add('mw-experimental-toggle');
   morphToggle.setAttribute('aria-expanded', 'false');
-  const morphToggleLabel = document.createElement('span');
-  morphToggleLabel.textContent = 'Дополнительные пропорции тела';
+  morphToggle.title = 'Экспериментальные настройки телосложения — функция в разработке';
+  const morphIcon = document.createElement('span');
+  morphIcon.className = 'mw-morph-icon';
+  morphIcon.setAttribute('aria-hidden', 'true');
+  morphIcon.textContent = '⚒';
+  const morphCopy = document.createElement('span');
+  morphCopy.className = 'mw-morph-copy';
+  const morphToggleLabel = document.createElement('strong');
+  morphToggleLabel.textContent = 'Настроить телосложение';
+  const morphCaption = document.createElement('small');
+  morphCaption.textContent = 'Дополнительные параметры · экспериментальная функция';
+  morphCopy.append(morphToggleLabel, morphCaption);
   const morphWipTag = document.createElement('span');
   morphWipTag.className = 'mw-wip-tag';
-  morphWipTag.textContent = 'WIP · В РАБОТЕ';
+  morphWipTag.textContent = 'WIP';
+  morphWipTag.title = 'В разработке';
+  const morphChevron = document.createElement('span');
+  morphChevron.className = 'mw-morph-chevron';
+  morphChevron.setAttribute('aria-hidden', 'true');
+  morphChevron.textContent = '⌄';
   morphToggle.textContent = '';
-  morphToggle.append(morphToggleLabel, morphWipTag);
+  morphToggle.append(morphIcon, morphCopy, morphWipTag, morphChevron);
   const identityGrid = document.createElement('div'); identityGrid.className = 'mw-identity-grid';
   underwearRow.classList.add('mw-wide'); bodyHairRow.classList.add('mw-wide'); morphToggle.classList.add('mw-wide');
   identityGrid.append(raceRow, genderRow, faceRow, hairRow, underwearRow, bodyHairRow, morphToggle);
@@ -425,8 +451,8 @@ export function openAppearanceEditor({ fpArm, onClose = () => {} } = {}) {
     zoneNav.hidden = !expanded;
     controlList.hidden = !expanded;
     morphToggleLabel.textContent = expanded
-      ? 'Скрыть дополнительные пропорции тела'
-      : 'Дополнительные пропорции тела';
+      ? 'Скрыть настройки телосложения'
+      : 'Настроить телосложение';
   });
   const inputs = new Map();
   const outputs = new Map();
