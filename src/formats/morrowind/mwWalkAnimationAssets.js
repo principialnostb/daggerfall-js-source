@@ -156,9 +156,15 @@ export function openMWDynamicFirstPersonGroup(path) {
     .replace(/(forward|back|left|right)$/, (_, direction) => direction[0].toUpperCase() + direction.slice(1));
 }
 
+/** These packs are authored for the male xbase_anim.1st rig only. */
+export function isFirstPersonAnimationRigCompatible(skeletonPath) {
+  const normalized = norm(skeletonPath);
+  return normalized.slice(normalized.lastIndexOf('/') + 1) === 'xbase_anim.1st.nif';
+}
+
 /** Load one selected first-person provider in stable path order. */
-export async function loadFirstPersonAnimationAssets() {
-  if (!IN_BROWSER) return [];
+export async function loadFirstPersonAnimationAssets({ skeletonPath } = {}) {
+  if (!IN_BROWSER || !isFirstPersonAnimationRigCompatible(skeletonPath)) return [];
   const provider = firstPersonAnimationProviderForChoice(
     modSetting('morrowind-animation', 'FirstPersonSource'),
   );
