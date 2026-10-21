@@ -1766,7 +1766,7 @@ export const FEATURES = Object.freeze([
     group: 'character',
     get title() { return t('features.simplyAnimatedCloaks.title', 'Simply Animated Cloaks'); },
     get note() { return t('features.simplyAnimatedCloaks.note', 'Use the skinned cloak meshes and follow the character’s movement. Turn off to use the classic rigid cloak.'); },
-    get effect() { return t('features.effect.atOnce', 'Takes effect at once.'); },
+    get effect() { return t('features.simplyAnimatedCloaks.effect', 'Takes effect as characters are rebuilt; reload the game for existing characters.'); },
     kinds: Object.freeze(['enhanced']),
     control: Object.freeze({ store: 'prefs', key: 'simplyAnimatedCloaks', initial: true, online: 'player' }),
   }),
