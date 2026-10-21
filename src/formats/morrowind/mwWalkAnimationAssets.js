@@ -395,6 +395,7 @@ export async function loadOpenMWDynamicThirdPersonAnimationAssets({ skeletonPath
       modDiagnostics.record({ level: 'error', phase: 'animation-load', action: 'animation-clip-load-failed', modId: 'openmw-dynamic-animations', resource: entry.path, message: String(error?.message ?? error), details: { rig: skeletonPath, race, fallback: 'archive' } });
     }
   }
+  modDiagnostics.record({ level: 'info', phase: 'animation-selection', action: 'animation-assets-selected', modId: 'openmw-dynamic-animations', resource: 'third-person', details: { count: result.length, rig: skeletonPath, race } });
   return result;
 }
 
@@ -447,6 +448,7 @@ export async function loadHitReactionAnimationAssets({ skeletonPath } = {}) {
       modDiagnostics.record({ level: 'error', phase: 'animation-load', action: 'animation-clip-load-failed', modId: 'hit-reactions-v2', resource: entry.path, message: String(error?.message ?? error), details: { rig: skeletonPath, fallback: 'archive' } });
     }
   }
+  modDiagnostics.record({ level: result.length ? 'info' : 'warn', phase: 'animation-selection', action: result.length ? 'animation-assets-selected' : 'animation-pack-empty', modId: 'hit-reactions-v2', resource: 'hit-reaction', details: { count: result.length, rig: skeletonPath, candidates: files.length } });
   return result;
 }
 
