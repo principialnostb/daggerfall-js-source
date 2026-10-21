@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { inspectWalkAnimationAssets, isWalkAnimationGroup, isWalkAnimationKey, isRunAnimationGroup, isRunAnimationKey, isWalkVariantEnabled, isRunVariantEnabled, walkVariantForActor, runVariantForActor, firstPersonAnimationProviderForChoice, isOpenMWDynamicFirstPersonClip, openMWDynamicFirstPersonGroup, hitReactionVariantForSkeleton, isHitReactionAssetForSkeleton, isFirstPersonAnimationRigCompatible } from '../../src/formats/morrowind/mwWalkAnimationAssets.js';
+import { inspectWalkAnimationAssets, isWalkAnimationGroup, isWalkAnimationKey, isRunAnimationGroup, isRunAnimationKey, isWalkVariantEnabled, isRunVariantEnabled, walkVariantForActor, runVariantForActor, firstPersonAnimationProviderForChoice, isOpenMWDynamicFirstPersonClip, openMWDynamicFirstPersonGroup, hitReactionVariantForSkeleton, isHitReactionAssetForSkeleton, isFirstPersonAnimationRigCompatible, remapAnimationGroupKeys, hitReactionTargetGroup } from '../../src/formats/morrowind/mwWalkAnimationAssets.js';
 
 test('MW-ANIM-1: bundled walk asset inventory is safe to import in Node', () => {
   const assets = inspectWalkAnimationAssets();
@@ -102,9 +102,9 @@ test('MW-ANIM-4: OpenMW Dynamic Animations admits only directional first-person 
   ]) {
     assert.equal(isOpenMWDynamicFirstPersonClip(base + clip), true, clip);
   }
-  assert.equal(openMWDynamicFirstPersonGroup(base + 'WalkForward_base;.kf'), 'WalkForward');
-  assert.equal(openMWDynamicFirstPersonGroup(base + 'RunBack_base;.kf'), 'RunBack');
-  assert.equal(openMWDynamicFirstPersonGroup(base + 'SneakRight_base;.kf'), 'SneakRight');
+  assert.equal(openMWDynamicFirstPersonGroup(base + 'WalkForward_base;.kf'), 'walkforward');
+  assert.equal(openMWDynamicFirstPersonGroup(base + 'RunBack_base;.kf'), 'runback');
+  assert.equal(openMWDynamicFirstPersonGroup(base + 'SneakRight_base;.kf'), 'sneakright');
   assert.equal(openMWDynamicFirstPersonGroup(base + 'IdleSneak_base;.kf'), null);
   assert.equal(isOpenMWDynamicFirstPersonClip(base + 'IdleSneak_base;.kf'), false);
   assert.equal(isOpenMWDynamicFirstPersonClip(base + 'SneakMovement; Skip.kf'), false);
@@ -123,4 +123,26 @@ test('MW-ANIM-5: hit-reaction clips are selected only for the active third-perso
   assert.equal(isHitReactionAssetForSkeleton(root + 'xbase_anim_female/HitFront.kf', 'meshes/xbase_anim.nif'), false);
   assert.equal(isHitReactionAssetForSkeleton(root + 'xbase_animkna/HitFront.kf', 'meshes/xbase_animkna.nif'), true);
   assert.equal(isHitReactionAssetForSkeleton(root + 'xbase_anim/HitFront.kf', 'meshes/xbase_anim.1st.nif'), false);
+});
+
+test('MW-ANIM-6: OpenMW directional clips map to the lowercase runtime group names', () => {
+  const base = 'Mods/Animations/OpenMW Dynamic Animations/animations/xbase_anim.1st/';
+  assert.equal(openMWDynamicFirstPersonGroup(base + 'WalkForward_base;.kf'), 'walkforward');
+  assert.equal(openMWDynamicFirstPersonGroup(base + 'RunBack_base;.kf'), 'runback');
+  assert.equal(openMWDynamicFirstPersonGroup(base + 'SneakRight_base;.kf'), 'sneakright');
+});
+
+test('MW-ANIM-6: custom reaction clip keys are remapped to groups the combat state machine requests', () => {
+  const keys = [
+    { time: 0, text: 'HitReact: start' },
+    { time: 0.3, text: 'HitReact: stop' },
+    { time: 0.1, text: 'SoundGen: hit' },
+  ];
+  assert.deepEqual(remapAnimationGroupKeys(keys, ['HitReact'], 'hit1'), [
+    { time: 0, text: 'hit1: start' },
+    { time: 0.3, text: 'hit1: stop' },
+  ]);
+  assert.deepEqual(hitReactionTargetGroup('/Animations/xbase_anim/xStaggerBack.kf', 3, 2), { family: 'hit', group: 'hit3' });
+  assert.deepEqual(hitReactionTargetGroup('/Animations/xbase_anim/xDeathBack.kf', 3, 2), { family: 'death', group: 'death2' });
+  assert.equal(hitReactionTargetGroup('/Animations/xbase_anim/xWalk.kf', 3, 2), null);
 });
