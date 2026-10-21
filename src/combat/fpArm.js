@@ -4544,7 +4544,7 @@ export function createFpArm({ playerAppearance = false } = {}) {
       return pickAnimSource(vanillaSources, group, resetClip, options);
     }
     const inferredType = actionType || String(start ?? '').match(/^([a-z]+)/i)?.[1] || '';
-    if (!['chop', 'slash', 'thrust', 'shoot'].includes(inferredType.toLowerCase())) {
+    if (!['chop', 'slash', 'thrust', 'shoot', 'throw'].includes(inferredType.toLowerCase())) {
       return pickAnimSource(vanillaSources, group, resetClip, options);
     }
     const candidates = (sources ?? [])
