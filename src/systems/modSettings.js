@@ -1654,8 +1654,8 @@ export const MOD_SETTINGS = Object.freeze({
     keys: Object.freeze({
       AnimationOverhaul: Object.freeze({
         default: 0,
-        options: lazyWords('Vanilla', 'Morrowind Animation Overhaul'),
-        description: 'Replaces supported third-person human, elf and orc animation groups (movement, idle, combat, spells and actions). Does not support Argonian/Khajiit rigs or first-person animations. The choice is read when a character rig is built; rebuild/reload the character after changing it.',
+        options: lazyWords('Vanilla'),
+        description: 'Morrowind Animation Overhaul is present as source material but is not available as a runtime provider pending explicit permission to reuse/convert its assets. Vanilla keeps the game/archive animation groups.',
       }),
       AnimationBlendDuration: Object.freeze({
         default: 1,

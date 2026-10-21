@@ -15,11 +15,11 @@ Status: runtime gait selection, input-driven third-person facing, and native pos
 
 The existing asset tree includes these candidates:
 
-- `Morrowind Textures/Simply Walking/Simply Walking Purist Edition/meshes/xbase_anim.kf` — the male/standard skeleton animation set candidate.
-- `Morrowind Textures/Simply Walking/Simply Walking Purist Edition/meshes/xbase_anim_female.kf` — female animation set candidate bundled alongside the standard set.
-- `Morrowind Textures/Simply Walking/Feminine Walk Cycle/Meshes/xbase_anim_female.kf` — the internal female-walk component of the user-facing Simply Walking pack.
-- `Morrowind Textures/Morrowind Animation Overhaul/Data Files/Meshes/Xbase_anim.kf` and `Xbase_anim_female.kf` — a broader animation overhaul candidate; do not select it as the default blindly because it can replace more than the walking cycle.
-- `Morrowind Textures/Axel's Sexy Walk Fixed/Animation/axel fixed/female/WalkForward;.kf` — a narrow female walk clip candidate, with idle/run clips also present.
+- `Mods/Animations/Simply Walking/Simply Walking Purist Edition/meshes/xbase_anim.kf` — the male/standard skeleton animation set candidate.
+- `Mods/Animations/Simply Walking/Simply Walking Purist Edition/meshes/xbase_anim_female.kf` — female animation set candidate bundled alongside the standard set.
+- `Mods/Animations/Simply Walking/Feminine Walk Cycle/Meshes/xbase_anim_female.kf` — the internal female-walk component of the user-facing Simply Walking pack.
+- `Mods/Animations/Morrowind Animation Overhaul/Data Files/Meshes/Xbase_anim.kf` and `Xbase_anim_female.kf` — a broader animation overhaul candidate; do not select it as the default blindly because it can replace more than the walking cycle.
+- `Mods/Animations/Axel's Sexy Walk Fixed/Animation/axel fixed/female/WalkForward;.kf` — a narrow female walk clip candidate, with idle/run clips also present.
 
 Reference mod pages:
 - [Simply Walking (Remastered), Nexus Mods #49785](https://www.nexusmods.com/morrowind/mods/49785)
@@ -100,7 +100,7 @@ The asset loader loads the standard source and both female-only walk candidates 
 ## Current integration boundary (2026-10-19)
 
 - The visible **Female Walk Style** selector offers **Standard**, **Female**, and **Female 2** in the Features/Mods interface.
-- The gameplay rig loader resolves Simply Walking by actor sex and Axel's `WalkForward;.kf` + `RunForward;.kf` from `Morrowind Textures/Axel's Sexy Walk Fixed/Animation/axel fixed/female`. Both Axel clips are filtered to their own group family and controlled by the combined walk/run selector; `Idle4;.kf` and `Idle5;.kf` remain unconnected pending an idle-resolver audit.
+- The gameplay rig loader resolves Simply Walking by actor sex and Axel's `WalkForward;.kf` + `RunForward;.kf` from `Mods/Animations/Axel's Sexy Walk Fixed/Animation/axel fixed/female`. Both Axel clips are filtered to their own group family and controlled by the combined walk/run selector; `Idle4;.kf` and `Idle5;.kf` remain unconnected pending an idle-resolver audit.
 - The `53779` Animation Blending download is an MWSE Lua plugin, not a browser JavaScript module. The port uses its own native pose cross-fade implementation; it does not execute the Lua script. That implementation still requires in-game verification.
 - Nexus `60253` Morrowind Animation Overhaul explicitly disallows conversion to other games and asset use without permission. Its attack/combat KF files are therefore **not wired into this public port** without author permission. The currently integrated Simply Walking/Feminine Walk Cycle resources are walk-only; attacks remain the original game's clips.
 
@@ -168,3 +168,8 @@ The selected source is now resolved for both walking and running groups. Axel co
 ## Axel run source (2026-10-19)
 
 The female `RunForward;.kf` is now wired beside Axel's `WalkForward;.kf` under the shared walk/run setting. The resolver applies the actor's selected locomotion source to both `walk*` and `run*` groups, with Vanilla remaining the default. This is code-level integration; in-game gait, foot sliding, and transitions still need validation.
+
+
+## Asset-root migration — 2026-10-21
+
+The repository's mod assets now live under `Mods/Animations`, `Mods/Textures`, and `Mods/Bodies`. The gameplay walk loader was updated to discover Simply Walking and Axel's clips from `Mods/Animations`; the previous `Morrowind Textures` paths no longer resolve. Morrowind Animation Overhaul remains excluded from runtime discovery pending explicit permission for reuse/conversion. The new ReAnimation and Hit Reactions packs are present as source assets only; they are not considered integrated until their first-person/third-person rig compatibility, animation groups, and deterministic group resolver are verified. OpenMW Dynamic Animations is reference material, not executable browser code.

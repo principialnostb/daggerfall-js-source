@@ -24,20 +24,20 @@ This document is the operational inventory: what is in the repository, what the 
 
 1. **Simply Walking — Purist Edition**  
    Files:
-   - `Morrowind Textures/Simply Walking/Simply Walking Purist Edition/meshes/xbase_anim.kf`
-   - `Morrowind Textures/Simply Walking/Simply Walking Purist Edition/meshes/xbase_anim_female.kf`
+   - `Mods/Animations/Simply Walking/Simply Walking Purist Edition/meshes/xbase_anim.kf`
+   - `Mods/Animations/Simply Walking/Simply Walking Purist Edition/meshes/xbase_anim_female.kf`
 
    Role: the male walking source inside the user-facing Simply Walking pack. The bundled female KF is not selected as the public female walk variant; the runtime uses Feminine Walk Cycle for women. This remains a walk-only source, not a wholesale replacement of the skeleton's animation library.
 
    Reference: [Nexus Mods #49785 — Simply Walking (Remastered)](https://www.nexusmods.com/morrowind/mods/49785). The asset directory identifies the selected variant as “Purist Edition”; do not silently swap in the weapon-sheathing or run-inclusive variants without a deliberate review.
 
 2. **Simply Walking — Feminine Walk Cycle**  
-   File: `Morrowind Textures/Simply Walking/Feminine Walk Cycle/Meshes/xbase_anim_female.kf`
+   File: `Mods/Animations/Simply Walking/Feminine Walk Cycle/Meshes/xbase_anim_female.kf`
 
    Role: the internal female-walk component of the single user-facing **Simply Walking** pack. It is not shown as a separate pack choice. The player and female-NPC selectors both resolve to this source when **Simply Walking** is selected.
 
 3. **Axel's Sexy Walk Fixed**  
-   File used by runtime: `Morrowind Textures/Axel's Sexy Walk Fixed/Animation/axel fixed/female/WalkForward;.kf`
+   File used by runtime: `Mods/Animations/Axel's Sexy Walk Fixed/Animation/axel fixed/female/WalkForward;.kf`
 
    Role: alternate female locomotion. `WalkForward;.kf` is filtered to walk groups and `RunForward;.kf` to run groups, controlled by the independent run selector. `Idle4;.kf` and `Idle5;.kf` remain unconnected until the gameplay idle resolver is audited for whether it requests those optional groups.
 
@@ -144,3 +144,12 @@ Fresh installs now start with `Vanilla` for the player, male NPCs, and female NP
 ### Axel locomotion follow-up (2026-10-19)
 
 The runtime now loads the checked-in `RunForward;.kf` as part of Axel's single locomotion choice. The movement resolver applies the same actor-specific selection to both `walk*` and `run*` groups. Simply Walking is still walk-only, so choosing it does not replace running; selecting Vanilla restores both original walk and run groups. This is intentional because Simply Walking does not ship a verified run replacement in the active runtime mapping. The Axel run clip is source-wired but has not yet been visually validated in-game.
+
+
+## Asset-root migration — 2026-10-21
+
+- Runtime walk asset globs now point to `Mods/Animations/Simply Walking` and `Mods/Animations/Axel's Sexy Walk Fixed`.
+- Morrowind Animation Overhaul remains excluded from runtime discovery pending explicit permission; presence in the repository does not activate it.
+- ReAnimation v3 and Hit Reactions Animated v2 are currently staged source assets, not active runtime providers. Their clips must not be routed into the live resolver solely by filename or folder order. ReAnimation targets first-person animation groups; Hit Reactions targets third-person reaction/death groups and needs its own actor/group-scoped provider path.
+- OpenMW Dynamic Animations is reference material and its MWSE/OpenMW behavior is not executed by the browser runtime.
+- Verification status after the folder move: the paths in the runtime glob have been corrected at source level. Full test/lint/build and in-game visual checks have not yet been run in this environment.
