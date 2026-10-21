@@ -206,3 +206,44 @@ test('leg length uses thigh/calf skin weights instead of moving pelvis vertices'
   assert.ok(dz(1) > 1e-4, 'leg length must affect the calf-weighted vertex');
   assert.ok(dz(2) < 1e-6, 'leg length must not move the pelvis-weighted vertex');
 });
+
+test('torso morphs apply authored trunk weights once, not squared', () => {
+  const piece = {
+    slot: 'betterBodies',
+    positions: Float32Array.from([0.2, 0, 0.68]),
+    indices: new Uint16Array(),
+    normals: new Float32Array(3),
+    batch: { skin: { bones: [{ ref: 1, indices: [0], weights: [0.5] }] } },
+  };
+  const beforeX = piece.positions[0];
+  deformPlayerBodyGeometry(piece, morphState('ribcageWidth'), bounds, {
+    nodes: new Map([[1, { name: 'Bip01 Spine1' }]]),
+  });
+  // At this height and radius the geometric falloff is effectively 1. A 0.5
+  // skin weight should therefore yield half, not one quarter, of the 0.11 morph.
+  assert.ok(Math.abs((piece.positions[0] - beforeX) - 0.2 * 0.11 * 0.5) < 1e-4,
+    'ribcage deformation must be linear in the authored trunk weight');
+});
+
+test('pelvis-weighted vertices remain eligible for hip and buttock morphs without trunk weights', () => {
+  const make = (key, position) => {
+    const piece = {
+      slot: 'betterBodies',
+      positions: Float32Array.from(position),
+      indices: new Uint16Array(),
+      normals: new Float32Array(3),
+      batch: { skin: { bones: [{ ref: 1, indices: [0], weights: [1] }] } },
+    };
+    const before = new Float32Array(piece.positions);
+    deformPlayerBodyGeometry(piece, morphState(key), bounds, {
+      nodes: new Map([[1, { name: 'Bip01 Pelvis' }]]),
+    });
+    return { piece, before };
+  };
+  const hip = make('hipWidth', [0.2, 0, 0.47]);
+  assert.ok(Math.abs(hip.piece.positions[0] - hip.before[0]) > 1e-4,
+    'hip width must affect a pelvis-weighted hip vertex');
+  const buttock = make('buttockSize', [0.2, -0.5, 0.465]);
+  assert.ok(Math.abs(buttock.piece.positions[0] - buttock.before[0]) > 1e-4,
+    'buttock size must affect a pelvis-weighted rear vertex');
+});
