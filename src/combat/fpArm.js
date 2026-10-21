@@ -4509,7 +4509,12 @@ export function createFpArm({ playerAppearance = false } = {}) {
 
   // Keep the Morrowind first-person rig independent from the Third-Person-only world-body/UI preference.
   // Inventory icons and PaperDoll have their own switches; this gate must not silently suppress 3D hands/weapons.
-  const active = () => !standIn && !!(built && built.ok && mesh && renderer && camera && (actionState || movementState || jumpState || idleState)
+  // Keep the first-person rig drawable when an animation pack has no
+  // playable bare-hand idle. update() deliberately leaves the last valid
+  // assembled pose untouched when every animation slot is empty; requiring
+  // an active clip here hid the entire arm mesh on sheathe, making hands and
+  // weapon disappear together even though only the weapon range was hidden.
+  const active = () => !standIn && !!(built && built.ok && mesh && renderer && camera
     && viewMode === 'first');
   // MWNPC4 (AUDIT, 2026-10-09): a body in its recoil or its death stands too - die() resets every other state, so a
   // dying body answered false here, its lane let it go (PeerBodies._standing) and its corpse flat drew instead
