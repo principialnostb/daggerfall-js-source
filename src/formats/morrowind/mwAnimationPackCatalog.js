@@ -19,7 +19,7 @@ export const ANIMATION_PACKS = Object.freeze([
     id: 'reanimation-v3',
     title: 'ReAnimation v3 - Complete - first-person animation pack',
     nexusUrl: 'https://www.nexusmods.com/morrowind/mods/52596',
-    status: ANIMATION_PACK_STATUS.staged,
+    status: ANIMATION_PACK_STATUS.blockedPermission,
     sourceRoot: 'Mods/Animations/ReAnimation v3 - Complete - first-person animation pack/00 Core',
     assetPattern: 'Animations/xbase_anim.1st/**/*.kf',
     domains: Object.freeze([
@@ -30,7 +30,7 @@ export const ANIMATION_PACKS = Object.freeze([
       'first-person.jump-sneak',
     ]),
     runtimeMode: 'assets-only',
-    notes: 'Core KF files are present. Do not route them by filename alone: enumerate text-key groups and validate the first-person skeleton before adding a consumer. FBA compatibility and thrown-projectile fixes are separate optional components.',
+    notes: 'The Nexus page prohibits conversion to other games and limits redistribution. Do not use these assets in this port unless the author grants explicit permission. If permission is granted, enumerate text-key groups and validate the first-person skeleton before adding a consumer. FBA compatibility and thrown-projectile fixes are separate optional components.',
   }),
   Object.freeze({
     id: 'openmw-dynamic-animations',
