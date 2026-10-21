@@ -96,13 +96,13 @@ import { correctTexturePath, correctActorModelPath, wrapModes, warningImage, dec
 
 /** Adapt ReAnimation's Alt/Sub group names to the runtime's canonical weapon groups. */
 function normalizeReAnimationAttackSource(source) {
-  const basename = String(source?.name ?? '').replace(/\\\\/g, '/').split('/').pop() ?? '';
-  const stem = basename.replace(/\\.kf$/i, '');
+  const basename = String(source?.name ?? '').replace(/\\/g, '/').split('/').pop() ?? '';
+  const stem = basename.replace(/\.kf$/i, '');
   const isAlt = /alt$/i.test(stem);
-  const isSub = /sub\\d*$/i.test(stem);
+  const isSub = /sub\d*$/i.test(stem);
   let normalized = source;
   if (isAlt || isSub) {
-    const token = isAlt ? /alt(?=extra$)|alt$/i : /sub\\d*(?=extra$)|sub\\d*$/i;
+    const token = isAlt ? /alt(?=extra$)|alt$/i : /sub\d*(?=extra$)|sub\d*$/i;
     const groupMap = new Map((source.groups ?? []).map((group) => {
       const name = String(group).toLowerCase();
       return [name, name.replace(token, '')];
