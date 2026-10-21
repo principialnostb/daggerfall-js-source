@@ -1,12 +1,12 @@
 import { BODY_MORPH_FIELDS, getBodyMorphs, setBodyMorph, resetBodyMorphs, getUnderwearEnabled, setUnderwearEnabled, getBodyHairEnabled, setBodyHairEnabled, getAppearanceIdentity, setAppearanceIdentity } from '../characters/bodyMorphs.js';
 
 const GROUPS = [
-  { id: 'all', title: 'Общий силуэт', description: 'Подъём корпуса, ширина и толщина тела', keys: ['height', 'bodyWidth', 'bodyFullness'] },
-  { id: 'chest', title: 'Верхний и нижний торс', description: 'Ширина верхней грудной клетки и нижнего торса; объём и выступ живота', keys: ['shoulderWidth', 'ribcageWidth', 'breastSize', 'breastProjection'] },
-  { id: 'torso', title: 'Пах и боковые контуры', description: 'Изменение ширины паха, боков бёдер и объёма ягодиц/паха', keys: ['waistWidth', 'abdomenVolume'] },
+  { id: 'all', title: 'Силуэт', description: 'Общие пропорции корпуса', keys: ['height', 'bodyWidth', 'bodyFullness'] },
+  { id: 'chest', title: 'Плечи и грудная клетка', description: 'Ширина плеч и грудного отдела; передний объём торса', keys: ['shoulderWidth', 'ribcageWidth', 'breastSize', 'breastProjection'] },
+  { id: 'torso', title: 'Талия и нижний торс', description: 'Пропорции талии и нижней части корпуса', keys: ['waistWidth', 'abdomenVolume'] },
   { id: 'hips', title: 'Таз и нижние ягодицы', description: 'Ширина таза пока не работает; остальные ползунки слабо меняют нижние ягодицы', keys: ['hipWidth', 'buttockSize', 'buttockProjection'] },
-  { id: 'arms', title: 'Руки', description: 'Ширина рук спереди; изменение длины не наблюдается', keys: ['armThickness', 'armLength'] },
-  { id: 'legs', title: 'Ноги и колени', description: 'Сдвиг коленей, длина голеней и раздвижение коленей/стоп', keys: ['thighThickness', 'calfThickness', 'legLength', 'legGap'] },
+  { id: 'arms', title: 'Руки', description: 'Толщина рук; изменение длины пока не влияет на модель', keys: ['armThickness', 'armLength'] },
+  { id: 'legs', title: 'Ноги', description: 'Толщина бёдер и голеней, длина голеней и расстояние между ногами', keys: ['thighThickness', 'calfThickness', 'legLength', 'legGap'] },
   { id: 'head', title: 'Голова', description: 'Масштаб головы', keys: ['headScale'] },
 ];
 const labelByKey = new Map(BODY_MORPH_FIELDS.map(([key, label]) => [key, label]));
@@ -294,14 +294,14 @@ export function openAppearanceEditor({ fpArm, onClose = () => {} } = {}) {
   const bodyHairToggle = document.createElement('input'); bodyHairToggle.type = 'checkbox'; bodyHairToggle.checked = getBodyHairEnabled(); bodyHairToggle.disabled = underwearToggle.checked;
   const bodyHairCopy = document.createElement('span'); bodyHairCopy.innerHTML = '<strong>Волосы на теле</strong><small>Для голой модели; отключите нижнее бельё. Нужен High Resolution Better Body Female Textures.</small>';
   bodyHairRow.append(bodyHairToggle, bodyHairCopy);
-  const morphToggle = makeButton('Экспериментальная настройка тела');
+  const morphToggle = makeButton('Дополнительные пропорции тела');
   morphToggle.classList.add('mw-experimental-toggle');
   morphToggle.setAttribute('aria-expanded', 'false');
   const morphToggleLabel = document.createElement('span');
-  morphToggleLabel.textContent = 'Экспериментальная настройка тела';
+  morphToggleLabel.textContent = 'Дополнительные пропорции тела';
   const morphWipTag = document.createElement('span');
   morphWipTag.className = 'mw-wip-tag';
-  morphWipTag.textContent = 'WORK IN PROGRESS';
+  morphWipTag.textContent = 'WIP · В РАБОТЕ';
   morphToggle.textContent = '';
   morphToggle.append(morphToggleLabel, morphWipTag);
   controlsHead.append(raceRow, faceRow, underwearRow, bodyHairRow, morphToggle);
@@ -366,8 +366,8 @@ export function openAppearanceEditor({ fpArm, onClose = () => {} } = {}) {
     zoneNav.hidden = !expanded;
     controlList.hidden = !expanded;
     morphToggleLabel.textContent = expanded
-      ? 'Скрыть экспериментальную настройку тела'
-      : 'Экспериментальная настройка тела';
+      ? 'Скрыть дополнительные пропорции тела'
+      : 'Дополнительные пропорции тела';
   });
   const inputs = new Map();
   const outputs = new Map();
