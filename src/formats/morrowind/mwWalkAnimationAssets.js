@@ -152,8 +152,9 @@ export function openMWDynamicFirstPersonGroup(path) {
   const filename = norm(path).slice(norm(path).lastIndexOf('/') + 1);
   const match = filename.match(/^((?:walk|run|sneak)(?:forward|back|left|right))_base;\.kf$/);
   if (!match) return null;
-  return match[1].replace(/^(walk|run|sneak)/, (_, family) => family[0].toUpperCase() + family.slice(1))
-    .replace(/(forward|back|left|right)$/, (_, direction) => direction[0].toUpperCase() + direction.slice(1));
+  // The runtime asks for lowercase movement groups (walkforward, runleft, ...).
+  // OpenMW's directory names are title-cased, but animation group identity is not.
+  return match[1].toLowerCase();
 }
 
 /** These packs are authored for the male xbase_anim.1st rig only. */
@@ -214,6 +215,34 @@ export function isHitReactionAssetForSkeleton(assetPath, skeletonPath) {
   const folder = match[1];
   const assetVariant = folder.includes('_female') ? 'female' : folder.endsWith('kna') ? 'beast' : 'male';
   return assetVariant === variant;
+}
+
+/** Remap only the named animation-group prefixes in text keys to a runtime group. */
+export function remapAnimationGroupKeys(keys, sourceGroups, targetGroup) {
+  const accepted = new Set((sourceGroups ?? []).map((name) => String(name).toLowerCase()));
+  const target = String(targetGroup ?? '').toLowerCase();
+  if (!accepted.size || !target) return [];
+  const out = [];
+  for (const key of keys ?? []) {
+    const lines = String(key?.text ?? '').split(/\\r?\\n/);
+    const mapped = [];
+    for (const line of lines) {
+      const colon = line.indexOf(':');
+      if (colon <= 0) continue;
+      const group = line.slice(0, colon).trim().toLowerCase();
+      if (accepted.has(group)) mapped.push(target + line.slice(colon));
+    }
+    if (mapped.length) out.push({ ...key, text: mapped.join('\\n') });
+  }
+  return out;
+}
+
+/** The target group consumed by the existing combat state machine. */
+export function hitReactionTargetGroup(assetPath, hitIndex, deathIndex) {
+  const name = norm(assetPath).slice(norm(assetPath).lastIndexOf('/') + 1);
+  if (/death/i.test(name)) return { family: 'death', group: `death${Math.max(1, Math.trunc(Number(deathIndex) || 1))}` };
+  if (/(?:hit|stagger)/i.test(name)) return { family: 'hit', group: `hit${Math.max(1, Math.trunc(Number(hitIndex) || 1))}` };
+  return null;
 }
 
 /** Load third-person hit-reaction KF files in stable path order for one rig. */
