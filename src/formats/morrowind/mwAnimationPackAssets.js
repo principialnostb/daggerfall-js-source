@@ -188,9 +188,9 @@ export async function loadReAnimationAnimationAssets({ weaponShortGroup = '' } =
     .filter((asset) => {
       const name = basename(asset.relativePath).replace(/\.kf$/, '');
       if (!prefixes.some((prefix) => name.startsWith(prefix))) return false;
-      // Keep one canonical clip per action. Alternate/Katana/sub clips require
-      // an explicit variant policy and must not win merely because their path sorts last.
-      return !/(?:alt|katana|sub|mirrored)$/i.test(name);
+      // Generic alternate/sub clips are selected by the first-person attack resolver.
+      // Katana-only and mirrored variants stay excluded until their weapon-specific rules exist.
+      return !/(?:katana|mirrored)/i.test(name);
     });
   const loaded = await Promise.all(candidates.map(async (asset) => {
     try {
