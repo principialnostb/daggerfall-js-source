@@ -1,5 +1,0 @@
-blending_rules:
-  - from: "*"
-    to: "zillarescale"
-    easing: "linear"
-    duration: 0.0
