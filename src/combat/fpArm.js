@@ -2345,6 +2345,7 @@ async function buildTpBody({
           continue;
         }
         const groups = [targetGroup];
+        sourcePaths.push(asset.name);
         sources.push({
           name: asset.name, keys, groups, groupSet: new Set(groups),
           trackMap: report.trackMap, binding: report.binding,
@@ -2428,6 +2429,7 @@ async function buildTpBody({
         if (target.family === 'death') nextDeathGroup++;
         else nextHitGroup++;
         const groups = [target.group];
+        sourcePaths.push(asset.name);
         sources.push({
           name: asset.name, keys, groups, groupSet: new Set(groups),
           trackMap: report.trackMap, binding: report.binding,
@@ -2568,6 +2570,7 @@ async function buildCreatureBody({ creature, flies = false, deps = null }) {
       const keys = remapAnimationGroupKeys(report.keys, sourceGroups, targetGroup);
       if (!sourceGroups.length || !keys.length) continue;
       const groups = [targetGroup];
+      sourcePaths.push(asset.name);
       sources.push({
         name: asset.name, keys, groups, groupSet: new Set(groups),
         trackMap: report.trackMap, binding: report.binding,
@@ -3359,6 +3362,7 @@ export async function buildFpArm({
           missing.push(`First-person clip ${asset.name}: no compatible animation groups; archive fallback retained`);
           continue;
         }
+        sourcePaths.push(asset.name);
         sources.push({
           name: asset.name, keys, groups, groupSet: new Set(groups),
           trackMap: report.trackMap, binding: report.binding,
