@@ -188,11 +188,34 @@ export async function loadFirstPersonAnimationAssets() {
   return result;
 }
 
-/** Load third-person hit-reaction KF files in stable path order. */
-export async function loadHitReactionAnimationAssets() {
+/** Resolve the hit-reaction pack's skeleton folder from the actual third-person rig. */
+export function hitReactionVariantForSkeleton(skeletonPath) {
+  const normalized = norm(skeletonPath);
+  const file = normalized.slice(normalized.lastIndexOf('/') + 1);
+  if (/^(?:x)?base_anim_female\.nif$/.test(file)) return 'female';
+  if (/^(?:x)?base_animkna\.nif$/.test(file)) return 'beast';
+  if (/^(?:x)?base_anim\.nif$/.test(file)) return 'male';
+  return null;
+}
+
+/** Admit reaction clips only from the directory matching the active rig. */
+export function isHitReactionAssetForSkeleton(assetPath, skeletonPath) {
+  const variant = hitReactionVariantForSkeleton(skeletonPath);
+  if (!variant) return false;
+  const normalized = norm(assetPath);
+  const match = normalized.match(/\/animations\/(x?base_anim(?:_female|kna)?)\//);
+  if (!match) return false;
+  const folder = match[1];
+  const assetVariant = folder.includes('_female') ? 'female' : folder.endsWith('kna') ? 'beast' : 'male';
+  return assetVariant === variant;
+}
+
+/** Load third-person hit-reaction KF files in stable path order for one rig. */
+export async function loadHitReactionAnimationAssets({ skeletonPath } = {}) {
   if (!IN_BROWSER || modSetting('morrowind-animation', 'HitReactionSource') === 0) return [];
   const files = Object.entries(HIT_REACTION_FILES)
     .map(([path, url]) => ({ path: path.replace(/\\/g, '/'), url }))
+    .filter((entry) => isHitReactionAssetForSkeleton(entry.path, skeletonPath))
     .sort((a, b) => a.path.localeCompare(b.path));
   const result = [];
   for (const entry of files) {
