@@ -96,7 +96,7 @@ test('MW-ANIM-PACKS: ReAnimation asset loading is safe outside the browser', asy
 test('MW-ANIM-PACKS: ReAnimation action variants are selected by a stable semantic seed', () => {
   const candidates = [{ source: { name: 'z.kf' }, pick: 'z' }, { source: { name: 'a.kf' }, pick: 'a' }, { source: { name: 'm.kf' }, pick: 'm' }];
   const first = selectStableAnimationVariant(candidates, 'weapontwohand|chop');
-  assert.equal(first?.pick, selectStableAnimationVariant(candidates, 'weapontwohand|chop')?.pick);
+  assert.equal(first?.pick, selectStableAnimationVariant([...candidates].reverse(), 'weapontwohand|chop')?.pick);
   assert.ok(['a', 'm', 'z'].includes(first?.pick));
   assert.equal(selectStableAnimationVariant([], 'weapontwohand|chop'), null);
 });
