@@ -1204,7 +1204,6 @@ export const FEATURES = Object.freeze([
     id: 'mw-better-bodies',
     group: 'character',
     title: 'Better Bodies',
-    note: 'Uses the Better Bodies body meshes and matching race/sex skin for the player. Off restores the standard Morrowind body meshes and hands. This does not change NPC body rendering.',
     effect: 'Takes effect at once.',
     kinds: Object.freeze(['enhanced']),
     get note() { return MOD_SETTINGS['morrowind-textures'].keys.BetterBodies.description; },
