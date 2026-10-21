@@ -4338,6 +4338,7 @@ export function createFpArm({ playerAppearance = false } = {}) {
   let sheathed = true;
   let weaponShown = false;
   let hideWeaponAtUnequipEnd = false;
+  let hideWeaponAtUnequipEndReason = null;
   let unequipDiagnosticSequence = 0;
   // MW-D16: the held round. FALSE at build, because the reference does
   // not attach one until a "shoot attach" key fires - a freshly drawn bow
@@ -4943,6 +4944,7 @@ export function createFpArm({ playerAppearance = false } = {}) {
     });
     if (!pick) {
       actionState = null;
+      actionSource = null;
       notes.push(`${weaponGroup}: no source has "${weaponGroup}: ${start}" and "${weaponGroup}: ${stop}"`);
       return false;
     }
@@ -5658,6 +5660,7 @@ export function createFpArm({ playerAppearance = false } = {}) {
     else if (action === UNEQUIP_KEYS.detach && upper === UPPER_BODY.Unequipping) {
       weaponShown = false;
       hideWeaponAtUnequipEnd = false;
+      hideWeaponAtUnequipEndReason = null;
       logAnimationDiagnostic(`fp-unequip-detach|${weaponGroup}|${actionSource?.name ?? 'unknown'}`, {
         family: 'first-person-weapon-sheathing-v1',
         event: 'weapon-hidden-at-detach-key',
@@ -5821,10 +5824,11 @@ export function createFpArm({ playerAppearance = false } = {}) {
             weaponGroup,
             animationSource: actionSource?.name ?? null,
             animationStopTime: actionState?.stopTime ?? null,
-            fallbackReason: 'missing unequip detach text key',
+            fallbackReason: hideWeaponAtUnequipEndReason ?? 'missing unequip detach text key',
           });
         }
         actionState = null; actionSource = null;
+        hideWeaponAtUnequipEndReason = null;
         upper = UPPER_BODY.None;
         sheathed = true;
         refreshWeaponGroup();
@@ -6218,6 +6222,7 @@ export function createFpArm({ playerAppearance = false } = {}) {
         const plan = unequipActionPlan({ unequipStarted, equipStarted, detachKeyTime: detach });
         if (plan.kind === 'immediate') {
           hideWeaponAtUnequipEnd = false;
+          hideWeaponAtUnequipEndReason = null;
           upper = UPPER_BODY.None; sheathed = true; weaponShown = false; arrowShown = false;
           logAnimationDiagnostic(`fp-unequip-no-clip|${weaponGroup}|${++unequipDiagnosticSequence}`, {
             family: 'first-person-weapon-sheathing-v1',
@@ -6232,6 +6237,9 @@ export function createFpArm({ playerAppearance = false } = {}) {
         }
         const hideMode = plan.hideMode;
         hideWeaponAtUnequipEnd = hideMode === 'animation-end';
+        hideWeaponAtUnequipEndReason = hideWeaponAtUnequipEnd
+          ? (plan.kind === 'reverse-equip' ? 'reversed equip fallback completed' : 'missing unequip detach text key')
+          : null;
         if (hideMode === 'detach-key') hideWeaponAtUnequipEnd = false;
         if (plan.kind === 'reverse-equip') {
           logAnimationDiagnostic(`fp-unequip-reverse-equip|${weaponGroup}|${++unequipDiagnosticSequence}`, {
