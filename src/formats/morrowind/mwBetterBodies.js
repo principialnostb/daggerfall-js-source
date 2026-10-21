@@ -9,27 +9,27 @@ import { getUnderwearEnabled } from '../../characters/bodyMorphs.js';
 import { modSetting } from '../../systems/modSettings.js';
 
 const nudeBodyModelUrls = IN_BROWSER
-  ? import.meta.glob('../../../Morrowind Textures/Better Bodies/Nude/Data Files/Meshes/bb/bb_skin*.nif', {
+  ? import.meta.glob('../../../Mods/Bodies/Better Bodies/Nude/Data Files/Meshes/bb/bb_skin*.nif', {
       eager: true, query: '?url', import: 'default',
     })
   : {};
 const nudeBodyTextureUrls = IN_BROWSER
-  ? import.meta.glob('../../../Morrowind Textures/Better Bodies/Nude/Data Files/Textures/bb/bb_skin*.dds', {
+  ? import.meta.glob('../../../Mods/Bodies/Better Bodies/Nude/Data Files/Textures/bb/bb_skin*.dds', {
       eager: true, query: '?url', import: 'default',
     })
   : {};
 const underwearBodyModelUrls = IN_BROWSER
-  ? import.meta.glob('../../../Morrowind Textures/Better Bodies/Underwear/Data Files/Meshes/bb/bb_skin*.nif', {
+  ? import.meta.glob('../../../Mods/Bodies/Better Bodies/Underwear/Data Files/Meshes/bb/bb_skin*.nif', {
       eager: true, query: '?url', import: 'default',
     })
   : {};
 const underwearBodyTextureUrls = IN_BROWSER
-  ? import.meta.glob('../../../Morrowind Textures/Better Bodies/Underwear/Data Files/Textures/bb/bb_skin*.dds', {
+  ? import.meta.glob('../../../Mods/Bodies/Better Bodies/Underwear/Data Files/Textures/bb/bb_skin*.dds', {
       eager: true, query: '?url', import: 'default',
     })
   : {};
 const dmraFemaleBodyModelUrls = IN_BROWSER
-  ? import.meta.glob('../../../Morrowind Textures/Seamless DMRA body replacer/Meshes/bb/bb_skinf_*.nif', {
+  ? import.meta.glob('../../../Mods/Bodies/Seamless DMRA body replacer/Meshes/bb/bb_skinf_*.nif', {
       eager: true, query: '?url', import: 'default',
     })
   : {};
