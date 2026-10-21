@@ -212,6 +212,7 @@ export const CATEGORIES = Object.freeze([
       "label:turning", "info:player-turning", "info:npc-turning",
       "group:idle",
       "label:idle", "info:player-idle", "info:npc-idle",
+      "feat:morrowind-player-idle-animation",
       "feat:morrowind-male-npc-idle-animation", "feat:morrowind-female-npc-idle-animation",
     ]),
     sec("combat", "Бой", [
