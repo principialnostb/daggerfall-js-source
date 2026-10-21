@@ -85,7 +85,7 @@ import { raceArt } from '../systems/races.js';
 import { appStorage } from '../systems/appStorage.js';   // DA1: the storage seam
 import { modSetting } from '../systems/modSettings.js';
 import { loadWalkAnimationAssets, isWalkAnimationGroup, isWalkAnimationKey, isRunAnimationGroup, isRunAnimationKey, isWalkVariantEnabled, isRunVariantEnabled, walkVariantForActor, runVariantForActor, dynamicWalkStyleForActor, aliasDynamicWalkSource } from '../formats/morrowind/mwWalkAnimationAssets.js';
-import { loadHitReactionAnimationAssets, loadReAnimationAnimationAssets, ANIMATION_PACK_IDS, selectDeterministicReactionGroup } from '../formats/morrowind/mwAnimationPackAssets.js';
+import { loadHitReactionAnimationAssets, loadReAnimationAnimationAssets, ANIMATION_PACK_IDS, selectDeterministicReactionGroup, selectStableAnimationVariant } from '../formats/morrowind/mwAnimationPackAssets.js';
 import { drawRigSpriteBox, MW_THIRD_PERSON_PIXEL } from '../render/characterSprite.js';
 import { WEAPONS } from '../characters/weapons.js';
 import { materialName } from '../systems/item/itemInfo.js';
@@ -4523,16 +4523,11 @@ export function createFpArm({ playerAppearance = false } = {}) {
       .filter((source) => source.animationPackId === ANIMATION_PACK_IDS.reanimation
         && source.animationFamily === 'combat')
       .map((source) => ({ source, pick: pickAnimSource([source], group, resetClip, options) }))
-      .filter((candidate) => candidate.pick)
-      .sort((a, b) => String(a.source.name).localeCompare(String(b.source.name)));
+      .filter((candidate) => candidate.pick);
     if (!candidates.length) return pickAnimSource(sources, group, resetClip, options);
     const seed = `${String(group).toLowerCase()}|${inferredType.toLowerCase()}`;
-    let hash = 2166136261;
-    for (let i = 0; i < seed.length; i++) {
-      hash ^= seed.charCodeAt(i);
-      hash = Math.imul(hash, 16777619);
-    }
-    return candidates[(hash >>> 0) % candidates.length].pick;
+    return selectStableAnimationVariant(candidates, seed)?.pick
+      ?? pickAnimSource(sources, group, resetClip, options);
   }
 
   /** Play a section of the weapon group. Returns FALSE and leaves the
