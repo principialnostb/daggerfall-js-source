@@ -4,7 +4,7 @@ import {
   ANIMATION_PACKS, ANIMATION_PACK_STATUS, animationPackById, resolveAnimationPack,
 } from '../../../src/formats/morrowind/mwAnimationPackCatalog.js';
 
-test('animation pack catalog uses stable IDs and contains the three staged animation packs', () => {
+test('animation pack catalog uses stable IDs and contains the three animation packs', () => {
   assert.deepEqual(ANIMATION_PACKS.map((pack) => pack.id), [
     'reanimation-v3',
     'openmw-dynamic-animations',
