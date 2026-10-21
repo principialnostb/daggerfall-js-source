@@ -2401,7 +2401,7 @@ async function buildTpBody({
     // Hit Reactions Animated v2: third-person only, and only reaction/death
     // groups. Do not let the pack take ownership of locomotion or weapon groups.
     if (!werewolf && !beast && !/\.1st\.nif$/i.test(skeletonPath)) {
-      const assets = await loadHitReactionAnimationAssets();
+      const assets = await loadHitReactionAnimationAssets({ skeletonPath });
       const reactionGroup = /^(?:x)?(?:hit|stagger|death)/i;
       for (const asset of assets) {
         const report = await cachedClipReport(gen, skeletonPath, asset.name, () => asset.bytes, arm.skeleton);
