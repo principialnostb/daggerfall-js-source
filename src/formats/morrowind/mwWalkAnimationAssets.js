@@ -20,14 +20,14 @@ const FILES = IN_BROWSER
 // before resolving so glob enumeration order can never decide animation priority.
 const FIRST_PERSON_FILES = IN_BROWSER
   ? import.meta.glob([
-      '../../../Mods/Animations/ReAnimation v3 - Complete - first-person animation pack/00 Core/Animations/xbase_anim.1st/**/*.kf',
-      '../../../Mods/Animations/ReAnimation v3 - Complete - first-person animation pack/00 Core/Animations/xbase_anim.1st/*.kf',
+      '../../../Mods/Animations/ReAnimation v3 - Complete - first-person animation pack/00 Core/Animations/xbase_anim.1st/**/*.{kf,KF}',
+      '../../../Mods/Animations/ReAnimation v3 - Complete - first-person animation pack/00 Core/Animations/xbase_anim.1st/*.{kf,KF}',
     ], { eager: true, query: '?url', import: 'default' })
   : {};
 
 const HIT_REACTION_FILES = IN_BROWSER
   ? import.meta.glob([
-      '../../../Mods/Animations/Hit Reactions Animated v2 -- OpenMW/Animations/**/*.kf',
+      '../../../Mods/Animations/Hit Reactions Animated v2 -- OpenMW/Animations/**/*.{kf,KF}',
       '../../../Mods/Animations/Hit Reactions Animated v2 -- OpenMW/Animations/**/*.KF',
     ], { eager: true, query: '?url', import: 'default' })
   : {};
@@ -38,22 +38,22 @@ const HIT_REACTION_FILES = IN_BROWSER
 // are not browser-runtime providers.
 const OPENMW_DYNAMIC_FIRST_PERSON_FILES = IN_BROWSER
   ? import.meta.glob([
-      '../../../Mods/Animations/OpenMW Dynamic Animations/animations/xbase_anim.1st/*.kf',
+      '../../../Mods/Animations/OpenMW Dynamic Animations/animations/xbase_anim.1st/*.{kf,KF}',
       '../../../Mods/Animations/OpenMW Dynamic Animations/animations/xbase_anim.1st/*.KF',
     ], { eager: true, query: '?url', import: 'default' })
   : {};
 
 const OPENMW_DYNAMIC_THIRD_PERSON_FILES = IN_BROWSER
   ? import.meta.glob([
-      '../../../Mods/Animations/OpenMW Dynamic Animations/animations/xbase_anim/**/*.kf',
-      '../../../Mods/Animations/OpenMW Dynamic Animations/animations/xbase_anim_female/**/*.kf',
-      '../../../Mods/Animations/OpenMW Dynamic Animations/animations/xbase_animkna/**/*.kf',
-      '../../../Mods/Animations/OpenMW Dynamic Animations/animations/xargonian_swimkna/**/*.kf',
-      '../../../Mods/Animations/OpenMW Dynamic Animations/animations/xepos_kha_upr_anim_f/**/*.kf',
-      '../../../Mods/Animations/OpenMW Dynamic Animations/animations/xepos_kha_upr_anim_m/**/*.kf',
-      '../../../Mods/Animations/OpenMW Dynamic Animations/animations/oaab/r/xMazken/**/*.kf',
-      '../../../Mods/Animations/OpenMW Dynamic Animations/animations/r/xGolden Saint/**/*.kf',
-      '../../../Mods/Animations/OpenMW Dynamic Animations/animations/tr/cr/xtr_cr_seducer_01/**/*.kf',
+      '../../../Mods/Animations/OpenMW Dynamic Animations/animations/xbase_anim/**/*.{kf,KF}',
+      '../../../Mods/Animations/OpenMW Dynamic Animations/animations/xbase_anim_female/**/*.{kf,KF}',
+      '../../../Mods/Animations/OpenMW Dynamic Animations/animations/xbase_animkna/**/*.{kf,KF}',
+      '../../../Mods/Animations/OpenMW Dynamic Animations/animations/xargonian_swimkna/**/*.{kf,KF}',
+      '../../../Mods/Animations/OpenMW Dynamic Animations/animations/xepos_kha_upr_anim_f/**/*.{kf,KF}',
+      '../../../Mods/Animations/OpenMW Dynamic Animations/animations/xepos_kha_upr_anim_m/**/*.{kf,KF}',
+      '../../../Mods/Animations/OpenMW Dynamic Animations/animations/oaab/r/xMazken/**/*.{kf,KF}',
+      '../../../Mods/Animations/OpenMW Dynamic Animations/animations/r/xGolden Saint/**/*.{kf,KF}',
+      '../../../Mods/Animations/OpenMW Dynamic Animations/animations/tr/cr/xtr_cr_seducer_01/**/*.{kf,KF}',
     ], { eager: true, query: '?url', import: 'default' })
   : {};
 
