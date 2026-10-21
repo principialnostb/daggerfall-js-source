@@ -3463,6 +3463,20 @@ function nightSoundsCard() {
  *  modSettings.js. FT0 lifted it out of paneMods so the features home
  *  draws the same row; `name`/`note` override the mod's own key name and
  *  description when the registry has better words. */
+const ANIMATION_REBUILD_KEYS = new Set([
+  'AnimationOverhaul', 'FirstPersonSource', 'OpenMWDynamicAnimations', 'HitReactionSource',
+  'PlayerWalkSource', 'PlayerRunSource', 'NpcMaleWalk', 'NpcFemaleWalk', 'NpcFemaleRun',
+]);
+function afterModSettingChange(vendor, key) {
+  if (vendor !== 'morrowind-animation' || !ANIMATION_REBUILD_KEYS.has(key)) return;
+  // Animation providers are compiled into a rig's source list. Persisting a
+  // setting alone leaves the old source list alive, so rebuild the player's
+  // Morrowind rig immediately instead of requiring a world restart.
+  void rebuildMorrowindBody().catch((error) => {
+    console.warn('[Morrowind animations] rig rebuild after setting change failed:', key, String(error?.message ?? error));
+  });
+}
+
 function modRow(vendor, key, def, { name = null, note = null, home = false } = {}) {
   if (!home) { const moved = featureForControl('mods', key, vendor); if (moved) return movedRow(moved); }   // FT2
   const row = el('div', 'row');
@@ -3478,7 +3492,12 @@ function modRow(vendor, key, def, { name = null, note = null, home = false } = {
     const val = el('span', 'val', def.options[modSetting(vendor, key)]);
     const step = (delta, label) => {
       const b = el('button', 'step', label);
-      b.onclick = () => { const n = def.options.length; val.textContent = def.options[setModSetting(vendor, key, (modSetting(vendor, key) + delta + n) % n)]; };
+      b.onclick = () => {
+        const n = def.options.length;
+        const next = setModSetting(vendor, key, (modSetting(vendor, key) + delta + n) % n);
+        val.textContent = def.options[next];
+        afterModSettingChange(vendor, key);
+      };
       return b;
     };
     ctl.append(step(-1, '\u2039'), val, step(1, '\u203a'));
@@ -3684,6 +3703,15 @@ const TILE_AFTER = Object.freeze({
   mwSteelHelm: rebuildMorrowindBody,
   BetterBodies: rebuildMorrowindBody,
   SeamlessDMRA: rebuildMorrowindBody,   // MW-STEEL1: the steel helm's style, closed or open, on the standing body at once
+  AnimationOverhaul: rebuildMorrowindBody,
+  FirstPersonSource: rebuildMorrowindBody,
+  OpenMWDynamicAnimations: rebuildMorrowindBody,
+  HitReactionSource: rebuildMorrowindBody,
+  PlayerWalkSource: rebuildMorrowindBody,
+  PlayerRunSource: rebuildMorrowindBody,
+  NpcMaleWalk: rebuildMorrowindBody,
+  NpcFemaleWalk: rebuildMorrowindBody,
+  NpcFemaleRun: rebuildMorrowindBody,
 });
 
 /**
