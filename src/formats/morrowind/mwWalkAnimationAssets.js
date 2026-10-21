@@ -301,6 +301,21 @@ export function selectOpenMWDynamicAnimationVariants(assets, seed = '') {
   const selected = [];
   for (const [group, candidates] of byGroup) {
     candidates.sort((a, b) => String(a.name).localeCompare(String(b.name)));
+    // The stock ODAR presets use base15 as the general walk-forward gait;
+    // base13/base11 are speed presets, while march/noble clips are profile-
+    // specific. Our runtime already scales root velocity to actor speed, so
+    // keep the general base15 gait unless no compatible base15 exists.
+    if (group === 'walkforward') {
+      const preferred = [
+        /walkforward_base15[;.]?kf$/i,
+        /walkforward_mw15[;.]?kf$/i,
+        /walkforward_base13[;.]?kf$/i,
+        /walkforward_base11[;.]?kf$/i,
+        /walkforward_dirn15[;.]?kf$/i,
+      ];
+      const chosen = preferred.map((pattern) => candidates.find((asset) => pattern.test(String(asset.name)))).find(Boolean);
+      if (chosen) { selected.push(chosen); continue; }
+    }
     selected.push(candidates[stableAnimationHash(`${seed}:${group}`) % candidates.length]);
   }
   return selected.sort((a, b) => String(a.name).localeCompare(String(b.name)));
