@@ -164,6 +164,20 @@ export function selectDeterministicReactionGroup(groups, kind, roll = 0) {
   return candidates[index];
 }
 
+/** Select a source variant reproducibly from its semantic seed, never array/glob order. */
+export function selectStableAnimationVariant(candidates, seed) {
+  const ordered = [...(candidates ?? [])].sort((a, b) =>
+    String(a.source?.name ?? a.name ?? '').localeCompare(String(b.source?.name ?? b.name ?? '')));
+  if (!ordered.length) return null;
+  const value = String(seed ?? '');
+  let hash = 2166136261;
+  for (let i = 0; i < value.length; i++) {
+    hash ^= value.charCodeAt(i);
+    hash = Math.imul(hash, 16777619);
+  }
+  return ordered[(hash >>> 0) % ordered.length];
+}
+
 /** Load the ReAnimation core KF sources relevant to the current first-person weapon family.
  * Unsupported weapon families return no candidates and therefore retain archive animations. */
 export function reAnimationPrefixesForWeaponGroup(weaponShortGroup = '') {
