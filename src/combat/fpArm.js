@@ -7745,7 +7745,6 @@ export function createFpArm({ playerAppearance = false } = {}) {
         attackType,
         attackReversed: reversedNow(),   // MS1: the backhand in flight
         blow: blowPlan ? { ...blowPlan } : null,   // MW-PACE1: the machine's blow this one is paced to, and how far in
-        sheathed,
         sneaking,
         sneakDelta: built && built.ok ? built.sneakDelta : null,
         weaponShown,
