@@ -1662,6 +1662,11 @@ export const MOD_SETTINGS = Object.freeze({
         options: lazyWords('Vanilla', 'Smooth · 0.16 s', 'Smooth · 0.25 s', 'Smooth · 0.40 s'),
         description: 'Browser-native port of Animation Blending for third-person character rigs. Smooths transitions between supported clips; Vanilla disables the cross-fade. The original MWSE Lua script and its per-animation YAML rules are not executable in this browser port, and first-person animation is unchanged.',
       }),
+      HitReactionSource: Object.freeze({
+        default: 0,
+        options: lazyWords('Vanilla', 'Hit Reactions Animated v2'),
+        description: 'Selects compatible hit-reaction, stagger and death clips for player and NPC body rigs. The browser port routes these groups from JavaScript; the pack\'s OpenMW Lua scripts are not executed. Missing or invalid clips fall back to the game/archive animation.',
+      }),
       PlayerWalkSource: Object.freeze({
         default: 0,
         options: lazyWords('Vanilla', 'Simply Walking', 'Feminine Walk Cycle', "Axel's Sexy Walk Fixed"),
