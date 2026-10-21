@@ -315,7 +315,7 @@ export async function loadOpenMWDynamicThirdPersonAnimationAssets({ skeletonPath
     .filter((entry) => {
       const p = norm(entry.path);
       if (!p.includes('/animations/')) return false;
-      if (p.includes(`/animations/${folder}/`)) return true;
+      if (p.includes('/animations/') && p.includes(`/${folder}/`)) return true;
       return isArgonianBeast && p.includes('/animations/xargonian_swimkna/');
     })
     .map((entry) => ({ ...entry, targetGroup: openMWDynamicThirdPersonTargetGroup(entry.path) }))
