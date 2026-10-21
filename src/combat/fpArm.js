@@ -4340,6 +4340,8 @@ export function createFpArm({ playerAppearance = false } = {}) {
   let hideWeaponAtUnequipEnd = false;
   let hideWeaponAtUnequipEndReason = null;
   let unequipDiagnosticSequence = 0;
+  // ANIM-DIAG: distinguish selecting a KF window from actually advancing and sampling it.
+  const actionPlaybackDiagnosticMarks = new WeakMap();
   // MW-D16: the held round. FALSE at build, because the reference does
   // not attach one until a "shoot attach" key fires - a freshly drawn bow
   // is empty until you start to draw it, and only the CROSSBOW reloads
@@ -4951,6 +4953,21 @@ export function createFpArm({ playerAppearance = false } = {}) {
     actionState = pick.state;
     actionState.reversed = !!reversed;   // MS1: the pose reads this window backwards
     actionSource = pick.source;
+    actionPlaybackDiagnosticMarks.set(actionState, new Set());
+    logAnimationDiagnostic(`fp-action-playback-start|${Date.now()}|${weaponGroup}|${start}|${stop}|${actionSource?.name ?? 'unknown'}`, {
+      family: 'first-person-action-playback-v1',
+      event: 'action-playback-started',
+      weaponGroup, start, stop,
+      animationSource: actionSource?.name ?? null,
+      activeViewMode: viewMode,
+      activeRigSkeleton: activeRig.skeletonPath ?? activeRig.settingsSkeleton ?? null,
+      clipStartTime: actionState.startTime,
+      clipStopTime: actionState.stopTime,
+      initialTime: actionState.time,
+      initialPoseTime: poseTime(actionState),
+      reversed: actionState.reversed,
+      playing: actionState.playing,
+    });
     return true;
   }
 
@@ -7248,7 +7265,33 @@ export function createFpArm({ playerAppearance = false } = {}) {
         if (paced) blowPlan.clock += dt;
         // CAST-SPEED: a cast plays at its own rate, where OpenMW plays the spellcast group at 1
         const speed = paced ? blowPlan.rate : upper === UPPER_BODY.Casting ? castRate : weapSpeed;
-        advanceClip(actionState, (actionSource || rig()).keys, dt * speed, onActionKey);
+        const steppedAction = actionState;
+        advanceClip(steppedAction, (actionSource || rig()).keys, dt * speed, onActionKey);
+        // Log only meaningful milestones, not every render frame. A selection event alone
+        // cannot prove that the KF playhead advanced or that poseTime moved across the clip.
+        const marks = actionPlaybackDiagnosticMarks.get(steppedAction) ?? new Set();
+        actionPlaybackDiagnosticMarks.set(steppedAction, marks);
+        const duration = steppedAction.stopTime - steppedAction.startTime;
+        const progress = duration > 0 ? (steppedAction.time - steppedAction.startTime) / duration : 1;
+        for (const threshold of [0.25, 0.5, 0.75, 1]) {
+          if (progress + 1e-6 < threshold || marks.has(threshold)) continue;
+          marks.add(threshold);
+          logAnimationDiagnostic(`fp-action-playback-progress|${Date.now()}|${weaponGroup}|${steppedAction.group}|${threshold}`, {
+            family: 'first-person-action-playback-v1',
+            event: threshold === 1 ? 'action-playback-ended' : 'action-playback-progress',
+            weaponGroup, animationGroup: steppedAction.group,
+            animationSource: actionSource?.name ?? null,
+            activeViewMode: viewMode,
+            clipStartTime: steppedAction.startTime,
+            clipStopTime: steppedAction.stopTime,
+            clipTime: steppedAction.time,
+            poseTime: poseTime(steppedAction),
+            progress: Math.min(1, progress),
+            reversed: !!steppedAction.reversed,
+            playing: steppedAction.playing,
+            dt, playbackRate: speed,
+          });
+        }
         noteWeaponClock();   // MW-BOW1: before stepUpper ends the section - the group's state keeps its last time
         stepUpper();
       }
