@@ -2365,16 +2365,30 @@ async function buildTpBody({
         const report = await cachedClipReport(gen, skeletonPath, asset.name, () => asset.bytes, arm.skeleton);
         if (!report.ok) { missing.push(`First-person clip ${asset.name}: ${report.error}`); continue; }
         const dynamicLocomotion = asset.variant === 'openmw-dynamic-first-person';
-        const groups = dynamicLocomotion
-          ? report.groups.filter((name) => /^(?:x)?(?:walk|run|sneak)/i.test(name))
-          : report.groups;
-        const allowed = new Set(groups.map((name) => name.toLowerCase()));
-        const keys = dynamicLocomotion
-          ? report.keys.filter((key) => String(key?.text ?? '').split(/\r?\n/).some((line) => {
-            const colon = line.indexOf(':');
-            return colon > 0 && allowed.has(line.slice(0, colon).trim().toLowerCase());
-          }))
-          : report.keys;
+        let groups = report.groups;
+        let keys = report.keys;
+        if (dynamicLocomotion) {
+          const targetGroup = asset.targetGroup;
+          const target = String(targetGroup ?? '').toLowerCase();
+          const aliases = new Set([target, `${target}_base`, `x${target}`, `x${target}_base`]);
+          const groupAliases = new Map(report.groups
+            .filter((name) => aliases.has(name.toLowerCase()))
+            .map((name) => [name.toLowerCase(), targetGroup]));
+          groups = groupAliases.size ? [targetGroup] : [];
+          keys = report.keys.flatMap((key) => {
+            let matched = false;
+            const text = String(key?.text ?? '').split(/\r?\n/).map((line) => {
+              const colon = line.indexOf(':');
+              if (colon <= 0) return line;
+              const group = line.slice(0, colon).trim().toLowerCase();
+              const alias = groupAliases.get(group);
+              if (!alias) return line;
+              matched = true;
+              return alias + line.slice(colon);
+            }).join('\n');
+            return matched ? [{ ...key, text }] : [];
+          });
+        }
         if (!groups.length || !keys.length) continue;
         sources.push({
           name: asset.name, keys, groups,
