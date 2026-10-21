@@ -4,7 +4,7 @@ const GROUPS = [
   { id: 'all', title: 'Силуэт', description: 'Общие пропорции корпуса', keys: ['height', 'bodyWidth', 'bodyFullness'] },
   { id: 'chest', title: 'Плечи и грудная клетка', description: 'Ширина плеч и грудного отдела; передний объём торса', keys: ['shoulderWidth', 'ribcageWidth', 'breastSize', 'breastProjection'] },
   { id: 'torso', title: 'Талия и нижний торс', description: 'Пропорции талии и нижней части корпуса', keys: ['waistWidth', 'abdomenVolume'] },
-  { id: 'hips', title: 'Таз и ягодицы', description: 'Ширина таза пока не влияет на модель; объём и выступ ягодиц работают ограниченно', keys: ['hipWidth', 'buttockSize', 'buttockProjection'] }
+  { id: 'hips', title: 'Таз и ягодицы', description: 'Ширина таза пока не влияет на модель; объём и выступ ягодиц работают ограниченно', keys: ['hipWidth', 'buttockSize', 'buttockProjection'] },
   { id: 'arms', title: 'Руки', description: 'Толщина рук; изменение длины пока не влияет на модель', keys: ['armThickness', 'armLength'] },
   { id: 'legs', title: 'Ноги', description: 'Толщина бёдер и голеней, длина голеней и расстояние между ногами', keys: ['thighThickness', 'calfThickness', 'legLength', 'legGap'] },
   { id: 'head', title: 'Голова', description: 'Масштаб головы', keys: ['headScale'] },
