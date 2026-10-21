@@ -2375,7 +2375,7 @@ async function buildTpBody({
     // texture is registered by basename, so concurrent NPC builds cannot overwrite
     // one another's skin bytes through a shared "current texture" adapter.
     let betterBodiesPart = null;
-    if (modSetting('morrowind-textures', 'BetterBodies') !== false && !beast && !werewolf && !vampire) {
+    if (modSetting('morrowind-textures', 'BetterBodiesSource') !== 0 && !beast && !werewolf && !vampire) {
       try {
         const asset = betterBodiesAssetUrls({ race, female });
         if (!asset) throw new Error(`no Better Bodies asset for race "${String(race)}" / ${female ? 'female' : 'male'}`);
