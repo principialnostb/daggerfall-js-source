@@ -286,8 +286,9 @@ for (const key of highResolutionKeys) {
 const sourcePathByUrl = new Map(Object.entries(FILES).map(([sourcePath, url]) => [url, sourcePath.replace(/\\/g, '/') ]));
 const sourceModOf = (url) => {
   const sourcePath = sourcePathByUrl.get(url) ?? String(url ?? '');
-  const match = /Mods\\/(Bodies|Textures)\\/([^/]+)/i.exec(sourcePath);
-  return match?.[2] ?? 'bundled-morrowind-assets';
+  const parts = sourcePath.split('/');
+  const folderIndex = parts.findIndex((part) => /^(Bodies|Textures)$/i.test(part));
+  return folderIndex >= 0 ? parts[folderIndex + 1] : 'bundled-morrowind-assets';
 };
 const fetchBytes = async (url) => {
   try {
