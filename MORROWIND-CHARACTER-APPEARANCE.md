@@ -202,3 +202,14 @@ Validation required before calling this resolved: run the focused body-morph tes
 The production vertex-morph formula now gives `breastSize` and `buttockSize` a lateral-volume component in X in addition to their existing front/rear depth component in Y. The corresponding `breastProjection` and `buttockProjection` controls remain depth-only. This removes the confirmed mathematical aliasing where each size/projection pair previously drove the same axis through the same mask with only different coefficients.
 
 Focused synthetic regression tests now assert that each size control changes lateral width, each projection control does not, and all four still change depth. These tests verify formula-channel separation only; they do not prove correct anatomical masks or natural results on actual Better Bodies NIF meshes. Actual-mesh per-control displacement and visual inspection remain required. No claim of a passing test run or in-game validation is made by this source change alone.
+
+
+### Morph isolation correction — 2026-10-21
+
+A source audit of the root runtime (`src/formats/morrowind/mwFirstPerson.js`) found that torso and limb controls still used height/shape falloffs without consistently gating every region by the NIF's authored skin influences. In particular, ribcage/breast/waist/abdomen masks could include pelvis-weighted vertices, and leg length could move pelvis vertices because it used only the global height coordinate.
+
+The root runtime now excludes pelvis/hip bones from the trunk influence set, gates ribcage/breast/waist/abdomen zones by trunk weights, and gates leg-length displacement by thigh/calf weights. Focused regression tests were added for ribcage-versus-pelvis isolation and leg-length-versus-pelvis isolation. This is a targeted correction, not proof that all anatomical zones are calibrated on retail Better Bodies meshes.
+
+**Important source-of-truth note:** the repository contains a second copy under `morrowind.v4/src/`. It is not byte-identical to the root runtime; the root test suite imports `src/`. Do not assume a fix in one copy changes the other. Before any release or merge, explicitly establish which tree the target build consumes and either sync the intended patch or document the snapshot boundary.
+
+**Validation status:** source and regression tests were updated, but the test suite and in-game/browser visual validation have not been executed in this pass. Do not mark the slider problem resolved until the focused test passes and each control is measured on actual supported NIF body meshes.
