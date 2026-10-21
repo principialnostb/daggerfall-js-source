@@ -2360,7 +2360,7 @@ async function buildTpBody({
     // Animations is deliberately restricted to locomotion groups; all other groups
     // stay on the archive source and the OpenMW Lua state machine is not executed.
     if (!werewolf && !beast && /\.1st\.nif$/i.test(skeletonPath)) {
-      const assets = await loadFirstPersonAnimationAssets();
+      const assets = await loadFirstPersonAnimationAssets({ skeletonPath });
       for (const asset of assets) {
         const report = await cachedClipReport(gen, skeletonPath, asset.name, () => asset.bytes, arm.skeleton);
         if (!report.ok) { missing.push(`First-person clip ${asset.name}: ${report.error}`); continue; }
