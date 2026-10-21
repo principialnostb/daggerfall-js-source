@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   ANIMATION_PACK_IDS, ANIMATION_PACK_PROVIDERS, animationPackFamily, inspectAnimationPackAssets, listAnimationPackAssets, loadHitReactionAnimationAssets, loadReAnimationAnimationAssets, loadDynamicIdleAnimationAsset,
-  resolveAnimationPackProvider, selectDeterministicReactionGroup, reAnimationPrefixesForWeaponGroup, selectStableAnimationVariant,
+  resolveAnimationPackProvider, selectDeterministicReactionGroup, reAnimationPrefixesForWeaponGroup, selectStableAnimationVariant, aliasReAnimationAttackGroups,
 } from '../../src/formats/morrowind/mwAnimationPackAssets.js';
 
 test('MW-ANIM-PACKS: pack discovery is safe outside the browser', () => {
@@ -105,4 +105,24 @@ test('MW-ANIM-PACKS: ReAnimation action variants are selected by a stable semant
 
 test('MW-ANIM-PACKS: Dynamic Animations idle asset loader is safe outside the browser', async () => {
   assert.equal(await loadDynamicIdleAnimationAsset({ female: false, variant: '3' }), null);
+});
+
+test('MW-ANIM-PACKS: ReAnimation Alt/Sub clips alias to the matching weapon group', () => {
+  const source = {
+    animationPackId: ANIMATION_PACK_IDS.reanimation,
+    name: 'Mods/Animations/ReAnimation/x2cChopAlt.kf',
+    groups: ['weapontwohandalt', 'weapontwohandaltextra'],
+    keys: [
+      { time: 0, text: 'weapontwohandalt: chop start' },
+      { time: 1, text: 'weapontwohandaltextra: chop tail start' },
+    ],
+    groupSet: new Set(['weapontwohandalt', 'weapontwohandaltextra']),
+  };
+  const aliased = aliasReAnimationAttackGroups(source);
+  assert.deepEqual(aliased.groups, ['weapontwohand', 'weapontwohandextra']);
+  assert.ok(aliased.keys.some((key) => key.text === 'weapontwohand: chop start'));
+  assert.ok(aliased.keys.some((key) => key.text === 'weapontwohandextra: chop tail start'));
+  assert.equal(aliased.animationGroupAliasesApplied, true);
+  const canonical = { ...source, name: 'x2cChop.kf' };
+  assert.equal(aliasReAnimationAttackGroups(canonical), canonical);
 });
