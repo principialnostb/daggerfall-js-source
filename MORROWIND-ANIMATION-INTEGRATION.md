@@ -4,6 +4,8 @@ Status: the runtime now consumes the three animation packs through its actual fi
 
 > **Maintenance inventory:** see [MORROWIND-ANIMATION-MAINTENANCE.md](./MORROWIND-ANIMATION-MAINTENANCE.md) for the pack-by-pack inventory, current runtime boundaries, unresolved player/NPC selector requirements, and validation checklist. The inventory explicitly distinguishes assets present in the repository from assets actually consumed by the runtime.
 
+> **Runtime diagnostics:** see [bible/01-Overview/Mod-Diagnostics.md](./bible/01-Overview/Mod-Diagnostics.md) for the structured log format, animation discovery/load/selection events, desktop log locations, and the limits of current runtime observability.
+
 ## Working branch and asset source
 
 - Code changes belong on [`Dev`](https://github.com/principialnostb/daggerfall-js-source/tree/Dev).
