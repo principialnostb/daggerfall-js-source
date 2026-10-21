@@ -427,14 +427,22 @@ export async function loadOpenMWDynamicThirdPersonAnimationAssets({ skeletonPath
       modDiagnostics.record({ level: 'error', phase: 'animation-load', action: 'animation-clip-load-failed', modId: 'openmw-dynamic-animations', resource: entry.path, message: String(error?.message ?? error), details: { rig: skeletonPath, race, fallback: 'archive' } });
     }
   }
+  const targetGroups = [...new Set(result.map((asset) => String(asset.targetGroup ?? '').toLowerCase()))].sort();
+  const locomotionGroups = targetGroups.filter((group) => /^(?:walk|run|sneak)/i.test(group));
   modDiagnostics.record({
     level: result.length ? 'info' : 'warn',
     phase: 'animation-selection',
     action: result.length ? 'animation-assets-selected' : 'animation-pack-empty',
     modId: 'openmw-dynamic-animations',
     resource: 'third-person',
-    message: result.length ? '' : 'No eligible third-person animation clips loaded for this rig; archive animations remain active.',
-    details: { count: result.length, candidateCount: files.length, rig: skeletonPath, race, fallback: result.length ? null : 'archive' },
+    message: result.length
+      ? `Selected third-person clips replace matching game/archive groups${locomotionGroups.length ? `, including locomotion: ${locomotionGroups.join(', ')}` : ''}.`
+      : 'No eligible third-person animation clips loaded for this rig; archive animations remain active.',
+    details: {
+      count: result.length, candidateCount: files.length, rig: skeletonPath, race,
+      targetGroups, locomotionGroups, replacesVanillaLocomotion: locomotionGroups.length > 0,
+      fallback: result.length ? null : 'archive',
+    },
   });
   return result;
 }
