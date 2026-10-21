@@ -1665,7 +1665,7 @@ export const MOD_SETTINGS = Object.freeze({
       FirstPersonSource: Object.freeze({
         default: 1,
         options: lazyWords('Vanilla', 'ReAnimation v3', 'OpenMW Dynamic Animations', 'ReAnimation v3 + OpenMW Dynamic Animations'),
-        description: 'First-person animation sources are layered by responsibility. ReAnimation v3 supplies stance, weapon, jump and related first-person clips; option 3 additionally overlays OpenMW Dynamic Animations directional walk/run/sneak clips. The assets are enabled only when the active first-person rig is `xbase_anim.1st.nif`; any other rig retains archive fallback. Dynamic directional clips replace only their matching movement groups.',
+        description: 'First-person sources can be used independently or layered. ReAnimation v3 supplies stance, weapon, jump and related clips; OpenMW Dynamic Animations supplies directional walk/run/sneak clips; the combined option overlays those movement groups on ReAnimation. Assets are enabled only when the active first-person rig is `xbase_anim.1st.nif`; any other rig retains archive fallback.',
       }),
       OpenMWDynamicAnimations: Object.freeze({
         default: 1,
