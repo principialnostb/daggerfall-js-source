@@ -153,3 +153,23 @@ The runtime now loads the checked-in `RunForward;.kf` as part of Axel's single l
 - ReAnimation v3 and Hit Reactions Animated v2 are currently staged source assets, not active runtime providers. Their clips must not be routed into the live resolver solely by filename or folder order. ReAnimation targets first-person animation groups; Hit Reactions targets third-person reaction/death groups and needs its own actor/group-scoped provider path.
 - OpenMW Dynamic Animations is reference material and its MWSE/OpenMW behavior is not executed by the browser runtime.
 - Verification status after the folder move: the paths in the runtime glob have been corrected at source level. Full test/lint/build and in-game visual checks have not yet been run in this environment.
+
+
+## New pack integration audit (2026-10-21)
+
+| Source | Repository assets | Intended runtime family | Integration boundary |
+|---|---|---|---|
+| [ReAnimation v3 — Complete (#52596)](https://www.nexusmods.com/morrowind/mods/52596?tab=files) | `Mods/Animations/ReAnimation v3 - Complete - first-person animation pack/00 Core/Animations/xbase_anim.1st/` | First-person combat/weapon clips | Must be resolved by the first-person clip provider and bound against the first-person rig. Never add to the third-person walk provider. The staged files are not proof of active playback. |
+| [OpenMW Dynamic Animations (#57633)](https://www.nexusmods.com/morrowind/mods/57633?tab=files) | `Mods/Animations/OpenMW Dynamic Animations/` | Explicitly selected locomotion/idle/race-specific clips, one family at a time | Its OpenMW Lua/config logic is not executed by this browser port. Only verified KF clips can be integrated; do not claim full mod parity. Race-specific files require a deterministic actor/race mapping. |
+| [Hit Reactions Animated — OpenMW (#56594)](https://www.nexusmods.com/morrowind/mods/56594?tab=files) | `Mods/Animations/Hit Reactions Animated v2 -- OpenMW/` | Third-person hit reactions (and only separately verified additional groups) | Requires a distinct actor/group-scoped provider. Filter parsed text-key groups; never replace the actor's whole animation source or let a reaction pack override locomotion/combat/death by accident. |
+
+### Required implementation order
+
+1. Inventory each staged KF/NIF's parsed group names, text-key intervals, and referenced bone names using the existing animation parser.
+2. Add a deterministic source registry with explicit family, rig, actor/race eligibility, and source priority. Sort discovered assets; do not use glob order as priority.
+3. Integrate ReAnimation v3 through the first-person clip resolver; add tests that prove third-person clips remain untouched and unsupported groups fall back to archive sources.
+4. Integrate Hit Reactions through a third-person reaction-only resolver, with actor initialization guards and tests proving unrelated groups remain unchanged.
+5. Evaluate OpenMW Dynamic Animations clip-by-clip. Port a behavior only when its required Lua selection logic can be represented natively and tested; preserve a documented Vanilla fallback.
+6. Run targeted animation tests, lint, types, and build. In-game visual validation remains a separate required check.
+
+**Status:** resource files are staged in `Dev`; the three packs are not yet active runtime providers. Do not mark the task complete until the runtime consumers and tests above exist.
