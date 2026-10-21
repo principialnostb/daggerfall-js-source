@@ -2854,6 +2854,10 @@ export function deformPlayerBodyGeometry(piece, morph, bodyBounds) {
   const halfY = Math.max(1e-5, (maxY - minY) * 0.5);
   const spanZ = Math.max(1e-5, maxZ - minZ);
   const cx = (minX + maxX) * 0.5, cy = (minY + maxY) * 0.5;
+  // bodyBounds.torsoHalfX is estimated from the torso-height cross-section,
+  // not from the full silhouette: outstretched arms must not redefine the
+  // width scale used to classify torso vertices.
+  const torsoHalfX = Math.max(1e-5, Number(bodyBounds.torsoHalfX) || halfX);
   const amount = (key) => clampMorph(morph?.[key]);
   const gauss = (v, center, width) => Math.exp(-Math.pow((v - center) / width, 2));
   const smoothstep = (a, b, v) => {
@@ -2885,6 +2889,7 @@ export function deformPlayerBodyGeometry(piece, morph, bodyBounds) {
     if (!Number.isFinite(ox + oy + oz)) continue;
     const nx = (ox - cx) / halfX, ny = (oy - cy) / halfY;
     const ax = Math.abs(nx);
+    const torsoAx = Math.abs(ox - cx) / torsoHalfX;
     const nz = (oz - minZ) / spanZ;
     let x = ox, y = oy, z = oz;
 
@@ -2892,10 +2897,13 @@ export function deformPlayerBodyGeometry(piece, morph, bodyBounds) {
     // frame. Never derive a later region from already-deformed coordinates.
     // A narrow centre mask separates the torso from the arms; the previous
     // height-only falloffs also pushed arm vertices whenever torso controls moved.
-    const torsoCore = 1 - smoothstep(0.22, 0.38, ax);
+    // Torso controls use torso-relative width. The former mask used ax,
+    // normalized by the widest points of the entire body; when arms were
+    // spread, its "torso" region expanded sideways and included arm vertices.
+    const torsoCore = 1 - smoothstep(0.72, 1.12, torsoAx);
     const shoulderZone = gauss(nz, 0.78, 0.065) * torsoCore;
     const ribcageZone = gauss(nz, 0.68, 0.075) * torsoCore;
-    const breastZone = gauss(nz, 0.685, 0.065) * gauss(ax, 0.20, 0.13) * torsoCore;
+    const breastZone = gauss(nz, 0.685, 0.065) * gauss(torsoAx, 0.38, 0.28) * torsoCore;
     const waistZone = gauss(nz, 0.56, 0.055) * torsoCore;
     const abdomenZone = gauss(nz, 0.525, 0.07) * torsoCore;
     const hipZone = gauss(nz, 0.47, 0.065) * torsoCore;
@@ -3046,6 +3054,22 @@ export function poseAssembly(assembly, { tracks = null, sampleTrack = null,
       bodyBounds.minZ = Math.min(bodyBounds.minZ, z); bodyBounds.maxZ = Math.max(bodyBounds.maxZ, z);
     }
     if (Number.isFinite(bodyBounds.minX)) {
+      // Estimate the torso's half-width from vertices in the torso-height
+      // band. A robust percentile rejects most arm-tip outliers while keeping
+      // this coordinate frame shared by all separately skinned body pieces.
+      const spanZ = Math.max(1e-5, bodyBounds.maxZ - bodyBounds.minZ);
+      const cx = (bodyBounds.minX + bodyBounds.maxX) * 0.5;
+      const torsoRadii = [];
+      for (const p of bodyPieces) for (let i = 0; i + 2 < p.positions.length; i += 3) {
+        const x = p.positions[i], y = p.positions[i + 1], z = p.positions[i + 2];
+        if (!Number.isFinite(x + y + z)) continue;
+        const nz = (z - bodyBounds.minZ) / spanZ;
+        if (nz >= 0.53 && nz <= 0.75) torsoRadii.push(Math.abs(x - cx));
+      }
+      if (torsoRadii.length) {
+        torsoRadii.sort((a, b) => a - b);
+        bodyBounds.torsoHalfX = torsoRadii[Math.floor((torsoRadii.length - 1) * 0.72)];
+      }
       for (const p of bodyPieces) deformPlayerBodyGeometry(p, geometryMorph, bodyBounds);
     }
   }
