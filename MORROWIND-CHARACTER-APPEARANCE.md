@@ -136,3 +136,30 @@ This is the target contract, not a statement that all stages are implemented:
 - Confirmed a concrete double-application defect: `bodyWidth` and `height` already deform body vertices in `poseAssembly()`, but the third-person actor transform and the editor portrait transform also applied the same scale. This made those controls scale the whole assembled model a second time, including attached geometry/framing. Removed the duplicate transform scaling; these controls now have one owner, the body-vertex morph pass.
 - Exported the geometry-deformation function so it can be exercised directly by regression tests with synthetic vertex clouds. This verifies that every regional geometry control changes vertex data under representative anatomy bounds; `headScale` remains a separate skeleton-bone transform and is tested through pose-level behavior.
 - This source-level fix does not substitute for visual QA against the actual Better Bodies NIFs. The existing morphs are procedural vertex deformations, not authored morph targets in Better Bodies. Region weights and falloffs still require visual calibration on supported race/sex meshes and clothing.
+
+
+### Morph-region root-cause investigation — 2026-10-21
+
+**Status: investigation, not a verified fix.** The torso-width changes in commits `413383f` and `354cb37` are still heuristic adjustments. They have not been validated against the shipped Better Bodies NIFs and must not be treated as proof that the region classifier is correct.
+
+#### Findings confirmed in source
+
+- `poseAssembly()` first CPU-skins every body piece, then computes one bounding box from those **posed** vertex positions, estimates torso width from a height band (`nz = 0.53..0.75`), and passes that frame to `deformPlayerBodyGeometry()`. Therefore the region frame is animation-dependent: limb and torso positions can move before the classifier measures them.
+- The regional masks are geometric guesses over normalized height and distance from the body centre. Shoulder, ribcage, breast, waist, abdomen, hip and buttock are overlapping height-based falloffs. `piece.slot` is used only to decide whether a piece is eligible for morphing; it does not identify the anatomical region of each vertex. A full-body `betterBodies` mesh can consequently be classified only by these approximate coordinates.
+- The NIF pipeline already retains more useful source data: `piece.batch.positions` are the unposed mesh positions, and `piece.batch.skin.bones` contains each influence's bone name, vertex indices and weights. The flattener also preserves each NIF shape's name. These are potential inputs for a stable classifier and diagnostic report; they have not yet been used to prove region membership.
+- The old editor's click-to-select logic (commit `3e6c6b0`) did **not** perform mesh picking or identify anatomical vertices. It converted the click into normalized canvas X/Y and selected a group using fixed screen thresholds. That logic was removed in commit `45d1541` as misleading. The `better-bodies-preview.html` page is a NIF-section/UV preview, not an anatomical segmentation implementation.
+- The current regression tests use a synthetic Cartesian vertex cloud. The shoulder/waist isolation test checks three manually chosen vertices, so it can catch a narrow regression in those examples but cannot establish correct segmentation on an actual NIF. No real-mesh morph-displacement matrix or visual runtime validation has been recorded.
+
+#### Consequence
+
+Do not continue tuning global height thresholds or torso-width percentiles as the primary solution. First separate **classification** from **deformation** and make the result measurable.
+
+#### Proposed investigation sequence
+
+1. Add a diagnostic pass that reports each actual body shape/slot, vertex and triangle counts, bind-space bounds, available bone influences, and shape names for the selected race/sex/body variant.
+2. For each morph control in isolation, measure the vertices that move and their displacement, grouped by source shape, skinning influences, and stable bind-space anatomical bands. Compare positive, negative and zero values. Include at least waist, abdomen, hips, thighs and knees in the report.
+3. Compare the current post-skin classifier against a bind-space classifier. Use the authored shape/slot names and bone weights to distinguish trunk and limbs where the source data supports it; use skeleton-relative landmarks plus bind-space coordinates for subdivisions such as waist versus abdomen that bone weights alone cannot distinguish.
+4. Replace overlapping guessed masks only after the report shows where they fail. Keep overall controls explicitly broad; make named controls use separately defined region weights with documented anchors and falloffs.
+5. Add regression coverage using captured measurements from real Better Bodies NIF variants, not only a synthetic point cloud. Record source-level tests separately from build, browser-preview and in-game visual checks.
+
+**Not yet done:** no production morph algorithm was changed as part of this investigation; no build, automated test run, browser render, or in-game visual check has been performed. The existing torso-mask commits remain unverified.
