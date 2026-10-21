@@ -220,3 +220,40 @@ The root runtime now excludes pelvis/hip bones from the trunk influence set, gat
 - The appearance editor defined a debounced `schedulePreviewRigRebuild()` because the preview rig can retain assembled/cached mesh state, but neither the slider `input` handler nor the reset handler called it. Both handlers only redrew the existing rig. This meant the documented cache invalidation path was dead code, so slider changes could redraw stale assembled geometry even while draft values and labels changed.
 - `src/ui/appearanceEditor.js` now schedules the debounced preview-rig rebuild after slider input and after resetting all morphs. This is a targeted preview invalidation fix, not proof that anatomical masks are correctly calibrated for every Better Bodies NIF.
 - Remaining verification: run the body-morph unit tests and visually test each slider against the real preview rig. Existing synthetic vertex-cloud tests only prove that formulas move selected artificial vertices; they do not validate the shipped NIF's skin influence mapping or anatomical locality. Do not describe the editor as fixed until that validation is complete.
+
+
+### Body-morph diagnostic observations — 2026-10-21
+
+The following is a record of observed behavior on the currently tested character model, **not a claim that the morphs are anatomically correct or fixed**. Effects may vary by mesh, race, sex, pose, and build path. Use these observations to name controls by their visible result and to guide real-mesh diagnostics.
+
+| Existing control | Observed effect on the model | UI label / interpretation |
+| --- | --- | --- |
+| `shoulderWidth` | Changes ribcage width rather than only the shoulder span. | Upper torso width |
+| `ribcageWidth` | Changes the lower torso below the ribcage, including its lateral sides. | Lower torso width |
+| `breastSize` | Changes the abdomen's shape/protrusion. | Abdomen bulge |
+| `breastProjection` | Also changes the abdomen's shape/protrusion. | Abdomen forward projection |
+| `waistWidth` | Changes the groin region and the outer sides of the upper thighs near the groin. | Groin and upper-thigh width |
+| `abdomenVolume` | Deforms the buttocks and groin region at the same time. | Abdomen, buttocks and groin deformation |
+| `hipWidth` | No visible change observed. | No effect observed; keep marked as such until investigated |
+| `buttockSize` | Slightly changes the lower part of the buttocks. | Lower-buttock shape (weak effect) |
+| `buttockProjection` | Appears to affect buttock projection, but the change is barely visible. | Buttock rear projection (barely visible) |
+| `armThickness` | Changes apparent arm width in a frontal view; does not visibly add depth/volume. | Arm width, front view |
+| `armLength` | No visible change observed. | No effect observed; keep marked as such until investigated |
+| `thighThickness` | Changes vertical-plane spacing between the knees rather than thigh thickness. | Knee spacing via thigh control |
+| `calfThickness` | Also changes vertical-plane spacing between the knees rather than calf thickness. | Knee spacing via calf control |
+| `legLength` | Changes the lower-leg/calf length, not the thigh length. | Lower-leg length |
+| `legGap` | Moves knees and feet together, changing their separation in the vertical plane. | Knee and foot spacing |
+| `height` | Raises the torso while the head remains at its original static position. | Torso height (head stays fixed) |
+| `bodyWidth` | Observed to behave as intended. | Body width |
+| `bodyFullness` | Controls front-to-back body thickness in a side view. | Body thickness, side view |
+
+#### UI follow-up — 2026-10-21
+
+- [x] Face and hairstyle selectors now use the same compact label/select treatment as sex and race instead of visually separate, differently styled cards.
+- [x] Body sliders and anatomical group filters are collapsed by default behind **«Расширенные параметры тела»**.
+- [x] The expanded section displays a clear notice: **«Функция находится в разработке»**, with a warning that morph effects are not fully calibrated and may deform the model.
+- [x] Slider captions were revised to describe the observed visible effect rather than repeat the legacy/internal parameter name.
+- [ ] Run the editor in the actual game/browser to verify the selector layout at desktop and mobile sizes, expansion/collapse behavior, keyboard accessibility, and that all controls remain usable.
+- [ ] Measure each control's vertex displacement on actual assembled Better Bodies meshes and compare the same test across supported race/sex variants. In particular, investigate controls with no effect and controls whose observed effect differs from their intended anatomical region.
+
+These observations are diagnostic input only. Do not infer from a control's UI caption that the underlying geometry behavior has been corrected. No build, test suite, browser render, or in-game visual validation was performed as part of this UI/documentation change.
