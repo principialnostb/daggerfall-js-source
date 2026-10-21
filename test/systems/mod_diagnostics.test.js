@@ -12,6 +12,8 @@ test('records structured, ordered events and sanitizes module identifiers', () =
   assert.equal(events[0].timestamp, '2026-10-21T12:00:00.000Z');
   assert.equal(events[0].modId, 'Some Mod.dfmod');
   assert.equal(events[0].details.count, 3);
+  diagnostics.record({ level: 'info', phase: 'registration', action: 'load-order', modId: 'core', resource: 'dfmod/load-order', details: { order: [{ key: 'base', enabled: true }, { key: 'addon', enabled: false }] } });
+  assert.deepEqual(events[1].details.order, [{ key: 'base', enabled: true }, { key: 'addon', enabled: false }]);
   assert.equal(diagnostics.summary().totals.info, 1);
 });
 
