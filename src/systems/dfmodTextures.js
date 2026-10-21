@@ -52,6 +52,7 @@ import { toColor32 } from '../formats/color32Order.js';   // GROUND1: the terrai
 import { registerBillboardXml, unregisterBillboardXml } from '../world/billboardXml.js';
 import { getPref, setPref } from './uiPrefs.js';   // VE3: which attached mods are switched off - the port's prefs shelf
 import { setSnowlessGround } from '../world/climateSwaps.js';   // SNOWLESS1: the door's word on a snowless winter set, for the weather and Snowfall
+import { modDiagnostics } from './modDiagnostics.js';
 
 export const DFMOD_PREFIX = 'dfmod/';               // the stored key of a bundle (seasonsIliacBayAssets' DFMOD_KEY_PREFIX)
 export const DFMOD_INDEX_PREFIX = 'dfmod-index/';   // the stored key of its name index
@@ -360,6 +361,7 @@ export async function setDfmodSources(fileNames, load, { saveIndex = null, open 
   const stored = (fileNames ?? []).filter((n) => typeof n === 'string' && n.startsWith(DFMOD_PREFIX) && /\.dfmod$/i.test(n) && !hasOwnDoor(n)).sort();
   const noMods = noModsPage();   // AUDIT VE R11: the door's own rule
   const names = noMods ? [] : stored;
+  modDiagnostics.record({ level: 'info', phase: 'discovery', action: 'dfmod-discovery-complete', modId: 'core', resource: 'dfmod', details: { discovered: stored.length, candidates: names.length, excludedOwnDoor: stored.length - names.length, noModsMode: noMods } });
   // AUDIT VE R4: what a registration is, is its stored indexes - not only their keys. The signature was the key list,
   // so a mod attached again under its own file name (a newer version) was the "same set": the old index stood, and the
   // bundle opened under it, for the rest of the session. The indexes are read first (a few small JSON files), and a
@@ -397,6 +399,29 @@ export async function setDfmodSources(fileNames, load, { saveIndex = null, open 
   _mods = dfmodLoadOrder([..._attached, ...liveShipped()]);   // VE1: AutoSortMods' order, not the listing's; VE4: the shipped among them
   _sig = sig; _sigParts = parts;
   _registered = install();
+  // MOD-DIAG1: report the actual registry result and collisions in the active load order.
+  const textureOwners = new Map();
+  modDiagnostics.record({ level: 'info', phase: 'registration', action: 'load-order', modId: 'core', resource: 'dfmod/load-order',
+    details: { generation: gen, order: _mods.map(({ key, index }) => ({ key, title: index?.title ?? key, enabled: dfmodEnabled(key) })) } });
+  _mods.forEach(({ key, index }, order) => {
+    modDiagnostics.record({ level: 'info', phase: 'registration', action: 'mod-registered', modId: key, resource: key,
+      details: { order, title: index?.title ?? key, version: index?.version ?? null, enabled: dfmodEnabled(key),
+        textures: index?.textures?.length ?? 0, arrays: index?.arrays?.length ?? 0, dependencies: index?.deps?.length ?? 0 } });
+    for (const [name] of index?.textures ?? []) {
+      const normalized = String(name).toLowerCase();
+      const previous = textureOwners.get(normalized);
+      if (previous && previous !== key) {
+        modDiagnostics.record({ level: 'warn', phase: 'texture', action: 'duplicate-texture', modId: key, resource: name,
+          message: 'Texture name is supplied by more than one registered mod; active result follows the resolved load order.',
+          details: { previousOwner: previous, currentOwner: key, loadOrderIndex: order, generation: gen } });
+      } else textureOwners.set(normalized, key);
+    }
+  });
+  for (const [key, state] of _unregistered) {
+    modDiagnostics.record({ level: state.state === 'error' ? 'error' : 'warn', phase: 'registration',
+      action: state.state === 'error' ? 'mod-registration-failed' : 'mod-not-yet-registered', modId: key, resource: key,
+      message: state.error ?? state.state, details: { state: state.state, generation: gen } });
+  }
   // DFMOD2: a bundle stored without its index (a folder pick, an attach that did not finish) is indexed OFF the boot
   // path - the game starts with what is indexed, and the rest lands as a new generation when it is ready. AUDIT VE R6:
   // and one registered from the version before is rebuilt the same way; a rebuild that fails keeps what it had.
@@ -415,7 +440,7 @@ export async function setDfmodSources(fileNames, load, { saveIndex = null, open 
             _sig = stored.map((k) => `${k}=${_sigParts.get(k) ?? 'missing'}`).join('\n');
           }
         }
-      } catch (e) { why = e; console.warn(`[dfmod] ${key} could not be indexed:`, e?.message ?? e); }
+      } catch (e) { why = e; console.warn(`[dfmod] ${key} could not be indexed:`, e?.message ?? e); modDiagnostics.record({ level: 'error', phase: 'indexing', action: 'index-build-failed', modId: key, resource: key, message: openWords(e), details: { generation: gen } }); }
       if (gen !== _generation) return;
       if (index) {
         const text = JSON.stringify(index);
@@ -424,7 +449,8 @@ export async function setDfmodSources(fileNames, load, { saveIndex = null, open 
         _mods = dfmodLoadOrder([..._attached, ...liveShipped()]);   // VE1; AUDIT VE R5: a copy shadows from here
         _registered = install();
       } else if (!_attached.some((m) => m.key === key)) {
-        _unregistered.set(key, { state: 'error', error: openWords(why) });   // AUDIT VE R5: said, with a Remove
+        _unregistered.set(key, { state: 'error', error: openWords(why) });
+        modDiagnostics.record({ level: 'error', phase: 'indexing', action: 'mod-index-unavailable', modId: key, resource: key, message: openWords(why), details: { generation: gen } });   // AUDIT VE R5: said, with a Remove
       }
     }
   };
