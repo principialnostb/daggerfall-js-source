@@ -1692,6 +1692,16 @@ export const MOD_SETTINGS = Object.freeze({
         options: lazyWords('Vanilla', 'Simply Walking', 'Feminine Walk Cycle', "Axel's Sexy Walk Fixed", 'OpenMW Dynamic Animations'),
         description: "Female NPC walking source. Vanilla, Simply Walking, Feminine Walk Cycle, Axel's Sexy Walk Fixed, and OpenMW Dynamic Animations are independent walk-only choices. Dynamic Animations selects a stable per-actor forward-walk variant. Running is configured separately; other directions and unsupported groups fall back to the game/archive source.",
       }),
+      NpcMaleIdleSource: Object.freeze({
+        default: 0,
+        options: lazyWords('Vanilla', 'OpenMW Dynamic Animations'),
+        description: 'Male NPC idle source. OpenMW Dynamic Animations selects one of the compatible Idle2/Idle3/Idle6 clips deterministically per actor. Player and sneak idles remain on the game/archive source.',
+      }),
+      NpcFemaleIdleSource: Object.freeze({
+        default: 0,
+        options: lazyWords('Vanilla', 'OpenMW Dynamic Animations'),
+        description: 'Female NPC idle source. OpenMW Dynamic Animations selects one of the compatible Idle2/Idle3/Idle6 clips deterministically per actor. Player and sneak idles remain on the game/archive source.',
+      }),
       NpcFemaleRun: Object.freeze({
         default: 0,
         options: lazyWords('Vanilla', "Axel's Sexy Walk Fixed"),
