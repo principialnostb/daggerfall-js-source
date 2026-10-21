@@ -156,7 +156,7 @@ export function selectDeterministicReactionGroup(groups, kind, roll = 0) {
     .filter((group) => kind === 'death'
       ? group.startsWith('death') && !group.includes('dremora')
       : kind === 'hit'
-        ? group === 'hitreact' || group.startsWith('stagger')
+        ? group.startsWith('hitreact') || group.startsWith('stagger')
         : false)
     .sort();
   if (!candidates.length) return null;
