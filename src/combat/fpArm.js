@@ -4939,7 +4939,7 @@ export function createFpArm({ playerAppearance = false } = {}) {
     const sources = activeRig.sources ?? [];
     const options = { start, stop, startPoint };
     const providerChoice = Number(modSetting('morrowind-animation', 'FirstPersonSource') ?? 0);
-    const reAnimationEnabled = providerChoice === 1 || providerChoice === 3;
+    const reAnimationEnabled = providerChoice === 2 || providerChoice === 4;
     const actionType = String(start ?? '').match(/(?:^|\s)(chop|slash|thrust|shoot|throw)(?:\s|$)/i)?.[1]?.toLowerCase();
     let pick = null;
     let reAnimationCandidates = [];
