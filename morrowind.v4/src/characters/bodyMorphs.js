@@ -1,25 +1,25 @@
 // Character body morph settings for the Morrowind player.
 // Values are normalized to [-1, 1] and persisted per browser profile.
 export const BODY_MORPH_FIELDS = [
-  ['height', 'Высота туловища (голова неподвижна)', 'overall'],
+  ['height', 'Высота корпуса (голова остаётся на месте)', 'overall'],
   ['bodyWidth', 'Ширина тела', 'overall'],
   ['bodyFullness', 'Толщина тела (вид сбоку)', 'overall'],
   ['shoulderWidth', 'Ширина грудной клетки', 'shoulders'],
-  ['ribcageWidth', 'Ширина нижнего туловища', 'torso'],
-  ['breastSize', 'Выпуклость живота', 'chest'],
-  ['breastProjection', 'Выступ живота', 'chest'],
-  ['waistWidth', 'Ширина паховой области', 'torso'],
-  ['abdomenVolume', 'Объём живота и ягодиц', 'torso'],
-  ['hipWidth', 'Ширина таза · не влияет', 'hips'],
-  ['buttockSize', 'Объём нижней части ягодиц (слабо)', 'hips'],
-  ['buttockProjection', 'Выступ ягодиц назад (слабо)', 'hips'],
+  ['ribcageWidth', 'Ширина нижней части корпуса', 'torso'],
+  ['breastSize', 'Объём живота', 'chest'],
+  ['breastProjection', 'Выпуклость живота', 'chest'],
+  ['waistWidth', 'Ширина паховой зоны', 'torso'],
+  ['abdomenVolume', 'Объём живота (влияет на ягодицы и пах)', 'torso'],
+  ['hipWidth', 'Ширина таза (не влияет на модель)', 'hips'],
+  ['buttockSize', 'Форма нижней части ягодиц (слабый эффект)', 'hips'],
+  ['buttockProjection', 'Выступ ягодиц (почти незаметно)', 'hips'],
   ['headScale', 'Размер головы', 'head'],
   ['armThickness', 'Ширина рук (вид спереди)', 'arms'],
-  ['armLength', 'Длина рук · не влияет', 'arms'],
-  ['thighThickness', 'Разведение коленей (бёдра)', 'legs'],
-  ['calfThickness', 'Разведение коленей (голени)', 'legs'],
+  ['armLength', 'Длина рук (не влияет на модель)', 'arms'],
+  ['thighThickness', 'Положение коленей (бёдра)', 'legs'],
+  ['calfThickness', 'Положение коленей (голени)', 'legs'],
   ['legLength', 'Длина голеней', 'legs'],
-  ['legGap', 'Разведение коленей и стоп', 'legs'],
+  ['legGap', 'Расстояние между коленями и стопами', 'legs'],
 ];
 const KEY = 'mw-character-body-morphs-v1';
 const UNDERWEAR_KEY = 'mw-character-underwear-v1';
