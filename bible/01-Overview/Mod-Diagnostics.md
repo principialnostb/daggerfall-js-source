@@ -32,4 +32,8 @@ Registration records use `action: 'register'` plus a `domain` and `resource`. Re
 
 ## Current coverage
 
-The collector and Electron NDJSON transport are the shared foundation. The Daggerfall Unity `.dfmod` registry reports discovery/registration order, indexing failures, and duplicate texture names through this interface. Other model/body/animation paths should emit the same event contract at their real loader seams as those paths are instrumented; a lack of an event must not be interpreted as proof that a resource loaded successfully.
+- The Daggerfall Unity `.dfmod` registry reports discovery counts, resolved load order, registration state, dependency-sort failure, missing/failed indexes, duplicate texture names, bundle-open failures/timeouts and texture-decode failures.
+- Morrowind animation providers report selected asset counts per pack/rig and per-file load failures for walk, first-person, dynamic third-person and hit-reaction clips. The archive fallback is named when retained.
+- Morrowind bundled body/texture assets report selected pack/configuration summaries and failed asset fetches; the Morrowind texture worker reports decoder failures and worker-pool fallback.
+
+These hooks cover the real loader seams currently instrumented, not every possible model path. Other model/body/animation paths should emit the same event contract as those paths are instrumented; a lack of an event must not be interpreted as proof that a resource loaded successfully.
