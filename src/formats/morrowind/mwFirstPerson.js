@@ -2856,9 +2856,13 @@ export function deformPlayerBodyGeometry(piece, morph, bodyBounds) {
   const cx = (minX + maxX) * 0.5, cy = (minY + maxY) * 0.5;
   const amount = (key) => clampMorph(morph?.[key]);
   const gauss = (v, center, width) => Math.exp(-Math.pow((v - center) / width, 2));
-  const bodyWidth = 1 + amount('bodyWidth') * 0.18;
-  const bodyFullness = 1 + amount('bodyFullness') * 0.14;
-  const bodyHeight = 1 + amount('height') * 0.15;
+  const smoothstep = (a, b, v) => {
+    const t = Math.max(0, Math.min(1, (v - a) / Math.max(1e-6, b - a)));
+    return t * t * (3 - 2 * t);
+  };
+  const bodyWidth = amount('bodyWidth');
+  const bodyFullness = amount('bodyFullness');
+  const bodyHeight = amount('height');
   const shoulder = amount('shoulderWidth');
   const ribcage = amount('ribcageWidth');
   const breast = amount('breastSize');
@@ -2880,48 +2884,55 @@ export function deformPlayerBodyGeometry(piece, morph, bodyBounds) {
     const ox = p[i], oy = p[i + 1], oz = p[i + 2];
     if (!Number.isFinite(ox + oy + oz)) continue;
     const nx = (ox - cx) / halfX, ny = (oy - cy) / halfY;
+    const ax = Math.abs(nx);
     const nz = (oz - minZ) / spanZ;
-    let x = cx + (ox - cx) * bodyWidth;
-    let y = cy + (oy - cy) * bodyFullness;
-    let z = minZ + (oz - minZ) * bodyHeight;
+    let x = ox, y = oy, z = oz;
 
-    // Anatomical falloff uses the whole body's bounds, not each tiny mesh
-    // island's local bounds. This keeps a multi-part Better Bodies NIF coherent.
-    const shoulderZone = gauss(nz, 0.78, 0.085);
-    const ribcageZone = gauss(nz, 0.68, 0.105);
-    const breastZone = gauss(nz, 0.685, 0.075) * gauss(Math.abs(nx), 0.20, 0.16);
-    const waistZone = gauss(nz, 0.56, 0.07);
-    const abdomenZone = gauss(nz, 0.525, 0.085);
-    const hipZone = gauss(nz, 0.47, 0.09);
-    const buttockZone = gauss(nz, 0.465, 0.09);
-    const armZone = (Math.abs(nx) > 0.22 ? 1 : 0) * gauss(nz, 0.65, 0.18);
-    const thighZone = (Math.abs(nx) > 0.07 ? 1 : 0) * gauss(nz, 0.31, 0.105);
-    const calfZone = (Math.abs(nx) > 0.045 ? 1 : 0) * gauss(nz, 0.15, 0.08);
-    x += nx * halfX * (shoulder * 0.13 * shoulderZone + ribcage * 0.11 * ribcageZone);
+    // All region weights use the same unmodified, whole-assembly coordinate
+    // frame. Never derive a later region from already-deformed coordinates.
+    // A narrow centre mask separates the torso from the arms; the previous
+    // height-only falloffs also pushed arm vertices whenever torso controls moved.
+    const torsoCore = 1 - smoothstep(0.22, 0.38, ax);
+    const shoulderZone = gauss(nz, 0.78, 0.065) * torsoCore;
+    const ribcageZone = gauss(nz, 0.68, 0.075) * torsoCore;
+    const breastZone = gauss(nz, 0.685, 0.065) * gauss(ax, 0.20, 0.13) * torsoCore;
+    const waistZone = gauss(nz, 0.56, 0.055) * torsoCore;
+    const abdomenZone = gauss(nz, 0.525, 0.07) * torsoCore;
+    const hipZone = gauss(nz, 0.47, 0.065) * torsoCore;
+    const buttockZone = gauss(nz, 0.465, 0.07) * torsoCore;
+    const armZone = gauss(ax, 0.40, 0.12) * gauss(nz, 0.65, 0.15);
+    const thighZone = (ax > 0.07 ? 1 : 0) * gauss(nz, 0.31, 0.085);
+    const calfZone = (ax > 0.045 ? 1 : 0) * gauss(nz, 0.15, 0.065);
+
+    // Broad controls are intentionally broad; all named controls below are
+    // confined to their own anatomical masks instead of sharing a height band.
+    const broad = 1 + bodyWidth * 0.18;
+    x = cx + (ox - cx) * broad;
+    y = cy + (oy - cy) * (1 + bodyFullness * 0.14);
+    z = minZ + (oz - minZ) * (1 + bodyHeight * 0.15);
+    x += nx * halfX * shoulder * 0.13 * shoulderZone;
+    x += nx * halfX * ribcage * 0.11 * ribcageZone;
     x += nx * halfX * waist * 0.14 * waistZone;
     x += nx * halfX * hip * 0.18 * hipZone;
-    // Breast controls affect the front of the chest, not the back surface.
-    // Negative local Y is the rear side in Morrowind body space.
+
+    // Breast volume/projection are front-only; buttock controls are rear-only.
     const front = Math.max(0, Math.min(1, (ny - 0.015) / 0.42));
     const rear = Math.max(0, Math.min(1, (-ny - 0.02) / 0.55));
-    const bust = breast * 0.15 + breastProjection * 0.20;
-    x += Math.sign(nx || 1) * halfX * (breast * 0.055) * breastZone * front;
-    y += halfY * bust * breastZone * front;
+    y += halfY * (breast * 0.15 + breastProjection * 0.20) * breastZone * front;
     y += Math.sign(ny || 1) * halfY * abdomen * 0.14 * abdomenZone;
     y -= halfY * (buttock * 0.15 + buttockProjection * 0.19) * buttockZone * rear;
+
+    // Limb controls have separate masks and cannot bleed into torso width controls.
     x += Math.sign(nx || 1) * halfX * arms * 0.055 * armZone;
     y += Math.sign(ny || 1) * halfY * arms * 0.045 * armZone;
     x += Math.sign(nx || 1) * halfX * thighs * 0.09 * thighZone;
     y += Math.sign(ny || 1) * halfY * thighs * 0.065 * thighZone;
     x += Math.sign(nx || 1) * halfX * calves * 0.075 * calfZone;
     y += Math.sign(ny || 1) * halfY * calves * 0.055 * calfZone;
-    // Leg spacing is restricted to the leg silhouette. The old broad
-    // nz < 0.47 gate also moved the outer pelvis and made this control read
-    // as a whole-body scale/hip-width change.
-    if (nz < 0.43 && Math.abs(nx) > 0.105) {
-      const upperLegWeight = gauss(nz, 0.31, 0.13);
-      const lowerLegWeight = gauss(nz, 0.13, 0.10);
-      const limbWeight = Math.max(upperLegWeight, lowerLegWeight);
+
+    // Leg spacing only affects limb regions, not the pelvis or hip silhouette.
+    if (nz < 0.43 && ax > 0.105) {
+      const limbWeight = Math.max(gauss(nz, 0.31, 0.10), gauss(nz, 0.13, 0.075));
       x += Math.sign(nx) * halfX * legGap * 0.075 * limbWeight;
     }
     if (legLength) {
@@ -2929,6 +2940,8 @@ export function deformPlayerBodyGeometry(piece, morph, bodyBounds) {
       z += (oz - hipLine) * legLength * 0.12 * lower;
     }
     if (armLength && armZone > 0) {
+      // Keep the shoulder attachment as the anchor; only the arm below it is
+      // lengthened/shortened, rather than scaling its position around body centre.
       const lowerArm = Math.max(0, Math.min(1, (shoulderLine - oz) / (spanZ * 0.28)));
       z += (oz - shoulderLine) * armLength * 0.10 * lowerArm * armZone;
     }
