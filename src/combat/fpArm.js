@@ -84,7 +84,7 @@ import { DFPalette } from '../formats/dfPalette.js';
 import { raceArt } from '../systems/races.js';
 import { appStorage } from '../systems/appStorage.js';   // DA1: the storage seam
 import { modSetting } from '../systems/modSettings.js';
-import { loadWalkAnimationAssets, loadFirstPersonAnimationAssets, loadHitReactionAnimationAssets, loadOpenMWDynamicThirdPersonAnimationAssets, selectOpenMWDynamicAnimationVariants, isWalkAnimationGroup, isWalkAnimationKey, isRunAnimationGroup, isRunAnimationKey, isWalkVariantEnabled, isRunVariantEnabled, walkVariantForActor, runVariantForActor, remapAnimationGroupKeys, hitReactionTargetGroup } from '../formats/morrowind/mwWalkAnimationAssets.js';
+import { loadWalkAnimationAssets, loadFirstPersonAnimationAssets, loadHitReactionAnimationAssets, loadOpenMWDynamicThirdPersonAnimationAssets, selectOpenMWDynamicAnimationVariants, isWalkAnimationGroup, isWalkAnimationKey, isRunAnimationGroup, isRunAnimationKey, isWalkVariantEnabled, isRunVariantEnabled, walkVariantForActor, runVariantForActor, remapAnimationGroupKeys, hitReactionTargetGroup, hitReactionRecoveryBlend } from '../formats/morrowind/mwWalkAnimationAssets.js';
 import { drawRigSpriteBox, MW_THIRD_PERSON_PIXEL } from '../render/characterSprite.js';
 import { WEAPONS } from '../characters/weapons.js';
 import { materialName } from '../systems/item/itemInfo.js';
@@ -2435,6 +2435,7 @@ async function buildTpBody({
           trackMap: report.trackMap, binding: report.binding,
           wouldAccumRoot: accumRootRef(arm.skeleton, report.trackMap),
           animationFamily: 'hit-reaction', animationPack: 'hit-reactions-v2',
+          reactionKind: /stagger/i.test(asset.name) ? 'stagger' : target.family,
         });
       }
     }
@@ -3889,6 +3890,7 @@ export function createFpArm({ playerAppearance = false } = {}) {
   // MW-ANIM-BLEND: transition source is the last raw third-person pose, not a stale clip clock.
   let thirdPoseState = null;
   let thirdPoseSource = null;
+  let thirdBlendFromSource = null;
   let thirdBlendFrom = null;
   let thirdBlendElapsed = 0;
 
@@ -6880,15 +6882,20 @@ export function createFpArm({ playerAppearance = false } = {}) {
           // MW-ANIM-BLEND: cross-fade every third-person clip transition (walk/idle/run/jump/attack) over a short fixed window.
           if (thirdPoseState !== state || thirdPoseSource !== poseSource) {
             thirdBlendFrom = t.arm.rawPose instanceof Map ? new Map(t.arm.rawPose) : null;
+            thirdBlendFromSource = thirdPoseState === null ? null : thirdPoseSource;
             thirdBlendElapsed = 0;
             thirdPoseState = state;
             thirdPoseSource = poseSource;
           }
           thirdBlendElapsed += Math.max(0, dt);
           const blendChoice = Math.max(0, Math.min(3, Number(modSetting('morrowind-animation', 'AnimationBlendDuration')) || 0));
-          const blendDuration = [0, 0.16, 0.25, 0.4][blendChoice];
-          const thirdBlendWeight = thirdBlendFrom && blendDuration > 0
+          const recoveryBlend = hitReactionRecoveryBlend(thirdBlendFromSource, thirdBlendElapsed / 0.5);
+          const blendDuration = recoveryBlend?.duration ?? [0, 0.16, 0.25, 0.4][blendChoice];
+          const blendProgress = thirdBlendFrom && blendDuration > 0
             ? Math.min(1, thirdBlendElapsed / blendDuration)
+            : 1;
+          const thirdBlendWeight = thirdBlendFrom && blendDuration > 0
+            ? (recoveryBlend?.weight ?? blendProgress)
             : 1;
           poseAssembly(t.arm, {
             tracks: tOverlay ? overlayFor(tBase, t.leftArm) : tBase,
