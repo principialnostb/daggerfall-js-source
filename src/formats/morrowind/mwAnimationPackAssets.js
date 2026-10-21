@@ -221,6 +221,24 @@ export async function loadReAnimationAnimationAssets({ weaponShortGroup = '' } =
   return loaded.filter(Boolean);
 }
 
+/** Load one deterministic Dynamic Animations idle variant for a humanoid third-person rig. */
+export async function loadDynamicIdleAnimationAsset({ female = false, variant = '2' } = {}) {
+  if (!IN_BROWSER) return null;
+  const skeleton = female ? 'xbase_anim_female' : 'xbase_anim';
+  const candidates = listAnimationPackAssets({ packId: PACKS.dynamic, skeleton, family: 'idle' });
+  const wanted = `idle${String(variant)}_copy;.kf`.toLowerCase();
+  const asset = candidates.find((candidate) => basename(candidate.relativePath) === wanted)
+    ?? candidates.find((candidate) => basename(candidate.relativePath) === 'idle2_copy;.kf');
+  if (!asset) return null;
+  try {
+    const bytes = await loadAnimationPackAsset(asset);
+    return bytes?.length ? { ...asset, bytes, idleOnly: true, idleVariant: 'dynamic', dynamicIdleAlias: true } : null;
+  } catch (error) {
+    console.warn('[Morrowind animations] optional Dynamic Animations idle clip unavailable; archive idle retained:', asset.path, String(error?.message ?? error));
+    return null;
+  }
+}
+
 /** Load the Hit Reactions pack's clips for the actor's actual skeleton family.
  * The pack's OpenMW event scripts are not loaded; gameplay owns event routing. */
 export async function loadHitReactionAnimationAssets({ female = false, beast = false } = {}) {
