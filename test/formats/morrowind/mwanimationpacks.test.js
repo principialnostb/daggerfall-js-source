@@ -1,7 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  ANIMATION_PACK_IDS, animationPackFamily, inspectAnimationPackAssets, listAnimationPackAssets,
+  ANIMATION_PACK_IDS, ANIMATION_PACK_PROVIDERS, animationPackFamily, inspectAnimationPackAssets, listAnimationPackAssets,
+  resolveAnimationPackProvider,
 } from '../../src/formats/morrowind/mwAnimationPackAssets.js';
 
 test('MW-ANIM-PACKS: pack discovery is safe outside the browser', () => {
@@ -30,4 +31,26 @@ test('MW-ANIM-PACKS: unknown and non-animation files never acquire a gameplay fa
   assert.equal(animationPackFamily('unknown-pack', 'WalkForward.kf'), 'other');
   assert.equal(animationPackFamily(ANIMATION_PACK_IDS.hitReactions, 'menu.lua'), 'other');
   assert.equal(animationPackFamily(ANIMATION_PACK_IDS.dynamic, 'animation-config.yaml'), 'other');
+});
+
+test('MW-ANIM-PACKS: every new pack has explicit domains and an honest inactive status', () => {
+  assert.equal(ANIMATION_PACK_PROVIDERS.length, 3);
+  assert.deepEqual(ANIMATION_PACK_PROVIDERS.map((provider) => provider.status), [
+    'present-unintegrated', 'present-unintegrated', 'present-unintegrated',
+  ]);
+  assert.ok(ANIMATION_PACK_PROVIDERS.every((provider) => provider.id && provider.domains.length));
+});
+
+test('MW-ANIM-PACKS: unresolved providers fall back to Vanilla rather than winning by file order', () => {
+  assert.deepEqual(resolveAnimationPackProvider('animation.player.walk'), {
+    requested: 'vanilla', effective: 'vanilla', provider: null, fallback: false, reason: 'Vanilla selected',
+  });
+  const unresolved = resolveAnimationPackProvider('animation.player.walk', 'dynamic-animations.locomotion');
+  assert.equal(unresolved.effective, 'vanilla');
+  assert.equal(unresolved.fallback, true);
+  assert.equal(unresolved.provider, 'dynamic-animations.locomotion');
+  assert.match(unresolved.reason, /stable actor-scoped selection/);
+  const wrongDomain = resolveAnimationPackProvider('animation.player.firstPerson.attack', 'hit-reactions-v2.reactions');
+  assert.equal(wrongDomain.effective, 'vanilla');
+  assert.equal(wrongDomain.fallback, true);
 });
