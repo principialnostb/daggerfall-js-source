@@ -1292,6 +1292,15 @@ export const FEATURES = Object.freeze([
     kinds: Object.freeze(['mod']),
     control: Object.freeze({ store: 'mods', vendor: 'morrowind-animation', key: 'AnimationBlendDuration' }),
   }),
+  Object.freeze({
+    id: 'morrowind-hit-reaction-animation',
+    group: 'character',
+    title: 'Реакции на попадания и смерть',
+    get note() { return MOD_SETTINGS['morrowind-animation'].keys.HitReactionSource.description; },
+    effect: 'Takes effect after the character rig is rebuilt.',
+    kinds: Object.freeze(['mod']),
+    control: Object.freeze({ store: 'mods', vendor: 'morrowind-animation', key: 'HitReactionSource' }),
+  }),
   // MAO: full third-person KF replacement. The loader uses the selected
   // sex-matched source for supported human/elf/orc rigs; the original source
   // remains available as the Vanilla fallback.
