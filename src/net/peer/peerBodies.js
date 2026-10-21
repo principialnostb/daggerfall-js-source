@@ -291,7 +291,7 @@ export function peerBuildOpts(look, shown = null, glyphs = null) {
     reachSweep: false,   // MWNPC3: a peer is never looked out of - no first-person reach sweep in its build
     ...(wolf ? { werewolf: true, ...(skin ? { skin } : {}) } : {}),   // WEREWOLF1: Bloodmoon's wolf - its skeleton, head, hair and robe; SHADOW-FANG: its skin
     ...(look?.vampire && !wolf ? { vampire: true } : {}),   // MWNPC14: a vampire foe's face (an NPC's look - the wire's never carries it)
-    ...(npc ? { npcFace: npcFaceOf(npc) } : {}),   // MWNPC17: its head and hair walked off its seed
+    ...(npc ? { npcFace: npcFaceOf(npc), npcHint: npc } : {}),   // MWNPC17: its head, hair and deterministic animation seed
   };
 }
 
