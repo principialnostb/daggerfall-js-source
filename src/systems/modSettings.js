@@ -1732,6 +1732,14 @@ export const MOD_SETTINGS = Object.freeze({
       CompleteArmorJoints: Object.freeze({ default: false, get description() { return 'Use the Complete Armor Joints add-on for Better Morrowind Armor. Requires Better Morrowind Armor.'; } }),
       WestlysFineClothiers: Object.freeze({ default: false, get description() { return 'Use Westly\'s Fine Clothiers meshes, textures and plugin.'; } }),
       WestlysFacesRefurbished: Object.freeze({ default: false, get description() { return 'Use Westly\'s Faces Refurbished head and hair meshes/textures.'; } }),
+      HighResolutionBetterBodyFemaleTexturesSource: Object.freeze({ default: 1, options: lazyWords('Original', 'Vanilla', 'High Resolution Better Body Textures'), description: 'Independent resource source. Original selects the upstream baseline, Vanilla preserves the existing default, and the named option explicitly selects this pack.' }),
+      IntelligentTexturesSource: Object.freeze({ default: 1, options: lazyWords('Original', 'Vanilla', 'Intelligent Textures'), description: 'Independent resource source. Original selects the upstream baseline, Vanilla preserves the existing default, and the named option explicitly selects this pack.' }),
+      VurtsBetterClothesSource: Object.freeze({ default: 1, options: lazyWords('Original', 'Vanilla', 'Vurt's Better Clothes'), description: 'Independent resource source. Original selects the upstream baseline, Vanilla preserves the existing default, and the named option explicitly selects this pack.' }),
+      BetterClothesRetexturedSource: Object.freeze({ default: 1, options: lazyWords('Original', 'Vanilla', 'Better Clothes Retextured'), description: 'Independent resource source. Original selects the upstream baseline, Vanilla preserves the existing default, and the named option explicitly selects this pack.' }),
+      BetterMorrowindArmorSource: Object.freeze({ default: 1, options: lazyWords('Original', 'Vanilla', 'Better Morrowind Armor'), description: 'Independent resource source. Original selects the upstream baseline, Vanilla preserves the existing default, and the named option explicitly selects this pack.' }),
+      CompleteArmorJointsSource: Object.freeze({ default: 1, options: lazyWords('Original', 'Vanilla', 'Complete Armor Joints'), description: 'Independent resource source. Original selects the upstream baseline, Vanilla preserves the existing default, and the named option explicitly selects this pack.' }),
+      WestlysFineClothiersSource: Object.freeze({ default: 1, options: lazyWords('Original', 'Vanilla', 'Westly's Fine Clothiers'), description: 'Independent resource source. Original selects the upstream baseline, Vanilla preserves the existing default, and the named option explicitly selects this pack.' }),
+      WestlysFacesRefurbishedSource: Object.freeze({ default: 1, options: lazyWords('Original', 'Vanilla', 'Westly's Faces Refurbished'), description: 'Independent resource source. Original selects the upstream baseline, Vanilla preserves the existing default, and the named option explicitly selects this pack.' }),
     }),
   }),
 });
@@ -2008,6 +2016,21 @@ export function setModSetting(vendor, key, value) {
   const v = coerce(def, value);
   const notices = [];
   _modSettingNotices.clear();
+
+  // Source selectors are UI-facing; keep the established boolean switches as the
+  // runtime compatibility seam so existing asset loaders and saved settings retain
+  // their behavior. Original disables optional replacement packs; Vanilla preserves
+  // each pack's shipped default; the named pack option enables that pack.
+  if (vendor === 'morrowind-textures' && key.endsWith('Source')) {
+    const baseKey = key.slice(0, -'Source'.length);
+    const baseDef = declaredKey(vendor, baseKey);
+    if (baseDef) {
+      const original = v === 0;
+      const vanilla = v === 1;
+      const baseline = baseDef.default === true;
+      (m[vendor] ??= {})[baseKey] = original ? false : (vanilla ? baseline : true);
+    }
+  }
 
   // Generic exclusive-resource rule: every setting may declare a conflictGroup.
   // Turning one member on disables any other active member of that same group,
