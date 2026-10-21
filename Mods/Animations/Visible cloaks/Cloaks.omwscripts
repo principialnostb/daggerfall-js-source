@@ -1,0 +1,4 @@
+GLOBAL:scripts/cloaks/cloakglobal.lua
+MENU:scripts/cloaks/cloaksSettings.lua
+PLAYER:scripts/cloaks/cloakedplayer.lua
+NPC, CREATURE:scripts/cloaks/cloakednpc.lua
