@@ -22,10 +22,10 @@
 
 import { MW_WEAPON_TYPE, MW_UNITS_PER_METER } from '../../formats/morrowind/mwFirstPerson.js';
 import { getPref } from '../../systems/uiPrefs.js';
-import { algebra, ease, clamp01, RAD, bodyOf, bodyKindOf, reflect, bodyTurn, mul, transpose } from './bodyKit.js';
-import { rotAxisAngle, rotFraction } from '../../combat/climbRig.js';
+import { algebra, ease, clamp01, RAD, bodyOf, bodyKindOf, reflect } from './bodyKit.js';
+import { rotAxisAngle } from '../../combat/climbRig.js';
 import { createGaitState, stepGait, gaitPose, TURN } from './gait.js';
-import { carryClassOf, carryHands, CARRY, TWO_HAND_GRIP, TWO_HAND_HAFT, armByAngles, mirrorRequest, hafHand, blendHand, gaitShares, turnAbout, strideRide } from './carry.js';
+import { carryClassOf, carryHands, CARRY, TWO_HAND_GRIP, TWO_HAND_HAFT, armByAngles, mirrorRequest, hafHand, blendHand, gaitShares, turnAbout } from './carry.js';
 import { meleeFamilyOf, blowName, blowU, blowPose, windFor } from './melee.js';
 import { solveBody, gripRequest } from './bodySolve.js';
 
@@ -35,11 +35,6 @@ const { add, scale, sub, cross, norm, len, lerp } = algebra;
  *  off (a draw, a cast, a torch lit), and a change of carry class (a weapon drawn, a pair raised); `carry` (radians a
  *  second) the critically damped spring the carry's gait shares follow the gait's on (AUDIT BODY-MOTION CARRY-6). */
 export const MOTION_EASE = Object.freeze({ in: 0.14, out: 0.1, outFast: 0.05, armIn: 0.12, armOut: 0.07, cls: 0.14, carry: 14 });
-
-/** A BLOW'S TRUNK: the share of the gait's steer (its hips turned toward a strafe's travel) a blow takes back toward the
- *  facing at its full weight, and the most the chest turns off the hips (degrees) - AUDIT BODY-MOTION MELEE-8: a blow
- *  swung while strafing laid its own wind on the steer, and twisted the trunk 80 to 92 degrees off the hips. */
-export const BLOW_TRUNK = Object.freeze({ steer: 0.6, twist: 50 });
 
 /** The blade's length (MW units) each class draws on the contact sheets - the sheet's alone; the rig draws the mesh. */
 const SHEET_BLADE = Object.freeze({ one: 58, two: 88, wide: 112, spear: 120, dual: 54 });
