@@ -208,6 +208,29 @@ export function dynamicWalkStyleForActor({
   return styles[(hash >>> 0) % styles.length];
 }
 
+/** Remap the Dynamic Animations forward-walk clip only at the point where that provider
+ * is selected. Keeping the raw group names in the rig's inventory prevents an inactive provider
+ * from changing group discovery or Vanilla fallback behavior. */
+export function aliasDynamicWalkSource(source) {
+  if (!source?.dynamicGroupAlias) return source;
+  const sourceGroups = (source.groups ?? []).filter((group) => /^walkforward_/i.test(String(group)));
+  if (!sourceGroups.length) return source;
+  const suffixes = ['', '1h', '1s', '1b', '2c', '2b', '2w', 'bow', 'crossbow', '1t', 'hh', 'spell'];
+  const targets = suffixes.map((suffix) => `walkforward${suffix}`);
+  const keys = (source.keys ?? []).flatMap((key) => {
+    const colon = String(key.text ?? '').indexOf(': ');
+    if (colon < 0 || !sourceGroups.includes(String(key.text).slice(0, colon).toLowerCase())) return [key];
+    return targets.map((target) => ({ ...key, text: target + String(key.text).slice(colon) }));
+  });
+  return {
+    ...source,
+    keys,
+    groups: [...(source.groups ?? []).filter((group) => !sourceGroups.includes(String(group).toLowerCase())), ...targets],
+    groupSet: new Set([...(source.groups ?? []).filter((group) => !sourceGroups.includes(String(group).toLowerCase())), ...targets]),
+    dynamicGroupAlias: false,
+  };
+}
+
 /** Live preference gates for the two independent locomotion families. */
 export function isWalkVariantEnabled(source, walkChoice = 'vanilla') {
   const selected = typeof walkChoice === 'boolean' ? (walkChoice ? 'female' : 'standard') : String(walkChoice);
