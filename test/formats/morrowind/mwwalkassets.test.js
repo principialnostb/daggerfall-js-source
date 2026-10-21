@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { inspectWalkAnimationAssets, isWalkAnimationGroup, isWalkAnimationKey, isRunAnimationGroup, isRunAnimationKey, isWalkVariantEnabled, isRunVariantEnabled, walkVariantForActor, runVariantForActor, firstPersonAnimationProviderForChoice, isOpenMWDynamicFirstPersonClip, openMWDynamicFirstPersonGroup, hitReactionVariantForSkeleton, isHitReactionAssetForSkeleton, isFirstPersonAnimationRigCompatible, remapAnimationGroupKeys, hitReactionTargetGroup, openMWDynamicThirdPersonTargetGroup, openMWDynamicThirdPersonSourceGroup, selectOpenMWDynamicAnimationVariants, hitReactionRecoveryBlend, hitReactionTransitionBlend } from '../../src/formats/morrowind/mwWalkAnimationAssets.js';
+import { inspectWalkAnimationAssets, isWalkAnimationGroup, isWalkAnimationKey, isRunAnimationGroup, isRunAnimationKey, isWalkVariantEnabled, isRunVariantEnabled, walkVariantForActor, runVariantForActor, firstPersonAnimationProviderForChoice, isOpenMWDynamicFirstPersonClip, openMWDynamicFirstPersonGroup, hitReactionVariantForSkeleton, isHitReactionAssetForSkeleton, isFirstPersonAnimationRigCompatible, remapAnimationGroupKeys, hitReactionTargetGroup, openMWDynamicThirdPersonTargetGroup, openMWDynamicThirdPersonSourceGroup, selectOpenMWDynamicAnimationVariants, hitReactionRecoveryBlend, hitReactionTransitionBlend, normalizeAnimationGroupKeys } from '../../src/formats/morrowind/mwWalkAnimationAssets.js';
 
 test('MW-ANIM-1: bundled walk asset inventory is safe to import in Node', () => {
   const assets = inspectWalkAnimationAssets();
@@ -153,6 +153,8 @@ test('MW-ANIM-7: OpenMW third-person asset names map to canonical runtime groups
   assert.equal(openMWDynamicThirdPersonTargetGroup(base + 'WalkForward_march13;.kf'), 'walkforward');
   assert.equal(openMWDynamicThirdPersonTargetGroup(base + 'zIdle2;.kf'), 'idle2');
   assert.equal(openMWDynamicThirdPersonTargetGroup(base + 'ArmsAkimbo;.kf'), 'armsakimbo');
+  assert.equal(openMWDynamicThirdPersonTargetGroup(base + 'ArmPoses.kf'), 'armposes');
+  assert.equal(openMWDynamicThirdPersonTargetGroup(base + 'zWalkForward; Skip.kf'), 'walkforward');
   assert.equal(openMWDynamicThirdPersonTargetGroup(base + 'xWalkForward;.kf'), 'walkforward');
   assert.equal(openMWDynamicThirdPersonTargetGroup(base + 'UnknownClip;.kf'), null);
   assert.equal(openMWDynamicThirdPersonSourceGroup(base + 'WalkForward_base11;.kf'), 'walkforward_base11');
@@ -206,4 +208,17 @@ test('MW-ANIM-8: Hit Reactions per-clip entry and exit blend rules are ported', 
   assert.equal(hitReactionTransitionBlend(hit, archive, 1).duration, 0.25);
   assert.ok(Math.abs(hitReactionTransitionBlend(archive, hit, 0.5).weight - Math.sin(Math.PI / 4)) < 1e-12);
   assert.equal(hitReactionTransitionBlend(archive, archive, 0.5), null);
+});
+
+test('MW-ANIM-7: ODAR ArmPoses bundle retains all named arm-pose groups', () => {
+  const keys = [
+    { time: 0, text: 'ArmsAkimbo: start' },
+    { time: 0.5, text: 'ArmsAkimbo: stop' },
+    { time: 0, text: 'ArmsGesture: start' },
+  ];
+  assert.deepEqual(normalizeAnimationGroupKeys(keys, ['ArmsAkimbo', 'ArmsGesture']), [
+    { time: 0, text: 'armsakimbo: start' },
+    { time: 0.5, text: 'armsakimbo: stop' },
+    { time: 0, text: 'armsgesture: start' },
+  ]);
 });
