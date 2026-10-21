@@ -32,6 +32,17 @@ const HIT_REACTION_FILES = IN_BROWSER
     ], { eager: true, query: '?url', import: 'default' })
   : {};
 
+// The OpenMW Dynamic Animations package has a large script-driven catalog.
+// Only its explicit first-person directional locomotion clips are eligible
+// here; its Lua controllers, NPC/creature variants, poses and YAML blend rules
+// are not browser-runtime providers.
+const OPENMW_DYNAMIC_FIRST_PERSON_FILES = IN_BROWSER
+  ? import.meta.glob([
+      '../../../Mods/Animations/OpenMW Dynamic Animations/animations/xbase_anim.1st/*.kf',
+      '../../../Mods/Animations/OpenMW Dynamic Animations/animations/xbase_anim.1st/*.KF',
+    ], { eager: true, query: '?url', import: 'default' })
+  : {};
+
 const norm = (value) => String(value).replace(/\\/g, '/').toLowerCase();
 const entries = Object.entries(FILES).map(([path, url]) => ({ path: path.replace(/\\/g, '/'), lower: norm(path), url }));
 const standardMale = entries.find((e) => e.lower.includes('/simply walking purist edition/meshes/xbase_anim.kf'));
@@ -120,19 +131,42 @@ export async function loadWalkAnimationAssets({ female = false } = {}) {
   }
   return selected;
 }
-/** Load ReAnimation first-person clips in stable path order. */
+/** Resolve the mutually exclusive first-person provider from persisted settings. */
+export function firstPersonAnimationProviderForChoice(choice = 1) {
+  return ['vanilla', 'reanimation-v3', 'openmw-dynamic-first-person'][
+    Math.max(0, Math.min(2, Math.trunc(Number(choice) || 0))
+  ];
+}
+
+/** Restrict the OpenMW pack to named directional first-person locomotion clips. */
+export function isOpenMWDynamicFirstPersonClip(path) {
+  const normalized = norm(path);
+  if (!normalized.includes('/openmw dynamic animations/animations/xbase_anim.1st/')) return false;
+  const filename = normalized.slice(normalized.lastIndexOf('/') + 1);
+  return /^(?:walk|run|sneak)(?:forward|back|left|right)_base;\\.kf$/.test(filename);
+}
+
+/** Load one selected first-person provider in stable path order. */
 export async function loadFirstPersonAnimationAssets() {
   if (!IN_BROWSER) return [];
-  const files = Object.entries(FIRST_PERSON_FILES)
+  const provider = firstPersonAnimationProviderForChoice(
+    modSetting('morrowind-animation', 'FirstPersonSource'),
+  );
+  if (provider === 'vanilla') return [];
+  const catalog = provider === 'openmw-dynamic-first-person'
+    ? OPENMW_DYNAMIC_FIRST_PERSON_FILES
+    : FIRST_PERSON_FILES;
+  const files = Object.entries(catalog)
     .map(([path, url]) => ({ path: path.replace(/\\/g, '/'), url }))
+    .filter((entry) => provider !== 'openmw-dynamic-first-person' || isOpenMWDynamicFirstPersonClip(entry.path))
     .sort((a, b) => a.path.localeCompare(b.path));
   const result = [];
   for (const entry of files) {
     try {
       const data = await bytes(entry);
-      if (data) result.push({ name: entry.path, bytes: data, family: 'first-person', variant: 'reanimation-v3' });
+      if (data) result.push({ name: entry.path, bytes: data, family: 'first-person', variant: provider });
     } catch (error) {
-      console.warn('[Morrowind animations] ReAnimation clip failed to load; archive fallback retained:', entry.path, String(error?.message ?? error));
+      console.warn('[Morrowind animations] first-person clip failed to load; archive fallback retained:', entry.path, String(error?.message ?? error));
     }
   }
   return result;
@@ -140,7 +174,7 @@ export async function loadFirstPersonAnimationAssets() {
 
 /** Load third-person hit-reaction KF files in stable path order. */
 export async function loadHitReactionAnimationAssets() {
-  if (!IN_BROWSER) return [];
+  if (!IN_BROWSER || modSetting('morrowind-animation', 'HitReactionSource') === 0) return [];
   const files = Object.entries(HIT_REACTION_FILES)
     .map(([path, url]) => ({ path: path.replace(/\\/g, '/'), url }))
     .sort((a, b) => a.path.localeCompare(b.path));
