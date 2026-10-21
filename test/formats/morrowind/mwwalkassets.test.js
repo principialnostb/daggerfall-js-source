@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { inspectWalkAnimationAssets, isWalkAnimationGroup, isWalkAnimationKey, isRunAnimationGroup, isRunAnimationKey, isWalkVariantEnabled, isRunVariantEnabled, walkVariantForActor, runVariantForActor, firstPersonAnimationProviderForChoice, isOpenMWDynamicFirstPersonClip, openMWDynamicFirstPersonGroup } from '../../src/formats/morrowind/mwWalkAnimationAssets.js';
+import { inspectWalkAnimationAssets, isWalkAnimationGroup, isWalkAnimationKey, isRunAnimationGroup, isRunAnimationKey, isWalkVariantEnabled, isRunVariantEnabled, walkVariantForActor, runVariantForActor, firstPersonAnimationProviderForChoice, isOpenMWDynamicFirstPersonClip, openMWDynamicFirstPersonGroup, hitReactionVariantForSkeleton, isHitReactionAssetForSkeleton } from '../../src/formats/morrowind/mwWalkAnimationAssets.js';
 
 test('MW-ANIM-1: bundled walk asset inventory is safe to import in Node', () => {
   const assets = inspectWalkAnimationAssets();
@@ -103,4 +103,17 @@ test('MW-ANIM-4: OpenMW Dynamic Animations admits only directional first-person 
   assert.equal(isOpenMWDynamicFirstPersonClip(base + 'SneakMovement; Skip.kf'), false);
   assert.equal(isOpenMWDynamicFirstPersonClip('Mods/Animations/OpenMW Dynamic Animations/animations/xbase_anim/WalkForward_base11;.kf'), false);
   assert.equal(isOpenMWDynamicFirstPersonClip('Mods/Animations/ReAnimation v3/00 Core/Animations/xbase_anim.1st/x1hMovement.kf'), false);
+});
+
+
+test('MW-ANIM-5: hit-reaction clips are selected only for the active third-person rig', () => {
+  const root = 'Mods/Animations/Hit Reactions Animated v2 -- OpenMW/Animations/';
+  assert.equal(hitReactionVariantForSkeleton('meshes/xbase_anim.nif'), 'male');
+  assert.equal(hitReactionVariantForSkeleton('meshes/xbase_anim_female.nif'), 'female');
+  assert.equal(hitReactionVariantForSkeleton('meshes/xbase_animkna.nif'), 'beast');
+  assert.equal(hitReactionVariantForSkeleton('meshes/xbase_anim.1st.nif'), null);
+  assert.equal(isHitReactionAssetForSkeleton(root + 'xbase_anim/HitFront.kf', 'meshes/xbase_anim.nif'), true);
+  assert.equal(isHitReactionAssetForSkeleton(root + 'xbase_anim_female/HitFront.kf', 'meshes/xbase_anim.nif'), false);
+  assert.equal(isHitReactionAssetForSkeleton(root + 'xbase_animkna/HitFront.kf', 'meshes/xbase_animkna.nif'), true);
+  assert.equal(isHitReactionAssetForSkeleton(root + 'xbase_anim/HitFront.kf', 'meshes/xbase_anim.1st.nif'), false);
 });
