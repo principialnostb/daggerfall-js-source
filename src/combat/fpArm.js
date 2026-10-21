@@ -6187,7 +6187,7 @@ export function createFpArm({ playerAppearance = false } = {}) {
             family: 'first-person-weapon-sheathing-v1',
             event: 'unequip-animation-unavailable',
             weaponGroup,
-            animationSource: actionSource?.name ?? null,
+            animationSource: actionState ? (actionSource?.name ?? null) : null,
             fallbackReason: 'no playable unequip start/stop section',
             weaponHiddenImmediately: true,
           });
@@ -6214,6 +6214,7 @@ export function createFpArm({ playerAppearance = false } = {}) {
         arrowShown = false;
         return true;
       }
+      hideWeaponAtUnequipEnd = false;
       sheathed = false;
       refreshWeaponGroup();
       upper = UPPER_BODY.Equipping;
