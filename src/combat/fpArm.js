@@ -4545,8 +4545,7 @@ export function createFpArm({ playerAppearance = false } = {}) {
       return pickAnimSource(vanillaSources, group, resetClip, options);
     }
     const candidates = (sources ?? [])
-      .filter((source) => source.animationPackId === ANIMATION_PACK_IDS.reanimation
-        && source.animationFamily === 'combat')
+      .filter((source) => source.animationPackId === ANIMATION_PACK_IDS.reanimation)
       .map((source) => ({ source, pick: pickAnimSource([source], group, resetClip, options) }))
       .filter((candidate) => candidate.pick);
     if (!candidates.length) return pickAnimSource(vanillaSources, group, resetClip, options);
