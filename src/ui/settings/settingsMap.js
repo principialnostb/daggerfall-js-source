@@ -207,6 +207,7 @@ export const CATEGORIES = Object.freeze([
     sec("posture", "Положение и скрытность", [
       "group:posture",
       "feat:morrowind-animation-overhaul", "feat:morrowind-animation-blending",
+      "feat:morrowind-player-first-person-animation",
       "label:sneak", "info:player-sneak", "info:npc-sneak",
       "group:turning",
       "label:turning", "info:player-turning", "info:npc-turning",
