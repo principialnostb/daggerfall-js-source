@@ -143,7 +143,7 @@ export function isOpenMWDynamicFirstPersonClip(path) {
   const normalized = norm(path);
   if (!normalized.includes('/openmw dynamic animations/animations/xbase_anim.1st/')) return false;
   const filename = normalized.slice(normalized.lastIndexOf('/') + 1);
-  return /^(?:walk|run|sneak)(?:forward|back|left|right)_base;\\.kf$/.test(filename);
+  return /^(?:walk|run|sneak)(?:forward|back|left|right)_base;\.kf$/.test(filename);
 }
 
 /** Load one selected first-person provider in stable path order. */
