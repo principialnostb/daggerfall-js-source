@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { inspectWalkAnimationAssets, isWalkAnimationGroup, isWalkAnimationKey, isRunAnimationGroup, isRunAnimationKey, isWalkVariantEnabled, isRunVariantEnabled, walkVariantForActor, runVariantForActor } from '../../src/formats/morrowind/mwWalkAnimationAssets.js';
+import { inspectWalkAnimationAssets, isWalkAnimationGroup, isWalkAnimationKey, isRunAnimationGroup, isRunAnimationKey, isWalkVariantEnabled, isRunVariantEnabled, walkVariantForActor, runVariantForActor, dynamicWalkStyleForActor } from '../../src/formats/morrowind/mwWalkAnimationAssets.js';
 
 test('MW-ANIM-1: bundled walk asset inventory is safe to import in Node', () => {
   const assets = inspectWalkAnimationAssets();
@@ -50,6 +50,10 @@ test('MW-ANIM-2: player, male NPC, and female NPC walk settings resolve independ
   assert.equal(walkVariantForActor({ female: true, npcFemaleChoice: 2 }), 'axel');
 
   assert.equal(walkVariantForActor({ ownHeads: true, female: true, playerChoice: 2, npcFemaleChoice: 0 }), 'axel');
+  assert.equal(walkVariantForActor({ player: true, female: true, playerChoice: 4 }), 'dynamic');
+  assert.equal(walkVariantForActor({ player: true, female: false, playerChoice: 4 }), 'dynamic');
+  assert.equal(walkVariantForActor({ female: false, npcMaleChoice: 2 }), 'dynamic');
+  assert.equal(walkVariantForActor({ female: true, npcFemaleChoice: 4 }), 'dynamic');
 });
 
 test('MW-ANIM-1: Vanilla disables bundled walk replacements only', () => {
@@ -75,4 +79,13 @@ test('MW-ANIM-3: run choices resolve independently for player and female NPC', (
   assert.equal(runVariantForActor({ female: true, npcFemaleChoice: 1 }), 'axel');
   assert.equal(runVariantForActor({ female: false, npcFemaleChoice: 1 }), 'vanilla');
   assert.equal(runVariantForActor({ ownHeads: true, female: true, playerChoice: 1 }), 'axel');
+});
+
+test('MW-ANIM-PACKS: Dynamic Animations style selection is stable for the same actor context', () => {
+  const actor = { female: true, race: 'Breton', faceIndex: 7, appearanceHeadId: 'head-12' };
+  assert.equal(dynamicWalkStyleForActor(actor), dynamicWalkStyleForActor(actor));
+  assert.ok(['base11', 'base13', 'base15', 'dirn15', 'march13', 'march15', 'mwf15', 'noble11', 'noble13']
+    .includes(dynamicWalkStyleForActor(actor)));
+  assert.equal(dynamicWalkStyleForActor({ female: true, player: true }), 'base15');
+  assert.equal(dynamicWalkStyleForActor({ female: false, player: true }), 'base15');
 });
