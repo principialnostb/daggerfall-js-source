@@ -448,6 +448,9 @@ export function openAppearanceEditor({ fpArm, onClose = () => {} } = {}) {
         output.textContent = formatValue(value);
         input.style.setProperty('--range-fill', (((value + 1) / 2) * 100) + '%');
         drawPreview();
+        // The preview rig caches its assembled geometry. Rebuild after slider
+        // input settles so the latest draft morphs are applied to a fresh rig.
+        schedulePreviewRigRebuild();
       });
       inputs.set(key, input); outputs.set(key, output);
       row.append(name, input, output); fields.append(row);
@@ -467,6 +470,7 @@ export function openAppearanceEditor({ fpArm, onClose = () => {} } = {}) {
       input.style.setProperty('--range-fill', (((Number(input.value) + 1) / 2) * 100) + '%');
     }
     drawPreview();
+    schedulePreviewRigRebuild();
   });
   const done = makeButton('Готово', true, 'mw-btn-primary');
   done.addEventListener('click', async () => {
