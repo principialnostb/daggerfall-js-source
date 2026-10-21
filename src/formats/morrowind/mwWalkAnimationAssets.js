@@ -1,4 +1,4 @@
-// Runtime loader for the animation packs uploaded to the Morrowind Textures tree.
+// Runtime loader for animation packs under Mods/Animations.
 // Files are bundled by Vite as URLs; their bytes are parsed by the same NIF/KF
 // reader used for the game's archives. This module deliberately does not touch
 // meshes or skeleton geometry.
@@ -7,9 +7,9 @@ import { modSetting } from '../../systems/modSettings.js';
 const IN_BROWSER = typeof window !== 'undefined';
 const FILES = IN_BROWSER
   ? import.meta.glob([
-      '../../../Morrowind Textures/Simply Walking/**/*.{kf,KF}',
-      "../../../Morrowind Textures/Axel's Sexy Walk Fixed/Animation/axel fixed/female/*.{kf,KF}",
-      '../../../Morrowind Textures/Morrowind Animation Overhaul/Data Files/Meshes/*.{kf,KF}',
+      '../../../Mods/Animations/Simply Walking/**/*.{kf,KF}',
+      "../../../Mods/Animations/Axel's Sexy Walk Fixed/Animation/axel fixed/female/*.{kf,KF}",
+      // Morrowind Animation Overhaul is intentionally excluded pending explicit reuse permission.
     ], {
       eager: true, query: '?url', import: 'default',
     })
