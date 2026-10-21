@@ -2843,7 +2843,7 @@ function recalculateMorphedNormals(piece) {
   piece.normals = n;
 }
 
-export function deformPlayerBodyGeometry(piece, morph, bodyBounds, skeleton = null) {
+export function deformPlayerBodyGeometry(piece, morph, bodyBounds) {
   const slot = String(piece.slot || '').toLowerCase();
   const isBody = slot === 'betterbodies' || ['chest', 'groin', 'upperleg', 'lowerleg', 'foot', 'hand'].includes(slot);
   if (!isBody) return;
@@ -2884,46 +2884,7 @@ export function deformPlayerBodyGeometry(piece, morph, bodyBounds, skeleton = nu
   const legGap = amount('legGap');
   const hipLine = minZ + spanZ * 0.49;
   const shoulderLine = minZ + spanZ * 0.78;
-
-  // Prefer authored NIF skin influences over guessing anatomy from the animated
-  // silhouette. Coordinates still subdivide the trunk, while bone weights gate
-  // trunk, shoulder, pelvis, arm, thigh and calf membership.
-  const vertexCount = Math.floor(p.length / 3);
-  const boneRegions = {
-    trunk: new Float32Array(vertexCount), shoulder: new Float32Array(vertexCount),
-    pelvis: new Float32Array(vertexCount), arm: new Float32Array(vertexCount),
-    thigh: new Float32Array(vertexCount), calf: new Float32Array(vertexCount),
-  };
-  const boneList = piece.batch?.skin?.bones;
-  let hasRecognizedBoneRegions = false;
-  const addBoneWeights = (target, bone) => {
-    hasRecognizedBoneRegions = true;
-    const indices = bone.indices || [], weights = bone.weights || [];
-    for (let k = 0; k < indices.length; k++) {
-      const vertex = indices[k];
-      if (vertex < 0 || vertex >= vertexCount) continue;
-      target[vertex] = Math.min(1, target[vertex] + Math.max(0, Number(weights[k]) || 0));
-    }
-  };
-  for (const bone of boneList || []) {
-    // NiSkinData bone records carry a skeleton reference, vertex indices and
-    // weights; the name belongs to the referenced NiNode, not the skin record.
-    // Resolve it from the exact skeleton used to skin this batch. Tests must
-    // exercise this production shape instead of injecting synthetic bone.name.
-    const node = bone.ref != null ? skeleton?.nodes?.get(bone.ref) : null;
-    const name = String(node?.name || bone.name || '').toLowerCase().replace(/[^a-z0-9]/g, '');
-    if (!name) continue;
-    if (/spine|chest|torso|abdomen|ribcage/.test(name) && !/pelvis|hip/.test(name)) addBoneWeights(boneRegions.trunk, bone);
-    if (/pelvis|hip/.test(name)) addBoneWeights(boneRegions.pelvis, bone);
-    if (/clavicle|shoulder|spine[123]|chest/.test(name)) addBoneWeights(boneRegions.shoulder, bone);
-    if (/upperarm|lowerarm|forearm|arm|wrist|hand|clavicle/.test(name)) addBoneWeights(boneRegions.arm, bone);
-    if (/thigh|upperleg|upleg|femur/.test(name)) addBoneWeights(boneRegions.thigh, bone);
-    if (/calf|lowerleg|ankle|foot/.test(name)) addBoneWeights(boneRegions.calf, bone);
-  }
-  const roleWeight = (role, vertex, fallback) =>
-    hasRecognizedBoneRegions ? boneRegions[role][vertex] : fallback;
-
-  for (let i = 0, vertex = 0; i + 2 < p.length; i += 3, vertex++) {
+  for (let i = 0; i + 2 < p.length; i += 3) {
     const ox = p[i], oy = p[i + 1], oz = p[i + 2];
     if (!Number.isFinite(ox + oy + oz)) continue;
     const nx = (ox - cx) / halfX, ny = (oy - cy) / halfY;
@@ -2939,26 +2900,17 @@ export function deformPlayerBodyGeometry(piece, morph, bodyBounds, skeleton = nu
     // Torso controls use torso-relative width. The former mask used ax,
     // normalized by the widest points of the entire body; when arms were
     // spread, its "torso" region expanded sideways and included arm vertices.
-    // Keep the geometric torso envelope separate from the skin-influence mask.
-    // Applying trunk weight here and again in each torso zone squared the authored
-    // weights (e.g. 0.5 became 0.25). It also accidentally required pelvis vertices
-    // to have trunk influence, suppressing hip and buttock controls almost entirely.
     const torsoCore = 1 - smoothstep(0.72, 1.12, torsoAx);
-    const trunkWeight = roleWeight('trunk', vertex, 1);
-    const shoulderWeight = roleWeight('shoulder', vertex, 1);
-    const pelvisWeight = roleWeight('pelvis', vertex, 1);
-    const shoulderZone = gauss(nz, 0.78, 0.065) * torsoCore * shoulderWeight;
-    const ribcageZone = gauss(nz, 0.68, 0.075) * torsoCore * trunkWeight;
-    const breastZone = gauss(nz, 0.685, 0.065) * gauss(torsoAx, 0.38, 0.28) * torsoCore * trunkWeight;
-    const waistZone = gauss(nz, 0.56, 0.055) * torsoCore * trunkWeight;
-    const abdomenZone = gauss(nz, 0.525, 0.07) * torsoCore * trunkWeight;
-    // Pelvis anatomy is its own region: do not intersect it with the narrower
-    // torso core or demand a simultaneous spine/trunk skin influence.
-    const hipZone = gauss(nz, 0.47, 0.065) * pelvisWeight;
-    const buttockZone = gauss(nz, 0.465, 0.07) * pelvisWeight;
-    const armZone = gauss(ax, 0.40, 0.12) * gauss(nz, 0.65, 0.15) * roleWeight('arm', vertex, 1);
-    const thighZone = (ax > 0.07 ? 1 : 0) * gauss(nz, 0.31, 0.085) * roleWeight('thigh', vertex, 1);
-    const calfZone = (ax > 0.045 ? 1 : 0) * gauss(nz, 0.15, 0.065) * roleWeight('calf', vertex, 1);
+    const shoulderZone = gauss(nz, 0.78, 0.065) * torsoCore;
+    const ribcageZone = gauss(nz, 0.68, 0.075) * torsoCore;
+    const breastZone = gauss(nz, 0.685, 0.065) * gauss(torsoAx, 0.38, 0.28) * torsoCore;
+    const waistZone = gauss(nz, 0.56, 0.055) * torsoCore;
+    const abdomenZone = gauss(nz, 0.525, 0.07) * torsoCore;
+    const hipZone = gauss(nz, 0.47, 0.065) * torsoCore;
+    const buttockZone = gauss(nz, 0.465, 0.07) * torsoCore;
+    const armZone = gauss(ax, 0.40, 0.12) * gauss(nz, 0.65, 0.15);
+    const thighZone = (ax > 0.07 ? 1 : 0) * gauss(nz, 0.31, 0.085);
+    const calfZone = (ax > 0.045 ? 1 : 0) * gauss(nz, 0.15, 0.065);
 
     // Broad controls are intentionally broad; all named controls below are
     // confined to their own anatomical masks instead of sharing a height band.
@@ -2971,15 +2923,11 @@ export function deformPlayerBodyGeometry(piece, morph, bodyBounds, skeleton = nu
     x += nx * halfX * waist * 0.14 * waistZone;
     x += nx * halfX * hip * 0.18 * hipZone;
 
-    // Size controls change volume in two dimensions; projection controls only
-    // front/back depth. Keeping these channels separate makes the sliders
-    // semantically independent instead of scaled aliases of the same Y offset.
+    // Breast volume/projection are front-only; buttock controls are rear-only.
     const front = Math.max(0, Math.min(1, (ny - 0.015) / 0.42));
     const rear = Math.max(0, Math.min(1, (-ny - 0.02) / 0.55));
-    x += nx * halfX * breast * 0.065 * breastZone * front;
     y += halfY * (breast * 0.15 + breastProjection * 0.20) * breastZone * front;
     y += Math.sign(ny || 1) * halfY * abdomen * 0.14 * abdomenZone;
-    x += nx * halfX * buttock * 0.07 * buttockZone * rear;
     y -= halfY * (buttock * 0.15 + buttockProjection * 0.19) * buttockZone * rear;
 
     // Limb controls have separate masks and cannot bleed into torso width controls.
@@ -2992,16 +2940,12 @@ export function deformPlayerBodyGeometry(piece, morph, bodyBounds, skeleton = nu
 
     // Leg spacing only affects limb regions, not the pelvis or hip silhouette.
     if (nz < 0.43 && ax > 0.105) {
-      const limbWeight = Math.max(
-        gauss(nz, 0.31, 0.10) * roleWeight('thigh', vertex, 1),
-        gauss(nz, 0.13, 0.075) * roleWeight('calf', vertex, 1),
-      );
+      const limbWeight = Math.max(gauss(nz, 0.31, 0.10), gauss(nz, 0.13, 0.075));
       x += Math.sign(nx) * halfX * legGap * 0.075 * limbWeight;
     }
     if (legLength) {
       const lower = Math.max(0, Math.min(1, (0.50 - nz) / 0.50));
-      const legBoneWeight = Math.max(roleWeight('thigh', vertex, 1), roleWeight('calf', vertex, 1));
-      z += (oz - hipLine) * legLength * 0.12 * lower * legBoneWeight;
+      z += (oz - hipLine) * legLength * 0.12 * lower;
     }
     if (armLength && armZone > 0) {
       // Keep the shoulder attachment as the anchor; only the arm below it is
@@ -3130,7 +3074,7 @@ export function poseAssembly(assembly, { tracks = null, sampleTrack = null,
         bodyBounds.torsoCenterX = torsoCenterX;
         bodyBounds.torsoHalfX = torsoRadii[Math.floor((torsoRadii.length - 1) * 0.72)];
       }
-      for (const p of bodyPieces) deformPlayerBodyGeometry(p, geometryMorph, bodyBounds, skeleton);
+      for (const p of bodyPieces) deformPlayerBodyGeometry(p, geometryMorph, bodyBounds);
     }
   }
   assembly.pose = pose;
