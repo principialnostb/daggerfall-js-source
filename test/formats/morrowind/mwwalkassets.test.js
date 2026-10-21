@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { inspectWalkAnimationAssets, isWalkAnimationGroup, isWalkAnimationKey, isRunAnimationGroup, isRunAnimationKey, isWalkVariantEnabled, isRunVariantEnabled, walkVariantForActor, runVariantForActor, firstPersonAnimationProviderForChoice, isOpenMWDynamicFirstPersonClip, openMWDynamicFirstPersonGroup, hitReactionVariantForSkeleton, isHitReactionAssetForSkeleton, isFirstPersonAnimationRigCompatible, remapAnimationGroupKeys, hitReactionTargetGroup, openMWDynamicThirdPersonTargetGroup, openMWDynamicThirdPersonSourceGroup, selectOpenMWDynamicAnimationVariants, hitReactionRecoveryBlend } from '../../src/formats/morrowind/mwWalkAnimationAssets.js';
+import { inspectWalkAnimationAssets, isWalkAnimationGroup, isWalkAnimationKey, isRunAnimationGroup, isRunAnimationKey, isWalkVariantEnabled, isRunVariantEnabled, walkVariantForActor, runVariantForActor, firstPersonAnimationProviderForChoice, isOpenMWDynamicFirstPersonClip, openMWDynamicFirstPersonGroup, hitReactionVariantForSkeleton, isHitReactionAssetForSkeleton, isFirstPersonAnimationRigCompatible, remapAnimationGroupKeys, hitReactionTargetGroup, openMWDynamicThirdPersonTargetGroup, openMWDynamicThirdPersonSourceGroup, selectOpenMWDynamicAnimationVariants, hitReactionRecoveryBlend, hitReactionTransitionBlend } from '../../src/formats/morrowind/mwWalkAnimationAssets.js';
 
 test('MW-ANIM-1: bundled walk asset inventory is safe to import in Node', () => {
   const assets = inspectWalkAnimationAssets();
@@ -192,4 +192,18 @@ test('MW-ANIM-8: stagger recovery uses the mod-authored cubicOut 0.5 second blen
   const mid = hitReactionRecoveryBlend(stagger, 0.5);
   assert.equal(mid.duration, 0.5);
   assert.ok(Math.abs(mid.weight - 0.875) < 1e-12);
+});
+
+test('MW-ANIM-8: Hit Reactions per-clip entry and exit blend rules are ported', () => {
+  const archive = { animationPack: 'archive' };
+  const hit = { animationPack: 'hit-reactions-v2', reactionKind: 'hit' };
+  const stagger = { animationPack: 'hit-reactions-v2', reactionKind: 'stagger' };
+  const death = { animationPack: 'hit-reactions-v2', reactionKind: 'death' };
+  assert.equal(hitReactionTransitionBlend(archive, hit, 1).duration, 0.1);
+  assert.equal(hitReactionTransitionBlend(archive, stagger, 1).duration, 0.08);
+  assert.equal(hitReactionTransitionBlend(archive, death, 1).duration, 0.08);
+  assert.equal(hitReactionTransitionBlend(stagger, archive, 1).duration, 0.5);
+  assert.equal(hitReactionTransitionBlend(hit, archive, 1).duration, 0.25);
+  assert.ok(Math.abs(hitReactionTransitionBlend(archive, hit, 0.5).weight - Math.sin(Math.PI / 4)) < 1e-12);
+  assert.equal(hitReactionTransitionBlend(archive, archive, 0.5), null);
 });
