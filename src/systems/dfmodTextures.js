@@ -311,7 +311,12 @@ function bundleFor(key) {
       const bytes = await _load(key);
       if (!bytes || !bytes.byteLength) return null;
       return _opener(bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes), { maxTextureSize: maxSize(), knownTextures: knownOf(key) });
-    })().catch((e) => {
+    })().then((bundle) => {
+      modDiagnostics.record({ level: bundle ? 'info' : 'warn', phase: 'bundle-open', action: bundle ? 'bundle-opened' : 'bundle-open-empty', modId: key, resource: key,
+        message: bundle ? '' : 'No readable bundle bytes were returned; the classic asset fallback remains active.',
+        details: { source: shipped ? 'shipped' : 'attached', knownTextures: knownOf(key)?.length ?? 0, generation: _generation } });
+      return bundle;
+    }).catch((e) => {
       console.warn(`[dfmod] ${key} would not open:`, e?.message ?? e);
       _openErrors.set(key, openWords(e));
       modDiagnostics.record({ level: 'error', phase: 'bundle-open', action: 'bundle-open-failed', modId: key, resource: key, message: openWords(e) });
