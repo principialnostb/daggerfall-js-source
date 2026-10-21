@@ -1667,6 +1667,11 @@ export const MOD_SETTINGS = Object.freeze({
         options: lazyWords('Vanilla', 'ReAnimation v3'),
         description: 'First-person animation source. ReAnimation v3 contributes only its 00 Core first-person KF files. Each file is parsed and bound against the active first-person rig; incompatible files are skipped and the game/archive source remains the fallback. OpenMW/MWSE scripts and optional compatibility patches are not executed by the browser port.',
       }),
+      NpcHitReactionSource: Object.freeze({
+        default: 0,
+        options: lazyWords('Vanilla', 'Hit Reactions Animated v2'),
+        description: 'Third-person NPC hit/stagger and death animation groups from Hit Reactions Animated v2. The browser port selects available clips deterministically from the caller-supplied roll, validates them against the active rig, and falls back to Vanilla groups when no compatible clip is available. The original OpenMW Lua behavior, directional logic, and blending YAML are not executed.',
+      }),
       PlayerWalkSource: Object.freeze({
         default: 0,
         options: lazyWords('Vanilla', 'Simply Walking', 'Feminine Walk Cycle', "Axel's Sexy Walk Fixed"),
