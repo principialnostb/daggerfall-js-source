@@ -57,6 +57,17 @@ test('MW-CLOAK1: every mesh and painting re-made from the committed export, its 
   for (const path of ownCloakModelPaths()) assert.ok(existsSync(new URL(`../../src/assets/mw/${path}`, import.meta.url)), `${path} ships`);
 });
 
+test('Simply Animated Cloaks: runtime meshes are skinned and their referenced diffuse textures ship', () => {
+  for (const path of SIMPLY_CLOAK_MODEL_PATHS) {
+    const [batch, ...rest] = flattenNif(parseNif(onDisk(`src/assets/mw/${path}`)));
+    assert.equal(rest.length, 0, `${path} is one renderable mesh`);
+    assert.equal(batch.skinned, true, `${path} uses the character skinning path`);
+    assert.ok(batch.skin.bones.length > 0, `${path} has bone influences`);
+    const texture = batch.material.textureFile.replaceAll(String.fromCharCode(92), '/').split('/').pop();
+    assert.ok(existsSync(new URL(`../../src/assets/mw/textures/${texture}`, import.meta.url)), `${path} resolves ${texture}`);
+  }
+});
+
 test('MW-CAPE-RIGID: the cloak is its object in the scene\'s placement (smoothed, MW-CLOAK2), one skinned shape on ONE bone - the chest, Bip01 Spine2 - every vertex wholly its own and no other bone in the mesh', () => {
   const scene = loopSubdivide(bakeObject(readFbx(raw(SOURCE)), CLOAK_OBJECT, CLOAK_BOX), CLOAK_SUBDIVISIONS);
   assert.equal(CHEST_BONE, 'Bip01 Spine2');
