@@ -85,6 +85,7 @@ import { raceArt } from '../systems/races.js';
 import { appStorage } from '../systems/appStorage.js';   // DA1: the storage seam
 import { modSetting } from '../systems/modSettings.js';
 import { loadWalkAnimationAssets, isWalkAnimationGroup, isWalkAnimationKey, isRunAnimationGroup, isRunAnimationKey, isWalkVariantEnabled, isRunVariantEnabled, walkVariantForActor, runVariantForActor } from '../formats/morrowind/mwWalkAnimationAssets.js';
+import { loadHitReactionAnimationAssets, ANIMATION_PACK_IDS } from '../formats/morrowind/mwAnimationPackAssets.js';
 import { drawRigSpriteBox, MW_THIRD_PERSON_PIXEL } from '../render/characterSprite.js';
 import { WEAPONS } from '../characters/weapons.js';
 import { materialName } from '../systems/item/itemInfo.js';
@@ -2353,6 +2354,26 @@ async function buildTpBody({
           animationOverhaul: isOverhaul,
           animationFamily: asset.family,
           walkVariant: asset.variant,
+        });
+      }
+    }
+    // MW-ANIM-PACKS / Hit Reactions v2: load only clips matching this actor's
+    // skeleton family, and only when the explicit provider selection is enabled.
+    // OpenMW Lua is not executed; JS hurt()/die() below own the deterministic event routing.
+    if (modSetting('morrowind-animation', 'HitReactionSource') === 1) {
+      const reactionAssets = await loadHitReactionAnimationAssets({ female, beast });
+      for (const asset of reactionAssets) {
+        const report = await cachedClipReport(gen, skeletonPath, asset.path, () => asset.bytes, arm.skeleton);
+        if (!report.ok || !report.groups.length || !report.keys.length) {
+          missing.push(`hit-reaction animation ${asset.path}: ${report.error || 'no usable groups'}; archive source retained`);
+          continue;
+        }
+        sources.push({
+          name: asset.path, keys: report.keys, groups: report.groups, groupSet: new Set(report.groups),
+          trackMap: report.trackMap, binding: report.binding,
+          wouldAccumRoot: accumRootRef(arm.skeleton, report.trackMap),
+          animationPackId: ANIMATION_PACK_IDS.hitReactions,
+          animationFamily: asset.family,
         });
       }
     }
