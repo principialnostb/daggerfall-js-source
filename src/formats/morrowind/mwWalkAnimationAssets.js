@@ -367,6 +367,10 @@ export function hitReactionTransitionBlend(fromSource, toSource, progress) {
     // animation-config.yaml: stagger* -> * uses cubicOut/0.5 s.
     return { duration: 0.5, easing: 'cubicOut', weight: 1 - Math.pow(1 - t, 3) };
   }
+  if (fromSource?.animationPack === 'hit-reactions-v2' && fromSource?.reactionKind === 'hit') {
+    // OpenMW's global catch-all rule is sineOut/0.25 s when leaving HitReact.
+    return { duration: 0.25, easing: 'sineOut', weight: Math.sin(t * Math.PI / 2) };
+  }
   return null;
 }
 
