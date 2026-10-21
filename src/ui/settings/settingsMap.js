@@ -206,7 +206,7 @@ export const CATEGORIES = Object.freeze([
     ]),
     sec("posture", "Положение и скрытность", [
       "group:posture",
-      "feat:morrowind-animation-overhaul", "feat:morrowind-animation-blending",
+      "feat:morrowind-animation-overhaul", "feat:morrowind-animation-blending", "feat:morrowind-first-person-animation-source",
       "label:sneak", "info:player-sneak", "info:npc-sneak",
       "group:turning",
       "label:turning", "info:player-turning", "info:npc-turning",
@@ -229,7 +229,7 @@ export const CATEGORIES = Object.freeze([
       "group:falling", "label:falling", "info:player-falling", "info:npc-falling",
     ]),
     sec("reactions", "Реакции", [
-      "group:damage", "label:damage", "info:player-damage", "info:npc-damage",
+      "group:damage", "label:damage", "feat:morrowind-hit-reaction-animation-source", "info:player-damage", "info:npc-damage",
       "group:death", "label:death", "info:player-death", "info:npc-death",
     ]),
   ]),
