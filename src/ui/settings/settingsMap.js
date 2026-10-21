@@ -214,6 +214,7 @@ export const CATEGORIES = Object.freeze([
       "label:idle", "info:player-idle", "info:npc-idle",
     ]),
     sec("combat", "Бой", [
+      "feat:morrowind-first-person-animation-pack",
       "group:attacks", "label:attacks", "info:player-attacks", "info:npc-attacks",
       "group:blocking", "label:blocking", "info:player-blocking", "info:npc-blocking",
     ]),
