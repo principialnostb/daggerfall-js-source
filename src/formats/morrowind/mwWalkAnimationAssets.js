@@ -593,5 +593,7 @@ export function runVariantForActor({
   const index = (value, max) => Math.max(0, Math.min(max, Number(value) || 0));
   if (player || ownHeads) return index(playerChoice, 2) === 2 && female ? 'axel' : (index(playerChoice, 2) === 0 ? 'original' : 'vanilla');
   if (female) return index(npcFemaleChoice, 2) === 2 ? 'axel' : (index(npcFemaleChoice, 2) === 0 ? 'original' : 'vanilla');
-  return ['original'][index(npcMaleChoice, 0)];
+  // No male-NPC run replacement is exposed yet; keep the existing Vanilla
+  // provider policy instead of silently forcing the Original bypass.
+  return 'vanilla';
 }
