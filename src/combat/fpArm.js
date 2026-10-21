@@ -3496,11 +3496,14 @@ export async function buildFpArm({
       const assets = await loadFirstPersonAnimationAssets({ skeletonPath });
       for (const asset of assets) {
         const report = await cachedClipReport(gen, skeletonPath, asset.name, () => asset.bytes, arm.skeleton);
-        logAnimationDiagnostic(`fp|${skeletonPath}|${asset.name}`, {
+        logAnimationDiagnostic(`fp-v2|${skeletonPath}|${asset.name}`, {
           family: 'first-person', pack: asset.variant, rig: skeletonPath, file: asset.name,
           ok: !!report.ok, error: report.ok ? null : report.error,
           groups: report.groups ?? [], keyCount: report.keys?.length ?? 0,
           matchedTracks: report.binding?.matched?.length ?? 0,
+          // Preserve the actual KF text keys so later analysis can distinguish
+          // parse/bind success from the exact attack windows the runtime can play.
+          textKeys: (report.keys ?? []).map((key) => String(key?.text ?? '')).filter(Boolean),
         });
         if (!report.ok) {
           missing.push(`First-person clip ${asset.name}: ${report.error}`);
@@ -4795,15 +4798,27 @@ export function createFpArm({ playerAppearance = false } = {}) {
     const reAnimationEnabled = providerChoice === 1 || providerChoice === 3;
     const actionType = String(start ?? '').match(/(?:^|\s)(chop|slash|thrust|shoot|throw)(?:\s|$)/i)?.[1]?.toLowerCase();
     let pick = null;
+    let reAnimationCandidates = [];
+    let fallbackReason = null;
     // ReAnimation clips are not a blanket replacement for every group. For
     // attacks, choose only a clip that contains this exact action window;
     // unsupported weapon/action combinations must keep the archive animation.
     if (reAnimationEnabled && ['chop', 'slash', 'thrust', 'shoot', 'throw'].includes(actionType)) {
       const vanillaSources = sources.filter((source) => source.animationPack !== 'reanimation-v3');
-      const candidates = sources
-        .filter((source) => source.animationPack === 'reanimation-v3')
-        .map((source) => ({ source, pick: pickAnimSource([source], weaponGroup, resetClip, options) }))
-        .filter((candidate) => candidate.pick);
+      const reAnimationSources = sources.filter((source) => source.animationPack === 'reanimation-v3');
+      reAnimationCandidates = reAnimationSources.map((source) => {
+        const candidatePick = pickAnimSource([source], weaponGroup, resetClip, options);
+        const groupKeys = (source.keys ?? []).map((key) => String(key?.text ?? ''))
+          .flatMap((value) => value.split(/\\r?\\n/))
+          .filter((value) => value.toLowerCase().startsWith(`${String(weaponGroup).toLowerCase()}:`));
+        const hasStart = groupKeys.some((value) => value.slice(value.indexOf(':') + 1).trim().toLowerCase() === String(start).toLowerCase());
+        const hasStop = groupKeys.some((value) => value.slice(value.indexOf(':') + 1).trim().toLowerCase() === String(stop).toLowerCase());
+        return {
+          source, pick: candidatePick, hasGroup: (source.groupSet ?? new Set(source.groups ?? [])).has(weaponGroup),
+          hasStart, hasStop, groupKeys,
+        };
+      });
+      const candidates = reAnimationCandidates.filter((candidate) => candidate.pick);
       if (candidates.length) {
         const seed = `${String(weaponGroup).toLowerCase()}|${actionType}`;
         let hash = 2166136261;
@@ -4814,14 +4829,32 @@ export function createFpArm({ playerAppearance = false } = {}) {
         candidates.sort((a, b) => String(a.source.name).localeCompare(String(b.source.name)));
         pick = candidates[(hash >>> 0) % candidates.length].pick;
       } else {
+        fallbackReason = reAnimationSources.length
+          ? 'no ReAnimation source can play this exact group/start/stop window'
+          : 'no ReAnimation sources were added to this rig';
         pick = pickAnimSource(vanillaSources, weaponGroup, resetClip, options);
       }
     } else {
+      if (['chop', 'slash', 'thrust', 'shoot', 'throw'].includes(actionType) && !reAnimationEnabled) {
+        fallbackReason = 'ReAnimation provider disabled by FirstPersonSource setting';
+      }
       pick = pickAnimSource(sources, weaponGroup, resetClip, options);
     }
-    logAnimationDiagnostic(`fp-action|${weaponGroup}|${start}|${stop}`, {
-      family: 'first-person-action-selection', weaponGroup, start, stop,
+    logAnimationDiagnostic(`fp-action-v2|${weaponGroup}|${start}|${stop}`, {
+      family: 'first-person-action-selection-v2', weaponGroup, start, stop,
       providerChoice, reAnimationEnabled, actionType,
+      reAnimationSourceCount: reAnimationCandidates.length,
+      reAnimationCandidates: reAnimationCandidates.map(({ source, pick: candidatePick, hasGroup, hasStart, hasStop, groupKeys }) => ({
+        file: source.name, groups: source.groups ?? [], hasGroup, hasStart, hasStop,
+        windowPlayable: !!candidatePick,
+        groupTextKeys: groupKeys,
+        rejectionReason: candidatePick ? null
+          : !hasGroup ? 'weapon group absent'
+          : !hasStart ? `start marker missing: ${start}`
+          : !hasStop ? `stop marker missing: ${stop}`
+          : 'resetClip rejected the requested window (see raw text keys)',
+      })),
+      fallbackReason,
       selectedFile: pick?.source?.name ?? null,
       selectedPack: pick?.source?.animationPack ?? 'archive-or-vanilla',
       selectedGroups: pick?.source?.groups ?? [],
