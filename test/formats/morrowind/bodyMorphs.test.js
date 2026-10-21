@@ -40,3 +40,43 @@ test('appearance body morph controls each deform representative body vertices', 
     assert.equal(changed, true, `body morph "${key}" must alter geometry`);
   }
 });
+
+test('shoulder width is isolated from the waist and outer arm vertices', () => {
+  const piece = {
+    slot: 'betterBodies',
+    // Three representative vertices in the shared anatomical coordinate frame:
+    // waist centre, outer arm at shoulder height, and shoulder torso.
+    positions: Float32Array.from([
+      0.1, 0, 0.56,
+      0.5, 0, 0.78,
+      0.1, 0, 0.78,
+    ]),
+    indices: new Uint16Array(),
+    normals: new Float32Array(9),
+  };
+  const before = new Float32Array(piece.positions);
+  deformPlayerBodyGeometry(piece, morphState('shoulderWidth'), bounds);
+  const delta = (vertex, axis) => Math.abs(piece.positions[vertex * 3 + axis] - before[vertex * 3 + axis]);
+  assert.ok(delta(0, 0) < 1e-5, 'shoulder width must not move the waist');
+  assert.ok(delta(1, 0) < 1e-5, 'shoulder width must not move the outer arm');
+  assert.ok(delta(2, 0) > 1e-4, 'shoulder width must affect the shoulder torso');
+});
+
+test('waist width is isolated from the outer arm and shoulder vertices', () => {
+  const piece = {
+    slot: 'betterBodies',
+    positions: Float32Array.from([
+      0.1, 0, 0.56,
+      0.5, 0, 0.78,
+      0.1, 0, 0.78,
+    ]),
+    indices: new Uint16Array(),
+    normals: new Float32Array(9),
+  };
+  const before = new Float32Array(piece.positions);
+  deformPlayerBodyGeometry(piece, morphState('waistWidth'), bounds);
+  const delta = (vertex, axis) => Math.abs(piece.positions[vertex * 3 + axis] - before[vertex * 3 + axis]);
+  assert.ok(delta(0, 0) > 1e-4, 'waist width must affect the waist');
+  assert.ok(delta(1, 0) < 1e-5, 'waist width must not move the outer arm');
+  assert.ok(delta(2, 0) < 1e-5, 'waist width must not move the shoulder torso');
+});
