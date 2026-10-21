@@ -4696,7 +4696,7 @@ export function createFpArm({ playerAppearance = false } = {}) {
     const options = { start, stop, startPoint };
     const providerChoice = Number(modSetting('morrowind-animation', 'FirstPersonSource') ?? 0);
     const reAnimationEnabled = providerChoice === 1 || providerChoice === 3;
-    const actionType = String(start ?? '').match(/(?:^|\\s)(chop|slash|thrust|shoot|throw)(?:\\s|$)/i)?.[1]?.toLowerCase();
+    const actionType = String(start ?? '').match(/(?:^|\s)(chop|slash|thrust|shoot|throw)(?:\s|$)/i)?.[1]?.toLowerCase();
     let pick = null;
     // ReAnimation clips are not a blanket replacement for every group. For
     // attacks, choose only a clip that contains this exact action window;
