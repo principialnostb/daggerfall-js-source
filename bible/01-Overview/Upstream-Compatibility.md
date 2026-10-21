@@ -132,3 +132,23 @@ This system is operational only when:
 8. The documentation clearly distinguishes implemented automation from planned workflow.
 
 Until these criteria are implemented and verified, this document is a process contract and implementation plan, not a claim that automated compatibility tracking, rollback, or upstream synchronization already exists.
+
+## Optional Morrowind source and base-build isolation
+
+The base game must remain usable when the optional Morrowind source is disabled. This is a release invariant, not merely a convenience setting.
+
+Test two configurations independently:
+
+- **Baseline (Morrowind disabled):** startup, core gameplay, world loading, resource resolution, and supported character paths must work without assets supplied only by the Morrowind source.
+- **Optional source (Morrowind enabled):** validate each integrated provider/domain against the current runtime. A provider that fails compatibility checks must be blocked or fall back at the smallest safe domain, with a diagnostic.
+
+Classify a failure before treating it as a release blocker:
+
+- If it also occurs with Morrowind disabled, or affects shared code such as startup, parsing, rendering, persistence, or resource resolution, treat it as a base/runtime regression.
+- If it is isolated to an optional Morrowind provider and the baseline configuration passes, block that provider and retain the baseline release path, provided the fallback is verified and no stale assets, caches, or settings remain.
+- If disabling the source leaves unresolved references or broken shared code, the source is not properly isolated; the failure is not safe to dismiss as optional.
+
+Disabling Morrowind must not silently rewrite saved domain selections, update the pinned Vanilla snapshot, or change unrelated providers. Diagnostics should distinguish the requested source from the effective provider after fallback. A successful fallback is evidence of containment, not evidence that the incompatible provider itself is valid.
+
+The detailed integration sequence, current divergence snapshot, two-configuration test gate, and release criteria are in [Upstream merge plan](Upstream-Merge-Plan.md). The documented commit counts are time-specific; refresh the comparison and record exact SHAs before every actual integration.
+
