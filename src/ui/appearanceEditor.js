@@ -1,12 +1,12 @@
 import { BODY_MORPH_FIELDS, getBodyMorphs, setBodyMorph, getUnderwearEnabled, setUnderwearEnabled, getBodyHairEnabled, setBodyHairEnabled, getAppearanceIdentity, setAppearanceIdentity } from '../characters/bodyMorphs.js';
 
 const GROUPS = [
-  { id: 'all', title: 'Общие пропорции', description: 'Масштаб и общий силуэт', keys: ['height', 'bodyWidth', 'bodyFullness'] },
-  { id: 'chest', title: 'Плечи и грудь', description: 'Ширина плечевого пояса, грудной клетки и форма груди', keys: ['shoulderWidth', 'ribcageWidth', 'breastSize', 'breastProjection'] },
-  { id: 'torso', title: 'Талия и живот', description: 'Ширина талии и объём живота', keys: ['waistWidth', 'abdomenVolume'] },
-  { id: 'hips', title: 'Таз и ягодицы', description: 'Ширина таза и объём/выступ ягодиц', keys: ['hipWidth', 'buttockSize', 'buttockProjection'] },
-  { id: 'arms', title: 'Руки', description: 'Толщина и длина рук', keys: ['armThickness', 'armLength'] },
-  { id: 'legs', title: 'Ноги', description: 'Толщина бёдер и голеней, длина ног и расстояние между ними', keys: ['thighThickness', 'calfThickness', 'legLength', 'legGap'] },
+  { id: 'all', title: 'Общий силуэт', description: 'Подъём корпуса, ширина и толщина тела', keys: ['height', 'bodyWidth', 'bodyFullness'] },
+  { id: 'chest', title: 'Верхний и нижний торс', description: 'Ширина верхней грудной клетки и нижнего торса; объём и выступ живота', keys: ['shoulderWidth', 'ribcageWidth', 'breastSize', 'breastProjection'] },
+  { id: 'torso', title: 'Пах и боковые контуры', description: 'Изменение ширины паха, боков бёдер и объёма ягодиц/паха', keys: ['waistWidth', 'abdomenVolume'] },
+  { id: 'hips', title: 'Таз и нижние ягодицы', description: 'Ширина таза пока не работает; остальные ползунки слабо меняют нижние ягодицы', keys: ['hipWidth', 'buttockSize', 'buttockProjection'] },
+  { id: 'arms', title: 'Руки', description: 'Ширина рук спереди; изменение длины не наблюдается', keys: ['armThickness', 'armLength'] },
+  { id: 'legs', title: 'Ноги и колени', description: 'Сдвиг коленей, длина голеней и раздвижение коленей/стоп', keys: ['thighThickness', 'calfThickness', 'legLength', 'legGap'] },
   { id: 'head', title: 'Голова', description: 'Масштаб головы', keys: ['headScale'] },
 ];
 const labelByKey = new Map(BODY_MORPH_FIELDS.map(([key, label]) => [key, label]));
