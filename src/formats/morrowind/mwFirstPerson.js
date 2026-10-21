@@ -2843,7 +2843,7 @@ function recalculateMorphedNormals(piece) {
   piece.normals = n;
 }
 
-function deformPlayerBodyGeometry(piece, morph, bodyBounds) {
+export function deformPlayerBodyGeometry(piece, morph, bodyBounds) {
   const slot = String(piece.slot || '').toLowerCase();
   const isBody = slot === 'betterbodies' || ['chest', 'groin', 'upperleg', 'lowerleg', 'foot', 'hand'].includes(slot);
   if (!isBody) return;
