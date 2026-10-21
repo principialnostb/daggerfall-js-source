@@ -143,6 +143,21 @@ export async function loadAnimationPackAsset(asset) {
   return new Uint8Array(await pending);
 }
 
+/** Deterministic selection over an explicit group list. Input order is ignored; roll is supplied by
+ * the caller's gameplay PRNG, never generated inside the animation provider. */
+export function selectDeterministicReactionGroup(groups, kind, roll = 0) {
+  const candidates = [...new Set((groups ?? []).map((group) => String(group).toLowerCase()))]
+    .filter((group) => kind === 'death'
+      ? group.startsWith('death') && !group.includes('dremora')
+      : kind === 'hit'
+        ? group === 'hitreact' || group.startsWith('stagger')
+        : false)
+    .sort();
+  if (!candidates.length) return null;
+  const index = ((((Number(roll) | 0) % candidates.length) + candidates.length) % candidates.length);
+  return candidates[index];
+}
+
 /** Load the Hit Reactions pack's clips for the actor's actual skeleton family.
  * The pack's OpenMW event scripts are not loaded; gameplay owns event routing. */
 export async function loadHitReactionAnimationAssets({ female = false, beast = false } = {}) {
