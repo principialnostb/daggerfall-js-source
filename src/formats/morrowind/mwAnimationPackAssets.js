@@ -89,8 +89,8 @@ export const ANIMATION_PACK_PROVIDERS = Object.freeze([
     id: 'dynamic-animations.locomotion',
     packId: PACKS.dynamic,
     domains: Object.freeze(['animation.player.walk', 'animation.player.run', 'animation.player.sneak', 'animation.npc.walk', 'animation.npc.idle']),
-    status: 'present-unintegrated',
-    reason: 'Named variants require explicit group aliasing and stable actor-scoped selection; OpenMW Lua behavior is not executed.',
+    status: 'needs-validation',
+    reason: 'Forward-walk KF variants are wired with stable per-actor style selection; directional, idle, speed-cap, and OpenMW Lua behavior remain unported.',
   }),
   Object.freeze({
     id: 'hit-reactions-v2.reactions',
