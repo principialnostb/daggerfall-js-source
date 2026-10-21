@@ -1670,7 +1670,7 @@ export const MOD_SETTINGS = Object.freeze({
       PlayerFirstPersonSource: Object.freeze({
         default: 0,
         options: lazyWords('Vanilla', 'ReAnimation v3'),
-        description: 'Uses canonical ReAnimation v3 KF sources for supported first-person weapon families. Alternate attack overrides and unsupported weapon families remain on the original game/archive source; the pack\'s OpenMW Lua scripts are not executed.',
+        description: 'Uses ReAnimation v3 KF sources for supported first-person weapon families. Generic attack variants are selected deterministically; katana/mirrored variants and unsupported weapon families remain on the original game/archive source. The pack\'s OpenMW Lua scripts are not executed.',
       }),
       PlayerWalkSource: Object.freeze({
         default: 0,
@@ -1695,7 +1695,7 @@ export const MOD_SETTINGS = Object.freeze({
       NpcMaleIdleSource: Object.freeze({
         default: 0,
         options: lazyWords('Vanilla', 'OpenMW Dynamic Animations'),
-        description: 'Male NPC idle source. OpenMW Dynamic Animations selects one of the compatible Idle2/Idle3/Idle6 clips deterministically per actor. Player and sneak idles remain on the game/archive source.',
+        description: 'Male NPC idle source. OpenMW Dynamic Animations selects one of the available Idle2/Idle3/Idle6 clips deterministically per actor. Player and sneak idles remain on the game/archive source.',
       }),
       NpcFemaleIdleSource: Object.freeze({
         default: 0,
