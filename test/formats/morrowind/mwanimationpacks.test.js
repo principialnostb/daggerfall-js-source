@@ -149,3 +149,9 @@ test('MW-ANIM-PACKS: ReAnimation one-hand base and alternate groups become separ
   assert.ok(expanded[1].keys.some((key) => key.text === 'weapononehandextra: chop tail start'));
   assert.notEqual(expanded[0].name, expanded[1].name);
 });
+
+test('MW-ANIM-PACKS: pack inventory derives the correct skeleton family from each root layout', () => {
+  assert.equal(animationPackSkeleton(ANIMATION_PACK_IDS.reanimation, 'x1hIdle.kf'), 'xbase_anim.1st');
+  assert.equal(animationPackSkeleton(ANIMATION_PACK_IDS.dynamic, 'xbase_anim_female/Idle2_copy;.kf'), 'xbase_anim_female');
+  assert.equal(animationPackSkeleton(ANIMATION_PACK_IDS.hitReactions, 'xbase_animkna/xHitReact.kf'), 'xbase_animkna');
+});
