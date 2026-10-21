@@ -5,6 +5,7 @@ on:
     branches: [Dev]
     paths:
       - 'src/combat/fpArm.js'
+      - 'src/net/peer/peerBodies.js'
       - 'src/formats/morrowind/mwWalkAnimationAssets.js'
       - 'src/systems/modSettings.js'
       - 'src/systems/features.js'
