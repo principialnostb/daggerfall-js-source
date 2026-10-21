@@ -80,3 +80,25 @@ test('waist width is isolated from the outer arm and shoulder vertices', () => {
   assert.ok(delta(1, 0) < 1e-5, 'waist width must not move the outer arm');
   assert.ok(delta(2, 0) < 1e-5, 'waist width must not move the shoulder torso');
 });
+
+test('authored skin influences isolate arm controls from trunk and leg vertices', () => {
+  const piece = {
+    slot: 'betterBodies',
+    positions: Float32Array.from([0.1, 0, 0.56, 0.5, 0, 0.65, 0.2, 0, 0.31, 0.2, 0, 0.13]),
+    indices: new Uint16Array(),
+    normals: new Float32Array(12),
+    batch: { skin: { bones: [
+      { name: 'Bip01 Spine1', indices: [0], weights: [1] },
+      { name: 'Bip01 Forearm', indices: [1], weights: [1] },
+      { name: 'Bip01 Thigh', indices: [2], weights: [1] },
+      { name: 'Bip01 Calf', indices: [3], weights: [1] },
+    ] } },
+  };
+  const before = new Float32Array(piece.positions);
+  deformPlayerBodyGeometry(piece, morphState('armThickness'), bounds);
+  const dx = (v) => Math.abs(piece.positions[v * 3] - before[v * 3]);
+  assert.ok(dx(1) > 1e-4, 'arm thickness must move the bone-weighted arm vertex');
+  assert.ok(dx(0) < 1e-6, 'arm thickness must leave the trunk vertex fixed');
+  assert.ok(dx(2) < 1e-6, 'arm thickness must leave the thigh vertex fixed');
+  assert.ok(dx(3) < 1e-6, 'arm thickness must leave the calf vertex fixed');
+});
