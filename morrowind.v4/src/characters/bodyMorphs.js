@@ -12,7 +12,7 @@ export const BODY_MORPH_FIELDS = [
   ['abdomenVolume', 'Объём живота и ягодиц', 'torso'],
   ['hipWidth', 'Ширина таза · не влияет', 'hips'],
   ['buttockSize', 'Форма нижней части ягодиц', 'hips'],
-  ['buttockProjection', 'Выступ ягодиц', 'hips'],
+  ['buttockProjection', 'Выступ ягодиц назад (слабо)', 'hips'],
   ['headScale', 'Размер головы', 'head'],
   ['armThickness', 'Ширина рук (вид спереди)', 'arms'],
   ['armLength', 'Длина рук · не влияет', 'arms'],
