@@ -75,6 +75,47 @@ const entries = Object.entries(FILES)
   .filter(Boolean)
   .sort((a, b) => a.lowerPath.localeCompare(b.lowerPath));
 
+// Provider metadata is intentionally separate from file discovery. A discovered file is
+// not an active provider until its family has a gameplay consumer and compatibility tests.
+export const ANIMATION_PACK_PROVIDERS = Object.freeze([
+  Object.freeze({
+    id: 'reanimation-v3.first-person',
+    packId: PACKS.reanimation,
+    domains: Object.freeze(['animation.player.firstPerson.locomotion', 'animation.player.firstPerson.stance', 'animation.player.firstPerson.attack']),
+    status: 'present-unintegrated',
+    reason: 'KF inventory is available; weapon/action-specific source mapping and permission review remain required.',
+  }),
+  Object.freeze({
+    id: 'dynamic-animations.locomotion',
+    packId: PACKS.dynamic,
+    domains: Object.freeze(['animation.player.walk', 'animation.player.run', 'animation.player.sneak', 'animation.npc.walk', 'animation.npc.idle']),
+    status: 'present-unintegrated',
+    reason: 'Named variants require explicit group aliasing and stable actor-scoped selection; OpenMW Lua behavior is not executed.',
+  }),
+  Object.freeze({
+    id: 'hit-reactions-v2.reactions',
+    packId: PACKS.hitReactions,
+    domains: Object.freeze(['animation.actor.hitReaction', 'animation.actor.stagger', 'animation.actor.death']),
+    status: 'present-unintegrated',
+    reason: 'Damage-event routing and recovery/cancellation behavior must be ported to JavaScript.',
+  }),
+]);
+
+/** Only an explicitly integrated provider can resolve away from Vanilla. */
+export function resolveAnimationPackProvider(domain, selection = 'vanilla') {
+  if (!selection || selection === 'vanilla') {
+    return { requested: selection || 'vanilla', effective: 'vanilla', provider: null, fallback: false, reason: 'Vanilla selected' };
+  }
+  const provider = ANIMATION_PACK_PROVIDERS.find((item) => item.id === selection && item.domains.includes(domain));
+  if (!provider) {
+    return { requested: selection, effective: 'vanilla', provider: null, fallback: true, reason: 'No provider declares this domain and selection' };
+  }
+  if (provider.status !== 'integrated') {
+    return { requested: selection, effective: 'vanilla', provider: provider.id, fallback: true, reason: provider.reason };
+  }
+  return { requested: selection, effective: provider.id, provider: provider.id, fallback: false, reason: null };
+}
+
 const cache = new Map();
 
 export function listAnimationPackAssets({ packId, family, skeleton } = {}) {
