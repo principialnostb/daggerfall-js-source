@@ -41,3 +41,10 @@ The first-person ReAnimation diagnostics now record the actual normalized text k
 - the final selected file and animation pack.
 
 Versioned event keys (`fp-v2`, `fp-action-v2`) intentionally bypass older persisted diagnostic entries that would otherwise suppress the richer events. Reproduce at least one chop, slash, and thrust after updating to this commit, then run `copyMorrowindAnimationDiagnostics()` and add the JSON to this directory. Do not clear the log before copying it.
+
+## Movement source selection diagnostics (2026-10-21)
+
+The gameplay movement resolver now records versioned `movement-source-selection` events for successful and failed movement clip picks, including archive/vanilla picks (previously the replacement-locomotion log only reported bundled walk replacements). Each event identifies the rig, actor lane, composed group, movement preference, filtered candidate count, and selected file/source family. Failed picks include `selected: false` and `fallback: no-compatible-source`.
+
+After updating to the corresponding `Dev` commit, reproduce at least one walk and one run, then export diagnostics with `copyMorrowindAnimationDiagnostics()` or `downloadMorrowindAnimationDiagnostics()`. Confirm the resulting JSON includes `family: "movement-source-selection"`. This closes an observability gap in the resolver; it does not certify every pack or every animation family as fully integrated.
+
