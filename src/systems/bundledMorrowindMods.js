@@ -16,6 +16,7 @@
 import { makeVendoredArchive } from './urlArchive.js';
 import { modSetting } from './modSettings.js';
 import { getBodyHairEnabled, getUnderwearEnabled } from '../characters/bodyMorphs.js';
+import { modDiagnostics } from './modDiagnostics.js';
 
 const IN_BROWSER = typeof window !== 'undefined';
 const FILES = IN_BROWSER
@@ -282,10 +283,22 @@ for (const key of highResolutionKeys) {
 }
 
 
+const sourcePathByUrl = new Map(Object.entries(FILES).map(([sourcePath, url]) => [url, sourcePath.replace(/\\/g, '/') ]));
+const sourceModOf = (url) => {
+  const sourcePath = sourcePathByUrl.get(url) ?? String(url ?? '');
+  const match = /Mods\\/(Bodies|Textures)\\/([^/]+)/i.exec(sourcePath);
+  return match?.[2] ?? 'bundled-morrowind-assets';
+};
 const fetchBytes = async (url) => {
-  const response = await fetch(url);
-  if (!response.ok) throw new Error('Bundled Morrowind asset returned ' + response.status + ': ' + url);
-  return new Uint8Array(await response.arrayBuffer());
+  try {
+    const response = await fetch(url);
+    if (!response.ok) throw new Error('Bundled Morrowind asset returned ' + response.status + ': ' + url);
+    return new Uint8Array(await response.arrayBuffer());
+  } catch (error) {
+    modDiagnostics.record({ level: 'error', phase: 'asset-fetch', action: 'asset-fetch-failed', modId: sourceModOf(url), resource: sourcePathByUrl.get(url) ?? url,
+      message: String(error?.message ?? error), details: { url: String(url ?? '').slice(0, 500) } });
+    throw error;
+  }
 };
 
 let _archive = null;
@@ -300,6 +313,8 @@ export function bundledMorrowindModsArchive() {
   if (!_archive || signature !== _archiveSignature) {
     _archive = makeVendoredArchive(assetUrls, fetchBytes);
     _archiveSignature = signature;
+    modDiagnostics.record({ level: 'info', phase: 'asset-selection', action: 'morrowind-asset-archive-selected', modId: 'bundled-morrowind-assets', resource: 'Mods/Bodies+Textures',
+      details: { signature, sourceFiles: Object.keys(FILES).length, selectedAssetKeys: Object.keys(assetUrls).length, packageCounts, activeOptionalPacks: Object.entries(packEnabled).filter(([name, enabled]) => name !== 'betterBodies' && enabled).map(([name]) => name), underwear: getUnderwearEnabled(), bodyHair: getBodyHairEnabled() } });
   }
   return _archive;
 }
@@ -378,6 +393,10 @@ export async function inspectBundledMorrowindTextures() {
     representativeFetches: checks,
     note: 'High Resolution Better Body Female Textures supplies the selected underwear / body-hair / no-hair skin variant and matching hands. Its NIF meshes are intentionally not used so corrected UV geometry remains intact.',
   };
+  for (const row of checks) {
+    if (row.error || (row.fetch !== 'not-found' && row.fetch !== 200)) modDiagnostics.record({ level: 'error', phase: 'asset-fetch', action: 'representative-asset-check-failed', modId: sourceModOf(row.url), resource: row.key, message: row.error ?? 'Asset fetch returned a non-success status.', details: { fetch: row.fetch, bytes: row.bytes } });
+  }
+  modDiagnostics.record({ level: checks.some((row) => row.error || (row.fetch !== 'not-found' && row.fetch !== 200)) ? 'warn' : 'info', phase: 'asset-audit', action: 'morrowind-texture-inspection-complete', modId: 'bundled-morrowind-assets', resource: 'representative-fetches', details: { discoveredSourceFiles: report.discoveredSourceFiles, selectedAssetKeys: report.selectedAssetKeys, selectedPackageAssetCounts: report.selectedPackageAssetCounts, checks: checks.map(({ key, inArchive, alreadyLoaded, fetch, bytes, width, height, error }) => ({ key, inArchive, alreadyLoaded, fetch, bytes, width, height, error })) } });
   console.table(checks);
   console.log('[Bundled Morrowind texture packs]', report);
   return report;
