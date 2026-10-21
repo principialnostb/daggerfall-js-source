@@ -151,3 +151,58 @@ test('authored skin influences isolate arm controls from trunk and leg vertices'
   assert.ok(dx(2) < 1e-6, 'arm thickness must leave the thigh vertex fixed');
   assert.ok(dx(3) < 1e-6, 'arm thickness must leave the calf vertex fixed');
 });
+
+
+test('torso controls do not deform pelvis-weighted vertices', () => {
+  const piece = {
+    slot: 'betterBodies',
+    positions: Float32Array.from([
+      0.2, 0, 0.68, // spine/ribcage
+      0.2, 0, 0.47, // pelvis
+    ]),
+    indices: new Uint16Array(),
+    normals: new Float32Array(6),
+    batch: { skin: { bones: [
+      { ref: 1, indices: [0], weights: [1] },
+      { ref: 2, indices: [1], weights: [1] },
+    ] } },
+  };
+  const skeleton = { nodes: new Map([
+    [1, { name: 'Bip01 Spine1' }],
+    [2, { name: 'Bip01 Pelvis' }],
+  ]) };
+  const before = new Float32Array(piece.positions);
+  deformPlayerBodyGeometry(piece, morphState('ribcageWidth'), bounds, skeleton);
+  const dx = (v) => Math.abs(piece.positions[v * 3] - before[v * 3]);
+  assert.ok(dx(0) > 1e-4, 'ribcage width must affect the spine-weighted torso vertex');
+  assert.ok(dx(1) < 1e-6, 'ribcage width must leave the pelvis-weighted vertex fixed');
+});
+
+test('leg length uses thigh/calf skin weights instead of moving pelvis vertices', () => {
+  const piece = {
+    slot: 'betterBodies',
+    positions: Float32Array.from([
+      0.2, 0, 0.31, // thigh
+      0.2, 0, 0.13, // calf
+      0.2, 0, 0.47, // pelvis
+    ]),
+    indices: new Uint16Array(),
+    normals: new Float32Array(9),
+    batch: { skin: { bones: [
+      { ref: 1, indices: [0], weights: [1] },
+      { ref: 2, indices: [1], weights: [1] },
+      { ref: 3, indices: [2], weights: [1] },
+    ] } },
+  };
+  const skeleton = { nodes: new Map([
+    [1, { name: 'Bip01 Thigh' }],
+    [2, { name: 'Bip01 Calf' }],
+    [3, { name: 'Bip01 Pelvis' }],
+  ]) };
+  const before = new Float32Array(piece.positions);
+  deformPlayerBodyGeometry(piece, morphState('legLength'), bounds, skeleton);
+  const dz = (v) => Math.abs(piece.positions[v * 3 + 2] - before[v * 3 + 2]);
+  assert.ok(dz(0) > 1e-4, 'leg length must affect the thigh-weighted vertex');
+  assert.ok(dz(1) > 1e-4, 'leg length must affect the calf-weighted vertex');
+  assert.ok(dz(2) < 1e-6, 'leg length must not move the pelvis-weighted vertex');
+});
