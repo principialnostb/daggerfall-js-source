@@ -1760,6 +1760,16 @@ export const FEATURES = Object.freeze([
       ]),
     }),
   }),
+  // CLOAKS1: the live character rig can skin Simply Animated Cloaks; keep the original rigid cloak available as a fallback.
+  Object.freeze({
+    id: 'simply-animated-cloaks',
+    group: 'character',
+    get title() { return t('features.simplyAnimatedCloaks.title', 'Simply Animated Cloaks'); },
+    get note() { return t('features.simplyAnimatedCloaks.note', 'Use the skinned cloak meshes and follow the character’s movement. Turn off to use the classic rigid cloak.'); },
+    get effect() { return t('features.effect.atOnce', 'Takes effect at once.'); },
+    kinds: Object.freeze(['enhanced']),
+    control: Object.freeze({ store: 'prefs', key: 'simplyAnimatedCloaks', initial: true, online: 'player' }),
+  }),
   Object.freeze({
     id: 'mod-climates-calories',   // a mod-row id: WM3's law reaches the credits' vendor through it
     group: 'character',
