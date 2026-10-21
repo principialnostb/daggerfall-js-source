@@ -3,6 +3,7 @@
 // reader used for the game's archives. This module deliberately does not touch
 // meshes or skeleton geometry.
 import { modSetting } from '../../systems/modSettings.js';
+import { ANIMATION_PACK_IDS, listAnimationPackAssets } from './mwAnimationPackAssets.js';
 
 const IN_BROWSER = typeof window !== 'undefined';
 const FILES = IN_BROWSER
@@ -49,7 +50,7 @@ async function bytes(entry) {
  * The full overhaul is admitted only when explicitly selected; the Vanilla
  * source remains available for unsupported races and any groups absent in the pack.
  */
-export async function loadWalkAnimationAssets({ female = false } = {}) {
+export async function loadWalkAnimationAssets({ female = false, dynamicStyle = null } = {}) {
   if (!IN_BROWSER) return [];
   const simplyCandidates = female
     ? [{ entry: puristFemale, variant: 'simply', family: 'walk' }]
@@ -67,6 +68,15 @@ export async function loadWalkAnimationAssets({ female = false } = {}) {
     ? { entry: female ? overhaulFemale : overhaulMale, variant: 'overhaul', family: 'all' }
     : null;
   const selected = [];
+  let dynamicCandidate = null;
+  if (dynamicStyle) {
+    const skeleton = female ? 'xbase_anim_female' : 'xbase_anim';
+    const dynamicAssets = listAnimationPackAssets({ packId: ANIMATION_PACK_IDS.dynamic, skeleton, family: 'walk' });
+    const wanted = `walkforward_${String(dynamicStyle).toLowerCase()};.kf`;
+    dynamicCandidate = dynamicAssets.find((asset) => asset.relativePath.split('/').pop().toLowerCase() === wanted)
+      ?? dynamicAssets.find((asset) => asset.relativePath.split('/').pop().toLowerCase() === 'walkforward_base15;.kf')
+      ?? null;
+  }
   if (!simplyCandidates.some(({ entry }) => entry) && !warnedMissingWalkAssets) {
     warnedMissingWalkAssets = true;
     console.warn('[Morrowind animations] Vite did not resolve any Simply Walking KF source.', inspectWalkAnimationAssets());
@@ -96,6 +106,20 @@ export async function loadWalkAnimationAssets({ female = false } = {}) {
   } catch (error) {
     console.warn('[Morrowind animations] bundled walk set failed to load; archive animations remain active:', String(error?.message ?? error));
     return [];
+  }
+  if (dynamicCandidate) {
+    try {
+      const data = await bytes(dynamicCandidate);
+      if (data) {
+        selected.push({
+          name: dynamicCandidate.path, bytes: data, variant: 'dynamic', walkVariant: 'dynamic',
+          family: 'walk', animationFamily: 'walk', walkOnly: true, runOnly: false,
+          dynamicGroupAlias: true,
+        });
+      }
+    } catch (error) {
+      console.warn('[Morrowind animations] Dynamic Animations walk clip unavailable; archive walk retained:', String(error?.message ?? error));
+    }
   }
   if (!selected.length && !warnedMissingWalkAssets) {
     warnedMissingWalkAssets = true;
@@ -159,11 +183,29 @@ export function walkVariantForActor({
 } = {}) {
   const index = (value, max) => Math.max(0, Math.min(max, Number(value) || 0));
   if (player || ownHeads) {
-    if (!female) return ['vanilla', 'simply'][index(playerChoice, 1)];
-    return ['vanilla', 'simply', 'feminine', 'axel'][index(playerChoice, 3)];
+    if (!female) return ['vanilla', 'simply', 'simply', 'simply', 'dynamic'][index(playerChoice, 4)];
+    return ['vanilla', 'simply', 'feminine', 'axel', 'dynamic'][index(playerChoice, 4)];
   }
-  if (female) return ['vanilla', 'simply', 'feminine', 'axel'][index(npcFemaleChoice, 3)];
-  return ['vanilla', 'simply'][index(npcMaleChoice, 1)];
+  if (female) return ['vanilla', 'simply', 'feminine', 'axel', 'dynamic'][index(npcFemaleChoice, 4)];
+  return ['vanilla', 'simply', 'dynamic'][index(npcMaleChoice, 2)];
+}
+
+/** Stable per-actor walk style for Dynamic Animations. Player selection is fixed;
+ * NPC style variation hashes the actor's available identity fields, never frame order or Math.random(). */
+export function dynamicWalkStyleForActor({
+  female = false, player = false, race = '', faceIndex = 0, appearanceHeadId = '',
+} = {}) {
+  if (player) return 'base15';
+  const styles = female
+    ? ['base11', 'base13', 'base15', 'dirn15', 'march13', 'march15', 'mwf15', 'noble11', 'noble13']
+    : ['base11', 'base13', 'base15', 'dirn15', 'march13', 'march15', 'mw15'];
+  const seed = `${String(race).toLowerCase()}|${String(faceIndex)}|${String(appearanceHeadId).toLowerCase()}`;
+  let hash = 2166136261;
+  for (let i = 0; i < seed.length; i++) {
+    hash ^= seed.charCodeAt(i);
+    hash = Math.imul(hash, 16777619);
+  }
+  return styles[(hash >>> 0) % styles.length];
 }
 
 /** Live preference gates for the two independent locomotion families. */
