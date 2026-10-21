@@ -4595,14 +4595,18 @@ export function createFpArm({ playerAppearance = false } = {}) {
       npcMaleChoice: modSetting('morrowind-animation', 'NpcMaleIdleSource') ?? 0,
       npcFemaleChoice: modSetting('morrowind-animation', 'NpcFemaleIdleSource') ?? 0,
     });
-    const candidateIdleSources = (rig()?.sources ?? [])
+    const allIdleSources = rig()?.sources ?? [];
+    const candidateIdleSources = allIdleSources
       .filter((source) => isIdleVariantEnabled(source, requestedIdlePreference));
-    const effectiveIdlePreference = requestedIdlePreference === 'dynamic'
-      && candidateIdleSources.some((source) => source.idleOnly && source.idleVariant === 'dynamic')
+    const aliasedIdleSources = candidateIdleSources.map((source) => aliasDynamicIdleSource(source));
+    const hasUsableDynamicIdle = aliasedIdleSources.some((source) =>
+      source.idleOnly && source.idleVariant === 'dynamic' && !source.dynamicIdleAlias
+      && (source.groups ?? []).some((group) => /^idle(?:1h|1s|1b|2c|2b|2w|bow|crossbow|1t|hh|spell)?$/.test(String(group))));
+    const effectiveIdlePreference = requestedIdlePreference === 'dynamic' && hasUsableDynamicIdle
       ? 'dynamic' : 'vanilla';
-    const idleSources = candidateIdleSources.map((source) => effectiveIdlePreference === 'dynamic'
-      ? aliasDynamicIdleSource(source)
-      : source);
+    const idleSources = effectiveIdlePreference === 'dynamic'
+      ? aliasedIdleSources
+      : allIdleSources.filter((source) => isIdleVariantEnabled(source, 'vanilla'));
     const hasIdleGroup = (name) => anySourceHasGroup(idleSources, name);
     const type = stanceOf();   // MWNPC9: a non-biped's bare stance
     // MW-D52: the idle STATE picks the base - "idlesneak" while sneaking
