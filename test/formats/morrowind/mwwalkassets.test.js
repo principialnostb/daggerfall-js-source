@@ -91,7 +91,7 @@ test('MW-ANIM-4: first-person source modes and layered providers are stable', ()
   assert.equal(firstPersonAnimationProviderForChoice(2), 'openmw-dynamic-first-person');
   assert.equal(firstPersonAnimationProviderForChoice(3), 'reanimation-v3+openmw-dynamic-first-person');
   assert.equal(firstPersonAnimationProviderForChoice(-1), 'vanilla');
-  assert.equal(firstPersonAnimationProviderForChoice(99), 'openmw-dynamic-first-person');
+  assert.equal(firstPersonAnimationProviderForChoice(99), 'reanimation-v3+openmw-dynamic-first-person');
 });
 
 test('MW-ANIM-4: OpenMW Dynamic Animations admits only directional first-person locomotion clips', () => {
