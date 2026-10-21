@@ -15,6 +15,23 @@ const FILES = IN_BROWSER
     })
   : {};
 
+// ReAnimation v3 ships individual first-person KF clips rather than one replacement
+// library. Keep this glob separate from third-person locomotion and sort paths
+// before resolving so glob enumeration order can never decide animation priority.
+const FIRST_PERSON_FILES = IN_BROWSER
+  ? import.meta.glob([
+      '../../../Mods/Animations/ReAnimation v3 - Complete - first-person animation pack/00 Core/Animations/xbase_anim.1st/**/*.kf',
+      '../../../Mods/Animations/ReAnimation v3 - Complete - first-person animation pack/00 Core/Animations/xbase_anim.1st/*.kf',
+    ], { eager: true, query: '?url', import: 'default' })
+  : {};
+
+const HIT_REACTION_FILES = IN_BROWSER
+  ? import.meta.glob([
+      '../../../Mods/Animations/Hit Reactions Animated v2 -- OpenMW/Animations/**/*.kf',
+      '../../../Mods/Animations/Hit Reactions Animated v2 -- OpenMW/Animations/**/*.KF',
+    ], { eager: true, query: '?url', import: 'default' })
+  : {};
+
 const norm = (value) => String(value).replace(/\\/g, '/').toLowerCase();
 const entries = Object.entries(FILES).map(([path, url]) => ({ path: path.replace(/\\/g, '/'), lower: norm(path), url }));
 const standardMale = entries.find((e) => e.lower.includes('/simply walking purist edition/meshes/xbase_anim.kf'));
@@ -103,6 +120,42 @@ export async function loadWalkAnimationAssets({ female = false } = {}) {
   }
   return selected;
 }
+/** Load ReAnimation first-person clips in stable path order. */
+export async function loadFirstPersonAnimationAssets() {
+  if (!IN_BROWSER) return [];
+  const files = Object.entries(FIRST_PERSON_FILES)
+    .map(([path, url]) => ({ path: path.replace(/\\/g, '/'), url }))
+    .sort((a, b) => a.path.localeCompare(b.path));
+  const result = [];
+  for (const entry of files) {
+    try {
+      const data = await bytes(entry);
+      if (data) result.push({ name: entry.path, bytes: data, family: 'first-person', variant: 'reanimation-v3' });
+    } catch (error) {
+      console.warn('[Morrowind animations] ReAnimation clip failed to load; archive fallback retained:', entry.path, String(error?.message ?? error));
+    }
+  }
+  return result;
+}
+
+/** Load third-person hit-reaction KF files in stable path order. */
+export async function loadHitReactionAnimationAssets() {
+  if (!IN_BROWSER) return [];
+  const files = Object.entries(HIT_REACTION_FILES)
+    .map(([path, url]) => ({ path: path.replace(/\\/g, '/'), url }))
+    .sort((a, b) => a.path.localeCompare(b.path));
+  const result = [];
+  for (const entry of files) {
+    try {
+      const data = await bytes(entry);
+      if (data) result.push({ name: entry.path, bytes: data, family: 'hit-reaction', variant: 'hit-reactions-v2' });
+    } catch (error) {
+      console.warn('[Morrowind animations] hit-reaction clip failed to load; archive fallback retained:', entry.path, String(error?.message ?? error));
+    }
+  }
+  return result;
+}
+
 export function inspectWalkAnimationAssets() {
   return {
     browser: IN_BROWSER,
