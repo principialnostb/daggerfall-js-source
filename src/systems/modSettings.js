@@ -1654,8 +1654,8 @@ export const MOD_SETTINGS = Object.freeze({
     keys: Object.freeze({
       AnimationOverhaul: Object.freeze({
         default: 0,
-        options: lazyWords('Vanilla'),
-        description: 'Morrowind Animation Overhaul is present as source material but is not available as a runtime provider pending explicit permission to reuse/convert its assets. Vanilla keeps the game/archive animation groups.',
+        options: lazyWords('Vanilla', 'Morrowind Animation Overhaul'),
+        description: 'Optional third-person animation replacement. To use it, install the MAO files locally at Mods/Animations/Morrowind Animation Overhaul/Data Files/Meshes/xbase_anim.kf and xbase_anim_female.kf. The asset files are not included in this repository; your build bundles the local files you provide. Vanilla keeps the game/archive animation groups.',
       }),
       AnimationBlendDuration: Object.freeze({
         default: 1,
