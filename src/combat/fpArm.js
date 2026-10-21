@@ -5452,6 +5452,10 @@ export function createFpArm({ playerAppearance = false } = {}) {
    */
   function firstRun(cam) {
     runPump.targets = null;
+    // FORK-FP-RUN: the procedural fist pump is only for empty hands. When a
+    // weapon is held, its native first-person run clip owns the wrist and
+    // fingers; overlaying screen-space hand targets distorts the grip.
+    if (weaponShown && !spellStance()) return null;
     if (!(runPump.w > 0) || !cam || !built.arm.mats) return null;
     const node = built.arm.mats.get(built.cameraRef);
     if (!node) return null;
