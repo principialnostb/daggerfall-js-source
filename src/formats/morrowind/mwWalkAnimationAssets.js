@@ -233,10 +233,9 @@ export function aliasDynamicWalkSource(source) {
 
 /** NPC idle provider choice; player idles stay Vanilla because this pack's idle clips are third-person. */
 export function idleVariantForActor({
-  player = false, ownHeads = false, female = false, npcMaleChoice = 0, npcFemaleChoice = 0,
+  player = false, ownHeads = false, female = false, playerChoice = 0, npcMaleChoice = 0, npcFemaleChoice = 0,
 } = {}) {
-  if (player || ownHeads) return 'vanilla';
-  const choice = Number(female ? npcFemaleChoice : npcMaleChoice) || 0;
+  const choice = Number(player || ownHeads ? playerChoice : female ? npcFemaleChoice : npcMaleChoice) || 0;
   return choice === 1 ? 'dynamic' : 'vanilla';
 }
 
