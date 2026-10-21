@@ -3402,4 +3402,17 @@ test('MW-FP-UNEQUIP: text markers without moving transforms use a real fallback'
   assert.equal(animationWindowHasMotion(moving, state, skeleton), true);
   assert.equal(animationWindowHasMotion(staticWindow, state, skeleton), false);
   assert.equal(animationWindowHasMotion(moving, { startTime: 1, stopTime: 1 }, skeleton), false);
+
+  // A clip that only moves a weapon/root node must not pass the arm-motion
+  // gate; that false positive was allowing an unusable unequip clip to win.
+  const unrelatedMotion = {
+    trackMap: new Map([['bip01 weapon', {
+      translations: { type: 1, keys: [
+        { time: 0, value: [0, 0, 0] },
+        { time: 1, value: [1, 0, 0] },
+      ] },
+    }]]),
+  };
+  const nonArmSkeleton = { nodes: new Map([[1, { name: 'Bip01 Weapon' }]]) };
+  assert.equal(animationWindowHasMotion(unrelatedMotion, state, nonArmSkeleton), false);
 });
