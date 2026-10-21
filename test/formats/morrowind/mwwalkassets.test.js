@@ -90,9 +90,9 @@ test('MW-ANIM-3: run choices resolve independently for player and female NPC', (
 });
 
 
-test('MW-ANIM-4: first-person providers are limited to the skeleton they ship for', () => {
+test('MW-ANIM-4: first-person providers accept male and female biped rigs, but not beast/third-person rigs', () => {
   assert.equal(isFirstPersonAnimationRigCompatible('meshes/xbase_anim.1st.nif'), true);
-  assert.equal(isFirstPersonAnimationRigCompatible('meshes/base_anim_female.1st.nif'), false);
+  assert.equal(isFirstPersonAnimationRigCompatible('meshes/base_anim_female.1st.nif'), true);
   assert.equal(isFirstPersonAnimationRigCompatible('meshes/xbase_animkna.1st.nif'), false);
   assert.equal(isFirstPersonAnimationRigCompatible('meshes/xbase_anim.nif'), false);
 });
