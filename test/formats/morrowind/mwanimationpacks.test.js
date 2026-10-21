@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   ANIMATION_PACK_IDS, ANIMATION_PACK_PROVIDERS, animationPackFamily, inspectAnimationPackAssets, listAnimationPackAssets, loadHitReactionAnimationAssets, loadReAnimationAnimationAssets,
-  resolveAnimationPackProvider, selectDeterministicReactionGroup, reAnimationPrefixesForWeaponGroup,
+  resolveAnimationPackProvider, selectDeterministicReactionGroup, reAnimationPrefixesForWeaponGroup, selectStableAnimationVariant,
 } from '../../src/formats/morrowind/mwAnimationPackAssets.js';
 
 test('MW-ANIM-PACKS: pack discovery is safe outside the browser', () => {
@@ -87,4 +87,12 @@ test('MW-ANIM-PACKS: ReAnimation maps only known weapon families to canonical cl
 
 test('MW-ANIM-PACKS: ReAnimation asset loading is safe outside the browser', async () => {
   assert.deepEqual(await loadReAnimationAnimationAssets({ weaponShortGroup: '2c' }), []);
+});
+
+test('MW-ANIM-PACKS: ReAnimation action variants are selected by a stable semantic seed', () => {
+  const candidates = [{ source: { name: 'z.kf' }, pick: 'z' }, { source: { name: 'a.kf' }, pick: 'a' }, { source: { name: 'm.kf' }, pick: 'm' }];
+  const first = selectStableAnimationVariant(candidates, 'weapontwohand|chop');
+  assert.equal(first?.pick, selectStableAnimationVariant(candidates, 'weapontwohand|chop')?.pick);
+  assert.ok(['a', 'm', 'z'].includes(first?.pick));
+  assert.equal(selectStableAnimationVariant([], 'weapontwohand|chop'), null);
 });
