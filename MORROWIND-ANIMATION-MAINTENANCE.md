@@ -150,7 +150,7 @@ The runtime now loads the checked-in `RunForward;.kf` as part of Axel's single l
 
 - Runtime walk asset globs now point to `Mods/Animations/Simply Walking` and `Mods/Animations/Axel's Sexy Walk Fixed`.
 - Morrowind Animation Overhaul remains excluded from runtime discovery pending explicit permission; presence in the repository does not activate it.
-- ReAnimation v3 and Hit Reactions Animated v2 are currently staged source assets, not active runtime providers. Their clips must not be routed into the live resolver solely by filename or folder order. ReAnimation targets first-person animation groups; Hit Reactions targets third-person reaction/death groups and needs its own actor/group-scoped provider path.
+- ReAnimation v3 is now an opt-in first-person provider. `src/formats/morrowind/mwReAnimationAssets.js` discovers only `00 Core/Animations/xbase_anim.1st/**/*.kf` in stable path order; `src/combat/fpArm.js` parses and binds each source against the active first-person rig, skipping incompatible optional files so archive sources remain the fallback. `PlayerFirstPersonSource` defaults to Vanilla. In-game visual validation is still outstanding. Hit Reactions Animated v2 remains staged and needs its own third-person reaction/death resolver.
 - OpenMW Dynamic Animations is reference material and its MWSE/OpenMW behavior is not executed by the browser runtime.
 - Verification status after the folder move: the paths in the runtime glob have been corrected at source level. Full test/lint/build and in-game visual checks have not yet been run in this environment.
 
@@ -159,7 +159,7 @@ The runtime now loads the checked-in `RunForward;.kf` as part of Axel's single l
 
 | Source | Repository assets | Intended runtime family | Integration boundary |
 |---|---|---|---|
-| [ReAnimation v3 — Complete (#52596)](https://www.nexusmods.com/morrowind/mods/52596?tab=files) | `Mods/Animations/ReAnimation v3 - Complete - first-person animation pack/00 Core/Animations/xbase_anim.1st/` | First-person combat/weapon clips | Must be resolved by the first-person clip provider and bound against the first-person rig. Never add to the third-person walk provider. The staged files are not proof of active playback. |
+| [ReAnimation v3 — Complete (#52596)](https://www.nexusmods.com/morrowind/mods/52596?tab=files) | `Mods/Animations/ReAnimation v3 - Complete - first-person animation pack/00 Core/Animations/xbase_anim.1st/` | First-person combat/weapon clips | Opt-in provider wired through the first-person source list; each KF is parsed/bound against the active rig, and incompatible optional files fall back to archive sources. In-game visual validation remains outstanding. |
 | [OpenMW Dynamic Animations (#57633)](https://www.nexusmods.com/morrowind/mods/57633?tab=files) | `Mods/Animations/OpenMW Dynamic Animations/` | Explicitly selected locomotion/idle/race-specific clips, one family at a time | Its OpenMW Lua/config logic is not executed by this browser port. Only verified KF clips can be integrated; do not claim full mod parity. Race-specific files require a deterministic actor/race mapping. |
 | [Hit Reactions Animated — OpenMW (#56594)](https://www.nexusmods.com/morrowind/mods/56594?tab=files) | `Mods/Animations/Hit Reactions Animated v2 -- OpenMW/` | Third-person hit reactions (and only separately verified additional groups) | Requires a distinct actor/group-scoped provider. Filter parsed text-key groups; never replace the actor's whole animation source or let a reaction pack override locomotion/combat/death by accident. |
 
@@ -167,7 +167,7 @@ The runtime now loads the checked-in `RunForward;.kf` as part of Axel's single l
 
 1. Inventory each staged KF/NIF's parsed group names, text-key intervals, and referenced bone names using the existing animation parser.
 2. Add a deterministic source registry with explicit family, rig, actor/race eligibility, and source priority. Sort discovered assets; do not use glob order as priority.
-3. Integrate ReAnimation v3 through the first-person clip resolver; add tests that prove third-person clips remain untouched and unsupported groups fall back to archive sources.
+3. ReAnimation v3 is wired through the first-person clip resolver; next verify its group collisions, transitions, and visual behavior in-game.
 4. Integrate Hit Reactions through a third-person reaction-only resolver, with actor initialization guards and tests proving unrelated groups remain unchanged.
 5. Evaluate OpenMW Dynamic Animations clip-by-clip. Port a behavior only when its required Lua selection logic can be represented natively and tested; preserve a documented Vanilla fallback.
 6. Run targeted animation tests, lint, types, and build. In-game visual validation remains a separate required check.
