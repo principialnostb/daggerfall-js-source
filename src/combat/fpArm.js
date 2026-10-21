@@ -2319,8 +2319,8 @@ async function buildTpBody({
     // MW-ANIM-1: The uploaded Simply Walking set replaces WALK groups only.
     // The separate Feminine Walk Cycle is a female-only, walk-only override;
     // other actions keep the game's own sources and priority.
+    const playerBody = !!(playerAppearance || ownHeads);
     if (!werewolf && !beast) {
-      const playerBody = !!(playerAppearance || ownHeads);
       // Keep the chosen Dynamic Animations clip available for live setting changes,
       // but leave its source groups unaliased until the provider is actually selected.
       const dynamicStyle = dynamicWalkStyleForActor({ female, player: playerBody, race, faceIndex, appearanceHeadId });
