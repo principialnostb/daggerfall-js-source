@@ -88,14 +88,21 @@ test('authored skin influences isolate arm controls from trunk and leg vertices'
     indices: new Uint16Array(),
     normals: new Float32Array(12),
     batch: { skin: { bones: [
-      { name: 'Bip01 Spine1', indices: [0], weights: [1] },
-      { name: 'Bip01 Forearm', indices: [1], weights: [1] },
-      { name: 'Bip01 Thigh', indices: [2], weights: [1] },
-      { name: 'Bip01 Calf', indices: [3], weights: [1] },
+      { ref: 1, indices: [0], weights: [1] },
+      { ref: 2, indices: [1], weights: [1] },
+      { ref: 3, indices: [2], weights: [1] },
+      { ref: 4, indices: [3], weights: [1] },
     ] } },
   };
   const before = new Float32Array(piece.positions);
-  deformPlayerBodyGeometry(piece, morphState('armThickness'), bounds);
+  deformPlayerBodyGeometry(piece, morphState('armThickness'), bounds, {
+    nodes: new Map([
+      [1, { name: 'Bip01 Spine1' }],
+      [2, { name: 'Bip01 Forearm' }],
+      [3, { name: 'Bip01 Thigh' }],
+      [4, { name: 'Bip01 Calf' }],
+    ]),
+  });
   const dx = (v) => Math.abs(piece.positions[v * 3] - before[v * 3]);
   assert.ok(dx(1) > 1e-4, 'arm thickness must move the bone-weighted arm vertex');
   assert.ok(dx(0) < 1e-6, 'arm thickness must leave the trunk vertex fixed');
