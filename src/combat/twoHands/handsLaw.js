@@ -415,7 +415,9 @@ export function pumpOf(phase, hand) {
 export const RUN_3D = Object.freeze({
   TOP: Object.freeze({ x: 0.36, y: -0.62, d: 0.42 }),
   BOTTOM: Object.freeze({ x: 0.6, y: -1.7, d: 0.38 }),
-  CURL: 1.5,
+  // A moderate running fist keeps the fingers naturally folded; the old 1.5-rad curl
+  // over-folded the thumb into the palm and made the hand read as a malformed claw.
+  CURL: 1.15,
 });
 /** One hand's place in the 3D pump at stride phase `phase`: { x, y, d, s } (see RUN_3D; x toward the hand's own side). */
 export function pumpTarget3D(phase, hand) {
