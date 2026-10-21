@@ -2123,6 +2123,7 @@ async function buildTpBody({
   skin = null,   // SHADOW-FANG (AUDIT D2): the wolf's skin, painted here
   vampire = false,   // MWNPC14: a vampire - the race's vampire head (getVampireHead)
   walk = null,   // MWNPC17: an NPC's own head and hair, walked off its seed ({ head, hair } - playerBodyRows)
+  npcHint = null,   // MWNPC17: stable NPC seed/tier for deterministic animation variant selection
   ownHeads = false,   // MW-HEADS2: a player's body - the port's own heads where its race has them
 }) {
   const exists = (p) => archives.some((a) => a.has(p));
@@ -2320,7 +2321,7 @@ async function buildTpBody({
     // from this actor's stable identity. Walk-only user selectors below retain priority.
     if (!werewolf) {
       const dynamicAssets = await loadOpenMWDynamicThirdPersonAnimationAssets({ skeletonPath, race });
-      const seed = [skeletonPath, race, female ? 'female' : 'male', beast ? 'beast' : 'biped',
+      const seed = [npcHint?.seed ?? '', npcHint?.tier ?? '', skeletonPath, race, female ? 'female' : 'male', beast ? 'beast' : 'biped',
         faceIndex ?? '', appearanceHeadId ?? '', appearanceHairId ?? '',
         walk?.head?.model ?? walk?.head?.id ?? '', walk?.hair?.model ?? walk?.hair?.id ?? ''].join('|');
       const selectedDynamicAssets = selectOpenMWDynamicAnimationVariants(dynamicAssets, seed);
@@ -2896,6 +2897,7 @@ export async function buildFpArm({
   vampire = false,   // MWNPC14: a vampire's face - the race's vampire head
   flies = false,   // AUDIT MW-NPC II K5: a creature body that must fly (its CREA record's Flies flag)
   npcFace = null,   // MWNPC17: an NPC's head and hair, each walked off its seed ({ head, hair } - characters/wardrobe.js npcFaceOf): no portrait to match
+  npcHint = null,   // MWNPC17: stable NPC seed/tier used by deterministic animation variant selection
   ownHeads = false,   // MW-HEADS2 (the owner: "only the player Britons should recieve the new heads, not npcs"): a player's body - the local player's (weaponRig.js armBuildOptsOf) and a peer's (net/peer/peerBodies.js playerBuildOpts) - wears the port's own heads; every other the data's
   offWeapon = null,   // TWO-HANDS AUDIT 2: a pair's left-hand weapon, bound in the build on both rigs - the rig's own rebuilds hand the one it holds (setOffWeapon records it)
 } = {}) {
@@ -3268,7 +3270,7 @@ export async function buildFpArm({
     catalog.magic = magic;   // MW-SPELLFX1: and the magic the world's spell effects draw with
     // MW-D24: the THIRD-PERSON BODY, while the same archives are open.
     // Its refusal is a note on the card, never the arm's refusal.
-    const tpBody = (wornNow) => buildTpBody({ race, female, beast, faceIndex, faceMatch, weapon, hasAmmo, worn: wornNow, archives, parts, allWeapons, find, gen, torch, allLights, sheathing, ammoCount, hipLight, werewolf, skin: werewolf ? skin : null, vampire: !!vampire, walk: npcFace, ownHeads: !!ownHeads, appearanceHeadId, appearanceHairId });   // (the wolf's rows read no face)   // MW-D51; WS1; HT-WAIST; WEREWOLF1; SHADOW-FANG; MWNPC14; MWNPC17
+    const tpBody = (wornNow) => buildTpBody({ race, female, beast, faceIndex, faceMatch, weapon, hasAmmo, worn: wornNow, archives, parts, allWeapons, find, gen, torch, allLights, sheathing, ammoCount, hipLight, werewolf, skin: werewolf ? skin : null, vampire: !!vampire, walk: npcFace, npcHint, ownHeads: !!ownHeads, appearanceHeadId, appearanceHairId });   // (the wolf's rows read no face)   // MW-D51; WS1; HT-WAIST; WEREWOLF1; SHADOW-FANG; MWNPC14; MWNPC17
     let third = arm.ok ? await tpBody(worn) : null;
     // AUDIT MW-FOLK1 (L2-F2): AN OUTFIT THAT BOUND NOTHING HIDES NOTHING AND DRESSES NOTHING. Its `hides` took the skin
     // under it and its `covers` stood the modesty shirt down at the composition, before its mesh was read; one whose mesh
