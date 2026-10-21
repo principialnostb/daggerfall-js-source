@@ -187,7 +187,7 @@ scripts or silently activate assets by directory order.
 | Pack | Asset families identified | Runtime status |
 |---|---|---|
 | ReAnimation v3 | First-person locomotion, idle/stance, weapon attacks, equip/unequip | `00 Core` KF sources are wired behind the Vanilla-first `PlayerFirstPersonSource` setting and loaded by supported weapon family. Compatible generic attack variants are selected with a stable hash of weapon group + attack type; unsupported weapon families, katana/mirrored variants, advanced Lua overrides, and in-game compatibility remain outstanding. `01 FBA Compatibility` is deliberately excluded. |
-| OpenMW Dynamic Animations | Walk, run, sneak, idle, first-person movement, race-specific sources | The forward-walk KF variants are wired as an explicit walk provider. The selected style is fixed for the player and chosen for NPCs by a stable hash of available actor identity fields; group aliases cover the vanilla forward-walk stance suffixes. Back/side movement, idle variants, speed caps, race-specific behavior, and OpenMW Lua remain unported. |
+| OpenMW Dynamic Animations | Walk, run, sneak, idle, first-person movement, race-specific sources | Forward-walk KF variants are wired as an explicit walk provider, with a fixed player style and stable per-NPC style selection; aliases cover vanilla forward-walk stance suffixes. NPC Idle2/Idle3/Idle6 clips are also selectable per gender and chosen deterministically per actor. Back/side movement, run/sneak, player idle, speed caps, race-specific behavior, and OpenMW Lua remain unported. |
 | Hit Reactions Animated v2 | Hit reactions, staggers, death variants | Wired into third-person body sources behind the explicit `HitReactionSource` setting. JS `hurt()` and `die()` choose compatible groups from a sorted, deduplicated candidate list using the caller's deterministic roll; missing/invalid clips fall back to the original archive source. Visual/timing/skeleton validation remains outstanding. |
 
 **This is not yet a claim that the three packs are active in gameplay.** The new
@@ -200,6 +200,6 @@ reference material, not executable game plugins.
 
 Next integration order:
 1. ReAnimation: finish action-specific/alternate attack selection, audit reuse/credit conditions, cover unsupported weapon families, and validate first-person transitions and reach.
-2. Dynamic Animations: extend the wired forward-walk slice to backward/side movement, idle variants, speed caps, and race-specific behavior; do not rely on glob order or per-frame randomness.
+2. Dynamic Animations: extend the wired forward-walk and NPC idle slices to backward/side movement, run/sneak, player idle, speed caps, and race-specific behavior; do not rely on glob order or per-frame randomness.
 3. Hit Reactions: finish parser/clip compatibility tests and in-game validation of the wired JS damage/reaction consumer; preserve existing death/recovery behavior.
 4. Run focused tests, lint, type-check, production build, and in-game checks before marking any provider `integrated`.
