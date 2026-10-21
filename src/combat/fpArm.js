@@ -3547,6 +3547,28 @@ export async function buildFpArm({
     }
     // hasAnimation: ANY source. The reverse search below picks WHICH.
     const groupSet = new Set(sources.flatMap((so) => so.groups));
+    // Record the final source list for this specific build, not just the KF
+    // parse result. A clip can parse successfully yet be excluded before it
+    // becomes playable; the per-file event above cannot prove admission.
+    if (!werewolf && /\\.1st\\.nif$/i.test(skeletonPath)) {
+      logAnimationDiagnostic(`fp-source-inventory-v2|${gen}|${skeletonPath}`, {
+        family: 'first-person-source-inventory-v2',
+        rig: skeletonPath,
+        generation: gen,
+        providerChoice: Number(modSetting('morrowind-animation', 'FirstPersonSource') ?? 0),
+        sourceCount: sources.length,
+        reAnimationSourceCount: sources.filter((source) => source.animationPack === 'reanimation-v3').length,
+        openMwFirstPersonSourceCount: sources.filter((source) => source.animationPack === 'openmw-dynamic-first-person').length,
+        sourceInventory: sources.map((source) => ({
+          file: source.name,
+          pack: source.animationPack ?? 'archive-or-vanilla',
+          groups: source.groups ?? [],
+          keyCount: source.keys?.length ?? 0,
+          matchedTracks: source.binding?.matched?.length ?? 0,
+        })),
+        notes: [...missing],
+      });
+    }
     // THE REFUSAL MOVES WITH THE RULE. MW-D8 refused when "Idle" did not
     // reset; that group need not exist at all in a first-person .kf that
     // only carries idle1h and friends. What must exist is SOME idle this
@@ -4792,7 +4814,8 @@ export function createFpArm({ playerAppearance = false } = {}) {
    *  reverted arc's whole failure mode in miniature. */
   function playAction(start, stop, startPoint = 0, reversed = false) {
     if (!rig() || !weaponGroup) return false;
-    const sources = rig().sources ?? [];
+    const activeRig = rig();
+    const sources = activeRig.sources ?? [];
     const options = { start, stop, startPoint };
     const providerChoice = Number(modSetting('morrowind-animation', 'FirstPersonSource') ?? 0);
     const reAnimationEnabled = providerChoice === 1 || providerChoice === 3;
@@ -4841,8 +4864,20 @@ export function createFpArm({ playerAppearance = false } = {}) {
       pick = pickAnimSource(sources, weaponGroup, resetClip, options);
     }
     logAnimationDiagnostic(`fp-action-v2|${weaponGroup}|${start}|${stop}`, {
-      family: 'first-person-action-selection-v2', weaponGroup, start, stop,
+      family: 'first-person-action-selection-v3', weaponGroup, start, stop,
       providerChoice, reAnimationEnabled, actionType,
+      activeViewMode: viewMode,
+      activeRigSkeleton: activeRig.skeletonPath ?? activeRig.settingsSkeleton ?? null,
+      activeRigSourceCount: sources.length,
+      activeRigPackCounts: {
+        reanimation: sources.filter((source) => source.animationPack === 'reanimation-v3').length,
+        openMwFirstPerson: sources.filter((source) => source.animationPack === 'openmw-dynamic-first-person').length,
+        archiveOrVanilla: sources.filter((source) => !source.animationPack).length,
+      },
+      activeRigSourceInventory: sources.map((source) => ({
+        file: source.name, pack: source.animationPack ?? 'archive-or-vanilla',
+        groups: source.groups ?? [],
+      })),
       reAnimationSourceCount: reAnimationCandidates.length,
       reAnimationCandidates: reAnimationCandidates.map(({ source, pick: candidatePick, hasGroup, hasStart, hasStop, groupKeys }) => ({
         file: source.name, groups: source.groups ?? [], hasGroup, hasStart, hasStop,
