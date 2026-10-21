@@ -170,4 +170,4 @@ This is a partial correction, not proof that every slider is visually correct. T
 
 Validation required before calling this resolved: run the focused body-morph test, inspect bone-name coverage on actual assembled Better Bodies meshes, and measure each isolated slider's vertex displacement on real mesh data. A synthetic unit test is not visual or in-game validation.
 
-**Not yet done:** no production morph algorithm was changed as part of this investigation; no build, automated test run, browser render, or in-game visual check has been performed. The existing torso-mask commits remain unverified.
+**Validation status:** the production morph path has now been changed to use authored skin-weight regions where recognizable bone names are present. However, no automated test run, build, browser render, or in-game visual check has been performed in this pass. The torso-mask commits remain unverified, and the new bone-weight gating is also unverified against the actual Better Bodies assets.
