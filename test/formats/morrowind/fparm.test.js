@@ -9,7 +9,7 @@ import { portraitFeatures, headFeatures, hairFeatures, matchFace } from '../../.
 import { assembleFirstPersonArm, poseAssembly } from '../../../src/formats/morrowind/mwFirstPerson.js';
 import {
   packFpArm, fpSkeletonPath, buildFpArm, createFpArm, wornVerdicts, animWeaponType, UPPER_BODY, wornEquipKeyOf,
-  unequipWeaponHideMode,
+  unequipWeaponHideMode, animationWindowHasMotion,
   FP_CLIP_PATH, NIF_TO_PASS, FP_FIELD_OF_VIEW, firstPersonEye, FP_FLOATS,
   collectArmTextures,
 } from '../../../src/combat/fpArm.js';
@@ -3377,4 +3377,29 @@ test('MW-FP-UNEQUIP: a missing detach key hides the weapon at animation end, not
     'immediate',
     'without a playable unequip section there is no animation to wait for',
   );
+});
+
+
+test('MW-FP-UNEQUIP: text markers without moving transforms use a real fallback', () => {
+  const skeleton = { nodes: new Map([[1, { name: 'Bip01 R Hand' }]]) };
+  const state = { startTime: 0, stopTime: 1 };
+  const moving = {
+    trackMap: new Map([['bip01 r hand', {
+      translations: { type: 1, keys: [
+        { time: 0, value: [0, 0, 0] },
+        { time: 1, value: [1, 0, 0] },
+      ] },
+    }]]),
+  };
+  const staticWindow = {
+    trackMap: new Map([['bip01 r hand', {
+      translations: { type: 1, keys: [
+        { time: 0, value: [0, 0, 0] },
+        { time: 1, value: [0, 0, 0] },
+      ] },
+    }]]),
+  };
+  assert.equal(animationWindowHasMotion(moving, state, skeleton), true);
+  assert.equal(animationWindowHasMotion(staticWindow, state, skeleton), false);
+  assert.equal(animationWindowHasMotion(moving, { startTime: 1, stopTime: 1 }, skeleton), false);
 });
