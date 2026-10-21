@@ -619,7 +619,7 @@ export function animationWindowHasMotion(source, state, skeleton) {
     // window; otherwise setSheathed must use the known-working equip clip
     // in reverse instead of accepting a false-positive and snapping away.
     const boneName = String(node.name ?? '');
-    if (!/(?:^|\s)[lr]\s+(?:clavicle|upper\s*arm|fore\s*arm|hand|finger\d*)\b/i.test(boneName)) continue;
+    if (!/(?:^|\s)[lr]\s+(?:clavicle|upper\s*arm|upperarm|fore\s*arm|forearm|hand|finger\d*)\b/i.test(boneName)) continue;
     const track = source.trackMap.get(boneName.toLowerCase());
     if (!track) continue;
     const times = new Set(sampleTimes);
