@@ -1664,8 +1664,13 @@ export const MOD_SETTINGS = Object.freeze({
       }),
       FirstPersonSource: Object.freeze({
         default: 1,
-        options: lazyWords('Vanilla', 'ReAnimation v3', 'OpenMW Dynamic Animations · first-person locomotion'),
-        description: 'Select exactly one first-person animation provider. ReAnimation v3 remains the existing default. Both bundled providers target `xbase_anim.1st.nif` only; female and beast first-person rigs keep archive animations. OpenMW Dynamic Animations is further limited to directional walk/run/sneak KF clips; its OpenMW Lua controllers, NPC/creature variants, and YAML blending rules are not executed. Missing or incompatible clips fall back to archive animations.',
+        options: lazyWords('Vanilla', 'ReAnimation v3', 'ReAnimation v3 + OpenMW Dynamic Animations'),
+        description: 'First-person animation sources are layered by responsibility. ReAnimation v3 supplies stance, weapon, jump and related first-person clips; option 3 additionally overlays OpenMW Dynamic Animations directional walk/run/sneak clips. The assets target `xbase_anim.1st.nif`; female and beast first-person rigs retain archive fallback. Dynamic directional clips replace only their matching movement groups.',
+      }),
+      OpenMWDynamicAnimations: Object.freeze({
+        default: 1,
+        options: lazyWords('Vanilla', 'OpenMW Dynamic Animations'),
+        description: 'Enable OpenMW Dynamic Animations third-person animation variants for compatible rigs. The browser port translates KF group selection and deterministic variant choice into the JavaScript animation runtime; it does not execute the original OpenMW Lua scripts.',
       }),
       HitReactionSource: Object.freeze({
         default: 1,
