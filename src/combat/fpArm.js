@@ -4809,12 +4809,12 @@ export function createFpArm({ playerAppearance = false } = {}) {
       reAnimationCandidates = reAnimationSources.map((source) => {
         const candidatePick = pickAnimSource([source], weaponGroup, resetClip, options);
         const groupKeys = (source.keys ?? []).map((key) => String(key?.text ?? ''))
-          .flatMap((value) => value.split(/\\r?\\n/))
+          .flatMap((value) => value.split(/\r?\n/))
           .filter((value) => value.toLowerCase().startsWith(`${String(weaponGroup).toLowerCase()}:`));
         const hasStart = groupKeys.some((value) => value.slice(value.indexOf(':') + 1).trim().toLowerCase() === String(start).toLowerCase());
         const hasStop = groupKeys.some((value) => value.slice(value.indexOf(':') + 1).trim().toLowerCase() === String(stop).toLowerCase());
         return {
-          source, pick: candidatePick, hasGroup: (source.groupSet ?? new Set(source.groups ?? [])).has(weaponGroup),
+          source, pick: candidatePick, hasGroup: (source.groups ?? []).some((group) => String(group).toLowerCase() === String(weaponGroup).toLowerCase()),
           hasStart, hasStop, groupKeys,
         };
       });
