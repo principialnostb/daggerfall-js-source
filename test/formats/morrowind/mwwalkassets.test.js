@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { inspectWalkAnimationAssets, isWalkAnimationGroup, isWalkAnimationKey, isRunAnimationGroup, isRunAnimationKey, isWalkVariantEnabled, isRunVariantEnabled, walkVariantForActor, runVariantForActor, firstPersonAnimationProviderForChoice, isOpenMWDynamicFirstPersonClip, openMWDynamicFirstPersonGroup, hitReactionVariantForSkeleton, isHitReactionAssetForSkeleton, isFirstPersonAnimationRigCompatible, remapAnimationGroupKeys, hitReactionTargetGroup, openMWDynamicThirdPersonTargetGroup, openMWDynamicThirdPersonSourceGroup, selectOpenMWDynamicAnimationVariants } from '../../src/formats/morrowind/mwWalkAnimationAssets.js';
+import { inspectWalkAnimationAssets, isWalkAnimationGroup, isWalkAnimationKey, isRunAnimationGroup, isRunAnimationKey, isWalkVariantEnabled, isRunVariantEnabled, walkVariantForActor, runVariantForActor, firstPersonAnimationProviderForChoice, isOpenMWDynamicFirstPersonClip, openMWDynamicFirstPersonGroup, hitReactionVariantForSkeleton, isHitReactionAssetForSkeleton, isFirstPersonAnimationRigCompatible, remapAnimationGroupKeys, hitReactionTargetGroup, openMWDynamicThirdPersonTargetGroup, openMWDynamicThirdPersonSourceGroup, selectOpenMWDynamicAnimationVariants, hitReactionRecoveryBlend } from '../../src/formats/morrowind/mwWalkAnimationAssets.js';
 
 test('MW-ANIM-1: bundled walk asset inventory is safe to import in Node', () => {
   const assets = inspectWalkAnimationAssets();
@@ -181,4 +181,15 @@ test('MW-ANIM-7: ODAR base15 is the stable general walk-forward preset when pres
   ];
   assert.equal(selectOpenMWDynamicAnimationVariants(assets, 'male|default')[0].name, assets[2].name);
   assert.equal(selectOpenMWDynamicAnimationVariants(assets, 'female|other')[0].name, assets[2].name);
+});
+
+test('MW-ANIM-8: stagger recovery uses the mod-authored cubicOut 0.5 second blend', () => {
+  const stagger = { animationPack: 'hit-reactions-v2', reactionKind: 'stagger' };
+  const idle = { animationPack: 'archive' };
+  assert.deepEqual(hitReactionRecoveryBlend(idle, 0.5), null);
+  assert.deepEqual(hitReactionRecoveryBlend(stagger, 0), { duration: 0.5, weight: 0 });
+  assert.deepEqual(hitReactionRecoveryBlend(stagger, 1), { duration: 0.5, weight: 1 });
+  const mid = hitReactionRecoveryBlend(stagger, 0.5);
+  assert.equal(mid.duration, 0.5);
+  assert.ok(Math.abs(mid.weight - 0.875) < 1e-12);
 });
