@@ -195,3 +195,10 @@ Validation required before calling this resolved: run the focused body-morph tes
 **Preview clarification.** The only tracked `better-bodies-preview.html` is a NIF mesh-section/UV and static equipment-fit preview; it does not implement anatomical zone picking. The prior screen-coordinate click grouping described above was not real mesh segmentation and was removed. The anatomical preview described in earlier discussion is not present in the current tracked HTML files and must be located or recreated as a separate diagnostic before it can serve as an oracle.
 
 **Validation status:** static source inspection only. No repository test suite, build, browser render, or in-game run was executed during this audit. Do not modify deformation formulas until the active build path is verified and real-mesh per-control displacement is measured.
+
+
+### Morph independence correction — 2026-10-21
+
+The production vertex-morph formula now gives `breastSize` and `buttockSize` a lateral-volume component in X in addition to their existing front/rear depth component in Y. The corresponding `breastProjection` and `buttockProjection` controls remain depth-only. This removes the confirmed mathematical aliasing where each size/projection pair previously drove the same axis through the same mask with only different coefficients.
+
+Focused synthetic regression tests now assert that each size control changes lateral width, each projection control does not, and all four still change depth. These tests verify formula-channel separation only; they do not prove correct anatomical masks or natural results on actual Better Bodies NIF meshes. Actual-mesh per-control displacement and visual inspection remain required. No claim of a passing test run or in-game validation is made by this source change alone.
