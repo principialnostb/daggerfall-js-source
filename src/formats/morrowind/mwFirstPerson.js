@@ -2843,7 +2843,7 @@ function recalculateMorphedNormals(piece) {
   piece.normals = n;
 }
 
-export function deformPlayerBodyGeometry(piece, morph, bodyBounds) {
+export function deformPlayerBodyGeometry(piece, morph, bodyBounds, skeleton = null) {
   const slot = String(piece.slot || '').toLowerCase();
   const isBody = slot === 'betterbodies' || ['chest', 'groin', 'upperleg', 'lowerleg', 'foot', 'hand'].includes(slot);
   if (!isBody) return;
@@ -2906,7 +2906,12 @@ export function deformPlayerBodyGeometry(piece, morph, bodyBounds) {
     }
   };
   for (const bone of boneList || []) {
-    const name = String(bone.name || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+    // NiSkinData bone records carry a skeleton reference, vertex indices and
+    // weights; the name belongs to the referenced NiNode, not the skin record.
+    // Resolve it from the exact skeleton used to skin this batch. Tests must
+    // exercise this production shape instead of injecting synthetic bone.name.
+    const node = bone.ref != null ? skeleton?.nodes?.get(bone.ref) : null;
+    const name = String(node?.name || bone.name || '').toLowerCase().replace(/[^a-z0-9]/g, '');
     if (!name) continue;
     if (/spine|chest|torso|abdomen|pelvis|hip|ribcage/.test(name)) addBoneWeights(boneRegions.trunk, bone);
     if (/pelvis|hip/.test(name)) addBoneWeights(boneRegions.pelvis, bone);
@@ -3112,7 +3117,7 @@ export function poseAssembly(assembly, { tracks = null, sampleTrack = null,
         bodyBounds.torsoCenterX = torsoCenterX;
         bodyBounds.torsoHalfX = torsoRadii[Math.floor((torsoRadii.length - 1) * 0.72)];
       }
-      for (const p of bodyPieces) deformPlayerBodyGeometry(p, geometryMorph, bodyBounds);
+      for (const p of bodyPieces) deformPlayerBodyGeometry(p, geometryMorph, bodyBounds, skeleton);
     }
   }
   assembly.pose = pose;
