@@ -43,7 +43,7 @@ export async function loadHitReactionAssets() {
 }
 
 export function isHitReactionGroup(name) {
-  return /^(?:hitreact|stagger)/i.test(String(name ?? ''));
+  return /^(?:x?hitreact|x?stagger)/i.test(String(name ?? ''));
 }
 
 export function isDeathReactionGroup(name) {
