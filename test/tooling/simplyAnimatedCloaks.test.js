@@ -7,6 +7,7 @@ import { parseNif } from '../../src/formats/morrowind/mwNifFile.js';
 import { flattenNif } from '../../src/formats/morrowind/mwNifMesh.js';
 import { SIMPLY_CLOAK_MODEL_BY_PAINTING, SIMPLY_CLOAK_MODEL_PATHS, ownCloakFor } from '../../src/characters/ownModels/ownClothingModels.js';
 import { composeWornArmor } from '../../src/formats/morrowind/mwItemMap.js';
+import { FEATURES, FEATURE_PREF_DEFAULTS } from '../../src/systems/features.js';
 
 const ROOT = fileURLToPath(new URL('../../', import.meta.url));
 const bytes = (path) => readFileSync(join(ROOT, 'src/assets/mw', path));
@@ -33,4 +34,12 @@ test('Simply Animated Cloaks: opt-in style preserves classic default and garment
     'the nearest supported painting is used when the pack has no exact Daggerfall dye');
   const composed = composeWornArmor({ pieces: [piece], armors: [], bodyPool: [], cloakStyle: 'simply-animated' });
   assert.equal(composed.adds.at(-1).model, 'simply_cape_blue_skins.nif');
+});
+
+test('Simply Animated Cloaks: the feature switch is exposed and enabled by default', () => {
+  const feature = FEATURES.find((row) => row.id === 'simply-animated-cloaks');
+  assert.ok(feature, 'the toggle is registered in the Features screen');
+  assert.equal(feature.group, 'character');
+  assert.deepEqual(feature.control, { store: 'prefs', key: 'simplyAnimatedCloaks', initial: true, online: 'player' });
+  assert.equal(FEATURE_PREF_DEFAULTS.simplyAnimatedCloaks, true);
 });
