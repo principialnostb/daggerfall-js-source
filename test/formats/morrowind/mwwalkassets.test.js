@@ -172,3 +172,13 @@ test('MW-ANIM-7: OpenMW third-person variant selection is deterministic and one-
   assert.equal(new Set(first.map((asset) => asset.targetGroup)).size, 3);
   assert.deepEqual(first.map((asset) => asset.name), [...first.map((asset) => asset.name)].sort());
 });
+
+test('MW-ANIM-7: ODAR base15 is the stable general walk-forward preset when present', () => {
+  const assets = [
+    { name: 'Mods/Animations/OpenMW Dynamic Animations/animations/xbase_anim/WalkForward_base11;.kf', targetGroup: 'walkforward' },
+    { name: 'Mods/Animations/OpenMW Dynamic Animations/animations/xbase_anim/WalkForward_march13;.kf', targetGroup: 'walkforward' },
+    { name: 'Mods/Animations/OpenMW Dynamic Animations/animations/xbase_anim/WalkForward_base15;.kf', targetGroup: 'walkforward' },
+  ];
+  assert.equal(selectOpenMWDynamicAnimationVariants(assets, 'male|default')[0].name, assets[2].name);
+  assert.equal(selectOpenMWDynamicAnimationVariants(assets, 'female|other')[0].name, assets[2].name);
+});
