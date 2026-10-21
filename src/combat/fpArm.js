@@ -94,6 +94,13 @@ import { getPref } from '../systems/uiPrefs.js';   // MW-STEEL1: the Steel Helm 
 import { skinMips, skinUseOf, skinUseKey } from '../characters/werewolfSkin.js';   // SHADOW-FANG: the werewolf's skin, a law over its own textures
 import { correctTexturePath, correctActorModelPath, wrapModes, warningImage, decodeTextureImage } from '../formats/morrowind/mwTexture.js';
 
+const animationDiagnosticKeys = new Set();
+function logAnimationDiagnostic(key, detail) {
+  if (animationDiagnosticKeys.has(key)) return;
+  animationDiagnosticKeys.add(key);
+  console.info('[Morrowind animation diagnostic]', detail);
+}
+
 /** Adapt ReAnimation's Alt/Sub group names to the runtime's canonical weapon groups. */
 function normalizeReAnimationAttackSource(source) {
   const basename = String(source?.name ?? '').replace(/\\/g, '/').split('/').pop() ?? '';
@@ -2377,6 +2384,12 @@ async function buildTpBody({
       const selectedDynamicAssets = selectOpenMWDynamicAnimationVariants(dynamicAssets, seed);
       for (const asset of selectedDynamicAssets) {
         const report = await cachedClipReport(gen, skeletonPath, asset.name, () => asset.bytes, arm.skeleton);
+        logAnimationDiagnostic(`odar|${skeletonPath}|${asset.name}`, {
+          family: 'openmw-dynamic-third-person', rig: skeletonPath, file: asset.name,
+          targetGroup: asset.targetGroup, ok: !!report.ok, error: report.ok ? null : report.error,
+          groups: report.groups ?? [], keyCount: report.keys?.length ?? 0,
+          matchedTracks: report.binding?.matched?.length ?? 0,
+        });
         if (!report.ok) {
           missing.push(`OpenMW Dynamic Animations clip ${asset.name}: ${report.error}`);
           continue;
@@ -2421,6 +2434,14 @@ async function buildTpBody({
       const walkAssets = await loadWalkAnimationAssets({ female });
       for (const asset of walkAssets) {
         const report = await cachedClipReport(gen, skeletonPath, asset.name, () => asset.bytes, arm.skeleton);
+        if (asset.animationOverhaul || asset.family === 'all') {
+          logAnimationDiagnostic(`mao|${skeletonPath}|${asset.name}`, {
+            family: 'morrowind-animation-overhaul', rig: skeletonPath, file: asset.name,
+            ok: !!report.ok, error: report.ok ? null : report.error,
+            groups: report.groups ?? [], keyCount: report.keys?.length ?? 0,
+            matchedTracks: report.binding?.matched?.length ?? 0,
+          });
+        }
         if (!report.ok) {
           const reason = `walk animation ${asset.name}: ${report.error}`;
           missing.push(reason);
@@ -2466,6 +2487,12 @@ async function buildTpBody({
       let nextDeathGroup = 1;
       for (const asset of assets) {
         const report = await cachedClipReport(gen, skeletonPath, asset.name, () => asset.bytes, arm.skeleton);
+        logAnimationDiagnostic(`hit|${skeletonPath}|${asset.name}`, {
+          family: 'hit-reactions-v2', rig: skeletonPath, file: asset.name,
+          ok: !!report.ok, error: report.ok ? null : report.error,
+          groups: report.groups ?? [], keyCount: report.keys?.length ?? 0,
+          matchedTracks: report.binding?.matched?.length ?? 0,
+        });
         if (!report.ok) { missing.push(`Hit reaction clip ${asset.name}: ${report.error}`); continue; }
         if (!(report.binding?.matched?.length)) {
           missing.push(`Hit reaction clip ${asset.name}: no tracks bind to this rig; archive reaction retained`);
@@ -3405,6 +3432,12 @@ export async function buildFpArm({
       const assets = await loadFirstPersonAnimationAssets({ skeletonPath });
       for (const asset of assets) {
         const report = await cachedClipReport(gen, skeletonPath, asset.name, () => asset.bytes, arm.skeleton);
+        logAnimationDiagnostic(`fp|${skeletonPath}|${asset.name}`, {
+          family: 'first-person', pack: asset.variant, rig: skeletonPath, file: asset.name,
+          ok: !!report.ok, error: report.ok ? null : report.error,
+          groups: report.groups ?? [], keyCount: report.keys?.length ?? 0,
+          matchedTracks: report.binding?.matched?.length ?? 0,
+        });
         if (!report.ok) {
           missing.push(`First-person clip ${asset.name}: ${report.error}`);
           continue;
