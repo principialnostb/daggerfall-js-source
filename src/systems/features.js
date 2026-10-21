@@ -1302,6 +1302,15 @@ export const FEATURES = Object.freeze([
     control: Object.freeze({ store: 'mods', vendor: 'morrowind-animation', key: 'FirstPersonSource' }),
   }),
   Object.freeze({
+    id: 'morrowind-openmw-dynamic-animations',
+    group: 'character',
+    title: 'OpenMW Dynamic Animations',
+    get note() { return MOD_SETTINGS['morrowind-animation'].keys.OpenMWDynamicAnimations.description; },
+    effect: 'After rebuilding affected character rigs.',
+    kinds: Object.freeze(['mod']),
+    control: Object.freeze({ store: 'mods', vendor: 'morrowind-animation', key: 'OpenMWDynamicAnimations' }),
+  }),
+  Object.freeze({
     id: 'morrowind-hit-reaction-animation-source',
     group: 'character',
     title: 'Реакции на попадания',
