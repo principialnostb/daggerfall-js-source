@@ -610,16 +610,16 @@ export function animationWindowHasMotion(source, state, skeleton) {
 
   const start = state.startTime;
   const span = state.stopTime - start;
-  const times = new Set(Array.from({ length: 9 }, (_, i) => start + span * i / 8));
-  const addKeys = (keys) => {
-    for (const key of keys ?? []) {
-      if (Number.isFinite(key?.time) && key.time >= start && key.time <= state.stopTime) times.add(key.time);
-    }
-  };
-
+  const sampleTimes = Array.from({ length: 9 }, (_, i) => start + span * i / 8);
   for (const [, node] of skeleton.nodes) {
     const track = source.trackMap.get(String(node.name ?? '').toLowerCase());
     if (!track) continue;
+    const times = new Set(sampleTimes);
+    const addKeys = (keys) => {
+      for (const key of keys ?? []) {
+        if (Number.isFinite(key?.time) && key.time >= start && key.time <= state.stopTime) times.add(key.time);
+      }
+    };
     addKeys(track.rotationKeys);
     for (const group of track.xyzRotations ?? []) addKeys(group?.keys);
     addKeys(track.translations?.keys);
