@@ -1,6 +1,18 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { inspectWalkAnimationAssets, isWalkAnimationGroup, isWalkAnimationKey, isRunAnimationGroup, isRunAnimationKey, isWalkVariantEnabled, isRunVariantEnabled, walkVariantForActor, runVariantForActor, firstPersonAnimationProviderForChoice, isOpenMWDynamicFirstPersonClip, openMWDynamicFirstPersonGroup, hitReactionVariantForSkeleton, isHitReactionAssetForSkeleton, isFirstPersonAnimationRigCompatible, remapAnimationGroupKeys, hitReactionTargetGroup, openMWDynamicThirdPersonTargetGroup, openMWDynamicThirdPersonSourceGroup, selectOpenMWDynamicAnimationVariants, hitReactionRecoveryBlend, hitReactionTransitionBlend, normalizeAnimationGroupKeys } from '../../../src/formats/morrowind/mwWalkAnimationAssets.js';
+import { MOD_SETTINGS } from '../../../src/systems/modSettings.js';
+
+
+test('MW-ANIM: OpenMW Dynamic Animations is opt-in and discloses Vanilla locomotion overrides', () => {
+  const setting = MOD_SETTINGS['morrowind-animation'].keys.OpenMWDynamicAnimations;
+  assert.equal(setting.default, 0, 'Vanilla animation groups must remain the default');
+  assert.match(setting.options[0], /Vanilla/i);
+  assert.match(setting.description, /walk(?:ing)?/i);
+  assert.match(setting.description, /run(?:ning)?/i);
+  assert.match(setting.description, /sneak(?:ing)?/i);
+  assert.match(setting.description, /replaces matching game\/archive groups/i);
+});
 
 test('MW-ANIM-1: bundled walk asset inventory is safe to import in Node', () => {
   const assets = inspectWalkAnimationAssets();
