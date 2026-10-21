@@ -181,6 +181,29 @@ export function selectStableAnimationVariant(candidates, seed) {
   return ordered[(hash >>> 0) % ordered.length];
 }
 
+/** Alias generic ReAnimation Alt/Sub group names back to the engine's weapon group.
+ * The clip's filename still identifies the variant; exact text-key windows determine whether
+ * that variant can answer a requested action. Katana/mirrored files are excluded upstream. */
+export function aliasReAnimationAttackGroups(source) {
+  if (source?.animationPackId !== PACKS.reanimation) return source;
+  const name = basename(source.name).replace(/\.kf$/, '');
+  const isAlt = /alt$/i.test(name);
+  const isSub = /sub\d*$/i.test(name);
+  if (!isAlt && !isSub) return source;
+  const token = isAlt ? /alt(?=extra$)|alt$/i : /sub\d*(?=extra$)|sub\d*$/i;
+  const remapGroup = (group) => String(group).replace(token, '');
+  const groupMap = new Map((source.groups ?? []).map((group) => [String(group).toLowerCase(), remapGroup(group).toLowerCase()]));
+  const groups = [...new Set(groupMap.values())];
+  const keys = (source.keys ?? []).map((key) => {
+    const colon = String(key.text ?? '').indexOf(': ');
+    if (colon < 0) return key;
+    const original = String(key.text).slice(0, colon).toLowerCase();
+    const mapped = groupMap.get(original);
+    return mapped ? { ...key, text: mapped + String(key.text).slice(colon) } : key;
+  });
+  return { ...source, keys, groups, groupSet: new Set(groups), animationGroupAliasesApplied: true };
+}
+
 /** Load the ReAnimation core KF sources relevant to the current first-person weapon family.
  * Unsupported weapon families return no candidates and therefore retain archive animations. */
 export function reAnimationPrefixesForWeaponGroup(weaponShortGroup = '') {
