@@ -93,6 +93,56 @@ import { showNudity } from '../characters/nudeFlats.js';   // NUDE-FLATS: Show N
 import { getPref } from '../systems/uiPrefs.js';   // MW-STEEL1: the Steel Helm switch, read where the worn set is composed
 import { skinMips, skinUseOf, skinUseKey } from '../characters/werewolfSkin.js';   // SHADOW-FANG: the werewolf's skin, a law over its own textures
 import { correctTexturePath, correctActorModelPath, wrapModes, warningImage, decodeTextureImage } from '../formats/morrowind/mwTexture.js';
+
+/** Adapt ReAnimation's Alt/Sub group names to the runtime's canonical weapon groups. */
+function normalizeReAnimationAttackSource(source) {
+  const basename = String(source?.name ?? '').replace(/\\\\/g, '/').split('/').pop() ?? '';
+  const stem = basename.replace(/\\.kf$/i, '');
+  const isAlt = /alt$/i.test(stem);
+  const isSub = /sub\\d*$/i.test(stem);
+  let normalized = source;
+  if (isAlt || isSub) {
+    const token = isAlt ? /alt(?=extra$)|alt$/i : /sub\\d*(?=extra$)|sub\\d*$/i;
+    const groupMap = new Map((source.groups ?? []).map((group) => {
+      const name = String(group).toLowerCase();
+      return [name, name.replace(token, '')];
+    }));
+    const groups = [...new Set(groupMap.values())];
+    const keys = (source.keys ?? []).map((key) => {
+      const text = String(key?.text ?? '');
+      const colon = text.indexOf(':');
+      if (colon < 0) return key;
+      const group = text.slice(0, colon).trim().toLowerCase();
+      const mapped = groupMap.get(group);
+      return mapped ? { ...key, text: mapped + text.slice(colon) } : key;
+    });
+    normalized = { ...source, keys, groups, groupSet: new Set(groups) };
+  }
+  // This file contains both WeaponOneHand and WeaponOneHand1 windows. Split
+  // them so the alternate window can be selected without hiding the base one.
+  if (stem.toLowerCase() !== 'x1haltattacks') return [normalized];
+  const variantGroups = (normalized.groups ?? []).filter((group) => /^weapononehand1(?:extra)?$/i.test(String(group)));
+  if (!variantGroups.length) return [normalized];
+  const groupOf = (key) => {
+    const text = String(key?.text ?? '');
+    const colon = text.indexOf(':');
+    return colon < 0 ? '' : text.slice(0, colon).trim().toLowerCase();
+  };
+  const baseGroups = (normalized.groups ?? []).filter((group) => !variantGroups.includes(group));
+  const baseKeys = (normalized.keys ?? []).filter((key) => !variantGroups.includes(groupOf(key)));
+  const variantKeys = (normalized.keys ?? []).filter((key) => variantGroups.includes(groupOf(key))).map((key) => {
+    const text = String(key.text);
+    const colon = text.indexOf(':');
+    const group = groupOf(key).replace(/^weapononehand1(?=extra$|$)/, 'weapononehand');
+    return { ...key, text: group + text.slice(colon) };
+  });
+  const variantTargetGroups = variantGroups.map((group) => String(group).toLowerCase().replace(/^weapononehand1(?=extra$|$)/, 'weapononehand'));
+  return [
+    { ...normalized, name: `${normalized.name}#onehand-base`, keys: baseKeys, groups: baseGroups, groupSet: new Set(baseGroups) },
+    { ...normalized, name: `${normalized.name}#onehand-variant1`, keys: variantKeys, groups: variantTargetGroups, groupSet: new Set(variantTargetGroups) },
+  ];
+}
+
 const betterBodiesAssetByteCache = new Map();
 async function loadBetterBodiesAssetBytes(url, label) {
   let pending = betterBodiesAssetByteCache.get(url);
@@ -3384,12 +3434,15 @@ export async function buildFpArm({
           continue;
         }
         sourcePaths.push(asset.name);
-        sources.push({
+        const source = {
           name: asset.name, keys, groups, groupSet: new Set(groups),
           trackMap: report.trackMap, binding: report.binding,
           wouldAccumRoot: accumRootRef(arm.skeleton, report.trackMap),
           animationFamily: 'first-person', animationPack: asset.variant,
-        });
+        };
+        sources.push(...(asset.variant === 'reanimation-v3'
+          ? normalizeReAnimationAttackSource(source)
+          : [source]));
       }
     }
     // hasAnimation: ANY source. The reverse search below picks WHICH.
