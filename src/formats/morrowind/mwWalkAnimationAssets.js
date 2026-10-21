@@ -43,6 +43,20 @@ const OPENMW_DYNAMIC_FIRST_PERSON_FILES = IN_BROWSER
     ], { eager: true, query: '?url', import: 'default' })
   : {};
 
+const OPENMW_DYNAMIC_THIRD_PERSON_FILES = IN_BROWSER
+  ? import.meta.glob([
+      '../../../Mods/Animations/OpenMW Dynamic Animations/animations/xbase_anim/**/*.kf',
+      '../../../Mods/Animations/OpenMW Dynamic Animations/animations/xbase_anim_female/**/*.kf',
+      '../../../Mods/Animations/OpenMW Dynamic Animations/animations/xbase_animkna/**/*.kf',
+      '../../../Mods/Animations/OpenMW Dynamic Animations/animations/xargonian_swimkna/**/*.kf',
+      '../../../Mods/Animations/OpenMW Dynamic Animations/animations/xepos_kha_upr_anim_f/**/*.kf',
+      '../../../Mods/Animations/OpenMW Dynamic Animations/animations/xepos_kha_upr_anim_m/**/*.kf',
+      '../../../Mods/Animations/OpenMW Dynamic Animations/animations/oaab/r/xMazken/**/*.kf',
+      '../../../Mods/Animations/OpenMW Dynamic Animations/animations/r/xGolden Saint/**/*.kf',
+      '../../../Mods/Animations/OpenMW Dynamic Animations/animations/tr/cr/xtr_cr_seducer_01/**/*.kf',
+    ], { eager: true, query: '?url', import: 'default' })
+  : {};
+
 const norm = (value) => String(value).replace(/\\/g, '/').toLowerCase();
 const entries = Object.entries(FILES).map(([path, url]) => ({ path: path.replace(/\\/g, '/'), lower: norm(path), url }));
 const standardMale = entries.find((e) => e.lower.includes('/simply walking purist edition/meshes/xbase_anim.kf'));
@@ -238,6 +252,89 @@ export function remapAnimationGroupKeys(keys, sourceGroups, targetGroup) {
     if (mapped.length) out.push({ ...key, text: mapped.join('\n') });
   }
   return out;
+}
+
+/** Canonical gameplay group represented by an OpenMW Dynamic Animations third-person KF. */
+export function openMWDynamicThirdPersonTargetGroup(path) {
+  const normalized = norm(path);
+  if (!normalized.includes('/openmw dynamic animations/animations/')) return null;
+  const filename = normalized.slice(normalized.lastIndexOf('/') + 1).replace(/\\.kf$/i, '').replace(/;$/, '');
+  const stem = filename.replace(/^(?:x|z)/, '');
+  const locomotion = stem.match(/^(walk|run|sneak|swim|swimrun)(forward|back|left|right)(?:_(?:base|dirn|march|mw|noble)[a-z0-9]*)?$/);
+  if (locomotion) return `${locomotion[1]}${locomotion[2]}`;
+  const idle = stem.match(/^idle(\\d*)(?:_copy)?$/);
+  if (idle) return `idle${idle[1]}`;
+  if (/^arms[a-z]+$/.test(stem)) return stem;
+  if (/^(?:jump|turnleft|turnright|readypose|zillarescale)$/.test(stem)) return stem;
+  return null;
+}
+
+/** Source group name as authored in the mod's KF, before canonical remapping. */
+export function openMWDynamicThirdPersonSourceGroup(path) {
+  const normalized = norm(path);
+  const filename = normalized.slice(normalized.lastIndexOf('/') + 1).replace(/\\.kf$/i, '').replace(/;$/, '');
+  return filename.toLowerCase();
+}
+
+/** A stable FNV-1a hash for deterministic per-actor variant selection. */
+function stableAnimationHash(value) {
+  let hash = 2166136261;
+  for (const char of String(value ?? '')) {
+    hash ^= char.charCodeAt(0);
+    hash = Math.imul(hash, 16777619);
+  }
+  return hash >>> 0;
+}
+
+/** Choose one deterministic variant per canonical group for this actor. */
+export function selectOpenMWDynamicAnimationVariants(assets, seed = '') {
+  const byGroup = new Map();
+  for (const asset of assets ?? []) {
+    const group = String(asset?.targetGroup ?? '').toLowerCase();
+    if (!group) continue;
+    if (!byGroup.has(group)) byGroup.set(group, []);
+    byGroup.get(group).push(asset);
+  }
+  const selected = [];
+  for (const [group, candidates] of byGroup) {
+    candidates.sort((a, b) => String(a.name).localeCompare(String(b.name)));
+    selected.push(candidates[stableAnimationHash(`${seed}:${group}`) % candidates.length]);
+  }
+  return selected.sort((a, b) => String(a.name).localeCompare(String(b.name)));
+}
+
+/** Load the mod's third-person KF variants matching the active rig folder. */
+export async function loadOpenMWDynamicThirdPersonAnimationAssets({ skeletonPath, race = '' } = {}) {
+  if (!IN_BROWSER || modSetting('morrowind-animation', 'OpenMWDynamicAnimations') !== 1) return [];
+  const normalizedSkeleton = norm(skeletonPath);
+  const skeletonFile = normalizedSkeleton.slice(normalizedSkeleton.lastIndexOf('/') + 1);
+  const folder = skeletonFile.replace(/\\.nif$/i, '');
+  const isArgonianBeast = String(race).toLowerCase() === 'argonian' && /base_animkna$/i.test(folder);
+  const files = Object.entries(OPENMW_DYNAMIC_THIRD_PERSON_FILES)
+    .map(([path, url]) => ({ path: path.replace(/\\\\/g, '/'), url }))
+    .filter((entry) => {
+      const p = norm(entry.path);
+      if (!p.includes('/animations/')) return false;
+      if (p.includes(`/animations/${folder}/`)) return true;
+      return isArgonianBeast && p.includes('/animations/xargonian_swimkna/');
+    })
+    .map((entry) => ({ ...entry, targetGroup: openMWDynamicThirdPersonTargetGroup(entry.path) }))
+    .filter((entry) => !!entry.targetGroup)
+    .sort((a, b) => a.path.localeCompare(b.path));
+  const result = [];
+  for (const entry of files) {
+    try {
+      const data = await bytes(entry);
+      if (data) result.push({
+        name: entry.path, bytes: data, targetGroup: entry.targetGroup,
+        sourceGroup: openMWDynamicThirdPersonSourceGroup(entry.path),
+        family: 'dynamic-third-person', variant: 'openmw-dynamic-animations',
+      });
+    } catch (error) {
+      console.warn('[Morrowind animations] OpenMW third-person KF failed to load; archive source retained:', entry.path, String(error?.message ?? error));
+    }
+  }
+  return result;
 }
 
 /** The target group consumed by the existing combat state machine. */
