@@ -282,35 +282,19 @@ export function createBodyMotion() {
       const k = bp ? bp.w : 0;
       const wind = bp ? bp.wind * k : 0;
       const gp = gaitPose(gait, gi, body);
-      const L = body.leg;
-      const runLean = lerp(CARRY[clsFrom]?.runLean ?? 0, CARRY[cls]?.runLean ?? 0, clsFrom ? clsMix : 1) * gp.run * gp.move * RAD;
-      // TWO-RUN: a class's chest turned toward its weapon at a run (CARRY's `runTurn`), as the lean, by the run's share
-      const runTurn = lerp(CARRY[clsFrom]?.runTurn ?? 0, CARRY[cls]?.runTurn ?? 0, clsFrom ? clsMix : 1) * gp.run * gp.move * RAD;
-      const hipYaw = gp.hip.yaw - gait.psi * gp.move * BLOW_TRUNK.steer * k + (bp ? bp.hip * RAD * wind : 0);
-      /** The chest's turn with `wave` of the stride's own counter-turn and counter-drop on it. */
-      const chestAt = (wave) => ({
-        yaw: Math.max(hipYaw - BLOW_TRUNK.twist * RAD, Math.min(hipYaw + BLOW_TRUNK.twist * RAD, (gp.chest.yaw - gp.chest.wave.yaw * (1 - wave) + runTurn) * (1 - k) + (bp ? bp.chest[0] * RAD * wind : 0))),
-        roll: gp.chest.roll - gp.chest.wave.roll * (1 - wave) + (bp ? bp.chest[1] * RAD * wind : 0),
-        pitch: gp.chest.pitch + runLean + (bp ? bp.chest[2] * RAD * wind : 0),
-      });
-      // HELD-STEADY (carry.js strideRide, carryHands): the chest takes the stride's wave as far as its arms are free to ride
-      // it (a weapon in both hands binds the shoulders), each arm as far as its row swings - turned back from the chest as
-      // laid to the chest without the wave, as far as the solve lays the chest (the layer's weight, the arms it has)
-      const sh = shares.x ?? gaitShares(gp);
-      const ride = lerp(clsFrom ? strideRide(clsFrom, sh, armW.L) : 1, strideRide(cls, sh, armW.L), clsFrom ? clsMix : 1);
-      const chest = chestAt(ride), calm = chestAt(0);
-      const steady = { ride, turn: rotFraction(mul(bodyTurn(calm.yaw, calm.roll, calm.pitch), transpose(bodyTurn(chest.yaw, chest.roll, chest.pitch))), w * Math.max(armW.L, armW.R)) };
+      // FORK-MERGE: keep the fork's gait, hips and legs entirely in charge. Reuse the
+      // upstream carry/weapon-hand targets and melee hand choreography only. During a
+      // strike, allow a restrained chest turn; never apply upstream hip placement or feet.
+      const strikeChest = bp ? {
+        yaw: bp.chest[0] * RAD * wind * 0.30,
+        roll: bp.chest[1] * RAD * wind * 0.30,
+        pitch: bp.chest[2] * RAD * wind * 0.30,
+      } : null;
       const plan = {
         w,
-        hip: {
-          at: add(gp.hip.at, [0, bp ? bp.shift * L * wind : 0, bp ? -bp.drop * L * wind : 0]),
-          yaw: hipYaw, roll: gp.hip.roll, pitch: gp.hip.pitch,
-        },
-        chest,
-        head: { yaw: 0, roll: 0, pitch: 0 },
-        feet: gp.feet,
+        ...(strikeChest ? { chest: strikeChest } : {}),
         armW: { L: armW.L, R: armW.R },
-        arms: (ctx) => handsFor(ctx, gp, bp, steady),
+        arms: (ctx) => handsFor(ctx, gp, bp, null),
       };
       const report = solveBody(skeleton, pose, rootRef, skelMats, plan);
       last = { gp, bp, report };
