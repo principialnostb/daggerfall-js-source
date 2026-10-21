@@ -2895,10 +2895,16 @@ export function deformPlayerBodyGeometry(piece, morph, bodyBounds, skeleton = nu
     thigh: new Float32Array(vertexCount), calf: new Float32Array(vertexCount),
   };
   const boneList = piece.batch?.skin?.bones;
-  let hasRecognizedBoneRegions = false;
-  const addBoneWeights = (target, bone) => {
-    hasRecognizedBoneRegions = true;
+  // Recognition is per anatomical role, not global. A mesh may expose spine
+  // and pelvis influences but no arm/calf bone (or use different bone names).
+  // In that case only the roles actually represented by valid skin influences
+  // use bone weights; absent roles retain their geometric fallback instead of
+  // silently disabling their morphs across the entire mesh.
+  const recognizedBoneRoles = new Set();
+  const addBoneWeights = (role, target, bone) => {
     const indices = bone.indices || [], weights = bone.weights || [];
+    if (!indices.length || !weights.length) return;
+    recognizedBoneRoles.add(role);
     for (let k = 0; k < indices.length; k++) {
       const vertex = indices[k];
       if (vertex < 0 || vertex >= vertexCount) continue;
@@ -2913,15 +2919,15 @@ export function deformPlayerBodyGeometry(piece, morph, bodyBounds, skeleton = nu
     const node = bone.ref != null ? skeleton?.nodes?.get(bone.ref) : null;
     const name = String(node?.name || bone.name || '').toLowerCase().replace(/[^a-z0-9]/g, '');
     if (!name) continue;
-    if (/spine|chest|torso|abdomen|ribcage/.test(name) && !/pelvis|hip/.test(name)) addBoneWeights(boneRegions.trunk, bone);
-    if (/pelvis|hip/.test(name)) addBoneWeights(boneRegions.pelvis, bone);
-    if (/clavicle|shoulder|spine[123]|chest/.test(name)) addBoneWeights(boneRegions.shoulder, bone);
-    if (/upperarm|lowerarm|forearm|arm|wrist|hand|clavicle/.test(name)) addBoneWeights(boneRegions.arm, bone);
-    if (/thigh|upperleg|upleg|femur/.test(name)) addBoneWeights(boneRegions.thigh, bone);
-    if (/calf|lowerleg|ankle|foot/.test(name)) addBoneWeights(boneRegions.calf, bone);
+    if (/spine|chest|torso|abdomen|ribcage/.test(name) && !/pelvis|hip/.test(name)) addBoneWeights('trunk', boneRegions.trunk, bone);
+    if (/pelvis|hip/.test(name)) addBoneWeights('pelvis', boneRegions.pelvis, bone);
+    if (/clavicle|shoulder|spine[123]|chest/.test(name)) addBoneWeights('shoulder', boneRegions.shoulder, bone);
+    if (/upperarm|lowerarm|forearm|arm|wrist|hand|clavicle/.test(name)) addBoneWeights('arm', boneRegions.arm, bone);
+    if (/thigh|upperleg|upleg|femur/.test(name)) addBoneWeights('thigh', boneRegions.thigh, bone);
+    if (/calf|lowerleg|ankle|foot/.test(name)) addBoneWeights('calf', boneRegions.calf, bone);
   }
   const roleWeight = (role, vertex, fallback) =>
-    hasRecognizedBoneRegions ? boneRegions[role][vertex] : fallback;
+    recognizedBoneRoles.has(role) ? boneRegions[role][vertex] : fallback;
 
   for (let i = 0, vertex = 0; i + 2 < p.length; i += 3, vertex++) {
     const ox = p[i], oy = p[i + 1], oz = p[i + 2];
