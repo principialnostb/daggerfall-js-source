@@ -2962,7 +2962,7 @@ function clampMorph(value) {
 }
 
 export function poseAssembly(assembly, { tracks = null, sampleTrack = null,
-  time = 0, accumRoot = null, neckPitch = 0, neckAim = 0, neckOffset = null, climb = null, skin = true, mirror = null, run = null, hold = null, bodyProportions = false, blendFrom = null, blendWeight = 1 } = {}) {
+  time = 0, accumRoot = null, neckPitch = 0, neckAim = 0, neckOffset = null, climb = null, skin = true, mirror = null, run = null, hold = null, motion = null, bodyProportions = false, blendFrom = null, blendWeight = 1 } = {}) {
   const { fns, skeleton, pieces } = assembly;
   if (!fns || !skeleton) return assembly;
   const geometryMorph = bodyProportions ? (typeof bodyProportions === 'object' ? bodyProportions : getBodyMorphs()) : null;
