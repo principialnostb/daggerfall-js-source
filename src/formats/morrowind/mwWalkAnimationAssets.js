@@ -3,6 +3,7 @@
 // reader used for the game's archives. This module deliberately does not touch
 // meshes or skeleton geometry.
 import { modSetting } from '../../systems/modSettings.js';
+import { modDiagnostics } from '../../systems/modDiagnostics.js';
 
 const IN_BROWSER = typeof window !== 'undefined';
 const FILES = IN_BROWSER
@@ -115,6 +116,7 @@ export async function loadWalkAnimationAssets({ female = false } = {}) {
   if (!simplyCandidates.some(({ entry }) => entry) && !warnedMissingWalkAssets) {
     warnedMissingWalkAssets = true;
     console.warn('[Morrowind animations] Vite did not resolve any Simply Walking KF source.', inspectWalkAnimationAssets());
+    modDiagnostics.record({ level: 'warn', phase: 'animation-discovery', action: 'walk-assets-not-resolved', modId: 'simply-walking', resource: 'walk-pack', details: inspectWalkAnimationAssets() });
   }
   try {
     if (overhaul?.entry) {
@@ -140,11 +142,17 @@ export async function loadWalkAnimationAssets({ female = false } = {}) {
     }
   } catch (error) {
     console.warn('[Morrowind animations] bundled walk set failed to load; archive animations remain active:', String(error?.message ?? error));
+    modDiagnostics.record({ level: 'error', phase: 'animation-load', action: 'walk-pack-load-failed', modId: overhaul?.variant ?? 'walk-packs', resource: 'walk-pack', message: String(error?.message ?? error), details: { selectedBeforeFailure: selected.length, female } });
     return [];
   }
   if (!selected.length && !warnedMissingWalkAssets) {
     warnedMissingWalkAssets = true;
     console.warn('[Morrowind animations] no bundled walk KF source was selected.', inspectWalkAnimationAssets());
+    modDiagnostics.record({ level: 'warn', phase: 'animation-selection', action: 'walk-pack-empty', modId: 'walk-packs', resource: 'walk-pack', details: { female, available: inspectWalkAnimationAssets() } });
+  }
+  for (const variant of new Set(selected.map((entry) => entry.variant))) {
+    const assets = selected.filter((entry) => entry.variant === variant);
+    modDiagnostics.record({ level: 'info', phase: 'animation-selection', action: 'animation-assets-selected', modId: variant, resource: 'walk-pack', details: { count: assets.length, female, assets: assets.map(({ name, bytes }) => ({ name, bytes: bytes.byteLength })) } });
   }
   return selected;
 }
@@ -220,7 +228,12 @@ export async function loadFirstPersonAnimationAssets({ skeletonPath } = {}) {
       });
     } catch (error) {
       console.warn('[Morrowind animations] first-person clip failed to load; archive fallback retained:', entry.path, String(error?.message ?? error));
+      modDiagnostics.record({ level: 'error', phase: 'animation-load', action: 'animation-clip-load-failed', modId: entry.variant, resource: entry.path, message: String(error?.message ?? error), details: { rig: skeletonPath, fallback: 'archive' } });
     }
+  }
+  for (const variant of new Set(result.map((entry) => entry.variant))) {
+    const assets = result.filter((entry) => entry.variant === variant);
+    modDiagnostics.record({ level: 'info', phase: 'animation-selection', action: 'animation-assets-selected', modId: variant, resource: 'first-person', details: { count: assets.length, rig: skeletonPath, assets: assets.map(({ name, bytes }) => ({ name, bytes: bytes.byteLength })) } });
   }
   return result;
 }
@@ -379,6 +392,7 @@ export async function loadOpenMWDynamicThirdPersonAnimationAssets({ skeletonPath
       });
     } catch (error) {
       console.warn('[Morrowind animations] OpenMW third-person KF failed to load; archive source retained:', entry.path, String(error?.message ?? error));
+      modDiagnostics.record({ level: 'error', phase: 'animation-load', action: 'animation-clip-load-failed', modId: 'openmw-dynamic-animations', resource: entry.path, message: String(error?.message ?? error), details: { rig: skeletonPath, race, fallback: 'archive' } });
     }
   }
   return result;
@@ -430,6 +444,7 @@ export async function loadHitReactionAnimationAssets({ skeletonPath } = {}) {
       if (data) result.push({ name: entry.path, bytes: data, family: 'hit-reaction', variant: 'hit-reactions-v2' });
     } catch (error) {
       console.warn('[Morrowind animations] hit-reaction clip failed to load; archive fallback retained:', entry.path, String(error?.message ?? error));
+      modDiagnostics.record({ level: 'error', phase: 'animation-load', action: 'animation-clip-load-failed', modId: 'hit-reactions-v2', resource: entry.path, message: String(error?.message ?? error), details: { rig: skeletonPath, fallback: 'archive' } });
     }
   }
   return result;
