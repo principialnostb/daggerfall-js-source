@@ -229,6 +229,7 @@ export const CATEGORIES = Object.freeze([
       "group:falling", "label:falling", "info:player-falling", "info:npc-falling",
     ]),
     sec("reactions", "Реакции", [
+      "feat:morrowind-hit-reaction-animation",
       "group:damage", "label:damage", "info:player-damage", "info:npc-damage",
       "group:death", "label:death", "info:player-death", "info:npc-death",
     ]),
