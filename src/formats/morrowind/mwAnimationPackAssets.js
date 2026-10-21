@@ -204,6 +204,34 @@ export function aliasReAnimationAttackGroups(source) {
   return { ...source, keys, groups, groupSet: new Set(groups), animationGroupAliasesApplied: true };
 }
 
+/** Expand ReAnimation's one-hand file into independent base/alternate sources because
+ * that single KF contains both WeaponOneHand and WeaponOneHand1 text-key groups. */
+export function expandReAnimationAttackSources(source) {
+  if (source?.animationPackId !== PACKS.reanimation) return [source];
+  const name = basename(source.name).replace(/\.kf$/, '');
+  if (name !== 'x1haltattacks') return [aliasReAnimationAttackGroups(source)];
+  const variantGroups = (source.groups ?? []).filter((group) => /^weapononehand1(?:extra)?$/i.test(String(group)));
+  if (!variantGroups.length) return [source];
+  const groupOf = (key) => {
+    const colon = String(key.text ?? '').indexOf(': ');
+    return colon < 0 ? '' : String(key.text).slice(0, colon).toLowerCase();
+  };
+  const baseGroups = (source.groups ?? []).filter((group) => !variantGroups.includes(group));
+  const baseKeys = (source.keys ?? []).filter((key) => !variantGroups.includes(groupOf(key)));
+  const variantKeys = (source.keys ?? [])
+    .filter((key) => variantGroups.includes(groupOf(key)))
+    .map((key) => {
+      const colon = String(key.text).indexOf(': ');
+      const group = groupOf(key).replace(/^weapononehand1(?=extra$|$)/, 'weapononehand');
+      return { ...key, text: group + String(key.text).slice(colon) };
+    });
+  const variantTargetGroups = variantGroups.map((group) => String(group).toLowerCase().replace(/^weapononehand1(?=extra$|$)/, 'weapononehand'));
+  return [
+    { ...source, name: `${source.name}#onehand-base`, keys: baseKeys, groups: baseGroups, groupSet: new Set(baseGroups) },
+    { ...source, name: `${source.name}#onehand-variant1`, keys: variantKeys, groups: variantTargetGroups, groupSet: new Set(variantTargetGroups), animationGroupAliasesApplied: true },
+  ];
+}
+
 /** Load the ReAnimation core KF sources relevant to the current first-person weapon family.
  * Unsupported weapon families return no candidates and therefore retain archive animations. */
 export function reAnimationPrefixesForWeaponGroup(weaponShortGroup = '') {
