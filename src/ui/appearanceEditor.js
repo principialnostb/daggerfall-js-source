@@ -171,6 +171,26 @@ const STYLE = `
 #mw-appearance-editor .mw-status-message{color:#e9e4d9}
 
 @media(prefers-reduced-motion:reduce){#mw-appearance-editor .mw-btn{transition:none}}
+/* Experimental morph controls stay out of the way until the feature is calibrated. */
+#mw-appearance-editor .mw-experimental-toggle{
+  width:100%;justify-content:space-between;gap:12px;margin-top:14px;
+  min-height:42px;padding:9px 12px;border-color:#8f6e35;
+  background:linear-gradient(#30291e,#211e19);color:#f0d49a;
+  box-shadow:inset 3px 0 #c08a3e;
+}
+#mw-appearance-editor .mw-experimental-toggle:hover{
+  border-color:#e0b763;background:linear-gradient(#3c3120,#282219);
+}
+#mw-appearance-editor .mw-experimental-toggle[aria-expanded="true"]{
+  background:linear-gradient(#3a3021,#29231b);border-color:#c08a3e;
+}
+#mw-appearance-editor .mw-wip-tag{
+  flex:0 0 auto;padding:3px 6px;border:1px solid #9b783d;
+  background:#211b13;color:#e9c17d;font:700 9px/1.2 'Barlow Semi Condensed',system-ui,sans-serif;
+  letter-spacing:.1em;white-space:nowrap;
+}
+#mw-appearance-editor .mw-zone-nav[hidden],
+#mw-appearance-editor .mw-control-list[hidden]{display:none!important}
 `;
 
 export function openAppearanceEditor({ fpArm, onClose = () => {} } = {}) {
@@ -257,9 +277,14 @@ export function openAppearanceEditor({ fpArm, onClose = () => {} } = {}) {
   raceRow.append(raceLabel, raceSelect);
   const faceRow = document.createElement('label'); faceRow.className = 'mw-underwear';
   const faceLabel = document.createElement('span'); faceLabel.textContent = 'Лицо и причёска';
-  const faceSelect = document.createElement('select'); faceSelect.setAttribute('aria-label', 'Вариант лица и причёски');
+  const faceSelect = document.createElement('select'); faceSelect.setAttribute('aria-label', 'Выбор лица и причёски');
   faceSelect.style.cssText = raceSelect.style.cssText;
-  for (let i=0;i<10;i++) { const option=document.createElement('option'); option.value=String(i); option.textContent='Вариант '+(i+1); faceSelect.append(option); }
+  for (let i=0;i<10;i++) {
+    const option=document.createElement('option');
+    option.value=String(i);
+    option.textContent='Лицо '+(i+1)+' · причёска '+(i+1);
+    faceSelect.append(option);
+  }
   faceSelect.value=String(selectedFace); faceRow.append(faceLabel,faceSelect);
   const underwearRow = document.createElement('label'); underwearRow.className = 'mw-underwear';
   const underwearToggle = document.createElement('input'); underwearToggle.type = 'checkbox'; underwearToggle.checked = getUnderwearEnabled();
@@ -269,7 +294,17 @@ export function openAppearanceEditor({ fpArm, onClose = () => {} } = {}) {
   const bodyHairToggle = document.createElement('input'); bodyHairToggle.type = 'checkbox'; bodyHairToggle.checked = getBodyHairEnabled(); bodyHairToggle.disabled = underwearToggle.checked;
   const bodyHairCopy = document.createElement('span'); bodyHairCopy.innerHTML = '<strong>Волосы на теле</strong><small>Для голой модели; отключите нижнее бельё. Нужен High Resolution Better Body Female Textures.</small>';
   bodyHairRow.append(bodyHairToggle, bodyHairCopy);
-  controlsHead.append(raceRow, faceRow, underwearRow, bodyHairRow);
+  const morphToggle = makeButton('Экспериментальная настройка тела');
+  morphToggle.classList.add('mw-experimental-toggle');
+  morphToggle.setAttribute('aria-expanded', 'false');
+  const morphToggleLabel = document.createElement('span');
+  morphToggleLabel.textContent = 'Экспериментальная настройка тела';
+  const morphWipTag = document.createElement('span');
+  morphWipTag.className = 'mw-wip-tag';
+  morphWipTag.textContent = 'WORK IN PROGRESS';
+  morphToggle.textContent = '';
+  morphToggle.append(morphToggleLabel, morphWipTag);
+  controlsHead.append(raceRow, faceRow, underwearRow, bodyHairRow, morphToggle);
   bodyHairToggle.addEventListener('change', async () => {
     setBodyHairEnabled(bodyHairToggle.checked);
     statusMessage.style.display = 'block'; statusMessage.textContent = 'Пересборка текстур модели…';
@@ -323,6 +358,17 @@ export function openAppearanceEditor({ fpArm, onClose = () => {} } = {}) {
   });
   const zoneNav = document.createElement('nav'); zoneNav.className = 'mw-zone-nav'; zoneNav.setAttribute('aria-label', 'Выбор группы частей тела');
   const controlList = document.createElement('div'); controlList.className = 'mw-control-list';
+  zoneNav.hidden = true;
+  controlList.hidden = true;
+  morphToggle.addEventListener('click', () => {
+    const expanded = morphToggle.getAttribute('aria-expanded') !== 'true';
+    morphToggle.setAttribute('aria-expanded', String(expanded));
+    zoneNav.hidden = !expanded;
+    controlList.hidden = !expanded;
+    morphToggleLabel.textContent = expanded
+      ? 'Скрыть экспериментальную настройку тела'
+      : 'Экспериментальная настройка тела';
+  });
   const inputs = new Map();
   const outputs = new Map();
   const initial = getBodyMorphs();
