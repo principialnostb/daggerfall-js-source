@@ -14,7 +14,7 @@ test('records structured, ordered events and sanitizes module identifiers', () =
   assert.equal(events[0].details.count, 3);
   diagnostics.record({ level: 'info', phase: 'registration', action: 'load-order', modId: 'core', resource: 'dfmod/load-order', details: { order: [{ key: 'base', enabled: true }, { key: 'addon', enabled: false }] } });
   assert.deepEqual(events[1].details.order, [{ key: 'base', enabled: true }, { key: 'addon', enabled: false }]);
-  assert.equal(diagnostics.summary().totals.info, 1);
+  assert.equal(diagnostics.summary().totals.info, 2);
 });
 
 test('reports a cross-mod duplicate resource once the second owner registers it', () => {
