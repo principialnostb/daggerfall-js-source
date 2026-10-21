@@ -9,6 +9,9 @@ const FILES = IN_BROWSER
   ? import.meta.glob([
       '../../../Mods/Animations/Simply Walking/**/*.{kf,KF}',
       "../../../Mods/Animations/Axel's Sexy Walk Fixed/Animation/axel fixed/female/*.{kf,KF}",
+      // MAO files remain user-supplied under Mods/Animations; they are not vendored in this repository.
+      '../../../Mods/Animations/Morrowind Animation Overhaul/Data Files/Meshes/xbase_anim.kf',
+      '../../../Mods/Animations/Morrowind Animation Overhaul/Data Files/Meshes/xbase_anim_female.kf',
       // Morrowind Animation Overhaul is intentionally excluded pending explicit reuse permission.
     ], {
       eager: true, query: '?url', import: 'default',
