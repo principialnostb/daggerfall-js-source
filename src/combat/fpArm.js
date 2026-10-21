@@ -2125,6 +2125,7 @@ async function buildTpBody({
   vampire = false,   // MWNPC14: a vampire - the race's vampire head (getVampireHead)
   walk = null,   // MWNPC17: an NPC's own head and hair, walked off its seed ({ head, hair } - playerBodyRows)
   ownHeads = false,   // MW-HEADS2: a player's body - the port's own heads where its race has them
+  playerAppearance = false,   // MW-ANIM-PACKS: use the player gait selection when this is the local/peer player body
 }) {
   const exists = (p) => archives.some((a) => a.has(p));
   const settingsSkeleton = tpSkeletonPath({ female, beast, werewolf });
@@ -2319,14 +2320,15 @@ async function buildTpBody({
     // The separate Feminine Walk Cycle is a female-only, walk-only override;
     // other actions keep the game's own sources and priority.
     if (!werewolf && !beast) {
-      const walkChoice = ownHeads
+      const playerBody = !!(playerAppearance || ownHeads);
+      const walkChoice = playerBody
         ? modSetting('morrowind-animation', 'PlayerWalkSource') ?? 0
         : female
           ? modSetting('morrowind-animation', 'NpcFemaleWalk') ?? 0
           : modSetting('morrowind-animation', 'NpcMaleWalk') ?? 0;
-      const dynamicChoiceIndex = ownHeads || female ? 4 : 2;
+      const dynamicChoiceIndex = playerBody || female ? 4 : 2;
       const dynamicStyle = Number(walkChoice) === dynamicChoiceIndex
-        ? dynamicWalkStyleForActor({ female, player: !!ownHeads, race, faceIndex, appearanceHeadId })
+        ? dynamicWalkStyleForActor({ female, player: playerBody, race, faceIndex, appearanceHeadId })
         : null;
       const walkAssets = await loadWalkAnimationAssets({ female, dynamicStyle });
       for (const asset of walkAssets) {
@@ -3193,7 +3195,7 @@ export async function buildFpArm({
     catalog.magic = magic;   // MW-SPELLFX1: and the magic the world's spell effects draw with
     // MW-D24: the THIRD-PERSON BODY, while the same archives are open.
     // Its refusal is a note on the card, never the arm's refusal.
-    const tpBody = (wornNow) => buildTpBody({ race, female, beast, faceIndex, faceMatch, weapon, hasAmmo, worn: wornNow, archives, parts, allWeapons, find, gen, torch, allLights, sheathing, ammoCount, hipLight, werewolf, skin: werewolf ? skin : null, vampire: !!vampire, walk: npcFace, ownHeads: !!ownHeads, appearanceHeadId, appearanceHairId });   // (the wolf's rows read no face)   // MW-D51; WS1; HT-WAIST; WEREWOLF1; SHADOW-FANG; MWNPC14; MWNPC17
+    const tpBody = (wornNow) => buildTpBody({ race, female, beast, faceIndex, faceMatch, weapon, hasAmmo, worn: wornNow, archives, parts, allWeapons, find, gen, torch, allLights, sheathing, ammoCount, hipLight, werewolf, skin: werewolf ? skin : null, vampire: !!vampire, walk: npcFace, ownHeads: !!ownHeads, playerAppearance: !!playerAppearance, appearanceHeadId, appearanceHairId });   // (the wolf's rows read no face)   // MW-D51; WS1; HT-WAIST; WEREWOLF1; SHADOW-FANG; MWNPC14; MWNPC17
     let third = arm.ok ? await tpBody(worn) : null;
     // AUDIT MW-FOLK1 (L2-F2): AN OUTFIT THAT BOUND NOTHING HIDES NOTHING AND DRESSES NOTHING. Its `hides` took the skin
     // under it and its `covers` stood the modesty shirt down at the composition, before its mesh was read; one whose mesh
