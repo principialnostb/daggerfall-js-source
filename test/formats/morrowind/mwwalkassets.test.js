@@ -88,7 +88,8 @@ test('MW-ANIM-4: first-person providers are limited to the skeleton they ship fo
 test('MW-ANIM-4: first-person source modes and layered providers are stable', () => {
   assert.equal(firstPersonAnimationProviderForChoice(0), 'vanilla');
   assert.equal(firstPersonAnimationProviderForChoice(1), 'reanimation-v3');
-  assert.equal(firstPersonAnimationProviderForChoice(2), 'reanimation-v3+openmw-dynamic-first-person');
+  assert.equal(firstPersonAnimationProviderForChoice(2), 'openmw-dynamic-first-person');
+  assert.equal(firstPersonAnimationProviderForChoice(3), 'reanimation-v3+openmw-dynamic-first-person');
   assert.equal(firstPersonAnimationProviderForChoice(-1), 'vanilla');
   assert.equal(firstPersonAnimationProviderForChoice(99), 'openmw-dynamic-first-person');
 });
