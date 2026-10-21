@@ -4588,17 +4588,34 @@ export function createFpArm({ playerAppearance = false } = {}) {
       idleState = null; idleGroup = null; idleSource = null;
       return;
     }
+    const requestedIdlePreference = idleVariantForActor({
+      player: playerAppearance, ownHeads: !!lastBuildOpts?.ownHeads, female: !!lastBuildOpts?.female,
+      npcMaleChoice: modSetting('morrowind-animation', 'NpcMaleIdleSource') ?? 0,
+      npcFemaleChoice: modSetting('morrowind-animation', 'NpcFemaleIdleSource') ?? 0,
+    });
+    const candidateIdleSources = (rig()?.sources ?? [])
+      .filter((source) => isIdleVariantEnabled(source, requestedIdlePreference));
+    const effectiveIdlePreference = requestedIdlePreference === 'dynamic'
+      && candidateIdleSources.some((source) => source.idleOnly && source.idleVariant === 'dynamic')
+      ? 'dynamic' : 'vanilla';
+    const idleSources = candidateIdleSources.map((source) => effectiveIdlePreference === 'dynamic'
+      ? aliasDynamicIdleSource(source)
+      : source);
+    const hasIdleGroup = (name) => anySourceHasGroup(idleSources, name);
     const type = stanceOf();   // MWNPC9: a non-biped's bare stance
     // MW-D52: the idle STATE picks the base - "idlesneak" while sneaking
     // on the ground where a source carries it, else the plain idle with
     // its weapon suffix. The sneak idle takes no suffix and no loop dice.
-    const base = idleBaseFor({ sneaking, inJump: !!jumpState, hasGroup });
-    const compose = () => (base === FP_IDLE_SNEAK ? { group: base } : composeStanceGroup(base, type, hasGroup));
+    const base = idleBaseFor({ sneaking, inJump: !!jumpState, hasGroup: hasIdleGroup });
+    const compose = () => (base === FP_IDLE_SNEAK ? { group: base } : composeStanceGroup(base, type, hasIdleGroup));
     if (!force && idleState && idleState.playing) {
-      // Only the GROUP can have gone stale; a playing idle of the right
-      // group is left exactly where it is.
+      // A group alone is not enough: changing provider while the same group
+      // plays must reselect its source, but an unavailable provider is Vanilla.
       const composed = compose();
-      if (composed.group === idleGroup) return;
+      const sourceMatches = effectiveIdlePreference === 'dynamic'
+        ? idleSource?.idleVariant === 'dynamic'
+        : !idleSource?.idleOnly;
+      if (composed.group === idleGroup && sourceMatches) return;
     }
     const composed = compose();
     if (!composed.group) { idleState = null; idleGroup = null; return; }
@@ -4608,7 +4625,7 @@ export function createFpArm({ playerAppearance = false } = {}) {
     const loopCount = short ? FP_IDLE_LOOPS() : Infinity;
     // :822-825 - a restart of the SAME group resumes from where it was.
     const startPoint = idleGroup === composed.group ? clipCompletion(idleState) : 0;
-    const pick = pickAnimSource(rig().sources, composed.group, resetClip,
+    const pick = pickAnimSource(idleSources, composed.group, resetClip,
       { loopFallback: true, loopCount, startPoint });
     if (!pick) {
       idleState = null; idleGroup = null;
