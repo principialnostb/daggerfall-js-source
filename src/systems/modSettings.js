@@ -1702,6 +1702,11 @@ export const MOD_SETTINGS = Object.freeze({
         options: lazyWords('Vanilla', 'OpenMW Dynamic Animations'),
         description: 'Female NPC idle source. OpenMW Dynamic Animations selects one of the compatible Idle2/Idle3/Idle6 clips deterministically per actor. Player and sneak idles remain on the game/archive source.',
       }),
+      PlayerIdleSource: Object.freeze({
+        default: 0,
+        options: lazyWords('Vanilla', 'OpenMW Dynamic Animations'),
+        description: 'Third-person player idle source. OpenMW Dynamic Animations uses the fixed Idle2 clip; first-person arm idle and sneak idle remain on the game/archive source.',
+      }),
       NpcFemaleRun: Object.freeze({
         default: 0,
         options: lazyWords('Vanilla', "Axel's Sexy Walk Fixed"),
