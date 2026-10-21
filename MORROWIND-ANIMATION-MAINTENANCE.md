@@ -150,8 +150,8 @@ The runtime now loads the checked-in `RunForward;.kf` as part of Axel's single l
 
 - Runtime walk asset globs now point to `Mods/Animations/Simply Walking` and `Mods/Animations/Axel's Sexy Walk Fixed`.
 - Morrowind Animation Overhaul remains excluded from runtime discovery pending explicit permission; presence in the repository does not activate it.
-- ReAnimation v3 and Hit Reactions Animated v2 are currently staged source assets, not active runtime providers. Their clips must not be routed into the live resolver solely by filename or folder order. ReAnimation targets first-person animation groups; Hit Reactions targets third-person reaction/death groups and needs its own actor/group-scoped provider path.
-- OpenMW Dynamic Animations is reference material and its MWSE/OpenMW behavior is not executed by the browser runtime.
+- ReAnimation v3 and Hit Reactions Animated v2 are present in the asset tree but blocked from runtime use by their published conversion/asset-use permissions; see the deterministic intake registry below. ReAnimation targets first-person animation groups; Hit Reactions targets third-person reaction/death groups and needs its own actor/group-scoped provider path if permission is granted.
+- OpenMW Dynamic Animations is staged reference material; its MWSE/OpenMW Lua behavior is not executed by the browser runtime.
 - Verification status after the folder move: the paths in the runtime glob have been corrected at source level. Full test/lint/build and in-game visual checks have not yet been run in this environment.
 
 
