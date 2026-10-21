@@ -62,6 +62,14 @@ const OPENMW_DYNAMIC_THIRD_PERSON_FILES = IN_BROWSER
   : {};
 
 const norm = (value) => String(value).replace(/\\/g, '/').toLowerCase();
+function modIdForPath(value) {
+  const normalized = norm(value);
+  const marker = '/mods/';
+  const start = normalized.indexOf(marker);
+  if (start < 0) return 'unknown';
+  const name = normalized.slice(start + marker.length).split('/')[0];
+  return name.normalize('NFKD').replace(/[^a-z0-9._-]+/g, '-').replace(/^-+|-+$/g, '') || 'unknown';
+}
 const entries = Object.entries(FILES).map(([path, url]) => ({ path: path.replace(/\\/g, '/'), lower: norm(path), url }));
 const standardMale = entries.find((e) => e.lower.includes('/simply walking purist edition/meshes/xbase_anim.kf'));
 // Keep the general female walk and Feminine Walk Cycle as distinct selectable
@@ -81,16 +89,16 @@ async function bytes(entry) {
     recordMorrowindDiagnostic({ subsystem: 'animation', stage: 'asset-read', outcome: 'skipped', reasonCode: 'ASSET_ENTRY_MISSING' });
     return null;
   }
-  recordMorrowindDiagnostic({ subsystem: 'animation', stage: 'asset-read', outcome: 'started', sourcePath: entry.path, assetType: 'kf' });
+  recordMorrowindDiagnostic({ subsystem: 'animation', stage: 'asset-read', outcome: 'started', modId: modIdForPath(entry.path), sourcePath: entry.path, assetType: 'kf' });
   let pending = cache.get(entry.url);
   if (!pending) {
     pending = fetch(entry.url).then(async (response) => {
       if (!response.ok) {
-        recordMorrowindDiagnostic({ subsystem: 'animation', stage: 'asset-read', severity: 'error', outcome: 'error', sourcePath: entry.path, assetType: 'kf', reasonCode: 'ASSET_HTTP_ERROR', httpStatus: response.status });
+        recordMorrowindDiagnostic({ subsystem: 'animation', stage: 'asset-read', severity: 'error', outcome: 'error', sourcePath: entry.path, assetType: 'kf', reasonCode: 'ASSET_HTTP_ERROR', modId: modIdForPath(entry.path), sourcePath: entry.path, httpStatus: response.status });
         throw new Error('HTTP ' + response.status + ' loading ' + entry.path);
       }
       const data = new Uint8Array(await response.arrayBuffer());
-      recordMorrowindDiagnostic({ subsystem: 'animation', stage: 'asset-read', outcome: 'ok', sourcePath: entry.path, assetType: 'kf', byteLength: data.byteLength });
+      recordMorrowindDiagnostic({ subsystem: 'animation', stage: 'asset-read', outcome: 'ok', modId: modIdForPath(entry.path), sourcePath: entry.path, assetType: 'kf', byteLength: data.byteLength });
       return data;
     });
     cache.set(entry.url, pending);
@@ -157,7 +165,7 @@ export async function loadWalkAnimationAssets({ female = false } = {}) {
     warnedMissingWalkAssets = true;
     console.warn('[Morrowind animations] no bundled walk KF source was selected.', inspectWalkAnimationAssets());
   }
-  recordMorrowindDiagnostic({ subsystem: 'animation', stage: 'candidate-load', outcome: 'ok', actorContext: female ? 'female' : 'male', selectedCount: selected.length, selectedAssets: selected.map((item) => ({ sourcePath: item.name, provider: item.variant, family: item.family })) });
+  recordMorrowindDiagnostic({ subsystem: 'animation', stage: 'candidate-load', outcome: 'ok', actorContext: female ? 'female' : 'male', selectedCount: selected.length, selectedAssets: selected.map((item) => ({ modId: modIdForPath(item.name), sourcePath: item.name, provider: item.variant, family: item.family })) });
   return selected;
 }
 /** Resolve the mutually exclusive first-person provider from persisted settings. */
@@ -201,10 +209,14 @@ export function isFirstPersonAnimationRigCompatible(skeletonPath) {
 
 /** Load one selected first-person provider in stable path order. */
 export async function loadFirstPersonAnimationAssets({ skeletonPath } = {}) {
-  if (!IN_BROWSER || !isFirstPersonAnimationRigCompatible(skeletonPath)) return [];
+  if (!IN_BROWSER || !isFirstPersonAnimationRigCompatible(skeletonPath)) {
+    recordMorrowindDiagnostic({ subsystem: 'animation', stage: 'rig-compatibility', outcome: 'skipped', reasonCode: 'FIRST_PERSON_RIG_UNSUPPORTED', skeletonPath: String(skeletonPath ?? '') });
+    return [];
+  }
   const provider = firstPersonAnimationProviderForChoice(
     modSetting('morrowind-animation', 'FirstPersonSource'),
   );
+  recordMorrowindDiagnostic({ subsystem: 'animation', stage: 'provider-resolution', outcome: provider === 'vanilla' ? 'fallback' : 'ok', actorContext: 'first-person', requestedProvider: provider, skeletonPath: String(skeletonPath ?? ''), fallback: provider === 'vanilla' ? 'vanilla' : undefined });
   if (provider === 'vanilla') return [];
   // The providers are additive, not mutually exclusive: ReAnimation supplies
   // stance/weapon clips, while ODAR replaces directional locomotion only.
@@ -223,17 +235,22 @@ export async function loadFirstPersonAnimationAssets({ skeletonPath } = {}) {
   for (const entry of files) {
     try {
       const data = await bytes(entry);
-      if (data) result.push({
+      if (data) {
+        result.push({
         name: entry.path,
         bytes: data,
         family: 'first-person',
         variant: entry.variant,
         ...(entry.variant === 'openmw-dynamic-first-person' ? { targetGroup: openMWDynamicFirstPersonGroup(entry.path) } : {}),
-      });
+        });
+        recordMorrowindDiagnostic({ subsystem: 'animation', stage: 'candidate-load', outcome: 'ok', actorContext: 'first-person', modId: modIdForPath(entry.path), sourcePath: entry.path, provider: entry.variant, targetGroup: openMWDynamicFirstPersonGroup(entry.path) ?? undefined });
+      }
     } catch (error) {
+      recordMorrowindDiagnostic({ subsystem: 'animation', stage: 'candidate-load', severity: 'error', outcome: 'fallback', reasonCode: 'FIRST_PERSON_CLIP_LOAD_FAILED', actorContext: 'first-person', modId: modIdForPath(entry.path), sourcePath: entry.path, provider: entry.variant, detail: String(error?.message ?? error), fallback: 'archive-animation' });
       console.warn('[Morrowind animations] first-person clip failed to load; archive fallback retained:', entry.path, String(error?.message ?? error));
     }
   }
+  recordMorrowindDiagnostic({ subsystem: 'animation', stage: 'candidate-load-summary', outcome: 'ok', actorContext: 'first-person', requestedProvider: provider, selectedCount: result.length, selectedAssets: result.map((item) => ({ modId: modIdForPath(item.name), sourcePath: item.name, provider: item.variant, targetGroup: item.targetGroup ?? null })) });
   return result;
 }
 
@@ -359,7 +376,9 @@ export function selectOpenMWDynamicAnimationVariants(assets, seed = '') {
     }
     selected.push(candidates[stableAnimationHash(`${seed}:${group}`) % candidates.length]);
   }
-  return selected.sort((a, b) => String(a.name).localeCompare(String(b.name)));
+  const resolved = selected.sort((a, b) => String(a.name).localeCompare(String(b.name)));
+  recordMorrowindDiagnostic({ subsystem: 'animation', stage: 'variant-resolution', outcome: 'ok', modId: 'openmw-dynamic-animations', candidateCount: (assets ?? []).length, selectedCount: resolved.length, selectedAssets: resolved.map((asset) => ({ sourcePath: asset.name, targetGroup: asset.targetGroup })) });
+  return resolved;
 }
 
 /** Load the mod's third-person KF variants matching the active rig folder. */
@@ -390,6 +409,7 @@ export async function loadOpenMWDynamicThirdPersonAnimationAssets({ skeletonPath
         family: 'dynamic-third-person', variant: 'openmw-dynamic-animations',
       });
     } catch (error) {
+      recordMorrowindDiagnostic({ subsystem: 'animation', stage: 'candidate-load', severity: 'error', outcome: 'fallback', reasonCode: 'THIRD_PERSON_CLIP_LOAD_FAILED', actorContext: folder, modId: modIdForPath(entry.path), sourcePath: entry.path, targetGroup: entry.targetGroup, detail: String(error?.message ?? error), fallback: 'archive-animation' });
       console.warn('[Morrowind animations] OpenMW third-person KF failed to load; archive source retained:', entry.path, String(error?.message ?? error));
     }
   }
