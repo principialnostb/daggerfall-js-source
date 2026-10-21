@@ -395,7 +395,7 @@ export async function inspectBundledMorrowindTextures() {
     note: 'High Resolution Better Body Female Textures supplies the selected underwear / body-hair / no-hair skin variant and matching hands. Its NIF meshes are intentionally not used so corrected UV geometry remains intact.',
   };
   for (const row of checks) {
-    if (row.error || (row.fetch !== 'not-found' && row.fetch !== 200)) modDiagnostics.record({ level: 'error', phase: 'asset-fetch', action: 'representative-asset-check-failed', modId: sourceModOf(row.url), resource: row.key, message: row.error ?? 'Asset fetch returned a non-success status.', details: { fetch: row.fetch, bytes: row.bytes } });
+    if (!row.url || row.error || (row.fetch !== 'not-found' && row.fetch !== 200)) modDiagnostics.record({ level: 'error', phase: 'asset-fetch', action: 'representative-asset-check-failed', modId: sourceModOf(row.url), resource: row.key, message: row.error ?? (!row.url ? 'No source URL resolved for this asset.' : 'Asset fetch returned a non-success status.'), details: { fetch: row.fetch, bytes: row.bytes } });
   }
   modDiagnostics.record({ level: checks.some((row) => row.error || (row.fetch !== 'not-found' && row.fetch !== 200)) ? 'warn' : 'info', phase: 'asset-audit', action: 'morrowind-texture-inspection-complete', modId: 'bundled-morrowind-assets', resource: 'representative-fetches', details: { discoveredSourceFiles: report.discoveredSourceFiles, selectedAssetKeys: report.selectedAssetKeys, selectedPackageAssetCounts: report.selectedPackageAssetCounts, checks: checks.map(({ key, inArchive, alreadyLoaded, fetch, bytes, width, height, error }) => ({ key, inArchive, alreadyLoaded, fetch, bytes, width, height, error })) } });
   console.table(checks);
