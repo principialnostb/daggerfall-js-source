@@ -94,39 +94,74 @@ import { getPref } from '../systems/uiPrefs.js';   // MW-STEEL1: the Steel Helm 
 import { skinMips, skinUseOf, skinUseKey } from '../characters/werewolfSkin.js';   // SHADOW-FANG: the werewolf's skin, a law over its own textures
 import { correctTexturePath, correctActorModelPath, wrapModes, warningImage, decodeTextureImage } from '../formats/morrowind/mwTexture.js';
 
-const animationDiagnosticKeys = new Set();
+const animationDiagnosticStorageKey = 'morrowind-animation-diagnostics-v1';
+let storedAnimationDiagnostics = [];
+try {
+  const saved = globalThis.localStorage?.getItem(animationDiagnosticStorageKey);
+  if (saved) {
+    const parsed = JSON.parse(saved);
+    if (Array.isArray(parsed)) storedAnimationDiagnostics = parsed;
+  }
+} catch (error) {
+  console.warn('[Morrowind animation diagnostic] Could not read persistent local diagnostics:', error);
+}
+const animationDiagnosticKeys = new Set(
+  storedAnimationDiagnostics.map((entry) => entry?._diagnosticKey).filter(Boolean),
+);
 const animationDiagnosticLog = globalThis.__morrowindAnimationDiagnostics
-  ?? (globalThis.__morrowindAnimationDiagnostics = []);
+  ?? (globalThis.__morrowindAnimationDiagnostics = storedAnimationDiagnostics);
 
 function logAnimationDiagnostic(key, detail) {
   if (animationDiagnosticKeys.has(key)) return;
   animationDiagnosticKeys.add(key);
-  const entry = { timestamp: new Date().toISOString(), ...detail };
+  const entry = { timestamp: new Date().toISOString(), ...detail, _diagnosticKey: key };
   animationDiagnosticLog.push(entry);
+  // Persist each event immediately in this browser profile, across reloads.
+  // Keep the newest 5,000 entries to limit localStorage growth.
+  if (animationDiagnosticLog.length > 5000) {
+    animationDiagnosticLog.splice(0, animationDiagnosticLog.length - 5000);
+  }
+  try {
+    globalThis.localStorage?.setItem(animationDiagnosticStorageKey, JSON.stringify(animationDiagnosticLog));
+  } catch (error) {
+    console.warn('[Morrowind animation diagnostic] Could not persist diagnostics locally:', error);
+  }
   console.info('[Morrowind animation diagnostic]', entry);
 }
 
-// In DevTools, run downloadMorrowindAnimationDiagnostics() to save all
-// collected structured animation diagnostics as one JSON file.
-if (typeof globalThis.downloadMorrowindAnimationDiagnostics !== 'function') {
-  globalThis.downloadMorrowindAnimationDiagnostics = () => {
-    if (typeof document === 'undefined' || typeof Blob === 'undefined' || typeof URL?.createObjectURL !== 'function') {
-      console.warn('[Morrowind animation diagnostic] File download is unavailable in this environment.');
-      return;
-    }
-    const payload = {
+// In DevTools, run copyMorrowindAnimationDiagnostics() to copy the accumulated
+// JSON to the clipboard. Logs are persisted locally automatically; no download.
+if (typeof globalThis.copyMorrowindAnimationDiagnostics !== 'function') {
+  globalThis.copyMorrowindAnimationDiagnostics = async () => {
+    const payload = JSON.stringify({
       generatedAt: new Date().toISOString(),
       count: animationDiagnosticLog.length,
       entries: animationDiagnosticLog,
-    };
-    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const anchor = document.createElement('a');
-    anchor.href = url;
-    anchor.download = `morrowind-animation-diagnostics-${new Date().toISOString().replace(/[:.]/g, '-')}.json`;
-    anchor.click();
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
-    console.info(`[Morrowind animation diagnostic] Exported ${payload.count} entries.`);
+    }, null, 2);
+    try {
+      if (!globalThis.navigator?.clipboard?.writeText) {
+        console.info('[Morrowind animation diagnostic] Clipboard API unavailable. JSON follows:', payload);
+        return payload;
+      }
+      await globalThis.navigator.clipboard.writeText(payload);
+      console.info(`[Morrowind animation diagnostic] Copied ${animationDiagnosticLog.length} entries to clipboard.`);
+      return payload;
+    } catch (error) {
+      console.warn('[Morrowind animation diagnostic] Clipboard copy failed; JSON follows:', error, payload);
+      return payload;
+    }
+  };
+}
+if (typeof globalThis.clearMorrowindAnimationDiagnostics !== 'function') {
+  globalThis.clearMorrowindAnimationDiagnostics = () => {
+    animationDiagnosticLog.splice(0, animationDiagnosticLog.length);
+    animationDiagnosticKeys.clear();
+    try {
+      globalThis.localStorage?.removeItem(animationDiagnosticStorageKey);
+    } catch (error) {
+      console.warn('[Morrowind animation diagnostic] Could not clear persistent local diagnostics:', error);
+    }
+    console.info('[Morrowind animation diagnostic] Local diagnostic log cleared.');
   };
 }
 
@@ -5400,9 +5435,10 @@ export function createFpArm({ playerAppearance = false } = {}) {
         movementState = pick.state;
         movementSource = pick.source;
         if (pick.source?.walkOnly) {
-          logAnimationDiagnostic(`locomotion-selection|${skeletonPath}|${composed.group}|${pick.source.name}`, {
+          const diagnosticRig = rig()?.skeletonPath ?? (viewMode === 'third' ? TP_BASE_MODEL : FP_BASE_MODEL);
+          logAnimationDiagnostic(`locomotion-selection|${diagnosticRig}|${composed.group}|${pick.source.name}`, {
             family: 'replacement-locomotion-selection',
-            rig: skeletonPath,
+            rig: diagnosticRig,
             group: composed.group,
             file: pick.source.name,
             selected: true,
