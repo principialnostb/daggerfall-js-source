@@ -588,9 +588,42 @@ export const UPPER_BODY_NAME = Object.freeze(
  * text key; in that case the weapon must remain visible through the
  * hand's return motion and disappear only when the section ends.
  */
-export function unequipWeaponHideMode({ animationStarted, detachKeyTime }) {
+export function unequipWeaponHideMode({ animationStarted, detachKeyTime, reversedEquipFallback = false }) {
   if (!animationStarted) return 'immediate';
+  // A reversed equip clip has no unequip-detach marker semantics: its
+  // equip-attach key is deliberately ignored while Unequipping, and the
+  // weapon remains visible until the reverse section completes.
+  if (reversedEquipFallback) return 'animation-end';
   return detachKeyTime >= 0 ? 'detach-key' : 'animation-end';
+}
+
+/** Choose a graceful first-person fallback when a provider has no unequip window. */
+export function unequipActionPlan({ unequipStarted, equipStarted, detachKeyTime = -1 }) {
+  if (unequipStarted) {
+    return {
+      kind: 'unequip',
+      start: UNEQUIP_KEYS.start,
+      stop: UNEQUIP_KEYS.stop,
+      reversed: false,
+      hideMode: unequipWeaponHideMode({ animationStarted: true, detachKeyTime }),
+    };
+  }
+  if (equipStarted) {
+    return {
+      kind: 'reverse-equip',
+      start: EQUIP_KEYS.start,
+      stop: EQUIP_KEYS.stop,
+      reversed: true,
+      hideMode: unequipWeaponHideMode({ animationStarted: true, reversedEquipFallback: true }),
+    };
+  }
+  return {
+    kind: 'immediate',
+    start: null,
+    stop: null,
+    reversed: false,
+    hideMode: 'immediate',
+  };
 }
 
 /** setAccurateAiming's argument, verbatim. Casting sits above
@@ -5621,8 +5654,8 @@ export function createFpArm({ playerAppearance = false } = {}) {
     // listener's own branches (CharacterController::handleTextKey,
     // character.cpp:1074-1087), gated there on Equipping/Unequipping
     // exactly as the machine is here.
-    if (action === EQUIP_KEYS.attach) weaponShown = true;
-    else if (action === UNEQUIP_KEYS.detach) {
+    if (action === EQUIP_KEYS.attach && upper === UPPER_BODY.Equipping) weaponShown = true;
+    else if (action === UNEQUIP_KEYS.detach && upper === UPPER_BODY.Unequipping) {
       weaponShown = false;
       hideWeaponAtUnequipEnd = false;
       logAnimationDiagnostic(`fp-unequip-detach|${weaponGroup}|${actionSource?.name ?? 'unknown'}`, {
@@ -6176,27 +6209,41 @@ export function createFpArm({ playerAppearance = false } = {}) {
         }
         upper = UPPER_BODY.Unequipping;
         const detach = keyTime(UNEQUIP_KEYS.detach);
-        const actionStarted = playAction(UNEQUIP_KEYS.start, UNEQUIP_KEYS.stop, 0);
-        const hideMode = unequipWeaponHideMode({ animationStarted: actionStarted, detachKeyTime: detach });
-        if (!actionStarted) {
-          // No usable unequip section exists at all: there is no return
-          // motion to preserve, so finish synchronously as before.
+        const unequipStarted = playAction(UNEQUIP_KEYS.start, UNEQUIP_KEYS.stop, 0);
+        // Some first-person packs (including weapon-class-specific ReAnimation
+        // sets) have an equip window but no unequip window for this group.
+        // Play the same hand motion backwards instead of dropping the weapon
+        // and snapping straight to the bare-hand idle.
+        const equipStarted = !unequipStarted && playAction(EQUIP_KEYS.start, EQUIP_KEYS.stop, 0, true);
+        const plan = unequipActionPlan({ unequipStarted, equipStarted, detachKeyTime: detach });
+        if (plan.kind === 'immediate') {
           hideWeaponAtUnequipEnd = false;
           upper = UPPER_BODY.None; sheathed = true; weaponShown = false; arrowShown = false;
           logAnimationDiagnostic(`fp-unequip-no-clip|${weaponGroup}|${++unequipDiagnosticSequence}`, {
             family: 'first-person-weapon-sheathing-v1',
             event: 'unequip-animation-unavailable',
             weaponGroup,
-            animationSource: actionState ? (actionSource?.name ?? null) : null,
-            fallbackReason: 'no playable unequip start/stop section',
+            animationSource: actionSource?.name ?? null,
+            fallbackReason: 'neither unequip nor reversible equip section is playable',
             weaponHiddenImmediately: true,
           });
           refreshWeaponGroup(); refreshIdle(true);
           return true;
         }
+        const hideMode = plan.hideMode;
         hideWeaponAtUnequipEnd = hideMode === 'animation-end';
         if (hideMode === 'detach-key') hideWeaponAtUnequipEnd = false;
-        if (hideMode === 'animation-end') {
+        if (plan.kind === 'reverse-equip') {
+          logAnimationDiagnostic(`fp-unequip-reverse-equip|${weaponGroup}|${++unequipDiagnosticSequence}`, {
+            family: 'first-person-weapon-sheathing-v1',
+            event: 'unequip-using-reversed-equip-clip',
+            weaponGroup,
+            animationSource: actionSource?.name ?? null,
+            animationStartTime: actionState?.startTime ?? null,
+            animationStopTime: actionState?.stopTime ?? null,
+            fallback: 'play equip section backwards; hide weapon when the section completes',
+          });
+        } else if (hideMode === 'animation-end') {
           // The clip exists but does not declare when the blade leaves
           // the hand. Defer hiding until stepUpper observes completion.
           logAnimationDiagnostic(`fp-unequip-missing-detach|${weaponGroup}|${++unequipDiagnosticSequence}`, {
