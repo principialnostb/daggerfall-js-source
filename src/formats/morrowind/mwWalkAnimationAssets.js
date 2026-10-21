@@ -135,6 +135,12 @@ export async function loadWalkAnimationAssets({ female = false } = {}) {
     for (const { entry, variant, family } of overrides) {
       if (!entry) {
         console.warn('[Morrowind animations] Vite did not resolve optional female locomotion source:', family, variant, inspectWalkAnimationAssets());
+        modDiagnostics.record({
+          level: 'warn', phase: 'animation-discovery', action: 'animation-source-not-resolved',
+          modId: variant, resource: family,
+          message: 'An optional female locomotion source was not resolved by the asset catalog.',
+          details: { family, variant, female: true, available: inspectWalkAnimationAssets() },
+        });
         continue;
       }
       const data = await bytes(entry);
@@ -197,11 +203,20 @@ export function isFirstPersonAnimationRigCompatible(skeletonPath) {
 
 /** Load one selected first-person provider in stable path order. */
 export async function loadFirstPersonAnimationAssets({ skeletonPath } = {}) {
-  if (!IN_BROWSER || !isFirstPersonAnimationRigCompatible(skeletonPath)) return [];
+  if (!IN_BROWSER) return [];
   const provider = firstPersonAnimationProviderForChoice(
     modSetting('morrowind-animation', 'FirstPersonSource'),
   );
   if (provider === 'vanilla') return [];
+  if (!isFirstPersonAnimationRigCompatible(skeletonPath)) {
+    modDiagnostics.record({
+      level: 'warn', phase: 'animation-selection', action: 'animation-provider-incompatible-rig',
+      modId: provider, resource: skeletonPath || 'unknown-rig',
+      message: 'The selected first-person animation provider does not support this rig; archive animations remain active.',
+      details: { provider, rig: skeletonPath ?? null, fallback: 'archive' },
+    });
+    return [];
+  }
   // The providers are additive, not mutually exclusive: ReAnimation supplies
   // stance/weapon clips, while ODAR replaces directional locomotion only.
   const catalogs = [
@@ -215,6 +230,15 @@ export async function loadFirstPersonAnimationAssets({ skeletonPath } = {}) {
     // overrides ReAnimation only where both define the same movement group.
     .sort((a, b) => Number(a.variant === 'openmw-dynamic-first-person') - Number(b.variant === 'openmw-dynamic-first-person')
       || a.path.localeCompare(b.path));
+  if (!files.length) {
+    modDiagnostics.record({
+      level: 'warn', phase: 'animation-discovery', action: 'animation-provider-no-candidates',
+      modId: provider, resource: 'first-person',
+      message: 'The selected animation provider resolved no eligible KF files; archive animations remain active.',
+      details: { provider, rig: skeletonPath, fallback: 'archive' },
+    });
+    return [];
+  }
   const result = [];
   for (const entry of files) {
     try {
@@ -230,6 +254,14 @@ export async function loadFirstPersonAnimationAssets({ skeletonPath } = {}) {
       console.warn('[Morrowind animations] first-person clip failed to load; archive fallback retained:', entry.path, String(error?.message ?? error));
       modDiagnostics.record({ level: 'error', phase: 'animation-load', action: 'animation-clip-load-failed', modId: entry.variant, resource: entry.path, message: String(error?.message ?? error), details: { rig: skeletonPath, fallback: 'archive' } });
     }
+  }
+  if (!result.length) {
+    modDiagnostics.record({
+      level: 'warn', phase: 'animation-selection', action: 'animation-pack-empty',
+      modId: provider, resource: 'first-person',
+      message: 'No eligible first-person animation clip loaded successfully; archive animations remain active.',
+      details: { provider, rig: skeletonPath, candidateCount: files.length, fallback: 'archive' },
+    });
   }
   for (const variant of new Set(result.map((entry) => entry.variant))) {
     const assets = result.filter((entry) => entry.variant === variant);
@@ -395,7 +427,15 @@ export async function loadOpenMWDynamicThirdPersonAnimationAssets({ skeletonPath
       modDiagnostics.record({ level: 'error', phase: 'animation-load', action: 'animation-clip-load-failed', modId: 'openmw-dynamic-animations', resource: entry.path, message: String(error?.message ?? error), details: { rig: skeletonPath, race, fallback: 'archive' } });
     }
   }
-  modDiagnostics.record({ level: 'info', phase: 'animation-selection', action: 'animation-assets-selected', modId: 'openmw-dynamic-animations', resource: 'third-person', details: { count: result.length, rig: skeletonPath, race } });
+  modDiagnostics.record({
+    level: result.length ? 'info' : 'warn',
+    phase: 'animation-selection',
+    action: result.length ? 'animation-assets-selected' : 'animation-pack-empty',
+    modId: 'openmw-dynamic-animations',
+    resource: 'third-person',
+    message: result.length ? '' : 'No eligible third-person animation clips loaded for this rig; archive animations remain active.',
+    details: { count: result.length, candidateCount: files.length, rig: skeletonPath, race, fallback: result.length ? null : 'archive' },
+  });
   return result;
 }
 
