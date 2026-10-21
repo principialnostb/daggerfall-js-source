@@ -81,6 +81,48 @@ test('waist width is isolated from the outer arm and shoulder vertices', () => {
   assert.ok(delta(2, 0) < 1e-5, 'waist width must not move the shoulder torso');
 });
 
+test('breast size changes lateral volume while breast projection changes only depth', () => {
+  const make = () => ({
+    slot: 'betterBodies',
+    // Front-facing breast surface point in the shared body coordinate frame.
+    positions: Float32Array.from([0.2, 0.5, 0.685, -0.2, 0.5, 0.685]),
+    indices: new Uint16Array(),
+    normals: new Float32Array(6),
+  });
+  const size = make(), projection = make();
+  const sizeBefore = new Float32Array(size.positions);
+  const projectionBefore = new Float32Array(projection.positions);
+  deformPlayerBodyGeometry(size, morphState('breastSize'), bounds);
+  deformPlayerBodyGeometry(projection, morphState('breastProjection'), bounds);
+  assert.ok(Math.abs(size.positions[0] - sizeBefore[0]) > 1e-4,
+    'breast size must widen the breast volume');
+  assert.ok(Math.abs(projection.positions[0] - projectionBefore[0]) < 1e-6,
+    'breast projection must not widen the breast volume');
+  assert.ok(Math.abs(size.positions[1] - sizeBefore[1]) > 1e-4);
+  assert.ok(Math.abs(projection.positions[1] - projectionBefore[1]) > 1e-4);
+});
+
+test('buttock size changes lateral volume while buttock projection changes only depth', () => {
+  const make = () => ({
+    slot: 'betterBodies',
+    // Rear-facing buttock surface point in the shared body coordinate frame.
+    positions: Float32Array.from([0.2, -0.5, 0.465, -0.2, -0.5, 0.465]),
+    indices: new Uint16Array(),
+    normals: new Float32Array(6),
+  });
+  const size = make(), projection = make();
+  const sizeBefore = new Float32Array(size.positions);
+  const projectionBefore = new Float32Array(projection.positions);
+  deformPlayerBodyGeometry(size, morphState('buttockSize'), bounds);
+  deformPlayerBodyGeometry(projection, morphState('buttockProjection'), bounds);
+  assert.ok(Math.abs(size.positions[0] - sizeBefore[0]) > 1e-4,
+    'buttock size must widen the buttock volume');
+  assert.ok(Math.abs(projection.positions[0] - projectionBefore[0]) < 1e-6,
+    'buttock projection must not widen the buttock volume');
+  assert.ok(Math.abs(size.positions[1] - sizeBefore[1]) > 1e-4);
+  assert.ok(Math.abs(projection.positions[1] - projectionBefore[1]) > 1e-4);
+});
+
 test('authored skin influences isolate arm controls from trunk and leg vertices', () => {
   const piece = {
     slot: 'betterBodies',
