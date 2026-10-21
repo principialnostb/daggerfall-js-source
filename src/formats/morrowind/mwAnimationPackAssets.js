@@ -124,7 +124,7 @@ export function listAnimationPackAssets({ packId, family, skeleton } = {}) {
     if (family && entry.family !== family) return false;
     if (skeleton && entry.skeleton !== normalize(skeleton)) return false;
     return true;
-  }).map(({ url, ...entry }) => ({ ...entry }));
+  });
 }
 
 export async function loadAnimationPackAsset(asset) {
@@ -141,6 +141,25 @@ export async function loadAnimationPackAsset(asset) {
     cache.set(asset.url, pending);
   }
   return new Uint8Array(await pending);
+}
+
+/** Load the Hit Reactions pack's clips for the actor's actual skeleton family.
+ * The pack's OpenMW event scripts are not loaded; gameplay owns event routing. */
+export async function loadHitReactionAnimationAssets({ female = false, beast = false } = {}) {
+  if (!IN_BROWSER) return [];
+  const skeleton = beast ? 'xbase_animkna' : female ? 'xbase_anim_female' : 'xbase_anim';
+  const candidates = listAnimationPackAssets({ packId: PACKS.hitReactions, skeleton })
+    .filter((asset) => ['hit-reaction', 'stagger', 'death'].includes(asset.family));
+  const loaded = await Promise.all(candidates.map(async (asset) => {
+    try {
+      const bytes = await loadAnimationPackAsset(asset);
+      return bytes?.length ? { ...asset, bytes } : null;
+    } catch (error) {
+      console.warn('[Morrowind animations] optional hit-reaction asset unavailable:', asset.path, String(error?.message ?? error));
+      return null;
+    }
+  }));
+  return loaded.filter(Boolean);
 }
 
 export function inspectAnimationPackAssets() {
