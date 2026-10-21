@@ -40,16 +40,18 @@ test('MW-ANIM-1: walk keys survive additional text-key lines before the group ma
 test('MW-ANIM-2: player, male NPC, and female NPC walk settings resolve independently', () => {
   assert.equal(walkVariantForActor({ player: true, playerChoice: 0 }), 'vanilla');
   assert.equal(walkVariantForActor({ player: true, playerChoice: 1 }), 'simply');
-  assert.equal(walkVariantForActor({ player: true, playerChoice: 2 }), 'axel');
+  assert.equal(walkVariantForActor({ player: true, playerChoice: 2 }), 'simply');
+  assert.equal(walkVariantForActor({ player: true, female: true, playerChoice: 3 }), 'axel');
 
   assert.equal(walkVariantForActor({ female: false, npcMaleChoice: 0 }), 'vanilla');
   assert.equal(walkVariantForActor({ female: false, npcMaleChoice: 1 }), 'simply');
 
   assert.equal(walkVariantForActor({ female: true, npcFemaleChoice: 0 }), 'vanilla');
   assert.equal(walkVariantForActor({ female: true, npcFemaleChoice: 1 }), 'simply');
-  assert.equal(walkVariantForActor({ female: true, npcFemaleChoice: 2 }), 'axel');
+  assert.equal(walkVariantForActor({ female: true, npcFemaleChoice: 2 }), 'feminine');
+  assert.equal(walkVariantForActor({ female: true, npcFemaleChoice: 3 }), 'axel');
 
-  assert.equal(walkVariantForActor({ ownHeads: true, female: true, playerChoice: 2, npcFemaleChoice: 0 }), 'axel');
+  assert.equal(walkVariantForActor({ ownHeads: true, female: true, playerChoice: 3, npcFemaleChoice: 0 }), 'axel');
   assert.equal(walkVariantForActor({ player: true, female: true, playerChoice: 4 }), 'dynamic');
   assert.equal(walkVariantForActor({ player: true, female: false, playerChoice: 4 }), 'dynamic');
   assert.equal(walkVariantForActor({ female: false, npcMaleChoice: 2 }), 'dynamic');
