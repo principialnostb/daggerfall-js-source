@@ -10,7 +10,7 @@ const FILES = IN_BROWSER
     )
   : {};
 
-const candidateName = /(?:^|\\/)(?:x?death|x?hitreact|x?stagger)[^/]*\\.kf$/i;
+const candidateName = /(?:^|\/)(?:x?death|x?hitreact|x?stagger)[^/]*\.kf$/i;
 const entries = Object.entries(FILES)
   .map(([path, url]) => ({ path: path.replace(/\\/g, '/'), url }))
   .filter((entry) => candidateName.test(entry.path))
