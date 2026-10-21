@@ -54,6 +54,12 @@ export function animationPackFamily(packId, path) {
   return 'other';
 }
 
+export function animationPackSkeleton(packId, relativePath) {
+  return packId === PACKS.reanimation
+    ? 'xbase_anim.1st'
+    : normalize(relativePath).split('/')[0];
+}
+
 const entries = Object.entries(FILES)
   .map(([path, url]) => {
     const normalizedPath = path.replace(/\\/g, '/');
@@ -61,7 +67,7 @@ const entries = Object.entries(FILES)
     const packId = Object.keys(ROOTS).find((id) => lowerPath.includes(normalize(ROOTS[id])));
     if (!packId) return null;
     const relativePath = normalizedPath.slice(normalizedPath.toLowerCase().indexOf(ROOTS[packId].toLowerCase()) + ROOTS[packId].length);
-    const skeleton = packId === PACKS.reanimation ? 'xbase_anim.1st' : relativePath.split('/')[0].toLowerCase();
+    const skeleton = animationPackSkeleton(packId, relativePath);
     return {
       packId,
       path: normalizedPath,
