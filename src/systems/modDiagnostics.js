@@ -4,6 +4,18 @@
 
 const LEVELS = new Set(['debug', 'info', 'warn', 'error']);
 const textOf = (value, limit = 1200) => String(value ?? '').replace(/[\u0000-\u001f\u007f]/g, ' ').slice(0, limit);
+function cleanValue(value, depth = 0, seen = new WeakSet()) {
+  if (value === null || typeof value === 'boolean') return value;
+  if (typeof value === 'string') return textOf(value, 500);
+  if (typeof value === 'number') return Number.isFinite(value) ? value : textOf(value, 100);
+  if (typeof value !== 'object') return textOf(value, 300);
+  if (depth >= 3) return '[depth limit]';
+  if (seen.has(value)) return '[circular]';
+  seen.add(value);
+  if (Array.isArray(value)) return value.slice(0, 30).map((item) => cleanValue(item, depth + 1, seen));
+  return Object.fromEntries(Object.entries(value).slice(0, 30).map(([key, item]) => [textOf(key, 80), cleanValue(item, depth + 1, seen)]));
+}
+
 const modOf = (value) => {
   const raw = textOf(value || 'core', 240).replace(/\\/g, '/').split('/').pop();
   return raw.replace(/[^a-zA-Z0-9._ -]/g, '_').trim().slice(0, 120) || 'unknown-mod';
@@ -41,7 +53,7 @@ export function createModDiagnostics({ sink = defaultSink, now = () => new Date(
       resource: textOf(input?.resource, 500) || null,
       message: textOf(input?.message, 2000),
       details: input?.details && typeof input.details === 'object' && !Array.isArray(input.details)
-        ? Object.fromEntries(Object.entries(input.details).slice(0, 30).map(([k, v]) => [textOf(k, 80), typeof v === 'string' ? textOf(v, 500) : (typeof v === 'number' || typeof v === 'boolean' || v === null ? v : textOf(JSON.stringify(v), 500))]))
+        ? cleanValue(input.details)
         : {},
     });
     totals[level]++;
