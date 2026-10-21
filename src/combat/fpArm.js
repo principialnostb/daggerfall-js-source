@@ -84,7 +84,7 @@ import { DFPalette } from '../formats/dfPalette.js';
 import { raceArt } from '../systems/races.js';
 import { appStorage } from '../systems/appStorage.js';   // DA1: the storage seam
 import { modSetting } from '../systems/modSettings.js';
-import { loadWalkAnimationAssets, isWalkAnimationGroup, isWalkAnimationKey, isRunAnimationGroup, isRunAnimationKey, isWalkVariantEnabled, isRunVariantEnabled, walkVariantForActor, runVariantForActor, dynamicWalkStyleForActor } from '../formats/morrowind/mwWalkAnimationAssets.js';
+import { loadWalkAnimationAssets, isWalkAnimationGroup, isWalkAnimationKey, isRunAnimationGroup, isRunAnimationKey, isWalkVariantEnabled, isRunVariantEnabled, walkVariantForActor, runVariantForActor, dynamicWalkStyleForActor, aliasDynamicWalkSource } from '../formats/morrowind/mwWalkAnimationAssets.js';
 import { loadHitReactionAnimationAssets, loadReAnimationAnimationAssets, ANIMATION_PACK_IDS, selectDeterministicReactionGroup } from '../formats/morrowind/mwAnimationPackAssets.js';
 import { drawRigSpriteBox, MW_THIRD_PERSON_PIXEL } from '../render/characterSprite.js';
 import { WEAPONS } from '../characters/weapons.js';
@@ -2321,15 +2321,9 @@ async function buildTpBody({
     // other actions keep the game's own sources and priority.
     if (!werewolf && !beast) {
       const playerBody = !!(playerAppearance || ownHeads);
-      const walkChoice = playerBody
-        ? modSetting('morrowind-animation', 'PlayerWalkSource') ?? 0
-        : female
-          ? modSetting('morrowind-animation', 'NpcFemaleWalk') ?? 0
-          : modSetting('morrowind-animation', 'NpcMaleWalk') ?? 0;
-      const dynamicChoiceIndex = playerBody || female ? 4 : 2;
-      const dynamicStyle = Number(walkChoice) === dynamicChoiceIndex
-        ? dynamicWalkStyleForActor({ female, player: playerBody, race, faceIndex, appearanceHeadId })
-        : null;
+      // Keep the chosen Dynamic Animations clip available for live setting changes,
+      // but leave its source groups unaliased until the provider is actually selected.
+      const dynamicStyle = dynamicWalkStyleForActor({ female, player: playerBody, race, faceIndex, appearanceHeadId });
       const walkAssets = await loadWalkAnimationAssets({ female, dynamicStyle });
       for (const asset of walkAssets) {
         const report = await cachedClipReport(gen, skeletonPath, asset.name, () => asset.bytes, arm.skeleton);
@@ -2344,19 +2338,6 @@ async function buildTpBody({
         const isFamilyKey = asset.family === 'run' ? isRunAnimationKey : isWalkAnimationKey;
         let familyKeys = isOverhaul ? report.keys : report.keys.filter(isFamilyKey);
         let familyGroups = isOverhaul ? report.groups : report.groups.filter(isFamilyGroup);
-        if (asset.dynamicGroupAlias) {
-          const sourceGroups = familyGroups.filter((group) => /^walkforward_/.test(String(group).toLowerCase()));
-          if (sourceGroups.length) {
-            const suffixes = ['', '1h', '1s', '1b', '2c', '2b', '2w', 'bow', 'crossbow', '1t', 'hh', 'spell'];
-            const targets = suffixes.map((suffix) => `walkforward${suffix}`);
-            familyKeys = familyKeys.flatMap((key) => {
-              const colon = String(key.text ?? '').indexOf(': ');
-              if (colon < 0 || !sourceGroups.includes(String(key.text).slice(0, colon).toLowerCase())) return [key];
-              return targets.map((target) => ({ ...key, text: target + String(key.text).slice(colon) }));
-            });
-            familyGroups = [...familyGroups.filter((group) => !sourceGroups.includes(String(group).toLowerCase())), ...targets];
-          }
-        }
         if (!familyGroups.length || !familyKeys.length) {
           const reason = `locomotion animation ${asset.name}: no usable ${asset.family || 'walk'} groups; vanilla source retained`;
           missing.push(reason);
@@ -2378,6 +2359,7 @@ async function buildTpBody({
           animationOverhaul: isOverhaul,
           animationFamily: asset.family,
           walkVariant: asset.variant,
+          dynamicGroupAlias: !!asset.dynamicGroupAlias,
         });
       }
     }
@@ -5126,7 +5108,9 @@ export function createFpArm({ playerAppearance = false } = {}) {
           if (isWalkingGroup) return isWalkVariantEnabled(source, movementPreference ?? 'vanilla');
           if (isRunningGroup) return isRunVariantEnabled(source, movementPreference ?? 'vanilla');
           return !source?.walkOnly && !source?.runOnly;
-        });
+        }).map((source) => isWalkingGroup && movementPreference === 'dynamic'
+          ? aliasDynamicWalkSource(source)
+          : source);
         const pick = pickAnimSource(movementSources, composed.group, resetClip,
           { loopFallback: true, loopCount: Infinity, startPoint });
         if (!pick) {
