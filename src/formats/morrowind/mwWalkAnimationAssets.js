@@ -133,7 +133,7 @@ export async function loadWalkAnimationAssets({ female = false } = {}) {
 }
 /** Resolve the mutually exclusive first-person provider from persisted settings. */
 export function firstPersonAnimationProviderForChoice(choice = 1) {
-  return ['vanilla', 'reanimation-v3', 'openmw-dynamic-first-person'][
+  return ['vanilla', 'reanimation-v3', 'reanimation-v3+openmw-dynamic-first-person'][
     Math.max(0, Math.min(2, Math.trunc(Number(choice) || 0)))
   ];
 }
@@ -170,12 +170,15 @@ export async function loadFirstPersonAnimationAssets({ skeletonPath } = {}) {
     modSetting('morrowind-animation', 'FirstPersonSource'),
   );
   if (provider === 'vanilla') return [];
-  const catalog = provider === 'openmw-dynamic-first-person'
-    ? OPENMW_DYNAMIC_FIRST_PERSON_FILES
-    : FIRST_PERSON_FILES;
-  const files = Object.entries(catalog)
-    .map(([path, url]) => ({ path: path.replace(/\\/g, '/'), url }))
-    .filter((entry) => provider !== 'openmw-dynamic-first-person' || isOpenMWDynamicFirstPersonClip(entry.path))
+  // The providers are additive, not mutually exclusive: ReAnimation supplies
+  // stance/weapon clips, while ODAR replaces directional locomotion only.
+  const catalogs = [
+    ...(provider.includes('reanimation-v3') ? [{ files: FIRST_PERSON_FILES, variant: 'reanimation-v3' }] : []),
+    ...(provider.includes('openmw-dynamic-first-person') ? [{ files: OPENMW_DYNAMIC_FIRST_PERSON_FILES, variant: 'openmw-dynamic-first-person' }] : []),
+  ];
+  const files = catalogs.flatMap(({ files: catalog, variant }) => Object.entries(catalog)
+    .map(([path, url]) => ({ path: path.replace(/\\\\/g, '/'), url, variant }))
+    .filter((entry) => entry.variant !== 'openmw-dynamic-first-person' || isOpenMWDynamicFirstPersonClip(entry.path)))
     .sort((a, b) => a.path.localeCompare(b.path));
   const result = [];
   for (const entry of files) {
@@ -185,8 +188,8 @@ export async function loadFirstPersonAnimationAssets({ skeletonPath } = {}) {
         name: entry.path,
         bytes: data,
         family: 'first-person',
-        variant: provider,
-        ...(provider === 'openmw-dynamic-first-person' ? { targetGroup: openMWDynamicFirstPersonGroup(entry.path) } : {}),
+        variant: entry.variant,
+        ...(entry.variant === 'openmw-dynamic-first-person' ? { targetGroup: openMWDynamicFirstPersonGroup(entry.path) } : {}),
       });
     } catch (error) {
       console.warn('[Morrowind animations] first-person clip failed to load; archive fallback retained:', entry.path, String(error?.message ?? error));
