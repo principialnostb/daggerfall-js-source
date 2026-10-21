@@ -4302,13 +4302,13 @@ export function createFpArm({ playerAppearance = false } = {}) {
     const u = thirdUnit(grow);
     const yawDeg = (yaw * 180 / Math.PI) + 180;
     const rs = (built && built.raceScale) || { weight: 1, height: 1 };
-    const morph = playerAppearance ? getBodyMorphs() : { bodyWidth: 0, height: 0 };
-    const width = 1 + Math.max(-1, Math.min(1, Number(morph.bodyWidth) || 0)) * 0.18;
-    const height = 1 + Math.max(-1, Math.min(1, Number(morph.height) || 0)) * 0.15;
+    // Body width/height are vertex morphs in poseAssembly. Do not apply them
+    // again to the actor transform: that double-scaled the body and scaled
+    // attached equipment/placement with it.
     return multiply(trs(feet[0], feet[1], feet[2], 0, yawDeg, 0,
-      -u * rs.weight * THIRD_PERSON_HORIZONTAL_SCALE * width,
-      u * rs.height * THIRD_PERSON_HEIGHT_SCALE * height,
-      u * rs.weight * THIRD_PERSON_HORIZONTAL_SCALE * width), NIF_TO_PASS);
+      -u * rs.weight * THIRD_PERSON_HORIZONTAL_SCALE,
+      u * rs.height * THIRD_PERSON_HEIGHT_SCALE,
+      u * rs.weight * THIRD_PERSON_HORIZONTAL_SCALE), NIF_TO_PASS);
   }
   /** PR-BOW1 / MWNPC16: the posed box drawThird folds over what it draws (the shown ranges'), else the assembly's. */
   function thirdBox() {
@@ -7473,14 +7473,15 @@ export function createFpArm({ playerAppearance = false } = {}) {
       }
       const u = 1 / MW_UNITS_PER_METER;
       const rs = (built && built.raceScale) || { weight: 1, height: 1 };
-      const morph = playerAppearance ? (bodyProportions && typeof bodyProportions === 'object' ? bodyProportions : getBodyMorphs()) : { bodyWidth: 0, height: 0 };
-      const width = 1 + Math.max(-1, Math.min(1, Number(morph.bodyWidth) || 0)) * 0.18;
-      const heightScale = 1 + Math.max(-1, Math.min(1, Number(morph.height) || 0)) * 0.15;
+      // The same body-vertex morphs are already applied by poseAssembly.
+      // Keep the portrait transform limited to race scale and portrait framing.
+      // Applying width/height here too made those controls act twice and
+      // incorrectly scaled any attached geometry.
       // feet at the origin, facing the viewer: drawThird's +180 makes yaw
       // 0 face -Z in pass space, and the eye below sits on +Z.
       const yawDeg = (yaw * 180 / Math.PI) + 180;
       const model = multiply(trs(0, 0, 0, 0, yawDeg, 0,
-        -u * rs.weight * width, u * rs.height * heightScale, u * rs.weight * width), NIF_TO_PASS);
+        -u * rs.weight, u * rs.height, u * rs.weight), NIF_TO_PASS);
       // PR-BOW1b (2026-09-24): FRAMED ON WHAT IT DRAWS, AT THE BODY'S
       // SCALE - after the flags above, off the per-range boxes the upload
       // just folded (portraitWindow). It framed meshBounds over EVERY
