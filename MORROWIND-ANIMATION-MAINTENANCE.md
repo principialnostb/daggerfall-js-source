@@ -11,7 +11,7 @@ This document is the operational inventory: what is in the repository, what the 
 | Responsibility | Implementation | Current behavior |
 |---|---|---|
 | Discover bundled walk KF files | `src/formats/morrowind/mwWalkAnimationAssets.js` | Vite `import.meta.glob` includes Simply Walking and Axel's female files only. |
-| Discover first-person animation packs | `loadFirstPersonAnimationAssets()` in `mwWalkAnimationAssets.js`, consumed by the actual first-person build in `fpArm.js` | ReAnimation v3 is loaded as the stance/weapon source; the third selector option adds OpenMW directional walk/run/sneak groups above it. |
+| Discover first-person animation packs | `loadFirstPersonAnimationAssets()` in `mwWalkAnimationAssets.js`, consumed by the actual first-person build in `fpArm.js` | ReAnimation v3 is loaded as the stance/weapon source; OpenMW Dynamic Animations can be selected alone or layered above it for directional walk/run/sneak groups. |
 | Discover OpenMW third-person/creature variants | `loadOpenMWDynamicThirdPersonAnimationAssets()` + `selectOpenMWDynamicAnimationVariants()` | Rig-folder matching, canonical group remapping, deterministic per-actor variant choice; user walk/run selectors keep priority. |
 | Adapt hit/death reaction groups | `hitReactionTargetGroup()` and `remapAnimationGroupKeys()` in `mwWalkAnimationAssets.js`, consumed by `fpArm.js` | `HitReact`/`Stagger*` become `hit1..hitN`; `Death*` becomes `death1..deathN`; sources with no bound tracks are rejected. |
 | Parse KF / bind tracks to the active skeleton | `src/combat/fpArm.js` + `src/formats/morrowind/mwAnim.js` | Replacement tracks are parsed against the current rig. A failed parse or incompatible source is skipped and the game/archive source remains available. |
