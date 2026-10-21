@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { inspectWalkAnimationAssets, isWalkAnimationGroup, isWalkAnimationKey, isRunAnimationGroup, isRunAnimationKey, isWalkVariantEnabled, isRunVariantEnabled, walkVariantForActor, runVariantForActor } from '../../src/formats/morrowind/mwWalkAnimationAssets.js';
+import { inspectWalkAnimationAssets, isWalkAnimationGroup, isWalkAnimationKey, isRunAnimationGroup, isRunAnimationKey, isWalkVariantEnabled, isRunVariantEnabled, walkVariantForActor, runVariantForActor, firstPersonAnimationProviderForChoice, isOpenMWDynamicFirstPersonClip } from '../../src/formats/morrowind/mwWalkAnimationAssets.js';
 
 test('MW-ANIM-1: bundled walk asset inventory is safe to import in Node', () => {
   const assets = inspectWalkAnimationAssets();
@@ -75,4 +75,28 @@ test('MW-ANIM-3: run choices resolve independently for player and female NPC', (
   assert.equal(runVariantForActor({ female: true, npcFemaleChoice: 1 }), 'axel');
   assert.equal(runVariantForActor({ female: false, npcFemaleChoice: 1 }), 'vanilla');
   assert.equal(runVariantForActor({ ownHeads: true, female: true, playerChoice: 1 }), 'axel');
+});
+
+
+test('MW-ANIM-4: first-person provider choice is exclusive and stable', () => {
+  assert.equal(firstPersonAnimationProviderForChoice(0), 'vanilla');
+  assert.equal(firstPersonAnimationProviderForChoice(1), 'reanimation-v3');
+  assert.equal(firstPersonAnimationProviderForChoice(2), 'openmw-dynamic-first-person');
+  assert.equal(firstPersonAnimationProviderForChoice(-1), 'vanilla');
+  assert.equal(firstPersonAnimationProviderForChoice(99), 'openmw-dynamic-first-person');
+});
+
+test('MW-ANIM-4: OpenMW Dynamic Animations admits only directional first-person locomotion clips', () => {
+  const base = 'Mods/Animations/OpenMW Dynamic Animations/animations/xbase_anim.1st/';
+  for (const clip of [
+    'WalkForward_base;.kf', 'WalkBack_base;.kf', 'WalkLeft_base;.kf', 'WalkRight_base;.kf',
+    'RunForward_base;.kf', 'RunBack_base;.kf', 'RunLeft_base;.kf', 'RunRight_base;.kf',
+    'SneakForward_base;.kf', 'SneakBack_base;.kf', 'SneakLeft_base;.kf', 'SneakRight_base;.kf',
+  ]) {
+    assert.equal(isOpenMWDynamicFirstPersonClip(base + clip), true, clip);
+  }
+  assert.equal(isOpenMWDynamicFirstPersonClip(base + 'IdleSneak_base;.kf'), false);
+  assert.equal(isOpenMWDynamicFirstPersonClip(base + 'SneakMovement; Skip.kf'), false);
+  assert.equal(isOpenMWDynamicFirstPersonClip('Mods/Animations/OpenMW Dynamic Animations/animations/xbase_anim/WalkForward_base11;.kf'), false);
+  assert.equal(isOpenMWDynamicFirstPersonClip('Mods/Animations/ReAnimation v3/00 Core/Animations/xbase_anim.1st/x1hMovement.kf'), false);
 });
