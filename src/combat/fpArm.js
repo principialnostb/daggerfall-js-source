@@ -84,7 +84,7 @@ import { DFPalette } from '../formats/dfPalette.js';
 import { raceArt } from '../systems/races.js';
 import { appStorage } from '../systems/appStorage.js';   // DA1: the storage seam
 import { modSetting } from '../systems/modSettings.js';
-import { loadWalkAnimationAssets, loadFirstPersonAnimationAssets, loadHitReactionAnimationAssets, loadOpenMWDynamicThirdPersonAnimationAssets, selectOpenMWDynamicAnimationVariants, isWalkAnimationGroup, isWalkAnimationKey, isRunAnimationGroup, isRunAnimationKey, isWalkVariantEnabled, isRunVariantEnabled, walkVariantForActor, runVariantForActor, remapAnimationGroupKeys, hitReactionTargetGroup, hitReactionRecoveryBlend } from '../formats/morrowind/mwWalkAnimationAssets.js';
+import { loadWalkAnimationAssets, loadFirstPersonAnimationAssets, loadHitReactionAnimationAssets, loadOpenMWDynamicThirdPersonAnimationAssets, selectOpenMWDynamicAnimationVariants, isWalkAnimationGroup, isWalkAnimationKey, isRunAnimationGroup, isRunAnimationKey, isWalkVariantEnabled, isRunVariantEnabled, walkVariantForActor, runVariantForActor, remapAnimationGroupKeys, hitReactionTargetGroup, hitReactionTransitionBlend } from '../formats/morrowind/mwWalkAnimationAssets.js';
 import { drawRigSpriteBox, MW_THIRD_PERSON_PIXEL } from '../render/characterSprite.js';
 import { WEAPONS } from '../characters/weapons.js';
 import { materialName } from '../systems/item/itemInfo.js';
@@ -6889,13 +6889,14 @@ export function createFpArm({ playerAppearance = false } = {}) {
           }
           thirdBlendElapsed += Math.max(0, dt);
           const blendChoice = Math.max(0, Math.min(3, Number(modSetting('morrowind-animation', 'AnimationBlendDuration')) || 0));
-          const recoveryBlend = hitReactionRecoveryBlend(thirdBlendFromSource, thirdBlendElapsed / 0.5);
-          const blendDuration = recoveryBlend?.duration ?? [0, 0.16, 0.25, 0.4][blendChoice];
+          const reactionRule = hitReactionTransitionBlend(thirdBlendFromSource, poseSource, 1);
+          const blendDuration = reactionRule?.duration ?? [0, 0.16, 0.25, 0.4][blendChoice];
           const blendProgress = thirdBlendFrom && blendDuration > 0
             ? Math.min(1, thirdBlendElapsed / blendDuration)
             : 1;
+          const easedReactionRule = hitReactionTransitionBlend(thirdBlendFromSource, poseSource, blendProgress);
           const thirdBlendWeight = thirdBlendFrom && blendDuration > 0
-            ? (recoveryBlend?.weight ?? blendProgress)
+            ? (easedReactionRule?.weight ?? blendProgress)
             : 1;
           poseAssembly(t.arm, {
             tracks: tOverlay ? overlayFor(tBase, t.leftArm) : tBase,
