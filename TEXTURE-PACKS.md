@@ -1,6 +1,6 @@
 # Texture packs and animation resources used by the Morrowind branch
 
-The uploaded asset collection is maintained at [`Morrowind Textures` on `morrowind.v3`](https://github.com/principialnostb/daggerfall-js-source/tree/morrowind.v3/Morrowind%20Textures). The same directory tree is present in the current working branch `Dev` and has the same Git tree SHA; verify changes before copying it again. Git object storage reuses identical trees/blobs, but a Markdown link alone does not make the files available to a runtime.
+The active asset tree on `Dev` is [`Mods`](https://github.com/principialnostb/daggerfall-js-source/tree/Dev/Mods), organized into `Animations`, `Textures`, and `Bodies`. The previous `Morrowind Textures` folder was moved, not deleted. Runtime Vite globs must use these new category paths; stale globs can leave packs present in Git but absent from the built application. The `morrowind.v3/Morrowind Textures` tree remains the historical source for comparing assets.
 
 Working branch for implementation: [`Dev`](https://github.com/principialnostb/daggerfall-js-source/tree/Dev). Keep source assets in the existing tree and put runtime code, tests, and integration documentation in this branch.
 
