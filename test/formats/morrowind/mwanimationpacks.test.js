@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   ANIMATION_PACK_IDS, ANIMATION_PACK_PROVIDERS, animationPackFamily, inspectAnimationPackAssets, listAnimationPackAssets, loadHitReactionAnimationAssets, loadReAnimationAnimationAssets, loadDynamicIdleAnimationAsset,
-  resolveAnimationPackProvider, selectDeterministicReactionGroup, reAnimationPrefixesForWeaponGroup, selectStableAnimationVariant, aliasReAnimationAttackGroups,
+  resolveAnimationPackProvider, selectDeterministicReactionGroup, reAnimationPrefixesForWeaponGroup, selectStableAnimationVariant, aliasReAnimationAttackGroups, expandReAnimationAttackSources,
 } from '../../src/formats/morrowind/mwAnimationPackAssets.js';
 
 test('MW-ANIM-PACKS: pack discovery is safe outside the browser', () => {
@@ -125,4 +125,27 @@ test('MW-ANIM-PACKS: ReAnimation Alt/Sub clips alias to the matching weapon grou
   assert.equal(aliased.animationGroupAliasesApplied, true);
   const canonical = { ...source, name: 'x2cChop.kf' };
   assert.equal(aliasReAnimationAttackGroups(canonical), canonical);
+});
+
+test('MW-ANIM-PACKS: ReAnimation one-hand base and alternate groups become separate selectable sources', () => {
+  const source = {
+    animationPackId: ANIMATION_PACK_IDS.reanimation,
+    name: 'Mods/Animations/ReAnimation/x1hAltAttacks.kf',
+    groups: ['weapononehand', 'weapononehand1', 'weapononehandextra', 'weapononehand1extra'],
+    keys: [
+      { time: 0, text: 'weapononehand: chop start' },
+      { time: 1, text: 'weapononehand1: chop start' },
+      { time: 2, text: 'weapononehandextra: chop tail start' },
+      { time: 3, text: 'weapononehand1extra: chop tail start' },
+    ],
+    groupSet: new Set(['weapononehand', 'weapononehand1', 'weapononehandextra', 'weapononehand1extra']),
+  };
+  const expanded = expandReAnimationAttackSources(source);
+  assert.equal(expanded.length, 2);
+  assert.ok(expanded[0].groups.includes('weapononehand'));
+  assert.ok(expanded[0].keys.some((key) => key.text === 'weapononehand: chop start'));
+  assert.ok(expanded[1].groups.includes('weapononehand'));
+  assert.ok(expanded[1].keys.some((key) => key.text === 'weapononehand: chop start'));
+  assert.ok(expanded[1].keys.some((key) => key.text === 'weapononehandextra: chop tail start'));
+  assert.notEqual(expanded[0].name, expanded[1].name);
 });
