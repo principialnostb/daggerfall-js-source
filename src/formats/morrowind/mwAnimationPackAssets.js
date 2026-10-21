@@ -164,6 +164,36 @@ export function selectDeterministicReactionGroup(groups, kind, roll = 0) {
   return candidates[index];
 }
 
+/** Load the ReAnimation core KF sources relevant to the current first-person weapon family.
+ * Unsupported weapon families return no candidates and therefore retain archive animations. */
+export async function loadReAnimationAnimationAssets({ weaponShortGroup = '' } = {}) {
+  if (!IN_BROWSER) return [];
+  const prefixesByGroup = {
+    '1s': ['xdagger'],
+    '1h': ['x1h'],
+    '2c': ['x2c'],
+    '2w': ['x2w'],
+    bow: ['xbow'],
+    crossbow: ['xcrossbow'],
+    '1t': ['x1t', 'xthrownknife', 'xthrownstar'],
+    hh: ['xh2h', 'xhh'],
+  };
+  const prefixes = prefixesByGroup[normalize(weaponShortGroup)];
+  if (!prefixes?.length) return [];
+  const candidates = listAnimationPackAssets({ packId: PACKS.reanimation, skeleton: 'xbase_anim.1st' })
+    .filter((asset) => prefixes.some((prefix) => basename(asset.relativePath).startsWith(prefix)));
+  const loaded = await Promise.all(candidates.map(async (asset) => {
+    try {
+      const bytes = await loadAnimationPackAsset(asset);
+      return bytes?.length ? { ...asset, bytes } : null;
+    } catch (error) {
+      console.warn('[Morrowind animations] optional ReAnimation asset unavailable:', asset.path, String(error?.message ?? error));
+      return null;
+    }
+  }));
+  return loaded.filter(Boolean);
+}
+
 /** Load the Hit Reactions pack's clips for the actor's actual skeleton family.
  * The pack's OpenMW event scripts are not loaded; gameplay owns event routing. */
 export async function loadHitReactionAnimationAssets({ female = false, beast = false } = {}) {
