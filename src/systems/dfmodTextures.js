@@ -198,6 +198,7 @@ export function dfmodLoadOrder(mods) {
     return sorted;
   } catch (e) {
     console.warn(`[dfmod] the attached mods could not be sorted by their dependencies (${e?.message ?? e}) - they load by file name`);
+    modDiagnostics.record({ level: 'error', phase: 'ordering', action: 'dependency-sort-failed', modId: 'core', resource: 'dfmod/load-order', message: String(e?.message ?? e), details: { fallback: 'file-name order' } });
     return base;
   }
 }
@@ -313,6 +314,7 @@ function bundleFor(key) {
     })().catch((e) => {
       console.warn(`[dfmod] ${key} would not open:`, e?.message ?? e);
       _openErrors.set(key, openWords(e));
+      modDiagnostics.record({ level: 'error', phase: 'bundle-open', action: 'bundle-open-failed', modId: key, resource: key, message: openWords(e) });
       return null;
     }));
   }
@@ -324,11 +326,15 @@ async function bundleImage(key, name, { floor = 0 } = {}) {
   // DFMOD2: an open still running after OPEN_WAIT_MS answers nothing for THIS ask (the classic art draws); the open
   // goes on, and the next ask finds it done
   let timer;
-  const waited = new Promise((res) => { timer = setTimeout(() => res(null), OPEN_WAIT_MS); });
+  let timedOut = false;
+  const waited = new Promise((res) => { timer = setTimeout(() => { timedOut = true; res(null); }, OPEN_WAIT_MS); });
   const b = await Promise.race([bundleFor(key), waited]);
   clearTimeout(timer);
-  if (!b) return null;
-  try { return await b.rgba(name, { maxSize: Math.max(maxSize(), floor), deadline: Date.now() + ASK_DEADLINE_MS }); } catch (e) { console.warn(`[dfmod] ${name} would not decode:`, e?.message ?? e); return null; }
+  if (!b) {
+    if (timedOut) modDiagnostics.record({ level: 'warn', phase: 'bundle-open', action: 'bundle-open-timeout', modId: key, resource: name, message: 'Bundle did not open before the texture fallback deadline.', details: { timeoutMs: OPEN_WAIT_MS } });
+    return null;
+  }
+  try { return await b.rgba(name, { maxSize: Math.max(maxSize(), floor), deadline: Date.now() + ASK_DEADLINE_MS }); } catch (e) { console.warn(`[dfmod] ${name} would not decode:`, e?.message ?? e); modDiagnostics.record({ level: 'error', phase: 'texture-decode', action: 'texture-decode-failed', modId: key, resource: name, message: openWords(e), details: { maxSize: maxSize(), deadlineMs: ASK_DEADLINE_MS } }); return null; }
 }
 
 /** A stored index - `{ index, fp, stale }` - or null when there is none to read. AUDIT VE R6: an index of the version
