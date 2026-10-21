@@ -355,6 +355,13 @@ export async function loadOpenMWDynamicThirdPersonAnimationAssets({ skeletonPath
   return result;
 }
 
+/** OpenMW Hit Reactions' stagger-to-anything recovery rule: cubicOut over 0.5 s. */
+export function hitReactionRecoveryBlend(fromSource, progress) {
+  if (fromSource?.animationPack !== 'hit-reactions-v2' || fromSource?.reactionKind !== 'stagger') return null;
+  const t = Math.max(0, Math.min(1, Number(progress) || 0));
+  return { duration: 0.5, weight: 1 - Math.pow(1 - t, 3) };
+}
+
 /** The target group consumed by the existing combat state machine. */
 export function hitReactionTargetGroup(assetPath, hitIndex, deathIndex) {
   const name = norm(assetPath).slice(norm(assetPath).lastIndexOf('/') + 1);
