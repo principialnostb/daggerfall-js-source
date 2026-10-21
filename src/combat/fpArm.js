@@ -84,7 +84,7 @@ import { DFPalette } from '../formats/dfPalette.js';
 import { raceArt } from '../systems/races.js';
 import { appStorage } from '../systems/appStorage.js';   // DA1: the storage seam
 import { modSetting } from '../systems/modSettings.js';
-import { loadWalkAnimationAssets, loadFirstPersonAnimationAssets, loadHitReactionAnimationAssets, isWalkAnimationGroup, isWalkAnimationKey, isRunAnimationGroup, isRunAnimationKey, isWalkVariantEnabled, isRunVariantEnabled, walkVariantForActor, runVariantForActor } from '../formats/morrowind/mwWalkAnimationAssets.js';
+import { loadWalkAnimationAssets, loadFirstPersonAnimationAssets, loadHitReactionAnimationAssets, isWalkAnimationGroup, isWalkAnimationKey, isRunAnimationGroup, isRunAnimationKey, isWalkVariantEnabled, isRunVariantEnabled, walkVariantForActor, runVariantForActor, remapAnimationGroupKeys, hitReactionTargetGroup } from '../formats/morrowind/mwWalkAnimationAssets.js';
 import { drawRigSpriteBox, MW_THIRD_PERSON_PIXEL } from '../render/characterSprite.js';
 import { WEAPONS } from '../characters/weapons.js';
 import { materialName } from '../systems/item/itemInfo.js';
@@ -2365,29 +2365,20 @@ async function buildTpBody({
         const report = await cachedClipReport(gen, skeletonPath, asset.name, () => asset.bytes, arm.skeleton);
         if (!report.ok) { missing.push(`First-person clip ${asset.name}: ${report.error}`); continue; }
         const dynamicLocomotion = asset.variant === 'openmw-dynamic-first-person';
-        let groups = report.groups;
-        let keys = report.keys;
+        let groups = report.groups.map((name) => String(name).toLowerCase());
+        let keys = report.keys.map((key) => ({
+          ...key,
+          text: String(key?.text ?? '').split(/\r?\n/).map((line) => {
+            const colon = line.indexOf(':');
+            return colon <= 0 ? line : line.slice(0, colon).trim().toLowerCase() + line.slice(colon);
+          }).join('\n'),
+        }));
         if (dynamicLocomotion) {
-          const targetGroup = asset.targetGroup;
-          const target = String(targetGroup ?? '').toLowerCase();
-          const aliases = new Set([target, `${target}_base`, `x${target}`, `x${target}_base`]);
-          const groupAliases = new Map(report.groups
-            .filter((name) => aliases.has(name.toLowerCase()))
-            .map((name) => [name.toLowerCase(), targetGroup]));
-          groups = groupAliases.size ? [targetGroup] : [];
-          keys = report.keys.flatMap((key) => {
-            let matched = false;
-            const text = String(key?.text ?? '').split(/\r?\n/).map((line) => {
-              const colon = line.indexOf(':');
-              if (colon <= 0) return line;
-              const group = line.slice(0, colon).trim().toLowerCase();
-              const alias = groupAliases.get(group);
-              if (!alias) return line;
-              matched = true;
-              return alias + line.slice(colon);
-            }).join('\n');
-            return matched ? [{ ...key, text }] : [];
-          });
+          const targetGroup = String(asset.targetGroup ?? '').toLowerCase();
+          const aliases = new Set([targetGroup, `${targetGroup}_base`, `x${targetGroup}`, `x${targetGroup}_base`]);
+          const sourceGroups = report.groups.filter((name) => aliases.has(String(name).toLowerCase()));
+          groups = sourceGroups.length ? [targetGroup] : [];
+          keys = remapAnimationGroupKeys(report.keys, sourceGroups, targetGroup);
         }
         if (!groups.length || !keys.length) continue;
         sources.push({
@@ -2404,16 +2395,29 @@ async function buildTpBody({
     if (!werewolf && !/\.1st\.nif$/i.test(skeletonPath)) {
       const assets = await loadHitReactionAnimationAssets({ skeletonPath });
       const reactionGroup = /^(?:x)?(?:hit|stagger|death)/i;
+      let nextHitGroup = 1;
+      let nextDeathGroup = 1;
       for (const asset of assets) {
         const report = await cachedClipReport(gen, skeletonPath, asset.name, () => asset.bytes, arm.skeleton);
         if (!report.ok) { missing.push(`Hit reaction clip ${asset.name}: ${report.error}`); continue; }
-        const groups = report.groups.filter((name) => reactionGroup.test(name));
-        const allowed = new Set(groups.map((name) => name.toLowerCase()));
-        const keys = report.keys.filter((key) => String(key?.text ?? '').split(/\r?\n/).some((line) => {
-          const colon = line.indexOf(':');
-          return colon > 0 && allowed.has(line.slice(0, colon).trim().toLowerCase());
-        }));
-        if (!groups.length || !keys.length) continue;
+        const sourceGroups = report.groups.filter((name) => reactionGroup.test(name));
+        if (!sourceGroups.length) {
+          missing.push(`Hit reaction clip ${asset.name}: no hit/stagger/death group; archive fallback retained`);
+          continue;
+        }
+        // The OpenMW pack names clips HitReact/StaggerBack/DeathBack, while
+        // this runtime requests hit1..hitN and death1..deathN. Adapt the
+        // text-key group so the existing deterministic combat selector can play it.
+        const target = hitReactionTargetGroup(asset.name, nextHitGroup, nextDeathGroup);
+        if (!target) continue;
+        const keys = remapAnimationGroupKeys(report.keys, sourceGroups, target.group);
+        if (!keys.length) {
+          missing.push(`Hit reaction clip ${asset.name}: no usable text keys for ${target.group}`);
+          continue;
+        }
+        if (target.family === 'death') nextDeathGroup++;
+        else nextHitGroup++;
+        const groups = [target.group];
         sources.push({
           name: asset.name, keys, groups, groupSet: new Set(groups),
           trackMap: report.trackMap, binding: report.binding,
