@@ -1667,6 +1667,11 @@ export const MOD_SETTINGS = Object.freeze({
         options: lazyWords('Vanilla', 'Hit Reactions Animated v2'),
         description: 'Selects compatible hit-reaction, stagger and death clips for player and NPC body rigs. The browser port routes these groups from JavaScript; the pack\'s OpenMW Lua scripts are not executed. Missing or invalid clips fall back to the game/archive animation.',
       }),
+      PlayerFirstPersonSource: Object.freeze({
+        default: 0,
+        options: lazyWords('Vanilla', 'ReAnimation v3'),
+        description: 'Uses canonical ReAnimation v3 KF sources for supported first-person weapon families. Alternate attack overrides and unsupported weapon families remain on the original game/archive source; the pack\'s OpenMW Lua scripts are not executed.',
+      }),
       PlayerWalkSource: Object.freeze({
         default: 0,
         options: lazyWords('Vanilla', 'Simply Walking', 'Feminine Walk Cycle', "Axel's Sexy Walk Fixed"),
