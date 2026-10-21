@@ -2913,7 +2913,7 @@ export function deformPlayerBodyGeometry(piece, morph, bodyBounds, skeleton = nu
     const node = bone.ref != null ? skeleton?.nodes?.get(bone.ref) : null;
     const name = String(node?.name || bone.name || '').toLowerCase().replace(/[^a-z0-9]/g, '');
     if (!name) continue;
-    if (/spine|chest|torso|abdomen|pelvis|hip|ribcage/.test(name)) addBoneWeights(boneRegions.trunk, bone);
+    if (/spine|chest|torso|abdomen|ribcage/.test(name) && !/pelvis|hip/.test(name)) addBoneWeights(boneRegions.trunk, bone);
     if (/pelvis|hip/.test(name)) addBoneWeights(boneRegions.pelvis, bone);
     if (/clavicle|shoulder|spine[123]|chest/.test(name)) addBoneWeights(boneRegions.shoulder, bone);
     if (/upperarm|lowerarm|forearm|arm|wrist|hand|clavicle/.test(name)) addBoneWeights(boneRegions.arm, bone);
@@ -2941,10 +2941,10 @@ export function deformPlayerBodyGeometry(piece, morph, bodyBounds, skeleton = nu
     // spread, its "torso" region expanded sideways and included arm vertices.
     const torsoCore = (1 - smoothstep(0.72, 1.12, torsoAx)) * roleWeight('trunk', vertex, 1);
     const shoulderZone = gauss(nz, 0.78, 0.065) * torsoCore * roleWeight('shoulder', vertex, 1);
-    const ribcageZone = gauss(nz, 0.68, 0.075) * torsoCore;
-    const breastZone = gauss(nz, 0.685, 0.065) * gauss(torsoAx, 0.38, 0.28) * torsoCore;
-    const waistZone = gauss(nz, 0.56, 0.055) * torsoCore;
-    const abdomenZone = gauss(nz, 0.525, 0.07) * torsoCore;
+    const ribcageZone = gauss(nz, 0.68, 0.075) * torsoCore * roleWeight('trunk', vertex, 1);
+    const breastZone = gauss(nz, 0.685, 0.065) * gauss(torsoAx, 0.38, 0.28) * torsoCore * roleWeight('trunk', vertex, 1);
+    const waistZone = gauss(nz, 0.56, 0.055) * torsoCore * roleWeight('trunk', vertex, 1);
+    const abdomenZone = gauss(nz, 0.525, 0.07) * torsoCore * roleWeight('trunk', vertex, 1);
     const pelvisWeight = roleWeight('pelvis', vertex, 1);
     const hipZone = gauss(nz, 0.47, 0.065) * torsoCore * pelvisWeight;
     const buttockZone = gauss(nz, 0.465, 0.07) * torsoCore * pelvisWeight;
@@ -2992,7 +2992,8 @@ export function deformPlayerBodyGeometry(piece, morph, bodyBounds, skeleton = nu
     }
     if (legLength) {
       const lower = Math.max(0, Math.min(1, (0.50 - nz) / 0.50));
-      z += (oz - hipLine) * legLength * 0.12 * lower;
+      const legBoneWeight = Math.max(roleWeight('thigh', vertex, 1), roleWeight('calf', vertex, 1));
+      z += (oz - hipLine) * legLength * 0.12 * lower * legBoneWeight;
     }
     if (armLength && armZone > 0) {
       // Keep the shoulder attachment as the anchor; only the arm below it is
