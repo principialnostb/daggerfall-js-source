@@ -3289,7 +3289,7 @@ export async function buildFpArm({
     // First-person animation providers belong on this rig, after the archive source
     // list. ReAnimation contributes stance/weapon groups; OpenMW Dynamic Animations
     // contributes only canonical directional locomotion groups and can layer over it.
-    if (!werewolf && !beast && /\\.1st\\.nif$/i.test(skeletonPath)) {
+    if (!werewolf && !beast && /\.1st\.nif$/i.test(skeletonPath)) {
       const assets = await loadFirstPersonAnimationAssets({ skeletonPath });
       for (const asset of assets) {
         const report = await cachedClipReport(gen, skeletonPath, asset.name, () => asset.bytes, arm.skeleton);
@@ -3301,10 +3301,10 @@ export async function buildFpArm({
         let groups = report.groups.map((name) => String(name).toLowerCase());
         let keys = report.keys.map((key) => ({
           ...key,
-          text: String(key?.text ?? '').split(/\\r?\\n/).map((line) => {
+          text: String(key?.text ?? '').split(/\r?\n/).map((line) => {
             const colon = line.indexOf(':');
             return colon <= 0 ? line : line.slice(0, colon).trim().toLowerCase() + line.slice(colon);
-          }).join('\\n'),
+          }).join('\n'),
         }));
         if (dynamicLocomotion) {
           const targetGroup = String(asset.targetGroup ?? '').toLowerCase();
