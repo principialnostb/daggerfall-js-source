@@ -96,8 +96,8 @@ export const ANIMATION_PACK_PROVIDERS = Object.freeze([
     id: 'hit-reactions-v2.reactions',
     packId: PACKS.hitReactions,
     domains: Object.freeze(['animation.actor.hitReaction', 'animation.actor.stagger', 'animation.actor.death']),
-    status: 'present-unintegrated',
-    reason: 'Damage-event routing and recovery/cancellation behavior must be ported to JavaScript.',
+    status: 'needs-validation',
+    reason: 'JavaScript hurt()/die() consumers and deterministic group selection are wired; visual, timing, and skeleton compatibility checks remain outstanding.',
   }),
 ]);
 
@@ -110,10 +110,16 @@ export function resolveAnimationPackProvider(domain, selection = 'vanilla') {
   if (!provider) {
     return { requested: selection, effective: 'vanilla', provider: null, fallback: true, reason: 'No provider declares this domain and selection' };
   }
-  if (provider.status !== 'integrated') {
+  if (provider.status === 'present-unintegrated' || provider.status === 'blocked') {
     return { requested: selection, effective: 'vanilla', provider: provider.id, fallback: true, reason: provider.reason };
   }
-  return { requested: selection, effective: provider.id, provider: provider.id, fallback: false, reason: null };
+  return {
+    requested: selection,
+    effective: provider.id,
+    provider: provider.id,
+    fallback: false,
+    reason: provider.status === 'needs-validation' ? provider.reason : null,
+  };
 }
 
 const cache = new Map();
