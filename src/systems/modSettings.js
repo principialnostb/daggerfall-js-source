@@ -1668,9 +1668,11 @@ export const MOD_SETTINGS = Object.freeze({
         description: 'First-person sources can be used independently or layered. ReAnimation v3 supplies stance, weapon, jump and related clips; OpenMW Dynamic Animations supplies directional walk/run/sneak clips; the combined option overlays those movement groups on ReAnimation. Assets are enabled only when the active first-person rig is `xbase_anim.1st.nif`; any other rig retains archive fallback.',
       }),
       OpenMWDynamicAnimations: Object.freeze({
-        default: 1,
+        // Keep Vanilla as the default: this provider can replace the game's
+        // existing walk/run/sneak groups, so it must never silently change gait.
+        default: 0,
         options: lazyWords('Vanilla', 'OpenMW Dynamic Animations'),
-        description: 'Enable OpenMW Dynamic Animations third-person animation variants for compatible rigs. The browser port translates KF group selection and deterministic variant choice into the JavaScript animation runtime; it does not execute the original OpenMW Lua scripts.',
+        description: 'Third-person animation source for compatible rigs. OpenMW Dynamic Animations replaces matching game/archive groups, including directional walking, running, and sneaking; it can therefore change Vanilla locomotion, not just add new actions. Vanilla keeps the game/archive clips. The browser port translates KF group selection and deterministic variant choice into the JavaScript runtime; it does not execute the original OpenMW Lua scripts.',
       }),
       HitReactionSource: Object.freeze({
         default: 1,
