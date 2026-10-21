@@ -186,9 +186,9 @@ scripts or silently activate assets by directory order.
 
 | Pack | Asset families identified | Runtime status |
 |---|---|---|
-| ReAnimation v3 | First-person locomotion, idle/stance, weapon attacks, equip/unequip | Inventory and byte-loader foundation added; gameplay source selection and per-weapon mapping still required. Keep the `00 Core` clips separate from `01 FBA Compatibility`; the latter is not included by the loader. |
+| ReAnimation v3 | First-person locomotion, idle/stance, weapon attacks, equip/unequip | Inventory and byte-loader foundation added; gameplay source selection and per-weapon/action mapping still required. Keep the `00 Core` clips separate from `01 FBA Compatibility`; the latter is not included by the loader. |
 | OpenMW Dynamic Animations | Walk, run, sneak, idle, first-person movement, race-specific sources | Inventory and byte-loader foundation added; deterministic variant selection, text-key/group aliasing, and the OpenMW NPC speed/behavior rules are not yet ported. |
-| Hit Reactions Animated v2 | Hit reactions, staggers, death variants | Inventory and byte-loader foundation added; damage-event routing, compatible group selection, and recovery/cancellation behavior are not yet ported. |
+| Hit Reactions Animated v2 | Hit reactions, staggers, death variants | Wired into third-person body sources behind the explicit `HitReactionSource` setting. JS `hurt()` and `die()` choose compatible groups from a sorted, deduplicated candidate list using the caller's deterministic roll; missing/invalid clips fall back to the original archive source. Visual/timing/skeleton validation remains outstanding. |
 
 **This is not yet a claim that the three packs are active in gameplay.** The new
 unit tests pin family classification and safe Node-side imports. Before exposing
@@ -201,5 +201,5 @@ reference material, not executable game plugins.
 Next integration order:
 1. ReAnimation: connect selected first-person KF groups to the existing weapon/stance resolver without loading the whole pack into every pose sweep.
 2. Dynamic Animations: map the pack's named variants to engine movement groups and select them through an explicit, stable actor/provider rule; do not rely on glob order or per-frame randomness.
-3. Hit Reactions: add a JS damage/reaction event consumer, validate each candidate clip against the actor skeleton, and preserve existing death/recovery behavior.
+3. Hit Reactions: finish parser/clip compatibility tests and in-game validation of the wired JS damage/reaction consumer; preserve existing death/recovery behavior.
 4. Run focused tests, lint, type-check, production build, and in-game checks before marking any provider `integrated`.
