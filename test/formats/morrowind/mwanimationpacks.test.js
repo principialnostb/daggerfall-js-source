@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  ANIMATION_PACK_IDS, ANIMATION_PACK_PROVIDERS, animationPackFamily, inspectAnimationPackAssets, listAnimationPackAssets, loadHitReactionAnimationAssets,
+  ANIMATION_PACK_IDS, ANIMATION_PACK_PROVIDERS, animationPackFamily, inspectAnimationPackAssets, listAnimationPackAssets, loadHitReactionAnimationAssets, loadReAnimationAnimationAssets,
   resolveAnimationPackProvider, selectDeterministicReactionGroup, reAnimationPrefixesForWeaponGroup,
 } from '../../src/formats/morrowind/mwAnimationPackAssets.js';
 
@@ -80,4 +80,8 @@ test('MW-ANIM-PACKS: ReAnimation maps only known weapon families to canonical cl
   assert.deepEqual(reAnimationPrefixesForWeaponGroup('hh'), ['xh2h', 'xhh']);
   assert.deepEqual(reAnimationPrefixesForWeaponGroup('1b'), []);
   assert.deepEqual(reAnimationPrefixesForWeaponGroup('unknown'), []);
+});
+
+test('MW-ANIM-PACKS: ReAnimation asset loading is safe outside the browser', async () => {
+  assert.deepEqual(await loadReAnimationAnimationAssets({ weaponShortGroup: '2c' }), []);
 });
