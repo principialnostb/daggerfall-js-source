@@ -2939,15 +2939,23 @@ export function deformPlayerBodyGeometry(piece, morph, bodyBounds, skeleton = nu
     // Torso controls use torso-relative width. The former mask used ax,
     // normalized by the widest points of the entire body; when arms were
     // spread, its "torso" region expanded sideways and included arm vertices.
-    const torsoCore = (1 - smoothstep(0.72, 1.12, torsoAx)) * roleWeight('trunk', vertex, 1);
-    const shoulderZone = gauss(nz, 0.78, 0.065) * torsoCore * roleWeight('shoulder', vertex, 1);
-    const ribcageZone = gauss(nz, 0.68, 0.075) * torsoCore * roleWeight('trunk', vertex, 1);
-    const breastZone = gauss(nz, 0.685, 0.065) * gauss(torsoAx, 0.38, 0.28) * torsoCore * roleWeight('trunk', vertex, 1);
-    const waistZone = gauss(nz, 0.56, 0.055) * torsoCore * roleWeight('trunk', vertex, 1);
-    const abdomenZone = gauss(nz, 0.525, 0.07) * torsoCore * roleWeight('trunk', vertex, 1);
+    // Keep the geometric torso envelope separate from the skin-influence mask.
+    // Applying trunk weight here and again in each torso zone squared the authored
+    // weights (e.g. 0.5 became 0.25). It also accidentally required pelvis vertices
+    // to have trunk influence, suppressing hip and buttock controls almost entirely.
+    const torsoCore = 1 - smoothstep(0.72, 1.12, torsoAx);
+    const trunkWeight = roleWeight('trunk', vertex, 1);
+    const shoulderWeight = roleWeight('shoulder', vertex, 1);
     const pelvisWeight = roleWeight('pelvis', vertex, 1);
-    const hipZone = gauss(nz, 0.47, 0.065) * torsoCore * pelvisWeight;
-    const buttockZone = gauss(nz, 0.465, 0.07) * torsoCore * pelvisWeight;
+    const shoulderZone = gauss(nz, 0.78, 0.065) * torsoCore * shoulderWeight;
+    const ribcageZone = gauss(nz, 0.68, 0.075) * torsoCore * trunkWeight;
+    const breastZone = gauss(nz, 0.685, 0.065) * gauss(torsoAx, 0.38, 0.28) * torsoCore * trunkWeight;
+    const waistZone = gauss(nz, 0.56, 0.055) * torsoCore * trunkWeight;
+    const abdomenZone = gauss(nz, 0.525, 0.07) * torsoCore * trunkWeight;
+    // Pelvis anatomy is its own region: do not intersect it with the narrower
+    // torso core or demand a simultaneous spine/trunk skin influence.
+    const hipZone = gauss(nz, 0.47, 0.065) * pelvisWeight;
+    const buttockZone = gauss(nz, 0.465, 0.07) * pelvisWeight;
     const armZone = gauss(ax, 0.40, 0.12) * gauss(nz, 0.65, 0.15) * roleWeight('arm', vertex, 1);
     const thighZone = (ax > 0.07 ? 1 : 0) * gauss(nz, 0.31, 0.085) * roleWeight('thigh', vertex, 1);
     const calfZone = (ax > 0.045 ? 1 : 0) * gauss(nz, 0.15, 0.065) * roleWeight('calf', vertex, 1);
