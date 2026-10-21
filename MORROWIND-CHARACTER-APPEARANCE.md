@@ -171,3 +171,27 @@ This is a partial correction, not proof that every slider is visually correct. T
 Validation required before calling this resolved: run the focused body-morph test and build, inspect bone-name coverage on actual assembled Better Bodies meshes, and measure each isolated slider's vertex displacement on real mesh data. A passing synthetic regression test is not visual or in-game validation.
 
 **Validation status:** the production morph path has now been changed to use authored skin-weight regions where recognizable bone names are present. However, no automated test run, build, browser render, or in-game visual check has been performed in this pass. The torso-mask commits remain unverified, and the new bone-weight gating is also unverified against the actual Better Bodies assets.
+
+
+### Additional static audit findings — 2026-10-21
+
+**Confirmed: two pairs of controls are not functionally independent in the current deformation formula.**
+
+- `breastSize` and `breastProjection` are added into the same scalar expression, then applied to the same `breastZone * front` mask and the same Y axis. Their only difference is the coefficient (0.15 vs 0.20). No separate lateral-volume term exists in this implementation. Therefore the two controls are mathematically interchangeable up to scale; they cannot independently express breast volume versus projection.
+- `buttockSize` and `buttockProjection` have the same problem: both are summed into one scalar and applied to the same rear mask on the same Y axis, with only different coefficients (0.15 vs 0.19). They cannot independently express volume versus projection.
+- This is a concrete semantic defect in the current formulas, not a visual guess. It does not alone explain every incorrectly placed zone or prove which build was used during a particular manual test.
+
+**Confirmed: regression coverage does not establish correctness on the shipped body meshes.**
+
+- `test/formats/morrowind/bodyMorphs.test.js` mostly uses a synthetic Cartesian point cloud and broad hand-authored bounds. The general test asserts only that some vertex changes; shoulder/waist isolation checks three selected points without real skin weights; the bone-resolution test uses a synthetic skeleton map and four synthetic vertices.
+- No checked-in test currently records per-control displacement on an actual assembled Better Bodies NIF across its source shapes and skin influences. The tests therefore cannot detect wrong anatomical membership on the real mesh.
+
+**Confirmed: the tracked repository contains two buildable project trees that are not equivalent.**
+
+- Root `src/formats/morrowind/mwFirstPerson.js` has a different morph implementation from `morrowind.v4/src/formats/morrowind/mwFirstPerson.js`. The root version resolves each skin influence's `ref` through the actual skeleton and applies bone-region weights; the nested copy has the older signature without the skeleton argument and lacks that gating.
+- The root `test/formats/morrowind/bodyMorphs.test.js` exists, but the equivalent `morrowind.v4/test/formats/morrowind/bodyMorphs.test.js` does not. Both trees have package/build configuration, so launching Vite from the nested directory would run the nested snapshot rather than root `Dev`.
+- This is a high-priority execution-path hypothesis for “code changes do not affect the result”, but it is not yet proven to be the cause of a specific manual run. Before further diagnosis, record the exact working directory, served URL/build, and commit/source tree being tested.
+
+**Preview clarification.** The only tracked `better-bodies-preview.html` is a NIF mesh-section/UV and static equipment-fit preview; it does not implement anatomical zone picking. The prior screen-coordinate click grouping described above was not real mesh segmentation and was removed. The anatomical preview described in earlier discussion is not present in the current tracked HTML files and must be located or recreated as a separate diagnostic before it can serve as an oracle.
+
+**Validation status:** static source inspection only. No repository test suite, build, browser render, or in-game run was executed during this audit. Do not modify deformation formulas until the active build path is verified and real-mesh per-control displacement is measured.
