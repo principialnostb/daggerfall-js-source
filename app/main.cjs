@@ -1128,6 +1128,13 @@ function openSavesFolder() {
   shell.openPath(dir);
 }
 
+/** MOD-DIAG1: a direct door to the diagnostic files for support reports. */
+function openDiagnosticsFolder() {
+  const dir = path.join(app.getPath('userData'), 'Diagnostics');
+  fs.mkdirSync(path.join(dir, 'mods'), { recursive: true });
+  shell.openPath(dir);
+}
+
 /** DA10: the update check's switch. The launcher's toggle and the File
  *  menu's checkbox are one setting (config.json updateCheck); turned on
  *  while the launcher is open, it checks now rather than next launch. */
@@ -1161,6 +1168,7 @@ function buildMenu() {
       label: 'File',
       submenu: [
         { label: 'Open Saves Folder', click: () => openSavesFolder() },
+        { label: 'Open Diagnostics Folder', click: () => openDiagnosticsFolder() },
         {
           label: 'Locate ARENA2 Folder...',
           click: async () => {
