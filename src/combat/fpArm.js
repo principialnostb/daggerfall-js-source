@@ -4910,7 +4910,7 @@ export function createFpArm({ playerAppearance = false } = {}) {
       }
       pick = pickAnimSource(sources, weaponGroup, resetClip, options);
     }
-    logAnimationDiagnostic(`fp-action-v2|${weaponGroup}|${start}|${stop}`, {
+    logAnimationDiagnostic(`fp-action-v2|${Date.now()}|${viewMode}|${activeRig.skeletonPath ?? activeRig.settingsSkeleton ?? 'unknown-rig'}|${weaponGroup}|${start}|${stop}`, {
       family: 'first-person-action-selection-v3', weaponGroup, start, stop,
       providerChoice, reAnimationEnabled, actionType,
       activeViewMode: viewMode,
@@ -5661,7 +5661,7 @@ export function createFpArm({ playerAppearance = false } = {}) {
       weaponShown = false;
       hideWeaponAtUnequipEnd = false;
       hideWeaponAtUnequipEndReason = null;
-      logAnimationDiagnostic(`fp-unequip-detach|${weaponGroup}|${actionSource?.name ?? 'unknown'}`, {
+      logAnimationDiagnostic(`fp-unequip-detach|${Date.now()}|${weaponGroup}|${actionSource?.name ?? 'unknown'}`, {
         family: 'first-person-weapon-sheathing-v1',
         event: 'weapon-hidden-at-detach-key',
         weaponGroup,
