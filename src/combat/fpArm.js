@@ -2360,7 +2360,7 @@ async function buildTpBody({
     // MW-ANIM-PACKS / Hit Reactions v2: load only clips matching this actor's
     // skeleton family, and only when the explicit provider selection is enabled.
     // OpenMW Lua is not executed; JS hurt()/die() below own the deterministic event routing.
-    if (modSetting('morrowind-animation', 'HitReactionSource') === 1) {
+    if (!werewolf && modSetting('morrowind-animation', 'HitReactionSource') === 1) {
       const reactionAssets = await loadHitReactionAnimationAssets({ female, beast });
       for (const asset of reactionAssets) {
         const report = await cachedClipReport(gen, skeletonPath, asset.path, () => asset.bytes, arm.skeleton);
