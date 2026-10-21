@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { inspectWalkAnimationAssets, isWalkAnimationGroup, isWalkAnimationKey, isRunAnimationGroup, isRunAnimationKey, isWalkVariantEnabled, isRunVariantEnabled, walkVariantForActor, runVariantForActor, firstPersonAnimationProviderForChoice, isOpenMWDynamicFirstPersonClip, openMWDynamicFirstPersonGroup, hitReactionVariantForSkeleton, isHitReactionAssetForSkeleton, isFirstPersonAnimationRigCompatible, remapAnimationGroupKeys, hitReactionTargetGroup } from '../../src/formats/morrowind/mwWalkAnimationAssets.js';
+import { inspectWalkAnimationAssets, isWalkAnimationGroup, isWalkAnimationKey, isRunAnimationGroup, isRunAnimationKey, isWalkVariantEnabled, isRunVariantEnabled, walkVariantForActor, runVariantForActor, firstPersonAnimationProviderForChoice, isOpenMWDynamicFirstPersonClip, openMWDynamicFirstPersonGroup, hitReactionVariantForSkeleton, isHitReactionAssetForSkeleton, isFirstPersonAnimationRigCompatible, remapAnimationGroupKeys, hitReactionTargetGroup, openMWDynamicThirdPersonTargetGroup, openMWDynamicThirdPersonSourceGroup, selectOpenMWDynamicAnimationVariants } from '../../src/formats/morrowind/mwWalkAnimationAssets.js';
 
 test('MW-ANIM-1: bundled walk asset inventory is safe to import in Node', () => {
   const assets = inspectWalkAnimationAssets();
@@ -88,7 +88,7 @@ test('MW-ANIM-4: first-person providers are limited to the skeleton they ship fo
 test('MW-ANIM-4: first-person provider choice is exclusive and stable', () => {
   assert.equal(firstPersonAnimationProviderForChoice(0), 'vanilla');
   assert.equal(firstPersonAnimationProviderForChoice(1), 'reanimation-v3');
-  assert.equal(firstPersonAnimationProviderForChoice(2), 'openmw-dynamic-first-person');
+  assert.equal(firstPersonAnimationProviderForChoice(2), 'reanimation-v3+openmw-dynamic-first-person');
   assert.equal(firstPersonAnimationProviderForChoice(-1), 'vanilla');
   assert.equal(firstPersonAnimationProviderForChoice(99), 'openmw-dynamic-first-person');
 });
@@ -145,4 +145,30 @@ test('MW-ANIM-6: custom reaction clip keys are remapped to groups the combat sta
   assert.deepEqual(hitReactionTargetGroup('/Animations/xbase_anim/xStaggerBack.kf', 3, 2), { family: 'hit', group: 'hit3' });
   assert.deepEqual(hitReactionTargetGroup('/Animations/xbase_anim/xDeathBack.kf', 3, 2), { family: 'death', group: 'death2' });
   assert.equal(hitReactionTargetGroup('/Animations/xbase_anim/xWalk.kf', 3, 2), null);
+});
+
+test('MW-ANIM-7: OpenMW third-person asset names map to canonical runtime groups', () => {
+  const base = 'Mods/Animations/OpenMW Dynamic Animations/animations/xbase_anim/';
+  assert.equal(openMWDynamicThirdPersonTargetGroup(base + 'WalkForward_base11;.kf'), 'walkforward');
+  assert.equal(openMWDynamicThirdPersonTargetGroup(base + 'WalkForward_march13;.kf'), 'walkforward');
+  assert.equal(openMWDynamicThirdPersonTargetGroup(base + 'zIdle2;.kf'), 'idle2');
+  assert.equal(openMWDynamicThirdPersonTargetGroup(base + 'ArmsAkimbo;.kf'), 'armsakimbo');
+  assert.equal(openMWDynamicThirdPersonTargetGroup(base + 'xWalkForward;.kf'), 'walkforward');
+  assert.equal(openMWDynamicThirdPersonTargetGroup(base + 'UnknownClip;.kf'), null);
+  assert.equal(openMWDynamicThirdPersonSourceGroup(base + 'WalkForward_base11;.kf'), 'walkforward_base11');
+});
+
+test('MW-ANIM-7: OpenMW third-person variant selection is deterministic and one-per-group', () => {
+  const assets = [
+    { name: 'b.kf', targetGroup: 'walkforward' },
+    { name: 'a.kf', targetGroup: 'walkforward' },
+    { name: 'idle.kf', targetGroup: 'idle' },
+    { name: 'idle2.kf', targetGroup: 'idle2' },
+  ];
+  const first = selectOpenMWDynamicAnimationVariants(assets, 'darkelf|female|head-12');
+  const second = selectOpenMWDynamicAnimationVariants(assets, 'darkelf|female|head-12');
+  assert.deepEqual(first, second);
+  assert.equal(first.length, 3);
+  assert.equal(new Set(first.map((asset) => asset.targetGroup)).size, 3);
+  assert.deepEqual(first.map((asset) => asset.name), [...first.map((asset) => asset.name)].sort());
 });
