@@ -84,7 +84,7 @@ import { DFPalette } from '../formats/dfPalette.js';
 import { raceArt } from '../systems/races.js';
 import { appStorage } from '../systems/appStorage.js';   // DA1: the storage seam
 import { modSetting } from '../systems/modSettings.js';
-import { loadWalkAnimationAssets, loadFirstPersonAnimationAssets, loadHitReactionAnimationAssets, isWalkAnimationGroup, isWalkAnimationKey, isRunAnimationGroup, isRunAnimationKey, isWalkVariantEnabled, isRunVariantEnabled, walkVariantForActor, runVariantForActor, remapAnimationGroupKeys, hitReactionTargetGroup } from '../formats/morrowind/mwWalkAnimationAssets.js';
+import { loadWalkAnimationAssets, loadFirstPersonAnimationAssets, loadHitReactionAnimationAssets, loadOpenMWDynamicThirdPersonAnimationAssets, selectOpenMWDynamicAnimationVariants, isWalkAnimationGroup, isWalkAnimationKey, isRunAnimationGroup, isRunAnimationKey, isWalkVariantEnabled, isRunVariantEnabled, walkVariantForActor, runVariantForActor, remapAnimationGroupKeys, hitReactionTargetGroup } from '../formats/morrowind/mwWalkAnimationAssets.js';
 import { drawRigSpriteBox, MW_THIRD_PERSON_PIXEL } from '../render/characterSprite.js';
 import { WEAPONS } from '../characters/weapons.js';
 import { materialName } from '../systems/item/itemInfo.js';
@@ -2314,6 +2314,41 @@ async function buildTpBody({
         wouldAccumRoot: accumRootRef(arm.skeleton, one.trackMap),
       });
     }
+    // OpenMW Dynamic Animations third-person catalog. The original OpenMW Lua
+    // controller is not executable here; its KF variants are translated to the
+    // runtime's canonical groups and one variant per group is chosen deterministically
+    // from this actor's stable identity. Walk-only user selectors below retain priority.
+    if (!werewolf) {
+      const dynamicAssets = await loadOpenMWDynamicThirdPersonAnimationAssets({ skeletonPath, race });
+      const seed = [skeletonPath, race, female ? 'female' : 'male', beast ? 'beast' : 'biped',
+        faceIndex ?? '', appearanceHeadId ?? '', appearanceHairId ?? '',
+        walk?.head?.model ?? walk?.head?.id ?? '', walk?.hair?.model ?? walk?.hair?.id ?? ''].join('|');
+      const selectedDynamicAssets = selectOpenMWDynamicAnimationVariants(dynamicAssets, seed);
+      for (const asset of selectedDynamicAssets) {
+        const report = await cachedClipReport(gen, skeletonPath, asset.name, () => asset.bytes, arm.skeleton);
+        if (!report.ok) {
+          missing.push(`OpenMW Dynamic Animations clip ${asset.name}: ${report.error}`);
+          continue;
+        }
+        const sourceGroup = String(asset.sourceGroup ?? '').toLowerCase();
+        const targetGroup = String(asset.targetGroup ?? '').toLowerCase();
+        const aliases = new Set([sourceGroup, sourceGroup.replace(/^[xz]/, ''), targetGroup,
+          `x${targetGroup}`, `z${targetGroup}`]);
+        const sourceGroups = report.groups.filter((name) => aliases.has(String(name).toLowerCase()));
+        const keys = remapAnimationGroupKeys(report.keys, sourceGroups, targetGroup);
+        if (!sourceGroups.length || !keys.length) {
+          missing.push(`OpenMW Dynamic Animations clip ${asset.name}: no compatible ${targetGroup} group; archive source retained`);
+          continue;
+        }
+        const groups = [targetGroup];
+        sources.push({
+          name: asset.name, keys, groups, groupSet: new Set(groups),
+          trackMap: report.trackMap, binding: report.binding,
+          wouldAccumRoot: accumRootRef(arm.skeleton, report.trackMap),
+          animationFamily: 'dynamic-third-person', animationPack: 'openmw-dynamic-animations',
+        });
+      }
+    }
     // MW-ANIM-1: The uploaded Simply Walking set replaces WALK groups only.
     // The separate Feminine Walk Cycle is a female-only, walk-only override;
     // other actions keep the game's own sources and priority.
@@ -2353,39 +2388,6 @@ async function buildTpBody({
           animationOverhaul: isOverhaul,
           animationFamily: asset.family,
           walkVariant: asset.variant,
-        });
-      }
-    }
-    // First-person animation provider: one selected pack at a time. OpenMW Dynamic
-    // Animations is deliberately restricted to locomotion groups; all other groups
-    // stay on the archive source and the OpenMW Lua state machine is not executed.
-    if (!werewolf && !beast && /\.1st\.nif$/i.test(skeletonPath)) {
-      const assets = await loadFirstPersonAnimationAssets({ skeletonPath });
-      for (const asset of assets) {
-        const report = await cachedClipReport(gen, skeletonPath, asset.name, () => asset.bytes, arm.skeleton);
-        if (!report.ok) { missing.push(`First-person clip ${asset.name}: ${report.error}`); continue; }
-        const dynamicLocomotion = asset.variant === 'openmw-dynamic-first-person';
-        let groups = report.groups.map((name) => String(name).toLowerCase());
-        let keys = report.keys.map((key) => ({
-          ...key,
-          text: String(key?.text ?? '').split(/\r?\n/).map((line) => {
-            const colon = line.indexOf(':');
-            return colon <= 0 ? line : line.slice(0, colon).trim().toLowerCase() + line.slice(colon);
-          }).join('\n'),
-        }));
-        if (dynamicLocomotion) {
-          const targetGroup = String(asset.targetGroup ?? '').toLowerCase();
-          const aliases = new Set([targetGroup, `${targetGroup}_base`, `x${targetGroup}`, `x${targetGroup}_base`]);
-          const sourceGroups = report.groups.filter((name) => aliases.has(String(name).toLowerCase()));
-          groups = sourceGroups.length ? [targetGroup] : [];
-          keys = remapAnimationGroupKeys(report.keys, sourceGroups, targetGroup);
-        }
-        if (!groups.length || !keys.length) continue;
-        sources.push({
-          name: asset.name, keys, groups,
-          groupSet: new Set(groups), trackMap: report.trackMap, binding: report.binding,
-          wouldAccumRoot: accumRootRef(arm.skeleton, report.trackMap),
-          animationFamily: 'first-person', animationPack: asset.variant,
         });
       }
     }
@@ -3283,6 +3285,45 @@ export async function buildFpArm({
         // root is picked below, and it is not per-source.
         wouldAccumRoot: accumRootRef(arm.skeleton, one.trackMap),
       });
+    }
+    // First-person animation providers belong on this rig, after the archive source
+    // list. ReAnimation contributes stance/weapon groups; OpenMW Dynamic Animations
+    // contributes only canonical directional locomotion groups and can layer over it.
+    if (!werewolf && !beast && /\\.1st\\.nif$/i.test(skeletonPath)) {
+      const assets = await loadFirstPersonAnimationAssets({ skeletonPath });
+      for (const asset of assets) {
+        const report = await cachedClipReport(gen, skeletonPath, asset.name, () => asset.bytes, arm.skeleton);
+        if (!report.ok) {
+          missing.push(`First-person clip ${asset.name}: ${report.error}`);
+          continue;
+        }
+        const dynamicLocomotion = asset.variant === 'openmw-dynamic-first-person';
+        let groups = report.groups.map((name) => String(name).toLowerCase());
+        let keys = report.keys.map((key) => ({
+          ...key,
+          text: String(key?.text ?? '').split(/\\r?\\n/).map((line) => {
+            const colon = line.indexOf(':');
+            return colon <= 0 ? line : line.slice(0, colon).trim().toLowerCase() + line.slice(colon);
+          }).join('\\n'),
+        }));
+        if (dynamicLocomotion) {
+          const targetGroup = String(asset.targetGroup ?? '').toLowerCase();
+          const aliases = new Set([targetGroup, `${targetGroup}_base`, `x${targetGroup}`, `x${targetGroup}_base`]);
+          const sourceGroups = report.groups.filter((name) => aliases.has(String(name).toLowerCase()));
+          groups = sourceGroups.length ? [targetGroup] : [];
+          keys = remapAnimationGroupKeys(report.keys, sourceGroups, targetGroup);
+        }
+        if (!groups.length || !keys.length) {
+          missing.push(`First-person clip ${asset.name}: no compatible animation groups; archive fallback retained`);
+          continue;
+        }
+        sources.push({
+          name: asset.name, keys, groups, groupSet: new Set(groups),
+          trackMap: report.trackMap, binding: report.binding,
+          wouldAccumRoot: accumRootRef(arm.skeleton, report.trackMap),
+          animationFamily: 'first-person', animationPack: asset.variant,
+        });
+      }
     }
     // hasAnimation: ANY source. The reverse search below picks WHICH.
     const groupSet = new Set(sources.flatMap((so) => so.groups));
