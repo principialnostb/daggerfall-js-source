@@ -609,7 +609,7 @@ export function dfWornArmor(slots, EQUIP_SLOTS, ARMOR_ENUM) {
  * missing record, an unknown INDX, a ref with no id for this sex -
  * each is a note, the skin stands, the law is never-traps.
  */
-export function composeWornArmor({ pieces, armors, clothes, bodyPool, female = false, colourOf = null, helmStyle = undefined }) {   // MW-STEEL1: helmStyle, the Steel Helm switch (undefined: the default style)
+export function composeWornArmor({ pieces, armors, clothes, bodyPool, female = false, colourOf = null, helmStyle = undefined, cloakStyle = 'classic' }) {   // MW-STEEL1: helmStyle, the Steel Helm switch (undefined: the default style)
   const notes = [];
   const bodyById = new Map((bodyPool ?? []).map((b) => [String(b.id || '').toLowerCase(), b]));
   // ── THE PRIORITY LAW (Audit 30's recording, now consumed) ────────
@@ -681,7 +681,7 @@ export function composeWornArmor({ pieces, armors, clothes, bodyPool, female = f
       // MW-CLOAK1: A CLOAK IS THE PORT'S OWN (characters/ownModels/ownClothingModels.js) - one skinned mesh hung down the back,
       // claiming NO slot and reserving none: the armour and the clothes under it stay drawn. Daggerfall wears two
       // (Cloak1, Cloak2); one cloak is drawn, the first, and the second says so - two of one mesh would be one.
-      const cloak = ownCloakFor({ ...piece, name });
+      const cloak = ownCloakFor({ ...piece, name }, { style: piece.cloakStyle ?? cloakStyle });
       if (cloak) {
         if (cloakAdd) { notes.push(`${name}: a second cloak - the first (${cloakName}) is the one drawn`); continue; }
         cloakAdd = { slot: `cloak (${cloak.id})`, partName: 'cloak', bones: [], model: cloak.model, recordId: cloak.id, piece };
