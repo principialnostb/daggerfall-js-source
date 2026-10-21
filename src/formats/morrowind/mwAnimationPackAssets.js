@@ -83,7 +83,7 @@ export const ANIMATION_PACK_PROVIDERS = Object.freeze([
     packId: PACKS.reanimation,
     domains: Object.freeze(['animation.player.firstPerson.locomotion', 'animation.player.firstPerson.stance', 'animation.player.firstPerson.attack']),
     status: 'needs-validation',
-    reason: 'Canonical core KF sources are wired to first-person rigs by weapon family; alternate attack behavior, complete weapon coverage, and in-game compatibility remain outstanding.',
+    reason: 'Canonical core KF sources and generic attack variants are wired to first-person rigs by weapon family; stable action-hash selection is active, while katana/mirrored variants, complete weapon coverage, advanced Lua overrides, and in-game compatibility remain outstanding.',
   }),
   Object.freeze({
     id: 'dynamic-animations.locomotion',
