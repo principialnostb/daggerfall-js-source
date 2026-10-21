@@ -27,7 +27,14 @@ test('staged packs never become active by folder order or by being present on di
   }
 });
 
-test('Hit Reactions is blocked until explicit asset-use/conversion permission is granted', () => {
+test('ReAnimation and Hit Reactions are blocked until explicit conversion/asset-use permission is granted', () => {
+  const reanimation = animationPackById('reanimation-v3');
+  assert.equal(reanimation.status, ANIMATION_PACK_STATUS.blockedPermission);
+  assert.deepEqual(resolveAnimationPack({
+    providerId: reanimation.id, domain: 'first-person.combat',
+  }), {
+    ok: false, providerId: 'vanilla', reason: 'permission-required', packId: reanimation.id,
+  });
   const pack = animationPackById('hit-reactions-animated-v2');
   assert.equal(pack.status, ANIMATION_PACK_STATUS.blockedPermission);
   assert.deepEqual(resolveAnimationPack({
