@@ -1369,6 +1369,24 @@ export const FEATURES = Object.freeze([
     kinds: Object.freeze(['mod']),
     control: Object.freeze({ store: 'mods', vendor: 'morrowind-animation', key: 'NpcFemaleWalk' }),
   }),
+  Object.freeze({
+    id: 'morrowind-male-npc-idle-animation',
+    group: 'character',
+    title: 'Простой idle NPC · мужчины',
+    get note() { return MOD_SETTINGS['morrowind-animation'].keys.NpcMaleIdleSource.description; },
+    effect: 'Takes effect at once.',
+    kinds: Object.freeze(['mod']),
+    control: Object.freeze({ store: 'mods', vendor: 'morrowind-animation', key: 'NpcMaleIdleSource' }),
+  }),
+  Object.freeze({
+    id: 'morrowind-female-npc-idle-animation',
+    group: 'character',
+    title: 'Простой idle NPC · женщины',
+    get note() { return MOD_SETTINGS['morrowind-animation'].keys.NpcFemaleIdleSource.description; },
+    effect: 'Takes effect at once.',
+    kinds: Object.freeze(['mod']),
+    control: Object.freeze({ store: 'mods', vendor: 'morrowind-animation', key: 'NpcFemaleIdleSource' }),
+  }),
   // FT10 (2026-09-14): DFU'S OWN DUNGEON ENHANCEMENTS - three of the
   // Enhancements section's switches, each read by the port at the point
   // of use as DFU reads it. DFU Classic: Daggerfall Unity's departures
