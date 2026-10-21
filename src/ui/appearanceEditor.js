@@ -10,6 +10,29 @@ const GROUPS = [
   { id: 'head', title: 'Голова', description: 'Масштаб головы', keys: ['headScale'] },
 ];
 const labelByKey = new Map(BODY_MORPH_FIELDS.map(([key, label]) => [key, label]));
+// User-observed effects on the current mesh. Labels describe the visible result,
+// not the control's legacy/internal name.
+const diagnosticLabels = new Map([
+  ['height', 'Высота туловища'],
+  ['bodyWidth', 'Ширина тела'],
+  ['bodyFullness', 'Толщина тела (вид сбоку)'],
+  ['shoulderWidth', 'Ширина верхней части корпуса'],
+  ['ribcageWidth', 'Ширина нижней части корпуса'],
+  ['breastSize', 'Выпуклость живота'],
+  ['breastProjection', 'Выступ живота вперёд'],
+  ['waistWidth', 'Ширина паховой области и бёдер у паха'],
+  ['abdomenVolume', 'Деформация живота, ягодиц и паховой зоны'],
+  ['hipWidth', 'Ширина таза (эффект не обнаружен)'],
+  ['buttockSize', 'Форма нижней части ягодиц (слабый эффект)'],
+  ['buttockProjection', 'Выступ ягодиц назад (почти незаметно)'],
+  ['headScale', 'Размер головы'],
+  ['armThickness', 'Ширина рук (вид спереди)'],
+  ['armLength', 'Длина рук (эффект не обнаружен)'],
+  ['thighThickness', 'Расстояние между коленями: бёдра'],
+  ['calfThickness', 'Расстояние между коленями: голени'],
+  ['legLength', 'Длина голеней'],
+  ['legGap', 'Расстояние между коленями и ступнями'],
+]);
 const clamp = (n) => Math.max(-1, Math.min(1, n));
 
 const STYLE = `
@@ -86,6 +109,13 @@ const STYLE = `
 #mw-appearance-editor .mw-mark{border:1px solid #8b754a;color:#e1c783;background:#17191d;box-shadow:inset 0 0 0 2px #393127}
 #mw-appearance-editor .mw-state{border-color:#5e5038;border-radius:2px;color:#e1d2ad;background:#28251f}
 #mw-appearance-editor .mw-state:before{background:#c7a45c;box-shadow:0 0 7px #c7a45c55}
+#mw-appearance-editor .mw-advanced-toggle{display:flex;width:calc(100% - 28px);margin:12px 14px 8px;min-height:42px;justify-content:space-between;padding:10px 13px;border-color:#8c7548;background:linear-gradient(#343237,#25262b);color:#e1c783;text-align:left;font-size:13px}
+#mw-appearance-editor .mw-advanced-toggle[aria-expanded="true"]{background:#332e24;border-color:#d0ad62}
+#mw-appearance-editor .mw-advanced-panel{min-height:0;overflow:auto;border-top:1px solid #49443a}
+#mw-appearance-editor .mw-advanced-panel[hidden]{display:none}
+#mw-appearance-editor .mw-advanced-note{margin:10px 14px 0;padding:9px 11px;border-left:3px solid #c3a15d;background:#28251f;color:#d4c7a7;font-size:11px;line-height:1.45}
+#mw-appearance-editor .mw-identity-grid .mw-underwear{background:#24262a;border-color:#45413a}
+#mw-appearance-editor .mw-identity-grid select{background:#17191e!important;color:#e9e4d9!important;border:1px solid #62513a!important;border-radius:2px}
 #mw-appearance-editor .mw-preview-side{background:radial-gradient(ellipse at 50% 38%,#34373b 0,#25282d 45%,#17191c 82%)}
 #mw-appearance-editor .mw-section-title{color:#e1c783;letter-spacing:.08em}
 #mw-appearance-editor .mw-canvas-wrap{border:1px solid #66583e;border-radius:2px;background:radial-gradient(ellipse at 50% 40%,#35383d 0,#25282d 48%,#17191c 82%)}
@@ -256,7 +286,7 @@ export function openAppearanceEditor({ fpArm, onClose = () => {} } = {}) {
   controls.className = 'mw-controls';
   const controlsHead = document.createElement('div');
   controlsHead.className = 'mw-controls-head';
-  controlsHead.innerHTML = '<h2>Внешность персонажа</h2><p>Настройте идентичность, затем переходите к пропорциям тела. Списки лица и причёски содержат уникальные доступные модели.</p>';
+  controlsHead.innerHTML = '<h2>Внешность персонажа</h2><p>Выберите пол и расу, затем настройте лицо и причёску. Редактор пропорций тела доступен отдельно в расширенных параметрах и пока находится в разработке.</p>';
   const identityGrid = document.createElement('div'); identityGrid.className = 'mw-identity-grid';
   const sexRow = document.createElement('label'); sexRow.className = 'mw-underwear';
   const sexLabel = document.createElement('span'); sexLabel.textContent = 'Пол';
@@ -289,20 +319,14 @@ export function openAppearanceEditor({ fpArm, onClose = () => {} } = {}) {
   const headSelect = document.createElement('select'); headSelect.setAttribute('aria-label', 'Модель лица');
   headSelect.style.cssText = sexSelect.style.cssText;
   faceRow.append(faceLabel, headSelect);
-  const faceGroup = document.createElement('section'); faceGroup.className = 'mw-choice-group';
-  const faceTitle = document.createElement('h3'); faceTitle.className = 'mw-choice-title'; faceTitle.textContent = 'Лицо';
-  faceGroup.append(faceTitle, faceRow);
   const hairRow = document.createElement('label'); hairRow.className = 'mw-underwear';
   const hairLabel = document.createElement('span'); hairLabel.textContent = 'Причёска';
   const hairSelect = document.createElement('select'); hairSelect.setAttribute('aria-label', 'Модель причёски');
   hairSelect.style.cssText = sexSelect.style.cssText;
   hairRow.append(hairLabel, hairSelect);
-  const hairGroup = document.createElement('section'); hairGroup.className = 'mw-choice-group';
-  const hairTitle = document.createElement('h3'); hairTitle.className = 'mw-choice-title'; hairTitle.textContent = 'Причёска';
-  hairGroup.append(hairTitle, hairRow);
-  const choiceGrid = document.createElement('div'); choiceGrid.className = 'mw-choice-grid';
-  choiceGrid.append(faceGroup, hairGroup);
-  identityGrid.append(sexRow, raceRow);
+  // Keep all four identity selectors in the same compact grid and use the same
+  // label/select treatment for face and hair as for race and sex.
+  identityGrid.append(sexRow, raceRow, faceRow, hairRow);
   const optionsGrid = document.createElement('div'); optionsGrid.className = 'mw-options-grid';
   const underwearRow = document.createElement('label'); underwearRow.className = 'mw-underwear';
   const underwearToggle = document.createElement('input'); underwearToggle.type = 'checkbox'; underwearToggle.checked = getUnderwearEnabled();
@@ -313,7 +337,7 @@ export function openAppearanceEditor({ fpArm, onClose = () => {} } = {}) {
   const bodyHairCopy = document.createElement('span'); bodyHairCopy.innerHTML = '<strong>Волосы на теле</strong><small>Для голой модели; отключите нижнее бельё. Нужен High Resolution Better Body Female Textures.</small>';
   bodyHairRow.append(bodyHairToggle, bodyHairCopy);
   optionsGrid.append(underwearRow, bodyHairRow);
-  controlsHead.append(identityGrid, choiceGrid, optionsGrid);
+  controlsHead.append(identityGrid, optionsGrid);
   bodyHairToggle.addEventListener('change', async () => {
     setBodyHairEnabled(bodyHairToggle.checked);
     statusMessage.style.display = 'block'; statusMessage.textContent = 'Пересборка текстур модели…';
@@ -418,6 +442,22 @@ export function openAppearanceEditor({ fpArm, onClose = () => {} } = {}) {
     } catch (error) { previewError = String(error?.message || error); }
     drawPreview();
   });
+  const advancedToggle = makeButton('＋  Расширенные параметры тела', false, 'mw-advanced-toggle');
+  advancedToggle.setAttribute('aria-expanded', 'false');
+  advancedToggle.setAttribute('aria-controls', 'mw-advanced-body-panel');
+  const advancedNote = document.createElement('p');
+  advancedNote.className = 'mw-advanced-note';
+  advancedNote.textContent = 'Функция находится в разработке. Эффекты ползунков изучены не полностью и могут деформировать модель.';
+  const advancedPanel = document.createElement('section');
+  advancedPanel.id = 'mw-advanced-body-panel';
+  advancedPanel.className = 'mw-advanced-panel';
+  advancedPanel.hidden = true;
+  advancedToggle.addEventListener('click', () => {
+    const expanded = advancedToggle.getAttribute('aria-expanded') !== 'true';
+    advancedToggle.setAttribute('aria-expanded', String(expanded));
+    advancedToggle.textContent = (expanded ? '−' : '＋') + '  Расширенные параметры тела';
+    advancedPanel.hidden = !expanded;
+  });
   const zoneNav = document.createElement('nav'); zoneNav.className = 'mw-zone-nav'; zoneNav.setAttribute('aria-label', 'Выбор группы частей тела');
   const controlList = document.createElement('div'); controlList.className = 'mw-control-list';
   const inputs = new Map();
@@ -453,7 +493,7 @@ export function openAppearanceEditor({ fpArm, onClose = () => {} } = {}) {
     const fields = document.createElement('div'); fields.className = 'mw-group-fields';
     for (const key of groupInfo.keys) {
       const row = document.createElement('label'); row.className = 'mw-slider-row';
-      const name = document.createElement('span'); name.className = 'mw-slider-label'; name.textContent = labelByKey.get(key) || key;
+      const name = document.createElement('span'); name.className = 'mw-slider-label'; name.textContent = diagnosticLabels.get(key) || labelByKey.get(key) || key;
       const input = document.createElement('input');
       input.type = 'range'; input.min = '-1'; input.max = '1'; input.step = '0.01'; input.value = String(initial[key] ?? 0);
       input.style.setProperty('--range-fill', (((Number(input.value) + 1) / 2) * 100) + '%');
@@ -521,8 +561,9 @@ export function openAppearanceEditor({ fpArm, onClose = () => {} } = {}) {
   });
   footerActions.append(reset, done); footer.append(footerNote, footerActions);
 
+  advancedPanel.append(advancedNote, zoneNav, controlList);
   previewSide.append(previewHead, canvasWrap, previewTools);
-  controls.append(controlsHead, zoneNav, controlList, footer);
+  controls.append(controlsHead, advancedToggle, advancedPanel, footer);
   main.append(previewSide, controls);
   shell.append(topbar, main); root.append(shell);
   root.addEventListener('click', (e) => { if (e.target === root) close(); });
