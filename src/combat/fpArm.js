@@ -85,6 +85,7 @@ import { raceArt } from '../systems/races.js';
 import { appStorage } from '../systems/appStorage.js';   // DA1: the storage seam
 import { modSetting } from '../systems/modSettings.js';
 import { loadWalkAnimationAssets, isWalkAnimationGroup, isWalkAnimationKey, isRunAnimationGroup, isRunAnimationKey, isWalkVariantEnabled, isRunVariantEnabled, walkVariantForActor, runVariantForActor } from '../formats/morrowind/mwWalkAnimationAssets.js';
+import { loadReAnimationAssets } from '../formats/morrowind/mwReAnimationAssets.js';
 import { drawRigSpriteBox, MW_THIRD_PERSON_PIXEL } from '../render/characterSprite.js';
 import { WEAPONS } from '../characters/weapons.js';
 import { materialName } from '../systems/item/itemInfo.js';
@@ -3099,6 +3100,16 @@ export async function buildFpArm({
     const mwType = resolvedWeapon.mwType;
 
     const sourceBytes = sourcePaths.map((p) => ({ name: p, bytes: find(p).get(p).slice() }));
+    // ReAnimation v3 is an optional first-person provider. It is appended after
+    // archive sources so supported groups take priority only when explicitly selected.
+    // Each file is validated against this rig below; invalid files never block Vanilla.
+    if (!werewolf && modSetting('morrowind-animation', 'PlayerFirstPersonSource') === 1) {
+      const reAnimationSources = await loadReAnimationAssets();
+      sourceBytes.push(...reAnimationSources);
+      if (!reAnimationSources.length) {
+        missing.push('ReAnimation v3 selected, but no first-person KF assets were loaded; archive animations remain active.');
+      }
+    }
 
     if (!partBytes.length) {
       // "no record for this actor" is a dead end for whoever reads it.
@@ -3201,6 +3212,10 @@ export async function buildFpArm({
     for (const sb of sourceBytes) {
       const one = await cachedClipReport(gen, skeletonPath, sb.name, () => sb.bytes, arm.skeleton);
       if (!one.ok) {
+        if (sb.optional) {
+          missing.push(`optional animation source skipped (${sb.name}): ${one.error}`);
+          continue;
+        }
         return {
           ok: false, stage: 'clip', error: `${sb.name}: ${one.error}`,
           notes: [...missing, ...(arm.notes || [])], rows: wanted,
