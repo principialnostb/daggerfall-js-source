@@ -120,6 +120,7 @@ test('MW-ANIM-PACKS: NPC idle provider and variant selection are deterministic',
   assert.equal(idleVariantForActor({ female: false, npcMaleChoice: 1 }), 'dynamic');
   assert.equal(idleVariantForActor({ female: true, npcFemaleChoice: 1 }), 'dynamic');
   assert.equal(idleVariantForActor({ player: true, npcFemaleChoice: 1 }), 'vanilla');
+  assert.equal(idleVariantForActor({ player: true, playerChoice: 1 }), 'dynamic');
   assert.equal(dynamicIdleVariantForActor({ race: 'Breton', faceIndex: 3 }), dynamicIdleVariantForActor({ race: 'Breton', faceIndex: 3 }));
   assert.ok(['2', '3', '6'].includes(dynamicIdleVariantForActor({ race: 'Breton', faceIndex: 3 })));
   assert.equal(isIdleVariantEnabled({ idleOnly: true, idleVariant: 'dynamic' }, 'vanilla'), false);
