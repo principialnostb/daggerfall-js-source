@@ -6,7 +6,7 @@ import {
   FP_BASE_MODEL, animSourceName, fpAnimSources, pickAnimSource, anySourceHasGroup,
 } from '../../../src/formats/morrowind/mwFirstPerson.js';
 import { resetClip } from '../../../src/formats/morrowind/mwAnim.js';
-import { buildFpArm, createFpArm, fpSkeletonPath, UPPER_BODY } from '../../../src/combat/fpArm.js';
+import { buildFpArm, createFpArm, fpSkeletonPath, UPPER_BODY, unequipActionPlan } from '../../../src/combat/fpArm.js';
 import { poseAssembly, armPieceRows } from '../../../src/formats/morrowind/mwFirstPerson.js';
 import { sampleTrack } from '../../../src/formats/morrowind/mwAnim.js';
 
@@ -18,6 +18,34 @@ import { sampleTrack } from '../../../src/formats/morrowind/mwAnim.js';
 // author tested, silently wrong on the rest of the data.
 
 const f = (n) => new Uint8Array(readFileSync(new URL(`../../fixtures/mw/${n}`, import.meta.url)));
+
+test('first-person sheathing falls back to a reversed equip clip instead of hiding the weapon instantly', () => {
+  const plan = unequipActionPlan({ unequipStarted: false, equipStarted: true, detachKeyTime: -1 });
+  assert.deepEqual(plan, {
+    kind: 'reverse-equip',
+    start: 'equip start',
+    stop: 'equip stop',
+    reversed: true,
+    hideMode: 'animation-end',
+  });
+});
+
+test('first-person sheathing keeps native unequip keys when the provider has them', () => {
+  const plan = unequipActionPlan({ unequipStarted: true, equipStarted: false, detachKeyTime: 4.25 });
+  assert.deepEqual(plan, {
+    kind: 'unequip',
+    start: 'unequip start',
+    stop: 'unequip stop',
+    reversed: false,
+    hideMode: 'detach-key',
+  });
+});
+
+test('first-person sheathing only hides immediately when neither motion can be played', () => {
+  const plan = unequipActionPlan({ unequipStarted: false, equipStarted: false });
+  assert.equal(plan.kind, 'immediate');
+  assert.equal(plan.hideMode, 'immediate');
+});
 
 test('MW-D14 rule 18: the x-form is used ONLY when its .kf exists', () => {
   //   insert 'x' before the FILENAME, swap .nif for .kf, and use the
