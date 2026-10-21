@@ -42,6 +42,12 @@ const STYLE = `
 #mw-appearance-editor .mw-controls-head h2{font-size:20px;line-height:1.2;margin:0;font-weight:750}
 #mw-appearance-editor .mw-controls-head p{font-size:11px;line-height:1.35;color:var(--mw-muted);margin:5px 0 9px}
 #mw-appearance-editor .mw-identity-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px 8px}
+#mw-appearance-editor .mw-choice-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:9px}
+#mw-appearance-editor .mw-choice-group{min-width:0;padding:9px;border:1px solid var(--mw-line);background:#1d221d}
+#mw-appearance-editor .mw-choice-title{margin:0 0 7px;color:var(--mw-accent-strong);font-size:12px;font-weight:750;letter-spacing:.04em;text-transform:uppercase}
+#mw-appearance-editor .mw-choice-group .mw-underwear{display:grid;grid-template-columns:58px minmax(0,1fr);align-items:center;gap:6px;min-width:0;margin:0;padding:0}
+#mw-appearance-editor .mw-choice-group .mw-underwear span{font-size:11px;white-space:nowrap}
+#mw-appearance-editor .mw-choice-group select{width:100%;max-width:100%;min-width:0;margin:0!important;padding:7px!important;font-size:12px!important}
 #mw-appearance-editor .mw-identity-grid .mw-underwear{display:grid;grid-template-columns:58px minmax(0,1fr);align-items:center;gap:6px;min-width:0;margin:0;padding:6px 8px}
 #mw-appearance-editor .mw-identity-grid .mw-underwear span{font-size:11px;white-space:nowrap}
 #mw-appearance-editor .mw-identity-grid select{width:100%;max-width:100%;min-width:0;margin:0!important;padding:6px!important;font-size:12px!important}
@@ -71,7 +77,8 @@ const STYLE = `
 #mw-appearance-editor .mw-close{width:34px;height:34px;padding:0;border-radius:8px;font-size:19px}
 #mw-appearance-editor .mw-status-message{position:absolute;left:18px;right:18px;top:50%;transform:translateY(-50%);text-align:center;padding:18px;color:#deded3;font-size:13px;pointer-events:none}
 @media(max-width:850px){#mw-appearance-editor .mw-editor-shell{height:96vh}#mw-appearance-editor .mw-main{grid-template-columns:minmax(0,1fr) minmax(310px,.9fr)}#mw-appearance-editor .mw-preview-side{padding:12px}#mw-appearance-editor .mw-controls-head{padding:15px}#mw-appearance-editor .mw-control-list{padding:10px}#mw-appearance-editor .mw-slider-row{grid-template-columns:95px minmax(60px,1fr) 36px;gap:7px}}
-@media(max-width:650px){#mw-appearance-editor .mw-identity-grid{grid-template-columns:1fr}#mw-appearance-editor .mw-options-grid{grid-template-columns:1fr}#mw-appearance-editor{padding:0}#mw-appearance-editor .mw-editor-shell{width:100%;height:100dvh;min-height:0;border-radius:0;border:0}#mw-appearance-editor .mw-topbar{padding:12px 14px}#mw-appearance-editor .mw-title{font-size:16px}#mw-appearance-editor .mw-subtitle{font-size:11px}#mw-appearance-editor .mw-state{display:none}#mw-appearance-editor .mw-main{grid-template-columns:1fr;grid-template-rows:minmax(230px,.85fr) minmax(0,1.15fr)}#mw-appearance-editor .mw-preview-side{padding:10px;grid-template-rows:auto minmax(0,1fr) auto}#mw-appearance-editor .mw-preview-head{padding-bottom:6px}#mw-appearance-editor .mw-preview-tools{padding-top:7px}#mw-appearance-editor .mw-controls{border-left:0;border-top:1px solid var(--mw-line)}#mw-appearance-editor .mw-controls-head{padding:12px 15px}#mw-appearance-editor .mw-controls-head h2{font-size:17px}#mw-appearance-editor .mw-control-list{padding:9px 12px}#mw-appearance-editor .mw-group{margin-bottom:8px}#mw-appearance-editor .mw-footer{padding:10px 12px}#mw-appearance-editor .mw-footer-note{display:none}#mw-appearance-editor .mw-hint{max-width:46%;font-size:10px}}
+#mw-appearance-editor .mw-identity-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+@media(max-width:650px){#mw-appearance-editor .mw-identity-grid{grid-template-columns:1fr}#mw-appearance-editor .mw-choice-grid{grid-template-columns:1fr}#mw-appearance-editor .mw-options-grid{grid-template-columns:1fr}#mw-appearance-editor{padding:0}#mw-appearance-editor .mw-editor-shell{width:100%;height:100dvh;min-height:0;border-radius:0;border:0}#mw-appearance-editor .mw-topbar{padding:12px 14px}#mw-appearance-editor .mw-title{font-size:16px}#mw-appearance-editor .mw-subtitle{font-size:11px}#mw-appearance-editor .mw-state{display:none}#mw-appearance-editor .mw-main{grid-template-columns:1fr;grid-template-rows:minmax(230px,.85fr) minmax(0,1.15fr)}#mw-appearance-editor .mw-preview-side{padding:10px;grid-template-rows:auto minmax(0,1fr) auto}#mw-appearance-editor .mw-preview-head{padding-bottom:6px}#mw-appearance-editor .mw-preview-tools{padding-top:7px}#mw-appearance-editor .mw-controls{border-left:0;border-top:1px solid var(--mw-line)}#mw-appearance-editor .mw-controls-head{padding:12px 15px}#mw-appearance-editor .mw-controls-head h2{font-size:17px}#mw-appearance-editor .mw-control-list{padding:9px 12px}#mw-appearance-editor .mw-group{margin-bottom:8px}#mw-appearance-editor .mw-footer{padding:10px 12px}#mw-appearance-editor .mw-footer-note{display:none}#mw-appearance-editor .mw-hint{max-width:46%;font-size:10px}}
 /* Shared visual language with the game's enhanced menu and inventory: charcoal panels, brass focus, square bevels. */
 #mw-appearance-editor{--mw-bg:#17191c;--mw-panel:#202328;--mw-panel-raised:#292d33;--mw-line:#454a52;--mw-text:#e8e1d2;--mw-muted:#aaa79f;--mw-accent:#b99a5b;--mw-accent-strong:#e1c783;background:rgba(4,5,7,.86);font-family:Georgia,'Times New Roman',serif}
 #mw-appearance-editor .mw-editor-shell{background:var(--mw-bg);border:1px solid #8c7548;outline:1px solid #29251d;box-shadow:0 0 0 3px #090a0c,0 24px 80px #000e}
@@ -282,12 +289,20 @@ export function openAppearanceEditor({ fpArm, onClose = () => {} } = {}) {
   const headSelect = document.createElement('select'); headSelect.setAttribute('aria-label', 'Модель лица');
   headSelect.style.cssText = sexSelect.style.cssText;
   faceRow.append(faceLabel, headSelect);
+  const faceGroup = document.createElement('section'); faceGroup.className = 'mw-choice-group';
+  const faceTitle = document.createElement('h3'); faceTitle.className = 'mw-choice-title'; faceTitle.textContent = 'Лицо';
+  faceGroup.append(faceTitle, faceRow);
   const hairRow = document.createElement('label'); hairRow.className = 'mw-underwear';
   const hairLabel = document.createElement('span'); hairLabel.textContent = 'Причёска';
   const hairSelect = document.createElement('select'); hairSelect.setAttribute('aria-label', 'Модель причёски');
   hairSelect.style.cssText = sexSelect.style.cssText;
   hairRow.append(hairLabel, hairSelect);
-  identityGrid.append(sexRow, raceRow, faceRow, hairRow);
+  const hairGroup = document.createElement('section'); hairGroup.className = 'mw-choice-group';
+  const hairTitle = document.createElement('h3'); hairTitle.className = 'mw-choice-title'; hairTitle.textContent = 'Прическа';
+  hairGroup.append(hairTitle, hairRow);
+  const choiceGrid = document.createElement('div'); choiceGrid.className = 'mw-choice-grid';
+  choiceGrid.append(faceGroup, hairGroup);
+  identityGrid.append(sexRow, raceRow);
   const optionsGrid = document.createElement('div'); optionsGrid.className = 'mw-options-grid';
   const underwearRow = document.createElement('label'); underwearRow.className = 'mw-underwear';
   const underwearToggle = document.createElement('input'); underwearToggle.type = 'checkbox'; underwearToggle.checked = getUnderwearEnabled();
@@ -298,7 +313,7 @@ export function openAppearanceEditor({ fpArm, onClose = () => {} } = {}) {
   const bodyHairCopy = document.createElement('span'); bodyHairCopy.innerHTML = '<strong>Волосы на теле</strong><small>Для голой модели; отключите нижнее бельё. Нужен High Resolution Better Body Female Textures.</small>';
   bodyHairRow.append(bodyHairToggle, bodyHairCopy);
   optionsGrid.append(underwearRow, bodyHairRow);
-  controlsHead.append(identityGrid, optionsGrid);
+  controlsHead.append(identityGrid, choiceGrid, optionsGrid);
   bodyHairToggle.addEventListener('change', async () => {
     setBodyHairEnabled(bodyHairToggle.checked);
     statusMessage.style.display = 'block'; statusMessage.textContent = 'Пересборка текстур модели…';
@@ -331,8 +346,10 @@ export function openAppearanceEditor({ fpArm, onClose = () => {} } = {}) {
       select.disabled = true; return '';
     }
     select.disabled = false;
-    for (const item of items) {
-      const option = document.createElement('option'); option.value = item.id; option.textContent = item.label; select.append(option);
+    for (const [index, item] of items.entries()) {
+      const option = document.createElement('option'); option.value = item.id;
+      option.textContent = (select === headSelect ? 'Лицо ' : 'Прическа ') + (index + 1);
+      select.append(option);
     }
     const chosen = items.some((item) => item.id === selectedId) ? selectedId : items[0].id;
     select.value = chosen;
