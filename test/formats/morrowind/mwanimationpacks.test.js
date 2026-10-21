@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   ANIMATION_PACK_IDS, ANIMATION_PACK_PROVIDERS, animationPackFamily, inspectAnimationPackAssets, listAnimationPackAssets, loadHitReactionAnimationAssets,
-  resolveAnimationPackProvider, selectDeterministicReactionGroup,
+  resolveAnimationPackProvider, selectDeterministicReactionGroup, reAnimationPrefixesForWeaponGroup,
 } from '../../src/formats/morrowind/mwAnimationPackAssets.js';
 
 test('MW-ANIM-PACKS: pack discovery is safe outside the browser', () => {
@@ -36,7 +36,7 @@ test('MW-ANIM-PACKS: unknown and non-animation files never acquire a gameplay fa
 test('MW-ANIM-PACKS: every new pack has explicit domains and an honest status', () => {
   assert.equal(ANIMATION_PACK_PROVIDERS.length, 3);
   assert.deepEqual(ANIMATION_PACK_PROVIDERS.map((provider) => provider.status), [
-    'present-unintegrated', 'present-unintegrated', 'needs-validation',
+    'needs-validation', 'present-unintegrated', 'needs-validation',
   ]);
   assert.ok(ANIMATION_PACK_PROVIDERS.every((provider) => provider.id && provider.domains.length));
 });
@@ -71,4 +71,13 @@ test('MW-ANIM-PACKS: reaction variants use a sorted deterministic candidate list
 
 test('MW-ANIM-PACKS: hit reaction assets safely fall back to no bundled data outside the browser', async () => {
   assert.deepEqual(await loadHitReactionAnimationAssets(), []);
+});
+
+test('MW-ANIM-PACKS: ReAnimation maps only known weapon families to canonical clip sets', () => {
+  assert.deepEqual(reAnimationPrefixesForWeaponGroup('1s'), ['xdagger']);
+  assert.deepEqual(reAnimationPrefixesForWeaponGroup('2c'), ['x2c']);
+  assert.deepEqual(reAnimationPrefixesForWeaponGroup('crossbow'), ['xcrossbow']);
+  assert.deepEqual(reAnimationPrefixesForWeaponGroup('hh'), ['xh2h', 'xhh']);
+  assert.deepEqual(reAnimationPrefixesForWeaponGroup('1b'), []);
+  assert.deepEqual(reAnimationPrefixesForWeaponGroup('unknown'), []);
 });
