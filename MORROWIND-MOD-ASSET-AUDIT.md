@@ -48,24 +48,23 @@ The current `src/formats/morrowind/mwWalkAnimationAssets.js` glob includes only 
 
 A future animation integration must preserve deterministic source resolution: one selected source per actor and animation family, stable tie-breaking, safe fallback when a clip is missing, and no accidental replacement of unrelated groups.
 
-### 4. Textures: the directory migration is verified; runtime replacement still needs a separate test
+### 4. Texture and body packs: runtime loader existed, but its asset globs still pointed at the old folder
 
-All six existing texture-pack directories have matching tree SHAs between the old and new locations. Their contents were not lost or changed by the category move.
+The six existing texture-pack directories and three body-pack directories survived the move with identical Git tree SHAs. The regression was in the runtime source paths: `src/systems/bundledMorrowindMods.js` still globbed `Morrowind Textures/...`, so Vite could bundle zero assets even though the files remained in the repository. `src/formats/morrowind/mwBetterBodies.js` had the same stale root for body meshes and skins. The loader already maps supported pack files to game-relative VFS keys and composes them in explicit precedence order; the path correction is in the `fix/mods-texture-paths` branch.
 
-That does **not** by itself prove that the renderer consumes those loose files. `src/formats/morrowind/mwTexture.js` implements Morrowind's resource-path normalization and `.tga` → `.dds` correction, but path correction is not a mod overlay/priority registry. The runtime needs a tested virtual-file lookup that maps the nested pack paths to their game-relative resource names and resolves collisions deterministically. The same question applies to body packs' `Data Files/Meshes` and `Data Files/Textures`: their files being present does not prove that the character assembler sees them.
+The repair updates those globs to `Mods/Textures` or `Mods/Bodies` according to the new category. It also updates the Better Bodies texture-editor diagnostic path. This fixes asset discovery at build time; it does not, by itself, prove every optional pack visually renders correctly in-game.
 
-Texture validation still required:
-1. Build a normalized index for supported loose texture/mesh assets under `Mods/Textures` and `Mods/Bodies` without flattening away game-relative paths.
-2. Define and test conflict priority between packs, including case-insensitive paths and duplicate filenames.
-3. Resolve the authored NIF texture path using the same normalized VFS key as the index, including `.tga` references resolving to `.dds` files.
-4. Test a known texture from each pack in the actual character/world renderer and confirm the fallback path remains intact when a mod file is absent or invalid.
-5. For bodies, separately verify mesh selection, skin textures, skeleton binding, and clothing compatibility; a texture-only override must not silently replace a mesh.
+Validation still required:
+1. Confirm Vite's resolved asset inventory is non-zero for each supported package (`inspectBundledMorrowindTextures()` reports per-package counts).
+2. Check deterministic collision precedence, case-insensitive paths, and `.tga` references resolving to `.dds` files.
+3. Test at least one known texture from each enabled pack in the actual character/world renderer and confirm archive fallback when a mod file is missing or invalid.
+4. For bodies, separately verify mesh selection, skin textures, skeleton binding, and clothing compatibility; texture-only overrides must not silently replace geometry.
 
-Until those runtime checks pass, report the texture packs as **preserved in the repository, runtime activation not yet verified**, rather than claiming they are integrated.
+Until the build and visual checks pass, report the migration fix as **implemented; build and in-game verification pending**, not as fully visually validated.
 
 ## Next implementation sequence
 
-1. Add a shared, normalized loose-resource overlay for `Mods/Textures` and `Mods/Bodies`, with explicit deterministic precedence and regression tests.
+1. Run the targeted tests, lint, type check and build; then inspect `inspectBundledMorrowindTextures()` in a browser build.
 2. Port each new animation pack by family rather than importing its OpenMW Lua runtime: ReAnimation first-person attack groups; Dynamic Animations locomotion variants; Hit Reactions hit/stagger/death groups.
 3. Add per-family settings only when the corresponding runtime consumer exists; preserve vanilla as the first/default option.
 4. Run the relevant tests, lint, type check and build. In-game visual validation remains a separate required step.
