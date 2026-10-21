@@ -36,7 +36,7 @@ test('MW-ANIM-PACKS: unknown and non-animation files never acquire a gameplay fa
 test('MW-ANIM-PACKS: every new pack has explicit domains and an honest status', () => {
   assert.equal(ANIMATION_PACK_PROVIDERS.length, 3);
   assert.deepEqual(ANIMATION_PACK_PROVIDERS.map((provider) => provider.status), [
-    'needs-validation', 'present-unintegrated', 'needs-validation',
+    'needs-validation', 'needs-validation', 'needs-validation',
   ]);
   assert.ok(ANIMATION_PACK_PROVIDERS.every((provider) => provider.id && provider.domains.length));
 });
@@ -45,11 +45,14 @@ test('MW-ANIM-PACKS: unresolved providers fall back to Vanilla rather than winni
   assert.deepEqual(resolveAnimationPackProvider('animation.player.walk'), {
     requested: 'vanilla', effective: 'vanilla', provider: null, fallback: false, reason: 'Vanilla selected',
   });
-  const unresolved = resolveAnimationPackProvider('animation.player.walk', 'dynamic-animations.locomotion');
-  assert.equal(unresolved.effective, 'vanilla');
-  assert.equal(unresolved.fallback, true);
-  assert.equal(unresolved.provider, 'dynamic-animations.locomotion');
-  assert.match(unresolved.reason, /stable actor-scoped selection/);
+  const dynamic = resolveAnimationPackProvider('animation.player.walk', 'dynamic-animations.locomotion');
+  assert.equal(dynamic.effective, 'dynamic-animations.locomotion');
+  assert.equal(dynamic.fallback, false);
+  assert.equal(dynamic.provider, 'dynamic-animations.locomotion');
+  assert.match(dynamic.reason, /directional, idle, speed-cap/);
+  const unknown = resolveAnimationPackProvider('animation.player.walk', 'not-a-provider');
+  assert.equal(unknown.effective, 'vanilla');
+  assert.equal(unknown.fallback, true);
   const wrongDomain = resolveAnimationPackProvider('animation.player.firstPerson.attack', 'hit-reactions-v2.reactions');
   assert.equal(wrongDomain.effective, 'vanilla');
   assert.equal(wrongDomain.fallback, true);
