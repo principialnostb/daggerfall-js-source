@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { inspectWalkAnimationAssets, isWalkAnimationGroup, isWalkAnimationKey, isRunAnimationGroup, isRunAnimationKey, isWalkVariantEnabled, isRunVariantEnabled, walkVariantForActor, runVariantForActor, firstPersonAnimationProviderForChoice, isOpenMWDynamicFirstPersonClip, openMWDynamicFirstPersonGroup, hitReactionVariantForSkeleton, isHitReactionAssetForSkeleton } from '../../src/formats/morrowind/mwWalkAnimationAssets.js';
+import { inspectWalkAnimationAssets, isWalkAnimationGroup, isWalkAnimationKey, isRunAnimationGroup, isRunAnimationKey, isWalkVariantEnabled, isRunVariantEnabled, walkVariantForActor, runVariantForActor, firstPersonAnimationProviderForChoice, isOpenMWDynamicFirstPersonClip, openMWDynamicFirstPersonGroup, hitReactionVariantForSkeleton, isHitReactionAssetForSkeleton, isFirstPersonAnimationRigCompatible } from '../../src/formats/morrowind/mwWalkAnimationAssets.js';
 
 test('MW-ANIM-1: bundled walk asset inventory is safe to import in Node', () => {
   const assets = inspectWalkAnimationAssets();
@@ -77,6 +77,13 @@ test('MW-ANIM-3: run choices resolve independently for player and female NPC', (
   assert.equal(runVariantForActor({ ownHeads: true, female: true, playerChoice: 1 }), 'axel');
 });
 
+
+test('MW-ANIM-4: first-person providers are limited to the skeleton they ship for', () => {
+  assert.equal(isFirstPersonAnimationRigCompatible('meshes/xbase_anim.1st.nif'), true);
+  assert.equal(isFirstPersonAnimationRigCompatible('meshes/base_anim_female.1st.nif'), false);
+  assert.equal(isFirstPersonAnimationRigCompatible('meshes/xbase_animkna.1st.nif'), false);
+  assert.equal(isFirstPersonAnimationRigCompatible('meshes/xbase_anim.nif'), false);
+});
 
 test('MW-ANIM-4: first-person provider choice is exclusive and stable', () => {
   assert.equal(firstPersonAnimationProviderForChoice(0), 'vanilla');
