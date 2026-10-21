@@ -4,7 +4,7 @@ const GROUPS = [
   { id: 'all', title: 'Силуэт', description: 'Общие пропорции корпуса', keys: ['height', 'bodyWidth', 'bodyFullness'] },
   { id: 'chest', title: 'Плечи и грудная клетка', description: 'Ширина плеч и грудного отдела; передний объём торса', keys: ['shoulderWidth', 'ribcageWidth', 'breastSize', 'breastProjection'] },
   { id: 'torso', title: 'Талия и нижний торс', description: 'Пропорции талии и нижней части корпуса', keys: ['waistWidth', 'abdomenVolume'] },
-  { id: 'hips', title: 'Таз и нижние ягодицы', description: 'Ширина таза пока не работает; остальные ползунки слабо меняют нижние ягодицы', keys: ['hipWidth', 'buttockSize', 'buttockProjection'] },
+  { id: 'hips', title: 'Таз и ягодицы', description: 'Ширина таза пока не влияет на модель; объём и выступ ягодиц работают ограниченно', keys: ['hipWidth', 'buttockSize', 'buttockProjection'] }
   { id: 'arms', title: 'Руки', description: 'Толщина рук; изменение длины пока не влияет на модель', keys: ['armThickness', 'armLength'] },
   { id: 'legs', title: 'Ноги', description: 'Толщина бёдер и голеней, длина голеней и расстояние между ногами', keys: ['thighThickness', 'calfThickness', 'legLength', 'legGap'] },
   { id: 'head', title: 'Голова', description: 'Масштаб головы', keys: ['headScale'] },
@@ -189,6 +189,21 @@ const STYLE = `
   background:#211b13;color:#e9c17d;font:700 9px/1.2 'Barlow Semi Condensed',system-ui,sans-serif;
   letter-spacing:.1em;white-space:nowrap;
 }
+#mw-appearance-editor .mw-main{grid-template-columns:minmax(0,.82fr) minmax(520px,1.18fr)}
+#mw-appearance-editor .mw-editor-shell{width:min(1600px,100%);height:min(980px,96vh)}
+#mw-appearance-editor .mw-identity-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;padding:12px 18px;border-bottom:1px solid #303843;background:#12161b}
+#mw-appearance-editor .mw-identity-grid .mw-underwear{margin:0;min-width:0;padding:8px 10px;gap:8px;border-color:#303843;background:#1a1f25}
+#mw-appearance-editor .mw-identity-grid .mw-underwear select{margin-left:auto;max-width:64%;min-width:0;width:64%;background:#11151a;color:#e9e4d9;border:1px solid #62513a;padding:7px;font:inherit;font-size:12px;overflow:hidden;text-overflow:ellipsis}
+#mw-appearance-editor .mw-identity-grid .mw-underwear > span:first-child{min-width:0}
+#mw-appearance-editor .mw-identity-grid .mw-underwear.mw-wide{grid-column:1/-1}
+#mw-appearance-editor .mw-identity-grid .mw-experimental-toggle{grid-column:1/-1;margin-top:0;min-height:38px;padding:7px 10px;border-color:#4b4232;background:linear-gradient(#22252a,#191c21);color:#d7c6a3;box-shadow:none}
+#mw-appearance-editor .mw-experimental-toggle:hover{border-color:#a77d3c;background:linear-gradient(#2b2a27,#202126)}
+#mw-appearance-editor .mw-experimental-toggle[aria-expanded="true"]{background:#25241f;border-color:#a77d3c}
+#mw-appearance-editor .mw-slider-row{grid-template-columns:minmax(145px,1fr) minmax(150px,1.45fr) 44px;gap:12px;padding:10px 0}
+#mw-appearance-editor .mw-slider-label{font-size:13px;line-height:1.25}
+#mw-appearance-editor .mw-control-list{padding:16px 22px 22px}
+@media(max-width:850px){#mw-appearance-editor .mw-main{grid-template-columns:minmax(0,.72fr) minmax(400px,1.28fr)}#mw-appearance-editor .mw-slider-row{grid-template-columns:minmax(100px,1fr) minmax(120px,1.5fr) 42px;gap:8px}#mw-appearance-editor .mw-identity-grid{padding:10px;gap:7px}}
+@media(max-width:650px){#mw-appearance-editor .mw-main{grid-template-rows:minmax(210px,.7fr) minmax(0,1.3fr)}#mw-appearance-editor .mw-identity-grid{grid-template-columns:1fr;padding:9px 12px}#mw-appearance-editor .mw-identity-grid .mw-underwear.mw-wide{grid-column:1}#mw-appearance-editor .mw-slider-row{grid-template-columns:minmax(90px,1fr) minmax(90px,1fr) 38px;gap:7px;padding:8px 0}#mw-appearance-editor .mw-control-list{padding:9px 12px}}
 #mw-appearance-editor .mw-zone-nav[hidden],
 #mw-appearance-editor .mw-control-list[hidden]{display:none!important}
 `;
@@ -201,7 +216,11 @@ export function openAppearanceEditor({ fpArm, onClose = () => {} } = {}) {
   const initialIdentity = fpArm?.builtFor?.() || {};
   const savedIdentity = getAppearanceIdentity();
   let selectedRace = String(savedIdentity?.race || initialIdentity.race || 'nord').toLowerCase();
+  let selectedFemale = typeof savedIdentity?.female === 'boolean' ? savedIdentity.female : !!initialIdentity.female;
   let selectedFace = Math.max(0, Math.min(9, Number(savedIdentity?.faceIndex ?? initialIdentity.faceIndex) || 0));
+  let selectedHeadId = savedIdentity?.headId || null;
+  let selectedHairId = savedIdentity?.hairId || null;
+  let appearanceChoices = { heads: [], hairs: [] };
   const root = document.createElement('div');
   root.id = 'mw-appearance-editor';
   const style = document.createElement('style');
@@ -275,17 +294,33 @@ export function openAppearanceEditor({ fpArm, onClose = () => {} } = {}) {
   }
   raceSelect.value = selectedRace;
   raceRow.append(raceLabel, raceSelect);
+  const genderRow = document.createElement('label'); genderRow.className = 'mw-underwear';
+  const genderLabel = document.createElement('span'); genderLabel.textContent = 'Пол';
+  const genderSelect = document.createElement('select'); genderSelect.setAttribute('aria-label', 'Пол персонажа');
+  for (const [value,label] of [['male','Мужской'],['female','Женский']]) { const option=document.createElement('option'); option.value=value; option.textContent=label; genderSelect.append(option); }
+  genderSelect.value = selectedFemale ? 'female' : 'male'; genderRow.append(genderLabel,genderSelect);
   const faceRow = document.createElement('label'); faceRow.className = 'mw-underwear';
-  const faceLabel = document.createElement('span'); faceLabel.textContent = 'Лицо и причёска';
-  const faceSelect = document.createElement('select'); faceSelect.setAttribute('aria-label', 'Выбор лица и причёски');
-  faceSelect.style.cssText = raceSelect.style.cssText;
-  for (let i=0;i<10;i++) {
-    const option=document.createElement('option');
-    option.value=String(i);
-    option.textContent='Лицо '+(i+1)+' · причёска '+(i+1);
-    faceSelect.append(option);
-  }
-  faceSelect.value=String(selectedFace); faceRow.append(faceLabel,faceSelect);
+  const faceLabel = document.createElement('span'); faceLabel.textContent = 'Лицо';
+  const faceSelect = document.createElement('select'); faceSelect.setAttribute('aria-label', 'Выбор лица');
+  const hairRow = document.createElement('label'); hairRow.className = 'mw-underwear';
+  const hairLabel = document.createElement('span'); hairLabel.textContent = 'Причёска';
+  const hairSelect = document.createElement('select'); hairSelect.setAttribute('aria-label', 'Выбор причёски');
+  const fillPartSelect = (select, parts, kind, selectedId) => {
+    select.replaceChildren();
+    parts.forEach((part, index) => {
+      const option = document.createElement('option');
+      option.value = part.id;
+      option.textContent = kind + ' ' + (index + 1);
+      option.title = part.label || part.id;
+      select.append(option);
+    });
+    if (selectedId && parts.some(part => part.id === selectedId)) select.value = selectedId;
+    else if (parts.length) select.selectedIndex = 0;
+    select.disabled = parts.length === 0;
+  };
+  const stylePartSelect = (select) => { select.style.cssText = raceSelect.style.cssText; };
+  stylePartSelect(faceSelect); stylePartSelect(hairSelect);
+  faceRow.append(faceLabel,faceSelect); hairRow.append(hairLabel,hairSelect);
   const underwearRow = document.createElement('label'); underwearRow.className = 'mw-underwear';
   const underwearToggle = document.createElement('input'); underwearToggle.type = 'checkbox'; underwearToggle.checked = getUnderwearEnabled();
   const underwearCopy = document.createElement('span'); underwearCopy.innerHTML = '<strong>Нижнее бельё</strong><small>Выключено — голая модель; включено — вариант тела с бельём.</small>';
@@ -304,7 +339,9 @@ export function openAppearanceEditor({ fpArm, onClose = () => {} } = {}) {
   morphWipTag.textContent = 'WIP · В РАБОТЕ';
   morphToggle.textContent = '';
   morphToggle.append(morphToggleLabel, morphWipTag);
-  controlsHead.append(raceRow, faceRow, underwearRow, bodyHairRow, morphToggle);
+  const identityGrid = document.createElement('div'); identityGrid.className = 'mw-identity-grid';
+  underwearRow.classList.add('mw-wide'); bodyHairRow.classList.add('mw-wide'); morphToggle.classList.add('mw-wide');
+  identityGrid.append(raceRow, genderRow, faceRow, hairRow, underwearRow, bodyHairRow, morphToggle);
   bodyHairToggle.addEventListener('change', async () => {
     setBodyHairEnabled(bodyHairToggle.checked);
     statusMessage.style.display = 'block'; statusMessage.textContent = 'Пересборка текстур модели…';
@@ -326,13 +363,35 @@ export function openAppearanceEditor({ fpArm, onClose = () => {} } = {}) {
     statusMessage.style.display = 'block'; statusMessage.textContent = 'Загрузка расы и 3D-моделей лица…';
     if (previewBuildPending) previewRebuildRequested = true;
     else void buildPreviewRig({ replace: true });
-    window.dispatchEvent(new CustomEvent('mw-appearance-race-preview-change', { detail: { race: selectedRace, faceIndex: selectedFace } }));
+    window.dispatchEvent(new CustomEvent('mw-appearance-race-preview-change', { detail: { race: selectedRace, female: selectedFemale, faceIndex: selectedFace, headId: selectedHeadId, hairId: selectedHairId } }));
   };
   // Race/face controls are a draft: only the editor-owned preview changes here.
   // Persistence and mutation of the live player are reserved for the explicit Done action.
   const previewIdentityDraft = () => rebuildRacePreview();
-  raceSelect.addEventListener('change', () => { selectedRace = raceSelect.value; previewIdentityDraft(); });
-  faceSelect.addEventListener('change', () => { selectedFace = Number(faceSelect.value) || 0; previewIdentityDraft(); });
+  const refreshAppearanceChoices = async () => {
+    if (typeof fpArm?.getAppearanceChoices !== 'function') return;
+    faceSelect.disabled = true; hairSelect.disabled = true;
+    try {
+      const result = await fpArm.getAppearanceChoices({ race: selectedRace, female: selectedFemale, faceIndex: selectedFace });
+      if (!result?.ok) throw new Error(result?.error || 'Не удалось получить список лиц и причёсок.');
+      appearanceChoices = { heads: result.heads || [], hairs: result.hairs || [] };
+      if (!selectedHeadId || !appearanceChoices.heads.some(part => part.id === selectedHeadId)) selectedHeadId = result.selected?.headId || appearanceChoices.heads[0]?.id || null;
+      if (!selectedHairId || !appearanceChoices.hairs.some(part => part.id === selectedHairId)) selectedHairId = result.selected?.hairId || appearanceChoices.hairs[0]?.id || null;
+      fillPartSelect(faceSelect, appearanceChoices.heads, 'Лицо', selectedHeadId);
+      fillPartSelect(hairSelect, appearanceChoices.hairs, 'Причёска', selectedHairId);
+      if (selectedHeadId) faceSelect.value = selectedHeadId;
+      if (selectedHairId) hairSelect.value = selectedHairId;
+    } catch (error) {
+      statusMessage.style.display = 'block'; statusMessage.textContent = String(error?.message || error);
+    } finally {
+      faceSelect.disabled = appearanceChoices.heads.length === 0;
+      hairSelect.disabled = appearanceChoices.hairs.length === 0;
+    }
+  };
+  raceSelect.addEventListener('change', () => { selectedRace = raceSelect.value; selectedHeadId = null; selectedHairId = null; void refreshAppearanceChoices().then(previewIdentityDraft); });
+  genderSelect.addEventListener('change', () => { selectedFemale = genderSelect.value === 'female'; selectedHeadId = null; selectedHairId = null; void refreshAppearanceChoices().then(previewIdentityDraft); });
+  faceSelect.addEventListener('change', () => { selectedHeadId = faceSelect.value || null; previewIdentityDraft(); });
+  hairSelect.addEventListener('change', () => { selectedHairId = hairSelect.value || null; previewIdentityDraft(); });
   underwearToggle.addEventListener('change', async () => {
     bodyHairToggle.disabled = underwearToggle.checked;
     setUnderwearEnabled(underwearToggle.checked);
@@ -447,7 +506,7 @@ export function openAppearanceEditor({ fpArm, onClose = () => {} } = {}) {
     const previousLabel = done.textContent;
     done.textContent = 'Применение…';
     try {
-      const identity = { race: selectedRace, faceIndex: selectedFace };
+      const identity = { race: selectedRace, female: selectedFemale, faceIndex: selectedFace, headId: selectedHeadId, hairId: selectedHairId };
       if (typeof fpArm?.applyAppearanceIdentity === 'function') {
         const result = await fpArm.applyAppearanceIdentity(identity);
         if (result?.ok === false && !result?.queued) {
@@ -474,7 +533,8 @@ export function openAppearanceEditor({ fpArm, onClose = () => {} } = {}) {
   footerActions.append(reset, done); footer.append(footerNote, footerActions);
 
   previewSide.append(previewHead, canvasWrap, previewTools);
-  controls.append(controlsHead, zoneNav, controlList, footer);
+  controls.append(controlsHead, identityGrid, zoneNav, controlList, footer);
+  void refreshAppearanceChoices();
   main.append(previewSide, controls);
   shell.append(topbar, main); root.append(shell);
   root.addEventListener('click', (e) => { if (e.target === root) close(); });
@@ -543,7 +603,7 @@ export function openAppearanceEditor({ fpArm, onClose = () => {} } = {}) {
     previewRebuildRequested = false;
     previewBuildPending = true;
     try {
-      const result = await fpArm.createAppearancePreviewRig({ race: selectedRace, faceIndex: selectedFace });
+      const result = await fpArm.createAppearancePreviewRig({ race: selectedRace, female: selectedFemale, faceIndex: selectedFace, headId: selectedHeadId, hairId: selectedHairId });
       if (closed || previewRebuildRequested) {
         result?.rig?.unload?.();
       } else if (result?.ok && result.rig) {
