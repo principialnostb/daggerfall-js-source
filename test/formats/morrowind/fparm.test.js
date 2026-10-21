@@ -9,6 +9,7 @@ import { portraitFeatures, headFeatures, hairFeatures, matchFace } from '../../.
 import { assembleFirstPersonArm, poseAssembly } from '../../../src/formats/morrowind/mwFirstPerson.js';
 import {
   packFpArm, fpSkeletonPath, buildFpArm, createFpArm, wornVerdicts, animWeaponType, UPPER_BODY, wornEquipKeyOf,
+  unequipWeaponHideMode,
   FP_CLIP_PATH, NIF_TO_PASS, FP_FIELD_OF_VIEW, firstPersonEye, FP_FLOATS,
   collectArmTextures,
 } from '../../../src/combat/fpArm.js';
@@ -3357,4 +3358,23 @@ test('MW first-person arms: physical running opens the draw gate without a run c
   arm.setRunHands(false, { running: false });
   assert.equal(arm.movementPosed(), false,
     'the running draw reason closes when movement stops and no run/jump pose is active');
+});
+
+
+test('MW-FP-UNEQUIP: a missing detach key hides the weapon at animation end, not at animation start', () => {
+  assert.equal(
+    unequipWeaponHideMode({ animationStarted: true, detachKeyTime: -1 }),
+    'animation-end',
+    'a playable return animation must keep the weapon visible until the section completes',
+  );
+  assert.equal(
+    unequipWeaponHideMode({ animationStarted: true, detachKeyTime: 0.42 }),
+    'detach-key',
+    'when the animation declares a detach key, preserve its authored timing',
+  );
+  assert.equal(
+    unequipWeaponHideMode({ animationStarted: false, detachKeyTime: -1 }),
+    'immediate',
+    'without a playable unequip section there is no animation to wait for',
+  );
 });
