@@ -65,7 +65,7 @@ export function betterBodiesAssetUrls({ race = 'Nord', female = false, underwear
   };
   // Seamless DMRA is a female-only geometry alternative. It keeps the selected
   // Better Bodies skin/underwear texture, but only its own female mesh is used.
-  const dmraEnabled = female && modSetting('morrowind-textures', 'SeamlessDMRA') === true;
+  const dmraEnabled = female && modSetting('morrowind-textures', 'SeamlessDMRASource') === 2;
   const dmraModel = dmraEnabled ? findUrl(dmraFemaleBodyModelUrls, modelStem, 'nif') : null;
   const model = dmraModel ?? findUrl(modelTable, modelStem, 'nif');
   const texture = findUrl(textureTable, sourceTextureStem, 'dds');
