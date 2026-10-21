@@ -73,7 +73,7 @@ const entries = Object.entries(FILES)
     };
   })
   .filter(Boolean)
-  .sort((a, b) => a.lowerPath.localeCompare(b.lowerPath));
+  .sort((a, b) => a.lowerPath < b.lowerPath ? -1 : a.lowerPath > b.lowerPath ? 1 : 0);
 
 // Provider metadata is intentionally separate from file discovery. A discovered file is
 // not an active provider until its family has a gameplay consumer and compatibility tests.
@@ -166,8 +166,11 @@ export function selectDeterministicReactionGroup(groups, kind, roll = 0) {
 
 /** Select a source variant reproducibly from its semantic seed, never array/glob order. */
 export function selectStableAnimationVariant(candidates, seed) {
-  const ordered = [...(candidates ?? [])].sort((a, b) =>
-    String(a.source?.name ?? a.name ?? '').localeCompare(String(b.source?.name ?? b.name ?? '')));
+  const ordered = [...(candidates ?? [])].sort((a, b) => {
+    const left = String(a.source?.name ?? a.name ?? '');
+    const right = String(b.source?.name ?? b.name ?? '');
+    return left < right ? -1 : left > right ? 1 : 0;
+  });
   if (!ordered.length) return null;
   const value = String(seed ?? '');
   let hash = 2166136261;
