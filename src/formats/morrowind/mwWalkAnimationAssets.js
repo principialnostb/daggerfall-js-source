@@ -146,6 +146,16 @@ export function isOpenMWDynamicFirstPersonClip(path) {
   return /^(?:walk|run|sneak)(?:forward|back|left|right)_base;\.kf$/.test(filename);
 }
 
+/** Map a selected OpenMW base clip to the vanilla group requested by gameplay. */
+export function openMWDynamicFirstPersonGroup(path) {
+  if (!isOpenMWDynamicFirstPersonClip(path)) return null;
+  const filename = norm(path).slice(norm(path).lastIndexOf('/') + 1);
+  const match = filename.match(/^((?:walk|run|sneak)(?:forward|back|left|right))_base;\.kf$/);
+  if (!match) return null;
+  return match[1].replace(/^(walk|run|sneak)/, (_, family) => family[0].toUpperCase() + family.slice(1))
+    .replace(/(forward|back|left|right)$/, (_, direction) => direction[0].toUpperCase() + direction.slice(1));
+}
+
 /** Load one selected first-person provider in stable path order. */
 export async function loadFirstPersonAnimationAssets() {
   if (!IN_BROWSER) return [];
@@ -164,7 +174,13 @@ export async function loadFirstPersonAnimationAssets() {
   for (const entry of files) {
     try {
       const data = await bytes(entry);
-      if (data) result.push({ name: entry.path, bytes: data, family: 'first-person', variant: provider });
+      if (data) result.push({
+        name: entry.path,
+        bytes: data,
+        family: 'first-person',
+        variant: provider,
+        ...(provider === 'openmw-dynamic-first-person' ? { targetGroup: openMWDynamicFirstPersonGroup(entry.path) } : {}),
+      });
     } catch (error) {
       console.warn('[Morrowind animations] first-person clip failed to load; archive fallback retained:', entry.path, String(error?.message ?? error));
     }
