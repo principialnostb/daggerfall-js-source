@@ -84,8 +84,8 @@ import { DFPalette } from '../formats/dfPalette.js';
 import { raceArt } from '../systems/races.js';
 import { appStorage } from '../systems/appStorage.js';   // DA1: the storage seam
 import { modSetting } from '../systems/modSettings.js';
-import { loadWalkAnimationAssets, isWalkAnimationGroup, isWalkAnimationKey, isRunAnimationGroup, isRunAnimationKey, isWalkVariantEnabled, isRunVariantEnabled, walkVariantForActor, runVariantForActor, dynamicWalkStyleForActor, aliasDynamicWalkSource } from '../formats/morrowind/mwWalkAnimationAssets.js';
-import { loadHitReactionAnimationAssets, loadReAnimationAnimationAssets, ANIMATION_PACK_IDS, selectDeterministicReactionGroup, selectStableAnimationVariant } from '../formats/morrowind/mwAnimationPackAssets.js';
+import { loadWalkAnimationAssets, isWalkAnimationGroup, isWalkAnimationKey, isRunAnimationGroup, isRunAnimationKey, isWalkVariantEnabled, isRunVariantEnabled, walkVariantForActor, runVariantForActor, dynamicWalkStyleForActor, aliasDynamicWalkSource, idleVariantForActor, dynamicIdleVariantForActor, isIdleVariantEnabled, aliasDynamicIdleSource } from '../formats/morrowind/mwWalkAnimationAssets.js';
+import { loadHitReactionAnimationAssets, loadReAnimationAnimationAssets, loadDynamicIdleAnimationAsset, ANIMATION_PACK_IDS, selectDeterministicReactionGroup, selectStableAnimationVariant } from '../formats/morrowind/mwAnimationPackAssets.js';
 import { drawRigSpriteBox, MW_THIRD_PERSON_PIXEL } from '../render/characterSprite.js';
 import { WEAPONS } from '../characters/weapons.js';
 import { materialName } from '../systems/item/itemInfo.js';
@@ -2361,6 +2361,29 @@ async function buildTpBody({
           walkVariant: asset.variant,
           dynamicGroupAlias: !!asset.dynamicGroupAlias,
         });
+      }
+    }
+    // OpenMW Dynamic Animations: one stable third-person idle variant per NPC.
+    // Keep the custom group names raw in the inventory; refreshIdle aliases them only
+    // when the corresponding idle provider is selected.
+    if (!werewolf && !beast && !playerBody) {
+      const idleVariant = dynamicIdleVariantForActor({ race, faceIndex, appearanceHeadId });
+      const idleAsset = await loadDynamicIdleAnimationAsset({ female, variant: idleVariant });
+      if (idleAsset) {
+        const report = await cachedClipReport(gen, skeletonPath, idleAsset.path, () => idleAsset.bytes, arm.skeleton);
+        const idleGroups = report.ok ? report.groups.filter((group) => /^idle[236]_copy$/.test(String(group).toLowerCase())) : [];
+        const idleKeys = report.ok ? report.keys.filter((key) => /^idle[236]_copy: /.test(String(key.text ?? '').toLowerCase())) : [];
+        if (idleGroups.length && idleKeys.length) {
+          sources.push({
+            name: idleAsset.path, keys: idleKeys, groups: idleGroups, groupSet: new Set(idleGroups),
+            trackMap: report.trackMap, binding: report.binding,
+            wouldAccumRoot: accumRootRef(arm.skeleton, report.trackMap),
+            animationPackId: ANIMATION_PACK_IDS.dynamic, animationFamily: 'idle',
+            idleOnly: true, idleVariant: 'dynamic', dynamicIdleAlias: true,
+          });
+        } else {
+          missing.push(`Dynamic Animations idle ${idleAsset.path}: ${report.error || 'no supported idle group'}; archive idle retained`);
+        }
       }
     }
     // MW-ANIM-PACKS / Hit Reactions v2: load only clips matching this actor's
