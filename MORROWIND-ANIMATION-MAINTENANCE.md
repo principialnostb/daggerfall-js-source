@@ -172,4 +172,4 @@ The runtime now loads the checked-in `RunForward;.kf` as part of Axel's single l
 5. Evaluate OpenMW Dynamic Animations clip-by-clip. Port a behavior only when its required Lua selection logic can be represented natively and tested; preserve a documented Vanilla fallback.
 6. Run targeted animation tests, lint, types, and build. In-game visual validation remains a separate required check.
 
-**Status:** resource files are staged in `Dev`; the three packs are not yet active runtime providers. Do not mark the task complete until the runtime consumers and tests above exist.
+**Status:** ReAnimation v3 and Hit Reactions Animated v2 have source-provider wiring in progress on `Dev`: first-person clips are scoped to the first-person rig, and hit-reaction clips are filtered to reaction/death groups on third-person rigs. OpenMW Dynamic Animations still requires a native deterministic mapping; test/build and in-game validation remain outstanding.
