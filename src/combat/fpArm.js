@@ -2632,6 +2632,53 @@ async function buildTpBody({
     partBytes.push(...resolvedHip.parts);
 
     let arm = await assembleFirstPersonArm({ skeletonBytes, parts: partBytes, boneSources, parseNif: parseNifOnce, offWeaponBone: true });   // MWNPC3: one parse a mesh, every body; TWO-HANDS AUDIT: the left hand's weapon bone
+    const animatedCloaks = cloakRows.filter((row) => String(row.model).startsWith('simply_cape_'));
+    const hasBoundCloak = (built) => built?.ok && cloakRows.some((row) => built.arm?.pieces?.some((piece) => piece.slot === row.slot));
+    // Simply Animated Cloaks assets are skinned NIFs. If a particular rig cannot bind one (or the assembly rejects
+    // its skin data), retry the same body with the already-shipped classic cloak rather than leaving the player bare.
+    // Keep the fallback visible in diagnostics so this cannot silently masquerade as a successful animated integration.
+    if (animatedCloaks.length && (!arm.ok || !hasBoundCloak({ ok: true, arm }))) {
+      const failures = [];
+      const replacements = new Map();
+      for (const row of animatedCloaks) {
+        const piece = row.piece ?? {};
+        const classic = ownCloakFor({
+          kind: 'clothing',
+          name: piece.name ?? CLOTHING_NAME[piece.templateIndex],
+          dye: piece.dye ?? 0,
+        }, { style: 'classic' });
+        const path = classic && `meshes/${classic.model}`;
+        if (!path) { failures.push(`${row.slot}: cannot resolve classic cloak fallback`); continue; }
+        await loadFromArchives(archives, [path]);
+        const arc = find(path);
+        if (!arc) { failures.push(`${row.slot}: classic fallback missing at ${path}`); continue; }
+        replacements.set(row.slot, { ...row, model: classic.model, bytes: nifBytes(arc, path) });
+      }
+      if (replacements.size === animatedCloaks.length) {
+        const fallbackParts = partBytes.map((part) => replacements.has(part.slot)
+          ? { ...part, bytes: replacements.get(part.slot).bytes }
+          : part);
+        const fallbackArm = await assembleFirstPersonArm({ skeletonBytes, parts: fallbackParts, boneSources, parseNif: parseNifOnce, offWeaponBone: true });
+        if (fallbackArm.ok) {
+          arm = fallbackArm;
+          for (const row of animatedCloaks) row.model = replacements.get(row.slot).model;
+          missing.push('Simply Animated Cloak could not bind to this character rig; the classic cloak was drawn instead');
+          modDiagnostics.record({
+            level: 'warn', phase: 'animation', action: 'cloak-classic-fallback', modId: 'simply-animated-cloaks',
+            resource: `meshes/${animatedCloaks[0].model}`,
+            message: 'Animated cloak did not bind; the classic cloak fallback was assembled',
+            details: { race: String(race ?? ''), female: !!female, reasons: failures, boundFallbacks: replacements.size },
+          });
+        } else if (!arm.ok) {
+          modDiagnostics.record({
+            level: 'error', phase: 'animation', action: 'cloak-fallback-failed', modId: 'simply-animated-cloaks',
+            resource: `meshes/${animatedCloaks[0].model}`,
+            message: 'Animated cloak and classic fallback both failed to assemble',
+            details: { animatedError: String(arm.error ?? ''), fallbackError: String(fallbackArm.error ?? ''), race: String(race ?? ''), female: !!female, reasons: failures },
+          });
+        }
+      }
+    }
     if (!arm.ok) {
       if (cloakRows.length) modDiagnostics.record({
         level: 'error', phase: 'animation', action: 'cloak-assembly-failed', modId: 'simply-animated-cloaks',
