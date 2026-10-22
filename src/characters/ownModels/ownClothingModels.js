@@ -42,6 +42,8 @@ export const SIMPLY_CLOAK_MODEL_BY_PAINTING = Object.freeze({
 });
 export const SIMPLY_CLOAK_MODEL_PATHS = Object.freeze([...new Set(Object.values(SIMPLY_CLOAK_MODEL_BY_PAINTING))].map((p) => `meshes/${p}`));
 export const simplyCloakModel = (painting) => SIMPLY_CLOAK_MODEL_BY_PAINTING[painting] ?? SIMPLY_CLOAK_MODEL_BY_PAINTING.blue;
+/** True only for meshes supplied by Simply Animated Cloaks; used for rig fallback and diagnostics. */
+export const isSimplyCloakModel = (model) => Object.values(SIMPLY_CLOAK_MODEL_BY_PAINTING).includes(String(model ?? '').toLowerCase());
 
 /** The cloak a worn garment wears - `{ id, model, painting }` - or null for every garment that is not a cloak.
  *  A dye out of range wears Daggerfall's own default (Blue). Pass style="simply-animated" to use the ported
