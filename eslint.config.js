@@ -42,7 +42,7 @@ export default [
         // REALM-GZIP: a realm save rides packed (src/net/realm/realmSaveCodec.js) - every browser this port targets, Node 18+ and
         // workerd; the codec asks for it before it packs.
         CompressionStream: 'readonly',
-        KeyboardEvent: 'readonly', Touch: 'readonly', TouchEvent: 'readonly', innerWidth: 'readonly',
+        KeyboardEvent: 'readonly', Touch: 'readonly', TouchEvent: 'readonly', CustomEvent: 'readonly', ResizeObserver: 'readonly', innerWidth: 'readonly',
         // RA1: the road bake's module Worker. `new Worker(new URL(...))`
         // must stay in exactly that spelling - Vite's static analysis
         // matches the bare constructor to bundle the worker entry, so
