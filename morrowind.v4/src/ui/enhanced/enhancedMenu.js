@@ -1705,7 +1705,17 @@ function paneExit(body) {
 
 let optQuery = '';          // ORG2: the search, over every tab - kept across a repaint, cleared by a tab change
 const selectedSectionByTab = { animations: 'locomotion' }; // The open section for each settings tab.
-let animationClipGroup = 'walking'; // Nested animation subgroup currently selected.
+// Remember the last selected subgroup independently for each section. The first
+// group listed in each section is the default; changing sections must not leak
+// the previous section's group into it.
+const animationClipGroupBySection = {
+  locomotion: 'running',
+  posture: 'posture',
+  combat: 'attacks',
+  traversal: 'jumping',
+  reactions: 'damage',
+};
+const animationClipGroup = () => animationClipGroupBySection[selectedSectionByTab.animations ?? 'locomotion'] ?? 'running';
 let optFilter = 'all';      // ORG2: 'all' | 'changed' | a KINDS id
 let pickedFeature = null;   // ORG2: the Features row the help pane reads (pickedKey is DFU's key)
 let optScrollTo = null;     // ORG2: a row to bring into view after the next paint (the mods' list sends you to one)
@@ -1855,9 +1865,9 @@ function itemNodes(item, ctx) {
       jumping: 'Прыжки', swimming: 'Плавание', falling: 'Падение и приземление',
       damage: 'Получение урона', death: 'Смерть',
     };
-    const button = el('button', `sec-jumpbtn animation-switch animation-clip-group${animationClipGroup === group ? ' is-active' : ''}`, labels[group] ?? group);
+    const button = el('button', `sec-jumpbtn animation-switch animation-clip-group${animationClipGroup() === group ? ' is-active' : ''}`, labels[group] ?? group);
     button.type = 'button';
-    button.setAttribute('aria-expanded', String(animationClipGroup === group));
+    button.setAttribute('aria-expanded', String(animationClipGroup() === group));
     button.addEventListener('click', (event) => {
       // This is a nested selector, not a settings-row action. Keep the outer
       // menu from interpreting the click, update the selected clip family,
@@ -1873,7 +1883,7 @@ function itemNodes(item, ctx) {
         damage: 'reactions', death: 'reactions',
       };
       selectedSectionByTab.animations = sectionForGroup[group] ?? 'posture';
-      animationClipGroup = group;
+      animationClipGroupBySection[sectionForGroup[group] ?? 'posture'] = group;
       const body = ctx.body;
       if (!body || !body.isConnected) return;
       paintOptionsBody(body, { pause: ctx.pause });
@@ -1977,7 +1987,7 @@ function tabSections(tab, ctx) {
         clipGroup = item.slice(6);
         return itemNodes(item, { ...ctx, fold });
       }
-      if (tab.id === 'animations' && clipGroup && clipGroup !== animationClipGroup) return [];
+      if (tab.id === 'animations' && clipGroup && clipGroup !== animationClipGroup()) return [];
       return itemNodes(item, { ...ctx, fold });
     });
     if (nodes.length) out.push({ s, nodes });
@@ -2040,8 +2050,6 @@ function paintOptionsBody(body, { pause = false } = {}) {
       b.setAttribute('aria-pressed', String(selectedId === s.id));
       b.onclick = () => {
         selectedSectionByTab[tab.id] = s.id;
-        if (tab.id === 'animations' && s.id === 'posture') animationClipGroup = 'posture';
-        if (tab.id === 'animations' && s.id === 'locomotion' && !['walking', 'running'].includes(animationClipGroup)) animationClipGroup = 'walking';
         paintOptionsBody(body, { pause });
       };
       buttons.append(b);
