@@ -36,6 +36,7 @@ Registration records use `action: 'register'` plus a `domain` and `resource`. Re
 - Morrowind animation providers report selected asset counts per pack/rig and per-file load failures for walk, first-person, dynamic third-person and hit-reaction clips. The archive fallback is named when retained.
 - First-person animation selection now also reports an incompatible rig, an enabled provider with no eligible files, and a provider whose candidate clips all failed to load. Optional female locomotion files that Vite did not resolve are reported individually. An empty OpenMW third-person result is a warning, not a misleading successful selection.
 - Morrowind bundled body/texture assets report selected pack/configuration summaries and failed asset fetches; the Morrowind texture worker reports decoder failures and worker-pool fallback.
+- Simply Animated Cloaks reports discovered model/texture counts, VFS registrations, the active classic-versus-skinned cloak selection, and per-resource open failures/successes. These events distinguish a preference being enabled from the selected NIF actually reaching the Morrowind archive reader.
 
 ## Animation diagnostics: previous versus current
 
