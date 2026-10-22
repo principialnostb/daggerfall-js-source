@@ -2814,6 +2814,10 @@ async function buildTpBody({
       if (physics) {
         piece.clothPhysics = physics;
         piece.clothPhysicsMaxOffset = physics.maxOffset;
+        // Retain the resolved asset on the piece so per-frame samples can be
+        // correlated with creation events even when several actors share a slot.
+        piece.clothPhysicsResource = resource;
+        piece.clothPhysicsFallbackMesh = fallbackMesh;
         modDiagnostics.record({
           level: 'info',
           phase: 'animation',
@@ -7846,9 +7850,11 @@ export function createFpArm({ playerAppearance = false } = {}) {
                   phase: 'animation',
                   action: 'cloak-physics-stepped',
                   modId: 'simply-animated-cloaks',
-                  resource: `meshes/${piece.slot}`,
+                  resource: piece.clothPhysicsResource ?? `meshes/${piece.slot}`,
                   message: 'Dynamic cloak physics advanced during the third-person frame.',
                   details: {
+                    slot: piece.slot,
+                    fallbackMesh: piece.clothPhysicsFallbackMesh ?? null,
                     dt, motion: cloakMotion, step: sampleStep, vertices: cloth.pos.length / 3,
                     pinnedVertices: cloth.pinned.reduce((sum, pinned) => sum + pinned, 0),
                     maxOffset, meanOffset: totalOffset / (cloth.pos.length / 3),
