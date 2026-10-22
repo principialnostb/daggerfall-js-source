@@ -113,7 +113,9 @@ const animationDiagnosticKeys = new Set(
 );
 const animationDiagnosticLog = globalThis.__morrowindAnimationDiagnostics
   ?? (globalThis.__morrowindAnimationDiagnostics = storedAnimationDiagnostics);
-const simplyAnimatedCloaksEnabled = () => modSetting('morrowind-animation', 'SimplyAnimatedCloaks') !== false;
+const simplyCloakMode = () => Number(modSetting('morrowind-animation', 'SimplyAnimatedCloaks'));
+const simplyAnimatedCloaksEnabled = () => simplyCloakMode() === 2;
+const vanillaAnimatedCloaksEnabled = () => simplyCloakMode() === 1;
 
 function logAnimationDiagnostic(key, detail) {
   if (animationDiagnosticKeys.has(key)) return;
