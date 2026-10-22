@@ -1334,7 +1334,7 @@ export const FEATURES = Object.freeze([
   Object.freeze({
     id: 'morrowind-first-person-animation-source',
     group: 'character',
-    title: 'Анимации от первого лица',
+    title: 'Источник анимаций первого лица',
     get note() { return MOD_SETTINGS['morrowind-animation'].keys.FirstPersonSource.description; },
     effect: 'After rebuilding the first-person rig.',
     kinds: Object.freeze(['mod']),
