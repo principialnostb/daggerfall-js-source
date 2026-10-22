@@ -1731,7 +1731,9 @@ const DEFAULT_ANIMATION_GROUP_BY_SECTION = Object.freeze({
   reactions: 'damage',
 });
 const animationClipGroupBySection = { ...DEFAULT_ANIMATION_GROUP_BY_SECTION };
-let animationClipGroup = DEFAULT_ANIMATION_GROUP_BY_SECTION.locomotion; // Nested animation subgroup currently selected.
+const animationClipGroup = () => animationClipGroupBySection[selectedSectionByTab.animations ?? 'locomotion']
+  ?? DEFAULT_ANIMATION_GROUP_BY_SECTION[selectedSectionByTab.animations ?? 'locomotion']
+  ?? DEFAULT_ANIMATION_GROUP_BY_SECTION.locomotion;
 let optFilter = 'all';      // ORG2: 'all' | 'changed' | a KINDS id
 let pickedFeature = null;   // ORG2: the Features row the help pane reads (pickedKey is DFU's key)
 let optScrollTo = null;     // ORG2: a row to bring into view after the next paint (the mods' list sends you to one)
@@ -1881,9 +1883,9 @@ function itemNodes(item, ctx) {
       jumping: 'Прыжки', swimming: 'Плавание', falling: 'Падение и приземление',
       damage: 'Получение урона', death: 'Смерть',
     };
-    const button = el('button', `sec-jumpbtn animation-switch animation-clip-group${animationClipGroup === group ? ' is-active' : ''}`, labels[group] ?? group);
+    const button = el('button', `sec-jumpbtn animation-switch animation-clip-group${animationClipGroup() === group ? ' is-active' : ''}`, labels[group] ?? group);
     button.type = 'button';
-    button.setAttribute('aria-expanded', String(animationClipGroup === group));
+    button.setAttribute('aria-expanded', String(animationClipGroup() === group));
     button.addEventListener('click', (event) => {
       // This is a nested selector, not a settings-row action. Keep the outer
       // menu from interpreting the click, update the selected clip family,
@@ -1900,7 +1902,6 @@ function itemNodes(item, ctx) {
       };
       selectedSectionByTab.animations = sectionForGroup[group] ?? 'posture';
       animationClipGroupBySection[selectedSectionByTab.animations] = group;
-      animationClipGroup = group;
       const body = ctx.body;
       if (!body || !body.isConnected) return;
       paintOptionsBody(body, { pause: ctx.pause });
@@ -2004,7 +2005,7 @@ function tabSections(tab, ctx) {
         clipGroup = item.slice(6);
         return itemNodes(item, { ...ctx, fold });
       }
-      if (tab.id === 'animations' && clipGroup && clipGroup !== animationClipGroup) return [];
+      if (tab.id === 'animations' && clipGroup && clipGroup !== animationClipGroup()) return [];
       return itemNodes(item, { ...ctx, fold });
     });
     if (nodes.length) out.push({ s, nodes });
@@ -2067,7 +2068,6 @@ function paintOptionsBody(body, { pause = false } = {}) {
       b.setAttribute('aria-pressed', String(selectedId === s.id));
       b.onclick = () => {
         selectedSectionByTab[tab.id] = s.id;
-        if (tab.id === 'animations') animationClipGroup = animationClipGroupBySection[s.id] ?? DEFAULT_ANIMATION_GROUP_BY_SECTION[s.id] ?? animationClipGroup;
         paintOptionsBody(body, { pause });
       };
       buttons.append(b);
