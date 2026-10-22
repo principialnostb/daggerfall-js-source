@@ -2600,8 +2600,8 @@ async function buildTpBody({
       // the whole body can assign cuirass/glove vertices to leg bones.
       partBytes.push({
         slot: row.slot, partName: row.partName, bones: row.bones, bytes: nifBytes(arc, path),
-        // Simply Animated Cloak has custom bone names; bind them to the chest at rest.
-        ...(isCloakSlot(row.slot) && isSimplyCloakModel(row.model) ? { retargetMissingBonesTo: 'bip01 spine2' } : {}),
+        // Simply Animated Cloak uses a foreign skin-root frame; anchor it to the actor chest.
+        ...(isCloakSlot(row.slot) && isSimplyCloakModel(row.model) ? { retargetSkinToBone: 'bip01 spine2' } : {}),
         ...ownBodyPart(row, rows, find),
       });   // MW-BRIG2
     }
