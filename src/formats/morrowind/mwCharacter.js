@@ -246,6 +246,14 @@ export function bindPart(skeleton, partNif, opts = {}) {
   const actorRestMats = retargetRef === undefined ? null : skeletonSpaceMatrices(skeleton, new Map(), GRAPH_ROOT);
   const sourceSkeleton = retargetRef === undefined ? null : buildSkeleton(partNif);
   const sourceRestMats = sourceSkeleton ? skeletonSpaceMatrices(sourceSkeleton, new Map(), GRAPH_ROOT) : null;
+  // Retarget from the cloak's own skeleton-root space, not its original graph-space
+  // origin. The actor chest becomes the attachment anchor; only the custom bone's
+  // authored offset below the cloak root should survive the coordinate-system change.
+  const sourceRootRef = sourceSkeleton
+    ? [...sourceSkeleton.nodes].find(([, node]) => node.parent < 0)?.[0]
+    : undefined;
+  const sourceRootRest = sourceRootRef === undefined ? null : sourceRestMats.get(sourceRootRef);
+  const sourceRootInverse = sourceRootRest ? affineInverse(sourceRootRest) : null;
   for (const batch of batches) {
     if (!batch.skinned || !batch.skin) {
       attached.push(batch);
@@ -269,9 +277,13 @@ export function bindPart(skeleton, partNif, opts = {}) {
         retargetedBones.add(bone.name);
         const sourceRef = sourceSkeleton.byName.get(String(bone.name).toLowerCase());
         const sourceRest = sourceRef === undefined ? null : sourceRestMats.get(sourceRef);
-        // Preserve sourceRest * originalInvBind, then express it relative to the actor chest:
-        // chestRest * newInvBind == sourceRest * originalInvBind, including the skin post.
-        const authoredBind = sourceRest ? affineMul(sourceRest, bone.invBind) : null;
+        // Preserve the bone's bind transform relative to the cloak root, then attach that
+        // local rig to the actor chest. Carrying source graph-space translation directly
+        // places the sheet inside the actor because the two skeleton roots are unrelated.
+        const sourceLocalRest = sourceRest && sourceRootInverse
+          ? affineMul(sourceRootInverse, sourceRest)
+          : sourceRest;
+        const authoredBind = sourceLocalRest ? affineMul(sourceLocalRest, bone.invBind) : null;
         const invBind = authoredBind
           ? affineMul(affineInverse(actorRestMats.get(retargetRef)), authoredBind)
           : affineMul(affineInverse(actorRestMats.get(retargetRef)), affineInverse(retargetPost));
