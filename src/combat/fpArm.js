@@ -2797,13 +2797,20 @@ async function buildTpBody({
     }
     hangHipLight(arm);   // HT-WAIST: the hook and the anchor, once, on the assembled skeleton
     const cloakFit = fitThirdPersonCloak(arm, new Set([...skinRows, ...worn.adds].map((row) => row.slot)));   // MW-CLOAK1
-    // Add secondary motion only to the selected skinned cloak, after its body-fit.
+    // Add secondary motion to the actual bound cloak mesh, after its body-fit.
+    // A Simply Animated Cloak NIF can fail the actor-rig check because its authored
+    // bone names (bone01, bone03.001, etc.) are not actor bones. In that case the
+    // resolver deliberately substitutes the compatible classic skinned cloak. Keep
+    // physics enabled for that fallback too: otherwise the recovery path restores a
+    // visible cloak but silently reintroduces the exact "static cloak" symptom.
+    // This does NOT retarget the rejected Simply NIF; it makes the compatible fallback
+    // physically responsive until a proper asset/skin retarget is available.
     for (const row of cloakRows) {
-      if (!isSimplyCloakModel(row.model)) continue;
       const piece = arm.pieces.find((candidate) => candidate.slot === row.slot
         && candidate.kind === 'skinned' && candidate.batch?.positions?.length && candidate.indices?.length);
       if (!piece) continue;
       const physics = createCloakPhysics(piece);
+      const fallbackMesh = !isSimplyCloakModel(row.model);
       if (physics) {
         piece.clothPhysics = physics;
         piece.clothPhysicsMaxOffset = physics.maxOffset;
@@ -2813,12 +2820,15 @@ async function buildTpBody({
           action: 'cloak-physics-created',
           modId: 'simply-animated-cloaks',
           resource: `meshes/${row.model}`,
-          message: 'Dynamic cloak cloth state created for the bound skinned mesh.',
+          message: fallbackMesh
+            ? 'Dynamic cloth state created for the compatible fallback cloak mesh.'
+            : 'Dynamic cloth state created for the selected Simply Animated Cloak mesh.',
           details: {
             vertices: physics.pos.length / 3,
             constraints: physics.edges.length,
             pinnedVertices: physics.pinned.reduce((sum, pinned) => sum + pinned, 0),
             maxOffset: physics.maxOffset,
+            fallbackMesh,
           },
         });
       } else {
@@ -2828,8 +2838,9 @@ async function buildTpBody({
           action: 'cloak-physics-unavailable',
           modId: 'simply-animated-cloaks',
           resource: `meshes/${row.model}`,
-          message: 'The cloak bound to the rig, but its mesh could not initialize cloth physics.',
+          message: 'The bound cloak mesh could not initialize cloth physics.',
           details: {
+            fallbackMesh,
             positionsType: piece.batch?.positions?.constructor?.name ?? null,
             positionFloats: piece.batch?.positions?.length ?? 0,
             indexCount: piece.indices?.length ?? 0,
