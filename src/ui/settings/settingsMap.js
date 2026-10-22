@@ -231,9 +231,12 @@ export const CATEGORIES = Object.freeze([
       "group:damage", "label:damage", "feat:morrowind-hit-reaction-animation-source", "info:player-damage", "info:npc-damage",
       "group:death", "label:death", "info:player-death", "info:npc-death",
     ]),
-    sec("sources", "Источники и плавность анимаций", [
+    sec("third-person", "Источники анимаций (3-е лицо)", [
       "feat:morrowind-animation-overhaul", "feat:morrowind-animation-blending",
-      "feat:morrowind-first-person-animation-source", "feat:morrowind-openmw-dynamic-animations",
+      "feat:morrowind-openmw-dynamic-animations",
+    ]),
+    sec("first-person", "Анимации от первого лица", [
+      "feat:morrowind-first-person-animation-source",
     ]),
   ]),
   tab("bodies", "Тела", [
