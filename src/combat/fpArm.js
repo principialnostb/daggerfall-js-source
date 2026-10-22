@@ -7780,7 +7780,20 @@ export function createFpArm({ playerAppearance = false } = {}) {
           const cloakGroup = String(movementState?.group ?? '').toLowerCase();
           const cloakMotion = /run/.test(cloakGroup) ? 1 : /walk|sneak/.test(cloakGroup) ? 0.65 : 0.15;
           for (const piece of t.arm.pieces) {
-            if (piece.clothPhysics) stepCloakPhysics(piece, dt, cloakMotion);
+            if (!piece.clothPhysics) continue;
+            const stepped = stepCloakPhysics(piece, dt, cloakMotion);
+            if (stepped && !piece.clothPhysicsStepDiagnosed) {
+              piece.clothPhysicsStepDiagnosed = true;
+              modDiagnostics.record({
+                level: 'info',
+                phase: 'animation',
+                action: 'cloak-physics-stepped',
+                modId: 'simply-animated-cloaks',
+                resource: `meshes/${piece.slot}`,
+                message: 'Dynamic cloak physics advanced during the third-person frame.',
+                details: { dt, motion: cloakMotion, vertices: piece.clothPhysics.pos.length / 3 },
+              });
+            }
           }
           if (thirdBlendWeight >= 1) thirdBlendFrom = null;
           uploadThirdMesh(t);
