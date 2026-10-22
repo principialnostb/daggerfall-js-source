@@ -10,7 +10,8 @@
 import { deref } from './mwNifFile.js';
 import { flattenNif } from './mwNifMesh.js';
 import { particleSystemOf, affineInverse } from './mwParticles.js';   // MAC-Q: a part's particle systems, off the same walk; MWNPC9: a creature node's rest undone
-import { skeletonSpaceMatrices, poseSkeleton, GRAPH_ROOT } from './mwSkin.js';
+import { affineMul } from './mwAffine.js';
+import { buildSkeleton, skeletonSpaceMatrices, poseSkeleton, skinPost, GRAPH_ROOT } from './mwSkin.js';
 
 /**
  * Rebind one part's batches onto the base skeleton.
@@ -239,11 +240,12 @@ export function bindPart(skeleton, partNif, opts = {}) {
   const retargetRef = opts.retargetMissingBonesTo
     ? skeleton.byName.get(String(opts.retargetMissingBonesTo).toLowerCase())
     : undefined;
-  // Custom cloth bones can follow the actor chest at bind pose; vertex cloth physics
-  // supplies secondary motion. Rebase inverse bind to preserve the authored pose.
-  const retargetInvBind = retargetRef === undefined
-    ? null
-    : affineInverse(skeletonSpaceMatrices(skeleton, new Map()).get(retargetRef));
+  // Custom cloth bones can follow the actor chest while preserving each bone's
+  // authored bind transform. Using inverse(chest) alone collapses every influence
+  // to identity and loses the cloak NIF's original bone offsets and skin transforms.
+  const actorRestMats = retargetRef === undefined ? null : skeletonSpaceMatrices(skeleton, new Map(), GRAPH_ROOT);
+  const sourceSkeleton = retargetRef === undefined ? null : buildSkeleton(partNif);
+  const sourceRestMats = sourceSkeleton ? skeletonSpaceMatrices(sourceSkeleton, new Map(), GRAPH_ROOT) : null;
   for (const batch of batches) {
     if (!batch.skinned || !batch.skin) {
       attached.push(batch);
@@ -262,7 +264,16 @@ export function bindPart(skeleton, partNif, opts = {}) {
       const ref = skeleton.byName.get(String(bone.name).toLowerCase());
       if (ref === undefined && retargetRef !== undefined) {
         retargetedBones.add(bone.name);
-        return { ...bone, ref: retargetRef, invBind: retargetInvBind };
+        const sourceRef = sourceSkeleton.byName.get(String(bone.name).toLowerCase());
+        const sourceRest = sourceRef === undefined ? null : sourceRestMats.get(sourceRef);
+        const post = skinPost({ ...skin, skeletonRoot: GRAPH_ROOT, rootBone: GRAPH_ROOT }, skeleton, null);
+        // Preserve sourceRest * originalInvBind, then express it relative to the actor chest:
+        // chestRest * newInvBind == sourceRest * originalInvBind, including the skin post.
+        const authoredBind = sourceRest ? affineMul(sourceRest, bone.invBind) : null;
+        const invBind = authoredBind
+          ? affineMul(affineInverse(actorRestMats.get(retargetRef)), authoredBind)
+          : affineMul(affineInverse(actorRestMats.get(retargetRef)), affineInverse(post));
+        return { ...bone, ref: retargetRef, invBind };
       }
       if (ref === undefined) {
         missingBones.add(bone.name);
