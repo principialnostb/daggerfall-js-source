@@ -1325,7 +1325,7 @@ export const FEATURES = Object.freeze([
   Object.freeze({
     id: 'morrowind-animation-blending',
     group: 'character',
-    title: 'Плавность переходов анимаций',
+    title: 'Плавность переходов (3-е лицо)',
     get note() { return MOD_SETTINGS['morrowind-animation'].keys.AnimationBlendDuration.description; },
     effect: 'Takes effect immediately.',
     kinds: Object.freeze(['mod']),
@@ -1334,7 +1334,7 @@ export const FEATURES = Object.freeze([
   Object.freeze({
     id: 'morrowind-first-person-animation-source',
     group: 'character',
-    title: 'Источник анимаций первого лица',
+    title: 'Источник анимаций (1-е лицо)',
     get note() { return MOD_SETTINGS['morrowind-animation'].keys.FirstPersonSource.description; },
     effect: 'After rebuilding the first-person rig.',
     kinds: Object.freeze(['mod']),
@@ -1343,7 +1343,7 @@ export const FEATURES = Object.freeze([
   Object.freeze({
     id: 'morrowind-openmw-dynamic-animations',
     group: 'character',
-    title: 'OpenMW Dynamic Animations',
+    title: 'Источник анимаций (3-е лицо) · OpenMW',
     get note() { return MOD_SETTINGS['morrowind-animation'].keys.OpenMWDynamicAnimations.description; },
     effect: 'After rebuilding affected character rigs.',
     kinds: Object.freeze(['mod']),
@@ -1364,7 +1364,7 @@ export const FEATURES = Object.freeze([
   Object.freeze({
     id: 'morrowind-animation-overhaul',
     group: 'character',
-    title: 'Morrowind Animation Overhaul',
+    title: 'Замена анимаций (3-е лицо) · MAO',
     get note() { return MOD_SETTINGS['morrowind-animation'].keys.AnimationOverhaul.description; },
     effect: 'After rebuilding the character rig.',
     kinds: Object.freeze(['mod']),
