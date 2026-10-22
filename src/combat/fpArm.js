@@ -3859,6 +3859,29 @@ export async function buildFpArm({
     // Its refusal is a note on the card, never the arm's refusal.
     const tpBody = (wornNow) => buildTpBody({ race, female, beast, faceIndex, faceMatch, weapon, hasAmmo, worn: wornNow, archives, parts, allWeapons, find, gen, torch, allLights, sheathing, ammoCount, hipLight, werewolf, skin: werewolf ? skin : null, vampire: !!vampire, walk: npcFace, npcHint, ownHeads: !!ownHeads, appearanceHeadId, appearanceHairId });   // (the wolf's rows read no face)   // MW-D51; WS1; HT-WAIST; WEREWOLF1; SHADOW-FANG; MWNPC14; MWNPC17
     let third = arm.ok ? await tpBody(worn) : null;
+    // Make a third-person refusal explicit: a successful first-person arm build does
+    // not mean the player body assembled. This is especially important for cloak
+    // fallbacks, where a failed body build makes the renderer fall back to its sprite.
+    if ((worn?.adds ?? []).some((row) => isCloakSlot(row.slot))) {
+      modDiagnostics.record({
+        level: third?.ok ? 'info' : 'error',
+        phase: 'animation',
+        action: 'third-person-body-build',
+        modId: 'simply-animated-cloaks',
+        resource: third?.skeletonPath ?? 'third-person-body',
+        message: third?.ok
+          ? 'Third-person body assembly succeeded with a cloak equipped.'
+          : 'Third-person body assembly failed with a cloak equipped; inspect the stage and error.',
+        details: {
+          ok: !!third?.ok,
+          stage: third?.stage ?? null,
+          error: third?.error ?? null,
+          pieces: third?.pieces ?? 0,
+          cloakModels: (worn.adds ?? []).filter((row) => isCloakSlot(row.slot)).map((row) => row.model),
+          notes: (third?.notes ?? []).slice(0, 12),
+        },
+      });
+    }
     // AUDIT MW-FOLK1 (L2-F2): AN OUTFIT THAT BOUND NOTHING HIDES NOTHING AND DRESSES NOTHING. Its `hides` took the skin
     // under it and its `covers` stood the modesty shirt down at the composition, before its mesh was read; one whose mesh
     // was not in the archives (the port's own, its chunk not loaded), did not parse or bound no shape left the body with
