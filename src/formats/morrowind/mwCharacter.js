@@ -237,8 +237,8 @@ export function bindPart(skeleton, partNif, opts = {}) {
   const attached = [];
   const missingBones = new Set();
   const retargetedBones = new Set();
-  const retargetRef = opts.retargetMissingBonesTo
-    ? skeleton.byName.get(String(opts.retargetMissingBonesTo).toLowerCase())
+  const retargetRef = opts.retargetSkinToBone
+    ? skeleton.byName.get(String(opts.retargetSkinToBone).toLowerCase())
     : undefined;
   // A foreign skinned part has its OWN skin root. Its bone matrices and skin
   // transforms are expressed relative to that root, not the NIF file's scene root.
