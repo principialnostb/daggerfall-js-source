@@ -1688,6 +1688,10 @@ export const MOD_SETTINGS = Object.freeze({
         options: lazyWords('Original', 'Vanilla', 'Morrowind Animation Overhaul'),
         description: 'Optional third-person animation replacement. To use it, install the MAO files locally at Mods/Animations/Morrowind Animation Overhaul/Data Files/Meshes/xbase_anim.kf and xbase_anim_female.kf. The asset files are not included in this repository; your build bundles the local files you provide. Vanilla keeps the game/archive animation groups.',
       }),
+      SimplyAnimatedCloaks: Object.freeze({
+        default: true,
+        description: 'Use the bundled Simply Animated Cloaks meshes on the player and NPCs. If a mesh cannot bind to an actor rig, the runtime tries the other cloak mesh style. Turn this off to prefer the original ported cloak meshes.',
+      }),
       AnimationBlendDuration: Object.freeze({
         default: 1,
         options: lazyWords('Vanilla', 'Smooth · 0.16 s', 'Smooth · 0.25 s', 'Smooth · 0.40 s'),
