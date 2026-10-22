@@ -96,12 +96,14 @@ import { skinMips, skinUseOf, skinUseKey } from '../characters/werewolfSkin.js';
 import { correctTexturePath, correctActorModelPath, wrapModes, warningImage, decodeTextureImage } from '../formats/morrowind/mwTexture.js';
 
 const animationDiagnosticStorageKey = 'morrowind-animation-diagnostics-v1';
+const MAX_MEMORY_ANIMATION_DIAGNOSTICS = 1000;
+const MAX_PERSISTED_ANIMATION_DIAGNOSTICS = 200;
 let storedAnimationDiagnostics = [];
 try {
   const saved = globalThis.localStorage?.getItem(animationDiagnosticStorageKey);
   if (saved) {
     const parsed = JSON.parse(saved);
-    if (Array.isArray(parsed)) storedAnimationDiagnostics = parsed;
+    if (Array.isArray(parsed)) storedAnimationDiagnostics = parsed.slice(-MAX_MEMORY_ANIMATION_DIAGNOSTICS);
   }
 } catch (error) {
   console.warn('[Morrowind animation diagnostic] Could not read persistent local diagnostics:', error);
@@ -111,6 +113,7 @@ const animationDiagnosticKeys = new Set(
 );
 const animationDiagnosticLog = globalThis.__morrowindAnimationDiagnostics
   ?? (globalThis.__morrowindAnimationDiagnostics = storedAnimationDiagnostics);
+const simplyAnimatedCloaksEnabled = () => modSetting('morrowind-animation', 'SimplyAnimatedCloaks') !== false;
 
 function logAnimationDiagnostic(key, detail) {
   if (animationDiagnosticKeys.has(key)) return;
@@ -118,14 +121,19 @@ function logAnimationDiagnostic(key, detail) {
   const entry = { timestamp: new Date().toISOString(), ...detail, _diagnosticKey: key };
   animationDiagnosticLog.push(entry);
   // Persist each event immediately in this browser profile, across reloads.
-  // Keep the newest 5,000 entries to limit localStorage growth.
-  if (animationDiagnosticLog.length > 5000) {
-    animationDiagnosticLog.splice(0, animationDiagnosticLog.length - 5000);
+  // Bound both the in-memory log and the durable snapshot. Older builds wrote up to 5,000
+  // detailed events on every event, which could permanently exceed the browser's storage quota.
+  if (animationDiagnosticLog.length > MAX_MEMORY_ANIMATION_DIAGNOSTICS) {
+    animationDiagnosticLog.splice(0, animationDiagnosticLog.length - MAX_MEMORY_ANIMATION_DIAGNOSTICS);
   }
   try {
-    globalThis.localStorage?.setItem(animationDiagnosticStorageKey, JSON.stringify(animationDiagnosticLog));
-  } catch (error) {
-    console.warn('[Morrowind animation diagnostic] Could not persist diagnostics locally:', error);
+    globalThis.localStorage?.setItem(animationDiagnosticStorageKey, JSON.stringify(animationDiagnosticLog.slice(-MAX_PERSISTED_ANIMATION_DIAGNOSTICS)));
+  } catch {
+    // Existing profiles may already be full. Retry with a smaller tail, and never let diagnostics
+    // spam the console or interrupt animation/body assembly because storage is unavailable.
+    try {
+      globalThis.localStorage?.setItem(animationDiagnosticStorageKey, JSON.stringify(animationDiagnosticLog.slice(-25)));
+    } catch { /* best effort only; the in-memory export remains available */ }
   }
   console.info('[Morrowind animation diagnostic]', entry);
 }
@@ -298,7 +306,7 @@ import { fpLightingOn } from './fpsWeapon.js';   // MAC-P: the first-person ligh
 import { createParticleSystem, packParticleQuads, particleDrawState, affineOfTransform, affineMul, affineApply, affineScale } from '../formats/morrowind/mwParticles.js';   // MAC-Q: the torch's flame, and any other particle system a part carries
 import { boneSourcesFor, resolveHolsterParts, holsterPartPaths, holsterHidden, HOLSTER_SLOTS } from '../systems/weaponSheathing.js';   // WS1
 import { fitCloakOver, fitStowedGear, followCloak, HIP_PITCH_LIMIT, CLOAK_PUSH_LIMIT, SLUNG_MOVE_LIMIT } from '../formats/morrowind/mwCloakFit.js';   // MW-CLOAK1: the cloak over what the body wears, stowed gear against it; AUDIT MW-CLOAK: and going with it
-import { isCloakSlot, ownCloakFor, isOutfitSlot } from '../characters/ownModels/ownClothingModels.js';   // MW-CLOAK1; AUDIT MW-CLOAK: and its picture; AUDIT MW-FOLK1: an outfit's add, by its label
+import { isCloakSlot, ownCloakFor, isOutfitSlot, isSimplyCloakModel } from '../characters/ownModels/ownClothingModels.js';   // MW-CLOAK1; AUDIT MW-CLOAK: and its picture; AUDIT MW-FOLK1: an outfit's add, by its label
 import { injectSkeletonNodes } from '../formats/morrowind/mwSkin.js';   // WS1: the dry injection the holster's bone probe runs
 // MAP3: THE HELD SHEET - the pose deltas over the idle, the paper piece
 // the hands hold, and where its corners land on the composite
@@ -2490,8 +2498,8 @@ async function buildTpBody({
         assetAvailable,
         female: !!female,
         race: String(race ?? ''),
-        selectedStyle: String(row.model ?? '').startsWith('simply_cape_') ? 'simply-animated' : 'classic',
-        enabled: getPref('simplyAnimatedCloaks') !== false,
+        selectedStyle: isSimplyCloakModel(row.model) ? 'simply-animated' : 'classic',
+        enabled: simplyAnimatedCloaksEnabled(),
       },
     });
   }
@@ -2632,52 +2640,74 @@ async function buildTpBody({
     partBytes.push(...resolvedHip.parts);
 
     let arm = await assembleFirstPersonArm({ skeletonBytes, parts: partBytes, boneSources, parseNif: parseNifOnce, offWeaponBone: true });   // MWNPC3: one parse a mesh, every body; TWO-HANDS AUDIT: the left hand's weapon bone
-    const animatedCloaks = cloakRows.filter((row) => String(row.model).startsWith('simply_cape_'));
     const hasBoundCloak = (built) => built?.ok && cloakRows.some((row) => built.arm?.pieces?.some((piece) => piece.slot === row.slot));
-    // Simply Animated Cloaks assets are skinned NIFs. If a particular rig cannot bind one (or the assembly rejects
-    // its skin data), retry the same body with the already-shipped classic cloak rather than leaving the player bare.
-    // Keep the fallback visible in diagnostics so this cannot silently masquerade as a successful animated integration.
-    if (animatedCloaks.length && (!arm.ok || !hasBoundCloak({ ok: true, arm }))) {
+    // If the chosen cloak is absent from the assembled rig, try the other bundled style regardless of which
+    // style was selected. This covers incompatible animated skin data and classic meshes rejected by a rig.
+    // A fallback is successful only if the cloak piece itself survived assembly, not merely because the body did.
+    if (cloakRows.length && (!arm.ok || !hasBoundCloak({ ok: true, arm }))) {
       const failures = [];
       const replacements = new Map();
-      for (const row of animatedCloaks) {
+      for (const row of cloakRows) {
         const piece = row.piece ?? {};
-        const classic = ownCloakFor({
+        const fallbackStyle = isSimplyCloakModel(row.model) ? 'classic' : 'simply-animated';
+        const fallback = ownCloakFor({
           kind: 'clothing',
           name: piece.name ?? CLOTHING_NAME[piece.templateIndex],
           dye: piece.dye ?? 0,
-        }, { style: 'classic' });
-        const path = classic && `meshes/${classic.model}`;
-        if (!path) { failures.push(`${row.slot}: cannot resolve classic cloak fallback`); continue; }
+        }, { style: fallbackStyle });
+        const path = fallback && `meshes/${fallback.model}`;
+        if (!path) { failures.push(`${row.slot}: cannot resolve ${fallbackStyle} cloak fallback`); continue; }
         await loadFromArchives(archives, [path]);
         const arc = find(path);
-        if (!arc) { failures.push(`${row.slot}: classic fallback missing at ${path}`); continue; }
-        replacements.set(row.slot, { ...row, model: classic.model, bytes: nifBytes(arc, path) });
+        if (!arc) { failures.push(`${row.slot}: fallback missing at ${path}`); continue; }
+        replacements.set(row.slot, { ...row, model: fallback.model, bytes: nifBytes(arc, path), style: fallbackStyle });
       }
-      if (replacements.size === animatedCloaks.length) {
+      if (replacements.size === cloakRows.length) {
         const fallbackParts = partBytes.map((part) => replacements.has(part.slot)
           ? { ...part, bytes: replacements.get(part.slot).bytes }
           : part);
+        for (const replacement of replacements.values()) {
+          if (!fallbackParts.some((part) => part.slot === replacement.slot)) {
+            fallbackParts.push({
+              slot: replacement.slot, partName: replacement.partName, bones: replacement.bones,
+              bytes: replacement.bytes, ...ownBodyPart(replacement, rows, find),
+            });
+          }
+        }
         const fallbackArm = await assembleFirstPersonArm({ skeletonBytes, parts: fallbackParts, boneSources, parseNif: parseNifOnce, offWeaponBone: true });
-        if (fallbackArm.ok) {
+        if (fallbackArm.ok && hasBoundCloak({ ok: true, arm: fallbackArm })) {
           arm = fallbackArm;
           partBytes.splice(0, partBytes.length, ...fallbackParts);
-          for (const row of animatedCloaks) row.model = replacements.get(row.slot).model;
-          missing.push('Simply Animated Cloak could not bind to this character rig; the classic cloak was drawn instead');
+          for (const row of cloakRows) row.model = replacements.get(row.slot).model;
+          missing.push('Selected cloak mesh did not bind to this character rig; the alternate bundled cloak mesh was drawn instead');
           modDiagnostics.record({
-            level: 'warn', phase: 'animation', action: 'cloak-classic-fallback', modId: 'simply-animated-cloaks',
-            resource: `meshes/${animatedCloaks[0].model}`,
-            message: 'Animated cloak did not bind; the classic cloak fallback was assembled',
-            details: { race: String(race ?? ''), female: !!female, reasons: failures, boundFallbacks: replacements.size },
+            level: 'warn', phase: 'animation', action: 'cloak-style-fallback', modId: 'simply-animated-cloaks',
+            resource: `meshes/${cloakRows[0].model}`,
+            message: 'Selected cloak did not bind; the alternate cloak style was assembled',
+            details: {
+              race: String(race ?? ''), female: !!female, reasons: failures,
+              fallbackModels: [...replacements.values()].map((row) => row.model),
+            },
           });
-        } else if (!arm.ok) {
+        } else {
           modDiagnostics.record({
             level: 'error', phase: 'animation', action: 'cloak-fallback-failed', modId: 'simply-animated-cloaks',
-            resource: `meshes/${animatedCloaks[0].model}`,
-            message: 'Animated cloak and classic fallback both failed to assemble',
-            details: { animatedError: String(arm.error ?? ''), fallbackError: String(fallbackArm.error ?? ''), race: String(race ?? ''), female: !!female, reasons: failures },
+            resource: `meshes/${cloakRows[0].model}`,
+            message: 'Neither the selected cloak nor the alternate cloak mesh produced a bound rig piece',
+            details: {
+              selectedError: String(arm.error ?? ''), fallbackError: String(fallbackArm.error ?? ''),
+              fallbackBound: hasBoundCloak({ ok: !!fallbackArm.ok, arm: fallbackArm }),
+              race: String(race ?? ''), female: !!female, reasons: failures,
+            },
           });
         }
+      } else {
+        modDiagnostics.record({
+          level: 'error', phase: 'animation', action: 'cloak-fallback-assets-missing', modId: 'simply-animated-cloaks',
+          resource: `meshes/${cloakRows[0].model}`,
+          message: 'The selected cloak did not bind and an alternate cloak asset could not be resolved',
+          details: { race: String(race ?? ''), female: !!female, reasons: failures },
+        });
       }
     }
     if (!arm.ok) {
@@ -3334,7 +3364,7 @@ export async function headPortrait({ renderer, race, female = false, faceIndex =
   // are no head's (a cloak, a robe: their dyes are measured for the body alone)
   const pieces = werewolf ? [] : (armor ?? []).filter((p) => p && p.kind !== 'clothing');
   const worn = pieces.length
-    ? composeWornArmor({ pieces, armors: cat.armors, clothes: [], bodyPool: cat.parts, female, helmStyle: getPref('mwSteelHelm'), cloakStyle: getPref('simplyAnimatedCloaks') === false ? 'classic' : 'simply-animated' })
+    ? composeWornArmor({ pieces, armors: cat.armors, clothes: [], bodyPool: cat.parts, female, helmStyle: getPref('mwSteelHelm'), cloakStyle: simplyAnimatedCloaksEnabled() ? 'simply-animated' : 'classic' })
     : { adds: [], shadows: [], notes: [] };
   const heads = worn.adds.filter((a) => capsHead(a) || (a.bones ?? []).some((b) => /^head$/i.test(b)));
   let skinRows = shadowSkinRows(rows.filter((r) => r.record).map((r) => ({ slot: r.slot, bones: PART_BONES[r.slot] ?? [], model: r.record.model })), worn.shadows);
@@ -3561,14 +3591,14 @@ export async function buildFpArm({
     // not carry a second copy of mwClothingRecord's pool law.
     if (!werewolf) {
       await prepareClothingColours(
-        (probe) => composeWornArmor({ pieces: armor ?? [], armors: armors ?? [], clothes: clothes ?? [], bodyPool: parts, female, colourOf: probe, helmStyle, cloakStyle: getPref('simplyAnimatedCloaks') === false ? 'classic' : 'simply-animated' }),
+        (probe) => composeWornArmor({ pieces: armor ?? [], armors: armors ?? [], clothes: clothes ?? [], bodyPool: parts, female, colourOf: probe, helmStyle, cloakStyle: simplyAnimatedCloaksEnabled() ? 'simply-animated' : 'classic' }),
         parts, archives, gen);
     }
     // NUDE-FLATS: and a woman's bare chest wears the upper weld while Show Nudity is off - this body is the
     // player's own figure and every peer's, each drawn by the viewer's setting as the classic doll is.
     const worn = werewolf
       ? composeWornArmor({ pieces: robe ? [{ kind: 'record', record: robe, reserve: 'robe' }] : [], armors: [], clothes: [], bodyPool: parts, female })
-      : composeWornModest({ pieces: armor ?? [], armors: armors ?? [], clothes: clothes ?? [], bodyPool: parts, female, colourOf, helmStyle, cloakStyle: getPref('simplyAnimatedCloaks') === false ? 'classic' : 'simply-animated' }, showNudity());
+      : composeWornModest({ pieces: armor ?? [], armors: armors ?? [], clothes: clothes ?? [], bodyPool: parts, female, colourOf, helmStyle, cloakStyle: simplyAnimatedCloaksEnabled() ? 'simply-animated' : 'classic' }, showNudity());
     // AUDIT C7: which of the two it is - Bloodmoon.esm not attached, or attached and naming no robe (a mod's master)
     if (werewolf && !robe) {
       worn.notes.push(esmNames.some((n) => /^bloodmoon\.esm$/i.test(n))
@@ -3744,7 +3774,7 @@ export async function buildFpArm({
     let wornBuilt = worn;
     const lost = third?.ok ? worn.adds.filter((a) => isOutfitSlot(a.slot) && !third.arm.pieces.some((p) => p.slot === a.slot)) : [];
     if (lost.length) {
-      const without = composeWornModest({ pieces: (armor ?? []).filter((p) => !lost.some((a) => a.piece === p)), armors: armors ?? [], clothes: clothes ?? [], bodyPool: parts, female, colourOf, helmStyle, cloakStyle: getPref('simplyAnimatedCloaks') === false ? 'classic' : 'simply-animated' }, showNudity());
+      const without = composeWornModest({ pieces: (armor ?? []).filter((p) => !lost.some((a) => a.piece === p)), armors: armors ?? [], clothes: clothes ?? [], bodyPool: parts, female, colourOf, helmStyle, cloakStyle: simplyAnimatedCloaksEnabled() ? 'simply-animated' : 'classic' }, showNudity());
       without.notes.push(...lost.map((a) => `outfit ${a.recordId}: ${t('body.outfit.unbound', 'none of it bound - drawn without it')}`));   // the label outside the language, as the composer's notes
       const again = await tpBody(without);
       if (again.ok) { third = again; wornBuilt = without; }
