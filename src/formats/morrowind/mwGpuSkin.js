@@ -185,9 +185,22 @@ export function skinLayout(pieces) {
       }
       // MW-SMOOTH: the authored normals, when the piece poses them (packFpArm reads `p.normals` beside its positions)
       const nrm = p.normals && p.normals.length === pos.length && batch.normals && batch.normals.length === pos.length ? batch.normals : null;
+      // Dynamic cloak vertices are bounded relative to their fitted bind shape;
+      // expand the conservative per-bone boxes by that maximum displacement.
+      const pad = Math.max(0, Number(p.clothPhysicsMaxOffset) || 0);
+      if (pad) {
+        for (const box of boxes.values()) {
+          box.minX -= pad; box.minY -= pad; box.minZ -= pad;
+          box.maxX += pad; box.maxY += pad; box.maxZ += pad;
+        }
+        if (untouched.minX <= untouched.maxX) {
+          untouched.minX -= pad; untouched.minY -= pad; untouched.minZ -= pad;
+          untouched.maxX += pad; untouched.maxY += pad; untouched.maxZ += pad;
+        }
+      }
       rows.push({ piece: p, kind: 'skinned', n, post, boneEntry, pos, nrm, batch, infE, infW, postE,
         boxes, untouched: untouched.minX <= untouched.maxX ? untouched : null, collapse, negative,
-        wMin: Number.isFinite(wMin) ? wMin : 1, wMax: Number.isFinite(wMax) ? wMax : 1, corner0: 0, sub: null });
+        wMin: Number.isFinite(wMin) ? wMin : 1, wMax: Number.isFinite(wMax) ? wMax : 1, corner0: 0, sub: null, gen: p.sourceGen | 0 });
     } else {
       const src = p.source;
       if (!src) return { ok: false, reason: `${p.slot}: a rigid piece with no authored positions` };
@@ -329,7 +342,22 @@ export function restreamMovedRows(layout, lanesOf) {
   out.length = 0;
   const floats = skinStreamFloats(layout.pairs);
   for (const r of layout.rows) {
-    if (r.kind !== 'rigid' || !syncRigidRow(r)) continue;
+    let changed = false;
+    if (r.kind === 'rigid') {
+      changed = syncRigidRow(r);
+    } else {
+      const gen = r.piece.sourceGen | 0;
+      if (r.gen === gen) continue;
+      r.gen = gen;
+      // The skinned row's positions and normals are the batch's arrays. A
+      // cloth step mutates them in place, so rewrite only that row's stream.
+      r.pos = r.piece.batch.positions;
+      r.nrm = r.piece.normals && r.piece.normals.length === r.pos.length
+        && r.piece.batch.normals && r.piece.batch.normals.length === r.pos.length
+        ? r.piece.batch.normals : null;
+      changed = true;
+    }
+    if (!changed) continue;
     const size = Math.floor(r.piece.indices.length / 3) * 3 * floats;
     if (!r.sub || r.sub.length !== size) r.sub = new Float32Array(size);
     writeRowCorners(layout, r, lanesOf(r.piece), r.sub, 0);

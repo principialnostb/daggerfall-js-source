@@ -306,6 +306,7 @@ import { fpLightingOn } from './fpsWeapon.js';   // MAC-P: the first-person ligh
 import { createParticleSystem, packParticleQuads, particleDrawState, affineOfTransform, affineMul, affineApply, affineScale } from '../formats/morrowind/mwParticles.js';   // MAC-Q: the torch's flame, and any other particle system a part carries
 import { boneSourcesFor, resolveHolsterParts, holsterPartPaths, holsterHidden, HOLSTER_SLOTS } from '../systems/weaponSheathing.js';   // WS1
 import { fitCloakOver, fitStowedGear, followCloak, HIP_PITCH_LIMIT, CLOAK_PUSH_LIMIT, SLUNG_MOVE_LIMIT } from '../formats/morrowind/mwCloakFit.js';   // MW-CLOAK1: the cloak over what the body wears, stowed gear against it; AUDIT MW-CLOAK: and going with it
+import { createCloakPhysics, stepCloakPhysics } from '../formats/morrowind/mwCloakPhysics.js';
 import { isCloakSlot, ownCloakFor, isOutfitSlot, isSimplyCloakModel } from '../characters/ownModels/ownClothingModels.js';   // MW-CLOAK1; AUDIT MW-CLOAK: and its picture; AUDIT MW-FOLK1: an outfit's add, by its label
 import { injectSkeletonNodes } from '../formats/morrowind/mwSkin.js';   // WS1: the dry injection the holster's bone probe runs
 // MAP3: THE HELD SHEET - the pose deltas over the idle, the paper piece
@@ -2771,6 +2772,18 @@ async function buildTpBody({
     }
     hangHipLight(arm);   // HT-WAIST: the hook and the anchor, once, on the assembled skeleton
     const cloakFit = fitThirdPersonCloak(arm, new Set([...skinRows, ...worn.adds].map((row) => row.slot)));   // MW-CLOAK1
+    // Add secondary motion only to the selected skinned cloak, after its body-fit.
+    for (const row of cloakRows) {
+      if (!isSimplyCloakModel(row.model)) continue;
+      const piece = arm.pieces.find((candidate) => candidate.slot === row.slot
+        && candidate.kind === 'skinned' && candidate.batch?.positions?.length && candidate.indices?.length);
+      if (!piece) continue;
+      const physics = createCloakPhysics(piece);
+      if (physics) {
+        piece.clothPhysics = physics;
+        piece.clothPhysicsMaxOffset = physics.maxOffset;
+      }
+    }
     // MW-LOAD: covers collectArmTextures' synchronous reads - rule 36's
     // ladder over the names the assembled pieces carry, which are only
     // knowable now that the NIFs are parsed.
@@ -7719,6 +7732,11 @@ export function createFpArm({ playerAppearance = false } = {}) {
           const thirdBlendWeight = thirdBlendFrom && blendDuration > 0
             ? (easedReactionRule?.weight ?? blendProgress)
             : 1;
+          const cloakGroup = String(movementState?.group ?? '').toLowerCase();
+          const cloakMotion = /run/.test(cloakGroup) ? 1 : /walk|sneak/.test(cloakGroup) ? 0.65 : 0.15;
+          for (const piece of t.arm.pieces) {
+            if (piece.clothPhysics) stepCloakPhysics(piece, dt, cloakMotion);
+          }
           poseAssembly(t.arm, {
             tracks: tOverlay ? overlayFor(tBase, t.leftArm) : tBase,
             sampleTrack: tOverlay ? overlaySample : sampleTrack,
