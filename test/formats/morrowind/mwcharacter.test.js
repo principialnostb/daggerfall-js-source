@@ -10,12 +10,14 @@ import {
   skinBatch,
 } from '../../../src/formats/morrowind/mwSkin.js';
 import { bindPart, attachmentTransform } from '../../../src/formats/morrowind/mwCharacter.js';
+import { flattenNif } from '../../../src/formats/morrowind/mwNifMesh.js';
 import { GRAPH_ROOT } from '../../../src/formats/morrowind/mwSkin.js';
 
 const ANIMATED = new Uint8Array(
   readFileSync(new URL('../../fixtures/mw/animated.nif', import.meta.url)),
 );
 const PART = new Uint8Array(readFileSync(new URL('../../fixtures/mw/part.nif', import.meta.url)));
+const SIMPLY_CLOAK = new Uint8Array(readFileSync(new URL('../../../src/assets/mw/meshes/simply_cape_blue_skins.nif', import.meta.url)));
 
 const near = (a, b, eps = 1e-5) => Math.abs(a - b) < eps;
 const nearVec = (v, e, eps = 1e-5) => v.every((x, i) => near(x, e[i], eps));
@@ -26,6 +28,48 @@ function assemble() {
   const part = bindPart(skeleton, parseNif(PART), { attachBone: 'Bone1' });
   return { baseNif, skeleton, part };
 }
+
+test('mwcharacter: foreign cloak is placed at the actor chest from its actual NIF skin-root frame', () => {
+  const sourceNif = parseNif(SIMPLY_CLOAK);
+  const sourceSkeleton = buildSkeleton(sourceNif);
+  const sourceBatch = flattenNif(sourceNif)[0];
+  assert.ok(sourceBatch?.skin, 'the Simply Animated Cloak asset is a skinned NIF');
+  assert.equal(sourceNif.records[sourceBatch.skin.skeletonRoot].name, 'cloakbone',
+    'the skin root is the cloak attachment bone, not the file scene root');
+
+  const sourcePose = poseSkeleton(sourceSkeleton, null, sampleTrack, 0);
+  const sourceMats = skeletonSpaceMatrices(sourceSkeleton, sourcePose, sourceBatch.skin.skeletonRoot);
+  const sourceOut = new Float32Array(sourceBatch.positions.length);
+  skinBatch(sourceBatch, sourceSkeleton, sourcePose, sourceMats, sourceOut, null);
+
+  const actorSkeleton = buildSkeleton(parseNif(ANIMATED));
+  const chestRef = 100000;
+  actorSkeleton.nodes.set(chestRef, {
+    ref: chestRef, name: 'Bip01 Spine2', parent: -1,
+    rest: {
+      rotation: Float32Array.from([1, 0, 0, 0, 1, 0, 0, 0, 1]),
+      translation: [10, 20, 30], scale: 1,
+    },
+  });
+  actorSkeleton.byName.set('bip01 spine2', chestRef);
+  const bound = bindPart(actorSkeleton, sourceNif, { retargetMissingBonesTo: 'bip01 spine2' });
+  const batch = bound.skinned[0];
+  assert.ok(batch, 'the cloak binds to the actor');
+  assert.deepEqual(batch.skin.transform.translation, [0, 0, 0],
+    'source skin transform is absorbed into the new inverse binds exactly once');
+  assert.deepEqual(batch.skin.shapeTransform.translation, [0, 0, 0],
+    'source shape transform is absorbed into the new inverse binds exactly once');
+
+  const actorPose = poseSkeleton(actorSkeleton, null, sampleTrack, 0);
+  const actorMats = skeletonSpaceMatrices(actorSkeleton, actorPose, GRAPH_ROOT);
+  const actual = new Float32Array(batch.positions.length);
+  skinBatch(batch, actorSkeleton, actorPose, actorMats, actual, null);
+  for (let i = 0; i < actual.length; i += 3) {
+    assert.ok(near(actual[i], sourceOut[i] + 10, 2e-4), `x vertex ${i / 3}: ${actual[i]}`);
+    assert.ok(near(actual[i + 1], sourceOut[i + 1] + 20, 2e-4), `y vertex ${i / 3}: ${actual[i + 1]}`);
+    assert.ok(near(actual[i + 2], sourceOut[i + 2] + 30, 2e-4), `z vertex ${i / 3}: ${actual[i + 2]}`);
+  }
+});
 
 test('mwcharacter: part skin rebinds onto the BASE skeleton by bone name', () => {
   const { baseNif, skeleton, part } = assemble();
