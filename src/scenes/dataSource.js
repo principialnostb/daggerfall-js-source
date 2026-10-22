@@ -778,6 +778,14 @@ async function _openMorrowindArchives(gen) {
   } catch (err) {
     console.warn(`weapon sheathing assets: ${err.message}`);
   }
+  // Simply Animated Cloaks: mount the bundled skinned meshes and diffuse maps after user loose files,
+  // so local overrides still win, and before BSAs so the worn-item resolver can open the NIFs.
+  try {
+    const cloaks = await import('../systems/simplyAnimatedCloaksAssets.js');
+    archives.push(cloaks.simplyAnimatedCloaksArchive());
+  } catch (err) {
+    console.warn(`simply animated cloaks assets: ${err.message}`);
+  }
   // FIELD-GUN-MW2: THE PORT'S OWN Morrowind assets - the Dwarven
   // Thunderlock's mesh and texture, which no player's archives can
   // carry because Morrowind has no firearm. Same rank and the same
