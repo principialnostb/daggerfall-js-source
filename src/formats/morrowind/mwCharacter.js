@@ -252,6 +252,9 @@ export function bindPart(skeleton, partNif, opts = {}) {
       continue;
     }
     const skin = batch.skin;
+    const retargetPost = retargetRef === undefined
+      ? null
+      : skinPost({ ...skin, skeletonRoot: GRAPH_ROOT, rootBone: GRAPH_ROOT }, skeleton, null);
     // RULE 40: A MISSING BONE IS NOT FATAL. The reference logs
     // "RigGeometry did not find bone", stores nullptr, and skips every
     // influence naming it in the blend (riggeometry.cpp:195-196) - it
@@ -266,13 +269,12 @@ export function bindPart(skeleton, partNif, opts = {}) {
         retargetedBones.add(bone.name);
         const sourceRef = sourceSkeleton.byName.get(String(bone.name).toLowerCase());
         const sourceRest = sourceRef === undefined ? null : sourceRestMats.get(sourceRef);
-        const post = skinPost({ ...skin, skeletonRoot: GRAPH_ROOT, rootBone: GRAPH_ROOT }, skeleton, null);
         // Preserve sourceRest * originalInvBind, then express it relative to the actor chest:
         // chestRest * newInvBind == sourceRest * originalInvBind, including the skin post.
         const authoredBind = sourceRest ? affineMul(sourceRest, bone.invBind) : null;
         const invBind = authoredBind
           ? affineMul(affineInverse(actorRestMats.get(retargetRef)), authoredBind)
-          : affineMul(affineInverse(actorRestMats.get(retargetRef)), affineInverse(post));
+          : affineMul(affineInverse(actorRestMats.get(retargetRef)), affineInverse(retargetPost));
         return { ...bone, ref: retargetRef, invBind };
       }
       if (ref === undefined) {
