@@ -206,8 +206,6 @@ export const CATEGORIES = Object.freeze([
     ]),
     sec("posture", "Положение и скрытность", [
       "group:posture",
-      "feat:morrowind-animation-overhaul", "feat:morrowind-animation-blending", "feat:morrowind-first-person-animation-source", "feat:morrowind-openmw-dynamic-animations",
-      "feat:simply-animated-cloaks",
       "label:sneak", "info:player-sneak", "info:npc-sneak",
       "group:turning",
       "label:turning", "info:player-turning", "info:npc-turning",
@@ -233,10 +231,15 @@ export const CATEGORIES = Object.freeze([
       "group:damage", "label:damage", "feat:morrowind-hit-reaction-animation-source", "info:player-damage", "info:npc-damage",
       "group:death", "label:death", "info:player-death", "info:npc-death",
     ]),
+    sec("sources", "Источники и плавность анимаций", [
+      "feat:morrowind-animation-overhaul", "feat:morrowind-animation-blending",
+      "feat:morrowind-first-person-animation-source", "feat:morrowind-openmw-dynamic-animations",
+    ]),
   ]),
   tab("bodies", "Тела", [
-    sec("morrowind-bodies", "Модели тел Morrowind", [
+    sec("morrowind-bodies", "Модели тел и экипировка", [
       "feat:mw-better-bodies", "feat:mw-seamless-dmra", "feat:mw-npc-bodies", "feat:mw-billboard-look",
+      "feat:simply-animated-cloaks",
     ]),
   ]),
   tab("textures", "Текстуры", [
