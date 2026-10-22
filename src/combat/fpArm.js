@@ -7818,8 +7818,13 @@ export function createFpArm({ playerAppearance = false } = {}) {
           for (const piece of t.arm.pieces) {
             if (!piece.clothPhysics) continue;
             const stepped = stepCloakPhysics(piece, dt, cloakMotion);
-            if (stepped && !piece.clothPhysicsStepDiagnosed) {
-              piece.clothPhysicsStepDiagnosed = true;
+            if (stepped) {
+              // Keep the first sample and then one sample every 60 successful frames. A
+              // one-shot first-frame measurement cannot show whether Verlet motion grows,
+              // settles, or is continually reset by the pose/upload path.
+              piece.clothPhysicsStepCount = (piece.clothPhysicsStepCount ?? 0) + 1;
+              const sampleStep = piece.clothPhysicsStepCount;
+              if (sampleStep === 1 || sampleStep % 60 === 0) {
               const cloth = piece.clothPhysics;
               let maxOffset = 0;
               let movedVertices = 0;
@@ -7839,11 +7844,12 @@ export function createFpArm({ playerAppearance = false } = {}) {
                 resource: `meshes/${piece.slot}`,
                 message: 'Dynamic cloak physics advanced during the third-person frame.',
                 details: {
-                  dt, motion: cloakMotion, vertices: cloth.pos.length / 3,
+                  dt, motion: cloakMotion, step: sampleStep, vertices: cloth.pos.length / 3,
                   pinnedVertices: cloth.pinned.reduce((sum, pinned) => sum + pinned, 0),
                   maxOffset, movedVertices, sourceGen: piece.sourceGen | 0,
                 },
               });
+              }
             }
           }
           if (thirdBlendWeight >= 1) thirdBlendFrom = null;
