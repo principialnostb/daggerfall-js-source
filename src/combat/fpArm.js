@@ -2600,6 +2600,10 @@ async function buildTpBody({
       // the whole body can assign cuirass/glove vertices to leg bones.
       partBytes.push({
         slot: row.slot, partName: row.partName, bones: row.bones, bytes: nifBytes(arc, path),
+        // Simply Animated Cloak uses its own cloth-bone names, not the actor's
+        // bip01 skeleton. Retarget only this asset family to the chest at bind
+        // pose; the cloth solver then supplies the hem's independent motion.
+        ...(isCloakSlot(row.slot) && isSimplyCloakModel(row.model) ? { retargetMissingBonesTo: 'bip01 spine2' } : {}),
         ...ownBodyPart(row, rows, find),
       });   // MW-BRIG2
     }
