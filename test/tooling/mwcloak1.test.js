@@ -295,9 +295,10 @@ test('MW-CLOAK setting: the visible feature writes the exact runtime setting tha
   const features = src('src/systems/features.js');
   const runtime = src('src/combat/fpArm.js');
   const settings = src('src/systems/modSettings.js');
-  assert.match(features, /id: 'simply-animated-cloaks',[\\s\\S]{0,500}control: Object\\.freeze\\(\\{ store: 'mods', vendor: 'morrowind-animation', key: 'SimplyAnimatedCloaks' \\}\\)/);
-  assert.match(runtime, /modSetting\\('morrowind-animation', 'SimplyAnimatedCloaks'\\) !== false/);
-  assert.match(settings, /SimplyAnimatedCloaks: Object\\.freeze\\(\\{\\s*default: true,/);
+  assert.ok(features.includes("id: 'simply-animated-cloaks'"));
+  assert.ok(features.includes("control: Object.freeze({ store: 'mods', vendor: 'morrowind-animation', key: 'SimplyAnimatedCloaks' })"));
+  assert.ok(runtime.includes("modSetting('morrowind-animation', 'SimplyAnimatedCloaks') !== false"));
+  assert.ok(settings.includes("SimplyAnimatedCloaks: Object.freeze({\\n        default: true,"));
 });
 
 test('MW-CLOAK1 by source: the third-person build fits the cloak over the body\'s skin and what it wears, once it is assembled, and ties the stowed gear to it; a weapon swap fits the new holster; seated or astride the cloak rides the chest as standing (MW-CAPE-RIGID: no batch swapped); a cloak\'s icon is its own', () => {
