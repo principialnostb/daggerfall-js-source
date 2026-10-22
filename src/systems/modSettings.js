@@ -1689,8 +1689,10 @@ export const MOD_SETTINGS = Object.freeze({
         description: 'Optional third-person animation replacement. To use it, install the MAO files locally at Mods/Animations/Morrowind Animation Overhaul/Data Files/Meshes/xbase_anim.kf and xbase_anim_female.kf. The asset files are not included in this repository; your build bundles the local files you provide. Vanilla keeps the game/archive animation groups.',
       }),
       SimplyAnimatedCloaks: Object.freeze({
-        default: true,
-        description: 'Use the bundled Simply Animated Cloaks meshes on the player and NPCs. If a mesh cannot bind to an actor rig, the runtime tries the other cloak mesh style. Turn this off to prefer the original ported cloak meshes.',
+        default: 2,
+        options: lazyWords('Vanilla', 'Vanilla Animated', 'Вкл'),
+        legacyBooleanChoice: true,
+        description: 'Vanilla uses the original ported cloak mesh. Vanilla Animated keeps that mesh and adds secondary cloth motion. Вкл selects the Simply Animated Cloaks mesh and its authored animation together; if it cannot bind to an actor rig, the runtime tries the compatible fallback mesh.',
       }),
       AnimationBlendDuration: Object.freeze({
         default: 1,
@@ -1963,6 +1965,9 @@ function coerce(def, v) {
     return pair.every(Number.isFinite) ? Object.freeze(pair) : def.default;
   }
   if (isChoiceKey(def)) {
+    // Preserve the former boolean Simply Animated Cloaks switch when it becomes a three-way choice:
+    // false meant the classic mesh, true meant the Simply Animated mesh (the final option).
+    if (def.legacyBooleanChoice && typeof v === 'boolean') return v ? def.options.length - 1 : 0;
     const n = Math.trunc(Number(v));
     return Number.isFinite(n) ? Math.max(0, Math.min(def.options.length - 1, n)) : def.default;
   }
