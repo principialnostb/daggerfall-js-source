@@ -1768,7 +1768,7 @@ export const FEATURES = Object.freeze([
     get note() { return t('features.simplyAnimatedCloaks.note', 'Use the skinned cloak meshes and follow the character’s movement. Turn off to use the classic rigid cloak.'); },
     get effect() { return t('features.simplyAnimatedCloaks.effect', 'Takes effect as characters are rebuilt; reload the game for existing characters.'); },
     kinds: Object.freeze(['enhanced']),
-    control: Object.freeze({ store: 'prefs', key: 'simplyAnimatedCloaks', initial: true, online: 'player' }),
+    control: Object.freeze({ store: 'mods', vendor: 'morrowind-animation', key: 'SimplyAnimatedCloaks' }),
   }),
   Object.freeze({
     id: 'mod-climates-calories',   // a mod-row id: WM3's law reaches the credits' vendor through it
