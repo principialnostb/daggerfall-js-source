@@ -5103,6 +5103,16 @@ export function createFpArm({ playerAppearance = false } = {}) {
       thirdSkinRefused = null;
       return false;
     }
+    // Cloth physics edits the CPU-side bind positions after poseAssembly. The GPU skin stream
+    // is immutable after its first upload, so palette-only updates silently discard those edits.
+    // Keep the whole third-person rig on the CPU skin path while a dynamic cloak is present;
+    // poseAssembly skins the deformed batch and uploadThirdMesh then uploads those live vertices.
+    if (t.arm.pieces.some((piece) => piece.clothPhysics)) {
+      if (thirdMesh && thirdMesh.skin) releaseThirdMesh();
+      thirdSkin = null;
+      thirdSkinRefused = null;
+      return false;
+    }
     if (!gpuSkinOn(renderer)) { if (thirdMesh && thirdMesh.skin) releaseThirdMesh(); return false; }
     if (thirdSkin && skinSamePieces(thirdSkin, t.arm.pieces)) return true;
     if (thirdSkinRefused === t.arm.pieces) return false;
