@@ -66,7 +66,7 @@ test('Simply Animated Cloaks: every selected replacement mesh and its authored t
     const [batch] = flattenNif(parseNif(onDisk(path)));
     assert.ok(batch.positions.length > 0, `${model} has drawable geometry`);
     assert.ok(batch.skinned, `${model} is skinned for animation`);
-    const rawTexture = String(batch.material?.textureFile ?? '').split(String.fromCharCode(92)).join('/').replace(/^\\/+/, '');
+    const rawTexture = String(batch.material?.textureFile ?? '').split(String.fromCharCode(92)).join('/').split('/').filter(Boolean).join('/');
     const texture = rawTexture.startsWith('textures/') ? rawTexture : `textures/${rawTexture.split('/').pop()}`;
     assert.ok(existsSync(new URL(`../../src/assets/mw/${texture}`, import.meta.url)), `${texture} ships for ${model} (${painting})`);
   }
