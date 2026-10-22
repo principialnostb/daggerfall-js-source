@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Morrowind Cloak Mesh Preview</title>
+  <style>
+    :root { color-scheme: dark; font: 14px system-ui, sans-serif; background:#111820; color:#e7e1d4 }
+    body { margin:0; padding:20px; max-width:1200px; margin-inline:auto }
+    h1 { font-size:22px; margin:0 0 8px }
+    p { color:#b8c1c9; max-width:80ch; line-height:1.5 }
+    .controls { display:flex; flex-wrap:wrap; gap:12px; align-items:end; margin:18px 0 }
+    label { display:grid; gap:5px; color:#c9b98d }
+    select,button { background:#202b35; color:#eee8da; border:1px solid #52606d; padding:8px; border-radius:4px }
+    canvas { display:block; width:100%; height:min(62vh,620px); background:#0b1117; border:1px solid #3c4853 }
+    pre { white-space:pre-wrap; overflow-wrap:anywhere; padding:12px; background:#18212a; border:1px solid #35414b; line-height:1.45 }
+    .hint { font-size:12px }
+  </style>
+</head>
+<body>
+  <h1>Cloak mesh preview / coordinate diagnostics</h1>
+  <p>This tool loads the same bundled NIF mesh files as the game, draws their geometry in orthographic projection, and reports vertex bounds, skinning, bone names and texture path. It isolates asset geometry from inventory/equipment resolution and character-rig binding.</p>
+  <div class="controls">
+    <label>Mesh<select id="mesh"></select></label>
+    <label>Projection<select id="view"><option value="back">Back (X/Z)</option><option value="side">Side (Y/Z)</option><option value="top">Top (X/Y)</option></select></label>
+    <button id="reload">Reload mesh</button>
+  </div>
+  <canvas id="preview" width="1000" height="620"></canvas>
+  <pre id="report">Loading…</pre>
+  <p class="hint">If the mesh looks correct here but is absent in-game, the problem is downstream: equipment slot resolution, archive lookup, skeleton binding, or the world draw path. If it is tiny/off-center/empty here, inspect the source NIF and its authored coordinate space first.</p>
+  <script type="module" src="./src/tools/mwCloakPreview.js"></script>
+</body>
+</html>
