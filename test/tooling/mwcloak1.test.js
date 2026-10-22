@@ -291,6 +291,15 @@ test('MW-CLOAK1: stowed gear against the cloak, on the addon\'s own scabbards - 
   assert.equal(bare.pieces[0].source, was);
 });
 
+test('MW-CLOAK setting: the visible feature writes the exact runtime setting that chooses the cloak mesh', () => {
+  const features = src('src/systems/features.js');
+  const runtime = src('src/combat/fpArm.js');
+  const settings = src('src/systems/modSettings.js');
+  assert.match(features, /id: 'simply-animated-cloaks',[\\s\\S]{0,500}control: Object\\.freeze\\(\\{ store: 'mods', vendor: 'morrowind-animation', key: 'SimplyAnimatedCloaks' \\}\\)/);
+  assert.match(runtime, /modSetting\\('morrowind-animation', 'SimplyAnimatedCloaks'\\) !== false/);
+  assert.match(settings, /SimplyAnimatedCloaks: Object\\.freeze\\(\\{\\s*default: true,/);
+});
+
 test('MW-CLOAK1 by source: the third-person build fits the cloak over the body\'s skin and what it wears, once it is assembled, and ties the stowed gear to it; a weapon swap fits the new holster; seated or astride the cloak rides the chest as standing (MW-CAPE-RIGID: no batch swapped); a cloak\'s icon is its own', () => {
   const fp = src('src/combat/fpArm.js');
   assert.match(fp, /hangHipLight\(arm\);[^\n]*\n\s*const cloakFit = fitThirdPersonCloak\(arm, new Set\(\[\.\.\.skinRows, \.\.\.worn\.adds\]\.map\(\(row\) => row\.slot\)\)\);/);
