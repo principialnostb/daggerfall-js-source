@@ -64,3 +64,50 @@ The gameplay movement resolver in `src/combat/fpArm.js` now emits a versioned `m
 
 Events use the `movement-selection-v1` deduplication namespace so earlier stored diagnostics do not suppress the new event schema. As with the existing collector, this is a best-effort browser-local log; it proves the resolver's source decision, not that the rendered pose looked correct. Check a fresh exported JSON after reproducing a walk/run transition and inspect the event's `group`, `file`, and `sourcePack` fields.
 
+## Simply Animated Cloaks: rig rejection and physics fallback (2026-10-22)
+
+### Reproduction and observed evidence
+
+The browser reproduction used `/play/?load=1&classic=1`, equipped a Simply Animated Cloak, and ran with it. The cloak remained visually static. The diagnostic history in `globalThis.__modDiagnosticsEvents` contained the following relevant sequence:
+
+1. `simply-animated-cloak-assets-catalogued` reported the supported NIFs and diffuse textures as discovered.
+2. `cloak-resolution` selected a Simply model (for the reported actor, `simply_cape_blue_skins.nif`) with `assetAvailable: true`, `selectedStyle: simply-animated`, and `enabled: true`.
+3. `cloak-selected-bind-rejected` then reported `assemblyOk: true`, one skinned cloak piece, 1,476 position floats (492 vertices), 2,004 indices, and six skin bones.
+4. The exact rejection note was: `this skeleton has no bone "bone03.001", "bone04", "bone05", "bone02.001", "bone01", "root bone" - those influences are skipped (rule 40)`.
+5. `cloak-style-fallback` substituted `cloak_blue.nif`; the fallback assembled and was reported as skinned.
+
+A second actor/colour showed the same pattern with `simply_cape_brwn_blue_skins.nif` and `cloak_purple.nif`. This establishes that the archive lookup and model selection succeeded, but the selected Simply mesh's skin influences do not bind to the actor skeleton. It is not an asset-discovery failure. The missing names are the source mesh's own cloak-rig names; do not guess-map them to arbitrary spine/arm bones, because their inverse-bind transforms and weight blends are not known to match.
+
+The browser diagnostic collector keeps only the most recent 250 events in `globalThis.__modDiagnosticsEvents`. A filtered query returning no event is therefore not conclusive if the history has rolled over. The browser console's `[mod-diagnostics]` records and this in-memory history are the supported evidence; resource timing entries are not expected for console diagnostics. The `classic=1` query parameter was present during the reproduction but was not established as the cause.
+
+### Code change and current behavior
+
+The rig acceptance check correctly rejects a cloak when all its skin influences name absent bones. The existing recovery path then assembles the compatible classic skinned cloak. Previously, secondary cloth physics was initialized only when the final model name still matched `isSimplyCloakModel`. That meant the successful fallback had no `clothPhysics` state and remained static—the observed symptom persisted even though the fallback was visible.
+
+As of commit `997dc1b180bbcccf58c66bde2938fdd1be1f8223`, `src/combat/fpArm.js` initializes secondary cloth physics for the actual bound cloak piece regardless of whether the final model is the selected Simply mesh or the compatible classic fallback. The `cloak-physics-created` and `cloak-physics-unavailable` events now include `details.fallbackMesh`, and the message identifies which mesh received the physics state. This keeps the recovery path physically responsive rather than silently restoring a static cloak.
+
+### Important limitation / next step
+
+This change is a behavioral fallback, **not** a successful retarget of the original Simply Animated Cloaks NIF. With the current evidence, the original Simply mesh still fails the rig acceptance check and the classic cloak mesh is what is drawn. Do not describe this as proof that the original mod geometry is now bound or that the original mod's idle/walk/run variants are animated.
+
+A proper native-model fix needs an explicit, validated skin-retarget/conversion path (or a compatible asset authored for the actor skeleton), with rest-pose placement and inverse-bind transforms preserved. Simply aliasing `bone01` to a body bone, or merging all six weights onto an arbitrary actor bone, is unsafe. The upstream Lua mod's `*_skins.nif`, `*_skins1.nif`, and `*_skins3.nif` idle/walk/run variants are also not currently evidence that the JS port switches those variants.
+
+### Verification after updating the browser build
+
+1. Refresh/rebuild from `upstream-original-selector`, equip a cloak, then walk/run.
+2. Inspect a fresh history with:
+   ```js
+   console.log(JSON.stringify(
+     (globalThis.__modDiagnosticsEvents ?? []).filter(e => [
+       'cloak-selected-bind-rejected',
+       'cloak-style-fallback',
+       'cloak-physics-created',
+       'cloak-physics-unavailable',
+       'cloak-physics-stepped',
+     ].includes(e.action)),
+     null, 2
+   ));
+   ```
+3. If the original Simply mesh is still rejected, expect `cloak-style-fallback` followed by `cloak-physics-created` with `details.fallbackMesh: true`. During movement, `cloak-physics-stepped` should report a non-zero `maxOffset` or moved vertices when the simulation is responding. If it does not, record the new events and verify that the running browser build includes the commit above.
+
+The code change was committed directly to `upstream-original-selector`; no new branch or pull request was created. Runtime visual verification remains pending until the updated browser build is exercised.
