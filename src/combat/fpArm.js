@@ -1,4 +1,5 @@
 import { getBodyMorphs, getAppearanceIdentity, setAppearanceIdentity } from '../characters/bodyMorphs.js';
+import { modDiagnostics } from '../systems/modDiagnostics.js';   // MOD-DIAG1: trace cloak resolution through the live third-person build
 // MW-D8: THE MORROWIND FIRST-PERSON ARM, IN THE GAME.
 //
 // Seven stages of this arc shipped diagnostics and nothing touched the
@@ -2472,6 +2473,28 @@ async function buildTpBody({
   ownHeads = false,   // MW-HEADS2: a player's body - the port's own heads where its race has them
 }) {
   const exists = (p) => archives.some((a) => a.has(p));
+  const cloakRows = (worn?.adds ?? []).filter((row) => isCloakSlot(row.slot));
+  for (const row of cloakRows) {
+    const resource = `meshes/${row.model}`;
+    const assetAvailable = exists(resource);
+    modDiagnostics.record({
+      level: assetAvailable ? 'info' : 'error',
+      phase: 'animation',
+      action: 'cloak-resolution',
+      modId: 'simply-animated-cloaks',
+      resource,
+      message: assetAvailable ? 'Worn cloak resolved to a runtime asset' : 'Worn cloak model is absent from all runtime archives',
+      details: {
+        slot: row.slot,
+        selectedModel: row.model,
+        assetAvailable,
+        female: !!female,
+        race: String(race ?? ''),
+        selectedStyle: String(row.model ?? '').startsWith('simply_cape_') ? 'simply-animated' : 'classic',
+        enabled: getPref('simplyAnimatedCloaks') !== false,
+      },
+    });
+  }
   const settingsSkeleton = tpSkeletonPath({ female, beast, werewolf });
   const skeletonPath = correctActorModelPath(settingsSkeleton, exists);
   try {
@@ -2610,7 +2633,35 @@ async function buildTpBody({
 
     let arm = await assembleFirstPersonArm({ skeletonBytes, parts: partBytes, boneSources, parseNif: parseNifOnce, offWeaponBone: true });   // MWNPC3: one parse a mesh, every body; TWO-HANDS AUDIT: the left hand's weapon bone
     if (!arm.ok) {
+      if (cloakRows.length) modDiagnostics.record({
+        level: 'error', phase: 'animation', action: 'cloak-assembly-failed', modId: 'simply-animated-cloaks',
+        resource: `meshes/${cloakRows[0].model}`,
+        message: 'The selected cloak asset was found but the character rig assembly failed',
+        details: { stage: arm.stage || 'assembly', error: String(arm.error ?? ''), race: String(race ?? ''), female: !!female },
+      });
       return { ok: false, stage: arm.stage || 'assembly', error: arm.error, notes: [...missing, ...(arm.notes || [])], rows };
+    }
+    if (cloakRows.length) {
+      const bound = arm.pieces.filter((piece) => cloakRows.some((row) => piece.slot === row.slot));
+      const cloakTextures = bound.map((piece) => piece.material?.textureFile).filter(Boolean);
+      modDiagnostics.record({
+        level: bound.length ? 'info' : 'error',
+        phase: 'animation',
+        action: bound.length ? 'cloak-bound-to-rig' : 'cloak-not-bound-to-rig',
+        modId: 'simply-animated-cloaks',
+        resource: `meshes/${cloakRows[0].model}`,
+        message: bound.length ? 'Worn cloak mesh was accepted by the character rig' : 'Cloak asset was found but produced no bound rig piece',
+        details: {
+          selectedModel: cloakRows[0].model,
+          requestedCloaks: cloakRows.length,
+          boundPieces: bound.length,
+          skinning: bound.map((piece) => piece.kind ?? (piece.skin ? 'skinned' : 'unknown')),
+          textures: cloakTextures,
+          skeletonBones: arm.skeleton?.byName?.size ?? null,
+          race: String(race ?? ''),
+          female: !!female,
+        },
+      });
     }
     // HEAD-HELD: a helm that bound nothing gives back the head and hair it hid - assembled again with them, never headless
     const bare = bareHeadRows(rows, worn, arm.pieces, werewolf);
