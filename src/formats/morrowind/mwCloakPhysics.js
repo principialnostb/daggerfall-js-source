@@ -6,7 +6,7 @@
 const MAX_OFFSET = 1.6;
 const MAX_STEP = 0.28;
 const DAMPING = 0.985;
-const GRAVITY = 5.5;
+const GRAVITY = 18;
 const ITERATIONS = 6;
 const STIFFNESS = 0.78;
 
@@ -116,10 +116,13 @@ export function stepCloakPhysics(piece, dt, motion = 0) {
       continue;
     }
     const x = pos[o], y = pos[o + 1], z = pos[o + 2];
+    // NIF positions are in Morrowind world units (the cloak is tens of units tall), not metres.
+    // The previous sub-3-unit/s² wind produced only thousandths of a unit per frame and looked rigid.
+    // Keep Verlet's dt² integration, but use accelerations scaled to the mesh's authored coordinate space.
     let dx = (x - prev[o]) * DAMPING
-      + Math.sin(state.time * 1.7 + base[o + 2] * 0.17) * (0.7 + move * 2.2) * dt2;
+      + Math.sin(state.time * 1.7 + base[o + 2] * 0.17) * (10 + move * 35) * dt2;
     let dy = (y - prev[o + 1]) * DAMPING
-      + Math.cos(state.time * 1.25 + base[o] * 0.11) * (0.3 + move * 1.4) * dt2;
+      + Math.cos(state.time * 1.25 + base[o] * 0.11) * (5 + move * 22) * dt2;
     let dz = (z - prev[o + 2]) * DAMPING - GRAVITY * dt2;
     const length = Math.hypot(dx, dy, dz);
     if (length > MAX_STEP) { const scale = MAX_STEP / length; dx *= scale; dy *= scale; dz *= scale; }
