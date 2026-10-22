@@ -240,60 +240,56 @@ export function bindPart(skeleton, partNif, opts = {}) {
   const retargetRef = opts.retargetMissingBonesTo
     ? skeleton.byName.get(String(opts.retargetMissingBonesTo).toLowerCase())
     : undefined;
-  // Custom cloth bones can follow the actor chest while preserving each bone's
-  // authored bind transform. Using inverse(chest) alone collapses every influence
-  // to identity and loses the cloak NIF's original bone offsets and skin transforms.
+  // A foreign skinned part has its OWN skin root. Its bone matrices and skin
+  // transforms are expressed relative to that root, not the NIF file's scene root.
+  // Rebinding must preserve the source bind pose relative to the source skin root,
+  // then place that whole frame at the actor's chest.
   const actorRestMats = retargetRef === undefined ? null : skeletonSpaceMatrices(skeleton, new Map(), GRAPH_ROOT);
   const sourceSkeleton = retargetRef === undefined ? null : buildSkeleton(partNif);
-  const sourceRestMats = sourceSkeleton ? skeletonSpaceMatrices(sourceSkeleton, new Map(), GRAPH_ROOT) : null;
-  // Retarget from the cloak's own skeleton-root space, not its original graph-space
-  // origin. The actor chest becomes the attachment anchor; only the custom bone's
-  // authored offset below the cloak root should survive the coordinate-system change.
-  const sourceRootRef = sourceSkeleton
-    ? [...sourceSkeleton.nodes].find(([, node]) => node.parent < 0)?.[0]
-    : undefined;
-  const sourceRootRest = sourceRootRef === undefined ? null : sourceRestMats.get(sourceRootRef);
-  const sourceRootInverse = sourceRootRest ? affineInverse(sourceRootRest) : null;
   for (const batch of batches) {
     if (!batch.skinned || !batch.skin) {
       attached.push(batch);
       continue;
     }
     const skin = batch.skin;
-    const retargetPost = retargetRef === undefined
+    // Use the NIF's actual skin root (for Simply Animated Cloaks, "cloakbone"),
+    // not the file root. `skin.transform` and `shapeTransform` belong to that
+    // source bind frame, so fold them into the retargeted inverse binds and clear
+    // them on the rebound batch; otherwise the source offset is applied twice.
+    const sourceRestMats = retargetRef === undefined
       ? null
-      : skinPost({ ...skin, skeletonRoot: GRAPH_ROOT, rootBone: GRAPH_ROOT }, skeleton, null);
-    // RULE 40: A MISSING BONE IS NOT FATAL. The reference logs
-    // "RigGeometry did not find bone", stores nullptr, and skips every
-    // influence naming it in the blend (riggeometry.cpp:195-196) - it
-    // does NOT abort the part. This used to THROW here, which on a
-    // retail mesh weighting one bone the first-person skeleton lacks
-    // (a finger, say) dropped the WHOLE hand where the reference draws
-    // it. The ref is null now, skinBatch skips it, and the caller gets
-    // the names so the card can say what was skipped.
+      : skeletonSpaceMatrices(sourceSkeleton, new Map(), skin.skeletonRoot);
+    const sourcePost = retargetRef === undefined
+      ? null
+      : skinPost({ ...skin, rootBone: skin.skeletonRoot }, sourceSkeleton, null);
+    // RULE 40: an absent actor bone normally skips its influences. A foreign cloak
+    // is different: its own bones are attached to the chest, preserving the complete
+    // source bind pose relative to the skin root. Names that do exist on the actor
+    // keep their animation, but receive the same bind-space conversion.
     const bones = skin.bones.map((bone) => {
-      const ref = skeleton.byName.get(String(bone.name).toLowerCase());
-      if (ref === undefined && retargetRef !== undefined) {
-        retargetedBones.add(bone.name);
-        const sourceRef = sourceSkeleton.byName.get(String(bone.name).toLowerCase());
+      const name = String(bone.name).toLowerCase();
+      const actorRef = skeleton.byName.get(name);
+      if (retargetRef !== undefined) {
+        const sourceRef = sourceSkeleton.byName.get(name);
         const sourceRest = sourceRef === undefined ? null : sourceRestMats.get(sourceRef);
-        // Preserve the bone's bind transform relative to the cloak root, then attach that
-        // local rig to the actor chest. Carrying source graph-space translation directly
-        // places the sheet inside the actor because the two skeleton roots are unrelated.
-        const sourceLocalRest = sourceRest && sourceRootInverse
-          ? affineMul(sourceRootInverse, sourceRest)
-          : sourceRest;
-        const authoredBind = sourceLocalRest ? affineMul(sourceLocalRest, bone.invBind) : null;
-        const invBind = authoredBind
-          ? affineMul(affineInverse(actorRestMats.get(retargetRef)), authoredBind)
-          : affineMul(affineInverse(actorRestMats.get(retargetRef)), affineInverse(retargetPost));
-        return { ...bone, ref: retargetRef, invBind };
+        const targetRef = actorRef === undefined ? retargetRef : actorRef;
+        const targetRest = actorRestMats.get(targetRef);
+        const chestRest = actorRestMats.get(retargetRef);
+        const sourceBind = sourceRest
+          ? affineMul(sourcePost, affineMul(sourceRest, bone.invBind))
+          : affineMul(sourcePost, bone.invBind);
+        // D * newInvBind == chestRest * sourceBind, where D is the actor bone
+        // chosen for this influence. The source post-transform is absorbed exactly
+        // once, so the rebound batch itself has identity post-transform.
+        const invBind = affineMul(affineInverse(targetRest), affineMul(chestRest, sourceBind));
+        retargetedBones.add(bone.name);
+        return { ...bone, ref: targetRef, invBind };
       }
-      if (ref === undefined) {
+      if (actorRef === undefined) {
         missingBones.add(bone.name);
         return { ...bone, ref: null };
       }
-      return { ...bone, ref };
+      return { ...bone, ref: actorRef };
     });
     // MW-D20: A REBOUND PART LIVES IN GRAPH SPACE, FULL STOP. The port
     // used to resolve the part's declared skin-root NAME into the base
@@ -309,7 +305,17 @@ export function bindPart(skeleton, partNif, opts = {}) {
     // data that is a hand floating away from the forearm it belongs
     // to, and on every fixture (identity roots throughout) it was
     // invisible.
-    batch.skin = { ...skin, bones, skeletonRoot: GRAPH_ROOT, rootBone: GRAPH_ROOT };
+    const identityTransform = () => ({
+      rotation: Float32Array.from([1, 0, 0, 0, 1, 0, 0, 0, 1]),
+      translation: [0, 0, 0],
+      scale: 1,
+    });
+    batch.skin = retargetRef === undefined
+      ? { ...skin, bones, skeletonRoot: GRAPH_ROOT, rootBone: GRAPH_ROOT }
+      : {
+          ...skin, bones, skeletonRoot: GRAPH_ROOT, rootBone: GRAPH_ROOT,
+          transform: identityTransform(), shapeTransform: identityTransform(),
+        };
     skinned.push(batch);
   }
   let attachRef = null;
