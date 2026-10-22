@@ -2329,7 +2329,12 @@ export function bindPartsInto(assembly, parts) {
       }
       let bound;
       try {
-        bound = mod.bindPart(skeleton, nif, { ...(bone ? { attachBone: bone } : {}), underNode: part.underNode, excludeNode: part.excludeNode });   // WS1: a subtree of the file
+        bound = mod.bindPart(skeleton, nif, {
+          ...(bone ? { attachBone: bone } : {}),
+          ...(part.retargetMissingBonesTo ? { retargetMissingBonesTo: part.retargetMissingBonesTo } : {}),
+          underNode: part.underNode,
+          excludeNode: part.excludeNode,
+        });   // WS1: a subtree of the file; custom cloth bones may explicitly retarget to the actor chest
       } catch (err) {
         notes.push(`${part.slot} @ ${bone}: ${err.message}`);
         continue;
@@ -2375,6 +2380,12 @@ export function bindPartsInto(assembly, parts) {
         }
       }
       const bonePiecesBefore = pieces.length;
+      if (bound.retargetedBones?.length) {
+        const say = part.slot + ': custom skin bones '
+          + bound.retargetedBones.map((b) => '"' + b + '"').join(', ')
+          + ' retargeted to "' + (bound.retargetTarget ?? 'unknown') + '" for chest-following cloth physics';
+        if (!notes.includes(say)) notes.push(say);
+      }
       // RULE 40's report: skipped influences draw wrong, not invisibly,
       // so the card must say WHY a finger sags or a strip collapses.
       // One note per part, not per bone - the names are the same.
