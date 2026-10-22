@@ -2816,7 +2816,7 @@ async function buildTpBody({
         piece.clothPhysicsMaxOffset = physics.maxOffset;
         // Retain the resolved asset on the piece so per-frame samples can be
         // correlated with creation events even when several actors share a slot.
-        piece.clothPhysicsResource = resource;
+        piece.clothPhysicsResource = `meshes/${row.model}`;
         piece.clothPhysicsFallbackMesh = fallbackMesh;
         modDiagnostics.record({
           level: 'info',
