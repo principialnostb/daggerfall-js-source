@@ -2661,6 +2661,7 @@ async function buildTpBody({
         const fallbackArm = await assembleFirstPersonArm({ skeletonBytes, parts: fallbackParts, boneSources, parseNif: parseNifOnce, offWeaponBone: true });
         if (fallbackArm.ok) {
           arm = fallbackArm;
+          partBytes.splice(0, partBytes.length, ...fallbackParts);
           for (const row of animatedCloaks) row.model = replacements.get(row.slot).model;
           missing.push('Simply Animated Cloak could not bind to this character rig; the classic cloak was drawn instead');
           modDiagnostics.record({
