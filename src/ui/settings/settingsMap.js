@@ -79,7 +79,7 @@ export const CATEGORIES = Object.freeze([
     sec("light", "Your light", [
       "feat:torches-from-items", "Enhancements/PlayerTorchFromItems", "feat:mod-handheld-torches"]),
     sec("character", "Character & survival", [
-      "feat:mod-oblivion-remaster-leveling", "feat:mod-project-legacy", "feat:simply-animated-cloaks", "feat:mod-climates-calories", "feat:mod-roleplay-realism"]),
+      "feat:mod-oblivion-remaster-leveling", "feat:mod-project-legacy", "feat:mod-climates-calories", "feat:mod-roleplay-realism"]),
     sec("moving", "Climbing & gathering", [
       "feat:enhanced-climbing", "Enhancements/AdvancedClimbing", "feat:mod-foraging"]),
     sec("start", "Starting a new game", [
@@ -207,6 +207,7 @@ export const CATEGORIES = Object.freeze([
     sec("posture", "Положение и скрытность", [
       "group:posture",
       "feat:morrowind-animation-overhaul", "feat:morrowind-animation-blending", "feat:morrowind-first-person-animation-source", "feat:morrowind-openmw-dynamic-animations",
+      "feat:simply-animated-cloaks",
       "label:sneak", "info:player-sneak", "info:npc-sneak",
       "group:turning",
       "label:turning", "info:player-turning", "info:npc-turning",
