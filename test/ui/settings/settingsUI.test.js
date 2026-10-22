@@ -22,9 +22,9 @@ const src = (f) => readFileSync(join(root, 'src', f), 'utf8');
 
 test('ANIMATION UI: each clip section opens on its first switch and remembers its own last choice', () => {
   const menu = src('ui/enhanced/enhancedMenu.js');
-  assert.match(menu, /const DEFAULT_ANIMATION_GROUP_BY_SECTION = Object\\.freeze\\(\\{\\s*locomotion: 'running',\\s*posture: 'posture',\\s*combat: 'attacks',\\s*traversal: 'jumping',\\s*reactions: 'damage'/);
-  assert.match(menu, /animationClipGroupBySection\\[selectedSectionByTab\\.animations\\] = group/);
-  assert.match(menu, /animationClipGroup = animationClipGroupBySection\\[s\\.id\\] \\?\\? DEFAULT_ANIMATION_GROUP_BY_SECTION\\[s\\.id\\]/);
+  assert.ok(menu.includes("const DEFAULT_ANIMATION_GROUP_BY_SECTION = Object.freeze({\\n  locomotion: 'running',\\n  posture: 'posture',\\n  combat: 'attacks',\\n  traversal: 'jumping',\\n  reactions: 'damage',"));
+  assert.ok(menu.includes("animationClipGroupBySection[selectedSectionByTab.animations] = group;"));
+  assert.ok(menu.includes("animationClipGroup = animationClipGroupBySection[s.id] ?? DEFAULT_ANIMATION_GROUP_BY_SECTION[s.id] ?? animationClipGroup;"));
 });
 
 test('MENU T1: the category map is TOTAL and DISJOINT over the store', () => {
