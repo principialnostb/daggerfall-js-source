@@ -2605,9 +2605,10 @@ async function buildTpBody({
       // the whole body can assign cuirass/glove vertices to leg bones.
       partBytes.push({
         slot: row.slot, partName: row.partName, bones: row.bones, bytes: nifBytes(arc, path),
-        // Do not force a foreign cloak's bind frame onto Spine2: that changes its
-        // orientation without establishing a body-space garment fit. The rig acceptance
-        // check below must reject incompatible source bones and use the fitted fallback.
+        // Simply Animated Cloak has a foreign skin-root frame; retarget its unknown
+        // cloak bones to the actor's chest (Bip01 Spine2), preserving the intended
+        // attachment behavior from before the later coordinate experiments.
+        ...(isCloakSlot(row.slot) && isSimplyCloakModel(row.model) ? { retargetSkinToBone: 'bip01 spine2' } : {}),
         ...ownBodyPart(row, rows, find),
       });   // MW-BRIG2
     }
