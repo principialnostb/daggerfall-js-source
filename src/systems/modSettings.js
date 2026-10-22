@@ -1699,14 +1699,14 @@ export const MOD_SETTINGS = Object.freeze({
       }),
       FirstPersonSource: Object.freeze({
         default: 2,
-        options: lazyWords('Original', 'Vanilla', 'ReAnimation v3', 'OpenMW Dynamic Animations', 'ReAnimation v3 + OpenMW Dynamic Animations'),
+        options: lazyWords('Original', 'Vanilla', 'ReAnimation v3 · 1-е лицо', 'OpenMW Dynamic Animations · 1-е лицо', 'ReAnimation v3 + OpenMW Dynamic Animations · 1-е лицо'),
         description: 'First-person sources can be used independently or layered. ReAnimation v3 supplies stance, weapon, jump and related clips; OpenMW Dynamic Animations supplies directional walk/run/sneak clips; the combined option overlays those movement groups on ReAnimation. Assets are attempted on the male `xbase_anim.1st.nif` and female `base_anim_female.1st.nif` first-person rigs. Each clip must still parse and bind to the active rig\'s bones; incompatible rigs and clips retain archive fallback.',
       }),
       OpenMWDynamicAnimations: Object.freeze({
         // Keep Vanilla as the default: this provider can replace the game's
         // existing walk/run/sneak groups, so it must never silently change gait.
         default: 1,
-        options: lazyWords('Original', 'Vanilla', 'OpenMW Dynamic Animations'),
+        options: lazyWords('Original', 'Vanilla', 'OpenMW Dynamic Animations · 3-е лицо'),
         description: 'Third-person animation source for compatible rigs. OpenMW Dynamic Animations replaces matching game/archive groups, including directional walking, running, and sneaking; it can therefore change Vanilla locomotion, not just add new actions. Vanilla keeps the game/archive clips. The browser port translates KF group selection and deterministic variant choice into the JavaScript runtime; it does not execute the original OpenMW Lua scripts.',
       }),
       HitReactionSource: Object.freeze({
