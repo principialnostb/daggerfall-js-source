@@ -108,6 +108,7 @@ A proper native-model fix needs an explicit, validated skin-retarget/conversion 
      null, 2
    ));
    ```
-3. If the original Simply mesh is still rejected, expect `cloak-style-fallback` followed by `cloak-physics-created` with `details.fallbackMesh: true`. During movement, `cloak-physics-stepped` should report a non-zero `maxOffset` or moved vertices when the simulation is responding. If it does not, record the new events and verify that the running browser build includes the commit above.
+3. `cloak-physics-stepped` is sampled on the first successful step and every 60 successful steps thereafter; it is intentionally not emitted every frame. The `details.step` field identifies the sample number. Compare later samples after sustained walking/running, rather than repeatedly querying a one-shot first-frame value.
+4. If the original Simply mesh is still rejected, expect `cloak-style-fallback` followed by `cloak-physics-created` with `details.fallbackMesh: true`. During movement, compare successive `cloak-physics-stepped` samples: `maxOffset` and `movedVertices` reveal whether deformation accumulates above the 0.02-unit reporting threshold. If they remain near zero, record the new events and verify that the running browser build includes the commit above.
 
 The code change was committed directly to `upstream-original-selector`; no new branch or pull request was created. Runtime visual verification remains pending until the updated browser build is exercised.
