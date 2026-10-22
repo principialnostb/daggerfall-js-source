@@ -235,6 +235,15 @@ export function bindPart(skeleton, partNif, opts = {}) {
   const skinned = [];
   const attached = [];
   const missingBones = new Set();
+  const retargetedBones = new Set();
+  const retargetRef = opts.retargetMissingBonesTo
+    ? skeleton.byName.get(String(opts.retargetMissingBonesTo).toLowerCase())
+    : undefined;
+  // Custom cloth bones can follow the actor chest at bind pose; vertex cloth physics
+  // supplies secondary motion. Rebase inverse bind to preserve the authored pose.
+  const retargetInvBind = retargetRef === undefined
+    ? null
+    : affineInverse(skeletonSpaceMatrices(skeleton, new Map()).get(retargetRef));
   for (const batch of batches) {
     if (!batch.skinned || !batch.skin) {
       attached.push(batch);
@@ -250,7 +259,11 @@ export function bindPart(skeleton, partNif, opts = {}) {
     // it. The ref is null now, skinBatch skips it, and the caller gets
     // the names so the card can say what was skipped.
     const bones = skin.bones.map((bone) => {
-      const ref = skeleton.byName.get(bone.name);
+      const ref = skeleton.byName.get(String(bone.name).toLowerCase());
+      if (ref === undefined && retargetRef !== undefined) {
+        retargetedBones.add(bone.name);
+        return { ...bone, ref: retargetRef, invBind: retargetInvBind };
+      }
       if (ref === undefined) {
         missingBones.add(bone.name);
         return { ...bone, ref: null };
@@ -288,7 +301,13 @@ export function bindPart(skeleton, partNif, opts = {}) {
     // offset from.
     boneOffset = boneOffsetOf(partNif);
   }
-  return { skinned, attached, attachRef, boneOffset, missingBones: [...missingBones], effects };
+  return {
+    skinned, attached, attachRef, boneOffset,
+    missingBones: [...missingBones],
+    retargetedBones: [...retargetedBones],
+    retargetTarget: retargetRef === undefined ? null : skeleton.nodes.get(retargetRef)?.name ?? null,
+    effects,
+  };
 }
 
 /** MWNPC9: the debug shapes a creature's model carries ("Tri Bip01 ..."), which OpenMW strips from a creature's
