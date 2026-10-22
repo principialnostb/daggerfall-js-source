@@ -2782,6 +2782,34 @@ async function buildTpBody({
       if (physics) {
         piece.clothPhysics = physics;
         piece.clothPhysicsMaxOffset = physics.maxOffset;
+        modDiagnostics.record({
+          level: 'info',
+          phase: 'animation',
+          action: 'cloak-physics-created',
+          modId: 'simply-animated-cloaks',
+          resource: `meshes/${row.model}`,
+          message: 'Dynamic cloak cloth state created for the bound skinned mesh.',
+          details: {
+            vertices: physics.pos.length / 3,
+            constraints: physics.edges.length,
+            pinnedVertices: physics.pinned.reduce((sum, pinned) => sum + pinned, 0),
+            maxOffset: physics.maxOffset,
+          },
+        });
+      } else {
+        modDiagnostics.record({
+          level: 'warn',
+          phase: 'animation',
+          action: 'cloak-physics-unavailable',
+          modId: 'simply-animated-cloaks',
+          resource: `meshes/${row.model}`,
+          message: 'The cloak bound to the rig, but its mesh could not initialize cloth physics.',
+          details: {
+            positionsType: piece.batch?.positions?.constructor?.name ?? null,
+            positionFloats: piece.batch?.positions?.length ?? 0,
+            indexCount: piece.indices?.length ?? 0,
+          },
+        });
       }
     }
     // MW-LOAD: covers collectArmTextures' synchronous reads - rule 36's
