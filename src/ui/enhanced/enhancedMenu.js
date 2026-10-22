@@ -1723,7 +1723,15 @@ function paneExit(body) {
 
 let optQuery = '';          // ORG2: the search, over every tab - kept across a repaint, cleared by a tab change
 const selectedSectionByTab = { animations: 'locomotion' }; // The open section for each settings tab.
-let animationClipGroup = 'walking'; // Nested animation subgroup currently selected.
+const DEFAULT_ANIMATION_GROUP_BY_SECTION = Object.freeze({
+  locomotion: 'running',
+  posture: 'posture',
+  combat: 'attacks',
+  traversal: 'jumping',
+  reactions: 'damage',
+});
+const animationClipGroupBySection = { ...DEFAULT_ANIMATION_GROUP_BY_SECTION };
+let animationClipGroup = DEFAULT_ANIMATION_GROUP_BY_SECTION.locomotion; // Nested animation subgroup currently selected.
 let optFilter = 'all';      // ORG2: 'all' | 'changed' | a KINDS id
 let pickedFeature = null;   // ORG2: the Features row the help pane reads (pickedKey is DFU's key)
 let optScrollTo = null;     // ORG2: a row to bring into view after the next paint (the mods' list sends you to one)
@@ -1891,6 +1899,7 @@ function itemNodes(item, ctx) {
         damage: 'reactions', death: 'reactions',
       };
       selectedSectionByTab.animations = sectionForGroup[group] ?? 'posture';
+      animationClipGroupBySection[selectedSectionByTab.animations] = group;
       animationClipGroup = group;
       const body = ctx.body;
       if (!body || !body.isConnected) return;
@@ -2058,8 +2067,7 @@ function paintOptionsBody(body, { pause = false } = {}) {
       b.setAttribute('aria-pressed', String(selectedId === s.id));
       b.onclick = () => {
         selectedSectionByTab[tab.id] = s.id;
-        if (tab.id === 'animations' && s.id === 'posture') animationClipGroup = 'posture';
-        if (tab.id === 'animations' && s.id === 'locomotion' && !['walking', 'running'].includes(animationClipGroup)) animationClipGroup = 'walking';
+        if (tab.id === 'animations') animationClipGroup = animationClipGroupBySection[s.id] ?? DEFAULT_ANIMATION_GROUP_BY_SECTION[s.id] ?? animationClipGroup;
         paintOptionsBody(body, { pause });
       };
       buttons.append(b);
