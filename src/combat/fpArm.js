@@ -7827,14 +7827,19 @@ export function createFpArm({ playerAppearance = false } = {}) {
               if (sampleStep === 1 || sampleStep % 60 === 0) {
                 const cloth = piece.clothPhysics;
                 let maxOffset = 0;
+                let totalOffset = 0;
                 let movedVertices = 0;
+                let saturatedVertices = 0;
+                const offsetLimit = cloth.maxOffset ?? 1.6;
                 for (let i = 0; i < cloth.pos.length; i += 3) {
                   const dx = cloth.pos[i] - cloth.base[i];
                   const dy = cloth.pos[i + 1] - cloth.base[i + 1];
                   const dz = cloth.pos[i + 2] - cloth.base[i + 2];
                   const offset = Math.hypot(dx, dy, dz);
                   maxOffset = Math.max(maxOffset, offset);
+                  totalOffset += offset;
                   if (offset > 0.02) movedVertices++;
+                  if (offset >= offsetLimit * 0.995) saturatedVertices++;
                 }
                 modDiagnostics.record({
                   level: 'info',
@@ -7846,7 +7851,8 @@ export function createFpArm({ playerAppearance = false } = {}) {
                   details: {
                     dt, motion: cloakMotion, step: sampleStep, vertices: cloth.pos.length / 3,
                     pinnedVertices: cloth.pinned.reduce((sum, pinned) => sum + pinned, 0),
-                    maxOffset, movedVertices, sourceGen: piece.sourceGen | 0,
+                    maxOffset, meanOffset: totalOffset / (cloth.pos.length / 3),
+                    movedVertices, saturatedVertices, offsetLimit, sourceGen: piece.sourceGen | 0,
                   },
                 });
               }
