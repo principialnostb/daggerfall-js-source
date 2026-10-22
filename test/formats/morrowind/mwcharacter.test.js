@@ -52,7 +52,7 @@ test('mwcharacter: foreign cloak is placed at the actor chest from its actual NI
     },
   });
   actorSkeleton.byName.set('bip01 spine2', chestRef);
-  const bound = bindPart(actorSkeleton, sourceNif, { retargetMissingBonesTo: 'bip01 spine2' });
+  const bound = bindPart(actorSkeleton, sourceNif, { retargetSkinToBone: 'bip01 spine2' });
   const batch = bound.skinned[0];
   assert.ok(batch, 'the cloak binds to the actor');
   assert.deepEqual(batch.skin.transform.translation, [0, 0, 0],
