@@ -2802,15 +2802,13 @@ async function buildTpBody({
     }
     hangHipLight(arm);   // HT-WAIST: the hook and the anchor, once, on the assembled skeleton
     const cloakFit = fitThirdPersonCloak(arm, new Set([...skinRows, ...worn.adds].map((row) => row.slot)));   // MW-CLOAK1
-    // Add secondary motion to the actual bound cloak mesh, after its body-fit.
-    // A Simply Animated Cloak NIF can fail the actor-rig check because its authored
-    // bone names (bone01, bone03.001, etc.) are not actor bones. In that case the
-    // resolver deliberately substitutes the compatible classic skinned cloak. Keep
-    // physics enabled for that fallback too: otherwise the recovery path restores a
-    // visible cloak but silently reintroduces the exact "static cloak" symptom.
-    // This does NOT retarget the rejected Simply NIF; it makes the compatible fallback
-    // physically responsive until a proper asset/skin retarget is available.
-    for (const row of cloakRows) {
+    // Vanilla Animated is deliberately separate from the Simply Animated mode.
+    // It keeps the classic mesh, texture, fitted placement and bind matrices, and adds
+    // only secondary cloth motion. The "Вкл" mode uses the Simply Animated asset and
+    // its authored animation without this vertex-coordinate physics pass.
+    if (vanillaAnimatedCloaksEnabled()) {
+      for (const row of cloakRows) {
+        if (isSimplyCloakModel(row.model)) continue;
       const piece = arm.pieces.find((candidate) => candidate.slot === row.slot
         && candidate.kind === 'skinned' && candidate.batch?.positions?.length && candidate.indices?.length);
       if (!piece) continue;
@@ -2856,7 +2854,8 @@ async function buildTpBody({
           },
         });
       }
-    }
+      }
+}
     // MW-LOAD: covers collectArmTextures' synchronous reads - rule 36's
     // ladder over the names the assembled pieces carry, which are only
     // knowable now that the NIFs are parsed.
