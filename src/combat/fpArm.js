@@ -2657,6 +2657,31 @@ async function buildTpBody({
     // If the chosen cloak is absent from the assembled rig, try the other bundled style regardless of which
     // style was selected. This covers incompatible animated skin data and classic meshes rejected by a rig.
     // A fallback is successful only if the cloak piece itself survived assembly, not merely because the body did.
+    if (cloakRows.some((row) => isSimplyCloakModel(row.model))
+        && (!arm.ok || !hasBoundCloak({ ok: true, arm }))) {
+      modDiagnostics.record({
+        level: 'warn',
+        phase: 'animation',
+        action: 'cloak-selected-bind-rejected',
+        modId: 'simply-animated-cloaks',
+        resource: `meshes/${cloakRows.find((row) => isSimplyCloakModel(row.model))?.model ?? 'unknown'}`,
+        message: 'The selected Simply Animated Cloak failed the rig acceptance check before fallback.',
+        details: {
+          assemblyOk: !!arm.ok,
+          stage: arm.stage ?? null,
+          error: String(arm.error ?? ''),
+          requestedSlots: cloakRows.map((row) => row.slot),
+          pieces: (arm.pieces ?? []).filter((piece) => cloakRows.some((row) => piece.slot === row.slot)).map((piece) => ({
+            slot: piece.slot,
+            kind: piece.kind ?? null,
+            positionFloats: piece.batch?.positions?.length ?? piece.positions?.length ?? 0,
+            indexCount: piece.indices?.length ?? 0,
+            skinBoneCount: piece.batch?.skin?.bones?.length ?? piece.skin?.bones?.length ?? 0,
+          })),
+          cloakNotes: (arm.notes ?? []).filter((note) => cloakRows.some((row) => String(note).startsWith(`${row.slot}:`))),
+        },
+      });
+    }
     if (cloakRows.length && (!arm.ok || !hasBoundCloak({ ok: true, arm }))) {
       const failures = [];
       const replacements = new Map();
