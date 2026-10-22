@@ -19,7 +19,7 @@ import { assembleFirstPersonArm, poseAssembly } from '../../src/formats/morrowin
 import { composeWornArmor, composeWornModest, fpWornAdds, itemMapCoverage, mwItemReport, CLOTHING_NAME, DF_CLOTHING_DYE_RGB } from '../../src/formats/morrowind/mwItemMap.js';
 import { ARMOR_MATERIAL } from '../../src/systems/armorMaterials.js';
 import { CLASSIC_ARMOR_TEMPLATE } from '../../src/characters/ownModels/ownArmorModels.js';
-import { CLOAK_NAMES, CLOAK_PAINTINGS, CLOAK_DYE_PAINTING, ownCloakFor, ownCloakModelPaths, cloakModel, isCloakSlot } from '../../src/characters/ownModels/ownClothingModels.js';
+import { CLOAK_NAMES, CLOAK_PAINTINGS, CLOAK_DYE_PAINTING, ownCloakFor, ownCloakModelPaths, cloakModel, isCloakSlot, SIMPLY_CLOAK_MODEL_BY_PAINTING, isSimplyCloakModel } from '../../src/characters/ownModels/ownClothingModels.js';
 import { CLOAK_CLEARANCE, CLOAK_PUSH_LIMIT, HIP_PITCH_LIMIT, SLUNG_PITCH_LIMIT, cloakSheet, sheetCellKey, fitCloakOver, fitStowedGear, surfaceSamples } from '../../src/formats/morrowind/mwCloakFit.js';
 import { readPng } from '../../tools/pngIO.mjs';
 import { readFbx } from '../../tools/fbxRead.mjs';
@@ -55,6 +55,22 @@ test('MW-CLOAK1: every mesh and painting re-made from the committed export, its 
     purple: 'b03ff57c60aeeaa9', light_brown: '44ab89ca4623df56', white: '28a58ead1db153ae', green: '346963f96aa29096',
   });
   for (const path of ownCloakModelPaths()) assert.ok(existsSync(new URL(`../../src/assets/mw/${path}`, import.meta.url)), `${path} ships`);
+});
+
+test('Simply Animated Cloaks: every selected replacement mesh and its authored texture are bundled and discoverable', () => {
+  assert.deepEqual(Object.keys(SIMPLY_CLOAK_MODEL_BY_PAINTING), [...CLOAK_PAINTINGS]);
+  for (const [painting, model] of Object.entries(SIMPLY_CLOAK_MODEL_BY_PAINTING)) {
+    assert.equal(isSimplyCloakModel(model), true, `${model} is recognized as an animated cloak`);
+    const path = `src/assets/mw/meshes/${model}`;
+    assert.ok(existsSync(new URL(`../../${path}`, import.meta.url)), `${path} ships`);
+    const [batch] = flattenNif(parseNif(onDisk(path)));
+    assert.ok(batch.positions.length > 0, `${model} has drawable geometry`);
+    assert.ok(batch.skinned, `${model} is skinned for animation`);
+    const rawTexture = String(batch.material?.textureFile ?? '').split(String.fromCharCode(92)).join('/').replace(/^\\/+/, '');
+    const texture = rawTexture.startsWith('textures/') ? rawTexture : `textures/${rawTexture.split('/').pop()}`;
+    assert.ok(existsSync(new URL(`../../src/assets/mw/${texture}`, import.meta.url)), `${texture} ships for ${model} (${painting})`);
+  }
+  assert.equal(isSimplyCloakModel('cloak_blue.nif'), false, 'the classic mesh is not mistaken for the animated one');
 });
 
 test('MW-CAPE-RIGID: the cloak is its object in the scene\'s placement (smoothed, MW-CLOAK2), one skinned shape on ONE bone - the chest, Bip01 Spine2 - every vertex wholly its own and no other bone in the mesh', () => {
