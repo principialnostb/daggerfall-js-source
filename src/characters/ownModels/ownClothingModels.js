@@ -31,14 +31,14 @@ export const cloakModel = (painting) => `cloak_${painting}.nif`;
 // copied into the game's normal Morrowind asset roots and are animated by the existing JS NIF skinning path.
 // The dye mapping deliberately uses the closest supplied model where the pack has no exact colour.
 export const SIMPLY_CLOAK_MODEL_BY_PAINTING = Object.freeze({
-  blue: 'common_cape_blue_skins.nif',
-  grey: 'common_cape_grey_skins.nif',
-  red: 'common_cape_red_skins.nif',
-  dark_brown: 'common_cape_black_skins.nif',
-  purple: 'common_cape_brwn_blue_skins.nif',
-  light_brown: 'common_cape_brown_skins.nif',
-  white: 'common_cape_03_b_skins.nif',
-  green: 'common_cape_green_skins.nif',
+  blue: 'simply_cape_blue_skins.nif',
+  grey: 'simply_cape_grey_skins.nif',
+  red: 'simply_cape_red_skins.nif',
+  dark_brown: 'simply_cape_black_skins.nif',
+  purple: 'simply_cape_brwn_blue_skins.nif',
+  light_brown: 'simply_cape_brown_skins.nif',
+  white: 'simply_cape_03_b_skins.nif',
+  green: 'simply_cape_green_skins.nif',
 });
 export const SIMPLY_CLOAK_MODEL_PATHS = Object.freeze([...new Set(Object.values(SIMPLY_CLOAK_MODEL_BY_PAINTING))].map((p) => `meshes/${p}`));
 export const simplyCloakModel = (painting) => SIMPLY_CLOAK_MODEL_BY_PAINTING[painting] ?? SIMPLY_CLOAK_MODEL_BY_PAINTING.blue;
