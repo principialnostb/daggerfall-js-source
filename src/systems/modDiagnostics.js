@@ -22,6 +22,14 @@ const modOf = (value) => {
 };
 
 function defaultSink(event) {
+  // Keep a small browser-readable history so diagnostics remain inspectable even
+  // when DevTools renders console objects as opaque/collapsed entries.
+  try {
+    const history = globalThis.__modDiagnosticsEvents
+      ?? (globalThis.__modDiagnosticsEvents = []);
+    history.push(event);
+    if (history.length > 250) history.splice(0, history.length - 250);
+  } catch { /* diagnostics must never take down the game */ }
   try {
     const shell = globalThis.daggerShell?.diagnostics;
     if (typeof shell?.write === 'function') {
@@ -30,7 +38,7 @@ function defaultSink(event) {
     }
   } catch { /* diagnostics must never take down the game */ }
   const method = event.level === 'error' ? 'error' : event.level === 'warn' ? 'warn' : 'debug';
-  try { globalThis.console?.[method]?.('[mod-diagnostics]', event); } catch { /* headless host */ }
+  try { globalThis.console?.[method]?.('[mod-diagnostics]', JSON.stringify(event)); } catch { /* headless host */ }
 }
 
 /** Build an isolated collector; injectable time and sink keep tests deterministic. */
