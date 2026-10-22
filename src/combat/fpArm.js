@@ -7732,11 +7732,6 @@ export function createFpArm({ playerAppearance = false } = {}) {
           const thirdBlendWeight = thirdBlendFrom && blendDuration > 0
             ? (easedReactionRule?.weight ?? blendProgress)
             : 1;
-          const cloakGroup = String(movementState?.group ?? '').toLowerCase();
-          const cloakMotion = /run/.test(cloakGroup) ? 1 : /walk|sneak/.test(cloakGroup) ? 0.65 : 0.15;
-          for (const piece of t.arm.pieces) {
-            if (piece.clothPhysics) stepCloakPhysics(piece, dt, cloakMotion);
-          }
           poseAssembly(t.arm, {
             tracks: tOverlay ? overlayFor(tBase, t.leftArm) : tBase,
             sampleTrack: tOverlay ? overlaySample : sampleTrack,
@@ -7751,6 +7746,14 @@ export function createFpArm({ playerAppearance = false } = {}) {
             bodyProportions: playerAppearance ? getBodyMorphs() : false,   // MWV2-PROPORTIONS: player instance only
             skin: !thirdSkinReady(t),   // MWNPC1: the skin in the vertex shader - the pose is the skeleton alone
           });
+          // Apply cloth after the pose has updated the rig, and before the mesh
+          // upload. Running it before poseAssembly lets the pose overwrite the
+          // simulated vertex positions in the same frame.
+          const cloakGroup = String(movementState?.group ?? '').toLowerCase();
+          const cloakMotion = /run/.test(cloakGroup) ? 1 : /walk|sneak/.test(cloakGroup) ? 0.65 : 0.15;
+          for (const piece of t.arm.pieces) {
+            if (piece.clothPhysics) stepCloakPhysics(piece, dt, cloakMotion);
+          }
           if (thirdBlendWeight >= 1) thirdBlendFrom = null;
           uploadThirdMesh(t);
           // MAC-Q: the body's particle systems, on the clock its parts ride
