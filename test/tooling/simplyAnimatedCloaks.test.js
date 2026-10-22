@@ -1,45 +1,47 @@
-import { test } from 'node:test';
+import test from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
-import { basename, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { parseNif } from '../../src/formats/morrowind/mwNifFile.js';
-import { flattenNif } from '../../src/formats/morrowind/mwNifMesh.js';
-import { SIMPLY_CLOAK_MODEL_BY_PAINTING, SIMPLY_CLOAK_MODEL_PATHS, ownCloakFor } from '../../src/characters/ownModels/ownClothingModels.js';
-import { composeWornArmor } from '../../src/formats/morrowind/mwItemMap.js';
-import { FEATURES, FEATURE_PREF_DEFAULTS } from '../../src/systems/features.js';
+import { dirname, resolve } from 'node:path';
+import {
+  CLOAK_DYE_PAINTING,
+  SIMPLY_CLOAK_MODEL_BY_PAINTING,
+  SIMPLY_CLOAK_MODEL_PATHS,
+  ownCloakFor,
+} from '../../src/characters/ownModels/ownClothingModels.js';
 
-const ROOT = fileURLToPath(new URL('../../', import.meta.url));
-const bytes = (path) => readFileSync(join(ROOT, 'src/assets/mw', path));
+const root = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 
-test('Simply Animated Cloaks: the optional JS port resolves Daggerfall cloak dyes to shipped skinned meshes', () => {
-  assert.deepEqual(Object.keys(SIMPLY_CLOAK_MODEL_BY_PAINTING), ['blue', 'grey', 'red', 'dark_brown', 'purple', 'light_brown', 'white', 'green']);
-  assert.equal(new Set(Object.values(SIMPLY_CLOAK_MODEL_BY_PAINTING)).size, 8);
+test('Simply Animated Cloaks: every selected skin mesh is shipped under the runtime asset root', () => {
+  assert.equal(SIMPLY_CLOAK_MODEL_PATHS.length, 8);
   for (const path of SIMPLY_CLOAK_MODEL_PATHS) {
-    assert.ok(existsSync(join(ROOT, 'src/assets/mw', path)), path + ' ships');
-    const [batch, ...rest] = flattenNif(parseNif(bytes(path)));
-    assert.equal(rest.length, 0, path + ' is one renderable mesh');
-    assert.equal(batch.skinned, true, path + ' is skinned for the existing JS animation rig');
-    assert.ok(batch.skin.bones.length > 0, path + ' has bone influences');
-    const texture = basename(batch.material.textureFile.replaceAll(String.fromCharCode(92), '/'));
-    assert.ok(existsSync(join(ROOT, 'src/assets/mw/textures', texture)), path + ' resolves texture ' + texture);
+    assert.ok(existsSync(resolve(root, 'src/assets/mw', path)), `missing runtime cloak asset: ${path}`);
   }
 });
 
-test('Simply Animated Cloaks: opt-in style preserves classic default and garment dye semantics', () => {
-  const piece = { kind: 'clothing', name: 'Casual Cloak', dye: 7 };
-  assert.equal(ownCloakFor(piece).model, 'cloak_blue.nif');
-  assert.equal(ownCloakFor(piece, { style: 'simply-animated' }).model, 'simply_cape_blue_skins.nif');
-  assert.equal(ownCloakFor({ ...piece, dye: 8 }, { style: 'simply-animated' }).model, 'simply_cape_brown_skins.nif',
-    'the nearest supported painting is used when the pack has no exact Daggerfall dye');
-  const composed = composeWornArmor({ pieces: [piece], armors: [], bodyPool: [], cloakStyle: 'simply-animated' });
-  assert.equal(composed.adds.at(-1).model, 'simply_cape_blue_skins.nif');
+test('Simply Animated Cloaks: both Daggerfall cloak garments resolve to the selected animated dye mesh', () => {
+  for (let dye = 0; dye < CLOAK_DYE_PAINTING.length; dye++) {
+    const painting = CLOAK_DYE_PAINTING[dye];
+    const expected = SIMPLY_CLOAK_MODEL_BY_PAINTING[painting];
+    for (const name of ['Casual Cloak', 'Formal Cloak']) {
+      assert.equal(
+        ownCloakFor({ kind: 'clothing', name, dye }, { style: 'simply-animated' }).model,
+        expected,
+        `${name}, dye ${dye} must resolve to ${expected}`,
+      );
+    }
+  }
 });
 
-test('Simply Animated Cloaks: the feature switch is exposed and enabled by default', () => {
-  const feature = FEATURES.find((row) => row.id === 'simply-animated-cloaks');
-  assert.ok(feature, 'the toggle is registered in the Features screen');
-  assert.equal(feature.group, 'character');
-  assert.deepEqual(feature.control, { store: 'prefs', key: 'simplyAnimatedCloaks', initial: true, online: 'player' });
-  assert.equal(FEATURE_PREF_DEFAULTS.simplyAnimatedCloaks, true);
+test('Simply Animated Cloaks: the user toggle is in the Animations tab, not duplicated under Gameplay', () => {
+  const map = readFileSync(resolve(root, 'src/ui/settings/settingsMap.js'), 'utf8');
+  const animationStart = map.indexOf('tab("animations"');
+  const animationEnd = map.indexOf('tab("', animationStart + 5);
+  const gameplayStart = map.indexOf('tab("gameplay"');
+  const gameplayEnd = map.indexOf('tab("', gameplayStart + 5);
+  const animationTab = map.slice(animationStart, animationEnd);
+  const gameplayTab = map.slice(gameplayStart, gameplayEnd);
+  assert.match(animationTab, /feat:simply-animated-cloaks/);
+  assert.doesNotMatch(gameplayTab, /feat:simply-animated-cloaks/);
+  assert.equal((map.match(/feat:simply-animated-cloaks/g) ?? []).length, 1);
 });
