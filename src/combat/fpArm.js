@@ -7784,6 +7784,17 @@ export function createFpArm({ playerAppearance = false } = {}) {
             const stepped = stepCloakPhysics(piece, dt, cloakMotion);
             if (stepped && !piece.clothPhysicsStepDiagnosed) {
               piece.clothPhysicsStepDiagnosed = true;
+              const cloth = piece.clothPhysics;
+              let maxOffset = 0;
+              let movedVertices = 0;
+              for (let i = 0; i < cloth.pos.length; i += 3) {
+                const dx = cloth.pos[i] - cloth.base[i];
+                const dy = cloth.pos[i + 1] - cloth.base[i + 1];
+                const dz = cloth.pos[i + 2] - cloth.base[i + 2];
+                const offset = Math.hypot(dx, dy, dz);
+                maxOffset = Math.max(maxOffset, offset);
+                if (offset > 0.02) movedVertices++;
+              }
               modDiagnostics.record({
                 level: 'info',
                 phase: 'animation',
@@ -7791,7 +7802,11 @@ export function createFpArm({ playerAppearance = false } = {}) {
                 modId: 'simply-animated-cloaks',
                 resource: `meshes/${piece.slot}`,
                 message: 'Dynamic cloak physics advanced during the third-person frame.',
-                details: { dt, motion: cloakMotion, vertices: piece.clothPhysics.pos.length / 3 },
+                details: {
+                  dt, motion: cloakMotion, vertices: cloth.pos.length / 3,
+                  pinnedVertices: cloth.pinned.reduce((sum, pinned) => sum + pinned, 0),
+                  maxOffset, movedVertices, sourceGen: piece.sourceGen | 0,
+                },
               });
             }
           }
