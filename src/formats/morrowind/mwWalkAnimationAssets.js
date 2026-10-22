@@ -109,7 +109,7 @@ export async function loadWalkAnimationAssets({ female = false } = {}) {
     { entry: axelFemale, variant: 'axel', family: 'walk' },
     { entry: axelRunFemale, variant: 'axel', family: 'run' },
   ] : [];
-  const overhaul = modSetting('morrowind-animation', 'AnimationOverhaul') === 2
+  const overhaul = modSetting('morrowind-animation', 'AnimationOverhaul') === 1
     ? { entry: female ? overhaulFemale : overhaulMale, variant: 'overhaul', family: 'all' }
     : null;
   const selected = [];
@@ -164,8 +164,8 @@ export async function loadWalkAnimationAssets({ female = false } = {}) {
 }
 /** Resolve the mutually exclusive first-person provider from persisted settings. */
 export function firstPersonAnimationProviderForChoice(choice = 1) {
-  return ['original', 'vanilla', 'reanimation-v3', 'openmw-dynamic-first-person', 'reanimation-v3+openmw-dynamic-first-person'][
-    Math.max(0, Math.min(4, Math.trunc(Number(choice) || 0)))
+  return ['vanilla', 'reanimation-v3', 'openmw-dynamic-first-person', 'reanimation-v3+openmw-dynamic-first-person'][
+    Math.max(0, Math.min(3, Math.trunc(Number(choice) || 0)))
   ];
 }
 
@@ -207,7 +207,7 @@ export async function loadFirstPersonAnimationAssets({ skeletonPath } = {}) {
   const provider = firstPersonAnimationProviderForChoice(
     modSetting('morrowind-animation', 'FirstPersonSource'),
   );
-  if (provider === 'vanilla' || provider === 'original') return [];
+  if (provider === 'vanilla') return [];
   if (!isFirstPersonAnimationRigCompatible(skeletonPath)) {
     modDiagnostics.record({
       level: 'warn', phase: 'animation-selection', action: 'animation-provider-incompatible-rig',
@@ -397,7 +397,7 @@ export function selectOpenMWDynamicAnimationVariants(assets, seed = '') {
 
 /** Load the mod's third-person KF variants matching the active rig folder. */
 export async function loadOpenMWDynamicThirdPersonAnimationAssets({ skeletonPath, race = '' } = {}) {
-  if (!IN_BROWSER || modSetting('morrowind-animation', 'OpenMWDynamicAnimations') !== 2) return [];
+  if (!IN_BROWSER || modSetting('morrowind-animation', 'OpenMWDynamicAnimations') !== 1) return [];
   const normalizedSkeleton = norm(skeletonPath);
   const skeletonFile = normalizedSkeleton.slice(normalizedSkeleton.lastIndexOf('/') + 1);
   const folder = skeletonFile.replace(/\.nif$/i, '');
@@ -481,7 +481,7 @@ export function hitReactionTargetGroup(assetPath, hitIndex, deathIndex) {
 
 /** Load third-person hit-reaction KF files in stable path order for one rig. */
 export async function loadHitReactionAnimationAssets({ skeletonPath } = {}) {
-  if (!IN_BROWSER || modSetting('morrowind-animation', 'HitReactionSource') !== 2) return [];
+  if (!IN_BROWSER || modSetting('morrowind-animation', 'HitReactionSource') !== 1) return [];
   const files = Object.entries(HIT_REACTION_FILES)
     .map(([path, url]) => ({ path: path.replace(/\\/g, '/'), url }))
     .filter((entry) => isHitReactionAssetForSkeleton(entry.path, skeletonPath))

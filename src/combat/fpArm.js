@@ -2640,7 +2640,19 @@ async function buildTpBody({
     partBytes.push(...resolvedHip.parts);
 
     let arm = await assembleFirstPersonArm({ skeletonBytes, parts: partBytes, boneSources, parseNif: parseNifOnce, offWeaponBone: true });   // MWNPC3: one parse a mesh, every body; TWO-HANDS AUDIT: the left hand's weapon bone
-    const hasBoundCloak = (built) => built?.ok && cloakRows.some((row) => built.arm?.pieces?.some((piece) => piece.slot === row.slot));
+    const hasBoundCloak = (built) => {
+      if (!built?.ok) return false;
+      return cloakRows.some((row) => {
+        const piece = built.arm?.pieces?.find((candidate) => candidate.slot === row.slot);
+        if (!piece || piece.kind !== 'skinned' || !(piece.batch?.positions?.length > 0) || !(piece.indices?.length > 0)) return false;
+        // A shape can exist in the assembly while every skin influence was skipped because
+        // its bone name did not bind. Such a cloak is effectively invisible; trigger the
+        // alternate mesh fallback instead of accepting a slot-only false positive.
+        const missingInfluence = (built.arm?.notes ?? []).some((note) =>
+          note.startsWith(`${row.slot}:`) && /no bone .*influences are skipped/i.test(note));
+        return !missingInfluence;
+      });
+    };
     // If the chosen cloak is absent from the assembled rig, try the other bundled style regardless of which
     // style was selected. This covers incompatible animated skin data and classic meshes rejected by a rig.
     // A fallback is successful only if the cloak piece itself survived assembly, not merely because the body did.
@@ -5185,7 +5197,7 @@ export function createFpArm({ playerAppearance = false } = {}) {
     const sources = activeRig.sources ?? [];
     const options = { start, stop, startPoint };
     const providerChoice = Number(modSetting('morrowind-animation', 'FirstPersonSource') ?? 0);
-    const reAnimationEnabled = providerChoice === 2 || providerChoice === 4;
+    const reAnimationEnabled = providerChoice === 1 || providerChoice === 3;
     const actionType = String(start ?? '').match(/(?:^|\s)(chop|slash|thrust|shoot|throw)(?:\s|$)/i)?.[1]?.toLowerCase();
     let pick = null;
     let reAnimationCandidates = [];

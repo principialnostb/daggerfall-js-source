@@ -104,6 +104,23 @@ test('MW-ANIM-4: first-person providers accept male and female biped rigs, but n
   assert.equal(isFirstPersonAnimationRigCompatible('meshes/xbase_anim.nif'), false);
 });
 
+test('ANIM-UI5: identical archive-only source choices are not duplicated', () => {
+  const keys = MOD_SETTINGS['morrowind-animation'].keys;
+  assert.deepEqual([...keys.AnimationOverhaul.options], ['Vanilla', 'Morrowind Animation Overhaul']);
+  assert.equal(keys.AnimationOverhaul.default, 0);
+  assert.deepEqual([...keys.FirstPersonSource.options], [
+    'Vanilla',
+    'ReAnimation v3 · 1-е лицо',
+    'OpenMW Dynamic Animations · 1-е лицо',
+    'ReAnimation v3 + OpenMW Dynamic Animations · 1-е лицо',
+  ]);
+  assert.equal(keys.FirstPersonSource.default, 1);
+  assert.deepEqual([...keys.OpenMWDynamicAnimations.options], ['Vanilla', 'OpenMW Dynamic Animations · 3-е лицо']);
+  assert.equal(keys.OpenMWDynamicAnimations.default, 0);
+  assert.deepEqual([...keys.HitReactionSource.options], ['Vanilla', 'Hit Reactions Animated v2']);
+  assert.equal(keys.HitReactionSource.default, 1);
+});
+
 test('MW-ANIM-4: first-person source modes and layered providers are stable', () => {
   assert.equal(firstPersonAnimationProviderForChoice(0), 'vanilla');
   assert.equal(firstPersonAnimationProviderForChoice(1), 'reanimation-v3');

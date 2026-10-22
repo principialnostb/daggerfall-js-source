@@ -1723,6 +1723,13 @@ function paneExit(body) {
 
 let optQuery = '';          // ORG2: the search, over every tab - kept across a repaint, cleared by a tab change
 const selectedSectionByTab = { animations: 'locomotion' }; // The open section for each settings tab.
+const ANIMATION_GROUPS_BY_SECTION = Object.freeze({
+  locomotion: Object.freeze(['running', 'walking']),
+  posture: Object.freeze(['posture', 'turning', 'idle']),
+  combat: Object.freeze(['attacks', 'blocking']),
+  traversal: Object.freeze(['jumping', 'swimming', 'falling']),
+  reactions: Object.freeze(['damage', 'death']),
+});
 const DEFAULT_ANIMATION_GROUP_BY_SECTION = Object.freeze({
   locomotion: 'running',
   posture: 'posture',
@@ -1731,9 +1738,12 @@ const DEFAULT_ANIMATION_GROUP_BY_SECTION = Object.freeze({
   reactions: 'damage',
 });
 const animationClipGroupBySection = { ...DEFAULT_ANIMATION_GROUP_BY_SECTION };
-const animationClipGroup = () => animationClipGroupBySection[selectedSectionByTab.animations ?? 'locomotion']
-  ?? DEFAULT_ANIMATION_GROUP_BY_SECTION[selectedSectionByTab.animations ?? 'locomotion']
-  ?? DEFAULT_ANIMATION_GROUP_BY_SECTION.locomotion;
+const animationClipGroup = () => {
+  const section = selectedSectionByTab.animations ?? 'locomotion';
+  const groups = ANIMATION_GROUPS_BY_SECTION[section] ?? ANIMATION_GROUPS_BY_SECTION.locomotion;
+  const remembered = animationClipGroupBySection[section];
+  return groups.includes(remembered) ? remembered : groups[0];
+};
 let optFilter = 'all';      // ORG2: 'all' | 'changed' | a KINDS id
 let pickedFeature = null;   // ORG2: the Features row the help pane reads (pickedKey is DFU's key)
 let optScrollTo = null;     // ORG2: a row to bring into view after the next paint (the mods' list sends you to one)
@@ -2068,6 +2078,12 @@ function paintOptionsBody(body, { pause = false } = {}) {
       b.setAttribute('aria-pressed', String(selectedId === s.id));
       b.onclick = () => {
         selectedSectionByTab[tab.id] = s.id;
+        if (tab.id === 'animations') {
+          const allowed = ANIMATION_GROUPS_BY_SECTION[s.id] ?? [];
+          if (allowed.length && !allowed.includes(animationClipGroupBySection[s.id])) {
+            animationClipGroupBySection[s.id] = allowed[0];
+          }
+        }
         paintOptionsBody(body, { pause });
       };
       buttons.append(b);
@@ -2085,14 +2101,7 @@ function paintOptionsBody(body, { pause = false } = {}) {
       body.append(sectionHead(tab, selected.s, n));
       if (isAnimationSection) {
         const switches = el('div', 'animation-switch-buttons animation-clip-group-switches');
-        const groupsBySection = {
-          locomotion: ['running', 'walking'],
-          posture: ['posture', 'turning', 'idle'],
-          combat: ['attacks', 'blocking'],
-          traversal: ['jumping', 'swimming', 'falling'],
-          reactions: ['damage', 'death'],
-        };
-        const groups = groupsBySection[selected.s.id] ?? [];
+        const groups = ANIMATION_GROUPS_BY_SECTION[selected.s.id] ?? [];
         for (const group of groups) {
           const button = itemNodes(`group:${group}`, { ...ctx, fold })[0];
           if (button) switches.append(button);

@@ -1684,8 +1684,8 @@ export const MOD_SETTINGS = Object.freeze({
     author: 'Port integration',
     keys: Object.freeze({
       AnimationOverhaul: Object.freeze({
-        default: 1,
-        options: lazyWords('Original', 'Vanilla', 'Morrowind Animation Overhaul'),
+        default: 0,
+        options: lazyWords('Vanilla', 'Morrowind Animation Overhaul'),
         description: 'Optional third-person animation replacement. To use it, install the MAO files locally at Mods/Animations/Morrowind Animation Overhaul/Data Files/Meshes/xbase_anim.kf and xbase_anim_female.kf. The asset files are not included in this repository; your build bundles the local files you provide. Vanilla keeps the game/archive animation groups.',
       }),
       SimplyAnimatedCloaks: Object.freeze({
@@ -1698,20 +1698,20 @@ export const MOD_SETTINGS = Object.freeze({
         description: 'Browser-native port of Animation Blending for third-person character rigs. Smooths transitions between supported clips; Vanilla disables the cross-fade. The original MWSE Lua script and its per-animation YAML rules are not executable in this browser port, and first-person animation is unchanged.',
       }),
       FirstPersonSource: Object.freeze({
-        default: 2,
-        options: lazyWords('Original', 'Vanilla', 'ReAnimation v3 · 1-е лицо', 'OpenMW Dynamic Animations · 1-е лицо', 'ReAnimation v3 + OpenMW Dynamic Animations · 1-е лицо'),
+        default: 1,
+        options: lazyWords('Vanilla', 'ReAnimation v3 · 1-е лицо', 'OpenMW Dynamic Animations · 1-е лицо', 'ReAnimation v3 + OpenMW Dynamic Animations · 1-е лицо'),
         description: 'First-person sources can be used independently or layered. ReAnimation v3 supplies stance, weapon, jump and related clips; OpenMW Dynamic Animations supplies directional walk/run/sneak clips; the combined option overlays those movement groups on ReAnimation. Assets are attempted on the male `xbase_anim.1st.nif` and female `base_anim_female.1st.nif` first-person rigs. Each clip must still parse and bind to the active rig\'s bones; incompatible rigs and clips retain archive fallback.',
       }),
       OpenMWDynamicAnimations: Object.freeze({
         // Keep Vanilla as the default: this provider can replace the game's
         // existing walk/run/sneak groups, so it must never silently change gait.
-        default: 1,
-        options: lazyWords('Original', 'Vanilla', 'OpenMW Dynamic Animations · 3-е лицо'),
+        default: 0,
+        options: lazyWords('Vanilla', 'OpenMW Dynamic Animations · 3-е лицо'),
         description: 'Third-person animation source for compatible rigs. OpenMW Dynamic Animations replaces matching game/archive groups, including directional walking, running, and sneaking; it can therefore change Vanilla locomotion, not just add new actions. Vanilla keeps the game/archive clips. The browser port translates KF group selection and deterministic variant choice into the JavaScript runtime; it does not execute the original OpenMW Lua scripts.',
       }),
       HitReactionSource: Object.freeze({
-        default: 2,
-        options: lazyWords('Original', 'Vanilla', 'Hit Reactions Animated v2'),
+        default: 1,
+        options: lazyWords('Vanilla', 'Hit Reactions Animated v2'),
         description: 'Third-person hit-reaction provider. Only hit, stagger, and death groups are admitted after binding to the active skeleton; locomotion and weapon groups remain on their selected sources. Vanilla keeps the game/archive reactions.',
       }),
       PlayerWalkSource: Object.freeze({
@@ -1845,6 +1845,23 @@ function migrate(m) {
         animation.NpcFemaleWalk = ({ 0: 1, 1: 2, 2: 0 })[old] ?? 1;
       }
       animation['WalkSourceChoices@ANIM-UI4'] = true;
+      changed = true;
+    }
+  }
+  // ANIM-UI5: drop duplicate Original entries only for providers where the runtime
+  // resolves Original and Vanilla identically. Translate saved numeric indices once.
+  if (animation) {
+    const compactChoiceMaps = [
+      ['AnimationOverhaul', { 0: 0, 1: 0, 2: 1 }, 'AnimationOverhaulChoices@ANIM-UI5'],
+      ['FirstPersonSource', { 0: 0, 1: 0, 2: 1, 3: 2, 4: 3 }, 'FirstPersonSourceChoices@ANIM-UI5'],
+      ['OpenMWDynamicAnimations', { 0: 0, 1: 0, 2: 1 }, 'OpenMWDynamicAnimationsChoices@ANIM-UI5'],
+      ['HitReactionSource', { 0: 0, 1: 0, 2: 1 }, 'HitReactionSourceChoices@ANIM-UI5'],
+    ];
+    for (const [key, mapping, stamp] of compactChoiceMaps) {
+      if (!Object.hasOwn(animation, key) || animation[stamp] === true) continue;
+      const old = Math.trunc(Number(animation[key]));
+      animation[key] = mapping[old] ?? 0;
+      animation[stamp] = true;
       changed = true;
     }
   }
