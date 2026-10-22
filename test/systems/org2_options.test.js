@@ -141,12 +141,12 @@ test('ORG2: Graphics leads, with the preset at its head, and the tabs a player l
 
 test('ANIMATION UI: subgroup selection is derived from the active section and each section keeps its own choice', () => {
   const menu = read('src/ui/enhanced/enhancedMenu.js');
-  assert.ok(menu.includes("const DEFAULT_ANIMATION_GROUP_BY_SECTION = Object.freeze({\\n  locomotion: 'running',\\n  posture: 'posture',\\n  combat: 'attacks',\\n  traversal: 'jumping',\\n  reactions: 'damage',"));
+  assert.ok(menu.includes("const DEFAULT_ANIMATION_GROUP_BY_SECTION = Object.freeze({\n  locomotion: 'running',\n  posture: 'posture',\n  combat: 'attacks',\n  traversal: 'jumping',\n  reactions: 'damage',"));
   assert.ok(menu.includes("const animationClipGroupBySection = { ...DEFAULT_ANIMATION_GROUP_BY_SECTION };"));
   assert.ok(menu.includes("const animationClipGroup = () => animationClipGroupBySection[selectedSectionByTab.animations ?? 'locomotion']"));
   assert.ok(menu.includes("animationClipGroupBySection[selectedSectionByTab.animations] = group;"));
   assert.ok(menu.includes("clipGroup !== animationClipGroup()"));
-  assert.doesNotMatch(menu, /let animationClipGroup\\s*=/, 'avoid duplicate global selection state');
+  assert.doesNotMatch(menu, /let animationClipGroup\s*=/, 'avoid duplicate global selection state');
 });
 
 test('ORG2: a key a Features row owns stands in that row\'s own section - so FT13\'s "drawn by the row, never twice" is true on the page too (mutant: a moved key filed elsewhere)', () => {
