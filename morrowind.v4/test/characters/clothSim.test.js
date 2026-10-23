@@ -117,3 +117,23 @@ test('bone-driven drape: follows the legs without clipping or exploding', () => 
     }
   }
 });
+
+
+test('pelvis ellipsoid keeps cloak particles outside without injecting collision velocity', () => {
+  const grid = {
+    rows: 2, cols: 1, wrap: false,
+    pos: Float32Array.from([0, 1.0, -0.02, 0, 0.88, -0.02]),
+    faces: [],
+  };
+  const c = buildCloth(grid);
+  stepCloth(c, 1 / 60, {
+    gy: 0, damp: 0.88, capsules: null,
+    ellipsoids: [{ x: 0, y: 0.88, z: -0.02, rx: 0.17, ry: 0.13, rz: 0.125 }],
+  }, () => [0, 0]);
+  const x = c.pos[3], y = c.pos[4], z = c.pos[5];
+  const e = (x*x)/(0.20*0.20) + ((y-0.88)*(y-0.88))/(0.16*0.16) + ((z+0.02)*(z+0.02))/(0.155*0.155);
+  assert.ok(e >= 0.999, `pelvis ellipsoid still intersects particle (e=${e})`);
+  // Collision projection must not be mistaken for new Verlet velocity on the next frame.
+  assert.ok(Math.hypot(c.pos[3]-c.prev[3], c.pos[4]-c.prev[4], c.pos[5]-c.prev[5]) < 1e-5,
+    'collision ejection injected artificial velocity');
+});
