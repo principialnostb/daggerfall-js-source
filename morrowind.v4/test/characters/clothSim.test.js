@@ -119,6 +119,40 @@ test('bone-driven drape: follows the legs without clipping or exploding', () => 
 });
 
 
+test('body collision follows torso lean, twist, bob, and root translation', () => {
+  const lean = 0.42, twist = 0.65, pivot = 1.0, bob = 0.025;
+  const root = [0.12, 0.08, -0.17];
+  const posePoint = (x, y, z) => {
+    const ct = Math.cos(twist), st = Math.sin(twist);
+    [x, z] = [ct*x + st*z, -st*x + ct*z];
+    const dy = y - pivot, cl = Math.cos(lean), sl = Math.sin(lean);
+    return [x + root[0], pivot + cl*dy - sl*z + root[1] + bob, sl*dy + cl*z + root[2]];
+  };
+  const top = posePoint(0, 1.30, -0.18);
+  const inside = posePoint(0, 0.90, 0);
+  const c = buildCloth({
+    rows: 2, cols: 1, wrap: false,
+    pos: Float32Array.from([...top, ...inside]),
+    faces: [],
+  });
+  stepCloth(c, 1/60, {
+    gx: 0, gy: 0, gz: 0, damp: 0, maxStep: 0,
+    rootX: root[0], rootY: root[1], rootZ: root[2],
+    bodyBob: bob, lean, leanPivot: pivot, twist,
+    capsules: null, ellipsoids: [], collisionPasses: 8,
+  }, core);
+  const local = (() => {
+    let [x, y, z] = [c.pos[3] - root[0], c.pos[4] - root[1] - bob, c.pos[5] - root[2]];
+    const dy = y - pivot, cl = Math.cos(lean), sl = Math.sin(lean);
+    [y, z] = [pivot + cl*dy + sl*z, -sl*dy + cl*z];
+    const ct = Math.cos(twist), st = Math.sin(twist);
+    [x, z] = [ct*x - st*z, st*x + ct*z];
+    return [x, y, z];
+  })();
+  const [hx, hz] = core(local[1]), e = local[0]**2/(hx+SO)**2 + local[2]**2/(hz+SO)**2;
+  assert.ok(e >= 0.999, `animated torso collision left particle inside body (e=${e})`);
+});
+
 test('pelvis ellipsoid keeps cloak particles outside without injecting collision velocity', () => {
   const grid = {
     rows: 2, cols: 1, wrap: false,
