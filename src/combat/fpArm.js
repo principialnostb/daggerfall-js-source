@@ -7874,6 +7874,10 @@ export function createFpArm({ playerAppearance = false } = {}) {
             if (!piece.clothPhysics) continue;
             const stepped = stepCloakPhysics(piece, dt, {
               gait: cloakMotion,
+              // Follow the actual movement clip phase so left/right steps alternate
+              // consistently instead of drifting against the character's gait.
+              gaitPhase: movementState ? clipCompletion(movementState) : 0,
+              turn: motion.stride().hipYaw,
               attack: cloakAttack,
               attackProgress: cloakAttackProgress,
               attackGroup: cloakAttackGroup,
