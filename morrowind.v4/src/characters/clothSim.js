@@ -216,6 +216,14 @@ export function stepCloth(cloth, dt, opts, core) {
         if (e < 1) { if (e < 1e-9) { px = A; pz = 0; } else { const f = 1/Math.sqrt(e); px *= f; pz *= f; } local[0]=px; local[2]=pz; } }
       const world = fromBodyLocal(local[0], local[1], local[2]);
       pos[o]=world[0]; pos[o+1]=world[1]; pos[o+2]=world[2];
+      // The torso projection above is in torso-local space and can move a
+      // point back into a leg capsule when the leg is animated independently.
+      // Re-apply articulated leg clearance in world space AFTER that projection;
+      // this must be the last body collider touched in each pass.
+      if (caps) for (let ci = 0; ci < caps.length; ci++) {
+        const hit = pushCapsule(pos[o], pos[o+1], pos[o+2], caps[ci], SO);
+        if (hit) { pos[o]=hit[0]; pos[o+1]=hit[1]; pos[o+2]=hit[2]; }
+      }
       // Move the previous position by the same correction. Otherwise the ejection
       // itself becomes artificial Verlet velocity and makes cloth kick away next frame.
       prev[o] += pos[o] - beforeX; prev[o+1] += pos[o+1] - beforeY; prev[o+2] += pos[o+2] - beforeZ;
