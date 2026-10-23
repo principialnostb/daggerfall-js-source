@@ -45,6 +45,7 @@
     "mwattach": "node tools/mwAttachProbe.mjs",
     "mwcloakprobe": "node tools/mwCloakAnimationProbe.mjs",
     "mwcloak:analyze": "python diagnostics/mw-cloak-probe/diagnose_cloak_capture.py",
+    "mwcloak:intersections": "python diagnostics/mw-cloak-probe/diagnose_cloak_triangle_intersections.py",
     "savetile": "node tools/saveTileProbe.mjs"
   },
   "devDependencies": {
