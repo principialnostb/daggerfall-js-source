@@ -141,17 +141,37 @@ export function stepCloth(cloth, dt, opts, core) {
   // Collision resolve, ITERATED (collision-only - no constraints between,
   // so it converges the 3D response on tilted limbs without ratcheting).
   const caps = opts.capsules, groundY = opts.groundY ?? 0.02, cpasses = opts.collisionPasses ?? 6;
-  const ellipsoids = (opts.ellipsoids || []).map(C => ({ ...C, x: C.x + rootX, y: C.y + rootY, z: C.z + rootZ + (lean ? ls * Math.max(0, C.y - leanPy) : 0) }));
+  // Body core and pelvis ellipsoids live in the character's rest-local space.
+  // Test cloth against that same space by inverting the exact torso transform
+  // used by animateTarget: root translation + bob, then torso lean, then twist.
+  // This keeps collision volumes aligned during attacks instead of approximating
+  // an animated torso as a static ellipse shifted only along Z.
+  const twist = opts.twist || 0, tc = Math.cos(twist), ts = Math.sin(twist);
+  const bodyBob = opts.bodyBob || 0;
+  const toBodyLocal = (x, y, z) => {
+    x -= rootX; y -= rootY + bodyBob; z -= rootZ;
+    if (lean) { const dy = y - leanPy, yy = lc*dy + ls*z; z = -ls*dy + lc*z; y = leanPy + yy; }
+    if (twist) { const xx = tc*x - ts*z, zz = ts*x + tc*z; x = xx; z = zz; }
+    return [x, y, z];
+  };
+  const fromBodyLocal = (x, y, z) => {
+    if (twist) { const xx = tc*x + ts*z, zz = -ts*x + tc*z; x = xx; z = zz; }
+    if (lean) { const dy = y - leanPy, yy = lc*dy - ls*z; z = ls*dy + lc*z; y = leanPy + yy; }
+    return [x + rootX, y + rootY + bodyBob, z + rootZ];
+  };
+  const ellipsoids = opts.ellipsoids || [];
   for (let cp = 0; cp < cpasses; cp++) {
     for (let i = 0; i < V; i++) { if (pinned[i]) continue; const o=i*3;
       const beforeX = pos[o], beforeY = pos[o+1], beforeZ = pos[o+2];
       if (pos[o+1] < groundY) pos[o+1] = groundY;
       if (caps) for (let ci = 0; ci < caps.length; ci++) { const hit = pushCapsule(pos[o], pos[o+1], pos[o+2], caps[ci], SO); if (hit) { pos[o]=hit[0]; pos[o+1]=hit[1]; pos[o+2]=hit[2]; } }
-      for (let ci = 0; ci < ellipsoids.length; ci++) { const hit = pushEllipsoid(pos[o], pos[o+1], pos[o+2], ellipsoids[ci], SO); if (hit) { pos[o]=hit[0]; pos[o+1]=hit[1]; pos[o+2]=hit[2]; } }
-      { const py = pos[o+1] - rootY, ext = core(py), A = ext[0]+SO, C = ext[1]+SO;
-        const zc = (lean ? ls * Math.max(0, py - leanPy) : 0) + rootZ;   // torso leans -> centre shifts forward; root motion carries it
-        let px=pos[o]-rootX, pz=pos[o+2]-zc; let e = (px*px)/(A*A) + (pz*pz)/(C*C);
-        if (e < 1) { if (e < 1e-9) { px = A; pz = 0; e = 1; } const f = 1/Math.sqrt(e); pos[o]=px*f+rootX; pos[o+2]=pz*f + zc; } }
+      let local = toBodyLocal(pos[o], pos[o+1], pos[o+2]);
+      for (let ci = 0; ci < ellipsoids.length; ci++) { const hit = pushEllipsoid(local[0], local[1], local[2], ellipsoids[ci], SO); if (hit) local = hit; }
+      { const ext = core(local[1]), A = ext[0]+SO, C = ext[1]+SO;
+        let px=local[0], pz=local[2]; const e = (px*px)/(A*A) + (pz*pz)/(C*C);
+        if (e < 1) { if (e < 1e-9) { px = A; pz = 0; } else { const f = 1/Math.sqrt(e); px *= f; pz *= f; } local[0]=px; local[2]=pz; } }
+      const world = fromBodyLocal(local[0], local[1], local[2]);
+      pos[o]=world[0]; pos[o+1]=world[1]; pos[o+2]=world[2];
       // Move the previous position by the same correction. Otherwise the ejection
       // itself becomes artificial Verlet velocity and makes cloth kick away next frame.
       prev[o] += pos[o] - beforeX; prev[o+1] += pos[o+1] - beforeY; prev[o+2] += pos[o+2] - beforeZ;
