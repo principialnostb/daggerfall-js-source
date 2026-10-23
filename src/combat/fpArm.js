@@ -2052,10 +2052,23 @@ export function hangHipLight(arm) {
  *  is not touched. Answers `{ cloak, gear, follow, notes }`. */
 export function fitThirdPersonCloak(arm, underSlots) {
   const isCloak = (p) => isCloakSlot(p.slot);
+  // One-handed weapon sheaths hang from the pelvis/hip and must remain wholly
+  // independent of cloak fitting. In particular, followCloak can otherwise
+  // rotate them in response to sampled cloak contacts even on frames where the
+  // rendered meshes do not intersect. Only back-mounted holsters participate.
+  const hipSheathBones = new Set([
+    'bip01 shortbladeonehand', 'bip01 longbladeonehand',
+    'bip01 bluntonehand',
+  ]);
+  const isHipSheath = (p) => {
+    if (!HOLSTER_SLOTS.includes(p.slot) || p.attachRef == null) return false;
+    const name = String(arm.skeleton.nodes.get(p.attachRef)?.name ?? '').toLowerCase();
+    return hipSheathBones.has(name);
+  };
   // The stowed shield is rigid gear too: fit it outside the cloak in the rest pose,
   // rather than asking cloth collision to squeeze the cloak into the body/shield gap.
   // The hand-held shield remains excluded by its distinct `shield` slot.
-  const isGear = (p) => HOLSTER_SLOTS.includes(p.slot) || /^shield-back\b/i.test(p.slot ?? '');
+  const isGear = (p) => (HOLSTER_SLOTS.includes(p.slot) && !isHipSheath(p)) || /^shield-back\b/i.test(p.slot ?? '');
   const covered = (slot) => underSlots.has(slot) && slot !== 'tail' && !/^shield\b/.test(slot);
   const cloak = underSlots ? fitCloakOver(arm, { isCloak, isUnder: (p) => covered(p.slot) }) : null;
   // Give the back-mounted shield a real air gap from the torso, not just the
