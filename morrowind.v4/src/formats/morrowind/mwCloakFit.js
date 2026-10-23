@@ -76,6 +76,18 @@ export const CLOAK_FIT_POSES = Object.freeze([
   // of the back-lean sample above; the cloak still rides the chest and can sweep
   // its hem into the thighs when the torso pitches forward.
   Object.freeze({ 'bip01 spine2': ['z', 15] }),
+  // Additional leg envelope: a combat stance, a deeper knee bend, and both lead-leg
+  // choices. These are bind-time samples; they must be in this module because this
+  // is the Morrowind v4 source tree used by the app.
+  Object.freeze({ 'bip01 l thigh': ['z', 20], 'bip01 r thigh': ['z', -20], 'bip01 l calf': ['z', 65] }),
+  Object.freeze({ 'bip01 r thigh': ['z', 20], 'bip01 l thigh': ['z', -20], 'bip01 r calf': ['z', 65] }),
+  Object.freeze({ 'bip01 r thigh': ['z', 50], 'bip01 l thigh': ['z', -40], 'bip01 l calf': ['z', 60] }),
+  Object.freeze({ 'bip01 l thigh': ['z', 50], 'bip01 r thigh': ['z', -40], 'bip01 r calf': ['z', 60] }),
+  // Arm swing envelope: forward/backward swings can pull the upper hem into the
+  // arm/torso seam and alter how the sheet folds over the hip.
+  Object.freeze({ 'bip01 l upperarm': ['z', -40] }),
+  Object.freeze({ 'bip01 r upperarm': ['z', 40] }),
+  Object.freeze({ 'bip01 l upperarm': ['z', -35], 'bip01 r upperarm': ['z', 35] }),
 ]);
 /** AUDIT MW-CLOAK: the follow's solve - its rounds of a linear law re-taken where the last left the gear, the sweeps of
  *  each, a unit's slide priced as a turn of `slideCost` radians, the most it turns and slides a pose, and the cell of
