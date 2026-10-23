@@ -96,7 +96,7 @@ function rebuildNormals(positions, indices, out, fallback) {
   }
 }
 
-/** Advance one frame. Motion is 0 at rest, about .65 walking and 1 running. */
+/** Advance one frame. Accepts the legacy gait number or a gait/attack state object. */
 export function stepCloakPhysics(piece, dt, motion = 0) {
   const state = piece?.clothPhysics;
   const positions = piece?.batch?.positions;
@@ -106,7 +106,16 @@ export function stepCloakPhysics(piece, dt, motion = 0) {
   if (step <= 0) return false;
   state.time += step;
   const { base, pos, prev, pinned, edges } = state;
-  const move = Math.max(0, Math.min(1, Number(motion) || 0));
+  const gait = typeof motion === 'object' && motion !== null ? motion.gait : motion;
+  const move = Math.max(0, Math.min(1, Number(gait) || 0));
+  const attack = typeof motion === 'object' && motion !== null ? Math.max(0, Math.min(1, Number(motion.attack) || 0)) : 0;
+  const attackProgress = typeof motion === 'object' && motion !== null ? Math.max(0, Math.min(1, Number(motion.attackProgress) || 0)) : 0;
+  // A short, strong outward impulse peaks through the middle of a swing. It is
+  // deliberately weighted toward the lower cloak so the hem clears the hips
+  // during overhead/forward attacks instead of remaining a rigid backdrop.
+  const attackPulse = attack * Math.sin(Math.PI * attackProgress);
+  const attackGroup = typeof motion === 'object' && motion !== null ? String(motion.attackGroup ?? '').toLowerCase() : '';
+  const overhead = /overhead|chop|two.?hand|2.?hand|greatsword|weapon.*(2|two)/.test(attackGroup) ? 1 : 0.65;
   const dt2 = step * step;
 
   for (let v = 0; v < pinned.length; v++) {
@@ -121,11 +130,16 @@ export function stepCloakPhysics(piece, dt, motion = 0) {
     // NIF positions are in Morrowind world units (the cloak is tens of units tall), not metres.
     // The previous sub-3-unit/s² wind produced only thousandths of a unit per frame and looked rigid.
     // Keep Verlet's dt² integration, but use accelerations scaled to the mesh's authored coordinate space.
+    const hemWeight = Math.max(0, Math.min(1, (maxOffsetSafe(base, o + 2) - base[o + 2]) / 1));
     let dx = (x - prev[o]) * DAMPING
-      + Math.sin(state.time * 1.7 + base[o + 2] * 0.17) * (28 + move * 82) * dt2;
+      + Math.sin(state.time * (move > 0.8 ? 2.7 : 1.7) + base[o + 2] * 0.17) * (18 + move * 72) * dt2;
+    // Walking alternates the cloth laterally; running adds a sustained backward drag.
     let dy = (y - prev[o + 1]) * DAMPING
-      + Math.cos(state.time * 1.25 + base[o] * 0.11) * (14 + move * 54) * dt2;
-    let dz = (z - prev[o + 2]) * DAMPING - GRAVITY * dt2;
+      + Math.cos(state.time * (move > 0.8 ? 3.1 : 2.0) + base[o] * 0.11) * (8 + move * 32) * dt2
+      - move * move * 24 * dt2
+      - attackPulse * overhead * (70 + 105 * hemWeight) * dt2;
+    let dz = (z - prev[o + 2]) * DAMPING - GRAVITY * dt2
+      - attackPulse * overhead * (18 + 28 * hemWeight) * dt2;
     const length = Math.hypot(dx, dy, dz);
     if (length > MAX_STEP) { const scale = MAX_STEP / length; dx *= scale; dy *= scale; dz *= scale; }
     prev[o] = x; prev[o + 1] = y; prev[o + 2] = z;
