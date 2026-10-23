@@ -3,11 +3,10 @@ Morrowind cloak pose capture and diagnostics
 
 Purpose
 -------
-Capture posed cloak/body geometry from the running game, then run a reproducible
-screening analysis. The analyzer reports spatial proximity, AABB overlap, mesh
-index problems, and frame-to-frame vertex jumps. It does NOT prove triangle/
-triangle penetration. Treat candidates as places to inspect, not confirmed
-collision verdicts.
+Capture posed cloak/body geometry from the running game, then run two analyses.
+The first reports proximity, AABB overlap, mesh-index problems, and frame-to-
+frame vertex jumps. The second checks indexed triangle-surface intersections.
+Neither analysis measures penetration depth or performs a volume-containment test.
 
 IMPORTANT: use the downloaded mw-cloak-capture.json
 --------------------------------------------------
@@ -60,16 +59,29 @@ From the repository root:
 Or select a different capture:
     npm run mwcloak:analyze -- path/to/mw-cloak-capture.json
 
-The script writes:
+The screening script writes:
 - diagnostics/mw-cloak-probe/cloak-diagnostic-report.json
 - diagnostics/mw-cloak-probe/cloak-diagnostic-report.html
+
+Then run the triangle-surface intersection pass:
+    npm run mwcloak:intersections
+
+Or choose a capture explicitly:
+    npm run mwcloak:intersections -- path/to/mw-cloak-capture.json
+
+It writes cloak-triangle-intersections.json and .html beside the capture. The
+pass uses a conservative spatial broad phase, triangle AABB filtering, and a
+separating-axis test that also handles coplanar triangle overlap. It can take
+longer than the screening pass on large captures. Meshes with missing/invalid
+indices or non-finite coordinates are skipped and counted in the report.
 
 Optional screening distance (captured coordinate units; not meters):
     python diagnostics/mw-cloak-probe/diagnose_cloak_capture.py diagnostics/mw-cloak-probe/mw-cloak-capture.json --near 0.25
 
 Do not compare thresholds across captures until model scale is understood.
-AABB overlap and nearest-vertex distance are screening signals only.
-Triangle intersection is not implemented in this analyzer.
+AABB overlap and nearest-vertex distance are screening signals only. The
+triangle pass checks surface intersection, but not penetration depth or a mesh
+fully contained inside another mesh.
 
 How to read the report
 ----------------------
@@ -105,6 +117,7 @@ Known limitations
 - The probe captures runtime geometry; it does not force or enumerate every
   animation clip automatically.
 - The capture does not yet guarantee source KF/clip labels for every frame.
-- The analyzer uses AABB overlap and nearest-vertex distance, not exact
-  triangle-triangle intersection or an inside/outside volume test.
+- The first-pass analyzer uses AABB overlap and nearest-vertex distance. The
+  separate triangle analyzer checks surface intersections but not penetration
+  depth or inside/outside volume containment.
 - Rigid meshes without indices cannot be checked for triangle surface crossing.
