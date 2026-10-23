@@ -3096,27 +3096,90 @@ export function poseAssembly(assembly, { tracks = null, sampleTrack = null,
   // cloak (formats/morrowind/mwCloakFit.js followCloak), which reads the cloak where this pose just put it
   if (assembly.afterPose) assembly.afterPose(assembly);
   assembly.bounds = pieces.length ? foldPieceBounds(pieces) : null;   // PR-BOW1b: and each piece's own box, in the same walk
-  // MW-CLOAK-PROBE: opt-in, read-only telemetry for reproducing live cloak/body
-  // intersections. Never changes pose, geometry, animation selection, or timing.
-  // The external probe enables this by setting window.__mwCloakProbeEnabled.
-  if (typeof window !== 'undefined' && window.__mwCloakProbeEnabled === true
-      && typeof window.__mwCloakProbeOnPose === 'function') {
-    try {
-      window.__mwCloakProbeOnPose({
-        time, cpuSkinned: assembly.cpuSkinned,
-        pieces: pieces.map((p) => ({
-          slot: String(p.slot ?? ''), kind: String(p.kind ?? ''),
-          name: String(p.name ?? p.id ?? ''),
-          positions: p.positions ? Array.from(p.positions) : [],
-          indices: p.batch?.indices ? Array.from(p.batch.indices) : [],
-        })),
-        bones: [...(skeleton.nodes ?? [])].map(([ref, node]) => ({
-          ref: String(ref), name: String(node?.name ?? ''),
-          matrix: mats?.get?.(ref) ? Array.from(mats.get(ref)) : null,
-        })),
-      });
-    } catch (error) {
-      window.__mwCloakProbeError = String(error?.stack ?? error);
+  // MW-CLOAK-PROBE: opt-in, read-only telemetry. Enabled only by
+  // ?mwcloakprobe=1 or the Playwright harness. The browser overlay lives
+  // in the user's normal game tab, so this shares the real session/assets.
+  if (typeof window !== 'undefined') {
+    const queryEnabled = typeof location !== 'undefined'
+      && new URLSearchParams(location.search).get('mwcloakprobe') === '1';
+    if (queryEnabled && !window.__mwCloakProbeInitialized) {
+      window.__mwCloakProbeInitialized = true;
+      window.__mwCloakProbeEnabled = true;
+      window.__mwCloakProbeFrames = [];
+      window.__mwCloakProbeOnPose = (frame) => {
+        const pieces = frame.pieces ?? [];
+        const cloak = pieces.filter((p) => /cloak/i.test(p.slot + ' ' + p.name));
+        const legs = pieces.filter((p) => /^(upperleg|lowerleg|foot|groin|chest)$/i.test(p.slot));
+        if (!cloak.length || !legs.length || window.__mwCloakProbeStopped) return;
+        const now = performance.now();
+        if (now - (window.__mwCloakProbeLastAt ?? -Infinity) < 100) return;
+        window.__mwCloakProbeLastAt = now;
+        const samples = window.__mwCloakProbeFrames;
+        samples.push({ wallTimeMs: now, time: frame.time, cpuSkinned: frame.cpuSkinned, cloak, legs, bones: frame.bones });
+        if (samples.length > 4000) samples.shift();
+        const count = document.getElementById('__mwCloakProbeCount');
+        if (count) count.textContent = 'Samples: ' + samples.length;
+      };
+      const mount = () => {
+        if (!document.body || document.getElementById('__mwCloakProbePanel')) return;
+        const panel = document.createElement('div');
+        panel.id = '__mwCloakProbePanel';
+        panel.style.cssText = 'position:fixed;z-index:2147483647;right:10px;top:10px;max-width:330px;padding:10px;background:#111827;color:#fff;border:1px solid #64748b;border-radius:8px;font:13px/1.4 sans-serif;box-shadow:0 3px 14px #0008';
+        const status = document.createElement('div');
+        status.textContent = 'Cloak diagnostics active (read-only)';
+        status.style.cssText = 'margin-bottom:6px;font-weight:600';
+        const count = document.createElement('div');
+        count.id = '__mwCloakProbeCount';
+        count.textContent = 'Samples: 0 — equip a cloak and play normally';
+        count.style.cssText = 'margin-bottom:8px';
+        const save = document.createElement('button');
+        save.textContent = 'Stop and download capture';
+        save.style.cssText = 'padding:7px 9px;cursor:pointer';
+        save.addEventListener('click', () => {
+          window.__mwCloakProbeStopped = true;
+          const report = {
+            schema: 'mw-cloak-probe-v1',
+            generatedAt: new Date().toISOString(),
+            url: location.href,
+            title: document.title,
+            sampleCount: window.__mwCloakProbeFrames?.length ?? 0,
+            note: 'Raw posed geometry capture. Read-only; not a collision verdict. Samples require cloak and body pieces to be present.',
+            frames: window.__mwCloakProbeFrames ?? [],
+          };
+          const blob = new Blob([JSON.stringify(report)], { type: 'application/json' });
+          const link = document.createElement('a');
+          link.href = URL.createObjectURL(blob);
+          link.download = 'mw-cloak-capture.json';
+          link.click();
+          setTimeout(() => URL.revokeObjectURL(link.href), 1000);
+          status.textContent = 'Capture stopped; download requested';
+          save.disabled = true;
+          save.textContent = 'Capture stopped';
+        });
+        panel.append(status, count, save);
+        document.body.appendChild(panel);
+      };
+      if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', mount, { once: true });
+      else mount();
+    }
+    if (window.__mwCloakProbeEnabled === true && typeof window.__mwCloakProbeOnPose === 'function') {
+      try {
+        window.__mwCloakProbeOnPose({
+          time, cpuSkinned: assembly.cpuSkinned,
+          pieces: pieces.map((p) => ({
+            slot: String(p.slot ?? ''), kind: String(p.kind ?? ''),
+            name: String(p.name ?? p.id ?? ''),
+            positions: p.positions ? Array.from(p.positions) : [],
+            indices: p.batch?.indices ? Array.from(p.batch.indices) : [],
+          })),
+          bones: [...(skeleton.nodes ?? [])].map(([ref, node]) => ({
+            ref: String(ref), name: String(node?.name ?? ''),
+            matrix: mats?.get?.(ref) ? Array.from(mats.get(ref)) : null,
+          })),
+        });
+      } catch (error) {
+        window.__mwCloakProbeError = String(error?.stack ?? error);
+      }
     }
   }
   return assembly;
