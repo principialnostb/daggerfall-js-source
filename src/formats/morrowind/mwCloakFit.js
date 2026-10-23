@@ -127,6 +127,33 @@ function samplesWhere(positions, indices, step, keep, edges = edgesOf(indices)) 
     const n = Math.floor(Math.hypot(dx, dy, dz) / step);
     for (let i = 1; i <= n; i++) { const f = i / (n + 1); const x = ax + dx * f, y = ay + dy * f, z = az + dz * f; if (keep(x, y, z)) out.push(x, y, z); }
   }
+  // Vertices and edge interiors alone miss contacts through the middle of a
+  // large leg/greave triangle: none of its sampled boundary points need lie
+  // behind the cloak even while the triangle's face does. Sample triangle
+  // interiors on the same world-unit spacing, so live attack poses contribute
+  // their actual lower-leg surface instead of only its outline.
+  for (let t = 0; t + 2 < indices.length; t += 3) {
+    const a = indices[t] * 3, b = indices[t + 1] * 3, c = indices[t + 2] * 3;
+    const ax = positions[a], ay = positions[a + 1], az = positions[a + 2];
+    const bx = positions[b], by = positions[b + 1], bz = positions[b + 2];
+    const cx = positions[c], cy = positions[c + 1], cz = positions[c + 2];
+    const longest = Math.max(
+      Math.hypot(bx - ax, by - ay, bz - az),
+      Math.hypot(cx - bx, cy - by, cz - bz),
+      Math.hypot(ax - cx, ay - cy, az - cz),
+    );
+    const divisions = Math.ceil(longest / step);
+    if (divisions < 2) continue;
+    for (let i = 1; i < divisions; i++) {
+      for (let j = 1; j < divisions - i; j++) {
+        const wa = 1 - (i + j) / divisions, wb = i / divisions, wc = j / divisions;
+        const x = wa * ax + wb * bx + wc * cx;
+        const y = wa * ay + wb * by + wc * cy;
+        const z = wa * az + wb * bz + wc * cz;
+        if (keep(x, y, z)) out.push(x, y, z);
+      }
+    }
+  }
   return out;
 }
 /** A mesh's edges, each once, as vertex pairs. Topology is immutable after binding, so cache it across live-pose fits. */
