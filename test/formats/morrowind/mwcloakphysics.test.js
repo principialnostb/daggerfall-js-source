@@ -84,3 +84,29 @@ test('GPU skin stream restreams only the skinned cloak row after physics changes
   assert.notDeepEqual(Array.from(updates[0].data), Array.from(packed.stream), 'the GPU receives the simulated positions and normals');
   assert.deepEqual(restreamMovedRows(layout, lanesOf), [], 'the same state is not uploaded twice');
 });
+
+
+test('cloth secondary motion never advances through the fitted back surface', () => {
+  const piece = cloakPiece();
+  const rest = Float32Array.from(piece.batch.positions);
+  piece.clothPhysics = createCloakPhysics(piece);
+  assert.ok(piece.clothPhysics);
+  const motions = [
+    { gait: 0, attack: 0, turn: 0 },
+    { gait: 0.55, gaitPhase: 0.2, attack: 0, turn: 0.4 },
+    { gait: 1, gaitPhase: 0.7, attack: 0, turn: -0.7 },
+    { gait: 0, attack: 1, attackProgress: 0.5, attackGroup: 'two-handed overhead' },
+  ];
+  for (const motion of motions) {
+    for (let frame = 0; frame < 30; frame++) {
+      assert.equal(stepCloakPhysics(piece, 1 / 60, motion), true);
+      for (let v = 0; v < piece.clothPhysics.pinned.length; v++) {
+        const o = v * 3;
+        assert.ok(
+          piece.batch.positions[o + 1] <= rest[o + 1] + 1e-5,
+          `vertex ${v} advanced through the fitted back surface at frame ${frame}`,
+        );
+      }
+    }
+  }
+});
