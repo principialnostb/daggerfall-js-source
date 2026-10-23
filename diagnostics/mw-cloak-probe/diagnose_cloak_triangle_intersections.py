@@ -56,8 +56,9 @@ def triangle_intersects(a, b, eps):
     axes.extend(np.cross(nb, y) for y in eb)
     for axis in axes:
         length = np.linalg.norm(axis)
-        if length <= eps:
+        if length <= 1e-15:
             continue
+        axis = axis / length
         pa = a @ axis
         pb = b @ axis
         if float(pa.max()) < float(pb.min()) - eps or float(pb.max()) < float(pa.min()) - eps:
