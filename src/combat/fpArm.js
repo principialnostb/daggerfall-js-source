@@ -7866,7 +7866,14 @@ export function createFpArm({ playerAppearance = false } = {}) {
           // upload. Running it before poseAssembly lets the pose overwrite the
           // simulated vertex positions in the same frame.
           const cloakGroup = String(movementState?.group ?? '').toLowerCase();
-          const cloakMotion = /run/.test(cloakGroup) ? 1 : /walk|sneak/.test(cloakGroup) ? 0.65 : 0;
+          const cloakStride = motion.stride();
+          // Body-Motion can own the legs while movementState is an idle/weapon clip.
+          // Use its live gait weight and phase first; the clip is only a fallback.
+          const cloakRun = /run/.test(cloakGroup) || cloakStride.run > 0.5;
+          const clipMove = /walk|sneak/.test(cloakGroup) ? 0.65 : 0;
+          const cloakMotion = cloakRun
+            ? Math.max(0.9, cloakStride.move)
+            : Math.max(clipMove, cloakStride.move);
           const cloakAttackGroup = String(actionState?.group ?? '').toLowerCase();
           const cloakAttack = actionState && weaponInHand() ? 1 : 0;
           const cloakAttackProgress = actionState ? clipCompletion(actionState) : 0;
@@ -7874,10 +7881,11 @@ export function createFpArm({ playerAppearance = false } = {}) {
             if (!piece.clothPhysics) continue;
             const stepped = stepCloakPhysics(piece, dt, {
               gait: cloakMotion,
-              // Follow the actual movement clip phase so left/right steps alternate
-              // consistently instead of drifting against the character's gait.
-              gaitPhase: movementState ? clipCompletion(movementState) : 0,
-              turn: motion.stride().hipYaw,
+              // Lock the alternating cloth wave to the same phase that drives the legs.
+              gaitPhase: Number.isFinite(cloakStride.phase)
+                ? cloakStride.phase
+                : movementState ? ((clipCompletion(movementState) % 1) + 1) % 1 : 0,
+              turn: cloakStride.hipYaw,
               attack: cloakAttack,
               attackProgress: cloakAttackProgress,
               attackGroup: cloakAttackGroup,
