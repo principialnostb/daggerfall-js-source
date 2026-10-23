@@ -68,14 +68,14 @@ function pushCapsule(px, py, pz, C, SO) {
 export function stepCloth(cloth, dt, opts, core) {
   const { pos, prev, base, pinned, con, V } = cloth;
   const start = pos.slice();
-  const gx = opts.gx||0, gy = opts.gy ?? -2.8, gz = opts.gz||0;
+  const gx = opts.gx||0, gy = opts.gy ?? -0.8, gz = opts.gz||0;
   // Deliberately restrained defaults: the authored drape carries the silhouette;
   // simulation adds only a little lag and settles quickly instead of flapping.
-  const damp = opts.damp ?? 0.94, SO = opts.standoff ?? 0.030, iters = opts.iters ?? 6;
+  const damp = opts.damp ?? 0.90, SO = opts.standoff ?? 0.030, iters = opts.iters ?? 6;
   const pinDX = opts.pinDX||0, pinDY = opts.pinDY||0, pinDZ = opts.pinDZ||0;
   const rootX = opts.rootX||0, rootY = opts.rootY||0, rootZ = opts.rootZ||0;   // whole-body translation (root motion) - pins + core ride it
   const dt2 = dt*dt;
-  const maxStep = opts.maxStep ?? 0.022;   // small per-step move -> restrained secondary motion
+  const maxStep = opts.maxStep ?? 0.018;   // small per-step move -> restrained secondary motion
   for (let i = 0; i < V; i++) { if (pinned[i]) continue; const o=i*3;
     const px=pos[o], py=pos[o+1], pz=pos[o+2];
     let mvx = (px-prev[o])*damp + gx*dt2, mvy = (py-prev[o+1])*damp + gy*dt2, mvz = (pz-prev[o+2])*damp + gz*dt2;
@@ -101,13 +101,13 @@ export function stepCloth(cloth, dt, opts, core) {
   }
   // anti-pop: clamp the verlet+constraint move (the pop source) BEFORE
   // collision - collision then runs unclamped so it always fully ejects.
-  const cap = opts.maxStep ?? 0.022;
+  const cap = opts.maxStep ?? 0.018;
   for (let i = 0; i < V; i++) { if (pinned[i]) continue; const o=i*3;
     let mx=pos[o]-start[o], my=pos[o+1]-start[o+1], mz=pos[o+2]-start[o+2]; const mm=Math.hypot(mx,my,mz);
     if (mm > cap) { const f=cap/mm; pos[o]=start[o]+mx*f; pos[o+1]=start[o+1]+my*f; pos[o+2]=start[o+2]+mz*f; } }
   const B = opts.bones;
   if (B) {
-    const legX = B.legX, hipY = B.hipY, kneeY = B.kneeY, ankleY = B.ankleY, strength = B.strength ?? 0.35, bobv = B.bob ?? 0;
+    const legX = B.legX, hipY = B.hipY, kneeY = B.kneeY, ankleY = B.ankleY, strength = B.strength ?? 0.30, bobv = B.bob ?? 0;
     const rot = (y, z, pY, a) => { const c=Math.cos(a), s=Math.sin(a), dy=y-pY; return [pY + c*dy - s*z, s*dy + c*z]; };
     // rigid-skin a vertex's OWN (ry,rz) to a leg: bend about the knee then
     // swing about the hip (exactly the rig's leg transform). This keeps a
