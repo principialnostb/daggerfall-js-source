@@ -74,6 +74,58 @@ export function createCloakPhysics(piece) {
   };
 }
 
+/**
+ * Keep the animated cloth behind the live back-shield surface. The inputs are
+ * posed into the same character-local space; only vertices whose projected
+ * position falls inside a shield triangle are corrected. Previous Verlet
+ * positions receive the same correction, so contact does not inject velocity.
+ */
+export function resolveCloakShieldContact(piece, posedCloth, shieldPositions, shieldIndices, clearance = 0.16) {
+  const state = piece?.clothPhysics;
+  if (!state || !posedCloth || !shieldPositions || !shieldIndices
+      || posedCloth.length !== state.pos.length || shieldIndices.length < 3) return 0;
+  const pos = state.pos, prev = state.prev, pinned = state.pinned;
+  let corrected = 0;
+  for (let v = 0; v < pinned.length; v++) {
+    if (pinned[v]) continue;
+    const o = v * 3, x = posedCloth[o], y = posedCloth[o + 1], z = posedCloth[o + 2];
+    let front = -Infinity;
+    for (let t = 0; t + 2 < shieldIndices.length; t += 3) {
+      const ia = shieldIndices[t] * 3, ib = shieldIndices[t + 1] * 3, ic = shieldIndices[t + 2] * 3;
+      if (ia + 2 >= shieldPositions.length || ib + 2 >= shieldPositions.length || ic + 2 >= shieldPositions.length) continue;
+      const ax = shieldPositions[ia], az = shieldPositions[ia + 2];
+      const bx = shieldPositions[ib], bz = shieldPositions[ib + 2];
+      const cx = shieldPositions[ic], cz = shieldPositions[ic + 2];
+      const abx = bx - ax, abz = bz - az, acx = cx - ax, acz = cz - az;
+      const den = abx * acz - abz * acx;
+      if (Math.abs(den) < 1e-8) continue;
+      const px = x - ax, pz = z - az;
+      const u = (px * acz - pz * acx) / den;
+      const w = (abx * pz - abz * px) / den;
+      if (u < -1e-4 || w < -1e-4 || u + w > 1.0001) continue;
+      const vWeight = 1 - u - w;
+      const shieldY = shieldPositions[ia + 1] * vWeight + shieldPositions[ib + 1] * u + shieldPositions[ic + 1] * w;
+      if (shieldY > front) front = shieldY;
+    }
+    if (!Number.isFinite(front)) continue;
+    // Y is the front/back axis in the Morrowind rig: the cloak belongs behind
+    // the shield. Only the overlapping patch is pressed backward; the hem and
+    // all vertices outside the shield footprint keep their normal simulation.
+    const targetY = front - clearance;
+    if (y <= targetY) continue;
+    const push = y - targetY;
+    pos[o + 1] -= push;
+    prev[o + 1] -= push;
+    corrected++;
+  }
+  if (corrected) {
+    piece.batch.positions.set(pos);
+    if (state.normals && piece.batch.normals === state.normals) rebuildNormals(piece.batch.positions, piece.indices, state.normals, state.baseNormals);
+    piece.sourceGen = ((piece.sourceGen | 0) + 1) >>> 0;
+  }
+  return corrected;
+}
+
 function rebuildNormals(positions, indices, out, fallback) {
   if (!out || out.length !== positions.length) return;
   out.fill(0);
