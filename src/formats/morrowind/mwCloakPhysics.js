@@ -86,8 +86,13 @@ export function createCloakPhysics(piece) {
  */
 export function resolveCloakShieldContact(piece, posedCloth, shieldPositions, shieldIndices) {
   const state = piece?.clothPhysics;
-  if (!state || !posedCloth || !shieldPositions || !shieldIndices
-      || posedCloth.length !== state.pos.length || shieldIndices.length < 3) return 0;
+  const surfaces = Array.isArray(shieldPositions) && shieldPositions.length
+    && shieldPositions[0]?.positions && shieldPositions[0]?.indices
+    ? shieldPositions
+    : [{ positions: shieldPositions, indices: shieldIndices }];
+  if (!state || !posedCloth || !surfaces.length
+      || posedCloth.length !== state.pos.length
+      || !surfaces.some((surface) => surface.positions?.length && surface.indices?.length >= 3)) return 0;
 
   const insideTriangle = (x, z, ax, az, bx, bz, cx, cz) => {
     const abx = bx - ax, abz = bz - az;
@@ -112,27 +117,31 @@ export function resolveCloakShieldContact(piece, posedCloth, shieldPositions, sh
     const o = v * 3;
     const x = posedCloth[o], z = posedCloth[o + 2];
     let shieldSurfaceY = -Infinity;
-    for (let t = 0; t + 2 < shieldIndices.length; t += 3) {
-      const ia = shieldIndices[t] * 3;
-      const ib = shieldIndices[t + 1] * 3;
-      const ic = shieldIndices[t + 2] * 3;
-      if (ia + 2 >= shieldPositions.length || ib + 2 >= shieldPositions.length
-          || ic + 2 >= shieldPositions.length) continue;
-      const ax = shieldPositions[ia], ay = shieldPositions[ia + 1], az = shieldPositions[ia + 2];
-      const bx = shieldPositions[ib], by = shieldPositions[ib + 1], bz = shieldPositions[ib + 2];
-      const cx = shieldPositions[ic], cy = shieldPositions[ic + 1], cz = shieldPositions[ic + 2];
-      if (x < Math.min(ax, bx, cx) || x > Math.max(ax, bx, cx)
-          || z < Math.min(az, bz, cz) || z > Math.max(az, bz, cz)) continue;
-      if (!insideTriangle(x, z, ax, az, bx, bz, cx, cz)) continue;
-      // The shield and cloth are posed in the same rig space. Interpolate the
-      // shield's actual depth at this (x,z), not just its 2D footprint: a fixed
-      // bind-pose offset alone can leave the cloth behind a rotated shield.
-      const den = (bx - ax) * (cz - az) - (bz - az) * (cx - ax);
-      if (Math.abs(den) < 1e-8) continue;
-      const wb = ((x - ax) * (cz - az) - (z - az) * (cx - ax)) / den;
-      const wc = ((bx - ax) * (z - az) - (bz - az) * (x - ax)) / den;
-      const wa = 1 - wb - wc;
-      shieldSurfaceY = Math.max(shieldSurfaceY, wa * ay + wb * by + wc * cy);
+    for (const surface of surfaces) {
+      const gearPositions = surface.positions;
+      const gearIndices = surface.indices;
+      for (let t = 0; t + 2 < gearIndices.length; t += 3) {
+        const ia = gearIndices[t] * 3;
+        const ib = gearIndices[t + 1] * 3;
+        const ic = gearIndices[t + 2] * 3;
+        if (ia + 2 >= gearPositions.length || ib + 2 >= gearPositions.length
+            || ic + 2 >= gearPositions.length) continue;
+        const ax = gearPositions[ia], ay = gearPositions[ia + 1], az = gearPositions[ia + 2];
+        const bx = gearPositions[ib], by = gearPositions[ib + 1], bz = gearPositions[ib + 2];
+        const cx = gearPositions[ic], cy = gearPositions[ic + 1], cz = gearPositions[ic + 2];
+        if (x < Math.min(ax, bx, cx) || x > Math.max(ax, bx, cx)
+            || z < Math.min(az, bz, cz) || z > Math.max(az, bz, cz)) continue;
+        if (!insideTriangle(x, z, ax, az, bx, bz, cx, cz)) continue;
+        // Cloth and rigid gear share rig space. Interpolate each surface's depth
+        // at this exact (x,z), so the cloak stays on the body side of weapons,
+        // scabbards, quivers and shields as their bones move.
+        const den = (bx - ax) * (cz - az) - (bz - az) * (cx - ax);
+        if (Math.abs(den) < 1e-8) continue;
+        const wb = ((x - ax) * (cz - az) - (z - az) * (cx - ax)) / den;
+        const wc = ((bx - ax) * (z - az) - (bz - az) * (x - ax)) / den;
+        const wa = 1 - wb - wc;
+        shieldSurfaceY = Math.max(shieldSurfaceY, wa * ay + wb * by + wc * cy);
+      }
     }
     const covered = Number.isFinite(shieldSurfaceY);
     if (!covered) {
