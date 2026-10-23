@@ -8102,7 +8102,7 @@ export function createFpArm({ playerAppearance = false } = {}) {
           // live pose; contact is local to the shield footprint and does not
           // disable or replace the cloth simulation.
           if (t.arm.pose && t.arm.mats) {
-            const shieldBack = t.arm.pieces.find((piece) => /^shield-back\\b/i.test(piece.slot ?? ''));
+            const shieldBack = t.arm.pieces.find((piece) => /^shield-back\b/i.test(piece.slot ?? ''));
             const clothPieces = t.arm.pieces.filter((piece) => piece.clothPhysics && isCloakSlot(piece.slot));
             if (shieldBack && clothPieces.length) {
               const requests = [
