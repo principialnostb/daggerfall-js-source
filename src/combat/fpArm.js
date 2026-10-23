@@ -8125,13 +8125,13 @@ export function createFpArm({ playerAppearance = false } = {}) {
             const shieldBack = !shieldCombatReadyNow
               ? t.arm.pieces.find((piece) => /^shield-back\b/i.test(piece.slot ?? ''))
               : null;
-            const backSheaths = sheathed ? t.arm.pieces.filter((piece) => {
+            const backSheaths = t.arm.pieces.filter((piece) => {
               if (piece.kind !== 'rigid' || !HOLSTER_SLOTS.includes(piece.slot) || piece.attachRef == null) return false;
               for (let at = t.arm.skeleton.nodes.get(piece.attachRef)?.parent; at != null && at >= 0; at = t.arm.skeleton.nodes.get(at)?.parent) {
                 if (String(t.arm.skeleton.nodes.get(at)?.name ?? '').toLowerCase() === 'bip01 spine1') return true;
               }
               return false;
-            }) : [];
+            });
             const rigidGear = [...(shieldBack ? [shieldBack] : []), ...backSheaths];
             const clothPieces = t.arm.pieces.filter((piece) => piece.clothPhysics && isCloakSlot(piece.slot));
             if (rigidGear.length && clothPieces.length) {
