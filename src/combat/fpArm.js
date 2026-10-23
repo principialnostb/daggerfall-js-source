@@ -2063,7 +2063,7 @@ export function fitThirdPersonCloak(arm, underSlots) {
   // until they clear the cloak; the larger clearance is isolated to this call
   // so ordinary holsters keep their existing fit.
   const hasBackShield = arm.pieces.some((p) => /^shield-back\b/i.test(p.slot ?? ''));
-  const gear = fitStowedGear(arm, { isCloak, isGear, shieldClearance: hasBackShield ? 3 : undefined });
+  const gear = fitStowedGear(arm, { isCloak, isGear, shieldClearance: hasBackShield ? 1.5 : undefined });
   const follow = followCloak(arm, { isCloak, isGear });
   const notes = (gear ?? []).filter((r) => r.how === 'unresolved').map((r) => (r.slung
     ? `holster @ ${r.bone}: over the cloak it would hang more than ${SLUNG_MOVE_LIMIT} units off the back - it hangs as it was`
