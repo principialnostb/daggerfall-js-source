@@ -204,7 +204,7 @@ export function stepCloakPhysics(piece, dt, motion = 0) {
     pos[o + 2] += hemLift * hemCurve;
     // Morrowind is Z-up and the cape hangs behind the actor on -Y. Keep it
     // from moving materially forward through the fitted back surface.
-    pos[o + 1] = Math.min(pos[o + 1], base[o + 1] + 0.22);
+    pos[o + 1] = Math.min(pos[o + 1], base[o + 1]);
     let dx = pos[o] - base[o], dy = pos[o + 1] - base[o + 1], dz = pos[o + 2] - base[o + 2];
     const length = Math.hypot(dx, dy, dz);
     if (length > MAX_OFFSET) {
