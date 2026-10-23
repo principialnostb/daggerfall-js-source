@@ -3,9 +3,7 @@
   "private": true,
   "version": "0.0.1",
   "type": "module",
-  "engines": {
-    "node": "^20.19.0 || >=22.12.0"
-  },
+  "engines": {"node": "^20.19.0 || >=22.12.0"},
   "scripts": {
     "dev": "vite",
     "build": "vite build",
@@ -34,7 +32,7 @@
     "account": "node tools/accountProbe.mjs",
     "load": "node tools/loadHarness.mjs",
     "acctcard": "node tools/accountCardProbe.mjs",
-    "savetile": "node tools/saveTileProbe.mjs",
+    "savetile": "node tools/savetileProbe.mjs",
     "chargenphone": "node tools/chargenPhoneProbe.mjs",
     "gunsfx": "node tools/gunSfx.mjs && node tools/gunSfxInstall.mjs",
     "gunart": "node tools/gunPaperdoll.mjs",
@@ -51,6 +49,7 @@
     "acorn": "^8.18.0",
     "esbuild": "^0.28.1",
     "eslint": "^10.10.0",
+    "playwright": "^1.56.0",
     "pngjs": "^7.0.0",
     "rollup": "^4.62.2",
     "typescript": "^7.0.2",
