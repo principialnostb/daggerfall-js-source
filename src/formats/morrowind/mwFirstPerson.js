@@ -2301,6 +2301,10 @@ export function bindPartsInto(assembly, parts) {
   // second rigid instance to AttachShield for the stowed pose. First-person
   // rigs normally lack this addon bone, so their shield path stays unchanged.
   const boundParts = [];
+  // Sections successfully bound from Better Bodies suppress only their matching
+  // vanilla arm slot. Keep vanilla meshes as a per-section fallback: some
+  // race/sex replacements or third-party variants omit a section entirely.
+  const betterBodiesSections = new Set();
   for (const part of parts) {
     boundParts.push(part);
     if (/^shield\b/i.test(String(part.slot ?? ''))
@@ -2317,6 +2321,15 @@ export function bindPartsInto(assembly, parts) {
     // `part.bones` overrides the table so a test can drive real assembly
     // against a fixture skeleton whose bone names are not Morrowind's.
     const bones = part.bones ?? mod.PART_BONES[part.slot] ?? [];
+    // A vanilla arm is a fallback for one Better Bodies section, not a second
+    // layer over it. Decide per bone so a partial replacement can still use
+    // its valid hand/wrist while the missing side remains visible.
+    if (part.fallbackBetterBodies) {
+      const side = /\\bleft\\b/i.test(String(bone ?? '')) ? 'left'
+        : /\\bright\\b/i.test(String(bone ?? '')) ? 'right' : null;
+      const region = ({ hand: 'hand', wrist: 'wrist', forearm: 'forearm', upperarm: 'upperarm' })[part.slot];
+      if (side && region && betterBodiesSections.has(`${region}:${side}`)) continue;
+    }
     // MW-BRIG2: a worn model of the port's own is SKINNED FROM THE BODY under it (formats/morrowind/mwSkinTransfer.js) - it
     // moves by the body's own bones and binds, never by an attach node the body does not use.
     if (part.skinFrom) { bindSkinnedFromBody(assembly, part, bones); continue; }
@@ -2454,8 +2467,10 @@ export function bindPartsInto(assembly, parts) {
         // buffer - never an alias of batch.positions, which poseAssembly
         // reads every frame. Aliasing them is the runaway the viewer
         // documents at mwViewer.js:"Skinned batches are".
+        const betterBodiesSection = part.slot === 'betterBodies' ? betterBodiesSectionKey(batch.name) : null;
+        if (betterBodiesSection) betterBodiesSections.add(betterBodiesSection);
         pieces.push({ slot: part.slot, bone, kind: 'skinned', mirrored: false,
-          batch, source: null, attachRef: null,
+          bodySection: betterBodiesSection, batch, source: null, attachRef: null,
           // MW-D11: the UVs and the material ride WITH the piece. They
           // were reachable through `batch` for a skinned piece and lost
           // entirely for a rigid one (which keeps only its positions), so
@@ -3506,6 +3521,14 @@ function betterBodiesSectionKey(shapeName) {
 function betterBodiesSectionShadowed(shapeName, shadows = []) {
   const key = betterBodiesSectionKey(shapeName);
   return Boolean(key && (shadows ?? []).includes(key));
+}
+
+export function betterBodiesFallbackSectionKey(slot, bone) {
+  const region = ({ hand: 'hand', wrist: 'wrist', forearm: 'forearm', upperarm: 'upperarm' })[String(slot ?? '').toLowerCase()];
+  if (!region) return null;
+  const name = String(bone ?? '').toLowerCase();
+  const side = /\\bleft\\b/.test(name) ? 'left' : /\\bright\\b/.test(name) ? 'right' : null;
+  return side ? `${region}:${side}` : null;
 }
 
 function betterBodiesSectionVisible(shapeName, showSlots = []) {
