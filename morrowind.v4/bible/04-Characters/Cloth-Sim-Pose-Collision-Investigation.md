@@ -49,3 +49,12 @@ The corrective pass now fades torso lean/twist out around the hip and performs a
 - The combined generated viewer script passes a JavaScript syntax parse.
 - Synthetic regression checks passed for solver stability, torso clearance, and a 700-step articulated-leg gait.
 - The actual browser preview and the specific overhead two-handed attack still need visual verification. The changes are intended to correct the pose/collider mismatch, but they are not claimed to have eliminated every visible intersection yet.
+
+
+## Pose-frame transport correction
+
+The solver now transports **all** cloth particle positions and their previous Verlet positions from the previous torso frame into the current torso frame before integration. This uses the same twist-then-lean order as the pinned-row transform, plus the current root and bob offsets. The previous positions are transported too, so changing animation pose does not itself become artificial Verlet velocity. The existing collision passes then resolve against the current body and leg proxies.
+
+A regression test was added for a free (unpinned) particle under a sudden combined lean, twist, and root-offset change. It checks the particle's pose-frame position independently of collision and gravity. This addresses the confirmed mismatch where only the pinned top rows followed the animated torso.
+
+The GitHub connector did not report CI statuses for the new commits, and this environment cannot clone the repository to run the Node test suite locally. Therefore the code and regression test are committed, but automated test execution and live browser verification remain outstanding. In particular, the overhead two-handed attack and the walking leg intersection must still be checked in the viewer before claiming the issue resolved.
