@@ -16,6 +16,26 @@ function simulate(name, steps, wind) {
 }
 
 
+test('free cloth vertices follow abrupt torso pose changes before collision', () => {
+  const c = buildCloth({
+    rows: 2, cols: 1, wrap: false,
+    pos: Float32Array.from([0, 1.5, -0.1, 0.12, 0.85, -0.18]),
+    faces: [],
+  });
+  const noMotion = { gx: 0, gy: 0, gz: 0, damp: 0, maxStep: 0, iters: 0, collisionPasses: 0 };
+  stepCloth(c, 1 / 60, noMotion, () => [0, 0]);
+  const pose = { ...noMotion, lean: 0.48, twist: 0.31, leanPivot: 1.0, rootX: 0.14, rootY: -0.03, rootZ: 0.08, pinDY: 0.02 };
+  const x = 0.12, y = 0.85, z = -0.18;
+  const ct = Math.cos(pose.twist), st = Math.sin(pose.twist);
+  const tx = ct*x + st*z, tz = -st*x + ct*z;
+  const dy = y - pose.leanPivot, cl = Math.cos(pose.lean), sl = Math.sin(pose.lean);
+  const expected = [tx + pose.rootX, pose.leanPivot + cl*dy - sl*tz + pose.rootY + pose.pinDY, sl*dy + cl*tz + pose.rootZ];
+  stepCloth(c, 1 / 60, pose, () => [0, 0]);
+  const actual = [c.pos[3], c.pos[4], c.pos[5]];
+  for (let axis = 0; axis < 3; axis++) assert.ok(Math.abs(actual[axis] - expected[axis]) < 1e-5,
+    `free vertex axis ${axis} did not follow pose frame: ${actual[axis]} vs ${expected[axis]}`);
+});
+
 test('default settings keep secondary motion restrained', () => {
   const grid = {
     rows: 3, cols: 3, wrap: false,
