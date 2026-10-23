@@ -111,6 +111,7 @@ export function stepCloakPhysics(piece, dt, motion = 0) {
   // retains the authored tuning below.
   const vanillaFallback = !!piece.clothPhysicsFallbackMesh;
   const maxOffset = vanillaFallback ? MAX_OFFSET + 0.7 : MAX_OFFSET;
+  if (vanillaFallback) state.maxOffset = maxOffset;
   const maxStep = vanillaFallback ? MAX_STEP + 0.08 : MAX_STEP;
   const stiffness = vanillaFallback ? STIFFNESS - 0.05 : STIFFNESS;
   const motionGain = vanillaFallback ? 1.12 : 1;
