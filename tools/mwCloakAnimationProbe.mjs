@@ -13,7 +13,10 @@ const requestedSeconds = Number(process.argv[3] ?? 0);
 const seconds = Number.isFinite(requestedSeconds) && requestedSeconds > 0 ? requestedSeconds : 0;
 const outDir = resolve('diagnostics/mw-cloak-probe');
 await mkdir(outDir, { recursive: true });
-const server = await createServer({ server: { port: 5247, strictPort: true } });
+// The Morrowind app is a nested project. Serving the repository root instead
+// loads the Daggerfall entry page and never reaches the Morrowind pose hook.
+const appRoot = resolve('morrowind.v4');
+const server = await createServer({ root: appRoot, server: { port: 5247, strictPort: true } });
 await server.listen();
 const browser = await chromium.launch({
   headless: false,
@@ -29,6 +32,13 @@ page.on('console', msg => {
     const entry = msg.text();
     consoleErrors.push(entry);
     console.error('[browser console]', entry);
+  }
+});
+page.on('response', response => {
+  if (response.status() >= 400) {
+    const entry = { status: response.status(), url: response.url() };
+    console.error('[http error]', entry.status, entry.url);
+    failedRequests.push(entry);
   }
 });
 page.on('requestfailed', req => {
