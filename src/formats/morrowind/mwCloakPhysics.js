@@ -75,96 +75,65 @@ export function createCloakPhysics(piece) {
 }
 
 /**
- * Keep the animated cloth behind the live back-shield surface. The inputs are
- * posed into the same character-local space; only vertices whose projected
- * position falls inside a shield triangle are corrected. Previous Verlet
- * positions receive the same correction, so contact does not inject velocity.
+ * Keep only the part of a back-mounted shield's cloak still covered by the
+ * shield at its fitted rest pose. This intentionally does not simulate contact:
+ * covered vertices are held at their authored positions, uncovered cloth keeps
+ * the vanilla secondary motion. Inputs are posed only for the footprint test;
+ * state positions remain in the simulation's local coordinate space.
  */
-export function resolveCloakShieldContact(piece, posedCloth, shieldPositions, shieldIndices, clearance = 0.16) {
+export function resolveCloakShieldContact(piece, posedCloth, shieldPositions, shieldIndices) {
   const state = piece?.clothPhysics;
-  const indices = piece?.indices;
-  if (!state || !posedCloth || !shieldPositions || !shieldIndices || !indices
+  if (!state || !posedCloth || !shieldPositions || !shieldIndices
       || posedCloth.length !== state.pos.length || shieldIndices.length < 3) return 0;
-  const pos = state.pos, prev = state.prev;
-  const cellSize = 2;
-  const cellKey = (x, z) => `${Math.floor(x / cellSize)}:${Math.floor(z / cellSize)}`;
-  const bins = new Map();
-  for (let t = 0; t + 2 < shieldIndices.length; t += 3) {
-    const ia = shieldIndices[t] * 3, ib = shieldIndices[t + 1] * 3, ic = shieldIndices[t + 2] * 3;
-    if (ia + 2 >= shieldPositions.length || ib + 2 >= shieldPositions.length || ic + 2 >= shieldPositions.length) continue;
-    const x0 = Math.floor(Math.min(shieldPositions[ia], shieldPositions[ib], shieldPositions[ic]) / cellSize);
-    const x1 = Math.floor(Math.max(shieldPositions[ia], shieldPositions[ib], shieldPositions[ic]) / cellSize);
-    const z0 = Math.floor(Math.min(shieldPositions[ia + 2], shieldPositions[ib + 2], shieldPositions[ic + 2]) / cellSize);
-    const z1 = Math.floor(Math.max(shieldPositions[ia + 2], shieldPositions[ib + 2], shieldPositions[ic + 2]) / cellSize);
-    for (let x = x0; x <= x1; x++) for (let z = z0; z <= z1; z++) {
-      const key = `${x}:${z}`;
-      let bucket = bins.get(key);
-      if (!bucket) bins.set(key, bucket = []);
-      bucket.push(t);
-    }
-  }
-  // The cloak sits UNDER the shield, toward the character's back/body side.
-  // In this rig +Y points toward the body, so use the shield's maximum-Y
-  // surface and keep cloth on the +Y side of it.
-  const bodySideAt = (x, z) => {
-    let bodySide = -Infinity;
-    const candidates = bins.get(cellKey(x, z));
-    if (!candidates) return bodySide;
-    for (const t of candidates) {
-      const ia = shieldIndices[t] * 3, ib = shieldIndices[t + 1] * 3, ic = shieldIndices[t + 2] * 3;
+
+  const insideTriangle = (x, z, ax, az, bx, bz, cx, cz) => {
+    const abx = bx - ax, abz = bz - az;
+    const acx = cx - ax, acz = cz - az;
+    const den = abx * acz - abz * acx;
+    if (Math.abs(den) < 1e-8) return false;
+    const px = x - ax, pz = z - az;
+    const u = (px * acz - pz * acx) / den;
+    const v = (abx * pz - abz * px) / den;
+    return u >= -1e-4 && v >= -1e-4 && u + v <= 1.0001;
+  };
+
+  const pos = state.pos, prev = state.prev, base = state.base;
+  let held = 0;
+  for (let v = 0; v < posedCloth.length / 3; v++) {
+    const o = v * 3;
+    const x = posedCloth[o], z = posedCloth[o + 2];
+    let covered = false;
+    for (let t = 0; t + 2 < shieldIndices.length; t += 3) {
+      const ia = shieldIndices[t] * 3;
+      const ib = shieldIndices[t + 1] * 3;
+      const ic = shieldIndices[t + 2] * 3;
+      if (ia + 2 >= shieldPositions.length || ib + 2 >= shieldPositions.length
+          || ic + 2 >= shieldPositions.length) continue;
       const ax = shieldPositions[ia], az = shieldPositions[ia + 2];
       const bx = shieldPositions[ib], bz = shieldPositions[ib + 2];
       const cx = shieldPositions[ic], cz = shieldPositions[ic + 2];
-      const abx = bx - ax, abz = bz - az, acx = cx - ax, acz = cz - az;
-      const den = abx * acz - abz * acx;
-      if (Math.abs(den) < 1e-8) continue;
-      const px = x - ax, pz = z - az;
-      const u = (px * acz - pz * acx) / den;
-      const w = (abx * pz - abz * px) / den;
-      if (u < -1e-4 || w < -1e-4 || u + w > 1.0001) continue;
-      const y = shieldPositions[ia + 1] * (1 - u - w) + shieldPositions[ib + 1] * u + shieldPositions[ic + 1] * w;
-      if (y > bodySide) bodySide = y;
+      if (x < Math.min(ax, bx, cx) || x > Math.max(ax, bx, cx)
+          || z < Math.min(az, bz, cz) || z > Math.max(az, bz, cz)) continue;
+      if (insideTriangle(x, z, ax, az, bx, bz, cx, cz)) {
+        covered = true;
+        break;
+      }
     }
-    return bodySide;
-  };
-  let corrected = 0;
-  const pushVertex = (v, push) => {
-    const o = v * 3 + 1;
-    if (push <= 0) return;
-    pos[o] += push;
-    prev[o] += push;
-    corrected++;
-  };
-  // Vertex contacts preserve the cloth surface at the shield's actual projected
-  // triangles; the rest of the mesh remains free to animate.
-  for (let v = 0; v < posedCloth.length / 3; v++) {
-    const o = v * 3;
-    const bodySide = bodySideAt(posedCloth[o], posedCloth[o + 2]);
-    if (!Number.isFinite(bodySide)) continue;
-    pushVertex(v, bodySide + clearance - posedCloth[o + 1]);
+    if (!covered) continue;
+    pos[o] = prev[o] = base[o];
+    pos[o + 1] = prev[o + 1] = base[o + 1];
+    pos[o + 2] = prev[o + 2] = base[o + 2];
+    held++;
   }
-  // Vertices alone can miss a shield passing through the middle of a large
-  // cloth triangle. Test each cloth-triangle centroid as well and distribute
-  // any remaining penetration to its three vertices, preserving their inertia.
-  for (let t = 0; t + 2 < indices.length; t += 3) {
-    const a = indices[t], b = indices[t + 1], c = indices[t + 2];
-    const ia = a * 3, ib = b * 3, ic = c * 3;
-    if (ic + 2 >= posedCloth.length) continue;
-    const x = (posedCloth[ia] + posedCloth[ib] + posedCloth[ic]) / 3;
-    const y = (posedCloth[ia + 1] + posedCloth[ib + 1] + posedCloth[ic + 1]) / 3;
-    const z = (posedCloth[ia + 2] + posedCloth[ib + 2] + posedCloth[ic + 2]) / 3;
-    const bodySide = bodySideAt(x, z);
-    if (!Number.isFinite(bodySide)) continue;
-    const push = bodySide + clearance - y;
-    if (push <= 1e-4) continue;
-    pushVertex(a, push); pushVertex(b, push); pushVertex(c, push);
-  }
-  if (corrected) {
+
+  if (held) {
     piece.batch.positions.set(pos);
-    if (state.normals && piece.batch.normals === state.normals) rebuildNormals(piece.batch.positions, indices, state.normals, state.baseNormals);
+    if (state.normals && piece.batch.normals === state.normals) {
+      rebuildNormals(piece.batch.positions, piece.indices, state.normals, state.baseNormals);
+    }
     piece.sourceGen = ((piece.sourceGen | 0) + 1) >>> 0;
   }
-  return corrected;
+  return held;
 }
 
 function rebuildNormals(positions, indices, out, fallback) {
