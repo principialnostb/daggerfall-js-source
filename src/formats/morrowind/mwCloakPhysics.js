@@ -123,7 +123,7 @@ export function resolveCloakShieldContact(piece, posedCloth, shieldPositions, sh
       const y = shieldPositions[ia + 1] * (1 - u - w) + shieldPositions[ib + 1] * u + shieldPositions[ic + 1] * w;
       if (y < back) back = y;
     }
-    return front;
+    return back;
   };
   let corrected = 0;
   const pushVertex = (v, push) => {
@@ -151,7 +151,7 @@ export function resolveCloakShieldContact(piece, posedCloth, shieldPositions, sh
     const x = (posedCloth[ia] + posedCloth[ib] + posedCloth[ic]) / 3;
     const y = (posedCloth[ia + 1] + posedCloth[ib + 1] + posedCloth[ic + 1]) / 3;
     const z = (posedCloth[ia + 2] + posedCloth[ib + 2] + posedCloth[ic + 2]) / 3;
-    const back = frontAt(x, z);
+    const back = backAt(x, z);
     if (!Number.isFinite(back)) continue;
     const push = y - (back - clearance);
     if (push <= 1e-4) continue;
