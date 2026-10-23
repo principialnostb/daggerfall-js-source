@@ -25,7 +25,7 @@ import { snapshotPlayer, restorePlayer } from '../../src/systems/save/save.js';
 import { playerEntity } from '../../src/characters/playerEntity.js';
 import {
   preloadPaperDollArt, refreshPaperDoll, paperDollPixels, paperDollIdentityDrift,
-  PAPERDOLL_W, PAPERDOLL_H,
+  paperDollDisplayIdentity, PAPERDOLL_W, PAPERDOLL_H,
 } from '../../src/ui/paperDoll.js';
 
 // ── the synthetic art set ────────────────────────────────────────────
@@ -157,4 +157,24 @@ test('THE ART FOLLOWS THE ENTITY, the law alone: the drift keeps WHERE the doll 
   }
   // nothing loaded, nothing to drift from
   assert.equal(paperDollIdentityDrift({ race: 'Khajiit' }, null), null);
+});
+
+
+test('appearance editor identity changes paperdoll display identity without mutating gameplay identity', () => {
+  const entity = { race: 'Breton', gender: 'male', faceIndex: 2, raceId: RACES.Breton };
+  const display = paperDollDisplayIdentity(entity, {
+    race: 'khajiit', female: true, faceIndex: 7,
+  });
+  assert.deepEqual(display, { race: 'Khajiit', gender: 'female', faceIndex: 7 });
+  assert.deepEqual(entity, { race: 'Breton', gender: 'male', faceIndex: 2, raceId: RACES.Breton });
+});
+
+test('appearance-only races map to an available classic paperdoll family', () => {
+  const entity = { race: 'Breton', gender: 'male', faceIndex: 0 };
+  assert.deepEqual(paperDollDisplayIdentity(entity, {
+    race: 'dark elf', female: false, faceIndex: 3,
+  }), { race: 'DarkElf', gender: 'male', faceIndex: 3 });
+  assert.deepEqual(paperDollDisplayIdentity(entity, {
+    race: 'orc', female: true, faceIndex: 1,
+  }), { race: 'Nord', gender: 'female', faceIndex: 1 });
 });
