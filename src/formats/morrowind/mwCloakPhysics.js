@@ -86,11 +86,29 @@ export function resolveCloakShieldContact(piece, posedCloth, shieldPositions, sh
   if (!state || !posedCloth || !shieldPositions || !shieldIndices || !indices
       || posedCloth.length !== state.pos.length || shieldIndices.length < 3) return 0;
   const pos = state.pos, prev = state.prev;
+  const cellSize = 2;
+  const cellKey = (x, z) => `${Math.floor(x / cellSize)}:${Math.floor(z / cellSize)}`;
+  const bins = new Map();
+  for (let t = 0; t + 2 < shieldIndices.length; t += 3) {
+    const ia = shieldIndices[t] * 3, ib = shieldIndices[t + 1] * 3, ic = shieldIndices[t + 2] * 3;
+    if (ia + 2 >= shieldPositions.length || ib + 2 >= shieldPositions.length || ic + 2 >= shieldPositions.length) continue;
+    const x0 = Math.floor(Math.min(shieldPositions[ia], shieldPositions[ib], shieldPositions[ic]) / cellSize);
+    const x1 = Math.floor(Math.max(shieldPositions[ia], shieldPositions[ib], shieldPositions[ic]) / cellSize);
+    const z0 = Math.floor(Math.min(shieldPositions[ia + 2], shieldPositions[ib + 2], shieldPositions[ic + 2]) / cellSize);
+    const z1 = Math.floor(Math.max(shieldPositions[ia + 2], shieldPositions[ib + 2], shieldPositions[ic + 2]) / cellSize);
+    for (let x = x0; x <= x1; x++) for (let z = z0; z <= z1; z++) {
+      const key = `${x}:${z}`;
+      let bucket = bins.get(key);
+      if (!bucket) bins.set(key, bucket = []);
+      bucket.push(t);
+    }
+  }
   const frontAt = (x, z) => {
     let front = -Infinity;
-    for (let t = 0; t + 2 < shieldIndices.length; t += 3) {
+    const candidates = bins.get(cellKey(x, z));
+    if (!candidates) return front;
+    for (const t of candidates) {
       const ia = shieldIndices[t] * 3, ib = shieldIndices[t + 1] * 3, ic = shieldIndices[t + 2] * 3;
-      if (ia + 2 >= shieldPositions.length || ib + 2 >= shieldPositions.length || ic + 2 >= shieldPositions.length) continue;
       const ax = shieldPositions[ia], az = shieldPositions[ia + 2];
       const bx = shieldPositions[ib], bz = shieldPositions[ib + 2];
       const cx = shieldPositions[ic], cz = shieldPositions[ic + 2];
