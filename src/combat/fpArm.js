@@ -2585,7 +2585,7 @@ async function buildTpBody({
     // texture is registered by basename, so concurrent NPC builds cannot overwrite
     // one another's skin bytes through a shared "current texture" adapter.
     let betterBodiesPart = null;
-    if (modSetting('morrowind-textures', 'BetterBodiesSource') !== 0 && !beast && !werewolf && !vampire) {
+    if (modSetting('morrowind-textures', 'BetterBodiesSource') === 2 && !beast && !werewolf && !vampire) {
       try {
         const asset = betterBodiesAssetUrls({ race, female });
         if (!asset) throw new Error(`no Better Bodies asset for race "${String(race)}" / ${female ? 'female' : 'male'}`);
@@ -3809,7 +3809,7 @@ export async function buildFpArm({
     // Match the third-person body source exactly. The separate BetterBodies boolean can be enabled
     // while the actor is explicitly using the Original body source; using it here alone made first-person
     // hands come from Better Bodies even when the visible character body did not.
-    if (modSetting('morrowind-textures', 'BetterBodiesSource') !== 0 && !beast && !werewolf && !vampire) {
+    if (modSetting('morrowind-textures', 'BetterBodiesSource') === 2 && !beast && !werewolf && !vampire) {
       try {
         const asset = betterBodiesAssetUrls({ race, female });
         if (!asset) throw new Error(`no Better Bodies asset for race "${String(race)}" / ${female ? 'female' : 'male'}`);
@@ -3830,7 +3830,7 @@ export async function buildFpArm({
           if (String(cacheKey).toLowerCase().endsWith(basename)) TEXTURE_CACHE.delete(cacheKey);
         }
         betterBodiesFpArms = {
-          slot: 'betterBodies', bones: [], bytes, uvEdits,
+          slot: 'betterBodies', bones: [], bytes, uvEdits, modelUrl: asset.model,
           texturePath: asset.texturePath,
           showSlots: ['hand:left', 'hand:right', 'wrist:left', 'wrist:right', 'forearm:left', 'forearm:right', 'upperarm:left', 'upperarm:right'],
           hideSlots: worn.fpShadows ?? worn.shadows,
@@ -3945,6 +3945,25 @@ export async function buildFpArm({
         missing.push(note);
         console.warn('[Better Bodies] first-person arm section fallback:', fallbackSections);
       }
+    }
+    // Local-player diagnostic: distinguish a source-selection issue from a NIF section/binding issue.
+    // NPC builds stay quiet; DevTools shows the selected asset, recognized sections and standard fallbacks.
+    if (ownHeads) {
+      console.info('[Better Bodies] first-person arm integration', {
+        race, female,
+        sourceSetting: modSetting('morrowind-textures', 'BetterBodiesSource'),
+        requested: modSetting('morrowind-textures', 'BetterBodiesSource') === 2,
+        assetLoaded: Boolean(betterBodiesFpArms),
+        modelUrl: betterBodiesFpArms?.modelUrl ?? null,
+        assemblyOk: Boolean(arm.ok),
+        betterBodiesSections: (arm.pieces ?? [])
+          .filter((piece) => piece.slot === 'betterBodies')
+          .map((piece) => ({ name: piece.batch?.name ?? null, section: piece.bodySection ?? null, vertices: piece.batch?.positions?.length ? piece.batch.positions.length / 3 : 0 })),
+        standardArmFallbacks: (arm.pieces ?? [])
+          .filter((piece) => piece.slot !== 'betterBodies' && ARM_PARTS.includes(piece.slot))
+          .map((piece) => ({ slot: piece.slot, bone: piece.bone ?? null })),
+        notes: (arm.notes ?? []).filter((note) => /betterBodies|skin|bone|hand|wrist|forearm|upperarm/i.test(note)).slice(0, 20),
+      });
     }
     stage('meshes');
     // MW-D11: the textures the assembled pieces NAME, resolved through
