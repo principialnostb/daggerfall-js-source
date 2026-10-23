@@ -15,6 +15,28 @@ function simulate(name, steps, wind) {
   return cloth;
 }
 
+
+test('default settings keep secondary motion restrained', () => {
+  const grid = {
+    rows: 3, cols: 3, wrap: false,
+    pos: Float32Array.from([
+      -0.1, 2.0, 2,  0, 2.0, 2,  0.1, 2.0, 2,
+      -0.1, 1.8, 2,  0, 1.8, 2,  0.1, 1.8, 2,
+      -0.1, 1.6, 2,  0, 1.6, 2,  0.1, 1.6, 2,
+    ]),
+    faces: [],
+  };
+  const c = buildCloth(grid);
+  const initial = c.pos.slice();
+  for (let s = 0; s < 24; s++) stepCloth(c, 1 / 60, {}, () => [0, 0]);
+  // The defaults should add a slight settling motion, not a visible drop.
+  for (let i = 0; i < c.V; i++) {
+    if (c.pinned[i]) continue;
+    assert.ok(initial[i * 3 + 1] - c.pos[i * 3 + 1] < 0.04,
+      `vertex ${i}: default gravity moved it too far`);
+  }
+});
+
 test('cloth sim is stable (no NaN, bounded) for skirt, robe, cape', () => {
   for (const name of ['Long Skirt', 'Plain Robes', 'Casual Cloak']) {
     const c = simulate(name, 400, true);
