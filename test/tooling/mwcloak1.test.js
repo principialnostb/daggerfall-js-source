@@ -189,6 +189,21 @@ test('MW-CAPE-RIGID: through the binder on retail\'s rig the cloak moves with th
   }
 });
 
+test('Vanilla Animated live-pose contact fit removes a forced body penetration outside the static pose envelope', async () => {
+  const asm = await body(ARMOR_MATERIAL.Steel);
+  const livePose = turned(asm, { 'bip01 l thigh': 50, 'bip01 r thigh': -45, 'bip01 spine2': 15 });
+  // Keep the live GPU pose available to the fitter, then update the CPU reference positions for assertions.
+  poseAssembly(asm, { ...livePose, skin: false });
+  poseAssembly(asm, livePose);
+  const cloak = asm.pieces.find(isCloak);
+  for (let i = 1; i < cloak.batch.positions.length; i += 3) cloak.batch.positions[i] += 4;
+  poseAssembly(asm, livePose);
+  assert.ok(through(asm, isUnder) > 0, 'the deliberately advanced cloak now intersects the body');
+  const fit = fitCloakOver(asm, { isCloak, isUnder, poses: [asm.pose], passes: 2 });
+  assert.ok(fit.pushed > 0, 'the live-pose solver corrected cloak vertices');
+  assert.ok(through(asm, isUnder) <= 1e-3, 'the body is no longer visible through the corrected cloak');
+});
+
 test('MW-CLOAK1: the cloak eases back over the armour under it - the ebony pauldrons through its shoulders, then behind it in every pose; the cloak\'s batch replaced, never written into', async () => {
   const asm = await body(ARMOR_MATERIAL.Ebony);
   const before = through(asm, isUnder);
