@@ -72,6 +72,12 @@ export const CLOAK_FIT_POSES = Object.freeze([
   Object.freeze({ 'bip01 r thigh': ['z', 35], 'bip01 l thigh': ['z', -30], 'bip01 l calf': ['z', 45], 'bip01 l upperarm': ['z', 25], 'bip01 r upperarm': ['z', -25] }),
   Object.freeze({ 'bip01 l thigh': ['z', 35], 'bip01 r thigh': ['z', -30], 'bip01 r calf': ['z', 45], 'bip01 l upperarm': ['z', 25], 'bip01 r upperarm': ['z', -25] }),
   Object.freeze({ 'bip01 spine2': ['z', -10] }),
+  // The walk envelope swings the arms back; attacks also sweep them forward
+  // across the shoulders and upper back. Fit those poses too, or the animated
+  // hem can start inside an arm before secondary motion even runs.
+  Object.freeze({ 'bip01 l upperarm': ['z', -40] }),
+  Object.freeze({ 'bip01 r upperarm': ['z', 40] }),
+  Object.freeze({ 'bip01 l upperarm': ['z', -35], 'bip01 r upperarm': ['z', 35] }),
 ]);
 /** AUDIT MW-CLOAK: the follow's solve - its rounds of a linear law re-taken where the last left the gear, the sweeps of
  *  each, a unit's slide priced as a turn of `slideCost` radians, the most it turns and slides a pose, and the cell of
