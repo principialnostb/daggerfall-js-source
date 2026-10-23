@@ -103,9 +103,11 @@ export function resolveCloakShieldContact(piece, posedCloth, shieldPositions, sh
       bucket.push(t);
     }
   }
-  // Minimum Y is the shield's back face in Morrowind's rig; cloth must stay behind its full thickness.
-  const backAt = (x, z) => {
-    let back = Infinity;
+  // The cloak sits UNDER the shield, toward the character's back/body side.
+  // In this rig +Y points toward the body, so use the shield's maximum-Y
+  // surface and keep cloth on the +Y side of it.
+  const bodySideAt = (x, z) => {
+    let bodySide = -Infinity;
     const candidates = bins.get(cellKey(x, z));
     if (!candidates) return back;
     for (const t of candidates) {
@@ -121,25 +123,25 @@ export function resolveCloakShieldContact(piece, posedCloth, shieldPositions, sh
       const w = (abx * pz - abz * px) / den;
       if (u < -1e-4 || w < -1e-4 || u + w > 1.0001) continue;
       const y = shieldPositions[ia + 1] * (1 - u - w) + shieldPositions[ib + 1] * u + shieldPositions[ic + 1] * w;
-      if (y < back) back = y;
+      if (y > bodySide) bodySide = y;
     }
-    return back;
+    return bodySide;
   };
   let corrected = 0;
   const pushVertex = (v, push) => {
     const o = v * 3 + 1;
     if (push <= 0) return;
-    pos[o] -= push;
-    prev[o] -= push;
+    pos[o] += push;
+    prev[o] += push;
     corrected++;
   };
   // Vertex contacts preserve the cloth surface at the shield's actual projected
   // triangles; the rest of the mesh remains free to animate.
   for (let v = 0; v < posedCloth.length / 3; v++) {
     const o = v * 3;
-    const back = backAt(posedCloth[o], posedCloth[o + 2]);
-    if (!Number.isFinite(back)) continue;
-    pushVertex(v, posedCloth[o + 1] - (back - clearance));
+    const bodySide = bodySideAt(posedCloth[o], posedCloth[o + 2]);
+    if (!Number.isFinite(bodySide)) continue;
+    pushVertex(v, bodySide + clearance - posedCloth[o + 1]);
   }
   // Vertices alone can miss a shield passing through the middle of a large
   // cloth triangle. Test each cloth-triangle centroid as well and distribute
@@ -151,9 +153,9 @@ export function resolveCloakShieldContact(piece, posedCloth, shieldPositions, sh
     const x = (posedCloth[ia] + posedCloth[ib] + posedCloth[ic]) / 3;
     const y = (posedCloth[ia + 1] + posedCloth[ib + 1] + posedCloth[ic + 1]) / 3;
     const z = (posedCloth[ia + 2] + posedCloth[ib + 2] + posedCloth[ic + 2]) / 3;
-    const back = backAt(x, z);
-    if (!Number.isFinite(back)) continue;
-    const push = y - (back - clearance);
+    const bodySide = bodySideAt(x, z);
+    if (!Number.isFinite(bodySide)) continue;
+    const push = bodySide + clearance - y;
     if (push <= 1e-4) continue;
     pushVertex(a, push); pushVertex(b, push); pushVertex(c, push);
   }
