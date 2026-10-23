@@ -107,6 +107,7 @@ import { LIST_SLOTS, scrollerHit, applyScroll, makeIconDrawer, preloadIconRecord
   preloadScrollerArrowArt, drawScrollerArrows, drawScrollerThumb, playScrollerArrowClick,
   makeSlotToolTip, itemBackgroundColour, drawCellBackground } from '../item/itemScroller.js';
 import { templateByIndex, itemBaseValue, inventoryItemImage } from '../../systems/item/itemTemplates.js';
+import { paperDollDisplayIdentity } from '../paperDoll.js';
 import { dyeToken } from '../../characters/dyes.js';   // DW3: the per-dye icon key
 import { FntFile } from '../../formats/fntFile.js';
 import { audio } from '../../systems/audio.js';
@@ -366,7 +367,7 @@ function makeAccessoryIconDrawer(icons, identityOf = null) {
   const sizes = new Map();
   const glKeys = new Map();   // DW3: warm key -> the GL texture key the upload answered
   const drawer = (renderer, m, it, rect) => {
-    const img = inventoryItemImage(it, identityOf?.() ?? undefined);
+    const img = inventoryItemImage(it, paperDollDisplayIdentity(identityOf?.() ?? undefined));
     if (!img || !img.archive) return false;
     // DW3: the DYE is part of the ask (GetItemImage :458 imports by
     // item.dyeColor), so it is part of this key; the upload answers
