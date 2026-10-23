@@ -2085,7 +2085,10 @@ function correctVanillaAnimatedCloakContacts(arm, piece, pose) {
     // per-frame work while still testing the actual current pose.
     sampleStep: 1.5,
     includeTriangleInteriors: true,
-    updatePosed: false,
+    // Re-skin the corrected bind vertices immediately. The live renderer packs
+    // piece.positions, not batch.positions; leaving this false silently keeps
+    // uploading the intersecting pre-correction pose for the current frame.
+    updatePosed: true,
   });
   const positions = piece.batch.positions;
   if (!fit?.pushed || positions.length !== state.pos.length) return false;
