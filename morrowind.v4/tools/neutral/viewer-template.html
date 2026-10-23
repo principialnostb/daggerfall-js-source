@@ -365,7 +365,8 @@ function stepDrapeCloth(phase, motion, bob, L) {
     // A small back-only pelvis ellipsoid fills the gap left by the height-only torso profile.
     ellipsoids: isCloak ? [{ x: 0, y: hipY - 0.02, z: -0.02, rx: 0.17, ry: 0.13, rz: 0.125, backOnly: true }] : [],
     rootX: rp.rootX || 0, rootY: rp.rootY || 0, rootZ: rp.rootZ || 0,
-    capsules: shoulderDrape ? (motion > 0.5 ? col.caps : null) : col.caps, bones: shoulderDrape ? null : col.bones };
+    // Keep leg collision active while idle too; the torso ellipse alone does not track bent thighs.
+    capsules: col.caps, bones: shoulderDrape ? null : col.bones };
   // Two half-size substeps avoid large frame-to-frame kicks without doubling simulated time.
   stepCloth(cs.cloth, 1/120, opts, coreFn);
   stepCloth(cs.cloth, 1/120, opts, coreFn);
