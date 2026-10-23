@@ -143,7 +143,13 @@ export function resolveCloakShieldContact(piece, posedCloth, shieldPositions, sh
         shieldSurfaceY = Math.max(shieldSurfaceY, wa * ay + wb * by + wc * cy);
       }
     }
-    const covered = Number.isFinite(shieldSurfaceY);
+    // Start contact only when the cloth reaches the gear's back side. Once
+    // engaged, keep it engaged until the cloth clears a small release margin;
+    // this hysteresis prevents vertices grazing a narrow scabbard from rapidly
+    // switching between free simulation and hard pinning on successive frames.
+    const covered = Number.isFinite(shieldSurfaceY)
+      && (posedCloth[o + 1] < shieldSurfaceY
+        || (wasShieldPinned[v] && posedCloth[o + 1] < shieldSurfaceY + STOWED_SHIELD_CLOAK_CLEARANCE));
     if (!covered) {
       if (wasShieldPinned[v]) {
         const o = v * 3;
