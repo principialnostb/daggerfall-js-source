@@ -106,4 +106,4 @@ app bundles NO game data - same doctrine as the site.
 
 ## Vanilla Animated cloak collision
 
-The working branch `fix/vanilla-animated-cloak-collision` restores the prior Y-axis cloak correction, widens body-sampling bounds, adds rear-set right-leg fit poses, and now queries projected cloak triangles at exact body sample coordinates rather than rounding to a grid cell. This targets missed contacts at triangle edges, but still needs in-game validation. See [Vanilla Animated cloak collision](docs/Vanilla-Animated-Cloak-Collision.md). Back-slung weapons and scabbards remain independent of live cloak animation.
+The working branch `fix/vanilla-animated-cloak-collision` keeps the prior Y-axis cloak correction, widens body sampling, and checks projected cloak triangles at exact body sample coordinates to avoid missed contacts caused by integer-grid rounding. The two-handed stance/overhead chop motion was traced to `characters/bodyMotion/carry.js` and `melee.js`; this remains unverified in-game. See [Vanilla Animated cloak collision](docs/Vanilla-Animated-Cloak-Collision.md). Back-slung weapons and scabbards remain independent of live cloak animation.
