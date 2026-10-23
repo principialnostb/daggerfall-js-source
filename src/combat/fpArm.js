@@ -5258,6 +5258,18 @@ export function createFpArm({ playerAppearance = false } = {}) {
       thirdSkinRefused = null;
       return false;
     }
+    // Vanilla Animated's live cloth/contact path mutates the cloak's source
+    // vertices every frame. Keep that player rig on the same CPU-skinned path
+    // used by non-default body morphs; the GPU stream is otherwise a second
+    // mutable representation of the cloak and can desynchronise from its pose.
+    const liveVanillaCloth = playerAppearance && vanillaAnimatedCloaksEnabled()
+      && t.arm.pieces.some((piece) => piece.clothPhysicsFallbackMesh && piece.clothPhysics);
+    if (liveVanillaCloth) {
+      if (thirdMesh && thirdMesh.skin) releaseThirdMesh();
+      thirdSkin = null;
+      thirdSkinRefused = null;
+      return false;
+    }
     if (!gpuSkinOn(renderer)) { if (thirdMesh && thirdMesh.skin) releaseThirdMesh(); return false; }
     if (thirdSkin && skinSamePieces(thirdSkin, t.arm.pieces)) return true;
     if (thirdSkinRefused === t.arm.pieces) return false;
