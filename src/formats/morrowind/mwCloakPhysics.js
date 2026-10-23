@@ -3,12 +3,14 @@
 // the rigged mesh and adds a bounded Verlet pass so the hem lags and sways while
 // the GPU continues to skin it to the character's chest bone.
 
-const MAX_OFFSET = 1.6;
-const MAX_STEP = 0.28;
-const DAMPING = 0.985;
-const GRAVITY = 18;
-const ITERATIONS = 6;
-const STIFFNESS = 0.78;
+// Deliberately visible secondary motion in Morrowind's authored world units.
+// The old 1.6-unit envelope and 0.28-unit step made the hem look nearly rigid.
+const MAX_OFFSET = 5.0;
+const MAX_STEP = 0.72;
+const DAMPING = 0.972;
+const GRAVITY = 22;
+const ITERATIONS = 7;
+const STIFFNESS = 0.68;
 
 const distance3 = (p, a, b) => Math.hypot(
   p[a * 3] - p[b * 3],
@@ -120,9 +122,9 @@ export function stepCloakPhysics(piece, dt, motion = 0) {
     // The previous sub-3-unit/s² wind produced only thousandths of a unit per frame and looked rigid.
     // Keep Verlet's dt² integration, but use accelerations scaled to the mesh's authored coordinate space.
     let dx = (x - prev[o]) * DAMPING
-      + Math.sin(state.time * 1.7 + base[o + 2] * 0.17) * (10 + move * 35) * dt2;
+      + Math.sin(state.time * 1.7 + base[o + 2] * 0.17) * (28 + move * 82) * dt2;
     let dy = (y - prev[o + 1]) * DAMPING
-      + Math.cos(state.time * 1.25 + base[o] * 0.11) * (5 + move * 22) * dt2;
+      + Math.cos(state.time * 1.25 + base[o] * 0.11) * (14 + move * 54) * dt2;
     let dz = (z - prev[o + 2]) * DAMPING - GRAVITY * dt2;
     const length = Math.hypot(dx, dy, dz);
     if (length > MAX_STEP) { const scale = MAX_STEP / length; dx *= scale; dy *= scale; dz *= scale; }
