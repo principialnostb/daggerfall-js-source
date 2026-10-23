@@ -7923,7 +7923,9 @@ export function createFpArm({ playerAppearance = false } = {}) {
                   details: {
                     slot: piece.slot,
                     fallbackMesh: piece.clothPhysicsFallbackMesh ?? null,
-                    dt, motion: cloakMotion, step: sampleStep, vertices: cloth.pos.length / 3,
+                    dt, motion: cloakMotion, gaitPhase: cloakStride.phase, runWeight: cloakStride.run,
+                    turn: cloakStride.hipYaw, attack: cloakAttack, attackProgress: cloakAttackProgress,
+                    step: sampleStep, vertices: cloth.pos.length / 3,
                     pinnedVertices: cloth.pinned.reduce((sum, pinned) => sum + pinned, 0),
                     maxOffset, meanOffset: totalOffset / (cloth.pos.length / 3),
                     movedVertices, saturatedVertices, offsetLimit, sourceGen: piece.sourceGen | 0,
