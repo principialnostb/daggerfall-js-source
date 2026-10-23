@@ -93,7 +93,8 @@ import { modelIconUrl as modelIconUrlOf } from '../item/itemIconUrl.js';   // MW
 // the classic window draws - and this reads its finished pixels rather
 // than re-deriving PaperDollRenderer's layer order for a second time.
 import {
-  refreshPaperDoll, paperDollPixels, slotAtPaperDoll, PAPERDOLL_W, PAPERDOLL_H, paperDollStale,   // DFMOD1-E
+  refreshPaperDoll, paperDollPixels, slotAtPaperDoll, PAPERDOLL_W, PAPERDOLL_H, paperDollStale,
+  paperDollDisplayIdentity,   // DFMOD1-E: editor appearance is a display-only identity
 } from '../paperDoll.js';
 import {
   equipItem, unequipSlot, equipTableOf, isEquipped,
@@ -417,7 +418,10 @@ export function remoteModel(deps = {}, state = {}) {
  * reason above - the classic drawer passes `hooks.entity` for it.
  */
 export function itemLine(item, identity = undefined) {
-  const img = inventoryItemImage(item, identity);
+  // Inventory texture archives have gendered/morphology-specific variants.
+  // Resolve them from the appearance editor's display-only identity without
+  // writing that identity back to the gameplay entity.
+  const img = inventoryItemImage(item, paperDollDisplayIdentity(identity));
   // The TEMPLATE's name is the fallback, not 'Unknown'. A stack minted
   // by a loot roll or a quest can arrive with no name of its own, and
   // this dropped that fallback for one commit when the template read
