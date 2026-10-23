@@ -110,11 +110,11 @@ export function stepCloakPhysics(piece, dt, motion = 0) {
   // room for the hem to yield on large leg/attack motions. Simply Animated
   // retains the authored tuning below.
   const vanillaFallback = !!piece.clothPhysicsFallbackMesh;
-  const maxOffset = vanillaFallback ? MAX_OFFSET + 0.7 : MAX_OFFSET;
+  const maxOffset = vanillaFallback ? MAX_OFFSET + 0.2 : MAX_OFFSET;
   if (vanillaFallback) state.maxOffset = maxOffset;
-  const maxStep = vanillaFallback ? MAX_STEP + 0.08 : MAX_STEP;
-  const stiffness = vanillaFallback ? STIFFNESS - 0.05 : STIFFNESS;
-  const motionGain = vanillaFallback ? 1.12 : 1;
+  const maxStep = vanillaFallback ? MAX_STEP - 0.12 : MAX_STEP;
+  const stiffness = vanillaFallback ? STIFFNESS + 0.04 : STIFFNESS;
+  const motionGain = vanillaFallback ? 0.78 : 1;
   const gait = typeof motion === 'object' && motion !== null ? motion.gait : motion;
   const move = Math.max(0, Math.min(1, Number(gait) || 0));
   const gaitPhase = typeof motion === 'object' && motion !== null
