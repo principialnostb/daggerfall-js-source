@@ -129,8 +129,11 @@ function samplesWhere(positions, indices, step, keep, edges = edgesOf(indices)) 
   }
   return out;
 }
-/** A mesh's edges, each once, as vertex pairs. */
+/** A mesh's edges, each once, as vertex pairs. Topology is immutable after binding, so cache it across live-pose fits. */
+const EDGE_CACHE = new WeakMap();
 function edgesOf(indices) {
+  const cached = EDGE_CACHE.get(indices);
+  if (cached) return cached;
   const seen = new Set(); const out = [];
   for (let t = 0; t < indices.length; t += 3) {
     for (let e = 0; e < 3; e++) {
@@ -140,7 +143,9 @@ function edgesOf(indices) {
       seen.add(k); out.push(a, b);
     }
   }
-  return Int32Array.from(out);
+  const edges = Int32Array.from(out);
+  EDGE_CACHE.set(indices, edges);
+  return edges;
 }
 
 /** A rotation matrix (row-major) as the quaternion a track answers, [w, x, y, z] - Shepperd's, any angle. */
@@ -245,7 +250,7 @@ function solve3(m, v) {
  * deep }` - how many of the cloak's vertices moved, the furthest, and how many points stood more than the limit through
  * it and were left so - or null when the body wears no cloak.
  */
-export function fitCloakOver(assembly, { isCloak, isUnder, clearance = CLOAK_CLEARANCE, limit = CLOAK_PUSH_LIMIT, radius = CLOAK_EASE_RADIUS, poses = CLOAK_FIT_POSES, passes = 12, updatePosed = true }) {
+export function fitCloakOver(assembly, { isCloak, isUnder, clearance = CLOAK_CLEARANCE, limit = CLOAK_PUSH_LIMIT, radius = CLOAK_EASE_RADIUS, poses = CLOAK_FIT_POSES, passes = 12, sampleStep = SAMPLE_STEP, updatePosed = true }) {
   const cloaks = assembly.pieces.filter((p) => p.kind === 'skinned' && isCloak(p));
   if (!cloaks.length) return null;
   const underPieces = assembly.pieces.filter((p) => !cloaks.includes(p) && isUnder(p)).map((p) => ({ p, edges: edgesOf(p.indices) }));
@@ -300,7 +305,7 @@ export function fitCloakOver(assembly, { isCloak, isUnder, clearance = CLOAK_CLE
               lz = Math.min(lz, placed[v + 2]); hz = Math.max(hz, placed[v + 2]);
             }
             if (hx < x0 - 1 || lx > x1 + 1 || hz < z0 - 1 || lz > z1 + 1 || ly > y1 + clearance) continue;
-            set.under.push(samplesWhere(placed, p.indices, SAMPLE_STEP, inside, edges));
+            set.under.push(samplesWhere(placed, p.indices, sampleStep, inside, edges));
           }
         }
         const sheet = cloakSheet(posed, cloak.indices);
