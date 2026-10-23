@@ -311,7 +311,7 @@ import { fpLightingOn } from './fpsWeapon.js';   // MAC-P: the first-person ligh
 import { createParticleSystem, packParticleQuads, particleDrawState, affineOfTransform, affineMul, affineApply, affineScale } from '../formats/morrowind/mwParticles.js';   // MAC-Q: the torch's flame, and any other particle system a part carries
 import { boneSourcesFor, resolveHolsterParts, holsterPartPaths, holsterHidden, HOLSTER_SLOTS } from '../systems/weaponSheathing.js';   // WS1
 import { fitCloakOver, fitStowedGear, followCloak, posePiecePositions, HIP_PITCH_LIMIT, CLOAK_PUSH_LIMIT, SLUNG_MOVE_LIMIT } from '../formats/morrowind/mwCloakFit.js';   // MW-CLOAK1: the cloak over what the body wears, stowed gear against it; AUDIT MW-CLOAK: and going with it
-import { createCloakPhysics, stepCloakPhysics, resolveCloakShieldContact } from '../formats/morrowind/mwCloakPhysics.js';
+import { createCloakPhysics, stepCloakPhysics, resolveCloakShieldContact, releaseCloakShieldContact } from '../formats/morrowind/mwCloakPhysics.js';
 import { isCloakSlot, ownCloakFor, isOutfitSlot, isSimplyCloakModel } from '../characters/ownModels/ownClothingModels.js';   // MW-CLOAK1; AUDIT MW-CLOAK: and its picture; AUDIT MW-FOLK1: an outfit's add, by its label
 import { injectSkeletonNodes } from '../formats/morrowind/mwSkin.js';   // WS1: the dry injection the holster's bone probe runs
 // MAP3: THE HELD SHEET - the pose deltas over the idle, the paper piece
@@ -8040,7 +8040,12 @@ export function createFpArm({ playerAppearance = false } = {}) {
           const cloakAttackGroup = String(actionState?.group ?? '').toLowerCase();
           const cloakAttack = actionState && weaponInHand() ? 1 : 0;
           const cloakAttackProgress = actionState ? clipCompletion(actionState) : 0;
+          // The shield-covered cloth is frozen only while the shield is stowed.
+          // Release its per-vertex pins before this frame's solve when combat
+          // returns the shield to the arm, so the original cloth dynamics resume immediately.
+          const shieldCombatReadyNow = weaponInHand() && !sheathed && !spellStance() && !climbHands;
           for (const piece of t.arm.pieces) {
+            if (shieldCombatReadyNow && piece.clothPhysics && isCloakSlot(piece.slot)) releaseCloakShieldContact(piece);
             if (!piece.clothPhysics) continue;
             const stepped = stepCloakPhysics(piece, dt, {
               gait: cloakMotion,
@@ -8108,7 +8113,6 @@ export function createFpArm({ playerAppearance = false } = {}) {
           // every posed frame. Both meshes are skinned/attached through the same
           // live pose; contact is local to the shield footprint and does not
           // disable or replace the cloth simulation.
-          const shieldCombatReadyNow = weaponInHand() && !sheathed && !spellStance() && !climbHands;
           if (!shieldCombatReadyNow && t.arm.pose && t.arm.mats) {
             const shieldBack = t.arm.pieces.find((piece) => /^shield-back\b/i.test(piece.slot ?? ''));
             const clothPieces = t.arm.pieces.filter((piece) => piece.clothPhysics && isCloakSlot(piece.slot));
