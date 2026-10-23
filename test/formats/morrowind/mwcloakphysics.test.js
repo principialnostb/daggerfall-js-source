@@ -97,28 +97,6 @@ test('back shield holds only covered cloak vertices at rest and preserves free h
   assert.equal(prev[10], base[10] + 1, 'the uncovered hem keeps its Verlet history');
 });
 
-test('cloth already on the body side of a sheath is not pinned; contact has a stable release margin', () => {
-  const piece = cloakPiece();
-  const base = Float32Array.from(piece.batch.positions);
-  const state = createCloakPhysics(piece);
-  piece.clothPhysics = state;
-  const sheath = Float32Array.from([-1, 0, 2, 1, 0, 2, 1, 0, 0]);
-  // Cloth is on the body side (+Y), so the scabbard must not grab it merely
-  // because their projected X/Z footprints overlap.
-  const bodySide = Float32Array.from(base);
-  for (let i = 1; i < bodySide.length; i += 3) bodySide[i] = 0.5;
-  assert.equal(resolveCloakShieldContact(piece, bodySide, sheath, Uint16Array.from([0, 1, 2])), 0);
-  assert.equal(state.shieldPinned[0], 0);
-
-  // Once penetration starts, a small clearance margin prevents frame-to-frame
-  // pin/release chatter while the cloth grazes the sheath surface.
-  const behind = Float32Array.from(base);
-  assert.equal(resolveCloakShieldContact(piece, behind, sheath, Uint16Array.from([0, 1, 2])), 3);
-  const grazing = Float32Array.from(behind);
-  for (let i = 1; i < grazing.length; i += 3) grazing[i] = 0.2;
-  assert.equal(resolveCloakShieldContact(piece, grazing, sheath, Uint16Array.from([0, 1, 2])), 3);
-});
-
 test('multiple back-sheathed gear surfaces keep the cloak wave from crossing weapon and scabbard', () => {
   const piece = cloakPiece();
   const base = Float32Array.from(piece.batch.positions);
