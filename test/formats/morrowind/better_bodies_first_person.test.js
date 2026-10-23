@@ -38,9 +38,9 @@ test('Better Bodies UV corrections target stable NIF section names before fallba
   const chest = { name: 'Tri Chest', uvs: new Float32Array([0.25, 0.5, 0.75, 1]) };
   const arm = { name: 'Tri Left Upper Arm', uvs: new Float32Array([0.5, 0.25, 1, 0.75]) };
   const applied = applyBetterBodiesUvEdits([chest, arm], [
-    { meshIndex: 0, name: 'Tri Left Upper Arm', transform: { u: 0.1, v: 0, su: 0.5, sv: 1 } },
+    { meshIndex: 0, name: 'Tri Left Upper Arm', transform: { u: 0.125, v: 0, su: 0.5, sv: 1 } },
   ]);
   assert.equal(applied, 1);
-  assert.deepEqual([...arm.uvs], [0.35, 0.25, 0.6, 0.75]);
+  assert.deepEqual([...arm.uvs], [0.375, 0.25, 0.625, 0.75]);
   assert.deepEqual([...chest.uvs], [0.25, 0.5, 0.75, 1], 'a stale mesh index must not edit the chest instead');
 });
