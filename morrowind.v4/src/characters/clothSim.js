@@ -97,10 +97,13 @@ export function stepCloth(cloth, dt, opts, core) {
     prev[o]=px; prev[o+1]=py; prev[o+2]=pz;
   }
   const lean = opts.lean || 0, leanPy = opts.leanPivot ?? 1.0, lc = Math.cos(lean), ls = Math.sin(lean);
+  const twist = opts.twist || 0, tc = Math.cos(twist), ts = Math.sin(twist);
   for (let i = 0; i < V; i++) if (pinned[i]) { const o=i*3;
-    let by = base[o+1], bz = base[o+2];
-    if (lean) { const dy = by - leanPy; by = leanPy + lc*dy - ls*bz; bz = ls*dy + lc*bz; }   // pins follow the torso lean
-    pos[o]=base[o]+pinDX+rootX; pos[o+1]=by+pinDY+rootY; pos[o+2]=bz+pinDZ+rootZ; prev[o]=pos[o]; prev[o+1]=pos[o+1]; prev[o+2]=pos[o+2]; }
+    let bx = base[o], by = base[o+1], bz = base[o+2];
+    // Match animateTarget's torso order: twist about the spine, then lean.
+    if (twist) { const nx = tc*bx + ts*bz, nz = -ts*bx + tc*bz; bx = nx; bz = nz; }
+    if (lean) { const dy = by - leanPy; by = leanPy + lc*dy - ls*bz; bz = ls*dy + lc*bz; }
+    pos[o]=bx+pinDX+rootX; pos[o+1]=by+pinDY+rootY; pos[o+2]=bz+pinDZ+rootZ; prev[o]=pos[o]; prev[o+1]=pos[o+1]; prev[o+2]=pos[o+2]; }
   // satisfy distance constraints (no collision here - collision runs once
   // after, so it can't ratchet the cloth up the body)
   for (let k = 0; k < iters; k++) {
