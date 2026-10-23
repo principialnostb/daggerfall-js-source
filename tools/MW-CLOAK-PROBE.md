@@ -4,27 +4,35 @@ This is an opt-in, read-only live geometry capture. It records the actual posed 
 
 ## Run
 
-Requirements: Node version allowed by `package.json`, dependencies installed with `npm install`, and a working local game setup/assets.
+Requirements: start the game normally first, with your usual assets and browser session. This diagnostic deliberately does **not** start a second web server or a separate Chromium profile.
 
-```sh
-npm run mwcloakprobe
+In one terminal, start the game the same way you already do:
+
+```bat
+npm.cmd run dev
 ```
 
-By default the probe starts Vite on port 5247 with `morrowind.v4/` as the web root (not the repository's Daggerfall root) and opens `/play/` in a visible Chromium window. Capture continues until you click **Stop cloak diagnostic capture** in the top-right corner. To use a timed capture, pass a number of seconds:
+In another terminal, run:
 
-```sh
-node tools/mwCloakAnimationProbe.mjs http://localhost:5247/play/ 180
+```bat
+npm.cmd run mwcloakprobe
 ```
 
-Browser console errors, HTTP 4xx/5xx responses, and failed network requests are printed in the terminal and included in `capture.json`, which helps diagnose a blank page. The probe uses Playwright's normal browser installation; do not set a Linux-only `PLAYWRIGHT_BROWSERS_PATH` on Windows. The target page must load a game/player state in which a cloak is equipped and the body is assembled. If the app requires a save or a user action to reach gameplay, this headless probe will not be able to do that automatically yet; in that case the capture will report zero samples rather than pretend it tested the animations.
+The probe opens the normal dev-server game URL in your default browser with `?mwcloakprobe=1`. In the game tab, the diagnostic panel appears once the pose assembly is running. Play normally with the cloak equipped, including the idle, walk, run, combat and transition states you want to inspect. Click **Stop and download capture** to stop sampling and download `mw-cloak-capture.json`.
+
+If Vite is using a different host or port, pass the game URL explicitly, for example:
+
+```bat
+npm.cmd run mwcloakprobe -- http://localhost:5174/play/
+```
+
+The capture is read-only. It records posed geometry only when both cloak and body pieces are present; it does not change geometry or animation playback and does not solve collisions. If the panel never appears, verify that the running game build contains the updated `src/formats/morrowind/mwFirstPerson.js` module and that its pose assembly is active.
 
 ## Output
 
-Files are written to `diagnostics/mw-cloak-probe/`:
+The JSON capture is downloaded by the browser; it is not written to a separate Playwright-controlled browser's filesystem.
 
-- `capture.json`: sampled posed geometry for cloak and body slots, skeleton matrices, page errors and metadata.
-- `last-frame.png`: final browser screenshot.
-- `README.txt`: notes attached to that capture.
+- `mw-cloak-capture.json` (browser download): sampled posed geometry for cloak and body slots, skeleton matrices, and capture metadata.
 
 Upload the whole directory (or zip it) for analysis.
 
