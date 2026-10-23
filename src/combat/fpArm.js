@@ -8114,8 +8114,15 @@ export function createFpArm({ playerAppearance = false } = {}) {
         if (!thirdMesh) return;   // never posed yet: nothing to hide
         // Rule 57 hides on the SAME flags: sheathed vanilla shows no
         // weapon on the body, and the arrow follows the shoot keys.
+        // A back-mounted copy exists only when this skeleton carries the
+        // Weapon Sheathing AttachShield bone. Fall back to the original hand
+        // shield on rigs without the addon rather than making the shield vanish.
+        const shieldBackAvailable = !!t.arm?.pieces?.some((piece) => /^shield-back\\b/i.test(piece.slot ?? ''));
+        const shieldCombatReady = weaponInHand() && !sheathed && !spellStance() && !climbHands;
         for (const r of thirdMesh.ranges) {
-          if (r.slot === 'weapon') r.hidden = !weaponInHand() || climbHands;   // CLIMB6: no weapon in hands on the stone; MW-CAST1: nor in casting ones
+          if (/^shield-back\\b/i.test(r.slot ?? '')) r.hidden = !shieldBackAvailable || shieldCombatReady;
+          else if (/^shield\\b/i.test(r.slot ?? '')) r.hidden = shieldBackAvailable && !shieldCombatReady;
+          else if (r.slot === 'weapon') r.hidden = !weaponInHand() || climbHands;   // CLIMB6: no weapon in hands on the stone; MW-CAST1: nor in casting ones
           else if (r.slot === 'offweapon') r.hidden = !offShown(t) || climbHands;   // TWO-HANDS: the left hand's, while a pair is drawn
           else if (r.slot === 'arrow') r.hidden = !arrowShown;
           else if (r.slot === 'torch') r.hidden = !torchVisible();   // MW-D51
@@ -8836,7 +8843,8 @@ export function createFpArm({ playerAppearance = false } = {}) {
       // its own shoot keys: a nocked arrow on a portrait is a pose, not
       // an inventory.
       for (const r of thirdMesh.ranges) {
-        if (r.slot === 'weapon') r.hidden = false;
+        if (/^shield-back\\b/i.test(r.slot ?? '')) r.hidden = true;   // portrait shows the carried shield in its hand, not the world stow mount
+        else if (r.slot === 'weapon') r.hidden = false;
         else if (r.slot === 'offweapon') r.hidden = !(handsMode === 'dual' && t.offWeapon);   // TWO-HANDS AUDIT: the left hand's, while a pair is carried - never the last world frame's flag
         else if (r.slot === 'arrow') r.hidden = !arrowShown;
         else if (r.slot === 'torch') r.hidden = !torchLit;   // MW-D51: a portrait shows what you carry - the lit light, whatever the hand holds
