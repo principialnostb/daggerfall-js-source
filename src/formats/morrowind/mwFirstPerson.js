@@ -3505,14 +3505,43 @@ function applyPre(positions, pre) {
  * Names are the NIF section names (for example "Tri Chest"), while shadows
  * are ARMO_PART keys such as "chest" and "hand:right".
  */
-function betterBodiesSectionKey(shapeName) {
-  const name = String(shapeName || '').trim().toLowerCase().replace(/^tri\s+/, '');
-  const sideRegion = /^(left|right) (hand|wrist|forearm|upper arm|foot|ankle|knee|upper leg)$/.exec(name);
-  if (name === 'chest' || name === 'groin' || name === 'neck' || name === 'head' || name === 'hair' || name === 'tail') return name;
-  if (!sideRegion) return null;
-  const side = sideRegion[1];
-  const region = ({ 'upper arm': 'upperarm', 'upper leg': 'upperleg' })[sideRegion[2]] ?? sideRegion[2];
-  return `${region}:${side}`;
+export function betterBodiesSectionKey(shapeName) {
+  // NIF exporters do not agree on whether the side comes first, whether
+  // "upper arm" is one word, or whether the Tri prefix is present. Normalize
+  // those harmless naming differences before matching the body sections;
+  // otherwise the vanilla arm is left visible over a valid Better Bodies arm.
+  const name = String(shapeName || '').trim().toLowerCase()
+    .replace(/^tri\s+/, '')
+    .replace(/[._-]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  if (['chest', 'groin', 'neck', 'head', 'hair', 'tail'].includes(name)) return name;
+  const regions = {
+    hand: 'hand', wrist: 'wrist', forearm: 'forearm', 'lower arm': 'forearm',
+    'upper arm': 'upperarm', upperarm: 'upperarm',
+    foot: 'foot', ankle: 'ankle', knee: 'knee',
+    'upper leg': 'upperleg', upperleg: 'upperleg',
+  };
+  let match = /^(left|right) (.+)$/.exec(name);
+  let side = match?.[1] ?? null;
+  let regionName = match?.[2] ?? '';
+  if (!side) {
+    match = /^(.+) (left|right)$/.exec(name);
+    regionName = match?.[1] ?? '';
+    side = match?.[2] ?? null;
+  }
+  if (!side) {
+    match = /^([lr]) (.+)$/.exec(name);
+    side = match?.[1] === 'l' ? 'left' : match?.[1] === 'r' ? 'right' : null;
+    regionName = match?.[2] ?? '';
+  }
+  if (!side) {
+    match = /^(.+) ([lr])$/.exec(name);
+    side = match?.[2] === 'l' ? 'left' : match?.[2] === 'r' ? 'right' : null;
+    regionName = match?.[1] ?? '';
+  }
+  const region = regions[regionName];
+  return side && region ? `${region}:${side}` : null;
 }
 
 function betterBodiesSectionShadowed(shapeName, shadows = []) {
