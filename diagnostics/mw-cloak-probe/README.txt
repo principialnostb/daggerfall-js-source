@@ -1,1 +1,110 @@
-Morrowind cloak pose capture\n\ncapture.json contains sampled skinned geometry for the cloak and body slots from the live runtime.\nlast-frame.png is the final browser view.\nThe capture is read-only. It does not change the pose or solve collisions.\nFor meaningful coverage, load a save and exercise idle, walk, run, combat stances, attacks, turns and transitions during capture.\nCurrent capture does not yet identify the source KF/clip name or automatically force every animation state.\n
+Morrowind cloak pose capture and diagnostics
+==============================================
+
+Purpose
+-------
+Capture posed cloak/body geometry from the running game, then run a reproducible
+screening analysis. The analyzer reports spatial proximity, AABB overlap, mesh
+index problems, and frame-to-frame vertex jumps. It does NOT prove triangle/
+triangle penetration. Treat candidates as places to inspect, not confirmed
+collision verdicts.
+
+IMPORTANT: use the downloaded mw-cloak-capture.json
+--------------------------------------------------
+The old capture.json was an empty placeholder (sampleCount=0, frames=[]). It
+has been removed to avoid accidentally analyzing it. The real capture is
+downloaded by the in-game diagnostic panel as mw-cloak-capture.json.
+
+Requirements
+------------
+- Node.js version accepted by package.json (Node 20.19+ or 22.12+).
+- Project dependencies installed with npm install.
+- Python 3.10+ recommended, with numpy and scipy:
+    python -m pip install numpy scipy
+
+Capture procedure (Windows PowerShell)
+--------------------------------------
+1. Open a terminal at the repository root and install dependencies if needed:
+       npm install
+       python -m pip install numpy scipy
+
+2. Start the game dev server:
+       npm run dev
+
+3. In a second terminal at the repository root, launch the probe:
+       npm run mwcloakprobe
+   If the game is served at a different URL, pass it explicitly, for example:
+       npm run mwcloakprobe -- http://localhost:5247/play/
+
+4. In the browser, load a save/game state where the character can move and
+   equip the cloak being investigated. Equip the cloak before capturing.
+
+5. Record a useful range of animation states, not just a static pose:
+   - idle and idle transitions
+   - walk and run, including starts/stops
+   - turns and changes of direction
+   - combat stance, attacks, recovery and transitions, if available
+   - crouch/jump/other relevant states if supported
+   Keep the cloak visible and let each state run for several seconds.
+
+6. Click "Stop and download capture" in the in-game diagnostic panel. Save the
+   downloaded file as:
+       diagnostics/mw-cloak-probe/mw-cloak-capture.json
+   Ensure the download completed. Do not analyze a zero-byte or empty capture.
+
+Run the analysis
+----------------
+From the repository root:
+    npm run mwcloak:analyze
+
+Or select a different capture:
+    npm run mwcloak:analyze -- path/to/mw-cloak-capture.json
+
+The script writes:
+- diagnostics/mw-cloak-probe/cloak-diagnostic-report.json
+- diagnostics/mw-cloak-probe/cloak-diagnostic-report.html
+
+Optional screening distance (captured coordinate units; not meters):
+    python diagnostics/mw-cloak-probe/diagnose_cloak_capture.py diagnostics/mw-cloak-probe/mw-cloak-capture.json --near 0.25
+
+Do not compare thresholds across captures until model scale is understood.
+AABB overlap and nearest-vertex distance are screening signals only.
+Triangle intersection is not implemented in this analyzer.
+
+How to read the report
+----------------------
+- aabb_overlapping_pairs: cloak/legs mesh pairs whose axis-aligned bounds overlap.
+- near_distance_candidates: pairs whose nearest vertex distance is <= --near.
+- invalid_skinned_mesh_index_sets: skinned meshes with empty/invalid triangle
+  indices or non-finite positions.
+- closest_pairs: candidates to inspect first; use frame and slot names to find
+  the relevant moment in the captured session.
+- largest_frame_to_frame_vertex_steps: possible abrupt pose/identity changes;
+  large values can also occur at animation transitions and are not automatically
+  bugs.
+
+A low vertex distance does not guarantee surface penetration: vertices can be
+near while triangles remain separate, and triangles can intersect even when no
+vertices are especially close. Review the rendered pose at candidate frames
+before changing collision or skinning code.
+
+Before uploading diagnostics
+----------------------------
+Include:
+- mw-cloak-capture.json (raw capture; potentially large)
+- cloak-diagnostic-report.json
+- cloak-diagnostic-report.html
+- a short note describing cloak/equipment, save/state, actions performed, and
+  whether visible clipping was reproduced
+- screenshots or a short recording of the offending pose, if available
+
+Avoid uploading unrelated save files, account data, or other personal data.
+
+Known limitations
+-----------------
+- The probe captures runtime geometry; it does not force or enumerate every
+  animation clip automatically.
+- The capture does not yet guarantee source KF/clip labels for every frame.
+- The analyzer uses AABB overlap and nearest-vertex distance, not exact
+  triangle-triangle intersection or an inside/outside volume test.
+- Rigid meshes without indices cannot be checked for triangle surface crossing.
