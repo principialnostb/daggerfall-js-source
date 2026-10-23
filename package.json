@@ -3,7 +3,9 @@
   "private": true,
   "version": "0.0.1",
   "type": "module",
-  "engines": {"node": "^20.19.0 || >=22.12.0"},
+  "engines": {
+    "node": "^20.19.0 || >=22.12.0"
+  },
   "scripts": {
     "dev": "vite",
     "build": "vite build",
@@ -32,7 +34,6 @@
     "account": "node tools/accountProbe.mjs",
     "load": "node tools/loadHarness.mjs",
     "acctcard": "node tools/accountCardProbe.mjs",
-    "savetile": "node tools/savetileProbe.mjs",
     "chargenphone": "node tools/chargenPhoneProbe.mjs",
     "gunsfx": "node tools/gunSfx.mjs && node tools/gunSfxInstall.mjs",
     "gunart": "node tools/gunPaperdoll.mjs",
@@ -43,7 +44,8 @@
     "mwviewer": "node tools/mwViewerProbe.mjs",
     "mwattach": "node tools/mwAttachProbe.mjs",
     "mwcloakprobe": "node tools/mwCloakAnimationProbe.mjs",
-    "mwcloak:analyze": "python diagnostics/mw-cloak-probe/diagnose_cloak_capture.py"
+    "mwcloak:analyze": "python diagnostics/mw-cloak-probe/diagnose_cloak_capture.py",
+    "savetile": "node tools/saveTileProbe.mjs"
   },
   "devDependencies": {
     "acorn": "^8.18.0",
