@@ -157,18 +157,25 @@ function quatOf(m) {
  *  assembly is not touched. A bone the skeleton lacks is left at rest. */
 function poseOf(assembly, turns = {}) {
   const { fns, skeleton } = assembly;
-  const rots = new Map();
-  for (const [name, [axis, deg]] of Object.entries(turns)) {
-    const node = skeleton.nodes.get(skeleton.byName.get(name));
-    if (!node) continue;
-    const rest = node.rest.rotation;
-    const a = deg * Math.PI / 180, c = Math.cos(a), s = Math.sin(a);
-    const r = axis === 'x' ? [1, 0, 0, 0, c, -s, 0, s, c] : axis === 'y' ? [c, 0, s, 0, 1, 0, -s, 0, c] : [c, -s, 0, s, c, 0, 0, 0, 1];
-    rots.set(name, quatOf(mul33(rest, r)));
+  let pose;
+  if (turns instanceof Map) {
+    // A live pose is supplied by Vanilla Animated's per-frame contact pass.
+    // Reuse it verbatim; synthetic fit poses below still start from the rest rig.
+    pose = turns;
+  } else {
+    const rots = new Map();
+    for (const [name, [axis, deg]] of Object.entries(turns)) {
+      const node = skeleton.nodes.get(skeleton.byName.get(name));
+      if (!node) continue;
+      const rest = node.rest.rotation;
+      const a = deg * Math.PI / 180, c = Math.cos(a), s = Math.sin(a);
+      const r = axis === 'x' ? [1, 0, 0, 0, c, -s, 0, s, c] : axis === 'y' ? [c, 0, s, 0, 1, 0, -s, 0, c] : [c, -s, 0, s, c, 0, 0, 0, 1];
+      rots.set(name, quatOf(mul33(rest, r)));
+    }
+    pose = rots.size
+      ? fns.poseSkeleton(skeleton, new Map([...rots.keys()].map((k) => [k, k])), (k) => ({ rotation: rots.get(k) }), 0, { accumRoot: null })
+      : fns.poseSkeleton(skeleton, null, null, 0, { accumRoot: null });
   }
-  const pose = rots.size
-    ? fns.poseSkeleton(skeleton, new Map([...rots.keys()].map((k) => [k, k])), (k) => ({ rotation: rots.get(k) }), 0, { accumRoot: null })
-    : fns.poseSkeleton(skeleton, null, null, 0, { accumRoot: null });
   const mats = fns.skelMats(skeleton, pose, GRAPH_ROOT);
   const place = (p, batch = p.batch, source = p.source) => {
     if (p.kind === 'skinned') {
@@ -238,7 +245,7 @@ function solve3(m, v) {
  * deep }` - how many of the cloak's vertices moved, the furthest, and how many points stood more than the limit through
  * it and were left so - or null when the body wears no cloak.
  */
-export function fitCloakOver(assembly, { isCloak, isUnder, clearance = CLOAK_CLEARANCE, limit = CLOAK_PUSH_LIMIT, radius = CLOAK_EASE_RADIUS, poses = CLOAK_FIT_POSES }) {
+export function fitCloakOver(assembly, { isCloak, isUnder, clearance = CLOAK_CLEARANCE, limit = CLOAK_PUSH_LIMIT, radius = CLOAK_EASE_RADIUS, poses = CLOAK_FIT_POSES, passes = 12, updatePosed = true }) {
   const cloaks = assembly.pieces.filter((p) => p.kind === 'skinned' && isCloak(p));
   if (!cloaks.length) return null;
   const underPieces = assembly.pieces.filter((p) => !cloaks.includes(p) && isUnder(p)).map((p) => ({ p, edges: edgesOf(p.indices) }));
@@ -253,7 +260,7 @@ export function fitCloakOver(assembly, { isCloak, isUnder, clearance = CLOAK_CLE
     // a pose's push is exact in that pose (its own triangle the whole way, straight back) and the ease moves a fold's
     // layers together, so one pass clears every pose on the bodies the port dresses; a second is for a pose whose step
     // back another pose turns forward - a bone turned past a right angle between them - and finds nothing otherwise
-    for (let pass = 0; pass < 12; pass++) {
+    for (let pass = 0; pass < passes; pass++) {
       let moved = false;
       for (const set of sets) {
         // skinning is affine in the bind position - a vertex lands at J v + t, its blend's own J and t in this pose - so
@@ -365,7 +372,7 @@ export function fitCloakOver(assembly, { isCloak, isUnder, clearance = CLOAK_CLE
       // MW-CLOAK2: the normals its new shape has, turned as the old ones faced
       const normals = cloak.batch.normals ? faceAs(vertexNormals(bind, cloak.indices, rep), cloak.batch.normals) : cloak.batch.normals;
       cloak.batch = { ...cloak.batch, positions: bind, normals };
-      if (assembly.pose && assembly.mats) assembly.fns.skinBatch(cloak.batch, assembly.skeleton, assembly.pose, assembly.mats, cloak.positions, cloak.normals ?? null);
+      if (updatePosed && assembly.pose && assembly.mats) assembly.fns.skinBatch(cloak.batch, assembly.skeleton, assembly.pose, assembly.mats, cloak.positions, cloak.normals ?? null);
     }
   }
   return { pushed, most, deep };
