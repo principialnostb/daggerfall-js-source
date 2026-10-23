@@ -2079,12 +2079,12 @@ function correctVanillaAnimatedCloakContacts(arm, piece, pose) {
     isUnder: (p) => underSlots.has(p.slot) && p.slot !== 'tail' && !/^shield\b/.test(p.slot),
     poses: [pose],
     passes: 1,
-    // Keep dense edge sampling for narrow boot/greave surfaces, but skip triangle
-    // interiors in this per-frame path: rebuilding those samples every frame caused
-    // large allocation/CPU spikes and visibly jerky movement. The one-time static
-    // fit still includes triangle interiors.
-    sampleStep: 1,
-    includeTriangleInteriors: false,
+    // Sample triangle interiors in the live pose too. Edge-only sampling misses
+    // contacts through the middle of broad trouser/thigh triangles (the remaining
+    // right-leg clip); use a coarser interior lattice than the static fit to bound
+    // per-frame work while still testing the actual current pose.
+    sampleStep: 1.5,
+    includeTriangleInteriors: true,
     updatePosed: false,
   });
   const positions = piece.batch.positions;
