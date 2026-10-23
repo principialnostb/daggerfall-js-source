@@ -39,7 +39,11 @@
       "aabb_overlap": true,
       "cloak_triangles": 3712,
       "legs_triangles": 1552,
+      "cloak_indices_present": true,
+      "legs_indices_present": true,
       "triangle_indices_valid": true,
+      "cloak_positions_finite": true,
+      "legs_positions_finite": true,
       "candidate_near": true
     },
     {
@@ -66,7 +70,11 @@
       "aabb_overlap": true,
       "cloak_triangles": 3712,
       "legs_triangles": 1552,
+      "cloak_indices_present": true,
+      "legs_indices_present": true,
       "triangle_indices_valid": true,
+      "cloak_positions_finite": true,
+      "legs_positions_finite": true,
       "candidate_near": true
     },
     {
@@ -93,7 +101,11 @@
       "aabb_overlap": true,
       "cloak_triangles": 3712,
       "legs_triangles": 1552,
+      "cloak_indices_present": true,
+      "legs_indices_present": true,
       "triangle_indices_valid": true,
+      "cloak_positions_finite": true,
+      "legs_positions_finite": true,
       "candidate_near": true
     },
     {
@@ -120,7 +132,11 @@
       "aabb_overlap": true,
       "cloak_triangles": 3712,
       "legs_triangles": 1552,
+      "cloak_indices_present": true,
+      "legs_indices_present": true,
       "triangle_indices_valid": true,
+      "cloak_positions_finite": true,
+      "legs_positions_finite": true,
       "candidate_near": true
     },
     {
@@ -147,7 +163,11 @@
       "aabb_overlap": true,
       "cloak_triangles": 3712,
       "legs_triangles": 1552,
+      "cloak_indices_present": true,
+      "legs_indices_present": true,
       "triangle_indices_valid": true,
+      "cloak_positions_finite": true,
+      "legs_positions_finite": true,
       "candidate_near": true
     },
     {
@@ -174,7 +194,11 @@
       "aabb_overlap": true,
       "cloak_triangles": 3712,
       "legs_triangles": 1552,
+      "cloak_indices_present": true,
+      "legs_indices_present": true,
       "triangle_indices_valid": true,
+      "cloak_positions_finite": true,
+      "legs_positions_finite": true,
       "candidate_near": true
     },
     {
@@ -201,7 +225,11 @@
       "aabb_overlap": true,
       "cloak_triangles": 3712,
       "legs_triangles": 0,
-      "triangle_indices_valid": true,
+      "cloak_indices_present": true,
+      "legs_indices_present": false,
+      "triangle_indices_valid": false,
+      "cloak_positions_finite": true,
+      "legs_positions_finite": true,
       "candidate_near": true
     },
     {
@@ -228,7 +256,11 @@
       "aabb_overlap": true,
       "cloak_triangles": 3712,
       "legs_triangles": 1552,
+      "cloak_indices_present": true,
+      "legs_indices_present": true,
       "triangle_indices_valid": true,
+      "cloak_positions_finite": true,
+      "legs_positions_finite": true,
       "candidate_near": true
     },
     {
@@ -255,7 +287,11 @@
       "aabb_overlap": true,
       "cloak_triangles": 3712,
       "legs_triangles": 1552,
+      "cloak_indices_present": true,
+      "legs_indices_present": true,
       "triangle_indices_valid": true,
+      "cloak_positions_finite": true,
+      "legs_positions_finite": true,
       "candidate_near": true
     },
     {
@@ -282,7 +318,11 @@
       "aabb_overlap": true,
       "cloak_triangles": 3712,
       "legs_triangles": 1552,
+      "cloak_indices_present": true,
+      "legs_indices_present": true,
       "triangle_indices_valid": true,
+      "cloak_positions_finite": true,
+      "legs_positions_finite": true,
       "candidate_near": true
     },
     {
@@ -309,7 +349,11 @@
       "aabb_overlap": true,
       "cloak_triangles": 3712,
       "legs_triangles": 1552,
+      "cloak_indices_present": true,
+      "legs_indices_present": true,
       "triangle_indices_valid": true,
+      "cloak_positions_finite": true,
+      "legs_positions_finite": true,
       "candidate_near": true
     },
     {
@@ -336,7 +380,11 @@
       "aabb_overlap": true,
       "cloak_triangles": 3712,
       "legs_triangles": 0,
-      "triangle_indices_valid": true,
+      "cloak_indices_present": true,
+      "legs_indices_present": false,
+      "triangle_indices_valid": false,
+      "cloak_positions_finite": true,
+      "legs_positions_finite": true,
       "candidate_near": true
     },
     {
@@ -363,7 +411,11 @@
       "aabb_overlap": true,
       "cloak_triangles": 3712,
       "legs_triangles": 1552,
+      "cloak_indices_present": true,
+      "legs_indices_present": true,
       "triangle_indices_valid": true,
+      "cloak_positions_finite": true,
+      "legs_positions_finite": true,
       "candidate_near": true
     },
     {
@@ -390,7 +442,11 @@
       "aabb_overlap": true,
       "cloak_triangles": 3712,
       "legs_triangles": 0,
-      "triangle_indices_valid": true,
+      "cloak_indices_present": true,
+      "legs_indices_present": false,
+      "triangle_indices_valid": false,
+      "cloak_positions_finite": true,
+      "legs_positions_finite": true,
       "candidate_near": true
     },
     {
@@ -417,7 +473,11 @@
       "aabb_overlap": true,
       "cloak_triangles": 3712,
       "legs_triangles": 0,
-      "triangle_indices_valid": true,
+      "cloak_indices_present": true,
+      "legs_indices_present": false,
+      "triangle_indices_valid": false,
+      "cloak_positions_finite": true,
+      "legs_positions_finite": true,
       "candidate_near": true
     },
     {
@@ -444,7 +504,11 @@
       "aabb_overlap": true,
       "cloak_triangles": 3712,
       "legs_triangles": 1552,
+      "cloak_indices_present": true,
+      "legs_indices_present": true,
       "triangle_indices_valid": true,
+      "cloak_positions_finite": true,
+      "legs_positions_finite": true,
       "candidate_near": true
     },
     {
@@ -471,7 +535,11 @@
       "aabb_overlap": true,
       "cloak_triangles": 3712,
       "legs_triangles": 1552,
+      "cloak_indices_present": true,
+      "legs_indices_present": true,
       "triangle_indices_valid": true,
+      "cloak_positions_finite": true,
+      "legs_positions_finite": true,
       "candidate_near": true
     },
     {
@@ -498,7 +566,11 @@
       "aabb_overlap": true,
       "cloak_triangles": 3712,
       "legs_triangles": 1552,
+      "cloak_indices_present": true,
+      "legs_indices_present": true,
       "triangle_indices_valid": true,
+      "cloak_positions_finite": true,
+      "legs_positions_finite": true,
       "candidate_near": true
     },
     {
@@ -525,7 +597,11 @@
       "aabb_overlap": true,
       "cloak_triangles": 3712,
       "legs_triangles": 1552,
+      "cloak_indices_present": true,
+      "legs_indices_present": true,
       "triangle_indices_valid": true,
+      "cloak_positions_finite": true,
+      "legs_positions_finite": true,
       "candidate_near": true
     },
     {
@@ -552,7 +628,11 @@
       "aabb_overlap": true,
       "cloak_triangles": 3712,
       "legs_triangles": 1552,
+      "cloak_indices_present": true,
+      "legs_indices_present": true,
       "triangle_indices_valid": true,
+      "cloak_positions_finite": true,
+      "legs_positions_finite": true,
       "candidate_near": true
     },
     {
@@ -579,7 +659,11 @@
       "aabb_overlap": true,
       "cloak_triangles": 3712,
       "legs_triangles": 1552,
+      "cloak_indices_present": true,
+      "legs_indices_present": true,
       "triangle_indices_valid": true,
+      "cloak_positions_finite": true,
+      "legs_positions_finite": true,
       "candidate_near": true
     },
     {
@@ -606,7 +690,11 @@
       "aabb_overlap": true,
       "cloak_triangles": 3712,
       "legs_triangles": 1552,
+      "cloak_indices_present": true,
+      "legs_indices_present": true,
       "triangle_indices_valid": true,
+      "cloak_positions_finite": true,
+      "legs_positions_finite": true,
       "candidate_near": true
     },
     {
@@ -633,7 +721,11 @@
       "aabb_overlap": true,
       "cloak_triangles": 3712,
       "legs_triangles": 1552,
+      "cloak_indices_present": true,
+      "legs_indices_present": true,
       "triangle_indices_valid": true,
+      "cloak_positions_finite": true,
+      "legs_positions_finite": true,
       "candidate_near": true
     },
     {
@@ -660,7 +752,11 @@
       "aabb_overlap": true,
       "cloak_triangles": 3712,
       "legs_triangles": 1552,
+      "cloak_indices_present": true,
+      "legs_indices_present": true,
       "triangle_indices_valid": true,
+      "cloak_positions_finite": true,
+      "legs_positions_finite": true,
       "candidate_near": true
     },
     {
@@ -687,7 +783,11 @@
       "aabb_overlap": true,
       "cloak_triangles": 3712,
       "legs_triangles": 1552,
+      "cloak_indices_present": true,
+      "legs_indices_present": true,
       "triangle_indices_valid": true,
+      "cloak_positions_finite": true,
+      "legs_positions_finite": true,
       "candidate_near": true
     },
     {
@@ -714,7 +814,11 @@
       "aabb_overlap": true,
       "cloak_triangles": 3712,
       "legs_triangles": 0,
-      "triangle_indices_valid": true,
+      "cloak_indices_present": true,
+      "legs_indices_present": false,
+      "triangle_indices_valid": false,
+      "cloak_positions_finite": true,
+      "legs_positions_finite": true,
       "candidate_near": true
     },
     {
@@ -741,7 +845,11 @@
       "aabb_overlap": true,
       "cloak_triangles": 3712,
       "legs_triangles": 1552,
+      "cloak_indices_present": true,
+      "legs_indices_present": true,
       "triangle_indices_valid": true,
+      "cloak_positions_finite": true,
+      "legs_positions_finite": true,
       "candidate_near": false
     },
     {
@@ -768,7 +876,11 @@
       "aabb_overlap": true,
       "cloak_triangles": 3712,
       "legs_triangles": 1552,
+      "cloak_indices_present": true,
+      "legs_indices_present": true,
       "triangle_indices_valid": true,
+      "cloak_positions_finite": true,
+      "legs_positions_finite": true,
       "candidate_near": false
     },
     {
@@ -795,7 +907,11 @@
       "aabb_overlap": true,
       "cloak_triangles": 3712,
       "legs_triangles": 1552,
+      "cloak_indices_present": true,
+      "legs_indices_present": true,
       "triangle_indices_valid": true,
+      "cloak_positions_finite": true,
+      "legs_positions_finite": true,
       "candidate_near": false
     },
     {
@@ -822,7 +938,11 @@
       "aabb_overlap": true,
       "cloak_triangles": 3712,
       "legs_triangles": 1552,
+      "cloak_indices_present": true,
+      "legs_indices_present": true,
       "triangle_indices_valid": true,
+      "cloak_positions_finite": true,
+      "legs_positions_finite": true,
       "candidate_near": false
     },
     {
@@ -849,7 +969,11 @@
       "aabb_overlap": true,
       "cloak_triangles": 3712,
       "legs_triangles": 0,
-      "triangle_indices_valid": true,
+      "cloak_indices_present": true,
+      "legs_indices_present": false,
+      "triangle_indices_valid": false,
+      "cloak_positions_finite": true,
+      "legs_positions_finite": true,
       "candidate_near": false
     },
     {
@@ -876,7 +1000,11 @@
       "aabb_overlap": true,
       "cloak_triangles": 3712,
       "legs_triangles": 1552,
+      "cloak_indices_present": true,
+      "legs_indices_present": true,
       "triangle_indices_valid": true,
+      "cloak_positions_finite": true,
+      "legs_positions_finite": true,
       "candidate_near": false
     },
     {
@@ -903,7 +1031,11 @@
       "aabb_overlap": true,
       "cloak_triangles": 3712,
       "legs_triangles": 1552,
+      "cloak_indices_present": true,
+      "legs_indices_present": true,
       "triangle_indices_valid": true,
+      "cloak_positions_finite": true,
+      "legs_positions_finite": true,
       "candidate_near": false
     },
     {
@@ -930,7 +1062,11 @@
       "aabb_overlap": true,
       "cloak_triangles": 3712,
       "legs_triangles": 1552,
+      "cloak_indices_present": true,
+      "legs_indices_present": true,
       "triangle_indices_valid": true,
+      "cloak_positions_finite": true,
+      "legs_positions_finite": true,
       "candidate_near": false
     },
     {
@@ -957,7 +1093,11 @@
       "aabb_overlap": true,
       "cloak_triangles": 3712,
       "legs_triangles": 1552,
+      "cloak_indices_present": true,
+      "legs_indices_present": true,
       "triangle_indices_valid": true,
+      "cloak_positions_finite": true,
+      "legs_positions_finite": true,
       "candidate_near": false
     },
     {
@@ -984,7 +1124,11 @@
       "aabb_overlap": true,
       "cloak_triangles": 3712,
       "legs_triangles": 0,
-      "triangle_indices_valid": true,
+      "cloak_indices_present": true,
+      "legs_indices_present": false,
+      "triangle_indices_valid": false,
+      "cloak_positions_finite": true,
+      "legs_positions_finite": true,
       "candidate_near": false
     },
     {
@@ -1011,7 +1155,11 @@
       "aabb_overlap": true,
       "cloak_triangles": 3712,
       "legs_triangles": 1552,
+      "cloak_indices_present": true,
+      "legs_indices_present": true,
       "triangle_indices_valid": true,
+      "cloak_positions_finite": true,
+      "legs_positions_finite": true,
       "candidate_near": false
     },
     {
@@ -1038,7 +1186,11 @@
       "aabb_overlap": true,
       "cloak_triangles": 3712,
       "legs_triangles": 1552,
+      "cloak_indices_present": true,
+      "legs_indices_present": true,
       "triangle_indices_valid": true,
+      "cloak_positions_finite": true,
+      "legs_positions_finite": true,
       "candidate_near": false
     },
     {
@@ -1065,7 +1217,11 @@
       "aabb_overlap": true,
       "cloak_triangles": 3712,
       "legs_triangles": 0,
-      "triangle_indices_valid": true,
+      "cloak_indices_present": true,
+      "legs_indices_present": false,
+      "triangle_indices_valid": false,
+      "cloak_positions_finite": true,
+      "legs_positions_finite": true,
       "candidate_near": false
     },
     {
@@ -1092,7 +1248,11 @@
       "aabb_overlap": true,
       "cloak_triangles": 3712,
       "legs_triangles": 1552,
+      "cloak_indices_present": true,
+      "legs_indices_present": true,
       "triangle_indices_valid": true,
+      "cloak_positions_finite": true,
+      "legs_positions_finite": true,
       "candidate_near": false
     },
     {
@@ -1119,7 +1279,11 @@
       "aabb_overlap": true,
       "cloak_triangles": 3712,
       "legs_triangles": 1552,
+      "cloak_indices_present": true,
+      "legs_indices_present": true,
       "triangle_indices_valid": true,
+      "cloak_positions_finite": true,
+      "legs_positions_finite": true,
       "candidate_near": false
     },
     {
@@ -1146,7 +1310,11 @@
       "aabb_overlap": true,
       "cloak_triangles": 3712,
       "legs_triangles": 1552,
+      "cloak_indices_present": true,
+      "legs_indices_present": true,
       "triangle_indices_valid": true,
+      "cloak_positions_finite": true,
+      "legs_positions_finite": true,
       "candidate_near": false
     },
     {
@@ -1173,7 +1341,11 @@
       "aabb_overlap": true,
       "cloak_triangles": 3712,
       "legs_triangles": 1552,
+      "cloak_indices_present": true,
+      "legs_indices_present": true,
       "triangle_indices_valid": true,
+      "cloak_positions_finite": true,
+      "legs_positions_finite": true,
       "candidate_near": false
     },
     {
@@ -1200,7 +1372,11 @@
       "aabb_overlap": true,
       "cloak_triangles": 3712,
       "legs_triangles": 1552,
+      "cloak_indices_present": true,
+      "legs_indices_present": true,
       "triangle_indices_valid": true,
+      "cloak_positions_finite": true,
+      "legs_positions_finite": true,
       "candidate_near": false
     },
     {
@@ -1227,7 +1403,11 @@
       "aabb_overlap": true,
       "cloak_triangles": 3712,
       "legs_triangles": 0,
-      "triangle_indices_valid": true,
+      "cloak_indices_present": true,
+      "legs_indices_present": false,
+      "triangle_indices_valid": false,
+      "cloak_positions_finite": true,
+      "legs_positions_finite": true,
       "candidate_near": false
     },
     {
@@ -1254,7 +1434,11 @@
       "aabb_overlap": true,
       "cloak_triangles": 3712,
       "legs_triangles": 1552,
+      "cloak_indices_present": true,
+      "legs_indices_present": true,
       "triangle_indices_valid": true,
+      "cloak_positions_finite": true,
+      "legs_positions_finite": true,
       "candidate_near": false
     },
     {
@@ -1281,7 +1465,11 @@
       "aabb_overlap": true,
       "cloak_triangles": 3712,
       "legs_triangles": 1552,
+      "cloak_indices_present": true,
+      "legs_indices_present": true,
       "triangle_indices_valid": true,
+      "cloak_positions_finite": true,
+      "legs_positions_finite": true,
       "candidate_near": false
     },
     {
@@ -1308,7 +1496,11 @@
       "aabb_overlap": true,
       "cloak_triangles": 3712,
       "legs_triangles": 0,
-      "triangle_indices_valid": true,
+      "cloak_indices_present": true,
+      "legs_indices_present": false,
+      "triangle_indices_valid": false,
+      "cloak_positions_finite": true,
+      "legs_positions_finite": true,
       "candidate_near": false
     },
     {
@@ -1335,7 +1527,11 @@
       "aabb_overlap": true,
       "cloak_triangles": 3712,
       "legs_triangles": 1552,
+      "cloak_indices_present": true,
+      "legs_indices_present": true,
       "triangle_indices_valid": true,
+      "cloak_positions_finite": true,
+      "legs_positions_finite": true,
       "candidate_near": false
     },
     {
@@ -1362,7 +1558,11 @@
       "aabb_overlap": true,
       "cloak_triangles": 3712,
       "legs_triangles": 1552,
+      "cloak_indices_present": true,
+      "legs_indices_present": true,
       "triangle_indices_valid": true,
+      "cloak_positions_finite": true,
+      "legs_positions_finite": true,
       "candidate_near": false
     },
     {
@@ -1389,7 +1589,11 @@
       "aabb_overlap": true,
       "cloak_triangles": 3712,
       "legs_triangles": 1552,
+      "cloak_indices_present": true,
+      "legs_indices_present": true,
       "triangle_indices_valid": true,
+      "cloak_positions_finite": true,
+      "legs_positions_finite": true,
       "candidate_near": false
     },
     {
@@ -1416,7 +1620,11 @@
       "aabb_overlap": true,
       "cloak_triangles": 3712,
       "legs_triangles": 1552,
+      "cloak_indices_present": true,
+      "legs_indices_present": true,
       "triangle_indices_valid": true,
+      "cloak_positions_finite": true,
+      "legs_positions_finite": true,
       "candidate_near": false
     },
     {
@@ -1443,7 +1651,11 @@
       "aabb_overlap": true,
       "cloak_triangles": 3712,
       "legs_triangles": 1552,
+      "cloak_indices_present": true,
+      "legs_indices_present": true,
       "triangle_indices_valid": true,
+      "cloak_positions_finite": true,
+      "legs_positions_finite": true,
       "candidate_near": false
     },
     {
@@ -1470,7 +1682,11 @@
       "aabb_overlap": true,
       "cloak_triangles": 3712,
       "legs_triangles": 1552,
+      "cloak_indices_present": true,
+      "legs_indices_present": true,
       "triangle_indices_valid": true,
+      "cloak_positions_finite": true,
+      "legs_positions_finite": true,
       "candidate_near": false
     },
     {
@@ -1497,7 +1713,11 @@
       "aabb_overlap": true,
       "cloak_triangles": 3712,
       "legs_triangles": 1552,
+      "cloak_indices_present": true,
+      "legs_indices_present": true,
       "triangle_indices_valid": true,
+      "cloak_positions_finite": true,
+      "legs_positions_finite": true,
       "candidate_near": false
     },
     {
@@ -1524,7 +1744,11 @@
       "aabb_overlap": true,
       "cloak_triangles": 3712,
       "legs_triangles": 1552,
+      "cloak_indices_present": true,
+      "legs_indices_present": true,
       "triangle_indices_valid": true,
+      "cloak_positions_finite": true,
+      "legs_positions_finite": true,
       "candidate_near": false
     },
     {
@@ -1551,7 +1775,11 @@
       "aabb_overlap": true,
       "cloak_triangles": 3712,
       "legs_triangles": 0,
-      "triangle_indices_valid": true,
+      "cloak_indices_present": true,
+      "legs_indices_present": false,
+      "triangle_indices_valid": false,
+      "cloak_positions_finite": true,
+      "legs_positions_finite": true,
       "candidate_near": false
     },
     {
@@ -1578,7 +1806,11 @@
       "aabb_overlap": true,
       "cloak_triangles": 3712,
       "legs_triangles": 1552,
+      "cloak_indices_present": true,
+      "legs_indices_present": true,
       "triangle_indices_valid": true,
+      "cloak_positions_finite": true,
+      "legs_positions_finite": true,
       "candidate_near": false
     },
     {
@@ -1605,7 +1837,11 @@
       "aabb_overlap": true,
       "cloak_triangles": 3712,
       "legs_triangles": 0,
-      "triangle_indices_valid": true,
+      "cloak_indices_present": true,
+      "legs_indices_present": false,
+      "triangle_indices_valid": false,
+      "cloak_positions_finite": true,
+      "legs_positions_finite": true,
       "candidate_near": false
     },
     {
@@ -1632,7 +1868,11 @@
       "aabb_overlap": true,
       "cloak_triangles": 3712,
       "legs_triangles": 1552,
+      "cloak_indices_present": true,
+      "legs_indices_present": true,
       "triangle_indices_valid": true,
+      "cloak_positions_finite": true,
+      "legs_positions_finite": true,
       "candidate_near": false
     },
     {
@@ -1659,7 +1899,11 @@
       "aabb_overlap": true,
       "cloak_triangles": 3712,
       "legs_triangles": 1552,
+      "cloak_indices_present": true,
+      "legs_indices_present": true,
       "triangle_indices_valid": true,
+      "cloak_positions_finite": true,
+      "legs_positions_finite": true,
       "candidate_near": false
     },
     {
@@ -1686,7 +1930,11 @@
       "aabb_overlap": true,
       "cloak_triangles": 3712,
       "legs_triangles": 1552,
+      "cloak_indices_present": true,
+      "legs_indices_present": true,
       "triangle_indices_valid": true,
+      "cloak_positions_finite": true,
+      "legs_positions_finite": true,
       "candidate_near": false
     },
     {
@@ -1713,7 +1961,11 @@
       "aabb_overlap": true,
       "cloak_triangles": 3712,
       "legs_triangles": 1552,
+      "cloak_indices_present": true,
+      "legs_indices_present": true,
       "triangle_indices_valid": true,
+      "cloak_positions_finite": true,
+      "legs_positions_finite": true,
       "candidate_near": false
     },
     {
@@ -1740,7 +1992,11 @@
       "aabb_overlap": true,
       "cloak_triangles": 3712,
       "legs_triangles": 1552,
+      "cloak_indices_present": true,
+      "legs_indices_present": true,
       "triangle_indices_valid": true,
+      "cloak_positions_finite": true,
+      "legs_positions_finite": true,
       "candidate_near": false
     },
     {
@@ -1767,7 +2023,11 @@
       "aabb_overlap": true,
       "cloak_triangles": 3712,
       "legs_triangles": 1552,
+      "cloak_indices_present": true,
+      "legs_indices_present": true,
       "triangle_indices_valid": true,
+      "cloak_positions_finite": true,
+      "legs_positions_finite": true,
       "candidate_near": false
     },
     {
@@ -1794,7 +2054,11 @@
       "aabb_overlap": true,
       "cloak_triangles": 3712,
       "legs_triangles": 1552,
+      "cloak_indices_present": true,
+      "legs_indices_present": true,
       "triangle_indices_valid": true,
+      "cloak_positions_finite": true,
+      "legs_positions_finite": true,
       "candidate_near": false
     },
     {
@@ -1821,7 +2085,11 @@
       "aabb_overlap": true,
       "cloak_triangles": 3712,
       "legs_triangles": 1552,
+      "cloak_indices_present": true,
+      "legs_indices_present": true,
       "triangle_indices_valid": true,
+      "cloak_positions_finite": true,
+      "legs_positions_finite": true,
       "candidate_near": false
     },
     {
@@ -1848,7 +2116,11 @@
       "aabb_overlap": true,
       "cloak_triangles": 3712,
       "legs_triangles": 1552,
+      "cloak_indices_present": true,
+      "legs_indices_present": true,
       "triangle_indices_valid": true,
+      "cloak_positions_finite": true,
+      "legs_positions_finite": true,
       "candidate_near": false
     },
     {
@@ -1875,7 +2147,11 @@
       "aabb_overlap": true,
       "cloak_triangles": 3712,
       "legs_triangles": 1552,
+      "cloak_indices_present": true,
+      "legs_indices_present": true,
       "triangle_indices_valid": true,
+      "cloak_positions_finite": true,
+      "legs_positions_finite": true,
       "candidate_near": false
     },
     {
@@ -1902,7 +2178,11 @@
       "aabb_overlap": true,
       "cloak_triangles": 3712,
       "legs_triangles": 1552,
+      "cloak_indices_present": true,
+      "legs_indices_present": true,
       "triangle_indices_valid": true,
+      "cloak_positions_finite": true,
+      "legs_positions_finite": true,
       "candidate_near": false
     },
     {
@@ -1929,7 +2209,11 @@
       "aabb_overlap": true,
       "cloak_triangles": 3712,
       "legs_triangles": 1552,
+      "cloak_indices_present": true,
+      "legs_indices_present": true,
       "triangle_indices_valid": true,
+      "cloak_positions_finite": true,
+      "legs_positions_finite": true,
       "candidate_near": false
     },
     {
@@ -1956,7 +2240,11 @@
       "aabb_overlap": true,
       "cloak_triangles": 3712,
       "legs_triangles": 1552,
+      "cloak_indices_present": true,
+      "legs_indices_present": true,
       "triangle_indices_valid": true,
+      "cloak_positions_finite": true,
+      "legs_positions_finite": true,
       "candidate_near": false
     },
     {
@@ -1983,7 +2271,11 @@
       "aabb_overlap": true,
       "cloak_triangles": 3712,
       "legs_triangles": 0,
-      "triangle_indices_valid": true,
+      "cloak_indices_present": true,
+      "legs_indices_present": false,
+      "triangle_indices_valid": false,
+      "cloak_positions_finite": true,
+      "legs_positions_finite": true,
       "candidate_near": false
     },
     {
@@ -2010,7 +2302,11 @@
       "aabb_overlap": true,
       "cloak_triangles": 3712,
       "legs_triangles": 1552,
+      "cloak_indices_present": true,
+      "legs_indices_present": true,
       "triangle_indices_valid": true,
+      "cloak_positions_finite": true,
+      "legs_positions_finite": true,
       "candidate_near": false
     },
     {
@@ -2037,7 +2333,11 @@
       "aabb_overlap": true,
       "cloak_triangles": 3712,
       "legs_triangles": 1552,
+      "cloak_indices_present": true,
+      "legs_indices_present": true,
       "triangle_indices_valid": true,
+      "cloak_positions_finite": true,
+      "legs_positions_finite": true,
       "candidate_near": false
     },
     {
@@ -2064,7 +2364,11 @@
       "aabb_overlap": true,
       "cloak_triangles": 3712,
       "legs_triangles": 1552,
+      "cloak_indices_present": true,
+      "legs_indices_present": true,
       "triangle_indices_valid": true,
+      "cloak_positions_finite": true,
+      "legs_positions_finite": true,
       "candidate_near": false
     },
     {
@@ -2091,7 +2395,11 @@
       "aabb_overlap": true,
       "cloak_triangles": 3712,
       "legs_triangles": 1552,
+      "cloak_indices_present": true,
+      "legs_indices_present": true,
       "triangle_indices_valid": true,
+      "cloak_positions_finite": true,
+      "legs_positions_finite": true,
       "candidate_near": false
     },
     {
@@ -2118,7 +2426,11 @@
       "aabb_overlap": true,
       "cloak_triangles": 3712,
       "legs_triangles": 1552,
+      "cloak_indices_present": true,
+      "legs_indices_present": true,
       "triangle_indices_valid": true,
+      "cloak_positions_finite": true,
+      "legs_positions_finite": true,
       "candidate_near": false
     },
     {
@@ -2145,7 +2457,11 @@
       "aabb_overlap": true,
       "cloak_triangles": 3712,
       "legs_triangles": 1552,
+      "cloak_indices_present": true,
+      "legs_indices_present": true,
       "triangle_indices_valid": true,
+      "cloak_positions_finite": true,
+      "legs_positions_finite": true,
       "candidate_near": false
     },
     {
@@ -2172,7 +2488,11 @@
       "aabb_overlap": true,
       "cloak_triangles": 3712,
       "legs_triangles": 1552,
+      "cloak_indices_present": true,
+      "legs_indices_present": true,
       "triangle_indices_valid": true,
+      "cloak_positions_finite": true,
+      "legs_positions_finite": true,
       "candidate_near": false
     },
     {
@@ -2199,7 +2519,11 @@
       "aabb_overlap": true,
       "cloak_triangles": 3712,
       "legs_triangles": 1552,
+      "cloak_indices_present": true,
+      "legs_indices_present": true,
       "triangle_indices_valid": true,
+      "cloak_positions_finite": true,
+      "legs_positions_finite": true,
       "candidate_near": false
     },
     {
@@ -2226,7 +2550,11 @@
       "aabb_overlap": true,
       "cloak_triangles": 3712,
       "legs_triangles": 1552,
+      "cloak_indices_present": true,
+      "legs_indices_present": true,
       "triangle_indices_valid": true,
+      "cloak_positions_finite": true,
+      "legs_positions_finite": true,
       "candidate_near": false
     },
     {
@@ -2253,7 +2581,11 @@
       "aabb_overlap": true,
       "cloak_triangles": 3712,
       "legs_triangles": 1552,
+      "cloak_indices_present": true,
+      "legs_indices_present": true,
       "triangle_indices_valid": true,
+      "cloak_positions_finite": true,
+      "legs_positions_finite": true,
       "candidate_near": false
     },
     {
@@ -2280,7 +2612,11 @@
       "aabb_overlap": true,
       "cloak_triangles": 3712,
       "legs_triangles": 1552,
+      "cloak_indices_present": true,
+      "legs_indices_present": true,
       "triangle_indices_valid": true,
+      "cloak_positions_finite": true,
+      "legs_positions_finite": true,
       "candidate_near": false
     },
     {
@@ -2307,7 +2643,11 @@
       "aabb_overlap": true,
       "cloak_triangles": 3712,
       "legs_triangles": 1552,
+      "cloak_indices_present": true,
+      "legs_indices_present": true,
       "triangle_indices_valid": true,
+      "cloak_positions_finite": true,
+      "legs_positions_finite": true,
       "candidate_near": false
     },
     {
@@ -2334,7 +2674,11 @@
       "aabb_overlap": true,
       "cloak_triangles": 3712,
       "legs_triangles": 1552,
+      "cloak_indices_present": true,
+      "legs_indices_present": true,
       "triangle_indices_valid": true,
+      "cloak_positions_finite": true,
+      "legs_positions_finite": true,
       "candidate_near": false
     },
     {
@@ -2361,7 +2705,11 @@
       "aabb_overlap": true,
       "cloak_triangles": 3712,
       "legs_triangles": 1552,
+      "cloak_indices_present": true,
+      "legs_indices_present": true,
       "triangle_indices_valid": true,
+      "cloak_positions_finite": true,
+      "legs_positions_finite": true,
       "candidate_near": false
     },
     {
@@ -2388,7 +2736,11 @@
       "aabb_overlap": true,
       "cloak_triangles": 3712,
       "legs_triangles": 1552,
+      "cloak_indices_present": true,
+      "legs_indices_present": true,
       "triangle_indices_valid": true,
+      "cloak_positions_finite": true,
+      "legs_positions_finite": true,
       "candidate_near": false
     },
     {
@@ -2415,7 +2767,11 @@
       "aabb_overlap": true,
       "cloak_triangles": 3712,
       "legs_triangles": 1552,
+      "cloak_indices_present": true,
+      "legs_indices_present": true,
       "triangle_indices_valid": true,
+      "cloak_positions_finite": true,
+      "legs_positions_finite": true,
       "candidate_near": false
     },
     {
@@ -2442,7 +2798,11 @@
       "aabb_overlap": true,
       "cloak_triangles": 3712,
       "legs_triangles": 1552,
+      "cloak_indices_present": true,
+      "legs_indices_present": true,
       "triangle_indices_valid": true,
+      "cloak_positions_finite": true,
+      "legs_positions_finite": true,
       "candidate_near": false
     },
     {
@@ -2469,7 +2829,11 @@
       "aabb_overlap": true,
       "cloak_triangles": 3712,
       "legs_triangles": 1552,
+      "cloak_indices_present": true,
+      "legs_indices_present": true,
       "triangle_indices_valid": true,
+      "cloak_positions_finite": true,
+      "legs_positions_finite": true,
       "candidate_near": false
     },
     {
@@ -2496,7 +2860,11 @@
       "aabb_overlap": true,
       "cloak_triangles": 3712,
       "legs_triangles": 1552,
+      "cloak_indices_present": true,
+      "legs_indices_present": true,
       "triangle_indices_valid": true,
+      "cloak_positions_finite": true,
+      "legs_positions_finite": true,
       "candidate_near": false
     },
     {
@@ -2523,7 +2891,11 @@
       "aabb_overlap": true,
       "cloak_triangles": 3712,
       "legs_triangles": 1552,
+      "cloak_indices_present": true,
+      "legs_indices_present": true,
       "triangle_indices_valid": true,
+      "cloak_positions_finite": true,
+      "legs_positions_finite": true,
       "candidate_near": false
     },
     {
@@ -2550,7 +2922,11 @@
       "aabb_overlap": true,
       "cloak_triangles": 3712,
       "legs_triangles": 1552,
+      "cloak_indices_present": true,
+      "legs_indices_present": true,
       "triangle_indices_valid": true,
+      "cloak_positions_finite": true,
+      "legs_positions_finite": true,
       "candidate_near": false
     },
     {
@@ -2577,7 +2953,11 @@
       "aabb_overlap": true,
       "cloak_triangles": 3712,
       "legs_triangles": 1552,
+      "cloak_indices_present": true,
+      "legs_indices_present": true,
       "triangle_indices_valid": true,
+      "cloak_positions_finite": true,
+      "legs_positions_finite": true,
       "candidate_near": false
     },
     {
@@ -2604,7 +2984,11 @@
       "aabb_overlap": true,
       "cloak_triangles": 3712,
       "legs_triangles": 1552,
+      "cloak_indices_present": true,
+      "legs_indices_present": true,
       "triangle_indices_valid": true,
+      "cloak_positions_finite": true,
+      "legs_positions_finite": true,
       "candidate_near": false
     },
     {
@@ -2631,7 +3015,11 @@
       "aabb_overlap": true,
       "cloak_triangles": 3712,
       "legs_triangles": 1552,
+      "cloak_indices_present": true,
+      "legs_indices_present": true,
       "triangle_indices_valid": true,
+      "cloak_positions_finite": true,
+      "legs_positions_finite": true,
       "candidate_near": false
     },
     {
@@ -2658,7 +3046,11 @@
       "aabb_overlap": true,
       "cloak_triangles": 3712,
       "legs_triangles": 1552,
+      "cloak_indices_present": true,
+      "legs_indices_present": true,
       "triangle_indices_valid": true,
+      "cloak_positions_finite": true,
+      "legs_positions_finite": true,
       "candidate_near": false
     },
     {
@@ -2685,7 +3077,11 @@
       "aabb_overlap": true,
       "cloak_triangles": 3712,
       "legs_triangles": 1552,
+      "cloak_indices_present": true,
+      "legs_indices_present": true,
       "triangle_indices_valid": true,
+      "cloak_positions_finite": true,
+      "legs_positions_finite": true,
       "candidate_near": false
     },
     {
@@ -2712,7 +3108,11 @@
       "aabb_overlap": true,
       "cloak_triangles": 3712,
       "legs_triangles": 1552,
+      "cloak_indices_present": true,
+      "legs_indices_present": true,
       "triangle_indices_valid": true,
+      "cloak_positions_finite": true,
+      "legs_positions_finite": true,
       "candidate_near": false
     }
   ],
@@ -6050,6 +6450,8 @@
   "limitations": [
     "AABB overlap and nearest-vertex distance are screening signals, not proof of triangle intersection.",
     "Triangle indices are validated and triangle counts reported; exact triangle-triangle intersection is not computed by this first-pass analyzer.",
+    "Empty/missing triangle indices are distinct from valid indices and prevent surface checks.",
+    "Meshes with non-finite vertex coordinates are excluded from spatial queries.",
     "Rigid boot meshes without indices cannot be checked for surface intersections.",
     "Frame-to-frame vertex steps are only comparable when vertex counts and mesh identity remain stable."
   ]
