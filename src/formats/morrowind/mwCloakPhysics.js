@@ -159,44 +159,6 @@ export function resolveCloakShieldContact(piece, posedCloth, shieldPositions, sh
     held++;
   }
 
-  // Expand the contact one mesh edge beyond the exact shield footprint.
-  // Vertex-only tests otherwise leave triangles straddling the shield edge:
-  // their covered corner is pinned, but the adjacent corner can still fold
-  // through the shield. The ring uses a softer fraction of the neighbouring
-  // contact offset so the transition stays smooth instead of forming a hard
-  // vertical crease.
-  if (held) {
-    const ringSum = new Float32Array(state.shieldClearance.length);
-    const ringCount = new Uint8Array(state.shieldClearance.length);
-    for (let i = 0; i + 2 < piece.indices.length; i += 3) {
-      const tri = [piece.indices[i], piece.indices[i + 1], piece.indices[i + 2]];
-      for (let e = 0; e < 3; e++) {
-        const a = tri[e], b = tri[(e + 1) % 3];
-        if (state.shieldPinned[a] && !state.shieldPinned[b]) {
-          ringSum[b] += state.shieldClearance[a];
-          ringCount[b]++;
-        } else if (state.shieldPinned[b] && !state.shieldPinned[a]) {
-          ringSum[a] += state.shieldClearance[b];
-          ringCount[a]++;
-        }
-      }
-    }
-    for (let v = 0; v < state.shieldPinned.length; v++) {
-      if (state.shieldPinned[v] || !ringCount[v]) continue;
-      const o = v * 3;
-      const blendedClearance = Math.max(
-        STOWED_SHIELD_CLOAK_CLEARANCE * 0.5,
-        (ringSum[v] / ringCount[v]) * 0.5,
-      );
-      state.shieldPinned[v] = 1;
-      state.shieldClearance[v] = blendedClearance;
-      pos[o] = prev[o] = base[o];
-      pos[o + 1] = prev[o + 1] = base[o + 1] + blendedClearance;
-      pos[o + 2] = prev[o + 2] = base[o + 2];
-      held++;
-    }
-  }
-
   if (held) {
     piece.batch.positions.set(pos);
     if (state.normals && piece.batch.normals === state.normals) {
