@@ -549,6 +549,9 @@ export function openAppearanceEditor({ fpArm, onClose = () => {} } = {}) {
       for (const [key] of BODY_MORPH_FIELDS) setBodyMorph(key, draftMorphs[key] ?? 0);
       window.dispatchEvent(new CustomEvent('mw-body-morph-change', { detail: { ...draftMorphs } }));
       setAppearanceIdentity(identity);
+      // Notify the paperdoll/inventory art pipeline. This is a visual override
+      // only; the live gameplay entity's race and gender remain untouched.
+      window.dispatchEvent(new CustomEvent('mw-appearance-identity-change', { detail: identity }));
       close();
     } catch (error) {
       previewError = String(error?.message || error);
