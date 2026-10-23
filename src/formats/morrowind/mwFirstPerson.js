@@ -3528,7 +3528,7 @@ export export function betterBodiesSectionKey(shapeName) {
     regionName = match?.[1] ?? '';
   }
   const region = regions[regionName];
-  return side && region ? \`${region}:${side}\` : null;
+  return side && region ? region + ':' + side : null;
 }
 
 function betterBodiesSectionShadowed(shapeName, shadows = []) {
