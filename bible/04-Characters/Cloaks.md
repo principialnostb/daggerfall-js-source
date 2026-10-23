@@ -6,6 +6,7 @@ This note documents the current implementation contract. The classic cloak path 
 
 - **Vanilla** selects the project's classic cloak mesh and keeps its existing bind, placement, and body-fit behavior unchanged.
 - **Vanilla Animated** selects that same classic mesh and adds bounded secondary motion only after the normal body assembly and cloak fit. It must not change the mesh selection, texture, bind matrices, or base placement.
+- **Вкл (Simply Animated)** selects the mod NIF, keeps the mod's skin binding/retarget path, and also receives bounded secondary motion after the normal fit. This solver supplements the authored skinned pose; it must never be used to disguise an incorrect rest-pose transform.
 - **Вкл** selects the Simply Animated Cloaks asset and uses the existing NIF skinning/animation path. It must retain the mesh's authored texture and geometry. Any compatibility work belongs at the skin/transform binding boundary, not in arbitrary vertex offsets.
 - If a mode cannot initialize its optional animation, keep the cloak visible with its normal placement and record a diagnostic. Do not silently change the user's selected mode or swap the model as an animation workaround.
 
@@ -14,7 +15,7 @@ This note documents the current implementation contract. The classic cloak path 
 - `src/characters/ownModels/ownClothingModels.js` maps clothing dye to either a classic `cloak_<painting>.nif` or a Simply mesh.
 - `src/combat/fpArm.js` assembles the third-person actor, then calls `fitThirdPersonCloak()`. The `Vanilla Animated` solver is attached after this fit so the initial fitted shape is its rest state.
 - `src/formats/morrowind/mwCloakFit.js` handles cloak clearance and stowed gear relative to the cloak. It is not a substitute for correct NIF skin binding.
-- `src/formats/morrowind/mwCloakPhysics.js` adds bounded Verlet motion to a mesh's already-bound positions. It is secondary motion, not the source of the cloak's attachment or its authored animation.
+- `src/formats/morrowind/mwCloakPhysics.js` adds bounded Verlet motion to a mesh after it has been bound and fitted. Both animated modes can use it. It is secondary motion, not the source of the cloak's attachment or its authored animation.
 - `src/formats/morrowind/mwFirstPerson.js` passes `retargetSkinToBone` into the NIF binding layer; `src/formats/morrowind/mwSkin.js` owns the skeleton-space math.
 
 ## Simply mesh adaptation
@@ -34,7 +35,7 @@ The first divergence is the correction point. Preserve authored vertex positions
 
 - [ ] Vanilla: same model, texture, bind, and rest-pose placement as before this feature.
 - [ ] Vanilla Animated: same rest-pose placement as Vanilla; only the hem moves over time.
-- [ ] Вкл: Simply model and texture remain selected; compare its shoulders/hem to the classic cloak in the same actor pose.
+- [ ] Вкл: Simply model and texture remain selected; confirm both the rest-pose transform and secondary motion; compare shoulders/hem to the classic cloak in the same actor pose.
 - [ ] Check idle, walk, run, torso turn, and both arm swings.
 - [ ] Confirm missing skin bindings and unavailable physics are diagnostic-only failures, not silent model substitutions.
 - [ ] Run the focused cloak tests and inspect in-game screenshots before declaring the placement correct.
