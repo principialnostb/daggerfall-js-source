@@ -3109,7 +3109,7 @@ export function poseAssembly(assembly, { tracks = null, sampleTrack = null,
       window.__mwCloakProbeOnPose = (frame) => {
         const pieces = frame.pieces ?? [];
         const cloak = pieces.filter((p) => /cloak/i.test(p.slot + ' ' + p.name));
-        const legs = pieces.filter((p) => /^(upperleg|lowerleg|foot|groin|chest)$/i.test(p.slot));
+        const legs = pieces.filter((p) => /leg|foot|groin|chest|body/i.test(p.slot + ' ' + p.name + ' ' + p.kind));
         if (!cloak.length || !legs.length || window.__mwCloakProbeStopped) return;
         const now = performance.now();
         if (now - (window.__mwCloakProbeLastAt ?? -Infinity) < 100) return;
