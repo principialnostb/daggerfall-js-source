@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createCloakPhysics, stepCloakPhysics } from '../../../src/formats/morrowind/mwCloakPhysics.js';
+import { createCloakPhysics, stepCloakPhysics, resolveCloakShieldContact } from '../../../src/formats/morrowind/mwCloakPhysics.js';
 import { skinLayout, packSkinStream, restreamMovedRows } from '../../../src/formats/morrowind/mwGpuSkin.js';
 
 function cloakPiece() {
@@ -65,6 +65,27 @@ test('idle, walking, running, and overhead attacks produce distinct hem poses', 
   assert.ok(run[1] < walk[1] && walk[1] < idle[1], 'running drags the hem farther back than walking and idle');
   assert.ok(Math.abs(walk[0] - idle[0]) > 0.2, 'walking adds a phase-locked side-to-side swing');
   assert.ok(overhead[1] < idle[1] - 0.8, 'an overhead attack drives the hem back before its inertial return');
+});
+
+
+test('back shield holds only covered cloak vertices at rest and preserves free hem motion', () => {
+  const piece = cloakPiece();
+  const base = Float32Array.from(piece.batch.positions);
+  const pos = Float32Array.from(base);
+  const prev = Float32Array.from(base);
+  for (let i = 0; i < pos.length; i += 3) {
+    pos[i + 1] += 2;
+    prev[i + 1] += 1;
+  }
+  piece.clothPhysics = { base, pos, prev, normals: null, baseNormals: null };
+  piece.batch.positions.set(pos);
+  // A simple triangle covers vertices 0, 1 and 2, but not vertex 3.
+  const shield = Float32Array.from([-1, 0, 2, 1, 0, 2, 1, 0, 0]);
+  const held = resolveCloakShieldContact(piece, base, shield, Uint16Array.from([0, 1, 2]));
+  assert.equal(held, 3);
+  assert.deepEqual(Array.from(pos.slice(0, 9)), Array.from(base.slice(0, 9)), 'covered vertices return to their fitted rest positions');
+  assert.equal(pos[10], base[10] + 2, 'the uncovered hem remains dynamic');
+  assert.equal(prev[10], base[10] + 1, 'the uncovered hem keeps its Verlet history');
 });
 
 test('GPU skin stream restreams only the skinned cloak row after physics changes its bind vertices', () => {
