@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createCloakPhysics, stepCloakPhysics, resolveCloakShieldContact } from '../../../src/formats/morrowind/mwCloakPhysics.js';
+import { createCloakPhysics, stepCloakPhysics, resolveCloakShieldContact, releaseCloakShieldContact } from '../../../src/formats/morrowind/mwCloakPhysics.js';
 import { skinLayout, packSkinStream, restreamMovedRows } from '../../../src/formats/morrowind/mwGpuSkin.js';
 
 function cloakPiece() {
@@ -91,6 +91,40 @@ test('back shield holds only covered cloak vertices at rest and preserves free h
   assert.deepEqual(Array.from(prev.slice(0, 9)), Array.from(pos.slice(0, 9)), 'covered vertices have no stale Verlet velocity');
   assert.equal(pos[10], base[10] + 2, 'the uncovered hem remains dynamic');
   assert.equal(prev[10], base[10] + 1, 'the uncovered hem keeps its Verlet history');
+});
+
+test('shield-covered vertices return to the authored pose when the shield is removed', () => {
+  const piece = cloakPiece();
+  const base = Float32Array.from(piece.batch.positions);
+  piece.clothPhysics = createCloakPhysics(piece);
+  const state = piece.clothPhysics;
+  state.pos[4] -= 0.38;
+  state.prev[4] -= 0.38;
+  state.shieldPinned[1] = 1;
+  releaseCloakShieldContact(piece);
+  assert.equal(state.shieldPinned[1], 0);
+  assert.equal(state.pos[3], base[3]);
+  assert.equal(state.pos[4], base[4]);
+  assert.equal(state.pos[5], base[5]);
+  assert.equal(state.prev[3], base[3]);
+  assert.equal(state.prev[4], base[4]);
+  assert.equal(state.prev[5], base[5]);
+});
+
+test('vertices leaving the shield footprint do not retain the compressed offset', () => {
+  const piece = cloakPiece();
+  const base = Float32Array.from(piece.batch.positions);
+  const state = createCloakPhysics(piece);
+  piece.clothPhysics = state;
+  const shield = Float32Array.from([-1, 0, 2, 1, 0, 2, 1, 0, 0]);
+  resolveCloakShieldContact(piece, base, shield, Uint16Array.from([0, 1, 2]));
+  assert.equal(state.shieldPinned[2], 1);
+  // A triangle moved away from the cloth no longer covers any vertex.
+  const movedShield = Float32Array.from([20, 0, 20, 22, 0, 20, 22, 0, 18]);
+  resolveCloakShieldContact(piece, base, movedShield, Uint16Array.from([0, 1, 2]));
+  assert.equal(state.shieldPinned[2], 0);
+  assert.equal(state.pos[7], base[7]);
+  assert.equal(state.prev[7], base[7]);
 });
 
 test('GPU skin stream restreams only the skinned cloak row after physics changes its bind vertices', () => {
