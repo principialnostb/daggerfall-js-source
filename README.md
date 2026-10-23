@@ -106,4 +106,4 @@ app bundles NO game data - same doctrine as the site.
 
 ## Vanilla Animated cloak collision
 
-The working branch `fix/vanilla-animated-cloak-collision` restores the previous X/Z height-field cloak contact method, widens body-sampling bounds from 1 to 2 rig-space units in X/Z, and adds two fit poses for the right thigh held 55 degrees back (straight and bent knee) to target reported combat-stance clipping. This remains an unverified experiment; in-game validation is required. See [Vanilla Animated cloak collision](docs/Vanilla-Animated-Cloak-Collision.md). Back-slung weapons and scabbards remain independent of live cloak animation.
+The working branch `fix/vanilla-animated-cloak-collision` restores the prior Y-axis cloak correction, widens body-sampling bounds, adds rear-set right-leg fit poses, and now queries projected cloak triangles at exact body sample coordinates rather than rounding to a grid cell. This targets missed contacts at triangle edges, but still needs in-game validation. See [Vanilla Animated cloak collision](docs/Vanilla-Animated-Cloak-Collision.md). Back-slung weapons and scabbards remain independent of live cloak animation.
