@@ -138,7 +138,7 @@ export function resolveCloakShieldContact(piece, posedCloth, shieldPositions, sh
     }
     state.shieldPinned[v] = 1;
     pos[o] = prev[o] = base[o];
-    pos[o + 1] = prev[o + 1] = base[o + 1] - STOWED_SHIELD_CLOAK_CLEARANCE;
+    pos[o + 1] = prev[o + 1] = base[o + 1] + STOWED_SHIELD_CLOAK_CLEARANCE;
     pos[o + 2] = prev[o + 2] = base[o + 2];
     held++;
   }
@@ -240,7 +240,7 @@ export function stepCloakPhysics(piece, dt, motion = 0) {
     const o = v * 3;
     if (fixed(v)) {
       pos[o] = prev[o] = base[o];
-      pos[o + 1] = prev[o + 1] = base[o + 1] - (shieldPinned?.[v] ? STOWED_SHIELD_CLOAK_CLEARANCE : 0);
+      pos[o + 1] = prev[o + 1] = base[o + 1] + (shieldPinned?.[v] ? STOWED_SHIELD_CLOAK_CLEARANCE : 0);
       pos[o + 2] = prev[o + 2] = base[o + 2];
       continue;
     }
