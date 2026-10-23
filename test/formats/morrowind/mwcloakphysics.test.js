@@ -97,6 +97,29 @@ test('back shield holds only covered cloak vertices at rest and preserves free h
   assert.equal(prev[10], base[10] + 1, 'the uncovered hem keeps its Verlet history');
 });
 
+test('multiple back-sheathed gear surfaces keep the cloak wave from crossing weapon and scabbard', () => {
+  const piece = cloakPiece();
+  const base = Float32Array.from(piece.batch.positions);
+  piece.clothPhysics = createCloakPhysics(piece);
+  assert.ok(piece.clothPhysics);
+  // The first rigid surface covers the broad part of the sheath; the second
+  // covers the cloak's left edge, like a weapon or quiver beside the scabbard.
+  const scabbard = {
+    positions: Float32Array.from([-1, 0, 2, 1, 0, 2, 1, 0, 0]),
+    indices: Uint16Array.from([0, 1, 2]),
+  };
+  const weapon = {
+    positions: Float32Array.from([-1, 0, 0, -1, 0, 2, -2, 0, 0]),
+    indices: Uint16Array.from([0, 1, 2]),
+  };
+  const held = resolveCloakShieldContact(piece, base, [scabbard, weapon], null);
+  assert.equal(held, 4, 'the combined contact pass holds every cloak vertex covered by either rigid piece');
+  for (let v = 0; v < 4; v++) {
+    assert.equal(piece.clothPhysics.shieldPinned[v], 1);
+    assert.ok(piece.clothPhysics.pos[v * 3 + 1] > base[v * 3 + 1], 'cloth is kept on the body side of the back-mounted gear');
+  }
+});
+
 test('shield-covered vertices return to the authored pose when the shield is removed', () => {
   const piece = cloakPiece();
   const base = Float32Array.from(piece.batch.positions);
