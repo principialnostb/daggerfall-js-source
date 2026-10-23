@@ -112,9 +112,13 @@ export function stepCloakPhysics(piece, dt, motion = 0) {
   const vanillaFallback = !!piece.clothPhysicsFallbackMesh;
   const maxOffset = vanillaFallback ? MAX_OFFSET + 0.2 : MAX_OFFSET;
   if (vanillaFallback) state.maxOffset = maxOffset;
-  const maxStep = vanillaFallback ? MAX_STEP - 0.12 : MAX_STEP;
-  const stiffness = vanillaFallback ? STIFFNESS + 0.04 : STIFFNESS;
-  const motionGain = vanillaFallback ? 0.78 : 1;
+  // The fallback cloak's coarse authored mesh has no replacement animation to
+  // supply visible folds. Dense edge constraints were absorbing most of the
+  // small per-frame impulses, making it read as rigid during attacks and turns.
+  // Let only this mesh yield more per solve; Simply Animated keeps its tuning.
+  const maxStep = vanillaFallback ? MAX_STEP + 0.1 : MAX_STEP;
+  const stiffness = vanillaFallback ? STIFFNESS - 0.18 : STIFFNESS;
+  const motionGain = 1;
   const gait = typeof motion === 'object' && motion !== null ? motion.gait : motion;
   const move = Math.max(0, Math.min(1, Number(gait) || 0));
   const gaitPhase = typeof motion === 'object' && motion !== null
