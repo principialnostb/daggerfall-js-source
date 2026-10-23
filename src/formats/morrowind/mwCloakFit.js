@@ -117,7 +117,7 @@ export function surfaceSamples(positions, indices, step = SAMPLE_STEP, keep = nu
   return out;
 }
 
-function samplesWhere(positions, indices, step, keep, edges = edgesOf(indices)) {
+function samplesWhere(positions, indices, step, keep, edges = edgesOf(indices), includeTriangleInteriors = true) {
   const out = [];
   for (let v = 0; v < positions.length; v += 3) if (keep(positions[v], positions[v + 1], positions[v + 2])) out.push(positions[v], positions[v + 1], positions[v + 2]);
   for (let k = 0; k < edges.length; k += 2) {
@@ -128,11 +128,10 @@ function samplesWhere(positions, indices, step, keep, edges = edgesOf(indices)) 
     for (let i = 1; i <= n; i++) { const f = i / (n + 1); const x = ax + dx * f, y = ay + dy * f, z = az + dz * f; if (keep(x, y, z)) out.push(x, y, z); }
   }
   // Vertices and edge interiors alone miss contacts through the middle of a
-  // large leg/greave triangle: none of its sampled boundary points need lie
-  // behind the cloak even while the triangle's face does. Sample triangle
-  // interiors on the same world-unit spacing, so live attack poses contribute
-  // their actual lower-leg surface instead of only its outline.
-  for (let t = 0; t + 2 < indices.length; t += 3) {
+  // large leg/greave triangle. Static fitting samples triangle interiors too;
+  // the live per-frame fit can disable them to avoid allocating thousands of
+  // transient points on every animation frame.
+  if (includeTriangleInteriors) for (let t = 0; t + 2 < indices.length; t += 3) {
     const a = indices[t] * 3, b = indices[t + 1] * 3, c = indices[t + 2] * 3;
     const ax = positions[a], ay = positions[a + 1], az = positions[a + 2];
     const bx = positions[b], by = positions[b + 1], bz = positions[b + 2];
@@ -277,7 +276,7 @@ function solve3(m, v) {
  * deep }` - how many of the cloak's vertices moved, the furthest, and how many points stood more than the limit through
  * it and were left so - or null when the body wears no cloak.
  */
-export function fitCloakOver(assembly, { isCloak, isUnder, clearance = CLOAK_CLEARANCE, limit = CLOAK_PUSH_LIMIT, radius = CLOAK_EASE_RADIUS, poses = CLOAK_FIT_POSES, passes = 12, sampleStep = SAMPLE_STEP, updatePosed = true }) {
+export function fitCloakOver(assembly, { isCloak, isUnder, clearance = CLOAK_CLEARANCE, limit = CLOAK_PUSH_LIMIT, radius = CLOAK_EASE_RADIUS, poses = CLOAK_FIT_POSES, passes = 12, sampleStep = SAMPLE_STEP, updatePosed = true, includeTriangleInteriors = true }) {
   const cloaks = assembly.pieces.filter((p) => p.kind === 'skinned' && isCloak(p));
   if (!cloaks.length) return null;
   const underPieces = assembly.pieces.filter((p) => !cloaks.includes(p) && isUnder(p)).map((p) => ({ p, edges: edgesOf(p.indices) }));
@@ -332,7 +331,7 @@ export function fitCloakOver(assembly, { isCloak, isUnder, clearance = CLOAK_CLE
               lz = Math.min(lz, placed[v + 2]); hz = Math.max(hz, placed[v + 2]);
             }
             if (hx < x0 - 1 || lx > x1 + 1 || hz < z0 - 1 || lz > z1 + 1 || ly > y1 + clearance) continue;
-            set.under.push(samplesWhere(placed, p.indices, sampleStep, inside, edges));
+            set.under.push(samplesWhere(placed, p.indices, sampleStep, inside, edges, includeTriangleInteriors));
           }
         }
         const sheet = cloakSheet(posed, cloak.indices);
