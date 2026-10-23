@@ -2303,11 +2303,11 @@ export function bindPartsInto(assembly, parts) {
   const boundParts = [];
   for (const part of parts) {
     boundParts.push(part);
-    if (/^shield\\b/i.test(String(part.slot ?? ''))
+    if (/^shield\b/i.test(String(part.slot ?? ''))
       && skeleton.byName.has('bip01 attachshield')) {
       boundParts.push({
         ...part,
-        slot: String(part.slot).replace(/^shield\\b/i, 'shield-back'),
+        slot: String(part.slot).replace(/^shield\b/i, 'shield-back'),
         bones: ['Bip01 AttachShield'],
         shieldBackMount: true,
       });
