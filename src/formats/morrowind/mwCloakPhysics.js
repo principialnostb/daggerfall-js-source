@@ -103,10 +103,11 @@ export function resolveCloakShieldContact(piece, posedCloth, shieldPositions, sh
       bucket.push(t);
     }
   }
-  const frontAt = (x, z) => {
-    let front = -Infinity;
+  // Minimum Y is the shield's back face in Morrowind's rig; cloth must stay behind its full thickness.
+  const backAt = (x, z) => {
+    let back = Infinity;
     const candidates = bins.get(cellKey(x, z));
-    if (!candidates) return front;
+    if (!candidates) return back;
     for (const t of candidates) {
       const ia = shieldIndices[t] * 3, ib = shieldIndices[t + 1] * 3, ic = shieldIndices[t + 2] * 3;
       const ax = shieldPositions[ia], az = shieldPositions[ia + 2];
@@ -120,7 +121,7 @@ export function resolveCloakShieldContact(piece, posedCloth, shieldPositions, sh
       const w = (abx * pz - abz * px) / den;
       if (u < -1e-4 || w < -1e-4 || u + w > 1.0001) continue;
       const y = shieldPositions[ia + 1] * (1 - u - w) + shieldPositions[ib + 1] * u + shieldPositions[ic + 1] * w;
-      if (y > front) front = y;
+      if (y < back) back = y;
     }
     return front;
   };
@@ -136,9 +137,9 @@ export function resolveCloakShieldContact(piece, posedCloth, shieldPositions, sh
   // triangles; the rest of the mesh remains free to animate.
   for (let v = 0; v < posedCloth.length / 3; v++) {
     const o = v * 3;
-    const front = frontAt(posedCloth[o], posedCloth[o + 2]);
-    if (!Number.isFinite(front)) continue;
-    pushVertex(v, posedCloth[o + 1] - (front - clearance));
+    const back = backAt(posedCloth[o], posedCloth[o + 2]);
+    if (!Number.isFinite(back)) continue;
+    pushVertex(v, posedCloth[o + 1] - (back - clearance));
   }
   // Vertices alone can miss a shield passing through the middle of a large
   // cloth triangle. Test each cloth-triangle centroid as well and distribute
@@ -150,9 +151,9 @@ export function resolveCloakShieldContact(piece, posedCloth, shieldPositions, sh
     const x = (posedCloth[ia] + posedCloth[ib] + posedCloth[ic]) / 3;
     const y = (posedCloth[ia + 1] + posedCloth[ib + 1] + posedCloth[ic + 1]) / 3;
     const z = (posedCloth[ia + 2] + posedCloth[ib + 2] + posedCloth[ic + 2]) / 3;
-    const front = frontAt(x, z);
-    if (!Number.isFinite(front)) continue;
-    const push = y - (front - clearance);
+    const back = frontAt(x, z);
+    if (!Number.isFinite(back)) continue;
+    const push = y - (back - clearance);
     if (push <= 1e-4) continue;
     pushVertex(a, push); pushVertex(b, push); pushVertex(c, push);
   }
