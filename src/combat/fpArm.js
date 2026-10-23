@@ -3949,10 +3949,14 @@ export async function buildFpArm({
     // Local-player diagnostic: distinguish a source-selection issue from a NIF section/binding issue.
     // NPC builds stay quiet; DevTools shows the selected asset, recognized sections and standard fallbacks.
     if (ownHeads) {
+      const sourceSetting = modSetting('morrowind-textures', 'BetterBodiesSource');
+      if (sourceSetting !== 2) {
+        console.warn('[Better Bodies] first-person arms are using the standard source because BetterBodiesSource is not set to Better Bodies (2). Select Better Bodies in the Morrowind texture pack settings to match the third-person body.', { sourceSetting });
+      }
       console.info('[Better Bodies] first-person arm integration', {
         race, female,
-        sourceSetting: modSetting('morrowind-textures', 'BetterBodiesSource'),
-        requested: modSetting('morrowind-textures', 'BetterBodiesSource') === 2,
+        sourceSetting,
+        requested: sourceSetting === 2,
         assetLoaded: Boolean(betterBodiesFpArms),
         modelUrl: betterBodiesFpArms?.modelUrl ?? null,
         assemblyOk: Boolean(arm.ok),
