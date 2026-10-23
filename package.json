@@ -47,7 +47,8 @@
     "mwcloak:analyze": "python diagnostics/mw-cloak-probe/diagnose_cloak_capture.py",
     "mwcloak:intersections": "python diagnostics/mw-cloak-probe/diagnose_cloak_triangle_intersections.py",
     "mwcloak:analyze:all": "npm run mwcloak:analyze && npm run mwcloak:intersections",
-    "savetile": "node tools/saveTileProbe.mjs"
+    "savetile": "node tools/saveTileProbe.mjs",
+    "mwcloak:visualize": "python diagnostics/mw-cloak-probe/visualize_cloak_intersections.py"
   },
   "devDependencies": {
     "acorn": "^8.18.0",
