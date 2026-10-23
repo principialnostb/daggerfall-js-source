@@ -106,6 +106,14 @@ export function stepCloakPhysics(piece, dt, motion = 0) {
   if (step <= 0) return false;
   state.time += step;
   const { base, pos, prev, pinned, edges } = state;
+  // Vanilla Animated keeps the same bounded Verlet model, with a little more
+  // room for the hem to yield on large leg/attack motions. Simply Animated
+  // retains the authored tuning below.
+  const vanillaFallback = !!piece.clothPhysicsFallbackMesh;
+  const maxOffset = vanillaFallback ? MAX_OFFSET + 0.7 : MAX_OFFSET;
+  const maxStep = vanillaFallback ? MAX_STEP + 0.08 : MAX_STEP;
+  const stiffness = vanillaFallback ? STIFFNESS - 0.05 : STIFFNESS;
+  const motionGain = vanillaFallback ? 1.12 : 1;
   const gait = typeof motion === 'object' && motion !== null ? motion.gait : motion;
   const move = Math.max(0, Math.min(1, Number(gait) || 0));
   const gaitPhase = typeof motion === 'object' && motion !== null
@@ -158,7 +166,7 @@ export function stepCloakPhysics(piece, dt, motion = 0) {
       - move * (move > 0.8 ? 10 : 3) * dt2
       - attackPulse * overhead * (18 + 28 * hemWeight) * dt2;
     const length = Math.hypot(dx, dy, dz);
-    if (length > MAX_STEP) { const scale = MAX_STEP / length; dx *= scale; dy *= scale; dz *= scale; }
+    if (length > maxStep) { const scale = maxStep / length; dx *= scale; dy *= scale; dz *= scale; }
     prev[o] = x; prev[o + 1] = y; prev[o + 2] = z;
     pos[o] = x + dx; pos[o + 1] = y + dy; pos[o + 2] = z + dz;
   }
@@ -168,7 +176,7 @@ export function stepCloakPhysics(piece, dt, motion = 0) {
       const a = edge.a * 3, b = edge.b * 3;
       let dx = pos[b] - pos[a], dy = pos[b + 1] - pos[a + 1], dz = pos[b + 2] - pos[a + 2];
       const length = Math.hypot(dx, dy, dz) || 1e-6;
-      const correction = ((length - edge.rest) / length) * 0.5 * STIFFNESS;
+      const correction = ((length - edge.rest) / length) * 0.5 * stiffness;
       dx *= correction; dy *= correction; dz *= correction;
       if (!pinned[edge.a]) { pos[a] += dx; pos[a + 1] += dy; pos[a + 2] += dz; }
       if (!pinned[edge.b]) { pos[b] -= dx; pos[b + 1] -= dy; pos[b + 2] -= dz; }
@@ -193,12 +201,12 @@ export function stepCloakPhysics(piece, dt, motion = 0) {
     const vertexPhase = base[o] * 0.11 + hem * 0.75;
     const idleWave = Math.sin(state.time * 1.35 + vertexPhase);
     const walkWave = Math.sin(stride + vertexPhase);
-    const lateral = idleWave * idleWeight * 0.12
+    const lateral = (idleWave * idleWeight * 0.12
       + walkWave * move * (move > 0.8 ? 0.75 : 0.38)
-      + turn * (0.35 + 0.95 * hem);
-    const backward = move * move * (move > 0.8 ? 0.85 : 0.18)
-      + attackPulse * overhead * (0.45 + 1.15 * hem);
-    const hemLift = Math.sin(stride * 2 + vertexPhase) * move * (move > 0.8 ? 0.55 : 0.16);
+      + turn * (0.35 + 0.95 * hem)) * motionGain;
+    const backward = (move * move * (move > 0.8 ? 0.85 : 0.18)
+      + attackPulse * overhead * (0.45 + 1.15 * hem)) * motionGain;
+    const hemLift = Math.sin(stride * 2 + vertexPhase) * move * (move > 0.8 ? 0.55 : 0.16) * motionGain;
     pos[o] += lateral * hemCurve;
     pos[o + 1] -= backward * hemCurve;
     pos[o + 2] += hemLift * hemCurve;
@@ -207,8 +215,8 @@ export function stepCloakPhysics(piece, dt, motion = 0) {
     pos[o + 1] = Math.min(pos[o + 1], base[o + 1] + 0.22);
     let dx = pos[o] - base[o], dy = pos[o + 1] - base[o + 1], dz = pos[o + 2] - base[o + 2];
     const length = Math.hypot(dx, dy, dz);
-    if (length > MAX_OFFSET) {
-      const scale = MAX_OFFSET / length;
+    if (length > maxOffset) {
+      const scale = maxOffset / length;
       pos[o] = base[o] + dx * scale;
       pos[o + 1] = base[o + 1] + dy * scale;
       pos[o + 2] = base[o + 2] + dz * scale;
