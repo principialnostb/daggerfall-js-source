@@ -3806,7 +3806,10 @@ export async function buildFpArm({
     // Use the same race/sex-matched body asset for first-person hands; only
     // its arm/hand slots are drawn here. Vanilla part meshes remain the fallback.
     let betterBodiesFpArms = null;
-    if (modSetting('morrowind-textures', 'BetterBodies') !== false && !beast && !werewolf && !vampire) {
+    // Match the third-person body source exactly. The separate BetterBodies boolean can be enabled
+    // while the actor is explicitly using the Original body source; using it here alone made first-person
+    // hands come from Better Bodies even when the visible character body did not.
+    if (modSetting('morrowind-textures', 'BetterBodiesSource') !== 0 && !beast && !werewolf && !vampire) {
       try {
         const asset = betterBodiesAssetUrls({ race, female });
         if (!asset) throw new Error(`no Better Bodies asset for race "${String(race)}" / ${female ? 'female' : 'male'}`);
