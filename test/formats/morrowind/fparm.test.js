@@ -13,7 +13,7 @@ import {
   FP_CLIP_PATH, NIF_TO_PASS, FP_FIELD_OF_VIEW, firstPersonEye, FP_FLOATS,
   collectArmTextures,
 } from '../../../src/combat/fpArm.js';
-import { firstPersonCameraRef, FP_NECK_ROTATE_FACTOR } from '../../../src/formats/morrowind/mwFirstPerson.js';
+import { firstPersonCameraRef, FP_NECK_ROTATE_FACTOR, betterBodiesSectionKey } from '../../../src/formats/morrowind/mwFirstPerson.js';
 
 // MW-D8: THE ARM IN THE GAME.
 //
@@ -26,6 +26,23 @@ import { firstPersonCameraRef, FP_NECK_ROTATE_FACTOR } from '../../../src/format
 
 const f = (n) => new Uint8Array(readFileSync(new URL(`../../fixtures/mw/${n}`, import.meta.url)));
 const rd = (p) => readFileSync(new URL(`../../../${p}`, import.meta.url), 'utf8');
+
+test('Better Bodies first-person sections recognize anatomical and Bip01-prefixed NIF names', () => {
+  const cases = [
+    ['Left Hand', 'hand:left'],
+    ['Hand_R', 'hand:right'],
+    ['Tri Bip01 L Hand', 'hand:left'],
+    ['Bip01 R Wrist', 'wrist:right'],
+    ['Bip01 L Forearm', 'forearm:left'],
+    ['Bip01 Upper Arm R', 'upperarm:right'],
+    ['Bip01 L Upper_Arm', 'upperarm:left'],
+    ['Bip01 Lower Arm Right', 'forearm:right'],
+  ];
+  for (const [name, expected] of cases) {
+    assert.equal(betterBodiesSectionKey(name), expected, name);
+  }
+  assert.equal(betterBodiesSectionKey('Bip01 Spine'), null, 'non-arm bones do not suppress vanilla arm slots');
+});
 
 /** The MW-D10 first-person rig: an eye, arms forward of and below it,
  *  and a quiet sway - the shape rule 54 needs and no earlier fixture had. */
