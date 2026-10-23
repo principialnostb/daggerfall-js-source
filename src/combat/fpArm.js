@@ -2076,7 +2076,7 @@ function correctVanillaAnimatedCloakContacts(arm, piece, pose) {
   if (!underSlots || !state || !pose || !arm.mats || !piece.batch?.positions) return false;
   const fit = fitCloakOver(arm, {
     isCloak: (p) => isCloakSlot(p.slot),
-    isUnder: (p) => underSlots.has(p.slot) && p.slot !== 'tail' && !/^shield\\b/.test(p.slot),
+    isUnder: (p) => underSlots.has(p.slot) && p.slot !== 'tail' && !/^shield\b/.test(p.slot),
     poses: [pose],
     passes: 2,
     updatePosed: false,
