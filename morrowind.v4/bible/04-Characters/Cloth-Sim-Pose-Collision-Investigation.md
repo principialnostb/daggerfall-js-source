@@ -58,3 +58,10 @@ The solver now transports **all** cloth particle positions and their previous Ve
 A regression test was added for a free (unpinned) particle under a sudden combined lean, twist, and root-offset change. It checks the particle's pose-frame position independently of collision and gravity. This addresses the confirmed mismatch where only the pinned top rows followed the animated torso.
 
 The GitHub connector did not report CI statuses for the new commits, and this environment cannot clone the repository to run the Node test suite locally. Therefore the code and regression test are committed, but automated test execution and live browser verification remain outstanding. In particular, the overhead two-handed attack and the walking leg intersection must still be checked in the viewer before claiming the issue resolved.
+
+
+## Source-to-documentation audit
+
+A second inspection found that the earlier note described the final world-space leg-capsule pass as present, but the actual solver did not perform it after torso-local projection. The code now applies leg-capsule clearance again after transforming the torso-corrected point back to world space. The existing regression test `final torso projection cannot undo articulated leg clearance` targets this exact ordering defect.
+
+This closes two source-level gaps in the current pass: free cloth particles now follow torso pose-frame changes, and torso collision can no longer silently undo leg clearance within a collision pass. The test suite has not been executed in this environment, and the viewer's overhead strike and walking cases remain unverified.
