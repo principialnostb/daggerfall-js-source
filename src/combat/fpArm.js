@@ -3926,6 +3926,26 @@ export async function buildFpArm({
       };
     }
     const arm = await assembleFirstPersonArm({ skeletonBytes, parts: partBytes, parseNif: parseNifOnce, offWeaponBone: true });   // MWNPC3: one parse a mesh, every body; TWO-HANDS AUDIT: the left hand's weapon bone
+    // Do not silently claim the Better Bodies integration succeeded merely because
+    // its NIF parsed: only recognized, drawable arm sections suppress the vanilla
+    // fallback. Surface any sections that still came from the ordinary BODY meshes.
+    if (betterBodiesFpArms && arm.ok) {
+      const renderedSections = new Set((arm.pieces ?? [])
+        .filter((piece) => piece.slot === 'betterBodies' && piece.bodySection)
+        .map((piece) => piece.bodySection));
+      const hiddenSections = new Set(worn.fpShadows ?? worn.shadows ?? []);
+      const expectedSections = [
+        'hand:left', 'hand:right', 'wrist:left', 'wrist:right',
+        'forearm:left', 'forearm:right', 'upperarm:left', 'upperarm:right',
+      ];
+      const fallbackSections = expectedSections.filter((section) =>
+        !renderedSections.has(section) && !hiddenSections.has(section));
+      if (fallbackSections.length) {
+        const note = `Better Bodies first-person mesh did not provide recognized sections for ${fallbackSections.join(', ')}; standard arm meshes remain as fallback for those sections.`;
+        missing.push(note);
+        console.warn('[Better Bodies] first-person arm section fallback:', fallbackSections);
+      }
+    }
     stage('meshes');
     // MW-D11: the textures the assembled pieces NAME, resolved through
     // rule 36's path law and decoded now - while the archives are still
