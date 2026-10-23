@@ -2321,15 +2321,6 @@ export function bindPartsInto(assembly, parts) {
     // `part.bones` overrides the table so a test can drive real assembly
     // against a fixture skeleton whose bone names are not Morrowind's.
     const bones = part.bones ?? mod.PART_BONES[part.slot] ?? [];
-    // A vanilla arm is a fallback for one Better Bodies section, not a second
-    // layer over it. Decide per bone so a partial replacement can still use
-    // its valid hand/wrist while the missing side remains visible.
-    if (part.fallbackBetterBodies) {
-      const side = /\\bleft\\b/i.test(String(bone ?? '')) ? 'left'
-        : /\\bright\\b/i.test(String(bone ?? '')) ? 'right' : null;
-      const region = ({ hand: 'hand', wrist: 'wrist', forearm: 'forearm', upperarm: 'upperarm' })[part.slot];
-      if (side && region && betterBodiesSections.has(`${region}:${side}`)) continue;
-    }
     // MW-BRIG2: a worn model of the port's own is SKINNED FROM THE BODY under it (formats/morrowind/mwSkinTransfer.js) - it
     // moves by the body's own bones and binds, never by an attach node the body does not use.
     if (part.skinFrom) { bindSkinnedFromBody(assembly, part, bones); continue; }
@@ -2353,6 +2344,14 @@ export function bindPartsInto(assembly, parts) {
     const piecesBefore = pieces.length;
     let shapeCensus = null;
     for (const bone of bones.length ? bones : [null]) {
+      // Keep vanilla geometry only for arm sections the Better Bodies mesh
+      // did not provide. The check is per bone so partial meshes stay usable.
+      if (part.fallbackBetterBodies) {
+        const side = /\bleft\b/i.test(String(bone ?? '')) ? 'left'
+          : /\bright\b/i.test(String(bone ?? '')) ? 'right' : null;
+        const region = ({ hand: 'hand', wrist: 'wrist', forearm: 'forearm', upperarm: 'upperarm' })[part.slot];
+        if (side && region && betterBodiesSections.has(region + ':' + side)) continue;
+      }
       if (bone && !skeleton.byName.has(bone.toLowerCase())) {
         notes.push(`${part.slot}: this skeleton has no bone "${bone}"`);
         continue;
