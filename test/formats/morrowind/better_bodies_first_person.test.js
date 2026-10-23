@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { betterBodiesFallbackSectionKey, betterBodiesSectionKey } from '../../../src/formats/morrowind/mwFirstPerson.js';
+import { applyBetterBodiesUvEdits, betterBodiesFallbackSectionKey, betterBodiesSectionKey } from '../../../src/formats/morrowind/mwFirstPerson.js';
 
 test('first-person Better Bodies fallback maps each arm slot to its side-specific section', () => {
   for (const slot of ['hand', 'wrist', 'forearm', 'upperarm']) {
@@ -32,4 +32,15 @@ test('Better Bodies arm sections match common NIF naming variants without swallo
   for (const shape of ['Finger0 Left', 'Weapon Bone', 'Left Shoulder', 'Tri Unknown']) {
     assert.equal(betterBodiesSectionKey(shape), null, shape);
   }
+});
+
+test('Better Bodies UV corrections target stable NIF section names before fallback indices', () => {
+  const chest = { name: 'Tri Chest', uvs: new Float32Array([0.25, 0.5, 0.75, 1]) };
+  const arm = { name: 'Tri Left Upper Arm', uvs: new Float32Array([0.5, 0.25, 1, 0.75]) };
+  const applied = applyBetterBodiesUvEdits([chest, arm], [
+    { meshIndex: 0, name: 'Tri Left Upper Arm', transform: { u: 0.1, v: 0, su: 0.5, sv: 1 } },
+  ]);
+  assert.equal(applied, 1);
+  assert.deepEqual([...arm.uvs], [0.35, 0.25, 0.6, 0.75]);
+  assert.deepEqual([...chest.uvs], [0.25, 0.5, 0.75, 1], 'a stale mesh index must not edit the chest instead');
 });
