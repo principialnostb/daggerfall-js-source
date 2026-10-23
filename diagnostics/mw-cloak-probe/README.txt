@@ -63,7 +63,10 @@ The screening script writes:
 - diagnostics/mw-cloak-probe/cloak-diagnostic-report.json
 - diagnostics/mw-cloak-probe/cloak-diagnostic-report.html
 
-Then run the triangle-surface intersection pass:
+Run both analyses sequentially with one command:
+    npm run mwcloak:analyze:all
+
+Or run only the triangle-surface intersection pass:
     npm run mwcloak:intersections
 
 Or choose a capture explicitly:
