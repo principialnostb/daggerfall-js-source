@@ -3490,15 +3490,17 @@ function applyPre(positions, pre) {
  * Names are the NIF section names (for example "Tri Chest"), while shadows
  * are ARMO_PART keys such as "chest" and "hand:right".
  */
-export function betterBodiesSectionKey(shapeName) {
-  // NIF exporters do not agree on whether the side comes first, whether
-  // "upper arm" is one word, or whether the Tri prefix is present. Normalize
-  // those harmless naming differences before matching the body sections;
-  // otherwise the vanilla arm is left visible over a valid Better Bodies arm.
+export export function betterBodiesSectionKey(shapeName) {
+  // Better Bodies NIFs can name a drawable after the anatomy ("Hand L")
+  // or after its skeleton node ("Bip01 L Hand"). Normalize exporter
+  // prefixes as well as side/region order; failing to strip Bip01 leaves
+  // every section unrecognized and the vanilla arm remains visible.
   const name = String(shapeName || '').trim().toLowerCase()
-    .replace(/^tri\s+/, '')
+    .replace(/^tri\\s+/, '')
     .replace(/[._-]+/g, ' ')
-    .replace(/\s+/g, ' ')
+    .replace(/\\s+/g, ' ')
+    .trim()
+    .replace(/^(?:(?:bip(?:ed)?\\s*0?1|skeleton|scene root|root)\\s+)+/, '')
     .trim();
   if (['chest', 'groin', 'neck', 'head', 'hair', 'tail'].includes(name)) return name;
   const regions = {
