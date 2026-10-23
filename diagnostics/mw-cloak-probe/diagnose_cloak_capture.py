@@ -28,7 +28,10 @@ def vec3(mesh):
     if not isinstance(raw, list) or len(raw) < 3 or len(raw) % 3:
         return np.empty((0, 3), dtype=float)
     arr = np.asarray(raw, dtype=float).reshape((-1, 3))
-    return arr[np.isfinite(arr).all(axis=1)]
+    # Preserve vertex/index correspondence; reject the mesh if coordinates are non-finite.
+    if not np.isfinite(arr).all():
+        return np.empty((0, 3), dtype=float)
+    return arr
 
 
 def bounds(points):
@@ -48,7 +51,8 @@ def mesh_info(mesh, group, index, frame_index):
     points = vec3(mesh)
     raw_indices = mesh.get("indices", [])
     vertex_count = len(mesh.get("positions", [])) // 3
-    valid = isinstance(raw_indices, list) and len(raw_indices) % 3 == 0
+    indices_present = isinstance(raw_indices, list) and len(raw_indices) > 0
+    valid = indices_present and len(raw_indices) % 3 == 0 and vertex_count > 0
     if valid:
         valid = all(isinstance(i, int) and not isinstance(i, bool) and 0 <= i < vertex_count
                     for i in raw_indices)
@@ -58,8 +62,9 @@ def mesh_info(mesh, group, index, frame_index):
         "slot": mesh.get("slot", ""), "name": mesh.get("name", ""),
         "kind": mesh.get("kind", ""), "points": points,
         "vertex_count": vertex_count, "triangle_count": len(indices) // 3,
-        "indices_valid": bool(valid), "bounds": bounds(points),
-        "source": mesh,
+        "indices_present": bool(indices_present),
+        "indices_valid": bool(valid), "positions_finite": len(points) == vertex_count,
+        "bounds": bounds(points), "source": mesh,
     }
 
 
@@ -79,6 +84,11 @@ def main():
     frames = data.get("frames") if isinstance(data, dict) else None
     if not isinstance(frames, list):
         parser.error("Capture schema error: expected root.frames array")
+    if not frames:
+        parser.error("Capture contains zero frames. Run the browser probe and download mw-cloak-capture.json; the empty placeholder is not usable.")
+    declared_count = data.get("sampleCount")
+    if isinstance(declared_count, int) and declared_count > 0 and declared_count != len(frames):
+        print(f"Warning: sampleCount={declared_count}, but frames has {len(frames)} entries.", file=sys.stderr)
 
     pair_rows = []
     frame_rows = []
@@ -95,9 +105,12 @@ def main():
         for group_meshes in groups.values():
             for m in group_meshes:
                 mesh_count += 1
-                if not m["indices_valid"] and m["kind"] == "skinned":
+                if (not m["indices_valid"] or not m["positions_finite"]) and m["kind"] == "skinned":
                     invalid_meshes.append({"frame": fi, "group": m["group"], "slot": m["slot"],
+                                           "indices_present": m["indices_present"],
                                            "indices_count": len(m["source"].get("indices", [])),
+                                           "indices_valid": m["indices_valid"],
+                                           "positions_finite": m["positions_finite"],
                                            "vertices": m["vertex_count"]})
                 key = (m["group"], m["mesh_index"], m["slot"])
                 if key in previous and len(previous[key]) == len(m["points"]) and len(m["points"]):
@@ -132,7 +145,11 @@ def main():
                     "closest_legs_vertex": b["points"][int(idx[ci])].tolist(),
                     "aabb_overlap": bounds_overlap,
                     "cloak_triangles": c["triangle_count"], "legs_triangles": b["triangle_count"],
+                    "cloak_indices_present": c["indices_present"],
+                    "legs_indices_present": b["indices_present"],
                     "triangle_indices_valid": c["indices_valid"] and b["indices_valid"],
+                    "cloak_positions_finite": c["positions_finite"],
+                    "legs_positions_finite": b["positions_finite"],
                     "candidate_near": float(dist[ci]) <= args.near,
                 }
                 pair_rows.append(row)
@@ -161,6 +178,8 @@ def main():
         "limitations": [
             "AABB overlap and nearest-vertex distance are screening signals, not proof of triangle intersection.",
             "Triangle indices are validated and triangle counts reported; exact triangle-triangle intersection is not computed by this first-pass analyzer.",
+            "Empty/missing triangle indices are distinct from valid indices and prevent surface checks.",
+            "Meshes with non-finite vertex coordinates are excluded from spatial queries.",
             "Rigid boot meshes without indices cannot be checked for surface intersections.",
             "Frame-to-frame vertex steps are only comparable when vertex counts and mesh identity remain stable.",
         ],
