@@ -8108,7 +8108,8 @@ export function createFpArm({ playerAppearance = false } = {}) {
           // every posed frame. Both meshes are skinned/attached through the same
           // live pose; contact is local to the shield footprint and does not
           // disable or replace the cloth simulation.
-          if (t.arm.pose && t.arm.mats) {
+          const shieldCombatReadyNow = weaponInHand() && !sheathed && !spellStance() && !climbHands;
+          if (!shieldCombatReadyNow && t.arm.pose && t.arm.mats) {
             const shieldBack = t.arm.pieces.find((piece) => /^shield-back\b/i.test(piece.slot ?? ''));
             const clothPieces = t.arm.pieces.filter((piece) => piece.clothPhysics && isCloakSlot(piece.slot));
             if (shieldBack && clothPieces.length) {
