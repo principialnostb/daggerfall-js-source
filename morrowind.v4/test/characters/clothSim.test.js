@@ -213,3 +213,52 @@ test('pelvis ellipsoid keeps cloak particles outside without injecting collision
   assert.ok(Math.hypot(c.pos[3]-c.prev[3], c.pos[4]-c.prev[4], c.pos[5]-c.prev[5]) < 1e-5,
     'collision ejection injected artificial velocity');
 });
+
+test('cloak pelvis clearance survives a two-handed attack pose sweep', () => {
+  const c = buildCloth({
+    rows: 3, cols: 2, wrap: false,
+    pos: Float32Array.from([
+      -0.10, 1.04, -0.04,  0.10, 1.04, -0.04,
+      -0.10, 0.92, -0.12,  0.10, 0.92, -0.12,
+      -0.10, 0.80, -0.08,  0.10, 0.80, -0.08,
+    ]),
+    pin: new Uint8Array(6),
+    faces: [],
+  }, 0);
+  const pelvis = { x: 0, y: 0.88, z: -0.02, rx: 0.195, ry: 0.152, rz: 0.165, backOnly: true };
+  const pivot = 1.0;
+  for (let s = 0; s < 180; s++) {
+    // Sweep the same lean/twist channels driven by a heavy weapon attack;
+    // collision is checked after each pose, not just at the idle endpoint.
+    const phase = s * Math.PI / 45;
+    const lean = 0.48 * Math.sin(phase);
+    const twist = 0.62 * Math.sin(phase + 0.7);
+    const rootX = 0.035 * Math.sin(phase);
+    const rootY = 0.012 * Math.cos(phase * 2);
+    const rootZ = 0.025 * Math.sin(phase + 0.4);
+    stepCloth(c, 1 / 120, {
+      gx: 0, gy: 0, gz: 0, damp: 0, maxStep: 0,
+      lean, leanPivot: pivot, twist,
+      rootX, rootY, rootZ,
+      ellipsoids: [pelvis], capsules: null,
+      collisionPasses: 12, standoff: SO,
+    }, core);
+    const cl = Math.cos(lean), sl = Math.sin(lean);
+    const ct = Math.cos(twist), st = Math.sin(twist);
+    for (let i = 0; i < c.V; i++) {
+      if (c.pinned[i]) continue;
+      let x = c.pos[i * 3] - rootX;
+      let y = c.pos[i * 3 + 1] - rootY;
+      let z = c.pos[i * 3 + 2] - rootZ;
+      const dy = y - pivot;
+      [y, z] = [pivot + cl * dy + sl * z, -sl * dy + cl * z];
+      [x, z] = [ct * x - st * z, st * x + ct * z];
+      if (z >= 0 || y < 0.70 || y > 1.06) continue;
+      const e = (x - pelvis.x) ** 2 / (pelvis.rx + SO) ** 2
+        + (y - pelvis.y) ** 2 / (pelvis.ry + SO) ** 2
+        + (z - pelvis.z) ** 2 / (pelvis.rz + SO) ** 2;
+      assert.ok(e >= 0.985,
+        `cape vertex ${i} entered the pelvis during attack pose ${s} (e=${e.toFixed(3)})`);
+    }
+  }
+});
