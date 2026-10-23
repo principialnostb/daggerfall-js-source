@@ -106,4 +106,4 @@ app bundles NO game data - same doctrine as the site.
 
 ## Vanilla Animated cloak collision
 
-The working branch `fix/vanilla-animated-cloak-collision` contains an in-progress 3D triangle-contact redesign intended to address intermittent body-through-cloak clipping during walking and attacks. The implementation, test command, performance considerations, and remaining validation limits are documented in [Vanilla Animated cloak collision](docs/Vanilla-Animated-Cloak-Collision.md). Back-slung weapons and scabbards remain independent of live cloak animation.
+The working branch `fix/vanilla-animated-cloak-collision` restores the previous X/Z height-field cloak contact method and widens the body-sampling bounds from 1 to 2 rig-space units in X/Z. This is a limited experiment to catch leg contacts outside the old sampling region; in-game visual and collision validation is still required. See [Vanilla Animated cloak collision](docs/Vanilla-Animated-Cloak-Collision.md). Back-slung weapons and scabbards remain independent of live cloak animation.
