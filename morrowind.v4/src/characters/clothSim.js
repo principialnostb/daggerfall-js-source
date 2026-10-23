@@ -149,7 +149,6 @@ export function stepCloth(cloth, dt, opts, core) {
   // used by animateTarget: root translation + bob, then torso lean, then twist.
   // This keeps collision volumes aligned during attacks instead of approximating
   // an animated torso as a static ellipse shifted only along Z.
-  const twist = opts.twist || 0, tc = Math.cos(twist), ts = Math.sin(twist);
   const bodyBob = opts.bodyBob || 0;
   const toBodyLocal = (x, y, z) => {
     x -= rootX; y -= rootY + bodyBob; z -= rootZ;
