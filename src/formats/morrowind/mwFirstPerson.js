@@ -3096,6 +3096,29 @@ export function poseAssembly(assembly, { tracks = null, sampleTrack = null,
   // cloak (formats/morrowind/mwCloakFit.js followCloak), which reads the cloak where this pose just put it
   if (assembly.afterPose) assembly.afterPose(assembly);
   assembly.bounds = pieces.length ? foldPieceBounds(pieces) : null;   // PR-BOW1b: and each piece's own box, in the same walk
+  // MW-CLOAK-PROBE: opt-in, read-only telemetry for reproducing live cloak/body
+  // intersections. Never changes pose, geometry, animation selection, or timing.
+  // The external probe enables this by setting window.__mwCloakProbeEnabled.
+  if (typeof window !== 'undefined' && window.__mwCloakProbeEnabled === true
+      && typeof window.__mwCloakProbeOnPose === 'function') {
+    try {
+      window.__mwCloakProbeOnPose({
+        time, cpuSkinned: assembly.cpuSkinned,
+        pieces: pieces.map((p) => ({
+          slot: String(p.slot ?? ''), kind: String(p.kind ?? ''),
+          name: String(p.name ?? p.id ?? ''),
+          positions: p.positions ? Array.from(p.positions) : [],
+          indices: p.batch?.indices ? Array.from(p.batch.indices) : [],
+        })),
+        bones: [...(skeleton.nodes ?? [])].map(([ref, node]) => ({
+          ref: String(ref), name: String(node?.name ?? ''),
+          matrix: mats?.get?.(ref) ? Array.from(mats.get(ref)) : null,
+        })),
+      });
+    } catch (error) {
+      window.__mwCloakProbeError = String(error?.stack ?? error);
+    }
+  }
   return assembly;
 }
 
