@@ -355,11 +355,20 @@ function stepDrapeCloth(phase, motion, bob, L) {
   const lean = (motion > 0.5 && L) ? L.lean : 0;
   const rp = effectivePose() || {};
   const leanAll = lean + (rp.lean || 0);   // pins follow the FULL torso lean (gait + pose + attack), not just the gait's
-  const opts = { gy: -7, gx: motion * 0.3 * Math.sin(phase), gz: -motion * 0.9, pinDY: bob, lean: leanAll, leanPivot: hipY + 0.10, iters: 10, damp: 0.90, maxStep: 0.04, groundY: 0.02,
+  // Cloaks should read as the authored low-poly silhouette with only slight inertia.
+  // The same Verlet solver is used, but the cloak receives a much smaller force and step budget.
+  const opts = { gy: isCloak ? -1.8 : -4.0,
+    gx: motion * (isCloak ? 0.08 : 0.20) * Math.sin(phase),
+    gz: -motion * (isCloak ? 0.22 : 0.55), pinDY: bob, lean: leanAll, leanPivot: hipY + 0.10,
+    iters: isCloak ? 6 : 8, damp: isCloak ? 0.88 : 0.90, maxStep: isCloak ? 0.008 : 0.018,
+    groundY: 0.02, collisionPasses: isCloak ? 8 : 6,
+    // A small back-only pelvis ellipsoid fills the gap left by the height-only torso profile.
+    ellipsoids: isCloak ? [{ x: 0, y: hipY - 0.02, z: -0.02, rx: 0.17, ry: 0.13, rz: 0.125, backOnly: true }] : [],
     rootX: rp.rootX || 0, rootY: rp.rootY || 0, rootZ: rp.rootZ || 0,
     capsules: shoulderDrape ? (motion > 0.5 ? col.caps : null) : col.caps, bones: shoulderDrape ? null : col.bones };
-  stepCloth(cs.cloth, 1/60, opts, coreFn);
-  stepCloth(cs.cloth, 1/60, opts, coreFn); // 2 substeps for stability
+  // Two half-size substeps avoid large frame-to-frame kicks without doubling simulated time.
+  stepCloth(cs.cloth, 1/120, opts, coreFn);
+  stepCloth(cs.cloth, 1/120, opts, coreFn);
   cs.posArr.set(cs.cloth.pos); cs.geo.attributes.position.needsUpdate = true;
   cs.geo.computeVertexNormals(); shadeClothGeo(cs.geo, cs.mat);
 }
