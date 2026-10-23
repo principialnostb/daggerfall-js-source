@@ -2079,9 +2079,12 @@ function correctVanillaAnimatedCloakContacts(arm, piece, pose) {
     isUnder: (p) => underSlots.has(p.slot) && p.slot !== 'tail' && !/^shield\b/.test(p.slot),
     poses: [pose],
     passes: 1,
-    // Match the static fit's dense sampling so narrow boot, greave, and clothing surfaces
-    // are less likely to fall between live-pose contact samples.
+    // Keep dense edge sampling for narrow boot/greave surfaces, but skip triangle
+    // interiors in this per-frame path: rebuilding those samples every frame caused
+    // large allocation/CPU spikes and visibly jerky movement. The one-time static
+    // fit still includes triangle interiors.
     sampleStep: 1,
+    includeTriangleInteriors: false,
     updatePosed: false,
   });
   const positions = piece.batch.positions;
