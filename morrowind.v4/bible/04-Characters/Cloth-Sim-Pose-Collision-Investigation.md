@@ -38,6 +38,12 @@ The first corrective pass is now committed on this branch:
 - Leg capsules follow the current gait pose while moving and the active pose's leg swing/bend while stationary. Root translation is applied to the capsule endpoints as well.
 - Added a deterministic regression test for torso collision under combined lean, twist, bob, and root translation.
 
+## Follow-up diagnosis
+
+A remaining collision-order defect was found in the live solver: each pass projected leg capsules in world space and then projected the torso core in torso-local space. Transforming the corrected point back to world space could put it back inside a leg capsule, because the leg is animated independently of the torso lean/twist. The core profile also spans torso and legs, so applying the full torso inverse transform to every point misaligns the lower-body portion.
+
+The corrective pass now fades torso lean/twist out around the hip and performs a final world-space leg-capsule clearance pass after torso projection. This is a targeted correction to the collision-frame mismatch, not proof that every attack is fixed; the live overhead two-handed strike still requires visual verification.
+
 ## Verification boundary
 
 - The combined generated viewer script passes a JavaScript syntax parse.
