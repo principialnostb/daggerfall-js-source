@@ -38,6 +38,7 @@
 // identity and this file reloads on identity change - AUDIT 23).
 
 import { ImgFile } from '../formats/imgFile.js';
+import { getAppearanceIdentity } from '../characters/bodyMorphs.js';
 import { packImgTexture } from './packArt.js';   // OVH2: a worn UI pack's backdrop
 import { racialPaperDollBackground, racialOverrideHeadArt, racialSuppressPaperDollBodyAndItems } from '../systems/vampirism.js';   // V5: the curse art laws, both curses' one switch
 import { CifRciFile } from '../formats/cifRciFile.js';
@@ -211,6 +212,7 @@ let _pending = null;   // AUDIT 17e F16: the coalesced follow-up
  *  boot, and the doll must follow) - `_identity` is the guard that
  *  used to be a bare `if (_art) return`. */
 let _identity = null;
+let _lastEntity = null;
 /** The IDENT the loaded set was built from, not just its key - the
  *  context and the region live here, so the drift check below can ask
  *  for the entity's identity WHERE the doll already is. */
@@ -242,14 +244,40 @@ export const paperDollIdentityKey = ({ race = 'Breton', gender = 'male', faceInd
  *  loaded with, or null when what is loaded already fits. Pure.
  *  Context and region are the loaded set's own - a load does not move
  *  the player, so only the identity can have drifted. */
-export function paperDollIdentityDrift(entity, ident = _ident) {
-  if (!ident) return null;
-  const want = {
-    ...ident,
+const PAPERDOLL_RACE_FOR_APPEARANCE = Object.freeze({
+  breton: 'Breton', 'dark elf': 'DarkElf', 'high elf': 'HighElf',
+  imperial: 'Breton', nord: 'Nord', orc: 'Nord', redguard: 'Redguard',
+  'wood elf': 'WoodElf', argonian: 'Argonian', khajiit: 'Khajiit',
+});
+
+/**
+ * Display-only identity for the paperdoll and gendered item art.
+ * The appearance editor's saved choice is deliberately never copied onto
+ * the gameplay entity: combat, race abilities, saves and game rules keep
+ * reading the real entity identity. Morrowind-only races use the closest
+ * Daggerfall paperdoll body family where no matching classic body exists.
+ */
+export function paperDollDisplayIdentity(entity, appearance = getAppearanceIdentity()) {
+  const actual = {
     race: entity?.race ?? 'Breton',
     gender: entity?.gender ?? 'male',
     faceIndex: entity?.faceIndex ?? 0,
   };
+  if (!appearance) return actual;
+  const raceKey = String(appearance.race ?? '').trim().toLowerCase();
+  const race = PAPERDOLL_RACE_FOR_APPEARANCE[raceKey];
+  return {
+    race: race ?? actual.race,
+    gender: typeof appearance.female === 'boolean'
+      ? (appearance.female ? 'female' : 'male')
+      : actual.gender,
+    faceIndex: Number.isInteger(appearance.faceIndex) ? appearance.faceIndex : actual.faceIndex,
+  };
+}
+
+export function paperDollIdentityDrift(entity, ident = _ident) {
+  if (!ident) return null;
+  const want = { ...ident, ...paperDollDisplayIdentity(entity) };
   return paperDollIdentityKey(want) === paperDollIdentityKey(ident) ? null : want;
 }
 
@@ -345,10 +373,7 @@ export async function preloadPaperDollArt(deps, ident = {}) {
 /** Load the art for whatever identity the entity currently carries
  *  (chargen writes race/gender/faceIndex onto it). */
 export const preloadPaperDollForEntity = (deps, entity, context = 'town') =>
-  preloadPaperDollArt(deps, {
-    race: entity?.race ?? 'Breton', gender: entity?.gender ?? 'male',
-    faceIndex: entity?.faceIndex ?? 0, context,
-  });
+  preloadPaperDollArt(deps, { ...paperDollDisplayIdentity(entity), context });
 export const paperDollArtLoaded = () => !!_art;
 
 /** Blit an indexed bitmap into the 110x184 RGBA composite at its
@@ -614,6 +639,7 @@ async function composeDoll(art, deps, entity, { background = true, scale: S = 1 
 }
 
 export async function refreshPaperDoll(entity) {
+  _lastEntity = entity ?? _lastEntity;
   if (!_art || !_deps) return;
   // AUDIT 17e F16 / ASYNC NEVER DROPS: this guard used to DISCARD a
   // refresh requested while one was in flight, so an equip landing
@@ -663,6 +689,15 @@ export async function refreshPaperDoll(entity) {
     _refreshing = false;
     if (_pending) { const next = _pending; _pending = null; await refreshPaperDoll(next); }
   }
+}
+
+// Appearance edits are visual-only, but the open inventory should repaint as soon
+// as the editor commits them. Recompose from the same live entity/equipment;
+// only paperDollDisplayIdentity changes the art lookup.
+if (typeof globalThis.addEventListener === 'function') {
+  globalThis.addEventListener('mw-appearance-identity-change', () => {
+    if (_lastEntity) void refreshPaperDoll(_lastEntity);
+  });
 }
 
 /** One TEXTURE.### record as an indexed bitmap + its baked offset
