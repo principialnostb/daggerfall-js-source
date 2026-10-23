@@ -113,3 +113,9 @@ Follow this sequence before changing runtime behavior:
 - `diagnostics/mw-cloak-probe/cloak-triangle-intersections.json/.html`: triangle-test output.
 - `diagnostics/mw-cloak-probe/cloak-intersection-viewer.html`: generated visualization.
 - `diagnostics/mw-cloak-probe/mw-cloak-capture.json`: raw runtime capture; regenerate reports/viewer whenever this changes.
+
+## Visual confirmation from the reporter
+
+The reporter inspected the generated `cloak-intersection-viewer.html` and confirmed that the displayed geometry matches the originally reported cloak-through-right-leg problem. This validates that the capture/viewer is useful for investigating the visible symptom, but it does not by itself identify which animation state each numbered frame represents or prove the implementation-level root cause.
+
+This distinction matters because the measured triangle report currently names the cloak and the groin/trousers mesh. The next pass must trace the right thigh/calf/boot geometry and identify the exact attack/walk/combat-walk frames before changing the fit algorithm. Existing pose-envelope fitting in `src/formats/morrowind/mwCloakFit.js` is a static bind-time fit; do not assume that its presence guarantees clearance in every live pose. Compare the captured posed geometry against the fit inputs and verify whether the live cloak/body transforms agree.
