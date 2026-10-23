@@ -44,13 +44,13 @@
     "mwarm": "node tools/mwArmProbe.mjs",
     "mwviewer": "node tools/mwViewerProbe.mjs",
     "mwattach": "node tools/mwAttachProbe.mjs",
-    "mwcloakprobe": "node tools/mwCloakAnimationProbe.mjs"
+    "mwcloakprobe": "node tools/mwCloakAnimationProbe.mjs",
+    "mwcloak:analyze": "python diagnostics/mw-cloak-probe/diagnose_cloak_capture.py"
   },
   "devDependencies": {
     "acorn": "^8.18.0",
     "esbuild": "^0.28.1",
     "eslint": "^10.10.0",
-    "playwright": "^1.56.0",
     "pngjs": "^7.0.0",
     "rollup": "^4.62.2",
     "typescript": "^7.0.2",
