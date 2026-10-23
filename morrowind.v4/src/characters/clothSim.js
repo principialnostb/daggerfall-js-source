@@ -80,6 +80,48 @@ function pushEllipsoid(px, py, pz, C, SO) {
 // last so cloth always ends outside the body. `core` = makeCoreFn(BODY_CORE).
 export function stepCloth(cloth, dt, opts, core) {
   const { pos, prev, base, pinned, con, V } = cloth;
+
+  // The solver stores particles in the character's local scene coordinates.
+  // Previously only pinned rows followed the torso pose; every free vertex
+  // stayed in the old pose while the body and collision proxies moved. A
+  // fast attack could therefore move the body through an otherwise "static"
+  // cloak. Carry the entire cloth through the same pose-frame delta first,
+  // including previous positions so the frame change does not inject fake
+  // Verlet velocity. Secondary motion is then simulated on top of that pose.
+  const frame = {
+    lean: opts.lean || 0,
+    pivot: opts.leanPivot ?? 1.0,
+    twist: opts.twist || 0,
+    x: (opts.rootX || 0) + (opts.pinDX || 0),
+    y: (opts.rootY || 0) + (opts.pinDY || 0),
+    z: (opts.rootZ || 0) + (opts.pinDZ || 0),
+  };
+  const toWorld = (x, y, z, f) => {
+    if (f.twist) { const c=Math.cos(f.twist), s=Math.sin(f.twist); [x, z] = [c*x + s*z, -s*x + c*z]; }
+    if (f.lean) { const c=Math.cos(f.lean), s=Math.sin(f.lean), dy=y-f.pivot; [y, z] = [f.pivot+c*dy-s*z, s*dy+c*z]; }
+    return [x+f.x, y+f.y, z+f.z];
+  };
+  const toLocal = (x, y, z, f) => {
+    x -= f.x; y -= f.y; z -= f.z;
+    if (f.lean) { const c=Math.cos(f.lean), s=Math.sin(f.lean), dy=y-f.pivot; [y, z] = [f.pivot+c*dy+s*z, -s*dy+c*z]; }
+    if (f.twist) { const c=Math.cos(f.twist), s=Math.sin(f.twist); [x, z] = [c*x-s*z, s*x+c*z]; }
+    return [x, y, z];
+  };
+  const oldFrame = cloth.poseFrame || { lean: 0, pivot: frame.pivot, twist: 0, x: 0, y: 0, z: 0 };
+  const changed = oldFrame.lean !== frame.lean || oldFrame.pivot !== frame.pivot ||
+    oldFrame.twist !== frame.twist || oldFrame.x !== frame.x || oldFrame.y !== frame.y || oldFrame.z !== frame.z;
+  if (changed) {
+    for (let i=0; i<V; i++) {
+      const o=i*3;
+      const local = toLocal(pos[o], pos[o+1], pos[o+2], oldFrame);
+      const world = toWorld(local[0], local[1], local[2], frame);
+      const priorLocal = toLocal(prev[o], prev[o+1], prev[o+2], oldFrame);
+      const priorWorld = toWorld(priorLocal[0], priorLocal[1], priorLocal[2], frame);
+      pos[o]=world[0]; pos[o+1]=world[1]; pos[o+2]=world[2];
+      prev[o]=priorWorld[0]; prev[o+1]=priorWorld[1]; prev[o+2]=priorWorld[2];
+    }
+    cloth.poseFrame = frame;
+  }
   const start = pos.slice();
   const gx = opts.gx||0, gy = opts.gy ?? -0.8, gz = opts.gz||0;
   // Deliberately restrained defaults: the authored drape carries the silhouette;
