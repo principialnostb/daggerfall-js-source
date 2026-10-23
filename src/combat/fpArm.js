@@ -2812,54 +2812,67 @@ async function buildTpBody({
     // its authored animation without this vertex-coordinate physics pass.
     if (vanillaAnimatedCloaksEnabled()) {
       for (const row of cloakRows) {
+        // Vanilla Animated is an adaptation of the classic cloak path: never
+        // attach the secondary solver to the Simply mesh or alter its authored
+        // rig. The classic mesh and its bind matrices remain the source of truth.
         if (isSimplyCloakModel(row.model)) continue;
-      const piece = arm.pieces.find((candidate) => candidate.slot === row.slot
-        && candidate.kind === 'skinned' && candidate.batch?.positions?.length && candidate.indices?.length);
-      if (!piece) continue;
-      const physics = createCloakPhysics(piece);
-      const fallbackMesh = !isSimplyCloakModel(row.model);
-      if (physics) {
-        piece.clothPhysics = physics;
-        piece.clothPhysicsMaxOffset = physics.maxOffset;
-        // Retain the resolved asset on the piece so per-frame samples can be
-        // correlated with creation events even when several actors share a slot.
-        piece.clothPhysicsResource = `meshes/${row.model}`;
-        piece.clothPhysicsFallbackMesh = fallbackMesh;
-        modDiagnostics.record({
-          level: 'info',
-          phase: 'animation',
-          action: 'cloak-physics-created',
-          modId: 'simply-animated-cloaks',
-          resource: `meshes/${row.model}`,
-          message: fallbackMesh
-            ? 'Dynamic cloth state created for the compatible fallback cloak mesh.'
-            : 'Dynamic cloth state created for the selected Simply Animated Cloak mesh.',
-          details: {
-            vertices: physics.pos.length / 3,
-            constraints: physics.edges.length,
-            pinnedVertices: physics.pinned.reduce((sum, pinned) => sum + pinned, 0),
-            maxOffset: physics.maxOffset,
-            fallbackMesh,
-          },
-        });
-      } else {
-        modDiagnostics.record({
-          level: 'warn',
-          phase: 'animation',
-          action: 'cloak-physics-unavailable',
-          modId: 'simply-animated-cloaks',
-          resource: `meshes/${row.model}`,
-          message: 'The bound cloak mesh could not initialize cloth physics.',
-          details: {
-            fallbackMesh,
-            positionsType: piece.batch?.positions?.constructor?.name ?? null,
-            positionFloats: piece.batch?.positions?.length ?? 0,
-            indexCount: piece.indices?.length ?? 0,
-          },
-        });
+        const piece = arm.pieces.find((candidate) => candidate.slot === row.slot
+          && candidate.kind === 'skinned'
+          && candidate.batch?.positions?.length
+          && candidate.indices?.length);
+        if (!piece) {
+          modDiagnostics.record({
+            level: 'warn',
+            phase: 'animation',
+            action: 'cloak-physics-piece-missing',
+            modId: 'simply-animated-cloaks',
+            resource: `meshes/${row.model}`,
+            message: 'The classic cloak did not produce a skinned piece; vanilla placement is left unchanged.',
+            details: { slot: row.slot, model: row.model },
+          });
+          continue;
+        }
+        const physics = createCloakPhysics(piece);
+        if (physics) {
+          piece.clothPhysics = physics;
+          piece.clothPhysicsMaxOffset = physics.maxOffset;
+          // Retain the resolved asset so diagnostics can identify the exact
+          // classic mesh without inferring it from the currently selected mode.
+          piece.clothPhysicsResource = `meshes/${row.model}`;
+          piece.clothPhysicsFallbackMesh = true;
+          modDiagnostics.record({
+            level: 'info',
+            phase: 'animation',
+            action: 'cloak-physics-created',
+            modId: 'simply-animated-cloaks',
+            resource: `meshes/${row.model}`,
+            message: 'Secondary cloth motion was attached to the classic cloak mesh; its authored placement is retained.',
+            details: {
+              vertices: physics.pos.length / 3,
+              constraints: physics.edges.length,
+              pinnedVertices: physics.pinned.reduce((sum, pinned) => sum + pinned, 0),
+              maxOffset: physics.maxOffset,
+              fallbackMesh: true,
+            },
+          });
+        } else {
+          modDiagnostics.record({
+            level: 'warn',
+            phase: 'animation',
+            action: 'cloak-physics-unavailable',
+            modId: 'simply-animated-cloaks',
+            resource: `meshes/${row.model}`,
+            message: 'The classic cloak piece could not initialize secondary cloth motion; its original placement is retained.',
+            details: {
+              fallbackMesh: true,
+              positionsType: piece.batch?.positions?.constructor?.name ?? null,
+              positionFloats: piece.batch?.positions?.length ?? 0,
+              indexCount: piece.indices?.length ?? 0,
+            },
+          });
+        }
       }
-      }
-}
+    }
     // MW-LOAD: covers collectArmTextures' synchronous reads - rule 36's
     // ladder over the names the assembled pieces carry, which are only
     // knowable now that the NIFs are parsed.
