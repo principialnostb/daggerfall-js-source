@@ -595,7 +595,7 @@ function gearGroups(assembly, isGear) {
  * within HIP_PITCH_LIMIT clears it, or the move back would pass SLUNG_MOVE_LIMIT: left as it hangs) - or null when the
  * body wears no cloak.
  */
-export function fitStowedGear(assembly, { isCloak, isGear, clearance = CLOAK_CLEARANCE, pitchLimit = HIP_PITCH_LIMIT, slungLimit = SLUNG_PITCH_LIMIT, moveLimit = SLUNG_MOVE_LIMIT }) {
+export function fitStowedGear(assembly, { isCloak, isGear, clearance = CLOAK_CLEARANCE, shieldClearance = clearance, pitchLimit = HIP_PITCH_LIMIT, slungLimit = SLUNG_PITCH_LIMIT, moveLimit = SLUNG_MOVE_LIMIT }) {
   const cloaks = assembly.pieces.filter((p) => p.kind === 'skinned' && isCloak(p));
   if (!cloaks.length) return null;
   const rest = poseOf(assembly);
@@ -604,6 +604,8 @@ export function fitStowedGear(assembly, { isCloak, isGear, clearance = CLOAK_CLE
   const back = (x, z) => { let y = null; for (const s of sheets) { const c = s.at(x, z); if (c && (y == null || c.back < y)) y = c.back; } return y; };
   const rows = [];
   for (const [ref, pieces] of gearGroups(assembly, isGear)) {
+    // The back-mounted shield needs its own torso/cloak clearance; don't move unrelated holsters farther out.
+    const groupClearance = pieces.some((p) => /^shield-back\b/i.test(p.slot ?? '')) ? shieldClearance : clearance;
     const at = assembly.fns.attachmentTransform(rest.mats, ref);
     // the search runs on the vertices, cheap, and each answer is held to every sample before it is taken
     const corners = pieces.map((p) => rest.place(p));
@@ -631,7 +633,7 @@ export function fitStowedGear(assembly, { isCloak, isGear, clearance = CLOAK_CLE
       // vertices ask, and the search stops at the first whose vertices already ask more than the best found: exact
       const needAt = (set, deg) => {
         let need = 0; let here = false;
-        each(set, deg, (x, y, z) => { const s = back(x, z); if (s == null) return; here = true; need = Math.max(need, y - (s - clearance)); });
+        each(set, deg, (x, y, z) => { const s = back(x, z); if (s == null) return; here = true; need = Math.max(need, y - (s - groupClearance)); });
         return here ? need : null;
       };
       const turns = [];
@@ -657,7 +659,7 @@ export function fitStowedGear(assembly, { isCloak, isGear, clearance = CLOAK_CLE
       if (best.need > 1e-4 || best.deg) move = { rot: best.deg ? pitch(best.deg) : null, d: [0, -best.need, 0], how: 'over', by: best.need, deg: best.deg };
     } else {
       // under it: the least whole degree forward that keeps every piece in front of the sheet's front
-      const clearAt = (set, deg) => each(set, deg, (x, y, z) => { const s = front(x, z); if (s == null) return; reached = true; if (y < s + clearance) return false; });
+      const clearAt = (set, deg) => each(set, deg, (x, y, z) => { const s = front(x, z); if (s == null) return; reached = true; if (y < s + groupClearance) return false; });
       // the vertices find the least turn that could clear (every sample clear means every vertex clear), the samples
       // go on from there - the same degree the samples alone would find
       let deg = 0;
