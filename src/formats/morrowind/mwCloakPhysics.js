@@ -68,7 +68,7 @@ export function createCloakPhysics(piece) {
   }
   if (!edges.length) return null;
   return {
-    base, pos, prev, pinned, edges, time: 0, maxOffset: MAX_OFFSET,
+    base, pos, prev, pinned, edges, minZ, maxZ, time: 0, maxOffset: MAX_OFFSET,
     baseNormals: piece.batch.normals ? Float32Array.from(piece.batch.normals) : null,
     normals: piece.batch.normals ?? null,
   };
@@ -130,7 +130,7 @@ export function stepCloakPhysics(piece, dt, motion = 0) {
     // NIF positions are in Morrowind world units (the cloak is tens of units tall), not metres.
     // The previous sub-3-unit/s² wind produced only thousandths of a unit per frame and looked rigid.
     // Keep Verlet's dt² integration, but use accelerations scaled to the mesh's authored coordinate space.
-    const hemWeight = Math.max(0, Math.min(1, (maxOffsetSafe(base, o + 2) - base[o + 2]) / 1));
+    const hemWeight = Math.max(0, Math.min(1, (state.maxZ - base[o + 2]) / Math.max(1e-4, state.maxZ - state.minZ)));
     let dx = (x - prev[o]) * DAMPING
       + Math.sin(state.time * (move > 0.8 ? 2.7 : 1.7) + base[o + 2] * 0.17) * (18 + move * 72) * dt2;
     // Walking alternates the cloth laterally; running adds a sustained backward drag.
