@@ -28,3 +28,18 @@ The pre-investigation cloth solver is documented in [Cloth-Sim-Baseline.md](./Cl
 4. Add deterministic tests for abrupt articulated-pose changes as well as gait motion.
 
 This note is a diagnostic checkpoint, not a claim that the runtime fix is complete. The live viewer still needs visual verification after the code changes.
+
+## Implementation status
+
+The first corrective pass is now committed on this branch:
+
+- Cloak pins apply the same torso twist-then-lean order as the visible rig.
+- Torso-core and pelvis collision are evaluated in rest-local space by inverting the current root translation, bob, lean, and twist, then transforming the corrected point back to world space.
+- Leg capsules follow the current gait pose while moving and the active pose's leg swing/bend while stationary. Root translation is applied to the capsule endpoints as well.
+- Added a deterministic regression test for torso collision under combined lean, twist, bob, and root translation.
+
+## Verification boundary
+
+- The combined generated viewer script passes a JavaScript syntax parse.
+- Synthetic regression checks passed for solver stability, torso clearance, and a 700-step articulated-leg gait.
+- The actual browser preview and the specific overhead two-handed attack still need visual verification. The changes are intended to correct the pose/collider mismatch, but they are not claimed to have eliminated every visible intersection yet.
