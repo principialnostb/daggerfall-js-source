@@ -2384,22 +2384,7 @@ export function bindPartsInto(assembly, parts) {
       // flattened skin sections before they are packed for the live renderer.
       // The Better Bodies body is authored as skinned sections in NIF order.
       if (Array.isArray(part.uvEdits) && bound.skinned) {
-        for (const edit of part.uvEdits) {
-          // JSON meshIndex comes from flattenNif's drawable-section order.
-          // bindPart can omit non-skinned sections, so prefer the stable NIF
-          // section name and use the index only as a compatibility fallback.
-          const wantedName = String(edit.name || '').trim().toLowerCase();
-          const batch = (wantedName
-            ? bound.skinned.find((candidate) => String(candidate.name || '').trim().toLowerCase() === wantedName)
-            : null) ?? bound.skinned[edit.meshIndex];
-          const transform = edit.transform;
-          if (!batch?.uvs || !transform) continue;
-          const { u = 0, v = 0, su = 1, sv = 1 } = transform;
-          for (let i = 0; i + 1 < batch.uvs.length; i += 2) {
-            batch.uvs[i] = batch.uvs[i] * su + u;
-            batch.uvs[i + 1] = batch.uvs[i + 1] * sv + v;
-          }
-        }
+        applyBetterBodiesUvEdits(bound.skinned, part.uvEdits);
       }
       const bonePiecesBefore = pieces.length;
       if (bound.retargetedBones?.length) {
@@ -3547,6 +3532,28 @@ export function betterBodiesSectionKey(shapeName) {
 function betterBodiesSectionShadowed(shapeName, shadows = []) {
   const key = betterBodiesSectionKey(shapeName);
   return Boolean(key && (shadows ?? []).includes(key));
+}
+
+/** Apply the project's checked-in UV corrections to matching flattened NIF sections.
+ * Prefer stable section names; the index is only a compatibility fallback because
+ * skinned-only binding can omit sections from the original NIF order. */
+export function applyBetterBodiesUvEdits(batches, edits) {
+  let applied = 0;
+  for (const edit of edits ?? []) {
+    const wantedName = String(edit?.name || '').trim().toLowerCase();
+    const batch = (wantedName
+      ? batches?.find((candidate) => String(candidate.name || '').trim().toLowerCase() === wantedName)
+      : null) ?? batches?.[edit.meshIndex];
+    const transform = edit?.transform;
+    if (!batch?.uvs || !transform) continue;
+    const { u = 0, v = 0, su = 1, sv = 1 } = transform;
+    for (let i = 0; i + 1 < batch.uvs.length; i += 2) {
+      batch.uvs[i] = batch.uvs[i] * su + u;
+      batch.uvs[i + 1] = batch.uvs[i + 1] * sv + v;
+    }
+    applied++;
+  }
+  return applied;
 }
 
 export function betterBodiesFallbackSectionKey(slot, bone) {
