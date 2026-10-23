@@ -13,6 +13,7 @@
 
 import { dyeToken } from '../../characters/dyes.js';   // DW3
 import { inventoryItemImage, inventoryItemModel } from '../../systems/item/itemTemplates.js';
+import { paperDollDisplayIdentity } from '../paperDoll.js';
 import { requestModelIcon } from '../modelIcon.js';   // DISC24-B: the Small Cart's picture is its wagon
 import { drawText, measureText } from '../text.js';
 import { loadImg, drawImgCrop, drawRect } from '../native/nativePanel.js';
@@ -299,7 +300,7 @@ export function makeIconDrawer(icons, identityOf = null) {
     // clothing/armor archives by body morphology, and GetInventory-
     // TextureArchive reads that offset field back. Without it every
     // list drew the morphology-0 (Argonian) row.
-    const img = inventoryItemImage(it, identityOf?.() ?? undefined);
+    const img = inventoryItemImage(it, paperDollDisplayIdentity(identityOf?.() ?? undefined));
     if (!img || !img.archive) return drawModelPicture(renderer, m, it, rect, slot);
     // DW3: the DYE is part of the ask (GetItemImage :458 imports by
     // item.dyeColor), so it is part of this key; the upload answers
