@@ -38,7 +38,6 @@
 // parsed batch's own array), and the live pose's positions are re-placed at once.
 import { GRAPH_ROOT } from './mwSkin.js';
 import { placeAtBone, placeNormalsAtBone } from './mwFirstPerson.js';
-import { buildTriangleGrid3d, nearestTrianglePoint3d } from './mwCloakContact3d.js';
 
 /** Units the cloak keeps behind what it covers, and gear keeps from the cloak. */
 export const CLOAK_CLEARANCE = 1;
@@ -316,129 +315,80 @@ export function fitCloakOver(assembly, { isCloak, isUnder, clearance = CLOAK_CLE
         if (!set.under) {
           // only a point inside the cloak's (x, z) and behind its foremost by less than the clearance can come
           // through it - and the cloak only ever moves back - so the rest of the body is set aside once (its front)
-          let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity, z0 = Infinity, z1 = -Infinity;
+          let x0 = Infinity, x1 = -Infinity, z0 = Infinity, z1 = -Infinity, y1 = -Infinity;
           for (let v = 0; v < posed.length; v += 3) {
-            x0 = Math.min(x0, posed[v]); x1 = Math.max(x1, posed[v]);
-            y0 = Math.min(y0, posed[v + 1]); y1 = Math.max(y1, posed[v + 1]);
+            x0 = Math.min(x0, posed[v]); x1 = Math.max(x1, posed[v]); y1 = Math.max(y1, posed[v + 1]);
             z0 = Math.min(z0, posed[v + 2]); z1 = Math.max(z1, posed[v + 2]);
           }
-          const inside = (x, y, z) => x > x0 - clearance && x < x1 + clearance && y > y0 - clearance && y < y1 + clearance && z > z0 - clearance && z < z1 + clearance;
+          const inside = (x, y, z) => x > x0 - 2 && x < x1 + 2 && z > z0 - 2 && z < z1 + 2 && y < y1 + clearance;
           set.under = [];
           for (const { p, edges } of underPieces) {
             const placed = set.place(p);
             // a piece wholly outside that region (a gauntlet, a boot, the helm) is not sampled at all
-            let lx = Infinity, hx = -Infinity, ly = Infinity, hy = -Infinity, lz = Infinity, hz = -Infinity;
+            let lx = Infinity, hx = -Infinity, lz = Infinity, hz = -Infinity, ly = Infinity;
             for (let v = 0; v < placed.length; v += 3) {
-              lx = Math.min(lx, placed[v]); hx = Math.max(hx, placed[v]);
-              ly = Math.min(ly, placed[v + 1]); hy = Math.max(hy, placed[v + 1]);
+              lx = Math.min(lx, placed[v]); hx = Math.max(hx, placed[v]); ly = Math.min(ly, placed[v + 1]);
               lz = Math.min(lz, placed[v + 2]); hz = Math.max(hz, placed[v + 2]);
             }
-            if (hx < x0 - clearance || lx > x1 + clearance || hy < y0 - clearance || ly > y1 + clearance || hz < z0 - clearance || lz > z1 + clearance) continue;
+            if (hx < x0 - 2 || lx > x1 + 2 || hz < z0 - 2 || lz > z1 + 2 || ly > y1 + clearance) continue;
             set.under.push(samplesWhere(placed, p.indices, sampleStep, inside, edges, includeTriangleInteriors));
           }
         }
-        // True 3D contact replaces the old X/Z height-field lookup. A folded or steep
-        // triangle is still queryable, and the correction follows its local contact
-        // direction instead of assuming every collision can be fixed along Y.
-        const grid = buildTriangleGrid3d(posed, cloak.indices, 2);
+        const sheet = cloakSheet(posed, cloak.indices);
         const need = new Float64Array(n);
-        const direction = new Float64Array(n * 3);
         const through = [];
         const deepest = new Map();
-        const candidates = [];
-        const contactKey = (x, y, z) => `${Math.floor(x / sampleStep)},${Math.floor(y / sampleStep)},${Math.floor(z / sampleStep)}`;
         for (const u of set.under) {
           for (let v = 0; v < u.length; v += 3) {
-            const x = u[v], y = u[v + 1], z = u[v + 2];
-            const contact = nearestTrianglePoint3d(grid, x, y, z, clearance, candidates);
-            if (!contact) continue;
-            const distance = Math.sqrt(contact.distanceSq);
-            const over = clearance - distance;
+            const cell = sheet.get(sheetCellKey(u[v], u[v + 2]));
+            if (!cell) continue;
+            const over = cell.front - (u[v + 1] - clearance);
             if (over <= 1e-4) continue;
-
-            let nx, ny, nz;
-            if (distance > 1e-5) {
-              // From the cloak surface toward the body sample. The sheet moves the other way.
-              nx = (x - contact.x) / distance;
-              ny = (y - contact.y) / distance;
-              nz = (z - contact.z) / distance;
-            } else {
-              // At an exact intersection the closest-point vector has no direction. Use the
-              // triangle normal, oriented toward the legacy depth axis as a deterministic tie-break.
-              const t = contact.triangleOffset;
-              const a = cloak.indices[t] * 3, b = cloak.indices[t + 1] * 3, c = cloak.indices[t + 2] * 3;
-              const e1x = posed[b] - posed[a], e1y = posed[b + 1] - posed[a + 1], e1z = posed[b + 2] - posed[a + 2];
-              const e2x = posed[c] - posed[a], e2y = posed[c + 1] - posed[a + 1], e2z = posed[c + 2] - posed[a + 2];
-              nx = e1y * e2z - e1z * e2y;
-              ny = e1z * e2x - e1x * e2z;
-              nz = e1x * e2y - e1y * e2x;
-              const length = Math.hypot(nx, ny, nz);
-              if (length < 1e-9) { nx = 0; ny = 1; nz = 0; }
-              else { nx /= length; ny /= length; nz /= length; if (ny < 0) { nx = -nx; ny = -ny; nz = -nz; } }
-            }
-
-            const t = contact.triangleOffset;
+            // AUDIT MW-CLOAK: a point the cloak has no room left to clear is no body's - left through and named, never
+            // chased (chased, its ring crept up to the limit pass after pass round a point still through it)
             let room = Infinity;
-            for (let k = 0; k < 3; k++) room = Math.min(room, limit - total[rep[cloak.indices[t + k]]]);
-            if (over > room + 1e-6) { deepSeen.add(contactKey(x, y, z)); continue; }
-
-            // Keep the deepest contact per 3D cell; retain its direction so the eased
-            // displacement is normal to the nearby contact rather than globally vertical.
-            const ck = contactKey(x, y, z);
+            for (let k = 0; k < 3; k++) room = Math.min(room, limit - total[rep[cloak.indices[cell.frontTri + k]]]);
+            if (over > room + 1e-6) { deepSeen.add(sheetCellKey(u[v], u[v + 2])); continue; }
+            // one point a unit cell for the ease - the deepest
+            const ck = sheetCellKey(u[v], u[v + 2]);
             const at = deepest.get(ck);
-            if (at == null) {
-              deepest.set(ck, through.length);
-              through.push(x, y, z, over, nx, ny, nz);
-            } else if (over > through[at + 3]) {
-              through[at] = x; through[at + 1] = y; through[at + 2] = z;
-              through[at + 3] = over; through[at + 4] = nx; through[at + 5] = ny; through[at + 6] = nz;
-            }
-            for (let k = 0; k < 3; k++) {
-              const w = rep[cloak.indices[t + k]];
-              if (over > need[w]) {
-                need[w] = over;
-                direction[w * 3] = nx; direction[w * 3 + 1] = ny; direction[w * 3 + 2] = nz;
-              }
-            }
+            if (at == null) { deepest.set(ck, through.length); through.push(u[v], u[v + 2], over); } else if (over > through[at + 2]) { through[at] = u[v]; through[at + 1] = u[v + 2]; through[at + 2] = over; }
+            // its own triangle the whole way, so every pass makes headway
+            for (let k = 0; k < 3; k++) { const w = rep[cloak.indices[cell.frontTri + k]]; if (over > need[w]) need[w] = over; }
           }
         }
         if (!through.length) continue;
-
-        // Ease each contact through XYZ space. A vertex inherits the direction of its
-        // strongest nearby contact, preventing unrelated folds from cancelling vectors.
+        // and the cloak round it eased, by the vertex's own distance in this pose's (x, z) - the points through it kept
+        // in buckets a radius wide, so a vertex asks the nine round it and not every one
         const buckets = new Map();
-        for (let k = 0; k < through.length; k += 7) {
-          const bx = Math.floor(through[k] / radius), by = Math.floor(through[k + 1] / radius), bz = Math.floor(through[k + 2] / radius);
-          const key = `${bx},${by},${bz}`;
-          const list = buckets.get(key);
-          if (list) list.push(k); else buckets.set(key, [k]);
+        for (let k = 0; k < through.length; k += 3) {
+          const b = (Math.floor(through[k] / radius) + 32768) * 65536 + (Math.floor(through[k + 1] / radius) + 32768);
+          const list = buckets.get(b);
+          if (list) list.push(k); else buckets.set(b, [k]);
         }
         const r2 = radius * radius;
         for (let v = 0; v < n; v++) {
           if (rep[v] !== v) continue;
-          const x = posed[v * 3], y = posed[v * 3 + 1], z = posed[v * 3 + 2];
-          const bx = Math.floor(x / radius), by = Math.floor(y / radius), bz = Math.floor(z / radius);
-          for (let i = bx - 1; i <= bx + 1; i++) for (let j = by - 1; j <= by + 1; j++) for (let k = bz - 1; k <= bz + 1; k++) {
-            const list = buckets.get(`${i},${j},${k}`);
-            if (!list) continue;
-            for (const at of list) {
-              const d2 = ((x - through[at]) ** 2 + (y - through[at + 1]) ** 2 + (z - through[at + 2]) ** 2) / r2;
-              if (d2 >= 1) continue;
-              const ease = through[at + 3] * (1 - d2) ** 2;
-              if (ease > need[v]) {
-                need[v] = ease;
-                direction[v * 3] = through[at + 4];
-                direction[v * 3 + 1] = through[at + 5];
-                direction[v * 3 + 2] = through[at + 6];
+          const x = posed[v * 3], z = posed[v * 3 + 2];
+          const bx = Math.floor(x / radius), bz = Math.floor(z / radius);
+          for (let i = bx - 1; i <= bx + 1; i++) {
+            for (let j = bz - 1; j <= bz + 1; j++) {
+              const list = buckets.get((i + 32768) * 65536 + (j + 32768));
+              if (!list) continue;
+              for (const k of list) {
+                const d2 = ((x - through[k]) ** 2 + (z - through[k + 1]) ** 2) / r2;
+                if (d2 >= 1) continue;
+                const ease = through[k + 2] * (1 - d2) ** 2;
+                if (ease > need[v]) need[v] = ease;
               }
             }
           }
         }
-        // the 3D contact displacement is carried into bind space through each vertex's own skin blend: J^-1 (-step * normal).
+        // the step back in this pose carried into the bind through the vertex's own blend: J^-1 (0, -step, 0)
         for (let v = 0; v < n; v++) {
           const step = Math.min(need[rep[v]], limit - total[rep[v]]);
           if (step <= 0) continue;
-          const d = solve3(Array.from(J.subarray(v * 9, v * 9 + 9)), [-step * direction[rep[v] * 3], -step * direction[rep[v] * 3 + 1], -step * direction[rep[v] * 3 + 2]]);
+          const d = solve3(Array.from(J.subarray(v * 9, v * 9 + 9)), [0, -step, 0]);
           if (!d) continue;
           bind[v * 3] += d[0]; bind[v * 3 + 1] += d[1]; bind[v * 3 + 2] += d[2];
           moved = true;
