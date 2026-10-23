@@ -230,6 +230,12 @@ function poseOf(assembly, turns = {}) {
  */
 export function cloakSheet(positions, indices) {
   const cells = new Map();
+  // Keep the original integer height-field for compatibility, but also index the actual
+  // projected triangles by unit cell. The integer raster alone has holes: a point can be
+  // inside a triangle while its rounded (x,z) sample lies just outside it, especially at
+  // the cloak's edge. Exact queries below remove that false-negative path.
+  const triangleCells = new Map();
+  const bucketKey = (i, j) => (i + 32768) * 65536 + (j + 32768);
   for (let t = 0; t < indices.length; t += 3) {
     const a = indices[t] * 3, b = indices[t + 1] * 3, c = indices[t + 2] * 3;
     const ax = positions[a], ay = positions[a + 1], az = positions[a + 2];
@@ -237,6 +243,14 @@ export function cloakSheet(positions, indices) {
     const cx = positions[c], cy = positions[c + 1], cz = positions[c + 2];
     const d = (bx - ax) * (cz - az) - (cx - ax) * (bz - az);
     if (Math.abs(d) < 1e-9) continue;   // edge-on in (x, z): its neighbours carry the sheet
+    const tri = { t, ax, ay, az, bx, by, bz, cx, cy, cz, d };
+    for (let i = Math.floor(Math.min(ax, bx, cx)); i <= Math.floor(Math.max(ax, bx, cx)); i++) {
+      for (let j = Math.floor(Math.min(az, bz, cz)); j <= Math.floor(Math.max(az, bz, cz)); j++) {
+        const k = bucketKey(i, j);
+        const list = triangleCells.get(k);
+        if (list) list.push(tri); else triangleCells.set(k, [tri]);
+      }
+    }
     for (let i = Math.ceil(Math.min(ax, bx, cx) - 0.5); i <= Math.floor(Math.max(ax, bx, cx) + 0.5); i++) {
       for (let j = Math.ceil(Math.min(az, bz, cz) - 0.5); j <= Math.floor(Math.max(az, bz, cz) + 0.5); j++) {
         const wa = ((bx - i) * (cz - j) - (cx - i) * (bz - j)) / d;
@@ -252,6 +266,24 @@ export function cloakSheet(positions, indices) {
       }
     }
   }
+  // Query the true projected triangles at the body's exact (x,z), rather than rounding
+  // to a lattice point first. Folded sheets retain both the foremost and rearmost layer.
+  cells.at = (x, z) => {
+    const list = triangleCells.get(bucketKey(Math.floor(x), Math.floor(z)));
+    if (!list) return null;
+    let front = null, frontTri = -1, back = null, backTri = -1;
+    for (const q of list) {
+      const { ax, ay, az, bx, by, bz, cx, cy, cz, d, t } = q;
+      const wa = ((bx - x) * (cz - z) - (cx - x) * (bz - z)) / d;
+      const wb = ((cx - x) * (az - z) - (ax - x) * (cz - z)) / d;
+      const wc = 1 - wa - wb;
+      if (wa < -1e-6 || wb < -1e-6 || wc < -1e-6) continue;
+      const y = wa * ay + wb * by + wc * cy;
+      if (front == null || y > front) { front = y; frontTri = t; }
+      if (back == null || y < back) { back = y; backTri = t; }
+    }
+    return front == null ? null : { front, frontTri, back, backTri };
+  };
   return cells;
 }
 
@@ -345,7 +377,7 @@ export function fitCloakOver(assembly, { isCloak, isUnder, clearance = CLOAK_CLE
         const deepest = new Map();
         for (const u of set.under) {
           for (let v = 0; v < u.length; v += 3) {
-            const cell = sheet.get(sheetCellKey(u[v], u[v + 2]));
+            const cell = sheet.at(u[v], u[v + 2]);
             if (!cell) continue;
             const over = cell.front - (u[v + 1] - clearance);
             if (over <= 1e-4) continue;
@@ -487,8 +519,8 @@ export function fitStowedGear(assembly, { isCloak, isGear, clearance = CLOAK_CLE
   if (!cloaks.length) return null;
   const rest = poseOf(assembly);
   const sheets = cloaks.map((c) => cloakSheet(rest.place(c), c.indices));
-  const front = (x, z) => { let y = null; for (const s of sheets) { const c = s.get(sheetCellKey(x, z)); if (c && (y == null || c.front > y)) y = c.front; } return y; };
-  const back = (x, z) => { let y = null; for (const s of sheets) { const c = s.get(sheetCellKey(x, z)); if (c && (y == null || c.back < y)) y = c.back; } return y; };
+  const front = (x, z) => { let y = null; for (const s of sheets) { const c = s.at(x, z); if (c && (y == null || c.front > y)) y = c.front; } return y; };
+  const back = (x, z) => { let y = null; for (const s of sheets) { const c = s.at(x, z); if (c && (y == null || c.back < y)) y = c.back; } return y; };
   const rows = [];
   for (const [ref, pieces] of gearGroups(assembly, isGear)) {
     const at = assembly.fns.attachmentTransform(rest.mats, ref);
