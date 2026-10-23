@@ -26,6 +26,10 @@ test('Better Bodies arm sections match common NIF naming variants without swallo
     ['Left_Lower_Arm', 'forearm:left'],
     ['Hand L', 'hand:left'],
     ['R Hand', 'hand:right'],
+    ['Bip01 L Hand', 'hand:left'],
+    ['Bip01 R Hand', 'hand:right'],
+    ['Bip01 L Forearm', 'forearm:left'],
+    ['Bip01 R Upper Arm', 'upperarm:right'],
     ['Tri Chest', 'chest'],
   ];
   for (const [shape, expected] of cases) assert.equal(betterBodiesSectionKey(shape), expected, shape);
