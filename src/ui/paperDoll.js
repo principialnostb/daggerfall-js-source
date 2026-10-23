@@ -15,8 +15,8 @@
 //   fix (237,43);
 // - item images (GetItemImage forPaperDoll + GetInventoryTexture*):
 //   clothing = template.playerTextureArchive + bodyMorphology
-//   (SetRace), the morphology resolved from the LIVE race since S3c/U9
-//   - `raceByKey(race)?.morphologyIndex` over systems/races.js's
+//   (SetRace), the morphology resolved from the paperdoll display identity
+//   (appearance-editor override first, live race otherwise) via `raceByKey(race)?.morphologyIndex` over systems/races.js's
 //   MORPHOLOGY_OF -> BODY_MORPHOLOGY, all eight races, Human's +2 now
 //   only the fallback; record = playerTextureRecord
 //   (+1 for cloaks' interior-first record) + variant;
@@ -207,10 +207,10 @@ let _version = 0;
 let _refreshing = false;
 let _pending = null;   // AUDIT 17e F16: the coalesced follow-up
 
-/** S3c/U9: the art set is keyed by the ENTITY'S identity. Reloads
- *  when the identity changes (chargen picks a race/gender/face after
- *  boot, and the doll must follow) - `_identity` is the guard that
- *  used to be a bare `if (_art) return`. */
+/** The art set is keyed by the display identity: the appearance editor's
+ *  visual-only override when present, otherwise the live entity identity.
+ *  Reloads when that identity changes; `_identity` is the guard that used
+ *  to be a bare `if (_art) return`. */
 let _identity = null;
 let _lastEntity = null;
 /** The IDENT the loaded set was built from, not just its key - the
@@ -239,9 +239,9 @@ export const paperDollIdentityKey = ({ race = 'Breton', gender = 'male', faceInd
  *  for the rest of the session.
  *
  *  So the invalidation is DERIVED rather than remembered: the compose
- *  itself asks whether the set it is about to draw is this entity's,
- *  and no host has to know. Returns the ident the set would have to be
- *  loaded with, or null when what is loaded already fits. Pure.
+ *  asks whether the loaded set matches the resolved display identity,
+ *  and no host has to know. Returns the ident to load, or null when the
+ *  current set already fits. Pure.
  *  Context and region are the loaded set's own - a load does not move
  *  the player, so only the identity can have drifted. */
 const PAPERDOLL_RACE_FOR_APPEARANCE = Object.freeze({
