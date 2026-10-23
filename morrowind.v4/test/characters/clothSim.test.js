@@ -128,15 +128,15 @@ test('body collision follows torso lean, twist, bob, and root translation', () =
     const dy = y - pivot, cl = Math.cos(lean), sl = Math.sin(lean);
     return [x + root[0], pivot + cl*dy - sl*z + root[1] + bob, sl*dy + cl*z + root[2]];
   };
-  const top = posePoint(0, 1.30, -0.18);
-  const inside = posePoint(0, 0.90, 0);
   const c = buildCloth({
     rows: 2, cols: 1, wrap: false,
-    pos: Float32Array.from([...top, ...inside]),
+    pos: Float32Array.from([0, 1.30, -0.18, 0, 0.90, 0]),
     faces: [],
   });
+  c.pos.set([...posePoint(0, 1.30, -0.18), ...posePoint(0, 0.90, 0)]);
+  c.prev.set(c.pos);
   stepCloth(c, 1/60, {
-    gx: 0, gy: 0, gz: 0, damp: 0, maxStep: 0,
+    gx: 0, gy: 0, gz: 0, damp: 0, maxStep: 0, pinDY: bob,
     rootX: root[0], rootY: root[1], rootZ: root[2],
     bodyBob: bob, lean, leanPivot: pivot, twist,
     capsules: null, ellipsoids: [], collisionPasses: 8,
