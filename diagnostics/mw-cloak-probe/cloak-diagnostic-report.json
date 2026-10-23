@@ -1,0 +1,6056 @@
+{
+  "schema": "mw-cloak-diagnostic-report-v1",
+  "capture": "diagnostics\\mw-cloak-probe\\mw-cloak-capture.json",
+  "capture_bytes": 87478525,
+  "frame_count": 361,
+  "mesh_instances": 1444,
+  "settings": {
+    "near_threshold": 1.0
+  },
+  "summary": {
+    "comparisons": 1083,
+    "aabb_overlapping_pairs": 357,
+    "near_distance_candidates": 26,
+    "invalid_skinned_mesh_index_sets": 0
+  },
+  "invalid_meshes": [],
+  "closest_pairs": [
+    {
+      "frame": 203,
+      "time": 321.627382734955,
+      "cloak_slot": "cloak (daggerfall_cloak)",
+      "legs_slot": "groin (war_misc_trsrs_02c)",
+      "cloak_mesh_index": 0,
+      "legs_mesh_index": 0,
+      "cloak_vertices": 1949,
+      "legs_vertices": 882,
+      "min_vertex_distance": 0.10652321949393762,
+      "p01_vertex_distance": 0.9789062582953519,
+      "closest_cloak_vertex": [
+        -11.58085823059082,
+        14.575196266174316,
+        28.544057846069336
+      ],
+      "closest_legs_vertex": [
+        -11.596707344055176,
+        14.598320960998535,
+        28.4412899017334
+      ],
+      "aabb_overlap": true,
+      "cloak_triangles": 3712,
+      "legs_triangles": 1552,
+      "triangle_indices_valid": true,
+      "candidate_near": true
+    },
+    {
+      "frame": 204,
+      "time": 321.7767935293691,
+      "cloak_slot": "cloak (daggerfall_cloak)",
+      "legs_slot": "groin (war_misc_trsrs_02c)",
+      "cloak_mesh_index": 0,
+      "legs_mesh_index": 0,
+      "cloak_vertices": 1949,
+      "legs_vertices": 882,
+      "min_vertex_distance": 0.3270754831043287,
+      "p01_vertex_distance": 1.6291783324481401,
+      "closest_cloak_vertex": [
+        18.15285873413086,
+        -0.8769558072090149,
+        36.329349517822266
+      ],
+      "closest_legs_vertex": [
+        18.183731079101562,
+        -0.9338496923446655,
+        36.64995574951172
+      ],
+      "aabb_overlap": true,
+      "cloak_triangles": 3712,
+      "legs_triangles": 1552,
+      "triangle_indices_valid": true,
+      "candidate_near": true
+    },
+    {
+      "frame": 239,
+      "time": 321.8685802610119,
+      "cloak_slot": "cloak (daggerfall_cloak)",
+      "legs_slot": "groin (war_misc_trsrs_02c)",
+      "cloak_mesh_index": 0,
+      "legs_mesh_index": 0,
+      "cloak_vertices": 1949,
+      "legs_vertices": 882,
+      "min_vertex_distance": 0.33087848941427384,
+      "p01_vertex_distance": 1.804825501577834,
+      "closest_cloak_vertex": [
+        12.532526016235352,
+        -4.9679036140441895,
+        34.704097747802734
+      ],
+      "closest_legs_vertex": [
+        12.418045997619629,
+        -4.922844409942627,
+        34.396942138671875
+      ],
+      "aabb_overlap": true,
+      "cloak_triangles": 3712,
+      "legs_triangles": 1552,
+      "triangle_indices_valid": true,
+      "candidate_near": true
+    },
+    {
+      "frame": 273,
+      "time": 321.77799646714146,
+      "cloak_slot": "cloak (daggerfall_cloak)",
+      "legs_slot": "groin (war_misc_trsrs_02c)",
+      "cloak_mesh_index": 0,
+      "legs_mesh_index": 0,
+      "cloak_vertices": 1949,
+      "legs_vertices": 882,
+      "min_vertex_distance": 0.3773119865795813,
+      "p01_vertex_distance": 1.6278144396872123,
+      "closest_cloak_vertex": [
+        18.053112030029297,
+        -0.8783056735992432,
+        36.30525207519531
+      ],
+      "closest_legs_vertex": [
+        18.18599510192871,
+        -0.9385491013526917,
+        36.65321350097656
+      ],
+      "aabb_overlap": true,
+      "cloak_triangles": 3712,
+      "legs_triangles": 1552,
+      "triangle_indices_valid": true,
+      "candidate_near": true
+    },
+    {
+      "frame": 318,
+      "time": 321.73333740234375,
+      "cloak_slot": "cloak (daggerfall_cloak)",
+      "legs_slot": "groin (war_misc_trsrs_02c)",
+      "cloak_mesh_index": 0,
+      "legs_mesh_index": 0,
+      "cloak_vertices": 1949,
+      "legs_vertices": 882,
+      "min_vertex_distance": 0.3915107111115124,
+      "p01_vertex_distance": 1.52657913504007,
+      "closest_cloak_vertex": [
+        -12.892773628234863,
+        9.26908016204834,
+        32.64681625366211
+      ],
+      "closest_legs_vertex": [
+        -12.64372730255127,
+        9.291749954223633,
+        32.94805145263672
+      ],
+      "aabb_overlap": true,
+      "cloak_triangles": 3712,
+      "legs_triangles": 1552,
+      "triangle_indices_valid": true,
+      "candidate_near": true
+    },
+    {
+      "frame": 317,
+      "time": 321.5806675556276,
+      "cloak_slot": "cloak (daggerfall_cloak)",
+      "legs_slot": "groin (war_misc_trsrs_02c)",
+      "cloak_mesh_index": 0,
+      "legs_mesh_index": 0,
+      "cloak_vertices": 1949,
+      "legs_vertices": 882,
+      "min_vertex_distance": 0.41594761187098617,
+      "p01_vertex_distance": 1.2479885025754605,
+      "closest_cloak_vertex": [
+        -6.989099025726318,
+        -8.47365951538086,
+        64.5492935180664
+      ],
+      "closest_legs_vertex": [
+        -7.199852466583252,
+        -8.15322494506836,
+        64.3883056640625
+      ],
+      "aabb_overlap": true,
+      "cloak_triangles": 3712,
+      "legs_triangles": 1552,
+      "triangle_indices_valid": true,
+      "candidate_near": true
+    },
+    {
+      "frame": 284,
+      "time": 238.40022612147692,
+      "cloak_slot": "cloak (daggerfall_cloak)",
+      "legs_slot": "right foot (netch_leather_boots)",
+      "cloak_mesh_index": 0,
+      "legs_mesh_index": 1,
+      "cloak_vertices": 1949,
+      "legs_vertices": 98,
+      "min_vertex_distance": 0.42123061563562825,
+      "p01_vertex_distance": 2.7116768537886284,
+      "closest_cloak_vertex": [
+        4.133408546447754,
+        -49.973697662353516,
+        48.694984436035156
+      ],
+      "closest_legs_vertex": [
+        3.911733627319336,
+        -50.33037567138672,
+        48.72779083251953
+      ],
+      "aabb_overlap": true,
+      "cloak_triangles": 3712,
+      "legs_triangles": 0,
+      "triangle_indices_valid": true,
+      "candidate_near": true
+    },
+    {
+      "frame": 117,
+      "time": 321.6208322320104,
+      "cloak_slot": "cloak (daggerfall_cloak)",
+      "legs_slot": "groin (war_misc_trsrs_02c)",
+      "cloak_mesh_index": 0,
+      "legs_mesh_index": 0,
+      "cloak_vertices": 1949,
+      "legs_vertices": 882,
+      "min_vertex_distance": 0.42889707604517263,
+      "p01_vertex_distance": 1.031009449985156,
+      "closest_cloak_vertex": [
+        -6.893143653869629,
+        -8.764383316040039,
+        64.21442413330078
+      ],
+      "closest_legs_vertex": [
+        -7.000713348388672,
+        -8.410614967346191,
+        64.43174743652344
+      ],
+      "aabb_overlap": true,
+      "cloak_triangles": 3712,
+      "legs_triangles": 1552,
+      "triangle_indices_valid": true,
+      "candidate_near": true
+    },
+    {
+      "frame": 48,
+      "time": 232.59421012592497,
+      "cloak_slot": "cloak (daggerfall_cloak)",
+      "legs_slot": "groin (war_misc_trsrs_02c)",
+      "cloak_mesh_index": 0,
+      "legs_mesh_index": 0,
+      "cloak_vertices": 1949,
+      "legs_vertices": 882,
+      "min_vertex_distance": 0.4353132249418646,
+      "p01_vertex_distance": 2.01735706641438,
+      "closest_cloak_vertex": [
+        7.405006408691406,
+        -27.092309951782227,
+        26.156099319458008
+      ],
+      "closest_legs_vertex": [
+        7.130403518676758,
+        -26.905807495117188,
+        25.874483108520508
+      ],
+      "aabb_overlap": true,
+      "cloak_triangles": 3712,
+      "legs_triangles": 1552,
+      "triangle_indices_valid": true,
+      "candidate_near": true
+    },
+    {
+      "frame": 118,
+      "time": 321.7976553577919,
+      "cloak_slot": "cloak (daggerfall_cloak)",
+      "legs_slot": "groin (war_misc_trsrs_02c)",
+      "cloak_mesh_index": 0,
+      "legs_mesh_index": 0,
+      "cloak_vertices": 1949,
+      "legs_vertices": 882,
+      "min_vertex_distance": 0.44688258626410127,
+      "p01_vertex_distance": 1.72065266201677,
+      "closest_cloak_vertex": [
+        18.400129318237305,
+        -1.0510673522949219,
+        36.32133865356445
+      ],
+      "closest_legs_vertex": [
+        18.179113388061523,
+        -0.8570297360420227,
+        36.657798767089844
+      ],
+      "aabb_overlap": true,
+      "cloak_triangles": 3712,
+      "legs_triangles": 1552,
+      "triangle_indices_valid": true,
+      "candidate_near": true
+    },
+    {
+      "frame": 237,
+      "time": 321.53497157890973,
+      "cloak_slot": "cloak (daggerfall_cloak)",
+      "legs_slot": "groin (war_misc_trsrs_02c)",
+      "cloak_mesh_index": 0,
+      "legs_mesh_index": 0,
+      "cloak_vertices": 1949,
+      "legs_vertices": 882,
+      "min_vertex_distance": 0.47910848671550504,
+      "p01_vertex_distance": 1.5732559226639447,
+      "closest_cloak_vertex": [
+        16.181367874145508,
+        -3.332569122314453,
+        34.14020538330078
+      ],
+      "closest_legs_vertex": [
+        15.852356910705566,
+        -3.0875658988952637,
+        33.892677307128906
+      ],
+      "aabb_overlap": true,
+      "cloak_triangles": 3712,
+      "legs_triangles": 1552,
+      "triangle_indices_valid": true,
+      "candidate_near": true
+    },
+    {
+      "frame": 150,
+      "time": 157.07770913843987,
+      "cloak_slot": "cloak (daggerfall_cloak)",
+      "legs_slot": "left foot (netch_leather_boots)",
+      "cloak_mesh_index": 0,
+      "legs_mesh_index": 2,
+      "cloak_vertices": 1949,
+      "legs_vertices": 98,
+      "min_vertex_distance": 0.4840062212915966,
+      "p01_vertex_distance": 2.354410214384589,
+      "closest_cloak_vertex": [
+        -1.6338788270950317,
+        -48.0078125,
+        49.9892463684082
+      ],
+      "closest_legs_vertex": [
+        -1.6426929235458374,
+        -48.474700927734375,
+        50.11652374267578
+      ],
+      "aabb_overlap": true,
+      "cloak_triangles": 3712,
+      "legs_triangles": 0,
+      "triangle_indices_valid": true,
+      "candidate_near": true
+    },
+    {
+      "frame": 94,
+      "time": 321.5731714695761,
+      "cloak_slot": "cloak (daggerfall_cloak)",
+      "legs_slot": "groin (war_misc_trsrs_02c)",
+      "cloak_mesh_index": 0,
+      "legs_mesh_index": 0,
+      "cloak_vertices": 1949,
+      "legs_vertices": 882,
+      "min_vertex_distance": 0.5038579041509654,
+      "p01_vertex_distance": 1.2595705605468237,
+      "closest_cloak_vertex": [
+        5.093395709991455,
+        -2.292592763900757,
+        49.20890808105469
+      ],
+      "closest_legs_vertex": [
+        4.690073490142822,
+        -2.1059532165527344,
+        48.97148513793945
+      ],
+      "aabb_overlap": true,
+      "cloak_triangles": 3712,
+      "legs_triangles": 1552,
+      "triangle_indices_valid": true,
+      "candidate_near": true
+    },
+    {
+      "frame": 131,
+      "time": 238.41456688784257,
+      "cloak_slot": "cloak (daggerfall_cloak)",
+      "legs_slot": "right foot (netch_leather_boots)",
+      "cloak_mesh_index": 0,
+      "legs_mesh_index": 1,
+      "cloak_vertices": 1949,
+      "legs_vertices": 98,
+      "min_vertex_distance": 0.5398798018062979,
+      "p01_vertex_distance": 2.4947670896176404,
+      "closest_cloak_vertex": [
+        3.691089630126953,
+        -48.52436828613281,
+        48.841346740722656
+      ],
+      "closest_legs_vertex": [
+        4.047633647918701,
+        -48.76213455200195,
+        49.16969680786133
+      ],
+      "aabb_overlap": true,
+      "cloak_triangles": 3712,
+      "legs_triangles": 0,
+      "triangle_indices_valid": true,
+      "candidate_near": true
+    },
+    {
+      "frame": 286,
+      "time": 237.95165669295722,
+      "cloak_slot": "cloak (daggerfall_cloak)",
+      "legs_slot": "left foot (netch_leather_boots)",
+      "cloak_mesh_index": 0,
+      "legs_mesh_index": 2,
+      "cloak_vertices": 1949,
+      "legs_vertices": 98,
+      "min_vertex_distance": 0.5602667220943736,
+      "p01_vertex_distance": 2.4340340087799937,
+      "closest_cloak_vertex": [
+        -6.084061622619629,
+        -45.645748138427734,
+        49.5897102355957
+      ],
+      "closest_legs_vertex": [
+        -5.976305961608887,
+        -46.19547653198242,
+        49.58042526245117
+      ],
+      "aabb_overlap": true,
+      "cloak_triangles": 3712,
+      "legs_triangles": 0,
+      "triangle_indices_valid": true,
+      "candidate_near": true
+    },
+    {
+      "frame": 95,
+      "time": 321.73333740234375,
+      "cloak_slot": "cloak (daggerfall_cloak)",
+      "legs_slot": "groin (war_misc_trsrs_02c)",
+      "cloak_mesh_index": 0,
+      "legs_mesh_index": 0,
+      "cloak_vertices": 1949,
+      "legs_vertices": 882,
+      "min_vertex_distance": 0.5821110301749853,
+      "p01_vertex_distance": 1.4542963011205763,
+      "closest_cloak_vertex": [
+        7.274659633636475,
+        -3.227949857711792,
+        37.87735366821289
+      ],
+      "closest_legs_vertex": [
+        6.798168182373047,
+        -3.090759515762329,
+        37.57241439819336
+      ],
+      "aabb_overlap": true,
+      "cloak_triangles": 3712,
+      "legs_triangles": 1552,
+      "triangle_indices_valid": true,
+      "candidate_near": true
+    },
+    {
+      "frame": 272,
+      "time": 321.60099782391995,
+      "cloak_slot": "cloak (daggerfall_cloak)",
+      "legs_slot": "groin (war_misc_trsrs_02c)",
+      "cloak_mesh_index": 0,
+      "legs_mesh_index": 0,
+      "cloak_vertices": 1949,
+      "legs_vertices": 882,
+      "min_vertex_distance": 0.6157121087861707,
+      "p01_vertex_distance": 1.135591638496542,
+      "closest_cloak_vertex": [
+        16.40709114074707,
+        1.2517528533935547,
+        43.32909393310547
+      ],
+      "closest_legs_vertex": [
+        15.962218284606934,
+        0.8605658411979675,
+        43.496910095214844
+      ],
+      "aabb_overlap": true,
+      "cloak_triangles": 3712,
+      "legs_triangles": 1552,
+      "triangle_indices_valid": true,
+      "candidate_near": true
+    },
+    {
+      "frame": 250,
+      "time": 321.8066437438728,
+      "cloak_slot": "cloak (daggerfall_cloak)",
+      "legs_slot": "groin (war_misc_trsrs_02c)",
+      "cloak_mesh_index": 0,
+      "legs_mesh_index": 0,
+      "cloak_vertices": 1949,
+      "legs_vertices": 882,
+      "min_vertex_distance": 0.627809467467625,
+      "p01_vertex_distance": 1.729676440969018,
+      "closest_cloak_vertex": [
+        6.3224945068359375,
+        -2.305417060852051,
+        31.24226188659668
+      ],
+      "closest_legs_vertex": [
+        6.069068908691406,
+        -2.3725688457489014,
+        30.67181396484375
+      ],
+      "aabb_overlap": true,
+      "cloak_triangles": 3712,
+      "legs_triangles": 1552,
+      "triangle_indices_valid": true,
+      "candidate_near": true
+    },
+    {
+      "frame": 261,
+      "time": 321.72083070613115,
+      "cloak_slot": "cloak (daggerfall_cloak)",
+      "legs_slot": "groin (war_misc_trsrs_02c)",
+      "cloak_mesh_index": 0,
+      "legs_mesh_index": 0,
+      "cloak_vertices": 1949,
+      "legs_vertices": 882,
+      "min_vertex_distance": 0.6592228977415896,
+      "p01_vertex_distance": 1.6896294890730972,
+      "closest_cloak_vertex": [
+        7.21705961227417,
+        -3.447688102722168,
+        37.930179595947266
+      ],
+      "closest_legs_vertex": [
+        6.7964887619018555,
+        -3.090038537979126,
+        37.56992721557617
+      ],
+      "aabb_overlap": true,
+      "cloak_triangles": 3712,
+      "legs_triangles": 1552,
+      "triangle_indices_valid": true,
+      "candidate_near": true
+    },
+    {
+      "frame": 249,
+      "time": 321.65721834526687,
+      "cloak_slot": "cloak (daggerfall_cloak)",
+      "legs_slot": "groin (war_misc_trsrs_02c)",
+      "cloak_mesh_index": 0,
+      "legs_mesh_index": 0,
+      "cloak_vertices": 1949,
+      "legs_vertices": 882,
+      "min_vertex_distance": 0.7242143746820556,
+      "p01_vertex_distance": 1.2341482761946858,
+      "closest_cloak_vertex": [
+        16.215045928955078,
+        2.0784666538238525,
+        33.47613525390625
+      ],
+      "closest_legs_vertex": [
+        16.48078727722168,
+        1.9489622116088867,
+        32.81500244140625
+      ],
+      "aabb_overlap": true,
+      "cloak_triangles": 3712,
+      "legs_triangles": 1552,
+      "triangle_indices_valid": true,
+      "candidate_near": true
+    },
+    {
+      "frame": 238,
+      "time": 321.7071867884854,
+      "cloak_slot": "cloak (daggerfall_cloak)",
+      "legs_slot": "groin (war_misc_trsrs_02c)",
+      "cloak_mesh_index": 0,
+      "legs_mesh_index": 0,
+      "cloak_vertices": 1949,
+      "legs_vertices": 882,
+      "min_vertex_distance": 0.7436761686252705,
+      "p01_vertex_distance": 1.6823091056114932,
+      "closest_cloak_vertex": [
+        7.346144199371338,
+        -2.744793176651001,
+        37.922908782958984
+      ],
+      "closest_legs_vertex": [
+        6.79265832901001,
+        -3.0884015560150146,
+        37.56424331665039
+      ],
+      "aabb_overlap": true,
+      "cloak_triangles": 3712,
+      "legs_triangles": 1552,
+      "triangle_indices_valid": true,
+      "candidate_near": true
+    },
+    {
+      "frame": 319,
+      "time": 321.91916736829154,
+      "cloak_slot": "cloak (daggerfall_cloak)",
+      "legs_slot": "groin (war_misc_trsrs_02c)",
+      "cloak_mesh_index": 0,
+      "legs_mesh_index": 0,
+      "cloak_vertices": 1949,
+      "legs_vertices": 882,
+      "min_vertex_distance": 0.7458687878107649,
+      "p01_vertex_distance": 2.8427139838992614,
+      "closest_cloak_vertex": [
+        13.73470401763916,
+        -6.036130905151367,
+        28.755056381225586
+      ],
+      "closest_legs_vertex": [
+        14.473725318908691,
+        -6.136373043060303,
+        28.7441349029541
+      ],
+      "aabb_overlap": true,
+      "cloak_triangles": 3712,
+      "legs_triangles": 1552,
+      "triangle_indices_valid": true,
+      "candidate_near": true
+    },
+    {
+      "frame": 260,
+      "time": 321.5405028792451,
+      "cloak_slot": "cloak (daggerfall_cloak)",
+      "legs_slot": "groin (war_misc_trsrs_02c)",
+      "cloak_mesh_index": 0,
+      "legs_mesh_index": 0,
+      "cloak_vertices": 1949,
+      "legs_vertices": 882,
+      "min_vertex_distance": 0.7637297651361832,
+      "p01_vertex_distance": 1.6126841581390001,
+      "closest_cloak_vertex": [
+        13.820027351379395,
+        -4.690998554229736,
+        38.30366516113281
+      ],
+      "closest_legs_vertex": [
+        13.287771224975586,
+        -5.209474563598633,
+        38.12711715698242
+      ],
+      "aabb_overlap": true,
+      "cloak_triangles": 3712,
+      "legs_triangles": 1552,
+      "triangle_indices_valid": true,
+      "candidate_near": true
+    },
+    {
+      "frame": 176,
+      "time": 244.13341545416233,
+      "cloak_slot": "cloak (daggerfall_cloak)",
+      "legs_slot": "groin (war_misc_trsrs_02c)",
+      "cloak_mesh_index": 0,
+      "legs_mesh_index": 0,
+      "cloak_vertices": 1949,
+      "legs_vertices": 882,
+      "min_vertex_distance": 0.8012998804728506,
+      "p01_vertex_distance": 2.623791198365092,
+      "closest_cloak_vertex": [
+        4.736952781677246,
+        -23.27806854248047,
+        31.552522659301758
+      ],
+      "closest_legs_vertex": [
+        4.782194137573242,
+        -22.724712371826172,
+        30.974740982055664
+      ],
+      "aabb_overlap": true,
+      "cloak_triangles": 3712,
+      "legs_triangles": 1552,
+      "triangle_indices_valid": true,
+      "candidate_near": true
+    },
+    {
+      "frame": 262,
+      "time": 321.88356735948355,
+      "cloak_slot": "cloak (daggerfall_cloak)",
+      "legs_slot": "groin (war_misc_trsrs_02c)",
+      "cloak_mesh_index": 0,
+      "legs_mesh_index": 0,
+      "cloak_vertices": 1949,
+      "legs_vertices": 882,
+      "min_vertex_distance": 0.9169188132303935,
+      "p01_vertex_distance": 1.9053675237239558,
+      "closest_cloak_vertex": [
+        15.544780731201172,
+        -2.4604990482330322,
+        29.630271911621094
+      ],
+      "closest_legs_vertex": [
+        15.649007797241211,
+        -2.450695514678955,
+        30.541194915771484
+      ],
+      "aabb_overlap": true,
+      "cloak_triangles": 3712,
+      "legs_triangles": 1552,
+      "triangle_indices_valid": true,
+      "candidate_near": true
+    },
+    {
+      "frame": 138,
+      "time": 238.3151037730778,
+      "cloak_slot": "cloak (daggerfall_cloak)",
+      "legs_slot": "right foot (netch_leather_boots)",
+      "cloak_mesh_index": 0,
+      "legs_mesh_index": 1,
+      "cloak_vertices": 1949,
+      "legs_vertices": 98,
+      "min_vertex_distance": 0.9463569760423384,
+      "p01_vertex_distance": 6.608898630003814,
+      "closest_cloak_vertex": [
+        9.275032997131348,
+        -46.680877685546875,
+        45.31224060058594
+      ],
+      "closest_legs_vertex": [
+        8.416109085083008,
+        -46.28858947753906,
+        45.375099182128906
+      ],
+      "aabb_overlap": true,
+      "cloak_triangles": 3712,
+      "legs_triangles": 0,
+      "triangle_indices_valid": true,
+      "candidate_near": true
+    },
+    {
+      "frame": 51,
+      "time": 232.17386916936894,
+      "cloak_slot": "cloak (daggerfall_cloak)",
+      "legs_slot": "groin (war_misc_trsrs_02c)",
+      "cloak_mesh_index": 0,
+      "legs_mesh_index": 0,
+      "cloak_vertices": 1949,
+      "legs_vertices": 882,
+      "min_vertex_distance": 1.0048864563997653,
+      "p01_vertex_distance": 2.519319903095076,
+      "closest_cloak_vertex": [
+        -12.007007598876953,
+        -30.56549644470215,
+        29.644271850585938
+      ],
+      "closest_legs_vertex": [
+        -11.295266151428223,
+        -29.977455139160156,
+        29.247499465942383
+      ],
+      "aabb_overlap": true,
+      "cloak_triangles": 3712,
+      "legs_triangles": 1552,
+      "triangle_indices_valid": true,
+      "candidate_near": false
+    },
+    {
+      "frame": 56,
+      "time": 232.19652120105943,
+      "cloak_slot": "cloak (daggerfall_cloak)",
+      "legs_slot": "groin (war_misc_trsrs_02c)",
+      "cloak_mesh_index": 0,
+      "legs_mesh_index": 0,
+      "cloak_vertices": 1949,
+      "legs_vertices": 882,
+      "min_vertex_distance": 1.034644912186227,
+      "p01_vertex_distance": 2.110121066500129,
+      "closest_cloak_vertex": [
+        -11.383439064025879,
+        -33.635013580322266,
+        26.877338409423828
+      ],
+      "closest_legs_vertex": [
+        -10.870394706726074,
+        -32.78062057495117,
+        27.155345916748047
+      ],
+      "aabb_overlap": true,
+      "cloak_triangles": 3712,
+      "legs_triangles": 1552,
+      "triangle_indices_valid": true,
+      "candidate_near": false
+    },
+    {
+      "frame": 53,
+      "time": 232.5943656876241,
+      "cloak_slot": "cloak (daggerfall_cloak)",
+      "legs_slot": "groin (war_misc_trsrs_02c)",
+      "cloak_mesh_index": 0,
+      "legs_mesh_index": 0,
+      "cloak_vertices": 1949,
+      "legs_vertices": 882,
+      "min_vertex_distance": 1.035998980216506,
+      "p01_vertex_distance": 2.0111265799824056,
+      "closest_cloak_vertex": [
+        8.597497940063477,
+        -23.32672119140625,
+        40.1981201171875
+      ],
+      "closest_legs_vertex": [
+        8.621927261352539,
+        -24.291528701782227,
+        39.82149887084961
+      ],
+      "aabb_overlap": true,
+      "cloak_triangles": 3712,
+      "legs_triangles": 1552,
+      "triangle_indices_valid": true,
+      "candidate_near": false
+    },
+    {
+      "frame": 166,
+      "time": 0.3640001042953364,
+      "cloak_slot": "cloak (daggerfall_cloak)",
+      "legs_slot": "groin (war_misc_trsrs_02c)",
+      "cloak_mesh_index": 0,
+      "legs_mesh_index": 0,
+      "cloak_vertices": 1949,
+      "legs_vertices": 882,
+      "min_vertex_distance": 1.039029844242556,
+      "p01_vertex_distance": 5.9952948496730585,
+      "closest_cloak_vertex": [
+        1.5231648683547974,
+        -37.3135871887207,
+        26.924697875976562
+      ],
+      "closest_legs_vertex": [
+        1.5548830032348633,
+        -37.61433792114258,
+        25.930652618408203
+      ],
+      "aabb_overlap": true,
+      "cloak_triangles": 3712,
+      "legs_triangles": 1552,
+      "triangle_indices_valid": true,
+      "candidate_near": false
+    },
+    {
+      "frame": 148,
+      "time": 157.5121728905499,
+      "cloak_slot": "cloak (daggerfall_cloak)",
+      "legs_slot": "right foot (netch_leather_boots)",
+      "cloak_mesh_index": 0,
+      "legs_mesh_index": 1,
+      "cloak_vertices": 1949,
+      "legs_vertices": 98,
+      "min_vertex_distance": 1.0826406445178198,
+      "p01_vertex_distance": 2.940020650053458,
+      "closest_cloak_vertex": [
+        10.834775924682617,
+        -47.531044006347656,
+        46.10688400268555
+      ],
+      "closest_legs_vertex": [
+        9.879082679748535,
+        -47.46715545654297,
+        46.611541748046875
+      ],
+      "aabb_overlap": true,
+      "cloak_triangles": 3712,
+      "legs_triangles": 0,
+      "triangle_indices_valid": true,
+      "candidate_near": false
+    },
+    {
+      "frame": 46,
+      "time": 232.1965850188277,
+      "cloak_slot": "cloak (daggerfall_cloak)",
+      "legs_slot": "groin (war_misc_trsrs_02c)",
+      "cloak_mesh_index": 0,
+      "legs_mesh_index": 0,
+      "cloak_vertices": 1949,
+      "legs_vertices": 882,
+      "min_vertex_distance": 1.1861720806993885,
+      "p01_vertex_distance": 2.400617305848697,
+      "closest_cloak_vertex": [
+        -12.912775039672852,
+        -30.3268985748291,
+        30.789756774902344
+      ],
+      "closest_legs_vertex": [
+        -11.7525053024292,
+        -30.324934005737305,
+        30.543231964111328
+      ],
+      "aabb_overlap": true,
+      "cloak_triangles": 3712,
+      "legs_triangles": 1552,
+      "triangle_indices_valid": true,
+      "candidate_near": false
+    },
+    {
+      "frame": 96,
+      "time": 321.93114507298105,
+      "cloak_slot": "cloak (daggerfall_cloak)",
+      "legs_slot": "groin (war_misc_trsrs_02c)",
+      "cloak_mesh_index": 0,
+      "legs_mesh_index": 0,
+      "cloak_vertices": 1949,
+      "legs_vertices": 882,
+      "min_vertex_distance": 1.2362106819739505,
+      "p01_vertex_distance": 2.9947080557839,
+      "closest_cloak_vertex": [
+        8.098971366882324,
+        -6.771478176116943,
+        24.07830238342285
+      ],
+      "closest_legs_vertex": [
+        8.055341720581055,
+        -8.006850242614746,
+        24.09130859375
+      ],
+      "aabb_overlap": true,
+      "cloak_triangles": 3712,
+      "legs_triangles": 1552,
+      "triangle_indices_valid": true,
+      "candidate_near": false
+    },
+    {
+      "frame": 12,
+      "time": 0.25004861505211323,
+      "cloak_slot": "cloak (daggerfall_cloak)",
+      "legs_slot": "groin (war_misc_trsrs_02c)",
+      "cloak_mesh_index": 0,
+      "legs_mesh_index": 0,
+      "cloak_vertices": 1949,
+      "legs_vertices": 882,
+      "min_vertex_distance": 1.2937151449515025,
+      "p01_vertex_distance": 3.2823108943332793,
+      "closest_cloak_vertex": [
+        -2.4715816974639893,
+        -31.31626319885254,
+        29.427160263061523
+      ],
+      "closest_legs_vertex": [
+        -3.097592830657959,
+        -30.18410301208496,
+        29.422443389892578
+      ],
+      "aabb_overlap": true,
+      "cloak_triangles": 3712,
+      "legs_triangles": 1552,
+      "triangle_indices_valid": true,
+      "candidate_near": false
+    },
+    {
+      "frame": 171,
+      "time": 0.3639664875865582,
+      "cloak_slot": "cloak (daggerfall_cloak)",
+      "legs_slot": "groin (war_misc_trsrs_02c)",
+      "cloak_mesh_index": 0,
+      "legs_mesh_index": 0,
+      "cloak_vertices": 1949,
+      "legs_vertices": 882,
+      "min_vertex_distance": 1.4569331136219383,
+      "p01_vertex_distance": 6.687022404115482,
+      "closest_cloak_vertex": [
+        1.3817121982574463,
+        -37.79214096069336,
+        27.366979598999023
+      ],
+      "closest_legs_vertex": [
+        1.5545581579208374,
+        -37.61734390258789,
+        25.93093490600586
+      ],
+      "aabb_overlap": true,
+      "cloak_triangles": 3712,
+      "legs_triangles": 1552,
+      "triangle_indices_valid": true,
+      "candidate_near": false
+    },
+    {
+      "frame": 133,
+      "time": 237.994208802993,
+      "cloak_slot": "cloak (daggerfall_cloak)",
+      "legs_slot": "left foot (netch_leather_boots)",
+      "cloak_mesh_index": 0,
+      "legs_mesh_index": 2,
+      "cloak_vertices": 1949,
+      "legs_vertices": 98,
+      "min_vertex_distance": 1.551910850666138,
+      "p01_vertex_distance": 4.962353051974575,
+      "closest_cloak_vertex": [
+        -1.7451525926589966,
+        -42.721412658691406,
+        56.686302185058594
+      ],
+      "closest_legs_vertex": [
+        -1.8417842388153076,
+        -41.833560943603516,
+        55.4171257019043
+      ],
+      "aabb_overlap": true,
+      "cloak_triangles": 3712,
+      "legs_triangles": 0,
+      "triangle_indices_valid": true,
+      "candidate_near": false
+    },
+    {
+      "frame": 37,
+      "time": 0.3588001259127076,
+      "cloak_slot": "cloak (daggerfall_cloak)",
+      "legs_slot": "groin (war_misc_trsrs_02c)",
+      "cloak_mesh_index": 0,
+      "legs_mesh_index": 0,
+      "cloak_vertices": 1949,
+      "legs_vertices": 882,
+      "min_vertex_distance": 1.6945064794898181,
+      "p01_vertex_distance": 6.3515332731442715,
+      "closest_cloak_vertex": [
+        2.2736613750457764,
+        -37.707340240478516,
+        27.442035675048828
+      ],
+      "closest_legs_vertex": [
+        1.5056333541870117,
+        -38.07804489135742,
+        25.977773666381836
+      ],
+      "aabb_overlap": true,
+      "cloak_triangles": 3712,
+      "legs_triangles": 1552,
+      "triangle_indices_valid": true,
+      "candidate_near": false
+    },
+    {
+      "frame": 34,
+      "time": 0.7905778614436794,
+      "cloak_slot": "cloak (daggerfall_cloak)",
+      "legs_slot": "groin (war_misc_trsrs_02c)",
+      "cloak_mesh_index": 0,
+      "legs_mesh_index": 0,
+      "cloak_vertices": 1949,
+      "legs_vertices": 882,
+      "min_vertex_distance": 1.7265917782117812,
+      "p01_vertex_distance": 4.454697146646248,
+      "closest_cloak_vertex": [
+        4.741885662078857,
+        -25.75856590270996,
+        31.34536361694336
+      ],
+      "closest_legs_vertex": [
+        3.087040424346924,
+        -25.449010848999023,
+        31.728485107421875
+      ],
+      "aabb_overlap": true,
+      "cloak_triangles": 3712,
+      "legs_triangles": 1552,
+      "triangle_indices_valid": true,
+      "candidate_near": false
+    },
+    {
+      "frame": 152,
+      "time": 157.5622389704187,
+      "cloak_slot": "cloak (daggerfall_cloak)",
+      "legs_slot": "right foot (netch_leather_boots)",
+      "cloak_mesh_index": 0,
+      "legs_mesh_index": 1,
+      "cloak_vertices": 1949,
+      "legs_vertices": 98,
+      "min_vertex_distance": 1.9867221630639549,
+      "p01_vertex_distance": 4.208162069990629,
+      "closest_cloak_vertex": [
+        10.285893440246582,
+        -47.606380462646484,
+        52.07279586791992
+      ],
+      "closest_legs_vertex": [
+        9.362321853637695,
+        -46.49735641479492,
+        50.70745849609375
+      ],
+      "aabb_overlap": true,
+      "cloak_triangles": 3712,
+      "legs_triangles": 0,
+      "triangle_indices_valid": true,
+      "candidate_near": false
+    },
+    {
+      "frame": 49,
+      "time": 232.78749229726742,
+      "cloak_slot": "cloak (daggerfall_cloak)",
+      "legs_slot": "groin (war_misc_trsrs_02c)",
+      "cloak_mesh_index": 0,
+      "legs_mesh_index": 0,
+      "cloak_vertices": 1949,
+      "legs_vertices": 882,
+      "min_vertex_distance": 2.0793062071862884,
+      "p01_vertex_distance": 3.602219169963594,
+      "closest_cloak_vertex": [
+        7.647162437438965,
+        -30.86812973022461,
+        30.460248947143555
+      ],
+      "closest_legs_vertex": [
+        8.815815925598145,
+        -29.731796264648438,
+        31.751182556152344
+      ],
+      "aabb_overlap": true,
+      "cloak_triangles": 3712,
+      "legs_triangles": 1552,
+      "triangle_indices_valid": true,
+      "candidate_near": false
+    },
+    {
+      "frame": 29,
+      "time": 0.7789883190699448,
+      "cloak_slot": "cloak (daggerfall_cloak)",
+      "legs_slot": "groin (war_misc_trsrs_02c)",
+      "cloak_mesh_index": 0,
+      "legs_mesh_index": 0,
+      "cloak_vertices": 1949,
+      "legs_vertices": 882,
+      "min_vertex_distance": 2.186750452910139,
+      "p01_vertex_distance": 3.6620690994883076,
+      "closest_cloak_vertex": [
+        5.645662784576416,
+        -26.092479705810547,
+        30.771074295043945
+      ],
+      "closest_legs_vertex": [
+        4.924054145812988,
+        -24.17118263244629,
+        30.016239166259766
+      ],
+      "aabb_overlap": true,
+      "cloak_triangles": 3712,
+      "legs_triangles": 1552,
+      "triangle_indices_valid": true,
+      "candidate_near": false
+    },
+    {
+      "frame": 39,
+      "time": 0.7451764302516342,
+      "cloak_slot": "cloak (daggerfall_cloak)",
+      "legs_slot": "groin (war_misc_trsrs_02c)",
+      "cloak_mesh_index": 0,
+      "legs_mesh_index": 0,
+      "cloak_vertices": 1949,
+      "legs_vertices": 882,
+      "min_vertex_distance": 2.2504013269422636,
+      "p01_vertex_distance": 5.795471712547782,
+      "closest_cloak_vertex": [
+        4.308426380157471,
+        -25.890810012817383,
+        30.73678970336914
+      ],
+      "closest_legs_vertex": [
+        2.6205782890319824,
+        -24.402820587158203,
+        30.699878692626953
+      ],
+      "aabb_overlap": true,
+      "cloak_triangles": 3712,
+      "legs_triangles": 1552,
+      "triangle_indices_valid": true,
+      "candidate_near": false
+    },
+    {
+      "frame": 161,
+      "time": 0.3297266546799817,
+      "cloak_slot": "cloak (daggerfall_cloak)",
+      "legs_slot": "groin (war_misc_trsrs_02c)",
+      "cloak_mesh_index": 0,
+      "legs_mesh_index": 0,
+      "cloak_vertices": 1949,
+      "legs_vertices": 882,
+      "min_vertex_distance": 2.322053604606985,
+      "p01_vertex_distance": 4.266914449009498,
+      "closest_cloak_vertex": [
+        2.7460548877716064,
+        -36.69137191772461,
+        25.257442474365234
+      ],
+      "closest_legs_vertex": [
+        2.541980504989624,
+        -38.88251495361328,
+        24.516376495361328
+      ],
+      "aabb_overlap": true,
+      "cloak_triangles": 3712,
+      "legs_triangles": 1552,
+      "triangle_indices_valid": true,
+      "candidate_near": false
+    },
+    {
+      "frame": 54,
+      "time": 232.7988960939622,
+      "cloak_slot": "cloak (daggerfall_cloak)",
+      "legs_slot": "groin (war_misc_trsrs_02c)",
+      "cloak_mesh_index": 0,
+      "legs_mesh_index": 0,
+      "cloak_vertices": 1949,
+      "legs_vertices": 882,
+      "min_vertex_distance": 2.706442260430476,
+      "p01_vertex_distance": 4.039868412707751,
+      "closest_cloak_vertex": [
+        14.295426368713379,
+        -27.167325973510742,
+        35.71416091918945
+      ],
+      "closest_legs_vertex": [
+        12.374210357666016,
+        -25.63770294189453,
+        34.57661437988281
+      ],
+      "aabb_overlap": true,
+      "cloak_triangles": 3712,
+      "legs_triangles": 1552,
+      "triangle_indices_valid": true,
+      "candidate_near": false
+    },
+    {
+      "frame": 292,
+      "time": 324.3785661969866,
+      "cloak_slot": "cloak (daggerfall_cloak)",
+      "legs_slot": "right foot (netch_leather_boots)",
+      "cloak_mesh_index": 0,
+      "legs_mesh_index": 1,
+      "cloak_vertices": 1949,
+      "legs_vertices": 98,
+      "min_vertex_distance": 2.710050809963863,
+      "p01_vertex_distance": 5.424879429807487,
+      "closest_cloak_vertex": [
+        8.545309066772461,
+        -44.95848083496094,
+        44.76131820678711
+      ],
+      "closest_legs_vertex": [
+        8.365570068359375,
+        -42.288917541503906,
+        44.33061981201172
+      ],
+      "aabb_overlap": true,
+      "cloak_triangles": 3712,
+      "legs_triangles": 0,
+      "triangle_indices_valid": true,
+      "candidate_near": false
+    },
+    {
+      "frame": 24,
+      "time": 0.7902701542456501,
+      "cloak_slot": "cloak (daggerfall_cloak)",
+      "legs_slot": "groin (war_misc_trsrs_02c)",
+      "cloak_mesh_index": 0,
+      "legs_mesh_index": 0,
+      "cloak_vertices": 1949,
+      "legs_vertices": 882,
+      "min_vertex_distance": 2.942905830822694,
+      "p01_vertex_distance": 3.970343467524593,
+      "closest_cloak_vertex": [
+        5.679203033447266,
+        -28.517696380615234,
+        26.328044891357422
+      ],
+      "closest_legs_vertex": [
+        3.6255388259887695,
+        -26.47052001953125,
+        26.83026695251465
+      ],
+      "aabb_overlap": true,
+      "cloak_triangles": 3712,
+      "legs_triangles": 1552,
+      "triangle_indices_valid": true,
+      "candidate_near": false
+    },
+    {
+      "frame": 248,
+      "time": 321.4783686153224,
+      "cloak_slot": "cloak (daggerfall_cloak)",
+      "legs_slot": "groin (war_misc_trsrs_02c)",
+      "cloak_mesh_index": 0,
+      "legs_mesh_index": 0,
+      "cloak_vertices": 1949,
+      "legs_vertices": 882,
+      "min_vertex_distance": 3.129526545605321,
+      "p01_vertex_distance": 6.122907519749172,
+      "closest_cloak_vertex": [
+        10.988768577575684,
+        -14.344304084777832,
+        19.974485397338867
+      ],
+      "closest_legs_vertex": [
+        11.363076210021973,
+        -11.257332801818848,
+        20.32724380493164
+      ],
+      "aabb_overlap": true,
+      "cloak_triangles": 3712,
+      "legs_triangles": 1552,
+      "triangle_indices_valid": true,
+      "candidate_near": false
+    },
+    {
+      "frame": 288,
+      "time": 238.43595142596223,
+      "cloak_slot": "cloak (daggerfall_cloak)",
+      "legs_slot": "right foot (netch_leather_boots)",
+      "cloak_mesh_index": 0,
+      "legs_mesh_index": 1,
+      "cloak_vertices": 1949,
+      "legs_vertices": 98,
+      "min_vertex_distance": 3.129880793622295,
+      "p01_vertex_distance": 4.74469595274429,
+      "closest_cloak_vertex": [
+        10.477888107299805,
+        -48.64931106567383,
+        50.75962829589844
+      ],
+      "closest_legs_vertex": [
+        9.39578914642334,
+        -45.71918869018555,
+        50.958621978759766
+      ],
+      "aabb_overlap": true,
+      "cloak_triangles": 3712,
+      "legs_triangles": 0,
+      "triangle_indices_valid": true,
+      "candidate_near": false
+    },
+    {
+      "frame": 19,
+      "time": 0.812800207888282,
+      "cloak_slot": "cloak (daggerfall_cloak)",
+      "legs_slot": "groin (war_misc_trsrs_02c)",
+      "cloak_mesh_index": 0,
+      "legs_mesh_index": 0,
+      "cloak_vertices": 1949,
+      "legs_vertices": 882,
+      "min_vertex_distance": 3.312063089724502,
+      "p01_vertex_distance": 4.68270091477888,
+      "closest_cloak_vertex": [
+        3.797731399536133,
+        -29.718427658081055,
+        29.370407104492188
+      ],
+      "closest_legs_vertex": [
+        2.1605284214019775,
+        -27.04071807861328,
+        28.312484741210938
+      ],
+      "aabb_overlap": true,
+      "cloak_triangles": 3712,
+      "legs_triangles": 1552,
+      "triangle_indices_valid": true,
+      "candidate_near": false
+    },
+    {
+      "frame": 159,
+      "time": 0.9206666815179869,
+      "cloak_slot": "cloak (daggerfall_cloak)",
+      "legs_slot": "groin (war_misc_trsrs_02c)",
+      "cloak_mesh_index": 0,
+      "legs_mesh_index": 0,
+      "cloak_vertices": 1949,
+      "legs_vertices": 882,
+      "min_vertex_distance": 3.5293118687875733,
+      "p01_vertex_distance": 8.56703735412674,
+      "closest_cloak_vertex": [
+        3.7020716667175293,
+        -28.84581756591797,
+        26.47801399230957
+      ],
+      "closest_legs_vertex": [
+        2.275113344192505,
+        -26.954587936401367,
+        23.862085342407227
+      ],
+      "aabb_overlap": true,
+      "cloak_triangles": 3712,
+      "legs_triangles": 1552,
+      "triangle_indices_valid": true,
+      "candidate_near": false
+    },
+    {
+      "frame": 10,
+      "time": 0.8524274894853074,
+      "cloak_slot": "cloak (daggerfall_cloak)",
+      "legs_slot": "groin (war_misc_trsrs_02c)",
+      "cloak_mesh_index": 0,
+      "legs_mesh_index": 0,
+      "cloak_vertices": 1949,
+      "legs_vertices": 882,
+      "min_vertex_distance": 3.55537911583003,
+      "p01_vertex_distance": 6.245756855195409,
+      "closest_cloak_vertex": [
+        6.901556015014648,
+        -27.07609748840332,
+        29.131790161132812
+      ],
+      "closest_legs_vertex": [
+        4.644914627075195,
+        -24.506277084350586,
+        28.160032272338867
+      ],
+      "aabb_overlap": true,
+      "cloak_triangles": 3712,
+      "legs_triangles": 1552,
+      "triangle_indices_valid": true,
+      "candidate_near": false
+    },
+    {
+      "frame": 17,
+      "time": 0.3810560890660613,
+      "cloak_slot": "cloak (daggerfall_cloak)",
+      "legs_slot": "groin (war_misc_trsrs_02c)",
+      "cloak_mesh_index": 0,
+      "legs_mesh_index": 0,
+      "cloak_vertices": 1949,
+      "legs_vertices": 882,
+      "min_vertex_distance": 3.5579683461582854,
+      "p01_vertex_distance": 7.45520402452877,
+      "closest_cloak_vertex": [
+        1.4332404136657715,
+        -38.12674331665039,
+        27.378849029541016
+      ],
+      "closest_legs_vertex": [
+        1.0504273176193237,
+        -35.49424362182617,
+        25.016109466552734
+      ],
+      "aabb_overlap": true,
+      "cloak_triangles": 3712,
+      "legs_triangles": 1552,
+      "triangle_indices_valid": true,
+      "candidate_near": false
+    },
+    {
+      "frame": 168,
+      "time": 0.7389407198595702,
+      "cloak_slot": "cloak (daggerfall_cloak)",
+      "legs_slot": "groin (war_misc_trsrs_02c)",
+      "cloak_mesh_index": 0,
+      "legs_mesh_index": 0,
+      "cloak_vertices": 1949,
+      "legs_vertices": 882,
+      "min_vertex_distance": 3.5709813633176584,
+      "p01_vertex_distance": 7.015252376166614,
+      "closest_cloak_vertex": [
+        3.8993515968322754,
+        -27.951644897460938,
+        27.170785903930664
+      ],
+      "closest_legs_vertex": [
+        1.441836953163147,
+        -25.494731903076172,
+        26.348527908325195
+      ],
+      "aabb_overlap": true,
+      "cloak_triangles": 3712,
+      "legs_triangles": 1552,
+      "triangle_indices_valid": true,
+      "candidate_near": false
+    },
+    {
+      "frame": 44,
+      "time": 232.81002067614287,
+      "cloak_slot": "cloak (daggerfall_cloak)",
+      "legs_slot": "groin (war_misc_trsrs_02c)",
+      "cloak_mesh_index": 0,
+      "legs_mesh_index": 0,
+      "cloak_vertices": 1949,
+      "legs_vertices": 882,
+      "min_vertex_distance": 4.011100514478366,
+      "p01_vertex_distance": 7.09127181334777,
+      "closest_cloak_vertex": [
+        8.447993278503418,
+        -26.90387535095215,
+        29.62373161315918
+      ],
+      "closest_legs_vertex": [
+        8.784987449645996,
+        -23.156110763549805,
+        28.234622955322266
+      ],
+      "aabb_overlap": true,
+      "cloak_triangles": 3712,
+      "legs_triangles": 1552,
+      "triangle_indices_valid": true,
+      "candidate_near": false
+    },
+    {
+      "frame": 27,
+      "time": 0.38117632595629825,
+      "cloak_slot": "cloak (daggerfall_cloak)",
+      "legs_slot": "groin (war_misc_trsrs_02c)",
+      "cloak_mesh_index": 0,
+      "legs_mesh_index": 0,
+      "cloak_vertices": 1949,
+      "legs_vertices": 882,
+      "min_vertex_distance": 4.076688575562495,
+      "p01_vertex_distance": 7.5326911776648275,
+      "closest_cloak_vertex": [
+        2.4585225582122803,
+        -38.06193542480469,
+        27.827442169189453
+      ],
+      "closest_legs_vertex": [
+        1.042956829071045,
+        -35.47127914428711,
+        25.01602554321289
+      ],
+      "aabb_overlap": true,
+      "cloak_triangles": 3712,
+      "legs_triangles": 1552,
+      "triangle_indices_valid": true,
+      "candidate_near": false
+    },
+    {
+      "frame": 163,
+      "time": 0.7275386477936282,
+      "cloak_slot": "cloak (daggerfall_cloak)",
+      "legs_slot": "groin (war_misc_trsrs_02c)",
+      "cloak_mesh_index": 0,
+      "legs_mesh_index": 0,
+      "cloak_vertices": 1949,
+      "legs_vertices": 882,
+      "min_vertex_distance": 4.086410406462497,
+      "p01_vertex_distance": 7.5272157877205546,
+      "closest_cloak_vertex": [
+        2.953155040740967,
+        -27.327987670898438,
+        30.989686965942383
+      ],
+      "closest_legs_vertex": [
+        2.6122987270355225,
+        -23.3555965423584,
+        30.093765258789062
+      ],
+      "aabb_overlap": true,
+      "cloak_triangles": 3712,
+      "legs_triangles": 1552,
+      "triangle_indices_valid": true,
+      "candidate_near": false
+    },
+    {
+      "frame": 154,
+      "time": 157.14188089027311,
+      "cloak_slot": "cloak (daggerfall_cloak)",
+      "legs_slot": "left foot (netch_leather_boots)",
+      "cloak_mesh_index": 0,
+      "legs_mesh_index": 2,
+      "cloak_vertices": 1949,
+      "legs_vertices": 98,
+      "min_vertex_distance": 4.429952478979918,
+      "p01_vertex_distance": 6.341732501762832,
+      "closest_cloak_vertex": [
+        -0.9218659996986389,
+        -43.881927490234375,
+        55.53376007080078
+      ],
+      "closest_legs_vertex": [
+        -2.1708292961120605,
+        -39.88131332397461,
+        54.098609924316406
+      ],
+      "aabb_overlap": true,
+      "cloak_triangles": 3712,
+      "legs_triangles": 0,
+      "triangle_indices_valid": true,
+      "candidate_near": false
+    },
+    {
+      "frame": 21,
+      "time": 1.187928293760282,
+      "cloak_slot": "cloak (daggerfall_cloak)",
+      "legs_slot": "groin (war_misc_trsrs_02c)",
+      "cloak_mesh_index": 0,
+      "legs_mesh_index": 0,
+      "cloak_vertices": 1949,
+      "legs_vertices": 882,
+      "min_vertex_distance": 4.454519534683916,
+      "p01_vertex_distance": 7.992542838790432,
+      "closest_cloak_vertex": [
+        -4.2442474365234375,
+        -27.07149887084961,
+        31.598913192749023
+      ],
+      "closest_legs_vertex": [
+        -4.618404388427734,
+        -22.92702865600586,
+        30.009536743164062
+      ],
+      "aabb_overlap": true,
+      "cloak_triangles": 3712,
+      "legs_triangles": 1552,
+      "triangle_indices_valid": true,
+      "candidate_near": false
+    },
+    {
+      "frame": 129,
+      "time": 237.90135552757553,
+      "cloak_slot": "cloak (daggerfall_cloak)",
+      "legs_slot": "left foot (netch_leather_boots)",
+      "cloak_mesh_index": 0,
+      "legs_mesh_index": 2,
+      "cloak_vertices": 1949,
+      "legs_vertices": 98,
+      "min_vertex_distance": 4.750700912582572,
+      "p01_vertex_distance": 8.25300069340504,
+      "closest_cloak_vertex": [
+        -7.16860294342041,
+        -48.82059097290039,
+        49.99400329589844
+      ],
+      "closest_legs_vertex": [
+        -8.260038375854492,
+        -45.4100456237793,
+        46.872127532958984
+      ],
+      "aabb_overlap": true,
+      "cloak_triangles": 3712,
+      "legs_triangles": 0,
+      "triangle_indices_valid": true,
+      "candidate_near": false
+    },
+    {
+      "frame": 158,
+      "time": 0.7047008869529666,
+      "cloak_slot": "cloak (daggerfall_cloak)",
+      "legs_slot": "groin (war_misc_trsrs_02c)",
+      "cloak_mesh_index": 0,
+      "legs_mesh_index": 0,
+      "cloak_vertices": 1949,
+      "legs_vertices": 882,
+      "min_vertex_distance": 4.838998475643161,
+      "p01_vertex_distance": 8.451658425545679,
+      "closest_cloak_vertex": [
+        3.6183903217315674,
+        -26.612539291381836,
+        30.077054977416992
+      ],
+      "closest_legs_vertex": [
+        2.7379441261291504,
+        -21.90561294555664,
+        29.380229949951172
+      ],
+      "aabb_overlap": true,
+      "cloak_triangles": 3712,
+      "legs_triangles": 1552,
+      "triangle_indices_valid": true,
+      "candidate_near": false
+    },
+    {
+      "frame": 55,
+      "time": 233.01467473529596,
+      "cloak_slot": "cloak (daggerfall_cloak)",
+      "legs_slot": "groin (war_misc_trsrs_02c)",
+      "cloak_mesh_index": 0,
+      "legs_mesh_index": 0,
+      "cloak_vertices": 1949,
+      "legs_vertices": 882,
+      "min_vertex_distance": 5.369563147467528,
+      "p01_vertex_distance": 6.693330301238922,
+      "closest_cloak_vertex": [
+        -11.299367904663086,
+        -22.520200729370117,
+        25.160348892211914
+      ],
+      "closest_legs_vertex": [
+        -8.073895454406738,
+        -18.339380264282227,
+        26.13465690612793
+      ],
+      "aabb_overlap": true,
+      "cloak_triangles": 3712,
+      "legs_triangles": 1552,
+      "triangle_indices_valid": true,
+      "candidate_near": false
+    },
+    {
+      "frame": 22,
+      "time": 0.3924581611320034,
+      "cloak_slot": "cloak (daggerfall_cloak)",
+      "legs_slot": "groin (war_misc_trsrs_02c)",
+      "cloak_mesh_index": 0,
+      "legs_mesh_index": 0,
+      "cloak_vertices": 1949,
+      "legs_vertices": 882,
+      "min_vertex_distance": 5.4402667612640965,
+      "p01_vertex_distance": 8.062400236367367,
+      "closest_cloak_vertex": [
+        -4.694767475128174,
+        -36.663734436035156,
+        27.859355926513672
+      ],
+      "closest_legs_vertex": [
+        -1.9547265768051147,
+        -32.733070373535156,
+        25.28281593322754
+      ],
+      "aabb_overlap": true,
+      "cloak_triangles": 3712,
+      "legs_triangles": 1552,
+      "triangle_indices_valid": true,
+      "candidate_near": false
+    },
+    {
+      "frame": 52,
+      "time": 232.37839957570705,
+      "cloak_slot": "cloak (daggerfall_cloak)",
+      "legs_slot": "groin (war_misc_trsrs_02c)",
+      "cloak_mesh_index": 0,
+      "legs_mesh_index": 0,
+      "cloak_vertices": 1949,
+      "legs_vertices": 882,
+      "min_vertex_distance": 5.9943420280120465,
+      "p01_vertex_distance": 6.632250950337693,
+      "closest_cloak_vertex": [
+        -15.757948875427246,
+        -20.389053344726562,
+        31.31838607788086
+      ],
+      "closest_legs_vertex": [
+        -12.318929672241211,
+        -16.06744956970215,
+        28.988359451293945
+      ],
+      "aabb_overlap": true,
+      "cloak_triangles": 3712,
+      "legs_triangles": 1552,
+      "triangle_indices_valid": true,
+      "candidate_near": false
+    },
+    {
+      "frame": 31,
+      "time": 1.1882360009583115,
+      "cloak_slot": "cloak (daggerfall_cloak)",
+      "legs_slot": "groin (war_misc_trsrs_02c)",
+      "cloak_mesh_index": 0,
+      "legs_mesh_index": 0,
+      "cloak_vertices": 1949,
+      "legs_vertices": 882,
+      "min_vertex_distance": 6.002170826685346,
+      "p01_vertex_distance": 8.63973022925035,
+      "closest_cloak_vertex": [
+        -4.091268539428711,
+        -29.491695404052734,
+        27.69008445739746
+      ],
+      "closest_legs_vertex": [
+        -3.5880937576293945,
+        -23.8516902923584,
+        25.699302673339844
+      ],
+      "aabb_overlap": true,
+      "cloak_triangles": 3712,
+      "legs_triangles": 1552,
+      "triangle_indices_valid": true,
+      "candidate_near": false
+    },
+    {
+      "frame": 32,
+      "time": 0.3925783980222398,
+      "cloak_slot": "cloak (daggerfall_cloak)",
+      "legs_slot": "groin (war_misc_trsrs_02c)",
+      "cloak_mesh_index": 0,
+      "legs_mesh_index": 0,
+      "cloak_vertices": 1949,
+      "legs_vertices": 882,
+      "min_vertex_distance": 6.199045161142484,
+      "p01_vertex_distance": 8.306743245126201,
+      "closest_cloak_vertex": [
+        0.3983485698699951,
+        -38.56087112426758,
+        28.336078643798828
+      ],
+      "closest_legs_vertex": [
+        0.35000795125961304,
+        -33.27545928955078,
+        25.097213745117188
+      ],
+      "aabb_overlap": true,
+      "cloak_triangles": 3712,
+      "legs_triangles": 1552,
+      "triangle_indices_valid": true,
+      "candidate_near": false
+    },
+    {
+      "frame": 0,
+      "time": 0,
+      "cloak_slot": "cloak (daggerfall_cloak)",
+      "legs_slot": "groin (war_misc_trsrs_02c)",
+      "cloak_mesh_index": 0,
+      "legs_mesh_index": 0,
+      "cloak_vertices": 1949,
+      "legs_vertices": 882,
+      "min_vertex_distance": 6.299578807463648,
+      "p01_vertex_distance": 6.696364739942952,
+      "closest_cloak_vertex": [
+        -8.615400314331055,
+        -12.784384727478027,
+        81.53104400634766
+      ],
+      "closest_legs_vertex": [
+        -6.419518947601318,
+        -7.041086673736572,
+        80.160888671875
+      ],
+      "aabb_overlap": true,
+      "cloak_triangles": 3712,
+      "legs_triangles": 1552,
+      "triangle_indices_valid": true,
+      "candidate_near": false
+    },
+    {
+      "frame": 2,
+      "time": 0,
+      "cloak_slot": "cloak (daggerfall_cloak)",
+      "legs_slot": "groin (war_misc_trsrs_02c)",
+      "cloak_mesh_index": 0,
+      "legs_mesh_index": 0,
+      "cloak_vertices": 1949,
+      "legs_vertices": 882,
+      "min_vertex_distance": 6.299578807463648,
+      "p01_vertex_distance": 6.696364739942952,
+      "closest_cloak_vertex": [
+        -8.615400314331055,
+        -12.784384727478027,
+        81.53104400634766
+      ],
+      "closest_legs_vertex": [
+        -6.419518947601318,
+        -7.041086673736572,
+        80.160888671875
+      ],
+      "aabb_overlap": true,
+      "cloak_triangles": 3712,
+      "legs_triangles": 1552,
+      "triangle_indices_valid": true,
+      "candidate_near": false
+    },
+    {
+      "frame": 4,
+      "time": 0,
+      "cloak_slot": "cloak (daggerfall_cloak)",
+      "legs_slot": "groin (war_misc_trsrs_02c)",
+      "cloak_mesh_index": 0,
+      "legs_mesh_index": 0,
+      "cloak_vertices": 1949,
+      "legs_vertices": 882,
+      "min_vertex_distance": 6.299578807463648,
+      "p01_vertex_distance": 6.696364739942952,
+      "closest_cloak_vertex": [
+        -8.615400314331055,
+        -12.784384727478027,
+        81.53104400634766
+      ],
+      "closest_legs_vertex": [
+        -6.419518947601318,
+        -7.041086673736572,
+        80.160888671875
+      ],
+      "aabb_overlap": true,
+      "cloak_triangles": 3712,
+      "legs_triangles": 1552,
+      "triangle_indices_valid": true,
+      "candidate_near": false
+    },
+    {
+      "frame": 26,
+      "time": 1.1766464585846041,
+      "cloak_slot": "cloak (daggerfall_cloak)",
+      "legs_slot": "groin (war_misc_trsrs_02c)",
+      "cloak_mesh_index": 0,
+      "legs_mesh_index": 0,
+      "cloak_vertices": 1949,
+      "legs_vertices": 882,
+      "min_vertex_distance": 6.429109646524637,
+      "p01_vertex_distance": 9.586073048802252,
+      "closest_cloak_vertex": [
+        -3.7325057983398438,
+        -28.308311462402344,
+        29.77216911315918
+      ],
+      "closest_legs_vertex": [
+        -4.818164825439453,
+        -21.971982955932617,
+        29.696430206298828
+      ],
+      "aabb_overlap": true,
+      "cloak_triangles": 3712,
+      "legs_triangles": 1552,
+      "triangle_indices_valid": true,
+      "candidate_near": false
+    },
+    {
+      "frame": 57,
+      "time": 232.38980337240187,
+      "cloak_slot": "cloak (daggerfall_cloak)",
+      "legs_slot": "groin (war_misc_trsrs_02c)",
+      "cloak_mesh_index": 0,
+      "legs_mesh_index": 0,
+      "cloak_vertices": 1949,
+      "legs_vertices": 882,
+      "min_vertex_distance": 6.4527910937706885,
+      "p01_vertex_distance": 6.9445461922021305,
+      "closest_cloak_vertex": [
+        -16.060842514038086,
+        -19.687225341796875,
+        28.96645736694336
+      ],
+      "closest_legs_vertex": [
+        -12.284356117248535,
+        -14.478621482849121,
+        28.469356536865234
+      ],
+      "aabb_overlap": true,
+      "cloak_triangles": 3712,
+      "legs_triangles": 1552,
+      "triangle_indices_valid": true,
+      "candidate_near": false
+    },
+    {
+      "frame": 47,
+      "time": 232.38967971958687,
+      "cloak_slot": "cloak (daggerfall_cloak)",
+      "legs_slot": "groin (war_misc_trsrs_02c)",
+      "cloak_mesh_index": 0,
+      "legs_mesh_index": 0,
+      "cloak_vertices": 1949,
+      "legs_vertices": 882,
+      "min_vertex_distance": 6.755645266196146,
+      "p01_vertex_distance": 7.5929224125376065,
+      "closest_cloak_vertex": [
+        -15.32844066619873,
+        -20.357139587402344,
+        29.896602630615234
+      ],
+      "closest_legs_vertex": [
+        -12.28471851348877,
+        -14.496014595031738,
+        28.474733352661133
+      ],
+      "aabb_overlap": true,
+      "cloak_triangles": 3712,
+      "legs_triangles": 1552,
+      "triangle_indices_valid": true,
+      "candidate_near": false
+    },
+    {
+      "frame": 45,
+      "time": 233.00330284748532,
+      "cloak_slot": "cloak (daggerfall_cloak)",
+      "legs_slot": "groin (war_misc_trsrs_02c)",
+      "cloak_mesh_index": 0,
+      "legs_mesh_index": 0,
+      "cloak_vertices": 1949,
+      "legs_vertices": 882,
+      "min_vertex_distance": 6.86445747982767,
+      "p01_vertex_distance": 7.304586259400764,
+      "closest_cloak_vertex": [
+        -2.106353998184204,
+        -23.153888702392578,
+        26.073314666748047
+      ],
+      "closest_legs_vertex": [
+        -3.5265541076660156,
+        -16.43878173828125,
+        26.178892135620117
+      ],
+      "aabb_overlap": true,
+      "cloak_triangles": 3712,
+      "legs_triangles": 1552,
+      "triangle_indices_valid": true,
+      "candidate_near": false
+    },
+    {
+      "frame": 135,
+      "time": 238.49284430236372,
+      "cloak_slot": "cloak (daggerfall_cloak)",
+      "legs_slot": "right foot (netch_leather_boots)",
+      "cloak_mesh_index": 0,
+      "legs_mesh_index": 1,
+      "cloak_vertices": 1949,
+      "legs_vertices": 98,
+      "min_vertex_distance": 6.993677192176324,
+      "p01_vertex_distance": 8.83965700826017,
+      "closest_cloak_vertex": [
+        11.069016456604004,
+        -46.01494216918945,
+        46.759517669677734
+      ],
+      "closest_legs_vertex": [
+        9.084555625915527,
+        -39.91417694091797,
+        43.97489929199219
+      ],
+      "aabb_overlap": true,
+      "cloak_triangles": 3712,
+      "legs_triangles": 0,
+      "triangle_indices_valid": true,
+      "candidate_near": false
+    },
+    {
+      "frame": 138,
+      "time": 238.3151037730778,
+      "cloak_slot": "cloak (daggerfall_cloak)",
+      "legs_slot": "groin (war_misc_trsrs_02c)",
+      "cloak_mesh_index": 0,
+      "legs_mesh_index": 0,
+      "cloak_vertices": 1949,
+      "legs_vertices": 882,
+      "min_vertex_distance": 7.069899834414175,
+      "p01_vertex_distance": 10.739717856547182,
+      "closest_cloak_vertex": [
+        11.62268352508545,
+        -45.55888366699219,
+        44.336456298828125
+      ],
+      "closest_legs_vertex": [
+        9.30664348602295,
+        -40.11906433105469,
+        40.45988464355469
+      ],
+      "aabb_overlap": true,
+      "cloak_triangles": 3712,
+      "legs_triangles": 1552,
+      "triangle_indices_valid": true,
+      "candidate_near": false
+    },
+    {
+      "frame": 1,
+      "time": 0,
+      "cloak_slot": "cloak (daggerfall_cloak)",
+      "legs_slot": "groin (war_misc_trsrs_02c)",
+      "cloak_mesh_index": 0,
+      "legs_mesh_index": 0,
+      "cloak_vertices": 1949,
+      "legs_vertices": 882,
+      "min_vertex_distance": 7.175636472452462,
+      "p01_vertex_distance": 7.691619196732923,
+      "closest_cloak_vertex": [
+        -10.344900131225586,
+        -10.286886215209961,
+        79.23516082763672
+      ],
+      "closest_legs_vertex": [
+        -7.985787391662598,
+        -3.7364461421966553,
+        77.49847412109375
+      ],
+      "aabb_overlap": true,
+      "cloak_triangles": 3712,
+      "legs_triangles": 1552,
+      "triangle_indices_valid": true,
+      "candidate_near": false
+    },
+    {
+      "frame": 3,
+      "time": 0,
+      "cloak_slot": "cloak (daggerfall_cloak)",
+      "legs_slot": "groin (war_misc_trsrs_02c)",
+      "cloak_mesh_index": 0,
+      "legs_mesh_index": 0,
+      "cloak_vertices": 1949,
+      "legs_vertices": 882,
+      "min_vertex_distance": 7.175636472452462,
+      "p01_vertex_distance": 7.691619196732923,
+      "closest_cloak_vertex": [
+        -10.344900131225586,
+        -10.286886215209961,
+        79.23516082763672
+      ],
+      "closest_legs_vertex": [
+        -7.985787391662598,
+        -3.7364461421966553,
+        77.49847412109375
+      ],
+      "aabb_overlap": true,
+      "cloak_triangles": 3712,
+      "legs_triangles": 1552,
+      "triangle_indices_valid": true,
+      "candidate_near": false
+    },
+    {
+      "frame": 5,
+      "time": 0,
+      "cloak_slot": "cloak (daggerfall_cloak)",
+      "legs_slot": "groin (war_misc_trsrs_02c)",
+      "cloak_mesh_index": 0,
+      "legs_mesh_index": 0,
+      "cloak_vertices": 1949,
+      "legs_vertices": 882,
+      "min_vertex_distance": 7.175636472452462,
+      "p01_vertex_distance": 7.691619196732923,
+      "closest_cloak_vertex": [
+        -10.344900131225586,
+        -10.286886215209961,
+        79.23516082763672
+      ],
+      "closest_legs_vertex": [
+        -7.985787391662598,
+        -3.7364461421966553,
+        77.49847412109375
+      ],
+      "aabb_overlap": true,
+      "cloak_triangles": 3712,
+      "legs_triangles": 1552,
+      "triangle_indices_valid": true,
+      "candidate_near": false
+    },
+    {
+      "frame": 164,
+      "time": 0.9433169720508557,
+      "cloak_slot": "cloak (daggerfall_cloak)",
+      "legs_slot": "groin (war_misc_trsrs_02c)",
+      "cloak_mesh_index": 0,
+      "legs_mesh_index": 0,
+      "cloak_vertices": 1949,
+      "legs_vertices": 882,
+      "min_vertex_distance": 7.178586830301395,
+      "p01_vertex_distance": 11.239736884543593,
+      "closest_cloak_vertex": [
+        4.7105889320373535,
+        -28.616086959838867,
+        28.438587188720703
+      ],
+      "closest_legs_vertex": [
+        2.640465021133423,
+        -24.437469482421875,
+        22.980945587158203
+      ],
+      "aabb_overlap": true,
+      "cloak_triangles": 3712,
+      "legs_triangles": 1552,
+      "triangle_indices_valid": true,
+      "candidate_near": false
+    },
+    {
+      "frame": 6,
+      "time": 0.011248218466927013,
+      "cloak_slot": "cloak (daggerfall_cloak)",
+      "legs_slot": "groin (war_misc_trsrs_02c)",
+      "cloak_mesh_index": 0,
+      "legs_mesh_index": 0,
+      "cloak_vertices": 1949,
+      "legs_vertices": 882,
+      "min_vertex_distance": 7.22358648588751,
+      "p01_vertex_distance": 7.735654476803296,
+      "closest_cloak_vertex": [
+        -10.379956245422363,
+        -10.39664077758789,
+        79.20729064941406
+      ],
+      "closest_legs_vertex": [
+        -8.030779838562012,
+        -3.8034133911132812,
+        77.42097473144531
+      ],
+      "aabb_overlap": true,
+      "cloak_triangles": 3712,
+      "legs_triangles": 1552,
+      "triangle_indices_valid": true,
+      "candidate_near": false
+    },
+    {
+      "frame": 7,
+      "time": 0.21596579456502046,
+      "cloak_slot": "cloak (daggerfall_cloak)",
+      "legs_slot": "groin (war_misc_trsrs_02c)",
+      "cloak_mesh_index": 0,
+      "legs_mesh_index": 0,
+      "cloak_vertices": 1949,
+      "legs_vertices": 882,
+      "min_vertex_distance": 7.537995100960173,
+      "p01_vertex_distance": 8.026725890756753,
+      "closest_cloak_vertex": [
+        -10.47553539276123,
+        -11.78956127166748,
+        79.95095825195312
+      ],
+      "closest_legs_vertex": [
+        -7.486764430999756,
+        -4.9107232093811035,
+        79.19583892822266
+      ],
+      "aabb_overlap": true,
+      "cloak_triangles": 3712,
+      "legs_triangles": 1552,
+      "triangle_indices_valid": true,
+      "candidate_near": false
+    },
+    {
+      "frame": 360,
+      "time": 1.9702000000000082,
+      "cloak_slot": "cloak (daggerfall_cloak)",
+      "legs_slot": "groin (war_misc_trsrs_02c)",
+      "cloak_mesh_index": 0,
+      "legs_mesh_index": 0,
+      "cloak_vertices": 1949,
+      "legs_vertices": 882,
+      "min_vertex_distance": 7.545331134769411,
+      "p01_vertex_distance": 8.165521987188733,
+      "closest_cloak_vertex": [
+        -7.700756072998047,
+        -11.414175033569336,
+        78.28416442871094
+      ],
+      "closest_legs_vertex": [
+        -7.80481481552124,
+        -3.911264657974243,
+        77.49199676513672
+      ],
+      "aabb_overlap": true,
+      "cloak_triangles": 3712,
+      "legs_triangles": 1552,
+      "triangle_indices_valid": true,
+      "candidate_near": false
+    },
+    {
+      "frame": 291,
+      "time": 238.2866573348771,
+      "cloak_slot": "cloak (daggerfall_cloak)",
+      "legs_slot": "groin (war_misc_trsrs_02c)",
+      "cloak_mesh_index": 0,
+      "legs_mesh_index": 0,
+      "cloak_vertices": 1949,
+      "legs_vertices": 882,
+      "min_vertex_distance": 7.634914922170669,
+      "p01_vertex_distance": 10.804178136642076,
+      "closest_cloak_vertex": [
+        12.439775466918945,
+        -44.78068923950195,
+        41.72517013549805
+      ],
+      "closest_legs_vertex": [
+        8.745062828063965,
+        -40.48905563354492,
+        36.604339599609375
+      ],
+      "aabb_overlap": true,
+      "cloak_triangles": 3712,
+      "legs_triangles": 1552,
+      "triangle_indices_valid": true,
+      "candidate_near": false
+    },
+    {
+      "frame": 148,
+      "time": 157.5121728905499,
+      "cloak_slot": "cloak (daggerfall_cloak)",
+      "legs_slot": "groin (war_misc_trsrs_02c)",
+      "cloak_mesh_index": 0,
+      "legs_mesh_index": 0,
+      "cloak_vertices": 1949,
+      "legs_vertices": 882,
+      "min_vertex_distance": 7.830417553834004,
+      "p01_vertex_distance": 10.160479476776539,
+      "closest_cloak_vertex": [
+        16.06690216064453,
+        -43.01727294921875,
+        46.98250198364258
+      ],
+      "closest_legs_vertex": [
+        10.844350814819336,
+        -37.231109619140625,
+        46.23369598388672
+      ],
+      "aabb_overlap": true,
+      "cloak_triangles": 3712,
+      "legs_triangles": 1552,
+      "triangle_indices_valid": true,
+      "candidate_near": false
+    },
+    {
+      "frame": 16,
+      "time": 1.17652622169434,
+      "cloak_slot": "cloak (daggerfall_cloak)",
+      "legs_slot": "groin (war_misc_trsrs_02c)",
+      "cloak_mesh_index": 0,
+      "legs_mesh_index": 0,
+      "cloak_vertices": 1949,
+      "legs_vertices": 882,
+      "min_vertex_distance": 7.870116049662026,
+      "p01_vertex_distance": 9.237733182997099,
+      "closest_cloak_vertex": [
+        -1.5866858959197998,
+        -28.91904067993164,
+        31.447938919067383
+      ],
+      "closest_legs_vertex": [
+        -4.82015323638916,
+        -21.961715698242188,
+        29.693218231201172
+      ],
+      "aabb_overlap": true,
+      "cloak_triangles": 3712,
+      "legs_triangles": 1552,
+      "triangle_indices_valid": true,
+      "candidate_near": false
+    },
+    {
+      "frame": 40,
+      "time": 320.8728183105469,
+      "cloak_slot": "cloak (daggerfall_cloak)",
+      "legs_slot": "groin (war_misc_trsrs_02c)",
+      "cloak_mesh_index": 0,
+      "legs_mesh_index": 0,
+      "cloak_vertices": 1949,
+      "legs_vertices": 882,
+      "min_vertex_distance": 7.910069357427604,
+      "p01_vertex_distance": 10.429729511533612,
+      "closest_cloak_vertex": [
+        6.49267578125,
+        -27.27382469177246,
+        28.106731414794922
+      ],
+      "closest_legs_vertex": [
+        5.65798282623291,
+        -20.251415252685547,
+        24.562969207763672
+      ],
+      "aabb_overlap": true,
+      "cloak_triangles": 3712,
+      "legs_triangles": 1552,
+      "triangle_indices_valid": true,
+      "candidate_near": false
+    },
+    {
+      "frame": 350,
+      "time": 0.8790000000000002,
+      "cloak_slot": "cloak (daggerfall_cloak)",
+      "legs_slot": "groin (war_misc_trsrs_02c)",
+      "cloak_mesh_index": 0,
+      "legs_mesh_index": 0,
+      "cloak_vertices": 1949,
+      "legs_vertices": 882,
+      "min_vertex_distance": 7.947020573307963,
+      "p01_vertex_distance": 8.669311132107342,
+      "closest_cloak_vertex": [
+        4.474735260009766,
+        -11.607117652893066,
+        80.63981628417969
+      ],
+      "closest_legs_vertex": [
+        2.512148380279541,
+        -3.96563458442688,
+        79.68528747558594
+      ],
+      "aabb_overlap": true,
+      "cloak_triangles": 3712,
+      "legs_triangles": 1552,
+      "triangle_indices_valid": true,
+      "candidate_near": false
+    },
+    {
+      "frame": 351,
+      "time": 0.9758999999999943,
+      "cloak_slot": "cloak (daggerfall_cloak)",
+      "legs_slot": "groin (war_misc_trsrs_02c)",
+      "cloak_mesh_index": 0,
+      "legs_mesh_index": 0,
+      "cloak_vertices": 1949,
+      "legs_vertices": 882,
+      "min_vertex_distance": 7.965039694845627,
+      "p01_vertex_distance": 8.803436704017924,
+      "closest_cloak_vertex": [
+        4.062589645385742,
+        -11.727713584899902,
+        80.70262908935547
+      ],
+      "closest_legs_vertex": [
+        2.539843797683716,
+        -3.9762322902679443,
+        79.6839828491211
+      ],
+      "aabb_overlap": true,
+      "cloak_triangles": 3712,
+      "legs_triangles": 1552,
+      "triangle_indices_valid": true,
+      "candidate_near": false
+    },
+    {
+      "frame": 50,
+      "time": 232.9807744686098,
+      "cloak_slot": "cloak (daggerfall_cloak)",
+      "legs_slot": "groin (war_misc_trsrs_02c)",
+      "cloak_mesh_index": 0,
+      "legs_mesh_index": 0,
+      "cloak_vertices": 1949,
+      "legs_vertices": 882,
+      "min_vertex_distance": 7.973536521156347,
+      "p01_vertex_distance": 8.814964685758158,
+      "closest_cloak_vertex": [
+        -13.64417839050293,
+        -20.161334991455078,
+        25.170244216918945
+      ],
+      "closest_legs_vertex": [
+        -8.045506477355957,
+        -14.512256622314453,
+        25.735992431640625
+      ],
+      "aabb_overlap": true,
+      "cloak_triangles": 3712,
+      "legs_triangles": 1552,
+      "triangle_indices_valid": true,
+      "candidate_near": false
+    },
+    {
+      "frame": 202,
+      "time": 321.43853315759856,
+      "cloak_slot": "cloak (daggerfall_cloak)",
+      "legs_slot": "groin (war_misc_trsrs_02c)",
+      "cloak_mesh_index": 0,
+      "legs_mesh_index": 0,
+      "cloak_vertices": 1949,
+      "legs_vertices": 882,
+      "min_vertex_distance": 8.030224301555359,
+      "p01_vertex_distance": 8.592958483233492,
+      "closest_cloak_vertex": [
+        -13.812668800354004,
+        -12.905648231506348,
+        73.67788696289062
+      ],
+      "closest_legs_vertex": [
+        -8.320955276489258,
+        -7.107201099395752,
+        72.83908081054688
+      ],
+      "aabb_overlap": true,
+      "cloak_triangles": 3712,
+      "legs_triangles": 1552,
+      "triangle_indices_valid": true,
+      "candidate_near": false
+    },
+    {
+      "frame": 352,
+      "time": 1.079,
+      "cloak_slot": "cloak (daggerfall_cloak)",
+      "legs_slot": "groin (war_misc_trsrs_02c)",
+      "cloak_mesh_index": 0,
+      "legs_mesh_index": 0,
+      "cloak_vertices": 1949,
+      "legs_vertices": 882,
+      "min_vertex_distance": 8.08970797157541,
+      "p01_vertex_distance": 8.901023417166881,
+      "closest_cloak_vertex": [
+        3.910398483276367,
+        -11.915772438049316,
+        80.56981658935547
+      ],
+      "closest_legs_vertex": [
+        2.5693044662475586,
+        -3.9874889850616455,
+        79.6825942993164
+      ],
+      "aabb_overlap": true,
+      "cloak_triangles": 3712,
+      "legs_triangles": 1552,
+      "triangle_indices_valid": true,
+      "candidate_near": false
+    },
+    {
+      "frame": 349,
+      "time": 0.7577000000000118,
+      "cloak_slot": "cloak (daggerfall_cloak)",
+      "legs_slot": "groin (war_misc_trsrs_02c)",
+      "cloak_mesh_index": 0,
+      "legs_mesh_index": 0,
+      "cloak_vertices": 1949,
+      "legs_vertices": 882,
+      "min_vertex_distance": 8.15099887782019,
+      "p01_vertex_distance": 8.851381926870262,
+      "closest_cloak_vertex": [
+        3.9287986755371094,
+        -11.945186614990234,
+        80.35543823242188
+      ],
+      "closest_legs_vertex": [
+        2.4774699211120605,
+        -3.952345371246338,
+        79.68692016601562
+      ],
+      "aabb_overlap": true,
+      "cloak_triangles": 3712,
+      "legs_triangles": 1552,
+      "triangle_indices_valid": true,
+      "candidate_near": false
+    },
+    {
+      "frame": 78,
+      "time": 324.2824315455365,
+      "cloak_slot": "cloak (daggerfall_cloak)",
+      "legs_slot": "groin (war_misc_trsrs_02c)",
+      "cloak_mesh_index": 0,
+      "legs_mesh_index": 0,
+      "cloak_vertices": 1949,
+      "legs_vertices": 882,
+      "min_vertex_distance": 8.197662747278653,
+      "p01_vertex_distance": 8.830058555980747,
+      "closest_cloak_vertex": [
+        22.064401626586914,
+        1.1563349962234497,
+        56.441349029541016
+      ],
+      "closest_legs_vertex": [
+        13.872776985168457,
+        1.4694362878799438,
+        56.47180938720703
+      ],
+      "aabb_overlap": true,
+      "cloak_triangles": 3712,
+      "legs_triangles": 1552,
+      "triangle_indices_valid": true,
+      "candidate_near": false
+    },
+    {
+      "frame": 131,
+      "time": 238.41456688784257,
+      "cloak_slot": "cloak (daggerfall_cloak)",
+      "legs_slot": "groin (war_misc_trsrs_02c)",
+      "cloak_mesh_index": 0,
+      "legs_mesh_index": 0,
+      "cloak_vertices": 1949,
+      "legs_vertices": 882,
+      "min_vertex_distance": 8.20698609763126,
+      "p01_vertex_distance": 9.796391917443778,
+      "closest_cloak_vertex": [
+        15.532327651977539,
+        -40.050209045410156,
+        52.003379821777344
+      ],
+      "closest_legs_vertex": [
+        11.083284378051758,
+        -33.8087272644043,
+        49.070030212402344
+      ],
+      "aabb_overlap": true,
+      "cloak_triangles": 3712,
+      "legs_triangles": 1552,
+      "triangle_indices_valid": true,
+      "candidate_near": false
+    },
+    {
+      "frame": 170,
+      "time": 1.1708723089895567,
+      "cloak_slot": "cloak (daggerfall_cloak)",
+      "legs_slot": "groin (war_misc_trsrs_02c)",
+      "cloak_mesh_index": 0,
+      "legs_mesh_index": 0,
+      "cloak_vertices": 1949,
+      "legs_vertices": 882,
+      "min_vertex_distance": 8.239718360432793,
+      "p01_vertex_distance": 8.974513017014306,
+      "closest_cloak_vertex": [
+        -12.748977661132812,
+        -25.133668899536133,
+        35.20351791381836
+      ],
+      "closest_legs_vertex": [
+        -7.84431791305542,
+        -18.67389488220215,
+        33.75141906738281
+      ],
+      "aabb_overlap": true,
+      "cloak_triangles": 3712,
+      "legs_triangles": 1552,
+      "triangle_indices_valid": true,
+      "candidate_near": false
+    },
+    {
+      "frame": 36,
+      "time": 1.1769541657826332,
+      "cloak_slot": "cloak (daggerfall_cloak)",
+      "legs_slot": "groin (war_misc_trsrs_02c)",
+      "cloak_mesh_index": 0,
+      "legs_mesh_index": 0,
+      "cloak_vertices": 1949,
+      "legs_vertices": 882,
+      "min_vertex_distance": 8.27288349885373,
+      "p01_vertex_distance": 9.930447464580592,
+      "closest_cloak_vertex": [
+        -1.5619603395462036,
+        -29.905460357666016,
+        28.9234676361084
+      ],
+      "closest_legs_vertex": [
+        -3.7944579124450684,
+        -22.780216217041016,
+        25.361522674560547
+      ],
+      "aabb_overlap": true,
+      "cloak_triangles": 3712,
+      "legs_triangles": 1552,
+      "triangle_indices_valid": true,
+      "candidate_near": false
+    },
+    {
+      "frame": 8,
+      "time": 0.4431798075969407,
+      "cloak_slot": "cloak (daggerfall_cloak)",
+      "legs_slot": "groin (war_misc_trsrs_02c)",
+      "cloak_mesh_index": 0,
+      "legs_mesh_index": 0,
+      "cloak_vertices": 1949,
+      "legs_vertices": 882,
+      "min_vertex_distance": 8.27776563771799,
+      "p01_vertex_distance": 9.244655173630502,
+      "closest_cloak_vertex": [
+        4.794256210327148,
+        -15.415794372558594,
+        78.98127746582031
+      ],
+      "closest_legs_vertex": [
+        3.5445215702056885,
+        -7.43712043762207,
+        77.16459655761719
+      ],
+      "aabb_overlap": true,
+      "cloak_triangles": 3712,
+      "legs_triangles": 1552,
+      "triangle_indices_valid": true,
+      "candidate_near": false
+    },
+    {
+      "frame": 353,
+      "time": 1.194200000000011,
+      "cloak_slot": "cloak (daggerfall_cloak)",
+      "legs_slot": "groin (war_misc_trsrs_02c)",
+      "cloak_mesh_index": 0,
+      "legs_mesh_index": 0,
+      "cloak_vertices": 1949,
+      "legs_vertices": 882,
+      "min_vertex_distance": 8.330765735690614,
+      "p01_vertex_distance": 8.916896211266799,
+      "closest_cloak_vertex": [
+        3.777411460876465,
+        -11.80276107788086,
+        82.35279083251953
+      ],
+      "closest_legs_vertex": [
+        2.602214813232422,
+        -4.000044345855713,
+        79.6810531616211
+      ],
+      "aabb_overlap": true,
+      "cloak_triangles": 3712,
+      "legs_triangles": 1552,
+      "triangle_indices_valid": true,
+      "candidate_near": false
+    },
+    {
+      "frame": 116,
+      "time": 321.4405044051242,
+      "cloak_slot": "cloak (daggerfall_cloak)",
+      "legs_slot": "groin (war_misc_trsrs_02c)",
+      "cloak_mesh_index": 0,
+      "legs_mesh_index": 0,
+      "cloak_vertices": 1949,
+      "legs_vertices": 882,
+      "min_vertex_distance": 8.371525358927146,
+      "p01_vertex_distance": 8.770570037532696,
+      "closest_cloak_vertex": [
+        -0.13515397906303406,
+        -18.46674919128418,
+        68.04534912109375
+      ],
+      "closest_legs_vertex": [
+        0.6621553897857666,
+        -10.133750915527344,
+        68.13408660888672
+      ],
+      "aabb_overlap": true,
+      "cloak_triangles": 3712,
+      "legs_triangles": 1552,
+      "triangle_indices_valid": true,
+      "candidate_near": false
+    },
+    {
+      "frame": 336,
+      "time": 324.266198584122,
+      "cloak_slot": "cloak (daggerfall_cloak)",
+      "legs_slot": "groin (war_misc_trsrs_02c)",
+      "cloak_mesh_index": 0,
+      "legs_mesh_index": 0,
+      "cloak_vertices": 1949,
+      "legs_vertices": 882,
+      "min_vertex_distance": 8.384749973642089,
+      "p01_vertex_distance": 8.971411033377478,
+      "closest_cloak_vertex": [
+        21.13074493408203,
+        4.374403476715088,
+        56.00593185424805
+      ],
+      "closest_legs_vertex": [
+        13.064412117004395,
+        2.085944175720215,
+        55.970420837402344
+      ],
+      "aabb_overlap": true,
+      "cloak_triangles": 3712,
+      "legs_triangles": 1552,
+      "triangle_indices_valid": true,
+      "candidate_near": false
+    },
+    {
+      "frame": 64,
+      "time": 89.56370152587887,
+      "cloak_slot": "cloak (daggerfall_cloak)",
+      "legs_slot": "groin (war_misc_trsrs_02c)",
+      "cloak_mesh_index": 0,
+      "legs_mesh_index": 0,
+      "cloak_vertices": 1949,
+      "legs_vertices": 882,
+      "min_vertex_distance": 8.394866608389599,
+      "p01_vertex_distance": 9.462660578221382,
+      "closest_cloak_vertex": [
+        -16.767452239990234,
+        -9.027628898620605,
+        75.18474578857422
+      ],
+      "closest_legs_vertex": [
+        -10.103416442871094,
+        -4.371764183044434,
+        73.09014892578125
+      ],
+      "aabb_overlap": true,
+      "cloak_triangles": 3712,
+      "legs_triangles": 1552,
+      "triangle_indices_valid": true,
+      "candidate_near": false
+    }
+  ],
+  "largest_frame_to_frame_vertex_steps": [
+    {
+      "frame": 134,
+      "group": "legs",
+      "slot": "left foot (netch_leather_boots)",
+      "max_vertex_step": 89.4441034344764,
+      "p99_vertex_step": 89.4441034344764,
+      "vertex_index": 69
+    },
+    {
+      "frame": 289,
+      "group": "legs",
+      "slot": "right foot (netch_leather_boots)",
+      "max_vertex_step": 85.48258941563765,
+      "p99_vertex_step": 85.48258941563765,
+      "vertex_index": 69
+    },
+    {
+      "frame": 291,
+      "group": "legs",
+      "slot": "left foot (netch_leather_boots)",
+      "max_vertex_step": 84.12713853911697,
+      "p99_vertex_step": 84.12713853911697,
+      "vertex_index": 69
+    },
+    {
+      "frame": 132,
+      "group": "legs",
+      "slot": "right foot (netch_leather_boots)",
+      "max_vertex_step": 82.4684335649595,
+      "p99_vertex_step": 82.4684335649595,
+      "vertex_index": 69
+    },
+    {
+      "frame": 136,
+      "group": "legs",
+      "slot": "right foot (netch_leather_boots)",
+      "max_vertex_step": 81.51234481857651,
+      "p99_vertex_step": 81.51234481857651,
+      "vertex_index": 69
+    },
+    {
+      "frame": 153,
+      "group": "legs",
+      "slot": "right foot (netch_leather_boots)",
+      "max_vertex_step": 81.47738232973622,
+      "p99_vertex_step": 81.47738232973622,
+      "vertex_index": 69
+    },
+    {
+      "frame": 138,
+      "group": "legs",
+      "slot": "left foot (netch_leather_boots)",
+      "max_vertex_step": 79.67643254006079,
+      "p99_vertex_step": 79.67643254006079,
+      "vertex_index": 69
+    },
+    {
+      "frame": 287,
+      "group": "legs",
+      "slot": "left foot (netch_leather_boots)",
+      "max_vertex_step": 76.12353324154597,
+      "p99_vertex_step": 76.12353324154597,
+      "vertex_index": 69
+    },
+    {
+      "frame": 134,
+      "group": "legs",
+      "slot": "right foot (netch_leather_boots)",
+      "max_vertex_step": 73.8926930275044,
+      "p99_vertex_step": 73.8926930275044,
+      "vertex_index": 70
+    },
+    {
+      "frame": 138,
+      "group": "legs",
+      "slot": "right foot (netch_leather_boots)",
+      "max_vertex_step": 72.83165635412372,
+      "p99_vertex_step": 72.83165635412372,
+      "vertex_index": 70
+    },
+    {
+      "frame": 291,
+      "group": "legs",
+      "slot": "right foot (netch_leather_boots)",
+      "max_vertex_step": 72.57735783740425,
+      "p99_vertex_step": 72.57735783740425,
+      "vertex_index": 70
+    },
+    {
+      "frame": 240,
+      "group": "cloak",
+      "slot": "cloak (daggerfall_cloak)",
+      "max_vertex_step": 71.92301656407122,
+      "p99_vertex_step": 68.66075750035228,
+      "vertex_index": 282
+    },
+    {
+      "frame": 285,
+      "group": "legs",
+      "slot": "right foot (netch_leather_boots)",
+      "max_vertex_step": 71.46205532758799,
+      "p99_vertex_step": 71.46205532758799,
+      "vertex_index": 69
+    },
+    {
+      "frame": 181,
+      "group": "cloak",
+      "slot": "cloak (daggerfall_cloak)",
+      "max_vertex_step": 70.11114330368966,
+      "p99_vertex_step": 65.91781155614886,
+      "vertex_index": 1051
+    },
+    {
+      "frame": 18,
+      "group": "legs",
+      "slot": "left foot (netch_leather_boots)",
+      "max_vertex_step": 69.4855138609895,
+      "p99_vertex_step": 69.4855138609895,
+      "vertex_index": 69
+    },
+    {
+      "frame": 217,
+      "group": "cloak",
+      "slot": "cloak (daggerfall_cloak)",
+      "max_vertex_step": 69.17478594105012,
+      "p99_vertex_step": 65.00911330400751,
+      "vertex_index": 57
+    },
+    {
+      "frame": 170,
+      "group": "legs",
+      "slot": "right foot (netch_leather_boots)",
+      "max_vertex_step": 67.0914666696469,
+      "p99_vertex_step": 67.0914666696469,
+      "vertex_index": 69
+    },
+    {
+      "frame": 151,
+      "group": "legs",
+      "slot": "left foot (netch_leather_boots)",
+      "max_vertex_step": 66.1943363432736,
+      "p99_vertex_step": 66.1943363432736,
+      "vertex_index": 69
+    },
+    {
+      "frame": 165,
+      "group": "legs",
+      "slot": "right foot (netch_leather_boots)",
+      "max_vertex_step": 64.84911449155614,
+      "p99_vertex_step": 64.84911449155614,
+      "vertex_index": 69
+    },
+    {
+      "frame": 287,
+      "group": "legs",
+      "slot": "right foot (netch_leather_boots)",
+      "max_vertex_step": 64.7774021014368,
+      "p99_vertex_step": 64.7774021014368,
+      "vertex_index": 69
+    },
+    {
+      "frame": 155,
+      "group": "legs",
+      "slot": "left foot (netch_leather_boots)",
+      "max_vertex_step": 64.68000940157384,
+      "p99_vertex_step": 64.68000940157384,
+      "vertex_index": 69
+    },
+    {
+      "frame": 134,
+      "group": "legs",
+      "slot": "groin (war_misc_trsrs_02c)",
+      "max_vertex_step": 64.60157006752861,
+      "p99_vertex_step": 60.3380186607075,
+      "vertex_index": 402
+    },
+    {
+      "frame": 289,
+      "group": "legs",
+      "slot": "groin (war_misc_trsrs_02c)",
+      "max_vertex_step": 64.15574957002173,
+      "p99_vertex_step": 60.10156734326051,
+      "vertex_index": 435
+    },
+    {
+      "frame": 289,
+      "group": "legs",
+      "slot": "left foot (netch_leather_boots)",
+      "max_vertex_step": 63.76437825317165,
+      "p99_vertex_step": 63.76437825317165,
+      "vertex_index": 69
+    },
+    {
+      "frame": 148,
+      "group": "legs",
+      "slot": "right foot (netch_leather_boots)",
+      "max_vertex_step": 63.7498450438575,
+      "p99_vertex_step": 63.7498450438575,
+      "vertex_index": 70
+    },
+    {
+      "frame": 263,
+      "group": "cloak",
+      "slot": "cloak (daggerfall_cloak)",
+      "max_vertex_step": 63.5134728752107,
+      "p99_vertex_step": 61.13675577481907,
+      "vertex_index": 282
+    },
+    {
+      "frame": 33,
+      "group": "legs",
+      "slot": "left foot (netch_leather_boots)",
+      "max_vertex_step": 63.499624923295606,
+      "p99_vertex_step": 63.499624923295606,
+      "vertex_index": 69
+    },
+    {
+      "frame": 23,
+      "group": "legs",
+      "slot": "left foot (netch_leather_boots)",
+      "max_vertex_step": 63.43258614388601,
+      "p99_vertex_step": 63.43258614388601,
+      "vertex_index": 69
+    },
+    {
+      "frame": 149,
+      "group": "legs",
+      "slot": "right foot (netch_leather_boots)",
+      "max_vertex_step": 63.34422925923239,
+      "p99_vertex_step": 63.34422925923239,
+      "vertex_index": 69
+    },
+    {
+      "frame": 132,
+      "group": "legs",
+      "slot": "left foot (netch_leather_boots)",
+      "max_vertex_step": 63.15479882249357,
+      "p99_vertex_step": 63.15479882249357,
+      "vertex_index": 69
+    },
+    {
+      "frame": 132,
+      "group": "legs",
+      "slot": "groin (war_misc_trsrs_02c)",
+      "max_vertex_step": 63.0215989902586,
+      "p99_vertex_step": 59.04998099006102,
+      "vertex_index": 435
+    },
+    {
+      "frame": 320,
+      "group": "cloak",
+      "slot": "cloak (daggerfall_cloak)",
+      "max_vertex_step": 62.90134114678117,
+      "p99_vertex_step": 60.74510456738391,
+      "vertex_index": 282
+    },
+    {
+      "frame": 28,
+      "group": "legs",
+      "slot": "left foot (netch_leather_boots)",
+      "max_vertex_step": 62.612788231329894,
+      "p99_vertex_step": 62.612788231329894,
+      "vertex_index": 69
+    },
+    {
+      "frame": 160,
+      "group": "legs",
+      "slot": "right foot (netch_leather_boots)",
+      "max_vertex_step": 62.35973707424529,
+      "p99_vertex_step": 62.35973707424529,
+      "vertex_index": 69
+    },
+    {
+      "frame": 55,
+      "group": "legs",
+      "slot": "right foot (netch_leather_boots)",
+      "max_vertex_step": 62.143424335604216,
+      "p99_vertex_step": 62.143424335604216,
+      "vertex_index": 70
+    },
+    {
+      "frame": 31,
+      "group": "legs",
+      "slot": "right foot (netch_leather_boots)",
+      "max_vertex_step": 62.14003187609006,
+      "p99_vertex_step": 62.14003187609006,
+      "vertex_index": 69
+    },
+    {
+      "frame": 53,
+      "group": "legs",
+      "slot": "left foot (netch_leather_boots)",
+      "max_vertex_step": 61.82629882208976,
+      "p99_vertex_step": 61.82629882208976,
+      "vertex_index": 69
+    },
+    {
+      "frame": 153,
+      "group": "legs",
+      "slot": "groin (war_misc_trsrs_02c)",
+      "max_vertex_step": 61.8073153031963,
+      "p99_vertex_step": 57.83878522007824,
+      "vertex_index": 435
+    },
+    {
+      "frame": 97,
+      "group": "cloak",
+      "slot": "cloak (daggerfall_cloak)",
+      "max_vertex_step": 60.92632289163106,
+      "p99_vertex_step": 59.12665543532258,
+      "vertex_index": 1054
+    },
+    {
+      "frame": 193,
+      "group": "cloak",
+      "slot": "cloak (daggerfall_cloak)",
+      "max_vertex_step": 60.91213819047848,
+      "p99_vertex_step": 57.090743360319216,
+      "vertex_index": 57
+    },
+    {
+      "frame": 140,
+      "group": "legs",
+      "slot": "right foot (netch_leather_boots)",
+      "max_vertex_step": 60.6012023640251,
+      "p99_vertex_step": 60.6012023640251,
+      "vertex_index": 70
+    },
+    {
+      "frame": 153,
+      "group": "legs",
+      "slot": "left foot (netch_leather_boots)",
+      "max_vertex_step": 60.466021091205974,
+      "p99_vertex_step": 60.466021091205974,
+      "vertex_index": 69
+    },
+    {
+      "frame": 251,
+      "group": "cloak",
+      "slot": "cloak (daggerfall_cloak)",
+      "max_vertex_step": 60.43541513253324,
+      "p99_vertex_step": 57.16462642510343,
+      "vertex_index": 1051
+    },
+    {
+      "frame": 9,
+      "group": "legs",
+      "slot": "left foot (netch_leather_boots)",
+      "max_vertex_step": 60.1414120733971,
+      "p99_vertex_step": 60.1414120733971,
+      "vertex_index": 69
+    },
+    {
+      "frame": 332,
+      "group": "cloak",
+      "slot": "cloak (daggerfall_cloak)",
+      "max_vertex_step": 59.594939075326515,
+      "p99_vertex_step": 57.62299236839548,
+      "vertex_index": 57
+    },
+    {
+      "frame": 85,
+      "group": "cloak",
+      "slot": "cloak (daggerfall_cloak)",
+      "max_vertex_step": 59.36619615903721,
+      "p99_vertex_step": 57.032233439283225,
+      "vertex_index": 57
+    },
+    {
+      "frame": 14,
+      "group": "legs",
+      "slot": "left foot (netch_leather_boots)",
+      "max_vertex_step": 59.22309402978304,
+      "p99_vertex_step": 59.22309402978304,
+      "vertex_index": 69
+    },
+    {
+      "frame": 136,
+      "group": "legs",
+      "slot": "groin (war_misc_trsrs_02c)",
+      "max_vertex_step": 59.10555718350797,
+      "p99_vertex_step": 55.382324058171015,
+      "vertex_index": 433
+    },
+    {
+      "frame": 151,
+      "group": "legs",
+      "slot": "right foot (netch_leather_boots)",
+      "max_vertex_step": 59.042792434665095,
+      "p99_vertex_step": 59.042792434665095,
+      "vertex_index": 69
+    },
+    {
+      "frame": 48,
+      "group": "legs",
+      "slot": "left foot (netch_leather_boots)",
+      "max_vertex_step": 58.85934248850903,
+      "p99_vertex_step": 58.85934248850903,
+      "vertex_index": 69
+    },
+    {
+      "frame": 130,
+      "group": "legs",
+      "slot": "right foot (netch_leather_boots)",
+      "max_vertex_step": 58.660574624581926,
+      "p99_vertex_step": 58.660574624581926,
+      "vertex_index": 69
+    },
+    {
+      "frame": 291,
+      "group": "legs",
+      "slot": "groin (war_misc_trsrs_02c)",
+      "max_vertex_step": 58.62651830983143,
+      "p99_vertex_step": 54.93715811454967,
+      "vertex_index": 402
+    },
+    {
+      "frame": 136,
+      "group": "legs",
+      "slot": "left foot (netch_leather_boots)",
+      "max_vertex_step": 58.37688735787067,
+      "p99_vertex_step": 58.37688735787067,
+      "vertex_index": 69
+    },
+    {
+      "frame": 130,
+      "group": "legs",
+      "slot": "left foot (netch_leather_boots)",
+      "max_vertex_step": 58.27398741775229,
+      "p99_vertex_step": 58.27398741775229,
+      "vertex_index": 69
+    },
+    {
+      "frame": 26,
+      "group": "legs",
+      "slot": "right foot (netch_leather_boots)",
+      "max_vertex_step": 58.25087967037634,
+      "p99_vertex_step": 58.25087967037634,
+      "vertex_index": 69
+    },
+    {
+      "frame": 36,
+      "group": "legs",
+      "slot": "right foot (netch_leather_boots)",
+      "max_vertex_step": 58.162809581569896,
+      "p99_vertex_step": 58.162809581569896,
+      "vertex_index": 69
+    },
+    {
+      "frame": 140,
+      "group": "legs",
+      "slot": "left foot (netch_leather_boots)",
+      "max_vertex_step": 57.84167878198489,
+      "p99_vertex_step": 57.84167878198489,
+      "vertex_index": 69
+    },
+    {
+      "frame": 287,
+      "group": "legs",
+      "slot": "groin (war_misc_trsrs_02c)",
+      "max_vertex_step": 57.74650758223008,
+      "p99_vertex_step": 53.68600049619133,
+      "vertex_index": 402
+    },
+    {
+      "frame": 284,
+      "group": "legs",
+      "slot": "right foot (netch_leather_boots)",
+      "max_vertex_step": 57.58818880098548,
+      "p99_vertex_step": 57.58818880098548,
+      "vertex_index": 70
+    },
+    {
+      "frame": 285,
+      "group": "legs",
+      "slot": "groin (war_misc_trsrs_02c)",
+      "max_vertex_step": 56.409289607375854,
+      "p99_vertex_step": 53.11035179798046,
+      "vertex_index": 435
+    },
+    {
+      "frame": 129,
+      "group": "legs",
+      "slot": "left foot (netch_leather_boots)",
+      "max_vertex_step": 56.34296510760216,
+      "p99_vertex_step": 56.34296510760216,
+      "vertex_index": 69
+    },
+    {
+      "frame": 282,
+      "group": "legs",
+      "slot": "left foot (netch_leather_boots)",
+      "max_vertex_step": 56.20231587078871,
+      "p99_vertex_step": 56.20231587078871,
+      "vertex_index": 70
+    },
+    {
+      "frame": 38,
+      "group": "legs",
+      "slot": "left foot (netch_leather_boots)",
+      "max_vertex_step": 56.11945963191571,
+      "p99_vertex_step": 56.11945963191571,
+      "vertex_index": 69
+    },
+    {
+      "frame": 150,
+      "group": "legs",
+      "slot": "left foot (netch_leather_boots)",
+      "max_vertex_step": 56.091102098986084,
+      "p99_vertex_step": 56.091102098986084,
+      "vertex_index": 69
+    },
+    {
+      "frame": 285,
+      "group": "legs",
+      "slot": "left foot (netch_leather_boots)",
+      "max_vertex_step": 55.583035359301334,
+      "p99_vertex_step": 55.583035359301334,
+      "vertex_index": 69
+    },
+    {
+      "frame": 16,
+      "group": "legs",
+      "slot": "right foot (netch_leather_boots)",
+      "max_vertex_step": 54.62058863098449,
+      "p99_vertex_step": 54.62058863098449,
+      "vertex_index": 69
+    },
+    {
+      "frame": 128,
+      "group": "legs",
+      "slot": "left foot (netch_leather_boots)",
+      "max_vertex_step": 54.58529941397463,
+      "p99_vertex_step": 54.58529941397463,
+      "vertex_index": 70
+    },
+    {
+      "frame": 138,
+      "group": "legs",
+      "slot": "groin (war_misc_trsrs_02c)",
+      "max_vertex_step": 54.38791346134211,
+      "p99_vertex_step": 52.80632778475196,
+      "vertex_index": 403
+    },
+    {
+      "frame": 18,
+      "group": "legs",
+      "slot": "groin (war_misc_trsrs_02c)",
+      "max_vertex_step": 53.99721887373171,
+      "p99_vertex_step": 52.369154080307226,
+      "vertex_index": 403
+    },
+    {
+      "frame": 141,
+      "group": "legs",
+      "slot": "right foot (netch_leather_boots)",
+      "max_vertex_step": 53.95381494015962,
+      "p99_vertex_step": 53.95381494015962,
+      "vertex_index": 69
+    },
+    {
+      "frame": 131,
+      "group": "legs",
+      "slot": "right foot (netch_leather_boots)",
+      "max_vertex_step": 53.680131499576156,
+      "p99_vertex_step": 53.680131499576156,
+      "vertex_index": 70
+    },
+    {
+      "frame": 162,
+      "group": "legs",
+      "slot": "left foot (netch_leather_boots)",
+      "max_vertex_step": 53.66093692801486,
+      "p99_vertex_step": 53.66093692801486,
+      "vertex_index": 70
+    },
+    {
+      "frame": 167,
+      "group": "legs",
+      "slot": "left foot (netch_leather_boots)",
+      "max_vertex_step": 53.41387841262038,
+      "p99_vertex_step": 53.41387841262038,
+      "vertex_index": 70
+    },
+    {
+      "frame": 148,
+      "group": "legs",
+      "slot": "left foot (netch_leather_boots)",
+      "max_vertex_step": 53.27720156903109,
+      "p99_vertex_step": 53.27720156903109,
+      "vertex_index": 70
+    },
+    {
+      "frame": 149,
+      "group": "legs",
+      "slot": "left foot (netch_leather_boots)",
+      "max_vertex_step": 53.097667028522466,
+      "p99_vertex_step": 53.097667028522466,
+      "vertex_index": 69
+    },
+    {
+      "frame": 170,
+      "group": "legs",
+      "slot": "groin (war_misc_trsrs_02c)",
+      "max_vertex_step": 52.09437683578516,
+      "p99_vertex_step": 51.26296374029862,
+      "vertex_index": 435
+    },
+    {
+      "frame": 296,
+      "group": "cloak",
+      "slot": "cloak (daggerfall_cloak)",
+      "max_vertex_step": 52.009479627991134,
+      "p99_vertex_step": 50.15697705670295,
+      "vertex_index": 303
+    },
+    {
+      "frame": 149,
+      "group": "legs",
+      "slot": "groin (war_misc_trsrs_02c)",
+      "max_vertex_step": 51.940780454426985,
+      "p99_vertex_step": 49.39799477032286,
+      "vertex_index": 435
+    },
+    {
+      "frame": 21,
+      "group": "legs",
+      "slot": "right foot (netch_leather_boots)",
+      "max_vertex_step": 51.76413160176873,
+      "p99_vertex_step": 51.76413160176873,
+      "vertex_index": 69
+    },
+    {
+      "frame": 158,
+      "group": "legs",
+      "slot": "left foot (netch_leather_boots)",
+      "max_vertex_step": 51.68859747571712,
+      "p99_vertex_step": 51.68859747571712,
+      "vertex_index": 69
+    },
+    {
+      "frame": 286,
+      "group": "legs",
+      "slot": "left foot (netch_leather_boots)",
+      "max_vertex_step": 51.649861867493186,
+      "p99_vertex_step": 51.649861867493186,
+      "vertex_index": 70
+    },
+    {
+      "frame": 151,
+      "group": "legs",
+      "slot": "groin (war_misc_trsrs_02c)",
+      "max_vertex_step": 51.35062681153495,
+      "p99_vertex_step": 48.96833191354811,
+      "vertex_index": 402
+    },
+    {
+      "frame": 53,
+      "group": "legs",
+      "slot": "groin (war_misc_trsrs_02c)",
+      "max_vertex_step": 50.36894672646202,
+      "p99_vertex_step": 49.92517732982766,
+      "vertex_index": 400
+    },
+    {
+      "frame": 58,
+      "group": "legs",
+      "slot": "left foot (netch_leather_boots)",
+      "max_vertex_step": 50.09435385799203,
+      "p99_vertex_step": 50.09435385799203,
+      "vertex_index": 69
+    },
+    {
+      "frame": 152,
+      "group": "legs",
+      "slot": "right foot (netch_leather_boots)",
+      "max_vertex_step": 50.06871131566598,
+      "p99_vertex_step": 50.06871131566598,
+      "vertex_index": 70
+    },
+    {
+      "frame": 50,
+      "group": "legs",
+      "slot": "right foot (netch_leather_boots)",
+      "max_vertex_step": 50.05399779921793,
+      "p99_vertex_step": 50.05399779921793,
+      "vertex_index": 70
+    },
+    {
+      "frame": 130,
+      "group": "legs",
+      "slot": "groin (war_misc_trsrs_02c)",
+      "max_vertex_step": 50.00857578485423,
+      "p99_vertex_step": 48.452205174630635,
+      "vertex_index": 433
+    },
+    {
+      "frame": 165,
+      "group": "legs",
+      "slot": "groin (war_misc_trsrs_02c)",
+      "max_vertex_step": 49.968549670444695,
+      "p99_vertex_step": 49.09555008492584,
+      "vertex_index": 435
+    },
+    {
+      "frame": 119,
+      "group": "cloak",
+      "slot": "cloak (daggerfall_cloak)",
+      "max_vertex_step": 49.695627292896454,
+      "p99_vertex_step": 46.75109960180518,
+      "vertex_index": 1051
+    },
+    {
+      "frame": 33,
+      "group": "legs",
+      "slot": "groin (war_misc_trsrs_02c)",
+      "max_vertex_step": 49.272108962608485,
+      "p99_vertex_step": 47.779236666627725,
+      "vertex_index": 403
+    },
+    {
+      "frame": 23,
+      "group": "legs",
+      "slot": "groin (war_misc_trsrs_02c)",
+      "max_vertex_step": 49.22170548712329,
+      "p99_vertex_step": 47.73023271125918,
+      "vertex_index": 403
+    },
+    {
+      "frame": 225,
+      "group": "cloak",
+      "slot": "cloak (daggerfall_cloak)",
+      "max_vertex_step": 49.189506025559105,
+      "p99_vertex_step": 47.322441706285794,
+      "vertex_index": 57
+    },
+    {
+      "frame": 28,
+      "group": "legs",
+      "slot": "groin (war_misc_trsrs_02c)",
+      "max_vertex_step": 48.73838088408868,
+      "p99_vertex_step": 47.260378864889304,
+      "vertex_index": 403
+    },
+    {
+      "frame": 31,
+      "group": "legs",
+      "slot": "groin (war_misc_trsrs_02c)",
+      "max_vertex_step": 48.484980883449865,
+      "p99_vertex_step": 47.70764489622292,
+      "vertex_index": 435
+    },
+    {
+      "frame": 307,
+      "group": "cloak",
+      "slot": "cloak (daggerfall_cloak)",
+      "max_vertex_step": 48.416103443149005,
+      "p99_vertex_step": 46.83558067820693,
+      "vertex_index": 260
+    },
+    {
+      "frame": 48,
+      "group": "legs",
+      "slot": "groin (war_misc_trsrs_02c)",
+      "max_vertex_step": 48.18149536813632,
+      "p99_vertex_step": 47.72286383705566,
+      "vertex_index": 400
+    },
+    {
+      "frame": 11,
+      "group": "legs",
+      "slot": "right foot (netch_leather_boots)",
+      "max_vertex_step": 48.119706249539085,
+      "p99_vertex_step": 48.119706249539085,
+      "vertex_index": 69
+    },
+    {
+      "frame": 253,
+      "group": "cloak",
+      "slot": "cloak (daggerfall_cloak)",
+      "max_vertex_step": 47.78435666689641,
+      "p99_vertex_step": 46.507664160733164,
+      "vertex_index": 282
+    },
+    {
+      "frame": 228,
+      "group": "cloak",
+      "slot": "cloak (daggerfall_cloak)",
+      "max_vertex_step": 47.7274322305002,
+      "p99_vertex_step": 46.178559123845254,
+      "vertex_index": 57
+    },
+    {
+      "frame": 141,
+      "group": "legs",
+      "slot": "left foot (netch_leather_boots)",
+      "max_vertex_step": 47.70686675686246,
+      "p99_vertex_step": 47.70686675686246,
+      "vertex_index": 69
+    }
+  ],
+  "frames": [
+    {
+      "frame": 0,
+      "time": 0,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 1,
+      "time": 0,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 2,
+      "time": 0,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 3,
+      "time": 0,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 4,
+      "time": 0,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 5,
+      "time": 0,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 6,
+      "time": 0.011248218466927013,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 7,
+      "time": 0.21596579456502046,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 8,
+      "time": 0.4431798075969407,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 9,
+      "time": 0.6478973836950069,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 10,
+      "time": 0.8524274894853074,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 11,
+      "time": 1.0569562882394505,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 12,
+      "time": 0.25004861505211323,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 13,
+      "time": 0.4660137552001169,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 14,
+      "time": 0.6592956425234903,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 15,
+      "time": 0.9946800231456865,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 16,
+      "time": 1.17652622169434,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 17,
+      "time": 0.3810560890660613,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 18,
+      "time": 0.6082701020979816,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 19,
+      "time": 0.812800207888282,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 20,
+      "time": 1.0060820952116283,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 21,
+      "time": 1.187928293760282,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 22,
+      "time": 0.3924581611320034,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 23,
+      "time": 0.5969882669222766,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 24,
+      "time": 0.7902701542456501,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 25,
+      "time": 0.9833645712612304,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 26,
+      "time": 1.1766464585846041,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 27,
+      "time": 0.38117632595629825,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 28,
+      "time": 0.5857064317465986,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 29,
+      "time": 0.7789883190699448,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 30,
+      "time": 0.9722702063933183,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 31,
+      "time": 1.1882360009583115,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 32,
+      "time": 0.3925783980222398,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 33,
+      "time": 0.597295974120306,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 34,
+      "time": 0.7905778614436794,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 35,
+      "time": 0.9836722784592599,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 36,
+      "time": 1.1769541657826332,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 37,
+      "time": 0.3588001259127076,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 38,
+      "time": 0.551894542928288,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 39,
+      "time": 0.7451764302516342,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 40,
+      "time": 320.8728183105469,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 41,
+      "time": 320.9819183105468,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 42,
+      "time": 321.0910183105468,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 43,
+      "time": 232.6169259753837,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 44,
+      "time": 232.81002067614287,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 45,
+      "time": 233.00330284748532,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 46,
+      "time": 232.1965850188277,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 47,
+      "time": 232.38967971958687,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 48,
+      "time": 232.59421012592497,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 49,
+      "time": 232.78749229726742,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 50,
+      "time": 232.9807744686098,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 51,
+      "time": 232.17386916936894,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 52,
+      "time": 232.37839957570705,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 53,
+      "time": 232.5943656876241,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 54,
+      "time": 232.7988960939622,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 55,
+      "time": 233.01467473529596,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 56,
+      "time": 232.19652120105943,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 57,
+      "time": 232.38980337240187,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 58,
+      "time": 89.4485015258789,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 59,
+      "time": 89.55770152587887,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 60,
+      "time": 89.66070152587885,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 61,
+      "time": 89.76980152587883,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 62,
+      "time": 244.13353394988275,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 63,
+      "time": 89.46060152587889,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 64,
+      "time": 89.56370152587887,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 65,
+      "time": 89.67290152587884,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 66,
+      "time": 89.77590152587882,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 67,
+      "time": 89.8850015258788,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 68,
+      "time": 89.98810152587878,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 69,
+      "time": 323.3364562868511,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 70,
+      "time": 323.4936000159248,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 71,
+      "time": 323.6418216651427,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 72,
+      "time": 323.7791936833255,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 73,
+      "time": 323.9352261113526,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 74,
+      "time": 324.09598363170176,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 75,
+      "time": 324.14127764658485,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 76,
+      "time": 324.1891636565,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 77,
+      "time": 324.234457671383,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 78,
+      "time": 324.2824315455365,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 79,
+      "time": 324.33031755545164,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 80,
+      "time": 324.3809273567565,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 81,
+      "time": 323.3868993759155,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 82,
+      "time": 323.5537336349486,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 83,
+      "time": 323.7112483978269,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 84,
+      "time": 323.85549474859204,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 85,
+      "time": 324.0752370385088,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 86,
+      "time": 324.1236590946344,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 87,
+      "time": 324.17212816246484,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 88,
+      "time": 324.2234649442989,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 89,
+      "time": 324.2718870004244,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 90,
+      "time": 324.325997472852,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 91,
+      "time": 324.3745135523874,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 92,
+      "time": 321.2285831996373,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 93,
+      "time": 321.39132736194,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 94,
+      "time": 321.5731714695761,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 95,
+      "time": 321.73333740234375,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 96,
+      "time": 321.93114507298105,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 97,
+      "time": 322.0215074631291,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 98,
+      "time": 322.06988816884854,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 99,
+      "time": 322.115563812195,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 100,
+      "time": 322.166693925572,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 101,
+      "time": 322.2123252236336,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 102,
+      "time": 322.26075027463776,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 103,
+      "time": 322.31183604273,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 104,
+      "time": 324.288113203205,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 105,
+      "time": 324.1614790119107,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 106,
+      "time": 323.9762236797164,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 107,
+      "time": 323.8407906067195,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 108,
+      "time": 323.721488237381,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 109,
+      "time": 323.6504583529064,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 110,
+      "time": 323.58333478655146,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 111,
+      "time": 323.5162112201965,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 112,
+      "time": 323.4412750176023,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 113,
+      "time": 323.37805776936693,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 114,
+      "time": 323.30312156677275,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 115,
+      "time": 321.2500940874588,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 116,
+      "time": 321.4405044051242,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 117,
+      "time": 321.6208322320104,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 118,
+      "time": 321.7976553577919,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 119,
+      "time": 321.99096359303695,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 120,
+      "time": 322.04255051063717,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 121,
+      "time": 322.0935643645989,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 122,
+      "time": 322.14743050553733,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 123,
+      "time": 322.19559207252223,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 124,
+      "time": 322.24660592648394,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 125,
+      "time": 322.291961965295,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 126,
+      "time": 238.05111980772173,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 127,
+      "time": 238.32147851789443,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 128,
+      "time": 238.5925425116589,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 129,
+      "time": 237.90135552757553,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 130,
+      "time": 238.15807875497433,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 131,
+      "time": 238.41456688784257,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 132,
+      "time": 237.75182634195994,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 133,
+      "time": 237.994208802993,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 134,
+      "time": 238.2506969358612,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 135,
+      "time": 238.49284430236372,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 136,
+      "time": 237.80212750734142,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 137,
+      "time": 238.04427487384393,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 138,
+      "time": 238.3151037730778,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 139,
+      "time": 238.55748623411088,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 140,
+      "time": 237.88040492186255,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 141,
+      "time": 238.13712814926132,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 142,
+      "time": 327.0546,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 143,
+      "time": 327.1698,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 144,
+      "time": 327.27290000000005,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 145,
+      "time": 156.7283677183921,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 146,
+      "time": 156.98485585361232,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 147,
+      "time": 157.24134398883254,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 148,
+      "time": 157.5121728905499,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 149,
+      "time": 156.82122100321968,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 150,
+      "time": 157.07770913843987,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 151,
+      "time": 157.3055157406657,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 152,
+      "time": 157.5622389704187,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 153,
+      "time": 156.88539275505292,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 154,
+      "time": 157.14188089027311,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 155,
+      "time": 0.06823919203267964,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 156,
+      "time": 0.28420498659770016,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 157,
+      "time": 0.5001707811626934,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 158,
+      "time": 0.7047008869529666,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 159,
+      "time": 0.9206666815179869,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 160,
+      "time": 1.1251967873082602,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 161,
+      "time": 0.3297266546799817,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 162,
+      "time": 0.5342567604702548,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 163,
+      "time": 0.7275386477936282,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 164,
+      "time": 0.9433169720508557,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 165,
+      "time": 1.1480345481489223,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 166,
+      "time": 0.3640001042953364,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 167,
+      "time": 0.5456588325361967,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 168,
+      "time": 0.7389407198595702,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 169,
+      "time": 0.9549065144245634,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 170,
+      "time": 1.1708723089895567,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 171,
+      "time": 0.3639664875865582,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 172,
+      "time": 320.8486183105469,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 173,
+      "time": 320.95761831054693,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 174,
+      "time": 321.0728183105469,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 175,
+      "time": 232.60549026980476,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 176,
+      "time": 244.13341545416233,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 177,
+      "time": 325.3499984741211,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 178,
+      "time": 325.52477041932656,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 179,
+      "time": 325.6911675894672,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 180,
+      "time": 325.81856543426875,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 181,
+      "time": 325.9446475667125,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 182,
+      "time": 325.9925360278549,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 183,
+      "time": 326.04051747630047,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 184,
+      "time": 326.0940316692858,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 185,
+      "time": 326.1419666240798,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 186,
+      "time": 326.1926911979695,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 187,
+      "time": 326.2434157718592,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 188,
+      "time": 243.2575362171628,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 189,
+      "time": 325.3849331858007,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 190,
+      "time": 325.5190772742241,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 191,
+      "time": 325.661158112787,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 192,
+      "time": 325.7821963735095,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 193,
+      "time": 325.933349609375,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 194,
+      "time": 325.9781860176196,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 195,
+      "time": 326.0257213164576,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 196,
+      "time": 326.07321308480215,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 197,
+      "time": 326.11804949304684,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 198,
+      "time": 326.162929431785,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 199,
+      "time": 326.207809370523,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 200,
+      "time": 326.2579564989676,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 201,
+      "time": 321.24968358024216,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 202,
+      "time": 321.43853315759856,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 203,
+      "time": 321.627382734955,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 204,
+      "time": 321.7767935293691,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 205,
+      "time": 321.9836590596715,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 206,
+      "time": 322.04435434851626,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 207,
+      "time": 322.09428728519646,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 208,
+      "time": 322.1414309277946,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 209,
+      "time": 322.1940617062917,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 210,
+      "time": 322.2411596227573,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 211,
+      "time": 322.29388185351945,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 212,
+      "time": 244.1635859958151,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 213,
+      "time": 325.4169426657938,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 214,
+      "time": 325.5673604791817,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 215,
+      "time": 325.70923808704754,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 216,
+      "time": 325.8560885763344,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 217,
+      "time": 325.9586181555725,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 218,
+      "time": 326.0120298348742,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 219,
+      "time": 326.062613291574,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 220,
+      "time": 326.1131967482739,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 221,
+      "time": 326.1638265692786,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 222,
+      "time": 326.2115818033766,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 223,
+      "time": 326.26216526007636,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 224,
+      "time": 324.38499450683594,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 225,
+      "time": 324.23475268655574,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 226,
+      "time": 324.09938629402615,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 227,
+      "time": 323.9053945559973,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 228,
+      "time": 323.76361634252635,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 229,
+      "time": 323.68224920213675,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 230,
+      "time": 323.61532171241186,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 231,
+      "time": 323.5444344003075,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 232,
+      "time": 323.47361200332415,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 233,
+      "time": 323.4067494287203,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 234,
+      "time": 323.3319672093575,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 235,
+      "time": 89.4183015258789,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 236,
+      "time": 321.3529696204857,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 237,
+      "time": 321.53497157890973,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 238,
+      "time": 321.7071867884854,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 239,
+      "time": 321.8685802610119,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 240,
+      "time": 322.0107744708598,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 241,
+      "time": 322.05914874126336,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 242,
+      "time": 322.1048183091054,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 243,
+      "time": 322.1559416214567,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 244,
+      "time": 322.1989064867372,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 245,
+      "time": 322.24732509652694,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 246,
+      "time": 322.2956993669304,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 247,
+      "time": 321.2993549534532,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 248,
+      "time": 321.4783686153224,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 249,
+      "time": 321.65721834526687,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 250,
+      "time": 321.8066437438728,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 251,
+      "time": 322,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 252,
+      "time": 322.0526765046297,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 253,
+      "time": 322.10256371517744,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 254,
+      "time": 322.15249665185775,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 255,
+      "time": 322.19959456832356,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 256,
+      "time": 322.2466924847894,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 257,
+      "time": 322.2966254214696,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 258,
+      "time": 89.43640152587889,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 259,
+      "time": 321.360175052359,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 260,
+      "time": 321.5405028792451,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 261,
+      "time": 321.72083070613115,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 262,
+      "time": 321.88356735948355,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 263,
+      "time": 322.0167338347997,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 264,
+      "time": 322.0696936636165,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 265,
+      "time": 322.1170448994508,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 266,
+      "time": 322.16724640384984,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 267,
+      "time": 322.2145976396842,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 268,
+      "time": 322.26475317200965,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 269,
+      "time": 322.3149087043352,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 270,
+      "time": 321.22001190185546,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 271,
+      "time": 321.4205047102998,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 272,
+      "time": 321.60099782391995,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 273,
+      "time": 321.77799646714146,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 274,
+      "time": 321.99058837890584,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 275,
+      "time": 322.0477198758387,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 276,
+      "time": 322.09831500172794,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 277,
+      "time": 322.14612762756826,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 278,
+      "time": 322.1938938784078,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 279,
+      "time": 322.244489004297,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 280,
+      "time": 322.29795938023676,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 281,
+      "time": 238.57820174529334,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 282,
+      "time": 237.9013555275756,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 283,
+      "time": 238.14373798860868,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 284,
+      "time": 238.40022612147692,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 285,
+      "time": 237.70927423192407,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 286,
+      "time": 237.95165669295722,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 287,
+      "time": 238.19380405945972,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 288,
+      "time": 238.43595142596223,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 289,
+      "time": 237.77368106914074,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 290,
+      "time": 238.02993410747834,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 291,
+      "time": 238.2866573348771,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 292,
+      "time": 324.3785661969866,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 293,
+      "time": 324.2349650948274,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 294,
+      "time": 324.09858548255414,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 295,
+      "time": 323.91251447900225,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 296,
+      "time": 323.7669856796503,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 297,
+      "time": 323.6885050906767,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 298,
+      "time": 323.61756165243435,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 299,
+      "time": 323.554131321367,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 300,
+      "time": 323.48318788312463,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 301,
+      "time": 323.4122444448823,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 302,
+      "time": 323.3413010066399,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 303,
+      "time": 324.3785661969866,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 304,
+      "time": 324.2429359232424,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 305,
+      "time": 324.11460519548103,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 306,
+      "time": 323.9315156263781,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 307,
+      "time": 323.7946723083898,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 308,
+      "time": 323.7070458640515,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 309,
+      "time": 323.63561225057816,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 310,
+      "time": 323.5755261642451,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 311,
+      "time": 323.5115955605203,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 312,
+      "time": 323.44766495679545,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 313,
+      "time": 323.37629335166713,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 314,
+      "time": 323.31236274794225,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 315,
+      "time": 321.22001190185546,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 316,
+      "time": 321.3902572379624,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 317,
+      "time": 321.5806675556276,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 318,
+      "time": 321.73333740234375,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 319,
+      "time": 321.91916736829154,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 320,
+      "time": 322.0252673450199,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 321,
+      "time": 322.0786764853189,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 322,
+      "time": 322.1293038995606,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 323,
+      "time": 322.17988495170147,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 324,
+      "time": 322.2304660038423,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 325,
+      "time": 322.2838751441414,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 326,
+      "time": 243.0677104255831,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 327,
+      "time": 243.0688746955482,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 328,
+      "time": 323.34076023101807,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 329,
+      "time": 323.5167612075806,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 330,
+      "time": 323.69260940551766,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 331,
+      "time": 323.8468407445546,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 332,
+      "time": 324.0666809082031,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 333,
+      "time": 324.1151499760336,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 334,
+      "time": 324.1664397461626,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 335,
+      "time": 324.22059723029514,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 336,
+      "time": 324.266198584122,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 337,
+      "time": 324.3146206402475,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 338,
+      "time": 324.36877812438,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 339,
+      "time": 89.44840152587892,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 340,
+      "time": 327.0364,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 341,
+      "time": 327.14550000000014,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 342,
+      "time": 327.21830000000017,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 343,
+      "time": 0.06670000000001164,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 344,
+      "time": 0.2242000000000117,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 345,
+      "time": 0.3273000000000176,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 346,
+      "time": 0.4303999999999944,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 347,
+      "time": 0.5456000000000061,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 348,
+      "time": 0.6607000000000118,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 349,
+      "time": 0.7577000000000118,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 350,
+      "time": 0.8790000000000002,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 351,
+      "time": 0.9758999999999943,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 352,
+      "time": 1.079,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 353,
+      "time": 1.194200000000011,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 354,
+      "time": 1.309399999999993,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 355,
+      "time": 1.4244999999999983,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 356,
+      "time": 1.5398000000000156,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 357,
+      "time": 1.6488000000000151,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 358,
+      "time": 1.7578999999999914,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 359,
+      "time": 1.8609999999999969,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    },
+    {
+      "frame": 360,
+      "time": 1.9702000000000082,
+      "cloak_meshes": 1,
+      "legs_meshes": 3,
+      "comparisons": 3
+    }
+  ],
+  "limitations": [
+    "AABB overlap and nearest-vertex distance are screening signals, not proof of triangle intersection.",
+    "Triangle indices are validated and triangle counts reported; exact triangle-triangle intersection is not computed by this first-pass analyzer.",
+    "Rigid boot meshes without indices cannot be checked for surface intersections.",
+    "Frame-to-frame vertex steps are only comparable when vertex counts and mesh identity remain stable."
+  ]
+}
