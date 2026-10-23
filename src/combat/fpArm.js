@@ -2806,16 +2806,15 @@ async function buildTpBody({
     }
     hangHipLight(arm);   // HT-WAIST: the hook and the anchor, once, on the assembled skeleton
     const cloakFit = fitThirdPersonCloak(arm, new Set([...skinRows, ...worn.adds].map((row) => row.slot)));   // MW-CLOAK1
-    // Vanilla Animated is deliberately separate from the Simply Animated mode.
-    // It keeps the classic mesh, texture, fitted placement and bind matrices, and adds
-    // only secondary cloth motion. The "Вкл" mode uses the Simply Animated asset and
-    // its authored animation without this vertex-coordinate physics pass.
-    if (vanillaAnimatedCloaksEnabled()) {
+    // Both animated modes share the same bounded secondary-cloth solver, but
+    // retain their own source mesh and bind path. Vanilla Animated uses the classic
+    // cloak unchanged; Simply mode uses the mod NIF and its authored skin binding
+    // (including the compatibility retarget above). Physics is applied only after
+    // the ordinary cloak fit, so it cannot be used to compensate for a bad rest pose.
+    if (vanillaAnimatedCloaksEnabled() || simplyAnimatedCloaksEnabled()) {
       for (const row of cloakRows) {
-        // Vanilla Animated is an adaptation of the classic cloak path: never
-        // attach the secondary solver to the Simply mesh or alter its authored
-        // rig. The classic mesh and its bind matrices remain the source of truth.
-        if (isSimplyCloakModel(row.model)) continue;
+        const simplyMesh = isSimplyCloakModel(row.model);
+        if (simplyAnimatedCloaksEnabled() !== simplyMesh) continue;
         const piece = arm.pieces.find((candidate) => candidate.slot === row.slot
           && candidate.kind === 'skinned'
           && candidate.batch?.positions?.length
@@ -2839,20 +2838,22 @@ async function buildTpBody({
           // Retain the resolved asset so diagnostics can identify the exact
           // classic mesh without inferring it from the currently selected mode.
           piece.clothPhysicsResource = `meshes/${row.model}`;
-          piece.clothPhysicsFallbackMesh = true;
+          piece.clothPhysicsFallbackMesh = !simplyMesh;
           modDiagnostics.record({
             level: 'info',
             phase: 'animation',
             action: 'cloak-physics-created',
             modId: 'simply-animated-cloaks',
             resource: `meshes/${row.model}`,
-            message: 'Secondary cloth motion was attached to the classic cloak mesh; its authored placement is retained.',
+            message: simplyMesh
+              ? 'Secondary cloth motion was attached after binding the Simply cloak mesh; authored skin placement is retained.'
+              : 'Secondary cloth motion was attached to the classic cloak mesh; its authored placement is retained.',
             details: {
               vertices: physics.pos.length / 3,
               constraints: physics.edges.length,
               pinnedVertices: physics.pinned.reduce((sum, pinned) => sum + pinned, 0),
               maxOffset: physics.maxOffset,
-              fallbackMesh: true,
+              fallbackMesh: !simplyMesh,
             },
           });
         } else {
@@ -2862,9 +2863,11 @@ async function buildTpBody({
             action: 'cloak-physics-unavailable',
             modId: 'simply-animated-cloaks',
             resource: `meshes/${row.model}`,
-            message: 'The classic cloak piece could not initialize secondary cloth motion; its original placement is retained.',
+            message: simplyMesh
+              ? 'The Simply cloak piece could not initialize secondary cloth motion; its current skin binding is retained.'
+              : 'The classic cloak piece could not initialize secondary cloth motion; its original placement is retained.',
             details: {
-              fallbackMesh: true,
+              fallbackMesh: !simplyMesh,
               positionsType: piece.batch?.positions?.constructor?.name ?? null,
               positionFloats: piece.batch?.positions?.length ?? 0,
               indexCount: piece.indices?.length ?? 0,
