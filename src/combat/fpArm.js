@@ -8125,8 +8125,19 @@ export function createFpArm({ playerAppearance = false } = {}) {
             const shieldBack = !shieldCombatReadyNow
               ? t.arm.pieces.find((piece) => /^shield-back\b/i.test(piece.slot ?? ''))
               : null;
+            // Hip-mounted one-handed scabbards are not back gear. Their narrow,
+            // animated footprint can overlap the cloak in projection and make the
+            // cloth contact solver repeatedly grab/release the same vertices.
+            // Keep them on their authored sheathing bone; only solve cloth contact
+            // against genuinely back-mounted holsters, scabbards and quivers.
+            const HIP_SHEATH_BONES = new Set([
+              'bip01 shortbladeonehand', 'bip01 longbladeonehand',
+              'bip01 bluntonehand',
+            ]);
             const backSheaths = t.arm.pieces.filter((piece) => {
               if (piece.kind !== 'rigid' || !HOLSTER_SLOTS.includes(piece.slot) || piece.attachRef == null) return false;
+              const attachName = String(t.arm.skeleton.nodes.get(piece.attachRef)?.name ?? '').toLowerCase();
+              if (HIP_SHEATH_BONES.has(attachName)) return false;
               for (let at = t.arm.skeleton.nodes.get(piece.attachRef)?.parent; at != null && at >= 0; at = t.arm.skeleton.nodes.get(at)?.parent) {
                 if (String(t.arm.skeleton.nodes.get(at)?.name ?? '').toLowerCase() === 'bip01 spine1') return true;
               }
