@@ -4656,6 +4656,15 @@ export function createFpArm({ playerAppearance = false } = {}) {
   let movementClipPreference = null;
   let movementStance = null;
   let movementRate = 1;
+  // SHIELD-STRIDE: forward/back clips keep their own body and weapon hand,
+  // but the shield arm borrows the already-correct left-strafe pose.
+  // The overlay is movement-only: idle and left/right movement stay untouched.
+  let shieldMovementState = null;
+  let shieldMovementGroup = null;
+  let shieldMovementSource = null;
+  let shieldMovementClock = 0;
+  let shieldMovementOverlayMemo = null;
+  const shieldMovementSample = overlaySampler(sampleTrack, () => shieldMovementClock);
   // MW-D39: THE FOURTH SLOT - JUMP. Priority_Jump sits BELOW
   // Priority_Movement in the reference's enum (character.hpp:34-35),
   // so the winner ladder reads action > movement > JUMP > idle - and
@@ -5866,6 +5875,56 @@ export function createFpArm({ playerAppearance = false } = {}) {
   function resetMovement() {
     movementState = null; movementGroup = null; movementSource = null; movementBase = null; movementClipPreference = null;
     movementStance = null;
+  }
+
+  function resetShieldMovement() {
+    shieldMovementState = null;
+    shieldMovementGroup = null;
+    shieldMovementSource = null;
+    shieldMovementClock = 0;
+    shieldMovementOverlayMemo = null;
+  }
+
+  /**
+   * Keep the shield's left-arm pose from the working left-strafe clip while
+   * moving forward/back in third-person combat. No transform values are
+   * guessed: the overlay is sampled from the same rig's existing left clip.
+   */
+  function refreshShieldMovement() {
+    const r = rig();
+    const hasShield = viewMode === 'third' && thirdBuilt?.ok
+      && thirdBuilt.arm?.pieces?.some((piece) => /^shield\b/.test(piece.slot ?? ''));
+    if (!hasShield || !movementState || !/(forward|back)$/.test(movementBase ?? '')) {
+      resetShieldMovement();
+      return;
+    }
+    const leftBase = movementBase.replace(/(forward|back)$/, 'left');
+    const composed = composeMovementGroup(leftBase, movementStance, hasGroup);
+    if (!composed.group) {
+      resetShieldMovement();
+      return;
+    }
+    if (shieldMovementState && shieldMovementGroup === composed.group && shieldMovementState.playing) return;
+    const candidates = movementSource
+      ? [movementSource, ...r.sources.filter((source) => source !== movementSource)]
+      : r.sources;
+    const pick = pickAnimSource(candidates, composed.group, resetClip, { loopFallback: true, loopCount: Infinity });
+    if (!pick) {
+      resetShieldMovement();
+      return;
+    }
+    shieldMovementState = pick.state;
+    shieldMovementGroup = composed.group;
+    shieldMovementSource = pick.source;
+    shieldMovementOverlayMemo = null;
+  }
+
+  function shieldMovementTracksFor(base, overlay, mask) {
+    if (!shieldMovementOverlayMemo || shieldMovementOverlayMemo.base !== base
+      || shieldMovementOverlayMemo.overlay !== overlay || shieldMovementOverlayMemo.mask !== mask) {
+      shieldMovementOverlayMemo = { base, overlay, mask, tracks: overlayTracks(base, overlay, mask) };
+    }
+    return shieldMovementOverlayMemo.tracks;
   }
 
   /** resetCurrentJumpState (character.cpp:350-354). */
@@ -7822,7 +7881,13 @@ export function createFpArm({ playerAppearance = false } = {}) {
       // movestate ladder this frame.
       const inJump = refreshJump((cam && cam.move) || null);
       refreshMovement(cam, dt, inJump);
+      refreshShieldMovement();
       if (movementState) advanceClip(movementState, (movementSource || rig()).keys, dt * movementRate, null);
+      if (shieldMovementState && movementState) {
+        const progress = clipCompletion(movementState);
+        shieldMovementClock = shieldMovementState.startTime
+          + progress * (shieldMovementState.stopTime - shieldMovementState.startTime);
+      }
       // The jump plays at speedmult 1.0 (character.cpp:528-531 pass
       // 1.0f) - no rate scaling, unlike movement.
       if (jumpState) advanceClip(jumpState, (jumpSource || rig()).keys, dt, null);
@@ -7873,8 +7938,16 @@ export function createFpArm({ playerAppearance = false } = {}) {
         if (!t || !t.ok) return;
         // MW-D51: the torch overlay on the body's own LeftArm mask.
         const tBase = poseSource ? poseSource.trackMap : t.tracks;
-        const tOverlay = torchState && torchSource && !deathState && t.leftArm && t.leftArm.size;   // MWNPC4: the death takes the left arm too (Priority_Death over Priority_Torch)
+        const shieldMoveOverlay = state === movementState && shieldMovementState && shieldMovementSource
+          && t.leftArm && t.leftArm.size
+          && t.arm?.pieces?.some((piece) => /^shield\b/.test(piece.slot ?? ''));
+        // The shield and carried torch share the left-hand slot; never nest
+        // their clocked overlays. The original torch path is otherwise unchanged.
+        const tOverlay = !shieldMoveOverlay && torchState && torchSource && !deathState && t.leftArm && t.leftArm.size;
         if (tOverlay) overlayClock = torchState.time;
+        const thirdTracks = shieldMoveOverlay
+          ? shieldMovementTracksFor(tBase, shieldMovementSource.trackMap, t.leftArm)
+          : tBase;
         // HT-WAIST: the lantern at the waist swings on the frame's motion before the body is posed around it - on the
         // body motion's stride while it walks the legs (BODY-MOTION), else on the walk clip's
         if (hipVisible() && thirdBuilt.hipHang) hipLantern.step(cam, dt, motion.stride().move > 0.5 ? motion.stride().phase : movementState ? clipCompletion(movementState) % 1 : null, thirdBuilt.hipHang.rot, motion.stride().hipYaw);
@@ -7903,8 +7976,8 @@ export function createFpArm({ playerAppearance = false } = {}) {
             ? (easedReactionRule?.weight ?? blendProgress)
             : 1;
           poseAssembly(t.arm, {
-            tracks: tOverlay ? overlayFor(tBase, t.leftArm) : tBase,
-            sampleTrack: tOverlay ? overlaySample : sampleTrack,
+            tracks: tOverlay ? overlayFor(thirdTracks, t.leftArm) : thirdTracks,
+            sampleTrack: shieldMoveOverlay ? shieldMovementSample : tOverlay ? overlaySample : sampleTrack,
             time: poseTime(state),   // MS1: a backhand's window runs backwards
             blendFrom: thirdBlendFrom,
             blendWeight: thirdBlendWeight,
