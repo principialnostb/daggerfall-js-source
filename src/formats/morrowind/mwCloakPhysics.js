@@ -11,6 +11,9 @@ const DAMPING = 0.972;
 const GRAVITY = 22;
 const ITERATIONS = 7;
 const STIFFNESS = 0.68;
+// Morrowind is Z-up; negative Y is behind the actor. Keep shield-covered
+// cloth slightly off the fitted body so a static cloak layer can sit there.
+const STOWED_SHIELD_CLOAK_CLEARANCE = 0.38;
 
 const distance3 = (p, a, b) => Math.hypot(
   p[a * 3] - p[b * 3],
@@ -121,7 +124,7 @@ export function resolveCloakShieldContact(piece, posedCloth, shieldPositions, sh
     }
     if (!covered) continue;
     pos[o] = prev[o] = base[o];
-    pos[o + 1] = prev[o + 1] = base[o + 1];
+    pos[o + 1] = prev[o + 1] = base[o + 1] - STOWED_SHIELD_CLOAK_CLEARANCE;
     pos[o + 2] = prev[o + 2] = base[o + 2];
     held++;
   }
