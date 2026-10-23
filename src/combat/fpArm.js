@@ -2052,7 +2052,10 @@ export function hangHipLight(arm) {
  *  is not touched. Answers `{ cloak, gear, follow, notes }`. */
 export function fitThirdPersonCloak(arm, underSlots) {
   const isCloak = (p) => isCloakSlot(p.slot);
-  const isGear = (p) => HOLSTER_SLOTS.includes(p.slot);
+  // The stowed shield is rigid gear too: fit it outside the cloak in the rest pose,
+  // rather than asking cloth collision to squeeze the cloak into the body/shield gap.
+  // The hand-held shield remains excluded by its distinct `shield` slot.
+  const isGear = (p) => HOLSTER_SLOTS.includes(p.slot) || /^shield-back\\b/i.test(p.slot ?? '');
   const covered = (slot) => underSlots.has(slot) && slot !== 'tail' && !/^shield\b/.test(slot);
   const cloak = underSlots ? fitCloakOver(arm, { isCloak, isUnder: (p) => covered(p.slot) }) : null;
   const gear = fitStowedGear(arm, { isCloak, isGear });
