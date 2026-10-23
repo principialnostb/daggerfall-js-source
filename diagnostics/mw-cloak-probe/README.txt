@@ -72,7 +72,27 @@ Or run only the triangle-surface intersection pass:
 Or choose a capture explicitly:
     npm run mwcloak:intersections -- path/to/mw-cloak-capture.json
 
-It writes cloak-triangle-intersections.json and .html beside the capture. The
+It writes cloak-triangle-intersections.json and .html beside the capture.
+
+Visualize reported intersections
+--------------------------------
+Generate a self-contained HTML viewer for the currently reported worst frames:
+    npm run mwcloak:visualize
+
+Open diagnostics/mw-cloak-probe/cloak-intersection-viewer.html in a browser.
+The default viewer includes frames 117, 203, 272, and 317. To inspect other
+frames, pass a comma-separated list or use all frames that have intersection
+rows in the report:
+    npm run mwcloak:visualize -- --frames 94,95,117,203,272,317
+    npm run mwcloak:visualize -- --frames all
+
+The viewer shows XY, XZ, and YZ orthographic projections. Drag to pan and use
+the mouse wheel to zoom. It highlights example triangle pairs saved by the
+intersection report (up to 100 pairs per frame/mesh pair), not every hit. It is
+a geometry diagnostic, not a recreation of the game's camera/materials. The
+capture and report must belong to the same run. For full investigation goals,
+interpretation, root-cause workflow, and regression checklist, see
+INVESTIGATION.md. The
 pass uses a conservative spatial broad phase, triangle AABB filtering, and a
 separating-axis test that also handles coplanar triangle overlap. It can take
 longer than the screening pass on large captures. Meshes with missing/invalid
