@@ -610,7 +610,9 @@ export function fitStowedGear(assembly, { isCloak, isGear, clearance = CLOAK_CLE
     // the search runs on the vertices, cheap, and each answer is held to every sample before it is taken
     const corners = pieces.map((p) => rest.place(p));
     const posed = corners.map((q, i) => surfaceSamples(q, pieces[i].indices));
-    const slung = under(assembly.skeleton, ref, SLUNG_UNDER);
+    // The dedicated AttachShield mount is a back-slung item even if a rig's node hierarchy
+    // does not place it beneath Spine1; it must translate away from the cloak, not use hip-gear pitch.
+    const slung = pieces.some((p) => /^shield-back\b/i.test(p.slot ?? '')) || under(assembly.skeleton, ref, SLUNG_UNDER);
     const bone = pieces[0].bone;
     const t = at.t;
     let reached = false;
