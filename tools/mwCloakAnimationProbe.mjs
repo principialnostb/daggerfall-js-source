@@ -9,7 +9,7 @@ import { createServer } from 'vite';
 import { chromium } from 'playwright';
 
 process.env.PLAYWRIGHT_BROWSERS_PATH ??= '/opt/pw-browsers';
-const url = process.argv[2] ?? 'http://localhost:5173/play/';
+const url = process.argv[2] ?? 'http://localhost:5247/play/';
 const seconds = Math.max(10, Math.min(600, Number(process.argv[3]) || 90));
 const outDir = resolve('diagnostics/mw-cloak-probe');
 await mkdir(outDir, { recursive: true });
