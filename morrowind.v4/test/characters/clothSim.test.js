@@ -97,6 +97,28 @@ test('no clipping during WALKING: cloth stays out of the bent legs (arms hang ou
   }
 });
 
+test('final torso projection cannot undo articulated leg clearance', () => {
+  // A point starts inside a thigh capsule. Torso collision is evaluated in
+  // the lean/twist frame, then the final world-space limb pass must restore
+  // clearance instead of leaving the point inside the leg.
+  const c = buildCloth({
+    rows: 1, cols: 1, wrap: false,
+    pos: Float32Array.from([0.082, 0.70, 0]),
+    faces: [],
+  }, 0);
+  const capsules = [{
+    p0: [0.082, 0.92, 0], p1: [0.082, 0.42, 0],
+    r0: 0.12, r1: 0.10,
+  }];
+  stepCloth(c, 1/120, {
+    gy: 0, damp: 0, maxStep: 0,
+    lean: 0.48, twist: 0.38, leanPivot: 1.0,
+    capsules, collisionPasses: 6, standoff: SO,
+  }, () => [0.19, 0.12]);
+  const distance = capsuleDist(c.pos[0], c.pos[1], c.pos[2], capsules[0]);
+  assert.ok(distance >= -0.004, `particle remained inside thigh capsule (distance=${distance.toFixed(4)})`);
+});
+
 test('bone-driven drape: follows the legs without clipping or exploding', () => {
   const geom = { legX: 0.082, hipY: 0.90, kneeY: 0.52, ankleY: 0.10, legR: [0.125, 0.112, 0.086] };
   const ang = (ph) => ({
