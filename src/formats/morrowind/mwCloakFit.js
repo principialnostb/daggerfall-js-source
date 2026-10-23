@@ -78,6 +78,13 @@ export const CLOAK_FIT_POSES = Object.freeze([
   Object.freeze({ 'bip01 l upperarm': ['z', -40] }),
   Object.freeze({ 'bip01 r upperarm': ['z', 40] }),
   Object.freeze({ 'bip01 l upperarm': ['z', -35], 'bip01 r upperarm': ['z', 35] }),
+  // Leg envelope: combat stance and deeper knee flexion. These are bind-time
+  // samples, not runtime collision solving; keep both lead-leg choices so the
+  // fitted sheet covers left/right stance asymmetry as well as the walk cycle.
+  Object.freeze({ 'bip01 l thigh': ['z', 20], 'bip01 r thigh': ['z', -20], 'bip01 l calf': ['z', 65] }),
+  Object.freeze({ 'bip01 r thigh': ['z', 20], 'bip01 l thigh': ['z', -20], 'bip01 r calf': ['z', 65] }),
+  Object.freeze({ 'bip01 r thigh': ['z', 50], 'bip01 l thigh': ['z', -40], 'bip01 l calf': ['z', 60] }),
+  Object.freeze({ 'bip01 l thigh': ['z', 50], 'bip01 r thigh': ['z', -40], 'bip01 r calf': ['z', 60] }),
 ]);
 /** AUDIT MW-CLOAK: the follow's solve - its rounds of a linear law re-taken where the last left the gear, the sweeps of
  *  each, a unit's slide priced as a turn of `slideCost` radians, the most it turns and slides a pose, and the cell of
@@ -372,7 +379,10 @@ export function fitCloakOver(assembly, { isCloak, isUnder, clearance = CLOAK_CLE
         const deepest = new Map();
         for (const u of set.under) {
           for (let v = 0; v < u.length; v += 3) {
-            const cell = sheet.get(sheetCellKey(u[v], u[v + 2]));
+            // Query the actual projected triangles at the body's exact (x,z).
+            // The integer height-field is useful as a coarse index, but rounding
+            // here can miss a shin/greave just inside a triangle near its edge.
+            const cell = sheet.at(u[v], u[v + 2]);
             if (!cell) continue;
             const over = cell.front - (u[v + 1] - clearance);
             if (over <= 1e-4) continue;
