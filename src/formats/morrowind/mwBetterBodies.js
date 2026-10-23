@@ -13,6 +13,16 @@ const nudeBodyModelUrls = IN_BROWSER
       eager: true, query: '?url', import: 'default',
     })
   : {};
+const nudeHandModelUrls = IN_BROWSER
+  ? import.meta.glob('../../../Mods/Bodies/Better Bodies/Nude/Data Files/Meshes/bb/bb_hand*.nif', {
+      eager: true, query: '?url', import: 'default',
+    })
+  : {};
+const nudeHandTextureUrls = IN_BROWSER
+  ? import.meta.glob('../../../Mods/Bodies/Better Bodies/Nude/Data Files/Textures/bb/bb_hand*.dds', {
+      eager: true, query: '?url', import: 'default',
+    })
+  : {};
 const nudeBodyTextureUrls = IN_BROWSER
   ? import.meta.glob('../../../Mods/Bodies/Better Bodies/Nude/Data Files/Textures/bb/bb_skin*.dds', {
       eager: true, query: '?url', import: 'default',
@@ -20,6 +30,16 @@ const nudeBodyTextureUrls = IN_BROWSER
   : {};
 const underwearBodyModelUrls = IN_BROWSER
   ? import.meta.glob('../../../Mods/Bodies/Better Bodies/Underwear/Data Files/Meshes/bb/bb_skin*.nif', {
+      eager: true, query: '?url', import: 'default',
+    })
+  : {};
+const underwearHandModelUrls = IN_BROWSER
+  ? import.meta.glob('../../../Mods/Bodies/Better Bodies/Underwear/Data Files/Meshes/bb/bb_hand*.nif', {
+      eager: true, query: '?url', import: 'default',
+    })
+  : {};
+const underwearHandTextureUrls = IN_BROWSER
+  ? import.meta.glob('../../../Mods/Bodies/Better Bodies/Underwear/Data Files/Textures/bb/bb_hand*.dds', {
       eager: true, query: '?url', import: 'default',
     })
   : {};
@@ -57,6 +77,8 @@ export function betterBodiesAssetUrls({ race = 'Nord', female = false, underwear
   const sourceTextureStem = `bb_skin${genderKey}_${raceKey}`;
   const textureRaceKey = raceKey;
   const textureStem = `bb_skin${genderKey}_${textureRaceKey}`;
+  const handModelStem = `bb_hand${genderKey}_${geometryRaceKey}`;
+  const handTextureStem = `bb_hand${genderKey}_${textureRaceKey}`;;
   const modelTable = underwear ? underwearBodyModelUrls : nudeBodyModelUrls;
   const textureTable = underwear ? underwearBodyTextureUrls : nudeBodyTextureUrls;
   const findUrl = (table, stem, extension) => {
@@ -69,9 +91,14 @@ export function betterBodiesAssetUrls({ race = 'Nord', female = false, underwear
   const dmraModel = dmraEnabled ? findUrl(dmraFemaleBodyModelUrls, modelStem, 'nif') : null;
   const model = dmraModel ?? findUrl(modelTable, modelStem, 'nif');
   const texture = findUrl(textureTable, sourceTextureStem, 'dds');
+  const handModelTable = underwear ? underwearHandModelUrls : nudeHandModelUrls;
+  const handTextureTable = underwear ? underwearHandTextureUrls : nudeHandTextureUrls;
+  const handModel = findUrl(handModelTable, handModelStem, 'nif');
+  const handTexture = findUrl(handTextureTable, handTextureStem, 'dds');
   if (!model || !texture) return null;
   return Object.freeze({
     model, texture, texturePath: `textures/bb/${textureStem}.dds`,
+    handModel, handTexture, handTexturePath: `textures/bb/${handTextureStem}.dds`,
     raceKey, textureRaceKey, geometryRaceKey, female: !!female, underwear: !!underwear, bodyVariant: dmraModel ? 'Seamless DMRA' : 'Better Bodies',
   });
 }
