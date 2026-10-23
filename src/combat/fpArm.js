@@ -2078,7 +2078,8 @@ function correctVanillaAnimatedCloakContacts(arm, piece, pose) {
     isCloak: (p) => isCloakSlot(p.slot),
     isUnder: (p) => underSlots.has(p.slot) && p.slot !== 'tail' && !/^shield\b/.test(p.slot),
     poses: [pose],
-    passes: 2,
+    passes: 1,
+    sampleStep: 3,
     updatePosed: false,
   });
   const positions = piece.batch.positions;
