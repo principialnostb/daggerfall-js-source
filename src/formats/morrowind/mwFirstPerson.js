@@ -3490,7 +3490,7 @@ function applyPre(positions, pre) {
  * Names are the NIF section names (for example "Tri Chest"), while shadows
  * are ARMO_PART keys such as "chest" and "hand:right".
  */
-export export function betterBodiesSectionKey(shapeName) {
+export function betterBodiesSectionKey(shapeName) {
   // Better Bodies NIFs can name a drawable after the anatomy ("Hand L")
   // or after its skeleton node ("Bip01 L Hand"). Normalize exporter
   // prefixes as well as side/region order; failing to strip Bip01 leaves
