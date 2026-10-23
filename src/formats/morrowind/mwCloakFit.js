@@ -38,6 +38,7 @@
 // parsed batch's own array), and the live pose's positions are re-placed at once.
 import { GRAPH_ROOT } from './mwSkin.js';
 import { placeAtBone, placeNormalsAtBone } from './mwFirstPerson.js';
+import { buildTriangleGrid3d, nearestTrianglePoint3d } from './mwCloakContact3d.js';
 
 /** Units the cloak keeps behind what it covers, and gear keeps from the cloak. */
 export const CLOAK_CLEARANCE = 1;
