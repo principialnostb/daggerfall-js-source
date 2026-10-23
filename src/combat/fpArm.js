@@ -5892,7 +5892,7 @@ export function createFpArm({ playerAppearance = false } = {}) {
    */
   function refreshShieldMovement() {
     const r = rig();
-    const hasShield = viewMode === 'third' && thirdBuilt?.ok
+    const hasShield = viewMode === 'third' && thirdBuilt?.ok && !sheathed && !spellStance()
       && thirdBuilt.arm?.pieces?.some((piece) => /^shield\b/.test(piece.slot ?? ''));
     if (!hasShield || !movementState || !/(forward|back)$/.test(movementBase ?? '')) {
       resetShieldMovement();
