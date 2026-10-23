@@ -1,30 +1,23 @@
 # Vanilla Animated cloak collision
 
-This note documents the in-progress 3D contact redesign in `src/formats/morrowind/mwCloakFit.js`.
+## Current experiment
 
-## Why the old method was insufficient
+The 3D nearest-triangle contact redesign was reverted after reports of visible cloak deformation and worse penetration through both legs. The working branch now uses the previous X/Z height-field contact method again, with only the broad sampling region widened from 1 to 2 rig-space units around the cloak bounds.
 
-The previous live contact pass treated the cloak as a height field keyed by rig-space `(x, z)`. That representation loses contact information when the cloth folds, turns edge-on, or overlaps itself, and it can miss a body triangle that intersects the sheet away from sampled vertices and edges. The visible symptom was intermittent leg geometry passing through the cloak during walking and sword attacks.
+In `src/formats/morrowind/mwCloakFit.js`, the widened bounds apply to both the body-sample predicate and the early rejection of body pieces. The collision method itself remains the prior `cloakSheet` lookup and Y-axis correction; this change deliberately avoids changing contact direction and geometry at the same time as the sampling area.
 
-## Current approach
+## What this experiment tests
 
-- Build a uniform 3D spatial grid over the posed cloak triangles.
-- For each body sample, query nearby triangle candidates and compute the closest point on the actual 3D triangles, including face, edge, and vertex regions. Degenerate triangles fall back to segment distance.
-- Use the contact vector from the cloak surface toward the body to choose the direction in which the cloak must move away; ease neighboring vertices in XYZ rather than only along Y.
-- Expand broad-phase bounds in all three axes, not only X/Z.
-- Stamp candidate triangles during grid queries to avoid allocating a fresh de-duplication set for every sample.
-- Keep the back-slung weapon/scabbard excluded from dynamic cloak following. Their rest-pose clearance is still handled by `fitStowedGear`.
+The working hypothesis is that leg contact samples were being discarded by the narrow X/Z broad-phase region. Widening that region should allow more leg samples to be considered without introducing the 3D solver's changed contact direction.
 
-The helper is in `src/formats/morrowind/mwCloakContact3d.js`; its focused unit tests are in `test/mwCloakContact3d.test.js`.
+This is a hypothesis, not a confirmed fix. The old height-field method can still miss contacts when the cloak folds, turns edge-on, or overlaps itself.
 
-## Verification and known limits
+## Validation
 
-Run the focused tests with:
+Run the focused repository test suite or `npm test`, then validate in-game:
+- walk and turn with the cloak equipped;
+- inspect both legs, including knees and shins;
+- test sword attacks and vertical movement;
+- check for visual distortion and frame-time regressions.
 
-```sh
-node --test test/mwCloakContact3d.test.js
-```
-
-These tests cover closest-point regions, degenerate triangles, grid candidate de-duplication, nearest-candidate selection, and invalid grid cell size.
-
-This is an incremental geometric redesign, not a claim that all in-game clipping is eliminated. Contact side selection at near-zero distance still uses a deterministic normal fallback; pose-side stability and triangle/triangle intersection coverage require in-game validation. Do not enable dense triangle-interior sampling on every animation frame without profiling: the live path is performance-sensitive. Validate both walking and vertical sword strikes, and check frame time as well as visible penetration.
+Do not claim the clipping is fixed until these cases are checked. Back-slung weapons and scabbards remain independent of live cloak animation.
