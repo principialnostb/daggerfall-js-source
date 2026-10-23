@@ -2064,6 +2064,37 @@ export function fitThirdPersonCloak(arm, underSlots) {
   return { cloak, gear, follow, notes };
 }
 
+/**
+ * Keep the classic Vanilla Animated cloak behind the body in the live pose.
+ * The static fit already covers a useful pose envelope; this short, one-pose
+ * contact pass catches the gaps between those samples without changing the
+ * animation or running a second cloth solver.
+ */
+function correctVanillaAnimatedCloakContacts(arm, piece, pose) {
+  const underSlots = piece.clothPhysicsUnderSlots;
+  const state = piece.clothPhysics;
+  if (!underSlots || !state || !pose || !arm.mats || !piece.batch?.positions) return false;
+  const fit = fitCloakOver(arm, {
+    isCloak: (p) => isCloakSlot(p.slot),
+    isUnder: (p) => underSlots.has(p.slot) && p.slot !== 'tail' && !/^shield\\b/.test(p.slot),
+    poses: [pose],
+    passes: 2,
+    updatePosed: false,
+  });
+  const positions = piece.batch.positions;
+  if (!fit?.pushed || positions.length !== state.pos.length) return false;
+  // Keep the solver's corrected position and shift its previous position by
+  // the same amount, preserving velocity instead of injecting a collision kick.
+  for (let i = 0; i < positions.length; i++) {
+    const correction = positions[i] - state.pos[i];
+    state.pos[i] = positions[i];
+    state.prev[i] += correction;
+  }
+  state.normals = piece.batch.normals ?? null;
+  piece.sourceGen = ((piece.sourceGen | 0) + 1) >>> 0;
+  return true;
+}
+
 /** MW-D50: the archives' DIRECTORY - "is this path in any attached
  *  .bsa" - the one question pickWeaponRecord asks of them. Not
  *  findLoaded: that one throws for a path known but not yet read
@@ -2840,6 +2871,7 @@ async function buildTpBody({
           // Retain the resolved asset so diagnostics identify the exact mesh and mode.
           piece.clothPhysicsResource = `meshes/${row.model}`;
           piece.clothPhysicsFallbackMesh = !simplyMesh;
+          piece.clothPhysicsUnderSlots = new Set([...skinRows, ...worn.adds].map((underRow) => underRow.slot));
           modDiagnostics.record({
             level: 'info',
             phase: 'animation',
@@ -7932,6 +7964,13 @@ export function createFpArm({ playerAppearance = false } = {}) {
                   },
                 });
               }
+            }
+          }
+          // Vanilla Animated alone gets live body-contact correction. The
+          // authored Simply mesh and its own animation path remain untouched.
+          if (vanillaAnimatedCloaksEnabled() && t.arm.pose && t.arm.mats) {
+            for (const piece of t.arm.pieces) {
+              if (piece.clothPhysicsFallbackMesh) correctVanillaAnimatedCloakContacts(t.arm, piece, t.arm.pose);
             }
           }
           if (thirdBlendWeight >= 1) thirdBlendFrom = null;
