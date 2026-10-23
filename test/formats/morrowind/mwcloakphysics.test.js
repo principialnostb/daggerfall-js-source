@@ -49,6 +49,24 @@ test('cloak cloth simulation pins the shoulders and gives the hem bounded second
   }
 });
 
+test('idle, walking, running, and overhead attacks produce distinct hem poses', () => {
+  const poseAfter = (motion) => {
+    const piece = cloakPiece();
+    piece.clothPhysics = createCloakPhysics(piece);
+    assert.ok(piece.clothPhysics);
+    stepCloakPhysics(piece, 1 / 30, motion);
+    // Vertex 2 is on the lower hem (Z=0); vertices 0 and 1 are shoulder pins.
+    return Array.from(piece.batch.positions.slice(6, 9));
+  };
+  const idle = poseAfter({ gait: 0, gaitPhase: 0.25, turn: 0, attack: 0 });
+  const walk = poseAfter({ gait: 0.55, gaitPhase: 0.25, turn: 0, attack: 0 });
+  const run = poseAfter({ gait: 1, gaitPhase: 0.25, turn: 0, attack: 0 });
+  const overhead = poseAfter({ gait: 0, gaitPhase: 0.25, turn: 0, attack: 1, attackProgress: 0.5, attackGroup: 'overhead' });
+  assert.ok(run[1] < walk[1] && walk[1] < idle[1], 'running drags the hem farther back than walking and idle');
+  assert.ok(Math.abs(walk[0] - idle[0]) > 0.2, 'walking adds a phase-locked side-to-side swing');
+  assert.ok(overhead[1] < idle[1] - 0.8, 'an overhead attack drives the hem back before its inertial return');
+});
+
 test('GPU skin stream restreams only the skinned cloak row after physics changes its bind vertices', () => {
   const piece = cloakPiece();
   const state = createCloakPhysics(piece);
