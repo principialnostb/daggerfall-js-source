@@ -78,7 +78,7 @@ import {
   placeAtBone,   // TWO-HANDS AUDIT 2: a blade placed at rest, for the pair's guard (bladePictureHeight)
 } from '../formats/morrowind/mwFirstPerson.js';
 import { PART_BONES, dfRaceKeyOf } from '../formats/morrowind/mwNpc.js';
-import { betterBodiesAssetUrls } from '../formats/morrowind/mwBetterBodies.js';
+import { betterBodiesAssetUrls, loadBetterBodiesFemaleUvEdits } from '../formats/morrowind/mwBetterBodies.js';
 import { portraitFeatures, headFeatures, hairFeatures, matchFace, FACE_MATCH_VERSION } from '../formats/morrowind/mwFaceMatch.js';
 import { CifRciFile } from '../formats/cifRciFile.js';
 import { DFPalette } from '../formats/dfPalette.js';
@@ -2592,7 +2592,7 @@ async function buildTpBody({
         const [rawBytes, textureBytes, uvEdits] = await Promise.all([
           loadBetterBodiesAssetBytes(asset.model, 'NIF'),
           loadBetterBodiesAssetBytes(asset.texture, 'DDS'),
-          Promise.resolve([]) /* diagnostic: preserve source NIF UVs; compare against the dark-elf reference */,
+          (female && asset.bodyVariant === 'Better Bodies' ? loadBetterBodiesFemaleUvEdits() : Promise.resolve([])),
         ]);
         const genderKey = female ? 'f' : 'm';
         const bytes = rewriteBetterBodiesTextureStem(
@@ -3816,7 +3816,7 @@ export async function buildFpArm({
         const [rawBytes, textureBytes, uvEdits] = await Promise.all([
           loadBetterBodiesAssetBytes(asset.model, 'NIF'),
           loadBetterBodiesAssetBytes(asset.texture, 'DDS'),
-          Promise.resolve([]) /* diagnostic: preserve source NIF UVs; compare against the dark-elf reference */,
+          (female && asset.bodyVariant === 'Better Bodies' ? loadBetterBodiesFemaleUvEdits() : Promise.resolve([])),
         ]);
         const genderKey = female ? 'f' : 'm';
         const bytes = rewriteBetterBodiesTextureStem(
