@@ -615,6 +615,11 @@ export function followCloak(assembly, { isCloak, isGear, clearance = CLOAK_CLEAR
   }
   const groups = [];
   for (const [ref, pieces] of gearGroups(assembly, isGear)) {
+    // Back-slung weapons and their scabbards are rigidly attached to the spine's holster bone.
+    // The cloak must never drive that bone's pieces: following the animated sheet makes the weapon
+    // snap/rotate as the hem crosses its contact samples. fitStowedGear still performs the one-time
+    // rest-pose clearance fit; only animated cloak-follow is skipped for back-slung gear.
+    if (under(assembly.skeleton, ref, SLUNG_UNDER)) continue;
     const at = assembly.fns.attachmentTransform(rest.mats, ref);
     const ai = inv3(at.a);
     const cells = new Map();   // a cell of the gear's (x, z), its point nearest the cloak
