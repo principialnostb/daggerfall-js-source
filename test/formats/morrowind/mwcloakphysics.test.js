@@ -71,16 +71,13 @@ test('idle, walking, running, and overhead attacks produce distinct hem poses', 
 test('back shield holds only covered cloak vertices at rest and preserves free hem motion', () => {
   const piece = cloakPiece();
   const base = Float32Array.from(piece.batch.positions);
-  const pos = Float32Array.from(base);
-  const prev = Float32Array.from(base);
+  piece.clothPhysics = createCloakPhysics(piece);
+  assert.ok(piece.clothPhysics);
+  const { pos, prev } = piece.clothPhysics;
   for (let i = 0; i < pos.length; i += 3) {
     pos[i + 1] += 2;
     prev[i + 1] += 1;
   }
-  piece.clothPhysics = createCloakPhysics(piece);
-  assert.ok(piece.clothPhysics);
-  piece.clothPhysics.pos.set(pos);
-  piece.clothPhysics.prev.set(prev);
   piece.batch.positions.set(pos);
   // A simple triangle covers vertices 0, 1 and 2, but not vertex 3.
   const shield = Float32Array.from([-1, 0, 2, 1, 0, 2, 1, 0, 0]);
