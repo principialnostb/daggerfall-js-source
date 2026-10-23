@@ -59,6 +59,19 @@ function pushCapsule(px, py, pz, C, SO) {
   const f = hTarget / hd;
   return [cx + hx*f, py, cz + hz*f];                       // y unchanged (no climbing)
 }
+// A small articulated pelvis/back volume supplements the height-only torso ellipse.
+// Projection is radial in ellipsoid space; backOnly keeps it from inflating the front silhouette.
+function pushEllipsoid(px, py, pz, C, SO) {
+  const rx = C.rx + SO, ry = C.ry + SO, rz = C.rz + SO;
+  const dx = px - C.x, dy = py - C.y, dz = pz - C.z;
+  if (C.backOnly && dz >= 0) return null;
+  const e = dx*dx/(rx*rx) + dy*dy/(ry*ry) + dz*dz/(rz*rz);
+  if (e >= 1) return null;
+  if (e < 1e-9) return [C.x, C.y, C.z - rz];
+  const f = 1 / Math.sqrt(e);
+  return [C.x + dx*f, C.y + dy*f, C.z + dz*f];
+}
+
 // One fixed-timestep step, in order: verlet integrate (gravity gx/gy/gz,
 // per-step clamp maxStep) -> pin top rows (shifted by pinDX/DY/DZ to follow
 // the body) -> distance constraints (iters) -> anti-pop clamp -> BONE-DRIVE
@@ -128,14 +141,20 @@ export function stepCloth(cloth, dt, opts, core) {
   // Collision resolve, ITERATED (collision-only - no constraints between,
   // so it converges the 3D response on tilted limbs without ratcheting).
   const caps = opts.capsules, groundY = opts.groundY ?? 0.02, cpasses = opts.collisionPasses ?? 6;
+  const ellipsoids = (opts.ellipsoids || []).map(C => ({ ...C, x: C.x + rootX, y: C.y + rootY, z: C.z + rootZ + (lean ? ls * Math.max(0, C.y - leanPy) : 0) }));
   for (let cp = 0; cp < cpasses; cp++) {
     for (let i = 0; i < V; i++) { if (pinned[i]) continue; const o=i*3;
+      const beforeX = pos[o], beforeY = pos[o+1], beforeZ = pos[o+2];
       if (pos[o+1] < groundY) pos[o+1] = groundY;
       if (caps) for (let ci = 0; ci < caps.length; ci++) { const hit = pushCapsule(pos[o], pos[o+1], pos[o+2], caps[ci], SO); if (hit) { pos[o]=hit[0]; pos[o+1]=hit[1]; pos[o+2]=hit[2]; } }
+      for (let ci = 0; ci < ellipsoids.length; ci++) { const hit = pushEllipsoid(pos[o], pos[o+1], pos[o+2], ellipsoids[ci], SO); if (hit) { pos[o]=hit[0]; pos[o+1]=hit[1]; pos[o+2]=hit[2]; } }
       { const py = pos[o+1] - rootY, ext = core(py), A = ext[0]+SO, C = ext[1]+SO;
         const zc = (lean ? ls * Math.max(0, py - leanPy) : 0) + rootZ;   // torso leans -> centre shifts forward; root motion carries it
         let px=pos[o]-rootX, pz=pos[o+2]-zc; let e = (px*px)/(A*A) + (pz*pz)/(C*C);
         if (e < 1) { if (e < 1e-9) { px = A; pz = 0; e = 1; } const f = 1/Math.sqrt(e); pos[o]=px*f+rootX; pos[o+2]=pz*f + zc; } }
+      // Move the previous position by the same correction. Otherwise the ejection
+      // itself becomes artificial Verlet velocity and makes cloth kick away next frame.
+      prev[o] += pos[o] - beforeX; prev[o+1] += pos[o+1] - beforeY; prev[o+2] += pos[o+2] - beforeZ;
     }
   }
 
