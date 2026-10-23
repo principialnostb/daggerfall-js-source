@@ -3806,6 +3806,7 @@ export async function buildFpArm({
     // Use the same race/sex-matched body asset for first-person hands; only
     // its arm/hand slots are drawn here. Vanilla part meshes remain the fallback.
     let betterBodiesFpArms = null;
+    let betterBodiesFpHands = null;
     // Match the third-person body source exactly. The separate BetterBodies boolean can be enabled
     // while the actor is explicitly using the Original body source; using it here alone made first-person
     // hands come from Better Bodies even when the visible character body did not.
@@ -3832,9 +3833,46 @@ export async function buildFpArm({
         betterBodiesFpArms = {
           slot: 'betterBodies', bones: [], bytes, uvEdits, modelUrl: asset.model,
           texturePath: asset.texturePath,
-          showSlots: ['hand:left', 'hand:right', 'wrist:left', 'wrist:right', 'forearm:left', 'forearm:right', 'upperarm:left', 'upperarm:right'],
+          showSlots: ['wrist:left', 'wrist:right', 'forearm:left', 'forearm:right', 'upperarm:left', 'upperarm:right'],
           hideSlots: worn.fpShadows ?? worn.shadows,
         };
+
+        // Better Bodies ships dedicated, race/sex-specific hand meshes. The
+        // full-body skin NIF is not a reliable source for the first-person
+        // hands (some variants omit them or name them in a way the arm-slot
+        // filter cannot recognize), so use bb_hand*.nif for hands and keep
+        // the skin NIF for wrists/forearms/upper arms.
+        if (asset.handModel && asset.handTexture) {
+          try {
+            const [rawHandBytes, handTextureBytes] = await Promise.all([
+              loadBetterBodiesAssetBytes(asset.handModel, 'NIF'),
+              loadBetterBodiesAssetBytes(asset.handTexture, 'DDS'),
+            ]);
+            const handBytes = rewriteBetterBodiesTextureStem(
+              rawHandBytes,
+              `bb_hand${genderKey}_${asset.geometryRaceKey}`,
+              `bb_hand${genderKey}_${asset.textureRaceKey}`,
+            );
+            registerBetterBodiesRaceTexture(archives, asset.handTexturePath, handTextureBytes);
+            const handBasename = betterBodiesTextureBasename(asset.handTexturePath);
+            for (const cacheKey of TEXTURE_CACHE.keys()) {
+              if (String(cacheKey).toLowerCase().endsWith(handBasename)) TEXTURE_CACHE.delete(cacheKey);
+            }
+            betterBodiesFpHands = {
+              slot: 'betterBodies', partName: 'betterBodiesHands', bones: [],
+              bytes: handBytes, modelUrl: asset.handModel,
+              texturePath: asset.handTexturePath,
+              showSlots: ['hand:left', 'hand:right'],
+              hideSlots: worn.fpShadows ?? worn.shadows,
+            };
+          } catch (error) {
+            console.warn('[Better Bodies] dedicated first-person hand mesh unavailable; body skin sections will be used where possible:', String(error?.message ?? error));
+          }
+        } else {
+          console.warn('[Better Bodies] dedicated first-person hand mesh or texture was not found for this race/sex; using recognized body-skin hand sections where available.', {
+            race, female, handModel: asset.handModel ?? null, handTexture: asset.handTexture ?? null,
+          });
+        }
       } catch (error) {
         console.warn('[Better Bodies] first-person race/sex arms unavailable; using standard Morrowind arms:', String(error?.message ?? error));
       }
@@ -3878,6 +3916,7 @@ export async function buildFpArm({
       ...sourcePaths,
     ]);
     if (betterBodiesFpArms) partBytes.push(betterBodiesFpArms);
+    if (betterBodiesFpHands) partBytes.push(betterBodiesFpHands);
     for (const w of fpRows) {
       const arc = find(w.path);
       if (!arc) { missing.push(`${w.slot}: ${w.path} is not in your archives`); continue; }
@@ -3959,6 +3998,8 @@ export async function buildFpArm({
         requested: sourceSetting === 2,
         assetLoaded: Boolean(betterBodiesFpArms),
         modelUrl: betterBodiesFpArms?.modelUrl ?? null,
+        dedicatedHandAssetLoaded: Boolean(betterBodiesFpHands),
+        handModelUrl: betterBodiesFpHands?.modelUrl ?? null,
         assemblyOk: Boolean(arm.ok),
         betterBodiesSections: (arm.pieces ?? [])
           .filter((piece) => piece.slot === 'betterBodies')
