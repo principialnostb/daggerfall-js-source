@@ -78,7 +78,7 @@ export function betterBodiesAssetUrls({ race = 'Nord', female = false, underwear
   const textureRaceKey = raceKey;
   const textureStem = `bb_skin${genderKey}_${textureRaceKey}`;
   const handModelStem = `bb_hand${genderKey}_${geometryRaceKey}`;
-  const handTextureStem = `bb_hand${genderKey}_${textureRaceKey}`;;
+  const handTextureStem = `bb_hand${genderKey}_${textureRaceKey}`;
   const modelTable = underwear ? underwearBodyModelUrls : nudeBodyModelUrls;
   const textureTable = underwear ? underwearBodyTextureUrls : nudeBodyTextureUrls;
   const findUrl = (table, stem, extension) => {
