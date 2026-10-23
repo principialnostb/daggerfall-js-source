@@ -65,7 +65,7 @@ test('no clipping: every free particle stays outside the body collider', () => {
 });
 
 // Articulated limb collider for a gait phase (mirrors the viewer).
-const GEOM = { legX: 0.082, hipY: 0.90, kneeY: 0.52, ankleY: 0.10, legR: [0.115, 0.10, 0.075] };
+const GEOM = { legX: 0.082, hipY: 0.90, kneeY: 0.52, ankleY: 0.10, legR: [0.125, 0.112, 0.086] };
 function capsFor(phase) {
   const sA = 0.44, kA = 0.9;
   return articulatedCapsules(GEOM, {
@@ -98,7 +98,7 @@ test('no clipping during WALKING: cloth stays out of the bent legs (arms hang ou
 });
 
 test('bone-driven drape: follows the legs without clipping or exploding', () => {
-  const geom = { legX: 0.082, hipY: 0.90, kneeY: 0.52, ankleY: 0.10, legR: [0.115, 0.10, 0.075] };
+  const geom = { legX: 0.082, hipY: 0.90, kneeY: 0.52, ankleY: 0.10, legR: [0.125, 0.112, 0.086] };
   const ang = (ph) => ({
     legL: { sw: -0.44*Math.sin(ph),         bd: 0.9*Math.max(0, Math.sin(ph+1.2)) },
     legR: { sw: -0.44*Math.sin(ph+Math.PI), bd: 0.9*Math.max(0, Math.sin(ph+Math.PI+1.2)) },
