@@ -299,7 +299,7 @@ export function createBodyMotion() {
     weight: () => w,
     /** The gait's stride phase (0..1), its weight and the hips' turn off the facing (radians, as last posed, by the
      *  layer's weight) - what a swinging hip lantern follows. */
-    stride: () => ({ phase: gait.shown, move: gait.move * w, hipYaw: last?.gp ? last.gp.hip.yaw * w : 0 }),
+    stride: () => ({ phase: gait.shown, move: gait.move * w, run: gait.run * w, sneak: gait.sneak * w, hipYaw: last?.gp ? last.gp.hip.yaw * w : 0 }),
     /** The debug card's line and the sheets' blades. */
     status() {
       const gp = last?.gp;
