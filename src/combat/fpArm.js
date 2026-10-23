@@ -3843,7 +3843,7 @@ export async function buildFpArm({
     // the body. MW-FIT1: less what a part the fp does not draw would
     // hide - a pauldron's upper arm stays the skin's here.
     const fpRows = shadowSkinRows(
-      wanted.filter((w) => w.path && !(betterBodiesFpArms && ARM_PARTS.includes(w.slot))).map((w) => ({ slot: w.slot, bones: PART_BONES[w.slot] ?? [], path: w.path })),
+      wanted.filter((w) => w.path).map((w) => ({ slot: w.slot, bones: PART_BONES[w.slot] ?? [], path: w.path })),
       worn.fpShadows ?? worn.shadows);
     for (const w of wanted) {
       if (!w.path) { missing.push(`${w.slot}: no record for this actor`); continue; }
@@ -3878,7 +3878,7 @@ export async function buildFpArm({
     for (const w of fpRows) {
       const arc = find(w.path);
       if (!arc) { missing.push(`${w.slot}: ${w.path} is not in your archives`); continue; }
-      partBytes.push({ slot: w.slot, bones: w.bones, bytes: nifBytes(arc, w.path) });
+      partBytes.push({ slot: w.slot, bones: w.bones, bytes: nifBytes(arc, w.path), fallbackBetterBodies: !!betterBodiesFpArms && ARM_PARTS.includes(w.slot) });
     }
     // And the fp camera sees what the reference shows it: gauntlets,
     // sleeves, the shield - fpWornAdds' filter - never a helmet in
