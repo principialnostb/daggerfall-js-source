@@ -10,13 +10,13 @@ Requirements: Node version allowed by `package.json`, dependencies installed wit
 npm run mwcloakprobe
 ```
 
-By default the probe starts Vite on port 5247 and opens `/play/` in a visible Chromium window. Capture continues until you click **Stop cloak diagnostic capture** in the top-right corner. To use a timed capture, pass a number of seconds:
+By default the probe starts Vite on port 5247 with `morrowind.v4/` as the web root (not the repository's Daggerfall root) and opens `/play/` in a visible Chromium window. Capture continues until you click **Stop cloak diagnostic capture** in the top-right corner. To use a timed capture, pass a number of seconds:
 
 ```sh
 node tools/mwCloakAnimationProbe.mjs http://localhost:5247/play/ 180
 ```
 
-Browser console errors and failed network requests are printed in the terminal and included in `capture.json`, which helps diagnose a blank page. The probe uses Playwright's normal browser installation; do not set a Linux-only `PLAYWRIGHT_BROWSERS_PATH` on Windows. The target page must load a game/player state in which a cloak is equipped and the body is assembled. If the app requires a save or a user action to reach gameplay, this headless probe will not be able to do that automatically yet; in that case the capture will report zero samples rather than pretend it tested the animations.
+Browser console errors, HTTP 4xx/5xx responses, and failed network requests are printed in the terminal and included in `capture.json`, which helps diagnose a blank page. The probe uses Playwright's normal browser installation; do not set a Linux-only `PLAYWRIGHT_BROWSERS_PATH` on Windows. The target page must load a game/player state in which a cloak is equipped and the body is assembled. If the app requires a save or a user action to reach gameplay, this headless probe will not be able to do that automatically yet; in that case the capture will report zero samples rather than pretend it tested the animations.
 
 ## Output
 
