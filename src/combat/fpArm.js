@@ -8097,6 +8097,13 @@ export function createFpArm({ playerAppearance = false } = {}) {
               }
             }
           }
+          // Vanilla Animated alone gets live body-contact correction. The
+          // authored Simply mesh and its own animation path remain untouched.
+          if (vanillaAnimatedCloaksEnabled() && t.arm.pose && t.arm.mats) {
+            for (const piece of t.arm.pieces) {
+              if (piece.clothPhysicsFallbackMesh) correctVanillaAnimatedCloakContacts(t.arm, piece, t.arm.pose);
+            }
+          }
           // Resolve the animated cloak against the actual back-mounted shield
           // every posed frame. Both meshes are skinned/attached through the same
           // live pose; contact is local to the shield footprint and does not
@@ -8114,13 +8121,6 @@ export function createFpArm({ playerAppearance = false } = {}) {
               for (let i = 0; i < clothPieces.length; i++) {
                 resolveCloakShieldContact(clothPieces[i], posed[i + 1], shieldPos, shieldBack.indices);
               }
-            }
-          }
-          // Vanilla Animated alone gets live body-contact correction. The
-          // authored Simply mesh and its own animation path remain untouched.
-          if (vanillaAnimatedCloaksEnabled() && t.arm.pose && t.arm.mats) {
-            for (const piece of t.arm.pieces) {
-              if (piece.clothPhysicsFallbackMesh) correctVanillaAnimatedCloakContacts(t.arm, piece, t.arm.pose);
             }
           }
           if (thirdBlendWeight >= 1) thirdBlendFrom = null;
