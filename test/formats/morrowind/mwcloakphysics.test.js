@@ -77,7 +77,10 @@ test('back shield holds only covered cloak vertices at rest and preserves free h
     pos[i + 1] += 2;
     prev[i + 1] += 1;
   }
-  piece.clothPhysics = { base, pos, prev, normals: null, baseNormals: null };
+  piece.clothPhysics = createCloakPhysics(piece);
+  assert.ok(piece.clothPhysics);
+  piece.clothPhysics.pos.set(pos);
+  piece.clothPhysics.prev.set(prev);
   piece.batch.positions.set(pos);
   // A simple triangle covers vertices 0, 1 and 2, but not vertex 3.
   const shield = Float32Array.from([-1, 0, 2, 1, 0, 2, 1, 0, 0]);
@@ -85,7 +88,7 @@ test('back shield holds only covered cloak vertices at rest and preserves free h
   assert.equal(held, 3);
   for (let i = 0; i < 3; i++) {
     assert.equal(pos[i * 3], base[i * 3], 'covered vertex keeps fitted X');
-    assert.equal(pos[i * 3 + 1], base[i * 3 + 1] + 0.38, 'covered vertex is held toward the body, away from the back shield');
+    assert.equal(pos[i * 3 + 1], base[i * 3 + 1] + 1.38, 'covered vertex is moved to the body side of the shield surface with clearance');
     assert.equal(pos[i * 3 + 2], base[i * 3 + 2], 'covered vertex keeps fitted Z');
   }
   assert.deepEqual(Array.from(prev.slice(0, 9)), Array.from(pos.slice(0, 9)), 'covered vertices have no stale Verlet velocity');
