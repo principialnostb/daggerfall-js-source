@@ -2839,7 +2839,8 @@ async function buildTpBody({
       }
     }
     hangHipLight(arm);   // HT-WAIST: the hook and the anchor, once, on the assembled skeleton
-    const cloakFit = fitThirdPersonCloak(arm, new Set([...skinRows, ...worn.adds].map((row) => row.slot)));   // MW-CLOAK1
+    const cloakUnderRows = [...skinRows, ...worn.adds, ...(betterBodiesPart ? [{ slot: 'betterBodies' }] : [])];
+    const cloakFit = fitThirdPersonCloak(arm, new Set(cloakUnderRows.map((row) => row.slot)));   // MW-CLOAK1
     // Both animated modes share the same bounded secondary-cloth solver, but
     // retain their own source mesh and bind path. Vanilla Animated uses the classic
     // cloak unchanged; Simply mode uses the mod NIF and its authored skin binding
@@ -2874,7 +2875,7 @@ async function buildTpBody({
           // Retain the resolved asset so diagnostics identify the exact mesh and mode.
           piece.clothPhysicsResource = `meshes/${row.model}`;
           piece.clothPhysicsFallbackMesh = !simplyMesh;
-          piece.clothPhysicsUnderSlots = new Set([...skinRows, ...worn.adds].map((underRow) => underRow.slot));
+          piece.clothPhysicsUnderSlots = new Set(cloakUnderRows.map((underRow) => underRow.slot));
           modDiagnostics.record({
             level: 'info',
             phase: 'animation',
