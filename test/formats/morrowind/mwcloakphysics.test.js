@@ -83,7 +83,12 @@ test('back shield holds only covered cloak vertices at rest and preserves free h
   const shield = Float32Array.from([-1, 0, 2, 1, 0, 2, 1, 0, 0]);
   const held = resolveCloakShieldContact(piece, base, shield, Uint16Array.from([0, 1, 2]));
   assert.equal(held, 3);
-  assert.deepEqual(Array.from(pos.slice(0, 9)), Array.from(base.slice(0, 9)), 'covered vertices return to their fitted rest positions');
+  for (let i = 0; i < 3; i++) {
+    assert.equal(pos[i * 3], base[i * 3], 'covered vertex keeps fitted X');
+    assert.equal(pos[i * 3 + 1], base[i * 3 + 1] - 0.38, 'covered vertex is held behind the body with shield clearance');
+    assert.equal(pos[i * 3 + 2], base[i * 3 + 2], 'covered vertex keeps fitted Z');
+  }
+  assert.deepEqual(Array.from(prev.slice(0, 9)), Array.from(pos.slice(0, 9)), 'covered vertices have no stale Verlet velocity');
   assert.equal(pos[10], base[10] + 2, 'the uncovered hem remains dynamic');
   assert.equal(prev[10], base[10] + 1, 'the uncovered hem keeps its Verlet history');
 });
