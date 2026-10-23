@@ -71,7 +71,7 @@ export function createCloakPhysics(piece) {
   }
   if (!edges.length) return null;
   return {
-    base, pos, prev, pinned, edges, minZ, maxZ, time: 0, maxOffset: MAX_OFFSET,
+    base, pos, prev, pinned, shieldPinned: new Uint8Array(count), edges, minZ, maxZ, time: 0, maxOffset: MAX_OFFSET,
     baseNormals: piece.batch.normals ? Float32Array.from(piece.batch.normals) : null,
     normals: piece.batch.normals ?? null,
   };
@@ -101,6 +101,7 @@ export function resolveCloakShieldContact(piece, posedCloth, shieldPositions, sh
   };
 
   const pos = state.pos, prev = state.prev, base = state.base;
+  state.shieldPinned.fill(0);
   let held = 0;
   for (let v = 0; v < posedCloth.length / 3; v++) {
     const o = v * 3;
@@ -123,6 +124,7 @@ export function resolveCloakShieldContact(piece, posedCloth, shieldPositions, sh
       }
     }
     if (!covered) continue;
+    state.shieldPinned[v] = 1;
     pos[o] = prev[o] = base[o];
     pos[o + 1] = prev[o + 1] = base[o + 1] - STOWED_SHIELD_CLOAK_CLEARANCE;
     pos[o + 2] = prev[o + 2] = base[o + 2];
@@ -137,6 +139,13 @@ export function resolveCloakShieldContact(piece, posedCloth, shieldPositions, sh
     piece.sourceGen = ((piece.sourceGen | 0) + 1) >>> 0;
   }
   return held;
+}
+
+/** Release the shield-covered cloth region when the shield returns to the arm. */
+export function releaseCloakShieldContact(piece) {
+  const state = piece?.clothPhysics;
+  if (!state?.shieldPinned) return;
+  state.shieldPinned.fill(0);
 }
 
 function rebuildNormals(positions, indices, out, fallback) {
@@ -170,7 +179,8 @@ export function stepCloakPhysics(piece, dt, motion = 0) {
   const step = Math.max(0, Math.min(0.05, Number(dt) || 0));
   if (step <= 0) return false;
   state.time += step;
-  const { base, pos, prev, pinned, edges } = state;
+  const { base, pos, prev, pinned, shieldPinned, edges } = state;
+  const fixed = (v) => pinned[v] || shieldPinned?.[v];
   // Vanilla Animated keeps the same bounded Verlet model, with a little more
   // room for the hem to yield on large leg/attack motions. Simply Animated
   // retains the authored tuning below.
@@ -207,9 +217,9 @@ export function stepCloakPhysics(piece, dt, motion = 0) {
 
   for (let v = 0; v < pinned.length; v++) {
     const o = v * 3;
-    if (pinned[v]) {
+    if (fixed(v)) {
       pos[o] = prev[o] = base[o];
-      pos[o + 1] = prev[o + 1] = base[o + 1];
+      pos[o + 1] = prev[o + 1] = base[o + 1] - (shieldPinned?.[v] ? STOWED_SHIELD_CLOAK_CLEARANCE : 0);
       pos[o + 2] = prev[o + 2] = base[o + 2];
       continue;
     }
@@ -248,8 +258,8 @@ export function stepCloakPhysics(piece, dt, motion = 0) {
       const length = Math.hypot(dx, dy, dz) || 1e-6;
       const correction = ((length - edge.rest) / length) * 0.5 * stiffness;
       dx *= correction; dy *= correction; dz *= correction;
-      if (!pinned[edge.a]) { pos[a] += dx; pos[a + 1] += dy; pos[a + 2] += dz; }
-      if (!pinned[edge.b]) { pos[b] -= dx; pos[b + 1] -= dy; pos[b + 2] -= dz; }
+      if (!fixed(edge.a)) { pos[a] += dx; pos[a + 1] += dy; pos[a + 2] += dz; }
+      if (!fixed(edge.b)) { pos[b] -= dx; pos[b + 1] -= dy; pos[b + 2] -= dz; }
     }
     for (let v = 0; v < pinned.length; v++) if (pinned[v]) {
       const o = v * 3; pos[o] = base[o]; pos[o + 1] = base[o + 1]; pos[o + 2] = base[o + 2];
@@ -263,7 +273,7 @@ export function stepCloakPhysics(piece, dt, motion = 0) {
   // visually distinct while remaining tied to the same live gait/attack
   // inputs. It is always computed from the rest mesh, never accumulated.
   for (let v = 0; v < pinned.length; v++) {
-    if (pinned[v]) continue;
+    if (fixed(v)) continue;
     const o = v * 3;
     const hem = Math.max(0, Math.min(1, (state.maxZ - base[o + 2]) / Math.max(1e-4, state.maxZ - state.minZ)));
     const hemCurve = hem * hem;
