@@ -2296,7 +2296,24 @@ export function bindPartsInto(assembly, parts) {
   // are bare instances under nodes of the scabbard's graph, so they wear
   // the scabbard's PAT exactly as the arrow wears the weapon's (MW-D44).
   let sheathBoneOffset = null;
+  // A third-person skeleton with the Weapon Sheathing addon has a dedicated
+  // back mount. Keep the original hand-mounted shield for combat, and bind a
+  // second rigid instance to AttachShield for the stowed pose. First-person
+  // rigs normally lack this addon bone, so their shield path stays unchanged.
+  const boundParts = [];
   for (const part of parts) {
+    boundParts.push(part);
+    if (/^shield\\b/i.test(String(part.slot ?? ''))
+      && skeleton.byName.has('bip01 attachshield')) {
+      boundParts.push({
+        ...part,
+        slot: String(part.slot).replace(/^shield\\b/i, 'shield-back'),
+        bones: ['Bip01 AttachShield'],
+        shieldBackMount: true,
+      });
+    }
+  }
+  for (const part of boundParts) {
     // `part.bones` overrides the table so a test can drive real assembly
     // against a fixture skeleton whose bone names are not Morrowind's.
     const bones = part.bones ?? mod.PART_BONES[part.slot] ?? [];
