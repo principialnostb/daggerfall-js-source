@@ -16,7 +16,7 @@ await mkdir(outDir, { recursive: true });
 const server = await createServer({ server: { port: 5247, strictPort: true } });
 await server.listen();
 const browser = await chromium.launch({
-  headless: true,
+  headless: false,
   args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'],
 });
 const page = await browser.newPage({ viewport: { width: 1280, height: 800 } });
