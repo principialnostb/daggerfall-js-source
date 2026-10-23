@@ -108,11 +108,20 @@ export function stepCloakPhysics(piece, dt, motion = 0) {
   const { base, pos, prev, pinned, edges } = state;
   const gait = typeof motion === 'object' && motion !== null ? motion.gait : motion;
   const move = Math.max(0, Math.min(1, Number(gait) || 0));
+  const gaitPhase = typeof motion === 'object' && motion !== null
+    ? Number(motion.gaitPhase) || 0
+    : state.time * 0.32;
+  const turn = typeof motion === 'object' && motion !== null
+    ? Math.max(-1, Math.min(1, Number(motion.turn) || 0))
+    : 0;
   const attack = typeof motion === 'object' && motion !== null ? Math.max(0, Math.min(1, Number(motion.attack) || 0)) : 0;
   const attackProgress = typeof motion === 'object' && motion !== null ? Math.max(0, Math.min(1, Number(motion.attackProgress) || 0)) : 0;
-  // A short, strong outward impulse peaks through the middle of a swing. It is
-  // deliberately weighted toward the lower cloak so the hem clears the hips
-  // during overhead/forward attacks instead of remaining a rigid backdrop.
+  // The clip clock drives alternating steps; idle uses a separate, low-energy
+  // sway. This keeps the cape from looking like it is receiving random gusts.
+  const stride = gaitPhase * Math.PI * 2;
+  const idleWeight = 1 - move;
+  // Attack impulse peaks mid-swing, then Verlet inertia supplies the follow-through
+  // and damped return after the action slot releases.
   const attackPulse = attack * Math.sin(Math.PI * attackProgress);
   const attackGroup = typeof motion === 'object' && motion !== null ? String(motion.attackGroup ?? '').toLowerCase() : '';
   const overhead = /overhead|chop|two.?hand|2.?hand|greatsword|weapon.*(2|two)/.test(attackGroup) ? 1 : 0.65;
@@ -131,14 +140,23 @@ export function stepCloakPhysics(piece, dt, motion = 0) {
     // The previous sub-3-unit/s² wind produced only thousandths of a unit per frame and looked rigid.
     // Keep Verlet's dt² integration, but use accelerations scaled to the mesh's authored coordinate space.
     const hemWeight = Math.max(0, Math.min(1, (state.maxZ - base[o + 2]) / Math.max(1e-4, state.maxZ - state.minZ)));
+    const vertexPhase = base[o] * 0.11 + hemWeight * 0.75;
+    const walkWave = Math.sin(stride + vertexPhase);
+    const runWave = Math.sin(stride * 1.12 + vertexPhase);
+    const idleWave = Math.sin(state.time * 1.35 + vertexPhase);
     let dx = (x - prev[o]) * DAMPING
-      + Math.sin(state.time * (move > 0.8 ? 2.7 : 1.7) + base[o + 2] * 0.17) * (18 + move * 72) * dt2;
-    // Walking alternates the cloth laterally; running adds a sustained backward drag.
+      // Calm, slowly decaying-looking idle sway; walking and running are
+      // phase-locked to the stride and alternate left/right instead of jittering.
+      + (idleWave * idleWeight * 7 + walkWave * move * (move > 0.8 ? 26 : 17)
+        + turn * (10 + 28 * hemWeight)) * dt2;
+    // Running has a stronger sustained backward drag and a larger hem wave.
     let dy = (y - prev[o + 1]) * DAMPING
-      + Math.cos(state.time * (move > 0.8 ? 3.1 : 2.0) + base[o] * 0.11) * (8 + move * 32) * dt2
-      - move * move * 24 * dt2
+      + (Math.cos(state.time * 1.8 + vertexPhase) * idleWeight * 3
+        + Math.cos(stride + vertexPhase) * move * (move > 0.8 ? 14 : 7)) * dt2
+      - move * move * (move > 0.8 ? 52 : 18) * dt2
       - attackPulse * overhead * (70 + 105 * hemWeight) * dt2;
     let dz = (z - prev[o + 2]) * DAMPING - GRAVITY * dt2
+      - move * (move > 0.8 ? 10 : 3) * dt2
       - attackPulse * overhead * (18 + 28 * hemWeight) * dt2;
     const length = Math.hypot(dx, dy, dz);
     if (length > MAX_STEP) { const scale = MAX_STEP / length; dx *= scale; dy *= scale; dz *= scale; }
