@@ -179,9 +179,26 @@ export function stepCloakPhysics(piece, dt, motion = 0) {
     }
   }
 
+  // Apply a small, phase-locked pose target AFTER the structural solve. The
+  // Verlet forces above supply inertia, but by themselves can be almost
+  // invisible on a stiff, GPU-skinned NIF: constraints immediately absorb
+  // much of the per-frame acceleration. This envelope makes the four states
+  // visually distinct while remaining tied to the same live gait/attack
+  // inputs. It is always computed from the rest mesh, never accumulated.
   for (let v = 0; v < pinned.length; v++) {
     if (pinned[v]) continue;
     const o = v * 3;
+    const hem = Math.max(0, Math.min(1, (state.maxZ - base[o + 2]) / Math.max(1e-4, state.maxZ - state.minZ)));
+    const hemCurve = hem * hem;
+    const lateral = idleWave * idleWeight * 0.22
+      + walkWave * move * (move > 0.8 ? 1.45 : 0.72)
+      + turn * (0.35 + 0.95 * hem);
+    const backward = move * move * (move > 0.8 ? 1.65 : 0.30)
+      + attackPulse * overhead * (0.45 + 1.15 * hem);
+    const hemLift = Math.sin(stride * 2 + vertexPhase) * move * (move > 0.8 ? 1.15 : 0.32);
+    pos[o] += lateral * hemCurve;
+    pos[o + 1] -= backward * hemCurve;
+    pos[o + 2] += hemLift * hemCurve;
     // Morrowind is Z-up and the cape hangs behind the actor on -Y. Keep it
     // from moving materially forward through the fitted back surface.
     pos[o + 1] = Math.min(pos[o + 1], base[o + 1] + 0.22);
