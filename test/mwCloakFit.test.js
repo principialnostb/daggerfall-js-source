@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { cloakSheet, sheetCellKey } from '../src/formats/morrowind/mwCloakFit.js';
+import { CLOAK_FIT_POSES, cloakSheet, sheetCellKey } from '../src/formats/morrowind/mwCloakFit.js';
 
 test('cloakSheet checks the actual triangle when the rounded grid sample falls outside it', () => {
   // The sample lies inside this projected triangle, but rounds to (1, 0), which lies outside.
@@ -40,4 +40,18 @@ test('cloakSheet exact queries retain both layers where the cloak folds over its
   assert.ok(contact.front > contact.back);
   assert.equal(contact.frontTri, 3);
   assert.equal(contact.backTri, 0);
+});
+
+
+test('cloak fit pose envelope includes bent-knee stances with either lead leg', () => {
+  const poses = CLOAK_FIT_POSES;
+  const leftLead = poses.some((pose) => pose['bip01 l thigh']?.[1] === 20
+    && pose['bip01 r thigh']?.[1] === -20
+    && pose['bip01 l calf']?.[1] === 65);
+  const rightLead = poses.some((pose) => pose['bip01 r thigh']?.[1] === 20
+    && pose['bip01 l thigh']?.[1] === -20
+    && pose['bip01 r calf']?.[1] === 65);
+
+  assert.ok(leftLead, 'left-lead combat stance should be included');
+  assert.ok(rightLead, 'right-lead combat stance should be included');
 });
