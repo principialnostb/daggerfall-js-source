@@ -5885,6 +5885,44 @@ export function createFpArm({ playerAppearance = false } = {}) {
     shieldMovementOverlayMemo = null;
   }
 
+  // The shield overlay is sampled from a different directional clip. Map
+  // the body's playhead to the overlay's loop window, not its whole
+  // start/stop span: forward clips may have an intro plus a shorter loop,
+  // and their time jumps back to loopStartTime on every stride.
+  function movementLoopWindow(state, keys) {
+    let start = state?.startTime ?? 0;
+    let stop = state?.stopTime ?? 0;
+    const group = String(state?.group ?? '').toLowerCase();
+    if (!group) return { start, stop };
+    for (const key of keys ?? []) {
+      if (key.time < start || key.time > stop) continue;
+      const text = String(key.text ?? '').toLowerCase();
+      if (text === `${group}: loop start`) start = key.time;
+      else if (text === `${group}: loop stop`) stop = key.time;
+    }
+    return stop > start ? { start, stop } : { start: state.startTime, stop: state.stopTime };
+  }
+
+  function syncShieldMovementClock(movement, overlay) {
+    if (!movement || !overlay || !movementSource || !shieldMovementSource) return overlay?.startTime ?? 0;
+    const baseLoop = movementLoopWindow(movement, movementSource.keys);
+    const overlayLoop = movementLoopWindow(overlay, shieldMovementSource.keys);
+    const time = movement.time;
+    // Preserve the intro before the first loop, then keep both clips on the
+    // same normalized stride phase even when their loop durations differ.
+    if (time < baseLoop.start && baseLoop.start > movement.startTime) {
+      const baseIntro = baseLoop.start - movement.startTime;
+      const overlayIntro = Math.max(0, overlayLoop.start - overlay.startTime);
+      const progress = baseIntro > 0 ? Math.max(0, Math.min(1, (time - movement.startTime) / baseIntro)) : 0;
+      return overlay.startTime + progress * overlayIntro;
+    }
+    const baseSpan = baseLoop.stop - baseLoop.start;
+    const overlaySpan = overlayLoop.stop - overlayLoop.start;
+    if (!(baseSpan > 0) || !(overlaySpan > 0)) return overlay.startTime;
+    const phase = (((time - baseLoop.start) % baseSpan) + baseSpan) % baseSpan / baseSpan;
+    return overlayLoop.start + phase * overlaySpan;
+  }
+
   /**
    * Keep the shield's left-arm pose from the working left-strafe clip while
    * moving forward/back in third-person combat. No transform values are
@@ -7884,9 +7922,7 @@ export function createFpArm({ playerAppearance = false } = {}) {
       refreshShieldMovement();
       if (movementState) advanceClip(movementState, (movementSource || rig()).keys, dt * movementRate, null);
       if (shieldMovementState && movementState) {
-        const progress = clipCompletion(movementState);
-        shieldMovementClock = shieldMovementState.startTime
-          + progress * (shieldMovementState.stopTime - shieldMovementState.startTime);
+        shieldMovementClock = syncShieldMovementClock(movementState, shieldMovementState);
       }
       // The jump plays at speedmult 1.0 (character.cpp:528-531 pass
       // 1.0f) - no rate scaling, unlike movement.
