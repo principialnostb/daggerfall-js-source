@@ -3496,11 +3496,11 @@ export export function betterBodiesSectionKey(shapeName) {
   // prefixes as well as side/region order; failing to strip Bip01 leaves
   // every section unrecognized and the vanilla arm remains visible.
   const name = String(shapeName || '').trim().toLowerCase()
-    .replace(/^tri\\s+/, '')
+    .replace(/^tri\s+/, '')
     .replace(/[._-]+/g, ' ')
-    .replace(/\\s+/g, ' ')
+    .replace(/\s+/g, ' ')
     .trim()
-    .replace(/^(?:(?:bip(?:ed)?\\s*0?1|skeleton|scene root|root)\\s+)+/, '')
+    .replace(/^(?:(?:bip(?:ed)?\s*0?1|skeleton|scene root|root)\s+)+/, '')
     .trim();
   if (['chest', 'groin', 'neck', 'head', 'hair', 'tail'].includes(name)) return name;
   const regions = {
@@ -3528,7 +3528,7 @@ export export function betterBodiesSectionKey(shapeName) {
     regionName = match?.[1] ?? '';
   }
   const region = regions[regionName];
-  return side && region ? `${region}:${side}` : null;
+  return side && region ? \`${region}:${side}\` : null;
 }
 
 function betterBodiesSectionShadowed(shapeName, shadows = []) {
