@@ -6,6 +6,8 @@ The 3D nearest-triangle contact redesign was reverted after reports of visible c
 
 In `src/formats/morrowind/mwCloakFit.js`, the widened bounds apply to both the body-sample predicate and the early rejection of body pieces. The collision method itself remains the prior `cloakSheet` lookup and Y-axis correction; this change deliberately avoids changing contact direction and geometry at the same time as the sampling area.
 
+A targeted pose-envelope addition now also fits the cloak against the right thigh held 55 degrees back, both with a straight knee and with the right calf bent 35 degrees. This specifically targets the reported combat stance; it is a static fit pose, not a new per-frame collision solver.
+
 ## What this experiment tests
 
 The working hypothesis is that leg contact samples were being discarded by the narrow X/Z broad-phase region. Widening that region should allow more leg samples to be considered without introducing the 3D solver's changed contact direction.
