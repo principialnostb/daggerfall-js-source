@@ -336,24 +336,26 @@ function applyVillagerDrape(v) {
 // simulated drape was selected, and every drape in DRAPED_NAMES is
 // simulated. The cloth never stepped and never reshaded. Exposing the
 // ankle on the context is the fix; it was already measured there.
-function drapeColliders(phase, motion, bob, L) {
+function drapeColliders(phase, motion, bob, L, pose, moving) {
   L = L || WALK;
-  const walking = motion > 0.5, sA = L.strideAmp, kA = L.kneeAmp, kb = L.kneeBase;
-  const legL = walking ? { sw: -sA*Math.sin(phase),         bd: kb + kA*Math.max(0, Math.sin(phase+1.2)) }         : { sw: 0, bd: 0 };
-  const legR = walking ? { sw: -sA*Math.sin(phase+Math.PI), bd: kb + kA*Math.max(0, Math.sin(phase+Math.PI+1.2)) } : { sw: 0, bd: 0 };
+  const walking = !!moving, sA = L.strideAmp, kA = L.kneeAmp, kb = L.kneeBase;
+  const legL = walking ? { sw: -sA*Math.sin(phase), bd: kb + kA*Math.max(0, Math.sin(phase+1.2)) } : { sw: (pose && pose.legL && pose.legL.sw) || 0, bd: (pose && pose.legL && pose.legL.bd) || 0 };
+  const legR = walking ? { sw: -sA*Math.sin(phase+Math.PI), bd: kb + kA*Math.max(0, Math.sin(phase+Math.PI+1.2)) } : { sw: (pose && pose.legR && pose.legR.sw) || 0, bd: (pose && pose.legR && pose.legR.bd) || 0 };
   // capsules follow bob (leg mesh does too); bone-drive gets rest joints + bob separately
+  const rootX = (pose && pose.rootX) || 0, rootY = (pose && pose.rootY) || 0, rootZ = (pose && pose.rootZ) || 0;
   const caps = articulatedCapsules({ legX: 0.082, hipY: hipY+bob, kneeY: kneeY+bob, ankleY: ankleY+bob, legR: [0.115, 0.10, 0.075] }, { legL, legR });
+  for (const cap of caps) for (const p of [cap.p0, cap.p1]) { p[0] += rootX; p[1] += rootY; p[2] += rootZ; }
   const bones = { legX: 0.082, hipY, kneeY, ankleY, legL, legR, bob, strength: 0.85 };
   return { caps, bones };
 }
-function stepDrapeCloth(phase, motion, bob, L) {
+function stepDrapeCloth(phase, motion, bob, L, pose, moving) {
   const cur = DRAPES[drapeIx]; const cs = clothSims[cur]; if (!cs) return;
-  const col = drapeColliders(phase, motion, bob, L);
+  const col = drapeColliders(phase, motion, bob, L, pose, moving);
   const isCloak = cur.indexOf('Cloak') >= 0;   // cloaks hang from the shoulders, not the legs - free cloth, no bone-drive
   const shoulderDrape = isCloak || cur === 'Wrap' || cur === 'Sash';   // hang from the upper body, not the legs
   // bone-drive makes the lower drape follow the legs; capsule collision (last) guarantees no clip
-  const lean = (motion > 0.5 && L) ? L.lean : 0;
-  const rp = effectivePose() || {};
+  const lean = (moving && L) ? L.lean : 0;
+  const rp = pose || {};
   const leanAll = lean + (rp.lean || 0);   // pins follow the FULL torso lean (gait + pose + attack), not just the gait's
   // Cloaks should read as the authored low-poly silhouette with only slight inertia.
   // The same Verlet solver is used, but the cloak receives a much smaller force and step budget.
@@ -365,6 +367,7 @@ function stepDrapeCloth(phase, motion, bob, L) {
     // A small back-only pelvis ellipsoid fills the gap left by the height-only torso profile.
     ellipsoids: isCloak ? [{ x: 0, y: hipY - 0.02, z: -0.02, rx: 0.17, ry: 0.13, rz: 0.125, backOnly: true }] : [],
     rootX: rp.rootX || 0, rootY: rp.rootY || 0, rootZ: rp.rootZ || 0,
+    bodyBob: bob, twist: rp.twist || 0,
     // Keep leg collision active while idle too; the torso ellipse alone does not track bent thighs.
     capsules: col.caps, bones: shoulderDrape ? null : col.bones };
   // Two half-size substeps avoid large frame-to-frame kicks without doubling simulated time.
@@ -667,15 +670,15 @@ function animate(dt) {
     wt += dt * L.cadence;
     const bob = L.bobAmp * Math.sin(wt*2);
     for (const T of animTargets) { if (T === arrowT && arrowFlight) continue; animateTarget(T, wt, L, bob, pose, true); }   // a flying arrow owns its verts
-    stepDrapeCloth(wt, 1, bob, L);           // gait -> cloth reacts + trails
+    stepDrapeCloth(wt, 1, bob, L, pose, true); // share the exact gait/pose state with collision proxies
   } else if (poseIx || atk) {
     ambientT += dt * 1.4;
     for (const T of animTargets) { if (T === arrowT && arrowFlight) continue; animateTarget(T, 0, POSE_L, 0, pose, false); }
-    stepDrapeCloth(ambientT, 0.10, 0, WALK);
+    stepDrapeCloth(ambientT, 0.10, 0, WALK, pose, false);
   } else {
     ambientT += dt * 1.4;
     for (const T of animTargets) poseArms(T);   // idle: hold the tuned arm/hand pose
-    stepDrapeCloth(ambientT, 0.10, 0, WALK);  // gentle idle settle/sway
+    stepDrapeCloth(ambientT, 0.10, 0, WALK, pose, false); // gentle idle settle/sway
   }
 }
 
