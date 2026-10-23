@@ -147,12 +147,12 @@ export function stepCloakPhysics(piece, dt, motion = 0) {
     let dx = (x - prev[o]) * DAMPING
       // Calm, slowly decaying-looking idle sway; walking and running are
       // phase-locked to the stride and alternate left/right instead of jittering.
-      + (idleWave * idleWeight * 7 + walkWave * move * (move > 0.8 ? 26 : 17)
-        + turn * (10 + 28 * hemWeight)) * dt2;
+      + (idleWave * idleWeight * 18 + walkWave * move * (move > 0.8 ? 78 : 42)
+        + turn * (16 + 38 * hemWeight)) * dt2;
     // Running has a stronger sustained backward drag and a larger hem wave.
     let dy = (y - prev[o + 1]) * DAMPING
-      + (Math.cos(state.time * 1.8 + vertexPhase) * idleWeight * 3
-        + Math.cos(stride + vertexPhase) * move * (move > 0.8 ? 14 : 7)) * dt2
+      + (Math.cos(state.time * 1.8 + vertexPhase) * idleWeight * 8
+        + Math.cos(stride + vertexPhase) * move * (move > 0.8 ? 28 : 14)) * dt2
       - move * move * (move > 0.8 ? 52 : 18) * dt2
       - attackPulse * overhead * (70 + 105 * hemWeight) * dt2;
     let dz = (z - prev[o + 2]) * DAMPING - GRAVITY * dt2
