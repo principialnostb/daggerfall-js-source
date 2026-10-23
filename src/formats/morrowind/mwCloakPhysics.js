@@ -142,7 +142,6 @@ export function stepCloakPhysics(piece, dt, motion = 0) {
     const hemWeight = Math.max(0, Math.min(1, (state.maxZ - base[o + 2]) / Math.max(1e-4, state.maxZ - state.minZ)));
     const vertexPhase = base[o] * 0.11 + hemWeight * 0.75;
     const walkWave = Math.sin(stride + vertexPhase);
-    const runWave = Math.sin(stride * 1.12 + vertexPhase);
     const idleWave = Math.sin(state.time * 1.35 + vertexPhase);
     let dx = (x - prev[o]) * DAMPING
       // Calm, slowly decaying-looking idle sway; walking and running are
@@ -190,12 +189,16 @@ export function stepCloakPhysics(piece, dt, motion = 0) {
     const o = v * 3;
     const hem = Math.max(0, Math.min(1, (state.maxZ - base[o + 2]) / Math.max(1e-4, state.maxZ - state.minZ)));
     const hemCurve = hem * hem;
-    const lateral = idleWave * idleWeight * 0.22
-      + walkWave * move * (move > 0.8 ? 1.45 : 0.72)
+    // Recompute per-vertex phase here: the integration-loop locals are out of scope.
+    const vertexPhase = base[o] * 0.11 + hem * 0.75;
+    const idleWave = Math.sin(state.time * 1.35 + vertexPhase);
+    const walkWave = Math.sin(stride + vertexPhase);
+    const lateral = idleWave * idleWeight * 0.12
+      + walkWave * move * (move > 0.8 ? 0.75 : 0.38)
       + turn * (0.35 + 0.95 * hem);
-    const backward = move * move * (move > 0.8 ? 1.65 : 0.30)
+    const backward = move * move * (move > 0.8 ? 0.85 : 0.18)
       + attackPulse * overhead * (0.45 + 1.15 * hem);
-    const hemLift = Math.sin(stride * 2 + vertexPhase) * move * (move > 0.8 ? 1.15 : 0.32);
+    const hemLift = Math.sin(stride * 2 + vertexPhase) * move * (move > 0.8 ? 0.55 : 0.16);
     pos[o] += lateral * hemCurve;
     pos[o + 1] -= backward * hemCurve;
     pos[o + 2] += hemLift * hemCurve;
