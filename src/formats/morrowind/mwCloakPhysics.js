@@ -109,7 +109,7 @@ export function resolveCloakShieldContact(piece, posedCloth, shieldPositions, sh
   const bodySideAt = (x, z) => {
     let bodySide = -Infinity;
     const candidates = bins.get(cellKey(x, z));
-    if (!candidates) return back;
+    if (!candidates) return bodySide;
     for (const t of candidates) {
       const ia = shieldIndices[t] * 3, ib = shieldIndices[t + 1] * 3, ic = shieldIndices[t + 2] * 3;
       const ax = shieldPositions[ia], az = shieldPositions[ia + 2];
