@@ -2055,14 +2055,14 @@ export function fitThirdPersonCloak(arm, underSlots) {
   // The stowed shield is rigid gear too: fit it outside the cloak in the rest pose,
   // rather than asking cloth collision to squeeze the cloak into the body/shield gap.
   // The hand-held shield remains excluded by its distinct `shield` slot.
-  const isGear = (p) => HOLSTER_SLOTS.includes(p.slot) || /^shield-back\\b/i.test(p.slot ?? '');
+  const isGear = (p) => HOLSTER_SLOTS.includes(p.slot) || /^shield-back\b/i.test(p.slot ?? '');
   const covered = (slot) => underSlots.has(slot) && slot !== 'tail' && !/^shield\b/.test(slot);
   const cloak = underSlots ? fitCloakOver(arm, { isCloak, isUnder: (p) => covered(p.slot) }) : null;
   // Give the back-mounted shield a real air gap from the torso, not just the
   // cloak's one-unit clearance. fitStowedGear moves rigid slung pieces along -Y
   // until they clear the cloak; the larger clearance is isolated to this call
   // so ordinary holsters keep their existing fit.
-  const hasBackShield = arm.pieces.some((p) => /^shield-back\\b/i.test(p.slot ?? ''));
+  const hasBackShield = arm.pieces.some((p) => /^shield-back\b/i.test(p.slot ?? ''));
   const gear = fitStowedGear(arm, { isCloak, isGear, clearance: hasBackShield ? 3 : undefined });
   const follow = followCloak(arm, { isCloak, isGear });
   const notes = (gear ?? []).filter((r) => r.how === 'unresolved').map((r) => (r.slung
