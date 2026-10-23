@@ -89,6 +89,10 @@ test('back shield holds only covered cloak vertices at rest and preserves free h
     assert.equal(pos[i * 3 + 2], base[i * 3 + 2], 'covered vertex keeps fitted Z');
   }
   assert.deepEqual(Array.from(prev.slice(0, 9)), Array.from(pos.slice(0, 9)), 'covered vertices have no stale Verlet velocity');
+  assert.equal(stepCloakPhysics(piece, 1 / 30, 0), true, 'the simulation continues while the shield is stowed');
+  for (let i = 0; i < 3; i++) {
+    assert.equal(pos[i * 3 + 1], base[i * 3 + 1] + 1.38, 'the resolved shield clearance survives the next cloth step');
+  }
   assert.equal(pos[10], base[10] + 2, 'the uncovered hem remains dynamic');
   assert.equal(prev[10], base[10] + 1, 'the uncovered hem keeps its Verlet history');
 });
