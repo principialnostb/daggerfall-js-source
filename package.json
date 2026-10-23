@@ -43,7 +43,8 @@
     "mwinspect": "node tools/mwInspectProbe.mjs",
     "mwarm": "node tools/mwArmProbe.mjs",
     "mwviewer": "node tools/mwViewerProbe.mjs",
-    "mwattach": "node tools/mwAttachProbe.mjs"
+    "mwattach": "node tools/mwAttachProbe.mjs",
+    "mwcloakprobe": "node tools/mwCloakAnimationProbe.mjs"
   },
   "devDependencies": {
     "acorn": "^8.18.0",
