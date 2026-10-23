@@ -101,6 +101,10 @@ export function resolveCloakShieldContact(piece, posedCloth, shieldPositions, sh
   };
 
   const pos = state.pos, prev = state.prev, base = state.base;
+  // Remember last frame's footprint before rebuilding it. A vertex that leaves
+  // the shield must be released to the authored fit, not carry the artificial
+  // clearance offset into Verlet as a stale position/velocity.
+  const wasShieldPinned = state.shieldPinned.slice();
   state.shieldPinned.fill(0);
   let held = 0;
   for (let v = 0; v < posedCloth.length / 3; v++) {
@@ -123,7 +127,15 @@ export function resolveCloakShieldContact(piece, posedCloth, shieldPositions, sh
         break;
       }
     }
-    if (!covered) continue;
+    if (!covered) {
+      if (wasShieldPinned[v]) {
+        const o = v * 3;
+        pos[o] = prev[o] = base[o];
+        pos[o + 1] = prev[o + 1] = base[o + 1];
+        pos[o + 2] = prev[o + 2] = base[o + 2];
+      }
+      continue;
+    }
     state.shieldPinned[v] = 1;
     pos[o] = prev[o] = base[o];
     pos[o + 1] = prev[o + 1] = base[o + 1] - STOWED_SHIELD_CLOAK_CLEARANCE;
@@ -145,6 +157,15 @@ export function resolveCloakShieldContact(piece, posedCloth, shieldPositions, sh
 export function releaseCloakShieldContact(piece) {
   const state = piece?.clothPhysics;
   if (!state?.shieldPinned) return;
+  // Only reset vertices that were compressed by the back-shield rule. The
+  // rest of the cloak retains its Verlet history and resumes seamlessly.
+  for (let v = 0; v < state.shieldPinned.length; v++) {
+    if (!state.shieldPinned[v]) continue;
+    const o = v * 3;
+    state.pos[o] = state.prev[o] = state.base[o];
+    state.pos[o + 1] = state.prev[o + 1] = state.base[o + 1];
+    state.pos[o + 2] = state.prev[o + 2] = state.base[o + 2];
+  }
   state.shieldPinned.fill(0);
 }
 
