@@ -2079,8 +2079,9 @@ function correctVanillaAnimatedCloakContacts(arm, piece, pose) {
     isUnder: (p) => underSlots.has(p.slot) && p.slot !== 'tail' && !/^shield\b/.test(p.slot),
     poses: [pose],
     passes: 1,
-    // Finer live-pose sampling helps catch the narrower shin/ankle region near the hem.
-    sampleStep: 2,
+    // Match the static fit's dense sampling so narrow boot, greave, and clothing surfaces
+    // are less likely to fall between live-pose contact samples.
+    sampleStep: 1,
     updatePosed: false,
   });
   const positions = piece.batch.positions;
