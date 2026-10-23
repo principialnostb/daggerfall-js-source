@@ -2826,7 +2826,9 @@ async function buildTpBody({
             action: 'cloak-physics-piece-missing',
             modId: 'simply-animated-cloaks',
             resource: `meshes/${row.model}`,
-            message: 'The classic cloak did not produce a skinned piece; vanilla placement is left unchanged.',
+            message: simplyMesh
+              ? 'The Simply cloak did not produce a skinned piece; its normal bind path is left unchanged.'
+              : 'The classic cloak did not produce a skinned piece; vanilla placement is left unchanged.',
             details: { slot: row.slot, model: row.model },
           });
           continue;
@@ -2835,8 +2837,7 @@ async function buildTpBody({
         if (physics) {
           piece.clothPhysics = physics;
           piece.clothPhysicsMaxOffset = physics.maxOffset;
-          // Retain the resolved asset so diagnostics can identify the exact
-          // classic mesh without inferring it from the currently selected mode.
+          // Retain the resolved asset so diagnostics identify the exact mesh and mode.
           piece.clothPhysicsResource = `meshes/${row.model}`;
           piece.clothPhysicsFallbackMesh = !simplyMesh;
           modDiagnostics.record({
