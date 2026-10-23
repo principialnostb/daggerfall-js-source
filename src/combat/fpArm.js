@@ -2079,7 +2079,8 @@ function correctVanillaAnimatedCloakContacts(arm, piece, pose) {
     isUnder: (p) => underSlots.has(p.slot) && p.slot !== 'tail' && !/^shield\b/.test(p.slot),
     poses: [pose],
     passes: 1,
-    sampleStep: 3,
+    // Finer live-pose sampling helps catch the narrower shin/ankle region near the hem.
+    sampleStep: 2,
     updatePosed: false,
   });
   const positions = piece.batch.positions;
