@@ -78,6 +78,11 @@ export const CLOAK_FIT_POSES = Object.freeze([
   Object.freeze({ 'bip01 l upperarm': ['z', -40] }),
   Object.freeze({ 'bip01 r upperarm': ['z', 40] }),
   Object.freeze({ 'bip01 l upperarm': ['z', -35], 'bip01 r upperarm': ['z', 35] }),
+  // Combat stance: the right thigh can be held much farther back than a normal stride.
+  // Fit the cloak against that leg position explicitly, both with a mostly straight knee
+  // and with the knee bent; otherwise the hem can pass through the rear-set right leg.
+  Object.freeze({ 'bip01 r thigh': ['z', -55] }),
+  Object.freeze({ 'bip01 r thigh': ['z', -55], 'bip01 r calf': ['z', 35] }),
 ]);
 /** AUDIT MW-CLOAK: the follow's solve - its rounds of a linear law re-taken where the last left the gear, the sweeps of
  *  each, a unit's slide priced as a turn of `slideCost` radians, the most it turns and slides a pose, and the cell of
