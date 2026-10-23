@@ -71,7 +71,7 @@ export function createCloakPhysics(piece) {
   }
   if (!edges.length) return null;
   return {
-    base, pos, prev, pinned, shieldPinned: new Uint8Array(count), edges, minZ, maxZ, time: 0, maxOffset: MAX_OFFSET,
+    base, pos, prev, pinned, shieldPinned: new Uint8Array(count), shieldClearance: new Float32Array(count), edges, minZ, maxZ, time: 0, maxOffset: MAX_OFFSET,
     baseNormals: piece.batch.normals ? Float32Array.from(piece.batch.normals) : null,
     normals: piece.batch.normals ?? null,
   };
@@ -106,6 +106,7 @@ export function resolveCloakShieldContact(piece, posedCloth, shieldPositions, sh
   // clearance offset into Verlet as a stale position/velocity.
   const wasShieldPinned = state.shieldPinned.slice();
   state.shieldPinned.fill(0);
+  state.shieldClearance.fill(0);
   let held = 0;
   for (let v = 0; v < posedCloth.length / 3; v++) {
     const o = v * 3;
@@ -152,6 +153,7 @@ export function resolveCloakShieldContact(piece, posedCloth, shieldPositions, sh
       STOWED_SHIELD_CLOAK_CLEARANCE,
       shieldSurfaceY - posedCloth[o + 1] + STOWED_SHIELD_CLOAK_CLEARANCE,
     );
+    state.shieldClearance[v] = posedClearance;
     pos[o + 1] = prev[o + 1] = base[o + 1] + posedClearance;
     pos[o + 2] = prev[o + 2] = base[o + 2];
     held++;
@@ -181,6 +183,7 @@ export function releaseCloakShieldContact(piece) {
     state.pos[o + 2] = state.prev[o + 2] = state.base[o + 2];
   }
   state.shieldPinned.fill(0);
+  state.shieldClearance.fill(0);
 }
 
 function rebuildNormals(positions, indices, out, fallback) {
@@ -214,7 +217,7 @@ export function stepCloakPhysics(piece, dt, motion = 0) {
   const step = Math.max(0, Math.min(0.05, Number(dt) || 0));
   if (step <= 0) return false;
   state.time += step;
-  const { base, pos, prev, pinned, shieldPinned, edges } = state;
+  const { base, pos, prev, pinned, shieldPinned, shieldClearance, edges } = state;
   const fixed = (v) => pinned[v] || shieldPinned?.[v];
   // Vanilla Animated keeps the same bounded Verlet model, with a little more
   // room for the hem to yield on large leg/attack motions. Simply Animated
@@ -254,7 +257,7 @@ export function stepCloakPhysics(piece, dt, motion = 0) {
     const o = v * 3;
     if (fixed(v)) {
       pos[o] = prev[o] = base[o];
-      pos[o + 1] = prev[o + 1] = base[o + 1] + (shieldPinned?.[v] ? STOWED_SHIELD_CLOAK_CLEARANCE : 0);
+      pos[o + 1] = prev[o + 1] = base[o + 1] + (shieldPinned?.[v] ? (shieldClearance?.[v] || STOWED_SHIELD_CLOAK_CLEARANCE) : 0);
       pos[o + 2] = prev[o + 2] = base[o + 2];
       continue;
     }
