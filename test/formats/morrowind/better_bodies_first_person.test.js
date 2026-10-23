@@ -4,7 +4,7 @@ import { betterBodiesFallbackSectionKey } from '../../../src/formats/morrowind/m
 
 test('first-person Better Bodies fallback maps each arm slot to its side-specific section', () => {
   for (const slot of ['hand', 'wrist', 'forearm', 'upperarm']) {
-    assert.equal(betterBodiesFallbackSectionKey(slot, 'Bip01 L Hand'.replace('L Hand', 'Left Hand')), `${slot}:left`);
+    assert.equal(betterBodiesFallbackSectionKey(slot, 'Bip01 Left Hand'), `${slot}:left`);
     assert.equal(betterBodiesFallbackSectionKey(slot, 'Bip01 Right Hand'), `${slot}:right`);
   }
 });
