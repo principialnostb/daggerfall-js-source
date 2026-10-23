@@ -103,3 +103,7 @@ in `bible/01-Overview/Desktop-App.md`; headless proof:
 `xvfb-run -a node tools/appShellProbe.mjs` (point `DAGGER_SHELL_EXE`
 at a packaged binary to prove an installer's payload). The packaged
 app bundles NO game data - same doctrine as the site.
+
+## Vanilla Animated cloak collision
+
+The working branch `fix/vanilla-animated-cloak-collision` contains an in-progress 3D triangle-contact redesign intended to address intermittent body-through-cloak clipping during walking and attacks. The implementation, test command, performance considerations, and remaining validation limits are documented in [Vanilla Animated cloak collision](docs/Vanilla-Animated-Cloak-Collision.md). Back-slung weapons and scabbards remain independent of live cloak animation.
