@@ -361,6 +361,8 @@ export function fitCloakOver(assembly, { isCloak, isUnder, clearance = CLOAK_CLE
           }
           const inside = (x, y, z) => x > x0 - 2 && x < x1 + 2 && z > z0 - 2 && z < z1 + 2 && y < y1 + clearance;
           set.under = [];
+          const bodyPositions = [];
+          const bodyIndices = [];
           for (const { p, edges } of underPieces) {
             const placed = set.place(p);
             // a piece wholly outside that region (a gauntlet, a boot, the helm) is not sampled at all
@@ -371,7 +373,17 @@ export function fitCloakOver(assembly, { isCloak, isUnder, clearance = CLOAK_CLE
             }
             if (hx < x0 - 2 || lx > x1 + 2 || hz < z0 - 2 || lz > z1 + 2 || ly > y1 + clearance) continue;
             set.under.push(samplesWhere(placed, p.indices, sampleStep, inside, edges, includeTriangleInteriors));
+            // Keep the same body surface for the reverse contact query. The old
+            // one-way test only asked whether body samples passed through the
+            // cloak's X/Z height field; a cloak triangle can cross a body triangle
+            // between those samples and remain untouched.
+            const offset = bodyPositions.length / 3;
+            for (let k = 0; k < placed.length; k++) bodyPositions.push(placed[k]);
+            for (let k = 0; k < p.indices.length; k++) bodyIndices.push(p.indices[k] + offset);
           }
+          set.bodySheet = bodyIndices.length
+            ? cloakSheet(Float32Array.from(bodyPositions), Uint32Array.from(bodyIndices))
+            : null;
         }
         const sheet = cloakSheet(posed, cloak.indices);
         const need = new Float64Array(n);
@@ -397,6 +409,60 @@ export function fitCloakOver(assembly, { isCloak, isUnder, clearance = CLOAK_CLE
             if (at == null) { deepest.set(ck, through.length); through.push(u[v], u[v + 2], over); } else if (over > through[at + 2]) { through[at] = u[v]; through[at + 1] = u[v + 2]; through[at + 2] = over; }
             // its own triangle the whole way, so every pass makes headway
             for (let k = 0; k < 3; k++) { const w = rep[cloak.indices[cell.frontTri + k]]; if (over > need[w]) need[w] = over; }
+          }
+        }
+        // Symmetric contact pass: test points on the cloak triangles against the
+        // projected body surface too. This catches triangle/triangle crossings
+        // where no sampled body point happens to land through the cloak sheet.
+        // A point is only pushed backward when the body's foremost surface at
+        // the same X/Z is within clearance of it; distant cloth remains untouched.
+        if (set.bodySheet) {
+          const contact = (x, y, z, tri) => {
+            const body = set.bodySheet.at(x, z);
+            if (!body) return;
+            const over = y - (body.front - clearance);
+            if (over <= 1e-4) return;
+            let room = Infinity;
+            for (let k = 0; k < 3; k++) room = Math.min(room, limit - total[rep[cloak.indices[tri + k]]]);
+            if (over > room + 1e-6) { deepSeen.add(sheetCellKey(x, z)); return; }
+            const ck = sheetCellKey(x, z);
+            const at = deepest.get(ck);
+            if (at == null) { deepest.set(ck, through.length); through.push(x, z, over); }
+            else if (over > through[at + 2]) { through[at] = x; through[at + 1] = z; through[at + 2] = over; }
+            for (let k = 0; k < 3; k++) {
+              const w = rep[cloak.indices[tri + k]];
+              if (over > need[w]) need[w] = over;
+            }
+          };
+          for (let t = 0; t + 2 < cloak.indices.length; t += 3) {
+            const ia = cloak.indices[t] * 3, ib = cloak.indices[t + 1] * 3, ic = cloak.indices[t + 2] * 3;
+            const a = [posed[ia], posed[ia + 1], posed[ia + 2]];
+            const b = [posed[ib], posed[ib + 1], posed[ib + 2]];
+            const c = [posed[ic], posed[ic + 1], posed[ic + 2]];
+            contact(...a, t); contact(...b, t); contact(...c, t);
+            const edges = [[a, b], [b, c], [c, a]];
+            for (const [p, q] of edges) {
+              const length = Math.hypot(q[0] - p[0], q[1] - p[1], q[2] - p[2]);
+              const count = Math.floor(length / sampleStep);
+              for (let i = 1; i <= count; i++) {
+                const f = i / (count + 1);
+                contact(p[0] + (q[0] - p[0]) * f, p[1] + (q[1] - p[1]) * f, p[2] + (q[2] - p[2]) * f, t);
+              }
+            }
+            if (includeTriangleInteriors) {
+              const longest = Math.max(
+                Math.hypot(b[0] - a[0], b[1] - a[1], b[2] - a[2]),
+                Math.hypot(c[0] - b[0], c[1] - b[1], c[2] - b[2]),
+                Math.hypot(a[0] - c[0], a[1] - c[1], a[2] - c[2]),
+              );
+              const divisions = Math.ceil(longest / sampleStep);
+              for (let i = 1; i < divisions; i++) for (let j = 1; j < divisions - i; j++) {
+                const wa = 1 - (i + j) / divisions, wb = i / divisions, wc = j / divisions;
+                contact(wa * a[0] + wb * b[0] + wc * c[0],
+                  wa * a[1] + wb * b[1] + wc * c[1],
+                  wa * a[2] + wb * b[2] + wc * c[2], t);
+              }
+            }
           }
         }
         if (!through.length) continue;
