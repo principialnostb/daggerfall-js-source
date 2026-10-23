@@ -64,6 +64,31 @@ npm run mwcloak:visualize -- path/to/mw-cloak-capture.json --report path/to/cloa
 
 The report currently stores at most the first 100 example triangle pairs per frame/mesh pair, even when the total hit count is much larger. The viewer highlights those examples; it does not claim to draw every hit. Projected overlap in a 2D view alone is not proof of 3D intersection; the highlights come from the 3D triangle test. This viewer is a geometry diagnostic, not a replica of the game's camera, materials, normals, lighting, or depth buffer.
 
+## Animation-source audit after visual review
+
+The visual review confirms that the generated geometry view matches the user's reported clipping pattern. The two suspected states are walking (likely using a third-person animation-mod source) and the standard vertical two-handed sword attack. This is useful state-level evidence, but the capture still does not attach semantic animation names to each frame.
+
+The runtime source code has a relevant selection path in `src/formats/morrowind/mwWalkAnimationAssets.js` and its consumer in `src/combat/fpArm.js`:
+
+- When the `OpenMWDynamicAnimations` mod setting is enabled, `loadOpenMWDynamicThirdPersonAnimationAssets()` loads eligible KF files matching the active rig folder.
+- `selectOpenMWDynamicAnimationVariants()` groups compatible candidates by canonical animation group. For `walkforward`, it explicitly prefers `WalkForward_base15;.kf`, then `WalkForward_mw15;.kf`, then `WalkForward_base13;.kf`, `WalkForward_base11;.kf`, and `WalkForward_dirn15;.kf` if earlier choices are unavailable.
+- The files live under `Mods/Animations/OpenMW Dynamic Animations/animations/xbase_anim/` for the standard third-person rig. Their accompanying YAML files describe blending rules; the KF carries the actual animation tracks.
+- This establishes the runtime's candidate/selection policy, **not which clip was active in the user's exact capture**. That requires the effective setting, rig path, and runtime animation-selection diagnostics for the same reproduction.
+- The OpenMW dynamic third-person loader maps canonical locomotion groups (walk/run/sneak/swim variants), idle, arm poses, and a limited set of other groups. Its group mapper does not map an ordinary sword-attack group. The vertical attack is therefore expected to remain on the existing archive/game source unless another source path supplies it; verify this in runtime diagnostics rather than assuming it.
+
+Useful source links:
+- [Animation asset discovery and variant selection](../../src/formats/morrowind/mwWalkAnimationAssets.js)
+- [Animation runtime consumer](../../src/combat/fpArm.js)
+- [OpenMW Dynamic Animations walk-forward candidates](../../Mods/Animations/OpenMW%20Dynamic%20Animations/animations/xbase_anim/)
+
+### Updated working hypotheses
+
+1. **Walking:** a third-person OpenMW Dynamic Animations gait may be responsible for the modified leg/hip pose. Compare the selected walk KF against the baseline walk in the same rig and inspect the lower-body tracks and root/hip motion.
+2. **Vertical attack:** likely a separate stock/archive attack clip, based on the current dynamic third-person group's mapper. Check the actual selected source and compare the cloak/leg relationship through wind-up, active swing, and recovery.
+3. **Shared cause remains plausible:** both states could expose a common cloak skinning, bind-pose, or update-order issue. Do not assume that the walking mod is the root cause of the attack clipping.
+
+The next data point should be the exact runtime-selected animation group/source and rig path for each repro state. Then create short, separately labeled captures for idle, ordinary walk, combat walk, and vertical attack. Keep the existing raw capture and reports as historical evidence; do not overwrite them without saving a copy.
+
 ## What the existing evidence does and does not say
 
 ### Established
