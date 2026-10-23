@@ -110,23 +110,30 @@ export function resolveCloakShieldContact(piece, posedCloth, shieldPositions, sh
   for (let v = 0; v < posedCloth.length / 3; v++) {
     const o = v * 3;
     const x = posedCloth[o], z = posedCloth[o + 2];
-    let covered = false;
+    let shieldSurfaceY = -Infinity;
     for (let t = 0; t + 2 < shieldIndices.length; t += 3) {
       const ia = shieldIndices[t] * 3;
       const ib = shieldIndices[t + 1] * 3;
       const ic = shieldIndices[t + 2] * 3;
       if (ia + 2 >= shieldPositions.length || ib + 2 >= shieldPositions.length
           || ic + 2 >= shieldPositions.length) continue;
-      const ax = shieldPositions[ia], az = shieldPositions[ia + 2];
-      const bx = shieldPositions[ib], bz = shieldPositions[ib + 2];
-      const cx = shieldPositions[ic], cz = shieldPositions[ic + 2];
+      const ax = shieldPositions[ia], ay = shieldPositions[ia + 1], az = shieldPositions[ia + 2];
+      const bx = shieldPositions[ib], by = shieldPositions[ib + 1], bz = shieldPositions[ib + 2];
+      const cx = shieldPositions[ic], cy = shieldPositions[ic + 1], cz = shieldPositions[ic + 2];
       if (x < Math.min(ax, bx, cx) || x > Math.max(ax, bx, cx)
           || z < Math.min(az, bz, cz) || z > Math.max(az, bz, cz)) continue;
-      if (insideTriangle(x, z, ax, az, bx, bz, cx, cz)) {
-        covered = true;
-        break;
-      }
+      if (!insideTriangle(x, z, ax, az, bx, bz, cx, cz)) continue;
+      // The shield and cloth are posed in the same rig space. Interpolate the
+      // shield's actual depth at this (x,z), not just its 2D footprint: a fixed
+      // bind-pose offset alone can leave the cloth behind a rotated shield.
+      const den = (bx - ax) * (cz - az) - (bz - az) * (cx - ax);
+      if (Math.abs(den) < 1e-8) continue;
+      const wb = ((x - ax) * (cz - az) - (z - az) * (cx - ax)) / den;
+      const wc = ((bx - ax) * (z - az) - (bz - az) * (x - ax)) / den;
+      const wa = 1 - wb - wc;
+      shieldSurfaceY = Math.max(shieldSurfaceY, wa * ay + wb * by + wc * cy);
     }
+    const covered = Number.isFinite(shieldSurfaceY);
     if (!covered) {
       if (wasShieldPinned[v]) {
         const o = v * 3;
@@ -138,7 +145,14 @@ export function resolveCloakShieldContact(piece, posedCloth, shieldPositions, sh
     }
     state.shieldPinned[v] = 1;
     pos[o] = prev[o] = base[o];
-    pos[o + 1] = prev[o + 1] = base[o + 1] + STOWED_SHIELD_CLOAK_CLEARANCE;
+    // Morrowind's back direction is -Y, so the cloth must remain on the
+    // +Y/body side of the shield surface. Convert the posed-space penetration
+    // into a bind-space offset, while preserving a minimum body/cloth gap.
+    const posedClearance = Math.max(
+      STOWED_SHIELD_CLOAK_CLEARANCE,
+      shieldSurfaceY - posedCloth[o + 1] + STOWED_SHIELD_CLOAK_CLEARANCE,
+    );
+    pos[o + 1] = prev[o + 1] = base[o + 1] + posedClearance;
     pos[o + 2] = prev[o + 2] = base[o + 2];
     held++;
   }
