@@ -829,6 +829,16 @@ function refreshFigure() {
     });
 }
 
+// Rebuild cached row descriptors too: changing the display identity changes
+// archive/record addresses for gendered icons, not just the composed doll.
+if (typeof globalThis.addEventListener === 'function') {
+  globalThis.addEventListener('mw-appearance-identity-change', () => {
+    if (!host) return;
+    render();
+    refreshFigure();
+  });
+}
+
 /** Wearing something, through the ONE chain. A refusal is REPORTED -
  *  the classic window pops TEXT.RSC for the same two cases, and a
  *  press that silently does nothing is what the anti-lie law forbids. */
