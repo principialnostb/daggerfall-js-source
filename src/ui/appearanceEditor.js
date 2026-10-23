@@ -532,18 +532,11 @@ export function openAppearanceEditor({ fpArm, onClose = () => {} } = {}) {
     done.textContent = 'Применение…';
     try {
       const identity = { race: selectedRace, female: selectedFemale, faceIndex: selectedFace, headId: selectedHead, hairId: selectedHair };
-      if (typeof fpArm?.applyAppearanceIdentity === 'function') {
-        const result = await fpArm.applyAppearanceIdentity(identity);
-        if (result?.ok === false && !result?.queued) {
-          previewError = result.error || 'Не удалось применить внешность к игровому персонажу.';
-          statusMessage.style.display = 'block';
-          statusMessage.textContent = previewError;
-          drawPreview();
-          done.disabled = false;
-          done.textContent = previousLabel;
-          return;
-        }
-      }
+      // This editor's race/sex choice is a PAPERDOLL display override only.
+      // Do not rebuild the live first/third-person actor from it: doing so
+      // lets a cosmetic UI selection override the game's active actor identity.
+      // The paperdoll and gendered inventory-art pipeline read the saved
+      // appearance identity below, while gameplay identity remains untouched.
       // Commit body morphs only after confirmation. The preview used draftMorphs
       // directly, so cancelling the editor leaves the live character untouched.
       for (const [key] of BODY_MORPH_FIELDS) setBodyMorph(key, draftMorphs[key] ?? 0);
