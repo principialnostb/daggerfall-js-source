@@ -7866,10 +7866,18 @@ export function createFpArm({ playerAppearance = false } = {}) {
           // upload. Running it before poseAssembly lets the pose overwrite the
           // simulated vertex positions in the same frame.
           const cloakGroup = String(movementState?.group ?? '').toLowerCase();
-          const cloakMotion = /run/.test(cloakGroup) ? 1 : /walk|sneak/.test(cloakGroup) ? 0.65 : 0.15;
+          const cloakMotion = /run/.test(cloakGroup) ? 1 : /walk|sneak/.test(cloakGroup) ? 0.65 : 0;
+          const cloakAttackGroup = String(actionState?.group ?? '').toLowerCase();
+          const cloakAttack = actionState && weaponInHand() ? 1 : 0;
+          const cloakAttackProgress = actionState ? clipCompletion(actionState) : 0;
           for (const piece of t.arm.pieces) {
             if (!piece.clothPhysics) continue;
-            const stepped = stepCloakPhysics(piece, dt, cloakMotion);
+            const stepped = stepCloakPhysics(piece, dt, {
+              gait: cloakMotion,
+              attack: cloakAttack,
+              attackProgress: cloakAttackProgress,
+              attackGroup: cloakAttackGroup,
+            });
             if (stepped) {
               // Keep the first sample and then one sample every 60 successful frames. A
               // one-shot first-frame measurement cannot show whether Verlet motion grows,
