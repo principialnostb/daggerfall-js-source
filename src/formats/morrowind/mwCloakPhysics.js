@@ -82,13 +82,11 @@ export function createCloakPhysics(piece) {
  */
 export function resolveCloakShieldContact(piece, posedCloth, shieldPositions, shieldIndices, clearance = 0.16) {
   const state = piece?.clothPhysics;
-  if (!state || !posedCloth || !shieldPositions || !shieldIndices
+  const indices = piece?.indices;
+  if (!state || !posedCloth || !shieldPositions || !shieldIndices || !indices
       || posedCloth.length !== state.pos.length || shieldIndices.length < 3) return 0;
-  const pos = state.pos, prev = state.prev, pinned = state.pinned;
-  let corrected = 0;
-  for (let v = 0; v < pinned.length; v++) {
-    if (pinned[v]) continue;
-    const o = v * 3, x = posedCloth[o], y = posedCloth[o + 1], z = posedCloth[o + 2];
+  const pos = state.pos, prev = state.prev;
+  const frontAt = (x, z) => {
     let front = -Infinity;
     for (let t = 0; t + 2 < shieldIndices.length; t += 3) {
       const ia = shieldIndices[t] * 3, ib = shieldIndices[t + 1] * 3, ic = shieldIndices[t + 2] * 3;
@@ -103,24 +101,46 @@ export function resolveCloakShieldContact(piece, posedCloth, shieldPositions, sh
       const u = (px * acz - pz * acx) / den;
       const w = (abx * pz - abz * px) / den;
       if (u < -1e-4 || w < -1e-4 || u + w > 1.0001) continue;
-      const vWeight = 1 - u - w;
-      const shieldY = shieldPositions[ia + 1] * vWeight + shieldPositions[ib + 1] * u + shieldPositions[ic + 1] * w;
-      if (shieldY > front) front = shieldY;
+      const y = shieldPositions[ia + 1] * (1 - u - w) + shieldPositions[ib + 1] * u + shieldPositions[ic + 1] * w;
+      if (y > front) front = y;
     }
-    if (!Number.isFinite(front)) continue;
-    // Y is the front/back axis in the Morrowind rig: the cloak belongs behind
-    // the shield. Only the overlapping patch is pressed backward; the hem and
-    // all vertices outside the shield footprint keep their normal simulation.
-    const targetY = front - clearance;
-    if (y <= targetY) continue;
-    const push = y - targetY;
-    pos[o + 1] -= push;
-    prev[o + 1] -= push;
+    return front;
+  };
+  let corrected = 0;
+  const pushVertex = (v, push) => {
+    const o = v * 3 + 1;
+    if (push <= 0) return;
+    pos[o] -= push;
+    prev[o] -= push;
     corrected++;
+  };
+  // Vertex contacts preserve the cloth surface at the shield's actual projected
+  // triangles; the rest of the mesh remains free to animate.
+  for (let v = 0; v < posedCloth.length / 3; v++) {
+    const o = v * 3;
+    const front = frontAt(posedCloth[o], posedCloth[o + 2]);
+    if (!Number.isFinite(front)) continue;
+    pushVertex(v, posedCloth[o + 1] - (front - clearance));
+  }
+  // Vertices alone can miss a shield passing through the middle of a large
+  // cloth triangle. Test each cloth-triangle centroid as well and distribute
+  // any remaining penetration to its three vertices, preserving their inertia.
+  for (let t = 0; t + 2 < indices.length; t += 3) {
+    const a = indices[t], b = indices[t + 1], c = indices[t + 2];
+    const ia = a * 3, ib = b * 3, ic = c * 3;
+    if (ic + 2 >= posedCloth.length) continue;
+    const x = (posedCloth[ia] + posedCloth[ib] + posedCloth[ic]) / 3;
+    const y = (posedCloth[ia + 1] + posedCloth[ib + 1] + posedCloth[ic + 1]) / 3;
+    const z = (posedCloth[ia + 2] + posedCloth[ib + 2] + posedCloth[ic + 2]) / 3;
+    const front = frontAt(x, z);
+    if (!Number.isFinite(front)) continue;
+    const push = y - (front - clearance);
+    if (push <= 1e-4) continue;
+    pushVertex(a, push); pushVertex(b, push); pushVertex(c, push);
   }
   if (corrected) {
     piece.batch.positions.set(pos);
-    if (state.normals && piece.batch.normals === state.normals) rebuildNormals(piece.batch.positions, piece.indices, state.normals, state.baseNormals);
+    if (state.normals && piece.batch.normals === state.normals) rebuildNormals(piece.batch.positions, indices, state.normals, state.baseNormals);
     piece.sourceGen = ((piece.sourceGen | 0) + 1) >>> 0;
   }
   return corrected;
