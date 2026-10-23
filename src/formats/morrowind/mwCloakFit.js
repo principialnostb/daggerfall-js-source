@@ -227,6 +227,16 @@ function poseOf(assembly, turns = {}) {
 }
 
 /**
+ * Pose selected assembly pieces through one shared live skeleton pose. This is
+ * used by animated-cloth contacts so both cloth and rigid gear are compared in
+ * the same character-local space without changing either rendered mesh.
+ */
+export function posePiecePositions(assembly, pose, requests) {
+  const posed = poseOf(assembly, pose);
+  return requests.map(({ piece, batch }) => posed.place(piece, batch ?? piece.batch));
+}
+
+/**
  * The cloak as a height field over the rig's (x, z): for each unit cell its triangles cover (keyed by sheetCellKey), the
  * sheet's FRONT (the largest y, the layer nearest the body where it folds) and BACK, and the triangle each came from.
  */
