@@ -8117,22 +8117,32 @@ export function createFpArm({ playerAppearance = false } = {}) {
               if (piece.clothPhysicsFallbackMesh) correctVanillaAnimatedCloakContacts(t.arm, piece, t.arm.pose);
             }
           }
-          // Resolve the animated cloak against the actual back-mounted shield
-          // every posed frame. Both meshes are skinned/attached through the same
-          // live pose; contact is local to the shield footprint and does not
-          // disable or replace the cloth simulation.
-          if (!shieldCombatReadyNow && t.arm.pose && t.arm.mats) {
-            const shieldBack = t.arm.pieces.find((piece) => /^shield-back\b/i.test(piece.slot ?? ''));
+          // Resolve the animated cloak against rigid gear worn over the back. Include
+          // every holster/scabbard/quiver whose attachment bone descends from Spine1,
+          // plus the back-mounted shield. Their bones remain authoritative; only the
+          // cloth vertices beneath their live posed surfaces are held clear.
+          if (t.arm.pose && t.arm.mats) {
+            const shieldBack = !shieldCombatReadyNow
+              ? t.arm.pieces.find((piece) => /^shield-back\b/i.test(piece.slot ?? ''))
+              : null;
+            const backSheaths = sheathed ? t.arm.pieces.filter((piece) => {
+              if (piece.kind !== 'rigid' || !HOLSTER_SLOTS.includes(piece.slot) || piece.attachRef == null) return false;
+              for (let at = t.arm.skeleton.nodes.get(piece.attachRef)?.parent; at != null && at >= 0; at = t.arm.skeleton.nodes.get(at)?.parent) {
+                if (String(t.arm.skeleton.nodes.get(at)?.name ?? '').toLowerCase() === 'bip01 spine1') return true;
+              }
+              return false;
+            }) : [];
+            const rigidGear = [...(shieldBack ? [shieldBack] : []), ...backSheaths];
             const clothPieces = t.arm.pieces.filter((piece) => piece.clothPhysics && isCloakSlot(piece.slot));
-            if (shieldBack && clothPieces.length) {
+            if (rigidGear.length && clothPieces.length) {
               const requests = [
-                { piece: shieldBack },
+                ...rigidGear.map((piece) => ({ piece })),
                 ...clothPieces.map((piece) => ({ piece, batch: { ...piece.batch, positions: piece.clothPhysics.pos } })),
               ];
               const posed = posePiecePositions(t.arm, t.arm.pose, requests);
-              const shieldPos = posed[0];
+              const surfaces = rigidGear.map((piece, i) => ({ positions: posed[i], indices: piece.indices }));
               for (let i = 0; i < clothPieces.length; i++) {
-                resolveCloakShieldContact(clothPieces[i], posed[i + 1], shieldPos, shieldBack.indices);
+                resolveCloakShieldContact(clothPieces[i], posed[rigidGear.length + i], surfaces, null);
               }
             }
           }
