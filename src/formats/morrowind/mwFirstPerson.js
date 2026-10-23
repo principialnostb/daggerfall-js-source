@@ -2347,10 +2347,8 @@ export function bindPartsInto(assembly, parts) {
       // Keep vanilla geometry only for arm sections the Better Bodies mesh
       // did not provide. The check is per bone so partial meshes stay usable.
       if (part.fallbackBetterBodies) {
-        const side = /\bleft\b/i.test(String(bone ?? '')) ? 'left'
-          : /\bright\b/i.test(String(bone ?? '')) ? 'right' : null;
-        const region = ({ hand: 'hand', wrist: 'wrist', forearm: 'forearm', upperarm: 'upperarm' })[part.slot];
-        if (side && region && betterBodiesSections.has(region + ':' + side)) continue;
+        const fallbackSection = betterBodiesFallbackSectionKey(part.slot, bone);
+        if (fallbackSection && betterBodiesSections.has(fallbackSection)) continue;
       }
       if (bone && !skeleton.byName.has(bone.toLowerCase())) {
         notes.push(`${part.slot}: this skeleton has no bone "${bone}"`);
@@ -3526,10 +3524,9 @@ export function betterBodiesFallbackSectionKey(slot, bone) {
   const region = ({ hand: 'hand', wrist: 'wrist', forearm: 'forearm', upperarm: 'upperarm' })[String(slot ?? '').toLowerCase()];
   if (!region) return null;
   const name = String(bone ?? '').toLowerCase();
-  const side = /\\bleft\\b/.test(name) ? 'left' : /\\bright\\b/.test(name) ? 'right' : null;
+  const side = /\bleft\b/.test(name) ? 'left' : /\bright\b/.test(name) ? 'right' : null;
   return side ? `${region}:${side}` : null;
 }
-
 function betterBodiesSectionVisible(shapeName, showSlots = []) {
   const key = betterBodiesSectionKey(shapeName);
   return Boolean(key && (showSlots ?? []).includes(key));
