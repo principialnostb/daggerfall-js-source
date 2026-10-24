@@ -1,11 +1,20 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { applyBetterBodiesUvEdits, betterBodiesFallbackSectionKey, betterBodiesSectionKey } from '../../../src/formats/morrowind/mwFirstPerson.js';
 import { betterBodiesFirstPersonHandAssetPaths, firstPersonHandsSource } from '../../../src/formats/morrowind/mwBetterBodiesPaths.js';
 
+
+
+test('first-person runtime dispatch uses the independent hand-source selector', () => {
+  const runtime = readFileSync(resolve(repoRoot, 'src/combat/fpArm.js'), 'utf8');
+  assert.match(runtime, /import \{ firstPersonHandsSource \} from '..\/formats\/morrowind\/mwBetterBodiesPaths\.js';/);
+  assert.match(runtime, /firstPersonHandsSource\(modSetting\('morrowind-textures', 'FirstPersonHands'\)\) === 'robert-bodies'/);
+  assert.match(runtime, /firstPersonHandsSource\(modSetting\('morrowind-textures', 'FirstPersonHands'\)\) === 'better-bodies'/);
+  assert.match(runtime, /betterBodiesAssetUrls\(\{ race, female \}\)/);
+});
 
 test('first-person hand selector keeps Vanilla, Robert/Better Hands, and Better Bodies independent', () => {
   assert.equal(firstPersonHandsSource(0), 'vanilla');
