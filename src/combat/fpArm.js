@@ -3969,7 +3969,7 @@ export async function buildFpArm({
     if (ownHeads) {
       const sourceSetting = modSetting('morrowind-textures', 'BetterBodiesSource');
       if (sourceSetting !== 2) {
-        console.warn('[Better Bodies] first-person arms are using the standard source because BetterBodiesSource is not set to Better Bodies (2). Select Better Bodies in the Morrowind texture pack settings to match the third-person body.', { sourceSetting });
+        console.warn("[Robert's Bodies + Better Hands] first-person arms are using the standard source because Better Bodies is not selected as the third-person body (BetterBodiesSource != 2).", { sourceSetting });
       }
       console.info("[Robert's Bodies + Better Hands] first-person arm integration", {
         race, female,
