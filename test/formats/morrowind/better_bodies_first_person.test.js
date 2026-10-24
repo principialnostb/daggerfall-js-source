@@ -4,7 +4,16 @@ import { existsSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { applyBetterBodiesUvEdits, betterBodiesFallbackSectionKey, betterBodiesSectionKey } from '../../../src/formats/morrowind/mwFirstPerson.js';
-import { betterBodiesFirstPersonHandAssetPaths } from '../../../src/formats/morrowind/mwBetterBodiesPaths.js';
+import { betterBodiesFirstPersonHandAssetPaths, firstPersonHandsSource } from '../../../src/formats/morrowind/mwBetterBodiesPaths.js';
+
+
+test('first-person hand selector keeps Vanilla, Robert/Better Hands, and Better Bodies independent', () => {
+  assert.equal(firstPersonHandsSource(0), 'vanilla');
+  assert.equal(firstPersonHandsSource(1), 'robert-bodies');
+  assert.equal(firstPersonHandsSource(2), 'better-bodies');
+  assert.equal(firstPersonHandsSource(undefined), 'vanilla');
+  assert.equal(firstPersonHandsSource(99), 'vanilla');
+});
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../../..');
 
