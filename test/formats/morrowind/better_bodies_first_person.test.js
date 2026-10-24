@@ -7,6 +7,7 @@ import { applyBetterBodiesUvEdits, betterBodiesFallbackSectionKey, betterBodiesS
 import { betterBodiesFirstPersonHandAssetPaths, betterBodiesHighResolutionFemaleHandTexturePath, firstPersonHandsSource } from '../../../src/formats/morrowind/mwBetterBodiesPaths.js';
 
 
+const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../../..');
 
 test('first-person runtime dispatch uses the independent hand-source selector', () => {
   const runtime = readFileSync(resolve(repoRoot, 'src/combat/fpArm.js'), 'utf8');
@@ -27,8 +28,6 @@ test('first-person hand selector keeps Vanilla, Robert/Better Hands, and Better 
   assert.equal(firstPersonHandsSource(undefined), 'vanilla');
   assert.equal(firstPersonHandsSource(99), 'vanilla');
 });
-
-const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../../..');
 
 test('first-person Better Bodies fallback maps each arm slot to its side-specific section', () => {
   for (const slot of ['hand', 'wrist', 'forearm', 'upperarm']) {
