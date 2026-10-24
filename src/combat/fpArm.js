@@ -262,13 +262,12 @@ function isRobertIronGauntletFirstPersonAdd(add) {
   const identity = `${add.recordId ?? ''} ${add.model ?? ''} ${add.partName ?? ''} ${add.slot ?? ''}`
     .replaceAll(String.fromCharCode(92), '/')
     .toLowerCase();
-  // Daggerfall's steel-gauntlets record is mapped to the Morrowind iron-gauntlet
-  // replacement in this port, but its generated first-person mesh names contain
-  // "steel_plate", not "iron". Match the actual record id as well as explicit iron
-  // names so the pluginless Morrowind replacer can override this mapped item.
-  const ironGauntlet = identity.includes('iron')
-    || identity.includes('daggerfall_steel_gauntlets');
-  return ironGauntlet && /hand|gauntlet|glove|skinned/.test(identity);
+  // The installed Robert-based pack only supplies an iron-gauntlet mesh. Use it
+  // as the first-person replacement for all Daggerfall gauntlet/glove records;
+  // their original material-specific meshes are not provided by this pack.
+  return /gauntlet|bracer|glove|vambrace/.test(identity)
+    || identity.includes('daggerfall_steel_gauntlets')
+    || identity.includes('iron');
 }
 const firstPersonHandsSettingEnabled = () => {
   const value = modSetting('morrowind-textures', 'FirstPersonHands');
@@ -3968,7 +3967,9 @@ export async function buildFpArm({
           // Validate before replacing the archive mesh; a bad optional asset must not break the arm build.
           parseNif(bytes);
           partBytes.push({
-            slot: add.slot, partName: add.partName, bones: add.bones, bytes,
+            // This NIF contains left and right hand shapes. Bind/filter both sides;
+            // inheriting the current record's "right hand" partName filters out L Hand.
+            slot: add.slot, bones: ['left hand', 'right hand'], bytes,
             modelUrl: robertIronGauntletFirstPersonUrl, source: "Robert's Bodies Based Gauntlets",
           });
           robertIronGauntletAdded = true;
