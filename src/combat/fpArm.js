@@ -253,11 +253,11 @@ async function loadBetterBodiesAssetBytes(url, label) {
   return new Uint8Array(await pending);
 }
 
-// The Robert-based replacement only covers iron gauntlet hand pieces. Require a hand bone
-// as well as an iron/hand-like asset identity so iron cuirasses, sleeves and wrist pieces are untouched.
+// The Robert-based replacement only covers iron gauntlets. Armor records can attach
+// to the hand OR wrist bones, so accept both; the identity check keeps other iron armor out.
 function isRobertIronGauntletFirstPersonAdd(add) {
   const handPiece = (add.bones ?? []).some((bone) =>
-    ['left hand', 'right hand'].includes(String(bone).toLowerCase()));
+    ['left hand', 'right hand', 'left wrist', 'right wrist'].includes(String(bone).toLowerCase()));
   if (!handPiece) return false;
   const identity = `${add.recordId ?? ''} ${add.model ?? ''} ${add.slot ?? ''}`
     .replaceAll(String.fromCharCode(92), '/')
@@ -3926,13 +3926,18 @@ export async function buildFpArm({
     // sleeves, the shield - fpWornAdds' filter - never a helmet in
     // your face.
     missing.push(...worn.notes);
+    let robertIronGauntletAdded = false;
     for (const add of fpAdds) {
       const path = `meshes/${add.model}`;
-      if (
-        modSetting('morrowind-textures', 'FirstPersonHands') === 1
+      const isRobertGauntlet = modSetting('morrowind-textures', 'FirstPersonHands') === 1
         && robertIronGauntletFirstPersonUrl
-        && isRobertIronGauntletFirstPersonAdd(add)
-      ) {
+        && isRobertIronGauntletFirstPersonAdd(add);
+      if (isRobertGauntlet && robertIronGauntletAdded) {
+        // a_iron_hands.1st.nif contains the paired first-person hands; don't append
+        // the same two-hand mesh once for each equipped gauntlet record.
+        continue;
+      }
+      if (isRobertGauntlet) {
         try {
           const bytes = await loadBetterBodiesAssetBytes(
             robertIronGauntletFirstPersonUrl,
@@ -3944,9 +3949,10 @@ export async function buildFpArm({
             slot: add.slot, partName: add.partName, bones: add.bones, bytes,
             modelUrl: robertIronGauntletFirstPersonUrl, source: "Robert's Bodies Based Gauntlets",
           });
+          robertIronGauntletAdded = true;
           console.info("[Robert's Bodies Based Gauntlets] first-person iron gauntlet mesh loaded", {
-            slot: add.slot, recordId: add.recordId, model: robertIronGauntletFirstPersonUrl,
-            bytes: bytes.byteLength,
+            slot: add.slot, recordId: add.recordId, bones: add.bones,
+            model: robertIronGauntletFirstPersonUrl, bytes: bytes.byteLength,
           });
           continue;
         } catch (error) {
