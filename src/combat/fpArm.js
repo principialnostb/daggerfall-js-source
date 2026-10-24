@@ -255,23 +255,6 @@ async function loadBetterBodiesAssetBytes(url, label) {
   return new Uint8Array(await pending);
 }
 
-// Robert's first-person NIF is used as a temporary geometry donor for every gauntlet.
-// Keep the equipped model's external texture path(s), so the mesh shape is shared while
-// material appearance remains item-specific. Armor records can attach to hand OR wrist bones.
-function isRobertGauntletFirstPersonAdd(add) {
-  const handPiece = (add.bones ?? []).some((bone) =>
-    ['left hand', 'right hand', 'left wrist', 'right wrist', 'left forearm', 'right forearm'].includes(String(bone).toLowerCase()));
-  if (!handPiece) return false;
-
-  const piece = add.piece;
-  if (piece && Number.isFinite(piece.templateIndex)) return piece.templateIndex === 103;
-
-  const identity = `${add.recordId ?? ''} ${add.model ?? ''} ${add.partName ?? ''} ${add.slot ?? ''}`
-    .replaceAll(String.fromCharCode(92), '/')
-    .toLowerCase();
-  return /(gauntlet|glove|bracer|vambrace|hand)/.test(identity)
-    && !/(shield|sleeve|forearm armor)/.test(identity);
-}
 const firstPersonHandsSettingEnabled = () => {
   const value = modSetting('morrowind-textures', 'FirstPersonHands');
   return value === true || value === 1 || value === '1';
@@ -4007,59 +3990,15 @@ export async function buildFpArm({
       setting: handsSettingValue,
       settingEnabled: firstPersonHandsSettingEnabled(),
       assetUrlResolved: !!robertIronGauntletFirstPersonUrl,
-      firstPersonAdds: fpAdds.map((add) => ({
-        recordId: add.recordId, model: add.model, partName: add.partName,
-        slot: add.slot, bones: add.bones,
-        candidate: isRobertGauntletFirstPersonAdd(add),
-      })),
     });
-    let robertGauntletAdded = false;
     for (const add of fpAdds) {
       const path = `meshes/${add.model}`;
-      const handsSetting = firstPersonHandsSettingEnabled();
-      // Equipped gauntlets keep their own vanilla NIF and material mapping.
-      // A single Robert iron-gauntlet donor has incompatible UV/material layout
-      // for plate and chainmail, producing leather placeholders or missing mail.
-      // Better Hands remains the bare-hand mesh; it must not rewrite armor meshes.
-      const isRobertGauntlet = false && handsSetting
-        && !!robertIronGauntletFirstPersonUrl
-        && isRobertGauntletFirstPersonAdd(add);
-      if (isRobertGauntlet && robertGauntletAdded) {
-        // The Robert NIF contains both hands; append the paired geometry once.
-        continue;
-      }
       const arc = find(path);
       if (!arc) { missing.push(`${add.slot}: ${path} is not in your archives`); continue; }
-      const originalBytes = nifBytes(arc, path);
-      if (isRobertGauntlet) {
-        try {
-          const bytes = await loadBetterBodiesAssetBytes(
-            robertIronGauntletFirstPersonUrl,
-            "Robert's Bodies Based Gauntlets NIF",
-          );
-          parseNif(bytes);
-          // Keep the equipped glove/gauntlet's texture references, but use Robert's
-          // larger hand/finger geometry. This is intentionally a temporary UV fit:
-          // material textures can look stretched until dedicated per-material meshes exist.
-          const textureFiles = parseNif(originalBytes).records
-            .filter((record) => record.type === 'NiSourceTexture' && record.external && record.fileName)
-            .map((record) => record.fileName);
-          partBytes.push({
-            slot: add.slot, bones: ['left hand', 'right hand'], bytes,
-            textureFiles,
-            modelUrl: robertIronGauntletFirstPersonUrl, source: "Robert's Bodies Based Gauntlets",
-          });
-          robertGauntletAdded = true;
-          console.info("[Robert's Bodies Based Gauntlets] first-person gauntlet geometry loaded", {
-            slot: add.slot, recordId: add.recordId, bones: add.bones,
-            model: robertIronGauntletFirstPersonUrl, textureFiles, bytes: bytes.byteLength,
-          });
-          continue;
-        } catch (error) {
-          missing.push(`${add.slot}: Robert-based gauntlet mesh unavailable; using archive model (${String(error?.message ?? error)})`);
-        }
-      }
-      partBytes.push({ slot: add.slot, partName: add.partName, bones: add.bones, bytes: originalBytes });
+      // Preserve the equipped item's own first-person mesh and material mapping.
+      // Better Hands changes the bare hand mesh, not armor geometry: using one
+      // iron-gauntlet donor for every material breaks plate and chainmail UVs.
+      partBytes.push({ slot: add.slot, partName: add.partName, bones: add.bones, bytes: nifBytes(arc, path) });
     }
     // MW-D9: THE WEAPON - resolveWeaponParts above, the one home MW-D19
     // gave it so a live weapon swap resolves through the very same door
