@@ -177,9 +177,10 @@ export function betterBodiesAssetUrls({ race = 'Nord', female = false, underwear
   // selected female body when that pack is enabled.
   if (female && modSetting('morrowind-textures', 'HighResolutionBetterBodyFemaleTextures') === true) {
     const highResolutionHandPath = betterBodiesHighResolutionFemaleHandTexturePath({ race });
-    const highResolutionHandTexture = highResolutionHandPath
+    const highResolutionHandBasename = highResolutionHandPath?.split('/').pop()?.toLowerCase();
+    const highResolutionHandTexture = highResolutionHandBasename
       ? Object.entries(highResolutionFemaleHandTextureUrls)
-        .find(([path]) => path.toLowerCase().endsWith('/' + highResolutionHandPath.toLowerCase().replace(/^.*\/hands\//, 'hands/').split('/').slice(-3).join('/')))?.[1] ?? null
+        .find(([path]) => path.toLowerCase().endsWith('/' + highResolutionHandBasename))?.[1] ?? null
       : null;
     if (highResolutionHandTexture) {
       handTexture = highResolutionHandTexture;
