@@ -3948,6 +3948,11 @@ export async function buildFpArm({
         console.warn('[Better Bodies] first-person arm/hand assets unavailable; using standard Morrowind arms:', String(error?.message ?? error));
       }
     }
+    // Better Hands owns only the hand/gauntlet region. Do not substitute its
+    // Robert's Bodies arm donor for vanilla wrist, forearm or upper-arm parts:
+    // that donor spans the whole arm and can replace armor-specific vanilla
+    // geometry/material selection above the cuff. Keep the dedicated hand mesh.
+    betterBodiesFpArms = null;
     const partBytes = [];
     const missing = [];
     // The fp skin wears the same shadows: a right gauntlet hides the
@@ -4012,7 +4017,11 @@ export async function buildFpArm({
     for (const add of fpAdds) {
       const path = `meshes/${add.model}`;
       const handsSetting = firstPersonHandsSettingEnabled();
-      const isRobertGauntlet = handsSetting
+      // Equipped gauntlets keep their own vanilla NIF and material mapping.
+      // A single Robert iron-gauntlet donor has incompatible UV/material layout
+      // for plate and chainmail, producing leather placeholders or missing mail.
+      // Better Hands remains the bare-hand mesh; it must not rewrite armor meshes.
+      const isRobertGauntlet = false && handsSetting
         && !!robertIronGauntletFirstPersonUrl
         && isRobertGauntletFirstPersonAdd(add);
       if (isRobertGauntlet && robertGauntletAdded) {
