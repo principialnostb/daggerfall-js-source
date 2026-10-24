@@ -2450,7 +2450,16 @@ export function bindPartsInto(assembly, parts) {
         // reads every frame. Aliasing them is the runaway the viewer
         // documents at mwViewer.js:"Skinned batches are".
         const betterBodiesSection = part.slot === 'betterBodies' ? betterBodiesSectionKey(batch.name) : null;
-        if (betterBodiesSection) betterBodiesSections.add(betterBodiesSection);
+        // A section name alone is not proof that its geometry can replace the
+        // retail arm. Missing skin bones are skipped by the skin blend; if we
+        // mark such a section as supplied, its vanilla fallback is suppressed
+        // and both sources can disappear (or collapse). Only suppress vanilla
+        // for a drawable section whose skin influences all resolve on this rig.
+        const hasDrawableGeometry = (batch.positions?.length ?? 0) >= 9 && (batch.indices?.length ?? 0) >= 3;
+        const hasMissingSkinInfluences = (batch.skin?.bones ?? []).some((skinBone) => skinBone.ref == null);
+        if (betterBodiesSection && hasDrawableGeometry && !hasMissingSkinInfluences) {
+          betterBodiesSections.add(betterBodiesSection);
+        }
         pieces.push({ slot: part.slot, bone, kind: 'skinned', mirrored: false,
           bodySection: betterBodiesSection, batch, source: null, attachRef: null,
           // MW-D11: the UVs and the material ride WITH the piece. They
