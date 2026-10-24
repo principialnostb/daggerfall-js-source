@@ -3887,6 +3887,39 @@ export async function buildFpArm({
       } catch (error) {
         console.warn("[Robert's Bodies + Better Hands] first-person assets unavailable; using standard Morrowind arms:", String(error?.message ?? error));
       }
+    } else if (modSetting('morrowind-textures', 'FirstPersonHands') === 2 && !beast && !werewolf && !vampire) {
+      // Better Bodies is a first-person hand choice in its own right. Load only
+      // its race/sex/underwear-specific hand NIF and matching DDS; leave the
+      // existing Morrowind forearms and the third-person body provider alone.
+      try {
+        const asset = betterBodiesAssetUrls({ race, female });
+        if (!asset?.handModel || !asset?.handTexture) {
+          throw new Error(`Better Bodies first-person hand assets missing for race "${String(race)}" / ${female ? 'female' : 'male'}`);
+        }
+        const [handBytes, handTextureBytes] = await Promise.all([
+          loadBetterBodiesAssetBytes(asset.handModel, 'Better Bodies hand NIF'),
+          loadBetterBodiesAssetBytes(asset.handTexture, 'Better Bodies hand DDS'),
+        ]);
+        registerBetterBodiesRaceTexture(archives, asset.handTexturePath, handTextureBytes);
+        const handTextureBasename = betterBodiesTextureBasename(asset.handTexturePath);
+        for (const cacheKey of TEXTURE_CACHE.keys()) {
+          if (String(cacheKey).toLowerCase().endsWith(handTextureBasename)) TEXTURE_CACHE.delete(cacheKey);
+        }
+        betterBodiesFpHands = {
+          slot: 'betterBodies', partName: 'betterBodiesFirstPersonHands', bones: [],
+          bytes: handBytes, modelUrl: asset.handModel,
+          texturePath: asset.handTexturePath,
+          showSlots: ['hand:left', 'hand:right'],
+          hideSlots: worn.fpShadows ?? worn.shadows,
+        };
+        console.info('[Better Bodies] first-person hand mesh loaded', {
+          raceKey: asset.raceKey, female: !!female, underwear: asset.underwear,
+          model: asset.handModel, texture: asset.handTexture,
+          modelBytes: handBytes.byteLength, textureBytes: handTextureBytes.byteLength,
+        });
+      } catch (error) {
+        console.warn('[Better Bodies] first-person hand assets unavailable; using standard Morrowind hands:', String(error?.message ?? error));
+      }
     }
     const partBytes = [];
     const missing = [];
@@ -3931,7 +3964,7 @@ export async function buildFpArm({
     for (const w of fpRows) {
       const arc = find(w.path);
       if (!arc) { missing.push(`${w.slot}: ${w.path} is not in your archives`); continue; }
-      partBytes.push({ slot: w.slot, bones: w.bones, bytes: nifBytes(arc, w.path), fallbackBetterBodies: !!betterBodiesFpArms && ARM_PARTS.includes(w.slot) });
+      partBytes.push({ slot: w.slot, bones: w.bones, bytes: nifBytes(arc, w.path), fallbackBetterBodies: !!(betterBodiesFpArms || betterBodiesFpHands) && ARM_PARTS.includes(w.slot) });
     }
     // And the fp camera sees what the reference shows it: gauntlets,
     // sleeves, the shield - fpWornAdds' filter - never a helmet in
