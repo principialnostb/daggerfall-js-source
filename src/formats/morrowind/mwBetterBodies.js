@@ -7,6 +7,7 @@
 const IN_BROWSER = typeof window !== 'undefined';
 import { getUnderwearEnabled } from '../../characters/bodyMorphs.js';
 import { modSetting } from '../../systems/modSettings.js';
+import { betterBodiesFirstPersonHandAssetPaths } from './mwBetterBodiesPaths.js';
 
 const nudeBodyModelUrls = IN_BROWSER
   ? import.meta.glob('../../../Mods/Bodies/Better Bodies/Nude/Data Files/Meshes/bb/bb_skin*.nif', {
@@ -128,22 +129,6 @@ export function robertBodiesFirstPersonAssetUrls(options = {}) {
   return Object.freeze({
     ...paths, bodyModel, bodyTexture, handModel, handTexture,
     bodyTexturePath: paths.texturePath,
-  });
-}
-
-/** Pure asset paths for the Better Bodies first-person hands, suitable for every supported race/sex and body variant. */
-export function betterBodiesFirstPersonHandAssetPaths({ race = 'Nord', female = false, underwear = getUnderwearEnabled() } = {}) {
-  const raceName = compactRaceName(race);
-  const raceKey = RACE_CODES[raceName] ?? (Object.values(RACE_CODES).includes(raceName) ? raceName : null);
-  if (!raceKey) return null;
-  const genderKey = female ? 'f' : 'm';
-  const variant = underwear ? 'Underwear' : 'Nude';
-  const stem = `bb_hand${genderKey}_${raceKey}`;
-  return Object.freeze({
-    raceKey, genderKey, underwear: !!underwear, variant,
-    modelPath: `Mods/Bodies/Better Bodies/${variant}/Data Files/Meshes/bb/${stem}.nif`,
-    texturePath: `Mods/Bodies/Better Bodies/${variant}/Data Files/Textures/bb/${stem}.dds`,
-    runtimeTexturePath: `textures/bb/${stem}.dds`,
   });
 }
 
