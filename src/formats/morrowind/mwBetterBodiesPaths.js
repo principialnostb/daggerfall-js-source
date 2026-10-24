@@ -21,3 +21,10 @@ export function betterBodiesFirstPersonHandAssetPaths({ race = 'Nord', female = 
     runtimeTexturePath: `textures/bb/${stem}.dds`,
   });
 }
+
+/** Normalize the existing first-person hand selector without coupling it to the third-person body-pack toggle. */
+export function firstPersonHandsSource(value) {
+  if (Number(value) === 1) return 'robert-bodies';
+  if (Number(value) === 2) return 'better-bodies';
+  return 'vanilla';
+}
