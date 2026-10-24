@@ -3935,7 +3935,9 @@ export async function buildFpArm({
     // Robert's Bodies arm donor for vanilla wrist, forearm or upper-arm parts:
     // that donor spans the whole arm and can replace armor-specific vanilla
     // geometry/material selection above the cuff. Keep the dedicated hand mesh.
-    betterBodiesFpArms = null;
+    if (firstPersonHandsSource(modSetting('morrowind-textures', 'FirstPersonHands')) === 'robert-bodies') {
+      betterBodiesFpArms = null;
+    }
     const partBytes = [];
     const missing = [];
     // The fp skin wears the same shadows: a right gauntlet hides the
