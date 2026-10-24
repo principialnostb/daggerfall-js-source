@@ -3527,7 +3527,14 @@ export function betterBodiesSectionKey(shapeName) {
     side = match?.[2] === 'l' ? 'left' : match?.[2] === 'r' ? 'right' : null;
     regionName = match?.[1] ?? '';
   }
-  const region = regions[regionName];
+  // Better Hands exports may split the palm and individual digits into
+  // separate NIF shapes (for example "Bip01 L Finger0" or "Thumb R").
+  // They are still part of the hand slot: leaving them unclassified makes
+  // the slot filter discard the replacement geometry and leaves vanilla
+  // hands visible underneath.
+  const region = /\\b(?:hand|palm|finger|thumb)\\b/.test(regionName)
+    ? 'hand'
+    : regions[regionName];
   return side && region ? region + ':' + side : null;
 }
 
