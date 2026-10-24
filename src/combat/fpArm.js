@@ -79,6 +79,7 @@ import {
 } from '../formats/morrowind/mwFirstPerson.js';
 import { PART_BONES, dfRaceKeyOf } from '../formats/morrowind/mwNpc.js';
 import { betterBodiesAssetUrls, robertBodiesFirstPersonAssetUrls, loadBetterBodiesFemaleUvEdits } from '../formats/morrowind/mwBetterBodies.js';
+import { firstPersonHandsSource } from '../formats/morrowind/mwBetterBodiesPaths.js';
 import { portraitFeatures, headFeatures, hairFeatures, matchFace, FACE_MATCH_VERSION } from '../formats/morrowind/mwFaceMatch.js';
 import { CifRciFile } from '../formats/cifRciFile.js';
 import { DFPalette } from '../formats/dfPalette.js';
@@ -3841,7 +3842,7 @@ export async function buildFpArm({
     // third-person body provider or its geometry.
     let betterBodiesFpArms = null;
     let betterBodiesFpHands = null;
-    if (modSetting('morrowind-textures', 'FirstPersonHands') === 1 && !beast && !werewolf && !vampire) {
+    if (firstPersonHandsSource(modSetting('morrowind-textures', 'FirstPersonHands')) === 'robert-bodies' && !beast && !werewolf && !vampire) {
       try {
         const asset = robertBodiesFirstPersonAssetUrls({ race, female });
         if (!asset) throw new Error(`Robert's Bodies / Better Hands assets missing for race "${String(race)}" / ${female ? 'female' : 'male'}`);
@@ -3887,7 +3888,7 @@ export async function buildFpArm({
       } catch (error) {
         console.warn("[Robert's Bodies + Better Hands] first-person assets unavailable; using standard Morrowind arms:", String(error?.message ?? error));
       }
-    } else if (modSetting('morrowind-textures', 'FirstPersonHands') === 2 && !beast && !werewolf && !vampire) {
+    } else if (firstPersonHandsSource(modSetting('morrowind-textures', 'FirstPersonHands')) === 'better-bodies' && !beast && !werewolf && !vampire) {
       // Better Bodies is a first-person hand choice in its own right. Load only
       // its race/sex/underwear-specific hand NIF and matching DDS; leave the
       // existing Morrowind forearms and the third-person body provider alone.
