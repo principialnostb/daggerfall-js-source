@@ -2356,7 +2356,7 @@ export function bindPartsInto(assembly, parts) {
       }
       let bound;
       try {
-        bound = mod.bindPart(skeleton, nif, { ...(bone ? { attachBone: bone } : {}), ...(part.retargetSkinToBone ? { retargetSkinToBone: part.retargetSkinToBone } : {}), underNode: part.underNode, excludeNode: part.excludeNode });   // WS1: a subtree of the file
+        bound = mod.bindPart(skeleton, nif, { ...(bone ? { attachBone: bone } : {}), ...(part.retargetSkinToBone ? { retargetSkinToBone: part.retargetSkinToBone } : {}), ...(part.retargetMissingBonesToAnatomy ? { retargetMissingBonesToAnatomy: true } : {}), underNode: part.underNode, excludeNode: part.excludeNode });   // WS1: a subtree of the file
       } catch (err) {
         notes.push(`${part.slot} @ ${bone}: ${err.message}`);
         continue;
@@ -2390,7 +2390,7 @@ export function bindPartsInto(assembly, parts) {
       if (bound.retargetedBones?.length) {
         const say = part.slot + ': custom skin bones '
           + bound.retargetedBones.map((b) => '"' + b + '"').join(', ')
-          + ' retargeted to "' + (bound.retargetTarget ?? 'unknown') + '" for chest-following cloth physics';
+          + ' rebound into "' + (bound.retargetTarget ?? 'unknown') + '" bind space for cross-skeleton compatibility';
         if (!notes.includes(say)) notes.push(say);
       }
       // RULE 40's report: skipped influences draw wrong, not invisibly,
