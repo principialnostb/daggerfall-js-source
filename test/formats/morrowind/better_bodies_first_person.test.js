@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { applyBetterBodiesUvEdits, betterBodiesFallbackSectionKey, betterBodiesSectionKey } from '../../../src/formats/morrowind/mwFirstPerson.js';
-import { betterBodiesFirstPersonHandAssetPaths } from '../../../src/formats/morrowind/mwBetterBodies.js';
+import { betterBodiesFirstPersonHandAssetPaths } from '../../../src/formats/morrowind/mwBetterBodiesPaths.js';
 
 test('first-person Better Bodies fallback maps each arm slot to its side-specific section', () => {
   for (const slot of ['hand', 'wrist', 'forearm', 'upperarm']) {
