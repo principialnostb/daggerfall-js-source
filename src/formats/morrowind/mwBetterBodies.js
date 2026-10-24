@@ -63,6 +63,74 @@ const compactRaceName = (race) => String(
   race && typeof race === 'object' ? (race.name ?? race.race ?? race.id ?? '') : (race ?? ''),
 ).toLowerCase().replace(/[^a-z]/g, '');
 
+const robertBodyModelUrls = IN_BROWSER
+  ? import.meta.glob("../../../Mods/Bodies/Robert's bodies/Data Files/Meshes/bbr/*.1st.nif", {
+      eager: true, query: '?url', import: 'default',
+    })
+  : {};
+const robertBodyTextureUrls = IN_BROWSER
+  ? import.meta.glob("../../../Mods/Bodies/Robert's bodies/Data Files/Textures/bbr/*.dds", {
+      eager: true, query: '?url', import: 'default',
+    })
+  : {};
+const betterHandsModelUrls = IN_BROWSER
+  ? import.meta.glob('../../../Mods/Bodies/Better Hands/Meshes/b/*.1st.nif', {
+      eager: true, query: '?url', import: 'default',
+    })
+  : {};
+const betterHandsTextureUrls = IN_BROWSER
+  ? import.meta.glob('../../../Mods/Bodies/Better Hands/Textures/bbr/*.dds', {
+      eager: true, query: '?url', import: 'default',
+    })
+  : {};
+
+const ROBERT_RACE_NAMES = Object.freeze({
+  breton: 'breton', darkelf: 'dark elf', highelf: 'high elf', imperial: 'Imperial',
+  nord: 'Nord', orc: 'Orc', redguard: 'Redguard', woodelf: 'Wood Elf',
+});
+
+/** Pure source paths for the first-person Robert Bodies + Better Hands pair. */
+export function robertBodiesFirstPersonAssetPaths({ race = 'Nord', female = false } = {}) {
+  const raceName = compactRaceName(race);
+  const raceKey = RACE_CODES[raceName] ?? (Object.values(RACE_CODES).includes(raceName) ? raceName : null);
+  const label = ROBERT_RACE_NAMES[raceName];
+  if (!raceKey || !label) return null;
+  const genderKey = female ? 'f' : 'm';
+  const handName = raceName === 'breton' && !female
+    ? 'b_n_breton_m_hand.1st.nif'
+    : `b_n_${label}_${genderKey}_hands.1st.nif`;
+  return Object.freeze({
+    raceKey,
+    genderKey,
+    bodyModelPath: `Robert's bodies/Data Files/Meshes/bbr/${raceKey}_${genderKey}.1st.nif`,
+    bodyTexturePath: `Robert's bodies/Data Files/Textures/bbr/${raceKey}_${genderKey}.dds`,
+    handModelPath: `Better Hands/Meshes/b/${handName}`,
+    handTexturePath: `Better Hands/Textures/bbr/${raceKey}_${genderKey}.dds`,
+    texturePath: `textures/bbr/${raceKey}_${genderKey}.dds`,
+  });
+}
+
+/**
+ * Resolve bundled first-person arm/hand assets without changing the active
+ * third-person body provider. The hand texture gets a private path at runtime
+ * because Better Hands and Robert's Bodies ship the same texture basename.
+ */
+export function robertBodiesFirstPersonAssetUrls(options = {}) {
+  const paths = robertBodiesFirstPersonAssetPaths(options);
+  if (!paths) return null;
+  const findUrl = (table, suffix) => Object.entries(table)
+    .find(([path]) => path.toLowerCase().endsWith('/' + suffix.toLowerCase()))?.[1] ?? null;
+  const bodyModel = findUrl(robertBodyModelUrls, paths.bodyModelPath);
+  const bodyTexture = findUrl(robertBodyTextureUrls, paths.bodyTexturePath);
+  const handModel = findUrl(betterHandsModelUrls, paths.handModelPath);
+  const handTexture = findUrl(betterHandsTextureUrls, paths.handTexturePath);
+  if (!bodyModel || !bodyTexture || !handModel || !handTexture) return null;
+  return Object.freeze({
+    ...paths, bodyModel, bodyTexture, handModel, handTexture,
+    bodyTexturePath: paths.texturePath,
+  });
+}
+
 /** Resolve a Better Bodies mesh and matching skin for the actor's race and sex.
  * Both female and male actors use their race-specific mesh and texture when the
  * corresponding Better Bodies asset exists. Underwear and nude variants use the

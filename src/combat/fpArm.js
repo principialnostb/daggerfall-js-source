@@ -78,7 +78,7 @@ import {
   placeAtBone,   // TWO-HANDS AUDIT 2: a blade placed at rest, for the pair's guard (bladePictureHeight)
 } from '../formats/morrowind/mwFirstPerson.js';
 import { PART_BONES, dfRaceKeyOf } from '../formats/morrowind/mwNpc.js';
-import { betterBodiesAssetUrls, loadBetterBodiesFemaleUvEdits } from '../formats/morrowind/mwBetterBodies.js';
+import { betterBodiesAssetUrls, robertBodiesFirstPersonAssetUrls, loadBetterBodiesFemaleUvEdits } from '../formats/morrowind/mwBetterBodies.js';
 import { portraitFeatures, headFeatures, hairFeatures, matchFace, FACE_MATCH_VERSION } from '../formats/morrowind/mwFaceMatch.js';
 import { CifRciFile } from '../formats/cifRciFile.js';
 import { DFPalette } from '../formats/dfPalette.js';
@@ -3803,78 +3803,57 @@ export async function buildFpArm({
       if (ARM_PARTS.includes(slot)) continue;
       if (rec && rec.model) wanted.push({ slot, record: rec.id, firstPerson: true, path: `meshes/${rec.model}` });
     }
-    // Use the same race/sex-matched body asset for first-person hands; only
-    // its arm/hand slots are drawn here. Vanilla part meshes remain the fallback.
+    // Keep the visible third-person body on Better Bodies, but use Robert's
+    // first-person arm skin plus the Better Hands mesh for the first-person
+    // hand slots. These assets are loaded directly and never replace the
+    // third-person body provider or its geometry.
     let betterBodiesFpArms = null;
     let betterBodiesFpHands = null;
-    // Match the third-person body source exactly. The separate BetterBodies boolean can be enabled
-    // while the actor is explicitly using the Original body source; using it here alone made first-person
-    // hands come from Better Bodies even when the visible character body did not.
     if (modSetting('morrowind-textures', 'BetterBodiesSource') === 2 && !beast && !werewolf && !vampire) {
       try {
-        const asset = betterBodiesAssetUrls({ race, female });
-        if (!asset) throw new Error(`no Better Bodies asset for race "${String(race)}" / ${female ? 'female' : 'male'}`);
-        const [rawBytes, textureBytes, uvEdits] = await Promise.all([
-          loadBetterBodiesAssetBytes(asset.model, 'NIF'),
-          loadBetterBodiesAssetBytes(asset.texture, 'DDS'),
-          (female && asset.bodyVariant === 'Better Bodies' ? loadBetterBodiesFemaleUvEdits() : Promise.resolve([])),
+        const asset = robertBodiesFirstPersonAssetUrls({ race, female });
+        if (!asset) throw new Error(`Robert's Bodies / Better Hands assets missing for race "${String(race)}" / ${female ? 'female' : 'male'}`);
+        const [rawBodyBytes, bodyTextureBytes, rawHandBytes, handTextureBytes] = await Promise.all([
+          loadBetterBodiesAssetBytes(asset.bodyModel, 'Robert Bodies NIF'),
+          loadBetterBodiesAssetBytes(asset.bodyTexture, 'Robert Bodies DDS'),
+          loadBetterBodiesAssetBytes(asset.handModel, 'Better Hands NIF'),
+          loadBetterBodiesAssetBytes(asset.handTexture, 'Better Hands DDS'),
         ]);
-        const genderKey = female ? 'f' : 'm';
-        const bytes = rewriteBetterBodiesTextureStem(
-          rawBytes,
-          `bb_skin${genderKey}_${asset.geometryRaceKey}`,
-          `bb_skin${genderKey}_${asset.textureRaceKey}`,
-        );
-        registerBetterBodiesRaceTexture(archives, asset.texturePath, textureBytes);
-        const basename = betterBodiesTextureBasename(asset.texturePath);
+        registerBetterBodiesRaceTexture(archives, asset.bodyTexturePath, bodyTextureBytes);
+        const bodyBasename = betterBodiesTextureBasename(asset.bodyTexturePath);
         for (const cacheKey of TEXTURE_CACHE.keys()) {
-          if (String(cacheKey).toLowerCase().endsWith(basename)) TEXTURE_CACHE.delete(cacheKey);
+          if (String(cacheKey).toLowerCase().endsWith(bodyBasename)) TEXTURE_CACHE.delete(cacheKey);
         }
         betterBodiesFpArms = {
-          slot: 'betterBodies', bones: [], bytes, uvEdits, modelUrl: asset.model,
-          texturePath: asset.texturePath,
+          slot: 'betterBodies', partName: 'robertBodiesFirstPersonArms', bones: [],
+          bytes: rawBodyBytes, modelUrl: asset.bodyModel,
+          texturePath: asset.bodyTexturePath,
           showSlots: ['wrist:left', 'wrist:right', 'forearm:left', 'forearm:right', 'upperarm:left', 'upperarm:right'],
           hideSlots: worn.fpShadows ?? worn.shadows,
         };
 
-        // Better Bodies ships dedicated, race/sex-specific hand meshes. The
-        // full-body skin NIF is not a reliable source for the first-person
-        // hands (some variants omit them or name them in a way the arm-slot
-        // filter cannot recognize), so use bb_hand*.nif for hands and keep
-        // the skin NIF for wrists/forearms/upper arms.
-        if (asset.handModel && asset.handTexture) {
-          try {
-            const [rawHandBytes, handTextureBytes] = await Promise.all([
-              loadBetterBodiesAssetBytes(asset.handModel, 'NIF'),
-              loadBetterBodiesAssetBytes(asset.handTexture, 'DDS'),
-            ]);
-            const handBytes = rewriteBetterBodiesTextureStem(
-              rawHandBytes,
-              `bb_hand${genderKey}_${asset.geometryRaceKey}`,
-              `bb_hand${genderKey}_${asset.textureRaceKey}`,
-            );
-            registerBetterBodiesRaceTexture(archives, asset.handTexturePath, handTextureBytes);
-            const handBasename = betterBodiesTextureBasename(asset.handTexturePath);
-            for (const cacheKey of TEXTURE_CACHE.keys()) {
-              if (String(cacheKey).toLowerCase().endsWith(handBasename)) TEXTURE_CACHE.delete(cacheKey);
-            }
-            betterBodiesFpHands = {
-              slot: 'betterBodies', partName: 'betterBodiesHands', bones: [],
-              bytes: handBytes, modelUrl: asset.handModel,
-              texturePath: asset.handTexturePath,
-              showSlots: ['hand:left', 'hand:right'],
-              hideSlots: worn.fpShadows ?? worn.shadows,
-            };
-          } catch (error) {
-            console.warn('[Better Bodies] dedicated first-person hand mesh unavailable; body skin sections will be used where possible:', String(error?.message ?? error));
-          }
-        } else {
-          console.warn('[Better Bodies] dedicated first-person hand mesh or texture was not found for this race/sex; using recognized body-skin hand sections where available.', {
-            race, female, handModel: asset.handModel ?? null, handTexture: asset.handTexture ?? null,
-          });
+        // Both packs name their DDS textures <race>_<sex>. Give Better Hands
+        // a same-length, race-specific path so the two texture sets coexist.
+        const handTextureStem = `x${asset.raceKey[0]}_${asset.genderKey}`;
+        const handTexturePath = `textures/bbr/${handTextureStem}.dds`;
+        const handBytes = rewriteBetterBodiesTextureStem(
+          rawHandBytes,
+          `${asset.raceKey}_${asset.genderKey}`,
+          handTextureStem,
+        );
+        registerBetterBodiesRaceTexture(archives, handTexturePath, handTextureBytes);
+        for (const cacheKey of TEXTURE_CACHE.keys()) {
+          if (String(cacheKey).toLowerCase().endsWith(handTextureStem + '.dds')) TEXTURE_CACHE.delete(cacheKey);
         }
+        betterBodiesFpHands = {
+          slot: 'betterBodies', partName: 'robertBodiesBetterHands', bones: [],
+          bytes: handBytes, modelUrl: asset.handModel,
+          texturePath: handTexturePath,
+          showSlots: ['hand:left', 'hand:right'],
+          hideSlots: worn.fpShadows ?? worn.shadows,
+        };
       } catch (error) {
-        console.warn('[Better Bodies] first-person race/sex arms unavailable; using standard Morrowind arms:', String(error?.message ?? error));
+        console.warn("[Robert's Bodies + Better Hands] first-person assets unavailable; using standard Morrowind arms:", String(error?.message ?? error));
       }
     }
     const partBytes = [];
@@ -3980,9 +3959,9 @@ export async function buildFpArm({
       const fallbackSections = expectedSections.filter((section) =>
         !renderedSections.has(section) && !hiddenSections.has(section));
       if (fallbackSections.length) {
-        const note = `Better Bodies first-person mesh did not provide recognized sections for ${fallbackSections.join(', ')}; standard arm meshes remain as fallback for those sections.`;
+        const note = `Robert's Bodies first-person mesh did not provide recognized sections for ${fallbackSections.join(', ')}; standard arm meshes remain as fallback for those sections.`;
         missing.push(note);
-        console.warn('[Better Bodies] first-person arm section fallback:', fallbackSections);
+        console.warn("[Robert's Bodies + Better Hands] first-person arm section fallback:", fallbackSections);
       }
     }
     // Local-player diagnostic: distinguish a source-selection issue from a NIF section/binding issue.
@@ -3992,7 +3971,7 @@ export async function buildFpArm({
       if (sourceSetting !== 2) {
         console.warn('[Better Bodies] first-person arms are using the standard source because BetterBodiesSource is not set to Better Bodies (2). Select Better Bodies in the Morrowind texture pack settings to match the third-person body.', { sourceSetting });
       }
-      console.info('[Better Bodies] first-person arm integration', {
+      console.info("[Robert's Bodies + Better Hands] first-person arm integration", {
         race, female,
         sourceSetting,
         requested: sourceSetting === 2,
