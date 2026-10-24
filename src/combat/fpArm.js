@@ -267,7 +267,7 @@ function isRobertIronGauntletFirstPersonAdd(add) {
   // their original material-specific meshes are not provided by this pack.
   return /gauntlet|bracer|glove|vambrace/.test(identity)
     || identity.includes('daggerfall_steel_gauntlets')
-    || identity.includes('iron');
+    || (identity.includes('iron') && /hand|gauntlet|glove|skinned/.test(identity));
 }
 const firstPersonHandsSettingEnabled = () => {
   const value = modSetting('morrowind-textures', 'FirstPersonHands');
