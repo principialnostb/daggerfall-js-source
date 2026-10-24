@@ -28,3 +28,11 @@ export function firstPersonHandsSource(value) {
   if (Number(value) === 2) return 'better-bodies';
   return 'vanilla';
 }
+
+/** Optional high-resolution female hand texture paired with the selected Better Bodies skin. */
+export function betterBodiesHighResolutionFemaleHandTexturePath({ race = 'Nord' } = {}) {
+  const raceName = compactRaceName(race);
+  const raceKey = RACE_CODES[raceName] ?? (Object.values(RACE_CODES).includes(raceName) ? raceName : null);
+  if (!raceKey) return null;
+  return `Mods/Bodies/High Resolution Better Body Female Textures/Hands/Textures/bb/bb_handf_${raceKey}.dds`;
+}
