@@ -2327,6 +2327,14 @@ export function bindPartsInto(assembly, parts) {
     let nif;
     try {
       nif = mod.parseNif(part.bytes);
+      // Optional per-part texture transplant: preserve the original equipped model's
+      // external texture paths while drawing a replacement geometry donor.
+      if (Array.isArray(part.textureFiles) && part.textureFiles.length) {
+        const sources = nif.records.filter((record) => record.type === 'NiSourceTexture' && record.external);
+        for (let i = 0; i < sources.length; i++) {
+          sources[i].fileName = part.textureFiles[Math.min(i, part.textureFiles.length - 1)];
+        }
+      }
     } catch (err) {
       notes.push(`${part.slot}: ${err.message}`);
       continue;
