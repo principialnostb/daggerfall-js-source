@@ -262,9 +262,13 @@ function isRobertIronGauntletFirstPersonAdd(add) {
   const identity = `${add.recordId ?? ''} ${add.model ?? ''} ${add.partName ?? ''} ${add.slot ?? ''}`
     .replaceAll(String.fromCharCode(92), '/')
     .toLowerCase();
-  // The actual archive model may be named by its mesh path, while the item record
-  // identifies the material as iron and the wearable as a hand/gauntlet.
-  return identity.includes('iron') && /hand|gauntlet|glove|skinned/.test(identity);
+  // Daggerfall's steel-gauntlets record is mapped to the Morrowind iron-gauntlet
+  // replacement in this port, but its generated first-person mesh names contain
+  // "steel_plate", not "iron". Match the actual record id as well as explicit iron
+  // names so the pluginless Morrowind replacer can override this mapped item.
+  const ironGauntlet = identity.includes('iron')
+    || identity.includes('daggerfall_steel_gauntlets');
+  return ironGauntlet && /hand|gauntlet|glove|skinned/.test(identity);
 }
 const firstPersonHandsSettingEnabled = () => {
   const value = modSetting('morrowind-textures', 'FirstPersonHands');
