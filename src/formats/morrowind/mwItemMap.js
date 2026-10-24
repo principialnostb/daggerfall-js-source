@@ -638,6 +638,10 @@ export function composeWornArmor({ pieces, armors, clothes, bodyPool, female = f
   let cloakAdd = null; let cloakName = null;   // MW-CLOAK1: the cloak, which no slot holds
   let outfitAdd = null;   // MW-FOLK1: a townsperson's whole outfit, which no slot holds either
   const covers = new Set();
+  // MW-FP-SEAM: a part's `hides` is a skin fallback, not permission to
+  // evict another armour mesh that fills that slot. Resolve these claims
+  // after all worn pieces have had a chance to provide their own geometry.
+  const deferredHides = [];
   for (const piece of ordered) {
     // MW-FOLK1: A TOWNSPERSON'S OUTFIT IS THE PORT'S OWN (characters/ownModels/ownClothingModels.js TOWNSFOLK_OUTFITS) - one
     // skinned mesh of every garment their picture wears, claiming no slot (the cloak's door): the skin it covers all
@@ -651,7 +655,7 @@ export function composeWornArmor({ pieces, armors, clothes, bodyPool, female = f
       if (outfitAdd) { notes.push(`outfit ${o.id}: ${t('body.outfit.second', 'a second outfit - the first ({first}) is the one drawn', { first: outfitAdd.recordId })}`); continue; }
       const prio = ((0 + 1) << 1) + 0;
       outfitAdd = { slot: `outfit (${o.id})`, partName: 'outfit', bones: [], model: o.model, recordId: o.id, piece, hides: o.hides };
-      for (const h of o.hides) claim(ARMO_PART.findIndex((r) => r.name === h), prio, null, outfitAdd);
+      for (const h of o.hides) deferredHides.push({ part: ARMO_PART.findIndex((r) => r.name === h), prio, under: outfitAdd });
       for (const c of o.covers) covers.add(c);
       continue;
     }
@@ -710,7 +714,7 @@ export function composeWornArmor({ pieces, armors, clothes, bodyPool, female = f
         claim(at, prio, add);
         // MW-STEEL1: what the part covers beyond its own slot is OCCUPIED with no mesh (reserveIndividualPart), so its
         // skin is not drawn under the plate - at the armour's priority, the law's own gate. MW-FIT1: under that part
-        for (const h of p.hides ?? []) claim(ARMO_PART.findIndex((r) => r.name === h), prio, null, add);
+        for (const h of p.hides ?? []) deferredHides.push({ part: ARMO_PART.findIndex((r) => r.name === h), prio, under: add });
       }
       continue;
     }
@@ -744,6 +748,14 @@ export function composeWornArmor({ pieces, armors, clothes, bodyPool, female = f
       if (!armo.parts?.length) { notes.push(`${armo.id}: no worn part references - the ground mesh is not a body`); continue; }
       composeRefs(armo, prio, female, bodyById, claim, notes, piece);
     }
+  }
+  // A gauntlet must hide bare skin under its cuff, but must not reserve
+  // away a forearm plate (or another valid part mesh) merely because that
+  // mesh is declared later in equipment order. Existing mesh ownership wins;
+  // the mesh's own claim already shadows the skin in that slot.
+  for (const h of deferredHides) {
+    const slot = slots[h.part];
+    if (slot && !slot.add) claim(h.part, h.prio, null, h.under);
   }
   if (hairHidden) claim(1, hairHidden, null);
   const adds = [];
