@@ -95,6 +95,15 @@ import { getPref } from '../systems/uiPrefs.js';   // MW-STEEL1: the Steel Helm 
 import { skinMips, skinUseOf, skinUseKey } from '../characters/werewolfSkin.js';   // SHADOW-FANG: the werewolf's skin, a law over its own textures
 import { correctTexturePath, correctActorModelPath, wrapModes, warningImage, decodeTextureImage } from '../formats/morrowind/mwTexture.js';
 
+// Robert's Bodies Based Gauntlets (Pherim): first-person iron-gauntlet mesh.
+// Keep this as an opt-in replacement; other armor materials continue using the archive models.
+const robertIronGauntletFirstPersonUrls = typeof window !== 'undefined'
+  ? import.meta.glob("../../Mods/Textures/Robert's Bodies Based Gauntlets/meshes/a/a_iron_hands.1st.nif", {
+      eager: true, query: '?url', import: 'default',
+    })
+  : {};
+const robertIronGauntletFirstPersonUrl = Object.values(robertIronGauntletFirstPersonUrls)[0] ?? null;
+
 const animationDiagnosticStorageKey = 'morrowind-animation-diagnostics-v1';
 const MAX_MEMORY_ANIMATION_DIAGNOSTICS = 1000;
 const MAX_PERSISTED_ANIMATION_DIAGNOSTICS = 200;
@@ -242,6 +251,18 @@ async function loadBetterBodiesAssetBytes(url, label) {
     betterBodiesAssetByteCache.set(url, pending);
   }
   return new Uint8Array(await pending);
+}
+
+// The Robert-based replacement only covers iron gauntlet hand pieces. Require a hand bone
+// as well as an iron/hand-like asset identity so iron cuirasses, sleeves and wrist pieces are untouched.
+function isRobertIronGauntletFirstPersonAdd(add) {
+  const handPiece = (add.bones ?? []).some((bone) =>
+    ['left hand', 'right hand'].includes(String(bone).toLowerCase()));
+  if (!handPiece) return false;
+  const identity = `${add.recordId ?? ''} ${add.model ?? ''} ${add.slot ?? ''}`
+    .replaceAll(String.fromCharCode(92), '/')
+    .toLowerCase();
+  return identity.includes('iron') && /hand|gauntlet|glove|skinned/.test(identity);
 }
 
 // Female actors share the Nord-female body geometry, but still need the DDS
@@ -3907,6 +3928,31 @@ export async function buildFpArm({
     missing.push(...worn.notes);
     for (const add of fpAdds) {
       const path = `meshes/${add.model}`;
+      if (
+        modSetting('morrowind-textures', 'FirstPersonHands') === 1
+        && robertIronGauntletFirstPersonUrl
+        && isRobertIronGauntletFirstPersonAdd(add)
+      ) {
+        try {
+          const bytes = await loadBetterBodiesAssetBytes(
+            robertIronGauntletFirstPersonUrl,
+            "Robert's Bodies Based Gauntlets NIF",
+          );
+          // Validate before replacing the archive mesh; a bad optional asset must not break the arm build.
+          parseNif(bytes);
+          partBytes.push({
+            slot: add.slot, partName: add.partName, bones: add.bones, bytes,
+            modelUrl: robertIronGauntletFirstPersonUrl, source: "Robert's Bodies Based Gauntlets",
+          });
+          console.info("[Robert's Bodies Based Gauntlets] first-person iron gauntlet mesh loaded", {
+            slot: add.slot, recordId: add.recordId, model: robertIronGauntletFirstPersonUrl,
+            bytes: bytes.byteLength,
+          });
+          continue;
+        } catch (error) {
+          missing.push(`${add.slot}: Robert-based iron gauntlet mesh unavailable; using archive model (${String(error?.message ?? error)})`);
+        }
+      }
       const arc = find(path);
       if (!arc) { missing.push(`${add.slot}: ${path} is not in your archives`); continue; }
       partBytes.push({ slot: add.slot, partName: add.partName, bones: add.bones, bytes: nifBytes(arc, path) });
