@@ -956,11 +956,14 @@ export function firstPersonPartGroup(rec, bodyPool, female = false) {
  *  itself it hides with the neck-scale trick, so a helmet or a
  *  cuirass never floats in your face. The port has no body in fp at
  *  all, so the same picture falls out of a FILTER: worn adds pass
- *  into the fp build only on the arm-family bones and the shield
- *  bone. Everything else is the third person's business. */
+ *  into the fp build on arm-family bones, clavicles (pauldrons), and the
+ *  shield bone. A pauldron is attached to the clavicle, but its sleeve
+ *  covers the upper arm; omitting it leaves exposed skin where worn shoulder
+ *  armour should appear. Head, torso, and legs remain third-person only. */
 const FP_WORN_BONES = new Set([
   'left hand', 'right hand', 'left wrist', 'right wrist',
   'left forearm', 'right forearm', 'left upper arm', 'right upper arm',
+  'left clavicle', 'right clavicle', // worn pauldrons sleeve the upper arm
   'shield bone',
 ]);
 export function fpWornAdds(adds) {
