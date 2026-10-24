@@ -131,6 +131,22 @@ export function robertBodiesFirstPersonAssetUrls(options = {}) {
   });
 }
 
+/** Pure asset paths for the Better Bodies first-person hands, suitable for every supported race/sex and body variant. */
+export function betterBodiesFirstPersonHandAssetPaths({ race = 'Nord', female = false, underwear = getUnderwearEnabled() } = {}) {
+  const raceName = compactRaceName(race);
+  const raceKey = RACE_CODES[raceName] ?? (Object.values(RACE_CODES).includes(raceName) ? raceName : null);
+  if (!raceKey) return null;
+  const genderKey = female ? 'f' : 'm';
+  const variant = underwear ? 'Underwear' : 'Nude';
+  const stem = `bb_hand${genderKey}_${raceKey}`;
+  return Object.freeze({
+    raceKey, genderKey, underwear: !!underwear, variant,
+    modelPath: `Mods/Bodies/Better Bodies/${variant}/Data Files/Meshes/bb/${stem}.nif`,
+    texturePath: `Mods/Bodies/Better Bodies/${variant}/Data Files/Textures/bb/${stem}.dds`,
+    runtimeTexturePath: `textures/bb/${stem}.dds`,
+  });
+}
+
 /** Resolve a Better Bodies mesh and matching skin for the actor's race and sex.
  * Both female and male actors use their race-specific mesh and texture when the
  * corresponding Better Bodies asset exists. Underwear and nude variants use the
@@ -145,6 +161,7 @@ export function betterBodiesAssetUrls({ race = 'Nord', female = false, underwear
   const sourceTextureStem = `bb_skin${genderKey}_${raceKey}`;
   const textureRaceKey = raceKey;
   const textureStem = `bb_skin${genderKey}_${textureRaceKey}`;
+  const handPaths = betterBodiesFirstPersonHandAssetPaths({ race, female, underwear });
   const handModelStem = `bb_hand${genderKey}_${geometryRaceKey}`;
   const handTextureStem = `bb_hand${genderKey}_${textureRaceKey}`;
   const modelTable = underwear ? underwearBodyModelUrls : nudeBodyModelUrls;
@@ -166,7 +183,8 @@ export function betterBodiesAssetUrls({ race = 'Nord', female = false, underwear
   if (!model || !texture) return null;
   return Object.freeze({
     model, texture, texturePath: `textures/bb/${textureStem}.dds`,
-    handModel, handTexture, handTexturePath: `textures/bb/${handTextureStem}.dds`,
+    handModel, handTexture, handTexturePath: handPaths.runtimeTexturePath,
+    handModelPath: handPaths.modelPath, handTextureSourcePath: handPaths.texturePath,
     raceKey, textureRaceKey, geometryRaceKey, female: !!female, underwear: !!underwear, bodyVariant: dmraModel ? 'Seamless DMRA' : 'Better Bodies',
   });
 }
