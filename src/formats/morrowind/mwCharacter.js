@@ -223,33 +223,6 @@ const mulAffine = (p, l) => {
   };
 };
 
-/**
- * Resolve the anatomical aliases used by foreign first-person arm skins.
- * Robert Bodies / Better Hands use Bip01 L/R Hand/Finger/Wrist/Forearm names,
- * while the retail first-person rig uses Left/Right Hand, etc. Exact-name
- * rebinding alone leaves those influences unresolved and finger vertices
- * collapse when the skin blend skips every missing influence.
- */
-function anatomicalSkinFallbackRef(skeleton, boneName) {
-  const name = String(boneName || '').toLowerCase()
-    .replace(/^tri\s+/, '')
-    .replace(/[_-]+/g, ' ')
-    .replace(/\s+/g, ' ')
-    .replace(/^(?:(?:bip(?:ed)?\s*0?1|skeleton|scene root|root)\s+)+/, '')
-    .trim();
-  const side = /\b(?:left|l)\b/.test(name) ? 'left'
-    : /\b(?:right|r)\b/.test(name) ? 'right' : null;
-  if (!side) return undefined;
-  let region = null;
-  if (/\b(?:hand|palm|finger\s*\d*|thumb)\b/.test(name)) region = 'hand';
-  else if (/\bwrist\b/.test(name)) region = 'wrist';
-  else if (/\b(?:forearm|lower arm)\b/.test(name)) region = 'forearm';
-  else if (/\b(?:upper ?arm)\b/.test(name)) region = 'upper arm';
-  else if (/\bclavicle\b/.test(name)) region = 'clavicle';
-  if (!region) return undefined;
-  return skeleton.byName.get(side + ' ' + region);
-}
-
 export function bindPart(skeleton, partNif, opts = {}) {
   // MAC-Q: the file's PARTICLE SYSTEMS come out of the same walk, into
   // their own list - a flame is not a batch and a batch is not a flame.
@@ -299,10 +272,7 @@ export function bindPart(skeleton, partNif, opts = {}) {
       if (retargetRef !== undefined) {
         const sourceRef = sourceSkeleton.byName.get(name);
         const sourceRest = sourceRef === undefined ? null : sourceRestMats.get(sourceRef);
-        const anatomicalRef = actorRef === undefined && opts.retargetMissingBonesToAnatomy
-          ? anatomicalSkinFallbackRef(skeleton, bone.name)
-          : undefined;
-        const targetRef = actorRef === undefined ? (anatomicalRef ?? retargetRef) : actorRef;
+        const targetRef = actorRef === undefined ? retargetRef : actorRef;
         const targetRest = actorRestMats.get(targetRef);
         const chestRest = actorRestMats.get(retargetRef);
         const sourceBind = sourceRest
