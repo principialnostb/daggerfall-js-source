@@ -241,7 +241,7 @@ export const CATEGORIES = Object.freeze([
   ]),
   tab("bodies", "Тела", [
     sec("morrowind-bodies", "Модели тел и экипировка", [
-      "feat:mw-better-bodies", "feat:mw-seamless-dmra", "feat:mw-npc-bodies", "feat:mw-billboard-look",
+      "feat:mw-better-bodies", "feat:mw-first-person-hands", "feat:mw-seamless-dmra", "feat:mw-npc-bodies", "feat:mw-billboard-look",
       "feat:simply-animated-cloaks",
     ]),
   ]),
