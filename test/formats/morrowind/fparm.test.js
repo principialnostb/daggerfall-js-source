@@ -3433,3 +3433,26 @@ test('MW-FP-UNEQUIP: text markers without moving transforms use a real fallback'
   const nonArmSkeleton = { nodes: new Map([[1, { name: 'Bip01 Weapon' }]]) };
   assert.equal(animationWindowHasMotion(unrelatedMotion, state, nonArmSkeleton), false);
 });
+
+
+// Better Hands is limited to the hand mesh. Vanilla owns the rest of the arm
+// and every equipped gauntlet mesh/material, so one iron donor cannot corrupt
+// plate or chainmail texture mapping.
+test('Better Hands preserves vanilla arm sections and equipped gauntlet meshes', () => {
+  const src = readFileSync('src/combat/fpArm.js', 'utf8');
+  const handSetup = src.indexOf('    // Better Hands owns only the hand/gauntlet region.');
+  const partBytes = src.indexOf('    const partBytes = [];', handSetup);
+  assert.ok(handSetup >= 0 && partBytes > handSetup,
+    'the arm donor is disabled before first-person body assembly');
+  assert.match(src.slice(handSetup, partBytes), /betterBodiesFpArms = null;/,
+    'vanilla wrist, forearm and upper-arm BODY parts remain eligible');
+  assert.doesNotMatch(src, /isRobertGauntletFirstPersonAdd|robertGauntletAdded/,
+    'the single iron-gauntlet donor must not replace material-specific armor meshes');
+  const loopStart = src.indexOf('    for (const add of fpAdds) {', partBytes);
+  const loopEnd = src.indexOf('    // MW-D9: THE WEAPON', loopStart);
+  const loop = src.slice(loopStart, loopEnd);
+  assert.match(loop, /partBytes\.push\(\{ slot: add\.slot, partName: add\.partName, bones: add\.bones, bytes: nifBytes\(arc, path\) \}\)/,
+    'the equipped gauntlet NIF is loaded unchanged');
+  assert.match(src, /betterBodiesFpHands = \{/,
+    'the dedicated Better Hands hand mesh remains available');
+});
