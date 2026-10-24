@@ -4,7 +4,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { applyBetterBodiesUvEdits, betterBodiesFallbackSectionKey, betterBodiesSectionKey } from '../../../src/formats/morrowind/mwFirstPerson.js';
-import { betterBodiesFirstPersonHandAssetPaths, firstPersonHandsSource } from '../../../src/formats/morrowind/mwBetterBodiesPaths.js';
+import { betterBodiesFirstPersonHandAssetPaths, betterBodiesHighResolutionFemaleHandTexturePath, firstPersonHandsSource } from '../../../src/formats/morrowind/mwBetterBodiesPaths.js';
 
 
 
@@ -96,6 +96,18 @@ test('Better Bodies first-person hand paths cover all eight races, both sexes, a
       }
     }
   }
+});
+
+
+test('high-resolution female hand textures exist for every supported Better Bodies race', () => {
+  const races = ['Breton', 'Dark Elf', 'High Elf', 'Imperial', 'Nord', 'Orc', 'Redguard', 'Wood Elf'];
+  for (const race of races) {
+    const path = betterBodiesHighResolutionFemaleHandTexturePath({ race });
+    assert.ok(path, `missing high-resolution hand path for ${race}`);
+    assert.ok(path.endsWith(`/bb_handf_${({ Breton: 'br', 'Dark Elf': 'de', 'High Elf': 'he', Imperial: 'im', Nord: 'no', Orc: 'or', Redguard: 'rg', 'Wood Elf': 'we' })[race]}.dds`));
+    assert.ok(existsSync(resolve(repoRoot, path)), `missing high-resolution hand texture: ${path}`);
+  }
+  assert.equal(betterBodiesHighResolutionFemaleHandTexturePath({ race: 'Khajiit' }), null);
 });
 
 test('Better Bodies first-person hand path resolver rejects unsupported races', () => {
