@@ -1249,6 +1249,16 @@ export const FEATURES = Object.freeze([
     get note() { return MOD_SETTINGS['morrowind-textures'].keys.BetterBodiesSource.description; },
     control: Object.freeze({ store: 'mods', vendor: 'morrowind-textures', key: 'BetterBodiesSource' }),
   }),
+  // First-person arm geometry is independent of the third-person body source.
+  Object.freeze({
+    id: 'mw-first-person-hands',
+    group: 'character',
+    title: 'Руки от первого лица',
+    get note() { return MOD_SETTINGS['morrowind-textures'].keys.FirstPersonHands.description; },
+    effect: 'После перестройки модели рук.',
+    kinds: Object.freeze(['mod']),
+    control: Object.freeze({ store: 'mods', vendor: 'morrowind-textures', key: 'FirstPersonHands' }),
+  }),
   // DMRA is a female-only geometry variant of the Better Bodies base.
   Object.freeze({
     id: 'mw-seamless-dmra',
