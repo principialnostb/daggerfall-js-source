@@ -97,15 +97,6 @@ import { getPref } from '../systems/uiPrefs.js';   // MW-STEEL1: the Steel Helm 
 import { skinMips, skinUseOf, skinUseKey } from '../characters/werewolfSkin.js';   // SHADOW-FANG: the werewolf's skin, a law over its own textures
 import { correctTexturePath, correctActorModelPath, wrapModes, warningImage, decodeTextureImage } from '../formats/morrowind/mwTexture.js';
 
-// Robert's Bodies Based Gauntlets (Pherim): use its finger/hand geometry as a temporary
-// first-person donor for all gauntlets, while retaining the equipped model's texture path.
-const robertIronGauntletFirstPersonUrls = typeof window !== 'undefined'
-  ? import.meta.glob("../../Mods/Textures/Robert's Bodies Based Gauntlets/meshes/a/a_iron_hands.1st.nif", {
-      eager: true, query: '?url', import: 'default',
-    })
-  : {};
-const robertIronGauntletFirstPersonUrl = Object.values(robertIronGauntletFirstPersonUrls)[0] ?? null;
-
 const animationDiagnosticStorageKey = 'morrowind-animation-diagnostics-v1';
 const MAX_MEMORY_ANIMATION_DIAGNOSTICS = 1000;
 const MAX_PERSISTED_ANIMATION_DIAGNOSTICS = 200;
@@ -255,10 +246,7 @@ async function loadBetterBodiesAssetBytes(url, label) {
   return new Uint8Array(await pending);
 }
 
-const firstPersonHandsSettingEnabled = () => {
-  const value = modSetting('morrowind-textures', 'FirstPersonHands');
-  return value === true || value === 1 || value === '1';
-};
+
 
 // Female actors share the Nord-female body geometry, but still need the DDS
 // for their own race. NIF texture paths are embedded in the binary; rewrite
@@ -3987,12 +3975,6 @@ export async function buildFpArm({
     // sleeves, the shield - fpWornAdds' filter - never a helmet in
     // your face.
     missing.push(...worn.notes);
-    const handsSettingValue = modSetting('morrowind-textures', 'FirstPersonHands');
-    console.info("[Robert's Bodies Based Gauntlets] integration diagnostic", {
-      setting: handsSettingValue,
-      settingEnabled: firstPersonHandsSettingEnabled(),
-      assetUrlResolved: !!robertIronGauntletFirstPersonUrl,
-    });
     for (const add of fpAdds) {
       const path = `meshes/${add.model}`;
       const arc = find(path);
