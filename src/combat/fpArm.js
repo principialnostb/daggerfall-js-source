@@ -3827,10 +3827,6 @@ export async function buildFpArm({
         betterBodiesFpArms = {
           slot: 'betterBodies', partName: 'robertBodiesFirstPersonArms', bones: [],
           bytes: rawBodyBytes, modelUrl: asset.bodyModel,
-          // Robert Bodies uses Bip01 L/R names; the retail first-person rig
-          // uses Left/Right names. Preserve bind space and map missing arm bones
-          // to their matching anatomical nodes rather than dropping influences.
-          retargetSkinToBone: 'Bip01 Spine1', retargetMissingBonesToAnatomy: true,
           texturePath: asset.bodyTexturePath,
           showSlots: ['wrist:left', 'wrist:right', 'forearm:left', 'forearm:right', 'upperarm:left', 'upperarm:right'],
           hideSlots: worn.fpShadows ?? worn.shadows,
@@ -3852,9 +3848,6 @@ export async function buildFpArm({
         betterBodiesFpHands = {
           slot: 'betterBodies', partName: 'robertBodiesBetterHands', bones: [],
           bytes: handBytes, modelUrl: asset.handModel,
-          // Better Hands adds finger/thumb bones absent from the retail first-person
-          // rig. Preserve the source bind pose and map influences to the matching hand.
-          retargetSkinToBone: 'Bip01 Spine1', retargetMissingBonesToAnatomy: true,
           texturePath: handTexturePath,
           showSlots: ['hand:left', 'hand:right'],
           hideSlots: worn.fpShadows ?? worn.shadows,
