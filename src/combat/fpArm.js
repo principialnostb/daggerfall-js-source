@@ -2585,7 +2585,7 @@ async function buildTpBody({
     // texture is registered by basename, so concurrent NPC builds cannot overwrite
     // one another's skin bytes through a shared "current texture" adapter.
     let betterBodiesPart = null;
-    if (modSetting('morrowind-textures', 'BetterBodiesSource') === 2 && !beast && !werewolf && !vampire) {
+    if (modSetting('morrowind-textures', 'FirstPersonHands') === 1 && !beast && !werewolf && !vampire) {
       try {
         const asset = betterBodiesAssetUrls({ race, female });
         if (!asset) throw new Error(`no Better Bodies asset for race "${String(race)}" / ${female ? 'female' : 'male'}`);
@@ -3967,14 +3967,14 @@ export async function buildFpArm({
     // Local-player diagnostic: distinguish a source-selection issue from a NIF section/binding issue.
     // NPC builds stay quiet; DevTools shows the selected asset, recognized sections and standard fallbacks.
     if (ownHeads) {
-      const sourceSetting = modSetting('morrowind-textures', 'BetterBodiesSource');
-      if (sourceSetting !== 2) {
-        console.warn("[Robert's Bodies + Better Hands] first-person arms are using the standard source because Better Bodies is not selected as the third-person body (BetterBodiesSource != 2).", { sourceSetting });
+      const sourceSetting = modSetting('morrowind-textures', 'FirstPersonHands');
+      if (sourceSetting !== 1 && !betterBodiesFpArms) {
+        console.warn("[Robert's Bodies + Better Hands] first-person hand source is set to Standard Morrowind.", { sourceSetting });
       }
       console.info("[Robert's Bodies + Better Hands] first-person arm integration", {
         race, female,
         sourceSetting,
-        requested: sourceSetting === 2,
+        requested: sourceSetting === 1,
         assetLoaded: Boolean(betterBodiesFpArms),
         modelUrl: betterBodiesFpArms?.modelUrl ?? null,
         dedicatedHandAssetLoaded: Boolean(betterBodiesFpHands),
