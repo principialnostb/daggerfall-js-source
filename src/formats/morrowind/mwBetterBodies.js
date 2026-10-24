@@ -7,7 +7,7 @@
 const IN_BROWSER = typeof window !== 'undefined';
 import { getUnderwearEnabled } from '../../characters/bodyMorphs.js';
 import { modSetting } from '../../systems/modSettings.js';
-import { betterBodiesFirstPersonHandAssetPaths } from './mwBetterBodiesPaths.js';
+import { betterBodiesFirstPersonHandAssetPaths, betterBodiesHighResolutionFemaleHandTexturePath } from './mwBetterBodiesPaths.js';
 
 const nudeBodyModelUrls = IN_BROWSER
   ? import.meta.glob('../../../Mods/Bodies/Better Bodies/Nude/Data Files/Meshes/bb/bb_skin*.nif', {
@@ -46,6 +46,12 @@ const underwearHandTextureUrls = IN_BROWSER
   : {};
 const underwearBodyTextureUrls = IN_BROWSER
   ? import.meta.glob('../../../Mods/Bodies/Better Bodies/Underwear/Data Files/Textures/bb/bb_skin*.dds', {
+      eager: true, query: '?url', import: 'default',
+    })
+  : {};
+
+const highResolutionFemaleHandTextureUrls = IN_BROWSER
+  ? import.meta.glob('../../../Mods/Bodies/High Resolution Better Body Female Textures/Hands/Textures/bb/bb_handf_*.dds', {
       eager: true, query: '?url', import: 'default',
     })
   : {};
@@ -164,12 +170,27 @@ export function betterBodiesAssetUrls({ race = 'Nord', female = false, underwear
   const handModelTable = underwear ? underwearHandModelUrls : nudeHandModelUrls;
   const handTextureTable = underwear ? underwearHandTextureUrls : nudeHandTextureUrls;
   const handModel = findUrl(handModelTable, handModelStem, 'nif');
-  const handTexture = findUrl(handTextureTable, handTextureStem, 'dds');
+  let handTexture = findUrl(handTextureTable, handTextureStem, 'dds');
+  let handTextureSourcePath = handPaths.texturePath;
+  // The high-resolution female pack has its own race-matched hand DDS files.
+  // Keep the runtime texture key stable while using the same skin source as the
+  // selected female body when that pack is enabled.
+  if (female && modSetting('morrowind-textures', 'HighResolutionBetterBodyFemaleTextures') === true) {
+    const highResolutionHandPath = betterBodiesHighResolutionFemaleHandTexturePath({ race });
+    const highResolutionHandTexture = highResolutionHandPath
+      ? Object.entries(highResolutionFemaleHandTextureUrls)
+        .find(([path]) => path.toLowerCase().endsWith('/' + highResolutionHandPath.toLowerCase().replace(/^.*\/hands\//, 'hands/').split('/').slice(-3).join('/')))?.[1] ?? null
+      : null;
+    if (highResolutionHandTexture) {
+      handTexture = highResolutionHandTexture;
+      handTextureSourcePath = highResolutionHandPath;
+    }
+  }
   if (!model || !texture) return null;
   return Object.freeze({
     model, texture, texturePath: `textures/bb/${textureStem}.dds`,
     handModel, handTexture, handTexturePath: handPaths.runtimeTexturePath,
-    handModelPath: handPaths.modelPath, handTextureSourcePath: handPaths.texturePath,
+    handModelPath: handPaths.modelPath, handTextureSourcePath,
     raceKey, textureRaceKey, geometryRaceKey, female: !!female, underwear: !!underwear, bodyVariant: dmraModel ? 'Seamless DMRA' : 'Better Bodies',
   });
 }
