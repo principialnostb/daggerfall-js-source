@@ -89,6 +89,7 @@ import { loadWalkAnimationAssets, loadFirstPersonAnimationAssets, loadHitReactio
 import { drawRigSpriteBox, MW_THIRD_PERSON_PIXEL } from '../render/characterSprite.js';
 import { WEAPONS } from '../characters/weapons.js';
 import { materialName } from '../systems/item/itemInfo.js';
+import { ARMOR_MATERIAL } from '../systems/armorMaterials.js';
 import { composeWornArmor, composeWornModest, shadowSkinRows, fpWornAdds, mwArmorRecords, mwClothingRecord, CLOTHING_NAME, werewolfRobeOf, firstPersonPartGroup } from '../formats/morrowind/mwItemMap.js';   // WEREWOLF1: the robe and its first-person ladder; NUDE-FLATS: the upper weld
 import { showNudity } from '../characters/nudeFlats.js';   // NUDE-FLATS: Show Nudity, the weld's switch
 import { getPref } from '../systems/uiPrefs.js';   // MW-STEEL1: the Steel Helm switch, read where the worn set is composed
@@ -254,20 +255,25 @@ async function loadBetterBodiesAssetBytes(url, label) {
 }
 
 // The Robert-based replacement only covers iron gauntlets. Armor records can attach
-// to the hand OR wrist bones, so accept both; the identity check keeps other iron armor out.
+// to the hand OR wrist bones, so accept both; the equipped item's material is the
+// authoritative discriminator. Never replace steel/leather/chain/etc. with iron geometry.
 function isRobertIronGauntletFirstPersonAdd(add) {
   const handPiece = (add.bones ?? []).some((bone) =>
     ['left hand', 'right hand', 'left wrist', 'right wrist', 'left forearm', 'right forearm'].includes(String(bone).toLowerCase()));
   if (!handPiece) return false;
+
+  const piece = add.piece;
+  if (piece && Number.isFinite(piece.templateIndex) && Number.isFinite(piece.material)) {
+    return piece.templateIndex === 103 && piece.material === ARMOR_MATERIAL.Iron;
+  }
+
+  // Some non-player adds have no originating inventory piece. In that case,
+  // only an explicitly iron-named gauntlet is eligible; never infer iron from
+  // the generic words "gauntlet", "glove", "bracer" or "vambrace".
   const identity = `${add.recordId ?? ''} ${add.model ?? ''} ${add.partName ?? ''} ${add.slot ?? ''}`
     .replaceAll(String.fromCharCode(92), '/')
     .toLowerCase();
-  // The installed Robert-based pack only supplies an iron-gauntlet mesh. Use it
-  // as the first-person replacement for all Daggerfall gauntlet/glove records;
-  // their original material-specific meshes are not provided by this pack.
-  return /gauntlet|bracer|glove|vambrace/.test(identity)
-    || identity.includes('daggerfall_steel_gauntlets')
-    || (identity.includes('iron') && /hand|gauntlet|glove|skinned/.test(identity));
+  return /iron.*(gauntlet|glove|bracer|vambrace)|(gauntlet|glove|bracer|vambrace).*iron/.test(identity);
 }
 const firstPersonHandsSettingEnabled = () => {
   const value = modSetting('morrowind-textures', 'FirstPersonHands');
