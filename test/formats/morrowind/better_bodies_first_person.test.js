@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { applyBetterBodiesUvEdits, betterBodiesFallbackSectionKey, betterBodiesSectionKey } from '../../../src/formats/morrowind/mwFirstPerson.js';
+import { betterBodiesFirstPersonHandAssetPaths } from '../../../src/formats/morrowind/mwBetterBodies.js';
 
 test('first-person Better Bodies fallback maps each arm slot to its side-specific section', () => {
   for (const slot of ['hand', 'wrist', 'forearm', 'upperarm']) {
@@ -47,4 +48,31 @@ test('Better Bodies UV corrections target stable NIF section names before fallba
   assert.equal(applied, 1);
   assert.deepEqual([...arm.uvs], [0.375, 0.25, 0.625, 0.75]);
   assert.deepEqual([...chest.uvs], [0.25, 0.5, 0.75, 1], 'a stale mesh index must not edit the chest instead');
+});
+
+test('Better Bodies first-person hand paths cover all eight races, both sexes, and both body variants', () => {
+  const races = {
+    Breton: 'br', 'Dark Elf': 'de', 'High Elf': 'he', Imperial: 'im',
+    Nord: 'no', Orc: 'or', Redguard: 'rg', 'Wood Elf': 'we',
+  };
+  for (const [race, code] of Object.entries(races)) {
+    for (const female of [false, true]) {
+      for (const underwear of [false, true]) {
+        const asset = betterBodiesFirstPersonHandAssetPaths({ race, female, underwear });
+        const sex = female ? 'f' : 'm';
+        const variant = underwear ? 'Underwear' : 'Nude';
+        const stem = `bb_hand${sex}_${code}`;
+        assert.equal(asset.raceKey, code);
+        assert.equal(asset.genderKey, sex);
+        assert.equal(asset.variant, variant);
+        assert.equal(asset.modelPath, `Mods/Bodies/Better Bodies/${variant}/Data Files/Meshes/bb/${stem}.nif`);
+        assert.equal(asset.texturePath, `Mods/Bodies/Better Bodies/${variant}/Data Files/Textures/bb/${stem}.dds`);
+        assert.equal(asset.runtimeTexturePath, `textures/bb/${stem}.dds`);
+      }
+    }
+  }
+});
+
+test('Better Bodies first-person hand path resolver rejects unsupported races', () => {
+  assert.equal(betterBodiesFirstPersonHandAssetPaths({ race: 'Khajiit', female: false }), null);
 });
