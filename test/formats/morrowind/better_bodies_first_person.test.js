@@ -14,6 +14,10 @@ test('first-person runtime dispatch uses the independent hand-source selector', 
   assert.match(runtime, /firstPersonHandsSource\(modSetting\('morrowind-textures', 'FirstPersonHands'\)\) === 'robert-bodies'/);
   assert.match(runtime, /firstPersonHandsSource\(modSetting\('morrowind-textures', 'FirstPersonHands'\)\) === 'better-bodies'/);
   assert.match(runtime, /betterBodiesAssetUrls\(\{ race, female \}\)/);
+  const resolver = readFileSync(resolve(repoRoot, 'src/formats/morrowind/mwBetterBodies.js'), 'utf8');
+  assert.match(resolver, /High Resolution Better Body Female Textures\/Hands\/Textures\/bb\/bb_handf_\*\.dds/);
+  assert.match(resolver, /HighResolutionBetterBodyFemaleTextures/);
+  assert.match(resolver, /betterBodiesHighResolutionFemaleHandTexturePath\(\{ race \}\)/);
 });
 
 test('first-person hand selector keeps Vanilla, Robert/Better Hands, and Better Bodies independent', () => {
