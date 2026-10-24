@@ -1,7 +1,12 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { existsSync } from 'node:fs';
+import { dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { applyBetterBodiesUvEdits, betterBodiesFallbackSectionKey, betterBodiesSectionKey } from '../../../src/formats/morrowind/mwFirstPerson.js';
 import { betterBodiesFirstPersonHandAssetPaths } from '../../../src/formats/morrowind/mwBetterBodiesPaths.js';
+
+const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../../..');
 
 test('first-person Better Bodies fallback maps each arm slot to its side-specific section', () => {
   for (const slot of ['hand', 'wrist', 'forearm', 'upperarm']) {
@@ -68,6 +73,8 @@ test('Better Bodies first-person hand paths cover all eight races, both sexes, a
         assert.equal(asset.modelPath, `Mods/Bodies/Better Bodies/${variant}/Data Files/Meshes/bb/${stem}.nif`);
         assert.equal(asset.texturePath, `Mods/Bodies/Better Bodies/${variant}/Data Files/Textures/bb/${stem}.dds`);
         assert.equal(asset.runtimeTexturePath, `textures/bb/${stem}.dds`);
+        assert.ok(existsSync(resolve(repoRoot, asset.modelPath)), `missing model: ${asset.modelPath}`);
+        assert.ok(existsSync(resolve(repoRoot, asset.texturePath)), `missing texture: ${asset.texturePath}`);
       }
     }
   }
