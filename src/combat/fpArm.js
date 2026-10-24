@@ -257,13 +257,19 @@ async function loadBetterBodiesAssetBytes(url, label) {
 // to the hand OR wrist bones, so accept both; the identity check keeps other iron armor out.
 function isRobertIronGauntletFirstPersonAdd(add) {
   const handPiece = (add.bones ?? []).some((bone) =>
-    ['left hand', 'right hand', 'left wrist', 'right wrist'].includes(String(bone).toLowerCase()));
+    ['left hand', 'right hand', 'left wrist', 'right wrist', 'left forearm', 'right forearm'].includes(String(bone).toLowerCase()));
   if (!handPiece) return false;
-  const identity = `${add.recordId ?? ''} ${add.model ?? ''} ${add.slot ?? ''}`
+  const identity = `${add.recordId ?? ''} ${add.model ?? ''} ${add.partName ?? ''} ${add.slot ?? ''}`
     .replaceAll(String.fromCharCode(92), '/')
     .toLowerCase();
+  // The actual archive model may be named by its mesh path, while the item record
+  // identifies the material as iron and the wearable as a hand/gauntlet.
   return identity.includes('iron') && /hand|gauntlet|glove|skinned/.test(identity);
 }
+const firstPersonHandsSettingEnabled = () => {
+  const value = modSetting('morrowind-textures', 'FirstPersonHands');
+  return value === true || value === 1 || value === '1';
+};
 
 // Female actors share the Nord-female body geometry, but still need the DDS
 // for their own race. NIF texture paths are embedded in the binary; rewrite
@@ -3926,11 +3932,23 @@ export async function buildFpArm({
     // sleeves, the shield - fpWornAdds' filter - never a helmet in
     // your face.
     missing.push(...worn.notes);
+    const handsSettingValue = modSetting('morrowind-textures', 'FirstPersonHands');
+    console.info("[Robert's Bodies Based Gauntlets] integration diagnostic", {
+      setting: handsSettingValue,
+      settingEnabled: firstPersonHandsSettingEnabled(),
+      assetUrlResolved: !!robertIronGauntletFirstPersonUrl,
+      firstPersonAdds: fpAdds.map((add) => ({
+        recordId: add.recordId, model: add.model, partName: add.partName,
+        slot: add.slot, bones: add.bones,
+        candidate: isRobertIronGauntletFirstPersonAdd(add),
+      })),
+    });
     let robertIronGauntletAdded = false;
     for (const add of fpAdds) {
       const path = `meshes/${add.model}`;
-      const isRobertGauntlet = modSetting('morrowind-textures', 'FirstPersonHands') === 1
-        && robertIronGauntletFirstPersonUrl
+      const handsSetting = firstPersonHandsSettingEnabled();
+      const isRobertGauntlet = handsSetting
+        && !!robertIronGauntletFirstPersonUrl
         && isRobertIronGauntletFirstPersonAdd(add);
       if (isRobertGauntlet && robertIronGauntletAdded) {
         // a_iron_hands.1st.nif contains the paired first-person hands; don't append
