@@ -232,22 +232,22 @@ const mulAffine = (p, l) => {
  */
 function anatomicalSkinFallbackRef(skeleton, boneName) {
   const name = String(boneName || '').toLowerCase()
-    .replace(/^tri\\s+/, '')
+    .replace(/^tri\s+/, '')
     .replace(/[_-]+/g, ' ')
-    .replace(/\\s+/g, ' ')
-    .replace(/^(?:(?:bip(?:ed)?\\s*0?1|skeleton|scene root|root)\\s+)+/, '')
+    .replace(/\s+/g, ' ')
+    .replace(/^(?:(?:bip(?:ed)?\s*0?1|skeleton|scene root|root)\s+)+/, '')
     .trim();
-  const side = /\\b(?:left|l)\\b/.test(name) ? 'left'
-    : /\\b(?:right|r)\\b/.test(name) ? 'right' : null;
+  const side = /\b(?:left|l)\b/.test(name) ? 'left'
+    : /\b(?:right|r)\b/.test(name) ? 'right' : null;
   if (!side) return undefined;
   let region = null;
-  if (/\\b(?:hand|palm|finger\\s*\\d*|thumb)\\b/.test(name)) region = 'hand';
-  else if (/\\bwrist\\b/.test(name)) region = 'wrist';
-  else if (/\\b(?:forearm|lower arm)\\b/.test(name)) region = 'forearm';
-  else if (/\\b(?:upper ?arm)\\b/.test(name)) region = 'upper arm';
-  else if (/\\bclavicle\\b/.test(name)) region = 'clavicle';
+  if (/\b(?:hand|palm|finger\s*\d*|thumb)\b/.test(name)) region = 'hand';
+  else if (/\bwrist\b/.test(name)) region = 'wrist';
+  else if (/\b(?:forearm|lower arm)\b/.test(name)) region = 'forearm';
+  else if (/\b(?:upper ?arm)\b/.test(name)) region = 'upper arm';
+  else if (/\bclavicle\b/.test(name)) region = 'clavicle';
   if (!region) return undefined;
-  return skeleton.byName.get(`${side} ${region}`);
+  return skeleton.byName.get(side + ' ' + region);
 }
 
 export function bindPart(skeleton, partNif, opts = {}) {
