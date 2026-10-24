@@ -3527,7 +3527,12 @@ export function betterBodiesSectionKey(shapeName) {
     side = match?.[2] === 'l' ? 'left' : match?.[2] === 'r' ? 'right' : null;
     regionName = match?.[1] ?? '';
   }
-  const region = regions[regionName];
+  // Better Hands may export the palm and individual digits as separate shapes
+  // (for example "Bip01 L Finger0" or "Thumb R"). Keep those shapes in the
+  // corresponding hand slot instead of dropping them during section filtering.
+  const region = /\\b(?:hand|palm|finger|thumb)(?:\\s*\\d+)?\\b/.test(regionName)
+    ? 'hand'
+    : regions[regionName];
   return side && region ? region + ':' + side : null;
 }
 
