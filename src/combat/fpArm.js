@@ -264,7 +264,7 @@ export function isRobertGauntletFirstPersonAdd(add) {
   // vanilla part may include the cuff/forearm surface even when its declared
   // bone list does not say "forearm"; replacing it creates the cuff-to-elbow
   // hole. Only replace dedicated hand parts and always retain wrist geometry.
-  if (bones.has('left forearm') || bones.has('right forearm')) return false;
+  if (['left forearm', 'right forearm', 'left wrist', 'right wrist'].some((bone) => bones.has(bone))) return false;
   const handPiece = ['left hand', 'right hand'].some((bone) => bones.has(bone));
   if (!handPiece) return false;
 
