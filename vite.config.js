@@ -117,9 +117,7 @@ export default defineConfig({
   base: './',
   server: {
     host: '0.0.0.0',
-    allowedHosts: [
-      'daggerfall-online.cloudpub.ru',
-    ],
+    allowedHosts: true,
   },
   build: {
     target: 'es2022',
