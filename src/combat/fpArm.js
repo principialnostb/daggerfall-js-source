@@ -260,13 +260,12 @@ async function loadBetterBodiesAssetBytes(url, label) {
 // material appearance remains item-specific. Armor records can attach to hand OR wrist bones.
 export function isRobertGauntletFirstPersonAdd(add) {
   const bones = new Set((add.bones ?? []).map((bone) => String(bone).toLowerCase()));
-  // The donor NIF contains hands, not the forearm. Replacing a forearm
-  // part with it drops the entire original forearm mesh and leaves the
-  // cuff-to-elbow region empty. Only substitute dedicated hand/wrist
-  // parts; preserve any part that owns forearm geometry, including mixed
-  // hand+forearm parts.
+  // The donor NIF contains hands and fingers, not the forearm. A wrist-bound
+  // vanilla part may include the cuff/forearm surface even when its declared
+  // bone list does not say "forearm"; replacing it creates the cuff-to-elbow
+  // hole. Only replace dedicated hand parts and always retain wrist geometry.
   if (bones.has('left forearm') || bones.has('right forearm')) return false;
-  const handPiece = ['left hand', 'right hand', 'left wrist', 'right wrist'].some((bone) => bones.has(bone));
+  const handPiece = ['left hand', 'right hand'].some((bone) => bones.has(bone));
   if (!handPiece) return false;
 
   const piece = add.piece;
