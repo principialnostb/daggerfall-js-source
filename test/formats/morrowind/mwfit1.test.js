@@ -81,9 +81,12 @@ test('MW-FIT1: so each pauldron hides its upper arm in the third person - and no
     assert.deepEqual([left.shadows, right.shadows], [['upperarm:left'], ['upperarm:right']], `${metal}: each pauldron its own side's upper arm`);
     assert.deepEqual([left.fpShadows, right.fpShadows], [[], []], `${metal}: the first person keeps the upper arm`);
     assert.deepEqual(fpWornAdds([...left.adds, ...right.adds]), [], 'the first person draws no pauldron');
-    // a gauntlet is drawn in the first person, so what it hides is hidden there as well
+    // The gauntlet hides its hand and wrist in first person, but its
+    // whole-slot forearm hide must not erase the arm between cuff and elbow.
+    // Third person retains the original full hide; an actual forearm armour
+    // part still shadows skin through its own slot claim.
     const hands = compose([piece(T.Gauntlets, metal)]);
-    assert.deepEqual(hands.fpShadows, hands.shadows);
+    assert.deepEqual(hands.fpShadows, ['hand:right', 'hand:left', 'wrist:right', 'wrist:left']);
     assert.deepEqual(hands.shadows, ['hand:right', 'hand:left', 'wrist:right', 'wrist:left', 'forearm:right', 'forearm:left']);
   }
   // a reserve with nothing over it is the first person's too: a robe takes the arms in both (Morrowind-Rules.md, "In
