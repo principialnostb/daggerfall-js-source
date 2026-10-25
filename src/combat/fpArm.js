@@ -258,9 +258,15 @@ async function loadBetterBodiesAssetBytes(url, label) {
 // Robert's first-person NIF is used as a temporary geometry donor for every gauntlet.
 // Keep the equipped model's external texture path(s), so the mesh shape is shared while
 // material appearance remains item-specific. Armor records can attach to hand OR wrist bones.
-function isRobertGauntletFirstPersonAdd(add) {
-  const handPiece = (add.bones ?? []).some((bone) =>
-    ['left hand', 'right hand', 'left wrist', 'right wrist', 'left forearm', 'right forearm'].includes(String(bone).toLowerCase()));
+export function isRobertGauntletFirstPersonAdd(add) {
+  const bones = new Set((add.bones ?? []).map((bone) => String(bone).toLowerCase()));
+  // The donor NIF contains hands, not the forearm. Replacing a forearm
+  // part with it drops the entire original forearm mesh and leaves the
+  // cuff-to-elbow region empty. Only substitute dedicated hand/wrist
+  // parts; preserve any part that owns forearm geometry, including mixed
+  // hand+forearm parts.
+  if (bones.has('left forearm') || bones.has('right forearm')) return false;
+  const handPiece = ['left hand', 'right hand', 'left wrist', 'right wrist'].some((bone) => bones.has(bone));
   if (!handPiece) return false;
 
   const piece = add.piece;
