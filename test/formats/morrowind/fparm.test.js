@@ -11,7 +11,7 @@ import {
   packFpArm, fpSkeletonPath, buildFpArm, createFpArm, wornVerdicts, animWeaponType, UPPER_BODY, wornEquipKeyOf,
   unequipWeaponHideMode, animationWindowHasMotion,
   FP_CLIP_PATH, NIF_TO_PASS, FP_FIELD_OF_VIEW, firstPersonEye, FP_FLOATS,
-  collectArmTextures,
+  collectArmTextures, isRobertGauntletFirstPersonAdd,
 } from '../../../src/combat/fpArm.js';
 import { firstPersonCameraRef, FP_NECK_ROTATE_FACTOR, betterBodiesSectionKey } from '../../../src/formats/morrowind/mwFirstPerson.js';
 
@@ -26,6 +26,24 @@ import { firstPersonCameraRef, FP_NECK_ROTATE_FACTOR, betterBodiesSectionKey } f
 
 const f = (n) => new Uint8Array(readFileSync(new URL(`../../fixtures/mw/${n}`, import.meta.url)));
 const rd = (p) => readFileSync(new URL(`../../../${p}`, import.meta.url), 'utf8');
+
+test('Better Hands substitutes hand/wrist geometry without deleting forearm meshes', () => {
+  const gauntlet = (bones) => ({
+    piece: { templateIndex: 103 },
+    recordId: 'iron_gauntlet_right',
+    partName: 'right hand',
+    bones,
+  });
+  assert.equal(isRobertGauntletFirstPersonAdd(gauntlet(['right hand'])), true);
+  assert.equal(isRobertGauntletFirstPersonAdd(gauntlet(['right wrist'])), true);
+  assert.equal(isRobertGauntletFirstPersonAdd(gauntlet(['right forearm'])), false,
+    'the hand-only donor must never replace a forearm mesh');
+  assert.equal(isRobertGauntletFirstPersonAdd(gauntlet(['right hand', 'right forearm'])), false,
+    'a combined hand/forearm mesh must stay intact rather than lose its forearm section');
+  assert.equal(isRobertGauntletFirstPersonAdd({
+    ...gauntlet(['right hand']), piece: { templateIndex: 102 },
+  }), false, 'unrelated armor must not be substituted');
+});
 
 test('Better Bodies first-person sections recognize anatomical and Bip01-prefixed NIF names', () => {
   const cases = [
