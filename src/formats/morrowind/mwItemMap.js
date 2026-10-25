@@ -769,7 +769,18 @@ export function composeWornArmor({ pieces, armors, clothes, bodyPool, female = f
     // MW-FIT1: A PART THE FIRST PERSON DOES NOT DRAW HIDES NOTHING FROM IT. A pauldron sleeves the upper arm, but it
     // hangs on the clavicle and the first person draws the arm-bone parts alone - so there the upper arm under it is
     // the skin's, not a hole. Every other occupation is the third person's and the first person's alike.
-    if (key && !(slots[i2].under && !fpWornAdds([slots[i2].under]).length)) fpShadows.add(key);
+    if (key && !(slots[i2].under && !fpWornAdds([slots[i2].under]).length)) {
+      const under = slots[i2].under;
+      // MW-FP-SEAM: a gauntlet occupies the hand and its cuff, not the
+      // entire forearm slot. In first person, hiding that whole slot removes
+      // the arm between the cuff and elbow. Keep the forearm skin as the
+      // fallback there; an actual forearm armour add still claims the slot
+      // above and shadows the skin itself. Third-person shadows stay intact.
+      const gauntletForearm = key.startsWith('forearm:')
+        && under?.piece?.templateIndex === ARMOR_ENUM.Gauntlets
+        && (under.partName === 'left hand' || under.partName === 'right hand');
+      if (!gauntletForearm) fpShadows.add(key);
+    }
   }
   if (outfitAdd) adds.push(outfitAdd);   // MW-FOLK1
   if (cloakAdd) adds.push(cloakAdd);
