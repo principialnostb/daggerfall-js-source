@@ -1,5 +1,7 @@
 # Better Hands: first-person forearm armour and gauntlet seam
 
+> SUPERSEDED (2026-10-26): the record is `bible/04-Characters/First-Person-Hands.md` - the cuff is now cut by position and fitted to the donor hand (CUFF-FIT), and a part naming no body part reserves its slot (EMPTY-PART). This note is kept as the first report.
+
 ## Status
 
 This document records the observed regression and the intended rendering contract. The screenshot/report establishes that the missing region is bilateral, between the pauldron/elbow end and the gauntlet cuff; removing gauntlets restores the underlying arm in that region. The report does **not** establish that every armour set uses the same mesh or that a single slot-priority change is sufficient.
