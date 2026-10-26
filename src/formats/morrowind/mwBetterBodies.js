@@ -76,8 +76,9 @@ const compactRaceName = (race) => String(
   race && typeof race === 'object' ? (race.name ?? race.race ?? race.id ?? '') : (race ?? ''),
 ).toLowerCase().replace(/[^a-z]/g, '');
 
+// BETTER-HANDS: the whole body - its wrist, forearm and upper arm are the first-person arm (its .1st carries hands alone)
 const robertBodyModelUrls = IN_BROWSER
-  ? import.meta.glob("../../../Mods/Bodies/Robert's bodies/Data Files/Meshes/bbr/*.1st.nif", {
+  ? import.meta.glob("../../../Mods/Bodies/Robert's bodies/Data Files/Meshes/bbr/*.nif", {
       eager: true, query: '?url', import: 'default',
     })
   : {};
@@ -115,7 +116,7 @@ export function robertBodiesFirstPersonAssetPaths({ race = 'Nord', female = fals
   return Object.freeze({
     raceKey,
     genderKey,
-    bodyModelPath: `Robert's bodies/Data Files/Meshes/bbr/${raceKey}_${genderKey}.1st.nif`,
+    bodyModelPath: `Robert's bodies/Data Files/Meshes/bbr/${raceKey}_${genderKey}.nif`,   // BETTER-HANDS: the arm's, the whole body's mesh
     bodyTexturePath: `Robert's bodies/Data Files/Textures/bbr/${raceKey}_${genderKey}.dds`,
     handModelPath: `Better Hands/Meshes/b/${handName}`,
     handTexturePath: `Better Hands/Textures/bbr/${raceKey}_${genderKey}.dds`,

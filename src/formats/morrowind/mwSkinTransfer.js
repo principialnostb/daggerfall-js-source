@@ -84,7 +84,7 @@ export function liftBatch(batch, lift) {
 }
 
 /** Every vertex's influences, as [boneIndex, weight] pairs, read off the skin's per-bone lists. */
-function influencesOf(skin, n) {
+export function influencesOf(skin, n) {
   const out = Array.from({ length: n }, () => []);
   skin.bones.forEach((b, bi) => {
     for (let k = 0; k < b.indices.length; k++) out[b.indices[k]]?.push([bi, b.weights[k]]);
@@ -92,7 +92,7 @@ function influencesOf(skin, n) {
   return out;
 }
 
-function invert33(m) {
+export function invert33(m) {
   const [a, b, c, d, e, f, g, h, i] = m;
   const A = e * i - f * h, B = -(d * i - f * g), C = d * h - e * g;
   const det = a * A + b * B + c * C;
@@ -109,7 +109,7 @@ function invert33(m) {
  * influences, skinned once. The columns and the translation are read off the result, so the garment is solved with
  * exactly the arithmetic that will draw it. Answers Map(j -> { a: 3x3 row-major, t }).
  */
-function measureAffines(src, js, { skeleton, pose, mats, skinBatch }) {
+export function measureAffines(src, js, { skeleton, pose, mats, skinBatch }) {
   const infl = src.infl;
   const bones = src.batch.skin.bones.map((b) => ({ ref: b.ref, name: b.name, invBind: b.invBind, indices: [], weights: [] }));
   const positions = new Float32Array(js.length * 12);

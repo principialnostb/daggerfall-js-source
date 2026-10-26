@@ -168,6 +168,7 @@ export { MW_BODY_PARTS, isFirstPersonId } from './mwEsmFile.js';
 import { MW_BODY_PARTS, isFirstPersonId } from './mwEsmFile.js';
 import FACE_TABLE from '../mwFaceTable.json' with { type: 'json' };
 import { GRAPH_ROOT, ACCUM_ROOT_NAMES, blendPoseMaps } from './mwSkin.js';
+import { CUFF_FIT, fitCuffsToHand, handStart, trimToCuff, wristFrame } from './mwCuffFit.js';   // CUFF-FIT: the worn cuff sat on the donor hand
 import { transferSkin, sourceSkin, fitLift, liftBatch, fitGarmentClearance } from './mwSkinTransfer.js';   // MW-BRIG2: a worn model skinned from the body under it; MW-BRIG3: and fitted onto it
 import { getTextKeyTime, animVelocity, collectTextKeys, normalizeTextKeys, clipGroups, resetClip, parseAnimGroups, extractTracks } from './mwAnim.js';
 import { mat33Mul } from './mwNifMesh.js';   // AUDIT 68 S11-affine-dup: the one row-major 3x3 product
@@ -2322,6 +2323,8 @@ export function bindPartsInto(assembly, parts) {
   // vanilla arm slot. Keep vanilla meshes as a per-section fallback: some
   // race/sex replacements or third-party variants omit a section entirely.
   const betterBodiesSections = new Set();
+  const firstPiece = pieces.length;   // CUFF-FIT: this call's own pieces
+  const cuffWholes = [];   // CUFF-FIT: a worn cuff's shapes no triangle of which rides the arm whole - trimmed later
   for (const part of parts) {
     boundParts.push(part);
     if (/^shield\b/i.test(String(part.slot ?? ''))
@@ -2471,7 +2474,10 @@ export function bindPartsInto(assembly, parts) {
         if (part.slot === 'betterBodies' && Array.isArray(part.showSlots) && !betterBodiesSectionVisible(batch.name, part.showSlots)) continue;
         if (part.slot === 'betterBodies' && betterBodiesSectionShadowed(batch.name, part.hideSlots)) continue;
         // A gauntlet whose hands a donor mesh draws keeps only its cuff (fpArm.js, the Robert's gauntlet substitution).
-        if (part.forearmShapesOnly && !(batch = armWeightedTriangles(batch))) continue;
+        // CUFF-FIT: its whole shape kept beside, trimmed where the donor hand begins once the donor is bound
+        const whole = part.forearmShapesOnly ? batch : null;
+        if (part.forearmShapesOnly && !(batch = armWeightedTriangles(batch))) { if (ridesTheArm(whole)) cuffWholes.push({ part, bone, whole }); continue; }
+        if (part.handShapesOnly && isDonorCuffShape(batch)) continue;   // CUFF-FIT: and the donor its hands alone
         // MW-D7: the piece KEEPS its batch, and `positions` is its own
         // buffer - never an alias of batch.positions, which poseAssembly
         // reads every frame. Aliasing them is the runaway the viewer
@@ -2489,6 +2495,7 @@ export function bindPartsInto(assembly, parts) {
         }
         pieces.push({ slot: part.slot, bone, kind: 'skinned', mirrored: false,
           bodySection: betterBodiesSection, batch, source: null, attachRef: null,
+          cuffFit: part.cuffFit ?? (part.forearmShapesOnly ? 'cuff' : part.handShapesOnly ? 'hand' : null),   // CUFF-FIT: who sits on whom
           // MW-D11: the UVs and the material ride WITH the piece. They
           // were reachable through `batch` for a skinned piece and lost
           // entirely for a rigid one (which keeps only its positions), so
@@ -2496,6 +2503,7 @@ export function bindPartsInto(assembly, parts) {
           uvs: batch.uvs || null, colors: batch.colors || null, material: batch.material || null,
           positions: new Float32Array(batch.positions.length), indices: batch.indices,
           normals: posedNormals(batch) });   // MW-SMOOTH: the mesh's own normals, skinned with it
+        if (whole) pieces[pieces.length - 1].cuffWhole = whole;
         if (nameless) namelessHere = true;
       }
       tookNameless = tookNameless || namelessHere;
@@ -2666,6 +2674,7 @@ export function bindPartsInto(assembly, parts) {
       notes.push(`${part.slot}: nothing bound - the mesh has no geometry to bind`);
     }
   }
+  fitCuffPieces(assembly, firstPiece, cuffWholes);   // CUFF-FIT: the worn cuff sat on the donor hand, side by side
 }
 
 /**
@@ -3412,6 +3421,68 @@ function geomFitCandidate(batch, part) {
   return !!part.fitSources?.length && !!batch?.positions?.length && !!batch?.indices?.length;
 }
 
+/**
+ * CUFF-FIT (formats/morrowind/mwCuffFit.js): each side's worn cuff (`cuffFit: 'cuff'`, the gauntlet's forearm shapes)
+ * fitted to that side's donor hand (`cuffFit: 'hand'`) in the rest pose, about the wrist - the skeleton's forearm to its
+ * hand. A side with no donor, or a skeleton without those bones, keeps its cuff as it was authored.
+ *
+ * Mac's screenshots (2026-10-26, "the arm shows through the leather glove, a pale stripe, in every pose"; "gaps either
+ * side of the plate's wrist"): the cuff was cut by WEIGHTS - a triangle kept only if all three of its corners rode the
+ * forearm - and a cuff's wrist end rides the hand as much as the arm, so retail's netch cuff lost a long wedge down
+ * its length and the plates their wrist band either side. With a donor bound, the worn gauntlet is cut by WHERE THE
+ * DONOR HAND BEGINS instead: every triangle short of it (CUFF_FIT.bury in) stays - its cuff and its wrist band, whole -
+ * and what the donor hand covers goes (mwCuffFit.js trimToCuff).
+ */
+function fitCuffPieces(assembly, from, wholes = []) {
+  const mine = assembly.pieces.slice(from).filter((p) => p.cuffFit && p.kind === 'skinned');
+  // the worn cuff on the donor gauntlet hand; BETTER-HANDS: the arm's own skin (its wrist) under the bare hand, no flare
+  const pairs = [['cuff', 'hand', {}], ['skin', 'bareHand', { flare: false }]];
+  if (!pairs.some(([c, h]) => (mine.some((p) => p.cuffFit === c) || (c === 'cuff' && wholes.length)) && mine.some((p) => p.cuffFit === h))) return;
+  const ctx = clothingFitContext(assembly);
+  const sideOf = (p) => (/\bleft\b/.test(`${p.bone ?? ''} ${p.bodySection ?? ''} ${p.batch?.name ?? p.whole?.name ?? ''}`.toLowerCase()) ? 'l' : 'r');
+  for (const side of ['l', 'r']) {
+    const handRef = assembly.skeleton.byName.get(`bip01 ${side} hand`), foreRef = assembly.skeleton.byName.get(`bip01 ${side} forearm`);
+    const hand = ctx.mats.get(handRef)?.t, fore = ctx.mats.get(foreRef)?.t;
+    if (!hand || !fore) continue;
+    const frame = wristFrame([...hand], [hand[0] - fore[0], hand[1] - fore[1], hand[2] - fore[2]]);
+    for (const [c, h, opts] of pairs) {
+      const cuffs = mine.filter((p) => sideOf(p) === side && p.cuffFit === c);
+      const donors = mine.filter((p) => sideOf(p) === side && p.cuffFit === h);
+      if (!donors.length) continue;
+      if (c === 'cuff') {
+        const limit = handStart(donors.map((p) => p.batch), ctx, frame);
+        if (limit != null) {
+          for (const p of cuffs) {
+            const t = p.cuffWhole ? trimToCuff(p.cuffWhole, ctx, frame, limit + CUFF_FIT.bury) : null;
+            if (t) { p.batch = t; p.indices = t.indices; }
+          }
+          for (const r of wholes.filter((w) => sideOf({ bone: w.bone, whole: w.whole }) === side)) {
+            const t = trimToCuff(r.whole, ctx, frame, limit + CUFF_FIT.bury, { least: CUFF_FIT.strayShare });
+            if (t) { const p = cuffPiece(r.part, r.bone, t); assembly.pieces.push(p); cuffs.push(p); }
+          }
+        }
+      }
+      if (!cuffs.length) continue;
+      // a worn cuff kept clear of the arm's own skin under it (mwCuffFit.js armGirth)
+      const skins = c === 'cuff' ? mine.filter((p) => sideOf(p) === side && p.cuffFit === 'skin').map((p) => p.batch) : [];
+      const fitted = fitCuffsToHand(cuffs.map((p) => p.batch), donors.map((p) => p.batch), ctx, frame, { ...opts, skins });
+      cuffs.forEach((p, i) => { if (fitted[i] !== p.batch) { p.batch = fitted[i]; p.normals = posedNormals(fitted[i]); } });
+    }
+  }
+}
+
+/** A worn cuff's piece for a shape trimmed whole (fitCuffPieces) - the bind loop's skinned piece, as it builds it. */
+function cuffPiece(part, bone, batch) {
+  return { slot: part.slot, bone, kind: 'skinned', mirrored: false, bodySection: null, batch, source: null, attachRef: null,
+    cuffFit: 'cuff', uvs: batch.uvs || null, colors: batch.colors || null, material: batch.material || null,
+    positions: new Float32Array(batch.positions.length), indices: batch.indices, normals: posedNormals(batch) };
+}
+
+/** Whether any of the batch's skin rides the forearm or the upper arm. */
+function ridesTheArm(batch) {
+  return !!batch?.skin?.bones?.some((b) => /\b(forearm|upper ?arm)\b/.test(String(b.name ?? '').toLowerCase()));
+}
+
 function clothingFitContext(assembly) {
   const mod = assembly.fns;
   const pose = mod.poseSkeleton(assembly.skeleton, null, null, 0, {});
@@ -3617,8 +3688,19 @@ function betterBodiesSectionVisible(shapeName, showSlots = []) {
  *  Answers a copy of the batch drawing those triangles alone, or null when it has none. */
 export function armWeightedTriangles(batch) {
   const idx = batch?.indices;
+  const onArm = armWeightTest(batch);
+  if (!onArm) return null;
+  const kept = [];
+  for (let t = 0; t + 2 < idx.length; t += 3) {
+    if (onArm(idx[t]) && onArm(idx[t + 1]) && onArm(idx[t + 2])) kept.push(idx[t], idx[t + 1], idx[t + 2]);
+  }
+  if (!kept.length) return null;
+  return kept.length === idx.length ? batch : { ...batch, indices: Uint16Array.from(kept) };
+}
+/** Whether vertex v of the batch rides mostly the forearm or the upper arm - null for a batch with no skin. */
+function armWeightTest(batch) {
   const count = (batch?.positions?.length ?? 0) / 3;
-  if (!idx?.length || !count || !batch.skin?.bones?.length) return null;
+  if (!batch?.indices?.length || !count || !batch.skin?.bones?.length) return null;
   const arm = new Float32Array(count), all = new Float32Array(count);
   for (const b of batch.skin.bones) {
     const isArm = /\b(forearm|upper ?arm)\b/.test(String(b.name ?? '').toLowerCase());
@@ -3628,13 +3710,18 @@ export function armWeightedTriangles(batch) {
       if (isArm) arm[vs[i]] += ws[i];
     }
   }
-  const onArm = (v) => all[v] > 0 && arm[v] / all[v] > 0.5;
-  const kept = [];
-  for (let t = 0; t + 2 < idx.length; t += 3) {
-    if (onArm(idx[t]) && onArm(idx[t + 1]) && onArm(idx[t + 2])) kept.push(idx[t], idx[t + 1], idx[t + 2]);
-  }
-  if (!kept.length) return null;
-  return kept.length === idx.length ? batch : { ...batch, indices: Uint16Array.from(kept) };
+  return (v) => all[v] > 0 && arm[v] / all[v] > 0.5;
+}
+/** CUFF-FIT: THE DONOR'S OWN CUFF - a shape of the donor hand's file most of whose triangles ride the arm (Robert's
+ *  "Tri Left Hand 2", elbow to wrist, 250 of 440), which the worn gauntlet's cuff stands in for. Its hands and fingers
+ *  ("Tri Left Hand 0", 7 arm triangles of 816 - the wrist's own) are not one. */
+export function isDonorCuffShape(batch) {
+  const idx = batch?.indices;
+  const onArm = armWeightTest(batch);
+  if (!onArm) return false;
+  let arm = 0;
+  for (let t = 0; t + 2 < idx.length; t += 3) if (onArm(idx[t]) && onArm(idx[t + 1]) && onArm(idx[t + 2])) arm++;
+  return arm * 2 >= idx.length / 3;
 }
 
 export function shapeMatchesBone(shapeName, bone) {

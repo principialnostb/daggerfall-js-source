@@ -24,8 +24,9 @@ export function betterBodiesFirstPersonHandAssetPaths({ race = 'Nord', female = 
 
 /** Normalize the existing first-person hand selector without coupling it to the third-person body-pack toggle. */
 export function firstPersonHandsSource(value) {
-  if (Number(value) === 1) return 'robert-bodies';
-  if (Number(value) === 2) return 'better-bodies';
+  // BETTER-HANDS: two choices now - the standard arms, or Better Bodies' arm with Better Hands' hands (combat/fpArm.js);
+  // a setting saved as the retired "Better Bodies" (2) takes the latter, its own arm and texture
+  if (Number(value) === 1 || Number(value) === 2) return 'better-hands';
   return 'vanilla';
 }
 

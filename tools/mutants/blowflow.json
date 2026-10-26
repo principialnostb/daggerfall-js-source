@@ -179,5 +179,23 @@
     "tests": [
       "test/combat/mwpace1.test.js"
     ]
+  },
+  {
+    "name": "BASH-EXIT-the-sword-arm-dropped-at-once",
+    "file": "src/combat/fpArm.js",
+    "old": "if (((blowBash && attackingNow()) || bashExit > 0) && idle)",
+    "new": "if (((blowBash && attackingNow())) && idle)",
+    "tests": [
+      "test/combat/blowflow.test.js"
+    ]
+  },
+  {
+    "name": "BASH-EXIT-the-bash-arm-over-the-next-blow",
+    "file": "src/combat/fpArm.js",
+    "old": "blowSerial++; blowHit = false; bashExit = 0;",
+    "new": "blowSerial++; blowHit = false;",
+    "tests": [
+      "test/combat/blowflow.test.js"
+    ]
   }
 ]

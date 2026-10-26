@@ -206,7 +206,7 @@ test('SHIELD-GUARD: the thrust behind a shield is a bash - wound, thrown with th
   // the wiring: the thrust under the guard, in both views' hold slot, after the rifle's
   const src = rd('src/combat/fpArm.js');
   // PIN MOVED (SHIELD-BASH): the blow decides it once (attack()'s blowBash: the fists' thrust, a one-hander's in turn)
-  assert.match(src, /const shieldBash = \(\) => \(blowBash && actionState && attackingNow\(\) && !climbHands && !held\s+(?:\/\/[^\n]*\s+)?\? shieldBashHold\(UPPER_BODY_NAME\[upper\], upper === UPPER_BODY\.AttackEnd && blowPlan\?\.lead \? Math\.min\(1, recoverHeld \/ holdFor\(attackType\)\) : clipCompletion\(actionState\), viewMode\) : null\);/);
+  assert.match(src, /const shieldBash = \(\) => \(blowBash && actionState && attackingNow\(\) && !climbHands && !held\s+(?:\/\/[^\n]*\s+)?\? shieldBashHold\(UPPER_BODY_NAME\[upper\], upper === UPPER_BODY\.AttackEnd && blowPlan\?\.lead \? Math\.min\(1, Math\.max\(recoverHeld \/ holdFor\(attackType\), clipCompletion\(actionState\)\)\) : clipCompletion\(actionState\), viewMode\) : null\);/);
   assert.match(src, /blowBash = handsMode !== 'dual' && !torchVisible\(\) && bashesNow\(\{ thrust: type === 'thrust', shield: carriesShield\(rig\(\)\),/);
   assert.match(src, /hold: rifleHold\('third', t\) \?\? shieldBash\(\),/);
   assert.match(src, /hold: rifleHold\('first', built\) \?\? shieldBash\(\),/);
@@ -3290,8 +3290,9 @@ test('MW-D39: readySpell and castSpell are the two doors, and neither gates the 
   // through `stanceOf()` - the stance a non-biped creature takes bare - which reads it once
   // PIN MOVED (SHIELD-GUARD, SHIELD-BASH): and the shield's guard, the backhand's fist rule (strikeReversed), the bash's
   // own decision and the one-hander's bash under the fists' clip read it too
-  assert.equal((src.match(/animWeaponType\(built\.mwType, sheathed, spellReady\)/g) || []).length, 7,
-    'stanceOf, the weapon group, the torch\'s carried-left rule (MW-D51), the shield\'s guard, the backhand and the bash must all read the spell stance');
+  // PIN MOVED (THUMB-FIST): and the fists' thumb, eased in by the fists' stance
+  assert.equal((src.match(/animWeaponType\(built\.mwType, sheathed, spellReady\)/g) || []).length, 8,
+    'stanceOf, the weapon group, the torch\'s carried-left rule (MW-D51), the shield\'s guard, the backhand, the bash and the fists\' thumb must all read the spell stance');
   assert.equal((src.match(/= stanceOf\(\);/g) || []).length, 3, 'the idle, the jump and the movement through stanceOf');
   assert.match(src, /readySpell\(ready\) \{[\s\S]*?refreshWeaponGroup\(\);\n      resetIdle\(\);\n      resetMovement\(\);/);
   // PIN MOVED (MW-CAST1): an un-ready mid-cast is the spell GOING - Daggerfall clears the ready at its release - so

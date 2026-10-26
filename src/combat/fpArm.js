@@ -80,6 +80,7 @@ import {
 import { PART_BONES, dfRaceKeyOf } from '../formats/morrowind/mwNpc.js';
 import { betterBodiesAssetUrls, robertBodiesFirstPersonAssetUrls, loadBetterBodiesFemaleUvEdits } from '../formats/morrowind/mwBetterBodies.js';
 import { firstPersonHandsSource } from '../formats/morrowind/mwBetterBodiesPaths.js';
+import { prepareThumbFist, FIST_GROUP } from '../formats/morrowind/mwThumbFist.js';   // THUMB-FIST: the clenched fist's thumb, Better Bodies'
 import { portraitFeatures, headFeatures, hairFeatures, matchFace, FACE_MATCH_VERSION } from '../formats/morrowind/mwFaceMatch.js';
 import { CifRciFile } from '../formats/cifRciFile.js';
 import { DFPalette } from '../formats/dfPalette.js';
@@ -279,7 +280,7 @@ export function isRobertGauntletFirstPersonAdd(add) {
 }
 const firstPersonHandsSettingEnabled = () => {
   const value = modSetting('morrowind-textures', 'FirstPersonHands');
-  return value === true || value === 1 || value === '1';
+  return value === true || firstPersonHandsSource(value) === 'better-hands';   // BETTER-HANDS: a retired "Better Bodies" (2) too
 };
 
 // Female actors share the Nord-female body geometry, but still need the DDS
@@ -3845,42 +3846,52 @@ export async function buildFpArm({
       if (ARM_PARTS.includes(slot)) continue;
       if (rec && rec.model) wanted.push({ slot, record: rec.id, firstPerson: true, path: `meshes/${rec.model}` });
     }
-    // Keep the visible third-person body on Better Bodies, but use Robert's
-    // first-person arm skin plus the Better Hands mesh for the first-person
-    // hand slots. These assets are loaded directly and never replace the
-    // third-person body provider or its geometry.
+    // BETTER-HANDS (Mac, 2026-10-26: "one arm, not a Frankenstein"): the first-person arm is Robert's Bodies' - the wrist,
+    // forearm and upper arm of its whole-body mesh, in its skin - and the hands are Better Hands' mesh (the geometry
+    // Robert's Bodies' hands are), in the same skin. Before it the hands' arm was the RETAIL forearm (Robert's
+    // first-person file carries hands alone), a different skin at the wrist. Better Bodies' own hand is read, never
+    // drawn: the clenched fist's thumb is corrected against its thumb (formats/morrowind/mwThumbFist.js). None of it
+    // touches the third-person body.
     let betterBodiesFpArms = null;
     let betterBodiesFpHands = null;
-    if (firstPersonHandsSource(modSetting('morrowind-textures', 'FirstPersonHands')) === 'robert-bodies' && !beast && !werewolf && !vampire) {
+    let thumbReference = null;
+    if (firstPersonHandsSource(modSetting('morrowind-textures', 'FirstPersonHands')) === 'better-hands' && !beast && !werewolf && !vampire) {
       try {
-        const asset = robertBodiesFirstPersonAssetUrls({ race, female });
-        if (!asset) throw new Error(`Robert's Bodies / Better Hands assets missing for race "${String(race)}" / ${female ? 'female' : 'male'}`);
-        const [rawBodyBytes, bodyTextureBytes, rawHandBytes, handTextureBytes] = await Promise.all([
-          loadBetterBodiesAssetBytes(asset.bodyModel, 'Robert Bodies NIF'),
-          loadBetterBodiesAssetBytes(asset.bodyTexture, 'Robert Bodies DDS'),
-          loadBetterBodiesAssetBytes(asset.handModel, 'Better Hands NIF'),
-          loadBetterBodiesAssetBytes(asset.handTexture, 'Better Hands DDS'),
+        const body = betterBodiesAssetUrls({ race, female });
+        const hands = robertBodiesFirstPersonAssetUrls({ race, female });
+        if (!body?.handModel || !hands?.bodyModel || !hands?.bodyTexture || !hands?.handModel || !hands?.handTexture) {
+          throw new Error(`Robert's Bodies / Better Hands assets missing for race "${String(race)}" / ${female ? 'female' : 'male'}`);
+        }
+        // (Mac: "the hand and the arm do not match - take the arms' texture from Robert's too, and smooth the hand into
+        // the forearm"): the arm is Robert's Bodies' whole-body mesh's - its wrist, forearm and upper arm - in its own
+        // skin, the very file Better Hands' hands wear (byte for byte), its wrist sat under the hand (mwCuffFit.js)
+        const [armBytes, armTextureBytes, bodyHandBytes, rawHandBytes, handTextureBytes] = await Promise.all([
+          loadBetterBodiesAssetBytes(hands.bodyModel, "Robert's Bodies body NIF for first-person arms"),
+          loadBetterBodiesAssetBytes(hands.bodyTexture, "Robert's Bodies DDS for first-person arms"),
+          loadBetterBodiesAssetBytes(body.handModel, 'Better Bodies hand NIF (the fist thumb reference)'),
+          loadBetterBodiesAssetBytes(hands.handModel, 'Better Hands NIF'),
+          loadBetterBodiesAssetBytes(hands.handTexture, 'Better Hands DDS'),
         ]);
-        registerBetterBodiesRaceTexture(archives, asset.bodyTexturePath, bodyTextureBytes);
-        const bodyBasename = betterBodiesTextureBasename(asset.bodyTexturePath);
+        registerBetterBodiesRaceTexture(archives, hands.bodyTexturePath, armTextureBytes);
+        const armTextureBasename = betterBodiesTextureBasename(hands.bodyTexturePath);
         for (const cacheKey of TEXTURE_CACHE.keys()) {
-          if (String(cacheKey).toLowerCase().endsWith(bodyBasename)) TEXTURE_CACHE.delete(cacheKey);
+          if (String(cacheKey).toLowerCase().endsWith(armTextureBasename)) TEXTURE_CACHE.delete(cacheKey);
         }
         betterBodiesFpArms = {
           slot: 'betterBodies', partName: 'robertBodiesFirstPersonArms', bones: [],
-          bytes: rawBodyBytes, modelUrl: asset.bodyModel,
-          texturePath: asset.bodyTexturePath,
+          bytes: armBytes, modelUrl: hands.bodyModel,
+          texturePath: hands.bodyTexturePath,
           showSlots: ['wrist:left', 'wrist:right', 'forearm:left', 'forearm:right', 'upperarm:left', 'upperarm:right'],
           hideSlots: worn.fpShadows ?? worn.shadows,
+          cuffFit: 'skin',   // CUFF-FIT: its wrist sat under the bare hand
         };
-
         // Both packs name their DDS textures <race>_<sex>. Give Better Hands
         // a same-length, race-specific path so the two texture sets coexist.
-        const handTextureStem = `x${asset.raceKey[0]}_${asset.genderKey}`;
+        const handTextureStem = `x${hands.raceKey[0]}_${hands.genderKey}`;
         const handTexturePath = `textures/bbr/${handTextureStem}.dds`;
         const handBytes = rewriteBetterBodiesTextureStem(
           rawHandBytes,
-          `${asset.raceKey}_${asset.genderKey}`,
+          `${hands.raceKey}_${hands.genderKey}`,
           handTextureStem,
         );
         registerBetterBodiesRaceTexture(archives, handTexturePath, handTextureBytes);
@@ -3888,73 +3899,19 @@ export async function buildFpArm({
           if (String(cacheKey).toLowerCase().endsWith(handTextureStem + '.dds')) TEXTURE_CACHE.delete(cacheKey);
         }
         betterBodiesFpHands = {
-          slot: 'betterBodies', partName: 'robertBodiesBetterHands', bones: [],
-          bytes: handBytes, modelUrl: asset.handModel,
+          slot: 'betterBodies', partName: 'betterHandsFirstPersonHands', bones: [],
+          bytes: handBytes, modelUrl: hands.handModel,
           texturePath: handTexturePath,
           showSlots: ['hand:left', 'hand:right'],
           hideSlots: worn.fpShadows ?? worn.shadows,
+          cuffFit: 'bareHand',   // CUFF-FIT: the arm's wrist is sat under it
         };
-      } catch (error) {
-        console.warn("[Robert's Bodies + Better Hands] first-person assets unavailable; using standard Morrowind arms:", String(error?.message ?? error));
-      }
-    } else if (firstPersonHandsSource(modSetting('morrowind-textures', 'FirstPersonHands')) === 'better-bodies' && !beast && !werewolf && !vampire) {
-      // Better Bodies first-person selection must replace the complete visible arm,
-      // not just the fingers. Use the race/sex/body-variant skin mesh as the arm
-      // donor (filtered to anatomical arm sections by the NIF assembler), then its
-      // dedicated hand mesh for the hand slots. This keeps body and hand textures
-      // matched while leaving third-person provider selection independent.
-      try {
-        const asset = betterBodiesAssetUrls({ race, female });
-        if (!asset?.model || !asset?.texture || !asset?.handModel || !asset?.handTexture) {
-          throw new Error(`Better Bodies first-person arm/hand assets missing for race "${String(race)}" / ${female ? 'female' : 'male'}`);
-        }
-        const [rawBodyBytes, bodyTextureBytes, handBytes, handTextureBytes] = await Promise.all([
-          loadBetterBodiesAssetBytes(asset.model, 'Better Bodies body NIF for first-person arms'),
-          loadBetterBodiesAssetBytes(asset.texture, 'Better Bodies body DDS for first-person arms'),
-          loadBetterBodiesAssetBytes(asset.handModel, 'Better Bodies hand NIF'),
-          loadBetterBodiesAssetBytes(asset.handTexture, 'Better Bodies hand DDS'),
-        ]);
-        const bodyBytes = rewriteBetterBodiesTextureStem(
-          rawBodyBytes,
-          `bb_skin${female ? 'f' : 'm'}_${asset.geometryRaceKey}`,
-          `bb_skin${female ? 'f' : 'm'}_${asset.textureRaceKey}`,
-        );
-        registerBetterBodiesRaceTexture(archives, asset.texturePath, bodyTextureBytes);
-        const bodyTextureBasename = betterBodiesTextureBasename(asset.texturePath);
-        for (const cacheKey of TEXTURE_CACHE.keys()) {
-          if (String(cacheKey).toLowerCase().endsWith(bodyTextureBasename)) TEXTURE_CACHE.delete(cacheKey);
-        }
-        betterBodiesFpArms = {
-          slot: 'betterBodies', partName: 'betterBodiesFirstPersonArms', bones: [],
-          bytes: bodyBytes, modelUrl: asset.model,
-          texturePath: asset.texturePath,
-          showSlots: ['wrist:left', 'wrist:right', 'forearm:left', 'forearm:right', 'upperarm:left', 'upperarm:right'],
-          hideSlots: worn.fpShadows ?? worn.shadows,
-        };
-
-        registerBetterBodiesRaceTexture(archives, asset.handTexturePath, handTextureBytes);
-        const handTextureBasename = betterBodiesTextureBasename(asset.handTexturePath);
-        for (const cacheKey of TEXTURE_CACHE.keys()) {
-          if (String(cacheKey).toLowerCase().endsWith(handTextureBasename)) TEXTURE_CACHE.delete(cacheKey);
-        }
-        betterBodiesFpHands = {
-          slot: 'betterBodies', partName: 'betterBodiesFirstPersonHands', bones: [],
-          bytes: handBytes, modelUrl: asset.handModel,
-          texturePath: asset.handTexturePath,
-          showSlots: ['hand:left', 'hand:right'],
-          hideSlots: worn.fpShadows ?? worn.shadows,
-        };
-        console.info('[Better Bodies] first-person arm and hand meshes loaded', {
-          raceKey: asset.raceKey, female: !!female, underwear: asset.underwear,
-          armModel: asset.model, armTexture: asset.texture,
-          handModel: asset.handModel, handTexture: asset.handTexture,
-          armModelBytes: bodyBytes.byteLength, armTextureBytes: bodyTextureBytes.byteLength,
-          handModelBytes: handBytes.byteLength, handTextureBytes: handTextureBytes.byteLength,
-        });
+        thumbReference = bodyHandBytes;
       } catch (error) {
         betterBodiesFpArms = null;
         betterBodiesFpHands = null;
-        console.warn('[Better Bodies] first-person arm/hand assets unavailable; using standard Morrowind arms:', String(error?.message ?? error));
+        thumbReference = null;
+        console.warn('[Better Hands] first-person arm/hand assets unavailable; using standard Morrowind arms:', String(error?.message ?? error));
       }
     }
     const partBytes = [];
@@ -4051,6 +4008,7 @@ export async function buildFpArm({
           partBytes.push({
             slot: add.slot, bones: ['left hand', 'right hand'], bytes,
             textureFiles,
+            handShapesOnly: true,   // CUFF-FIT: its hands alone - the worn cuff is fitted onto them (mwCuffFit.js)
             modelUrl: robertIronGauntletFirstPersonUrl, source: "Robert's Bodies Based Gauntlets",
           });
           partBytes.push(originalForearm);
@@ -4114,7 +4072,7 @@ export async function buildFpArm({
       const fallbackSections = expectedSections.filter((section) =>
         !renderedSections.has(section) && !hiddenSections.has(section));
       if (fallbackSections.length) {
-        const sourceName = firstPersonHandsSource(modSetting('morrowind-textures', 'FirstPersonHands')) === 'better-bodies' ? 'Better Bodies' : "Robert's Bodies";
+        const sourceName = 'Better Hands';
         const note = `${sourceName} first-person mesh did not provide recognized sections for ${fallbackSections.join(', ')}; standard arm meshes remain as fallback for those sections.`;
         missing.push(note);
         console.warn(`[${sourceName}] first-person arm section fallback:`, fallbackSections);
@@ -4124,13 +4082,13 @@ export async function buildFpArm({
     // NPC builds stay quiet; DevTools shows the selected asset, recognized sections and standard fallbacks.
     if (ownHeads) {
       const sourceSetting = modSetting('morrowind-textures', 'FirstPersonHands');
-      if (sourceSetting !== 1 && !betterBodiesFpArms) {
-        console.warn("[Robert's Bodies + Better Hands] first-person hand source is set to Standard Morrowind.", { sourceSetting });
+      if (firstPersonHandsSource(sourceSetting) !== 'better-hands' && !betterBodiesFpArms) {
+        console.warn('[Better Hands] first-person hand source is set to Standard Morrowind.', { sourceSetting });
       }
-      console.info("[Robert's Bodies + Better Hands] first-person arm integration", {
+      console.info('[Better Hands] first-person arm integration', {
         race, female,
         sourceSetting,
-        requested: sourceSetting === 1,
+        requested: firstPersonHandsSource(sourceSetting) === 'better-hands',
         assetLoaded: Boolean(betterBodiesFpArms),
         modelUrl: betterBodiesFpArms?.modelUrl ?? null,
         dedicatedHandAssetLoaded: Boolean(betterBodiesFpHands),
@@ -4380,6 +4338,10 @@ export async function buildFpArm({
     // player swung, which is a rig that walks away mid-blow.
     const accumRoot = sources.reduce((acc, so) => (acc ?? so.wouldAccumRoot), null) ?? null;
     for (const so of sources) so.accumRoot = accumRoot;
+    // THUMB-FIST: the clenched fist's thumb laid on Better Bodies', fitted in the fists' stance's first frame
+    const fistPick = thumbReference ? pickAnimSource(sources, FIST_GROUP, resetClip) : null;
+    const thumbFist = fistPick ? prepareThumbFist(arm, { referenceBytes: thumbReference, handBytes: betterBodiesFpHands?.bytes,
+      fist: { tracks: fistPick.source.trackMap, sampleTrack, time: fistPick.state.startTime, accumRoot } }) : null;
     const poseAt = (t) => poseAssembly(arm, { tracks, sampleTrack, time: t, accumRoot });
     // PX27 (Mac: the full arms do not show on a swing or a bow): THE
     // REACH IS SWEPT OVER EVERY CLIP THE ARM WILL EVER PLAY, not the
@@ -4453,6 +4415,7 @@ export async function buildFpArm({
       arm,
       tracks,
       accumRoot,
+      thumbFist,   // THUMB-FIST: eased by the fists' stance, frame by frame
       keys: idlePick.source.keys,
       // MW-D33: THE WORN VERDICTS, ON THE CARD. Mac's report - clothing
       // and armor not showing - arrived with nothing on screen saying
@@ -4868,7 +4831,7 @@ export function createFpArm({ playerAppearance = false } = {}) {
   let thirdBlendElapsed = 0;
   // BLOW-FLOW (combat/blowFlow.js): the blows' serial and kinds the views' blends read, the first person's own blend, the
   // window held after a blow, the attack windows played in turn, and a thrust behind a shield that bashes
-  let blowSerial = 0, thirdPoseKind = 'pose', thirdBlendSeconds = null, recoverHeld = 0, blowBash = false, blowHit = false, seriesWanted = false;
+  let blowSerial = 0, thirdPoseKind = 'pose', thirdBlendSeconds = null, recoverHeld = 0, blowBash = false, blowHit = false, seriesWanted = false, bashExit = 0;
   const blowVariants = createVariantCycle();
   const fpBlend = { state: null, kind: 'pose', from: null, elapsed: 0, seconds: 0, at: -1 };
 
@@ -5964,7 +5927,9 @@ export function createFpArm({ playerAppearance = false } = {}) {
     }
     // SHIELD-BASH: the shield throws the blow - the weapon arm (or the right fist) holds the stance's guard, as the
     // idle has it, while the left drives the shield out (shieldBash, the `hold` slot)
-    if (blowBash && attackingNow() && idle) { req.limbs = { R: { clip: idle, side: 'R', mirror: false } }; req.carry.key = 'bash'; }
+    // BASH-EXIT (Mac: "after the shield bash the one-hander in the right hand twitches"): and through the return to the
+    // stance - that blend starts from the fists' clip, whose right arm is a fist's thrust; the stance's arm held over it
+    if (((blowBash && attackingNow()) || bashExit > 0) && idle) { req.limbs = { R: { clip: idle, side: 'R', mirror: false } }; req.carry.key = 'bash'; }
     return req;
   }
   /**
@@ -6134,8 +6099,8 @@ export function createFpArm({ playerAppearance = false } = {}) {
    *  release drives the LEFT fist out in both clips, and a one-hander's thrust in turn with its own) as a bash from
    *  where the guard holds the shield (combat/shieldGuard.js); poseAssembly's `hold` slot, or null. */
   const shieldBash = () => (blowBash && actionState && attackingNow() && !climbHands && !held
-    // (held where it struck, the shield comes home over the series' window - BLOW-FLOW - not in a frame)
-    ? shieldBashHold(UPPER_BODY_NAME[upper], upper === UPPER_BODY.AttackEnd && blowPlan?.lead ? Math.min(1, recoverHeld / holdFor(attackType)) : clipCompletion(actionState), viewMode) : null);
+    // (the shield comes home over the recovery - BLOW-FLOW - home by its follow-through's end or the window's, not in a frame)
+    ? shieldBashHold(UPPER_BODY_NAME[upper], upper === UPPER_BODY.AttackEnd && blowPlan?.lead ? Math.min(1, Math.max(recoverHeld / holdFor(attackType), clipCompletion(actionState))) : clipCompletion(actionState), viewMode) : null);
   /** LEFT-ARM: who holds the left arm this frame (combat/leftArmLayer.js leftArmModeOf). */
   const leftArmMode = () => leftArmModeOf({ view: viewMode, type: animWeaponType(built?.mwType, sheathed, spellReady), shield: carriesShield(rig()),
     dual: handsMode === 'dual', free: !!built?.ok && !sheathed && !spellStance() && !climbHands && !held && !torchVisible() });
@@ -6538,7 +6503,9 @@ export function createFpArm({ playerAppearance = false } = {}) {
     attackType = null;
     attackHand = null;   // TWO-HANDS
     blowPlan = null;
-    if (blowBash) { blowBash = false; refreshWeaponGroup(); }   // SHIELD-BASH: the weapon's own group again
+    // SHIELD-BASH: the weapon's own group again; BASH-EXIT: the stance's right arm held through the return (mirrorFor),
+    // its idle carried on rather than restarted under it
+    if (blowBash) { blowBash = false; bashExit = BLOW_FLOW.exit; resetIdleOnAttackEnd = false; refreshWeaponGroup(); }
     if (resetIdleOnAttackEnd) { resetIdleOnAttackEnd = false; resetIdle(); }
   }
 
@@ -6605,6 +6572,7 @@ export function createFpArm({ playerAppearance = false } = {}) {
     const playing = !!(actionState && actionState.playing);
     const recovering = upper === UPPER_BODY.AttackEnd && blowPlan?.lead;
     if (recovering) recoverHeld += dt;
+    bashExit = Math.max(0, bashExit - dt);   // BASH-EXIT: the return to the stance after a bash (mirrorFor)
     // BLOW-FLOW: a series ended - the recovery gives way to the stance at the window's end, wherever it is (the exit blend)
     if (playing && !(recovering && !seriesWanted && recoverHeld >= holdFor(attackType))) return;
     switch (upper) {
@@ -7435,7 +7403,7 @@ export function createFpArm({ playerAppearance = false } = {}) {
       attackHand = hand === 'L' || hand === 'R' ? hand : leadHand;   // TWO-HANDS: the blow's hand - the clip's, or its mirror's
       // BLOW-FLOW: a new blow - its own serial (its sections one pose kind), its window chosen afresh, and a thrust
       // behind a shield the bash (the fists' always, a one-hander's in turn with its own thrust)
-      blowSerial++; blowHit = false;
+      blowSerial++; blowHit = false; bashExit = 0;
       blowBash = handsMode !== 'dual' && !torchVisible() && bashesNow({ thrust: type === 'thrust', shield: carriesShield(rig()),
         fists: animWeaponType(built.mwType, sheathed, spellReady) === MW_WEAPON_TYPE.HandToHand, cycle: blowVariants });
       attackStrength = 1;
@@ -8437,6 +8405,7 @@ export function createFpArm({ playerAppearance = false } = {}) {
       fpBlend.at = frames + 1;
       fpBlend.elapsed += Math.max(0, dt);
       posePartClocks(built.arm, weaponClockValue(), { frameTime: partClock });   // MW-BOW1: the bow draws, the arrow with it
+      built.thumbFist?.step(dt, animWeaponType(built.mwType, sheathed, spellReady) === MW_WEAPON_TYPE.HandToHand);   // THUMB-FIST: the fist's thumb
       poseAssembly(built.arm, {
         tracks: fTracks,
         sampleTrack: fSampler,

@@ -146,15 +146,19 @@ test('BLOW-FLOW / MW-PACE2: the rig\'s wiring - the led blow at one speed, its h
   assert.match(src, /case UPPER_BODY\.AttackEnd:[\s\S]{0,400}if \(recovering && seriesWanted && recoverHeld < BLOW_FLOW\.wait\) break;\s+endAttack\(\);/);
   assert.match(src, /blowBusy\(\) \{\s+if \(!built \|\| !built\.ok\) return false;\s+return upper === UPPER_BODY\.Equipping \|\| upper === UPPER_BODY\.AttackWindUp \|\| upper === UPPER_BODY\.AttackRelease;\s+\}/,
     'the window is free: a next blow starts from the held pose');
-  assert.match(src, /upper === UPPER_BODY\.AttackEnd && blowPlan\?\.lead \? Math\.min\(1, recoverHeld \/ holdFor\(attackType\)\) : clipCompletion\(actionState\)/, 'the bash\'s shield comes home over the window');
+  assert.match(src, /upper === UPPER_BODY\.AttackEnd && blowPlan\?\.lead \? Math\.min\(1, Math\.max\(recoverHeld \/ holdFor\(attackType\), clipCompletion\(actionState\)\)\) : clipCompletion\(actionState\)/, 'the bash\'s shield comes home over the recovery - by its follow-through\'s end or the window\'s');
+  // BASH-EXIT: the stance's right arm held over the fists' clip through the return to the stance, its idle not restarted
+  assert.match(src, /if \(\(\(blowBash && attackingNow\(\)\) \|\| bashExit > 0\) && idle\) \{ req\.limbs = \{ R: \{ clip: idle, side: 'R', mirror: false \} \};/);
+  assert.match(src, /if \(blowBash\) \{ blowBash = false; bashExit = BLOW_FLOW\.exit; resetIdleOnAttackEnd = false; refreshWeaponGroup\(\); \}/);
+  assert.match(src, /blowSerial\+\+; blowHit = false; bashExit = 0;/, 'a next blow is its own - no bash arm over it');
+  assert.match(src, /bashExit = Math\.max\(0, bashExit - dt\);/);
   assert.match(src, /stepUpper\(dt\);/);
   assert.match(src, /const blendDuration = reactionRule\?\.duration \?\? thirdBlendSeconds \?\? \[0, 0\.16, 0\.25, 0\.4\]\[blendChoice\];/);
   assert.match(src, /blendFrom: fpBlend\.seconds > 0 \? fpBlend\.from : null,/);
   assert.match(src, /fpBlend\.at === frames/);
   // the bash: the right arm the stance's, a one-hander's under the fists' own clip, its group back as the blow ends
-  assert.match(src, /if \(blowBash && attackingNow\(\) && idle\) \{ req\.limbs = \{ R: \{ clip: idle, side: 'R', mirror: false \} \};/);
   assert.match(src, /if \(blowBash && animWeaponType\(built\.mwType, sheathed, spellReady\) !== MW_WEAPON_TYPE\.HandToHand\) weaponGroup = composeWeaponGroup\(MW_WEAPON_TYPE\.HandToHand, hasGroup\)\.group \?\? weaponGroup;/);
-  assert.match(src, /if \(blowBash\) \{ blowBash = false; refreshWeaponGroup\(\); \}/);
+  assert.match(src, /if \(blowBash\) \{ blowBash = false; bashExit = BLOW_FLOW\.exit; [^}]*refreshWeaponGroup\(\); \}/);
   assert.match(src, /const shieldBash = \(\) => \(blowBash && actionState && attackingNow\(\) && !climbHands && !held/);
   // the rig: the player's melee blow led, its hit held for the arm, no blow started while the arm still throws one
   const rig = rd('src/combat/weapon/weaponRig.js');

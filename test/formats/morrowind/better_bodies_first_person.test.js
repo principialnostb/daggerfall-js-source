@@ -12,11 +12,18 @@ const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../../..');
 test('first-person runtime dispatch uses the independent hand-source selector', () => {
   const runtime = readFileSync(resolve(repoRoot, 'src/combat/fpArm.js'), 'utf8');
   assert.match(runtime, /import \{ firstPersonHandsSource \} from '..\/formats\/morrowind\/mwBetterBodiesPaths\.js';/);
-  assert.match(runtime, /firstPersonHandsSource\(modSetting\('morrowind-textures', 'FirstPersonHands'\)\) === 'robert-bodies'/);
-  assert.match(runtime, /firstPersonHandsSource\(modSetting\('morrowind-textures', 'FirstPersonHands'\)\) === 'better-bodies'/);
+  // BETTER-HANDS: Better Bodies' arm with Better Hands' hands, Better Bodies' own hand read for the fist's thumb
+  assert.match(runtime, /firstPersonHandsSource\(modSetting\('morrowind-textures', 'FirstPersonHands'\)\) === 'better-hands'/);
+  assert.doesNotMatch(runtime, /=== 'robert-bodies'|=== 'better-bodies'/, 'the two retired sources are gone');
   assert.match(runtime, /betterBodiesAssetUrls\(\{ race, female \}\)/);
-  assert.match(runtime, /loadBetterBodiesAssetBytes\(asset\.model, 'Better Bodies body NIF for first-person arms'\)/);
-  assert.match(runtime, /partName: 'betterBodiesFirstPersonArms'/);
+  // the arm Robert's Bodies' whole body's, in its skin - the file Better Hands' hands wear - its wrist sat under the hand
+  assert.match(runtime, /loadBetterBodiesAssetBytes\(hands\.bodyModel, "Robert's Bodies body NIF for first-person arms"\)/);
+  assert.match(runtime, /loadBetterBodiesAssetBytes\(hands\.handModel, 'Better Hands NIF'\)/);
+  assert.match(runtime, /thumbReference = bodyHandBytes;/);
+  assert.match(runtime, /partName: 'robertBodiesFirstPersonArms'/);
+  assert.match(runtime, /cuffFit: 'skin',/);
+  assert.match(runtime, /partName: 'betterHandsFirstPersonHands'/);
+  assert.match(runtime, /cuffFit: 'bareHand',/);
   assert.match(runtime, /showSlots: \['wrist:left', 'wrist:right', 'forearm:left', 'forearm:right', 'upperarm:left', 'upperarm:right'\]/);
   const resolver = readFileSync(resolve(repoRoot, 'src/formats/morrowind/mwBetterBodies.js'), 'utf8');
   assert.match(resolver, /High Resolution Better Body Female Textures\/Hands\/Textures\/bb\/bb_handf_\*\.dds/);
@@ -24,10 +31,10 @@ test('first-person runtime dispatch uses the independent hand-source selector', 
   assert.match(resolver, /betterBodiesHighResolutionFemaleHandTexturePath\(\{ race \}\)/);
 });
 
-test('first-person hand selector keeps Vanilla, Robert/Better Hands, and Better Bodies independent', () => {
+test('first-person hand selector: Vanilla or Better Hands - a saved retired Better Bodies takes Better Hands', () => {
   assert.equal(firstPersonHandsSource(0), 'vanilla');
-  assert.equal(firstPersonHandsSource(1), 'robert-bodies');
-  assert.equal(firstPersonHandsSource(2), 'better-bodies');
+  assert.equal(firstPersonHandsSource(1), 'better-hands');
+  assert.equal(firstPersonHandsSource(2), 'better-hands');
   assert.equal(firstPersonHandsSource(undefined), 'vanilla');
   assert.equal(firstPersonHandsSource(99), 'vanilla');
 });
