@@ -854,7 +854,12 @@ function composeRefs(rec, prio, female, bodyById, claim, notes, piece = null) {
     if (!row) { notes.push(`${rec.id}: INDX ${ref.part} is outside the enum`); continue; }
     if (row.name === 'weapon') continue;
     const id = (female && ref.female) || ref.male || ref.female;
-    if (!id) { notes.push(`${rec.id}: ${row.name} names no body part`); continue; }
+    // EMPTY-PART (Mac's screenshot, 2026-10-26: the leather glove's outer arm in skin): a reference that names no body
+    // part still RESERVES its slot - NpcAnimation::addPartGroup's `else reserveIndividualPart(part.mPart, group,
+    // priority)` - so the skin under it is not drawn. Retail's netch gauntlet names its wrist so (INDX 9, no model): the
+    // wrist is the cuff's, and the body's fuller wrist came out through it. (A NAMED part no BODY record carries keeps
+    // its skin, below - the never-traps law, MW-D29's.)
+    if (!id) { notes.push(`${rec.id}: ${row.name} names no body part`); claim(ref.part, prio, null); continue; }
     const body = bodyById.get(id);
     if (!body) { notes.push(`${rec.id}: ${row.name} wants "${id}" and no BODY record carries it`); continue; }
     // `slot` names the record for the notes; `partName` is the part's own

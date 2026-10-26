@@ -1918,6 +1918,14 @@ test('MW-D29: the composer dresses, shadows, sexes, and never traps', () => {
   // the female pick takes CNAM when it exists, BNAM when it does not.
   const fem = composeWornArmor({ pieces, armors, bodyPool, female: true });
   assert.deepEqual(fem.adds.map((a) => a.recordId).sort(), ['b_cu', 'b_gr_f', 'b_wr']);
+  // EMPTY-PART: a reference naming no body part (retail's netch gauntlet's wrist, INDX 9 with no model) reserves its slot
+  // - addPartGroup's reserveIndividualPart: no mesh, and the skin under it hidden
+  const netch = [{ id: 'iron_gauntlet_left', model: 'g.nif', name: '', enchanted: false,
+    parts: [{ part: 7, male: 'b_gl', female: null }, { part: 9, male: null, female: null }] }];
+  const gloved = composeWornArmor({ pieces: [{ templateIndex: ARMOR_ENUM.Gauntlets, material: ARMOR_MATERIAL.Iron }], armors: netch,
+    bodyPool: [{ id: 'b_gl', model: 'm/gl.nif' }], female: false });
+  assert.deepEqual(gloved.adds.map((a) => a.recordId), ['b_gl'], 'the empty reference draws nothing');
+  assert.deepEqual([...gloved.shadows].sort(), ['hand:left', 'wrist:left'], 'and its wrist is hidden under the cuff');
   // a piece with no MW record at all is one note, no adds.
   const none = composeWornArmor({ pieces: [{ templateIndex: ARMOR_ENUM.Helm, material: ARMOR_MATERIAL.Chain }], armors, bodyPool, female: false });
   assert.equal(none.adds.length, 0);
