@@ -1,0 +1,83 @@
+[
+ {
+  "name": "SHIELD-GUARD-a-fist-pulled",
+  "file": "src/formats/morrowind/mwFirstPerson.js",
+  "old": "REVERSED_STRIKES.includes(strike) && weaponType !== MW_WEAPON_TYPE.HandToHand;",
+  "new": "REVERSED_STRIKES.includes(strike);",
+  "tests": [
+   "test/combat/reversedSwing.test.js"
+  ]
+ },
+ {
+  "name": "SHIELD-GUARD-the-fists-box",
+  "file": "src/combat/shieldGuard.js",
+  "old": "return shield && type === MW_WEAPON_TYPE.HandToHand ? MW_WEAPON_TYPE.LongBladeOneHand : type;",
+  "new": "return type;",
+  "tests": [
+   "test/formats/morrowind/fparm.test.js"
+  ]
+ },
+ {
+  "name": "SHIELD-GUARD-the-bash-never-out",
+  "file": "src/combat/shieldGuard.js",
+  "old": "  if (u <= U.hit) return -1 + 2 * smooth((u - U.windup) / (U.hit - U.windup));",
+  "new": "  if (u <= U.hit) return -1;",
+  "tests": [
+   "test/formats/morrowind/fparm.test.js"
+  ]
+ },
+ {
+  "name": "LEFT-ARM-the-guard-never-raised-for-a-blow",
+  "file": "src/combat/leftArmLayer.js",
+  "old": "    if (attacking || jumping) return { kind: 'movement', base: 'walkleft', stance: 'drawn', still: true };",
+  "new": "",
+  "tests": [
+   "test/formats/morrowind/fparm.test.js"
+  ]
+ },
+ {
+  "name": "LEFT-ARM-snapped-not-eased",
+  "file": "src/combat/leftArmLayer.js",
+  "old": "      w = ease(w, want, want ? LEFT_ARM_EASE.in : LEFT_ARM_EASE.out, dt);",
+  "new": "      w = want;",
+  "tests": [
+   "test/formats/morrowind/fparm.test.js"
+  ]
+ },
+ {
+  "name": "LEFT-ARM-the-free-hand-the-one-handers",
+  "file": "src/combat/leftArmLayer.js",
+  "old": "  return !dual && ONE_HANDED.includes(type) ? 'free' : null;",
+  "new": "  return null;",
+  "tests": [
+   "test/formats/morrowind/fparm.test.js"
+  ]
+ },
+ {
+  "name": "CLIMB-STANCE-the-guard-on-the-stone",
+  "file": "src/combat/fpArm.js",
+  "old": "    if (climbHands && t === MW_WEAPON_TYPE.HandToHand) return MW_WEAPON_TYPE.None;\n",
+  "new": "",
+  "tests": [
+   "test/formats/morrowind/fparm.test.js"
+  ]
+ },
+ {
+  "name": "CLICK-VARIETY-the-run-unbroken",
+  "file": "src/characters/weaponStates.js",
+  "old": "  const pool = banned ? CLICK_ATTACK_DIRECTIONS.filter((d) => clickFamilyOf(d) !== banned) : CLICK_ATTACK_DIRECTIONS;",
+  "new": "  const pool = CLICK_ATTACK_DIRECTIONS;",
+  "tests": [
+   "test/combat/clickvariety.test.js"
+  ]
+ },
+ {
+  "name": "CLICK-VARIETY-a-refused-click-counted",
+  "file": "src/combat/playerWeapon.js",
+  "old": "    if (!this._attack(strike)) return null;\n    (this._clickFamilies ??= []).push(clickFamilyOf(strike));",
+  "new": "    const began = this._attack(strike);\n    (this._clickFamilies ??= []).push(clickFamilyOf(strike));\n    if (!began) return null;",
+  "tests": [
+   "test/combat/clickvariety.test.js"
+  ]
+ }
+]

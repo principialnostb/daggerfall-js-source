@@ -22,6 +22,7 @@ import {
 } from '../../src/characters/weaponStates.js';
 import { createFpArm, fpSkeletonPath, FP_CLIP_PATH, UPPER_BODY, blowRate, BLOW_RATE_MAX, BLOW_RATE_MIN } from '../../src/combat/fpArm.js';
 import { MW_WEAPON_TYPE } from '../../src/formats/morrowind/mwFirstPerson.js';
+import { BLOW_FLOW, PACE, paceFactor } from '../../src/combat/blowFlow.js';
 import { PeerBodies, peerBlowPace, peerBlow, PEER_BLOW_MIN_S, PEER_BLOW_MAX_S } from '../../src/net/peer/peerBodies.js';
 import { createWeaponRig } from '../../src/combat/weapon/weaponRig.js';
 import { EQUIP_SLOTS } from '../../src/systems/equip.js';
@@ -174,6 +175,7 @@ test('MW-PACE1: the arm lands its "hit" on the machine\'s and is ready when the 
     const at = strikeLog(arm, dt);
     // the release ENDS on "chop hit" - the AttackEnd edge is the frame the playhead crossed it
     near(at[UPPER_BODY.AttackEnd], blow.hitAt, dt + 1e-9, `hitAt ${blow.hitAt}: the blade lands with the damage`);
+    // (the first person's: no window held after it - BLOW-FLOW holds the third person's alone)
     near(at[UPPER_BODY.WeaponEquipped], blow.seconds, dt + 1e-9, `seconds ${blow.seconds}: the follow-through ends with the blow`);
     assert.equal(arm.status().blow, null, 'and the plan goes with the blow');
   }
@@ -280,7 +282,8 @@ test('MW-PACE1: the rig hands the arm the MACHINE\'s schedule at the strike\'s f
       assert.equal(calls.length, 1, 'the arm is told once');
       const { blow } = calls[0].opts;
       assert.ok(blow, 'with the blow\'s schedule');
-      assert.deepEqual(blow, r.playerWeapon.strikeSchedule(1 / 60), 'the machine\'s own, at the frame\'s dt');
+      // PIN MOVED (MW-PACE2, combat/blowFlow.js): and the player's melee blow is LED by its arm
+      assert.deepEqual(blow, { ...r.playerWeapon.strikeSchedule(1 / 60), lead: true }, 'the machine\'s own, at the frame\'s dt, led by the arm');
       return blow;
     };
     const slow = blowAt(20);
@@ -340,4 +343,110 @@ test('MW-PACE1: the peer\'s body hands its rig the burst\'s schedule', async () 
     { seconds: 0.6, hitAt: 0.24 },         // a longer gap does not slow it
     null,                                  // a pause: a new burst
   ]);
+});
+
+test('MW-PACE3 / BLOW-FLOW: the player\'s LED blow winds up quick, snaps its release to the hit, then recovers with inertia - its follow-through braking, never a still frame - before the stance', async () => {
+  // (combat/blowFlow.js calmBlowPlan, recoverRate) the fixture's chop: wind-up 0.4, release 0.4, large follow-through 0.2
+  const arm = await drawnArm(3.0);
+  const dt = 1 / 60;
+  for (const step of [0.04, 0.0625, 0.1, 0.2]) {
+    const blow = { seconds: 5 * step, hitAt: 2 * step, step, lead: true };
+    assert.equal(arm.attack('StrikeDown', { blow }), 'chop');
+    const rates = { [UPPER_BODY.AttackWindUp]: new Set(), [UPPER_BODY.AttackRelease]: new Set() }, follow = [];
+    let clock = 0, hitAt = null, back = null;
+    let last = arm.status().upper;
+    for (let i = 0; i < 2000; i++) {
+      arm.update(dt); clock += dt;
+      const s = arm.status();
+      if (s.blow && rates[s.upper]) rates[s.upper].add(s.blow.rate.toFixed(9));
+      if (s.upper === UPPER_BODY.AttackEnd) follow.push({ time: s.time, rate: s.blow.rate });
+      if (s.upper !== last) { if (s.upper === UPPER_BODY.AttackEnd) hitAt = clock; last = s.upper; }
+      if (s.upper === UPPER_BODY.WeaponEquipped) { back = clock; break; }
+    }
+    const sf = paceFactor(step);
+    assert.deepEqual([...rates[UPPER_BODY.AttackWindUp]], [(PACE.wind * sf).toFixed(9)], `step ${step}: the wind-up at its own speed`);
+    assert.ok([...rates[UPPER_BODY.AttackRelease]].includes((PACE.release * sf).toFixed(9)), `step ${step}: the release snapped`);
+    assert.ok(PACE.release > PACE.wind, 'the release is the blow\'s quickest section');
+    near(hitAt, 0.4 / (PACE.wind * sf) + 0.4 / (PACE.release * sf), 2 * dt + 1e-9, `step ${step}: the blade lands at the hit`);
+    assert.ok(follow.length > 2, `step ${step}: the follow-through is played`);
+    for (let j = 1; j < follow.length; j++) {
+      assert.ok(follow[j].time > follow[j - 1].time, `step ${step}: moving every frame of the recovery - no frozen frame (${j})`);
+      assert.ok(follow[j].rate <= follow[j - 1].rate + 1e-12, `step ${step}: braking, never speeding up`);
+    }
+    assert.ok(follow.at(-1).rate < follow[0].rate * 0.8, `step ${step}: braked by the end of the recovery`);
+    assert.ok(back - hitAt <= BLOW_FLOW.hold + 2 * dt, `step ${step}: the stance takes it back by the window's end`);
+  }
+});
+
+test('SERIES-FLOW: while the series goes on the led blow does not freeze after its hit - it carries on slowly into its follow-through and waits there for the next blow', async () => {
+  // (combat/blowFlow.js driftRate) Mac: "held or tapped, one series - the window only when the player stops"
+  const arm = await drawnArm(3.0);
+  const dt = 1 / 60;
+  const step = 0.2;   // Speed 50's tick: the machine's strike a second long, the arm's hit near half of it
+  const blow = { seconds: 5 * step, hitAt: 2 * step, step, lead: true };
+  arm.setSeriesWanted(true);
+  assert.equal(arm.attack('StrikeDown', { blow }), 'chop');
+  let hitRate = null;
+  for (let i = 0; i < 400 && arm.status().upper !== UPPER_BODY.AttackEnd; i++) { hitRate = arm.status().blow.rate; arm.update(dt); }
+  assert.equal(arm.status().upper, UPPER_BODY.AttackEnd);
+  const drift = arm.status().blow.rate;
+  assert.ok(drift < hitRate, `slower than the blow (${drift.toFixed(2)} < ${hitRate.toFixed(2)})`);
+  let clock = arm.status().blow.clock;
+  while (clock < blow.seconds - 10 * dt) { arm.update(dt); clock += dt; }
+  const t0 = arm.status().time;
+  for (let i = 0; i < 10; i++) arm.update(dt);
+  assert.ok(arm.status().time > t0, 'still moving as the machine lets the next blow go - no frozen window inside a series');
+  for (let i = 0; i < 40; i++) arm.update(dt);
+  assert.equal(arm.status().upper, UPPER_BODY.AttackEnd, 'still waiting for the next blow well past the window\'s own length');
+  assert.equal(arm.attack('StrikeLeft', { blow }), 'slash', 'and the next blow takes it from there');
+  // the series ends: the window, then the stance
+  arm.setSeriesWanted(false);
+  let back = 0;
+  for (let i = 0; i < 600 && arm.status().upper !== UPPER_BODY.WeaponEquipped; i++) { arm.update(dt); back += dt; }
+  assert.equal(arm.status().upper, UPPER_BODY.WeaponEquipped, 'the series over, the stance takes it back');
+});
+
+test('BLOW-FLOW: a thrust holds its window the shorter - a jab\'s straight arm comes back sooner than a cut ended low', async () => {
+  // (combat/blowFlow.js holdFor) the fixture's longsword: its chop and its thrust, each led, the series ended
+  const arm = await drawnArm(3.0);
+  const dt = 1 / 60;
+  const step = 0.0625;
+  const windowOf = (strike) => {
+    assert.ok(arm.attack(strike, { blow: { seconds: 5 * step, hitAt: 2 * step, step, lead: true } }));
+    let hit = null, back = null, clock = 0;
+    for (let i = 0; i < 2000; i++) {
+      arm.update(dt); clock += dt;
+      const u = arm.status().upper;
+      if (hit == null && u === UPPER_BODY.AttackEnd) hit = clock;
+      if (u === UPPER_BODY.WeaponEquipped) { back = clock; break; }
+    }
+    return back - hit;
+  };
+  // a long recovery - a series stretched over a slow machine blow, then ended - gives way to the stance at the window's
+  // end, wherever its follow-through stands: a thrust's at the shorter window, a cut's at its own
+  const endedAt = (strike, held) => {
+    arm.setSeriesWanted(true);
+    assert.ok(arm.attack(strike, { blow: { seconds: 20, hitAt: 2 * step, step, lead: true } }));
+    let i = 0;
+    for (; i < 2000 && arm.status().upper !== UPPER_BODY.AttackEnd; i++) arm.update(dt);
+    for (let t = 0; t < held; t += dt) arm.update(dt);
+    assert.equal(arm.status().upper, UPPER_BODY.AttackEnd, `${strike}: still recovering inside the series`);
+    arm.setSeriesWanted(false);
+    arm.update(dt); arm.update(dt);
+    const ended = arm.status().upper === UPPER_BODY.WeaponEquipped;
+    for (i = 0; i < 2000 && arm.status().upper !== UPPER_BODY.WeaponEquipped; i++) arm.update(dt);
+    return ended;
+  };
+  const between = (BLOW_FLOW.thrustHold + BLOW_FLOW.hold) / 2;
+  const random = Math.random;
+  Math.random = () => 0.95;   // a full-strength blow: the fixture's large follow-through (its weaker ones have none)
+  try {
+    assert.equal(endedAt('StrikeUp', between), true, 'a thrust past its window: the stance at once');
+    assert.equal(endedAt('StrikeDown', between), false, 'a cut inside its own: still recovering');
+    assert.equal(endedAt('StrikeDown', BLOW_FLOW.hold + 0.05), true, 'a cut past it: the stance at once');
+  } finally { Math.random = random; }
+  const chop = windowOf('StrikeDown'), thrust = windowOf('StrikeUp');
+  assert.ok(chop > 0 && chop <= BLOW_FLOW.hold + 2 * dt, `a chop recovers inside its window (${chop})`);
+  assert.ok(thrust > 0 && thrust <= BLOW_FLOW.thrustHold + 2 * dt, `a thrust inside the shorter one (${thrust})`);
+  assert.ok(BLOW_FLOW.thrustHold < BLOW_FLOW.hold);
 });

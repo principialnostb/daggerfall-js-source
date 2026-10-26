@@ -209,6 +209,23 @@ export const LEFT_UNARMED_ANIMS = Object.freeze([0, 1, 2, 3, 4, 2, 1, 0]);
  *  it) and the touch Attack button's (ui/touch/touchButtons.js attackStroke) - one table. */
 export const CLICK_ATTACK_DIRECTIONS = Object.freeze(['UpRight', 'Left', 'Right', 'DownLeft', 'Down', 'DownRight']);
 
+/** CLICK-VARIETY (2026-10-26, Mac: "one animation five times is not an interesting pool, it is strange combat"): THE
+ *  CLICK'S ROLL NEVER SHOWS ONE BLOW MORE THAN `CLICK_REPEAT_MAX` TIMES RUNNING. Half the table is a downward strike
+ *  (DownLeft, Down, DownRight - one chop, one overhand, in every picture), so the uniform roll ran the same blow four and
+ *  five times. The family a direction swings (`clickFamilyOf`: the chop, the slash, the thrust) that the last
+ *  CLICK_REPEAT_MAX swung is rolled again over the other directions, still uniform among them. A departure from DFU's
+ *  Random.Range alone; the gesture's drag (WeaponSwingMode 0) is the player's, and is never touched. */
+export const CLICK_REPEAT_MAX = 2;
+/** A direction's or a strike's family ('DownLeft' and 'StrikeDownLeft' alike). */
+export const clickFamilyOf = (dir) => (/Down/.test(dir) ? 'chop' : /Up/.test(dir) ? 'thrust' : 'slash');
+/** A click's direction from `rolls` given the families of the last blows (`recent`, oldest first). */
+export function rollClickDirection(rolls, recent = []) {
+  const run = recent.slice(-CLICK_REPEAT_MAX);
+  const banned = run.length === CLICK_REPEAT_MAX && run.every((f) => f === run[0]) ? run[0] : null;
+  const pool = banned ? CLICK_ATTACK_DIRECTIONS.filter((d) => clickFamilyOf(d) !== banned) : CLICK_ATTACK_DIRECTIONS;
+  return pool[Math.min(pool.length - 1, Math.floor(rolls() * pool.length))];
+}
+
 // WeaponManager.TrackMouseAttack verbatim: 15deg radial sections.
 // Note gesture tracking emits only SIX directions (UpLeft/UpRight
 // exist solely for the click-attack random roll).

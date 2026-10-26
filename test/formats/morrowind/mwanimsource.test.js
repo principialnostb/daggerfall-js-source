@@ -319,7 +319,10 @@ test('MW-D14: an ATTACK poses from ITS source, which is not the idle\'s', async 
   assert.equal(arm.status().actionSource, null);
 
   assert.equal(arm.attack('StrikeDown'), 'chop');
-  arm.update(0.05);
+  // PIN MOVED (BLOW-FLOW, combat/blowFlow.js): a blow leaves the stance over BLOW_FLOW.entry, so the swing's own pose is
+  // read once that blend is done - still in its wind-up
+  for (let i = 0; i < 4; i++) arm.update(0.05);
+  assert.equal(arm.status().upper, UPPER_BODY.AttackWindUp, 'still winding up');
   assert.equal(arm.status().actionSource, 'meshes/xbase_anim.1st.kf');
   const built = arm.built();
   const [base, own] = built.sources;

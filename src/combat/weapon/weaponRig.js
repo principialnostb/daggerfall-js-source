@@ -54,6 +54,8 @@ import { fieldOfView } from '../../ui/viewSettings.js';   // CLIMB-HANDS II: the
 // layer that either draws whole or does not draw at all - there is no
 // state in which both reach the screen, and none in which neither does.
 import { fpArm, hasAmmoFor } from '../fpArm.js';
+import { createArmLedBlow } from './armLedBlow.js';   // MW-PACE2: the player's melee hit waits for its arm
+import { createAttackSeries } from './attackSeries.js';   // SERIES-FLOW: one series, held or tapped
 import { ammoCountFor } from '../../systems/inventory.js';   // AUDIT 68 S27-ammoCount-dup: the quiver's count, from the spend law's own module
 import { getPref } from '../../systems/uiPrefs.js';   // MWA1: the arms switch
 import { morrowindDataCount, morrowindDataFingerprint, registerMorrowindData, morrowindDataCounted, countMorrowindArchives } from '../../scenes/dataSource.js';   // MWA1: are the archives attached; AUDIT 65 XL-6: and measured; MW-EARLY: and counted
@@ -965,6 +967,8 @@ export function createWeaponRig({ renderer, canvas, fetchBytes, palette, audio, 
   // loosed at its click. Every state shotBusy names ends by itself; this is only the never-traps floor under it.
   const HELD_HIT_CAP_S = 4;
   let _heldHit = false;
+  const armLed = createArmLedBlow();   // MW-PACE2: the player's melee hit held for its arm
+  const attackSeries = createAttackSeries();   // SERIES-FLOW: the player still attacking, and the press never lost
   // MW-D42d: the loose SOUND, held with the loose it belongs to.
   let _heldSound = false;
   let _heldHitAge = 0;
@@ -1057,7 +1061,11 @@ export function createWeaponRig({ renderer, canvas, fetchBytes, palette, audio, 
     // catches MarksmanThrown, a type that shoots without being a bow.
     // MW-PACE1: and the blow's own clock - the machine just began this strike, so its schedule (when the hit lands,
     // when it is done, at this frame's dt) is the one the arm fits its wind-up, release and follow into.
-    fpArm.attack(strike, { hold: m.isBow && m.state === 'StrikeUp', blow: playerWeapon.strikeSchedule(dt), hand: pairUp() ? playerWeapon.strike?.hand ?? null : null });   // TWO-HANDS: the hand the law gave the blow
+    // MW-PACE2: a melee blow of the player's own arm is LED by it (combat/blowFlow.js calmBlowPlan) - one calm speed, its
+    // hit held for the arm (armLedBlow); a shot keeps MW-D42's hold
+    const schedule = playerWeapon.strikeSchedule(dt);
+    const blow = schedule && !m.ranged ? { ...schedule, lead: true } : schedule;
+    fpArm.attack(strike, { hold: m.isBow && m.state === 'StrikeUp', blow, hand: pairUp() ? playerWeapon.strike?.hand ?? null : null });   // TWO-HANDS: the hand the law gave the blow
   }
 
   /** SPELLFX1: one loose counted for the wire - the hosts' own (`noteShot`, below) and a technique's (TECH1). */
@@ -1414,6 +1422,13 @@ export function createWeaponRig({ renderer, canvas, fetchBytes, palette, audio, 
     const m = playerWeapon.machine;
     return !!m.ranged && m.state === 'Idle' && (fpArm.active() || fpArm.thirdActive()) && fpArm.shotBusy();
   }
+  /** MW-PACE2 (combat/blowFlow.js): NOR A BLOW THE ARM STILL THROWS ONE OF - under the player's own Morrowind arm a melee
+   *  strike starts only once the last blow's follow-through is done (its window after is free: an exchange continues
+   *  from there) and its hit has gone. Fewer blows, each whole. */
+  function armCannotSwing() {
+    const m = playerWeapon.machine;
+    return !m.ranged && m.state === 'Idle' && (fpArm.active() || fpArm.thirdActive()) && (armLed.holding() || !!fpArm.blowBusy?.());
+  }
   /** MW-D42's hold, as the function the frame decides first (it used to be the frame's own tail). AUDIT
    *  FIELD-GUN-MW F1 (2026-09-21): the gate is `machine.ranged`, not `isBow` - the Thunderlock is a shooter the arm
    *  animates as a crossbow, and its hit rode straight through the bow-only gate: the orb left at the machine's
@@ -1582,7 +1597,7 @@ export function createWeaponRig({ renderer, canvas, fetchBytes, palette, audio, 
     /** ClickToAttack for the touch button. */
     clickAttack() {
       if (playerWeapon.sheathed || (entity?.equipCountdown ?? 0) > 0 || _climbing) return;   // CLIMB4: no swing with the hands on the wall
-      if (armCannotDraw()) return;   // BOW-CLOCK: nor a shot the Morrowind arm cannot draw yet
+      if (armCannotDraw() || armCannotSwing()) return;   // BOW-CLOCK: nor a shot the Morrowind arm cannot draw yet; MW-PACE2: nor a blow it still throws
       if (techniqueFlying()) return;   // AUDIT TECH1: nor a touch swing while a technique's leap or dash is in the air - its strike is the landing's
       const strike = playerWeapon.clickAttack();
       if (strike) fpAttack(strike);
@@ -1642,7 +1657,7 @@ export function createWeaponRig({ renderer, canvas, fetchBytes, palette, audio, 
       syncWorn();   // UpdateHands (:212-213) runs first, as it does for switchHand
       const m = playerWeapon.machine;
       if (m.isBow && m.now < m.cooldownUntil) return false;   // :230-233, the bow's cooldown
-      if (m.state !== 'Idle' || _heldHit) return false;       // :268's `!isAttacking` (AUDIT 68 S09-held-hit-dropped: a shot held for the arm's release is one)
+      if (m.state !== 'Idle' || _heldHit || armLed.holding()) return false;       // :268's `!isAttacking` (AUDIT 68 S09-held-hit-dropped: a shot held for the arm's release is one; MW-PACE2: and a blow's)
       if (spellArmed() || fpsSpellCasting.isPlayingAnim) {
         abortSpell();                                          // :251 AbortReadySpell
         if (!playerWeapon.sheathed) playerWeapon.toggleSheath();   // :254-255, silently - sheathing plays nothing
@@ -1674,7 +1689,7 @@ export function createWeaponRig({ renderer, canvas, fetchBytes, palette, audio, 
     switchHand() {
       const m = playerWeapon.machine;
       if (m.isBow && m.now < m.cooldownUntil) return false;   // AUDIT 68 S09-held-hit-dropped: Update's cooldown return (:230-233) comes before ToggleHand, as readyWeapon has it
-      if (m.state !== 'Idle' || _heldHit) return false;       // isAttacking - and a shot held for the arm's release is one
+      if (m.state !== 'Idle' || _heldHit || armLed.holding()) return false;       // isAttacking - and a shot held for the arm's release is one (MW-PACE2: and a blow's)
       syncWorn();
       // MW-HAND: under the Morrowind arm H moves only between two held weapons - never to an empty hand. TWO-HANDS: both
       // fists up are two hands too - H picks the one that leads
@@ -1754,7 +1769,7 @@ export function createWeaponRig({ renderer, canvas, fetchBytes, palette, audio, 
       const canAttack = !playerWeapon.sheathed && (entity?.equipCountdown ?? 0) <= 0 && !spellArmed() && !fpsSpellCasting.isPlayingAnim && !climbing && !actTool();   // AUDIT 29 D2: no swing behind a gathering act's tool
       // BOW-CLOCK: no shot starts the arm cannot draw (armLoosing, above) - gesture() is not asked, so its button
       // latch keeps the press made while waiting.
-      const armLoosing = armCannotDraw();
+      const armLoosing = armCannotDraw() || armCannotSwing();   // MW-PACE2: and no blow the arm still throws
       // TECH1 (bible/05-Combat/Weapon-Techniques.md): THE TECHNIQUE KEY, stepped by the rig that owns the frame - every
       // host's - AHEAD of the gesture: a technique's strike and a click's are one machine, and the first to start it holds
       // it. Its gate is the swing's own (drawn, no spell, no cast, no climb, no equip pause, no act's tool, no arm still
@@ -1776,10 +1791,16 @@ export function createWeaponRig({ renderer, canvas, fetchBytes, palette, audio, 
       tc.holding = !!_heldHit;   // MW-D42: a shot's hit held for the Morrowind arm's release - the loose is still to come
       stepTechnique(dt, _techCtx);
       // AUDIT TECH1: no gesture while a technique's leap or dash is in the air - its strike is the landing's
+      // SERIES-FLOW (combat/weapon/attackSeries.js): the button read every frame, whatever the gates say
+      attackSeries.step(dt, _held && !playerWeapon.sheathed);
       const strike = !paralyzed && c && canAttack && !armLoosing && !techniqueFlying()
         ? playerWeapon.gesture(_dx, _dy, _held, dt, Math.max(c.clientWidth, c.clientHeight), { cancelHeld: activateHeld() })   // AUDIT 28 W12
         : null;
-      if (strike) fpAttack(strike, dt);
+      // a press the blow in the hands could not take is taken now (the click modes - a drag's way is its own)
+      const taken = strike ?? (!paralyzed && c && canAttack && !armLoosing && !techniqueFlying() && attackSeries.buffered() && !playerWeapon.machine.ranged
+        && getInt('Controls', 'WeaponSwingMode', 0, 2) !== 0 ? playerWeapon.clickAttack() : null);
+      if (taken) { attackSeries.consume(); fpAttack(taken, dt); }
+      fpArm.setSeriesWanted?.(attackSeries.wanted());
       _dx = 0; _dy = 0;
       // AUDIT 23 (C9): the strike-ENTRY whoosh is gone - DFU plays the
       // swing sound at the HIT FRAME of a swing that hit no enemy
@@ -1908,6 +1929,9 @@ export function createWeaponRig({ renderer, canvas, fetchBytes, palette, audio, 
       const armShoots = (fpArm.active() || fpArm.thirdActive()) && !!playerWeapon.machine.ranged;
       const held = holdShotForArm(evs, dt, armShoots);
       thunderlockVoice(dt, { armShoots, fired: held.fired });
+      // MW-PACE2 (combat/weapon/armLedBlow.js): and a melee blow's hit waits for the player's own arm to land it
+      held.evs = armLed.step(held.evs, dt, { leads: (fpArm.active() || fpArm.thirdActive()) && !playerWeapon.machine.ranged,
+        takeHit: () => fpArm.takeBlowHit?.() ?? true, busy: () => !!fpArm.blowBusy?.() }).evs;
       // WW1: the clone's LateUpdate, after the original's frame advance -
       // the same order DFU's LateUpdate has against FPSWeapon's Update.
       const _torchesOn = handheldOn();
@@ -2292,16 +2316,19 @@ export function createWeaponRig({ renderer, canvas, fetchBytes, palette, audio, 
       // A posed first-person Morrowind rig is itself the hands' picture during
       // an unarmed run or jump. Do not let the weapon-only draw gate hide it.
       const armsMovement = fpArm.active() && !!fpArm.movementPosed?.();
+      // FP-SHEATHE: NOR IS A WEAPON BEING PUT AWAY - the sheathe shuts shown() the frame it is asked, and standing still the
+      // unequip section played on an empty screen (a run's armsMovement was the one leg that drew it)
+      const armsSheathe = fpArm.active() && !!fpArm.sheathing?.();
       const gate = {
         paralyzed: !!paralyzed, shown: !!shown(), torchOnly: !!torchOnly, sheetOnly: !!sheetOnly,
         shieldRect: !!shieldRect, gunSliding: !!gunSliding, armCasts: !!armCasts,
-        armsClimb: !!armsClimb, runHands: !!runHands, armsRun: !!armsRun, armsMovement: !!armsMovement,
+        armsClimb: !!armsClimb, runHands: !!runHands, armsRun: !!armsRun, armsMovement: !!armsMovement, armsSheathe: !!armsSheathe,
         armActive: !!fpArm.active(), running: !!twoHands.running,
         sheathed: !!playerWeapon.sheathed, sheetWindowUp: !!sheetWindowUp(),
         eotbHidesWeapon: !!eotbHidesWeapon(),
       };
       _fpViewDebug.lastGate = gate;
-      if (paralyzed || (!shown() && !torchOnly && !sheetOnly && !shieldRect && !gunSliding && !armCasts && !armsClimb && !runHands && !armsRun && !armsMovement)) {
+      if (paralyzed || (!shown() && !torchOnly && !sheetOnly && !shieldRect && !gunSliding && !armCasts && !armsClimb && !runHands && !armsRun && !armsMovement && !armsSheathe)) {
         _fpViewDebug.lastDraw = { reason: 'draw-gate-rejected', ...gate };
         return;
       }

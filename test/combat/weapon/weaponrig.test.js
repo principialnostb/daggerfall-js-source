@@ -364,5 +364,79 @@ test('weaponRig: the Morrowind first-person skin is drawn for unarmed run and ju
   assert.ok(armSource.includes('movementPosed()'), 'the Morrowind arm rig exposes its movement pose state');
   assert.ok(armSource.includes('!!jumpState?.playing'), 'jump clips keep the rig drawable even without a weapon');
   assert.ok(hostSource.includes('const armsMovement = fpArm.active() && !!fpArm.movementPosed?.();'), 'the weapon host reads the movement pose');
-  assert.ok(hostSource.includes('&& !armsMovement)'), 'the draw gate does not suppress the posed skin arms');
+  // PIN MOVED (FP-SHEATHE): the gate's last leg is the sheathe now, after the movement's
+  assert.ok(hostSource.includes('&& !armsMovement && !armsSheathe)'), 'the draw gate does not suppress the posed skin arms');
+});
+
+test('FP-SHEATHE: putting a weapon away standing still, the Morrowind arms stay drawn through the unequip, and go after it', async () => {
+  // Mac: "putting the two-hander away it just vanishes, hands and all - running, both play". The sheathe shuts shown()
+  // the frame it is asked; a run's arms (armsMovement) were the one leg that kept the unequip on the screen.
+  const { fpArm } = await import('../../../src/combat/fpArm.js');
+  const saved = { active: fpArm.active, sheathing: fpArm.sheathing, draw: fpArm.draw, setSheathed: fpArm.setSheathed };
+  let sheathing = false;
+  let drawn = 0;
+  fpArm.active = () => true;
+  fpArm.sheathing = () => sheathing;
+  fpArm.draw = () => { drawn++; return true; };
+  fpArm.setSheathed = () => false;
+  try {
+    const r = rig();
+    assert.equal(r.playerWeapon.sheathed, true);
+    r.draw();
+    assert.equal(drawn, 0, 'sheathed and still: an empty screen, as before');
+    sheathing = true;
+    r.draw();
+    assert.equal(drawn, 1, 'the unequip in the hands: the arms are drawn');
+    sheathing = false;
+    r.draw();
+    assert.equal(drawn, 1, 'and the section done, they go');
+    assert.match(readFileSync(join(ROOT, 'src/combat/fpArm.js'), 'utf8'), /sheathing\(\) \{ return upper === UPPER_BODY\.Unequipping && viewMode === 'first' && !!built\?\.ok; \},/);
+  } finally {
+    Object.assign(fpArm, saved);
+  }
+});
+
+test('SERIES-FLOW: a press the blow in the hands could not take is not lost - it strikes the frame it can; the arm is told the series goes on', async () => {
+  // (Mac: "tapping fast still opens the window - it should be one series, whatever the rhythm")
+  const { fpArm } = await import('../../../src/combat/fpArm.js');
+  const keys = ['ready', 'attack', 'active', 'thirdActive', 'blowBusy', 'takeBlowHit', 'setSeriesWanted', 'update', 'release', 'setSheathed', 'setWorn', 'readySpell', 'setWeapon'];
+  const saved = Object.fromEntries(keys.map((k) => [k, fpArm[k]]));
+  let busy = false;
+  const blows = [], series = [];
+  fpArm.ready = () => true;
+  fpArm.active = () => true;
+  fpArm.thirdActive = () => false;
+  fpArm.blowBusy = () => busy;
+  fpArm.takeBlowHit = () => true;
+  fpArm.attack = (strike) => { blows.push(strike); return 'chop'; };
+  fpArm.setSeriesWanted = (on) => series.push(on);
+  for (const k of ['update', 'release', 'setSheathed', 'setWorn', 'readySpell']) fpArm[k] = () => {};
+  fpArm.setWeapon = () => true;
+  _swingSetValue('Controls', 'WeaponSwingMode', '1');   // click to attack: one press, one blow
+  try {
+    const r = rig();
+    r.toggleSheath();
+    for (let i = 0; i < 30; i++) r.frame(1 / 60);
+    busy = true;
+    r.attackInput(0, 0, true); r.frame(1 / 60);
+    r.attackInput(0, 0, false); r.frame(1 / 60);
+    assert.equal(blows.length, 0, 'the arm still throws a blow: no new one starts');
+    assert.equal(series.at(-1), true, 'and the arm is told the series goes on');
+    busy = false;
+    for (let i = 0; i < 3 && !blows.length; i++) r.frame(1 / 60);
+    assert.equal(blows.length, 1, 'the press waited and struck the frame the arm was free - no second click');
+    // a press is not kept for ever, and a series not either
+    busy = true;
+    for (let i = 0; i < 200; i++) r.frame(1 / 60);
+    r.attackInput(0, 0, true); r.frame(1 / 60); r.attackInput(0, 0, false);
+    for (let i = 0; i < 60; i++) r.frame(1 / 60);
+    busy = false;
+    const before = blows.length;
+    for (let i = 0; i < 30; i++) r.frame(1 / 60);
+    assert.equal(blows.length, before, 'a press a second old is spent');
+    assert.equal(series.at(-1), false, 'and with no press since, the series has ended');
+  } finally {
+    _swingSetValue('Controls', 'WeaponSwingMode', '0');
+    Object.assign(fpArm, saved);
+  }
 });

@@ -22,7 +22,7 @@
 
 import { MW_WEAPON_TYPE, MW_UNITS_PER_METER } from '../../formats/morrowind/mwFirstPerson.js';
 import { getPref } from '../../systems/uiPrefs.js';
-import { algebra, ease, clamp01, RAD, bodyOf, bodyKindOf, reflect } from './bodyKit.js';
+import { algebra, ease, clamp01, smooth, RAD, bodyOf, bodyKindOf, reflect } from './bodyKit.js';
 import { rotAxisAngle } from '../../combat/climbRig.js';
 import { createGaitState, stepGait, gaitPose, TURN } from './gait.js';
 import { carryClassOf, carryHands, CARRY, TWO_HAND_GRIP, TWO_HAND_HAFT, armByAngles, mirrorRequest, hafHand, blendHand, gaitShares, turnAbout } from './carry.js';
@@ -34,7 +34,7 @@ const { add, scale, sub, cross, norm, len, lerp } = algebra;
 /** THE EASES (seconds): the layer on and off (off quicker - a recoil or a death takes the body at once), the arms on and
  *  off (a draw, a cast, a torch lit), and a change of carry class (a weapon drawn, a pair raised); `carry` (radians a
  *  second) the critically damped spring the carry's gait shares follow the gait's on (AUDIT BODY-MOTION CARRY-6). */
-export const MOTION_EASE = Object.freeze({ in: 0.14, out: 0.1, outFast: 0.05, armIn: 0.12, armOut: 0.07, cls: 0.14, carry: 14 });
+export const MOTION_EASE = Object.freeze({ in: 0.14, out: 0.1, outFast: 0.05, armIn: 0.12, armOut: 0.07, cls: 0.14, carry: 14, sneak: 0.6, blowReturn: 0.5 });
 
 /** The blade's length (MW units) each class draws on the contact sheets - the sheet's alone; the rig draws the mesh. */
 const SHEET_BLADE = Object.freeze({ one: 58, two: 88, wide: 112, spear: 120, dual: 54 });
@@ -114,6 +114,8 @@ export function createBodyMotion() {
   let input = sceneInput({ on: false });
   let w = 0;
   const armW = { L: 0, R: 0 };
+  let sneakHand = false;   // SNEAK-GUARD: the one-hander's arm handed to the sneak clip, or on its way back from it
+  let sinceBlow = Infinity;   // BLOW-RETURN: seconds since the clip last had a blow (the layer steps aside for one)
   let cls = 'free', clsFrom = null, clsMix = 1;
   // THE CARRY'S OWN GAIT SHARES: the gait's (idle, walk, run, sneak) followed by a critically damped spring - the gait's
   // first-order eases start a change at full speed, and the arms with them (AUDIT BODY-MOTION CARRY-6: a run's carry
@@ -216,11 +218,22 @@ export function createBodyMotion() {
       const hands = !input.equip && !input.rifle && cls !== 'clip';
       // SHIELD-RUN (the Discord's "sprinting with my mace and shield out just makes me look incredibly stupid"): a shield
       // on the arm leaves the left arm to the clip, as a torch does - Morrowind's own groups carry a shield; the free
-      // run's pump swung it up behind the head. Only where the reference shows it: drawn fists and a two-hander hide it.
-      const shieldArm = !!input.shield && (cls === 'one' || cls === 'free');
+      // run's pump swung it up behind the head. Only where the reference shows it: a two-hander hides it. SHIELD-GUARD
+      // (combat/shieldGuard.js): drawn fists behind a shield hold it as a one-hander does, so their left arm is the clip's
+      // too - the strafe's arm fpArm.js lays over it, not the boxer's guard the carry's fists row raises
+      const shieldArm = !!input.shield && (cls === 'one' || cls === 'free' || cls === 'fists');
+      // LEFT-ARM (Mac: "the left arm has a very strange animation"): a one-hander's free hand is the clip's as well - the
+      // walk's own left arm (combat/leftArmLayer.js lays the bare walk's over the one-hander's), not the carry's row
+      const freeArm = cls === 'one';
+      // SNEAK-GUARD (Mac: "crouched with a one-hander the wrist bends as at a run, the blade to the floor"): crouched, the
+      // one-hander's own sneak clip holds the blade - the carry's rows stand in the chest's frame, and the crouch tips the
+      // chest some 45 degrees forward (retail sneakforward1h against walkforward1h): the blade went to the floor
+      const sneakArm = cls === 'one' && gait.sneak > 0.5;
       for (const side of ['L', 'R']) {
-        const want = hands && !(side === 'L' && (input.torch || shieldArm)) ? 1 : 0;
-        armW[side] = ease(armW[side], want, want ? MOTION_EASE.armIn : MOTION_EASE.armOut, dt);
+        const want = hands && !(side === 'L' && (input.torch || shieldArm || freeArm)) && !(side === 'R' && sneakArm) ? 1 : 0;
+        // SNEAK-GUARD: the crouch hands the blade over slowly, both ways (at the arm's own ease it turned 59 degrees a frame)
+        if (side === 'R') sneakHand = sneakArm || (sneakHand && hands && armW.R < 0.999);
+        armW[side] = ease(armW[side], want, side === 'R' && sneakHand ? MOTION_EASE.sneak : want ? MOTION_EASE.armIn : MOTION_EASE.armOut, dt);
         if (!want && armW[side] < 1e-3) armW[side] = 0;
       }
       {
@@ -261,6 +274,7 @@ export function createBodyMotion() {
       else if (lastBlow && lastBlow.w > 1e-3) lastBlow = { ...lastBlow, w: ease(lastBlow.w, 0, MOTION_EASE.out, dt) };
       else lastBlow = null;
       bpNow = seen ?? lastBlow;
+      sinceBlow = bpNow ? 0 : sinceBlow + Math.max(0, dt);   // BLOW-RETURN
       stance = stanceNow(bpNow);
       stepTime = bpNow && bpNow.step > 0 && bpNow.w > 0.05 ? TURN.quick : null;
       if (input.on && body) stepGait(gait, gaitInput(), body, dt);
@@ -283,8 +297,12 @@ export function createBodyMotion() {
       if (cls === 'free' || bp) { last = null; return null; }
 
       const gp = gaitPose(gait, gi, body);
+      // BLOW-RETURN (Mac: "after the blow the two-hander stays raised and goes back to neutral instantly"): the layer comes
+      // back over the clip's return as slowly as the clip does (combat/blowFlow.js BLOW_FLOW.exit) - stepped aside for the
+      // whole blow, it took the carry's hands back the frame the blow ended
+      const back = Number.isFinite(sinceBlow) ? smooth(sinceBlow / MOTION_EASE.blowReturn) : 1;
       const plan = {
-        w,
+        w: w * back,
         armW: { L: armW.L, R: armW.R },
         arms: (ctx) => handsFor(ctx, gp, null, null),
       };
@@ -311,7 +329,7 @@ export function createBodyMotion() {
         blade: SHEET_BLADE[cls] ? { R: SHEET_BLADE[cls], L: cls === 'dual' ? SHEET_BLADE[cls] : null } : {},
       };
     },
-    reset() { Object.assign(gait, createGaitState()); w = 0; armW.L = 0; armW.R = 0; cls = 'free'; clsFrom = null; clsMix = 1; last = null; shares.x = null; lastBlow = null; cut = null; drawn = null; },
+    reset() { Object.assign(gait, createGaitState()); w = 0; armW.L = 0; armW.R = 0; sneakHand = false; sinceBlow = Infinity; cls = 'free'; clsFrom = null; clsMix = 1; last = null; shares.x = null; lastBlow = null; cut = null; drawn = null; },
   };
   return motion;
 }

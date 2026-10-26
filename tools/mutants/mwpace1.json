@@ -11,8 +11,8 @@
   {
     "name": "MWPACE1-release-forgets-the-clock",
     "file": "src/combat/fpArm.js",
-    "old": "    else if (blowPlan) blowPlan.rate = blowRate(actionState.stopTime - actionState.time, blowPlan.hitAt - blowPlan.clock);",
-    "new": "    else if (blowPlan) blowPlan.rate = blowRate(actionState.stopTime - actionState.time, blowPlan.hitAt);",
+    "old": "    else if (blowPlan && !blowPlan.lead) blowPlan.rate = blowRate(actionState.stopTime - actionState.time, blowPlan.hitAt - blowPlan.clock);   // MW-PACE2",
+    "new": "    else if (blowPlan && !blowPlan.lead) blowPlan.rate = blowRate(actionState.stopTime - actionState.time, blowPlan.hitAt);   // MW-PACE2",
     "tests": [
       "test/combat/mwpace1.test.js"
     ],
@@ -21,8 +21,8 @@
   {
     "name": "MWPACE1-follow-ends-on-the-hit",
     "file": "src/combat/fpArm.js",
-    "old": "    else if (blowPlan) blowPlan.rate = blowRate(actionState.stopTime - actionState.time, blowPlan.seconds - blowPlan.clock);",
-    "new": "    else if (blowPlan) blowPlan.rate = blowRate(actionState.stopTime - actionState.time, blowPlan.hitAt - blowPlan.clock);",
+    "old": "    else if (blowPlan && !blowPlan.lead) blowPlan.rate = blowRate(actionState.stopTime - actionState.time, blowPlan.seconds - blowPlan.clock);",
+    "new": "    else if (blowPlan && !blowPlan.lead) blowPlan.rate = blowRate(actionState.stopTime - actionState.time, blowPlan.hitAt - blowPlan.clock);",
     "tests": [
       "test/combat/mwpace1.test.js"
     ]

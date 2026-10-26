@@ -60,7 +60,13 @@ const dmraFemaleBodyModelUrls = IN_BROWSER
       eager: true, query: '?url', import: 'default',
     })
   : {};
-import betterBodiesFemaleUvEditsUrl from '../../../bb_skinf_no-uv-edits.json?url';
+// Behind the same gate as the asset URLs above: a static `?url` import is Vite's alone, and under node it refuses
+// the whole module graph (every test that imports the arm) for a file only the browser fetches.
+const betterBodiesFemaleUvEditsUrl = IN_BROWSER
+  ? Object.values(import.meta.glob('../../../bb_skinf_no-uv-edits.json', {
+      eager: true, query: '?url', import: 'default',
+    }))[0] ?? null
+  : null;
 
 const RACE_CODES = Object.freeze({
   breton: 'br', darkelf: 'de', highelf: 'he', imperial: 'im',
@@ -308,6 +314,7 @@ let uvEditsPromise = null;
  * so a later coordinate adjustment does not need a second hard-coded copy.
  */
 export async function loadBetterBodiesFemaleUvEdits() {
+  if (!betterBodiesFemaleUvEditsUrl) throw new Error('Better Bodies UV edits are only bundled for the browser build.');
   if (!uvEditsPromise) {
     uvEditsPromise = fetch(betterBodiesFemaleUvEditsUrl).then(async (response) => {
       if (!response.ok) throw new Error('Better Bodies UV edits failed to load: HTTP ' + response.status);

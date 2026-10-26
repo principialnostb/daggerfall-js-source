@@ -1,0 +1,183 @@
+[
+  {
+    "name": "BLOW-FLOW-the-return-snapped",
+    "file": "src/combat/blowFlow.js",
+    "old": "  if (fromBlow) return BLOW_FLOW.exit;",
+    "new": "  if (fromBlow) return 0;",
+    "tests": [
+      "test/combat/blowflow.test.js"
+    ]
+  },
+  {
+    "name": "BLOW-FLOW-one-window-always",
+    "file": "src/combat/blowFlow.js",
+    "old": "      const i = ((at.get(key) ?? -1) + 1) % n;",
+    "new": "      const i = 0;",
+    "tests": [
+      "test/combat/blowflow.test.js"
+    ]
+  },
+  {
+    "name": "BLOW-FLOW-no-window-after-the-blow",
+    "file": "src/combat/fpArm.js",
+    "old": "    if (playing && !(recovering && !seriesWanted && recoverHeld >= holdFor(attackType))) return;",
+    "new": "    if (playing) return;",
+    "tests": [
+      "test/combat/mwpace1.test.js"
+    ]
+  },
+  {
+    "name": "SHIELD-BASH-never-the-one-hander",
+    "file": "src/combat/blowFlow.js",
+    "old": "  return fists || (cycle ? cycle.next('shield-bash', 2) === 1 : false);",
+    "new": "  return fists;",
+    "tests": [
+      "test/combat/blowflow.test.js"
+    ]
+  },
+  {
+    "name": "SHIELD-BASH-the-one-hander-bashes-from-its-blow",
+    "file": "src/combat/leftArmLayer.js",
+    "old": "  if (mode === 'shield' && bashing) return view === 'first' ? { kind: 'stance', base: 'idle', stance: 'drawn', still: true } : { kind: 'movement', base: 'walkleft', stance: 'drawn', still: true };\n",
+    "new": "",
+    "tests": [
+      "test/combat/blowflow.test.js"
+    ]
+  },
+  {
+    "name": "SNEAK-GUARD-the-carry-crouched",
+    "file": "src/characters/bodyMotion/bodyMotion.js",
+    "old": "      const sneakArm = cls === 'one' && gait.sneak > 0.5;",
+    "new": "      const sneakArm = false;",
+    "tests": [
+      "test/combat/blowflow.test.js"
+    ]
+  },
+  {
+    "name": "SNEAK-STANCE-the-bare-crouch-always",
+    "file": "src/formats/morrowind/mwFirstPerson.js",
+    "old": "  for (const g of short ? [`idle${short}sneak`, `idlesneak${short}`] : []) if (hasGroup(g)) return g;\n",
+    "new": "",
+    "tests": [
+      "test/combat/blowflow.test.js"
+    ]
+  },
+  {
+    "name": "MW-PACE3-the-release-not-snapped",
+    "file": "src/combat/blowFlow.js",
+    "old": "  const windRate = PACE.wind * sf, relRate = PACE.release * sf;",
+    "new": "  const windRate = PACE.wind * sf, relRate = PACE.wind * sf;",
+    "tests": [
+      "test/combat/blowflow.test.js",
+      "test/combat/mwpace1.test.js"
+    ]
+  },
+  {
+    "name": "MW-PACE2-the-hit-never-held",
+    "file": "src/combat/weapon/armLedBlow.js",
+    "old": "        if (ev === 'hit') { held = true; age = 0; continue; }",
+    "new": "",
+    "tests": [
+      "test/combat/blowflow.test.js"
+    ]
+  },
+  {
+    "name": "MW-PACE2-held-for-ever",
+    "file": "src/combat/weapon/armLedBlow.js",
+    "old": "      if (takeHit() || (age >= ARM_LED_HIT.max && !busy()) || age >= ARM_LED_HIT.cap) {",
+    "new": "      if (takeHit()) {",
+    "tests": [
+      "test/combat/blowflow.test.js"
+    ]
+  },
+  {
+    "name": "MW-PACE2-a-blow-over-a-blow",
+    "file": "src/combat/weapon/weaponRig.js",
+    "old": "      const armLoosing = armCannotDraw() || armCannotSwing();",
+    "new": "      const armLoosing = armCannotDraw();",
+    "tests": [
+      "test/combat/blowflow.test.js"
+    ]
+  },
+  {
+    "name": "SHIELD-BASH-the-one-hander-under-its-own-clip",
+    "file": "src/combat/fpArm.js",
+    "old": "      if (blowBash && animWeaponType(built.mwType, sheathed, spellReady) !== MW_WEAPON_TYPE.HandToHand) weaponGroup = composeWeaponGroup(MW_WEAPON_TYPE.HandToHand, hasGroup).group ?? weaponGroup;\n",
+    "new": "",
+    "tests": [
+      "test/combat/blowflow.test.js"
+    ]
+  },
+  {
+    "name": "BLOW-FLOW-into-a-blow-at-once",
+    "file": "src/combat/blowFlow.js",
+    "old": "  if (toBlow) return BLOW_FLOW.entry;\n",
+    "new": "",
+    "tests": [
+      "test/combat/blowflow.test.js"
+    ]
+  },
+  {
+    "name": "BLOW-RETURN-the-carry-at-once",
+    "file": "src/characters/bodyMotion/bodyMotion.js",
+    "old": "        w: w * back,",
+    "new": "        w,",
+    "tests": [
+      "test/combat/blowflow.test.js"
+    ]
+  },
+  {
+    "name": "BLOW-FLOW-the-recovery-unbraked",
+    "file": "src/combat/fpArm.js",
+    "old": "        if (paced && blowPlan.lead && upper === UPPER_BODY.AttackEnd) blowPlan.rate = recoverRate(blowPlan, clipCompletion(actionState), seriesWanted);   // MW-PACE3\n",
+    "new": "",
+    "tests": [
+      "test/combat/mwpace1.test.js"
+    ]
+  },
+  {
+    "name": "BLOW-FLOW-no-blow-from-the-window",
+    "file": "src/combat/fpArm.js",
+    "old": "    blowBusy() {\n      if (!built || !built.ok) return false;\n      return upper === UPPER_BODY.Equipping || upper === UPPER_BODY.AttackWindUp || upper === UPPER_BODY.AttackRelease;",
+    "new": "    blowBusy() {\n      if (!built || !built.ok) return false;\n      return upper === UPPER_BODY.Equipping || upper === UPPER_BODY.AttackWindUp || upper === UPPER_BODY.AttackRelease || upper === UPPER_BODY.AttackEnd;",
+    "tests": [
+      "test/combat/blowflow.test.js"
+    ]
+  },
+  {
+    "name": "SERIES-FLOW-the-press-lost",
+    "file": "src/combat/weapon/weaponRig.js",
+    "old": "      if (taken) { attackSeries.consume(); fpAttack(taken, dt); }",
+    "new": "      if (strike) { attackSeries.consume(); fpAttack(strike, dt); }",
+    "tests": [
+      "test/combat/weapon/weaponrig.test.js"
+    ]
+  },
+  {
+    "name": "SERIES-FLOW-a-window-inside-the-series",
+    "file": "src/combat/blowFlow.js",
+    "old": "  if (series && plan?.seriesBase > 0) return plan.seriesBase * (1.5 - q);",
+    "new": "  if (false && series && plan?.seriesBase > 0) return plan.seriesBase * (1.5 - q);",
+    "tests": [
+      "test/combat/mwpace1.test.js"
+    ]
+  },
+  {
+    "name": "SERIES-FLOW-the-wait-cut-short",
+    "file": "src/combat/fpArm.js",
+    "old": "if (recovering && seriesWanted && recoverHeld < BLOW_FLOW.wait) break;",
+    "new": "if (recovering && seriesWanted && recoverHeld < holdFor(attackType)) break;",
+    "tests": [
+      "test/combat/mwpace1.test.js"
+    ]
+  },
+  {
+    "name": "BLOW-FLOW-a-thrust-holds-as-a-cut",
+    "file": "src/combat/blowFlow.js",
+    "old": "export const holdFor = (attackType) => (attackType === 'thrust' ? BLOW_FLOW.thrustHold : BLOW_FLOW.hold);",
+    "new": "export const holdFor = () => BLOW_FLOW.hold;",
+    "tests": [
+      "test/combat/mwpace1.test.js"
+    ]
+  }
+]

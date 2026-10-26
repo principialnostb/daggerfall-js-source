@@ -347,9 +347,15 @@ export const DF_STRIKE_TO_MW_ATTACK = Object.freeze({
  * screen-right and crosses to the left); StrikeRight is the backhand.
  * The chops and the thrust have no side a reversal would honour (a chop
  * backwards is an uppercut), and a shot is one draw.
+ *
+ * SHIELD-GUARD (2026-10-26): NOR A FIST. Hand-to-hand's slash is a hook, and backwards it is a punch pulled: its
+ * reversed follow-through throws the right fist 45 units forward before the release (0.53 s, up to 784 units/s), and
+ * the reversed release - where the blow lands - snaps it back 59 units, the left fist thrown out 26 (retail
+ * xbase_anim.kf, "handtohand"; the first person's .1st clip pulls its right fist back 37 units the same way). The
+ * fists' StrikeRight is their own hook, played forward.
  */
 export const REVERSED_STRIKES = Object.freeze(['StrikeRight']);
-export const strikeReversed = (strike) => REVERSED_STRIKES.includes(strike);
+export const strikeReversed = (strike, weaponType = null) => REVERSED_STRIKES.includes(strike) && weaponType !== MW_WEAPON_TYPE.HandToHand;
 
 /** Rule 11's ranged case: every bow swing is "shoot", and the release
  *  key is "shoot release" where a melee blow is "<type> hit". */
@@ -647,6 +653,17 @@ export function isTwoHandedMelee(type) {
  * @param type    an MW_WEAPON_TYPE
  * @param hasGroup(name) -> boolean, the file's own answer
  */
+/** SNEAK-STANCE (2026-10-26, Mac: "crouched with a one-hander the wrist bends, the blade to the floor"): THE CROUCH'S
+ *  IDLE FOR THE DRAWN STANCE. The reference's crouch is the one bare "idlesneak"; ReAnimation v3 ships one for every
+ *  stance as `idle<short>sneak` (idle1hsneak, idle1ssneak, idle2csneak, idle2wsneak, idlebowsneak, idlecrossbowsneak,
+ *  idle1tsneak, idlehhsneak), and OpenMW's spelling is `idlesneak<short>`. Those first, the bare crouch after them; null
+ *  where the rig has none. A departure where a pack carries them - the reference plays "idlesneak" whatever is drawn. */
+export function sneakIdleGroup(type, hasGroup) {
+  const short = weaponShortGroup(type);
+  for (const g of short ? [`idle${short}sneak`, `idlesneak${short}`] : []) if (hasGroup(g)) return g;
+  return hasGroup('idlesneak') ? 'idlesneak' : null;
+}
+
 export function composeStanceGroup(base, type, hasGroup) {
   const short = weaponShortGroup(type);
   const asked = short ? `${base}${short}` : base;
@@ -2445,7 +2462,7 @@ export function bindPartsInto(assembly, parts) {
       // silently missed this test, filtering a wig on the bone "head".
       const geomFilter = (part.partName ?? part.slot) === 'hair' ? 'hair' : bone;
       let namelessHere = false;
-      for (const batch of bound.skinned) {
+      for (let batch of bound.skinned) {
         const nameless = !String(batch.name || '').trim();
         if (nameless && tookNameless) continue;
         if (geomFilter && !shapeMatchesBone(batch.name, geomFilter)) continue;
@@ -2453,6 +2470,8 @@ export function bindPartsInto(assembly, parts) {
         // Apply the same worn-slot shadows section-by-section before drawing it.
         if (part.slot === 'betterBodies' && Array.isArray(part.showSlots) && !betterBodiesSectionVisible(batch.name, part.showSlots)) continue;
         if (part.slot === 'betterBodies' && betterBodiesSectionShadowed(batch.name, part.hideSlots)) continue;
+        // A gauntlet whose hands a donor mesh draws keeps only its cuff (fpArm.js, the Robert's gauntlet substitution).
+        if (part.forearmShapesOnly && !(batch = armWeightedTriangles(batch))) continue;
         // MW-D7: the piece KEEPS its batch, and `positions` is its own
         // buffer - never an alias of batch.positions, which poseAssembly
         // reads every frame. Aliasing them is the runaway the viewer
@@ -2499,7 +2518,7 @@ export function bindPartsInto(assembly, parts) {
         const say = `${part.slot}: ${bound.attached.length} unskinned shape(s) in a RIG file are not `
           + 'attached (attach.cpp:42-46 seeds only skinned geometry)';
         if (!notes.includes(say)) notes.push(say);
-      } else if (bound.attached.length) {
+      } else if (bound.attached.length && !part.forearmShapesOnly) {   // a rigid gauntlet rides the hand bone: all hand, no cuff
         // The mirror is fixed HERE, at bind time, because it is a fact
         // about the bone's NAME, not about the pose. Re-deriving it per
         // frame invites a pose-dependent mirror, which is a left hand
@@ -3590,6 +3609,32 @@ export function betterBodiesFallbackSectionKey(slot, bone) {
 function betterBodiesSectionVisible(shapeName, showSlots = []) {
   const key = betterBodiesSectionKey(shapeName);
   return Boolean(key && (showSlots ?? []).includes(key));
+}
+
+/** THE CUFF OF A GAUNTLET'S HAND FILE: the triangles every corner of which rides mostly the forearm or the upper arm.
+ *  Per triangle, not per shape - retail splits its gauntlet into shapes (a_imperial_skins.nif "Tri Left Hand 3" is the
+ *  cuff, Forearm 58 of 64), but the port's own steel and ebony gauntlets are ONE shape from the fingers to the elbow.
+ *  Answers a copy of the batch drawing those triangles alone, or null when it has none. */
+export function armWeightedTriangles(batch) {
+  const idx = batch?.indices;
+  const count = (batch?.positions?.length ?? 0) / 3;
+  if (!idx?.length || !count || !batch.skin?.bones?.length) return null;
+  const arm = new Float32Array(count), all = new Float32Array(count);
+  for (const b of batch.skin.bones) {
+    const isArm = /\b(forearm|upper ?arm)\b/.test(String(b.name ?? '').toLowerCase());
+    const vs = b.indices ?? [], ws = b.weights ?? [];
+    for (let i = 0; i < vs.length; i++) {
+      all[vs[i]] += ws[i];
+      if (isArm) arm[vs[i]] += ws[i];
+    }
+  }
+  const onArm = (v) => all[v] > 0 && arm[v] / all[v] > 0.5;
+  const kept = [];
+  for (let t = 0; t + 2 < idx.length; t += 3) {
+    if (onArm(idx[t]) && onArm(idx[t + 1]) && onArm(idx[t + 2])) kept.push(idx[t], idx[t + 1], idx[t + 2]);
+  }
+  if (!kept.length) return null;
+  return kept.length === idx.length ? batch : { ...batch, indices: Uint16Array.from(kept) };
 }
 
 export function shapeMatchesBone(shapeName, bone) {

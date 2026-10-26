@@ -61,7 +61,7 @@ import {
   armReport, armMeshPaths, bodyParts,
   weaponRecords, dfWeaponToMw, dfWeaponShape, pickWeaponRecord, weaponAttachBone, MW_WEAPON_TYPE,
   ammoTypeFor, arrowAttachBone, ARROW_FALLBACK_NODE, reloadsItself, shootsRatherThanSwings,
-  firstPersonCameraRef, composeStanceGroup, composeWeaponGroup, mwAttackType, attackKeys, MW_SHOOT_ATTACK, strikeReversed,
+  firstPersonCameraRef, composeStanceGroup, sneakIdleGroup, composeWeaponGroup, mwAttackType, attackKeys, MW_SHOOT_ATTACK, strikeReversed,
   weaponShortGroup, calculateWindUp, releaseStartPoint, EQUIP_KEYS, UNEQUIP_KEYS, isRealWeapon,
   aimingFactor, fpAnimSources, pickAnimSource, anySourceHasGroup, FP_BASE_MODEL, animSourceName,
   gmstValue, GMST_SNEAK_DELTA, sneakOffset,
@@ -360,6 +360,9 @@ import { armKickMatrix } from './gun/gunFeel.js';   // MW-GUN-FEEL: the gun's re
 import { rifleStanceStep, applyRifleStance } from './gun/rifleStance.js';   // RIFLE-STANCE: a long gun held in the hands - the low ready, the aim
 import { createHipLantern, HIP_LANTERN_HEIGHT } from '../systems/lanternSwing.js';   // HT-WAIST: the one swing law both bodies feed (BODY-MOTION: its rider moved there); HT-WAIST-SIZE: the one height they hang
 import { createBodyMotion, motionWord } from '../characters/bodyMotion/bodyMotion.js';   // BODY-MOTION: the third-person body's gait, carry and blows
+import { shieldGuardStance, carriesShield, isHandShieldSlot, shieldBashHold } from './shieldGuard.js';   // SHIELD-GUARD: the fists behind a shield - the stance, the bash
+import { createLeftArmLayer, leftArmPlan, leftArmModeOf } from './leftArmLayer.js';   // LEFT-ARM: the shield's and the free hand's arm over the clip, by weight
+import { BLOW_FLOW, holdFor, calmBlowPlan, driftRate, recoverRate, poseKindOf, blowBlendSeconds, blendWeightAt, createVariantCycle, bashesNow } from './blowFlow.js';   // BLOW-FLOW: the window after a blow, the blends; MW-PACE2: the player's calm pace; SHIELD-BASH: in turn
 import { vfxOf, createVfx, vfxCapacity, vfxTextures } from '../formats/morrowind/mwVfx.js';   // MW-SPELLFX1: an effect mesh, running
 import { spellFxPlan } from '../formats/morrowind/mwSpellFx.js';   // MW-SPELLFX1: which visuals a spell wears
 import { effectSchool } from '../systems/spellcost.js';   // MW-SPELLFX1: a family the mapping does not name is drawn as its school
@@ -556,8 +559,9 @@ export const carriedLeftVisible = (type) => !(weaponFlags(type) & MW_TWO_HANDED)
 export const FP_IDLE_SNEAK = 'idlesneak';
 /** MW-D51: the carried light's group - base_anim.kf's "Torch", played on the left arm. */
 export const TORCH_GROUP = 'torch';
-export function idleBaseFor({ sneaking = false, inJump = false, hasGroup = () => false } = {}) {
-  return sneaking && !inJump && hasGroup(FP_IDLE_SNEAK) ? FP_IDLE_SNEAK : FP_IDLE_BASE;
+export function idleBaseFor({ sneaking = false, inJump = false, hasGroup = () => false, type = MW_WEAPON_TYPE.None } = {}) {
+  // SNEAK-STANCE: a crouch the rig has for the drawn stance (sneakIdleGroup) is a crouch too
+  return sneaking && !inJump && sneakIdleGroup(type, hasGroup) ? FP_IDLE_SNEAK : FP_IDLE_BASE;
 }
 
 /**
@@ -4020,13 +4024,17 @@ export async function buildFpArm({
       const isRobertGauntlet = handsSetting
         && !!robertIronGauntletFirstPersonUrl
         && isRobertGauntletFirstPersonAdd(add);
-      if (isRobertGauntlet && robertGauntletAdded) {
-        // The Robert NIF contains both hands; append the paired geometry once.
-        continue;
-      }
       const arc = find(path);
       if (!arc) { missing.push(`${add.slot}: ${path} is not in your archives`); continue; }
       const originalBytes = nifBytes(arc, path);
+      // The donor is hands and fingers only. A gauntlet's cuff-to-elbow lives in its HAND part's own file (retail
+      // "Tri Left Hand 3", skinned to Bip01 L Forearm), so each side keeps those shapes of its original.
+      const originalForearm = { slot: add.slot, partName: add.partName, bones: add.bones, bytes: originalBytes, forearmShapesOnly: true };
+      if (isRobertGauntlet && robertGauntletAdded) {
+        // The Robert NIF contains both hands; append the paired geometry once.
+        partBytes.push(originalForearm);
+        continue;
+      }
       if (isRobertGauntlet) {
         try {
           const bytes = await loadBetterBodiesAssetBytes(
@@ -4045,6 +4053,7 @@ export async function buildFpArm({
             textureFiles,
             modelUrl: robertIronGauntletFirstPersonUrl, source: "Robert's Bodies Based Gauntlets",
           });
+          partBytes.push(originalForearm);
           robertGauntletAdded = true;
           console.info("[Robert's Bodies Based Gauntlets] first-person gauntlet geometry loaded", {
             slot: add.slot, recordId: add.recordId, bones: add.bones,
@@ -4857,6 +4866,11 @@ export function createFpArm({ playerAppearance = false } = {}) {
   let thirdBlendFromSource = null;
   let thirdBlendFrom = null;
   let thirdBlendElapsed = 0;
+  // BLOW-FLOW (combat/blowFlow.js): the blows' serial and kinds the views' blends read, the first person's own blend, the
+  // window held after a blow, the attack windows played in turn, and a thrust behind a shield that bashes
+  let blowSerial = 0, thirdPoseKind = 'pose', thirdBlendSeconds = null, recoverHeld = 0, blowBash = false, blowHit = false, seriesWanted = false;
+  const blowVariants = createVariantCycle();
+  const fpBlend = { state: null, kind: 'pose', from: null, elapsed: 0, seconds: 0, at: -1 };
 
   // MW-D12: TWO CLIP SLOTS, because Morrowind's first-person arm plays
   // TWO animations and the port had one.
@@ -4889,15 +4903,10 @@ export function createFpArm({ playerAppearance = false } = {}) {
   let movementClipPreference = null;
   let movementStance = null;
   let movementRate = 1;
-  // SHIELD-STRIDE: forward/back clips keep their own body and weapon hand,
-  // but the shield arm borrows the already-correct left-strafe pose.
-  // The overlay is movement-only: idle and left/right movement stay untouched.
-  let shieldMovementState = null;
-  let shieldMovementGroup = null;
-  let shieldMovementSource = null;
-  let shieldMovementClock = 0;
-  let shieldMovementOverlayMemo = null;
-  const shieldMovementSample = overlaySampler(sampleTrack, () => shieldMovementClock);
+  // SHIELD-STRIDE, SHIELD-GUARD, LEFT-ARM (combat/leftArmLayer.js): forward/back clips keep their own body and weapon
+  // hand, but the shield arm borrows the left strafe's pose - and the fists behind a shield and a one-hander's free hand
+  // their own - laid over the clip by weight, eased on and off
+  const leftArm = createLeftArmLayer({ pickAnimSource, resetClip, composeMovementGroup, composeStanceGroup, sampleTrack });
   // MW-D39: THE FOURTH SLOT - JUMP. Priority_Jump sits BELOW
   // Priority_Movement in the reference's enum (character.hpp:34-35),
   // so the winner ladder reads action > movement > JUMP > idle - and
@@ -5175,7 +5184,11 @@ export function createFpArm({ playerAppearance = false } = {}) {
   const nonBiped = () => !!(built && built.ok && built.creature && !built.creature.bipedal);
   const stanceOf = () => {
     const t = animWeaponType(built.mwType, sheathed, spellReady);
-    return nonBiped() && !isRealWeapon(t) ? MW_WEAPON_TYPE.None : t;
+    if (nonBiped() && !isRealWeapon(t)) return MW_WEAPON_TYPE.None;
+    // CLIMB-STANCE (Mac: "the climbing hands and the combat stance's both show"): the fists on the stone stand bare - the
+    // clip under the climb's hands is the idle's hands-down, not the boxer's guard up in the picture when a hold leaves it
+    if (climbHands && t === MW_WEAPON_TYPE.HandToHand) return MW_WEAPON_TYPE.None;
+    return shieldGuardStance(t, carriesShield(built) || carriesShield(thirdBuilt));
   };
 
   // Keep the Morrowind first-person rig independent from the Third-Person-only world-body/UI preference.
@@ -5746,9 +5759,10 @@ export function createFpArm({ playerAppearance = false } = {}) {
     const type = stanceOf();   // MWNPC9: a non-biped's bare stance
     // MW-D52: the idle STATE picks the base - "idlesneak" while sneaking
     // on the ground where a source carries it, else the plain idle with
-    // its weapon suffix. The sneak idle takes no suffix and no loop dice.
-    const base = idleBaseFor({ sneaking, inJump: !!jumpState, hasGroup });
-    const compose = () => (base === FP_IDLE_SNEAK ? { group: base } : composeStanceGroup(base, type, hasGroup));
+    // its weapon suffix. The sneak idle takes no loop dice; SNEAK-STANCE: and
+    // it is the drawn stance's own crouch where a pack carries one (sneakIdleGroup).
+    const base = idleBaseFor({ sneaking, inJump: !!jumpState, hasGroup, type });   // SNEAK-STANCE: the crouch of the drawn stance
+    const compose = () => (base === FP_IDLE_SNEAK ? { group: sneakIdleGroup(type, hasGroup) } : composeStanceGroup(base, type, hasGroup));
     if (!force && idleState && idleState.playing) {
       // Only the GROUP can have gone stale; a playing idle of the right
       // group is left exactly where it is.
@@ -5948,6 +5962,9 @@ export function createFpArm({ playerAppearance = false } = {}) {
         req.carry.key = `fists:${attackHand}`;
       }
     }
+    // SHIELD-BASH: the shield throws the blow - the weapon arm (or the right fist) holds the stance's guard, as the
+    // idle has it, while the left drives the shield out (shieldBash, the `hold` slot)
+    if (blowBash && attackingNow() && idle) { req.limbs = { R: { clip: idle, side: 'R', mirror: false } }; req.carry.key = 'bash'; }
     return req;
   }
   /**
@@ -6110,93 +6127,18 @@ export function createFpArm({ playerAppearance = false } = {}) {
     movementStance = null;
   }
 
-  function resetShieldMovement() {
-    shieldMovementState = null;
-    shieldMovementGroup = null;
-    shieldMovementSource = null;
-    shieldMovementClock = 0;
-    shieldMovementOverlayMemo = null;
-  }
-
-  // The shield overlay is sampled from a different directional clip. Map
-  // the body's playhead to the overlay's loop window, not its whole
-  // start/stop span: forward clips may have an intro plus a shorter loop,
-  // and their time jumps back to loopStartTime on every stride.
-  function movementLoopWindow(state, keys) {
-    let start = state?.startTime ?? 0;
-    let stop = state?.stopTime ?? 0;
-    const group = String(state?.group ?? '').toLowerCase();
-    if (!group) return { start, stop };
-    for (const key of keys ?? []) {
-      if (key.time < start || key.time > stop) continue;
-      const text = String(key.text ?? '').toLowerCase();
-      if (text === `${group}: loop start`) start = key.time;
-      else if (text === `${group}: loop stop`) stop = key.time;
-    }
-    return stop > start ? { start, stop } : { start: state.startTime, stop: state.stopTime };
-  }
-
-  function syncShieldMovementClock(movement, overlay) {
-    if (!movement || !overlay || !movementSource || !shieldMovementSource) return overlay?.startTime ?? 0;
-    const baseLoop = movementLoopWindow(movement, movementSource.keys);
-    const overlayLoop = movementLoopWindow(overlay, shieldMovementSource.keys);
-    const time = movement.time;
-    // Preserve the intro before the first loop, then keep both clips on the
-    // same normalized stride phase even when their loop durations differ.
-    if (time < baseLoop.start && baseLoop.start > movement.startTime) {
-      const baseIntro = baseLoop.start - movement.startTime;
-      const overlayIntro = Math.max(0, overlayLoop.start - overlay.startTime);
-      const progress = baseIntro > 0 ? Math.max(0, Math.min(1, (time - movement.startTime) / baseIntro)) : 0;
-      return overlay.startTime + progress * overlayIntro;
-    }
-    const baseSpan = baseLoop.stop - baseLoop.start;
-    const overlaySpan = overlayLoop.stop - overlayLoop.start;
-    if (!(baseSpan > 0) || !(overlaySpan > 0)) return overlay.startTime;
-    const phase = (((time - baseLoop.start) % baseSpan) + baseSpan) % baseSpan / baseSpan;
-    return overlayLoop.start + phase * overlaySpan;
-  }
-
-  /**
-   * Keep the shield's left-arm pose from the working left-strafe clip while
-   * moving forward/back in third-person combat. No transform values are
-   * guessed: the overlay is sampled from the same rig's existing left clip.
-   */
-  function refreshShieldMovement() {
-    const r = rig();
-    const hasShield = viewMode === 'third' && thirdBuilt?.ok && !sheathed && !spellStance()
-      && thirdBuilt.arm?.pieces?.some((piece) => /^shield\b/.test(piece.slot ?? ''));
-    if (!hasShield || !movementState || !/(forward|back)$/.test(movementBase ?? '')) {
-      resetShieldMovement();
-      return;
-    }
-    const leftBase = movementBase.replace(/(forward|back)$/, 'left');
-    const composed = composeMovementGroup(leftBase, movementStance, hasGroup);
-    if (!composed.group) {
-      resetShieldMovement();
-      return;
-    }
-    if (shieldMovementState && shieldMovementGroup === composed.group && shieldMovementState.playing) return;
-    const candidates = movementSource
-      ? [movementSource, ...r.sources.filter((source) => source !== movementSource)]
-      : r.sources;
-    const pick = pickAnimSource(candidates, composed.group, resetClip, { loopFallback: true, loopCount: Infinity });
-    if (!pick) {
-      resetShieldMovement();
-      return;
-    }
-    shieldMovementState = pick.state;
-    shieldMovementGroup = composed.group;
-    shieldMovementSource = pick.source;
-    shieldMovementOverlayMemo = null;
-  }
-
-  function shieldMovementTracksFor(base, overlay, mask) {
-    if (!shieldMovementOverlayMemo || shieldMovementOverlayMemo.base !== base
-      || shieldMovementOverlayMemo.overlay !== overlay || shieldMovementOverlayMemo.mask !== mask) {
-      shieldMovementOverlayMemo = { base, overlay, mask, tracks: overlayTracks(base, overlay, mask) };
-    }
-    return shieldMovementOverlayMemo.tracks;
-  }
+  /** SHIELD-GUARD: the fists drawn behind a shield (shieldGuardStance's stance), nothing else in the hand - either view. */
+  const shieldGuardNow = () => !sheathed && !spellStance() && !climbHands && !held && !!built?.ok
+    && animWeaponType(built.mwType, sheathed, spellReady) === MW_WEAPON_TYPE.HandToHand && carriesShield(rig()) && !torchVisible();
+  /** SHIELD-GUARD / SHIELD-BASH: a blow that bashes (attack()'s blowBash - the fists' thrust behind a shield, whose
+   *  release drives the LEFT fist out in both clips, and a one-hander's thrust in turn with its own) as a bash from
+   *  where the guard holds the shield (combat/shieldGuard.js); poseAssembly's `hold` slot, or null. */
+  const shieldBash = () => (blowBash && actionState && attackingNow() && !climbHands && !held
+    // (held where it struck, the shield comes home over the series' window - BLOW-FLOW - not in a frame)
+    ? shieldBashHold(UPPER_BODY_NAME[upper], upper === UPPER_BODY.AttackEnd && blowPlan?.lead ? Math.min(1, recoverHeld / holdFor(attackType)) : clipCompletion(actionState), viewMode) : null);
+  /** LEFT-ARM: who holds the left arm this frame (combat/leftArmLayer.js leftArmModeOf). */
+  const leftArmMode = () => leftArmModeOf({ view: viewMode, type: animWeaponType(built?.mwType, sheathed, spellReady), shield: carriesShield(rig()),
+    dual: handsMode === 'dual', free: !!built?.ok && !sheathed && !spellStance() && !climbHands && !held && !torchVisible() });
 
   /** resetCurrentJumpState (character.cpp:350-354). */
   function resetJump() {
@@ -6564,7 +6506,8 @@ export function createFpArm({ playerAppearance = false } = {}) {
     if (!playAction(k.release.start, k.release.stop, startPoint, k.reversed)) beginFollow();
     // MW-PACE1: the release ENDS on the blow - "<type> hit" - so it is fitted to the machine's hit, from where the
     // arm is now: a wind-up that ran a frame long is made up here, not carried into the damage.
-    else if (blowPlan) blowPlan.rate = blowRate(actionState.stopTime - actionState.time, blowPlan.hitAt - blowPlan.clock);
+    else if (blowPlan && !blowPlan.lead) blowPlan.rate = blowRate(actionState.stopTime - actionState.time, blowPlan.hitAt - blowPlan.clock);   // MW-PACE2: the player's keeps its one speed
+    else if (blowPlan) blowPlan.rate = blowPlan.relRate;   // MW-PACE3: the player's release snaps (combat/blowFlow.js PACE)
   }
 
   /** AttackRelease -> AttackEnd (:1793-1812): the follow-through, whose
@@ -6573,9 +6516,17 @@ export function createFpArm({ playerAppearance = false } = {}) {
   function beginFollow() {
     upper = UPPER_BODY.AttackEnd;
     const k = attackKeys(attackType, attackStrength, { reversed: attackReversed });
+    recoverHeld = 0;   // BLOW-FLOW: the window after this blow is counted from its follow-through's end
+    blowHit = true;   // MW-PACE2: the release is done - the arm's blow has landed (takeBlowHit)
     if (!playAction(k.follow.start, k.follow.stop, 0, k.reversed)) endAttack();
     // MW-PACE1: and the follow-through ends where the machine's blow does, so the next blow finds the arm ready.
-    else if (blowPlan) blowPlan.rate = blowRate(actionState.stopTime - actionState.time, blowPlan.seconds - blowPlan.clock);
+    else if (blowPlan && !blowPlan.lead) blowPlan.rate = blowRate(actionState.stopTime - actionState.time, blowPlan.seconds - blowPlan.clock);
+    // MW-PACE3: the player's recovers with inertia (combat/blowFlow.js recoverRate) - SERIES-FLOW: a series still going
+    // spreads its follow-through over the time the machine still takes, so the next blow takes a moving arm
+    else if (blowPlan) {
+      blowPlan.seriesBase = driftRate(actionState.stopTime - actionState.startTime, blowPlan.seconds - blowPlan.clock, recoverRate(blowPlan, 0, false));
+      blowPlan.rate = recoverRate(blowPlan, 0, seriesWanted);
+    }
   }
 
   /** AttackEnd -> WeaponEquipped (:1821-1856). */
@@ -6587,6 +6538,7 @@ export function createFpArm({ playerAppearance = false } = {}) {
     attackType = null;
     attackHand = null;   // TWO-HANDS
     blowPlan = null;
+    if (blowBash) { blowBash = false; refreshWeaponGroup(); }   // SHIELD-BASH: the weapon's own group again
     if (resetIdleOnAttackEnd) { resetIdleOnAttackEnd = false; resetIdle(); }
   }
 
@@ -6632,8 +6584,11 @@ export function createFpArm({ playerAppearance = false } = {}) {
     if (!blow || attackType === MW_SHOOT_ATTACK || holdWindUp) return null;
     if (!(blow.hitAt > 0) || !(blow.seconds >= blow.hitAt) || !Number.isFinite(blow.seconds)) return null;
     const span = (a, b) => { const t0 = keyTime(a); const t1 = keyTime(b); return t0 >= 0 && t1 > t0 ? t1 - t0 : 0; };
-    const toHit = (actionState ? actionState.stopTime - actionState.startTime : 0) + span(k.release.start, k.release.stop);
+    const wind = actionState ? actionState.stopTime - actionState.startTime : 0, release = span(k.release.start, k.release.stop);
+    const toHit = wind + release;
     if (!(toHit > 0)) return null;
+    // MW-PACE3: the player's own blow, led by its arm, plays each section at its own speed (combat/blowFlow.js calmBlowPlan)
+    if (blow.lead) return calmBlowPlan(blow, wind, release);
     return { seconds: blow.seconds, hitAt: blow.hitAt, clock: 0, rate: blowRate(toHit, blow.hitAt) };
   }
 
@@ -6646,9 +6601,12 @@ export function createFpArm({ playerAppearance = false } = {}) {
 
   /** UPDATEWEAPONSTATE's tail, run once per frame: every transition here
    *  is "the section that was playing has finished". */
-  function stepUpper() {
+  function stepUpper(dt = 0) {
     const playing = !!(actionState && actionState.playing);
-    if (playing) return;
+    const recovering = upper === UPPER_BODY.AttackEnd && blowPlan?.lead;
+    if (recovering) recoverHeld += dt;
+    // BLOW-FLOW: a series ended - the recovery gives way to the stance at the window's end, wherever it is (the exit blend)
+    if (playing && !(recovering && !seriesWanted && recoverHeld >= holdFor(attackType))) return;
     switch (upper) {
       case UPPER_BODY.Equipping:
         actionState = null; actionSource = null;
@@ -6693,9 +6651,14 @@ export function createFpArm({ playerAppearance = false } = {}) {
         if (!holdWindUp) beginRelease();
         break;
       case UPPER_BODY.AttackRelease:
+        // BLOW-FLOW / MW-PACE3 (Mac: "a frozen last frame instead of the weapon easing back"): every blow plays its
+        // follow-through after the hit, braking (beginFollow, recoverRate) - never a still frame at the hit.
         beginFollow();
         break;
       case UPPER_BODY.AttackEnd:
+        // the follow-through done (or the window spent, above), the stance takes the arm back - blended (blowBlendSeconds);
+        // SERIES-FLOW: while the series goes on, the arm waits for the next blow instead (BLOW_FLOW.wait at most)
+        if (recovering && seriesWanted && recoverHeld < BLOW_FLOW.wait) break;
         endAttack();
         break;
       case UPPER_BODY.Casting:
@@ -7470,6 +7433,11 @@ export function createFpArm({ playerAppearance = false } = {}) {
       if (!type) return null;
       attackType = type;
       attackHand = hand === 'L' || hand === 'R' ? hand : leadHand;   // TWO-HANDS: the blow's hand - the clip's, or its mirror's
+      // BLOW-FLOW: a new blow - its own serial (its sections one pose kind), its window chosen afresh, and a thrust
+      // behind a shield the bash (the fists' always, a one-hander's in turn with its own thrust)
+      blowSerial++; blowHit = false;
+      blowBash = handsMode !== 'dual' && !torchVisible() && bashesNow({ thrust: type === 'thrust', shield: carriesShield(rig()),
+        fists: animWeaponType(built.mwType, sheathed, spellReady) === MW_WEAPON_TYPE.HandToHand, cycle: blowVariants });
       attackStrength = 1;
       resetIdleOnAttackEnd = true;
       // `hold` is the caller's machine, not a guess about bows. The
@@ -7481,13 +7449,17 @@ export function createFpArm({ playerAppearance = false } = {}) {
       // game path never sends.
       holdWindUp = !!hold;
       upper = UPPER_BODY.AttackWindUp;
+      // SHIELD-BASH: a one-hander's bash is the fists' own blow - the hand-to-hand thrust's body under it (the right arm
+      // holds the stance's guard, mirrorFor; the shield is the `hold` slot's), so it looks as the fists' bash does;
+      // the weapon's group comes back as the blow ends (endAttack)
+      if (blowBash && animWeaponType(built.mwType, sheathed, spellReady) !== MW_WEAPON_TYPE.HandToHand) weaponGroup = composeWeaponGroup(MW_WEAPON_TYPE.HandToHand, hasGroup).group ?? weaponGroup;
       // MS1: the backhand - the slash alone has a side. TWO-HANDS AUDIT: A BLOW THE BODY THROWS IN THE MIRROR (its
       // composition the whole body mirrored - a pair's left hand, the fist its clip does not throw with: mirrorFor, the
       // one law) KEEPS THE WAY THE PLAYER ASKED across the screen - the sprite lane's law (handsLaw.js mirrorStrike):
       // its clip is the MIRROR strike's, so a left hand's sweep to the left is the right hand's backhand in the glass.
       // The clip was picked for the strike unmirrored and then mirrored: every left-hand slash swept the other way.
       const inMirror = !!mirrorFor(viewMode, rig(), 0).full;
-      attackReversed = type === 'slash' && strikeReversed(inMirror ? mirrorStrike(strike) : strike);
+      attackReversed = type === 'slash' && strikeReversed(inMirror ? mirrorStrike(strike) : strike, animWeaponType(built.mwType, sheathed, spellReady));   // SHIELD-GUARD: never a fist's
       const k = attackKeys(type, 1, { reversed: attackReversed });
       // MW-D42 (Mac: the arrow is not shown on the bow during the
       // animation): THE NOCK HAS A FLOOR AT THE DRAW. Rule 24's "shoot
@@ -7542,6 +7514,11 @@ export function createFpArm({ playerAppearance = false } = {}) {
      *  arms posed on the lip or the face this frame. The weapon rig keeps the arms ON the screen then (CLIMB4 lowered
      *  them out of it: an arm with no pose for the climb had nothing better to show). */
     climbPosed() { return climbHands && viewMode === 'first' && !held; },
+    /** FP-SHEATHE (Mac: "putting the two-hander away it just vanishes, hands and all"): the first-person arms are putting
+     *  the weapon away - the unequip section (or the equip played backwards) running from the sheathe to its stop. The
+     *  weapon is already sheathed to the machine (playerWeapon.sheathed), so the rig's weapon gate is shut; this keeps the
+     *  arms on the screen until the section is done, as a run's arms already were. */
+    sheathing() { return upper === UPPER_BODY.Unequipping && viewMode === 'first' && !!built?.ok; },
     /** MAP3: HOLD THE SHEET. The travel map's holder calls this when it
      *  opens on a drawn Morrowind arm: the pose deltas go over the idle,
      *  the weapon/arrow/torch hide, and a parchment piece of `aspect`
@@ -8048,6 +8025,17 @@ export function createFpArm({ playerAppearance = false } = {}) {
       if (!built || !built.ok) return false;
       return upper === UPPER_BODY.Equipping || upper === UPPER_BODY.AttackWindUp || upper === UPPER_BODY.AttackRelease;
     },
+    /** SERIES-FLOW: the player is still attacking (combat/weapon/attackSeries.js) - the rig says so every frame. */
+    setSeriesWanted(on) { seriesWanted = !!on; },
+    /** MW-PACE2: has the player's led blow landed (its release done) since last asked? CONSUMING, as takeShootRelease. */
+    takeBlowHit() { const hit = blowHit; blowHit = false; return hit; },
+    /** MW-PACE2: the hands still throw a blow - drawing, winding up, releasing. The rig starts no blow while it answers
+     *  true; the series' window, held where the blow struck (BLOW_FLOW.hold), is free, so an exchange continues from
+     *  there. Every state it names ends as its section plays out. */
+    blowBusy() {
+      if (!built || !built.ok) return false;
+      return upper === UPPER_BODY.Equipping || upper === UPPER_BODY.AttackWindUp || upper === UPPER_BODY.AttackRelease;
+    },
 
     release() {
       if (upper !== UPPER_BODY.AttackWindUp) return false;
@@ -8110,6 +8098,7 @@ export function createFpArm({ playerAppearance = false } = {}) {
         // blow's own clock advanced beside it (blowPace). The record's pace is the fallback, unchanged.
         const paced = attacking && blowPlan;
         if (paced) blowPlan.clock += dt;
+        if (paced && blowPlan.lead && upper === UPPER_BODY.AttackEnd) blowPlan.rate = recoverRate(blowPlan, clipCompletion(actionState), seriesWanted);   // MW-PACE3
         // CAST-SPEED: a cast plays at its own rate, where OpenMW plays the spellcast group at 1
         const speed = paced ? blowPlan.rate : upper === UPPER_BODY.Casting ? castRate : weapSpeed;
         const steppedAction = actionState;
@@ -8140,7 +8129,7 @@ export function createFpArm({ playerAppearance = false } = {}) {
           });
         }
         noteWeaponClock();   // MW-BOW1: before stepUpper ends the section - the group's state keeps its last time
-        stepUpper();
+        stepUpper(dt);   // BLOW-FLOW: the window after a blow is counted in seconds
       }
       // MWNPC4: the recoil plays once and lets go (refreshHitRecoilAnims - the first of refreshCurrentAnims' refreshes:
       // `!isPlaying(mCurrentHit)` clears the hit state); the death plays once and HOLDS its last frame - playDeath's autodisable is false
@@ -8152,11 +8141,10 @@ export function createFpArm({ playerAppearance = false } = {}) {
       // movestate ladder this frame.
       const inJump = refreshJump((cam && cam.move) || null);
       refreshMovement(cam, dt, inJump);
-      refreshShieldMovement();
       if (movementState) advanceClip(movementState, (movementSource || rig()).keys, dt * movementRate, null);
-      if (shieldMovementState && movementState) {
-        shieldMovementClock = syncShieldMovementClock(movementState, shieldMovementState);
-      }
+      // LEFT-ARM: the shield's or the free hand's arm, on the stride the movement now stands at
+      leftArm.step(dt, { plan: leftArmPlan({ mode: leftArmMode(), view: viewMode, moving: !!movementState, base: movementBase, attacking: attackingNow(), jumping: !!jumpState, bashing: blowBash && attackingNow() }),
+        sources: rig()?.sources, hasGroup, stance: movementState ? movementStance : stanceOf(), movement: movementState, movementSource });
       // The jump plays at speedmult 1.0 (character.cpp:528-531 pass
       // 1.0f) - no rate scaling, unlike movement.
       if (jumpState) advanceClip(jumpState, (jumpSource || rig()).keys, dt, null);
@@ -8207,16 +8195,12 @@ export function createFpArm({ playerAppearance = false } = {}) {
         if (!t || !t.ok) return;
         // MW-D51: the torch overlay on the body's own LeftArm mask.
         const tBase = poseSource ? poseSource.trackMap : t.tracks;
-        const shieldMoveOverlay = state === movementState && shieldMovementState && shieldMovementSource
-          && t.leftArm && t.leftArm.size
-          && t.arm?.pieces?.some((piece) => /^shield\b/.test(piece.slot ?? ''));
-        // The shield and carried torch share the left-hand slot; never nest
-        // their clocked overlays. The original torch path is otherwise unchanged.
-        const tOverlay = !shieldMoveOverlay && torchState && torchSource && !deathState && t.leftArm && t.leftArm.size;
+        // LEFT-ARM (combat/leftArmLayer.js): the shield's or the free hand's arm over the clip, by its weight - never over
+        // the recoil or the fall, which move the whole body. The shield and carried torch share the left-hand slot; never
+        // nest their clocked overlays. The original torch path is otherwise unchanged.
+        const thirdTracks = state !== hitState && state !== deathState ? leftArm.tracks(tBase, t.leftArm) : tBase;
+        const tOverlay = thirdTracks === tBase && torchState && torchSource && !deathState && t.leftArm && t.leftArm.size;
         if (tOverlay) overlayClock = torchState.time;
-        const thirdTracks = shieldMoveOverlay
-          ? shieldMovementTracksFor(tBase, shieldMovementSource.trackMap, t.leftArm)
-          : tBase;
         // HT-WAIST: the lantern at the waist swings on the frame's motion before the body is posed around it - on the
         // body motion's stride while it walks the legs (BODY-MOTION), else on the walk clip's
         if (hipVisible() && thirdBuilt.hipHang) hipLantern.step(cam, dt, motion.stride().move > 0.5 ? motion.stride().phase : movementState ? clipCompletion(movementState) % 1 : null, thirdBuilt.hipHang.rot, motion.stride().hipYaw);
@@ -8232,28 +8216,32 @@ export function createFpArm({ playerAppearance = false } = {}) {
             thirdBlendElapsed = 0;
             thirdPoseState = state;
             thirdPoseSource = poseSource;
+            // BLOW-FLOW: a blow's change of pose blends by its own law (combat/blowFlow.js) - the sections of one blow
+            // never (one clip), a blow cut by the next briefly, the return to the stance slowly
+            const kindNow = poseKindOf(state === actionState && attackingNow(), blowSerial);
+            thirdBlendSeconds = blowBlendSeconds(thirdPoseKind, kindNow); thirdPoseKind = kindNow;
           }
           thirdBlendElapsed += Math.max(0, dt);
           const blendChoice = Math.max(0, Math.min(3, Number(modSetting('morrowind-animation', 'AnimationBlendDuration')) || 0));
           const reactionRule = hitReactionTransitionBlend(thirdBlendFromSource, poseSource, 1);
-          const blendDuration = reactionRule?.duration ?? [0, 0.16, 0.25, 0.4][blendChoice];
+          const blendDuration = reactionRule?.duration ?? thirdBlendSeconds ?? [0, 0.16, 0.25, 0.4][blendChoice];
           const blendProgress = thirdBlendFrom && blendDuration > 0
             ? Math.min(1, thirdBlendElapsed / blendDuration)
             : 1;
           const easedReactionRule = hitReactionTransitionBlend(thirdBlendFromSource, poseSource, blendProgress);
           const thirdBlendWeight = thirdBlendFrom && blendDuration > 0
-            ? (easedReactionRule?.weight ?? blendProgress)
+            ? (easedReactionRule?.weight ?? (thirdBlendSeconds != null ? blendWeightAt(thirdBlendElapsed, blendDuration) : blendProgress))
             : 1;
           poseAssembly(t.arm, {
             tracks: tOverlay ? overlayFor(thirdTracks, t.leftArm) : thirdTracks,
-            sampleTrack: shieldMoveOverlay ? shieldMovementSample : tOverlay ? overlaySample : sampleTrack,
+            sampleTrack: thirdTracks !== tBase ? leftArm.sampler() : tOverlay ? overlaySample : sampleTrack,
             time: poseTime(state),   // MS1: a backhand's window runs backwards
             blendFrom: thirdBlendFrom,
             blendWeight: thirdBlendWeight,
             accumRoot: t.accumRoot,
             climb: thirdClimb(climbWorld, cam),   // CLIMB6
             mirror: mirrorFor('third', t, dt),   // TWO-HANDS: the second hand - the pair's left arm, a left-hand blow
-            hold: rifleHold('third', t),   // RIFLE-STANCE: the long gun in the hands
+            hold: rifleHold('third', t) ?? shieldBash(),   // RIFLE-STANCE: the long gun in the hands; SHIELD-GUARD: else the bash
             motion: motion.slot,   // BODY-MOTION: third-person gait, weapon carry and melee body layered over the clip
             bodyProportions: playerAppearance ? getBodyMorphs() : false,   // MWV2-PROPORTIONS: player instance only
             skin: !thirdSkinReady(t),   // MWNPC1: the skin in the vertex shader - the pose is the skeleton alone
@@ -8420,6 +8408,9 @@ export function createFpArm({ playerAppearance = false } = {}) {
       if (fOverlay) overlayClock = torchState.time;
       let fTracks = fOverlay ? overlayFor(fBase, built.leftArm) : fBase;
       let fSampler = fOverlay ? overlaySample : sampleTrack;
+      // LEFT-ARM / SHIELD-GUARD: the fists' blow behind a shield keeps the stance's shield arm (their clip raised it across
+      // half the picture), by the layer's weight - never over a lit torch's overlay, a recoil or a fall
+      if (!fOverlay && state !== hitState && state !== deathState && leftArm.tracks(fBase, built.leftArm) !== fBase) { fTracks = leftArm.tracks(fBase, built.leftArm); fSampler = leftArm.sampler(); }
       if (held) {
         // MAP3: a rebuild (an equip's follow) mints a piece list without
         // the sheet; it is put back where the eye is now. AUDIT-MAP2: the
@@ -8438,11 +8429,20 @@ export function createFpArm({ playerAppearance = false } = {}) {
         fTracks = hm.tracks; fSampler = hm.sampler;
       }
       const fClimb = held ? null : firstClimb(climbWorld, cam);   // CLIMB6: the hands reach the stone they hold (the sheet's hands are the sheet's)
+      // BLOW-FLOW: the first person blends a blow's change of pose as the third does (combat/blowFlow.js) - into a blow,
+      // a blow cut by the next, and back to the stance; any other change is the clip's own, as it always was
+      const fKind = poseKindOf(state === actionState && attackingNow(), blowSerial);
+      // (from the pose of the frame before alone - a view switch carries nothing: TWO-HANDS AUDIT finding 6)
+      if (fpBlend.state !== state) Object.assign(fpBlend, { from: fpBlend.state && fpBlend.at === frames && built.arm.rawPose instanceof Map ? new Map(built.arm.rawPose) : null, seconds: blowBlendSeconds(fpBlend.kind, fKind) ?? 0, elapsed: 0, state, kind: fKind });
+      fpBlend.at = frames + 1;
+      fpBlend.elapsed += Math.max(0, dt);
       posePartClocks(built.arm, weaponClockValue(), { frameTime: partClock });   // MW-BOW1: the bow draws, the arrow with it
       poseAssembly(built.arm, {
         tracks: fTracks,
         sampleTrack: fSampler,
         time: poseTime(state),   // MS1: a backhand's window runs backwards
+        blendFrom: fpBlend.seconds > 0 ? fpBlend.from : null,   // BLOW-FLOW
+        blendWeight: blendWeightAt(fpBlend.elapsed, fpBlend.seconds),
         climb: fClimb,
         // TWO-HANDS AUDIT: the running hands, UNDER the climb's request - the run solved at its weight, the climb over it
         // at its own, each wrist eased by the climb from where the run put it: (1 - c) . run + c . climb, so the run
@@ -8453,7 +8453,7 @@ export function createFpArm({ playerAppearance = false } = {}) {
         // The procedural fist-pump IK produces malformed-looking hands on this rig.
         run: null,
         mirror: mirrorFor('first', built, dt),   // TWO-HANDS: the second hand - the pair's left arm, a left-hand blow
-        hold: rifleHold('first', built),   // RIFLE-STANCE: the long gun in the hands, the low ready or the aim
+        hold: rifleHold('first', built) ?? shieldBash(),   // RIFLE-STANCE: the long gun in the hands, the low ready or the aim; SHIELD-GUARD: else the bash
         // Rule 56's accum root is STICKY and rig-wide, so it does not
         // follow the source the way the tracks do.
         accumRoot: built.accumRoot,
@@ -8533,6 +8533,9 @@ export function createFpArm({ playerAppearance = false } = {}) {
         if (climbHands && (r.slot === 'weapon' || r.slot === 'arrow' || r.slot === 'torch')) r.hidden = true;
         // TWO-HANDS: and the left hand's weapon with them - a sheet held, the stone
         if ((held || climbHands) && r.slot === 'offweapon') r.hidden = true;
+        // ...and the shield: the third person slings it on the back for the climb (shieldCombatReady's !climbHands),
+        // which the first person cannot see - here it leaves the hand
+        if (isHandShieldSlot(r.slot)) r.hidden = !!(held || climbHands);
       }
       frames++;
     },

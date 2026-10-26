@@ -83,7 +83,7 @@ export const INTERIM_WEAPON = Object.freeze({
  */
 // WeaponManager.cs:343's click draw lives in characters/weaponStates.js beside the gesture's own ways (AUDIT
 // TOUCH-BUTTONS A7: the touch Attack button draws from it too, and the door's menu reads that module)
-import { CLICK_ATTACK_DIRECTIONS } from '../characters/weaponStates.js';
+import { CLICK_ATTACK_DIRECTIONS, CLICK_REPEAT_MAX, clickFamilyOf, rollClickDirection } from '../characters/weaponStates.js';
 export { CLICK_ATTACK_DIRECTIONS };
 
 export function playerMeleeCanHit(dist, inView, losClear) {
@@ -578,8 +578,7 @@ export class PlayerWeapon {
       this._clickHeld = held;
       if (!held) { this._gestureClear(); return null; }
       if (!(rise || swingMode === 2)) { this._gestureClear(); return null; }
-      const strike = this._rollClickStrike(rolls);
-      return this._attack(strike) ? strike : null;   // TWO-HANDS: the law picks the hand
+      return this._clickAttack(this._rollClickStrike(rolls));   // TWO-HANDS: the law picks the hand
     }
     this._clickHeld = false;
     // Gesture.Clear (:149-154) on release, and on the frame tracking
@@ -612,7 +611,16 @@ export class PlayerWeapon {
    *  roll over CLICK_ATTACK_DIRECTIONS - the swing-mode click and the
    *  touch button's clickAttack, one table. */
   _rollClickStrike(rolls) {
-    return DIRECTION_TO_STRIKE[CLICK_ATTACK_DIRECTIONS[Math.floor(rolls() * CLICK_ATTACK_DIRECTIONS.length)]];
+    // CLICK-VARIETY (characters/weaponStates.js rollClickDirection): never one blow more than twice running
+    return DIRECTION_TO_STRIKE[rollClickDirection(rolls, this._clickFamilies ??= [])];
+  }
+  /** CLICK-VARIETY: a click's strike begun - its family kept for the next roll (a refused roll, the machine busy under a
+   *  held button, is not a blow shown). */
+  _clickAttack(strike) {
+    if (!this._attack(strike)) return null;
+    (this._clickFamilies ??= []).push(clickFamilyOf(strike));
+    if (this._clickFamilies.length > CLICK_REPEAT_MAX) this._clickFamilies.shift();
+    return strike;
   }
 
   /** PCO1 / AUDIT 68 S08-bow-draw-time-wallclock: weaponAnimTime,
@@ -680,8 +688,7 @@ export class PlayerWeapon {
       this.lastDrawMs = this._bowAnimTimeMs();
       return 'StrikeDown';
     }
-    const strike = this._rollClickStrike(rolls);
-    return this._attack(strike) ? strike : null;   // TWO-HANDS: the law picks the hand
+    return this._clickAttack(this._rollClickStrike(rolls));   // TWO-HANDS: the law picks the hand
   }
 
   /** @returns machine events; the caller resolves 'hit' via resolveHit. */
