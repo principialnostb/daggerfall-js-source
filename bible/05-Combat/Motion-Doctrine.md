@@ -183,17 +183,22 @@ supplies it), so the owner's own game is the check.
 a suit (`PIECE_SHARE` - the cuirass .32, the greaves .2, helm and boots .1, each pauldron .07, gauntlets .06, a shield
 .08) times their material's heft (`MATERIAL_HEFT` - leather .3, chain .6, plate 1), mixed .65 with the weapon's .35
 (a two-hander 1, any other weapon .45, fists 0). THE LEAN reads the body's REAL travel (`player/motor.js` travelAt, in
-the body's own facing), follows its velocity over `LEAN.velTau` (0.08 s) and asks the trunk `LEAN.accel` (0.006) radians
+the body's own facing), follows its velocity over `LEAN.velTau` (0.08 s) and asks the trunk `LEAN.accel` (0.01) radians
 per m/s^2 of the change - pitched forward into a start, back against a stop, rolled toward a sidestep (`side` .6),
-never past `max` (0.26 rad) - through a spring, `omega` 14 light to 9 heavy and `zeta` 0.5 to 0.42, so it overshoots a
-little and settles (SHARPNESS), and `gain` .5 light to 1 heavy. Measured at 6 m/s from a standstill: a bare body leans
-5.6 degrees, peaking in 8 frames; full plate and a two-hander 8.1 degrees in 12; the stop's lean back the same, then
-0.5 and 1.6 degrees through rest. It is ADDITIVE: the turn spread evenly up the spine above the bone the thighs hang
+never past `max` (0.3 rad) - through a spring, `omega` 14 light to 9 heavy and `zeta` 0.5 to 0.42, so it overshoots a
+little and settles (SHARPNESS), and `gain` .5 light to 1 heavy. Measured from a standstill: to a walk (4.4 m/s, DFU's at
+Speed 50) a bare body leans 6.9 degrees, peaking in 8 frames, full plate and a two-hander 10.5 in 13; to a run
+(8 m/s) 11.3 and 14.2; the stop's lean back about the same, then 0.6 to 2.7 degrees through rest. (The first cut asked
+0.006 - 4 degrees at a walk - and the owner, walking in plate: "I see no difference"; SILHOUETTE: a lean the pixels do
+not show is no lean.) **SWAY** carries the mass through a steady walk, where the lean has nothing to answer: a heavy
+body leans into its travel (`SWAY.carry`, 0 bare to 0.07 rad full, at a walk's pace) and shifts its trunk over the
+foot it stands on with every step (`SWAY.roll`, 0.012 to 0.075 rad), read off the clip's own feet each frame - the
+lower foot is the standing one - so it is always in step. It is ADDITIVE: the turn spread evenly up the spine above the bone the thighs hang
 from (`leanTrunk`), the legs and the hips the clip's, the arms' arc the clip's; off the ground, swimming, on the stone,
 seated or dead it eases back to the clip's. The rig steps it beside the body motion
 (src/combat/fpArm.js:"bodyWeight.stepRig(dt") and lays it over that layer's slot; the same switch, `MotionDoctrine`. Pinned by
-`test/characters/bodyMotion/bodyweight.test.js`. Still owed in step 2: the trunk's sway and the stride's width by
-weight, and the landing's drop.
+`test/characters/bodyMotion/bodyweight.test.js`. Still owed in step 2: the stride's width by weight and the
+landing's drop.
 
 Then the first-person hands' inertia (FP Inertia's shape). Every step sits behind a switch "as now / by the formula",
 is judged by the owner in the game, and lives in a module of its own (HOST-SPLIT, `01-Overview/Host-Split.md`).
