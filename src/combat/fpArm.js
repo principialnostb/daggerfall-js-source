@@ -79,7 +79,7 @@ import {
   placeAtBone,   // TWO-HANDS AUDIT 2: a blade placed at rest, for the pair's guard (bladePictureHeight)
 } from '../formats/morrowind/mwFirstPerson.js';
 import { PART_BONES, dfRaceKeyOf } from '../formats/morrowind/mwNpc.js';
-import { betterBodiesAssetUrls, robertBodiesFirstPersonAssetUrls, loadBetterBodiesFemaleUvEdits } from '../formats/morrowind/mwBetterBodies.js';
+import { betterBodiesAssetUrls, betterBeastsAssetUrls, robertBodiesFirstPersonAssetUrls } from '../formats/morrowind/mwBetterBodies.js';
 import { firstPersonHandsSource } from '../formats/morrowind/mwBetterBodiesPaths.js';
 import { prepareThumbFist, FIST_GROUP } from '../formats/morrowind/mwThumbFist.js';   // THUMB-FIST: the clenched fist's thumb, Better Bodies'
 import { portraitFeatures, headFeatures, hairFeatures, matchFace, FACE_MATCH_VERSION } from '../formats/morrowind/mwFaceMatch.js';
@@ -301,6 +301,21 @@ function rewriteBetterBodiesTextureStem(bytes, fromStem, toStem) {
   }
   return bytes;
 }
+/** BEASTS: rewriteBetterBodiesTextureStem, matching the name in any case - a NIF writes "TX_B_N_" and "Tx_B_N_" alike. */
+function rewriteTextureStemCaseless(bytes, fromStem, toStem) {
+  if (!bytes || fromStem.length !== toStem.length) return bytes;
+  const from = new TextEncoder().encode(fromStem.toLowerCase());
+  const to = new TextEncoder().encode(toStem);
+  const lower = (c) => (c >= 65 && c <= 90 ? c + 32 : c);
+  outer: for (let i = 0; i <= bytes.length - from.length; i++) {
+    for (let j = 0; j < from.length; j++) {
+      if (lower(bytes[i + j]) !== from[j]) continue outer;
+    }
+    bytes.set(to, i);
+    i += from.length - 1;
+  }
+  return bytes;
+}
 const betterBodiesTextureBytes = new Map();
 const betterBodiesTextureBasename = (path) => String(path || '')
   .replaceAll(String.fromCharCode(92), '/').split('/').pop().toLowerCase();
@@ -311,7 +326,8 @@ const BETTER_BODIES_FEMALE_SKIN_TONES = Object.freeze({
   rg: [0.92, 0.70, 0.54], we: [0.96, 0.82, 0.66],
 });
 function tintBetterBodiesFemaleSkin(image, textureFile) {
-  const match = /bb_skinf_(br|de|he|im|no|or|rg|we)\.(?:dds|tga|targa|bmp)$/i.exec(String(textureFile || '').replaceAll(String.fromCharCode(92), '/'));
+  const match = /b[bnu]_skinf_(br|de|he|im|no|or|rg|we)\.(?:dds|tga|targa|bmp)$/i.exec(   // NUDITY-SYNC: the variant names; the HD skins (h*) are coloured per race by their own authors
+    String(textureFile || '').replaceAll(String.fromCharCode(92), '/'));
   if (!match || !image?.mips?.length) return image;
   const raceKey = match[1].toLowerCase();
   const tone = BETTER_BODIES_FEMALE_SKIN_TONES[raceKey];
@@ -2629,20 +2645,52 @@ async function buildTpBody({
     // texture is registered by basename, so concurrent NPC builds cannot overwrite
     // one another's skin bytes through a shared "current texture" adapter.
     let betterBodiesPart = null;
+    // BEASTS: the Argonian's and the Khajiit's whole body from Better Bodies 3.2 (mwBetterBodies.js betterBeastsAssetUrls)
+    if (modSetting('morrowind-textures', 'BetterBodiesSource') === 2 && beast && !werewolf && !vampire) {
+      try {
+        const asset = betterBeastsAssetUrls({ race, female });
+        if (!asset) throw new Error(`no Better Beasts body for race "${String(race)}" / ${female ? 'female' : 'male'}`);
+        const [rawBytes, ...skins] = await Promise.all([
+          loadBetterBodiesAssetBytes(asset.model, 'Better Beasts NIF'),
+          ...asset.textures.map((tex) => loadBetterBodiesAssetBytes(tex.url, 'Better Beasts DDS')),
+        ]);
+        // its skins carry retail's own names (TX_B_N_Argonian_F_F...): each is renamed in the NIF, same length, to a
+        // "b3" name no archive holds - else retail's feet and tail, cut for retail's mesh, answered first
+        let bytes = rawBytes;
+        asset.textures.forEach((tex, k) => {
+          const stem = tex.name.replace(/\.dds$/, '');
+          const own = 'b3' + stem.slice(2);
+          bytes = rewriteTextureStemCaseless(bytes, stem, own);
+          registerBetterBodiesRaceTexture(archives, `textures/${own}.dds`, skins[k]);
+          for (const key of TEXTURE_CACHE.keys()) if (String(key).toLowerCase().endsWith(own + '.dds')) TEXTURE_CACHE.delete(key);
+        });
+        betterBodiesPart = { slot: 'betterBodies', bones: [], bytes, uvEdits: [], hideSlots: worn.shadows, texturePath: null };
+        console.info('[Better Bodies] beast body loaded', { raceKey: asset.raceKey, female, underwear: asset.underwear, skins: asset.textures.length });
+      } catch (error) {
+        const reason = 'Better Beasts body unavailable: ' + String(error?.message ?? error);
+        missing.push(reason);
+        console.warn('[Better Bodies] falling back to the standard beast body:', reason);
+      }
+    }
     if (modSetting('morrowind-textures', 'BetterBodiesSource') === 2 && !beast && !werewolf && !vampire) {
       try {
         const asset = betterBodiesAssetUrls({ race, female });
         if (!asset) throw new Error(`no Better Bodies asset for race "${String(race)}" / ${female ? 'female' : 'male'}`);
-        const [rawBytes, textureBytes, uvEdits] = await Promise.all([
+        // UV-EDITS-OFF (Gleb, 2026-10-27, from play: the bra at the waist, "stockings" at the thighs and knees): the
+        // checked-in bb_skinf_no-uv-edits.json was cut to fit the high-resolution female skin onto Better Bodies' own
+        // mesh - which never fits it (the pack ships its own mesh, now drawn with it: betterBodiesAssetUrls). On Better
+        // Bodies' own skins it moved the underwear down the body and broke the legs' texture at every shape's edge.
+        // Measured live with and without it: without, every skin lands where its painter put it. Kept loadable, not read.
+        const uvEdits = [];
+        const [rawBytes, textureBytes] = await Promise.all([
           loadBetterBodiesAssetBytes(asset.model, 'NIF'),
           loadBetterBodiesAssetBytes(asset.texture, 'DDS'),
-          (female && asset.bodyVariant === 'Better Bodies' ? loadBetterBodiesFemaleUvEdits() : Promise.resolve([])),
         ]);
         const genderKey = female ? 'f' : 'm';
         const bytes = rewriteBetterBodiesTextureStem(
           rawBytes,
           `bb_skin${genderKey}_${asset.geometryRaceKey}`,
-          `bb_skin${genderKey}_${asset.textureRaceKey}`,
+          asset.runtimeTextureStem,   // NUDITY-SYNC: the variant's own name, which no other archive answers
         );
         registerBetterBodiesRaceTexture(archives, asset.texturePath, textureBytes);
         betterBodiesPart = {
@@ -3820,9 +3868,14 @@ export async function buildFpArm({
     }
     // NUDE-FLATS: and a woman's bare chest wears the upper weld while Show Nudity is off - this body is the
     // player's own figure and every peer's, each drawn by the viewer's setting as the classic doll is.
+    // NUDITY-SYNC (Gleb, 2026-10-27: "no in-game clothing on top - only whether the model has its underwear painted
+    // or is nude"): a Better Bodies body is its own modesty - Show Nudity off selects its underwear skin
+    // (betterBodiesAssetUrls), so it never wears the weld's shirt over it.
+    const ownModesty = modSetting('morrowind-textures', 'BetterBodiesSource') === 2 && !werewolf && !vampire && (!beast || !!betterBeastsAssetUrls({ race, female }));   // BEASTS: theirs too
+    const bareChestShown = () => ownModesty || showNudity();
     const worn = werewolf
       ? composeWornArmor({ pieces: robe ? [{ kind: 'record', record: robe, reserve: 'robe' }] : [], armors: [], clothes: [], bodyPool: parts, female })
-      : composeWornModest({ pieces: armor ?? [], armors: armors ?? [], clothes: clothes ?? [], bodyPool: parts, female, colourOf, helmStyle, cloakStyle: simplyAnimatedCloaksEnabled() ? 'simply-animated' : 'classic' }, showNudity());
+      : composeWornModest({ pieces: armor ?? [], armors: armors ?? [], clothes: clothes ?? [], bodyPool: parts, female, colourOf, helmStyle, cloakStyle: simplyAnimatedCloaksEnabled() ? 'simply-animated' : 'classic' }, bareChestShown());
     // AUDIT C7: which of the two it is - Bloodmoon.esm not attached, or attached and naming no robe (a mod's master)
     if (werewolf && !robe) {
       worn.notes.push(esmNames.some((n) => /^bloodmoon\.esm$/i.test(n))
@@ -4158,7 +4211,7 @@ export async function buildFpArm({
     let wornBuilt = worn;
     const lost = third?.ok ? worn.adds.filter((a) => isOutfitSlot(a.slot) && !third.arm.pieces.some((p) => p.slot === a.slot)) : [];
     if (lost.length) {
-      const without = composeWornModest({ pieces: (armor ?? []).filter((p) => !lost.some((a) => a.piece === p)), armors: armors ?? [], clothes: clothes ?? [], bodyPool: parts, female, colourOf, helmStyle, cloakStyle: simplyAnimatedCloaksEnabled() ? 'simply-animated' : 'classic' }, showNudity());
+      const without = composeWornModest({ pieces: (armor ?? []).filter((p) => !lost.some((a) => a.piece === p)), armors: armors ?? [], clothes: clothes ?? [], bodyPool: parts, female, colourOf, helmStyle, cloakStyle: simplyAnimatedCloaksEnabled() ? 'simply-animated' : 'classic' }, bareChestShown());
       without.notes.push(...lost.map((a) => `outfit ${a.recordId}: ${t('body.outfit.unbound', 'none of it bound - drawn without it')}`));   // the label outside the language, as the composer's notes
       const again = await tpBody(without);
       if (again.ok) { third = again; wornBuilt = without; }

@@ -339,7 +339,7 @@ requests. Unmatched files are inert.
 
 ### Deliberately excluded
 
-- **High Resolution Better Body Female Textures** — disabled after the earlier in-game result looked blurry and did not establish a reliable visual improvement. It must not override the currently working Better Bodies skin.
+- **High Resolution Better Body Female Textures** — disabled after the earlier in-game result looked blurry and did not establish a reliable visual improvement. It must not override the currently working Better Bodies skin. HD-BODY (2026-10-27, `04-Characters/Body-Editor.md` section 3): the blur was its skin on Better Bodies' mesh; it is now loaded as a pair, its own mesh with its own skin, behind the editor's test switch, and off by default.
 - **Old Better Heads** — not discovered by this loader; the previous integration attempt could make the unhelmeted head disappear.
 - **Intelligent Textures `01 Atlas Textures`** — excluded without the corresponding atlas meshes.
 - **Better Clothes Retextured NIFs and pants textures** — excluded from this pass. NIFs can change UVs/geometry; pants textures are withheld to protect the blue-pants reference until its exact asset key is identified. Reconsider either only as a separate, measured change.

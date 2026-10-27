@@ -14,7 +14,7 @@ const LOOK_LABEL = Object.freeze({ closed: 'Closed', open: 'Open', horned: 'Horn
 export function lookVariantsOf(item) {
   if (!item || typeof item.templateIndex !== 'number') return null;
   const own = ownArmorModelFor({ templateIndex: item.templateIndex, material: item.material ?? 0 });
-  if (!own?.styles) return null;
+  if (!own || !('styles' in own) || !own.styles) return null;
   const v = getPref('mwSteelHelm');
   return { pref: 'mwSteelHelm', values: STEEL_HELM_STYLES, current: STEEL_HELM_STYLES.includes(v) ? v : STEEL_HELM_DEFAULT };
 }

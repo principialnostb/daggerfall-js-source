@@ -1,4 +1,5 @@
 import { getBodyMorphs } from '../../characters/bodyMorphs.js';
+import { deformPlayerBodyGeometry, measureBodyFrame, isMorphedBodySlot, weldMorphedNormals } from '../../characters/bodyShape.js';   // BODY-SHAPE
 // MW-D: THE DIAGNOSTIC, and it deliberately draws nothing.
 //
 // The Morrowind import arc was reverted whole on 2026-08-28 after three
@@ -2887,144 +2888,9 @@ export function posePartClocks(assembly, value, { frameTime = value, slots = WEA
   return moved;
 }
 
-// Player-only local vertex morphs. Body parts are separate skinned batches; alter the
-// posed player vertices, never the shared source arrays or NPC/item geometry.
-function recalculateMorphedNormals(piece) {
-  const p = piece.positions, idx = piece.indices;
-  if (!p || !idx) return;
-  const n = piece.normals && piece.normals.length === p.length ? piece.normals : new Float32Array(p.length);
-  n.fill(0);
-  for (let k = 0; k + 2 < idx.length; k += 3) {
-    const ia = idx[k] * 3, ib = idx[k + 1] * 3, ic = idx[k + 2] * 3;
-    const abx = p[ib] - p[ia], aby = p[ib + 1] - p[ia + 1], abz = p[ib + 2] - p[ia + 2];
-    const acx = p[ic] - p[ia], acy = p[ic + 1] - p[ia + 1], acz = p[ic + 2] - p[ia + 2];
-    const nx = aby * acz - abz * acy, ny = abz * acx - abx * acz, nz = abx * acy - aby * acx;
-    for (const j of [ia, ib, ic]) { n[j] += nx; n[j + 1] += ny; n[j + 2] += nz; }
-  }
-  for (let i = 0; i + 2 < n.length; i += 3) {
-    const len = Math.hypot(n[i], n[i + 1], n[i + 2]);
-    if (len > 1e-8) { n[i] /= len; n[i + 1] /= len; n[i + 2] /= len; }
-  }
-  piece.normals = n;
-}
-
-export function deformPlayerBodyGeometry(piece, morph, bodyBounds) {
-  const slot = String(piece.slot || '').toLowerCase();
-  const isBody = slot === 'betterbodies' || ['chest', 'groin', 'upperleg', 'lowerleg', 'foot', 'hand'].includes(slot);
-  if (!isBody) return;
-  const p = piece.positions;
-  if (!p || p.length < 9 || !bodyBounds) return;
-  const { minX, maxX, minY, maxY, minZ, maxZ } = bodyBounds;
-  const halfX = Math.max(1e-5, (maxX - minX) * 0.5);
-  const halfY = Math.max(1e-5, (maxY - minY) * 0.5);
-  const spanZ = Math.max(1e-5, maxZ - minZ);
-  const cx = (minX + maxX) * 0.5, cy = (minY + maxY) * 0.5;
-  // Both centre and half-width come from the torso-height cross-section.
-  // Asymmetric/outstretched arms must not shift or widen torso masks.
-  const torsoCenterX = Number.isFinite(bodyBounds.torsoCenterX) ? bodyBounds.torsoCenterX : cx;
-  const torsoHalfX = Math.max(1e-5, Number(bodyBounds.torsoHalfX) || halfX);
-  const amount = (key) => clampMorph(morph?.[key]);
-  const gauss = (v, center, width) => Math.exp(-Math.pow((v - center) / width, 2));
-  const smoothstep = (a, b, v) => {
-    const t = Math.max(0, Math.min(1, (v - a) / Math.max(1e-6, b - a)));
-    return t * t * (3 - 2 * t);
-  };
-  const bodyWidth = amount('bodyWidth');
-  const bodyFullness = amount('bodyFullness');
-  const bodyHeight = amount('height');
-  const shoulder = amount('shoulderWidth');
-  const ribcage = amount('ribcageWidth');
-  const breast = amount('breastSize');
-  const breastProjection = amount('breastProjection');
-  const waist = amount('waistWidth');
-  const abdomen = amount('abdomenVolume');
-  const hip = amount('hipWidth');
-  const buttock = amount('buttockSize');
-  const buttockProjection = amount('buttockProjection');
-  const arms = amount('armThickness');
-  const armLength = amount('armLength');
-  const thighs = amount('thighThickness');
-  const calves = amount('calfThickness');
-  const legLength = amount('legLength');
-  const legGap = amount('legGap');
-  const hipLine = minZ + spanZ * 0.49;
-  const shoulderLine = minZ + spanZ * 0.78;
-  for (let i = 0; i + 2 < p.length; i += 3) {
-    const ox = p[i], oy = p[i + 1], oz = p[i + 2];
-    if (!Number.isFinite(ox + oy + oz)) continue;
-    const nx = (ox - cx) / halfX, ny = (oy - cy) / halfY;
-    const ax = Math.abs(nx);
-    const torsoAx = Math.abs(ox - torsoCenterX) / torsoHalfX;
-    const nz = (oz - minZ) / spanZ;
-    let x = ox, y = oy, z = oz;
-
-    // All region weights use the same unmodified, whole-assembly coordinate
-    // frame. Never derive a later region from already-deformed coordinates.
-    // A narrow centre mask separates the torso from the arms; the previous
-    // height-only falloffs also pushed arm vertices whenever torso controls moved.
-    // Torso controls use torso-relative width. The former mask used ax,
-    // normalized by the widest points of the entire body; when arms were
-    // spread, its "torso" region expanded sideways and included arm vertices.
-    const torsoCore = 1 - smoothstep(0.72, 1.12, torsoAx);
-    const shoulderZone = gauss(nz, 0.78, 0.065) * torsoCore;
-    const ribcageZone = gauss(nz, 0.68, 0.075) * torsoCore;
-    const breastZone = gauss(nz, 0.685, 0.065) * gauss(torsoAx, 0.38, 0.28) * torsoCore;
-    const waistZone = gauss(nz, 0.56, 0.055) * torsoCore;
-    const abdomenZone = gauss(nz, 0.525, 0.07) * torsoCore;
-    const hipZone = gauss(nz, 0.47, 0.065) * torsoCore;
-    const buttockZone = gauss(nz, 0.465, 0.07) * torsoCore;
-    const armZone = gauss(ax, 0.40, 0.12) * gauss(nz, 0.65, 0.15);
-    const thighZone = (ax > 0.07 ? 1 : 0) * gauss(nz, 0.31, 0.085);
-    const calfZone = (ax > 0.045 ? 1 : 0) * gauss(nz, 0.15, 0.065);
-
-    // Broad controls are intentionally broad; all named controls below are
-    // confined to their own anatomical masks instead of sharing a height band.
-    const broad = 1 + bodyWidth * 0.18;
-    x = cx + (ox - cx) * broad;
-    y = cy + (oy - cy) * (1 + bodyFullness * 0.14);
-    z = minZ + (oz - minZ) * (1 + bodyHeight * 0.15);
-    x += nx * halfX * shoulder * 0.13 * shoulderZone;
-    x += nx * halfX * ribcage * 0.11 * ribcageZone;
-    x += nx * halfX * waist * 0.14 * waistZone;
-    x += nx * halfX * hip * 0.18 * hipZone;
-
-    // Breast volume/projection are front-only; buttock controls are rear-only.
-    const front = Math.max(0, Math.min(1, (ny - 0.015) / 0.42));
-    const rear = Math.max(0, Math.min(1, (-ny - 0.02) / 0.55));
-    y += halfY * (breast * 0.15 + breastProjection * 0.20) * breastZone * front;
-    y += Math.sign(ny || 1) * halfY * abdomen * 0.14 * abdomenZone;
-    y -= halfY * (buttock * 0.15 + buttockProjection * 0.19) * buttockZone * rear;
-
-    // Limb controls have separate masks and cannot bleed into torso width controls.
-    x += Math.sign(nx || 1) * halfX * arms * 0.055 * armZone;
-    y += Math.sign(ny || 1) * halfY * arms * 0.045 * armZone;
-    x += Math.sign(nx || 1) * halfX * thighs * 0.09 * thighZone;
-    y += Math.sign(ny || 1) * halfY * thighs * 0.065 * thighZone;
-    x += Math.sign(nx || 1) * halfX * calves * 0.075 * calfZone;
-    y += Math.sign(ny || 1) * halfY * calves * 0.055 * calfZone;
-
-    // Leg spacing only affects limb regions, not the pelvis or hip silhouette.
-    if (nz < 0.43 && ax > 0.105) {
-      const limbWeight = Math.max(gauss(nz, 0.31, 0.10), gauss(nz, 0.13, 0.075));
-      x += Math.sign(nx) * halfX * legGap * 0.075 * limbWeight;
-    }
-    if (legLength) {
-      const lower = Math.max(0, Math.min(1, (0.50 - nz) / 0.50));
-      z += (oz - hipLine) * legLength * 0.12 * lower;
-    }
-    if (armLength && armZone > 0) {
-      // Keep the shoulder attachment as the anchor; only the arm below it is
-      // lengthened/shortened, rather than scaling its position around body centre.
-      const lowerArm = Math.max(0, Math.min(1, (shoulderLine - oz) / (spanZ * 0.28)));
-      z += (oz - shoulderLine) * armLength * 0.10 * lowerArm * armZone;
-    }
-    p[i] = x; p[i + 1] = y; p[i + 2] = z;
-  }
-  recalculateMorphedNormals(piece);
-}
-function clampMorph(value) {
-  return Math.max(-1, Math.min(1, Number(value) || 0));
-}
+// Player-only local vertex morphs (characters/bodyShape.js): the posed player vertices are altered, never the shared
+// source arrays or NPC/item geometry.
+export { deformPlayerBodyGeometry };
 
 export function poseAssembly(assembly, { tracks = null, sampleTrack = null,
   time = 0, accumRoot = null, neckPitch = 0, neckAim = 0, neckOffset = null, climb = null, skin = true, mirror = null, run = null, hold = null, motion = null, bodyProportions = false, blendFrom = null, blendWeight = 1 } = {}) {
@@ -3109,41 +2975,12 @@ export function poseAssembly(assembly, { tracks = null, sampleTrack = null,
     }
   }
   if (geometryMorph) {
-    // Measure the body once after skinning all body pieces. Every mesh island
-    // then uses the same anatomical coordinate frame, instead of its own local
-    // bounds (which made sliders behave like arbitrary per-piece scaling).
-    const bodySlots = new Set(['betterbodies', 'chest', 'groin', 'upperleg', 'lowerleg', 'foot', 'hand']);
-    const bodyPieces = pieces.filter((p) => p.kind === 'skinned' && bodySlots.has(String(p.slot || '').toLowerCase()) && p.positions?.length);
-    const bodyBounds = { minX: Infinity, maxX: -Infinity, minY: Infinity, maxY: -Infinity, minZ: Infinity, maxZ: -Infinity };
-    for (const p of bodyPieces) for (let i = 0; i + 2 < p.positions.length; i += 3) {
-      const x = p.positions[i], y = p.positions[i + 1], z = p.positions[i + 2];
-      if (!Number.isFinite(x + y + z)) continue;
-      bodyBounds.minX = Math.min(bodyBounds.minX, x); bodyBounds.maxX = Math.max(bodyBounds.maxX, x);
-      bodyBounds.minY = Math.min(bodyBounds.minY, y); bodyBounds.maxY = Math.max(bodyBounds.maxY, y);
-      bodyBounds.minZ = Math.min(bodyBounds.minZ, z); bodyBounds.maxZ = Math.max(bodyBounds.maxZ, z);
-    }
-    if (Number.isFinite(bodyBounds.minX)) {
-      // Estimate the torso's half-width from vertices in the torso-height
-      // band. A robust percentile rejects most arm-tip outliers while keeping
-      // this coordinate frame shared by all separately skinned body pieces.
-      const spanZ = Math.max(1e-5, bodyBounds.maxZ - bodyBounds.minZ);
-      const torsoXs = [];
-      for (const p of bodyPieces) for (let i = 0; i + 2 < p.positions.length; i += 3) {
-        const x = p.positions[i], y = p.positions[i + 1], z = p.positions[i + 2];
-        if (!Number.isFinite(x + y + z)) continue;
-        const nz = (z - bodyBounds.minZ) / spanZ;
-        if (nz >= 0.53 && nz <= 0.75) torsoXs.push(x);
-      }
-      if (torsoXs.length) {
-        torsoXs.sort((a, b) => a - b);
-        const centerIndex = Math.floor((torsoXs.length - 1) * 0.5);
-        const torsoCenterX = torsoXs[centerIndex];
-        const torsoRadii = torsoXs.map((x) => Math.abs(x - torsoCenterX));
-        torsoRadii.sort((a, b) => a - b);
-        bodyBounds.torsoCenterX = torsoCenterX;
-        bodyBounds.torsoHalfX = torsoRadii[Math.floor((torsoRadii.length - 1) * 0.72)];
-      }
-      for (const p of bodyPieces) deformPlayerBodyGeometry(p, geometryMorph, bodyBounds);
+    // BODY-SHAPE: measured once after skinning every body piece - the skeleton's landmarks and the box in one frame
+    const bodyPieces = pieces.filter((p) => p.kind === 'skinned' && isMorphedBodySlot(p.slot) && p.positions?.length);
+    const frame = measureBodyFrame(bodyPieces, skeleton, mats);
+    if (frame) {
+      for (const p of bodyPieces) deformPlayerBodyGeometry(p, geometryMorph, frame, skeleton);
+      weldMorphedNormals(bodyPieces, frame);
     }
   }
   assembly.pose = pose;

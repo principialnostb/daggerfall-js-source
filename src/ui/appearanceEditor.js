@@ -1,38 +1,24 @@
+import { modSetting, setModSetting } from '../systems/modSettings.js';
 import { BODY_MORPH_FIELDS, getBodyMorphs, setBodyMorph, getUnderwearEnabled, setUnderwearEnabled, getBodyHairEnabled, setBodyHairEnabled, getAppearanceIdentity, setAppearanceIdentity } from '../characters/bodyMorphs.js';
 
+// BODY-SHAPE: the groups follow the fields' own zones, the figure's curves first
 const GROUPS = [
-  { id: 'all', title: 'Общие пропорции', description: 'Масштаб и общий силуэт', keys: ['height', 'bodyWidth', 'bodyFullness'] },
-  { id: 'chest', title: 'Плечи и грудь', description: 'Ширина плечевого пояса, грудной клетки и форма груди', keys: ['shoulderWidth', 'ribcageWidth', 'breastSize', 'breastProjection'] },
-  { id: 'torso', title: 'Талия и живот', description: 'Ширина талии и объём живота', keys: ['waistWidth', 'abdomenVolume'] },
-  { id: 'hips', title: 'Таз и ягодицы', description: 'Ширина таза и объём/выступ ягодиц', keys: ['hipWidth', 'buttockSize', 'buttockProjection'] },
-  { id: 'arms', title: 'Руки', description: 'Толщина и длина рук', keys: ['armThickness', 'armLength'] },
-  { id: 'legs', title: 'Ноги', description: 'Толщина бёдер и голеней, длина ног и расстояние между ними', keys: ['thighThickness', 'calfThickness', 'legLength', 'legGap'] },
-  { id: 'head', title: 'Голова', description: 'Масштаб головы', keys: ['headScale'] },
+  { id: 'chest', title: 'Грудь', description: 'Объём, выступ, подъём и расстановка', keys: ['breastSize', 'breastProjection', 'breastLift', 'breastSpacing'] },
+  { id: 'waist', title: 'Талия и живот', description: 'Ширина и глубина талии, живот', keys: ['waistWidth', 'waistDepth', 'abdomenVolume'] },
+  { id: 'hips', title: 'Бёдра и ягодицы', description: 'Ширина таза, объём, выступ и подъём ягодиц', keys: ['hipWidth', 'buttockSize', 'buttockProjection', 'buttockLift'] },
+  { id: 'legs', title: 'Ноги', description: 'Полнота бёдер и икр, расстановка ног', keys: ['thighThickness', 'calfThickness', 'legGap'] },
+  { id: 'upper', title: 'Плечи и руки', description: 'Плечевой пояс, грудная клетка, руки', keys: ['shoulderWidth', 'ribcageWidth', 'armThickness'] },
+  { id: 'overall', title: 'Общее', description: 'Силуэт целиком и голова', keys: ['bodyWidth', 'bodyFullness', 'headScale'] },
+];
+// EDITOR-B: figure presets - a starting point the sliders then refine; a value not named is 0
+const PRESETS = [
+  { id: 'hourglass', title: 'Песочные часы', values: { breastSize: 0.6, breastLift: 0.3, waistWidth: -0.7, waistDepth: -0.4, hipWidth: 0.6, buttockSize: 0.5, buttockProjection: 0.35, buttockLift: 0.3, thighThickness: 0.25 } },
+  { id: 'athletic', title: 'Атлетичная', values: { shoulderWidth: 0.45, ribcageWidth: 0.25, armThickness: 0.35, waistWidth: -0.3, abdomenVolume: -0.4, buttockLift: 0.45, buttockProjection: 0.2, thighThickness: 0.3, calfThickness: 0.35 } },
+  { id: 'curvy', title: 'Пышная', values: { breastSize: 0.85, breastProjection: 0.4, bodyFullness: 0.3, waistWidth: 0.1, abdomenVolume: 0.25, hipWidth: 0.8, buttockSize: 0.85, buttockProjection: 0.5, thighThickness: 0.7, calfThickness: 0.35, armThickness: 0.3 } },
+  { id: 'slender', title: 'Стройная', values: { bodyWidth: -0.35, bodyFullness: -0.3, breastSize: -0.25, waistWidth: -0.4, hipWidth: -0.2, buttockSize: -0.2, thighThickness: -0.45, calfThickness: -0.35, armThickness: -0.4, shoulderWidth: -0.2 } },
 ];
 const labelByKey = new Map(BODY_MORPH_FIELDS.map(([key, label]) => [key, label]));
-// User-observed effects on the current mesh. Labels describe the visible result,
-// not the control's legacy/internal name.
-const diagnosticLabels = new Map([
-  ['height', 'Высота туловища'],
-  ['bodyWidth', 'Ширина тела'],
-  ['bodyFullness', 'Толщина тела (вид сбоку)'],
-  ['shoulderWidth', 'Ширина верхней части корпуса'],
-  ['ribcageWidth', 'Ширина нижней части корпуса'],
-  ['breastSize', 'Выпуклость живота'],
-  ['breastProjection', 'Выступ живота вперёд'],
-  ['waistWidth', 'Ширина паховой области и бёдер у паха'],
-  ['abdomenVolume', 'Деформация живота, ягодиц и паховой зоны'],
-  ['hipWidth', 'Ширина таза (эффект не обнаружен)'],
-  ['buttockSize', 'Форма нижней части ягодиц (слабый эффект)'],
-  ['buttockProjection', 'Выступ ягодиц назад (почти незаметно)'],
-  ['headScale', 'Размер головы'],
-  ['armThickness', 'Ширина рук (вид спереди)'],
-  ['armLength', 'Длина рук (эффект не обнаружен)'],
-  ['thighThickness', 'Расстояние между коленями: бёдра'],
-  ['calfThickness', 'Расстояние между коленями: голени'],
-  ['legLength', 'Длина голеней'],
-  ['legGap', 'Расстояние между коленями и ступнями'],
-]);
+
 const clamp = (n) => Math.max(-1, Math.min(1, n));
 
 const STYLE = `
@@ -215,6 +201,26 @@ const STYLE = `
 #mw-appearance-editor .mw-close{border-radius:2px}
 #mw-appearance-editor .mw-status-message{color:#e9e4d9}
 
+#mw-appearance-editor .mw-main{grid-template-columns:minmax(250px,300px) minmax(0,1fr) minmax(330px,400px)}
+#mw-appearance-editor .mw-identity-col{display:flex;flex-direction:column;min-height:0;overflow:auto;border-right:1px solid #39414b;background:#171b21}
+#mw-appearance-editor .mw-identity-col .mw-controls-head{border-bottom:1px solid #39414b}
+#mw-appearance-editor .mw-identity-col .mw-identity-grid,#mw-appearance-editor .mw-identity-col .mw-options-grid{grid-template-columns:minmax(0,1fr)}
+#mw-appearance-editor .mw-presets{padding:13px 16px 16px}
+#mw-appearance-editor .mw-presets-title{margin:0 0 8px;color:#e9c17d;font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase}
+#mw-appearance-editor .mw-preset-list{display:grid;gap:5px}
+#mw-appearance-editor .mw-preset{justify-content:flex-start;text-align:left;min-height:34px}
+#mw-appearance-editor .mw-preset.active{border-color:#c08a3e;color:#f1d39b;box-shadow:inset 3px 0 #c08a3e}
+#mw-appearance-editor .mw-preset-note{margin-top:8px;color:#aeb9aa;font-size:11px;line-height:1.35}
+#mw-appearance-editor .mw-body-col{display:flex;flex-direction:column;min-height:0;overflow:hidden;border-left:1px solid #39414b;background:#1b2027}
+#mw-appearance-editor .mw-body-col .mw-body-head{padding:13px 16px 8px}
+#mw-appearance-editor .mw-body-col .mw-body-head h2{margin:0;font-size:17px;font-weight:700;color:#e9e4d9}
+#mw-appearance-editor .mw-body-col .mw-advanced-note{margin:4px 0 0;font-size:11px;line-height:1.35;color:#aeb9aa}
+#mw-appearance-editor .mw-body-col .mw-zone-nav{background:#171b21;border-bottom-color:#39414b}
+#mw-appearance-editor .mw-body-col .mw-zone-btn{border-color:#39414b;background:#1f252d;color:#d8d2c4}
+#mw-appearance-editor .mw-body-col .mw-zone-btn.active,#mw-appearance-editor .mw-body-col .mw-zone-btn.active:hover{background:#c08a3e;border-color:#f0cf91;color:#15110b;box-shadow:none}
+#mw-appearance-editor .mw-body-col .mw-control-list{flex:1}
+@media(max-width:1100px){#mw-appearance-editor .mw-main{grid-template-columns:minmax(220px,260px) minmax(0,1fr) minmax(290px,340px)}}
+@media(max-width:860px){#mw-appearance-editor .mw-main{grid-template-columns:minmax(0,1fr);overflow:auto}#mw-appearance-editor .mw-preview-side{min-height:420px}#mw-appearance-editor .mw-identity-col,#mw-appearance-editor .mw-body-col{overflow:visible;border:0}}
 @media(prefers-reduced-motion:reduce){#mw-appearance-editor .mw-btn{transition:none}}
 `;
 
@@ -286,7 +292,7 @@ export function openAppearanceEditor({ fpArm, onClose = () => {} } = {}) {
   controls.className = 'mw-controls';
   const controlsHead = document.createElement('div');
   controlsHead.className = 'mw-controls-head';
-  controlsHead.innerHTML = '<h2>Внешность персонажа</h2><p>Выберите пол и расу, затем настройте лицо и причёску. Редактор пропорций тела доступен отдельно в расширенных параметрах и пока находится в разработке.</p>';
+  controlsHead.innerHTML = '<h2>Облик</h2><p>Пол, раса, лицо и причёска.</p>';
   const identityGrid = document.createElement('div'); identityGrid.className = 'mw-identity-grid';
   const sexRow = document.createElement('label'); sexRow.className = 'mw-underwear';
   const sexLabel = document.createElement('span'); sexLabel.textContent = 'Пол';
@@ -336,8 +342,18 @@ export function openAppearanceEditor({ fpArm, onClose = () => {} } = {}) {
   const bodyHairToggle = document.createElement('input'); bodyHairToggle.type = 'checkbox'; bodyHairToggle.checked = getBodyHairEnabled(); bodyHairToggle.disabled = underwearToggle.checked;
   const bodyHairCopy = document.createElement('span'); bodyHairCopy.innerHTML = '<strong>Волосы на теле</strong><small>Для голой модели; отключите нижнее бельё. Нужен High Resolution Better Body Female Textures.</small>';
   bodyHairRow.append(bodyHairToggle, bodyHairCopy);
-  optionsGrid.append(underwearRow, bodyHairRow);
+  // HD-BODY: the high-resolution female pack's own mesh and 2048px skin (mwBetterBodies.js), a test switch for one look
+  const hdRow = document.createElement('label'); hdRow.className = 'mw-underwear';
+  const hdToggle = document.createElement('input'); hdToggle.type = 'checkbox';
+  hdToggle.checked = modSetting('morrowind-textures', 'HighResolutionBetterBodyFemaleTexturesSource') === 2;
+  const hdCopy = document.createElement('span'); hdCopy.innerHTML = '<strong>HD-кожа · тест</strong><small>Женское тело: меш и текстура 2048px из High Resolution Better Body Female Textures.</small>';
+  hdRow.append(hdToggle, hdCopy);
+  optionsGrid.append(underwearRow, bodyHairRow, hdRow);
   controlsHead.append(identityGrid, optionsGrid);
+  hdToggle.addEventListener('change', () => {
+    setModSetting('morrowind-textures', 'HighResolutionBetterBodyFemaleTexturesSource', hdToggle.checked ? 2 : 1);
+    bodyHairToggle.dispatchEvent(new globalThis.Event('change'));   // the same live + preview rebuild
+  });
   bodyHairToggle.addEventListener('change', async () => {
     setBodyHairEnabled(bodyHairToggle.checked);
     statusMessage.style.display = 'block'; statusMessage.textContent = 'Пересборка текстур модели…';
@@ -442,22 +458,9 @@ export function openAppearanceEditor({ fpArm, onClose = () => {} } = {}) {
     } catch (error) { previewError = String(error?.message || error); }
     drawPreview();
   });
-  const advancedToggle = makeButton('＋  Расширенные параметры тела', false, 'mw-advanced-toggle');
-  advancedToggle.setAttribute('aria-expanded', 'false');
-  advancedToggle.setAttribute('aria-controls', 'mw-advanced-body-panel');
   const advancedNote = document.createElement('p');
   advancedNote.className = 'mw-advanced-note';
-  advancedNote.textContent = 'Функция находится в разработке. Эффекты ползунков изучены не полностью и могут деформировать модель.';
-  const advancedPanel = document.createElement('section');
-  advancedPanel.id = 'mw-advanced-body-panel';
-  advancedPanel.className = 'mw-advanced-panel';
-  advancedPanel.hidden = true;
-  advancedToggle.addEventListener('click', () => {
-    const expanded = advancedToggle.getAttribute('aria-expanded') !== 'true';
-    advancedToggle.setAttribute('aria-expanded', String(expanded));
-    advancedToggle.textContent = (expanded ? '−' : '＋') + '  Расширенные параметры тела';
-    advancedPanel.hidden = !expanded;
-  });
+  advancedNote.textContent = 'Меняется открытое тело; одежда и доспехи сохраняют свою форму.';
   const zoneNav = document.createElement('nav'); zoneNav.className = 'mw-zone-nav'; zoneNav.setAttribute('aria-label', 'Выбор группы частей тела');
   const controlList = document.createElement('div'); controlList.className = 'mw-control-list';
   const inputs = new Map();
@@ -466,10 +469,10 @@ export function openAppearanceEditor({ fpArm, onClose = () => {} } = {}) {
   // Body sliders are draft state, just like race/face. Do not mutate the live
   // actor or persistent settings until the user confirms with Done.
   let draftMorphs = { ...initial };
-  let activeZone = 'all';
+  let activeZone = GROUPS[0].id;   // EDITOR-B: one zone at a time, as tabs
   const zoneButtons = new Map();
   for (const zone of GROUPS) {
-    const button = makeButton(zone.id === 'all' ? 'Все параметры' : zone.title);
+    const button = makeButton(zone.title);
     button.classList.add('mw-zone-btn');
     button.classList.toggle('active', zone.id === activeZone);
     button.setAttribute('aria-pressed', zone.id === activeZone ? 'true' : 'false');
@@ -479,13 +482,13 @@ export function openAppearanceEditor({ fpArm, onClose = () => {} } = {}) {
         item.classList.toggle('active', id === activeZone);
         item.setAttribute('aria-pressed', id === activeZone ? 'true' : 'false');
       }
-      for (const item of controlList.querySelectorAll('.mw-group')) item.hidden = activeZone === 'all' ? false : item.dataset.zone !== activeZone;
+      for (const item of controlList.querySelectorAll('.mw-group')) item.hidden = item.dataset.zone !== activeZone;
     });
     zoneButtons.set(zone.id, button); zoneNav.append(button);
   }
 
   for (const groupInfo of GROUPS) {
-    const group = document.createElement('section'); group.className = 'mw-group'; group.dataset.zone = groupInfo.id; group.hidden = false;
+    const group = document.createElement('section'); group.className = 'mw-group'; group.dataset.zone = groupInfo.id; group.hidden = groupInfo.id !== activeZone;
     const groupHead = document.createElement('div'); groupHead.className = 'mw-group-head';
     const groupTitle = document.createElement('div'); groupTitle.className = 'mw-group-title'; groupTitle.textContent = groupInfo.title;
     const groupNote = document.createElement('div'); groupNote.className = 'mw-group-note'; groupNote.textContent = groupInfo.description;
@@ -493,7 +496,7 @@ export function openAppearanceEditor({ fpArm, onClose = () => {} } = {}) {
     const fields = document.createElement('div'); fields.className = 'mw-group-fields';
     for (const key of groupInfo.keys) {
       const row = document.createElement('label'); row.className = 'mw-slider-row';
-      const name = document.createElement('span'); name.className = 'mw-slider-label'; name.textContent = diagnosticLabels.get(key) || labelByKey.get(key) || key;
+      const name = document.createElement('span'); name.className = 'mw-slider-label'; name.textContent = labelByKey.get(key) || key;
       const input = document.createElement('input');
       input.type = 'range'; input.min = '-1'; input.max = '1'; input.step = '0.01'; input.value = String(initial[key] ?? 0);
       input.style.setProperty('--range-fill', (((Number(input.value) + 1) / 2) * 100) + '%');
@@ -502,6 +505,7 @@ export function openAppearanceEditor({ fpArm, onClose = () => {} } = {}) {
       input.addEventListener('input', () => {
         const value = clamp(Number(input.value));
         draftMorphs[key] = value;
+        markPreset(null);
         output.textContent = formatValue(value);
         input.style.setProperty('--range-fill', (((value + 1) / 2) * 100) + '%');
         drawPreview();
@@ -512,19 +516,41 @@ export function openAppearanceEditor({ fpArm, onClose = () => {} } = {}) {
     group.append(groupHead, fields); controlList.append(group);
   }
 
+  // EDITOR-B: the whole draft at once - a preset, or the reset (every slider back to 0)
+  function setDraft(values) {
+    draftMorphs = Object.fromEntries(BODY_MORPH_FIELDS.map(([key]) => [key, clamp(Number(values[key]) || 0)]));
+    for (const [key, input] of inputs) {
+      input.value = String(draftMorphs[key]);
+      outputs.get(key).textContent = formatValue(draftMorphs[key]);
+      input.style.setProperty('--range-fill', (((draftMorphs[key] + 1) / 2) * 100) + '%');
+    }
+    drawPreview();
+  }
+  const presets = document.createElement('section'); presets.className = 'mw-presets';
+  presets.innerHTML = '<div class="mw-presets-title">Пресеты фигуры</div>';
+  const presetList = document.createElement('div'); presetList.className = 'mw-preset-list';
+  const presetButtons = new Map();
+  function markPreset(id) {
+    for (const [presetId, button] of presetButtons) {
+      button.classList.toggle('active', presetId === id);
+      button.setAttribute('aria-pressed', presetId === id ? 'true' : 'false');
+    }
+  }
+  for (const preset of PRESETS) {
+    const button = makeButton(preset.title, false, 'mw-preset');
+    button.setAttribute('aria-pressed', 'false');
+    button.addEventListener('click', () => { setDraft(preset.values); markPreset(preset.id); });
+    presetButtons.set(preset.id, button); presetList.append(button);
+  }
+  const presetNote = document.createElement('div'); presetNote.className = 'mw-preset-note';
+  presetNote.textContent = 'Пресет — отправная точка: доведите фигуру ползунками справа.';
+  presets.append(presetList, presetNote);
+
   const footer = document.createElement('footer'); footer.className = 'mw-footer';
   const footerNote = document.createElement('div'); footerNote.className = 'mw-footer-note'; footerNote.textContent = 'Изменения внешности применяются после нажатия «Готово»';
   const footerActions = document.createElement('div'); footerActions.className = 'mw-tool-group';
-  const reset = makeButton('Сбросить параметры');
-  reset.addEventListener('click', () => {
-    draftMorphs = Object.fromEntries(BODY_MORPH_FIELDS.map(([key]) => [key, 0]));
-    for (const [key, input] of inputs) {
-      input.value = String(draftMorphs[key] ?? 0);
-      outputs.get(key).textContent = formatValue(Number(input.value));
-      input.style.setProperty('--range-fill', (((Number(input.value) + 1) / 2) * 100) + '%');
-    }
-    drawPreview();
-  });
+  const reset = makeButton('Сбросить');
+  reset.addEventListener('click', () => { setDraft({}); markPreset(null); });
   const done = makeButton('Готово', true, 'mw-btn-primary');
   done.addEventListener('click', async () => {
     done.disabled = true;
@@ -557,10 +583,16 @@ export function openAppearanceEditor({ fpArm, onClose = () => {} } = {}) {
   });
   footerActions.append(reset, done); footer.append(footerNote, footerActions);
 
-  advancedPanel.append(advancedNote, zoneNav, controlList);
+  // EDITOR-B: three columns - the look and the presets, the model, the body's zones as tabs
+  const identityCol = document.createElement('section'); identityCol.className = 'mw-identity-col';
+  identityCol.append(controlsHead, presets);
+  const bodyHead = document.createElement('div'); bodyHead.className = 'mw-body-head';
+  const bodyTitle = document.createElement('h2'); bodyTitle.textContent = 'Пропорции тела';
+  bodyHead.append(bodyTitle, advancedNote);
+  controls.classList.add('mw-body-col');
+  controls.append(bodyHead, zoneNav, controlList, footer);
   previewSide.append(previewHead, canvasWrap, previewTools);
-  controls.append(controlsHead, advancedToggle, advancedPanel, footer);
-  main.append(previewSide, controls);
+  main.append(identityCol, previewSide, controls);
   shell.append(topbar, main); root.append(shell);
   root.addEventListener('click', (e) => { if (e.target === root) close(); });
   const keydown = (e) => { if (e.key === 'Escape') close(); };

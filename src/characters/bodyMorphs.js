@@ -1,27 +1,33 @@
 // Character body morph settings for the Morrowind player.
 // Values are normalized to [-1, 1] and persisted per browser profile.
+import { getBool, setValue, saveSettings, onSettingChange } from '../systems/settings/settings.js';
+// BODY-SHAPE (characters/bodyShape.js): each label names what the slider visibly does on the Better Bodies mesh.
+// Height, arm length and leg length are gone: a vertex morph cannot lengthen a body whose head, hands and worn
+// armour hang from bones - they need the skeleton's own scale, a separate change.
 export const BODY_MORPH_FIELDS = [
-  ['height', 'Высота туловища (голова неподвижна)', 'overall'],
-  ['bodyWidth', 'Ширина тела', 'overall'],
-  ['bodyFullness', 'Толщина тела (вид сбоку)', 'overall'],
-  ['shoulderWidth', 'Ширина грудной клетки', 'shoulders'],
-  ['ribcageWidth', 'Ширина нижнего туловища', 'torso'],
-  ['breastSize', 'Выпуклость живота', 'chest'],
-  ['breastProjection', 'Выступ живота', 'chest'],
-  ['waistWidth', 'Ширина паховой области', 'torso'],
-  ['abdomenVolume', 'Объём живота и ягодиц', 'torso'],
-  ['hipWidth', 'Ширина таза · не влияет', 'hips'],
-  ['buttockSize', 'Объём нижней части ягодиц (слабо)', 'hips'],
-  ['buttockProjection', 'Выступ ягодиц назад (слабо)', 'hips'],
-  ['headScale', 'Размер головы', 'head'],
-  ['armThickness', 'Ширина рук (вид спереди)', 'arms'],
-  ['armLength', 'Длина рук · не влияет', 'arms'],
-  ['thighThickness', 'Разведение коленей (бёдра)', 'legs'],
-  ['calfThickness', 'Разведение коленей (голени)', 'legs'],
-  ['legLength', 'Длина голеней', 'legs'],
-  ['legGap', 'Разведение коленей и стоп', 'legs'],
+  ['breastSize', 'Размер груди', 'chest'],
+  ['breastProjection', 'Выступ груди вперёд', 'chest'],
+  ['breastLift', 'Подъём груди', 'chest'],
+  ['breastSpacing', 'Расстановка груди', 'chest'],
+  ['waistWidth', 'Талия: ширина', 'waist'],
+  ['waistDepth', 'Талия: глубина (сбоку)', 'waist'],
+  ['abdomenVolume', 'Живот', 'waist'],
+  ['hipWidth', 'Ширина бёдер (таз)', 'hips'],
+  ['buttockSize', 'Объём ягодиц', 'hips'],
+  ['buttockProjection', 'Выступ ягодиц назад', 'hips'],
+  ['buttockLift', 'Подъём ягодиц', 'hips'],
+  ['thighThickness', 'Полнота бёдер', 'legs'],
+  ['calfThickness', 'Икры', 'legs'],
+  ['legGap', 'Расстановка ног', 'legs'],
+  ['shoulderWidth', 'Ширина плеч', 'upper'],
+  ['ribcageWidth', 'Грудная клетка', 'upper'],
+  ['armThickness', 'Толщина рук', 'upper'],
+  ['bodyWidth', 'Ширина фигуры', 'overall'],
+  ['bodyFullness', 'Полнота (вид сбоку)', 'overall'],
+  ['headScale', 'Размер головы', 'overall'],
 ];
-const KEY = 'mw-character-body-morphs-v1';
+// v2: the sliders' meanings moved (v1's "breast" moved the belly), so v1's values are not carried over
+const KEY = 'mw-character-body-morphs-v2';
 const UNDERWEAR_KEY = 'mw-character-underwear-v1';
 const BODY_HAIR_KEY = 'mw-character-body-hair-v1';
 const IDENTITY_KEY = 'mw-character-appearance-identity-v1';
@@ -55,14 +61,48 @@ export function resetBodyMorphs() {
   return { ...cached };
 }
 
+// NUDITY-SYNC: the editor's «Нижнее бельё» and the settings' Show Nudity
+// (ChildGuard/PlayerNudity - the paperdoll's welds) are ONE switch, underwear
+// = !nudity. The editor's saved choice is the authority: on first read it is
+// written over a setting that disagrees; a later Show Nudity change in the
+// settings screen is mirrored back into the editor's key, so the last action
+// wins either way and the two never read differently.
+let nudityLinked = false;
+function readSavedUnderwear() {
+  try {
+    const saved = globalThis.localStorage?.getItem(UNDERWEAR_KEY);
+    return saved === 'true' ? true : saved === 'false' ? false : null;
+  } catch { return null; }
+}
+function writeSavedUnderwear(value) {
+  try { globalThis.localStorage?.setItem(UNDERWEAR_KEY, value ? 'true' : 'false'); } catch { /* storage may be disabled */ }
+}
+function writeNuditySetting(underwear) {
+  if (getBool('ChildGuard', 'PlayerNudity') === !underwear) return;
+  setValue('ChildGuard', 'PlayerNudity', !underwear);
+  try { saveSettings(); } catch { /* storage may be disabled */ }
+}
+function linkNuditySetting() {
+  if (nudityLinked) return;
+  nudityLinked = true;
+  const saved = readSavedUnderwear();
+  if (saved !== null) writeNuditySetting(saved);
+  onSettingChange((section, key, str) => {
+    if (section !== 'ChildGuard' || key !== 'PlayerNudity') return;
+    const underwear = String(str).toLowerCase() !== 'true';
+    if (readSavedUnderwear() !== underwear) writeSavedUnderwear(underwear);
+  });
+}
 export function getUnderwearEnabled() {
-  // Underwear is the safe/default in-game appearance; explicitly saved false
-  // selects the fully nude Better Bodies variant in the appearance preview.
-  try { return globalThis.localStorage?.getItem(UNDERWEAR_KEY) !== 'false'; } catch { return true; }
+  linkNuditySetting();
+  // Underwear is the safe/default in-game appearance (Show Nudity ships False).
+  return readSavedUnderwear() ?? !getBool('ChildGuard', 'PlayerNudity');
 }
 export function setUnderwearEnabled(enabled) {
+  linkNuditySetting();
   const value = !!enabled;
-  try { globalThis.localStorage?.setItem(UNDERWEAR_KEY, value ? 'true' : 'false'); } catch { /* storage may be disabled */ }
+  writeSavedUnderwear(value);
+  writeNuditySetting(value);
   return value;
 }
 
