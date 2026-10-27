@@ -361,6 +361,7 @@ import { farthestVertexIndex, posedVertex, viewOffsetOf, worldPointOf } from './
 import { armKickMatrix } from './gun/gunFeel.js';   // MW-GUN-FEEL: the gun's recoil and reload, as one pose over the viewmodel
 import { rifleStanceStep, applyRifleStance } from './gun/rifleStance.js';   // RIFLE-STANCE: a long gun held in the hands - the low ready, the aim
 import { createHipLantern, HIP_LANTERN_HEIGHT } from '../systems/lanternSwing.js';   // HT-WAIST: the one swing law both bodies feed (BODY-MOTION: its rider moved there); HT-WAIST-SIZE: the one height they hang
+import { createBodyWeight } from '../characters/bodyMotion/bodyWeight.js';   // BODY-WEIGHT: the trunk's answer to the body's mass and acceleration
 import { createBodyMotion, motionWord } from '../characters/bodyMotion/bodyMotion.js';   // BODY-MOTION: the third-person body's gait, carry and blows
 import { shieldGuardStance, carriesShield, isHandShieldSlot, shieldBashHold } from './shieldGuard.js';   // SHIELD-GUARD: the fists behind a shield - the stance, the bash
 import { createLeftArmLayer, leftArmPlan, leftArmModeOf } from './leftArmLayer.js';   // LEFT-ARM: the shield's and the free hand's arm over the clip, by weight
@@ -4947,6 +4948,7 @@ export function createFpArm({ playerAppearance = false } = {}) {
   // MOTION - its gait, its carry and a blow's body - one per rig, stepped below after the clips and laid on the pose
   // through poseAssembly's `motion` slot; the clips still decide every group, and it steps aside where they own the body
   const motion = createBodyMotion();
+  const bodyWeight = createBodyWeight();   // BODY-WEIGHT (characters/bodyMotion/bodyWeight.js)
   // AUDIT MW-TORCH F4: THE OVERLAY ALLOCATES ONCE PER CHANGE, NOT PER
   // FRAME. update()'s contract is "no allocation after the first pack";
   // the merged track map is rebuilt only when the base tracks, the torch
@@ -8136,6 +8138,7 @@ export function createFpArm({ playerAppearance = false } = {}) {
         attackType, reversed: attackReversed, hand: attackHand, progress: actionState ? clipCompletion(actionState) : 0, strength: attackStrength,
         shown: weaponInHand(), hands: handsMode, torch: torchVisible(), spell: spellStance(), rifle: rifle.w, guard: pairDip(),
       }));
+      bodyWeight.stepRig(dt, modSetting('morrowind-animation', 'MotionDoctrine') !== 0 && viewMode === 'third', cam, lastBuildOpts?.armor, thirdBuilt?.mwType, dead);   // BODY-WEIGHT
       if (!actionState && !movementState && !jumpState && !idleState && !hitState && !deathState) return;
       // THE WINNER, not a blend. See the two-slot note above: in first
       // person both animations are played on BlendMask_All, so the higher
@@ -8215,7 +8218,7 @@ export function createFpArm({ playerAppearance = false } = {}) {
             climb: thirdClimb(climbWorld, cam),   // CLIMB6
             mirror: mirrorFor('third', t, dt),   // TWO-HANDS: the second hand - the pair's left arm, a left-hand blow
             hold: rifleHold('third', t) ?? shieldBash(),   // RIFLE-STANCE: the long gun in the hands; SHIELD-GUARD: else the bash
-            motion: motion.slot,   // BODY-MOTION: third-person gait, weapon carry and melee body layered over the clip
+            motion: bodyWeight.slot(motion.slot),   // BODY-WEIGHT over BODY-MOTION: third-person gait, weapon carry and melee body layered over the clip
             bodyProportions: playerAppearance ? getBodyMorphs() : false,   // MWV2-PROPORTIONS: player instance only
             skin: !thirdSkinReady(t),   // MWNPC1: the skin in the vertex shader - the pose is the skeleton alone
           });
