@@ -406,7 +406,8 @@ export function makeSlotToolTip() {
     tip,
     /** The item under the cursor, or null to clear. */
     show(item, vx, vy, opts = {}) {
-      const text = scrollerToolTipText(item, opts);
+      const base = scrollerToolTipText(item, opts);
+      const text = base && opts.extra ? `${base}\r${opts.extra}` : base;   // LOOK-VARIANTS: a worn piece's look line
       if (!text) { tip.hide(); return null; }
       tip.show(text, vx, vy);
       return text;

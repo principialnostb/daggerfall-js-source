@@ -81,7 +81,7 @@ export const CLASSIC_ARMOR_TEMPLATE = Object.freeze({
 
 /** MW-STEEL1: the steel helm's two styles - the Steel Helm switch's values (systems/features.js, pref `mwSteelHelm`),
  *  the default first. */
-export const STEEL_HELM_STYLES = Object.freeze(['closed', 'open']);
+export const STEEL_HELM_STYLES = Object.freeze(['closed', 'open', 'horned']);   // MW-HORN1: the horned helm, built (tools/bakeHornedHelm.mjs)
 export const STEEL_HELM_DEFAULT = STEEL_HELM_STYLES[0];
 
 const part = (p, model, hides = null) => Object.freeze({ part: p, model, ...(hides ? { hides: Object.freeze(hides) } : {}) });
@@ -104,6 +104,7 @@ const ebony = plate(ARMOR_MATERIAL.Ebony);   // MW-EBONY1
 function steelPlate() {
   const helmClosed = Object.freeze([part('hair', 'steel_plate_helm_closed.nif', ['head'])]);   // MW-FIT1: a closed helm is the head
   const helmOpen = Object.freeze([part('hair', 'steel_plate_helm_open.nif')]);
+  const helmHorned = Object.freeze([part('hair', 'steel_plate_helm_horned.nif', ['head'])]);   // MW-HORN1: closed, so it is the head too
   return [
     steel('daggerfall_steel_cuirass', 'Steel Cuirass', CLASSIC_ARMOR_TEMPLATE.Cuirass, {
       parts: [part('cuirass', 'steel_plate_cuirass.nif'), part('skirt', 'steel_plate_skirt.nif')],
@@ -124,7 +125,7 @@ function steelPlate() {
       parts: [part('right pauldron', 'steel_plate_pauldron_right.nif', ['right upper arm'])],
     }),
     steel('daggerfall_steel_helm', 'Steel Helm', CLASSIC_ARMOR_TEMPLATE.Helm, {
-      parts: helmClosed, styles: { closed: helmClosed, open: helmOpen },
+      parts: helmClosed, styles: { closed: helmClosed, open: helmOpen, horned: helmHorned },
     }),
     steel('daggerfall_steel_boots', 'Steel Boots', CLASSIC_ARMOR_TEMPLATE.Boots, {
       parts: [
