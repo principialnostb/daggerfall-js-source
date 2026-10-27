@@ -211,7 +211,31 @@ group off the clip itself: Idle +1.35 s, Idle1h +0.65, Idle2c and Idle2w +1.8, I
 of MW-D29's reset stand; only the start point departs, behind the same switch. Pinned by
 `test/combat/idlesettle.test.js`. Not judged in the game yet.
 
-Then the first-person hands' inertia (FP Inertia's shape). Every step sits behind a switch "as now / by the formula",
+**Step 4 and step 3 BUILT together (FP-INERTIA and HIT-RESPONSE, 2026-10-27), at the owner's word ("one package"), not
+yet judged in the game.** The switch covers both and is now titled «Формула движения».
+
+- **FP-INERTIA**, `src/combat/fpInertia.js`: six springs on the first-person viewmodel (yaw, pitch, roll; right, up,
+  back), pivoted at the shoulder (`FP_INERTIA.pivot`) and laid in front of the lens as the gun's kick is
+  (src/combat/fpArm.js:"const view = fpInertia.view("). The look: `look.yaw` 0.018 to 0.032 rad of lag per rad/s of turn
+  (a turn right swings the arms left), `look.pitch` 0.014 to 0.026 against a glance, never past `maxRot` 0.16; a slide
+  against the turn and a roll into it (`slide`, `roll` .35 of the yaw lag). The body: `move.gain` 0.0009 to 0.0015 m
+  per m/s^2 of its real acceleration (back toward the eye on a start, sideways against a step), never past `maxMove`
+  0.05 m. A landing dips the arms (`land.dip`, full after `fall` 0.8 s aloft), a jump lifts them. Springs `omega` 18 to
+  11, `zeta` 0.55 to 0.45 - light to heavy by BODY-WEIGHT's number. At rest no matrix is laid. The idea is First Person
+  (FP) Inertia's (Nexus 167883, MIT), the code the port's own. Pinned by `test/combat/fpinertia.test.js`.
+- **HIT-RESPONSE**, `src/combat/hitResponse.js`, on the player's landed melee blow (src/combat/playerWeapon.js:"hitResponse.hit({ foe, damage"):
+  a HITSTOP of `stop` 0.05 to 0.095 s by the weapon's weight (heavy at `kg` 6), times 0.7 to 1 by the damage (full at
+  `hard` 18), x `diminish` 0.6 for each further foe of one swing (`swing` 0.25 s) - holding the striking arm (the
+  player's rig's clock, both views: src/combat/fpArm.js:"dt = hitResponse.armDt(dt)") and the struck foe's own frame
+  (src/characters/mobile/mobileUnit.js:"dt = hitResponse.unitDt(this, dt)"), never the world; the foe's reaction - DFU's
+  knockback and hurt frames, which the blow starts - plays out after the beat. A SOFT SHAKE: `shake.deg` 0.35 to 0.8
+  degrees, an 18 Hz sine decaying over `tau` 0.1 s, laid and taken back on the look beside DFU's own reel
+  (src/player/cameraRecoiler.js:"const hs = paused ? [0, 0] : hitResponse.shake(dt);") - DFU's recoil setting is not its switch.
+  The idea is Precision's (Nexus 72347), the code the port's own. Pinned by `test/combat/hitresponse.test.js`.
+  Not here yet: a Morrowind-bodied foe's own rig is not held (only a sprite unit's frame is), arrows and spells give
+  no beat, and the recoil off stone is still to come.
+
+Then step 3's rest: the two-hander's blows in third person. Every step sits behind a switch "as now / by the formula",
 is judged by the owner in the game, and lives in a module of its own (HOST-SPLIT, `01-Overview/Host-Split.md`).
 
 **Decision taken for the pilot (recommended, the owner to confirm): the motion of the character is not changed.** The

@@ -367,6 +367,8 @@ import { shieldGuardStance, carriesShield, isHandShieldSlot, shieldBashHold } fr
 import { createLeftArmLayer, leftArmPlan, leftArmModeOf } from './leftArmLayer.js';   // LEFT-ARM: the shield's and the free hand's arm over the clip, by weight
 import { createLowerBodyLayer, lowerBodyBones } from './lowerBodyLayer.js';   // LOWER-BODY: the legs under a blow keep the stride (rule 26)
 import { settleIdle } from './idleSettle.js';   // IDLE-SETTLE: a stop lands the idle where its legs are quiet
+import { createFpInertia } from './fpInertia.js';   // FP-INERTIA: the first-person hands carry weight
+import { hitResponse } from './hitResponse.js';   // HIT-RESPONSE: the striking arm's hitstop
 import { BLOW_FLOW, holdFor, calmBlowPlan, driftRate, recoverRate, poseKindOf, blowBlendSeconds, blendWeightAt, createVariantCycle, bashesNow } from './blowFlow.js';   // BLOW-FLOW: the window after a blow, the blends; MW-PACE2: the player's calm pace; SHIELD-BASH: in turn
 import { vfxOf, createVfx, vfxCapacity, vfxTextures } from '../formats/morrowind/mwVfx.js';   // MW-SPELLFX1: an effect mesh, running
 import { spellFxPlan } from '../formats/morrowind/mwSpellFx.js';   // MW-SPELLFX1: which visuals a spell wears
@@ -4950,6 +4952,7 @@ export function createFpArm({ playerAppearance = false } = {}) {
   // through poseAssembly's `motion` slot; the clips still decide every group, and it steps aside where they own the body
   const motion = createBodyMotion();
   const bodyWeight = createBodyWeight();   // BODY-WEIGHT (characters/bodyMotion/bodyWeight.js)
+  const fpInertia = createFpInertia();   // FP-INERTIA (combat/fpInertia.js)
   // AUDIT MW-TORCH F4: THE OVERLAY ALLOCATES ONCE PER CHANGE, NOT PER
   // FRAME. update()'s contract is "no allocation after the first pack";
   // the merged track map is rebuilt only when the base tracks, the torch
@@ -8039,6 +8042,7 @@ export function createFpArm({ playerAppearance = false } = {}) {
      *  camera node every frame). */
     update(dt, { pose = true, effectsDt = dt } = {}) {
       if (!built || !built.ok || !renderer) return;
+      if (playerAppearance) dt = hitResponse.armDt(dt);   // HIT-RESPONSE: the striking arm holds its beat (combat/hitResponse.js)
       partClock += dt;   // MW-BOW1: frame time, an AutoPlay node's clock
       const cam = seatedCamera(camera && camera());   // WAGONS3: seated (a wagon's bench), the body plays no stride under the seat
       sneaking = !!(cam && cam.sneaking);
@@ -8141,6 +8145,7 @@ export function createFpArm({ playerAppearance = false } = {}) {
         shown: weaponInHand(), hands: handsMode, torch: torchVisible(), spell: spellStance(), rifle: rifle.w, guard: pairDip(),
       }));
       bodyWeight.stepRig(dt, modSetting('morrowind-animation', 'MotionDoctrine') !== 0 && viewMode === 'third', cam, lastBuildOpts?.armor, thirdBuilt?.mwType, dead);   // BODY-WEIGHT
+      fpInertia.stepRig(dt, modSetting('morrowind-animation', 'MotionDoctrine') !== 0 && viewMode === 'first', cam, lastBuildOpts?.armor, built?.mwType, dead);   // FP-INERTIA
       if (!actionState && !movementState && !jumpState && !idleState && !hitState && !deathState) return;
       // THE WINNER, not a blend. See the two-slot note above: in first
       // person both animations are played on BlendMask_All, so the higher
@@ -8575,7 +8580,7 @@ export function createFpArm({ playerAppearance = false } = {}) {
       // and nothing else in the pass does. Not through the neck (poseAssembly's neckPitch/neckOffset): glued arms take
       // no look there by IG4's construction, and a kick is not a look. The frame record below carries it, so the muzzle
       // (weaponMuzzle) and a held sheet's corners stand where the eye sees them.
-      const view = gunFeel ? multiply(armKickMatrix(gunFeel, MW_UNITS_PER_METER), lens, new Float32Array(16)) : lens;
+      const view = fpInertia.view(gunFeel ? multiply(armKickMatrix(gunFeel, MW_UNITS_PER_METER), lens, new Float32Array(16)) : lens, MW_UNITS_PER_METER);   // FP-INERTIA over the kick
 
       // MW-D23: NO MIRROR. THIS PASS IS ALREADY CHIRALITY-TRUE, and the
       // mirror MW-D9 borrowed from the world pass is what put Mac's

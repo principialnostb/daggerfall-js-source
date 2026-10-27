@@ -1702,7 +1702,7 @@ export const MOD_SETTINGS = Object.freeze({
       MotionDoctrine: Object.freeze({
         default: 1,
         options: lazyWords('Как сейчас', 'По формуле'),
-        description: 'По формуле: in third person the legs keep the stride under a blow (only the torso and arms strike, as OpenMW resolves its bone groups), and the trunk leans into a start and back against a stop by the weight of the armour and weapon. Как сейчас keeps the clips as they are.',
+        description: 'По формуле: the body carries the weight of its armour and weapon - the legs keep the stride under a blow, the trunk leans into a start and a stop, the first-person hands lag a turn and dip on a landing, and a landed blow holds for a short beat with a soft shake. Как сейчас keeps the clips as they are.',
       }),
       FirstPersonSource: Object.freeze({
         default: 1,

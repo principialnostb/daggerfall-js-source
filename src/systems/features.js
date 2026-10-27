@@ -1347,7 +1347,7 @@ export const FEATURES = Object.freeze([
   Object.freeze({
     id: 'morrowind-motion-doctrine',
     group: 'character',
-    title: 'Формула движения (3-е лицо)',
+    title: 'Формула движения',
     get note() { return MOD_SETTINGS['morrowind-animation'].keys.MotionDoctrine.description; },
     effect: 'Takes effect immediately.',
     kinds: Object.freeze(['mod']),
