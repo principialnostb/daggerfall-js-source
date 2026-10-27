@@ -103,6 +103,7 @@ import {
 } from '../../systems/inventorySession.js';
 import { isEquipped, equipItem, unequipSlot, isForbiddenEquip, isBrokenItem, EQUIP_SLOTS, FORBIDDEN_EQUIPMENT_TEXT_ID, ITEM_BROKEN_TEXT_ID, equipDelaySnapshot, billEquipDelayOnClose } from '../../systems/equip.js';   // S23; FX1 (F128): the per-visit swap-pause clock
 import { drawPaperDoll, refreshPaperDoll, slotAtPaperDoll, ARMOR_LABEL_POS } from '../paperDoll.js';
+import { lookVariantLine, stepLookVariant, rebuildForLook } from '../../systems/lookVariants.js';   // LOOK-VARIANTS
 import { LIST_SLOTS, scrollerHit, applyScroll, makeIconDrawer, preloadIconRecord, drawStackLabel, safeScrollIndex, beginScrollerDrag, dragScrollerIndex,   // MAC-N2: the thumb drag
   preloadScrollerArrowArt, drawScrollerArrows, drawScrollerThumb, playScrollerArrowClick,
   makeSlotToolTip, itemBackgroundColour, drawCellBackground } from '../item/itemScroller.js';
@@ -1235,7 +1236,8 @@ export class NativeInventoryWindow {
     const R = INV_RECTS;
     if (inRect(R.paperDoll, vx, vy) && this.hooks.entity) {
       const slot = slotAtPaperDoll(Math.floor(vx - R.paperDoll[0]), Math.floor(vy - R.paperDoll[1]));
-      return { item: (slot != null ? this.hooks.entity.equip?.slots?.[slot] : null) ?? null, books: false };
+      const worn = (slot != null ? this.hooks.entity.equip?.slots?.[slot] : null) ?? null;
+      return { item: worn, books: false, extra: lookVariantLine(worn) };   // LOOK-VARIANTS: a worn piece with looks names the one it wears
     }
     const acc = this._accessoryAt(vx, vy);
     if (acc != null) return { item: this.hooks.entity?.equip?.slots?.[acc] ?? null, books: false };
@@ -1284,6 +1286,7 @@ export class NativeInventoryWindow {
     if (!dir || this.topBox || this.inputBox) return;
     const R = INV_RECTS;
     const kind = dir > 0 ? 'down' : 'up';
+    if (this._wheelLook(dir, vx, vy)) return;   // LOOK-VARIANTS: over a worn piece with looks, the wheel turns its look
     const wheelable = (k) => k === 'slot' || k === 'thumb' || k === 'page-up' || k === 'page-down';
     const hit = scrollerHit(R.localList, vx, vy, this.scroll, this._filtered().length);
     if (hit) {
@@ -1297,6 +1300,19 @@ export class NativeInventoryWindow {
     }
     this._wheelRehover(vx, vy,
       rhit?.kind === 'slot' ? this._remote()[this.remoteScroll + rhit.slot] : null);
+  }
+
+  /** LOOK-VARIANTS (systems/lookVariants.js): the wheel over a worn piece on the paperdoll steps its look - the body
+   *  rebuilt, the doll redrawn and the tooltip re-read under the still cursor. True when the notch was the look's. */
+  _wheelLook(dir, vx, vy) {
+    const R = INV_RECTS, entity = this.hooks.entity;
+    if (!entity || !inRect(R.paperDoll, vx, vy)) return false;
+    const slot = slotAtPaperDoll(Math.floor(vx - R.paperDoll[0]), Math.floor(vy - R.paperDoll[1]));
+    const worn = slot != null ? entity.equip?.slots?.[slot] : null;
+    if (!stepLookVariant(worn, dir)) return false;
+    rebuildForLook(entity).then(() => { refreshPaperDoll?.(entity); this._wheelRehover(vx, vy, null); }).catch((e) => console.warn('[look] rebuild', e?.message ?? e));
+    this._wheelRehover(vx, vy, null);
+    return true;
   }
 
   /** AUDIT 64 F52 (review round): the wheel notch fires TWO more
@@ -1342,7 +1358,7 @@ export class NativeInventoryWindow {
     this._tip.hide();
     if (vx >= 0 && vy >= 0) {
       const t = this._tipItemAt(vx, vy);
-      this._tip.show(t.item, vx, vy, { getQuest: this.hooks.getQuest ?? null, books: t.books });
+      this._tip.show(t.item, vx, vy, { getQuest: this.hooks.getQuest ?? null, books: t.books, extra: t.extra ?? null });
     }
     // ItemButton_OnMouseEnter (ItemListScroller.cs:570-581). A null
     // item - an empty slot, or an index past the list - returns
@@ -1402,7 +1418,7 @@ export class NativeInventoryWindow {
     if (this.topBox || this.inputBox || vx < 0 || vy < 0) this._tip.hide();
     else {
       const t = this._tipItemAt(vx, vy);
-      this._tip.show(t.item, vx, vy, { getQuest: this.hooks.getQuest ?? null, books: t.books });
+      this._tip.show(t.item, vx, vy, { getQuest: this.hooks.getQuest ?? null, books: t.books, extra: t.extra ?? null });
     }
     if (typeof this.inputBox?.hover === 'function') this.inputBox.hover(vx, vy, e);   // MEND-AIM: the pushed picker's rows light under the cursor
     if (this.topBox || this.inputBox) return;

@@ -2390,6 +2390,13 @@ export const ARMOUR_CSS = `
   color: #efe8d6; background: rgba(5,6,8,0.8); border: 1px solid rgba(192,138,62,0.8); border-radius: 7px 7px 1px 1px;
   text-shadow: 1px 1px 0 #050608; }
 .pack-shell .equipped .worncount ~ .wornhood { right: 20px; }
+/* LOOK-VARIANTS: a worn piece with other looks - a small set gem in the free corner, the rune's gold; it wakes when the
+   panel is hovered or picked, as a stone catches the light */
+.pack-shell .equipped .wornlook { position: absolute; right: 6px; bottom: 6px; z-index: 2; width: 7px; height: 7px;
+  transform: rotate(45deg); background: linear-gradient(135deg, #f3d48a, #8a5a1c); border: 1px solid #050608;
+  box-shadow: 0 0 0 1px rgba(192,138,62,0.55); opacity: 0.75; transition: opacity 0.2s, box-shadow 0.2s; pointer-events: none; }
+.pack-shell .equipped .wornrow:hover .wornlook, .pack-shell .equipped .wornrow.on .wornlook { opacity: 1;
+  box-shadow: 0 0 0 1px rgba(243,212,138,0.9), 0 0 6px 1px rgba(243,212,138,0.55); }
 /* AUDIT C&C S1: THE PLAQUES' ROW - the figure's first cell named whole (ui/enhanced/enhancedInventory.js: '1 / 2 / 2 / 3'; on
    '1 / 2' an absolutely placed grid child's end lines ran to the map's edge, and the Felt plaque's right corner stood on
    the R-Weapon panel), the Armour plaque at its left and the Felt plaque at its right, the Felt one under the Armour one
