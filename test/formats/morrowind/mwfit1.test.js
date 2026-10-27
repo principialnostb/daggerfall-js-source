@@ -102,13 +102,13 @@ test('MW-FIT1: a closed helm is the head - the steel plate\'s closed helm and th
   assert.deepEqual(compose(steelHelm).shadows, ['head', 'hair'], 'the closed steel helm, the default');
   assert.deepEqual(compose(steelHelm, 'closed').shadows, ['head', 'hair']);
   assert.deepEqual(compose(steelHelm, 'open').shadows, ['hair'], 'the open helm leaves the head');
-  assert.deepEqual(compose(steelHelm, 'horned').shadows, ['head', 'hair'], 'MW-HORN1: the horned helm is closed');
+  assert.deepEqual(compose(steelHelm, 'horned').shadows, ['hair'], 'MW-HORN5: the horned helm is open under its mask - it leaves the head');
   assert.deepEqual(compose([piece(T.Helm, 'Ebony')]).shadows, ['head', 'hair'], 'the ebony helm is closed');
   // the helm's own mesh stays in the hair slot (its shapes are named for it - rule 15); the head is occupied with none
   for (const [metal, style] of [['Steel', 'closed'], ['Steel', 'open'], ['Steel', 'horned'], ['Ebony', undefined]]) {
     const worn = compose([piece(T.Helm, metal)], style);
     assert.deepEqual(worn.adds.map((a) => a.partName), ['hair'], `${metal} ${style ?? ''}: one add, the hair's`);
-    assert.deepEqual(ownArmorParts(ownArmorModelFor(piece(T.Helm, metal)), { helmStyle: style }).map((p) => p.hides ?? []), [style === 'open' ? [] : ['head']]);
+    assert.deepEqual(ownArmorParts(ownArmorModelFor(piece(T.Helm, metal)), { helmStyle: style }).map((p) => p.hides ?? []), [style === 'open' || style === 'horned' ? [] : ['head']]);
   }
 });
 

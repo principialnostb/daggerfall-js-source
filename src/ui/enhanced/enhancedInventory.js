@@ -81,7 +81,7 @@ import { setHotbarDropMode, hotbarSlotNode, hotbarTakesItem, hotbarDropItem, hot
 import { registerQuickAct } from '../plus/plusPad.js';   // PADPLUS5: the pad's X on a row
 import { EQUIP_SLOTS } from '../../characters/paperdoll/paperdoll.js';
 import { dfWornEquipment } from '../../formats/morrowind/mwItemMap.js';   // PX25
-import { lookVariantsOf, lookVariantLabel, stepLookVariant, rebuildForLook } from '../../systems/lookVariants.js';   // LOOK-VARIANTS
+import { lookVariantsOf, lookVariantLabel, lookChoices, setLookVariant, rebuildForLook } from '../../systems/lookVariants.js';   // LOOK-VARIANTS, LOOK-THUMBS
 import { hasDaggerfallArrows } from '../../combat/fpArm.js';   // PX26
 import { ARMOR_ENUM } from '../../combat/enemyEquipment.js';   // PX25
 import { inventoryItemImage, inventoryItemModel, templateByIndex, isAmmunition } from '../../systems/item/itemTemplates.js';   // WEAR-UI: isAmmunition, spent not worn
@@ -3615,15 +3615,25 @@ function itemActs(picked, side, { qty = true } = {}) {
   // a book each read differently) and, for an enchanted item, chains the "Item powers" box. The enhanced card is a
   // summary of numbers; this button shows the classic text itself - the card's detail column and the right-click
   // menu both carry it, because both are built from this row.
-  // LOOK-VARIANTS: a worn piece with other looks turns them here, the card kept up and the body rebuilt behind it
-  if (line.equipped && lookVariantsOf(picked)) {
-    const st = el('button', 'act look-act', `Style · ${lookVariantLabel(picked)}`);
-    st.onclick = () => {
-      stepLookVariant(picked, 1);
-      render();
-      rebuildForLook(deps.entity).then(() => { refresh(); render(); }).catch((e) => console.warn('[look] rebuild', e?.message ?? e));
-    };
-    acts.append(st);
+  // LOOK-VARIANTS: a worn piece with other looks turns them here, the card kept up and the body rebuilt behind it.
+  // LOOK-THUMBS: each look its own picture (systems/lookVariants.js lookChoices), the worn one lit; a look with no
+  // picture yet shows its name
+  const looks = line.equipped ? lookChoices(picked) : null;
+  if (looks) {
+    const row = el('div', 'look-row');
+    for (const c of looks) {
+      const b = el('button', `look-pick${c.on ? ' on' : ''}`);
+      b.title = `Style: ${c.label}`;
+      b.setAttribute('aria-pressed', String(c.on));
+      if (c.thumb) { const img = el('img'); img.src = c.thumb; img.alt = c.label; b.append(img); } else b.append(el('span', 'look-name', c.label));
+      b.onclick = () => {
+        if (!setLookVariant(picked, c.value)) return;
+        render();
+        rebuildForLook(deps.entity).then(() => { refresh(); render(); }).catch((e) => console.warn('[look] rebuild', e?.message ?? e));
+      };
+      row.append(b);
+    }
+    acts.append(row);
   }
   const info = el('button', 'act', 'Info');
   info.onclick = () => openInfo(picked);
