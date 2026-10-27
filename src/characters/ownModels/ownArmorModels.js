@@ -84,7 +84,40 @@ export const CLASSIC_ARMOR_TEMPLATE = Object.freeze({
 export const STEEL_HELM_STYLES = Object.freeze(['closed', 'open', 'horned']);   // MW-HORN1: the horned helm, built (tools/bakeHornedHelm.mjs)
 export const STEEL_HELM_DEFAULT = STEEL_HELM_STYLES[0];
 
-const part = (p, model, hides = null) => Object.freeze({ part: p, model, ...(hides ? { hides: Object.freeze(hides) } : {}) });
+const part = (p, model, hides = null, { showsSkin = false } = {}) => Object.freeze({ part: p, model, ...(hides ? { hides: Object.freeze(hides) } : {}), ...(showsSkin ? { showsSkin } : {}) });
+
+/** MW-IRON1: the looks made from the player's own Skyrim install (tools/skyrim/), never committed - their meshes are
+ *  on the disk of a player who ran the import and nowhere else, so they are no part of what ships. */
+export const PLAYER_MADE_STYLES = Object.freeze(['horned', 'iron']);
+
+/** MW-IRON1: Skyrim's heavy iron cuirass, cut into the cuirass's and the pauldrons' looks (tools/skyrim/
+ *  importIronCuirass.mjs). Its cuirass is open at the neck as Skyrim's is, so it does not hide the chest under it - the
+ *  skin shows where the armour does, and the import pushed every plate out over it (`showsSkin`: the slot occupied,
+ *  its skin still drawn - mwItemMap.js composeWornArmor's `covers`). Its pauldrons ride the shoulder alone and leave
+ *  the upper arm. */
+const IRON = Object.freeze({
+  // MW-IRON5: its skirt (the belt, the plates, the trousers' thighs) covers the groin and both thighs whole (2 of the
+  // groin's 155 vertices open, none of the thighs' 138), so it hides them - drawn, they showed through it as the legs
+  // moved (the owner: "небольшие зоны где кожа проглядывает"); the knee it does not reach stays drawn.
+  cuirass: Object.freeze([part('cuirass', 'iron_cuirass.nif', null, { showsSkin: true }), part('skirt', 'iron_skirt.nif', ['groin', 'right upper leg', 'left upper leg'])]),
+  left: Object.freeze([part('left pauldron', 'iron_pauldron_left.nif')]),
+  right: Object.freeze([part('right pauldron', 'iron_pauldron_right.nif')]),
+  // MW-IRON2 (tools/skyrim/importIronLimbs.mjs): the gauntlets hide the wrist under them and leave the forearm drawn
+  // inside their flaring cuff (hidden, the cuff showed hollow at the elbow - MW-IRON4); the boots stop below the knee
+  // (86 of its 136 vertices stand over their top), so they hide the ankle alone and leave the knee drawn.
+  gauntlets: Object.freeze([
+    part('right hand', 'iron_gauntlet_right.nif', ['right wrist']),
+    part('left hand', 'iron_gauntlet_left.nif', ['left wrist']),
+  ]),
+  boots: Object.freeze([part('right foot', 'iron_boot_right.nif', ['right ankle']), part('left foot', 'iron_boot_left.nif', ['left ankle'])]),
+  // MW-IRON3: Skyrim has no greaves - its trousers are the cuirass's - so the greaves' iron look is the trousers below
+  // the skirt. With the skirt and the boots they cover the thighs but for the knee's inner front, where a hidden knee
+  // would leave a hole; so they show the skin under them, as the cuirass does.
+  greaves: Object.freeze([
+    part('right upper leg', 'iron_greave_right.nif', null, { showsSkin: true }),
+    part('left upper leg', 'iron_greave_left.nif', null, { showsSkin: true }),
+  ]),
+});
 const plate = (material) => (id, name, templateIndex, { parts, styles = null }) => Object.freeze({
   id, name, templateIndex, material, parts: Object.freeze(parts),
   ...(styles ? { styles: Object.freeze(styles) } : {}),
@@ -104,34 +137,40 @@ const ebony = plate(ARMOR_MATERIAL.Ebony);   // MW-EBONY1
 function steelPlate() {
   const helmClosed = Object.freeze([part('hair', 'steel_plate_helm_closed.nif', ['head'])]);   // MW-FIT1: a closed helm is the head
   const helmOpen = Object.freeze([part('hair', 'steel_plate_helm_open.nif')]);
-  const helmHorned = Object.freeze([part('hair', 'steel_plate_helm_horned.nif', ['head'])]);   // MW-HORN1: closed, so it is the head too
+  const helmHorned = Object.freeze([part('hair', 'steel_plate_helm_horned.nif')]);   // MW-HORN5: Skyrim's iron helmet, open under the mask - the face shows
+  const cuirass = Object.freeze([part('cuirass', 'steel_plate_cuirass.nif'), part('skirt', 'steel_plate_skirt.nif')]);
+  const left = Object.freeze([part('left pauldron', 'steel_plate_pauldron_left.nif', ['left upper arm'])]);
+  const right = Object.freeze([part('right pauldron', 'steel_plate_pauldron_right.nif', ['right upper arm'])]);
+  const greaves = Object.freeze([part('right upper leg', 'steel_plate_greave_right.nif'), part('left upper leg', 'steel_plate_greave_left.nif')]);
+  const gauntlets = Object.freeze([
+    part('right hand', 'steel_plate_gauntlet_right.nif', ['right wrist', 'right forearm']),
+    part('left hand', 'steel_plate_gauntlet_left.nif', ['left wrist', 'left forearm']),
+  ]);
+  const boots = Object.freeze([
+    part('right foot', 'steel_plate_boot_right.nif', ['right ankle', 'right knee']),
+    part('left foot', 'steel_plate_boot_left.nif', ['left ankle', 'left knee']),
+  ]);
   return [
     steel('daggerfall_steel_cuirass', 'Steel Cuirass', CLASSIC_ARMOR_TEMPLATE.Cuirass, {
-      parts: [part('cuirass', 'steel_plate_cuirass.nif'), part('skirt', 'steel_plate_skirt.nif')],
+      parts: cuirass, styles: { plate: cuirass, iron: IRON.cuirass },
     }),
     steel('daggerfall_steel_gauntlets', 'Steel Gauntlets', CLASSIC_ARMOR_TEMPLATE.Gauntlets, {
-      parts: [
-        part('right hand', 'steel_plate_gauntlet_right.nif', ['right wrist', 'right forearm']),
-        part('left hand', 'steel_plate_gauntlet_left.nif', ['left wrist', 'left forearm']),
-      ],
+      parts: gauntlets, styles: { plate: gauntlets, iron: IRON.gauntlets },
     }),
     steel('daggerfall_steel_greaves', 'Steel Greaves', CLASSIC_ARMOR_TEMPLATE.Greaves, {
-      parts: [part('right upper leg', 'steel_plate_greave_right.nif'), part('left upper leg', 'steel_plate_greave_left.nif')],
+      parts: greaves, styles: { plate: greaves, iron: IRON.greaves },
     }),
     steel('daggerfall_steel_left_pauldron', 'Steel Left Pauldron', CLASSIC_ARMOR_TEMPLATE.Left_Pauldron, {
-      parts: [part('left pauldron', 'steel_plate_pauldron_left.nif', ['left upper arm'])],
+      parts: left, styles: { plate: left, iron: IRON.left },
     }),
     steel('daggerfall_steel_right_pauldron', 'Steel Right Pauldron', CLASSIC_ARMOR_TEMPLATE.Right_Pauldron, {
-      parts: [part('right pauldron', 'steel_plate_pauldron_right.nif', ['right upper arm'])],
+      parts: right, styles: { plate: right, iron: IRON.right },
     }),
     steel('daggerfall_steel_helm', 'Steel Helm', CLASSIC_ARMOR_TEMPLATE.Helm, {
       parts: helmClosed, styles: { closed: helmClosed, open: helmOpen, horned: helmHorned },
     }),
     steel('daggerfall_steel_boots', 'Steel Boots', CLASSIC_ARMOR_TEMPLATE.Boots, {
-      parts: [
-        part('right foot', 'steel_plate_boot_right.nif', ['right ankle', 'right knee']),
-        part('left foot', 'steel_plate_boot_left.nif', ['left ankle', 'left knee']),
-      ],
+      parts: boots, styles: { plate: boots, iron: IRON.boots },
     }),
   ];
 }
@@ -209,7 +248,9 @@ function ebonyPlate() {
  * over the head) - reserveIndividualPart's occupation, at the armour's priority like the part itself. A part the
  * first person does not draw hides nothing from it (mwItemMap.js composeWornArmor's `fpShadows`, MW-FIT1).
  *
- * `styles`: a piece that comes more than one way (the steel helm), the parts of each - `parts` is the default's.
+ * `styles`: a piece that comes more than one way (the steel helm; MW-IRON1 the cuirass and the pauldrons), the parts
+ * of each - `parts` is the default's. The helm's is the Steel Helm switch's (`helmStyle`); every other piece's is
+ * its own, in `looks` by the piece's id (the pack's look row - systems/lookVariants.js).
  */
 export const OWN_MW_ARMOR = Object.freeze([
   ...BRIGANDINE_METALS.map(brigandine),
@@ -222,11 +263,14 @@ export const OWN_MW_ARMOR = Object.freeze([
 export const ownArmorModelFor = (piece) =>
   (piece && OWN_MW_ARMOR.find((a) => a.templateIndex === piece.templateIndex && a.material === piece.material)) || null;
 
-/** MW-STEEL1: the parts an own model wears in this style - its `styles` entry when it has one, else `parts`. */
-export const ownArmorParts = (own, { helmStyle = STEEL_HELM_DEFAULT } = {}) =>
-  (own?.styles?.[helmStyle] ?? own?.parts ?? []);
+/** MW-STEEL1: the parts an own model wears in this style - its `styles` entry when it has one, else `parts`. The
+ *  steel helm's style is `helmStyle`; MW-IRON1: any other piece's is `looks[its id]`. */
+export const ownArmorParts = (own, { helmStyle = STEEL_HELM_DEFAULT, looks = null } = {}) => {
+  const style = own?.templateIndex === CLASSIC_ARMOR_TEMPLATE.Helm ? helmStyle : looks?.[own?.id];
+  return own?.styles?.[style] ?? own?.parts ?? [];
+};
 
 /** Every mesh path this table can ask for, derived rather than typed out
- *  again - the coverage walk's (each ships). Every style's. */
+ *  again - the coverage walk's (each ships). Every style's but the player-made (PLAYER_MADE_STYLES), which ship nowhere. */
 export const ownArmorModelPaths = () =>
-  [...new Set(OWN_MW_ARMOR.flatMap((a) => [a.parts, ...Object.values(a.styles ?? {})].flat().map((p) => `meshes/${p.model}`)))];
+  [...new Set(OWN_MW_ARMOR.flatMap((a) => [a.parts, ...Object.entries(a.styles ?? {}).filter(([k]) => !PLAYER_MADE_STYLES.includes(k)).map(([, v]) => v)].flat().map((p) => `meshes/${p.model}`)))];

@@ -3588,7 +3588,7 @@ export async function headPortrait({ renderer, race, female = false, faceIndex =
   // are no head's (a cloak, a robe: their dyes are measured for the body alone)
   const pieces = werewolf ? [] : (armor ?? []).filter((p) => p && p.kind !== 'clothing');
   const worn = pieces.length
-    ? composeWornArmor({ pieces, armors: cat.armors, clothes: [], bodyPool: cat.parts, female, helmStyle: getPref('mwSteelHelm'), cloakStyle: simplyAnimatedCloaksEnabled() ? 'simply-animated' : 'classic' })
+    ? composeWornArmor({ pieces, armors: cat.armors, clothes: [], bodyPool: cat.parts, female, helmStyle: getPref('mwSteelHelm'), looks: getPref('mwArmorLooks'), cloakStyle: simplyAnimatedCloaksEnabled() ? 'simply-animated' : 'classic' })
     : { adds: [], shadows: [], notes: [] };
   const heads = worn.adds.filter((a) => capsHead(a) || (a.bones ?? []).some((b) => /^head$/i.test(b)));
   let skinRows = shadowSkinRows(rows.filter((r) => r.record).map((r) => ({ slot: r.slot, bones: PART_BONES[r.slot] ?? [], model: r.record.model })), worn.shadows);
@@ -3815,14 +3815,14 @@ export async function buildFpArm({
     // not carry a second copy of mwClothingRecord's pool law.
     if (!werewolf) {
       await prepareClothingColours(
-        (probe) => composeWornArmor({ pieces: armor ?? [], armors: armors ?? [], clothes: clothes ?? [], bodyPool: parts, female, colourOf: probe, helmStyle, cloakStyle: simplyAnimatedCloaksEnabled() ? 'simply-animated' : 'classic' }),
+        (probe) => composeWornArmor({ pieces: armor ?? [], armors: armors ?? [], clothes: clothes ?? [], bodyPool: parts, female, colourOf: probe, helmStyle, looks: getPref('mwArmorLooks'), cloakStyle: simplyAnimatedCloaksEnabled() ? 'simply-animated' : 'classic' }),
         parts, archives, gen);
     }
     // NUDE-FLATS: and a woman's bare chest wears the upper weld while Show Nudity is off - this body is the
     // player's own figure and every peer's, each drawn by the viewer's setting as the classic doll is.
     const worn = werewolf
       ? composeWornArmor({ pieces: robe ? [{ kind: 'record', record: robe, reserve: 'robe' }] : [], armors: [], clothes: [], bodyPool: parts, female })
-      : composeWornModest({ pieces: armor ?? [], armors: armors ?? [], clothes: clothes ?? [], bodyPool: parts, female, colourOf, helmStyle, cloakStyle: simplyAnimatedCloaksEnabled() ? 'simply-animated' : 'classic' }, showNudity());
+      : composeWornModest({ pieces: armor ?? [], armors: armors ?? [], clothes: clothes ?? [], bodyPool: parts, female, colourOf, helmStyle, looks: getPref('mwArmorLooks'), cloakStyle: simplyAnimatedCloaksEnabled() ? 'simply-animated' : 'classic' }, showNudity());
     // AUDIT C7: which of the two it is - Bloodmoon.esm not attached, or attached and naming no robe (a mod's master)
     if (werewolf && !robe) {
       worn.notes.push(esmNames.some((n) => /^bloodmoon\.esm$/i.test(n))
@@ -4158,7 +4158,7 @@ export async function buildFpArm({
     let wornBuilt = worn;
     const lost = third?.ok ? worn.adds.filter((a) => isOutfitSlot(a.slot) && !third.arm.pieces.some((p) => p.slot === a.slot)) : [];
     if (lost.length) {
-      const without = composeWornModest({ pieces: (armor ?? []).filter((p) => !lost.some((a) => a.piece === p)), armors: armors ?? [], clothes: clothes ?? [], bodyPool: parts, female, colourOf, helmStyle, cloakStyle: simplyAnimatedCloaksEnabled() ? 'simply-animated' : 'classic' }, showNudity());
+      const without = composeWornModest({ pieces: (armor ?? []).filter((p) => !lost.some((a) => a.piece === p)), armors: armors ?? [], clothes: clothes ?? [], bodyPool: parts, female, colourOf, helmStyle, looks: getPref('mwArmorLooks'), cloakStyle: simplyAnimatedCloaksEnabled() ? 'simply-animated' : 'classic' }, showNudity());
       without.notes.push(...lost.map((a) => `outfit ${a.recordId}: ${t('body.outfit.unbound', 'none of it bound - drawn without it')}`));   // the label outside the language, as the composer's notes
       const again = await tpBody(without);
       if (again.ok) { third = again; wornBuilt = without; }

@@ -609,7 +609,7 @@ export function dfWornArmor(slots, EQUIP_SLOTS, ARMOR_ENUM) {
  * missing record, an unknown INDX, a ref with no id for this sex -
  * each is a note, the skin stands, the law is never-traps.
  */
-export function composeWornArmor({ pieces, armors, clothes, bodyPool, female = false, colourOf = null, helmStyle = undefined, cloakStyle = 'classic' }) {   // MW-STEEL1: helmStyle, the Steel Helm switch (undefined: the default style)
+export function composeWornArmor({ pieces, armors, clothes, bodyPool, female = false, colourOf = null, helmStyle = undefined, looks = null, cloakStyle = 'classic' }) {   // MW-STEEL1: helmStyle, the Steel Helm switch (undefined: the default style); MW-IRON1: looks, every other own piece's by its id
   const notes = [];
   const bodyById = new Map((bodyPool ?? []).map((b) => [String(b.id || '').toLowerCase(), b]));
   // ── THE PRIORITY LAW (Audit 30's recording, now consumed) ────────
@@ -706,12 +706,13 @@ export function composeWornArmor({ pieces, armors, clothes, bodyPool, female = f
     // armour's priority, part by part, as composeRefs claims a record's.
     const own = ownArmorModelFor(piece);
     if (own) {
-      for (const p of ownArmorParts(own, { helmStyle })) {   // MW-STEEL1: the style the Steel Helm switch asks for
+      for (const p of ownArmorParts(own, { helmStyle, looks })) {   // MW-STEEL1: the style the Steel Helm switch asks for; MW-IRON1: a piece's own look
         const at = ARMO_PART.findIndex((r) => r.name === p.part);
         const row = ARMO_PART[at];
-        const add = { slot: `${row.name} (${own.id})`, partName: row.name, bones: row.bones, model: p.model, recordId: own.id, piece,
+        const add = { slot: `${row.name} (${own.id})`, partName: row.name, bones: row.bones, model: p.model, recordId: own.id, piece, ...(p.showsSkin ? { showsSkin: true } : {}),
           ...(own.skinFrom ? { skinFrom: own.skinFrom, fitTo: own.fitTo ?? null } : {}) };   // MW-BRIG2: skinned from the body under it; MW-BRIG3: fitted onto the part it hides. MW-STEEL4: a model shipped skinned (the steel plate) carries neither - its mesh is bound as a retail part's is
         claim(at, prio, add);
+        if (p.showsSkin && row.shadows) covers.add(row.shadows);   // MW-IRON1: open where its picture is - the skin under it stays drawn, but it is covered
         // MW-STEEL1: what the part covers beyond its own slot is OCCUPIED with no mesh (reserveIndividualPart), so its
         // skin is not drawn under the plate - at the armour's priority, the law's own gate. MW-FIT1: under that part
         for (const h of p.hides ?? []) deferredHides.push({ part: ARMO_PART.findIndex((r) => r.name === h), prio, under: add });
@@ -756,6 +757,7 @@ export function composeWornArmor({ pieces, armors, clothes, bodyPool, female = f
   for (const h of deferredHides) {
     const slot = slots[h.part];
     if (slot && !slot.add) claim(h.part, h.prio, null, h.under);
+    else if (slot?.add?.showsSkin) slot.hiddenUnder = true;   // MW-IRON5: a part that shows its skin still hides it when another part covers it whole
   }
   if (hairHidden) claim(1, hairHidden, null);
   const adds = [];
@@ -764,7 +766,7 @@ export function composeWornArmor({ pieces, armors, clothes, bodyPool, female = f
   for (let i2 = 0; i2 < slots.length; i2++) {
     if (!slots[i2].shadow) continue;
     if (slots[i2].add) adds.push(slots[i2].add);
-    const key = ARMO_PART[i2].shadows;
+    const key = slots[i2].add?.showsSkin && !slots[i2].hiddenUnder ? null : ARMO_PART[i2].shadows;   // MW-IRON1: a part that shows the skin under it hides none - unless another hides it (MW-IRON5)
     if (key) shadows.add(key);
     // MW-FIT1: A PART THE FIRST PERSON DOES NOT DRAW HIDES NOTHING FROM IT. A pauldron sleeves the upper arm, but it
     // hangs on the clavicle and the first person draws the arm-bone parts alone - so there the upper arm under it is
