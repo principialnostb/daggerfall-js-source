@@ -40,7 +40,8 @@
 import { ALL_KEYS } from './settings/settings.js';
 import { MOD_SETTINGS } from './modSettings.js';
 import { declareOnlinePrefs } from './online/onlineLane.js';   // RF4: the lane learns its answers from the rows
-import { t, localizedText } from './textManager.js';   // L10N4: the screen's words in the player's language, read as they are read
+import { t, localizedText } from './textManager.js';
+import { CHAR_PIXEL_INITIAL, CHAR_PIXEL_TIERS } from './charPixel.js';   // CHAR-PIX1   // L10N4: the screen's words in the player's language, read as they are read
 
 /** The three kinds, in label order. `label` is what the row wears and
  *  the chip says; the colour is the skin's (ui/enhanced/enhancedStyle.js .kind).
@@ -1219,10 +1220,10 @@ export const FEATURES = Object.freeze([
     id: 'steel-helm',
     group: 'combat',
     title: 'Steel Helm',
-    note: 'With the Morrowind body, choose how a Steel Helm looks: Closed has a visor and a plume; Open is a nasal helm that shows the face.',
+    note: 'With the Morrowind body, choose how a Steel Helm looks: Closed has a visor and a plume; Open is a nasal helm that shows the face; Horned is a closed helm with horns.',
     effect: 'Takes effect at once with the Morrowind body.',
     kinds: Object.freeze(['enhanced']),
-    control: Object.freeze({ store: 'prefs', key: 'mwSteelHelm', initial: 'closed', online: 'player', tiers: Object.freeze([['closed', 'Closed'], ['open', 'Open']]) }),
+    control: Object.freeze({ store: 'prefs', key: 'mwSteelHelm', initial: 'closed', online: 'player', tiers: Object.freeze([['closed', 'Closed'], ['open', 'Open'], ['horned', 'Horned']]) }),
   }),
   // MW-SPELLFX1 (2026-10-07, Mac: "We need to implement morrowind spell casting effects and animations"): Morrowind's
   // spell effects - the casting effects and the glowing hands as a cast starts, the bolt it flies as, the hit and the
@@ -1300,6 +1301,20 @@ export const FEATURES = Object.freeze([
     kinds: Object.freeze(['enhanced']),
     control: Object.freeze({ store: 'prefs', key: 'mwBillboardLook', initial: false, online: 'player' }),
   }),
+  // CHAR-PIX1 (2026-10-27, the owner): THE MORROWIND BODIES, PIXELATED LIKE DAGGERFALL'S SPRITES - three dials, the
+  // first-person hands, the player's body and everyone else's, each in rows per screen height (render/charPixelLayer.js).
+  ...[['fp', 'char-pixel-fp', 'charPixelFp', 'Pixelated hands (1st person)', 'The first-person hands and weapon drawn in coarse pixels, like the world around them.'],
+    ['player', 'char-pixel-player', 'charPixelPlayer', 'Pixelated player body (3rd person)', 'Your own Morrowind body drawn in coarse pixels in third person. The body keeps its true depth and contact with the ground.'],
+    ['npc', 'char-pixel-npc', 'charPixelNpc', 'Pixelated NPC bodies', 'Every other Morrowind body - NPCs, foes, guards and other players - drawn in coarse pixels like the classic sprites.'],
+  ].map(([who, id, key, title, note]) => Object.freeze({
+    id,
+    group: 'world',
+    get title() { return t(`features.${key}.title`, title); },
+    get note() { return t(`features.${key}.note`, `${note} Classic is Daggerfall's own 320x200 frame.`); },
+    get effect() { return t('features.effect.atOnce', 'Takes effect at once.'); },
+    kinds: Object.freeze(['enhanced']),
+    control: Object.freeze({ store: 'prefs', key, initial: CHAR_PIXEL_INITIAL[who], online: 'player', tiers: CHAR_PIXEL_TIERS }),
+  })),
   // ORL1 (2026-09-17): OBLIVION-REMASTER-LIKE LEVELING - the first
   // Morrowind mod, and the only row whose effect line has to say NEXT
   // CHARACTER. Every other mod's switch lands on the running game; this

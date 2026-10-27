@@ -526,6 +526,7 @@ import { mwViewFirstPerson, mwViewFrame, mwViewWheel, mwViewDrawBody, mwViewBody
 import { mwViewAttachHorse, mwViewSaddle, mwViewHorseRig } from '../player/mwView.js';   // COATS3D: the 3D horse under the Morrowind body - its rig, the saddle the body sits
 import { seaZoomReach } from '../player/seaZoom.js';   // FIELD BUGS 2026-09-29 (the sea) #3: the zoom at a helm
 import { mwCamera } from '../player/mwCamera.js';   // MW-D30: persistence
+import { stepLookAround } from '../player/lookAround.js';   // LOOK-AROUND
 import { pickActivatableHit, pickQuestFoe, pickFoe, peacefulFoePass } from '../player/activate.js';   // G3: corpse loot; QG1: the foe-click door; TI1: the lock-on pick
 import { raceActivation } from '../player/activationRace.js';   // HARD2: one home for "the nearest thing under the one ray takes the click"
 import { RAY_DISTANCE, DEFAULT_ACTIVATION_DISTANCE, MOBILE_NPC_ACTIVATION_DISTANCE, tooFarAwayText } from '../player/activate.js';   // AUDIT 63 F33: ActivateMobileEnemy (PlayerActivate.cs:800-841); AUDIT 65 MC-2: the loot handlers' refusal
@@ -33700,7 +33701,7 @@ const _pixelOrder = [];   // NEAR-FIRST: the frame's pixel walk, nearest first -
     // (the capsule stays at the puller, where the mod's horse is - the team stands round it); never over a death's sink
     _driverSeat = walkMode && playerSpawned && player.transportMode === TRANSPORT_MODES.Cart && !(townTalk.overlay instanceof DeathScreen) ? hcc.driverSeat() : null;
     if (_driverSeat) cam.pos = [_driverSeat.feet[0], _driverSeat.feet[1] + SEATED_EYE_HEIGHT, _driverSeat.feet[2]];
-    if (hccActionPressed('TogglePerspective')) mwViewTogglePerspective();
+    stepLookAround(dt, !gamePaused() && !pointerSurfaces.size && !_loading && held(keys, 'TogglePerspective'), mwViewTogglePerspective, () => mwCamera.thirdPerson());   // LOOK-AROUND: OpenMW's preview (camera.lua:86-111) - a tap the switch, a hold the swing round the body
     // FIELD BUGS 2026-09-29 (the sea) #3: AT A HELM the wheel zooms out to frame the hull sailed (player/seaZoom.js) and
     // the camera's casts pass her own buckets by - her masts, rails and deckhouses pinned it at the wheel and held the
     // zoom (camera.lua:153's no-op while pinned); the world and every other boat still pull it in
@@ -33748,7 +33749,7 @@ const _pixelOrder = [];   // NEAR-FIRST: the frame's pixel walk, nearest first -
     // (worldModes.js); never the travel view's
     if (naval && !tvf) mwv.eye = naval.aimEye(mwv.eye, dt);
     tvBandSpritesStep(dt, tvf, mwv.eye);   // OW-FOES: the bands near, as their monsters
-    const view = betterAmbience.view(lookAt(mwv.eye, [mwv.eye[0] + viewFwd[0], mwv.eye[1] + viewFwd[1], mwv.eye[2] + viewFwd[2]], [0, 1, 0]));   // BA1: the shaker sits between the follower and the camera
+    const view = betterAmbience.view(lookAt(mwv.eye, (mwv.look ?? viewFwd).map((v, k) => mwv.eye[k] + v), [0, 1, 0]));   // BA1: the shaker sits between the follower and the camera; LOOK-AROUND: a swung eye's own look
     climbFeel.view(view, !tvf && !mwv.thirdPerson);   // CLIMB4: the climb's pitch, roll and eye - first person, never the travel view's
     // DW-E5 x TV1: under the travel view `mwv.eye` is the raised eye - the view never opens in the sea (travelViewAllowed)
     for (let i = 0; i < 3; i++) _dwEyeOffset[i] = mwv.eye[i] - cam.pos[i];   // DW-E5: the spawners' camera, as this frame placed it
