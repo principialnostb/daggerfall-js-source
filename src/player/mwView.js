@@ -33,6 +33,7 @@
 // the eye out of an invisible head.
 
 import { mwCamera, MW_UNITS_PER_METER, FOCAL_HEIGHT, PITCH_LIMIT } from './mwCamera.js';
+import { lookAroundSwing, swingLook } from './lookAround.js';   // LOOK-AROUND
 import { fpArm } from '../combat/fpArm.js';
 import { eotbCamera } from './eyeOfTheBeholder/eotbCamera.js';
 import { eotbBody } from './eyeOfTheBeholder/eotbBody.js';
@@ -356,8 +357,10 @@ export function mwViewFrame({ fpEye, feet, yaw, pitch, heightScale = null, rayca
   // COATS3D: astride, the third-person camera turns about the rider's head - its feet lifted as far as the saddle lifts
   // the hips over a standing body's (player/seatPose.js SEAT_PELVIS_HEIGHT, at the race's height)
   if (saddled && ownSaddle) feet = [feet[0], feet[1] + Math.max(0, ownSaddle.seat[1] - feet[1] - SEAT_PELVIS_HEIGHT * heightScale), feet[2]];
-  const eye = mwCamera.eye({ fpEye, feet, yaw, pitch, heightScale, raycast, spherecast, pivotFloor });   // MAC-A: the obstacle guards are castSphere's, where the host has one; BENCH-CAM: the pivot over my wagon's roof
+  const [swingYaw, swingPitch] = lookAroundSwing();   // LOOK-AROUND: the preview's swing round the body
+  const eye = mwCamera.eye({ fpEye, feet, yaw: yaw + swingYaw, pitch: pitch + swingPitch, heightScale, raycast, spherecast, pivotFloor });   // MAC-A: the obstacle guards are castSphere's, where the host has one; BENCH-CAM: the pivot over my wagon's roof
   spireCameraFrame(eye, mwCamera.baseDistance() / MW_UNITS_PER_METER, state.dt ?? 0);   // EG-ZH: in the Spire, eased back out
+  swingLook(eye, yaw, pitch);   // LOOK-AROUND: the view looks where the swung eye does
   spireShaftLook(eye, yaw, pitch);   // EG-ZN: the camera's own forward, for the host's view
   return eyeOverride ? { ...eye, eye: eyeOverride, ownEye: eye.eye } : eye;   // TV1: the travel view's eye, the rig's frame run all the same
 }
@@ -741,7 +744,7 @@ export function mwViewDrawBody(canvas, { proj, view, eye, feet, yaw, viewYaw = y
   // AUDIT OW3 J6: OW-BIG's grown traveller is the Morrowind body's too - `face.grow` (player/travelCamera.js tvOwnGrow)
   // reached the sprite body alone, and under the travel view the Morrowind body stood a speck at its own size.
   // AUDIT OW4 J6: and `face.up` - its quad leaned as the sprite lane's is (eotbBody.js), not upright under a pitched picture
-  return fpArm.drawThird(canvas, { proj, view, eye, feet, yaw, grow: face?.grow > 1 ? face.grow : 1, up: face?.up ?? null, horse });
+  return fpArm.drawThird(canvas, { proj, view, eye, feet, yaw, grow: face?.grow > 1 ? face.grow : 1, up: face?.up ?? null, horse, who: 'player' });
 }
 
 /** SHADOW-CLOAK: the third-person Morrowind body's named bones where they stand this frame, in its own frame

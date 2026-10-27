@@ -99,7 +99,7 @@ export const CATEGORIES = Object.freeze([
     sec("weapons", "Weapons in hand", [
       "feat:weapon-glow", "feat:mod-weapon-widget", "feat:mod-shield-widget", "feat:mod-readied-spellcasting-hands", "feat:mod-diverse-weapons", "feat:bows-left-hand", "Enhancements/BowLeftHandWithSwitching"]),
     sec("morrowind", "With Morrowind data", [
-      "feat:mod-weapon-sheathing", "feat:steel-helm", "feat:mw-spell-effects"]),
+      "feat:mod-weapon-sheathing", "feat:mw-spell-effects"]),
     sec("aftermath", "Seeing & bleeding", [
       "feat:enhanced-combat-visuals", "feat:blood"]),
     sec("sea", "At sea", [
@@ -242,7 +242,10 @@ export const CATEGORIES = Object.freeze([
   tab("bodies", "Тела", [
     sec("morrowind-bodies", "Модели тел и экипировка", [
       "feat:mw-better-bodies", "feat:mw-first-person-hands", "feat:mw-seamless-dmra", "feat:mw-npc-bodies", "feat:mw-billboard-look",
-      "feat:simply-animated-cloaks",
+      "feat:simply-animated-cloaks", "feat:steel-helm",
+    ]),
+    sec("pixelation", "Пикселизация", [
+      "feat:char-pixel-fp", "feat:char-pixel-player", "feat:char-pixel-npc",
     ]),
   ]),
   tab("textures", "Текстуры", [

@@ -48,7 +48,8 @@ import { strikingSide, mirrorPlan, counterpartName } from './twoHands/mirrorRig.
 import { climbRequestToRig, climbRequestToFirstPerson } from './climbRig.js';   // CLIMB6: ...and in each rig's space
 import { seatRequestFor, seatedCamera, saddleRequestFor } from '../player/seatPose.js';   // CARDS2b: the seat in the rig's space; WAGONS3: and the body still on it; COATS3D: and astride
 import { fieldOfView } from '../ui/viewSettings.js';   // CLIMB6: the world lens the arm's hands are matched to
-import { MW_ARM_PIXEL, CHAR_SPRITE_RT_SIZE } from '../render/renderer.js';
+import { CHAR_SPRITE_RT_SIZE } from '../render/renderer.js';
+import { blockPixels, boxCorners, charPixelRows, drawPixelatedCharacters } from '../render/charPixelLayer.js';   // CHAR-PIX1
 import {
   sampleTrack, resetClip, advanceClip, getTextKeyTime, getStartTime,
 } from '../formats/morrowind/mwAnim.js';
@@ -8519,9 +8520,11 @@ export function createFpArm({ playerAppearance = false } = {}) {
       if (!active() || !canvas) return false;
       const cam = camera();
       if (!cam) return false;
-      // MW-D43: the ARM's dial, not the sprite pass's. See MW_ARM_PIXEL.
-      const wantW = canvas.clientWidth / MW_ARM_PIXEL;
-      const wantH = canvas.clientHeight / MW_ARM_PIXEL;
+      // MW-D43: the ARM's dial, not the sprite pass's. See MW_ARM_PIXEL. CHAR-PIX1: the player's own now, in rows per
+      // screen height (render/charPixelLayer.js) - its 360 is MW_ARM_PIXEL's 3 on a 1080p screen.
+      const armPixel = blockPixels(canvas.clientHeight, charPixelRows('fp'));
+      const wantW = canvas.clientWidth / armPixel;
+      const wantH = canvas.clientHeight / armPixel;
       // DISC13-C: no pad to fit in the target - a moved frame needs one column and one row more at most (fpFrameWindow's note).
       const spare = screenTransform ? 1 : 0;
       const s = Math.min(1, (CHAR_SPRITE_RT_SIZE - spare) / wantW, (CHAR_SPRITE_RT_SIZE - spare) / wantH);
@@ -8782,7 +8785,7 @@ export function createFpArm({ playerAppearance = false } = {}) {
      * (chirality-true by MW-D23's measurement) already shows it.
      * Winding is safe: drawCharacter disables CULL_FACE.
      */
-    drawThird(canvas, { proj, view, eye, feet, yaw, hitFlash = 0, conceal = null, grow = 1, up = null, fx = null, cast = false, anchored = false, horse = null }) {   // MWNPC5: `fx` a foe's tells (renderer.js drawCharacterSpriteQuad); MWNPC16: `cast` - the body's own shadow (AUDIT MWNPC16-18 A3: `anchored` one that never walks); COATS3D: `horse` the one under the body
+    drawThird(canvas, { proj, view, eye, feet, yaw, hitFlash = 0, conceal = null, grow = 1, up = null, fx = null, cast = false, anchored = false, horse = null, who = 'npc' }) {   // MWNPC5: `fx` a foe's tells (renderer.js drawCharacterSpriteQuad); MWNPC16: `cast` - the body's own shadow (AUDIT MWNPC16-18 A3: `anchored` one that never walks); COATS3D: `horse` the one under the body
       if (!thirdActive() || !canvas || !feet) return false;
       const t = thirdBuilt;
       // AUDIT OW3 J6: `grow` - the travel view's OW-BIG, the body drawn that many times its size ABOUT ITS FEET (the root
@@ -8891,9 +8894,12 @@ export function createFpArm({ playerAppearance = false } = {}) {
       // representations based on camera position: keep the exact same skinned pose.
       // Mounted pairs must stay in one representation too. Draw the horse first, then the
       // rider with its grounded model, rather than baking both into a camera-facing card.
+      // CHAR-PIX1: through the pixel pass, at the player's dial or everyone else's (render/charPixelLayer.js).
       if (!conceal) {
-        if (horse && horse.mesh && horse.model) renderer.drawCharacter(horse.mesh, horse.model);
-        renderer.drawCharacter(thirdMesh, groundedModel);
+        const draws = horse && horse.mesh && horse.model ? [{ mesh: horse.mesh, model: horse.model }] : [];
+        draws.push({ mesh: thirdMesh, model: groundedModel });
+        const corners = draws.length === 1 ? boxCorners(box, (x, y, z) => transformPoint(groundedModel, x, y, z)) : null;
+        drawPixelatedCharacters(renderer, draws, charPixelRows(who), corners);
         return true;
       }
       // Concealment still uses the sprite compositor because its dissolve/fade contract

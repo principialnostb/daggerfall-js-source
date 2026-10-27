@@ -81,6 +81,7 @@ import { setHotbarDropMode, hotbarSlotNode, hotbarTakesItem, hotbarDropItem, hot
 import { registerQuickAct } from '../plus/plusPad.js';   // PADPLUS5: the pad's X on a row
 import { EQUIP_SLOTS } from '../../characters/paperdoll/paperdoll.js';
 import { dfWornEquipment } from '../../formats/morrowind/mwItemMap.js';   // PX25
+import { lookVariantsOf, lookVariantLabel, stepLookVariant, rebuildForLook } from '../../systems/lookVariants.js';   // LOOK-VARIANTS
 import { hasDaggerfallArrows } from '../../combat/fpArm.js';   // PX26
 import { ARMOR_ENUM } from '../../combat/enemyEquipment.js';   // PX25
 import { inventoryItemImage, inventoryItemModel, templateByIndex, isAmmunition } from '../../systems/item/itemTemplates.js';   // WEAR-UI: isAmmunition, spent not worn
@@ -2304,6 +2305,8 @@ function wornPanel(fam, byLabel, area) {
   // none); a bare panel is a hood down. "Cloaks · hood up" beside the family word was wider than a panel's text line
   // (72px on the desk), and a "Hood down" plate covered the word on a 360px phone.
   if (hoodUp(top.item)) b.append(el('span', 'wornhood', 'Hood'));
+  // LOOK-VARIANTS: A PIECE WITH OTHER LOOKS WEARS A GEM in the corner nothing else takes - its card's Style button turns it
+  if (lookVariantsOf(top.item)) { const g = el('span', 'wornlook'); g.title = `Style: ${lookVariantLabel(top.item)} - other looks in its card`; b.append(g); }
   // MAC-M2 (Mac: "hold to drag ... doesn't work when trying to take
   // items off your character"): A FILLED PANEL DRAGS, on the same hold
   // and the same threshold a pack row takes. INV1 attached `dragFrom`
@@ -3612,6 +3615,16 @@ function itemActs(picked, side, { qty = true } = {}) {
   // a book each read differently) and, for an enchanted item, chains the "Item powers" box. The enhanced card is a
   // summary of numbers; this button shows the classic text itself - the card's detail column and the right-click
   // menu both carry it, because both are built from this row.
+  // LOOK-VARIANTS: a worn piece with other looks turns them here, the card kept up and the body rebuilt behind it
+  if (line.equipped && lookVariantsOf(picked)) {
+    const st = el('button', 'act look-act', `Style · ${lookVariantLabel(picked)}`);
+    st.onclick = () => {
+      stepLookVariant(picked, 1);
+      render();
+      rebuildForLook(deps.entity).then(() => { refresh(); render(); }).catch((e) => console.warn('[look] rebuild', e?.message ?? e));
+    };
+    acts.append(st);
+  }
   const info = el('button', 'act', 'Info');
   info.onclick = () => openInfo(picked);
   acts.append(info);
