@@ -109,3 +109,14 @@ weapon-glow-probe/
 ._*
 Thumbs.db
 desktop.ini
+# MW-HORN5: the horned steel helm is Skyrim's iron helmet, made from the player's own install by
+# tools/skyrim/importIronHelmet.mjs - Bethesda's mesh and painting, never committed.
+src/assets/mw/source/Steel_Plate_Horned_Helm.*
+src/assets/mw/meshes/steel_plate_helm_horned.nif
+src/assets/mw/textures/steel_plate_helm_horned.dds
+src/assets/mw/looks/steel_plate_helm_horned.png
+# MW-IRON1: Skyrim's heavy iron cuirass and pauldrons, made from the player's own install by
+# tools/skyrim/importIronCuirass.mjs - Bethesda's meshes and painting, never committed.
+src/assets/mw/meshes/iron_*.nif
+src/assets/mw/textures/iron_*.dds
+src/assets/mw/looks/iron_*.png

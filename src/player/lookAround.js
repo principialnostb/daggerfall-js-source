@@ -6,6 +6,12 @@
 // the camera back behind. Here the release eases it home rather than cutting (a departure: a cut across the whole body
 // reads as a jump). Only in third person - held in first, it is a tap on the release, as before.
 //
+// LOOK-AROUND2 (2026-10-27, the owner: "не на удержание кнопки чуть подержал активировалось и крути верти делай че
+// хочешь, потом снова подержал отключилось"): a departure from the reference's hold - the hold is a SWITCH. Held past
+// HOLD_SECONDS it turns the swing on, and it stays on after the release; held again it turns it off and the camera eases
+// home. A tap still switches the view, but not while the swing is on (it would leave the body it is looking at), and
+// the swing ends of itself when the view leaves third person.
+//
 // The mouse is taken where every host feeds it (player/lookFilter.js add), the swing laid on the third-person eye where
 // it is made (player/mwView.js), and the hosts' views follow the eye's `look`.
 
@@ -13,18 +19,23 @@ export const HOLD_SECONDS = 0.25;   // camera.lua's own threshold
 const PITCH_UP = 1.0, PITCH_DOWN = 1.2;   // the swing's reach over and under the level, radians
 const EASE_HOME = 9;   // per second: back behind in about a third of a second
 
-let downFor = -1, active = false, yawOff = 0, pitchOff = 0;
+let downFor = -1, held = false, active = false, yawOff = 0, pitchOff = 0;
 
 /** Once a frame: `isHeld` the TogglePerspective action held now, `toggle` the view switch, `thirdPerson` whether the
  *  body is the view. */
 export function stepLookAround(dt, isHeld, toggle, thirdPerson) {
   if (isHeld) {
     downFor = downFor < 0 ? 0 : downFor + dt;
-    if (!active && downFor >= HOLD_SECONDS && thirdPerson()) { active = true; yawOff = 0; pitchOff = 0; }
+    if (!held && downFor >= HOLD_SECONDS) {   // this press is a hold: it throws the switch, once
+      held = true;
+      if (active) active = false;
+      else if (thirdPerson()) { active = true; yawOff = 0; pitchOff = 0; }
+    }
   } else if (downFor >= 0) {
-    if (!active) toggle();
-    downFor = -1; active = false;
+    if (!held && !active) toggle();   // a tap
+    downFor = -1; held = false;
   }
+  if (active && !thirdPerson()) active = false;
   if (!active && (yawOff || pitchOff)) {
     const k = Math.exp(-EASE_HOME * Math.max(0, dt));
     yawOff *= k; pitchOff *= k;
@@ -54,4 +65,4 @@ export function swingLook(out, yaw, pitch) {
 }
 
 /** Tests: back to rest. */
-export function resetLookAround() { downFor = -1; active = false; yawOff = 0; pitchOff = 0; }
+export function resetLookAround() { downFor = -1; held = false; active = false; yawOff = 0; pitchOff = 0; }

@@ -12,6 +12,12 @@ change) and read `bible/01-Overview/Port-Doctrine.md` before touching code.
   Im tired of having to ask you to do this"): `sh tools/fetch-data.sh` puts Daggerfall's own data at
   `/home/claude/dfdata/arena2` (~150 MB, never in the repo). Run it before any work that reads the map, the game's
   files or the running game, and set `ARENA2_PATH` to it. "Not checkable here: no ARENA2" is a check not yet run.
+- **Skyrim's iron set is the player's, like ARENA2** (MW-IRON1, the owner, 2026-10-27,
+  `bible/04-Characters/Skyrim-Iron-Set.md`): the steel pieces' `iron` looks and the `horned` helm are made from the
+  owner's own Skyrim SE install (`D:/Steam/steamapps/common/Skyrim Special Edition`, `SKYRIM_PATH`) by
+  `tools/skyrim/` and Blender 5.2 - every output is in `.gitignore`; never commit one, never fetch Skyrim files from
+  anywhere else, never push them upstream. Judge a piece on the body in the game (the owner's screenshots) - offline
+  previews lied about size.
 - **Before a push** (FAST-SUITE, `bible/09-Testing/Testing.md` "How the suite
   runs"): `npm run lint`, `npm run types`, the bible's gates (`test/bible/manifest`,
   `citeanchor`, `citedrift`, `mutantdrift`, `audit18_bible_docs`, `ledger` -

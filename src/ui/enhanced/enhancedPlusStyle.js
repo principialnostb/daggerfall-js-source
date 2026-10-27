@@ -2397,6 +2397,15 @@ export const ARMOUR_CSS = `
   box-shadow: 0 0 0 1px rgba(192,138,62,0.55); opacity: 0.75; transition: opacity 0.2s, box-shadow 0.2s; pointer-events: none; }
 .pack-shell .equipped .wornrow:hover .wornlook, .pack-shell .equipped .wornrow.on .wornlook { opacity: 1;
   box-shadow: 0 0 0 1px rgba(243,212,138,0.9), 0 0 6px 1px rgba(243,212,138,0.55); }
+/* LOOK-THUMBS: a worn piece's looks in its card - one framed picture each, the worn one lit in the rune's gold */
+.pack-shell .look-row { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; width: 100%; margin: 2px 0 4px; }
+.pack-shell .look-pick { width: 56px; height: 56px; padding: 2px; display: flex; align-items: center; justify-content: center;
+  background: radial-gradient(circle at 50% 40%, rgba(70,62,48,0.55), rgba(8,9,12,0.85)); border: 1px solid rgba(192,138,62,0.35);
+  cursor: pointer; transition: border-color 0.15s, box-shadow 0.15s; }
+.pack-shell .look-pick img { width: 100%; height: 100%; object-fit: contain; image-rendering: pixelated; pointer-events: none; }
+.pack-shell .look-pick .look-name { font-size: 10px; color: #e6dec6; text-transform: uppercase; letter-spacing: 0.08em; }
+.pack-shell .look-pick:hover, .pack-shell .look-pick:focus-visible { border-color: rgba(243,212,138,0.8); }
+.pack-shell .look-pick.on { border-color: #f3d48a; box-shadow: 0 0 0 1px rgba(243,212,138,0.9), 0 0 8px 1px rgba(243,212,138,0.45); }
 /* AUDIT C&C S1: THE PLAQUES' ROW - the figure's first cell named whole (ui/enhanced/enhancedInventory.js: '1 / 2 / 2 / 3'; on
    '1 / 2' an absolutely placed grid child's end lines ran to the map's edge, and the Felt plaque's right corner stood on
    the R-Weapon panel), the Armour plaque at its left and the Felt plaque at its right, the Felt one under the Armour one
