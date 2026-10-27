@@ -1211,20 +1211,8 @@ export const FEATURES = Object.freeze([
     kinds: Object.freeze(['mod']),
     control: Object.freeze({ store: 'prefs', key: 'mwSheathing', initial: true, online: 'player' }),
   }),
-  // MW-STEEL1 (2026-10-06, Mac: "the armor replacement of the morrowind steel armor with a varient to toggle the helmet
-  // type"): the steel plate's helm, two ways - closed (a visor and a plume) or open (a nasal helm, the face showing).
-  // Mac's answers: a switch here beside Weapon Sheathing, closed by default. The VIEWER'S, as the sheathing is: it is
-  // how this machine draws a steel helm - the player's and every peer's - and it never reaches the wire. Read where the
-  // worn set is composed (combat/fpArm.js); the tile rebuilds the body at once (ui/enhanced/enhancedMenu.js TILE_AFTER).
-  Object.freeze({
-    id: 'steel-helm',
-    group: 'combat',
-    title: 'Steel Helm',
-    note: 'With the Morrowind body, choose how a Steel Helm looks: Closed has a visor and a plume; Open is a nasal helm that shows the face; Horned is a closed helm with horns.',
-    effect: 'Takes effect at once with the Morrowind body.',
-    kinds: Object.freeze(['enhanced']),
-    control: Object.freeze({ store: 'prefs', key: 'mwSteelHelm', initial: 'closed', online: 'player', tiers: Object.freeze([['closed', 'Closed'], ['open', 'Open'], ['horned', 'Horned']]) }),
-  }),
+  // MW-STEEL1's Steel Helm row is gone (MOTION-DOCTRINE settings pass, 2026-10-27): a helm's look is turned on the worn
+  // piece in the inventory (systems/lookVariants.js), which writes the same viewer's pref, `mwSteelHelm`.
   // MW-SPELLFX1 (2026-10-07, Mac: "We need to implement morrowind spell casting effects and animations"): Morrowind's
   // spell effects - the casting effects and the glowing hands as a cast starts, the bolt it flies as, the hit and the
   // burst - off the player's own masters (scenes/mwMagicFx.js). On by default, the Morrowind body's own look. The

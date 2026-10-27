@@ -3750,10 +3750,9 @@ const rebuildMorrowindBody = async () => {
 };
 const TILE_AFTER = Object.freeze({
   mwSheathing: rebuildMorrowindBody,
-  mwSteelHelm: rebuildMorrowindBody,
   BetterBodies: rebuildMorrowindBody,
   FirstPersonHands: rebuildMorrowindBody, // Rebuild the live first-person rig when its independent hand source changes.
-  SeamlessDMRA: rebuildMorrowindBody,   // MW-STEEL1: the steel helm's style, closed or open, on the standing body at once
+  SeamlessDMRA: rebuildMorrowindBody,
 });
 
 /**

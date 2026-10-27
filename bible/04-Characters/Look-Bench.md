@@ -53,7 +53,8 @@ is chunkier and a far one finer - Daggerfall's own behaviour, which a screen-loc
 `lookVariants.js:"export function lookVariantsOf"` answers a worn item's looks from its own model's `styles`
 (`ownArmorModels.js`): the Steel Helm's (closed, open, horned) and, since MW-IRON1-3, the Steel Cuirass's, Pauldrons',
 Gauntlets', Greaves' and Boots' (plate, iron). **The helm's look is still the viewer's switch** it always was
-(`mwSteelHelm`, the Steel Helm row, moved to the Bodies tab beside the cloaks); **every other piece's is its own**, by the
+(`mwSteelHelm`; the Steel Helm row that also wrote it, last on the Bodies tab beside the cloaks, was taken out of the
+settings on 2026-10-27 at the owner's word - the inventory is its one door now); **every other piece's is its own**, by the
 piece's id in the `mwArmorLooks` pref - the same for every item of that piece, not each item's own. Turning a look
 writes it and rebuilds the body as the settings tile does; `composeWornArmor` reads both (`helmStyle`, `looks`).
 
