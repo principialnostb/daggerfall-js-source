@@ -200,6 +200,17 @@ seated or dead it eases back to the clip's. The rig steps it beside the body mot
 `test/characters/bodyMotion/bodyweight.test.js`. Still owed in step 2: the stride's width by weight and the
 landing's drop.
 
+**IDLE-SETTLE (2026-10-27), a CONNECTION fix found on the way** (the owner: "when the character stops, the animation
+into the idle plays and the feet are set a little differently - after any movement it plays twice"). The reference
+restarts the idle from its start the frame a movement empties (character.cpp:646-651, MW-D29), and a stance's idle
+shifts its weight: Morrowind Animation Overhaul's Idle1h moves both thighs twice in its first three seconds (0.3-0.7 s
+and 2.3-2.7 s, measured off its own tracks), Idle2c the same. Every stop drew the cross-fade's settle and then the
+clip's shuffles. `src/combat/idleSettle.js` begins a stop's fresh idle at its QUIET start - where its lower body
+(pelvis, thighs, calves, feet, root) moves least over the next `IDLE_SETTLE.window` (1.2 s), read once per source and
+group off the clip itself: Idle +1.35 s, Idle1h +0.65, Idle2c and Idle2w +1.8, Idlehh +0.75. The loop dice and the rest
+of MW-D29's reset stand; only the start point departs, behind the same switch. Pinned by
+`test/combat/idlesettle.test.js`. Not judged in the game yet.
+
 Then the first-person hands' inertia (FP Inertia's shape). Every step sits behind a switch "as now / by the formula",
 is judged by the owner in the game, and lives in a module of its own (HOST-SPLIT, `01-Overview/Host-Split.md`).
 

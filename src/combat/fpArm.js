@@ -366,6 +366,7 @@ import { createBodyMotion, motionWord } from '../characters/bodyMotion/bodyMotio
 import { shieldGuardStance, carriesShield, isHandShieldSlot, shieldBashHold } from './shieldGuard.js';   // SHIELD-GUARD: the fists behind a shield - the stance, the bash
 import { createLeftArmLayer, leftArmPlan, leftArmModeOf } from './leftArmLayer.js';   // LEFT-ARM: the shield's and the free hand's arm over the clip, by weight
 import { createLowerBodyLayer, lowerBodyBones } from './lowerBodyLayer.js';   // LOWER-BODY: the legs under a blow keep the stride (rule 26)
+import { settleIdle } from './idleSettle.js';   // IDLE-SETTLE: a stop lands the idle where its legs are quiet
 import { BLOW_FLOW, holdFor, calmBlowPlan, driftRate, recoverRate, poseKindOf, blowBlendSeconds, blendWeightAt, createVariantCycle, bashesNow } from './blowFlow.js';   // BLOW-FLOW: the window after a blow, the blends; MW-PACE2: the player's calm pace; SHIELD-BASH: in turn
 import { vfxOf, createVfx, vfxCapacity, vfxTextures } from '../formats/morrowind/mwVfx.js';   // MW-SPELLFX1: an effect mesh, running
 import { spellFxPlan } from '../formats/morrowind/mwSpellFx.js';   // MW-SPELLFX1: which visuals a spell wears
@@ -5716,7 +5717,7 @@ export function createFpArm({ playerAppearance = false } = {}) {
    * on the drawn weapon, so sheathing has to be able to change it without
    * anything else being torn down.
    */
-  function refreshIdle(force = false) {
+  function refreshIdle(force = false, settle = false) {
     if (!built || !built.ok || dead) return;   // MWNPC4: a dead actor's states are no longer refreshed
     // MWNPC9: refreshIdleAnims' non-biped arm (character.cpp:680-685) - a creature lets its idle go while an upper-body
     // action, a movement or a recoil plays, and takes it up again from its start once none does
@@ -5755,12 +5756,13 @@ export function createFpArm({ playerAppearance = false } = {}) {
     idleGroup = composed.group;
     idleState = pick.state;
     idleSource = pick.source;
+    if (settle) settleIdle(idleState, idleSource, sampleTrack);   // IDLE-SETTLE: a stop lands in the idle's quiet legs
   }
 
   /** resetCurrentIdleState (:1850-1853 via mResetIdleOnAttackEnd): drop
    *  the idle so the next refresh replays it from its start with a fresh
    *  loop count, rather than resuming mid-swing-shaped. */
-  function resetIdle() { idleState = null; idleGroup = null; refreshIdle(true); }
+  function resetIdle(settle = false) { idleState = null; idleGroup = null; refreshIdle(true, settle); }
 
   /** MW-D51: updateCarriedLeftVisible - "Shields/torches shouldn't be
    *  visible during any operation involving two hands": the carried
@@ -6251,7 +6253,7 @@ export function createFpArm({ playerAppearance = false } = {}) {
       // the idle resets with it (character.cpp:646-651) - so it replays
       // from its start with freshly rolled loop dice (:824, :811)
       // instead of resuming mid-clip on a stale counter.
-      if (movementState) { resetMovement(); resetIdle(); }
+      if (movementState) { resetMovement(); resetIdle(modSetting('morrowind-animation', 'MotionDoctrine') !== 0); }   // IDLE-SETTLE (combat/idleSettle.js)
       return;
     }
     const isTurn = base.startsWith('turn');
