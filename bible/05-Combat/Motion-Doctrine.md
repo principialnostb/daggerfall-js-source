@@ -235,6 +235,43 @@ yet judged in the game.** The switch covers both and is now titled «Форму�
   Not here yet: a Morrowind-bodied foe's own rig is not held (only a sprite unit's frame is), arrows and spells give
   no beat, and the recoil off stone is still to come.
 
+## 7a. THE SWEEP (2026-10-27) - every movement clip, measured
+
+The owner: "run all the animations yourself, walking to running, the neutral state with and without a combat stance -
+every variation - find the problems and fix them; I see many small problem moments." The game in the app's own
+browser has no Morrowind data (the player supplies it through a picker), and serving the owner's install to it was
+refused as exposing a local service, so the sweep ran in Node on the player's own Morrowind.bsa (`D:/Steam/.../Data
+Files`, read in place, never copied) through the port's own readers - mwBsaFile, mwNifFile, mwAnim (collectTextKeys,
+normalizeTextKeys, extractTracks, sampleTrack, animVelocity), mwSkin (poseSkeleton, skeletonSpaceMatrices) - over
+every idle, walk, run, sneak and turn group, bare and in each stance (1h, 2c, 2w, hh), and over the installed packs
+(ReAnimation's first-person movement and idles, Morrowind Animation Overhaul). Three findings, three fixes, all
+behind the same switch:
+
+1. **THE LEGS STEPPED 2 TO 4 TIMES TOO FAST (STRIDE).** Daggerfall moves the body at 4.4 m/s walking, 8.1 running and
+   about 1.9 crouched (player/motor.js at Speed 50); the clips' roots travel 2.2, 3.2 and 0.48 m/s. The reference's
+   rate (body speed over clip speed) kept the feet planted by playing the legs at 2x, 2.5x and 4x - frantic little
+   steps. `src/characters/bodyMotion/stride.js` shares the ratio `k`: the clip plays at `k / stride` and the thighs
+   and calves swing `stride = min(maxStride 1.45, k ** (1 - cadence 0.5))` times as far about the cycle's own mean
+   turn, the body lowered by however much the lower foot rose. Measured: a walk's cycle 0.50 -> 0.71 s, a run's
+   0.37 -> 0.53, a sneak's 0.77 -> 1.11, the planted foot's ground speed unchanged (no new slide) and its lowest point
+   the clip's own. A turn in place keeps its own rate.
+2. **THE FEET SLID (FOOT-SPEED).** The reference divides by the accumulation root's travel; retail's clips do not keep
+   their feet to it. The planted foot's own pace against the root's (MW units/s): walkforward 135/154 (a 12 per cent
+   slide), walkleft 81/121 (33), walkright 78/121 (35), runforward 215/223 (4), runback 128/226 (44), runleft 73/104
+   (30), runright 82/104 (22), sneakleft 17/27 (35). `clipFootSpeed` measures the clip's grounded foot on the rig's own
+   skeleton once per source and group, and the rate divides by it (src/combat/fpArm.js:"const vel = strideLaw.pace(") - PX29's law
+   holds: it is the playing clip's own number.
+3. **THE LOOP SEAMS (LOOP-SEAM).** Retail's sneakforward2c and sneakforward2w end with the left knee 11 units from
+   where they start - a jump at every wrap; MAO's turns 2 to 4.6. `src/combat/loopSeam.js` carries a looping movement
+   or idle clip's last `window` (0.15 s, at most a fifth of the loop) toward its start, per bone, by the seam's own
+   difference: measured 10.9 -> 1.2 and 11.5 -> 0, no frame's step larger than before. Seams under 0.02 rad and 0.3
+   units are left alone; ReAnimation's first-person clips have none.
+
+Pinned by `test/characters/bodyMotion/stride.test.js` and `test/combat/loopseam.test.js`; PX29's, BODY-WEIGHT's and
+LOWER-BODY's pins moved with the lines they read. Not done by this sweep: a look at the composed body in the game
+(the layers over the clips, the cross-fades) - that needs the player's data in the browser, so it is the owner's
+eye; the strafes and the run back still lean on the stride's cap where their ratio is largest.
+
 Then step 3's rest: the two-hander's blows in third person. Every step sits behind a switch "as now / by the formula",
 is judged by the owner in the game, and lives in a module of its own (HOST-SPLIT, `01-Overview/Host-Split.md`).
 

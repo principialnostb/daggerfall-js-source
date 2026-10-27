@@ -90,5 +90,5 @@ test('LOWER-BODY: the switch defaults to По формуле, and the rig wires 
   const src = readFileSync(new URL('../../src/combat/fpArm.js', import.meta.url), 'utf8');
   assert.match(src, /lowerBody\.stepRig\(dt, modSetting\('morrowind-animation', 'MotionDoctrine'\) !== 0 && viewMode === 'third'/);
   assert.match(src, /tracks: lowerBody\.tracks\(/);
-  assert.match(src, /sampleTrack: lowerBody\.sampler\(/);
+  assert.match(src, /sampleTrack: loopSeam\.sampler\(lowerBody\.sampler\(/);   // PIN MOVED (LOOP-SEAM): carried over the seam outside it
 });

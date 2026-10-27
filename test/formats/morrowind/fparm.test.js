@@ -3487,7 +3487,9 @@ test('PX29: the movement rate divides by the PLAYING clip\u2019s own velocity (M
   // sprint's rate changed under Mac without the sprint changing.
   // Reverted at his direction; the multi-source walk stays exported.
   const src = readFileSync('src/combat/fpArm.js', 'utf8');
-  assert.match(src, /const vel = movementSource \? sourceVelocityOf\(movementSource, movementGroup\) : 0;/,
+  // PIN MOVED (FOOT-SPEED, Motion-Doctrine.md): the divisor is still the PLAYING clip's own - its root velocity, or, with
+  // the motion doctrine's switch on, the same clip's planted-foot pace measured on its own tracks
+  assert.match(src, /const vel = strideLaw\.pace\(movementSource, movementState, rig\(\)\?\.arm\?\.skeleton, movementSource \? sourceVelocityOf\(movementSource, movementGroup\) : 0,/,
     'the rate must divide by the clip that is playing');
   assert.ok(!/sourcesVelocity\(rig\(\)\.sources, movementGroup\)/.test(src), 'the multi-source walk must not decide the movement rate');
   assert.match(src, /PX29 - REVERTED AT MAC'S DIRECTION/, 'a declared divergence must say so where it lives');

@@ -361,13 +361,15 @@ import { farthestVertexIndex, posedVertex, viewOffsetOf, worldPointOf } from './
 import { armKickMatrix } from './gun/gunFeel.js';   // MW-GUN-FEEL: the gun's recoil and reload, as one pose over the viewmodel
 import { rifleStanceStep, applyRifleStance } from './gun/rifleStance.js';   // RIFLE-STANCE: a long gun held in the hands - the low ready, the aim
 import { createHipLantern, HIP_LANTERN_HEIGHT } from '../systems/lanternSwing.js';   // HT-WAIST: the one swing law both bodies feed (BODY-MOTION: its rider moved there); HT-WAIST-SIZE: the one height they hang
+import { createStride } from '../characters/bodyMotion/stride.js';   // STRIDE: the speed shared between the cadence and the stride
 import { createBodyWeight } from '../characters/bodyMotion/bodyWeight.js';   // BODY-WEIGHT: the trunk's answer to the body's mass and acceleration
 import { createBodyMotion, motionWord } from '../characters/bodyMotion/bodyMotion.js';   // BODY-MOTION: the third-person body's gait, carry and blows
 import { shieldGuardStance, carriesShield, isHandShieldSlot, shieldBashHold } from './shieldGuard.js';   // SHIELD-GUARD: the fists behind a shield - the stance, the bash
-import { createLeftArmLayer, leftArmPlan, leftArmModeOf } from './leftArmLayer.js';   // LEFT-ARM: the shield's and the free hand's arm over the clip, by weight
+import { createLeftArmLayer, leftArmPlan, leftArmModeOf, loopWindow } from './leftArmLayer.js';   // LEFT-ARM: the shield's and the free hand's arm over the clip, by weight
 import { createLowerBodyLayer, lowerBodyBones } from './lowerBodyLayer.js';   // LOWER-BODY: the legs under a blow keep the stride (rule 26)
 import { settleIdle } from './idleSettle.js';   // IDLE-SETTLE: a stop lands the idle where its legs are quiet
 import { createFpInertia } from './fpInertia.js';   // FP-INERTIA: the first-person hands carry weight
+import { createLoopSeam } from './loopSeam.js';   // LOOP-SEAM: a loop's stop carried to its start
 import { hitResponse } from './hitResponse.js';   // HIT-RESPONSE: the striking arm's hitstop
 import { BLOW_FLOW, holdFor, calmBlowPlan, driftRate, recoverRate, poseKindOf, blowBlendSeconds, blendWeightAt, createVariantCycle, bashesNow } from './blowFlow.js';   // BLOW-FLOW: the window after a blow, the blends; MW-PACE2: the player's calm pace; SHIELD-BASH: in turn
 import { vfxOf, createVfx, vfxCapacity, vfxTextures } from '../formats/morrowind/mwVfx.js';   // MW-SPELLFX1: an effect mesh, running
@@ -4953,6 +4955,8 @@ export function createFpArm({ playerAppearance = false } = {}) {
   const motion = createBodyMotion();
   const bodyWeight = createBodyWeight();   // BODY-WEIGHT (characters/bodyMotion/bodyWeight.js)
   const fpInertia = createFpInertia();   // FP-INERTIA (combat/fpInertia.js)
+  const strideLaw = createStride({ sampleTrack, loopWindow });   // STRIDE (characters/bodyMotion/stride.js)
+  const loopSeam = createLoopSeam({ sampleTrack, loopWindow });   // LOOP-SEAM (combat/loopSeam.js)
   // AUDIT MW-TORCH F4: THE OVERLAY ALLOCATES ONCE PER CHANGE, NOT PER
   // FRAME. update()'s contract is "no allocation after the first pack";
   // the merged track map is rebuilt only when the base tracks, the torch
@@ -6388,7 +6392,7 @@ export function createFpArm({ playerAppearance = false } = {}) {
       // that matters more here than the citation. If a future 1:1
       // sweep wants the multi-source walk again it must come with
       // Mac's eye on the sprint, not a line number.
-      const vel = movementSource ? sourceVelocityOf(movementSource, movementGroup) : 0;
+      const vel = strideLaw.pace(movementSource, movementState, rig()?.arm?.skeleton, movementSource ? sourceVelocityOf(movementSource, movementGroup) : 0, modSetting('morrowind-animation', 'MotionDoctrine') !== 0 && viewMode === 'third');   // FOOT-SPEED
       movementAnimSpeed = vel > 1 ? vel
         : sneaking ? MOVEMENT_FALLBACK_SPEED.sneak
           : (mv && mv.running) ? MOVEMENT_FALLBACK_SPEED.run : MOVEMENT_FALLBACK_SPEED.walk;
@@ -6401,8 +6405,8 @@ export function createFpArm({ playerAppearance = false } = {}) {
     // in MW units.
     movementRate = isTurn
       ? turnAnimSpeed(yawRate)
-      : Math.min(MOVEMENT_SPEED_CAP,
-        ((mv && mv.speed ? mv.speed : 0) * MW_UNITS_PER_METER) / movementAnimSpeed);
+      : strideLaw.rate(Math.min(MOVEMENT_SPEED_CAP,   // STRIDE (characters/bodyMotion/stride.js): the ratio shared with the legs' swing
+        ((mv && mv.speed ? mv.speed : 0) * MW_UNITS_PER_METER) / movementAnimSpeed), modSetting('morrowind-animation', 'MotionDoctrine') !== 0 && viewMode === 'third');
   }
 
   /** Rule 9's long group for the CURRENT stance, and the equip/unequip
@@ -8146,6 +8150,7 @@ export function createFpArm({ playerAppearance = false } = {}) {
       }));
       bodyWeight.stepRig(dt, modSetting('morrowind-animation', 'MotionDoctrine') !== 0 && viewMode === 'third', cam, lastBuildOpts?.armor, thirdBuilt?.mwType, dead);   // BODY-WEIGHT
       fpInertia.stepRig(dt, modSetting('morrowind-animation', 'MotionDoctrine') !== 0 && viewMode === 'first', cam, lastBuildOpts?.armor, built?.mwType, dead);   // FP-INERTIA
+      strideLaw.stepRig(dt, modSetting('morrowind-animation', 'MotionDoctrine') !== 0 && viewMode === 'third', movementState, movementSource, cam, movementAnimSpeed, MW_UNITS_PER_METER);   // STRIDE
       if (!actionState && !movementState && !jumpState && !idleState && !hitState && !deathState) return;
       // THE WINNER, not a blend. See the two-slot note above: in first
       // person both animations are played on BlendMask_All, so the higher
@@ -8217,7 +8222,7 @@ export function createFpArm({ playerAppearance = false } = {}) {
             : 1;
           poseAssembly(t.arm, {
             tracks: lowerBody.tracks(tOverlay ? overlayFor(thirdTracks, t.leftArm) : thirdTracks, lowerBodyBones(t.arm.skeleton)),   // LOWER-BODY
-            sampleTrack: lowerBody.sampler(thirdTracks !== tBase ? leftArm.sampler() : tOverlay ? overlaySample : sampleTrack),
+            sampleTrack: loopSeam.sampler(lowerBody.sampler(thirdTracks !== tBase ? leftArm.sampler() : tOverlay ? overlaySample : sampleTrack), state, poseSource, modSetting('morrowind-animation', 'MotionDoctrine') !== 0),   // LOOP-SEAM
             time: poseTime(state),   // MS1: a backhand's window runs backwards
             blendFrom: thirdBlendFrom,
             blendWeight: thirdBlendWeight,
@@ -8225,7 +8230,7 @@ export function createFpArm({ playerAppearance = false } = {}) {
             climb: thirdClimb(climbWorld, cam),   // CLIMB6
             mirror: mirrorFor('third', t, dt),   // TWO-HANDS: the second hand - the pair's left arm, a left-hand blow
             hold: rifleHold('third', t) ?? shieldBash(),   // RIFLE-STANCE: the long gun in the hands; SHIELD-GUARD: else the bash
-            motion: bodyWeight.slot(motion.slot),   // BODY-WEIGHT over BODY-MOTION: third-person gait, weapon carry and melee body layered over the clip
+            motion: bodyWeight.slot(strideLaw.slot(motion.slot)),   // BODY-WEIGHT over BODY-MOTION over STRIDE's legs: third-person gait, weapon carry and melee body layered over the clip
             bodyProportions: playerAppearance ? getBodyMorphs() : false,   // MWV2-PROPORTIONS: player instance only
             skin: !thirdSkinReady(t),   // MWNPC1: the skin in the vertex shader - the pose is the skeleton alone
           });
