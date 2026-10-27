@@ -1357,6 +1357,15 @@ export const FEATURES = Object.freeze([
     control: Object.freeze({ store: 'mods', vendor: 'morrowind-animation', key: 'AnimationBlendDuration' }),
   }),
   Object.freeze({
+    id: 'morrowind-motion-doctrine',
+    group: 'character',
+    title: 'Формула движения (3-е лицо)',
+    get note() { return MOD_SETTINGS['morrowind-animation'].keys.MotionDoctrine.description; },
+    effect: 'Takes effect immediately.',
+    kinds: Object.freeze(['mod']),
+    control: Object.freeze({ store: 'mods', vendor: 'morrowind-animation', key: 'MotionDoctrine' }),
+  }),
+  Object.freeze({
     id: 'morrowind-first-person-animation-source',
     group: 'character',
     title: 'Источник анимаций (1-е лицо)',

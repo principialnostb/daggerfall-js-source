@@ -364,6 +364,7 @@ import { createHipLantern, HIP_LANTERN_HEIGHT } from '../systems/lanternSwing.js
 import { createBodyMotion, motionWord } from '../characters/bodyMotion/bodyMotion.js';   // BODY-MOTION: the third-person body's gait, carry and blows
 import { shieldGuardStance, carriesShield, isHandShieldSlot, shieldBashHold } from './shieldGuard.js';   // SHIELD-GUARD: the fists behind a shield - the stance, the bash
 import { createLeftArmLayer, leftArmPlan, leftArmModeOf } from './leftArmLayer.js';   // LEFT-ARM: the shield's and the free hand's arm over the clip, by weight
+import { createLowerBodyLayer, lowerBodyBones } from './lowerBodyLayer.js';   // LOWER-BODY: the legs under a blow keep the stride (rule 26)
 import { BLOW_FLOW, holdFor, calmBlowPlan, driftRate, recoverRate, poseKindOf, blowBlendSeconds, blendWeightAt, createVariantCycle, bashesNow } from './blowFlow.js';   // BLOW-FLOW: the window after a blow, the blends; MW-PACE2: the player's calm pace; SHIELD-BASH: in turn
 import { vfxOf, createVfx, vfxCapacity, vfxTextures } from '../formats/morrowind/mwVfx.js';   // MW-SPELLFX1: an effect mesh, running
 import { spellFxPlan } from '../formats/morrowind/mwSpellFx.js';   // MW-SPELLFX1: which visuals a spell wears
@@ -4871,6 +4872,7 @@ export function createFpArm({ playerAppearance = false } = {}) {
   // hand, but the shield arm borrows the left strafe's pose - and the fists behind a shield and a one-hander's free hand
   // their own - laid over the clip by weight, eased on and off
   const leftArm = createLeftArmLayer({ pickAnimSource, resetClip, composeMovementGroup, composeStanceGroup, sampleTrack });
+  const lowerBody = createLowerBodyLayer({ sampleTrack });   // LOWER-BODY (combat/lowerBodyLayer.js)
   // MW-D39: THE FOURTH SLOT - JUMP. Priority_Jump sits BELOW
   // Priority_Movement in the reference's enum (character.hpp:34-35),
   // so the winner ladder reads action > movement > JUMP > idle - and
@@ -8125,6 +8127,8 @@ export function createFpArm({ playerAppearance = false } = {}) {
       refreshTorch();
       if (torchState) advanceClip(torchState, (torchSource || rig()).keys, dt, null);
       aimFactor = aimingFactor(aimFactor, accurateAiming(upper), dt);
+      // LOWER-BODY: under a third-person blow the legs are the movement's or the jump's, at their clocks (rule 26)
+      lowerBody.stepRig(dt, modSetting('morrowind-animation', 'MotionDoctrine') !== 0 && viewMode === 'third', thirdBuilt, actionState, hitState, deathState, movementState, movementSource, jumpState, jumpSource);
       // BODY-MOTION: its clocks, after the clips so a blow reads this frame's section (a frame that does not pose still walks)
       // the word the layer reads, a line for each of what it says: the body, its blow, its hands (AUDIT BODY-MOTION RIG-10)
       motion.step(dt, motionWord({
@@ -8202,8 +8206,8 @@ export function createFpArm({ playerAppearance = false } = {}) {
             ? (easedReactionRule?.weight ?? (thirdBlendSeconds != null ? blendWeightAt(thirdBlendElapsed, blendDuration) : blendProgress))
             : 1;
           poseAssembly(t.arm, {
-            tracks: tOverlay ? overlayFor(thirdTracks, t.leftArm) : thirdTracks,
-            sampleTrack: thirdTracks !== tBase ? leftArm.sampler() : tOverlay ? overlaySample : sampleTrack,
+            tracks: lowerBody.tracks(tOverlay ? overlayFor(thirdTracks, t.leftArm) : thirdTracks, lowerBodyBones(t.arm.skeleton)),   // LOWER-BODY
+            sampleTrack: lowerBody.sampler(thirdTracks !== tBase ? leftArm.sampler() : tOverlay ? overlaySample : sampleTrack),
             time: poseTime(state),   // MS1: a backhand's window runs backwards
             blendFrom: thirdBlendFrom,
             blendWeight: thirdBlendWeight,

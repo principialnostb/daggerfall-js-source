@@ -232,7 +232,7 @@ export const CATEGORIES = Object.freeze([
       "group:death", "label:death", "info:player-death", "info:npc-death",
     ]),
     sec("third-person", "Источники анимаций (3-е лицо)", [
-      "feat:morrowind-animation-overhaul", "feat:morrowind-animation-blending",
+      "feat:morrowind-animation-overhaul", "feat:morrowind-animation-blending", "feat:morrowind-motion-doctrine",
       "feat:morrowind-openmw-dynamic-animations",
     ]),
     sec("first-person", "Анимации от первого лица", [

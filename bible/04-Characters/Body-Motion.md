@@ -274,6 +274,10 @@ the bound holds a plain strafe's chest too); a blow the machine drops part-way (
 let go over the layer's ease out where it stood, and one cut by the next begins where it stood (the hand leapt 0.9 to
 1.4 arm lengths); the pair's guard lowers the arm whose fellow strikes.
 
+**NO LONGER TRUE (2026-10-27, `05-Combat/Motion-Doctrine.md` section 5):** since the fork's commits of 2026-10-21
+the layer steps aside for every blow and for an unarmed body and does not drive the legs, so the attack clip owns them
+again and the body slides under a blow. The paragraph below records the layer as it was built.
+
 **The legs keep walking.** The blow drives the arms, the chest, the hips' turn and shift; the legs stay the gait's. The
 recorded gap of rule 26 - a swing on the legs - is closed in third person for every body the layer walks. A recoil
 the clip plays during a blow leaves the layer on (AUDIT MELEE-5: the word's `hit` is a recoil only while no action
