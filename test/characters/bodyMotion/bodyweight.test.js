@@ -7,7 +7,7 @@ import { readFileSync } from 'node:fs';
 import { parseNif } from '../../../src/formats/morrowind/mwNifFile.js';
 import { buildSkeleton, skeletonSpaceMatrices, GRAPH_ROOT } from '../../../src/formats/morrowind/mwSkin.js';
 import { MW_WEAPON_TYPE } from '../../../src/formats/morrowind/mwFirstPerson.js';
-import { bodyWeightOf, createBodyWeight, leanTrunk, LEAN } from '../../../src/characters/bodyMotion/bodyWeight.js';
+import { bodyWeightOf, createBodyWeight, leanTrunk, LEAN, SWAY } from '../../../src/characters/bodyMotion/bodyWeight.js';
 import { retailSkeleton } from '../../fixtures/mw/retailRig.mjs';
 
 const PLATE = 0x0200, CHAIN = 0x0100, LEATHER = 0x0000;
@@ -105,6 +105,39 @@ test('BODY-WEIGHT: the lean turns the trunk on the retail biped and leaves the l
   assert.ok(head1[2] < head0[2], 'and down');
   assert.equal(leanTrunk(sk, new Map(), GRAPH_ROOT, sm, { pitch: 0, roll: 0 }), false, 'no lean, no write');
 });
+
+test('BODY-WEIGHT SWAY: a steady walk in plate carries the trunk a little forward; a bare body walks upright', () => {
+  const plate = run([[4.4, 2]], { armor: suit(PLATE), mwType: MW_WEAPON_TYPE.LongBladeTwoHand }), bare = run([[4.4, 2]]);
+  const steadyPlate = plate[plate.length - 1], steadyBare = bare[bare.length - 1];
+  assert.ok(steadyPlate > 0.04 && steadyPlate <= SWAY.carry[1] + 0.005, `plate leans into the walk (${steadyPlate} rad)`);
+  assert.ok(Math.abs(steadyBare) < 0.005, `bare walks upright (${steadyBare})`);
+  const layer = createBodyWeight();
+  let z = 0;
+  for (let i = 0; i < 120; i++) { z += 4.4 / 60; layer.step(1 / 60, { active: true, move: { travel: [0, 0, z], bodyYaw: 0 }, armor: suit(PLATE) }); }
+  assert.ok(layer.sway().on > 0.95 && layer.sway().roll > 0.03, `and its step shifts over the standing foot (${layer.sway().roll} rad)`);
+  for (let i = 0; i < 120; i++) layer.step(1 / 60, { active: true, move: { travel: [0, 0, z], bodyYaw: 0 }, armor: suit(PLATE) });
+  assert.ok(layer.sway().on < 0.01, 'standing still, the shift goes');
+});
+
+test('BODY-WEIGHT SWAY: the trunk shifts over the LOWER foot - a raised right foot leans the body to the left, in step with the clip', () => {
+  const sm = (sk, pose, root) => skeletonSpaceMatrices(sk, pose, root);
+  const sk = buildSkeleton(parseNif(retailSkeleton()));
+  const thigh = sk.byName.get('bip01 r thigh'), foot = sk.byName.get('bip01 r foot');
+  const node = sk.nodes.get(thigh);
+  const rot = ([k, a]) => { const c = Math.cos(a), s = Math.sin(a); return k === 0 ? [1, 0, 0, 0, c, -s, 0, s, c] : k === 1 ? [c, 0, s, 0, 1, 0, -s, 0, c] : [c, -s, 0, s, c, 0, 0, 0, 1]; };
+  const footZ = (pose) => sm(sk, pose, GRAPH_ROOT).get(foot).t[2];
+  const lifted = [[0, 0.6], [0, -0.6], [1, 0.6], [1, -0.6], [2, 0.6], [2, -0.6]].map((a) => { const pose = new Map([[thigh, { ...node.rest, rotation: Array.from(mul33(node.rest.rotation, rot(a))) }]]); return { pose, z: footZ(pose) }; })
+    .sort((p, q) => q.z - p.z)[0].pose;
+  assert.ok(footZ(lifted) > footZ(new Map()) + 2, 'the right foot is off the ground');
+  const layer = createBodyWeight();
+  let z = 0;
+  for (let i = 0; i < 120; i++) { z += 4.4 / 60; layer.step(1 / 60, { active: true, move: { travel: [0, 0, z], bodyYaw: 0 }, armor: suit(PLATE) }); }
+  const headX = (pose) => sm(sk, pose, GRAPH_ROOT).get(sk.byName.get('bip01 head')).t[0];
+  const before = headX(lifted);
+  layer.slot(null)(sk, lifted, GRAPH_ROOT, sm);
+  assert.ok(headX(lifted) < before - 0.5, `the head goes over the left foot (-x): ${before} -> ${headX(lifted)}`);
+});
+const mul33 = (a, b) => [0, 1, 2].flatMap((r) => [0, 1, 2].map((c) => a[r * 3] * b[c] + a[r * 3 + 1] * b[3 + c] + a[r * 3 + 2] * b[6 + c]));
 
 test('BODY-WEIGHT: the rig steps it behind the MotionDoctrine switch and lays it over the body-motion slot', () => {
   const src = readFileSync(new URL('../../../src/combat/fpArm.js', import.meta.url), 'utf8');
