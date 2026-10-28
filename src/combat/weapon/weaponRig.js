@@ -179,7 +179,11 @@ export const isLitTorch = (item) => !!item && item.templateIndex === TEMPLATES.T
  *  synchronous (the BSA index, the ESM walk, every mesh parse), so
  *  callers run it at a pause or a boot, never per frame. */
 export function buildArmsFor(entity) {
-  return fpArm.build(armBuildOptsOf(entity));
+  // WEAPON-FIRST: and the weapons carried, read and decoded beside the frames, so the first draw of each is quick
+  return fpArm.build(armBuildOptsOf(entity)).then((res) => {
+    if (res?.ok) fpArm.prewarmWeapons?.(entity?.items).catch(() => 0);
+    return res;
+  });
 }
 
 /** MWA3: the IDENTITY third of armBuildOptsOf - the three inputs that
