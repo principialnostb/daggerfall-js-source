@@ -779,6 +779,8 @@ const refresh = () => {
     // its opts and held the new one queued behind it for seconds. The hand's swap is the short one, so it goes first;
     // the table queues behind it (PX25) and its rebuild carries the hand the swap put in.
     try { arm.setWorn(dfWornEquipment(equipTableOf(deps.entity), EQUIP_SLOTS, ARMOR_ENUM)); } catch { /* see above */ }
+    // WEAPON-FIRST: the carried weapons warmed beside the frames (once each), so the first equip finds them in hand
+    arm.prewarmWeapons?.(deps.entity.items)?.catch?.(() => 0);
   }
 };
 

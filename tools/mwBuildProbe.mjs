@@ -95,6 +95,12 @@ if (args.includes('--weapons')) {
   console.log = original;
   console.log(`build ok=${res.ok} wall=${Math.round(performance.now() - t0)}ms worst-freeze=${stop()}ms${res.ok ? '' : ` ${res.stage}: ${res.error}`}`);
   const W = { Dagger: 113, Longsword: 120, Claymore: 122, Battle_Axe: 127, Short_Bow: 129, Katana: 121 };
+  if (args.includes('--prewarm')) {   // WEAPON-FIRST: the carried weapons warmed first, as the pack and the build do
+    quiet(); t0 = performance.now();
+    const n = await rig.prewarmWeapons(Object.entries(W).map(([name, templateIndex]) => ({ templateIndex, material: 0, name })));
+    console.log = original;
+    console.log(`prewarm ${n} weapons in ${Math.round(performance.now() - t0)}ms`);
+  }
   for (const name of ['Longsword', 'Claymore', 'Dagger', 'Battle_Axe', 'Short_Bow', 'Longsword', 'Claymore', 'Katana']) {
     const item = { templateIndex: W[name], material: 0, name };
     quiet();

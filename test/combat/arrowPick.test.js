@@ -116,5 +116,6 @@ test('MW-D50: a bow that resolves without its arrow says why on the console, onc
   // PIN MOVED (TWO-HANDS): + the left hand's weapon's three - setOffWeapon's preload and its resolve for each rig.
   // PIN MOVED (TWO-HANDS AUDIT 2): + the left hand's weapon's two in the build (its preload, and its resolve for each rig) -
   // a pair's left blade bound in the build the rig's own rebuild asks for.
-  assert.equal((src.match(/has: archiveHas\(archives\)/g) || []).length, 23, 'every preload and every resolve - two builds, the tp body, the swap\'s two, the torch\'s six, the hip lantern\'s four, the face\'s pools, the left hand\'s weapon\'s five - pass the one directory');
+  // PIN MOVED (WEAPON-FIRST): + the carried weapons' warm-up's one preload (prewarmWeapons).
+  assert.equal((src.match(/has: archiveHas\(archives\)/g) || []).length, 24, 'every preload and every resolve - two builds, the tp body, the swap\'s two, the torch\'s six, the hip lantern\'s four, the face\'s pools, the left hand\'s weapon\'s five, the warm-up - pass the one directory');
 });
