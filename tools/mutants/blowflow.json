@@ -2,7 +2,7 @@
   {
     "name": "BLOW-FLOW-the-return-snapped",
     "file": "src/combat/blowFlow.js",
-    "old": "  if (fromBlow) return collected ? 0.18 : BLOW_FLOW.exit;",
+    "old": "  if (fromBlow) return BLOW_FLOW.exit;",
     "new": "  if (fromBlow) return 0;",
     "tests": [
       "test/combat/blowflow.test.js"
@@ -20,7 +20,7 @@
   {
     "name": "BLOW-FLOW-no-window-after-the-blow",
     "file": "src/combat/fpArm.js",
-    "old": "    if (playing && !(recovering && !seriesWanted && recoverHeld >= holdFor(attackType) && !blowPlan.collected)) return;",
+    "old": "    if (playing && !(recovering && !seriesWanted && recoverHeld >= holdFor(attackType))) return;",
     "new": "    if (playing) return;",
     "tests": [
       "test/combat/mwpace1.test.js"
@@ -165,8 +165,8 @@
   {
     "name": "SERIES-FLOW-the-wait-cut-short",
     "file": "src/combat/fpArm.js",
-    "old": "if (recovering && seriesWanted && recoverHeld < BLOW_FLOW.wait && !blowPlan.collected) break;",
-    "new": "if (recovering && seriesWanted && recoverHeld < holdFor(attackType) && !blowPlan.collected) break;",
+    "old": "if (recovering && seriesWanted && recoverHeld < BLOW_FLOW.wait) break;",
+    "new": "if (recovering && seriesWanted && recoverHeld < holdFor(attackType)) break;",
     "tests": [
       "test/combat/mwpace1.test.js"
     ]

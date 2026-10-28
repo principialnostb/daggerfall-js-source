@@ -55,9 +55,6 @@ export const PACE = Object.freeze({ wind: 1.35, release: 2.2, recover: 1.4, sett
  *  settle; a series still going plays its `base` (driftRate) from 1.5x down to 0.5x - quick off the hit, slow by
  *  the next blow - so the arm is still moving when the machine lets the next blow go. */
 export function recoverRate(plan, p, series) {
-  // Pilot feedback: play the follow-through at a collected, even pace. The
-  // input buffer may stay open without slowing the visible motion to a crawl.
-  if (plan?.collected) return 1.15 * (plan.sf > 0 ? plan.sf : 1);
   const q = Math.min(1, Math.max(0, Number.isFinite(p) ? p : 1));
   if (series && plan?.seriesBase > 0) return plan.seriesBase * (1.5 - q);
   const top = PACE.recover * (plan?.sf > 0 ? plan.sf : 1);
@@ -83,11 +80,11 @@ export const paceFactor = (step) => Math.min(CALM.rateMax, Math.max(CALM.rateMin
 
 /** MW-PACE2/3: the player's blow's plan (`lead`: the arm leads it) - the wind-up's `wind` file seconds at windRate,
  *  the release's `release` at relRate (MW-PACE3), landing at `hitAt`; the follow-through's speed is recoverRate's. */
-export function calmBlowPlan(blow, wind, release, collected = false) {
+export function calmBlowPlan(blow, wind, release) {
   const sf = paceFactor(blow?.step);
   const windRate = PACE.wind * sf, relRate = PACE.release * sf;
   const w = Number.isFinite(wind) && wind > 0 ? wind : 0, r = Number.isFinite(release) && release > 0 ? release : 0;
-  return { seconds: blow?.seconds ?? 0, hitAt: w / windRate + r / relRate, clock: 0, rate: windRate, windRate, relRate, sf, seriesBase: 0, lead: true, collected };
+  return { seconds: blow?.seconds ?? 0, hitAt: w / windRate + r / relRate, clock: 0, rate: windRate, windRate, relRate, sf, seriesBase: 0, lead: true };
 }
 
 /** A pose's kind for the blend: a blow (its serial - the sections of one blow are one kind) or anything else. */
@@ -105,10 +102,10 @@ export const sectionGap = (prev, next) => (prev && next && Number.isFinite(prev.
 
 /** How long to blend a change of pose from `from` to `to` (poseKindOf's), or null for the view's own default; `prev` and
  *  `next` the clip states, for a seam inside one blow (SECTION_SEAM). */
-export function blowBlendSeconds(from, to, prev = null, next = null, collected = false) {
+export function blowBlendSeconds(from, to, prev = null, next = null) {
   const fromBlow = String(from ?? '').startsWith('blow:'), toBlow = String(to ?? '').startsWith('blow:');
   if (fromBlow && toBlow) return from !== to ? BLOW_FLOW.chain : sectionGap(prev, next) > SECTION_SEAM.tolerance ? SECTION_SEAM.seconds : 0;
-  if (fromBlow) return collected ? 0.18 : BLOW_FLOW.exit;
+  if (fromBlow) return BLOW_FLOW.exit;
   if (toBlow) return BLOW_FLOW.entry;
   return null;   // any other change: the view's own
 }

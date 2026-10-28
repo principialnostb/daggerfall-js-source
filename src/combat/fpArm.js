@@ -362,7 +362,6 @@ import { armKickMatrix } from './gun/gunFeel.js';   // MW-GUN-FEEL: the gun's re
 import { rifleStanceStep, applyRifleStance } from './gun/rifleStance.js';   // RIFLE-STANCE: a long gun held in the hands - the low ready, the aim
 import { createHipLantern, HIP_LANTERN_HEIGHT } from '../systems/lanternSwing.js';   // HT-WAIST: the one swing law both bodies feed (BODY-MOTION: its rider moved there); HT-WAIST-SIZE: the one height they hang
 import { createBodyWeight } from '../characters/bodyMotion/bodyWeight.js';   // BODY-WEIGHT: the trunk's answer to the body's mass and acceleration
-import { collectedSwordRecovery } from '../characters/bodyMotion/armouredSword.js';
 import { createBodyMotion, motionWord } from '../characters/bodyMotion/bodyMotion.js';   // BODY-MOTION: the third-person body's gait, carry and blows
 import { shieldGuardStance, carriesShield, isHandShieldSlot, shieldBashHold } from './shieldGuard.js';   // SHIELD-GUARD: the fists behind a shield - the stance, the bash
 import { createLeftArmLayer, leftArmPlan, leftArmModeOf, loopWindow } from './leftArmLayer.js';   // LEFT-ARM: the shield's and the free hand's arm over the clip, by weight
@@ -6569,7 +6568,7 @@ export function createFpArm({ playerAppearance = false } = {}) {
     const toHit = wind + release;
     if (!(toHit > 0)) return null;
     // MW-PACE3: the player's own blow, led by its arm, plays each section at its own speed (combat/blowFlow.js calmBlowPlan)
-    if (blow.lead) return calmBlowPlan(blow, wind, release, collectedSwordRecovery(viewMode, rig()?.mwType, modSetting('morrowind-animation', 'MotionDoctrine') !== 0));
+    if (blow.lead) return calmBlowPlan(blow, wind, release);
     return { seconds: blow.seconds, hitAt: blow.hitAt, clock: 0, rate: blowRate(toHit, blow.hitAt) };
   }
 
@@ -6588,7 +6587,7 @@ export function createFpArm({ playerAppearance = false } = {}) {
     if (recovering) recoverHeld += dt;
     bashExit = Math.max(0, bashExit - dt);   // BASH-EXIT: the return to the stance after a bash (mirrorFor)
     // BLOW-FLOW: a series ended - the recovery gives way to the stance at the window's end, wherever it is (the exit blend)
-    if (playing && !(recovering && !seriesWanted && recoverHeld >= holdFor(attackType) && !blowPlan.collected)) return;
+    if (playing && !(recovering && !seriesWanted && recoverHeld >= holdFor(attackType))) return;
     switch (upper) {
       case UPPER_BODY.Equipping:
         actionState = null; actionSource = null;
@@ -6640,7 +6639,7 @@ export function createFpArm({ playerAppearance = false } = {}) {
       case UPPER_BODY.AttackEnd:
         // the follow-through done (or the window spent, above), the stance takes the arm back - blended (blowBlendSeconds);
         // SERIES-FLOW: while the series goes on, the arm waits for the next blow instead (BLOW_FLOW.wait at most)
-        if (recovering && seriesWanted && recoverHeld < BLOW_FLOW.wait && !blowPlan.collected) break;
+        if (recovering && seriesWanted && recoverHeld < BLOW_FLOW.wait) break;
         endAttack();
         break;
       case UPPER_BODY.Casting:
@@ -8200,7 +8199,7 @@ export function createFpArm({ playerAppearance = false } = {}) {
           if (thirdPoseState !== state || thirdPoseSource !== poseSource) {
             // BLOW-FLOW: a blow's change of pose blends by its own law (combat/blowFlow.js) - the sections of one blow
             // never (one clip), a blow cut by the next briefly, the return to the stance slowly
-            const kindNow = poseKindOf(state === actionState && attackingNow(), blowSerial), seconds = blowBlendSeconds(thirdPoseKind, kindNow, thirdPoseState, state, collectedSwordRecovery(viewMode, thirdBuilt?.mwType, modSetting('morrowind-animation', 'MotionDoctrine') !== 0));   // SECTION-SEAM
+            const kindNow = poseKindOf(state === actionState && attackingNow(), blowSerial), seconds = blowBlendSeconds(thirdPoseKind, kindNow, thirdPoseState, state);   // SECTION-SEAM
             if (!carriesBlend(seconds, thirdBlendFrom, thirdBlendElapsed, thirdBlendSeconds, modSetting('morrowind-animation', 'MotionDoctrine') !== 0)) {   // BLEND-CARRY (combat/idleSettle.js)
               thirdBlendFrom = blendSourceOf(t.arm, modSetting('morrowind-animation', 'MotionDoctrine') !== 0);   // SHOWN-POSE (combat/idleSettle.js)
               thirdBlendFromSource = thirdPoseState === null ? null : thirdPoseSource;

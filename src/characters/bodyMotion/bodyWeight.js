@@ -162,7 +162,6 @@ export function createBodyWeight() {
         }
         if (LEAN_ON) leanTrunk(skeleton, pose, rootRef, skelMats, lean, mats);
         leanTrunk(skeleton, pose, rootRef, skelMats, sword.pose());
-        sword.apply(skeleton, pose, rootRef, skelMats);
         if (clearOn) legs.apply(skeleton, pose, rootRef, skelMats);   // BLOW-LEGS: a standing blow's hips and feet
         if (clearOn) clearArms(skeleton, pose, rootRef, skelMats, { armor: armorW });   // ARM-CLEARANCE, last: over the lean and the carry
         return report;

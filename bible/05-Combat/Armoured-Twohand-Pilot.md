@@ -66,7 +66,13 @@ test names on the starting commit and on the pilot, with 52 passing tests in
 each snapshot; none of their diagnostics names a pilot source file. Existing
 documentation failures are not repaired as part of this visual experiment.
 
-## Owner review and second pass (2026-10-28)
+## Owner review and second pass (2026-10-28, REVERTED)
+
+The owner rejected this pass as worse and asked to return to the animation state
+before the feedback quoted below. All seven changed animation source, test and
+mutation files are restored exactly from `b6494cfff3`. The isolated worktree and
+restored local Skyrim assets remain. The following is a historical record of
+the reverted experiment; the First implementation section describes live code.
 
 The owner sees larger overhead amplitude standing and changed amplitudes on the
 move; this is recorded as an observation, not approval or a request to reduce it.
