@@ -1427,7 +1427,9 @@ export function createWeaponRig({ renderer, canvas, fetchBytes, palette, audio, 
    *  from there) and its hit has gone. Fewer blows, each whole. */
   function armCannotSwing() {
     const m = playerWeapon.machine;
-    return !m.ranged && m.state === 'Idle' && (fpArm.active() || fpArm.thirdActive()) && (armLed.holding() || !!fpArm.blowBusy?.());
+    if (m.state !== 'Idle' || !(fpArm.active() || fpArm.thirdActive())) return false;
+    if (fpArm.handSettled?.() === false) return true;   // STANCE-FIRST: nor a blow (a shot too) before the arm holds the new hand
+    return !m.ranged && (armLed.holding() || !!fpArm.blowBusy?.());
   }
   /** MW-D42's hold, as the function the frame decides first (it used to be the frame's own tail). AUDIT
    *  FIELD-GUN-MW F1 (2026-09-21): the gate is `machine.ranged`, not `isBow` - the Thunderlock is a shooter the arm
