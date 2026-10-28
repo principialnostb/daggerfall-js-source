@@ -80,6 +80,13 @@ test('two-handed neutral carry leaves space for the cuirass along the left forea
   motion.apply(sk, pose, GRAPH_ROOT, sm);
   clearArms(sk, pose, GRAPH_ROOT, sm, { armor: 1 });
   const mats = sm(sk, pose, GRAPH_ROOT), frame = bodyFrames(body, mats);
+  const weapon = mats.get(body.wb);
+  const blade = [weapon.a[1], weapon.a[4], weapon.a[7]];
+  assert.ok(blade.reduce((sum, v, i) => sum + v * frame.up[i], 0) / Math.hypot(...blade) > 0.85, 'neutral guard points the sword upward');
+  const R = body.bones.R, shoulder = mats.get(R.upper).t, elbow = mats.get(R.fore).t, wrist = mats.get(R.hand).t;
+  const upper = elbow.map((v, i) => v - shoulder[i]), fore = wrist.map((v, i) => v - elbow[i]);
+  const bend = Math.acos(upper.reduce((sum, v, i) => sum + v * fore[i], 0) / (Math.hypot(...upper) * Math.hypot(...fore)));
+  assert.ok(bend > Math.PI / 3 && bend < Math.PI * 2 / 3, 'right elbow comfortably bent rather than reaching straight out');
   const E = mats.get(body.bones.L.fore).t, W = mats.get(body.bones.L.hand).t, C = mats.get(body.chest).t;
   for (const t of [0, 0.25, 0.5, 0.75]) {
     const d = E.map((v, i) => v * (1 - t) + W[i] * t - C[i]);

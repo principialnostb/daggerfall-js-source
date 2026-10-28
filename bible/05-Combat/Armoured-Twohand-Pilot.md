@@ -139,3 +139,12 @@ regression checks four points along the left forearm outside the full-armour
 ellipse, rather than only preserving the existing wrist location. The installed
 MAO idle probe with the carry applied now needs no clearance swivel at its
 sampled pose. This remains a geometric check awaiting the owner's rendered view.
+
+The owner accepted the arm becoming visible but rejected its extended, unnatural
+pose, supplying an upright sword guard as the desired reference. Replace the
+idle row with shoulder flexion 20, abduction 12, elbow bend 85 and twist 35
+degrees; the blade points mostly up and slightly forward. Both hands still
+share the hilt, with the left below the right. The regression now also requires
+an upright blade and a comfortably bent right elbow. This supersedes the
+extended-arm idle adjustment above; locomotion rows are unchanged. Thirteen
+focused tests pass. Visual acceptance remains with the owner in the game.
