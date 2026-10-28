@@ -546,6 +546,9 @@ const mwNow = () => (typeof performance !== 'undefined' && performance && typeof
 /** WEAPON-FIRST (the owner, 2026-10-28: a weapon's first equip "может и вовсе не прогрузиться"): a hand whose swap
  *  failed is asked again SWAP_RETRY_MAX times, SWAP_RETRY_MS further apart each time, then left as the card says. */
 export const SWAP_RETRY_MAX = 3;
+/** TEXTURE-HEAL: how many times, and how far apart (times the try), a picture that did not come is asked for again. */
+export const TEXTURE_HEAL_TRIES = 3;
+export const TEXTURE_HEAL_MS = 2000;
 export const SWAP_RETRY_MS = 1500;
 export function swapRetryDue(token, key, now = mwNow()) {
   const f = token?.weaponFailTry;
@@ -5540,6 +5543,39 @@ export function createFpArm({ playerAppearance = false } = {}) {
   }
 
   function releaseThirdMesh() { releaseGpu(thirdMesh); thirdMesh = null; thirdSkin = null; }   // MWNPC1: a rebuilt mesh lays its pieces out again
+
+  /** TEXTURE-HEAL (the owner, 2026-10-28: "проверь ... качество загрузки что бы не пропадала текстура с оружия"): A
+   *  PICTURE WHOSE BYTES NEVER CAME IS ASKED FOR AGAIN. A texture whose read failed or lagged (a store or a dev server
+   *  answering late) stood as the warning image on the rig for its whole life - only a picture the FILE refused is kept
+   *  in the memo (collectArmTextures, AUDIT MW-TEXTHREAD F4), so an entry that is not ok and not in the memo is a read
+   *  that can still land. Both views are read again, a few times, further apart, and what lands replaces its warning
+   *  on the standing rig (its meshes hang their ranges again at the next draw). Ends with the rig. */
+  async function healTextures(token, tries = 0) {
+    const gen = token?.catalog?.gen ?? null;
+    if (gen === null || tries >= TEXTURE_HEAL_TRIES) return 0;
+    const views = () => [token, thirdBuilt && thirdBuilt.ok ? thirdBuilt : null].filter((v) => v && v.textures && v.arm);
+    const missingOf = (v) => new Set([...v.textures].filter(([file, e]) => e && !e.ok && !TEXTURE_CACHE.has(`${gen}:${file}`)).map(([file]) => file));
+    if (!views().some((v) => missingOf(v).size)) return 0;
+    await new Promise((r) => setTimeout(r, TEXTURE_HEAL_MS * (tries + 1)));
+    if (built !== token) return 0;
+    const d = buildDeps || await import('../scenes/dataSource.js');
+    const archives = await d.loadMorrowindArchives();
+    let healed = 0;
+    for (const v of views()) {
+      const missing = missingOf(v);
+      if (!missing.size) continue;
+      const pieces = [...v.arm.pieces, ...(v.arm.effects ?? [])].filter((p) => missing.has(p.material?.textureFile));
+      await preloadArmTextures(pieces, archives, gen, playerAppearance);
+      if (built !== token) return healed;
+      for (const [file, e] of collectArmTextures(pieces, archives, gen)) if (e.ok) { v.textures.set(file, e); healed++; }
+    }
+    if (healed) {
+      releaseMesh(); packed = null; releaseThirdMesh(); thirdPacked = null;
+      console.info(`[mw] ${healed} texture(s) that had not loaded are drawn now`);
+    }
+    if (views().some((v) => missingOf(v).size)) return healed + await healTextures(token, tries + 1);
+    return healed;
+  }
   /** AUDIT OW3 J6 / MWNPC16: metres a Morrowind unit, `grow` times (the travel view's OW-BIG, MWNPC10's larger body). */
   const thirdUnit = (grow) => (grow > 1 ? grow : 1) / MW_UNITS_PER_METER;
   // MWV2-PROPORTIONS: a coherent third-person body proportion pass.
@@ -7049,6 +7085,7 @@ export function createFpArm({ playerAppearance = false } = {}) {
         if (thirdBuilt && thirdBuilt.ok) thirdBuilt.hipHang = thirdBuilt.arm.pieces.find((p) => p.slot === HIP_LIGHT_SLOT)?.hang ?? null;
         hipLantern.reset();
         if (!res.ok) { reason = `${res.stage}: ${res.error}`; built = res; return res; }
+        healTextures(res).catch(() => 0);   // TEXTURE-HEAL: a picture that did not come is asked for again
         refreshWeaponGroup();
         refreshIdle(true);
         refreshTorch(true);
@@ -7453,6 +7490,7 @@ export function createFpArm({ playerAppearance = false } = {}) {
           console.log(`[mw] weapon swap ${item?.name ?? 'bare hands'} in ${ms(mwNow() - clock.t0)} ms - archives ${ms(clock.spans.archives)}, `
             + `meshes ${ms(clock.spans.meshes)}, textures ${ms(clock.spans.textures)}, third ${ms(clock.spans.third)}`);
           token.weaponFailTry = null;
+          healTextures(token).catch(() => 0);   // TEXTURE-HEAL: and the new hand's
           releaseMesh();
           packed = null;
           // The old action clip belonged to the old weapon's group.
