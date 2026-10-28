@@ -254,7 +254,9 @@ async function loadBetterBodiesAssetBytes(url, label) {
     });
     betterBodiesAssetByteCache.set(url, pending);
   }
-  return new Uint8Array(await pending);
+  // BB-ONCE: THE SAME ARRAY EVERY CALL - read-only to every caller (a stem rewrite works on its own copy,
+  // preparedBetterBodiesBytes), so parseNifOnce's identity memo answers the body's parse from the second build on
+  return pending;
 }
 
 // Robert's first-person NIF is used as a temporary geometry donor for every gauntlet.
@@ -316,6 +318,30 @@ function rewriteTextureStemCaseless(bytes, fromStem, toStem) {
   }
   return bytes;
 }
+/** BB-ONCE (the owner, 2026-10-28: every equip froze the game): THE BODY'S BYTES, PREPARED ONCE. The fetch memo hands
+ *  a fresh view of one shared buffer each call, and the stem was rewritten INTO that buffer - so every build's body was
+ *  a new array to parseNifOnce's identity memo (the whole Better Bodies mesh parsed again on every equip, every NPC's
+ *  build), and a second race's rewrite searched a buffer the first had already rewritten. One private copy per
+ *  (mesh, stem pair), rewritten once and kept: the same array every build, so the parse memo answers. */
+const betterBodiesPartBytes = new Map();
+function preparedBetterBodiesBytes(url, rawBytes, fromStem, toStem) {
+  const key = `${url}|${fromStem}|${toStem}`;
+  let bytes = betterBodiesPartBytes.get(key);
+  if (!bytes) { bytes = rewriteBetterBodiesTextureStem(rawBytes.slice(), fromStem, toStem); betterBodiesPartBytes.set(key, bytes); }
+  return bytes;
+}
+/** BB-ONCE / BEASTS: a beast body's NIF with each of its skins renamed (rewriteTextureStemCaseless), on its own copy,
+ *  once per mesh and set of names - the same array every build, so the parse memo answers it. */
+function betterBeastBytes(url, rawBytes, stems) {
+  const key = `${url}|${stems.map(([a, b]) => `${a}>${b}`).join(',')}`;
+  let bytes = betterBodiesPartBytes.get(key);
+  if (!bytes) {
+    bytes = rawBytes.slice();
+    for (const [stem, own] of stems) bytes = rewriteTextureStemCaseless(bytes, stem, own);
+    betterBodiesPartBytes.set(key, bytes);
+  }
+  return bytes;
+}
 const betterBodiesTextureBytes = new Map();
 const betterBodiesTextureBasename = (path) => String(path || '')
   .replaceAll(String.fromCharCode(92), '/').split('/').pop().toLowerCase();
@@ -344,8 +370,12 @@ function tintBetterBodiesFemaleSkin(image, textureFile) {
   }
   return image;
 }
+/** Registers the skin's bytes under its basename; answers whether they CHANGED (BB-ONCE: the same file's bytes again -
+ *  a view of the buffer the fetch memo already holds - keep the decoded picture). */
 function registerBetterBodiesRaceTexture(archives, texturePath, textureBytes) {
   const basename = betterBodiesTextureBasename(texturePath);
+  const prev = betterBodiesTextureBytes.get(basename);
+  const changed = !prev || prev.buffer !== textureBytes.buffer || prev.byteOffset !== textureBytes.byteOffset || prev.byteLength !== textureBytes.byteLength;
   betterBodiesTextureBytes.set(basename, textureBytes);
   let adapter = archives.find((archive) => archive.__betterBodiesRaceTexture);
   if (!adapter) {
@@ -358,7 +388,7 @@ function registerBetterBodiesRaceTexture(archives, texturePath, textureBytes) {
     };
     archives.push(adapter);
   }
-  return adapter;
+  return changed;
 }
 
 import { decodeTextureOffThread } from '../formats/morrowind/mwTextureClient.js';   // MW-TEXTHREAD: the preload's decodes, in the pool
@@ -2656,13 +2686,14 @@ async function buildTpBody({
         ]);
         // its skins carry retail's own names (TX_B_N_Argonian_F_F...): each is renamed in the NIF, same length, to a
         // "b3" name no archive holds - else retail's feet and tail, cut for retail's mesh, answered first
-        let bytes = rawBytes;
-        asset.textures.forEach((tex, k) => {
-          const stem = tex.name.replace(/\.dds$/, '');
-          const own = 'b3' + stem.slice(2);
-          bytes = rewriteTextureStemCaseless(bytes, stem, own);
-          registerBetterBodiesRaceTexture(archives, `textures/${own}.dds`, skins[k]);
-          for (const key of TEXTURE_CACHE.keys()) if (String(key).toLowerCase().endsWith(own + '.dds')) TEXTURE_CACHE.delete(key);
+        // BB-ONCE: the renamed copy made once per body (the fetch memo's array is every caller's, never written), and a
+        // skin's decode dropped only when its bytes moved
+        const stems = asset.textures.map((tex) => { const stem = tex.name.replace(/\.dds$/, ''); return [stem, 'b3' + stem.slice(2)]; });
+        const bytes = betterBeastBytes(asset.model, rawBytes, stems);
+        stems.forEach(([, own], k) => {
+          if (registerBetterBodiesRaceTexture(archives, `textures/${own}.dds`, skins[k])) {   // BB-ONCE: only when the bytes moved
+            for (const key of TEXTURE_CACHE.keys()) if (String(key).toLowerCase().endsWith(own + '.dds')) TEXTURE_CACHE.delete(key);
+          }
         });
         betterBodiesPart = { slot: 'betterBodies', bones: [], bytes, uvEdits: [], hideSlots: worn.shadows, texturePath: null };
         console.info('[Better Bodies] beast body loaded', { raceKey: asset.raceKey, female, underwear: asset.underwear, skins: asset.textures.length });
@@ -2687,19 +2718,21 @@ async function buildTpBody({
           loadBetterBodiesAssetBytes(asset.texture, 'DDS'),
         ]);
         const genderKey = female ? 'f' : 'm';
-        const bytes = rewriteBetterBodiesTextureStem(
-          rawBytes,
+        const bytes = preparedBetterBodiesBytes(
+          asset.model, rawBytes,
           `bb_skin${genderKey}_${asset.geometryRaceKey}`,
           asset.runtimeTextureStem,   // NUDITY-SYNC: the variant's own name, which no other archive answers
         );
-        registerBetterBodiesRaceTexture(archives, asset.texturePath, textureBytes);
+        const textureChanged = registerBetterBodiesRaceTexture(archives, asset.texturePath, textureBytes);
         betterBodiesPart = {
           slot: 'betterBodies', bones: [], bytes, uvEdits, hideSlots: worn.shadows,
           texturePath: asset.texturePath,
         };
         const basename = betterBodiesTextureBasename(asset.texturePath);
-        for (const key of TEXTURE_CACHE.keys()) {
-          if (String(key).toLowerCase().endsWith(basename)) TEXTURE_CACHE.delete(key);
+        if (textureChanged) {   // BB-ONCE: the decoded skin is dropped only when its bytes moved - not on every equip
+          for (const key of TEXTURE_CACHE.keys()) {
+            if (String(key).toLowerCase().endsWith(basename)) TEXTURE_CACHE.delete(key);
+          }
         }
         console.info('[Better Bodies] race/sex body asset loaded', {
           raceKey: asset.raceKey, female, modelBytes: bytes.byteLength,
@@ -3693,7 +3726,7 @@ export async function buildFpArm({
   // ONE line, never per file: a log per entry is what makes a slow boot
   // slower and a console unreadable.
   const t0 = mwNow();
-  const spans = { archives: 0, esm: 0, meshes: 0, textures: 0, sweep: 0 };
+  const spans = { archives: 0, esm: 0, meshes: 0, textures: 0, third: 0, sweep: 0 };
   let stageMark = t0;
   const stage = (name) => { const n = mwNow(); spans[name] += n - stageMark; stageMark = n; };
   try {
@@ -3926,10 +3959,11 @@ export async function buildFpArm({
           loadBetterBodiesAssetBytes(hands.handModel, 'Better Hands NIF'),
           loadBetterBodiesAssetBytes(hands.handTexture, 'Better Hands DDS'),
         ]);
-        registerBetterBodiesRaceTexture(archives, hands.bodyTexturePath, armTextureBytes);
         const armTextureBasename = betterBodiesTextureBasename(hands.bodyTexturePath);
-        for (const cacheKey of TEXTURE_CACHE.keys()) {
-          if (String(cacheKey).toLowerCase().endsWith(armTextureBasename)) TEXTURE_CACHE.delete(cacheKey);
+        if (registerBetterBodiesRaceTexture(archives, hands.bodyTexturePath, armTextureBytes)) {   // BB-ONCE: only when the bytes moved
+          for (const cacheKey of TEXTURE_CACHE.keys()) {
+            if (String(cacheKey).toLowerCase().endsWith(armTextureBasename)) TEXTURE_CACHE.delete(cacheKey);
+          }
         }
         betterBodiesFpArms = {
           slot: 'betterBodies', partName: 'robertBodiesFirstPersonArms', bones: [],
@@ -3943,14 +3977,15 @@ export async function buildFpArm({
         // a same-length, race-specific path so the two texture sets coexist.
         const handTextureStem = `x${hands.raceKey[0]}_${hands.genderKey}`;
         const handTexturePath = `textures/bbr/${handTextureStem}.dds`;
-        const handBytes = rewriteBetterBodiesTextureStem(
-          rawHandBytes,
+        const handBytes = preparedBetterBodiesBytes(   // BB-ONCE: its own copy, rewritten once
+          hands.handModel, rawHandBytes,
           `${hands.raceKey}_${hands.genderKey}`,
           handTextureStem,
         );
-        registerBetterBodiesRaceTexture(archives, handTexturePath, handTextureBytes);
-        for (const cacheKey of TEXTURE_CACHE.keys()) {
-          if (String(cacheKey).toLowerCase().endsWith(handTextureStem + '.dds')) TEXTURE_CACHE.delete(cacheKey);
+        if (registerBetterBodiesRaceTexture(archives, handTexturePath, handTextureBytes)) {   // BB-ONCE: only when the bytes moved
+          for (const cacheKey of TEXTURE_CACHE.keys()) {
+            if (String(cacheKey).toLowerCase().endsWith(handTextureStem + '.dds')) TEXTURE_CACHE.delete(cacheKey);
+          }
         }
         betterBodiesFpHands = {
           slot: 'betterBodies', partName: 'betterHandsFirstPersonHands', bones: [],
@@ -4221,6 +4256,7 @@ export async function buildFpArm({
     // Weapon Bone Left AS ASSEMBLED (the made one where the bytes have none) through the part loop's own door - the swap's
     // way, the archives still open. Left to the next frame's swap, a rebuild cleared it and the pair stood one-bladed
     // until the archives reopened (23 frames at a 600 ms reopen).
+    stage('third');   // LOAD-CLOCK: the third-person body's own assembly (buildTpBody, twice when an outfit was lost) - it rode `meshes`
     const offBound = { first: null, third: null };
     if (offWeapon && arm.ok) {
       for (const [key, r] of /** @type {const} */ ([['first', { arm, textures, skeletonBytes }], ['third', third?.ok ? third : null]])) {
@@ -4458,11 +4494,12 @@ export async function buildFpArm({
       esm: Math.round(spans.esm),
       meshes: Math.round(spans.meshes),
       textures: Math.round(spans.textures),
+      third: Math.round(spans.third),
       sweep: Math.round(spans.sweep),
       total: Math.round(mwNow() - t0),
     };
     console.log(`[mw] arm built in ${timings.total} ms - archives ${timings.archives}, `
-      + `esm ${timings.esm}, meshes ${timings.meshes}, textures ${timings.textures}, sweep ${timings.sweep}`);
+      + `esm ${timings.esm}, meshes ${timings.meshes}, textures ${timings.textures}, third ${timings.third}, sweep ${timings.sweep}`);
 
     return {
       ok: true,
@@ -4869,6 +4906,9 @@ export function createFpArm({ playerAppearance = false } = {}) {
   // MW-D19: the equip identity this arm currently wears, and the deps
   // seam it was built through - the swap resolves through the same one.
   let wornKey = null;
+  // STANCE-FIRST: the hand the game last ASKED for (setWeapon's key, every frame through weaponRig's handArm) - the
+  // swing waits while it is not the hand the mesh and the stance hold (handSettled)
+  let wantKey = null;
   let buildDeps = null;
   // MW-D32: what the body last dressed in, and the opts to dress it
   // again. The equip table is read every frame by weaponRig; when the
@@ -6863,6 +6903,15 @@ export function createFpArm({ playerAppearance = false } = {}) {
      *  and `ready()` alone says only that SOME arm stands - an
      *  Argonian save loaded over a human's standing arm kept the
      *  human's body until the pack was toggled off and on. */
+    /** STANCE-FIRST (the owner, 2026-10-28: "машет двуручником из одноручной стойки"): IS THE HAND THE GAME ASKED FOR
+     *  THE ONE THE ARM HOLDS? The swap is async (its meshes and pictures load) and a rebuild in flight holds it queued,
+     *  while the game's weapon changed at once - a blow started in the gap was the new weapon's, thrown from the old
+     *  stance. weaponRig holds the swing until this answers true, as DFU's equip countdown holds it. True with no
+     *  standing arm, for the wolf (it holds nothing) and for a swap this rig refused (nothing is coming). */
+    handSettled() {
+      if (!built || !built.ok || built.werewolf || wantKey === null) return true;
+      return wantKey === wornKey || built.weaponFailed === wantKey;
+    },
     builtFor() { return built && built.ok && lastBuildOpts ? { race: lastBuildOpts.race ?? null, female: !!lastBuildOpts.female, faceIndex: lastBuildOpts.faceIndex | 0, werewolf: !!lastBuildOpts.werewolf, vampire: !!lastBuildOpts.vampire } : null; },   // WEREWOLF1: and the form; PORTRAIT3D: and the curse's face   // AUDIT MW-TORCH: null when nothing stands - an unloaded or refused rig was built for no one
     /** MW-EARLY: WHO THE ARM IS BEING BUILT FOR - the identity third of
      *  the build that will stand once the queue drains (the queued one,
@@ -7228,6 +7277,7 @@ export function createFpArm({ playerAppearance = false } = {}) {
       // AUDIT 68 S08-fparm-busy-queue-drops-latest: the WHOLE request,
       // queued before the key compare (wornKey is the old hand until a
       // swap lands, so switching back mid-swap was dropped).
+      wantKey = fpWeaponKey(item, hasAmmo);
       if (busy) { pendingWeapon = { item, hasAmmo, ammoCount }; return false; }
       // WEREWOLF1 (AUDIT D7/C5): THE WOLF HOLDS NOTHING, whatever the hand the game hands it (the claws, a debug
       // weapon) - setTorch's and setHipLight's law; the person's hand waits in the build opts for the way back

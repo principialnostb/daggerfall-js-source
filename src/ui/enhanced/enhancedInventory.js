@@ -756,7 +756,6 @@ const refresh = () => {
   // subscription (D36) repaints, the figure follows the action.
   const arm = deps.fpArm;
   if (arm && typeof arm.setWorn === 'function' && deps.entity) {
-    try { arm.setWorn(dfWornEquipment(equipTableOf(deps.entity), EQUIP_SLOTS, ARMOR_ENUM)); } catch { /* the rig's own card carries its reasons */ }
     // PX26 F2: AND THE HAND. PX25 handed the rig the worn TABLE while a
     // window is up, and stopped there - so a cloak equipped in the pack
     // showed at once and a SWORD did not, because the weapon rides its
@@ -774,7 +773,12 @@ const refresh = () => {
         arm.setWeapon?.(slots?.[deps.usingRightHand?.() === false ? EQUIP_SLOTS.LeftHand : EQUIP_SLOTS.RightHand] ?? null,
           { hasAmmo: hasDaggerfallArrows(deps.entity.items) });
       }
-    } catch { /* see above */ }
+    } catch { /* the rig's own card carries its reasons */ }
+    // STANCE-FIRST (the owner, 2026-10-28: a two-hander swung from a one-hand stance): THE HAND BEFORE THE TABLE. A
+    // weapon that bumps the shield changes both, and the table's door is a whole rebuild that carried the OLD hand in
+    // its opts and held the new one queued behind it for seconds. The hand's swap is the short one, so it goes first;
+    // the table queues behind it (PX25) and its rebuild carries the hand the swap put in.
+    try { arm.setWorn(dfWornEquipment(equipTableOf(deps.entity), EQUIP_SLOTS, ARMOR_ENUM)); } catch { /* see above */ }
   }
 };
 
@@ -832,11 +836,18 @@ function refreshFigure() {
 
 // Rebuild cached row descriptors too: changing the display identity changes
 // archive/record addresses for gendered icons, not just the composed doll.
+// APPLY-NOW: the figure's picture is cached by pieces, skeleton and yaw - none of which a
+// committed body morph moves - so both edits drop it, open pack or not.
 if (typeof globalThis.addEventListener === 'function') {
   globalThis.addEventListener('mw-appearance-identity-change', () => {
+    _figureCache = { key: null, img: null };
     if (!host) return;
     render();
     refreshFigure();
+  });
+  globalThis.addEventListener('mw-body-morph-change', () => {
+    _figureCache = { key: null, img: null };
+    if (host) render();
   });
 }
 

@@ -224,6 +224,17 @@ const STYLE = `
 @media(prefers-reduced-motion:reduce){#mw-appearance-editor .mw-btn{transition:none}}
 `;
 
+/** APPLY-NOW: does the editor's pick differ from the saved identity the live body wears? A missing head/hair is the
+ *  race's default, and a missing sex is the entity's own - compared as null. */
+export function identityChanged(saved, next) {
+  const norm = (v) => ({
+    race: String(v?.race || '').toLowerCase(), faceIndex: Number(v?.faceIndex) | 0,
+    female: typeof v?.female === 'boolean' ? v.female : null, headId: v?.headId || null, hairId: v?.hairId || null,
+  });
+  const a = norm(saved), b = norm(next);
+  return a.race !== b.race || a.faceIndex !== b.faceIndex || a.female !== b.female || a.headId !== b.headId || a.hairId !== b.hairId;
+}
+
 export function openAppearanceEditor({ fpArm, onClose = () => {} } = {}) {
   if (typeof document === 'undefined' || !document.body) return null;
   document.getElementById('mw-appearance-editor')?.remove();
@@ -558,16 +569,19 @@ export function openAppearanceEditor({ fpArm, onClose = () => {} } = {}) {
     done.textContent = 'Применение…';
     try {
       const identity = { race: selectedRace, female: selectedFemale, faceIndex: selectedFace, headId: selectedHead, hairId: selectedHair };
-      // This editor's race/sex choice is a PAPERDOLL display override only.
-      // Do not rebuild the live first/third-person actor from it: doing so
-      // lets a cosmetic UI selection override the game's active actor identity.
-      // The paperdoll and gendered inventory-art pipeline read the saved
-      // appearance identity below, while gameplay identity remains untouched.
+      // The race/sex choice is a DISPLAY override: the gameplay entity's race
+      // and gender stay untouched. The live body wears it all the same - every
+      // player rig build reads the saved identity (fpArm build, playerAppearance)
+      // - so a changed identity rebuilds the body NOW (APPLY-NOW), not at the
+      // next equip. Not awaited: the old body stands until the new one is
+      // ready, and the rig's subscribers repaint the pack's figure then.
       // Commit body morphs only after confirmation. The preview used draftMorphs
       // directly, so cancelling the editor leaves the live character untouched.
       for (const [key] of BODY_MORPH_FIELDS) setBodyMorph(key, draftMorphs[key] ?? 0);
       window.dispatchEvent(new CustomEvent('mw-body-morph-change', { detail: { ...draftMorphs } }));
-      setAppearanceIdentity(identity);
+      if (identityChanged(getAppearanceIdentity(), identity) && typeof fpArm?.applyAppearanceIdentity === 'function') {
+        void fpArm.applyAppearanceIdentity(identity).catch((err) => console.warn('[appearance] live rebuild failed:', err?.message ?? err));
+      } else setAppearanceIdentity(identity);
       // Notify the paperdoll/inventory art pipeline. This is a visual override
       // only; the live gameplay entity's race and gender remain untouched.
       window.dispatchEvent(new CustomEvent('mw-appearance-identity-change', { detail: identity }));
