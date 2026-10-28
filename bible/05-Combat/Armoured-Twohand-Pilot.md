@@ -65,3 +65,26 @@ is part of the pilot). The six documentation gates report the same 17 failing
 test names on the starting commit and on the pilot, with 52 passing tests in
 each snapshot; none of their diagnostics names a pilot source file. Existing
 documentation failures are not repaired as part of this visual experiment.
+
+## Owner review and second pass (2026-10-28)
+
+The owner sees larger overhead amplitude standing and changed amplitudes on the
+move; this is recorded as an observation, not approval or a request to reduce it.
+The end of every blow reads as unnatural slow motion, and the plate's weight
+during travel and stops is not perceptible. The pilot is not visually accepted.
+
+The third-person sword's follow-through now plays at a steady 1.15 times its
+Speed factor. Its visible recovery finishes before returning to the stance with
+a short 0.18 s blend; the continuing-series input no longer stretches the clip
+or holds its last frame for up to two seconds. First-person and other weapons'
+recovery profiles stay as before. Wind-up, release and damage timing are unchanged.
+This deliberately departs from the earlier SERIES-FLOW presentation, not from
+the attack machine's scheduling; the input buffer remains available.
+
+Armoured locomotion now applies also while sheathed and independently of the
+separate BODY-MOTION preference. Start/stop effort is stronger and longer, with
+bounded pelvis compression (at most 3.5% of leg length) and knees accommodating
+the load while preserving the clip's foot positions/orientations through IK.
+No periodic walk sway is added. A recoil, death or airborne state immediately
+returns ownership to its own animation. Compression steps aside during a blow
+so it does not amplify the accepted standing attack layer.

@@ -9,12 +9,28 @@ import { createBodyMotion, sceneInput } from '../../src/characters/bodyMotion/bo
 import { parseNif } from '../../src/formats/morrowind/mwNifFile.js';
 import { buildSkeleton, skeletonSpaceMatrices, GRAPH_ROOT } from '../../src/formats/morrowind/mwSkin.js';
 import { retailSkeleton } from '../fixtures/mw/retailRig.mjs';
+import { collectedSwordRecovery } from '../../src/characters/bodyMotion/armouredSword.js';
 
 // BLOW-FLOW / MW-PACE2 (2026-10-26, Mac: "when the character stops striking the weapon snaps back - sharp, unnatural,
 // instant"; "the blows are jerky - many animations very fast, some at different speeds; better fewer blows, but smooth,
 // calm and in step"; "the shield bash in the pool, in both views"; "crouched with a one-hander the blade to the floor").
 
 const rd = (p) => readFileSync(new URL(`../../${p}`, import.meta.url), 'utf8');
+
+test('sword recovery: finish the visible follow-through without slow motion, regardless of the continuation window', () => {
+  const blow = { seconds: 1, hitAt: 0.4, step: 0.2 };
+  const old = calmBlowPlan(blow, 0.53, 0.33), pilot = calmBlowPlan(blow, 0.53, 0.33, true);
+  assert.equal(pilot.hitAt, old.hitAt, 'windup and hit timing stay the same');
+  for (const series of [false, true]) for (const p of [0, 0.25, 0.5, 0.9, 1]) {
+    assert.equal(recoverRate({ ...pilot, seriesBase: 0.05 }, p, series), 1.15, 'the input window never stretches recovery');
+  }
+  assert.equal(collectedSwordRecovery('third', MW_WEAPON_TYPE.LongBladeTwoHand, true), true);
+  assert.equal(collectedSwordRecovery('first', MW_WEAPON_TYPE.LongBladeTwoHand, true), false);
+  assert.equal(collectedSwordRecovery('third', MW_WEAPON_TYPE.LongBladeOneHand, true), false);
+  assert.equal(collectedSwordRecovery('third', MW_WEAPON_TYPE.LongBladeTwoHand, false), false);
+  assert.equal(blowBlendSeconds('blow:1', 'pose', null, null, true), 0.18);
+  assert.equal(blowBlendSeconds('blow:1', 'pose'), BLOW_FLOW.exit);
+});
 
 test('MW-PACE3: every blow\'s sections at their own speeds - a quick wind-up, a snapped release, the recovery braking', () => {
   // (Mac: "a toy fight - no sharpness, the overhead blows slow") the clips' wind-up and release, file seconds, measured:
@@ -130,7 +146,7 @@ test('SHIELD-BASH: the fists\' thrust behind a shield always bashes, a one-hande
 test('BLOW-FLOW / MW-PACE2: the rig\'s wiring - the led blow at one speed, its hit and its busy said, the window, the blends, the bash', () => {
   const src = rd('src/combat/fpArm.js');
   // the player's led blow keeps its one rate through release and follow-through; a peer's is fitted as MW-PACE1 has it
-  assert.match(src, /if \(blow\.lead\) return calmBlowPlan\(blow, wind, release\);/);
+  assert.match(src, /if \(blow\.lead\) return calmBlowPlan\(blow, wind, release, collectedSwordRecovery\(viewMode, rig\(\)\?\.mwType,/);
   assert.match(src, /else if \(blowPlan && !blowPlan\.lead\) blowPlan\.rate = blowRate\(actionState\.stopTime - actionState\.time, blowPlan\.seconds - blowPlan\.clock\);/);
   // MW-PACE3: the player's release snapped, its follow-through braking frame by frame
   assert.match(src, /else if \(blowPlan\) blowPlan\.rate = blowPlan\.relRate;/);
@@ -142,8 +158,8 @@ test('BLOW-FLOW / MW-PACE2: the rig\'s wiring - the led blow at one speed, its h
   // the window: every blow plays its follow-through; an ended series' gives way to the stance by the window's end
   assert.match(src, /case UPPER_BODY\.AttackRelease:[\s\S]{0,300}\s+beginFollow\(\);\s+break;/);
   assert.match(src, /if \(recovering\) recoverHeld \+= dt;/);
-  assert.match(src, /if \(playing && !\(recovering && !seriesWanted && recoverHeld >= holdFor\(attackType\)\)\) return;/);
-  assert.match(src, /case UPPER_BODY\.AttackEnd:[\s\S]{0,400}if \(recovering && seriesWanted && recoverHeld < BLOW_FLOW\.wait\) break;\s+endAttack\(\);/);
+  assert.match(src, /if \(playing && !\(recovering && !seriesWanted && recoverHeld >= holdFor\(attackType\) && !blowPlan\.collected\)\) return;/);
+  assert.match(src, /case UPPER_BODY\.AttackEnd:[\s\S]{0,400}if \(recovering && seriesWanted && recoverHeld < BLOW_FLOW\.wait && !blowPlan\.collected\) break;\s+endAttack\(\);/);
   assert.match(src, /blowBusy\(\) \{\s+if \(!built \|\| !built\.ok\) return false;\s+return upper === UPPER_BODY\.Equipping \|\| upper === UPPER_BODY\.AttackWindUp \|\| upper === UPPER_BODY\.AttackRelease;\s+\}/,
     'the window is free: a next blow starts from the held pose');
   assert.match(src, /upper === UPPER_BODY\.AttackEnd && blowPlan\?\.lead \? Math\.min\(1, Math\.max\(recoverHeld \/ holdFor\(attackType\), clipCompletion\(actionState\)\)\) : clipCompletion\(actionState\)/, 'the bash\'s shield comes home over the recovery - by its follow-through\'s end or the window\'s');
@@ -278,7 +294,7 @@ test('SECTION-SEAM: a seam inside one blow - its follow-through keyed past its h
   assert.equal(blowBlendSeconds('blow:7', 'blow:8', release, follow), BLOW_FLOW.chain, 'a next blow is the chain\'s');
   assert.ok(SECTION_SEAM.seconds < BLOW_FLOW.entry, 'shorter than a blow\'s entry: the release keeps its snap');
   const src = rd('src/combat/fpArm.js');
-  assert.match(src, /blowBlendSeconds\(thirdPoseKind, kindNow, thirdPoseState, state\)/);
+  assert.match(src, /blowBlendSeconds\(thirdPoseKind, kindNow, thirdPoseState, state, collectedSwordRecovery\(/);
   assert.match(src, /blowBlendSeconds\(fpBlend\.kind, fKind, fpBlend\.state, state\)/);
 });
 
