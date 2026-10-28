@@ -361,7 +361,6 @@ import { farthestVertexIndex, posedVertex, viewOffsetOf, worldPointOf } from './
 import { armKickMatrix } from './gun/gunFeel.js';   // MW-GUN-FEEL: the gun's recoil and reload, as one pose over the viewmodel
 import { rifleStanceStep, applyRifleStance } from './gun/rifleStance.js';   // RIFLE-STANCE: a long gun held in the hands - the low ready, the aim
 import { createHipLantern, HIP_LANTERN_HEIGHT } from '../systems/lanternSwing.js';   // HT-WAIST: the one swing law both bodies feed (BODY-MOTION: its rider moved there); HT-WAIST-SIZE: the one height they hang
-import { createStride } from '../characters/bodyMotion/stride.js';   // STRIDE: the speed shared between the cadence and the stride
 import { createBodyWeight } from '../characters/bodyMotion/bodyWeight.js';   // BODY-WEIGHT: the trunk's answer to the body's mass and acceleration
 import { createBodyMotion, motionWord } from '../characters/bodyMotion/bodyMotion.js';   // BODY-MOTION: the third-person body's gait, carry and blows
 import { shieldGuardStance, carriesShield, isHandShieldSlot, shieldBashHold } from './shieldGuard.js';   // SHIELD-GUARD: the fists behind a shield - the stance, the bash
@@ -4956,7 +4955,6 @@ export function createFpArm({ playerAppearance = false } = {}) {
   const motion = createBodyMotion();
   const bodyWeight = createBodyWeight();   // BODY-WEIGHT (characters/bodyMotion/bodyWeight.js)
   const fpInertia = createFpInertia();   // FP-INERTIA (combat/fpInertia.js)
-  const strideLaw = createStride({ sampleTrack, loopWindow });   // STRIDE (characters/bodyMotion/stride.js)
   const loopSeam = createLoopSeam({ sampleTrack, loopWindow });   // LOOP-SEAM (combat/loopSeam.js)
   // AUDIT MW-TORCH F4: THE OVERLAY ALLOCATES ONCE PER CHANGE, NOT PER
   // FRAME. update()'s contract is "no allocation after the first pack";
@@ -6393,7 +6391,7 @@ export function createFpArm({ playerAppearance = false } = {}) {
       // that matters more here than the citation. If a future 1:1
       // sweep wants the multi-source walk again it must come with
       // Mac's eye on the sprint, not a line number.
-      const vel = strideLaw.pace(movementSource, movementState, rig()?.arm?.skeleton, movementSource ? sourceVelocityOf(movementSource, movementGroup) : 0, modSetting('morrowind-animation', 'MotionDoctrine') !== 0 && viewMode === 'third');   // FOOT-SPEED
+      const vel = movementSource ? sourceVelocityOf(movementSource, movementGroup) : 0;
       movementAnimSpeed = vel > 1 ? vel
         : sneaking ? MOVEMENT_FALLBACK_SPEED.sneak
           : (mv && mv.running) ? MOVEMENT_FALLBACK_SPEED.run : MOVEMENT_FALLBACK_SPEED.walk;
@@ -6406,8 +6404,8 @@ export function createFpArm({ playerAppearance = false } = {}) {
     // in MW units.
     movementRate = isTurn
       ? turnAnimSpeed(yawRate)
-      : strideLaw.rate(Math.min(MOVEMENT_SPEED_CAP,   // STRIDE (characters/bodyMotion/stride.js): the ratio shared with the legs' swing
-        ((mv && mv.speed ? mv.speed : 0) * MW_UNITS_PER_METER) / movementAnimSpeed), modSetting('morrowind-animation', 'MotionDoctrine') !== 0 && viewMode === 'third');
+      : Math.min(MOVEMENT_SPEED_CAP,
+        ((mv && mv.speed ? mv.speed : 0) * MW_UNITS_PER_METER) / movementAnimSpeed);
   }
 
   /** Rule 9's long group for the CURRENT stance, and the equip/unequip
@@ -8151,7 +8149,6 @@ export function createFpArm({ playerAppearance = false } = {}) {
       }));
       bodyWeight.stepRig(dt, modSetting('morrowind-animation', 'MotionDoctrine') !== 0 && viewMode === 'third', cam, lastBuildOpts?.armor, thirdBuilt?.mwType, dead);   // BODY-WEIGHT
       fpInertia.stepRig(dt, modSetting('morrowind-animation', 'MotionDoctrine') !== 0 && viewMode === 'first', cam, lastBuildOpts?.armor, built?.mwType, dead);   // FP-INERTIA
-      strideLaw.stepRig(dt, modSetting('morrowind-animation', 'MotionDoctrine') !== 0 && viewMode === 'third', movementState, movementSource, cam, movementAnimSpeed, MW_UNITS_PER_METER);   // STRIDE
       if (!actionState && !movementState && !jumpState && !idleState && !hitState && !deathState) return;
       // THE WINNER, not a blend. See the two-slot note above: in first
       // person both animations are played on BlendMask_All, so the higher
@@ -8231,7 +8228,7 @@ export function createFpArm({ playerAppearance = false } = {}) {
             climb: thirdClimb(climbWorld, cam),   // CLIMB6
             mirror: mirrorFor('third', t, dt),   // TWO-HANDS: the second hand - the pair's left arm, a left-hand blow
             hold: rifleHold('third', t) ?? shieldBash(),   // RIFLE-STANCE: the long gun in the hands; SHIELD-GUARD: else the bash
-            motion: bodyWeight.slot(strideLaw.slot(motion.slot)),   // BODY-WEIGHT over BODY-MOTION over STRIDE's legs: third-person gait, weapon carry and melee body layered over the clip
+            motion: bodyWeight.slot(motion.slot),   // ARM-CLEARANCE (bodyWeight.js's slot) over BODY-MOTION: third-person gait, weapon carry and melee body layered over the clip
             bodyProportions: playerAppearance ? getBodyMorphs() : false,   // MWV2-PROPORTIONS: player instance only
             skin: !thirdSkinReady(t),   // MWNPC1: the skin in the vertex shader - the pose is the skeleton alone
           });

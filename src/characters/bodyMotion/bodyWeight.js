@@ -62,6 +62,12 @@ export const LEAN = Object.freeze({
  * foot is the one standing - so it is always in step: full at a foot raised `lift` of the leg). Both come on with
  * the travel over `ease` seconds; `pace` m/s is a walk (DFU's walk at Speed 50).
  */
+/** SET ASIDE (2026-10-28, the owner: "the old walk and run were fine in quality ... now everything has gone wooden";
+ *  "the character sways strangely walking"): the lean, the carry and the step's sway are no longer laid on the trunk -
+ *  procedural motion over the clips read as plastic, the stylised school's life is the clips' own. Kept, measured and
+ *  pinned, for a later pass; the slot still clears the elbows (ARM-CLEARANCE). */
+export const LEAN_ON = false;
+
 export const SWAY = Object.freeze({ carry: Object.freeze([0, 0.07]), roll: Object.freeze([0.012, 0.075]), lift: 0.12, pace: 4.4, on: 0.6, ease: 0.15 });
 
 /** One spring step toward `goal` of x'' = w^2 (goal - x) - 2 z w x' - semi-implicit Euler, sub-stepped at 120 Hz so it is
@@ -138,13 +144,13 @@ export function createBodyWeight() {
         const report = inner ? inner(skeleton, pose, rootRef, skelMats) : null;
         const lean = layer.lean(), sway = layer.sway();
         let mats = null;
-        if (sway.roll > 1e-4) {
+        if (LEAN_ON && sway.roll > 1e-4) {
           const body = bodyOf(skeleton, rootRef, skelMats);
           mats = body ? skelMats(skeleton, pose, rootRef) : null;
           const zl = mats ? at(mats, body.bones.L.foot)?.[2] : null, zr = mats ? at(mats, body.bones.R.foot)?.[2] : null;
           if (Number.isFinite(zl) && Number.isFinite(zr)) lean.roll -= sway.roll * clamp((zr - zl) / (SWAY.lift * body.leg), -1, 1);
         }
-        leanTrunk(skeleton, pose, rootRef, skelMats, lean, mats);
+        if (LEAN_ON) leanTrunk(skeleton, pose, rootRef, skelMats, lean, mats);
         if (clearOn) clearArms(skeleton, pose, rootRef, skelMats, { armor: armorW });   // ARM-CLEARANCE, last: over the lean and the carry
         return report;
       } };

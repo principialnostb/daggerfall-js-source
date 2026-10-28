@@ -119,7 +119,7 @@ test('BODY-WEIGHT SWAY: a steady walk in plate carries the trunk a little forwar
   assert.ok(layer.sway().on < 0.01, 'standing still, the shift goes');
 });
 
-test('BODY-WEIGHT SWAY: the trunk shifts over the LOWER foot - a raised right foot leans the body to the left, in step with the clip', () => {
+test('BODY-WEIGHT SWAY: the trunk shifts over the LOWER foot - a raised right foot leans the body to the left, in step with the clip', { skip: 'LEAN_ON is false - the lean and the sway are set aside (Motion-Doctrine.md 7d)' }, () => {
   const sm = (sk, pose, root) => skeletonSpaceMatrices(sk, pose, root);
   const sk = buildSkeleton(parseNif(retailSkeleton()));
   const thigh = sk.byName.get('bip01 r thigh'), foot = sk.byName.get('bip01 r foot');
@@ -142,5 +142,5 @@ const mul33 = (a, b) => [0, 1, 2].flatMap((r) => [0, 1, 2].map((c) => a[r * 3] *
 test('BODY-WEIGHT: the rig steps it behind the MotionDoctrine switch and lays it over the body-motion slot', () => {
   const src = readFileSync(new URL('../../../src/combat/fpArm.js', import.meta.url), 'utf8');
   assert.match(src, /bodyWeight\.stepRig\(dt, modSetting\('morrowind-animation', 'MotionDoctrine'\) !== 0 && viewMode === 'third', cam, lastBuildOpts\?\.armor, thirdBuilt\?\.mwType, dead\)/);
-  assert.match(src, /motion: bodyWeight\.slot\(strideLaw\.slot\(motion\.slot\)\)/);   // PIN MOVED (STRIDE): the legs lengthened under it
+  assert.match(src, /motion: bodyWeight\.slot\(motion\.slot\)/);   // PIN MOVED back (STRIDE set aside, Motion-Doctrine.md 7d)
 });

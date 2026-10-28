@@ -259,7 +259,7 @@ behind the same switch:
    their feet to it. The planted foot's own pace against the root's (MW units/s): walkforward 135/154 (a 12 per cent
    slide), walkleft 81/121 (33), walkright 78/121 (35), runforward 215/223 (4), runback 128/226 (44), runleft 73/104
    (30), runright 82/104 (22), sneakleft 17/27 (35). `clipFootSpeed` measures the clip's grounded foot on the rig's own
-   skeleton once per source and group, and the rate divides by it (src/combat/fpArm.js:"const vel = strideLaw.pace(") - PX29's law
+   skeleton once per source and group, and the rate divides by it (src/characters/bodyMotion/stride.js:"export function clipFootSpeed" - unwired since 7d) - PX29's law
    holds: it is the playing clip's own number.
 3. **THE LOOP SEAMS (LOOP-SEAM).** Retail's sneakforward2c and sneakforward2w end with the left knee 11 units from
    where they start - a jump at every wrap; MAO's turns 2 to 4.6. `src/combat/loopSeam.js` carries a looping movement
@@ -335,6 +335,26 @@ motion slot, over the lean. Pinned by `test/characters/bodyMotion/armclearance.t
 
 Seen and NOT changed, the owner to decide: a sheathe (Z) pressed mid-blow is dropped, not queued; a blow clicked in the
 air starts on the landing. Pinned by `test/combat/idlesettle.test.js`.
+
+### 7d. SET ASIDE - the procedural locomotion (2026-10-28)
+
+The owner, after the sweeps: walking and running "in combat, and the sidestep with a weapon, are done very well", but
+"how the character walks and runs out of the combat stance looks very bad - it sways strangely walking, the run is
+strange too"; "the old walk and run were fine in quality ... now everything has gone wooden". Traced: out of a stance
+the walk is OpenMW Dynamic Animations' female `WalkForward_base15` (the PlayerWalkSource default picks it for a female
+body) and the run MAO's - two packs - and over them STRIDE stretched the legs and slowed their cadence, FOOT-SPEED
+re-timed them, and BODY-WEIGHT leant and swayed the trunk. Procedural motion over the clips read as plastic: the
+stylised school's life is the clips' own (section 1). So, at the owner's word:
+
+- **STRIDE, FOOT-SPEED and MAX-RATE are unwired** (src/combat/fpArm.js no longer reads `strideLaw`; the rate divides by
+  the playing clip's root velocity again, PX29's pin as it was). `src/characters/bodyMotion/stride.js` and its tests are
+  kept - its measurements stand (the clips' slides, the 2-4x cadence) for a later, clip-based pass.
+- **BODY-WEIGHT's lean, carry and sway are off** (`LEAN_ON = false`, src/characters/bodyMotion/bodyWeight.js); its slot
+  still runs ARM-CLEARANCE.
+- **Kept** - the fixes, none of them an added motion: LOWER-BODY, TURN-GATE, MOVE-GRACE, SHOWN-POSE, BLEND-CARRY,
+  LOOP-SEAM, IDLE-SETTLE, ARM-CLEARANCE, FP-INERTIA, HIT-RESPONSE.
+- **Open**: the out-of-stance walk from one pack with the run (the owner: "later we'll deal with them"); the pack's
+  own variant choice (`march13/15` for armour) needs its Lua's rule, which the port does not run.
 
 Then step 3's rest: the two-hander's blows in third person. Every step sits behind a switch "as now / by the formula",
 is judged by the owner in the game, and lives in a module of its own (HOST-SPLIT, `01-Overview/Host-Split.md`).

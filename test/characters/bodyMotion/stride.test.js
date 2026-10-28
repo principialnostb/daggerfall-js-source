@@ -73,12 +73,9 @@ test('FOOT-SPEED: with the switch off, or no skeleton, the pace is the reference
   assert.equal(law.pace({ trackMap: new Map() }, { group: 'walkforward' }, {}, 154, false), 154);
 });
 
-test('STRIDE and FOOT-SPEED: the rig reads them behind the MotionDoctrine switch', () => {
+test('STRIDE and FOOT-SPEED: SET ASIDE (2026-10-28, the owner: "now everything has gone wooden") - the rig no longer reads them', () => {
   const src = readFileSync(new URL('../../../src/combat/fpArm.js', import.meta.url), 'utf8');
-  assert.match(src, /: strideLaw\.rate\(Math\.min\(MOVEMENT_SPEED_CAP,/);
-  assert.match(src, /strideLaw\.stepRig\(dt, modSetting\('morrowind-animation', 'MotionDoctrine'\) !== 0 && viewMode === 'third', movementState, movementSource, cam, movementAnimSpeed, MW_UNITS_PER_METER\)/);
-  assert.match(src, /const vel = strideLaw\.pace\(movementSource, movementState, rig\(\)\?\.arm\?\.skeleton,/);
-  assert.match(src, /motion: bodyWeight\.slot\(strideLaw\.slot\(motion\.slot\)\)/);
+  assert.doesNotMatch(src, /strideLaw/, 'the module is kept and pinned above, the rig does not wire it');
 });
 
 test('STRIDE MAX-RATE: a sideways run at Daggerfall\'s full speed never scurries past the cap - the rest is a slide', () => {
