@@ -6987,7 +6987,8 @@ export function createFpArm({ playerAppearance = false } = {}) {
     /** STANCE-FIRST (the owner, 2026-10-28: "машет двуручником из одноручной стойки"): IS THE HAND THE GAME ASKED FOR
      *  THE ONE THE ARM HOLDS? The swap is async (its meshes and pictures load) and a rebuild in flight holds it queued,
      *  while the game's weapon changed at once - a blow started in the gap was the new weapon's, thrown from the old
-     *  stance. weaponRig holds the swing until this answers true, as DFU's equip countdown holds it. True with no
+     *  stance. While this is false the arm draws no blow (attack) and leads none (weaponRig's armLed) - the game's blow
+     *  is never held for a picture: the client draws, the game decides (LOAD-STALL's MECHANICS-UNTOUCHED). True with no
      *  standing arm, for the wolf (it holds nothing) and for a swap this rig refused (nothing is coming). */
     handSettled() {
       if (!built || !built.ok || built.werewolf || wantKey === null) return true;
@@ -7593,6 +7594,9 @@ export function createFpArm({ playerAppearance = false } = {}) {
      */
     attack(strike, { hold = false, blow = null, roll = 0, hand = null } = {}) {   // TWO-HANDS: `hand` - the hand the law gave the blow
       if (!built || !built.ok || sheathed || dead) return null;   // MWNPC4: the dead swing nothing
+      // STANCE-FIRST: no blow drawn with a hand the game has already put away - the new one is still loading; the blow
+      // itself is the game's and lands on its own clock (weaponRig's armLed leads none while this is so)
+      if (!api.handSettled()) return null;
       if (nonBiped()) return creatureAttack(roll, blow);   // MWNPC9: claws and jaws - one of its attacks by the roll
       // MW-PACE1: A BLOW IN THE FOLLOW-THROUGH IS CUT FOR THE NEXT. The machine starts a strike only from Idle, so
       // a strike arriving here is a blow it has already finished; refusing it (the reference's gate, which knows no
