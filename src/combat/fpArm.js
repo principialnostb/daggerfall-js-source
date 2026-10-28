@@ -58,7 +58,7 @@ import { nodeTransformOf } from '../formats/morrowind/mwCharacter.js';
 import { parseNif } from '../formats/morrowind/mwNifFile.js';
 import { flattenNif } from '../formats/morrowind/mwNifMesh.js';
 import {
-  assembleFirstPersonArm, poseAssembly, armPieceRows, clipReport, clipUnionBounds, clipSweepTimes, bindPartsInto,
+  assembleFirstPersonArm, poseAssembly, armPieceRows, clipReport, clipUnionBounds, clipUnionBoundsSliced, sweepShadowOf, clipSweepTimes, bindPartsInto,
   armReport, armMeshPaths, bodyParts,
   weaponRecords, dfWeaponToMw, dfWeaponShape, pickWeaponRecord, weaponAttachBone, MW_WEAPON_TYPE,
   ammoTypeFor, arrowAttachBone, ARROW_FALLBACK_NODE, reloadsItself, shootsRatherThanSwings,
@@ -1711,14 +1711,40 @@ function adoptMemoGeneration(genOf) {
   const gen = genOf();
   if (gen !== memoGen) {
     memoGen = gen;
-    for (const m of [ESM_WALK_CACHE, CLIP_REPORT_CACHE, TEXTURE_CACHE, FACE_MATCH_CACHE, CLOT_COLOUR_CACHE, ITEM_ICON_CACHE, HEAD_PORTRAIT_CACHE]) m.clear();
+    for (const m of [ESM_WALK_CACHE, CLIP_REPORT_CACHE, TEXTURE_CACHE, FACE_MATCH_CACHE, CLOT_COLOUR_CACHE, ITEM_ICON_CACHE, HEAD_PORTRAIT_CACHE, REACH_CACHE, ESM_MERGE_CACHE]) m.clear();
     headCatalog = null;   // PORTRAIT3D: and the catalogue the portraits read
   }
   return gen;
 }
+/** LOAD-STALL 2: the reach sweep's union, by the arm it measured (buildFpArm) - one generation, the newest
+ *  REACH_CACHE_CAP arms. */
+const REACH_CACHE = new Map();
+/** LOAD-STALL 2: the load order's records joined, by generation and order (buildFpArm). */
+const ESM_MERGE_CACHE = new Map();
+const REACH_CACHE_CAP = 32;
+function rememberReach(key, union) {
+  REACH_CACHE.delete(key);
+  REACH_CACHE.set(key, Object.freeze({ ...union }));
+  while (REACH_CACHE.size > REACH_CACHE_CAP) REACH_CACHE.delete(REACH_CACHE.keys().next().value);
+}
+/** LOAD-STALL 2: WHICH ARM - each piece's slot, part, batch and size, and a few of its bind-pose floats (a gauntlet's
+ *  for another of the same count is not the same arm). Read off the bind data, never the posed copy. */
+export function armShapeKey(pieces) {
+  const out = [];
+  for (const p of pieces ?? []) {
+    const pos = p.batch?.positions ?? null;
+    let sample = '';
+    if (pos && pos.length) {
+      const step = Math.max(3, Math.floor(pos.length / 8 / 3) * 3);
+      for (let i = 0; i < pos.length; i += step) sample += `${Math.round(pos[i] * 100)},`;
+    }
+    out.push(`${p.slot}/${p.partName ?? ''}/${p.batch?.name ?? ''}/${pos?.length ?? 0}/${p.indices?.length ?? 0}/${sample}`);
+  }
+  return out.sort().join(';');
+}
 /** Test seam: the entries the generation memos hold. */
 export const _memoEntryCount = () => ESM_WALK_CACHE.size + CLIP_REPORT_CACHE.size + TEXTURE_CACHE.size
-  + FACE_MATCH_CACHE.size + CLOT_COLOUR_CACHE.size + ITEM_ICON_CACHE.size;
+  + FACE_MATCH_CACHE.size + CLOT_COLOUR_CACHE.size + ITEM_ICON_CACHE.size + REACH_CACHE.size + ESM_MERGE_CACHE.size;
 
 /** MW-MOUNT: THE FACE-ON FRAME a displayed item's picture is taken
  *  under - a thing hung flat on a wall is seen along its thinnest
@@ -3772,26 +3798,38 @@ export async function buildFpArm({
     // returns mwEsmFile's body shape; armReport wants bodyParts' shape;
     // there is no adapter and writing one by guess inside this slice is
     // exactly how MW7 died. Raw bytes through the pinned path instead.
-    const parts = esmBytes.flatMap((e) => walk(e, 'parts', bodyParts));
-    // MW-D29: the ARMO records ride the same esm walk, load order and
-    // all - the composer resolves DF pieces against them by token.
-    const armors = esmBytes.flatMap((e) => walk(e, 'armors', armorRecords));
-    const clothes = esmBytes.flatMap((e) => walk(e, 'clothes', clothingRecords));
-    // MW-D9: THE WEAPON RECORDS. MW-LOAD hoisted them here, beside the
-    // other three walks, because weaponPartPaths needs them to name the
-    // weapon and arrow meshes BEFORE resolveWeaponParts reads them -
-    // and because one stage of the clock should hold every esm walk.
-    const allWeapons = esmBytes.flatMap((e) => walk(e, 'weapons', weaponRecords));
-    // MW-D51: THE LIGHT RECORDS, the same walk - a lit torch's mesh is
-    // named by a LIGH record the way a blade's is by a WEAP.
-    const allLights = esmBytes.flatMap((e) => walk(e, 'lights', lightRecords));
-    // MW-SPELLFX1: THE MAGIC EFFECTS AND THE STATICS THEIR VISUALS ARE, the same walk - a later master's record of an
-    // index or an id replaces an earlier one's, which is the load order
-    const magic = { effects: new Map(), statics: new Map() };
-    for (const e of esmBytes) {
-      for (const m of walk(e, 'magicEffects', magicEffectRecords)) magic.effects.set(m.index, m);
-      for (const st of walk(e, 'statics', vfxStaticRecords)) magic.statics.set(st.id, st.model);
+    // LOAD-STALL 2: THE MERGE IS MEMOISED WITH THE WALKS - the load order's records joined (thousands of rows, five
+    // ways) were joined again at every equip; one generation and one load order join once. Read-only downstream.
+    const mergeKey = gen !== null ? `${gen}|${esmBytes.map((e) => e.name).join('|')}` : null;
+    let merged = mergeKey ? ESM_MERGE_CACHE.get(mergeKey) : undefined;
+    if (!merged) {
+      const magicOf = { effects: new Map(), statics: new Map() };
+      // MW-SPELLFX1: THE MAGIC EFFECTS AND THE STATICS THEIR VISUALS ARE, the same walk - a later master's record of an
+      // index or an id replaces an earlier one's, which is the load order
+      for (const e of esmBytes) {
+        for (const m of walk(e, 'magicEffects', magicEffectRecords)) magicOf.effects.set(m.index, m);
+        for (const st of walk(e, 'statics', vfxStaticRecords)) magicOf.statics.set(st.id, st.model);
+      }
+      merged = {
+        parts: esmBytes.flatMap((e) => walk(e, 'parts', bodyParts)),
+        // MW-D29: the ARMO records ride the same esm walk, load order and
+        // all - the composer resolves DF pieces against them by token.
+        armors: esmBytes.flatMap((e) => walk(e, 'armors', armorRecords)),
+        clothes: esmBytes.flatMap((e) => walk(e, 'clothes', clothingRecords)),
+        // MW-D9: THE WEAPON RECORDS. MW-LOAD hoisted them here, beside the
+        // other three walks, because weaponPartPaths needs them to name the
+        // weapon and arrow meshes BEFORE resolveWeaponParts reads them -
+        // and because one stage of the clock should hold every esm walk.
+        allWeapons: esmBytes.flatMap((e) => walk(e, 'weapons', weaponRecords)),
+        // MW-D51: THE LIGHT RECORDS, the same walk - a lit torch's mesh is
+        // named by a LIGH record the way a blade's is by a WEAP.
+        allLights: esmBytes.flatMap((e) => walk(e, 'lights', lightRecords)),
+        magic: magicOf,
+      };
+      if (mergeKey) ESM_MERGE_CACHE.set(mergeKey, merged);
     }
+    const { parts, armors, clothes, allWeapons, allLights } = merged;
+    const magic = { effects: merged.magic.effects, statics: merged.magic.statics };
     // RULE 32(a)'s GMST, read from the player's own data. Later masters
     // override earlier ones, so the LAST .esm that carries it wins -
     // which is the load order, not a preference.
@@ -4383,7 +4421,27 @@ export async function buildFpArm({
     // lens. A peer's body, the family's, the card table's and every NPC's are drawn in third person alone, so their
     // builds (`reachSweep: false` - peerBuildOpts) take the idle's reach for both planes and skip the sweep.
     const sweep = reachSweep ? clipSweepTimes(sources, idleCheck) : null;
-    const union = sweep ? clipUnionBounds(arm, poseAt, sweep) : null;
+    // LOAD-STALL 2: the sweep's union is the arm's - its skeleton, the idle source's tracks, the samples and the
+    // first-person pieces - and nothing else, so a worn change that leaves the arm alone (a cuirass, the legs, a helm,
+    // a cloak) answers it from REACH_CACHE; a new one is swept in slices, the thread handed back between
+    const reachKey = sweep && gen !== null ? `${gen}|${skeletonPath}|${idlePick.source.name}|${sweep.length}|${armShapeKey(arm.pieces)}` : null;
+    // An arm not yet swept stands NOW on its idle's reach and is swept AFTER, beside the frames, on a shadow of itself
+    // (sweepShadowOf) - the piece appears at once and the far plane widens when the sweep lands (createFpArm's build).
+    // A test's deps carry no generation: there the sweep stands inside the build, as it always has.
+    let union = reachKey ? REACH_CACHE.get(reachKey) ?? null : null;
+    let sweepLater = null;
+    if (sweep && !union) {
+      if (gen === null) union = await clipUnionBoundsSliced(arm, poseAt, sweep);
+      else {
+        const shadow = sweepShadowOf(arm);
+        const shadowAt = (t) => poseAssembly(shadow, { tracks, sampleTrack, time: t, accumRoot });
+        sweepLater = async () => {
+          const u = await clipUnionBoundsSliced(shadow, shadowAt, sweep);
+          if (u) rememberReach(reachKey, u);
+          return u;
+        };
+      }
+    }
     const c = idleCheck;
     const idleTimes = Array.from({ length: 25 }, (_, i) => c.startTime + ((c.stopTime - c.startTime) * i) / 24);
     poseAt(c.startTime);
@@ -4413,7 +4471,7 @@ export async function buildFpArm({
     // closest to the eye.
     const eye = firstPersonEye(arm.mats, cameraRef);
     const idleReach = armReach(eye, clipUnionBounds(arm, poseAt, idleTimes));
-    const reach = union ? armReach(eye, union) : idleReach;   // MWNPC3: no sweep, the idle's
+    const reach = union ? armReach(eye, union) : idleReach;   // MWNPC3: no sweep, the idle's (LOAD-STALL 2: or not yet)
     poseAt(c.startTime);
     if (weaponInfo) weaponInfo.side = weaponRestSide(arm, weaponInfo.bone);
     if (arrowInfo) arrowInfo.side = weaponRestSide(arm, arrowInfo.bone);
@@ -4470,6 +4528,8 @@ export async function buildFpArm({
       textures,
       cameraRef,
       reach,
+      // LOAD-STALL 2: the sweep still owed this arm - the reach it lands on, or null (createFpArm's build runs it)
+      sweepLater: sweepLater ? async () => { const u = await sweepLater(); return u ? armReach(eye, u) : null; } : null,
       idleReach,
       skeletonPath,
       settingsSkeleton,
@@ -6820,6 +6880,7 @@ export function createFpArm({ playerAppearance = false } = {}) {
         torch: false,
         hipLight: false,
         spellReady: false,
+        reachSweep: false,   // LOAD-STALL 2: the editor's figure is the third body alone - no first-person far plane to sweep (MWNPC3's door)
       };
       const builtPreview = await previewRig.build(opts);
       if (!builtPreview?.ok) {
@@ -6911,6 +6972,16 @@ export function createFpArm({ playerAppearance = false } = {}) {
         wornEquipKey = wornEquipKeyOf(opts && opts.armor);
         lastBuildOpts = opts ? { ...opts } : null;
         buildDeps = (opts && opts.deps) || null;
+        // LOAD-STALL 2: the sweep the build owes, beside the frames; it lands on this rig alone, and only while the arm
+        // it measured still stands (a hand swapped since reset the reach itself), through the held sheet's floor
+        if (res && res.ok && typeof res.sweepLater === 'function') {
+          const piecesAt = res.arm.pieces;
+          res.sweepLater().then((r) => {
+            if (r == null || built !== res || res.arm.pieces !== piecesAt) return;
+            if (held && held.built === res) held.reach0 = r;
+            else res.reach = r;
+          }, () => { /* the idle's reach stands */ });
+        }
         idleState = null; actionState = null; idleGroup = null; weaponGroup = null; weaponClock = { group: null, value: 0 };   // MW-BOW1: no group, no state
         movementState = null; movementGroup = null; movementSource = null; movementBase = null;
         jumpState = null; jumpGroup = null; jumpSource = null; jumpStance = null; jumpKind = null;   // MW-D39
