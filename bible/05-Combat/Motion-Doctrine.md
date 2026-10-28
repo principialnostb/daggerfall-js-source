@@ -309,7 +309,7 @@ every frame; a single-frame jump three times its neighbours' and over 7 cm was f
    with it.
 3. **ELBOW-OUT** - the claymore's left elbow stood 0.02-0.05 m off the spine's axis, inside the cuirass (the owner's
    screenshots): the grip's elbow way, once down, left and a little back, is now out to the left and forward
-   (src/characters/bodyMotion/carry.js:"haf.pole = norm(add(scale(F.right, -0.65)").
+   (src/characters/bodyMotion/carry.js:"haf.pole = norm(add(scale(F.right, -0.55)").
 4. **SERIES intent 0.85** - a click every 0.7 s fell out of its series and the idle cut in for 0.09 s between blows
    (src/combat/weapon/attackSeries.js:"export const SERIES").
 
