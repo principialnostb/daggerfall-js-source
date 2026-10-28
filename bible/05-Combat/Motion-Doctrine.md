@@ -112,7 +112,7 @@ In third person a frame poses ONE winning clip on every bone - action over movem
 and a Morrowind attack clip stands still: the feet freeze while the capsule travels, and the body slides.
 BODY-MOTION closed this by walking the legs under the blow ("The legs keep walking", `04-Characters/Body-Motion.md`),
 but since the fork's 2026-10-21 commits the layer steps aside for every blow and for an unarmed body
-(src/characters/bodyMotion/bodyMotion.js:"if (cls === 'free' || bp)") and no longer drives the legs at all, so the gap is open again.
+(src/characters/bodyMotion/bodyMotion.js:"if (cls === 'free' || !(entry > 1e-3))" - since BLOW-ENTRY, 7c, over its first 0.12 s) and no longer drives the legs at all, so the gap is open again.
 
 The reference has no such gap: OpenMW resolves priority per bone group (rule 26, `02-Formats/Morrowind-Rules.md`) -
 a weapon group plays at `Priority_WeaponLowerBody` on the lower body, below `Priority_Movement`, so while the actor
@@ -315,6 +315,13 @@ every frame; a single-frame jump three times its neighbours' and over 7 cm was f
 
 Measured and sound: the cadences (walk 1.68, run 1.38, strafes 1.9-2.4, back 1.6-2.2 - no scurry), the stops
 (`walk -> idle`, no turn), the sneak, the series at 0.25 and 0.45 s and the held button (one blow group throughout).
+**The re-run after those fixes** (the same scene, the claymore) measured what they missed: the elbow 0.08-0.12 m off
+the spine (better, not clear - its way turned further forward, -0.55/-0.3/0.8); the landing flicker still there (the
+grace had been off while airborne, and the landing's flicker IS an airborne frame - the grace now holds through it);
+and the blow's second-frame leap unchanged at 0.38 m with the clip's own time barely moving (323.27 -> 323.28) - not a
+fade at all but **BLOW-ENTRY**: BODY-MOTION stepped its carry aside in the blow's first frame, so the hands left the
+carry for the clip in one; it now lets go over `MOTION_EASE.blowEntry` 0.12 s, as BLOW-RETURN takes it back.
+
 Seen and NOT changed, the owner to decide: a sheathe (Z) pressed mid-blow is dropped, not queued; a blow clicked in the
 air starts on the landing. Pinned by `test/combat/idlesettle.test.js`.
 

@@ -34,7 +34,7 @@ const { add, scale, sub, cross, norm, len, lerp } = algebra;
 /** THE EASES (seconds): the layer on and off (off quicker - a recoil or a death takes the body at once), the arms on and
  *  off (a draw, a cast, a torch lit), and a change of carry class (a weapon drawn, a pair raised); `carry` (radians a
  *  second) the critically damped spring the carry's gait shares follow the gait's on (AUDIT BODY-MOTION CARRY-6). */
-export const MOTION_EASE = Object.freeze({ in: 0.14, out: 0.1, outFast: 0.05, armIn: 0.12, armOut: 0.07, cls: 0.14, carry: 14, sneak: 0.6, blowReturn: 0.5 });
+export const MOTION_EASE = Object.freeze({ in: 0.14, out: 0.1, outFast: 0.05, armIn: 0.12, armOut: 0.07, cls: 0.14, carry: 14, sneak: 0.6, blowReturn: 0.5, blowEntry: 0.12 });
 
 /** The blade's length (MW units) each class draws on the contact sheets - the sheet's alone; the rig draws the mesh. */
 const SHEET_BLADE = Object.freeze({ one: 58, two: 88, wide: 112, spear: 120, dual: 54 });
@@ -116,6 +116,7 @@ export function createBodyMotion() {
   const armW = { L: 0, R: 0 };
   let sneakHand = false;   // SNEAK-GUARD: the one-hander's arm handed to the sneak clip, or on its way back from it
   let sinceBlow = Infinity;   // BLOW-RETURN: seconds since the clip last had a blow (the layer steps aside for one)
+  let blowAge = 0;   // BLOW-ENTRY: seconds the blow now in the machine has run (the layer steps aside over the first of them)
   let cls = 'free', clsFrom = null, clsMix = 1;
   // THE CARRY'S OWN GAIT SHARES: the gait's (idle, walk, run, sneak) followed by a critically damped spring - the gait's
   // first-order eases start a change at full speed, and the arms with them (AUDIT BODY-MOTION CARRY-6: a run's carry
@@ -275,6 +276,7 @@ export function createBodyMotion() {
       else lastBlow = null;
       bpNow = seen ?? lastBlow;
       sinceBlow = bpNow ? 0 : sinceBlow + Math.max(0, dt);   // BLOW-RETURN
+      blowAge = bpNow ? blowAge + Math.max(0, dt) : 0;   // BLOW-ENTRY
       stance = stanceNow(bpNow);
       stepTime = bpNow && bpNow.step > 0 && bpNow.w > 0.05 ? TURN.quick : null;
       if (input.on && body) stepGait(gait, gaitInput(), body, dt);
@@ -294,7 +296,11 @@ export function createBodyMotion() {
       // strike. The upstream overlay is only applied to weapon carry between attacks.
       // Even a small chest turn during a strike shifts the weapon's animated arc, so
       // leave the complete attack pose untouched from wind-up through follow-through.
-      if (cls === 'free' || bp) { last = null; return null; }
+      // BLOW-ENTRY (2026-10-28, Motion-Doctrine.md 7c, measured in the owner's game): stepped aside in the blow's first
+      // frame, the carry's hands left the clip's in one - a claymore's blade leapt 0.38 m on the second frame of every blow;
+      // the layer now lets go over MOTION_EASE.blowEntry, as BLOW-RETURN takes it back over blowReturn
+      const entry = bp ? 1 - smooth(blowAge / MOTION_EASE.blowEntry) : 1;
+      if (cls === 'free' || !(entry > 1e-3)) { last = null; return null; }
 
       const gp = gaitPose(gait, gi, body);
       // BLOW-RETURN (Mac: "after the blow the two-hander stays raised and goes back to neutral instantly"): the layer comes
@@ -302,7 +308,7 @@ export function createBodyMotion() {
       // whole blow, it took the carry's hands back the frame the blow ended
       const back = Number.isFinite(sinceBlow) ? smooth(sinceBlow / MOTION_EASE.blowReturn) : 1;
       const plan = {
-        w: w * back,
+        w: w * back * entry,
         armW: { L: armW.L, R: armW.R },
         arms: (ctx) => handsFor(ctx, gp, null, null),
       };

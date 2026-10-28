@@ -103,7 +103,8 @@ export function blendSourceOf(assembly, on = true) {
 /**
  * MOVE-GRACE (2026-10-28, the same probe): a running jump landed as runforward -> idle (one frame) -> runforward - the
  * movement emptied for a frame and MW-D29's reset dropped the run, restarted the idle and faded twice. A movement that
- * empties now waits `seconds` before it is let go (the airborne frames, the jump's own, are not waited on); a stop is
+ * empties now waits `seconds` before it is let go - the landing's own airborne flicker too (a jump that truly leaves the
+ * ground shows its clip that much later); a stop is
  * that much later, a flicker is no stop.
  */
 export const MOVE_GRACE = Object.freeze({ seconds: 0.06 });

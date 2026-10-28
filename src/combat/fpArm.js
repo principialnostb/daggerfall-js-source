@@ -6255,7 +6255,7 @@ export function createFpArm({ playerAppearance = false } = {}) {
       turning: turnDir,
       thirdPerson: viewMode === 'third' && !nonBiped(),   // MWNPC9: turning animations are a biped's (character.cpp:2178)
     });
-    const keepMove = moveGrace.step(!base, dt, !inJump && modSetting('morrowind-animation', 'MotionDoctrine') !== 0);   // MOVE-GRACE (combat/idleSettle.js)
+    const keepMove = moveGrace.step(!base, dt, modSetting('morrowind-animation', 'MotionDoctrine') !== 0);   // MOVE-GRACE (combat/idleSettle.js)
     if (!base) {
       // MW-D29: the frame the movement EMPTIES while one was playing,
       // the idle resets with it (character.cpp:646-651) - so it replays
