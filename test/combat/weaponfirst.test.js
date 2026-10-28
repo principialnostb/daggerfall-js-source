@@ -52,3 +52,14 @@ test('LOAD-STALL 4: archive reads go through one queue - at most ARCHIVE_READS_N
   await Promise.all([...normal, mine, mine2]);
   assert.deepEqual(_archiveReadState(), { running: 0, urgent: 0, normal: 0 });
 });
+
+test('TEXTURE-HEAL: a picture whose read did not land is asked for again after a build and a swap - one the file refused never is (mutants: the memo unread, so a refused file is read for ever; never asked again; the rig\'s meshes never hang it)', () => {
+  const heal = src.slice(src.indexOf('async function healTextures(token, tries = 0) {'), src.indexOf('async function healTextures(token, tries = 0) {') + 2200);
+  assert.match(heal, /e && !e\.ok && !TEXTURE_CACHE\.has\(`\$\{gen\}:\$\{file\}`\)/, 'transient: not ok AND not the memo\'s answer');
+  assert.match(heal, /if \(gen === null \|\| tries >= TEXTURE_HEAL_TRIES\) return 0;/);
+  assert.match(heal, /releaseMesh\(\); packed = null; releaseThirdMesh\(\); thirdPacked = null;/);
+  assert.match(src, /healTextures\(res\)\.catch\(\(\) => 0\);/);
+  assert.match(src, /healTextures\(token\)\.catch\(\(\) => 0\);/);
+  // the memo keeps a file's own refusal (and an absent file) - the line the heal reads it by
+  assert.match(src, /if \(err\?\.decoderError && !TEXTURE_CACHE\.has\(key\)\) TEXTURE_CACHE\.set\(key, \{ ok: false/);
+});
