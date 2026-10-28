@@ -159,6 +159,14 @@ is not - so after every build and every weapon swap the rig (`healTextures`) rea
 again, `TEXTURE_HEAL_TRIES` (3) times, `TEXTURE_HEAL_MS` (2 s) further apart, both views, and what lands replaces its
 warning; the meshes hang their ranges again at the next draw.
 
+**LOAD-HOLD - no wait is for ever** (the owner, the same evening: a Claymore swapped for a one-hander "повисла белыми
+ножнами на бедре, стойка не меняется"). The vendored archive (`urlArchive.js` - the scabbards, the packs' files) kept a
+FAILED fetch's promise in `inflight`, so a file the dev server refused once answered that refusal for the session, and
+the heal read the same refusal; it is let go now. And every wait is bounded: an archive read that has not answered in
+`ARCHIVE_READ_LEASE_MS` (15 s) gives its place in the queue back and is answered as a miss (the caller says so; the read,
+landing later, is in the archive for the next load), and a texture worker holding one job past `DECODE_TIMEOUT_MS`
+(20 s) is let go and its jobs decode on the page's thread.
+
 ## 6. What is left, in order
 
 1. **A part changed in place** (OpenMW's `updateParts`): a worn change rebinds the slots that moved onto the standing

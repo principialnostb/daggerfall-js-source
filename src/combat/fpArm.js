@@ -449,6 +449,7 @@ async function loadFromArchives(archives, paths, urgent = false) {   // LOAD-STA
  *  read always finds a place, and the urgent line is served first. */
 export const ARCHIVE_READS_MAX = 6;
 export const ARCHIVE_READS_NORMAL = 4;
+export const ARCHIVE_READ_LEASE_MS = 15000;
 const archiveReads = { running: 0, urgent: [], normal: [] };
 export function archiveRead(read, urgent = false) {
   return new Promise((resolve, reject) => {
@@ -463,10 +464,16 @@ function pumpArchiveReads() {
     if (!line) return;
     const job = line.shift();
     archiveReads.running++;
-    const done = () => { archiveReads.running--; pumpArchiveReads(); };
+    // LOAD-HOLD: a read that never answers gives its place back after ARCHIVE_READ_LEASE_MS and is answered as failed
+    // (its caller reads a miss and says so; the read, if it lands later, is in the archive for the next load) - one
+    // stalled read held its place for ever, and a few of them held every read behind them
+    let settled = false;
+    const done = () => { if (settled) return false; settled = true; clearTimeout(lease); archiveReads.running--; pumpArchiveReads(); return true; };
+    const lease = setTimeout(() => { if (done()) job.reject(new Error('archive read timed out')); }, ARCHIVE_READ_LEASE_MS);
+    /** @type {any} */ (lease)?.unref?.();
     let p;
     try { p = Promise.resolve(job.read()); } catch (e) { p = Promise.reject(e); }
-    p.then((v) => { done(); job.resolve(v); }, (e) => { done(); job.reject(e); });
+    p.then((v) => { if (done()) job.resolve(v); }, (e) => { if (done()) job.reject(e); });
   }
 }
 /** Test seam: the queue's state. */
