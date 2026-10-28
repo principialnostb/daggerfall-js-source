@@ -2892,6 +2892,7 @@ export function posePartClocks(assembly, value, { frameTime = value, slots = WEA
 // source arrays or NPC/item geometry.
 export { deformPlayerBodyGeometry };
 
+let cloakProbeQuery = null;
 export function poseAssembly(assembly, { tracks = null, sampleTrack = null,
   time = 0, accumRoot = null, neckPitch = 0, neckAim = 0, neckOffset = null, climb = null, skin = true, mirror = null, run = null, hold = null, motion = null, bodyProportions = false, blendFrom = null, blendWeight = 1 } = {}) {
   const { fns, skeleton, pieces } = assembly;
@@ -2996,8 +2997,9 @@ export function poseAssembly(assembly, { tracks = null, sampleTrack = null,
   // ?mwcloakprobe=1 or the Playwright harness. The browser overlay lives
   // in the user's normal game tab, so this shares the real session/assets.
   if (typeof window !== 'undefined') {
-    const queryEnabled = typeof location !== 'undefined'
-      && new URLSearchParams(location.search).get('mwcloakprobe') === '1';
+    // LOAD-STALL 2: the page's query read once - this ran a URLSearchParams parse at every pose of every body, every frame
+    const queryEnabled = (cloakProbeQuery ??= typeof location !== 'undefined'
+      && new URLSearchParams(location.search).get('mwcloakprobe') === '1');
     if (queryEnabled && !window.__mwCloakProbeInitialized) {
       window.__mwCloakProbeInitialized = true;
       window.__mwCloakProbeEnabled = true;
@@ -3947,6 +3949,42 @@ export function clipSweepTimes(sources, idleState, { perClip = 9 } = {}) {
     for (let i = 0; i < perClip; i++) out.push(a + ((b - a) * i) / (perClip - 1));
   }
   return out;
+}
+
+/** LOAD-STALL 2 (bible/07-Rendering/Load-Stalls.md): clipUnionBounds IN SLICES. The reach sweep poses the whole arm at
+ *  every clip's samples - two thousand poses on a retail rig with the animation packs, measured 500-750 ms held on the
+ *  frame's thread at every equip (tools/mwBuildProbe.mjs). The same union, the same poses in the same order; the thread
+ *  is handed back each `budgetMs`. `yieldNow` is the door back (a macrotask by default). */
+const macrotask = () => new Promise((resolve) => {
+  if (typeof globalThis.MessageChannel === 'function') { const ch = new globalThis.MessageChannel(); ch.port1.onmessage = () => { ch.port1.close(); resolve(); }; ch.port2.postMessage(0); }
+  else setTimeout(resolve, 0);
+});
+export async function clipUnionBoundsSliced(assembly, poseAt, times, { budgetMs = 6, yieldNow = macrotask, now = () => performance.now() } = {}) {
+  let acc = null;
+  let mark = now();
+  for (const t of times ?? []) {
+    poseAt(t);
+    const b = assembly.bounds;
+    if (b) {
+      acc = acc ? {
+        minX: Math.min(acc.minX, b.minX), minY: Math.min(acc.minY, b.minY), minZ: Math.min(acc.minZ, b.minZ),
+        maxX: Math.max(acc.maxX, b.maxX), maxY: Math.max(acc.maxY, b.maxY), maxZ: Math.max(acc.maxZ, b.maxZ),
+      } : { ...b };
+    }
+    if (now() - mark >= budgetMs) { await yieldNow(); mark = now(); }
+  }
+  return acc;
+}
+
+/** LOAD-STALL 2: A SHADOW OF THE ARM TO SWEEP - its skeleton, its pieces' bind data and placement, every posed output
+ *  its own (positions; no normals - a box reads none). Posing it writes nothing of the arm's: the frame's crossfade
+ *  reads the arm's last raw pose (fpArm's fpBlend), so a sweep run beside the frames must never pose the arm itself.
+ *  No afterPose: the one there is (the cloak's follow) is the third body's, never swept. */
+export function sweepShadowOf(assembly) {
+  return {
+    fns: assembly.fns, skeleton: assembly.skeleton, afterPose: null,
+    pieces: (assembly.pieces ?? []).map((p) => ({ ...p, positions: new Float32Array(p.positions?.length ?? 0), normals: null, sourceNormals: null, box: undefined })),
+  };
 }
 
 export function clipUnionBounds(assembly, poseAt, times) {
