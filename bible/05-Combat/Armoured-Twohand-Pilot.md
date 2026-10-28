@@ -88,3 +88,16 @@ the load while preserving the clip's foot positions/orientations through IK.
 No periodic walk sway is added. A recoil, death or airborne state immediately
 returns ownership to its own animation. Compression steps aside during a blow
 so it does not amplify the accepted standing attack layer.
+
+Second-pass checks: 55 focused tests pass, with one pre-existing disabled-sway
+test skipped; lint/types pass. The composed support test measures the feet's
+IK error under 0.1 rig units (about 1.4 mm), keeps hand spacing, and requires
+actual pelvis compression. The host-ceiling check reports the same 3577 logical
+lines in createFpArm before and after the pilot (the existing ceiling is 3252).
+The documentation gates retain their 17 failing test names; a separate cite
+check with Git's ownership exception scoped to the command resolves 2892 of
+2902 anchors, with the ten remaining diagnostics outside this pilot's changes.
+Only the first selected legacy mutation was verified killed: the Windows runner
+failed restoring the next file; the original was restored byte-for-byte from its
+backup and the 33 recovery/support tests were rerun successfully. No all-mutants
+passing claim is made. Visual acceptance of this second pass remains open.

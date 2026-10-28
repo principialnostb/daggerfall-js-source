@@ -2,7 +2,7 @@
   {
     "name": "BLOW-FLOW-the-return-snapped",
     "file": "src/combat/blowFlow.js",
-    "old": "  if (fromBlow) return BLOW_FLOW.exit;",
+    "old": "  if (fromBlow) return collected ? 0.18 : BLOW_FLOW.exit;",
     "new": "  if (fromBlow) return 0;",
     "tests": [
       "test/combat/blowflow.test.js"
