@@ -18,7 +18,7 @@ const sampleTrack = (tr, t) => { const a = tr.angle(t); return { rotation: [Math
 test('STRIDE: the ratio is shared - cadence times stride is the ratio, the stride capped, nothing below 1', () => {
   for (const k of [1.5, 2, 2.54, 4]) {
     const { rate, stride } = strideShare(k);
-    assert.ok(Math.abs(rate * stride - k) < 1e-9, `k ${k}`);
+    assert.ok(Math.abs(rate * stride - Math.min(k, STRIDE.maxRate * stride)) < 1e-9, `k ${k}`);
     assert.ok(stride <= STRIDE.maxStride + 1e-12 && stride >= 1);
     assert.ok(rate < k, `k ${k}: the legs step slower than the reference's ${k}x (${rate})`);
   }
@@ -79,4 +79,11 @@ test('STRIDE and FOOT-SPEED: the rig reads them behind the MotionDoctrine switch
   assert.match(src, /strideLaw\.stepRig\(dt, modSetting\('morrowind-animation', 'MotionDoctrine'\) !== 0 && viewMode === 'third', movementState, movementSource, cam, movementAnimSpeed, MW_UNITS_PER_METER\)/);
   assert.match(src, /const vel = strideLaw\.pace\(movementSource, movementState, rig\(\)\?\.arm\?\.skeleton,/);
   assert.match(src, /motion: bodyWeight\.slot\(strideLaw\.slot\(motion\.slot\)\)/);
+});
+
+test('STRIDE MAX-RATE: a sideways run at Daggerfall\'s full speed never scurries past the cap - the rest is a slide', () => {
+  const { rate, stride } = strideShare(5.6);
+  assert.equal(rate, STRIDE.maxRate);
+  assert.equal(stride, STRIDE.maxStride);
+  assert.ok(rate * stride < 5.6, 'the legs cover less than the body: a slide, the lesser evil');
 });

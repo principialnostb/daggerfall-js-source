@@ -284,6 +284,13 @@ place now needs `TURN_GATE.rate` 0.6 rad/s for `frames` 2 running (src/combat/id
 measured after: `walkforward -> idle`, `walkback -> idle`, the largest foot move in a frame 0.06-0.08 m. MW-D26's pin
 moved with it (two frames of a turn). Pinned by `test/combat/idlesettle.test.js`.
 
+**MAX-RATE**, found in the same run: the playback rates the stride and the foot's pace asked in the owner's game -
+walkforward 1.65, runforward 1.63, runback 2.74, **runleft 3.86** - Daggerfall strafes at the full run, and a run
+sideways's clip plants its foot at 73 units a second, so the legs scurried. The clip now plays at most
+`STRIDE.maxRate` 2.4 times its own speed; the rest of a strafe's speed is a slide, the lesser evil
+(src/characters/bodyMotion/stride.js:"return { rate: Math.min(STRIDE.maxRate, k / stride), stride };"). Pinned by
+`test/characters/bodyMotion/stride.test.js`.
+
 Then step 3's rest: the two-hander's blows in third person. Every step sits behind a switch "as now / by the formula",
 is judged by the owner in the game, and lives in a module of its own (HOST-SPLIT, `01-Overview/Host-Split.md`).
 

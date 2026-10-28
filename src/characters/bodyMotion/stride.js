@@ -22,7 +22,7 @@ import { ease, mul, transpose, apply, clamp01 } from './bodyKit.js';
  *  swing past their own, `ease` seconds the stride comes on and off with the movement, `samples` per cycle for its mean
  *  pose, `bones` the legs that swing. */
 export const STRIDE = Object.freeze({
-  cadence: 0.5, maxStride: 1.45, ease: 0.12, samples: 24,
+  cadence: 0.5, maxStride: 1.45, maxRate: 2.4, ease: 0.12, samples: 24,
   bones: Object.freeze(['bip01 l thigh', 'bip01 r thigh', 'bip01 l calf', 'bip01 r calf']),
   feet: Object.freeze(['bip01 l foot', 'bip01 r foot']),
 });
@@ -32,7 +32,10 @@ export const STRIDE = Object.freeze({
 export function strideShare(k) {
   if (!(k > 1)) return { rate: Math.max(0, k || 0), stride: 1 };
   const stride = Math.min(STRIDE.maxStride, k ** (1 - STRIDE.cadence));
-  return { rate: k / stride, stride };
+  // MAX-RATE (2026-10-28, the owner's game: a sideways run asked 3.86x - Daggerfall strafes at the full run, and a run
+  // sideways's clip covers 73 units a second): past `maxRate` the legs scurry, which reads worse than the little slide
+  // the rest of the speed then takes
+  return { rate: Math.min(STRIDE.maxRate, k / stride), stride };
 }
 
 /** The rotation `D` (row-major 3x3) raised to the power `p`: its angle times p about its own axis. */
