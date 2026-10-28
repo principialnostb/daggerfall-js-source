@@ -3061,9 +3061,14 @@ test('PX25: a worn change during a rebuild is applied when the build settles, no
 
 test('PX25: the pack hands the rig the worn table on every refresh', () => {
   const pack = readFileSync('src/ui/enhanced/enhancedInventory.js', 'utf8');
-  const refresh = pack.slice(pack.indexOf('const refresh = () => {'), pack.indexOf('const refresh = () => {') + 1400);
+  const at = pack.indexOf('const refresh = () => {');
+  const refresh = pack.slice(at, pack.indexOf('\n};', at));
   assert.match(refresh, /arm\.setWorn\(dfWornEquipment\(equipTableOf\(deps\.entity\), EQUIP_SLOTS, ARMOR_ENUM\)\)/,
     'refresh must tell the rig what is worn');
+  // STANCE-FIRST: the hand goes first - the table's door is a whole rebuild that would carry the old hand and queue the
+  // new one behind it (mutant: setWorn back above the hand)
+  assert.ok(refresh.indexOf('deps.handArm()') >= 0 && refresh.indexOf('deps.handArm()') < refresh.indexOf('arm.setWorn('),
+    'the hand must be handed over before the worn table');
   const src = readFileSync('src/combat/fpArm.js', 'utf8');
   assert.match(src, /if \(busy\) \{ pendingWorn = pieces; return false; \}/);
   // MAC-S1: the flush is flushPending()'s now, and build() calls it.
