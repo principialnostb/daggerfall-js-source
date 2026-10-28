@@ -8147,7 +8147,7 @@ export function createFpArm({ playerAppearance = false } = {}) {
         attackType, reversed: attackReversed, hand: attackHand, progress: actionState ? clipCompletion(actionState) : 0, strength: attackStrength,
         shown: weaponInHand(), hands: handsMode, torch: torchVisible(), spell: spellStance(), rifle: rifle.w, guard: pairDip(),
       }));
-      bodyWeight.stepRig(dt, modSetting('morrowind-animation', 'MotionDoctrine') !== 0 && viewMode === 'third', cam, lastBuildOpts?.armor, thirdBuilt?.mwType, dead);   // BODY-WEIGHT
+      bodyWeight.stepRig(dt, modSetting('morrowind-animation', 'MotionDoctrine') !== 0 && viewMode === 'third', cam, lastBuildOpts?.armor, thirdBuilt?.mwType, dead, motion.word());   // BODY-WEIGHT; BLOW-LEGS
       fpInertia.stepRig(dt, modSetting('morrowind-animation', 'MotionDoctrine') !== 0 && viewMode === 'first', cam, lastBuildOpts?.armor, built?.mwType, dead);   // FP-INERTIA
       if (!actionState && !movementState && !jumpState && !idleState && !hitState && !deathState) return;
       // THE WINNER, not a blend. See the two-slot note above: in first
@@ -9219,7 +9219,7 @@ export function createFpArm({ playerAppearance = false } = {}) {
         hipLit,
         hipShown: hipVisible(),
         hipSwing: { fore: hipLantern.swing.fore, side: hipLantern.swing.side },
-        motion: motion.status(),   // BODY-MOTION
+        motion: { ...motion.status(), legs: bodyWeight.legs() },   // BODY-MOTION; BLOW-LEGS
         loopsLeft: idleState && Number.isFinite(idleState.loopCount) ? idleState.loopCount : null,
         groups: built && built.ok ? built.groups : null,
         sources: built && built.ok ? built.sourcePaths : null,

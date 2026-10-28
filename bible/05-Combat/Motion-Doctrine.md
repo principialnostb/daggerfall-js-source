@@ -379,6 +379,29 @@ clicked a second apart is the stance's, blended both ways. Two leaps, in every b
   a backhand's sections join where each shows its time (MS1). OpenMW plays the follow from its own key and leaps there -
   the departure is named. Pinned by `test/combat/blowflow.test.js`.
 
+### 7f. BLOW-LEGS - a blow struck standing (2026-10-28)
+
+The owner, after the sweep: "while running it is fine because you did the legs, but standing, it looks strange that the
+legs barely move and there is no feeling of one whole movement - the legs just slide, and a couple of animations". The
+clip, read out of `xbase_anim.kf` (its section times are the sweep's): `weapononehand` strikes from a planted stance -
+the pelvis drops 4-6 units at the hit, the knees stay straight, the chop's right foot slides 8 units and stays, the
+thrust's left foot slides 13 units forward FLAT and back inside 0.13 s at the hit. LOWER-BODY gives a moving blow the
+stride's legs; a standing one had that stance.
+
+**BLOW-LEGS** (src/characters/bodyMotion/blowLegs.js:"export const BLOW_LEGS") gives it the body, by key poses rather
+than a running physics (7d): the wind-up LOADS (the hips back, the body turned away from the swing), the release DRIVES
+- snapped (`1 - (1 - p)^3`) - the hips forward, down and turned through the swing, the lead foot STEPPING on a thrust
+(0.24 of the leg) and a chop (0.15): lifted 0.06 of the leg at its middle over 0.16 s, never slid; the follow-through
+holds the hit for a quarter of itself, then recovers, the foot stepping home past its middle. Both feet stand on the
+anchors the stance put them on when the layer came on, so the clip's own slides are gone; the knees take up what the
+hips ask (the BODY-MOTION solve, `solveBody`'s feet). A backhand's turns mirrored, a left hand's blow leading with the
+right foot; a heavier body (bodyWeight.js's weight) strikes up to 0.4 deeper. Additive over the clip's hips - the trunk,
+the arms and the weapon's arc stay the clip's, carried by the hips. On only standing, grounded, in third person, behind
+the MotionDoctrine switch; a body set moving gives its legs to the stride over 0.12 s. Wired through BODY-WEIGHT's slot
+(after the carry, before ARM-CLEARANCE) with the motion word (src/characters/bodyMotion/bodyWeight.js:"legs.step(dt, active, word, weight);").
+Measured offline over the vanilla clip: the planted feet within 0.5 units, the hips at most 3.3 units a frame. Pinned by
+`test/characters/bodyMotion/blowlegs.test.js`. The magnitudes are the owner's to judge in the game.
+
 Then step 3's rest: the two-hander's blows in third person. Every step sits behind a switch "as now / by the formula",
 is judged by the owner in the game, and lives in a module of its own (HOST-SPLIT, `01-Overview/Host-Split.md`).
 

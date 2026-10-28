@@ -324,6 +324,8 @@ export function createBodyMotion() {
     hands: handsFor,
     /** poseAssembly's `motion` slot (formats/morrowind/mwFirstPerson.js): the request laid on this frame's skeleton. */
     slot: (skeleton, pose, rootRef, skelMats) => motion.apply(skeleton, pose, rootRef, skelMats),
+    /** The word this frame was stepped with (BLOW-LEGS reads its blow, bodyWeight.js). */
+    word: () => input,
     /** The layer's weight now (0 the clip's body, 1 the motion's). */
     weight: () => w,
     /** The gait's stride phase (0..1), its weight and the hips' turn off the facing (radians, as last posed, by the
