@@ -63,3 +63,14 @@ test('TEXTURE-HEAL: a picture whose read did not land is asked for again after a
   // the memo keeps a file's own refusal (and an absent file) - the line the heal reads it by
   assert.match(src, /if \(err\?\.decoderError && !TEXTURE_CACHE\.has\(key\)\) TEXTURE_CACHE\.set\(key, \{ ok: false/);
 });
+
+test('LOAD-HOLD: a vendored file the server refused once is fetched again on the next load, and a read that never answers gives its place back (mutants: the refusal kept for the session; no lease)', async () => {
+  const { makeVendoredArchive } = await import('../../src/systems/urlArchive.js');
+  let calls = 0;
+  const arc = makeVendoredArchive({ 'textures/sheath.dds': '/sheath.dds' }, async () => { calls++; if (calls === 1) throw new Error('ERR_INSUFFICIENT_RESOURCES'); return new Uint8Array([7]); });
+  await assert.rejects(arc.load('textures/sheath.dds'));
+  assert.deepEqual(await arc.load('textures/sheath.dds'), new Uint8Array([7]), 'asked again, it is fetched again');
+  assert.equal(calls, 2);
+  assert.match(src, /const lease = setTimeout\(\(\) => \{ if \(done\(\)\) job\.reject\(new Error\('archive read timed out'\)\); \}, ARCHIVE_READ_LEASE_MS\);/);
+  assert.match(readFileSync('src/formats/morrowind/mwTextureClient.js', 'utf8'), /drop\(slot, 'mw texture worker stopped answering'\); \}, DECODE_TIMEOUT_MS\);/);
+});

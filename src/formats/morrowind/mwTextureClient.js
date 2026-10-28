@@ -48,6 +48,9 @@ export const TEXTURE_WORKERS_MAX = 4;
  *  workers - past one build's gaps (a parse, a read) between its bursts. */
 export const TEXTURE_IDLE_MS = 5000;
 
+/** LOAD-HOLD: how long a worker may hold one job before it is let go and the job decodes on this thread. */
+export const DECODE_TIMEOUT_MS = 20000;
+
 /** The escape hatch, read once per pool (the ?terrainthread=off shape). */
 export function textureThreadDisabled(search = globalThis.location?.search) {
   try { return /[?&]texturethread=off\b/.test(search ?? ''); }
@@ -167,6 +170,10 @@ export function createTexturePool({ workerFactory = null, size = texturePoolSize
   const waiting = { urgent: [], normal: [] };
   const post = (slot, j) => {
     slot.jobs.set(j.id, j);
+    // LOAD-HOLD: a worker that holds a job past DECODE_TIMEOUT_MS is let go - its jobs decode here (drop's own law) -
+    // so a worker that died without a word cannot hold a picture, and the rig waiting on it, for ever
+    const timer = setTimeout(() => { if (slot.jobs.get(j.id) === j) drop(slot, 'mw texture worker stopped answering'); }, DECODE_TIMEOUT_MS);
+    /** @type {any} */ (timer)?.unref?.();
     // a COPY: the caller's bytes are the fallback's if this never answers
     const copy = j.bytes.slice();
     try { slot.w.postMessage({ t: 'decode', id: j.id, path: j.path, bytes: copy, levels: j.levels }, [copy.buffer]); stats.offThread++; }
