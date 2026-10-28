@@ -148,3 +148,11 @@ share the hilt, with the left below the right. The regression now also requires
 an upright blade and a comfortably bent right elbow. This supersedes the
 extended-arm idle adjustment above; locomotion rows are unchanged. Thirteen
 focused tests pass. Visual acceptance remains with the owner in the game.
+
+Further owner review shows the left arm still almost straight. The neutral
+carry now centres the grip through right-arm angles [30, 12, 100, 60], shortens
+the idle hand separation from 0.4 to 0.2 arm lengths, and directs the left elbow
+down/out rather than forward. These changes blend by idle share into the existing
+moving carries. The guard regression requires BOTH elbows bent 60-120 degrees
+and retains the forearm clearance check. This supersedes the earlier idle row;
+the in-game screenshot remains the visual acceptance criterion.

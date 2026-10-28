@@ -91,7 +91,7 @@ export const CARRY = Object.freeze({
     via: dir(0, -0.643, 0.766),
   }),
   two: Object.freeze({
-    idle: { R: row(20, 12, 85, 35, 0, { blade: dir(-0.1, 0.25, 0.96), edge: dir(0, 0.97, -0.25) }), L: row(0, 0, 0, 0, 0, { grip: true }) },
+    idle: { R: row(30, 12, 100, 60, 0, { blade: dir(-0.1, 0.25, 0.96), edge: dir(0, 0.97, -0.25) }), L: row(0, 0, 0, 0, 0, { grip: true }) },
     walk: { R: row(40, -5, 7, 56, 0.12, { blade: dir(-0.52, 0.84, -0.15), edge: dir(0.13, -0.1, -0.99) }), L: row(0, 0, 0, 0, 0, { grip: true }) },
     run: { R: row(43, 10, 0, -31, 0, { blade: dir(0.8, -0.23, -0.55), edge: dir(-0.31, 0.62, -0.72) }), L: row(0, 0, 0, 0, 0, { grip: true }) },
     sneak: { R: row(51, 2, 7, 22, 0.1, { blade: dir(-0.34, 0.94, 0.09), edge: dir(-0.1, 0.06, -0.99) }), L: row(0, 0, 0, 0, 0, { grip: true }) },   // AUDIT BODY-MOTION CARRY-3: the guard raised to level - the chest's lean tipped the low guard's blade into the ground and the right thigh
@@ -357,14 +357,18 @@ export function carryHands(cls, gp, ctx, { armW = { L: 1, R: 1 }, shares: given 
   }
   const lRow = blendRow(cls, 'L', shares);
   if (lRow.grip > 0 && out.R && out.grip.R && TWO_HAND_GRIP[cls] != null && armW.L > 0) {
-    const haf = hafHand(out.R, out.grip.R, out.R.frame, TWO_HAND_GRIP[cls], body.arm, { shoulder: frames.shoulder.L, reach: body.arms.L, range: TWO_HAND_HAFT[cls] });
+    // The upright neutral guard needs a compact grip: the low guard's widely
+    // separated hands pulled the left elbow almost straight toward the pommel.
+    const neutral = cls === 'two' ? clamp01(shares.idle) : 0;
+    const along = lerp(TWO_HAND_GRIP[cls], -0.2, neutral);
+    const haf = hafHand(out.R, out.grip.R, out.R.frame, along, body.arm, { shoulder: frames.shoulder.L, reach: body.arms.L, range: TWO_HAND_HAFT[cls] });
     if (haf) {
       haf.w = armW.L;
       // ELBOW-OUT (2026-10-28, the owner: "the left arm goes into the body with this pose"): measured in the game, the
       // claymore's left elbow stood 0.02-0.05 m off the spine's axis - inside the cuirass - its way had been down, left and
       // a little BACK; out to the left and forward, clear of the chest, plate or none
       // (the first turn, -0.65/-0.5/0.55, stood it 0.08-0.12 m off: further forward still)
-      haf.pole = norm(add(scale(F.right, -0.55), add(scale(F.up, -0.3), scale(F.fwd, 0.8))));
+      haf.pole = norm(add(scale(F.right, -0.55), add(scale(F.up, lerp(-0.3, -0.8, neutral)), scale(F.fwd, lerp(0.8, 0.25, neutral)))));
       // closed on the haft by the haft's own share, eased off the free arm the other rows give it
       const k = clamp01(lRow.grip);
       out.L = k >= 1 - 1e-9 || !out.L ? haf : blendHand(out.L, haf, k * k * (3 - 2 * k));

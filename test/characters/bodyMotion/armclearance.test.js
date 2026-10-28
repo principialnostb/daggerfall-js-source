@@ -88,6 +88,10 @@ test('two-handed neutral carry leaves space for the cuirass along the left forea
   const bend = Math.acos(upper.reduce((sum, v, i) => sum + v * fore[i], 0) / (Math.hypot(...upper) * Math.hypot(...fore)));
   assert.ok(bend > Math.PI / 3 && bend < Math.PI * 2 / 3, 'right elbow comfortably bent rather than reaching straight out');
   const E = mats.get(body.bones.L.fore).t, W = mats.get(body.bones.L.hand).t, C = mats.get(body.chest).t;
+  const S = mats.get(body.bones.L.upper).t;
+  const u = E.map((v, i) => v - S[i]), f = W.map((v, i) => v - E[i]);
+  const leftBend = Math.acos(u.reduce((sum, v, i) => sum + v * f[i], 0) / (Math.hypot(...u) * Math.hypot(...f)));
+  assert.ok(leftBend > Math.PI / 3 && leftBend < Math.PI * 2 / 3, 'left elbow bends naturally too; the pommel must not pull it straight');
   for (const t of [0, 0.25, 0.5, 0.75]) {
     const d = E.map((v, i) => v * (1 - t) + W[i] * t - C[i]);
     const dot = axis => d.reduce((sum, v, i) => sum + v * axis[i], 0);
