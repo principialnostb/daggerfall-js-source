@@ -167,7 +167,8 @@ the gold standard the third person is held to.
 4. **RESPONSE** - a short, firm hitstop on the viewer's own screen only (multiplayer is never slowed), Precision's
    shape. Trails and the recoil off stone come later.
 
-**Step 1 BUILT (LOWER-BODY, 2026-10-27), not yet judged in the game.** `src/combat/lowerBodyLayer.js`: rule 25's
+**Step 1 BUILT (LOWER-BODY, 2026-10-27), JUDGED in the game (2026-10-28, the owner: "how the character walks or runs
+during a blow is done very well, and the sidestep with a weapon too").** `src/combat/lowerBodyLayer.js`: rule 25's
 LowerBody mask (every bone not under "bip01 spine1" - pelvis, legs, lower spine, tail, root; none on a skeleton without
 it, so creatures are untouched) answered by the movement's clip, else the jump's, at its own clock, while a blow wins a
 third-person frame and no recoil or death does - laid over the single winner as a weighted overlay on LEFT-ARM's
@@ -178,7 +179,8 @@ NPCs pose through the same rig, so they get it too. The switch is the mod settin
 `test/combat/lowerbody.test.js`. Not checked in the game: the app's own browser has no Morrowind.bsa (the player
 supplies it), so the owner's own game is the check.
 
-**Step 2, its first half BUILT (BODY-WEIGHT, 2026-10-27), not yet judged in the game.**
+**Step 2, its first half BUILT (BODY-WEIGHT, 2026-10-27) - its lean, carry and sway SET ASIDE at the owner's word
+(7d); the weight number stays, read by ARM-CLEARANCE and BLOW-LEGS (7f).**
 `src/characters/bodyMotion/bodyWeight.js`. WEIGHT is one number, 0 to 1 (`bodyWeightOf`): the worn pieces' shares of
 a suit (`PIECE_SHARE` - the cuirass .32, the greaves .2, helm and boots .1, each pauldron .07, gauntlets .06, a shield
 .08) times their material's heft (`MATERIAL_HEFT` - leather .3, chain .6, plate 1), mixed .65 with the weapon's .35
@@ -388,7 +390,7 @@ the pelvis drops 4-6 units at the hit, the knees stay straight, the chop's right
 thrust's left foot slides 13 units forward FLAT and back inside 0.13 s at the hit. LOWER-BODY gives a moving blow the
 stride's legs; a standing one had that stance.
 
-**BLOW-LEGS** (src/characters/bodyMotion/blowLegs.js:"export const BLOW_LEGS") gives it the body, by key poses rather
+**BLOW-LEGS** (src/characters/bodyMotion/blowLegs.js:"export const BLOW_LEGS = Object.freeze") gives it the body, by key poses rather
 than a running physics (7d): the wind-up LOADS (the hips back, the body turned away from the swing), the release DRIVES
 - snapped (`1 - (1 - p)^3`) - the hips forward, down and turned through the swing, the lead foot STEPPING on a thrust
 (0.24 of the leg) and a chop (0.15): lifted 0.06 of the leg at its middle over 0.16 s, never slid; the follow-through
@@ -410,8 +412,48 @@ animation only reads the real velocity - the lean from the real acceleration, th
 nothing slides and control, balance and multiplayer are untouched. True inertia of plate (Inertia's shape) is a
 separate decision, later.
 
-## 8. Open
+## 8. Where it stands (2026-10-28) and what is next
 
+THE LEDGER of every piece the doctrine has laid, by its state - the one list; the sections above carry each one's
+measurements and reasons. Every piece sits behind the MotionDoctrine switch ("Формула движения").
+
+**Judged good in the game by the owner:** LOWER-BODY (the legs walk and run under a blow, the sidestep with a weapon -
+section 7); TURN-GATE (no turn in place on a stop - 7b); MOVE-GRACE (no idle flicker on a landing - 7c); the old
+transition bug, gone with the revert of 7d.
+
+**Built, measured, not yet seen in the game:**
+- the blow's entry and its seam - BLOW-ENTRY made to work and SECTION-SEAM (7e): the 0.41 m and 0.31 m leaps of every
+  one-hander's blow; the same entry fix should take the claymore's second-frame leap (7c);
+- BLOW-LEGS (7f): a blow struck standing - the hips load and drive, the lead foot steps; its depths are the owner's to
+  judge;
+- ARM-CLEARANCE (7c): the claymore's left elbow out of the trunk;
+- SHOWN-POSE, BLEND-CARRY, LOOP-SEAM, IDLE-SETTLE (7, 7a, 7c);
+- FP-INERTIA and HIT-RESPONSE (section 7, steps 3 and 4) - built and on, never judged on their own.
+
+**Set aside (kept in the code, unwired or off, at the owner's word - 7d):** STRIDE, FOOT-SPEED and MAX-RATE (the legs'
+stride and pace over the walk and run clips); BODY-WEIGHT's lean, carry and sway (`LEAN_ON = false`).
+
+**Next, in order (the owner sets it):**
+1. The in-game check of 7e and 7f with the longsword and shield - single blows, series, blows into a stop and a start.
+2. The claymore again (the owner: "we'll run more checks later"): its blows, series and transitions, the left elbow,
+   BLOW-LEGS on a two-hander.
+3. The out-of-stance walk and run (the owner: "we'll come back to them"): today a female body walks OpenMW Dynamic
+   Animations' `WalkForward_base15` and runs MAO's - two packs; one family for both, and the pack's own variant choice
+   (`march13/15` for armour), whose Lua rule the port does not run.
+4. Step 3's rest: the two-hander's blows in third person (RHYTHM and SILHOUETTE - retimed by MW-PACE3's laws, the
+   trunk's turn; the lead foot is BLOW-LEGS').
+5. RESPONSE's rest: the recoil off stone; a Morrowind-bodied foe's own rig held by the hitstop (only a sprite unit's
+   frame is now); a beat for arrows and spells; trails.
+6. Step 2's rest, if the owner wants weight back in the walk: the stride's width by weight and the landing's drop -
+   clip-based this time (7d), never a layer laid continuously over the clips.
+
+**Measured and not yet fixed:** the weapon 0.18 m in a frame at a run's stop into the idle (the same clip time - 7c);
+a leap at the sneak's start (7c).
+
+**The owner's to decide:** a sheathe (Z) pressed mid-blow is dropped, not queued; a blow clicked in the air starts on
+the landing (7c).
+
+**Still open from the start:**
 - Whether BLOW-FLOW's soft blends (`exit` 0.5 s back to the stance) lean AAA - "smooth but sluggish" may start there;
   re-tune toward SHARPNESS when the pilot reaches the blows.
 - Research still owed: PLANCK (FlyingParticle - the active-ragdoll hit reactions Precision uses), a few two-hander
