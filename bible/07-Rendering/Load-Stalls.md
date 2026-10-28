@@ -29,9 +29,11 @@ parts whose slot moved); the port rebuilds the actor.
     first (`enhancedInventory.js:"// STANCE-FIRST (the owner, 2026-10-28"`), as the frame's tick already did
     (`handArm` before `setWorn`);
   - the rig records the hand the game ASKED for (`wantKey`, every frame through `handArm`) and answers
-    `handSettled` (`fpArm.js:"    handSettled() {"`); the swing and the shot wait while it is false
-    (`weaponRig.js:"  function armCannotSwing() {"`) - DFU's own law for a swap, `equipCountdown`, held for the
-    Morrowind arm's load. True with no standing arm, for the wolf and for a swap the rig refused.
+    `handSettled` (`fpArm.js:"    handSettled() {"`); while it is false the arm draws no blow and leads none, so the
+    game's blow lands on its own clock. True with no standing arm, for the wolf and for a swap the rig refused.
+    MECHANICS-UNTOUCHED (the owner, the same day: "графическая сборка ... влияния на механики игры не должно быть"):
+    the first cut held the SWING itself while the arm loaded (`armCannotSwing`), a picture deciding when the player
+    may strike; it was taken back, and the picture alone waits (`05-Combat/Equip-Window.md`, section 2).
 - **APPLY-NOW** - the editor's Done saved the identity and said in a comment that the live body is not rebuilt from
   it; but every player build reads the saved identity (`build`, `playerAppearance`), so the body changed at the next
   equip. A changed identity (`appearanceEditor.js:"export function identityChanged(saved, next) {"`) now rebuilds the

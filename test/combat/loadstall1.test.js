@@ -33,13 +33,15 @@ test('APPLY-NOW: Done rebuilds the live body on a changed identity, and both edi
   }
 });
 
-test('STANCE-FIRST: the swing waits for the hand the game asked for (mutants: the want unrecorded; the gate unwired; a refused swap locking the arm)', () => {
+test("STANCE-FIRST: no blow is DRAWN before the arm holds the asked-for hand, and the game's blow is never held for it (mutants: the want unrecorded; the arm drawing the old hand's blow; the swing gated on a picture; the hit held for an arm that draws none)", () => {
   const setWeapon = fpArm.slice(fpArm.indexOf('    setWeapon(item, {'), fpArm.indexOf('const key = fpWeaponKey(item, hasAmmo);', fpArm.indexOf('    setWeapon(item, {')));
   assert.ok(setWeapon.indexOf('wantKey = fpWeaponKey(item, hasAmmo);') >= 0 && setWeapon.indexOf('wantKey =') < setWeapon.indexOf('if (busy)'),
     'the asked-for hand is recorded before a busy rig queues it');
   assert.match(fpArm, /return wantKey === wornKey \|\| built\.weaponFailed === wantKey;/);
-  const gate = rig.slice(rig.indexOf('function armCannotSwing()'), rig.indexOf('function armCannotSwing()') + 500);
-  assert.match(gate, /if \(fpArm\.handSettled\?\.\(\) === false\) return true;/);
+  const gate = rig.slice(rig.indexOf('function armCannotSwing()'), rig.indexOf('function armCannotSwing()') + 400);
+  assert.doesNotMatch(gate, /handSettled/, "MECHANICS-UNTOUCHED: the swing is the game's, never gated on a load");
+  assert.match(fpArm, /if \(!api\.handSettled\(\)\) return null;/);
+  assert.match(rig, /&& !playerWeapon\.machine\.ranged && fpArm\.handSettled\?\.\(\) !== false,/);
 });
 
 test('BB-ONCE: Better Bodies\' bytes are one array a build, rewritten on a copy once, and the skin dropped only when it moved (mutants: a copy per call; the decode dropped every build)', () => {

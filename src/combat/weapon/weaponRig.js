@@ -1431,9 +1431,7 @@ export function createWeaponRig({ renderer, canvas, fetchBytes, palette, audio, 
    *  from there) and its hit has gone. Fewer blows, each whole. */
   function armCannotSwing() {
     const m = playerWeapon.machine;
-    if (m.state !== 'Idle' || !(fpArm.active() || fpArm.thirdActive())) return false;
-    if (fpArm.handSettled?.() === false) return true;   // STANCE-FIRST: nor a blow (a shot too) before the arm holds the new hand
-    return !m.ranged && (armLed.holding() || !!fpArm.blowBusy?.());
+    return !m.ranged && m.state === 'Idle' && (fpArm.active() || fpArm.thirdActive()) && (armLed.holding() || !!fpArm.blowBusy?.());
   }
   /** MW-D42's hold, as the function the frame decides first (it used to be the frame's own tail). AUDIT
    *  FIELD-GUN-MW F1 (2026-09-21): the gate is `machine.ranged`, not `isBow` - the Thunderlock is a shooter the arm
@@ -1936,7 +1934,9 @@ export function createWeaponRig({ renderer, canvas, fetchBytes, palette, audio, 
       const held = holdShotForArm(evs, dt, armShoots);
       thunderlockVoice(dt, { armShoots, fired: held.fired });
       // MW-PACE2 (combat/weapon/armLedBlow.js): and a melee blow's hit waits for the player's own arm to land it
-      held.evs = armLed.step(held.evs, dt, { leads: (fpArm.active() || fpArm.thirdActive()) && !playerWeapon.machine.ranged,
+      // STANCE-FIRST, the picture's half alone: an arm that does not hold the asked-for hand yet draws no blow, so it
+      // leads none - the hit lands on the machine's own clock, as with no Morrowind arm at all (the swing is the game's)
+      held.evs = armLed.step(held.evs, dt, { leads: (fpArm.active() || fpArm.thirdActive()) && !playerWeapon.machine.ranged && fpArm.handSettled?.() !== false,
         takeHit: () => fpArm.takeBlowHit?.() ?? true, busy: () => !!fpArm.blowBusy?.() }).evs;
       // WW1: the clone's LateUpdate, after the original's frame advance -
       // the same order DFU's LateUpdate has against FPSWeapon's Update.
