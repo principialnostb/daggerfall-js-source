@@ -2,7 +2,8 @@ import { defineConfig } from 'vite';
 import { createReadStream, readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { landingHtml, readBuildSha } from './scripts/landingHtml.mjs';
-import { studioArtIndex } from './scripts/studioArtIndex.mjs';   // STUDIO1: the studio's listing, served and built from the folder
+import { studioArtIndex } from './scripts/studioArtIndex.mjs';
+import { devLazyUrlGlobs } from './scripts/devLazyUrlGlobs.mjs';   // LOAD-STALL 3: the dev server's URL globs without a request per file   // STUDIO1: the studio's listing, served and built from the folder
 
 // Dev-only: serve ARENA2 game data at /arena2/*. The data is freeware but
 // never committed or bundled (Port-Doctrine); builds contain no game files.
@@ -283,5 +284,5 @@ export default defineConfig({
       },
     },
   },
-  plugins: [arena2DevServer(), buildTagMeta(), landingHtml(), studioArtIndex()],
+  plugins: [devLazyUrlGlobs(), arena2DevServer(), buildTagMeta(), landingHtml(), studioArtIndex()],
 });
