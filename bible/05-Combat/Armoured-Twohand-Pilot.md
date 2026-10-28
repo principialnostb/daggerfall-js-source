@@ -33,3 +33,35 @@ intent only and is never evidence of the game's rendered result.
 
 All four scene hosts (world.js, exterior.js, worldModes.js, dungeonContext.js)
 share the weapon rig; this pilot belongs in its modules, with no host additions.
+
+## First implementation
+
+- FP-INERTIA's camera yaw, pitch, roll and sideways look lag are disabled;
+  acceleration and landing response remain. The original clips are unchanged.
+- `armouredSword.js` adds bounded start/stop effort and a small forward posture
+  at a run for a grounded, drawn two-handed sword with armour share at least 0.4.
+  A moving cut adds a small trunk turn following the existing blow phases.
+  Walking steadily adds no sway. Exponential settling has no spring overshoot.
+- BLOW-LEGS keeps the accepted overhead exactly; the sword's side cut advances
+  its lead foot slightly and turns its hips more, and its thrust uses a longer,
+  shallower drive. Other weapons keep the existing key poses.
+- The previous lead foot is asked home when a chained blow switches hands.
+
+Reference read: DFU `Assets/Scripts/Game/WeaponManager.cs`, `Update` and
+`ScreenWeapon` (upstream master, 2026-10-28). Its attack gating and damage
+resolution are not changed. Our departure is the articulated-body presentation.
+No format reader or DFU combat-law ledger row is closed by this pilot.
+
+Validation: focused behavioural tests exercise camera-only motion, scope gates,
+start/stop settling, moving cuts and preserved overhead keys. Full visual
+acceptance remains open: this implementation has not been seen in the owner's
+running game. Preview figures are schematic, not screenshots or clip validation.
+
+Local checks (2026-10-28): lint and types pass; focused motion/combat tests pass,
+including the composed retail skeleton's unchanged stride feet and two-hand
+spacing. Production build passes with a local read-concurrency cap (the uncapped
+Windows build hits EMFILE on the installed texture packs; no build-config change
+is part of the pilot). The six documentation gates report the same 17 failing
+test names on the starting commit and on the pilot, with 52 passing tests in
+each snapshot; none of their diagnostics names a pilot source file. Existing
+documentation failures are not repaired as part of this visual experiment.

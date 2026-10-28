@@ -414,6 +414,11 @@ separate decision, later.
 
 ## 8. Where it stands (2026-10-28) and what is next
 
+The owner's next visual pilot and its acceptance record are in
+[Armoured-Twohand-Pilot.md](Armoured-Twohand-Pilot.md): preserve the accepted
+standing overhead, remove distracting camera-driven hand sway, and judge a
+complete armoured two-handed sword sequence before extending its style.
+
 THE LEDGER of every piece the doctrine has laid, by its state - the one list; the sections above carry each one's
 measurements and reasons. Every piece sits behind the MotionDoctrine switch ("Формула движения").
 

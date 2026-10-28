@@ -10,20 +10,22 @@ const PLATE = [102, 103, 104, 105, 106, 107, 108].map((templateIndex) => ({ kind
 const frame = (layer, cam, extra = {}) => layer.step(1 / 60, { active: true, cam, ...extra });
 const still = (yaw = 0, pitch = 0, z = 0, grounded = true, jumping = false) => ({ yaw, pitch, move: { travel: [0, 0, z], bodyYaw: 0, grounded, jumping } });
 
-test('FP-INERTIA: a turn to the right swings the arms LEFT (+ about up) and they come back when the turn stops', () => {
+test('FP-INERTIA: camera turns and glances add no hand sway (owner judgement)', () => {
   const layer = createFpInertia();
   let yaw = 0, peak = 0;
   for (let i = 0; i < 20; i++) { yaw += 3 / 60; peak = Math.max(peak, frame(layer, still(yaw)).yaw); }
-  assert.ok(peak > 0.03, `a 3 rad/s turn lags the arms ${peak} rad`);
+  assert.equal(peak, 0);
+  for (let i = 0; i < 30; i++) frame(layer, still(yaw + i / 30, i / 60));
+  assert.deepEqual(layer.pose(), { yaw: 0, pitch: 0, roll: 0, x: 0, y: 0, z: 0 });
   for (let i = 0; i < 90; i++) frame(layer, still(yaw));
   assert.ok(Math.abs(layer.pose().yaw) < 1e-3, 'and they settle back on the lens');
 });
 
-test('FP-INERTIA: a glance up leaves the arms low; a start leaves them back toward the eye', () => {
+test('FP-INERTIA: a glance adds no pitch; a start still leaves the arms back toward the eye', () => {
   const look = createFpInertia();
   let p = 0, low = 0;
   for (let i = 0; i < 15; i++) { p += 2 / 60; low = Math.min(low, frame(look, still(0, p)).pitch); }
-  assert.ok(low < -0.02, `the glance up pitches them down (${low})`);
+  assert.equal(low, 0, 'a glance adds no pitch');
   const run = createFpInertia();
   let z = 0, back = 0;
   for (let i = 0; i < 30; i++) { z += (i > 3 ? 6 : 0) / 60; back = Math.max(back, frame(run, still(0, 0, z)).z); }
@@ -43,7 +45,7 @@ test('FP-INERTIA: a landing dips the arms, longer aloft deeper', () => {
   assert.ok(long < short && long < -0.01, `a long fall dips ${long} m, a hop ${short}`);
 });
 
-test('FP-INERTIA: heavier lags deeper and settles slower - plate and a two-hander against bare hands', () => {
+test('FP-INERTIA: plate does not re-enable camera sway', () => {
   const lag = (armor, mwType) => {
     const layer = createFpInertia();
     let yaw = 0, peak = 0, at = 0;
@@ -51,8 +53,8 @@ test('FP-INERTIA: heavier lags deeper and settles slower - plate and a two-hande
     return { peak, at };
   };
   const light = lag([], MW_WEAPON_TYPE.None), heavy = lag(PLATE, MW_WEAPON_TYPE.LongBladeTwoHand);
-  assert.ok(heavy.peak > light.peak, `deeper: ${heavy.peak} > ${light.peak}`);
-  assert.ok(heavy.at >= light.at, `and no quicker: frame ${heavy.at} vs ${light.at}`);
+  assert.equal(heavy.peak, 0);
+  assert.equal(light.peak, 0);
 });
 
 test('FP-INERTIA: at rest the lens is the lens (no matrix is laid); the matrix is a rotation about the shoulder plus the move', () => {

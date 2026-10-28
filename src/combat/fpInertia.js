@@ -9,6 +9,8 @@
 // spring and a movement spring, pivoted at the shoulder; the code is the port's own. Laid in front of the lens as the
 // gun's kick is (combat/gun/gunFeel.js armKickMatrix), so the whole viewmodel moves as one and nothing else in the
 // pass does. Daggerfall Unity draws its hands as a screen sprite that never lags, so this is a departure from it.
+// 2026-10-28, Armoured-Twohand-Pilot.md: camera-driven sway retired at the
+// owner's judgement; only acceleration, jumping and landing remain active.
 
 import { bodyWeightOf } from '../characters/bodyMotion/bodyWeight.js';
 import { algebra, clamp, ease } from '../characters/bodyMotion/bodyKit.js';
@@ -29,6 +31,7 @@ const { lerp } = algebra;
  * `pivot` the shoulder in the eye's space (metres: right, up, back - the eye looks down -Z).
  */
 export const FP_INERTIA = Object.freeze({
+  cameraSway: false,   // Owner, 2026-10-28: added look lag distracts; existing clip motion is sufficient.
   look: Object.freeze({ yaw: Object.freeze([0.018, 0.032]), pitch: Object.freeze([0.014, 0.026]), maxRot: 0.16, slide: Object.freeze([0.004, 0.008]), roll: 0.35 }),
   move: Object.freeze({ gain: Object.freeze([0.0009, 0.0015]), maxMove: 0.05, velTau: 0.08 }),
   land: Object.freeze({ dip: Object.freeze([0.5, 0.9]), lift: Object.freeze([0.18, 0.3]), fall: 0.8 }),
@@ -72,8 +75,9 @@ export function createFpInertia() {
       if (Number.isFinite(cp) && lastPitch != null) pitchRate = (cp - lastPitch) / dt;
       lastYaw = Number.isFinite(cy) ? cy : null; lastPitch = Number.isFinite(cp) ? cp : null;
       const maxRot = FP_INERTIA.look.maxRot;
-      const gYaw = on ? clamp(L(FP_INERTIA.look.yaw) * yawRate, -maxRot, maxRot) : 0;   // a turn to the right swings the arms left (+ about up)
-      const gPitch = on ? clamp(-L(FP_INERTIA.look.pitch) * pitchRate, -maxRot, maxRot) : 0;   // a glance up leaves them low
+      const lookOn = on && FP_INERTIA.cameraSway;
+      const gYaw = lookOn ? clamp(L(FP_INERTIA.look.yaw) * yawRate, -maxRot, maxRot) : 0;
+      const gPitch = lookOn ? clamp(-L(FP_INERTIA.look.pitch) * pitchRate, -maxRot, maxRot) : 0;
       // the body: its own velocity in its facing, followed, and its change
       const mv = cam?.move ?? null, tr = mv?.travel, by = Number(mv?.bodyYaw);
       let vf = 0, vr = 0, fresh = true;
@@ -93,7 +97,7 @@ export function createFpInertia() {
       velPrev = { f: vel.f, r: vel.r };
       const mg = L(FP_INERTIA.move.gain), mm = FP_INERTIA.move.maxMove;
       const gBack = on ? clamp(mg * af, -mm, mm) : 0;   // a start leaves the arms behind (toward the eye, +Z)
-      const gSide = on ? clamp(-mg * ar, -mm, mm) - (on ? clamp(L(FP_INERTIA.look.slide) * yawRate, -mm, mm) : 0) : 0;
+      const gSide = on ? clamp(-mg * ar, -mm, mm) - (lookOn ? clamp(L(FP_INERTIA.look.slide) * yawRate, -mm, mm) : 0) : 0;
       // a landing dips the arms, a jump lifts them: an impulse on the up spring
       const grounded = mv?.grounded !== false;
       if (on && grounded && !wasGrounded) y.v -= L(FP_INERTIA.land.dip) * Math.min(1, airTime / FP_INERTIA.land.fall);

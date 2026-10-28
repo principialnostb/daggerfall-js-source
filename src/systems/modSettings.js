@@ -1702,7 +1702,7 @@ export const MOD_SETTINGS = Object.freeze({
       MotionDoctrine: Object.freeze({
         default: 1,
         options: lazyWords('Как сейчас', 'По формуле'),
-        description: 'По формуле: the legs keep the stride under a blow, the transitions and loops run without jumps, the elbows stay out of the body, the first-person hands lag a turn and dip on a landing, and a landed blow holds for a short beat with a soft shake. Как сейчас keeps the clips as they are.',
+        description: 'По формуле: the legs keep the stride under a blow, the transitions and loops run without jumps, the elbows stay out of the body, armoured two-handed swords carry starts, stops and moving blows through the trunk, the first-person hands dip on a landing without added camera sway, and a landed blow holds for a short beat with a soft shake. Как сейчас keeps the clips as they are.',
       }),
       FirstPersonSource: Object.freeze({
         default: 1,

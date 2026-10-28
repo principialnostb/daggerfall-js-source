@@ -16,6 +16,7 @@
 import { algebra, bodyOf, bodyTurn, transpose, mul, apply, clamp01, ease, smooth, at } from './bodyKit.js';
 import { solveBody } from './bodySolve.js';
 import { rotationPart } from '../../combat/climbRig.js';
+import { MW_WEAPON_TYPE } from '../../formats/morrowind/mwFirstPerson.js';
 
 const { add, sub, scale, len, norm, lerp3 } = algebra;
 
@@ -30,6 +31,14 @@ export const BLOW_LEGS = Object.freeze({
   chop: Object.freeze({ wind: { back: 0.035, drop: 0.015, yaw: -0.1, pitch: -0.06 }, hit: { fwd: 0.07, drop: 0.075, yaw: 0.1, pitch: 0.12 }, step: 0.15 }),
   slash: Object.freeze({ wind: { back: 0.03, drop: 0.02, yaw: -0.24, pitch: 0 }, hit: { fwd: 0.045, drop: 0.065, yaw: 0.3, pitch: 0.04 }, step: 0 }),
   thrust: Object.freeze({ wind: { back: 0.045, drop: 0.015, yaw: -0.2, pitch: -0.03 }, hit: { fwd: 0.1, drop: 0.055, yaw: 0.22, pitch: 0.07 }, step: 0.24 }),
+});
+// Armoured-Twohand-Pilot.md: keep the owner's accepted overhead unchanged.
+// Side cuts now have a small advancing step and more hip rotation; a thrust
+// reaches from a narrower, less crouched support than the overhead.
+export const SWORD_BLOW_KEYS = Object.freeze({
+  chop: BLOW_LEGS.chop,
+  slash: Object.freeze({ wind: { back: 0.04, drop: 0.02, yaw: -0.3, pitch: -0.025 }, hit: { fwd: 0.065, drop: 0.065, yaw: 0.38, pitch: 0.055 }, step: 0.09 }),
+  thrust: Object.freeze({ wind: { back: 0.05, drop: 0.015, yaw: -0.16, pitch: -0.035 }, hit: { fwd: 0.12, drop: 0.045, yaw: 0.18, pitch: 0.08 }, step: 0.26 }),
 });
 /**
  * THE TIMING: the follow-through holds the hit for `hold` of itself, then recovers over the rest; the foot steps home
@@ -55,7 +64,7 @@ export function blowPhase(section, progress) {
 /** The pose the blow asks now (shares of the leg, radians), and whether its lead foot wants to be forward (true), home
  *  (false) or left where it stands (null - a wind-up does not step). */
 export function blowLegsPose(blow, heavy = 0) {
-  const keys = BLOW_LEGS[blow?.type];
+  const keys = (blow?.sword ? SWORD_BLOW_KEYS : BLOW_LEGS)[blow?.type];
   const ph = keys ? blowPhase(blow.section, blow.progress) : null;
   if (!keys || !ph) return null;
   const k = (0.75 + 0.25 * clamp01(Number(blow.strength ?? 1))) * (1 + BLOW_LEGS_TIME.heavy * clamp01(heavy));
@@ -98,7 +107,7 @@ export function createBlowLegs() {
     step(dt, on, word, heavy = 0) {
       lastDt = Math.max(0, dt);
       const standing = !!word && word.on !== false && !word.busy && word.grounded !== false && !word.swimming && !word.levitating && !(Number(word.speed) > BLOW_LEGS_TIME.still);
-      const asked = on && standing && word.blow ? blowLegsPose(word.blow, heavy) : null;
+      const asked = on && standing && word.blow ? blowLegsPose({ ...word.blow, sword: word.shown && word.mwType === MW_WEAPON_TYPE.LongBladeTwoHand }, heavy) : null;
       if (asked) want = asked;
       w = ease(w, asked ? 1 : 0, asked ? BLOW_LEGS_TIME.in : BLOW_LEGS_TIME.out, dt);
       if (asked && w > 0.999) w = 1;
@@ -145,7 +154,7 @@ export function createBlowLegs() {
       const plan = { w, feet: {} };
       for (const s of ['L', 'R']) {
         const lead = want && want.lead === s;
-        const fwdGoal = lead && want.forward != null ? (want.forward ? [0, want.step * leg, 0] : [0, 0, 0]) : null;
+        const fwdGoal = lead ? want.forward != null ? (want.forward ? [0, want.step * leg, 0] : [0, 0, 0]) : null : [0, 0, 0];
         const off = feet[s].goal(fwdGoal, lastDt, lift);
         plan.feet[s] = { at: add(anchor[s].at, off), toe: anchor[s].toe, up: anchor[s].up, w: 1, stance: !feet[s].air() };
       }

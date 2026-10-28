@@ -13,6 +13,7 @@ import { MW_WEAPON_TYPE } from '../../formats/morrowind/mwFirstPerson.js';
 import { orthonormal } from '../../combat/climbRig.js';
 import { clearArms } from './armClearance.js';   // ARM-CLEARANCE: the elbows out of the trunk, wider in heavier armour
 import { createBlowLegs } from './blowLegs.js';   // BLOW-LEGS: the body under a blow struck standing
+import { createArmouredSword } from './armouredSword.js';
 
 const { lerp } = algebra;
 
@@ -89,6 +90,7 @@ export function createBodyWeight() {
   const pitch = { x: 0, v: 0 }, roll = { x: 0, v: 0 };
   let weight = 0; let on = false; let slotMemo = null; let moving = 0; let armorW = 0; let clearOn = false;
   const legs = createBlowLegs();
+  const sword = createArmouredSword();
   const layer = {
     /**
      * One frame: `active` (the switch, the third person, on the ground and on its feet), `move` the motor's word
@@ -135,6 +137,7 @@ export function createBodyWeight() {
       const active = !!on && !dead && !!mv && mv.grounded !== false && !mv.swimming && !mv.levitating && !mv.climbing && !cam?.climb && !cam?.seat && !cam?.saddle;
       const lean = layer.step(dt, { active, move: mv, armor, mwType });
       legs.step(dt, active, word, weight);   // BLOW-LEGS, by the body's weight just read
+      sword.step(dt, active, word, armorW);
       return lean;
     },
     /** BLOW-LEGS's word, for the rig's status. */
@@ -158,13 +161,14 @@ export function createBodyWeight() {
           if (Number.isFinite(zl) && Number.isFinite(zr)) lean.roll -= sway.roll * clamp((zr - zl) / (SWAY.lift * body.leg), -1, 1);
         }
         if (LEAN_ON) leanTrunk(skeleton, pose, rootRef, skelMats, lean, mats);
+        leanTrunk(skeleton, pose, rootRef, skelMats, sword.pose());
         if (clearOn) legs.apply(skeleton, pose, rootRef, skelMats);   // BLOW-LEGS: a standing blow's hips and feet
         if (clearOn) clearArms(skeleton, pose, rootRef, skelMats, { armor: armorW });   // ARM-CLEARANCE, last: over the lean and the carry
         return report;
       } };
       return slotMemo.fn;
     },
-    reset() { legs.reset(); moving = 0; travel = null; yaw0 = null; vel.f = vel.r = 0; velPrev = null; pitch.x = pitch.v = roll.x = roll.v = 0; },
+    reset() { sword.reset(); legs.reset(); moving = 0; travel = null; yaw0 = null; vel.f = vel.r = 0; velPrev = null; pitch.x = pitch.v = roll.x = roll.v = 0; },
   };
   return layer;
 }
@@ -172,13 +176,13 @@ export function createBodyWeight() {
 /** THE LEAN ON THE TRUNK: the turn spread evenly up the spine above the bone the thighs hang from (bodyKit.js `trunk`),
  *  each share turned about the body's own axes in rig space over what the clip posed - the legs and the hips untouched.
  *  Writes new entries into `pose`; `posed` this pose's matrices when the caller has them. Answers whether it posed. */
-export function leanTrunk(skeleton, pose, rootRef, skelMats, { pitch = 0, roll = 0 } = {}, posed = null) {
-  if (!(Math.abs(pitch) > 1e-5 || Math.abs(roll) > 1e-5)) return false;
+export function leanTrunk(skeleton, pose, rootRef, skelMats, { pitch = 0, roll = 0, yaw = 0 } = {}, posed = null) {
+  if (!(Math.abs(pitch) > 1e-5 || Math.abs(roll) > 1e-5 || Math.abs(yaw) > 1e-5)) return false;
   const body = bodyOf(skeleton, rootRef, skelMats);
   if (!body || !body.trunk?.length) return false;
   const mats = posed ?? skelMats(skeleton, pose, rootRef);   // the slot's own, when it read the feet off this pose
   const n = body.trunk.length;
-  const step = bodyTurn(0, roll / n, pitch / n);
+  const step = bodyTurn(yaw / n, roll / n, pitch / n);
   /** @type {ArrayLike<number>} */
   let C = [1, 0, 0, 0, 1, 0, 0, 0, 1];
   for (const ref of body.trunk) {

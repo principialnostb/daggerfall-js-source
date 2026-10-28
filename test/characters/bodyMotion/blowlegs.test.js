@@ -14,6 +14,16 @@ const sm = (sk, pose, root) => skeletonSpaceMatrices(sk, pose, root);
 const rd = (p) => readFileSync(new URL(`../../../${p}`, import.meta.url), 'utf8');
 const blow = (type, section, progress, extra = {}) => ({ type, section, progress, strength: 1, reversed: false, hand: 'R', ...extra });
 
+test('sword pilot: preserve the overhead, give a side cut a step, mirror its effort for a backhand', () => {
+  const hit = (type, extra = {}) => blowLegsPose(blow(type, 'release', 1, extra), 1);
+  assert.deepEqual(hit('chop', { sword: true }), hit('chop'));
+  const side = hit('slash', { sword: true });
+  assert.ok(side.step > 0 && side.forward);
+  assert.ok(side.yaw > hit('slash').yaw);
+  assert.equal(hit('slash', { sword: true, reversed: true }).yaw, -side.yaw);
+  assert.ok(hit('thrust', { sword: true }).drop < hit('chop', { sword: true }).drop);
+});
+
 test('BLOW-LEGS: the key poses - wound away, driven through, recovered; a backhand mirrored, a slash steps nowhere', () => {
   assert.equal(blowPhase('windup', 0).load, 0);
   assert.equal(blowPhase('release', 1).drive, 1);
