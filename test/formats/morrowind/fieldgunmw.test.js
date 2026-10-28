@@ -290,7 +290,7 @@ test('FIELD-GUN-MW2: the archive is MOUNTED, and in the rank that lets Mac overr
   // without a rebuild; then the vendored and own archives; then every
   // .bsa. Asked as ORDER IN THE SOURCE, because that is the order the
   // list is built in.
-  const loose = host.indexOf('archives.push(makeLooseArchive(loose))');
+  const loose = host.indexOf('archives.push(makeLazyLooseArchive(looseNames, (n) => assetBytes(MW_STORE, n)))');
   const bsa = host.indexOf('archives.push(await MwBsaFile.open(blob))');
   assert.ok(loose > 0 && bsa > 0, 'the two ranks this sits between are still here');
   assert.ok(loose < at, 'the player\'s own loose files rank AHEAD of ours, so they can override the gun');

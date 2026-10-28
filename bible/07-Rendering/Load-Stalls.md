@@ -92,7 +92,35 @@ of every body, every frame.
 `test/combat/loadstall2.test.js`. Not measured in the game itself: the GPU upload of the new meshes and textures and the
 pack's figure are outside the probe.
 
-## 4. What is left, in order
+## 4. Phase 3 - the player first, and the dev server's boot (LOAD-STALL 3)
+
+The owner after phase 2: the armour "реально заметные улучшения", but a weapon "иногда 5-10 секунд", and the body
+still slow to appear on entering the world. The probe's live-rig mode (`node tools/mwBuildProbe.mjs --weapons`: one
+`createFpArm` build, then each hand through `setWeapon`) answered every swap in 14-130 ms - so the seconds were not the
+swap's own work but its WAITING, and only where other bodies were built beside it.
+
+- **The texture pool's queue, the player's jobs first.** Every decode was posted at once to the least-busy worker,
+  whose message queue is first come first served; a town's NPC bodies (one build at a time through `BODY_BUILD_GATE`,
+  dozens of pictures each) stood ahead of the player's sword. A worker now holds ONE job and the rest wait on the page's
+  side in two lines (`mwTextureClient.js:"const waiting = { urgent: [], normal: [] };"`); the player's rig (createFpArm's
+  `playerAppearance` - the live body and the editor's preview) marks its builds and its five swaps `urgent`.
+- **The body queue waits for the player** (`characters/playerBuildHold.js`): `pumpGate` starts no peer's or NPC's body
+  while the player's rig is busy (`rigBusy`, registered by the page's rig), asking again every 50 ms - their work had
+  taken the frame's thread between the player's own steps.
+- **The loose files opened, not read** (`dataSource.js:"export function makeLazyLooseArchive(names, read) {"`): every
+  stored loose file was read whole, one after another, before the first body - a Data Files folder attached whole is
+  thousands. Names now, bytes on load, the `.bsa`'s MW-LOAD doors.
+- **The dev server's URL globs** (`scripts/devLazyUrlGlobs.mjs`, `systems/devGlobUrls.js`): an eager
+  `import.meta.glob(..., { eager: true, query: '?url' })` is a module request per file on the dev server, hoisted above
+  the module's code - the Eye of the Beholder's sprites and layered armour (~12,400 pictures, imported at boot) and the
+  bundled packs (7,410). On the dev server alone each is rewritten into a lazy glob whose keys make the same URLs (a
+  file's `?url` there is its path from the root), the lines kept; the build is untouched. Measured in the page (warm
+  server): the two modules 8.0 s and 6.7 s with 19,816 requests -> 0.56 s and 0.53 s with 40.
+
+`test/combat/loadstall3.test.js`; `test/scenes/mwd40_loosefiles.test.js` (the lazy archive). Not measured in the game
+itself: the queue's gain is a town's, where the probe has no NPCs.
+
+## 5. What is left, in order
 
 1. **A part changed in place** (OpenMW's `updateParts`): a worn change rebinds the slots that moved onto the standing
    skeletons - the swap `setWeapon` already does for the hand - instead of assembling both bodies again. After phase 2
@@ -100,5 +128,6 @@ pack's figure are outside the probe.
 2. **The NIF parse and flatten in the workers**, for the first build of a body (the world's load) and a new piece.
 3. **The body morphs on the GPU**: any active slider drops the third-person body to CPU skinning every frame
    (`thirdSkinReady`); the morph belongs in the skin's vertex stream.
-4. **The boot**: the player's loose files are read from the store one after another, whole (`_openMorrowindArchives`);
-   the player's body is built after the world, not beside it.
+4. **The dev server's content globs**: the rewrite covers every eager `?url` glob in `src/` (twenty modules, the walk
+   animations', Better Bodies', the footsteps' among them); the eager `?raw` and JSON globs (the sky presets, the
+   locales) carry their files' CONTENT and cannot be made URLs - none is at the boot's scale.

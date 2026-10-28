@@ -50,9 +50,15 @@ const deps = {
     archives = [];
     for (const [mod, fn] of [['/src/systems/bundledMorrowindMods.js', 'bundledMorrowindModsArchive'], ['/src/systems/weaponSheathingAssets.js', 'weaponSheathingArchive'],
       ['/src/systems/simplyAnimatedCloaksAssets.js', 'simplyAnimatedCloaksArchive'], ['/src/systems/ownMwAssets.js', 'ownMwArchive']]) {
+      const a0 = performance.now();
       try { archives.push((await load(mod))[fn]()); } catch (e) { console.warn(`${fn}: ${e.message}`); }
+      if (process.env.PROBE_ARCHIVES) console.error(`[archives] ${fn} ${Math.round(performance.now() - a0)}ms`);
     }
-    for (const n of BSAS) archives.push(await MwBsaFile.open(await openAsBlob(join(DATA, n))));
+    for (const n of BSAS) {
+      const a0 = performance.now();
+      archives.push(await MwBsaFile.open(await openAsBlob(join(DATA, n))));
+      if (process.env.PROBE_ARCHIVES) console.error(`[archives] ${n} ${Math.round(performance.now() - a0)}ms`);
+    }
     return archives;
   },
 };
@@ -78,6 +84,29 @@ const SETS = [
   ['+pauldrons+helm', [piece(102), piece(104), piece(108), piece(103), piece(105), piece(106), piece(107)]],
 ];
 const original = console.log;
+// --weapons: the live rig's own doors, as the game drives them - one build (createFpArm.build), then each hand through
+// setWeapon, timed to the swap's settle, the sweep it owes left to run beside
+if (args.includes('--weapons')) {
+  const rig = fpArm.createFpArm({ playerAppearance: true });
+  const quiet = () => { console.log = (...a) => { if (process.env.PROBE_VERBOSE) original(...a); }; };
+  quiet();
+  let stop = freezeMeter(); let t0 = performance.now();
+  const res = await rig.build({ race, female, deps, ownHeads: true, sheathing: true, armor: [piece(102), piece(104), piece(108)] });
+  console.log = original;
+  console.log(`build ok=${res.ok} wall=${Math.round(performance.now() - t0)}ms worst-freeze=${stop()}ms${res.ok ? '' : ` ${res.stage}: ${res.error}`}`);
+  const W = { Dagger: 113, Longsword: 120, Claymore: 122, Battle_Axe: 127, Short_Bow: 129, Katana: 121 };
+  for (const name of ['Longsword', 'Claymore', 'Dagger', 'Battle_Axe', 'Short_Bow', 'Longsword', 'Claymore', 'Katana']) {
+    const item = { templateIndex: W[name], material: 0, name };
+    quiet();
+    stop = freezeMeter(); t0 = performance.now();
+    const out = await rig.setWeapon(item, { hasAmmo: name === 'Short_Bow', ammoCount: name === 'Short_Bow' ? 20 : 0 });
+    const wall = Math.round(performance.now() - t0); const fz = stop();
+    console.log = original;
+    console.log(`setWeapon ${name.padEnd(11)} -> ${JSON.stringify(out)} wall=${wall}ms worst-freeze=${fz}ms settled=${rig.handSettled()}`);
+  }
+  await server.close();
+  process.exit(0);
+}
 for (let r = 0; r < repeat; r++) {
   for (const [label, armor] of SETS) {
     let line = '';
