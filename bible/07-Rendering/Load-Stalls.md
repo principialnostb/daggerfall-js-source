@@ -120,7 +120,26 @@ swap's own work but its WAITING, and only where other bodies were built beside i
 `test/combat/loadstall3.test.js`; `test/scenes/mwd40_loosefiles.test.js` (the lazy archive). Not measured in the game
 itself: the queue's gain is a town's, where the probe has no NPCs.
 
-## 5. What is left, in order
+## 5. WEAPON-FIRST - a weapon's first equip
+
+The owner after phase 3 (on `npm run dev`): the loads "гораздо быстрее", but a weapon's FIRST equip "может достигать и
+30 секунд, а может и вовсе не прогрузиться", and one equipped before comes quickly. What a first swap has and a second
+lacks is the weapon's own files - its meshes out of the archives, its pictures decoded. The probe (`--weapons`, and
+`--prewarm`) answers a first swap in 20-55 ms in Node, cold or warmed: the seconds are the browser's (the store's reads,
+the workers, the queues), and the swap now says where in its own line.
+
+- **Asked again, not given up** (`fpArm.js:"export function swapRetryDue(token, key, now = mwNow()) {"`): a failed swap
+  kept the hand's key in `weaponFailed` and the frame door never asked it again for the rig's life - the hand that
+  never loads. It is asked again `SWAP_RETRY_MAX` (3) times, `SWAP_RETRY_MS` (1.5 s) further apart each time, and the
+  count clears when it lands.
+- **Warmed before the click** (`prewarmWeapons`): when the player's rig stands (`weaponRig.js`'s `buildArmsFor`) and
+  when the pack refreshes, each carried weapon's meshes are read and its pictures decoded beside the frames, once a
+  weapon a rig, in the pool's ordinary line - a click's own swap goes ahead of it.
+- **The swap's line**: `[mw] weapon swap <name> in N ms - archives, meshes, textures, third` beside the build's.
+
+`test/combat/weaponfirst.test.js`. Not measured in the game: the owner's line is the A/B.
+
+## 6. What is left, in order
 
 1. **A part changed in place** (OpenMW's `updateParts`): a worn change rebinds the slots that moved onto the standing
    skeletons - the swap `setWeapon` already does for the hand - instead of assembling both bodies again. After phase 2

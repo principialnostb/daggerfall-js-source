@@ -540,6 +540,15 @@ async function preloadArmTextures(pieces, archives, gen = null, urgent = false) 
 const mwNow = () => (typeof performance !== 'undefined' && performance && typeof performance.now === 'function'
   ? performance.now() : Date.now());
 
+/** WEAPON-FIRST (the owner, 2026-10-28: a weapon's first equip "может и вовсе не прогрузиться"): a hand whose swap
+ *  failed is asked again SWAP_RETRY_MAX times, SWAP_RETRY_MS further apart each time, then left as the card says. */
+export const SWAP_RETRY_MAX = 3;
+export const SWAP_RETRY_MS = 1500;
+export function swapRetryDue(token, key, now = mwNow()) {
+  const f = token?.weaponFailTry;
+  return !!f && f.key === key && f.tries < SWAP_RETRY_MAX && now - f.at >= SWAP_RETRY_MS * f.tries;
+}
+
 /** WEREWOLF1 (2026-09-26, Mac: "it's the 3d model" - "it needs to be imported if its not"): THE WEREWOLF'S TWO
  *  SKELETONS, files/settings-default.cfg [Models] wolfskin and wolfskin1st. They ship with Bloodmoon, so a player
  *  with Bloodmoon.bsa attached has them; without it the build refuses at the skeleton, and the transformed player
@@ -7363,14 +7372,19 @@ export function createFpArm({ playerAppearance = false } = {}) {
       // AUDIT 68 X7-fparm-swap-rejection-unhandled: a swap that failed on
       // THIS rig is not retried by the per-frame door; another weapon, a
       // rebuild or a re-attach (a new rig) asks again.
-      if (built.weaponFailed === key) return false;
+      // WEAPON-FIRST: a failed swap is asked again, a few times, further apart each time - a read that failed once (a
+      // file the store answered late) left the hand empty for the rig's whole life
+      if (built.weaponFailed === key && !swapRetryDue(built, key)) return false;
       busy = true;
       const token = built;
       token.weaponFailed = null;
+      const clock = { t0: mwNow(), at: mwNow(), spans: { archives: 0, meshes: 0, textures: 0, third: 0 } };   // WEAPON-FIRST: the swap's own line
+      const span = (name) => { const n = mwNow(); clock.spans[name] += n - clock.at; clock.at = n; };
       return (async () => {
         try {
           const d = buildDeps || await import('../scenes/dataSource.js');
           const archives = await d.loadMorrowindArchives();
+          span('archives');
           // Unloaded or rebuilt while the archives opened: this swap's
           // target is gone, and the newer state already carries its own
           // wornKey. Walk away.
@@ -7419,6 +7433,7 @@ export function createFpArm({ playerAppearance = false } = {}) {
           const arm = token.arm;
           arm.pieces = arm.pieces.filter((p) => p.slot !== 'weapon' && p.slot !== 'arrow');
           bindPartsInto(arm, resolved.parts);
+          span('meshes');
           // Textures the NEW pieces name, resolved while the archives
           // are open; what the arm already decoded stays.
           const fresh = arm.pieces.filter((p) => p.slot === 'weapon' || p.slot === 'arrow');
@@ -7427,6 +7442,7 @@ export function createFpArm({ playerAppearance = false } = {}) {
           for (const [file, tex] of collectArmTextures(fresh, archives, gen)) {
             if (!token.textures.has(file)) token.textures.set(file, tex);
           }
+          span('textures');
           const oldType = token.mwType;
           token.mwType = resolved.mwType;
           token.weapon = resolved.weaponInfo;
@@ -7467,6 +7483,11 @@ export function createFpArm({ playerAppearance = false } = {}) {
             releaseThirdMesh();
             thirdPacked = null;
           }
+          span('third');
+          const ms = (v) => Math.round(v);
+          console.log(`[mw] weapon swap ${item?.name ?? 'bare hands'} in ${ms(mwNow() - clock.t0)} ms - archives ${ms(clock.spans.archives)}, `
+            + `meshes ${ms(clock.spans.meshes)}, textures ${ms(clock.spans.textures)}, third ${ms(clock.spans.third)}`);
+          token.weaponFailTry = null;
           releaseMesh();
           packed = null;
           // The old action clip belonged to the old weapon's group.
@@ -7512,6 +7533,8 @@ export function createFpArm({ playerAppearance = false } = {}) {
           // key is remembered so the frame door does not ask again.
           const msg = err?.message ?? String(err);
           token.weaponFailed = key;
+          const prior = token.weaponFailTry;
+          token.weaponFailTry = { key, tries: prior && prior.key === key ? prior.tries + 1 : 1, at: mwNow() };   // WEAPON-FIRST
           token.notes = [...(token.notes || []).filter((n) => !/^weapon: the swap /.test(n)), swapFailedNote('weapon', msg)];
           console.warn(`[mw] weapon swap failed - ${msg}`);
           return false;
@@ -8893,6 +8916,43 @@ export function createFpArm({ playerAppearance = false } = {}) {
      *  what the camera's queued-mode gate consults (camera.cpp:135):
      *  a stable stance, no action section in flight, no build in
      *  flight. */
+    /**
+     * WEAPON-FIRST (the owner, 2026-10-28: a weapon's FIRST equip "может достигать и 30 секунд", a second one quick):
+     * what a first swap waits on is the weapon's own files - its meshes read out of the archives, its pictures decoded -
+     * and nothing of it needs the hand. The pack hands the carried weapons over when it opens (and the rig when it
+     * stands), and each is read and decoded beside the frames, one at a time, in the pool's ordinary line - so the click
+     * finds it in hand. Once a weapon a standing rig; answers how many were warmed.
+     */
+    async prewarmWeapons(items) {
+      if (!built || !built.ok || built.werewolf) return 0;
+      const token = built;
+      const seen = (token.prewarmed ??= new Set());
+      const d = buildDeps || await import('../scenes/dataSource.js');
+      const archives = await d.loadMorrowindArchives();
+      const gen = token.catalog?.gen ?? null;
+      let warmed = 0;
+      for (const item of items ?? []) {
+        if (built !== token) break;
+        const key = fpWeaponKey(item, false);
+        if (seen.has(key)) continue;
+        seen.add(key);
+        const paths = weaponPartPaths({ weapon: item, hasAmmo: false, allWeapons: token.allWeapons, has: archiveHas(archives) });
+        if (!paths.length) continue;
+        try {
+          await loadFromArchives(archives, paths);
+          const pieces = [];
+          for (const path of paths) {
+            const arc = archives.find((a) => a.has(path));
+            if (!arc || (typeof arc.loaded === 'function' && !arc.loaded(path))) continue;
+            pieces.push(...flattenNif(parseNif(arc.get(path).slice())));   // the icon's own read (renderGroundMesh's preload)
+          }
+          await preloadArmTextures(pieces, archives, gen);
+          warmed++;
+        } catch { /* the swap reads it again and says why */ }
+        await new Promise((r) => setTimeout(r, 0));
+      }
+      return warmed;
+    },
     /** LOAD-STALL 3: is a build or a swap under way (the body queue waits on the player's - playerBuildHold.js)? */
     rigBusy: () => busy,
     upperBodyReady: () => !busy && !actionState
