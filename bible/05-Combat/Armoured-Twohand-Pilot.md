@@ -108,38 +108,12 @@ failed restoring the next file; the original was restored byte-for-byte from its
 backup and the 33 recovery/support tests were rerun successfully. No all-mutants
 passing claim is made. Visual acceptance of this second pass remains open.
 
-## Equal sword amplitude across gaits (2026-10-28)
+## Amplitude experiment rejected (2026-10-28)
 
-After reverting the second pass, the owner judged the current third-person
-two-hander strong and requested comparable amplitude standing, walking and
-running, with locomotion-specific support. Timing/recovery and standing key
-poses remain the accepted first pilot's.
-
-Cause: BLOW-LEGS previously released its entire stroke while moving, and
-armouredSword supplied only 0.3 of its yaw and 0.35 of its pitch, through a
-different smoothing law and only above the armour threshold. The same sword
-now uses BLOW-LEGS' angular stroke in every gait. Movement smoothly transfers
-the turn from the pelvis to the first upper-body spine joint; the exact
-remaining rotation preserves its combined angle throughout that transfer.
-The stride keeps its feet and bone lengths; the stationary step/lunge is not
-added to running feet. armouredSword supplies locomotion posture only.
-
-This is a presentation departure from OpenMW's lower-body priority composition
-(Morrowind-Rules.md rules 25-26); the clip's arm/weapon arc and gameplay timings
-are retained. All four hosts still use the shared rig, with no host edits.
-
-Measured on the owner's retail KF and installed MAO KF through the production
-readers, skeleton posing, lower-body mask and body-weight slot: chop/slash/thrust
-standing and walking/running forward, back, left and right (54 cases). On MAO,
-the angular path differs by at most about 1% across gaits; standing measurements
-are unchanged. The remaining few-percent blade-envelope difference is the run's
-posture. Retail retains larger differences from its own lower-body clip keys;
-these measurements do not claim parity for every animation pack. This probe
-isolates clip/layer composition, not the full in-game cross-fades or visual style.
-Behavioural tests cover the actual posed hand angle/path above the hips,
-moving foot support, mirrored blows, and starting/stopping during an attack.
-
-Validation: 46 focused tests, lint and types pass. The cite check retains the
-same ten pre-existing failures outside this change. The running server on 5200
-was checked to serve the new composition. In-game visual acceptance is still
-the owner's; no new cosmetic exaggeration was added to the accepted key poses.
+The owner rejected `ba6e8534cc`: intermittent leg lag during movement and a worse
+thrust. Its transfer of the standing attack's full rotation from the pelvis to
+the spine passed numerical pose checks but failed in-game visual review. Revert
+that experiment; the four animation source/test files again match `4ad5fbbee8`
+exactly. The first pilot remains the preferred baseline. Its weaker moving
+attacks remain unresolved; equal angular envelopes alone are not acceptance.
+Validation of the restored baseline: 44 focused motion/combat tests pass.

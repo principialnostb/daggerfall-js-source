@@ -12,9 +12,6 @@
 // (the clip's own slides gone), the knees taking up what the hips ask. Additive over the clip's hips; the upper body,
 // the arms and the weapon's arc stay the clip's, carried by the hips as a body carries them. Daggerfall Unity draws no
 // body to strike with and OpenMW plays the clip as it is: the port's own (SCOPE1).
-// SWORD-AMPLITUDE (2026-10-28): a two-handed sword keeps this same angular
-// stroke on the move, handed above the gait-owned hips. Its feet keep walking;
-// there is no separate reduced-amplitude attack in armouredSword.js.
 
 import { algebra, bodyOf, bodyTurn, transpose, mul, apply, clamp01, ease, smooth, at } from './bodyKit.js';
 import { solveBody } from './bodySolve.js';
@@ -105,21 +102,12 @@ function createFoot() {
 export function createBlowLegs() {
   let w = 0; let want = null; let pose = { fwd: 0, drop: 0, yaw: 0, pitch: 0 }; let anchor = null; let lastDt = 0;
   const feet = { L: createFoot(), R: createFoot() };
-  let moving = false;
-  let support = 0;
   const layer = {
     /** One frame: `on` the switch in third person, `word` the motion word, `heavy` the body's weight (0..1). */
     step(dt, on, word, heavy = 0) {
       lastDt = Math.max(0, dt);
-      const grounded = !!word && word.on !== false && !word.busy && word.grounded !== false && !word.swimming && !word.levitating;
-      const sword = word?.shown && word.mwType === MW_WEAPON_TYPE.LongBladeTwoHand;
-      const inMotion = Number(word?.speed) > BLOW_LEGS_TIME.still;
-      const asked = on && grounded && (!inMotion || sword) && word.blow ? blowLegsPose({ ...word.blow, sword }, heavy) : null;
-      if (moving !== inMotion) { anchor = null; feet.L.reset(); feet.R.reset(); }
-      moving = inMotion;
-      support = ease(support, inMotion && sword ? 1 : 0, BLOW_LEGS_TIME.out, dt);
-      if (support > 0.999) support = 1;
-      if (support < 0.001) support = 0;
+      const standing = !!word && word.on !== false && !word.busy && word.grounded !== false && !word.swimming && !word.levitating && !(Number(word.speed) > BLOW_LEGS_TIME.still);
+      const asked = on && standing && word.blow ? blowLegsPose({ ...word.blow, sword: word.shown && word.mwType === MW_WEAPON_TYPE.LongBladeTwoHand }, heavy) : null;
       if (asked) want = asked;
       w = ease(w, asked ? 1 : 0, asked ? BLOW_LEGS_TIME.in : BLOW_LEGS_TIME.out, dt);
       if (asked && w > 0.999) w = 1;
@@ -153,28 +141,14 @@ export function createBlowLegs() {
       const parent = mats.get(node.parent);
       const P = parent ? rotationPart(parent.a) : [1, 0, 0, 0, 1, 0, 0, 0, 1];
       const sp = parent ? Math.hypot(parent.a[0], parent.a[3], parent.a[6]) || 1 : 1;
-      const fullTurn = bodyTurn(pose.yaw * w, 0, pose.pitch * w);
-      const T = bodyTurn(pose.yaw * w * (1 - support), 0, pose.pitch * w * (1 - support));
-      const dv = scale([0, pose.fwd * leg, -pose.drop * leg], w * (1 - support));
+      const T = bodyTurn(pose.yaw * w, 0, pose.pitch * w);
+      const dv = scale([0, pose.fwd * leg, -pose.drop * leg], w);
       const lv = scale(apply(transpose(P), dv), 1 / sp);
       pose0.set(pelvis, {
         rotation: mul(transpose(P), mul(T, mul(P, local.rotation))),
         translation: [local.translation[0] + lv[0], local.translation[1] + lv[1], local.translation[2] + lv[2]],
         scale: local.scale,
       });
-      if (support > 0) {
-        // Transfer the SAME turn above the gait-owned hips as movement comes
-        // on. Compose the remainder exactly, rather than scaling two Euler
-        // rotations whose combined amplitude depends on the blend weight.
-        const posed = skelMats(skeleton, pose0, rootRef), ref = body.trunk[0], node = skeleton.nodes.get(ref);
-        if (node) {
-          const local = pose0.get(ref) ?? node.rest, parent = posed.get(node.parent);
-          const P = parent ? rotationPart(parent.a) : [1, 0, 0, 0, 1, 0, 0, 0, 1];
-          const remainder = mul(fullTurn, transpose(T));
-          pose0.set(ref, { ...local, rotation: mul(transpose(P), mul(remainder, mul(P, local.rotation))) });
-        }
-        if (support === 1) return { moving: true };   // stride feet and bone lengths untouched
-      }
       // the feet: home on their anchors, the lead one stepping forward on a thrust's and a chop's drive
       const lift = BLOW_LEGS_TIME.lift * leg;
       const plan = { w, feet: {} };
@@ -182,12 +156,12 @@ export function createBlowLegs() {
         const lead = want && want.lead === s;
         const fwdGoal = lead ? want.forward != null ? (want.forward ? [0, want.step * leg, 0] : [0, 0, 0]) : null : [0, 0, 0];
         const off = feet[s].goal(fwdGoal, lastDt, lift);
-        plan.feet[s] = { at: moving ? at(mats, body.bones[s].foot) : lerp3(add(anchor[s].at, off), at(mats, body.bones[s].foot), support), toe: anchor[s].toe, up: anchor[s].up, w: 1, stance: !feet[s].air() };
+        plan.feet[s] = { at: add(anchor[s].at, off), toe: anchor[s].toe, up: anchor[s].up, w: 1, stance: !feet[s].air() };
       }
       lastDt = 0;   // a frame's clocks spent once
       return solveBody(skeleton, pose0, rootRef, skelMats, plan);
     },
-    reset() { w = 0; want = null; anchor = null; moving = false; support = 0; pose = { fwd: 0, drop: 0, yaw: 0, pitch: 0 }; feet.L.reset(); feet.R.reset(); },
+    reset() { w = 0; want = null; anchor = null; pose = { fwd: 0, drop: 0, yaw: 0, pitch: 0 }; feet.L.reset(); feet.R.reset(); },
   };
   return layer;
 }
