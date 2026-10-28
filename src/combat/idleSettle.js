@@ -101,6 +101,17 @@ export function blendSourceOf(assembly, on = true) {
 }
 
 /**
+ * BLEND-CARRY (2026-10-28, the third run of the claymore sweep): a blow's entry fade (BLOW_FLOW.entry) began on its
+ * first frame and was cut on its second - the action's source was picked again (a section's re-pick), the rig took the
+ * new source for a new transition, and a change within one blow blends in 0 s: the blade leapt from the stance to the
+ * wind-up whole (0.38 m in a frame, every blow, every direction). A transition of 0 s now leaves a fade still running to
+ * finish (answers true: keep `from`, `elapsed` and `seconds`); any other change starts its own, as before.
+ */
+export function carriesBlend(seconds, from, elapsed, running, on = true) {
+  return !!on && seconds === 0 && !!from && running > 0 && elapsed < running;
+}
+
+/**
  * MOVE-GRACE (2026-10-28, the same probe): a running jump landed as runforward -> idle (one frame) -> runforward - the
  * movement emptied for a frame and MW-D29's reset dropped the run, restarted the idle and faded twice. A movement that
  * empties now waits `seconds` before it is let go - the landing's own airborne flicker too (a jump that truly leaves the

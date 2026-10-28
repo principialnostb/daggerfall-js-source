@@ -322,6 +322,17 @@ and the blow's second-frame leap unchanged at 0.38 m with the clip's own time ba
 fade at all but **BLOW-ENTRY**: BODY-MOTION stepped its carry aside in the blow's first frame, so the hands left the
 carry for the clip in one; it now lets go over `MOTION_EASE.blowEntry` 0.12 s, as BLOW-RETURN takes it back.
 
+**The third run** showed the landing clean (`runforward > jump2c > runforward`) and two misses, traced frame by frame:
+the blow's leap was the cut of its own entry fade - on frame 0 the fade began (the stance still shown), on frame 1 the
+action's source was picked again and the rig took that for a new transition, which within one blow blends in 0 s, so
+the blade stood in the wind-up whole. **BLEND-CARRY**: a 0 s transition now lets a running fade finish
+(src/combat/idleSettle.js:"export function carriesBlend"). And the elbow did not move with the haft's pole because the
+stance's arm is the CLIP's: **ARM-CLEARANCE** (src/characters/bodyMotion/armClearance.js) takes an elbow inside the
+trunk - an ellipse about the chest, `width` 0.5 and `depth` 0.42 of the shoulder width, `armor` 0.14 more each at full
+armour - and swings the arm about its shoulder-wrist line the least way out (at most 0.9 rad), the hand's place and
+turn kept; a hanging arm (14 units out on retail's 21.75-unit shoulders) is clear. It runs last in the third-person
+motion slot, over the lean. Pinned by `test/characters/bodyMotion/armclearance.test.js`.
+
 Seen and NOT changed, the owner to decide: a sheathe (Z) pressed mid-blow is dropped, not queued; a blow clicked in the
 air starts on the landing. Pinned by `test/combat/idlesettle.test.js`.
 

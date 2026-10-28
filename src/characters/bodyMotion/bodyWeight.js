@@ -11,6 +11,7 @@
 import { algebra, bodyOf, bodyTurn, turnOf, transpose, mul, clamp, clamp01, ease, at } from './bodyKit.js';
 import { MW_WEAPON_TYPE } from '../../formats/morrowind/mwFirstPerson.js';
 import { orthonormal } from '../../combat/climbRig.js';
+import { clearArms } from './armClearance.js';   // ARM-CLEARANCE: the elbows out of the trunk, wider in heavier armour
 
 const { lerp } = algebra;
 
@@ -79,14 +80,14 @@ export function createBodyWeight() {
   let travel = null; let yaw0 = null;
   const vel = { f: 0, r: 0 }; let velPrev = null;
   const pitch = { x: 0, v: 0 }, roll = { x: 0, v: 0 };
-  let weight = 0; let on = false; let slotMemo = null; let moving = 0;
+  let weight = 0; let on = false; let slotMemo = null; let moving = 0; let armorW = 0; let clearOn = false;
   const layer = {
     /**
      * One frame: `active` (the switch, the third person, on the ground and on its feet), `move` the motor's word
      * (`travel` world metres cumulative, x/y/z with y up; `bodyYaw` radians), and the weight's inputs.
      */
     step(dt, { active = false, move = null, armor = null, mwType = MW_WEAPON_TYPE.None } = {}) {
-      weight = bodyWeightOf({ armor, mwType }).w;
+      const bw = bodyWeightOf({ armor, mwType }); weight = bw.w; armorW = bw.armor;
       on = !!active;
       if (!(dt > 0)) return layer.lean();
       const tr = move?.travel, yaw = Number(move?.bodyYaw);
@@ -121,6 +122,7 @@ export function createBodyWeight() {
      *  frame's `cam` (its `move` word), the worn pieces and the drawn weapon's type, and whether the body is dead. */
     stepRig(dt, on, cam, armor, mwType, dead) {
       const mv = cam?.move ?? null;
+      clearOn = !!on;
       const active = !!on && !dead && !!mv && mv.grounded !== false && !mv.swimming && !mv.levitating && !mv.climbing && !cam?.climb && !cam?.seat && !cam?.saddle;
       return layer.step(dt, { active, move: mv, armor, mwType });
     },
@@ -143,6 +145,7 @@ export function createBodyWeight() {
           if (Number.isFinite(zl) && Number.isFinite(zr)) lean.roll -= sway.roll * clamp((zr - zl) / (SWAY.lift * body.leg), -1, 1);
         }
         leanTrunk(skeleton, pose, rootRef, skelMats, lean, mats);
+        if (clearOn) clearArms(skeleton, pose, rootRef, skelMats, { armor: armorW });   // ARM-CLEARANCE, last: over the lean and the carry
         return report;
       } };
       return slotMemo.fn;
