@@ -1545,7 +1545,7 @@ test('MW-D26: the machine WALKS - the slot plays the group at the clip\'s own sp
   assert.equal(arm.status().movementRate, MOVEMENT_SPEED_CAP, 'vanilla caps the played speed at 10');
   // and stopping RESETS the slot
   cam.move.forward = 0; cam.move.running = false; cam.move.speed = 0;
-  arm.update(1 / 60);
+  for (let i = 0; i < 6; i++) arm.update(1 / 60);   // PIN MOVED (MOVE-GRACE, combat/idleSettle.js): a stop lets the clip go after its 0.06 s grace
   assert.equal(arm.status().movementGroup, null, 'standing still again resets the slot');
 });
 

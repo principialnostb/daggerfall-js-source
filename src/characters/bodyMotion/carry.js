@@ -360,7 +360,10 @@ export function carryHands(cls, gp, ctx, { armW = { L: 1, R: 1 }, shares: given 
     const haf = hafHand(out.R, out.grip.R, out.R.frame, TWO_HAND_GRIP[cls], body.arm, { shoulder: frames.shoulder.L, reach: body.arms.L, range: TWO_HAND_HAFT[cls] });
     if (haf) {
       haf.w = armW.L;
-      haf.pole = norm(add(scale(F.right, -0.55), add(scale(F.up, -0.75), scale(F.fwd, -0.2))));
+      // ELBOW-OUT (2026-10-28, the owner: "the left arm goes into the body with this pose"): measured in the game, the
+      // claymore's left elbow stood 0.02-0.05 m off the spine's axis - inside the cuirass - its way had been down, left and
+      // a little BACK; out to the left and forward, clear of the chest, plate or none
+      haf.pole = norm(add(scale(F.right, -0.65), add(scale(F.up, -0.5), scale(F.fwd, 0.55))));
       // closed on the haft by the haft's own share, eased off the free arm the other rows give it
       const k = clamp01(lRow.grip);
       out.L = k >= 1 - 1e-9 || !out.L ? haf : blendHand(out.L, haf, k * k * (3 - 2 * k));

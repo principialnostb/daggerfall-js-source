@@ -3037,6 +3037,9 @@ export function poseAssembly(assembly, { tracks = null, sampleTrack = null,
   // Keep raw animation data separate from morph/neck/climb edits for the next transition.
   assembly.rawPose = new Map(sampledPose);
   const pose = blendFrom && blendWeight < 1 ? blendPoseMaps(blendFrom, sampledPose, blendWeight) : new Map(sampledPose);
+  // SHOWN-POSE (MOTION-DOCTRINE, bible/05-Combat/Motion-Doctrine.md 7c): the pose as this frame shows it, its cross-fade
+  // included - a transition begun while another still runs must start from here, not from the raw clip (rawPose)
+  assembly.shownPose = blendFrom && blendWeight < 1 ? new Map(pose) : assembly.rawPose;
   // Morphs needing an anatomical region are applied to body vertices below,
   // using shared whole-body bounds. Only head scale remains a bone transform;
   // uniform limb scales made unrelated controls behave like overall body scale.

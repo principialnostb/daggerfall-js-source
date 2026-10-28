@@ -46,7 +46,7 @@ test('IDLE-SETTLE: the start is read once per source and group, and settleIdle m
 
 test('IDLE-SETTLE: the rig settles the idle only on a stop, behind the MotionDoctrine switch', () => {
   const src = readFileSync(new URL('../../src/combat/fpArm.js', import.meta.url), 'utf8');
-  assert.match(src, /if \(movementState\) \{ resetMovement\(\); resetIdle\(modSetting\('morrowind-animation', 'MotionDoctrine'\) !== 0\); \}/);
+  assert.match(src, /if \(movementState && !keepMove\) \{ resetMovement\(\); resetIdle\(modSetting\('morrowind-animation', 'MotionDoctrine'\) !== 0\); \}/);   // PIN MOVED (MOVE-GRACE)
   assert.match(src, /function resetIdle\(settle = false\) \{ idleState = null; idleGroup = null; refreshIdle\(true, settle\); \}/);
   assert.match(src, /if \(settle\) settleIdle\(idleState, idleSource, sampleTrack\);/);
 });
@@ -68,4 +68,32 @@ test('TURN-GATE: a stop\'s one-frame twitch of the yaw starts no turn in place; 
   assert.equal(old.step(0.0001, dt, false), 1, 'switched off: any change of the yaw turns, as the reference\'s port did');
   const src = readFileSync(new URL('../../src/combat/fpArm.js', import.meta.url), 'utf8');
   assert.match(src, /turnDir = turnGate\.step\(d, dt, modSetting\('morrowind-animation', 'MotionDoctrine'\) !== 0\);/);
+});
+
+test('SHOWN-POSE: a transition begun mid-fade starts from the pose the frame showed, not the raw clip', async () => {
+  const { blendSourceOf } = await import('../../src/combat/idleSettle.js');
+  const raw = new Map([[1, { rotation: [1, 0, 0, 0, 1, 0, 0, 0, 1], translation: [1, 0, 0], scale: 1 }]]);
+  const shown = new Map([[1, { rotation: [1, 0, 0, 0, 1, 0, 0, 0, 1], translation: [0.3, 0, 0], scale: 1 }]]);
+  const assembly = { rawPose: raw, shownPose: shown };
+  assert.equal(blendSourceOf(assembly).get(1).translation[0], 0.3, 'the shown pose');
+  assert.notEqual(blendSourceOf(assembly), shown, 'a copy, not the live map');
+  assert.equal(blendSourceOf(assembly, false).get(1).translation[0], 1, 'switched off: the raw clip, as before');
+  assert.equal(blendSourceOf({}), null);
+  const mw = readFileSync(new URL('../../src/formats/morrowind/mwFirstPerson.js', import.meta.url), 'utf8');
+  assert.match(mw, /assembly\.shownPose = blendFrom && blendWeight < 1 \? new Map\(pose\) : assembly\.rawPose;/);
+  const src = readFileSync(new URL('../../src/combat/fpArm.js', import.meta.url), 'utf8');
+  assert.equal((src.match(/blendSourceOf\((t\.arm|built\.arm), modSetting\('morrowind-animation', 'MotionDoctrine'\) !== 0\)/g) ?? []).length, 2, 'both views');
+});
+
+test('MOVE-GRACE: a movement that empties for a frame or two keeps its clip; a real stop lets go after the grace', async () => {
+  const { createMoveGrace, MOVE_GRACE } = await import('../../src/combat/idleSettle.js');
+  const g = createMoveGrace(), dt = 1 / 120;
+  assert.equal(g.step(true, dt), true, 'one empty frame is held');
+  assert.equal(g.step(false, dt), false, 'the movement back: nothing held');
+  let held = 0;
+  while (g.step(true, dt)) held += dt;
+  assert.ok(Math.abs(held - MOVE_GRACE.seconds) < 2 * dt, `a stop lets go after ${held} s`);
+  assert.equal(createMoveGrace().step(true, dt, false), false, 'switched off, or in the air: no grace');
+  const src = readFileSync(new URL('../../src/combat/fpArm.js', import.meta.url), 'utf8');
+  assert.match(src, /if \(movementState && !keepMove\) \{ resetMovement\(\);/);
 });

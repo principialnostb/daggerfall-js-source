@@ -367,7 +367,7 @@ import { createBodyMotion, motionWord } from '../characters/bodyMotion/bodyMotio
 import { shieldGuardStance, carriesShield, isHandShieldSlot, shieldBashHold } from './shieldGuard.js';   // SHIELD-GUARD: the fists behind a shield - the stance, the bash
 import { createLeftArmLayer, leftArmPlan, leftArmModeOf, loopWindow } from './leftArmLayer.js';   // LEFT-ARM: the shield's and the free hand's arm over the clip, by weight
 import { createLowerBodyLayer, lowerBodyBones } from './lowerBodyLayer.js';   // LOWER-BODY: the legs under a blow keep the stride (rule 26)
-import { settleIdle, createTurnGate } from './idleSettle.js';   // IDLE-SETTLE: a stop lands the idle where its legs are quiet
+import { settleIdle, createTurnGate, blendSourceOf, createMoveGrace } from './idleSettle.js';   // IDLE-SETTLE: a stop lands the idle where its legs are quiet
 import { createFpInertia } from './fpInertia.js';   // FP-INERTIA: the first-person hands carry weight
 import { createLoopSeam } from './loopSeam.js';   // LOOP-SEAM: a loop's stop carried to its start
 import { hitResponse } from './hitResponse.js';   // HIT-RESPONSE: the striking arm's hitstop
@@ -4896,6 +4896,7 @@ export function createFpArm({ playerAppearance = false } = {}) {
   // last actual rotation, so mouse jitter does not flicker it.
   let lastYaw = null;
   const turnGate = createTurnGate();   // TURN-GATE (combat/idleSettle.js)
+  const moveGrace = createMoveGrace();   // MOVE-GRACE (combat/idleSettle.js)
   let turnDir = 0;
   let upper = UPPER_BODY.None;
   let spellReady = false;        // MW-D39: a spell is readied (the stance)
@@ -6254,12 +6255,13 @@ export function createFpArm({ playerAppearance = false } = {}) {
       turning: turnDir,
       thirdPerson: viewMode === 'third' && !nonBiped(),   // MWNPC9: turning animations are a biped's (character.cpp:2178)
     });
+    const keepMove = moveGrace.step(!base, dt, !inJump && modSetting('morrowind-animation', 'MotionDoctrine') !== 0);   // MOVE-GRACE (combat/idleSettle.js)
     if (!base) {
       // MW-D29: the frame the movement EMPTIES while one was playing,
       // the idle resets with it (character.cpp:646-651) - so it replays
       // from its start with freshly rolled loop dice (:824, :811)
       // instead of resuming mid-clip on a stale counter.
-      if (movementState) { resetMovement(); resetIdle(modSetting('morrowind-animation', 'MotionDoctrine') !== 0); }   // IDLE-SETTLE (combat/idleSettle.js)
+      if (movementState && !keepMove) { resetMovement(); resetIdle(modSetting('morrowind-animation', 'MotionDoctrine') !== 0); }   // IDLE-SETTLE (combat/idleSettle.js)
       return;
     }
     const isTurn = base.startsWith('turn');
@@ -8198,7 +8200,7 @@ export function createFpArm({ playerAppearance = false } = {}) {
           posePartClocks(t.arm, weaponClockValue(), { frameTime: partClock });   // MW-BOW1: the bow draws, the arrow with it
           // MW-ANIM-BLEND: cross-fade every third-person clip transition (walk/idle/run/jump/attack) over a short fixed window.
           if (thirdPoseState !== state || thirdPoseSource !== poseSource) {
-            thirdBlendFrom = t.arm.rawPose instanceof Map ? new Map(t.arm.rawPose) : null;
+            thirdBlendFrom = blendSourceOf(t.arm, modSetting('morrowind-animation', 'MotionDoctrine') !== 0);   // SHOWN-POSE (combat/idleSettle.js)
             thirdBlendFromSource = thirdPoseState === null ? null : thirdPoseSource;
             thirdBlendElapsed = 0;
             thirdPoseState = state;
@@ -8420,7 +8422,7 @@ export function createFpArm({ playerAppearance = false } = {}) {
       // a blow cut by the next, and back to the stance; any other change is the clip's own, as it always was
       const fKind = poseKindOf(state === actionState && attackingNow(), blowSerial);
       // (from the pose of the frame before alone - a view switch carries nothing: TWO-HANDS AUDIT finding 6)
-      if (fpBlend.state !== state) Object.assign(fpBlend, { from: fpBlend.state && fpBlend.at === frames && built.arm.rawPose instanceof Map ? new Map(built.arm.rawPose) : null, seconds: blowBlendSeconds(fpBlend.kind, fKind) ?? 0, elapsed: 0, state, kind: fKind });
+      if (fpBlend.state !== state) Object.assign(fpBlend, { from: fpBlend.state && fpBlend.at === frames ? blendSourceOf(built.arm, modSetting('morrowind-animation', 'MotionDoctrine') !== 0) : null, seconds: blowBlendSeconds(fpBlend.kind, fKind) ?? 0, elapsed: 0, state, kind: fKind });
       fpBlend.at = frames + 1;
       fpBlend.elapsed += Math.max(0, dt);
       posePartClocks(built.arm, weaponClockValue(), { frameTime: partClock });   // MW-BOW1: the bow draws, the arrow with it

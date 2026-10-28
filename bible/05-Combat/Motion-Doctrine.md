@@ -291,6 +291,33 @@ sideways's clip plants its foot at 73 units a second, so the legs scurried. The 
 (src/characters/bodyMotion/stride.js:"return { rate: Math.min(STRIDE.maxRate, k / stride), stride };"). Pinned by
 `test/characters/bodyMotion/stride.test.js`.
 
+### 7c. The combat sweep (2026-10-28) - a longsword and shield, then a claymore
+
+At the owner's word ("check everything first, then fix, then one restart"), the owner equipping each set: every
+movement and stop, a jump standing and running, the sneak, single blows in each drag direction (chop, both slashes,
+both diagonals, the thrust), click series every 0.25, 0.45, 0.7 and 1.0 s, the button held, blows walking, running and
+strafing, a blow stopped on, a blow off a jump, a blow then a sheathe. A probe read the drawn bones and the clip state
+every frame; a single-frame jump three times its neighbours' and over 7 cm was flagged. Found and fixed:
+
+1. **SHOWN-POSE** - every cross-fade began from the RAW clip pose (mwFirstPerson.js poseAssembly's `rawPose`), so a fade
+   begun while another ran jumped by the unfinished part: the second frame of every claymore blow (the hands 0.22-0.25 m,
+   the blade 0.38 m, the same in every direction and series), stops after blows on the move, the landing of a running
+   jump (the feet 0.4-0.5 m, the shield 0.3). Both views now fade from the pose the frame showed
+   (src/combat/idleSettle.js:"export function blendSourceOf").
+2. **MOVE-GRACE** - a running jump landed runforward -> idle (one frame) -> runforward: a movement that empties now
+   waits 0.06 s before MW-D29's reset (src/combat/idleSettle.js:"export const MOVE_GRACE"); MW-D26's stop pin waits
+   with it.
+3. **ELBOW-OUT** - the claymore's left elbow stood 0.02-0.05 m off the spine's axis, inside the cuirass (the owner's
+   screenshots): the grip's elbow way, once down, left and a little back, is now out to the left and forward
+   (src/characters/bodyMotion/carry.js:"haf.pole = norm(add(scale(F.right, -0.65)").
+4. **SERIES intent 0.85** - a click every 0.7 s fell out of its series and the idle cut in for 0.09 s between blows
+   (src/combat/weapon/attackSeries.js:"export const SERIES").
+
+Measured and sound: the cadences (walk 1.68, run 1.38, strafes 1.9-2.4, back 1.6-2.2 - no scurry), the stops
+(`walk -> idle`, no turn), the sneak, the series at 0.25 and 0.45 s and the held button (one blow group throughout).
+Seen and NOT changed, the owner to decide: a sheathe (Z) pressed mid-blow is dropped, not queued; a blow clicked in the
+air starts on the landing. Pinned by `test/combat/idlesettle.test.js`.
+
 Then step 3's rest: the two-hander's blows in third person. Every step sits behind a switch "as now / by the formula",
 is judged by the owner in the game, and lives in a module of its own (HOST-SPLIT, `01-Overview/Host-Split.md`).
 

@@ -6,7 +6,7 @@
 // blow struck the next only if the press happened to fall on a free frame, and the series broke into windows.
 
 /** `buffer`: how long a press waits to be taken; `intent`: how long after a press the series counts as going on. */
-export const SERIES = Object.freeze({ buffer: 0.45, intent: 0.7 });
+export const SERIES = Object.freeze({ buffer: 0.45, intent: 0.85 });   // INTENT 0.85 (MOTION-DOCTRINE 7c): at 0.7 a click every 0.7 s fell out of its series - the idle cut in for 0.09 s between blows
 
 export function createAttackSeries() {
   let prevHeld = false;

@@ -87,6 +87,40 @@ export function createTurnGate() {
   };
 }
 
+/**
+ * SHOWN-POSE (2026-10-28, the owner's game, a per-frame probe of the drawn body). A cross-fade began from the assembly's
+ * RAW pose - the clip as sampled, before the fade - so a transition begun while another still ran started from the new
+ * clip at full weight, and the unfinished part of the old fade was a jump in one frame: the second frame of every
+ * claymore blow (the hands 0.22-0.25 m, the blade 0.38 m), the stop after a blow on the move, the landing of a running
+ * jump (the feet 0.4-0.5 m). The fade now starts from the pose the frame SHOWED (mwFirstPerson.js poseAssembly's
+ * `shownPose`); with the switch off, the raw one as before.
+ */
+export function blendSourceOf(assembly, on = true) {
+  const p = on && assembly?.shownPose instanceof Map ? assembly.shownPose : assembly?.rawPose;
+  return p instanceof Map ? new Map(p) : null;
+}
+
+/**
+ * MOVE-GRACE (2026-10-28, the same probe): a running jump landed as runforward -> idle (one frame) -> runforward - the
+ * movement emptied for a frame and MW-D29's reset dropped the run, restarted the idle and faded twice. A movement that
+ * empties now waits `seconds` before it is let go (the airborne frames, the jump's own, are not waited on); a stop is
+ * that much later, a flicker is no stop.
+ */
+export const MOVE_GRACE = Object.freeze({ seconds: 0.06 });
+
+/** THE GRACE: `step(empty, dt, on)` - true while an empty movement is still inside its grace (keep the clip playing). */
+export function createMoveGrace() {
+  let emptyFor = 0;
+  return {
+    step(empty, dt, on = true) {
+      if (!empty || !on) { emptyFor = 0; return false; }
+      emptyFor += Math.max(0, dt);
+      return emptyFor < MOVE_GRACE.seconds;
+    },
+    reset() { emptyFor = 0; },
+  };
+}
+
 /** A fresh idle begun at its quiet start (refreshIdle's pick, after a movement empties). */
 export function settleIdle(state, source, sampleTrack) {
   if (state && source) state.time = quietIdleTime(state, source, sampleTrack);

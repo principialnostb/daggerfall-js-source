@@ -120,7 +120,7 @@ different windows jerky, so the pick is the hash pick again and the cycle drives
 The owner: "held or tapped, the blows should run as one series - the window only when the player stops"; "not
 only the held button - fast clicking too - one picture".
 
-- `createAttackSeries()` - src/combat/weapon/attackSeries.js - `SERIES = { buffer: 0.45, intent: 0.7 }`: a press
+- `createAttackSeries()` - src/combat/weapon/attackSeries.js - `SERIES = { buffer: 0.45, intent: 0.85 }` (0.7 until 2026-10-28, Motion-Doctrine.md 7c): a press
   waits `buffer` seconds to be taken (a click during a blow is not lost), and the series "goes on" while the button
   is held or for `intent` seconds after the last press. The rig steps it every frame, takes a buffered press as a
   click attack (src/combat/weapon/weaponRig.js:"if (taken) { attackSeries.consume") and tells the arm `fpArm.setSeriesWanted(on)`.
