@@ -272,6 +272,18 @@ LOWER-BODY's pins moved with the lines they read. Not done by this sweep: a look
 (the layers over the clips, the cross-fades) - that needs the player's data in the browser, so it is the owner's
 eye; the strafes and the run back still lean on the stride's cap where their ratio is largest.
 
+### 7b. The sweep in the owner's own game (2026-10-28)
+
+The owner's running game (`localhost:5173`, Claude in Chrome, ~110 frames a second; the owner's plate and horned helm,
+Morrowind Animation Overhaul and OpenMW Dynamic Animations on) driven through a scene of keys while a probe read the
+drawn body's bones every frame (`fpArm.thirdBones`). **TURN-GATE**, the owner's "the settle after any movement plays
+twice", found there: every stop drew `walkback` -> `turnright` for six frames -> `idle` - the yaw twitches the frame a
+body stops, and the port started a turn in place on any change of it (MW-D39's `d !== 0`), so the cross-fade into the
+idle was cut by a turn clip whose feet step, and began again; the right foot leapt 0.45 m in one frame. A turn in
+place now needs `TURN_GATE.rate` 0.6 rad/s for `frames` 2 running (src/combat/idleSettle.js:"export const TURN_GATE");
+measured after: `walkforward -> idle`, `walkback -> idle`, the largest foot move in a frame 0.06-0.08 m. MW-D26's pin
+moved with it (two frames of a turn). Pinned by `test/combat/idlesettle.test.js`.
+
 Then step 3's rest: the two-hander's blows in third person. Every step sits behind a switch "as now / by the formula",
 is judged by the owner in the game, and lives in a module of its own (HOST-SPLIT, `01-Overview/Host-Split.md`).
 

@@ -56,6 +56,37 @@ export function quietIdleTime(state, source, sampleTrack) {
   return best;
 }
 
+/**
+ * TURN-GATE (2026-10-27, found running the owner's own game: "after any movement the settle plays twice"). The port
+ * started a turn in place on ANY change of the yaw (combat/fpArm.js refreshMovement, MW-D39's `d !== 0`), held 0.05 s -
+ * and the yaw moves by itself the frame a body stops (the view and the body's facing settle), so every stop drew
+ * walk -> turnleft/turnright for about six frames -> idle: the cross-fade began, was cut by the turn's clip (its feet
+ * step), and began again. Measured in the game: `walkback` -> `turnright` x6 -> `idle`. A turn in place now needs a turn:
+ * at least `rate` radians a second for `frames` frames running; a real look round passes at once, a stop's twitch never.
+ * `hold` the reference's own tail (the 0.05 s turnHold). With the switch off, the old law.
+ */
+export const TURN_GATE = Object.freeze({ rate: 0.6, frames: 2, hold: 0.05 });
+
+/** THE GATE: one per rig. `step(d, dt, on)` takes the frame's yaw change and answers the turn's direction (-1, 0, 1). */
+export function createTurnGate() {
+  let dir = 0, hold = 0, run = 0, runDir = 0;
+  return {
+    step(d, dt, on = true) {
+      if (!on) {
+        if (d !== 0) { dir = Math.sign(d); hold = TURN_GATE.hold; } else { hold -= dt; if (hold <= 0) dir = 0; }
+        return dir;
+      }
+      const fast = dt > 0 && Math.abs(d) / dt >= TURN_GATE.rate;
+      const sign = Math.sign(d);
+      run = fast && sign === runDir ? run + 1 : fast ? 1 : 0;
+      runDir = fast ? sign : 0;
+      if (run >= TURN_GATE.frames) { dir = sign; hold = TURN_GATE.hold; } else { hold -= dt; if (hold <= 0) dir = 0; }
+      return dir;
+    },
+    reset() { dir = 0; hold = 0; run = 0; runDir = 0; },
+  };
+}
+
 /** A fresh idle begun at its quiet start (refreshIdle's pick, after a movement empties). */
 export function settleIdle(state, source, sampleTrack) {
   if (state && source) state.time = quietIdleTime(state, source, sampleTrack);

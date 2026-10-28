@@ -1589,13 +1589,13 @@ test('MW-D26: turning plays turnleft/turnright in THIRD person only, at the turn
   // min(1.5, |rot|/dt/pi) (character.cpp:2396)
   assert.equal(arm.setViewMode('third'), true);
   arm.update(1 / 60);   // settle lastYaw on the new frame
-  cam.yaw += 0.3;
-  arm.update(1 / 60);
+  // PIN MOVED (TURN-GATE, combat/idleSettle.js): a turn in place needs two frames of a real turn - one frame's twitch of
+  // the yaw (a stop's) is no turn
+  for (let i = 0; i < 2; i++) { cam.yaw += 0.3; arm.update(1 / 60); }
   let st = arm.status();
   assert.equal(st.movementGroup, 'turnright', 'yaw increasing = turning right');
   assert.equal(st.movementRate, 1.5, 'a fast spin pins the turn clip at 1.5');
-  cam.yaw -= 0.001;
-  arm.update(1 / 60);
+  for (let i = 0; i < 2; i++) { cam.yaw -= 0.012; arm.update(1 / 60); }
   st = arm.status();
   assert.equal(st.movementGroup, 'turnleft', 'and the sign flips the side');
   assert.ok(st.movementRate < 1.5, `a slow turn plays slower (${st.movementRate})`);

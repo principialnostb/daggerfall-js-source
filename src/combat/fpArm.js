@@ -367,7 +367,7 @@ import { createBodyMotion, motionWord } from '../characters/bodyMotion/bodyMotio
 import { shieldGuardStance, carriesShield, isHandShieldSlot, shieldBashHold } from './shieldGuard.js';   // SHIELD-GUARD: the fists behind a shield - the stance, the bash
 import { createLeftArmLayer, leftArmPlan, leftArmModeOf, loopWindow } from './leftArmLayer.js';   // LEFT-ARM: the shield's and the free hand's arm over the clip, by weight
 import { createLowerBodyLayer, lowerBodyBones } from './lowerBodyLayer.js';   // LOWER-BODY: the legs under a blow keep the stride (rule 26)
-import { settleIdle } from './idleSettle.js';   // IDLE-SETTLE: a stop lands the idle where its legs are quiet
+import { settleIdle, createTurnGate } from './idleSettle.js';   // IDLE-SETTLE: a stop lands the idle where its legs are quiet
 import { createFpInertia } from './fpInertia.js';   // FP-INERTIA: the first-person hands carry weight
 import { createLoopSeam } from './loopSeam.js';   // LOOP-SEAM: a loop's stop carried to its start
 import { hitResponse } from './hitResponse.js';   // HIT-RESPONSE: the striking arm's hitstop
@@ -4895,7 +4895,7 @@ export function createFpArm({ playerAppearance = false } = {}) {
   // character.cpp:2355-2366 - the turn animation HOLDS 0.05s past the
   // last actual rotation, so mouse jitter does not flicker it.
   let lastYaw = null;
-  let turnHold = 0;
+  const turnGate = createTurnGate();   // TURN-GATE (combat/idleSettle.js)
   let turnDir = 0;
   let upper = UPPER_BODY.None;
   let spellReady = false;        // MW-D39: a spell is readied (the stance)
@@ -6237,8 +6237,7 @@ export function createFpArm({ playerAppearance = false } = {}) {
       // (net/peer/peerBodies.js peerCamera), so `yaw` is the wire's there.
       const d = wrapAngle(yaw - lastYaw);
       yawRate = d / dt;
-      if (d !== 0) { turnDir = Math.sign(d); turnHold = 0.05; }
-      else { turnHold -= dt; if (turnHold <= 0) turnDir = 0; }
+      turnDir = turnGate.step(d, dt, modSetting('morrowind-animation', 'MotionDoctrine') !== 0);   // TURN-GATE (combat/idleSettle.js): a stop's twitch is no turn
     }
     lastYaw = yaw;
     const mv = (cam && cam.move) || null;
@@ -6891,7 +6890,7 @@ export function createFpArm({ playerAppearance = false } = {}) {
         idleState = null; actionState = null; idleGroup = null; weaponGroup = null; weaponClock = { group: null, value: 0 };   // MW-BOW1: no group, no state
         movementState = null; movementGroup = null; movementSource = null; movementBase = null;
         jumpState = null; jumpGroup = null; jumpSource = null; jumpStance = null; jumpKind = null;   // MW-D39
-        lastYaw = null; turnDir = 0; turnHold = 0;
+        lastYaw = null; turnDir = 0; turnGate.reset();
         upper = UPPER_BODY.None; attackType = null; holdWindUp = false;
         weaponShown = false; arrowShown = false; notes.length = 0; aimFactor = 0; sneaking = false;
         idleSource = null; actionSource = null; poseSource = null;
@@ -6949,7 +6948,7 @@ export function createFpArm({ playerAppearance = false } = {}) {
       releaseThirdMesh(); thirdBuilt = null; thirdGroundMinZ = null; thirdPacked = null; viewMode = 'first';
       movementState = null; movementGroup = null; movementSource = null; movementBase = null;
       jumpState = null; jumpGroup = null; jumpSource = null; jumpStance = null; jumpKind = null;   // MW-D39
-      lastYaw = null; turnDir = 0; turnHold = 0;
+      lastYaw = null; turnDir = 0; turnGate.reset();
       idleState = null; actionState = null; idleGroup = null; weaponGroup = null; weaponClock = { group: null, value: 0 };   // MW-BOW1: no group, no state
       upper = UPPER_BODY.None; attackType = null; holdWindUp = false;
       weaponShown = false; arrowShown = false;

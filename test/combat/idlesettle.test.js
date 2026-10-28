@@ -50,3 +50,22 @@ test('IDLE-SETTLE: the rig settles the idle only on a stop, behind the MotionDoc
   assert.match(src, /function resetIdle\(settle = false\) \{ idleState = null; idleGroup = null; refreshIdle\(true, settle\); \}/);
   assert.match(src, /if \(settle\) settleIdle\(idleState, idleSource, sampleTrack\);/);
 });
+
+test('TURN-GATE: a stop\'s one-frame twitch of the yaw starts no turn in place; a real turn does, at once', async () => {
+  const { createTurnGate, TURN_GATE } = await import('../../src/combat/idleSettle.js');
+  const gate = createTurnGate();
+  const dt = 1 / 60;
+  assert.equal(gate.step(0.02, dt), 0, 'one frame of 1.2 rad/s is a twitch');
+  assert.equal(gate.step(0, dt), 0);
+  for (let i = 0; i < 10; i++) assert.equal(gate.step(0.001, dt), 0, 'a slow drift (0.06 rad/s) is no turn');
+  gate.step(0.05, dt);
+  assert.equal(gate.step(0.05, dt), 1, `${TURN_GATE.frames} frames of a 3 rad/s turn are a turn`);
+  for (let i = 0; i < 2; i++) gate.step(0, dt);
+  assert.equal(gate.step(0, dt), 1, 'held for the reference\'s tail');
+  for (let i = 0; i < 5; i++) gate.step(0, dt);
+  assert.equal(gate.step(0, dt), 0, 'and let go');
+  const old = createTurnGate();
+  assert.equal(old.step(0.0001, dt, false), 1, 'switched off: any change of the yaw turns, as the reference\'s port did');
+  const src = readFileSync(new URL('../../src/combat/fpArm.js', import.meta.url), 'utf8');
+  assert.match(src, /turnDir = turnGate\.step\(d, dt, modSetting\('morrowind-animation', 'MotionDoctrine'\) !== 0\);/);
+});
