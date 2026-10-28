@@ -9,6 +9,7 @@ import { bodyOf } from '../../../src/characters/bodyMotion/bodyKit.js';
 import { retailSkeleton } from '../../fixtures/mw/retailRig.mjs';
 import { createBodyMotion, sceneInput } from '../../../src/characters/bodyMotion/bodyMotion.js';
 import { MW_WEAPON_TYPE } from '../../../src/formats/morrowind/mwFirstPerson.js';
+import { bodyFrames } from '../../../src/characters/bodyMotion/bodySolve.js';
 
 const sm = (sk, pose, root) => skeletonSpaceMatrices(sk, pose, root);
 const sk = buildSkeleton(parseNif(retailSkeleton()));
@@ -69,5 +70,21 @@ test('ARM-CLEARANCE: a turned two-handed neutral guard keeps both grips and clea
       assert.ok(Math.hypot(...after.get(hand).t.map((v, i) => v - before.get(hand).t[i])) < 0.05, 'grip position preserved');
       assert.ok(Math.max(...after.get(hand).a.map((v, i) => Math.abs(v - before.get(hand).a[i]))) < 1e-5, 'grip rotation preserved');
     }
+  }
+});
+
+test('two-handed neutral carry leaves space for the cuirass along the left forearm', () => {
+  const motion = createBodyMotion();
+  for (let i = 0; i < 120; i++) motion.step(1 / 60, sceneInput({ weapon: MW_WEAPON_TYPE.LongBladeTwoHand }));
+  const pose = new Map();
+  motion.apply(sk, pose, GRAPH_ROOT, sm);
+  clearArms(sk, pose, GRAPH_ROOT, sm, { armor: 1 });
+  const mats = sm(sk, pose, GRAPH_ROOT), frame = bodyFrames(body, mats);
+  const E = mats.get(body.bones.L.fore).t, W = mats.get(body.bones.L.hand).t, C = mats.get(body.chest).t;
+  for (const t of [0, 0.25, 0.5, 0.75]) {
+    const d = E.map((v, i) => v * (1 - t) + W[i] * t - C[i]);
+    const dot = axis => d.reduce((sum, v, i) => sum + v * axis[i], 0);
+    const outside = Math.hypot(dot(frame.right) / (body.shoulderWidth * 0.64), dot(frame.fwd) / (body.shoulderWidth * 0.56));
+    assert.ok(outside >= 1, `forearm at ${t} clears plate (${outside})`);
   }
 });

@@ -129,3 +129,13 @@ departure from DFU WeaponManager/FPSWeapon recorded above. A regression exercise
 the composed two-handed neutral carry at several body headings and requires
 identical clearance decisions and preserved grips. The owner's armour mesh still
 needs in-game visual review; the ellipse is a clearance proxy, not mesh collision.
+
+The owner's next screenshot still shows penetration. The neutral two-handed
+carry itself placed the left wrist across the torso; elbow swivel alone could
+not correct the grip location. Move the idle right shoulder flexion from 29 to
+50 degrees and elbow bend from 10 to 35 degrees, carrying the shared hilt ahead
+of the chest. Other gait rows retain their values. A composed neutral-carry
+regression checks four points along the left forearm outside the full-armour
+ellipse, rather than only preserving the existing wrist location. The installed
+MAO idle probe with the carry applied now needs no clearance swivel at its
+sampled pose. This remains a geometric check awaiting the owner's rendered view.
