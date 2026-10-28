@@ -137,7 +137,18 @@ the workers, the queues), and the swap now says where in its own line.
   weapon a rig, in the pool's ordinary line - a click's own swap goes ahead of it.
 - **The swap's line**: `[mw] weapon swap <name> in N ms - archives, meshes, textures, third` beside the build's.
 
-`test/combat/weaponfirst.test.js`. Not measured in the game: the owner's line is the A/B.
+`test/combat/weaponfirst.test.js`.
+
+**LOAD-STALL 4 - the reads, the player's first.** The owner's line came back the same day: `[mw] weapon swap Claymore in
+102187 ms - archives 203, meshes 36508, textures 65357, third 118` (the next, Longsword: 1,471 ms). A minute and a half
+of waiting for a few files: every archive read went out at once - the street's bodies' meshes and pictures, the
+warm-up's, the sword's - into the browser's six connections to the dev server (the packs' files) and its own line for
+the store (the `.bsa` ranges, the loose files). Every read now goes through one queue
+(`fpArm.js:"export function archiveRead(read, urgent = false) {"`): at most four ordinary reads at once and six in all,
+so an urgent read always finds a place, and the urgent line is served first. The player's builds (`urgent`) and the
+rig's swaps (`playerAppearance`) mark theirs - sixteen reads of `loadFromArchives` - and everything else (the NPCs',
+the portraits', the icons', the warm-up's) waits in the ordinary line. The pictures' `<img>` loads (the Eye of the
+Beholder's sprites) still share the connections outside it. Not measured in the game.
 
 ## 6. What is left, in order
 

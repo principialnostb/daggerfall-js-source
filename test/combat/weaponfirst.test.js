@@ -33,3 +33,22 @@ test('WEAPON-FIRST: the carried weapons are warmed once each by the standing rig
   assert.match(readFileSync('src/combat/weapon/weaponRig.js', 'utf8'), /if \(res\?\.ok\) fpArm\.prewarmWeapons\?\.\(entity\?\.items\)\.catch\(\(\) => 0\);/);
   assert.match(readFileSync('src/ui/enhanced/enhancedInventory.js', 'utf8'), /arm\.prewarmWeapons\?\.\(deps\.entity\.items\)\?\.catch\?\.\(\(\) => 0\);/);
 });
+
+test('LOAD-STALL 4: archive reads go through one queue - at most ARCHIVE_READS_NORMAL ordinary ones at once, room always left for an urgent one, and the urgent line served first (mutants: no cap; no room kept; first come first served)', async () => {
+  const { archiveRead, _archiveReadState, ARCHIVE_READS_MAX, ARCHIVE_READS_NORMAL } = await import('../../src/combat/fpArm.js');
+  const open = []; const order = [];
+  const hold = (name) => () => new Promise((r) => { order.push(name); open.push(r); });
+  const normal = Array.from({ length: ARCHIVE_READS_NORMAL + 3 }, (_, i) => archiveRead(hold(`npc${i}`)));
+  assert.equal(_archiveReadState().running, ARCHIVE_READS_NORMAL, 'the street\'s reads stop at their cap');
+  const mine = archiveRead(hold('sword'), true);
+  assert.equal(order.at(-1), 'sword', 'the urgent read starts at once, in the room kept for it');
+  assert.ok(_archiveReadState().running <= ARCHIVE_READS_MAX);
+  const mine2 = archiveRead(hold('sword-tex'), true);
+  archiveRead(hold('sword-tex2'), true);
+  assert.equal(_archiveReadState().running, ARCHIVE_READS_MAX);
+  open.shift()(); await Promise.resolve(); await Promise.resolve();
+  assert.equal(order.at(-1), 'sword-tex2', 'a freed place goes to the urgent line first');
+  while (open.length) { open.shift()(); await Promise.resolve(); await Promise.resolve(); }
+  await Promise.all([...normal, mine, mine2]);
+  assert.deepEqual(_archiveReadState(), { running: 0, urgent: 0, normal: 0 });
+});
