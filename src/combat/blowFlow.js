@@ -90,10 +90,21 @@ export function calmBlowPlan(blow, wind, release) {
 /** A pose's kind for the blend: a blow (its serial - the sections of one blow are one kind) or anything else. */
 export const poseKindOf = (attacking, serial) => (attacking ? `blow:${serial}` : 'pose');
 
-/** How long to blend a change of pose from `from` to `to` (poseKindOf's), or null for the view's own default. */
-export function blowBlendSeconds(from, to) {
+/** SECTION-SEAM (2026-10-28, Motion-Doctrine.md 7e, measured in the owner's game): the sections of one blow join where
+ *  one stops and the next starts - but a pack's "small follow start" can sit 0.07 s past its "hit" (the shield's
+ *  longsword: the blade 0.31 m, the shield's hand 0.16 m in one frame, every slash). A seam wider than `tolerance`
+ *  file seconds is blended over `seconds`, from the pose shown. OpenMW plays the follow from its own key and leaps. */
+export const SECTION_SEAM = Object.freeze({ tolerance: 0.01, seconds: 0.08 });
+/** The file time a clip state shows - a reversed section's mirrored (MS1). */
+const shownTime = (s) => (s.reversed ? s.startTime + s.stopTime - s.time : s.time);
+/** The gap, in file seconds, between where `prev` stopped and where `next` starts - 0 when either is missing. */
+export const sectionGap = (prev, next) => (prev && next && Number.isFinite(prev.time) && Number.isFinite(next.time) ? Math.abs(shownTime(prev) - shownTime(next)) : 0);
+
+/** How long to blend a change of pose from `from` to `to` (poseKindOf's), or null for the view's own default; `prev` and
+ *  `next` the clip states, for a seam inside one blow (SECTION_SEAM). */
+export function blowBlendSeconds(from, to, prev = null, next = null) {
   const fromBlow = String(from ?? '').startsWith('blow:'), toBlow = String(to ?? '').startsWith('blow:');
-  if (fromBlow && toBlow) return from === to ? 0 : BLOW_FLOW.chain;
+  if (fromBlow && toBlow) return from !== to ? BLOW_FLOW.chain : sectionGap(prev, next) > SECTION_SEAM.tolerance ? SECTION_SEAM.seconds : 0;
   if (fromBlow) return BLOW_FLOW.exit;
   if (toBlow) return BLOW_FLOW.entry;
   return null;   // any other change: the view's own

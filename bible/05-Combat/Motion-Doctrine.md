@@ -356,6 +356,29 @@ stylised school's life is the clips' own (section 1). So, at the owner's word:
 - **Open**: the out-of-stance walk from one pack with the run (the owner: "later we'll deal with them"); the pack's
   own variant choice (`march13/15` for armour) needs its Lua's rule, which the port does not run.
 
+### 7e. The longsword and shield again (2026-10-28) - every blow, its seams
+
+The owner: "a very careful, detailed analysis of third-person combat with sword and shield, again - as with the
+claymore; there are many more animations and transitions here". The scene ran in the owner's game (15 000 frames): the
+moves and their stops, the jumps, the sneak, each blow alone (chop, the slashes, the thrust three times - the bash in
+turn - the diagonals), series clicked at 250, 450, 700 and 1000 ms, a thrust series, the button held, blows walking,
+running, sidestepping and backing, a bash walking, a blow into a stop, a blow in the air, the sheathe and the draw.
+
+Clean: every move's start and stop (one group into the next, no flicker, no leap), the landings, the sneak, the held
+series (one blow group for 3 s), the bash in turn, the sheathe and draw; the stance shown 0.06-0.24 s between blows
+clicked a second apart is the stance's, blended both ways. Two leaps, in every blow:
+
+- **The entry, still** - the blade 0.41 m, the right hand 0.27 m on the blow's first frame. BLOW-ENTRY (7c) eased the
+  carry by `entry`, but its weight is `w * back * entry` and BLOW-RETURN's `back` reads `sinceBlow`, which a blow holds
+  at 0: the carry was multiplied out in the first frame and the ease worked on nothing. The entry now lets go of the
+  carry as it stood when the blow came (src/characters/bodyMotion/bodyMotion.js:"const back = bp ? entryBack : backOf(sinceBlow);").
+- **SECTION-SEAM** - the blade 0.31 m, the shield's hand 0.16 m in one frame where the release met the follow-through:
+  this pack's "small follow start" is keyed 0.067 s past its "hit", and the sections of one blow blended in 0 s. A seam
+  wider than `SECTION_SEAM.tolerance` (0.01 file s) between where a section stopped and the next starts is now blended
+  over `SECTION_SEAM.seconds` 0.08 s from the pose shown, in both views (src/combat/blowFlow.js:"export const SECTION_SEAM");
+  a backhand's sections join where each shows its time (MS1). OpenMW plays the follow from its own key and leaps there -
+  the departure is named. Pinned by `test/combat/blowflow.test.js`.
+
 Then step 3's rest: the two-hander's blows in third person. Every step sits behind a switch "as now / by the formula",
 is judged by the owner in the game, and lives in a module of its own (HOST-SPLIT, `01-Overview/Host-Split.md`).
 

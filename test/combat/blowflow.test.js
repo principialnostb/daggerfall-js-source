@@ -237,6 +237,51 @@ test('BLOW-RETURN: after a blow the carry takes the weapon back over BLOW_FLOW.e
   }
 });
 
+test('BLOW-ENTRY: into a blow the carry lets the weapon go over MOTION_EASE.blowEntry - never in the blow\'s first frame', async () => {
+  // (measured in the owner's game, 2026-10-28: the longsword's blade 0.41 m on the second frame of every blow - BLOW-RETURN's
+  // share read 0 inside a blow, so the entry's ease multiplied nothing)
+  const sm = (sk, pose, root) => skeletonSpaceMatrices(sk, pose, root);
+  const sk = buildSkeleton(parseNif(retailSkeleton()));
+  const hand = sk.byName.get('bip01 r hand');
+  for (const weapon of [MW_WEAPON_TYPE.LongBladeTwoHand, MW_WEAPON_TYPE.LongBladeOneHand]) {
+    const motion = createBodyMotion();
+    let prev = null, worst = 0, held = null;
+    for (let i = 0; i < 150; i++) {
+      const blow = i >= 90 ? { type: 'chop', reversed: false, hand: 'R', section: 'windUp', progress: 0, strength: 1 } : null;
+      motion.step(1 / 60, sceneInput({ weapon, blow }));
+      const pose = new Map();
+      motion.apply(sk, pose, GRAPH_ROOT, sm);
+      const p = sm(sk, pose, GRAPH_ROOT).get(hand).t;
+      if (i === 89) held = p;
+      if (prev && i >= 90) worst = Math.max(worst, Math.hypot(p[0] - prev[0], p[1] - prev[1], p[2] - prev[2]));
+      prev = p;
+    }
+    const rest = sm(sk, new Map(), GRAPH_ROOT).get(hand).t;
+    const travel = Math.hypot(held[0] - rest[0], held[1] - rest[1], held[2] - rest[2]);
+    assert.ok(travel > 5, `type ${weapon}: the carry held the weapon off the clip's (${travel.toFixed(1)} units)`);
+    assert.ok(worst < travel / 3, `type ${weapon}: the hand left ${worst.toFixed(1)} units in a frame of ${travel.toFixed(1)}`);
+    assert.ok(Math.hypot(prev[0] - rest[0], prev[1] - rest[1], prev[2] - rest[2]) < 1e-6, 'and the blow is the clip\'s once in');
+  }
+});
+
+test('SECTION-SEAM: a seam inside one blow - its follow-through keyed past its hit - is blended, a joined one never', async () => {
+  const { SECTION_SEAM, sectionGap } = await import('../../src/combat/blowFlow.js');
+  const release = { startTime: 314.6, stopTime: 314.733, time: 314.733, reversed: false };
+  const follow = { startTime: 314.8, stopTime: 315.2, time: 314.8, reversed: false };
+  assert.ok(Math.abs(sectionGap(release, follow) - 0.067) < 1e-9);
+  assert.equal(blowBlendSeconds('blow:7', 'blow:7', release, follow), SECTION_SEAM.seconds, 'the longsword\'s 0.067 s past its hit');
+  assert.equal(blowBlendSeconds('blow:7', 'blow:7', release, { ...follow, startTime: 314.733, time: 314.733 }), 0, 'joined: one clip');
+  // MS1: a backhand's sections played backwards join where each shows its time - the release's max attack, the wind-up's
+  const backRelease = { startTime: 314.5, stopTime: 314.733, time: 314.733, reversed: true };
+  const backFollow = { startTime: 314.2, stopTime: 314.5, time: 314.2, reversed: true };
+  assert.equal(blowBlendSeconds('blow:7', 'blow:7', backRelease, backFollow), 0);
+  assert.equal(blowBlendSeconds('blow:7', 'blow:8', release, follow), BLOW_FLOW.chain, 'a next blow is the chain\'s');
+  assert.ok(SECTION_SEAM.seconds < BLOW_FLOW.entry, 'shorter than a blow\'s entry: the release keeps its snap');
+  const src = rd('src/combat/fpArm.js');
+  assert.match(src, /blowBlendSeconds\(thirdPoseKind, kindNow, thirdPoseState, state\)/);
+  assert.match(src, /blowBlendSeconds\(fpBlend\.kind, fKind, fpBlend\.state, state\)/);
+});
+
 test('SERIES-FLOW: the series and its buffer - a press waits SERIES.buffer to be taken, the series goes on SERIES.intent after it or while held', async () => {
   const { createAttackSeries, SERIES } = await import('../../src/combat/weapon/attackSeries.js');
   const { driftRate, SERIES_DRIFT } = await import('../../src/combat/blowFlow.js');

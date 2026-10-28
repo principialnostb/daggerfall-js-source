@@ -117,6 +117,8 @@ export function createBodyMotion() {
   let sneakHand = false;   // SNEAK-GUARD: the one-hander's arm handed to the sneak clip, or on its way back from it
   let sinceBlow = Infinity;   // BLOW-RETURN: seconds since the clip last had a blow (the layer steps aside for one)
   let blowAge = 0;   // BLOW-ENTRY: seconds the blow now in the machine has run (the layer steps aside over the first of them)
+  let entryBack = 1;   // BLOW-ENTRY: BLOW-RETURN's share when that blow came - the carry the entry lets go of
+  const backOf = (since) => (Number.isFinite(since) ? smooth(since / MOTION_EASE.blowReturn) : 1);
   let cls = 'free', clsFrom = null, clsMix = 1;
   // THE CARRY'S OWN GAIT SHARES: the gait's (idle, walk, run, sneak) followed by a critically damped spring - the gait's
   // first-order eases start a change at full speed, and the arms with them (AUDIT BODY-MOTION CARRY-6: a run's carry
@@ -275,6 +277,7 @@ export function createBodyMotion() {
       else if (lastBlow && lastBlow.w > 1e-3) lastBlow = { ...lastBlow, w: ease(lastBlow.w, 0, MOTION_EASE.out, dt) };
       else lastBlow = null;
       bpNow = seen ?? lastBlow;
+      if (bpNow && !(blowAge > 0)) entryBack = backOf(sinceBlow);   // BLOW-ENTRY: the carry as it stood when the blow came
       sinceBlow = bpNow ? 0 : sinceBlow + Math.max(0, dt);   // BLOW-RETURN
       blowAge = bpNow ? blowAge + Math.max(0, dt) : 0;   // BLOW-ENTRY
       stance = stanceNow(bpNow);
@@ -306,7 +309,9 @@ export function createBodyMotion() {
       // BLOW-RETURN (Mac: "after the blow the two-hander stays raised and goes back to neutral instantly"): the layer comes
       // back over the clip's return as slowly as the clip does (combat/blowFlow.js BLOW_FLOW.exit) - stepped aside for the
       // whole blow, it took the carry's hands back the frame the blow ended
-      const back = Number.isFinite(sinceBlow) ? smooth(sinceBlow / MOTION_EASE.blowReturn) : 1;
+      // - and through a blow's entry the carry it had when the blow came (BLOW-ENTRY: sinceBlow is 0 in a blow, so its
+      // own return read 0 there and the carry still left in one frame, the entry's ease multiplying nothing)
+      const back = bp ? entryBack : backOf(sinceBlow);
       const plan = {
         w: w * back * entry,
         armW: { L: armW.L, R: armW.R },

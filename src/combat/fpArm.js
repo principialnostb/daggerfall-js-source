@@ -8199,7 +8199,7 @@ export function createFpArm({ playerAppearance = false } = {}) {
           if (thirdPoseState !== state || thirdPoseSource !== poseSource) {
             // BLOW-FLOW: a blow's change of pose blends by its own law (combat/blowFlow.js) - the sections of one blow
             // never (one clip), a blow cut by the next briefly, the return to the stance slowly
-            const kindNow = poseKindOf(state === actionState && attackingNow(), blowSerial), seconds = blowBlendSeconds(thirdPoseKind, kindNow);
+            const kindNow = poseKindOf(state === actionState && attackingNow(), blowSerial), seconds = blowBlendSeconds(thirdPoseKind, kindNow, thirdPoseState, state);   // SECTION-SEAM
             if (!carriesBlend(seconds, thirdBlendFrom, thirdBlendElapsed, thirdBlendSeconds, modSetting('morrowind-animation', 'MotionDoctrine') !== 0)) {   // BLEND-CARRY (combat/idleSettle.js)
               thirdBlendFrom = blendSourceOf(t.arm, modSetting('morrowind-animation', 'MotionDoctrine') !== 0);   // SHOWN-POSE (combat/idleSettle.js)
               thirdBlendFromSource = thirdPoseState === null ? null : thirdPoseSource;
@@ -8419,7 +8419,7 @@ export function createFpArm({ playerAppearance = false } = {}) {
       // a blow cut by the next, and back to the stance; any other change is the clip's own, as it always was
       const fKind = poseKindOf(state === actionState && attackingNow(), blowSerial);
       // (from the pose of the frame before alone - a view switch carries nothing: TWO-HANDS AUDIT finding 6)
-      if (fpBlend.state !== state) Object.assign(fpBlend, { from: fpBlend.state && fpBlend.at === frames ? blendSourceOf(built.arm, modSetting('morrowind-animation', 'MotionDoctrine') !== 0) : null, seconds: blowBlendSeconds(fpBlend.kind, fKind) ?? 0, elapsed: 0, state, kind: fKind });
+      if (fpBlend.state !== state) Object.assign(fpBlend, { from: fpBlend.state && fpBlend.at === frames ? blendSourceOf(built.arm, modSetting('morrowind-animation', 'MotionDoctrine') !== 0) : null, seconds: blowBlendSeconds(fpBlend.kind, fKind, fpBlend.state, state) ?? 0, elapsed: 0, state, kind: fKind });
       fpBlend.at = frames + 1;
       fpBlend.elapsed += Math.max(0, dt);
       posePartClocks(built.arm, weaponClockValue(), { frameTime: partClock });   // MW-BOW1: the bow draws, the arrow with it
