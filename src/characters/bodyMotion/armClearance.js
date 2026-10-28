@@ -9,6 +9,7 @@
 
 import { bodyOf, turnOf, at, mul, transpose, algebra } from './bodyKit.js';
 import { rotAxisAngle, orthonormal } from '../../combat/climbRig.js';
+import { bodyFrames } from './bodySolve.js';
 
 const { sub, add, scale, dot, norm, len } = algebra;
 
@@ -27,25 +28,37 @@ export function clearArms(skeleton, pose, rootRef, skelMats, { armor = 0 } = {})
   if (!body || !body.bones?.L || !body.bones?.R) return null;
   const mats = skelMats(skeleton, pose, rootRef);
   const chest = at(mats, body.chest), pelvis = at(mats, body.bones.pelvis);
-  if (!chest || !pelvis) return null;
+  const frame = bodyFrames(body, mats);
+  if (!chest || !pelvis || !frame) return null;
   const sw = body.shoulderWidth || 0, extra = ARM_CLEARANCE.armor * Math.max(0, Math.min(1, armor));
   const A = sw * (ARM_CLEARANCE.width + extra), Bd = sw * (ARM_CLEARANCE.depth + extra);
   const out = { L: 0, R: 0 };
   if (!(A > 0 && Bd > 0)) return out;
-  const offAxis = (p) => outOf(p, chest, A, Bd);
+  // The armour turns with the chest. Rig-space x/y only describes a facing,
+  // upright body; a turned guard otherwise clears against the wrong ellipse.
+  const local = (p) => { const d = sub(p, chest); return [dot(d, frame.right), dot(d, frame.fwd), dot(d, frame.up)]; };
+  const offAxis = (p) => outOf(local(p), [0, 0, 0], A, Bd);
+  const bottom = dot(sub(pelvis, chest), frame.up);
+  const clearance = (S, E, W) => {
+    // Include the flesh between joints: a clear elbow can still leave most
+    // of the forearm inside the cuirass. Keep the fixed shoulder/wrist out.
+    const points = [E, add(scale(S, 0.25), scale(E, 0.75)), add(scale(E, 0.75), scale(W, 0.25)), add(scale(E, 0.5), scale(W, 0.5))];
+    const trunk = points.filter(p => local(p)[2] >= bottom && local(p)[2] <= 0);
+    return trunk.length ? Math.min(...trunk.map(offAxis)) : 1;
+  };
   for (const side of ['L', 'R']) {
     const b = body.bones[side];
     const S = at(mats, b.upper), E = at(mats, b.fore), W = at(mats, b.hand);
-    if (!S || !E || !W || E[2] < pelvis[2] || offAxis(E) >= 1) continue;
+    if (!S || !E || !W || clearance(S, E, W) >= 1) continue;
     const a = norm(sub(W, S));
     if (!(len(a) > 0.5)) continue;
     const along = scale(a, dot(sub(E, S), a)), e0 = sub(sub(E, S), along);
     const elbowAt = (th) => add(add(S, along), apply3(rotAxisAngle(a, th), e0));
-    let best = 0, bestD = offAxis(E);
+    let best = 0, bestD = clearance(S, E, W);
     for (let k = 1; k * ARM_CLEARANCE.step <= ARM_CLEARANCE.maxTurn + 1e-9; k++) {
       let done = false;
       for (const th of [k * ARM_CLEARANCE.step, -k * ARM_CLEARANCE.step]) {
-        const d = offAxis(elbowAt(th));
+        const d = clearance(S, elbowAt(th), W);
         if (d > bestD + 1e-6) { bestD = d; best = th; }
         if (d >= 1) { best = th; done = true; break; }
       }

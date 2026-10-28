@@ -7,6 +7,8 @@ import { buildSkeleton, skeletonSpaceMatrices, GRAPH_ROOT } from '../../../src/f
 import { clearArms, ARM_CLEARANCE } from '../../../src/characters/bodyMotion/armClearance.js';
 import { bodyOf } from '../../../src/characters/bodyMotion/bodyKit.js';
 import { retailSkeleton } from '../../fixtures/mw/retailRig.mjs';
+import { createBodyMotion, sceneInput } from '../../../src/characters/bodyMotion/bodyMotion.js';
+import { MW_WEAPON_TYPE } from '../../../src/formats/morrowind/mwFirstPerson.js';
 
 const sm = (sk, pose, root) => skeletonSpaceMatrices(sk, pose, root);
 const sk = buildSkeleton(parseNif(retailSkeleton()));
@@ -46,4 +48,26 @@ test('ARM-CLEARANCE: an arm already clear of the trunk is left alone; plate clea
   assert.equal(rest.size, 0, 'nothing written');
   const bare = clearArms(sk, crossedPose(), GRAPH_ROOT, sm, { armor: 0 }).L, plate = clearArms(sk, crossedPose(), GRAPH_ROOT, sm, { armor: 1 }).L;
   assert.ok(Math.abs(plate) >= Math.abs(bare), `plate turns at least as far (${plate} vs ${bare})`);
+});
+
+test('ARM-CLEARANCE: a turned two-handed neutral guard keeps both grips and clears consistently with its chest', () => {
+  const motion = createBodyMotion();
+  for (let i = 0; i < 120; i++) motion.step(1 / 60, sceneInput({ weapon: MW_WEAPON_TYPE.LongBladeTwoHand }));
+  const base = new Map();
+  motion.apply(sk, base, GRAPH_ROOT, sm);
+  let expected;
+  for (const yaw of [0, 0.7, -1.2, 2]) {
+    const pose = new Map(base);
+    const ref = body.bones.root, local = pose.get(ref) ?? sk.nodes.get(ref).rest;
+    pose.set(ref, { ...local, rotation: mul(rot(2, yaw), local.rotation) });
+    const before = sm(sk, pose, GRAPH_ROOT);
+    const turns = clearArms(sk, pose, GRAPH_ROOT, sm, { armor: 1 });
+    expected ??= turns;
+    for (const side of ['L', 'R']) {
+      assert.ok(Math.abs(turns[side] - expected[side]) < 1e-8, 'clearance follows the turned chest');
+      const after = sm(sk, pose, GRAPH_ROOT), hand = body.bones[side].hand;
+      assert.ok(Math.hypot(...after.get(hand).t.map((v, i) => v - before.get(hand).t[i])) < 0.05, 'grip position preserved');
+      assert.ok(Math.max(...after.get(hand).a.map((v, i) => Math.abs(v - before.get(hand).a[i]))) < 1e-5, 'grip rotation preserved');
+    }
+  }
 });

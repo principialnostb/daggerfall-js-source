@@ -117,3 +117,15 @@ that experiment; the four animation source/test files again match `4ad5fbbee8`
 exactly. The first pilot remains the preferred baseline. Its weaker moving
 attacks remain unresolved; equal angular envelopes alone are not acceptance.
 Validation of the restored baseline: 44 focused motion/combat tests pass.
+
+## Neutral guard arm clearance (2026-10-28)
+
+Owner screenshots show the neutral sword guard's arm sinking into the cuirass.
+ARM-CLEARANCE now evaluates its armour ellipse in the posed chest frame, rather
+than fixed rig axes, and checks the distal upper arm and forearm between joints
+as well as the elbow. The bounded shoulder-to-wrist swivel keeps both wrist
+positions and hand rotations. This extends the articulated presentation
+departure from DFU WeaponManager/FPSWeapon recorded above. A regression exercises
+the composed two-handed neutral carry at several body headings and requires
+identical clearance decisions and preserved grips. The owner's armour mesh still
+needs in-game visual review; the ellipse is a clearance proxy, not mesh collision.
