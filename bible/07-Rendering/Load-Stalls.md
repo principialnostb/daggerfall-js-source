@@ -148,7 +148,16 @@ the store (the `.bsa` ranges, the loose files). Every read now goes through one 
 so an urgent read always finds a place, and the urgent line is served first. The player's builds (`urgent`) and the
 rig's swaps (`playerAppearance`) mark theirs - sixteen reads of `loadFromArchives` - and everything else (the NPCs',
 the portraits', the icons', the warm-up's) waits in the ordinary line. The pictures' `<img>` loads (the Eye of the
-Beholder's sprites) still share the connections outside it. Not measured in the game.
+Beholder's sprites) still share the connections outside it. The owner, in the game: "действительно теперь все четко".
+
+**TEXTURE-HEAL - a picture that did not come is asked for again** (the owner: "проверь не только скорость а качество
+загрузки что бы не пропадала текстура с оружия"). A texture whose read failed or came late stood on the rig as the
+warning image for the rig's whole life: the build's and the swap's collections keep the first entry of a file (the
+swap's `if (!token.textures.has(file))`), and nothing asked again. The memo already tells the two kinds apart - a
+picture the FILE refused, and a file the archives do not carry, are kept in `TEXTURE_CACHE`; a read that can still land
+is not - so after every build and every weapon swap the rig (`healTextures`) reads its not-ok, not-memoised pictures
+again, `TEXTURE_HEAL_TRIES` (3) times, `TEXTURE_HEAL_MS` (2 s) further apart, both views, and what lands replaces its
+warning; the meshes hang their ranges again at the next draw.
 
 ## 6. What is left, in order
 
