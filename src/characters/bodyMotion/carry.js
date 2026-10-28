@@ -204,7 +204,14 @@ export function blendRow(cls, side, shares) {
         const t1 = Math.acos(Math.min(1, dot(A0, V))), t2 = Math.acos(Math.min(1, dot(V, A1))), u = s * (t1 + t2);
         out.blade = u < t1 ? slerpV(A0, V, t1 > 0 ? u / t1 : 1) : slerpV(V, A1, t2 > 0 ? (u - t1) / t2 : 1);
       } else out.blade = slerpV(A0, A1, s);
-      out.edge = norm(lerp3(norm(stillEdge), table.run[side].edge, s));
+      // Carry the blade's whole frame along its path. Blending the edge
+      // independently can make it parallel to the blade and flip the wrist.
+      const A = norm(still), B = table.run[side].blade;
+      const square = (v, axis) => norm(sub(v, scale(axis, dot(v, axis))));
+      const edge0 = square(norm(stillEdge), A);
+      const end = apply(rotFromTo(A, B), edge0), goal = square(table.run[side].edge, B);
+      const twist = Math.atan2(dot(B, cross(end, goal)), dot(end, goal));
+      out.edge = apply(rotAxisAngle(out.blade, twist * s), apply(rotFromTo(A, out.blade), edge0));
     }
   }
   return out;

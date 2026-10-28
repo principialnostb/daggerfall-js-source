@@ -156,3 +156,11 @@ down/out rather than forward. These changes blend by idle share into the existin
 moving carries. The guard regression requires BOTH elbows bent 60-120 degrees
 and retains the forearm clearance check. This supersedes the earlier idle row;
 the in-game screenshot remains the visual acceptance criterion.
+
+Guard/run transition review: independent interpolation of blade and edge could
+produce a nearly parallel weapon frame and an abrupt wrist flip. Transport the
+edge along the blade rotation and blend its remaining axial twist instead;
+the regression checks perpendicularity across 199 intermediate transition samples. The
+body-weight slot also eases elbow clearance turns over 0.07 seconds rather than
+switching the correction immediately. Clearance turn history belongs to the
+rig and resets with it. Fourteen focused tests pass; visual review remains open.

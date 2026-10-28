@@ -10,6 +10,7 @@ import { retailSkeleton } from '../../fixtures/mw/retailRig.mjs';
 import { createBodyMotion, sceneInput } from '../../../src/characters/bodyMotion/bodyMotion.js';
 import { MW_WEAPON_TYPE } from '../../../src/formats/morrowind/mwFirstPerson.js';
 import { bodyFrames } from '../../../src/characters/bodyMotion/bodySolve.js';
+import { blendRow } from '../../../src/characters/bodyMotion/carry.js';
 
 const sm = (sk, pose, root) => skeletonSpaceMatrices(sk, pose, root);
 const sk = buildSkeleton(parseNif(retailSkeleton()));
@@ -17,6 +18,15 @@ const body = bodyOf(sk, GRAPH_ROOT, sm);
 const mul = (a, b) => [0, 1, 2].flatMap((r) => [0, 1, 2].map((c) => a[r * 3] * b[c] + a[r * 3 + 1] * b[3 + c] + a[r * 3 + 2] * b[6 + c]));
 const rot = (axis, t) => { const c = Math.cos(t), s = Math.sin(t); return axis === 0 ? [1, 0, 0, 0, c, -s, 0, s, c] : axis === 1 ? [c, 0, s, 0, 1, 0, -s, 0, c] : [c, -s, 0, s, c, 0, 0, 0, 1]; };
 const off = (m, ref) => { const c = m.get(body.chest).t, e = m.get(ref).t; return Math.hypot((e[0] - c[0]) / (body.shoulderWidth * ARM_CLEARANCE.width), (e[1] - c[1]) / (body.shoulderWidth * ARM_CLEARANCE.depth)) * body.shoulderWidth; };
+
+test('two-handed guard/run transition keeps the blade and edge perpendicular throughout', () => {
+  for (let i = 1; i < 200; i++) {
+    const run = i / 200;
+    const row = blendRow('two', 'R', { idle: 1 - run, run, walk: 0, sneak: 0 });
+    const dot = row.blade.reduce((sum, v, j) => sum + v * row.edge[j], 0);
+    assert.ok(Math.abs(dot) < 1e-6, `stable weapon frame at run share ${run}`);
+  }
+});
 
 /** A pose whose left elbow is inside the trunk: the upper arm turned in across the chest. */
 function crossedPose() {

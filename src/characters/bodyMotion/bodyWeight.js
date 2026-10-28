@@ -91,6 +91,8 @@ export function createBodyWeight() {
   let weight = 0; let on = false; let slotMemo = null; let moving = 0; let armorW = 0; let clearOn = false;
   const legs = createBlowLegs();
   const sword = createArmouredSword();
+  const elbowTurns = { L: 0, R: 0 };
+  let frameDt = 0;
   const layer = {
     /**
      * One frame: `active` (the switch, the third person, on the ground and on its feet), `move` the motor's word
@@ -132,6 +134,7 @@ export function createBodyWeight() {
      *  frame's `cam` (its `move` word), the worn pieces and the drawn weapon's type, whether the body is dead, and the
      *  motion word (bodyMotion.js motionWord's - its blow, for BLOW-LEGS). */
     stepRig(dt, on, cam, armor, mwType, dead, word = null) {
+      frameDt = Math.max(0, dt);
       const mv = cam?.move ?? null;
       clearOn = !!on;
       const active = !!on && !dead && !!mv && mv.grounded !== false && !mv.swimming && !mv.levitating && !mv.climbing && !cam?.climb && !cam?.seat && !cam?.saddle;
@@ -163,12 +166,13 @@ export function createBodyWeight() {
         if (LEAN_ON) leanTrunk(skeleton, pose, rootRef, skelMats, lean, mats);
         leanTrunk(skeleton, pose, rootRef, skelMats, sword.pose());
         if (clearOn) legs.apply(skeleton, pose, rootRef, skelMats);   // BLOW-LEGS: a standing blow's hips and feet
-        if (clearOn) clearArms(skeleton, pose, rootRef, skelMats, { armor: armorW });   // ARM-CLEARANCE, last: over the lean and the carry
+        if (clearOn) clearArms(skeleton, pose, rootRef, skelMats, { armor: armorW, previous: elbowTurns, dt: frameDt });   // ARM-CLEARANCE, last: over the lean and the carry
+        frameDt = 0;
         return report;
       } };
       return slotMemo.fn;
     },
-    reset() { sword.reset(); legs.reset(); moving = 0; travel = null; yaw0 = null; vel.f = vel.r = 0; velPrev = null; pitch.x = pitch.v = roll.x = roll.v = 0; },
+    reset() { elbowTurns.L = elbowTurns.R = 0; frameDt = 0; sword.reset(); legs.reset(); moving = 0; travel = null; yaw0 = null; vel.f = vel.r = 0; velPrev = null; pitch.x = pitch.v = roll.x = roll.v = 0; },
   };
   return layer;
 }

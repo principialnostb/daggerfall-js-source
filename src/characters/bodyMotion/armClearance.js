@@ -7,7 +7,7 @@
 // swings the arm about the line from its shoulder to its wrist - the hand stays where the clip put it, its turn kept -
 // the least way out, never past `maxTurn`. The port's own; Daggerfall Unity draws no arm, the clips none to plate.
 
-import { bodyOf, turnOf, at, mul, transpose, algebra } from './bodyKit.js';
+import { bodyOf, turnOf, at, mul, transpose, algebra, ease } from './bodyKit.js';
 import { rotAxisAngle, orthonormal } from '../../combat/climbRig.js';
 import { bodyFrames } from './bodySolve.js';
 
@@ -23,7 +23,7 @@ const outOf = (p, c, a, b) => Math.hypot((p[0] - c[0]) / a, (p[1] - c[1]) / b);
 
 /** CLEAR THE ARMS of the trunk on a posed frame: `armor` the armour's weight 0..1 (bodyWeight.js bodyWeightOf's).
  *  Writes new entries into `pose`; answers the turns made { L, R } (radians), or null when the skeleton is no biped. */
-export function clearArms(skeleton, pose, rootRef, skelMats, { armor = 0 } = {}) {
+export function clearArms(skeleton, pose, rootRef, skelMats, { armor = 0, previous = null, dt = 0 } = {}) {
   const body = bodyOf(skeleton, rootRef, skelMats);
   if (!body || !body.bones?.L || !body.bones?.R) return null;
   const mats = skelMats(skeleton, pose, rootRef);
@@ -49,13 +49,13 @@ export function clearArms(skeleton, pose, rootRef, skelMats, { armor = 0 } = {})
   for (const side of ['L', 'R']) {
     const b = body.bones[side];
     const S = at(mats, b.upper), E = at(mats, b.fore), W = at(mats, b.hand);
-    if (!S || !E || !W || clearance(S, E, W) >= 1) continue;
+    if (!S || !E || !W) continue;
     const a = norm(sub(W, S));
     if (!(len(a) > 0.5)) continue;
     const along = scale(a, dot(sub(E, S), a)), e0 = sub(sub(E, S), along);
     const elbowAt = (th) => add(add(S, along), apply3(rotAxisAngle(a, th), e0));
     let best = 0, bestD = clearance(S, E, W);
-    for (let k = 1; k * ARM_CLEARANCE.step <= ARM_CLEARANCE.maxTurn + 1e-9; k++) {
+    for (let k = 1; bestD < 1 && k * ARM_CLEARANCE.step <= ARM_CLEARANCE.maxTurn + 1e-9; k++) {
       let done = false;
       for (const th of [k * ARM_CLEARANCE.step, -k * ARM_CLEARANCE.step]) {
         const d = clearance(S, elbowAt(th), W);
@@ -64,7 +64,8 @@ export function clearArms(skeleton, pose, rootRef, skelMats, { armor = 0 } = {})
       }
       if (done) break;
     }
-    if (!best) continue;
+    if (previous) { best = ease(previous[side] ?? 0, best, 0.07, dt); previous[side] = best; }
+    if (Math.abs(best) < 1e-5) continue;
     const Q = rotAxisAngle(a, best);
     const upper = skeleton.nodes.get(b.upper), hand = skeleton.nodes.get(b.hand);
     const Wu = turnOf(mats, b.upper), Wp = upper?.parent != null ? turnOf(mats, upper.parent) : null;
