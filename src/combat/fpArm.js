@@ -433,7 +433,7 @@ import { t } from '../systems/textManager.js';   // L10N4: AUDIT MW-FOLK1's note
  *  Never throws - a path that will not load is reported by the read that
  *  follows, in that read's own words. An archive with no `load` door is
  *  already resident, which is the old two-door duck. */
-async function loadFromArchives(archives, paths) {
+async function loadFromArchives(archives, paths, urgent = false) {   // LOAD-STALL 4: `urgent` - the player's, ahead of the street's
   const seen = new Set();
   const jobs = [];
   for (const path of paths ?? []) {
@@ -442,10 +442,41 @@ async function loadFromArchives(archives, paths) {
     const arc = (archives ?? []).find((a) => a.has(path));
     if (!arc || typeof arc.load !== 'function') continue;
     if (typeof arc.loaded === 'function' && arc.loaded(path)) continue;
-    jobs.push(Promise.resolve(arc.load(path)).catch(() => null));
+    jobs.push(archiveRead(() => arc.load(path), urgent).catch(() => null));
   }
   if (jobs.length) await Promise.all(jobs);
 }
+
+/** LOAD-STALL 4 (the owner, 2026-10-28: "[mw] weapon swap Claymore in 102187 ms - ... meshes 36508, textures 65357"):
+ *  EVERY ARCHIVE READ THROUGH ONE QUEUE, THE PLAYER'S FIRST. The reads went out all at once - the street's bodies' meshes
+ *  and pictures, the warm-up's, the player's sword - and the browser holds six connections to the dev server (the
+ *  packs' files) and its own line for the store's (the .bsa's ranges, the loose files): the sword's few reads stood
+ *  behind hundreds. At most ARCHIVE_READS_NORMAL ordinary reads run at once and ARCHIVE_READS_MAX in all, so an urgent
+ *  read always finds a place, and the urgent line is served first. */
+export const ARCHIVE_READS_MAX = 6;
+export const ARCHIVE_READS_NORMAL = 4;
+const archiveReads = { running: 0, urgent: [], normal: [] };
+export function archiveRead(read, urgent = false) {
+  return new Promise((resolve, reject) => {
+    (urgent ? archiveReads.urgent : archiveReads.normal).push({ read, resolve, reject });
+    pumpArchiveReads();
+  });
+}
+function pumpArchiveReads() {
+  for (;;) {
+    const line = archiveReads.urgent.length && archiveReads.running < ARCHIVE_READS_MAX ? archiveReads.urgent
+      : archiveReads.normal.length && archiveReads.running < ARCHIVE_READS_NORMAL ? archiveReads.normal : null;
+    if (!line) return;
+    const job = line.shift();
+    archiveReads.running++;
+    const done = () => { archiveReads.running--; pumpArchiveReads(); };
+    let p;
+    try { p = Promise.resolve(job.read()); } catch (e) { p = Promise.reject(e); }
+    p.then((v) => { done(); job.resolve(v); }, (e) => { done(); job.reject(e); });
+  }
+}
+/** Test seam: the queue's state. */
+export const _archiveReadState = () => ({ running: archiveReads.running, urgent: archiveReads.urgent.length, normal: archiveReads.normal.length });
 
 /** MW-LOAD: `find`, asserting the bytes are in hand. A path no archive
  *  carries answers null exactly as `find` does, and every caller already
@@ -492,7 +523,7 @@ async function preloadArmTextures(pieces, archives, gen = null, urgent = false) 
     paths.push(path);
     want.push([file, path]);
   }
-  await loadFromArchives(archives, paths);
+  await loadFromArchives(archives, paths, urgent);
   if (gen === null) return;
   await Promise.all(want.map(async ([file, path]) => {
     const key = `${gen}:${file}`;
@@ -1653,11 +1684,11 @@ function clothingColourOf(rec, parts, archives, gen) {
 async function preloadClothingColour(rec, parts, archives, gen, urgent = false) {
   const key = `${gen}:${rec.id}`;
   if (CLOT_COLOUR_CACHE.has(key)) return;
-  await loadFromArchives(archives, [clothingMeshPath(rec, parts)]);
+  await loadFromArchives(archives, [clothingMeshPath(rec, parts)], urgent);
   let tpath;
   try { tpath = clothingTexturePath(rec, parts, archives); } catch { return; }   // a mesh that did not load or parse
   if (!tpath) return;
-  await loadFromArchives(archives, [tpath]);
+  await loadFromArchives(archives, [tpath], urgent);
   const tarc = archives.find((a) => a.has(tpath));
   if (!tarc || (typeof tarc.loaded === 'function' && !tarc.loaded(tpath))) return;
   let rgb;
@@ -2678,7 +2709,7 @@ async function buildTpBody({
   const skeletonPath = correctActorModelPath(settingsSkeleton, exists);
   try {
     // MW-LOAD: covers the skeleton read on the next line.
-    await loadFromArchives(archives, [skeletonPath]);
+    await loadFromArchives(archives, [skeletonPath], urgent);
     const skelArc = find(skeletonPath);
     if (!skelArc) return { ok: false, stage: 'skeleton', error: `${skeletonPath} is not in your archives` };
     const skeletonBytes = nifBytes(skelArc, skeletonPath);
@@ -2759,7 +2790,7 @@ async function buildTpBody({
       ...weaponPartPaths({ weapon, hasAmmo, allWeapons, has: archiveHas(archives) }),   // MW-D50
       ...torchPartPaths({ torch, allLights, has: archiveHas(archives) }),   // MW-D51
       ...hipLanternPartPaths({ hipLight, allLights, has: archiveHas(archives) }),   // HT-WAIST
-    ]);
+    ], urgent);
     const partBytes = [];
     if (betterBodiesPart) partBytes.push(betterBodiesPart);
     for (const row of [...skinRows, ...worn.adds]) {
@@ -2799,7 +2830,7 @@ async function buildTpBody({
     // skeleton's animations/ folder only under `use additional anim sources`, default off, and the base model is
     // not the wolf's (npcanimation.cpp:503-510)
     const boneSourcePaths = werewolf ? [] : boneSourcesFor(TP_BASE_MODEL, skeletonPath, archives);
-    await loadFromArchives(archives, [...boneSourcePaths, ...holsterPartPaths({ weaponModel: resolvedWeapon.weaponInfo?.model })]);
+    await loadFromArchives(archives, [...boneSourcePaths, ...holsterPartPaths({ weaponModel: resolvedWeapon.weaponInfo?.model })], urgent);
     const boneSources = boneSourcePaths.map((path) => ({ name: path, bytes: nifBytes(find(path), path) })).filter((b) => b.bytes);
     const resolvedHolster = sheathing
       ? resolveHolsterParts({
@@ -2871,7 +2902,7 @@ async function buildTpBody({
         }, { style: fallbackStyle });
         const path = fallback && `meshes/${fallback.model}`;
         if (!path) { failures.push(`${row.slot}: cannot resolve ${fallbackStyle} cloak fallback`); continue; }
-        await loadFromArchives(archives, [path]);
+        await loadFromArchives(archives, [path], urgent);
         const arc = find(path);
         if (!arc) { failures.push(`${row.slot}: fallback missing at ${path}`); continue; }
         replacements.set(row.slot, { ...row, model: fallback.model, bytes: nifBytes(arc, path), style: fallbackStyle });
@@ -2958,7 +2989,7 @@ async function buildTpBody({
     // HEAD-HELD: a helm that bound nothing gives back the head and hair it hid - assembled again with them, never headless
     const bare = bareHeadRows(rows, worn, arm.pieces, werewolf);
     if (bare.length) {
-      await loadFromArchives(archives, bare.map((r) => `meshes/${r.model}`));
+      await loadFromArchives(archives, bare.map((r) => `meshes/${r.model}`), urgent);
       const back = bare.flatMap((r) => {
         const path = `meshes/${r.model}`, arc = find(path);
         return arc ? [{ slot: r.slot, bones: r.bones, bytes: nifBytes(arc, path) }] : [];
@@ -3065,7 +3096,7 @@ async function buildTpBody({
     }
     // MW-LOAD: covers cachedClipReport's bytesOf below - the .kf
     // animation sources, read synchronously inside the callback.
-    await loadFromArchives(archives, sourcePaths);
+    await loadFromArchives(archives, sourcePaths, urgent);
     const sources = [];
     for (const p of sourcePaths) {
       const one = await cachedClipReport(gen, skeletonPath, p, () => find(p).get(p).slice(), arm.skeleton);
@@ -3865,7 +3896,7 @@ export async function buildFpArm({
     // out loud if one ever stops having one.
     const find = (p) => findLoaded(archives, p);
     // MW-LOAD: covers the skeleton read on the next line.
-    await loadFromArchives(archives, [skeletonPath]);
+    await loadFromArchives(archives, [skeletonPath], urgent);
     const skelArc = find(skeletonPath);
     if (!skelArc) return { ok: false, stage: 'skeleton', error: `${skeletonPath} is not in your archives` };
     const skeletonBytes = nifBytes(skelArc, skeletonPath);
@@ -4030,7 +4061,7 @@ export async function buildFpArm({
       ...(offWeapon ? weaponPartPaths({ weapon: offWeapon, allWeapons, has: archiveHas(archives) }) : []),   // TWO-HANDS AUDIT 2: the left hand's, bound below on both rigs
       ...torchPartPaths({ torch, allLights, has: archiveHas(archives) }),   // MW-D51
       ...sourcePaths,
-    ]);
+    ], urgent);
     if (betterBodiesFpArms) partBytes.push(betterBodiesFpArms);
     if (betterBodiesFpHands) partBytes.push(betterBodiesFpHands);
     for (const w of fpRows) {
@@ -7340,7 +7371,7 @@ export function createFpArm({ playerAppearance = false } = {}) {
           // below read synchronously - this rig's and, further down, the
           // third-person one's. The two resolves pick the SAME records
           // off the same allWeapons, so one load serves both.
-          await loadFromArchives(archives, weaponPartPaths({ weapon: item, hasAmmo, allWeapons: token.allWeapons, has: archiveHas(archives) }));   // MW-D50
+          await loadFromArchives(archives, weaponPartPaths({ weapon: item, hasAmmo, allWeapons: token.allWeapons, has: archiveHas(archives) }), playerAppearance);   // MW-D50
           const resolved = resolveWeaponParts({
             weapon: item, hasAmmo, allWeapons: token.allWeapons, find,
             skeletonBytes: token.skeletonBytes, has: archiveHas(archives),   // MW-D50
@@ -7364,7 +7395,7 @@ export function createFpArm({ playerAppearance = false } = {}) {
             // WS1: the holster follows the hand - the scabbard preloaded,
             // the parts resolved against THIS rig's skeleton (its addons
             // already in it), the old three slots dropped with the weapon's.
-            await loadFromArchives(archives, holsterPartPaths({ weaponModel: tResolved.weaponInfo?.model }));
+            await loadFromArchives(archives, holsterPartPaths({ weaponModel: tResolved.weaponInfo?.model }), playerAppearance);
             tHolster = t.sheathing !== false
               ? resolveHolsterParts({
                 mwType: tResolved.mwType, weaponModel: tResolved.weaponInfo?.model,
@@ -7779,7 +7810,7 @@ export function createFpArm({ playerAppearance = false } = {}) {
           const archives = await d.loadMorrowindArchives();
           if (built !== token) return false;
           const find = (p) => findLoaded(archives, p);
-          if (item) await loadFromArchives(archives, weaponPartPaths({ weapon: item, hasAmmo: false, allWeapons: token.allWeapons, has: archiveHas(archives) }));
+          if (item) await loadFromArchives(archives, weaponPartPaths({ weapon: item, hasAmmo: false, allWeapons: token.allWeapons, has: archiveHas(archives) }), playerAppearance);
           // TWO-HANDS AUDIT: the left hand's node asked of each skeleton AS ASSEMBLED (the holster's law) - the one the mirror
           // made where the bytes have none (assembleFirstPersonArm's `offWeaponBone`)
           const boneOf = (r) => (n) => r.arm.skeleton.byName.has(String(n).toLowerCase());
@@ -7864,7 +7895,7 @@ export function createFpArm({ playerAppearance = false } = {}) {
           const archives = await d.loadMorrowindArchives();
           if (built !== token) return false;
           const find = (p) => findLoaded(archives, p);
-          await loadFromArchives(archives, torchPartPaths({ torch: true, allLights: token.allLights, has: archiveHas(archives) }));
+          await loadFromArchives(archives, torchPartPaths({ torch: true, allLights: token.allLights, has: archiveHas(archives) }), playerAppearance);
           const resolveFor = (rigBuilt) => resolveTorchPart({ torch: true, allLights: token.allLights, find, skeletonBytes: rigBuilt.skeletonBytes, has: archiveHas(archives) });
           // AUDIT 68 X7-fparm-swap-rejection-unhandled: both rigs resolve
           // (the reads that can throw) before either changes.
@@ -7942,7 +7973,7 @@ export function createFpArm({ playerAppearance = false } = {}) {
           const archives = await d.loadMorrowindArchives();
           if (built !== token || thirdBuilt !== tRig) return false;
           const find = (p) => findLoaded(archives, p);
-          await loadFromArchives(archives, hipLanternPartPaths({ hipLight: true, allLights: token.allLights, has: archiveHas(archives) }));
+          await loadFromArchives(archives, hipLanternPartPaths({ hipLight: true, allLights: token.allLights, has: archiveHas(archives) }), playerAppearance);
           const resolved = resolveHipLanternPart({ hipLight: true, allLights: token.allLights, find, skeletonBytes: tRig.skeletonBytes, has: archiveHas(archives), hasBone: (b) => tRig.arm.skeleton.byName.has(String(b).toLowerCase()) });   // the body's own skeleton, addons and all
           const gen = token.catalog?.gen ?? null;
           tRig.arm.pieces = tRig.arm.pieces.filter((p) => p.slot !== HIP_LIGHT_SLOT);
