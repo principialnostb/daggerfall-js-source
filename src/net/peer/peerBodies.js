@@ -65,6 +65,7 @@
 //     (at most SPARE_MAX of them): the next peer who wears the same body -
 //     its look and its form - stands in it at once, with no build.
 import { createFpArm } from '../../combat/fpArm.js';
+import { playerBuilding, PLAYER_HOLD_RETRY_MS } from '../../characters/playerBuildHold.js';   // LOAD-STALL 3
 import { dfWornEquipment } from '../../formats/morrowind/mwItemMap.js';
 import { werewolfSkinOf } from '../../characters/werewolfSkin.js';   // SHADOW-FANG: a peer's wolf in the skin their signed glyphs name
 import { npcHintOf, npcKeyOf, withNpcPicks, npcFaceOf, beastWorn, WARDROBE_BEAST_RACES } from '../../characters/wardrobe.js';   // MWNPC17: an NPC's own garments, head and hair
@@ -97,16 +98,16 @@ export const BODY_GATE_STALL_MS = 20000;
  * player waits on it) before `low` (an NPC lane's - characters/npcBodies.js, a lane that builds in range). AUDIT MW-NPC
  * II L1: on one line a street's whole cut queued at once (24 builds at Near, 48 at All) and a peer arriving after it
  * waited behind every one - 5 s to 48 s for a body it got in a build's time before MWNPC4.
- * @returns {{ busy: boolean, high: Array<() => Promise<any>>, low: Array<() => Promise<any>> }}
+ * @returns {{ busy: boolean, high: Array<() => Promise<any>>, low: Array<() => Promise<any>>, retry?: any }}
  */
-export function createBuildGate() { return { busy: false, high: [], low: [] }; }
+export function createBuildGate() { return { busy: false, high: [], low: [], retry: null }; }
 /** MWNPC4: THE PAGE'S ONE BUILD QUEUE - every body lane a host stands (the peers, the family, the card table, the NPCs)
  *  passes it as `gate`, so the lanes' builds run one after another as one lane's always did. */
 export const BODY_BUILD_GATE = createBuildGate();
 /**
  * `build` run through `gate` when its turn comes - `low` an NPC lane's, waiting behind every `high` one. Answers when it
  * has run (its own result swallowed, as the lanes' queues always were).
- * @param {{ busy: boolean, high: Array<() => Promise<any>>, low: Array<() => Promise<any>> }} gate
+ * @param {{ busy: boolean, high: Array<() => Promise<any>>, low: Array<() => Promise<any>>, retry?: any }} gate
  * @param {() => any} build @param {boolean} [low]
  * @returns {Promise<void>}
  */
@@ -116,9 +117,17 @@ export function gateBuild(gate, build, low = false) {
     pumpGate(gate);
   });
 }
-/** @param {{ busy: boolean, high: Array<() => Promise<any>>, low: Array<() => Promise<any>> }} gate */
+/** @param {{ busy: boolean, high: Array<() => Promise<any>>, low: Array<() => Promise<any>>, retry?: any }} gate */
 function pumpGate(gate) {
   if (gate.busy) return;
+  // LOAD-STALL 3: no body is started while the player's own is being built or changed - asked again shortly
+  if ((gate.high.length || gate.low.length) && playerBuilding()) {
+    if (!gate.retry) {
+      gate.retry = setTimeout(() => { gate.retry = null; pumpGate(gate); }, PLAYER_HOLD_RETRY_MS);
+      /** @type {any} */ (gate.retry)?.unref?.();
+    }
+    return;
+  }
   const next = gate.high.shift() ?? gate.low.shift();
   if (!next) return;
   gate.busy = true;
