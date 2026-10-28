@@ -9,10 +9,35 @@ import { buildSkeleton, skeletonSpaceMatrices, GRAPH_ROOT } from '../../../src/f
 import { blowPhase, blowLegsPose, createBlowLegs, BLOW_LEGS, BLOW_LEGS_TIME } from '../../../src/characters/bodyMotion/blowLegs.js';
 import { bodyOf } from '../../../src/characters/bodyMotion/bodyKit.js';
 import { retailSkeleton } from '../../fixtures/mw/retailRig.mjs';
+import { sceneInput } from '../../../src/characters/bodyMotion/bodyMotion.js';
+import { MW_WEAPON_TYPE } from '../../../src/formats/morrowind/mwFirstPerson.js';
 
 const sm = (sk, pose, root) => skeletonSpaceMatrices(sk, pose, root);
 const rd = (p) => readFileSync(new URL(`../../../${p}`, import.meta.url), 'utf8');
 const blow = (type, section, progress, extra = {}) => ({ type, section, progress, strength: 1, reversed: false, hand: 'R', ...extra });
+
+test('sword amplitude: the same upper-body stroke standing, walking and running; moving feet retain their support', () => {
+  const sk = buildSkeleton(parseNif(retailSkeleton()));
+  const hand = sk.byName.get('bip01 r hand');
+  const body = bodyOf(sk, GRAPH_ROOT, sm), base = sm(sk, new Map(), GRAPH_ROOT);
+  for (const type of ['chop', 'slash', 'thrust']) for (const reversed of [false, true]) {
+    const layers = [0, 4.4, 8].map(speed => ({ speed, layer: createBlowLegs() }));
+    for (const section of ['windup', 'release', 'follow']) for (let i = 0; i <= 30; i++) {
+      const frames = layers.map(({ speed, layer }) => {
+        const word = sceneInput({ weapon: MW_WEAPON_TYPE.LongBladeTwoHand, speed, running: speed === 8, blow: blow(type, section, i / 30, { reversed }) });
+        layer.step(1 / 60, true, word, 1);
+        const pose = new Map(); layer.apply(sk, pose, GRAPH_ROOT, sm);
+        return sm(sk, pose, GRAPH_ROOT);
+      });
+      for (const m of frames.slice(1)) {
+        for (let j = 0; j < 9; j++) assert.ok(Math.abs(m.get(hand).a[j] - frames[0].get(hand).a[j]) < 1e-5, `${type}/${section}: identical angular stroke`);
+        const chestBase = body.trunk[0];
+        for (let j = 0; j < 3; j++) assert.ok(Math.abs((m.get(hand).t[j] - m.get(chestBase).t[j]) - (frames[0].get(hand).t[j] - frames[0].get(chestBase).t[j])) < 1e-4, 'hand path relative to the upper-body base is preserved');
+        for (const side of ['L', 'R']) assert.ok(d(m.get(body.bones[side].foot).t, base.get(body.bones[side].foot).t) < 0.5, 'moving support stays on the sampled stride');
+      }
+    }
+  }
+});
 
 test('sword pilot: preserve the overhead, give a side cut a step, mirror its effort for a backhand', () => {
   const hit = (type, extra = {}) => blowLegsPose(blow(type, 'release', 1, extra), 1);
@@ -22,6 +47,23 @@ test('sword pilot: preserve the overhead, give a side cut a step, mirror its eff
   assert.ok(side.yaw > hit('slash').yaw);
   assert.equal(hit('slash', { sword: true, reversed: true }).yaw, -side.yaw);
   assert.ok(hit('thrust', { sword: true }).drop < hit('chop', { sword: true }).drop);
+});
+
+test('sword amplitude: starting/stopping during a blow preserves its angle and transfers support continuously', () => {
+  const sk = buildSkeleton(parseNif(retailSkeleton())), body = bodyOf(sk, GRAPH_ROOT, sm);
+  const hand = sk.byName.get('bip01 r hand'), layer = createBlowLegs();
+  let last = null;
+  for (let i = 0; i < 180; i++) {
+    const speed = i >= 60 && i < 100 ? 8 : 0;
+    layer.step(1 / 60, true, sceneInput({ weapon: MW_WEAPON_TYPE.LongBladeTwoHand, speed, running: speed > 0, blow: blow('thrust', 'release', 1) }), 1);
+    const pose = new Map(); layer.apply(sk, pose, GRAPH_ROOT, sm);
+    const current = sm(sk, pose, GRAPH_ROOT).get(hand);
+    if (last && i > 55) {
+      for (let j = 0; j < 9; j++) assert.ok(Math.abs(current.a[j] - last.a[j]) < 1e-5, 'movement never changes the held stroke angle');
+      assert.ok(d(current.t, last.t) < body.leg * 0.05, 'support transfers without a frame jump');
+    }
+    last = current;
+  }
 });
 
 test('BLOW-LEGS: the key poses - wound away, driven through, recovered; a backhand mirrored, a slash steps nowhere', () => {
