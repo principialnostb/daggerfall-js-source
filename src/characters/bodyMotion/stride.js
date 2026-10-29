@@ -38,6 +38,23 @@ export function strideShare(k) {
   return { rate: Math.min(STRIDE.maxRate, k / stride), stride };
 }
 
+/** RUN-STRIDE (2026-10-29, the owner: the run "badly broken"; asked between a capped clip and a longer stride: "lengthen
+ *  the stride"). Read off the clip: MAO's runforward2c travels 4.57 m/s (320 units), Daggerfall runs at 8.1 (Speed and
+ *  Running 50) - the reference's rate played its legs at 1.77x, a 1.2 s cycle in 0.68: the back heel flung to the seat,
+ *  a sprinter's patter. For a run the clip now plays at most `maxRate` its own speed and the legs swing the rest of the
+ *  ratio about their cycle's mean, up to `maxStride` (past it the rate takes the rest again); the walk keeps its clip as
+ *  the owner accepted it. The same law STRIDE was (set aside with the out-of-stance walk, 7d), here only for a run. */
+export const RUN_STRIDE = Object.freeze({ maxRate: 1.36, maxStride: 1.3, calf: -0.8 });
+/* Measured on the retail rig under MAO's runforward2c at 8.1 m/s: the reference - a 0.49 s cycle, the knee folded to 54
+ * degrees, the thighs -36..51; a stride of 1.42 with the calves swung as far folded the knee to 31 and threw the thighs
+ * to -57..67 (a sprinter's high knee); 1.3 with the calves' kick held back (`calf` -0.8 of the stride's share): a 0.64 s
+ * cycle, the knee at 68 at its tightest, the thighs -51..62, the planted foot keeping the body's pace. */
+export function runStrideShare(k) {
+  if (!(k > 1)) return { rate: Math.max(0, k || 0), stride: 1 };
+  const stride = Math.min(RUN_STRIDE.maxStride, Math.max(1, k / RUN_STRIDE.maxRate));
+  return { rate: k / stride, stride };
+}
+
 /** The rotation `D` (row-major 3x3) raised to the power `p`: its angle times p about its own axis. */
 function powRot(D, p) {
   const c = Math.max(-1, Math.min(1, (D[0] + D[4] + D[8] - 1) / 2));
@@ -83,7 +100,7 @@ export function cycleMean(state, source, bone, sampleTrack, window) {
  * `w`), then the body lowered by the rise of its lower foot. `means` bone name -> mean quaternion; `pose` the frame's
  * locals (written, never mutated in place); answers how far it lowered the body (rig units), or null when it did nothing.
  */
-export function lengthenLegs(skeleton, pose, rootRef, skelMats, { stride = 1, w = 1, means = null, rootBone = 'bip01' } = {}) {
+export function lengthenLegs(skeleton, pose, rootRef, skelMats, { stride = 1, w = 1, means = null, rootBone = 'bip01', calf = 1 } = {}) {
   const s = 1 + (stride - 1) * clamp01(w);
   if (!(Math.abs(s - 1) > 1e-4) || !means || !skeleton?.byName) return null;
   const feet = STRIDE.feet.map((n) => skeleton.byName.get(n)).filter((r) => r != null);
@@ -97,7 +114,9 @@ export function lengthenLegs(skeleton, pose, rootRef, skelMats, { stride = 1, w 
     if (!local?.rotation) continue;
     const M = quatToMat33(mean);
     const D = mul(local.rotation, transpose(M));
-    pose.set(ref, { rotation: Float32Array.from(mul(powRot(D, s), M)), translation: local.translation, scale: local.scale });
+    // RUN-STRIDE: a calf's own share of the stride (`calf`: 1 as the thigh, under 1 a tighter kick held back)
+    const sb = /calf/.test(name) ? 1 + (s - 1) * calf : s;
+    pose.set(ref, { rotation: Float32Array.from(mul(powRot(D, sb), M)), translation: local.translation, scale: local.scale });
     did = true;
   }
   if (!did) return null;
@@ -158,14 +177,15 @@ export function clipFootSpeed(state, source, skeleton, window, sampleTrack, { po
 }
 
 /** THE LAYER: the stride the movement asks, eased on and off, and the cycle means of the clip that walks. */
-export function createStride({ sampleTrack, loopWindow }) {
+export function createStride({ sampleTrack, loopWindow, share: shareOf = strideShare, groups = null, calf = 1 }) {
   let w = 0, stride = 1, means = null, slotMemo = null;
   const layer = {
     /** One frame: `on` (the switch, the third person), the movement's clip `state`, its `source`, and the speed ratio
      *  `k` it was asked to cover (the body's speed over the clip's). */
     step(dt, { on = false, state = null, source = null, k = 1 } = {}) {
-      const share = strideShare(k);
-      const live = !!on && !!state && !!source && share.stride > 1.0001;
+      const share = shareOf(k);
+      const mine = !groups || groups.test(String(state?.group ?? ''));   // RUN-STRIDE: the groups this stride is for
+      const live = !!on && !!state && !!source && mine && share.stride > 1.0001;
       if (live) {
         stride = share.stride;
         const win = loopWindow(state, source.keys);
@@ -191,14 +211,14 @@ export function createStride({ sampleTrack, loopWindow }) {
       return fs != null && fs > rootVel * FOOT_SPEED.minShare && fs > 1 ? fs : rootVel;
     },
     /** The clip's playback rate for a speed ratio `k`, the switch `on`: the share's, or the reference's `k`. */
-    rate: (k, on) => (on ? strideShare(k).rate : k),
+    rate: (k, on, group = null) => (on && (!groups || groups.test(String(group ?? ''))) ? shareOf(k).rate : k),
     weight: () => w,
     stride: () => stride,
     /** poseAssembly's `motion` slot with the legs lengthened before `inner` (the lean, the body motion) sees them. */
     slot(inner) {
       if (slotMemo && slotMemo.inner === inner) return slotMemo.fn;
       slotMemo = { inner, fn: (skeleton, pose, rootRef, skelMats) => {
-        if (w > 1e-3 && means) lengthenLegs(skeleton, pose, rootRef, skelMats, { stride, w, means });
+        if (w > 1e-3 && means) lengthenLegs(skeleton, pose, rootRef, skelMats, { stride, w, means, calf });
         return inner ? inner(skeleton, pose, rootRef, skelMats) : null;
       } };
       return slotMemo.fn;

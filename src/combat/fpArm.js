@@ -6651,8 +6651,8 @@ export function createFpArm({ playerAppearance = false } = {}) {
     // in MW units.
     movementRate = isTurn
       ? turnAnimSpeed(yawRate)
-      : Math.min(MOVEMENT_SPEED_CAP,
-        ((mv && mv.speed ? mv.speed : 0) * MW_UNITS_PER_METER) / movementAnimSpeed);
+      : bodyWeight.moveRate(Math.min(MOVEMENT_SPEED_CAP,   // RUN-STRIDE (characters/bodyMotion/stride.js): a run's rate capped, its stride the rest
+        ((mv && mv.speed ? mv.speed : 0) * MW_UNITS_PER_METER) / movementAnimSpeed), movementGroup);
   }
 
   /** Rule 9's long group for the CURRENT stance, and the equip/unequip
@@ -8438,7 +8438,7 @@ export function createFpArm({ playerAppearance = false } = {}) {
         attackType, reversed: attackReversed, hand: attackHand, progress: actionState ? clipCompletion(actionState) : 0, strength: attackStrength,
         shown: weaponInHand(), hands: handsMode, torch: torchVisible(), spell: spellStance(), rifle: rifle.w, guard: pairDip(),
       }));
-      bodyWeight.stepRig(dt, modSetting('morrowind-animation', 'MotionDoctrine') !== 0 && viewMode === 'third', cam, lastBuildOpts?.armor, thirdBuilt?.mwType, dead, motion.word());   // BODY-WEIGHT; BLOW-LEGS
+      bodyWeight.stepRig(dt, modSetting('morrowind-animation', 'MotionDoctrine') !== 0 && viewMode === 'third', cam, lastBuildOpts?.armor, thirdBuilt?.mwType, dead, motion.word(), movementState, movementSource, movementAnimSpeed);   // BODY-WEIGHT; BLOW-LEGS; RUN-STRIDE
       fpInertia.stepRig(dt, modSetting('morrowind-animation', 'MotionDoctrine') !== 0 && viewMode === 'first', cam, lastBuildOpts?.armor, built?.mwType, dead);   // FP-INERTIA
       if (!actionState && !movementState && !jumpState && !idleState && !hitState && !deathState) return;
       // THE WINNER, not a blend. See the two-slot note above: in first

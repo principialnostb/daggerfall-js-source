@@ -43,9 +43,10 @@ export function createArmouredSword() {
         } else previous = { x: tr[0], z: tr[2], vx: null, vz: null };
       } else previous = null;
       const moving = eligible && Math.hypot(vf, vr) > 0.3;
-      // Standing blows already have BLOW-LEGS' accepted hip movement. Moving
-      // blows keep the stride and convey a smaller share through the trunk.
-      const blow = moving && word.blow ? blowLegsPose({ ...word.blow, sword: true }, armour) : null;
+      // Standing blows already have BLOW-LEGS' accepted hip movement; a moving
+      // blow's whole body is BLOW-LEGS' too now (STRIKE-MOVE, blowLegs.js) - its
+      // trunk share here would turn the body twice.
+      const blow = null;
       const run = eligible && word.running ? ARMOURED_SWORD.runPitch * clamp(vf / 8, -0.4, 1) : 0;
       const goalP = eligible ? clamp(af * ARMOURED_SWORD.acceleration + run + (blow?.pitch ?? 0) * 0.35, -ARMOURED_SWORD.maxPitch, ARMOURED_SWORD.maxPitch) : 0;
       const goalR = eligible ? clamp(ar * ARMOURED_SWORD.acceleration * 0.5, -ARMOURED_SWORD.maxRoll, ARMOURED_SWORD.maxRoll) : 0;

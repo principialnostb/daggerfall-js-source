@@ -141,6 +141,7 @@ const mul33 = (a, b) => [0, 1, 2].flatMap((r) => [0, 1, 2].map((c) => a[r * 3] *
 
 test('BODY-WEIGHT: the rig steps it behind the MotionDoctrine switch and lays it over the body-motion slot', () => {
   const src = readFileSync(new URL('../../../src/combat/fpArm.js', import.meta.url), 'utf8');
-  assert.match(src, /bodyWeight\.stepRig\(dt, modSetting\('morrowind-animation', 'MotionDoctrine'\) !== 0 && viewMode === 'third', cam, lastBuildOpts\?\.armor, thirdBuilt\?\.mwType, dead, motion\.word\(\)\)/);
+  assert.match(src, /bodyWeight\.stepRig\(dt, modSetting\('morrowind-animation', 'MotionDoctrine'\) !== 0 && viewMode === 'third', cam, lastBuildOpts\?\.armor, thirdBuilt\?\.mwType, dead, motion\.word\(\), movementState, movementSource, movementAnimSpeed\)/);   // RUN-STRIDE: the movement clip to the run's stride
+  assert.match(src, /bodyWeight\.moveRate\(Math\.min\(MOVEMENT_SPEED_CAP,/, 'RUN-STRIDE: the movement rate read through the stride of a run');
   assert.match(src, /motion: bodyWeight\.slot\(motion\.slot\)/);   // PIN MOVED back (STRIDE set aside, Motion-Doctrine.md 7d)
 });

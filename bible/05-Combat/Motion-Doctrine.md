@@ -425,6 +425,115 @@ standing, and anchors on the clip's own stance - the one the owner sees after le
 only for a stride a body standing all along is found in. Pinned (the stride handed back over 8 frames: the layer
 waits, the feet on the clip's stance; anchored at once it failed). The owner's game is the acceptance.
 
+**LEG-DRIVE** (2026-10-29, the owner: the legs under the blows "look raw - they want work"; checkpoint `2a57952166`
+before it). Read off the layer over the rest pose: the hips turned 17-22 degrees through a side cut while both feet
+stood toes fixed - the knees followed the toes (within 7 degrees), so the whole turn went into the hip joints; a stepped
+lead foot went home in every blow's follow-through, so a series shuffled it forward, back, forward; the wind-up moved
+the hips back but no weight onto the back foot. Now (src/characters/bodyMotion/blowLegs.js:"export const BLOW_PIVOT"):
+each foot turns on its ball after the hips - the back foot by 0.6 of their turn, its heel going out as the strike drives
+off it, the lead by 0.2 (the back foot's toe now 7 degrees off the hips' line at a slash's hit, it stood 17); the hips go
+over the back foot loading and over the lead one striking (`side`, up to 4 cm and 3 cm on a sword's slash, 2 and 1.5 on
+the accepted overhead); a foot stepped out stays out through the series and steps home once the blows stop, the layer
+held on for that step. Planted feet are judged at the ball now (the ankle moves as the heel turns). Pinned in
+`test/characters/bodyMotion/blowlegs.test.js` (LEG-DRIVE: three thrusts - the foot out through all three, home after;
+the back foot turned 0.6 of the hips; the weight back, then forward). Not yet seen in the owner's game.
+
+**WIDE-STANCE** (2026-10-29, the owner: "the feet stand wide in the stance, then as the attack begins he nearly puts them
+together"). STOP-UNDER-A-BLOW's stride test was the feet a quarter of the leg apart along the way - and the guard clip's
+own fighting stance is wider than that: every standing blow took it for a stride and stepped the feet in under the hips
+(offline, a planted stance 32 cm deep went to 10 cm in the wind-up's first frames). A body BLOW-LEGS finds is standing
+(it waits `after`), so two planted feet are its stance and are kept; only a foot still in the air is stepped down
+(src/characters/bodyMotion/blowLegs.js:"WIDE-STANCE"). Offline the same stance holds 32-33 cm through the whole slash.
+Pinned: the stop-under test now keeps a wide planted stance and steps a lifted foot down. Not yet seen in the owner's
+game.
+
+**LUNGE-GUARD** (2026-10-29, the owner's video: the left foot set forward "now and then deforms and bends too much").
+With the wide stance kept (WIDE-STANCE), the hips loading back and over the back foot pulled the lead leg straight -
+offline from a stance 30 cm deep on bent knees, 100% of its length, the knee at 175 degrees - and the step home after a
+blow straightened it for a frame (the hips settling back while the foot set off; only planted feet were looked at). A
+leg is now never straighter than the stance stood it or 0.96 of itself (the knee near 150 degrees): the hips sink as a
+body sinks into a deep stance, up to 0.12 of the leg, the stepping foot counted too; and a step out of a deep stance goes
+no further than 0.45 of the leg ahead of its hip (src/characters/bodyMotion/blowLegs.js:"export const LUNGE_GUARD").
+Offline every blow from a 15 or 30 cm stance keeps the lead knee at 147-148 degrees at its most open. Pinned in
+`test/characters/bodyMotion/blowlegs.test.js` (LUNGE-GUARD; with the sink taken out it fails at 175). Not yet seen in the
+owner's game.
+
+**STEP-HOP** (2026-10-29, the owner's video: the kinks gone, "the leg hops"). The owner strikes by single clicks with a
+pause, and the stepped lead foot went home after every blow and out again with the next - two lifts a blow, each the full
+0.06 of the leg (5 cm) however short the step, and LUNGE-GUARD's room, read off the moving hips each frame, could start a
+step afresh. Now the foot waits `rest` (0.5 s) after the last blow before it steps home, so clicked blows keep it out; a
+step lifts it at most 0.3 of its own length (a 9 cm side-cut step 2.7 cm, a chop's 4.5); the room is the anchoring's,
+and a step with under 0.04 of the leg of room is not taken. Offline four clicked chops lift the lead foot twice in all
+(eight before). Pinned in `test/characters/bodyMotion/blowlegs.test.js` (STEP-HOP). Not yet seen in the owner's game.
+
+**BLOW-MOVE** (2026-10-29, the owner: the standing two-hander's blows "look magnificent"; next "the legs while walking,
+with every problem found so far"). A blow struck moving had the stride's legs (LOWER-BODY, judged good) and nothing of the
+blow below the trunk - BLOW-LEGS came on only standing - and a body stopping under a blow had the clip's legs for 0.4 s,
+then the standing layer at once. Now BLOW-LEGS is on for a moving blow too (src/characters/bodyMotion/blowLegs.js:"export const BLOW_MOVE"):
+the feet are the stride's, where the movement clip sets them each frame - never anchored, stepped or turned - and over
+them the hips load and drive by 0.6 of the standing keys: dropped, turned and tipped through the swing, not sent forward
+or aside (the stride's own). Stopping, the same hips go on and grow to the standing blow over 0.15 s, the feet anchored
+where the stride last set them; a layer that comes on moving starts on the stride's feet. Offline over a walk on bent
+knees: the hips drop 2.7-4.5 cm and turn up to 13 degrees under a walking blow (none before), the feet within 1 mm of the
+stride's. With the armoured two-hander's own trunk share (`armouredSword.js`, 0.3 of the turn, 0.35 of the tip) a walking
+blow now carries some 0.9 of the standing one's body; other weapons 0.6. Pinned in `test/characters/bodyMotion/blowlegs.test.js`
+(BLOW-MOVE: the stride's feet kept, the hips dropped, no foot leaping at the stop; the stop-under test now reads the
+anchoring). Known: over a stride leg locked straight (a heel strike) the hips' turn can leave the foot up to 3 cm short.
+Not yet seen in the owner's game.
+
+**GUARD-WALK** (2026-10-29, the owner's video, standing and walking blows side by side: standing "magnificent", walking
+"much worse"). Frame by frame the walking blow's trunk and arms strike as standing while the walk clip strides on under
+them upright, narrow and on near-straight knees - the legs no part of it. While a blow is struck moving the hips now
+also sink 0.06 of the leg (the knees bending into a fighting walk), in over 0.18 s and out over 0.3 s - the layer held on
+while they rise - and the blow's own hips carry 0.75 of the standing keys (0.6). Offline over the test walk the knees
+under a walking blow bend to 110-114 degrees at most and 121-123 on average (standing blows reach 110-147), the hips sink
+9-11 cm, the feet stay within 3 mm of the stride's, the hips move at most 0.9 cm a frame rising after it. Pinned in
+`test/characters/bodyMotion/blowlegs.test.js` (BLOW-MOVE: the hips sunk by the crouch and the blow's share). Not yet seen
+in the owner's game.
+
+**STRIKE-MOVE** (2026-10-29, the owner: GUARD-WALK "still not the quality"; the game's logic to stay as it is). Daggerfall
+walks at some 4.4 m/s and runs at 8 (`motor.js` walkSpeed and runSpeed at Speed 50, Running 50) - a stance's shuffle
+cannot keep that pace (Skyrim walks at about 1), so a blow struck moving is treated as a blow struck on the run, one law
+read by the body's speed between walk and run (src/characters/bodyMotion/blowLegs.js:"export const BLOW_MOVE"): the
+stride's own feet; the hips turn, drop and tip through the swing as standing (share 1); the weight forward by half the
+standing drive; the trunk leaning into the travel (0.07 rad walking, 0.14 running) and the standing leg giving (0.012 -
+0.022 of the leg), both on the drive's own envelope; the stride sunk 0.03-0.045 of the leg. `armouredSword.js` no longer
+adds its moving-blow trunk share (the body turned twice). Offline at 4.4 m/s: the hips tip forward 9-13 degrees, drop
+10-13 cm, turn up to 22 on a side cut, the knees bend to 107-112 at most, the feet within 2.5 mm of the stride's. Filmed
+on the Proving Ground (`.proving-ground/jobs/walkblow.mjs`, standing and walking side by side). The owner's game is the
+acceptance.
+
+**TRAILING-FOOT; STRIKE-MOVE softened** (2026-10-29, the owner's long video: walking "got better"; stopping under a series
+the back foot "can be left well back"; the legs deforming walking). Stopped out of a blow struck moving, the feet are
+anchored where the stride last set them, and a wide stride's back foot was held there for the whole series - now that
+foot alone, found more than 0.3 of the leg behind its hip, steps in to 0.18 behind it, lifted, the lead foot and every
+stance's own turn kept (src/characters/bodyMotion/blowLegs.js:"export function trailingStep"; a stance found standing is
+still left whole - WIDE-STANCE). Over feet pinned to the stride the full standing turn (22 degrees) twisted the legs and
+the sink (10-13 cm) folded them - frames of knees drawn together and a low hunched stride: `share` 0.7, `crouch` halved
+(0.015-0.03): offline at 4.4 m/s the hips drop 7-9 cm, turn up to 15 degrees, the knees bend to 115-119 at most.
+Pinned (TRAILING-FOOT; with the step taken out it fails). Not yet seen in the owner's game.
+
+**RUN-FADE** (2026-10-29, the owner: the knees "lag" where the speed rises; read on the Proving Ground,
+`.proving-ground/jobs/kneelag.mjs`, each knee frame by frame and the legs' clip). Walking and blows struck walking moved
+the knees at most 6 degrees a frame - no lag there; walk -> run under a slash jumped them 12-15 degrees a frame, folded
+them to 42 and splayed the legs into a near split: over the run's long stride the pinned feet and the guarded reach sank
+the hips to the floor. The run is not this pass's (the owner): between 5.5 and 7 m/s the moving blow now fades out and a
+run keeps its clip's legs (src/characters/bodyMotion/blowLegs.js:"RUN-FADE"). Measured again in the game: no knee jumps
+over 8.4 degrees a frame, the split gone (the run's own clip, unchanged, still folds a knee to 55 under a thrust).
+
+**RUN-STRIDE** (2026-10-29, the owner: the run "badly broken"; asked between capping the clip and a longer stride:
+"lengthen the stride"). Read off the clip: MAO's runforward2c travels 4.57 m/s, Daggerfall runs at 8.1 (Speed and
+Running 50), so the reference's rate played the run's legs at 1.77x - a 1.2 s cycle in 0.49 s, the back heel flung to
+the seat, a sprinter's patter (and at Speed and Running 100, 2.6x). STRIDE's law, set aside in 7d with the out-of-stance
+walk, comes back for a run alone (src/characters/bodyMotion/stride.js:"export const RUN_STRIDE"): the clip plays at
+most 1.36x, the thighs swing the rest of the ratio about their cycle's mean (up to 1.3x), the calves' kick held back
+(-0.8 of that share), the body lowered to the ground the clip stood it on; the walk keeps the clip the owner accepted.
+Wired through BODY-WEIGHT's slot and rate (`bodyWeight.js` moveRate), so `createFpArm` keeps its 3709 logical lines.
+Measured on the retail rig under the clip at 8.1 m/s: a 0.64 s cycle (0.49), the knee at its tightest 68 degrees (54),
+the thighs -51..62 (-36..51; a 1.42 stride with the calves free threw them to -57..67 and folded the knee to 31), the
+planted foot keeping the body's pace. Pinned in `test/characters/bodyMotion/stride.test.js` (RUN-STRIDE). Not yet seen in
+the owner's game; the Proving Ground's boots timed out streaming the world.
+
 Then step 3's rest: the two-hander's blows in third person. Every step sits behind a switch "as now / by the formula",
 is judged by the owner in the game, and lives in a module of its own (HOST-SPLIT, `01-Overview/Host-Split.md`).
 

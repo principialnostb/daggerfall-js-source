@@ -84,3 +84,16 @@ test('STRIDE MAX-RATE: a sideways run at Daggerfall\'s full speed never scurries
   assert.equal(stride, STRIDE.maxStride);
   assert.ok(rate * stride < 5.6, 'the legs cover less than the body: a slide, the lesser evil');
 });
+
+test('RUN-STRIDE: a run plays its clip at most RUN_STRIDE.maxRate its own speed and lengthens the legs by the rest (MAO runforward2c 4.57 m/s under the 8.1 m/s run: 1.77x before); a walk keeps the reference rate', async () => {
+  const { runStrideShare, RUN_STRIDE, createStride } = await import('../../../src/characters/bodyMotion/stride.js');
+  const k = (8.1 * 69.99125109) / 320;   // the body's speed over the clip's
+  const share = runStrideShare(k);
+  assert.ok(Math.abs(share.rate * share.stride - k) < 1e-9, 'the ratio shared, no slide');
+  assert.ok(share.rate <= RUN_STRIDE.maxRate * 1.01 && share.stride > 1.25, `rate ${share.rate.toFixed(2)}, stride ${share.stride.toFixed(2)}`);
+  assert.deepEqual(runStrideShare(0.9), { rate: 0.9, stride: 1 });
+  const layer = createStride({ sampleTrack: () => null, loopWindow: () => ({ start: 0, stop: 1 }), share: runStrideShare, groups: /^run/i });
+  assert.equal(layer.rate(k, true, 'runforward2c'), share.rate);
+  assert.equal(layer.rate(2.49, true, 'walkforward2c'), 2.49, 'the walk is the clip the owner accepted');
+  assert.equal(layer.rate(k, false, 'runforward2c'), k, 'switched off: the reference');
+});
