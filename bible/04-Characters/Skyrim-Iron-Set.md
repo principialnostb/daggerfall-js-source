@@ -195,3 +195,147 @@ and thighs over them); `test/formats/morrowind/mwfit1.test.js` (the horned helm 
 ## Equipment worktree handoff (2026-10-29)
 
 The local fork adds cosmetic inventory faces, independent 2D helmet art, the accepted heavy wolf pelt and secondary motion, and a strict shield appearance catalogue. The complete handoff, local-asset reproduction paths and validation limits are in [Equipment-Claude-Handoff](../../docs/Equipment-Claude-Handoff.md). The generated Skyrim/Pelts meshes and textures remain local and ignored; the existing iron set import policy above is unchanged.
+
+## 9. Steel double-bladed battleaxe (MW-SKY-AXE, 2026-10-29)
+
+The owner requested Skyrim's double axe for third and first person and clarified: the STEEL double-bladed axe. `node tools/skyrim/importBattleaxe.mjs`
+reads `meshes/weapons/steel/1stpersonsteelbattleaxe.nif` from the same local Skyrim SE install. Its detailed
+1351-vertex, 1734-triangle shape is used in BOTH views; blood decal overlays are excluded. The diffuse and normal
+map are baked through `bakePainting.py` into a 512px painting with a full mip chain. Outputs
+`src/assets/mw/meshes/skyrim_steel_battleaxe.nif` and `src/assets/mw/textures/skyrim_steel_battleaxe.dds` are ignored.
+
+DFU reference: `ItemEnums.Weapons.War_Axe` (128), `WeaponMaterialTypes.Steel` (1), and
+`DaggerfallUnityItem.GetWeaponSkillUsed` (Axes). Source:
+https://github.com/Interkarma/daggerfall-unity/blob/master/Assets/Scripts/Game/Items/DaggerfallUnityItem.cs
+The departure is presentation only: the existing Skyrim local-asset rule now covers this requested weapon;
+combat, material and equip laws stay intact. Daggerfall's War Axe is the TWO-handed item; Battle Axe is one-handed.
+`localWeaponModels.js` offers this as an OPT-IN skin for War Axes of every material, only when BOTH local files
+are present. The inventory card offers Original and Skyrim · Steel Battleaxe, including unequipped axes.
+Original is the default; selection is stored in `mwWeaponLooks` by template and material, separate from item data.
+Choosing Original restores normal Morrowind resolution. A clean checkout has no Skyrim option. No generated Skyrim data is committed or added to the required asset census.
+
+The handle axis stays +Y in Weapon Bone space. The initial size pass (superseded by MW-SKY-AXE-FIT below) gave the axe
+100 MW units (~1.43m) overall, close to Skyrim's original 98.70 units. The previous retail Morrowind length of
+56.24 units was too short. The pommel stays at -20.130182 (the measured MW lower-hand reach), with the head
+extending to +79.869818; both the shaft and head retain Skyrim's proportions. Relative-size check against retail
+Morrowind's actual meshes: iron claymore 115.22, iron longsword 69.10, steel battleaxe 56.73 units. The skin's
+100 units are 0.868 of the claymore and 1.447 of the longsword: deliberately shorter than the largest sword,
+with the much broader head of a battleaxe. The owner's worn comparison screenshots (2026-10-29) guide acceptance;
+this is a relative weapon scale, not a claim that a physical metre measurement proves the in-game look.
+The detailed source is retained
+for close first-person viewing. `ownWeaponModelFor` feeds the existing shared weapon resolver/preload and icon
+paths, so world.js, exterior.js, worldModes.js and dungeonContext.js require no new host logic.
+
+Validation: `test/systems/skyrimBattleaxe.test.js` checks material/type scope, partial-install fallback, parsed
+local mesh topology, dimensions, and painting mip chain. A Chromium/Vite probe also verified real URL availability,
+preloading, resolveWeaponParts (type 8, no notes), and successful weapon-bone assembly. Types and lint pass.
+The broader bible gates expose unresolved references/records outside this slice. Final hand placement, idle framing and attack arcs require
+in-game visual acceptance; measured dimensions and offline renders alone do not certify them.
+
+
+### First-person framing correction (MW-SKY-AXE-FP, 2026-10-29) — superseded by MW-SKY-AXE-FIT
+
+The owner's live report confirmed that the full-size axe leaves only its handle in the first-person frame.
+`localWeaponModels.js` now supplies a separate firstPersonAttitude: scale 0.55, a ten-degree inward/forward
+turn (Rz(-10) * Rx(10)), and 12 units along the rotated handle toward the pommel. This preserves the shaft's
+intersection with the grip origin. It is presentation for the close camera, not a physical-size change.
+`resolveWeaponParts` applies it ONLY with firstPerson: true; both the first-person build and live weapon swap
+pass that flag. Third-person build/swap, holsters and icons retain the 100-unit full-size mesh.
+The real retail first-person idle2c camera projection test verifies the reported failure (zero head vertices
+in frame before) and all head vertices in frame after at three idle samples, at 60-degree vertical FOV, 16:9.
+This is a camera projection check; it does not certify the owner's alternate animation pack or every attack frame.
+
+
+### Relative calibration (MW-SKY-AXE-FIT, 2026-10-29)
+
+The owner rejected the existing size coefficients as a reference. Re-measure the COMPLETE meshes (every batch),
+not just their first shaft batch. Retail iron longsword length 69.0963, iron claymore 115.2155, iron warhammer
+60.0087 / head width 28.7101, steel battleaxe 56.7262 / head width 30.9172 MW units.
+The detailed Skyrim source has Y span 98.69747 and X span 35.46468 before import.
+Match the steel battleaxe's head width uniformly, preserving Skyrim's blade/shaft proportions: length 86.04195,
+head width 30.91720. Anchor the pommel at the retail axe's -19.54190, giving tip +66.50005.
+This is 74.68% of the claymore's length and 143.38% of the warhammer's, rather than a sword-length target.
+`battleaxeFit.js` owns these measures; `importBattleaxe.mjs` uses them for the local ignored NIF.
+
+First person keeps that SAME scale and orientation. Slide along the handle by -29.31571 units so the head's tip
+has the retail axe's +37.18434 reach. Both fists remain on the straight wooden shaft; the extra handle continues
+below the frame. This is a deliberate close-camera grip change, not a claim that both views grasp the same marked
+point on the handle. It replaces the 0.55 scale, ten-degree turns and twelve-unit slide above.
+At 60-degree vertical FOV the head's projected edges are compared with the retail steel axe on the SAME rig/clip,
+over three idle phases and 4:3, 16:9 and 21:9, for retail and locally installed ReAnimation idle2c.
+Some head clipping is inherited from the reference framing; forcing every head vertex on screen is not the criterion.
+DFU reference: FPSWeapon.UpdateWeapon and GetWeaponRect place a 2D sprite; this continues the existing deliberate
+3D presentation departure, without changing combat. All four hosts use the existing resolver; none grows.
+Numerical projection is not visual acceptance of the body, attack arcs or custom Weapon Widget transforms.
+
+
+### Diagonal first-person ready placement (MW-SKY-AXE-READY, 2026-10-29)
+
+The owner accepted the diagonal shaft and two-hand relationship in the concept, rejected its oversized visible
+forearms, and asked to try the position in the game with the existing hands and weapon. `axeViewPlacement.js`
+rigidly places the whole first-person arm pass in lens space: X -20, Y -11, Z -28 degrees, then [8, 20, -14.5]
+rig units. These are presentation judgements from the retail rig's projected hands/head, not physical dimensions.
+Existing meshes, gauntlets, shaft dimensions, relative grip, clips, clocks and FOV are retained. Third person,
+icons and holsters are untouched. The arm pass's recorded view includes the placement for projection/picking.
+The placement eases in/out over game time (0.12 s), only for the local Skyrim battleaxe while held; stone,
+sheet, death, spell, seat and saddle release it. Changing to another weapon clears it immediately.
+DFU reference: FPSWeapon.GetWeaponRect moves the weapon sprite; this is the established 3D lane's presentation
+departure. world.js, exterior.js, worldModes.js and dungeonContext.js share this existing arm seam; none grows.
+This is an in-game trial of placement, not a new attack-animation set or owner-approved visual result.
+
+
+MW-SKY-AXE-WIDE (owner correction, 2026-10-29): the short retail axe is NOT the grip/framing target.
+The ready pose now uses the existing climb IK on the existing hand bones, with a 24-unit axial wrist separation,
+a shaft directed diagonally right/up and forward (45-degree Y over -25-degree X), and the upper wrist at
+eye + [7,28,-11] rig units. The existing arm pass moves 15 units forward in lens space for modest hand coverage.
+The first-person mesh slides only -10 units along its unchanged shaft instead of the short-axe -29.31571 reach;
+a 90-degree turn ABOUT the shaft presents the blade face. Mesh dimensions and third person are retained.
+The ready grip eases away during attacks, returning ownership to the existing attack clips, and resumes afterwards.
+This supersedes the preceding rigid-only placement and its angles/offsets. In-game visual acceptance remains open.
+
+
+MW-SKY-AXE-ARMS (owner feedback, 2026-10-29): grip spacing is accepted; the shoulders/cuffs read unlike other weapons.
+Remove the forced outward elbow poles and inherit the source clip's elbow plane; keep shrug at zero and retain
+the original clavicle/upper-arm attachment points. Lower the wrist pair by 5 rig units (upper wrist eye+[7,28,-16]),
+preserving the 24-unit axial spacing and shaft direction. Remove the first-person mesh's quarter-turn about its
+shaft: the cutting edge now faces the player rather than presenting the broad blade face. Mesh, dimensions,
+shaft slide, third person and attack clocks remain unchanged. Real-rig checks now retain the source shoulder anchors.
+This is the next visual iteration; the owner's in-game judgement remains the acceptance criterion.
+
+
+MW-SKY-AXE-MOD-MOTION (2026-10-29): the owner reports excess shoulder/forearm visibility and movement unlike
+the selected improved first-person mod. Read ReAnimation's x1hMovement, x2cMovement and x2wMovement: each owns
+walk/run in four directions. The prior fixed eye-relative wrist target suppressed the mod's translation, while
+the extra 15-unit camera separation exposed arms behind the hands. Remove that camera separation entirely:
+the first-person lens is now the same lens as the other weapons. Ready-grip placement adds the source clip's
+eye-relative right-wrist delta from its selected idle source; rotations already follow the posed clip.
+Reference sampling uses built.tracks/built.clip, independently of the moving frame, and retains it across steps.
+Upper wrist baseline is eye+[7,28,-16], retaining the lower cuff position from ARMS, with the accepted 24-unit grip and edge-facing attitude.
+This supersedes the preceding camera offset and fixed wrist target. No custom walk/run oscillator is added.
+Third person, attack clocks, FOV, meshes and Skyrim dimensions are unchanged. All four hosts use the common arm seam.
+
+
+MW-SKY-AXE-IDLE-REFERENCE (2026-10-29): the owner's live screenshot contradicted the isolated renderer.
+buildFpArm's initial idle is explicitly sheathed (animWeaponType(mwType, true)); using built.clip/built.tracks
+as the drawn-hand reference introduced a large constant offset. Select idle2c through pickAnimSource over
+built.sources, using the same reverse-priority source law as playback. Cache against sources and build tracks.
+The regression now supplies a real bare starting idle plus the ReAnimation weapon idle, and pins the absolute
+drawn wrist location as well as movement deltas; the old movement-only checks could not detect a constant offset.
+The isolated pose renderer is not a substitute for the owner's runtime screenshot.
+
+Final edge-of-frame adjustment for this iteration: wrist baseline eye+[7,28,-11], diagonal Y turn 50 degrees
+(over the retained -25-degree X turn), and lower grip slid two units toward the upper hand (22-unit separation).
+This puts only the lower knuckle area at the screen bottom; the new absolute-position regression checks that
+band with the real sheathed build reference and ReAnimation drawn idle. It supersedes the 24-unit/45-degree
+ready values above; the accepted mesh dimensions and cutting-edge orientation are unchanged.
+
+
+MW-SKY-AXE-STEADY (2026-10-29): after the owner accepted placement, the recorded walking/running still read as
+excessive waving. The long shaft amplifies the inherited wrist rotation. While locomotion is active, keep 45%
+of the right hand's source rotation from the drawn idle, applying the same correction to both hand orientations,
+the shaft axis and the lower grip. Preserve the source wrist translation and gait timing; no new oscillator,
+head/shaft deformation or camera motion. Fade the angular correction on/off in 0.12 s game time; do not damp
+idle breathing, draw/sheath or attack clips. Accepted placement, 22-unit grip and cutting-edge attitude stay.
+The correction lives in axeViewPlacement.js; createFpArm only passes its existing movement-state flag and does not grow.
+This is a visual tuning judgement, not a DFU combat-law change (reference remains FPSWeapon's sprite presentation).
+All four hosts keep their existing shared first-person seam. In-game owner review remains the visual acceptance.

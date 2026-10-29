@@ -131,3 +131,11 @@ src/assets/mw/looks/iron_*.png
 /src/assets/mw/meshes/shield_sky_*.nif
 /src/assets/mw/textures/shield_sky_*.dds
 /src/assets/mw/looks/shield_sky_*.png
+/src/assets/mw/meshes/wolf_armor_*.nif
+/src/assets/mw/textures/wolf_armor_*.dds
+
+# Player-owned Skyrim battleaxe (tools/skyrim/importBattleaxe.mjs).
+src/assets/mw/meshes/skyrim_steel_battleaxe.nif
+src/assets/mw/textures/skyrim_steel_battleaxe.dds
+
+src/assets/mw/looks/skyrim_steel_battleaxe.png

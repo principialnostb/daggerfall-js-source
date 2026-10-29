@@ -1,7 +1,8 @@
 import bpy,json,os,math
 from mathutils import Vector
 bpy.ops.wm.read_factory_settings(use_empty=True)
-for i,s in enumerate(json.load(open('scratch/wolf-preview/scene.json'))):
+out = os.environ.get('WOLF_PREVIEW_OUT', 'scratch/wolf-preview')
+for i,s in enumerate(json.load(open(os.path.join(out, 'scene.json')))):
     p=s['positions']; idx=s['indices']; uv=s['uvs']
     m=bpy.data.meshes.new(s['name']);m.from_pydata([p[j:j+3] for j in range(0,len(p),3)],[],[idx[j:j+3] for j in range(0,len(idx),3)]);m.update()
     o=bpy.data.objects.new(str(i),m);bpy.context.collection.objects.link(o)
@@ -21,4 +22,5 @@ for pos,power,size in [((70,110,200),230000,100),((-80,-100,150),180000,90)]:
     d=bpy.data.lights.new('soft','AREA');d.energy=power;d.shape='DISK';d.size=size;o=bpy.data.objects.new('soft',d);bpy.context.collection.objects.link(o);o.location=pos;o.rotation_euler=(Vector((0,0,80))-o.location).to_track_quat('-Z','Y').to_euler()
 d=bpy.data.cameras.new('Camera');o=bpy.data.objects.new('Camera',d);bpy.context.collection.objects.link(o);scene.camera=o;d.type='ORTHO';d.ortho_scale=155
 for view,pos in [('front',(0,260,95)),('back',(0,-260,95)),('side',(260,0,95)),('angle45',(184,-184,95))]:
-    o.location=pos;o.rotation_euler=(Vector((0,0,65))-o.location).to_track_quat('-Z','Y').to_euler();scene.render.filepath=os.path.abspath('scratch/wolf-preview/'+view+'.png');bpy.ops.render.render(write_still=True)
+    if view not in os.environ.get('WOLF_PREVIEW_VIEWS', 'front,back,side,angle45').split(','): continue
+    o.location=pos;o.rotation_euler=(Vector((0,0,65))-o.location).to_track_quat('-Z','Y').to_euler();scene.render.filepath=os.path.abspath(os.path.join(out,view+'.png'));bpy.ops.render.render(write_still=True)

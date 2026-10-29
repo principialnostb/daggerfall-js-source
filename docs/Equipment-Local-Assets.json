@@ -192,6 +192,116 @@
       "sha256": "603217d46b01692a8642de4ee852cb98cdb14254177efd1d03bb653cc8879456"
     },
     {
+      "path": "src/assets/mw/meshes/wolf_armor_black_iron_boot_left.nif",
+      "bytes": 29501,
+      "sha256": "8d1bfd77d7551c97be88a5605ae8d800d761f962bc5fa99caca08fa4dbc1b999"
+    },
+    {
+      "path": "src/assets/mw/meshes/wolf_armor_black_iron_boot_right.nif",
+      "bytes": 29609,
+      "sha256": "3e389fc23618809eb1863c28a3558806ffa4a4ab6e3c60330337cfe0807d3b2c"
+    },
+    {
+      "path": "src/assets/mw/meshes/wolf_armor_black_iron_cuirass.nif",
+      "bytes": 120731,
+      "sha256": "84c39e13bce3b5408ce3a7221c790546e233d9b258567d29b79d5d84249fce33"
+    },
+    {
+      "path": "src/assets/mw/meshes/wolf_armor_black_iron_gauntlet_left.nif",
+      "bytes": 54786,
+      "sha256": "b8d87ae03babe2dce538374092f52ff492184fe5a22aae951c42bc100dbe95eb"
+    },
+    {
+      "path": "src/assets/mw/meshes/wolf_armor_black_iron_gauntlet_right.nif",
+      "bytes": 54968,
+      "sha256": "0d3e5937ddf85d4aeef284b2e2263aaeb571b184c59dc5ed0a5e35471cb2baf8"
+    },
+    {
+      "path": "src/assets/mw/meshes/wolf_armor_black_iron_greave_left.nif",
+      "bytes": 6969,
+      "sha256": "b11192cf0167635526b22d6bbc6602221cdc77de8226fee7494203459c79b646"
+    },
+    {
+      "path": "src/assets/mw/meshes/wolf_armor_black_iron_greave_right.nif",
+      "bytes": 7263,
+      "sha256": "dac9dcecbe6032718ff6c18d7e3736f0047bf4ad83087aed5e4e515d4d43b73d"
+    },
+    {
+      "path": "src/assets/mw/meshes/wolf_armor_black_iron_pauldron_left.nif",
+      "bytes": 20924,
+      "sha256": "23fca53dfb7a9373f687363ae9d052eb42cef90667aeaf91ae332d11c3bfd677"
+    },
+    {
+      "path": "src/assets/mw/meshes/wolf_armor_black_iron_pauldron_right.nif",
+      "bytes": 15652,
+      "sha256": "640c8f8b9f9889591bb999056830ab131ef9b18862f3f08f4640d6ed48257531"
+    },
+    {
+      "path": "src/assets/mw/meshes/wolf_armor_black_iron_skirt.nif",
+      "bytes": 75821,
+      "sha256": "7005e2b8715b3fbdb0a2359b4b73371d0ce7f654936379937c359199e676aa68"
+    },
+    {
+      "path": "src/assets/mw/meshes/wolf_armor_black_steel_plate_helm_horned.nif",
+      "bytes": 38070,
+      "sha256": "69f2775351ab134a72ec1e220fcf235470b6a68fa5e46648bb0350a1cb79e3d8"
+    },
+    {
+      "path": "src/assets/mw/meshes/wolf_armor_white_iron_boot_left.nif",
+      "bytes": 29501,
+      "sha256": "8005b01e070df4aba50df3b00fa87286845005845aa102ec0b160178319231a7"
+    },
+    {
+      "path": "src/assets/mw/meshes/wolf_armor_white_iron_boot_right.nif",
+      "bytes": 29609,
+      "sha256": "e9bf575457b6bfd24e5e2b67963ac688a666791fa3aebcc252686c68a602d762"
+    },
+    {
+      "path": "src/assets/mw/meshes/wolf_armor_white_iron_cuirass.nif",
+      "bytes": 120731,
+      "sha256": "262903b3dcf18bd644041db1cec91f355ea5407c70f785edc301e3428372df42"
+    },
+    {
+      "path": "src/assets/mw/meshes/wolf_armor_white_iron_gauntlet_left.nif",
+      "bytes": 54786,
+      "sha256": "1a4ea2d2320ec9825d1ab6e099f052b7d84386109b05085aa1f419a81279d0a8"
+    },
+    {
+      "path": "src/assets/mw/meshes/wolf_armor_white_iron_gauntlet_right.nif",
+      "bytes": 54968,
+      "sha256": "8c4ce48d4f3727d7e6fc17b0a951ef0b3b12bb886831654050e55e3caa356684"
+    },
+    {
+      "path": "src/assets/mw/meshes/wolf_armor_white_iron_greave_left.nif",
+      "bytes": 6969,
+      "sha256": "4adb5cf26b53330e8350014cba0e02ca5213cbcbb673a04a003e191da6c59805"
+    },
+    {
+      "path": "src/assets/mw/meshes/wolf_armor_white_iron_greave_right.nif",
+      "bytes": 7263,
+      "sha256": "4ce4079d3ca1ce0470a344f09b2cf24e43563186f608f160207804a2d2a3996b"
+    },
+    {
+      "path": "src/assets/mw/meshes/wolf_armor_white_iron_pauldron_left.nif",
+      "bytes": 20924,
+      "sha256": "e7808f0d0a36e4282c68970f894c31b2e4b0881184ddddff2805aa325f3361e9"
+    },
+    {
+      "path": "src/assets/mw/meshes/wolf_armor_white_iron_pauldron_right.nif",
+      "bytes": 15652,
+      "sha256": "9fcfbe532654dafdf8537d2babe30a0bf8dc15ca753510ce7ac2e7b66533a284"
+    },
+    {
+      "path": "src/assets/mw/meshes/wolf_armor_white_iron_skirt.nif",
+      "bytes": 75821,
+      "sha256": "863b61ab88232f0b3c550ccd7674a97ff43ae9423a02bf5ff2f55d025b1f2bce"
+    },
+    {
+      "path": "src/assets/mw/meshes/wolf_armor_white_steel_plate_helm_horned.nif",
+      "bytes": 38070,
+      "sha256": "d988e1ad8e77af41722e9553ebf009575c598b3a7c8ce688ba8988787a16d6eb"
+    },
+    {
       "path": "src/assets/mw/meshes/wolf_pelt_black.nif",
       "bytes": 237087,
       "sha256": "0f4b3dd9ad1fc72182a1d2492733d566ba515a9a9cd9e978d398e3b991f5330f"
@@ -272,6 +382,46 @@
       "sha256": "4395539f16365be533ef1678cc4fcd72d7adccc9e9d65518fb0a146776692898"
     },
     {
+      "path": "src/assets/mw/textures/wolf_armor_black_iron_boots.dds",
+      "bytes": 87508,
+      "sha256": "575df0bc85bdeba829117ed583678048767ac13d840243f953d1a3bb1b31d096"
+    },
+    {
+      "path": "src/assets/mw/textures/wolf_armor_black_iron_cuirass.dds",
+      "bytes": 349652,
+      "sha256": "f6178f1d4ce613be78b9716428e67dcce380873b86e47799bccceb11c2d27742"
+    },
+    {
+      "path": "src/assets/mw/textures/wolf_armor_black_iron_gauntlets.dds",
+      "bytes": 349652,
+      "sha256": "b477e627792682ad1e3afcb10cb322d975648090cba3435db6b3c9ea1bf76ebb"
+    },
+    {
+      "path": "src/assets/mw/textures/wolf_armor_black_steel_plate_helm_horned.dds",
+      "bytes": 87508,
+      "sha256": "14922aca9bee375b88e3894a850faa6907b180fcd0aeec94e30adaac9a9cb1e9"
+    },
+    {
+      "path": "src/assets/mw/textures/wolf_armor_white_iron_boots.dds",
+      "bytes": 87508,
+      "sha256": "3d719ec123f05443799071a39f71ec530cec8ccc13815a9cc5f8754ce80eeab4"
+    },
+    {
+      "path": "src/assets/mw/textures/wolf_armor_white_iron_cuirass.dds",
+      "bytes": 349652,
+      "sha256": "f28f04905494def9698fc1c9e0f0e99f59a8951834630cbb37b20728c9880c6b"
+    },
+    {
+      "path": "src/assets/mw/textures/wolf_armor_white_iron_gauntlets.dds",
+      "bytes": 349652,
+      "sha256": "780ed6e1f6951da554ef18d85461f1136249b8753ffdcd52e62ca98cbe224baf"
+    },
+    {
+      "path": "src/assets/mw/textures/wolf_armor_white_steel_plate_helm_horned.dds",
+      "bytes": 87508,
+      "sha256": "b5540f9ac7d0bbe14aecd69144bdbae8a231952eb1ca4a173ff5fa42c480c623"
+    },
+    {
       "path": "src/assets/mw/textures/wolf_pelt_black_cards.dds",
       "bytes": 1398228,
       "sha256": "0e115282c95844c40d3e28c3165e6dc536d579ef5c6c5fe8a81ecd69d78799fb"
@@ -350,6 +500,21 @@
       "path": "src/assets/mw/textures/wolf_pelt_white_hide.dds",
       "bytes": 1398228,
       "sha256": "84a8959cae445ff6e50221def39e5429a0296822d5c78350077b0f343ee802e6"
+    },
+    {
+      "path": "src/assets/mw/meshes/skyrim_steel_battleaxe.nif",
+      "bytes": 54336,
+      "sha256": "4df3c9ed3aac80a774988bfeeefc41cae2d00ae0ede545ffed37e3797b9ee6a9"
+    },
+    {
+      "path": "src/assets/mw/textures/skyrim_steel_battleaxe.dds",
+      "bytes": 1398228,
+      "sha256": "e50f439a249e6e62376b812a1cc705b87ddab41795dc75eeccedca4b5152cb86"
+    },
+    {
+      "path": "src/assets/mw/looks/skyrim_steel_battleaxe.png",
+      "bytes": 2643,
+      "sha256": "a5996fa5c96501c1744b02de3c3c22c01f72022199de531777e4a24d919c3f44"
     }
   ]
 }

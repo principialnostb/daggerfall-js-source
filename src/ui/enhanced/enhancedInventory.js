@@ -90,6 +90,7 @@ import { inventoryItemImage, inventoryItemModel, templateByIndex, isAmmunition }
 import { requestIcon, loadIcon, paperDollDataUrl, requestFittedPicture, requestFittedIcon, iconName, fittedImg } from '../textureCanvas.js';
 import { CLOAK_TEMPLATES } from '../../characters/ownModels/wolfCloak.js';
 import { isShieldTemplate } from '../../characters/ownModels/shieldLooks.js';
+import { weaponSkinsFor } from '../../characters/ownModels/localWeaponModels.js';
 import { isPaperdollHelmet, helmetPaperdollVariant } from '../../systems/helmetPaperdollLooks.js';
 import { helmetAppearancePicker, fitHelmetThumbnail } from './helmetAppearancePicker.js';
 import { fateColumn, fateKey, ensureFateStyle, FATE_FACE_BOX } from '../revenant/revenantFateView.js';   // REVENANT-FATE: a beaten revenant's choice, this window's FATE side
@@ -3682,7 +3683,8 @@ function itemActs(picked, side, { qty = true } = {}) {
   // equipSlot here hid the entire selector on ordinary inventory shield cards.
   const shieldAppearance = side === 'local' && isShieldTemplate(picked.templateIndex);
   const helmetAppearance = side === 'local' && isPaperdollHelmet(picked);
-  const looks = line.equipped || shieldAppearance || helmetAppearance ? lookChoices(picked) : null;
+  const weaponAppearance = side === 'local' && weaponSkinsFor(picked).length > 0;
+  const looks = line.equipped || shieldAppearance || helmetAppearance || weaponAppearance ? lookChoices(picked) : null;
   let modelRow = null;
   if (looks) {
     const row = el('div', 'look-row');

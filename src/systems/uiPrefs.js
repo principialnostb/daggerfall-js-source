@@ -31,6 +31,7 @@ export const PREF_DEFAULTS = Object.freeze({
   inventoryFaces: null,
   helmetPaperdollLooks: null,
   mwCloakLooks: null,
+  mwWeaponLooks: null,
   // PX30c: the enhanced HUD's scale. It lives HERE and not in DFU's
   // settings, and two pins said so before I listened: the settings
   // defaults are BAKED from DFU's vendored ini and nothing hand-edits

@@ -58,6 +58,7 @@ import { t } from '../../systems/textManager.js';   // L10N4: MW-FOLK1's notes i
 import { ARMOR_MATERIAL } from '../../systems/armorMaterials.js';
 import { ARMOR_ENUM } from '../../combat/enemyEquipment.js';
 import { selectedShieldLook } from '../../characters/ownModels/shieldLooks.js';
+import { wolfArmorPalette, wolfArmorModel } from '../../characters/ownModels/wolfArmorPalette.js';
 import templates from '../../characters/itemTemplates.json' with { type: 'json' };
 
 /** ARMOR_ENUM.Helm, held as its own name because the composer's
@@ -613,6 +614,7 @@ export function dfWornArmor(slots, EQUIP_SLOTS, ARMOR_ENUM) {
  * each is a note, the skin stands, the law is never-traps.
  */
 export function composeWornArmor({ pieces, armors, clothes, bodyPool, female = false, colourOf = null, helmStyle = undefined, looks = null, cloakStyle = 'classic', cloakLooks = null }) {   // MW-STEEL1: helmStyle, the Steel Helm switch (undefined: the default style); MW-IRON1: looks, every other own piece's by its id
+  const palette = wolfArmorPalette(pieces, cloakLooks);
   const notes = [];
   const bodyById = new Map((bodyPool ?? []).map((b) => [String(b.id || '').toLowerCase(), b]));
   // ── THE PRIORITY LAW (Audit 30's recording, now consumed) ────────
@@ -712,7 +714,7 @@ export function composeWornArmor({ pieces, armors, clothes, bodyPool, female = f
       for (const p of ownArmorParts(own, { helmStyle, looks })) {   // MW-STEEL1: the style the Steel Helm switch asks for; MW-IRON1: a piece's own look
         const at = ARMO_PART.findIndex((r) => r.name === p.part);
         const row = ARMO_PART[at];
-        const add = { slot: `${row.name} (${own.id})`, partName: row.name, bones: row.bones, model: p.model, recordId: own.id, piece, ...(p.showsSkin ? { showsSkin: true } : {}),
+        const add = { slot: `${row.name} (${own.id})`, partName: row.name, bones: row.bones, model: wolfArmorModel(p.model, palette), recordId: own.id, piece, ...(p.showsSkin ? { showsSkin: true } : {}),
           ...(own.skinFrom ? { skinFrom: own.skinFrom, fitTo: own.fitTo ?? null } : {}) };   // MW-BRIG2: skinned from the body under it; MW-BRIG3: fitted onto the part it hides. MW-STEEL4: a model shipped skinned (the steel plate) carries neither - its mesh is bound as a retail part's is
         claim(at, prio, add);
         if (p.showsSkin && row.shadows) covers.add(row.shadows);   // MW-IRON1: open where its picture is - the skin under it stays drawn, but it is covered

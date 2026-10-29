@@ -5,11 +5,12 @@ import { assembleFirstPersonArm, poseAssembly } from '../../src/formats/morrowin
 import { decodeDds } from '../../src/formats/morrowind/mwDdsFile.js';
 import { writePng } from '../pngIO.mjs';
 import { BETTER_BODY, FEMALE_SKELETON } from './mwBody.mjs';
-const out = 'scratch/wolf-preview'; mkdirSync(out, { recursive: true });
+import { wolfArmorModel } from '../../src/characters/ownModels/wolfArmorPalette.js';
+const out = process.env.WOLF_PREVIEW_OUT ?? 'scratch/wolf-preview'; mkdirSync(out, { recursive: true });
 const colour = process.argv[2] ?? 'brown';
 if (!['brown', 'white', 'black'].includes(colour)) throw new Error('Unknown cloak colour');
 const models = ['iron_cuirass', 'iron_skirt', 'iron_pauldron_left', 'iron_pauldron_right', 'iron_gauntlet_left', 'iron_gauntlet_right', 'iron_boot_left', 'iron_boot_right', 'iron_greave_left', 'iron_greave_right', 'steel_plate_helm_horned', `wolf_pelt_${colour}`];
-const parts = models.map((file) => ({ slot: file, bones: [], bytes: new Uint8Array(readFileSync(`src/assets/mw/meshes/${file}.nif`)) }));
+const parts = models.map((file) => ({ slot: file, bones: [], bytes: new Uint8Array(readFileSync(`src/assets/mw/meshes/${wolfArmorModel(`${file}.nif`, process.env.WOLF_ARMOR_PALETTE ?? 'classic')}`)) }));
 parts.push({ slot: 'body', bones: [], bytes: new Uint8Array(readFileSync(BETTER_BODY())) });
 const rig = await assembleFirstPersonArm({ skeletonBytes: new Uint8Array(readFileSync(FEMALE_SKELETON)), parts });
 if (!rig.ok) throw new Error(rig.error);

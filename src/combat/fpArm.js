@@ -407,6 +407,7 @@ import { injectSkeletonNodes } from '../formats/morrowind/mwSkin.js';   // WS1: 
 // the hands hold, and where its corners land on the composite
 import { deltaTracks, heldSampler, paperPiece, refreshPaperSource, projectPaperCorners, normaliseHeldPose, HELD_POSE_DEFAULT } from './heldPose.js';
 import { farthestVertexIndex, posedVertex, viewOffsetOf, worldPointOf } from './rigMuzzle.js';   // AUDIT FIELD-GUN-MW F2: where the barrel ends, off the posed piece
+import { firstPersonLens, stepAxePlacement, axeReadyHold } from './weapon/axeViewPlacement.js';
 import { armKickMatrix } from './gun/gunFeel.js';   // MW-GUN-FEEL: the gun's recoil and reload, as one pose over the viewmodel
 import { rifleStanceStep, applyRifleStance } from './gun/rifleStance.js';   // RIFLE-STANCE: a long gun held in the hands - the low ready, the aim
 import { createHipLantern, HIP_LANTERN_HEIGHT } from '../systems/lanternSwing.js';   // HT-WAIST: the one swing law both bodies feed (BODY-MOTION: its rider moved there); HT-WAIST-SIZE: the one height they hang
@@ -2305,6 +2306,7 @@ export const archiveHas = (archives) => (p) => (archives ?? []).some((a) => a.ha
  *  a fault the player sees from the chair and could not name - the
  *  card's note is the same sentence, but the card is a menu away. */
 import { ammoCountFor } from '../systems/inventory.js';   // AUDIT 68 S27-ammoCount-dup: the ammunition count's one home, beside the spend law
+import { WEAPON_LOOKS_PREF, weaponLookKey } from '../characters/ownModels/localWeaponModels.js';
 import { ownWeaponModelFor } from '../characters/ownModels/ownWeaponModels.js';   // FIELD-GUN-MW2: the weapons Morrowind does not have - a leaf too
 import { glowUnit } from '../render/weaponGlowGlsl.js';   // WEAPON-GLOW1: the glow's unit off the lens's rows - a leaf
 
@@ -2513,19 +2515,15 @@ export function resolveOffWeaponParts({ weapon, allWeapons, find, skeletonBytes,
   return { parts: [{ slot: 'offweapon', bones: [OFF_WEAPON_BONE], bytes: main.bytes }], info: { ...r.weaponInfo, bone: OFF_WEAPON_BONE }, notes };
 }
 
-export function resolveWeaponParts({ weapon, hasAmmo = false, allWeapons, find, skeletonBytes, has = null }) {
+export function resolveWeaponParts({ weapon, hasAmmo = false, allWeapons, find, skeletonBytes, has = null, firstPerson = false }) {
   const notes = [];
   const parts = [];
   let weaponInfo = null;
   let arrowInfo = null;
   const mwType = dfWeaponToMw(weapon, WEAPONS);
-  // FIELD-GUN-MW2: THE PORT'S OWN WEAPONS FIRST, because Morrowind has
-  // no record for them and no type to look one up by. This arm cannot
-  // shadow a Morrowind weapon - `ownWeaponModelFor` answers only for
-  // template indices `registerCustomTemplates` minted, which are past
-  // every DFU index - and it returns before the type lookup rather than
-  // after it, so the note below ("Morrowind has no weapon type for what
-  // you are holding") stays true of the items it is actually about.
+  // FIELD-GUN-MW2: authored models first. MW-SKY-AXE also uses this seam
+  // for the owner's optional steel axe replacement, only when its local
+  // mesh AND texture exist; absent files retain the normal record path.
   const own = ownWeaponModelFor(weapon);
   if (own) {
     const path = `meshes/${own.model}`;
@@ -2540,7 +2538,8 @@ export function resolveWeaponParts({ weapon, hasAmmo = false, allWeapons, find, 
     } else {
       // RIFLE-STANCE: the row's attitude on the bone (a pistol grip through the fist - ownWeaponModels.js GUN_GRIP_ATTITUDE),
       // and how the arms hold it (combat/gun/rifleStance.js)
-      parts.push({ slot: 'weapon', bones: [own.bone], bytes: nifBytes(arc, path), ...(own.attitude ? { preTransform: own.attitude } : {}) });
+      const attitude = firstPerson && 'firstPersonAttitude' in own ? own.firstPersonAttitude : own.attitude;
+      parts.push({ slot: 'weapon', bones: [own.bone], bytes: nifBytes(arc, path), ...(attitude ? { preTransform: attitude } : {}) });
       weaponInfo = { id: own.id, name: own.name, model: own.model, type: own.animateAs, bone: own.bone, speed: own.speed, own: true, holdAs: own.holdAs ?? null, attitude: own.attitude ?? null };
     }
     // THE BORROWED TYPE IS WHAT GOES BACK, not None, and it is the
@@ -4217,7 +4216,7 @@ export async function buildFpArm({
     // gave it so a live weapon swap resolves through the very same door
     // as the build. Its two reads are covered by the preload above,
     // through weaponPartPaths.
-    const resolvedWeapon = resolveWeaponParts({ weapon, hasAmmo, allWeapons, find, skeletonBytes, has: archiveHas(archives) });   // MW-D50
+    const resolvedWeapon = resolveWeaponParts({ weapon, hasAmmo, allWeapons, find, skeletonBytes, has: archiveHas(archives), firstPerson: true });   // MW-D50
     partBytes.push(...resolvedWeapon.parts);
     // MW-D51: the held torch, at the first-person rig's Shield Bone -
     // the fp camera sees a shield (fpWornAdds keeps 'shield bone'), so
@@ -7482,7 +7481,7 @@ export function createFpArm({ playerAppearance = false } = {}) {
           await loadFromArchives(archives, weaponPartPaths({ weapon: item, hasAmmo, allWeapons: token.allWeapons, has: archiveHas(archives) }), playerAppearance);   // MW-D50
           const resolved = resolveWeaponParts({
             weapon: item, hasAmmo, allWeapons: token.allWeapons, find,
-            skeletonBytes: token.skeletonBytes, has: archiveHas(archives),   // MW-D50
+            skeletonBytes: token.skeletonBytes, has: archiveHas(archives), firstPerson: true,   // MW-D50
           });
           // MW-D24: the SAME swap on the third-person body - same door
           // (resolveWeaponParts), this rig's own skeleton bytes, so the
@@ -8334,6 +8333,7 @@ export function createFpArm({ playerAppearance = false } = {}) {
       stepPairGuard(dt);   // TWO-HANDS AUDIT: the pair's guard
       stepPairSpread(dt);   // TWO-HANDS SPREAD: the pair's arms turned out
       stepRifle(cam, dt);   // RIFLE-STANCE: the long gun's hold
+      stepAxePlacement(built, weaponInHand() && !handsTaken(built) && !cam?.seat && !cam?.saddle, dt, attackingNow(), !!movementState);
       // refreshCurrentAnims' order, and it is not arbitrary: the weapon
       // state is stepped FIRST because the idle refresh below depends on
       // it - "idle handled last as it can depend on the other states"
@@ -8721,7 +8721,7 @@ export function createFpArm({ playerAppearance = false } = {}) {
         // The procedural fist-pump IK produces malformed-looking hands on this rig.
         run: null,
         mirror: mirrorFor('first', built, dt),   // TWO-HANDS: the second hand - the pair's left arm, a left-hand blow
-        hold: rifleHold('first', built) ?? shieldBash(),   // RIFLE-STANCE: the long gun in the hands, the low ready or the aim; SHIELD-GUARD: else the bash
+        hold: axeReadyHold(built, rifleHold('first', built) ?? shieldBash()),   // RIFLE-STANCE: the long gun in the hands, the low ready or the aim; SHIELD-GUARD: else the bash
         // Rule 56's accum root is STICKY and rig-wide, so it does not
         // follow the source the way the tracks do.
         accumRoot: built.accumRoot,
@@ -8857,8 +8857,7 @@ export function createFpArm({ playerAppearance = false } = {}) {
       // and still moved on Mac's retail data; classic-sprite semantics
       // ("the weapon ignores the look") are now taken literally.
       const pitch = followCam ? 0 : (cam.pitch || 0);
-      const fwd = [0, Math.sin(pitch), -Math.cos(pitch)];
-      const lens = lookAt(eye, [eye[0] + fwd[0], eye[1] + fwd[1], eye[2] + fwd[2]], [0, 1, 0]);
+      const lens = firstPersonLens(eye, pitch, built);
       // MW-GUN-FEEL (combat/gun/gunFeel.js): THE GUN'S RECOIL AND ITS RELOAD, over the WHOLE viewmodel in the eye's own axes -
       // turned about the shoulder, moved back and down - laid in front of the lens, so the arms and the gun move as one
       // and nothing else in the pass does. Not through the neck (poseAssembly's neckPitch/neckOffset): glued arms take
@@ -9296,7 +9295,7 @@ export function createFpArm({ playerAppearance = false } = {}) {
       // what this getter reads until it is asked to; the first ask kicks
       // those loads and answers null, and the repaint the kick triggers
       // asks again with everything in hand.
-      const askKey = `${cat.gen}:${item.group ?? ''}:${item.templateIndex}:${item.material ?? ''}:${item.dye ?? ''}:${cloakLook ?? ''}:${shieldLook ?? ''}`;
+      const askKey = `${cat.gen}:${item.group ?? ''}:${item.templateIndex}:${item.material ?? ''}:${item.dye ?? ''}:${cloakLook ?? ''}:${shieldLook ?? ''}:${getPref(WEAPON_LOOKS_PREF)?.[weaponLookKey(item)] ?? 'classic'}`;
       if (archivesAreLazy(cat.archives) && !iconReady.has(askKey)) {
         preloadIcon(cat, item, askKey, cloakLook, shieldLook);
         return null;
