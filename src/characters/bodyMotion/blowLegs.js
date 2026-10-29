@@ -47,7 +47,12 @@ export const SWORD_BLOW_KEYS = Object.freeze({
  * frame's jump); the layer comes on over `in` and goes over `out` (a body set moving gives its legs to the stride). A
  * body heavier by `heavy` (bodyWeight.js's 0..1) strikes deeper by that share. `still` m/s: under it the body stands.
  */
-export const BLOW_LEGS_TIME = Object.freeze({ hold: 0.25, home: 0.55, step: 0.16, lift: 0.06, tau: 0.035, in: 0.06, out: 0.12, heavy: 0.4, still: 0.3 });
+export const BLOW_LEGS_TIME = Object.freeze({ hold: 0.25, home: 0.55, step: 0.16, lift: 0.06, tau: 0.035, in: 0.06, out: 0.12, heavy: 0.4, still: 0.3, after: 0.4 });
+/* STOP-UNDER-A-BLOW (2026-10-29, the owner's video: stopped under a held attack the legs keep "the last frame before the
+ * stop"): the layer came on the first still frame and took its anchors from it - the stride LOWER-BODY was still handing
+ * back to the clip (its ease out, 0.12 s) - and held them through every blow the held button chained. It comes on now
+ * only `after` seconds of standing, once the legs are the clip's own stance again - the stance the owner sees once the
+ * button is let go. */
 
 const smoothBack = (t) => 1 - (1 - clamp01(t)) ** 3;   // the release's snap: fast out of the wind-up, settling into the hit
 
@@ -97,16 +102,45 @@ function createFoot() {
   };
 }
 
+/**
+ * STOP-UNDER-A-BLOW (2026-10-29, the owner: "you run, stop without letting go of the attack, and the legs do not step -
+ * they can stick in any position"): the anchors are the feet as the layer finds them, and a body that stops under a held
+ * blow is found mid-stride - the movement's legs (LOWER-BODY) still in the run, a foot apart or in the air - and held so
+ * for the whole blow. Such feet are stepped into a stance instead, one after the other, lifted and set down: the further
+ * foot first, each under its own hip, the left a little ahead (`split`), on the planted foot's ground and toe. A stride
+ * is the feet more than `apart` of the leg apart along the way, or one more than `lifted` of the leg over the other, so
+ * a standing blow keeps its clip's own stance; `moved` takes every pair found (no caller now - the layer waits for the
+ * clip's stance instead, BLOW_LEGS_TIME.after). Null where the feet already stand. Pure.
+ */
+export const BLOW_SETTLE = Object.freeze({ apart: 0.25, lifted: 0.04, split: 0.05 });
+export function settleOffsets(anchor, hips, leg, moved = false) {
+  const along = Math.abs(anchor.L.at[1] - anchor.R.at[1]), up = Math.abs(anchor.L.at[2] - anchor.R.at[2]);
+  if (!moved && !(along > BLOW_SETTLE.apart * leg || up > BLOW_SETTLE.lifted * leg)) return null;
+  const planted = anchor.L.at[2] <= anchor.R.at[2] ? 'L' : 'R';
+  const mid = (hips.L[1] + hips.R[1]) / 2;
+  const off = {};
+  for (const s of ['L', 'R']) {
+    const goal = [hips[s][0], mid + (s === 'L' ? 1 : -1) * BLOW_SETTLE.split * leg, anchor[planted].at[2]];
+    off[s] = sub(goal, anchor[s].at);
+  }
+  const first = len(off.L) >= len(off.R) ? 'L' : 'R';
+  return { off, order: [first, first === 'L' ? 'R' : 'L'], toe: anchor[planted].toe, up: anchor[planted].up };
+}
+
 /** THE LAYER. `step` each frame with the motion word (bodyMotion.js motionWord's) and the body's weight; `apply` in the
  *  third-person motion slot (bodyWeight.js's), after the carry and before the elbows' clearance. */
 export function createBlowLegs() {
   let w = 0; let want = null; let pose = { fwd: 0, drop: 0, yaw: 0, pitch: 0 }; let anchor = null; let lastDt = 0;
+  /** @type {null | { off: Record<string, number[]>, order: string[], toe: number[], up: number[], done?: boolean }} */
+  let settle = null;   // STOP-UNDER-A-BLOW
+  let still = Infinity;   // STOP-UNDER-A-BLOW: seconds since the body last moved
   const feet = { L: createFoot(), R: createFoot() };
   const layer = {
     /** One frame: `on` the switch in third person, `word` the motion word, `heavy` the body's weight (0..1). */
     step(dt, on, word, heavy = 0) {
       lastDt = Math.max(0, dt);
-      const standing = !!word && word.on !== false && !word.busy && word.grounded !== false && !word.swimming && !word.levitating && !(Number(word.speed) > BLOW_LEGS_TIME.still);
+      still = word && Number(word.speed) > BLOW_LEGS_TIME.still ? 0 : still + Math.max(0, dt);
+      const standing = !!word && word.on !== false && !word.busy && word.grounded !== false && !word.swimming && !word.levitating && still >= BLOW_LEGS_TIME.after;
       const asked = on && standing && word.blow ? blowLegsPose({ ...word.blow, sword: word.shown && word.mwType === MW_WEAPON_TYPE.LongBladeTwoHand }, heavy) : null;
       if (asked) want = asked;
       w = ease(w, asked ? 1 : 0, asked ? BLOW_LEGS_TIME.in : BLOW_LEGS_TIME.out, dt);
@@ -134,6 +168,8 @@ export function createBlowLegs() {
           const ref = body.bones[s].foot, ax = body.footAxes[s], R = rotationPart(mats.get(ref).a);
           anchor[s] = { at: [...at(mats, ref)], toe: ax ? norm(apply(R, ax.fwd)) : [0, 1, 0], up: ax ? norm(apply(R, ax.up)) : [0, 0, 1] };
         }
+        // STOP-UNDER-A-BLOW: a stride found here is stepped into a stance
+        settle = settleOffsets(anchor, { L: at(mats, body.bones.L.thigh), R: at(mats, body.bones.R.thigh) }, body.leg);
       }
       // the hips: turned about their own joint and moved, additively over the clip's
       const node = skeleton.nodes.get(pelvis);
@@ -152,16 +188,21 @@ export function createBlowLegs() {
       // the feet: home on their anchors, the lead one stepping forward on a thrust's and a chop's drive
       const lift = BLOW_LEGS_TIME.lift * leg;
       const plan = { w, feet: {} };
+      // STOP-UNDER-A-BLOW: the second foot waits for the first to land in the stance
+      const waits = settle && !settle.done ? settle.order[1] : null;
       for (const s of ['L', 'R']) {
         const lead = want && want.lead === s;
-        const fwdGoal = lead ? want.forward != null ? (want.forward ? [0, want.step * leg, 0] : [0, 0, 0]) : null : [0, 0, 0];
+        const home = settle ? settle.off[s] : [0, 0, 0];
+        const fwdGoal = s === waits ? null : lead ? want.forward != null ? (want.forward ? add(home, [0, want.step * leg, 0]) : home) : settle && !settle.done ? home : null : home;
         const off = feet[s].goal(fwdGoal, lastDt, lift);
-        plan.feet[s] = { at: add(anchor[s].at, off), toe: anchor[s].toe, up: anchor[s].up, w: 1, stance: !feet[s].air() };
+        if (settle && s === settle.order[0] && !feet[s].air() && len(sub(off, home)) < 0.5) settle.done = true;
+        const turned = settle && s !== waits;   // a foot sent to the stance turns to the planted one's toe
+        plan.feet[s] = { at: add(anchor[s].at, off), toe: turned ? settle.toe : anchor[s].toe, up: turned ? settle.up : anchor[s].up, w: 1, stance: !feet[s].air() };
       }
       lastDt = 0;   // a frame's clocks spent once
       return solveBody(skeleton, pose0, rootRef, skelMats, plan);
     },
-    reset() { w = 0; want = null; anchor = null; pose = { fwd: 0, drop: 0, yaw: 0, pitch: 0 }; feet.L.reset(); feet.R.reset(); },
+    reset() { w = 0; want = null; anchor = null; settle = null; pose = { fwd: 0, drop: 0, yaw: 0, pitch: 0 }; feet.L.reset(); feet.R.reset(); },
   };
   return layer;
 }

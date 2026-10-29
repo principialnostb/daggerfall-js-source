@@ -311,7 +311,7 @@ every frame; a single-frame jump three times its neighbours' and over 7 cm was f
    with it.
 3. **ELBOW-OUT** - the claymore's left elbow stood 0.02-0.05 m off the spine's axis, inside the cuirass (the owner's
    screenshots): the grip's elbow way, once down, left and a little back, is now out to the left and forward
-   (src/characters/bodyMotion/carry.js:"haf.pole = norm(add(scale(F.right, -0.55)").
+   (src/characters/bodyMotion/carry.js:"haf.pole = norm(add(scale(F.right, lerp(-0.55").
 4. **SERIES intent 0.85** - a click every 0.7 s fell out of its series and the idle cut in for 0.09 s between blows
    (src/combat/weapon/attackSeries.js:"export const SERIES").
 
@@ -403,6 +403,27 @@ the MotionDoctrine switch; a body set moving gives its legs to the stride over 0
 (after the carry, before ARM-CLEARANCE) with the motion word (src/characters/bodyMotion/bodyWeight.js:"legs.step(dt, active, word, weight);").
 Measured offline over the vanilla clip: the planted feet within 0.5 units, the hips at most 3.3 units a frame. Pinned by
 `test/characters/bodyMotion/blowlegs.test.js`. The magnitudes are the owner's to judge in the game.
+
+**STOP-UNDER-A-BLOW** (2026-10-29, the owner: "you run, stop without letting go of the attack, and the legs do not step -
+they can stick in any position"): BLOW-LEGS anchors the feet where it finds them when it comes on, and a body that stops
+under a held blow is found mid-stride - LOWER-BODY's movement legs still in the run, the feet apart or one in the air -
+and was held so for the whole blow. Such a stride (the feet over a quarter of the leg apart along the way, or one over
+0.04 of the leg above the other) is now stepped into a stance (src/characters/bodyMotion/blowLegs.js:"export function settleOffsets"):
+the further foot first, then the other once it lands, each lifted and set down under its own hip, the left 0.05 of the
+leg ahead, on the planted foot's ground and toe; a wind-up's lead foot goes too. Feet already standing are left where
+they are. Pinned in `test/characters/bodyMotion/blowlegs.test.js` (a held wind-up over a stride: the feet together on
+the ground, one at a time, no planted foot sliding; the old anchors kept them 43 units apart).
+
+The owner, after that cut: the legs still froze where the run left them. The proving ground showed the held button
+chaining blow after blow (slash, chop) with BLOW-LEGS whole and anchored once, at the stop - its 0.79 m stride stepped
+in to 0.10 m, so the first cut did act on a full stride; what it let by was a half stride under its thresholds. A
+second cut stepped every pair found within 0.6 s of moving into an invented stance; the owner's next video still held
+the stopped pose through every chained blow. The cause is the moment of anchoring: the layer came on the first still
+frame, while LOWER-BODY was still handing the stride back to the clip (its 0.12 s ease out), and froze that frame -
+letting go of the button let the clip's stance through. BLOW-LEGS now comes on only `BLOW_LEGS_TIME.after` (0.4 s) of
+standing, and anchors on the clip's own stance - the one the owner sees after letting go; the invented stance is kept
+only for a stride a body standing all along is found in. Pinned (the stride handed back over 8 frames: the layer
+waits, the feet on the clip's stance; anchored at once it failed). The owner's game is the acceptance.
 
 Then step 3's rest: the two-hander's blows in third person. Every step sits behind a switch "as now / by the formula",
 is judged by the owner in the game, and lives in a module of its own (HOST-SPLIT, `01-Overview/Host-Split.md`).

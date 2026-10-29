@@ -120,3 +120,6 @@ src/assets/mw/looks/steel_plate_helm_horned.png
 src/assets/mw/meshes/iron_*.nif
 src/assets/mw/textures/iron_*.dds
 src/assets/mw/looks/iron_*.png
+
+# PROVING-GROUND (bible/05-Combat/Proving-Ground.md): the owner's own settings, browser profile and run outputs - never committed
+.proving-ground/

@@ -3,7 +3,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { seamSampler, seamOf, createLoopSeam, LOOP_SEAM } from '../../src/combat/loopSeam.js';
+import { seamSampler, seamOf, createLoopSeam, LOOP_SEAM, smoothSampler, CLIP_SMOOTH } from '../../src/combat/loopSeam.js';
+import { setPref } from '../../src/systems/uiPrefs.js';
 
 /** A track turning about x by angle(t) and moving by move(t), quaternions [w, x, y, z]. */
 const track = (angle, move = () => 0) => ({ angle, move });
@@ -42,9 +43,22 @@ test('LOOP-SEAM: a clean loop, a seam under the floor, and an overlay track are 
 test('LOOP-SEAM: only a looping movement or idle clip is carried, and the rig wraps its third-person sampler behind the switch', () => {
   const seam = createLoopSeam({ sampleTrack, loopWindow: () => window });
   const source = { trackMap: new Map(), keys: [] };
+  setPref('mwClipSmooth', false);
   assert.equal(seam.sampler(sampleTrack, { group: 'weapontwohand' }, source), sampleTrack, 'a blow is not a loop');
+  setPref('mwClipSmooth', true);
+  assert.notEqual(seam.sampler(sampleTrack, { group: 'weapontwohand' }, source), sampleTrack, 'CLIP-SMOOTH: a blow is rounded too');
   assert.equal(seam.sampler(sampleTrack, { group: 'walkforward' }, source, false), sampleTrack, 'switched off');
   assert.notEqual(seam.sampler(sampleTrack, { group: 'walkforward' }, source), sampleTrack);
   const src = readFileSync(new URL('../../src/combat/fpArm.js', import.meta.url), 'utf8');
   assert.match(src, /sampleTrack: loopSeam\.sampler\(lowerBody\.sampler\(/);
+});
+
+test('CLIP-SMOOTH: a corner in the curve of a clip is rounded over its h either side; a straight run is left as it is', () => {
+  const kink = track((t) => (t < 0.5 ? 0 : 2 * (t - 0.5)), (t) => (t < 0.5 ? 0 : 10 * (t - 0.5)));
+  const smooth = smoothSampler(sampleTrack);
+  const h = CLIP_SMOOTH.h;
+  assert.ok(angleOf(smooth(kink, 0.5)) > 0 && angleOf(smooth(kink, 0.5)) < 2 * h, 'at the corner: rounded, never ahead of the line');
+  assert.ok(Math.abs(smooth(kink, 0.5).translation[0] - 10 * h / 4) < 1e-9, 'the move rounded the same way');
+  assert.ok(Math.abs(angleOf(smooth(kink, 0.8)) - angleOf(sampleTrack(kink, 0.8))) < 1e-9, 'past the corner: the clip as it was');
+  assert.ok(Math.abs(angleOf(smooth(kink, 0.2))) < 1e-12, 'before it: still');
 });

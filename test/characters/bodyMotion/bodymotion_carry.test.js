@@ -20,7 +20,7 @@ import { buildSkeleton, skeletonSpaceMatrices, injectSkeletonNodes, GRAPH_ROOT }
 import { MW_WEAPON_TYPE, MW_UNITS_PER_METER } from '../../../src/formats/morrowind/mwFirstPerson.js';
 import { offWeaponBoneAddon } from '../../../src/combat/twoHands/mirrorRig.js';
 import { bodyOf, frac } from '../../../src/characters/bodyMotion/bodyKit.js';
-import { carryClassOf, CARRY, TWO_HAND_GRIP, TWO_HAND_HAFT, armByAngles } from '../../../src/characters/bodyMotion/carry.js';
+import { carryClassOf, CARRY, TWO_HAND_GRIP, TWO_HAND_HAFT, TWO_HAND_STILL, armByAngles } from '../../../src/characters/bodyMotion/carry.js';
 import { U, blowU, blowPose, meleeFamilyOf, blowName } from '../../../src/characters/bodyMotion/melee.js';
 import { createBodyMotion, sceneInput, motionWord } from '../../../src/characters/bodyMotion/bodyMotion.js';
 import { bodyFrames } from '../../../src/characters/bodyMotion/bodySolve.js';
@@ -127,11 +127,13 @@ test('BODY-MOTION A ONE-HANDER, HELD DOWN AND AWAY FROM THE SIDE (Mac\'s stance)
 test('BODY-MOTION A TWO-HANDER: at rest a low guard with both hands on the grip (the left on the haft toward the pommel - AUDIT BODY-MOTION CARRY-NIT: it said below); at a run carried at the hip (Mac: "running with a 2 hander by the hip") in BOTH hands - TWO-RUN, Mac after the merge: "the greatsword running doesnt use both hands", then "held lower at the hip, but not attached to the hip" - the grip low by the hip, under its joint by more than a twentieth of a leg (it stood 0.02 to 0.06 under), held clear of the thigh by 7 units and ahead of the hip by 4 (it stood 5 off the thigh and beside the hip), the blade trailing behind and down, the left hand on the hilt toward the pommel and the chest turned toward the weapon to reach it (mutants: BODY-MOTION-haft-hand-unplaced, BODY-MOTION-two-run-at-the-chest, TWO-RUN-the-left-lets-go, TWO-RUN-the-chest-square, TWO-RUN-the-arms-swing, TWO-RUN-held-against-the-hip, TWO-RUN-the-chest-upright)', () => {
   const idle = play({ weapon: MW_WEAPON_TYPE.LongBladeTwoHand }, 1.5).mats;
   const grip = pt(idle, 'weapon bone'), b = blade(idle, 'weapon bone');
-  const haft = [grip[0] + b[0] * TWO_HAND_GRIP.two * A, grip[1] + b[1] * TWO_HAND_GRIP.two * A, grip[2] + b[2] * TWO_HAND_GRIP.two * A];
+  // GRIP-ANATOMY: standing, the left fist at the pommel end (TWO_HAND_STILL); a blow keeps TWO_HAND_GRIP
+  const haft = [grip[0] + b[0] * TWO_HAND_STILL.two * A, grip[1] + b[1] * TWO_HAND_STILL.two * A, grip[2] + b[2] * TWO_HAND_STILL.two * A];
   // the left hand's grip point: where its fist closes - the left Weapon Bone's origin (the mirror of the right's)
   assert.ok(len(sub(pt(idle, 'weapon bone left'), haft)) < 0.12 * A, `the left hand closed on the haft (${(len(sub(pt(idle, 'weapon bone left'), haft)) / A).toFixed(2)} arms off)`);
-  assert.ok(b[1] > 0.5 && b[2] < -0.3, 'a low guard: the blade forward and down');
-  const hipZ = [], blades = [], off = [], along = [], facing = [], clear = [], ahead = [];
+  // GRIP-ANATOMY (the owner's drawing, 2026-10-29): the point raised to level - forward, neither into the ground nor up
+  assert.ok(b[1] > 0.5 && Math.abs(b[2]) < 0.3, 'the guard: the blade forward, the point at the waist');
+  const hipZ = [], blades = [], off = [], along = [], facing = [], clear = [], ahead = [], bends = [];
   const toSeg = (a, b, p) => { const ab = sub(b, a), t = Math.max(0, Math.min(1, dot(sub(p, a), ab) / dot(ab, ab))); return len(sub(p, [a[0] + ab[0] * t, a[1] + ab[1] * t, a[2] + ab[2] * t])); };
   for (const speed of [8.1, 5.5]) {
     play({ weapon: MW_WEAPON_TYPE.LongBladeTwoHand, forward: 1, speed, running: true }, 2, (m, mo, t) => {
@@ -145,10 +147,17 @@ test('BODY-MOTION A TWO-HANDER: at rest a low guard with both hands on the grip 
       const g = pt(m, 'weapon bone'), hip = pt(m, 'bip01 r thigh');
       clear.push(toSeg(hip, pt(m, 'bip01 r calf'), g) - 6.5);   // the thigh as a capsule (the audit's radius)
       ahead.push(g[1] - hip[1]);
+      for (const sd of ['l', 'r']) {
+        const u = sub(pt(m, `bip01 ${sd} forearm`), pt(m, `bip01 ${sd} upperarm`)), f = sub(pt(m, `bip01 ${sd} hand`), pt(m, `bip01 ${sd} forearm`));
+        bends.push(Math.acos(dot(u, f) / (len(u) * len(f))) / RAD);
+      }
     });
   }
   assert.ok(hipZ.every((z) => Math.abs(z) < 0.3 * body.leg), `the grip at the hip (${hipZ.map((z) => (z / body.leg).toFixed(2)).slice(0, 4)})`);
-  assert.ok(Math.max(...hipZ) < -0.05 * body.leg, `held low: the grip at most ${(Math.max(...hipZ) / body.leg).toFixed(3)} of a leg under the hip joint`);
+  // GUARD-ARMS (2026-10-29, the owner: the run "with the same approach" as the guard's arms): held at the belt, both
+  // elbows bent - under the hip joint (TWO-RUN's first reading) only a straight arm reached it
+  assert.ok(Math.max(...hipZ) < 0.2 * body.leg, `held low: the grip at most ${(Math.max(...hipZ) / body.leg).toFixed(3)} of a leg over the hip joint`);
+  assert.ok(Math.min(...bends) > 35, `both elbows bent at a run (${Math.min(...bends).toFixed(0)} degrees at the least)`);
   assert.ok(Math.min(...clear) > 7, `held off the hip: the grip ${Math.min(...clear).toFixed(1)} units off the thigh at its nearest`);
   assert.ok(Math.min(...ahead) > 4, `held ahead of the hip: ${Math.min(...ahead).toFixed(1)} units at its least`);
   assert.ok(blades.every((v) => v[1] < -0.55 && v[2] < -0.25), 'the blade trailing behind and down');

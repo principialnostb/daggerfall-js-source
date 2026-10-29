@@ -92,3 +92,22 @@ test('LOWER-BODY: the switch defaults to По формуле, and the rig wires 
   assert.match(src, /tracks: lowerBody\.tracks\(/);
   assert.match(src, /sampleTrack: loopSeam\.sampler\(lowerBody\.sampler\(/);   // PIN MOVED (LOOP-SEAM): carried over the seam outside it
 });
+
+test('LOWER-SWAP: the legs\u2019 clip changed under a blow is crossed over LOWER_BODY_EASE.swap from where the last stood - never in a frame', async () => {
+  const { createLowerBodyLayer, LOWER_BODY_EASE } = await import('../../src/combat/lowerBodyLayer.js');
+  // a clip whose thigh stands at its own time: x = time
+  const sampleTrack = (track, time) => ({ rotation: null, translation: [track.k === 'clip' ? time : 0, 0, 0], scale: 1 });
+  const layer = createLowerBodyLayer({ sampleTrack });
+  const tracks = new Map([['bip01 l thigh', { k: 'clip' }]]);
+  const base = new Map([['bip01 l thigh', { k: 'base' }]]);
+  const mask = new Set(['bip01 l thigh']);
+  const frame = (state) => layer.step(1 / 60, { on: true, third: true, action: {}, movement: state, movementTracks: tracks });
+  for (let i = 0; i < 90; i++) frame({ group: 'walkforward2c', startTime: 10, time: 10.5 });
+  const at = () => layer.sampler(sampleTrack)(layer.tracks(base, mask).get('bip01 l thigh'), 0).translation[0];
+  assert.ok(Math.abs(at() - 10.5) < 1e-9, 'the walk\u2019s legs');
+  frame({ group: 'runforward2c', startTime: 20, time: 20.2 });
+  const first = at();
+  assert.ok(first < 12, `the first frame of the run still near the walk (${first.toFixed(2)}, the run stands at 20.2)`);
+  for (let i = 0; i < Math.ceil(LOWER_BODY_EASE.swap * 60 * 2); i++) frame({ group: 'runforward2c', startTime: 20, time: 20.2 });
+  assert.ok(Math.abs(at() - 20.2) < 0.1, `the run\u2019s own legs once crossed (${at().toFixed(2)})`);
+});

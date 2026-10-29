@@ -9,8 +9,9 @@ import { bodyOf } from '../../../src/characters/bodyMotion/bodyKit.js';
 import { retailSkeleton } from '../../fixtures/mw/retailRig.mjs';
 import { createBodyMotion, sceneInput } from '../../../src/characters/bodyMotion/bodyMotion.js';
 import { MW_WEAPON_TYPE } from '../../../src/formats/morrowind/mwFirstPerson.js';
-import { bodyFrames } from '../../../src/characters/bodyMotion/bodySolve.js';
+import { bodyFrames, solveBody } from '../../../src/characters/bodyMotion/bodySolve.js';
 import { blendRow } from '../../../src/characters/bodyMotion/carry.js';
+import { handFrame } from '../../../src/combat/climbRig.js';
 
 const sm = (sk, pose, root) => skeletonSpaceMatrices(sk, pose, root);
 const sk = buildSkeleton(parseNif(retailSkeleton()));
@@ -25,6 +26,19 @@ test('two-handed guard/run transition keeps the blade and edge perpendicular thr
     const row = blendRow('two', 'R', { idle: 1 - run, run, walk: 0, sneak: 0 });
     const dot = row.blade.reduce((sum, v, j) => sum + v * row.edge[j], 0);
     assert.ok(Math.abs(dot) < 1e-6, `stable weapon frame at run share ${run}`);
+  }
+});
+
+test('RUN-STOP: from the walk\'s point-forward guard to the run\'s trailing blade the edge rolls evenly along the blade\'s path', () => {
+  let prev = null;
+  for (let i = 0; i <= 200; i++) {
+    const run = i / 200;
+    const row = blendRow('two', 'R', { idle: 0, walk: 1 - run, run, sneak: 0 });
+    if (prev) {
+      const step = Math.acos(Math.min(1, row.edge.reduce((sum, v, j) => sum + v * prev[j], 0))) * 180 / Math.PI;
+      assert.ok(step < 2, `edge rolled ${step.toFixed(1)} degrees in a 1/200 step at run share ${run}`);
+    }
+    prev = row.edge;
   }
 });
 
@@ -83,29 +97,68 @@ test('ARM-CLEARANCE: a turned two-handed neutral guard keeps both grips and clea
   }
 });
 
-test('two-handed neutral carry leaves space for the cuirass along the left forearm', () => {
-  const motion = createBodyMotion();
-  for (let i = 0; i < 120; i++) motion.step(1 / 60, sceneInput({ weapon: MW_WEAPON_TYPE.LongBladeTwoHand }));
-  const pose = new Map();
-  motion.apply(sk, pose, GRAPH_ROOT, sm);
-  clearArms(sk, pose, GRAPH_ROOT, sm, { armor: 1 });
-  const mats = sm(sk, pose, GRAPH_ROOT), frame = bodyFrames(body, mats);
-  const weapon = mats.get(body.wb);
-  const blade = [weapon.a[1], weapon.a[4], weapon.a[7]];
-  assert.ok(blade.reduce((sum, v, i) => sum + v * frame.up[i], 0) / Math.hypot(...blade) > 0.85, 'neutral guard points the sword upward');
-  const R = body.bones.R, shoulder = mats.get(R.upper).t, elbow = mats.get(R.fore).t, wrist = mats.get(R.hand).t;
-  const upper = elbow.map((v, i) => v - shoulder[i]), fore = wrist.map((v, i) => v - elbow[i]);
-  const bend = Math.acos(upper.reduce((sum, v, i) => sum + v * fore[i], 0) / (Math.hypot(...upper) * Math.hypot(...fore)));
-  assert.ok(bend > Math.PI / 3 && bend < Math.PI * 2 / 3, 'right elbow comfortably bent rather than reaching straight out');
-  const E = mats.get(body.bones.L.fore).t, W = mats.get(body.bones.L.hand).t, C = mats.get(body.chest).t;
-  const S = mats.get(body.bones.L.upper).t;
-  const u = E.map((v, i) => v - S[i]), f = W.map((v, i) => v - E[i]);
-  const leftBend = Math.acos(u.reduce((sum, v, i) => sum + v * f[i], 0) / (Math.hypot(...u) * Math.hypot(...f)));
-  assert.ok(leftBend > Math.PI / 3 && leftBend < Math.PI * 2 / 3, 'left elbow bends naturally too; the pommel must not pull it straight');
-  for (const t of [0, 0.25, 0.5, 0.75]) {
-    const d = E.map((v, i) => v * (1 - t) + W[i] * t - C[i]);
-    const dot = axis => d.reduce((sum, v, i) => sum + v * axis[i], 0);
-    const outside = Math.hypot(dot(frame.right) / (body.shoulderWidth * 0.64), dot(frame.fwd) / (body.shoulderWidth * 0.56));
-    assert.ok(outside >= 1, `forearm at ${t} clears plate (${outside})`);
+// GRIP-ANATOMY (2026-10-29, the owner's video: the left hand sinks into the body at rest and walking, the run's elbow
+// pressed to the chest; then the owner's drawing: the point raised so the elbows bend): the guard - its point raised to
+// the waist, the walk's a little higher - held with the left fist against
+// the right, the trunk turned and leant under it; the left arm bent and its forearm clear of a full cuirass, standing,
+// walking and running. (Its pins of 2026-10-28 - the blade up, the right elbow bent 60 to 120 - were the upright guard's,
+// withdrawn with it.)
+test('GRIP-ANATOMY: the two-handed carry\'s left forearm clears the cuirass, bent, standing, walking and running', () => {
+  const scenes = {
+    stand: { weapon: MW_WEAPON_TYPE.LongBladeTwoHand },
+    walk: { weapon: MW_WEAPON_TYPE.LongBladeTwoHand, forward: 1, speed: 2.5 },
+    run: { weapon: MW_WEAPON_TYPE.LongBladeTwoHand, forward: 1, speed: 8.1, running: true },
+  };
+  const angle = (a, b) => Math.acos(a.reduce((sum, v, i) => sum + v * b[i], 0) / (Math.hypot(...a) * Math.hypot(...b)));
+  for (const [name, scene] of Object.entries(scenes)) {
+    const motion = createBodyMotion();
+    for (let i = 0; i < 180; i++) motion.step(1 / 60, sceneInput(scene));
+    const pose = new Map();
+    motion.apply(sk, pose, GRAPH_ROOT, sm);
+    clearArms(sk, pose, GRAPH_ROOT, sm, { armor: 1 });
+    const mats = sm(sk, pose, GRAPH_ROOT), frame = bodyFrames(body, mats);
+    if (name !== 'run') {
+      const weapon = mats.get(body.wb), blade = [weapon.a[1], weapon.a[4], weapon.a[7]];
+      const up = blade.reduce((sum, v, i) => sum + v * frame.up[i], 0) / Math.hypot(...blade);
+      assert.ok(up > -0.3 && up < 0.45, `${name}: the guard's point raised off the ground, not overhead (${up.toFixed(2)})`);
+    }
+    const S = mats.get(body.bones.L.upper).t, E = mats.get(body.bones.L.fore).t, W = mats.get(body.bones.L.hand).t, C = mats.get(body.chest).t;
+    const bend = angle(E.map((v, i) => v - S[i]), W.map((v, i) => v - E[i])) / (Math.PI / 180);
+    assert.ok(bend > 30 && bend < 120, `${name}: the left elbow bent (${bend.toFixed(0)} degrees; it stood 5 at rest)`);
+    if (name !== 'run') {
+      // the left elbow out at the side, not on the chest; the left wrist near the forearm's line (the right's exact mirror
+      // bent it 68-70 degrees - LEFT_FIST_ROLL)
+      const side = E.map((v, i) => v - C[i]).reduce((sum, v, i) => sum + v * frame.right[i], 0) / body.shoulderWidth;
+      assert.ok(side < -0.45, `${name}: the left elbow out at the side (${side.toFixed(2)} shoulder widths)`);
+      const fingers = handFrame(mats, body.bones.L, 'L').fingers;
+      const flex = angle(W.map((v, i) => v - E[i]), fingers) / (Math.PI / 180);
+      assert.ok(flex < (name === 'stand' ? 30 : 50), `${name}: the left wrist ${flex.toFixed(0)} degrees off the forearm`);
+    }
+    for (const t of [0, 0.25, 0.5, 0.75]) {
+      const d = E.map((v, i) => v * (1 - t) + W[i] * t - C[i]);
+      const dot = axis => d.reduce((sum, v, i) => sum + v * axis[i], 0);
+      const outside = Math.hypot(dot(frame.right) / (body.shoulderWidth * 0.64), dot(frame.fwd) / (body.shoulderWidth * 0.56));
+      assert.ok(outside >= 1, `${name}: the forearm at ${t} clears plate (${outside.toFixed(2)})`);
+    }
   }
+});
+
+test('GRIP-ANATOMY: the trunk leant under the hands leaves them where they were asked (solveBody `trunk`)', () => {
+  const ask = (ctx) => {
+    // ahead of each shoulder and below it, within the arm's reach before the lean and after it
+    const f = ctx.frames, at = (side) => f.shoulder[side].map((v, i) => v + f.fwd[i] * 20 - f.up[i] * 22 + f.right[i] * (side === 'R' ? -3 : 3));
+    return { L: { at: at('L'), w: 1 }, R: { at: at('R'), w: 1 } };
+  };
+  const plain = new Map(), leant = new Map();
+  let asked = null;
+  solveBody(sk, plain, GRAPH_ROOT, sm, { w: 1, armW: { L: 1, R: 1 }, arms: (ctx) => (asked = ask(ctx)) });
+  const report = solveBody(sk, leant, GRAPH_ROOT, sm, { w: 1, armW: { L: 1, R: 1 }, arms: ask, trunk: { yaw: -10 * Math.PI / 180, pitch: 8 * Math.PI / 180 } });
+  const m0 = sm(sk, plain, GRAPH_ROOT), m1 = sm(sk, leant, GRAPH_ROOT);
+  for (const side of ['L', 'R']) {
+    assert.ok(Math.hypot(...m1.get(body.bones[side].hand).t.map((v, i) => v - asked[side].at[i])) < 0.05, `${side} hand where it was asked`);
+    assert.ok(report.reach[side] < 0.05, `${side} reached`);
+  }
+  const f0 = bodyFrames(body, m0), f1 = bodyFrames(body, m1);
+  assert.ok(f1.fwd[0] > f0.fwd[0] + Math.sin(8 * Math.PI / 180), 'the chest turned toward the right');
+  assert.ok(f1.fwd[2] < f0.fwd[2] - Math.sin(5 * Math.PI / 180), 'the chest leant forward');
 });

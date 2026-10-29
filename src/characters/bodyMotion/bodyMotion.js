@@ -25,7 +25,7 @@ import { getPref } from '../../systems/uiPrefs.js';
 import { algebra, ease, clamp01, smooth, RAD, bodyOf, bodyKindOf, reflect } from './bodyKit.js';
 import { rotAxisAngle } from '../../combat/climbRig.js';
 import { createGaitState, stepGait, gaitPose, TURN } from './gait.js';
-import { carryClassOf, carryHands, CARRY, TWO_HAND_GRIP, TWO_HAND_HAFT, armByAngles, mirrorRequest, hafHand, blendHand, gaitShares, turnAbout } from './carry.js';
+import { carryClassOf, carryHands, CARRY, TWO_HAND_GRIP, TWO_HAND_HAFT, armByAngles, mirrorRequest, hafHand, blendHand, gaitShares, turnAbout, trunkOf } from './carry.js';
 import { meleeFamilyOf, blowName, blowU, blowPose, windFor } from './melee.js';
 import { solveBody, gripRequest } from './bodySolve.js';
 
@@ -33,8 +33,10 @@ const { add, scale, sub, cross, norm, len, lerp } = algebra;
 
 /** THE EASES (seconds): the layer on and off (off quicker - a recoil or a death takes the body at once), the arms on and
  *  off (a draw, a cast, a torch lit), and a change of carry class (a weapon drawn, a pair raised); `carry` (radians a
- *  second) the critically damped spring the carry's gait shares follow the gait's on (AUDIT BODY-MOTION CARRY-6). */
-export const MOTION_EASE = Object.freeze({ in: 0.14, out: 0.1, outFast: 0.05, armIn: 0.12, armOut: 0.07, cls: 0.14, carry: 14, sneak: 0.6, blowReturn: 0.5, blowEntry: 0.12 });
+ *  second) the critically damped spring the carry's gait shares follow the gait's on (AUDIT BODY-MOTION CARRY-6);
+ *  `carryRun` the run's share's own, slower: a run's carry stands furthest from the guard (a two-hander's blade turns
+ *  some 140 degrees between them), and at `carry` a stop turned it 14 to 29 degrees a frame (RUN-STOP, 2026-10-29). */
+export const MOTION_EASE = Object.freeze({ in: 0.14, out: 0.1, outFast: 0.05, armIn: 0.12, armOut: 0.07, cls: 0.14, carry: 14, carryRun: 7, sneak: 0.6, blowReturn: 0.5, blowEntry: 0.12 });
 
 /** The blade's length (MW units) each class draws on the contact sheets - the sheet's alone; the rig draws the mesh. */
 const SHEET_BLADE = Object.freeze({ one: 58, two: 88, wide: 112, spear: 120, dual: 54 });
@@ -157,6 +159,16 @@ export function createBodyMotion() {
     }
     return st;
   }
+  /** GRIP-ANATOMY: the trunk leant under the carry's weapon (carry.js trunkOf), eased from the class it leaves, as far as
+   *  the carry has both arms - or null. */
+  function trunkNow() {
+    if (!shares.x) return null;
+    const b = trunkOf(cls, shares.x), a = clsFrom && clsMix < 1 ? trunkOf(clsFrom, shares.x) : b, t = clsFrom ? clsMix : 1;
+    const k = Math.min(armW.L, armW.R);
+    const yaw = lerp(a.yaw, b.yaw, t) * k, pitch = lerp(a.pitch, b.pitch, t) * k, square = lerp(a.square, b.square, t) * k;
+    const collar = lerp(a.collar, b.collar, t) * k;
+    return yaw || pitch || square || collar ? { yaw, pitch, square, collar } : null;
+  }
   /** The blow the machine is in, as the choreography reads it - or null. */
   const blowNow = (from = null) => {
     const b = input.blow;
@@ -246,12 +258,18 @@ export function createBodyMotion() {
           let sum = 0;
           for (const g of ['idle', 'walk', 'run', 'sneak']) {
             // the spring's exact step - stable at any frame time
-            const d0 = shares.x[g] - target[g], v0 = shares.v[g], e = Math.exp(-MOTION_EASE.carry * dt), j = v0 + MOTION_EASE.carry * d0;
+            const om = g === 'run' ? MOTION_EASE.carryRun : MOTION_EASE.carry;
+            const d0 = shares.x[g] - target[g], v0 = shares.v[g], e = Math.exp(-om * dt), j = v0 + om * d0;
             shares.x[g] = Math.max(0, target[g] + (d0 + j * dt) * e);
-            shares.v[g] = (v0 - MOTION_EASE.carry * j * dt) * e;
-            sum += shares.x[g];
+            shares.v[g] = (v0 - om * j * dt) * e;
+            if (g !== 'run') sum += shares.x[g];
           }
-          if (sum > 0) for (const g of ['idle', 'walk', 'run', 'sneak']) shares.x[g] /= sum;
+          // RUN-STOP: the run's share is its own spring's; the others share what it leaves (normalised all together, the
+          // guard's quick rise took the run's share down at the quick spring's pace)
+          const run = Math.min(1, shares.x.run);
+          shares.x.run = run;
+          if (sum > 0) for (const g of ['idle', 'walk', 'sneak']) shares.x[g] *= (1 - run) / sum;
+          else if (run < 1) shares.x.idle = 1 - run;
         }
       }
       // a blow the machine drops part-way (an interrupt, a stagger, a sheathe) is let go of over the layer's own ease out,
@@ -316,6 +334,7 @@ export function createBodyMotion() {
         w: w * back * entry,
         armW: { L: armW.L, R: armW.R },
         arms: (ctx) => handsFor(ctx, gp, null, null),
+        trunk: trunkNow(),
       };
       const report = solveBody(skeleton, pose, rootRef, skelMats, plan);
       last = { gp, bp, report };

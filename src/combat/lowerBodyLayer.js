@@ -12,11 +12,15 @@
 
 import { ease } from '../characters/bodyMotion/bodyKit.js';
 import { blendMaskBones } from '../formats/morrowind/mwFirstPerson.js';
-import { weightedOverlayTracks, weightedOverlaySampler } from './leftArmLayer.js';
+import { nlerpQuat } from './leftArmLayer.js';
 
 /** The eases (seconds): the legs handed to the stride as a blow begins mid-stride, and back to the clip's when the body
  *  stops under a blow. */
-export const LOWER_BODY_EASE = Object.freeze({ in: 0.08, out: 0.12 });
+export const LOWER_BODY_EASE = Object.freeze({ in: 0.08, out: 0.12, swap: 0.15 });
+/* LOWER-SWAP (2026-10-29, the proving ground: 91 of 132 single-frame leaps in the owner's recorded play were a movement
+ * clip changed under a blow - walk to run, forward to a strafe - a foot 0.95 m in one frame): the legs' clip changed
+ * while the layer holds them is crossed over `swap` seconds from where the last one stood (its clip held at its last
+ * time), never taken at once. */
 
 /** @type {WeakMap<object, Set<string>>} */
 const MASKS = new WeakMap();
@@ -51,7 +55,20 @@ export function lowerBodyOwner({ on = true, third = false, action = false, hit =
  *  winner's from where they stood. */
 export function createLowerBodyLayer({ sampleTrack }) {
   let trackMap = null; let clock = 0; let w = 0; let memo = null; let inner = sampleTrack;
-  const sampler = weightedOverlaySampler((track, time) => inner(track, time), () => clock, () => w);
+  let key = null; let prev = null; let mix = 1; let swapT = 0;   // LOWER-SWAP: the clip the legs leave, held, and how far they have left it
+  const blend = (a, b, t) => ({
+    rotation: a.rotation && b.rotation ? nlerpQuat(a.rotation, b.rotation, t) : b.rotation ?? a.rotation,
+    translation: a.translation && b.translation ? a.translation.map((v, i) => v + (b.translation[i] - v) * t) : b.translation ?? a.translation,
+    scale: a.scale != null && b.scale != null ? a.scale + (b.scale - a.scale) * t : b.scale ?? a.scale,
+  });
+  const sampler = (track, time) => {
+    if (!track || !track.__overlay) return inner(track, time);
+    let o = inner(track.__overlay, clock);
+    if (prev && mix < 1 && track.__prev) o = blend(inner(track.__prev, prev.clock), o, mix);
+    const k = Math.min(1, Math.max(0, w));
+    if (k >= 1 || !track.__base) return o;
+    return blend(inner(track.__base, time), o, k);
+  };
   const layer = {
     /** One frame, in the rig's own words: the switch (`on`), the view (`third`), the frame's clip states (`action`,
      *  `hit`, `dead`, `movement`, `jump`) and the track maps the movement's and the jump's clips pose from. */
@@ -59,7 +76,12 @@ export function createLowerBodyLayer({ sampleTrack }) {
       const owner = lowerBodyOwner({ on, third, action: !!action, hit: !!hit, dead: !!dead, movement: !!movement, jump: !!jump });
       const state = owner === 'movement' ? movement : jump;
       const tracks = owner === 'movement' ? movementTracks : jumpTracks;
-      if (owner && state && tracks) { trackMap = tracks; clock = state.time; }
+      if (owner && state && tracks) {
+        const next = `${state.group}|${state.startTime}`;
+        if (key != null && next !== key && w > 1e-3) { prev = { map: trackMap, clock }; mix = 0; swapT = 0; memo = null; }
+        key = next; trackMap = tracks; clock = state.time;
+      }
+      if (prev) { swapT += Math.max(0, dt); const u = Math.min(1, swapT / LOWER_BODY_EASE.swap); mix = u * u * (3 - 2 * u); if (u >= 1) { prev = null; mix = 1; memo = null; } }   // smoothstep: still at both ends
       const want = owner && trackMap ? 1 : 0;
       w = ease(w, want, want ? LOWER_BODY_EASE.in : LOWER_BODY_EASE.out, dt);
       if (want && w > 0.999) w = 1;   // whole: the stride's own bones, not a blend that never quite arrives
@@ -76,8 +98,10 @@ export function createLowerBodyLayer({ sampleTrack }) {
     /** The tracks to pose with: `base` with the mask's bones overlaid while the layer has weight. */
     tracks(base, mask) {
       if (!(w > 0) || !trackMap || !mask || !mask.size) return base;
-      if (!memo || memo.base !== base || memo.overlay !== trackMap || memo.mask !== mask) {
-        memo = { base, overlay: trackMap, mask, tracks: weightedOverlayTracks(base, trackMap, mask) };
+      if (!memo || memo.base !== base || memo.overlay !== trackMap || memo.mask !== mask || memo.prev !== prev) {
+        const out = new Map(base ?? []);
+        for (const [name, t] of trackMap) if (mask.has(name) && t) out.set(name, { __overlay: t, __base: base?.get(name) ?? null, __prev: prev?.map?.get(name) ?? null });
+        memo = { base, overlay: trackMap, mask, prev, tracks: out };
       }
       return memo.tracks;
     },
@@ -88,7 +112,7 @@ export function createLowerBodyLayer({ sampleTrack }) {
       return sampler;
     },
     weight: () => w,
-    reset() { trackMap = null; clock = 0; w = 0; memo = null; inner = sampleTrack; },
+    reset() { trackMap = null; clock = 0; w = 0; memo = null; inner = sampleTrack; key = null; prev = null; mix = 1; swapT = 0; },
   };
   return layer;
 }
