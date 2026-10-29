@@ -104,7 +104,9 @@ export function lengthenLegs(skeleton, pose, rootRef, skelMats, { stride = 1, w 
   const s = 1 + (stride - 1) * clamp01(w);
   if (!(Math.abs(s - 1) > 1e-4) || !means || !skeleton?.byName) return null;
   const feet = STRIDE.feet.map((n) => skeleton.byName.get(n)).filter((r) => r != null);
-  const before = feet.length ? skelMats(skeleton, pose, rootRef) : null;
+  const root = skeleton.byName.get(rootBone);
+  const measured = root == null ? feet : [...feet, root];
+  const before = feet.length ? skelMats(skeleton, pose, rootRef, feet) : null;
   const lowBefore = before ? Math.min(...feet.map((r) => before.get(r)?.t?.[2] ?? Infinity)) : null;
   let did = false;
   for (const name of STRIDE.bones) {
@@ -121,9 +123,8 @@ export function lengthenLegs(skeleton, pose, rootRef, skelMats, { stride = 1, w 
   }
   if (!did) return null;
   if (!feet.length || !Number.isFinite(lowBefore)) return 0;
-  const after = skelMats(skeleton, pose, rootRef);
+  const after = skelMats(skeleton, pose, rootRef, measured);
   const dz = Math.min(...feet.map((r) => after.get(r)?.t?.[2] ?? Infinity)) - lowBefore;
-  const root = skeleton.byName.get(rootBone);
   if (!(Math.abs(dz) > 1e-3) || root == null) return 0;
   const node = skeleton.nodes.get(root), local = pose.get(root) ?? node.rest;
   const parent = node.parent != null ? after.get(node.parent) : null;

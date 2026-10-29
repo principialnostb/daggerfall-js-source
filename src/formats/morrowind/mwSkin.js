@@ -359,8 +359,9 @@ export const GRAPH_ROOT = -1;
 
 /** Affine per node RELATIVE TO skeletonRoot (root itself = identity);
  *  pass GRAPH_ROOT for the reference's own space, every node's
- *  transform included. */
-export function skeletonSpaceMatrices(skeleton, pose, skeletonRoot) {
+ *  transform included. `refs` limits a measurement to those bones and their
+ *  ancestors; composition and rounding are identical to the full walk. */
+export function skeletonSpaceMatrices(skeleton, pose, skeletonRoot, refs = null) {
   const out = new Map();
   function matOf(ref) {
     if (out.has(ref)) return out.get(ref);
@@ -375,7 +376,7 @@ export function skeletonSpaceMatrices(skeleton, pose, skeletonRoot) {
     out.set(ref, m);
     return m;
   }
-  for (const ref of skeleton.nodes.keys()) matOf(ref);
+  for (const ref of refs ?? skeleton.nodes.keys()) matOf(ref);
   return out;
 }
 

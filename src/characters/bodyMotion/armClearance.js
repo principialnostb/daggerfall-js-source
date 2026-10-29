@@ -26,7 +26,7 @@ const outOf = (p, c, a, b) => Math.hypot((p[0] - c[0]) / a, (p[1] - c[1]) / b);
 export function clearArms(skeleton, pose, rootRef, skelMats, { armor = 0, previous = null, dt = 0 } = {}) {
   const body = bodyOf(skeleton, rootRef, skelMats);
   if (!body || !body.bones?.L || !body.bones?.R) return null;
-  const mats = skelMats(skeleton, pose, rootRef);
+  const mats = skelMats(skeleton, pose, rootRef, [body.chest, body.bones.pelvis, body.bones.L.hand, body.bones.R.hand]);
   const chest = at(mats, body.chest), pelvis = at(mats, body.bones.pelvis);
   const frame = bodyFrames(body, mats);
   if (!chest || !pelvis || !frame) return null;
