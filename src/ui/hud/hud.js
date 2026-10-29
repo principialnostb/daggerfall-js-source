@@ -1,3 +1,4 @@
+import { lookAroundHidesAim } from '../../player/lookAround.js';
 // The classic HUD (UI arc, U1). Verbatim geometry from DFU
 // HUDVitals.cs + HUDCompass.cs (MIT, Daggerfall Workshop), drawn in
 // DFU's fullscreen style: vitals bottom-left, compass bottom-right.
@@ -526,6 +527,7 @@ export function drawHud(renderer, canvas, art, vitals, heading01, dt = 0,
     readied = null, weapon = null, weaponSheathed = true, quickUse = null, quickSwap = null, quickOffHand = null, quickSpell = null, quickSwitchHand = null } = {}) {   // PX30b: for the enhanced HUD's hand plaques; AUDIT 28 W2: the arrow counter's gate; AUDIT 64 F35: the host's previousWindow answer; QS3: the diamond's sheathe state and its two phone taps; QS6: the caption's spell chip press
   // RETRO-UI (FIELD BUGS 2026-10-03): under retro mode's pillarbox the HUD lays out in DFU's CustomScreenRect - the
   // pillarbox's canvas, drawn at its place (ui/uiScreen.js) - not over the black bars. Once: a UI canvas answers itself.
+  reticleHidden ||= lookAroundHidesAim();
   const ui = uiCanvas(canvas);
   if (ui !== canvas) return onUiScreen(renderer, ui, () => drawHud(renderer, ui, art, vitals, heading01, dt, arguments[6]));
   // AUDIT 24 (wave 39): ShowPlayerDamage's red flash, under the bars.
@@ -778,7 +780,7 @@ export function drawHud(renderer, canvas, art, vitals, heading01, dt = 0,
     // below the point the camera is actually pointing at. Undocked the
     // bar is "just an overlay" and the middle is still the middle.
     drawCrosshairAndModeIcon(renderer, canvas, font,
-      { cursorActive, scale: s2, border: HUD_BORDER, barWidth: HUD_NATIVE_BAR_WIDTH, showModeIcon: false,
+      { cursorActive: cursorActive || reticleHidden, scale: s2, border: HUD_BORDER, barWidth: HUD_NATIVE_BAR_WIDTH, showModeIcon: false,
         largeHudHeight: dockedLargeHudHeight(lastLargeHudBar) });
     drawClassicLoot(renderer, canvas, font);   // DISC22-C: quick loot's classic face
     // DaggerfallHUD.cs:203 sets breathBar.Enabled from ShowBreathBar
@@ -874,7 +876,7 @@ export function drawHud(renderer, canvas, art, vitals, heading01, dt = 0,
   // consequence (see hudEscortFaces.js's header).
   drawEscortFaces(renderer, canvas);
   drawCrosshairAndModeIcon(renderer, canvas, font,
-    { cursorActive, scale: s, border: HUD_BORDER, barWidth: HUD_NATIVE_BAR_WIDTH });
+    { cursorActive: cursorActive || reticleHidden, scale: s, border: HUD_BORDER, barWidth: HUD_NATIVE_BAR_WIDTH });
   drawClassicLoot(renderer, canvas, font);   // DISC22-C: quick loot's classic face, beside the crosshair
   drawSpellIconRows(renderer, canvas, vitals, dt, { font, cursorActive, largeHudRect: null, hover });
 }

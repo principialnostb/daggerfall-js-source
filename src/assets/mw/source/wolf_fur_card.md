@@ -1,0 +1,7 @@
+# Wolf fur card source
+
+Generated with the built-in imagegen tool on 2026-10-29 for this project, with a transparent background. The original output was copied into `wolf_fur_card.png`; the importer downsamples it to 512px and derives the brown, white and black DDS materials. No Bethesda or Nexus image was used as an input to this texture generation.
+
+Prompt:
+
+Game texture asset: ONE single broad dense natural northern wolf fur tuft, warm muted grey-brown with dark roots and lighter taupe tips, orthographic flat front-facing texture swatch, occupying most of square canvas. Thick short undercoat in upper half, many fine irregular overlapping wavy strands pointing downward and slightly outward in lower half, irregular wispy multi-tip bottom edge and fine wispy side edges fading to actual alpha transparency. Top edge fills canvas width and is opaque so it can overlap another tuft. Dense body of tuft, not sparse individual hairs. No skin, no animal, no background, no text, no shadow cast onto background. Painted diffuse-only game texture matching old Skyrim iron armour fidelity, no glossy photographic highlights, no dramatic lighting, no black outline, no large spear/cone/feather silhouette. Flat neutral illumination and readable varied brown midtones. This is a fur card texture to map onto shallow polygon ribbons; the transparent individual hair tips must create the natural silhouette.

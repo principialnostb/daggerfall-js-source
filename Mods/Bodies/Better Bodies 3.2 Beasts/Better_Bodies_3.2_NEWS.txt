@@ -1,0 +1,113 @@
+===============================
+       Better_Bodies_3.2
+        "Better Beasts"
+ No add-ons
+===============================
+Author: Psychodog Studios http://www.psychodogstudios.net (nonexistent ;-;)
+
+Version from: https://tesall.ru/files/file/1632-better-bodies/
+
+olol - ZWolol@rambler.ru (https://www.nexusmods.com/morrowind/users/2728038)
+
+Textures from:
+The 'peanut gallery version' and
+New Beast Bodies 3.3 by LizTail http://www.liztail.com (closed ;-;)
+
+Women's detailing from:
+Better Bodies 2.2 HarborGolfer Edition by Akavir and Harborgolfer
+
+Used hand brushes from 'Fixed BB Meshes' by Liztail
+
+Description:
+=========
+The plug-in replaces the textures and body models of all Morrowind humanoid races
+including argonians and khajiits on 'seamless'.
+
+The paws of the beast are connected to the right foot, so now to them
+all fashions with slinky underwear are also suitable.
+(if only they need it :)
+
+Compatibility:
+==============
+For better body docking, it is recommended to use BB compatible clothing.
+For example, the Better Clothes project from Dereko.
+
+If you wish, you can connect any other texture replacer of the beast,
+It will replace the models of this fashion.
+
+Some old or large plug-in packages containing better bodies
+may conflict with this fashion. In this case, you need to restore the files
+and fix the file date BetterBodies_1C.esp to a newer one.
+
+This version uses feminine textures from the 'peanut gallery version'.
+If you install another textures replacer, there may be a color inconsistency
+women in the groin area. In this case, remove textures: bb_decalf_xx.dds
+
+Connection:
+============
+Connection standard - register the archive "BetterBodies.bsa."
+
+'Other' folder contains original descriptions and additional files
+for the 'underwear' version.
+
+---------------
+Version history:
+---------------
+Ver 3.2
+- Nude Texture for female Argonians.
+- ESP renamed to be compatible with MLOX.
+- Loose files instead of bsa to increase compatibility.
+- Option with "vanilla" underwear by default.
+- BAIN archive.
+- Made elf bodies compatible with this version and added bretons and orcs as selective options.
+
+Ver 3.1
+- Everything is into a .bsa file for more easy installation and uninstallation. Since is just two files.
+- Just Argonian female model do not have nips.
+
+Ver 3.0
+- Women's models have corrected the error in the names of decals
+  and corrected the docking of normals on the belt (noticed qqqbbb).
+
+Ver 2.9
+- The curvature of the elbows in the half-bent hands has been fixed.
+  It is noticeable in the beast or the second hand when you take the knife.
+
+Ver 2.8
+- Replaced by the hands of Liztail.
+- Renamed files under BB2.2 for compatibility with texture replace.
+
+Ver 2.7
+- Replaced the fingertips of the first-person models.
+- Added female models from the UN version (noticed Menorra).
+
+Ver 2.6
+- A little corrected texture sweep.
+- Replaced limbs of lizards from New_Beast_Bodies.
+- Added women's detail from HarborGolfer Edition.
+
+Ver 2.5
+- Replaced limbs and textures of cats from New_Beast_Bodies.
+
+Ver 2.4
+- Models have corrected hand bindings, now they will not look like rakes.
+
+Ver 2.3
+- Received a single version for all bodies of races.
+- Fixed defect of torn legs for 'short boots'
+  Type: Steel boots, Chitin boots...
+
+	Better_Beasts_1.1_1C
+
+	- Remade body models based on Better_Bodies_2.2
+	  and Better_Beasts_1.0 from AlienSlof slof@slofshive.caesium2.com
+	  the hands and feet of the 'legs' are docked.
+	- Repainted textures of argons
+	  now they look like lizards again, not like colored frogs. :)
+	- 'civilized' options have been removed.
+	- New snouts and hairstyles are excluded (they should be in separate mods).
+
+Ver 2.2a
+- The files have been renamed as a single sample and an archive has been created.
+- Removed duplicate textures with the PG version.
+- Removed female models from the UN version (there's a slight difference).

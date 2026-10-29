@@ -36,10 +36,11 @@ function texture(file) {
 
 /** One look's picture: its NIFs' shapes, each in its own painting, z-buffered, SUPER-sampled down to SIZE. Pure but
  *  for the files it reads. */
-export function drawLook(models) {
+export function drawLook(models, { yaw = YAW, pitch = 0 } = {}) {
   const shapes = models.flatMap((m) => flattenNif(parseNif(new Uint8Array(readFileSync(`src/assets/mw/meshes/${m}`)))));
   const view = (p) => {   // turned round Z by YAW, then tipped by PITCH: x right, y up, z toward the viewer
-    const x1 = p[0] * Math.cos(YAW) - p[1] * Math.sin(YAW), y1 = p[0] * Math.sin(YAW) + p[1] * Math.cos(YAW);
+    if (pitch) p = [p[0], p[1]*Math.cos(pitch)-p[2]*Math.sin(pitch), p[1]*Math.sin(pitch)+p[2]*Math.cos(pitch)];
+    const x1 = p[0] * Math.cos(yaw) - p[1] * Math.sin(yaw), y1 = p[0] * Math.sin(yaw) + p[1] * Math.cos(yaw);
     return [x1, p[2] * Math.cos(PITCH) - y1 * Math.sin(PITCH), y1 * Math.cos(PITCH) + p[2] * Math.sin(PITCH)];
   };
   const all = shapes.flatMap((s) => Array.from({ length: s.positions.length / 3 }, (_, i) => view(s.positions.slice(i * 3, i * 3 + 3))));
@@ -66,7 +67,6 @@ export function drawLook(models) {
         if (w0 < 0 || w1 < 0 || w2 < 0) continue;
         const z = w0 * pa[2] + w1 * pb[2] + w2 * pd[2], o = y * S + x;
         if (z <= depth[o]) continue;
-        depth[o] = z;
         const n = [0, 1, 2].map((k) => w0 * N[a][k] + w1 * N[b][k] + w2 * N[d][k]);
         const nl = Math.hypot(...n) || 1;
         const lit = 0.45 + 0.75 * Math.abs((n[0] * LIGHT[0] + n[1] * LIGHT[1] + n[2] * LIGHT[2]) / nl);
@@ -75,8 +75,10 @@ export function drawLook(models) {
           const u = w0 * s.uvs[a * 2] + w1 * s.uvs[b * 2] + w2 * s.uvs[d * 2], v = w0 * s.uvs[a * 2 + 1] + w1 * s.uvs[b * 2 + 1] + w2 * s.uvs[d * 2 + 1];
           const tx = ((Math.floor(u * tex.width) % tex.width) + tex.width) % tex.width, ty = ((Math.floor(v * tex.height) % tex.height) + tex.height) % tex.height;
           const q = (ty * tex.width + tx) * 4;
+          if (s.material?.alphaTest && tex.data[q + 3] < (s.material.alphaThreshold ?? 128)) continue;
           col = [tex.data[q], tex.data[q + 1], tex.data[q + 2]];
         }
+        depth[o] = z;
         for (let k = 0; k < 3; k++) rgba[o * 4 + k] = Math.min(255, col[k] * lit);
         rgba[o * 4 + 3] = 255;
       }

@@ -20,10 +20,10 @@
 // is turned into a PNG once however many times it is asked for.
 const _iconUrls = new Map();
 
-export function modelIconUrl(item, size, armMod) {
+export function modelIconUrl(item, size, armMod, options = {}) {
   if (!armMod || typeof armMod.itemIcon !== 'function' || !item) return null;
   let img = null;
-  try { img = armMod.itemIcon(item, { size }); } catch { img = null; }
+  try { img = armMod.itemIcon(item, { ...options, size }); } catch { img = null; }
   if (!img || !img.width) return null;
   if (_iconUrls.has(img)) return _iconUrls.get(img);
   const cv = document.createElement('canvas');

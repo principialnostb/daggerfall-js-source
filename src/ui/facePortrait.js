@@ -97,7 +97,7 @@ export async function loadFaceCanvases(raceKey, gender, { scale = 2 } = {}) {
 }
 
 /** The ten classic records of one race and gender, as canvases (loadFaceCanvases's classic half). */
-async function classicFaceCanvases(raceKey, gender, { scale = 2 } = {}) {
+export async function classicFaceCanvases(raceKey, gender, { scale = 2 } = {}) {
   const key = `${raceKey}|${gender}|${scale}`;
   const have = cache.get(key);
   if (have?.canvases) return have.canvases;
@@ -213,4 +213,23 @@ async function headFace(raceKey, gender, scale, i, classic) {
   });
   heads.set(key, { pending });
   return pending;
+}
+
+
+/** Inventory thumbnails use the active 2D paperdoll replacement art, never Morrowind portraits. */
+export async function paperDollFaceCanvases(raceKey, gender) {
+  const [{ dfmodCifRciImage }, { raceArt, FACES_PER_RACE }] = await Promise.all([
+    import('../systems/dfmodTextures.js'), import('../systems/races.js'),
+  ]);
+  const classic = await classicFaceCanvases(raceKey, gender);
+  const file = raceArt(raceKey, gender).heads;
+  return Promise.all(Array.from({ length: FACES_PER_RACE }, async (_, index) => {
+    try {
+      const image = await dfmodCifRciImage(file, index, 0);
+      if (!image) return classic[index] ?? null;
+      const canvas = document.createElement('canvas'); canvas.width = image.width; canvas.height = image.height;
+      canvas.getContext('2d')?.putImageData(new ImageData(new Uint8ClampedArray(image.data), image.width, image.height), 0, 0);
+      return canvas;
+    } catch { return classic[index] ?? null; }
+  }));
 }

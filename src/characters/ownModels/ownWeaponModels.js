@@ -35,6 +35,7 @@
 // `src/combat/fpArm.js` are both askers and both sit upstream of
 // everything `systems/thunderlock.js` touches.
 import { THUNDERLOCK_TEMPLATE } from '../thunderlockIds.js';
+import { localWeaponModelFor } from './localWeaponModels.js';
 
 /**
  * The port's own Morrowind-format models, by template index.
@@ -145,7 +146,7 @@ export const OWN_MW_GILDED = Object.freeze({
 /** The model this item wears, or null for everything that resolves
  *  through Morrowind's own records. GILDED1: a Gilded piece wears its gold twin. */
 export const ownWeaponModelFor = (item) =>
-  (item && ((item.rarity === 'gilded' && OWN_MW_GILDED[item.templateIndex]) || OWN_MW_MODELS[item.templateIndex])) || null;
+  localWeaponModelFor(item) || (item && ((item.rarity === 'gilded' && OWN_MW_GILDED[item.templateIndex]) || OWN_MW_MODELS[item.templateIndex])) || null;
 
 /** Every model path this table can ask for, so a preload and a coverage
  *  walk can both be DERIVED rather than typed out again. */

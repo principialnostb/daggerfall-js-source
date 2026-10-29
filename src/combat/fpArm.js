@@ -1,3 +1,5 @@
+import { isWolfCloakSlot } from '../characters/ownModels/wolfCloak.js';
+import { createWolfPeltMotion, stepWolfPeltMotion } from '../formats/morrowind/mwWolfPeltMotion.js';
 import { getBodyMorphs, getAppearanceIdentity, setAppearanceIdentity } from '../characters/bodyMorphs.js';
 import { setPlayerBusyProbe } from '../characters/playerBuildHold.js';   // LOAD-STALL 3
 import { modDiagnostics } from '../systems/modDiagnostics.js';   // MOD-DIAG1: trace cloak resolution through the live third-person build
@@ -80,7 +82,7 @@ import {
   placeAtBone,   // TWO-HANDS AUDIT 2: a blade placed at rest, for the pair's guard (bladePictureHeight)
 } from '../formats/morrowind/mwFirstPerson.js';
 import { PART_BONES, dfRaceKeyOf } from '../formats/morrowind/mwNpc.js';
-import { betterBodiesAssetUrls, robertBodiesFirstPersonAssetUrls, loadBetterBodiesFemaleUvEdits } from '../formats/morrowind/mwBetterBodies.js';
+import { betterBodiesAssetUrls, betterBeastsAssetUrls, robertBodiesFirstPersonAssetUrls } from '../formats/morrowind/mwBetterBodies.js';
 import { firstPersonHandsSource } from '../formats/morrowind/mwBetterBodiesPaths.js';
 import { prepareThumbFist, FIST_GROUP } from '../formats/morrowind/mwThumbFist.js';   // THUMB-FIST: the clenched fist's thumb, Better Bodies'
 import { portraitFeatures, headFeatures, hairFeatures, matchFace, FACE_MATCH_VERSION } from '../formats/morrowind/mwFaceMatch.js';
@@ -304,6 +306,21 @@ function rewriteBetterBodiesTextureStem(bytes, fromStem, toStem) {
   }
   return bytes;
 }
+/** BEASTS: rewriteBetterBodiesTextureStem, matching the name in any case - a NIF writes "TX_B_N_" and "Tx_B_N_" alike. */
+function rewriteTextureStemCaseless(bytes, fromStem, toStem) {
+  if (!bytes || fromStem.length !== toStem.length) return bytes;
+  const from = new TextEncoder().encode(fromStem.toLowerCase());
+  const to = new TextEncoder().encode(toStem);
+  const lower = (c) => (c >= 65 && c <= 90 ? c + 32 : c);
+  outer: for (let i = 0; i <= bytes.length - from.length; i++) {
+    for (let j = 0; j < from.length; j++) {
+      if (lower(bytes[i + j]) !== from[j]) continue outer;
+    }
+    bytes.set(to, i);
+    i += from.length - 1;
+  }
+  return bytes;
+}
 /** BB-ONCE (the owner, 2026-10-28: every equip froze the game): THE BODY'S BYTES, PREPARED ONCE. The fetch memo hands
  *  a fresh view of one shared buffer each call, and the stem was rewritten INTO that buffer - so every build's body was
  *  a new array to parseNifOnce's identity memo (the whole Better Bodies mesh parsed again on every equip, every NPC's
@@ -316,6 +333,18 @@ function preparedBetterBodiesBytes(url, rawBytes, fromStem, toStem) {
   if (!bytes) { bytes = rewriteBetterBodiesTextureStem(rawBytes.slice(), fromStem, toStem); betterBodiesPartBytes.set(key, bytes); }
   return bytes;
 }
+/** BB-ONCE / BEASTS: a beast body's NIF with each of its skins renamed (rewriteTextureStemCaseless), on its own copy,
+ *  once per mesh and set of names - the same array every build, so the parse memo answers it. */
+function betterBeastBytes(url, rawBytes, stems) {
+  const key = `${url}|${stems.map(([a, b]) => `${a}>${b}`).join(',')}`;
+  let bytes = betterBodiesPartBytes.get(key);
+  if (!bytes) {
+    bytes = rawBytes.slice();
+    for (const [stem, own] of stems) bytes = rewriteTextureStemCaseless(bytes, stem, own);
+    betterBodiesPartBytes.set(key, bytes);
+  }
+  return bytes;
+}
 const betterBodiesTextureBytes = new Map();
 const betterBodiesTextureBasename = (path) => String(path || '')
   .replaceAll(String.fromCharCode(92), '/').split('/').pop().toLowerCase();
@@ -326,7 +355,8 @@ const BETTER_BODIES_FEMALE_SKIN_TONES = Object.freeze({
   rg: [0.92, 0.70, 0.54], we: [0.96, 0.82, 0.66],
 });
 function tintBetterBodiesFemaleSkin(image, textureFile) {
-  const match = /bb_skinf_(br|de|he|im|no|or|rg|we)\.(?:dds|tga|targa|bmp)$/i.exec(String(textureFile || '').replaceAll(String.fromCharCode(92), '/'));
+  const match = /b[bnu]_skinf_(br|de|he|im|no|or|rg|we)\.(?:dds|tga|targa|bmp)$/i.exec(   // NUDITY-SYNC: the variant names; the HD skins (h*) are coloured per race by their own authors
+    String(textureFile || '').replaceAll(String.fromCharCode(92), '/'));
   if (!match || !image?.mips?.length) return image;
   const raceKey = match[1].toLowerCase();
   const tone = BETTER_BODIES_FEMALE_SKIN_TONES[raceKey];
@@ -377,6 +407,7 @@ import { injectSkeletonNodes } from '../formats/morrowind/mwSkin.js';   // WS1: 
 // the hands hold, and where its corners land on the composite
 import { deltaTracks, heldSampler, paperPiece, refreshPaperSource, projectPaperCorners, normaliseHeldPose, HELD_POSE_DEFAULT } from './heldPose.js';
 import { farthestVertexIndex, posedVertex, viewOffsetOf, worldPointOf } from './rigMuzzle.js';   // AUDIT FIELD-GUN-MW F2: where the barrel ends, off the posed piece
+import { firstPersonLens, stepAxePlacement, axeReadyHold } from './weapon/axeViewPlacement.js';
 import { armKickMatrix } from './gun/gunFeel.js';   // MW-GUN-FEEL: the gun's recoil and reload, as one pose over the viewmodel
 import { rifleStanceStep, applyRifleStance } from './gun/rifleStance.js';   // RIFLE-STANCE: a long gun held in the hands - the low ready, the aim
 import { createHipLantern, HIP_LANTERN_HEIGHT } from '../systems/lanternSwing.js';   // HT-WAIST: the one swing law both bodies feed (BODY-MOTION: its rider moved there); HT-WAIST-SIZE: the one height they hang
@@ -2208,7 +2239,7 @@ export function fitThirdPersonCloak(arm, underSlots) {
   const isGear = (p) => HOLSTER_SLOTS.includes(p.slot) || /^shield-back\b/i.test(p.slot ?? '');
   const isFollowGear = (p) => isGear(p) && !isHipSheath(p);
   const covered = (slot) => underSlots.has(slot) && slot !== 'tail' && !/^shield\b/.test(slot);
-  const cloak = underSlots ? fitCloakOver(arm, { isCloak, isUnder: (p) => covered(p.slot) }) : null;
+  const cloak = underSlots && !arm.pieces.some((p) => isWolfCloakSlot(p.slot)) ? fitCloakOver(arm, { isCloak, isUnder: (p) => covered(p.slot) }) : null;
   // Give the back-mounted shield a real air gap from the torso, not just the
   // cloak's one-unit clearance. fitStowedGear moves rigid slung pieces along -Y
   // until they clear the cloak; the larger clearance is isolated to this call
@@ -2275,6 +2306,7 @@ export const archiveHas = (archives) => (p) => (archives ?? []).some((a) => a.ha
  *  a fault the player sees from the chair and could not name - the
  *  card's note is the same sentence, but the card is a menu away. */
 import { ammoCountFor } from '../systems/inventory.js';   // AUDIT 68 S27-ammoCount-dup: the ammunition count's one home, beside the spend law
+import { WEAPON_LOOKS_PREF, weaponLookKey } from '../characters/ownModels/localWeaponModels.js';
 import { ownWeaponModelFor } from '../characters/ownModels/ownWeaponModels.js';   // FIELD-GUN-MW2: the weapons Morrowind does not have - a leaf too
 import { glowUnit } from '../render/weaponGlowGlsl.js';   // WEAPON-GLOW1: the glow's unit off the lens's rows - a leaf
 
@@ -2483,19 +2515,15 @@ export function resolveOffWeaponParts({ weapon, allWeapons, find, skeletonBytes,
   return { parts: [{ slot: 'offweapon', bones: [OFF_WEAPON_BONE], bytes: main.bytes }], info: { ...r.weaponInfo, bone: OFF_WEAPON_BONE }, notes };
 }
 
-export function resolveWeaponParts({ weapon, hasAmmo = false, allWeapons, find, skeletonBytes, has = null }) {
+export function resolveWeaponParts({ weapon, hasAmmo = false, allWeapons, find, skeletonBytes, has = null, firstPerson = false }) {
   const notes = [];
   const parts = [];
   let weaponInfo = null;
   let arrowInfo = null;
   const mwType = dfWeaponToMw(weapon, WEAPONS);
-  // FIELD-GUN-MW2: THE PORT'S OWN WEAPONS FIRST, because Morrowind has
-  // no record for them and no type to look one up by. This arm cannot
-  // shadow a Morrowind weapon - `ownWeaponModelFor` answers only for
-  // template indices `registerCustomTemplates` minted, which are past
-  // every DFU index - and it returns before the type lookup rather than
-  // after it, so the note below ("Morrowind has no weapon type for what
-  // you are holding") stays true of the items it is actually about.
+  // FIELD-GUN-MW2: authored models first. MW-SKY-AXE also uses this seam
+  // for the owner's optional steel axe replacement, only when its local
+  // mesh AND texture exist; absent files retain the normal record path.
   const own = ownWeaponModelFor(weapon);
   if (own) {
     const path = `meshes/${own.model}`;
@@ -2510,7 +2538,8 @@ export function resolveWeaponParts({ weapon, hasAmmo = false, allWeapons, find, 
     } else {
       // RIFLE-STANCE: the row's attitude on the bone (a pistol grip through the fist - ownWeaponModels.js GUN_GRIP_ATTITUDE),
       // and how the arms hold it (combat/gun/rifleStance.js)
-      parts.push({ slot: 'weapon', bones: [own.bone], bytes: nifBytes(arc, path), ...(own.attitude ? { preTransform: own.attitude } : {}) });
+      const attitude = firstPerson && 'firstPersonAttitude' in own ? own.firstPersonAttitude : own.attitude;
+      parts.push({ slot: 'weapon', bones: [own.bone], bytes: nifBytes(arc, path), ...(attitude ? { preTransform: attitude } : {}) });
       weaponInfo = { id: own.id, name: own.name, model: own.model, type: own.animateAs, bone: own.bone, speed: own.speed, own: true, holdAs: own.holdAs ?? null, attitude: own.attitude ?? null };
     }
     // THE BORROWED TYPE IS WHAT GOES BACK, not None, and it is the
@@ -2725,20 +2754,53 @@ async function buildTpBody({
     // texture is registered by basename, so concurrent NPC builds cannot overwrite
     // one another's skin bytes through a shared "current texture" adapter.
     let betterBodiesPart = null;
+    // BEASTS: the Argonian's and the Khajiit's whole body from Better Bodies 3.2 (mwBetterBodies.js betterBeastsAssetUrls)
+    if (modSetting('morrowind-textures', 'BetterBodiesSource') === 2 && beast && !werewolf && !vampire) {
+      try {
+        const asset = betterBeastsAssetUrls({ race, female });
+        if (!asset) throw new Error(`no Better Beasts body for race "${String(race)}" / ${female ? 'female' : 'male'}`);
+        const [rawBytes, ...skins] = await Promise.all([
+          loadBetterBodiesAssetBytes(asset.model, 'Better Beasts NIF'),
+          ...asset.textures.map((tex) => loadBetterBodiesAssetBytes(tex.url, 'Better Beasts DDS')),
+        ]);
+        // its skins carry retail's own names (TX_B_N_Argonian_F_F...): each is renamed in the NIF, same length, to a
+        // "b3" name no archive holds - else retail's feet and tail, cut for retail's mesh, answered first
+        // BB-ONCE: the renamed copy made once per body (the fetch memo's array is every caller's, never written), and a
+        // skin's decode dropped only when its bytes moved
+        const stems = asset.textures.map((tex) => { const stem = tex.name.replace(/\.dds$/, ''); return [stem, 'b3' + stem.slice(2)]; });
+        const bytes = betterBeastBytes(asset.model, rawBytes, stems);
+        stems.forEach(([, own], k) => {
+          if (registerBetterBodiesRaceTexture(archives, `textures/${own}.dds`, skins[k])) {   // BB-ONCE: only when the bytes moved
+            for (const key of TEXTURE_CACHE.keys()) if (String(key).toLowerCase().endsWith(own + '.dds')) TEXTURE_CACHE.delete(key);
+          }
+        });
+        betterBodiesPart = { slot: 'betterBodies', bones: [], bytes, uvEdits: [], hideSlots: worn.shadows, texturePath: null };
+        console.info('[Better Bodies] beast body loaded', { raceKey: asset.raceKey, female, underwear: asset.underwear, skins: asset.textures.length });
+      } catch (error) {
+        const reason = 'Better Beasts body unavailable: ' + String(error?.message ?? error);
+        missing.push(reason);
+        console.warn('[Better Bodies] falling back to the standard beast body:', reason);
+      }
+    }
     if (modSetting('morrowind-textures', 'BetterBodiesSource') === 2 && !beast && !werewolf && !vampire) {
       try {
         const asset = betterBodiesAssetUrls({ race, female });
         if (!asset) throw new Error(`no Better Bodies asset for race "${String(race)}" / ${female ? 'female' : 'male'}`);
-        const [rawBytes, textureBytes, uvEdits] = await Promise.all([
+        // UV-EDITS-OFF (Gleb, 2026-10-27, from play: the bra at the waist, "stockings" at the thighs and knees): the
+        // checked-in bb_skinf_no-uv-edits.json was cut to fit the high-resolution female skin onto Better Bodies' own
+        // mesh - which never fits it (the pack ships its own mesh, now drawn with it: betterBodiesAssetUrls). On Better
+        // Bodies' own skins it moved the underwear down the body and broke the legs' texture at every shape's edge.
+        // Measured live with and without it: without, every skin lands where its painter put it. Kept loadable, not read.
+        const uvEdits = [];
+        const [rawBytes, textureBytes] = await Promise.all([
           loadBetterBodiesAssetBytes(asset.model, 'NIF'),
           loadBetterBodiesAssetBytes(asset.texture, 'DDS'),
-          (female && asset.bodyVariant === 'Better Bodies' ? loadBetterBodiesFemaleUvEdits() : Promise.resolve([])),
         ]);
         const genderKey = female ? 'f' : 'm';
         const bytes = preparedBetterBodiesBytes(
           asset.model, rawBytes,
           `bb_skin${genderKey}_${asset.geometryRaceKey}`,
-          `bb_skin${genderKey}_${asset.textureRaceKey}`,
+          asset.runtimeTextureStem,   // NUDITY-SYNC: the variant's own name, which no other archive answers
         );
         const textureChanged = registerBetterBodiesRaceTexture(archives, asset.texturePath, textureBytes);
         betterBodiesPart = {
@@ -3009,6 +3071,12 @@ async function buildTpBody({
     hangHipLight(arm);   // HT-WAIST: the hook and the anchor, once, on the assembled skeleton
     const cloakUnderRows = [...skinRows, ...worn.adds, ...(betterBodiesPart ? [{ slot: 'betterBodies' }] : [])];
     const cloakFit = fitThirdPersonCloak(arm, new Set(cloakUnderRows.map((row) => row.slot)));   // MW-CLOAK1
+    // The layered heavy pelt owns one shared cage, not five disconnected cloth
+    // solvers. It is animated only by the Vanilla Animated setting.
+    if (vanillaAnimatedCloaksEnabled()) {
+      arm.wolfPeltMotion = createWolfPeltMotion(arm.pieces);
+      arm.wolfPeltUnderSlots = new Set(cloakUnderRows.map((row) => row.slot));
+    }
     // Both animated modes share the same bounded secondary-cloth solver, but
     // retain their own source mesh and bind path. Vanilla Animated uses the classic
     // cloak unchanged; Simply mode uses the mod NIF and its authored skin binding
@@ -3016,6 +3084,7 @@ async function buildTpBody({
     // the ordinary cloak fit, so it cannot be used to compensate for a bad rest pose.
     if (vanillaAnimatedCloaksEnabled() || simplyAnimatedCloaksEnabled()) {
       for (const row of cloakRows) {
+        if (isWolfCloakSlot(row.slot)) continue;   // Shared heavy-pelt cage above; never the fabric solver.
         const simplyMesh = isSimplyCloakModel(row.model);
         if (simplyAnimatedCloaksEnabled() !== simplyMesh) continue;
         const piece = arm.pieces.find((candidate) => candidate.slot === row.slot
@@ -3686,7 +3755,7 @@ export async function headPortrait({ renderer, race, female = false, faceIndex =
   // are no head's (a cloak, a robe: their dyes are measured for the body alone)
   const pieces = werewolf ? [] : (armor ?? []).filter((p) => p && p.kind !== 'clothing');
   const worn = pieces.length
-    ? composeWornArmor({ pieces, armors: cat.armors, clothes: [], bodyPool: cat.parts, female, helmStyle: getPref('mwSteelHelm'), looks: getPref('mwArmorLooks'), cloakStyle: simplyAnimatedCloaksEnabled() ? 'simply-animated' : 'classic' })
+    ? composeWornArmor({ pieces, armors: cat.armors, clothes: [], bodyPool: cat.parts, female, helmStyle: getPref('mwSteelHelm'), looks: getPref('mwArmorLooks'), cloakStyle: simplyAnimatedCloaksEnabled() ? 'simply-animated' : 'classic', cloakLooks: getPref('mwCloakLooks') })
     : { adds: [], shadows: [], notes: [] };
   const heads = worn.adds.filter((a) => capsHead(a) || (a.bones ?? []).some((b) => /^head$/i.test(b)));
   let skinRows = shadowSkinRows(rows.filter((r) => r.record).map((r) => ({ slot: r.slot, bones: PART_BONES[r.slot] ?? [], model: r.record.model })), worn.shadows);
@@ -3926,14 +3995,19 @@ export async function buildFpArm({
     // not carry a second copy of mwClothingRecord's pool law.
     if (!werewolf) {
       await prepareClothingColours(
-        (probe) => composeWornArmor({ pieces: armor ?? [], armors: armors ?? [], clothes: clothes ?? [], bodyPool: parts, female, colourOf: probe, helmStyle, looks: getPref('mwArmorLooks'), cloakStyle: simplyAnimatedCloaksEnabled() ? 'simply-animated' : 'classic' }),
+        (probe) => composeWornArmor({ pieces: armor ?? [], armors: armors ?? [], clothes: clothes ?? [], bodyPool: parts, female, colourOf: probe, helmStyle, looks: getPref('mwArmorLooks'), cloakStyle: simplyAnimatedCloaksEnabled() ? 'simply-animated' : 'classic', cloakLooks: getPref('mwCloakLooks') }),
         parts, archives, gen, urgent);
     }
     // NUDE-FLATS: and a woman's bare chest wears the upper weld while Show Nudity is off - this body is the
     // player's own figure and every peer's, each drawn by the viewer's setting as the classic doll is.
+    // NUDITY-SYNC (Gleb, 2026-10-27: "no in-game clothing on top - only whether the model has its underwear painted
+    // or is nude"): a Better Bodies body is its own modesty - Show Nudity off selects its underwear skin
+    // (betterBodiesAssetUrls), so it never wears the weld's shirt over it.
+    const ownModesty = modSetting('morrowind-textures', 'BetterBodiesSource') === 2 && !werewolf && !vampire && (!beast || !!betterBeastsAssetUrls({ race, female }));   // BEASTS: theirs too
+    const bareChestShown = () => ownModesty || showNudity();
     const worn = werewolf
       ? composeWornArmor({ pieces: robe ? [{ kind: 'record', record: robe, reserve: 'robe' }] : [], armors: [], clothes: [], bodyPool: parts, female })
-      : composeWornModest({ pieces: armor ?? [], armors: armors ?? [], clothes: clothes ?? [], bodyPool: parts, female, colourOf, helmStyle, looks: getPref('mwArmorLooks'), cloakStyle: simplyAnimatedCloaksEnabled() ? 'simply-animated' : 'classic' }, showNudity());
+      : composeWornModest({ pieces: armor ?? [], armors: armors ?? [], clothes: clothes ?? [], bodyPool: parts, female, colourOf, helmStyle, looks: getPref('mwArmorLooks'), cloakStyle: simplyAnimatedCloaksEnabled() ? 'simply-animated' : 'classic', cloakLooks: getPref('mwCloakLooks') }, bareChestShown());
     // AUDIT C7: which of the two it is - Bloodmoon.esm not attached, or attached and naming no robe (a mod's master)
     if (werewolf && !robe) {
       worn.notes.push(esmNames.some((n) => /^bloodmoon\.esm$/i.test(n))
@@ -4142,7 +4216,7 @@ export async function buildFpArm({
     // gave it so a live weapon swap resolves through the very same door
     // as the build. Its two reads are covered by the preload above,
     // through weaponPartPaths.
-    const resolvedWeapon = resolveWeaponParts({ weapon, hasAmmo, allWeapons, find, skeletonBytes, has: archiveHas(archives) });   // MW-D50
+    const resolvedWeapon = resolveWeaponParts({ weapon, hasAmmo, allWeapons, find, skeletonBytes, has: archiveHas(archives), firstPerson: true });   // MW-D50
     partBytes.push(...resolvedWeapon.parts);
     // MW-D51: the held torch, at the first-person rig's Shield Bone -
     // the fp camera sees a shield (fpWornAdds keeps 'shield bone'), so
@@ -4271,7 +4345,7 @@ export async function buildFpArm({
     let wornBuilt = worn;
     const lost = third?.ok ? worn.adds.filter((a) => isOutfitSlot(a.slot) && !third.arm.pieces.some((p) => p.slot === a.slot)) : [];
     if (lost.length) {
-      const without = composeWornModest({ pieces: (armor ?? []).filter((p) => !lost.some((a) => a.piece === p)), armors: armors ?? [], clothes: clothes ?? [], bodyPool: parts, female, colourOf, helmStyle, looks: getPref('mwArmorLooks'), cloakStyle: simplyAnimatedCloaksEnabled() ? 'simply-animated' : 'classic' }, showNudity());
+      const without = composeWornModest({ pieces: (armor ?? []).filter((p) => !lost.some((a) => a.piece === p)), armors: armors ?? [], clothes: clothes ?? [], bodyPool: parts, female, colourOf, helmStyle, looks: getPref('mwArmorLooks'), cloakStyle: simplyAnimatedCloaksEnabled() ? 'simply-animated' : 'classic', cloakLooks: getPref('mwCloakLooks') }, bareChestShown());
       without.notes.push(...lost.map((a) => `outfit ${a.recordId}: ${t('body.outfit.unbound', 'none of it bound - drawn without it')}`));   // the label outside the language, as the composer's notes
       const again = await tpBody(without);
       if (again.ok) { third = again; wornBuilt = without; }
@@ -5468,7 +5542,7 @@ export function createFpArm({ playerAppearance = false } = {}) {
    *  item map. Split out at MW-LOAD so the synchronous getter and the
    *  asynchronous preload in front of it ask the very same question of
    *  the very same catalogue, rather than two copies of it. */
-  function iconRecordOf(cat, item) {
+  function iconRecordOf(cat, item, cloakLook = null, shieldLook = null) {
     try {
       if (item.group === 'Weapons') {
         // MW-ASSIGN (2026-09-27, Discord: "Some sprites not assigned morrowind skin"): a weapon of the port's OWN (the
@@ -5481,12 +5555,12 @@ export function createFpArm({ playerAppearance = false } = {}) {
         return mwType !== MW_WEAPON_TYPE.None ? pickWeaponRecord(cat.weapons, mwType, materialName(item), { shape: dfWeaponShape(item, WEAPONS) }) : null;
       }
       if (item.group === 'Armor') {
-        return mwArmorRecords(cat.armors, item.templateIndex, item.material ?? 0).records[0] ?? null;
+        return mwArmorRecords(cat.armors, item.templateIndex, item.material ?? 0, shieldLook === 'classic' ? null : getPref('mwArmorLooks')).records[0] ?? null;
       }
       if (item.group === 'MensClothing' || item.group === 'WomensClothing') {
         // AUDIT MW-CLOAK: a cloak's picture is the cloak the body wears - the port's own, in its dye's painting - not the
         // Morrowind robe its row once dressed it as
-        const cloak = ownCloakFor({ kind: 'clothing', name: CLOTHING_NAME[item.templateIndex], dye: item.dye ?? 0 });
+        const cloak = ownCloakFor({ kind: 'clothing', name: CLOTHING_NAME[item.templateIndex], dye: item.dye ?? 0 }, { look: cloakLook ?? getPref('mwCloakLooks')?.[item.templateIndex] ?? 'classic' });
         if (cloak) return { id: `${cloak.id}_${cloak.painting}`, model: cloak.model };
         // AUDIT 34 F1: the icon measures through the same door the
         // build does, so the icon and the worn piece are ONE record.
@@ -5518,7 +5592,7 @@ export function createFpArm({ playerAppearance = false } = {}) {
   const iconPending = new Set();
   const iconReady = new Set();
   const archivesAreLazy = (archives) => (archives ?? []).some((a) => a && a.lazy === true);
-  function preloadIcon(cat, item, key) {
+  function preloadIcon(cat, item, key, cloakLook = null, shieldLook = null) {
     if (iconPending.has(key) || iconReady.has(key)) return;
     iconPending.add(key);
     (async () => {
@@ -5530,7 +5604,7 @@ export function createFpArm({ playerAppearance = false } = {}) {
             (probe) => mwClothingRecord(cat.clothes, CLOTHING_NAME[item.templateIndex], { dye: item.dye ?? 0, colourOf: probe }),
             cat.parts, cat.archives, cat.gen);
         }
-        const rec = iconRecordOf(cat, item);
+        const rec = iconRecordOf(cat, item, cloakLook, shieldLook);
         if (rec && rec.model) {
           const path = `meshes/${rec.model}`;
           await loadFromArchives(cat.archives, [path]);
@@ -5658,7 +5732,7 @@ export function createFpArm({ playerAppearance = false } = {}) {
     // used by non-default body morphs; the GPU stream is otherwise a second
     // mutable representation of the cloak and can desynchronise from its pose.
     const liveVanillaCloth = playerAppearance && vanillaAnimatedCloaksEnabled()
-      && t.arm.pieces.some((piece) => piece.clothPhysicsFallbackMesh && piece.clothPhysics);
+      && (t.arm.wolfPeltMotion || t.arm.pieces.some((piece) => piece.clothPhysicsFallbackMesh && piece.clothPhysics));
     if (liveVanillaCloth) {
       if (thirdMesh && thirdMesh.skin) releaseThirdMesh();
       thirdSkin = null;
@@ -7407,7 +7481,7 @@ export function createFpArm({ playerAppearance = false } = {}) {
           await loadFromArchives(archives, weaponPartPaths({ weapon: item, hasAmmo, allWeapons: token.allWeapons, has: archiveHas(archives) }), playerAppearance);   // MW-D50
           const resolved = resolveWeaponParts({
             weapon: item, hasAmmo, allWeapons: token.allWeapons, find,
-            skeletonBytes: token.skeletonBytes, has: archiveHas(archives),   // MW-D50
+            skeletonBytes: token.skeletonBytes, has: archiveHas(archives), firstPerson: true,   // MW-D50
           });
           // MW-D24: the SAME swap on the third-person body - same door
           // (resolveWeaponParts), this rig's own skeleton bytes, so the
@@ -8259,6 +8333,7 @@ export function createFpArm({ playerAppearance = false } = {}) {
       stepPairGuard(dt);   // TWO-HANDS AUDIT: the pair's guard
       stepPairSpread(dt);   // TWO-HANDS SPREAD: the pair's arms turned out
       stepRifle(cam, dt);   // RIFLE-STANCE: the long gun's hold
+      stepAxePlacement(built, weaponInHand() && !handsTaken(built) && !cam?.seat && !cam?.saddle, dt, attackingNow(), !!movementState);
       // refreshCurrentAnims' order, and it is not arbitrary: the weapon
       // state is stepped FIRST because the idle refresh below depends on
       // it - "idle handled last as it can depend on the other states"
@@ -8555,6 +8630,13 @@ export function createFpArm({ playerAppearance = false } = {}) {
               }
             }
           }
+          if (t.arm.wolfPeltMotion) {
+            stepWolfPeltMotion(t.arm.wolfPeltMotion, t.arm, dt, {
+              gait: cloakMotion,
+              gaitPhase: Number.isFinite(cloakStride.phase) ? cloakStride.phase : movementState ? clipCompletion(movementState) % 1 : 0,
+              yaw: cam?.yaw, attack: cloakAttack, attackProgress: cloakAttackProgress, attackGroup: cloakAttackGroup,
+            }, t.arm.wolfPeltUnderSlots);
+          }
           if (thirdBlendWeight >= 1) thirdBlendFrom = null;
           uploadThirdMesh(t);
           // MAC-Q: the body's particle systems, on the clock its parts ride
@@ -8639,7 +8721,7 @@ export function createFpArm({ playerAppearance = false } = {}) {
         // The procedural fist-pump IK produces malformed-looking hands on this rig.
         run: null,
         mirror: mirrorFor('first', built, dt),   // TWO-HANDS: the second hand - the pair's left arm, a left-hand blow
-        hold: rifleHold('first', built) ?? shieldBash(),   // RIFLE-STANCE: the long gun in the hands, the low ready or the aim; SHIELD-GUARD: else the bash
+        hold: axeReadyHold(built, rifleHold('first', built) ?? shieldBash()),   // RIFLE-STANCE: the long gun in the hands, the low ready or the aim; SHIELD-GUARD: else the bash
         // Rule 56's accum root is STICKY and rig-wide, so it does not
         // follow the source the way the tracks do.
         accumRoot: built.accumRoot,
@@ -8775,8 +8857,7 @@ export function createFpArm({ playerAppearance = false } = {}) {
       // and still moved on Mac's retail data; classic-sprite semantics
       // ("the weapon ignores the look") are now taken literally.
       const pitch = followCam ? 0 : (cam.pitch || 0);
-      const fwd = [0, Math.sin(pitch), -Math.cos(pitch)];
-      const lens = lookAt(eye, [eye[0] + fwd[0], eye[1] + fwd[1], eye[2] + fwd[2]], [0, 1, 0]);
+      const lens = firstPersonLens(eye, pitch, built);
       // MW-GUN-FEEL (combat/gun/gunFeel.js): THE GUN'S RECOIL AND ITS RELOAD, over the WHOLE viewmodel in the eye's own axes -
       // turned about the shoulder, moved back and down - laid in front of the lens, so the arms and the gun move as one
       // and nothing else in the pass does. Not through the neck (poseAssembly's neckPitch/neckOffset): glued arms take
@@ -9206,21 +9287,21 @@ export function createFpArm({ playerAppearance = false } = {}) {
      *  onReady dance. Null when no build stands or nothing resolves:
      *  the classic icon stands (never traps). Cached per record, size
      *  and dye per data generation. */
-    itemIcon(item, { size = 96 } = {}) {
-      if (!getPref('morrowind3dInventoryIcons')) return null;
+    itemIcon(item, { size = 96, cloakLook = null, shieldLook = null, force = false } = {}) {
+      if (!force && !getPref('morrowind3dInventoryIcons')) return null;
       if (!(built && built.ok && built.catalog && renderer) || !item) return null;
       const cat = built.catalog;
       // MW-LOAD: the door above. A lazily opened archive holds none of
       // what this getter reads until it is asked to; the first ask kicks
       // those loads and answers null, and the repaint the kick triggers
       // asks again with everything in hand.
-      const askKey = `${cat.gen}:${item.group ?? ''}:${item.templateIndex}:${item.material ?? ''}:${item.dye ?? ''}`;
+      const askKey = `${cat.gen}:${item.group ?? ''}:${item.templateIndex}:${item.material ?? ''}:${item.dye ?? ''}:${cloakLook ?? ''}:${shieldLook ?? ''}:${getPref(WEAPON_LOOKS_PREF)?.[weaponLookKey(item)] ?? 'classic'}`;
       if (archivesAreLazy(cat.archives) && !iconReady.has(askKey)) {
-        preloadIcon(cat, item, askKey);
+        preloadIcon(cat, item, askKey, cloakLook, shieldLook);
         return null;
       }
       const dye = (item.group === 'MensClothing' || item.group === 'WomensClothing') ? String(item.dye ?? 0) : '';
-      const rec = iconRecordOf(cat, item);
+      const rec = iconRecordOf(cat, item, cloakLook, shieldLook);
       if (!rec || !rec.model) return null;
       const ckey = `${cat.gen}:${rec.id}:${size}:${dye}`;
       if (ITEM_ICON_CACHE.has(ckey)) return ITEM_ICON_CACHE.get(ckey);

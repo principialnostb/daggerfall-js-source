@@ -54,6 +54,15 @@ export function takeLook(dyaw, dpitch) {
 /** The swing laid on the third-person camera now - [yaw, pitch] offsets, both 0 when there is none. */
 export const lookAroundSwing = () => [yawOff, pitchOff];
 export const lookAroundActive = () => active;
+/** No aiming while inspecting or while the inspection camera is easing home. */
+export const lookAroundHidesAim = () => active || !!yawOff || !!pitchOff;
+
+/** Sky rays must use the same direction as the scene, not the actor's aim. */
+export function skyLookAngles(yaw, pitch, look) {
+  if (!look || !look.every(Number.isFinite) || Math.hypot(...look) < 1e-8) return [yaw, pitch];
+  return [Math.atan2(look[0], look[2]), Math.atan2(look[1], Math.hypot(look[0], look[2]))];
+}
+
 
 /** The eye's own forward while it is swung (the hosts' views read `look`). */
 export function swingLook(out, yaw, pitch) {

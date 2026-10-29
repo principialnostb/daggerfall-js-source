@@ -1,3 +1,4 @@
+import { INVENTORY_FACES_CSS } from './inventoryFacesStyle.js';
 // PLUS1 (2026-09-25): THE ENHANCED PLUS SHEET - everything the refresh dresses the enhanced skin in, as ONE sheet
 // injected after the enhanced one (systems/uiSkin.js isEnhancedPlus). Plus is the enhanced sheet with this laid over
 // it, which is why every rule here is written to win by ORDER over the enhanced rule it replaces. PLUS-ONLY
@@ -2406,6 +2407,36 @@ export const ARMOUR_CSS = `
 .pack-shell .look-pick .look-name { font-size: 10px; color: #e6dec6; text-transform: uppercase; letter-spacing: 0.08em; }
 .pack-shell .look-pick:hover, .pack-shell .look-pick:focus-visible { border-color: rgba(243,212,138,0.8); }
 .pack-shell .look-pick.on { border-color: #f3d48a; box-shadow: 0 0 0 1px rgba(243,212,138,0.9), 0 0 8px 1px rgba(243,212,138,0.45); }
+.pack-shell .helmet-appearance { width: 100%; }
+.pack-shell .look-tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin: 3px 0 8px; }
+/* Use the very same .act/.primary skin as Take off/Info; only layout belongs here. */
+.pack-shell .look-tabs .look-tab { width: 100%; text-align: center; }
+.pack-shell .helmet-appearance .look-panel { min-height: 90px; display: flex; align-items: center; justify-content: center;
+  padding: 0; background: transparent; border: 0; }
+.pack-shell .helmet-appearance .look-pick { box-sizing: border-box; width: 68px; height: 76px; padding: 6px;
+  border-color: #756448; box-shadow: inset 1px 1px #37362e, inset -1px -1px #08090b; }
+.pack-shell .helmet-appearance .look-pick.on { border-color: #f3d48a;
+  box-shadow: inset 0 0 0 1px #ab8948, 0 0 6px #c89c4d55; }
+/* Equal full-image bounds make bare domes huge and crested helmets tiny.
+   These per-design corrections normalize the helmet body, keeping 3D open/horned unchanged. */
+.pack-shell .helmet-appearance [data-helmet-model="closed"] img { transform: scale(1.16); }
+.pack-shell .helmet-appearance [data-helmet-art="0"] img,
+.pack-shell .helmet-appearance [data-helmet-art="1"] img { transform: scale(.88); }
+.pack-shell .helmet-appearance [data-helmet-art="2"] img { transform: scale(.76); }
+.pack-shell .helmet-appearance [data-helmet-art="3"] img,
+.pack-shell .helmet-appearance [data-helmet-art="4"] img { transform: scale(1.06); }
+.pack-shell .helmet-appearance [data-helmet-art="5"] img { transform: scale(.88); }
+.pack-shell .look-cards { display: grid; grid-template-columns: repeat(3, 68px); gap: 8px; }
+.pack-shell .helmet-2d-row { flex-wrap: nowrap; align-items: center; }
+.pack-shell .look-pages { display: flex; flex-direction: column; gap: 6px; }
+.pack-shell .look-pages button { position: relative; width: 30px; height: 34px; padding: 0;
+  background: linear-gradient(#292b30, #15171c); border: 1px solid #a38a56;
+  box-shadow: inset 1px 1px #49473d, inset -1px -1px #08090b; color: #e4d3a2; cursor: pointer; }
+.pack-shell .look-pages button::before { content: ''; position: absolute; left: 9px; top: 13px; width: 8px; height: 8px;
+  border-top: 2px solid currentColor; border-left: 2px solid currentColor; transform: rotate(45deg); }
+.pack-shell .look-pages .look-page-next::before { top: 9px; transform: rotate(225deg); }
+.pack-shell .look-pages button:disabled { color: #625d4e; border-color: #4e493c; cursor: default; }
+.pack-shell .look-pages button:enabled:hover, .pack-shell .look-pages button:focus-visible { border-color: #f3d48a; color: #fff0b7; }
 /* AUDIT C&C S1: THE PLAQUES' ROW - the figure's first cell named whole (ui/enhanced/enhancedInventory.js: '1 / 2 / 2 / 3'; on
    '1 / 2' an absolutely placed grid child's end lines ran to the map's edge, and the Felt plaque's right corner stood on
    the R-Weapon panel), the Armour plaque at its left and the Felt plaque at its right, the Felt one under the Armour one
@@ -2499,4 +2530,5 @@ ${MENU_CSS}
 ${FRAME_CSS}
 /* RARITY-UI + SIGIL-UI, then PLUS-DRESS: after the kit - each outranks the kit's stone at the same weight */
 ${OVER_KIT_CSS.join('\n')}
+${INVENTORY_FACES_CSS}
 `;

@@ -1692,7 +1692,7 @@ export const MOD_SETTINGS = Object.freeze({
         default: 2,
         options: lazyWords('Vanilla', 'Vanilla Animated', 'Вкл'),
         legacyBooleanChoice: true,
-        description: 'Vanilla uses the original ported cloak mesh. Vanilla Animated keeps that mesh and adds secondary cloth motion. Вкл selects the Simply Animated Cloaks mesh and its authored animation together; if it cannot bind to an actor rig, the runtime tries the compatible fallback mesh.',
+        description: 'Vanilla keeps the selected cloak static. Vanilla Animated adds secondary motion: cloth simulation for classic cloaks, or shared heavy-pelt motion for wolf skins, with anchored shoulders and a damped lower drape. Вкл selects the Simply Animated Cloaks mesh and its authored animation together; if it cannot bind to an actor rig, the runtime tries the compatible fallback mesh. A selected wolf appearance keeps its own mesh and animates in Vanilla Animated mode.',
       }),
       AnimationBlendDuration: Object.freeze({
         default: 1,

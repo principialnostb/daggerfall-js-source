@@ -178,3 +178,20 @@ test('appearance-only races map to an available classic paperdoll family', () =>
     race: 'orc', female: true, faceIndex: 1,
   }), { race: 'Nord', gender: 'female', faceIndex: 1 });
 });
+
+
+test('inventory face is a separate 2D composite and leaves the live character and doll unchanged', async () => {
+  const entity = { race: 'Breton', gender: 'male', faceIndex: 2 };
+  await preloadPaperDollArt(deps, entity);
+  await refreshPaperDoll(entity);
+  const before = paperDollPixels();
+  const { composeInventoryDollPixels } = await import('../../src/ui/paperDoll.js');
+  const custom = await composeInventoryDollPixels(entity, { race: 'Breton', gender: 'male', faceIndex: 7 });
+  assert.ok(custom);
+  const seen = new Set();
+  for (let i = 0; i < custom.rgba.length; i += 4) if (custom.rgba[i + 3]) seen.add(custom.rgba[i]);
+  assert.ok(seen.has(FACE_BASE['FACE00I0.CIF'] + 7), 'inventory draws the selected 2D record');
+  assert.equal(entity.faceIndex, 2, 'gameplay identity is untouched');
+  assert.equal(paperDollPixels(), before, 'the shared/HUD doll is untouched');
+  assert.equal(paperDollIdentityDrift(entity), null);
+});

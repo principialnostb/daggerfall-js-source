@@ -43,3 +43,26 @@ test('LOOK-AROUND2: a tap switches the view - but not while the swing is on; lea
   press(holdFrames, view, toggles);
   assert.equal(lookAroundActive(), false, 'a hold in first person turns nothing on');
 });
+
+
+test('inspection hides aim through the return transition and sky rays follow the rendered camera', async () => {
+  const { lookAroundHidesAim, skyLookAngles, swingLook } = await import('../../src/player/lookAround.js');
+  resetLookAround();
+  assert.equal(lookAroundHidesAim(), false);
+  const view = { third: true };
+  press(holdFrames, view, []);
+  assert.equal(lookAroundHidesAim(), true);
+  takeLook(.8, .3);
+  const rendered = swingLook({ thirdPerson: true }, .4, -.1);
+  const angles = skyLookAngles(.4, -.1, rendered.look);
+  assert.ok(Math.abs(angles[0] - 1.2) < 1e-8);
+  assert.ok(Math.abs(angles[1] - .2) < 1e-8);
+  assert.deepEqual(skyLookAngles(.4, -.1, null), [.4, -.1], 'normal/travel camera is unchanged');
+  assert.deepEqual(skyLookAngles(.4, -.1, [0, 0, 0]), [.4, -.1]);
+  press(holdFrames, view, []);
+  assert.equal(lookAroundActive(), false);
+  assert.equal(lookAroundHidesAim(), true, 'return animation still has no valid aim');
+  stepLookAround(2, false, () => {}, () => true);
+  assert.equal(lookAroundHidesAim(), false);
+  resetLookAround();
+});

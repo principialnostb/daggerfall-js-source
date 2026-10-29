@@ -7,6 +7,7 @@
 // (ItemHelper.GetEnumArray/GetItemTemplate).
 
 import { clampArmorVariant, isPlate, plateMetal } from '../armorMaterials.js';   // AUDIT 23 (items-6); BAL6-GAUNTLETS: a plate piece's metal
+import { helmetPaperdollVariant } from '../helmetPaperdollLooks.js';
 import { conditionMultipliersByMaterial, valueMultipliersByMaterial, WEAPONS, WEAPON_CONDITION_POOL } from '../../characters/weapons.js';   // AUDIT 23 (items-5); AUDIT 68 S27-weightForMaterial-dup: ItemBuilder's value ladder and the Weapons enum, one home each; WEAPON-POOL: the one pool
 import { GROUP_TEMPLATE_INDICES } from './itemTemplatesData.js';
 import { WAGON_KINDS, wagonKindOf } from '../wagon/wagonKinds.js';   // WAGONS1: a wagon's picture is Mac's wagon of its kind (read at call time - wagonKinds.js reads this module's TRANSPORT_SMALL_CART)
@@ -412,7 +413,7 @@ export function inventoryItemImage(item, identity = undefined) {
       // ItemBuilder.SetVariant's material-family clamps exactly as the
       // paperdoll does - chain/plate armor drew the leather-look icon.
       const v = item.group === 'Armor'
-        ? clampArmorVariant(item.templateIndex, item.material ?? 0, item.variant ?? 0)
+        ? clampArmorVariant(item.templateIndex, item.material ?? 0, helmetPaperdollVariant(item) ?? item.variant ?? 0)
         : Math.min(item.variant ?? 0, t.variants - 1);
       // NT3 (F006): the record law runs from its ONE home now -
       // resolvePaperdollRecord IS GetInventoryTextureRecord's variant

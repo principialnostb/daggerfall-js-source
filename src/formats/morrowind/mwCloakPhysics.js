@@ -195,7 +195,7 @@ export function releaseCloakShieldContact(piece) {
   state.shieldClearance.fill(0);
 }
 
-function rebuildNormals(positions, indices, out, fallback) {
+export function rebuildNormals(positions, indices, out, fallback) {
   if (!out || out.length !== positions.length) return;
   out.fill(0);
   for (let i = 0; i + 2 < indices.length; i += 3) {

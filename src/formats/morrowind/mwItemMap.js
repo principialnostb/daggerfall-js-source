@@ -57,6 +57,8 @@ import { CLOAK_NAMES, CLOAK_PAINTINGS, cloakModel, ownCloakFor, ownOutfitFor } f
 import { t } from '../../systems/textManager.js';   // L10N4: MW-FOLK1's notes in the player's language
 import { ARMOR_MATERIAL } from '../../systems/armorMaterials.js';
 import { ARMOR_ENUM } from '../../combat/enemyEquipment.js';
+import { selectedShieldLook } from '../../characters/ownModels/shieldLooks.js';
+import { wolfArmorPalette, wolfArmorModel } from '../../characters/ownModels/wolfArmorPalette.js';
 import templates from '../../characters/itemTemplates.json' with { type: 'json' };
 
 /** ARMOR_ENUM.Helm, held as its own name because the composer's
@@ -302,7 +304,9 @@ export function mwClothingRecord(clothes, name, { dye = null, colourOf = null, t
  * Returns { records, row, material, note } - `records` empty means KEEP
  * THE SPRITE, and `note` says why in words the report can print.
  */
-export function mwArmorRecords(armorRecords, templateIndex, material) {
+export function mwArmorRecords(armorRecords, templateIndex, material, looks = null) {
+  const shield = selectedShieldLook({ templateIndex, material }, looks);
+  if (shield) return { records: [{ id: `shield_look_${shield.value}`, model: shield.model, parts: [] }], row: armorRowOf(templateIndex), material: shield.material, note: 'compatible shield appearance' };
   const row = armorRowOf(templateIndex);   // MW-ASSIGN: a mod's piece by the classic row of its shape
   if (!row) return { records: [], row: null, note: `template ${templateIndex} is not an armor row` };
   const mName = matName(ARMOR_MATERIAL, material);
@@ -609,7 +613,8 @@ export function dfWornArmor(slots, EQUIP_SLOTS, ARMOR_ENUM) {
  * missing record, an unknown INDX, a ref with no id for this sex -
  * each is a note, the skin stands, the law is never-traps.
  */
-export function composeWornArmor({ pieces, armors, clothes, bodyPool, female = false, colourOf = null, helmStyle = undefined, looks = null, cloakStyle = 'classic' }) {   // MW-STEEL1: helmStyle, the Steel Helm switch (undefined: the default style); MW-IRON1: looks, every other own piece's by its id
+export function composeWornArmor({ pieces, armors, clothes, bodyPool, female = false, colourOf = null, helmStyle = undefined, looks = null, cloakStyle = 'classic', cloakLooks = null }) {   // MW-STEEL1: helmStyle, the Steel Helm switch (undefined: the default style); MW-IRON1: looks, every other own piece's by its id
+  const palette = wolfArmorPalette(pieces, cloakLooks);
   const notes = [];
   const bodyById = new Map((bodyPool ?? []).map((b) => [String(b.id || '').toLowerCase(), b]));
   // ── THE PRIORITY LAW (Audit 30's recording, now consumed) ────────
@@ -685,7 +690,7 @@ export function composeWornArmor({ pieces, armors, clothes, bodyPool, female = f
       // MW-CLOAK1: A CLOAK IS THE PORT'S OWN (characters/ownModels/ownClothingModels.js) - one skinned mesh hung down the back,
       // claiming NO slot and reserving none: the armour and the clothes under it stay drawn. Daggerfall wears two
       // (Cloak1, Cloak2); one cloak is drawn, the first, and the second says so - two of one mesh would be one.
-      const cloak = ownCloakFor({ ...piece, name }, { style: piece.cloakStyle ?? cloakStyle });
+      const cloak = ownCloakFor({ ...piece, name }, { style: piece.cloakStyle ?? cloakStyle, look: cloakLooks?.[piece.templateIndex] ?? 'classic' });
       if (cloak) {
         if (cloakAdd) { notes.push(`${name}: a second cloak - the first (${cloakName}) is the one drawn`); continue; }
         cloakAdd = { slot: `cloak (${cloak.id})`, partName: 'cloak', bones: [], model: cloak.model, recordId: cloak.id, piece };
@@ -709,7 +714,7 @@ export function composeWornArmor({ pieces, armors, clothes, bodyPool, female = f
       for (const p of ownArmorParts(own, { helmStyle, looks })) {   // MW-STEEL1: the style the Steel Helm switch asks for; MW-IRON1: a piece's own look
         const at = ARMO_PART.findIndex((r) => r.name === p.part);
         const row = ARMO_PART[at];
-        const add = { slot: `${row.name} (${own.id})`, partName: row.name, bones: row.bones, model: p.model, recordId: own.id, piece, ...(p.showsSkin ? { showsSkin: true } : {}),
+        const add = { slot: `${row.name} (${own.id})`, partName: row.name, bones: row.bones, model: wolfArmorModel(p.model, palette), recordId: own.id, piece, ...(p.showsSkin ? { showsSkin: true } : {}),
           ...(own.skinFrom ? { skinFrom: own.skinFrom, fitTo: own.fitTo ?? null } : {}) };   // MW-BRIG2: skinned from the body under it; MW-BRIG3: fitted onto the part it hides. MW-STEEL4: a model shipped skinned (the steel plate) carries neither - its mesh is bound as a retail part's is
         claim(at, prio, add);
         if (p.showsSkin && row.shadows) covers.add(row.shadows);   // MW-IRON1: open where its picture is - the skin under it stays drawn, but it is covered
@@ -719,7 +724,7 @@ export function composeWornArmor({ pieces, armors, clothes, bodyPool, female = f
       }
       continue;
     }
-    const res = mwArmorRecords(armors, piece.templateIndex, piece.material);
+    const res = mwArmorRecords(armors, piece.templateIndex, piece.material, looks);
     if (!res.records.length) { notes.push(`armor ${piece.templateIndex}: ${res.note}`); continue; }
     // AUDIT 30 F1: A HELMET HIDES THE HAIR - an engine rule, not a
     // part reference (npcanimation.cpp:615), prior to the refs.
