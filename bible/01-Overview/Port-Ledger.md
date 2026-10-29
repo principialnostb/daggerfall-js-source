@@ -71,8 +71,7 @@ under a body-executing test, and is worth doing the next time
 
 Single source of truth for everything that is not a plain 1:1 line. Three
 categories. If a departure or gap is not on this page, it does not exist.
-Adding to category A requires Mac approval; B records data reality; C is the
-work queue routed to arcs.
+Adding to category A requires Mac approval; B records data reality; C is the work queue routed to arcs.
 
 ## A. Approved departures from DFU
 - **THE DUNGEON SEED IS THE LocationId** (the slot-0 random-enemy reroll, and the dungeon texture-table draw that copies its shape). DFU seeds UnityEngine.Random with DateTime.Now.Ticks (their TODO comment); we seed a xorshift32 with the dungeon LocationId so layouts are deterministic and testable. THE SITES, named here so the claim resolves rather than pointing at an approval nobody can find (ROAD-G G7): `src/characters/dungeonEnemies.js` - the slot reroll and `alternateRandomEnemyType`'s band pick - and `src/world/dungeon/dungeonTextures.js`, whose `makeSeededRng` stands in for `Random.InitState(Summary.ID)` with the same xorshift32: the SEQUENCE differs from Unity's Xorshift128, the determinism per dungeon does not.
