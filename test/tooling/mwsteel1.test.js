@@ -158,7 +158,7 @@ test('MW-STEEL1: the set composes into retail\'s slots - the breastplate the cui
 });
 
 test('MW-STEEL1: the Steel Helm switch picks the helm - closed by default, open on asking, and anything else is the default', () => {
-  assert.deepEqual(STEEL_HELM_STYLES, ['closed', 'open']);
+  assert.deepEqual(STEEL_HELM_STYLES, ['closed', 'open', 'horned']);   // MW-HORN1: the horned helm
   assert.equal(STEEL_HELM_DEFAULT, 'closed', 'Mac\'s answer: closed by default');
   const helm = (helmStyle) => composeWornArmor({ pieces: [SET[5]], armors: [], bodyPool: [], helmStyle }).adds.map((a) => a.model);
   assert.deepEqual(helm(undefined), ['steel_plate_helm_closed.nif']);
@@ -166,18 +166,17 @@ test('MW-STEEL1: the Steel Helm switch picks the helm - closed by default, open 
   assert.deepEqual(helm('open'), ['steel_plate_helm_open.nif']);
   assert.deepEqual(helm('visor-up'), ['steel_plate_helm_closed.nif']);
   assert.deepEqual(ownArmorParts(ownArmorModelFor(SET[0]), { helmStyle: 'open' }).map((p) => p.model), ['steel_plate_cuirass.nif', 'steel_plate_skirt.nif'], 'a piece with no styles is its parts in either');
-  // the switch is a Features row of the port's own, the viewer's, closed by default
-  const row = FEATURES.find((f) => f.id === 'steel-helm');
-  assert.deepEqual([row.group, row.kinds, row.control.key, row.control.initial, row.control.online, row.control.tiers], ['combat', ['enhanced'], 'mwSteelHelm', 'closed', 'player', [['closed', 'Closed'], ['open', 'Open']]]);
-  assert.equal(FEATURE_PREF_DEFAULTS.mwSteelHelm, STEEL_HELM_DEFAULT);
-  assert.deepEqual(row.control.tiers.map(([v]) => v), STEEL_HELM_STYLES, 'the switch\'s values are the helm\'s styles');
-  // read where the worn set is composed, and the tile rebuilds the standing body
+  // the Steel Helm row is gone (MOTION-DOCTRINE settings pass, 2026-10-27): the helm's look is turned on the worn piece
+  // in the inventory (systems/lookVariants.js), the same viewer's pref, and no Features row declares it any more
+  assert.equal(FEATURES.some((f) => f.id === 'steel-helm'), false);
+  assert.equal(FEATURE_PREF_DEFAULTS.mwSteelHelm, undefined, 'an unset pref is the default helm (helm(undefined) above)');
+  // read where the worn set is composed
   const fp = sourceText('src/combat/fpArm.js');
   assert.match(fp, /const helmStyle = getPref\('mwSteelHelm'\);/);
-  assert.match(fp, /bodyPool: parts, female, colourOf, helmStyle \}, showNudity\(\)\)/);
-  assert.match(fp, /bodyPool: parts, female, colourOf: probe, helmStyle \}\)/);
+  assert.match(fp, /bodyPool: parts, female, colourOf, helmStyle, looks: getPref\('mwArmorLooks'\)/);   // PIN MOVED (LOOK-VARIANTS): the pieces' looks beside it
+  assert.match(fp, /bodyPool: parts, female, colourOf: probe, helmStyle, looks: getPref\('mwArmorLooks'\)/);
   const menu = sourceText('src/ui/enhanced/enhancedMenu.js');
-  assert.match(menu, /\n  mwSteelHelm: rebuildMorrowindBody,/);
+  assert.doesNotMatch(menu, /mwSteelHelm: rebuildMorrowindBody/, 'the inventory rebuilds for a look (lookVariants.js rebuildForLook), not a tile');
   assert.match(menu, /set: \(i\) => \{ \(c\.write \?\? \(\(v\) => setPref\(c\.key, v\)\)\)\(c\.tiers\[i\]\[0\]\); TILE_AFTER\[c\.key\]\?\.\(\); \} \};/, 'a choice\'s write takes its after-step too');
 });
 

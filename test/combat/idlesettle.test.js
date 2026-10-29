@@ -1,0 +1,99 @@
+// IDLE-SETTLE (MOTION-DOCTRINE; bible/05-Combat/Motion-Doctrine.md): a stop lands the fresh idle where its legs are
+// quiet - read off the clip's own lower-body tracks - instead of at its start, where a stance's idle shifts its weight.
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { quietIdleTime, settleIdle, IDLE_SETTLE } from '../../src/combat/idleSettle.js';
+
+/** A track turning about z by `angle(t)` radians - what the fake sampler answers. */
+const turning = (angle) => ({ angle });
+const sampleTrack = (track, t) => {
+  const a = track.angle(t);
+  return { rotation: [0, 0, Math.sin(a / 2), Math.cos(a / 2)], translation: [0, 0, 0], scale: 1 };
+};
+/** Two weight shifts, as Morrowind Animation Overhaul's Idle1h has them: 0.3-0.7 s and 2.3-2.7 s of a 3 s group. */
+const bump = (t, a, b) => (t <= a ? 0 : t >= b ? 0.3 : 0.3 * (t - a) / (b - a));
+const shifting = (t) => bump(t, 0.3, 0.7) - bump(t, 2.3, 2.7);
+
+test('IDLE-SETTLE: a stop begins the idle after its first weight shift, in the stretch where the legs stand still', () => {
+  const source = { trackMap: new Map([['bip01 l thigh', turning(shifting)], ['bip01 r thigh', turning(shifting)], ['bip01 head', turning((t) => t)]]) };
+  const q = quietIdleTime({ group: 'idle1h', startTime: 0, stopTime: 3 }, source, sampleTrack);
+  assert.ok(q >= 0.65 && q <= 1.1 + 1e-9, `the quiet start ${q} s lies past the first shift and leaves ${IDLE_SETTLE.window} s before the second`);
+});
+
+test('IDLE-SETTLE: only the lower body counts - a head that never stops does not move the start', () => {
+  const source = { trackMap: new Map([['bip01 head', turning((t) => 3 * t)], ['bip01 spine1', turning((t) => Math.sin(9 * t))]]) };
+  assert.equal(quietIdleTime({ group: 'idle', startTime: 2, stopTime: 6 }, source, sampleTrack), 2, 'no legs: the clip\'s own start');
+});
+
+test('IDLE-SETTLE: a group no longer than the window, or a state with no source, keeps its start', () => {
+  const source = { trackMap: new Map([['bip01 l thigh', turning(shifting)]]) };
+  assert.equal(quietIdleTime({ group: 'idlehh', startTime: 5, stopTime: 5 + IDLE_SETTLE.window }, source, sampleTrack), 5);
+  assert.equal(quietIdleTime({ group: 'idle', startTime: 1, stopTime: 4 }, null, sampleTrack), 1);
+});
+
+test('IDLE-SETTLE: the start is read once per source and group, and settleIdle moves the fresh state there', () => {
+  let asked = 0;
+  const counted = (track, t) => { asked++; return sampleTrack(track, t); };
+  const source = { trackMap: new Map([['bip01 r calf', turning(shifting)]]) };
+  const state = { group: 'idle2c', startTime: 0, stopTime: 3, time: 0 };
+  settleIdle(state, source, counted);
+  const first = asked;
+  settleIdle({ ...state, time: 0 }, source, counted);
+  assert.equal(asked, first, 'the second stop reads the memo');
+  assert.ok(state.time > 0.6, `the state begins at its quiet start (${state.time})`);
+});
+
+test('IDLE-SETTLE: the rig settles the idle only on a stop, behind the MotionDoctrine switch', () => {
+  const src = readFileSync(new URL('../../src/combat/fpArm.js', import.meta.url), 'utf8');
+  assert.match(src, /if \(movementState && !keepMove\) \{ resetMovement\(\); resetIdle\(modSetting\('morrowind-animation', 'MotionDoctrine'\) !== 0\); \}/);   // PIN MOVED (MOVE-GRACE)
+  assert.match(src, /function resetIdle\(settle = false\) \{ idleState = null; idleGroup = null; refreshIdle\(true, settle\); \}/);
+  assert.match(src, /if \(settle\) settleIdle\(idleState, idleSource, sampleTrack\);/);
+});
+
+test('TURN-GATE: a stop\'s one-frame twitch of the yaw starts no turn in place; a real turn does, at once', async () => {
+  const { createTurnGate, TURN_GATE } = await import('../../src/combat/idleSettle.js');
+  const gate = createTurnGate();
+  const dt = 1 / 60;
+  assert.equal(gate.step(0.02, dt), 0, 'one frame of 1.2 rad/s is a twitch');
+  assert.equal(gate.step(0, dt), 0);
+  for (let i = 0; i < 10; i++) assert.equal(gate.step(0.001, dt), 0, 'a slow drift (0.06 rad/s) is no turn');
+  gate.step(0.05, dt);
+  assert.equal(gate.step(0.05, dt), 1, `${TURN_GATE.frames} frames of a 3 rad/s turn are a turn`);
+  for (let i = 0; i < 2; i++) gate.step(0, dt);
+  assert.equal(gate.step(0, dt), 1, 'held for the reference\'s tail');
+  for (let i = 0; i < 5; i++) gate.step(0, dt);
+  assert.equal(gate.step(0, dt), 0, 'and let go');
+  const old = createTurnGate();
+  assert.equal(old.step(0.0001, dt, false), 1, 'switched off: any change of the yaw turns, as the reference\'s port did');
+  const src = readFileSync(new URL('../../src/combat/fpArm.js', import.meta.url), 'utf8');
+  assert.match(src, /turnDir = turnGate\.step\(d, dt, modSetting\('morrowind-animation', 'MotionDoctrine'\) !== 0\);/);
+});
+
+test('SHOWN-POSE: a transition begun mid-fade starts from the pose the frame showed, not the raw clip', async () => {
+  const { blendSourceOf } = await import('../../src/combat/idleSettle.js');
+  const raw = new Map([[1, { rotation: [1, 0, 0, 0, 1, 0, 0, 0, 1], translation: [1, 0, 0], scale: 1 }]]);
+  const shown = new Map([[1, { rotation: [1, 0, 0, 0, 1, 0, 0, 0, 1], translation: [0.3, 0, 0], scale: 1 }]]);
+  const assembly = { rawPose: raw, shownPose: shown };
+  assert.equal(blendSourceOf(assembly).get(1).translation[0], 0.3, 'the shown pose');
+  assert.notEqual(blendSourceOf(assembly), shown, 'a copy, not the live map');
+  assert.equal(blendSourceOf(assembly, false).get(1).translation[0], 1, 'switched off: the raw clip, as before');
+  assert.equal(blendSourceOf({}), null);
+  const mw = readFileSync(new URL('../../src/formats/morrowind/mwFirstPerson.js', import.meta.url), 'utf8');
+  assert.match(mw, /assembly\.shownPose = blendFrom && blendWeight < 1 \? new Map\(pose\) : assembly\.rawPose;/);
+  const src = readFileSync(new URL('../../src/combat/fpArm.js', import.meta.url), 'utf8');
+  assert.equal((src.match(/blendSourceOf\((t\.arm|built\.arm), modSetting\('morrowind-animation', 'MotionDoctrine'\) !== 0\)/g) ?? []).length, 2, 'both views');
+});
+
+test('MOVE-GRACE: a movement that empties for a frame or two keeps its clip; a real stop lets go after the grace', async () => {
+  const { createMoveGrace, MOVE_GRACE } = await import('../../src/combat/idleSettle.js');
+  const g = createMoveGrace(), dt = 1 / 120;
+  assert.equal(g.step(true, dt), true, 'one empty frame is held');
+  assert.equal(g.step(false, dt), false, 'the movement back: nothing held');
+  let held = 0;
+  while (g.step(true, dt)) held += dt;
+  assert.ok(Math.abs(held - MOVE_GRACE.seconds) < 2 * dt, `a stop lets go after ${held} s`);
+  assert.equal(createMoveGrace().step(true, dt, false), false, 'switched off, or in the air: no grace');
+  const src = readFileSync(new URL('../../src/combat/fpArm.js', import.meta.url), 'utf8');
+  assert.match(src, /if \(movementState && !keepMove\) \{ resetMovement\(\);/);
+});

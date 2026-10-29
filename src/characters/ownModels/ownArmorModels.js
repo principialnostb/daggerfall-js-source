@@ -79,7 +79,7 @@ export const CLASSIC_ARMOR_TEMPLATE = Object.freeze({
   Cuirass: 102, Gauntlets: 103, Greaves: 104, Left_Pauldron: 105, Right_Pauldron: 106, Helm: 107, Boots: 108,
 });
 
-/** MW-STEEL1: the steel helm's two styles - the Steel Helm switch's values (systems/features.js, pref `mwSteelHelm`),
+/** MW-STEEL1: the steel helm's styles - the values of its look, turned in the inventory (systems/lookVariants.js, pref `mwSteelHelm`),
  *  the default first. */
 export const STEEL_HELM_STYLES = Object.freeze(['closed', 'open', 'horned']);   // MW-HORN1: the horned helm, built (tools/bakeHornedHelm.mjs)
 export const STEEL_HELM_DEFAULT = STEEL_HELM_STYLES[0];

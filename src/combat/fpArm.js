@@ -411,9 +411,15 @@ import { firstPersonLens, stepAxePlacement, axeReadyHold } from './weapon/axeVie
 import { armKickMatrix } from './gun/gunFeel.js';   // MW-GUN-FEEL: the gun's recoil and reload, as one pose over the viewmodel
 import { rifleStanceStep, applyRifleStance } from './gun/rifleStance.js';   // RIFLE-STANCE: a long gun held in the hands - the low ready, the aim
 import { createHipLantern, HIP_LANTERN_HEIGHT } from '../systems/lanternSwing.js';   // HT-WAIST: the one swing law both bodies feed (BODY-MOTION: its rider moved there); HT-WAIST-SIZE: the one height they hang
+import { createBodyWeight } from '../characters/bodyMotion/bodyWeight.js';   // BODY-WEIGHT: the trunk's answer to the body's mass and acceleration
 import { createBodyMotion, motionWord } from '../characters/bodyMotion/bodyMotion.js';   // BODY-MOTION: the third-person body's gait, carry and blows
 import { shieldGuardStance, carriesShield, isHandShieldSlot, shieldBashHold } from './shieldGuard.js';   // SHIELD-GUARD: the fists behind a shield - the stance, the bash
-import { createLeftArmLayer, leftArmPlan, leftArmModeOf } from './leftArmLayer.js';   // LEFT-ARM: the shield's and the free hand's arm over the clip, by weight
+import { createLeftArmLayer, leftArmPlan, leftArmModeOf, loopWindow } from './leftArmLayer.js';   // LEFT-ARM: the shield's and the free hand's arm over the clip, by weight
+import { createLowerBodyLayer, lowerBodyBones } from './lowerBodyLayer.js';   // LOWER-BODY: the legs under a blow keep the stride (rule 26)
+import { settleIdle, createTurnGate, blendSourceOf, createMoveGrace, carriesBlend } from './idleSettle.js';   // IDLE-SETTLE: a stop lands the idle where its legs are quiet
+import { createFpInertia } from './fpInertia.js';   // FP-INERTIA: the first-person hands carry weight
+import { createLoopSeam } from './loopSeam.js';   // LOOP-SEAM: a loop's stop carried to its start
+import { hitResponse } from './hitResponse.js';   // HIT-RESPONSE: the striking arm's hitstop
 import { BLOW_FLOW, holdFor, calmBlowPlan, driftRate, recoverRate, poseKindOf, blowBlendSeconds, blendWeightAt, createVariantCycle, bashesNow } from './blowFlow.js';   // BLOW-FLOW: the window after a blow, the blends; MW-PACE2: the player's calm pace; SHIELD-BASH: in turn
 import { vfxOf, createVfx, vfxCapacity, vfxTextures } from '../formats/morrowind/mwVfx.js';   // MW-SPELLFX1: an effect mesh, running
 import { spellFxPlan } from '../formats/morrowind/mwSpellFx.js';   // MW-SPELLFX1: which visuals a spell wears
@@ -5085,6 +5091,7 @@ export function createFpArm({ playerAppearance = false } = {}) {
   // hand, but the shield arm borrows the left strafe's pose - and the fists behind a shield and a one-hander's free hand
   // their own - laid over the clip by weight, eased on and off
   const leftArm = createLeftArmLayer({ pickAnimSource, resetClip, composeMovementGroup, composeStanceGroup, sampleTrack });
+  const lowerBody = createLowerBodyLayer({ sampleTrack });   // LOWER-BODY (combat/lowerBodyLayer.js)
   // MW-D39: THE FOURTH SLOT - JUMP. Priority_Jump sits BELOW
   // Priority_Movement in the reference's enum (character.hpp:34-35),
   // so the winner ladder reads action > movement > JUMP > idle - and
@@ -5101,7 +5108,8 @@ export function createFpArm({ playerAppearance = false } = {}) {
   // character.cpp:2355-2366 - the turn animation HOLDS 0.05s past the
   // last actual rotation, so mouse jitter does not flicker it.
   let lastYaw = null;
-  let turnHold = 0;
+  const turnGate = createTurnGate();   // TURN-GATE (combat/idleSettle.js)
+  const moveGrace = createMoveGrace();   // MOVE-GRACE (combat/idleSettle.js)
   let turnDir = 0;
   let upper = UPPER_BODY.None;
   let spellReady = false;        // MW-D39: a spell is readied (the stance)
@@ -5159,6 +5167,9 @@ export function createFpArm({ playerAppearance = false } = {}) {
   // MOTION - its gait, its carry and a blow's body - one per rig, stepped below after the clips and laid on the pose
   // through poseAssembly's `motion` slot; the clips still decide every group, and it steps aside where they own the body
   const motion = createBodyMotion();
+  const bodyWeight = createBodyWeight();   // BODY-WEIGHT (characters/bodyMotion/bodyWeight.js)
+  const fpInertia = createFpInertia();   // FP-INERTIA (combat/fpInertia.js)
+  const loopSeam = createLoopSeam({ sampleTrack, loopWindow });   // LOOP-SEAM (combat/loopSeam.js)
   // AUDIT MW-TORCH F4: THE OVERLAY ALLOCATES ONCE PER CHANGE, NOT PER
   // FRAME. update()'s contract is "no allocation after the first pack";
   // the merged track map is rebuilt only when the base tracks, the torch
@@ -5959,7 +5970,7 @@ export function createFpArm({ playerAppearance = false } = {}) {
    * on the drawn weapon, so sheathing has to be able to change it without
    * anything else being torn down.
    */
-  function refreshIdle(force = false) {
+  function refreshIdle(force = false, settle = false) {
     if (!built || !built.ok || dead) return;   // MWNPC4: a dead actor's states are no longer refreshed
     // MWNPC9: refreshIdleAnims' non-biped arm (character.cpp:680-685) - a creature lets its idle go while an upper-body
     // action, a movement or a recoil plays, and takes it up again from its start once none does
@@ -5998,12 +6009,13 @@ export function createFpArm({ playerAppearance = false } = {}) {
     idleGroup = composed.group;
     idleState = pick.state;
     idleSource = pick.source;
+    if (settle) settleIdle(idleState, idleSource, sampleTrack);   // IDLE-SETTLE: a stop lands in the idle's quiet legs
   }
 
   /** resetCurrentIdleState (:1850-1853 via mResetIdleOnAttackEnd): drop
    *  the idle so the next refresh replays it from its start with a fresh
    *  loop count, rather than resuming mid-swing-shaped. */
-  function resetIdle() { idleState = null; idleGroup = null; refreshIdle(true); }
+  function resetIdle(settle = false) { idleState = null; idleGroup = null; refreshIdle(true, settle); }
 
   /** MW-D51: updateCarriedLeftVisible - "Shields/torches shouldn't be
    *  visible during any operation involving two hands": the carried
@@ -6471,8 +6483,7 @@ export function createFpArm({ playerAppearance = false } = {}) {
       // (net/peer/peerBodies.js peerCamera), so `yaw` is the wire's there.
       const d = wrapAngle(yaw - lastYaw);
       yawRate = d / dt;
-      if (d !== 0) { turnDir = Math.sign(d); turnHold = 0.05; }
-      else { turnHold -= dt; if (turnHold <= 0) turnDir = 0; }
+      turnDir = turnGate.step(d, dt, modSetting('morrowind-animation', 'MotionDoctrine') !== 0);   // TURN-GATE (combat/idleSettle.js): a stop's twitch is no turn
     }
     lastYaw = yaw;
     const mv = (cam && cam.move) || null;
@@ -6489,12 +6500,13 @@ export function createFpArm({ playerAppearance = false } = {}) {
       turning: turnDir,
       thirdPerson: viewMode === 'third' && !nonBiped(),   // MWNPC9: turning animations are a biped's (character.cpp:2178)
     });
+    const keepMove = moveGrace.step(!base, dt, modSetting('morrowind-animation', 'MotionDoctrine') !== 0);   // MOVE-GRACE (combat/idleSettle.js)
     if (!base) {
       // MW-D29: the frame the movement EMPTIES while one was playing,
       // the idle resets with it (character.cpp:646-651) - so it replays
       // from its start with freshly rolled loop dice (:824, :811)
       // instead of resuming mid-clip on a stale counter.
-      if (movementState) { resetMovement(); resetIdle(); }
+      if (movementState && !keepMove) { resetMovement(); resetIdle(modSetting('morrowind-animation', 'MotionDoctrine') !== 0); }   // IDLE-SETTLE (combat/idleSettle.js)
       return;
     }
     const isTurn = base.startsWith('turn');
@@ -7148,7 +7160,7 @@ export function createFpArm({ playerAppearance = false } = {}) {
         idleState = null; actionState = null; idleGroup = null; weaponGroup = null; weaponClock = { group: null, value: 0 };   // MW-BOW1: no group, no state
         movementState = null; movementGroup = null; movementSource = null; movementBase = null;
         jumpState = null; jumpGroup = null; jumpSource = null; jumpStance = null; jumpKind = null;   // MW-D39
-        lastYaw = null; turnDir = 0; turnHold = 0;
+        lastYaw = null; turnDir = 0; turnGate.reset();
         upper = UPPER_BODY.None; attackType = null; holdWindUp = false;
         weaponShown = false; arrowShown = false; notes.length = 0; aimFactor = 0; sneaking = false;
         idleSource = null; actionSource = null; poseSource = null;
@@ -7207,7 +7219,7 @@ export function createFpArm({ playerAppearance = false } = {}) {
       releaseThirdMesh(); thirdBuilt = null; thirdGroundMinZ = null; thirdPacked = null; viewMode = 'first';
       movementState = null; movementGroup = null; movementSource = null; movementBase = null;
       jumpState = null; jumpGroup = null; jumpSource = null; jumpStance = null; jumpKind = null;   // MW-D39
-      lastYaw = null; turnDir = 0; turnHold = 0;
+      lastYaw = null; turnDir = 0; turnGate.reset();
       idleState = null; actionState = null; idleGroup = null; weaponGroup = null; weaponClock = { group: null, value: 0 };   // MW-BOW1: no group, no state
       upper = UPPER_BODY.None; attackType = null; holdWindUp = false;
       weaponShown = false; arrowShown = false;
@@ -8323,6 +8335,7 @@ export function createFpArm({ playerAppearance = false } = {}) {
      *  camera node every frame). */
     update(dt, { pose = true, effectsDt = dt } = {}) {
       if (!built || !built.ok || !renderer) return;
+      if (playerAppearance) dt = hitResponse.armDt(dt);   // HIT-RESPONSE: the striking arm holds its beat (combat/hitResponse.js)
       partClock += dt;   // MW-BOW1: frame time, an AutoPlay node's clock
       const cam = seatedCamera(camera && camera());   // WAGONS3: seated (a wagon's bench), the body plays no stride under the seat
       sneaking = !!(cam && cam.sneaking);
@@ -8416,6 +8429,8 @@ export function createFpArm({ playerAppearance = false } = {}) {
       refreshTorch();
       if (torchState) advanceClip(torchState, (torchSource || rig()).keys, dt, null);
       aimFactor = aimingFactor(aimFactor, accurateAiming(upper), dt);
+      // LOWER-BODY: under a third-person blow the legs are the movement's or the jump's, at their clocks (rule 26)
+      lowerBody.stepRig(dt, modSetting('morrowind-animation', 'MotionDoctrine') !== 0 && viewMode === 'third', thirdBuilt, actionState, hitState, deathState, movementState, movementSource, jumpState, jumpSource);
       // BODY-MOTION: its clocks, after the clips so a blow reads this frame's section (a frame that does not pose still walks)
       // the word the layer reads, a line for each of what it says: the body, its blow, its hands (AUDIT BODY-MOTION RIG-10)
       motion.step(dt, motionWord({
@@ -8423,6 +8438,8 @@ export function createFpArm({ playerAppearance = false } = {}) {
         attackType, reversed: attackReversed, hand: attackHand, progress: actionState ? clipCompletion(actionState) : 0, strength: attackStrength,
         shown: weaponInHand(), hands: handsMode, torch: torchVisible(), spell: spellStance(), rifle: rifle.w, guard: pairDip(),
       }));
+      bodyWeight.stepRig(dt, modSetting('morrowind-animation', 'MotionDoctrine') !== 0 && viewMode === 'third', cam, lastBuildOpts?.armor, thirdBuilt?.mwType, dead, motion.word());   // BODY-WEIGHT; BLOW-LEGS
+      fpInertia.stepRig(dt, modSetting('morrowind-animation', 'MotionDoctrine') !== 0 && viewMode === 'first', cam, lastBuildOpts?.armor, built?.mwType, dead);   // FP-INERTIA
       if (!actionState && !movementState && !jumpState && !idleState && !hitState && !deathState) return;
       // THE WINNER, not a blend. See the two-slot note above: in first
       // person both animations are played on BlendMask_All, so the higher
@@ -8471,15 +8488,15 @@ export function createFpArm({ playerAppearance = false } = {}) {
           posePartClocks(t.arm, weaponClockValue(), { frameTime: partClock });   // MW-BOW1: the bow draws, the arrow with it
           // MW-ANIM-BLEND: cross-fade every third-person clip transition (walk/idle/run/jump/attack) over a short fixed window.
           if (thirdPoseState !== state || thirdPoseSource !== poseSource) {
-            thirdBlendFrom = t.arm.rawPose instanceof Map ? new Map(t.arm.rawPose) : null;
-            thirdBlendFromSource = thirdPoseState === null ? null : thirdPoseSource;
-            thirdBlendElapsed = 0;
-            thirdPoseState = state;
-            thirdPoseSource = poseSource;
             // BLOW-FLOW: a blow's change of pose blends by its own law (combat/blowFlow.js) - the sections of one blow
             // never (one clip), a blow cut by the next briefly, the return to the stance slowly
-            const kindNow = poseKindOf(state === actionState && attackingNow(), blowSerial);
-            thirdBlendSeconds = blowBlendSeconds(thirdPoseKind, kindNow); thirdPoseKind = kindNow;
+            const kindNow = poseKindOf(state === actionState && attackingNow(), blowSerial), seconds = blowBlendSeconds(thirdPoseKind, kindNow, thirdPoseState, state);   // SECTION-SEAM
+            if (!carriesBlend(seconds, thirdBlendFrom, thirdBlendElapsed, thirdBlendSeconds, modSetting('morrowind-animation', 'MotionDoctrine') !== 0)) {   // BLEND-CARRY (combat/idleSettle.js)
+              thirdBlendFrom = blendSourceOf(t.arm, modSetting('morrowind-animation', 'MotionDoctrine') !== 0);   // SHOWN-POSE (combat/idleSettle.js)
+              thirdBlendFromSource = thirdPoseState === null ? null : thirdPoseSource;
+              thirdBlendElapsed = 0; thirdBlendSeconds = seconds;
+            }
+            thirdPoseState = state; thirdPoseSource = poseSource; thirdPoseKind = kindNow;
           }
           thirdBlendElapsed += Math.max(0, dt);
           const blendChoice = Math.max(0, Math.min(3, Number(modSetting('morrowind-animation', 'AnimationBlendDuration')) || 0));
@@ -8493,8 +8510,8 @@ export function createFpArm({ playerAppearance = false } = {}) {
             ? (easedReactionRule?.weight ?? (thirdBlendSeconds != null ? blendWeightAt(thirdBlendElapsed, blendDuration) : blendProgress))
             : 1;
           poseAssembly(t.arm, {
-            tracks: tOverlay ? overlayFor(thirdTracks, t.leftArm) : thirdTracks,
-            sampleTrack: thirdTracks !== tBase ? leftArm.sampler() : tOverlay ? overlaySample : sampleTrack,
+            tracks: lowerBody.tracks(tOverlay ? overlayFor(thirdTracks, t.leftArm) : thirdTracks, lowerBodyBones(t.arm.skeleton)),   // LOWER-BODY
+            sampleTrack: loopSeam.sampler(lowerBody.sampler(thirdTracks !== tBase ? leftArm.sampler() : tOverlay ? overlaySample : sampleTrack), state, poseSource, modSetting('morrowind-animation', 'MotionDoctrine') !== 0),   // LOOP-SEAM
             time: poseTime(state),   // MS1: a backhand's window runs backwards
             blendFrom: thirdBlendFrom,
             blendWeight: thirdBlendWeight,
@@ -8502,7 +8519,7 @@ export function createFpArm({ playerAppearance = false } = {}) {
             climb: thirdClimb(climbWorld, cam),   // CLIMB6
             mirror: mirrorFor('third', t, dt),   // TWO-HANDS: the second hand - the pair's left arm, a left-hand blow
             hold: rifleHold('third', t) ?? shieldBash(),   // RIFLE-STANCE: the long gun in the hands; SHIELD-GUARD: else the bash
-            motion: motion.slot,   // BODY-MOTION: third-person gait, weapon carry and melee body layered over the clip
+            motion: bodyWeight.slot(motion.slot),   // ARM-CLEARANCE (bodyWeight.js's slot) over BODY-MOTION: third-person gait, weapon carry and melee body layered over the clip
             bodyProportions: playerAppearance ? getBodyMorphs() : false,   // MWV2-PROPORTIONS: player instance only
             skin: !thirdSkinReady(t),   // MWNPC1: the skin in the vertex shader - the pose is the skeleton alone
           });
@@ -8700,7 +8717,7 @@ export function createFpArm({ playerAppearance = false } = {}) {
       // a blow cut by the next, and back to the stance; any other change is the clip's own, as it always was
       const fKind = poseKindOf(state === actionState && attackingNow(), blowSerial);
       // (from the pose of the frame before alone - a view switch carries nothing: TWO-HANDS AUDIT finding 6)
-      if (fpBlend.state !== state) Object.assign(fpBlend, { from: fpBlend.state && fpBlend.at === frames && built.arm.rawPose instanceof Map ? new Map(built.arm.rawPose) : null, seconds: blowBlendSeconds(fpBlend.kind, fKind) ?? 0, elapsed: 0, state, kind: fKind });
+      if (fpBlend.state !== state) Object.assign(fpBlend, { from: fpBlend.state && fpBlend.at === frames ? blendSourceOf(built.arm, modSetting('morrowind-animation', 'MotionDoctrine') !== 0) : null, seconds: blowBlendSeconds(fpBlend.kind, fKind, fpBlend.state, state) ?? 0, elapsed: 0, state, kind: fKind });
       fpBlend.at = frames + 1;
       fpBlend.elapsed += Math.max(0, dt);
       posePartClocks(built.arm, weaponClockValue(), { frameTime: partClock });   // MW-BOW1: the bow draws, the arrow with it
@@ -8863,7 +8880,7 @@ export function createFpArm({ playerAppearance = false } = {}) {
       // and nothing else in the pass does. Not through the neck (poseAssembly's neckPitch/neckOffset): glued arms take
       // no look there by IG4's construction, and a kick is not a look. The frame record below carries it, so the muzzle
       // (weaponMuzzle) and a held sheet's corners stand where the eye sees them.
-      const view = gunFeel ? multiply(armKickMatrix(gunFeel, MW_UNITS_PER_METER), lens, new Float32Array(16)) : lens;
+      const view = fpInertia.view(gunFeel ? multiply(armKickMatrix(gunFeel, MW_UNITS_PER_METER), lens, new Float32Array(16)) : lens, MW_UNITS_PER_METER);   // FP-INERTIA over the kick
 
       // MW-D23: NO MIRROR. THIS PASS IS ALREADY CHIRALITY-TRUE, and the
       // mirror MW-D9 borrowed from the world pass is what put Mac's
@@ -9538,7 +9555,7 @@ export function createFpArm({ playerAppearance = false } = {}) {
         hipLit,
         hipShown: hipVisible(),
         hipSwing: { fore: hipLantern.swing.fore, side: hipLantern.swing.side },
-        motion: motion.status(),   // BODY-MOTION
+        motion: { ...motion.status(), legs: bodyWeight.legs() },   // BODY-MOTION; BLOW-LEGS
         loopsLeft: idleState && Number.isFinite(idleState.loopCount) ? idleState.loopCount : null,
         groups: built && built.ok ? built.groups : null,
         sources: built && built.ok ? built.sourcePaths : null,

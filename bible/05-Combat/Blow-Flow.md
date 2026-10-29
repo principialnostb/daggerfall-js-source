@@ -120,7 +120,7 @@ different windows jerky, so the pick is the hash pick again and the cycle drives
 The owner: "held or tapped, the blows should run as one series - the window only when the player stops"; "not
 only the held button - fast clicking too - one picture".
 
-- `createAttackSeries()` - src/combat/weapon/attackSeries.js - `SERIES = { buffer: 0.45, intent: 0.7 }`: a press
+- `createAttackSeries()` - src/combat/weapon/attackSeries.js - `SERIES = { buffer: 0.45, intent: 0.85 }` (0.7 until 2026-10-28, Motion-Doctrine.md 7c): a press
   waits `buffer` seconds to be taken (a click during a blow is not lost), and the series "goes on" while the button
   is held or for `intent` seconds after the last press. The rig steps it every frame, takes a buffered press as a
   click attack (src/combat/weapon/weaponRig.js:"if (taken) { attackSeries.consume") and tells the arm `fpArm.setSeriesWanted(on)`.
@@ -180,7 +180,7 @@ the ease.
 
 - BLOW-RETURN (the owner: "the two-hander in third person had no transition between the window and the neutral
   stance"): the BODY-MOTION carry layer comes back over `MOTION_EASE.blowReturn` (0.5 s) after a blow, `sinceBlow`
-  smoothed (src/characters/bodyMotion/bodyMotion.js:"const back = Number.isFinite"), instead of in a frame.
+  smoothed (src/characters/bodyMotion/bodyMotion.js:"const backOf = (since) =>"), instead of in a frame.
 - SNEAK-GUARD (the owner: "crouched with a one-hander, the blade to the floor"): crouched with a one-hander the
   right hand keeps the clip's carry (`sneakArm`), eased over `MOTION_EASE.sneak` (0.6).
 - SNEAK-STANCE: the drawn stance's own crouch idle where a pack carries one - `sneakIdleGroup(type, hasGroup)`

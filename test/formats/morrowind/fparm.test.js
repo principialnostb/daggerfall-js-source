@@ -1545,7 +1545,7 @@ test('MW-D26: the machine WALKS - the slot plays the group at the clip\'s own sp
   assert.equal(arm.status().movementRate, MOVEMENT_SPEED_CAP, 'vanilla caps the played speed at 10');
   // and stopping RESETS the slot
   cam.move.forward = 0; cam.move.running = false; cam.move.speed = 0;
-  arm.update(1 / 60);
+  for (let i = 0; i < 6; i++) arm.update(1 / 60);   // PIN MOVED (MOVE-GRACE, combat/idleSettle.js): a stop lets the clip go after its 0.06 s grace
   assert.equal(arm.status().movementGroup, null, 'standing still again resets the slot');
 });
 
@@ -1589,13 +1589,13 @@ test('MW-D26: turning plays turnleft/turnright in THIRD person only, at the turn
   // min(1.5, |rot|/dt/pi) (character.cpp:2396)
   assert.equal(arm.setViewMode('third'), true);
   arm.update(1 / 60);   // settle lastYaw on the new frame
-  cam.yaw += 0.3;
-  arm.update(1 / 60);
+  // PIN MOVED (TURN-GATE, combat/idleSettle.js): a turn in place needs two frames of a real turn - one frame's twitch of
+  // the yaw (a stop's) is no turn
+  for (let i = 0; i < 2; i++) { cam.yaw += 0.3; arm.update(1 / 60); }
   let st = arm.status();
   assert.equal(st.movementGroup, 'turnright', 'yaw increasing = turning right');
   assert.equal(st.movementRate, 1.5, 'a fast spin pins the turn clip at 1.5');
-  cam.yaw -= 0.001;
-  arm.update(1 / 60);
+  for (let i = 0; i < 2; i++) { cam.yaw -= 0.012; arm.update(1 / 60); }
   st = arm.status();
   assert.equal(st.movementGroup, 'turnleft', 'and the sign flips the side');
   assert.ok(st.movementRate < 1.5, `a slow turn plays slower (${st.movementRate})`);
@@ -3493,7 +3493,7 @@ test('PX29: the movement rate divides by the PLAYING clip\u2019s own velocity (M
   // Reverted at his direction; the multi-source walk stays exported.
   const src = readFileSync('src/combat/fpArm.js', 'utf8');
   assert.match(src, /const vel = movementSource \? sourceVelocityOf\(movementSource, movementGroup\) : 0;/,
-    'the rate must divide by the clip that is playing');
+    'the rate must divide by the clip that is playing');   // FOOT-SPEED set aside (Motion-Doctrine.md 7d): the pin back as it was
   assert.ok(!/sourcesVelocity\(rig\(\)\.sources, movementGroup\)/.test(src), 'the multi-source walk must not decide the movement rate');
   assert.match(src, /PX29 - REVERTED AT MAC'S DIRECTION/, 'a declared divergence must say so where it lives');
   // the helper reads ONE source and answers 0 for a source with no

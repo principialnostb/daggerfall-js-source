@@ -44,6 +44,7 @@
 
 import { rand } from '../../formats/dfRandom.js';   // NT2 (F210): the gender roll is a DFRandom draw
 import { MOBILE_TYPES } from './mobileTypes.js';
+import { hitResponse } from '../../combat/hitResponse.js';   // HIT-RESPONSE: the struck foe's held beat
 
 // Speeds in frames-per-second (EnemyBasics).
 export const MOVE_ANIM_SPEED = 6;
@@ -500,6 +501,7 @@ export class MobileUnit {
    * a level signal would replay the sequence inside one swing.
    */
   update(dt, { moving = false, striking = false, hurting = false, casting = false, rangedStriking = false, hold = false } = {}, yaw, feet, cameraPos) {
+    dt = hitResponse.unitDt(this, dt);   // HIT-RESPONSE (combat/hitResponse.js): a struck foe's frame holds the blow's beat, its flinch after it
     // TELL2 (bible/12-Enhanced-AI/Feud-Arc.md section 4.1): A TELEGRAPHED BLOW'S SWING, HELD. The port's own beat - DFU
     // has none: `hold` true plays the swing that began under it up to the frame before its first -1 (the raised arm) and
     // stands there; false lets it strike on the next step; 'cancel' drops it (its wind-up broke, a paralysis). Only a

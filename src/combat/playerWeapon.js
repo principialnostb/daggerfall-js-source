@@ -109,6 +109,7 @@ export function playerMeleeCanHit(dist, inView, losClear) {
 /** WeaponManager.cs:45 - the switch-delay divisor, a float. */
 import { BOW_SWITCH_DIVISOR } from '../characters/weaponStates.js';   // ONE home (WeaponManager.cs:45); a12's switch law reads it here
 import { noteFirstUse } from '../systems/tutorials.js';   // TUT1: the first touch of a system pops its tutorial page
+import { hitResponse } from './hitResponse.js';   // HIT-RESPONSE (MOTION-DOCTRINE): a landed blow's beat and shake
 export { BOW_SWITCH_DIVISOR };
 
 /** Internal_Strings.csv: usingRightHand / usingLeftHand - the two
@@ -809,6 +810,7 @@ export class PlayerWeapon {
       const damage = blow;   // TWO-HANDS (AUDIT): the off hand's share was laid inside the formula (blowShare)
       results.push({ foe, damage });
       this.onAttackResult?.({ foe, damage });   // WW1: OnAttackDamageCalculated's one consumer, the weapon widget's recoil
+      hitResponse.hit({ foe, damage, weapon: this.strikingWeapon });   // HIT-RESPONSE: the hitstop, the foe's held beat, the shake
     };
     for (const foe of foes) {
       if (foe.dead || !foe.entity) continue;

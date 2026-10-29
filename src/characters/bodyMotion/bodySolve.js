@@ -18,7 +18,7 @@
 // and out over the clip without a pop. Writes new entries into `pose` (never a mutation of the rest's shared ones).
 // Answers a small report, or null when nothing was posed.
 
-import { solveReach, rotFrames, rotFromTo, rotFraction, handFrame, orthonormal, rotationPart } from '../../combat/climbRig.js';
+import { solveReach, rotFrames, rotFromTo, rotFraction, rotAxisAngle, handFrame, orthonormal, rotationPart } from '../../combat/climbRig.js';
 import { algebra, clamp01, clamp, transpose, apply, mul, bodyTurn, fromColumns, bodyOf, turnOf, at, RAD } from './bodyKit.js';
 
 const { sub, add, scale, dot, cross, norm, len, lerp3 } = algebra;
@@ -65,7 +65,9 @@ const toward = (Rc, Rt, w) => (w >= 1 ? Rt : mul(rotFraction(mul(Rt, transpose(R
  *            torch's left): the chest, the neck and the head are the layer's as far as either arm is, each collarbone as
  *            far as its own arm is - the rest the clip's, so an aim the clip holds stays where it holds it;
  *   arms   - (ctx) => { L, R }: each a climb hand request ({ at, fingers, palm, pole, curl, w }) or null, asked with
- *            { body, mats, frames, skeleton } once the trunk stands.
+ *            { body, mats, frames, skeleton } once the trunk stands;
+ *   trunk  - { yaw, pitch }: a turn laid on the trunk as it stands AFTER the arms are asked, so the hands stay where they
+ *            were asked and the shoulders come to them (leanUnder - a two-hander's guard).
  */
 export function solveBody(skeleton, pose, rootRef, skelMats, plan) {
   const w = clamp01(plan?.w ?? 0);
@@ -144,7 +146,7 @@ export function solveBody(skeleton, pose, rootRef, skelMats, plan) {
     const Rp = p != null && skeleton.nodes.has(p) ? rotNow(p) : null;
     pose.set(ref, { rotation: orthonormal(Rp ? mul(transpose(Rp), decided.get(ref)) : decided.get(ref)), translation: local.translation, scale: local.scale });
   }
-  const mats = skelMats(skeleton, pose, rootRef);
+  let mats = skelMats(skeleton, pose, rootRef);
   // the body moved so the hips' middle stands where it was asked: the root's own place, and every matrix under it
   if (plan.hip?.at) {
     const mid = scale(add(at(mats, bones.L.thigh), at(mats, bones.R.thigh)), 0.5);
@@ -159,10 +161,25 @@ export function solveBody(skeleton, pose, rootRef, skelMats, plan) {
       if (f) report.feet[side] = poseFoot(skeleton, pose, mats, body, side, f, w);
     }
   }
-  // 5. the arms, asked now the shoulders stand
+  // 5. the arms, asked now the shoulders stand - and where the carry leans the trunk under its weapon (`trunk`), asked on
+  // the trunk as the clip stood it and reached from the trunk leant: the weapon stays where the carry put it, and the
+  // shoulders come to it (GRIP-ANATOMY, 2026-10-29)
   if (plan.arms) {
+    // GRIP-ANATOMY: `trunk.square` - the share of the clip's own chest turn off the facing taken out before the hands are
+    // asked (a two-hander's guard clip, idle2c, stands the chest some 40 degrees to the right: rows laid on that frame put
+    // the hilt and both fists against the right flank)
+    const sq = plan.trunk?.square ?? 0;
+    if (sq > 0) {
+      const f0 = bodyFrames(body, mats);
+      if (f0) mats = leanUnder(skeleton, pose, mats, body, f0, { yaw: Math.atan2(f0.fwd[0], f0.fwd[1]) * sq, pitch: 0 }, w, rootRef, skelMats);
+    }
+    // GRIP-ANATOMY: `trunk.collar` - the collarbones held as they stand at rest on the chest, by that share (the owner's
+    // video, 2026-10-29: walking with the claymore the right pauldron rose and turned every step - the walk clip swings the
+    // right collarbone under hands the carry holds still)
+    if (plan.trunk?.collar > 0) mats = holdCollars(skeleton, pose, mats, body, plan.trunk.collar * w, rootRef, skelMats);
     const frames = bodyFrames(body, mats);
     const req = frames ? plan.arms({ body, mats, frames, skeleton }) : null;
+    if (req && frames && plan.trunk) mats = leanUnder(skeleton, pose, mats, body, frames, plan.trunk, w, rootRef, skelMats);
     if (req) {
       for (const side of ['L', 'R']) {
         const h = req[side];
@@ -174,6 +191,72 @@ export function solveBody(skeleton, pose, rootRef, skelMats, plan) {
   }
   report.mats = mats;
   return report;
+}
+
+/**
+ * THE TRUNK LEANT UNDER THE HANDS (GRIP-ANATOMY): `trunk` { yaw, pitch } (radians, bodyTurn's sense - yaw + the left,
+ * pitch + the front down) laid by `w` on the trunk as it now stands, about the rig's up and the chest's right, spread up
+ * the spine as the chest's own turn is; the neck, the collarbones and the arms ride it as the clip has them. Answers the
+ * skeleton composed again.
+ */
+function leanUnder(skeleton, pose, mats, body, frames, trunk, w, rootRef, skelMats) {
+  const yaw = (trunk.yaw ?? 0) * w, pitch = (trunk.pitch ?? 0) * w;
+  if (Math.abs(yaw) < 1e-5 && Math.abs(pitch) < 1e-5) return mats;
+  const Q = mul(rotAxisAngle([0, 0, 1], yaw), rotAxisAngle(frames.right, -pitch));
+  const shares = TRUNK_SHARE[body.trunk.length] ?? [];
+  const leant = new Map();
+  body.trunk.forEach((ref, i) => {
+    const node = skeleton.nodes.get(ref), R = turnOf(mats, ref);
+    if (!node || !R) return;
+    const Rn = mul(ref === body.chest ? Q : rotFraction(Q, shares[i] ?? 0.5), R);
+    const Rp = leant.get(node.parent) ?? (node.parent != null && skeleton.nodes.has(node.parent) ? turnOf(mats, node.parent) : null);
+    const local = pose.get(ref) ?? node.rest;
+    pose.set(ref, { rotation: orthonormal(Rp ? mul(transpose(Rp), Rn) : Rn), translation: local.translation, scale: local.scale });
+    leant.set(ref, Rn);
+  });
+  // the head keeps where it looked: squared or leant, the trunk carried it round with the neck (the owner's screenshots,
+  // 2026-10-29: "why does the head look off to the side" - the guard clip's head faced ahead over a chest turned 40 degrees)
+  const head = body.bones.head, hn = head == null ? null : skeleton.nodes.get(head);
+  const Rc0 = turnOf(mats, body.chest), Rc1 = leant.get(body.chest);
+  if (hn && Rc0 && Rc1 && hn.parent != null && !leant.has(head)) {
+    const Wh = turnOf(mats, head), Wp = leant.get(hn.parent) ?? (turnOf(mats, hn.parent) && mul(mul(Rc1, transpose(Rc0)), turnOf(mats, hn.parent)));
+    const local = pose.get(head) ?? hn.rest;
+    if (Wh && Wp) pose.set(head, { rotation: orthonormal(mul(transpose(Wp), Wh)), translation: local.translation, scale: local.scale });
+  }
+  return skelMats(skeleton, pose, rootRef);
+}
+
+/** GRIP-ANATOMY: each collarbone turned `k` of the way to how it stands at rest on its parent (the chest), and the arm
+ *  under it to a hanging arm - the upper arm at rest on the collarbone, swung down along the chest's side, the forearm
+ *  straight on it - so the arms' reach starts every frame from the same arm, not the clip's (the owner, 2026-10-29: walking,
+ *  the right arm rocked clockwise and back - the reach takes the least turn from the clip's swinging arm, and the
+ *  upper arm's roll about itself rode the swing). Answers the skeleton composed again. */
+function holdCollars(skeleton, pose, mats, body, k, rootRef, skelMats) {
+  const f = bodyFrames(body, mats);
+  if (!f) return mats;
+  let moved = false;
+  const set = (ref, Rp, Rt) => {
+    const node = skeleton.nodes.get(ref), local = pose.get(ref) ?? node.rest;
+    pose.set(ref, { rotation: orthonormal(mul(transpose(Rp), Rt)), translation: local.translation, scale: local.scale });
+  };
+  /** A bone at rest on its parent standing at `Rp` (rig). */
+  const onRest = (ref, parent, Rp) => mul(Rp, mul(transpose(restRotOf(skeleton, body, parent)), restRotOf(skeleton, body, ref)));
+  for (const side of ['L', 'R']) {
+    const B = body.bones[side], ref = B?.clavicle, node = ref == null ? null : skeleton.nodes.get(ref);
+    if (!node || node.parent == null || B.upper == null || B.fore == null) continue;
+    if (!restRotOf(skeleton, body, ref) || !restRotOf(skeleton, body, node.parent)) continue;
+    const Rp = turnOf(mats, node.parent), Rc = turnOf(mats, ref), Ru = turnOf(mats, B.upper), Rf = turnOf(mats, B.fore);
+    if (!Rp || !Rc || !Ru || !Rf) continue;
+    const kk = clamp01(k);
+    const Rc1 = toward(Rc, onRest(ref, node.parent, Rp), kk);
+    set(ref, Rp, Rc1);
+    // the rest's arm (out to the side) swung down 80 degrees about the chest's forward
+    const Ru1 = toward(Ru, mul(rotAxisAngle(f.fwd, (side === 'R' ? 80 : -80) * RAD), onRest(B.upper, ref, Rc1)), kk);
+    set(B.upper, Rc1, Ru1);
+    set(B.fore, Ru1, toward(Rf, onRest(B.fore, B.upper, Ru1), kk));
+    moved = true;
+  }
+  return moved ? skelMats(skeleton, pose, rootRef) : mats;
 }
 
 /** Move bone `ref`'s joint, and everything under it, by the rig-space vector `dv`: its local translation, and every

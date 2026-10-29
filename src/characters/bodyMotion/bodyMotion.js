@@ -25,7 +25,7 @@ import { getPref } from '../../systems/uiPrefs.js';
 import { algebra, ease, clamp01, smooth, RAD, bodyOf, bodyKindOf, reflect } from './bodyKit.js';
 import { rotAxisAngle } from '../../combat/climbRig.js';
 import { createGaitState, stepGait, gaitPose, TURN } from './gait.js';
-import { carryClassOf, carryHands, CARRY, TWO_HAND_GRIP, TWO_HAND_HAFT, armByAngles, mirrorRequest, hafHand, blendHand, gaitShares, turnAbout } from './carry.js';
+import { carryClassOf, carryHands, CARRY, TWO_HAND_GRIP, TWO_HAND_HAFT, armByAngles, mirrorRequest, hafHand, blendHand, gaitShares, turnAbout, trunkOf } from './carry.js';
 import { meleeFamilyOf, blowName, blowU, blowPose, windFor } from './melee.js';
 import { solveBody, gripRequest } from './bodySolve.js';
 
@@ -33,8 +33,10 @@ const { add, scale, sub, cross, norm, len, lerp } = algebra;
 
 /** THE EASES (seconds): the layer on and off (off quicker - a recoil or a death takes the body at once), the arms on and
  *  off (a draw, a cast, a torch lit), and a change of carry class (a weapon drawn, a pair raised); `carry` (radians a
- *  second) the critically damped spring the carry's gait shares follow the gait's on (AUDIT BODY-MOTION CARRY-6). */
-export const MOTION_EASE = Object.freeze({ in: 0.14, out: 0.1, outFast: 0.05, armIn: 0.12, armOut: 0.07, cls: 0.14, carry: 14, sneak: 0.6, blowReturn: 0.5 });
+ *  second) the critically damped spring the carry's gait shares follow the gait's on (AUDIT BODY-MOTION CARRY-6);
+ *  `carryRun` the run's share's own, slower: a run's carry stands furthest from the guard (a two-hander's blade turns
+ *  some 140 degrees between them), and at `carry` a stop turned it 14 to 29 degrees a frame (RUN-STOP, 2026-10-29). */
+export const MOTION_EASE = Object.freeze({ in: 0.14, out: 0.1, outFast: 0.05, armIn: 0.12, armOut: 0.07, cls: 0.14, carry: 14, carryRun: 7, sneak: 0.6, blowReturn: 0.5, blowEntry: 0.12 });
 
 /** The blade's length (MW units) each class draws on the contact sheets - the sheet's alone; the rig draws the mesh. */
 const SHEET_BLADE = Object.freeze({ one: 58, two: 88, wide: 112, spear: 120, dual: 54 });
@@ -116,6 +118,9 @@ export function createBodyMotion() {
   const armW = { L: 0, R: 0 };
   let sneakHand = false;   // SNEAK-GUARD: the one-hander's arm handed to the sneak clip, or on its way back from it
   let sinceBlow = Infinity;   // BLOW-RETURN: seconds since the clip last had a blow (the layer steps aside for one)
+  let blowAge = 0;   // BLOW-ENTRY: seconds the blow now in the machine has run (the layer steps aside over the first of them)
+  let entryBack = 1;   // BLOW-ENTRY: BLOW-RETURN's share when that blow came - the carry the entry lets go of
+  const backOf = (since) => (Number.isFinite(since) ? smooth(since / MOTION_EASE.blowReturn) : 1);
   let cls = 'free', clsFrom = null, clsMix = 1;
   // THE CARRY'S OWN GAIT SHARES: the gait's (idle, walk, run, sneak) followed by a critically damped spring - the gait's
   // first-order eases start a change at full speed, and the arms with them (AUDIT BODY-MOTION CARRY-6: a run's carry
@@ -153,6 +158,16 @@ export function createBodyMotion() {
       st.feet[lead] = [st.feet[lead][0], st.feet[lead][1] + bp.step * bp.wind * bp.w];
     }
     return st;
+  }
+  /** GRIP-ANATOMY: the trunk leant under the carry's weapon (carry.js trunkOf), eased from the class it leaves, as far as
+   *  the carry has both arms - or null. */
+  function trunkNow() {
+    if (!shares.x) return null;
+    const b = trunkOf(cls, shares.x), a = clsFrom && clsMix < 1 ? trunkOf(clsFrom, shares.x) : b, t = clsFrom ? clsMix : 1;
+    const k = Math.min(armW.L, armW.R);
+    const yaw = lerp(a.yaw, b.yaw, t) * k, pitch = lerp(a.pitch, b.pitch, t) * k, square = lerp(a.square, b.square, t) * k;
+    const collar = lerp(a.collar, b.collar, t) * k;
+    return yaw || pitch || square || collar ? { yaw, pitch, square, collar } : null;
   }
   /** The blow the machine is in, as the choreography reads it - or null. */
   const blowNow = (from = null) => {
@@ -243,12 +258,18 @@ export function createBodyMotion() {
           let sum = 0;
           for (const g of ['idle', 'walk', 'run', 'sneak']) {
             // the spring's exact step - stable at any frame time
-            const d0 = shares.x[g] - target[g], v0 = shares.v[g], e = Math.exp(-MOTION_EASE.carry * dt), j = v0 + MOTION_EASE.carry * d0;
+            const om = g === 'run' ? MOTION_EASE.carryRun : MOTION_EASE.carry;
+            const d0 = shares.x[g] - target[g], v0 = shares.v[g], e = Math.exp(-om * dt), j = v0 + om * d0;
             shares.x[g] = Math.max(0, target[g] + (d0 + j * dt) * e);
-            shares.v[g] = (v0 - MOTION_EASE.carry * j * dt) * e;
-            sum += shares.x[g];
+            shares.v[g] = (v0 - om * j * dt) * e;
+            if (g !== 'run') sum += shares.x[g];
           }
-          if (sum > 0) for (const g of ['idle', 'walk', 'run', 'sneak']) shares.x[g] /= sum;
+          // RUN-STOP: the run's share is its own spring's; the others share what it leaves (normalised all together, the
+          // guard's quick rise took the run's share down at the quick spring's pace)
+          const run = Math.min(1, shares.x.run);
+          shares.x.run = run;
+          if (sum > 0) for (const g of ['idle', 'walk', 'sneak']) shares.x[g] *= (1 - run) / sum;
+          else if (run < 1) shares.x.idle = 1 - run;
         }
       }
       // a blow the machine drops part-way (an interrupt, a stagger, a sheathe) is let go of over the layer's own ease out,
@@ -274,7 +295,9 @@ export function createBodyMotion() {
       else if (lastBlow && lastBlow.w > 1e-3) lastBlow = { ...lastBlow, w: ease(lastBlow.w, 0, MOTION_EASE.out, dt) };
       else lastBlow = null;
       bpNow = seen ?? lastBlow;
+      if (bpNow && !(blowAge > 0)) entryBack = backOf(sinceBlow);   // BLOW-ENTRY: the carry as it stood when the blow came
       sinceBlow = bpNow ? 0 : sinceBlow + Math.max(0, dt);   // BLOW-RETURN
+      blowAge = bpNow ? blowAge + Math.max(0, dt) : 0;   // BLOW-ENTRY
       stance = stanceNow(bpNow);
       stepTime = bpNow && bpNow.step > 0 && bpNow.w > 0.05 ? TURN.quick : null;
       if (input.on && body) stepGait(gait, gaitInput(), body, dt);
@@ -294,17 +317,24 @@ export function createBodyMotion() {
       // strike. The upstream overlay is only applied to weapon carry between attacks.
       // Even a small chest turn during a strike shifts the weapon's animated arc, so
       // leave the complete attack pose untouched from wind-up through follow-through.
-      if (cls === 'free' || bp) { last = null; return null; }
+      // BLOW-ENTRY (2026-10-28, Motion-Doctrine.md 7c, measured in the owner's game): stepped aside in the blow's first
+      // frame, the carry's hands left the clip's in one - a claymore's blade leapt 0.38 m on the second frame of every blow;
+      // the layer now lets go over MOTION_EASE.blowEntry, as BLOW-RETURN takes it back over blowReturn
+      const entry = bp ? 1 - smooth(blowAge / MOTION_EASE.blowEntry) : 1;
+      if (cls === 'free' || !(entry > 1e-3)) { last = null; return null; }
 
       const gp = gaitPose(gait, gi, body);
       // BLOW-RETURN (Mac: "after the blow the two-hander stays raised and goes back to neutral instantly"): the layer comes
       // back over the clip's return as slowly as the clip does (combat/blowFlow.js BLOW_FLOW.exit) - stepped aside for the
       // whole blow, it took the carry's hands back the frame the blow ended
-      const back = Number.isFinite(sinceBlow) ? smooth(sinceBlow / MOTION_EASE.blowReturn) : 1;
+      // - and through a blow's entry the carry it had when the blow came (BLOW-ENTRY: sinceBlow is 0 in a blow, so its
+      // own return read 0 there and the carry still left in one frame, the entry's ease multiplying nothing)
+      const back = bp ? entryBack : backOf(sinceBlow);
       const plan = {
-        w: w * back,
+        w: w * back * entry,
         armW: { L: armW.L, R: armW.R },
         arms: (ctx) => handsFor(ctx, gp, null, null),
+        trunk: trunkNow(),
       };
       const report = solveBody(skeleton, pose, rootRef, skelMats, plan);
       last = { gp, bp, report };
@@ -313,6 +343,8 @@ export function createBodyMotion() {
     hands: handsFor,
     /** poseAssembly's `motion` slot (formats/morrowind/mwFirstPerson.js): the request laid on this frame's skeleton. */
     slot: (skeleton, pose, rootRef, skelMats) => motion.apply(skeleton, pose, rootRef, skelMats),
+    /** The word this frame was stepped with (BLOW-LEGS reads its blow, bodyWeight.js). */
+    word: () => input,
     /** The layer's weight now (0 the clip's body, 1 the motion's). */
     weight: () => w,
     /** The gait's stride phase (0..1), its weight and the hips' turn off the facing (radians, as last posed, by the

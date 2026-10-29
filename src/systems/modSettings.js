@@ -1699,6 +1699,11 @@ export const MOD_SETTINGS = Object.freeze({
         options: lazyWords('Vanilla', 'Smooth · 0.16 s', 'Smooth · 0.25 s', 'Smooth · 0.40 s'),
         description: 'Browser-native port of Animation Blending for third-person character rigs. Smooths transitions between supported clips; Vanilla disables the cross-fade. The original MWSE Lua script and its per-animation YAML rules are not executable in this browser port, and first-person animation is unchanged.',
       }),
+      MotionDoctrine: Object.freeze({
+        default: 1,
+        options: lazyWords('Как сейчас', 'По формуле'),
+        description: 'По формуле: the legs keep the stride under a blow, the transitions and loops run without jumps, the elbows stay out of the body, armoured two-handed swords carry starts, stops and moving blows through the trunk, the first-person hands dip on a landing without added camera sway, and a landed blow holds for a short beat with a soft shake. Как сейчас keeps the clips as they are.',
+      }),
       FirstPersonSource: Object.freeze({
         default: 1,
         options: lazyWords('Vanilla', 'ReAnimation v3 · 1-е лицо', 'OpenMW Dynamic Animations · 1-е лицо', 'ReAnimation v3 + OpenMW Dynamic Animations · 1-е лицо'),

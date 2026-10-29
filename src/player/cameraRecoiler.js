@@ -27,6 +27,7 @@
 // have no fixed Update order either.
 
 import { getInt } from '../systems/settings/settings.js';
+import { hitResponse } from '../combat/hitResponse.js';   // HIT-RESPONSE: a landed blow's soft shake, beside the reel
 
 /** CameraRecoiler.cs:33. */
 export const BASE_MAX_RECOIL_SEVERITY = 50;
@@ -75,7 +76,11 @@ export class CameraRecoiler {
     cam.pitch += this.applied[0] * DEG;
     cam.yaw -= this.applied[1] * DEG;
     this.applied = [0, 0];
-    if (setting === 0 || paused) return false;
+    // HIT-RESPONSE (combat/hitResponse.js, MOTION-DOCTRINE - the port's own, beside CameraRecoiler.cs): a landed blow's
+    // soft shake, laid and taken back as the reel is; DFU's recoil setting is not its switch (the doctrine's is)
+    const hs = paused ? [0, 0] : hitResponse.shake(dt);
+    if (hs[0] || hs[1]) { cam.pitch -= hs[0] * DEG; cam.yaw += hs[1] * DEG; this.applied = [hs[0], hs[1]]; }
+    if (setting === 0 || paused) return !!(hs[0] || hs[1]);
     if (healthLost > 0 && healthLostPercent > MIN_PERCENT_THRESHOLD) {
       this.swaying = true;
       this.timerStart = recoilTimerStart(healthLostPercent);
@@ -83,14 +88,14 @@ export class CameraRecoiler {
       const a = rolls() * 2 * Math.PI;   // insideUnitCircle.normalized
       this.swayAxis = [Math.cos(a), Math.sin(a)];
     }
-    if (!this.swaying) return false;
+    if (!this.swaying) return !!(hs[0] || hs[1]);
     this.timer -= dt * TIMER_SPEED;
     const scalar = recoilRotationScalar(setting, healthLost, this.timer, this.timerStart);
     const xAngle = Math.sin(this.timer) * scalar * this.swayAxis[0];
     const yAngle = Math.sin(this.timer) * scalar * this.swayAxis[1];
     cam.pitch -= xAngle * DEG;   // Rotate(+x) pitches DOWN in Unity's frame; the port's +pitch looks up
     cam.yaw += yAngle * DEG;     // Rotate(+y) turns right, as the port's +yaw does
-    this.applied = [xAngle, yAngle];
+    this.applied = [this.applied[0] + xAngle, this.applied[1] + yAngle];   // HIT-RESPONSE: beside the shake laid above
     this.swaying = this.timer > 0;
     return true;
   }

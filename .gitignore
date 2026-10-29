@@ -139,3 +139,6 @@ src/assets/mw/meshes/skyrim_steel_battleaxe.nif
 src/assets/mw/textures/skyrim_steel_battleaxe.dds
 
 src/assets/mw/looks/skyrim_steel_battleaxe.png
+
+# PROVING-GROUND: local profiles, settings and generated captures.
+.proving-ground/

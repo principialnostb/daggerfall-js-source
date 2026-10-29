@@ -232,7 +232,7 @@ export const CATEGORIES = Object.freeze([
       "group:death", "label:death", "info:player-death", "info:npc-death",
     ]),
     sec("third-person", "Источники анимаций (3-е лицо)", [
-      "feat:morrowind-animation-overhaul", "feat:morrowind-animation-blending",
+      "feat:morrowind-animation-overhaul", "feat:morrowind-animation-blending", "feat:morrowind-motion-doctrine",
       "feat:morrowind-openmw-dynamic-animations",
     ]),
     sec("first-person", "Анимации от первого лица", [
@@ -243,6 +243,9 @@ export const CATEGORIES = Object.freeze([
     sec("morrowind-bodies", "Модели тел и экипировка", [
       "feat:mw-better-bodies", "feat:mw-first-person-hands", "feat:mw-seamless-dmra", "feat:mw-npc-bodies", "feat:mw-billboard-look",
       "feat:simply-animated-cloaks", "feat:steel-helm",
+    ]),
+    sec("pixelation", "Пикселизация", [
+      "feat:char-pixel-fp", "feat:char-pixel-player", "feat:char-pixel-npc",
     ]),
     sec("pixelation", "Пикселизация", [
       "feat:char-pixel-fp", "feat:char-pixel-player", "feat:char-pixel-npc",
