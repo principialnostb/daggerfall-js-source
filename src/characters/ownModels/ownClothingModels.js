@@ -1,3 +1,4 @@
+import { wolfCloakModel } from './wolfCloak.js';
 // THE CLOTHING MORROWIND DOES NOT HAVE.
 //
 // MW-CLOAK1 (2026-10-09, Mac: "2. The new cloak and its textures. Note: The new cloak will need bones to animate with
@@ -48,8 +49,10 @@ export const isSimplyCloakModel = (model) => Object.values(SIMPLY_CLOAK_MODEL_BY
 /** The cloak a worn garment wears - `{ id, model, painting }` - or null for every garment that is not a cloak.
  *  A dye out of range wears Daggerfall's own default (Blue). Pass style="simply-animated" to use the ported
  *  OpenMW mod meshes; classic remains the default so existing saves and the tested rigid-cloak fit do not change. */
-export function ownCloakFor(piece, { style = 'classic' } = {}) {
+export function ownCloakFor(piece, { style = 'classic', look = 'classic' } = {}) {
   if (!piece || piece.kind !== 'clothing' || !CLOAK_NAMES.includes(piece.name)) return null;
+  const wolf = wolfCloakModel(look);
+  if (wolf) return Object.freeze({ id: 'wolf_pelt_cloak', model: wolf, painting: look });
   const painting = CLOAK_DYE_PAINTING[piece.dye | 0] ?? CLOAK_DYE_PAINTING[0];
   const model = style === 'simply-animated' ? simplyCloakModel(painting) : cloakModel(painting);
   return Object.freeze({ id: 'daggerfall_cloak', model, painting });

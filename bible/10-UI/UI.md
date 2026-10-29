@@ -57,7 +57,7 @@ ESCORTING FACES - the quest escorts' portrait column, FE1 - and the CREDITS TABL
 - and STARFALL's FACES (`starfall/starTracker.js`: a fallen star's plate - its name, its town, its coven, how it stands, its light and its deadline, made once and written only where it changed, in every skin; `starfall/starBar.js`: the master's bar on the gate's, its circle's two calls and its ward; `starfall/starMapMark.js`: the star's violet and its held gold, the one leaf every face reads; `11-Multiplayer/Starfall.md` section 8)
 - and the HUD's 2026-10-20 three (`hud/hudTip.js`: the HUD's hover card, the pack's own card; `hud/statusTips.js`: what a buff, a debuff, a need or a disease tile says under the pointer - STATUS-TIPS; `hud/hudAdvance.js`: the two tiles beside the Renown bar, the skills ready and the Firmament's stars not yet placed, clear of the hotbar - SKILL-READY, FIRM-STARS; `UI-Arc.md`)
 - and TRADE-VIRT's LANDING TILES (`enhanced/landingTiles.js`: a picture into the tile that waited on it, one pass a frame - the pack's, the shop counter's and the trade between players' one home; `07-Rendering/Performance-Priority.md` TRADE-VIRT);
-403 modules
+407 modules
 live under `src/ui/`. Items still routed here are
 collected in `01-Overview/Port-Ledger.md` section C; scope in
 `01-Overview/Port-Doctrine.md` phase plan.
@@ -107,3 +107,7 @@ on what has already shipped.
 AUDIT 18 rewrote this page: its opening paragraph declared the arc
 unstarted through the whole U arc. See the note on
 `06-Systems/Systems.md` for the pin that now holds both pages honest.
+
+## Local equipment inventory extension (2026-10-29)
+
+The cosmetic face picker, independent 2D/3D helmet selector and retained appearance card are described in [Equipment-Claude-Handoff](../../docs/Equipment-Claude-Handoff.md). Face art stays separate from gameplay identity; item art stays separate from the world model. The latest size/anchor refinements still need an in-game visual pass.

@@ -191,3 +191,7 @@ compose calls pass `looks`), `src/systems/lookVariants.js` (`mwArmorLooks`, `loo
 `test/systems/lookthumbs.test.js` (the looks and their pictures; the iron cuirass's open chest and no modesty shirt; the
 gauntlets' wrist and drawn forearm; the boots' ankle and drawn knee; the trousers showing; the skirt hiding the groin
 and thighs over them); `test/formats/morrowind/mwfit1.test.js` (the horned helm leaves the head).
+
+## Equipment worktree handoff (2026-10-29)
+
+The local fork adds cosmetic inventory faces, independent 2D helmet art, the accepted heavy wolf pelt and secondary motion, and a strict shield appearance catalogue. The complete handoff, local-asset reproduction paths and validation limits are in [Equipment-Claude-Handoff](../../docs/Equipment-Claude-Handoff.md). The generated Skyrim/Pelts meshes and textures remain local and ignored; the existing iron set import policy above is unchanged.

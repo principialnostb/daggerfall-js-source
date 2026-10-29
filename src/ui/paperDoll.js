@@ -38,6 +38,7 @@
 // identity and this file reloads on identity change - AUDIT 23).
 
 import { ImgFile } from '../formats/imgFile.js';
+import { helmetPaperdollVariant } from '../systems/helmetPaperdollLooks.js';
 import { getAppearanceIdentity } from '../characters/bodyMorphs.js';
 import { packImgTexture } from './packArt.js';   // OVH2: a worn UI pack's backdrop
 import { racialPaperDollBackground, racialOverrideHeadArt, racialSuppressPaperDollBodyAndItems } from '../systems/vampirism.js';   // V5: the curse art laws, both curses' one switch
@@ -131,7 +132,7 @@ export { clampArmorVariant };
 
 /** GetItemImage(forPaperDoll) resolution: {archive, record, dye,
  *  target} or null for groups with no paperdoll layer. */
-export function paperdollItemImage(item, { gender = 'male', race = 'Breton' } = {}) {
+export function paperdollItemImage(item, { gender = 'male', race = 'Breton' } = {}, { helmetVariant = helmetPaperdollVariant(item) } = {}) {
   const morph = raceByKey(race)?.morphologyIndex ?? HUMAN_MORPHOLOGY;
   const t = getTemplate(item.templateIndex);
   if (!t) return null;
@@ -160,7 +161,7 @@ export function paperdollItemImage(item, { gender = 'male', race = 'Breton' } = 
     const archive = armorArchive(gender, morph);
     const m = item.material ?? 0;
     let record = t.playerTextureRecord;
-    if (variants > 0) record += clampArmorVariant(item.templateIndex, m, item.variant ?? 0);
+    if (variants > 0) record += clampArmorVariant(item.templateIndex, m, helmetVariant ?? item.variant ?? 0);
     const dye = m >= ARMOR_MATERIAL.Iron ? MATERIAL_DYES[m - ARMOR_MATERIAL.Iron] ?? DYE_COLORS.Unchanged : DYE_COLORS.Unchanged;
     return { archive, record, dye, target: DYE_TARGETS.WeaponsAndArmor };
   }
@@ -823,6 +824,15 @@ export async function composePaperDollPixels(deps, entity, { context = 'town', b
     const { out } = await composeDoll(art, { ...deps, gender: ident.gender, race: ident.race }, entity, { background });
     return { width: PAPERDOLL_W, height: PAPERDOLL_H, rgba: out };
   } catch { return null; }
+}
+
+/** A separate composite for the inventory card; never changes the live doll or peer art. */
+export async function composeInventoryDollPixels(entity, identity) {
+  if (!_deps) return null;
+  const art = await loadArtSet(_deps, identity);
+  const density = composeScale();
+  const { out, width, height } = await composeDoll(art, { ..._deps, race: identity.race, gender: identity.gender }, entity, { scale: density });
+  return { width, height, rgba: out, density };
 }
 
 /** Test seam. */

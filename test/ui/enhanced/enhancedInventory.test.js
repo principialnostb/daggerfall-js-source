@@ -887,7 +887,7 @@ test('U59: the doll is the COMPOSITOR\'s, and the schematic is the fallback', ()
   // one compositor: the pane reads finished pixels and never blits
   assert.match(src, /paperDollPixels\(\)/);
   assert.doesNotMatch(src, /\bblit\(/, 'and it still never blits');
-  assert.match(src, /paperDollDataUrl\(paperDollPixels\(\), \{ scale: 4 \}\)/);   // PX20a: 4x, for a cell twice the size
+  assert.match(src, /paperDollDataUrl\(inventoryDollPixels\(deps\.entity\) \?\? paperDollPixels\(\), \{ scale: 4 \}\)/);   // PX20a: 4x, for a cell twice the size
   const code2 = code('src/ui/enhanced/enhancedInventory.js');
   for (const law of ['BlitItems', 'applyDyeToIndex', 'paperdollOrder', 'PAPERDOLL_ORIGIN', 'BG_SUBRECT']) {
     assert.ok(!code2.includes(law), `a second paperdoll compositor is growing here (${law})`);
@@ -899,7 +899,7 @@ test('U59: the doll is the COMPOSITOR\'s, and the schematic is the fallback', ()
   const fp = src.slice(src.indexOf('function equippedList()'), src.indexOf('function characterCol()'));
   // MW-D36: the model figure stands FIRST when a Morrowind body is
   // built; the compositor's doll is the fallback behind it, still at 4x.
-  assert.match(fp, /const dollUrl = figure \? null : paperDollDataUrl\(paperDollPixels\(\), \{ scale: 4 \}\);/);
+  assert.match(fp, /const dollUrl = figure \? null : paperDollDataUrl\(inventoryDollPixels\(deps\.entity\) \?\? paperDollPixels\(\), \{ scale: 4 \}\);/);
   assert.match(fp, /if \(dollUrl\)/, 'the doll must be OPTIONAL - tiles alone are the no-data answer');
   assert.match(fp, /wornmap/);
   // and the compositor is asked to recompose when the kit changes, or
@@ -925,7 +925,9 @@ test('PX20a: the doll owns the CENTRE COLUMN, and the map is wear-left, carry-ri
   const src = read('src/ui/enhanced/enhancedInventory.js');
   // Five rows a side, the doll spanning all five: a standing figure gets a portrait cell.
   assert.match(src, /const DOLL_AREA = '1 \/ 2 \/ span 5 \/ auto';/);
-  assert.match(src, /dollFrame\.style\.gridArea = DOLL_AREA;/);
+  assert.match(src, /dollColumn\.style\.gridArea = DOLL_AREA;/);
+  assert.match(src, /dollColumn\.append\(inventoryFacePicker/);
+  assert.match(src, /dollColumn\.append\(dollFrame\);/);
   const fams = src.slice(src.indexOf('const WORN_FAMILIES = Object.freeze(['), src.indexOf('const SHELF_GROUPS'));
   const left = [...fams.matchAll(/label: '([^']+)', area: '(\d) \/ 1'/g)].map((m) => [Number(m[2]), m[1]]);
   const right = [...fams.matchAll(/label: '([^']+)', area: '(\d) \/ 3'/g)].map((m) => [Number(m[2]), m[1]]);
@@ -956,7 +958,7 @@ test('PX20a/c: the sprite is unframed, 4x, and its cell is a PERFECT FIT', () =>
   assert.match(css, /\.pack-shell \.wornmap-doll\.hasart \{ aspect-ratio: 110 \/ 184;/);
   const src = read('src/ui/enhanced/enhancedInventory.js');
   assert.match(src, /wornmap-doll\$\{figure \|\| dollUrl \? ' hasart' : ' noart'\}/, 'and the class says which');
-  assert.match(src, /paperDollDataUrl\(paperDollPixels\(\), \{ scale: 4 \}\)/, '4x: a bigger cell wants more pixels, not a scaled 3x');
+  assert.match(src, /paperDollDataUrl\(inventoryDollPixels\(deps\.entity\) \?\? paperDollPixels\(\), \{ scale: 4 \}\)/, '4x: a bigger cell wants more pixels, not a scaled 3x');
   // 110x184 is the classic paperdoll's own size, not a number typed here.
   const pd = read('src/ui/paperDoll.js');
   assert.match(pd, /export const PAPERDOLL_W = 110;/);
@@ -1320,8 +1322,8 @@ test('PX29b: the doll is DFU\'s whole composite - the figure mask is REVERTED', 
   // TWO BUFFERS DESCRIBING ONE IMAGE MUST SWAP IN TOGETHER. The
   // composite's own law, which the mask broke by publishing early.
   assert.match(pd, /_pixels = \{ width: OW, height: OH, rgba: out, version: _version, density: OW \/ PAPERDOLL_W \};/);
-  // Both windows draw the same composite again.
-  assert.match(read('src/ui/enhanced/enhancedInventory.js'), /paperDollDataUrl\(paperDollPixels\(\), \{ scale: 4 \}\)/);
+  // Inventory may use its cosmetic face composite, retaining the shared full composite as fallback.
+  assert.match(read('src/ui/enhanced/enhancedInventory.js'), /paperDollDataUrl\(inventoryDollPixels\(deps\.entity\) \?\? paperDollPixels\(\), \{ scale: 4 \}\)/);
 });
 
 // ═══ PX22: Layer 1 - every region has its share, the list scrolls inside ═

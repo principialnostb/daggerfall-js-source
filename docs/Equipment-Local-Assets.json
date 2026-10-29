@@ -1,0 +1,355 @@
+{
+  "description": "Local ignored assets used by equipment; hashes identify the accepted copies, not distributable data. Rebuild commands are in Equipment-Claude-Handoff.md.",
+  "files": [
+    {
+      "path": "src/assets/mw/looks/iron_boot_right.png",
+      "bytes": 6185,
+      "sha256": "02cad0d1405ae4c38fd5d89ae66f2ebdb57024c634c894d1498c9c8c55045455"
+    },
+    {
+      "path": "src/assets/mw/looks/iron_cuirass.png",
+      "bytes": 7563,
+      "sha256": "d5424dec69fcbebc3240b607f504293958f096fae3898d017957986450a2ba9c"
+    },
+    {
+      "path": "src/assets/mw/looks/iron_gauntlet_right.png",
+      "bytes": 6060,
+      "sha256": "f9569c7f8ce2708fc3e1fbd64f391eb1d7b17de9761aab21e6cfc9cb447804b8"
+    },
+    {
+      "path": "src/assets/mw/looks/iron_greave_right.png",
+      "bytes": 8526,
+      "sha256": "ca54a99b04553d4bb2eb53c90e9943cd84e3e6f6748bf93b8cd196ab4fcb6929"
+    },
+    {
+      "path": "src/assets/mw/looks/iron_pauldron_left.png",
+      "bytes": 9775,
+      "sha256": "87046a334ab408e8d827ec0c31bdf7e44278c06d7752c8d277849c21d81d3130"
+    },
+    {
+      "path": "src/assets/mw/looks/iron_pauldron_right.png",
+      "bytes": 11460,
+      "sha256": "3a5ed1467eff330d3ee0014959fcd9fd72d8238be4cf92420440ae6dc7898190"
+    },
+    {
+      "path": "src/assets/mw/looks/shield_sky_banded_iron.png",
+      "bytes": 14261,
+      "sha256": "22e25428b3a1df39b7b8a6b911a6968af7d262ec1ede1f29d44584f1ad810e59"
+    },
+    {
+      "path": "src/assets/mw/looks/shield_sky_daedric.png",
+      "bytes": 5327,
+      "sha256": "3392e2e447420ee4c214c0fee1cde4d21cb7ab11aa3fea7eebe12259f433602c"
+    },
+    {
+      "path": "src/assets/mw/looks/shield_sky_dwarven.png",
+      "bytes": 11641,
+      "sha256": "de1c493433cf87ddad26079e01170d9f09dd351ec6acc92bf4a8bb8dd999be16"
+    },
+    {
+      "path": "src/assets/mw/looks/shield_sky_ebony.png",
+      "bytes": 8784,
+      "sha256": "d05a583eafee414d159fea48a30c51e99af9ec8008f5a18649e559cbd9872ef6"
+    },
+    {
+      "path": "src/assets/mw/looks/shield_sky_elven.png",
+      "bytes": 9582,
+      "sha256": "93997c420c4ad72c90cbd79cc0ccef7689732b7df563ce76fff0c4e8f3c9288a"
+    },
+    {
+      "path": "src/assets/mw/looks/shield_sky_hide.png",
+      "bytes": 15493,
+      "sha256": "f702f52bd85cc323bd5606bd6c404b253136cb7b9241e4e0d716be14fb20862a"
+    },
+    {
+      "path": "src/assets/mw/looks/shield_sky_iron.png",
+      "bytes": 15264,
+      "sha256": "69a2b3f8e484fa8220bc1de8b845d56de9ecf56d00b4db7234354542541afc20"
+    },
+    {
+      "path": "src/assets/mw/looks/shield_sky_steel.png",
+      "bytes": 15953,
+      "sha256": "7b78db50812066719d8da84ae969e72b08061d72bc259a0d92f1c0096fe47720"
+    },
+    {
+      "path": "src/assets/mw/looks/steel_plate_helm_horned.png",
+      "bytes": 12081,
+      "sha256": "00a140446489b2204bb0252de4bd67a17a7f442812c5f16210aec320f3213f03"
+    },
+    {
+      "path": "src/assets/mw/looks/wolf_pelt_black.png",
+      "bytes": 4709,
+      "sha256": "f6c9af9024f941008b2875c4943c1b2a5d7146372236bc61b879e6e70f110145"
+    },
+    {
+      "path": "src/assets/mw/looks/wolf_pelt_brown.png",
+      "bytes": 7003,
+      "sha256": "e92310a1ef3e48cecd5567d947aed5d231570a861aecc253910502183a5b2c39"
+    },
+    {
+      "path": "src/assets/mw/looks/wolf_pelt_grey.png",
+      "bytes": 9659,
+      "sha256": "88e0c90d983f8ebbd2064dac66abc199877575ad493a19d08d2075cb8ecb4162"
+    },
+    {
+      "path": "src/assets/mw/looks/wolf_pelt_white.png",
+      "bytes": 8663,
+      "sha256": "922106c75043c637be22354e85bf9affb68a227d79cf6ae8e26ccc7c25ce850f"
+    },
+    {
+      "path": "src/assets/mw/meshes/iron_boot_left.nif",
+      "bytes": 29484,
+      "sha256": "28a99fd401f693d72e09912db42a8d861a6ccc68295250a95b5733911ce0070c"
+    },
+    {
+      "path": "src/assets/mw/meshes/iron_boot_right.nif",
+      "bytes": 29592,
+      "sha256": "1045d671b7ebe2c9fc53c535d0326e548e848f8d13d4ee36db4ca1a4ed9e19ef"
+    },
+    {
+      "path": "src/assets/mw/meshes/iron_cuirass.nif",
+      "bytes": 120714,
+      "sha256": "d0ccf5840c4888243af551c6715ca1e17a21a4088319d6674d54f3aed71f6117"
+    },
+    {
+      "path": "src/assets/mw/meshes/iron_gauntlet_left.nif",
+      "bytes": 54769,
+      "sha256": "c65e94d003666b366ce261d226f6f2abaf8376a4d2d3531d8618173f2b934d4d"
+    },
+    {
+      "path": "src/assets/mw/meshes/iron_gauntlet_right.nif",
+      "bytes": 54951,
+      "sha256": "ba7ebc1513fe51f3d3f1a044fb7175f60293eeaffbb7f4f284a2a8c4b773f5e3"
+    },
+    {
+      "path": "src/assets/mw/meshes/iron_greave_left.nif",
+      "bytes": 6952,
+      "sha256": "437b8158568b92731c9bffcdac7f2c99008bcf557510ee2a7479ac4b49863bf6"
+    },
+    {
+      "path": "src/assets/mw/meshes/iron_greave_right.nif",
+      "bytes": 7246,
+      "sha256": "76ed5a191ff67e9f47a385fa74e5b8f7d82698866b9c83e01cdcc7de1f0718b7"
+    },
+    {
+      "path": "src/assets/mw/meshes/iron_pauldron_left.nif",
+      "bytes": 20907,
+      "sha256": "fe3a5a2ff9c2edfe99ae674eaab6d209d1fec9256c9582289de1535e11af4714"
+    },
+    {
+      "path": "src/assets/mw/meshes/iron_pauldron_right.nif",
+      "bytes": 15635,
+      "sha256": "22852e8479ea5756d663e2b0a6191056fbd2761c7674282c44c89fa07c1c57f7"
+    },
+    {
+      "path": "src/assets/mw/meshes/iron_skirt.nif",
+      "bytes": 75804,
+      "sha256": "6fe96547d7b25dec5d4e4aa2679c206ff21820d31ec484ea50942883455df4a1"
+    },
+    {
+      "path": "src/assets/mw/meshes/shield_sky_banded_iron.nif",
+      "bytes": 23883,
+      "sha256": "63d57d4036e8b7dd2c696f15e15a001358b9b75d08bb5ad32b0c89df90c61a05"
+    },
+    {
+      "path": "src/assets/mw/meshes/shield_sky_daedric.nif",
+      "bytes": 38183,
+      "sha256": "b158a5d8627d3c4fc6fbcb40738ec0a7e3ee0028714e780abb26b3deac3ca3c3"
+    },
+    {
+      "path": "src/assets/mw/meshes/shield_sky_dwarven.nif",
+      "bytes": 46553,
+      "sha256": "4ede97e40f86952d21004fbd2e9f146e8f881d4ce4ab18e0b70d2350d1e36700"
+    },
+    {
+      "path": "src/assets/mw/meshes/shield_sky_ebony.nif",
+      "bytes": 40495,
+      "sha256": "0ece22129ba6943092bb0c43364d6a8873a3ed0618ec4cef421ca07054bc6190"
+    },
+    {
+      "path": "src/assets/mw/meshes/shield_sky_elven.nif",
+      "bytes": 36541,
+      "sha256": "d27f1f9e5600f8a932e907db7d5c3799b36a1919aa4dd5b3f938d8a866f9412c"
+    },
+    {
+      "path": "src/assets/mw/meshes/shield_sky_hide.nif",
+      "bytes": 29508,
+      "sha256": "86577b0d86dcea693c23ae2f84f403bc1b9ef01a77a3d761a90ccac6260416b7"
+    },
+    {
+      "path": "src/assets/mw/meshes/shield_sky_iron.nif",
+      "bytes": 25492,
+      "sha256": "a6c44d5eff75d27208e833ffe533df6e5927e8f1ae505a688427cdbad1614af4"
+    },
+    {
+      "path": "src/assets/mw/meshes/shield_sky_steel.nif",
+      "bytes": 30339,
+      "sha256": "24ebdd38c9b87330527cf8aae8c62eed90a6aacae9f3f6e82a9ea2aaa8e3a231"
+    },
+    {
+      "path": "src/assets/mw/meshes/steel_plate_helm_horned.nif",
+      "bytes": 38053,
+      "sha256": "603217d46b01692a8642de4ee852cb98cdb14254177efd1d03bb653cc8879456"
+    },
+    {
+      "path": "src/assets/mw/meshes/wolf_pelt_black.nif",
+      "bytes": 237087,
+      "sha256": "0f4b3dd9ad1fc72182a1d2492733d566ba515a9a9cd9e978d398e3b991f5330f"
+    },
+    {
+      "path": "src/assets/mw/meshes/wolf_pelt_brown.nif",
+      "bytes": 237087,
+      "sha256": "d4fdf53c96aaf8136cbdddf213737aab87a05a83ada4b26874d6c56095476933"
+    },
+    {
+      "path": "src/assets/mw/meshes/wolf_pelt_grey.nif",
+      "bytes": 977997,
+      "sha256": "53799653cc4223131fb0628789c73929a5900d8084a6f7cd6ccce33582604a02"
+    },
+    {
+      "path": "src/assets/mw/meshes/wolf_pelt_white.nif",
+      "bytes": 237087,
+      "sha256": "a490eda410903cb3148ab9f985465f85c15e051e8ad5533bd509f122670c2b4a"
+    },
+    {
+      "path": "src/assets/mw/textures/iron_boots.dds",
+      "bytes": 87508,
+      "sha256": "df282e62c92286adb35e26e4805bec0720068d81e3fc70a0e9d20db50c027b12"
+    },
+    {
+      "path": "src/assets/mw/textures/iron_cuirass.dds",
+      "bytes": 349652,
+      "sha256": "27e775226f35da27453f22d2a51346de7c2b01b1e53db27fb7011ce9a2786195"
+    },
+    {
+      "path": "src/assets/mw/textures/iron_gauntlets.dds",
+      "bytes": 349652,
+      "sha256": "2833e741cdd474801ba9b8c550ae5fae4fd12cb5b6683b1589285f0526049748"
+    },
+    {
+      "path": "src/assets/mw/textures/shield_sky_banded_iron_0.dds",
+      "bytes": 349652,
+      "sha256": "c2e6a4c4627697e489051a64f87e769bddba0f8dc58006c8bc8c3e3294bad67a"
+    },
+    {
+      "path": "src/assets/mw/textures/shield_sky_daedric_0.dds",
+      "bytes": 349652,
+      "sha256": "5de03762dc011c229e1e81f94f506432d13dde76587eee7a655675074709a7d8"
+    },
+    {
+      "path": "src/assets/mw/textures/shield_sky_dwarven_0.dds",
+      "bytes": 349652,
+      "sha256": "14171c8eff705f99b7d3c1a42eed6a27259e52ecba8a6160dca2c2237b76951e"
+    },
+    {
+      "path": "src/assets/mw/textures/shield_sky_ebony_0.dds",
+      "bytes": 349652,
+      "sha256": "4795222ed69ff80e27fb5c60a0f0518ad0cf8a29d3441e70d2011d818eafd541"
+    },
+    {
+      "path": "src/assets/mw/textures/shield_sky_elven_0.dds",
+      "bytes": 349652,
+      "sha256": "35acaad98b2828143198549e8ff11139fbdc6c13c99159ec62ef83d412e6712d"
+    },
+    {
+      "path": "src/assets/mw/textures/shield_sky_hide_0.dds",
+      "bytes": 349652,
+      "sha256": "09d3f316a68b9cab401f2e39ad2a5976ded015d6321ce64738b872eeb3ed361d"
+    },
+    {
+      "path": "src/assets/mw/textures/shield_sky_iron_0.dds",
+      "bytes": 349652,
+      "sha256": "6cbe94d6c54f82ec7c45dd39acfaab844a6d6ed2b4c74a33f3802f5c1aeda5e0"
+    },
+    {
+      "path": "src/assets/mw/textures/shield_sky_steel_0.dds",
+      "bytes": 349652,
+      "sha256": "a1f501fa2122a20ee0be7a0cb149f1bdf755cbba207657f430d80afe077f05a7"
+    },
+    {
+      "path": "src/assets/mw/textures/steel_plate_helm_horned.dds",
+      "bytes": 87508,
+      "sha256": "4395539f16365be533ef1678cc4fcd72d7adccc9e9d65518fb0a146776692898"
+    },
+    {
+      "path": "src/assets/mw/textures/wolf_pelt_black_cards.dds",
+      "bytes": 1398228,
+      "sha256": "0e115282c95844c40d3e28c3165e6dc536d579ef5c6c5fe8a81ecd69d78799fb"
+    },
+    {
+      "path": "src/assets/mw/textures/wolf_pelt_black_clumps.dds",
+      "bytes": 1398228,
+      "sha256": "332e3812006a22c099a0cfd2a855d0c179262c558182d23d9ad4a525e85ccb4a"
+    },
+    {
+      "path": "src/assets/mw/textures/wolf_pelt_black_collar.dds",
+      "bytes": 1398228,
+      "sha256": "2f51d4496da1ff08752f96800c52832ca43aa23d5597e7ba3febc3aa54481796"
+    },
+    {
+      "path": "src/assets/mw/textures/wolf_pelt_black_fur.dds",
+      "bytes": 1398228,
+      "sha256": "8c1bac651b6533c258d4aab06479baf4da937cacddb9c793a390a8c7e7b0780b"
+    },
+    {
+      "path": "src/assets/mw/textures/wolf_pelt_black_hide.dds",
+      "bytes": 1398228,
+      "sha256": "be9383bd1c2427fdff63713dcbcc08ac4c7a0f96e75efcd676254c9f49290a57"
+    },
+    {
+      "path": "src/assets/mw/textures/wolf_pelt_brown_cards.dds",
+      "bytes": 1398228,
+      "sha256": "9336d504366dcd0beb631aa255af57f5ddf9b2d2e6e38fb4f8346e388424901b"
+    },
+    {
+      "path": "src/assets/mw/textures/wolf_pelt_brown_clumps.dds",
+      "bytes": 1398228,
+      "sha256": "3145dc69fa60e362d055e1266e908870cc687f068b54b0e564328f1af7414446"
+    },
+    {
+      "path": "src/assets/mw/textures/wolf_pelt_brown_hide.dds",
+      "bytes": 1398228,
+      "sha256": "8ddd5a318cf485b3554e99e928ed3c95adc5f7cab5608d62b54b9361c0d29861"
+    },
+    {
+      "path": "src/assets/mw/textures/wolf_pelt_grey_collar.dds",
+      "bytes": 1398228,
+      "sha256": "ab41894d0d561a02495bfc090d9d621195dd95a3e407bea39f691f690fe20a2e"
+    },
+    {
+      "path": "src/assets/mw/textures/wolf_pelt_grey_fur.dds",
+      "bytes": 1398228,
+      "sha256": "2812c1ad7726ac35f1d2e4aa58b8170359084298e8d34b887e5e24715bfc9ce8"
+    },
+    {
+      "path": "src/assets/mw/textures/wolf_pelt_grey_hide.dds",
+      "bytes": 1398228,
+      "sha256": "581df48bb1ce5f61d170dbf3850e53713dbd1f9db40242c136234cf51abc9dd1"
+    },
+    {
+      "path": "src/assets/mw/textures/wolf_pelt_white_cards.dds",
+      "bytes": 1398228,
+      "sha256": "0d403c1af05c3023933500a278cf2c5cd603ad57fd5e142cfb71d0d858dbc104"
+    },
+    {
+      "path": "src/assets/mw/textures/wolf_pelt_white_clumps.dds",
+      "bytes": 1398228,
+      "sha256": "3826d05c93b27618ba99a6554c3b31c8fa7ed6c5a98f978bcbf2098fd245f5f2"
+    },
+    {
+      "path": "src/assets/mw/textures/wolf_pelt_white_collar.dds",
+      "bytes": 1398228,
+      "sha256": "8b9879cca7eb0e2bb7c81136ee63eec8c538b43edaaf734a5ebeed0ada915d3c"
+    },
+    {
+      "path": "src/assets/mw/textures/wolf_pelt_white_fur.dds",
+      "bytes": 1398228,
+      "sha256": "240a997e0bbff74b03661d9410e1f043ea60b091cc97d56ade56bafaffe362a6"
+    },
+    {
+      "path": "src/assets/mw/textures/wolf_pelt_white_hide.dds",
+      "bytes": 1398228,
+      "sha256": "84a8959cae445ff6e50221def39e5429a0296822d5c78350077b0f343ee802e6"
+    }
+  ]
+}

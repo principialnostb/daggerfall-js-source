@@ -1,3 +1,4 @@
+import { CLOAK_TEMPLATES, WOLF_CLOAK_LOOKS, CLOAK_LOOKS_PREF, wolfCloakModel } from '../characters/ownModels/wolfCloak.js';
 // @ts-check
 // LOOK-VARIANTS (2026-10-27, the owner: "выбирать вариации вещей визуального отображения прям через инвентарь когда вещь
 // надета на персонажа"): THE LOOKS A WORN PIECE CAN WEAR, turned from the inventory's paperdoll - the wheel over the
@@ -7,9 +8,10 @@
 import { getPref, setPref } from './uiPrefs.js';
 import { ownArmorModelFor, STEEL_HELM_STYLES, STEEL_HELM_DEFAULT, CLASSIC_ARMOR_TEMPLATE, PLAYER_MADE_STYLES } from '../characters/ownModels/ownArmorModels.js';
 import { OWN_MW_URLS } from './ownMwAssets.js';
+import { isShieldTemplate, shieldLooksFor, shieldLookKey } from '../characters/ownModels/shieldLooks.js';
 
 /** The looks' names as the tooltip says them. */
-const LOOK_LABEL = Object.freeze({ closed: 'Closed', open: 'Open', horned: 'Horned', plate: 'Steel plate', iron: 'Iron' });
+const LOOK_LABEL = Object.freeze({ closed: 'Closed', open: 'Open', horned: 'Horned', plate: 'Steel plate', iron: 'Iron', classic: 'Original', 'wolf-brown': 'Бурый волк', 'wolf-white': 'Белый волк', 'wolf-black': 'Чёрный волк' });
 
 /** MW-IRON1: every own piece but the steel helm keeps its look here, by the piece's id (the helm's is its switch). */
 export const ARMOR_LOOKS_PREF = 'mwArmorLooks';
@@ -22,6 +24,20 @@ const available = (styles, value) => !IN_BROWSER || !PLAYER_MADE_STYLES.includes
 /** A worn item's looks - { values, current, write(value) } - or null when it has one look. */
 export function lookVariantsOf(item) {
   if (!item || typeof item.templateIndex !== 'number') return null;
+  if (isShieldTemplate(item.templateIndex)) {
+    const choices = shieldLooksFor(item).filter((c) => !IN_BROWSER || `meshes/${c.model}` in OWN_MW_URLS);
+    if (!choices.length) return null;
+    const values = ['classic', ...choices.map((c) => c.value)], key = shieldLookKey(item);
+    const current = getPref(ARMOR_LOOKS_PREF)?.[key];
+    return { values, current: values.includes(current) ? current : 'classic', write: (value) => setPref(ARMOR_LOOKS_PREF, { ...(getPref(ARMOR_LOOKS_PREF) ?? {}), [key]: value }) };
+  }
+  if (CLOAK_TEMPLATES.includes(item.templateIndex)) {
+    const values = ['classic', ...WOLF_CLOAK_LOOKS.filter((look) => !IN_BROWSER || `meshes/${wolfCloakModel(look)}` in OWN_MW_URLS)];
+    if (values.length < 2) return null;
+    const stored = getPref(CLOAK_LOOKS_PREF)?.[item.templateIndex];
+    const current = stored === 'wolf-grey' ? 'wolf-brown' : stored;
+    return { values, current: values.includes(current) ? current : 'classic', write: (value) => setPref(CLOAK_LOOKS_PREF, { ...(getPref(CLOAK_LOOKS_PREF) ?? {}), [item.templateIndex]: value }) };
+  }
   const own = ownArmorModelFor({ templateIndex: item.templateIndex, material: item.material ?? 0 });
   if (!own || !('styles' in own) || !own.styles) return null;
   const styles = own.styles;
@@ -37,7 +53,7 @@ export function lookVariantsOf(item) {
 /** The look a worn item wears now, as the screens name it - or null when it has one. */
 export function lookVariantLabel(item) {
   const l = lookVariantsOf(item);
-  return l ? LOOK_LABEL[l.current] ?? l.current : null;
+  return l ? shieldLooksFor(item).find((c) => c.value === l.current)?.label ?? LOOK_LABEL[l.current] ?? l.current : null;
 }
 
 /** The tooltip's line for a worn item with looks, or null. */
@@ -45,7 +61,7 @@ export function lookVariantLine(item) {
   const l = lookVariantsOf(item);
   if (!l) return null;
   const at = l.values.indexOf(l.current);
-  return `Look: ${LOOK_LABEL[l.current] ?? l.current} (${at + 1}/${l.values.length}) - wheel to change`;
+  return `Look: ${lookVariantLabel(item)} (${at + 1}/${l.values.length}) - wheel to change`;
 }
 
 // LOOK-THUMBS (2026-10-27, the owner: "что б не текстовое название было а превьюшка предмета"): each look's picture,
@@ -66,8 +82,9 @@ export function lookChoices(item) {
   const own = ownArmorModelFor({ templateIndex: item.templateIndex, material: item.material ?? 0 });
   return l.values.map((value) => {
     const styles = own && 'styles' in own ? own.styles : null;
-    const model = styles?.[value]?.[0]?.model ?? '';
-    return { value, label: LOOK_LABEL[value] ?? value, thumb: THUMB_URL.get(model.replace(/\.nif$/i, '.png').toLowerCase()) ?? null, on: value === l.current };
+    const shield = shieldLooksFor(item).find((c) => c.value === value);
+    const model = shield?.model ?? (CLOAK_TEMPLATES.includes(item.templateIndex) ? wolfCloakModel(value) ?? '' : styles?.[value]?.[0]?.model ?? '');
+    return { value, label: shield?.label ?? LOOK_LABEL[value] ?? value, thumb: THUMB_URL.get(model.replace(/\.nif$/i, '.png').toLowerCase()) ?? null, on: value === l.current };
   });
 }
 

@@ -120,3 +120,14 @@ src/assets/mw/looks/steel_plate_helm_horned.png
 src/assets/mw/meshes/iron_*.nif
 src/assets/mw/textures/iron_*.dds
 src/assets/mw/looks/iron_*.png
+
+# Local Pelts o Plenty sources and adapted wolf cloaks (player-provided assets).
+/Mods/Textures/Pelts 'o' Plenty - Fur Pelt Cloaks/
+/src/assets/mw/meshes/wolf_pelt_*.nif
+/src/assets/mw/textures/wolf_pelt_*.dds
+/src/assets/mw/looks/wolf_pelt_*.png
+
+# Locally imported Skyrim shields.
+/src/assets/mw/meshes/shield_sky_*.nif
+/src/assets/mw/textures/shield_sky_*.dds
+/src/assets/mw/looks/shield_sky_*.png

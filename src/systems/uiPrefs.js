@@ -28,6 +28,9 @@ import { isStoredTier } from './survival/difficulty.js';   // SURV-TIERS: what t
 import { isStoredHorseCare, HORSE_CARE_OLD_ON, HORSE_CARE_OLD_ON_TIER, isStoredWagonUpkeep, WAGON_UPKEEP_OLD_ON, WAGON_UPKEEP_OLD_ON_TIER } from './upkeep/upkeepTiers.js';   // HORSE-TIERS / WAGON-TIERS: what the two upkeep keys may hold (a leaf too)
 
 export const PREF_DEFAULTS = Object.freeze({
+  inventoryFaces: null,
+  helmetPaperdollLooks: null,
+  mwCloakLooks: null,
   // PX30c: the enhanced HUD's scale. It lives HERE and not in DFU's
   // settings, and two pins said so before I listened: the settings
   // defaults are BAKED from DFU's vendored ini and nothing hand-edits

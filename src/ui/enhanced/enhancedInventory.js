@@ -1,3 +1,5 @@
+import { inventoryFacePicker, inventoryDollPixels, refreshInventoryDoll } from './inventoryFaces.js';
+import { inventoryFaceIndex } from '../../systems/inventoryFace.js';
 import { openAppearanceEditor } from '../appearanceEditor.js';
 // ═══════════════════════════════════════════════════════════════════
 // U53 — THE ENHANCED PACK, and THE SLOT MAP
@@ -85,7 +87,11 @@ import { lookVariantsOf, lookVariantLabel, lookChoices, setLookVariant, rebuildF
 import { hasDaggerfallArrows } from '../../combat/fpArm.js';   // PX26
 import { ARMOR_ENUM } from '../../combat/enemyEquipment.js';   // PX25
 import { inventoryItemImage, inventoryItemModel, templateByIndex, isAmmunition } from '../../systems/item/itemTemplates.js';   // WEAR-UI: isAmmunition, spent not worn
-import { requestIcon, paperDollDataUrl, requestFittedPicture, requestFittedIcon, iconName, fittedImg } from '../textureCanvas.js';
+import { requestIcon, loadIcon, paperDollDataUrl, requestFittedPicture, requestFittedIcon, iconName, fittedImg } from '../textureCanvas.js';
+import { CLOAK_TEMPLATES } from '../../characters/ownModels/wolfCloak.js';
+import { isShieldTemplate } from '../../characters/ownModels/shieldLooks.js';
+import { isPaperdollHelmet, helmetPaperdollVariant } from '../../systems/helmetPaperdollLooks.js';
+import { helmetAppearancePicker, fitHelmetThumbnail } from './helmetAppearancePicker.js';
 import { fateColumn, fateKey, ensureFateStyle, FATE_FACE_BOX } from '../revenant/revenantFateView.js';   // REVENANT-FATE: a beaten revenant's choice, this window's FATE side
 import { SLOT_BOX, gridBox, wornBox, screenDpr } from '../iconFit.js';   // UI1: the fit law's boxes and the screen's ratio
 import { requestModelIconUrl } from '../modelIcon.js';   // DISC24-B
@@ -96,6 +102,7 @@ import { modelIconUrl as modelIconUrlOf } from '../item/itemIconUrl.js';   // MW
 import {
   refreshPaperDoll, paperDollPixels, slotAtPaperDoll, PAPERDOLL_W, PAPERDOLL_H, paperDollStale,
   paperDollDisplayIdentity,   // DFMOD1-E: editor appearance is a display-only identity
+  paperdollItemImage,
 } from '../paperDoll.js';
 import {
   equipItem, unequipSlot, equipTableOf, isEquipped,
@@ -827,6 +834,7 @@ const syncLists = (opts) => { for (const v of _lists) v.sync(opts); };
 let _dollWarned = false;
 function refreshFigure() {
   Promise.resolve(refreshPaperDoll(deps.entity))
+    .then(() => refreshInventoryDoll(deps.entity))
     .then(() => { if (host) render(); })
     .catch((e) => {
       // PX19c: the schematic fallback is the honest DISPLAY, but a
@@ -2017,6 +2025,8 @@ const modelIconUrl = (item, size) => modelIconUrlOf(item, size, deps.fpArm);
 /** UI1: the Morrowind icon as a fitted picture - rendered at the box's device size, drawn at the box (a render, so
  *  smooth). Null where modelIconUrl is. */
 function modelPicture(item, box) {
+  // A chosen 2D appearance takes precedence over the optional model icon.
+  if (helmetPaperdollVariant(item) !== null) return null;
   const src = modelIconUrl(item, Math.round(box * screenDpr()));
   return src ? { src, w: box, h: box, smooth: true } : null;
 }
@@ -2163,6 +2173,7 @@ const SHELF_GROUPS = Object.freeze([
   { label: 'Lantern', lantern: true },
   { label: 'Other', slot: 'Unnamed', hiddenEmpty: true },
 ]);
+let inventoryDollImage = null;   // Keep the decoded image across unrelated inventory renders.
 const DOLL_AREA = '1 / 2 / span 5 / auto';
 function equippedList() {
   // PX20c (Mac: "move the name outside of the space and to the top
@@ -2200,26 +2211,32 @@ function equippedList() {
   // since the composite was made (a boot whose mods registered after the doll's first compose, an add or a remove).
   // The refresh repaints once when it lands, and the fresh composite is no longer stale, so this cannot loop.
   if (paperDollStale()) refreshFigure();
-  const figure = modelFigure();
-  const dollUrl = figure ? null : paperDollDataUrl(paperDollPixels(), { scale: 4 });
+  const customFace = inventoryFaceIndex(deps.entity, paperDollDisplayIdentity(deps.entity)) !== null;
+  const customHelmet = deps.entity && helmetPaperdollVariant(equipTableOf(deps.entity)[EQUIP_SLOTS.Head]) !== null;
+  const figure = customFace || customHelmet ? null : modelFigure();
+  const dollUrl = figure ? null : paperDollDataUrl(inventoryDollPixels(deps.entity) ?? paperDollPixels(), { scale: 4 });
   // PX20a: the frame belongs to the PLACEHOLDER, not to the sprite -
   // with art the figure stands on the window's own glass.
   const dollFrame = el('div', `wornmap-doll${figure || dollUrl ? ' hasart' : ' noart'}${figure ? ' model' : ''}`);
-  dollFrame.style.gridArea = DOLL_AREA;   // PLUS11: five rows
+  const dollColumn = el('div', 'inventory-doll-column');
+  dollColumn.style.gridArea = DOLL_AREA;
+  dollColumn.append(inventoryFacePicker({ entity: deps.entity, onChange: refreshFigure }));
+  dollColumn.append(dollFrame);
+  dollFrame.style.gridArea = 'auto';   // PLUS11: five rows
   if (figure) {
     figure.setAttribute('role', 'img');
     figure.setAttribute('aria-label', 'Your character, as the Morrowind body wears it');
     attachFigureTurn(figure);
     dollFrame.append(figure);
   } else if (dollUrl) {
-    const img = document.createElement('img');
-    img.src = dollUrl;
-    img.alt = 'Your character';
-    dollFrame.append(img);
+    inventoryDollImage ??= document.createElement('img');
+    if (inventoryDollImage.getAttribute('src') !== dollUrl) inventoryDollImage.src = dollUrl;
+    inventoryDollImage.alt = 'Your character';
+    dollFrame.append(inventoryDollImage);
   } else {
     dollFrame.append(el('span', 'worntile', '\u25c7'), el('span', 'wornslot', 'Avatar'));
   }
-  map.append(dollFrame);
+  map.append(dollColumn);
   // AC-COMPARE: THE OVERALL FIGURE ON THE CHARACTER - a plaque at the head of the figure's column (the doll's own first
   // row, over it), whatever stands there: the doll, the Morrowind body or the empty frame (ui/armourCard.js)
   // TEMP-UI: AND THE FELT TEMPERATURE beside it - the same cell's other corner, while Climates & Calories is on
@@ -2230,11 +2247,11 @@ function equippedList() {
   // dresses, and a tap at its middle opened nothing. Where the figure is too narrow for both in a line, the Felt plaque
   // wraps under the Armour one (the row is the sheets' - a wrapping flex, ui/enhanced/enhancedPlusStyle.js ARMOUR_CSS).
   const plaques = el('div', 'wornplaques');
-  plaques.style.gridArea = '1 / 2 / 2 / 3';
+  plaques.style.gridArea = 'auto';
   plaques.append(armourPlaque(deps.entity));
   const temp = temperaturePlaque(deps.entity);
   if (temp) plaques.append(temp);
-  map.append(plaques);
+  dollFrame.append(plaques);
   wrap.append(statFlip(map, deps.entity, deps.usingRightHand));   // STATS-CARD: the worn map is the card's front; a Stats button turns it over
   const byLabel = new Map();
   for (const row of worn.rows) {
@@ -3471,6 +3488,33 @@ function infoCard(picked, side, ready = render, { body = false, own = true } = {
 }
 
 /** PLUS7: the item's actions as buttons - the detail column's row, the right-click menu's list. */
+// Appearance changes repaint the inventory behind the card, but must keep the
+// open card's DOM, anchor, scroll and focus. Other card actions invalidate it.
+let appearanceCard = null;
+const appearanceCardListeners = new WeakSet();
+function retainAppearanceCard(acts, item) {
+  const node = acts.closest('.packtip');
+  if (!node) return;
+  appearanceCard = { item, node };
+  node.onpointerdown = (event) => {
+    if (!event.target.closest('.helmet-appearance, .look-row')) appearanceCard = null;
+  };
+  if (!appearanceCardListeners.has(node)) {
+    appearanceCardListeners.add(node);
+    node.addEventListener('click', (event) => {
+      if (!event.target.closest('.helmet-appearance, .look-row')) appearanceCard = null;
+    }, true);
+  }
+}
+function updateAppearancePreview() {
+  const saved = appearanceCard;
+  if (!saved || saved.item !== picked || !saved.node.isConnected) return;
+  const line = itemLine(saved.item, deps.entity);
+  const picture = modelPicture(saved.item, SLOT_BOX.card)
+    || linePicture(line, { box: SLOT_BOX.card, onReady: updateAppearancePreview });
+  const icon = saved.node.querySelector('.bigicon');
+  if (icon && picture) icon.replaceChildren(fittedImg(picture));
+}
 function itemActs(picked, side, { qty = true } = {}) {
   const line = itemLine(picked, deps.entity);
   const acts = el('div', 'acts');
@@ -3628,29 +3672,68 @@ function itemActs(picked, side, { qty = true } = {}) {
   // a book each read differently) and, for an enchanted item, chains the "Item powers" box. The enhanced card is a
   // summary of numbers; this button shows the classic text itself - the card's detail column and the right-click
   // menu both carry it, because both are built from this row.
+  const info = el('button', 'act', 'Info');
+  info.onclick = () => openInfo(picked);
+  acts.append(info);
   // LOOK-VARIANTS: a worn piece with other looks turns them here, the card kept up and the body rebuilt behind it.
   // LOOK-THUMBS: each look its own picture (systems/lookVariants.js lookChoices), the worn one lit; a look with no
   // picture yet shows its name
-  const looks = line.equipped ? lookChoices(picked) : null;
+  // Shields can be previewed/selected while still in the backpack. Requiring
+  // equipSlot here hid the entire selector on ordinary inventory shield cards.
+  const shieldAppearance = side === 'local' && isShieldTemplate(picked.templateIndex);
+  const helmetAppearance = side === 'local' && isPaperdollHelmet(picked);
+  const looks = line.equipped || shieldAppearance || helmetAppearance ? lookChoices(picked) : null;
+  let modelRow = null;
   if (looks) {
     const row = el('div', 'look-row');
     for (const c of looks) {
       const b = el('button', `look-pick${c.on ? ' on' : ''}`);
+      if (helmetAppearance) b.setAttribute('data-helmet-model', c.value);
       b.title = `Style: ${c.label}`;
       b.setAttribute('aria-pressed', String(c.on));
-      if (c.thumb) { const img = el('img'); img.src = c.thumb; img.alt = c.label; b.append(img); } else b.append(el('span', 'look-name', c.label));
+      if (c.value === 'classic' && (CLOAK_TEMPLATES.includes(picked.templateIndex) || isShieldTemplate(picked.templateIndex))) {
+        const img = el('img'); img.alt = c.label; b.append(img);
+        const fallback = () => {
+          const src = modelIconUrlOf(picked, 96, deps.fpArm, { cloakLook: 'classic', shieldLook: 'classic', force: true });
+          img.onerror = () => { img.remove(); if (!b.querySelector('.look-name')) b.append(el('span', 'look-name', c.label)); };
+          if (src) img.src = src;
+          else { img.remove(); if (!b.querySelector('.look-name')) b.append(el('span', 'look-name', c.label)); }
+        };
+        const art = paperdollItemImage(picked, paperDollDisplayIdentity(deps.entity));
+        if (art) {
+          loadIcon(art.archive, art.record, { scale: 2, dye: art.dye, dyeTarget: art.target }).then((src) => {
+            if (!b.isConnected) return;
+            if (!src) { fallback(); return; }
+            img.onerror = fallback; img.src = src;
+          }).catch(() => { if (b.isConnected) fallback(); });
+        } else fallback();
+      } else if (c.thumb) {
+        const img = el('img'); img.src = c.thumb; img.alt = c.label; b.append(img);
+        if (helmetAppearance) fitHelmetThumbnail(c.thumb).then((url) => { img.src = url; });
+      } else b.append(el('span', 'look-name', c.label));
       b.onclick = () => {
         if (!setLookVariant(picked, c.value)) return;
+        retainAppearanceCard(acts, picked);
+        for (const button of row.querySelectorAll('.look-pick')) {
+          const on = button === b;
+          button.classList.toggle('on', on); button.setAttribute('aria-pressed', String(on));
+        }
         render();
         rebuildForLook(deps.entity).then(() => { refresh(); render(); }).catch((e) => console.warn('[look] rebuild', e?.message ?? e));
       };
       row.append(b);
     }
-    acts.append(row);
+    if (helmetAppearance) modelRow = row;
+    else acts.append(row);
+  } else if (shieldAppearance) {
+    const status = el('div', 'look-name', 'Нет совместимых вариантов для этого типа и материала щита');
+    status.setAttribute('role', 'status');
+    acts.append(status);
   }
-  const info = el('button', 'act', 'Info');
-  info.onclick = () => openInfo(picked);
-  acts.append(info);
+  if (helmetAppearance) acts.append(helmetAppearancePicker({
+    item: picked, identity: paperDollDisplayIdentity(deps.entity), modelRow,
+    onChange: () => { retainAppearanceCard(acts, picked); refresh(); render(); refreshFigure(); },
+  }));
   // CHAT-POST: the item on the chat's open tab - online, where the host hands the door (deps.postItem)
   if (deps.canPostItem?.()) {
     const post = el('button', 'act', 'Post in chat');
@@ -4133,6 +4216,9 @@ function detailCol() {
 }
 
 function render() {
+  if (appearanceCard?.item !== picked) appearanceCard = null;
+  const retainedCard = appearanceCard?.node;
+  const retainedFocus = retainedCard?.contains(document.activeElement) ? document.activeElement : null;
   hidePlusFloaters();   // PLUS7: the floating card and menu belong to the rows being replaced
   // JAN2: UNMOUNTED - nothing to paint into. `unmount` nulls `host`,
   // and the repaints that can land after it are not all async: the
@@ -4412,12 +4498,18 @@ function render() {
     // the tip anchored into a window nobody could see.
     const frame = packOpen ? win : (loot ?? win);
     if (picked) {
-      const tip = detailCol();
+      const tip = retainedCard ?? detailCol();
       tip.classList.add('packtip');
       frame.append(tip);
+      if (retainedCard) {
+        tip.style.animation = 'none';
+        retainedFocus?.focus?.({ preventScroll: true });
+        updateAppearancePreview();
+      }
       // After layout: anchored beside the picked element, flipped
       // left when the right edge refuses, clamped to the frame.
       requestAnimationFrame(() => {
+        if (retainedCard) return; // Its existing anchor and dimensions stay put.
         const at = { worn: '.wornmap .wornrow.on, .wornshelf .wornsock.on', dock: '.pack-dock .itemrow.on', loot: '.loot-win .itemrow.on' }[pickedAt];
         const on = (at && (frame.querySelector(at) ?? shell.querySelector(at)))
           ?? frame.querySelector('.wornrow.on, .itemrow.on');
@@ -4679,7 +4771,7 @@ export function mountEnhancedInventory(hostEl, d = {}) {
   if (typeof document !== 'undefined') document.addEventListener('pointerlockchange', lockHandler);
   fitSig = packFitSig();
   // VIRT: a resize that leaves the boxes as they were still moves a long list's columns and band - measured again
-  resizeHandler = () => { const sig = packFitSig(); if (sig !== fitSig) { fitSig = sig; rowSizes.clear(); if (host) render(); } else syncLists({ remeasure: true }); };   // AUDIT TRADE-VIRT: a new fit's rows measured afresh
+  resizeHandler = () => { const sig = packFitSig(); if (sig !== fitSig) { appearanceCard = null; fitSig = sig; rowSizes.clear(); if (host) render(); } else syncLists({ remeasure: true }); };   // AUDIT TRADE-VIRT: a new fit's rows measured afresh
   globalThis.addEventListener?.('resize', resizeHandler);
   globalThis.__pack = () => JSON.stringify({
     tab, repaints, landings: _tiles.counts.landings, painted: _tiles.counts.painted, count: model.count, worn: model.worn.size,
