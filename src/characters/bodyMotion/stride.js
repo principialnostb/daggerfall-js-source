@@ -156,7 +156,8 @@ export function lengthenLegs(skeleton, pose, rootRef, skelMats, { stride = 1, w 
 
 /** PROFILE-WALK: retain the clip's knee plane and foot orientation while giving a longer stride a softer knee.
  * Applied before the existing ground compensation, so a changed ankle height cannot lift the whole body off the ground.
- * Only the ordinary forward walk opts in; the accepted run keeps its own leg chain. */
+ * The free forward and back walks opt in (GUARD-BACK-KNEES: without it the back stride's stance foot rose and dipped
+ * 13-9-14 cm, a hump its clip does not have); the accepted run keeps its own leg chain. */
 function softenWalkKnees(skeleton, pose, rootRef, skelMats, stride, w) {
   const { sub, cross, dot, len, scale } = algebra;
   const mats = skelMats(skeleton, pose, rootRef);
@@ -266,7 +267,7 @@ export function createStride({ sampleTrack, loopWindow, share: shareOf = strideS
       const mine = !groups || groups.test(group);
       if (mine && state) {
         selectedProfile = profile?.(group) ?? null;
-        walkKnees = (selectedProfile?.knees ?? knees) && /^walkforward$/i.test(group);
+        walkKnees = (selectedProfile?.knees ?? knees) && /^walk(?:forward|back)$/i.test(group);
       }
       const share = (selectedProfile?.share ?? shareOf)(ratio);
       const live = !!on && !!state && !!source && mine && share.stride > 1.0001;

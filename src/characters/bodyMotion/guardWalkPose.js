@@ -9,7 +9,7 @@ export const GUARD_WALK_POSE = Object.freeze({ share: 0.6, mean: 0.18, ease: 0.1
 
 export function guardWalks(word, group) {
   return !!word?.on && !!word.shown && word.mwType === MW_WEAPON_TYPE.LongBladeTwoHand &&
-    !word.busy && !word.swimming && !word.levitating && !word.spell && word.grounded !== false && !word.running && /^walkforward$/i.test(String(group ?? ''));
+    !word.busy && !word.swimming && !word.levitating && !word.spell && word.grounded !== false && !word.running && /^walk(?:forward|back)$/i.test(String(group ?? ''));
 }
 
 export function createGuardWalkPose() {

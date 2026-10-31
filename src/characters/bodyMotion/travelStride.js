@@ -15,7 +15,7 @@ export function travelStrideProfile(group) {
 export function createTravelStride({ sampleTrack, loopWindow }) {
   const guard = createGuardWalkPose();
   const armedWalk = { ...WALK, share: (k) => guard.share(k) };
-  const profile = (group) => /^walkforward$/i.test(String(group ?? '')) ? armedWalk : travelStrideProfile(group);
+  const profile = (group) => /^walk(?:forward|back)$/i.test(String(group ?? '')) ? armedWalk : travelStrideProfile(group);
   const stride = createStride({ sampleTrack, loopWindow, groups: /^(?:walk|run)/i, profile });
   const balance = createGuardWalkBalance();
   return {

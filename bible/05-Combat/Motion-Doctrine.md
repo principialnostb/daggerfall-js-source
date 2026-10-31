@@ -709,6 +709,48 @@ The captures/bone traces are local under `.proving-ground/out/guard-pose*`. The 
 combat walk on 2026-10-31 ("excellent result") and requested the commit. Standing and running regression suites remain green.
 
 
+**DIRECTION-WALK-SMOOTH** (2026-10-31, owner's 11-42-46 recording): backward combat walking and sideways combat
+steps remained abrupt, while runs in those directions were accepted. Ordinary backward walking had a milder version;
+ordinary sideways walking/running was accepted. The forward-only guard posture did not cause or repair these groups.
+MAO's directional walk curves at the speed-driven cadence and extended stride amplify sharp key-to-key changes.
+The accepted run clips are not a substitute for a walking gait: testing that option changed knee folding and posture.
+
+`src/combat/directionalWalkSampler.js:"export function createDirectionalWalkSampler"` rounds the existing directional
+walk on its own loop clock, before lower-body overlay blending. Seven symmetric binomial samples cover +/-0.12 clip
+seconds for walkback2c/walkleft2c/walkright2c, with a maximum of 16% of the loop; ordinary walkback takes only +/-0.045.
+Quaternion samples align hemispheres before averaging and normalization; translation averages with the same weights.
+Each neighbour wraps within the loop after seam correction. Entry/exit segments and overlay tracks are passed through.
+The movement's actual time, speed, step events, source and stride/cadence law remain unchanged. Running, forward walking,
+ordinary lateral walking, standing and upper attacks keep the exact old sampler. The layer memoizes the function and
+same-track/time results, since the outer pose filter can ask repeatedly for one owned movement sample.
+
+The new sampler is wired in `src/combat/lowerBodyLayer.js:"export function createLowerBodyLayer"`, so both the incoming
+and still-advancing outgoing clip use their own processed clocks during a swap. Real MAO tracks on the retail hierarchy
+exercise motionWord, lower-body ownership, bodyMotion/bodyWeight and poseAssembly at 30/60/120 Hz, global CLIP-SMOOTH
+on/off. Back/left/right combat and ordinary backward samples must reduce foot acceleration peaks and overall foot/knee
+roughness without slowing the movement clock. Scope tests preserve the exact sampler for accepted gait groups; wrap,
+entry and overlay tests keep their clocks. Bypassing the new wiring must fail the full composed-motion regression.
+
+Reference remains DFU PlayerMotor.FixedUpdate/UpdateSpeed for controller travel; OpenMW's linear/slerp clip sampling
+(Morrowind-Rules MW-D33) remains the reader. This local presentation filter is our departure from raw clip curves,
+not a change to the reader or motor. The four hosts (`src/scenes/world.js`, `src/scenes/exterior.js`,
+`src/scenes/worldModes.js`, `src/scenes/dungeonContext.js`) inherit shared lowerBodyLayer; none grows. New visual
+acceptance remains the owner's.
+
+**GUARD-DIRECTION-BASE** (2026-10-31, the owner's 11-42-46 recording, continuing DIRECTION-WALK-SMOOTH): foot acceleration does
+not separate what the owner rejected from what the owner accepted. In the composed pipeline at 60 Hz the accepted free
+`walkleft` peaks at 389 m/s^2 against 365 for the rejected `walkleft2c`, so a filter that lowers this number proves nothing
+about the eye. What does separate the back walk: `walkback2c` swings the thigh at 919 deg/s with 14.9 cm of hip travel, free
+`walkback` 519 and 8.3. So the road that already worked forward (GUARD-STEP-BASE) is taken for all three directions:
+`src/combat/guardLocomotion.js:"const GUARD_BASES ="` plays the free walks under the two-handed carry, the armed run clips
+stay. The side clips already carry a bent knee (36-56 degrees, the same as the armed ones), so they take no pose;
+`src/characters/bodyMotion/guardWalkPose.js:"export function guardWalks"` and the stride profile extend the guard pose to
+the back walk, keeping its stance: knee never below 39 degrees (free 22), hip travel 4.8 cm, thigh 582 deg/s. The
+DIRECTION-WALK-SMOOTH filter now acts on `walkback`, and on the armed clips only as the fallback when a free clip is absent.
+Proving Ground, fresh session (`hmr: false`: a running page keeps its old code), 865 frames with the steel claymore:
+`guard back/left/right` played `walkback/walkleft/walkright` under WeaponEquipped, the runs stayed `run*2c`. Reference
+stays DFU PlayerMotor; this is our presentation departure, no host grows. Visual acceptance remains the owner's.
+
 Then step 3's rest: the two-hander's blows in third person. Every step sits behind a switch "as now / by the formula",
 is judged by the owner in the game, and lives in a module of its own (HOST-SPLIT, `01-Overview/Host-Split.md`).
 

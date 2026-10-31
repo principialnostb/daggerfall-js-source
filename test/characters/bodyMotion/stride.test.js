@@ -155,7 +155,7 @@ test('PROFILE-WALK: the knee softens in its existing plane, the foot keeps its t
   assert.ok(Math.abs(low(a) - low(b)) < 1e-4, 'the existing ground compensation includes the softer knee');
 });
 
-test('PROFILE-WALK: only the ordinary forward walk opts in, the guard walk and run keep identical poses', () => {
+test('PROFILE-WALK: the free forward and back walks opt in (GUARD-BACK-KNEES), the guard walk and run keep identical poses', () => {
   const sk = buildSkeleton(parseNif(retailSkeleton()));
   const source = { trackMap: new Map(STRIDE.bones.map((b) => [b, swing(() => 0)])), keys: [] };
   for (const group of ['walkforward2c', 'walkback', 'runforward', 'walkforward']) {
@@ -164,7 +164,7 @@ test('PROFILE-WALK: only the ordinary forward walk opts in, the guard walk and r
       for (let i = 0; i < 120; i++) layer.step(1 / 60, { on: true, state: { group, startTime: 0, stopTime: 1 }, source, k: 2 });
       const pose = new Map(); layer.slot(null)(sk, pose, GRAPH_ROOT, sm); return pose;
     };
-    if (group === 'walkforward') assert.notDeepEqual(make(true), make(false));
+    if (group === 'walkforward' || group === 'walkback') assert.notDeepEqual(make(true), make(false));
     else assert.deepEqual(make(true), make(false), `${group} must be unchanged`);
   }
 });

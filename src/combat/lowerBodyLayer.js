@@ -16,6 +16,7 @@ import { nlerpQuat, loopWindow } from './leftArmLayer.js';
 import { createLoopSeam } from './loopSeam.js';
 import { advanceClip } from '../formats/morrowind/mwAnim.js';
 import { movementPhaseTime } from './movementContinuity.js';
+import { createDirectionalWalkSampler } from './directionalWalkSampler.js';
 
 /** The eases (seconds): the legs handed to the stride as a blow begins mid-stride, and back to the clip's when the body
  *  stops under a blow. A moving upper-body attack keeps the existing lower owner. */
@@ -62,6 +63,7 @@ export function createLowerBodyLayer({ sampleTrack }) {
   let clipState = null; let clipSource = null; let clipSampler = sampleTrack; let lastRate = 1;
   const ownership = { weight: 0 };
   const seams = createLoopSeam({ sampleTrack, loopWindow });
+  const walking = createDirectionalWalkSampler({ loopWindow });
   const blend = (a, b, t) => ({
     rotation: a.rotation && b.rotation ? nlerpQuat(a.rotation, b.rotation, t) : b.rotation ?? a.rotation,
     translation: a.translation && b.translation ? a.translation.map((v, i) => v + (b.translation[i] - v) * t) : b.translation ?? a.translation,
@@ -105,7 +107,7 @@ export function createLowerBodyLayer({ sampleTrack }) {
           if (time != null) state.time = time;
         }
         key = next; trackMap = tracks; clock = state.time; clipState = { ...state }; clipSource = source;
-        clipSampler = Array.isArray(source?.keys) ? seams.sampler(sampleTrack, state, source, true) : sampleTrack;
+        clipSampler = Array.isArray(source?.keys) ? walking.sampler(seams.sampler(sampleTrack, state, source, true), state, source) : sampleTrack;
       }
       if (prev) {
         swapT += Math.max(0, dt); const u = Math.min(1, swapT / LOWER_BODY_EASE.swap); mix = u * u * (3 - 2 * u);

@@ -7,6 +7,7 @@ import { collectTextKeys, normalizeTextKeys, extractTracks, resetClip, sampleTra
 import { buildSkeleton, poseSkeleton, skeletonSpaceMatrices as sm, accumRootRef, GRAPH_ROOT } from '../../../src/formats/morrowind/mwSkin.js';
 import { retailSkeleton } from '../../fixtures/mw/retailRig.mjs';
 import { loopWindow } from '../../../src/combat/leftArmLayer.js';
+import { kneePole } from '../../../src/characters/bodyMotion/guardWalkBalance.js';
 import { createBodyWeight } from '../../../src/characters/bodyMotion/bodyWeight.js';
 import { MW_UNITS_PER_METER, MW_WEAPON_TYPE } from '../../../src/formats/morrowind/mwFirstPerson.js';
 import { bodyOf } from '../../../src/characters/bodyMotion/bodyKit.js';
@@ -117,4 +118,16 @@ test('GUARD-WALK-POSE: lowering the guard preserves ankle targets and foot orien
   }
   assert.ok(Math.max(...heights.slice(1).map((z, i) => Math.abs(z - heights[i]))) < 1, 'guard release pops vertically');
   assert.deepEqual(guard.share(2.49), walkStrideShare(2.49), 'ordinary cadence returns exactly');
+});
+
+test('GUARD-KNEE-POLE: a nearly straight leg whose clip knee strays behind its line still bends toward the toes; a bent knee keeps its own way', () => {
+  const hip = [0, 0, 100], ankle = [0, 0, 10], toe = [0, 1, 0], length = 90;
+  const towardToes = (knee) => {
+    const pole = kneePole(hip, knee, toe, length), d = [0, 0, -1], along = pole[0] * d[0] + pole[1] * d[1] + pole[2] * d[2];
+    return pole[1] - along * d[1];
+  };
+  assert.ok(ankle[2] < hip[2]);
+  assert.ok(towardToes([0, -0.5, 55]) > 0, 'behind the line by a hair: the toes decide');
+  assert.ok(towardToes([0, 12, 55]) > 0, 'a bent knee stays forward');
+  assert.ok(towardToes([0, -20, 55]) < 0, 'a real backward knee stays the clip own');
 });
