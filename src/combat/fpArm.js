@@ -89,7 +89,7 @@ import { DFPalette } from '../formats/dfPalette.js';
 import { raceArt } from '../systems/races.js';
 import { appStorage } from '../systems/appStorage.js';   // DA1: the storage seam
 import { modSetting } from '../systems/modSettings.js';
-import { loadWalkAnimationAssets, loadFirstPersonAnimationAssets, loadHitReactionAnimationAssets, loadOpenMWDynamicThirdPersonAnimationAssets, selectOpenMWDynamicAnimationVariants, isWalkAnimationGroup, isWalkAnimationKey, isRunAnimationGroup, isRunAnimationKey, isWalkVariantEnabled, isRunVariantEnabled, walkVariantForActor, runVariantForActor, remapAnimationGroupKeys, normalizeAnimationGroupKeys, hitReactionTargetGroup, hitReactionTransitionBlend } from '../formats/morrowind/mwWalkAnimationAssets.js';
+import { loadWalkAnimationAssets, loadFirstPersonAnimationAssets, loadHitReactionAnimationAssets, loadOpenMWDynamicThirdPersonAnimationAssets, selectOpenMWDynamicAnimationVariants, isMovementAnimationGroup, isMovementAnimationKey, isWalkAnimationGroup, isWalkAnimationKey, isRunAnimationGroup, isRunAnimationKey, isWalkVariantEnabled, isRunVariantEnabled, walkVariantForActor, runVariantForActor, remapAnimationGroupKeys, normalizeAnimationGroupKeys, hitReactionTargetGroup, hitReactionTransitionBlend } from '../formats/morrowind/mwWalkAnimationAssets.js';
 import { drawRigSpriteBox, MW_THIRD_PERSON_PIXEL } from '../render/characterSprite.js';
 import { WEAPONS } from '../characters/weapons.js';
 import { materialName } from '../systems/item/itemInfo.js';
@@ -384,6 +384,7 @@ import { createBodyWeight } from '../characters/bodyMotion/bodyWeight.js';   // 
 import { createBodyMotion, motionWord } from '../characters/bodyMotion/bodyMotion.js';   // BODY-MOTION: the third-person body's gait, carry and blows
 import { shieldGuardStance, carriesShield, isHandShieldSlot, shieldBashHold } from './shieldGuard.js';   // SHIELD-GUARD: the fists behind a shield - the stance, the bash
 import { createLeftArmLayer, leftArmPlan, leftArmModeOf, loopWindow } from './leftArmLayer.js';   // LEFT-ARM: the shield's and the free hand's arm over the clip, by weight
+import { guardMovementGroup } from './guardLocomotion.js';
 import { createLowerBodyLayer, lowerBodyBones } from './lowerBodyLayer.js';   // LOWER-BODY: the legs under a blow keep the stride (rule 26)
 import { settleIdle, createTurnGate, blendSourceOf, createMoveGrace, carriesBlend } from './idleSettle.js';   // IDLE-SETTLE: a stop lands the idle where its legs are quiet
 import { createFpInertia } from './fpInertia.js';   // FP-INERTIA: the first-person hands carry weight
@@ -3194,10 +3195,10 @@ async function buildTpBody({
           continue;
         }
         const isOverhaul = asset.family === 'all' || asset.animationOverhaul === true;
-        const isFamilyGroup = asset.family === 'run' ? isRunAnimationGroup : isWalkAnimationGroup;
-        const isFamilyKey = asset.family === 'run' ? isRunAnimationKey : isWalkAnimationKey;
-        const familyKeys = isOverhaul ? report.keys : report.keys.filter(isFamilyKey);
-        const familyGroups = isOverhaul ? report.groups : report.groups.filter(isFamilyGroup);
+        const isFamilyGroup = asset.movementOnly ? isMovementAnimationGroup : asset.family === 'run' ? isRunAnimationGroup : isWalkAnimationGroup;   // MAO-SOURCE
+        const isFamilyKey = asset.movementOnly ? isMovementAnimationKey : asset.family === 'run' ? isRunAnimationKey : isWalkAnimationKey;
+        const familyKeys = isOverhaul && !asset.movementOnly ? report.keys : report.keys.filter(isFamilyKey);
+        const familyGroups = isOverhaul && !asset.movementOnly ? report.groups : report.groups.filter(isFamilyGroup);
         if (!familyGroups.length || !familyKeys.length) {
           const reason = `locomotion animation ${asset.name}: no usable ${asset.family || 'walk'} groups; vanilla source retained`;
           missing.push(reason);
@@ -6469,7 +6470,7 @@ export function createFpArm({ playerAppearance = false } = {}) {
       && movementBase === base && movementStance === stance);
     if (fresh) movementClipPreference = preferenceKey;
     if (fresh) {
-      const composed = composeMovementGroup(base, stance, hasGroup);
+      const composed = guardMovementGroup(base, stance, hasGroup, viewMode === 'third' && modSetting('morrowind-animation', 'MotionDoctrine') !== 0);
       if (!composed.group) {
         if (movementState) { resetMovement(); resetIdle(); }   // :701-707 resets BOTH
         movementBase = base; movementStance = stance;
@@ -6577,8 +6578,8 @@ export function createFpArm({ playerAppearance = false } = {}) {
     // in MW units.
     movementRate = isTurn
       ? turnAnimSpeed(yawRate)
-      : Math.min(MOVEMENT_SPEED_CAP,
-        ((mv && mv.speed ? mv.speed : 0) * MW_UNITS_PER_METER) / movementAnimSpeed);
+      : bodyWeight.moveRate(Math.min(MOVEMENT_SPEED_CAP,   // RUN-STRIDE (characters/bodyMotion/stride.js): a run's rate capped, its stride the rest
+        ((mv && mv.speed ? mv.speed : 0) * MW_UNITS_PER_METER) / movementAnimSpeed), movementGroup);
   }
 
   /** Rule 9's long group for the CURRENT stance, and the equip/unequip
@@ -8363,7 +8364,7 @@ export function createFpArm({ playerAppearance = false } = {}) {
         attackType, reversed: attackReversed, hand: attackHand, progress: actionState ? clipCompletion(actionState) : 0, strength: attackStrength,
         shown: weaponInHand(), hands: handsMode, torch: torchVisible(), spell: spellStance(), rifle: rifle.w, guard: pairDip(),
       }));
-      bodyWeight.stepRig(dt, modSetting('morrowind-animation', 'MotionDoctrine') !== 0 && viewMode === 'third', cam, lastBuildOpts?.armor, thirdBuilt?.mwType, dead, motion.word());   // BODY-WEIGHT; BLOW-LEGS
+      bodyWeight.stepRig(dt, modSetting('morrowind-animation', 'MotionDoctrine') !== 0 && viewMode === 'third', cam, lastBuildOpts?.armor, thirdBuilt?.mwType, dead, motion.word(), movementState, movementSource, movementAnimSpeed);   // BODY-WEIGHT; BLOW-LEGS; RUN-STRIDE
       fpInertia.stepRig(dt, modSetting('morrowind-animation', 'MotionDoctrine') !== 0 && viewMode === 'first', cam, lastBuildOpts?.armor, built?.mwType, dead);   // FP-INERTIA
       if (!actionState && !movementState && !jumpState && !idleState && !hitState && !deathState) return;
       // THE WINNER, not a blend. See the two-slot note above: in first

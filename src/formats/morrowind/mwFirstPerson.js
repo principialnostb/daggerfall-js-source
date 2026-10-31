@@ -1,3 +1,4 @@
+import { preserveOwnedPose } from './mwPoseContinuity.js';
 import { getBodyMorphs } from '../../characters/bodyMorphs.js';
 // MW-D: THE DIAGNOSTIC, and it deliberately draws nothing.
 //
@@ -3037,7 +3038,7 @@ export function poseAssembly(assembly, { tracks = null, sampleTrack = null,
   const sampledPose = fns.poseSkeleton(skeleton, tracks, sampleTrack, time, { accumRoot });
   // Keep raw animation data separate from morph/neck/climb edits for the next transition.
   assembly.rawPose = new Map(sampledPose);
-  const pose = blendFrom && blendWeight < 1 ? blendPoseMaps(blendFrom, sampledPose, blendWeight) : new Map(sampledPose);
+  const pose = preserveOwnedPose(blendFrom && blendWeight < 1 ? blendPoseMaps(blendFrom, sampledPose, blendWeight) : new Map(sampledPose), sampledPose, skeleton, tracks);
   // SHOWN-POSE (MOTION-DOCTRINE, bible/05-Combat/Motion-Doctrine.md 7c): the pose as this frame shows it, its cross-fade
   // included - a transition begun while another still runs must start from here, not from the raw clip (rawPose)
   assembly.shownPose = blendFrom && blendWeight < 1 ? new Map(pose) : assembly.rawPose;

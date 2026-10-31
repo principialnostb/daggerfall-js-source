@@ -57,10 +57,11 @@ const toward = (Rc, Rt, w) => (w >= 1 ? Rt : mul(rotFraction(mul(Rt, transpose(R
 /**
  * THE SOLVE. `plan`:
  *   w      - the layer's weight (0..1);
- *   hip    - { at: [x, y, z] the hips' middle, yaw, roll, pitch } (radians, bodyKit.js bodyTurn's sense);
+ *   hip    - { at: [x, y, z] the hips' middle, yaw, roll, pitch, keepTurn } (radians, bodyKit.js bodyTurn's sense);
+ *            keepTurn preserves the sampled hip rotation when only changing height;
  *   chest  - { yaw, roll, pitch } - the chest's turn in the body frame;
  *   head   - { yaw, roll, pitch } - the head's;
- *   feet   - { L, R }: { at, toe, up, w } - the ankle's point, the toes' way, the sole's up;
+ *   feet   - { L, R }: { at, toe, up, w, pole } - the ankle's point, the toes' way, the sole's up; optional knee pole;
  *   armW   - { L, R }: how far each arm is the layer's (0 the clip's - a bow's, a spell's, a draw's, the long gun's, a
  *            torch's left): the chest, the neck and the head are the layer's as far as either arm is, each collarbone as
  *            far as its own arm is - the rest the clip's, so an aim the clip holds stays where it holds it;
@@ -105,7 +106,7 @@ export function solveBody(skeleton, pose, rootRef, skelMats, plan) {
   const order = [];
   const decide = (ref, Rt) => { if (ref == null || !R0(ref)) return; decided.set(ref, toward(rotNow(ref), Rt, w)); order.push(ref); };
   // the hips: the pelvis and the thigh-carrying bone turned together, the rest's own build between them kept
-  if (plan.hip) {
+  if (plan.hip && !plan.hip.keepTurn) {
     const D = mul(bodyTurn(plan.hip.yaw ?? 0, plan.hip.roll ?? 0, plan.hip.pitch ?? 0), body.hipFix);
     for (const ref of new Set([bones.pelvis, body.hipBone])) if (ref != null && body.restRot.has(ref)) decide(ref, mul(D, body.restRot.get(ref)));
   }
@@ -241,11 +242,26 @@ function holdCollars(skeleton, pose, mats, body, k, rootRef, skelMats) {
   };
   /** A bone at rest on its parent standing at `Rp` (rig). */
   const onRest = (ref, parent, Rp) => mul(Rp, mul(transpose(restRotOf(skeleton, body, parent)), restRotOf(skeleton, body, ref)));
+  // SHOULDER-HOLD (2026-10-30, measured on MAO's walk): the collarbones hang from the NECK, which the clip swings - held on it
+  // they rode that swing, the shoulders 5 cm back and 6 ahead, the left arm straight and shaking. The neck is laid at rest on
+  // its parent first; the head keeps the turn it had in the rig.
+  const neck = body.bones.neck, nn = neck == null ? null : skeleton.nodes.get(neck);
+  let Rneck = null;
+  if (nn && nn.parent != null && restRotOf(skeleton, body, neck) && restRotOf(skeleton, body, nn.parent)) {
+    const Rpn = turnOf(mats, nn.parent), Rn0 = turnOf(mats, neck);
+    if (Rpn && Rn0) {
+      const Wh = body.bones.head != null ? turnOf(mats, body.bones.head) : null;
+      Rneck = toward(Rn0, onRest(neck, nn.parent, Rpn), clamp01(k));
+      set(neck, Rpn, Rneck);
+      if (Wh) set(body.bones.head, Rneck, Wh);
+      moved = true;
+    }
+  }
   for (const side of ['L', 'R']) {
     const B = body.bones[side], ref = B?.clavicle, node = ref == null ? null : skeleton.nodes.get(ref);
     if (!node || node.parent == null || B.upper == null || B.fore == null) continue;
     if (!restRotOf(skeleton, body, ref) || !restRotOf(skeleton, body, node.parent)) continue;
-    const Rp = turnOf(mats, node.parent), Rc = turnOf(mats, ref), Ru = turnOf(mats, B.upper), Rf = turnOf(mats, B.fore);
+    const Rp = node.parent === neck && Rneck ? Rneck : turnOf(mats, node.parent), Rc = turnOf(mats, ref), Ru = turnOf(mats, B.upper), Rf = turnOf(mats, B.fore);
     if (!Rp || !Rc || !Ru || !Rf) continue;
     const kk = clamp01(k);
     const Rc1 = toward(Rc, onRest(ref, node.parent, Rp), kk);
@@ -337,7 +353,7 @@ function poseFoot(skeleton, pose, mats, body, side, f, w) {
   if (!(k > 0) || !f.at || !A) return null;
   const toe = f.toe ?? [0, 1, 0];
   const out = side === 'R' ? 1 : -1;
-  const pole = norm(add([toe[0], toe[1], 0], [out * 0.12, 0, 0.02]));
+  const pole = f.pole ? norm(f.pole) : norm(add([toe[0], toe[1], 0], [out * 0.12, 0, 0.02]));
   const ax = body.footAxes[side];
   return reachLimb(skeleton, pose, mats, limb.thigh, limb.calf, limb.foot, lerp3(A, f.at, k), pole, (Rf, _D, sol) => {
     if (!ax || !f.toe) return null;

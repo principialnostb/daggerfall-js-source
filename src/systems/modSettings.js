@@ -1683,11 +1683,6 @@ export const MOD_SETTINGS = Object.freeze({
     title: 'Animations',
     author: 'Port integration',
     keys: Object.freeze({
-      AnimationOverhaul: Object.freeze({
-        default: 0,
-        options: lazyWords('Vanilla', 'Morrowind Animation Overhaul'),
-        description: 'Optional third-person animation replacement. To use it, install the MAO files locally at Mods/Animations/Morrowind Animation Overhaul/Data Files/Meshes/xbase_anim.kf and xbase_anim_female.kf. The asset files are not included in this repository; your build bundles the local files you provide. Vanilla keeps the game/archive animation groups.',
-      }),
       SimplyAnimatedCloaks: Object.freeze({
         default: 2,
         options: lazyWords('Vanilla', 'Vanilla Animated', 'Вкл'),
@@ -1830,6 +1825,7 @@ export const SWITCH_RESETS = Object.freeze([
  *  value is let go on load, once, and the file written back; a file that never mentioned the key is not touched. */
 export const RETIRED_KEYS = Object.freeze([
   Object.freeze({ vendor: 'roleplay-realism', key: 'fightersTeachHandToHand' }),
+  Object.freeze({ vendor: 'morrowind-animation', key: 'AnimationOverhaul' }),   // MAO-SOURCE: the pack's movement is the standard
 ]);
 function migrate(m) {
   let changed = false;
@@ -1860,7 +1856,6 @@ function migrate(m) {
   // resolves Original and Vanilla identically. Translate saved numeric indices once.
   if (animation) {
     const compactChoiceMaps = [
-      ['AnimationOverhaul', { 0: 0, 1: 0, 2: 1 }, 'AnimationOverhaulChoices@ANIM-UI5'],
       ['FirstPersonSource', { 0: 0, 1: 0, 2: 1, 3: 2, 4: 3 }, 'FirstPersonSourceChoices@ANIM-UI5'],
       ['OpenMWDynamicAnimations', { 0: 0, 1: 0, 2: 1 }, 'OpenMWDynamicAnimationsChoices@ANIM-UI5'],
       ['HitReactionSource', { 0: 0, 1: 0, 2: 1 }, 'HitReactionSourceChoices@ANIM-UI5'],

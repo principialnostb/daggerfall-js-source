@@ -53,11 +53,11 @@ test('armoured sword: pilot excludes other weapons, light armour, airborne and d
     assert.deepEqual(layer.pose(), { pitch: 0, roll: 0, yaw: 0 });
   }
 });
-test('armoured sword: moving cuts turn with the blow, standing cuts keep their accepted hip layer', () => {
+test('armoured sword: a cut, moving or standing, leaves the body to BLOW-LEGS (STRIKE-MOVE: the moving blow\'s whole body is its; a trunk share here turned the body twice)', () => {
   const cut = { type: 'slash', section: 'release', progress: 1, hand: 'R', strength: 1 };
   const layer = createArmouredSword();
   for (let i = 0; i < 60; i++) layer.step(1 / 60, true, word({ travel: [0, 0, i / 15], blow: cut }), 1);
-  assert.ok(layer.pose().yaw > 0.08);
+  assert.ok(Math.abs(layer.pose().yaw) < 1e-6);
   for (let i = 0; i < 120; i++) layer.step(1 / 60, true, word({ blow: cut }), 1);
   assert.ok(Math.abs(layer.pose().yaw) < 1e-6);
   layer.reset(); assert.deepEqual(layer.pose(), { pitch: 0, roll: 0, yaw: 0 });

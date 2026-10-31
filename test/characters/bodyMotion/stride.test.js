@@ -84,3 +84,87 @@ test('STRIDE MAX-RATE: a sideways run at Daggerfall\'s full speed never scurries
   assert.equal(stride, STRIDE.maxStride);
   assert.ok(rate * stride < 5.6, 'the legs cover less than the body: a slide, the lesser evil');
 });
+
+test('RUN-STRIDE: a run plays its clip at most RUN_STRIDE.maxRate its own speed and lengthens the legs by the rest (MAO runforward2c 4.57 m/s under the 8.1 m/s run: 1.77x before); a walk keeps the reference rate', async () => {
+  const { runStrideShare, RUN_STRIDE, createStride } = await import('../../../src/characters/bodyMotion/stride.js');
+  const k = (8.1 * 69.99125109) / 320;   // the body's speed over the clip's
+  const share = runStrideShare(k);
+  assert.ok(Math.abs(share.rate * share.stride - k) < 1e-9, 'the ratio shared, no slide');
+  assert.ok(share.rate <= RUN_STRIDE.maxRate * 1.01 && share.stride > 1.25, `rate ${share.rate.toFixed(2)}, stride ${share.stride.toFixed(2)}`);
+  assert.deepEqual(runStrideShare(0.9), { rate: 0.9, stride: 1 });
+  const layer = createStride({ sampleTrack: () => null, loopWindow: () => ({ start: 0, stop: 1 }), share: runStrideShare, groups: /^run/i });
+  assert.equal(layer.rate(k, true, 'runforward2c'), share.rate);
+  assert.equal(layer.rate(2.49, true, 'walkforward2c'), 2.49, 'the walk is the clip the owner accepted');
+  assert.equal(layer.rate(k, false, 'runforward2c'), k, 'switched off: the reference');
+});
+
+test('WALK-STRIDE: a walk plays at most its maxRate (2.5x before, MAO walkforward2c at 4.4 m/s), the rest in the stride, the ratio kept', async () => {
+  const { walkStrideShare, WALK_STRIDE } = await import('../../../src/characters/bodyMotion/stride.js');
+  const k = (4.43 * 69.99125109) / 124.3, share = walkStrideShare(k);
+  assert.ok(Math.abs(share.rate * share.stride - k) < 1e-9, 'the ratio shared, no slide');
+  assert.ok(share.rate <= WALK_STRIDE.maxRate * 1.01 && share.stride > 1.5, `rate ${share.rate.toFixed(2)}, stride ${share.stride.toFixed(2)}`);
+});
+
+test('STRIDE-SMOOTH: a wavering speed does not reach the playback rate frame by frame, and a new clip takes its own ratio at once', async () => {
+  const { walkStrideShare } = await import('../../../src/characters/bodyMotion/stride.js');
+  const layer = createStride({ sampleTrack: () => null, loopWindow: () => ({ start: 0, stop: 1 }), share: walkStrideShare, groups: /^(walk|run)/i });
+  const state = { group: 'walkforward', startTime: 0, stopTime: 1 };
+  let step = 0, last = null;
+  for (let i = 0; i < 120; i++) {
+    const k = 3 + 0.3 * Math.sin(i * 1.7);
+    layer.step(1 / 60, { on: true, state, source: { keys: [], trackMap: new Map() }, k });
+    const r = layer.rate(k, true, 'walkforward');
+    if (last != null && i > 30) step = Math.max(step, Math.abs(r - last));
+    last = r;
+  }
+  assert.ok(step < 0.03, `the rate moved ${step.toFixed(3)} a frame (the raw ratio: 0.2)`);
+  layer.step(1 / 60, { on: true, state: { group: 'runforward', startTime: 0, stopTime: 1 }, source: { keys: [], trackMap: new Map() }, k: 1.2 });
+  assert.equal(layer.rate(1.2, true, 'runforward'), walkStrideShare(1.2).rate);
+});
+
+
+test('PROFILE-WALK: the knee softens in its existing plane, the foot keeps its turn and the lower ankle keeps the ground', () => {
+  const sk = buildSkeleton(parseNif(retailSkeleton()));
+  const state = { group: 'walkforward', startTime: 0, stopTime: 1 };
+  const source = { trackMap: new Map(STRIDE.bones.map((b) => [b, swing(() => 0)])), keys: [] };
+  const means = new Map(STRIDE.bones.map((b) => [b, cycleMean(state, source, b, sampleTrack, { start: 0, stop: 1 })]));
+  const base = new Map();
+  const plain = new Map(base), soft = new Map(base);
+  lengthenLegs(sk, plain, GRAPH_ROOT, sm, { stride: 1.66, means, calf: 0 });
+  lengthenLegs(sk, soft, GRAPH_ROOT, sm, { stride: 1.66, means, calf: 0, knees: true });
+  const a = sm(sk, plain, GRAPH_ROOT), b = sm(sk, soft, GRAPH_ROOT);
+  const sub = (x, y) => x.map((v, i) => v - y[i]);
+  const dot = (x, y) => x.reduce((v, n, i) => v + n * y[i], 0);
+  const bend = (m, side) => {
+    const [h, k, f] = ['thigh', 'calf', 'foot'].map((n) => m.get(sk.byName.get(`bip01 ${side} ${n}`)).t);
+    const u = sub(k, h), v = sub(f, k);
+    return Math.acos(Math.max(-1, Math.min(1, dot(u, v) / Math.hypot(...u) / Math.hypot(...v)))) * 180 / Math.PI;
+  };
+  for (const side of ['l', 'r']) {
+    assert.ok(bend(b, side) > bend(a, side) + 1, 'a longer step must actually fold the knee');
+    assert.ok(bend(b, side) >= 14.9, 'the knee never locks straight');
+    const foot = sk.byName.get(`bip01 ${side} foot`);
+    assert.ok(a.get(foot).a.every((v, i) => Math.abs(v - b.get(foot).a[i]) < 1e-5), 'no extra ankle pitch or roll');
+    const hip = sk.byName.get(`bip01 ${side} thigh`), knee = sk.byName.get(`bip01 ${side} calf`);
+    const u = sub(a.get(knee).t, a.get(hip).t), v = sub(a.get(foot).t, a.get(knee).t);
+    const axis = [u[1] * v[2] - u[2] * v[1], u[2] * v[0] - u[0] * v[2], u[0] * v[1] - u[1] * v[0]];
+    const delta = sub(sub(b.get(foot).t, b.get(hip).t), sub(a.get(foot).t, a.get(hip).t));
+    assert.ok(Math.abs(dot(delta, axis)) / Math.hypot(...axis) < 1e-4, 'the ankle stays in its existing knee plane');
+  }
+  const low = (m) => Math.min(...STRIDE.feet.map((n) => m.get(sk.byName.get(n)).t[2]));
+  assert.ok(Math.abs(low(a) - low(b)) < 1e-4, 'the existing ground compensation includes the softer knee');
+});
+
+test('PROFILE-WALK: only the ordinary forward walk opts in, the guard walk and run keep identical poses', () => {
+  const sk = buildSkeleton(parseNif(retailSkeleton()));
+  const source = { trackMap: new Map(STRIDE.bones.map((b) => [b, swing(() => 0)])), keys: [] };
+  for (const group of ['walkforward2c', 'walkback', 'runforward', 'walkforward']) {
+    const make = (knees) => {
+      const layer = createStride({ sampleTrack, loopWindow, knees });
+      for (let i = 0; i < 120; i++) layer.step(1 / 60, { on: true, state: { group, startTime: 0, stopTime: 1 }, source, k: 2 });
+      const pose = new Map(); layer.slot(null)(sk, pose, GRAPH_ROOT, sm); return pose;
+    };
+    if (group === 'walkforward') assert.notDeepEqual(make(true), make(false));
+    else assert.deepEqual(make(true), make(false), `${group} must be unchanged`);
+  }
+});
