@@ -144,6 +144,14 @@ let _ground = null;   // { climateAt(px, py), groundAt(x, z), topAt?(px, py) } -
 export function setAirGround(g) {
   _ground = g && typeof g.climateAt === 'function' ? g : null;
   _pixelAir.clear(); _tiles.clear();
+  _groundVersion = _ground?.version?.();
+}
+let _groundVersion;
+/** AUDIT TESA-BIOME Z5: the kept tiles and pixels are the map's as it stood - a ground whose `version()` moves (the land
+ *  past the Bay: the trace landing after the boot, a fit - world/tamriel/tamrielBiomes.js biomeStamp) drops them. */
+function freshen() {
+  const v = _ground?.version?.();
+  if (v !== _groundVersion) { _groundVersion = v; _pixelAir.clear(); _tiles.clear(); }
 }
 export const airGround = () => _ground;
 
@@ -231,6 +239,7 @@ function maritimeTile(tx, ty) {
 /** A pixel's maritime share and the climate whose air it carries (its own on land, the nearest land's at sea - the
  *  Ocean's past `reach`) - for the record's probes and the pins. */
 export function maritimeAt(px, py) {
+  freshen();
   const tx = Math.floor(px / TILE), ty = Math.floor(py / TILE), tile = maritimeTile(tx, ty), o = (py - ty * TILE) * TILE + (px - tx * TILE);
   return { share: tile.share[o], land: tile.land[o] };
 }
@@ -238,6 +247,7 @@ const _pixelAir = new Map();
 /** A PIXEL'S AIR: its climate's row (a sea pixel's nearest land's) blended toward the Ocean's by its maritime share -
  *  `{ mean, amp, day, spell, row }`, kept (bounded). Pure in the pixel and the law's map. */
 export function pixelAir(px, py) {
+  freshen();
   const key = (px + 16384) * 32768 + (py + 16384);
   let a = _pixelAir.get(key);
   if (a) return a;
@@ -285,6 +295,7 @@ export function airParamsAt(x, z, out = { mean: 0, amp: 0, day: 0, spell: 0, gro
   out.mean += latitudeShare(fx, fy) * LATITUDE_C_PER_ROW * (Math.max(0, Math.min(MAX_PY, fy)) - out.row);
   const g = _ground?.groundAt ? _ground.groundAt(x, z) : 0;
   out.ground = Number.isFinite(g) && g > 0 ? g : 0;
+  if (_ground?.heatAt) out.mean += _ground.heatAt(x, z);   // RED-MOUNTAIN: the ground's own heat (airGround.js heatAt)
   for (const { fn, air } of _biomes.values()) {
     const s = Math.max(0, Math.min(1, fn(x, z) || 0));
     if (s <= 0) continue;
@@ -302,6 +313,12 @@ export function dayAndHourOf(skyMinutes) {
   const m = ((skyMinutes % 518400) + 518400) % 518400;   // 360 days a year
   return [m / 1440, (m % 1440) / 60];
 }
+/** OW-HITCH: dayAndHourOf's day alone, with no pair made - the snowpack asks it of every point at every step of a year
+ *  (snowpack.js stepAir, stepAirFloor). The same number. Pure. */
+export function dayOfSky(skyMinutes) {
+  const m = ((skyMinutes % 518400) + 518400) % 518400;
+  return m / 1440;
+}
 
 const _p = { mean: 0, amp: 0, day: 0, spell: 0, ground: 0, row: 0 };
 /** The air's fall terms from a place's `fall` - `{ intensity, snow, cover }` (systems/weather/weatherMap.js wornAmong's
@@ -309,10 +326,15 @@ const _p = { mean: 0, amp: 0, day: 0, spell: 0, ground: 0, row: 0 };
  *  as a word-only reader has it) and the cloud cover overhead (0..1; a reader with no map: a falling sky is a covered
  *  one). One air per place (AUDIT PRECIP AIR-8): every band falling there reads the same. */
 export function airFall(fall) {
+  return airFallInto(fall, { wet: 0, snow: 0, cover: 0, chill: 0 });
+}
+/** OW-HITCH: airFall into `out` (the snowpack's one scratch, read at once). The same terms. */
+export function airFallInto(fall, out) {
   const wet = fall ? Math.max(0, Math.min(1, fall.intensity || 0)) : 0;
   const snow = fall?.snow === true ? wet : Math.max(0, Math.min(1, Number(fall?.snow) || 0));
   const cover = fall?.cover == null ? (wet > 0 ? 1 : 0) : Math.max(0, Math.min(1, Number(fall.cover) || 0));
-  return { wet, snow, cover, chill: wet * FALL.chill + snow * FALL.snowCold };
+  out.wet = wet; out.snow = snow; out.cover = cover; out.chill = wet * FALL.chill + snow * FALL.snowCold;
+  return out;
 }
 /**
  * THE AIR AT FIELD (x, z), `altitude` metres above the sea (null: the ground's mean height there), at event minute `t`

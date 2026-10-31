@@ -2,8 +2,8 @@
   {
     "name": "SD21-the-Hour-admitted",
     "file": "src/systems/madeLevel.js",
-    "old": "portalStone: 'refused', companions: 'out', regen: 'off', levitate: 'banned',",
-    "new": "portalStone: 'refused', companions: null, regen: 'off', levitate: 'banned',",
+    "old": "  hour: row({ save: 'refused', rest: 'refused', automap: 'off', mark: 'refused', recall: 'refused', portalStone: 'refused', companions: 'out', regen: 'held', levitate: 'banned',",
+    "new": "  hour: row({ save: 'refused', rest: 'refused', automap: 'off', mark: 'refused', recall: 'refused', portalStone: 'refused', companions: null, regen: 'held', levitate: 'banned',",
     "tests": [
       "test/scenes/sd21_alone.test.js"
     ]
@@ -31,8 +31,8 @@
   {
     "name": "SD21-the-Hours-cards-drawn",
     "file": "src/systems/madeLevel.js",
-    "old": "companions: 'out', regen: 'off', levitate: 'banned',",
-    "new": "companions: 'in', regen: 'off', levitate: 'banned',",
+    "old": "  hour: row({ save: 'refused', rest: 'refused', automap: 'off', mark: 'refused', recall: 'refused', portalStone: 'refused', companions: 'out', regen: 'held', levitate: 'banned',",
+    "new": "  hour: row({ save: 'refused', rest: 'refused', automap: 'off', mark: 'refused', recall: 'refused', portalStone: 'refused', companions: 'in', regen: 'held', levitate: 'banned',",
     "tests": [
       "test/scenes/sd21_alone.test.js"
     ]
@@ -40,29 +40,32 @@
   {
     "name": "SD21-said-under-the-veil",
     "file": "src/scenes/world.js",
-    "old": "    if (_sdAloneSaid || modes?.transitioning || gateVeil?.busy || gamePaused()) return;",
-    "new": "    if (_sdAloneSaid || modes?.transitioning || gamePaused()) return;",
+    "old": "    if (_sdAloneSaid || modes?.transitioning || gateVeil?.busy || gamePaused() || !online?.welcomed) return;",
+    "new": "    if (_sdAloneSaid || modes?.transitioning || gamePaused() || !online?.welcomed) return;",
     "tests": [
       "test/scenes/sd21_alone.test.js"
-    ]
+    ],
+    "note": "PIN MOVED (SD-BACK/SD-SOLO, 2026-10-28): re-aimed by content."
   },
   {
     "name": "SD21-said-through-the-door",
     "file": "src/scenes/world.js",
-    "old": "    if (_sdAloneSaid || modes?.transitioning || gateVeil?.busy || gamePaused()) return;",
-    "new": "    if (_sdAloneSaid || gateVeil?.busy || gamePaused()) return;",
+    "old": "    if (_sdAloneSaid || modes?.transitioning || gateVeil?.busy || gamePaused() || !online?.welcomed) return;",
+    "new": "    if (_sdAloneSaid || gateVeil?.busy || gamePaused() || !online?.welcomed) return;",
     "tests": [
       "test/scenes/sd21_alone.test.js"
-    ]
+    ],
+    "note": "PIN MOVED (SD-BACK/SD-SOLO, 2026-10-28): re-aimed by content."
   },
   {
     "name": "SD21-said-under-a-window",
     "file": "src/scenes/world.js",
-    "old": "    if (_sdAloneSaid || modes?.transitioning || gateVeil?.busy || gamePaused()) return;",
-    "new": "    if (_sdAloneSaid || modes?.transitioning || gateVeil?.busy) return;",
+    "old": "    if (_sdAloneSaid || modes?.transitioning || gateVeil?.busy || gamePaused() || !online?.welcomed) return;",
+    "new": "    if (_sdAloneSaid || modes?.transitioning || gateVeil?.busy || !online?.welcomed) return;",
     "tests": [
       "test/scenes/sd21_alone.test.js"
-    ]
+    ],
+    "note": "PIN MOVED (SD-BACK/SD-SOLO, 2026-10-28): re-aimed by content."
   },
   {
     "name": "SD21-said-every-frame",

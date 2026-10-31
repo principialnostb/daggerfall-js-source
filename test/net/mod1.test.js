@@ -90,7 +90,8 @@ test('MOD1: the moderator shield is a handle in CONFIG - granted by listing it, 
   // A DEVELOPER MAY MODERATE WITHOUT THE SHIELD: the dev mark already says more.
   const dev = { handle: 'Lattymoy', created_at: 0 };
   assert.ok(canModerate(dev, { DEVELOPER_HANDLES: 'Lattymoy' }));
-  assert.deepEqual(glyphsOf(dev, { DEVELOPER_HANDLES: 'Lattymoy' }, T0), ['dev'], 'no shield for a developer who is not on the moderator list');
+  assert.ok(!glyphsOf(dev, { DEVELOPER_HANDLES: 'Lattymoy' }, T0).includes('mod'), 'no shield for a developer who is not on the moderator list');   // ADMIN-ALL (PIN MOVED): an Admin's paint glyphs beside the dev mark (titles.js holdsAll)
+  assert.equal(glyphsOf(dev, { DEVELOPER_HANDLES: 'Lattymoy' }, T0)[0], 'dev');
   assert.equal(canModerate({ handle: 'Bob' }, env), false);
   // and the face: every table the badge is drawn from names the shield, in blue
   assert.ok(GLYPHS.includes('mod'));
@@ -412,7 +413,7 @@ test('MOD1: the session carries `sub` onto peers and lines, hands a muted frame 
 test('MOD1: the world host parses the commands before a line is sent, and every room it holds tells the player they are muted', () => {
   const w = src('src/scenes/world.js');
   const at = (re) => { const m = re.exec(w); assert.ok(m, `world.js no longer has ${re}`); return m.index; };
-  assert.ok(at(/const mod = parseModCommand\(text\);/) < at(/return chatLinks\.get\(tabId\)\?\.sendChat\(text, \{ me \}\) \?\? false;/), 'a /mute typed must never go out as a chat line');
+  assert.ok(at(/const mod = parseModCommand\(text\);/) < at(/return chatLinks\.get\(tabId\)\?\.sendChat\(text, \{ me, item, items \}\) \?\? false;/), 'a /mute typed must never go out as a chat line');   // PIN MOVED (CHAT-POST #1342: the linked items ride the line - the pin was left on the old send)
   assert.match(w, /link\.onMuted = onMuted;/, 'every chat link');
   assert.match(w, /online\.onMuted = onMuted;/, 'and the place room\'s own session');
   assert.match(w, /runModCommand\(mod, \{ session: \{ peers \}, links, mute, refusal: accountRefusalText \}\)/);

@@ -68,11 +68,25 @@ export const isBulletinBoard = (modelID) => modelID === BULLETIN_BOARD_MODEL_ID;
 /**
  * RMBLayout.GetModelScaleVector (:74-77): a model record's scale, a zero
  * (absent - every classic record) read as 1. Only a world-data JSON
- * record carries one (WD1: Detailed Ships, Warm Ashes - Ships).
+ * record carries one (WD1: Warm Ashes - Ships' small raid; WD3: the town packs).
  * @returns {[number, number, number]}
  */
 export function modelScaleVector(obj) {
   return [obj.xScale || 1, obj.yScale || 1, obj.zScale || 1];
+}
+
+/** A misc model record's place in its block (RMBLayout's AddProps, below) - its own export (AUDIT PROP-GROUND: the town's
+ *  fabric finds a foot plate where the block stands it, world/urban/townFabricStand.js fabricBlockOf). */
+export function miscModelMatrix(obj) {
+  return trs(
+    obj.xPos * GLOBAL_SCALE,
+    (-obj.yPos + PROPS_OFFSET_Y) * GLOBAL_SCALE,
+    (obj.zPos + RMB_DIMENSION) * GLOBAL_SCALE,
+    -obj.xRotation / ROTATION_DIVISOR,
+    -obj.yRotation / ROTATION_DIVISOR,
+    -obj.zRotation / ROTATION_DIVISOR,
+    ...modelScaleVector(obj)
+  );
 }
 
 /** WD3: the classic model Kamer's prefab REPLACES (MeshReplacement, `41600.prefab`) - in ARCH3D (record 8176) and
@@ -127,15 +141,7 @@ export function layoutRmbBlock(dfBlock, { enhanced = false, windmills = true } =
 
   // Miscellaneous scene models.
   for (const obj of rmb.misc3dObjectRecords) {
-    const miscMatrix = trs(
-      obj.xPos * GLOBAL_SCALE,
-      (-obj.yPos + PROPS_OFFSET_Y) * GLOBAL_SCALE,
-      (obj.zPos + RMB_DIMENSION) * GLOBAL_SCALE,
-      -obj.xRotation / ROTATION_DIVISOR,
-      -obj.yRotation / ROTATION_DIVISOR,
-      -obj.zRotation / ROTATION_DIVISOR,
-      ...modelScaleVector(obj)
-    );
+    const miscMatrix = miscModelMatrix(obj);
     if (millsHere && obj.modelIdNum === WINDMILL_MODEL_ID) { ownMills.push({ matrix: miscMatrix }); continue; }
     models.push({ modelId: obj.modelId, modelIdNum: obj.modelIdNum, matrix: miscMatrix });
   }

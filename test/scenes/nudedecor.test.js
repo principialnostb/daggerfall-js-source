@@ -189,23 +189,31 @@ const NO_PERSON = Object.freeze({
   'src/net/peer/peerRiders.js': 'a peer\'s horse or cart under them',
   'src/net/remotePlayers.js': 'peers as their class\'s mobile sprites, their dolls and their corpses',
   'src/player/eyeOfTheBeholder/eotbBody.js': 'the player\'s own body as mobile sprites',
+  'src/player/eyeOfTheBeholder/eotbHolster.js': 'the weapon on a sprite\'s back',
   'src/player/eyeOfTheBeholder/eotbLantern.js': 'the body\'s lantern',
   'src/render/renderer.js': 'the method itself',
   'src/scenes/camps.js': 'a camp\'s fire',
   'src/scenes/cityGuards.js': 'the watch as mobile units',
   'src/scenes/comeSailAway/comeSailAwayPool.js': 'the vendored prefabs\' billboards - its people none of the table\'s (pinned below)',
   'src/scenes/corpseMarker.js': 'a foe\'s corpse',
+  'src/scenes/delve/delveProps.js': 'the Brazier Rite\'s carried flame (TEXTURE.210\'s camp fire) - never a person',   // DELVE II DLV4
   'src/scenes/droppedLoot.js': 'loot piles',
   'src/scenes/droppedTorches.js': 'torches',
+  'src/scenes/dragonHost.js': 'the Dwarven Dragon, the sky\'s world boss, as a mobile unit - never a person (DRAGON3)',
+  'src/scenes/dragonKeepHost.js': 'a tamed Dwarven Dragon waiting in the world, as a mobile unit - never a person (DRAGON5b)',
   'src/scenes/exteriorFoes.js': 'foes as mobile units',
   'src/scenes/gate/gateCourt.js': 'the gate boss as a mobile unit, and his corpse',
   'src/scenes/eliteGates/egFight.js': 'an Elite Breach\'s champion or Court lord as a mobile unit (EG-PLAY)',
+  'src/scenes/eliteGates/egLordFall.js': 'a felled Elite Breach lord\'s corpse, its mobile\'s own (EG-FALL)',
   'src/scenes/gate/gateHost.js': 'the boss\'s host as mobile units',
   'src/scenes/gate/gateFlame.js': 'the boss\'s Flame (WB14d) as a mobile unit - his aspect\'s Atronach',
   'src/scenes/gate/gateCaptive.js': 'the Captive (WB14f) as a mobile unit - Daggerfall\'s Knight (archives 488 and 487), never the table\'s flats',
   'src/scenes/gatherHost.js': 'gathering nodes',
   'src/scenes/hideouts.js': 'a band\'s camp fire (its people are the encounter pool\'s own)',   // LW12
   'src/scenes/hitEffects.js': 'hit splashes',
+  'src/scenes/ketch/ketchDeckHost.js': 'the sky-ketch\'s clouds round her deck and her engine\'s steam (KT_ARCHIVE) - never a person',   // KETCH
+  'src/scenes/ketch/ketchFight.js': 'the sky-ketch\'s Dwarven constructs as mobile units - never a person; the Warden is a construct too',   // KETCH
+  'src/tools/ketchLab.js': 'the lab\'s Tonal Warden (?warden), a Dwarven construct - never a person',   // KETCH-LOOK KL2
   'src/scenes/horseCartPool.js': 'the cart\'s horse',
   'src/scenes/hostMagic.js': 'spell missiles',
   'src/scenes/lefayMonumentHost.js': 'flowers thrown at Julian LeFay\'s monument (TEXTURE.254\'s roses)',   // LEFAY1

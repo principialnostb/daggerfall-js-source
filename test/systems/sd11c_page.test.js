@@ -21,13 +21,13 @@ import { scanGatePixels } from '../../src/systems/gate/gateSite.js';
 import { LOCATION_TYPES, CLIMATES } from '../../src/formats/mapsFile.js';
 import { isMainStoryDungeon } from '../../src/world/dungeon/dungeonTextures.js';
 import { sdFirst, sdRise, sdFind, sdFell, sdGone, sdFoundLine, SD_COLLAPSE_MS, SD_CAST_OUT_LINE, SD_NO_CLOSED, isSdRoom, sdRoomKey } from '../../src/net/superDungeon/sdLaw.js';
-import { sdRiftWord, sdReturnStands, sdRiftCount, riftLook, sdRiftPlace, sdReturnPlace, sdLandingPlace, inSdPortal, SD_LANDING_PAST_M, SD_RETURN_REACH_M, SD_ENTERED_KEY, SD_ENTERED_MAX } from '../../src/world/superDungeon/sdDungeon.js';
+import { sdRiftWord, sdReturnStands, sdThroughStands, sdRiftCount, riftLook, sdRiftPlace, sdReturnPlace, sdLandingPlace, inSdPortal, SD_LANDING_PAST_M, SD_RETURN_REACH_M, SD_ENTERED_KEY, SD_ENTERED_MAX } from '../../src/world/superDungeon/sdDungeon.js';
 import { sdSlotsKept } from '../../src/systems/superDungeon/sdSlots.js';
 import { SD_REALM_TEXT } from '../../src/world/superDungeon/sdRealm.js';
 import { createSpoilsPool, spoilsStore, spoilsLevel, SPOILS_SPENT_RESEND_MS, SPOILS_SPENT_MAX, SPOILS_KEYS } from '../../src/scenes/spoilsPool.js';
 import { createSdClaims, SD_CLAIMS_MAX, SD_CLAIMS_ALL_MAX } from '../../src/net/superDungeon/sdClaims.js';
 import { createDuelRecords } from '../../src/net/duel/duelRecord.js';
-import { profileView, profileRenown, profileDuelLine, profileGateLine, profileRaidLine, profileSerpentLine, profileSdLine } from '../../src/ui/profileWindow.js';
+import { profileView, profileRenown, profileDuelLine, profileRecordLines } from '../../src/ui/profileWindow.js';
 import { mintSdReceipt, readSdReceipt } from '../../src/net/superDungeon/sdReceipt.js';
 import { sdSpoilsDay, sdSpoilsList, SD_SPOILS_TEXT } from '../../src/systems/superDungeon/sdSpoils.js';
 import { SOCIAL_ROOM, validSdOut } from '../../src/net/wire.js';
@@ -71,7 +71,7 @@ const fnOf = (name) => fnIn(W, name);
 const constOf = (name) => { const at = W.indexOf(`\n  const ${name} = `); assert.ok(at > 0, name); return W.slice(at + 1, W.indexOf('\n  };\n', at) + 5); };
 /** A property of world.js's Hollow host (createSdHost's own arguments), its arrow's text - one line, or a block. */
 function hostProp(name) {
-  const from = W.indexOf('const sdHost = params.has(\'online\') ? createSdHost({');
+  const from = W.indexOf('const sdHost = params.has(\'online\') ? createSdLanes({');   // PIN MOVED (WW5): the Hollow host a lane at a time (scenes/superDungeon/sdLanes.js) - the Bay's lane's host takes these same arguments
   assert.ok(from > 0, 'the Hollow host');
   const at = W.indexOf(`\n    ${name}: `, from);
   assert.ok(at > 0, name);
@@ -158,7 +158,7 @@ test('SD11c THE CAST-OUT CLOSES THE WINDOW (L1 F1): the Hollow\'s end casts out 
     host: {}, teardownDungeonQuestFlats: () => {}, say: () => {}, CAMP_TEXT: {}, destroyWorldPlaque: () => {},
     rrDouseOnDungeonExit: () => null, isDayFromMinutes: () => true, skyMinutes: () => 0, townTalk: null, ActionTextBox: class {}, expandItemMacro: () => '', USE_TEXT: {},
     mwViewTransition: () => {}, immersiveFootsteps: { onTransitionExterior() {} }, betterAmbience: { onTransition() {} }, questBridge: null, npcSession: null,
-    player: { spawn() {}, collider: null, eyeAt: () => [0, 0, 0] }, baseCollider: () => ({ heightAt: () => 0 }), repositionFeetY: (h, y) => y, cam: {},
+    player: { spawn() {}, collider: null, eyeAt: () => [0, 0, 0] }, baseCollider: () => ({ heightAt: () => 0 }), repositionFeetY: (h, y) => y, dungeonExitFeet: (c, l) => l.pos[1], cam: {},
   };
   const body = `
     let mode = 'dungeon', dungeonCtx = ctx, dungeonLoc = { sdSlot: 1 }, pendingDungeonExit = false, pendingDungeonWagonOpen = false, crownHall = null;
@@ -263,10 +263,11 @@ function riftHost({ rec, hollow, storage = memStorage(), entered = true } = {}) 
     forceExitToExterior: () => log.push('out'), enterSdRealm: async () => { log.push('realm'); return entered; },
   };
   const env = {
-    sdHost: { record: () => h.rec, hollow: () => hollow }, _sharedOffsetMs: 0, sdRiftWord, sdReturnStands, sdRiftCount, riftLook, modes, playerEntity: { health: 10 },
+    sdHost: { record: () => h.rec, hollow: () => hollow }, _sharedOffsetMs: 0, sdRiftWord, sdReturnStands, sdThroughStands, sdRiftCount, riftLook, modes, playerEntity: { health: 10 },   // SD-THROUGH (PIN MOVED): the word says whether one went through
     INTERIOR_SEASON: 3, SD_REALM_TEXT, setMidScreenText: (t) => log.push(['said', t]), sdSay: (t) => log.push(['said', t]), _sdEntered: enteredOf(storage), _sdFallen: new Set(),   // SD-ONELIFE (PIN MOVED)
     _teleportToPixel: async () => { log.push('pixel'); if (h.onWalk) h.rec = h.onWalk; },
     sdVeilCentre: () => null, standBeforeHollowDoor: () => true,   // SD-LOOK S5: the veil's centre; AUDIT SD IV (F40): before its door
+    sdCopy: { ownerFor: async () => '0123456789abcdef' },   // SD-PARTY (PIN MOVED): my party's own Hour
   };
   const body = `${constOf('sdRiftOf')}\n${fnOf('sdEnterRealm')}\nreturn { sdRiftOf, sdEnterRealm };`;
   const api = new Function(...Object.keys(env), body)(...Object.values(env));
@@ -423,7 +424,7 @@ test('SD11c THE INSPECT CARD SAYS THE TOWNS, THE SERPENTS AND THE HOURS (L5 F1):
   // the world host's card, from its own text
   const env = {
     profileRenown, online: null, _profileSub: 'acct-x', duelRecords: { get: () => rec }, duelButtonFor: () => null, wedButtonFor: () => null,
-    profileDuelLine, profileGateLine, profileRaidLine, profileSerpentLine, profileSdLine,
+    profileDuelLine, profileRecordLines,   // PIN MOVED (KETCH): the host lays the record's lines through profileRecordLines (ui/profileWindow.js), the voyages beside them
   };
   const withDuel = new Function(...Object.keys(env), `let _profileView = null;\n${constOf('withDuel')}\nreturn withDuel;`)(...Object.values(env));
   const v = withDuel('peer-x', profileView({ name: 'Ann', state: 'answered' }));
@@ -482,7 +483,7 @@ test('SD11c THE SPENT WORD IS OWED UNTIL IT GOES (L5 F4): a spend whose word cou
   const calls = [];
   const env = {
     performance: { now: () => t }, SPOILS_SPENT_RESEND_MS, socialLink: () => ({ status }),
-    spoilsPool: { resendSpent: () => calls.push('gate') }, sdSpoilsPool: { resendSpent: () => calls.push('sd') },
+    spoilsPool: { resendSpent: () => calls.push('gate') }, sdSpoilsPool: { resendSpent: () => calls.push('sd') }, ketch: { spoils: { resendSpent: () => calls.push('kt') } },
   };
   const resend = new Function(...Object.keys(env), `let _spentResendAt = -Infinity;\n${constOf('resendSpentWords')}\nreturn resendSpentWords;`)(...Object.values(env));
   resend();
@@ -491,11 +492,11 @@ test('SD11c THE SPENT WORD IS OWED UNTIL IT GOES (L5 F4): a spend whose word cou
   t = 4999; resend();
   assert.deepEqual(calls, [], 'inside the throttle');
   t = 5000; resend(); resend();
-  assert.deepEqual(calls, ['gate', 'sd'], 'both pools, once');
+  assert.deepEqual(calls, ['gate', 'sd', 'kt'], 'every pool, once');   // PIN MOVED (AUDIT KETCH II L3-6): and the Ketchmaster's hold's
   t = 9999; resend();
-  assert.deepEqual(calls.length, 2);
+  assert.deepEqual(calls.length, 3);
   t = 10_000; resend();
-  assert.equal(calls.length, 4);
+  assert.equal(calls.length, 6);
   const w = strip(W);
   assert.match(w, /onSpent: \(day\) => socialLink\(\)\?\.sendGateSpent\?\.\(day\) === true,\s*\n\s*me: _accountGates\.me,/);
   assert.match(w, /onSpent: \(day\) => \{ const s = sdSpoilsSlot\(day\); return s == null \|\| socialLink\(\)\?\.sendSdSpent\?\.\(s\) === true; \},\s*\n\s*me: _accountGates\.me,/);
@@ -614,7 +615,7 @@ test('SD11c THE WORLD HOST\'S FIGHT, RUN FROM ITS OWN TEXT (L8 G3, L5 F5): in th
 // ── L6 F4, F14: the Hour's death, the floor's last words ──────────────
 
 test('SD11c A DEATH IN THE HOUR IS THE HOUR\'S, AND THE FLOOR\'S LAST WORDS GO TO THE CHAT (L6 F4, F14): the respawn reads the Hour before it leaves it, and wakes under the veil with the Hour\'s own words (it woke with a plain dungeon\'s); what the floor still held, gathered as I leave, is said in the chat - over the screen it took the place of the way home\'s line or the cast-out\'s a frame after (mutants: read after the exit; the dungeon\'s words; the gathered line over the screen)', () => {
-  assert.equal(SD_REALM_TEXT.died, 'The Shattered Hour casts you out for good. You wake before the Abyss Dungeon\'s door.');   // SD-ONELIFE (PIN MOVED): one life; AUDIT SD III (T15, PIN MOVED): the player's word for it, Abyss Dungeon
+  assert.equal(SD_REALM_TEXT.died, 'The Shattered Hour casts you out. You wake before the Abyss Dungeon\'s door.');   // PIN MOVED (SD-BACK, 2026-10-28): no longer for good - its Rift takes you back to your own Hour; SD-ONELIFE (PIN MOVED): one life; AUDIT SD III (T15, PIN MOVED): the player's word for it, Abyss Dungeon
   const w = strip(W);
   const at = w.indexOf("const diedInHour = madeRuleHere('death') === 'final';");   // PIN MOVED (EG-H2, Elite-Gates.md section 24): the made level's law (systems/madeLevel.js): a death in the Hour is final for its Hollow
   const go = w.indexOf('Promise.resolve().then(async () => {', at);

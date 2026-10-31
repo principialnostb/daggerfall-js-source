@@ -60,15 +60,17 @@ import {
 import { tooFarAwayText } from '../player/activate.js';
 import { startMobileTalk, expandMacros, expandAnswerRecord, oathTextId, honorificOf, raceDisplayName } from '../systems/talk/talkSession.js';
 import { REGION_RACES } from '../formats/mapsFile.js';
-import { getLocalizedLocationName, getLocalizedRegionName } from '../systems/textManager.js'; import { shownFactionNames } from '../world/buildingNames.js';   // L10N3e: the place names shown, and the faction names a guild hall and a temple show
+import { REGION_PEOPLE } from '../formats/mapsTables.js';   // WW-R: each region's people, a province's its own
+import { getLocalizedLocationName, getLocalizedRegionName } from '../systems/textManager.js'; import { shownFactionNames, generateBuildingName } from '../world/buildingNames.js';   // L10N3e: the place names shown, and the faction names a guild hall and a temple show; IC-PROPS: a building of another town named by its own
 import { ChoiceWindow } from '../ui/talkWindow.js';
 import { buildBuildingDirectory, questorCandidateBuildings, TOPIC_CATEGORIES, whereIsAnswer, reactionTier012, buildingHint, toneTaste } from '../systems/talk/talkTopics.js';
 import { yardDirectoryRows } from '../systems/merchantYards.js';   // YARDS-FOUND: the town's yards in its directory
 import { portDirectoryRows, FOUND_KIND_ORDER, FOUND_TALK_GROUPS, lettersOnMap } from '../systems/portPlaces.js';   // SHIPYARDS-FOUND: and a port town's shipyard, crew hall, lighthouse and docks - the found places' one order
 import { OPENED_SHOP_TYPES, OPENED_SHOP_GROUPS } from '../world/buildingNames.js';   // PROF-FOUND: the shops the port opened, asked after
 import { LIST_ITEM_TYPE, QUESTION_TYPE } from '../systems/topicTree.js';   // TK-vi: the window's rows are the tree's ListItems; B6: the Work question type
-import { discoverBuilding } from '../systems/discovery.js';   // T4: %loc's mark side effect
-import { getNameBankOfRegion, fullName as nameHelperFullName, GENDERS } from '../characters/nameHelper.js';   // MACRO-6: %fn/%mn in the engine-less answer
+import { discoverBuilding, townBookId, townBookOf } from '../systems/discovery.js';   // T4: %loc's mark side effect; BAY-LEFT-MAPS (C7 = E2): its town's own book; IC-PROPS: a door's town's
+import { getNameBankOfRegion, GENDERS } from '../characters/nameHelper.js';   // MACRO-6: %fn/%mn in the engine-less answer
+import { personName } from '../characters/personNames.js';   // REGION-NAMES
 import { talkMacroSource } from '../systems/talk/talkMacros.js';
 import { bumpSeed } from '../formats/dfRandom.js';
 import { FACTION_TYPES } from '../formats/factionFile.js';
@@ -92,6 +94,7 @@ export { MODES, nextInteractionMode } from '../player/interactionMode.js';
 import { MODES, MODE_ACTIONS, getInteractionMode, setInteractionMode, nextInteractionMode, interactionModeText, askInteractionMode } from '../player/interactionMode.js';
 import { modeWheel, MODE_WHEEL_ACTION } from '../ui/modeWheel.js';   // MODE-WHEEL: the held key's wheel
 import { getClassicQuestionIndex } from '../systems/answerPipeline.js';   // F042
+import { friendLine } from '../systems/livingWorld/friendWord.js';   // FIELD BUGS 2026-10-21d REGARD-OWN: a friend made, said
 // AUDIT 58 (talk lane): the four modes ride the keybinding registry
 // now - MODE_ACTIONS lives beside the mode it sets
 // (player/interactionMode.js), because PlayerActivate.cs:221-228 reads
@@ -143,7 +146,7 @@ export function rayPersonDistance(camPos, fwd, feet) {
   return t / fl * Math.hypot(fwd[0], fwd[1], fwd[2]);
 }
 
-export function createTownTalk({ renderer, canvas, fetchBytes, playerEntity, regionIndex, onCrime = null, topics = null, palette = null, rolls = Math.random, talkEngine = null, onBuildingList = null, otherOverlayActive = null, otherHudCovered = null, keysLive = null, questBuildingSource = null, livingTalk = null, livingTone = null, legacyTopics = null }) {   // LW2: `livingTalk` the living world's doors - { refuses(person) -> text|null, talked(person), caught(person) } (bible/06-Systems/Living-World.md); LEGACY-HOME: `kin(person, talk)` true when one of the player's line took the activation (`talk` the conversation, should they ask for it); LW7: `livingTone(person, taste)` a question's tone, as they took it (TONE-TASTE)   // AUDIT ENH-NOTICE3 C2: `otherHudCovered` is the mode host's previousWindow-chain answer (modes.hudCovered), for the toasts   // AUDIT 63 F49: PlayerGPS.DiscoverBuilding's quest name-override seam ({ currentMapID, isBuildingQuestResource }), null in a host with no topic tree
+export function createTownTalk({ renderer, canvas, fetchBytes, playerEntity, regionIndex, nameBank = null, onCrime = null, topics = null, palette = null, rolls = Math.random, talkEngine = null, onBuildingList = null, otherOverlayActive = null, otherHudCovered = null, keysLive = null, questBuildingSource = null, livingTalk = null, livingTone = null, legacyTopics = null }) {   // LW2: `livingTalk` the living world's doors - { refuses(person) -> text|null, talked(person), caught(person) } (bible/06-Systems/Living-World.md); LEGACY-HOME: `kin(person, talk)` true when one of the player's line took the activation (`talk` the conversation, should they ask for it); LW7: `livingTone(person, taste)` a question's tone, as they took it (TONE-TASTE)   // AUDIT ENH-NOTICE3 C2: `otherHudCovered` is the mode host's previousWindow-chain answer (modes.hudCovered), for the toasts   // AUDIT 63 F49: PlayerGPS.DiscoverBuilding's quest name-override seam ({ currentMapID, isBuildingQuestResource }), null in a host with no topic tree
   // RP1 - THE REGION IS READ LIVE, NOT CAPTURED AT BOOT.
   //
   // This took a plain number, and the world host had no choice but to
@@ -161,6 +164,9 @@ export function createTownTalk({ renderer, canvas, fetchBytes, playerEntity, reg
   // passing their number; the world host passes its live
   // PlayerGPS.CurrentRegionIndex read.
   const regionNow = typeof regionIndex === 'function' ? regionIndex : () => regionIndex;
+  /** TESA3: the people's name bank where the player stands, when the host answers one (the world host past the Bay: the
+   *  province's - world/tamrielPeople.js), else null and the region's (GetNameBankOfRegion) as ever. */
+  const provinceBank = () => (typeof nameBank === 'function' ? nameBank() : null) ?? null;
   /** TK-v: the talk engine, or null before it is built / with no
    *  game data. A getter, because world.js wires the four modules to
    *  each other and can only hand them over once all four exist. */
@@ -255,7 +261,7 @@ export function createTownTalk({ renderer, canvas, fetchBytes, playerEntity, reg
   /** RP1: was a `const` computed at construction. The race of the
    *  people you meet is the CURRENT region's, and it is what picks the
    *  oath pool (%oth) below. */
-  const npcRaceNow = () => (REGION_RACES[regionNow()] === 1 ? 'Redguard' : 'Breton');
+  const npcRaceNow = () => REGION_PEOPLE[regionNow()] ?? 'Breton';   // WW-R: a province's people (formats/mapsTables.js REGION_PEOPLE) - the Bay's Breton or Redguard as FALL.EXE's table says
 
   async function ensureLoaded() {
     if (loaded || loading) return loading;
@@ -300,18 +306,27 @@ export function createTownTalk({ renderer, canvas, fetchBytes, playerEntity, reg
   // buildingNameOpts hook and the directory build cannot drift - a
   // second copy of "which bank, whose regent, what the palace is
   // called" is how %cbd and the talk directory come to disagree about
-  // the same building. Null while no topics/factions stand (the quest
+  // the same building. Null until FACTION.TXT is read (the quest
   // hook answers {} through it and generateBuildingName falls to its
-  // own defaults, DFU's own out-of-location posture).
+  // own defaults).
+  // FB1020h SITE-NAMED (FIELD BUGS 2026-10-20h): A TEMPLE'S AND A GUILD
+  // HALL'S NAME NEED NO TOWN. The bag answered null wherever no town's
+  // topics stood - on the road, at sea - and a quest that drew a remote
+  // temple or guild hall there named it '' for good: the Order of the
+  // Hour's letters read "at  in Wildertown". DFU names them from
+  // PlayerEntity.FactionData wherever the player stands
+  // (FormulaHelper.cs:3139-3162), and a shop's %ef bank and %rt regent
+  // by the player's region (FormulaHelper.cs:3225,
+  // MacroHelper.cs:644-650); only the town pair is the town's.
   function nameOpts() {
-    if (!topics || !factions) return null;
-    const region = topics.regionIndex ?? regionNow();
+    if (!factions) return null;
+    const region = topics?.regionIndex ?? regionNow();
     const province = findFactions(factions.factionDict, { type: FACTION_TYPES.Province, region })[0];
     return {
-      locationName: topics.locationName, regionName: topics.regionName,   // the canonical pair: the key a palace is chosen by
+      locationName: topics?.locationName, regionName: topics?.regionName,   // the canonical pair: the key a palace is chosen by (none off a town)
       // L10N3e: ...and the pair AS SHOWN, for a shop's %cn and the bank's region (TalkManager.cs:2788-2789, :2857-2858)
       shownLocationName: shownLocationName(), shownRegionName: shownRegionName(),
-      nameBank: getNameBankOfRegion(region),
+      nameBank: provinceBank() ?? getNameBankOfRegion(region),   // TESA3: the province's people past the Bay
       regentRuler: province?.ruler ?? 0,
       factionName: (id) => factions.getFaction(id)?.name ?? '',
       templeName: (id) => { const f = factions.getFaction(id); return (f?.children?.length ? factions.getFaction(f.children[0])?.name : f?.name) ?? ''; },
@@ -325,6 +340,24 @@ export function createTownTalk({ renderer, canvas, fetchBytes, playerEntity, reg
       },
     };
   }
+  /** IC-PROPS (bible/03-World/Arena-Provinces.md IC-PROPS): A BUILDING'S NAME IN THE TOWN IT STANDS IN - the directory's row
+   *  where that town is the talk's own (its topics', the player's pixel's), else BuildingNames' law over that town's own
+   *  names (`place` a DFLocation: a neighbouring slice of the Imperial City, a town across a pixel's edge) - so a door's
+   *  plaque and its shop name the door's own building, never the player's town's building under the same key. `data` the
+   *  door's merged record (systems/talk/talkTopics.js buildingDataForDoor). */
+  function buildingNameIn(place, data) {
+    if (!data) return '';
+    const mapId = (place?.mapTableData?.mapId ?? 0) >>> 0;
+    if (!place || !topics || mapId === ((topics.mapId ?? 0) >>> 0)) return directory.find((e) => e.buildingKey === data.buildingKey)?.name ?? '';
+    const opts = nameOpts();
+    if (!opts) return '';
+    const regionName = place.regionName ?? '', shownRegion = Number.isInteger(place.regionIndex) ? getLocalizedRegionName(place.regionIndex, () => regionName) : regionName;
+    return generateBuildingName(data.nameSeed, data.buildingType, { ...opts, locationName: place.name, regionName, shownLocationName: getLocalizedLocationName(mapId, place.name), shownRegionName: shownRegion, factionId: data.factionId });
+  }
+  /** IC-PROPS: A DOOR'S OWN TOWN for its record (scenes/world.js buildingDataForDoor) - its building's name there
+   *  (buildingNameIn), the town's book of buildings its plaque and its press discover into (systems/discovery.js townBookOf),
+   *  and the town's name a nameless building's plaque says. `place` the DFLocation the door stands in. */
+  const doorTownOf = (place, data) => ({ name: buildingNameIn(place, data), townBook: townBookOf(place), townName: place?.name ?? '' });
 
   function rebuildDirectory() {
     directory = [];
@@ -975,6 +1008,8 @@ export function createTownTalk({ renderer, canvas, fetchBytes, playerEntity, reg
           workAvailable: eng.session?.workAvailable ?? false,
         })),
         answer: (row) => {
+          // COURT-DEEDS (AUDIT FB1026d B3): a row that hears the tone itself is handed it, to read the regard either side
+          if (row.legacy?.hearsTone) return row.legacy.answer(tone, _toneTaste(), _toneHeard);
           _toneHeard();   // LW7: the question's tone, in a resident's regard
           if (row.legacy) return row.legacy.answer(tone, _toneTaste());   // LEGACY5: the host's answer - TONE-TASTE: and how the tone was taken
           if (row.listItem) return eng.pipeline.getAnswerText(row.listItem, { npcSeed });
@@ -1081,6 +1116,16 @@ export function createTownTalk({ renderer, canvas, fetchBytes, playerEntity, reg
    *  reaction reads it (a mobile's is a Commoner's, npcSession.js setTargetMobileNPC; with no engine, the same). */
   const _toneTaste = () => toneTaste(tone, engine()?.session?.npcData?.socialGroup ?? 0);
   const _toneHeard = () => { if (_toneTarget) livingTone?.(_toneTarget, _toneTaste()); };
+  /** REGARD-OWN (FIELD BUGS 2026-10-21d): A FRIEND MADE IS SAID - a word, its tone or a deed that carries a resident's
+   *  regard into friendship (the relations' own count, regardClock.js friendsMade), with where their Courtship is when
+   *  the house can court them. AUDIT FB1021d RO-1: said once nothing covers the HUD. The talk window covers the toasts and
+   *  the classic column, and the HUD's lines run out on real seconds (`hud.tick` takes the frame's dt, a window open or
+   *  not), so a line said at the word was gone before the window closed; it waits for the window instead, and a friend
+   *  lost again inside it (a blunt question after the word) is not said at all. */
+  const sayFriends = () => {
+    if (overlay || toastsCovered()) return;
+    for (const f of livingTalk?.friendsMade?.() ?? []) hud.add(friendLine(f));
+  };
   // AUDIT 26 F043: the CURRENT partner's reaction seed. DFU seeds the
   // roll from whichever NPC is being spoken to - `DFRandom.Seed =
   // lastTargetMobileNPC.GetHashCode()` or `lastTargetStaticNPC`'s
@@ -1245,14 +1290,14 @@ export function createTownTalk({ renderer, canvas, fetchBytes, playerEntity, reg
       // boot region, so a building revealed after streaming across a
       // border was filed under the region the session started in and
       // the map never showed it where the player actually was.
-      if (h.reveal) discoverBuilding(`${regionNow()}:${cityName()}`, building, null, questBuildingSource);   // AUDIT 63 F49: TalkManager.cs:1290's DiscoverBuilding takes the quest name-override arm too (PlayerGPS.cs:945-959)
+      if (h.reveal) discoverBuilding(townBookId(regionNow(), cityName(), topics?.mapId), building, null, questBuildingSource);   // AUDIT 63 F49: TalkManager.cs:1290's DiscoverBuilding takes the quest name-override arm too (PlayerGPS.cs:945-959)
       return text;
     };
     // MACRO-6: FemaleName/MaleName off TalkManagerMCP's own source (the
     // region's name bank, and MaleName's DFRandom seed nudge), the ones
     // the engine path answers through - 7269 and 7275-7294 carry them.
     const names = talkMacroSource({
-      fullName: (gender) => nameHelperFullName(getNameBankOfRegion(regionNow()), gender === 'female' ? GENDERS.Female : GENDERS.Male),
+      fullName: (gender) => personName(provinceBank() ?? getNameBankOfRegion(regionNow()), gender === 'female' ? GENDERS.Female : GENDERS.Male),   // TESA3; REGION-NAMES
       bumpSeed,
     });
     // AUDIT 18 F1: ExpandRandomTextRecord (TalkManager.cs:3580-3587)
@@ -1283,6 +1328,7 @@ export function createTownTalk({ renderer, canvas, fetchBytes, playerEntity, reg
 
   function frame(dt) {
     hud.tick(dt);
+    sayFriends();   // REGARD-OWN: a friend made, once the HUD is clear
     overlay?.tick?.(dt);   // D1: the death sequence's clock (any overlay may want one)
     // U41: a window may FINISH inside its own tick - the travel
     // popup's day countdown departs on a clock, not on a key - and
@@ -1542,6 +1588,7 @@ export function createTownTalk({ renderer, canvas, fetchBytes, playerEntity, reg
      *  frame after the player walked out. It drives this directly. */
     hudFrame: (dt, font_ = font) => {
       hud.tick(dt);
+      sayFriends();   // REGARD-OWN: a friend made indoors, said where it was made
       hud.observe(toastsCovered());   // AUDIT FONT F4 / ENH-NOTICE3 F3/C2: the same report as the frame above, the interior slot this arm is drawn under included
       if (font_ && hudRenderEnabled()) hud.draw(renderer, canvas, font_, hudScale(canvas.width, canvas.height)); else hud.hide();   // AUDIT 64 F37: the same Draw gate as the frame above, with FONT1's hide door on its else (the enhanced column is DOM and persists)
     },
@@ -1601,6 +1648,8 @@ export function createTownTalk({ renderer, canvas, fetchBytes, playerEntity, reg
     },
     get mode() { return getInteractionMode(); },
     get directory() { return directory; },   // E2: the hosts name shops for the browse window by buildingKey
+    buildingNameIn,   // IC-PROPS: a door's building named in its own town
+    doorTownOf,   // IC-PROPS: and the door's record's own town
     get locationName() { return shownCityName(); },   // G2: %cn for the court boxes (MacroHelper.CityName)
     _debug: () => ({
       mode: getInteractionMode(), overlay: !!overlay, people: peopleNow()?.name ?? null,

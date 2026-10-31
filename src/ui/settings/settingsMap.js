@@ -33,7 +33,7 @@ export const CATEGORIES = Object.freeze([
     sec("quality", "Quality", [
       "preset:graphics"]),
     sec("display", "Display", [
-      "Video/FieldOfView", "feat:render-scale", "Video/TargetFrameRate", "Video/VSync", "port:showFps", "Video/Fullscreen",
+      "Video/FieldOfView", "feat:render-scale", "Video/TargetFrameRate", "Video/VSync", "port:graphicsBackend", "port:showFps", "Video/Fullscreen",
       "Video/ExclusiveFullscreen", "Video/ResolutionWidth", "Video/ResolutionHeight", "Video/QualityLevel", "Video/RunInBackground"]),
     sec("distance", "View distance & detail", [
       "feat:land-view-distance", "Experimental/TerrainDistance", "feat:ground-sharpness", "feat:cloud-quality", "feat:real-windows",
@@ -43,7 +43,7 @@ export const CATEGORIES = Object.freeze([
       "Enhancements/NightAmbientLightScale", "Enhancements/PlayerTorchLightScale", "Spells/EnableSpellLighting", "Spells/EnableSpellShadows",
       "Video/AmbientLitInteriors"]),
     sec("sky", "Sky, water & weather", [
-      "feat:enhanced-environments", "feat:enhanced-water", "feat:water-quality", "feat:mod-heat-haze", "feat:mod-snowfall"]),
+      "feat:enhanced-environments", "feat:enhanced-water", "feat:water-quality", "feat:armory-others", "feat:killfx-others", "feat:mod-heat-haze", "feat:mod-snowfall"]),
     sec("plants", "Plants, trees & wind", [
       "feat:grass", "feat:wind", "feat:mod-windfall", "feat:mod-low-poly-trees", "feat:mod-seasons-iliac-bay"]),
     sec("looks", "Textures & looks", [
@@ -72,8 +72,8 @@ export const CATEGORIES = Object.freeze([
       "port:questRepair", "feat:questlines", "feat:nearby-quests", "feat:choose-guild-jobs", "Enhancements/GuildQuestListBox", "GUI/CanDropQuestItems",
       "GUI/QuestRumorWeight", "GUI/EnableQuestDebugger"]),
     sec("dungeons", "Dungeons", [
-      "feat:smaller-dungeons", "Experimental/SmallerDungeons", "feat:medium-dungeons", "feat:world-dungeon-sizes", "feat:varied-dungeon-monsters",
-      "Enhancements/AlternateRandomEnemySelection", "feat:mod-aquatic-sprites"]),
+      "feat:smaller-dungeons", "Experimental/SmallerDungeons", "feat:medium-dungeons", "feat:world-dungeon-sizes", "feat:dungeon-encounters", "feat:varied-dungeon-monsters",
+      "Enhancements/AlternateRandomEnemySelection"]),
     sec("loot", "Loot & items", [
       "feat:quick-loot", "feat:loot-rarity", "feat:mod-unleveledloot", "feat:mod-roleplay-realism-items", "feat:mod-physical-items"]),
     sec("light", "Your light", [
@@ -81,11 +81,11 @@ export const CATEGORIES = Object.freeze([
     sec("character", "Character & survival", [
       "feat:mod-oblivion-remaster-leveling", "feat:mod-project-legacy", "feat:mod-climates-calories", "feat:mod-roleplay-realism"]),
     sec("moving", "Climbing & gathering", [
-      "feat:enhanced-climbing", "Enhancements/AdvancedClimbing", "feat:mod-foraging"]),
+      "feat:enhanced-climbing", "Enhancements/AdvancedClimbing", "feat:resource-highlights", "feat:mod-foraging"]),
     sec("start", "Starting a new game", [
       "Startup/StartInDungeon", "Startup/StartCellX", "Startup/StartCellY"]),
     sec("camera", "Camera", [
-      "feat:mod-eye-of-the-beholder"]),
+      "feat:mw-shoulder-camera", "feat:mod-eye-of-the-beholder"]),
     sec("others", "Other players", [
       "card:peerSprites"]),
     sec("advanced", "Advanced", [
@@ -99,7 +99,7 @@ export const CATEGORIES = Object.freeze([
     sec("weapons", "Weapons in hand", [
       "feat:weapon-glow", "feat:mod-weapon-widget", "feat:mod-shield-widget", "feat:mod-readied-spellcasting-hands", "feat:mod-diverse-weapons", "feat:bows-left-hand", "Enhancements/BowLeftHandWithSwitching"]),
     sec("morrowind", "With Morrowind data", [
-      "feat:mod-weapon-sheathing", "feat:mw-spell-effects"]),
+      "feat:mod-weapon-sheathing", "feat:beast-footwear", "feat:beast-helmets", "feat:mw-spell-effects", "feat:npc-marks"]),
     sec("aftermath", "Seeing & bleeding", [
       "feat:enhanced-combat-visuals", "feat:blood"]),
     sec("sea", "At sea", [
@@ -107,7 +107,7 @@ export const CATEGORIES = Object.freeze([
   ]),
   tab("world", "World", [
     sec("land", "Land", [
-      "feat:tamriel-land", "feat:landforms", "feat:real-forests", "feat:bantha-jungle", "feat:climate-blend", "feat:road-verges", "feat:mod-roads-hazelnut"]),
+      "feat:tamriel-land", "feat:landforms", "feat:real-forests", "feat:bantha-jungle", "feat:tamriel-lands", "feat:climate-blend", "feat:road-verges", "feat:mod-roads-hazelnut"]),
     sec("weather", "Weather & ambience", [
       "feat:weather-events", "feat:mod-better-ambience"]),
     sec("towns", "Towns & people", [
@@ -117,17 +117,18 @@ export const CATEGORIES = Object.freeze([
     sec("travel", "Travel", [
       "feat:mod-travel-options", "feat:mod-immersive-travel", "feat:mod-horse-cart-and-cargo", "feat:horse-care", "feat:wagon-upkeep"]),
     sec("sea", "The sea & ships", [
-      "feat:mod-come-sail-away", "feat:mod-detailed-ships", "feat:mod-warm-ashes-ships", "feat:mod-iliac-puddle-no-more", "feat:mod-ocean-holes"]),
+      "feat:mod-come-sail-away", "feat:mod-warm-ashes-ships", "feat:mod-iliac-puddle-no-more", "feat:mod-ocean-holes"]),
   ]),
   tab("interface", "Interface", [
     // L10N1b: the language the game's words are shown in, and under it a Daggerfall Unity translation pack (L10N3b)
     sec("language", "Language", ["port:language"]),
+    sec("shop", "Shop", ["port:shopHidden"]),   // SHOP-HIDE
     sec("hud", "HUD", [
       "port:hudScale", "port:hudLock", "port:hudBars", "port:hudReset", "feat:calm-hud", "port:foeBarStyle", "feat:quick-slots", "GUI/Crosshair",
       "GUI/EnableVitalsIndicators", "GUI/InteractionModeIcon", "GUI/EnableArrowCounter", "GUI/IconsPositioningScheme", "feat:near-death-warning",
       "Enhancements/NearDeathWarning"]),
     sec("messages", "Messages & prompts", [
-      "feat:mod-world-tooltips", "feat:mod-ambient-text", "GUI/ShowQuestJournalClocksAsCountdown", "GUI/DungeonExitWagonPrompt",
+      "feat:event-board", "feat:mod-world-tooltips", "feat:mod-ambient-text", "GUI/ShowQuestJournalClocksAsCountdown", "GUI/DungeonExitWagonPrompt",
       "GUI/IllegalRestWarning", "GUI/DisableEnemyDeathAlert"]),
     sec("quests", "Quest help", [
       "feat:quest-herald", "feat:quest-tracker", "feat:quest-marks", "feat:quest-guidance"]),
@@ -149,11 +150,11 @@ export const CATEGORIES = Object.freeze([
     sec("tooltips", "Tooltips", [
       "GUI/EnableToolTips", "GUI/ToolTipDelayInSeconds", "GUI/ToolTipTextColor", "GUI/ToolTipBackgroundColor"]),
     sec("start", "Starting up & loading", [
-      "port:skipStartVideo", "feat:loading-screen", "GUI/ShowOptionsAtStart", "GUI/HideLoginName"]),
+      "port:skipStartVideo", "port:autoUpdates", "feat:loading-screen", "GUI/ShowOptionsAtStart", "GUI/HideLoginName"]),
   ]),
   tab("audio", "Audio", [
     sec("volume", "Volume", [
-      "Controls/SoundVolume", "Controls/MusicVolume", "port:monsterVolume"]),
+      "Controls/SoundVolume", "Controls/MusicVolume", "port:monsterVolume", "port:companionVolume", "port:horseVolume", "port:animalVolume"]),
     sec("music", "Music", [
       "Audio/AlternateMusic", "Audio/SoundFont", "port:midiOut"]),
     sec("sounds", "Sounds", [
@@ -177,7 +178,7 @@ export const CATEGORIES = Object.freeze([
   ]),
   tab("accessibility", "Accessibility", [
     sec("motion", "Motion", [
-      "Controls/HeadBobbing", "Controls/CameraRecoilStrength", "port:techniqueMotion", "port:reducedMotion", "Effects/MotionBlurEnable", "Effects/MotionBlurShutterAngle",
+      "Controls/HeadBobbing", "Controls/CameraRecoilStrength", "port:techniqueMotion", "port:peerSpellShake", "port:reducedMotion", "Effects/MotionBlurEnable", "Effects/MotionBlurShutterAngle",
       "Effects/MotionBlurSampleCount", "Effects/VignetteEnable", "Effects/VignetteIntensity", "Effects/VignetteSmoothness", "Effects/VignetteRoundness",
       "Effects/VignetteRounded"]),
     sec("reading", "Readability", [

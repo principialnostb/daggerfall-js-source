@@ -21,16 +21,19 @@
 // the singleton and could hand the inventory a stranger's doll, or the
 // stranger the player's, panel and all.
 import { composePaperDollPixels } from '../ui/paperDoll.js';
-import { equipTableOf } from '../systems/equip.js';
+import { drawnEquipTable, capeShown } from '../systems/capeShown.js';   // CAPE-TOGGLE: my cloak hidden, on everyone's screen
 import { createEquipTable } from '../characters/equipTable.js';
 import { CAPSULE_HEIGHT } from '../player/motor.js';
 import { drawText, measureText } from '../ui/text.js';
 import { titleBadge, glyphMarks, gradientAt } from '../ui/playerBadge.js';   // ACC3: what a title and a glyph LOOK like - one home, both faces (the DOM layer reads the same module)
 import { projectToScreen } from '../player/tapRay.js'; import { multiply } from '../world/mat4.js';   // one home (audit24 onehome): the touch layer's own projection
-import { LOOK_ITEM_FIELDS, LOOK_GROUPS, LOOK_GLOW_SLOTS, lookGlowOk } from './wire.js';   // the look's vocabulary: the wire's own; WEAPON-GLOW1: and a weapon's glow
+import { LOOK_ITEM_FIELDS, LOOK_GROUPS, LOOK_GLOW_SLOTS, lookGlowOk, POSE_RIDE } from './wire.js';   // the look's vocabulary: the wire's own; WEAPON-GLOW1: and a weapon's glow; DRAGON1: the dragon's ride
+import { DWARVEN_DRAGON_ID, dragonArchiveOf, dragonHoverFrame } from '../characters/dwarvenDragonId.js';   // DRAGON1: the sprite a dragon's rider stands as; DRAGON7: an Aetherbright's own pictures; DRAGON-HOVER: its rest in the air
+import { appearanceOf, validWireAppearance } from './appearanceLaw.js';   // APPEARANCES: a worn piece's look, said and read
 import { meshGlow, glowWord } from '../systems/weaponGlow.js';   // WEAPON-GLOW1: a held weapon's glow, said on the look
 import { renownText } from './renown.js';   // RENOWN1: Renown's words, left of the name in the bitmap face too
 import { guildTagText } from './guild/guildLaw.js';   // GUILD1c: the guild's tag, right of the name in the bitmap face too
+import { nameOffDeg } from '../ui/nameCone.js';   // PVP-CONE: each name's angle off the crosshair
 import { ribbonRgba } from './heraldryLaw.js';   // SEASON1 part two: a Season's banner ribbon, under the name in the bitmap face too
 /** AUDIT-SEATS C12: each ribbon's two tints, parsed once - by its claim's two colour indexes (one number, no string made),
  *  for every ribboned name every frame; anything that is no claim is asked of the law itself (it answers null). */
@@ -46,7 +49,7 @@ export function ribbonTints(rb) {
 // the same class-enemy sprite classic dungeon humanoids already use (Warrior, Mage, Knight, ...), driven by simple
 // moving/striking flags off the peer's synced pose instead of AI - the reusable pieces dungeonContext.js already
 // builds a foe's OWN mobile unit from (MobileUnit.update takes the same flags EnemyMotor's AI would set).
-import { MobileUnit } from '../characters/mobile/mobileUnit.js';
+import { MobileUnit, mobilePortrayedYaw } from '../characters/mobile/mobileUnit.js';   // CAPE-CARD: and the way its picture faces
 import { ENEMY_BASICS, ENEMY_NAMES } from '../characters/enemy/enemyBasics.js';
 import { MOBILE_TYPES } from '../characters/mobile/mobileTypes.js';   // DISC12: the beast a peer in beast form stands as
 import { mobileBillboardSize } from '../world/rmbFlats.js';
@@ -58,7 +61,10 @@ import { CLASS_CAREERS } from '../systems/chargen.js';   // 2026-09-17 (bugfix):
 import { EQUIP_SLOTS } from '../characters/paperdoll/paperdoll.js';   // AUDIT DROPS E6: the hand a swing sound is read off
 import { FootstepMachine, FOOTSTEP_CLIP_SETS } from '../systems/footsteps.js';   // PEER-FS1: peer footsteps off the pose's own `fk`
 import { RidingAnimator, RIDING_VOLUME_SCALE, nextNeighDelay } from '../systems/riding.js';   // RIDE-SOUND: a peer's hooves are TransportManager's own loop, clip swap and neigh
+import { hoofClipFor, installHorseSounds } from '../systems/horse/horseVoice.js';   // HORSE-VOICE: and on the ground under them, off their pose's `fk`
+import { enhancedSoundsOn } from '../systems/enhancedSounds.js';   // HORSE-VOICE: the port's own sounds, the listener's switch
 import { TRANSPORT_MODES } from '../systems/transport.js';   // RIDE-SOUND: the pose's `rd` as the animator's mode
+import { horseVolume } from '../systems/animalVolume.js';   // HORSE-VOL: a peer's mount on the Audio tab's Horse Volume
 import { swingSoundFor, SOUND } from '../systems/soundClips.js';   // PEER-FS2: a peer's own swing sound, off the pose's `an` edge and their equipped weapon
 import { billboardSize } from '../world/rmbFlats.js';   // PCORPSE1: a corpse stands as the dungeon's own corpses stand
 import { raceGenderPain3Sound, CLASSIC_PLAYER_DEATH_SOUND } from '../systems/playerDeath.js';   // PCORPSE1: the fallen player's own cry
@@ -397,7 +403,7 @@ export function ownLayeredGear(entity = null) {
  *  LAYERED-GEAR: `layered` the On foot Layered Gearing Skin chosen (ownLayeredGear). */
 export function composeLook(entity, { eotbSet = ownEotbSet(), layered = ownLayeredGear(entity) } = {}) {
   const items = [];
-  const table = entity ? equipTableOf(entity) : [];
+  const table = entity ? drawnEquipTable(entity) : [];   // CAPE-TOGGLE: a hidden cloak is left out - a peer draws none
   for (let slot = 0; slot < table.length; slot++) {
     const it = table[slot];
     if (!it) continue;
@@ -409,6 +415,8 @@ export function composeLook(entity, { eotbSet = ownEotbSet(), layered = ownLayer
     // alone: a foe's kit is said on its record (characters/foeBodies.js encodeWorn), which carries no glow, so a foe's
     // weapon glowing on the host's screen alone would be one fight seen two ways
     if (it.group === 'Weapons' && entity?.isPlayer === true && LOOK_GLOW_SLOTS.includes(o.equipSlot)) { const g = glowWord(meshGlow(it, { on: true })); if (g) o.glow = g; }   // AUDIT WEAPON-GLOW NET-4: a weapon in a hand
+    const worn = appearanceOf(it);   // APPEARANCES: the look worn over it - `ap`, OMITTED when none, so a piece in its own keeps the bytes it had
+    if (worn) o.ap = [worn.t, worn.m, worn.v];
     items.push(o);
   }
   // 2026-09-17: `class` rides the look alongside race/gender/face so a peer without a Morrowind body can be drawn
@@ -421,7 +429,9 @@ export function composeLook(entity, { eotbSet = ownEotbSet(), layered = ownLayer
   const klass = careerName(entity);
   // DISC23-B: `eo` OMITTED while the mod is off, `class`'s law - a look without it keeps the bytes it always had
   // LAYERED-GEAR: `lg` OMITTED while the skin is off, the same law
-  return { race: entity?.race ?? 'Breton', gender: entity?.gender ?? 'male', faceIndex: entity?.faceIndex ?? 0, ...(klass ? { class: klass } : {}), ...(Number.isInteger(eotbSet) ? { eo: eotbSet } : {}), ...(layered === 1 || layered === 2 ? { lg: layered } : {}), items };
+  // CAPE-TOGGLE: `hc` while my capes are hidden (my aura stays on: scenes/auraHost.js) - OMITTED otherwise
+  const hc = entity?.isPlayer === true && !capeShown();
+  return { race: entity?.race ?? 'Breton', gender: entity?.gender ?? 'male', faceIndex: entity?.faceIndex ?? 0, ...(klass ? { class: klass } : {}), ...(Number.isInteger(eotbSet) ? { eo: eotbSet } : {}), ...(layered === 1 || layered === 2 ? { lg: layered } : {}), ...(hc ? { hc: 1 } : {}), items };
 }
 
 /** One string per distinct look: the doll cache's key.
@@ -431,7 +441,7 @@ export function composeLook(entity, { eotbSet = ownEotbSet(), layered = ownLayer
  *  never mutated (`_peer`, `_refresh`), so its identity is exactly the key's lifetime: a WeakMap holds the string for
  *  as long as the look lives and no longer. A null look has no identity and is one constant (SLAM14 B6). */
 const _keyOf = new WeakMap();
-const _computeLookKey = (look) => `${look?.race ?? 'Breton'}|${look?.gender ?? 'male'}|${look?.faceIndex ?? 0}|${JSON.stringify((look?.items ?? []).map((it) => LOOK_ITEM_FIELDS.map((k) => it[k] ?? null)))}`;
+const _computeLookKey = (look) => `${look?.race ?? 'Breton'}|${look?.gender ?? 'male'}|${look?.faceIndex ?? 0}|${JSON.stringify((look?.items ?? []).map((it) => { const row = LOOK_ITEM_FIELDS.map((k) => it[k] ?? null); return Array.isArray(it.ap) ? [...row, it.ap] : row; }))}`;   // APPEARANCES: and a worn look, so a peer re-dressed is drawn again - a look without one keeps its key
 const NULL_LOOK_KEY = _computeLookKey(null);   // SLAM14 (AUDIT SLAM FINAL B6): a look-less peer's key has no object to hang on - computed once, here
 export const lookKey = (look) => {
   if (!look || typeof look !== 'object') return NULL_LOOK_KEY;
@@ -460,6 +470,8 @@ export function peerStubEntity(look) {
     const item = { templateIndex, group: it.group, equipSlot: slot };
     for (const k of ['material', 'dye', 'variant']) { const v = uint(it[k], 4095); if (v != null) item[k] = v; }
     if (lookGlowOk({ ...item, glow: it.glow })) item.glow = it.glow;   // WEAPON-GLOW1: the word, as validLookItem keeps it - one law, net/wire.js
+    const ap = validWireAppearance(item, it.ap);   // APPEARANCES: the look worn over it, as the item's own field - every renderer draws the stand-in through net/appearanceLaw.js drawnPiece
+    if (ap) item.appearance = { t: ap[0], m: ap[1], v: ap[2] };
     entity.items.push(item);
     if (!entity.equip.slots[slot]) entity.equip.slots[slot] = item;
   }
@@ -574,7 +586,7 @@ export class RemotePlayers {
   addCorpse(peer, pose, room = null, { until = null, quiet = false } = {}) {
     if (!pose) return;
     const ct = corpseTextureFor(peer?.look);
-    const c = { id: peer?.id ?? null, acct: peer?.acct ?? null, pose: { x: pose.x, y: pose.y, z: pose.z }, room, until: until ?? this._now() + CORPSE_MS, ct, batch: null, building: false };
+    const c = { id: peer?.id ?? null, acct: peer?.acct ?? null, pose: { x: pose.x, y: pose.y, z: pose.z, ...(Number.isFinite(pose.fy) ? { fy: pose.fy } : {}) }, room, until: until ?? this._now() + CORPSE_MS, ct, batch: null, building: false };   // AUDIT FB1030 N1: and its room's floor (INDOOR-FLOOR)
     this._corpses.push(c);
     while (this._corpses.length > CORPSES_MAX) this._dropCorpse(this._corpses.shift());
     const audio = this.deps?.audio;
@@ -737,13 +749,13 @@ export class RemotePlayers {
    *  sat on the paperdoll fallback (the documented "composing" state) forever, not just for the one frame it was
    *  meant to. The promise now carries the type/gender it is building for, exactly as a landed bundle already does,
    *  so the SAME check above recognizes and returns an in-flight build instead of restarting it. */
-  _mobileFor(peerId, mobileType, gender) {
+  _mobileFor(peerId, mobileType, gender, skin = null) {   // DRAGON7: `skin` an archive in place of the row's (an Aetherbright rider's)
     const have = this._mobiles.get(peerId);
     if (have && have.failedUntil != null) {
       if (this._now() < have.failedUntil) return null;
       this._mobiles.delete(peerId);
     } else if (have) {
-      if (have.mobileType === mobileType && have.gender === gender) return have;
+      if (have.mobileType === mobileType && have.gender === gender && (have.skin ?? null) === skin) return have;
       // a ready bundle, OR A BUILD ALREADY IN FLIGHT, for the WRONG type/gender - fall through and rebuild, same as
       // a look-key miss for a doll
     }
@@ -751,7 +763,7 @@ export class RemotePlayers {
     // and every frame after, instead of being mistaken for "no build yet" and restarted. Object.assign rather than
     // two property writes because a bare `p.mobileType = ...` is a write to a property Promise does not declare, and
     // `npm run types` refuses it (TS2339); assigning at the point of creation gives the binding the tagged type.
-    const p = Object.assign(this._buildMobile(mobileType, gender).catch(() => null), { mobileType, gender });
+    const p = Object.assign(this._buildMobile(mobileType, gender, skin).catch(() => null), { mobileType, gender, skin });
     this._mobiles.set(peerId, p);
     p.then((bundle) => {
       if (this._mobiles.get(peerId) !== p) return;   // SLAM12's own race: a peer released or rebuilt while this was in flight
@@ -792,7 +804,7 @@ export class RemotePlayers {
     idle(step, { timeout: 2000 });
   }
 
-  async _buildMobile(mobileType, gender) {
+  async _buildMobile(mobileType, gender, skin = null) {
     const { deps } = this;
     const basics = ENEMY_BASICS[mobileType];
     if (!deps?.getTexture || !deps?.uploadRecordFrame || !basics?.maleTexture) {
@@ -810,7 +822,7 @@ export class RemotePlayers {
       }
       return null;
     }
-    const archive = gender === 'female' && basics.femaleTexture ? basics.femaleTexture : basics.maleTexture;
+    const archive = skin ?? (gender === 'female' && basics.femaleTexture ? basics.femaleTexture : basics.maleTexture);
     const tex = await deps.getTexture(archive);
     if (!tex) {
       if (!this._warnedMissing) this._warnedMissing = new Set();
@@ -822,7 +834,7 @@ export class RemotePlayers {
       return null;
     }
     const mobileUnit = new MobileUnit(mobileType, basics, (rec) => tex.getFrameCount(rec), Math.random, gender);
-    return { mobileType, gender, mobileUnit, archive, tex, height: 0, lastAn: null, lastCn: null };
+    return { mobileType, gender, skin, mobileUnit, archive, tex, height: 0, lastAn: null, lastCn: null };
   }
 
   /** The looks the scene needs right now: the ones the last sync ASKED FOR - drawn, or composing and not yet handed
@@ -890,9 +902,9 @@ export class RemotePlayers {
    * answers 0 for every peer.
    * @param {Iterable<any>} peers
    * @param {(p: any) => number[]} [toScene]
-   * @param {{bodyHeight?: (id: any) => number, dt?: number, eye?: number[]|null, poseAgeMs?: ((peer: any) => number)|null, conceal?: (id: any) => object|null, hidden?: (id: any) => boolean, grow?: ((feet: number[]) => number)|null, room?: Iterable<any>|null}} [opts]  PEER-FS1: `eye` is the listener, for the falloff; INVIS-LOOK: `conceal` a concealed peer's draw (ECV1's visual) or null; AUDIT PEER-RANGE A L1/L6: `room` every peer the room draws before a screen's cut (the draw distance's, the court's) - a resurrection is seen in it, and a peer in it keeps its class sprite's bundle while it is cut (`peers` when absent)
+   * @param {{bodyHeight?: (id: any) => number, dt?: number, eye?: number[]|null, view?: ArrayLike<number>|null, poseAgeMs?: ((peer: any) => number)|null, conceal?: (id: any) => object|null, hidden?: (id: any) => boolean|'bar', grow?: ((feet: number[]) => number)|null, room?: Iterable<any>|null}} [opts]  PEER-FS1: `eye` is the listener, for the falloff; INVIS-LOOK: `conceal` a concealed peer's draw (ECV1's visual) or null; AUDIT PEER-RANGE A L1/L6: `room` every peer the room draws before a screen's cut (the draw distance's, the court's) - a resurrection is seen in it, and a peer in it keeps its class sprite's bundle while it is cut (`peers` when absent)
    */
-  sync(peers, toScene = (p) => [p.x, p.y, p.z], { bodyHeight = () => 0, dt = 0, eye = null, poseAgeMs = null, conceal = () => null, hidden = () => false, grow = null, room = null } = {}) {
+  sync(peers, toScene = (p) => [p.x, p.y, p.z], { bodyHeight = () => 0, dt = 0, eye = null, view = null, poseAgeMs = null, conceal = () => null, hidden = () => false, grow = null, room = null } = {}) {
     const live = new Set();
     this._grow = grow;   // OW-PEERS (FIELD BUGS 2026-10-01 #11): under the Overworld, feet -> how many times its size a sprite is drawn
     // PCORPSE1: the fallen lie on whatever the living do - placed, aged out, drawn
@@ -916,7 +928,9 @@ export class RemotePlayers {
       this._syncRidingSound(peer, toScene, dt, eye, poseAgeMs);
       // AUDIT (the pre-merge audit, I-G): a peer the classic lane stands NOWHERE (INVIS-NET) is still heard - DFU turns a
       // concealed entity's renderer off, not its sounds - but has no sprite, no doll and no name here
-      if (hidden(peer.id)) continue;
+      // PVP-SEEN (the owner: "show no name in hidden", "always health bar for pvp zone"): `'bar'` keeps its tag, nameless
+      const hid = hidden(peer.id);
+      if (hid) { if (hid === 'bar') this._shown.push({ peer, height: bodyHeight(peer.id) || PEER_HEIGHT, hid: true }); continue; }
       // INVIS-LOOK (2026-09-27): a CONCEALED peer (the host hands ECV1's visual) is drawn translucent, as a concealed foe
       // is on the enhanced lane - and carries no name: a name over an invisible player is the player, found
       const veil = conceal(peer.id) ?? null;
@@ -943,9 +957,11 @@ export class RemotePlayers {
       // keeps the doll path until the look lands: classMobileType's Thief is for a look with no class or one this build
       // does not know, and handing it to a look that has not arrived drew a Thief, then nothing while the real class
       // built, then the real sprite
-      const mobileType = beast ? (beast === 2 ? MOBILE_TYPES.Wereboar : MOBILE_TYPES.Werewolf) : spritesOn && peer.look ? classMobileType(peer.look.class) : null;
-      const bundle = mobileType != null && ENEMY_BASICS[mobileType] ? this._mobileFor(peer.id, mobileType, peer.look?.gender === 'female' ? 'female' : 'male') : null;
-      if (bundle && typeof bundle.then !== 'function') { this._syncMobilePeer(peer, bundle, toScene, dt, eye, veil); continue; }
+      // DRAGON1 (bible/11-Multiplayer/Dwarven-Dragon.md section 10): a dragon's rider stands as the Dwarven Dragon's own
+      // sprite, its rider in the art, whatever the 'Other players' card says (a build without the dragon: as before)
+      const mobileType = beast ? (beast === 2 ? MOBILE_TYPES.Wereboar : MOBILE_TYPES.Werewolf) : peer.shown.rd === POSE_RIDE.Dragon && ENEMY_BASICS[DWARVEN_DRAGON_ID] ? DWARVEN_DRAGON_ID : spritesOn && peer.look ? classMobileType(peer.look.class) : null;
+      const bundle = mobileType != null && ENEMY_BASICS[mobileType] ? this._mobileFor(peer.id, mobileType, peer.look?.gender === 'female' ? 'female' : 'male', mobileType === DWARVEN_DRAGON_ID ? dragonArchiveOf(peer.shown.rc) : null) : null;
+      if (bundle && typeof bundle.then !== 'function') { this._syncMobilePeer(peer, bundle, toScene, dt, view ?? eye, veil); continue; }   // AUDIT CAPE-CARD A1: turned to the camera that draws it
       // BEAST-PEER (2026-09-26, Mac: "Wereform uses daggerfall paperdoll when others see you transform"): A BEAST IS
       // NEVER THE PERSON. The doll is the peer's HUMAN paperdoll, and it stood for a beast whenever the beast's art was
       // still on its way - EOTB's lycanthrope and the enemy sprite both load at first sight, which is the moment of the
@@ -1094,7 +1110,7 @@ export class RemotePlayers {
    *  the peers' own falloff. Gated with their footsteps ('peerFootsteps' - hooves are a mount's steps). */
   _syncRidingSound(peer, toScene, dt, eye = null, poseAgeMs = null) {
     const audio = this.deps?.audio;
-    const rd = (peer.shown?.rd | 0) || (peer.shown?.bench === 2 ? 2 : 0);   // WAGONS3: a driver glued onto their bench (scenes/horseCartPool.js driverGlue) still drives the cart
+    const rd = peer.shown?.rd === POSE_RIDE.Dragon ? 0 : (peer.shown?.rd | 0) || (peer.shown?.bench === 2 ? 2 : 0);   // DRAGON1: a dragon has no hooves   // WAGONS3: a driver glued onto their bench (scenes/horseCartPool.js driverGlue) still drives the cart
     if (!audio?.setLoop3d || !rd || getPref('peerFootsteps') === false) {
       this._stopRidingSound(peer.id);
       if (!rd) this._onFoot.add(peer.id);   // AUDIT DISC7 B4: seen on foot - a mount after this is a real one
@@ -1131,8 +1147,14 @@ export class RemotePlayers {
     // AUDIT DISC7 B4: past earshot nothing is made - no panner and no source for a rider nobody can hear (the
     // animator keeps its clock, so the loop comes back in step when they ride into range)
     const heard = peerInEarshot(at, eye);
-    audio.setLoop3d(ridingLoopName(peer.id), out.playing && heard ? SOUND[out.clip] : null, at, { volume: out.volume, pitch: out.pitch, ...PEER_SOUND_PROFILE });
-    if (out.neigh && heard && audio.play3d) audio.play3d(SOUND.AnimalHorse, at, RIDING_VOLUME_SCALE, PEER_SOUND_PROFILE);
+    const horse = horseVolume();   // HORSE-VOL: a peer's mount on the Audio tab's Horse Volume, as my own is
+    // HORSE-VOICE: with my own sounds on, their hooves on the ground their pose says they stand on (`fk`, PEER-FS1) - off,
+    // DFU's clop as before
+    const voiced = heard && enhancedSoundsOn();
+    if (voiced) installHorseSounds(audio);
+    const clop = out.playing && heard ? SOUND[out.clip] : null;
+    audio.setLoop3d(ridingLoopName(peer.id), clop != null && voiced ? hoofClipFor(out.clip, peer.shown.fk) : clop, at, { volume: out.volume * horse, pitch: out.pitch, ...PEER_SOUND_PROFILE });
+    if (out.neigh && heard && audio.play3d) audio.play3d(SOUND.AnimalHorse, at, RIDING_VOLUME_SCALE * horse, PEER_SOUND_PROFILE);
   }
   /** AUDIT DISC7 B6: the floating origin moved - every rider's loop is carried with it in the same frame the listener
    *  is (the sync above ran before the recentre, so its panners stood in the old frame for one frame: a click). */
@@ -1206,8 +1228,8 @@ export class RemotePlayers {
     const yaw = Number.isFinite(face) ? face : 0;
     // BUGFIX (2026-09-17): mobileOrientation (characters/mobile/mobileUnit.js) reads cameraPos[0]/[2] unconditionally to
     // work out which of the 8 directional frames faces the viewer - it was never optional the way `null` assumed,
-    // and crashed the moment a sprite actually built successfully. `eye` is the local player's own position, passed
-    // in from world.js's onlineFrame (the same call site already reading `player.pos` for peerBodies.sync); the `f`
+    // and crashed the moment a sprite actually built successfully. `eye` is the eye that draws the picture - the frame's
+    // camera, world.js onlineFrame's `view` (AUDIT CAPE-CARD A1), else the sync's own eye; the `f`
     // fallback (face the peer's own feet - degenerates to an arbitrary but valid angle, never a crash) only matters
     // if sync() is ever called without an eye at all, which callers should not do.
     //
@@ -1220,7 +1242,9 @@ export class RemotePlayers {
     const stepped = bundle.mobileUnit.update(dt, { moving, striking }, yaw, f, viewer);
     // PEER-ACTS: kneeling at an act - a herb, the Basket's search, the knife at a body - the sprite kneels as a yielding foe
     // kneels (REVENANT-FATE's held hurt frame, systems/revenant/revenantFate.js), its own clock untouched; a one-shot plays through
-    const out = peerKneeling(shown) && !moving && !bundle.mobileUnit.isPlayingOneShot() ? bundle.mobileUnit.heldPose('hurt', -1, yaw, f, viewer) : stepped;
+    // DRAGON-HOVER: a dragon's rider at rest hovers, wings beating (characters/dwarvenDragonId.js), never the ground's still idle
+    const hover = shown.rd === POSE_RIDE.Dragon && !moving && bundle.mobileUnit.state === 'idle' && !bundle.mobileUnit.isPlayingOneShot();
+    const out = hover ? bundle.mobileUnit.heldPose('ranged', dragonHoverFrame(performance.now()), yaw, f, viewer) : peerKneeling(shown) && !moving && !bundle.mobileUnit.isPlayingOneShot() ? bundle.mobileUnit.heldPose('hurt', -1, yaw, f, viewer) : stepped;
     const rkey = `${out.record}#${out.frame}`;
     if (!this.renderer.textures?.has?.(`${bundle.archive}_${rkey}`)) this.deps.uploadRecordFrame(bundle.archive, out.record, out.frame);
     const sz = mobileBillboardSize(bundle.tex, out.record);
@@ -1268,6 +1292,27 @@ export class RemotePlayers {
   /** The batches for the hosts' billboard pass. */
   /** PEERFX3: a peer's drawn sprite (doll or class body), for the hurt flash; null when this layer draws none. */
   batchOf(id) { return this._batches.get(id)?.batch ?? null; }
+  /** AURA-ON-DRAGON: a peer's class sprite's drawn height (m) - a dragon's rider's, the dragon's - or 0 with none drawn. */
+  spriteHeightOf(id) { const e = this._batches.get(id); return e?.kind === 'mobile' && e.height > 0 ? e.height : 0; }
+  /** AURA-SEAT: the record a peer's class sprite draws this frame (`"record#frame"`), or null with none drawn. */
+  spriteRecordOf(id) { const e = this._batches.get(id); return e?.kind === 'mobile' ? e.batch?.record ?? null : null; }
+
+  /** CAPE-CARD (2026-10-30): the way a peer's picture faces as `eye` sees it, SPRITE-FACE's { yaw, turn } (peerRiders.js
+   *  faceOf) - a doll shows every eye its front; a class sprite the view it was drawn in (mobilePortrayedYaw). `turn` the
+   *  pose's own facing, which an aura's swing reads; `card` - a flat card with no figure to read, so what hangs on its
+   *  back stands behind it (render/auraRing.js auraSpritePosed); `front` a doll's - its front to every eye, so its swing
+   *  stays behind it (AUDIT CAPE-CARD A6, auraSwingDrawn). `at` the picture's feet (A4: a seated one sinks). Written in
+   *  place on the peer's entry; null for a peer this layer draws no picture of. */
+  faceOf(id, eye) {
+    const e = this._batches.get(id), at = e?.batch?.origin;
+    if (!e || !at || !eye) return null;
+    const yaw = e.kind === 'mobile' ? mobilePortrayedYaw(e.mobileUnit.orientation, at, eye)
+      : eye[0] !== at[0] || eye[2] !== at[2] ? Math.atan2(eye[0] - at[0], eye[2] - at[2]) : null;
+    if (yaw === null) return null;
+    const turn = peerBodyYaw(e.peer?.shown), f = e.face ?? (e.face = { yaw: 0, turn: 0, card: true, front: false, at });
+    f.yaw = yaw; f.turn = Number.isFinite(turn) ? turn : yaw; f.front = e.kind !== 'mobile'; f.at = at;
+    return f;
+  }
 
   batches() {
     const out = [];
@@ -1301,7 +1346,7 @@ export class RemotePlayers {
    * and never for the room. One ray each, against a uniform grid, after three comparisons that cost nothing.
    * @param {((head: number[], id: string) => boolean)|null} [blocked]
    */
-  namePoints(proj, view, w, h, eye, toScene = (p) => [p.x, p.y, p.z], rect = null, blocked = null) {
+  namePoints(proj, view, w, h, eye, toScene = (p) => [p.x, p.y, p.z], rect = null, blocked = null, lift = null) {
     const out = [];
     // AUDIT NAME1 F3: the frame's lens, once - it is the same for every point and it is read off the matrix the
     // sprites were projected by (nameLensScale), so a wide FOV shrinks the name exactly as it shrank the body.
@@ -1310,7 +1355,7 @@ export class RemotePlayers {
     for (const e of this._shown ?? []) {
       const f = toScene(e.peer.shown);
       if (eye) { const dx = f[0] - eye[0], dz = f[2] - eye[2]; if (dx * dx + dz * dz > NAME_RANGE * NAME_RANGE) continue; }
-      const head = [f[0], f[1] + e.height, f[2]];
+      const head = [f[0], f[1] + Math.max(e.height, lift?.(e.peer.id) ?? 0), f[2]];   // PROFILE-SLOTS: over a worn head piece's tip
       const s = projectToScreen(head, w, h, proj, view, rect, false, pv ??= multiply(proj, view));
       if (!s.front || s.x < -200 || s.x > w + 200 || s.y < -50 || s.y > h + 50) continue;
       // AUDIT NAME1 F2/F5: the peer's ID rides the sight test, because the answer is CACHED per peer and
@@ -1326,7 +1371,8 @@ export class RemotePlayers {
         title: e.peer.title ?? null, glyphs: Array.isArray(e.peer.glyphs) ? e.peer.glyphs : [], lv: e.peer.lv ?? null, gt: e.peer.gt ?? null,   // GUILD1c: and the guild's tag, the relay's stamp
         rb: e.peer.rb ?? null,   // SEASON1 part two: and a Season's banner ribbon, the relay's stamp - under the name in both faces
         house: e.peer.house ?? null,   // LEGACY7: and the house, the relay's stamp - a line under the name
-        scale: nameScaleFor(s.depth) * lens, depth: s.depth, lens });
+        scale: nameScaleFor(s.depth) * lens, depth: s.depth, lens, off: nameOffDeg(view, head) });   // PVP-CONE: its angle off the crosshair
+      if (e.hid) out.push({ ...out.pop(), name: '', title: null, glyphs: [], lv: null, gt: null, rb: null, house: null, hid: true });   // PVP-SEEN: a hidden player's point has no name
     }
     return out;
   }
@@ -1450,18 +1496,15 @@ export class RemotePlayers {
    *          layer?: any, log?: any, colorOf?: ((id: string) => number[]|null)|null,
    *          blocked?: ((head: number[], id: string) => boolean)|null,
    *          renderer?: any, font?: any, scale?: number, hudScale?: number,
-   *          extra?: ((o: {proj: any, view: any, w: number, h: number, eye: any, rect: any, blocked: any}) => any[])|null,
-   *          mask?: ((p: any) => any)|null}} [opts]   WILD3: `mask` - each name kept, replaced (a tint rides it) or taken
-   *   `extra` - NOTICE1: the host's own labels in the names' face and law (a Notice Board's "3 new"), asked with the
-   *   face's own pixels and never on a covered frame
+   *          mask?: ((p: any) => any)|null, lift?: ((id: string) => number)|null}} [opts]   WILD3: `mask` - each name kept, replaced (a tint rides it) or taken; `lift` its head piece's tip (auraHost.js nameTopOf)
    * @returns {number} how many names the frame drew
    */
   nameFrame({
     proj, view, w, h, eye, toScene = (p) => [p.x, p.y, p.z], rect = null, covered = false,
     layer = null, log = null, colorOf = null, blocked = null,
-    renderer = null, font = null, scale = 1, hudScale = 1, extra = null, mask = null,
+    renderer = null, font = null, scale = 1, hudScale = 1, mask = null, lift = null,
   } = {}) {
-    let points = covered ? [] : this.namePoints(proj, view, w, h, eye, toScene, rect, blocked);
+    let points = covered ? [] : this.namePoints(proj, view, w, h, eye, toScene, rect, blocked, lift);
     // WILD3: the host's word on each player's name - kept, put in another's place (the open zone's "Stranger"), or taken
     if (typeof mask === 'function' && points.length) {
       points = points.map((p) => { try { return mask(p); } catch { return p; } }).filter(Boolean);
@@ -1469,9 +1512,7 @@ export class RemotePlayers {
       const tints = new Map(points.filter((p) => p.tint).map((p) => [p.id, p.tint]));
       if (tints.size) { const base = colorOf; colorOf = (id) => tints.get(id) ?? base?.(id) ?? null; }
     }
-    if (!covered && typeof extra === 'function') {
-      try { points.push(...(extra({ proj, view, w, h, eye, rect, blocked }) ?? [])); } catch { /* a label is never worth the names */ }
-    }
+    if (points.some((p) => p.hid)) points = points.filter((p) => !p.hid || p.skull || p.bar);   // PVP-SEEN: a hidden player's tag is its skull and bar, or nothing
     if (layer) {
       // the world viewport's own height where the docked HUD shrinks it (E5) - the name is sized by the frame it
       // is drawn into, not by the page (AUDIT NAME1 F3). The rect is NORMALISED (ui/hud/hudLarge.js

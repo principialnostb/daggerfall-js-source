@@ -73,10 +73,10 @@ export const grimoireBackdrop = () => (Object.hasOwn(GRIMOIRE_BACKDROPS, getPref
 
 /** INK-TONES: a rarity's tone deepened to read on the page (the loot plaque's own), and a set's and the sigil's own
  *  colour mixed down with the ink - 40% (the sigil's lighter teal 35%) keeps its hue and reads at 4.5:1 or better on the cream page. */
-export const RARITY_INK = Object.freeze({ magic: '#1f4f9e', rare: '#5c4600', legendary: '#9a4210', aetheric: '#1d6a86', artifact: '#5e2a96', gilded: '#7a4a00' });
+export const RARITY_INK = Object.freeze({ magic: '#1f4f9e', rare: '#5c4600', legendary: '#9a4210', aetheric: '#1d6a86', artifact: '#5e2a96', gilded: '#a3122e' });
 export const SET_INK = 'color-mix(in srgb, var(--set, #4fb8a8) 40%, #120a04)';
 /** AUDIT C&C S4: the felt temperature's colours deepened to read on the page - the Plus plaque's ice and amber as inks
- *  (4.9:1 and 4.6:1 on the cream, the magic and the gilded tones' own), and its felt frame in the Plus warn's dark edge
+ *  (4.9:1 and 4.6:1 on the cream, the magic tone's own and the gilded's old amber), and its felt frame in the Plus warn's dark edge
  *  (4.2:1); a comfortable reading is written in the ink and a costing one framed in the pack's red. */
 export const TEMP_INK = Object.freeze({ cold: '#1f4f9e', hot: '#7a4a00', warn: '#7a5424' });
 export const SIGIL_INK = 'color-mix(in srgb, var(--sigil, #72f0d8) 35%, #120a04)';
@@ -145,6 +145,10 @@ export const snapSize = (px) => (px <= 20 ? 16 : px <= 40 ? 32 : 48);
 /** How light a colour reads, 0..1 (Rec. 601 luma). */
 const luma = ([r, g, b]) => (0.299 * r + 0.587 * g + 0.114 * b) / 255;
 
+/** AUDIT-STOREFRONT III C6: the pack's red as a word's ink - at 29% it stood at 4.48:1 on the pages' darkest tan, under
+ *  INK-READ's own 4.5:1; at 26% it reads at 5:1 there. */
+export const INK_RED = 'hsl(5 80% 26%)';
+const RED_L = 0.26;
 /** A WORD's colour on the page: light words become ink, darker the brighter they were; gold and yellow (Plus's
  *  "chosen", "worth reading") the pack's red; a hue keeps its hue as a darker ink. A word already dark stands. */
 export function inkColour(c) {
@@ -157,10 +161,20 @@ export function inkColour(c) {
   const t = Math.min(1, (L - 0.42) / 0.5);
   if (chroma(v) < 0.16) return hsla(26, 0.6, 0.21 - 0.13 * t, a);                       // bone and parchment: the pack's brown ink, dark enough to read on any of its pages
   if (h >= 50 && h <= 72 && chroma(v) > 0.5) return a >= 1 ? GRIM_YELLOW : `rgba(244, 224, 76, ${r3(a)})`;   // Daggerfall's yellow stays its yellow, as the pack writes a value on its page
-  if (h >= 38 && h <= 72) return hsla(5, 0.8, 0.29, a);                        // gold and brass: the pack's red
+  if (h >= 38 && h <= 72) return hsla(5, 0.8, RED_L, a);                       // gold and brass: the pack's red
   if (h >= 18 && h < 38) return hsla(h, 0.72, readableL(h, 0.72, 0.24), a);    // brass and amber: a dark amber
   const sat = Math.max(0.55, Math.min(0.85, s));
   return hsla(h, sat, readableL(h, sat, 0.25), a);                              // a hue (a rarity, a gain, a loss): its ink
+}
+/** A WORD PAINTED ON ITSELF (ui/playerBadge.js paintTitle - a title's, an aura's), inked for the page when the dress is
+ *  worn: the ink sheet never reaches a paint written on the word. One home for every face that paints a word - the
+ *  Collections page's and (AUDIT-STOREFRONT II, lane E 3) the shop's. The word, for chaining. */
+export function inkPaintedWord(/** @type {any} */ word, doc = globalThis.document) {
+  if (doc?.documentElement?.dataset?.plusDress !== GRIMOIRE_DRESS || !word?.style) return word;
+  // AUDIT-STOREFRONT III C6: a browser reads a colour back as rgb(...), never as the hex it was given - every token is inked
+  const ink = (/** @type {string} */ s) => String(s).replace(COLOUR_TOKEN, (h) => inkColour(h) ?? h);
+  for (const k of ['color', 'backgroundImage', 'filter']) if (word.style[k]) word.style[k] = ink(word.style[k]);
+  return word;
 }
 /** INK-READ (2026-10-12, Mac: "make sure the fonts are readable the grey ones arent"): the lightness a hue's ink may have
  *  and still read at 4.5:1 on the pages' darkest tan (relative luminance 0.43): `want` or darker, a hundredth at a time
@@ -594,7 +608,7 @@ export function sayRule(block, { state = false } = {}) {
     } else if (prop === 'color' || prop === '-webkit-text-fill-color' || prop === 'caret-color') {
       // a CHOSEN or pointed-at word (a rail's open row, a hovered line) is the pack's red, as its talk window marks
       // "Where is..." and the line you picked; a VALUE keeps Daggerfall's yellow, as its sheet writes "Gold: 7579"
-      const n = mapColours(v, (t) => { const c = inkColour(t); return state && c && /#f4e04c|rgba\(244, 224, 76/.test(c) ? hsla(5, 0.8, 0.29, parseColour(t)[3]) : c; });
+      const n = mapColours(v, (t) => { const c = inkColour(t); return state && c && /#f4e04c|rgba\(244, 224, 76/.test(c) ? hsla(5, 0.8, RED_L, parseColour(t)[3]) : c; });
       if (n) ink.push(`${prop}: ${n}${imp}`);
       if (prop === 'color' && n && /#f4e04c|rgba\(244, 224, 76/.test(n)) yellowEdge = `text-shadow: ${YELLOW_EDGE}${imp}`;
       const w = mapColours(v, woodColour); if (w) wood.push(`${prop}: ${w}${imp}`);
@@ -671,6 +685,9 @@ const pxs = (n) => px(n, 'gs');
 const tile = (name, fallback) => `${v(name)} 0 0 / ${px(nativeSize(name)[0])} auto repeat, ${fallback}`;
 const PAGE = tile('page', T.page);
 const SCROLL = tile('scroll', T.scroll);
+/** AUDIT-STOREFRONT III C6: the shop's panels (FRAME_ROLES.panel's own) and the wash that lightens their scroll. */
+const SHOP_PANELS = R.panel.filter((s) => s.startsWith('.px-shopwin'));
+const SHOP_WASH = 'rgba(242,226,188,0.5)';
 const WOOD = (dim = 0.18) => `linear-gradient(rgba(0,0,0,${dim}), rgba(0,0,0,${dim})), ${tile('wood', T.wood)}`;
 /** The pack's leather press (the Options window's Save Game / Continue plates): its wood under a red-brown stain. */
 const PLATE = `linear-gradient(180deg, rgba(255,196,120,0.22) 0 2px, transparent 2px calc(100% - 3px), rgba(0,0,0,0.38) calc(100% - 3px)), linear-gradient(rgba(120,44,18,0.66), rgba(78,26,10,0.74)), ${tile('wood', '#6a2a14')}`;
@@ -771,11 +788,11 @@ const TAB_EDGE = `border-style: solid !important; border-width: ${PLATE_W} !impo
   box-shadow: ${px(1, 'gk')} ${px(2, 'gk')} 0 rgba(0,0,0,0.45) !important; outline: none;`;
 const TAB_CSS = `background: #8e7048 !important; ${TAB_EDGE}
   border-image: ${v('plate')} ${PT} ${PS} ${PB} ${PS} fill / ${PLATE_W} stretch !important;
-  color: #2a1a0a !important; text-shadow: 0 1px 0 rgba(255,232,180,0.32) !important; opacity: 1;`;
+  color: #0c0602 !important; text-shadow: 0 1px 0 rgba(255,232,180,0.32) !important; opacity: 1;`;   /* AUDIT-STOREFRONT III C6: #2a1a0a read 3.9:1 on the plate */
 const TAB_ON_CSS = `background: #c8a874 !important; ${TAB_EDGE}
   border-image: ${v('plateOn')} ${PT} ${PS} ${PB} ${PS} fill / ${PLATE_W} stretch !important;
-  color: ${T.red} !important; text-shadow: 0 1px 0 rgba(255,244,210,0.45) !important;
-  text-decoration: underline solid ${T.red} !important; text-decoration-thickness: ${px(1, 'gk')} !important; text-underline-offset: 0.22em !important;`;
+  color: ${INK_RED} !important; text-shadow: 0 1px 0 rgba(255,244,210,0.45) !important;
+  text-decoration: underline solid ${INK_RED} !important; text-decoration-thickness: ${px(1, 'gk')} !important; text-underline-offset: 0.22em !important;`;
 /** A closed tab under the pointer lifts a shade - its name stays ink: red is the open tab's alone. */
 const TAB_HOVER = `color: #120a04 !important; filter: brightness(1.14);`;
 /** GRIM3: THE SCROLLBAR - quiet (Dudey: "the scrollbar looks out of place and needs to be less appearing"): three of the
@@ -853,6 +870,10 @@ ${at(R.panel)} { background: ${SCROLL}; color: ${T.ink};
   box-shadow: inset 0 0 14px rgba(96,54,16,0.32), 1px 2px 0 rgba(48,26,10,0.28); outline: none; }
 ${G}[data-grim-pages="scroll"] :is(${list(R.panel)}) { background: ${PAGE}; }
 ${at(R.panelAccent)} { border-left-color: ${T.red}; }
+/* AUDIT-STOREFRONT III C6: THE SHOP'S PANELS hold its small words - a price, a page's heading, what an item needs, a
+   challenge's Aurum - and the tan scroll under them (luminance ~0.25) held its inks at 3:1. There the scroll is washed
+   toward the page, its grain kept, and every word reads at 4.5:1 or better (measured). */
+${G}:not([data-grim-pages="scroll"]) :is(${list(SHOP_PANELS)}) { background: linear-gradient(${SHOP_WASH}, ${SHOP_WASH}), ${SCROLL}; }
 
 /* RAILS - the left-hand page of the talk window: the same page, ruled off from the right-hand one */
 ${at([...R.railRight, '.shell > .side', 'aside.side'])} { background: linear-gradient(rgba(120,70,20,0.07), rgba(120,70,20,0.07)), ${PAGE}; border-right-color: rgba(60,34,14,0.75); color: ${T.ink}; }
@@ -876,7 +897,7 @@ ${at(PRESS_ROOTS, '[data-grim-on="page"].on:not(:hover):not(:focus-visible)')} {
 ${G} [data-grim-on="page"]:hover, ${G} [data-grim-on="page"]:focus-visible { color: ${T.redHi} !important; background: none !important;
   text-decoration: underline solid ${T.red}; text-underline-offset: 0.2em; outline: none; }
 /* CANCEL - the way back out of a question: the pack's red word over its red rule */
-${G} [data-grim-cancel][data-grim-on="page"] { color: ${T.red} !important; padding-left: 18px !important; padding-right: 18px !important;
+${G} [data-grim-cancel][data-grim-on="page"] { color: ${INK_RED} !important; padding-left: 18px !important; padding-right: 18px !important;
   background: linear-gradient(${T.red}, ${T.red}) center bottom / calc(100% - 24px) 3px no-repeat,
     radial-gradient(circle, ${T.red} 1px, transparent 1.6px) left bottom / 6px 3px repeat-x !important; }
 ${G} [data-grim-on="wood"] { background: none !important; border-color: transparent !important; box-shadow: none !important; border-radius: 0;
@@ -1335,6 +1356,9 @@ ${G} .qtyfield > span { margin: 0 !important; padding: 0 !important; line-height
    the plank's middle line as the carry weight's do - never on the Drop press's baseline, which lifted them - and the
    carry's bar is a bar: the skill's thin gold groove at a length of its own, never squeezed to a sliver */
 ${G} .pack-shell .packgold { align-items: center; }
+/* GOLD-ALL: the field's verb over its "all", two written words stacked beside the box in the pack's face */
+${G} .goldfield .goldacts { gap: 2px; }
+${G} .goldfield .goldacts .act { min-height: 0 !important; padding: 0 ${px(2)} !important; font-size: 16px !important; line-height: 1 !important; white-space: nowrap; }
 ${G} .pack-shell .packbar :is(.packcarry, .packgold) > :is(.k, .v) { line-height: 20px; }
 ${G} .pack-shell .packcarry .px-meter { flex: 0 0 auto; width: ${px(60, 'gq')}; height: ${px(3, 'gq')}; border: 0; border-radius: 0;
   background: rgba(20,11,4,0.6); box-shadow: 0 0 0 ${px(1, 'gq')} ${T.outline}, 0 1px 0 ${px(1, 'gq')} rgba(255,214,150,0.12); }
@@ -1502,7 +1526,7 @@ ${G} .wplaque-row[data-rarity="rare"] > span:first-child { color: #5c4600 !impor
 ${G} .wplaque-row[data-rarity="legendary"] > span:first-child { color: #9a4210 !important; }
 ${G} .wplaque-row[data-rarity="aetheric"] > span:first-child { color: #1d6a86 !important; }
 ${G} .wplaque-row[data-rarity="artifact"] > span:first-child { color: #5e2a96 !important; }
-${G} .wplaque-row[data-rarity="gilded"] > span:first-child { color: #7a4a00 !important; }
+${G} .wplaque-row[data-rarity="gilded"] > span:first-child { color: #a3122e !important; }
 /* LOOT-MARKS (2026-10-12, a player's video: "seeing rarity in the quickloot is quite hard"): on the page the Rare, the
    Legendary and the Gilded were three browns - each rolled row now carries its tier's own bright gem, edged in ink, and
    a wash of its ink tone under it (ui/lootTierMarks.js); the lit row keeps its red bar beside the wash. */
@@ -1702,7 +1726,7 @@ export function rosterCss() {
 
 /* THE FRONT DOOR - the pack's desk, its book open, and the doors written on its two pages in ink, the way the pack's
    own chooser writes "Would you like to:" - no stack of presses down the middle of the screen. */
-${G} .px-home:not(.px-over):not(.lv-sky) { --gbw: ${px(320, 'gd')}; --gbh: ${px(200, 'gd')};
+${G} .px-home:not(.px-over):not(.lv-sky):not(.px-title) { --gbw: ${px(320, 'gd')}; --gbh: ${px(200, 'gd')};
   --gbx: calc((100vw - var(--gbw)) / 2); --gby: calc((100vh - var(--gbh)) / 2); background: #120a05; }
 /* GRIM6 (Dudey: "the background around the book looks too pixelated washed out"): the desk is the pack's own painting at
    ITS resolution, drawn smooth, never the game-grid cut blown up pixel by pixel; it stands where GRIM3 set it.
@@ -1713,58 +1737,58 @@ ${G} .px-home:not(.px-over):not(.lv-sky) { --gbw: ${px(320, 'gd')}; --gbh: ${px(
    looks like i have not glasses on") */
 /* DESK-HD: the detailed desk (ui/grimoireArt.js grimoireDeskUrl), its room's dark edges already in it - so no
    vignette is laid over it again; the pack's BIOG00I0 stands under it, seen only if the painting cannot load */
-${G} .px-home:not(.px-over):not(.lv-sky)::before { content: ''; position: absolute; inset: 0; pointer-events: none;
+${G} .px-home:not(.px-over):not(.lv-sky):not(.px-title)::before { content: ''; position: absolute; inset: 0; pointer-events: none;
   background: url("${grimoireDeskUrl()}") var(--gbx) var(--gby) / var(--gbw) var(--gbh) no-repeat,
     url("${grimoireImg('BIOG00I0')}") var(--gbx) var(--gby) / var(--gbw) var(--gbh) no-repeat; image-rendering: auto; }
-${G}[data-grim-backdrop="map"] .px-home:not(.px-over):not(.lv-sky)::before { background: radial-gradient(ellipse at 50% 45%, rgba(0,0,0,0) 35%, rgba(0,0,0,0.6) 100%),
+${G}[data-grim-backdrop="map"] .px-home:not(.px-over):not(.lv-sky):not(.px-title)::before { background: radial-gradient(ellipse at 50% 45%, rgba(0,0,0,0) 35%, rgba(0,0,0,0.6) 100%),
   url("${grimoireImg('TMAP00I0')}") center / cover no-repeat; }
-${G} .px-home:not(.px-over):not(.lv-sky) .px-rule { display: none; }
+${G} .px-home:not(.px-over):not(.lv-sky):not(.px-title) .px-rule { display: none; }
 @media ${BOOK_MQ} {
-  ${G}:not([data-grim-backdrop="map"]) .px-home:not(.px-over):not(.lv-sky) > .px-stage:not(.px-acctstage) { display: block; padding: 0; }
-  ${G}:not([data-grim-backdrop="map"]) .px-home:not(.px-over):not(.lv-sky) .px-wordmark { position: absolute; left: 50%; top: max(4px, calc(var(--gby) + var(--gbh) * 0.005));
+  ${G}:not([data-grim-backdrop="map"]) .px-home:not(.px-over):not(.lv-sky):not(.px-title) > .px-stage:not(.px-acctstage) { display: block; padding: 0; }
+  ${G}:not([data-grim-backdrop="map"]) .px-home:not(.px-over):not(.lv-sky):not(.px-title) .px-wordmark { position: absolute; left: 50%; top: max(4px, calc(var(--gby) + var(--gbh) * 0.005));
     translate: -50% 0; width: min(calc(var(--gbw) * 0.3), 470px); z-index: 1; filter: drop-shadow(0 6px 10px rgba(0,0,0,0.6)); }
   /* UI-CALM (ui/enhanced/enhancedMenu.js drawDoors): THE BOOK'S TWO LEAVES ARE THE DOOR'S TWO PAGES - the two questions, The
      Realm (Online) on the left and Thine Own Tale (Offline) on the right, each its own head, its word and a line in a
      smaller hand under it; the offline level its games on the left and the way back on the right; Settings and
      Overhauls two small plaques across the foot of the book */
-  ${G}:not([data-grim-backdrop="map"]) .px-home:not(.px-over):not(.lv-sky) .px-menu {
+  ${G}:not([data-grim-backdrop="map"]) .px-home:not(.px-over):not(.lv-sky):not(.px-title) .px-menu {
     position: absolute; box-sizing: border-box;
     left: calc(var(--gbx) + var(--gbw) * ${B.x.toFixed(4)}); top: calc(var(--gby) + var(--gbh) * ${B.y.toFixed(4)});
     width: calc(var(--gbw) * ${B.w.toFixed(4)}); height: calc(var(--gbh) * ${B.h.toFixed(4)});
     padding: calc(var(--gbh) * 0.05) calc(var(--gbw) * 0.045) calc(var(--gbh) * 0.04);
     display: grid; grid-template-columns: 1fr 1fr; column-gap: calc(var(--gbw) * 0.09); grid-template-rows: minmax(0, 1fr) auto;
     align-content: stretch; row-gap: calc(var(--gbh) * 0.012); }
-  ${G}:not([data-grim-backdrop="map"]) .px-home:not(.px-over):not(.lv-sky) .px-menu .px-page { display: flex; flex-direction: column; align-items: center; justify-content: flex-start; gap: calc(var(--gbh) * 0.012);
+  ${G}:not([data-grim-backdrop="map"]) .px-home:not(.px-over):not(.lv-sky):not(.px-title) .px-menu .px-page { display: flex; flex-direction: column; align-items: center; justify-content: flex-start; gap: calc(var(--gbh) * 0.012);
     grid-row: 1; min-height: 0; min-width: 0; }
-  ${G}:not([data-grim-backdrop="map"]) .px-home:not(.px-over):not(.lv-sky) .px-menu .px-page:first-of-type { grid-column: 1; }
-  ${G}:not([data-grim-backdrop="map"]) .px-home:not(.px-over):not(.lv-sky) .px-menu .px-page + .px-page { grid-column: 2; }
-  ${G}:not([data-grim-backdrop="map"]) .px-home:not(.px-over):not(.lv-sky) .px-menu .px-pagehead { display: block; margin: 0 0 calc(var(--gbh) * 0.012); padding-bottom: calc(var(--gbh) * 0.012);
+  ${G}:not([data-grim-backdrop="map"]) .px-home:not(.px-over):not(.lv-sky):not(.px-title) .px-menu .px-page:first-of-type { grid-column: 1; }
+  ${G}:not([data-grim-backdrop="map"]) .px-home:not(.px-over):not(.lv-sky):not(.px-title) .px-menu .px-page + .px-page { grid-column: 2; }
+  ${G}:not([data-grim-backdrop="map"]) .px-home:not(.px-over):not(.lv-sky):not(.px-title) .px-menu .px-pagehead { display: block; margin: 0 0 calc(var(--gbh) * 0.012); padding-bottom: calc(var(--gbh) * 0.012);
     font-family: ${GRIMOIRE_STACK}; font-weight: normal; font-size: 32px; letter-spacing: 0; text-transform: none; color: ${ink3};
     ${RULE_UNDER} width: 80%; text-align: center; text-shadow: none; }
-  ${G}:not([data-grim-backdrop="map"]) .px-home:not(.px-over):not(.lv-sky) .px-menu .px-pagenote { display: block; margin: 0; font-family: ${GRIMOIRE_STACK}; font-size: 22px; line-height: 1.2; color: ${T.ink};
+  ${G}:not([data-grim-backdrop="map"]) .px-home:not(.px-over):not(.lv-sky):not(.px-title) .px-menu .px-pagenote { display: block; margin: 0; font-family: ${GRIMOIRE_STACK}; font-size: 22px; line-height: 1.2; color: ${T.ink};
     opacity: 0.8; text-align: center; text-shadow: none; }
-  ${G}:not([data-grim-backdrop="map"]) .px-home:not(.px-over):not(.lv-sky) .px-menu[data-level="top"] .px-page { justify-content: center; }
-  ${G}:not([data-grim-backdrop="map"]) .px-home:not(.px-over):not(.lv-sky) .px-menu[data-level="top"] .px-pagehead { margin-bottom: calc(var(--gbh) * 0.03); }
-  ${G}:not([data-grim-backdrop="map"]) .px-home:not(.px-over):not(.lv-sky) .px-menu[data-level="top"] .doorbtn { font-size: 48px; }
-  ${G}:not([data-grim-backdrop="map"]) .px-home:not(.px-over):not(.lv-sky) .px-menu .door-word { gap: calc(var(--gbh) * 0.006); }
-  ${G}:not([data-grim-backdrop="map"]) .px-home:not(.px-over):not(.lv-sky) .px-menu .door-sub { font-family: ${GRIMOIRE_STACK}; font-size: 22px; line-height: 1.2; letter-spacing: 0; text-transform: none;
+  ${G}:not([data-grim-backdrop="map"]) .px-home:not(.px-over):not(.lv-sky):not(.px-title) .px-menu[data-level="top"] .px-page { justify-content: center; }
+  ${G}:not([data-grim-backdrop="map"]) .px-home:not(.px-over):not(.lv-sky):not(.px-title) .px-menu[data-level="top"] .px-pagehead { margin-bottom: calc(var(--gbh) * 0.03); }
+  ${G}:not([data-grim-backdrop="map"]) .px-home:not(.px-over):not(.lv-sky):not(.px-title) .px-menu[data-level="top"] .doorbtn { font-size: 48px; }
+  ${G}:not([data-grim-backdrop="map"]) .px-home:not(.px-over):not(.lv-sky):not(.px-title) .px-menu .door-word { gap: calc(var(--gbh) * 0.006); }
+  ${G}:not([data-grim-backdrop="map"]) .px-home:not(.px-over):not(.lv-sky):not(.px-title) .px-menu .door-sub { font-family: ${GRIMOIRE_STACK}; font-size: 22px; line-height: 1.2; letter-spacing: 0; text-transform: none;
     color: ${T.ink}; opacity: 0.78; text-shadow: none; max-width: 15em; }
-  ${G}:not([data-grim-backdrop="map"]) .px-home:not(.px-over):not(.lv-sky) .px-menu .doorbtn:hover .door-sub, ${G}:not([data-grim-backdrop="map"]) .px-home:not(.px-over):not(.lv-sky) .px-menu .doorbtn:focus-visible .door-sub { color: ${T.red}; text-shadow: none; opacity: 1; }
-  ${G}:not([data-grim-backdrop="map"]) .px-home:not(.px-over):not(.lv-sky) .px-menu .doorbtn.door-back { margin-top: auto; font-size: 26px; }
-  ${G}:not([data-grim-backdrop="map"]) .px-home:not(.px-over):not(.lv-sky) .px-menu .doorbtn {
+  ${G}:not([data-grim-backdrop="map"]) .px-home:not(.px-over):not(.lv-sky):not(.px-title) .px-menu .doorbtn:hover .door-sub, ${G}:not([data-grim-backdrop="map"]) .px-home:not(.px-over):not(.lv-sky):not(.px-title) .px-menu .doorbtn:focus-visible .door-sub { color: ${T.red}; text-shadow: none; opacity: 1; }
+  ${G}:not([data-grim-backdrop="map"]) .px-home:not(.px-over):not(.lv-sky):not(.px-title) .px-menu .doorbtn.door-back { margin-top: auto; font-size: 26px; }
+  ${G}:not([data-grim-backdrop="map"]) .px-home:not(.px-over):not(.lv-sky):not(.px-title) .px-menu .doorbtn {
     width: auto; min-height: 0; margin: 0; padding: calc(var(--gbh) * 0.006) 0.4em; justify-content: center;
     background: none; border: 0; border-radius: 0; box-shadow: none; translate: none; filter: none;
     font-size: 32px; letter-spacing: 0; color: ${T.ink}; text-shadow: 0 1px 0 rgba(255,240,205,0.45); }
-  ${G}:not([data-grim-backdrop="map"]) .px-home:not(.px-over):not(.lv-sky) .px-menu .doorbtn .px-c { display: none; }
-  ${G}:not([data-grim-backdrop="map"]) .px-home:not(.px-over):not(.lv-sky) .px-menu .doorbtn:hover,
-  ${G}:not([data-grim-backdrop="map"]) .px-home:not(.px-over):not(.lv-sky) .px-menu .doorbtn:focus-visible {
+  ${G}:not([data-grim-backdrop="map"]) .px-home:not(.px-over):not(.lv-sky):not(.px-title) .px-menu .doorbtn .px-c { display: none; }
+  ${G}:not([data-grim-backdrop="map"]) .px-home:not(.px-over):not(.lv-sky):not(.px-title) .px-menu .doorbtn:hover,
+  ${G}:not([data-grim-backdrop="map"]) .px-home:not(.px-over):not(.lv-sky):not(.px-title) .px-menu .doorbtn:focus-visible {
     background: none; color: ${T.red}; text-decoration: none; outline: none; }   /* UI-CALM: the red ink alone, no dotted rule */
-  ${G}:not([data-grim-backdrop="map"]) .px-home:not(.px-over):not(.lv-sky) .px-menu .doorbtn:disabled { background: none; filter: none; color: rgba(43,26,12,0.38); text-shadow: none; }
-  ${G}:not([data-grim-backdrop="map"]) .px-home:not(.px-over):not(.lv-sky) .px-foot { position: absolute; left: 0; right: 0; bottom: 0; }
+  ${G}:not([data-grim-backdrop="map"]) .px-home:not(.px-over):not(.lv-sky):not(.px-title) .px-menu .doorbtn:disabled { background: none; filter: none; color: rgba(43,26,12,0.38); text-shadow: none; }
+  ${G}:not([data-grim-backdrop="map"]) .px-home:not(.px-over):not(.lv-sky):not(.px-title) .px-foot { position: absolute; left: 0; right: 0; bottom: 0; }
 }
 @media ${BOOK_MQ} and (min-height: 1250px) {
-  ${G}:not([data-grim-backdrop="map"]) .px-home:not(.px-over):not(.lv-sky) .px-menu .doorbtn,
-  ${G}:not([data-grim-backdrop="map"]) .px-home:not(.px-over):not(.lv-sky) .px-menu .px-pagehead { font-size: 48px; }
+  ${G}:not([data-grim-backdrop="map"]) .px-home:not(.px-over):not(.lv-sky):not(.px-title) .px-menu .doorbtn,
+  ${G}:not([data-grim-backdrop="map"]) .px-home:not(.px-over):not(.lv-sky):not(.px-title) .px-menu .px-pagehead { font-size: 48px; }
 }
 /* the map, or a screen too narrow for the book: the doors on one page, held up over it */
 @media not all and ${BOOK_MQ} {
@@ -1876,6 +1900,15 @@ ${G} .px-home:not(.px-over):not(.lv-sky) .px-menu .doorbtn { justify-content: ce
 ${G} .px-home:not(.px-over):not(.lv-sky) .px-menu .doorbtn:hover, ${G} .px-home:not(.px-over):not(.lv-sky) .px-menu .doorbtn:focus-visible {
   background: none; color: ${T.red}; text-decoration: none; outline: none; }   /* UI-CALM: the red ink alone, no dotted rule */
 ${G} .px-home:not(.px-over):not(.lv-sky) .px-wordmark { background: radial-gradient(ellipse 60% 55% at 50% 45%, rgba(28,17,8,0.92) 35%, rgba(28,17,8,0) 72%); }
+/* TITLE-DOOR (ui/enhanced/enhancedStyle.js .px-title): on the film's held title neither the desk nor the book - the map of
+   Tamriel is the ground, and the doors are the one page held up over it, in a row under the mark as Plus stands them. The
+   games and the way back share one size on that row (the page's way back is a size up in its column), after the page's
+   own door ink so they win by order */
+${G} .px-home.px-title { background: transparent; }
+${G} .px-home.px-title .px-menu { background: ${PAGE}; padding: 14px 22px; gap: 4px 18px;
+  border: 2px solid; border-image: ${v('frame')} ${FRAME_ART.band} / ${FRAME_ART.band}px / ${FRAME_ART.band - 14}px round; box-shadow: 6px 10px 26px rgba(0,0,0,0.65); }
+${G} .px-home.px-title:not(.px-over) .px-menu:not([data-level="top"]) .doorbtn { font-size: 22px; }
+@media (max-width: 600px), (max-height: 560px) { ${G} .px-home.px-title:not(.px-over) .px-menu:not([data-level="top"]) .doorbtn { font-size: 16px; } }
 
 /* THE INVENTORY - the pack's own: its wooden tab plates in one row across the top, the jewellery down the left as
    pairs of shelf boxes each named beneath, the body on the grey marble in the middle, the goods in shelf boxes on the

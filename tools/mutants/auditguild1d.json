@@ -67,7 +67,7 @@
   {
     "name": "AUDIT-GUILD1d-S7-entry-rank-in-the-write",
     "file": "server-account/src/halls.js",
-    "old": "AND rank IN (${HALL_POWERS.hallEntry.join(', ')}))`).bind(entry, a.me.guild_id, a.me.rid)",
+    "old": "AND ${guildPowerSql('hallEntry', 'rank', '?2')})`).bind(entry, a.me.guild_id, a.me.rid)",
     "new": "AND rank IN (0, 1, 2, 3))`).bind(entry, a.me.guild_id, a.me.rid)",
     "tests": [
       "test/net/auditguild1d.test.js"
@@ -257,7 +257,7 @@
   {
     "name": "AUDIT-GUILD1d-A6-chest-private-property",
     "file": "src/scenes/worldModes.js",
-    "old": "        if (t && hallMemberHere()) return { title: HALL_CHEST_TITLE };",
+    "old": "        if (t && hallMemberHere()) return decorTool.flying() && !decorTool.ghost() ? decorBuiltInPlaque(HALL_CHEST_TITLE, c, true) : { title: HALL_CHEST_TITLE };",
     "new": "        if (false) return { title: HALL_CHEST_TITLE };",
     "tests": [
       "test/net/auditguild1d.test.js"

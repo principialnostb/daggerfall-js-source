@@ -17,7 +17,7 @@ import { spendAmmoFor, ARROW_TEMPLATE, ammoCountFor } from '../../src/systems/in
 import { createWeapon } from '../../src/combat/enemyEquipment.js';
 import { createThunderlock } from '../../src/systems/thunderlock.js';
 import { capLootList } from '../../src/systems/foeLootCap.js';
-import { stockShopShelf, shopArrowStack, shopPelletStack, shopAmmoStack, SHOP_ARROWS_MAX, SHOP_ITEM_GROUPS } from '../../src/systems/shopStock.js';
+import { stockShopShelf, shopArrowStack, shopAmmoStack, SHOP_ARROWS_MAX, SHOP_ITEM_GROUPS, endlessArrowsAt, GENERAL_STORE_ARROWS } from '../../src/systems/shopStock.js';
 import { BUILDING_TYPES as B } from '../../src/world/buildingNames.js';
 import { useItem, usableItem } from '../../src/systems/useItem.js';
 import { fletchYield, FLETCH_TEMPLATES } from '../../src/systems/fletching.js';
@@ -25,6 +25,7 @@ import { registerTemplateOverrides, templateByIndex } from '../../src/systems/it
 import { RRI_TEMPLATE_PATCHES } from '../../src/systems/roleplayRealismItems/rriItems.js';
 import { createForagingItem } from '../../src/systems/foraging/foragingInstall.js';
 import { FT } from '../../src/systems/foraging/foragingLaw.js';
+import { _resetBowBloomForTests } from '../../src/combat/bowBloom.js';
 
 const read = (p) => readFileSync(new URL(`../../${p}`, import.meta.url), 'utf8');
 const I = new Float32Array([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]);
@@ -72,6 +73,7 @@ test('STUCK-ARROWS: a player shaft that meets a wall stays where it struck - one
 test('STUCK-ARROWS: a shaft into the bare ground sticks where its step crossed the ground (mutants: no ground arm; the step\'s end, not the crossing)', () => {
   const loot = pool();
   const a = new ArrowFlight({ getGpuMesh: () => null, collider: new Collider(() => 0), loot });
+  _resetBowBloomForTests();   // BOW-BLOOM: a rested bow's first shot flies true
   a.fire([0, 1, 0], [0, -0.6, 0.8], { fromPlayer: true, weapon: BOW, muzzle: { world: [0, 1, 0] } });
   flyOut(a);
   const [p] = liveStuckArrows(loot);
@@ -185,7 +187,7 @@ test('STUCK-ARROWS: THE FOUR HOSTS - the three flights pass their pool (the worl
     assert.ok(at > 0 && s.slice(at, s.indexOf('\n', at)).includes('summoned: shot.summoned'), `${name}: the shaft carries it`);
     assert.match(s, /\.\.\.\(o\?\.summoned \? \{ summoned: true \} : \{\}\) \}\),/, `${name}: the technique door carries it`);
   }
-  assert.match(dun, /if \(!spendAmmoFor\(playerEntity\.items, playerWeapon\.weapon, shot\)\) continue;\n\s*fireArrow\([^\n]*shot\.summoned \? \{ summoned: true \} : null\);/);
+  assert.match(dun, /if \(!spendAmmoFor\(playerEntity\.items, playerWeapon\.weapon, shot\)\) continue;\n\s*fireArrow\([^\n]*bowShotExtra\([^\n]*shot\.summoned, playerWeapon\.weapon\)\);/);   // PIN MOVED (BOW-BLOOM, BOW-FAST): the conjured round rides bowShotExtra
   assert.match(dun, /\.\.\.\(o\?\.summoned \? \{ summoned: true \} : \{\}\) \}\),/);
   assert.match(read('src/scenes/droppedLoot.js'), /p\.owner !== 'wild' && !p\.unsaved\)/);
 });
@@ -234,7 +236,7 @@ test('ARROW LODGE: AN ARROW IS NO FIND - a plain body keeps its cap of pieces AN
   assert.equal(cheap.filter((it) => it.templateIndex === 113).length, 3);
 });
 
-test('SHOP-ARROWS: the counter\'s quiver is the pellets\' law at SHOP_ARROWS_MAX - a Weapon Smith 50 to 100, an Armorer and a General Store 14 to 29, a Pawn Shop 7 to 14, none where no weapon sells (mutants: the max; the pellets\' max)', () => {
+test('SHOP-ARROWS: the counter\'s quiver is the counter\'s law (SHOP-PELLETS\' own) at SHOP_ARROWS_MAX - a Weapon Smith 50 to 100, an Armorer and a General Store 14 to 29, a Pawn Shop 7 to 14, none where no weapon sells (mutants: the max)', () => {
   assert.equal(SHOP_ARROWS_MAX, 100);
   const at = (b) => [1, 10, 20].map((q) => shopArrowStack(b, q));
   assert.deepEqual(at(B.WeaponSmith), [50, 74, 100]);
@@ -242,7 +244,7 @@ test('SHOP-ARROWS: the counter\'s quiver is the pellets\' law at SHOP_ARROWS_MAX
   assert.deepEqual(at(B.GeneralStore), [14, 21, 29]);
   assert.deepEqual(at(B.PawnShop), [7, 11, 14]);
   for (const b of [B.Alchemist, B.Bookseller, B.ClothingStore, B.GemStore, B.FurnitureStore]) assert.equal(shopArrowStack(b, 20), 0);
-  for (const b of Object.keys(SHOP_ITEM_GROUPS).map(Number)) for (const q of [1, 7, 20]) assert.equal(shopPelletStack(b, q), shopAmmoStack(b, q, 50), 'one law, two rounds');
+  for (const b of Object.keys(SHOP_ITEM_GROUPS).map(Number)) for (const q of [1, 7, 20]) assert.equal(shopArrowStack(b, q), shopAmmoStack(b, q, SHOP_ARROWS_MAX), 'the counter\'s one law');   // PIN MOVED (PELLETS-SCARCE, 2026-10-24): the Pellet's stack is gone, the law the quiver's alone
 });
 
 test('SHOP-ARROWS ON THE COUNTER, FROM NO ROLL: the counter holds DFU\'s own draw plus the quiver as one stack, minted as the shelf mints arrows; no other shelf holds it, and no roll is drawn (mutants: every shelf; a roll drawn; not merged; another mint)', () => {
@@ -255,7 +257,8 @@ test('SHOP-ARROWS ON THE COUNTER, FROM NO ROLL: the counter holds DFU\'s own dra
     const counter = run(0), next = run(1);
     const rows = counter.items.filter((it) => it.templateIndex === ARROW_TEMPLATE);
     assert.equal(rows.length, 1, `building ${b}: one arrow stack`);
-    assert.equal(arrowCount(counter.items), arrowCount(next.items) + shopArrowStack(b, q), `building ${b}: DFU's draw and the quiver`);
+    // PIN MOVED (ENDLESS-ARROWS): a General Store's quiver is a whole one at any quality (test/systems/endless_arrows.test.js)
+    assert.equal(arrowCount(counter.items), arrowCount(next.items) + (endlessArrowsAt(b) ? GENERAL_STORE_ARROWS : shopArrowStack(b, q)), `building ${b}: DFU's draw and the quiver`);
     assert.deepEqual([rows[0].group, rows[0].material, rows[0].currentCondition, rows[0].value], ['Weapons', 0, 0, 2], 'CreateWeapon\'s arrow');
     if (b === B.WeaponSmith || b === B.Armorer) assert.equal(counter.n, next.n, `building ${b}: the same draws`);
   }

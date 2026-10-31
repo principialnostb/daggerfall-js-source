@@ -16,7 +16,7 @@ import { fileURLToPath } from 'node:url';
 import { webcrypto } from 'node:crypto';
 
 import { parseModule, findHostFunction } from '../../../tools/hostScope.mjs';
-import { ACT_KINDS, ACT_IDS, noteAct, setActSink } from '../../../src/systems/questlines/qlActs.js';
+import { ACT_KINDS, ACT_IDS, ACT_NOT_FOUND, noteAct, setActSink } from '../../../src/systems/questlines/qlActs.js';
 import { hearEliteFoesIn, QL_ELITE_FOE } from '../../../src/systems/questlines/qlEliteFoe.js';
 import { reportPlayerKill, registerPlayerKillListener } from '../../../src/systems/playerKills.js';
 import { createSdClaims } from '../../../src/net/superDungeon/sdClaims.js';
@@ -157,6 +157,8 @@ test('QL11 THE SWEEP, both ways: every kind has a producer in src/; every produc
     'herb-gathered': ['src/scenes/herbHost.js', 'src/systems/foraging/foragingInstall.js'],
     'heart-star-held': ['src/net/starfall/starClaims.js'],   // T-A: the Heart-Star held, beside its `star-held` in one turn (test/net/starfall/star7_claims.test.js)
     'hour-broken': ['src/net/superDungeon/sdClaims.js'],
+    'ketch-boarded': ['src/scenes/ketch/ketchClient.js'],   // KETCH: the anchor-lift ridden up (test/scenes/ketch/ketch_client.test.js drives it)
+    'ketch-cell-banked': ['src/scenes/ketch/ketchClient.js'],   // KETCH: my cell set, the ship's room's word
     'ore-mined': ['src/scenes/mineHost.js'],
     'piece-crafted': ['src/net/profBook.js'],
     'piece-reforged': ['src/systems/reforge.js'],
@@ -166,10 +168,12 @@ test('QL11 THE SWEEP, both ways: every kind has a producer in src/; every produc
     'revenant-knelt': ['src/systems/revenant/revenantFate.js'],
     'rite-broken': ['src/net/gate/gateClaims.js'],
     'serpent-slain': ['src/net/serpent/serpentClaims.js'],
+    'dragon-slain': ['src/net/dragon/dragonClaims.js'],   // DRAGON4: the Dwarven Dragon's z1 receipt the service counted (test/net/dragon/dragon4_claims.test.js)
     'ship-struck': ['src/scenes/naval/navalHost.js'],
     'star-held': ['src/net/starfall/starClaims.js'],   // STAR8: a fallen star's receipt the service counted (STAR7's carrier - test/net/starfall/star7_claims.test.js)
     'star-taken': ['src/net/firmament/firmamentBook.js'],
     'valkynaz-felled': ['src/scenes/eliteGates/egClient.js'],
+    'warden-felled': ['src/net/ketch/ketchClaims.js'],   // KETCH: the Tonal Warden's k1 receipt the service counted (test/net/ketch/ketch_claims.test.js)
     'wood-chopped': ['src/scenes/treeHost.js', 'src/systems/foraging/foragingInstall.js'],
     'wyrd-met': ['src/scenes/witchesHost.js'],   // AUDIT STAR8 T1: a Wyrd Sister's window opened, the festival's own module (test/scenes/witch1_host.test.js drives it)
   });
@@ -198,7 +202,7 @@ test('QL11 the kinds: ACT_IDS is the leaf\'s keys, frozen; each kind lower-case 
   assert.ok(Object.isFrozen(ACT_KINDS) && Object.isFrozen(ACT_IDS));
   for (const k of ACT_IDS) assert.match(k, /^[a-z]+(-[a-z]+)*$/, k);
   for (const k of ACT_IDS) assert.ok(typeof ACT_KINDS[k] === 'string' && ACT_KINDS[k].length > 0, `${k} has its family`);
-  assert.equal(ACT_IDS.length, 26);   // PIN MOVED (STAR8): and star-held, a fallen star held; PIN MOVED (AUDIT STAR8 T1): and wyrd-met, a Wyrd Sister's window; PIN MOVED (T-A): and heart-star-held, the Heart-Star held
+  assert.equal(ACT_IDS.length, 30);   // PIN MOVED (DRAGON4): and dragon-slain, the Dwarven Dragon slain; PIN MOVED (STAR8): and star-held, a fallen star held; PIN MOVED (AUDIT STAR8 T1): and wyrd-met, a Wyrd Sister's window; PIN MOVED (T-A): and heart-star-held, the Heart-Star held; PIN MOVED (KETCH): and the sky-ketch's three - boarded, a cell banked, the Warden felled
   assert.equal(ACT_KINDS['heart-star-held'], ACT_KINDS['star-held'], 'T-A: the Heart-Star\'s act the endgame\'s, as its star\'s - one family, so the festival\'s finds hear the two as one deed');
   assert.ok(!Object.hasOwn(ACT_KINDS, 'wagon-hauled'), 'no feature sells a wagon\'s load (qlActs.js says why)');
   assert.ok(Object.hasOwn(ACT_KINDS, 'valkynaz-felled'), 'the Weir Road\'s third step waits on it');
@@ -340,13 +344,19 @@ test('QL11 port-reached (scenes/harbourOffice.js): a berth at another port than 
     L.sailed(PORT_VOYAGE_M * 4);
     berth(o, WAYREST);
     assert.equal(heard.length, 1, 'out and home to the same port: no port reached');
-    // a load lays a new log - its way is the save's, never a voyage of this session's
-    L.restoreSaveData({ ...L.getSaveData(), log: { ...L.getSaveData().log, sailed: 1e6 } });
+    // PIN MOVED (FIELD BUGS 2026-10-21b VOYAGE-HOLD): a load keeps the voyage its save was on - the departure is its log's
+    // own (it had read the first berth after a load as only where she lies, and a relog or a crash between two ports lost
+    // the voyage) - and a departure past its log's way is no departure
+    L.sailed(PORT_VOYAGE_M / 2);
+    const mid = JSON.parse(JSON.stringify(L.getSaveData()));
+    L.restoreSaveData(mid);
+    L.sailed(PORT_VOYAGE_M / 2);
     berth(o, SENTINEL);
-    assert.equal(heard.length, 1, 'the first berth after a load marks where she lies');
-    L.sailed(PORT_VOYAGE_M);
+    assert.deepEqual(heard, [['port-reached', 1], ['port-reached', 1]], 'loaded half way, the voyage kept');
+    L.restoreSaveData({ ...mid, log: { ...mid.log, departed: { port: SENTINEL.key, sailed: mid.log.sailed + 1 } } });
+    assert.equal(L.log.departed, null, 'a departure further on than its log: none');
     berth(o, WAYREST);
-    assert.deepEqual(heard, [['port-reached', 1], ['port-reached', 1]]);
+    assert.equal(heard.length, 2, 'the first berth with none marks where she lies');
   } finally { done(); }
 });
 
@@ -920,4 +930,17 @@ test('QL11 ship-struck (scenes/naval/navalHost.js, a ship\'s state changed - the
     h.run(1);
     assert.deepEqual(heard, [['ship-struck', 1]], 'mine, once');
   } finally { done(); }
+});
+
+test('AUDIT PASS 1 THE ACTS NO FIND PAYS: one list in the leaf, read by the festival\'s finds and the pass\'s alike, no list of their own; every endgame act that finds is a receipt the service holds - the Ketch\'s lift and cells no find, its Warden one (mutants: the lift a find; a cell a find)', () => {
+  assert.ok(Object.isFrozen(ACT_NOT_FOUND));
+  for (const k of ACT_NOT_FOUND) assert.ok(Object.hasOwn(ACT_KINDS, k), `${k} is a kind`);
+  assert.deepEqual(ACT_IDS.filter((k) => ACT_KINDS[k] === 'endgame' && !ACT_NOT_FOUND.includes(k)),
+    ['rite-broken', 'breach-closed', 'redoubt-taken', 'valkynaz-felled', 'hour-broken', 'serpent-slain', 'dragon-slain', 'star-held', 'heart-star-held', 'warden-felled'],   // PIN MOVED (DRAGON4, at the merge of main): the Dwarven Dragon's fall, its z1 receipt the service records, as the Serpent's
+    'a new endgame act is a receipt the service holds, or goes on the list');
+  for (const f of ['src/systems/festival/festivalClient.js', 'src/systems/pass/passClient.js']) {
+    const text = readFileSync(join(ROOT, f), 'utf8');
+    assert.match(text, /^import \{[^}]*\bACT_NOT_FOUND\b[^}]*\} from '\.\.\/questlines\/qlActs\.js';$/m, `${f} reads the leaf's list`);
+    assert.doesNotMatch(text, /\bconst ACT_NOT_FOUND\b/, `${f} keeps no list of its own`);
+  }
 });

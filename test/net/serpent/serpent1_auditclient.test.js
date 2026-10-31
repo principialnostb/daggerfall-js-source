@@ -269,7 +269,7 @@ test('AUDIT SERPENT D4/B8/B10/B11 and the words: the inspect card and the accoun
   assert.equal(profileSerpentLine(null), null);
   assert.equal(profileView({ record: { serpents: { slain: 2 } } }).serpents, 'Serpents slain: 2');
   // PIN MOVED (PROFILE-UI): the serpents slain are a plaque in the card's record row, said only when there is one
-  assert.match(src('src/ui/profileWindow.js'), /\['dfprofile-serpents', v\.serpents\], \['dfprofile-hours', v\.hours\], \['dfprofile-stars', v\.stars\]\]\.filter\(\(\[, t\]\) => t\);/);   // PIN MOVED: SD9b's Hours broken after them; PIN MOVED (STAR7): the fallen stars held last
+  assert.match(src('src/ui/profileWindow.js'), /\['dfprofile-serpents', v\.serpents\], \['dfprofile-dragons', v\.dragons\], \['dfprofile-hours', v\.hours\], \['dfprofile-stars', v\.stars\], \['dfprofile-voyages', v\.voyages\]\]\.filter\(\(\[, t\]\) => t\);/);   // PIN MOVED (AUDIT DRAGON): the dragons slain after them; PIN MOVED: SD9b's Hours broken after them; PIN MOVED (STAR7): the fallen stars held; PIN MOVED (KETCH): the voyages sailed last
   assert.match(src('src/ui/enhanced/enhancedAccount.js'), /const serpents = serpentRecordText\(flow\.account\.serpents\);\n\s+if \(serpents\) row\(t\('account\.card\.serpents', 'Serpents slain'\), serpents\);/);
   for (const w of SERPENT_NO_WORDS) assert.ok(SERPENT_NO_TEXT[w], `words for "${w}"`);
   assert.equal(SERPENT_NO_TEXT['it is already slain'], 'The serpent is already slain.');
@@ -277,7 +277,7 @@ test('AUDIT SERPENT D4/B8/B10/B11 and the words: the inspect card and the accoun
   assert.equal(SERPENT_SPOILS_TEXT.granted(boss), 'Vharos\'s hoard is yours. It is in your pack.');
   assert.doesNotMatch(SERPENT_SPOILS_TEXT.granted(boss), /hold/);
   assert.equal(SERPENT_SPOILS_TEXT.kept('Ama', boss), 'Vharos\'s hoard waits for Ama.');
-  assert.match(SERPENT_CLAIM_TEXT.recorded(2, 0, boss), /^The Bay will remember Vharos's fall\./);
+  assert.match(SERPENT_CLAIM_TEXT.recorded(2, 0, boss), /^The sea will remember Vharos's fall\./);   // PIN MOVED (AUDIT TAMRIEL-WIDE D6): the serpent's lanes are the world's (WW7-12)
   assert.equal(serpentBarModel({ name: 'S', title: 'T', hp: 1, max: 2, phase: 2, phaseName: 'x', fighters: 1, stunned: true, stunLeft: 8200, now: 0 }).callout.text, 'Stunned. Strike its head! 9s');
   assert.doesNotMatch(src('src/scenes/serpentHost.js'), /[`'"]Sethrakul/, 'no name written in the host\'s words');
 });
@@ -297,5 +297,5 @@ test('AUDIT SERPENT M4/S1/L4/D2/D6/D5 and L2/B6/T4: the world\'s wiring and the 
   assert.match(n, /const k = st\.guns\.braced \? BRACE_TAKEN : 1;\n[^\n]*\n\s+const men = playerMen\(hurt\.crew \?\? 0, random\(\)\);\n\s+const change = st\.damage\.apply\(\{ \.\.\.hurt, crew: men, \.\.\.\(k < 1 \? \{ hull: Math\.round\(\(hurt\.hull \?\? 0\) \* k\), sail: Math\.round\(\(hurt\.sail \?\? 0\) \* k\) \} : \{\}\) \}, clock\);/);
   assert.match(n, /const v = best\.e \? velocityOf\(best\.e\.ship\) : best\.v;/);
   assert.match(n, /ships\.push\(\{ e: SERPENT_AIM, v: t\.v \?\? \[0, 0, 0\]/);
-  assert.match(src('src/net/online.js'), /isSocialRoom\(room\) \? r\.k === 'fell' \|\| r\.k === 'rcpt' : isCellRoom\(room\)/, 'the hub hands a receipt (S5)');
+  assert.match(src('src/net/online.js'), /isSocialRoom\(room\) \? r\.k === 'fell' \|\| r\.k === 'rcpt' \|\| r\.k === 'at' : isCellRoom\(room\) && r\.k !== 'at'/, 'the hub hands a receipt (S5)');   // PIN MOVED (WW7-12): and the hub alone the agreed site
 });

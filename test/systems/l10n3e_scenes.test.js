@@ -24,12 +24,11 @@ import { REGION_NAMES } from '../../src/formats/mapsFile.js';
 import { FACTION_TYPES } from '../../src/formats/factionFile.js';
 import { restoreDiscovery, discoverRandomLocation, hasDiscoveredLocationId, snapshotDiscovery, discoveredBuildings } from '../../src/systems/discovery.js';
 import { expandGuildRows } from '../../src/systems/guild/guildServiceActions.js';
-import { bulletinBoardRows } from '../../src/systems/bulletinBoard.js';
-import { tokenRows } from '../../src/ui/messageBox.js';
 import { generateBuildingName, BUILDING_TYPES } from '../../src/world/buildingNames.js';
 import { PlayerNotebook } from '../../src/systems/notebook.js';
 import { expandMacros } from '../../src/systems/talk/talkSession.js';
 import { createTownTalk } from '../../src/scenes/townTalk.js';
+import { createPartyArrival } from '../../src/systems/party/partyArrival.js';   // PARTY-FOLLOW: the journey's arrival line is the party arrival's
 import { questLetterName, shownItemName } from '../../src/systems/item/itemInfo.js';
 import { templateByIndex } from '../../src/systems/item/itemTemplates.js';
 import { setSpellRecordsByIndex, shownSpellName } from '../../src/systems/loot/loot.js';
@@ -46,6 +45,7 @@ import { presentNpcInfoText } from '../../src/player/activate.js';
 import { TopicTree, INFO_FACTION_IDS } from '../../src/systems/topicTree.js';
 import { revealGuildHallsOnMap } from '../../src/systems/guild/guildHallReveal.js';
 import { GUILDS, joinGuild } from '../../src/systems/guild/guilds.js';
+import { panelTownOf } from '../../src/scenes/townPanelHost.js';   // NOTICE-PANEL: the settlement's own law (AUDIT FB1029g P2, P7)
 
 beforeEach(() => { tm._resetTextManagerForTests(); restoreDiscovery(null); setSpellRecordsByIndex(null); });
 
@@ -130,6 +130,9 @@ function worldReveal() {
     return { revealLocation, revealMap, mapMacro: () => _locationRevealedByMapItem };
   `, {
     locationIndex: new Map([['5,6', { regionIndex: 17 }]]), playerTravelPixel: () => ({ x: 5, y: 6 }),
+    // PIN MOVED (BAY-LEFT-B, 06-Systems/Quest-Arc.md): the reveal reads the politic region (_questRegionIndex,
+    // PlayerGPS.CurrentRegion) over the quest layer's maps - a province's region its table of the places past the Bay
+    _questRegionIndex: () => 17, questWorld: { maps: { getRegion: () => CRYPT_REGION } },
     maps: { getRegion: () => CRYPT_REGION }, discoverRandomLocation, questBridge: { notebook: { addNote: (t) => notes.push(t) } },
     localizedStrings: tm.localizedStrings, getLocalizedLocationName: tm.getLocalizedLocationName,
   });
@@ -213,22 +216,19 @@ test('L10N3e scenes: the guild popup\'s %fon/%kno is the order\'s faction name a
   }, 'the gate the promotion reads (ThievesGuild.cs:112) stays canonical; a faction FACTION.TXT lacks has no name to translate (GetFactionData fails)');
 });
 
-test('L10N3e scenes: the bulletin board\'s heading is PlayerGPS.CurrentLocalizedLocationName (PlayerActivate.cs:721) - the location by its MapId; the wilderness has none (worldModes.js activateBulletinBoard, run whole)', () => {
-  const board = (here) => {
-    const shown = [];
-    const activate = mount(`${fnSrc('worldModes.js', 'activateBulletinBoard')}\nreturn activateBulletinBoard;`, {
-      rayAabb: () => 1, BULLETIN_BOARD_ACTIVATION_DISTANCE: 10, setMidScreenText: () => {}, tooFarAwayText: () => 'too far',
-      buildingDirectory: () => here, bulletinBoardRows, bulletinBoardNews: () => null, tokenRows,
-      townTalk: { showOverlay: (w) => shown.push(w) }, ChoiceWindow: class { constructor(o) { this.lines = o.lines; } },
-      getLocalizedLocationName: tm.getLocalizedLocationName,
+test('L10N3e scenes: the Notice Board\'s heading is PlayerGPS.CurrentLocalizedLocationName (PlayerActivate.cs:721) - the location by its MapId; off a settlement there is none (NOTICE-PANEL, PIN MOVED: the town panel\'s settlement, world.js settlementHere, run whole)', () => {
+  const here = (inTown) => {
+    const settlementHere = mount(`${declSrc('world.js', 'settlementHere')}\nreturn settlementHere;`, {
+      playerTravelPixel: () => ({ x: 207, y: 213 }), _storesReached: () => inTown, getLocalizedLocationName: tm.getLocalizedLocationName, panelTownOf,
+      _musicLoc: { name: 'Daggerfall', mapTableData: { mapId: DAGGERFALL_MAP_ID, locationType: 0 } },
     });
-    activate({ min: [0, 0, 0], max: [1, 1, 1] }, [0, 0, 0], [0, 0, 1]);
-    return shown[0]?.lines ?? null;
+    const t = settlementHere();
+    return t ? [t.name, t.shown] : null;
   };
-  const show = () => [board({ mapId: DAGGERFALL_MAP_ID, locationName: 'Daggerfall', regionIndex: 17 }), board(null)];
+  const show = () => [here(true), here(false)];
   const { en, fr } = inFrench(PLACES, show);
-  assert.deepEqual(en, [['Daggerfall'], ['']]);
-  assert.deepEqual(fr, [['Chutedague'], ['']], 'no directory, no name - in any language');
+  assert.deepEqual(en, [['Daggerfall', 'Daggerfall'], null]);
+  assert.deepEqual(fr, [['Daggerfall', 'Chutedague'], null], 'the MAPS name kept beside the shown one; off a settlement, nothing - in any language');
 });
 
 test('L10N3e scenes: the town map\'s plates carry the shown pair beside the canonical one (ExteriorAutomap.cs:717-718) - world.js and exterior.js, their own statements run; the canonical name still chooses the palace, and the title is the name as shown', () => {
@@ -323,9 +323,10 @@ test('L10N3e scenes: the arrival line after a teleport or a journey (world.js, t
     for (const k of Object.keys(n)) { const v = n[k]; if (Array.isArray(v)) v.forEach(walk); else if (v && typeof v.type === 'string') walk(v); }
   })(host('world.js').ast);
   assert.equal(says.length, 2, 'the teleport\'s arrival and the journey\'s');
+  const arrivalLines = createPartyArrival({ besideLanding: () => null, supportedLanding: () => null, sync: () => {}, waiting: () => {} });
   const arrive = (pick) => says.map((call) => {
     const said = [];
-    mount(`${call};\nreturn null;`, { pick, beside: null, townTalk: { say: (t) => said.push(t) }, getLocalizedLocationName: tm.getLocalizedLocationName });
+    mount(`${call};\nreturn null;`, { pick, beside: null, partyArrival: false, partyLanding: arrivalLines, townTalk: { say: (t) => said.push(t) }, getLocalizedLocationName: tm.getLocalizedLocationName });
     return said[0];
   });
   const city = { name: 'Daggerfall', region: 'Daggerfall', mapId: DAGGERFALL_MAP_ID };
@@ -526,6 +527,7 @@ function npcHost() {
     openQuestOfferFor() {}, mountServiceWindow() {}, interiorOverlay: null, mode: 'exterior', staticNpcPortrait: () => null,
     localizedText: tm.localizedText, ctx: { npcTargets: () => [{ npcData: lord, archive: -1, record: -1 }] },
     officeName: () => null,   // ARENA-FIX (main): an office's name first - the lord holds none
+    host: {},   // AUDIT-TESA A2-5 (at the merge of main into TESA): currentNameBank asks the host's province bank first - none on the Bay
   });
   return { ...api, said, plates, partners };
 }

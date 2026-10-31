@@ -21,7 +21,7 @@ Every one of these is a standing call of Mac's, and no slice moves it:
 
 1. **The source sets the odds, never the player** (`Loot-Rarity.md`, LR1). A signature drop steers WHICH Legendary a
    source's kind of foe yields, never whether; the drought multiplies the source's OWN Legendary chance, so a rat's
-   stays a rat's; a champion is a source, stronger because it is.
+   stays a rat's; a champion is a source, stronger because it is. LOOT-GATE (2026-10-25, Dudey; Port-Ledger A LOOT-GATE) departs from it: the roller's level now holds Rare and Legendary back for a young character. Recorded by AUDIT UPDATE (`01-Overview/audits/Audit-Update-2026-10-25.md` U1) as OPEN for Mac's ruling - this law is his standing call. The gate's levels and factors are never published (CLAUDE.md LOOT-GATE).
 2. **Shops and quest rewards do not roll** (LR1). The Reforge is a service on a piece the player already owns; no
    shelf is stocked, nothing is rolled for sale.
 3. **A craft reaches Rare at most** (`Professions-Arc.md` law 7). Nothing here makes a Legendary: an imprinted Rare
@@ -60,7 +60,20 @@ own combat skills would be a tuning slice, not a fix". A skill affix's skill is 
 |---|---|---|---|
 | a weapon | its own weapon skill (the skill that swings it: a bow's Archery, a staff's Blunt Weapon) | the strike's kin: Critical Strike, Backstabbing, Dodging | any skill |
 | armour | - | the body's twelve: the seven ways of fighting (the six weapon skills, Critical Strike) and Dodging, Running, Jumping, Climbing, Swimming | any skill |
-| jewellery | - | the mind's thirteen: the six schools, Etiquette, Streetwise, Mercantile, Lockpicking, Pickpocket, Stealth, Medical | any skill |
+| jewellery | - | the mind's thirteen: the six schools, Etiquette, Streetwise, Mercantile, Lockpicking, Pickpocket, Stealth, Medical - and, since JEWEL-KIN, the bare hand's two: Hand-to-Hand and Critical Strike | any skill |
+
+JEWEL-KIN (2026-10-26, Discord #feature-feedback "jewelcrafting, roll chances not equal (h2h, critical)": "i crafted
+around 100 rare rings ... and h2h or critical not roll on them"; `01-Overview/bugs/Field-Bugs-2026-10-26d.md`): Hand-to-Hand
+is no weapon's own and Critical Strike a weapon's strike kin, but on a ring each was one of the open share's
+thirty-five - about 0.43% of its skill lines, one in 230, against a mind skill's 7% (AUDIT FB1026d II D4/D5). Jewellery's kin is fifteen now (`lootRarity.js` JEWEL_KIN), each
+about one skill line in sixteen. A crafted piece re-mints from its record, so a record before MINT_V_JEWEL_KIN (4,
+`net/productRecord.js`; ARMOR-LEAN's armour lean is 3) keeps the mind's thirteen (`skillKin`'s `fists` false) and a ring already made keeps its lines.
+A craft's record is stamped with the version its client mints, never past the service's (craftMintVersion; a client
+that names none, or names one below MINT_V_JEWEL_KIN, MINT_V_LINES - AUDIT FB1026d C3 and II D1), so a ring is minted
+alike by its maker and by every reader of this build or later; a reader still on a build from before reads a record of
+4 by its own last law, 3, and sees other lines on a new ring until it updates (AUDIT FB1026d II D2). A client that
+names none - one on the release before - is stamped 2, so its armour leaves ARMOR-LEAN's family lean until it updates
+(II D3): 2 is the newest law every build reads alike.
 
 A WEIGHTING, NEVER A FENCE: a language was a skill affix 9 times in 35; now about 1 in 30. A step with no free skill
 (a kind with a param never repeats one on a piece) gives way to the next, so the draw never comes back empty. The
@@ -188,8 +201,11 @@ more and a quarter again. LOOT7's Rare-or-better guarantee is gone. The numbers 
 `06-Systems/Searchables.md`.
 
 **Online.** A dungeon's foes are its layout's, built on every client from the location (the elite's way): the
-champion and its trait are a HASH of the location and the marker, so every client stands the same champion with no
-wire word. A foe in the street or a building is its owner's: the owner's hash says it, and the foe record carries its trait
+champion and its trait are a HASH of the location and the marker, so every client marks the same foe with no wire
+word. CHAMP-BASE (2026-10-25, `01-Overview/bugs/Field-Bugs-2026-10-25b.md`): each client stands the mark at its own
+build's level, and a class foe is built at its builder's, so a character under level 3 stands no champion there; the
+room's shared base of the body asks the mark at the room's level (`scenes/roomLootHost.js` `roomBodyBase`), one base
+for everyone. A foe in the street or a building is its owner's: the owner's hash says it, and the foe record carries its trait
 (`cp`, sent only when set) to every puppet, which wears the same scaling, so a puppet's blow resolved on my side is a
 champion's. Said so: when a dying owner hands a street foe over, its carried loot does not travel (the hand-over's
 own law), so a champion adopted mid-fight carries none.
@@ -197,7 +213,9 @@ own law), so a champion adopted mid-fight carries none.
 ## 10. LOOT8 - the drought
 
 Bad-luck protection. Every eligible piece (a weapon, armour, jewellery - LR1's eligibility) the player TAKES from a
-body or a pile below Legendary adds one to the character's drought; a Legendary or better taken empties it. At every
+body or a pile below Legendary adds one to the character's drought; a Legendary or better taken empties it. (LOOT-GATE,
+2026-10-25: a young character's takes below Legendary add nothing, so no pity builds while the gate holds the top tiers
+back - and a Legendary taken still empties it, AUDIT UPDATE L6.) At every
 source door, the Legendary threshold is multiplied by `1 + 0.2 x floor(drought / 25)`, at most x3 - after 25 pieces
 x1.2, after 250 x3 - and never above the Rare threshold (the ladder never inverts). Counted at the TAKE because a
 body's loot is rolled when its foe is spawned (`hostCombat.spawnEnemyLoot`): counting the rolls would fill the
@@ -215,11 +233,13 @@ Broker's dismantle is its), an artifact, a quest's item, a worn, locked or bound
 card's button, as the Broker's Dismantle) and at the Mages Guild (both skins).
 
 **The Reforge** - the Mages Guild's, a fourth row beside Identify. Pick a Magic or Rare piece (known, not worn) and
-one of its lines; that line is rolled again from its tier's pool, never a kind or a param another line carries, a
-Rare keeping its prefix and its suffix (so its name keeps both parts). The name and the price follow. Once a piece has
-been reforged, only THAT line may be reforged again (`reforged`, the line's index). An Exalted Legendary's extra line
-may be reforged too; a record's own lines never. The price: a Magic 2 shards and 100 gold, a Rare 4 and 400, an
-Exalted 10 and 2,000.
+one of its lines; that line is REPLACED by a line of another kind from its tier's pool (REFORGE-REPLACE, 2026-10-25,
+the owner: "Replace, price rises") - never the line's own kind, never a kind or a param another line carries, a line
+that does something by another that does, a number by a number, across the name's slots. The name and the price
+follow. Any line may be reforged, as often as the purse allows; a line nothing else can take the place of (armour's
+thorns, a technique) is not offered. An Exalted Legendary's extra line may be reforged too; a record's own lines
+never. The price: a Magic 2 shards and 100 gold, a Rare 4 and 400, an Exalted 10 and 2,000 - the first time; each
+reforge on a piece costs twice the last (`reforges`, the piece's count).
 
 ## 12. LOOT10 - the codex, and the imprint
 
@@ -432,7 +452,7 @@ sentence, a `kind` and its numbers. The card and the tooltip say it after the en
 | The Warden | Last Stand | Under a quarter of your health, the damage you take is lessened by a quarter |
 | Titanheart | Unyielding | No single hurt takes more than a quarter of your health |
 | Aegis of Dawn | Dawnward | Each foe's blow that lands on you charges it; at five charges, the next foe's blow is turned aside whole |
-| Foxglove | Fortune's Favour | While you wear it, every Legendary you find is half again as likely - its source's own chance, times one and a half |
+| Foxglove | Fortune's Favour | While you wear it, every Legendary you find is a quarter again as likely - its source's own chance, times one and a quarter (FOX-STACK, section 22; it was a half) |
 | King's Mark | Tribute | Each foe you kill pays you 5 gold for each of its levels |
 | Archmage's Loop | Spell Mastery | Your spells cost 15% less magicka, and 30% less while your magicka is under half |
 | Ansei's Edge | Way of the Sword | Each of its blows that lands grants Flow for 6 s, up to five: +6% weapon damage a stack |
@@ -458,7 +478,7 @@ sentence, a `kind` and its numbers. The card and the tooltip say it after the en
 
 **Who.** `systems/loot/lootPowers.js` `wornPowers(entity)`: MY entity's worn pieces - a Legendary's record (a piece that is
 a Legendary; an id on anything else wakes nothing) and, from LOOT10, a Rare's imprint - ONE entry a power, however many
-pieces carry it. A WEAPON's power rides that weapon's own blows (`blowPowers`: the one that struck); the rest of it
+pieces carry it (and since FOX-STACK, section 22, a record's lines too). A WEAPON's power rides that weapon's own blows (`blowPowers`: the one that struck); the rest of it
 while it is wielded; armour's and jewellery's ride every blow of mine, my fists' too. Asleep in a duel (the sets' own
 word, `setsDueling`), nothing with the switch off, and offline as online.
 
@@ -550,8 +570,10 @@ damage door, so a shield, a ward and a death save see it as any hurt; never a pe
 
 **Who.** A dungeon's: `markDungeonChampions` marks the layout's records by an FNV hash of the location id and the
 marker's index - one in fourteen (`CHAMPION_PER_MILLE` 70; CHAMP-RATE, was 50), its trait from the hash's high bits - so every client
-stands the same champions with no wire word, and a mark rides its record through a rebuild. Every build arm of
-`applyEliteScaling` stands it, an elite dungeon's onto the elite's scaling. A quest's foe is never in the layout. The
+marks the same records with no wire word, and a mark rides its record through a rebuild. Every build arm of
+`applyEliteScaling` stands it, an elite dungeon's onto the elite's scaling, at the build's level (CHAMP-BASE: a class
+foe's is its builder's, and a room's shared base asks the mark again at the room's - `championTraitFor`, the gate's one
+home). A quest's foe is never in the layout. The
 street's: an ordinary encounter's foe (`capped` - never a quest's, a summons, a placed camp's or a replacement) is
 `rollStreetChampion`'s - the same mixer over where it stands, its type and the pool's count of them, NEVER a draw:
 the pool's stream (its loot, its kit) draws as it did, and a seeded test's street stands the same foes every run
@@ -724,6 +746,44 @@ thirteen whole languages; the single piece's refusals it borrows (`lockedText`, 
 face's sigil rune (C7). The classic pack has no card and no batch: the Reforge's Salvage page and its "Salvage every
 Magic" (LOOT18) stay its doors. `test/systems/batchsalvage.test.js` (9), `tools/mutants/batchsalvage.json` (25, all
 dead). Audited: `01-Overview/audits/Audit-Passage-Batch-Salvage.md`.
+
+**REFORGE-REPLACE (2026-10-25; a player, SaberGGaming, beside AFFIX-LINES - `Loot-Rarity.md`; the owner: "Replace,
+price rises")**: measured, 26 to 31% of Rare lines could only be rolled back into their own kind - a Rare's line held
+to its name slot, a kind another line carried barred - and the first reforge locked the piece to that one line for
+good, at a flat price, while the hone (LOOT17) raised a value with its price doubling. The law above is the owner's:
+`lootRarity.js` reforgePool - the kinds a line may become, never its own (so a reforge always replaces; the same kind
+back was a value rolled again, which the hone sells), never one another line carries, a proc for a proc, any slot,
+the piece renamed (`rarityName` - a Rare gains or loses its prefix as the line crosses); `reforgeableLines` - every
+line whose pool holds a kind, however often reforged (thorns, armour's one proc, and a technique - only a technique may
+stand there, TECH1's law - are never offered; the hone still takes them); the replacement drawn over the pool's lines
+(AFFIX-LINES' pickByLines), its value from its tier's band, a skill's and a standing's param on the roll's own leans.
+`reforgeCount` - the piece's `reforges` (a declared field, 1 to REFORGES_MAX 31; item law 14 holds it to the tiers the
+Reforge takes), or one for an old piece's `reforged` mark - honoured as a reforge taken, never a lock, folded into the
+count at the next reforge. `reforge.js` reforgePrice - the tier's price doubled for every reforge taken, as honePrice
+doubles; one `reforgeAffix` serves the Mages Guild's Reforge and the Reforge with Essence (`Professions-Arc.md` 41.7),
+so both doors are one roll: `temperLaw.js` reforgeEssence(tier, count) doubles the Essence the same way, and the
+service's /v1/prof/reforge takes the piece's `count` (acct187 - acct182 on its branch, renumbered at the merge). The card says the price and that it doubles, and a line
+no other kind can replace says so when pressed (`reforgeWindow.js` REFORGE_NOTE, `REFORGE_REFUSALS.line`, through t()).
+`test/systems/affixlines_reforge.test.js`; PIN MOVED: `loot9_reforge` (no lock, never the same kind, the count and the
+doubling price, every line's press), `tech1_roster` (a technique's line not offered), `craft4_temper`.
+`tools/mutants/affixlines.json` (36, all dead); `loot9.json` re-aimed (three records whose law was inverted renamed and
+aimed at the new one; LOOT9-carried-kind-again equivalent as recorded - its guard is belt-and-braces beside the draw's
+weights); AUDIT LOOT II A4 pinned from its other side (a gem's kind free for the piece's own lines).
+
+**NAME-KEPT (FIELD BUGS 2026-10-25i item 1; SaberGGaming again: "if you've renamed your item it will revert it back
+into its original name"; reworked by AUDIT FB1025i A1-A5)**: the reforge named a Magic or Rare piece again from its
+TEMPLATE (`rarityName`), so a name the Item Maker gave (RenameItem) was lost, a Masterwork's own name ("Silver Ring"
+under its maker's mark) took the ladder's words its mint withholds, and a crafted jewel lost its metal and gem. The law
+now (`lootRarity.js` linesName): a name is the ladder's - at most one of its tier's prefix words and one of its suffix
+words around the piece's BASE, read off the piece (a crafted jewel's recipe name, a Masterwork's bare template, else the
+RRI word and the template; an older save's bare template besides) - or it is the piece's own and stands. The ladder's is
+built again from the piece's own lines (a set gem's never - AUDIT GEM), a Masterwork's base alone. The first cut parsed
+a name by the lines it had: a curse's line added after the name, an unset gem's word, an older reforge's damage and a
+partial rename ("Porter's Pride") each came out wrong (the audit's A1-A5). The Imbue keeps a name of the piece's own too
+(`reforge.js` imbuePiece - a questline's named reward), and a load gives a crafted piece the old law broke its own
+base's name back (`repairCraftedNames`, in save.js repairItemLists; never a found piece - a curse's line is added after
+its name by design). `test/systems/loot/fb1025i_namekept.test.js` (9), `tools/mutants/fb1025i_namekept.json` (14: 13
+dead, 1 equivalent as recorded).
 
 ### LOOT10 - the codex, and the imprint (2026-10-01)
 
@@ -1056,14 +1116,19 @@ opens - the sigils' own five (`sigil.js` `renownSigilStage`: Renown 1, 10, 20, 3
 
 | Renown | the buff | items kept | blue at level 0 | healing (a foe / a pile) | Restore Power (a foe / a pile) | rest supplies |
 |---|---|---|---|---|---|---|
-| 1-9 | half | 62.5% | 4.5% | 8 / 15 | 3 / 5 | half LOOT-EASE's |
-| 10-19 | three quarters | 68.75% | 4.75% | 9 / 16.5 | 4.5 / 7.5 | three quarters |
-| 20-29 | all | 75% | 5% | 10 / 18 | 6 / 10 | LOOT-EASE's |
-| 30-39 | five quarters | 81.25% | 5.25% | 11 / 19.5 | 7.5 / 12.5 | five quarters |
-| 40-50 | half again | 87.5% | 5.5% | 12 / 21 | 9 / 15 | half again |
+| 1-9 | half | 62.5% | 4.5% | 3 / 6 | 1 / 2 | half LOOT-EASE's |
+| 10-19 | three quarters | 68.75% | 4.75% | 3.5 / 7 | 1.5 / 3 | three quarters |
+| 20-29 | all | 75% | 5% | 4 / 8 | 2 / 4 | LOOT-EASE's |
+| 30-39 | five quarters | 81.25% | 5.25% | 4.5 / 9 | 2.5 / 5 | five quarters |
+| 40-50 | half again | 87.5% | 5.5% | 5 / 10 | 3 / 6 | half again |
 
 The live game before LOOT-EASE: 50% kept, 4% blue, 6 / 12 healing, no Restore Power, no rest supply online. Every
-stage is above it, and Renown 40 is under the loot before PLAIN-LOOT (section 18).
+stage is above it but the two potions, and Renown 40 is under the loot before PLAIN-LOOT (section 18). POT-THIN
+(2026-10-21, `06-Systems/Professions-Arc.md` section 48, the owner: "decrease pot drops") cut the potion columns BELOW
+the live game's on purpose - a crafter's bottle is the supply now, the drop a windfall - so the healing ladder's step
+starts at an invented 2 / 4 (`healingSupply.js` HEALING_ENEMY_CHANCE_BEFORE, HEALING_PILE_CHANCE_BEFORE), not the live
+game's 6 / 12; it was 8 / 15 to 12 / 21, and Restore Power 3 / 5 to 9 / 15 (AUDIT CRAFT-WRITS T7: the table stood at its
+old numbers).
 
 **What stays whole at every stage.** What LOOT-EASE fixed rather than tuned: a foe's worn kit rolls the plain ladder at
 its death (KIT-ROLL - every foe's since AUDIT 625, section 21), the cap keeps a supply before plain gear
@@ -1093,7 +1158,8 @@ seed's other loot is the same loot at every Renown; only what each roll decides 
 bodies a cell, a plain Warrior at level 8: 1.11 pieces a body at Renown 1 (26.5% gold alone), 1.21 at 10, 1.30 at 20
 (18.7%; offline the same), 1.39 at 30, 1.46 at 40 (13.2%); a Potion of Healing on 5.8% / 7.9% / 10.1% of them at
 Renown 1 / 20 / 40, Restore Power on 2.2% / 4.3% / 8.2%, a rest supply on 2.4% / 7.1% / 11.0%. A skeleton's body 0.46 /
-0.59 / 0.75 pieces.
+0.59 / 0.75 pieces. (The potions' shares were measured before POT-THIN; at its chances a foe's healing potion and Restore
+Power fall to some two fifths and one third of them.)
 
 Pinned: `test/systems/renownloot.test.js` (6 - the stage and its door, the table, the keep through the real spawn, the kit at
 death, the supplies through the real hooks with their draws counted, the hosts). Moved: `test/systems/rf2_spawnloot.test.js`
@@ -1126,3 +1192,19 @@ Pinned: `test/systems/audit625_loot.test.js` (6); moved: `search1_searchables` (
 copy; the keep's threshold itself, not a band), `sigil1` and `survtiers3` (the copies' cap), and the mounted dungeon
 harnesses' stubs (`audit68_dungeonctx`, `loot7check`, `corpsegold`, `seatheal`). `tools/mutants/audit625.json` (the L
 records); `lootease.json`'s KIT-ROLL records re-aimed by content (the reversed law's record says so).
+
+## 22. FOX-STACK - a Legendary counts once (2026-10-30)
+
+A player wrote that some players wear six Foxgloves and get Legendaries "constantly". Fortune's Favour already counted
+once (`wornPowers`). Each Foxglove's +15 Luck did not, and Luck multiplies every rarity threshold (LOOT13, section 5 of
+`Loot-II-Arc.md`) up to x1.5 at Luck 100. One Foxglove made a Legendary 1.72x as likely, four or more 2.25x.
+
+- **A record's lines count once.** `lootRarity.js` `countedPieces` drops a later copy of a Legendary record worn. Both
+  `wornItems` (the affix fold, the card's resistance and its compare) and `lootPowers.js` `wornPieces` (wornSum's
+  lines, the powers) read through it. The first copy in the equip table counts. Two different records, and two Rares,
+  still add up.
+- **Fortune's Favour is a quarter** (`mult: 1.25`): the owner, "Yeah reduce the change and fix", then "Chance". One Foxglove now makes a
+  Legendary 1.44x as likely at Luck 50, and a second adds nothing.
+
+Pinned: `test/systems/loot/foxstack.test.js`; moved: `loot5_powers` (the find). `tools/mutants/foxstack.json`, 5, all
+dead.

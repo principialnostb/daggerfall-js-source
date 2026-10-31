@@ -25,6 +25,13 @@
 // owner (a market sale moves it there - market.js), so a seller that kept a sold piece is the copier, never the buyer.
 // The audit's two findings this answers: an id stamped on a piece of the victim's took the VICTIM's trade (the holder
 // was charged), and a copier sold the contested piece first and the buyer was charged.
+// RPT1026-LEDGERLAW (a private report: a maker won a traded-away crafted piece back from its buyer): the craft's record
+// is the account the service last HANDED the piece to - `handed_to`, written by every move the service makes of it into a
+// record (ledgerMoves: a realm trade, a market delivery collected, a vault's or a chest's) - and its owner only where no
+// such move came after the owner's. A trade moves no `owner` (Professions-Arc 18's hand-over of the owner is unbuilt),
+// so a maker who traded a piece away and wrote it back into its save won the piece back from its buyer.
+// AUDIT RPT1026 C1: handed on BY THE ACCOUNT THE RECORD NAMES - a move from any other giver (a seller that kept a piece it
+// sold holds the row first, the sale having let it go) moves no record, as a hand to hand move moves none.
 //
 // A key on a piece that is not what the key was minted for (`fp`, the template and material) is no claim at all: the
 // record showing it holds a forged id - a law finding (verdict.js), and the holder never hears of it.
@@ -58,10 +65,19 @@ export const DUPE_GRACE_S = 750;
 export const UID_CHUNK = 90;
 /** How many rows one INSERT writes: the four the rows share (?1-?4) and two of each row's own, under D1's hundred. */
 export const UPSERT_ROWS = 48;
+/** STAFF-PANEL4-CENSUS: how many copies one INSERT writes - the three the rows share (?1-?3) and six of each row's own
+ *  (the piece, its first holder and since when, its claimant and since when, its print), under D1's hundred. */
+export const DUPE_ROWS = 16;
 /** The most new keys one checkpoint takes into the ledger; the rest wait for the next (twenty statements). */
 export const LEDGER_NEW_MAX = 960;
 /** The most keys one checkpoint reads the ledger for (67 reads at most); a save holding more has the rest unfollowed. */
 export const LEDGER_KEYS_MAX = 6000;
+/** STAFF-PANEL3-REALM (design doc weak spots, "Items, census and economy": "Staff-taken ids keep a 'seized' state, so a
+ *  save that shows one again is charged as a copy"): an `escrow` row's `char_id` when staff took the piece (staffRealm.js
+ *  - off the market, or out of a save) - in the service's hands, as escrow is, and no record's. No realm id is shaped
+ *  like it (realm.js REALM_ID_RE), and 0096's CHECK on `state` stands as it is. Put back hands the row back - to the
+ *  market's hands, or to the record it was taken from (staffRealm.js evidence/return). */
+export const SEIZED = 'seized';
 
 const marks = (/** @type {number} */ n, /** @type {number} */ from) => Array.from({ length: n }, (_, i) => `?${from + i}`).join(', ');
 /** `[...list]` in slices of `n`. */
@@ -87,7 +103,7 @@ const overKeys = (/** @type {any} */ db, /** @type {string[]} */ keys, /** @type
  *  copies - as statements, so a checkpoint sends them in the batch that reads its record (each was a round trip of its
  *  own, and a checkpoint is a third of the primary's statements). */
 export const ledgerReads = (/** @type {any} */ db, /** @type {string} */ char) => [
-  db.prepare('SELECT uid, char_id, state, fp, claim_char, claim_at FROM item_uids WHERE char_id = ?1 OR claim_char = ?1').bind(char),
+  db.prepare('SELECT uid, char_id, state, fp, claim_char, claim_at, at FROM item_uids WHERE char_id = ?1 OR claim_char = ?1').bind(char),
   db.prepare('SELECT uid FROM item_dupes WHERE char_id = ?').bind(char),
 ];
 
@@ -123,7 +139,7 @@ export async function ledgerStep(db, at, pieces, known = null) {
   for (const r of mine?.results ?? []) rows.set(r.uid, r);
   const copiesKnown = new Set(((known ? known.dupes : await dupesRead.all())?.results ?? []).map((/** @type {any} */ r) => r.uid));
   for (const part of chunks([...shown.keys()].filter((k) => !rows.has(k) && !copiesKnown.has(k)), UID_CHUNK)) {
-    const r = await db.prepare(`SELECT uid, char_id, state, fp, claim_char, claim_at FROM item_uids WHERE uid IN (${marks(part.length, 1)})`).bind(...part).all();
+    const r = await db.prepare(`SELECT uid, char_id, state, fp, claim_char, claim_at, at FROM item_uids WHERE uid IN (${marks(part.length, 1)})`).bind(...part).all();
     for (const row of r?.results ?? []) rows.set(row.uid, row);
   }
   /** @type {[string, string][]} */
@@ -141,6 +157,8 @@ export async function ledgerStep(db, at, pieces, known = null) {
       if (!rehomedPrint(r.fp, fp)) { forged.push(key); continue; }   // another piece's key: no claim to that piece
       reprint.push([key, fp, r.fp]);   // AUDIT FB1018f L1-1: the piece itself, its base moved home by the load (lootRarity.js)
     }
+    // STAFF-PANEL3-REALM: a piece staff took, shown again - a copy of it, charged to this record (and locked, as every copy)
+    if (r && r.state === 'escrow' && r.char_id === SEIZED) { copies.push(key); continue; }
     if (n > 1) { copies.push(key); if (!r) fresh.push([key, fp]); continue; }   // one piece twice in one record
     if (!r) { if (fresh.length < LEDGER_NEW_MAX) fresh.push([key, fp]); continue; }
     if (r.char_id === char && r.state === 'held') {
@@ -158,15 +176,20 @@ export async function ledgerStep(db, at, pieces, known = null) {
     else if (r.claim_char === char) withdraw.push(r.uid);
   }
   // A CRAFTED PIECE'S CLAIM is settled by its record: the account `products` names owns it, and a holder that is not it
-  // kept a piece it sold - the holder is the copier, and the piece goes to the claimant
+  // kept a piece it sold - the holder is the copier, and the piece goes to the claimant. RPT1026-LEDGERLAW: the account
+  // the service last handed it to (`handed_to`), where a move came after its owner's - a holder the service handed it to
+  // is no seller that kept it, whatever account made it; and a holder that is its owner keeps it (the piece come back to
+  // its owner's hands by a way no service saw: the account it was handed to before is no buyer of it). AUDIT RPT1026 C1:
+  // and only a hand-over by the account the record named moved it (ledgerMoves)
   /** @type {Map<string, string[]>} the claims the craft's record upholds: the holder's copy, by key */
   const upheld = new Map();
   const crafted = [...proven.values()].flat();
   if (crafted.length) {
     const owners = new Map();
     for (const part of chunks(crafted, UID_CHUNK)) {
-      const r = await db.prepare(`SELECT p.provenance, p.owner, c.id AS claimant FROM products p JOIN item_uids u ON u.uid = p.provenance JOIN realm_characters c ON c.id = u.claim_char
-        WHERE p.provenance IN (${marks(part.length, 1)}) AND p.owner = c.player AND p.owner != ?${part.length + 1}`).bind(...part, at.player).all();
+      const r = await db.prepare(`SELECT p.provenance, c.id AS claimant FROM products p JOIN item_uids u ON u.uid = p.provenance JOIN realm_characters c ON c.id = u.claim_char
+        WHERE p.provenance IN (${marks(part.length, 1)}) AND ${CRAFT_RECORD_SQL} = c.player AND ${CRAFT_RECORD_SQL} != ?${part.length + 1}
+          AND p.owner != ?${part.length + 1}`).bind(...part, at.player).all();   // RPT1026-LEDGERLAW: and never against its owner holding it
       for (const row of r?.results ?? []) owners.set(row.provenance, row.claimant);
     }
     for (const [claimant, keys] of proven) {
@@ -180,7 +203,9 @@ export async function ledgerStep(db, at, pieces, known = null) {
   // the writes - only what changed
   steps.push(...insertSteps(db, at, fresh, 'ON CONFLICT (uid) DO NOTHING'));
   for (const [key, fp, was] of reprint) steps.push(db.prepare('UPDATE item_uids SET fp = ?2 WHERE uid = ?1 AND fp = ?3').bind(key, fp, was));   // AUDIT FB1018f L1-1
-  if (copies.length) steps.push(...copyRows(db, copies, char, nowS));
+  // STAFF-PANEL4-CENSUS: each copy written down with the record the ledger had holding it and since when - a piece shown
+  // twice in one record is that record's claim on itself, now
+  if (copies.length) steps.push(...copyRows(db, copies, char, nowS, 'twice', (k) => { const r = rows.get(k); return { first: r ? r.char_id || null : char, firstAt: r ? r.at : nowS, claimant: char, claimAt: nowS, fp: shown.get(k)?.fp ?? null }; }));
   steps.push(...overKeys(db, claim, [char, nowS], (m) => `UPDATE item_uids SET claim_char = ?1, claim_at = ?2 WHERE uid IN (${m}) AND claim_char IS NULL`));
   steps.push(...overKeys(db, takeUp, [at.player, char, at.seq, nowS], (m) => `UPDATE item_uids SET player = ?1, char_id = ?2, seen_seq = ?3, state = 'held', claim_char = NULL, claim_at = NULL, at = ?4 WHERE uid IN (${m}) AND state = 'gone'`));
   steps.push(...overKeys(db, moveOn, [char, nowS], (m) => `UPDATE item_uids SET char_id = claim_char, player = COALESCE((SELECT c.player FROM realm_characters c WHERE c.id = item_uids.claim_char), player),
@@ -192,14 +217,16 @@ export async function ledgerStep(db, at, pieces, known = null) {
     // the claim was a copy: the claimant's - written down, locked, and found with no strike (AUTO-HOLD: contested); the
     // piece stays this record's
     steps.push(...overKeys(db, keys, [claimant], (m) => `UPDATE item_uids SET claim_char = NULL, claim_at = NULL WHERE uid IN (${m}) AND claim_char = ?1`));
-    steps.push(...copyRows(db, keys, claimant, nowS), ...chargeSteps(db, claimant, keys, nowS, { strike: false }));
+    // STAFF-PANEL4-CENSUS: a CONTESTED piece - its first holder (this record) and its claimant, each with its time
+    steps.push(...copyRows(db, keys, claimant, nowS, 'claim', (k) => { const r = rows.get(k); return { first: char, firstAt: r?.at ?? null, claimant, claimAt: r?.claim_at ?? null, fp: r?.fp ?? null }; }),
+      ...chargeSteps(db, claimant, keys, nowS, { strike: false }));
     charged += keys.length;
   }
-  for (const keys of upheld.values()) {
+  for (const [claimant, keys] of upheld) {
     // the craft's record names the claimant: this record kept a piece it sold - the piece goes, and the copy is this one's
     steps.push(...overKeys(db, keys, [nowS], (m) => `UPDATE item_uids SET char_id = claim_char, player = COALESCE((SELECT c.player FROM realm_characters c WHERE c.id = item_uids.claim_char), player),
       claim_char = NULL, claim_at = NULL, at = ?1 WHERE uid IN (${m})`));
-    steps.push(...copyRows(db, keys, char, nowS));
+    steps.push(...copyRows(db, keys, char, nowS, 'craft', (k) => { const r = rows.get(k); return { first: char, firstAt: r?.at ?? null, claimant, claimAt: r?.claim_at ?? null, fp: r?.fp ?? null }; }));
     copies.push(...keys);
   }
   // AUTO-HOLD: THE PIECES LOCKED in this record - its known copies it still shows, and the copies found now - for the
@@ -208,13 +235,69 @@ export async function ledgerStep(db, at, pieces, known = null) {
   return { steps, copies, forged, charged, locked };
 }
 
-/** Copies written down: `keys`, each a copy `char` holds. */
-const copyRows = (/** @type {any} */ db, /** @type {string[]} */ keys, /** @type {string} */ char, /** @type {number} */ nowS) =>
-  chunks(keys, UPSERT_ROWS).map((part) => db.prepare(`INSERT OR IGNORE INTO item_dupes (uid, char_id, at) VALUES ${part.map((_, i) => `(?${3 + i}, ?1, ?2)`).join(', ')}`).bind(char, nowS, ...part));
+/** RPT1026-LEDGERLAW: THE ACCOUNT A CRAFTED PIECE'S RECORD NAMES, over `products` `p`: the one the service last handed it to
+ *  (ledgerMoves - `handed_to`, migration 0178), or its owner where none came since the owner's (a market sale, an auction,
+ *  a commission clears it). */
+const CRAFT_RECORD_SQL = 'COALESCE(p.handed_to, p.owner)';
+
+/** @typedef {{ first: string | null, firstAt: number | null, claimant: string | null, claimAt: number | null, fp: string | null }} CopyWho */
+/** Copies written down: `keys`, each a copy `char` holds - STAFF-PANEL4-CENSUS: found as `kind` (migration 0154), and
+ *  `whoOf(key)` the record the ledger had holding it first and the one that claimed it, each with its time, and its print. */
+const copyRows = (/** @type {any} */ db, /** @type {string[]} */ keys, /** @type {string} */ char, /** @type {number} */ nowS,
+  /** @type {string | null} */ kind = null, /** @type {(k: string) => CopyWho | null} */ whoOf = () => null) =>
+  chunks(keys, DUPE_ROWS).map((part) => db.prepare(`INSERT OR IGNORE INTO item_dupes (uid, char_id, at, kind, first_char, first_at, claimant, claim_at, fp) VALUES ${part.map((_, i) => { const o = 4 + 6 * i; return `(?${o}, ?1, ?2, ?3, ?${o + 1}, ?${o + 2}, ?${o + 3}, ?${o + 4}, ?${o + 5})`; }).join(', ')}`)
+    .bind(char, nowS, kind, ...part.flatMap((k) => { const w = whoOf(k); return [k, w?.first ?? null, w?.firstAt ?? null, w?.claimant ?? null, w?.claimAt ?? null, w?.fp ?? null]; })));
+
+/**
+ * FIELD BUGS 2026-10-25i COPY-LIFT (Giljabrar: "I placed 89 rare/legendary items in a chest ... they were all 'Realm
+ * Locked'"): A RECORD'S COPY OF ITS OWN, LIFTED BY THE SERVICE'S OWN HAND. The decorator's Discard wrote a home's chests
+ * back (scenes/decor/decorTool.js CHEST-DRAFT), and every piece stored stood twice in one record - a `twice` copy, both
+ * locked. A copy is lifted ONLY in the batch of a service act that itself leaves the record one of the piece (staff's
+ * purge with `keep` - staffRealm.js: its batch destroys a copy of it wherever the save holds one, or staff's Remove took
+ * one and keeps it): never on a checkpoint's word that the record shows it once, which no service can tell from a copy
+ * moved where the record lists nothing - a deserter revenant's take (revenant.js RVN8: splitPack, and a kill's take,
+ * pickTaken - neither takes a realm-locked piece now, AUDIT FB1025i F1, and a forged client's is the keep's to find),
+ * a counter, the ground - and brought back after (AUDIT FB1025i). Of `pieces` (`{ key, fp }`, one of each the act
+ * keeps), the keys liftable: a `twice` copy of `char`'s, no trail check found or found it innocent (AUDIT FB1025i F7: an
+ * `unclear` one is staff's to settle first), its row `char`'s own, held and unclaimed and of that piece, no other
+ * record's copy known. Every other copy stays locked for good.
+ * @param {any} db @param {string} char @param {{ key: string, fp: string }[]} pieces
+ */
+export async function ownCopiesLiftable(db, char, pieces) {
+  const fpOf = new Map(pieces.map((p) => [p.key, p.fp]));
+  /** @type {string[]} */
+  const out = [];
+  for (const part of chunks([...fpOf.keys()], UID_CHUNK)) {
+    const r = await db.prepare(`SELECT d.uid, u.fp FROM item_dupes d JOIN item_uids u ON u.uid = d.uid
+      WHERE d.char_id = ?1 AND ${OWN_COPY_SQL} AND d.uid IN (${marks(part.length, 2)})`).bind(char, ...part).all();
+    for (const row of r?.results ?? []) if (row.fp === fpOf.get(row.uid)) out.push(row.uid);
+  }
+  return out;
+}
+/** COPY-LIFT's law in SQL, over item_dupes `d` and its row item_uids `u` (?1 the record) - asked again by the lift's own
+ *  statement, so a row that moved since the ask is not lifted. */
+const OWN_COPY_SQL = `d.kind = 'twice' AND (d.trail_found IS NULL OR d.trail_found = 'innocent')
+  AND u.char_id = ?1 AND u.state = 'held' AND u.claim_char IS NULL
+  AND NOT EXISTS (SELECT 1 FROM item_dupes o WHERE o.uid = d.uid AND o.char_id != ?1)`;
+/** AUDIT FB1025i F2: the copies of the keys in JSON `?4` the law lifts on `?1` now - what the lift's statement will take. */
+const LIFTING_SQL = `SELECT d.uid AS uid FROM item_dupes d JOIN item_uids u ON u.uid = d.uid
+  WHERE d.char_id = ?1 AND ${OWN_COPY_SQL} AND d.uid IN (SELECT value FROM json_each(?4))`;
+/** COPY-LIFT: `keys` (ownCopiesLiftable's) lifted on `char`, in the act's own batch - and said among its findings, a
+ *  'dupe' with `lifted`, as the copy was when it came (chargeSteps). AUDIT FB1025i F2: the finding says what the lift's
+ *  own statement takes, asked by the same law in the same batch just before it - a row that moved since the ask (a
+ *  peer's claim landed) is neither lifted nor said; none lifted, no finding. No keys, no statement. */
+export const ownCopyLiftSteps = (/** @type {any} */ db, /** @type {string} */ char, /** @type {string[]} */ keys, /** @type {number} */ nowS) => (!keys.length ? [] : [
+  db.prepare(`INSERT INTO realm_findings (player, char_id, seq, at, law, kind, detail)
+    SELECT c.player, c.id, c.seq, ?2, ?3, 'dupe', json_object('lifted', json((SELECT json_group_array(uid) FROM (SELECT uid FROM (${LIFTING_SQL}) LIMIT 40))), 'count', (SELECT COUNT(*) FROM (${LIFTING_SQL})))
+    FROM realm_characters c WHERE c.id = ?1 AND EXISTS (${LIFTING_SQL})`).bind(char, nowS, JUDGE_VERSION, JSON.stringify(keys)),
+  ...overKeys(db, keys, [char], (m) => `DELETE FROM item_dupes WHERE char_id = ?1 AND uid IN (${m}) AND EXISTS (SELECT 1 FROM item_dupes d JOIN item_uids u ON u.uid = d.uid
+    WHERE d.uid = item_dupes.uid AND d.char_id = ?1 AND ${OWN_COPY_SQL})`),
+]);
 
 /** INT9 (AUDIT): `keys` written down as copies `char` holds - a death's dropped pieces, whose ids the remains carry afresh
  *  (server-account/src/wild.js): never charged, and moved by no route. */
-export const knownCopySteps = (/** @type {any} */ db, /** @type {string} */ char, /** @type {string[]} */ keys, /** @type {number} */ nowS) => copyRows(db, keys, char, nowS);
+export const knownCopySteps = (/** @type {any} */ db, /** @type {string} */ char, /** @type {string[]} */ keys, /** @type {number} */ nowS) =>
+  copyRows(db, keys, char, nowS, 'drop', () => ({ first: char, firstAt: null, claimant: null, claimAt: null, fp: null }));   // STAFF-PANEL4-CENSUS: bookkeeping, never contested
 
 /**
  * AUDIT LW-II-2 S2: A PIECE IN ESCROW THE SERVICE DESTROYED - a patron's purchase (market.js reckonPatrons): no record
@@ -230,7 +313,10 @@ export const knownCopySteps = (/** @type {any} */ db, /** @type {string} */ char
 export function escrowSpentSteps(db, key, claim, nowS) {
   if (!claim) return [db.prepare("DELETE FROM item_uids WHERE uid = ?1 AND state = 'escrow' AND claim_char IS NULL").bind(key)];
   return [
-    ...copyRows(db, [key], claim, nowS),
+    // STAFF-PANEL4-CENSUS: the service held it first (no record), since it went into escrow; the claim's time and the
+    // print off the ledger's row, read before this batch's own step below clears the claim
+    db.prepare(`INSERT OR IGNORE INTO item_dupes (uid, char_id, at, kind, first_char, first_at, claimant, claim_at, fp) VALUES (?1, ?2, ?3, 'escrow', NULL,
+      (SELECT at FROM item_uids WHERE uid = ?1), ?2, (SELECT claim_at FROM item_uids WHERE uid = ?1), (SELECT fp FROM item_uids WHERE uid = ?1))`).bind(key, claim, nowS),
     ...chargeSteps(db, claim, [key], nowS, { strike: false }),
     db.prepare("UPDATE item_uids SET state = 'gone', claim_char = NULL, claim_at = NULL, at = ?3 WHERE uid = ?1 AND state = 'escrow' AND claim_char = ?2").bind(key, claim, nowS),
   ];
@@ -264,14 +350,17 @@ export function chargeSteps(db, char, keys, nowS, { strike = true } = {}) {
  * THE LEDGER FOLLOWS A MOVE THE SERVICE MADE on `at.char`'s record, from the pieces it held `before` to those `after`
  * (each judge.js ledgerPieces). Answers `{ left, entered }`, the statements for the move's batch: the pieces gone from
  * the record - in the service's hands (`escrow`: a listing, a vault, a stake) or no one's (spent, destroyed) - and the
- * pieces come into it, this record's whoever held them (the service's word). A batch moving two records runs both
+ * pieces come into it, this record's whoever held them (the service's word) - and a crafted one its account's by the
+ * craft's record (RPT1026-LEDGERLAW, `handed_to`), so a contested claim on it is settled for the record the service handed
+ * it to, where the account handing it on is the one the record named (AUDIT RPT1026 C1). A batch moving two records runs both
  * records' `left` before either's `entered` (realmTrade.js), so a piece passing between them lands where it went.
  * MAC (2026-10-14, the two-phase handoff): `escrow` a Set of keys - those pieces alone into the service's hands (a
- * killer's worn piece, held for its collect - server-account/src/wild.js), the rest let go.
+ * killer's worn piece, held for its collect - server-account/src/wild.js), the rest let go. AUDIT RPT1026 C1: `from` - the
+ * account handing the pieces over in the same batch (a realm trade's other side), where no escrow row names it.
  * @param {any} db @param {{ player: string, char: string, seq: number, nowS: number }} at
- * @param {{ key: string, fp: string }[]} before @param {{ key: string, fp: string }[]} after @param {{ escrow?: boolean | Set<string> }} [o]
+ * @param {{ key: string, fp: string }[]} before @param {{ key: string, fp: string }[]} after @param {{ escrow?: boolean | Set<string>, from?: string | null }} [o]
  */
-export function ledgerMoves(db, at, before, after, { escrow = false } = {}) {
+export function ledgerMoves(db, at, before, after, { escrow = false, from = null } = {}) {
   const was = new Map(before.map((p) => [p.key, p.fp]));
   const now = new Map(after.map((p) => [p.key, p.fp]));
   const gone = [...was.keys()].filter((k) => !now.has(k));
@@ -284,6 +373,16 @@ export function ledgerMoves(db, at, before, after, { escrow = false } = {}) {
     ...letGoSteps(db, freed, at.char, at.nowS),
   ];
   const entered = [
+    // RPT1026-LEDGERLAW: and a crafted one is that record's account's by the craft's record (CRAFT_RECORD_SQL) - handed on
+    // by the service, so its owner's word is spent; handed back to its owner's account, the owner's again.
+    // AUDIT RPT1026 C1: handed on BY THE ACCOUNT THE RECORD NAMES, and by no other - `from`, the giving side's account (a
+    // realm trade, whose giver's row is let go earlier in the batch), or the account that put the piece in the service's
+    // hands (its escrow row's `player`, read here before the insert below takes the row). A seller that kept a piece it
+    // sold holds the ledger's row first (the sale let the row go - market.js pieceSoldSteps), and one trade or one vault's
+    // round trip of it named the copier's side the craft's record, so the buyer's claim was the copy
+    ...overKeys(db, came.map(([k]) => k), [at.player, from], (m) => `UPDATE products SET handed_to = CASE WHEN owner = ?1 THEN NULL ELSE ?1 END
+      WHERE provenance IN (${m}) AND handed_to IS NOT (CASE WHEN owner = ?1 THEN NULL ELSE ?1 END)
+        AND COALESCE(handed_to, owner) = COALESCE(?2, (SELECT u.player FROM item_uids u WHERE u.uid = products.provenance AND u.state = 'escrow'))`),
     ...insertSteps(db, at, came, `ON CONFLICT (uid) DO UPDATE SET player = excluded.player, char_id = excluded.char_id, seen_seq = excluded.seen_seq,
       state = 'held', fp = excluded.fp, claim_char = CASE WHEN item_uids.claim_char = excluded.char_id THEN NULL ELSE item_uids.claim_char END,
       claim_at = CASE WHEN item_uids.claim_char = excluded.char_id THEN NULL ELSE item_uids.claim_at END, at = excluded.at`),

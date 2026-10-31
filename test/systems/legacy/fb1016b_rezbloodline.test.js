@@ -42,7 +42,7 @@ import { setModSetting, _resetModSettings } from '../../../src/systems/modSettin
 import { hurtPlayer, setDeathListener } from '../../../src/characters/playerEntity.js';
 import { reviveForPlay } from '../../../src/systems/deathRespawn.js';
 import { stateDeathLoss, statedDeathLoss } from '../../../src/systems/deathPenalty.js';
-import { DeathScreen, ONLINE_RESPAWN_SECONDS } from '../../../src/ui/deathScreen.js';
+import { DeathScreen, ONLINE_RESPAWN_SECONDS, DEATH_AUTO_RISE_S } from '../../../src/ui/deathScreen.js';
 import { WILD_DEATH_HOLD_S, setWildDeath } from '../../../src/systems/wild/wildZone.js';
 import { rezSnapshot, rezFor, resurrectionSpell, RESURRECT_TEXT, RESURRECT_HEALTH_PCT, RESURRECT_HOLD_MS, RESURRECT_TYPE, RESURRECT_SUBTYPE } from '../../../src/systems/resurrect.js';
 import { buildCustomSpell } from '../../../src/systems/spell/spellMaker.js';
@@ -50,6 +50,7 @@ import { validPartyPose, validPartyFrame } from '../../../src/net/wire.js';
 import { RemotePlayers } from '../../../src/net/remotePlayers.js';
 import { createPlayerMagic } from '../../../src/scenes/hostMagic.js';
 import { LOCATION_TYPES } from '../../../src/formats/mapsFile.js';
+import { sendRaiseWord } from '../../../src/net/raiseWord.js';   // AUDIT WORLD-EVENTS L1-1: the Resurrect door's word to a room that keeps the death (none on the street)
 
 const rd = (f) => readFileSync(new URL(`../../../${f}`, import.meta.url), 'utf8');
 const settle = async () => { for (let i = 0; i < 80; i++) await new Promise((r) => { setTimeout(r, 0); }); };
@@ -197,7 +198,8 @@ async function party({ model = MODELS.bloodline, online = true, ear = true } = {
     _respawning: false, _rezSeen: null, _deadMark: null, _partyComposedAt: 0, _deathWasOnline: true,
     social: { acct: 'acct-ysolde', others: () => r.ysoldeHears ?? [] }, modes: { sdRealmSlot: () => null, clearDeath() {} },
     legacyHost: r.host, madeRuleHere, rezSnapshot, rezFor, reviveForPlay, playerEntity: r.e, RESURRECT_HEALTH_PCT, RESURRECT_TEXT, DeathScreen,
-    statedDeathLoss, stateDeathLoss, townTalk: r.townTalk, wildGhostEnd: () => {}, forgetLastSlew: () => {}, player: { stopAutorun() {} },
+    statedDeathLoss, stateDeathLoss, townTalk: r.townTalk, wildGhostEnd: () => {}, wildDeathKill: () => false, forgetLastSlew: () => {}, player: { stopAutorun() {} },
+    hourRezOpen: () => true, _sdFallen: { rise() {} },   // SD-REZ (EVENT-RULES): no Hour here - a Resurrect is always open, and a rise lets no slot go
   };
   r.ysolde = v;
   const frame = mount(`${fnOf('resurrectInPlace')}\n${fnOf('closeDeathScreen')}\nreturn () => { ${REZ_FRAME} };`, v);
@@ -216,7 +218,7 @@ async function party({ model = MODELS.bloodline, online = true, ear = true } = {
   const c = {
     social: { acct: 'acct-bran', party: { members: [{ acct: 'acct-ysolde', name: 'Ysolde' }, { acct: 'acct-bran', name: 'Bran' }] }, others: () => r.branHears ?? [], accountOfPeer: () => 'acct-ysolde' },
     remotePlayers: rp, onlineToScene: (p) => [p.x, p.y, p.z], cam: { pos: [0, 0.9, 0] }, peerName: () => 'Ysolde',
-    _rezOut: null, _partyComposedAt: 0, RESURRECT_HOLD_MS,
+    _rezOut: null, _partyComposedAt: 0, RESURRECT_HOLD_MS, sendRaiseWord, online: { room: 'world:10,20' },   // PIN MOVED (AUDIT WORLD-EVENTS L1-1): the door says the raise to a made level's room; a street's keeps no death
   };
   r.bran = c;
   const { fallenTargetPick, raiseFallenDoor } = mount(`${declOf('fallenTargetPick')}\n${declOf('raiseFallenDoor')}\nreturn { fallenTargetPick, raiseFallenDoor };`, c);
@@ -767,20 +769,20 @@ test('REZ-BLOODLINE AUDIT R2 the online death screen counts the wall clock, as t
         legacyT -= dt;
         if (legacyT <= 0) { legacyT = 1; r.host.tick(); }   // legacyStep: once a second of the same dt
         assert.equal(r.host.raisable(), true, `${fps} fps: raisable while the screen stands (${((Date.now() - start) / 1000).toFixed(1)} s, "RISING IN ${screen.respawnIn}")`);
-        if (f === Math.round(fps * 60)) said = screen.respawnIn;
+        if (f === Math.round(fps * 5)) said = screen.respawnIn;   // PIN MOVED (DEATH-10): the zone's wait is 10 s now (PVP-RISE: was a minute)
       }
       const wall = (Date.now() - start) / 1000;
       assert.ok(reset && wall <= WILD_DEATH_HOLD_S + 1, `${fps} fps: the screen goes at ${wall.toFixed(1)} s on the wall`);
       assert.ok(wall * 1000 < REZ_HOLD_MS, 'inside the window');
-      assert.equal(said, WILD_DEATH_HOLD_S - 60, 'a minute in, it says a minute left');
+      assert.equal(said, WILD_DEATH_HOLD_S - 5, 'five seconds in, it says five left');
     } finally {
       setWildDeath(null);
     }
   }
   // a frame's own count still leads where its dt outruns the wall (a host stepping the screen by hand)
   const s = new DeathScreen({ eyeHeight: 1.6, capsuleHeight: 1.8, online: true, entity: ent(), wall: () => 0 });
-  s.tick(ONLINE_RESPAWN_SECONDS / 2);
-  assert.equal(s.respawnIn, ONLINE_RESPAWN_SECONDS / 2);
+  s.tick(DEATH_AUTO_RISE_S / 2);   // PIN MOVED (DEATH-10): the screen's 10 s
+  assert.equal(s.respawnIn, DEATH_AUTO_RISE_S / 2);
   // one window at both doors: the longest online death screen and half a minute
   assert.equal(REZ_HOLD_S, Math.max(ONLINE_RESPAWN_SECONDS, WILD_DEATH_HOLD_S) + 30);
   assert.equal(REZ_HOLD_MS, REZ_HOLD_S * 1000);

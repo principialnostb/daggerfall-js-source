@@ -948,7 +948,8 @@ by `combat/weapon/weaponRig.js`.
 - **When**: the motor's hold (a hang or the free climb) and every move in flight. DFU's own climb keeps WeaponManager's empty
   screen (`climbRigInput` now says `classic`), and a leap's free flight draws none. On the classic lane only (not under the
   Morrowind arms), under the spell hands' vetoes and the held map's, above every sheathe gate: the hands hold the stone
-  whatever is drawn. The weapon still lowers away under them (CLIMB4).
+  whatever is drawn. [SPELL-CLIMB: and never beside a spell's hands - a readied spell's stand down for them, a cast takes
+  them off the stone; below.] The weapon still lowers away under them (CLIMB4).
 - **The layout** [CLIMB-HANDS II: `GRIP_APART` 93, and the fists pinned to the wall, below]: on DFU's 320x200 design
   surface, scaled like FPSWeapon. Two fists `GRIP_H` 150 tall, `GRIP_APART` 52 off the middle, each sleeve `BOTTOM_SLACK` 34
   under the bottom edge. No lift goes past that slack, so the cut sleeve never shows.
@@ -1151,6 +1152,22 @@ on a gone hand, whose first pin looked down too little for a pull-up's exit to s
 the behaviour its name says, and the slack's clamp no longer equivalent); the arm gate's three records in
 `tools/mutants/mwcast1.json`, `sw1.json` and `torchvis.json` re-aimed at the line that now carries six legs (all dead).
 
+## SPELL-CLIMB (FIELD BUGS 2026-10-22c): ONE PAIR OF ARMS ON THE SCREEN
+
+Panthyon, on #bug-reports: *"Spell+Climbing=4 arms"* - *"When you hold a spell and dont drop it, climbing will then
+manifest a second set of arms"*. The readied hands (RSH1, `05-Combat/Readied-Spellcasting-Hands.md`) and the fists on the
+wall were drawn by `combat/weapon/weaponRig.js` with no word of each other, and a cast on the wall did the same for its
+length. DFU's climb hides the weapon alone (`WeaponManager.Update`'s climbing return) and keeps a readied spell and its
+cast (`EntityEffectManager.Update` reads no climb), so the call is the port's, on the classic lane: a readied spell's
+hands stand down while the fists show and come back off the wall (the spell stays readied - a click there casts it); a
+cast's hands take the screen while they play - the law is handed no climb, the fists are not drawn - and the fists come
+back up onto the stone after it on the law's own ease, not popped back whole; DFU's own climb, which draws no fists,
+keeps the readied hands. The Morrowind lane never had two pairs: one arm rig, posed on the stone (CLIMB6). Record:
+`01-Overview/bugs/Field-Bugs-2026-10-22c.md`. Pinned: `test/combat/weapon/fb1022c_spellclimb.test.js` (4);
+`tools/mutants/fb1022c_spellclimb.json` (5, all dead). Pins moved, each marked: `climbhands.test.js`,
+`auditclimbhands.test.js` (A16), `rsh1_readiedhands.test.js`; `tools/mutants/climbhands.json` re-aimed by content and
+re-run whole.
+
 ## AUDIT CLIMB-DUNGEON (FIELD BUGS 2026-10-02): THE CLIMB IN DAGGERFALL'S DUNGEONS
 
 Chilloutman, on #bug-reports: *"A two blocks wall is too high for my character to climb up, so Im stuck in this hole.
@@ -1190,6 +1207,38 @@ into a 43-degree face let go (the hold now turns to a new face only when that fa
 (`w.down`); the crack law read slots to 9 cm as cracks by where the rung fell (now measured). Still stalling, no fall:
 the leaning top past 50 degrees, and a 2 m by 0.4 m niche whose lintel the hang meets. Pinned:
 `test/world/fb1002_audit.test.js` (12, its last on ARENA2); `tools/mutants/fb1002_audit.json` (19).
+
+## CLIMB-CREST (2026-10-26): OVER A CITY'S WALL
+
+The owner, on the tamriel branch's walls: *"Pre existing issue where walls cant be climbed over"*. Daggerfall's city wall
+(ARCH3D 445, measured on the freeware: 9.6 m thick, each face rising to a knife edge at 8.05 m, the coping's back falling
+76 degrees from it, 1.6 m in 0.4, to the wall walk at 6.45) has no top to stand on. A real PlayerMotor on the real wall
+(three lengths in a row, Forward held, Climbing 100): the classic climb went over (its hug shoves the capsule over any
+lip); the enhanced climb free-climbed to 7.7 m, held under the edge until its grip gave (30 s) and fell, again and
+again, from either side - the ledge sensor read the coping's back as a roof too steep to stand on (`steep-top`), and the
+hand-hold the same. A body put on the walk could not leave it over either coping.
+
+A CREST is now a lip (`player/parkour.js crestTop`): the face's own top - bisected to a millimetre between the rung that
+met the face and the one that did not - where, PARKOUR_CREST_PAST (3 cm) past it, nothing stands within
+PARKOUR_CREST_DROP (5 cm) under it (its far side falls away 59 degrees at the least: a coping's back, a parapet's other
+face, the drop past a wall) and nothing within PARKOUR_CREST_OPEN (1 m) over it (an eave standing out over a face's top
+is the eave's law - AUDIT CLIMB-FIELD E1 - and a roof rising from a face's top is refused for its pitch, as it was).
+Asked only where the top past the edge would have been refused: `senseLedge` (its lip the crest, its `depth` 0 - no
+top to stand on, `crest` set) and `senseGrip`'s own law (the hands hold the crest; the body hangs under it off the face).
+A crest is gone over, never stood on (`motor.js _pkOnto`): the clamber onto the floor behind it as far down as a hang's
+let-go (AUDIT CLIMB-ARC D3's law, PARKOUR_HANG_DROP and its clearance - the walk lies 1.6 m under the coping, past the
+clamber's own step of 1.5), else CLIMB-DOWN's over-hang into a hang on its far face - from the ground, a jump, a hang or
+the top of a free climb alike. So Forward held climbs a city wall whole: up the face, over the coping onto the walk,
+across it, up the far coping and over it into a hang on the far face; Back takes it down. The same both ways, on the
+game's wall and on its profile, at Climbing 50 and 100 (at 0 the grip gives a few metres up, as on any wall that tall).
+The classic lane is untouched.
+
+Pinned: `test/player/climbcrest.test.js` (5, its last on ARENA2); `tools/mutants/climbcrest.json` (9, all dead). Records
+re-aimed by content (the lip's and the hold's refusal lines moved, the clamber's call grew a line): `climb1.json`
+CLIMB1-steep-top-taken, `climb2.json` CLIMB2-grip-steep-top and `auditclimb1.json` AUDITCLIMB1-G3-no-clamber (dead), and
+`climbdown.json`'s four 45-DEGREE records (their mutation - the rays' scatter off a 50-degree limit - survives on the
+branch's base too: a top at exactly 45 degrees is far from the 50-degree line since AUDIT CLIMB-FIELD R1 moved it; recorded,
+not changed here). All 254 tests of the climb's suites pass, their ARENA2 halves too.
 
 ## Still open
 

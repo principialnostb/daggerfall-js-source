@@ -48,6 +48,7 @@
 // ═══════════════════════════════════════════════════════════════════
 
 import { registerWeaponBlowMod, registerEntityFold, newMods, EMPTY_MODS } from '../entityMods.js';
+import { blowRoom, guardRoom } from '../powerCeiling.js';   // POWER-CEILING: the blow's one product, the guards' one share
 import { effectSchool } from '../spellcost.js';   // LOOT15: Stendarr's Mercy reads a spell's school
 import { hoodUp } from '../survival/temperature.js';   // LOOT15: Unseen reads the hood (HOOD-SAID's one law)
 import { registerPlayerStrikeListener, enemyEntityGroup, ENEMY_GROUPS } from '../../combat/formulas.js';
@@ -56,10 +57,12 @@ import { registerCastSpeedMod } from '../castSpeed.js';   // CAST-SPEED: the cas
 import { registerSpellPowerMod, registerSpellPierceMod } from '../spell/spellPower.js';   // BAL9c: potency and the arcane three's doors onto a damage spell
 import { hasSpecialAbility, SPECIAL_ABILITY, restIgnoresNoRegen } from '../rest/rest.js';   // BAL9c: a career that cannot regenerate magicka, rest's own gate
 import { registerPlayerBlowLanded, pendingPlayerBlow, REACH_RISE_M, registerSpireRedoubt, spireRoomNow } from '../sigil/sigilSetPowers.js';   // EG-ZH: the Spire's recovery - the breach the player stands in, and the Redoubt's door
+import { registerRollerLevel } from './lootLevelGate.js';   // LOOT-GATE
+import { lootGateLevel } from '../mentorMode.js';   // LOOT-GATE, MENTOR2: the real level - a mentor is no young character
 import { playerDoor, paidBack, oweFoe } from '../playerDoor.js';   // BAL5: a blow paid back never kills; OPEN-HAND: a follow-up owed to a relay's body
 import { showFollowUp } from '../../ui/hitNumbers.js';   // FIELD BUGS 2026-10-15e ROSE-SEEN: a follow-up's own number
 import { careerTolerance, EFFECT_FLAGS } from '../spellcast.js';
-import { lootRarityOn, validAffix, powerOf, registerLegendaryFind, readLines } from './lootRarity.js';   // GEM1: readLines, law 6's reading
+import { lootRarityOn, validAffix, powerOf, registerLegendaryFind, readLines, countedPieces } from './lootRarity.js';   // GEM1: readLines, law 6's reading
 import { equipTableOf } from '../equip.js';
 import { registerPlayerDamageMod, registerPlayerDeathSave, registerPlayerHurtListener, playerEntity } from '../../characters/playerEntity.js';
 import { registerPlayerKillListener } from '../playerKills.js';
@@ -68,6 +71,8 @@ import { registerMagicRoundHook, skyMinutes } from '../worldTick.js';   // TIME1
 import { setsDueling } from '../sigil/sigilSets.js';
 import { addGoldPieces, addItem } from '../inventory.js';
 import { createPellets } from '../thunderlock.js';   // GILDED1: the Hour Tolls gives a felling shot's pellet back
+import { isGunTemplate } from '../../characters/thunderlockIds.js';   // GUNS-UNFOUND: a gun's shot is a pellet, a bow's an arrow
+import { bowDamageArrow } from '../../combat/enemyEquipment.js';   // GUNS-UNFOUND: the Hourlock's bow gives its arrow back - the one arrow minter
 import { isNight } from '../../world/worldClock.js';
 import { hudText } from '../notify.js';
 import { healMine, manaMine, _resetPlayerHealForTests } from '../playerHeal.js';   // SERPENT-SET: the one heal a power gives, below this file and the sets'
@@ -76,6 +81,7 @@ import { SKILLS } from '../skills.js';
 import { friendlyProtected } from '../../combat/playerWeapon.js';
 import { KNIGHT_CITY_WATCH } from '../../characters/mobile/mobileTypes.js';
 import { healthShare } from '../../combat/healthShare.js';   // FIELD BUGS 2026-10-18f RELAY-SHARE: a body's share of its health, the one law
+import { regenShare } from '../courtRules.js';   // AUDIT WORLD-EVENTS L1-3: Hist-Sap is a natural regeneration - a made level holds it
 
 /** All the thorns a wearer's pieces sum to, at most, a blow. BAL5 (bible/05-Combat/Balance-Arc.md section 11): 10, the
  *  top of a Legendary line's band and a Legendary sear's own most - it was 25, a whole endgame swing paid back on every
@@ -108,7 +114,7 @@ export function linesOf(item, id) {
   return readLines(item).filter((a) => a?.id === id && validAffix(a));   // GEM1: a piece's gems as law 6 holds them (bible/06-Systems/Gem-Sockets.md)
 }
 /** What MY entity wears - the equip table's pieces. */
-export const wornPieces = (entity) => (entity ? equipTableOf(entity).filter(Boolean) : []);
+export const wornPieces = (entity) => (entity ? countedPieces(equipTableOf(entity).filter(Boolean)) : []);   // FOX-STACK: a Legendary's lines once
 /** A kind's lines summed over everything worn. */
 export const wornSum = (entity, id) => wornPieces(entity).reduce((n, it) => n + linesOf(it, id).reduce((m, a) => m + a.value, 0), 0);
 
@@ -159,14 +165,16 @@ let _s = freshState();
 let _hexed = new WeakMap();              // a foe's entity -> until when its blows are hexed
 /** @type {WeakMap<object, number>} */
 let _tolls = new WeakMap();              // GILDED1: a tolling weapon -> its landed shots since its last toll
-/** @type {{ foe: object, at: number } | null} */
-let _lastToll = null;                    // GILDED1: the last foe a tolling weapon's shot landed on, and when
+/** @type {{ foe: object, at: number, weapon?: any } | null} */
+let _lastToll = null;                    // GILDED1: the last foe a tolling weapon's shot landed on, and when (GUNS-UNFOUND: and by what)
 /** @type {WeakSet<object>} */
 let _struck = new WeakSet();             // the foes my blows have landed on (First Blood)
 /** @type {WeakMap<object, { n: number, until: number, at: number }>} */
 let _undertow = new WeakMap();           // GILDED2: a foe -> the Undertow's landed blows on it (its stacks, at most the power's max), until when they hold, and when the last landed (its kill heals - TOLL_REFUND_S's bound; AUDIT WORLD-REWARDS B2: a foe's own, so a swing that strikes two heals for each it fells)
 /** GILDED2: a foe's Undertow stacks now - none once the tide lets it go (AUDIT WORLD-REWARDS B4). */
 const undertowStacks = (foe, now) => { const u = _undertow.get(foe); return u && now < u.until ? u.n : 0; };
+/** @type {WeakMap<object, { by: any, pct: number, until: number }>} */
+let _broadside = new WeakMap();          // KETCH: a foe -> the Broadside's mark on it: the pistol that called it, how much the answer strikes harder, and until when
 /** GILDED1: THE HOUR TOLLS - is this weapon's next landed shot its toll? Its landed shots are counted on the strike
  *  (lootStrike, after the blow), so the blow asks before the count moves: shots one and two ring nothing, the third tolls. */
 const tollDue = (weapon, p) => !!weapon && (_tolls.get(weapon) ?? 0) === p.every - 1;
@@ -228,11 +236,17 @@ export function lootBlow(weapon, damage, attacker, target, info) {
   let out = damage;
   const group = foeGroup(target);
   let pct = 0, flat = 0;
-  for (const a of linesOf(weapon, 'slayer')) if (a.param === group) pct += a.value;
-  for (const a of linesOf(weapon, 'elemental')) flat += Math.floor(a.value * elementShare(target, a.param));
+  const held = weapon ?? info?.wraps ?? null;   // HAND-WRAPS: a fist's blow carries its wraps' lines and powers (combat/formulas.js)
+  for (const a of linesOf(held, 'slayer')) if (a.param === group) pct += a.value;
+  for (const a of linesOf(held, 'elemental')) flat += Math.floor(a.value * elementShare(target, a.param));
   // LOOT5: the powers that ride this blow
   const now = _now();
-  for (const { power: p } of blowPowers(attacker, weapon)) {
+  // KETCH: BROADSIDE'S ANSWER - a foe the Ketchmaster's Word marked takes the other hand's next blow harder, whatever that
+  // hand holds (the mark is the gilded pistol's; the answering weapon carries no power of it), and the mark is spent by a
+  // blow that lands (an estimate spends nothing)
+  const mark = _broadside.get(target);
+  if (mark && now < mark.until && held !== mark.by) { pct += mark.pct; if (!info?.estimate) _broadside.delete(target); }
+  for (const { power: p } of blowPowers(attacker, held)) {
     switch (p.kind) {
       case 'bane': if (target.affinity !== 'Human' && p.foes.includes(target.careerIndex)) pct += p.pct; break;   // a class foe's career index is its class's, never a monster's
       case 'unaware': if (info?.unaware) pct += p.pct; break;
@@ -243,12 +257,13 @@ export function lootBlow(weapon, damage, attacker, target, info) {
       case 'rage': if (share(attacker) < p.below / 100) pct += p.pct; break;
       case 'execute': if (share(target) < p.below / 100) pct += p.pct; break;
       case 'firstblood': if (!_struck.has(target)) pct += p.pct; break;
-      case 'toll': if (tollDue(weapon, p)) pct += p.pct; break;   // GILDED1: the third that lands
+      case 'toll': if (tollDue(held, p)) pct += p.pct; break;   // GILDED1: the third that lands
       case 'undertow': pct += p.pct * undertowStacks(target, now); break;   // GILDED2: the blows landed on this foe before (counted to its max at the strike)
       default: break;
     }
   }
-  if (pct > 0) out += shareOf(weapon ?? attacker, damage, pct, !info?.estimate);
+  if (pct > 0) pct = blowRoom(pct, 'loot');   // POWER-CEILING: the loot's room under the blow's one product
+  if (pct > 0) out += shareOf(held ?? attacker, damage, pct, !info?.estimate);
   return out + flat;
 }
 
@@ -259,7 +274,8 @@ export function lootStrike(attacker, target, damage, weapon, info = null) {
   // (dungeonContext.js swingOnBoss), and lootBlow already refuses a warded foe: nothing landed, so nothing answers it
   if (!mine(attacker) || !(damage > 0) || !target || target.isPlayer || target.warded) return;
   let pct = 0;
-  for (const a of linesOf(weapon, 'leech')) pct += a.value;
+  const held = weapon ?? info?.wraps ?? null;   // HAND-WRAPS: a fist's blow carries its wraps' leech and powers ('fists' stays the bare blow's)
+  for (const a of linesOf(held, 'leech')) pct += a.value;
   pct = Math.min(LEECH_CAP, pct);   // BAL7
   if (pct > 0) healMine(attacker, (damage * pct) / 100);
   // LOOT5: the powers that answer a blow that landed. TWO-HANDS (AUDIT 2): a charge a power takes per blow - Conduit's
@@ -268,17 +284,19 @@ export function lootStrike(attacker, target, damage, weapon, info = null) {
   // rate; the shares of the damage (a leech, a chain, an echo) already ride the blow's own damage
   const now = _now();
   const whole = info?.blow !== false;
-  for (const { power: p } of blowPowers(attacker, weapon)) {
+  for (const { power: p } of blowPowers(attacker, held)) {
     switch (p.kind) {
-      case 'chain': if (ranged(weapon)) arc(target, (damage * p.share) / 100, p.metres, p.name); break;
-      case 'quake': if (weapon && !ranged(weapon)) quake(target, (damage * p.share) / 100, p.metres, p.name); break;
+      case 'chain': if (ranged(held)) arc(target, (damage * p.share) / 100, p.metres, p.name); break;
+      case 'quake': if (held && !ranged(held)) quake(target, (damage * p.share) / 100, p.metres, p.name); break;
       case 'echo': if (_rand() * 100 < p.chance) again(target, damage, p.name); break;
       case 'fists': if (!weapon) again(target, (damage * p.share) / 100, p.name); break;   // BAL7: for half (the record's share)
       case 'conduit': if (whole) gainMana(attacker, p.mana); break;
       case 'flow': if (whole) { _s.flow = Math.min(p.max, flowStacks(now) + 1); _s.flowUntil = now + p.seconds; } break;
-      case 'toll': if (weapon) { _tolls.set(weapon, ((_tolls.get(weapon) ?? 0) + 1) % p.every); _lastToll = { foe: target, at: now }; } break;   // GILDED1
-      case 'dragonfire': if (weapon && foeGroup(target) === p.group) dragonfire(target, (damage * p.share) / 100, p.metres, p.group, p.name); break;   // GILDED2
-      case 'undertow': if (weapon && whole) _undertow.set(target, { n: Math.min(p.max, undertowStacks(target, now) + 1), until: now + p.seconds, at: now }); break;   // GILDED2
+      case 'toll': if (held) { _tolls.set(held, ((_tolls.get(held) ?? 0) + 1) % p.every); _lastToll = { foe: target, at: now, weapon: held }; } break;   // GILDED1
+      case 'dragonfire': if (held && foeGroup(target) === p.group) dragonfire(target, (damage * p.share) / 100, p.metres, p.group, p.name); break;   // GILDED2
+      case 'undertow': if (held && whole) _undertow.set(target, { n: Math.min(p.max, undertowStacks(target, now) + 1), until: now + p.seconds, at: now }); break;   // GILDED2
+      case 'hammerfall': if (ranged(held)) ring(target, (damage * p.share) / 100, p.metres, p.name); break;   // KETCH: Volendrung's Echo - the shot rings on
+      case 'broadside': if (ranged(held)) _broadside.set(target, { by: held, pct: p.pct, until: now + p.seconds }); break;   // KETCH: the Ketchmaster's Word calls the mark
       default: break;
     }
   }
@@ -337,6 +355,17 @@ function dragonfire(target, amount, metres, group, word) {
   if (!struck?.ai?.feet) return;
   for (const f of near(door, struck.ai.feet, metres, target)) if (foeGroup(f.entity) === group) reachOn(door, f, Math.max(1, Math.round(amount)), word);   // CHAIN-SEEN
 }
+/** KETCH: Hammerfall - every other foe within `metres` of the struck one takes `amount` as shock (its resistance's share of
+ *  it), each its number risen: Earthshaker's reach on a shot, in the shot's own element. */
+function ring(target, amount, metres, word) {
+  const door = playerDoor();
+  const struck = recordOf(door, target);
+  if (!struck?.ai?.feet || !(amount > 0)) return;
+  for (const f of near(door, struck.ai.feet, metres, target)) {
+    const n = Math.floor(amount * elementShare(f.entity, 'shock'));
+    if (n > 0) reachOn(door, f, n, word);   // CHAIN-SEEN
+  }
+}
 /** Earthshaker: every other foe within `metres` of the struck one takes `amount` - each its number risen. */
 function quake(target, amount, metres, word) {
   const door = playerDoor();
@@ -386,13 +415,13 @@ export function lootDamageMod(entity, dmg) {
   }
   let d = dmg;
   const hex = kind('hex');
-  if (blow && hex && hexed(blow.attacker, now)) d *= 1 - hex.less / 100;
+  if (blow && hex && hexed(blow.attacker, now)) d *= 1 - guardRoom(hex.less, 'loot') / 100;   // POWER-CEILING: each share asks the guards' room
   const bed = kind('bedrock');
-  if (blow && bed) d *= 1 - (bed.less * bedrockStacks(now)) / 100;
+  if (blow && bed) d *= 1 - guardRoom(bed.less * bedrockStacks(now), 'loot') / 100;
   const wall = kind('bulwark');
   if (blow && wall) d = Math.max(1, d - wall.less);
   const last = kind('laststand');
-  if (last && share(entity) < last.below / 100) d *= 1 - last.less / 100;
+  if (last && share(entity) < last.below / 100) d *= 1 - guardRoom(last.less, 'loot') / 100;
   const titan = kind('unyielding');
   if (titan && entity.maxHealth > 0) d = Math.min(d, Math.max(1, Math.ceil((entity.maxHealth * titan.most) / 100)));
   return Math.max(dmg > 0 && d > 0 ? 1 : 0, Math.round(d));
@@ -482,7 +511,7 @@ export function lootKill(foe) {
       case 'rage': healMine(me, (me.maxHealth * p.heal) / 100); break;
       case 'siphon': gainMana(me, (me.maxMagicka * p.pct) / 100); break;
       case 'tribute': { const g = p.gold * Math.max(1, foe.level | 0); addGoldPieces(me, g); say(`Tribute: ${g} gold.`); break; }
-      case 'toll': if (p.refund && _lastToll?.foe === foe && now - _lastToll.at <= TOLL_REFUND_S && Array.isArray(me?.items)) { addItem(me.items, createPellets(1)); _lastToll = null; } break;   // GILDED1: the felling shot's pellet, back
+      case 'toll': if (p.refund && _lastToll?.foe === foe && now - _lastToll.at <= TOLL_REFUND_S && Array.isArray(me?.items)) { addItem(me.items, isGunTemplate(_lastToll.weapon?.templateIndex) ? createPellets(1) : bowDamageArrow()); _lastToll = null; } break;   // GILDED1: the felling shot back - GUNS-UNFOUND: the bow's arrow, a gun era's pellet
       case 'undertow': { const u = _undertow.get(foe); if (u && now - u.at <= TOLL_REFUND_S) { healMine(me, (me.maxHealth * p.heal) / 100); _undertow.delete(foe); } break; }   // GILDED2: a foe it fells, the tide's heal - each its own (AUDIT WORLD-REWARDS B2)
       case 'haste':
         if (now >= _s.hasteReady && door?.castOnPlayer) { _s.hasteReady = now + p.recover; _s.recovering.add('haste'); door.castOnPlayer(hasteBundle(p)); }
@@ -546,7 +575,7 @@ export function lootRound(entity) {
   if (!mine(entity)) return;
   const hist = powerKind(entity, 'regen');
   if (hist && entity.maxHealth > 0 && entity.health > 0 && entity.health < entity.maxHealth) {
-    healMine(entity, (entity.maxHealth * (share(entity) < 0.5 ? hist.low : hist.pct)) / 100);
+    { const held = regenShare((entity.maxHealth * (share(entity) < 0.5 ? hist.low : hist.pct)) / 100, 'hist', entity); if (held > 0) healMine(entity, held); }   // AUDIT WORLD-EVENTS L1-3: a natural regeneration - held in a made level (systems/courtRules.js)
   }
   // BAL9c: the Wellspring of Artaeum - a share of my magicka, more under half; never for a career that cannot regenerate
   // it (NoRegenSpellPoints), where rest's own gate holds it back (offline - REST-MANA1: online every career's comes back)
@@ -610,6 +639,7 @@ registerPlayerKillListener(LOOT_POWERS, lootKill);
 registerAbsorptionChance(LOOT_POWERS, lootAbsorbChance);
 registerMagicRoundHook(LOOT_POWERS, lootRound);
 registerLegendaryFind(LOOT_POWERS, lootFind);
+registerRollerLevel(() => { const me = playerDoor()?.player?.(); return me ? lootGateLevel(me) : null; });   // LOOT-GATE: the live player's level holds the top tiers back - none before a host publish; MENTOR2: the real one while mentoringes its door, so a bare roll (a test, a tool) rolls at its source alone
 registerEntityFold(LOOT_POWERS, wardrobeFold);   // LOOT15
 registerSpireRedoubt(LOOT_POWERS, lootRedoubtTaken);   // EG-ZH: Divine Grace and the Vigil recover at a Redoubt in a breach
 
@@ -638,6 +668,7 @@ export function lootHudChips(entity, now = _now()) {
 export function _resetLootPowersForTests() {
   _carry = new WeakMap(); _resetPlayerHealForTests(); _s = freshState(); _hexed = new WeakMap(); _struck = new WeakSet(); _tolls = new WeakMap(); _lastToll = null;
   _undertow = new WeakMap();   // GILDED2
+  _broadside = new WeakMap();   // KETCH
   _say = (line) => { hudText(line); };
 }
 export function _setLootPowersClockForTests(fn) { _now = typeof fn === 'function' ? fn : () => performance.now() / 1000; }

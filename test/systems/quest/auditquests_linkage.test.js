@@ -64,6 +64,7 @@ import assert from 'node:assert/strict';
 import { readFileSync, readdirSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { hostText } from '../../hostText.mjs';   // HOST-SPLIT (at the merge of main into TESA): the world host read whole - questWorld is scenes/questWorld.js's
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..');
 const QUESTS = join(ROOT, 'vendor/dfu-quests/Quests');
@@ -218,11 +219,9 @@ const KNOWN_PENDING = Object.freeze({
   // The quest source says it outright: "-- Discovered a new op-code:".
   // An unknown op-code has no template in DFU either.
   'B0B71Y03.txt': '_0x3c_ 19',
-  // DFU's PcAt pattern reads the PLACE as `\\w+` and only the TASK as
-  // `[a-zA-Z0-9_.]+` (PcAt.cs:42-45), so a dotted place symbol matches
-  // in neither engine. The port is verbatim; the quest source is the
-  // odd one.
-  'M0B11Y18.txt': 'pc at _L.00_ set _S.12_',
+  // (M0B11Y18's `pc at _L.00_ set _S.12_` was a fifth: DFU's PcAt reads the PLACE as `\\w+` (PcAt.cs:42-45), so a dotted
+  // place symbol matched in neither engine. QUEST-AUDIT III DOTTED-SYMBOLS: the port reads the symbol class every other
+  // action reads, and it parses.)
   // The quest source's own next line reads "--not known what this
   // intends to do". No DFU action carries a `location` pattern.
   'S0000007.txt': 'location _tavern_ 100 27000',
@@ -232,7 +231,7 @@ const KNOWN_PENDING = Object.freeze({
   '__DEMO01.txt': 'juggle 5 apples every 2 seconds drop 40%',
 });
 
-test('AUDIT QUESTS 2: every shipped quest parses, and only the four known lines find no template', async () => {
+test('AUDIT QUESTS 2: every shipped quest parses, and only the three known lines find no template (PIN MOVED, QUEST-AUDIT III DOTTED-SYMBOLS: M0B11Y18\'s `pc at _L.00_` parses)', async () => {
   await loadedTables();
   const { QuestMachine } = await import('../../../src/systems/quest/machine.js');
   const machine = new QuestMachine({ nowSeconds: () => 0 });
@@ -406,7 +405,7 @@ test('AUDIT QUESTS 5: every world hook the engine reads is answered by the shipp
 
   // What the SHIPPED host answers: world.js's questWorld, read as the
   // keys of the object literal it hands the machine.
-  const host = readFileSync(join(ROOT, 'src/scenes/world.js'), 'utf8').split('\n');
+  const host = hostText('src/scenes/world.js').split('\n');
   const start = host.findIndex((l) => /^\s*const questWorld = \{/.test(l));
   assert.ok(start >= 0, 'world.js still builds a questWorld');
   const provided = new Set();

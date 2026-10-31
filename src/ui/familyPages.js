@@ -31,8 +31,11 @@ import { optionPath } from './settings/settingsMap.js';   // ORG2
 // PLAIN-UI: How it works says the law's own numbers
 import { HEIRLOOM_DAMAGE_PER_GEN, HEIRLOOM_ARMOR_PER_GEN, HEIRLOOM_GEN_MAX, REMAINS_GOLD_SHARE, REMAINS_GOLD_MAX, BLESSING_POINTS, BLESSING_SKILL_MAX } from '../systems/legacy/heirloom.js';
 import { AFFECTION_MAX, CHILD_DAYS, CHILD_CHANCE, CHILDREN_MAX } from '../systems/legacy/marriage.js';
+import { GIFT_GOLD, KISS_AT } from '../systems/legacy/courtDeeds.js';   // COURT-DEEDS: the deeds' numbers, said in the guide
 import { FRIEND_AT } from '../systems/livingWorld/relations.js';
 import { legacySettings } from '../systems/legacy/settings.js';
+import { capturePointer } from './pointerCapture.js';   // RPT1026-CLIENT: a pad's synthetic pointer is refused a capture, never thrown
+import { raisedWord } from '../systems/legacy/unionKin.js';   // UNION-CHILDREN: a child the other player's house raises
 
 export const FAMILY_PAGE_SECTIONS = Object.freeze([
   Object.freeze(['tree', 'Family Tree']), Object.freeze(['house', 'The House']), Object.freeze(['hall', 'Hall of Ancestors']),
@@ -190,6 +193,7 @@ export function personChips(family, p, livedNow) {
   if (!p.died && family.model === MODELS.enduring && isElder(p, p.id === family.currentId ? livedNow : p.lived)) out.push({ cls: 'elder', text: 'Elder' });
   if (p.kind === 'resident') out.push({ cls: '', text: 'Wed into the house' });
   if (p.kind === 'player') out.push({ cls: '', text: 'Wed from another house' });   // LEGACY7 part three: another player's character
+  if (p.kind === 'union') out.push({ cls: '', text: raisedWord(p) });   // UNION-CHILDREN: the other player's house raises them
   if (!p.died && p.minor) out.push({ cls: '', text: 'A child' });   // LEGACY5: played once the mantle passes to them
   if (!p.died && p.characterId == null && p.id !== family.currentId && p.kind === 'member') out.push({ cls: 'blood', text: 'Not yet played' });
   // U2: the heir answer (B12), drawn - a Bloodline member who would leave a newborn heir
@@ -407,7 +411,7 @@ export function drawTreePage(detail, rerender, { el, divider, door = (fn) => fn(
     const dx = e.clientX - drag.x, dy = e.clientY - drag.y;
     if (!moved && Math.abs(dx) + Math.abs(dy) <= 4) return;
     moved = true;
-    if (!drag.held) { drag.held = true; view.classList.add('dragging'); view.setPointerCapture?.(drag.id); }
+    if (!drag.held) { drag.held = true; view.classList.add('dragging'); capturePointer(view, drag.id); }
     _pan = { x: drag.px + dx, y: drag.py + dy };
     apply();
   };
@@ -563,11 +567,18 @@ function liveLine(el, said) {
   return n;
 }
 
+/** FAMILY-TAB (2026-10-06, asked: "When a player is playing without project legacy, the family tab shouldn't show
+ *  (pause menu)"): WHETHER THIS GAME IS PLAYED WITH PROJECT LEGACY - the mod on and a house for the game played (its
+ *  family, or the past played back). A character who plays without one - who answered no lineage, one made online
+ *  before the question was put there or copied in, a scene that keeps no family - has no Family tab; the tab's key
+ *  says why instead (ui/pauseDoor.js openPauseFlow, in noFamilyLine's words). Pure over the provider. */
+export const familyTabShown = (prov = _provider) => !!prov?.on?.() && !!(prov.family?.() || prov.past?.());
+
 /** Why a page has no family to show. LEGACY-CHOICE: a character who answered no lineage, and online one made before the
  *  question was put there (or copied in), play without a house for good - a new character founds one. */
 export const noFamilyLine = (prov) => (!prov ? 'Open this from a game to see your family.'
   : !prov.on?.() ? `Turn on Project Legacy (${optionPath('feat:mod-project-legacy')}) to found a family and carry your line on.`   // ORG2
-    : prov.choice?.() === NO_LINEAGE ? 'This character chose to live without a house. Make a new character to found one.'
+    : prov.choice?.() === NO_LINEAGE ? 'This character plays Casual, with no family line. Make a new character to found one.'   // CASUAL-LIFE
       : prov.online?.() ? 'This character has no house. Online, a house is founded only when a character is made. Make a new character to found one.'
         : 'Your family is founded when your character is made, or the first time an older character is loaded.');
 
@@ -591,7 +602,7 @@ export function familyGuide(model, tollShare) {
     ['Who carries on', 'At a final death you choose who carries the line: any grown, living member of the blood who has not retired, or a newborn heir of the fallen if one is born. In a Bloodline house, the tree shows Has an heir on a member who will leave one, and an Elder who passes the mantle can always choose a newborn. Heirs are born in the family seat. With nobody left, the line ends and goes to the Hall of Ancestors.'],
     ['What carries on', `Whoever carries the line on receives the estate: ${ESTATE_SHARE === 0.25 ? 'a quarter' : pct(ESTATE_SHARE)} of the gold the fallen carried, at most ${ESTATE_MAX.toLocaleString('en-US')}. A newborn is also born with the blood (up to +${BLOOD_MAX} on each stat, from the better parent's) and the hearth (up to +${HEARTH_MAX} on each of a parent's primary and major skills).`],
     ['Heirlooms and remains', `When one of the house dies for good, their best weapon or armor may stay where they fell as an heirloom, with their remains and ${REMAINS_GOLD_SHARE === 0.1 ? 'a tenth' : pct(REMAINS_GOLD_SHARE)} of their purse (at most ${REMAINS_GOLD_MAX.toLocaleString('en-US')}). The next of the line gets a quest to bring them home. An heirloom grows a step each time it is laid to rest beside the remains of the one who carried it (+${HEIRLOOM_DAMAGE_PER_GEN}% damage or +${HEIRLOOM_ARMOR_PER_GEN} armor a step, up to ${HEIRLOOM_GEN_MAX}). Laying the remains to rest also gives +${BLESSING_POINTS} to the fallen's best skill (at most +${BLESSING_SKILL_MAX} on one skill).`],
-    ['Marriage and children', `With the Living World on, befriend someone (a regard of +${FRIEND_AT}), then court them under Tell me about, once a day. At ${AFFECTION_MAX} affection you can propose, and you are wed at the temple in their town. While you both live, there is a ${CHILD_CHANCE === 0.25 ? '1 in 4' : pct(CHILD_CHANCE)} chance of a child every ${CHILD_DAYS} days you play as the married one, up to ${CHILDREN_MAX} children. You can only play a child once the line passes to them.`],
+    ['Marriage and children', `With the Living World on, befriend a townsperson (a regard of +${FRIEND_AT}) - not one of the watch, a traveller or your own blood - by talking with them once a day; townsfolk take Blunt kindly and Polite ill, and a regard fades half a point for each of your days apart. Paying a compliment and giving a gift (${GIFT_GOLD} gold) raise it faster, each once a day under Tell me about. You are told when they count you a friend. Then court them under Tell me about, once a day - and a compliment, a gift, a hug, and from ${KISS_AT} affection a kiss, each once a day, warm the courtship too. At ${AFFECTION_MAX} affection you can propose, and you are wed at the temple in their town. While you both live, there is a ${CHILD_CHANCE === 0.25 ? '1 in 4' : pct(CHILD_CHANCE)} chance of a child every ${CHILD_DAYS} days you play as the married one, up to ${CHILDREN_MAX} children. You can only play a child once the line passes to them.`],
     ['Playing another', 'Click anyone on the Family Tree to see their card. A grown, living member of the blood can be played from it with Play as, but not during a fight or while a Succession waits. An Enduring Elder can Pass the mantle and retire. With the Living World and Family In World on, your family lives in the world, and you can meet one of them there to play them.'],
     ['The tree', 'Each plate is a person. ◆ marks the one you play, and ✝ with a gray face marks the dead. A dotted line joins a married couple, and a solid line runs from parents to their children. Drag to move, and use the mouse wheel or + and − to zoom.'],
   ];
@@ -623,7 +634,7 @@ export function drawHousePage(detail, rerender, { el, divider } = /** @type {any
   const fact = (k, v) => g.append(el('span', 'k', k), el('span', 'v', v));
   fact('Model', modelWord(family.model));
   fact('Seat', family.seat?.loc ? `${family.seat.loc}, ${family.seat.region}` : 'None yet (the first town you stand in)');
-  fact('Generations', String(1 + family.people.reduce((m, p) => Math.max(m, p.gen | 0), 0)));
+  fact('Generations', String(1 + family.people.reduce((m, p) => ((p.kind ?? 'member') === 'member' ? Math.max(m, p.gen | 0) : m), 0)));   // UNION-CHILDREN: the blood's
   // AUDIT LEGACY III A15/U9: both counts the blood's - the Fallen counted every spouse, and a player's character gone
   // from the realm, beside a Living that counted the blood alone
   fact('Living', String(family.people.filter((p) => isAlive(p) && p.kind === 'member').length));
@@ -693,7 +704,7 @@ export function drawHousePage(detail, rerender, { el, divider } = /** @type {any
   else if (prov.inWorld && !prov.inWorld()) detail.append(el('p', 'px-note', 'Your family is hidden because "Family In World" is off in Project Legacy\'s settings.'));
   else detail.append(el('p', 'px-note', 'Your family lives in the world while you play one of them. Talk to one to play as them.'));
   // the house's dead - the blood's, and a spouse's beside them (wed in: said so); one gone from the realm is no death
-  const fallen = family.people.filter((p) => p.died && p.died.cause !== 'gone').sort((a, b) => (b.died.at ?? 0) - (a.died.at ?? 0));
+  const fallen = family.people.filter((p) => p.died && p.died.cause !== 'gone' && p.kind !== 'union').sort((a, b) => (b.died.at ?? 0) - (a.died.at ?? 0));   // AUDIT FB1029 E-M1: a union child is the other house's dead
   if (fallen.length) {
     detail.append(el('p', 'fam-h', 'The fallen'));
     const list = el('div', 'fam-hall');
@@ -723,7 +734,7 @@ export function drawHallPage(detail, rerender, { el, divider } = /** @type {any}
   const playing = prov?.family?.()?.id ?? null;
   for (const f of all) {
     const row = el('div', 'fam-hallrow');
-    const gens = 1 + f.people.reduce((m, p) => Math.max(m, p.gen | 0), 0);
+    const gens = 1 + f.people.reduce((m, p) => ((p.kind ?? 'member') === 'member' ? Math.max(m, p.gen | 0) : m), 0);   // UNION-CHILDREN: the blood's
     const head = currentOf(f);
     row.append(el('div', 'fam-kin', `${houseTitle(f.surname)}${f.id === playing ? ' (yours)' : ''}`),
       el('div', 'fam-sub', `${modelWord(f.model)} - ${gens} ${gens === 1 ? 'generation' : 'generations'}, ${f.people.length} remembered, ${fallenOfHouse(f).length} fallen`),

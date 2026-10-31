@@ -78,7 +78,7 @@ test('AUDIT C&C I5: FOOD THAT SPOILS IN THE PACK IS DRESSED AT EVERY STAGE - the
   // the card: putrid cannot be eaten (it read "Nourishes for 36 minutes (putrid)"); a raw one can still be cooked
   assert.deepEqual(pack.map((it) => survivalInfoTokens(it).map((t) => t.text)), [
     ['Putrid Bread', 'Weight: 1.50 kilograms', 'Putrid. Too disgusting to force down.'],
-    ['Putrid Raw Fish', 'Weight: 2.00 kilograms', 'Putrid. Too disgusting to force down.', 'Raw. Cook it at a fire.'],
+    ['Putrid Raw Fish', 'Weight: 1.00 kilograms', 'Putrid. Too disgusting to force down.', 'Raw. Cook it at a fire.'],   // PIN MOVED: CRAFT-PAYS, a raw fish a kilo (2)
     ['Putrid Apple', 'Weight: 0.10 kilograms', 'Putrid. Too disgusting to force down.'],
   ]);
   assert.equal(survivalInfoTokens(createSurvivalItem(TEMPLATE.Bread, { foodStage: 3 }))[2].text, 'Nourishes for 45 minutes (rotten)', 'a stage short of putrid still feeds, by its stage');
@@ -89,8 +89,8 @@ test('AUDIT C&C I5: FOOD THAT SPOILS IN THE PACK IS DRESSED AT EVERY STAGE - the
 
 test('AUDIT C&C I7: A NEW CHARACTER SETS OUT WITH THE MOD\'S OWN START IN EVERY TIER WITH THE ARC ON - Boons, Casual and Hard: two sacks of rations, a full skin, the Formal cloak drawn hood up and the Shoes of their own wardrobe at a quarter of their condition, in the pack and not worn, worn camping gear (25 uses) and the port\'s Campfire - on the wizard\'s mint and on the fallback; Off sets out with DFU\'s bag alone', () => {
   const BAG = {
-    male: [[132, 'Spellbook'], [165, 'Short Shirt'], [151, 'Casual Pants'], [116, 'Shortsword'], [531, 'Rations'], [539, 'Waterskin'], [155, 'Formal Cloak'], [147, 'Shoes'], [530, 'Camping Equipment'], [541, 'Campfire'], [580, 'Wallet']],
-    female: [[132, 'Spellbook'], [206, 'Short Shirt'], [190, 'Casual Pants'], [116, 'Shortsword'], [531, 'Rations'], [539, 'Waterskin'], [192, 'Formal Cloak'], [186, 'Shoes'], [530, 'Camping Equipment'], [541, 'Campfire'], [580, 'Wallet']],
+    male: [[132, 'Spellbook'], [165, 'Short Shirt'], [151, 'Casual Pants'], [116, 'Shortsword'], [531, 'Rations'], [539, 'Waterskin'], [155, 'Formal Cloak'], [147, 'Shoes'], [530, 'Camping Equipment'], [541, 'Campfire'], [580, 'Wallet'], [577, 'Portal Book']],   // PIN MOVED (PORTAL-BOOK): the book after the wallet
+    female: [[132, 'Spellbook'], [206, 'Short Shirt'], [190, 'Casual Pants'], [116, 'Shortsword'], [531, 'Rations'], [539, 'Waterskin'], [192, 'Formal Cloak'], [186, 'Shoes'], [530, 'Camping Equipment'], [541, 'Campfire'], [580, 'Wallet'], [577, 'Portal Book']],   // PIN MOVED (PORTAL-BOOK): the book after the wallet
   };
   /** The start's clothes as minted: [template, group, variant, dye, condition, of, value, worn slot, hood up]. */
   const CLOTHES = {
@@ -107,7 +107,7 @@ test('AUDIT C&C I7: A NEW CHARACTER SETS OUT WITH THE MOD\'S OWN START IN EVERY 
       assert.deepEqual(added.map((i) => [i.templateIndex, i.name]), BAG[gender], `${tier}, ${gender}: the mod's start after DFU's bag, in the order it adds them`);
       assert.deepEqual(clothesOf(added), CLOTHES[gender], `${tier}, ${gender}: the cloak hooded and the shoes, Blue, a quarter of their condition, carried`);
       assert.deepEqual(equipTableOf(e).filter(Boolean).map((i) => i.templateIndex).sort((a, b) => a - b), gender === 'male' ? [151, 165] : [190, 206], 'only DFU\'s own shirt and pants are worn');
-      const kit = added.filter((i) => i.group === 'UselessItems2' && i.templateIndex !== 580);
+      const kit = added.filter((i) => i.group === 'UselessItems2' && i.templateIndex !== 580 && i.templateIndex !== 577);   // PIN MOVED (PORTAL-BOOK): nor the book
       assert.deepEqual(kit.map((i) => [i.templateIndex, i.stackCount, i.currentCondition, i.maxCondition, i.water ?? null]),
         [[531, 2, 10, 10, null], [539, 1, 10, 10, 2], [530, 1, 25, 50, null], [541, 1, 8, 8, null]], 'two sacks, a full skin, the gear at 25 of 50, a full Campfire');
       const fallback = { gender, items: [] };
@@ -118,7 +118,7 @@ test('AUDIT C&C I7: A NEW CHARACTER SETS OUT WITH THE MOD\'S OWN START IN EVERY 
   }
   _resetForTests(); setPref(SURVIVAL_PREF, SURVIVAL_STORED.off);
   const off = { gender: 'female', items: [], stats: { ...STATS } };
-  assert.deepEqual(assignStartingGear(off, { classIndex: 0, rolls: () => 0.3, torchesFromItems: false }).map((i) => i.templateIndex), [132, 206, 190, 116, 580], 'Off: DFU\'s bag and the wallet (Mac: "No, not off")');
+  assert.deepEqual(assignStartingGear(off, { classIndex: 0, rolls: () => 0.3, torchesFromItems: false }).map((i) => i.templateIndex), [132, 206, 190, 116, 580, 577], 'Off: DFU\'s bag and the wallet (Mac: "No, not off")');   // PIN MOVED (PORTAL-BOOK): and the book
   const offFallback = { gender: 'female', items: [] };
   seedStartingEquipment(offFallback);
   assert.deepEqual(offFallback.items.map((i) => i.templateIndex), [113]);
@@ -135,10 +135,11 @@ test('AUDIT C&C I10: no camp word that nothing says - "Turn Climates & Calories 
     for (const k of ['name', 'baseWeight', 'hitPoints', 'basePrice', 'rarity', 'worldTextureArchive', 'worldTextureRecord']) if (m[k] !== t[k]) changed.push([t.name, k, m[k], t[k]]);
   }
   assert.deepEqual(changed, [
-    ['Cooked Fish', 'basePrice', 4, 6], ['Meat', 'basePrice', 50, 15], ['Raw Meat', 'basePrice', 10, 8], ['Waterskin', 'baseWeight', 2, 0.5], ['Skillet', 'basePrice', 500, 60],
-  ], 'the five columns the port changes');
+    ['Raw Fish', 'baseWeight', 2, 1], ['Cooked Fish', 'baseWeight', 1.5, 0.5], ['Cooked Fish', 'basePrice', 4, 6], ['Meat', 'baseWeight', 2, 0.5], ['Meat', 'basePrice', 50, 15],
+    ['Raw Meat', 'baseWeight', 2, 1], ['Raw Meat', 'basePrice', 10, 8], ['Waterskin', 'baseWeight', 2, 0.5], ['Skillet', 'basePrice', 500, 60],
+  ], 'the nine columns the port changes (PIN MOVED: CRAFT-PAYS, the four food weights - five before)');
   const readme = read('vendor/climates-calories/README.md').replace(/\s+/g, ' ');
-  for (const said of ['the meat 50 to 15', 'the skillet 500 to 60', 'the cooked fish 4 to 6', 'the raw meat 10 to 8', 'the waterskin\'s weight, 2 kilos to half a kilo', 'changes five columns', 'a row renaming 149, the men\'s Boots, "Shoes", which the port does not carry']) {
+  for (const said of ['the meat 50 to 15', 'the skillet 500 to 60', 'the cooked fish 4 to 6', 'the raw meat 10 to 8', 'the waterskin\'s weight, 2 kilos to half a kilo', 'changes nine columns', 'the raw meat and the raw fish 2 kilos to 1', 'the meat 2 kilos to half a kilo and the cooked fish 1.5 to half a kilo', 'a row renaming 149, the men\'s Boots, "Shoes", which the port does not carry']) {
     assert.ok(readme.includes(said), `the README says: ${said}`);
   }
   assert.equal(mod.find((r) => r.index === 149).name, 'Shoes', 'the vendored file\'s 149 row, which the README names');

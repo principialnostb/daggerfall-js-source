@@ -39,6 +39,7 @@
 import { WORLD_CELL, sharedClassicMinutes, cellOfRoom, OW_BAND_ID_RE, OW_RAIDER_ID_RE, OW_WORD_IDS_MAX, OW_WORD_ROWS_MAX, OW_CELL_SPENT_MAX, OW_CELL_ROWS_MAX, owWireRow, OW_CELL_GRAVES_MAX, OW_GRAVE_ACCT_MAX, OW_GRAVE_ACCT_ROWS_MAX, owGraveIn, owGraveOut, NAME_MAX } from './wire.js';
 import { gateHash, GATE_DAY_MINUTES } from './gate/gateLaw.js';   // the spawned dungeons' hash (world/spawnedDungeons.js hash32) - the relay's one copy; a game day's minutes
 import { RAID_SLACK_MINUTES } from './raid/raidLaw.js';   // ten real seconds of two clocks' skew (WORLD5)
+import { isCoarseNode, nodeBounds } from './cellTree.js';   // COST-2 (b): a coarse node's square, the ledger's bound for a socket of it
 
 export { OW_WORD_IDS_MAX, OW_WORD_ROWS_MAX, OW_CELL_SPENT_MAX, OW_CELL_ROWS_MAX, OW_CELL_GRAVES_MAX };
 
@@ -53,8 +54,10 @@ export const OW_RAIDER_CELL_PX = 6;
 /** The one salt every client rolls spawned dungeons with (world/spawnedDungeons.js WORLD_SALT - pinned equal). */
 export const OW_WORLD_SALT = 1;
 /** A pixel's chance of a spawned dungeon of either kind (spawnedDungeons.js ANY_SPAWN_CHANCE: SPAWN_CHANCE + ELITE_CHANCE,
- *  the same sum - pinned equal, and the roll pinned pixel for pixel over the whole map). */
+ *  the same sum - pinned equal, and the roll pinned pixel for pixel over the whole map). SPAWN-THIN: the keep, the
+ *  world's own share, on the world's own second lane. */
 export const OW_SPAWN_CHANCE = 0.30 + 0.10;
+export const OW_SPAWN_KEEP = 0.75;
 /** How far past its cell's square an id's or a row's pixel may lie, map pixels - a band met at the seam (its cell is
  *  two pixels, its walk a pixel more), a raider's cell origin (six pixels, and a chase), a dungeon over the edge. */
 export const OW_CELL_MARGIN_PX = 8;
@@ -123,10 +126,11 @@ export function owIdPixel(id) {
 // ═══ THE CELL ════════════════════════════════════════════════════════════════════════════════════
 
 /** A cell room's pixel square widened by OW_CELL_MARGIN_PX on every side - `[x0, x1) x [y0, y1)`, map pixels - or null
- *  for a key that is no cell (net/wire.js cellOfRoom, WORLD_CELL: the cell law's one home). @param {unknown} roomKey */
+ *  for a key that is no cell (net/wire.js cellOfRoom, WORLD_CELL: the cell law's one home). COST-2 (b): or a coarse
+ *  node's (net/cellTree.js), the square a socket of it covers, widened the same. @param {unknown} roomKey */
 export function owCellSquare(roomKey) {
   const c = cellOfRoom(roomKey);
-  if (!c) return null;
+  if (!c) { const b = isCoarseNode(roomKey) ? nodeBounds(roomKey) : null; return b && { x0: b.x0 - OW_CELL_MARGIN_PX, y0: b.y0 - OW_CELL_MARGIN_PX, x1: b.x1 + OW_CELL_MARGIN_PX, y1: b.y1 + OW_CELL_MARGIN_PX }; }
   return { x0: c[0] * WORLD_CELL - OW_CELL_MARGIN_PX, y0: c[1] * WORLD_CELL - OW_CELL_MARGIN_PX, x1: (c[0] + 1) * WORLD_CELL + OW_CELL_MARGIN_PX, y1: (c[1] + 1) * WORLD_CELL + OW_CELL_MARGIN_PX };
 }
 const inSquare = (s, x, y) => !!s && Number.isFinite(x) && Number.isFinite(y) && x >= s.x0 && x < s.x1 && y >= s.y0 && y < s.y1;
@@ -138,8 +142,11 @@ export const owRowInCell = (row, roomKey) => Array.isArray(row) && inSquare(owCe
 // ═══ THE ROWS ════════════════════════════════════════════════════════════════════════════════════
 
 /** Does a map pixel hold a spawned dungeon - spawnedDungeons.js spawnsDungeon(WORLD_SALT, px, py), on the relay's copy
- *  of its hash? @param {number} px @param {number} py */
-export const owSpawnsDungeon = (px, py) => gateHash(OW_WORLD_SALT, px, py, 1) / 4294967296 < OW_SPAWN_CHANCE;
+ *  of its hash, and SPAWN-THIN's keep on the same second lane? @param {number} px @param {number} py */
+export const owSpawnsDungeon = (px, py) => {
+  if (!(gateHash(OW_WORLD_SALT, px, py, 1) / 4294967296 < OW_SPAWN_CHANCE)) return false;
+  return gateHash(OW_WORLD_SALT, px, py, 3) / 4294967296 < OW_SPAWN_KEEP;
+};
 /** A row's key in a ledger: its pixel, as the spawn ledger keys it ("px,py"). */
 export const owRowKey = (px, py) => `${px},${py}`;
 /**

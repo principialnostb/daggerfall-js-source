@@ -136,15 +136,17 @@ test('SHADOW-FANG grant: SirMcMobdon alone holds it, case-folded, title and glyp
   const row = (handle, over = {}) => ({ handle, created_at: 1_800_000_000, registered_at: 1_900_000_000, ...over });   // FOUNDER3: first played after the cutoff too, so no Founder
   const nowS = 1_900_000_000;
   for (const h of ['SirMcMobdon', 'sirmcmobdon', 'SIRMCMOBDON']) {
-    assert.deepEqual(titlesHeld(row(h), env), ['shadowfang'], `${h}: Shadow Fang and nothing else`);
-    assert.deepEqual(glyphsOf(row(h), env, nowS), ['shadowfang'], `${h}: its glyph and no Apostle's`);
+    // STAFF-PANEL1 (PIN MOVED, mob, 06:33Z: "add me to the dev and my shadow fang just becomes vanity"): beside the developer's
+    assert.deepEqual(titlesHeld(row(h), env).slice(0, 2), ['developer', 'shadowfang'], `${h}: Shadow Fang and the developer's first`);   // ADMIN-ALL (PIN MOVED): an Admin holds every cosmetic after these (test/server/admin_all.test.js) - the head is what is earned
+    assert.ok(['dev', 'shadowfang'].every((g) => glyphsOf(row(h), env, nowS).includes(g)), `${h}: its glyph and the developer's`);   // ADMIN-ALL (PIN MOVED): an Admin holds every paint glyph (test/server/admin_all.test.js); PIN MOVED (STOREFRONT): in GLYPHS' order, the mask's (identityToken.js glyphsInOrder), so no longer at the head
   }
-  assert.equal(titleWorn(row('SirMcMobdon', { title: 'apostle' }), env), undefined, 'the Apostle title they wore lapses - held no longer, worn no longer');
+  const notAdmin = { ...env, DEVELOPER_HANDLES: '' };   // ADMIN-ALL (PIN MOVED): an Admin holds every title (the Apostle's too), so the lapse is read as a Shadow Fang alone
+  assert.equal(titleWorn(row('SirMcMobdon', { title: 'apostle' }), notAdmin), undefined, 'the Apostle title they wore lapses - held no longer, worn no longer');
   assert.equal(titleWorn(row('SirMcMobdon', { title: 'shadowfang' }), env), 'shadowfang');
   assert.equal(equipRefusal('shadowfang', row('SirMcMobdon'), env), null, 'theirs to wear');
-  assert.equal(equipRefusal('apostle', row('SirMcMobdon'), env), 'not-held');
-  assert.deepEqual(wardrobeOf(row('sirmcmobdon', { title: 'shadowfang' }), env, nowS), { titles: ['shadowfang'], title: 'shadowfang', glyphs: ['shadowfang'], auras: ['shadowcloak'], aura: null, insignia: [], icons: [], icon: null });   // PIN MOVED (WITCH1): and no profile icon; WB9g: and no insignia bought; SHADOW-CLOAK (PIN MOVED): the list holds the Holo Shadow Cloak now, held but not worn until they put it on
-  for (const h of ['Dutchess', 'SquidKamer', 'Lattymoy', 'Stranger']) {
+  assert.equal(equipRefusal('apostle', row('SirMcMobdon'), notAdmin), 'not-held');
+  assert.deepEqual(wardrobeOf(row('sirmcmobdon', { title: 'shadowfang' }), notAdmin, nowS), { titles: ['shadowfang'], title: 'shadowfang', glyphs: ['shadowfang'], auras: ['shadowcloak'], aura: null, insignia: [], icons: [], icon: null, armoryHeld: [], armory: null, effectsHeld: { kill: [], portal: [], mount: [] }, effects: null });   // PIN MOVED (STOREFRONT): and the effects held and worn;   // STAFF-PANEL1 (PIN MOVED): the developer's beside, the Shadow Fang still worn; PIN MOVED (WITCH1): and no profile icon; WB9g: and no insignia bought; SHADOW-CLOAK (PIN MOVED): the list holds the Holo Shadow Cloak now, held but not worn until they put it on; ARMORY (PIN MOVED): no Aura Armory piece held or worn; ADMIN-ALL (PIN MOVED): read as a Shadow Fang alone - an Admin's wardrobe is every cosmetic (test/server/admin_all.test.js)
+  for (const h of ['Dutchess', 'SquidKamer', 'Stranger']) {   // ADMIN-ALL (PIN MOVED): no Admin here - an Admin holds every title
     assert.ok(!titlesHeld(row(h), env).includes('shadowfang'), `${h} does not hold it`);
     assert.ok(!glyphsOf(row(h), env, nowS).includes('shadowfang'));
     assert.equal(equipRefusal('shadowfang', row(h), env), 'not-held');
@@ -180,8 +182,12 @@ test('SHADOW-FANG token and relay: a token may carry the title and the glyph and
   // 639 of 640 once the crystalfist glyph joined, so the NEXT word into the vocabulary trips this pin rather than a hello
   const seatT = TITLES.filter(titleClaimed).reduce((a, t) => (t.length > a.length ? t : a), '');   // PIN MOVED (CHAP4c): the longest claimed title - a chapter's seat's now, the seats' before
   const aura = AURAS.reduce((a, x) => (x.length > a.length ? x : a), '');
-  const widest = await mintToken({ s: 'a'.repeat(40), n: 'W'.repeat(NAME_MAX), k: 'linked', t: seatT, ts: [0xffffffff, 9999], g: [...GLYPHS], au: aura, mu: nowS + 10 ** 9, lv: RENOWN_MAX, ...guild, rc: 1, rb: [15, 14], ar: ARENA_RATING_MAX, cl: CHARACTER_LEVEL_MAX }, kp.privateKey, { subtle, nowS });
-  assert.ok(widest.split('.')[1].length > 512, `past the old bound (${widest.split('.')[1].length})`);
+  const widestClaims = { s: 'a'.repeat(40), n: 'W'.repeat(NAME_MAX), k: 'linked', t: seatT, ts: [0xffffffff, 9999], g: [...GLYPHS], au: aura, mu: nowS + 10 ** 9, lv: RENOWN_MAX, ...guild, rc: 1, rb: [15, 14], ar: ARENA_RATING_MAX, cl: CHARACTER_LEVEL_MAX };
+  const widest = await mintToken(widestClaims, kp.privateKey, { subtle, nowS });
+  // PIN MOVED (STOREFRONT): the glyphs are signed as their mask (`gb`), so the token itself is back under the old 512;
+  // the claims as the old mint wrote them, every glyph's word, are what the old bound refused
+  const asWords = Buffer.from(JSON.stringify(widestClaims)).toString('base64url').length;
+  assert.ok(asWords > 512, `as words, past the old bound (${asWords})`);
   assert.ok(TOKEN_RE.test(widest), `every claim at once passes the hello (${widest.split('.')[1].length} of 640)`);
   assert.ok(widest.length <= 1024);
   assert.deepEqual((await verifyToken(widest, pub, { subtle, nowS })).claims.rb, [15, 14]);
@@ -290,8 +296,8 @@ test('SHADOW-FANG the account card: the button keeps the plain crimson (its bord
   assert.ok(ENHANCED_CSS.includes(`.card button.acttitle.${badgeClass('tl', 'shadowfang')} { color: #d3193c; }`));
   assert.equal((badgeCss().match(/\.acttitleword/g) ?? []).length, Object.keys(TITLE_GRADIENT).length, 'only a gradient title gets a word rule - Shadow Fang\'s, and since PENITENT Penitent\'s');
   const js = rd('src/ui/enhanced/enhancedAccount.js');
-  const wardrobe = js.slice(js.indexOf('function wardrobe()'), js.indexOf('function paint()'));
-  assert.match(wardrobe, /b\.append\(el\('span', 'acttitleword', TITLE_TEXT\[key\] \?\? key\)\);/);
+  const wardrobe = rd('src/ui/characterSlots.js');   // PIN MOVED (PROFILE-SLOTS): the wardrobe is the character's slots' pickers
+  assert.match(wardrobe, /const word = el\('span', 'acttitleword', TITLE_TEXT\[[^\n]*?\(key\)\] \?\? key\);\n\s*setTitleFlame\(word, key\);[^\n]*\n\s*b\.append\(word\);/);   // PIN MOVED (SHOP): the word kept in hand, so a flame title's plate is set on it before it is appended
   assert.match(wardrobe, /const svg = glyphArtNode\(doc, g, 'acctglyphart', 1\.6\);/);
   assert.doesNotMatch(js, /createElementNS/, 'no svg door of the card\'s own');
 });

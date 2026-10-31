@@ -71,7 +71,13 @@ theirs).
 arrest's whole charge - the legal loss and the People faction's half - for every lesser crime; an **Assault, a Murder,
 a High Treason or a Treason** keeps half as its mark (rounded toward the player: a Murder served is -10 of its -20). An
 **acquittal** gives it all back: no crime found, no mark. Eight Conspiracy arrests served now leave a name where it
-started (DFU: -16).
+started (DFU: -16). [SENTENCE-MENDS, FIELD BUGS 2026-10-21d: and a sentence served - or the court's fine paid with no days -
+mends the name a penance's step toward the watch's line, as the watch's fine does (FINE-MENDS), the People's half with
+it: the charge alone came back, so a name under the line before the arrest walked out known; a Curfew's doubled charge
+comes back doubled (CURFEW-REFUND), and the road's patrols keep the release's grace (PATROL-GRACE). AUDIT FB1021d: the
+prison's mend lands when the days are served (SM-1), answers the name the prisoner came in with and never the crime's own
+mark (SM-3), and comes once a grace (SM-4); the Curfew doubles the town watch's own charge alone (SM-8) -
+`01-Overview/bugs/Field-Bugs-2026-10-21d.md`.]
 
 - **One charge per chase** (`arrestFlow.js chargeOnce`): the crime is charged at the first surrender box and not again
   while it is held; a WORSE crime committed in the chase (the Murder of a watchman) is charged as itself - and the court
@@ -185,7 +191,16 @@ its court (DaggerfallCourtWindow) takes nothing:
   is stolen: a peer's word for a shelf or a cupboard lands clean (and this build's own goes out clean), and a piece
   bought at a counter is the buyer's, honestly (`interiorShared.js` applyInteriorLoot and interiorLootRecords,
   `tradeModes.js` markCounterBought - AUDIT S3). A town's patron buys no stolen piece off a hired trader (`patronLaw.js`
-  patronTakes, AUDIT S6; acct146) - a player may, the mark riding.
+  patronTakes, AUDIT S6; acct146) - a player may, the mark riding. RPT1026-LEDGERLAW (2026-10-26, a private report:
+  a stolen piece another player sold looked like any other): and its rows say so - the market's Goods row
+  (`ui/marketTab.js` goodRow, "Stolen") and its Buy bar (the card's line, `stolenLine`), a hired trader's rows on the
+  board and the stall (`ui/vendor/vendorTab.js`) and its look (`systems/item/itemLook.js` itemLookRows, the host's
+  vendorItemStats), the Vendor page's search (`ui/vendor/vendorPage.js`), and (AUDIT RPT1026 C4, 2026-10-27) the window
+  two players trade in - the other player's offered row and its strip (`ui/enhanced/enhancedPlayerTrade.js`): the buyer
+  takes the court's risk and a counter that destroys it, and no row named the theft. A piece listed is never unmarked
+  (the listing keeps the record whole, `market.js` listGood); `stolenGoods.js` stolenTag. A modified client that strips
+  the mark sells its piece clean: the mark is the client's word, as the theft is. `test/ui/rpt1026_ledgerlaw_stolen.test.js`,
+  `test/ui/audit_rpt1026_ledgerlaw_trade.test.js`.
 - **The court.** Every guilty exit - a sentence served, a fine paid, banishment, the failed defence's verdict, and so
   the watch's "come quietly" - takes every stolen piece the prisoner carries: the pack's, worn or held (taken off its
   slot first; a lit torch goes out), and the Materials Bag's - a stolen bag's honest goods put in the pack, never left in

@@ -39,7 +39,8 @@ import { sigilStone } from '../../src/systems/gate/gateSpoils.js';
 import { shareQuestGold, GivePc } from '../../src/systems/quest/actions.js';
 import { QuestMachine } from '../../src/systems/quest/machine.js';
 import { tradeRefusal, createTradePack } from '../../src/systems/tradePack.js';
-import { ONLINE_CHECKPOINT_MS, checkpointAllowed, checkpointDue, checkpointedTradePack } from '../../src/systems/online/onlineCheckpoint.js';
+import { ONLINE_CHECKPOINT_MS, checkpointAllowed, checkpointDue, checkpointWhenDue, checkpointedTradePack } from '../../src/systems/online/onlineCheckpoint.js';
+import { hostText } from '../hostText.mjs';   // HOST-SPLIT (at the merge of main into TESA): the world host read whole - its save is scenes/worldQuickSave.js's
 
 const src = (p) => readFileSync(new URL(`../../${p}`, import.meta.url), 'utf8');
 /** Runs `fn` as if the page were `search`, then restores the page. */
@@ -64,7 +65,7 @@ test('REALM P0.1: an online boot drops every power flag before anything reads it
 });
 
 test('REALM P0.1 by source: the world host drops them beside the Test Room refusal - before the start location, the probe seams and the walk mode read them', () => {
-  const w = src('src/scenes/world.js');
+  const w = hostText('src/scenes/world.js');
   const drop = w.indexOf('if (refuseOnlinePowerFlags(params).length) publishBootParams(params);');
   assert.ok(drop > 0, 'the drop is at the boot, and it is published');
   assert.ok(drop > w.indexOf("if (testRoomOffline) { params.delete('online'); publishBootParams(params); }"), 'after the Test Room refusal (which may take `online` itself away)');
@@ -252,7 +253,7 @@ test('REALM P0.3: a character joining online has the debt past the Empire\'s one
 });
 
 test('REALM P0.3 by source: the join calls the debt in after the markers are aligned to the world\'s clock', () => {
-  const w = src('src/scenes/world.js');
+  const w = hostText('src/scenes/world.js');
   assert.match(w, /onlineArrival\(\); empireJoin\(\{ entity: playerEntity, nowMinutes: ownMinutes\(\), say: \(l, d\) => townTalk\.say\(l, d\) \}\);/);   // LIVED1: the loans run on the character's own clock
   assert.ok(w.indexOf('empireJoin({') > w.indexOf('const onlineArrival = () => { alignEntityClocks(playerEntity, worldMinutes());'), 'the loan due dates ride the shift first');
 });
@@ -349,9 +350,13 @@ test('REALM P0.4: a party\'s shared quest pays its gold in the party\'s shares, 
   // the machine's shares: the party's size, for a quest kept in step with it
   const m = new QuestMachine({ partySize: () => 3 });
   const hooks = m._buildHooks();
-  assert.equal(hooks.rewardShares({ questName: 'S0000999' }), 1, 'not shared: whole');
+  assert.equal(hooks.rewardShares({ questName: 'S0000999', _holdersHeard: new Set(['b', 'c']) }), 1, 'not shared: whole');
   m.markQuestShared('S0000999');
-  assert.equal(hooks.rewardShares({ questName: 'S0000999' }), 3);
+  // PIN MOVED (QUEST-AUDIT III GOLD-HOLDERS, machine.js rewardShares): the shares are the copies held - this one and each
+  // partner heard holding it (noteShareHolder) - never more than the party
+  assert.equal(hooks.rewardShares({ questName: 'S0000999' }), 1, 'shared, no partner heard: whole');
+  assert.equal(hooks.rewardShares({ questName: 'S0000999', _holdersHeard: new Set(['b', 'c']) }), 3);
+  assert.equal(hooks.rewardShares({ questName: 'S0000999', _holdersHeard: new Set(['b', 'c', 'd']) }), 3, 'never more than the party');
   assert.equal(new QuestMachine({})._buildHooks().rewardShares({ questName: 'S0000999' }), 1, 'no party: whole');
   // GivePc itself: the reward offered is the share
   const paid = [];
@@ -375,12 +380,28 @@ test('REALM P0.5: a checkpoint is written online, spawned, in the seat and out o
   assert.equal(checkpointAllowed({ ...ok, online: false }), false, 'offline: the player saves');
   assert.equal(checkpointAllowed({ ...ok, spawned: false }), false, 'no character yet');
   assert.equal(checkpointAllowed({ ...ok, seatOut: true }), false, 'a tab another took the seat from');
+  // PIN MOVED (FIELD BUGS 2026-10-25 SEAT-SAVES): a realm character out of the seat still saves - the service's lease decides
+  assert.equal(checkpointAllowed({ ...ok, seatOut: true, realm: true }), true, 'a realm character out of the seat');
+  assert.equal(checkpointAllowed({ ...ok, duel: true, realm: true }), false, 'the realm flag lifts the seat alone');
   assert.equal(checkpointAllowed({ ...ok, duel: true }), false, 'a duel\'s borrowed health is not the character\'s');
   assert.equal(checkpointAllowed(), false);
   assert.equal(checkpointDue(5, -Infinity), true, 'the first online frame');
   assert.equal(checkpointDue(1_000 + 299_999, 1_000), false);
   assert.equal(checkpointDue(1_000 + 300_000, 1_000), true);
   assert.equal(checkpointDue(Number.NaN, 0), false);
+});
+
+test('FIELD BUGS 2026-10-25 SEAT-SAVES: the periodic checkpoint, when due - through the realm session\'s idle door, else straight', () => {
+  const ran = [];
+  const run = () => { ran.push('checkpoint'); return true; };
+  const session = { idle: (fn) => { ran.push('idle door'); return fn(); } };
+  assert.equal(checkpointWhenDue(1_000 + 299_999, 1_000, session, run), false, 'not due');
+  assert.deepEqual(ran, []);
+  assert.equal(checkpointWhenDue(1_000 + 300_000, 1_000, session, run), true);
+  assert.deepEqual(ran, ['idle door', 'checkpoint'], 'a realm character\'s through its idle door (SCALE2b)');
+  ran.length = 0;
+  assert.equal(checkpointWhenDue(5, -Infinity, null, run), true, 'the first frame, no realm session');
+  assert.deepEqual(ran, ['checkpoint']);
 });
 
 test('REALM P0.5: a trade\'s every change to the pack is checkpointed - the goods out before the commit frame is queued, back, and in; a refused take writes nothing', () => {
@@ -406,12 +427,16 @@ test('REALM P0.5: a trade\'s every change to the pack is checkpointed - the good
 });
 
 test('REALM P0.5 by source: the host checkpoints every slot the exit save writes, quietly, each online frame it is due and through the trade pack', () => {
-  const w = src('src/scenes/world.js');
+  const w = hostText('src/scenes/world.js');
   const frame = w.slice(w.indexOf('const onlineFrame = (now, dt) => {'));
-  assert.match(frame, /_rezSeen = null;[^\n]*\n\s*if \(checkpointDue\(now, _checkpointAt\)\) \{ if \(realmSession\?\.idle\) realmSession\.idle\(\(\) => onlineCheckpoint\(\)\); else onlineCheckpoint\(\); \}/, 'each online frame, past the seat\'s and the dead\'s returns (SCALE2b: a realm character\'s through the session\'s idle door, which may answer an unchanged save without a put)');
+  // PIN MOVED (FIELD BUGS 2026-10-25 SEAT-SAVES): the periodic line is onlineCheckpoint.js checkpointWhenDue, run here and in the seat's branch
+  // through systems/online/onlineCheckpointClock.js (its own test: test/systems/online/onlineCheckpointClock.test.js)
+  assert.match(frame, /_rezSeen = null;[^\n]*\n\s*checkpointClock\.frame\(now\);/, 'each online frame, past the seat\'s and the dead\'s returns (SCALE2b: a realm character\'s through the session\'s idle door, which may answer an unchanged save without a put)');
   // PIN MOVED (OFFER-ID, FIELD BUGS 2026-10-11b): the pack is handed the realm's id stamp
   assert.match(w, /const tradePack = checkpointedTradePack\(createTradePack\(playerEntity, \{ stampIds: stampItemIds \}\), \(\) => onlineCheckpoint\(\)\);/);
-  assert.match(w, /if \(!checkpointAllowed\(\{ online: !!online, spawned: playerSpawned, seatOut: seatOut\(\), duel: !!duelMgr\?\.duel, walkWaiting: ownWalkWaiting\(playerEntity\) \}\)\) return false;/);
+  // PIN MOVED (FIELD BUGS 2026-10-25 SEAT-SAVES review): the gate's inputs are built once (checkpointGateOpen) and asked here
+  assert.match(w, /const checkpointGateOpen = \(\) => checkpointAllowed\(\{ online: !!online, spawned: playerSpawned, seatOut: seatOut\(\), duel: !!duelMgr\?\.duel, walkWaiting: ownWalkWaiting\(playerEntity\), realm: !!realmSession \}\);/);
+  assert.match(w, /if \(!checkpointGateOpen\(\)\) return false;/);
   assert.match(w, /const names = exitAutosaveNames\(playerEntity, \{ deathUp: townTalk\.overlay instanceof DeathScreen \|\| !!modes\?\.deathUp\?\.\(\) \|\| successionOpen\(\) \}\);\n\s*for \(const saveName of names\) \{\n\s*if \(modes\) modes\?\.quickSaveNow\(saveName, \{ quiet: true \}\);[^\n]*\n\s*else worldQuickSave\(saveName, \{ quiet: true \}\);/);
   // quiet: no shot and no "Game saved." - a failure still speaks
   assert.match(w, /if \(r\.ok && !quiet\) requestScreenshot\(r\.key\);\n\s*if \(!r\.ok \|\| !quiet\) townTalk\.say\(r\.ok \? localizedText\('gameSaved', 'Game saved\.'\) : 'Save failed/);

@@ -135,6 +135,7 @@ export const RESERVES = Object.freeze({
   skirt: [4, 21, 22],
 });
 import { DF_TO_MW_WEAPON, DF_TO_MW_MATERIAL, ARM_PARTS, MOD_WEAPON_TO_MW } from './mwFirstPerson.js';   // WEREWOLF1: ARM_PARTS, addPartGroup's first-person fallback parts; MW-ASSIGN: a mod's weapons
+import { drawnPiece } from '../../net/appearanceLaw.js';   // APPEARANCES: a worn piece's look
 
 /** DF armor material -> the token MW armor record ids carry. */
 // MW-D37: colour truth (see DF_MATERIAL_RGB): Elven is silver-white in
@@ -587,7 +588,8 @@ export function dfWornEquipment(slots, EQUIP_SLOTS, ARMOR_ENUM_) {
  *  hand is the weapon door's business. */
 export function dfWornArmor(slots, EQUIP_SLOTS, ARMOR_ENUM) {
   const worn = [];
-  const take = (item) => {
+  const take = (piece) => {
+    const item = drawnPiece(piece);   // APPEARANCES (bible/04-Characters/Wardrobe.md): a piece wearing a look dresses the body as the look - the player's and every peer's
     if (item && typeof item.templateIndex === 'number' && armorRowOf(item.templateIndex)) {   // MW-ASSIGN: a mod's pieces are worn too
       worn.push({ templateIndex: item.templateIndex, material: item.material ?? 0 });
     }
@@ -611,11 +613,14 @@ export function dfWornArmor(slots, EQUIP_SLOTS, ARMOR_ENUM) {
  * bodice over the chest, read by the modesty weld), and NOTES for
  * everything that keeps its sprite instead. Never throws: a
  * missing record, an unknown INDX, a ref with no id for this sex -
- * each is a note, the skin stands, the law is never-traps.
+ * each is a note, the skin stands, the law is never-traps. `beast`
+ * is the race record's Beast flag, `beastWear` the two switches'
+ * modes for one (BEAST-BOOTS, beastCut below).
  */
-export function composeWornArmor({ pieces, armors, clothes, bodyPool, female = false, colourOf = null, helmStyle = undefined, looks = null, cloakStyle = 'classic', cloakLooks = null }) {   // MW-STEEL1: helmStyle, the Steel Helm switch (undefined: the default style); MW-IRON1: looks, every other own piece's by its id
+export function composeWornArmor({ pieces, armors, clothes, bodyPool, female = false, colourOf = null, helmStyle = undefined, looks = null, cloakStyle = 'classic', cloakLooks = null, beast = false, beastWear = BEAST_WEAR_WORN }) {   // MW-STEEL1: helmStyle, the Steel Helm switch (undefined: the default style); MW-IRON1: looks, every other own piece's by its id
   const palette = wolfArmorPalette(pieces, cloakLooks);
   const notes = [];
+  const wear = beast ? beastWear : null;   // BEAST-BOOTS
   const bodyById = new Map((bodyPool ?? []).map((b) => [String(b.id || '').toLowerCase(), b]));
   // ── THE PRIORITY LAW (Audit 30's recording, now consumed) ────────
   // Every PRT slot is an arbitration: the skin holds it at priority 1,
@@ -699,19 +704,35 @@ export function composeWornArmor({ pieces, armors, clothes, bodyPool, female = f
       }
       const res = mwClothingRecord(clothes, name, { dye: piece.dye ?? null, colourOf, tier: piece.tier ?? null, pick: piece.pick ?? null });   // MWNPC17: a person's rung and pick (characters/wardrobe.js)
       if (!res.record) { notes.push(`${name ?? piece.templateIndex}: ${res.note}`); continue; }
+      const cut = wear ? beastCut(res.record, wear) : null;
+      if (cut?.refused) { notes.push(`${name}: ${beastRefusal(cut.refused, res.record.id)}`); continue; }
+      if (cut?.bared) notes.push(`${name}: ${beastBared(res.record.id)}`);
       const base = res.row.reserve === 'robe' ? 11 : res.row.reserve === 'skirt' ? 3 : 0;
       const prio = ((base + 1) << 1) + 0;
-      composeRefs(res.record, prio, female, bodyById, claim, notes, piece);
+      composeRefs(cut?.rec ?? res.record, prio, female, bodyById, claim, notes, piece);
       for (const part of RESERVES[res.row.reserve] ?? []) claim(part, prio, null);
       continue;
     }
     const prio = ((0 + 1) << 1) + 1;
+    // BEAST-BOOTS: helmets hidden - any helm-shaped piece (a mod's helmet too), an own model's or a record's, before
+    // either is resolved, so it hides no hair either
+    if (wear?.helm === 'hidden' && armorRowOf(piece.templateIndex) === DF_ARMOR_ROWS[HELM_TEMPLATE]) { notes.push(`armor ${piece.templateIndex}: ${beastNoHelm()}`); continue; }
     // MW-BRIG1: THE PORT'S OWN WORN MODEL stands where the ARMO and its
     // BODY records would (characters/ownModels/ownArmorModels.js) - claimed at an
     // armour's priority, part by part, as composeRefs claims a record's.
     const own = ownArmorModelFor(piece);
     if (own) {
-      for (const p of ownArmorParts(own, { helmStyle, looks })) {   // MW-STEEL1: the style the Steel Helm switch asks for; MW-IRON1: a piece's own look
+      const ownParts = ownArmorParts(own, { helmStyle, looks });   // MW-STEEL1: the style the Steel Helm switch asks for
+      // BEAST-BOOTS: an own part is a head part when it hangs on the head or covers it (the closed helm's `hides`)
+      const ownHead = wear && wear.helm !== 'worn' && ownParts.some((p) => p.part === 'head' || (p.hides ?? []).includes('head'));
+      const ownFeet = wear?.feet === 'hidden' && ownParts.some((p) => BEAST_FEET.has(p.part));
+      if (ownHead || ownFeet) {
+        notes.push(`armor ${piece.templateIndex}: ${beastRefusal(ownHead ? 'helm' : 'feet', own.id)}`);
+        continue;
+      }
+      for (const p of ownParts) {
+        // an own boot is one mesh on the foot, with no ankle piece of its own to keep: it goes whole, its `hides` with it
+        if (wear?.feet === 'shafts' && BEAST_FEET.has(p.part)) { notes.push(`armor ${piece.templateIndex}: ${beastBared(own.id)}`); continue; }
         const at = ARMO_PART.findIndex((r) => r.name === p.part);
         const row = ARMO_PART[at];
         const add = { slot: `${row.name} (${own.id})`, partName: row.name, bones: row.bones, model: wolfArmorModel(p.model, palette), recordId: own.id, piece, ...(p.showsSkin ? { showsSkin: true } : {}),
@@ -726,6 +747,9 @@ export function composeWornArmor({ pieces, armors, clothes, bodyPool, female = f
     }
     const res = mwArmorRecords(armors, piece.templateIndex, piece.material, looks);
     if (!res.records.length) { notes.push(`armor ${piece.templateIndex}: ${res.note}`); continue; }
+    // BEAST-BOOTS: a refused helm is not worn, so it hides no hair either - the cut comes before the rule below
+    const refused = wear ? res.records.map((r) => ({ id: r.id, why: beastCut(r, wear).refused })).find((r) => r.why) : null;
+    if (refused) { notes.push(`armor ${piece.templateIndex}: ${beastRefusal(refused.why, refused.id)}`); continue; }
     // AUDIT 30 F1: A HELMET HIDES THE HAIR - an engine rule, not a
     // part reference (npcanimation.cpp:615), prior to the refs.
     if (armorRowOf(piece.templateIndex) === DF_ARMOR_ROWS[HELM_TEMPLATE]) hairHidden = Math.max(hairHidden, prio);   // MW-ASSIGN: any helm-shaped piece (a mod's helmet)
@@ -752,7 +776,9 @@ export function composeWornArmor({ pieces, armors, clothes, bodyPool, female = f
         continue;
       }
       if (!armo.parts?.length) { notes.push(`${armo.id}: no worn part references - the ground mesh is not a body`); continue; }
-      composeRefs(armo, prio, female, bodyById, claim, notes, piece);
+      const cut = wear ? beastCut(armo, wear) : null;
+      if (cut?.bared) notes.push(`armor ${piece.templateIndex}: ${beastBared(armo.id)}`);
+      composeRefs(cut?.rec ?? armo, prio, female, bodyById, claim, notes, piece);
     }
   }
   // A gauntlet must hide bare skin under its cuff, but must not reserve
@@ -800,6 +826,40 @@ export function composeWornModest(args, show) {
 
 /** IG3: PRT_Shield's row index in ARMO_PART (the sided 27-enum). */
 const PRT_SHIELD = 10;
+
+/** BEAST-BOOTS: WHAT A BEAST RACE (the RACE record's Beast flag) WEARS ON ITS FEET AND HEAD - the viewer's two switches
+ *  (systems/features.js, prefs `mwBeastFeet` and `mwBeastHelm`), read by the caller as the Steel Helm's is. Morrowind
+ *  refuses the whole item: Armor::canBeEquipped and Clothing::canBeEquipped (apps/openmw/mwclass/armor.cpp,
+ *  clothing.cpp) answer "cannot equip" for a Beast race when any part reference is PRT_Head, PRT_LFoot or PRT_RFoot.
+ *  Daggerfall equips every piece on every race, so the switches choose what the figure draws of it:
+ *  - footwear: 'worn' draws it as on anyone (the default); 'shafts' drops a record's two FEET and draws the rest - a
+ *    boot's ankle pieces over the beast's own foot, a shoe nothing: the judgement of Beast Boots MWSE (Adrala,
+ *    nexusmods.com/morrowind/mods/48990), rebuilt from the player's own records with no file of the mod; 'hidden'
+ *    draws no record with a foot part, Morrowind's own refusal;
+ *  - helmets: 'worn' (the default); 'open' draws no record with a HEAD part - Morrowind's refusal, the hair-slot helms
+ *    it lets a beast wear still drawn; 'hidden' draws no helm at all.
+ *  Only the figure changes: the piece stays equipped and counts, as Daggerfall's doll draws it. */
+export const BEAST_WEAR_WORN = Object.freeze({ feet: 'worn', helm: 'worn' });
+const BEAST_FEET = new Set(['right foot', 'left foot']);
+// each cut's note: its piece's label before it stands outside the player's language, as every label does
+const beastRefused = (id) => t('body.beast.helm', '{id} covers the head - a beast race wears no closed helm', { id });
+const beastBared = (id) => t('body.beast.feet', '{id} - a beast race\'s feet stay bare', { id });
+const beastNoFootwear = (id) => t('body.beast.noFootwear', '{id} - a beast race wears no footwear', { id });
+const beastNoHelm = () => t('body.beast.noHelm', 'a beast race wears no helmet');
+
+/** BEAST-BOOTS: what a beast race's figure draws of one ARMO/CLOT record under `wear` (BEAST_WEAR_WORN's shape) -
+ *  `refused` 'helm' (a head part, helmets not worn) or 'feet' (a foot part, footwear hidden), else `rec`, without its
+ *  two feet under 'shafts' (the record itself when it names none), and `bared`, how many were dropped. */
+function beastCut(rec, wear) {
+  const name = (r) => ARMO_PART[r.part]?.name;
+  const parts = rec.parts ?? [];
+  if (wear.helm !== 'worn' && parts.some((r) => name(r) === 'head')) return { refused: 'helm', rec, bared: 0 };
+  if (wear.feet === 'hidden' && parts.some((r) => BEAST_FEET.has(name(r)))) return { refused: 'feet', rec, bared: 0 };
+  if (wear.feet !== 'shafts') return { refused: null, rec, bared: 0 };
+  const kept = parts.filter((r) => !BEAST_FEET.has(name(r)));
+  return { refused: null, rec: kept.length === parts.length ? rec : { ...rec, parts: kept }, bared: parts.length - kept.length };
+}
+const beastRefusal = (refused, id) => (refused === 'helm' ? beastRefused(id) : beastNoFootwear(id));
 
 /**
  * IG3: getShieldMesh (actoranimation.cpp:108-139), verbatim shape:

@@ -17,9 +17,10 @@ import { REFUSALS } from '../../src/net/accountClient.js';
 import { homeOutsideKept, homeYardWhere, createOnlineHomes, homeHallRows, HOME_VERB, HALL_VERB, hallEntryTurnable } from '../../src/systems/online/onlineHomes.js';
 import { createHomeYards, YARD_IN_HALL, YARD_HALL_FULL, YARD_IN_HOUSE, YARD_FULL } from '../../src/scenes/homeYards.js';
 import { decorWhyNot } from '../../src/ui/decorPanel.js';
-import { fakeDoc, fakeWin, fakeBlocks, rmb, TOWN, settle } from '../decorFakes.mjs';
+import { fakeDoc, fakeWin, fakeBlocks, rmb, TOWN, settle, townCellsApi } from '../decorFakes.mjs';
 import { GuildBook } from '../../src/net/guild/guildBook.js';
 import { hostText } from '../hostText.mjs';   // HOST-SPLIT 2: the world host whole
+import { townYards } from '../yardCellsRead.mjs';   // YARD-CELL: a town's yards, read through its cells
 
 const src = (p) => readFileSync(new URL(`../../${p}`, import.meta.url), 'utf8');
 const HALL = { mapId: 7, buildingKey: 300, region: 17, price: 20_000, layout: null };   // AUDIT PRE-MERGE 1003 WD1: a hall says its town's layout (none: an old build's, 426)
@@ -97,7 +98,7 @@ test('GUILD-YARD the hall\'s YARD: its keepers place pieces outside it off their
   const room = await svc.call('/v1/homes/decor', { mapId: 7, buildingKey: 300 }, recruit.secret);
   assert.deepEqual(room.body.pieces, [], 'the hall\'s rooms list none of it');
   const g = await svc.guest();
-  const yards = await svc.call('/v1/homes/yards', { mapId: 7 }, g.secret);
+  const yards = await townYards(svc.call, 7, g.secret);
   assert.deepEqual(yards.body.yards.map((x) => [x.buildingKey, x.pieces.map((p) => p.id)]), [[300, ['yard1', 'yard2']]], 'a visitor sees it');
   // its own cap: sixty a yard, as a home's
   const ins = raw.prepare('INSERT INTO home_decor (map_id, building_key, id, model, place, placed_at, paid, yard) VALUES (7, 300, ?, 41000, ?, ?, 0, 1)');
@@ -143,7 +144,7 @@ test('GUILD-YARD the hall SOLD: its yard goes with it as its rooms\' pieces do -
   assert.equal((await view()).treasury, t0 + homeSaleRefund(30_000) + 220);
   assert.equal(raw.prepare('SELECT COUNT(*) AS n FROM home_decor WHERE yard = 1').get().n, 0, 'cleared');
   const g = await svc.guest();
-  assert.deepEqual((await svc.call('/v1/homes/yards', { mapId: 7 }, g.secret)).body.yards, [], 'the street sees none of it');
+  assert.deepEqual((await townYards(svc.call, 7, g.secret)).body.yards, [], 'the street sees none of it');
 });
 
 test('GUILD-YARD whose outside the playing character keeps: its own home\'s, or a hall it is a keeper of - never a hall it is a plain member of, nor a stranger\'s; the yard\'s name follows (mutants: a member keeps; a keeper keeps none)', () => {
@@ -184,7 +185,7 @@ function world(row, { pieces = [], frames = null, rows = new Map(), feet: at = [
   const built = new Map([['0,0', { px: 0, py: 0, homeTown: 7, homeFrames, homeRegion: 17 }]]);
   const writes = [], said = [], looks = [];
   const api = {
-    yards: async () => ({ ok: true, data: { yards: [{ buildingKey: 300, pieces }] } }),
+    yardCells: townCellsApi(async () => ({ ok: true, data: { yards: [{ buildingKey: 300, pieces }] } })),
     place: async (b) => { writes.push(['place', b]); return { ok: true, data: { piece: b.piece } }; },
     move: async (b) => { writes.push(['move', b]); return { ok: true, data: {} }; },
     remove: async (b) => { writes.push(['remove', b]); return { ok: true, data: { piece: pieces.find((p) => p.id === b.id), gold: 0, treasury: 60 } }; },
@@ -263,7 +264,7 @@ test('GUILD-YARD the keeper\'s yard decorator: a yard piece taken out says its h
 test('GUILD-YARD the world host by source: a hall its playing character keeps leaves the pixel\'s merge as an owner\'s home does, so its keeper\'s painter tries a look on it, and a hall kept in a merged pixel rebuilds it once (mutants: the keeper unasked at the build; at the refresh)', () => {
   const w = hostText('src/scenes/world.js');
   assert.match(w, /if \(homeRow && \(homeLook \|\| homeRow\.mine \|\| homeRow\.keeper\)\) \{/);
-  assert.match(w, /\(\(row\?\.look && homeDecorShown\(row\)\) \|\| row\?\.mine \|\| row\?\.keeper\)\) merged = true;/);   // PIN MOVED: HOME-VOTE - a look counts only where it is shown
+  assert.match(w, /\(\(row\?\.look && homeDecorShownHere\(row, p\.homeTown\)\) \|\| row\?\.mine \|\| row\?\.keeper\)\) merged = true;/);   // PIN MOVED: HOME-VOTE - a look counts only where it is shown; PIN MOVED (HOME-MUTE): nor where I hid it
   const y = src('src/scenes/homeYards.js');
   assert.match(y, /if \(!home \|\| \(!pieces\?\.length && !homeOutsideKept\(home\)\)\) continue;/);
   assert.match(src('server-account/src/homes.js'), /UPDATE homes SET look = \? WHERE map_id = \? AND building_key = \? AND \$\{OWNS\}/);
@@ -431,18 +432,27 @@ test('AUDIT PROF-541 G2 the hall\'s door "Who may enter" follows what the servic
   assert.match(src('src/scenes/worldModes.js'), /if \(verb === HALL_VERB\.entry && hallEntryTurnable\(home\)\) \{ turnHallEntry\(bd, home\); return true; \}/, 'the press as the row');
 });
 
-test('AUDIT GUILD-YARD a home\'s outside is its CHARACTER\'s: another character of the same account paints nothing of it, nor places in its yard (mutants: OWNS\'s home any character of the account)', async (t) => {
+// ACCOUNT-HOMES (2026-10-06, asked: "House ownership should be account bound, not character bound"; PIN MOVED - this was
+// AUDIT GUILD-YARD's "a home's outside is its CHARACTER's: another character of the same account paints nothing of it, nor
+// places in its yard"): the outside is the ACCOUNT's, as the rooms are - one rule, decor.js OWNS.
+test('ACCOUNT-HOMES a home\'s outside is its ACCOUNT\'s: another character of the same account paints it and places in its yard, on its own record; another account\'s character neither (mutants: OWNS\'s home the buying character\'s again; OWNS\'s home any account\'s)', async (t) => {
   t.mock.method(Date, 'now', () => T0 * 1000);
   const svc = await standService();
   const owner = await svc.registered('Olga');
   const o = await svc.seatHome(owner, { mapId: 7, buildingKey: 310, region: 17, price: 5000 });
   assert.equal(o.status, 200, JSON.stringify(o.body));
   const other = await seatRealm(svc.env, owner.secret, 'Olga Two', { name: 'Olga Two', level: 5, goldPieces: 50_000, items: [] });
-  const paint = (character) => svc.call('/v1/homes/look', { mapId: 7, buildingKey: 310, character, look: LOOK }, owner.secret);
-  assert.equal((await paint(other.id)).body.error, 'no-home', 'the account\'s other character');
+  const paint = (character, secret = owner.secret) => svc.call('/v1/homes/look', { mapId: 7, buildingKey: 310, character, look: LOOK }, secret);
+  assert.equal((await paint(other.id)).status, 200, 'the account\'s other character paints it');
   const yard = await svc.call('/v1/homes/decor/place', { mapId: 7, buildingKey: 310, character: other.id, realm: other.at(), yard: true, piece: piece() }, owner.secret);
-  assert.equal(yard.body.error, 'no-home', JSON.stringify(yard.body));
-  assert.equal((await paint(o.character)).status, 200, 'its own character paints it');
+  assert.deepEqual([yard.status, yard.body.gold], [200, -120], `and places in its yard, paid on its own record: ${JSON.stringify(yard.body)}`);
+  assert.equal((await paint(o.character)).status, 200, 'its buying character paints it as before');
+  // another account's character: as absent as none
+  const stan = await svc.registered('Stan');
+  const s = await seatRealm(svc.env, stan.secret, 'Stan', { name: 'Stan', level: 5, goldPieces: 50_000, items: [] });
+  assert.equal((await paint(s.id, stan.secret)).body.error, 'no-home', 'another account paints nothing of it');
+  const theirs = await svc.call('/v1/homes/decor/place', { mapId: 7, buildingKey: 310, character: s.id, realm: s.at(), yard: true, piece: piece({ id: 'yard2' }) }, stan.secret);
+  assert.equal(theirs.body.error, 'no-home', JSON.stringify(theirs.body));
 });
 
 test('AUDIT GUILD-YARD the hall\'s yard in the hall\'s words: the decorator\'s panel names it the guild\'s yard (its `where`, through the tool\'s room), a piece in the hall\'s footprint is "inside the hall" and a full yard is the hall\'s - never "your house", "your yard"; a home\'s keep their own; the service\'s refusals of a hall\'s yard its own (no-home, yard-cap), `hall-yard` a palace\'s alone (mutants: the tool\'s `where` plain; the hall\'s words lost - the lot\'s, the bar\'s; the hall\'s word for every yard refusal; AUDIT PROF-541 G3: the ghost\'s bar\'s hall lost; the commit\'s cap unasked)', async (t) => {

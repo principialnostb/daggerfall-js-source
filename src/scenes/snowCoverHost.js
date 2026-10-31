@@ -13,27 +13,30 @@
 //   - THE GROUND: the frame's lines, one small texture every terrain fragment reads at its own place (`frame()`,
 //     renderer.js setSnowFrame, render/snowCoverGlsl.js), and its set's TWIN (`arrayOf`, `winterOf`: its summer records
 //     and its winter ones, one array), so each fragment of ground wears its own climate's winter tile in the share of the
-//     snow at its own height and slope: a white peak over a green valley, a snowline wandering with the weather, a
-//     thaw's patches, the jungle's rain stopping at the snow;
+//     snow at its own height (SNOW-FACE: a steep face's too - render/snowCoverGlsl.js SNOW_GROUND): a white peak over a
+//     green valley, a snowline wandering with the weather, a thaw's patches, the jungle's rain stopping at the snow;
 //   - THE BUILD: a pixel's buildings, its town's climate swaps and its windmills wear the season of the snow at its
 //     middle, and each of its trees and plants the season of the snow at its own foot against a draw of its own
 //     (`flatDraw`) - across a snowline the woods whiten tree by tree, never a pixel's square at once. Read off the snow
 //     as it lay at the last step of the pack's grid (the `build` lines - pure in the place and the minute, the same on
 //     every client: AUDIT PRECIP HOST-8), and every decision kept on the pixel as it was taken (`recorder`);
 //   - THE SWEEP: a standing pixel any one of whose decisions the snow now takes otherwise (`sweep`, at every step of the
-//     grid) is re-skinned where it stands - every one due, nearest first, a pump's turn each (world/seasonReskin.js `skin`,
-//     scenes/pixelBuild.js reskinPixelNow: AUDIT PRECIP HOST-7 - its season's parts made again, never the pixel torn down);
+//     grid and every lattice cell the window moves; the frame's walked a slice a frame within the snow's budget -
+//     SNOW-SWEEP) is re-skinned where it stands - every one due, nearest first, a pump's turn each
+//     (world/seasonReskin.js `skin`, scenes/pixelBuild.js reskinPixelNow: AUDIT PRECIP HOST-7 - its season's parts made
+//     again, never the pixel torn down);
 //   - THE PLAYER'S FEET AND THE GRASS: whether snow lies where they stand, as the ground draws it (`winterAt`, `buries`:
 //     render/snowCoverGlsl.js snowCoverAt, the fragment's own cover on the CPU).
 // One clock (`now`): the frames, a build's wait and the feet all read the snow at one minute (AUDIT PRECIP HOST-2: a fast
 // travel's arrival is the arrival's minute while the trip's own time has not yet run). Off the lane every answer is
 // DFU's: the season the host holds, the set as it is, no snow in the draw.
 import { SnowpackLattice, snowlineOf, coverAtHeight, latticeKey, yearOriginOf, SNOWPACK } from '../systems/weather/snowpack.js';
-import { SEA_LEVEL_M } from '../systems/weather/airTemperature.js';
+import { SEA_LEVEL_M, airGround } from '../systems/weather/airTemperature.js';
 import { TERRAIN_SIZE as PIXEL_M } from '../world/terrain/terrainSampler.js';
 import { getTerrainGroundArchive, groundIsSnowy, SEASON } from '../world/climateSwaps.js';
 import { ecoOrigin } from '../world/ecotone.js';
 import { snowCoverAt, SNOW_TILE_ROW0 } from '../render/snowCoverGlsl.js';
+import { mergeCapLine, capLineAt, CAP_NONE, ashShareAt, bareLine } from '../world/peaks/snowcap.js';   // PEAKS1: the snow that never melts, a floor under the pack; RED-MOUNTAIN: and the ash it never lies on
 
 /**
  * THE HOST'S NUMBERS. `spacing` the lattice's (map pixels: 1.6 km - the snowline's field is smooth over that, its fall's
@@ -86,19 +89,30 @@ export function twinLayers(summer, winter) {
 
 /**
  * @param {{ renderer: any, climateAt: (px: number, py: number) => number, mapHeight: number, stateOf: () => any,
- *   builtOf: () => Map<string, any>, heightAt: (x: number, z: number) => number, owns: () => boolean,
- *   markReskin: (key: string) => void, now: () => number, place?: () => { px: number, py: number }, arriving?: () => boolean,
- *   clock?: () => number }} deps
- *   `climateAt` the map's climate index; `stateOf()` the stream's state, `builtOf()` its pixels and `heightAt` its ground
- *   at a scene point (asked, never held); `owns()` whether the snow lane runs (weatherSim.js precipLawOn - the enhanced
+ *   builtOf: () => Map<string, any>, owns: () => boolean,
+ *   markReskin: (key: string) => void, markRebuild: (key: string) => void, now: () => number, place?: () => { px: number, py: number }, arriving?: () => boolean,
+ *   clock?: () => number, capLine?: ?((cx: number, cy: number) => number) }} deps
+ *   `climateAt` the map's climate index; `stateOf()` the stream's state and `builtOf()` its pixels (asked, never held);
+ *   `owns()` whether the snow lane runs (weatherSim.js precipLawOn - the enhanced
  *   lane's law, with a host that handed the air its map); `markReskin(key)` the snow's re-skin of one pixel in place (world.js
- *   _reskin.skin - AUDIT PRECIP HOST-7); `now()` THE ONE CLOCK - the event minute the snow is read at; `place()` the player's pixel, for a build
+ *   _reskin.skin - AUDIT PRECIP HOST-7); `markRebuild(key)` one pixel torn down and built again (world.js _reskin.mark -
+ *   LANE-TURN, below); `now()` THE ONE CLOCK - the event minute the snow is read at; `place()` the player's pixel, for a build
  *   that asks before the first frame (`settle`); `arriving()` whether the world is still standing up (no ground under the
  *   player) - a build's wait then takes the arrival's budget (SNOW_COVER.arriveMs); `clock()` the frames' budget's clock
- *   (performance.now's - SNOW-BUDGET)
+ *   (performance.now's - SNOW-BUDGET). OW-HITCH's `normalOf` (the drawn ground's normal, for the slope's shed) went with
+ *   SNOW-FACE's slope: the snow reads no normal and no height. PEAKS1: `capLine(cx, cy)` the perennial snowline at map pixel corner
+ *   (cx, cy) (world/peaks/snowcap.js capLineAt, m above the sea) - each point's lines the lower of its pack's and the cap's
+ *   (mergeCapLine), so every reader of the lines wears the summits' snow; and the frame's texels carry it in their alpha
+ *   for the bare faces (render/snowCapGlsl.js). Unhanded, the cap is the land's own wherever the air's ground is the
+ *   landforms' (airGround.js lawAirGround `landforms` - the world host hands the air its map with the Landforms row, so the
+ *   host's own scope never grows: HOST-SPLIT) - capLineAt on `climateAt`; null, no cap.
  */
-export function createSnowCoverHost({ renderer, climateAt, mapHeight, stateOf, builtOf, heightAt, owns, markReskin, now, place = null, arriving = null, clock = () => performance.now() }) {
+export function createSnowCoverHost({ renderer, climateAt, mapHeight, stateOf, builtOf, owns, markReskin, markRebuild, now, place = null, arriving = null, clock = () => performance.now(), capLine = undefined }) {
   const lattice = new SnowpackLattice({ climateAt, spacing: SNOW_COVER.spacing });
+  /** PEAKS1: a corner's cap line - the handed law's, else the land's own on the landforms' ground, else none */
+  const capOf = (cx, cy) => (capLine !== undefined ? (capLine ? capLine(cx, cy) : CAP_NONE) : airGround()?.landforms ? capLineAt(cx, cy, climateAt) : CAP_NONE);
+  /** RED-MOUNTAIN (AUDIT RED-MOUNTAIN L1): a corner's share of the volcano's ash - the land's own, with its cap */
+  const ashOf = (cx, cy) => (capLine === undefined && airGround()?.landforms ? ashShareAt(cx, cy) : 0);
   const S = SNOW_COVER.spacing, R = SNOW_COVER.radius, SIDE = 2 * R + 1, STEP = SNOWPACK.stepMinutes;
   /** each window point's snowlines: `target` the pack now's, `shown` eased toward it (the frames'), `build` the pack's at
    *  the last step of the grid (the builds'); by lattice key, for the window's points alone (AUDIT PRECIP PACK-5: a point
@@ -108,7 +122,12 @@ export function createSnowCoverHost({ renderer, climateAt, mapHeight, stateOf, b
   /** the lane as the last frame read it; null until the first frame - asked of `owns` itself till then (a boot's builds) */
   let on = null;
   const lane = () => (on ?? !!owns());
-  /** the standing pixels already sent to be re-skinned for being built under the other lane (AUDIT PRECIP HOST-N1) */
+  /** the standing pixels already sent to be built again for being built under the other lane (AUDIT PRECIP HOST-N1;
+   *  LANE-TURN, FIELD BUGS 2026-10-21: REBUILT, never re-skinned - a lane's ground is its own archive (the summer set on
+   *  the lane, DFU's season off it: `groundArchive`) and a re-skin never touches the terrain, so pixelBuild.js
+   *  reskinPixelNow refuses both turns - one built off the lane keeps no `_skin`, and off it the snow is not `on`. Sent to
+   *  the skin, every pixel standing at a turn wore the other lane's ground until it streamed out: in a winter, turned off
+   *  the lane, its summer grass) */
   const turned = new WeakSet();
   const _pack = new Float32Array(SNOWPACK.levels.count), _line = [0, 0, 0];
   const tex = new Float32Array(SIDE * SIDE * 4);
@@ -140,10 +159,10 @@ export function createSnowCoverHost({ renderer, climateAt, mapHeight, stateOf, b
   const readNow = (pt, t) => {
     const k = latticeKey(pt.i, pt.j);
     let l = lines.get(k);
-    if (!l) lines.set(k, (l = { target: new Float32Array(3), shown: null, build: new Float32Array(3) }));
-    snowlineOf(lattice.packNow(pt, t, _pack), _line, pt.n);
+    if (!l) lines.set(k, (l = { target: new Float32Array(3), shown: null, build: new Float32Array(3), cap: capOf(pt.i * S, pt.j * S), ash: ashOf(pt.i * S, pt.j * S) }));
+    bareLine(mergeCapLine(snowlineOf(lattice.packNow(pt, t, _pack), _line, pt.n), l.cap), l.ash, BARE_LINE[0]);   // PEAKS1: the cap a floor under the pack; RED-MOUNTAIN: the ash bare
     l.target[0] = _line[0]; l.target[1] = _line[1]; l.target[2] = _line[2];
-    snowlineOf(t >= pt.step ? pt.swe : pt.prev, _line, pt.n);
+    bareLine(mergeCapLine(snowlineOf(t >= pt.step ? pt.swe : pt.prev, _line, pt.n), l.cap), l.ash, BARE_LINE[0]);
     l.build[0] = _line[0]; l.build[1] = _line[1]; l.build[2] = _line[2];
     if (!l.shown) l.shown = Float32Array.from(l.target);
   };
@@ -197,24 +216,14 @@ export function createSnowCoverHost({ renderer, climateAt, mapHeight, stateOf, b
   /** Field metres of a pixel-local point. */
   const fieldOf = (px, py, lx, lz) => [px * PIXEL_M + lx, (mapHeight - 1 - py) * PIXEL_M + lz];
   /** The cover at field (x, z) and `altitude` metres above the sea off the `which` lines (0..1, before the ground's
-   *  slope and patches). */
+   *  patches). */
   const coverAt = (x, z, altitude, which = 'shown') => (lane() ? coverAtHeight(lineAt(x, z, _l, which), altitude) : 0);
-  /** The ground's cover as it is DRAWN at pixel (px, py)'s local (lx, lz), `altitude` m above the sea, its normal's y
-   *  the stream's at scene point (sx, sz) (normalY; render/snowCoverGlsl.js snowCoverAt: the slope's shed and the patches
-   *  with it - AUDIT PRECIP GROUND-3). SNOW-BUDGET: the slope read only where the snowline lays any cover at that height -
-   *  snowCoverAt answers 0 for none whatever the slope, and the slope is four of the stream's heights, read for every
-   *  blade the grass placed. */
-  const drawnCover = (px, py, lx, lz, altitude, sx, sz) => {
-    const [x, z] = fieldOf(px, py, lx, lz);
-    const cover = coverAtHeight(lineAt(x, z, _l), altitude);
-    if (cover <= 0) return 0;
-    const [ox, oz] = ecoOrigin(px, py);
-    return snowCoverAt(cover, normalY(sx, sz), lx, lz, ox, oz);
-  };
-  /** The ground's normal's y at scene point (x, z), off the stream's own heights (a metre either way). */
-  const normalY = (x, z) => {
-    const dx = heightAt(x + 1, z) - heightAt(x - 1, z), dz = heightAt(x, z + 1) - heightAt(x, z - 1);
-    return Number.isFinite(dx) && Number.isFinite(dz) ? 2 / Math.hypot(dx, 2, dz) : 1;
+  /** The ground's cover as it is DRAWN at pixel (px, py)'s local (lx, lz), `altitude` m above the sea
+   *  (render/snowCoverGlsl.js snowCoverAt: its patches with it - AUDIT PRECIP GROUND-3). SNOW-FACE: no slope, so the
+   *  stream's heights are never asked (SNOW-BUDGET had read them only under snow: four a blade the grass placed). */
+  const drawnCover = (px, py, lx, lz, altitude) => {
+    const [x, z] = fieldOf(px, py, lx, lz), [ox, oz] = ecoOrigin(px, py);
+    return snowCoverAt(coverAtHeight(lineAt(x, z, _l), altitude), lx, lz, ox, oz);
   };
   /** A pixel's buildings' season and a flat's, as the snow at the last step of the grid takes them. */
   const seasonFor = (px, py, altitude) => {
@@ -225,6 +234,45 @@ export function createSnowCoverHost({ renderer, climateAt, mapHeight, stateOf, b
     const [x, z] = fieldOf(px, py, lx, lz);
     return coverAt(x, z, altitude, 'build') >= draw ? SEASON.Winter : SEASON.Summer;
   };
+  /** SNOW-SWEEP (2026-10-23, after OW-HITCH's re-measure: "spread snowCoverHost's sweep across frames under the snow
+   *  budget"): THE SWEEP IN HAND. The frame's sweep checked every flat of every standing pixel in one frame - 40-70 ms
+   *  on an i9 at each lattice cell the window moved, the most frequent hitch of a fast Overworld journey. Now a sweep is
+   *  begun (the standing pixels the snow dresses, nearest first) and walked to a deadline: each pixel found due is
+   *  re-skinned as it is found, so the nearest are still the first marked. `sweepKeys` null when none is in hand. */
+  let sweepKeys = null, sweepAt = 0, sweepFlat = 0, sweepSnow = null;
+  /** How many flats a sweep checks between two reads of its deadline (a forest pixel stands thousands). */
+  const SWEEP_FLATS_A_READ = 64;
+  const beginSweep = () => {
+    const state = stateOf(), cx = state.current?.x ?? 0, cy = state.current?.y ?? 0;
+    const order = [];
+    for (const [key, p] of builtOf()) if (p._snow) order.push([Math.hypot(p.px - cx, p.py - cy), key]);
+    order.sort((a, b) => a[0] - b[0]);
+    sweepKeys = order.map(([, key]) => key); sweepAt = 0; sweepFlat = 0; sweepSnow = null;
+  };
+  /** The sweep in hand carried on until the clock reads `deadline` - at least one pixel's first flats each call, so a
+   *  frame with no budget left still moves it. A pixel let go meanwhile is passed; one built again is checked from its
+   *  first flat. Answers the keys found due (each already sent to `markReskin`). */
+  const sweepUntil = (deadline) => {
+    const found = [];
+    while (sweepKeys && sweepAt < sweepKeys.length) {
+      const key = sweepKeys[sweepAt], s = builtOf().get(key)?._snow;
+      if (s !== sweepSnow) { sweepSnow = s; sweepFlat = 0; }
+      let turnedNow = false;
+      if (s) {
+        if (sweepFlat === 0 && s.pixel) turnedNow = seasonFor(s.px, s.py, s.pixel.altitude) !== s.pixel.season;
+        for (let i = sweepFlat; !turnedNow && i < s.flats.length; i += 5) {
+          turnedNow = (flatFor(s.px, s.py, s.flats[i], s.flats[i + 1], s.flats[i + 2], s.flats[i + 3]) === SEASON.Winter ? 1 : 0) !== s.flats[i + 4];
+          // the rest of a pixel past the deadline is the next call's, from the flat it stopped before
+          if (!turnedNow && (i / 5) % SWEEP_FLATS_A_READ === SWEEP_FLATS_A_READ - 1 && i + 5 < s.flats.length && clock() >= deadline) { sweepFlat = i + 5; return found; }
+        }
+      }
+      sweepAt++; sweepFlat = 0; sweepSnow = null;
+      if (turnedNow) { markReskin(key); found.push(key); }
+      if (clock() >= deadline) break;
+    }
+    if (sweepKeys && sweepAt >= sweepKeys.length) sweepKeys = null;
+    return found;
+  };
 
   return {
     /** Whether the snow lane runs - read once a frame by `tick` (asked of the lane itself before the first). */
@@ -232,18 +280,24 @@ export function createSnowCoverHost({ renderer, climateAt, mapHeight, stateOf, b
     /** Whether the window about the player is integrated to now. */
     get ready() { return ready; },
     /**
-     * THE FRAME: the lane asked again (a pixel built under the other lane - a skin or a door changed, or a build in flight
-     * across the turn - is re-skinned), the window about the player's pixel (px, py) integrated to the clock's minute
+     * THE FRAME: the window about the player's pixel (px, py) integrated to the clock's minute
      * within the frame's budget (`arriving` - no ground under the player yet - the larger), its lines read every
-     * SNOW_COVER.nowMinutes and the shown lines eased over `dt` seconds; then, at every new step of the grid, the
-     * standing pixels swept.
+     * SNOW_COVER.nowMinutes and the shown lines eased over `dt` seconds; then, at every new step of the grid (and every
+     * lattice cell the window moves), the standing pixels swept - a slice a frame, within what the frame's snow budget
+     * has left, while the window stands (SNOW-SWEEP: a window that moves meanwhile begins it again once it stands, on
+     * the lines it then reads). And the lane asked again: a pixel built under the other lane (the "Weather as places" or the
+     * enhanced environments' switch turned mid-game - AUDIT FB1021 L1-1 - or a build in flight across the turn) is built
+     * again (LANE-TURN) - a turn onto the lane once the window stands.
      */
     tick({ px, py, dt = 0, arriving = false }) {
       on = !!owns();
-      for (const [key, p] of builtOf()) if (p._snow !== undefined && (p._snow !== null) !== on && !turned.has(p)) { turned.add(p); markReskin(key); }
       const t = now();
+      if (on && Number.isFinite(t)) at(px, py, t, arriving ? SNOW_COVER.arriveMs : SNOW_COVER.budgetMs, false);
+      // AUDIT FB1021 L1-1: a turn ONTO the lane rebuilds once the window stands - every standing pixel goes down at once (the
+      // classic flip's teardown), and a rebuild's `settle` integrated a cold window in the breather's frame slices
+      // meanwhile (~2.6 s of work: seconds with no ground). Till then each stands in DFU's season, as it was built
+      if (!on || ready) for (const [key, p] of builtOf()) if (p._snow !== undefined && (p._snow !== null) !== on && !turned.has(p)) { turned.add(p); markRebuild(key); }
       if (!on || !Number.isFinite(t)) return;
-      at(px, py, t, arriving ? SNOW_COVER.arriveMs : SNOW_COVER.budgetMs, false);
       // ease the window's shown lines toward their targets (the snowline moving with the weather walks, never jumps)
       const k = Math.min(1, dt / SNOW_COVER.ease);
       let moved = false;
@@ -256,7 +310,12 @@ export function createSnowCoverHost({ renderer, climateAt, mapHeight, stateOf, b
         }
       }
       if (moved) gen++;
-      if (ready && buildGen !== sweptGen) { sweptGen = buildGen; this.sweep(); }
+      if (ready && buildGen !== sweptGen) { sweptGen = buildGen; beginSweep(); }
+      if (ready && sweepKeys) {
+        const w0 = clock();
+        sweepUntil(w0 + budgetFor(arriving ? SNOW_COVER.arriveMs : SNOW_COVER.budgetMs));
+        spent += clock() - w0;
+      }
     },
     /**
      * THE BUILD WAITS FOR THE SNOW: a pixel built before the window about the player stands at the clock's minute would
@@ -268,12 +327,15 @@ export function createSnowCoverHost({ renderer, climateAt, mapHeight, stateOf, b
      */
     async settle(breather) {
       if (!lane() || !place) return;
-      const { px, py } = place(), t = now();
-      if (!Number.isFinite(t)) return;
+      const { px, py } = place();
+      if (!Number.isFinite(now())) return;
       // AUDIT PRECIP DOC-7: while the world stands up (`arriving` - no ground under the player: the boot, an arrival) the
       // snow takes the arrival's budget, as the frame's own tick does - a year's history and the summer before it at a
       // mountain's window is two seconds of work, and the boot's breath of a frame made it seven
-      while (!at(px, py, t, arriving?.() ? Math.max(SNOW_COVER.arriveMs, breather.left()) : breather.left(), true)) await breather.breathe();
+      // FIELD BUGS 2026-10-21b SNOW-YEAR: each pass reads the clock's minute as it is - the frame's tick integrates the same
+      // window to it between passes, and a minute held from the first pass across the snow year's turn (its midsummer)
+      // asked another year's lattice than the tick: the two reset each other's points and the build waited for good
+      while (!at(px, py, now(), arriving?.() ? Math.max(SNOW_COVER.arriveMs, breather.left()) : breather.left(), true)) await breather.breathe();
     },
     lineAt,
     coverAt,
@@ -292,7 +354,7 @@ export function createSnowCoverHost({ renderer, climateAt, mapHeight, stateOf, b
         for (let j = 0; j < SIDE; j++) {
           for (let i = 0; i < SIDE; i++) {
             const l = lineOf(i0 + i, j0 + j, 'shown'), o = (j * SIDE + i) * 4;
-            tex[o] = l[0]; tex[o + 1] = l[1]; tex[o + 2] = l[2]; tex[o + 3] = 0;
+            tex[o] = l[0]; tex[o + 1] = l[1]; tex[o + 2] = l[2]; tex[o + 3] = lines.get(latticeKey(i0 + i, j0 + j))?.cap ?? CAP_NONE;   // PEAKS1: the cap's line, the bare faces'
           }
         }
         texGen = gen; texI = i0; texJ = j0; out.gen++;
@@ -353,34 +415,24 @@ export function createSnowCoverHost({ renderer, climateAt, mapHeight, stateOf, b
         },
       };
     },
-    /** THE SWEEP (at each new step of the grid): every standing pixel the snow now dresses otherwise than its build did -
-     *  its buildings' season, or any one flat's - re-skinned, nearest first (AUDIT PRECIP HOST-3: all of them; HOST-7: in
-     *  place, a pump's turn each). A pixel that stands nothing the snow dresses (the open sea) is never
-     *  due (HOST-6). */
+    /** THE SWEEP, whole and at once: every standing pixel the snow now dresses otherwise than its build did - its
+     *  buildings' season, or any one flat's - re-skinned, nearest first (AUDIT PRECIP HOST-3: all of them; HOST-7: in
+     *  place, a pump's turn each). A pixel that stands nothing the snow dresses (the open sea) is never due (HOST-6).
+     *  The frame's own sweep is the same walk a slice a frame (`tick` - SNOW-SWEEP); this one takes over any in hand. */
     sweep() {
       if (!lane()) return [];
-      const state = stateOf(), cx = state.current?.x ?? 0, cy = state.current?.y ?? 0;
-      const due = [];
-      for (const [key, p] of builtOf()) {
-        const s = p._snow;
-        if (!s) continue;
-        let turnedNow = s.pixel ? seasonFor(s.px, s.py, s.pixel.altitude) !== s.pixel.season : false;
-        for (let i = 0; !turnedNow && i < s.flats.length; i += 5) {
-          turnedNow = (flatFor(s.px, s.py, s.flats[i], s.flats[i + 1], s.flats[i + 2], s.flats[i + 3]) === SEASON.Winter ? 1 : 0) !== s.flats[i + 4];
-        }
-        if (turnedNow) due.push([Math.hypot(p.px - cx, p.py - cy), key]);
-      }
-      due.sort((a, b) => a[0] - b[0]);
-      for (const [, key] of due) markReskin(key);
-      return due.map(([, key]) => key);
+      beginSweep();
+      return sweepUntil(Infinity);
     },
-    /** WHETHER THE SNOW BURIES a grass blade's root at pixel-local (`lx`, `lz`) of standing pixel `p`, at scene point
-     *  (`x`, `y`, `z`) - its own height, the placer's (AUDIT PRECIP HOST-9) - the ground as drawn there (its cover, its
-     *  slope, its patches) reaching the blade's own draw (flatDraw): a meadow thins into the snow the ground shows. False
-     *  off the lane. */
-    buries(p, lx, lz, x, z, y) {
+    /** Whether a sweep is in hand (SNOW-SWEEP) - for the tests and the probes. */
+    get sweeping() { return sweepKeys !== null; },
+    /** WHETHER THE SNOW BURIES a grass blade's root at pixel-local (`lx`, `lz`) of standing pixel `p`, at scene height
+     *  `y` - its own, the placer's (AUDIT PRECIP HOST-9) - the ground as drawn there (its cover and its patches) reaching
+     *  the blade's own draw (flatDraw): a meadow thins into the snow the ground shows. False off the lane. (AUDIT FB1021
+     *  L1-8: its scene x and z went with the slope, which alone read them.) */
+    buries(p, lx, lz, y) {
       if (!lane()) return false;
-      const c = drawnCover(p.px, p.py, lx, lz, y - stateOf().compensation[1] - SEA_LEVEL_M, x, z);
+      const c = drawnCover(p.px, p.py, lx, lz, y - stateOf().compensation[1] - SEA_LEVEL_M);
       return c > 0 && c >= flatDraw(p.px, p.py, lx, lz);
     },
     /** WHETHER SNOW LIES under the player at scene point `pos` - the ground as drawn there past a half: on the lane the
@@ -393,7 +445,7 @@ export function createSnowCoverHost({ renderer, climateAt, mapHeight, stateOf, b
       const t = now();
       if (Number.isFinite(t) && nowRead !== t) at(px, py, t, SNOW_COVER.budgetMs, false);
       const tr = state.pixelTranslation(px, py, [0, 0, 0]);
-      return drawnCover(px, py, pos[0] - tr[0], pos[2] - tr[2], pos[1] - c[1] - SEA_LEVEL_M, pos[0], pos[2]) >= 0.5;
+      return drawnCover(px, py, pos[0] - tr[0], pos[2] - tr[2], pos[1] - c[1] - SEA_LEVEL_M) >= 0.5;
     },
     /** WHETHER SNOW LIES ABOUT THE PLAYER for what keeps a winter of its own - the Snowfall mod's `winter` (its gate, its
      *  snowpack; a change resets its depths and its tracks): AUDIT PRECIP GROUND-9 - on the lane, whether the snow lies on

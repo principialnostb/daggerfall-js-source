@@ -239,13 +239,15 @@ test('EV4: the wiring - fog seam, far ring, restride, and the per-set index buff
   // and a surviving pixel re-strides when the walk reclassifies it
   assert.ok(world.includes('TERRAIN_INDICES_LOD'), 'the strided index set exists');
   assert.ok(world.includes('const lodOn = isEnhanced()'), 'the 1:1 lane keeps full resolution');
-  assert.ok(world.includes('restrideTerrain(p, want)'), 'ring-class changes swap the surface in place');
+  // PIN MOVED (OW-DEMOTE): a demotion's grid the worker's where one is up, the swap the same restrideTerrain
+  assert.ok(world.includes('(terrainGen.threaded ? restrideOffThread : restrideTerrain)(p, want)'), 'ring-class changes swap the surface in place');
   // EV7 moved buildPixel's kernel call into terrainGen.js whole; the
   // ghost-row law lives there, and since PERF-EXT26 the RESTRIDE reads
   // it too (terrainGen.js restrideGrid) - on the terrain worker when one
   // is up, on this thread when not.
-  assert.ok(world.includes('restrideGrid({ woods, px: p.px, py: p.py, stride, samples: p.samples, landform, roads: terrainGen.roads(), sites: _landformSites, climates: _landformClimates, bed: waterOn ? bedBytesOf(p) : null })'), 'the restride reads the neighbor pixels (LANDFORM1-3: shaped as the build shaped them; LANDFORM4/6: the same sites and climates)');   // PIN MOVED (AUDIT WATER-NEXT P1): and carves the bed with the grid
-  assert.ok(readFileSync('src/world/terrain/terrainGen.js', 'utf8').includes('ghostSampler(woods, px, py, HEIGHTMAP_DIMENSION, lf)'),
+  // PIN MOVED (BAY-LEFT-GROUND, D1): and the sites past the Bay beside the Bay's (test/world/terrain/bayleftground_sites.test.js)
+  assert.ok(world.includes('restrideGrid({ ...gridGround(p), woods, stride, landform, roads: terrainGen.roads(), sites: _landformSites, beyond: beyondSites.beyond(), climates: _landformClimates, bed: waterOn ? bedBytesOf(p) : null })'), 'the restride reads the neighbor pixels (LANDFORM1-3: shaped as the build shaped them; LANDFORM4/6: the same sites and climates)');   // PIN MOVED (AUDIT WATER-NEXT P1): and carves the bed with the grid; PIN MOVED (FB1029 ACROSS-EDGE): its pixel, samples and meets terrainGen.js gridGround's
+  assert.ok(readFileSync('src/world/terrain/terrainGen.js', 'utf8').includes('const raw = ghostSampler(woods, px, py, HEIGHTMAP_DIMENSION, lf);'),   // PIN MOVED (FB1029 ACROSS-EDGE): the kernel's rows, the meets' cones over them
     'the kernel reads them for every build');
   // the renderer keeps one shared buffer PER index set, not one total
   const renderer = readFileSync('src/render/renderer.js', 'utf8');

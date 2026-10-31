@@ -2,22 +2,22 @@
   {
     "name": "OW4D1-door-refused-in-the-peaks",
     "file": "src/scenes/world.js",
-    "old": "    if (!door && !water && tvRouteGround().peakAt(pix.x, pix.y))",
-    "new": "    if (!water && tvRouteGround().peakAt(pix.x, pix.y))",
+    "old": "    if (!door && !water && !dragonMounted() && tvRouteGround().peakAt(pix.x, pix.y))",
+    "new": "    if (!water && !dragonMounted() && tvRouteGround().peakAt(pix.x, pix.y))",
     "tests": [
       "test/systems/travel/tv6_dungeons.test.js"
     ],
-    "note": "AUDIT OW4 D1: a spawn's door among the peaks is refused as a spot is - its plate walks nowhere."
+    "note": "Re-aimed by content (DRAGON6): the line the dragon's flight joins. AUDIT OW4 D1: a spawn's door among the peaks is refused as a spot is - its plate walks nowhere."
   },
   {
     "name": "OW4D1-door-goal-asked",
     "file": "src/scenes/world.js",
-    "old": "let plan = planRoute(from, pix, { roads: wnet?.roads ?? null, tracks: wnet?.tracks ?? null, ...tvRouteGround(), goalExempt: !!door, sea: seaAsk });",
-    "new": "let plan = planRoute(from, pix, { roads: wnet?.roads ?? null, tracks: wnet?.tracks ?? null, ...tvRouteGround(), goalExempt: false, sea: seaAsk });",
+    "old": "let plan = (dragonMounted() ? dragonFlightPlan(from, pix) : null) ?? planRoute(from, pix, { roads: wnet?.roads ?? null, tracks: wnet?.tracks ?? null, ...tvRouteGround(), goalExempt: !!door, sea: seaAsk });",
+    "new": "let plan = (dragonMounted() ? dragonFlightPlan(from, pix) : null) ?? planRoute(from, pix, { roads: wnet?.roads ?? null, tracks: wnet?.tracks ?? null, ...tvRouteGround(), goalExempt: false, sea: seaAsk });",
     "tests": [
       "test/systems/travel/tv6_dungeons.test.js"
     ],
-    "note": "AUDIT OW4 D1: a door's own pixel's step is asked - a spawn on a Mountain pixel or a plateau has no way in."
+    "note": "Re-aimed by content (DRAGON6): the line the dragon's flight joins. AUDIT OW4 D1: a door's own pixel's step is asked - a spawn on a Mountain pixel or a plateau has no way in."
   },
   {
     "name": "OW4D1-spawn-walked-as-a-spot",
@@ -51,7 +51,7 @@
   },
   {
     "name": "OW4D2-host-gone-not-handed",
-    "file": "src/scenes/world.js",
+    "file": "src/scenes/travelViewDungeonsHost.js",
     "old": "      spawnFound: tvSpawnFound, spawnGone: (s) => tvSpawnGone(s.x, s.y) })",
     "new": "      spawnFound: tvSpawnFound })",
     "tests": [
@@ -61,8 +61,8 @@
   },
   {
     "name": "OW4D2-kept-list-never-asks-the-clock",
-    "file": "src/scenes/world.js",
-    "old": "    if (tvDng.list.some((g) => g.spawn && tvSpawnGone(g.px, g.py))) tvDng.at = null;\n",
+    "file": "src/scenes/travelViewDungeonsHost.js",
+    "old": "    if (host.tvDng.list.some((g) => g.spawn && tvSpawnGone(g.px, g.py))) host.tvDng.at = null;\n",
     "new": "",
     "tests": [
       "test/systems/travel/tv6_dungeons.test.js"
@@ -81,9 +81,9 @@
   },
   {
     "name": "OW4D2-gone-while-inside",
-    "file": "src/scenes/world.js",
-    "old": "if (_insideSpawn(key)) return false; const b = built.get(key);",
-    "new": "const b = built.get(key);",
+    "file": "src/scenes/spawnGroundHost.js",
+    "old": "if (_insideSpawn(key)) return false; const b = host.built.get(key);",
+    "new": "const b = host.built.get(key);",
     "tests": [
       "test/systems/travel/tv6_dungeons.test.js"
     ],
@@ -101,7 +101,7 @@
   },
   {
     "name": "OW4D4-filed-dropped",
-    "file": "src/scenes/world.js",
+    "file": "src/scenes/travelViewDungeonsHost.js",
     "old": "isFound, spawns: [...spawnedPixels(locationIndex), ...tvFiledSpawns(at)],",
     "new": "isFound, spawns: [...spawnedPixels(locationIndex)],",
     "tests": [
@@ -152,22 +152,22 @@
   {
     "name": "OW4D4-off-the-map-y",
     "file": "src/systems/travel/travelDungeons.js",
-    "old": "for (let y = Math.max(0, at.y - r); y <= Math.min(MAX_MAP_PIXEL_Y - 1, at.y + r); y++) {",
+    "old": "for (let y = Math.max(1 - WORLD_PIXEL_SPAN, at.y - r); y <= Math.min(WORLD_PIXEL_SPAN - 1, at.y + r); y++) {",
     "new": "for (let y = at.y - r; y <= at.y + r; y++) {",
     "tests": [
       "test/systems/travel/tv6_dungeons.test.js"
     ],
-    "note": "AUDIT OW4 D4: rows off the map are asked (spawnedMapId throws on them)."
+    "note": "AUDIT OW4 D4: rows off the map are asked (spawnedMapId throws on them). TVD-WORLD re-aimed by content: the circle is the world's grid now - rows off it asked."
   },
   {
     "name": "OW4D4-off-the-map-x",
     "file": "src/systems/travel/travelDungeons.js",
-    "old": "for (let x = Math.max(0, at.x - r); x <= Math.min(MAX_MAP_PIXEL_X - 1, at.x + r); x++) {",
+    "old": "for (let x = Math.max(1 - WORLD_PIXEL_SPAN, at.x - r); x <= Math.min(WORLD_PIXEL_SPAN - 1, at.x + r); x++) {",
     "new": "for (let x = at.x - r; x <= at.x + r; x++) {",
     "tests": [
       "test/systems/travel/tv6_dungeons.test.js"
     ],
-    "note": "AUDIT OW4 D4: columns off the map are asked."
+    "note": "AUDIT OW4 D4: columns off the map are asked. TVD-WORLD re-aimed by content: the circle is the world's grid now - columns off it asked."
   },
   {
     "name": "OW4D4-nothing-stands-kept",
@@ -181,7 +181,7 @@
   },
   {
     "name": "OW4D4-host-offline",
-    "file": "src/scenes/world.js",
+    "file": "src/scenes/travelViewDungeonsHost.js",
     "old": "(params.has('online') ? filedSpawns(",
     "new": "(true ? filedSpawns(",
     "tests": [
@@ -191,7 +191,7 @@
   },
   {
     "name": "OW4D4-host-filed-any",
-    "file": "src/scenes/world.js",
+    "file": "src/scenes/travelViewDungeonsHost.js",
     "old": "filed: (x, y) => hasDiscoveredLocationId(spawnedMapId(_spawnSalt, x, y)),",
     "new": "filed: () => true,",
     "tests": [
@@ -201,7 +201,7 @@
   },
   {
     "name": "OW4D4-host-indexed-never",
-    "file": "src/scenes/world.js",
+    "file": "src/scenes/travelViewDungeonsHost.js",
     "old": "indexed: (x, y) => locationIndex.has(`${x},${y}`),",
     "new": "indexed: () => false,",
     "tests": [
@@ -211,7 +211,7 @@
   },
   {
     "name": "OW4D4-host-rolls-any",
-    "file": "src/scenes/world.js",
+    "file": "src/scenes/travelViewDungeonsHost.js",
     "old": "rolls: (x, y) => spawnsDungeon(_spawnSalt, x, y),",
     "new": "rolls: () => true,",
     "tests": [
@@ -221,9 +221,9 @@
   },
   {
     "name": "OW4D4-stand-at-sea",
-    "file": "src/scenes/world.js",
-    "old": "if (maps.getClimateIndex(px, py) === CLIMATES.Ocean || !_spawnGround(px, py) || tvSpawnGone(px, py)) return null;",
-    "new": "if (tvSpawnGone(px, py)) return null;",
+    "file": "src/world/spawnGroundPlace.js",
+    "old": "    if (maps.getClimateIndex(px, py) === CLIMATES.Ocean) return null;\n",
+    "new": "",
     "tests": [
       "test/systems/travel/tv6_dungeons.test.js"
     ],
@@ -231,9 +231,9 @@
   },
   {
     "name": "OW4D4-stand-expired",
-    "file": "src/scenes/world.js",
-    "old": "if (maps.getClimateIndex(px, py) === CLIMATES.Ocean || !_spawnGround(px, py) || tvSpawnGone(px, py)) return null;",
-    "new": "if (maps.getClimateIndex(px, py) === CLIMATES.Ocean || !_spawnGround(px, py)) return null;",
+    "file": "src/world/spawnGroundPlace.js",
+    "old": "    if (clocks && spawnGone(px, py)) return null;\n",
+    "new": "",
     "tests": [
       "test/systems/travel/tv6_dungeons.test.js"
     ],
@@ -241,9 +241,9 @@
   },
   {
     "name": "OW4D4-stand-on-a-road",
-    "file": "src/scenes/world.js",
-    "old": "return roads && !pathFreePixel(roads, px, py) ? null : _spawnCloneAt(px, py);",
-    "new": "return _spawnCloneAt(px, py);",
+    "file": "src/world/spawnGroundPlace.js",
+    "old": "    if (roads && !pathFreePixel(roads, px, py)) return null;\n",
+    "new": "",
     "tests": [
       "test/systems/travel/tv6_dungeons.test.js"
     ],
@@ -251,9 +251,9 @@
   },
   {
     "name": "OW4D4-stand-before-roads",
-    "file": "src/scenes/world.js",
-    "old": "return roads && !pathFreePixel(roads, px, py) ? null : _spawnCloneAt(px, py);",
-    "new": "return !roads || !pathFreePixel(roads, px, py) ? null : _spawnCloneAt(px, py);",
+    "file": "src/world/spawnGroundPlace.js",
+    "old": "if (roads && !pathFreePixel(roads, px, py)) return null;",
+    "new": "if (!roads || !pathFreePixel(roads, px, py)) return null;",
     "tests": [
       "test/systems/travel/tv6_dungeons.test.js"
     ],
@@ -261,18 +261,18 @@
   },
   {
     "name": "OW4D5-size-again",
-    "file": "src/scenes/world.js",
-    "old": "const grid = Math.max(1, state.terrainDistance ?? 3), n = _locIndexGen;",
-    "new": "const grid = Math.max(1, state.terrainDistance ?? 3), n = locationIndex.size;",
+    "file": "src/scenes/travelViewDungeonsHost.js",
+    "old": "const grid = Math.max(1, state.terrainDistance ?? 3), n = `${host._locIndexGen}:${tvDungeonRowsAt.gen()}`;",
+    "new": "const grid = Math.max(1, state.terrainDistance ?? 3), n = `${locationIndex.size}:${tvDungeonRowsAt.gen()}`;",
     "tests": [
       "test/systems/travel/tv6_dungeons.test.js"
     ],
-    "note": "AUDIT OW4 D5: the kept list keys on the index's size - a spawn gone and another come in one window is never seen."
+    "note": "AUDIT OW4 D5: the kept list keys on the index's size - a spawn gone and another come in one window is never seen. TVD-WORLD re-aimed by content: the key carries the lairs' gen beside the index's generation."
   },
   {
     "name": "OW4D5-stood-unbumped",
-    "file": "src/scenes/world.js",
-    "old": "      _locIndexGen += 1;   // AUDIT OW4 D5\n      locationIndex.set(key, loc);",
+    "file": "src/scenes/spawnStandHost.js",
+    "old": "      host._locIndexGen += 1;   // AUDIT OW4 D5\n      locationIndex.set(key, loc);",
     "new": "      locationIndex.set(key, loc);",
     "tests": [
       "test/systems/travel/tv6_dungeons.test.js"
@@ -281,8 +281,8 @@
   },
   {
     "name": "OW4D5-expired-unbumped",
-    "file": "src/scenes/world.js",
-    "old": "        _locIndexGen += 1;   // AUDIT OW4 D5\n        locationIndex.delete(key);\n        return null;",
+    "file": "src/scenes/spawnStandHost.js",
+    "old": "        host._locIndexGen += 1;   // AUDIT OW4 D5\n        locationIndex.delete(key);\n        return null;",
     "new": "        locationIndex.delete(key);\n        return null;",
     "tests": [
       "test/systems/travel/tv6_dungeons.test.js"

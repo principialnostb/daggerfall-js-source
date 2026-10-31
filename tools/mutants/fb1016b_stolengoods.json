@@ -18,10 +18,10 @@
     ]
   },
   {
-    "name": "FB1016-STOLEN-GOODS-sold-stolen-shelved",
+    "name": "FB1016-STOLEN-GOODS-sold-shelved",
     "file": "src/systems/stolenGoods.js",
-    "old": "  if (isStolen(item)) return false;\n",
-    "new": "",
+    "old": "  void shelfItems; void item;\n  return false;\n",
+    "new": "  shelfItems.push(item);\n  return true;\n",
     "tests": [
       "test/systems/fb1016b_stolengoods.test.js"
     ]
@@ -173,8 +173,8 @@
   {
     "name": "FB1016-STOLEN-GOODS-a-receivers-mark",
     "file": "src/net/realm/realmTradeLaw.js",
-    "old": "export const RECEIVER_MARKS = Object.freeze(['equipSlot', 'questItem', 'acquired', 'wagonEntry', 'horseBond', 'horseFed']);",
-    "new": "export const RECEIVER_MARKS = Object.freeze(['equipSlot', 'questItem', 'acquired', 'wagonEntry', 'horseBond', 'horseFed', 'stolen']);",
+    "old": "export const RECEIVER_MARKS = Object.freeze(['equipSlot', 'questItem', 'acquired', 'wagonEntry', 'horseBond', 'horseFed', 'appearance']);",
+    "new": "export const RECEIVER_MARKS = Object.freeze(['equipSlot', 'questItem', 'acquired', 'wagonEntry', 'horseBond', 'horseFed', 'appearance', 'stolen']);",
     "tests": [
       "test/systems/fb1016b_stolengoods.test.js"
     ]
@@ -254,7 +254,7 @@
   {
     "name": "FB1016-STOLEN-GOODS-counter-shelves-it",
     "file": "src/scenes/worldModes.js",
-    "old": "        landSold(shelf.items, it);   // sold goods land on the open shelf - STOLEN-GOODS: an honest piece; a stolen one is gone",
+    "old": "        landSoldAt(shelf.items, it, shelf === interiorCtx?.shelves?.[0] ? interiorBuilding?.buildingType : null);   // sold goods land on the open shelf - STOLEN-GOODS: an honest piece; a stolen one is gone",
     "new": "        shelf.items.push(it);   // sold goods land on the open shelf - STOLEN-GOODS: an honest piece; a stolen one is gone",
     "tests": [
       "test/systems/fb1016b_stolengoods.test.js"
@@ -263,8 +263,8 @@
   {
     "name": "FB1016-STOLEN-GOODS-keyed-list-shelves-it",
     "file": "src/scenes/worldModes.js",
-    "old": "    landSold(shelf.items, it);   // sold goods land on the open shelf (DFU's remoteItems) - STOLEN-GOODS: an honest piece; a stolen one is gone",
-    "new": "    shelf.items.push(it);   // sold goods land on the open shelf (DFU's remoteItems) - STOLEN-GOODS: an honest piece; a stolen one is gone",
+    "old": "    landSoldAt(shelf.items, it, shelf === interiorCtx?.shelves?.[0] ? interiorBuilding?.buildingType : null);   // sold goods land on the open shelf (DFU's remoteItems) - STOLEN-GOODS: an honest piece; a stolen one is gone (AUDIT UPDATE II B2)",
+    "new": "    shelf.items.push(it);   // sold goods land on the open shelf (DFU's remoteItems) - STOLEN-GOODS: an honest piece; a stolen one is gone (AUDIT UPDATE II B2)",
     "tests": [
       "test/systems/fb1016b_stolengoods.test.js"
     ]

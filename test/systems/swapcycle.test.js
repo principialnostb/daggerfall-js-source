@@ -17,6 +17,7 @@ import { raiseSkills, calculatePlayerLevel, SKILL_RAISE_CHECK_INTERVAL } from '.
 import { SKILL_SWAP_GOLD, swapSkill, swapInChoices, swapShortfall } from '../../src/systems/skillSwap.js';
 import { specGuideModel } from '../../src/ui/growth/specGuide.js';
 import { LEVELING_VIRTUE } from '../../src/systems/oblivionLeveling.js';
+import { onlineLevelFor, LEVEL_SUM_TOP } from '../../src/systems/levelClimb.js';   // LEVEL-45: the online level
 
 const S = SKILLS;
 const PRIMARY = [S.LongBlade, S.Dodging, S.CriticalStrike];
@@ -48,8 +49,11 @@ const sums = (p) => ({ starting: p.startingLevelUpSkillSum, current: p.currentLe
 test('SWAP-CYCLE THE REPORT: every skill outside the class cycled through a primary place and trained to 100 takes the level no further than the class\'s own lists hold - 31, not 223 (mutants: a drop moving the starting sum; a raise lowering the stored sum)', () => {
   const p = made();
   const start = p.startingLevelUpSkillSum;
-  const ceiling = calculatePlayerLevel(start, 600);   // six counted skills at 100: the most the class's sum can be
+  // PIN MOVED: LEVEL-45 online (2026-10-27, systems/levelClimb.js) - online the climb is shared out to 45 at the six-skill
+  // top (800), and the class's sum at 100 stands at 31 there as Daggerfall's 15 a level says; the law is unchanged
+  const ceiling = onlineLevelFor(start, 600);   // six counted skills at 100: the most the class's sum can be
   assert.equal(ceiling, 31);
+  assert.equal(calculatePlayerLevel(start, 600), 31, 'Daggerfall\'s 15 a level, offline');
   for (const id of [...PRIMARY, ...MAJOR, ...MINOR]) train(p, id, 100);
   assert.equal(p.level, ceiling, 'every class skill at 100: the ceiling, by training alone');
   let swaps = 0;
@@ -61,7 +65,7 @@ test('SWAP-CYCLE THE REPORT: every skill outside the class cycled through a prim
   }
   assert.equal(swaps, 35 - 12, 'every skill outside the class has had its turn');
   assert.equal(p.level, ceiling, 'the cycle earned no level');
-  assert.equal(calculatePlayerLevel(p.startingLevelUpSkillSum, p.currentLevelUpSkillSum), ceiling);
+  assert.equal(onlineLevelFor(p.startingLevelUpSkillSum, p.currentLevelUpSkillSum), ceiling);   // PIN MOVED: LEVEL-45 online, the shared climb
   assert.equal(p.startingLevelUpSkillSum, start, 'nothing brought in above the sum the level stood on');
   assert.equal(p.currentLevelUpSkillSum, 600);
 });
@@ -111,8 +115,15 @@ test('SWAP-CYCLE A TRAINED SKILL BROUGHT IN: it wins back the ground an earlier 
   assert.deepEqual(sums(p), before, 'the ground won back whole: nothing moved');
   train(p, S.Mysticism, 100);
   const rise = 100 - p.skills[dodge];
+  const at = onlineLevelFor(p.startingLevelUpSkillSum, p.currentLevelUpSkillSum);
   swap(p, dodge, S.Mysticism);   // above the sum the level stands on
-  assert.deepEqual(sums(p), { starting: before.starting + rise, current: before.current + rise, level: before.level }, 'the rise moves both sums: no level paid');
+  // PIN MOVED (AUDIT SKILL-TRADE A2): online the start moves so the climb's share stands - moved as much as the stored
+  // sum, it shrank the room to the top and the online level rose; offline both still move by the rise (fb1019b_skillswap)
+  assert.equal(p.currentLevelUpSkillSum, before.current + rise);
+  const top = LEVEL_SUM_TOP;
+  assert.ok(Math.abs(p.startingLevelUpSkillSum - (before.starting + (rise * (top - before.starting)) / (top - before.current))) < 1e-6, 'the start: rise x (top - start) / (top - held)');
+  assert.equal(onlineLevelFor(p.startingLevelUpSkillSum, p.currentLevelUpSkillSum), at, 'no level paid');
+  assert.equal(p.level, before.level);
 });
 
 test('SWAP-CYCLE CAUGHT UP: points the class\'s skills hold that no raise stored yet (intensive training\'s SetPermanentSkillValue) are the level\'s, not absorbed by the swap (mutant: the swap reading the stored sum alone)', () => {

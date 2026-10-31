@@ -155,8 +155,8 @@
   {
     "name": "EGECO3-a-post-may-ping",
     "file": "src/net/eliteGates/egHerald.js",
-    "old": "const quiet = (content) => ({ content, allowed_mentions: { parse: [] } });",
-    "new": "const quiet = (content) => ({ content });",
+    "old": "heraldCard({ family: 'spire', moment, title, text, fields });",
+    "new": "heraldCard({ family: 'spire', moment, title, text, fields, role: '1555589839825670258' });",
     "tests": [
       "test/net/eliteGates/egeco_herald.test.js"
     ]
@@ -371,8 +371,8 @@
   {
     "name": "EGECO3-refusal-marked-posted",
     "file": "server/src/index.js",
-    "old": "        if (!(await this._heraldSend(egHeraldPost(p)))) { retry = now + HERALD_RETRY_MS; break; }",
-    "new": "        await this._heraldSend(egHeraldPost(p));",
+    "old": "        if (!(await this._heraldSend(egHeraldPost(p), 'spire'))) { retry = now + HERALD_RETRY_MS; break; }",
+    "new": "        await this._heraldSend(egHeraldPost(p), 'spire');",
     "tests": [
       "test/net/eliteGates/egeco_herald.test.js"
     ]
@@ -470,7 +470,7 @@
   {
     "name": "EGECO3-the-key-not-thrown",
     "file": "src/systems/eliteGates/egFind.js",
-    "old": "    throwKey(room ? null : entity, d.keys);\n",
+    "old": "    throwKey(room || here() !== at?.visit ? null : entity, d.keys);\n",
     "new": "",
     "tests": [
       "test/systems/eliteGates/egeco_find.test.js"
@@ -478,9 +478,9 @@
   },
   {
     "name": "EGECO3-the-pack-the-whole-balance",
-    "file": "src/systems/eliteGates/egFind.js",
-    "old": "restackWeirKeys(pack, Math.max(0, keys - (onBody ? 1 : 0)));",
-    "new": "restackWeirKeys(pack, keys);",
+    "file": "src/systems/eliteGates/weirKey.js",
+    "old": "  const want = Math.max(0, n - weirKeysLying());",
+    "new": "  const want = n;",
     "tests": [
       "test/systems/eliteGates/egeco_find.test.js"
     ]
@@ -659,8 +659,8 @@
   {
     "name": "EGECO3-PL-key-on-the-copy",
     "file": "src/systems/eliteGates/egFind.js",
-    "old": "    throwKey(room ? null : entity, d.keys);\n",
-    "new": "    throwKey(entity, d.keys);\n",
+    "old": "    throwKey(room || here() !== at?.visit ? null : entity, d.keys);\n",
+    "new": "    throwKey(here() !== at?.visit ? null : entity, d.keys);\n",
     "tests": [
       "test/systems/eliteGates/egeco_find.test.js"
     ]
@@ -686,8 +686,8 @@
   {
     "name": "EGECO3-PL-pack-short",
     "file": "src/systems/eliteGates/egFind.js",
-    "old": "restackWeirKeys(pack, Math.max(0, keys - (onBody ? 1 : 0)));",
-    "new": "restackWeirKeys(pack, Math.max(0, keys - 1));",
+    "old": "  if (Array.isArray(entity?.items)) throwWeirKeyFace(entity.items);",
+    "new": "  throwWeirKeyFace(Array.isArray(entity?.items) ? entity.items : []);",
     "tests": [
       "test/systems/eliteGates/egeco_find.test.js"
     ]

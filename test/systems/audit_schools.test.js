@@ -544,7 +544,7 @@ test('AUDIT SCHOOLS L2 F3: A REGENERATE READS ITS SCHOOL EVERY ROUND, as a damag
   assert.equal(round(3), 14, 'back');
 }));
 
-test('AUDIT SCHOOLS L2 F5: MENTORING LEAVES A SIGNATURE SPELL IN ITS PATH\'S SCHOOLS - priced, trained and sold by the pair (pathHeld), the powers asleep (pathAwake); a Necromancer\'s Siphon Life never turns into the Destruction they never chose (mutants: the cast school through pathAwake; the shelf through pathAwake)', () => clean(() => {
+test('AUDIT SCHOOLS L2 F5: MENTORING LEAVES A SIGNATURE SPELL IN ITS PATH\'S SCHOOLS - priced, trained and sold by the pair (pathHeld), the powers awake at the mentor\'s share (pathAwake - MENTOR2: they had slept); a Necromancer\'s Siphon Life never turns into the Destruction they never chose (mutants: the cast school through pathAwake; the shelf through pathAwake)', () => clean(() => {
   const ne = pathMage('necromancer', 150);
   ne.level = 30; ne.skills[DES] = 15;
   const sp = signatureSpell('necromancer');
@@ -553,7 +553,7 @@ test('AUDIT SCHOOLS L2 F5: MENTORING LEAVES A SIGNATURE SPELL IN ITS PATH\'S SCH
   const awake = price(sp);
   assert.ok(awake < price(plain), 'awake: the pair prices it');
   assert.equal(refreshMentor(ne, [8, 8]), 'on', 'a party of level 8s: mentoring, automatic');
-  assert.equal(AP.pathAwake(ne), null, 'the powers sleep');
+  assert.equal(AP.pathAwake(ne)?.id, 'necromancer', 'MENTOR2: the powers act, at the mentor\'s share (arcanePowers.js)');
   assert.equal(AP.pathHeld(ne)?.id, 'necromancer', 'the path is held');
   assert.equal(castSchool(ne, sp, sp.effects[0]), RES, 'cast in the pair (a tie: the first)');
   assert.deepEqual(signatureOffers(ne).map((s) => s.path), ['necromancer'], 'still sold to them');
@@ -596,17 +596,18 @@ test('AUDIT SCHOOLS L2 F4: MY SPELL ON THE RELAY\'S STAND-INS IS TOLD TO THE RID
   // land there (the number the HUD says), never a claim no relay lands
   const sis = src('src/scenes/gate/standInSpell.js');
   assert.match(sis, /function tellStandIn\(sp, entity, r, took, caster\) \{\n\s*tellSpellLanded\(\{ caster: player, target: entity, foe: null, spell: sp, r, self: false, took, cast: caster\?\.cast \?\? null \}\);/);
-  assert.match(sis, /const \{ dealt, r, kept \} = countOnStandIn\(harm, body\.entity, player\.level, player, rolls, rounds\.carried\(key\)\);\n\s*if \(!\(dealt >= 1\)\) \{[^]*?\n\s*\}\n\s*const shown = standInShown\(dealt, standInBlowCap\(body\.entity, player\.level\)\);\n\s*tellStandIn\(sp, body\.entity, r, shown, caster\);/);
+  assert.match(sis, /const \{ dealt: counted, r, kept \} = countOnStandIn\(harm, body\.entity, player\.level, player, rolls, rounds\.carried\(key\)\);\n\s*const dealt = counted >= 1 \? bossStrike\(body\.entity, counted, \{ kind: 'spell', element: sp\.element \?\? null \}\)\.damage : counted;[^\n]*\n\s*if \(!\(dealt >= 1\)\) \{[^]*?\n\s*\}\n\s*const shown = standInShown\(dealt, standInBlowCap\(body\.entity, player\.level\)\);\n\s*tellStandIn\(sp, body\.entity, r, shown, caster\);/);
   for (const [fn, who, land] of [['spellOnCrystal', 'cr', 'landOnCrystal'], ['spellOnHost', 'hb', 'landOnHost'], ['spellOnBoss', 'boss', 'landOnBoss']]) {
     assert.match(sis, new RegExp(`function ${fn}\\(sp, [^)]*caster = null\\) \\{[\\s\\S]*?return onBody\\(sp, ${who}, harm, caster, host\\.${land}, `), fn);   // PIN MOVED (FIELD BUGS 2026-10-19f BOSS-DOT): each its rounds' key
   }
   assert.match(dc, /castAtBoss: opts\.gateBoss \? \(sp, caster\) => spellOnBoss\(sp, caster\) : null,/);
-  assert.match(dc, /castAtCrystal: opts\.gateCrystals \? \(sp, c, caster\) => spellOnCrystal\(sp, c, caster\) : null,/);
+  assert.match(dc, /castAtCrystal: \(sp, c, caster\) => spellOnCrystal\(sp, c, caster\),/);   // PIN MOVED (DELVE II DLV4): always on - a dungeon's sources and seals meet a spell too
   assert.match(dc, /castAtHost: opts\.gateHost \? \(sp, i, caster\) => spellOnHost\(sp, i, caster\) : null,/);
   const w = src('src/scenes/world.js');
   // PIN MOVED (FIELD BUGS 2026-10-19f BOSS-DOT): the serpent's door left bootWorld for scenes/gate/standInSpell.js createSerpentSpell, which tells the riders
-  assert.match(sis, /tellSpellLanded\(\{ caster: player, target: e, foe: null, spell: sp, r, self: false, took: standInShown\(dealt, SERPENT_HIT_CAP_X \* SERPENT_HAND_REF\), cast: caster\?\.cast \?\? null \}\);/);
-  assert.match(w, /castAtBox: \(sp, q, caster\) => serpentSpell\.cast\(sp, q, caster\),/);
+  assert.match(sis, /tellSpellLanded\(\{ caster: player, target: e, foe: null, spell: sp, r, self: false, took: standInShown\(dealt, cap\(\)\), cast: caster\?\.cast \?\? null \}\);/);   // PIN MOVED (DRAGON3): its cap the door's own (`cap`, the serpent's hand's purse by default)
+  assert.match(sis, /cap = \(\) => SERPENT_HIT_CAP_X \* SERPENT_HAND_REF \}\) \{/);
+  assert.match(w, /castAtBox: \(sp, q, caster\) => dragonSky\?\.cast\(sp, q, caster\) \?\? serpentSpell\.cast\(sp, q, caster\),/);   // PIN MOVED (DRAGON3): the serpent's door for any mark not the dragon's
   const hm = src('src/scenes/hostMagic.js');
   assert.match(hm, /function giveToBoss\(mark, sp, caster = null\) \{/);
   assert.match(hm, /else giveToBoss\(hitBoss, m\.spell, playerCaster\(m\.cast \?\? null\)\);/);

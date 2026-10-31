@@ -105,6 +105,28 @@ export const WINDMILLS_KEY = 'windmills';
 /** KG3: The King's Gambit's switch key - declared here with its row, as the Windmills' is (the game reads it through
  *  `uiPrefs`, which reads this page's defaults). */
 export const KINGS_GAMBIT_KEY = 'kingsGambit';
+/** EVENTS2 (2026-10-24, the players on Discord: "Allow us to filter which events we want to show up in the event
+ *  tracker"): THE SHARED EVENTS' KINDS - their one home, declared HERE with the Event board row whose chips they are, as
+ *  the Windmills' key is (systems/eventNotices.js reads their switches through `uiPrefs`, which reads this page's
+ *  defaults; the other direction closes a cycle). In the board's order, each with its name in the player's words (the
+ *  news's heading and the chip's), whether it stands as a row on the board (`row`: the festival's nights are news
+ *  alone, no place to go) and whether it has one event at a time (`single`, AUDIT EVENTS1 A1: a star and a raid have
+ *  several, so their lines name theirs). systems/eventBoard.js, systems/eventNotices.js and ui/eventBoard.js derive their
+ *  lists from it (bible/10-UI/Event-Board.md section 8). */
+export const EVENT_KINDS = Object.freeze({
+  gate: Object.freeze({ row: true, single: true, get label() { return t('events.kind.gate', 'Dagon\'s Breach'); } }),
+  serpent: Object.freeze({ row: true, single: true, get label() { return t('events.kind.serpent', 'Sea Serpent'); } }),
+  super: Object.freeze({ row: true, single: true, get label() { return t('events.kind.super', 'Abyss Dungeon'); } }),
+  star: Object.freeze({ row: true, single: false, get label() { return t('events.kind.star', 'Starfall'); } }),
+  raid: Object.freeze({ row: true, single: false, get label() { return t('events.kind.raid', 'Town Raid'); } }),
+  festival: Object.freeze({ row: false, single: true, get label() { return t('events.kind.festival', 'Witches\' Festival'); } }),
+  // STOREFRONT (bible/06-Systems/Battle-Pass.md section 6): the season's tremors and its Colossus - news alone, as the festival's
+  season: Object.freeze({ row: false, single: true, get label() { return t('events.kind.season', 'Season'); } }),
+});
+/** The kinds in the board's order. */
+export const EVENT_KIND_ORDER = Object.freeze(Object.keys(EVENT_KINDS));
+/** EVENTS2: a kind's own switch on the prefs shelf (`eventBoard-star`), one of the Event board row's parts. */
+export const eventKindPref = (/** @type {string} */ kind) => `eventBoard-${kind}`;
 
 /** Where a control's value lives. */
 export const STORES = Object.freeze(['prefs', 'settings', 'mods']);
@@ -282,8 +304,10 @@ export const MOD_CURATED = Object.freeze({
     'Camera.Speed', 'Animation.BillboardScale']),
   // IF1: the clip quality and the two volumes are what a player reaches for.
   'immersive-footsteps': Object.freeze(['AudioQualitySettings.SoundClipQuality', 'FootstepSettings.FootstepVolumeMulti', 'ArmorSwaySettings.ArmorSwayVolumeMulti']),
-  // BA1: the footsteps switch (off beside Immersive Footsteps), the echo, the darkness.
-  'better-ambience': Object.freeze(['Better Footsteps.enable', 'Dungeon Reverb.level', 'Dungeon Lighting.dungeonDarkness']),
+  // BA1: the footsteps switch (off beside Immersive Footsteps), the echo, the darkness. RPT1026-CLIENT (a private report:
+  // no setting on the mod's tile could hold a spell's shake down): and the camera
+  // shake's ceiling, the most one hit or landing spell can shake the view (betterAmbience.weaponKick).
+  'better-ambience': Object.freeze(['Better Footsteps.enable', 'Dungeon Reverb.level', 'Dungeon Lighting.dungeonDarkness', 'Camera Shake.maxShake']),
   // ORL1: the mod ships SEVEN knobs and `primarySkillsImpact` is the
   // port's own eighth (Daggerfall has a tier of chosen skills Morrowind
   // does not). All eight are on the tile - the
@@ -372,6 +396,20 @@ export const FEATURES = Object.freeze([
     effect: 'Takes effect on the next dungeon you enter. A save made at another size puts you at the dungeon\u2019s start.',
     kinds: Object.freeze(['enhanced']),
     control: Object.freeze({ store: 'prefs', key: 'worldDungeonSizes', initial: false, online: true }),   // world/smallerDungeons.js WORLD_DUNGEON_SIZES_PREF; forced on online, the room's sizes
+  }),
+  // DELVE II (DLV2, 2026-10-28, the owner: "coming upon a wave based encounter, or puzzle solving like you find in some of
+  // our world events"; bible/03-World/Delve-II.md): THE DUNGEONS' ENCOUNTERS - one of seven kinds, fought or worked out
+  // in a room the layout already has, each opening a vault (scenes/delve/delveHost.js). On by default; online (DLV3) the
+  // room keeps the sites and they stand for everyone in it, so the lane forces it on there.
+  Object.freeze({
+    id: 'dungeon-encounters',
+    group: 'world',
+    get title() { return t('features.dungeonEncounters.title', 'Dungeon encounters'); },
+    get note() { return t('features.dungeonEncounters.note', 'Some dungeon rooms hold an encounter: a ward to hold against foes, sources or seals to '
+      + 'break, or a puzzle to work out. Win one to open its vault. Online, your party wins it together.'); },
+    get effect() { return t('features.effect.nextDungeon', 'Takes effect on the next dungeon you enter.'); },
+    kinds: Object.freeze(['enhanced']),
+    control: Object.freeze({ store: 'prefs', key: 'dungeonEncounters', initial: true, online: true }),   // scenes/delve/delveHost.js DELVE_PREF
   }),
   // STEED1 (2026-10-11, the owner: "Horse should have stamina, feeding them grows your bond and improves their stats.
   // Every horse should have different stats"): HORSE CARE (bible/06-Systems/Horse-Care.md, systems/steedCare.js).
@@ -536,6 +574,27 @@ export const FEATURES = Object.freeze([
     // (swimming and feet read WATER_MASK_TABLE either way; the one other reader, the townsfolk's paths, is no one's but
     // this page's), so off online brings back Daggerfall's flat tile and the Deep Waters sea's own scrolling texture.
     control: Object.freeze({ store: 'prefs', key: 'enhancedWater', initial: true, online: 'player' }),   // WATER1: on by default like the other enhanced visuals; `?water=off` the kill door
+  }),
+  // ARMORY (2026-10-28; bible/04-Characters/Aura-Armory.md section 7): WHOSE AURA ARMORY PIECES ARE DRAWN - every other
+  // player's, those near, or none (scenes/auraHost.js). One's own always is. For a weak machine in a crowd.
+  Object.freeze({
+    id: 'armory-others',
+    group: 'sight',
+    get title() { return t('features.armoryOthers.title', 'Others\' Aura Armory'); },
+    get note() { return t('features.armoryOthers.note', 'Whose Aura Armory pieces are shown. Near shows the players close to you. Your own pieces always show.'); },
+    kinds: Object.freeze(['enhanced', 'classic']),
+    control: Object.freeze({ store: 'prefs', key: 'armoryOthers', initial: 'all', online: 'player', tiers: Object.freeze([tier('all', () => t('features.armoryOthers.all', 'All')), tier('near', () => t('features.armoryOthers.near', 'Near')), tier('none', () => t('features.armoryOthers.none', 'None'))]) }),
+  }),
+  // STOREFRONT (2026-10-29; bible/06-Systems/Storefront.md sections 4 and 7): WHOSE KILL EFFECTS AND MOUNT LOOKS ARE
+  // DRAWN - every other player's, those near, or none (net/peer/peerEffects.js othersEffectShown: a kill effect, and a
+  // mount look's dye and beat). One's own always is.
+  Object.freeze({
+    id: 'killfx-others',
+    group: 'sight',
+    get title() { return t('features.killFxOthers.title', 'Others\' effects'); },
+    get note() { return t('features.killFxOthers.note', 'Whose kill effects and mount looks are shown. Near shows the players close to you. Your own always show.'); },
+    kinds: Object.freeze(['enhanced', 'classic']),
+    control: Object.freeze({ store: 'prefs', key: 'killFxOthers', initial: 'all', online: 'player', tiers: Object.freeze([tier('all', () => t('features.killFxOthers.all', 'All')), tier('near', () => t('features.killFxOthers.near', 'Near')), tier('none', () => t('features.killFxOthers.none', 'None'))]) }),
   }),
   // WATER-NEXT (2026-10-07, the overhaul's plan: "a cheaper setting for a weak GPU"): HOW MUCH THE WATER DRAWS. Full
   // copies the frame under the water once a frame (the look through it, the depth it measures) and keeps the ripple
@@ -713,6 +772,22 @@ export const FEATURES = Object.freeze([
     kinds: Object.freeze(['enhanced']),
     control: Object.freeze({ store: 'prefs', key: 'weaponGlow', initial: true, online: 'player' }),   // WEAPON-GLOW1: systems/weaponGlow.js WEAPON_GLOW_PREF
   }),
+  // RESOURCE-HIGHLIGHTS (2026-10-26, the owner: "Reintroduce resource highlights as an option" - bible/06-Systems/
+  // Professions-Arc.md section 54): what lights a gathering node - NODE-GLINT's glints on its own picture (the default, the
+  // owner's choice of 2026-10-20 after players found the ring unimmersive), NODE-OUTLINE's ring round it in its profession's
+  // colour (back as a choice, for a player who would rather find a node than see it catch the light), or both. The
+  // player's own: it lights nothing a peer sees and is never on the wire. Read each frame (render/nodeGlint.js
+  // createNodeGlintPass, RESOURCE_HIGHLIGHT_PREF), so it takes effect at once.
+  Object.freeze({
+    id: 'resource-highlights',
+    group: 'sight',
+    get title() { return t('features.resourceHighlights.title', 'Resource highlights'); },
+    get note() { return t('features.resourceHighlights.note', 'How herbs, veins, trees and other gathering spots near you stand out. Glint makes them '
+      + 'catch the light with sparkles; Outline rings each one in its profession\u2019s color, plain to see day or night; Both does both.'); },
+    get effect() { return t('features.effect.atOnce', 'Takes effect at once.'); },
+    kinds: Object.freeze(['enhanced']),
+    control: Object.freeze({ store: 'prefs', key: 'resourceHighlights', initial: 'glint', online: 'player', tiers: Object.freeze([tier('glint', () => t('features.resourceHighlights.glint', 'Glint')), tier('outline', () => t('features.resourceHighlights.outline', 'Outline')), tier('both', () => t('features.resourceHighlights.both', 'Both'))]) }),   // render/nodeGlint.js RESOURCE_HIGHLIGHT_PREF, RESOURCE_HIGHLIGHTS
+  }),
   // QUICK-LOOT B4 (2026-09-22, Mac: Arc B of the world-hover arcs, and
   // "How does skyrim do it" when the shape was put to him). Vanilla
   // Skyrim does not; what everyone means by it is the QuickLoot mod,
@@ -763,9 +838,9 @@ export const FEATURES = Object.freeze([
     group: 'loot',
     get title() { return t('features.lootRarity.title', 'Loot rarity'); },
     get note() { return t('features.lootRarity.note', 'Weapons, armor and jewelry can drop as Magic, Rare or Legendary, with extra bonuses you can read '
-      + 'and compare. The odds depend on what you killed, where, and your luck, never your level. Rare and '
-      + 'Legendary items drop unidentified. Off is the classic loot. Online, some weapons carry a '
-      + 'sigil that grows with your Renown.'); },   // SIGIL1
+      + 'and compare. The odds depend on what you killed, where, and your luck. Rare and Legendary gear is rarer '
+      + 'early on and becomes more common as you grow. Rare and Legendary items drop unidentified. Off is the classic loot. Online, some weapons carry a '
+      + 'sigil that grows with your Renown.'); },   // SIGIL1; AUDIT UPDATE L8: LOOT-GATE's own words, its numbers never (CLAUDE.md LOOT-GATE)
     get effect() { return t('features.lootRarity.effect', 'Takes effect on the next drop; items you wear update within a few seconds.'); },
     kinds: Object.freeze(['enhanced']),
     control: Object.freeze({ store: 'prefs', key: 'lootRarity', initial: true, online: true }),   // LR5: ON by default (Mac) - the ladder is the port's own game, not an opt-in; the lane forces it on online as it always did
@@ -806,8 +881,10 @@ export const FEATURES = Object.freeze([
     group: 'sound',   // FT18: was world
     get title() { return t('features.enhancedSounds.title', 'Enhanced sounds'); },
     get note() { return t('features.enhancedSounds.note', 'New sounds on the enhanced UI: wind outdoors that rises and falls with its strength and goes quiet '
-      + 'indoors, a coin clink when you take or store items in the enhanced inventory, your hands and boots on stone '
-      + 'when you climb, and the axe, the pick, the leaves, the knife and the net when you gather.'); },
+      + 'indoors, a coin clink in the enhanced inventory, hands and boots on stone when you climb, the tools when you '
+      + 'gather, a horse that snorts and breathes, its hooves changing with the ground, the sea under a deck with its '
+      + 'bells and its own music at the helm, surf on the shore, the wild by region and hour, and a town\'s street, '
+      + 'smithies and taverns.'); },   // AUDIT SOUNDSCAPE P1: under FT15's 450 - the rest is bible/08-Audio/Audio.md's
     get effect() { return t('features.effect.atOnce', 'Takes effect at once.'); },
     kinds: Object.freeze(['enhanced']),
     control: Object.freeze({ store: 'prefs', key: 'soundEnhancements', initial: true, online: 'player' }),   // ES1: systems/enhancedSounds.js enhancedSoundsOn; windAudio.js windSoundOn rides it
@@ -867,27 +944,29 @@ export const FEATURES = Object.freeze([
   // traversalable but used and connected as a gigantic map ... seen by players ingame"): the held map's world sheet
   // zooms out past the Bay onto the whole continent, authored in the same hand (ui/tamrielInk.js,
   // world/tamriel/tamrielGeography.js, bible/03-World/Tamriel.md). Read where the window is built (ui/map/mapSkin.js
-  // tamrielMapOn), so a change takes the next map opened; `?tamriel=off` is the kill door.
+  // tamrielMapOn), so a change takes the next map opened; `?tamriel=off` is the kill door. AUDIT TAMRIEL-WIDE D1: a place
+  // past the Bay is travelled to as a Bay place is (TRAVEL-EVERYWHERE) - with the land on (AUDIT TAMRIEL-WIDE II), and the note says so.
   Object.freeze({
     id: 'tamriel-map',
     group: 'interface',
-    title: 'Tamriel on the map',
-    note: 'The enhanced map zooms out past the Iliac Bay to show all of Tamriel: its provinces, capitals, mountains and '
-      + 'seas, hand-drawn and joined to the Bay’s own coast. You can’t travel beyond the Bay.',
-    effect: 'Takes effect the next time a map is opened.',
+    get title() { return t('features.tamrielMap.title', 'Tamriel on the map'); },
+    get note() { return t('features.tamrielMap.note', 'The enhanced map zooms out to all of Tamriel: its provinces, cities, mountains and seas, '
+      + 'hand-drawn and joined to the Bay’s own coast. With Land beyond the Bay on, fast travel reaches them, except into or out of Cyrodiil online.'); },   // AUDIT TAMRIEL-WIDE III F3: the open zone's own law (wildZone.js wildJourney)
+    get effect() { return t('features.effect.nextMap', 'Takes effect the next time a map is opened.'); },
     kinds: Object.freeze(['enhanced']),
     control: Object.freeze({ store: 'prefs', key: 'tamrielMap', initial: true, online: 'player' }),
   }),
   // TAMRIEL2 (2026-10-08, Mac: "only implement the land mass"): the streamed world goes on past the Bay's edge over the
   // authored continent - its ground, its climate's textures and trees, nothing built on it (world/tamriel/tamrielGround.js;
-  // scenes/shared.js tamrielLandOn, read once as the world mounts). `?tamrielland=off` the kill door.
+  // scenes/shared.js tamrielLandOn, read once as the world mounts). `?tamrielland=off` the kill door. AUDIT TAMRIEL-WIDE
+  // D1: TESA's cities, towns, roads and lairs stand on it now, and the note says so.
   Object.freeze({
     id: 'tamriel-land',
     group: 'world',
-    title: 'Land beyond the Bay',
-    note: 'The land goes on past the edge of the Iliac Bay, with the hills, mountains, coasts, sky and trees of each '
-      + 'province. There are no towns, roads or dungeons there yet.',
-    effect: 'Takes effect when the world next loads.',
+    get title() { return t('features.tamrielLand.title', 'Land beyond the Bay'); },
+    get note() { return t('features.tamrielLand.note', 'The world goes on past the Iliac Bay over all of Tamriel. Each province has its own land, sky '
+      + 'and trees, and its own cities, towns, roads and dungeons. Off ends the world at the Bay’s edge.'); },
+    get effect() { return t('features.effect.worldLoads', 'Takes effect when the world next loads.'); },
     kinds: Object.freeze(['enhanced']),
     control: Object.freeze({ store: 'prefs', key: 'tamrielLand', initial: true, online: 'player' }),
   }),
@@ -940,6 +1019,21 @@ export const FEATURES = Object.freeze([
     get effect() { return t('features.effect.worldLoads', 'Takes effect when the world next loads.'); },
     kinds: Object.freeze(['enhanced']),
     control: Object.freeze({ store: 'prefs', key: 'banthaJungle', initial: true, online: true }),
+  }),
+  // TESA-LANDS (2026-10-27, the owner: "Ensuring each region recieves proper landscape details and textures (minus cyrodil
+  // and valenwood) and refined detail"): THE LANDS PAST THE BAY - each zone of seven provinces its own ground, its own
+  // flats and its own landmarks (world/tamriel/tamrielLands.js, bible/03-World/Tamriel-Lands.md). FORCED ON ONLINE: its
+  // flats are where Logging's trees stand and its landmarks turn the player, so a room has one land. `?lands=off` the kill
+  // door; systems/landsSwitch.js tamrielLandsOn composes it.
+  Object.freeze({
+    id: 'tamriel-lands',
+    group: 'world',
+    get title() { return t('features.tamrielLands.title', 'Lands of Tamriel'); },
+    get note() { return t('features.tamrielLands.note', 'Each region past the Bay gets its own ground, plants and landmarks: Morrowind\'s ash and giant '
+      + 'mushrooms, Black Marsh\'s Hist, Summerset\'s vineyards. Off keeps each climate\'s original look.'); },
+    get effect() { return t('features.effect.worldLoads', 'Takes effect when the world next loads.'); },
+    kinds: Object.freeze(['enhanced']),
+    control: Object.freeze({ store: 'prefs', key: 'tamrielLands', initial: true, online: true }),
   }),
   // LANDFORM1-3 (2026-10-06, Mac: "Can we adjust the heightmap to be more of this? and allow roads to carve through
   // terrian and caverns without breaking anything and rivers to actually have depth"): LANDFORMS - the small heightmap
@@ -1102,13 +1196,6 @@ export const FEATURES = Object.freeze([
   // wilderness itself. Read at the world's mount, like the roads it
   // consults: the loader's list is built once per world.
   modFeature('world-of-daggerfall', () => t('features.effect.worldLoads', 'Takes effect when the world next loads.'), 'world'),
-  // AS1 (2026-09-25): AQUATIC SPRITES - `world`, three flooded dungeon
-  // blocks. The door caches a block once it is served, so a switch flipped
-  // mid-session reaches the next load, not the dungeon you stand in.
-  modFeature('aquatic-sprites', () => t('features.effect.gameLoads', 'Takes effect when the game next loads.'), 'world'),
-  // DS1 (2026-09-25): DETAILED SHIPS - `world`, the two ships you can own.
-  // Their building records are read through the door once per load.
-  modFeature('detailed-ships', () => t('features.effect.gameLoads', 'Takes effect when the game next loads.'), 'world'),
   // WD3 (2026-10-01): BEAUTIFUL VILLAGES and BEAUTIFUL CITIES - `world`, the towns themselves. The world-data
   // loader reads each switch once, when the game loads (scenes/modWorldData.js latches it), so a town never moves
   // under the player; online the room owns both.
@@ -1213,6 +1300,35 @@ export const FEATURES = Object.freeze([
   }),
   // MW-STEEL1's Steel Helm row is gone (MOTION-DOCTRINE settings pass, 2026-10-27): a helm's look is turned on the worn
   // piece in the inventory (systems/lookVariants.js), which writes the same viewer's pref, `mwSteelHelm`.
+  // BEAST-BOOTS (2026-10-24, asked: the Beast Boots look and hiding helmets on Khajiit and Argonians as options, not the
+  // default): what a beast race wears on its feet and its head, two switches of three ways each, As worn by default.
+  // The VIEWER'S, as the Steel Helm is: how this machine draws every Khajiit and Argonian - the player, a peer, an NPC -
+  // and never on the wire. Read where the worn set is composed (combat/fpArm.js, formats/morrowind/mwItemMap.js
+  // beastCut); the tile rebuilds the player's body at once (ui/enhanced/enhancedMenu.js TILE_AFTER), the others at their next build.
+  Object.freeze({
+    id: 'beast-footwear',
+    group: 'combat',
+    get title() { return t('features.beastFeet.title', 'Beast Footwear'); },
+    get note() { return t('features.beastFeet.note', 'With the Morrowind body, how a Khajiit\'s or an Argonian\'s boots and shoes are drawn. Shafts only '
+      + 'keeps a boot\'s shaft over the bare foot and hides shoes; Hidden hides all footwear, as in Morrowind.'); },
+    get effect() { return t('features.mod.weaponSheathing.effect', 'Takes effect at once with the Morrowind body.'); },
+    kinds: Object.freeze(['enhanced']),
+    control: Object.freeze({ store: 'prefs', key: 'mwBeastFeet', initial: 'worn', online: 'player',
+      tiers: Object.freeze([tier('worn', () => t('features.beast.asWorn', 'As worn')), tier('shafts', () => t('features.beastFeet.shafts', 'Shafts only')),
+        tier('hidden', () => t('features.beast.hidden', 'Hidden'))]) }),
+  }),
+  Object.freeze({
+    id: 'beast-helmets',
+    group: 'combat',
+    get title() { return t('features.beastHelm.title', 'Beast Helmets'); },
+    get note() { return t('features.beastHelm.note', 'With the Morrowind body, how a Khajiit\'s or an Argonian\'s helmets are drawn. Open only hides '
+      + 'closed helmets but keeps open ones such as the chain coif, as in Morrowind; Hidden hides them all.'); },
+    get effect() { return t('features.mod.weaponSheathing.effect', 'Takes effect at once with the Morrowind body.'); },
+    kinds: Object.freeze(['enhanced']),
+    control: Object.freeze({ store: 'prefs', key: 'mwBeastHelm', initial: 'worn', online: 'player',
+      tiers: Object.freeze([tier('worn', () => t('features.beast.asWorn', 'As worn')), tier('open', () => t('features.beastHelm.open', 'Open only')),
+        tier('hidden', () => t('features.beast.hidden', 'Hidden'))]) }),
+  }),
   // MW-SPELLFX1 (2026-10-07, Mac: "We need to implement morrowind spell casting effects and animations"): Morrowind's
   // spell effects - the casting effects and the glowing hands as a cast starts, the bolt it flies as, the hit and the
   // burst - off the player's own masters (scenes/mwMagicFx.js). On by default, the Morrowind body's own look. The
@@ -1258,6 +1374,23 @@ export const FEATURES = Object.freeze([
     kinds: Object.freeze(['mod']),
     control: Object.freeze({ store: 'mods', vendor: 'morrowind-textures', key: 'SeamlessDMRASource' }),
   }),
+  // MW-SHOULDER (FIELD BUGS 2026-10-26c, feature-feedback via Mac: "please, add an option to move camera a bit to the side
+  // ... for morrowind 3rd person models ... because crosshair is located on top of character's head"): the reference's
+  // view over the shoulder for the Morrowind body's camera (player/mwCamera.js) - behind the right or the left shoulder,
+  // and with a weapon or a spell out centred over the head, so a shot lands where the crosshair is. Off by default, as the
+  // reference ships it (settings.lua:44). The VIEWER'S: how this machine frames its own body, never the wire. Read every
+  // frame by player/mwView.js, so it lands at once. Eye Of The Beholder's sprite camera keeps its own offsets.
+  Object.freeze({
+    id: 'mw-shoulder-camera',
+    group: 'sight',
+    get title() { return t('features.mwShoulder.title', 'Over the Shoulder'); },
+    get note() { return t('features.mwShoulder.note', 'With a Morrowind body in third person, the camera sits behind a shoulder so your head no longer hides '
+      + 'your aim. With a weapon or a spell out it rises over your head instead, so shots land on the crosshair.'); },
+    get effect() { return t('features.effect.atOnce', 'Takes effect at once.'); },
+    kinds: Object.freeze(['enhanced']),
+    control: Object.freeze({ store: 'prefs', key: 'mwShoulderCam', initial: 'off', online: 'player', tiers: Object.freeze([
+      tier('off', OFF), tier('right', () => t('features.mwShoulder.right', 'Right')), tier('left', () => t('features.mwShoulder.left', 'Left'))]) }),
+  }),
   // MWNPC5b (2026-10-09, Mac: "I wanna do everything and ensure that performance isnt affected"): THE PEOPLE IN
   // MORROWIND BODIES - the NPC lanes (characters/npcBodies.js) under ONE frame budget (MWNPC11, NPC_FRAME_TIERS): Off, the
   // classic sprites; Near, the nearest 24 a frame within a street's width, whoever they are; All, 48 across a square. The
@@ -1273,18 +1406,34 @@ export const FEATURES = Object.freeze([
     kinds: Object.freeze(['enhanced']),
     control: Object.freeze({ store: 'prefs', key: 'mwNpcBodies', initial: 'near', online: 'player', tiers: Object.freeze([['off', 'Off'], ['near', 'Near'], ['all', 'All']]) }),
   }),
+  // NPC-MARKS (2026-10-21, the owner: "vendors and quests npcs are hard to find due to everyone looking the same. Could we
+  // make a bobbing icon above their character for morrowind specifically?"): a bobbing mark over a Morrowind body whose
+  // click is a quest's (a yellow "!"), a merchant's (an amber coin) or a guild's or the arena's (a blue gem) - scenes/npcMarksHost.js. On by
+  // default. The VIEWER'S: how this machine draws the people, never the wire. Read every frame by each host's marks, so
+  // it lands at once; under the classic sprites nothing is drawn (the picture is the mark).
+  Object.freeze({
+    id: 'npc-marks',
+    group: 'world',
+    get title() { return t('features.npcMarks.title', 'Morrowind People Marks'); },
+    get note() { return t('features.npcMarks.note', 'With Morrowind People on, a small icon bobs over the people worth finding: a yellow mark over someone a '
+      + 'quest needs, a coin over a merchant, and a blue gem over guild trainers, guild quest givers and the arena\u2019s officers.'); },
+    get effect() { return t('features.effect.atOnce', 'Takes effect at once.'); },
+    kinds: Object.freeze(['enhanced']),
+    control: Object.freeze({ store: 'prefs', key: 'npcMarks', initial: true, online: 'player' }),
+  }),
   // BODY-CARD (2026-10-14, the owner: "Reimplement the billboard morrowind look as a toggle"; asked, the upright card
   // BODY-LEAN replaced): every Morrowind body and 3D horse - the player's, a peer's, the people's - stands on an UPRIGHT
-  // card, as Daggerfall's flats do, so it draws shorter as the camera looks down on it (cos(pitch) of its height); off,
-  // the card leans by the picture's own up and the body keeps its true size (BODY-LEAN). The VIEWER'S: how this machine
-  // draws a body, never on the wire. Read where the card is stood (render/characterSprite.js drawRigSpriteBox), so it
-  // takes effect at once.
+  // card, as Daggerfall's flats do; since BODY-FLAT (2026-10-23) its picture is taken level, as a flat's art is drawn, so
+  // it stands its true height at any distance (it drew cos(pitch) of it, and a sliver up close). Off, since BODY-CROP the
+  // body is the main camera's own picture of it, true from any eye however near. The VIEWER'S: how this machine draws a
+  // body, never on the wire. Read where the picture is taken (render/characterSprite.js drawBodyPicture, drawRigSpriteBox),
+  // so it takes effect at once.
   Object.freeze({
     id: 'mw-billboard-look',
     group: 'world',
     get title() { return t('features.mwBillboardLook.title', 'Billboard Look'); },
-    get note() { return t('features.mwBillboardLook.note', 'With the Morrowind body, bodies and horses stand upright like the classic sprites and '
-      + 'look shorter from above. Off, they lean to the camera and keep their true height.'); },
+    get note() { return t('features.mwBillboardLook.note', 'With the Morrowind body, bodies and horses stand as flat upright pictures, like the '
+      + 'classic sprites. Off, they are drawn as the camera sees them in 3D.'); },
     get effect() { return t('features.effect.atOnce', 'Takes effect at once.'); },
     kinds: Object.freeze(['enhanced']),
     control: Object.freeze({ store: 'prefs', key: 'mwBillboardLook', initial: false, online: 'player' }),
@@ -1579,6 +1728,34 @@ export const FEATURES = Object.freeze([
       tiers: Object.freeze([['shots', 'Your screenshots'], ['art', 'Night sky'], ['off', 'Off']]),
     }),
   }),
+  // EVENTS1 (2026-10-23, the owner: "Instead of stuffing these in the chat menu, there must be a less obstructive and more
+  // detailed way to handle them"): THE EVENT BOARD - the shared events a player can still reach, at the HUD's left edge,
+  // and the news at its head that announces them and carries their lines (ui/eventBoard.js, bible/10-UI/Event-Board.md). On by default;
+  // off, the events' lines go back to the chat (systems/eventNotices.js). Every skin draws it (the lines left the chat on
+  // every skin). The player's own online.
+  Object.freeze({
+    id: 'event-board',
+    group: 'interface',
+    get title() { return t('features.eventBoard.title', 'Event board'); },
+    // AUDIT EVENTS1 W5: WB13b's rules (no dash aside, no rhythm of three), and the switch's truth (a raid's news goes back to
+    // the HUD's line, not the chat)
+    // EVENTS2: and what its chips do (a kind turned off leaves the board and its news, and is kept in the journal alone)
+    get note() { return t('features.eventBoard.note', 'A board at the left of the screen lists the world events you can still reach, with how far away each one '
+      + 'is and the time left. Their news opens at the top of the board and is kept in your journal. Turn an event off with its own button and '
+      + 'it leaves the board, its news kept in your journal alone. Off, the news goes back to the chat and the screen\'s message line.'); },
+    get effect() { return t('features.effect.atOnce', 'Takes effect at once.'); },
+    kinds: Object.freeze(['enhanced', 'classic']),
+    // EVENTS2 (the players on Discord: "Allow us to filter which events we want to show up in the event tracker", "I
+    // don't want all this crap cluttering up my interface"): EACH KIND A PART - a chip in the drawer, as the blood's
+    // three are, on in every kind by default and the player's own online. A kind turned off leaves the board and its
+    // news (systems/eventBoard.js eventBoardModel's `shown`, systems/eventNotices.js eventKindShown); the Timers window
+    // keeps the whole schedule.
+    control: Object.freeze({
+      store: 'prefs', key: 'eventBoard', initial: true, online: 'player',   // systems/eventNotices.js EVENT_BOARD_PREF
+      also: Object.freeze(EVENT_KIND_ORDER.map((kind) => Object.freeze({ store: 'prefs', key: eventKindPref(kind), initial: true, online: 'player' }))),
+      parts: Object.freeze(EVENT_KIND_ORDER.map((kind) => Object.freeze({ key: eventKindPref(kind), get label() { return EVENT_KINDS[kind].label; } }))),
+    }),
+  }),
   // GUIDE3 (2026-09-29, Mac: "...make it more accessible", then "This is your baby"): THE HERALD - a quest's news as
   // a notice in the enhanced stack (ui/quest/questHerald.js), fed by the quest bridge's tick. On by default (the arc's
   // DECISIONS: the silence it answers is DISC6's report); the player's own online, since news is no one else's.
@@ -1850,10 +2027,8 @@ export const FEATURES = Object.freeze([
     id: 'naval-combat',
     group: 'combat',
     get title() { return t('features.navalCombat.title', 'Naval Combat'); },
-    get note() { return t('features.navalCombat.note', 'Ship battles on Come Sail Away\u2019s boats: at the helm, look to one side and hold Attack to aim a broadside, '
-      + 'then let go to fire. Pirates, merchant ships and navies sail the Bay; batter a ship until it surrenders, board '
-      + 'it, take its cargo, then sink it or let it go. Piracy is a crime, and pirates can board your ship and '
-      + 'fight you on deck. Online, everyone in the room shares one sea.'); },
+    get note() { return t('features.navalCombat.note', 'Ship battles on Come Sail Away\u2019s boats: look to one side and hold Attack to aim a broadside, '
+      + 'then let go to fire. Pirates, merchants and navies sail every sea. Board a ship that surrenders. Piracy is a crime.'); },
     get effect() { return t('features.navalCombat.effect', 'Takes effect at once; Ship handling, the next time you take the helm. Online it is always on.'); },   // AUDIT NAV2 F14: the helm takes the handling once a session (comeSailAway.js responsive)
     kinds: Object.freeze(['enhanced']),
     control: Object.freeze({

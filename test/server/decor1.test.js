@@ -105,6 +105,10 @@ test('DECOR1 the law: a piece is WHAT it is (one model, or one flat\'s archive a
   assert.deepEqual(pl, { pos: [1.235, -0, 256], rot: [180, -90, 0], scale: 1.235, light: null, storage: true, paid: 55 });
   assert.deepEqual(decorPlaceOf({ pos: [0, 0, 0], rot: [0, 0, 0], scale: 1, paid: 0 }), { pos: [0, 0, 0], rot: [0, 0, 0], scale: 1, light: null, storage: false, paid: 0 }, 'no light, holds nothing, by default');
   const good = { pos: [0, 0, 0], rot: [0, 0, 0], scale: 1, light: null, storage: false, paid: 20 };
+  assert.equal(decorPlaceOf({ ...good, name: '  The red chest  ' }).name, 'The red chest');
+  assert.equal('name' in decorPlaceOf(good), false, 'a piece with no name of its own reads as it always did');
+  assert.equal(decorPlaceOf({ ...good, name: 'x'.repeat(33) }), null);
+  assert.equal(decorPieceOf({ ...piece(), name: 'Сундук' }).name, 'Сундук');
   for (const [k, v] of [['pos', [0, 0, DECOR_POS_MAX + 0.1]], ['pos', [0, 0]], ['pos', [0, NaN, 0]], ['rot', [181, 0, 0]], ['scale', DECOR_SCALE_MIN - 0.01], ['scale', DECOR_SCALE_MAX + 0.01], ['storage', 1], ['paid', DECOR_PRICE_MAX + 1], ['paid', -1], ['paid', 2.5], ['light', { color: [1, 1, 1], range: 0.5, intensity: 1 }], ['light', 'bright']]) {
     assert.equal(decorPlaceOf({ ...good, [k]: v }), null, `${k} ${JSON.stringify(v)}`);
   }
@@ -131,7 +135,7 @@ test('DECOR1 the law: a piece is WHAT it is (one model, or one flat\'s archive a
   assert.equal(id.slice(0, 3), '0iz', 'floor(rand x 36) in base 36');
 });
 
-test('DECOR1 the service: a home\'s pieces are any session\'s to read (a guest\'s too), nobody\'s without one; placing is the owner\'s CHARACTER\'s alone - a guest is refused, another player and the owner\'s other character find no home; a placement lands, one sent again is answered as the placement, another piece under its id is refused; a move changes where it stands and never what it is; a removal answers the piece as it stood; the cap; the hour\'s writes; the home released, its pieces go with it (mutants: the read closed to guests, a stranger placing, a stranger naming the owner\'s character, the owner\'s other character placing, a move turning one piece into another, a removal of another\'s, the cap unread, the repeat refused, the cascade)', async (t) => {
+test('DECOR1 the service: a home\'s pieces are any session\'s to read (a guest\'s too), nobody\'s without one; placing is the owner\'s alone - its ACCOUNT\'s, any character of it on its own record (ACCOUNT-HOMES) - a guest is refused, another player finds no home; a placement lands, one sent again is answered as the placement, another piece under its id is refused; a move changes where it stands and never what it is; a removal answers the piece as it stood; the cap; the hour\'s writes; the home released, its pieces go with it (mutants: the read closed to guests, a stranger placing, a stranger naming the owner\'s character, the owner\'s other character placing, a move turning one piece into another, a removal of another\'s, the cap unread, the repeat refused, the cascade)', async (t) => {
   t.mock.method(Date, 'now', () => T0 * 1000);
   const { env, call, registered } = await stand();
   for (const r of ['/v1/homes/decor', '/v1/homes/decor/place', '/v1/homes/decor/move', '/v1/homes/decor/remove']) {
@@ -140,7 +144,7 @@ test('DECOR1 the service: a home\'s pieces are any session\'s to read (a guest\'
   assert.equal((await call('POST', '/v1/homes/decor', HOME)).status, 401, 'a stranger reads nothing');
   const guest = (await call('POST', '/v1/auth/guest', { ...ACCEPTED })).body.secret;
   const empty = await call('POST', '/v1/homes/decor', HOME, guest);
-  assert.deepEqual([empty.status, empty.body], [200, { ...HOME, pieces: [], hidden: [] }], 'a guest reads a room (BASE-HIDE: and nothing of its own furniture taken out)');
+  assert.deepEqual([empty.status, empty.body], [200, { ...HOME, pieces: [], hidden: [], rev: 0, cap: DECOR_CAP, measured: false }], 'a guest reads a room (BASE-HIDE: and nothing of its own furniture taken out)');   // PIN MOVED (DECOR-ROOMY, FIELD BUGS 2026-10-29f): and the room's own cap, its ground unknown
   const g = await call('POST', '/v1/homes/decor/place', { ...HOME, character: 'char-guest', piece: piece() }, guest);
   assert.deepEqual([g.status, g.body.error], [403, 'homes-need-account']);
   assert.deepEqual(await placeDecor({ db: env.DB, nowS: T0 }, { id: 'g1', handle: null, guest_name: 'Quiet Fox' }, { ...HOME, character: 'char-guest', piece: piece() }), { error: 'homes-need-account' }, 'and the function asks again');
@@ -160,8 +164,13 @@ test('DECOR1 the service: a home\'s pieces are any session\'s to read (a guest\'
   // realm character's record is its account's alone
   const namedPlace = await call('POST', '/v1/homes/decor/place', named({ piece: piece() }), mara);
   assert.deepEqual([namedPlace.status, namedPlace.body.error], [400, 'realm-needed'], 'another player naming the owner\'s character pays with no record of it');
-  const otherChar = await call('POST', '/v1/homes/decor/place', { ...HOME, character: A2.id, realm: await realmJoinAt(env, aldric, A2.id), piece: piece() }, aldric);
-  assert.deepEqual([otherChar.status, otherChar.body.error], [404, 'no-home'], 'the owner\'s OTHER character does not own it');
+  // ACCOUNT-HOMES (2026-10-06, PIN MOVED - it was `no-home`, "the owner's OTHER character does not own it"): a home is its
+  // ACCOUNT's, so the owner's other character furnishes it too - on its OWN record, placed and taken out again
+  const a2at = await realmJoinAt(env, aldric, A2.id);
+  const otherChar = await call('POST', '/v1/homes/decor/place', { ...HOME, character: A2.id, realm: a2at, piece: piece({ id: 'a2' }) }, aldric);
+  assert.deepEqual([otherChar.status, otherChar.body.ok, otherChar.body.gold, otherChar.body.realm?.seq], [200, true, -180, a2at.seq + 1], 'the owner\'s other character places in it, paid on its own record');
+  const otherOut = await call('POST', '/v1/homes/decor/remove', { ...HOME, character: A2.id, realm: { ...a2at, seq: otherChar.body.realm.seq }, id: 'a2' }, aldric);
+  assert.deepEqual([otherOut.status, otherOut.body.gold], [200, 90], 'and takes it out again, half back on its own record');
   const p1 = await call('POST', '/v1/homes/decor/place', await at({ piece: piece() }), aldric);
   assert.deepEqual([p1.status, p1.body.ok, p1.body.piece, p1.body.gold], [200, true, piece(), -180], 'placed, and paid on the record');
   const again = await call('POST', '/v1/homes/decor/place', await at({ piece: piece() }), aldric);
@@ -294,7 +303,7 @@ test('DECOR2c a mount in an online home: the service keeps a weapon or shield hu
   assert.deepEqual((await call('POST', '/v1/homes/decor', HOME, mara)).body.pieces, [axe], 'every visitor reads it hung');
   const past = piece({ id: 'w2', model: null, flat: [100_000, 0], item: { t: 120, g: 3, m: null, v: null, a: null, p: null }, paid: 0 });   // DECOR-MODFLATS: past a mod's five digits
   assert.equal((await call('POST', '/v1/homes/decor/place', at({ piece: past }), aldric)).body.error, 'bad-decor');
-  // DECOR-MODFLATS: a mod's flat - Detailed Ships' own, "Decoration 49" onward - is a piece to the service too
+  // DECOR-MODFLATS: a mod's flat - the town items', "Decoration 49" onward - is a piece to the service too
   const ship = piece({ id: 'w3', model: null, flat: [1210, 1], paid: 20 });
   const shipped = (await call('POST', '/v1/homes/decor/place', at({ piece: ship }), aldric)).body;
   assert.deepEqual([shipped.ok, shipped.piece, shipped.gold], [true, ship, -20]);
@@ -341,7 +350,7 @@ test('DECOR1 the client\'s door: every call rides the one session as a Bearer he
   for (const w of ['decor-cap', 'decor-taken', 'decor-rate', 'no-decor', 'bad-decor', 'no-home', 'homes-need-account', 'home-character', 'bad-home']) {
     assert.equal(typeof REFUSALS[w], 'string', `${w} has its sentence`);
   }
-  assert.match(REFUSALS['decor-cap'], /at most 200 pieces/);
+  assert.match(REFUSALS['decor-cap'], /This room holds as many pieces as it can/);   // PIN MOVED (DECOR-ROOMY, FIELD BUGS 2026-10-29f): each room has its own cap, which the bar says
   const wf = src('.github/workflows/account-deploy.yml');
   assert.match(wf, /- "src\/net\/decorLaw\.js"/);
   assert.match(wf, /\$base\/v1\/homes\/decor"/);
@@ -376,11 +385,11 @@ test('DECOR1 the catalogue - "Everything Daggerfall furnishes": every interior P
   assert.equal(by['f210.3'].name, 'Candle');
   assert.equal(by['f210.99'].name, 'Light', 'a light the table does not name');
   assert.deepEqual([by['f205.2'].name, by['f205.7'].name], ['Box 1', 'Box 2']);
-  assert.equal(by['f300.0'].kind, 'decor');
+  assert.equal(by['f300.0'].kind, 'dungeon');   // PIN MOVED (DECOR-KINDS, FIELD BUGS 2026-10-29f): TEXTURE.300 is cave rock, a dungeon's piece wherever it stands
   assert.deepEqual([by.m41811.storage, by.m41120.storage], [true, false], 'a house container holds things by default');
   assert.ok(by['f210.3'].light && by['f210.3'].light.range >= 1, 'a light carries Daggerfall\'s own light');
   assert.equal(by.m41000.light, null);
-  assert.deepEqual(cat.map((e) => e.kind).filter((k, i, a) => a.indexOf(k) === i), ['bed', 'storage', 'furniture', 'light', 'boxes', 'decor'], 'ordered by kind');
+  assert.deepEqual(cat.map((e) => e.kind).filter((k, i, a) => a.indexOf(k) === i), ['bed', 'storage', 'furniture', 'light', 'boxes', 'dungeon'], 'ordered by kind');
   assert.ok(cat.findIndex((e) => e.key === 'm41811') < cat.findIndex((e) => e.key === 'm41003'), 'most common first within a kind');
   assert.ok(Object.isFrozen(cat[0]));
   // the panel's filters
@@ -399,7 +408,7 @@ test('DECOR1 the catalogue - "Everything Daggerfall furnishes": every interior P
   assert.equal(keys(filterDecor(cat, { sort: 'price', radiusOf })).at(-1) !== 'm41120', true, 'an unmeasured piece sorts last by price');
   assert.deepEqual(keys(filterDecor(cat, { kinds: ['storage'], sort: 'name' })), ['m41811', 'm41003']);
   assert.deepEqual([decorSize(0.2), decorSize(0.5), decorSize(1.25), decorSize(null)], ['small', 'medium', 'large', null]);
-  assert.equal(Object.keys(DECOR_KINDS).length, 18);   // HOME-DOORS: and the doors, hung in a doorway; HOME-VENDOR: and the people; DECOR-DUNGEON: and a dungeon's own furniture; DECOR-OUTDOOR: and the street's, and the climate's nature; DECOR-MODS: and the town mods' furnishings
+  assert.equal(Object.keys(DECOR_KINDS).length, 22);   // DECOR-KINDS: and statues, tools, animals and remains; HOME-DOORS: and the doors, hung in a doorway; HOME-VENDOR: and the people; DECOR-DUNGEON: and a dungeon's own furniture; DECOR-OUTDOOR: and the street's, and the climate's nature; DECOR-MODS: and the town mods' furnishings
 });
 
 // DECOR1c: a room's pool over fakes of the host's own seams - the pipeline's meshes and textures, the renderer, the room's
@@ -556,15 +565,17 @@ test('DECOR1c the room\'s host (worldModes.js): one pool on the room\'s own coll
   assert.match(m, /const placed = \(data\.decor \?\? \[\]\)\.map\(decorPieceOf\)\.filter\(Boolean\);\n    if \(interiorHome \|\| _seatHallVisit\) interiorDecor\.keep\(placed\); else interiorDecor\.set\(placed\);[^\n]*\n    interiorDecor\.setItems\(data\.decorItems\);/);   // PIN MOVED (SEAT-HALL): the palace's hall shares the line   // PIN MOVED (AUDIT SEATS-3): the visit's latch (C2)
   assert.match(m, /mountQuestResources\(\);\n      loadHomeDecor\(\);/);
   assert.ok(m.indexOf('loadHomeDecor();   // DECOR1c') > m.indexOf('restoreInteriorScene();\n      // AUDIT 63 F22'), 'after the restore, which latched the home and kept the save\'s record');
-  assert.match(m, /const visit = _decorVisit;\n    askDecorList\(\{\n      ask: \(\) => host\.homeDecor\.list\(homeTownOf\(b\), b\.buildingKey, seat\),\n      live: \(\) => visit === _decorVisit && interiorBuilding === b && _decorListed !== visit,\n      stand: \(r\) => \{\n        _decorListed = visit;[^\n]*\n(?:        \/\/[^\n]*\n)*        const shown = homeDecorShown\(interiorHome\);\n        const pieces = r\.data\.pieces\.map\(decorPieceOf\)\.filter\(\(p\) => p && \(shown \|\| decorStaysShunned\(p\)\)\);[^\n]*\n        interiorDecor\.set\(pieces\);/);   // AUDIT DECOR-SHELL 2: a list that did not stand stands nothing (askDecorList, decorshell.test.js)   // DECOR2a: the pieces kept for the strays' reckoning   // PIN MOVED (SEAT-HALL): the palace's hall shares the line; PIN MOVED (HOME-VOTE): a shunned home's pieces stand for its insiders alone (AUDIT B2: but its trader)
+  assert.match(m, /const visit = _decorVisit;\n    askDecorList\(\{\n      ask: \(\) => primedDecorList\(decorListKey\(homeTownOf\(b\), b\.buildingKey, seat\)\) \?\? host\.homeDecor\.list\(homeTownOf\(b\), b\.buildingKey, seat\),\n      live: \(\) => visit === _decorVisit && interiorBuilding === b && _decorListed !== visit,\n      stand: \(r\) => \{\n        _decorListed = visit;[^\n]*\n(?:        \/\/[^\n]*\n)*        const shown = homeDecorShownHere\(interiorHome, homeTownOf\(b\)\);[^\n]*\n        const pieces = r\.data\.pieces\.map\(decorPieceOf\)\.filter\(\(p\) => p && \(shown \|\| decorStaysShunned\(p\)\)\);[^\n]*\n        interiorDecor\.set\(pieces\);/);   // AUDIT DECOR-SHELL 2: a list that did not stand stands nothing (askDecorList, decorshell.test.js)   // DECOR2a: the pieces kept for the strays' reckoning   // PIN MOVED (SEAT-HALL): the palace's hall shares the line; PIN MOVED (HOME-VOTE): a shunned home's pieces stand for its insiders alone (AUDIT B2: but its trader); PIN MOVED (HOME-MUTE, FIELD BUGS 2026-10-29f): nor for me, a home I hid
   assert.match(m, /interiorArrows\.draw\(renderer, interiorCtx\.texRemap\);\n    interiorDecor\.draw\(renderer, interiorCtx\.texRemap\);/);
   assert.match(m, /const _decorFlats = \[\.\.\.interiorDecor\.batches\(\), \.\.\.decorTool\.batches\(\)\];[^\n]*\n      if \(_decorFlats\.length\) renderer\.drawBillboards\(_decorFlats, camRight, UP_Y\);/);
-  assert.match(m, /targets\.push\(\.\.\.interiorDecor\.targets\(\)\);/);
-  assert.match(m, /if \(key\.startsWith\('decor:'\)\) \{ activateDecor\(decorIdOfKey\(key\)\); return true; \}/);
+  assert.match(m, /targets\.push\(\.\.\.interiorDecor\.targets\(\)[,)]/);   // PIN MOVED (DECOR-ACCESS): decorating also aims the room's own furniture
+  assert.match(m, /if \(key\.startsWith\('decor:'\) \|\| key\.startsWith\('base:'\)\) \{ [^\n]*: activateDecor\(decorIdOfKey\(key\)\)\)\); return true; \}/);   // PIN MOVED (DECOR-ACCESS): pressed while decorating, the plaque's act; otherwise the piece itself
   // PIN MOVED (AUDIT CAPTAIN'S SEA P9): a house's deed read where it stands - never an isle town's building (houseOwnedAt)
   assert.match(m, /function decorOwnerHere\(\) \{\n    if \(privateVisitRoom\) return false;\n    if \(interiorCabin\) return true;\n    if \(interiorHome\) return interiorHome\.own;\n    const b = interiorBuilding;\n    if \(!b\) return false;\n    if \(b\.buildingType === BUILDING_TYPES\.Ship\) return ownsShip\(playerEntity\);\n    return houseOwnedAt\(b, b\.buildingKey \?\? 0\);\n  \}/);
-  assert.match(m, /if \(!piece\?\.storage\) return;\n(?:    if \(\(interiorHome\?\.hall && interiorHome\.member\) \|\| interiorSeatHall\?\.member\) \{ openHallChest\(\); return; \}[^\n]*\n)?    if \(!decorOwnerHere\(\)\) \{\n      if \(interiorHome\) say\(homeBelongsLine\(interiorHome\)\);\n      return;\n    \}\n    const win = interiorInventory\(\{ loot: \{ items: \(\) => interiorDecor\.itemsOf\(id\), storage: true \} \}\);/);   // SHIP-STORE: the owner's storage, two-way; GUILD1d (re-aimed by content): a hall's member opens the guild's chest first   // PIN MOVED (SEAT-HALL): the palace's hall shares the line
-  assert.match(m, /const t = decorNames\.get\(decorKey\(piece\)\) \?\? \(piece\.storage && piece\.model != null \? houseContainerName\(piece\.model\) : null\);/);
+  assert.match(m, /if \(!piece\?\.storage\) return;\n(?:    if \(\(interiorHome\?\.hall && interiorHome\.member\) \|\| interiorSeatHall\?\.member\) \{ [^\n]*openHallChest\(\)[^\n]*\n)?    if \(decorIsShared\(piece\.id\) \|\| !decorOwnerHere\(\)\) \{\n      if \(decorIsShared\(piece\.id\) \|\| decorMayStorage\(piece\.id\)\) \{ openSharedChest\(piece\.id\); return; \}\n      if \(interiorHome\) say\(homeBelongsLine\(interiorHome\)\);\n      return;\n    \}\n    \/\/ [^\n]*\n    openOwnChest\(piece\.id, !!interiorHome, \(\) => \{ interiorOverlay = interiorInventory\(\{ loot: \{ items: \(\) => interiorDecor\.itemsOf\(id\), storage: true \} \}\) \?\? interiorOverlay; \}\);/);   // SHIP-STORE: the owner's storage, two-way; GUILD1d (re-aimed by content): a hall's member opens the guild's chest first   // PIN MOVED (SEAT-HALL): the palace's hall shares the line   // PIN MOVED (HOME-SHARE-WAIT, FIELD BUGS 2026-10-25d): the owner's window through decorGrants.js openOwnChest
+  // PIN MOVED (DECOR-ACCESS): the plaque's name is the piece's own name, else the catalogue's, else a storage piece's container (systems/worldTooltips.js indoorDecorHover)
+  assert.match(m, /catalogueName: piece \? \(piece\.name \|\| \(decorNames\.get\(decorKey\(piece\)\) \?\? null\)\) : null,\n {10}containerName: piece\?\.model != null \? houseContainerName\(piece\.model\) : null,/);
+  assert.match(src('src/systems/worldTooltips.js'), /const t = catalogueName \?\? \(piece\.storage && piece\.model != null \? containerName : null\);/);
   assert.match(w, /const homeDecor = params\.has\('online'\) \? accountDecor\(\{ fetch: \(u, i\) => globalThis\.fetch\(u, i\), storage: appStorage\(\) \}\) : null;/);
   assert.match(w, /\n    homeDecor,   \/\/ DECOR1c/);
 });

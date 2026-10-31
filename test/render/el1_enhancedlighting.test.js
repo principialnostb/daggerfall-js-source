@@ -238,23 +238,23 @@ test('EL1: the renderer builds the classic set alone, compiles the lane once on 
   const classicMesh = r.program, classicBb = r.bbProgram, classicTerrain = r.terrainProgram, classicChar = r.charProgram;
   assert.equal(r.lightingLane, null); assert.equal(r.maxPointLights, 16);
   r.setLightingLane(EL_LANE);
-  assert.equal(count(calls, 'compileShader') - boot, 26, 'the lane: five programs (MAC-BUG W6: the decal\'s twin), a VS and an FS each; EL2: and the shadow pass\'s three depth programs (AUDIT BAY A12: and the one that cuts a fading ship\'s shadow); EL7: the rigs\' depth program and the water surface\'s lane program; CACHE-COPY: and the copy that puts the shadow cache into the live layers; RW1: and the caster that cuts a cutout picture\'s holes, compiled with the rest - never on the frame that first needs it');
+  assert.equal(count(calls, 'compileShader') - boot, 28, 'the lane: five programs (MAC-BUG W6: the decal\'s twin), a VS and an FS each; EL2: and the shadow pass\'s three depth programs (AUDIT BAY A12: and the one that cuts a fading ship\'s shadow); EL7: the rigs\' depth program and the water surface\'s lane program; CACHE-COPY: and the copy that puts the shadow cache into the live layers; RW1: and the caster that cuts a cutout picture\'s holes; WL1: and the caster that cuts a window\'s panes from a building\'s sun map, compiled with the rest - never on the frame that first needs it');
   assert.equal(r.lightingLane, EL_LANE); assert.equal(r.maxPointLights, 48);
   assert.notEqual(r.program, classicMesh); assert.notEqual(r.bbProgram, classicBb); assert.notEqual(r.terrainProgram, classicTerrain); assert.notEqual(r.charProgram, classicChar);
   const laneMesh = r.program;
   const lookups = count(calls, 'getUniformLocation'), stamp = r._frameStamp;
   r.setLightingLane(EL_LANE);
-  assert.equal(count(calls, 'compileShader') - boot, 26, 'the same lane again compiles nothing');
+  assert.equal(count(calls, 'compileShader') - boot, 28, 'the same lane again compiles nothing');
   assert.equal(count(calls, 'getUniformLocation'), lookups, 'and looks nothing up');
   // LA-COST7 (2026-09-27): a set installed again looks nothing up now either - its locations are memoized on it - so
   // the no-op is read off what an install still does: it forgets every frame block, and the stamp moves (LA-COST1)
   assert.equal(r._frameStamp, stamp, 'and moves no stamp: the same lane again is a no-op');
   r.setLightingLane(null);
-  assert.equal(count(calls, 'compileShader') - boot, 26, 'back to classic compiles nothing');
+  assert.equal(count(calls, 'compileShader') - boot, 28, 'back to classic compiles nothing');
   assert.equal(r.program, classicMesh); assert.equal(r.bbProgram, classicBb); assert.equal(r.terrainProgram, classicTerrain); assert.equal(r.charProgram, classicChar);
   assert.equal(r.maxPointLights, 16); assert.equal(r.lightingLane, null);
   r.setLightingLane(EL_LANE);
-  assert.equal(count(calls, 'compileShader') - boot, 26, 'the lane again is the kept set');
+  assert.equal(count(calls, 'compileShader') - boot, 28, 'the lane again is the kept set');
   assert.equal(r.program, laneMesh);
   // the cap: 48 lights survive setPointLights on the lane, 16 on classic
   const lights = new Float32Array(60 * 4).map((_, i) => i);
@@ -404,7 +404,7 @@ test('EL1: syncLightingLane is the host\'s one call, the flame colour rides the 
     assert.match(s, /nearestLights\([^)]*renderer\.maxPointLights/, `${f}: the installed cap`);
   }
   // PIN MOVED (OW-HORIZON, 2026-10-20): the ring is handed the renderer itself, and takes its lane from it (and each frame its focus and its deck)
-  assert.match(hostText('src/scenes/world.js'), /new FarRingRenderer\(renderer\.gl, \{ renderer \}\)/, 'the ring takes the same lane');
+  assert.match(hostText('src/scenes/world.js'), /new FarRingRenderer\(renderer\.gl, \{ renderer, mid: terrainGen \}\)/, 'the ring takes the same lane');   // PIN MOVED (MID-RING): and the terrain's client
   assert.match(hostText('src/scenes/world.js'), /exposure: renderer\.exposure/, 'and the same exposure');
   assert.match(read('src/scenes/worldModes.js'), /lanternColor\(!!renderer\.lightingLane, new Float32Array\(DUNGEON_LIGHT_COLOR\)\)/);
   assert.ok(!/lanternColor/.test(read('src/scenes/interior.js')), 'the interior\'s lights carry their own colours (interiorLightProperties) - no flame over them');

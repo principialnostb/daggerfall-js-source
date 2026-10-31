@@ -29,8 +29,8 @@
   {
     "name": "ports-filter-skips-search",
     "file": "src/ui/heldMap.js",
-    "old": "        if (!this._discovered(entry.summary)) continue;",
-    "new": "        if (!checkLocationDiscovered(entry.summary)) continue;",
+    "old": "        if (entry.pastBay ? this.portsFilter && !entry.port : !this._discovered(entry.summary)) continue;",
+    "new": "        if (entry.pastBay ? this.portsFilter && !entry.port : !checkLocationDiscovered(entry.summary)) continue;",
     "tests": [
       "test/ui/heldmap.test.js"
     ]
@@ -76,8 +76,8 @@
   {
     "name": "mark-ring-hidden-at-far",
     "file": "src/ui/ink/inkMap.js",
-    "old": "      if (m.mapId !== opts.markedMapId || !visible(m.x, m.y)) continue;",
-    "new": "      if (m.mapId !== opts.markedMapId || !visible(m.x, m.y) || !shown.has(m.colorIndex)) continue;",
+    "old": "      if (m.mapId !== opts.markedMapId || !visible(m.x, m.y, reach)) continue;",
+    "new": "      if (m.mapId !== opts.markedMapId || !visible(m.x, m.y, reach) || !shown.has(m.colorIndex)) continue;",
     "tests": [
       "test/ui/heldmap.test.js"
     ]
@@ -205,11 +205,12 @@
   {
     "name": "walked-only-for-coords",
     "file": "src/ui/heldMap.js",
-    "old": "    if (s && (sel.coords || isPlayerControlledTravel(s, st.opts))) {",
-    "new": "    if (s && sel.coords) {",
+    "old": "    if (s && ((sel.coords && !sel.place) || isPlayerControlledTravel(s, st.opts))) {",
+    "new": "    if (s && sel.coords && !sel.place) {",
     "tests": [
       "test/ui/heldmap.test.js"
-    ]
+    ],
+    "note": "TRAVEL-EVERYWHERE (PIN MOVED): re-aimed by content - a place past the Bay is travelled to as a Bay place is"
   },
   {
     "name": "coords-hand-no-flag",

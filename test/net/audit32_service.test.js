@@ -57,7 +57,14 @@ async function stand() {
     for (let i = 0; i < n; i++) ins.run(today(), bodyOf(), who.id, qty, _now, `seed-${String(++_rid).padStart(6, '0')}`, tier);
   };
   const rate = (who) => Number(raw.prepare('SELECT count FROM rate_limits WHERE key = ?').get(`prof:${who.id}`)?.count ?? 0);
-  return { ...s, raw, stores, give, setXp, hunted, rate };
+  /** WOVEN-PAYS (AUDIT WOVEN-PAYS): `qty` bolts bought at the Weavers' counter, through the real route - into the Stores as
+   *  bought and counted against the cloth's first (`prof_silver_cloth`); a bought row written by hand is no silver now. */
+  const buy = async (who, m, qty) => {
+    raw.prepare('INSERT INTO marks (account, balance) VALUES (?, 1000) ON CONFLICT (account) DO UPDATE SET balance = 1000').run(who.id);
+    const r = await s.call('/v1/prof/stock', { character: who.character, material: m, qty, rid: rid() }, who.secret);
+    assert.equal(r.status, 200, JSON.stringify(r.body));
+  };
+  return { ...s, raw, stores, give, setXp, hunted, rate, buy };
 }
 const skin = (who, foe, extra = {}) => ({
   character: who.character, node: bodyOf(), kind: 'hide', foe, act: { clean: false, torn: false }, at: _now - 2, rid: rid(), ...extra,
@@ -155,13 +162,13 @@ test('AUDIT 32 S5: a weave answers no track (no XP, no raising choice) - never S
 
 // ─── S1: THE COUNTER'S CLOTH TEACHES NO FIRST CRAFT ──────────────────
 
-test('AUDIT 32 S1 (Mac: "Whatever you think is best"): a Linen garment, a Wool rug and the Fishing-Net - wholly the Weavers\' cloth - answer their craft\'s XP and no first-craft bonus, the first recorded; a boot\'s Cured Leather keeps the 500; the recipe decides, not the units\' origin', async () => {
+test('AUDIT 32 S1 (Mac: "Whatever you think is best"): a Linen garment, a Wool rug and the Fishing-Net - wholly the Weavers\' cloth - answer their craft\'s XP and no first-craft bonus, the first recorded; a boot\'s Cured Leather keeps the 500; PIN MOVED (CLOTH-GEMS): the units decide - a station spends the bought first, so each of these spent the counter\'s cloth (the loom\'s own pays: test/net/clothgems_service.test.js)', async () => {
   const s = await stand();
   const mac = await s.seated('Mac');
   const xp = () => Number(s.raw.prepare('SELECT xp FROM prof_tracks WHERE player = ? AND char_id = ? AND profession = ?').get(mac.id, mac.character, 'outfitting')?.xp ?? 0);
   const craft = (recipe) => s.call('/v1/prof/craft', { character: mac.character, recipe, clean: false, name: 'Mac', rid: rid() }, mac.secret);
-  s.give(mac, 'cloth:linen', 'bought', 10);
-  s.give(mac, 'cloth:linen', 'own', 10);   // no hand gathers it; were one to, the recipe is still the counter's
+  await s.buy(mac, 'cloth:linen', 10);   // PIN MOVED (WOVEN-PAYS, AUDIT WOVEN-PAYS): bought at the counter, counted against the cloth's firsts
+  s.give(mac, 'cloth:linen', 'own', 10);   // CLOTH-GEMS: the loom weaves it now - but the ten bought with silver count first, and they pay none
   s.give(mac, 'leather:cured', 'own', 5);
   const straps = await craft('garment-141:linen');
   assert.equal(straps.status, 200, JSON.stringify(straps.body));
@@ -170,11 +177,11 @@ test('AUDIT 32 S1 (Mac: "Whatever you think is best"): a Linen garment, a Wool r
   const net = await craft('fishingnet:linen');
   assert.deepEqual([net.status, net.body.xp, net.body.first], [200, 20, true]);
   const boots = await craft('garment-149:linen');
-  assert.deepEqual([boots.status, boots.body.xp, boots.body.first, xp()], [200, 20 + 500, true, 560], 'a bolt and a Cured Leather: the 500 laid on');
+  assert.deepEqual([boots.status, boots.body.xp, boots.body.first, xp()], [200, 20 + 511, true, 571], 'a bolt and a Cured Leather: its first laid on');   // PIN MOVED (FIRST-BUDGET, Professions-Arc 52): Outfitting's first-make share, 511 - the least that brings Outfitting to Master in Smithing's 172 crafts
   const again = await craft('garment-149:linen');
   assert.deepEqual([again.body.xp, again.body.first], [20, false], 'and once');
   s.setXp(mac, xpForRank(10), 'outfitting');
-  s.give(mac, 'cloth:wool', 'bought', 3);
+  await s.buy(mac, 'cloth:wool', 3);
   const rug = await craft('rug-237:wool');
   assert.deepEqual([rug.status, rug.body.xp, rug.body.first, xp()], [200, 40, true, xpForRank(10) + 40], 'Wool at tier 2: 40, no 500');
 });

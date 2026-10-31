@@ -10,8 +10,8 @@ page says what stands after it (each change marked `AUDIT PRECIP` with its findi
 On the enhanced lane what falls and what lies are read off one physical quantity, the AIR's temperature at a place, a
 height and a minute. Every system on the weather map (`Weather-Arc.md` WEATHER3) falls at a SNOW SHARE: all snow at
 0 C and under, all rain at 2.5 C and over, sleet between. The ground keeps what fell and has not melted, at every height:
-its SNOWPACK. Each fragment of terrain wears its own climate's winter tile in the share of the snow at its own height and
-slope. A white peak stands over a green valley in a thaw, a cold front brings the snow down to the sea, the jungle's rain
+its SNOWPACK. Each fragment of terrain wears its own climate's winter tile in the share of the snow at its own height
+(SNOW-FACE, below: a steep face's too). A white peak stands over a green valley in a thaw, a cold front brings the snow down to the sea, the jungle's rain
 stops at its edge in a band of sleet, and the Alik'r's sands never see a flake (its mountain fringe does, 0.2 % of its
 winter's wet hours). Pure in place and minute: every client sees the same snow, offline and online.
 
@@ -44,7 +44,9 @@ was a map pixel's straight edge. The classic lane is DFU's, 1:1, and untouched.
 **The law's map** (`systems/weather/airGround.js` `lawAirGround`, handed by the host with `setAirGround`; AIR-1): CLIMATE.PAK
 as the file holds it (`undilated` - the coastal dilation is a texture repair, and its edge drew a snow line in the sea),
 the continent past the Bay and the Eltheric Ocean's own composition, whatever the client's own rows - online every client
-reads one air. It answers the drawn ground's mean (`groundAt`) and its top (`topAt`, the snowpack's ceiling).
+reads one air. It answers the drawn ground's mean (`groundAt`) and its top (`topAt`, the snowpack's ceiling). Both are
+kept a pixel and dropped when the zones' stamp moves (the trace or the relief landing after the boot, a fit), and the
+snowpack drops its points and systems with them (`snowpack.js` `fresh` - AUDIT TESA II G3, `03-World/Tamriel-Biomes.md`).
 
 **The blend.** Each pixel's air (`pixelAir`) is its climate's row - a sea pixel's the nearest land's within
 `MARITIME.reach` - blended toward the Ocean's by its MARITIME SHARE: a half at the shoreline, none 12 pixels inland, all
@@ -211,13 +213,13 @@ take `SNOW_COVER.arriveMs`. Each frame then integrates the window within `budget
 minutes and eases each point's shown line toward it (`ease`), so the snowline walks with the weather and never jumps.
 The window's lines are kept for its own points alone (PACK-5: a region come back to was built in the snow of the day
 the player left it). The lane is asked of the law itself until the first frame reads it; a pixel built under the other
-lane is re-skinned once (HOST-N1). A clock run backwards starts the packs again from their origin.
+lane is built again once (HOST-N1; LANE-TURN, below: it was sent to the re-skin, which refused it). A clock run backwards starts the packs again from their origin.
 
 SNOW-BUDGET (2026-10-20, `07-Rendering/Performance-Priority.md` SNOW-BUDGET) made `budgetMs` a budget kept. `advance` read
 its deadline only between whole steps of the window, ~10 ms each, so a frame's 3 ms ran a step at the least. Each of a
 frame's readers (the tick, the feet's `winterAt`, the mod's `winterNear`) also ran its own. Now a step's points stop at
-the deadline, and the asks within `frameMs` share one budget. The packs are unchanged. The drawn cover reads the slope
-only where the snowline lays snow.
+the deadline, and the asks within `frameMs` share one budget. The packs are unchanged. The drawn cover read the slope
+only where the snowline lays snow (since SNOW-FACE it reads none, and the host asks the stream no heights).
 
 **The terrain.** The frame's lines are ONE small texture every terrain fragment reads at its own place
 (`renderer.js` `setSnowFrame`, shadowed per program - GROUND-7: it was six uniforms a draw); a draw hands only its first
@@ -230,20 +232,39 @@ No new texture unit. Each fragment then:
 
 1. reads the line between its cell's corners and its cover off its own height (`snowLine`, `snowAtHeight`:
    `coverAtHeight` term for term);
-2. sheds it on a steep face (`SNOW_GROUND.slope`, the normal's y 0.62 to 0.8);
-3. breaks a thin cover into patches on the world tile's own lattice (three octaves of 1, 4 and 16 tiles), continuous
+2. breaks a thin cover into patches on the world tile's own lattice (three octaves of 1, 4 and 16 tiles), continuous
    across pixel edges, each octave fading as the fragment's footprint passes half its cell (GROUND-8: the far snowline
    boiled); a bare cover stays bare and a whole one whole;
-4. wears its OWN climate's winter record of the same tile in that share (every ground set is the same 56 records, R9).
+3. wears its OWN climate's winter record of the same tile in that share (every ground set is the same 56 records, R9).
    Across a climate border each neighbour's winter comes from its own twin by ECOTONE1's own weights (`ecoWeights`,
    computed once and handed to both - GROUND-6), so the snow crosses the border as the ground does.
 
-The same cover on the CPU is `snowCoverAt` (GROUND-3: the slope and the patches lived only in GLSL), read by the grass
-and the feet. Under the snow the water's bed and sheet mix their summer and winter masks by the cover (GROUND-5: the
-summer puddles were drawn over the winter art). A desert's ground has no winter set (`TerrainMaterialProvider`'s guard),
-so its twin offset is nought and the cover leaves it as it is; next to a snowy neighbour, the neighbour's winter still
-blends in across the band. The sea's floor wears the lane's ground (its summer set; the snow is the ground's by its
-cover), never the pixel's season.
+The same cover on the CPU is `snowCoverAt` (GROUND-3: the patches lived only in GLSL), read by the grass and the feet.
+Under the snow the water's bed and sheet mix their summer and winter masks by the cover (GROUND-5: the summer puddles were
+drawn over the winter art). A desert's ground has no winter set (`TerrainMaterialProvider`'s guard), so its twin offset
+is nought and the cover leaves it as it is; next to a snowy neighbour, the neighbour's winter still blends in across the
+band. The sea's floor wears the lane's ground (its summer set; the snow is the ground's by its cover), never the pixel's
+season (AUDIT FB1021 L4-9: these stood inside LANE-TURN's paragraph).
+
+SNOW-FACE (FIELD BUGS 2026-10-21, `01-Overview/bugs/Field-Bugs-2026-10-21.md`, the owner's screenshot of a straight green
+band up a white range's side, bare of snow and of trees): the fragment shed its snow on a steep face (`SNOW_GROUND.slope`,
+the normal's y from 0.8 to 0.62 - 37 to 52 degrees), and what lay under it was its summer set's own tile, Daggerfall's
+grass, its dirt and its stone: the sets have no rock face to shed to. The landforms stand a range's flank past 52 degrees
+hundreds of metres wide (on the freeware's map 44% of the Dragontail pixel beside The Bat and Cat Pub, 924,473, and 40%
+of 917,472 - AUDIT FB1021 L1-3, L4-5), and DFU's TerrainNature stands no tree past 50 degrees, so the face drew as a green wall up a white mountain. There is no slope in
+the law now: a face keeps the snow its height lays, as DFU's winter set dresses every tile, steep or not; its trees are
+DFU's still (none past 50 degrees), and in snow it reads as a snowfield. A steep face's green summer patches between 37
+and 52 degrees went with it.
+
+LANE-TURN (the same record): a pixel standing when the lane turns (the "Weather as places" or "Enhanced environments"
+preference turned in play - `precipLawOn` reads them every call; AUDIT FB1021 L1-1) was sent to the snow's re-skin, and
+`reskinPixelNow` refuses both turns - one built off the lane keeps no `_skin`, and off the lane the snow is not `on` - so
+it wore the other lane's ground until it streamed out: in a winter turned off the lane, a ground array that was never
+loaded (the lane loads the twin alone, so most likely black - AUDIT FB1021 L1-7), or its summer set if that was cached. A
+lane's ground is its own archive (`groundArchive`: the summer set on the lane, DFU's season off it), which no re-skin
+touches, so the host marks such a pixel for a rebuild (`markRebuild`, world.js `_reskin.mark`), as the classic flip
+rebuilds its pixels - a turn onto the lane once the snow's window stands, so the torn-down grid's first rebuild never
+waits on a cold year's integration in frame slices (AUDIT FB1021 L1-1).
 
 **The builds.** A pixel's buildings, its town's climate swaps, its windmills and its homes wear Winter where the snow at
 its middle's ground (a town's planed height, else the ground's middle) covers a half (`SNOW_COVER.winter`). Each tree,
@@ -254,8 +275,11 @@ client builds one world. Every decision is kept as the build takes it (`recorder
 sweep's signature was not what the build wore; a flat the verge refused is never asked). The ground's archive is the
 summer one (the twin dresses its winter).
 
-**The sweep and the re-skin** (HOST-3/7). At every new step of the grid THE SWEEP marks every standing pixel any one of
-whose decisions the snow now takes otherwise, nearest first, a SKIN (`world/seasonReskin.js` `skin`), never a rebuild.
+**The sweep and the re-skin** (HOST-3/7). At every new step of the grid, and at every lattice cell the window moves (its
+lines read afresh), THE SWEEP marks every standing pixel any one of whose decisions the snow now takes otherwise,
+nearest first, a SKIN (`world/seasonReskin.js` `skin`), never a rebuild. The frame walks it a slice a frame within the
+snow's frame budget, marking each pixel as it is found due (SNOW-SWEEP, `07-Rendering/Performance-Priority.md`): checked
+whole in one frame, it was 40-70 ms of script every two map pixels a fast journey crossed.
 The nearest one standing is re-skinned a pump's turn at a time (`runSkin`, under the build flag, from `world.js`
 `tickSeason`): `scenes/pixelBuild.js` `reskinPixelNow` - DFU's `ApplyClimateSettings`, what stands re-skinned in place.
 The build logs what a re-skin reads (`_skin`, on the lane alone): its flats in the order they stood (each with its own
@@ -327,6 +351,9 @@ Named here and in the Ledger row.
 - `test/render/precip4_snowground.test.js` (18): the chunk run through `test/glsl.mjs` against the law; the draw, the
   twin and the frame's texture on a recording GL; the host's clock, lines, draws, seasons, settle, sweep and feet; the
   wiring.
+- `test/render/fb1021_snowface.test.js` (3): SNOW-FACE and LANE-TURN - no slope in either terrain program, the water's bed
+  or the Snowfall mod's surface, a whole cover whole across a pixel; the Dragontail's faces on the freeware's map; a
+  lane's turn rebuilt, never re-skinned, onto the lane once the window stands.
 - `test/render/audit_precip_sky.test.js` (8) and `test/scenes/audit_precip_host7.test.js` (8): the sky's fixes and the
   in-place re-skin.
 - `tools/mutants/precip1.json` (one recorded equivalent) and `tools/mutants/audit_precip.json` - all dead.

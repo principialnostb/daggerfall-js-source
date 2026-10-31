@@ -204,8 +204,8 @@
   {
     "name": "GRAVE-PARTY-the-session-asks-no-margin",
     "file": "src/net/online.js",
-    "old": "validOwIn({ k, rows: payload.filter((r) => owRowInCell(r, room)).slice(0, OW_WORD_ROWS_MAX) }) : null;",
-    "new": "validOwIn({ k, rows: payload.slice(0, OW_WORD_ROWS_MAX) }) : null;",
+    "old": "validOwIn({ k, rows: payload.filter((r) => owRowInCell(r, room) && (this.worldPixelsOk || bayMapPixel(r?.[0], r?.[1]))).slice(0, OW_WORD_ROWS_MAX) }) : null;",
+    "new": "validOwIn({ k, rows: payload.filter((r) => (this.worldPixelsOk || bayMapPixel(r?.[0], r?.[1]))).slice(0, OW_WORD_ROWS_MAX) }) : null;",
     "tests": [
       "test/systems/fb1016b_graveparty.test.js"
     ],
@@ -234,12 +234,13 @@
   {
     "name": "GRAVE-PARTY-the-relay-asks-no-margin",
     "file": "server/src/index.js",
-    "old": "    if (!m.rows.every((r) => owRowInCell(r, a.key))) { this._junk(ws); return; }\n    if (typeof a.sub",
+    "old": "    if (!m.rows.every((r) => owRowInCell(r, coverOf(a)))) { this._junk(ws); return; }\n    if (typeof a.sub",
     "new": "    if (typeof a.sub",
     "tests": [
       "test/systems/fb1016b_graveparty.test.js"
     ],
-    "why": "a stone in another cell kept here"
+    "why": "a stone in another cell kept here",
+    "note": "COST-2 3a (re-aimed by content: the cell-scoped law reads the socket's cover)."
   },
   {
     "name": "GRAVE-PARTY-the-relay-unfanned",
@@ -591,8 +592,8 @@
   {
     "name": "AUDIT-G2-the-personal-arm-again",
     "file": "src/scenes/dungeonContext.js",
-    "old": "      { const _u = roomLootKey(key); if (_u && _lootUnreadable.has(lootKeyOf(_u))) { setMidScreenText(LOOT_NEWER_TEXT); return 0; } }",
-    "new": "      { const _u = roomLootKey(key); if (_u && _lootUnreadable.has(lootKeyOf(_u)) && !isRoomBaseContainer(lootKeyOf(_u))) { setMidScreenText(LOOT_NEWER_TEXT); return 0; } }",
+    "old": "      { const _u = roomLootKey(key); if (_u && _lootUnreadable.has(lootKeyOf(_u))) { setMidScreenText(roomUnreadableText(lootKeyOf(_u))); return 0; } }",
+    "new": "      { const _u = roomLootKey(key); if (_u && _lootUnreadable.has(lootKeyOf(_u)) && !isRoomBaseContainer(lootKeyOf(_u))) { setMidScreenText(roomUnreadableText(lootKeyOf(_u))); return 0; } }",
     "tests": [
       "test/systems/fb1016b_graveparty.test.js"
     ],
@@ -601,7 +602,7 @@
   {
     "name": "AUDIT-G2-the-refusal-gone",
     "file": "src/scenes/dungeonContext.js",
-    "old": "      { const _u = roomLootKey(key); if (_u && _lootUnreadable.has(lootKeyOf(_u))) { setMidScreenText(LOOT_NEWER_TEXT); return 0; } }",
+    "old": "      { const _u = roomLootKey(key); if (_u && _lootUnreadable.has(lootKeyOf(_u))) { setMidScreenText(roomUnreadableText(lootKeyOf(_u))); return 0; } }",
     "new": "      { const _u = roomLootKey(key); if (_u && _lootUnreadable.has(lootKeyOf(_u))) { return 0; } }",
     "tests": [
       "test/systems/fb1016b_graveparty.test.js"

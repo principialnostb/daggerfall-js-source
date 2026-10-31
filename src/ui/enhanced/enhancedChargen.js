@@ -48,6 +48,7 @@ import { bitmapCanvas } from '../bitmapCanvas.js';
 import { STAT_KEYS_ORDER } from '../../systems/chargen.js';
 import { overlayAction, isTextEntryTarget } from '../input.js';   // CG2: one definition of 'a DOM field's key is the field's'
 import { SKILL_NAMES } from '../../systems/skills.js';
+import { reviseClassDescription } from '../../systems/stockClasses.js';   // CLASS-USE: the description names the revised skills
 import { QUESTION_COUNT } from '../../systems/classQuestions.js';        // AUDIT 39: the quiz's own count, not a tenth copy of ten
 import { HELP_TOPICS, REP_GROUPS, REP_MAX, DIFFICULTY_MIN, DIFFICULTY_MAX, advancementMultiplier, daggerFraction, customClassDoc } from '../../systems/customClass.js';              // AUDIT 39: the builder's help picker; CC-REP: the reputation ledger's groups and reach; UXB1-H/I: the class document, the dagger
 import { ATTRIBUTE_BLURB, attributeLabel as attrName } from '../levelUp/levelUpView.js';   // UXB1-G: the port's own line per attribute, each true of the code (LV1's audit)
@@ -80,7 +81,9 @@ export const STAGE_RAIL = Object.freeze([
   { id: 'summary', label: 'Review', states: ['summary'] },
 ]);
 
-const stageOf = (state) => STAGE_RAIL.findIndex((s) => s.states.includes(state));
+/** LEVEL-45: the rail this flow walks - online there is no biography (ui/chargen.js `biographyOff`), so no History. */
+const railOf = () => (flow?.biographyOff ? STAGE_RAIL.filter((s) => s.id !== 'biography') : STAGE_RAIL);
+const stageOf = (state) => railOf().findIndex((s) => s.states.includes(state));
 
 const el = (t, cls, txt) => {
   const n = document.createElement(t);
@@ -427,7 +430,7 @@ function classQuestionsStage() {
     pane.append(wrap);
     return pane;
   }
-  if (!flow.qDisplay) return pendingStage(STAGE_RAIL[stageOf(flow.state)]);
+  if (!flow.qDisplay) return pendingStage(railOf()[stageOf(flow.state)]);
   const { lines, aIndex, bIndex, cIndex } = flow.qDisplay;
   const join = (from, to) => lines.slice(from, to).join(' ').trim();
   const wrap = el('div', 'question');
@@ -733,7 +736,7 @@ function customRepPane(c) {
 
 function customClassStage() {
   const c = flow.custom;
-  if (!c) return pendingStage(STAGE_RAIL[stageOf(flow.state)]);
+  if (!c) return pendingStage(railOf()[stageOf(flow.state)]);
   // Every popup is MODAL over the builder, in the flow's own order.
   if (c.box) return customBoxPane(c);
   if (c.pickList || c.sub === 'skillPick' || c.sub === 'help') return customPickerPane(c);
@@ -1041,7 +1044,7 @@ function bioMethodStage() {
 function biographyStage() {
   const pane = el('div', 'stagebody solo');
   const q = flow.biogQuestion();
-  if (!q) return pendingStage(STAGE_RAIL[stageOf(flow.state)]);
+  if (!q) return pendingStage(railOf()[stageOf(flow.state)]);
   const wrap = el('div', 'question');
   const total = flow.biogFor?.(flow.classIndex)?.questions?.length ?? 0;
   wrap.append(el('div', 'qcount', total ? `Question ${flow.biogQuestionIndex + 1} of ${total}` : ''));
@@ -1145,6 +1148,9 @@ function nameStage() {
     bind: (btn) => { nameOk = btn; },
   };
   requestAnimationFrame(() => box.focus());
+  // The race and sex are settled by now, so the heads start loading while the name is typed and are usually drawn
+  // by the time the face stage opens.
+  ensureFaces();
   return pane;
 }
 
@@ -1165,8 +1171,12 @@ function faceStage() {
   const wrap = el('div', 'choose');
   wrap.append(el('h2', null, 'Which face is yours?'));
 
-  if (!faces?.canvases?.length) {
-    // NEVER TRAPS: no CIF, no portraits, and the wizard still walks.
+  ensureFaces();
+  // NEVER TRAPS: no CIF, no portraits, and the wizard still walks. The note is for a load that is OVER and drew
+  // nothing - while the heads are still loading the cells show their numbers and no note. The loader answers ten
+  // entries with a null for each face it could not draw, so an empty load is ten nulls, not an empty list.
+  const loadFailed = !loadFaces || (faces?.key === identityKey() && !faces.canvases.some(Boolean));
+  if (loadFailed) {
     wrap.append(el('p', 'mapnote', 'The portraits for this race could not be loaded. Any of the ten will do.'));
   }
   const grid = el('div', 'facegrid');
@@ -1190,16 +1200,18 @@ function faceStage() {
   a.append(ok);
   wrap.append(a);
   pane.append(wrap);
-  ensureFaces();
   return pane;
 }
+
+/** The identity the heads are loaded for: race and sex. */
+const identityKey = () => `${flow.race.key}|${flow.gender}`;
 
 /** Load the identity's ten heads, once, and repaint when they land.
  *  Coalesces the way chargenArt's own loader does - a race change
  *  mid-load must not leave a Khajiit wearing Breton heads. */
 function ensureFaces() {
   if (!loadFaces) return;
-  const want = `${flow.race.key}|${flow.gender}`;
+  const want = identityKey();
   if (faces?.key === want || faces?.pending === want) return;
   faces = { key: null, pending: want, canvases: [] };
   loadFaces(flow.race.key, flow.gender).then((set) => {
@@ -1208,7 +1220,10 @@ function ensureFaces() {
     if (flow.state === 'face') paint();
   }).catch((e) => {
     console.warn('[chargen] the FACE CIF would not load', e);
+    if (faces?.pending !== want) return;
     faces = { key: want, canvases: [] };
+    // the face stage is repainted, so the failure note stands at once
+    if (flow.state === 'face') paint();
   });
 }
 
@@ -1614,9 +1629,9 @@ function paintInto() {
   brand.append(el('div', 'sub', 'DFO Online'));
   side.append(brand);
 
-  const here = stageOf(flow.state);
+  const here = stageOf(flow.state), stages = railOf();
   const rail = el('nav', 'rail');
-  STAGE_RAIL.forEach((stage, i) => {
+  stages.forEach((stage, i) => {
     const state = i === here ? ' on' : (i < here ? ' done' : ' todo');
     const b = el('button', `railbtn${state}`);
     b.append(el('span', 'rk', stage.label));
@@ -1638,14 +1653,14 @@ function paintInto() {
   // rather than duplicated - one of the two draws at any width.
   const strip = el('div', 'stepstrip');
   const segs = el('div', 'segs');
-  STAGE_RAIL.forEach((_, i) => segs.append(el('i', i <= here ? 'seg on' : 'seg')));
+  stages.forEach((_, i) => segs.append(el('i', i <= here ? 'seg on' : 'seg')));
   strip.append(segs);
   strip.append(el('div', 'steptext',
-    `${Math.max(here, 0) + 1} of ${STAGE_RAIL.length} \u00b7 ${STAGE_RAIL[here]?.label ?? ''}`));
+    `${Math.max(here, 0) + 1} of ${stages.length} \u00b7 ${stages[here]?.label ?? ''}`));
   side.append(strip);
 
   const foot = el('div', 'foot');
-  foot.append(document.createTextNode(`step ${Math.max(here, 0) + 1} of ${STAGE_RAIL.length}`));
+  foot.append(document.createTextNode(`step ${Math.max(here, 0) + 1} of ${stages.length}`));
   side.append(foot);
 
   const pane = el('main', 'pane');
@@ -1668,7 +1683,7 @@ function paintInto() {
   nameOk = null;
   pane.append(flow.biogRepBox?.length
     ? repBoxPane()
-    : (STAGES[flow.state] ?? (() => pendingStage(STAGE_RAIL[here])))());
+    : (STAGES[flow.state] ?? (() => pendingStage(stages[here])))());
 
   // THE ACTION BAR. Back is always here, because AUDIT 17j found the
   // wizard's back arms wrong on every screen it checked and the fix
@@ -1717,7 +1732,7 @@ function paintInto() {
 export function attachChargenText(f, textRsc) {
   if (!textRsc) return f;
   f.describeRace = (race) => (race ? textRsc.linesById(race.descriptionId) : []);
-  f.describeClass = (i) => textRsc.linesById(CLASS_DESCRIPTION_TEXT_ID + i);
+  f.describeClass = (i) => reviseClassDescription(i, textRsc.linesById(CLASS_DESCRIPTION_TEXT_ID + i));
   f.describeText = (id) => textRsc.linesById(id);
   // THE BIOGRAPHY'S TWO TEXT SOURCES, and they are not decoration. The
   // BACKSTORY is what U13 built and what the character sheet's History

@@ -17,7 +17,8 @@ FESTIVAL).
 - **The nights the dead walk** - the sky's 13 Frostfall and 3 Hearthfire (`FESTIVAL_NIGHTS`; a sky's day is a real hour,
   so in 2026 20 Oct 11:00, 2 Nov 19:00 and 4 Nov 11:00 UTC), and the festival's own night, **31 October**, its whole UTC
   day (`FESTIVALS` `eveFromMs`/`eveToMs`, `festivalEve`): every find gives twice (`deadWalk` - twice, never four times).
-  The chat says so once a night, while finds are asked.
+  The chat says so once a night, while finds are asked (the HUD's event board's news since EVENTS1, kind `festival` -
+  `10-UI/Event-Board.md`; offline, where the chat was never made, it is said there now too).
 - The economy is online and a registered account's (a guest's cakes would be a cleared browser's to lose). The towns'
   dressing and the Wyrd Sisters stand by the device's calendar, online or not.
 - `FESTIVAL_OPEN` in `server-account/wrangler.toml` (`off`, `dev`, `on`) shuts the finds, the sales, the set-outs, the
@@ -48,12 +49,28 @@ A FIND is asked by its source and decided by the service's own die (`server-acco
 | the endgame (`endgame`: a breach closed, a Redoubt, the Serpent...) | 100% | 4 |
 
 Every find lands in the pack (a face on a body is one the count cannot see). A day takes at most `FIND_ASKS_PER_DAY`
-(1,500) asks and `FIND_CAKES_PER_DAY` (120) cakes - a forged client finds no more than an honest one who played all day.
+(1,500) asks and `FIND_CAKES_PER_DAY` (120) cakes, a UTC day - a forged client finds no more than an honest one. CAKE-CAP-SAID
+(`01-Overview/bugs/Field-Bugs-2026-10-21b.md`): the cakes are an hour's undead, not a day's play (a dead foe finds at 50%,
+so 120 is about 240 kills - measured on the service, the 120th at kill 231), and a find past them had answered a miss's own
+`{ found: 0 }`, so a player farmed on against a cap nothing named. A find answers the day's count (`today`) and
+`capped: true` once it is spent, and so does the account's festival (`today`); the page says the day's end once a UTC day
+with the hour more are found, asks nothing until the day turns, and the Wyrd Sister's window counts the day's finds. The
+cap stands: her whole stock, 865 cakes of the twenty wares, is 7.2 capped days of the festival's 19.
 A kill is my own blow's (`systems/playerKills.js` - every pool tells it: the street's, a dungeon's room bodies, a foe
 another machine runs), once a body, never the watch or an ally. Acts are `systems/questlines/qlActs.js`'s, heard through
 `hearActs`: ONE DEED, ONE FIND - the acts one receipt says together (a breach closed with its rite broken, a Valkynaz's
 Redoubt, the Heart-Star held with its star) ask once, and an elite foe's act never beside its kill's. A find whose ask never reached the service was a die
 never rolled: nothing is kept to ask again.
+
+AUDIT PASS 1 (2026-10-29, `06-Systems/Battle-Pass.md` section 8): the Sky-Ketch's lift ridden and a cell banked are no
+find, since each is said again at will with no receipt behind it. The acts no find pays are one list, `qlActs.js`
+ACT_NOT_FOUND, which the festival and the Battle Pass both read.
+
+AUDIT PASS 2 and 3, the festival's twins (2026-10-29, the same section): `open` in the account's festival is the switch's
+word alone (`festival.js` festivalOf), because a page that read it before the festival's days kept `false` after them.
+A page told the festival is shut says `closed` for ten minutes, then reads it again on its next find, and a refusal
+rests its finds as the pass's do (`src/net/askRest.js`). A find is a progression claim (`progress.js` PROGRESS_ROUTES),
+asked of the seated realm character on a stream of its own, `festival`: the day's 1,500 asks an hour of play.
 
 ## The Wyrd Sister
 
@@ -115,7 +132,8 @@ Rat), the Demonologist (rare; reveal: two Imps), Tales and Tallows (a spell: a G
 
 The owner's treat bowl. THE BOWL IS THE ACCOUNT'S, as its cakes (`players.fest_bowls`): bought, it is counted; the pack's
 Hearth Offerings are its face (`restackHearthOfferings`). **Set out:** use a Hearth Offering standing at the door of a home
-the playing character owns (never a guild's hall), at the spot the build kept by it (`There is no room for it by this
+the account owns (never a guild's hall; HEARTH-SIBLING, `01-Overview/bugs/Field-Bugs-2026-10-29e.md`: any of its
+characters, as ACCOUNT-HOMES, where it asked the buyer), it weighing nothing, at the spot the build kept by it (`There is no room for it by this
 door.` where it kept none) - one of the account's bowls spent. **Fill:** up to 10 cakes from your count a press, at most
 60 in the bowl. **Take:** anyone else takes one cake an offering a day - never from their own account's. **Take in:** any
 time, under any switch, even after the festival; the bowl and its cakes come back.
@@ -123,7 +141,9 @@ time, under any switch, even after the festival; the bowl and its cakes come bac
 The town underfoot is asked for its offerings every 60 seconds and after every move (`scenes/witchesHost.js`) - while the
 festival is live there, or while one of the account's own stands in it; never a guest's (`/v1/festival/town` is a hot
 read: a session pass, a replica's, shed under an overload as a town's homes are). Each stands at its door where the build
-kept its spot clear (`world/witchesDecor.js` `homes` - a dressed town keeps no other), its tallow lantern lit at dusk with
+kept its spot clear (`world/witchesDecor.js` `homes` - a dressed town keeps no other): a carved pumpkin on a stool under
+a lantern, the owner's own picture (OFFERING-ART, 2026-10-28: `public/art/hearth-offering.png`, `world/festivalArt.js`
+`OFFERING_ART`, which replaced the painted bowl of cakes), its lantern lit at dusk with
 the town's; offline, or another account signed in, every pixel's come down. One whose home its character no longer owns
 stands nowhere, and its bowl and its cakes go back to its account.
 
@@ -175,7 +195,8 @@ is tied to the festival's own parts (AUDIT STAR8, `11-Multiplayer/Starfall.md` s
 
 - **A Wyrd Sister hands over Morwen's letter.** Her window opened is the act `wyrd-met` (`scenes/witchesHost.js` shop),
   which The Thirteenth of Frostfall's first step waits on; a star held before any Sister is met brings Morwen's raven
-  instead. The act is never a find (`festivalClient.js` ACT_NOT_FOUND): a press at her door is no Soul Cake.
+  instead. The act is never a find (`qlActs.js` ACT_NOT_FOUND, the Battle Pass's list too): a press at her door is no Soul
+  Cake.
 - **The Heart-Star** is Three Stars' optional objective - held, the step's greater pay and Morwen's Heart-Star Ring.
 - **The Wyrd know the Starwarden**: the line's title stands in her window's insignia, beside Hearthkeeper.
 

@@ -50,7 +50,7 @@ const wholeSeconds = (caller) => Math.floor(caller?.nowSeconds?.() ?? 0);
  *  (int-truncated). The no-place overload SUMS one-way times over
  *  every Place resource and applies the multiplier once. A place
  *  whose location cannot resolve logs and counts 0, as C#. */
-export function travelTimeSeconds(quest, place = null, returnTrip = true) {
+export function travelTimeSeconds(quest, place = null, returnTrip = true, { home = false } = {}) {
   const world = quest?.hooks?.world;
   if (!world) return null;
   if (place === null) {
@@ -61,16 +61,47 @@ export function travelTimeSeconds(quest, place = null, returnTrip = true) {
     }
     let total = 0;
     for (const p of places) total += travelTimeSeconds(quest, p, false) ?? 0;
+    if (home) for (const seat of questorSeats(quest, world)) total += tripSeconds(world, seat, false);   // TRIP-HOME
     if (returnTrip) total = Math.trunc(total * 2.5);
     return total;
   }
   const sd = place.siteDetails;
   const location = sd ? world.maps.getLocationByName(sd.regionName, sd.locationName) : null;
-  if (!location) {
+  if (!location && !sd?.worldPixel) {
     console.warn(`[quest] Could not find Quest Place ${sd?.regionName}/${sd?.locationName}`);
     return 0;
   }
-  const endPos = worldCoordToMapPixel(location.exterior.recordElement.header.x, location.exterior.recordElement.header.y);
+  // TRIP-PIXEL (FIELD BUGS 2026-10-30f): a site past the Bay stands on its own pixel (place.js siteWorldPixel); its
+  // row's world coords read a pixel in the Bay, so a manor near Solitude measured 149 days
+  const endPos = sd.worldPixel ?? worldCoordToMapPixel(location.exterior.recordElement.header.x, location.exterior.recordElement.header.y);
+  return tripSeconds(world, endPos, returnTrip);
+}
+
+/** TRIP-HOME (FIELD BUGS 2026-10-30f): the seats of the at-home individuals a quest makes its questors (`add X as
+ *  questor`), each the town named for its court's region, that the player is not standing in - for a deadline as it
+ *  starts. S0000006 offers Elysana's errand wherever level 6 finds the player and starts its clock there; the way back
+ *  to her in Wayrest counted nothing. A delay (S0000012's messenger) and a parse keep DFU's sum. A region with no town
+ *  of its name (Medora's Balfiera, every province past the Bay - no script names a court there) has no seat. */
+function questorSeats(quest, world) {
+  const here = world.playerPixel();
+  const seats = new Map();
+  for (const task of quest.tasks?.values?.() ?? []) {
+    for (const action of task.actions ?? []) {
+      if (action?.typeName !== 'AddAsQuestor') continue;
+      const person = quest.resources.get(action.target?.name);
+      if (!person?.isPerson || !person.isIndividualNPC || !person.isIndividualAtHome) continue;
+      const region = world.maps.getRegion?.(person.factionData?.region ?? -1)?.name;
+      const seat = region ? world.maps.getLocationByName(region, region) : null;
+      if (!seat?.exterior) continue;
+      const at = worldCoordToMapPixel(seat.exterior.recordElement.header.x, seat.exterior.recordElement.header.y);
+      if (at.x !== here?.x || at.y !== here?.y) seats.set(`${at.x},${at.y}`, at);
+    }
+  }
+  return [...seats.values()];
+}
+
+/** The one trip: cautious by cart from the player's pixel, 2.5 times for a return, never under a day. */
+function tripSeconds(world, endPos, returnTrip) {
   const { minutes } = calculateTravelTime(world.playerPixel(), endPos,
     { speedCautious: true, sleepModeInn: false, travelShip: false, hasHorse: false, hasCart: true },
     (x, y) => world.maps.getClimateIndex(x, y));
@@ -163,7 +194,7 @@ const NEGATED = new Set(['whenNot', 'andNot', 'orNot']);
  *  the success too) or the next quest started. A clock it starts is NOT followed: Brisienna's invitation (a delay)
  *  starts her fortnight (a deadline), and each is asked on its own - followed, the invitation read as the deadline and
  *  never came. */
-function reached(quest, name, { conditional = true, alone = false } = {}) {
+function reached(quest, name, { conditional = true, alone = false, live = false } = {}) {
   const seen = new Set([name]);
   const queue = [name];
   const types = new Set();
@@ -188,7 +219,9 @@ function reached(quest, name, { conditional = true, alone = false } = {}) {
       // condition (WhenTask._checkEvals), with what this end has set so far true and every other task not set:
       // `when _firsttimer_ and not _S.03_` fires on the time-out alone; `when _S.01_ and _S.02_ and _delay_` waits on
       // the story too, and is a beat after it, not a loss
-      if (alone && !reader._checkEvals?.call({ evaluations: reader.evaluations, _isTaskSet: (sym) => seen.has(sym.name) })) continue;
+      // RAVEN-CLOSE: `live` reads it as the quest stands - a task set now is set too
+      const isSet = (sym) => seen.has(sym.name) || (live && !!quest.tasks.get(sym.name)?.getTriggerValue?.());
+      if (alone && !reader._checkEvals?.call({ evaluations: reader.evaluations, _isTaskSet: isSet })) continue;
       visit(tn);
     }
   }
@@ -270,13 +303,24 @@ const QUIET_CLOSE = new Set(['EndQuest', 'MakePermanent', 'DropAsQuestor']);
  *  online under TIMEFREE, it stood paid and open for ever (under REST8 it would have closed only after its day and three
  *  hours played). The run-time half is the Clock's `isDeadline`, as T1's: still a deadline until the quest is a success.
  *  An end that costs a standing or says or sends anything (R0C10Y01's -20 beside its own `_delay_`, A0C10Y05's "too
- *  late" line) is a loss even then, and stays a deadline, on played time (it was frozen under TIMEFREE). */
+ *  late" line) is a loss even then, and stays a deadline, on played time (it was frozen under TIMEFREE).
+ *  RAVEN-CLOSE (FIELD BUGS 2026-10-21d, DiabeticCat: "Quest wont complete even after a real life day"): THE END IS READ
+ *  AS THE QUEST STANDS - the clock's own task and every `when` its end sets off alone with what is set NOW (`live`).
+ *  BODYGUARD-CLOSE read the clock's own task alone, once: a `when` on the clock was invisible to it, whether it closed
+ *  the quest or said a line. B0B81Y02's `_2dung_` (The Lost Artifact, the Knights' lich) is a bare `variable` - its own
+ *  task does nothing, its `end quest` is `_questdone_: when _2dung_ and not _readmap_` - so the knight's `give pc
+ *  nothing` left it a deadline of its travel days, 21 to 38, which online are played (QCLOCK-WORLD): two to three days of
+ *  a player's life with both objectives done, the reward unrolled and the Order's door shut (offerFlow's busy questor).
+ *  Read as the script reads (every `when` the end alone sets off, nothing else set), M0B00Y16's escort - the giant paid
+ *  while the villager walks - would close with its "too late" line (`when _yes_ and not _escortComplete_ and _qtime_`);
+ *  as it stands, that reader fires and says, and the clock stays a deadline. So it is asked at run time, on the success
+ *  (the Clock's isDeadline), not cached with the script's reading. */
 function closesStartUp(quest, name) {
   const startUp = [...(quest.tasks?.keys() ?? [])].filter((tn) => /^\d+$/.test(tn));
   const starts = (tn) => quest.tasks.get(tn)?.actions.some((a) => a.constructor?.typeName === 'StartStopTimer' && a.isStartTimer && a.targetSymbol?.name === name);
   if (!startUp.some(starts)) return false;
   if (startUp.some((tn) => reached(quest, tn, { conditional: false }).settles)) return false;
-  const end = reached(quest, name, { conditional: false });
+  const end = reached(quest, name, { alone: true, live: true });
   return end.types.has('EndQuest') && !end.lowers && [...end.types].every((t) => QUIET_CLOSE.has(t));
 }
 
@@ -397,6 +441,7 @@ export class Clock extends QuestResource {
     this._closesOnSuccess = false;   // AUDIT TIMEFREE T1: a task started it, so a success makes it a closing
     this.declaredAtOnce = false;   // AUDIT TIMEFREE T3: `Clock _x_ 00:00`, no travel arm (setResource; saved - AUDIT REST-PARTY D3)
     this.startedAfterSuccess = false;   // AUDIT TIMEFREE T5: started once the quest was already a success (saved)
+    this.travelArm = false;   // TRIP-FROM-START: armed by its trip (travelArmed at the parse; saved)
     if (line !== null) this.setResource(line);
   }
 
@@ -441,6 +486,7 @@ export class Clock extends QuestResource {
     // flag&1 + maxRange>0 + zero-time HACK forces the same check.
     if (travelArmed(this.flag, this.maxRange, clockTimeInSeconds)) {
       this.declaredAtOnce = false;   // (a travel clock: 2.5 trips, not "at once")
+      this.travelArm = true;
       const travel = this.parentQuest?.travelSeconds?.();
       if (travel != null) clockTimeInSeconds = travel;
       else { this.travelTimePending = true; clockTimeInSeconds = 0; }
@@ -458,7 +504,7 @@ export class Clock extends QuestResource {
    *  closing the quest - S0000009's two days after the contact, whose reward a `when` on the same click pays. A clock the
    *  start-up block started stays a deadline: A0C41Y18 is a success from its first lines and keeps its finger and its
    *  gold for its 1001 days, as DFU does - but for a start-up closing (closesStartUp, BODYGUARD-CLOSE: the start-up block
-   *  settles nothing and the end only closes; The Bodyguard's `_timer_`). AUDIT TIMEFREE T5: and so does one started
+   *  settles nothing and the end, as the quest stands, only closes; The Bodyguard's `_timer_`, RAVEN-CLOSE's `_2dung_`). AUDIT TIMEFREE T5: and so does one started
    *  AFTER the success - a new limit, not a close: M0B11Y18 pays for the raid, then offers the traitor's hunt and "will
    *  wait =gettraitor_ days"; closed on the success, that hunt ended a couple of minutes after the player took it. */
   get isDeadline() {
@@ -471,8 +517,11 @@ export class Clock extends QuestResource {
       // AUDIT REST-PARTY D1/D4: never a table entry - the hand's word stands through the success (B0B81Y02's artifact
       // hunt outlives the knight's reward), and until D4 nothing failed when the exemption went
       this._closesOnSuccess = this._deadline && !(ONLINE_DEADLINES[q?.questName] ?? []).includes(name)
-        && !!q?.tasks && (startersOf(q, name).length > 0 || closesStartUp(q, name));   // BODYGUARD-CLOSE: a start-up closing too
+        && !!q?.tasks && startersOf(q, name).length > 0;
     }
+    // BODYGUARD-CLOSE, RAVEN-CLOSE: a start-up closing - its end, as the quest stands, a quiet close - on the success
+    if (this._deadline && !this._closesOnSuccess && q?.questSuccess
+      && !(ONLINE_DEADLINES[q?.questName] ?? []).includes(this.symbol?.name) && closesStartUp(q, this.symbol?.name)) return false;
     return this._deadline && !(this._closesOnSuccess && q?.questSuccess && !this.startedAfterSuccess);
   }
 
@@ -582,6 +631,20 @@ export class Clock extends QuestResource {
         }
       }
     }
+    // TRIP-FROM-START (FIELD BUGS 2026-10-30f): a travel clock measures its trip again as it starts, from where the
+    // player stands, and keeps the longer. Clock.cs arms it at the parse: S0000002 is parsed wherever level 4 finds the
+    // player, its manor drawn in that region, and Helseth starts the clock in Wayrest - 2.5 days for weeks of road.
+    if (this.travelArm && !this.clockFinished && this.remainingTimeInSeconds === this.startingTimeInSeconds) {
+      let travel = null;
+      // a world that cannot measure keeps the parse's number: a throw here would cut the starting task short
+      try { travel = this.parentQuest.travelSeconds?.({ home: this.isDeadline }); }   // TRIP-HOME: a deadline's way back too
+      catch (ex) { console.warn(`[quest] clock ${this.symbol?.name}: its trip could not be measured as it started (${ex?.message ?? ex})`); }
+      if (Number.isFinite(travel) && travel > this.startingTimeInSeconds) {
+        this.startingTimeInSeconds = travel;
+        this.remainingTimeInSeconds = travel;
+        this.travelTimePending = false;
+      }
+    }
     // AUDIT quest-P15: a flag&16 / hack clock whose travel time pends
     // Q3 would otherwise arm at 0s and fire on the FIRST tick - the
     // exact instant-end symptom the C# hack exists to prevent. HELD
@@ -623,6 +686,7 @@ export class Clock extends QuestResource {
       clockFinished: this.clockFinished,
       startedAfterSuccess: this.startedAfterSuccess,   // AUDIT TIMEFREE T5 (the port's; absent from a save before it - false)
       declaredAtOnce: this.declaredAtOnce,   // AUDIT REST-PARTY D3 (the port's; a restore has no declaration to read)
+      travelArm: this.travelArm,   // TRIP-FROM-START (the port's, for the same reason)
     };
   }
 
@@ -648,6 +712,8 @@ export class Clock extends QuestResource {
     // either way; only a two-value range drawn at zero (`00:00 01:00`) could differ, and no script declares one.
     this.declaredAtOnce = typeof dataIn.declaredAtOnce === 'boolean' ? dataIn.declaredAtOnce
       : this.startingTimeInSeconds === 0 && !travelArmed(this.flag, this.maxRange, 0);
+    // TRIP-FROM-START: a save from before the mark - flag 16 alone, which no declared time defeats (the bit-0 hack needs one)
+    this.travelArm = typeof dataIn.travelArm === 'boolean' ? dataIn.travelArm : (this.flag & 16) === 16;
     this.travelTimePending = false;
   }
 }

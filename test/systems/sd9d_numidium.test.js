@@ -65,7 +65,7 @@ const seq = (...xs) => { let i = 0; return () => xs[Math.min(i++, xs.length - 1)
 // ── the law and the records ───────────────────────────────────────────
 
 test('SD9d THE LAW: The Brass of Numidium after the serpent\'s - Aetheric, Kagrenac its patron, the Hourbreaker\'s brass its colour, no raiding party\'s, never a world set; Dwemer Brass, Gearward and The Hour Turns at 2, 4 and 6 pieces, each a whole pair from Faint to Ascendant, every brief inside BRIEF_MAX at every stage (mutants: a tier\'s number; a world set)', () => {
-  assert.deepEqual(SIGIL_SET_IDS.slice(-4), ['numidium', 'panoply', 'wyrd', 'starspun'], 'the Brass Remnant\'s own - PIN MOVED (EG15): the Battlemage\'s Panoply after it - PIN MOVED (WITCH1): the Wyrd\'s Raiment after that - PIN MOVED (STAR7): the Starspun Weave last');
+  assert.deepEqual(SIGIL_SET_IDS.slice(-5), ['numidium', 'panoply', 'wyrd', 'starspun', 'eltheric'], 'PIN MOVED (SEA-SET): the Eltheric Tidemail last - the Brass Remnant\'s own - PIN MOVED (EG15): the Battlemage\'s Panoply after it - PIN MOVED (WITCH1): the Wyrd\'s Raiment after that - PIN MOVED (STAR7): the Starspun Weave last');
   const s = setById('numidium');
   assert.deepEqual([s.id, s.name, s.prince, s.colour, s.aetheric, 'raid' in s, s.role],
     ['numidium', 'The Brass of Numidium', 'Kagrenac', '#b5862f', true, false, 'What the Warp kept of the Walking Brass']);
@@ -246,7 +246,9 @@ test('SD9d THE HOUR TURNS (6): a blow that would kill me does not - the door lea
 
 test('SD9d THE HOST: world.js gives the Brass\'s powers the Orrery hall\'s own sounds through the voice\'s index door, as the hall plays them - the gear\'s clunk for Gearward, the low bell\'s toll for The Hour Turns (mutants: a power unvoiced; the sounds crossed)', () => {
   const w = strip(read('src/scenes/world.js'));
-  assert.match(w, /import \{ SD_HALL_TEXT, SD_HALL_SOUNDS \} from '\.\/superDungeon\/sdHall\.js';/);
+  // PIN MOVED (RPT1026-EVENTS ORRERY-HANDS): the snap's line is sdSnapLine's now (it names whom it lashes), so SD_HALL_TEXT
+  // left the import; the sounds are the hall's as ever
+  assert.match(w, /import \{ sdSnapLine, sdHallNamed, SD_HALL_SOUNDS \} from '\.\/superDungeon\/sdHall\.js';/);
   // PIN MOVED (AUDIT SD IV A3): the index door (playOneShot) - the ID door played whatever record carries the ID 433 or
   // 107, not the hall's records (sd26_audio runs the voice)
   assert.match(w, /else if \(name === 'gear'\) audio\.playOneShot\(SD_HALL_SOUNDS\.clunk, 1\);/);

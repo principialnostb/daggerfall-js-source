@@ -31,6 +31,7 @@
 // thirty-eight buttons in a window whose art cannot move. Past the end,
 // every existing index still means what it meant.
 
+import { t } from './textManager.js';
 import { appStorage } from './appStorage.js';   // DA1: the storage seam
 import { storedModSetting, modSetting, modLatchedOn } from './modSettings.js';   // KB1: a player's own mod key, carried into the registry once; and whether its mod is on
 import { domCodeForKeyCode, KEYCODE_NONE } from './keyCodes.js';   // KB1: the mods' TextKeys are Unity KeyCode names
@@ -200,6 +201,21 @@ export const ACTIONS = Object.freeze([
   // Drawn in Combat, not Come Sail Away's group: a mod's group is its MOD_ACTIONS and every row of those ships a key
   // (KB1 law 3) - so it is live always, and answers only at a helm with guns. Appended, like every port action before it.
   'ShotCycle',
+  // PARTY-PING (the owner: the party's ping is the middle button): a look's point for the party, one press.
+  // Appended, like every port action before it. DFU's middle button is AutoRun (InputManager.cs:995); the
+  // port's default gives that button to the ping and moves auto-run to F3 (DEFAULT_BINDINGS).
+  'PartyPing',
+  // The decorator. Ships with no key: every letter is spent, and F1-F4 are the browser's or already bound.
+  // A player gives it one in Controls. It answers only where the Decorate button would stand.
+  'Decorate',
+  // TECH-KEY2 (Mac, 2026-10-30, forwarding #feature-feedback: "Have a key bindable for your 2nd weapon technique"): the
+  // held martial path's signature, whatever line the weapon carries (combat/techniques.js). Ships with no key, as
+  // Decorate does. Appended, like every port action before it.
+  'SignatureTechnique',
+  // PVP-KEY (Discord #suggestions, WiKeD: "please let us remap the PVP to a key of our choosing like most things"): the
+  // PvP flag's key (scenes/pvpFlagHost.js). It was Caps Lock read raw, so a player who bound Caps Lock to another
+  // action got both. Caps Lock is still its default. Appended, like every port action before it.
+  'PvpFlag',
 ]);
 
 /** AUDIT SOC D3: THE PORT'S OWN ROWS, NAMED SO THE CLASSIC WINDOWS CAN YIELD THEM.
@@ -217,7 +233,7 @@ export const PORT_ACTIONS = Object.freeze(['SocialInteract', 'QuickUse1', 'Quick
   'TorchToggleLight', 'TorchDrop', 'TorchThrow', 'ShoulderSwitch', 'AutoPerspective', 'FollowPaths', 'HorseMount', 'HorseSummon', 'DebugOverlay',
   'BoatDisembark', 'BoatToggleLight', 'BoatToggleSail', 'BoatTrimRight', 'BoatTrimLeft', 'BoatTrimModifier',
   'BoatTimeScaleUp', 'BoatTimeScaleDown', 'BoatTimeScaleReset', 'TravelView', 'WalkMode', 'TogglePerspective', 'ActChoice', 'BoatSailUp', 'BoatSailDown', 'Professions',
-  'LegacyFamily', 'ModeWheel', 'WeaponTechnique', 'Spyglass', 'SaddlePanel', 'ShipHold', 'ShotCycle']);   // SPYGLASS: the captain's glass   // TECH1: the weapon's technique   // LEGACY1: Project Legacy's family tree; MODE-WHEEL: the mode wheel   // KB1; TV1; PADWALK; VIEW-TOGGLE; PROF1   // QUICK-LOOT B4: the plaque's two, drawn in the enhanced pane under their own heading - the classic windows cannot draw them at all
+  'LegacyFamily', 'ModeWheel', 'WeaponTechnique', 'Spyglass', 'SaddlePanel', 'ShipHold', 'ShotCycle', 'PartyPing', 'Decorate', 'SignatureTechnique', 'PvpFlag']);   // TECH-KEY2   // PARTY-PING: the party's ping   // the decorator, unbound   // SHOT-KINDS: the guns' load   // CARGO-ANYWHERE: the ship's hold   // SPYGLASS: the captain's glass   // TECH1: the weapon's technique   // LEGACY1: Project Legacy's family tree; MODE-WHEEL: the mode wheel   // KB1; TV1; PADWALK; VIEW-TOGGLE; PROF1   // QUICK-LOOT B4: the plaque's two, drawn in the enhanced pane under their own heading - the classic windows cannot draw them at all
 
 const ACTION_SET = new Set(ACTIONS);
 
@@ -241,7 +257,7 @@ export const DEFAULT_BINDINGS = Object.freeze([
   ['Space', 'Jump'],
   ['KeyC', 'Crouch'],
   ['ShiftLeft', 'Run'],
-  ['Mouse2', 'AutoRun'],
+  // PARTY-PING: Mouse2 is the ping's now (below). DFU's AutoRun stays a row; its default is F3.
   ['KeyR', 'Rest'],
   ['KeyT', 'Transport'],
   // MODE-WHEEL: F1-F4 (StealMode..TalkMode) ship UNBOUND - the wheel on Left Alt picks the mode (below). The four
@@ -406,8 +422,15 @@ export const DEFAULT_BINDINGS = Object.freeze([
   // RecastSpell, F the social door, R Rest, G and X the torches', E Interact), and the free keys by the movement hand are
   // worse than none: Caps Lock toggles on a Mac (a hold to aim is two presses there) and a held Left Ctrl makes W the
   // browser's close-tab. Mouse4 is TogglePerspective's, and the world host already stops the browser's Back on this
-  // one. A keyboard player moves it in the Controls pane (F1, F3 and F4 ship unbound).
+  // one. A keyboard player moves it in the Controls pane (F1 and F4 ship unbound; F3 is auto-run's, below).
   ['Mouse3', 'WeaponTechnique'],
+  // PARTY-PING: the middle button. DFU binds AutoRun there (InputManager.cs:995). A file that still has that
+  // stock bind is moved once (adoptPartyPingKey); a player who already moved the button is left alone. Auto-run
+  // ships on F3, which every host already swallows (the browser's find).
+  ['Mouse2', 'PartyPing'],
+  ['F3', 'AutoRun'],
+  // PVP-KEY: the key the flag always had. A file that already spends Caps Lock keeps it, and the flag waits for a key.
+  ['CapsLock', 'PvpFlag'],
 ]);
 
 /**
@@ -539,6 +562,7 @@ export const ACTION_GROUPS = Object.freeze([
   g('Combat', [
     ['ReadyWeapon', 'Ready or sheathe weapon'], ['SwingWeapon', 'Swing weapon'], ['SwitchHand', 'Switch hand'],
     ['WeaponTechnique', 'Weapon technique (hold to aim)'],   // TECH1
+    ['SignatureTechnique', 'Martial technique (hold to aim)'],   // TECH-KEY2: the held path's signature
     ['ShotCycle', 'Shot (aboard)'],   // SHOT-KINDS: the guns' load at a helm, stepped on
   ]),
   g('Magic', [
@@ -546,11 +570,12 @@ export const ACTION_GROUPS = Object.freeze([
     ['UseMagicItem', 'Use magic item'],
   ]),
   g('Interaction', [
-    ['ActivateCenterObject', 'Activate (mouse)'], ['Interact', 'Interact'], ['ModeWheel', 'Mode wheel (hold, flick, release)'],
+    ['ActivateCenterObject', 'Activate (mouse)'], ['Interact', 'Interact'], ['Decorate', t('input.action.decorate', 'Decorate this room')], ['ModeWheel', 'Mode wheel (hold, flick, release)'],
     ['StealMode', 'Steal mode'], ['GrabMode', 'Grab mode'], ['InfoMode', 'Info mode'], ['TalkMode', 'Talk mode'],
     ['QuickLootAll', 'Take everything'], ['QuickLootOpen', 'Open the container'],
     ['Transport', 'Transport'], ['Rest', 'Rest'],
     ['SaddlePanel', 'Saddle panel: show or hide (riding)'],   // UI-CALM
+    ['PartyPing', 'Ping'],   // PARTY-PING
   ]),
   g('Windows', [
     ['Escape', 'Pause menu'], ['CharacterSheet', 'Character sheet'], ['Inventory', 'Inventory'], ['Status', 'Status'],
@@ -570,10 +595,11 @@ export const ACTION_GROUPS = Object.freeze([
   ]),
   g('Online', [
     ['SocialInteract', 'Interact with player'],
+    ['PvpFlag', t('input.action.pvpFlag', 'PvP on / off')],   // PVP-KEY
   ]),
   g('Professions', [
     ['ActChoice', 'Next action at a profession node'],   // PROF-MENU: the node's list is the plaque's - the key steps its light
-    ['Professions', 'Open your Professions page (online)'],   // CLASSIC-PAGES: the pages on either skin; AUDIT FB1018D L1-7: it lands on the Professions page (input.js `at: 'professions'`) - the Stores are the Holdings tab's   // PROF1 - Interact starts the act, attack plays the Basket's, Escape ends it; AUDIT 32 R1: PROF7's body (the knife's trace drawn with Interact held)
+    ['Professions', t('input.action.professions', 'Open your Professions page, or the Crafting page at a station (online)')],   // CLASSIC-PAGES: the pages on either skin; AUDIT HORIZONTAL A7: at a station it lands on the Crafting page (profPages.js professionsKeyAt), else the Professions page   // PROF1 - Interact starts the act, attack plays the Basket's, Escape ends it; AUDIT 32 R1: PROF7's body (the knife's trace drawn with Interact held)
   ]),
   g('Game', [
     ['QuickSave', 'Quick save'], ['QuickLoad', 'Quick load'], ['PrintScreen', 'Screenshot'], ['DebugOverlay', 'Diagnostics readout'],
@@ -1143,6 +1169,18 @@ export function resetDefaults(store, autofill = false) {
   for (const action of AXIS_ACTIONS) if (!autofill || !store.axisInversions.has(action)) setAxisInversion(store, action, false);
 }
 
+/** PARTY-PING: a saved file whose middle button is still DFU's AutoRun gives that button to the ping, once.
+ *  Auto-run moves to F3 when that key is free and the player has not removed it. A custom middle button, a ping
+ *  already bound, and a ping the player removed are all left alone. False when nothing moved. */
+export function adoptPartyPingKey(store) {
+  if (getBinding(store, 'PartyPing', true) != null || store.removedPrimary.has('PartyPing')) return false;
+  if (store.primary.get('Mouse2') !== 'AutoRun') return false;
+  clearBinding(store, 'AutoRun', true);
+  setBinding(store, 'Mouse2', 'PartyPing', true);
+  if (!store.removedPrimary.has('AutoRun') && getBinding(store, 'AutoRun', true) == null) testSetBinding(store, 'F3', 'AutoRun', true);
+  return true;
+}
+
 /** SaveKeyBinds' KeyBindData_v1 (:871-930), minus the axis/joystick
  *  blocks the port has no engine for. Unknown actions seen at load
  *  are appended back (:899-916) so an older build never strips a
@@ -1390,8 +1428,10 @@ export function repairUnloseableBindings(store) {
 }
 
 /** KB1: THE FILE'S VERSION. 1 is every file before the keybinding standard (it carried no field); 2 is the standard;
- *  3 is MODE-WHEEL's (Left Alt let go of Sneak, so the wheel can land on it). */
-export const KEYBINDS_VERSION = 3;
+ *  3 is MODE-WHEEL's (Left Alt let go of Sneak, so the wheel can land on it); 4 is PVP-KEY's (the flag told, keyless). */
+export const KEYBINDS_VERSION = 4;
+/** The actions a later version added, by that version: a file older than it is told when the action lands keyless. */
+const ADDED_AT = Object.freeze({ ModeWheel: 3, PvpFlag: 4 });
 
 /** KB1's step-1 rows, `[code, old default, the version that moved it]`: a file older than the version lets the code
  *  go where it still holds the old default. MODE-WHEEL: Left Alt was Sneak's until v3; a v2 file let go of it once, so
@@ -1463,7 +1503,7 @@ export function migrateKeyBinds(store, fromVersion) {
     }
   }
   for (const [code, action] of DEFAULT_BINDINGS) {
-    if (fromVersion >= 2 && action !== 'ModeWheel') continue;   // MODE-WHEEL: a v2 file was told its losses at v2; v3 adds only the wheel
+    if (fromVersion >= 2 && fromVersion >= (ADDED_AT[action] ?? 2)) continue;   // a v2 file was told its losses at v2; then the wheel (v3) and the flag (v4, AUDIT PVP-KEY B7)
     if (getBinding(store, action, true) != null || store.removedPrimary.has(action)) continue;
     report.lost.push({ action, code, holder: actionForCode(store, code) });
   }
@@ -1484,6 +1524,7 @@ export function loadOrCreateBindings() {
       const from = Number(data?.version) || 1;
       const report = migrateKeyBinds(store, from);   // KB1: runs the autofill inside it, between its steps
       resetDefaults(store, true);
+      if (adoptPartyPingKey(store)) saveKeyBinds(store);   // PARTY-PING: Mouse2 was AutoRun - the ping takes it, once
       if (from < KEYBINDS_VERSION) {
         const said = [...report.moved, ...report.kept.map((k) => `${k.action} kept its key (${k.code} is ${k.holder}'s)`),
           ...report.lost.map((l) => `${l.action} has no key (${l.code} is ${l.holder}'s)`)];

@@ -31,7 +31,8 @@ import {
 } from '../../src/world/sunbabySky.js';
 import { EXTERIOR_NIGHT_AMBIENT } from '../../src/world/worldClock.js';
 import { SunbabySkyRenderer, SUNBABY_FS as FS } from '../../src/render/sunbabySkyRenderer.js';
-import { createPlayerMagic, SKY_FIRE_SCALE, SKY_FIRE_HEARD_M } from '../../src/scenes/hostMagic.js';
+import { createPlayerMagic, liveCollider, SKY_FIRE_SCALE, SKY_FIRE_HEARD_M } from '../../src/scenes/hostMagic.js';
+import { Collider } from '../../src/player/collider.js';   // AUDIT GROUND-BOLT D3: the world's own collider, its ground
 import { MISSILE_SPEED, MISSILE_LIFESPAN_S } from '../../src/systems/spellcast.js';
 import { SPELL_CAST_SOUND } from '../../src/systems/enemySpells.js';
 import { billboardSize } from '../../src/world/rmbFlats.js';
@@ -234,21 +235,21 @@ test('SUNBABY2 pass: the face the pass is handed reaches its uniform - the laugh
 
 // ── THE ENGINE ───────────────────────────────────────────────────────
 
-function magicRig() {
+function magicRig(collider = { raycast: () => Infinity }) {
   const made = [], heard = [];
   const tex = { recordCount: 5, getSize: () => ({ width: 16, height: 16 }), getScale: () => ({ width: 0, height: 0 }), getFrameCount: () => 1 };
   const player = { level: 1, activeEffects: [], health: 50, maxHealth: 50 };
   const magic = createPlayerMagic({
     renderer: { createBillboardBatch: (archive, record, size) => { const b = { archive, record, size }; made.push(b); return b; }, destroyBillboardBatch() {} },
     audio: { playOneShotId() {}, play3dId: (...a) => heard.push(a) },
-    getTexture: async () => tex, uploadRecord() {}, uploadRecordFrame() {}, collider: { raycast: () => Infinity },
+    getTexture: async () => tex, uploadRecord() {}, uploadRecordFrame() {}, collider,
     playerEntity: player, playerSinks: {}, say() {}, surfacePlayer() {},
     foes: () => [], foeSinks: () => ({}), absorbCtx: () => ({ inside: false, day: true }),
   });
   return { magic, made, heard, tex, player };
 }
 
-test('SUNBABY2 engine: skyFire throws a DRAWN fire missile from the sky that lands where it was thrown - on the ground the collider\'s ray never meets - SKY_FIRE_SCALE times the flat, heard there as its element\'s cast, and burning nobody (mutants: the landing unchecked; silent; the scale dropped)', async () => {
+test('SUNBABY2 engine: skyFire throws a DRAWN fire missile from the sky that lands where it was thrown - where no ground is streamed under it, by its own count - SKY_FIRE_SCALE times the flat, heard there as its element\'s cast, and burning nobody (mutants: the landing unchecked; silent; the scale dropped)', async () => {
   assert.deepEqual([SKY_FIRE_SCALE, SKY_FIRE_HEARD_M], [3, 48]);
   const { magic, made, heard, tex, player } = magicRig();
   for (const bad of [{ from: [0, 90, 0], to: [NaN, 0, 0] }, { from: [0, 90], to: [0, 0, 0] }, { from: [1, 2, 3], to: [1, 2, 3] }, {}]) assert.equal(magic.skyFire(bad), false, JSON.stringify(bad));
@@ -275,6 +276,18 @@ test('SUNBABY2 engine: skyFire throws a DRAWN fire missile from the sky that lan
   assert.ok(made.some((b) => b.archive === 375 && b.record === 1), 'the impact flash, record 1 of its archive');
 });
 
+test('AUDIT GROUND-BOLT D3: on the world\'s own collider (liveCollider over its ground), a sky fireball lands on MY ground - met by the flight, where the throw\'s ground and mine part - and is heard there', async () => {
+  const { magic, heard } = magicRig(liveCollider(() => new Collider(() => 0)));
+  assert.equal(magic.skyFire({ from: [0, 90, 0], to: [0, -3, 0] }), true);   // the thrower's ground 3 m under mine
+  const feet = [40, 0, 40];
+  for (let t = 0; t < 90 / MISSILE_SPEED + 0.5 && magic.missileCount() > 0; t += 1 / 60) magic.update(1 / 60, feet, [0, 0, 1]);
+  assert.equal(magic.missileCount(), 0, 'landed');
+  assert.equal(heard.length, 1);
+  const at = heard[0][1];
+  assert.ok(Math.hypot(at[0], at[1], at[2]) < 0.05, `heard on my ground, not 3 m under it where its count ran out (${at.map((v) => v.toFixed(4))})`);
+  await settle(5);
+});
+
 // ── THE HOST ─────────────────────────────────────────────────────────
 
 test('SUNBABY2 host: the sky controller hands the face to the pass, and world.js frames it from the shared clock each exterior frame - said when it changes, handed to the sky before its frame and to the light and the key - and drops the fire round the traveller only while the word is staged and the wrath whole, reset on a jump, through the spell engine (mutants: the face never told; the line unsaid; the fire ungated; the fire never thrown)', () => {
@@ -286,5 +299,5 @@ test('SUNBABY2 host: the sky controller hands the face to the pass, and world.js
   assert.match(world, /const sunbabyGround = \(x, z\) => \{ const h = heightAt\(x, z\); return Number\.isFinite\(h\) \? h : player\.pos\[1\]; \};/);
   const told = world.indexOf('sky.setSunbabyFace(sunbabyFace.evil, sunbabyFace.todd);');
   assert.ok(told > world.indexOf('sky.setSunbaby(sunbabyW, sunbaby.on);') && told < world.indexOf('sky.use(('), 'before the sky\'s frame');
-  assert.match(world, /sunbabyKey\(dreadLight\(SUN_RIG_COLOR, skyDreadW\), sunbabyW, sunbabyFace\.evil\), sdAirW\), etherAirW, ETHER_KEY_TINT\)\);/);   // SD19 moved it: the key leaning brass near a Hollow (PIN MOVED); ETHER-LIGHT (PIN MOVED): its own tint past the Veil
+  assert.match(world, /sunbabyKey\(dreadLight\(SUN_RIG_COLOR, skyDreadW\), sunbabyW, sunbabyFace\.evil\), sdAirW\), etherAirW, ETHER_KEY_TINT\), jungle\?\.canopy, 0\)\);/);   // VALENWOOD-CANOPY (PIN MOVED): leaned under a closed canopy last; SD19 moved it: the key leaning brass near a Hollow (PIN MOVED); ETHER-LIGHT (PIN MOVED): its own tint past the Veil
 });

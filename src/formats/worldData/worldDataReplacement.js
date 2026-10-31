@@ -41,11 +41,11 @@ export { makeLocationKey };
 export const assetInjectionOn = () => getBool('Enhancements', 'AssetInjection');
 /**
  * WD3: THE DOOR'S GATE. DFU's is AssetInjection alone, and offline it stays so. ONLINE THE GROUND IS THE ROOM'S: the
- * world-data mods the room owns (systems/online/onlineLane.js ONLINE_ROOM_MOD_KEYS - Beautiful Villages and Cities, Detailed
- * Ships, Roleplay & Realism's fort) stand buildings, decks and walls every player walks, and a player's Replace Game
- * Artwork switched off stood none of them on that one screen - a departure (Port-Ledger, WD3): online the door is open
- * whatever the switch says, which keeps the textures and the music it gates elsewhere. Each mod's own switch still
- * decides its files.
+ * world-data mods the room owns (systems/online/onlineLane.js ONLINE_ROOM_MOD_KEYS - Beautiful Villages and Cities,
+ * Roleplay & Realism's fort) and the port's ship refit stand buildings, decks and walls every player walks, and a
+ * player's Replace Game Artwork switched off stood none of them on that one screen - a departure (Port-Ledger, WD3):
+ * online the door is open whatever the switch says, which keeps the textures and the music it gates elsewhere. Each
+ * mod's own switch still decides its files.
  */
 // WD3 (AUDIT WD3 P2/P3): READ ONCE FOR THE GAME. DFU reads AssetInjection at startup - a change waits for a restart -
 // and the boot's location index keeps a pack's grids, whose new blocks only the door can serve: a gate turned shut
@@ -87,7 +87,7 @@ export function registerWorldDataPack(pack, isOn = null, { priority = 0 } = {}) 
   if (!pack?.names) return 0;
   let n = 0;
   for (const name of pack.names()) {
-    addAssetEntry(name, { json: null, get: (maps) => pack.rebuild(name, maps), isOn: typeof isOn === 'function' ? isOn : null, priority, vendor: pack.vendor });
+    addAssetEntry(name, { json: null, get: (maps) => pack.rebuild(name, maps), isOn: typeof isOn === 'function' ? isOn : null, priority, vendor: pack.vendor, version: pack.mod?.version ?? null });   // FIRST-VISIT: the pack's version names its files in worldDataBlocksServing
     n++;
   }
   return n;
@@ -105,6 +105,25 @@ export const worldDataVendorCarries = (vendor, fileName) => (_assets.get(fileNam
 function liveAsset(fileName) {
   for (const a of _assets.get(fileName) ?? []) if (assetOn(a)) return a;
   return null;
+}
+/** FIRST-VISIT: WHAT THE DOOR SERVES BLOCKS BY, as text - the gate, each block file's answering mod (and a pack's
+ *  version), the port's own blocks and the layers that are on, in name order (the packs register in whichever order their
+ *  fetches end). An answer derived from served blocks and kept across
+ *  launches (world/terrain/groundTilesKept.js) is keyed on it, so a mod switched, a pack updated or a layer added
+ *  refuses the kept answer. Asked with no town being read, so a save's layout pins are not in it: a pinned town's
+ *  blocks are read through, never from a kept answer (terrainTiles.js locationRectReader). */
+export function worldDataBlocksServing() {
+  if (!worldDataOn()) return 'closed';
+  const parts = ['open'];
+  for (const name of _assets.keys()) {
+    if (!name.includes('.RMB') && !name.includes('.RDB')) continue;
+    const a = liveAsset(name);
+    if (a) parts.push(`${name}=${a.vendor ?? ''}@${a.priority}:${a.version ?? ''}`);
+  }
+  for (const name of _portBlocks.keys()) parts.push(`port:${name}`);
+  for (const name of _portBuildings.keys()) parts.push(`port:${name}`);   // AUDIT SHIP-REFIT: the port's own building files
+  for (const l of _layers) if (l.isOn?.() ?? true) parts.push(`layer:${l.vendor}`);
+  return parts.sort().join('|');
 }
 /** A pack file that will not rebuild on this player's data is said once and not served (WD1's "a patch whose ops do
  *  not land is said and not served") - the location or block is the classic one, never a throw out of the reader. */
@@ -210,7 +229,7 @@ export function _resetWorldDataReplacement({ assets = true } = {}) {
   regions = new Map(); locations = new Map(); blocks = new Map(); buildings = new Map();
   nextBlockIndex = 0; newBlockNames = new Map(); newBlockIndices = new Map(); _blocksFile = null;
   _refused.clear(); _quietLocations = false; _doorLatched = null;
-  if (assets) { _assets.clear(); _portBlocks.clear(); _locationEdits.length = 0; _layers.length = 0; }   // IT1: the layers with the assets
+  if (assets) { _assets.clear(); _portBlocks.clear(); _portBuildings.clear(); _blockFamilies.length = 0; _locationEdits.length = 0; _layers.length = 0; }   // IT1: the layers with the assets
 }
 
 // ---- ARENA1: THE PORT'S OWN WORLD DATA - not a mod's, so behind no switch ----
@@ -220,18 +239,74 @@ export function _resetWorldDataReplacement({ assets = true } = {}) {
 // any BSA (world/gate/gateArena.js's made block is the precedent), so the first block a mod's file names still takes
 // BsaFile.Count (DFU's AssignBlockIndices, RR3b) and no pack's new block moves.
 const _portBlocks = new Map();   // name -> { index, json, block }
-/** A block of the port's own, by name, at a fixed index (>= 900000). */
+/** A block of the port's own, by name, at a fixed index (>= 900000): its JSON, or (AUDIT-TESA A6-2) a function answering
+ *  it, called when the block is first read. */
 export function registerPortBlock(name, json, index) {
   if (!name || json == null || !Number.isSafeInteger(index)) return false;
   _portBlocks.set(name, { index, json, block: null });
   return true;
 }
-const portBlockByIndex = (index) => { for (const [name, b] of _portBlocks) if (b.index === index) return name; return null; };
+// AUDIT SHIP-REFIT (2026-10-29): A BUILDING FILE OF THE PORT'S OWN - the ships' furnishing (world/shipRefit.js) - is the
+// port's content, never a mod's: served whatever Replace Game Artwork says, as a port block is, and kept apart from the
+// mods' files, so no file of a mod's can take its place in the list. A live mod's own file of the same name answers
+// first (a player's world data before the port's, as a player's own texture pack is).
+const _portBuildings = new Map();   // building file name -> its JSON
+/** A building file of the port's own, by DFU's name (`<block>-<index>-building<record>.json`). */
+export function registerPortBuilding(fileName, json) {
+  if (!fileName || json == null) return false;
+  _portBuildings.set(fileName, json);
+  buildings.clear();   // a record read before it was registered answered without it
+  return true;
+}
+/** WW7-4: a block of the port's own MADE OF ANOTHER - `make(blocksFile)` answers the block itself (world/capitalCastles.js:
+ *  a Bay palace block's copy, its court stood down), called when the block is first read, with the bound BlocksFile. */
+export function registerPortBlockOf(name, make, index) {
+  if (!name || typeof make !== 'function' || !Number.isSafeInteger(index)) return false;
+  _portBlocks.set(name, { index, make, block: null });
+  return true;
+}
+/** IC-GRAND (bible/03-World/Arena-Provinces.md IC-GRAND): BLOCK FAMILIES - a run of the port's own blocks answered by one
+ *  law: `indexOf(name)` its fixed index or -1, `nameOf(index)` its name or null, `make(name, blocksFile)` the block itself
+ *  (or its JSON) - built when first read and kept a bounded number at a time (an LRU, `keep`), so the Imperial City's
+ *  forty thousand cells register no block up front and hold only the ones near the player. Asked after the blocks
+ *  registered one by one. */
+const _blockFamilies = [];
+/** @param {{ indexOf: (name: string) => number, nameOf: (index: number) => string | null, make: (name: string, blocksFile: any) => any, keep?: number }} f */
+export function registerPortBlockFamily(f) {
+  if (!f || typeof f.indexOf !== 'function' || typeof f.nameOf !== 'function' || typeof f.make !== 'function') return false;
+  _blockFamilies.push({ ...f, keep: Math.max(1, f.keep ?? 512), cache: new Map() });
+  return true;
+}
+const familyIndex = (name) => { for (const f of _blockFamilies) { const i = f.indexOf(name); if (i >= 0) return i; } return -1; };
+/** IC-STUTTER (bible/03-World/Arena-Provinces.md IC-STUTTER): whether a family's block is made and kept - a read of it
+ *  makes nothing (scenes/capitalPrebuild.js asks before a build). @param {string} name */
+export const portBlockFamilyHas = (name) => _blockFamilies.some((f) => f.cache.has(name));   // a family's cache holds its own names alone
+const familyName = (index) => { for (const f of _blockFamilies) { const n = f.nameOf(index); if (n) return n; } return null; };
+function familyBlock(name) {
+  for (const f of _blockFamilies) {
+    const index = f.indexOf(name);
+    if (index < 0) continue;
+    if (f.cache.has(name)) { const b = f.cache.get(name); f.cache.delete(name); f.cache.set(name, b); return b; }
+    const made = f.make(name, _blocksFile);
+    const block = made && (made.rmbBlock || made.rdbBlock) ? made : made ? blockFromJson(made, index) : null;
+    f.cache.set(name, block);
+    if (f.cache.size > f.keep) f.cache.delete(f.cache.keys().next().value);
+    return block;
+  }
+  return null;
+}
+const portBlockByIndex = (index) => { for (const [name, b] of _portBlocks) if (b.index === index) return name; return familyName(index); };
 function portBlock(name) {
   const b = _portBlocks.get(name);
-  if (!b) return null;
-  b.block ??= blockFromJson(b.json, b.index);
-  return b.block;
+  if (!b) return familyBlock(name);
+  if (b.block) return b.block;
+  if (b.make) return (b.block = b.make(_blocksFile));
+  const json = typeof b.json === 'function' ? b.json() : b.json;
+  const block = blockFromJson(json, b.index);   // AUDIT-TESA A6-2: a block built when first read
+  // ROAD-FOLLOW: a block its maker calls provisional (a city's wall still waiting for its pixel's roads -
+  // world/townWalls.js) is answered and not kept: its next read builds it again
+  if (!json?.Provisional) b.block = block;
+  return block;
 }
 /** ARENA1: an edit the port makes to a location as it is read - `fn(dfLocation, maps, blocksFile)`, after the
  *  location is read (MAPS.BSA's, a mod's file, a pinned town's), with its indices set. Never on readClassicLocation:
@@ -410,8 +485,13 @@ function addNewDFLocationVariant(locationIndex, locationVariantKey, variantLocat
 }
 
 // ---- the new block indices (:312-340, :531-573) ----
-export const getNewDFBlockIndex = (blockName) => _portBlocks.get(blockName)?.index ?? newBlockIndices.get(blockName) ?? -1;   // ARENA1: a port block first
+export const getNewDFBlockIndex = (blockName) => _portBlocks.get(blockName)?.index ?? (familyIndex(blockName) >= 0 ? familyIndex(blockName) : null) ?? newBlockIndices.get(blockName) ?? -1;   // ARENA1: a port block first; IC-GRAND: or a family's
 export const getNewDFBlockName = (block) => portBlockByIndex(block) ?? newBlockNames.get(block) ?? null;
+/** FOUNDATION F1 (world/atlas/atlasServed.js): whether the door serves a block's content under a name - the port's own, a
+ *  family's, or a live mod's file (its plain name; a variant a location picks is not asked). A name a location gave an
+ *  index to (assignBlockIndices) and nothing serves reads as null at its layout. AUDIT FOUNDATION II A3: asked as at a
+ *  town no save pinned (assetOn, its pins aside) - never under the pin of the town read last. @param {string} blockName */
+export const worldDataServesBlock = (blockName) => _portBlocks.has(blockName) || familyIndex(blockName) >= 0 || (worldDataOn() && (_assets.get(blockReplacementFilename(blockName)) ?? []).some((a) => a.isOn?.() ?? true));
 function assignBlockIndices(dfLocation) {
   if (!_blocksFile) return false;   // ContentReader/BlockFileReader null: nothing assigned, and the region is not cached
   if (nextBlockIndex === 0) nextBlockIndex = _blocksFile.count;
@@ -435,7 +515,7 @@ function assignNextIndex(blockName) {
  *  with its RMB buildings replaced where a building file says so; null
  *  when the mod ships none. */
 export function getDFBlockReplacementData(block, blockName) {
-  if (blockName && _portBlocks.has(blockName)) return portBlock(blockName);   // ARENA1: the port's own, behind no door
+  if (blockName && (_portBlocks.has(blockName) || familyIndex(blockName) >= 0)) return portBlock(blockName);   // ARENA1: the port's own, behind no door; IC-GRAND: a family's too
   if (!worldDataOn() || !blockName) return null;
   const variant = getBlockVariantHere(blockName);
   const blockKey = `${blockName}${variant}`;
@@ -456,7 +536,7 @@ export function getDFBlockReplacementData(block, blockName) {
     if (variant === NO_VARIANT) cacheBlock(blockName, NO_REPLACEMENT);
     return null;
   }
-  // WD1 (Aquatic Sprites' three wet blocks): the whole DFBlock, RdbBlock and RdiBlock included (:363-369) - the
+  // WD1: the whole DFBlock, RdbBlock and RdiBlock included (:363-369) - the
   // AUDIT-RR2 G14 refusal of RDB/RDI files is lifted now that the converters below read both halves
   const dfBlock = blockFromJson(json, block, blockName);
   if (blockName.endsWith('.RMB')) replaceRmbBlockBuildingData(blockName, block, dfBlock);   // :382-384 - RMB blocks only
@@ -493,20 +573,31 @@ function replaceRmbBlockBuildingData(blockName, blockIndex, dfBlock) {
  *  ask sets no variant of its own (the C# asks with NoVariant and lets
  *  WorldDataVariants answer for the last location). */
 export function getBuildingReplacementData(blockName, blockIndex, recordIndex) {
-  if (!worldDataOn() || !blockName) return null;
+  if (!blockName) return null;
+  if (!worldDataOn()) return portBuilding(blockName, blockIndex, recordIndex);   // AUDIT SHIP-REFIT: the port's own, behind no door
   const variant = getBuildingVariantHere(blockName, recordIndex, NO_VARIANT);
   const key = `${blockIndex}|${recordIndex}|${variant}`;
   const file = buildingReplacementFilename(blockName, blockIndex, recordIndex, variant);
   if (pinnedHere(pinLocationKey(), file)) { const json = tryGetAsset(file); return json ? buildingReplacementFromJson(json) : null; }   // WD3
   const cached = buildings.get(key);
   if (cached !== undefined) return cached === NO_REPLACEMENT ? null : cached;
-  const json = tryGetAsset(buildingReplacementFilename(blockName, blockIndex, recordIndex, variant));
+  const json = tryGetAsset(buildingReplacementFilename(blockName, blockIndex, recordIndex, variant)) ?? (variant === NO_VARIANT ? _portBuildings.get(file) : null);   // AUDIT SHIP-REFIT: a mod's own first
   if (!json) {
     if (variant === NO_VARIANT) buildings.set(key, NO_REPLACEMENT);   // Only look for replacement data once, non variant
     return null;
   }
   const data = buildingReplacementFromJson(json);
   buildings.set(key, data);
+  return data;
+}
+/** AUDIT SHIP-REFIT: the port's own building file for a record with the door shut, converted once, or null. */
+function portBuilding(blockName, blockIndex, recordIndex) {
+  const key = `port|${blockIndex}|${recordIndex}`;
+  const cached = buildings.get(key);
+  if (cached !== undefined) return cached === NO_REPLACEMENT ? null : cached;
+  const json = _portBuildings.get(buildingReplacementFilename(blockName, blockIndex, recordIndex, NO_VARIANT));
+  const data = json ? buildingReplacementFromJson(json) : null;
+  buildings.set(key, data ?? NO_REPLACEMENT);
   return data;
 }
 /** ApplyBuildingReplacementAutoMapData (:494-508): every value but 30

@@ -19,9 +19,12 @@
 import { IIL_FIREPLACE_MODELS } from '../systems/improvedInteriorLighting.js';   // IIL1
 import { FlatAnimator, armFlatAnim } from '../render/flatAnimation.js';   // FA1: the flats that move
 import { layoutInterior, INTERIOR_MARKER, PROP_MODEL_TYPE } from '../world/interior/interiorLayout.js';
+import { isBulletinBoard } from '../world/rmbLayout.js';   // NOTICE-PANEL: no board stands indoors either
 import { multiply, transformPoint, identity } from '../world/mat4.js';
 import { StaticBatchBuilder, keyResolver } from '../render/staticBatch.js';   // PERF6: the room's static models as one mesh
 import { collectInteriorLights } from '../world/interior/interiorLights.js';
+import { sealDoorsToNowhere, sealedDoorText } from '../world/interior/doorsToNowhere.js';   // FIELD BUGS 2026-10-25 DOOR-VOID
+import { setMidScreenText } from '../ui/midScreenText.js';   // DOOR-VOID: the sealed door's line, where a locked door's is said
 import { applyClimate } from '../world/climateSwaps.js';
 import { remapSubMeshes, markRemapLaw } from '../world/texRemap.js';   // WM3: the one climate/dungeon remap seam; AUDIT MENU-ORDER C3: a table named by its law
 import { unityMaterialName } from '../systems/immersiveFootsteps.js';   // IF1: MaterialReader's material name, for the mod's floor walk
@@ -37,9 +40,11 @@ import { placedTableSpot, TAVERN_CARD_TABLES } from '../world/placedCardTable.js
 import { cardTablePropModel, paintFelt, paintWood, CARD_TABLE_BOX, CARD_TABLE_ARCHIVE, FELT_RECORD, WOOD_RECORD, FELT_RGB, GOLD_FELT_RECORD, GOLD_FELT_RGB } from '../world/card/cardTableProp.js';   // TAVERN-TABLE: the card table's own prop; TAVERN-TABLES: the gold table's red felt
 import { holdemGoldTable } from '../net/holdemTable.js';   // TAVERN-TABLES: which of them plays for gold - the relay's own index
 import { classicModelIdOf } from '../world/customModels.js';   // WD3: an alias is its classic model to the beds' test
+import { isRoomFurnishing } from '../systems/decor/decorMods.js';   // BUILT-IN-MODS: a town mod's furniture written as scenery
 import { LADDER_MODEL_ID, doorWorldPosition } from '../player/enterExit.js';   // TAVERN-TABLE: a static door's place, for the card table to keep clear of
 import { MACHINERY_MODEL_ID } from '../world/windmillMesh.js';   // WM4b: the mill's machinery and its moving parts
 import { createBaseRoom, baseBucketOf } from './decor/decorBase.js';   // BASE-HIDE: a furnishable room's own pieces, one at a time
+import { createInteriorDoors } from '../systems/decor/decorInteriorDoors.js';   // a room door taken out, its opening left
 import { decorBaseModelKey, decorBaseFlatKey } from '../net/decorLaw.js';   // BASE-HIDE: the layout's names for them
 import { mountMachineryChild } from '../world/windmills.js';
 import { collectInteriorPeople } from '../characters/interiorPeople.js';
@@ -123,7 +128,7 @@ export function seedInteriorTreasure({ markers, building, locationType, pool, le
     // recipe tail, on the PLAYER's level and gender.
     // FORAGE3: OnLootSpawned at the LOCATION type's index, which Foraging reads as the dungeon type of that number (Q12);
     // REALM P0.4: online, the level's gold divided back
-    const items = rollLootRarity(addPileLootExtras(generateLootItems(lootKey, { level, gender }), lootKey, Math.random, { locationIndex: locationType, luck, level }), pileSource(INTERIOR_RARITY_TIER), { luck });   // LR1
+    const items = rollLootRarity(addPileLootExtras(generateLootItems(lootKey, { level, gender }), lootKey, Math.random, { locationIndex: locationType, luck, level }), pileSource(INTERIOR_RARITY_TIER), { luck, level });   // LR1
     stampWonWeapons(items, 1);   // SIGIL1: a pile found online, its weapons' sigils rolled at the mint
     minted.push(pool.seedPile(items, pos, { archive: DROP_ICON_ARCHIVES.clothing, record: 0 }, key));
   });
@@ -355,6 +360,9 @@ export async function buildInteriorContext(deps, dfBlock, blockIndex, recordInde
   const base = opts.baseEditable ? createBaseRoom({ drawList, batches: () => billboardBatches, lights: () => lights, collider }) : null;
   const iilFireplaces = [];   // IIL1: the fireplace models' centres (Improved Interior Lighting)
   for (const [pi, p] of interior.placements.entries()) {
+    // NOTICE-PANEL (AUDIT FB1029g R2, the owner: "remove the notice board prop from all cities"): the town packs' rooms
+    // place model 41739 too - a tavern's, a temple's, a gate's. None stands; its index is kept, so a room's keys hold
+    if (isBulletinBoard(p.modelIdNum)) continue;
     const matrix = parent(p.matrix);
     // NEVER TRAPS: getGpuMesh returns NULL for a model id this data set
     // does not carry (dataPipeline.js:"const index = arch.getRecordIndex(modelIdNum)".."gpuMeshes.set(modelIdNum, null);", and it CACHES the null), and
@@ -387,7 +395,10 @@ export async function buildInteriorContext(deps, dfBlock, blockIndex, recordInde
     // IIL1: ImproveFireplaces.cs finds its hearths by mesh id - the port keeps where they stand
     if (IIL_FIREPLACE_MODELS.has(p.modelIdNum)) iilFireplaces.push({ x: (aabb.min[0] + aabb.max[0]) / 2, y: (aabb.min[1] + aabb.max[1]) / 2, z: (aabb.min[2] + aabb.max[2]) / 2 });
     const key = `int:${pi}`;
-    const baseKey = base && p.objectType === PROP_MODEL_TYPE && p.modelIdNum !== LADDER_MODEL_ID && p.modelIdNum !== MACHINERY_MODEL_ID
+    // BUILT-IN-MODS: a piece is a prop, or furniture a town mod wrote as scenery (ObjectType 0) - DFU's prop gate still
+    // alone decides a container, a ladder and a furniture action below
+    const baseKey = base && (p.objectType === PROP_MODEL_TYPE || (p.objectType === 0 && isRoomFurnishing(p.modelIdNum)))
+      && p.modelIdNum !== LADDER_MODEL_ID && p.modelIdNum !== MACHINERY_MODEL_ID
       ? decorBaseModelKey(pi, p.modelIdNum) : null;   // BASE-HIDE: a piece its owner may take out
     drawList.push({ mesh: gpu, matrix, key, aabb });
     // PERF6: the entry stays in drawList for the automap; the main view draws the merge
@@ -407,7 +418,7 @@ export async function buildInteriorContext(deps, dfBlock, blockIndex, recordInde
       matrix,
     });
     collider.addMesh(baseKey ? baseBucketOf(baseKey) : 'interior', cpu.positions, cpu.indices, matrix);
-    if (baseKey) base.addModel(baseKey, { model: p.modelIdNum, draw: drawList[drawList.length - 1], cpu, matrix, at: aabb.min.map((v, i) => (v + aabb.max[i]) / 2) });
+    if (baseKey) base.addModel(baseKey, { model: p.modelIdNum, draw: drawList[drawList.length - 1], cpu, matrix, at: aabb.min.map((v, i) => (v + aabb.max[i]) / 2), aabb });
     if (p.modelIdNum === MACHINERY_MODEL_ID && getMachineryParts) {
       machineryParts ??= await getMachineryParts();
       for (const part of machineryParts) {
@@ -454,7 +465,10 @@ export async function buildInteriorContext(deps, dfBlock, blockIndex, recordInde
       if (baseKey) base.furnish(baseKey, chair);
     }
     if (p.objectType !== PROP_MODEL_TYPE) {
-      if (isBedModel(classicModelIdOf(p.modelIdNum))) beds.push({ cpu, matrix });
+      if (isBedModel(classicModelIdOf(p.modelIdNum))) {
+        beds.push({ cpu, matrix });
+        if (baseKey) base.furnish(baseKey, beds[beds.length - 1]);   // BUILT-IN-MODS: taken out with its rest
+      }
       continue;
     }
     const had = [containers.length, shelves.length, beds.length];   // BASE-HIDE: which list this piece lands in, if any
@@ -485,6 +499,9 @@ export async function buildInteriorContext(deps, dfBlock, blockIndex, recordInde
     }
     if (baseKey) base.furnish(baseKey, containers[had[0]] ?? shelves[had[1]] ?? beds[had[2]] ?? null);
   }
+  // AUDIT FB1029e H2: a piece with no floor under it holds a floor's edge over the void (a mod's bench at a gap in its
+  // room's shell) - the room keeps it, so taking it out never opens a way into the void
+  for (const p of base?.list() ?? []) if (p.model != null && collider.raycast(p.at, [0, -1, 0], 60, { skip: [baseBucketOf(p.key)] }) === Infinity) base.keep(p.key);
   // Interior swing doors run on the ActionSystem (P4): the verbatim
   // -90 / 1.5 s toggle with trigger-at-open-start - inner rooms open,
   // and they are audible (DaggerfallInterior.AddActionDoors builds them
@@ -493,7 +510,14 @@ export async function buildInteriorContext(deps, dfBlock, blockIndex, recordInde
   const actions = new ActionSystem(collider);
   attachInteriorDoorSounds(actions);
   const dynamicDraws = [];
-  for (const d of interior.actionDoors) {
+  const roomDoors = createInteriorDoors({
+    draws: dynamicDraws,
+    addDoor: (cpu, matrix) => actions.addDoor(cpu, matrix),
+    removeDoor: (key) => actions.removeDoor(key),
+  });
+  const hung = [];   // DOOR-VOID: [record index, model, draw] - offered to the owner's list once the seal has run
+  for (let doorIndex = 0; doorIndex < interior.actionDoors.length; doorIndex++) {
+    const d = interior.actionDoors[doorIndex];
     // The same seam as the placements above: addDoor reads
     // `cpu.positions`, and the push would otherwise hand the frame
     // loop a {gpu: null} entry. A door model this data set lacks costs
@@ -505,7 +529,16 @@ export async function buildInteriorContext(deps, dfBlock, blockIndex, recordInde
       continue;
     }
     dynamicDraws.push({ gpu, object: actions.addDoor(cpu, parent(d.matrix)) });
+    hung.push([doorIndex, cpu, dynamicDraws[dynamicDraws.length - 1]]);
   }
+  // FIELD BUGS 2026-10-25 DOOR-VOID: a door with no floor behind it stays shut - asked of the room's whole shell and its
+  // models, every door registered (world/interior/doorsToNowhere.js). Wired here, as the door sounds are, so both
+  // interior hosts (worldModes' buildings and the standalone interior scene) say the line. A sealed door is not one an
+  // owner may take out (decorInteriorDoors.js isRemovableInteriorDoor): its opening would be the way into nothing.
+  sealDoorsToNowhere(actions);
+  actions.onSealedDoor = () => setMidScreenText(sealedDoorText());
+  for (const [doorIndex, cpu, draw] of hung) roomDoors.adopt(doorIndex, cpu, draw);
+  if (base) base.roomDoors = roomDoors;   // the owner's list; a room that is not furnished has none to take out
 
   // TAVERN-TABLE (world/card/cardTableProp.js, world/placedCardTable.js; the owner: "Lets instead place a specific table in
   // each inn. A new property specifficaly used for the card table"): THE TAVERN'S CARD TABLE, ITS OWN PROP, where the host
@@ -940,6 +973,7 @@ export async function buildInteriorContext(deps, dfBlock, blockIndex, recordInde
     rotors,      // WM4b: the machinery's moving parts; the host turns and draws them
     parentPt,   // Q4-v: the quest mount parents marker positions through the same transform
     lights,
+    roomLamps: Object.freeze(lights.slice()),   // AUDIT RPT1026 J1: the lamps the room was built with - DARK-ROOM's law reads these (world/interior/interiorLights.js roomAmbient), never the live list a placed lamp joins and a lamp taken out leaves
     iilFireplaces,   // IIL1
     texRemap,
     floorMaterials,   // IF1: the combined mesh's material names, for Immersive Footsteps' floor walk

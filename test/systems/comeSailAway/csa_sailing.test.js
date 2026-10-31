@@ -1001,14 +1001,18 @@ test('HELM-LADDER the world\'s seam by source: W and S are pressed through the f
   const keyOf = (a) => ({ MoveForwards: 'W', MoveBackwards: 'S', MoveLeft: 'A', MoveRight: 'D', BoatSailUp: '↑', BoatSailDown: '↓', TurnLeft: '←', TurnRight: '→' })[a] ?? '';
   assert.equal(helmHint({ hasSails: true }, { keyOf, mouseFree: true }), 'Oars & sails W S ↑ ↓ · Steer A D ← →');
   assert.equal(helmHint({ hasSails: false }, { keyOf, mouseFree: true }), 'Oars W S ↑ ↓ · Steer A D ← →', 'a rowboat\'s ladder is her oars');
-  assert.match(w, /started: \(action\) => \(pressed\(latch\.edge, keys, action\) && !\(travelView\?\.active && \[CSA_BOAT_ACTIONS\.sailUp, CSA_BOAT_ACTIONS\.sailDown, CSA_BOAT_ACTIONS\.toggleSail, 'MoveForwards', 'MoveBackwards'\]\.includes\(action\)\)\) \|\| csaHelmInput\.edges\.has\(action\),/);
+  // PIN MOVED (FIELD BUGS 2026-10-21d PASSAGE-HANDS): the panel's and the pad's taps stand down with them - the journey's are its hand's
+  assert.match(w, /started: \(action\) => !\(travelView\?\.active && \[CSA_BOAT_ACTIONS\.sailUp, CSA_BOAT_ACTIONS\.sailDown, CSA_BOAT_ACTIONS\.toggleSail, 'MoveForwards', 'MoveBackwards'\]\.includes\(action\)\) && \(pressed\(latch\.edge, keys, action\) \|\| csaHelmInput\.edges\.has\(action\)\),/);
 });
 
 test('HELM-KEYS in irons: her sails up, her bow within IRONS_TELL_DEG of the wind\'s eye and her way under IRONS_TELL_WAY for IRONS_TELL_S running - the helm is told once how she comes out, again only after she has been out of them; the panel says it while it lasts; a sail just raised is not lying in irons (mutants: told every frame, told at once, the wind\'s sense reversed, the way unread)', () => {
   // PIN MOVED (AUDIT NAV2 F15): under the mod's own default waves, the sea's current never forced away - it rides in her
   // velocity (half the wind), and her way through the water is what is read
   const s = scene({ settings: { 'Waves.Enable': true } });
+  // AUDIT FB1029d B4: a hull with a hold - the Classic helm's Carrack has none (her mod nought), a dead hull no oar or
+  // rudder moves, so she is never told to row out of irons
   const boat = s.place(4, 0);
+  boat.modifierCargoThreshold = 3;
   s.rt.StartSailing(boat);
   const ahead = [0, 0, -1];   // blowing TO her stern: from dead ahead (the bow is +z)
   const lie = (seconds) => { for (let t = 0; t < seconds; t += 0.25) { s.rt.state.windVectorCurrent = ahead; s.frame(); } };

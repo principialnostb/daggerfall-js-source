@@ -26,10 +26,12 @@
 // drive this module through its seams rather than through the bundle.
 
 import { ORIENTATIONS, stateFor, tableArchive, spriteKey, STATE_TABLES, frameCount } from './eotbBillboard.js';
-import { layeredSprite, isLayeredKey } from './layeredArmor.js';   // WORN-ARMOUR: the on-foot body in the armour it wears
+import { layeredSprite, isLayeredKey, decodeLayered } from './layeredArmor.js';   // WORN-ARMOUR: the on-foot body in the armour it wears
 import { classSkinOf, classRecord, classFrame, classRecordScale } from '../classSkins.js';   // SKIN2: Daggerfall's classes, past the mod's sixteen
 import { toColor32, toColor32OrderInPlace } from '../../formats/color32Order.js';   // EOTB-FLIP: the ONE row-order door a PNG crosses on its way to a world billboard
 import { horseLookCode, horseLookOfCode, lookSuffix, recolorHorse } from '../../systems/horse/horseCoats.js';   // COATS1: the mount's look
+import { decodePng } from '../../systems/textureReplacement.js';   // EOTB-FLIP: the one PNG decoder the world's other PNG billboards take
+import { decodeServedPng } from '../../systems/vanillaEnhanced/vanillaEnhancedPack.js';   // FIRST-VISIT: and its decode workers
 import spriteInfo from '../../../vendor/eye-of-the-beholder/spriteInfo.json' with { type: 'json' };
 
 const IN_BROWSER = typeof window !== 'undefined';
@@ -85,9 +87,34 @@ export function spriteOffset(archive, record) {
   const o = spriteInfo.offsets[`${archive}_${record}-0`];
   const d = spriteInfo.default;
   const xml = o ? { scale: o.scale ?? 1, x: o.x ?? 0, y: o.y ?? 0 } : { scale: d.scale ?? 1, x: d.x ?? 0, y: d.y ?? 0 };
+  const s = spriteArtScale(archive, record);
+  return s === 1 ? xml : { ...xml, scale: xml.scale * s };
+}
+
+/** A RECORD'S ART SCALE: its pixels a set's pixel - 1 for the sets. What spriteOffset scales a record by, and the rows a
+ *  picture's marks are read at (render/armoryPose.js spriteMarks' `art`). Pure. */
+export function spriteArtScale(/** @type {number} */ archive, /** @type {number} */ record) {
   // ACRO-SHORT: a class sheet's record drawn at another scale carries its own (player/classSkins.js classRecordScale)
   const k = classRecordScale(archive, record);
-  return k === 1 ? xml : { ...xml, scale: k };
+  const s = k * eotbRecordScale(archive, record);   // RPT1026-MISC SPELL-SHORT: and a set of the mod's own drawn so
+  return s;
+}
+
+/**
+ * RPT1026-MISC SPELL-SHORT (a private report: the Fighter Mage (female) skin shrank in third person while casting, and no
+ * other skin tried did). THE MOD'S OWN ART, DRAWN SMALL. Set 10's spell sheets
+ * (archive 112374, records 45-59: the readied spell, its walk and its cast) draw the woman 80 pixels from hood to boot,
+ * where every other sheet of hers draws her 107-112 (the idle 110) - and the mod's XML gives those records scale 1.0, so
+ * she shrank by a quarter as the spell came up, in Daggerfall Unity with the mod as here. Every other set's spell sheets
+ * stand as tall as its idle or taller (the raised arm). The records are given the scale they were drawn at (80/110, the
+ * spell sheets' figure over the idle's), ACRO-SHORT's door for a class sheet: the XML scale `spriteOffset` hands every
+ * caller that sizes a sprite - the body, its placement, the peers. A DEPARTURE from the mod's XML (Ledger A).
+ */
+export const EOTB_RECORD_SCALE = Object.freeze({ 112374: Object.freeze({ from: 45, to: 59, scale: 80 / 110 }) });
+/** The scale a record of the mod's own sets was drawn at against its set (SPELL-SHORT); 1 for every other. */
+export function eotbRecordScale(archive, record) {
+  const r = EOTB_RECORD_SCALE[archive];
+  return r && record >= r.from && record <= r.to ? r.scale : 1;
 }
 
 /** [IL] The billboard's world size (IL_49dd-IL_4a15): the XML rect's
@@ -121,13 +148,13 @@ export function spriteFor(table, orientation, frame, look = {}, { flip = false }
   // outfit with no art falls through to that skin
   if (look.wornArmour && !table.endsWith('Horse') && !table.endsWith('Lycan')) {
     const worn = layeredSprite(table, st.record - STATE_TABLES[table].base, frame, frameCount(table), look, mirror);
-    if (worn) return worn;
+    if (worn) return { ...worn, view: st.record - STATE_TABLES[table].base };
   }
   const skin = !table.endsWith('Horse') && !table.endsWith('Lycan') ? classSkinOf(look.onFoot) : null;
   if (skin) {
     const record = classRecord(skin, table, st.record - STATE_TABLES[table].base);
     const f = classFrame(skin, record, frame, frameCount(table));
-    return { archive: skin.archive, record, frame: f, mirror, key: spriteKey(skin.archive, record, f), rec: `${record}-${f}${mirror ? 'm' : ''}` };
+    return { archive: skin.archive, record, frame: f, mirror, key: spriteKey(skin.archive, record, f), rec: `${record}-${f}${mirror ? 'm' : ''}`, view: st.record - STATE_TABLES[table].base };
   }
   const archive = tableArchive(table, look);
   // COATS1: a mounted table's horse wears the rider's horse's look (`look.horse`, its code - systems/horse/horseCoats.js) -
@@ -143,13 +170,40 @@ export function spriteFor(table, orientation, frame, look = {}, { flip = false }
      *  own record, because it is its own pixels */
     rec: `${st.record}-${frame}${mirror ? 'm' : ''}${lookSuffix(horse)}`,
     horse,
+    /** ARMORY: which of the five views it is (eotbBillboard.js RECORD_OFFSETS: 0 the front, 2 the side, 4 the back) */
+    view: st.record - STATE_TABLES[table].base,
   };
 }
 
 /** COATS1: a sprite's pixels as its state draws them - its horse's look dyed in (systems/horse/horseCoats.js recolorHorse;
  *  none but a mounted table's ever has one), on the world's rows (bottom first, worldOrderColors) - before the mirror,
- *  so a mirrored view is the other flank. */
-export const lookedPixels = (s, image) => (s?.horse ? recolorHorse(image, s.horse) : image);
+ *  so a mirrored view is the other flank. AUDIT-STOREFRONT: its rider spared (`riders`, ridersReady's answer), its view said. */
+export const lookedPixels = (s, image, riders = null) => (s?.horse ? recolorHorse(image, s.horse, { spare: riderSpareOf(riders, s.key, image.width, image.height), view: s.view }) : image);
+
+/** AUDIT-STOREFRONT: THE MOUNTED PICTURES' RIDERS (eotbRiderMasks.js, baked by tools/bakeEotbRiders.mjs from the five
+ *  sets), loaded once, on the first dye of a mounted picture - never at boot. `load` the import (a test hands its own). */
+let _riders = /** @type {Promise<Readonly<Record<string, string>>|null>|null} */ (null);
+const loadRiders = () => import('./eotbRiderMasks.js');
+// AUDIT-STOREFRONT II (lane C 3): a load that fails answers none - that picture dyed with no rider spared, as before the
+// masks - and is forgotten, so the next mounted picture asks again. Kept, it failed every mounted sprite for the session.
+export const ridersReady = (load = loadRiders) => (_riders ??= load().then((m) => m.RIDER_MASKS, () => { _riders = null; return null; }));
+/** A picture's rider as the dye's `spare`, on the world's rows (bottom first): 1 a pixel of his. None for a picture the
+ *  masks do not hold, or hold at another size (art replaced since the bake). */
+export function riderSpareOf(riders, key, width, height) {
+  const m = riders?.[key];
+  if (!m) return null;
+  const at = m.indexOf(':'), [w, h] = m.slice(0, at).split('x').map(Number);
+  if (w !== width || h !== height) return null;
+  const bin = globalThis.atob(m.slice(at + 1)), out = new Uint8Array(w * h);
+  let i = 0, his = 0;
+  for (let b = 0; b < bin.length;) {
+    let run = 0, shift = 0, c;
+    do { c = bin.charCodeAt(b++); run += (c & 127) * 2 ** shift; shift += 7; } while (c & 128);
+    if (his) for (let k = i; k < i + run; k++) { const x = k % w; out[(h - 1 - (k - x) / w) * w + x] = 1; }   // the bake's rows top first
+    i += run; his ^= 1;
+  }
+  return out;
+}
 
 /** Every sprite key one table needs at a given frame - what the
  *  preload fetches, and what the probes count. */
@@ -187,6 +241,24 @@ export function worldOrderColors(image, { owned = false } = {}) {
   if (owned) { const { width, height, data } = toColor32OrderInPlace(image); return { width, height, colors: new Uint32Array(data.buffer, data.byteOffset, data.byteLength / 4) }; }
   const { width, height, colors } = toColor32(image);
   return { width, height, colors: new Uint32Array(colors.buffer, colors.byteOffset, colors.byteLength / 4) };
+}
+
+/** LAYERED-GLOW: a composed worn-armour picture in the world's row order, with its weapon's own px (`held`, top row
+ *  first - eotbGlow.js heldGlowPx). */
+export function worldOrderLayered(image) {
+  const held = image.held ?? null;
+  return { ...worldOrderColors(image, { owned: true }), held, ...(image.provisional ? { provisional: true } : {}) };   // AUDIT: drawn before its weapon's picture came
+}
+
+/**
+ * THE BROWSER DECODE, lifted out so it can be replaced (eotbBody.js takes it as its `decode`; PROFILE-SLOTS: the
+ * profile's stage too, without the body's own module). EOTB-FLIP: the dropped torch's door - `decodePng`, then the one
+ * row-order converter - never a canvas of its own. A decode that fails answers a rejection. FIRST-VISIT: decodeServedPng
+ * fetches and decodes.
+ */
+export async function decodeSprite(url) {
+  if (isLayeredKey(url)) return worldOrderLayered(await decodeLayered(url, decodePng, { picture: decodeServedPng }));   // WORN-ARMOUR: composed from its strip
+  return worldOrderColors(await decodeServedPng(url), { owned: true });   // PERF-PEERS5: the decode is this door's alone - turned in its own bytes
 }
 
 /**

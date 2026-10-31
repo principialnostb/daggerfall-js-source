@@ -305,15 +305,15 @@ enhanced plus UI feature."
   (Call - refused, and saying why, while the slots are full or it is still hurt; its rest), **Release** asked twice.
 - **Its words**: as it arrives when called, as it is sent away or released, when it falls, now and then as it goes into
   a fight or over a kill (a minute between each one's, twenty seconds between any) - all in its voice.
-- **In the open zone (COMPANION-DROP, FIELD BUGS 2026-10-19f; the owner, 2026-10-19: "Bag drops; no send-off in
-  zone")**: the one at my side there - `swornAtYourSide`, the first walking with me as the record lists it, the one the
-  zone stands (PVPDUNGEONS; the rest wait outside the zone) - carries its pack and its kit at stake with mine: a death
-  there drops them as it drops my bag (`11-Multiplayer/Wild-Zone.md` section 4,
-  `wildDropLaw.js:"export function wildPacks"`). So it is never sent away nor on an errand from my side there
-  (`revenantCompanions.js:"export const leaveRefusal = (r) =>"` - the roster says it, and the slots' hold sends
-  another), nothing of mine is given as kit to one waiting outside the zone, and knocked out there it hands me its pack
-  and its kit before it goes, said once (`revenantCompanions.js:"function leftWithYou(r)"`; one carrying nothing hands
-  nothing and says nothing - AUDIT FB1019f B4): nothing it carries leaves the zone but at my side.
+- **In the open zone**: the one at my side there - `swornAtYourSide`, the first walking with me as the record lists it,
+  the one the zone stands (PVPDUNGEONS; the rest wait outside the zone). COMPANION-DROP (FIELD BUGS 2026-10-19f; the
+  owner, 2026-10-19: "Bag drops; no send-off in zone") put its pack and its kit at stake with mine there, and so kept it
+  at my side: never sent away nor on an errand, nothing given as kit to one waiting outside, and knocked out it handed me
+  what it carried. STORE-KEEPS (2026-10-26; the owner: "Make it where you cant lose your wagon/horse or anything stored on
+  death") made its pack and kit storage no death takes (`11-Multiplayer/Wild-Zone.md` section 4), and those rules went
+  with the drop they served: in the zone it comes and goes, and rests with its pack and kit, as anywhere - save that
+  nothing is given into its pack or kit for a minute after a player's blow (AUDIT PVP-EASE's combat lock, Wild-Zone.md
+  section 4: storage open from anywhere had made the drop optional).
 
 ## 14. The portals and the dissolve (COMPANION-PORTAL, DISSOLVE)
 
@@ -486,8 +486,12 @@ survivors run to it, or two of its kin step out of a portal. The page lists who 
 
 **Its lair (RVN7a).** A revenant that wins a fight in the open world, or escapes one, goes to ground in a named
 dungeon four to ten map pixels from where it happened - the one nearest a direction drawn on its id, the dungeons the
-town boards' bounties use. With none in reach it roams. A deed underground makes that dungeon its lair, and a lair
-moved is one the player must hear of again. The page says what the player knows of it.
+town boards' bounties use - only one the player can go down into (LAIR-DOOR, FIELD BUGS 2026-10-22d: 28 graveyards
+place no door). With none in reach it roams. A deed underground makes that dungeon its lair, and a lair a deed moves is
+one the player must hear of again. A lair already held in a place nobody can enter moves to the enterable dungeon
+nearest it within twenty map pixels, and stays known as it was. The page says what the player knows of it. Past the Bay
+the lairs are the land's own (TESA8), and a revenant goes to ground in them as on the Bay - LAIR-WORLD (2026-10-26):
+until it, a deed past the Bay found no dungeon in its ring and the revenant roamed (`12-Enhanced-AI/Feud-Arc.md` 18.1).
 
 **The rumour (RVN7b).** Ask a townsperson for news within twenty map pixels of a living revenant's lair, or in its
 lair's region, and one time in three or so the answer is of it - its kind, its name, its lair, how far and which way -
@@ -807,9 +811,8 @@ A sworn revenant wears what the player gives it. `systems/revenant/revenantGear.
   itself moves gold and letters, never a piece) and the realm's own (`systems/item/possessedItems.js`) - a release hands
   it back with its pack, and a deserter or a betrayer weighs it with its pack (`splitPack` - it keeps the more valuable
   half). Abroad, its kit goes with it: nothing is given or taken back (AUDIT RVN F10). COMPANION-DROP (FIELD BUGS
-  2026-10-19f, section 13): in the open zone the kit of the one at my side drops with my bag at a death there, as its pack
-  does - DECIDED there, named: its pieces are mine, given from the pack and taken back at will, worn by it and never by me,
-  so my own worn law is not theirs - and nothing of mine is given to one waiting outside the zone.
+  2026-10-19f, section 13) had the kit of the one at my side in the open zone drop with my bag at a death there, as its
+  pack did; STORE-KEEPS (2026-10-26) made both storage no death takes.
 - **Its weight abroad** (`gearPower`, section 42): a twentieth of a point a piece worn, and its tier's share more (Magic
   0.1, Rare 0.2, Legendary 0.35), at most two (AUDIT RVN G8 - ten Common pieces weighed what three Legendaries did).
 - **The page**: the Companions page's **Gear** opens a sheet under its card - a well a slot it may fill (a beast's the
@@ -922,15 +925,28 @@ provinces (`world/tamriel/tamrielGeography.js PROVINCES`; a city of it named, dr
 - **Forage**: crafting materials first.
 - **Sell-sword**: gold first.
 
-It leaves through its portal (the layer reads the party), is gone the place's days on the character's own clock
-(`ownMinutes`), and comes back at the party's frame (`revenantParty().wake`). **Online only the time lived with the world
-carries it on** (AUDIT RVN F1 - `errandStep`, `chargeErrands`): the clock stands while the player is away, and a rest, a
-Loiter or a journey raises it (`worldTick.js raisedMinutes`) - a raise pushes every errand's minute back by as much, and a
-step past `ERRAND.STEP_MAX` (30 minutes - a quest clock's played step; time away) by the rest. A day abroad is two real
-hours of play. It is QCLOCK-WORLD's law (`quest/clock.js chargeSeconds`, "the lived step, never the raise"): a raise that
-paid was a faucet the world pays for (Lived-Time.md) - measured, a road journey's x100 raised 906k of wealth an hour at
-level 30 against the band's 200k. Offline the one clock carries it, DFU's own; the page says so online. The law is `systems/revenant/revenantErrands.js`; the acts are
-`revenantCompanions.js` (`sendOnErrand`, `recallFromErrand`, `returnFromErrand`).
+It leaves through its portal (the layer reads the party), is gone the place's days, and comes back at the party's frame
+(`revenantParty().wake`). **Online it keeps the world's time** (OFFLINE-ROAD, FIELD BUGS 2026-10-21,
+`01-Overview/bugs/Field-Bugs-2026-10-21.md` - `errandOnWorld`, `chargeErrands`): its `due` is the world's minute it is
+back (`worldTick.js worldMinutes`, the event clock, which runs on the wall whoever plays), so time away carries it on and a
+day abroad is two real hours, played or not. A rest, a Loiter or a journey raises the character's own clock alone
+(`worldTick.js raisedMinutes`), never the world's, so a raise still carries it on not a minute - AUDIT RVN F1's faucet
+(QCLOCK-WORLD's law, `quest/clock.js chargeSeconds`, "the lived step, never the raise": a raise that paid was a faucet the
+world pays for, Lived-Time.md - measured, a road journey's x100 raised 906k of wealth an hour at level 30 against the
+band's 200k) stays shut. Until the relay's clock is heard (`trustedWorldMinutes`) the lived step carries it as AUDIT RVN F1
+built it (`errandStep`: a raise pushes every errand's minute back by as much, and a step past `ERRAND.STEP_MAX` - 30
+minutes, a quest clock's played step - by the rest); an errand sent then takes its minutes left onto the world's clock at
+the first trusted wake, from its minute charged by that wake's lived step (AUDIT FB1021 L3-2: a raise across the first
+trusted wake was paid on it). The world's minute an errand reads is held to the time this session lived (AUDIT FB1021
+L3-1, `errandWorldMinute`): the client's world clock is the machine's clock plus the relay's offset, read once a welcome,
+so a machine clock set forward mid-session moved it and returned every errand at once (fourteen returns for ten +8 h
+moves, where the lived step held each wake to its thirty minutes); each primary welcome marks the world's minute with
+`performance.now()` (`worldTick.js hearSharedClock`), and a wake reads no more than that minute plus the monotonic time
+since at the wire's rate, plus a minute. A load hears the relay again, so time away still counts. Offline the one clock
+carries it, DFU's own. Online the page says so, and its times left are real minutes and hours at the wire's rate (AUDIT
+FB1021 L3-5: "back in about 24 hours" was two real hours, and the sky clock passes 48 in them). The law is
+`systems/revenant/revenantErrands.js`; the acts are `revenantCompanions.js` (`sendOnErrand`, `recallFromErrand`,
+`returnFromErrand`).
 
 | Place | Days | Danger | Its goods |
 |---|---|---|---|
@@ -972,7 +988,9 @@ odds with the share.
 - **Measured** (lane E's probe, 1,500 seeds a cell, two abroad, rank V and its best kit, on lived time): at level 30 the
   best route brings about 990 gold a real hour (Black Marsh, Sell-sword) or 4,200 of item worth (`itemLaw.itemWorth`) -
   0.5% and 2% of the wealth budget's 200k band (`server-account/src/budget.js`) - and 0.03 Legendaries an hour; at level
-  10, 330 gold and 1,400 of worth an hour.
+  10, 330 gold and 1,400 of worth an hour. Per character (AUDIT FB1021 L3-4): online, since OFFLINE-ROAD, every one of an
+  account's realm characters keeps its errands on the world's clock while another is played, so an account of six
+  (`realm.js REALM_CHARACTERS_MAX`) may have twelve abroad - six times the hour at most, still 3% and 12% of the band.
 
 It is handed over at its return: gold to the purse, pieces to the pack, goods to the Materials Bag (then the pack, any
 overflow forced in - `materialsBag.js giveCarried`; units minted on the client are loose, as a find's are -
@@ -1004,6 +1022,8 @@ layer for its street, `scenes/worldModes.js`'s buildings and `scenes/dungeonCont
 returns wherever the player is; no host line. `scenes/exterior.js` stands no sworn one - FLAGGED, as section 40.
 
 Pinned: `test/systems/revenant/rvnerrand.test.js` (10); `tools/mutants/rvnerrand.json` (all dead - section 43).
+OFFLINE-ROAD and its audit: `test/systems/revenant/fb1021_offlineroad.test.js` (8); `tools/mutants/fb1021_offlineroad.json`
+(19, all dead).
 
 ## 43. AUDIT RVN - the kit, the arts and the errands audited (2026-10-17)
 
@@ -1733,3 +1753,34 @@ named lines this audit moved and were re-aimed by content (`unquiet.json` 22, `u
 dead; five whose law went with U11 or became redundant were dropped. Every
 revenant list was swept on the audited law (42 lists, 1,755 records): 1,749 dead, the two equivalents as recorded, and the
 four survivors above, each answered and dead or gone.
+
+## 50. Another player's revenants and the crowd's count (RPT1026-EVENTS CROWD-KIN, 2026-10-26)
+
+A private report: the Players shown at once count hid other players and left their revenants standing. Another player's
+revenant is a puppet on my screen, stood by theirs and named by their word
+(`nm`). When the Other players card's **Players shown at once** count leaves its owner undrawn, it goes with them: it,
+its band and the owner's sworn companions draw nothing here and offer the ray nothing, unless it is on me
+(`net/gate/gateCrowd.js` `crowdKinHidden`; `11-Multiplayer/World-Bosses.md` section 21, CROWD-KIN). My own revenants
+are never hidden: they hunt me.
+
+## 51. An event's own foe is never one (STAR-MASTER-FLED, 2026-10-29)
+
+A player's report: a Starfall's master, an Elite Daedra Lord, rolled the mark, ran at a blow, became their revenant,
+and the star waited on it at "the master" until dawn (`01-Overview/bugs/Field-Bugs-2026-10-29g.md`). An event's own
+foe never rises: its fall is its event's. The Starfall's master, a staff event's mini boss and a rite's faithful carry
+`entity.eventFoe` from their stand - the pool stamps it before an elite's promotion draws the mark
+(`scenes/exteriorFoes.js` spawnFoe). One rule reads it, `unquietMark.js` isEventFoe: the mark's gate never draws on
+such a foe, `isUnquiet` and `revenant.js` revenantCandidate refuse it, and `foeTitle.js` reads the same flag, so no
+reader calls it "Unquiet" and no deed raises it. `worldBoss` stays the Starfall master's own mark, which cuts its
+finds and cards (`festivalFoes.js`, `cardSources.js`); a staff boss never carries it.
+
+AUDIT FB1029g STAR (2026-10-29) found the first fix's rule on `worldBoss` alone. The master was stamped at its landing,
+after its promotion had drawn the mark (F3); a staff event's boss still ran and rose (F4); a rite's Summoner wore
+"Unquiet" though only its record (`rec.riteRole`, U42) kept it from rising (F5). Each stand now stamps its own: the
+Starfall's (`scenes/starfall/starfallHost.js` stand, masterOf), the boss's (`systems/raidingParties.js` spawn asks
+`scenes/raidHost.js` standRaider for the boss, and `systems/eliteFoes.js` promoteStaffBoss), the faithful's
+(`scenes/riteHost.js` stand and riteFoe, through `scenes/world.js`'s deps whole). Pinned by
+`test/systems/revenant/auditunquiet.test.js` (the rule, the real street pool, F4, F5),
+`test/scenes/starfall/star5_host.test.js` (the field report through the real pool and host),
+`test/systems/staffevent_raid.test.js` and `test/net/gate/wb12d_rite_host.test.js`; mutants in
+`tools/mutants/audit_fb1029g_star.json`.

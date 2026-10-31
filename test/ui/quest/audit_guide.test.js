@@ -149,7 +149,7 @@ function eventsOf(b) {
  *  follows, so they track it first, as a player does with the journal's Track button. */
 const pinFrame = () => { const t = questTracker.tracked(); if (t && !questTracker.isPinned(t.id)) questTracker.toggle(t.id); return questTracker.frame(); };
 
-test('AUDIT GUIDE H1/L2: the HUD\'s faces count down only a clock the quest\'s own journal NAMES (a `=clock_` in a logged entry) - a closing clock started after the player is done is no deadline: no "Under a day left", no gold time on the card; the pause tab\'s "Time remains" keeps main\'s tightest counting clock (DEAD-CLOCK, PX5) (mutants: the named test dropped; the tightest kept for the lens)', () => withSwitches(() => {
+test('AUDIT GUIDE H1/L2: the HUD\'s faces count down only a clock the quest\'s own journal NAMES (a `=clock_` in a logged entry) - a closing clock started after the player is done is no deadline: no "Under a day left", no gold time on the card; the pause tab\'s "Time remains" counts the named deadline too where there is one (QUEST-AUDIT III NAMED-TIMER) (mutants: the named test dropped; the tightest kept for the lens)', () => withSwitches(() => {
   resetUid(); ensureUidAtLeast(1000);
   const clock = { now: 50000 };
   const b = makeBridge({ clock });
@@ -170,7 +170,10 @@ test('AUDIT GUIDE H1/L2: the HUD\'s faces count down only a clock the quest\'s o
   assert.match(pinFrame()?.time ?? '', /^2 days 2\d hours left$/, 'the card counts the named deadline, not the closing hour');
   assert.equal(pinFrame()?.urgent, false, 'no gold');
   const row = b.questLog().active.find((r) => r.questName === '__ANAMED');
-  assert.ok(row.clockSeconds <= 3600, 'the pause tab keeps DEAD-CLOCK\'s tightest counting clock (main\'s, PX5 - Mac\'s call)');
+  // PIN MOVED (QUEST-AUDIT III NAMED-TIMER, the owner's word "fix any and all outstanding issues" taking half of the call
+  // this pin held for him): where the journal names a deadline the pause tab counts it too, never a closing hour beside it;
+  // a quest whose entries name none keeps DEAD-CLOCK's tightest (questbridge.test.js MAC-K2)
+  assert.ok(Math.abs(row.clockSeconds - v.clockSeconds) < 120 && row.clockSeconds > 2 * 86400, `the pause tab counts the named deadline: ${row.clockSeconds}`);
 
   // _BRISIEN's shape: a clock the journal never names is no one's deadline on the HUD
   start(b, '__AUNNAMED');
@@ -460,8 +463,8 @@ test('AUDIT GUIDE O3/L5: a look asks the host\'s map once per quest (the latest 
   assert.equal(reads, 2, 'one read per place a session, a miss included');
   const world = rd('src/scenes/world.js');
   assert.match(world, /const questPlacePixel = placePixelMemo\(\);/, 'the host holds one memo');
-  assert.match(world, /canFindPlace: \(regionName, name\) => canFindPlace\(maps, mapDict, regionName, name, questPlacePixel\)/, 'the look\'s map question asks it');
-  assert.match(world, /const questPixel = \(find\) => questPlacePixel\(maps, find\?\.regionName \?\? '', find\?\.locationName \?\? ''\);/, 'and the compass and the map\'s marks');
+  assert.match(world, /canFindPlace: \(regionName, name, site\) => canFindPlace\(maps, mapDict, regionName, name, questPlacePixel, site\)/, 'the look\'s map question asks it');   // PIN MOVED (START3): and the site, for its pixel past the Bay
+  assert.match(world, /const questPixel = \(find\) => find\?\.worldPixel \?\? questPlacePixel\(maps, find\?\.regionName \?\? '', find\?\.locationName \?\? ''\);/, 'and the compass and the map\'s marks');   // PIN MOVED (START3): a place past the Bay by its own pixel first
 });
 
 // ---------------------------------------------------------------
@@ -651,9 +654,10 @@ test('AUDIT GUIDE U8: the card\'s top clears the compass and the foe frame at th
     } finally { _resetQuestTrackerForTests(); globalThis.document = was; }
   }, { tracker: true });
   const css = ENHANCED_CSS.replace(/\s+/g, ' ');
-  assert.match(css, /--qt-clear: calc\(18px \+ 28px \* var\(--hud-scale, 1\) \+ 30px\);/, 'the compass\'s foot at the scale');
+  assert.match(css, /--qt-clear: calc\(18px \+ 28px \* var\(--hud-scale, 1\) \+ 30px \+ var\(--qt-town, 0px\)\);/, 'the compass\'s foot at the scale');   // PIN MOVED (AUDIT FB1029g P6): the town panel's height joins the sum
   assert.match(css, /\.qtrack\.touch \{ top: calc\(max\(76px, var\(--qt-clear\)\) \+ env\(safe-area-inset-top, 0px\)\); \}/, 'a touch screen');
-  assert.match(css, /body:has\(\.hud-foe\.on\) \.qtrack \{ --qt-clear: calc\(18px \+ 28px \* var\(--hud-scale, 1\) \+ 30px \+ 46px \* var\(--hud-scale, 1\)\); \}/, 'the foe bar on a narrow one');
+  assert.match(css, /body:has\(\.hud-foe\.on\) \.qtrack \{ --qt-clear: calc\(18px \+ 28px \* var\(--hud-scale, 1\) \+ 30px \+ 46px \* var\(--hud-scale, 1\) \+ var\(--qt-town, 0px\)\); \}/, 'the foe bar on a narrow one');
+  assert.match(css, /body:has\(\.hud \.dftown-panel\.on\) \.qtrack \{ --qt-town: var\(--dftown-h, 0px\); \}/, 'AUDIT FB1029g P6: the town panel on a narrow one, by its own height');
   assert.match(css, /\.qtrack, \.qtrack\.touch \{ top: calc\(max\(104px, var\(--qt-clear\)\) \+ env\(safe-area-inset-top, 0px\)\);/, 'a phone');
 });
 

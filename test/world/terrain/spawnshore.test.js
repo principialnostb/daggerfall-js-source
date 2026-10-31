@@ -76,10 +76,14 @@ test('SPAWN-SHORE: kept per pixel - the height map does not change under a sessi
 });
 
 test('SPAWN-SHORE by source: both of the host\'s gates ask the ground - the build\'s and the Overworld\'s far found spawns', () => {
-  const w = readFileSync(new URL('../../../src/scenes/world.js', import.meta.url), 'utf8');
+  // PIN MOVED (HOST-SPLIT, SPAWN-WORLD 2026-10-26): the stand and the ground's law left world.js for scenes/spawnStandHost.js
+  // and scenes/spawnGroundHost.js - read with it
+  const w = ['world.js', 'spawnStandHost.js', 'spawnGroundHost.js'].map((f) => readFileSync(new URL(`../../../src/scenes/${f}`, import.meta.url), 'utf8')).join('\n');
   assert.match(w, /const _spawnGround = createSpawnGround\(woods\);/);
   const i = w.indexOf('const spawnedDungeonAt = (px, py) => {');
   assert.match(w.slice(i, w.indexOf('\n  };\n', i)), /CLIMATES\.Ocean \|\| !_spawnGround\(px, py\)\) return null;/);
-  const j = w.indexOf('function tvSpawnAt(px, py) {');
-  assert.match(w.slice(j, w.indexOf('\n  }\n', j)), /CLIMATES\.Ocean \|\| !_spawnGround\(px, py\) \|\| tvSpawnGone/);
+  // PIN MOVED (GROUND-AGREE): the Overworld's far found spawn is the shared spawn law's (world/spawnGroundPlace.js), handed
+  // this plateau test - test/scenes/fb1024_groundagree.test.js runs the law's own sea and plateau gates
+  assert.match(w, /const tvSpawnAt = spawnGroundPlace\.spawnAt;/, 'the Overworld\'s far found spawn');
+  assert.match(w, /plateauDry: _spawnGround,/, 'handed the same plateau test');
 });

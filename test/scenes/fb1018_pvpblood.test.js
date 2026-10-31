@@ -40,12 +40,15 @@ test('PVP-BLOOD THE POOL I STAND IN: a duel\'s blow and the open zone\'s splash 
 test('PVP-BLOOD THE STREET\'S OWN: the only splashes world.js sends straight to the street\'s pool are on paths that run in the street alone - a road traveller struck down (livingStrikeRoad, refused off the exterior) and a horse\'s trample (rrRiding)', () => {
   const src = rd('src/scenes/world.js');
   const at = [...src.matchAll(BARE)].map((m) => m.index);
-  assert.equal(at.length, 2, 'a new splash straight into the street\'s pool - is its path the street\'s alone?');
-  const road = body(src, 'const livingStrikeRoad = (eye, dir) => {');
-  assert.match(road, /_mode\(\) !== 'exterior'\) return false;/);
-  assert.ok(at[0] > src.indexOf('const livingStrikeRoad = (eye, dir) => {') && at[0] < src.indexOf('const livingStrikeRoad = (eye, dir) => {') + road.length);
-  assert.ok(src.lastIndexOf('const rrRiding = createRrRidingContacts({', at[1]) > at[0]);
-  assert.match(src.slice(at[1] - 40, at[1]), /splashBlood: \(pos, fwd\) => $/);
+  // PIN MOVED (FIELD BUGS 2026-10-25i ROAD-SPARE): the road's strike, its splash with it, is scenes/livingWorld/roadStrike.js -
+  // its one splash past the host's `open()`, which is the exterior alone, into the pool the host hands it, the street's
+  assert.equal(at.length, 1, 'a new splash straight into the street\'s pool - is its path the street\'s alone?');
+  const road = rd('src/scenes/livingWorld/roadStrike.js');
+  assert.equal([...road.matchAll(BARE)].length, 1, 'the road\'s one splash');
+  assert.ok(road.indexOf('if (!layer || !open()) return false;') > 0 && road.indexOf('if (!layer || !open()) return false;') < road.search(BARE), 'refused before it, off the open world');
+  assert.match(src, /const livingStrikeRoad = createRoadStrike\(\{ roads: \(\) => livingRoads, open: \(\) => livingWorldOn\(\) && _mode\(\) === 'exterior', collider, cityGuards, hitEffects, playerEntity \}\);/);
+  assert.ok(src.lastIndexOf('const rrRiding = createRrRidingContacts({', at[0]) > 0);
+  assert.match(src.slice(at[0] - 40, at[0]), /splashBlood: \(pos, fwd\) => $/);
   // AUDIT FB1018 L3-6: and the trample runs in the street alone - its one door is called in the exterior arm of the frame
   assert.equal(src.split('rrRiding.contacts()').length - 1, 1, 'the trample has one door');
   const calls = [...src.matchAll(/rrRidingContacts\(\);/g)].map((m) => m.index);
@@ -56,9 +59,14 @@ test('PVP-BLOOD THE STREET\'S OWN: the only splashes world.js sends straight to 
 test('PVP-BLOOD THE ZONE\'S HALLS (AUDIT FB1018 L3-5): in a dungeon a room\'s peer is fair by the place, never by its pose - the pose is the dungeon\'s own frame, which the map reads as its corner pixel, so every peer in the zone\'s halls was refused and no blow landed there', () => {
   const src = rd('src/scenes/world.js');
   const fair = body(src, 'const wildFair = (peerId) => {');
-  assert.match(fair, /if \(!peerId \|\| !wildCan\(\)\) return false;/, 'the place is the zone first (wildCan: wildHere, the door\'s pixel)');
-  assert.match(fair, /return modes\?\.mode === 'dungeon' \|\| wildAtWire\(duelWorldOf\(peerId\)\);/);
+  assert.match(fair, /if \(!peerId \|\| !wildCan\(true\)\) return false;/, 'the place is the zone first (wildCan: wildHere, the door\'s pixel)');   // PIN MOVED (PVP-SAFE-HIT): the streets too, wildFair then a villain alone
+  assert.match(fair, /return pvpFlag\.fair\(peerId\) && \(modes\?\.mode === 'dungeon' \|\| \(wildAtWire\(duelWorldOf\(peerId\)\) && !peaceFor\(settledAt\(duelWorldOf\(peerId\), locationIndex\), pvpFlag\.skullOf\(peerId\) === 'red'\)\)\) && streetsStrike\(zoneSafe\(\), pvpFlag\.skullOf\(peerId\) === 'red'\);/);   // PIN MOVED (PVP-SAFE-HIT): from the streets a villain alone   // PIN MOVED (PVP-GUARDS): a red body in the streets is fair   // PIN MOVED (PVP-FLAG): both flagged first   // PIN MOVED (ZONE-SAFE, bible/11-Multiplayer/Wild-Zone.md section 26): and in the open never a body in a settlement's streets
   assert.match(src, /const nativeFrame = overworld \|\| !!privateInteriorOf\(key\);/, 'the frames the pose is sent in: a dungeon\'s is its own');
   // the cause, executed: a dungeon's own coordinates (blocks at 51.2 m, a few either side of its centre) are the map's corner
-  for (const [x, z] of [[0, 0], [307.2, 307.2], [-307.2, -307.2], [100, -300]]) assert.deepEqual({ ...worldCoordToMapPixel(x, z), x: Math.abs(worldCoordToMapPixel(x, z).x) }, { x: 0, y: 499 });
+  // PIN MOVED (WW-C2, bible/03-World/World-Wide.md WW-C): the conversion is FLOORED past the Bay's west and south edges, so
+  // the corner is its four pixels about the map's (0, 0) - truncation folded both sides onto one
+  for (const [x, z] of [[0, 0], [307.2, 307.2], [-307.2, -307.2], [100, -300]]) {
+    const p = worldCoordToMapPixel(x, z);
+    assert.ok([-1, 0].includes(p.x) && [499, 500].includes(p.y), `${x},${z} -> ${p.x},${p.y}: the map's corner`);
+  }
 });

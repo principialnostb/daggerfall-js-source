@@ -28,12 +28,15 @@ import { TIDE_EFFECTS } from '../../src/net/tideLaw.js';
 import { writXp } from '../../src/net/professionLaw.js';
 import { REFUSALS } from '../../src/net/accountClient.js';
 import { FIND_DROPS } from '../../src/net/marksBook.js';
+import { PASS_DAY_ASKS } from '../../src/net/battlePassLaw.js';
+import { FIND_ASKS_PER_DAY } from '../../src/net/festivalLaw.js';
 
 const src = (p) => readFileSync(new URL(`../../${p}`, import.meta.url), 'utf8');
 
 test('INT17: the first line - each stream a clock cap of today read per hour of play (a raid\'s game day two real hours, a Watch tick each two minutes), the professions a guess; measuring, never enforced', () => {
   assert.equal(PROGRESS_LINE.enforce, false, 'MEASURE first (the owner, asked)');
-  assert.deepEqual(PROGRESS_STREAMS, ['renown', 'raid', 'bounty', 'camp', 'watch', 'find', 'gather', 'prof']);
+  // PIN MOVED (AUDIT PASS 3, Battle-Pass.md section 8): and the Battle Pass's finds and the Witches' Festival's, a stream each
+  assert.deepEqual(PROGRESS_STREAMS, ['renown', 'raid', 'bounty', 'camp', 'watch', 'find', 'gather', 'prof', 'pass', 'festival']);
   assert.equal(GAME_DAY_REAL_HOURS, 2, 'the raid line reads a game day as two real hours');
   assert.deepEqual(PROGRESS_LINE.streams, {
     renown: { rate: RENOWN_XP_HOUR_MAX, cap: RENOWN_XP_HOUR_MAX },
@@ -44,6 +47,8 @@ test('INT17: the first line - each stream a clock cap of today read per hour of 
     find: { rate: MARKS_FAUCETS.find.perDay, cap: MARKS_FAUCETS.find.perDay },
     gather: { rate: MARKS_FAUCETS.gather.perDay, cap: MARKS_FAUCETS.gather.perDay },
     prof: { rate: 10_000, cap: 20_000 },
+    pass: { rate: PASS_DAY_ASKS, cap: PASS_DAY_ASKS },
+    festival: { rate: FIND_ASKS_PER_DAY, cap: FIND_ASKS_PER_DAY },
   });
   for (const [path, [stream]] of Object.entries(PROGRESS_ROUTES)) assert.ok(PROGRESS_STREAMS.includes(stream), path);
   assert.equal(PROGRESS_ROUTES['/v1/marks/find'][1], false, 'a find names no character: the account\'s seat is asked');
@@ -228,7 +233,10 @@ test('INT16-INT17 clients: a refused seat or hold ends the Renown tracker\'s ask
   assert.deepEqual(FIND_DROPS, ['marks-young', 'progress-seat', 'trade-held']);
   assert.match(src('src/net/marksBook.js'), /\} else if \(error === 'marks-rate' \|\| error === 'progress-play'\) \{/);
   assert.match(src('src/net/townSeatBook.js'), /const WATCH_SETTLED = Object\.freeze\(\['bad-watch', 'seats-need-account', 'seats-closed', 'progress-seat', 'trade-held'\]\);/);
-  assert.match(src('src/net/profBook.js'), /if \(keptAnswer\(r\) \|\| r\?\.error === 'prof-rate' \|\| r\?\.error === 'progress-play'\) \{/);
+  // PIN MOVED (AUDIT GATHER F1, Professions-Arc.md section 55): and a CARRIED harvest the seat refuses is kept - it may have
+  // landed with its answer lost (test/systems/auditgather.test.js)
+  // AUDIT LOCKPICK D1: and only once an earlier ask went unanswered - refused on its first ask it never landed
+  assert.match(src('src/net/profBook.js'), /const seatHeld = h\.carry === true && SEAT_REFUSALS\.includes\(r\?\.error\) && \(h\.tries \| 0\) > 0;\n\s*if \(keptAnswer\(r\) \|\| r\?\.error === 'prof-rate' \|\| r\?\.error === 'progress-play' \|\| seatHeld\) \{/);
   for (const k of ['progress-seat', 'progress-play', 'trade-held']) assert.equal(typeof REFUSALS[k], 'string', k);
   // PIN MOVED (PRIMARY-FOLD, Scale-Arc.md THE PLAN PAST 1,000): the seat is the door's one statement's read (door.js doorReads), judged by progressRefusal's own law
   // PIN MOVED (AUDIT PLAN-1000 F1): the seat the door read - or, a window turned between the rate's peek and its count, read then

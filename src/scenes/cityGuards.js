@@ -60,6 +60,7 @@ import { coverDistance } from '../ai/cover.js';   // TACT1: a witness does not s
 import { blowConnects, blowScaled } from '../ai/foeBlows.js';   // TACT4
 import { foeGlint } from '../ai/tactics.js';   // TELL2: a wind-up's glint (bible/12-Enhanced-AI/Feud-Arc.md section 4.2)
 import { SOUND } from '../systems/soundClips.js';
+import { hunterTaken, mirrorOnto } from '../systems/wild/villainHunt.js';   // PVP-GUARDS: a villain's hunters
 import { ENEMY_BASICS } from '../characters/enemy/enemyBasics.js';
 import { copyEffectEntry } from '../systems/save/save.js';   // AUDIT 26 F217
 import { KNIGHT_CITY_WATCH } from '../characters/mobile/mobileTypes.js';
@@ -112,7 +113,7 @@ import { flashPlayerDamage } from '../ui/damageFlash.js';   // AUDIT 24 (wave 39
 import { combatVisualsOn, foeDraw, markConcealedHit } from '../systems/combatVisuals.js';   // ECV1: what the enhanced skin draws for a concealed foe
 import { registerFoeDoor } from '../systems/artifactEffects.js';   // AUDIT PSCALE1 DOORS-2: Namira's reflection on a watchman through his own door
 import { foeHitFlash, setBatchHitFlash, setBatchGlint, prefersReducedMotion } from '../systems/hitFlash.js';   // HITFLASH1; TELL2: a wind-up's glint
-import { reportPlayerKill } from '../systems/playerKills.js';
+import { reportPlayerKill, killFxOf } from '../systems/playerKills.js';
 import { createHostNpcBodies, npcBodiesOn, WATCH_BODY_TIERS } from '../characters/npcBodies.js';   // MWNPC6: the watch in Morrowind bodies
 import { isClassFoe, foeActor, foeFx } from '../characters/foeBodies.js';   // SET2: my own kills, told
 
@@ -193,7 +194,7 @@ export function createCityGuards({ renderer, collider, fetchBytes, getTexture, u
   makeAreaHostile = null,
   playerWeaponSheathed = () => false,   // AUDIT 24 (wave 42): CalculateEnemyPacification's -25 / +10 arm
   raidHere = () => false,   // RAID-GUARDS: is a raid on in the town the player stands in (raidingParties.js raidDefendingHere)
-  fightHere = () => false,   // PROTECT-FIGHT: is the player in a fight - GameManager.AreEnemiesNearby over the street's pools (encounters.js)
+  fightHere = () => false,   // PROTECT-FIGHT: is the player in a fight - over the street's pools (AUDIT FB1025i D3: encounters.js fightNear, AreEnemiesNearby or a peer's foe in the band)
   // AUDIT 63 F42 (review round): exteriorFoes' dep to the line
   // (exteriorFoes.js), for the same reason and at the same mount.
   // ObstacleCheck's `GetComponent<DaggerfallActionDoor>()`
@@ -319,9 +320,9 @@ export function createCityGuards({ renderer, collider, fetchBytes, getTexture, u
   }
 
   /** SpawnCityGuard: the C17 class-foe recipe at a position/facing. */
-  async function spawnGuardAt(pos, yaw, attackerFeet = null, { level = null, defender = false, threat = null } = {}) {   // AUDIT ALL A6: a restore hands the saved level in as final; DISC19-F: a DEFENDER comes for the threat, as the player's ally
+  async function spawnGuardAt(pos, yaw, attackerFeet = null, { level = null, defender = false, threat = null, bearer = false, mirror = null } = {}) {   // PVP-GUARDS: `mirror` a villain's hunter (systems/wild/villainHunt.js)   // AUDIT ALL A6: a restore hands the saved level in as final; DISC19-F: a DEFENDER comes for the threat, as the player's ally
     const basics = ENEMY_BASICS[GUARD_MOBILE_TYPE];
-    const pending = { feet: [pos[0], pos[1] + 0.1, pos[2]], defender: !!defender };   // AUDIT-39r: shifted by offsetAll until the record lands; AUDIT DISC19: a defender counts from its mint (defenderCount)
+    const pending = { feet: [pos[0], pos[1] + 0.1, pos[2]], defender: !!defender, bearer: !!bearer };   // AUDIT-39r: shifted by offsetAll until the record lands; AUDIT DISC19: a defender counts from its mint (defenderCount)
     spawning.push(pending);
     const gen = epoch;   // AUDIT-39r: the world this guard is being posted to
     try {
@@ -336,7 +337,8 @@ export function createCityGuards({ renderer, collider, fetchBytes, getTexture, u
       // its tier).
       // ZONE-WATCH (2026-10-08, the owner: "Guards in the cities are 10x times as strong"): the zone's watch - its health
       // and every blow it lands (formulas.js calculateAttackDamage's damageScale) ten times
-      { const k = Number(guardScale?.() ?? 1); if (k > 1) { entity.maxHealth = Math.max(1, Math.round((entity.maxHealth || 1) * k)); entity.health = entity.maxHealth; entity.healthMult = (entity.healthMult ?? 1) * k; entity.damageScale = (Number.isFinite(entity.damageScale) && entity.damageScale > 0 ? entity.damageScale : 1) * k; entity.zoneWatch = true; } }
+      if (mirror) mirrorOnto(entity, mirror);   // PVP-GUARDS: a hunter is the villain's mirror instead - never the zone's tenfold
+      else { const k = Number(guardScale?.() ?? 1); if (k > 1) { entity.maxHealth = Math.max(1, Math.round((entity.maxHealth || 1) * k)); entity.health = entity.maxHealth; entity.healthMult = (entity.healthMult ?? 1) * k; entity.damageScale = (Number.isFinite(entity.damageScale) && entity.damageScale > 0 ? entity.damageScale : 1) * k; entity.zoneWatch = true; } }
       spawnEnemyLoot(entity, GUARD_MOBILE_TYPE, basics, playerEntity, { rolls: rand });
       const archive = basics.maleTexture;
       const tex = await getTexture(archive);
@@ -390,7 +392,7 @@ export function createCityGuards({ renderer, collider, fetchBytes, getTexture, u
       attack.rangedAttack = false;
       const mobile = new MobileUnit(GUARD_MOBILE_TYPE, basics, (rec) => tex.getFrameCount(rec), Math.random, 'male');
       const batch = renderer.createBillboardBatch(archive, 0, { w: 1, h: 1 }, [[0, 0, 0]]);
-      const g = { id: _nextGuardId++, mobile, ai, attack, entity, batch, tex, archive, mobileType: GUARD_MOBILE_TYPE, idleH, dead: false, _swingSeq: 0, _mout: null, defender: !!defender, leaving: false, beset: false,   // DISC19-F; WATCH-LEAVES: a defender stood down, walking off (dismissDefenders) - and one set upon on his way (update)
+      const g = { id: _nextGuardId++, mobile, ai, attack, entity, batch, tex, archive, mobileType: GUARD_MOBILE_TYPE, idleH, dead: false, _swingSeq: 0, _mout: null, defender: !!defender, raidBearer: !!bearer, leaving: false, beset: false, hunter: !!mirror,   // AUDIT WORLD-EVENTS L4-6: a raid's Standard-Bearer (raidSitesHost.js) - none of the watch's comings and goings; DISC19-F; WATCH-LEAVES: a defender stood down, walking off (dismissDefenders) - and one set upon on his way (update)
         // WATCH1: THE WATCH RIDES THE CELL'S STREAM. `seq` is this watchman's number on the wire, minted by the
         // encounter pool's own counter the first time he rides a frame (one number space with the foes, so a
         // peer's blow names one thing); `_atkA`/`_atkB` the attack count and its recipient in the pool's spelling
@@ -421,6 +423,35 @@ export function createCityGuards({ renderer, collider, fetchBytes, getTexture, u
       const i = spawning.indexOf(pending);
       if (i >= 0) spawning.splice(i, 1);
     }
+  }
+
+  /** CreateFoeSpawner(true, Knight_CityWatch, Random.Range(2, 5+1), 12.8f, 51.2f) - PlayerEntity.cs:687. D9: the
+   *  SPAWNER is FoeSpawner, which places through PlaceFoeFreely (FoeSpawner.cs:130-200), the law every spawner call
+   *  site in the port goes through, so a watchman never stands in a wall, on another guard or on the player. This pool
+   *  holds all it needs: its collider, the player's feet and facing, and the live guards for the occupancy term.
+   *  lineOfSightCheck TRUE (SPAWNER_ARMS.cityGuards): the watch converges from OUTSIDE the field of view. */
+  function ringEnv(playerFeet, playerFwd) {
+    return placeFoeEnv({
+      collider,
+      playerFeet: [playerFeet[0], playerFeet[1] + 0.9, playerFeet[2]],   // the ray casts from the controller CENTRE
+      playerYawRad: Math.atan2(playerFwd?.[0] ?? 0, playerFwd?.[2] ?? 1),
+      fovDegrees: (fieldOfView() * 180) / Math.PI,   // fieldOfView() answers RADIANS
+      rolls: rand,
+      isOccupied: entityOccupancy((g) => g.ai?.feet, () => guards.filter((g) => !g.dead), playerFeet),
+    });
+  }
+  /** One spot on the ring, facing the player (FinalizeFoe's LookAt, FoeSpawner.cs:210-226 - the watch never flies), or
+   *  null. DFU's spawner tries again next frame; the port retries in place, world.js's loose-foe budget. */
+  function ringSpot(env, playerFeet) {
+    let spot = null;
+    for (let a = 0; a < GUARD_PLACE_ATTEMPTS && !spot; a++) spot = placeFoeFreely(env, SPAWNER_ARMS.cityGuards);
+    return spot ? { pos: [spot.x, spot.y, spot.z], yaw: Math.atan2(playerFeet[0] - spot.x, playerFeet[2] - spot.z) } : null;
+  }
+  /** PVP-GUARDS (scenes/pvpGuardsHost.js): one hunter on the watch's ring, the villain's `mirror` at its level -
+   *  hostile to the player, as a crime's watchman is. Resolves to the guard, or null (no spot, or the world moved on). */
+  async function huntGuard(playerFeet, playerFwd, mirror) {
+    const spot = ringSpot(ringEnv(playerFeet, playerFwd), playerFeet);
+    return spot ? spawnGuardAt(spot.pos, spot.yaw, playerFeet, { level: mirror.level, mirror }) : null;
   }
 
   /** The verbatim SpawnCityGuards law. pool = live persons as
@@ -524,29 +555,11 @@ export function createCityGuards({ renderer, collider, fetchBytes, getTexture, u
         // from OUTSIDE the field of view - you hear them before you
         // see them - which is what the spawner's own flag means.
         const count = 2 + Math.floor(rand() * 4);
-        const env = placeFoeEnv({
-          collider,
-          // the ray casts from the controller CENTRE, as every other
-          // placement env in the port does
-          playerFeet: [playerFeet[0], playerFeet[1] + 0.9, playerFeet[2]],
-          playerYawRad: Math.atan2(playerFwd?.[0] ?? 0, playerFwd?.[2] ?? 1),
-          fovDegrees: (fieldOfView() * 180) / Math.PI,   // fieldOfView() answers RADIANS
-          rolls: rand,
-          isOccupied: entityOccupancy((g) => g.ai?.feet, () => guards.filter((g) => !g.dead), playerFeet),
-        });
+        const env = ringEnv(playerFeet, playerFwd);
         for (let i = 0; i < count; i++) {
-          // The law REFUSES a spot DFU would have rejected and DFU's
-          // spawner simply tries again next frame; the port retries in
-          // place, the same budget world.js's loose-foe arm uses.
-          let spot = null;
-          for (let a = 0; a < GUARD_PLACE_ATTEMPTS && !spot; a++) {
-            spot = placeFoeFreely(env, SPAWNER_ARMS.cityGuards);
-          }
+          const spot = ringSpot(env, playerFeet);
           if (!spot) continue;
-          // FinalizeFoe's LookAt player (FoeSpawner.cs:210-226); the
-          // watch never flies, so there is no lift arm here.
-          await spawnGuardAt([spot.x, spot.y, spot.z],
-            Math.atan2(playerFeet[0] - spot.x, playerFeet[2] - spot.z), playerFeet ?? null);
+          await spawnGuardAt(spot.pos, spot.yaw, playerFeet ?? null);
           if (gen !== epoch) return;
         }
       }
@@ -821,7 +834,7 @@ export function createCityGuards({ renderer, collider, fetchBytes, getTexture, u
   function dismissDefenders() {
     let n = 0;
     for (const g of guards) {
-      if (g.dead || !g.defender || g.leaving) continue;
+      if (g.dead || !g.defender || g.leaving || g.raidBearer) continue;   // AUDIT WORLD-EVENTS L4-6: the Standard-Bearer holds his post through a lull
       g.leaving = true;
       g.ai.target = null; g.ai.secondaryTarget = null;   // his fight is over - a target he holds from here was a monster's doing (update)
       n++;
@@ -839,12 +852,13 @@ export function createCityGuards({ renderer, collider, fetchBytes, getTexture, u
    *  on this number, and a summon still fetching its archive read as no
    *  defenders at all: a cold load over the countdown summoned twice,
    *  past the cap. */
-  const defenderCount = () => guards.filter((g) => !g.dead && g.defender && !g.leaving).length + spawning.filter((p) => p.defender).length + _summonsWaiting;   // WATCH-FIX: and the summons waiting their turn; WATCH-LEAVES: never one walking off - the town has stood him down, and the next summons calls him back
+  const defenderCount = () => guards.filter((g) => !g.dead && g.defender && !g.leaving && !g.raidBearer).length + spawning.filter((p) => p.defender && !p.bearer).length + _summonsWaiting;   // AUDIT WORLD-EVENTS L4-6: never the Standard-Bearer (a raid's, not the watch's answer - his standing held off its summons and filled one of the raid's eight)   // WATCH-FIX: and the summons waiting their turn; WATCH-LEAVES: never one walking off - the town has stood him down, and the next summons calls him back
   /** DISC19-F: a crime turns a defender into the ordinary watch on the
    *  spot - its species' team back on both per-instance fields (the
    *  allied copy would otherwise keep the player out of its target list,
    *  EnemySenses.cs:776) and the crime watch's own pursuit seeded. */
   function enlistDefender(g, playerFeet) {
+    if (g.raidBearer) return;   // AUDIT WORLD-EVENTS L4-6: the Standard-Bearer keeps the square whatever the player's crime - he holds it for the town
     g.defender = false;
     g.leaving = false; g.ai.fleeLeft = 0;   // WATCH-LEAVES: one walking off turns back for the criminal
     g.entity.team = g.entity.mobileTeam = staticTeamOf(GUARD_MOBILE_TYPE);
@@ -931,6 +945,7 @@ export function createCityGuards({ renderer, collider, fetchBytes, getTexture, u
    *  town turns on them for a rat's work. */
   function damageGuard(g, damage, playerFeet, knockDir, { fromPlayer = true, bypassShield = false, peer = false, kind = 'melee', weapon = null, round = false, striker = null, wc = null } = {}) {   // TELL8: `wc` a peer's blow's class   // TELL1: the blow's kind, the player's weapon, a spell's later round and the striking foe - its weight on a wind-up's poise
     if (g.dead) return;   // AUDIT 68 S20-foe-dies-twice: a corpse takes no blow - a magic round after the killing one tallied a second Murder and minted a second body
+    damage = hunterTaken(g.entity, damage);   // PVP-GUARDS: a villain's hunter takes 5% of every hit, whoever strikes
     if (fromPlayer && !peer && g.defender && raidHere()) return;   // RAID-GUARDS: whatever road a blow of the player's takes to the door, a raid's defender takes none of it - and no Assault comes of one
     // AUDIT WATCH1 A4: a PEER's blow (WATCH1's net seam) is the encounter pool's peer law (AUDIT WORLD6b B2): no
     // reveal of this player's and no kill notice of this player's - the striker's own rang at the striker.
@@ -962,7 +977,7 @@ export function createCityGuards({ renderer, collider, fetchBytes, getTexture, u
     g.entity.health -= healthDamage;
     if (g.entity.health <= 0) {
       g.dead = true;
-      if (fromPlayer && !peer) reportPlayerKill(g.entity, { kind: 'melee' });   // SET2: MY blow killed him (a set's "each kill")
+      if (fromPlayer && !peer) reportPlayerKill(g.entity, { kind: 'melee', fx: killFxOf(g) });   // SET2: MY blow killed him (a set's "each kill"); STOREFRONT: where he falls
       g.corpse = true;   // G3: only a KILLED guard is lootable (walk-aways vanish with their items)
       releaseGuardBatch(g);
       g.killedBy = peer ? 'peer' : fromPlayer ? 'player' : 'other';   // WATCH-FIX: whose hand - the player's own blow (DFU's `source == Player`, :203) is the living world's deed; any other its loss (scenes/livingWorld/livingWatch.js)
@@ -1141,7 +1156,7 @@ export function createCityGuards({ renderer, collider, fetchBytes, getTexture, u
     // first - they are guards, and the law below is theirs from here on.
     if (playerEntity.crimeCommitted) for (const g of guards) if (!g.dead && g.defender) enlistDefender(g, playerFeet);
     if ((!playerEntity.crimeCommitted || playerEntity.arrested) && !isTransformedLycanthrope(playerEntity)) {
-      for (const g of guards) if (!g.dead && !g.defender) { g.dead = true; releaseGuardBatch(g); }   // no corpse - they walk away; DISC19-F: a defender is not the crime's and leaves on the town watch's word
+      for (const g of guards) if (!g.dead && !g.defender && !g.hunter) { g.dead = true; releaseGuardBatch(g); }   // no corpse - they walk away; DISC19-F: a defender is not the crime's and leaves on the town watch's word; PVP-GUARDS: nor a villain's hunter (its host stands it down)
     }
     // AUDIT 17e F7 - PlayerEntity.cs:533-537 verbatim: the surrender
     // dialogue flag resets once no city watch is alive. It only ever
@@ -1492,7 +1507,9 @@ export function createCityGuards({ renderer, collider, fetchBytes, getTexture, u
    *  THE PROTECTION, IN A FIGHT. The setting the menu calls Protect Bystanders is DFU's MeleeAttackFriendlyProtection,
    *  which spares a pacified foe and an ally and never a townsperson - so a swing at a foe just past the reach landed on
    *  the townsperson on the look ray: Murder (-20 legal) or, a walking guard, Assault and the watch. While enemies are
-   *  near (the rest's own AreEnemiesNearby, `fightHere`) the protection passes the street's walkers by as a raid does;
+   *  near (`fightHere` - AUDIT FB1025i D3: encounters.js fightNear, the rest's own AreEnemiesNearby or a peer's foe in the
+   *  classic band of the player's feet) the protection passes the street's walkers by as a raid does - ROAD-SPARE: and
+   *  the road's travellers (scenes/livingWorld/roadStrike.js);
    *  with none near, a blow at a townsperson is meant - a vampire's feeding, the Brotherhood's count - and DFU's rule
    *  stands, as it does with the protection off. A declared departure (Port-Ledger A). */
   /** AUDIT 29g: what resolveCivilianHit answers when the swing STOPPED on a spared body - not `false`, which the hosts
@@ -1897,6 +1914,10 @@ export function createCityGuards({ renderer, collider, fetchBytes, getTexture, u
      *  outside the watch's own call - the ONE watchman minted where a walker stood, facing their
      *  way, hostile to the player. Resolves to the guard record (or null when the world moved on). */
     spawnCityGuard: (pos, yaw, attackerFeet = null) => spawnGuardAt([...pos], yaw, attackerFeet),
+    /** RAID5: a raid's Standard-Bearer - one of the watch, a DEFENDER (the player's ally, a raid's), minted where its
+     *  standard is held (scenes/raidSitesHost.js makes him hardy and keeps him at his post). */
+    standBearer: (pos, yaw = 0) => spawnGuardAt([...pos], yaw, null, { defender: true, bearer: true }),
+    huntGuard,
     // M2 (spellcasting above ground): the player's spell damage rides
     // THE SAME door the melee swing uses - corpse, Murder on the kill,
     // hostility - so a fireball is not a free crime channel.

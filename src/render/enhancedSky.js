@@ -91,6 +91,7 @@ export const WEATHER_SKY = Object.freeze({
   snow:     { cover: 0.95, soft: 0.26, grey: 0.80, lit: '#c3c8ce', shade: '#7f878f', wind: [0.012, 0.004] },
   thunder:  { cover: 1.00, soft: 0.18, grey: 0.95, lit: '#5b626b', shade: '#262b31', wind: [0.045, 0.016] },
   sandstorm: { cover: 0.90, soft: 0.30, grey: 0.70, lit: '#d8b47a', shade: '#8a6a3c', wind: [0.040, 0.014] },   // WEATHER2d: a tan lid under a gale
+  ashfall:  { cover: 0.96, soft: 0.24, grey: 0.85, lit: '#8c8178', shade: '#463d38', wind: [0.012, 0.004] },   // ASHFALL1: a brown-grey pall, a breeze a shade under an overcast's (the ash drifts)
 });
 export const GREY_ZENITH = '#66707c';
 export const GREY_HORIZON = '#9aa3ac';
@@ -325,6 +326,14 @@ export function withMoonAmbient(ambient, moon) {
   ambient[1] += moon.ambient[1];
   ambient[2] += moon.ambient[2];
   return ambient;
+}
+
+/** WL1: THE STREET LIT BY THE CLOCK, for the view out and a building's glass (render/realWindows.js) - the ambient with
+ *  secunda's lift, the key at its scale and colour, and masser's own light (the street was lit by the moon of the hour
+ *  the player went in, and a building's window took no moon at all). */
+export function lightStreetAt(r, light, moon, sunColor) {
+  r.setLighting(withMoonAmbient(light.ambient, moon), light.sun, sunColor);
+  r.setMoonlight(moon);
 }
 
 /** THE WEATHER'S HAND, EASED (ES1c). The sim flips its type on one
@@ -679,6 +688,8 @@ void main() {
   outColor = vec4(brassGrade(dreadGrade(out3, uDread), uBrass), 1.0);   // EVENT1; AUDIT SD III (V8): the brass air's after it
   outColor.rgb = hazeSky(outColor.rgb, dir);   // BANTHA1: the jungle's haze toward the horizon - AUDIT BANTHA1 HAZE-8: after the grades, its colour the frame's fog colour, graded once already (shared.js fogColorFor)
 }`;
+// SHADER-EASE MOUNT-START (2026-10-29): what the constructor builds, started at page load (render/mountPrograms.js).
+export const ENHANCED_SKY_PROGRAMS = Object.freeze([Object.freeze(/** @type {const} */ ([VS, FS]))]);
 
 /** The pass. Same contract as SkyRenderer: draw(yaw, pitch, fovY, aspect)
  *  after beginFrame; fogMix / fogColor set by the host; clearColor /

@@ -939,8 +939,8 @@
  {
   "name": "GF2-PEERACTS-the-sprite-never-kneels",
   "file": "src/net/remotePlayers.js",
-  "old": "const out = peerKneeling(shown) && !moving && !bundle.mobileUnit.isPlayingOneShot() ? bundle.mobileUnit.heldPose('hurt', -1, yaw, f, viewer) : stepped;",
-  "new": "const out = stepped;",
+  "old": "peerKneeling(shown) && !moving && !bundle.mobileUnit.isPlayingOneShot() ? bundle.mobileUnit.heldPose('hurt', -1, yaw, f, viewer) : stepped;",
+  "new": "stepped;",
   "tests": [
    "test/systems/gf2_peeracts.test.js"
   ]
@@ -966,8 +966,8 @@
  {
   "name": "GF2-PEERACTS-the-body-holds-no-tool",
   "file": "src/net/peer/peerBodies.js",
-  "old": "const want = b.wolf ? null : tool ?? peerWeaponOf(look, shown);",
-  "new": "const want = b.wolf ? null : peerWeaponOf(look, shown);",
+  "old": "const want = b.wolf ? null : tool ?? (hands?.dual ? hands.right : peerWeaponOf(look, shown));",
+  "new": "const want = b.wolf ? null : (hands?.dual ? hands.right : peerWeaponOf(look, shown));",
   "tests": [
    "test/systems/gf2_peeracts.test.js"
   ]

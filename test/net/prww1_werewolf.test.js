@@ -185,7 +185,10 @@ test('PR-WW1 hand-off, in world.js\'s order: once the lycanthrope is up the enem
   const LOOK = { race: 'Breton', gender: 'male', faceIndex: 0, items: [], class: 'Warrior' };
   const tex = (archive) => ({ archive, getFrameCount: () => 5, getSize: () => ({ w: 60, h: 100 }), getScale: () => ({ x: 0, y: 0 }) });
   const run = async (urlFor, shown, n = 6) => {
-    const renderer = { ...fakeRenderer(), textures: new Map() };
+    // PIN MOVED (FIELD BUGS 2026-10-22d PEER-ART): the cache records what is uploaded, as the renderer's does - the art
+    // store asks it whether its texture still stands (another store may have let it go under the same key)
+    const base = fakeRenderer(), textures = new Map();
+    const renderer = { ...base, textures, uploadTexture: (a, rec, img) => { base.uploadTexture(a, rec, img); textures.set(`${a}_${rec}`, {}); } };
     const riders = createPeerRiders({ renderer, urlFor, decode: async () => ({ width: W, height: H, colors: new Uint32Array(W * H) }) });
     const asked = [];
     const rp = new RemotePlayers({ renderer, deps: { getTexture: async (a) => tex(a), uploadRecordFrame: () => {}, audio: null }, compose: async () => null });
@@ -250,14 +253,14 @@ test('PR-WW1 the local body: the lycan sprite is the LIVE form\'s - a wereboar s
     assert.ok(r.uploads.includes(`${archive}:${STATE_TABLES.MoveLycan.base + 2}-3`), `form ${form}: the preload re-run for its own archive`);
   }
   // PIN MOVED (LAYERED-GEAR): and, with the layered gearing skin chosen, the armor worn in the body chosen - the lycan tables never read it
-  assert.match(rd('src/player/eyeOfTheBeholder/eotbBody.js'), /const lookNow = \(\) => \(\{ \.\.\.cfg, lycanthropyType: last\.lycanthropyType, horse: last\.horseLook \?\? 0(?:, \.\.\.\(cfg\.wornArmour \? wornOutfit\(layeredGenderOf\(cfg\.layeredChoice, playerEntity\?\.gender\)\) : \{\}\))? \}\);/);   // PIN MOVED (LAYERED-GEAR-ON): the own body read as the character is now
+  assert.match(rd('src/player/eyeOfTheBeholder/eotbBody.js'), /const lookNow = \(\) => \(\{ \.\.\.cfg, lycanthropyType: last\.lycanthropyType, horse: last\.horseLook \?\? 0(?:, \.\.\.\(cfg\.wornArmour \? \{ \.\.\.wornOutfit\(layeredGenderOf\(cfg\.layeredChoice, playerEntity\?\.gender\)\), \.\.\.\(isAnimating\?\.hands \?\? layeredHands\(last\)\) \} : \{\}\))? \}\);/);   // PIN MOVED (LAYERED-GEAR-ON): the own body read as the character is now; LAYERED-WEAPONS: and the weapon it holds (LAYERED-DUAL: or the pair; AUDIT: a clip's, as it started)
   assert.doesNotMatch(rd('src/player/eyeOfTheBeholder/eotbBody.js'), /spriteFor\([^)]*, cfg[,)]/, 'no spriteFor on the settings alone');
 });
 
 test('PR-WW1 hosts: the modal passes draw the lycanthrope too - world.js\'s extraBillboards hands worldModes the peerRiders batches beside remotePlayers\', and worldModes\' dungeon and interior runs draw that hook alone; the beast still takes no Morrowind body (mutant: the hook narrowed back)', () => {
   const w = rd('src/scenes/world.js');
   assert.match(w, /extraBillboards: \(\) => \[\.\.\.\(remotePlayers\?\.batches\(\) \?\? \[\]\), \.\.\.\(peerRiders\?\.batches\(\) \?\? \[\]\), \.\.\.\(peerWalkers\?\.batches\(\) \?\? \[\]\), \.\.\.\(gateCourt\?\.batches\(\) \?\? \[\]\), \.\.\.\(sdSpoilsPool\?\.batches\(\) \?\? \[\]\), \.\.\.\(csaOn\(\) && !modes\?\.sailingCabin \? csa\.batches\(\) : \[\]\)(?:, \.\.\.\(\(modes\?\.mode \?\? 'exterior'\) === 'dungeon' \? arenaBouts\.batches\(\) : \[\]\))?\],/);   // ARENA2: and the arena floor's crowd; and DISC23-B's walkers (the merge); WB4a: and the Burning Court's boss; SD9e: and the Brass Remnant's spoils (PIN MOVED)
-  assert.match(w, /const afoot = seen\.filter\(\(d\) => \(peerRidesIn3d\(d\) \|\| !peerRiders\.isRiding\(d\.id\)\) && !d\.shown\?\.wb \|\| \(peerIsWolf\(d\.shown\) && !d\.shown\.rd\)\);/, 'a wereboar takes no body while its art loads either; WEREWOLF1: a werewolf on foot goes to the bodies too, so its wolf builds while the lycanthrope stands for it');   // PIN MOVED (AUDIT COATS3D A3): a rider on the 3D horse the bodies' whether or not its sprite stood in last frame
+  assert.match(w, /const afoot = seen\.filter\(\(d\) => d\.shown\?\.rd !== POSE_RIDE\.Dragon && \(peerRidesIn3d\(d\) \|\| !peerRiders\.isRiding\(d\.id\)\) && !d\.shown\?\.wb \|\| \(peerIsWolf\(d\.shown\) && !d\.shown\.rd\)\);/, 'a wereboar takes no body while its art loads either; WEREWOLF1: a werewolf on foot goes to the bodies too, so its wolf builds while the lycanthrope stands for it');   // PIN MOVED (AUDIT COATS3D A3): a rider on the 3D horse the bodies' whether or not its sprite stood in last frame; PIN MOVED (DRAGON1): a dragon's rider first left out (remotePlayers stands the dragon)
   assert.match(w, /peerRiders\.sync\(seen, onlineToScene, \{ eye: peerEye,/);   // INVIS-NET: the unconcealed peers
   const m = rd('src/scenes/worldModes.js');
   assert.match(m, /renderer\.drawBillboards\(\[\.\.\.dungeonCtx\.billboardBatches, [^\n]*\.\.\.\(host\.extraBillboards\?\.\(\) \?\? \[\]\)\], camRight, UP_Y\);/, 'the dungeon\'s pass');

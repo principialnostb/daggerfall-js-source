@@ -102,7 +102,11 @@ test('HALO-THIN the session: my own cell hears every pose; each halo its first, 
   clock.t += 1000 / POSE_HZ;
   s.sendPose({ ...pose, mv: 0 });
   for (const ws of sockets.slice(1)) { const h = poses(ws); assert.equal(h.length, 6); assert.equal(h[5].mv, 0, 'where I stopped'); }
-  // standing: the heartbeat, through every socket
+  // HIBERNATE: standing with nobody anywhere - my cell or a halo - sends no heartbeat
+  clock.t += HEARTBEAT_MS;
+  assert.equal(s.sendPose({ ...pose, mv: 0 }), false, 'alone, standing: no heartbeat');
+  // standing with a peer in a halo (nobody in my own cell): the heartbeat, through every socket - the halo's player keeps me
+  quiet(() => sockets[1].receive({ t: 'join', id: 'ann-0002', name: 'Ann' }));
   clock.t += HEARTBEAT_MS;
   s.sendPose({ ...pose, mv: 0 });
   for (const ws of sockets) assert.equal(poses(ws).at(-1).ts, poses(sockets[0]).at(-1).ts, 'the heartbeat, everywhere');
@@ -204,6 +208,9 @@ test('HALO-THIN the halos\' own keepalive: standing and turning for half a minut
   const count = new Map(sockets.slice(1).map((ws) => [ws, 0]));
   for (let f = 0; f < 30 * 60; f++) {
     clock.t += 1000 / 60;
+    // PIN MOVED (RPT1026-SECNET, LINE-STALL): my own cell busy HEARS its room too - a cell that hears nothing for PING_MS
+    // is pinged, and that ping goes down every halo with it, which is no halo's own clock
+    if (f % 6 === 0) sockets[0].receive({ t: 'pong' });
     s.sendPose({ ...start, mv: 0, yaw: f * 0.01 });
     s.tick();
     for (const ws of sockets.slice(1)) {
@@ -243,7 +250,7 @@ test('HALO-THIN the host: the halos whole while a duel stands (it is refereed in
   const w = read('src/scenes/world.js');
   const line = /\n\s*online\.haloWhole = !!duelMgr\.duel \|\| _serpentFight;[^\n]*\n\s*if \(!modes\?\.caravanVisit\) caravanVisitLink\.close\(\);[^\n]*\n\s*if \(!key\) \{ if \(online\.room\) online\.leave\(\); \}/;   // above the caravan's close, which WAGONS2-VISIT holds against the join (test/systems/wagons2_visit.test.js)
   assert.match(w, line, 'the word, just before the frame\'s join or pose');
-  assert.ok(w.indexOf('online.haloWhole = ') < w.indexOf('    else online.sendPose({ ...pose, ...arm, ...poseFx() });'));
+  assert.ok(w.indexOf('online.haloWhole = ') < w.indexOf('    else online.sendPose({ ...pose, ...arm, ...poseFx(sceneToOnline) });'));   // PIN MOVED (STOREFRONT): my kills' places in the pose's own frame
   assert.match(w, /\n\s*_serpentFight = false;\n\s*if \(!serpentHost\) return;/, 'put down each frame first');
   assert.match(w, /try \{ fight = street && serpentHost\.frame\(\); \} catch \(e\) \{[^\n]*\}\n\s*_serpentFight = !!fight;/, 'then this frame\'s fight');
   const of = w.indexOf('  const onlineFrame = (now, dt) => {');
@@ -255,5 +262,5 @@ test('HALO-THIN the host: the halos whole while a duel stands (it is refereed in
   assert.match(relay, /if \(posed && this\._trailing\(a\)\) this\._trailPose\(ws, m\.p, now\);/);
   const online = read('src/net/online.js');
   assert.match(online, /: this\._socketFor\(d\.to\);/, 'a duel frame goes down the socket the opponent is heard through');
-  assert.match(online, /setWildZone\(z\) \{[\s\S]*?if \(this\.status === 'open' && this\.wildOk && this\._ws && this\._welcomed\.has\(this\._ws\)\) \{ this\._sayZone\(this\._ws, v\);/, 'the zone word: my own cell\'s socket alone');
+  assert.match(online, /setWildZone\(z, dead = false, edge = false\) \{[\s\S]*?if \(this\.status === 'open' && this\.wildOk && this\._ws && this\._welcomed\.has\(this\._ws\)\) \{ this\._sayZone\(this\._ws, v, !v && dead, entry && edge\);/, 'the zone word: my own cell\'s socket alone');   // PIN MOVED (AUDIT FOE-KEEPS E2): and left dying, the kill credit's word
 });

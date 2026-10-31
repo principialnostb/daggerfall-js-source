@@ -28,8 +28,8 @@
 // A place's whole pack is therefore its SNOWLINE: the heights at which its cover crosses 10, 50 and 90 % (`snowlineOf`),
 // and a fragment of ground anywhere reads its cover off its own height against them (render/snowCoverGlsl.js) - snow
 // down to the valley after a cold front, a white peak over a green valley in a thaw, the line wandering with the weather.
-import { airParamsAt, airGround, airFall, seasonAir, spellAt, snowShareOf, dayAndHourOf, LAPSE_C_PER_M, FALL, COLDEST_DAY, RAIN_ALL_C, WARMEST_HOUR } from './airTemperature.js';
-import { systemsSpanWalk, systemsAmong, wornAmong } from './weatherMap.js';
+import { airParamsAt, airGround, airFallInto, seasonAir, spellAt, snowShareOf, dayOfSky, LAPSE_C_PER_M, FALL, COLDEST_DAY, RAIN_ALL_C, WARMEST_HOUR } from './airTemperature.js';
+import { systemsSpanWalk, systemsAmong, fallAmong } from './weatherMap.js';
 import { skyMinuteOfEvent, eventMinuteOfSky } from '../skyCalendar.js';
 import { TERRAIN_SIZE } from '../../world/terrain/terrainSampler.js';
 import { MAX_MAP_PIXEL_Y } from '../../formats/mapsFile.js';
@@ -40,7 +40,7 @@ import { MAX_MAP_PIXEL_Y } from '../../formats/mapsFile.js';
  * under the one law;
  * `levels` the altitudes a place's pack is kept at (metres above the sea - the lowest are below it, the air there read on
  * down the lapse, so a pack white to the shore still has a snowline to blend across; the highest over the tallest ground
- * the landforms stand, LANDFORM_CEILING's 3,610 m over the sea); `rate` the fall at a band's full intensity (mm of water
+ * the world stands - RED-MOUNTAIN's rim (world/tamriel/redMountain.js), over which a place would read white); `rate` the fall at a band's full intensity (mm of water
  * an hour - AUDIT PRECIP PACK-2: measured against the map's own wet hours, a sixth of all hours in High Rock, so a year
  * falls 800 to 1,300 mm on its lowlands and ranges, as a temperate maritime land does; the guessed 4 / 10 / 2.5 fell
  * three times that, a boreal pack on lowland woods); `melt` the degree-hour factor (4 mm a degree-day: the textbook's open
@@ -50,7 +50,7 @@ import { MAX_MAP_PIXEL_Y } from '../../formats/mapsFile.js';
  */
 export const SNOWPACK = Object.freeze({
   stepMinutes: 180,
-  levels: Object.freeze({ from: -600, step: 200, count: 23 }),
+  levels: Object.freeze({ from: -600, step: 200, count: 45 }),   // RED-MOUNTAIN: to 8,200 m, over its rim on the relief's top byte with the large map (23 to 3,800 before)
   rate: Object.freeze({ rain: 1.3, thunder: 3.3, snow: 0.8 }),
   melt: 4 / 24,
   rainMelt: 4.19 / 334,
@@ -159,8 +159,8 @@ export function cosMinOver(a, b) {
  */
 export function stepAir(p, x, z, t0, t1, fall, out = { base: 0, day: 0, th0: 0, th1: 0 }) {
   const tm = (t0 + t1) / 2;
-  const [day] = dayAndHourOf(skyMinuteOfEvent(tm));
-  const f = airFall(fall);
+  const day = dayOfSky(skyMinuteOfEvent(tm));   // OW-HITCH: no pair a step
+  const f = airFallInto(fall, _fallAir);
   out.base = seasonAir(p, day) + p.spell * spellAt(x, z, tm) - f.chill;
   out.day = p.day * (1 - (1 - FALL.dayUnderCloud) * f.cover);
   const s0 = skyMinuteOfEvent(t0), s1 = skyMinuteOfEvent(t1);
@@ -169,6 +169,7 @@ export function stepAir(p, x, z, t0, t1, fall, out = { base: 0, day: 0, th0: 0, 
   return out;
 }
 
+const _fallAir = { wet: 0, snow: 0, cover: 0, chill: 0 };   // OW-HITCH: stepAir's fall terms, read at once
 const GL_X = [-0.8611363115940526, -0.3399810435848563, 0.3399810435848563, 0.8611363115940526];
 const GL_W = [0.3478548451374538, 0.6521451548625461, 0.6521451548625461, 0.3478548451374538];
 const _cos = new Float64Array(256), _w = new Float64Array(256);
@@ -211,7 +212,7 @@ export function stepPack(swe, air, rate, hours, n = swe.length) {
  *  day's coldest stretch of the step under whichever cloud makes it colder - stepAir's own terms at their least. Pure. */
 export function stepAirFloor(p, x, z, t0, t1) {
   const tm = (t0 + t1) / 2;
-  const [day] = dayAndHourOf(skyMinuteOfEvent(tm));
+  const day = dayOfSky(skyMinuteOfEvent(tm));   // OW-HITCH
   const s0 = skyMinuteOfEvent(t0), s1 = skyMinuteOfEvent(t1);
   const th0 = 2 * Math.PI * (s0 / 1440 - WARMEST_HOUR / 24), th1 = th0 + 2 * Math.PI * Math.max(0, s1 - s0) / 1440;
   const c = cosMinOver(th0, th1);
@@ -225,7 +226,12 @@ export function stepAirFloor(p, x, z, t0, t1) {
 export function yearOriginOf(t) {
   const sky = skyMinuteOfEvent(t);
   const since = (((sky - MIDSUMMER_MINUTE) % MINUTES_PER_YEAR) + MINUTES_PER_YEAR) % MINUTES_PER_YEAR;
-  const midsummer = eventMinuteOfSky(sky - since);
+  // FIELD BUGS 2026-10-21b SNOW-YEAR: the sky's midsummer is a whole minute (MIDSUMMER_MINUTE a year on), and `sky - since`
+  // carried a fractional minute's float error onto it - so off the sky calendar, where the event minute IS the sky's, it
+  // fell a hair under the grid step it lies on in one minute and on it in the next, and the floor gave the year two
+  // origins a step apart (2.7% of fractional minutes). Two askers a minute apart then reset each other's lattice points
+  // for good, and a pixel build waiting on the snow (snowCoverHost.js settle) waited forever: the world stopped streaming.
+  const midsummer = eventMinuteOfSky(Math.round(sky - since));
   return Math.floor(midsummer / SNOWPACK.stepMinutes) * SNOWPACK.stepMinutes;
 }
 
@@ -260,6 +266,8 @@ export class SnowpackLattice {
      *  after a long catch-up (`advance`), and its year of nodes with it */
     this._births = (px, py) => climateAt(px, py);
     this._caughtUp = 0;
+    /** AUDIT TESA II G3: the air's ground's version the points were made on (`fresh`) */
+    this._groundVersion = airGround()?.version?.();
     /** @type {Map<number, any>} */
     this.points = new Map();
     /** @type {Map<number, Array<{ x: number, z: number, range: number, systems: any[] }>>} the wet systems found at a step, and the discs they cover */
@@ -273,6 +281,8 @@ export class SnowpackLattice {
     this.spinsRun = 0;
     /** SNOW-BUDGET: the step a call left part-way (`m` a main step, `s` a spin's, and its minute), or null */
     this._partial = null;
+    /** OW-HITCH: the points due at a step (advance's), one list for every step */
+    this._due = [];
   }
   /** The lattice index of the point nearest map pixel (px, py)'s middle. */
   indexOf(px, py) { return [Math.round((px + 0.5) / this.spacing), Math.round((py + 0.5) / this.spacing)]; }
@@ -282,6 +292,7 @@ export class SnowpackLattice {
    * point, here). A made point starts at its year's origin with the pack its summer left (`spin`, below).
    */
   point(i, j, t) {
+    this.fresh();
     const key = latticeKey(i, j), S = SNOWPACK.stepMinutes;
     let pt = this.points.get(key);
     const origin = yearOriginOf(t);
@@ -342,6 +353,7 @@ export class SnowpackLattice {
    *  widened by REACH_PAD so a window that moves on finds its new edge inside it, and kept for the points after. The
    *  finding walks a node at a time; null when `deadline` (on `now`'s clock) comes first - the next ask goes on with it. */
   systemsFor(t, pts, deadline = Infinity, now = () => performance.now()) {
+    this.fresh();
     let x0 = Infinity, z0 = Infinity, x1 = -Infinity, z1 = -Infinity;
     for (const pt of pts) { x0 = Math.min(x0, pt.x); x1 = Math.max(x1, pt.x); z0 = Math.min(z0, pt.z); z1 = Math.max(z1, pt.z); }
     const covers = (d) => pts.every((pt) => Math.hypot(pt.x - d.x, pt.z - d.z) <= d.range);
@@ -394,7 +406,9 @@ export class SnowpackLattice {
       let spin = Infinity;
       for (const pt of pts) if (pt.spin && pt.spin.step < pt.origin && pt.spin.step < spin) spin = pt.spin.step;
       if (spin < Infinity) {
-        const due = pts.filter((pt) => pt.spin && pt.spin.step === spin);
+        const due = this._due;   // OW-HITCH: one list a lattice, filled a step (it was a new array a step: a year of them a window's edge)
+        due.length = 0;
+        for (const pt of pts) if (pt.spin && pt.spin.step === spin) due.push(pt);
         if (!this._step(due, spin, Math.min(due[0].origin, spin + S), deadline, now, true)) return false;
         this._caughtUp++;
         if (now() > deadline) return false;
@@ -412,7 +426,9 @@ export class SnowpackLattice {
         this._caughtUp = 0;
         return true;
       }
-      const due = pts.filter((pt) => pt.step === lo);
+      const due = this._due;   // OW-HITCH
+      due.length = 0;
+      for (const pt of pts) if (pt.step === lo) due.push(pt);
       if (!this._step(due, lo, lo + S, deadline, now, false)) return false;
       this._caughtUp++;
       if (now() > deadline) return false;
@@ -425,20 +441,20 @@ export class SnowpackLattice {
    *  (SNOW-BUDGET) when the deadline comes between its points: those stepped stand at `t1`, the rest at `t0` for the next
    *  call (`_partial` the step so left) - counted once, by the call that steps its last point. */
   _step(due, t0, t1, deadline, now, spin) {
-    const of = (pt) => (spin ? pt.spin : pt);
     // AUDIT SNOW-BUDGET F1: a step the deadline cut part-way was judged for its WHOLE group, and found not quiet - its
     // rest is stepped, never judged again: the points left could all be bare and warm (the snow in the part already
     // stepped), and skipping them kept the `prev` of a point whose snow had melted out the step before - a pack one
     // unbudgeted call never makes (the white the same on every client whatever its machine's speed)
-    let quiet = this._partial !== `${spin ? 's' : 'm'}${t0}`;
+    // OW-HITCH: the step's name is made only where a step stands part-way (it was made at every step)
+    let quiet = this._partial === null || this._partial !== `${spin ? 's' : 'm'}${t0}`;
     if (quiet) {
       for (const pt of due) {
-        if (!of(pt).empty) { quiet = false; break; }
+        if (!(spin ? pt.spin : pt).empty) { quiet = false; break; }
         if (!(stepAirFloor(pt.p, pt.x, pt.z, t0, t1) - LAPSE_C_PER_M * levelAltitude(pt.top) >= RAIN_ALL_C)) { quiet = false; break; }
       }
     }
     if (quiet) {
-      for (const pt of due) of(pt).step = t1;
+      for (const pt of due) (spin ? pt.spin : pt).step = t1;
       this._partial = null;   // AUDIT SNOW-BUDGET F4: no step stands part-way after this one
       this.stepsSkipped++;
       return true;
@@ -449,10 +465,10 @@ export class SnowpackLattice {
     for (let k = 0; k < due.length; k++) {
       if (k > 0 && now() >= deadline) { this._partial = `${spin ? 's' : 'm'}${t0}`; return false; }   // SNOW-BUDGET: the rest the next call's
       const pt = due[k];
-      const fall = systems.length ? wornAmong(systems, pt.x, pt.z).fall : NO_FALL;
+      const fall = systems.length ? fallAmong(systems, pt.x, pt.z, _fall) : NO_FALL;   // OW-HITCH: the fall alone (wornAmong's), into one scratch
       const rate = fallRateOf(fall);
       stepAir(pt.p, pt.x, pt.z, t0, t1, fall, _air);
-      const st = of(pt);
+      const st = spin ? pt.spin : pt;
       if (!spin) pt.prev.set(pt.swe);
       st.empty = !stepPack(st.swe, _air, rate, hours, pt.n);
       st.step = t1;
@@ -475,8 +491,20 @@ export class SnowpackLattice {
   }
   /** Forget every point and every held system (the next ask starts over). */
   reset() { this.points.clear(); this._systems.clear(); this._job = null; this._span = null; }
+  /** AUDIT TESA II G3: THE MAP MOVED - the air's ground's `version` (airGround.js lawAirGround: the zones' stamp - the trace
+   *  and the relief landing after the boot, a fit) moved since the points were made: every point's air and its ceiling,
+   *  and every system born on the climates as they stood, are the old land's - forgotten, and the births read afresh (a
+   *  read of its own: the weather map's memo keys the births by it). A point had kept its ceiling for the session. */
+  fresh() {
+    const v = airGround()?.version?.();
+    if (v === this._groundVersion) return;
+    this._groundVersion = v;
+    this.reset();
+    this._births = (px, py) => this.climateAt(px, py);
+  }
 }
 const _air = { base: 0, day: 0, th0: 0, th1: 0 };
+const _fall = { intensity: 0, rain: 0, thunder: 0, snow: 0, cover: 0 };   // OW-HITCH: a point's fall at a step, read at once
 /** A lattice point's key - an integer (AUDIT PRECIP HOST-9: a template string a read, in the grass's own loop), for the
  *  whole frame the world streams (indices within 8192 of the map's origin either way). */
 export const latticeKey = (i, j) => (i + 8192) * 16384 + (j + 8192);

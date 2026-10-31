@@ -66,6 +66,11 @@ the phase `slain` for `SERPENT_DIVE_MS` (its death throes), then `gone`.
 
 ## 2. The sighting - the chat, the ring, the compass
 
+[EVENTS1, 2026-10-23 (`10-UI/Event-Board.md`): the sighting's lines and the kill's are said in the HUD's event board's
+news now (`systems/eventNotices.js`, kind `serpent`) and filed in the journal, where they had been the chat's; with the
+board switched off, the chat. Wherever this page says "the chat" of the sighting, read the board's news - the port named
+there too.]
+
 `systems/serpent/serpentOmen.js` (`createSerpentOmen`), one call a frame from the online frame. It says nothing until the
 relay's clock is read and the hub has welcomed the player (AUDIT WB C4's law), then waits `SERPENT_OMEN_SETTLE_MS`
 more. Each line is said once a day, in order. A player arriving late hears only the line for where it stands now:
@@ -98,21 +103,27 @@ page draws no serpent: a province's sheet shows little of the open sea it hunts.
 
 ## 3. Where it rises - the packet lanes
 
-`systems/serpent/serpentSite.js` (`findSerpentSite`). The serpent hunts the Bay's packet lanes (`systems/naval/seaLanes.js`):
-the lanes between the map's ports, the same list on every client, made from map files every client holds. The day
-rolls a lane (`serpentLaneOf`) and a place along that lane's way (`serpentAlongOf`, inside `SERPENT_ALONG`, 0.3 to
-0.7 of its length). A place is kept only where the sea is open all round it: every map pixel within `SITE_CLEAR_PX`
+`systems/serpent/serpentSite.js` (`findSerpentSite`, `worldSerpentSite`). The serpent hunts the world's packet lanes
+(WW7-12, `bible/03-World/World-Wide.md`; the owner: *"Fucking do it"*): `scenes/naval/worldLanes.js` `all()` - the Bay's
+(`systems/naval/seaLanes.js`, made from map files every client holds), then the ones past the Bay, then the ones across
+its edge - the same list in the same order on every game that stands the land past the Bay with its picture (`whole()`).
+A game that does not cannot roll it: it takes the hub's word of the site the accounts agree on (section 14, *Where it lies*)
+and names none till it has one. The day
+tries lanes best first (`serpentLaneScore`, section 18), at a place along each way (`serpentAlongAt`, 0.3 to 0.7 of
+its length). A place is kept only where the sea is open all round it: every map pixel within `SITE_CLEAR_PX`
 (1) must be the ocean's water (the lanes' own `open` law, never a lake). If not, the place slides along the way up to
 `SITE_SLIDE` (0.16) each side. A lane shorter than `SITE_LANE_MIN_M` (six map pixels) is skipped. After
 `SERPENT_LANE_TRIES` (24) lanes with no site, there is no serpent that day, and the omen stays silent rather than name
 nowhere.
 
 The site is the native point the fight is framed about (`sx`, `sz`). Its card names the nearer port, the port's
-province and both ports the lane joins. A client with no map data yet asks again every `SITE_RETRY_MS` (5 s).
+province and both ports the lane joins (a site the hub told names its port alone). A client with no map data yet, or no
+site from the hub yet, asks again every `SITE_RETRY_MS` (5 s).
 
 **The relay never reads a map.** Each `in` names the site it was said for (section 6). Its own cell must hold that
 site (`cellRoomOfWire(sx, sz)` is the cell's key), so a correct client always says it in the right room. A site is
-named to the whole native unit (`serpentSiteKey`); every honest client finds the same one, so they share one fight,
+named to the whole native unit (`serpentSiteKey`); every honest client finds the same one (or takes the hub's word of
+it - WW7-12), so they share one fight,
 and a forged site stands a fight of its own that none of them folds as theirs: every word a fight says names its site,
 and a client folds its own site's alone (AUDIT SERPENT S1, AUDIT SERPENT 2 F1). The account service's one row per
 (day, account) bounds what a forged site could buy.
@@ -349,8 +360,8 @@ under the pins. Its job:
 - **Come Sail Away's seams:**
   - `warp`, which QUAYS gave the harbour: the naval host's warp answers the coil's hold first.
   - `drift`, new: a world-space velocity added to the sea's current under her, which carries the whirl's pull and a
-    blow's throw (`systems/comeSailAway/comeSailAway.js` `lateUpdateSailing`) - SERPENT4: and in its waters, the ships' bumpers
-    (`scenes/naval/navalHost.js` `bumperDrift`).
+    blow's throw (`systems/comeSailAway/comeSailAway.js` `lateUpdateSailing`). SERPENT4's bumpers rode it until HULL-PASS
+    retired them (2026-10-26, below).
   - `gale`, SERPENT4's: its gale about my ship at her helm in its waters (`SERPENT_GALE`, section 16).
 - **Leaving**: going offline forgets the fight and lets my ship go (`leave`), and the omen stands nothing - no ring,
   no compass mark - until it is ready again (L4). A new serpent day forgets the last fight's attacks, numbered from one
@@ -431,7 +442,7 @@ route `/v1/serpent/claim`):
   brings *On the Burning Doors* as a breach's does; and a ship that dealt finds a piece of **Sethrakul's Coilscale** -
   the serpent's own Aetheric set (`Sigil-Sets.md` section 6c) - a quarter of the time, rolled after everything above so
   every earlier hoard is what it was for its seed.
-- SERPENT5 (section 17): a ship that dealt finds **the Sunken Sovereign**, a Gilded saber, one hoard in a hundred - the
+- SERPENT5 (section 17): a ship that dealt finds **the Sunken Sovereign**, a Gilded saber, one hoard in a hundred (GILDED-RARER, 2026-10-24: one in two hundred and fifty - `06-Systems/Gilded.md` section 10) - the
   hoard's very last draw - and its first write may grant the title Coilbreaker and the aura The Maelstrom.
 
 Every piece is known, and the ladder's last pass is applied (LOOT2). It is rolled at the level the fight admitted (the
@@ -493,6 +504,14 @@ After the kill the bar holds a moment and fades.
 
 ## 11. Versions and deploy order
 
+- **AUDIT TAMRIEL-WIDE E3's relay: `world284`** (section 18). The `site` word carries `sl`, and the hub folds its own
+  site law's words alone, into its own record. Deploy the relay first, then the site. A new build says no site to an
+  older relay (`SERPENT_SITE_RELAY_MIN` 284, AUDIT TAMRIEL-WIDE II R2), so the old law's vote is the old builds' alone.
+  Until two new builds name a site, the herald names no place, and that day's kill is not posted (II R4).
+- **WW7-12's relay: `world260`** (WORLD-WIDE's, undeployed - its row re-hashed in place). The hub's `at`: the agreed site
+  told to every game online as it moves and at each hello (`net/serpent/serpentHerald.js` serpentAtWord, `server/src/index.js`
+  _serpentAtTell, _serpentAtTo; `net/wire.js` the kind - an older client drops it). Deploy the relay with the client; a client
+  without the land past the Bay on an older relay hears no site and sees no serpent. The service is untouched.
 - **SERPENT4's relay: `world193`** (section 16; `world192` on its branch, renumbered past SCALE5c's `world192` at the merge). Its law's version 3 (`SERPENT_BRAIN_MIN`): a game before it is told to
   reload. The `hit` word carries `r` (a hand's own weapons - an older relay drops it and judges her on a purse of
   nought, so nothing lands), the kill tells the hub its kin, and the hub mints a party's stander's receipts. Deploy the
@@ -560,7 +579,7 @@ After the kill the bar holds a moment and fades.
   card's source and the embers' tier) and the AUDIT 625 records of `tools/mutants/audit625.json`, all dead.
 - SERPENT3's: `test/net/serpent/serpent3.test.js` (12 - section 15) and `tools/mutants/serpent3.json` (46), all dead; five records of
   `serpent1.json` and `serpent1_audit.json` re-aimed by content (the stray's once is the resume's now).
-- SERPENT4's: `test/net/serpent/serpent4.test.js` (9 - section 16) and `tools/mutants/serpent4.json` (36), all dead; seventeen records
+- SERPENT4's: `test/net/serpent/serpent4.test.js` (9 - section 16) and `tools/mutants/serpent4.json` (36, 32 since HULL-PASS retired the four bumper records), all dead; seventeen records
   of `sailfree.json`, `serpent1.json`, `serpent1_audit.json`, `serpent2.json`, `serpent3.json` and `soc1.json` re-aimed by
   content (the storm's three records the dive's and the hunt's now, and the relay's version world193).
 
@@ -603,6 +622,11 @@ online game finds the site of the serpent the clock is about from its quiet on (
 the hub once a socket and day: a `serpent` `site` word with its day, its native point to the whole unit and the port
 it lies off (`net/online.js` `sendSerpentSite`). The hub keeps the accounts' vote by the gate's law (`foldGateSite`:
 one word an account a day). A site is named once two accounts agree (`GATE_SITE_AGREE`), and the most accounts win.
+WW7-12: and the hub TELLS every game online the site agreed - a `serpent` `at` word (its day, its native point, its
+port) as an account's word moves the agreement, and at each hello while its day holds (`serpentAtWord`, `_serpentAtTell`,
+`_serpentAtTo`). The site is rolled over the world's lanes now, which a game without the land past the Bay cannot roll:
+it rises its serpent there (`serpentLink.js` toldAt, `serpentSite.js` siteOfWord), and never says a told site back as its
+own.
 
 A cell keeps a fight for every site named to it, a forged one too (AUDIT SERPENT S1). So the channel hears the kill
 **at the agreed site alone**, read off the hub's own kept kills (one a site). A forged site's fight never reaches
@@ -613,6 +637,8 @@ every `HERALD_RETRY_MS`. A post Discord does not take is posted again `HERALD_RE
 The bells arm the hub's alarm from the first hello (`_serpentHeraldArm`). The alarm's beat runs the gate's herald,
 then the serpent's. Each keeps its own state (`herald`, `sherald`) and its own site record (`gatesite`,
 `serpentsite`). With no webhook nothing is posted and nothing of the herald's is kept.
+
+**HERALD-CARDS (2026-10-22).** These posts are cards now (`net/herald/heraldCard.js`; `World-Bosses.md` THE HERALD, HERALD-CARDS): the family The Sea Serpent, in its colour, the moment's title, its facts as fields (the bells: Rises, Dives, Where; the kill: Where, Slain by), and content only on a post that pings. When each is owed is unchanged. Its cards may go to a thread of their own of the channel (the relay setting `serpentThread`), the gate's else.
 
 ## 15. It never leaps (SERPENT3, 2026-10-05)
 
@@ -816,12 +842,14 @@ What each came to, in the code:
   swing's resolution is the host's own work.
 - **"Ships colliding and phasing through each other with the lag."** A peer's hull met mine only as Come Sail Away met
   a rock (`CheckCollision`): at its own size, a frame stale, never while I lay still - with a wire's lag two hulls met
-  and passed through. **The ships' bumpers**: in its waters my ship's hull and every other player's at her helm are met
-  `BUMPER_M` (10 m) out from each, and my ship is pushed off along the shallowest way out at `BUMPER_GAIN` (1.5) a
-  second of how deep the bumpers meet, `BUMPER_V_MAX` (30 m/s) at most, on the drift seam (`navalHost.js`
-  `bumperDrift`, `withBumpers`; `flatHull` and `hullOverlap` moved to the module's top to be read by both). Each machine
-  pushes its own ship, so two meeting are pushed apart by both - two closing at 30 m/s hold 10 m inside the bumpers' 20,
-  short of the hulls - and drift apart as their helms let go.
+  and passed through. SERPENT4 answered with the ships' bumpers (10 m out from each hull, my ship pushed off at up to
+  30 m/s). **RETIRED by HULL-PASS (2026-10-26, Discord #feature-feedback "Boat Player Collision": "Player boat
+  collision needs to be off outside of PVP zone or just during the Sethrakul fight - too many people out there bumping
+  into each other ruining their shots"; `01-Overview/bugs/Field-Bugs-2026-10-26d.md`):** another player's hull meets my
+  helm only inside a PvP zone (`scenes/comeSailAway/peerHulls.js`), and the serpent's waters are never one - so in its
+  fight the ships pass through each other, and the bumpers, which pushed only there, are gone with `withBumpers` and
+  `bumperDrift`. A hull let through mine passes the deck I stand on too, so a ship sailed through the fight's crowd
+  never shoves a hand off the deck it fights from (AUDIT FB1026d D1, `peerHulls.js` hullsStood).
 - **"Getting nothing from it if your not near the snake when it dies."** Where she was at the kill never counted (the
   hub hands a far earner her receipt - AUDIT SERPENT S5); the bars did. **A part dealt earns** (`SERPENT_PART_SHARE` 2.5%
   of her share - several volleys landed, never one: a stander's hoard), **a dealer's at `SERPENT_RECEIPT_SHARE` 6%** (it
@@ -831,8 +859,8 @@ What each came to, in the code:
   it admitted her at), and the hub, which keeps the parties, mints a stander's receipt for each whose party - as it
   stands now - holds a dealer's receipt of this kill (`server/src/index.js` `_serpentKinShare`), kept and handed as the
   cell's own are. A party with no dealer shares nothing, and one with no party nothing.
-- **"It was super laggy."** Not reproduced in Node, and nothing here measured a frame: the bumpers stand in for the lag
-  the players saw between hulls, and its girth for the lag between a ball and its hide. A frame of the fight was never
+- **"It was super laggy."** Not reproduced in Node, and nothing here measured a frame: the bumpers stood in for the lag
+  the players saw between hulls (until HULL-PASS let the ships pass through each other there and retired them), and its girth for the lag between a ball and its hide. A frame of the fight was never
   profiled on a live relay - the next look, not this slice's.
 
 THE FOUR HOSTS RULE: `scenes/world.js` wires the gale (Come Sail Away's `gale` beside its `drift`), the hand's shaft
@@ -841,7 +869,7 @@ THE FOUR HOSTS RULE: `scenes/world.js` wires the gale (Come Sail Away's `gale` b
 missiles ask seams they are not handed, and answer as before.
 
 **The relay:** `world193` (section 11). **Pins:** `test/net/serpent/serpent4.test.js` (9) and the SERPENT1, AUDIT SERPENT, SERPENT2,
-SERPENT3 and AUDIT SHIPS pins its laws moved; `tools/mutants/serpent4.json` (36, all dead).
+SERPENT3 and AUDIT SHIPS pins its laws moved; `tools/mutants/serpent4.json` (36, all dead; 32 since HULL-PASS retired the four bumper records).
 
 ## 17. The Old Coil's rewards - the Sunken Sovereign, Coilbreaker and The Maelstrom (SERPENT5, 2026-10-15)
 
@@ -849,7 +877,7 @@ Mac: *"With the introduction of elite dungeons soon. I want to enhance the rewar
 weapon to the serpent + a rare chance of a title/aura drop."* Three rewards, each a ship that DEALT's alone - a ship that
 stood is paid its hoard and its Renown as before, and nothing here.
 
-**The Sunken Sovereign** (GILDED2, `06-Systems/Gilded.md` section 7): a Gilded Ebony Saber, its power Undertow - the
+**The Sunken Sovereign** (GILDED2, `06-Systems/Gilded.md` section 7): a Gilded Ebony Saber - a Gilded Ebony Dwarven Pistolet since PISTOLET (2026-10-21), and the Saber again since GUNS-UNFOUND (2026-10-23, `06-Systems/Gilded.md` section 9) - its power Undertow - the
 hoard's very last draw, one dealing ship's hoard in a hundred (`systems/serpent/serpentSpoils.js`, after the technique pass), so
 every hoard rolled before it is what it was for its seed.
 
@@ -928,3 +956,32 @@ HOURS-FIRST, CHAP4c, CHAP6e, LAMP-KEEPER II), and every record that named the li
 
 See also: `World-Bosses.md` (the gate, whose law this follows at sea), `03-World/Naval-Combat.md` (the guns, the
 hull and the seams it reaches).
+
+## 18. The site's law (AUDIT TAMRIEL-WIDE E3, 2026-10-28)
+
+The day picked its lane by index (`serpentRoll(day, 100 + i) % n`, n the world's lanes). Any lane added anywhere moved
+nearly every day's site: SEA-SQUARE and COAST-PORT took the lanes from 440 to 450 and moved 24 of 24 days, the Bay's
+too. The `site` word named no law, so during a deploy old and new tabs rose the serpent at two sites, and the hub posts
+a kill at the one most accounts named alone.
+
+Now each lane is scored by its ends' world keys and the best is tried first
+(`serpentSite.js:"export function serpentLaneTries(day, lanes)"`), its place along its own. A lane added moves only the
+days it wins: ten taken out of the freeware's 450 moved 4, 1 and 1 of 60 days, each a day a lane taken out had won,
+where the index moved 60 of 60. This change moved every day's site once more. The word says its law
+(`serpentLaw.js:"export const SERPENT_SITE_LAW = 2;"`), and the hub folds its own law's words alone
+(`serpentHerald.js:"export const serpentSiteWordOk = (m, nowMs) =>"`) into its own record, `serpentsite.2`.
+
+Pins: `test/world/worldWide/audit_tamrielwide_relay.test.js` E3 (2). Mutants: `tools/mutants/audit_tamrielwide_relay.json` (8, dead). PIN MOVED: `serpent1_law`, `serpent1_client` (a port's pixel),
+`serpent2_herald` and `ww7_longer` (the law's word and record). Re-aimed by content: `serpent2.json`
+SERPENT2-any-day-site-kept and SERPENT2-place-sent-raw. Relay world284.
+
+## 19. A kill tried again (SERPENT-RETRY, 2026-10-29)
+
+The beat stepped a kill only once it was said, so a kill whose receipts failed to mint (the key store hiccuping) set
+its alarm at the fight's end, its keeping, when the fight is forgotten and no fighter is paid. The Dwarven Dragon's
+audit found the same gap in its own beat (`11-Multiplayer/Dwarven-Dragon.md` section 13). A kill not yet said is now
+tried again at SERPENT_TELL_RETRY_MS, as a said one not yet told is
+(`server/src/index.js:"if (f.fell && !f.said) at = Math.min(at, now + SERPENT_TELL_RETRY_MS);"`).
+
+Pins: `test/net/serpent/serpentretry.test.js` (1). Mutants: `tools/mutants/serpentretry.json` (1, dead). Relay world288 (the
+dragon's, renumbered at the merges of main), not yet deployed.

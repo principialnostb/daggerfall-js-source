@@ -33,6 +33,7 @@ import { standardSpellsByIndex } from './spell/standardSpells.js';   // DEX4a: t
 import { parseBiog, biogFileName } from '../formats/biogFile.js';   // S3e
 import { applyBiographyEffects } from './biography.js';   // S3e
 import { customSpellSetIndex } from './customClass.js';   // U20a
+import { reviseStockCareer } from './stockClasses.js';   // CLASS-USE: the stock careers' revised skill lists
 import { SOCIAL_GROUP_COUNT, FactionFile } from '../formats/factionFile.js';   // U20a + S25
 import { attachFactionRep } from './faction/factionRep.js';   // S25
 import { createRegionConditions } from './region/regionConditions.js';
@@ -45,6 +46,8 @@ import { oblivionLevelingEnabled, initVirtueLeveling, LEVELING_CLASSIC, newChara
 import { isOnlinePage } from './online/onlineLane.js';   // LEVEL-ONLINE-2: Oblivion's leveling is offline-only for a new character
 import { legacyOn } from './legacy/settings.js';   // LEGACY2: Project Legacy's question - the family's model
 import { legacyModelScreen } from '../ui/legacy/legacyModelChoice.js';
+import { StartChoiceScreen } from '../ui/startChoice.js';   // START2: where the story begins, the last question
+import { STARTS, BAY_START } from './starts/starts.js';
 import { isLegacyChoice } from './legacy/family.js';   // LEGACY-CHOICE: the answer kept on the character
 
 /** SPELLS.STD as an index -> spell map. AUDIT 17f: the exterior
@@ -102,13 +105,13 @@ export async function loadClassQuestionData(fetchBytes) {
   return { questionLibrary, classesData };
 }
 
-/** The 18 classic careers (CLASS00..17.CFG). */
+/** The 18 classic careers (CLASS00..17.CFG), each through CLASS-USE's revision (stockClasses.js). */
 export async function loadCareers(fetchBytes) {
   const careers = [];
   for (let i = 0; i < CLASS_CAREERS.length; i++) {
     const cf = new ClassFile();
     cf.load(await fetchBytes(`CLASS${String(i).padStart(2, '0')}.CFG`));
-    careers.push({ name: cf.career.name || CLASS_CAREERS[i], career: cf.career });
+    careers.push({ name: cf.career.name || CLASS_CAREERS[i], career: reviseStockCareer(i, cf.career) });
   }
   return careers;
 }
@@ -123,8 +126,9 @@ export async function loadCareers(fetchBytes) {
 export async function applyHeadlessChargen(playerEntity, classIndex, { fetchBytes, spellsByIndex = null } = {}) {
   const cf = new ClassFile();
   cf.load(await fetchBytes(`CLASS${String(classIndex).padStart(2, '0')}.CFG`));
-  createCharacter(playerEntity, cf.career, classIndex);
-  playerEntity.spells = assignStartingSpells(classIndex, spellsByIndex, cf.career);
+  const career = reviseStockCareer(classIndex, cf.career);   // CLASS-USE: the career loadCareers hands the wizard
+  createCharacter(playerEntity, career, classIndex);
+  playerEntity.spells = assignStartingSpells(classIndex, spellsByIndex, career);
   // S3d: the same kit every other creation path gets
   playerEntity.items = [];
   playerEntity.equip = null;
@@ -374,7 +378,9 @@ export async function createChargenFlow(fetchBytes, { rolls = Math.random } = {}
  *      that reads nativeMetrics off the real canvas itself). Since
  *      U31 that path is the `?dungeon` dev scene alone, which is why
  *      it stayed open so long - but small is not the same as absent. */
-export function createChargenWindow(flow, { onDone, onCancel, hudScale = 2 } = {}) {
+/** START2: `startChoice` - `{ open(start), why(start) }`, a host that stands the land past the Bay asks where the story begins
+ *  (ui/startChoice.js): the world host alone; every other host's new character wakes where its boot put them. */
+export function createChargenWindow(flow, { onDone, onCancel, hudScale = 2, startChoice = null } = {}) {
   // ORL1: ...AND THE LEVELING CHOICE RIDES THIS DOOR (Mac: "On new
   // game, I want the player to receive a notification on which leveling
   // system they would like to use").
@@ -394,7 +400,7 @@ export function createChargenWindow(flow, { onDone, onCancel, hudScale = 2 } = {
   // here: this file's own pin, test/ui/enhanced/enhancedChargen.test.js's "the FOUR
   // HOSTS are each named at the seam", holds that the SKIN fork has no
   // host outside it, and that guard must keep meaning what it says.)
-  return withLevelingChoice(flow, { onDone, onCancel, hudScale });
+  return withLevelingChoice(flow, { onDone, onCancel, hudScale, startChoice });
 }
 
 /** The wizard this skin wears - the fork createChargenWindow used to
@@ -431,7 +437,7 @@ function chargenWizard(flow, { onDone, onCancel, hudScale = 2 } = {}) {
  * The same is true of every path that never builds a window at all -
  * applyHeadlessChargen (the `?class=` skip) sets it there.
  */
-function withLevelingChoice(flow, { onDone, onCancel, hudScale = 2 } = {}) {
+function withLevelingChoice(flow, { onDone, onCancel, hudScale = 2, startChoice = null } = {}) {
   // LEVEL-ONLINE: online the question is ALWAYS put, mod or no mod - Oblivion's option shown and shut (LEVEL-ONLINE-2),
   // Daggerfall's the answer - so the player reads which system they are getting before the world, rather than finding
   // out at their first level. Offline with the mod off, nothing changed: no question, Daggerfall's law.
@@ -442,6 +448,12 @@ function withLevelingChoice(flow, { onDone, onCancel, hudScale = 2 } = {}) {
   const asks = [];
   if (oblivionLevelingEnabled() || online) asks.push((answer) => new LevelingChoiceScreen((id) => answer({ levelingSystem: id }), { online }));
   if (legacyOn()) asks.push((answer) => legacyModelScreen((model) => answer({ legacyModel: model })));
+  // START2 (bible/06-Systems/Alternate-Starts-Arc.md section 7): ...AND, LAST, WHERE THE STORY BEGINS - put by a host that
+  // can stand a start past the Bay (`startChoice`), once one is open there (one start open is no choice); the new
+  // character's race read off the wizard's answer, its homeland chosen first. The answer rides the result as `startKey`.
+  if (startChoice && STARTS.some((s) => s !== BAY_START && startChoice.open(s))) {
+    asks.push((answer, made) => new StartChoiceScreen((key) => answer({ startKey: key }), { race: made?.race ?? null, open: startChoice.open, why: startChoice.why }));
+  }
   const unasked = { levelingSystem: LEVELING_CLASSIC };
   if (!asks.length) {
     return chargenWizard(flow, {
@@ -456,7 +468,7 @@ function withLevelingChoice(flow, { onDone, onCancel, hudScale = 2 } = {}) {
   const next = () => {
     if (stage >= asks.length) { prompt = null; fired = true; onDone?.({ ...result, ...answers }); return; }
     const i = stage++;
-    prompt = asks[i]((a) => { answers = { ...answers, ...a }; next(); });
+    prompt = asks[i]((a) => { answers = { ...answers, ...a }; next(); }, result);
   };
   const inner = chargenWizard(flow, {
     hudScale,

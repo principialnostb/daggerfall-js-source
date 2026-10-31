@@ -84,6 +84,67 @@ export function runSpeedMult() {
   for (const fn of _runMods.values()) { try { const v = Number(fn()); if (Number.isFinite(v) && v > 0) k *= v; } catch { /* a Vestige is not the step's problem */ } }
   return k;
 }
+// DRAGON-RIDE (2026-10-28, bible/11-Multiplayer/Staff-Events.md section 12): a named registry of modifiers on the
+// levitating pace alone (systems/staffDragon.js: ten times while an Admin rides the Dwarven Dragon). None registered, or
+// each answering 1 (or no number), is DFU's levitateMoveSpeed exactly.
+const _flyMods = new Map();
+export function registerFlySpeedMod(name, fn) { if (typeof fn === 'function') _flyMods.set(name, fn); else _flyMods.delete(name); }
+/** The levitating pace's multiplier now - the product of every modifier's positive number (one that throws is none). */
+export function flySpeedMult() {
+  let k = 1;
+  for (const fn of _flyMods.values()) { try { const v = Number(fn()); if (Number.isFinite(v) && v > 0) k *= v; } catch { /* a ride is not the flight's problem */ } }
+  return k;
+}
+// DRAGON5 (bible/11-Multiplayer/Dwarven-Dragon.md section 10; Ledger A): a tamed dragon's flight. The ride's step is told
+// each update's input before the motor moves (player/dragonRide.js: the takeoff's held jump), one slot; and a named
+// registry of sinks pulls the levitating ladder down (a winded dragon glides). None registered is DFU's levitation.
+let _rideStep = null;
+export function registerRideStep(fn) { _rideStep = typeof fn === 'function' ? fn : null; }
+const _flySinks = new Map();
+export function registerFlySink(name, fn) { if (typeof fn === 'function') _flySinks.set(name, fn); else _flySinks.delete(name); }
+/** The levitating ladder's sink now - the sum of every sink's positive number (one that throws is none). */
+export function flySink() {
+  let k = 0;
+  for (const fn of _flySinks.values()) { try { const v = Number(fn()); if (Number.isFinite(v) && v > 0) k += v; } catch { /* a ride is not the flight's problem */ } }
+  return k;
+}
+// DRAGON6 (bible/11-Multiplayer/Dwarven-Dragon.md section 10): a flown journey's HOLD - the ladder's climb (1) or dive (-1)
+// the ride's governor asks while the Overworld flies it, in place of the look's pitch and the float keys. One slot; null
+// (or none registered) is the ladder as it was.
+let _flyHold = null;
+export function registerFlyHold(fn) { _flyHold = typeof fn === 'function' ? fn : null; }
+/** The hold now, in -1..1, or null. */
+export function flyHold() {
+  try { const v = _flyHold ? _flyHold() : null; return v == null || !Number.isFinite(Number(v)) ? null : Math.max(-1, Math.min(1, Number(v))); } catch { return null; }
+}
+// KETCH (2026-10-24, bible/11-Multiplayer/Sky-Ketch.md section 6; a departure from DFU, Ledger A): THE BURDEN - a named
+// registry of modifiers on EVERY pace on foot (the walk, the run, the crouch, the sneak - never a mount's), read every step:
+// an aether cell carried in both hands slows its carrier whatever its pace. None registered, or each answering 1 (or no
+// number), is DFU's pace exactly.
+const _footMods = new Map();
+export function registerFootSpeedMod(name, fn) { if (typeof fn === 'function') _footMods.set(name, fn); else _footMods.delete(name); }
+/** The pace on foot's multiplier now - the product of every modifier's positive number (one that throws is none). */
+export function footSpeedMult() {
+  let k = 1;
+  for (const fn of _footMods.values()) { try { const v = Number(fn()); if (Number.isFinite(v) && v > 0) k *= v; } catch { /* a burden is not the step's problem */ } }
+  return k;
+}
+// PVP-RULES (bible/11-Multiplayer/PvP-Rework.md): THE CAPS - a named registry of `fn() -> { mps, jump } | null`, the
+// most metres a second on foot (every pace, never a mount's) and the most jump multiplier; the least of each wins. None
+// registered, or each answering null, is DFU's pace and jump exactly. A departure from DFU, Ledger A.
+const _moveCaps = new Map();
+export function registerMoveCap(name, fn) { if (typeof fn === 'function') _moveCaps.set(name, fn); else _moveCaps.delete(name); }
+/** The caps now: `{ mps, jump }`, Infinity where none holds (a cap that throws is none). */
+export function moveCapNow() {
+  let mps = Infinity, jump = Infinity;
+  for (const fn of _moveCaps.values()) {
+    let c = null;
+    try { c = fn(); } catch { c = null; }
+    if (Number(c?.mps) > 0) mps = Math.min(mps, Number(c.mps));
+    if (Number(c?.jump) > 0) jump = Math.min(jump, Number(c.jump));
+  }
+  return { mps, jump };
+}
 // HOTFIX 2026-08-17 (live mobile report: "jumping has me go in the
 // air but instantly snaps me to the ground"): the motor integrated
 // with RAW RENDER dt - DFU's physics runs in Unity's FixedUpdate at
@@ -253,6 +314,28 @@ export const CROUCH_EYE_HEIGHT = 0.8;
  *  CanStand (:525-531) casts UP from the controller centre:
  *  `(controllerStandingHeight - controllerCrouchHeight) / 2f` = 0.45. */
 export const CROUCH_TO_STAND_DIST = (CAPSULE_HEIGHT - CROUCH_HEIGHT) / 2;
+/**
+ * RPT1026-WORLD STAND-THROUGH (a private report, 2026-10-22: in dungeons a crouch and a jump left the level's geometry,
+ * a low ceiling held nobody, and the treasure of an upper room was taken through its floor
+ * from below): A STAND NEVER PUTS THE HEAD PAST A FACE. DFU's CanStand (PlayerHeightChanger.cs:525-531, AUDIT 64 F5,
+ * below) sweeps the camera's rise alone, to feet + 1.25, and DoStand raises the capsule to 1.8 whatever stands over it -
+ * so under a ceiling 1.25 to 1.45 m over the feet the standing head sphere's centre (feet + 1.45) stood on the FAR side of
+ * the ceiling's face, and the collider, which reads no face's facing, pushed it out that way: up into the slab and onto
+ * the floor of the room above, or out of the level (AUDIT 64 F5's own RESIDUE, "the head sphere resolves from ABOVE the
+ * plane"). Measured through the real motor: crouched under a ceiling tilted 10 degrees at 1.35 m, a room's floor 0.15 m
+ * over it, one stand put the body on that floor, 3.8 m along. Unity's CharacterController never crosses a plane. The
+ * stand is refused where the line the head's centre rises along - from the capsule's head now to the standing capsule's -
+ * crosses a face: a blocked stand, as DFU's own refusal is (retried until timerFast, then forgotten). Under a ceiling 1.45
+ * to 1.8 m up the head's centre stays under the face, the stand stands, and the head clips as DFU's does. A departure from
+ * CanStand for that 0.2 m band (Port-Ledger A, STAND-THROUGH). A collider with no `raycast` (a test's stand-in) asks
+ * nothing. Pure over the collider's ray.
+ * @param {any} collider @param {ArrayLike<number>} feet @param {number} height the capsule's height now
+ */
+export function standHeadClear(collider, feet, height) {
+  const rise = CAPSULE_HEIGHT - height;
+  if (!(rise > 0)) return true;
+  return !Number.isFinite(collider.raycast?.([feet[0], feet[1] + height - CAPSULE_RADIUS, feet[2]], [0, 1, 0], rise));
+}
 /** PlayerHeightChanger.cs:56 - "Height of a horse plus seated rider.
  *  (1.6m + 1m)". The camera sits height/2 - eyeHeight above the
  *  controller's centre (:110-112), so the port's eye level for a rider
@@ -1408,7 +1491,7 @@ export class PlayerMotor {
       }
     } else if (!Number.isFinite(this.collider.sphereCast(
       [this.pos[0], this.pos[1] + this.height / 2, this.pos[2]],
-      CAPSULE_RADIUS, [0, 1, 0], CROUCH_TO_STAND_DIST).dist)) {
+      CAPSULE_RADIUS, [0, 1, 0], CROUCH_TO_STAND_DIST).dist) && standHeadClear(this.collider, this.pos, this.height)) {   // RPT1026-WORLD STAND-THROUGH
       // AUDIT 64 F5 - CanStand, VERBATIM (PlayerHeightChanger.cs
       // :525-531): `Ray(controller.transform.position, Vector3.up)` and
       // `!Physics.SphereCast(ray, controller.radius, distance)` with
@@ -1584,6 +1667,7 @@ export class PlayerMotor {
    *  that accumulates less than one physics step must not swallow the
    *  press (AUDIT 18 - at 120 Hz that dropped every other crouch). */
   update(dt, input, yaw, pitch = 0) {
+    try { _rideStep?.(dt, this, input); } catch (e) { console.warn('[motor] ride step', e?.message ?? e); }   // DRAGON5: the mount's flight hears the jump first
     this.jumped = false;
     this.parkoured = null;
     if (this.climbEvents.length) this.climbEvents = [];
@@ -1849,7 +1933,7 @@ export class PlayerMotor {
     // next FixedUpdate (PlayerMotor.cs:278) out of the collisionFlags
     // ClimbingMotor.cs:767 writes after its own controller.Move, so the
     // collider's LIVE grounded written above IS DFU's answer, one step
-    // lagged on both sides (the SWIM branch is the one that latches: Player-Arc.md:1903).
+    // lagged on both sides (the SWIM branch is the one that latches: Player-Arc.md:1922).
     this.standing = this.grounded;   // PlayerMotor.cs:325 - moveDirection zeroed, so :113-125 collapses to grounded
     this.movingLessThanHalfSpeed = this.grounded
       ? true
@@ -2103,11 +2187,17 @@ export class PlayerMotor {
     this.toggleSink = false;
   }
 
-  /** CLIMB1: onto the top (a mantle), or over a thin one (the clamber). */
+  /** CLIMB1: onto the top (a mantle), or over a thin one (the clamber). CLIMB-CREST: over a crest (parkour.js crestTop)
+   *  onto the walk behind it as far down as a hang's let-go (AUDIT CLIMB-ARC D3's law - a city wall's walk lies 1.6 m
+   *  under its coping), else over it into a hang on its far face (CLIMB-DOWN's over-hang - the wall's outside, from its
+   *  walk) - from the ground, a jump, a hang or the top of a free climb alike. */
   _pkOnto(ledge, geo, skill) {
     if (ledge.mantle) return planMantle(this.pos, ledge, skill);
-    const over = senseOver(this.collider, this.pos, ledge, geo, PARKOUR_OVER_DROP);
-    return over ? planClamber(this.pos, ledge, over, skill) : null;
+    const over = senseOver(this.collider, this.pos, ledge, geo, PARKOUR_OVER_DROP)
+      ?? (ledge.crest ? senseOver(this.collider, this.pos, ledge, geo, PARKOUR_HANG_DROP + PARKOUR_VAULT_CLEAR) : null);
+    if (over) return planClamber(this.pos, ledge, over, skill);
+    const oh = ledge.crest ? senseOverHang(this.collider, this.pos, ledge, geo) : null;
+    return oh ? planOverHang(this.pos, ledge, oh, skill) : null;
   }
 
   /** CLIMB2: the catch into a hang - the hand-hold at the lip, the body fitting
@@ -2454,9 +2544,12 @@ export class PlayerMotor {
   _pkRunLeapSpeeds(pk, dir) {
     const { along, up } = runLeapLaunch(jumpingSkill(pk.inputs?.() ?? {}), GRAVITY);
     const run = dir ? this._airVelX * dir[0] + this._airVelZ * dir[2] : 0;
-    const boost = this.jumpBoost ? this.jumpBoost() : 1;
-    return [Math.max(along, run + JUMP_SPEED * JUMP_FWD_BOOST), Math.max(up, JUMP_SPEED * boost)];
+    const boost = this._jumpBoostNow();
+    return [Math.max(along, run + JUMP_SPEED * JUMP_FWD_BOOST), Math.max(up, JUMP_SPEED * boost)];   // PVP-RULES: the boost under its cap (the leap's own rise is the skill's, held to 100)
   }
+
+  /** The skill jump's multiplier (AcrobatMotor jumpSpeedMultiplier), under PVP-RULES' cap where one holds. */
+  _jumpBoostNow() { const b = this.jumpBoost ? this.jumpBoost() : 1; return _moveCaps.size ? Math.min(b, moveCapNow().jump) : b; }
 
   /** AUDIT CLIMB-ARC L10: running at pace - the way the body really went last step, PARKOUR_RUN_SHARE of the run's speed or more. */
   _pkAtPace() { return (this._pkPace ?? 0) > 1e-3 && this._pkPace >= PARKOUR_RUN_SHARE * this.speed - 1e-6; }
@@ -3098,6 +3191,8 @@ export class PlayerMotor {
       if (this.swimming && overEncumbered && !this.climb?.isClimbing && !this.waterWalking) my -= 1;
       else if (input.up) my += 1;
       else if (input.down) my -= 1;
+      if (this.levitating) { const hold = flyHold(); if (hold != null) my = hold; }   // DRAGON6: a flown journey's cruise, the look's pitch and the keys aside
+      if (this.levitating) my -= flySink();   // DRAGON5: a winded dragon glides down
       // AddMovement's THREE arms, in DFU's own order (LevitateMotor.cs
       // :116-140). AUDIT 24 player: the port had a different ladder -
       // levitation short-circuited the water-walking arm, and the
@@ -3134,7 +3229,7 @@ export class PlayerMotor {
         speed = this.swimSpeedNow();
       } else {
         // neither swim arm: the field's resting value, levitateMoveSpeed
-        speed = LEVITATE_MOVE_SPEED;
+        speed = LEVITATE_MOVE_SPEED * flySpeedMult();   // DRAGON-RIDE: the dragon's pace (1 off it)
       }
       // IsMovingLessThanHalfSpeed while swimming/levitating: DFU's
       // FixedUpdate zeroes moveDirection and RETURNS at :322-326,
@@ -3249,6 +3344,8 @@ export class PlayerMotor {
         : (this.crouching ? crouchSpeed(this.stats.speed) : this._refreshWalkSpeed());   // DW-D: GetBaseSpeed's walk arm is RefreshWalkSpeed
       if (this.isSneaking) speed = sneakSpeed(speed);
     }
+    if (rideBase == null && _footMods.size) speed *= footSpeedMult();   // KETCH: the burden - an aether cell in both hands, on every pace on foot
+    if (rideBase == null && _moveCaps.size) speed = Math.min(speed, moveCapNow().mps);   // PVP-RULES: a flagged fighter's pace
     // AUDIT 64 F0 - UpdateSpeed's THIRD statement (PlayerMotor.cs
     // :383-389): `if (playerEnterExit.IsPlayerSwimming &&
     // !PlayerEntity.IsWaterWalking) speed = GetSwimSpeed(speed)`, over
@@ -3406,7 +3503,7 @@ export class PlayerMotor {
         && this.transportMode !== TRANSPORT_MODES.Cart) {
       const boost = this.transportMode === TRANSPORT_MODES.Horse
         ? HORSE_JUMP_MULTIPLIER
-        : (this.jumpBoost ? this.jumpBoost() : 1);
+        : this._jumpBoostNow();
       this.velY = JUMP_SPEED * boost;
       if (this.crouching) this.velY *= CROUCH_JUMP_DELTA;
       if (input.forward !== 0 || input.strafe !== 0) {

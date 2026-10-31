@@ -13,7 +13,7 @@ import { lwSeed, lwRng, pickWeighted, textSeed, LW_SALT } from '../../../src/sys
 import { hash32 } from '../../../src/world/spawnedDungeons.js';
 import {
   travellerCounts, townWatchCount, travellerRoster, watchRoster, householdCensus, townCensus, mintResident, residentName,
-  raceOfPeople, CENSUS_MAX, ADVENTURER_CLASSES, MERCENARY_CLASSES, COURIER_CLASSES, isHome, hasShopJob,
+  raceOfPeople, CENSUS_MAX, censusMaxOf, ADVENTURER_CLASSES, MERCENARY_CLASSES, COURIER_CLASSES, isHome, hasShopJob,
 } from '../../../src/systems/livingWorld/census.js';
 import { townPlaces, streetNet, exitToward, exitNearest, SOCIAL_OUT, MARKET_OUT } from '../../../src/systems/livingWorld/places.js';
 import { findTownPath, pathLine, pointOnLine, stepCost, createPathBook } from '../../../src/systems/livingWorld/townPaths.js';
@@ -48,15 +48,18 @@ test('LW1 census: the travellers a town keeps by its size and its port (merchant
     [{ merchant: 2, mercenary: 0, adventurer: 1, sailor: 0, pilgrim: 1, courier: 0, pedlar: 2 }, 4],
     [{ merchant: 2, mercenary: 1, adventurer: 1, sailor: 0, pilgrim: 1, courier: 0, pedlar: 2 }, 8],
     [{ merchant: 3, mercenary: 2, adventurer: 2, sailor: 3, pilgrim: 2, courier: 1, pedlar: 3 }, 8],
-    [{ merchant: 5, mercenary: 4, adventurer: 4, sailor: 0, pilgrim: 2, courier: 2, pedlar: 6 }, 20],
-    [{ merchant: 5, mercenary: 6, adventurer: 6, sailor: 6, pilgrim: 2, courier: 2, pedlar: 6 }, 24],
-  ]);   // WATCH-DAY: PIN MOVED - the watch four companies of its strength a shift (watchday_watch.test.js)
+    [{ merchant: 5, mercenary: 4, adventurer: 4, sailor: 0, pilgrim: 2, courier: 2, pedlar: 6 }, 28],
+    [{ merchant: 5, mercenary: 6, adventurer: 6, sailor: 6, pilgrim: 2, courier: 2, pedlar: 6 }, 48],
+  ]);   // WATCH-DAY: PIN MOVED - the watch four companies of its strength a shift (watchday_watch.test.js); WATCH-LIFE: PIN MOVED - a city's extra patrols (watchExtraOf)
 });
 
 test('LW1 census: a resident is a DFU townsperson drawn once - the climate\'s people for the billboard, one of the four outfits of their sex, the talk portrait PERSON_FACE_RECORDS[race][sex][outfit] + 0..23, the region\'s name bank; the watch rides GUARD_TEXTURE, male, outfit 0; the armed carry their job\'s class; ids are the town\'s and the slot\'s; the same for every reader and DFRandom\'s stream put back as it stood (mutants: a re-roll per call, the guard\'s sex, the face law, the stream left moved)', () => {
   const town = { mapId: 777, blocks: 16, region: 17, people: 2, port: true };
   const roster = travellerRoster(town);
-  assert.deepEqual(roster.map((r) => `${r.id}:${r.job}`), ['L777.t0:merchant', 'L777.t1:merchant', 'L777.t2:merchant', 'L777.t3:mercenary', 'L777.t4:mercenary',
+  assert.equal(roster.wideFrom, 20, 'LW-WIDE: PIN MOVED - the fourth rank after the first three, every id before it as it was');
+  assert.deepEqual(roster.slice(20).map((r) => `${r.id}:${r.job}`), ['L777.t20:adventurer', 'L777.t21:adventurer', 'L777.t22:adventurer', 'L777.t23:adventurer',
+    'L777.t24:pedlar', 'L777.t25:pedlar', 'L777.t26:pedlar', 'L777.t27:pilgrim', 'L777.t28:courier']);
+  assert.deepEqual(roster.slice(0, 20).map((r) => `${r.id}:${r.job}`), ['L777.t0:merchant', 'L777.t1:merchant', 'L777.t2:merchant', 'L777.t3:mercenary', 'L777.t4:mercenary',
     'L777.t5:adventurer', 'L777.t6:adventurer', 'L777.t7:sailor', 'L777.t8:sailor', 'L777.t9:sailor', 'L777.t10:pilgrim', 'L777.t11:pilgrim', 'L777.t12:courier',
     'L777.t13:pedlar', 'L777.t14:pedlar', 'L777.t15:pedlar',
     'L777.t16:pedlar', 'L777.t17:pedlar', 'L777.t18:pilgrim', 'L777.t19:courier']);   // LW9: PIN MOVED - more of the road's own, appended (census.js moreCounts)
@@ -113,7 +116,9 @@ test('LW1 census: the households are the town\'s buildings - each house its fami
   const city = [];
   for (let k = 0; k < 400; k++) city.push({ key: 5000 + k, type: k < 3 ? BUILDING_TYPES.Tavern : BUILDING_TYPES.House1, quality: 15 });
   const big = householdCensus({ mapId: 9, blocks: 64 }, city);
-  assert.equal(big.length, CENSUS_MAX);
+  assert.equal(big.length, censusMaxOf({ mapId: 9, blocks: 64 }), 'LW-DENSE: PIN MOVED - the town\'s cap by its size');
+  assert.equal(householdCensus({ mapId: 9, blocks: 9 }, city).length, CENSUS_MAX, 'a town of nine blocks keeps CENSUS_MAX');
+  assert.deepEqual(householdCensus({ mapId: 9, blocks: 9 }, city).map((r) => r.name), big.slice(0, CENSUS_MAX).map((r) => r.name), 'the same first CENSUS_MAX, the rest after them');
   assert.equal(big.filter((r) => r.job === 'innkeeper').length, 3);
   const whole = townCensus(TOWN, buildings);
   const guards = whole.filter((r) => r.job === 'guard');
@@ -368,7 +373,7 @@ test('LW1 lines: a token is filled from where and when it is said and a missing 
 test('LW1 regards: a stranger reads 0; a word counts once a day, a blow and a crime cost, help and a life saved earn; friend at FRIEND_AT, enemy at ENEMY_AT, hostile at HOSTILE_AT; a regard eases toward zero EASE_PER_DAY a day unseen and never across it; the save\'s record round-trips and a bad one reads as nobody known; the vendor is LivingWorld (mutants: talk counted twice, the ease crossing zero, a bad record kept)', () => {
   assert.equal(LIVING_WORLD_VENDOR, 'LivingWorld');
   assert.deepEqual([FRIEND_AT, ENEMY_AT, HOSTILE_AT, EASE_PER_DAY], [40, -40, -70, 0.5]);
-  assert.deepEqual(EVENTS, { talk: 3, polite: 1, gift: 8, helped: 20, saved: 35, struck: -45, crime: -15, slain: -75, insulted: -6, poached: -4 });   // LW7: one of their own slain turns them hostile; PIN MOVED (LW14): a find poached
+  assert.deepEqual(EVENTS, { talk: 3, polite: 1, gift: 8, helped: 20, saved: 35, struck: -45, crime: -15, slain: -75, insulted: -6, poached: -4, compliment: 2, embrace: 3, kiss: 4 });   // LW7: one of their own slain turns them hostile; PIN MOVED (LW14): a find poached; PIN MOVED (COURT-DEEDS, Field-Bugs-2026-10-26d): a compliment, a hug, a kiss
   const rel = createRelations();
   assert.equal(rel.regard('L1.0', 10), 0);
   assert.equal(rel.known('L1.0'), false);

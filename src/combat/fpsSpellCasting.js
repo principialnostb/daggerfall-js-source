@@ -82,8 +82,19 @@ export const CAST_RECOVER_S = 0.7;
  *  release well inside it. */
 export const HELD_RELEASE_MAX_S = 1.5;
 
+/** RPT1026-MISC CAST-PACE (a private report: a Morrowind-look caster's spells left later than a Daggerfall-look caster's,
+ *  whose hands move faster): THE MOMENT A SPELL LEAVES, WHATEVER THE HANDS LOOK LIKE - frame 5 of the
+ *  classic hands' step at the cast's rate (0.2 s at rate 1), seconds from the cast. The Morrowind arm's spellcast section
+ *  is paced to bring its "<type> release" here (combat/fpArm.js castSpell's `releaseIn`, MW-PACE1's fit for a blow), and
+ *  an arm so paced lets the spell go on this frame, the classic lane's own (combat/weapon/weaponRig.js castSpellAnim). */
+export const castReleaseS = (rate = 1) => (RELEASE_FRAME * CAST_FRAME_PERIOD) / validCastRate(rate);
+
 /** frameIndices (:50) - "Animation starts and ends with frame 0". */
 export const FRAME_INDICES = Object.freeze([0, 1, 2, 3, 4, 5, 0]);
+
+/** MW-SHOT-PACE: when the classic hands come down - past their last frame at the cast's rate (0.28 s at rate 1), seconds
+ *  from the cast. A paced Morrowind cast ends its tail here (combat/fpArm.js castSpell's `endIn`). */
+export const castEndS = (rate = 1) => (FRAME_INDICES.length * CAST_FRAME_PERIOD) / validCastRate(rate);
 
 /**
  * The classic element index a spell record carries - the SAME

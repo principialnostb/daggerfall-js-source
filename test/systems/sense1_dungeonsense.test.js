@@ -61,7 +61,7 @@ test('SENSE1: a stored tier - off and secrets are themselves, anything else is O
 });
 
 test('SENSE1: a target\'s kind, by its key and the plaque\'s word', () => {
-  for (const k of ['loot:0', 'corpse:3', 'search:2', 'droppedLoot:1:4', 'srch:0']) assert.equal(senseKind(k, 'x'), 'find', k);
+  for (const k of ['loot:0', 'corpse:3', 'search:2', 'droppedLoot:1:4', 'srch:0', 'delve:vault:0']) assert.equal(senseKind(k, 'x'), 'find', k);   // DELVE II: and an encounter's vault
   assert.equal(senseKind('exit:0', 'Exit'), 'door');
   assert.equal(senseKind('act:1:44', 'Door'), 'door');
   assert.equal(senseKind('door:2', 'Door'), 'door');
@@ -281,7 +281,7 @@ test('SENSE1: the plaque\'s word for an action object - the action band first, a
 
 test('SENSE1: both hosts name an action object through the one function', () => {
   // the interior's namer answers the word; the dungeon's takes it and may add ECHO1's examine under it
-  assert.match(src('src/scenes/worldModes.js'), /return actionObjectName\(o, \{ hideInteract: hide \}\);/);
+  assert.match(src('src/scenes/worldModes.js'), /return decorPlaque\(actionObjectName\(o, \{ hideInteract: hide \}\), /);   // PIN MOVED (DECOR-ACCESS): the word rides the decorator's plaque
   assert.match(src('src/scenes/dungeonContext.js'), /const named = actionObjectName\(o, \{ hideInteract: hide \}\);/);
   for (const f of ['src/scenes/dungeonContext.js', 'src/scenes/worldModes.js']) {
     assert.doesNotMatch(src(f), /if \(o\.kind === 'door'\) return actionDoorName|actionDoorName\(\(o\.currentLockValue/, `${f} keeps no door band of its own`);

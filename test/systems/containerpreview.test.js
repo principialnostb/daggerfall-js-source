@@ -35,6 +35,8 @@ test('CONTAINER-PEEK: a placed chest lists what it holds, and a chair is never a
   assert.equal(asked, 1);
   assert.equal(decorPreviewItems('decor:bin', { ...bag, shut: true }), null);
   assert.equal(asked, 1, 'somebody else\'s chest is not read');
+  assert.equal(decorPreviewItems('decor:bin', { ...bag, hall: true }), null, 'a shared chest stays a name until it is opened');
+  assert.equal(asked, 1, 'the plaque does not ask the service');
 });
 
 test('CONTAINER-PEEK: the interior reader answers one family and leaves the piles alone', () => {

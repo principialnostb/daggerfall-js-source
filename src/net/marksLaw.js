@@ -71,6 +71,9 @@ export const MARK_WORTH_GOLD = 10;
  *   star      - STAR7 (2026-10-20; bible/11-Multiplayer/Starfall.md section 6): a fallen star held - its `j1` receipt the relay
  *               signed at its master's fall and the service counted once a (star, account): 30, a raid's worth (a fight
  *               about as long), under the COMBAT cap.
+ *   craftWrit - CRAFT-WRITS (2026-10-22; bible/06-Systems/Professions-Arc.md section 49): a crafting writ filled - goods the
+ *               service saw made (a character's own brews, its own crafted pieces) taken out of its realm record: the
+ *               writ's own pay (craftWritLaw.js, at most CRAFT_WRIT_PAY_MAX), 3 an account a UTC day, beside the Court's.
  */
 export const MARKS_FAUCETS = Object.freeze({
   gate: Object.freeze({ amount: 50 }),
@@ -83,6 +86,7 @@ export const MARKS_FAUCETS = Object.freeze({
   find: Object.freeze({ chance: Object.freeze({ corpse: 0.05, pile: 0.12, search: 0.15 }), amount: Object.freeze([1, 4]), perDay: 20 }),
   eg: Object.freeze({ amount: EG_PAY_MARKS }),   // EG-E1: a Redoubt the week pays (server-account/src/egEconomy.js)
   star: Object.freeze({ amount: 30 }),   // STAR7: a fallen star held (server-account/src/stars.js)
+  craftWrit: Object.freeze({ perDay: 3 }),   // CRAFT-WRITS: the pay is each writ's own (craftWritLaw.js craftWritOf)
 });
 /**
  * SILVER-WAYS: THE DAY'S COMBAT CAP - what the gates and the raids strike an account together, a UTC day. The gate was
@@ -169,7 +173,17 @@ export const MARKS_KINDS = Object.freeze({
   'patron-return': 'move',    // CHAP7a: a losing bid, home to its guild at that Turning - burnt where the guild is gone or full
   eg: 'mint',                 // EG-E1: a Redoubt of the Elite Breach taken - the relay's receipt, counted once a week (under the day's combat cap)
   star: 'mint',               // STAR7: a fallen star's receipt, counted (bible/11-Multiplayer/Starfall.md section 6)
+  castle: 'burn',             // DOMAIN2: a castle's price, from the buying guild's treasury (bible/11-Multiplayer/Domains.md 6)
+  'castle-sale': 'mint',      // DOMAIN2: 85% of it home, the castle given up while its region is held
+  'castle-lost': 'mint',      // DOMAIN2: half of it home, the castle gone with its region
+  'domain-fold': 'mint',      // DOMAIN3: a Charter folded into its region's at the region law's first Turning, its claim fee home (seatTurning.js)
   firmament: 'burn',          // FIRM1: the Firmament's refunds - silver a star taken back, at Renown 10 and past (firmamentLaw.js refundSilver)
+  'craft-writ': 'mint',       // CRAFT-WRITS: a crafting writ filled - goods the service saw made, out of the realm record (server-account/src/craftWrits.js)
+  'guild-rename': 'burn',     // GUILD-SHOP: a guild's new name, from its treasury (guildShopLaw.js GUILD_RENAME_SILVER)
+  'guild-shop': 'burn',       // GUILD-SHOP: a guild shop ware - an account's from its balance, a guild's from its treasury (the ware the line's dst_id)
+  'logo-escrow': 'move',      // GUILD-LOGO: a logo's review fee, held from the treasury while the moderators decide (`logo:<id>`)
+  'logo-fee': 'burn',         // GUILD-LOGO: the fee, burnt out of its escrow when the logo is approved
+  'logo-return': 'move',      // GUILD-LOGO: the fee home, the logo turned down or withdrawn
 });
 
 /** The switch the service's config holds (MARKS_OPEN): off, dev (the developers alone), on. */

@@ -102,7 +102,8 @@ test('AUDIT LOOT F3: a made piece the Reforge rolled again, or one imprinted, is
   const me = { isPlayer: true, items: [b, welkyndShards(25)], goldPieces: 6000 };
   assert.deepEqual(CX.imprintPiece(b, 'nightwhisper', me), { ok: true });
   assert.equal(asMinted(b), false, 'a power imprinted');
-  assert.match(read('src/scenes/world.js'), /\.filter\(\(it\) => it\?\.provenance && asMinted\(it\) && !tradeRefusal\(it\)/, 'the market\'s pieces ask it');
+  // PIN MOVED (AUDIT BAY-LEFT, its packages merged): the market's pieces out of world.js (HOST-SPLIT, scenes/marketPiecesHost.js)
+  assert.match(read('src/scenes/marketPiecesHost.js'), /\.filter\(\(it\) => it\?\.provenance && asMinted\(it\) && !tradeRefusal\(it\)/, 'the market\'s pieces ask it');
 });
 
 test('AUDIT LOOT F4: a Legendary in one hand and a Rare imprinted with its power in the other - both hands\' blows ride it, whichever the table lists first', () => {
@@ -214,7 +215,7 @@ test('AUDIT LOOT F8: every Legendary a power - the Thunderlock\'s Last Lock too,
   const rat = { affinity: 'Monster', careerIndex: 0, health: 100, maxHealth: 100 };
   assert.deepEqual([lootBlow(lock, 100, me, daedra, {}), lootBlow(lock, 100, me, rat, {})], [150, 100], 'its shots at the daedra, +50%');
   const row = () => CX.codexRows().find((r) => r.id === 'the-last-lock');
-  assert.deepEqual([row().found, row().name, row().hint], [false, null, 'Said to turn up anywhere, once in a great while'], 'listed, unfound, by its own hint');
+  assert.deepEqual([row().found, row().name, row().hint], [false, null, 'No longer found'], 'listed, unfound, by its own hint');   // PIN MOVED (GUNS-UNFOUND): no gun drops, so the hint says so - a held one keeps it
   for (const r of CX.codexRows()) assert.ok(r.hint, `${r.id}: a hint`);
   CX.noteFind(lock, { quiet: true });
   assert.deepEqual([row().found, row().name, row().power?.name], [true, 'The Last Lock', 'Dwemer Defiance'], 'found, whole');

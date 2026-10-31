@@ -66,9 +66,10 @@
 //     its look and its form - stands in it at once, with no build.
 import { createFpArm } from '../../combat/fpArm.js';
 import { playerBuilding, PLAYER_HOLD_RETRY_MS } from '../../characters/playerBuildHold.js';   // LOAD-STALL 3
+import { fistWrapsOf } from '../../characters/handWrapsIds.js';   // HAND-WRAPS: a peer's fists glow with their wraps
 import { dfWornEquipment } from '../../formats/morrowind/mwItemMap.js';
 import { werewolfSkinOf } from '../../characters/werewolfSkin.js';   // SHADOW-FANG: a peer's wolf in the skin their signed glyphs name
-import { npcHintOf, npcKeyOf, withNpcPicks, npcFaceOf, beastWorn, WARDROBE_BEAST_RACES } from '../../characters/wardrobe.js';   // MWNPC17: an NPC's own garments, head and hair
+import { npcHintOf, npcKeyOf, withNpcPicks, npcFaceOf, WARDROBE_BEAST_RACES } from '../../characters/wardrobe.js';   // MWNPC17: an NPC's own garments, head and hair
 import { ownOutfitFor } from '../../characters/ownModels/ownClothingModels.js';   // MW-FOLK1: a townsperson's whole outfit
 import { ARMOR_ENUM } from '../../combat/enemyEquipment.js';
 import { EQUIP_SLOTS } from '../../systems/equip.js';
@@ -77,6 +78,9 @@ import { CAPSULE_HEIGHT } from '../../player/motor.js';
 import { dissolveShadowless } from '../../systems/dissolve.js';   // AUDIT MWNPC16-18 R1: a body burnt more than half away casts none
 import { peerStubEntity, lookKey } from '../remotePlayers.js';
 import { POSE_STRIKES } from '../wire.js';   // MAC7 #1: the swing's kind, by the wire's index
+import { handDesc } from '../../combat/playerWeapon.js';   // AUDIT MIXED-PAIR L4-3: the look's hands, read as the local rig reads its own
+import { handsModeOf, HANDS_MODE } from '../../combat/twoHands/handsLaw.js';
+import { spellHandOf } from '../../combat/twoHands/spellHand.js';   // AUDIT SPELL-HAND L4-2: a peer's spell in the free hand
 import { HIT_FRAME_MELEE, MELEE_NUM_FRAMES } from '../../characters/weaponStates.js';   // MW-PACE1: where in a blow its hit lands
 import { wrapAngle } from '../../world/mat4.js';   // ONCRASH1: the port's one angle wrap, which cannot loop
 import { seatTopOf, SEAT_PELVIS_HEIGHT } from '../../player/seatPose.js';   // CARDS2b: the table's top the pose names; COATS3D: a standing pelvis, for a rider's lift
@@ -85,7 +89,10 @@ import { HORSE_SEAT } from '../../world/horseRig.js';   // COATS3D: the 3D horse
 import { gaitShare } from '../../world/horseModel.js';
 import { JUMP_UNITS, stepPeerPace } from './peerPace.js'; import { peerBodyYaw, peerClimbing, peerMoving, PeerClimbTrack } from './peerClimb.js';   // HT-WAIST-BACK: the pace law, lifted - the walkers' lanterns swing off it too; CLIMB5: the climb's facing and pose
 import { gatherActOf, peerGatherTool, peerGatherSwing, peerKneeling, GATHER_POSE_STRIKES } from './peerGather.js';   // PEER-ACTS: a gathering act's tool, blow and kneel
-import { weaponGlowOn, glowFromWord } from '../../systems/weaponGlow.js';   // WEAPON-GLOW1: a peer's weapon, glowing as its look says
+import { weaponGlowOn, glowFromWord, fistGlow } from '../../systems/weaponGlow.js';   // WEAPON-GLOW1: a peer's weapon, glowing as its look says
+import { fieldOfView } from '../../ui/viewSettings.js';   // HORSE-VIEW (AUDIT): the frame's own lens, the cadence's base (lensOf)
+import { appearanceSig } from '../appearanceLaw.js';   // AUDIT HORIZONTAL E1: a held weapon's look is part of what the hand holds
+import { peerMountLook } from '../../systems/horse/mountLook.js';   // STOREFRONT: a rider's 3D horse in its mount look
 
 
 /** The most peers in a Morrowind body at once; the rest keep the paperdoll. */
@@ -172,7 +179,8 @@ export const peerBlow = (pace) => (pace == null ? null
 /** The drawn yaw eases toward the pose's at this rate (a second) - a turn the rig can see every frame, not one that stops between poses. */
 export const YAW_EASE = 12;
 /** PEER-CADENCE (2026-09-22, Mac: "look for ways to improve online performance"): how many frames apart a body's
- *  SKIN is re-posed, by its distance from the eye (scene units, metres) - `[within, every]`, the first row that
+ *  SKIN is re-posed, by its distance from the eye (scene units, metres; the camera that draws it, through its lens -
+ *  cadenceD2, HORSE-VIEW's audit) - `[within, every]`, the first row that
  *  holds. The clips advance every frame regardless (the rig's `pose: false`); what waits is poseAssembly, the mesh
  *  upload and the particle step, the whole of a body's CPU cost (PERF-RIG1: ~0.3 ms a body a frame at 3,000
  *  vertices, and eight bodies at once). The pose comes off the wire at POSE_HZ (10 a second) and the body is drawn
@@ -214,6 +222,22 @@ export function poseCadenceFor(d2) {
   for (const [within, every] of POSE_CADENCE) if (d2 <= within * within) return every;
   return POSE_CADENCE[POSE_CADENCE.length - 1][1];
 }
+/** HORSE-VIEW (AUDIT, the boom and the glass): THE CADENCE IS THE PICTURE'S. A body is as large on the screen as it is
+ *  near the camera that draws it, through that camera's lens - and the cadence measured it from the head: zoomed out,
+ *  the third-person camera stands up to 11.4 m behind the head (player/mwCamera.js MAX_DISTANCE), so a body 2 m from
+ *  the lens was 10 m from the head and posed every second frame, and through the spyglass (x2 to x8, world.js glassFov)
+ *  one 80 m off filled the screen and was posed every third. The magnification `proj` draws at: its fy over the fy of
+ *  the frame's own field of view (ui/viewSettings.js fieldOfView - the lens every host builds its projection on, the
+ *  glass narrowing it) - never under 1, so a lens a frame widens (CLIMB4's kick) poses as the frame's own lens does. */
+export function lensOf(proj) {
+  const m = proj?.[5] * Math.tan(fieldOfView() / 2);
+  return m > 1 + 1e-6 ? m : 1;
+}
+/** HORSE-VIEW (AUDIT): the squared distance a pose's cadence (poseCadenceFor) reads for a point `at` - along the ground,
+ *  as PEER-CADENCE measured it (a height is no distance), from `eye`, the camera that draws it, over its `lens`
+ *  (lensOf): how far off the point looks. The peers' bodies and the Horse Cart pool's 3D horses both read it, so a
+ *  rider and a horse the pool stands beside it keep one cadence. */
+export const cadenceD2 = (at, eye, lens = 1) => ((at[0] - eye[0]) ** 2 + (at[2] - eye[2]) ** 2) / (lens * lens);
 
 /** The rig's build options from a peer's look - the same inputs
  *  weaponRig.armBuildOptsOf maps the player's entity onto. `hasAmmo`
@@ -223,12 +247,45 @@ export function poseCadenceFor(d2) {
 /** DISC12: the weapon in the hand the peer USES - the look carries both hands, the pose's `lh` says which one is
  *  drawn (WeaponManager.ApplyWeapon :741-755: the other hand is never on screen). */
 const _stubSlots = new WeakMap();   // MW-CROWD: a look's stand-in's slots, once a look - a look is replaced, never mutated (lookKey's law)
+/** AUDIT HORIZONTAL E1 (bible/04-Characters/Wardrobe.md section 6): WHAT A HAND HOLDS, as its body draws it - the weapon's
+ *  template, metal, hand and the look it wears. A peer re-dressing the weapon in hand (or taking up its twin in another
+ *  metal) is a new weapon to the body; the template and the hand alone kept the old one, and its glow went out. */
+export const heldWeaponKey = (/** @type {any} */ it) => (it ? `${it.templateIndex}|${it.material ?? ''}|${it.equipSlot}|${appearanceSig(it)}` : '');
 export function peerWeaponOf(look, shown = null) {
-  // MW-CROWD: every stepped body asked this every frame, and each ask built a whole stand-in (an entity, a 27-slot
-  // equip table, its items) - eight bodies' worth of garbage a frame in a crowd. One a look now
+  return stubSlotsOf(look)[shown?.lh ? EQUIP_SLOTS.LeftHand : EQUIP_SLOTS.RightHand] ?? null;
+}
+/** HAND-WRAPS (AUDIT C2): the glow a peer's fists wear - the first pair of Hand Wraps a fist wears, right then left
+ *  (characters/handWrapsIds.js fistWrapsOf), whose look carries a glow word; else null. The hand in use is not asked. */
+export function peerWrapsGlow(look) {
+  const s = stubSlotsOf(look), R = s[EQUIP_SLOTS.RightHand] ?? null, L = s[EQUIP_SLOTS.LeftHand] ?? null;
+  for (const w of [fistWrapsOf(R, L), fistWrapsOf(L, R)]) { const g = w ? glowFromWord(w.glow) : null; if (g) return g; }
+  return null;
+}
+/** MW-CROWD: every stepped body asked this every frame, and each ask built a whole stand-in (an entity, a 27-slot equip
+ *  table, its items) - eight bodies' worth of garbage a frame in a crowd. One a look now. */
+function stubSlotsOf(look) {
   let slots = look && typeof look === 'object' ? _stubSlots.get(look) : null;
   if (!slots) { slots = peerStubEntity(look).equip.slots; if (look && typeof look === 'object') _stubSlots.set(look, slots); }
-  return slots[shown?.lh ? EQUIP_SLOTS.LeftHand : EQUIP_SLOTS.RightHand] ?? null;
+  return slots;
+}
+
+/**
+ * AUDIT MIXED-PAIR L4-3 / AUDIT SPELL-HAND L4-2: THE PEER'S HANDS, off the look (both hands' items) and the pose, read by
+ * the local rig's own laws (combat/weapon/weaponRig.js handArm, spellHandNow): a PAIR (handsModeOf) - its RIGHT hand's
+ * weapon in the body's right hand, its left mirrored on the Weapon Bone Left (setOffWeapon), its lead `lh`, and the hand
+ * each strike was (`ah`, a pose of world251 on); else the hand in use (DISC12). And the SPELL HAND: a spell readied (`sr`)
+ * beside a drawn (`wd`) one-handed weapon with the other hand empty (spellHandOf) - the body keeps the weapon's stance, its
+ * left arm the spell's; a peer stood in the Spell stance with the weapon out of the hand, and played none of its blows. A
+ * light in hand (`lt` lit while no lantern hangs at the waist, `hl`) takes the left hand, as the local rig's leftBusy.
+ * @returns {{ dual: boolean, lead: 'R'|'L', right: any, left: any, spellHand: boolean }}
+ */
+export function peerHandsOf(look, shown) {
+  const slots = stubSlotsOf(look);
+  const R = slots[EQUIP_SLOTS.RightHand] ?? null, L = slots[EQUIP_SLOTS.LeftHand] ?? null;
+  const right = handDesc(R), left = handDesc(L), lead = shown?.lh ? 'L' : 'R';
+  const leftBusy = (shown?.lt | 0) > 1 && !shown?.hl;
+  const dual = handsModeOf({ right, left, leftBusy }) === HANDS_MODE.Dual;
+  return { dual, lead, right: R, left: L, spellHand: !!shown?.wd && !!shown?.sr && !!spellHandOf({ lead, right, left, leftBusy }) };
 }
 
 /** WEREWOLF1: is this peer Morrowind's werewolf right now - the pose's `wb` 1 (LycanthropyTypes Werewolf)? The
@@ -277,8 +334,8 @@ function bodyLookKey(look) {
 
 /** MW-FOLK1: the outfit a look wears (characters/ownModels/ownClothingModels.js TOWNSFOLK_OUTFITS), read as data - an id the table
  *  does not hold is none, and so is one on a beast (AUDIT MW-FOLK1 L2-F8: the look's producer refused them, but a look
- *  is data here - its boots on a Khajiit's or an Argonian's digitigrade feet, as Morrowind dresses none, wardrobe.js
- *  beastWorn) - and the key it adds to a body's: one outfit is one body, another another. */
+ *  is data here - its boots on a Khajiit's or an Argonian's digitigrade feet, one mesh with the hose, which no cut takes
+ *  off them as mwItemMap.js beastCut takes a boot's foot) - and the key it adds to a body's: one outfit is one body, another another. */
 const lookOutfit = (look) => (typeof look?.outfit === 'string' && !WARDROBE_BEAST_RACES.includes(look.race) ? ownOutfitFor(look.outfit) : null);
 export const outfitKeyOf = (look) => { const o = lookOutfit(look); return o ? `|outfit:${o.id}` : ''; };
 
@@ -293,7 +350,7 @@ export function peerBuildOpts(look, shown = null, glyphs = null) {
     race: mwRaceId(stub.race),
     female: stub.gender === 'female',
     faceIndex: stub.faceIndex | 0,
-    armor: [...(npc ? withNpcPicks(beastWorn(worn, stub.race), npc) : worn), ...outfitPiece(look, wolf)],   // MWNPC17: each garment its rung and its pick; AUDIT MWNPC16-18: a beast NPC's feet and head bare; MW-FOLK1: and a townsperson's outfit
+    armor: [...(npc ? withNpcPicks(worn, npc) : worn), ...outfitPiece(look, wolf)],   // MWNPC17: each garment its rung and its pick; BEAST-BOOTS: a beast NPC's helm and boots go to the composer as a player's do; MW-FOLK1: and a townsperson's outfit
     // DISC12: the hand in use; WEREWOLF1: a wolf holds nothing (the build refuses the hand anyway)
     weapon: wolf ? null : stub.equip.slots[shown?.lh ? EQUIP_SLOTS.LeftHand : EQUIP_SLOTS.RightHand] ?? null,
     hasAmmo: false,
@@ -721,15 +778,25 @@ export class PeerBodies {
   /** COATS3D: a peer on a HORSE (the pose's `rd`; never the cart, never a beast) sits the 3D horse - its own, in the look
    *  the pose names (`rc`), stepped at the body's pace under its feet (HORSE-WALK: held under the gallop while the pose's
    *  `hs` says a slow ride), its seat the body's saddle (player/seatPose.js) as the player's own is (player/mwView.js).
-   *  Null, and the horse let go, off one or where the rig is not up. */
+   *  Null, and the horse let go, off one or where the rig is not up.
+   *  HORSE-VIEW: the gait steps here every frame and the pose waits for the rider's (_poseHorse): the horse is in the
+   *  rider's picture, so it is posed on the frames the body's skin is - on the body's cadence, in its view. */
   _saddle(b, shown, f, dt) {
     const rig = this._horses();
     if (!rig?.ready() || shown.rd !== POSE_RIDE.Horse || peerIsWolf(shown) || shown.wb) { this._unhorse(b); return null; }
     b.horse ??= rig.horse(seedOf(b.id));
     if (!b.horse) return null;
-    rig.step(b.horse, { feet: horseFeetUnder(f, b.yaw), yaw: b.yaw, speed: b.speed ?? 0, dt, look: shown.rc | 0, gallops: !shown.hs });   // HORSE-WALK: the pose's slow ride (its `hs` - walked, or under half) never gallops
+    rig.step(b.horse, { feet: horseFeetUnder(f, b.yaw), yaw: b.yaw, speed: b.speed ?? 0, dt, look: peerMountLook(b.id, shown.rc | 0, f), gallops: !shown.hs, pose: false });   // STOREFRONT: in its rider's mount look, by the Others' effects choice; HORSE-WALK: the pose's slow ride (its `hs` - walked, or under half) never gallops
     const seat = rig.seat(b.horse);
     return seat ? { feet: [f[0], f[1], f[2]], seat, yaw: b.yaw, lean: gaitShare(b.horse.gait, 'gallop') } : null;
+  }
+  /** HORSE-VIEW: a rider's horse posed with the body - where its gait's clock stands - and the saddle the body is about
+   *  to be posed to taken off that pose (the seat rides the Spine's stride). Called wherever the body's skin is posed. */
+  _poseHorse(b) {
+    const rig = b.horse && b.cam?.saddle ? this._horses() : null;
+    if (!rig?.pose(b.horse)) return;
+    const seat = rig.seat(b.horse);
+    if (seat) b.cam.saddle.seat = seat;
   }
   /** COATS3D: a body's horse let go (its palette). */
   _unhorse(b) {
@@ -754,15 +821,17 @@ export class PeerBodies {
    * body, so bodies on one cadence skin on different frames whenever their builds landed (AUDIT PEER-CADENCE F1: a
    * per-body tick started on the standing frame made the stagger an accident of the build queue - eight bodies landed a
    * frame apart all skinned together). The skipped frames' dt is banked for the particle step, which keeps wall time on
-   * the frame that poses.
+   * the frame that poses. HORSE-VIEW (AUDIT): `every` by how far the body looks from the last pass's camera - its eye,
+   * through its lens (cadenceD2: the zoomed-out boom's, the spyglass's) - not from the head the range is measured from.
    * WB9h: a body out of the view skins nothing (its clocks run; it is posed as it is seen - `stale`), and of the rest
    * wanting a skin at most SKIN_BUDGET pose in a frame, in bySkinRank's order; one left over is owed the next frame.
    */
   _stepDue(dt) {
     const due = this._due;
+    const eye = this._cam?.eye ?? null, lens = this._cam?.lens ?? 1;   // HORSE-VIEW (AUDIT): the last pass's camera, as the view is (cadenceD2); before any - or for a body never placed (ONE-BAD-BODY) - the distance from `near`
     for (const b of due) {
       const must = !b.posed || !(b.rig.thirdActive?.() ?? true);
-      b.rank = must ? 3 : !b.inView ? 0 : (b.owed || b.stale) ? 2 : (this._frame + b.phase) % poseCadenceFor(b.d2) === 0 ? 1 : 0;
+      b.rank = must ? 3 : !b.inView ? 0 : (b.owed || b.stale) ? 2 : (this._frame + b.phase) % poseCadenceFor(eye && b.feet ? cadenceD2(b.feet, eye, lens) : b.d2) === 0 ? 1 : 0;
     }
     if (due.length > 1) due.sort(bySkinRank);
     let skins = 0;
@@ -782,8 +851,9 @@ export class PeerBodies {
     b.peer = null;
     // AUDIT MWBODY A1: a throw from one peer's rig is that peer's doll, never the frame's end
     try {
-      this._arm(b, peer.shown, peer.look);
+      this._arm(b, peer.shown, peer.look, peer.ak);   // ARMORY-FISTS: and their kit
       b.bank = Math.min(EFFECTS_BANK_MAX_S, b.bank + dt);   // AUDIT WB9 (bodies F1)
+      if (pose) this._poseHorse(b);   // HORSE-VIEW: astride, its horse first - the skin is posed to the seat of the horse's own new pose
       if (pose) { b.rig.update(dt, { pose: true, effectsDt: b.bank }); b.bank = 0; b.posed = true; b.owed = false; b.stale = false; b.posedAt = this._frame; }
       else b.rig.update(dt, { pose: false });
     } catch (e) { this._fail(b, `update threw: ${e?.message ?? e}`); }
@@ -797,7 +867,7 @@ export class PeerBodies {
    *  spell stance (readySpell, a boolean compare on the rig's side), a cast once per count with the wire's range,
    *  and the bow's hold - a swing that arrives with wd 2 is the draw (attack with hold), and release() waits while
    *  wd stays 2, exactly as weaponRig withholds it while the machine sits in StrikeUp. */
-  _arm(b, shown, look = null) {
+  _arm(b, shown, look = null, kit = null) {
     // MWNPC4: a dead body takes no weapon, no spell and no swing - its counts follow, so nothing is replayed if it stands
     if (this._react(b, shown)) { b.swing = shown.an | 0; b.cast = shown.cn | 0; b.pending = null; b.held = false; peerGatherSwing(b.gather ??= {}, shown); return; }   // PEER-ACTS: and its act's
     // PEER-ACTS (GATHER-FEEL II): A GATHERING ACT HOLDS ITS TOOL. While the pose names an act, the hand holds the act's
@@ -811,9 +881,11 @@ export class PeerBodies {
     // DISC12 (Discord: "Weapons when swapped into left hand dont work showing fists"): THE HAND IN USE. The body was
     // built holding the look's RIGHT hand, always, so a peer fighting left-handed stood with the wrong weapon or a fist.
     // The pose says the hand (`lh`); the weapon follows it through setWeapon, the arm's own door, when the arm is quiet.
+    // AUDIT MIXED-PAIR L4-3 / SPELL-HAND L4-2: the look's two hands, as the local rig holds its own (peerHandsOf)
+    const hands = look && !look.creature && !b.wolf && !tool ? peerHandsOf(look, shown) : null;
     if (look && !look.creature) {   // MWNPC9: a creature's claws are its body
-      const want = b.wolf ? null : tool ?? peerWeaponOf(look, shown);   // WEREWOLF1: the wolf's hands are its claws; PEER-ACTS: the act's tool before the look's weapon
-      if (want !== b.weapon && (want?.templateIndex !== b.weapon?.templateIndex || want?.equipSlot !== b.weapon?.equipSlot)
+      const want = b.wolf ? null : tool ?? (hands?.dual ? hands.right : peerWeaponOf(look, shown));   // WEREWOLF1: the wolf's hands are its claws; PEER-ACTS: the act's tool before the look's weapon; AUDIT MIXED-PAIR L4-3: a pair's right hand holds the right's
+      if (want !== b.weapon && heldWeaponKey(want) !== heldWeaponKey(b.weapon)   // AUDIT HORIZONTAL E1: and its metal and its look
         && (b.rig.upperBodyReady?.() ?? true) && b.rig.setWeapon?.(want, { hasAmmo: !!shown.am }) !== false) { b.weapon = want; b.ammo = shown.am ? 1 : 0; }
     }
     // AUDIT WORLD C5/C6: the arrow lands only when the arm is quiet (setWeapon clears the action in flight, so the
@@ -824,8 +896,16 @@ export class PeerBodies {
     // WEAPON-GLOW1 (bible/05-Combat/Weapon-Glow.md): the weapon in their hand glows as its owner's card says (the look's
     // `glow`, net/wire.js LOOK_GLOW_RE) - off the look NOW (a weapon identified or socketed is a new look, the same
     // template in the same hand), when MY switch shows glows; a gatherer's tool, a wolf's claws and a creature carry none
-    const heldNow = look && !look.creature && !b.wolf && !tool ? peerWeaponOf(look, shown) : null;
+    const heldNow = hands ? (hands.dual ? hands.right : peerWeaponOf(look, shown)) : null;
     b.rig.setWeaponGlow?.(heldNow && weaponGlowOn() ? glowFromWord(heldNow.glow) : null, heldNow);   // AUDIT WEAPON-GLOW NET-1: and the weapon it is of
+    b.rig.setHandGlow?.(hands && weaponGlowOn() ? peerWrapsGlow(look) ?? (heldNow ? null : fistGlow(kit, true)) : null);   // HAND-WRAPS (AUDIT C2): their fists in their wraps' glow, whichever hand holds them
+    // AUDIT MIXED-PAIR L4-3: A PAIR IN BOTH HANDS - the mode and the lead, and the left hand's weapon mirrored on its own
+    // bone, through the rig's own doors (the local rig's handArm: each a fast path, the left bound once a change)
+    b.rig.setHands?.({ mode: hands?.dual ? HANDS_MODE.Dual : HANDS_MODE.Single, lead: hands?.lead ?? 'R' });
+    const offNow = hands?.dual ? hands.left : null;
+    b.rig.setOffWeapon?.(offNow);
+    b.rig.setOffWeaponGlow?.(offNow && weaponGlowOn() ? glowFromWord(offNow.glow) : null, offNow);
+    b.rig.setSpellHand?.(!!hands?.spellHand);   // AUDIT SPELL-HAND L4-2: told before the stance, as the local rig tells its own
     b.rig.readySpell?.(!b.wolf && !!shown.sr);   // WEREWOLF1: a werewolf casts nothing (setWerewolf clears the spell stance)
     // HT-WAIST-NET (2026-09-24): THE LANTERN AT THE WAIST, off the pose's `hl` - the rig's own door, the local body's
     // (weaponRig hands the player's the same boolean every frame): the fast path one compare, the first lit binds the
@@ -857,11 +937,11 @@ export class PeerBodies {
           b.swingAt = at;
           // C3: the strike is KEPT until the rig takes it - the equip that setSheathed started this very frame
           // refuses it, and a consumed count was a blow never played - for PENDING_FRAMES and no more
-          b.pending = drawn ? { strike: POSE_STRIKES[shown.as | 0] ?? 'StrikeDown', hold: shown.wd === 2, left: PENDING_FRAMES, blow: peerBlow(b.blowPace) } : null;
+          b.pending = drawn ? { strike: POSE_STRIKES[shown.as | 0] ?? 'StrikeDown', hold: shown.wd === 2, left: PENDING_FRAMES, blow: peerBlow(b.blowPace), hand: hands?.dual ? (shown.ah ? 'L' : 'R') : null } : null;   // AUDIT MIXED-PAIR L4-3: a pair's strike with the hand that made it
         }
       }
       if (b.pending && b.pending.left-- > 0) {
-        if (b.rig.attack?.(b.pending.strike, { hold: b.pending.hold, blow: b.pending.blow ?? null, roll: b.swing })) { b.held = b.pending.hold; b.pending = null; }   // MWNPC9: the count rolls a creature's attack
+        if (b.rig.attack?.(b.pending.strike, { hold: b.pending.hold, blow: b.pending.blow ?? null, roll: b.swing, hand: b.pending.hand ?? null })) { b.held = b.pending.hold; b.pending = null; }   // MWNPC9: the count rolls a creature's attack
       } else b.pending = null;
       if (cn !== b.cast) { b.cast = cn; b.rig.castSpell?.(shown.cr | 0); }
     }
@@ -925,6 +1005,7 @@ export class PeerBodies {
     c.scaleOf = scaleOf;   // MWNPC10: a body drawn larger than itself, by its id (the lane's actor `scale`)
     c.anchoredOf = anchoredOf;   // AUDIT MWNPC16-18 A3: a body that never walks, by its id (the lane's) - the lo tier's lamps take its shadow
     c.canvas = canvas; c.proj = proj; c.view = view; c.eye = eye; c.flashOf = flashOf;
+    c.lens = lensOf(proj);   // HORSE-VIEW (AUDIT): this pass's magnification - the next frame's cadence (_stepDue), with its eye
     c.fxOf = fxOf;   // MWNPC5: a body's tells by its id (a foe's glint, elite glow, dissolve - characters/npcBodies.js)
     c.grow = grow; c.up = up;   // OW-PEERS (FIELD BUGS 2026-10-01 #11): under the Overworld each body drawn its grow times about its feet, leaned as the traveller's own is (drawThird's OW-BIG and AUDIT OW3 J6)
     this._planesOk = !!viewPlanes(proj, view, this._planes);   // WB9h: this pass's view - and the next frame's skins
@@ -991,6 +1072,7 @@ export class PeerBodies {
       // outside the view still skip skinning, preserving the main crowd optimisation.
       if (b.stale || b.posedAt !== this._frame) {
         try {
+          this._poseHorse(b);
           b.rig.update(0, { pose: true, effectsDt: b.bank });
           b.bank = 0;
           b.posed = true;

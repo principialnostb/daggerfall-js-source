@@ -196,8 +196,8 @@
   {
     "name": "EGA5A2-memento-no-place",
     "file": "src/net/eliteGates/egBrain.js",
-    "old": "const where = at ?? (m.pose && m.pose.h === B.h ? m.pose : null);",
-    "new": "const where = at;",
+    "old": "  // absent, a `fell` with no pose, the count's fall off another hall's trail) lies at the member's last pose in this hall\n  const where = at ?? (m.pose && m.pose.h === B.h ? m.pose : null);",
+    "new": "  // absent, a `fell` with no pose, the count's fall off another hall's trail) lies at the member's last pose in this hall\n  const where = at;",
     "tests": [
       "test/net/eliteGates/egaudit5_a2.test.js"
     ],
@@ -336,8 +336,8 @@
   {
     "name": "EGA5A2-herald-post-unsaid",
     "file": "src/net/eliteGates/egHerald.js",
-    "old": "const fromOf = (ew) => (Number.isSafeInteger(ew) && ew > 0 ? `, from Redoubt ${ew}` : '');",
-    "new": "const fromOf = () => '';",
+    "old": "const fromOf = (ew) => (Number.isSafeInteger(ew) && ew > 0 ? `Redoubt ${ew}` : null);",
+    "new": "const fromOf = () => null;",
     "tests": [
       "test/net/eliteGates/egaudit5_a2.test.js"
     ],
@@ -346,8 +346,8 @@
   {
     "name": "EGA5A2-herald-post-always",
     "file": "src/net/eliteGates/egHerald.js",
-    "old": "const fromOf = (ew) => (Number.isSafeInteger(ew) && ew > 0 ? `, from Redoubt ${ew}` : '');",
-    "new": "const fromOf = (ew) => `, from Redoubt ${ew}`;",
+    "old": "const fromOf = (ew) => (Number.isSafeInteger(ew) && ew > 0 ? `Redoubt ${ew}` : null);",
+    "new": "const fromOf = (ew) => `Redoubt ${ew}`;",
     "tests": [
       "test/net/eliteGates/egaudit5_a2.test.js"
     ],

@@ -63,7 +63,8 @@ import { buildLighthouseModel, buildLighthouseFire, guardBand, LIGHTHOUSE, LIGHT
 import { PORT_PAINTERS, PORT_ARCHIVE, PORT_HOW } from '../world/portArt.js';
 import { dfLook, lookSeed } from '../world/dfLook.js';   // DF-LOOK: the port's pictures in Daggerfall's colours
 import { wearPainted } from '../systems/studioArt/studioArt.js';   // STUDIO1: the studio's pictures over the painted ones (their rows top-down, as the port's are)
-import { PERSON_TEXTURES, PERSON_IDLE_RECORD, PERSON_IDLE_FPS } from '../characters/mobile/mobilePerson.js';
+import { PERSON_TEXTURES, PERSON_IDLE_RECORD, PERSON_IDLE_FPS, spriteRaceOf } from '../characters/mobile/mobilePerson.js';
+import { folkOfRegion, folkOfKey, folkRace } from '../characters/provinceFolk.js';   // PROVINCE-FOLK
 import { mobileBillboardSize } from '../world/rmbFlats.js';
 import { folkLookOf } from '../characters/folkBodies.js';
 import { personActor } from '../characters/peopleBodies.js';
@@ -166,6 +167,12 @@ export function folkOf(key, role, i) {
   const h = textSeed(`${key}|${role}|${i}`);
   const femaleShare = role === 'recruit' ? 0.35 : 0.15;
   return { sex: ((h >>> 4) & 0xff) / 256 < femaleShare ? 'female' : 'male', variant: (h >>> 13) & 3 };
+}
+/** PROVINCE-FOLK (bible/03-World/World-Wide.md): a place's person's own race past the Bay - the keeper's and the
+ *  crewmaster's their draw's (merchantYards.js townKeeper), a hand's off the place's key; null on the Bay. Pure. */
+export function raceOf(site, p) {
+  if (p.role === 'keeper' || p.role === 'crewmaster') return site?.[p.role]?.race ?? null;
+  return folkRace(folkOfKey(site?.keeper?.home) ?? folkOfRegion(site?.regionIndex ?? -1), textSeed(`${site?.key ?? ''}|${p.role}|${p.i}|folk`));   // AUDIT PROVINCE-FOLK B6: the keeper's people, the zone's
 }
 /** Everyone a place stands: `{ role, i, at: [x, y, z] in its frame, sex, variant }`. Pure. */
 export function peopleOf(site) {
@@ -312,7 +319,7 @@ export function createPortHost({
     return null;
   }
   const archiveOf = (site, p) => {
-    const T = PERSON_TEXTURES[site.race] ?? PERSON_TEXTURES.Breton;
+    const T = PERSON_TEXTURES[spriteRaceOf(p.folk, site.race)] ?? PERSON_TEXTURES.Breton;   // PROVINCE-FOLK: their own race's picture where Daggerfall draws one
     const set = T[p.sex === 'female' ? 'female' : 'male'];
     return set[(p.variant ?? 0) % set.length];
   };
@@ -328,13 +335,15 @@ export function createPortHost({
     for (const p of peopleOf(pl.site)) parts.push(boxTriangles([p.at[0] - KEEPER_HALF, p.at[1], p.at[2] - KEEPER_HALF], [p.at[0] + KEEPER_HALF, p.at[1] + KEEPER_HEIGHT, p.at[2] + KEEPER_HALF]));
     const count = parts.reduce((n, p) => n + p.positions.length, 0), icount = parts.reduce((n, p) => n + p.indices.length, 0);
     const positions = new Float32Array(count), indices = new Uint32Array(icount);
+    const sight = parts.some((p) => p.sight) ? new Uint8Array(icount / 3) : null;   // FIELD BUGS 2026-10-25i SIGN-PASS: a model's hung signboard a ray's, no body's (merchantYardModels.js assemble)
     let v = 0, i = 0;
     for (const p of parts) {
       positions.set(p.positions, v);
       for (let j = 0; j < p.indices.length; j++) indices[i + j] = p.indices[j] + v / 3;
+      if (sight && p.sight) sight.set(p.sight, i / 3);
       v += p.positions.length; i += p.indices.length;
     }
-    return { positions, indices };
+    return { positions, indices, sight };
   }
   function standCollider(pl) {
     const col = collider();
@@ -344,7 +353,7 @@ export function createPortHost({
     if (pl.colAt) { col.removeBucket?.(pl.bucket); pl.colAt = null; }
     if (!moved && feetInPort(pl.site, pl.at, feet())) return;   // held back while the feet stand at its foot as it first rises
     const g = colliderGeometry(pl);
-    col.addMesh(pl.bucket, g.positions, g.indices, pl.matrix);
+    col.addMesh(pl.bucket, g.positions, g.indices, pl.matrix, null, null, false, g.sight);   // SIGN-PASS: its boards met by rays, by no body
     pl.colAt = [pl.at[0], pl.at[1], pl.at[2]];
   }
   /** A lighthouse's gallery guard stood in its own bucket, or taken down, by where the feet `f` are (guardFor) - stood
@@ -372,7 +381,7 @@ export function createPortHost({
     const pl = {
       site, key: site.key, bucket: `port:${site.key}`, guardBucket: `port:${site.key}:guard`, guard: null, at: null, matrix: null, colAt: null, box: null, targets: null,
       groundY: NaN, groundAt: [NaN, NaN, -Infinity, NaN], phase: (textSeed(String(site.key)) % 6283) / 1000,
-      people: peopleOf(site).map((p) => ({ ...p, batch: null, origin: [0, 0, 0], frame: -1, keysOf: '', texKeys: [] })),
+      people: peopleOf(site).map((p) => ({ ...p, folk: raceOf(site, p), batch: null, origin: [0, 0, 0], frame: -1, keysOf: '', texKeys: [] })),   // PROVINCE-FOLK: their race, once
       lamp: [0, 0, 0], light: null, glow: null, seen: -1,
     };
     places.set(site.key, pl);
@@ -469,7 +478,7 @@ export function createPortHost({
         for (const p of pl.people) {
           const b = p.batch;
           if (!b) continue;
-          const archive = archiveOf(pl.site, p), race = pl.site.race ?? 'Breton', key = `${archive}|${race}`;
+          const archive = archiveOf(pl.site, p), race = p.folk ?? pl.site.race ?? 'Breton', key = `${archive}|${race}`;   // PROVINCE-FOLK: past the Bay their own
           if (p._mwLookKey !== key) {
             p._mwLookKey = key;
             p._mwLook = folkLookOf({ archive, personFaceRecordId: 0, gender: p.sex === 'female' ? GENDERS.Female : GENDERS.Male, guard: false }, race, textSeed(`${pl.key}|${p.role}|${p.i}`));
@@ -553,14 +562,15 @@ export function createPortHost({
       if (!open(s, page)) midText(PORT_TEXT.shut);
       return true;
     },
-    /** THE LAMP and the office lantern, in the lanterns' hours: scene lights `{ x, y, z, range }`. */
-    lights() {
+    /** THE LAMP and the office lantern, in the lanterns' hours: scene lights `{ x, y, z, range }` - their ranges times
+     *  `reach` (AUDIT LIGHT-REACH S5: the lane's share for a lantern, `streetLightReach`). */
+    lights(reach = 1) {
       let n = 0;
       if (lit()) for (const pl of places.values()) {
         if (!pl.at) continue;
         const L = (pl.light ??= { x: 0, y: 0, z: 0, range: 0, color: null }), at = pl.lamp;
-        if (pl.site.kind === 'lighthouse') { lampOf(pl); L.range = LAMP_RANGE; }
-        else { const o = SHIPYARD.lantern; yardToScene(pl.at, pl.site.yaw, o[0], o[1], o[2], at); L.range = OFFICE_LAMP_RANGE; }
+        if (pl.site.kind === 'lighthouse') { lampOf(pl); L.range = LAMP_RANGE * reach; }
+        else { const o = SHIPYARD.lantern; yardToScene(pl.at, pl.site.yaw, o[0], o[1], o[2], at); L.range = OFFICE_LAMP_RANGE * reach; }
         L.x = at[0]; L.y = at[1]; L.z = at[2];
         _lights[n++] = L;
       }

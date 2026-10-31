@@ -9,13 +9,18 @@ questions, Mac answered "1. Server 2. Keep 3. We can also add renown and it's ow
 
 ## What it does
 
-Each game day, towns across the Iliac Bay are raided. The roll picks a region evenly among the travel map's regions
+Each game day, towns across the Iliac Bay are raided (and, since WW6, the towns of every province past it - each
+province's own day, below; since FRONTS, online, the day's two provinces alone - `03-World/World-Wide.md` FRONTS). The roll picks a region evenly among the travel map's regions
 that hold a city, hamlet or village, then a town evenly in that region; a town is raided at most once a day. Each raid
 starts between 00:00 and 22:00, lasts two game hours (ten real minutes), and brings one party - knights (Knights),
 bandits (Rogue 50%, Thief 30%, Burglar 20%) or orcs (Orc 70%, Sergeant 25%, Warlord 5%) - with 15 to 25 deaths to
 drive it off.
 
-- A raid on in the player's region is announced once: "Gothway Garden in Daggerfall is under attack by orcs!"
+- A raid on in the player's region is announced once: "Gothway Garden in Daggerfall is under attack by orcs!" (EVENTS1,
+  2026-10-23, `10-UI/Event-Board.md`: the mod's lines - this, the withdrawal and the cleansing - open the HUD's event
+  board's news now, with their raid, and are still filed in the journal, as AddHUDText files them; the board off, or
+  with no room for its news, the HUD's line again. The board also names every raid of the day a quarter of an hour
+  before it starts, the nearest two on its plate.)
 - While the player stands outdoors in the raided town, raiders come one at a time, 10-35 units off and just outside
   the view: every 1-10 s (orcs 1-8 s) while fewer than 25 stand. The town's defenders come the same way, every 1-10 s
   while fewer than 8 stand. A defender's clock is checked first.
@@ -129,6 +134,12 @@ else (`world/raidShared.js` validates everything new, at the reader). RAID3 is b
 standing raiders until they die or are culled, so for a moment two owners' raiders can stand together. A frame's word
 is a client's: nothing stops a modified client saying a false share - at a RAID3 relay the count is the relay's, and
 RAID4's rewards pay from its signed receipt.
+
+MAIN-RED (2026-10-26): the pin that the relay reads nothing inside a foes frame (`test/systems/raid2_raidsOnline.test.js`)
+reads the relay's TREE now, not its text. Its regex took AUDIT KETCH II's local `rz = V.players[b.sub]?.rzAt` for a
+frame's field and reddened main, holding back the deploy; a field is a member read (`x.rz`), a pattern's key
+(`{ rz } = x`) or a literal's (`{ rk: 0 }`), outside `_grantStripped`, and a local of that name is none of them. No
+relay change, so no `RELAY_VERSION`; `tools/mutants/mainred1.json` holds four reads and writes the pin still fails.
 
 ## The relay holds the raid (RAID3, 2026-09-27)
 
@@ -329,7 +340,8 @@ Pinned in `test/net/auditonline2.test.js` (F2, F3, F5) and `test/net/world6biiic
 - **The towns table's pin is the operator's to set.** Until `RAID_TOWNS_SHA256` holds the hash of the table from real
   game files (`tools/raidTowns.mjs`), the relay reads the day's slots alone; this container has no ARENA2 to take it
   from.
-- The travel map's eligible-region count (and so the day's count) has not been measured against the data.
+- The travel map's eligible-region count (and so the day's count) has not been measured against the data. MEASURED
+  (WW6, 2026-10-27, on the freeware): 43 regions, 3,444 towns, 22 raids a day.
 
 ## On the held map (EVENT-TIP, 2026-09-28)
 
@@ -397,3 +409,151 @@ a word - was tallied and never said (step F said the word from inside the rect a
 standing and stood no one under its cap. Step F says a raid I fought from anywhere on its pixel now, and
 `raidPoolCleared()` runs beside the sweep. The held map's card counts the town's ledger (`raidRelayState`) against the
 town's target, not this machine's share. The record: `01-Overview/bugs/Field-Bugs-2026-10-11g.md` RAID-WORD.
+
+## RAID5 - a raid's kind: the assault, the standard, the exodus (2026-10-25)
+
+> The owner, 2026-10-25: "I was want to rework town raids to bring them up to par with other world events, implementing
+> mechanics (not the puzzle), different types of structure like wave based, defend, escort, etc". Asked which: "Waves",
+> "Defend", "Escort" and "Classic skirmish".
+
+Every raid the day rolls is now one of four kinds, and the kind is the raid's own: `systems/raidKinds.js raidKindOf`
+reads it off what the day already drew - the raid's key, its start, its target and its party, hashed - and never draws,
+so RAID-ROLL's roll (the relay's check of a word) is the roll it always was and every machine names the same kind. The
+count and the cleanse are what they were (RAID1-RAID3): the raid's deaths against its target, the relay's ledger online.
+The kind decides how its raiders stand and what more the town asks; Kamer's mod has no kinds - a departure (Ledger A,
+RAID5).
+
+| Kind | Its name | What the town asks | How it runs (`systems/raidingParties.js`) |
+|---|---|---|---|
+| `classic` | Raid | - | RAID1's raid, the watch beside you; its raiders in packs about each player (RAID-PACKS below) |
+| `waves` | Assault | "They come in waves. Hold until their leader falls." | the target less one shared over three waves (four from a target of 21, `raidWavePlan`), each in packs of 3-5; a 12 s breather between (`RAID_WAVE_BREATHER_S`), each wave said; the last the party's LEADER alone - the knights' Knight-Captain, the bandits' Bandit Chief, the orcs' Orc Warlord - an elite with two boss traits (`05-Combat/Boss-Traits.md`), its fall the target's last death |
+| `defend` | Siege of the Standard | "Keep the Standard-Bearer of {town} alive in the square." | a watchman of the town stood at its square (`scenes/cityGuards.js standBearer`, eight times as hardy, leashed 4 m to his post); the raiders come at him in packs of 3-5 every 4 s (RAID-BANNER below) from 40 m out, each sent at him; KILLED (a walk-off is no fall - another is raised) he sacks the town: said, none raised again, the raid goes on |
+| `escort` | Exodus | "Refugees flee to the square of {town}. See them there safely." | three refugees (a temple's Healer of the street's pool, the player's allies, four times as hardy) walk the town's streets from its edge to its square behind a guide that waits for them; the raiders come in packs ahead of them and hunt them; each arriving is saved and goes out of sight, each fallen lost, both said; when all three are saved or lost the rest of the raid is the classic one |
+
+**Held.** A town whose objective is kept to its cleanse is HELD: an assault whose leader fell, a standard still
+standing, two refugees of three saved (`raidHeld`). It is said ("{town} is held - its people will not forget it."), the
+region's legal reputation and its People take 3 more beside GrantReputation's own (`grantRaidHeldReputation`, the same
+door and clamp), and the town's thanks (RAID4b) are half again in gold with one more Magic-or-better piece, rolled LAST
+so every thanks before it is its seed's (`systems/raidSpoils.js rollRaidSpoils`, `held`). The held raids are saved (the
+newest 16) because the account service may answer after a load.
+
+**The town's sites** (`scenes/raidSitesHost.js`, a module `scenes/world.js` wires - HOST-SPLIT): the raid's own town, read
+off its map pixel (`wagonWardenHost.js wardenTownOfPixel` - AUDIT WORLD-EVENTS L4-4: off the player's feet alone it read
+null across the block a town's rect is widened by, and the raid kept that null for its whole life; a site not found is
+asked again RAID_SITE_AGAIN_S on). Its square and the refugees' way are on the town's STREETS: the living town's places
+where it has them (`livingWorld/places.js` - the net its doors open onto, its square, its exits by side), else the grid's
+own (`gridStreets` - the component of the cell nearest the middle that holds `RAID_STREETS_MIN` cells, so a boxed-in yard
+is no square: AUDIT WORLD-EVENTS L4-8); the way from the side the raid names (its own tuple; 0 north, +z) to the square
+along them (`livingWorld/townPaths.js findTownPath`) - AUDIT WORLD-EVENTS L4-3: a walled city's edge cells are the fields
+outside its wall, and no city ever found one. A town with no square or no way, and a host with no sites at all, runs the
+classic raid. THE FOUR HOSTS: `scenes/world.js` wired; `scenes/exterior.js` FLAGGED - the fixed-city bench runs no raid;
+`scenes/worldModes.js` and `scenes/dungeonContext.js` FLAGGED - a raid is the street's.
+
+**Online.** The runner (RAID2's) stands the kind and says its objective beside its raid word on its foes frame - `ro`,
+`[key, kind, a, b]` (the assault its wave and its leader's fall, the standard its bearer's health in per cent and
+whether he fell, the exodus its saved and its lost), validated by `world/raidShared.js validRaidObjWords` (the classic
+never, counts 0-100, each raid once, at most four). Every reader in the town says the same lines off it and shows it on
+the board; a reader stands nothing of it - the bearer rides the runner's frame as the watch's defenders do (`al`), and the
+refugees are named `rf` there so a reader stands them as its allies. AUDIT WORLD-EVENTS (L3-4..L3-14): a word is FOLDED
+into the raid as it is heard (`foldObjective` - the leader's fall, the wave reached, the standard sacked or seen standing,
+the saved and the lost: each the most heard, never back), so a runner that takes the raid over - again, or first - stands
+nothing the town has lost; a word of another kind than the raid's own is no word of it; a word older than
+RAID_WORD_STALE_MS leaves the board; the lines are said off the high-water mark of what was said (`ow`, saved with `asked`,
+so a load says none again); a leader taken over from a fallen runner is the leader. A runner that stops running a raid
+lets its bearer walk off and its refugees go (they are never handed to an heir), and the next stands its own. At a raid
+relay an assault stands nothing before the town's ledger is heard, and its leader only into an empty field. The relay
+reads no `ro` (it counts a foes frame's records) - nothing of the kind is the relay's, and a held town's thanks are the
+client's (RAID4b's roll), held as the receipt came (`hd` on the claim, for the character that fought - L3-14).
+
+**The motor, the people and the pool** (AUDIT WORLD-EVENTS L4-1, L4-2, L4-5, L4-6, L4-7, L6-5): a follower whose leader is
+not the player - a refugee's guide, the bearer's post - walks to it (the motor's pursuit tick turned it back at the player
+it senses, `characters/enemy/enemyMotor.js`); refugees are spared the street pool's relevance cull and the player's own
+harm (`combat/friendlyFire.js isRefugee`), lost only when KILLED (one let go with no body is stood again), each a pace
+behind the one before, the guide setting off once they all stand; the bearer is no part of the watch's lifecycle (never
+dismissed in a lull, never a defender in its count, never enlisted by a crime - `scenes/cityGuards.js raidBearer`) and is
+raised again at the share he was let go at; a raid's points move with the floating origin (`raidOffsetAll`); and a raid's
+GOAL - its bearer, its refugees (`raidGoal`) - is its raiders' quarry first whatever infighting reads, until a blow turns
+the raider (`characters/enemy/enemyTargets.js huntsRaidGoal`, STAR5's shape). The kinds run on their own clock, the
+frame's dt (a pause holds the breather, and stands nothing), and an assault wave whose count has not moved in
+RAID_WAVE_STALL_S stands again past the raider it cannot reach.
+
+**Seen.** The event board's live raid of a kind names the kind in its title ("Siege of the Standard: Gothway Garden") and
+its objective before the count ("Standard 40% - Raiders down: 3 of 20" - AUDIT WORLD-EVENTS L5-13: the detail line ran out
+of room); a classic raid and a staff event name no kind; a raid leader is titled and its traits shown on the target frame
+like any traited foe, its charge said with its own article ("The Orc Warlord leads the last charge on ...", L5-8).
+
+**Not seen in the running game.** The pins drive each kind through a recording host and the sites host over a grid of
+its own; no town has been raided in a browser with these kinds.
+
+Pins: `test/systems/raid5_kinds.test.js` (13: the kind, the plan, the words, the word, each kind run, online, the save,
+the thanks, the board, the sites, the hosts); `tools/mutants/raid5.json` (35, 35 dead); the audit's
+`test/systems/auditwe_raid.test.js` (14) and `tools/mutants/auditwe_raid.json` (34, 34 dead) -
+`01-Overview/audits/Audit-World-Events.md`.
+
+## WW6 - the raids past the Bay (2026-10-27)
+
+The owner's call taken (2026-10-26: *"Every single thing here needs to be addressed. No exceptions."*; the audit's item 27,
+`01-Overview/audits/Audit-Left-In-The-Bay.md`). The record is `03-World/World-Wide.md` WW6; in short:
+
+- **A lane a theatre.** The Bay's raids are lane 0, the roll above to the byte (its generator, its roll, its slots, its
+  records - pinned against the old law written out). Each province past the Bay is a lane of its own: its own day's
+  generator (`net/raid/raidLaw.js raidDayRandom(day, lane)`), its towns the world's registry's listed towns there grouped by
+  AREA - the province's districts, what a region is to the Bay's draw (`systems/raidingParties.js raidLaneGroups`; a capital
+  one town, its centre) - each keyed by its own location index (`64:-1000124:600` - Torbarke in Skyrim), at the mod's pace
+  (half a raid an area a game day: 125 a day past the Bay on the freeware beside the Bay's 22; online since FRONTS, 29 to
+  33). Cyrodiil, the open zone,
+  stands none (the owner's call, taken 2026-10-26: no site-bound world event in the open PvP zone).
+- **The province's own parties.** A lane draws the mod's parties its province's fauna stands (TESA-BIOME's rosters,
+  `RAID_LANE_PARTIES`): High Rock all three (Orsinium's orcs), Valenwood bandits and orcs (Malabal Tor's), Morrowind and
+  Summerset knights and bandits, Hammerfell, Skyrim, Elsweyr and Black Marsh bandits - no orc war band raids Black Marsh.
+- **Told in its area.** A raid past the Bay is announced, withdrawn and cleansed to the players in its district (a
+  province is some thirty of a region's size), the line naming the province: "Torbarke in Skyrim is under attack by
+  bandits!". The board's and the timers' rows read the same.
+- **Stood in its town** by its own index (`world/raidShared.js raidTownIs`): the raiders, the watch's defenders, the kinds
+  (RAID5), the relay's ledger in the town's cell on the world's grid, the receipt, the thanks and the reputation (the
+  province's region's) as on the Bay. The held map marks it on the continent's sheet.
+- **The wire.** A raid's key names every region 0..70 (a province's with its town's own index), its tuple and word the
+  world's pixel, its town on its own side of the Bay's edge (`raidSideOk` - junk otherwise); the relay reads a word against
+  its lane's slots, and the pinned towns table (RAID-ROLL's) is the Bay's lane's alone. Relay world270 (a client sends a
+  raid past the Bay to world270 on alone, `RAID_WORLD_RELAY_MIN`), account service acct196 (the same law; no migration).
+- **The host.** The world host's raid seams moved verbatim to `scenes/raidHost.js` (HOST-SPLIT), which hands the raids
+  the registry and the capital's street law.
+
+Pins: `test/world/worldWide/ww6_raids.test.js` (12, its last half with ARENA2) and `test/server/townecon_service.test.js`
+(a raid past the Bay's receipt at the account service); `tools/mutants/ww6.json` (59, all dead).
+
+### AUDIT TAMRIEL-WIDE B5 - every lane's cleanses kept for a hello (2026-10-28)
+
+The hub kept 64 cleanses for a hello's `cls`, and the client read no more: two days of the Bay's raids. WW6's lanes roll
+286 to 334 raids in two days on the freeware, so the hub let go of cleanses still today's or yesterday's, and a joiner
+read those raids as standing. The cap is now two days of every lane's slots, the raid law's own numbers
+(`src/net/wire.js:"export const RAID_CLEANS_MAX = 2 * RAID_SLOTS_MAX * (1 + RAID_LANES_BEYOND.length);"`, 576). The hub
+and the client read the one constant. Pins: `test/world/worldWide/audit_tamrielwide_relay.test.js` B5 (576 cleanses through the real hub, and the oldest let go past them).
+Mutants: `tools/mutants/audit_tamrielwide_relay.json` (4, dead). Relay world284.
+
+AUDIT TAMRIEL-WIDE II R1 (2026-10-29): the hello says the list newest first. A build before world284 stops its read at
+64, and the hub keeps them oldest first, so on release day an older tab kept yesterday's and read today's cleansed raids
+as standing. The client's read keeps every one whatever their order. Pinned in the same B5 test; mutant: the hello oldest
+first.
+
+## RAID-PACKS - a town raid stands its raiders as a staff event does (2026-10-31)
+
+> The owner, 2026-10-31: "make sure my fixes for staff raid are carried over to town raid", "Address spawn in the wall
+> of mobs by checking pathfinding", "Increase spawn rate for banner raid".
+
+The staff event's pack fixes now run the town's raids too (`systems/raidingParties.js`):
+
+- RAID-PACKS: a classic raid stands packs of 3-5 (`RAID_CLASSIC_PACK_MIN`/`MAX`), each about the next player in the
+  town in turn (PACK-SPREAD), the mod's mean wait a raider (`raidClassicGapS`, 5.5 s; an orc raid's 4.5) a pack. The
+  mod stood one raider each 1-10 s about the runner alone: a departure (Ledger A, RAID-PACKS).
+- RAID-SCALE: every kind's cap is PACK-SCALE's - 25 alone, 5 more each other player, to 40.
+- RAID-STALL: a pack's leader with no spot `STAFF_PACK_LEADER_TRIES` times goes to the next player, or another side of
+  the square (PACK-STALL).
+- RAID-BANNER: the Standard's packs are 3-5 every 4 s (`RAID_DEFEND_PACK_*`), about three times the old 2-3 every 9 s.
+  It counts every third death (`RAID_BANNER_KILLS_X`): each machine says a third of its deaths, so the relay's target of
+  15-25 stands for 45-75 deaths and the relay is unchanged. The board and the map show deaths.
+- RAID-REACH: a raid's or an event's spot stands only on a street of the town's walk grid that meets its player's
+  (`scenes/raidSitesHost.js` `reachable`, the street net's labels) - never in a wall, a building or a closed yard. Off a
+  town's grid any spot stands.
+
+Pins: `test/systems/raidpacks_town.test.js` (6).

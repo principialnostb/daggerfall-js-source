@@ -60,7 +60,8 @@ import { isStackable, ARROW_TEMPLATE, GOLD_TEMPLATE, GLASS_BOTTLE_TEMPLATE, LETT
 import { setItemLaw, LOOT_STACK_MAX, ITEM_GROUP_NAME_BY_CLASS } from '../loot/loot.js';
 import { CREATE_ITEM_ROWS, MENS_PLAIN_ROBES, WOMENS_PLAIN_ROBES } from '../createItemRows.js';
 import { cardById } from '../../net/iliac/iliacCards.js';
-import { PROVENANCE_RE, REPAIR_KIT_TEMPLATE } from '../../net/recipeLaw.js';
+import { PROVENANCE_RE, REPAIR_KIT_TEMPLATE, MASTERWORK } from '../../net/recipeLaw.js';
+import { isMasterWork, MASTER_LINES, MASTER_PROCS_MAX } from '../../net/masterLaw.js';   // MASTER-ART: a Master's work's shape
 import { ILIAC_CARD_TEMPLATE, CARD_BINDER_TEMPLATE, BINDER_DECKS_MAX } from '../iliac/iliacItems.js';
 import { POTENT } from '../../net/alchemyLaw.js';
 import { RRI_TEMPLATES } from '../roleplayRealismItems/rriItems.js';
@@ -71,27 +72,35 @@ import { DEEP_WATERS_FISH_TEMPLATES } from '../deepWater/deepWatersFishRows.js';
 import { WEIR_KEY_LAW_ROW } from '../eliteGates/weirKeyRow.js';   // KEY-LAW: the Weir Key's home pulls the Spire's law and its picture in
 import { SOUL_CAKE_LAW_ROW, HEARTH_OFFERING_LAW_ROW } from '../festival/festivalRows.js';   // WITCH1: the festival's home pulls its pictures and the texture door in
 import { STARGLASS_LAW_ROW } from '../starfall/starglassRow.js';   // STAR7: Starglass's home pulls its picture in - the Weir Key's way
+import { LOCKPICK_LAW_ROW } from '../lockpick/lockpickRow.js';   // LOCKPICK: the Lockpick's home pulls its picture and the loot law in - the Weir Key's way
+import { DEX_ENEMY_IDS } from '../enemyExpansion/dexIds.js';   // SOUL-LAW: the mod's fifty, whose souls a gem holds - read from its tables, no install
 // THE PORT'S OWN TEMPLATES register as their homes load (itemTemplates.js registerCustomTemplates). A headless reader -
 // the account service - loads none of the game, so the homes that register at import are imported here for exactly
 // that; the four whose homes pull the UI in (foraging, rest, Deep Waters' fish, Roleplay & Realism: Items) hand the law
 // their rows from leaves instead, read beside the registry (lawTemplate) and never put into it - so a client with the
 // mod switched off does not start knowing its items. The Weir Key's (KEY-LAW, FIELD BUGS 2026-10-17) is read beside
 // it too: its home (systems/eliteGates/weirKey.js) pulls the Spire's law and its picture in - and Starglass's (STAR7), whose
-// home (systems/starfall/starglass.js) pulls its picture in.
+// home (systems/starfall/starglass.js) pulls its picture in, and the Lockpick's (LOCKPICK), whose home
+// (systems/lockpick/lockpickItem.js) pulls its picture, the loot law and the foes' table in.
 import '../professions/profTemplates.js';
 import '../survival/items.js';
 import '../thunderlock.js';
+import '../pass/resonantMaul.js';   // STOREFRONT: the Brass Colossus's Legendary, unrolled - lawful where it is held
+import '../pistolet.js';   // PISTOLET: the second gun's row, the Thunderlock's way
+import '../handWraps.js';   // HAND-WRAPS: the fists' weapon's row
 import '../gate/gateSpoils.js';
 import '../ayleidStones.js';
 import '../gems.js';   // GEM2: the graded gems' rows
 import '../walletItem.js';
 import '../upkeep/upkeepItemRows.js';   // STEED1/WAGONS4: the Sack of Oats and the Wagon Repair Kit
 import '../livingWorld/keepsake.js';
+import '../musicSheetRow.js';   // MUSIC-BOX: the Sheet music
 import '../legacy/heirloom.js';
 import '../comeSailAway/comeSailAwayItems.js';
 import '../naval/navalStores.js';
 import '../naval/tradeGoods.js';   // CAPT-TRADE: the exchange's goods
 import '../naval/treasureCharts.js';   // CAPT-CHARTS: the treasure chart
+import { DRAGON_MOUNT_TEMPLATE, isDragonMount, dragonMountWellFormed } from '../dragon/dragonMount.js';   // DRAGON5: the tamed dragon
 
 /** The law's version - a finding names the law that found it, so a law loosened later can be asked again. TECH1 moved it
  *  to 2: a weapon's technique line (systems/loot/lootRarity.js AFFIX_KINDS.technique) is lawful from it on, so a finding a law
@@ -104,13 +113,31 @@ import '../naval/treasureCharts.js';   // CAPT-CHARTS: the treasure chart
  *  moved it to 7: the Weir Key (575) is a template the law knows headless - law 6 found every one 'template' on the
  *  account service, which loads none of its home (FIELD BUGS 2026-10-17). WITCH1 moved it to 8: the Witches' Festival's
  *  Soul Cake (2000) and Hearth Offering (2001) are templates the law knows headless, and the Wyrd's Raiment's nine
- *  records (systems/aetheric.js WYRD_SET_PIECES) are lawful from it on. */
-export const ITEM_LAW_VERSION = 8;
+ *  records (systems/aetheric.js WYRD_SET_PIECES) are lawful from it on. SOUL-LAW moved it to 9: a Soul Gem or Azura's
+ *  Star holding the soul of one of Daggerfall Enemy Expansion's fifty (an Ogre's, 282) is lawful from it on - law 8 found
+ *  each one 'soul' and froze its trapper's trading (FIELD BUGS 2026-10-20h). PISTOLET moved it to 10: the Dwarven Pistolet
+ *  (562) is a template the law knows, and the Sunken Sovereign is lawful in both its shapes - the gilded Pistolet it is
+ *  minted as from law 10 on, and the Ebony Saber minted before (systems/gilded.js SOVEREIGN_SABER_ERA; AUDIT PISTOLET A7,
+ *  C1, D8) - so a finding a law of 9 made against either is a finding to ask again.
+ *  SEA-SET moved it to 11 (10 on its branch, renumbered past PISTOLET's at the merge): the Eltheric Tidemail's nine
+ *  records (systems/aetheric.js ELTHERIC_SET_PIECES) are lawful from it on - a law of 10 or less found every one 'aetheric'.
+ *  GUNS-UNFOUND moved it to 12: the Hourlock is lawful as the gilded Dwarven Long Bow it is minted as from law 12 on, and
+ *  as the Thunderlock minted before (systems/gilded.js HOURLOCK_GUN_ERA); the Sunken Sovereign as the Ebony Saber it is
+ *  minted as again, and as the Pistolet minted between (SOVEREIGN_PISTOLET_ERA) - so a finding a law of 11 made against
+ *  a bow Hourlock is a finding to ask again. KETCH moved it to 13: the Gilded rung's Ketch pair (systems/gilded.js -
+ *  Volendrung's Echo, a gilded Dwarven Thunderlock, and the Ketchmaster's Word, a gilded Dwarven Pistolet) are lawful from
+ *  it on, so a finding a law of 12 made against either is a finding to ask again. AFFIX-LINES and REFORGE-REPLACE moved it
+ *  to 14 (2026-10-25): the Reforge's count (`reforges`, systems/loot/lootRarity.js reforgeCount) is a mark of the tiers
+ *  the Reforge takes alone - on a Legendary no Exalted, or a piece of no tier, a finding from it on (a law of 13 knew no
+ *  such field). Nothing a law of 13 found is lawful now. MASTER-ART left it at 14: a Master's work (net/masterLaw.js) is a
+ *  shape no earlier law met honestly - none was made before the service that makes it, whose judge is this law - so no
+ *  finding of 14 is one to ask again. GILDED-MAKER moved it to 16 (15 on its branch): a maker's row on a Gilded piece is lawful. */
+export const ITEM_LAW_VERSION = 16;   // 15, DRAGON5: the Dwarven Dragon (1820) a template the law knows - law 14 found every one 'template'; HAND-WRAPS left it: no pair existed for a law to find against (acct224 carries the row)
 
 const T = ENCHANTMENT_TYPES;
 const TYPE_KEY = Object.freeze(Object.fromEntries(Object.entries(T).map(([k, v]) => [v, k])));
 /** The templates whose homes cannot load headless, by index - their rows, as the homes register them. */
-const LAW_ONLY = new Map(/** @type {any[]} */ ([...RRI_TEMPLATES, ...FORAGING_TEMPLATES, ...REST_ITEM_ROWS, ...DEEP_WATERS_FISH_TEMPLATES, WEIR_KEY_LAW_ROW, SOUL_CAKE_LAW_ROW, HEARTH_OFFERING_LAW_ROW, STARGLASS_LAW_ROW]).map((t) => [t.index, t]));
+const LAW_ONLY = new Map(/** @type {any[]} */ ([...RRI_TEMPLATES, ...FORAGING_TEMPLATES, ...REST_ITEM_ROWS, ...DEEP_WATERS_FISH_TEMPLATES, WEIR_KEY_LAW_ROW, SOUL_CAKE_LAW_ROW, HEARTH_OFFERING_LAW_ROW, STARGLASS_LAW_ROW, LOCKPICK_LAW_ROW]).map((t) => [t.index, t]));
 /** A template the port knows: the live registry's row, or a law-only row. */
 export const lawTemplate = (/** @type {unknown} */ i) => (Number.isInteger(i) ? templateByIndex(i) ?? LAW_ONLY.get(/** @type {number} */ (i)) ?? null : null);
 
@@ -126,11 +153,12 @@ const CLASSIC_GROUPS = (() => {
  *  writes it. Every index not named here is UselessItems2's - the custom items' own group. Pinned by the producer sweep
  *  (test/systems/item/int1_itemlaw.test.js): every custom index a producer mints, in the group it mints it in. */
 export const CUSTOM_TEMPLATE_GROUPS = Object.freeze({
-  Weapons: Object.freeze([513, 514, 560, 561]),
+  Weapons: Object.freeze([513, 514, 560, 561, 562, 563]),   // HAND-WRAPS: 563
   Armor: Object.freeze([515, 516, 517, 518, 519, 520, 521, 522, 523, 524, 525, 526]),
   Gems: Object.freeze([570, 571, ...GEM_GRADE_TEMPLATES]),   // GEM2: the graded gems (systems/gems.js)
   Jewellery: Object.freeze([]),
   Furniture: Object.freeze([696, 697, 698, 699]),
+  Transportation: Object.freeze([DRAGON_MOUNT_TEMPLATE]),   // DRAGON5: the tamed dragon (systems/dragon/dragonMount.js)
 });
 const CUSTOM_GROUP_OF = new Map(Object.entries(CUSTOM_TEMPLATE_GROUPS).flatMap(([g, list]) => list.map((i) => /** @type {[number, string]} */ ([i, g]))));
 /** The groups a template may be minted in. */
@@ -146,8 +174,12 @@ const ARMOR_MATERIALS = Object.freeze([0x0000, 0x0100, 0x0103, 0x0200, 0x0201, 0
 const LAW_POISON_FIRST = 128, LAW_POISON_LAST = 135;
 /** The souls a trap may hold: a monster's (enchantmentCatalogue SOUL_COUNT, EnemyBasics' first 43) and a person's - DFU's
  *  kill door traps any foe's mobile id (mysticism.js attemptSoulTrap; only Azura's Star asks `< 128`), a guard's and a
- *  knight's among them (AUDIT INT: a human soul's gem was a finding). The item maker reads only the first. */
-const soulLawful = (/** @type {unknown} */ v) => isInt(v) && ((/** @type {number} */ (v) >= 0 && /** @type {number} */ (v) < SOUL_COUNT) || (/** @type {number} */ (v) >= HUMAN_SOUL_FIRST && /** @type {number} */ (v) <= HUMAN_SOUL_LAST));
+ *  knight's among them (AUDIT INT: a human soul's gem was a finding) - and (SOUL-LAW, FIELD BUGS 2026-10-20h) one of
+ *  Daggerfall Enemy Expansion's fifty, whose ids the mod's own tables give (enemyExpansion/dexIds.js): an Ogre's soul
+ *  was a finding, and froze the trapper's trading. The item maker reads only the first. */
+const soulLawful = (/** @type {unknown} */ v) => isInt(v) && ((/** @type {number} */ (v) >= 0 && /** @type {number} */ (v) < SOUL_COUNT) || (/** @type {number} */ (v) >= HUMAN_SOUL_FIRST && /** @type {number} */ (v) <= HUMAN_SOUL_LAST) || MOD_SOULS.has(/** @type {number} */ (v)));
+/** SOUL-LAW: the mod's fifty, read headless - the service installs no mod. */
+const MOD_SOULS = new Set(DEX_ENEMY_IDS);
 /** The people a foe may be (mobileTypes.js: Mage 128 to the City Watch's knight 146). */
 const HUMAN_SOUL_FIRST = 128, HUMAN_SOUL_LAST = 146;
 /** DFU's Soul Gem - the one item a soul is trapped in, beside Azura's Star (the table's tenth artifact, createArtifact's
@@ -262,7 +294,11 @@ export function itemFindings(v, opts = {}) {
   //    (WAGON-PRICE: one bought before the price rose stays lawful) ──
   if ((has(item, 'wagonKind') || has(item, 'wagonLook') || has(item, 'wagonEntry')) && item.templateIndex !== TRANSPORT_SMALL_CART) out.add('wagon');
   if (has(item, 'wagonKind') && item.wagonKind !== 'cart' && !(item.value >= (WAGON_KINDS[item.wagonKind]?.floor ?? Infinity))) out.add('wagon');
-  if (['horseCoat', 'horsePattern', 'horseLegs', 'horseSeed', 'horseBond', 'horseFed'].some((k) => has(item, k)) && item.templateIndex !== TRANSPORT_HORSE) out.add('horse');   // COATS1: a horse's look on DFU's Horse alone; STEED1: and its bond and its food
+  if (['horseCoat', 'horsePattern', 'horseLegs', 'horseSeed'].some((k) => has(item, k)) && item.templateIndex !== TRANSPORT_HORSE) out.add('horse');   // COATS1: a horse's look on DFU's Horse alone
+  if (['horseBond', 'horseFed'].some((k) => has(item, k)) && item.templateIndex !== TRANSPORT_HORSE && !isDragonMount(item)) out.add('horse');   // STEED1: its bond and its food; DRAGON5c: the tamed dragon's too (horse care's law)
+  // ── DRAGON5: a tame's id and look on the dragon's own template alone, and that template a tame's (the judge asks its row) ──
+  if ((has(item, 'dragonId') || has(item, 'dragonLook')) && !isDragonMount(item)) out.add('dragon');
+  if (isDragonMount(item) && !dragonMountWellFormed(item)) out.add('dragon');
   // ── the Broker's binding ────────────────────────────────────────────
   if (has(item, 'stonesPaid') && !(item.bound === true && BROKER_STONES.has(item.stonesPaid))) out.add('bound');
   // ── the ladder, the records, the sigil and the enchantments ──────────
@@ -284,7 +320,7 @@ const isGemLine = (/** @type {any} */ a) => a?.gem != null;
  *  garment). */
 const TIER_GROUPS = Object.freeze(['Weapons', 'Armor', 'Jewellery', ...CLOTHING_GROUPS]);
 /** The marks only a rolled tier carries. */
-const TIER_MARKS = Object.freeze(['legendary', 'exalted', 'reforged', 'honed', 'imprint', 'socket', 'sockets', 'cursed']);   // GEM1: and the socket list
+const TIER_MARKS = Object.freeze(['legendary', 'exalted', 'reforged', 'reforges', 'honed', 'imprint', 'socket', 'sockets', 'cursed']);   // GEM1: and the socket list; REFORGE-REPLACE: the reforges' count
 
 /** The ladder's findings: a tier only where a door rolls one, its lines its tier's, a record's lines its record's. */
 function tierFindings(/** @type {any} */ item) {
@@ -347,6 +383,8 @@ function tierFindings(/** @type {any} */ item) {
     }
     return out;
   }
+  // MASTER-ART (Professions-Arc 57): a Master's work - no record; its chosen lines, a Masterwork, nothing laid on after
+  if (isMasterWork(item)) return [...out, ...masterFindings(item, body, procs, techs, gems)];
   // a Legendary: its record, its record's lines, then one Exalted line or one curse line, then a gem's
   const rec = legendaryById(item.legendary);
   if (!rec || !legendariesFor(item).some((l) => l.id === rec.id)) return [...out, 'legendary'];
@@ -375,9 +413,27 @@ function tierFindings(/** @type {any} */ item) {
   } else if (item.exalted === true || isCursed(item)) out.push('affixes');   // an Exalted's line or a curse's, never neither
   if (item.exalted === true && isCursed(item)) out.push('curse');
   if (has(item, 'reforged') && !(item.exalted === true && item.reforged === sig.length)) out.push('reforged');
+  if (has(item, 'reforges') && item.exalted !== true) out.push('reforged');   // REFORGE-REPLACE: the Reforge's count, on the one Legendary it takes
   if (has(item, 'honed') && item.exalted !== true) out.push('honed');
   const first = firstOwnRow(item);
   if (!first || first.type !== rec.enchantment?.type || first.param !== rec.enchantment?.param) out.push('enchantments');
+  return out;
+}
+
+/** MASTER-ART: A MASTER'S WORK'S SHAPE (net/masterLaw.js) - a Masterwork; its three chosen lines, one that does something
+ *  at most, each in the Legendary band; no technique, gem, Exalted line, curse, reforge or hone; no enchantment (the item
+ *  maker refuses a Legendary - enchanting.js keptEnchantments). Its lines against its record are the judge's
+ *  (server-account/src/judge.js judgeProducts). @param {any} item @param {any[]} body @param {any[]} procs @param {any[]} techs @param {any[]} gems */
+function masterFindings(item, body, procs, techs, gems) {
+  /** @type {string[]} */
+  const out = [];
+  if (item.quality !== MASTERWORK || body.length !== MASTER_LINES || procs.length > MASTER_PROCS_MAX || techs.length || gems.length) out.push('legendary');
+  for (const a of body) {
+    const band = AFFIX_RANGES[a?.id]?.legendary;
+    if (!band || !(a.value >= band[0] && a.value <= band[1])) out.push('affixes');
+  }
+  if (item.exalted === true || isCursed(item) || has(item, 'reforged') || has(item, 'reforges') || has(item, 'honed')) out.push('legendary');
+  if (Array.isArray(item.enchantments) && item.enchantments.length) out.push('enchantments');
   return out;
 }
 
@@ -390,7 +446,7 @@ const firstOwnRow = (/** @type {any} */ item) => (Array.isArray(item.enchantment
  *  itemMakerRefuses), whose record promised "A piece enchanted before keeps its rows" (Field-Bugs-2026-10-03b). INT1's
  *  law held every Aetheric piece to no rows at all, so those pieces read as forged and held their owners' trade. Ruhn's
  *  Regalia and the raiding parties' three sets stood then; the Serpent's and Numidium's sets came after the refusal,
- *  and no maker ever laid a row on one. The Gilded rung was refused from its first day (GILDED1). Frozen by its pin
+ *  and no maker ever laid a row on one. The Gilded rung takes them since GILDED-MAKER (law 15). Frozen by its pin
  *  (test/systems/item/fb1016c_makerkept.test.js): a record added to either list later is no record the maker took. */
 const MAKER_ERA_AETHERIC = new Set([...REGALIA, ...RAID_SET_PIECES].map((r) => r.id));
 /** An Aetheric piece: its record, minted whole (aetheric.js validSetMarks), and none of a roll's marks - its rows none,
@@ -533,7 +589,7 @@ function enchantmentFindings(/** @type {any} */ item) {
  *  catalogue's, never the cost a row says of itself - within the item's power. */
 function makerFindings(/** @type {any} */ item, /** @type {any[]} */ rows, /** @type {any[]} */ maker) {
   if (!MAKER_GROUPS.includes(item.group) || (item.group === 'Weapons' && item.templateIndex === ARROW_TEMPLATE)) return ['enchantments'];   // the window lists every weapon but the Arrow (itemMakerFilter)
-  if (item.rarity === 'gilded' || (item.rarity === 'aetheric' && !MAKER_ERA_AETHERIC.has(item.aetheric))) return ['enchantments'];   // MAKER-KEPT: the maker's era's records keep its rows
+  if (item.rarity === 'aetheric' && !MAKER_ERA_AETHERIC.has(item.aetheric)) return ['enchantments'];   // MAKER-KEPT: the maker's era's records keep its rows; GILDED-MAKER: a Gilded piece takes them (law 15)
   /** @type {any[]} */
   const chosen = [];
   /** @type {Map<string, any[]>} */

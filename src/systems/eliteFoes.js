@@ -23,10 +23,12 @@
 import { createRandomWeapon, createRandomArmor } from './loot/loot.js';
 import { mintCondition, setItemFields } from './item/itemTemplates.js';
 import { applyRarity, rarityEligible, rarityChances, championSource, corpseSource, lootRarityOn } from './loot/lootRarity.js';   // ELITE-RARE: the champion's blue the elite's Rare is read off; BAL4: the ladder's switch, offline
+import { rareGate, legendaryGate, rollerLevel } from './loot/lootLevelGate.js';   // LOOT-GATE: the player's level holds the elite's top tiers back
 import { goldStack } from './inventory.js';
 import { isAmmunition } from './item/itemTemplates.js';
 import { KNIGHT_CITY_WATCH } from '../characters/mobile/mobileTypes.js';   // ELITE-FLOOR: the watch is never an elite
 import { ENEMY_BASICS, isClassEnemyId } from '../characters/enemy/enemyBasics.js';   // ELITE-FLOOR: a kind's own level, the same on every client
+import { WEAPON_MATERIALS } from '../characters/weapons.js';   // BOSS-HARD: Silver, the Troll's floor
 import { renownOpens } from './sigil/sigil.js';   // RENOWN-GATE: the page's Renown, the door every Renown-woken power reads
 import { markUnquiet } from './revenant/unquietMark.js';   // UNQUIET (Revenants.md section 46): one elite in four carries the mark - its own, never a puppet's
 
@@ -169,6 +171,7 @@ export function pickDungeonElites(enemies, key, { elite = true, count = null, cl
     const at = Math.floor(rng() * pool.length);
     const i = pool.splice(at, 1)[0];
     enemies[i].eliteFoe = true;
+    enemies[i].eliteSeed = eliteHash('elite-trait', key, i);   // BOSS-TRAITS: its trait's draw, every client's alike (systems/bossTraits.js eliteTraits)
     n++;
   }
   return n;
@@ -207,25 +210,42 @@ export function eliteLoot(level = 1, rolls = Math.random) {
   const out = [];
   for (let i = 0; i < ELITE_FOE_LOOT.magic; i++) { const it = tiered(lv, 'magic', rolls); if (it) out.push(it); }
   for (let i = 0; i < ELITE_FOE_LOOT.common; i++) { const it = tiered(lv, 'common', rolls); if (it) out.push(it); }
-  if (rolls() < eliteRareChance(lv)) { const it = tiered(lv, 'rare', rolls); if (it) out.push(it); }   // ELITE-RARE: half a champion's blue at this level
-  if (rolls() < ELITE_FOE_LOOT.legendaryChance) { const it = tiered(lv, 'legendary', rolls); if (it) out.push(it); }
+  const at = rollerLevel() ?? lv;   // LOOT-GATE; AUDIT UPDATE II A3: none registered yet (a scene's first foes, before any host frame) - the level the drop is minted at, the player's at every host
+  if (rolls() < eliteRareChance(lv) * (at == null ? 1 : rareGate(at))) { const it = tiered(lv, 'rare', rolls); if (it) out.push(it); }   // ELITE-RARE: half a champion's blue at this level
+  if (rolls() < ELITE_FOE_LOOT.legendaryChance * (at == null ? 1 : legendaryGate(at))) { const it = tiered(lv, 'legendary', rolls); if (it) out.push(it); }
   const [lo, hi] = ELITE_FOE_LOOT.goldPerLevel;
   out.push(goldStack(Math.round(lv * (lo + rolls() * (hi - lo)))));
   return out;
 }
 
+/** The pieces each foe's elite roll laid on it, so they can be told from its kind's own. */
+const _eliteLaid = new WeakMap();
 /** Give an elite its drop (once). */
 export function grantEliteLoot(entity, level, rolls = Math.random) {
   if (!entity?.eliteFoe || entity._eliteLoot) return;
   entity._eliteLoot = true;
   entity.items = entity.items ?? [];
-  entity.items.push(...eliteLoot(level ?? entity.level, rolls));
+  const laid = eliteLoot(level ?? entity.level, rolls);
+  _eliteLaid.set(entity, laid);
+  entity.items.push(...laid);
+}
+/** HUNTERS-MARK-II: the elite roll's pieces taken off a foe again - a named mark's drop is its kind's own, never kit
+ *  (bible/06-Systems/Bounty-Boards.md 12.4). Answers how many went. */
+export function withdrawEliteLoot(entity) {
+  const laid = _eliteLaid.get(entity);
+  if (!laid || !Array.isArray(entity?.items)) return 0;
+  _eliteLaid.delete(entity);
+  const before = entity.items.length;
+  entity.items = entity.items.filter((it) => !laid.includes(it));
+  return before - entity.items.length;
 }
 
-/** THE GLOW: a slow pulse, 0.55..1, phased per foe so a pack does not breathe in step. 0 for anything not elite. */
+/** THE GLOW: a slow pulse, 0.55..1, phased per foe so a pack does not breathe in step. 0 for anything not elite.
+ *  STAFF-EVENT: a mini boss's is the same pulse past STAFF_BOSS_GLOW, which the shaders read as its yellow. */
 export function eliteGlow(entity, nowSeconds, phase = 0) {
   if (!entity?.eliteFoe) return 0;
-  return 0.775 + 0.225 * Math.sin(nowSeconds * 3.2 + phase);
+  const k = 0.775 + 0.225 * Math.sin(nowSeconds * 3.2 + phase);
+  return entity.staffBoss ? STAFF_BOSS_GLOW + k : k;
 }
 /** Put the glow on a billboard batch (written only when it changes - the draw reads 0 for undefined). */
 /** How far an elite's quad reaches past its sprite (left, bottom, right, top, as fractions of the sprite): room for the
@@ -245,15 +265,93 @@ export function setBatchEliteGlow(batch, k, nowSeconds = 0) {
 export const ELITE_CORPSE_GLOW = 0.85;
 export const ELITE_CORPSE_PAD = Object.freeze([0.08, 0.03, 0.08, 0.03]);
 export const isEliteCorpse = (entity) => !!entity?.eliteFoe;
-export function markEliteCorpseBatch(batch, phase = Math.random()) {
+export function markEliteCorpseBatch(batch, phase = Math.random(), boss = false) {
   if (!batch) return;
   // negative: a corpse - its magnitude is the pulse's phase (0.05..1), so bodies side by side do not breathe in step;
-  // the shader runs the pulse off its own clock (systems/hitFlash.js eliteRimK)
-  batch.eliteGlow = -(0.05 + 0.95 * Math.min(1, Math.max(0, phase)));
+  // the shader runs the pulse off its own clock (systems/hitFlash.js eliteRimK). STAFF-EVENT: a mini boss's past
+  // STAFF_BOSS_GLOW - its outline stays yellow
+  batch.eliteGlow = -((boss ? STAFF_BOSS_GLOW : 0) + 0.05 + 0.95 * Math.min(1, Math.max(0, phase)));
   batch.elitePad = ELITE_CORPSE_PAD;
 }
-/** An elite's body lies a quarter larger too, like the elite that fell. */
-export const eliteCorpseSize = (size, entity) => (isEliteCorpse(entity) && size ? { ...size, w: size.w * ELITE_FOE_SIZE, h: size.h * ELITE_FOE_SIZE } : size);
+/** An elite's body lies a quarter larger too, like the elite that fell (STAFF-EVENT: a mini boss's as large as it stood). */
+export const eliteCorpseSize = (size, entity) => (isEliteCorpse(entity) && size ? { ...size, w: size.w * eliteSize(entity), h: size.h * eliteSize(entity) } : size);
 
-/** The size a sprite is drawn at. */
-export const eliteSize = (entity) => (entity?.eliteFoe ? ELITE_FOE_SIZE : 1);
+/** The size a sprite is drawn at (STAFF-EVENT: a mini boss's its event's). */
+export const eliteSize = (entity) => (entity?.staffBoss ? entity.staffBoss.size : entity?.raidLeader ? RAID_LEADER_SIZE : entity?.eliteFoe ? ELITE_FOE_SIZE : 1);   // RAID5: a raid's leader, larger
+
+// ═══ RAID5: A RAID'S LEADER (bible/03-World/Raiding-Parties.md RAID5) ═══════════════════════════════════════════════
+/** How much larger a raid's leader is drawn than its kind. */
+export const RAID_LEADER_SIZE = 1.5;
+/** Make a raid's leader of a fresh foe: an elite (its health, its blows, its drop - ELITE-FLOOR asked no level: the
+ *  party's leader is no roll), larger, and called by its party's word (`name`, "Knight-Captain") - its traits are the
+ *  caller's (systems/bossTraits.js). `own` false for a puppet (its owner's health, the record's `k`). Idempotent. */
+export function promoteRaidLeader(entity, { own = true, name = '' } = {}) {
+  if (!entity) return false;
+  promoteEliteFoe(entity, { own, checkLevel: false });
+  if (!entity.raidLeader) entity.raidLeader = { name: String(name ?? '') };
+  if (own) grantEliteLoot(entity, entity.level);   // AUDIT WORLD-EVENTS L2-6: an elite's drop - the pool grants it at a stand that rolled the elite, and a leader is promoted after its stand (once, whichever came first)
+  return true;
+}
+
+// ═══ STAFF-EVENT: A STAFF EVENT'S MINI BOSS ═══════════════════════════════════════════════════════
+// (2026-10-24, mob: "mini boss need to be a single enlarges version of the mob spawns / instead of the blue elite glow
+// lets make the mini boss have a yellow glow", "also let staff pick the miniboss"; net/staffEvent/staffEventLaw.js.) The
+// one foe a staff event's full meter calls: an ELITE underneath - every surface that draws, names, sizes and loots an
+// elite draws this one - at its event's size (net/staffEvent/staffEventLaw.js STAFF_BOSS_SIZE_*), ten times its kind's
+// health and an elite's blows, its glow yellow (STAFF_BOSS_GLOW: the pulse past it - systems/hitFlash.js reads it).
+/** The glow's offset that says a mini boss to the shaders (systems/hitFlash.js STAFF_BOSS_RIM): a living one's pulse is
+ *  2.55..3, its corpse's -2.05..-3. */
+export const STAFF_BOSS_GLOW = 2;
+export const STAFF_BOSS_HEALTH_MULT = 10;
+export const STAFF_BOSS_DAMAGE_MULT = ELITE_FOE_DAMAGE_MULT;
+// BOSS-HARD (2026-10-25, mob: "apply this logic to all mini bosses we spawn we want them to be very hard for the players"):
+// every mini boss is held to the Enemy Expansion Troll's rules (MonsterBase.mdb.csv row 272) - MinMetalToHit Silver, so a
+// blade below Silver does nothing (combat/formulas.js dropWeaponIfTargetImmune; hand-to-hand still lands, as DFU's does),
+// and ArmorValue 2, so its every part is at least as hard to hit as a Troll's (EnemyEntity.cs:264-267: ArmorValue x 5).
+/** The weapon material a mini boss asks before a blade bites (WeaponMaterialTypes: Silver). */
+export const STAFF_BOSS_MIN_METAL = WEAPON_MATERIALS.Silver;
+/** A mini boss's worst armour on any part (the Troll's ArmorValue 2 x 5; lower is harder to hit). */
+export const STAFF_BOSS_ARMOR = 10;
+/** BOSS-SPELL-WARD (mob 2026-10-25: "use crazy spell reduction on mini bosses like 90%", "of all spell damage"): the share of
+ *  a spell's damage a mini boss takes - every spell's, its rounds and a strike's too, and a whole-health one (a
+ *  Disintegrate) is a tenth of its health, never a kill. */
+export const STAFF_BOSS_SPELL_TAKEN = 0.1;
+/** BOSS-HIT-SHARE (mob 2026-10-25: "needs to scal with players", "1% per heaslth with 40 player ins much", "magfic and
+ *  melee"): the most one hit takes off a mini boss is this share of its maximum, split among the players fighting it -
+ *  forty fighting, a four-hundredth each, so a crowd's every round of hits takes about 1% whatever its size. */
+export const STAFF_BOSS_HIT_SHARE = 0.01;
+/** The fighters the split counts at most (a town's whole crowd). */
+export const STAFF_BOSS_FIGHTERS_MAX = 100;
+/** One hit of `damage` on a mini boss of `maxHealth` with `fighters` on it, held to its share - at least 1. */
+export const staffBossHit = (damage, maxHealth, fighters) =>
+  Math.min(damage, Math.max(1, Math.round(((maxHealth > 0 ? maxHealth : 1) * STAFF_BOSS_HIT_SHARE) / Math.max(1, fighters))));
+/** Is this entity a staff event's mini boss? */
+export const isStaffBoss = (entity) => !!entity?.staffBoss;
+/**
+ * Make a freshly built foe a staff event's mini boss: an elite (the flag, the blows, the drop), `healthX` times its health
+ * (staff's pick on the start form, 1-100; STAFF_BOSS_HEALTH_MULT unset) or BOSS-HP's `hp`, the exact health staff typed (it
+ * wins; 0 none), at `sizePct` of its kind's size, held to the Troll's Silver and armour (BOSS-HARD), and an event's own foe (`eventFoe`: it never rises). `own` false for a puppet - its maximum is its owner's word (the record's `k`). Idempotent.
+ * @param {any} entity @param {{ own?: boolean, sizePct?: number, healthX?: number, hp?: number, level?: number }} [o]
+ */
+export function promoteStaffBoss(entity, { own = true, sizePct = 200, healthX = STAFF_BOSS_HEALTH_MULT, hp = 0, level } = {}) {
+  if (!entity || entity.staffBoss) return !!entity;
+  entity.staffBoss = { size: Math.max(1.5, Math.min(3, sizePct / 100)) };
+  entity.eliteFoe = true;
+  entity.eventFoe = true;   // STAR-MASTER-FLED: an event's own - never a revenant (revenant/unquietMark.js isEventFoe)
+  if (own) {
+    const base = entity.maxHealth || 1;
+    const hx = Number.isSafeInteger(hp) && hp >= 1 ? Math.min(1000000, hp) / base   // BOSS-HP: the exact health staff typed
+      : Number.isFinite(healthX) && healthX >= 1 ? Math.min(100, healthX) : STAFF_BOSS_HEALTH_MULT;   // staff's pick on the start form
+    entity.maxHealth = Math.max(1, Math.round((entity.maxHealth || 1) * hx));
+    entity.health = entity.maxHealth;
+    entity.healthMult = (entity.healthMult ?? 1) * hx;
+  }
+  const prior = Number.isFinite(entity.damageScale) && entity.damageScale > 0 ? entity.damageScale : 1;
+  entity.damageScale = prior * STAFF_BOSS_DAMAGE_MULT;
+  // BOSS-HARD: owner and puppet alike - a peer's blow on a puppet is rolled against the puppet's entity
+  entity.minMetalToHit = Math.max(entity.minMetalToHit ?? -1, STAFF_BOSS_MIN_METAL);
+  entity.armorValues = Array.from({ length: 7 }, (_, i) => Math.min(entity.armorValues?.[i] ?? 100, STAFF_BOSS_ARMOR));
+  entity.armor = Math.min(entity.armor ?? 100, STAFF_BOSS_ARMOR);
+  if (own) grantEliteLoot(entity, level ?? entity.level);
+  return true;
+}

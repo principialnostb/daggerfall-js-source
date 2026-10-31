@@ -119,8 +119,9 @@ test('SD1: both arms still land on the floor, and still refuse an occupied spot'
 
 test('SD1: the dungeon has a BEHAVIOUR-FREE spawn door, and the quest one is built on it', () => {
   const dc = read('src/scenes/dungeonContext.js');
-  // PIN MOVED (RVN7d: a revenant's record and its lair ride a loose stand too; RVN11c: and a betrayer's turning)
-  assert.match(dc, /async function spawnLooseFoe\(mobileType, position, \{ gender = null, yawRad = null, allied = false, questSpawn = false, loadID = null, level = null, bout = null, eliteFoe = false, revenant = null, lairStand = false, turned = false \} = \{\}\)/);   // ARENA2: a bout fighter's level and its bout; SEARCH1: a searched grave's elite
+  // PIN MOVED (RVN7d: a revenant's record and its lair ride a loose stand too; RVN11c: and a betrayer's turning; DELVE II
+  // DLV3: an encounter's foe asks the `delve` grant kind online)
+  assert.match(dc, /async function spawnLooseFoe\(mobileType, position, \{ gender = null, yawRad = null, allied = false, questSpawn = false, loadID = null, level = null, bout = null, eliteFoe = false, revenant = null, lairStand = false, turned = false, delve = false \} = \{\}\)/);   // ARENA2: a bout fighter's level and its bout; SEARCH1: a searched grave's elite
   // MT-ii: BOTH per-instance fields turn, and the frozen basics row does not - AT THE BUILD (AUDIT OH-F C4: before
   // OnEnemySpawn hears the foe, and again on a rebuild from its record), both of buildFoeAt's arms
   assert.match(dc, /if \(e\?\.allied && entity\) \{ entity\.team = 'PlayerAlly'; entity\.mobileTeam = 'PlayerAlly'; \}/);
@@ -137,8 +138,8 @@ test('SD1: the two enchant arms differ exactly as their DFU callers differ', () 
   const he = read('src/scenes/hostEnchant.js');
   assert.match(he, /spawnFoe: \(mobileType\) => \{ standFoe\?\.\(mobileType, \{ lineOfSightCheck: false \}\); \}/,
     'SoulBound.cs:100 passes false');
-  assert.match(he, /spawnAlliedFoe: \(mobileType\) => \{ standFoe\?\.\(mobileType, \{ allied: true \}\); \}/,
-    'SanguineRoseEffect.cs:56 takes the default true, and allied');
+  assert.match(he, /spawnAlliedFoe: \(mobileType\) => \{ Promise\.resolve\(standFoe\?\.\(mobileType, \{ allied: true \}\)\)\.then\(summonedBody, \(\) => null\); \}/,
+    'SanguineRoseEffect.cs:56 takes the default true, and allied');   // PIN MOVED (RPT1026-PROGRESS SUMMON-BARE, test/scenes/rpt1026_progress_summon.test.js): and the summon's body carries nothing
   // the fixed offset both used is gone
   const world = read('src/scenes/world.js');
   assert.equal(/spawnFoe\(mobileType, \[pf\[0\] \+ 2, pf\[1\] \+ 1, pf\[2\]\]/.test(world), false);

@@ -234,7 +234,7 @@ test('AUDIT MERGE-PLUS A1 the host: the door\'s buy (worldModes.js buyHomeAt, li
   assert.ok(at > 0, 'the host\'s buy');
   const body = WM.slice(at, WM.indexOf('\n  }\n', at) + 4);
   const lift = new Function('host', 'homeTownOf', 'bankPurse', 'homeAccount', 'buyOnlineHome', 'HOME_BUY_BUSY', 'townTalk', 'homeShortLine',
-    'accountRefusalText', 'addPermanentScene', 'sceneCache', 'homeSceneName', 'HOME_BOUGHT_LINE', `${body}\nreturn buyHomeAt;`);
+    'accountRefusalText', 'addPermanentScene', 'sceneCache', 'homeSceneName', 'HOME_BOUGHT_LINE', 'houseFootprintM2', `${body}\nreturn buyHomeAt;`);   // PIN MOVED (DECOR-ROOMY, FIELD BUGS 2026-10-29f): the buy names the ground its price was set from
   // the registry over a door whose claims answer when the test says - every claim out, so a press that should never
   // have claimed is still answered and counted rather than left waiting
   const waiting = [];
@@ -254,7 +254,7 @@ test('AUDIT MERGE-PLUS A1 the host: the door\'s buy (worldModes.js buyHomeAt, li
   const said = [];
   const cache = createSceneCache();
   const buyHomeAt = lift({ onlineHomes: homes }, (b) => b.townMapId, () => purse, () => account, buyOnlineHome, HOME_BUY_BUSY,
-    { say: (line) => said.push(line) }, homeShortLine, accountRefusalText, addPermanentScene, () => cache, homeSceneName, HOME_BOUGHT_LINE);
+    { say: (line) => said.push(line) }, homeShortLine, accountRefusalText, addPermanentScene, () => cache, homeSceneName, HOME_BOUGHT_LINE, () => 180);
   const bd = { townMapId: T, buildingKey: 9, regionIndex: 17 };
   const presses = [buyHomeAt(bd, 42_000), buyHomeAt(bd, 42_000)];   // "Click again to buy", pressed again before the first claim answered
   await new Promise((res) => { setImmediate(res); });   // the busy press has had its answer by now
@@ -286,7 +286,7 @@ test('AUDIT MERGE-PLUS A1 the plaque: the buy lands and the door lists the owner
   } finally { resetQuickLoot(); }
   // the law itself
   const owned = door(homeOwnerRows('private'));
-  assert.deepEqual(owned.rows.map((r) => r.id), ['home-enter', 'home-entry', 'home-sell']);
+  assert.deepEqual(owned.rows.map((r) => r.id), ['home-enter', 'home-entry', 'home-sell', 'home-give']);
   const lit = { key: 7, row: 1, id: 'home-buy' };
   assert.deepEqual(nextSelection(lit, owned, 0), { key: 7, row: 0, id: 'home-enter' });
   assert.deepEqual(nextSelection(lit, owned, 1), { key: 7, row: 0, id: 'home-enter' }, 'a nudge in the same frame starts from the top too');

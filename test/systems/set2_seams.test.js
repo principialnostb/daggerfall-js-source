@@ -197,10 +197,11 @@ test('SET2 the player\'s own kills: every listener told the killed entity and th
     assert.deepEqual(heard, [['wolf', 'arrow'], ['rat', 'melee']]);
   } finally { registerPlayerKillListener('set2-kill', null); registerPlayerKillListener('set2-throws', null); }
   const ext = strip(read('src/scenes/exteriorFoes.js'));
-  assert.match(ext, /f\.dead = true;\s*if \(fromPlayer && !peer\) reportPlayerKill\(f\.entity, \{ kind \}\);/, 'the outdoor pool');
-  assert.match(ext, /playerWeaponKillReported\(playerEntity, \{ mobileType: f\.mobileType \}\);\s*reportPlayerKill\(f\.entity, \{ kind: 'remote' \}\);/, 'a puppet\'s owner\'s word');
-  assert.match(strip(read('src/scenes/dungeonContext.js')), /foe\.dead = true;\s*if \(fromPlayer && !peer\) reportPlayerKill\(foe\.entity, \{ kind \}\);/, 'the dungeon');
-  assert.match(strip(read('src/scenes/cityGuards.js')), /g\.dead = true;\s*if \(fromPlayer && !peer\) reportPlayerKill\(g\.entity, \{ kind: 'melee' \}\);/, 'the watch');
+  // PIN MOVED (STOREFRONT): each pool's report carries where its kill falls (`fx`, playerKills.js killFxOf) - for a kill effect
+  assert.match(ext, /f\.dead = true;\s*if \(fromPlayer && !peer\) reportPlayerKill\(f\.entity, \{ kind, fx: killFxOf\(f\) \}\);/, 'the outdoor pool');
+  assert.match(ext, /playerWeaponKillReported\(playerEntity, \{ mobileType: f\.mobileType \}\);\s*reportPlayerKill\(f\.entity, \{ kind: 'remote', fx: killFxOf\(f\) \}\);/, 'a puppet\'s owner\'s word');
+  assert.match(strip(read('src/scenes/dungeonContext.js')), /foe\.dead = true;\s*if \(fromPlayer && !peer\) reportPlayerKill\(foe\.entity, \{ kind, fx: killFxOf\(foe\) \}\);/, 'the dungeon');
+  assert.match(strip(read('src/scenes/cityGuards.js')), /g\.dead = true;\s*if \(fromPlayer && !peer\) reportPlayerKill\(g\.entity, \{ kind: 'melee', fx: killFxOf\(g\) \}\);/, 'the watch');
 });
 
 test('SET2 a player\'s cast cost: the port\'s modifiers over it after DFU\'s floor, never under 1 - and never over a foe\'s, which the foe caster prices with the player\'s skills and so asks without them (mutants: a foe\'s cast made cheaper; the floor under 1)', () => {
@@ -246,7 +247,7 @@ test('SET2 the door and the duel: the running host publishes its door every fram
   const hm = strip(read('src/scenes/hostMagic.js'));
   assert.match(hm, /function update\(dt, playerFeet[^)]*\) \{\s*_doorFeet = playerFeet \?\? null;\s*setPlayerDoor\(_door\);/, 'published first thing each frame');
   assert.match(hm, /hurtFoe: \(t, n\) => \{ if \(t && !t\.dead && n > 0\) foeSinks\(t, true\)\?\.hurt\?\.\(Math\.round\(n\), \{ fromPlayer: true \}\); \}/, 'a hurt is mine, through the foe\'s own sinks');
-  assert.match(hm, /castOnPlayer: \(bundle, \{ power = false \} = \{\}\) => \{ if \(bundle\) applySpellToPlayer\(bundle, effectiveLevel\(playerEntity\) \?\? 1, null, \{ bypassSavingThrows: true, bypassChance: true, \.\.\.\(power \? \{ powerCast: true \} : \{\}\) \}\); \}/);   // PIN MOVED (AUDIT SCHOOLS L1 M1): and a power's word - a path's rider merges taking the larger pool or chance (effects.js powerCast)
+  assert.match(hm, /castOnPlayer: \(bundle, \{ power = false \} = \{\}\) => \{ if \(bundle\) applySpellToPlayer\(bundle, castingLevel\(playerEntity\) \?\? 1, null, \{ bypassSavingThrows: true, bypassChance: true, \.\.\.\(power \? \{ powerCast: true \} : \{\}\) \}\); \}/);   // PIN MOVED (AUDIT SCHOOLS L1 M1): and a power's word - a path's rider merges taking the larger pool or chance (effects.js powerCast)
   assert.match(hm, /foes: \(\) => playerTargets\(\)\.filter/, 'the foes MY harm may reach - the defenders passed by');
   // PIN MOVED (AUDIT 625 P2): and a live bout between players on a relay's sand is a duel too
   // PIN MOVED (INT8, 2026-10-09 - bible/06-Systems/Integrity-Arc.md lane 2): the frame offers a bout's unsettled receipt

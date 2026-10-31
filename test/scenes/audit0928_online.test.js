@@ -239,7 +239,7 @@ function sail(speed) {
     online: { status: 'open', room: 'world:3,12', isHost: () => false, sendFoes: (f) => { sent.push(f); return true; } },
     isCellRoom, isWorldRoom, FOES_MS, FOES_FULL_MS, _foesSentAt: -Infinity, _foesFullAt: -Infinity, modes: { mode: 'exterior' },
     _foesQuiet: quietFoesGate(),   // SCALE2c (PIN MOVED): the host's memory of what its cell last heard - a full frame that says nothing, said once
-    exteriorFoes: foesPool(clock), _hccDirty: false, camps: { wireRecords: () => [] }, hcc: { wireRecord: () => null }, duelRingWord: () => {}, raidWireWord: () => null,   // THE MERGE: RAID2's word rides the same line - no raid here
+    exteriorFoes: foesPool(clock), _hccDirty: false, camps: { wireRecords: () => [] }, hcc: { wireRecord: () => null }, duelRingWord: () => {}, raidWireWord: () => null, raidObjWord: () => null,   // THE MERGE: RAID2's word rides the same line - no raid here (RAID5: nor its objective's)
     portalWord: () => {},   // PORTAL1: nor a portal
     campToWire: (p) => [...p], csaRuntime: { AllBoats: [boat], isSailing: () => true, state: { CurrentBoat: boat } }, csaOn: () => true,
     csaWireRecord, csaRecordKey, csaAnimatorOf: boatMod.animatorOf, _csaWordKey: null,
@@ -305,7 +305,7 @@ test('AUDIT PRE-MERGE 0928 O4: the owner\'s look is their boat\'s (AUDIT 0927 I-
   assert.ok(pool.batches().every((b) => b.conceal == null), 'the look gone: every flat plain');
   assert.equal(moored.GameObject.activeSelf, true);
   // the host hands the look over as it hands the cart pool's
-  assert.match(WORLD, /csaPeers\.setPeerLook\(\(id\) => \(_hiddenPeers\.has\(id\) \? 'hidden' : \(_veils\.get\(id\) \?\? null\)\)\);/);
+  assert.match(WORLD, /csaPeers\.setPeerLook\(\(id\) => \(_hiddenPeers\.has\(id\)(?: \|\| !gateCrowd\.shows\(id\))? \? 'hidden' : \(_veils\.get\(id\) \?\? null\)\)\);/);   // PIN MOVED (AUDIT CROWD-WIDE B1): and one the crowd's count leaves undrawn (test/systems/gatecrowd.test.js)
 });
 
 // ── O6 ──────────────────────────────────────────────────────────────────────

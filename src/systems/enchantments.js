@@ -62,11 +62,13 @@ import { applyDressStanding } from './clothingStanding.js';   // DRESS1 (2026-09
 // in the graph; re-exported for this module's many consumers.
 import { ENCHANTMENT_TYPES } from '../formats/magicDef.js';
 import { SOCIAL_GROUP_COUNT } from '../formats/factionFile.js';   // AUDIT 63 F6: PlayerEntity.cs:128-129 sizes reactionMods at socialGroupCount = 11
-import { regenBarred } from './courtRules.js';   // WBX6: the Burning Court keeps no regeneration
+import { regenShare } from './courtRules.js';   // WBX6 / EVENT-RULES: a made level holds regeneration
 import { ITEM_TEMPLATES, templateByIndex, mendOrder, mintCondition, TRANSPORT_HORSE, TRANSPORT_SMALL_CART } from './item/itemTemplates.js';   // MEND-WORN: the mend order's one home, and the smith's refusal
 import { WEAPONS } from '../characters/weapons.js';   // MEND-WORN / MEND-ARMOUR: a tick is the classic Dagger's share
 import { repoolWeapon } from './conditionRepair.js';   // MEND-WORN: a weapon on its row's pool moves before a mend on the pool, as before a wear
 import { creditOwnMend } from './item/foundMark.js';   // MEND-THIRD: the ring's mend credited past a found piece's mark
+import { NORMAL_POWER_CONCEALMENTS } from './concealment.js';   // WORN-CONCEAL: the kinds a blow ends, a leaf
+import { stampedTier } from './rarityTier.js';   // RPT1026-ITEMS RARE-KEPT: a laddered piece breaks and stays (RARE-BREAK1's law), a leaf
 export { ENCHANTMENT_TYPES };
 
 /** EnchantmentSettings.ClassicType (DaggerfallUnityItem.cs:1316-1320).
@@ -96,7 +98,10 @@ export const LEECH_CAST_AMOUNT = 16;          // HealthLeech.cs:29
 export const LEECH_WEAPON_AMOUNT = 8;         // HealthLeech.cs:30
 export const DURABILITY_LOSS_ON_USE = 10;     // CastWhenUsed.cs:30
 export const DURABILITY_LOSS_ON_STRIKE = 10;  // CastWhenStrikes.cs:30
-export const HELD_DEGRADE_RATE = 4;           // CastWhenHeld.cs:27
+// HELD-WEAR (2026-10-28, Dudey: "Item durability drain is too fast from cast while held enchant"; a DEPARTURE, Port-Ledger A):
+// DFU wears a held piece 1 condition every 4 rounds (CastWhenHeld.cs:27). Online a round is 5 real seconds, so that was
+// 3 points a real minute. Now 1 every 36 rounds: 1 every 3 real minutes. Resting is unchanged.
+export const HELD_DEGRADE_RATE = 36;          // CastWhenHeld.cs:27 has 4
 export const HELD_DEGRADE_RATE_RESTING = 60;  // CastWhenHeld.cs:28
 export const EXTRA_SPELL_PTS_MAX_INCREASE = 75;   // ExtraSpellPts.cs:84
 export const ENHANCE_SKILL_MOD = 15;          // EnhancesSkill.cs:28
@@ -260,6 +265,11 @@ export function legacyEnchantmentValue(enchantments, { spellOfIndex = null, soul
 // effects.js gets idle cast arms, the headless charter.
 let _defaultCtx = null;
 export function setDefaultEnchantCtx(ctx) { _defaultCtx = ctx; }
+/** RPT1026-FIGHTS (TRAP-TO-OWNER): THE SESSION'S DOOR TO A FOE ANOTHER PLAYER RUNS - the mounted ctx's `spellToOwner`
+ *  (STRIKE-SHARED's, routed by the pool the foe is in: scenes/world.js enchantSpellToOwner, or the standalone dungeon's
+ *  own), the one door a spell takes to that player whole. True when it went; false for a foe I run, a spell the wire
+ *  cannot carry, or no ctx mounted. The cast engine sends a cast's Soul Trap through it (scenes/hostMagic.js). */
+export const spellToFoeOwner = (foe, record, level) => { try { return !!_defaultCtx?.spellToOwner?.(foe, record, level); } catch { return false; } };
 const mergeCtx = (ctx) => (ctx && _defaultCtx ? { ..._defaultCtx, ...ctx } : ctx ?? _defaultCtx);
 // AUDIT 63 F14: removeFilledTrap rides the same bag, registered by
 // mysticism.js (the soul-trap law's home, beside fillEmptyTrap) - this
@@ -272,6 +282,9 @@ export function setEnchantmentEffectDoors(doors) { Object.assign(_fx, doors); }
  *  effects re-roll once the item has been worn this many classic
  *  hours since the last roll. */
 export const REROLL_MINIMUM_HOURS = 6;
+/** WORN-CONCEAL (FIELD BUGS 2026-10-30g; a DEPARTURE, Port-Ledger A): magic rounds after the last blow that ended a worn
+ *  piece's Chameleon, Invisibility or Shadow before it stands again. DFU waits for the 6-hour reroll. */
+export const WORN_CONCEAL_BACK_ROUNDS = 2;
 const MINUTES_PER_HOUR = 60;
 
 /** InstantiateSpellBundle (CastWhenHeld.cs:~145-186): the classic
@@ -311,7 +324,7 @@ export function heldEquipIsFree(item, nowMinutes) {
   return since >= 0 && since < REROLL_MINIMUM_HOURS * MINUTES_PER_HOUR;
 }
 /** (2) The equip bill never breaks the piece: it stops at 1 condition. What wears a held piece out is its wear while
- *  worn (the MagicRound arm, 1 every 4 rounds), as DFU's own comment says it should "die of use".
+ *  worn (the MagicRound arm, 1 every HELD_DEGRADE_RATE rounds), as DFU's own comment says it should "die of use".
  *  (3) LEGEND-HELD (FIELD BUGS 2026-10-11b, Boar: "Equipping legendary shield Aegis of Dawn damage it by 1/3 of its
  *  durability"; Mac: "I dont care about DFU parity"; a DEPARTURE, Port-Ledger A): a Legendary's equip bills nothing -
  *  its held spell is its record's (the Loot arc's), and the Aegis's Spell Resistance cost a leather buckler a third of
@@ -335,10 +348,16 @@ function instantiateHeldSpell({ param, entity, item, ctx, nowMinutes }, recast) 
  *  collection arm REMOVES a broken item from that collection unless
  *  the AllowMagicRepairs setting holds (DaggerfallUnityItem.cs:
  *  LowerCondition). Combat wear passes no collection and keeps the
- *  husk; enchantment wear consumes it. */
+ *  husk; enchantment wear consumes it.
+ *  RPT1026-ITEMS RARE-KEPT (a private report, 2026-10-26: a two-handed Wyrmbane worn to nothing in a hard dungeon, and
+ *  gone from the pack after): BUT NEVER A LADDERED PIECE - RARE-BREAK1's law (the owner, 2026-09-25:
+ *  "Rarity loot breaks, not destroyed"; combat/pcaao.js pcaaoFades) held for the overhaul's fading alone, and a
+ *  Legendary's own enchantment is DFU's (Wyrmbane's Cast When Strikes bills ten a blow), so where Allow Magic Repairs
+ *  is off its own blows destroyed it. It breaks, says so, and stays, repairable. A departure from LowerCondition's
+ *  collection arm (Port-Ledger A, RARE-KEPT). */
 function enchantLowerCondition(item, amount, entity, ctx, collection = null) {
   const broke = lowerCondition(item, amount, entity, ctx?.say);
-  if (broke && !(ctx?.allowMagicRepairs ?? false)) {
+  if (broke && !stampedTier(item) && !(ctx?.allowMagicRepairs ?? false)) {
     const col = collection ?? entity?.items;
     const i = col ? col.indexOf(item) : -1;
     if (i >= 0) col.splice(i, 1);
@@ -412,7 +431,7 @@ export function repairsObjectsTarget(items, { allowMagicRepairs = false } = {}) 
 }
 /** MEND-TIERS: a piece's tier for the tick - 0 worn, 1 worn and wearing itself (wearsItself), 2 carried. While a worn
  *  piece that wears itself is below its condition the pack waits, Mac's accepted trade-off: Cast When Held wears a point
- *  on every tick's round out of rest (HELD_DEGRADE_RATE is CONDITION_PER_ROUNDS) and an all-the-time Item Deteriorates
+ *  on a tick's round out of rest (HELD_DEGRADE_RATE is a multiple of CONDITION_PER_ROUNDS) and an all-the-time Item Deteriorates
  *  on every one, so while such a piece is worn the tick holds it and the pack is not mended. */
 const mendTier = (it) => (wearsItself(it) ? 1 : it.equipSlot != null ? 0 : 2);
 /** MEND-STARVE: a WORN piece whose own held enchantment wears it a point on the rounds Repairs Objects mends - Cast When
@@ -453,7 +472,7 @@ const REGISTRY = new Map([
    *  instantiateHeldSpell - the spell rides target.activeEffects
    *  pinned to the item; the dispatcher's Unequipped arm strips it);
    *  RerollEffect recasts it fresh with no durability hit; MagicRound
-   *  degrades 1 per 4 rounds (60 while resting) - the magic-item wear
+   *  degrades 1 per HELD_DEGRADE_RATE rounds (60 while resting; HELD-WEAR) - the magic-item wear
    *  law that makes a Cast-When-Held ring die of use. */
   [T.CastWhenHeld, {
     flags: PAYLOAD.Equipped | PAYLOAD.MagicRound | PAYLOAD.RerollEffect,
@@ -537,11 +556,11 @@ const REGISTRY = new Map([
   [T.RegensHealth, {
     flags: PAYLOAD.Held,   // RegensHealth.cs:34 - the round tick is its held bundle's
     magicRound({ param, round, entity, ctx }) {
-      if (round % REGEN_PER_ROUNDS !== 0 || regenBarred()) return;   // WBX6: not in the Burning Court
+      if (round % REGEN_PER_ROUNDS !== 0) return;
       const regen = param === 0
         || (param === 2 && (ctx?.inDarkness?.() ?? false))
         || (param === 1 && (ctx?.inSunlight?.() ?? false));
-      if (regen && entity.health < entity.maxHealth) entity.health = Math.min(entity.maxHealth, entity.health + 1);
+      if (regen && entity.health < entity.maxHealth) entity.health = Math.min(entity.maxHealth, entity.health + regenShare(1, 'item', entity));   // WBX6 / EVENT-RULES: held in a made level (systems/courtRules.js)
     },
   }],
   /** VampiricEffect.cs - two params. AtRange (0): every 4 rounds drain
@@ -999,11 +1018,23 @@ export function enchantmentMagicRound(entity, round, { nowMinutes = 0, ctx = nul
     for (const item of items) {
       if (!entity.activeEffects.some((a) => a.heldItem === item)) continue;
       const hours = Math.floor((nowMinutes - (item.timeEffectsLastRerolled ?? nowMinutes)) / MINUTES_PER_HOUR);
+      concealBack(entity, item);   // WORN-CONCEAL
       if (hours < REROLL_MINIMUM_HOURS || item.equipSlot == null) continue;
       _fx.removeItemPinnedEffects?.(entity, item);
       doItemEnchantmentPayloads(PAYLOAD.RerollEffect, item, { entity, round, nowMinutes, ctx });
       item.timeEffectsLastRerolled = nowMinutes;
     }
+  }
+}
+
+/** WORN-CONCEAL: counts the rounds since the last blow (concealment.js resets the count) and stands `item`'s ended
+ *  concealment up again in place once WORN_CONCEAL_BACK_ROUNDS have passed. AUDIT C1: in place, never a reroll - the
+ *  piece's other powers keep their rolls and state (a busted Shield stays busted), and its 6-hour clock stands. */
+function concealBack(entity, item) {
+  for (const a of entity.activeEffects) {
+    if (a.heldItem !== item || !a.ended || !NORMAL_POWER_CONCEALMENTS.includes(a.kind)) continue;
+    a.endedRounds = (a.endedRounds ?? 0) + 1;
+    if (a.endedRounds >= WORN_CONCEAL_BACK_ROUNDS) { a.ended = false; delete a.endedRounds; }
   }
 }
 

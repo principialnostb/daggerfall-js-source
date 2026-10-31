@@ -72,16 +72,19 @@ import { characterIdOf, mintCharacterId } from '../characterId.js';
 import { ownMinutes, skyMinutes } from '../worldTick.js';
 import { isNight } from '../../world/worldClock.js';   // RVN1: a fight begun by night
 import { tieredGear } from '../eliteFoes.js';
-import { foeSeed } from '../../characters/foeBodies.js';   // FB1012d ALLY-RACE: the person a revenant is born as - the seed its body was drawn by
+import { legendaryGate, rollerLevel } from '../loot/lootLevelGate.js';   // LOOT-GATE
+import { foeSeed, bodyRaceOf } from '../../characters/foeBodies.js';
+import { FOLK_RACE_KEYS } from '../../characters/provinceFolk.js';   // AUDIT PROVINCE-FOLK A1: a race it may be born in   // FB1012d ALLY-RACE: the person a revenant is born as - the seed its body was drawn by
 import { goldStack, isSummoned, isGoldPieces, addItem, addGoldPieces } from '../inventory.js';   // RVN11b: a deserter's pack, handed back   // RVN8: never a summoned piece or gold taken
 import { unequipItem, equipTableOf, EQUIP_SLOTS } from '../equip.js';   // RVN8: what it takes, off the hand that held it
 import { isLocked } from '../item/itemLock.js';   // RVN8: LOCK1's promise - a locked piece stays yours
 import { isBagItem } from '../../net/bagLaw.js';   // RVN8: never the Materials Bag
-import { isPackOnly } from '../item/itemBound.js';   // AUDIT 625 W2: nor a pack-only piece (the Wallet)
+import { isPackOnly, isRealmLocked } from '../item/itemBound.js';   // AUDIT 625 W2: nor a pack-only piece (the Wallet); AUDIT FB1025i F1: nor a realm-locked one
 import { WILD_NEVER_GROUPS } from '../wild/wildLeaf.js';   // STEED-KEPT: nor what never changes hands - a vehicle, a deed (the zone's own leaf - never the drop law's graph)
 import { BOAT_TEMPLATES } from '../../net/realm/realmTradeLaw.js';   // STEED-KEPT: nor a ship's deed or parts
 import { DECOR_OWN_KEPT_BACK } from '../../net/decorLaw.js';   // STEED-KEPT: nor a deed as Daggerfall files one, nor the spellbook
 import { hudTextWhenShown } from '../notify.js';   // STEED-KEPT: a piece home again, said once the world can say it
+import { isCasual } from '../legacy/casual.js';   // CASUAL-LIFE
 import { isLetterOfCredit } from '../peerWord.js';   // LETTERS-HOME: nor a letter of credit - its worth is gold
 import { itemLongName } from '../item/itemInfo.js';   // RVN8: the piece by the name the pack shows
 import { itemValueOf } from '../item/itemTemplates.js';   // RVN8: the most valuable
@@ -96,7 +99,7 @@ import { ADAPT_HOW, DESERT, deserterSplit, LOYALTY, movedLoyalty, ROUT, FESTER, 
 import { sanitizeGear, gearItems } from './revenantGear.js';   // RVN-GEAR: a sworn one's kit - its record's, read back; inventory as its pack is
 import { sanitizeErrand } from './revenantErrands.js';   // RVN-ERRAND: one abroad, read back
 import { rvnHeldStars, rvnLevelOf, rvnStarPoints, rvnLoyaltyMove, rvnXpOf } from './revenantStars.js';   // RVN-STARS: its sky and its level, read back; its loyalty's losses as its oath bears them
-import { setUnquietGate, isUnquiet } from './unquietMark.js';   // UNQUIET (section 46): the mark - who may rise
+import { setUnquietGate, isUnquiet, isEventFoe } from './unquietMark.js';   // UNQUIET (section 46): the mark - who may rise; STAR-MASTER-FLED: never an event's own
 import { BLOOD_DEEDS, deedRanks, sanitizeBlood, sanitizeTears, revenantCraft, craftPace, beginCraft, craftStep, endCraft, woundOf, withWound, sanitizeWounds, woundEffects, woundedEdge, ambitionOf, AMBITION, masteryFestersOn, plunderGold, hoardOf, DREAD, mayAscend, craftFleeWords, woundWords, ambitionRumor, HUNT, trailWarm, trailHours, sanitizeTrail, trailWords, omenWords, healsOn, trainLesson, trainedHow, trainedWords, nearestLair } from './revenantUnquiet.js';   // UNQUIET: born of flight, its craft, its wounds, its ambition, the Dread
 import { t } from '../textManager.js';   // AUDIT RVN D7: the new cards' kickers in the player's language
 import { tagHit, HIT_TAGS } from '../../ui/hitNumbers.js';   // RVN3: the "Weakness" word on my blow's number
@@ -229,7 +232,7 @@ export const REVENANT_EPITHETS = Object.freeze({
 /** @typedef {{ id: string, rev: number, mobileType: number, gender: 'male'|'female', given: string, epithet: string,
  *   name: string, rank: number, kills: number, escapes: number, returns: number, trait: string|null, elite: boolean,
  *   born: number, dueAt: number, out: boolean, outAt: number, defeated: boolean, defeatedAt: number|null,
- *   notice: string|null, history: RevenantDeed[], archive: number|null, personality: string, person: number,
+ *   notice: string|null, history: RevenantDeed[], archive: number|null, personality: string, person: number, race?: string|null,
  *   fate: 'executed'|'sworn'|'released'|null, sworn: boolean, swornAt: number|null, companion: RevenantCompanion|null,
  *   scars: {k: string, at: number}[], learned: string[], weak: string, weakKnown: 0|1|2, sig: string|null, kin: number[],
  *   lair: {px: number, py: number, name: string, region: number}|null, lairKnown: boolean, took: any[], wrath: number,
@@ -282,7 +285,7 @@ export const revenantPerson = (r) => (isU32(r?.person) ? r.person : hashStr(`${r
 /** RVN2: what a standing revenant carries of its record - its name and rank (FOE-TITLE, TELL's tier), what it learned and
  *  its weakness, and `edge`, what they do (systems/revenant/revenantFeud.js adaptEdge: the brain, the motor, the doors and the
  *  formulas read it there). */
-const revenantStamp = (r) => ({ id: r.id, name: r.name, rank: r.rank, learned: [...(r.learned ?? [])], weak: r.weak ?? null, edge: woundedEdge(adaptEdge(r.learned, r.weak), r.wounds), sigBlow: signatureStamp(r), person: revenantPerson(r), dread: r.dread === true });   // UNQUIET: its wounds in its edge (its poise, its saving throws); the Dread   // RVN5: its signature (rank 2 and up); FB1012d ALLY-RACE: its person, every stand
+const revenantStamp = (r) => ({ id: r.id, name: r.name, rank: r.rank, learned: [...(r.learned ?? [])], weak: r.weak ?? null, edge: woundedEdge(adaptEdge(r.learned, r.weak), r.wounds), sigBlow: signatureStamp(r), person: revenantPerson(r), race: r.race ?? null, dread: r.dread === true });   // UNQUIET: its wounds in its edge (its poise, its saving throws); the Dread   // RVN5: its signature (rank 2 and up); FB1012d ALLY-RACE: its person, every stand
 
 /** A REVENANT'S GIVEN NAME: DFU's own banks - a monster's from Monster1/Monster2, a class foe's (a person) a first
  *  name from one of the eight races' banks - drawn on a stream SEEDED by the revenant's id, the shared DFRandom put
@@ -325,7 +328,7 @@ export const swornRevenants = () => _state.list.filter((r) => r.sworn && !r.defe
 /** Every record, the slain too - a journal's page (never a tombstone). */
 export const allRevenants = () => _state.list.filter((r) => !r.gone);
 /** REVENANT-PAGE: this character's records (the mirror read in first), the slain too - the pause menu's page. */
-export function revenantsFor(player) { ensureMirror(player); return allRevenants(); }
+export function revenantsFor(player) { ensureMirror(player); mendRevenantLairs(); return allRevenants(); }   // LAIR-DOOR: the page names no lair nobody can enter
 export const revenantById = (id) => _state.list.find((r) => r.id === id && !r.gone) ?? null;
 
 const isStr = (v) => typeof v === 'string';
@@ -382,6 +385,7 @@ function sanitize(r) {
     archive: Number.isInteger(r.archive) ? r.archive : null,
     personality,
     person: revenantPerson(r),   // FB1012d ALLY-RACE: its person kept (an older record's, its id's)
+    race: FOLK_RACE_KEYS.includes(r.race) ? r.race : null,   // AUDIT PROVINCE-FOLK A1: the race it was born in (none: the Bay's draw on its person)
     // REVENANT-FATE: how it ended (or did not) - executed, sworn to the player, released by the player
     fate: FATES.has(r.fate) ? r.fate : null, sworn: !!r.sworn && !r.defeated, swornAt: isNum(r.swornAt) ? r.swornAt : null,
     companion: r.sworn && !r.defeated ? sanitizeCompanion(r.companion, personality, rank) : null,
@@ -511,6 +515,7 @@ export function revenantCandidate(entity, rec = null) {
   if (entity.retinueOf != null) return false;   // RVN6 (Feud-Arc.md 17): a band's follower is its master's, never one itself
   if (entity.wildFoe || entity.wildGiant) return false;   // PVPDUNGEONS (the owner: "No elite or any monster in the zone can be a revenant")
   if (entity.bout) return false;   // AUDIT ARENA-LADDER 2: a fighter on the sand is its bout's - an elite champion never flees it as a revenant, nor becomes one
+  if (isEventFoe(entity)) return false;   // STAR-MASTER-FLED (Field-Bugs-2026-10-29g): an event's own foe's fall is its event's - an escaped Starfall master held its star at "the master" until dawn
   const special = !!entity.revenant || !!entity.eliteFoe || (typeof entity.champion === 'string' && !!entity.champion);
   if (!special) return false;
   // UNQUIET (section 46): a foe not yet a revenant rises only with THE MARK (unquietMark.js), and only while fewer than
@@ -525,7 +530,7 @@ export function revenantCandidate(entity, rec = null) {
 // UNQUIET (section 46): THE MARK's gate (systems/revenant/unquietMark.js) - drawn only with the arc on, not held, room for
 // another (fewer than REVENANT_MAX living), and on a foe that could ever rise (revenantCandidate's own exclusions)
 setUnquietGate((entity) => revenantOn() && !revenantHeld() && huntingRevenants().length < REVENANT_MAX
-  && !!entity && !entity.revenant && entity.retinueOf == null && !entity.wildFoe && !entity.wildGiant && !entity.bout
+  && !!entity && !entity.revenant && entity.retinueOf == null && !entity.wildFoe && !entity.wildGiant && !entity.bout && !isEventFoe(entity)
   && (entity.level | 0) >= REVENANT_MIN_LEVEL && entity.mobileType !== KNIGHT_CITY_WATCH && entity.team !== 'PlayerAlly' && entity.mobileTeam !== 'PlayerAlly');
 
 // ── the deeds ───────────────────────────────────────────────────────
@@ -538,6 +543,7 @@ export function revenantDeed(player, entity, deedName, { mobileType = entity?.mo
   // is no end - the foe fights on, its will read from that ledger (RVN3): it stays whole for the deed that ends the fight
   const ledger = deedName === 'felled' ? null : takeFeud(entity);
   ensureMirror(player);   // AUDIT UNQUIET: the mirror read in before the cap is counted
+  mendRevenantLairs();   // AUDIT FB1022d B3: a lair nobody can enter moved as every reader moves it - known as it was - before the deed reads it
   if (!revenantCandidate(entity, rec) || !Number.isInteger(mobileType)) return null;
   const pName = player?.name ?? '';
   let r = entity.revenant?.id ? revenantById(entity.revenant.id) : null;
@@ -570,6 +576,7 @@ export function revenantDeed(player, entity, deedName, { mobileType = entity?.mo
       personality: personalityFor(id, mobileType),   // REVENANT-VOICE: who it is - one per id
       fate: null, sworn: false, swornAt: null, companion: null,   // REVENANT-FATE: not judged yet
       person: rec ? foeSeed(rec) : revenantPerson({ id }),   // FB1012d ALLY-RACE: the body it did the deed in is the person it stays
+      race: rec ? bodyRaceOf(rec) : null,   // AUDIT PROVINCE-FOLK A1: and the race it was drawn in there - past the Bay its place's people
       ...newFeudFields(id, mobileType, 1, entity.career ?? null),   // RVN1 (section 26): its draws (the weakness never what its career shrugs off), and nothing yet learned
       wounds: [], blood: 0, tears: 0, dread: false, trail: 0, omen: 0, woundDay: -1,   // UNQUIET: nothing left on it yet, no blood or tear-away since a rank, not the Dread; no trail, no omen, no wound to heal
     };
@@ -944,9 +951,14 @@ export function forgetLastSlew() { _lastSlew = null; }
  *  realmTradeLaw.js BOAT_TEMPLATES - a deed handed on is a second boat): a stable's horse beside a worn longsword was drawn
  *  one death in six. A BOUND piece stays its own (AUDIT 625 W2, "RVN8 names its own exclusions"), decided again: the zone
  *  keeps one because a death's remains are anyone's, and what a revenant takes never rides to another player - its body
- *  hands what it carried to its owner alone (net/bodyLoot.js shareableRecord, peerWord.js neverPeerHanded). */
+ *  hands what it carried to its owner alone (net/bodyLoot.js shareableRecord, peerWord.js neverPeerHanded). AUDIT FB1025i
+ *  F1 (FIELD BUGS 2026-10-25i COPY-LIFT): but never a piece THE REALM LOCKED (itemBound.js isRealmLocked - a copy the
+ *  ledger wrote down): what it took rides on its record, a list the checkpoint's ledger never reads, and a copy hidden
+ *  there while staff's keep lifted the other came back after as a second, live one. One taken before comes home at the
+ *  load (ensureMirror), where the ledger reads it. */
 export const revenantMayTake = (item) => !!item && typeof item === 'object' && Number.isInteger(item.templateIndex) && !isLetterOfCredit(item)
   && !WILD_NEVER_GROUPS.has(item.group) && !DECOR_OWN_KEPT_BACK.has(item.templateIndex) && !BOAT_TEMPLATES.includes(item.templateIndex)   // STEED-KEPT
+  && !isRealmLocked(item)   // AUDIT FB1025i F1: nor a piece the realm locked
   && !item.questItem && !isSummoned(item) && !isGoldPieces(item) && !isBagItem(item) && !isPackOnly(item) && !isLocked(item);
 /** AUDIT FEUD: a piece it took, named after "your", "my" or "lovely" - the name the pack shows, its own article gone
  *  (a legendary's "The Glenmoril Bow": "your Glenmoril Bow", never "your The ..."). */
@@ -969,7 +981,7 @@ export function pickTaken(id, kills, weapon, items) {
 export function revenantTakes(player, { online = false } = {}) {
   const s = _lastSlew;
   _lastSlew = null;
-  if (!online || !s || !revenantOn() || !player) return null;
+  if (!online || !s || !revenantOn() || !player || isCasual(player)) return null;   // CASUAL-LIFE: a Casual death loses no piece
   const r = revenantById(s.id);
   if (!r || r.defeated || r.sworn) return null;
   if ((r.took?.length ?? 0) >= TOOK_MAX) return { r, item: null, line: null };
@@ -1115,7 +1127,8 @@ export function revenantLoot(level = 1, rank = 1, rolls = Math.random, goldMult 
   const L = REVENANT_LOOT;
   if (rolls() < L.magicChance) { const it = tieredGear(lv, 'magic', rolls); if (it) out.push(it); }
   if (rk >= L.rareFromRank || rolls() < L.rareChance + L.rarePerRank * rk) { const it = tieredGear(lv, 'rare', rolls); if (it) out.push(it); }
-  if (rolls() < L.legendaryChance + L.legendaryPerRank * rk) { const it = tieredGear(lv, 'legendary', rolls); if (it) out.push(it); }
+  const at = rollerLevel() ?? lv;   // LOOT-GATE: the player's level holds its Legendary back; AUDIT UPDATE II A3: none registered yet, the level the drop is minted at (the player's at every host)
+  if (rolls() < (L.legendaryChance + L.legendaryPerRank * rk) * (at == null ? 1 : legendaryGate(at))) { const it = tieredGear(lv, 'legendary', rolls); if (it) out.push(it); }
   const [lo, hi] = L.goldPerLevel;
   out.push(goldStack(Math.round(lv * rk * (lo + rolls() * (hi - lo)) * (goldMult > 0 ? goldMult : 1))));   // RVN7d: found in its lair, x LAIR_GOLD
   return out;
@@ -1361,6 +1374,7 @@ export function revenantRumor(here, session, { rolls = Math.random } = {}) {
   if (revenantHeld()) return null;   // RENOWN-GATE: held - no word of a lair it is not at; the mill's turn, its answer unspent
   if (!revenantOn() || !here || !session || !Number.isInteger(here.px) || !Number.isInteger(here.py)) return null;
   if (!((session.numAnswersGivenTellMeAboutOrRumors | 0) < MAX_ANSWERS_TELL_ME_ABOUT_OR_RUMORS || session.isSpyMaster)) return null;
+  mendRevenantLairs();   // LAIR-DOOR: no word of a lair nobody can enter
   const inRegion = (r) => Number.isInteger(here.region) && here.region >= 0 && r.lair.region === here.region;
   const near = livingRevenants().filter((r) => r.lair && (r.dread || inRegion(r) || Math.hypot(r.lair.px - here.px, r.lair.py - here.py) <= RUMOR_PX));   // UNQUIET: the Dread is known in every town
   if (!near.length || !(rolls() < RUMOR_CHANCE)) return null;
@@ -1384,11 +1398,46 @@ export function revenantRumor(here, session, { rolls = Math.random } = {}) {
   persist();
   return words;
 }
+/** LAIR-DOOR (FIELD BUGS 2026-10-22d, Zenako through fogs: "the Revenant lair designated on the Revenants page is
+ *  inaccessible ... The Stuvam Graveyard"): A LAIR NOBODY CAN ENTER, MOVED. A revenant that went to ground before the host
+ *  asked whether a dungeon has a door may hold one of the 28 graveyards whose blocks place none (scenes/lairHost.js). Each
+ *  held lair is asked of the host once a session (`lairHere({ x, y })` about its own pixel); one the player cannot go down
+ *  into moves to the enterable dungeon nearest it within a rumour's reach (the host's `nearest`, scenes/lairHost.js
+ *  LAIR_MEND_PX; a host without it, the ring's nearest - nearestLair) - known as it was known, so the page, the map's
+ *  circle, the hunt and the rumours point where it waits - and with none in reach it roams, unheard of (the Dread, which
+ *  never comes on the road, keeps it: AUDIT FB1022d B4). A host that cannot say (underground, none running) is asked again
+ *  later. AUDIT FB1022d B1: never before the character's mirror is read in - a load's first quest tick ran before the
+ *  encounter tick's ensureMirror, and the mirror's newer copy put the lair back for the session; and asked of the RECORD
+ *  (a merge makes new ones, which are asked again). Answers how many moved. */
+let _lairsAsked = new WeakMap();   // record -> the lair pixel it was asked about
+export function mendRevenantLairs(door = playerDoor()) {
+  if (!_state.mirrorId) return 0;
+  let moved = 0;
+  for (const r of livingRevenants()) {
+    if (!r.lair) continue;
+    const key = `${r.lair.px},${r.lair.py}`;
+    if (_lairsAsked.get(r) === key) continue;
+    let at = null;
+    try { at = door?.lairHere?.({ x: r.lair.px, y: r.lair.py }) ?? null; } catch { at = null; }
+    if (typeof at?.enterable !== 'function') continue;
+    _lairsAsked.set(r, key);
+    if (at.enterable(r.lair.px, r.lair.py) !== false) continue;
+    const next = typeof at.nearest === 'function' ? at.nearest(r.lair.px, r.lair.py) : nearestLair(r.lair.px, r.lair.py, at.dungeons);
+    if (!next && r.dread) continue;   // B4: the Dread waits where it is rather than nowhere
+    r.lair = next;
+    if (!r.lair) { r.lairKnown = false; r.trail = 0; }
+    touch(r);
+    moved++;
+  }
+  if (moved) persist();
+  return moved;
+}
 /** RVN7c (bible/12-Enhanced-AI/Feud-Arc.md 18.3): THE LAIRS HEARD OF, ON THE MAPS - a circle at each living, unsworn
  *  revenant's lair the player knows (`lairKnown`), named for it (ui/bounty/bountyMapMark.js's shape, in blood red). */
 export function revenantMapMarks() {
   if (revenantHeld()) return [];   // RENOWN-GATE: held - no lair marked where none waits
   if (!revenantOn()) return [];
+  mendRevenantLairs();   // LAIR-DOOR: no circle round a lair nobody can enter
   return livingRevenants().filter((r) => r.lair && r.lairKnown).map((r) => ({ cx: r.lair.px + 0.5, cy: r.lair.py + 0.5, r: LAIR_RING_R, label: r.given ?? r.name, id: r.id }));
 }
 /** RVN7c (18.3): THE HUNTS, IN THE QUEST LOG - each lair heard of as an active side quest (scenes/quest/questBridge.js
@@ -1397,6 +1446,7 @@ export function revenantMapMarks() {
 export function revenantHuntEntries(here = null, { now = nowMinutes() } = {}) {
   if (revenantHeld()) return [];   // RENOWN-GATE: held - no hunt in the log for a lair none waits in
   if (!revenantOn()) return [];
+  mendRevenantLairs();   // LAIR-DOOR: no hunt to a lair nobody can enter
   const line = (text) => ({ formatting: 'text', text });
   return livingRevenants().filter((r) => r.lair && r.lairKnown).map((r) => {
     const dx = Number.isInteger(here?.px) ? r.lair.px - here.px : 0, dy = Number.isInteger(here?.py) ? r.lair.py - here.py : 0;
@@ -1792,4 +1842,4 @@ export function inheritRevenant(player, rec, { now = nowMinutes(), rolls = Math.
 }
 
 /** Tests only: forget everything. */
-export function _resetRevenantForTests() { _state.list = []; _state.mirrorId = null; _state.lastDay = null; forgetBodies(); }
+export function _resetRevenantForTests() { _state.list = []; _state.mirrorId = null; _state.lastDay = null; forgetBodies(); _lairsAsked = new WeakMap(); }

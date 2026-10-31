@@ -53,7 +53,9 @@ carries its row instead. It stands on three things the port already had:
   when the balls get there, and the range read under the crosshair ("Starboard broadside - 138 m", "(longest)" at the
   battery's reach, "on target"; or why it will not fire yet - "reloading 6.1 s", "braced", "no barrels", "guns
   silent" - the zone grey). THE BROADSIDE CAMERA eases the eye out over that side while a broadside is laid - her
-  ports, the zone and the enemy on one screen - and home on the release (the Broadside camera part of the row).
+  ports, the zone and the enemy on one screen - and home on the release (the Broadside camera part of the row); over
+  the bow and the stern it goes ahead of the chasers or astern of the barrels, past her own canvas, and the barrel's
+  fall is drawn from her rail to its mark (AIM-ENDS, below).
   **Let go and they fire**, a ripple down the side (RIPPLE_S apart), the smoke drifting down the wind. Black Flag's
   "viewing from the side" is exactly this: the look IS the aim, in first person or over Eye of the Beholder's
   shoulder - so while the attack is held at the guns the mouse's drag, the pad's right stick and the finger's drag all
@@ -69,12 +71,16 @@ carries its row instead. It stands on three things the port already had:
   crosshair, from the run-out until her balls are down. That is the moment to brace, or to turn out of her arc.
 - **The tally**: once your volley's last ball is down, the line under the aim counts it - how many struck, how many
   below her waterline, how many through her rigging.
-- **Interact boards** (E): a ship that has struck her colours within BOARD_RANGE of the helm, the way under
-  BOARD_SPEED - the grapples fly, she is hauled alongside, and you go over her rail. RAM-BOARD (2026-10-17,
-  `03-World/Naval-Refit.md`): or one your stem has rammed - FOULED for FOUL_S, her way held, boarded as she stands
-  ("Fouled - E: board her") against her whole crew. On foot (swimming up, or from a
+- **Interact boards** (E): a ship that has struck her colours within BOARD_RANGE of the helm - BOARD-MAGNET
+  (2026-10-26, `03-World/Naval-Refit.md`): at any way - the grapples fly, your canvas is struck and your way comes off
+  over the haul (`haulBrake`), she is hauled alongside your ship as it lies each frame - out to her berth's lane and
+  along it, round your hull and never through it (AUDIT BOARD-MAGNET, `drawHaul`) - side by side where you come to
+  rest, and you go over her rail. On foot (swimming up, or from a
   deck alongside) the same press within FOOT_BOARD_M of her side with the look on her. The target card and the plate's
-  hint say the key ("Colours struck - E: board her"). Too fast beside her, the same press HEAVES TO (AUDIT NAV1): the
+  hint say the key ("Colours struck - E: board her"). Retired by BOARD-MAGNET, and kept here as their record: RAM-BOARD
+  (2026-10-17) - one your stem had rammed was FOULED for FOUL_S, her way held, boarded as she stood ("Fouled - E: board
+  her") against her whole crew; and the way under BOARD_SPEED that boarding asked - too fast beside her, the same press
+  HEAVED TO (AUDIT NAV1): the
   sails struck and her way taken off at Come Sail Away's `brake` - HEAVE_TO_DECEL (HELM-WAY), or at a way past HELM-WAY's
   what brings her under BOARD_SPEED within HEAVE_TO_M (AUDIT SHIPS A3, `heaveToDecel`) - until she is under BOARD_SPEED,
   HEAVE_TO_S at most ("Colours struck - E: heave to", then "heaving to"). AUDIT SHIPS 2 XA5 (2026-10-06): the brake never
@@ -98,7 +104,7 @@ rail's height, the beam); the table is what each carries, a side at a time:
 | Rowboat | 96 / 0 / 0 | none - it rams, it does not fight |
 | Large Boat | 240 / 96 / 0 | 3 swivels a side, 1 on the bow |
 | Small Ship | 672 / 256 / 24 | 5 long guns a side (GALLEON: a gun a port of Mac's galleon - the mod's had 6; GALLEON-WEIGHT: a player's throws the six guns' weight, below), 2 chain-shot chasers, a fire barrel over the stern |
-| Large Galley | 832 / 144 / 60 | 4 long guns a side, 3 great guns on the bow - and the ram (GALLEY_RAM) |
+| Large Galley | 832 / 144 / 60 | 4 long guns a side, 3 great guns on the bow - and the ram (GALLEY_SHARE, RAM-RETURN) |
 | Carrack | 896 / 352 / 30 | 7 long guns a side, 2 chain-shot chasers, a fire barrel over the stern |
 
 TOUGHER-SHIPS (2026-10-03, below): the hulls and sails are SHIP_TOUGHNESS (1.6) times the 60 / 150 / 420 / 520 / 560
@@ -172,12 +178,22 @@ FIELD_MEND_CAP and never past it, never while she burns (a fire strikes her ever
 again past FIELD_REFLOAT of her hull. Hands
 are never mended - they are hired, or pressed from a prize. The plate says MENDING while they work.
 
-**Rams**: a stem striking a hull - her own bow's (`bowZ`) within RAM_REACH of the other's box - at a closing speed of
-RAM_SPEED or more (the way she came in with, the most of the last RAM_MEMORY_S, less the other's along her course)
-deals RAM_DAMAGE a metre a second (a galley's ram GALLEY_RAM times that) and takes RAM_RECOIL of it back - BOW_RECOIL
-times that for a stem not built to ram, a GALLEY_RAM-th of it for a galley's, half braced (AUDIT NAV1). AUDIT NAV2
-F26: one captain's ram on another's sound ship brings her to strike and never under (`checkShipRams` caps it at
-STRUCK_AT) - a corsair galley's stem sank a coaster outright, her prize and her plunder with her.
+**Rams** (RAM-RETURN, 2026-10-26, and AUDIT RAM-RETURN, 2026-10-27, `03-World/Naval-Refit.md`; the law
+`systems/naval/navalRam.js`, the stems `scenes/naval/navalRams.js`): a stem striking a hull - her own bow's (`bowZ`)
+within RAM_REACH of the other's box - meets a FACE of it (`ramContact`: her side, or her bow or stern) at a closing
+speed toward that face of RAM_SPEED or more (`ramClosing`: the way she came in with, the most of the last RAM_MEMORY_S,
+less the other's, along the face's normal - a scrape along her side closes on nothing). It deals a SHARE OF THE LESSER
+HULL of the two - RAM_SHARE (0.15) from a plain stem, GALLEY_SHARE (0.3) from a galley's ram - times the pace (the
+closing way over RAM_FULL_SPEED, whole at 8 m/s and no more past it) and the face (all of it into her side, RAM_GLANCE
+of it into her bow or stern). It lands with her line as its floor (`ramLine`, STRUCK_AT of her hull - AUDIT NAV2 F26's
+law, now every ram's): it brings a fighting ship to strike and never under, and a ship whose colours are down is not
+rammed - she is the grapples'. The rammer takes RAM_RECOIL of the blow back - BOW_RECOIL times that for a stem not built
+to ram, a GALLEY_RAM-th of it for a galley's, half braced (AUDIT NAV1), under the Captain's Due - and rams only as hard
+as her own room over her line pays for (`ramPaid`), so never to her own strike. My stem strikes fair game alone: a ship
+that would take me or that I have provoked, or one flying no lawful flag - a lawful ship at peace with me is bumped. A
+captain's galley rams the ship she fights alone (engaged on her, or closing to board her). Online a ram says so (the
+hit's `r`) and her stander takes it to her own line. The ram before it dealt RAM_DAMAGE (14) a metre a second unbounded,
+and was retired for it by BOARD-MAGNET the same day: a galley's sank a sloop in one.
 
 ## The ships of the Iliac Bay (NAV-C)
 
@@ -222,6 +238,20 @@ player - up to the setting's DENSITY (few 2, some 3, many 5); by trade (FACTION_
 port's waters are a merchant's and a navy's), by class (`classFor`: the player's level, the class weights), and a
 navy HUNTER (HUNTER_WEIGHT) once the player's notoriety passes HUNTER_AT. A ship past DESPAWN_BEYOND of every player,
 not fighting, is gone. The seeds are the waters' (`seedBaseOf`: the pixel and the day).
+
+**The rolls' wait is the real clock's (RPT1026-WORLD TRAFFIC-REAL, 2026-10-26; two private reports: pirates on the
+large map within seconds of each other, and an encounter failing every couple of seconds).** The host steps the sea on the world's
+clock (AUDIT NAV1: `dt * worldTimeScale()`), and the wait counted those seconds - so under the Overworld's x60 to x100
+(RATE-LAW) a roll came every one to two real seconds, not SEA-EASE's "a minute to two and a half" (below), and a ship left
+DESPAWN_BEYOND astern in a breath freed her berth for the next. Measured on the real host at x60 with a boat at her
+helm and "Many": five ships in twenty real seconds, the first in under one, each 760 to 940 m off - a few seconds of a
+journey from a pirate's lookout (ENGAGE_RANGE, 750 m) and her ring (HOSTILE_NEAR_M, 700 m). Each pirate a journey came
+near slowed it (OW6), stopped it inside her ring (NAV-H: Travel Options' enemies stop and its avoid roll - a failed roll
+the journey down, a won one fifteen seconds' grace) and held it at x1 there (TIME-DILATION). The host hands the director its real clock (`navalHost.js` the director's `real`), and the wait spends
+that clock's seconds (`navalDirector.js` trafficSeconds): a roll every SPAWN_EVERY of play at any time scale, the first
+FIRST_ROLL_S after the water is reached (a reset forgets the last reading - the time ashore is no wait spent). At x1 the
+two clocks are one and the traffic is as it was; the ships at sea, their sailing and their fights keep the world's time
+as before. Pinned by `test/systems/naval/rpt1026_world_traffic.test.js` (3); `tools/mutants/rpt1026_world.json`.
 
 ## Boarding, plunder and the quests (NAV-D)
 
@@ -780,7 +810,7 @@ The helm audit's aiming findings (the player at the guns; 1080p, DFU's default F
 | the lay too sensitive to aim with (H2) | where the look met the sea: the Large Boat's lays a count apart from the horizon 150, 150, 150, 131, 98, 78, 65 m - none inside a sloop's red window at 120 m (108-116); the Small Ship's first 11 counts "(longest)", then 11-18 m a count | `lookReach`: where the look meets the sea while that point moves out less than AIM_SLOPE (30 m) a degree - the seam where sin^2 = h / slope, one value and one rate either side - then AIM_SLOPE a degree through the horizon and over it; the lay measured from the guns along the fire | the Large Boat 8-9 m a count (141, 132, 124, 115, 107 ...); the Small Ship 8-9 m a count, "(longest)" 7 counts under the horizon |
 | a look on a ship laid past her (H2, H7) | the ray through her side met the sea behind her: the lay flew over | THE LOOK ON A SHIP (`lookOnShip`): the nearest of her hull's box and her rig's the look meets within the battery's reach (+LOOK_REACH_PAD) lays the guns for that point, at its height (`look.at`); on her canvas round shot is laid for her hull's centre and chain for the canvas; her way along the fire led over the ball's flight | the crosshair on her side: all six of a Small Ship's arcs end in it |
 | red judged from the crosshair, and wrong (H3, H7) | red when a landing fell in her footprint +-2 m: against a beam-on Small Ship at 150 m, red laid 132-152 m, balls striking laid 134-198 m (23 lays that hit never red, one red that missed); five red lays missed a ship sailing away at 3.7 m/s; only the ship under the crosshair asked - a galley laid square on a sloop 14.7 degrees off it: no red, no card | `aimStrikes`: each gun's unscattered arc walked HOT_STEP_S at a time against every ship's hull box (and her rig's for chain) moved on by her way over the ball's time aloft; red when a gun strikes and the battery can fire; each arc drawn to where it stops, a mark where it meets her; the card is the ship the guns strike | red exactly when the unscattered balls strike, wherever the look is |
-| no broadside camera (H4) | the Small Ship's rail hid the sea for every lay under 82-84 m from the helm; the head on the crosshair | THE BROADSIDE CAMERA (`aimEye`): while a broadside is laid the eye eases (AIM_CAM_TAU, smoothstepped) to AIM_CAM_OUT past the battery's ports, AIM_CAM_UP over them, AIM_CAM_AFT toward the stern - AIM_CAM_CLEAR short of a ship alongside - and home on the release; the look's ray starts from it (`_dwEyeOffset`); never for the chasers or a crippled ship; the row's Broadside camera part | the eye outboard of her own hull: nothing of her between it and the zone |
+| no broadside camera (H4) | the Small Ship's rail hid the sea for every lay under 82-84 m from the helm; the head on the crosshair | THE BROADSIDE CAMERA (`aimEye`): while a broadside is laid the eye eases (AIM_CAM_TAU, smoothstepped) to AIM_CAM_OUT past the battery's ports, AIM_CAM_UP over them, AIM_CAM_AFT toward the stern - AIM_CAM_CLEAR short of a ship alongside - and home on the release; the look's ray starts from it (`_dwEyeOffset`); never for a crippled ship (AIM-ENDS, 2026-10-24, took the chasers out of the never: below); the row's Broadside camera part | the eye outboard of her own hull: nothing of her between it and the zone |
 | the aim looks ready when it is not (H9) | the zone drawn braced, reloading ("Starboard broadside - 164 m" at 12% loaded) and wrecked; a braced release silent; no time on the reload | the aim's STATE (`aimState`): the line's tail says why - "reloading 6.1 s", "braced", "no barrels", "guns silent" - dimmed, the zone grey, never red; a braced release says so; the reload's message its seconds | - |
 | the zone a sliver on screen (H10) | discs 6 cm over the sea: 3.7 px tall at 150 m from the Small Ship's helm, 0.7 px at 100 m from the Large Boat's | a post of light over each splash, turned to the eye (AIM_POST_HALF_H: 3.4 m) | about 19 px at 150 m |
 | no way to mend her (H1) | the page promised a shipwright and none stood: `repairCost` written into the readout and read by nothing, the one mend a prize's timber - a Small Ship shot to nought still wrecked at hull 0 after a reload and an hour at sea, its unread quote 5,940 gold; with "Pirates board you" off a wreck stayed one for ever | THE SHIPWRIGHT (`yardHere`, `yardModel`, `navalYard.js`, `navalYardWindow.js` behind the plunder window's own door): a port's waters, still, no hostile near - hull, canvas, hands and barrels by the piece as far as the purse pays, MAKE HER WHOLE in order; HER HANDS' MENDING at sea to FIELD_MEND_CAP after FIELD_QUIET_S, a wreck afloat past FIELD_REFLOAT; the wreck's hint "Crippled - make port for a shipwright" | a wrecked Small Ship floats again after 75 s of quiet at a full crew, and a port makes her whole |
@@ -1276,12 +1306,51 @@ cruise to random waypoints; a port had no ships at all. `systems/naval/shipLife.
   a transition forgets the harbours, found again where the world is next. **Online**: a ship taken over (`adopt`)
   draws her errand again where she lies.
 
-Not built: fishing boats (no fishing class exists), ~~a harbour's own lights and quays~~ (QUAYS, `03-World/Holdings.md` 7:
+Not built: ~~fishing boats~~ (FISH-BOATS, below), ~~a harbour's own lights and quays~~ (QUAYS, `03-World/Holdings.md` 7:
 a quay at every berth with its jetty, piles, bollards, cargo and lanterns lit in the lanterns' hours; the harbour's ships
 moored alongside it; the player's ship warped in, made fast and a gangway run out), ~~ships at anchor off a harbour
 with no berth, and a voyage's port-to-port route beyond the loaded terrain~~ (SEA-LANES, below: the Bay's packets sail
 the map's water between its ports, and lie off a port whose harbour no one has sounded).
 Pins: `test/systems/naval/shiplife.test.js` (11). Mutants: `tools/mutants/shiplife.json` (32).
+
+## FISH-BOATS (2026-10-27) - a port's fishing boats
+
+SHIP-LIFE left them unbuilt: no fishing class existed. Two classes now (`systems/naval/navalShips.js`, `fisher`): a
+Fishing Skiff, Come Sail Away's Rowboat pulled by two at FISH_OAR_MPS (1.8 m/s) and never under sail, and a Fishing
+Smack, its Large Boat under sail. Both are lawful merchantmen to the law and the captains. Neither is drawn by level or
+weight (FISHER_LEVEL), each takes a fishing boat's name (`fisherNameOf`: "The Lucky Herring"), and none leaves
+flotsam. The art is the mod's own hulls: nothing new is drawn.
+
+A harbour's fleet (`systems/naval/fishingBoats.js` fishersOf) is FISH_ROLL (2-4) boats a day, drawn off the harbour's
+key and the day, so every player in the port sees the same boats. Each lies at ANCHOR in the roads inside the mouth,
+past the berths' span and FISH_BERTH_CLEAR (25 m) off every berth and its lane in. She works her GROUND 450-900 m off
+the mouth, round a ring FISH_RING (45 m) wide at FISH_STROKE of her way. Her day is the lanterns': she puts out when
+the town's lanterns go out and comes home when they are lit, her sweeps out and any wind sailable.
+
+The naval host stands them (`scenes/naval/fishingFleet.js` createFishingFleet, wired by `navalHost.js`). The player
+who rolls the port stands them where the day finds them; every other player meets them on the wire, as the moored
+ships are met. One sunk or taken today is not stood again that day, and the director never counts them. Her hold is
+fish (`food:fish`, FISH_CATCH: a skiff 2-6, a smack 5-12). The naval word names a class by its place in SHIP_CLASSES:
+the two are rows 15 and 16, appended. No relay change.
+
+AUDIT HORIZONTAL C4: an older build's door refuses a class row it does not know, and with it the whole word, so an
+older-build player near a port saw none of a newer peer's ships, volleys, barrels or casks. A fishing boat rides a key
+of her own now (`navalWire.js` `h`), and her casks `j`; `s`, `f` and `w` carry only the rows every build knows
+(NAVAL_WIRE_OLD_CLASSES, 15). An older client passes the word and sees no fishing boat, as `k` and `l` are passed. The
+ships of both keys share NAVAL_WIRE_SHIPS, and the casks of a kind their NAVAL_WIRE_CASKS. Proven with the older
+build's own door (844ccc064^1): the snapshot's word with a skiff read null there; this one reads the pirate and her
+wreckage.
+
+AUDIT HORIZONTAL C6: a fleeing fishing boat's target is the pirate she runs from, and the host counted every engaged
+ship's target as in a fight, so that pirate was kept from the director while she ran. The director's ships are made
+whole in `navalDirector.js` directorShips now (AUDIT NAV2 F27's chase and the fleet's keep), out of createNavalHost,
+and a fishing boat's target marks no pursuer.
+
+THE FOUR HOSTS: `navalHost.js` (in `world.js`) stands them; `worldModes.js` and `dungeonContext.js` have no sea, and
+`exterior.js` stands no harbour. Pins: `test/systems/naval/fishboats.test.js` (9). Mutants: `tools/mutants/seaopen.json`
+(FISH-, all dead). PINS MOVED: `shiplife.test.js` (the open sea's ships and the errand kinds leave the fishers out),
+`nav_c_ships.test.js` (17 classes), `crewhold.test.js` (a skiff has no battery), `tougherships.test.js` (a skiff's
+salvage), `auditshiplife_host.test.js` (the moored ships alone).
 
 ## KEEP-PLUNDER and KEEP-BOATS (2026-09-30) - nothing of the player's goes with the sea
 
@@ -1480,12 +1549,11 @@ followers; all of this is the port's own, over CREW-COMPANIONS.
   `giveItems`), what will not go in into my pack - past its weight if it must, said ("more than you can carry") - his
   gold to my purse. Never thrown away. Realm customs and the account service's first save count his pack as the hold
   (`net/realm/realmGoldLaw.js stashedItemLists`). **COMPANION-DROP (FIELD BUGS 2026-10-19f; the owner, 2026-10-19:
-  "Bag drops; no send-off in zone")**: in the open zone his pack is at stake with mine - a death there drops it as it
-  drops my bag and my cart (`11-Multiplayer/Wild-Zone.md` section 4, `wildDropLaw.js:"export function wildPacks"`: he is
-  ashore, so he is where I fall). So there he is never sent back aboard (`crewCompanions.js:"export function heldAtSide"`,
-  the host's one line in `companionPress`, said in the zone's words), and a pack he gives up there - knocked out, fallen
-  from her roster - goes into my pack, never her hold (`crewCompanions.js:"export const packStaysAshore = () =>"`, the
-  host's `stowPack`): nothing he carries leaves the zone but at my side. **COMPANION-WEIGHT (2026-10-01, the field: "make the crew companions
+  "Bag drops; no send-off in zone")** put his pack at stake with mine in the open zone, and so held him at my side
+  there and sent a pack he gave up there into my pack; **STORE-KEEPS (2026-10-26; the owner: "Make it where you cant
+  lose your wagon/horse or anything stored on death")** made his pack storage no death takes (`11-Multiplayer/Wild-Zone.md`
+  section 4), and he is sent back aboard - his pack to her hold - in the zone as anywhere; nothing is stowed in his pack
+  for a minute after a player's blow (AUDIT PVP-EASE's combat lock). **COMPANION-WEIGHT (2026-10-01, the field: "make the crew companions
   have a balanced inventory weight")**: it carries what a person of his strength can - DFU's MaxEncumbrance over his
   body's live strength (`systems/naval/crewCompanions.js packCapacityKg`: 1.5 kg a point and any weight allowance -
   67-97 kg by his class's strength, a Bard's 45 67 and a Warrior's 60 90, more under a Fortify of mine). The storage
@@ -2111,11 +2179,10 @@ sides whole. What each met of the other, and what was decided:
   the panel's foot while it stands (The UI, above); and on a phone the plate stands over the touch corner.
 - **One raid at a time** (OWS3): above, in Boarding.
 - **An enemy nearby** (OWS2): a journey across the sea stops for a hostile ship (above).
-- OPEN: main's Overworld raiders are Warm Ashes' own raid seen coming - on the Overworld they are marks, and in play
-  their hull is not drawn (a ship's length off, `seaRaiders.js` RAIDER_CONTACT_PLAY_M) before the mod's raid boards the
-  player's ship. The sea's pirates are drawn ships on Come Sail Away's hulls. FOLD: an Overworld raider that closes
-  in play could be stood as one of the sea's pirates (seeded from its cell, so every player still meets the same
-  sail), her boarding the raid - one pirate of the Bay, seen from the map and met at the rail.
+- **Overworld raiders in play** are drawn ships since NAV-R (Warm Ashes' raiders as ships, above): with the sea fight
+  on, a raider near the player at sea is one of the sea's pirates, seeded from its cell, and the mod's raid is her
+  boarding. With the sea fight off they stay the Overworld's marks and the mod's raid, by that switch's law.
+  SEA-OPEN (2026-10-27) found the OPEN that stood here stale and struck it.
 
 ## Not seen
 
@@ -2145,3 +2212,73 @@ read at a frame, never at the build):
   - `warp` (QUAYS') answers the coil's hold first: in its coils she is held where it took her.
   - `drift`, new, is a world-space velocity added to the current under her: the maelstrom's pull and a blow's throw
     (`systems/comeSailAway/comeSailAway.js` `lateUpdateSailing`). Her helm still answers.
+
+## Standing on her deck (SEA-DECK, 2026-10-23)
+
+A ship of the sea's stood in the player's collider since NAV-H and carried nobody: under way she sailed out from under a
+body on her deck. Her deck carries the one aboard by its move now (`scenes/naval/seaDecks.js`, held before `poseShip` and
+carried after it, through the world's `deck` door), the place rides the pose under her seed and class (`~sea:<seed>:<class>`,
+DECK-POSE's `ab`), and a reader stands the body on her deck a frame ahead (`deckAhead`). The record is
+`01-Overview/bugs/Field-Bugs-2026-10-23.md` (SEA-DECK).
+
+## AIM-ENDS (2026-10-24) - the aim camera over the bow and the stern
+
+Discord, "Aiming front ship cannons impossible": *"Aiming side cannons is great, but trying to aim back cannons does not
+show projectile path and I dont even know if the front cannon has the projectile path indicator cause the sails are in
+the way? The camera moves to the side of the ship when you're aiming the side cannons, so likewise the camera should move
+to the front/back accordingly when aiming."* Both were true. The chasers drew their arcs, but AUDIT NAV1 (H4) kept the
+broadside camera off them, so the eye stayed at the helm's, behind her rig, and the arcs are depth-tested: the galleon's
+jib over her chasers and the carrack's spritsail ahead of hers hid them. Astern there are no guns - the galleon and the
+carrack roll fire barrels over the stern (The guns, above), and the Large Boat and the Large Galley carry nothing there -
+and a barrel's aim drew no arc and no post, only a flat ring on the sea under her transom.
+
+- **The camera** is its own module now (`scenes/naval/aimCamera.js` createAimCamera; the host wires it as `aimEye` and
+  is 18 logical lines lighter - test/scenes/hostceiling.test.js). A broadside is as H4 laid it. With the bow chasers or
+  the stern's barrels laid, the eye eases (the same AIM_CAM_TAU, smoothstepped) to AIM_CAM_AHEAD (4 m) past the battery
+  along her keel - ahead of the bow, astern of the stern - and AIM_CAM_UP over it, AIM_CAM_CLEAR short of a ship there.
+  A sail of her own standing where the eye would stand steps it on along her keel, AIM_CAM_CLEAR clear of the canvas
+  (`clearOfRig`) - the galleon's and the carrack's ends stand clear already (their canvas is under and behind the eye);
+  the walk is for a rig that is not (the mod's own builds' single boxes). Never crippled, never with the Broadside camera
+  part off, as before. (The first cut's law - AUDIT AIM-ENDS, below, is the eye's law now.)
+- **The barrel's fall** is drawn: `fallArc` (`systems/naval/navalBallistics.js`) runs from the stern's rail to its mark,
+  its way out even and its height falling with the square of it (let go, no rise), and a post of light stands over the
+  mark as a gun's splash has one.
+- **Departure.** The port's own - Daggerfall has no sea; it moves AUDIT NAV1's H4 ("never for the chasers"), whose row
+  says so.
+- **Pinned** by `test/systems/naval/navaudit_helm.test.js` H8 (the galleon at the helm: her bow and her stern, the
+  barrel's fall drawn and posted) and `test/systems/naval/aimends_camera.test.js` (the module alone on a stand-in rig:
+  the ends, the walk through one sail and the next, the nevers, the fall's shape); 18 mutants in
+  `tools/mutants/navaudit_helm.json` (the camera's own re-aimed into the module), all dead.
+- **Not changed.** No stern guns were added: the barrels astern are the guns table's design (The guns). A hull with
+  nothing astern still says "No guns bear there."
+
+### AUDIT AIM-ENDS (2026-10-25)
+
+The owner: *"Audit"*. A cold lane on a frozen snapshot of the branch, given the ask and the files and never this
+record, stood the real naval host's eye over each end of every hull with her canvas set, and measured what it could
+see. Each finding below failed on the snapshot and passes now (`scenes/naval/aimCamera.js` endEye).
+
+- **A1 - the stern's eye stood past the barrel's mark.** AIM_CAM_AHEAD astern of the rail put the eye beyond where the
+  barrel lands (1.5 m out), and looking astern no part of the fall it drew was on the screen. The eye stands straight
+  over the rail the barrels roll from, AIM_CAM_UP over it, lifted AIM_CAM_CLEAR over any box of hers it would stand in
+  (her hull's top, her canvas there) - the fall and its mark under it, a look down over the stern.
+- **A2 - the bow's eye stood inside a galley's prow.** AIM_CAM_AHEAD past the chasers is inside the Large Galley,
+  whose prow reaches 6 m past her guns. **A4 - and behind the galleon's set jib**, which hid the arcs as the helm's
+  eye had. The eye stands AIM_CAM_CLEAR past the furthest any box of hers - her hull and every sail set - reaches along
+  her keel (`reachAlong`), where that is further than AIM_CAM_AHEAD; `clearOfRig`'s walk over the sails is gone.
+  **A6 - the pin asked it with her canvas furled**, no box of hers standing: H8 sets her canvas now.
+- **A3 - the eye jumped 29-56 m in a frame** when a look swung from a broadside past the bow's arc. Its place is eased
+  in her own frame (AIM_CAM_TAU a step) - 1.5-4.3 m a frame now - so a ship under way never drags it behind her.
+- **A5 - a ship alongside was the sea's ships alone.** A peer's boat and my own other boats stand alongside too: the
+  camera reads the naval host's one list of the hulls about her (`systems/naval/seaClearance.js` createSeaHulls, as
+  they stand - Passage FERRY-CLEAR F3).
+
+Left, each with its reason: the mod's Carrack, drawn with its fallback mesh, pokes past its own collider at the bow, so
+the eye clears her boxes and not that mesh - the mesh is the mod's, and a box is what the port measures her by; for the
+few frames an end is eased to, the eye can pass through her rig - easing is A3's fix, and a path round the rig is its
+own; and the setting is still named "Broadside camera" though it moves the eye over her ends too - a setting's name
+is the owner's.
+
+Pinned by `test/systems/naval/aimends_camera.test.js` (A1, A2/A4 on all of her, A3) and
+`test/systems/naval/navaudit_helm.test.js` H8 (PIN MOVED: her canvas set, the bow's eye past her reach, the stern's over
+her); 15 records in `tools/mutants/navaudit_helm.json` (AIM-ENDS and AUDIT AIM-ENDS), all dead.

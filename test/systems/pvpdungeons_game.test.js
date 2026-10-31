@@ -3,14 +3,13 @@
 // kept (KEEP-SPELLBOOK).
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { buildWildMask, WILD_REGION } from '../../src/systems/wild/wildZone.js';
+import { buildWildMask } from '../../src/systems/wild/wildZone.js';
 import { wildHallPicks, wildRingBorderDistance, wildHallFoes, wildHallKeeps, wildHallTemplateOk, WILD_DUNGEONS_PER_RING, WILD_HALL_FOES } from '../../src/systems/wild/wildDungeons.js';
 import { startInfection, INFECTION, liveInfections } from '../../src/systems/infection.js';
 import { curseOf, healCurseOffer, healCursePaid, healCursePrice, HEAL_CURSE_BASE } from '../../src/systems/healCurse.js';
 import { restAilmentLines } from '../../src/systems/rest/restWarning.js';
 import { readFileSync } from 'node:fs';
 import { equipItem, swapHands, canSwapHands, equipTableOf, EQUIP_SLOTS } from '../../src/systems/equip.js';
-import { gothwayNorthSpots, isGothwayGarden } from '../../src/systems/gothwayBoards.js';
 import { planStore, REFUSAL, isKeptSpellbook } from '../../src/systems/item/itemTransfer.js';   // KEEP-SPELLBOOK
 import { shiftDrop } from '../../src/systems/physicalItems.js';
 import { setLocked } from '../../src/systems/item/itemLock.js';
@@ -21,7 +20,7 @@ import { tabAccepts } from '../../src/ui/native/nativeInventory.js';
 import { withDom } from '../invdrag.mjs';
 
 const blob = (x, y) => { const dx = (x - 520) / 38, dy = (y - 110) / 24; return dx * dx + dy * dy + 0.15 * Math.sin(x / 5) < 1; };
-const mask = buildWildMask({ width: 1000, height: 500, regionAt: (x, y) => (blob(x, y) ? WILD_REGION : 3) });
+const mask = buildWildMask({ width: 1000, height: 500, inZone: blob });   // WW-C2: a cell a pixel (Cyrodiil's grid: test/world/worldWide/wwc2_zone.test.js)
 
 test('PVPDUNGEONS halls: every tier its full count (10, 8, 6, 4), never on or beside a place, off its tier\'s borders where the tier allows, spread, and the same on every client for a day - another day, other halls', () => {
   const places = new Set();
@@ -83,7 +82,8 @@ test('REST-WARN: poisoned, diseased or both, the rest asks first and says which;
 });
 
 test('REST-WARN in THE FOUR HOSTS: the street\'s, a building\'s, a dungeon\'s and the fixed city\'s rest each ask before the window - its Yes the one way to it, nothing ailing the window at once', () => {
-  const asks = /const restNow = \(\) => [\s\S]{0,300}?createRestWindow\([^\n]*\n(?:[^\n]*\n){0,2}?\s*const ail = restAilmentLines\(playerEntity\);\s*\n\s*if \(ail\) \{[^\n]*new DecisionBoxWindow\(\{ rows: ail,[^\n]*return; \}\s*\n\s*restNow\(\);/;
+  // PIN MOVED (AUDIT RPT1026 L3): world.js's restNow is declared beside the bed's press it carries (`const bed = ..., restNow`)
+  const asks = /(?:const|, ) ?restNow = \(\) => [\s\S]{0,300}?createRestWindow\([^\n]*\n(?:[^\n]*\n){0,2}?\s*const ail = restAilmentLines\(playerEntity\);\s*\n\s*if \(ail\) \{[^\n]*new DecisionBoxWindow\(\{ rows: ail,[^\n]*return; \}\s*\n\s*restNow\(\);/;
   for (const host of ['world.js', 'worldModes.js', 'dungeonContext.js', 'exterior.js']) {
     const src = readFileSync(new URL(`../../src/scenes/${host}`, import.meta.url), 'utf8');
     assert.match(src, asks, `${host}: the rest asks first (exterior.js - the fixed city - was the host left out)`);
@@ -120,22 +120,6 @@ test('SWAP-HANDS: two one-handers trade hands; one crosses to the empty hand; a 
   if (equipTableOf(t2)[EQUIP_SLOTS.RightHand] === claymore && canSwapHands(t2).ok === false) assert.match(canSwapHands(t2).why, /right hand/);
 });
 
-test('GOTHWAY-BOARDS: Gothway Garden alone; two boards at the NORTH entrance, one each side of the road in, inside the border, facing north; never in a wall', () => {
-  assert.equal(isGothwayGarden('Gothway Garden'), true);
-  assert.equal(isGothwayGarden(' gothway garden '), true);
-  assert.equal(isGothwayGarden('Daggerfall'), false);
-  const W = 256, H = 256, cell = 1.6;
-  // a road down the middle (x 124..131) and another road off to the west; buildings either side of the middle one
-  const grid = (gx, gy) => ((gx >= 124 && gx <= 131) || (gx >= 20 && gx <= 23) ? 15 : (gx > 116 && gx < 124) || (gx > 131 && gx < 139) ? 0 : 7);
-  const [w, e] = gothwayNorthSpots(grid, W, H, cell);
-  assert.deepEqual([w.side, e.side], ['west', 'east']);
-  assert.ok(w.x < 124 * cell + cell && e.x > 131 * cell, 'either side of the middle road (the way in), not the far one');
-  assert.ok(w.z > (H - 8) * cell && w.z < H * cell, 'inside the north border');
-  for (const s of [w, e]) assert.notEqual(grid(Math.floor(s.x / cell), Math.floor(s.z / cell)), 0, 'never inside a wall');
-  assert.equal(w.yawDeg, 0, 'facing north, at whoever arrives');
-  assert.equal(gothwayNorthSpots(() => 0, W, H, cell), null, 'no way in: no boards');
-});
-
 import { wildGiantsAt, WILD_GIANT_COUNT, WILD_GIANT_LEG_MS, wildGiantRing } from '../../src/systems/wild/wildGiants.js';
 import { wdunEmpty, wdunGiantDie, wdunGiants, wdunState, wdunPrune, WDUN_GIANT_DOWN_MS } from '../../src/net/wild/wildLaw.js';
 import { validWdunIn, validWdunOut } from '../../src/net/wire.js';
@@ -152,7 +136,9 @@ test('ZONE-GIANTS: two giants a tier, always; each walks inside its own tier, th
     for (const gi of wildGiantsAt(mask, free, t)) {
       assert.equal(gi.ring, wildGiantRing(gi.g));
       const later = wildGiantsAt(mask, free, t + 60_000).find((q) => q.g === gi.g);
-      assert.ok(Math.hypot(later.x - gi.x, later.y - gi.y) < 2, 'a minute on, a short step - never a jump (the walk to a new day\'s home the longest)');
+      // PIN MOVED (WW-C2, bible/03-World/World-Wide.md WW-C): the blob whole, no longer the owner's cut over it - a new day's
+      // home across it is a longer walk, a twentieth of the zone's span a minute at the most, never a jump
+      assert.ok(Math.hypot(later.x - gi.x, later.y - gi.y) < Math.hypot(mask.box.x1 - mask.box.x0, mask.box.y1 - mask.box.y0) / 20, 'a minute on, a short step - never a jump (the walk to a new day\'s home the longest)');
     }
   }
   for (const gi of a) {   // its waypoints are its own tier's pixels
@@ -224,30 +210,8 @@ test('GREATER-GIANT: the zone\'s giants are Greater Giants, calling ten ordinary
   assert.equal(validFoeRecord({ i: 3 }).gg, undefined, 'any other foe carries none');
 });
 
-import { wildMaskOf, wildInside, WILD_KEEPOUT_PX } from '../../src/systems/wild/wildZone.js';
-test('WILD-KEEPOUT: Wrothgaria and the ground about it are never the zone - the west border moved east, never a notch', () => {
-  let town = null;   // a pixel deep inside the zone without the keep-out
-  for (let y = 0; y < 500 && !town; y++) for (let x = 0; x < 1000 && !town; x++) if (mask.depth?.[y * 1000 + x] >= 6) town = { x, y };
-  assert.ok(town, 'a deep pixel to stand the town on');
-  const maps = {
-    getRegionIndexAt: (x, y) => (blob(x, y) ? WILD_REGION : 3),
-    getLocationByName: (region, name) => (name === 'Wrothgaria' ? { mapTableData: { longitude: town.x * 128 + 5, latitude: (499 - town.y) * 128 + 5 } } : null),
-  };
-  const m = wildMaskOf(maps);
-  assert.equal(wildInside(m, town.x, town.y), false, 'the town out');
-  assert.equal(wildInside(m, town.x + WILD_KEEPOUT_PX, town.y), false, 'and its ground');
-  assert.equal(wildInside(mask, town.x, town.y), true, 'without it, the same pixel is the zone');
-  // WILD-KEEPOUT2: never a notch - the west border moved east the same distance on every row, the east edge as it was
-  const rows = (mk, y) => { let w = -1, e = -1; for (let x = 0; x < 1000; x++) if (mk.inside[y * 1000 + x]) { if (w < 0) w = x; e = x; } return [w, e]; };
-  const shifts = new Set();
-  for (let y = mask.box.y0; y <= mask.box.y1; y++) {
-    const [w0, e0] = rows(mask, y), [w1, e1] = rows(m, y);
-    if (w0 < 0 || w1 < 0) continue;
-    assert.equal(e1, e0, `row ${y}: the east edge stays`);
-    shifts.add(w1 - w0);
-  }
-  assert.ok(Math.max(...shifts) - Math.min(...shifts) <= 1, 'one shift all along the west (a pixel for a row\'s own bays)');
-});
+// WILD-KEEPOUT (Wrothgaria kept out of the zone, its west border moved east) RETIRED with the Wrothgarian zone (WW-C2,
+// bible/03-World/World-Wide.md WW-C): Cyrodiil's zone is the province whole.
 
 // ── KEEP-SPELLBOOK (2026-10-08, the owner: "a player dropped his spellbook apparently") ──
 

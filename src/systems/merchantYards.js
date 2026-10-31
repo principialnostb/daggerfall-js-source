@@ -37,12 +37,13 @@
 // Pure: no DOM, no renderer, no clock. Not a DFU member. Ledger A (MERCHANT-YARDS, CARP-YARD).
 import { LOCATION_TYPES } from '../formats/mapsFile.js';
 import { getNameBankOfRegion, GENDERS } from '../characters/nameHelper.js';
-import { residentName } from './livingWorld/census.js';
+import { seededPersonName } from '../characters/personNames.js';   // REGION-NAMES
+import { folkOfRegion, folkRace, folkNameBank, folkKeyOf } from '../characters/provinceFolk.js';   // PROVINCE-FOLK
 import { setItemFields, mintCondition, TRANSPORT_HORSE } from './item/itemTemplates.js';
 import { WAGON_KIND_ORDER, newWagonItem, isWagonItem } from './wagon/wagonKinds.js';
 import { birthHorses } from './horse/horseCoats.js';   // STEED1: the stable's horses born at the yard
 import { horseBornStats, steedValue } from './steedCare.js';   // STEED1: and priced by what they are
-import { UPKEEP_ITEM, newUpkeepItem, upkeepItemsAvailable } from './upkeep/upkeepItemRows.js';   // STEED1/WAGONS4: the oats, the kits
+import { UPKEEP_ITEM, newUpkeepItem, upkeepItemsAvailable, dwarvenOilAvailable } from './upkeep/upkeepItemRows.js';   // STEED1/WAGONS4: the oats, the kits
 import { WORKBENCH_FEE } from '../net/professionLaw.js';   // CARP-YARD: the joinery's bench asks the furnisher's fee
 
 /** The two yards, in the order a town stands them. */
@@ -82,6 +83,8 @@ export const isYardTown = (loc) => YARD_TOWN_TYPES.includes(loc?.mapTableData?.l
 export const STABLE_HORSES_OFFERED = 3;
 /** STEED1 / WAGONS4: the stack a yard sells its upkeep in - the Stable's oats, the Wagon Yard's kits. */
 export const YARD_OATS_STACK = 20;
+/** DRAGON5c: the flasks of Dwarven Oil a Stable keeps. */
+export const YARD_OIL_STACK = 10;
 export const YARD_KITS_STACK = 5;
 /** A 32-bit mix of three integers (a stable's town, its day, its stall). */
 const mix3 = (a, b, c) => {
@@ -119,7 +122,7 @@ export function stableHorses(mapId, day, { owned = [], priced = false } = {}) {
 export function yardStock(kind, { mapId = 0, day = 0, online = false, owned = [], priced = false } = {}) {
   const mint = (it) => mintCondition(setItemFields(it));
   const upkeep = upkeepItemsAvailable(online);
-  if (validYardKind(kind) === 'stable') return [...stableHorses(mapId, day, { owned, priced }), ...(upkeep ? [mint(newUpkeepItem(UPKEEP_ITEM.Oats, YARD_OATS_STACK))] : [])];
+  if (validYardKind(kind) === 'stable') return [...stableHorses(mapId, day, { owned, priced }), ...(upkeep ? [mint(newUpkeepItem(UPKEEP_ITEM.Oats, YARD_OATS_STACK))] : []), ...(dwarvenOilAvailable(online) ? [mint(newUpkeepItem(UPKEEP_ITEM.DwarvenOil, YARD_OIL_STACK))] : [])];   // DRAGON5c: and the tamed dragon's oil, behind its own switch
   if (validYardKind(kind) === 'transport') return [...WAGON_KIND_ORDER.map((k) => mint(newWagonItem(k))), ...(upkeep ? [mint(newUpkeepItem(UPKEEP_ITEM.WagonKit, YARD_KITS_STACK))] : [])];
   return [];   // CARP-YARD: the joinery keeps no counter - its trade is the bench
 }
@@ -144,17 +147,19 @@ export const yardSeed = (mapId, kind) => townSeed(mapId, YARD_KINDS[validYardKin
  * home of a keeper's draw: a yard's (`yardKeeper`) and a port's (systems/portPlaces.js portKeeper). Pure.
  * @param {number} seed @param {number} regionIndex
  */
-export function townKeeper(seed, regionIndex) {
+export function townKeeper(seed, regionIndex, people = folkOfRegion(regionIndex)) {
   const female = ((seed >>> 7) & 1) === 1;
   const gender = female ? GENDERS.Female : GENDERS.Male;
-  const name = residentName(seed, getNameBankOfRegion(Number.isInteger(regionIndex) ? regionIndex : -1), gender);
-  return { name, gender, sex: female ? 'female' : 'male', variant: (seed >>> 11) & 3 };
+  const race = folkRace(people, seed ^ 0x666f6c6b);   // PROVINCE-FOLK: past the Bay one of the place's people (its zone's - AUDIT PROVINCE-FOLK B6), named from their own bank
+  const name = seededPersonName(seed, race ? folkNameBank(race) : getNameBankOfRegion(Number.isInteger(regionIndex) ? regionIndex : -1), gender,
+    { race, region: Number.isInteger(regionIndex) ? regionIndex : -1, home: folkKeyOf(people) });   // REGION-NAMES: their people's customs, their region's
+  return { name, gender, sex: female ? 'female' : 'male', variant: (seed >>> 11) & 3, ...(race ? { race, home: folkKeyOf(people) } : {}) };   // `home`: whose people, for the place's hands (portHost.js raceOf)
 }
 /**
  * A yard's keeper, on the yard's seed (townKeeper's draw). Pure.
  * @param {number} mapId @param {string} kind @param {number} regionIndex
  */
-export const yardKeeper = (mapId, kind, regionIndex) => townKeeper(yardSeed(mapId, kind), regionIndex);
+export const yardKeeper = (mapId, kind, regionIndex, people = undefined) => townKeeper(yardSeed(mapId, kind), regionIndex, people);
 
 /** SHIPYARDS: a place named after its keeper - their surname where the bank gives one, else their name - and its
  *  title ("Halbrecht's Stables"); with no name, "The <title>". The one home of the yards' and the shipyard's names. Pure. */

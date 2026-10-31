@@ -361,19 +361,35 @@ test('PLACE-LRU the interior context owns its hold: settled once built, released
   bare.destroy();   // the standalone ?interior scene's: no hold, nothing to release
 });
 
+test('PLACE-LRU x IC-SWAP-BEHIND: a pixel built again behind its standing view holds through the pipeline\'s door under its own key, and re-keyed at the swap (scenes/swapBehind.js publish) settles its old view\'s keep - the rebuild\'s old layout freed, what both hold kept, one keep a pixel (mutant: the door unhanded)', async () => {
+  const w = world();
+  const old = await w.build(0, '0,0');   // the view that stands
+  const behind = await w.build(1, '0,0#b');   // its rebuild built behind it: another layout
+  assert.ok(w.pipe.gpuMeshes.has(OWN(0)) && w.pipe.gpuMeshes.has(OWN(1)), 'both stand while it builds');
+  old.h.release();   // the swap: the old view down, kept a while...
+  assert.ok(w.pipe.gpuMeshes.has(OWN(0)), 'kept');
+  behind.h.rekey('0,0');   // ...the new one its pixel's place
+  behind.h.settle();
+  assert.equal(w.pipe.gpuMeshes.has(OWN(0)), false, 'the old layout freed at the swap, as a rebuild\'s always was');
+  assert.ok(w.pipe.gpuMeshes.has(OWN(1)) && w.pipe.gpuMeshes.has(SHARED), 'the new one and what both held stand');
+});
+
 test('PLACE-LRU THE FOUR HOSTS: the world host holds each pixel and lets it go; the interior and dungeon builds take a hold their contexts release; the fixed city is pinned and its doors are worldModes\'', () => {
   const W = hostText('src/scenes/world.js');
   // scenes/world.js - wired: every streamed pixel is a place
   assert.match(W, /const pipeline = createDataPipeline\(\{ renderer, arch, palette \}\); const holdPixel = \(key\) => \(\{ \.\.\.pipeline, \.\.\.pipeline\.holdPlace\('pixel', key\) \}\);/, 'the pixel\'s view of the pipeline');
-  assert.match(W, /breather\.reset\(\);[^\n]*\n\s*const key = `\$\{px\},\$\{py\}`, pipeline = holdPixel\(key\), \{ getGpuMesh, uploadRecord, uploadRecordFrame \} = pipeline;/, 'the build\'s doors and `pipeline` are the pixel\'s, from its first line');
+  // PIN MOVED (IC-SWAP-BEHIND, scenes/swapBehind.js): the hold is the BUILD's own key's - the pixel's, or behind its standing
+  // view the behind key's, so the view that stands keeps its own hold until the swap's teardown lets it go
+  assert.match(W, /breather\.reset\(\);[^\n]*\n(?:\s*\/\/[^\n]*\n)*\s*const pkey = `\$\{px\},\$\{py\}`, key = swap\.keyFor\(px, py\), pipeline = holdPixel\(key\), \{ getGpuMesh, uploadRecord, uploadRecordFrame \} = pipeline;/, 'the build\'s doors and `pipeline` are the build\'s own, from its first line');
   assert.match(W, /const seedTilemap = new Uint8Array\(128 \* 128\); made\.placeHold = pipeline;/, 'BUILD-FAIL1\'s ledger carries the hold');
   // ECOTONE1: PIN MOVED - the tile set's one home (loadGroundSet) holds through the pixel's door it is handed, the
   // build's own `pipeline`, for its own set and every border neighbour's
   // AUDIT PRECIP GROUND-2 (PIN MOVED): the set's KEY - its twin's on the snow lane, the one array the lane uploads
-  assert.match(W, /hold\.tileArray\(key\); const groundTex = await getTexture\(groundArchive\);[^\n]*\n\s*if \(!renderer\.tileArrays\.has\(key\)\)/, 'the ground held before the cache is asked');
-  assert.match(W, /await loadGroundSet\(groundArchive, pipeline, snowCover\?\.winterOf\(climate\) \?\? null\);/, '...the pixel\'s own, held by the pixel');   // AUDIT PRECIP GROUND-2 (PIN MOVED): with the winter its twin carries
+  // PIN MOVED (OW-HITCH): that home is scenes/groundSets.js, the world host's module (HOST-SPLIT)
+  assert.match(readFileSync(new URL('../../src/scenes/groundSets.js', import.meta.url), 'utf8'), /hold\.tileArray\(key\); const groundTex = await getTexture\(groundArchive\);[^\n]*\n\s*if \(!renderer\.tileArrays\.has\(key\)\)/, 'the ground held before the cache is asked');
+  assert.match(W, /const ownSet = loadGroundSet\(groundArchive, pipeline, snowCover\?\.winterOf\(climate\) \?\? null\);/, '...the pixel\'s own, held by the pixel');   // PIN MOVED (TESA-LANDS, AUDIT): loaded with its neighbours', all awaited before the draw   // AUDIT PRECIP GROUND-2 (PIN MOVED): with the winter its twin carries
   assert.match(W, /\n\s*placeHold: pipeline,\n\s*location: dfLocation \? dfLocation\.name : null,/, 'the published pixel carries its hold');
-  assert.match(W, /console\.warn\(`\[roads\] pixel \$\{key\} painted without the network twice - kept as painted`\);\n\s*\}\n\s*const entry = built\.get\(key\); pipeline\.settle\(\);/, 'and settles it once it stands (past the roads retry, which tears it down and builds again)');
+  assert.match(W, /console\.warn\(`\[roads\] pixel \$\{key\} painted without the network twice - kept as painted`\);\n\s*\}\n\s*const entry = built\.get\(pkey\); pipeline\.settle\(\);/, 'and settles it once it stands (past the roads retry, which tears it down and builds again)');
   const destroy = W.slice(W.indexOf('function destroyPixel(px, py'), W.indexOf('// --- Streaming state + player'));
   assert.match(destroy, /built\.delete\(key\); p\.placeHold\?\.release\(\);[^\n]*\n\s*\}\s*$/, 'destroyPixel lets it go, LAST');
   assert.match(W, /if \(built\.has\(key\)\) return;\n\s*if \(m\) \{\s*m\.placeHold\?\.release\(\);/, 'a build that threw lets its hold go');
@@ -389,7 +405,7 @@ test('PLACE-LRU THE FOUR HOSTS: the world host holds each pixel and lets it go; 
   // scenes/dungeonContext.js - wired: settled when built, released last in destroy()
   const D = rd('src/scenes/dungeonContext.js');
   assert.match(D, /const \{ renderer, arch, getGpuMesh, cpuModels, getTexture, uploadRecord, uploadRecordFrame, palette, placeHold = null \} = deps;/);
-  assert.match(D, /hudText\.dispose\(\); placeHold\?\.release\(\);[^\n]*\n\s*\},\n\s*\}; placeHold\?\.settle\(\);[^\n]*\n(?:\s*\/\/[^\n]*\n|\s*if \(sdEnd && !_sdEndAsked\)[^\n]*\n|\s*for \(const f of foes\) \{\n(?:\s{4}[^\n]*\n)*\s*\}\n|\s*for \(const \[i, p\] of lootPiles\.entries\(\)\) if \(p\.stopKey[^\n]*\n)*\s*return api;\n\}/);   // AUDIT SD IV (S1, PIN MOVED): the end stood as the level is built, after the hold settles. PIN MOVED (AUDIT LW-II D1): LW14's company-cleared foes and piles are settled there too, after the hold
+  assert.match(D, /hudText\.dispose\(\); placeHold\?\.release\(\);[^\n]*\n\s*\},\n\s*\}; placeHold\?\.settle\(\);[^\n]*\n(?:\s*\/\/[^\n]*\n|\s*if \(sdEnd && !_sdEndAsked\)[^\n]*\n|\s*for \(const f of foes\) \{\n(?:\s{4}[^\n]*\n)*\s*\}\n|\s*for \(const \[i, p\] of lootPiles\.entries\(\)\) if \(p\.stopKey[^\n]*\n|\s*const delve = createDelveHost\([^\n]*\n|\s*const _aurumCache = standAurumCache\([^\n]*\n)*\s*return api;\n\}/);   // PIN MOVED (AURUM-CACHES): today's Aurum coffer stood there too, beside a pile the level has settled. PIN MOVED (DELVE II, DLV2): the encounters' host built there too - its plan reads the built collider, and its chest's mesh is asked for without a wait, as the arrow's is. AUDIT SD IV (S1, PIN MOVED): the end stood as the level is built, after the hold settles. PIN MOVED (AUDIT LW-II D1): LW14's company-cleared foes and piles are settled there too, after the hold
   // scenes/interiorContext.js (worldModes' building): released LAST (the behaviour is driven above)
   assert.match(rd('src/scenes/interiorContext.js'), /_raceMeshes\?\.clear\?\.\(\); placeHold\?\.release\(\);[^\n]*\n\s*\},\n\s*\};\n\}/);
   // scenes/exterior.js - the fixed city is ONE place it never leaves: its doors stay pinned; its buildings and dungeons

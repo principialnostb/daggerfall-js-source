@@ -13,6 +13,65 @@ policies one by one.
 
 
 
+## BR6 DRAGON MARK (2026-10-26, Mac's call)
+
+Mac: "Integrate this logo on the main website, intro and main menu ingame to
+replace the current placeholder logo" - the DFO Online dragon: a gold dragon
+coiled through a red D, F and O in gilt edges, ONLINE on a parchment scroll
+beneath. BR5's white-letter mark was the placeholder. Nothing else moves: the
+name, the alt text, the file's path and every surface that draws it are
+BR5's, so the swap is the file and the boxes it fills.
+
+- THE FILE. His 2000 x 1434 WebP, real alpha, cut to the 1680 x 1410 its paint
+  covers - no pixel outside it has any alpha - then SCALED to 1232 x 1034 at his
+  word ("Go", asked whether to), the same 56:47 to the pixel, so every box
+  below is the cut's. Lanczos over premultiplied alpha, so no dark fringe on
+  the door's night; written as PNG and squeezed losslessly. It stays
+  `src/assets/branding/dfo-online.png`, so the front door, the masthead, the
+  intro film, the landing page and the desktop launcher (which serves the same
+  file, `LAUNCHER_LOGO`) all change with it and no path moves. The unscaled
+  cut was 1,277,935 bytes where BR5's was 155,092 - his source was a lossy
+  WebP, and a lossless cut keeps its noise - and BR5's law (every pixel his,
+  unchanged) left a resample to his say; the scaled file is 785,060 bytes. The
+  widest box that draws it is the film's 595px, so 1232 covers it at 2x.
+- THE BOXES KEEP THEIR HEIGHT (BR5's law). The mark is 1.19:1 where BR5's was
+  1.63:1, so every width narrows to the height it had: the door 540 x
+  769/2112 x 1232/1034 = `min(234px, 36.4vw)`; a short landscape screen
+  `min(171px, 24.3vw)`; the masthead `43.4%` of its column; the film
+  `min(41.2vw, 595px)` and on a short screen `min(35.5vw, 480px)` (all read
+  off the file's own IHDR by `test/ui/brand.test.js`); the film on a phone
+  `68.6vw` (BR5's 94vw at the new ratio - unpinned there, as before); the
+  landing page `min(234px, 46.7vw)` (the door's px, and BR5's 64vw at the new
+  ratio); the launcher stays 76px high, its width auto. Both pages reserve the
+  file's own 1232 x 1034.
+- THE CORNERS' BAND (SUPPORT1) follows the door's width: the wordmark reaches
+  under a corner mark at every width under 234 + 2 x 234, so the band now ends
+  at 701 (788 under BR5's mark, 1007 under BR4's).
+
+Pins moved: `test/ui/brand.test.js` (the landing page's and the launcher's
+reserved size), `test/ui/intro.test.js` (the file's sha256),
+`test/ui/enhanced/landing.test.js` (the logo string and the site's width),
+`test/ui/enhanced/support1_asks.test.js` (the band's 701, and the door's vw
+read with a decimal), `test/tooling/doctrine.test.js` (the asset's OURS row).
+Mutants re-aimed by content, each to the box at BR5's ratio: `br4.json` 1,
+`br5.json` 6, `auditbr5.json` 4, `support1.json` 1.
+
+LOGO-CENTRE (2026-10-26, Mac: "The main logo is off center"). Every box was
+centred - the film's last frame put it at 480.5 of 960 - but the mark is cut to
+its paint and the dragon's wing and tail fill its left, so the LETTERS stood
+right of centre: at 1280 x 720 the Online scroll sat about 100 px right of the
+Tap to continue box beneath it. The letters at mid-height (the D's bowl, x 265,
+to the O's outline, x 1212, of 1232) centre 10% of the width right of the
+file's, so every surface that centres the mark draws it that 10% back
+(`translateX(-10%)`: the film's `.intro-title .brand-logo`, the door's and the
+masthead's `.brand-logo`, the site's `.wordmark img`) and DFO stands on the
+centre line with the dragon to its left. The launcher sets the mark at its left
+edge, where the box is what lines up, and is not moved. The number is
+`BRAND_LOGO_OPTICAL_SHIFT` (`src/ui/brandMark.js`), measured from the file by
+`test/ui/brand.test.js` (LOGO-CENTRE), so the next logo reddens it rather than
+a layout. Mutants: `logocentre.json` 3, all dead; `br4.json`'s blend mutant
+re-aimed at the rule it moved.
+
 ## BR5 DFO ONLINE (2026-10-11, Mac's call)
 
 Mac: "So next up I want to replace the current daggerfall online logo
@@ -364,6 +423,16 @@ same enhanced-only gate. CHAIN-SEEN (FIELD BUGS 2026-10-19f,
 `06-Systems/Loot-Arc.md` LOOT5): a blow's reach on another foe -
 Chain Lightning's arc, Earthshaker's quake, Dragonfire's burst - ran
 no formula either, and said nothing; each raises its number so now.
+
+SPELL-NUMBERS (2026-10-28, a player: "they only show on the boss"): a
+spell runs no formula either, so its number was said only where a host
+said it by hand - the court's boss and the relay's stand-ins. The cast
+engine's foe door (`scenes/hostMagic.js` applySpellToFoe) now reports
+what MY landing struck off ANY foe (after the target's own toughness,
+`blowTaken`) through the same seam, once per landing; a peer's spell
+landed on a foe I run, a later round of a lingering spell and a landing
+that struck nothing say none. `test/scenes/spellnumbers.test.js`;
+`tools/mutants/spellnumbers.json`.
 
 
 
@@ -1135,7 +1204,7 @@ onset curve at all - the curve there is flat - so the landing read as
 arbitrary. The beat Mac hears is real and measurable: decoded sample
 **230016 / 12000 = 19.168s**, normalized flux 1.77 and the largest raw
 onset anywhere between the cloud break and the close. The title now lands
-there. `tools/introAudioCheck.mjs` measures that window instead, still
+there. `tools/introAudioCheck.mjs` (DELETED at INTRO3) measured that window instead, still
 reports the louder 21.066667s answer so a replacement track cannot swap
 the two silently, and still fails above 1ms of drift. The camera's rest
 moved with the beat (18.9s to 17.54s), keeping the same 0.85s of
@@ -1247,6 +1316,516 @@ Pins: `test/ui/intro.test.js` (the removed strings and classes by name, the
 clip rather than the hide, the footer as the failure surface, both of the
 button's words, and the probe's new anchor). Mutants:
 `tools/mutants/introfield.json`, 7 dead.
+
+### INTRO3 THE THEME IN THE GAME'S OWN VOICE (2026-10-14)
+
+The owner: "With the main menu music, is there anyway to recreate it using
+the sound system daggerfall's music uses", then "you do it and it's for
+both" - the film and the menu.
+
+INTRO2's score was a recorded master (`assets/intro/theme.mp3`, 164.3 s,
+made with Suno) that `IntroTheme` fetched, decoded and looped through a
+buffer source of its own. It is now WRITTEN AS NOTES -
+`systems/introScore.js`, one song (`DFOTHEME.HMI`) in the shape an HMI song
+decodes to, as the Warden's score is (`08-Audio/Audio.md` WB7) - and played
+by the game's own song player and FM bank (`systems/song/songPlayer.js`,
+`gmSynth.js`), so the front door sounds like the rest of the soundtrack.
+The recording left the tree (it is in git history); nothing is fetched or
+decoded any more.
+
+**Transcribed, not invented.** The recording was read bar by bar: its
+stems split (htdemucs), each transcribed (basic-pitch), its beats tracked,
+its harmony read from beat-synchronous chroma and the bass stem, and every
+melody bar checked against its chord. G minor; a four-bar opening over a
+low G; E-flat and F rising to a held C major (the cloud break); G minor on
+the impact with the horn's call; the theme - (G A) B-flat A B-flat, C F D,
+E-flat C A, B-flat C B-flat A F, G - over i, VII, iv, v, VI and VII, four
+statements between an answer on D, A-flat and C minor, a build to D6 at
+103 s, a breakdown on a bare G at 118 s and the dominant, D major, at
+132 s; the close on G at 159 s. The arrangement is the recording's: the
+horn on the theme (the violins an octave over it where the recording opens
+out), strings and choir, a low-string pulse in 3-3-2, taiko-like drums, a
+harp in the quiet bars, the reverse cymbal's riser into each landmark.
+Measured against the recording, the render's harmony agrees half bar by
+half bar at a mean chroma cosine of 0.95 (0.62 for random pairs).
+
+**The film's cue sheet stands; the score answers to it.** The recording's
+cloud break (11.712 s) and the 19-second beat the logo lands on (19.168 s)
+are four bars apart and both downbeats. The song has one tempo (HMI has no
+tempo map), and it is the one that puts those two bar lines exactly there:
+128.76 BPM - a hair over the recording's opening, which ran 129 before
+settling to 127 - after a lead of 68 ticks (0.53 s; the recording's first
+sound was at 0.59 s). Both land within 0.2 ms of the cue, and each is struck
+- the crash, the orchestra hit, the timpani - at the top of a riser.
+
+**The session.** `IntroTheme` keeps its contract - a gesture's synchronous
+unlock, one source from the first note through the menu, suspension that
+holds the picture, ownership released before any game boots - and its two
+levels (0.82 for the film, 0.26 under the menu). It hands the song to a
+`SongPlayer` on its own context, into its own gain; the player's origin (the
+song's tick 0, 0.06 s after it starts) is the film's time zero, read
+against the audio device clock as the buffer's start was. The VOLUME is now
+the player's own law (`musicGain`: MUSIC_GAIN under MusicVolume and the
+video mute, followed live), so the session gain is the film's or the menu's
+level alone. The song carries a light press (3:1 from -14 dB, a ceiling a
+decibel under the clip): it stands at the recording's loudness, about
+-22 dBFS as the intro played it at MusicVolume 0.5, and keeps its rise and
+fall - the swell from nothing, the dip before the impact, the breakdown.
+
+Not wired, and said here so nobody goes looking: a music pack's
+replacement by name and a MIDI-out device (MIDI-OUT1) - the session plays
+before the music service exists, on the FM bank. The classic menu
+(`scenes/menu.js`) plays MIDI.BSA's 5STRONG as it always has.
+
+Tools: `tools/introScoreProbe.mjs` replaces `tools/introAudioCheck.mjs` (DELETED) -
+the song rendered through the real player offline and measured (no NaN,
+under the ceiling at the highest MusicVolume, within 2 dB of the
+recording's loudness, both landmarks the strongest onset within 25 ms of
+their cue); `tools/introCapture.mjs` muxes that render into its review
+video; `tools/introProbe.mjs`'s failure path is now a browser without Web
+Audio. Pins: `test/systems/intro3_score.test.js` (5) and `test/ui/intro.test.js`
+(the session around the player). Mutants: `tools/mutants/intro3.json`, 18, all dead.
+`intro-quality.yml` runs those two files before its probes, not `npm run check` in
+series (2026-10-23, the owner's call): the whole suite had outgrown the job's 25
+minutes, so every intro run from 2026-10-16 was cancelled before a probe ran, and
+`verify.yml` already runs the whole gate on every pull request
+(`09-Testing/Testing.md`, CI in parallel). The first run that reached the
+live probe found two of its own checks stale, both hidden behind those
+cancellations. It looked for New Game on the front door, where UI-CALM had
+put it behind the Offline door; it now opens Offline first, as the other
+menu probes do. And it held the last frame before the attack to an opacity
+over 0.9, but the logo fades in over the approach's first 0.125 s, so a
+frame that lands there (CI's frames are about 0.4 s apart) failed while
+showing exactly the cue: 0.899 at 18.48 s. It now holds that frame to
+`introTitleAt` at the frame's own time - visible, centred, not landed.
+
+#### INTRO3b (2026-10-23): not flat - the sections as ensembles, the kit with its skins, the hall
+
+The owner: "I want to make this music better. Currently its not really good and
+too flat. I really need you to put work into this and make it truely amazing."
+Measured first - the recording's first 27 s against the dry render's, the
+probe's own way (12 kHz mono, Hann 4096): the render's spectral centre of
+weight 305 Hz to the recording's 521, its share from 2 kHz up -25.0 dB to
+-12.8, and its two channels all but one (L/R correlation 0.985 to the
+recording's 0.33 over the film, 0.59 over its body); over the whole band its
+air (6 kHz up) 14 dB under the recording's share, its spectral flatness 0.003
+to 0.090 - a few pure tones, not an orchestra. Dull, thin and centred: flat,
+literally. The notes did not move - the melody and the harmony tables are as
+they were read - what plays them did:
+
+- **The voices** (`INTRO_VOICES`, EG-ROAR's `songVoices`): every section its
+  own instrument over the bank's one pair a note. The bowed sections are
+  ensembles - three or four unison copies 11 to 18 cents apart, laid either
+  side of their place - with the FM index higher than the bank's and slower
+  to settle, so the top of the band is there through the note and not only
+  at its attack; the choir and the pad on odd harmonics (mod 2, the hollow a
+  voice has that a string has not), the brass biting (index 5), the ostinato
+  a spiccato, the timpani with a sub, the swell the Spire's inharmonic shimmer
+  spread wide. A new voice, the HALO (channel 15, tremolo strings): four
+  violins at the edges on the choir's chord an octave up - a shimmer through
+  the opening, over the cloud break's held C and wherever the band opens out.
+  The contrabass carries no sub: at G1 its octave under is 24 Hz, under the
+  floor and heard by nothing but the press.
+- **The kit** (`INTRO_KIT`, `songKit`): the taiko long and falling with its
+  beater's click, the kick and the toms the same, the snare a crack over a
+  skin, the crash 2.6 s long. The press lets a drum's first 12 ms through
+  (EG-ROAR's lesson).
+- **The writing**: the low brass's braam an octave under every brass bar and
+  with every section hit; the horn in octaves with the violins on the cloud
+  break's and the impact's calls; the timpani answering on three; the cellos
+  on every step of the pulse where the drums are fullest; a suspended cymbal's
+  wash under the groove, soft; a snare roll into the build's top and the last
+  statement; and a swell - the bed's CC7 sinking over one bar and surging over
+  the next, no step - into both landmarks and every section's turn.
+- **The hall** (`introTheme.js` `introSpace`, `INTRO_HALL`, `INTRO_WET`): a
+  concert hall's impulse built from I3DL2 numbers the way the engine's reverb
+  zones are (`reverbPresets.js` `reverbImpulse`), under the player's master
+  through the session's own gain, so it follows MusicVolume, the mute and the
+  film's and the menu's levels as the dry sound does; the player is handed its
+  send as its third argument. A context with no convolver plays dry, as
+  before; dispose lets the hall's nodes go with the gain.
+
+Measured after, the same way, the film's 27 s: the centre of weight 483 Hz,
+the share from 2 kHz up -14.7 dB (10 dB up; 2 dB under the recording's, and
+left there - the last of it costs FM its sweetness), L/R correlation 0.61 (the
+recording's body's), both landmarks heard at 0.0 ms of their cue, the peak
+-3.1 dBFS at the highest MusicVolume under the -1 ceiling (the hall sums over
+the press, so the ceiling is measured, not held by construction as the dry
+sound's is). Over the whole band: presence (2-6 kHz) -15.2 dB against the
+recording's -12.8 and the dry render's -24.9, air (6 kHz up) -23.6 against
+-25.2 and -39.0, spectral flatness 0.035 against 0.090 and 0.003. The whole
+song, 162.8 s: as loud as the recording (-22.6 dBFS over 24-160 s against its
+-22.4), the peak -1.8 dBFS at the highest MusicVolume, L/R correlation 0.63
+(the recording's body's 0.59), the centre 436 Hz with -15.0 dB from 2 kHz up;
+over the whole band the body's presence -15.5 dB against the recording's
+-10.8 and its air -24.7 against -21.1 - the body stands further from the
+recording than the film does, and brightening it past this costs FM its
+sweetness - its flatness 0.045 against 0.181. 9/9. The probe pins the width (correlation under 0.8) and the
+presence (the centre over 420 Hz, 2 kHz up over -16 dB) beside the landmarks,
+each a margin under where the score lands. Pins: `test/systems/intro3_score.test.js`
+INTRO3b (the voices in range as written, every drum its skin, the halo, the
+braam, the wash, the rolls, the swells), `test/ui/intro.test.js` INTRO3b (the
+hall under the session, the send, dispose). Mutants: `tools/mutants/intro3.json`,
+31, all dead.
+
+#### INTRO3c (2026-10-24): no whine - the bowed voice, the body, the ensemble and the tone
+
+The owner, hearing INTRO3b's render: "I dont like the high pitch whine"; with
+the halo tamed, "It still has that whine. Its not natural"; with a vibrato and
+a breath of noise under every held note, "Now it just sounds like static. Stop
+band aid fixing and be as detailed as possible." Measured properly then,
+against the recording, three ways: over the opening's held chord (G minor,
+bars -3 and -2) the level of each harmonic of its top note, G4, against the
+loudest, and the -6 dB width of each partial in cents; and the film's
+third-octave curve.
+
+| | recording | FM render (the whine) | FM, vibrato, noise (the static) |
+|---|---|---|---|
+| G4's harmonics 1-4, dB under the loudest | -14, 0, -16, -12 | -5, -3, -16, 0 | 0, -6, -16, -12 |
+| G4's harmonics 5-9 | -35, -27, -19, -23, -19 | -33, -4, -50, -17, -49 | -31, -33, -35, -36, -38 |
+| partial widths at -6 dB, cents | 52, 19, 22, 20 | 47, 36, 12, 9 | 36, 36, 28, 15 |
+| 315-630 Hz against 250 Hz, dB | +5 to +7 | 0 to -2 | 0 to -3 |
+| 2-3 kHz against 250 Hz | -1 to -2 | -7 to -11 | -8 to -12 |
+
+THE WHINE WAS THE MODEL. Two-operator FM at a 1:1 ratio puts its harmonics
+where the Bessel functions put them: a few loud, their neighbours absent. In
+the FM render the chord's 4th and 6th harmonics stood as loud as its
+fundamentals with the 7th and the 9th 50 dB under them, and where several
+notes' harmonics met (G3's 8th, G4's 4th, the halo's 2nd, all at G6) they
+stacked into one isolated pure line 6 to 12 cents wide. A string section fills
+the 5th through the 9th in a plateau around -20 and spreads every partial 20
+to 50 cents. The static was the noise: a quarter of each voice's amplitude of
+broadband hiss, where a bow's noise sits 30 dB down and in the attack. And the
+render was thin where the recording is full - no body hump at 315-630 Hz, no
+presence at 2-3 kHz - because the model had no body and no formants. The
+earlier passes moved the parameters of a model that cannot make the sound.
+
+A bowed string's waveform is a sawtooth (Helmholtz motion: every harmonic at
+1/n), shaped by the body's fixed resonances, brightened by the bow's pressure,
+moved by each player's vibrato and smeared by the section into bands; a sung
+voice is the same with a vowel's formants for a body. That is also every
+analogue string machine since the 1970s, and it is cheap in Web Audio. So
+(`songPlayer.js`, EG-ROAR's `VOICE_RANGE`):
+
+- **The bowed voice** (`saw`, `cutoff`, `cutQ`; `_bow`): the copies are
+  sawtooths with no modulator, into a low-pass a side whose cutoff is `cutoff`
+  times the note at full velocity and seven tenths of that at none, opening
+  from half over the attack and 80 ms and settling to 85% through the decay.
+- **The body, the air and the ensemble** (`body`, `air`, `ensemble`,
+  `ensembleRate`, `ensembleMs`; `_insert`, `heldBody`): a voiced channel plays
+  through up to four peaking resonances [Hz, dB, Q] in turn, a high shelf at
+  5 kHz, and three short delays (`ensembleMs` x 1, 1.37 and 1.83) each swept a
+  fifth of its length by a sine at `ensembleRate` x 1, 0.79 and 1.31 beside
+  the dry sound - the string machine's circuit, which smears every partial
+  into the band a section makes with no beat and no noise. Built once a song a
+  channel, between the channel's gain and the song's level; `play()` drops a
+  voiced song's chains for the next song.
+- **The vibrato** (`vibrato`, `vibRate`; `_vibrato`) stays: a sine LFO per
+  copy into the pair's detune (a bowed copy's one oscillator), each copy 6%
+  faster a step than the last so an ensemble's vibratos drift apart, setting
+  in over the attack and a quarter second.
+- **The bite** (`noise`; `_breath`): the band of noise plays at its share AS
+  THE NOTE STARTS and fades to a sixteenth over the attack and 0.3 s - a bow's
+  start, not a hiss under the note - into what the copies play into (a bowed
+  voice's low-pass, so it is coloured as they are).
+- **The index floor** (`idxFloor`): an FM voice's index settles to that share
+  of itself (12% unnamed, as the bank always did): the horn holds its
+  brightness at a half, the brass at 0.35.
+- **The tone** (`tone`; `songTone`, `_routeTone`): a song's own shape between
+  the fader and the master - up to four bands and a shelf each end - a mix's
+  match to a reference. The intro's (`INTRO_TONE`) is the measured difference
+  at equal loudness: 60 Hz -2 (shelf), 100 Hz +5, 250 Hz -4 (the bed's and the
+  horn's fundamentals stack there), 500 Hz +3, 3150 Hz +4, 5 kHz +4 (shelf).
+
+The intro's voices (`INTRO_VOICES`): every string section, the pad and the
+choir bowed (cutoffs 4 to 14, the quiet pad darkest), each with its body - the
+strings' air and wood at 450 and 1000 Hz and the bridge hill at 2.7 kHz, the
+violins' at 550, 1300 and 3 kHz, the cellos' at 220, 600 and 1.8 kHz, the
+contrabass's at 100, 200 and 400, the choir's vowel at 650, 1050 and 2500 -
+an air shelf of -4 to -12 dB, an ensemble (0.25 on the bass to 0.5 on the
+choir), a vibrato (5 to 14 cents at 4 to 6.1 Hz) and the static detune halved
+(4 to 8 cents); a bite of 0.08 to 0.1 on the strings, the violins and the
+cellos and none elsewhere. The horn and the brass stay FM, the horn's index 3
+settling to half with a body at 450 Hz; the harp, the bells, the ostinato, the
+hits and the timpani as they were. The halo a soft bowed shimmer out of the
+opening's bare bars (-3 to 1) and the quiet after the cloud break (4 and 5);
+the hall's tail a little brighter (decayHFRatio 1.1); the press's drive 2
+(2.4 drove the toned sum into the ceiling). And THE RISER (the owner, on the bowed
+render: "Theres still a high pitch whine in the build up leading to the title
+drop"): measured over the four beats before the impact, INTRO3b's riser - the
+Spire's inharmonic FM shimmer on G5 and D6 under a 2.76 modulator - put its
+sidebands at 2.9, 4.4, 5.1 and 7.6 kHz 14 to 17 dB over their surroundings in
+both build-ups, where the recording's worst is a harmonic of the chord at +11.
+The swell voice and its channel are gone; `swellInto` is a suspended cymbal's
+roll on the kit (the ride under soft mallets, `INTRO_KIT[51]`: a 20 ms
+attack, no click), sixteenths rising from a whisper to the last stroke before
+the bar line, where the crash and the hit take over - a band of noise, with
+no line in it. After: the build-up's worst narrow peak +8 dB at 2.7 kHz (a
+harmonic), the FM sidebands gone from both build-ups. And THE HUM (the owner,
+on that render: "The background monotone hum is too constant. Needs more
+variation and flow. Too overpowering"): measured at equal loudness, the
+40-120 Hz band - the contrabass's G pedal and the pad under it - stood 7 dB
+over the recording's through the opening (a mean of -9.9 dB to -17.1, its
+floor -19.5 to -26.8) and 3 dB over through the body, and it did not move:
+within a held bar the recording's bass swells 6 dB and fades 9 (a bow's
+stroke) where ours stayed within 4 dB, and over the body it sat within 1.5 dB
+of its median 48% of the time to the recording's 25%. A held sawtooth with a
+flat sustain is an organ's key, not a bow, and the tone's lift at 100 Hz -
+matched to the recording's long-term curve, which a dynamic bass and a drone
+share - had raised a drone. So the player's voices gained THE BOW'S ARC
+(`arc`: a held note dips to 1 - 0.4 arc of its sustain after the attack,
+swells to the sustain at 55% of its length and eases to 1 - 0.6 arc of it by
+the release; a note too short for one holds as before) and THE SWAY (`sway`
+at `swayRate`: a slow sine per copy into the copy's own gain, each copy a
+fifth faster a step, so a section breathes apart); every held voice of the
+bed arcs (the pedal and the pad deepest, 1 and 0.8), the pad, the strings,
+the choir and the pedal sway (0.2 to 0.4 at 0.15 to 0.4 Hz); the contrabass
+plays at the bank's gain with its body a lift (+4 at 100 Hz, not +8), the
+tone lifts 100 Hz 2 dB (not 5) and shelves 60 Hz down 3; the low end's
+weight moves to the drums (the kick 1.4, the taiko 1.5, the timpani 1.2) -
+dynamic, not drone. After: the opening's bass a mean of -16.3 dB (the
+recording's -17.1), its floor -26.5 (-26.8); the body's -8.2 (-6.3), still
+31% of the time (25%); a held bar swells and fades again.
+
+Measured after, the film's 27 s. The chord: G4's harmonics 0, -10, -21, -13,
+-17, -18, -18, -22, -25 dB - the plateau from the 5th, nothing above the 3rd
+within 13 dB of the loudest - its partials 47, 47, 36, 18, 24, 32 cents wide.
+The third-octave curve against the recording's at equal loudness, 80 Hz to
+10 kHz: within 3 dB at every band, a mean of 1.2 dB (2.4 before the tone, 6 dB
+short at 100 Hz and 5 over at 250). The centre of weight 483 Hz with -13.3 dB
+from 2 kHz up (the recording's 521 and -12.8), L/R correlation 0.58, both
+landmarks on their cue, the peak -3.9 dBFS at the highest MusicVolume. The
+whole song, 162.8 s: as loud as the recording (-22.9 dBFS over 24-160 s to
+its -22.4), the peak -1.9 dBFS at the highest MusicVolume, L/R correlation
+0.62, the centre 502 Hz with -13.1 dB from 2 kHz up, 11/11. The probe's whine pin is the chord's shape (`chordShape`, from
+the score's own first strings chord: no harmonic of its top note above the
+third within 8 dB of the loudest, its 3rd to 6th partials 12 cents wide or
+more on average - the recording -12 dB and 38 cents, the FM render 0 dB and
+8.5 cents, this render -13 and 27), and the build-up's (`riserShape`: over
+the four beats before the impact no narrow peak from 2.5 kHz up more than
+13 dB over its surroundings - the recording's worst +11, the FM riser's +17,
+the roll's +8) and the bass (`bassShape`: the 40-120 Hz band's share of the
+whole over the body within 2.5 dB of the recording's -5.9 and under -6 over
+the opening, and within 1.5 dB of its median in under 40% of the body's
+frames - the recording 23%, the hum 49%, this render 31%); the first pass's
+persistence measure counted a sawtooth's honest harmonics as the FM render's
+isolated lines, and went. The probe pumps the player just in time (the offline context suspended
+every 0.1 s and the window scheduled there), so a render costs the sounding
+notes: the whole song in under 3 minutes where the up-front graph took 8.
+Pins: `test/systems/intro3_score.test.js` INTRO3c (every bowed section's bow,
+body, air, ensemble, vibrato and no held breath; the choir's vowel and the
+bridge hills; the FM voices unbowed; the horn's floor; the tone; the halo's
+bars, the riser a roll on the kit and no swell voice or channel, the arc and the sway on every held voice, the bass at the bank's gain and the weight in the drums), `test/systems/eliteGates/egroar_score.test.js` INTRO3c (the bowed
+voice, the index floor, the body, air and ensemble insert and its drop, the
+tone's routing, the bite, the arc and the sway; every field held). Mutants:
+50 more in `tools/mutants/intro3.json` (81), all dead.
+
+#### INTRO-REVERT (2026-10-25): the recording again
+
+The owner: *"Can we revert the intro music to the original before we changed it"*. The film and the menu play INTRO2's
+recording again. `src/assets/intro/theme.mp3` is back, as are its `IntroTheme` (`systems/introTheme.js`: fetched,
+decoded, looped on the session's own gain under MusicVolume) and the decoded landmark check (`tools/introAudioCheck.mjs`),
+all as they stood before INTRO3's merge (#906). `systems/introScore.js` and its test stay as a written score that
+nothing plays. The song player's INTRO3 work stays too, since the Elite Gates' scores use it (`egroar_score.test.js`).
+The sections above, INTRO3 to INTRO3d, are history.
+
+MAIN-RED (2026-10-26): `tools/introProbe.mjs` and `tools/introCapture.mjs` wait two minutes for the intro, not 30s. In
+the dev server the door asks about 15,900 modules (BOOT1's world.js warm-up among them) before the intro's code runs
+and asks for its recording: 34s measured on a warm server and 51s on a cold one, the recording itself landing at once.
+The `cinematic` check had timed out on every run since 2026-10-25. A built page is a few chunks, so players never
+wait this; only the probes do.
+
+#### INTRO-REVERT II (2026-10-26): the theme's path as INTRO2 left it
+
+The owner: *"Intro music currently isnt working. We need to revert before we started tinkering with this"*. After
+INTRO-REVERT one change to the theme's path was left: THEME-BUFFER (`01-Overview/bugs/Field-Bugs-2026-10-24.md`), which
+asked the theme's own AudioContext for `latencyHint: 'playback'`. It is undone, so `systems/introTheme.js` is INTRO2's file
+byte for byte (`6f501bf5d`, the merge before #906) and `'interactive'` again; `src/assets/intro/theme.mp3` and
+`ui/intro/introCue.js`'s landmarks were already INTRO2's. Measured before the change, in headless Chromium over the built
+page: the recording fetched (200), decoded and played under the film (its RMS at the destination 0.012 to 0.072 over
+the first 14 s) - the silence the owner hears was not reproduced here, so this restores the last state the owner heard
+working rather than a fault found. Pin: `test/ui/intro.test.js` INTRO-REVERT II (the context's hint, the file's sha256).
+THEME-BUFFER's own pin and its mutants BUF1 are retired.
+
+#### INTRO4 (2026-10-26): the White-Gold Tower to Tamriel
+
+The owner: *"Overhaul the main intro sequence to be more in line with the elder scrolls game oblivion and still zoom
+out into the entire map of tamriel. Utilize the imperial city we have built for this. I want this to be as detailed as
+possible"*. Asked where it should land - the Imperial City is TESA's and stands only on the open #1184 - the owner chose
+main, with the city's landmark modules brought over (below).
+
+THE FILM, on INTRO2's recording, cut to its bars. `tools/introAudioCheck.mjs` measures the decoded master's onsets: a
+bar is 1.888 s from the 19 s beat, phrases of eight, and the film cuts on five more downbeats - every one reproduced
+from the MP3 at 0 ms (`ui/intro/introCue.js`):
+
+| Time (s) | Sample | The shot | The narrator (`menu.intro.narration1`-`5`) |
+|---|---|---|---|
+| 0 | - | Pre-dawn over the far shore of Lake Rumare, Talos Bridge beside, the Tower a silhouette with its windows lit; the credits | - |
+| 11.712 | 140544 | The mist breaks; the sun clears the horizon behind the Tower; the camera cranes over the city wall, over Talos's dragon, up the Tower's west face | "Four hundred and five years since Tiber Septim forged the Empire, Tamriel endures." |
+| 19.168 | 230016 | INTRO2b's beat: the crest - over the crown, the gilt spire, the city's wheel below; the flare | - |
+| 19.2-26.7 | - | The orbit north round the crown, opening onto the districts | "From the White-Gold Tower, the Emperor holds nine provinces as one." |
+| 26.709 | 320512 | Bar 4: the dive over the Arena District's Colosseum and out across the walls | "But in the west, a murdered king walks the streets of Daggerfall, and the Iliac Bay drifts toward war." |
+| 34.240 | 410880 | Bar 8: the ascent - the city's wheel, the cloud deck, Cyrodiil, the continent, turning north and down | "Beneath its waters, a power that once broke kingdoms waits for a hand to wake it." |
+| 45.568 | 546816 | Bar 14: the map's words and borders | "Nine provinces. A thousand roads. The story of this age is yours to write." |
+| 49.344 | 592128 | Bar 16: the mark lands (INTRO2c's flight from the depth, unchanged) | - |
+
+The narrator is Oblivion's device - a voice over the Imperial City - in the port's own words of 3E 405 (Uriel Septim VII's
+throne, Lysandus dead at Cryngaine Field, the Numidium waiting in the Bay), five lines in the player's language (`t()`; the
+25 languages drafted in-session, `tools/l10nInSession.mjs`), one at a time, each held at least 4.3 s, never across a cut,
+a credit or the mark. The morning is the film's too: night under the credits (stars, Masser and Secunda), the sun up as
+the mist breaks and low and gold through the flight (`introSunAt`, `introAtmosphereAt`).
+
+DEPARTURE FROM INTRO2, named: the mark landed on the 19 s beat (INTRO2b, Mac: "the logo needs to drop with the beat that
+happens around the 19 second mark"). That beat is the crest now, and the mark lands thirty seconds later on the third
+phrase's downbeat - the film is two and a half times INTRO2's, and Oblivion's opening keeps its title for the end.
+INTRO2's own landscape of the Bay (`introMap.js` `buildIliac`, its ranges and sea floor) is retired with it; the Bay's
+authored shape and the seeded noise stay (below, and `ui/tamrielInk.js`).
+
+THE IMPERIAL CITY IS TESA'S. `world/imperialCity.js`, `world/capitalShapes.js` and `world/capitalImperial.js` are
+#1184's own files byte for byte at its head (`4d8200b01`), at their own paths, so that branch's merge finds them already
+here (they import only `spawnedDungeons.js`, `meshReader.js` and `detStandIns.js`, as main has them), and
+`CAPITAL_ARCHIVE` (38400) comes with them into the pseudo-archive registry as #1184's own line
+(`world/eliteGates/pseudoArchives.js`; EG-G2 holds every `*ARCHIVE*` number to it). What the film
+draws is theirs (`ui/intro/introCity.js`): all thirteen landmarks' own meshes by their own builders (the Tower, the
+palace wall and tombs, the city wall and watch towers, the district walls, the Colosseum, the Temple of the One, Talos,
+the Nine Divines, the Prison, the University, the Waterfront, Talos Bridge), each vertex carrying its picture's record;
+the ground by the city's tile law (`imperialTile`, 8 m a texel over 6 km); its trees by its tree law (`imperialTree`,
+tile by tile). Two things it cannot have, and stands in for: Daggerfall's city blocks (BLOCKS.BSA is the player's and
+the front door runs before the picker) - so on every cell the plan gives one of Daggerfall's blocks the film stands
+houses of that trade's size (a temple and its bell tower, a guild hall, a Mages' tower, a street of houses), 5,073 of
+them; and the capitals' painted pictures (`capitalModels.js` `capitalArt`, which needs half of TESA) - so the film's
+shader paints each record as its material (marble veined, gilt ribbed and mirroring the sky, ashlar coursed, slate, bronze
+with its patina). The woods past the lake are the film's own groves.
+
+THE CONTINENT (`ui/intro/introTamriel.js`) is `world/tamriel/tamrielGeography.js`'s authored Tamriel rasterised once
+(1280 x 800, four texels a picture unit): the provinces' rings by scanline, a signed distance to the coast frayed by
+noise, the ranges' lift (widened for the film's foothills) and each province's land - its open ground, woods and dry
+country by the lore (the Alik'r inland, Skyrim's tundra, Morrowind's ash, Black Marsh's fens, Elsweyr's badlands,
+Valenwood's unbroken wood). Inside the Bay's rectangle, the hole the geography leaves for WOODS.WLD, it is INTRO2's
+authored bay (`seaDistance`, Balfiera and all), eased in from the rectangle's edge. The rivers and the cities are drawn
+by the shader from the geography's own points (a stroke and a dot at any height), the borders inked in gold at the end,
+the Imperial City a gold mark, and the map's words (`INTRO_MAP_LABELS`: the nine provinces, the seas, the Imperial City -
+the geography's names, no word of the film's) placed over it by the front door each frame, hidden from a screen reader as
+the credits are.
+
+THE RENDERER (`ui/intro/introLandscape.js`, `ui/intro/introShaders.js`): the continent first at its own scale, then the
+depth cleared and the city drawn over it (its ground fading at 24-38 km into the continent's own colour); camera-relative
+throughout, so 5,000 km of continent and a metre of parapet keep their precision; a 2048 shadow map from the low sun over
+the city (the Tower's shadow runs kilometres west at the ascent); MSAA; an analytic sky, height fog and the lake's mist;
+the lake mirroring the sky, the Tower and the city wall analytically; birds wheeling about the crown; a cloud deck the
+ascent climbs through; a last pass for the bloom, the sun's rays and the grade. The heavy build runs in the intro's
+worker (`ui/intro/introBuildWorker.js`, `introBuild.js`): the city first (the gate waits for it - the film never opens on
+an empty lake), the continent a second or two later (a one-texel sea stands in until it lands); no Worker, or one that
+fails, builds the same arrays on the page. The passes stand down by height (the houses and trees under 60 km, the shadow
+under 40, the landmarks under 400, the sea above 60 km, the cloud deck between 1.4 and 30 km), the shadow map is drawn
+again only when the sun has moved, a tree under a pixel and a half tall is folded away, and the twelve programs compile
+beside the gate (`render/glProgram.js` `startPrograms`, KHR_parallel_shader_compile) - never a frozen page while the
+driver compiles.
+
+Unchanged: the gate, the credits, the hold and the hand-off to the menu, reduced motion (the last frame held, the words
+over it, the mark appearing on its beat), INTRO2c's mark and recoil, the recording and its session (INTRO-REVERT II).
+
+PINS: `test/ui/intro4_film.test.js` (12: the cut on the recording's samples and bars; the narrator; every frame of the
+flight clear of the Tower, the walls, their towers and the Colosseum by IMPERIAL's own measures; the last frame holding
+every vertex of the land inside the letterbox, north up, at 16:9, 21:9 and 4:3; the morning; the landmarks being TESA's
+meshes vertex for vertex; houses only and always on Daggerfall's cells; the trees the city's law; the ground the tile law;
+the continent's provinces, seas, Balfiera, borders, snow and rivers; the map's words; the build's worker and fallback),
+`test/ui/intro.test.js` (INTRO4's landing on bar 16, the camera's continuity held to its height, the ground grid).
+Mutants: `tools/mutants/intro4.json` (20, all dead). `tools/introAudioCheck.mjs` measures all six landmarks;
+`tools/introProbe.mjs` waits for the longer film and shoots its shots, the narrator's line and the nine names, and
+reads the logo's 0.78 s approach on a frozen page at its own time as well as live (SwiftShader presents no frame inside
+it: one run drew 47.69 s, then 52.09 s - the live read names that gap and the frozen read carries the check);
+`tools/introCapture.mjs` renders the whole film (8 frames a second at 960 x 540); the intro workflow runs the new tests
+and watches the city's and the geography's modules (45 minutes now). AFTER THE MERGE (deploy 1707, BOW-TOPS in
+`05-Combat/Balance-Arc.md` section 18): six of `ui/intro/introShaders.js`'s smoothsteps had their edges reversed, which
+GLSL leaves undefined (SD20c V14). Each falls as `1.0 - smoothstep` with the edges in order, the same curve on a driver
+that honoured the reversal. AUDIT UI 2's reach sweep follows `new Worker(new URL(...))`, so the intro's worker is
+reached by the page that starts it. NOT SEEN: the film on a hardware GPU - every frame
+here was SwiftShader's, which draws one in 3 to 7 s at 1280 x 720 (INTRO2's in about 0.45 s); the probes wait for it
+accordingly (three minutes a wait).
+
+THE SET (the merge of main into #1184, 2026-10-27). INTRO4 brought TESA's city to main as it stood at 4d8200b01, the
+Imperial City at seven pixels a side, and shot the film on it: the camera's path, the fog, the lake and the dive past the
+Colosseum. TESA's IC-GRAND has since made the game's city twenty-five pixels a side (its wall 6,900 m out where it was
+1,950 m) and gave the Colosseum's ground to Daggerfall's arena (`03-World/Arena-Provinces.md` IC-GRAND).
+
+The two met at
+the merge: the game's `world/imperialCity.js`, `capitalImperial.js` and `capitalShapes.js` are IC-GRAND's, and the film
+reads its own copy of the city it was shot on, `ui/intro/set/` (the three modules as main had them, their imports'
+paths and an export list the only changes), so every frame of the film stays the one pinned above
+(`ui/intro/introCity.js:"import { IMPERIAL, IMPERIAL_CELLS, IMPERIAL_CITY_PLAN, imperialDistrictAt, imperialTile, imperialTree } from './set/imperialCity.js';"`). PIN MOVED:
+`test/ui/intro4_film.test.js` reads the landmarks off the set. The set's 23 proper names stand on the L10N4 ratchet
+where world/imperialCity.js's did (`test/systems/l10n4_hardcoded.test.js`). STILL OPEN: re-shooting the film on the
+grand city - a new camera path over a city 3.5 times as wide, without the Colosseum - is its own slice; until then the
+film's city is not the one the player walks into.
+
+#### TITLE-DOOR (2026-10-27): the held title is the front door
+
+The owner: *"People really love the start game intro screen. I think instead.of this leading to the online/offline
+options. We use the intro title screen as the landing pad itself with these options"*. The film's last frame - the map
+of Tamriel with its words, the mark at rest - said Tap to continue and led to the menu's home on its own pixel sky.
+Now the menu's home stands ON the held title, and Tap to continue is retired (its node, its rules and its catalog key,
+`menu.intro.tapContinue`, dropped from every language by `tools/l10nInSession.mjs`). DFU's own start is its title and
+then DaggerfallStartWindow (Load, Start, Exit); this door was already the port's own design (FD1, UI-CALM), and this
+record is the design record the native-window rule asks of it.
+
+THE LANDING (`ui/intro/introScreen.js:"const land = (how) => {"`). When the mark comes to rest the film lands: it
+holds its title (the frame at `TITLE_HELD_TIME`, the mark's impact spent), steps under the menu (`#intro.intro-landed`
+at z 11, the menu's host at 12), marks the page (`<html data-intro-title="held">`, `ui/intro/titleHeld.js` - one small
+module so the menu, which a running game mounts too, never imports the film), and mounts the menu over itself. The menu
+is inert while it fades in (650 ms, the retired prompt's own fade), then its first door takes the focus the prompt had.
+The film draws only when something changes its picture - a resize, its map arriving - never every frame while the player
+looks (`ui/intro/introScreen.js:"function requestDraw() {"`). It is let go with the menu: the front door's `release` runs
+before the scene boots, so the world never shares the GPU with it (`ui/intro/introScreen.js:"release?.();"`).
+
+THE MENU ON IT (`ui/enhanced/enhancedMenu.js:"const onTitle = () =>"`). The boot home on a held title draws no sky
+and no masthead - the map is the ground, the film's mark is the wordmark - and its host goes see-through there
+(`#enhanced-menu[data-over-title]`); every section keeps its own opaque ground over the held film, and its way home is
+the title again. The pause face never wears it. The doors stand in a row in the band between the mark and the foot,
+where Tap to continue stood (`ui/enhanced/enhancedStyle.js` TITLE-DOOR): Online and Offline side by side, the offline
+level's four games and the way back in one row. The landed mark rises a little and narrows to make that band (41% of
+the height, at most 37vw, 535px or 64% of the height; on a short screen, a phone and a short phone their own values),
+and the band starts at the mark's foot - its centre plus half its height, .42 of its width for the 1232 x 1034 file
+(`--intro-doors-top`, held to the PNG's own IHDR by the test). On a phone the two questions stand one over the other and
+the games two to a row; on a short screen the offline word and line are left to the rail and the diamonds put away, so
+the five fit one row. DFO Grimoire stands neither its desk nor its book on the title: the doors are its one page held up
+over the map, as its map backdrop holds them (`ui/grimoireDress.js` TITLE-DOOR), the games and the way back one size.
+
+THE SCORE. A title the film carried in keeps the score at its own level while the player looks; the first press on the
+menu takes it down to the menu's (MENU_THEME_GAIN), as the retired tap did. SKIP INTRO AND ESCAPE LAND ON THE TITLE, not
+past it: the title held at once, the score unlocked in the press and started at the menu's level (the old Skip's audio).
+Skipped at the gate, before the map was built, the title stands on the film's own ground and the map fades in under it
+when it is drawn (`introLandscape.js`'s `mapReady`: the programs and the continent, not the city). The player's SKIP
+START VIDEO (UXB1-A) opens on the title too - no gate, no film, nothing asked of the score until the front door's first
+gesture starts it at the menu's level. A score that cannot load lands the title with its message, now at the top under
+the corner marks. `?nointro` (the probes') builds no film and the menu stands on its own sky, as it always has; a film
+that breaks before it lands is let go and the menu opens on its sky the same way.
+
+PINS: `test/ui/titledoor.test.js` (7: the band from the logo file's own size and the film under the menu once landed;
+the home on the title, a section over it and home to it, the pause face and an unheld page without it; Skip start video
+on the title at once; Skip intro and Escape landing on it; the carried title's duck at the first press and its draws
+only on a change; a broken film let go; the front door letting the title go with the menu), on `test/introDom.mjs` (a
+page small enough to hold the film, its frames and timers turned by hand). Moved, as deliberate changes edit their pins:
+`test/systems/uxb1a_startvideo.test.js` (the pref lands on the title), `test/ui/audit_font3.test.js` (the prompt's phone
+size retired), `test/ui/grim1_dress.test.js` (the desk's rule names the title's home it leaves). Mutants:
+`tools/mutants/titledoor.json` (14, all dead). `tools/introProbe.mjs` reads it live: the landing, the held title
+drawing nothing while it waits, the duck at the first press, a section and home again, a game letting the title go, the
+mark and the doors fitting their band at every size for both questions and the offline row, the missing score, Skip at
+the gate with the map fading in, and Skip start video. Its resume check (INTRO2's: the score continues, it does not jump
+by wall time) is read against the wall time since the resume's own press, not a fixed second - a software GPU draws a
+frame in 2 to 9 s, and the frame-polled wait let more than a second of score pass before the read (it failed so on
+INTRO4's run and on this PR's first). `tools/introCapture.mjs` shoots each frame past the landing as the title stands (a
+seek past it draws nothing). NOT SEEN: a hardware GPU (SwiftShader, as INTRO4).
+
+MAIN'S RED, MENDED AT THE MERGE (the owner: "Every single deploy has been red so far"). From CHAT-POST (#1342) on, every
+deploy of main stopped at its tests: the change re-wrote the chat's send (`world.js` chatSend's `{ me, item, items }`,
+onSend's `opts`) and the pack's bag, and left pins and mutant records on the old text. Mended here, none of it the title's:
+the four chat-send pins re-aimed (`chatchan`, `guild1c`, `mod1`, `partytravel`, each marked PIN MOVED); MAC-C's sheet
+door read from its pack's own `createInventoryWindow({`, not a 1600-character window the longer line pushed it out of;
+the suggest list's Worn tag up to the FONT3 floor (`chatPanel.js` `.dfchat-suggest-worn`, 10px to 11px); twelve mutant
+records re-aimed by content (`chat_find`, `chatchan`, `emote1`, `mod1`, `staff-chat-red` - 12 dead); and the hosts'
+ceilings raised to the hosts CHAT-POST left (bootWorld 36,240, createWorldModes 11,027, `hostsplit.json` with them) -
+the pull-request gate the deploy does not run.
 
 ## U65 THE INTRO (2026-08-30) - HISTORICAL REMOVAL
 
@@ -18380,6 +18959,20 @@ the dungeon's arms pass `!f.yielded` (the street's `!f._pupYield` too) and its "
 
 The classic skin has none of it, byte for byte.
 
+**IC-PROPS (2026-10-27, the owner: "Some doors in Imperial city can be entered but dont show the tooltip", then "a world
+wide issue").** The law above broke at two doors. A house with no name of its own had a plaque only where it listed verbs
+(online, for sale): offline and everywhere else the door entered and said nothing - 6,325 of the 8,295 building doors
+with a room over the freeware's blocks and both town packs.
+
+DFU names every residence "Residence" (PlayerGPS.cs:1306-1309)
+and the mod prints it (.cs:719-728), so the port does now, whatever the verbs
+(`online/onlineHomes.js:"export const homeDoorName = (name, hasVerbs, type = null) =>"`), and a nameless building of no
+house type (a ship's deck) says its place. And a door of a NEIGHBOURING location (the Imperial City's next slice, a town
+across a pixel's edge) was named and discovered in the player's own town's book: the host's record now carries the
+door's own town (`scenes/townTalk.js:"const doorTownOf = (place, data) =>"`, from `scenes/world.js:"...townTalk.doorTownOf(dfLoc, d) };"`), and the plaque, the press
+and the activation read it - so the plaque names what the press enters. The record: `03-World/Arena-Provinces.md`
+IC-PROPS; pins `test/systems/icprops_doors.test.js`.
+
 ## CHARGEN-REFLEX — the Continue button was covered, not dead (2026-09-22)
 
 Fay on Discord, desktop build 0.1.3612: *"Just downloaded the latest
@@ -19245,6 +19838,13 @@ touch near is the player's Escape as before, so a mouse and a keyboard are untou
 the layer off, is covered too). Not proven on a device. Pinned in `test/player/fb1009c_touchunlock.test.js` (2);
 `tools/mutants/fb1009c_touchunlock.json` (4, all dead; `esc_lock.json`'s relock record re-aimed by content).
 
+**A FOURTH - A TOUCH SCREEN NEVER ASKS (TOUCH-NO-LOCK, RPT1026-MISC, 2026-10-26).** A private report from a phone:
+Chrome's pointer-lock banner (how to get a cursor back) came up with every menu. "A finger never holds a lock" held for the canvas's click net only: every RELOCK door - a window's close, the
+look gate's close edge, a dial's goodbye - asked for the lock on a phone too, Chrome on Android granted it to the tap
+that closed the window, and its banner said how to give back a cursor the phone does not have. `requestLook`
+(`player/pointerLock.js`), the one door the others go through, returns on a touch device (`isTouchDevice`); the look
+there is the touch layer's drag. Pinned in `test/player/rpt1026_misc_lock.test.js` (1).
+
 ## CARD-FIT - the item card fits its window and says what a glance needs (2026-09-28)
 
 The Discord (#bug-reports, Cruor): *"New sigil items descriptor is a bit long! ... all the buttons on it's pop-up card
@@ -19568,7 +20168,7 @@ from the scratchpad, the pack mounted over a wagon of thirteen):
 
 DFU's inventory window filters only the local list (AddLocalItem) and moves one row per click. The enhanced remote pane already filtered the player's own stores (WAGON-FILTER, above). A container — a chest, a corpse — now carries that same bar, and a rarity menu beside it.
 
-- **The bar.** Search, then the pack's pages (and Materials), then rarity, then material. The rarity menu lists only the tiers that container holds, in `RARITY_ORDER`, each as its label and its count ("Rare (3)"). Its first row is Any Rarity. The material menu is the same shape for armour and weapons: Any Material, then only the metals that list holds (Leather and Chain, then the ten plate metals), each with its count. A chosen tier or metal stays at nought. An arrow, a book and anything else with no metal of its own are not a material, and neither is a metal the card withholds - an unidentified piece below Rare, an artifact, a helm or shield under HelmAndShieldMaterialDisplay: the menu reads the card's own gate (`itemInfo.js:"export const itemSaysMaterial ="`), so a filter never picks out a piece by what its card does not say. The metal is named as the window prints it (`metalLabel`). With the loot-rarity ladder off, the rarity menu is not drawn and no tier is applied; the material menu stays. The search still reads the row's own name.
+- **The bar.** Search, then the pack's pages (and Materials), then rarity, then material. The rarity menu lists only the tiers that container holds, in `RARITY_ORDER`, each as its label and its count ("Rare (3)"). Its first row is Rarity, every tier, with no count of its own - All already says it (FILTER-FIT, 2026-10-17: the menu names itself; it read Any Rarity, and the count made it too wide for a one-column window). The material menu is the same shape for armour and weapons: Material (every metal; it read Any Material), then only the metals that list holds (Leather and Chain, then the ten plate metals), each with its count. A chosen tier or metal stays at nought. An arrow, a book and anything else with no metal of its own are not a material, and neither is a metal the card withholds - an unidentified piece below Rare, an artifact, a helm or shield under HelmAndShieldMaterialDisplay: the menu reads the card's own gate (`itemInfo.js:"export const itemSaysMaterial ="`), so a filter never picks out a piece by what its card does not say. The metal is named as the window prints it (`metalLabel`). With the loot-rarity ladder off, the rarity menu is not drawn and no tier is applied; the material menu stays. The search still reads the row's own name.
 - **Take all** walks those rows from the top, and its button stays on that list. **Stash all** walks the current pack page from the top, into the store beside it - the wagon, the player's own storage, the Materials Bag - and its button sits centred on the bottom edge of the pack's item list. A container's window never opens the pack (MAC-M2 B: a chest and a corpse are for taking), so Stash all is not on it; a fresh pack starts on Weapons. Each row goes through the one plan a click uses (`planTake`, `planStore`), and a take off someone else's keeping - a stranger's cupboard, a shut shop's shelf - is marked stolen exactly as a single take is (STOLEN-GOODS, `theftTarget`).
 - **Where it stops.** The first row the pack or the destination cannot hold stays, and so does everything under it. A row refused for another reason is left where it is and the walk continues. A stack that only partly fits is the last row moved. Stash all into a room container would stop at 64 rows (`LOOT_LIST_MAX`): a longer list is never told to the other players, who hear the container when its window closes, not row by row. No window offers that today (above); the stop stands for the layout that does.
 - **What does not change.** The ground and a reward tray have no bar and no buttons. The classic skin draws none of this.
@@ -19788,6 +20388,11 @@ hourglass is: `ui/enhanced/enhancedPost.js`.
   letterbox's own manner.
 - Pins: `test/net/serverpost_client.test.js`; PIN MOVED: `test/ui/enhanced/outsideTap.test.js` (five scrims, the envelope inside the
   pause face's; the face under the account window inert; the window's place reset on a tap outside).
+- **LOST-SPOILS (2026-10-22): Claim all.** A boss's floor's leftovers come a piece an item, from the Lost and Found
+  (`06-Systems/Accounts-And-Cloud-Saves-Arc.md` LOST-SPOILS), so the list stands *Claim all (N)* above itself while two
+  or more items wait (`.pm-claimrow`, the window's own foot row set right), down while a claim or a Claim all runs, as
+  a piece's Claim is while one is out. Pressed, it claims each in turn (`net/serverPost.js` claimAll) and says what landed
+  (`post.claimedAll`), or that and where it stopped. One waiting item has only its own Claim.
 
 
 ## EVERY-STANDING - every organization's standing, a setting (FIELD BUGS 2026-10-09e)
@@ -19939,8 +20544,8 @@ option under audio for it called Monster Volume with 0 - 100%".
   pointsLeft); a press opens the Growth tab's Firmament page (`setHudPauseAt`, wired by `scenes/world.js`). Each is a
   buff's own tile with a 16px glyph (`hudStatus.js` STATUS_GLYPHS `skillup`, `firmstar`), on the bar's line and past the
   hotbar's ends where the hotbar is wider (CLEAR-HOTBAR, `advanceReach`). Each is its own piece of the movable HUD
-  (Alt+U: `skillsReady`, `starsUnspent`). The book is read once, again when the Renown rises, and again after
-  `BOOK_RETRY_MS` when a read found no sky. The level strip no longer draws the skills' standing line; the level's own row
+  (Alt+U: `skillsReady`, `starsUnspent`). The book is read once and again when the Renown rises; a read the service
+  never answered the book asks again itself, on every HUD (FIRM-RETRY, `06-Systems/Firmament.md` section 6). The level strip no longer draws the skills' standing line; the level's own row
   stays, and under DFO Grimoire its words are in the page's full ink (LEVEL-INK).
 - **The status tiles' hover card** (`ui/hud/statusTips.js`, `ui/hud/hudTip.js`): with the mouse freed every tile shows
   the pack's hover card - a spell's effects from its live entries, a disease's daily losses, a need's meaning and what
@@ -19949,6 +20554,10 @@ option under audio for it called Monster Volume with 0 - 100%".
   there each socket is the column's height shared out, so it fits without scrolling). A lantern there carries
   `beltLantern: true`, hangs at the waist when lit whatever Handheld Torches' waist switch says (`playerTorch.js`
   lanternAtWaist, `handheldTorches.js` atWaist), and is lit when hung and put out when taken off.
+  BELT-WAIST (`01-Overview/bugs/Field-Bugs-2026-10-21b.md`): the socket holds the lantern AT THE WAIST - the one hung, or
+  a lit one the waist switch hangs there (`beltLantern.js` waistLanternOf) - and the hand's row never does, so a lantern
+  lit by O, Use or the hotbar is drawn where the world hangs it, not on the shield's panel. O lights the hung lantern
+  first, a hung one takes no hand with the switch off, and the hotbar's lantern leaves a shield on.
 - **Monsters** (`characters/enemy/enemySounds.js` attractStep, `scenes/hostCombat.js` tickEnemySound): a monster's attract
   clock runs at 1/2.5 of the game's, so it calls 40% as often; the city watch and a companion keep theirs. The Audio
   tab's **Monster Volume** (`systems/monsterVolume.js`, uiPrefs `monsterVolume`, 0-100%) scales a monster's call, its
@@ -19964,3 +20573,234 @@ option under audio for it called Monster Volume with 0 - 100%".
   raised nothing still ends the activation.
 
 `test/ui/hud/hud_advance_tips.test.js`.
+
+## TAB-WALK, HUD-FOCUS - Tab is never the browser's walk, and the chat's buttons never keep the focus (FIELD BUGS 2026-10-20h)
+
+A player's report, as the coordinator summed it up: "TAB focusing the Socials button". PX15 kept Tab's browser default
+wherever the QuickDial did not answer it: on the classic skin, before the boot's last await, and with the dial
+rebound. That default is the browser's walk of the page's focus, not DFU's behaviour (DFU binds
+nothing to Tab). With the chat shut online, the walk stopped on the Social button, the first control the sheet draws
+over the world, and the next Space (Jump) pressed it. The hosts' one swallow now takes a Tab aimed at the page itself
+(`ui/input.js` isPageFocusWalk, in swallowBrowserKey), so an unanswered Tab does nothing. A field's Tab, a window's own
+walk and Ctrl+Tab are left alone. The chat's controls over the world (Play online here, the touch skin's Chat, both
+Social buttons, Show) are never the keyboard's focus (`ui/input.js` neverTheFocus): they are out of the walk, a mouse
+press gives them no focus, and a focus they get another way is given back. The record:
+`01-Overview/bugs/Field-Bugs-2026-10-20h.md`; the pins `test/ui/fb1020h_tabwalk.test.js`.
+
+## SEASON-BOOK - THE LAUREL: THE SEASON AT A GLANCE (2026-10-22, the owner: "I think we need a new pause menu icon, like we did for the timers and mail. A condensed place to see season related content and descriptions")
+
+A third mark on the pause face, online, beside TIMERS1's hourglass and SERVER-POST's envelope: a pixel laurel that opens
+one window of everything seasonal - which season it is, when it ends, the player's own standing on each board, and a
+line on what each thing holds. AUDIT SEASON-BOOK (`01-Overview/audits/Audit-Season-Book.md`, the owner: "Audit this and
+ensure perfection") read it cold in six lanes; what follows is the design as it stands after it, each change under its
+finding's id. Not a DFU member: DFU's calendar has its four seasons of the year (`systems/gameDate.js` seasonNames, DFU's
+DaggerfallDateTime.SeasonValue - the weather's), and none of these - no ranked boards, no guilds' Seasons, no other
+players (AUDIT W15: the record had said Daggerfall has no seasons). The port's own, built on the clocks the online game
+already keeps.
+
+- **Three clocks, kept apart** (`systems/seasonBook.js`, pure). The game has three seasonal calendars and the window names
+  each rather than blurring them into one "season":
+  - THE SEASON (`net/arena/arenaLaw.js` arenaSeasonOf - eight weeks from Monday 28 September 2026, 00:00 UTC): *Season 1,
+    Day 25 of 56*, as every one of its boards names it (AUDIT W7: the window had called it "Ranked Season", a name nothing
+    else in the game uses), counting to its end. Its rows are the boards that start fresh with it - the Arena (rating,
+    rank, and the points the player has given their banner - L2/W3: the player's own, "12 points for the Red Banner", as
+    the Arena says them, never the banner's total), the Spire (*Your best Descent* - L3: the company's best Descent from
+    Hall 1, as the Spire's window says it, never "deepest"), Iliac Hand and the King's Gambit (rank, rating, games),
+    the season's captains (the deepest voyage and the legends ended, off the captain's ledger) - and its foot the rule
+    the three title boards share, naming them (L1/W4: "Arena Champion, Iliac Champion and Grandmaster are worn by the
+    leader, once they have 10 rated bouts or games against 5 different opponents" - Spire Champion is each bracket's top
+    ten's, through the next season, and the foot had read as all five rows'). `seasonBook.js:"export const SEASON_TITLE_GAMES = 10;"`
+    is held to the arena's constants and the service's Iliac and Gambit ones alike (L13/P16). L10: before the epoch, or
+    with no clock, the day holds at 1 (the arena's day wrapped while its season held).
+  - THE SEATS' SEASON (`net/townSeatLaw.js` seasonOf, off the service's zero): *The Seats: Season 0, Week 3 of 4*, to its
+    last Sunday Turning, for an account the seats are open to (AUDIT TIMERS1 D5's law). Season 0 is said as the beta it
+    is (W7: the game's own word) - its end wipes the seats' war and crowns no one, and silver, the Stores and the
+    professions stay (W6: "Marks" was a retired name, "profession tracks" the code's); its rows leave out the titles, the
+    ribbon and the soft reset; a counted Season lists them. W1: its name is the player's language's - "Season 0", else
+    "Season of {month}" off the months' own table (`seatSeasonTitle`, gameDate.js monthNames) with its round's numeral,
+    never townSeatLaw's English name with an English article stripped. L12: Keeper of a town is the guildmaster's, as
+    Crowned is. L5: the Tides roll each week for every kingdom, the Marches and the Free Lands, or leave a land Calm.
+  - THE FESTIVAL (`net/festivalLaw.js` FESTIVALS - the real calendar): the Witches' Festival on now or coming, counting to
+    its close or its opening; the section goes once none is to come. W5: no "real-world calendar" lead over rows that run
+    on the sky's nights - the Starfall says "every in-game night, about once a real hour". L6/L7: Soul Cakes are found on
+    any foe (the dead and the summoned most often) and in gathering, crafting, looting and at sea, and count double on 31
+    October UTC. L4: a guest is told the festival is a registered account's (`Add a username to join the festival.`).
+- **The standings** (`seasonBook.js:"function boardLine("`): each board's line in its state - *Reading the board...*
+  while asked, *The board can't be read right now.* on a failure with nothing kept, and the player's own line otherwise.
+  AUDIT R4/L4: every board answers a guest's `me`, and no guest's game is ever kept - a guest is told *Add a username to
+  be ranked.* (the game's own words for it), and no one signed in *Sign in to be ranked.*; neither is asked anything. R7:
+  an arena not live reads nothing (its row had said "open the Arena to read your standing", and opening it read
+  nothing). A host that hands no reads shows no line at all, never "reading" for ever. W2/L8: every number ungrouped, as
+  the boards print it ("1,240" had read as a decimal in twelve of the thirteen languages). The sea's line is this
+  season's figures alone.
+- **The reads** (`scenes/seasonBookHost.js` createSeasonBook). AUDIT R1: a standing cannot move while the game is paused,
+  so a board is asked when the window OPENS (its first read), at most once a minute however often it is opened
+  (`seasonBookHost.js:"export const SEASON_BOARD_FRESH_MS = 60_000;"`), never again while it stays open - and never on a
+  hidden page, while the account service has asked to be let be (BUSY-GATE's hold, `busyUntil`), for a guest or for no
+  one signed in. (The first build asked four boards from every open window: the arena every 20 seconds and three others
+  a minute, two of them uncached whole-season queries on the primary - 31 times the timers window's load.) R2: every
+  answer is the account's that was signed in when it was asked (`me()`), another account's is dropped the moment the
+  session changes, and a no-session answer keeps nothing. R3/L9: every answer says its season; one of another season is
+  no standing, and the season turning asks again at once. R5/S1: the arena's board is a read like the others - asking
+  (`fetchBoard`), the answer, or unread when it cannot be had (its row had read "Reading the board..." for ever), its
+  board bound to the account it landed under. HOST-SPLIT: the world host hands ONE getter of what it holds
+  (`world.js:"const seasonBook = createSeasonBook("`), read under a try at each ask - the pause door stands before the
+  boot declares the account doors (AUDIT TIMERS1 D6's law), and a getter not declared yet is none.
+- **The window** (`ui/enhanced/enhancedSeason.js` seasonWindow), on the hourglass's stage (`.px-timersstage
+  .px-seasonstage`), a dialog named by its title: a section a clock - its title, its sub-line and its countdown, *ends*
+  or *opens*; its lead; its rows, each a name, the player's standing in gold beside it, and one line on what it holds;
+  its foot. AUDIT S2/U2: every line is rewritten IN PLACE each second (a board's answer, the day turning) and the list
+  rebuilt only when its rows or their doors change - a door with the focus keeps it across that rebuild (a board's answer
+  landing a second after the opening had dropped a focused door's focus to the page). U3: the focus goes into the window
+  when it opens (Close, without scrolling), never when the face repaints around it. W1: the moment in the player's own
+  clock and language (`seasonWhenText`, Intl on the text core's locale) and the countdown's days' letters through the text
+  core (`seasonLeftText`) - the hourglass's `localWhenText` says English weekdays and months. A row with a door carries
+  its button - the Arena's window once a banner is worn, the Spire's boards (the hourglass's own boards door) - handed to
+  the pause face's handoff (`seasonDoor`: the hourglass's `timersDoor`, the window shut first where a Growth face under it
+  asks - AUDIT GROWTH LANE2-3's law) at the press, never kept from the draw. 660px wide (the timers' window is 560px -
+  W15: the record had read as the timers' width) so a line wraps less; every door a 44px target (U10); a narrow screen's
+  clock under its title (U7); on a phone a door under its words; a short screen's window within it.
+- **The source** (`enhancedSeason.js:"export function seasonSource(hooks, { opening = false } = {}) {"`): the hourglass's own
+  read (`hooks.timers` - the relay's clock, the seats' word and zero; its service read asked at the opening alone, R1)
+  under the laurel's reads (`hooks.season`); none without a clock (offline, or before the relay's clock is heard), so no
+  laurel then.
+- **The laurel** (`seasonMark`, `.px-laurel`): a gold wreath with a red ribbon on a 12-pixel grid at 3x - 36px, the
+  hourglass's and the envelope's scale (U6: it had stood at 2.5x, its pixels blurred) - named "Season" (W11/U9: its name
+  had listed the seats and the festival, which the window may not hold); at the end of the row of marks (`anchorSeason`:
+  the hourglass beside the profile, the envelope beside it, the laurel beside the last of them - a missing mark skipped),
+  placed again on every resize, its listeners and observer let go with the face (P13).
+- **`/season`** (and `/seasons`, `net/chatCommands.js` pauseCommandOf beside the mailbox's lines, HOST_COMMANDS and `/help`):
+  the window from the chat, on either skin (`ui/pauseDoor.js` opens the enhanced face for a `season` door - the classic
+  pause has no laurel) and wherever the player stands (`worldModes.js` openPauseAt). AUDIT R6/W12: the chat stands only
+  online and signed in, so its one refusal is the relay's clock not heard yet - said so (`pauseCommandRefusal`), never
+  "connect and sign in" to a player who has.
+- **The face's laws, kept**: its own scrim (the sixth `closeOnOutsideTap`), the laurel inside the pause face's, the face
+  under the window inert (and the laurel under the timers', the mailbox's and the account windows - P4), Escape closing
+  it before the face resumes, the focus into the window and back to the laurel, its tick stopped on every rebuild and
+  unmount and by itself once out of the page, a visit's window. AUDIT S4: a window whose mark is gone (the clock lost,
+  the box gone) is closed - the hourglass's and the mailbox's too - never kept to come back over the face when the mark
+  returns. U1: the window scrims over the pause face (the timers', the mailbox's, the season's) close on the press and
+  swallow that tap's own click (`enhancedOverlays.js` swallowTapClick) - a touch's or a pad's release had landed on the
+  face drawn under it (the game resumed, a tab turned, the hourglass or the account window opened). S3: every door that
+  leaves the face goes through the menu's one `handoff`, its handler read before the handoff unmounts the face - a door
+  that opened nothing had asked its resume of the emptied handler, leaving the pointer free under a running game (AUDIT
+  27h A4's law, at the sheet's, the hourglass's, the Fleet's, the Captain's, a Family page's, the Guide's and the
+  season's doors). U4: on a portrait phone the pause window stands clear of the four marks (its tabs' tops had been under
+  them below about 686px tall); U5: the windows on the hourglass's stage clear the controller's prompt bar. The FOUR
+  HOSTS: `scenes/world.js` (the reads, the street's bag and the modes host, `/season`), `scenes/worldModes.js` (forwarded
+  to a building's and a dungeon's pause), `scenes/dungeonContext.js` (forwarded) wired; `scenes/exterior.js` FLAGGED as
+  not applicable - the offline exterior door has no clock and no hourglass, so no laurel.
+- **Seen in Chromium** over the real pause face (`openPauseFlow` at `season`) by the author at 1280x800, a 390x844 phone and
+  a 900x480 short screen, and by the audit's UI lane at nine sizes, rotations, every Plus theme and the Grimoire dress,
+  the keyboard, a pad and a screen reader's names (Audit-Season-Book.md).
+- Pins: `test/ui/enhanced/seasonbook.test.js` (the law, the reads, the window, the words, the wiring, the sheet) and
+  `test/ui/enhanced/seasonbook_face.test.js` (the laurel on the real pause face mounted: opened and closed every way, the
+  focus, the flags, the tap's release, the handoff); mutants `tools/mutants/seasonbook.json`. PIN MOVED:
+  `test/ui/enhanced/outsideTap.test.js` (six scrims, the laurel inside the face, the swallow), `test/net/serverpost_client.test.js`
+  and `test/net/private_reports_client.test.js` (the laurel in the inert lists; the chat's door through pauseCommandOf),
+  and the handoff's (`audit27h`, `egz_ends_board`, `levelNotice`, `enhancedPause`, `escbook`, `captlog`, `holdings`).
+
+## TIMERS2 - THE TIMERS IN GROUPS (2026-10-22, the owner: "organize the timer system in the pause menu")
+
+TIMERS1's window drew one list, live rows first and then the rest by time, under two heads - Now and Coming up. On a
+busy evening that was fifteen rows and more (the gate and the next, the serpent, the Abyss Dungeon, the Starfall, an
+Elite Breach and the Spire's season, the player's region's raids and one row for the rest, the seat week, the battles,
+the two days) with a gate beside a raid beside the UTC day: a player looking for the next raid read them all.
+
+**Where things stand.** Each row stands under what it is (`systems/eventTimers.js` `TIMER_GROUPS`, `timerGroupOf`):
+
+| Group (its head) | Its button | The rows |
+|---|---|---|
+| World events | World | the gate and the next, the sea serpent and the next, an Abyss Dungeon, the Starfall's stars |
+| The Battlespire | Spire | an Elite Breach, the Spire's season |
+| Town raids | Raids | the player's region's raids, the rest's one row |
+| Seats and battles | Seats | the Reckoning, the Turning, a Season's end, the week's battles, the Royal Tourney |
+| Resets | Resets | the new bounty hunts and raids, the daily reset |
+
+`timerGroups` lays the rows out in that order, each group's rows in the list's own order (live first, soonest end
+first, then soonest start), and says how many of each are under way; a group with no row is not drawn.
+
+**The window** (`ui/enhanced/enhancedTimers.js` `timersWindow`):
+- a head a group, its title at the left and, at the right in the live countdowns' green, how many of its rows are
+  under way (*1 under way*);
+- a row under way says **Now** above its countdown - the Now and Coming up heads are gone, and the live row keeps its
+  tint and its green count;
+- a BAR over the list - All and a button for each group with a row, each its count, a green mark under it where one is
+  under way (said in its name too). A press shows that group alone (the button pressed, `aria-pressed`), and the choice
+  is kept while the game runs: the next window opens on it. A group that empties (its last raid over) hands the list
+  back to All, and All is the choice then, so the window never shows nothing; with no clock there is no bar, and the
+  empty list says why (AUDIT TIMERS1 UI-8). The buttons are written in place - only a group coming or going builds them
+  again, and the focus on a button that went is All's;
+- the window stands at ONE HEIGHT and its list alone scrolls under the head and the bar - a press moves nothing, and
+  another group starts at its top; on a phone the buttons are a thumb's 44px; a re-render of the pause face keeps the
+  focus where it was (AUDIT TIMERS2, `01-Overview/audits/Audit-Herald-Cards-Timers2.md`);
+- the Elite Breach's rows wear its arch's gold (`ui/eliteGates/egArchMapMark.js` `EG_ARCH_RING_CSS`) - they had drawn
+  in no colour, `elite` missing from `TIMER_KINDS`; the gate's red is its herald's family's (`net/herald/heraldCard.js`
+  `heraldCss`), the colour its Discord card wears (`11-Multiplayer/World-Bosses.md`, HERALD-CARDS);
+- on a phone (560px and under) a row's door (the Elite rows' Boards) stands on a line of its own - beside the clock it
+  had squeezed the row's words to a word a line.
+
+The groups' words go through the text core (`timers.group.*`, `timers.chip.*`, `timers.now`, `timers.underWay`,
+`timers.groups`, and - AUDIT TIMERS2 L8 - the clock's `timers.ends` and `timers.at`), drafted in-session for the
+thirteen whole languages (`tools/l10nInSession.mjs`, recorded as the machine's; the Battlespire's head in each
+language's own name for it, as the questlines say it); the window's title, lead and rows are as TIMERS1 left them.
+
+**Seen in a browser** (Chromium, the real pause face - `mountEnhancedMenu` in pause mode - with a fixture source, no
+ARENA2), as AUDIT TIMERS2 measured it after its fixes: at 1280x800 the bar is one line, and a press on Raids leaves the
+window (560x680 at y60) and the button (y162) where they were - a second press there does not close it; the buttons
+stand still as a raid goes live and as a tenth raid arrives; thirty raids scroll 2,495px under a bar that does not move.
+At 390x844 (a touch screen) the bar is two lines of 44px buttons, the Boards 46px on lines of their own, nothing scrolls
+sideways; at 844x390 the bar is one line and the list 216px. Not seen: the live pause face online. Pins:
+`test/ui/enhanced/timers2.test.js` (8: the law, the layout, the window, the bar, the sheet, and the audit's three);
+`test/ui/enhanced/timers1.test.js`'s window pin moved to the groups; `tools/mutants/timers2.json` (28), all dead.
+
+## RPT1026-MISC - the private reports' screens (2026-10-26)
+
+The batch's other screen faults, each read to its root in a private report and pinned by a test that fails without it
+(mutants in `tools/mutants/rpt1026_misc.json`, all dead):
+
+- **TAB-REPEAT** - a held Tab put the dial away. The overlay stack's Tab listener (`ui/enhanced/enhancedOverlays.js`
+  onTab) closed the top overlay on the key's auto-repeat as on a press; a repeat is ignored now, as the listener's own
+  comment said it was. `test/ui/enhanced/rpt1026_misc_tab.test.js` (1).
+- **TOAST-STALL** - HUD lines stuck on screen when several came close together, on a phone for many seconds. The HUD
+  text keeps PopupText's one timer, the FRONT row's; a repeat of the BACK row refreshed it, so a line said
+  again and again held every row up for as long as it repeated. A repeat behind other rows is dropped now - its row is
+  on screen, with its own dwell to come (`ui/hud/hudText.js` add). `test/ui/hud/rpt1026_misc_toasts.test.js` (2).
+- **CONFIRM-SHEET** - Remove data on the Morrowind card seemed to do nothing, and said nothing. Every
+  destructive press on the Settings screen asks first (the Morrowind card's Remove data, a pack's remove, All off, Reset
+  everything, Restore defaults), its question a card in the detail pane - and in the pause menu's Settings, and on a
+  narrow or touch screen, that pane is a sheet below the screen until opened. The ask set the card without opening it.
+  It opens the sheet now, and shuts it again when answered if it opened it (`ui/enhanced/enhancedMenu.js` ask,
+  `answered`). `test/ui/enhanced/rpt1026_misc_confirm.test.js` (1).
+- **TOUCH-FIELD** - on a phone the Bank's amount could not be typed, while the map's name field could. The
+  enhanced port draws a classic window's typed field as words (`ui/enhanced/enhancedPort.js` 'field'); the touch layer's
+  own entry (TI2's "abc") is opened by a press on a live field now, with the number pad for an amount
+  (`ui/touch/touch.js` openTouchEntry; the bank's field marked `numeric` in `enhancedPorts.js`).
+  `test/ui/enhanced/rpt1026_misc_field.test.js` (1). AUDIT RPT1026 L1: the entry was the layer's child, under every DOM
+  window (the layer is one stacking context at z-index 5, the port's host 13), so the amount typed stood hidden behind the
+  Bank until Enter; it is the page's own now, at `TOUCH_ENTRY_Z` (39) over the window that raised it
+  (`test/ui/audit_rpt1026_l.test.js`).
+- **TALK-SIDEWAYS** - on a phone the talk panel ran off the screen and could not be used.
+  Measured in Chromium at 844 x 390 before the fix: the panel 52dvh, 203 pixels, its topic list 12 pixels tall and drawn
+  under the foot; at 740 x 360 the category buttons under it. On a screen 500 pixels high or less the panel stands the
+  height less a margin and keeps its two columns (`ui/enhanced/enhancedStyle.js`, after the talk's phone rule): the list
+  166 pixels at 844 x 390, upright and desktop untouched. `test/ui/enhanced/rpt1026_misc_talk.test.js` (1, the sheet's
+  cascade read at each size). AUDIT RPT1026 L2: and narrower than 720 pixels (640 x 360, 667 x 375, 568 x 320) the phone
+  rule had still stacked the head and the foot, the list 66 pixels at 640 x 360 and 26 at 568 x 320, Work cut off; on a
+  short screen the head and the foot are one row each and the categories shrink to their strip - the list 152, 167 and
+  112 pixels (`test/ui/audit_rpt1026_l.test.js`).
+
+## ARMOR-TYPE - A PIECE OF ARMOUR SAYS ITS FAMILY (2026-10-26, a player: "can we add an info to every item what TYPE of armor it is (chain leather or plate)")
+
+A plate piece's name says its metal ("Iron Cuirass"), never the word "plate", and below Rare the metal is withheld - so
+nothing on the card said whether a piece was leather, chain or plate, the family a class's armour restriction refuses by.
+Now every piece of armour, a shield too, says Leather, Chain or Plate (`systems/item/itemInfo.js` itemArmorTypeLine):
+the enhanced card's **Type** row under **Armour** (`enhancedInventory.js` itemLine, armorType), the quick-loot and trader
+stat rows (itemStatRows), both trade windows' info line, and the questline reward card (`qlJournal.js` pieceStatWords,
+its words in `ql.journal.pieceLeather`, `pieceChain`, `piecePlate`). NO NEW LAW: it reads the class's NativeMaterialValue
+(`rriItems.js` rriNativeMaterialValue) `>> 8`, the equip gate's own read (DaggerfallInventoryWindow.cs:1352), so a
+Roleplay & Realism mail hauberk says Chain and a brigandine or fur jerkin Leather, as the gate treats them. The classic
+popup is DFU's records and does not change (THE NATIVE-WINDOW RULE). Pins: `test/systems/item/armortype_info.test.js` (5:
+every material, the shield and the rest, the gate agreeing, the stat rows' order, the card model and the reward card);
+`tools/mutants/armorlean.json` ARMOR-TYPE-no-row. The same update's loot and sale halves are `06-Systems/Loot-Rarity.md`
+ARMOR-LEAN.

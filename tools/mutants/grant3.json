@@ -152,8 +152,8 @@
   {
     "name": "GRANT3-species-unchecked",
     "file": "src/scenes/grantHost.js",
-    "old": "      if (set && !set.has(r.t)) return 'dice';",
-    "new": "      if (set && false) return 'dice';",
+    "old": "    if (set && !set.has(r.t)) return 'dice';",
+    "new": "    if (set && false) return 'dice';",
     "why": "a species its pixel's tables do not hold stands untallied",
     "tests": [
       "test/scenes/grant3_pool.test.js"
@@ -162,12 +162,13 @@
   {
     "name": "GRANT3-reader-sender-unchecked",
     "file": "src/scenes/grantHost.js",
-    "old": "grantRefusal(v.gr, { from, cell: cell ?? session()?.room ?? '',",
-    "new": "grantRefusal(v.gr, { from: v.gr.o, cell: cell ?? session()?.room ?? '',",
+    "old": "grantRefusal(v.gr, { from, cell: at,",
+    "new": "grantRefusal(v.gr, { from: v.gr.o, cell: at,",
     "why": "a grant under another's name believed",
     "tests": [
       "test/scenes/grant3_pool.test.js"
-    ]
+    ],
+    "note": "COST-2 3a (re-aimed by content: the cell-scoped law reads the socket's cover)."
   },
   {
     "name": "GRANT3-tally-never-handed",
@@ -212,8 +213,8 @@
   {
     "name": "GRANT3-level-law-off",
     "file": "src/scenes/grantHost.js",
-    "old": "    if (LEVELLED_KINDS.has(gr.k) && isClassEnemyId(r.t) && gr.l > 0 && Number.isInteger(r.l) && r.l > gr.l + GRANT_LEVEL_SLACK) return 'dice';",
-    "new": "    void GRANT_LEVEL_SLACK;",
+    "old": "  if (LEVELLED_KINDS.has(gr.k) && isClassEnemyId(r.t) && gr.l > 0 && Number.isInteger(r.l) && r.l > gr.l + GRANT_LEVEL_SLACK) return 'dice';",
+    "new": "  void GRANT_LEVEL_SLACK;",
     "why": "a class foe over the owner's level stands",
     "tests": [
       "test/scenes/grant3_pool.test.js"

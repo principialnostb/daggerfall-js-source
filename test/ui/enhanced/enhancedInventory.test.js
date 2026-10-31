@@ -296,8 +296,10 @@ test('U53: a broken item says so, and the WINDOW refuses it', () => {
   // equipItem's, because ItemEquipTable.cs:94-154 has no condition
   // test. This assertion used to read `equipItem(e, dagger) === null`,
   // pinning the gate one seam too low.
+  // PIN MOVED (HAND-DROP, FIELD BUGS 2026-10-29): wear takes the hand a drop on a hand's panel names - the refusal is
+  // the same door's, so a broken piece dropped on a hand is refused in the same words
   assert.match(read('src/ui/enhanced/enhancedInventory.js'),
-    /function wear\(item\) \{[\s\S]*?if \(isBrokenItem\(item\)\) \{ notice = `\$\{named\} is broken and cannot be worn\.`; return render\(\); \}/);   // RF6: `named` is itemLongName's
+    /function wear\(item, hand = null\) \{[\s\S]*?if \(isBrokenItem\(item\)\) \{ notice = `\$\{named\} is broken and cannot be worn\.`; return render\(\); \}/);   // RF6: `named` is itemLongName's
   assert.notEqual(equipItem(e, dagger), null, 'the TABLE below it does not refuse - ItemEquipTable.cs:94-154');
   assert.equal(model(e).worn.size, 1, 'so the slot fills, which is what PlayerEntity.cs:959 relies on');
 });
@@ -426,7 +428,7 @@ test('U53: Escape and F6 close it, and F6 is claimed', () => {
 test('U53: every listener has an owner', () => {
   const src = read('src/ui/enhanced/enhancedInventory.js');
   const unmount = src.slice(src.indexOf('    unmount() {'));
-  assert.match(unmount, /removeEventListener\('keydown', keyHandler, \{ capture: true \}\)/);
+  assert.match(unmount, /unlistenKeys\?\.\(\);/);   // COVERED-KEYS: the one key door's unlisten
   assert.match(unmount, /removeEventListener\('pointerlockchange', lockHandler\)/);
 });
 
@@ -904,7 +906,8 @@ test('U59: the doll is the COMPOSITOR\'s, and the schematic is the fallback', ()
   assert.match(fp, /wornmap/);
   // and the compositor is asked to recompose when the kit changes, or
   // the avatar shows yesterday's armour
-  for (const fn of ['function wear(item)', 'function takeOff(slot)']) {
+  // PIN MOVED (HAND-DROP, FIELD BUGS 2026-10-29): wear takes the hand a drop on a hand's panel names
+  for (const fn of ['function wear(item, hand = null)', 'function takeOff(slot)']) {
     const from = src.indexOf(fn);
     assert.ok(from > 0, `${fn} is gone`);
     const body = src.slice(from, src.indexOf('\nfunction ', from + fn.length));
@@ -1186,7 +1189,9 @@ test('PX21c / WORLD-HOVER: the plaque names a pile without opening it, on the ta
   // brace and the gate would have to contain `{` or `;`.
   // DISC22-C: the skin is asked through BOTH faces - the DOM plaque's gate, then the classic panel's - and a page
   // with neither takes the plaque down, still before the ray and the list
-  assert.match(hov, /export function worldHoverFrame\(\{[\s\S]{0,200}\}\) \{\n(?:\s*\/\/[^\n]*\n)*  const dom = worldPlaqueOn\(\);\n  const classic = !dom && classicPlaqueOn\(\);\n  if \(!dom && !classic\) \{ hideWorldPlaque\(\); return null; \}/,
+  // PIN MOVED (RPT1026-WORLD DECOR-VERBS): and a decorator that browses where neither face is drawn has its verbs folded
+  // (src/ui/worldPlaque.js `verbs`) - a page with none of the three still takes the plaque down before the ray
+  assert.match(hov, /export function worldHoverFrame\(\{[\s\S]{0,200}\}\) \{\n(?:\s*\/\/[^\n]*\n)*  const dom = worldPlaqueOn\(\);\n  const classic = !dom && classicPlaqueOn\(\);\n(?:\s*\/\/[^\n]*\n)*  const verbs = !dom && !classic && plaqueVerbsWanted\(\);\n  if \(!dom && !classic && !verbs\) \{ hideWorldPlaque\(\); return null; \}/,
     'the seam asks the skin as its first act - before the ray, before the list - and takes the plaque down when the answer is no');
   const show = hov.slice(hov.indexOf('export function showWorldPlaque'));
   assert.ok(show.indexOf('if (!worldPlaqueOn()) return;') < show.indexOf('const n = ensure();'),
@@ -1575,13 +1580,14 @@ test('INV1: a drag equips through the one act, and never crosses a side', () => 
   // call, arms and all - the lit torch goes out when it leaves the pack
   // (AUDIT 26 F157) and a map is an INTERCEPTION, not a transfer (F156).
   const stow = code.slice(code.indexOf('function stow(item)'), code.indexOf('function take(item)'));
-  assert.match(stow, /if \(plan\.map\) \{ use\(item, deps\.items\?\.\(\) \?\? \[\]\); return; \}/, 'the map reveals rather than landing on the floor');
+  // PIN MOVED (AUDIT RPT1026 B5): but never over a chest that settles its own pieces, where the map moves as a piece
+  assert.match(stow, /if \(plan\.map && !settlesOwnPieces\(deps\)\) \{ use\(item, deps\.items\?\.\(\) \?\? \[\]\); return; \}/, 'the map reveals rather than landing on the floor');
   // PIN MOVED (FIELD BUGS 2026-10-16b STOLEN-GOODS): and whether it is put back into its owner's keeping (`putBack`;
   // STOLEN-GOODS AUDIT S1: the keeping itself, `returnTo`)
   assert.match(stow, /applyTransfer\(item, \{ \.\.\.plan, amount \}, deps\.items\?\.\(\) \?\? \[\], to, \{ entity: deps\.entity, fromLocal: true, returnTo: theftTarget\(deps, sessionState\(\)\) \}\);/,
     'the entity and the provenance ride, or clearLightSourceOnLeave is a no-op and a dropped torch keeps lighting the player');
   const take = code.slice(code.indexOf('function take(item)'), code.indexOf('function take(item)') + 1400);
-  assert.match(take, /if \(plan\.map\) \{ use\(item, remoteTarget\(deps, sessionState\(\)\)\); return; \}/, 'F156: either direction');
+  assert.match(take, /if \(plan\.map && !settlesOwnPieces\(deps\)\) \{ use\(item, remoteTarget\(deps, sessionState\(\)\)\); return; \}/, 'F156: either direction');
 });
 
 // ── AUDIT INV2 (2026-09-15, Mac: "I want it to be perfect") ──────

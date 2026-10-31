@@ -53,7 +53,9 @@ on:
       - "src/net/identityToken.js"
       - "src/net/sessionPassLaw.js"
       - "src/net/staffTeleport.js"
+      - "src/net/gate/gateCourts.js"
       - "src/net/relayCfg.js"
+      - "src/net/staffCommands.js"
       - "src/net/hubShards.js"
       - "src/net/privateInterior.js"
       - "src/net/instanceRoom.js"
@@ -67,6 +69,7 @@ on:
       - "src/net/safety/chatFeed.js"
       - "src/net/grantMeasure.js"
       - "src/net/grantLaw.js"
+      - "src/net/cellTree.js"
       - "src/net/safety/safetyLaw.js"
       - "src/net/safety/conduct.js"
       - "src/net/playClock.js"
@@ -75,17 +78,26 @@ on:
       - "src/systems/gems.js"
       - "src/systems/guild/guildFactions.js"
       - "src/net/homeLaw.js"
+      - "src/net/homeScene.js"
       - "src/net/decorLaw.js"
+      - "src/net/yardCellLaw.js"
       - "src/world/npcFlatArchives.js"
       - "src/net/homeVoteLaw.js"
       - "src/net/guild/guildLaw.js"
       - "src/net/repairLaw.js"
+      - "src/systems/crimeGuilds.js"
       - "src/net/hallLaw.js"
+      - "src/net/castleLaw.js"
+      - "src/net/domainLaw.js"
       - "src/net/heraldryLaw.js"
       - "src/net/townSeatLaw.js"
       - "src/net/townEconLaw.js"
+      - "src/net/regionClockLaw.js"
+      - "src/net/homeListingLaw.js"
+      - "src/net/homeListings.json"
       - "src/net/tideLaw.js"
       - "src/net/fortLaw.js"
+      - "src/net/seatGiftLaw.js"
       - "src/net/watchReceipt.js"
       - "src/net/marksLaw.js"
       - "src/net/motherlodeLaw.js"
@@ -94,7 +106,11 @@ on:
       - "src/net/firmament/firmamentLaw.js"
       - "src/net/firmament/firmamentTree.js"
       - "src/net/questlineClaims.js"
+      - "src/net/huntLaw.js"
+      - "src/systems/bounty/bountyBoard.js"
+      - "src/net/trophyLaw.js"
       - "src/net/nodeLaw.js"
+      - "src/net/provinceNodes.js"
       - "src/world/ethericSea.js"
       - "src/world/jungle/banthaArea.js"
       - "src/net/skyLaw.js"
@@ -102,16 +118,19 @@ on:
       - "src/net/busyLaw.js"
       - "src/net/recipeLaw.js"
       - "src/net/productRecord.js"
+      - "src/net/masterLaw.js"
       - "src/net/marketLaw.js"
       - "src/net/vendorLaw.js"
       - "src/net/patronLaw.js"
       - "src/net/writLaw.js"
+      - "src/net/craftWritLaw.js"
       - "src/net/gate/gateLaw.js"
       - "src/formats/mapsTables.js"
       - "src/systems/foraging/foragingCore.js"
       - "src/systems/gameDate.js"
       - "src/systems/textManager.js"
       - "src/net/festivalLaw.js"
+      - "src/net/frontLaw.js"
       - "src/systems/festival/festivalRows.js"
       - "src/systems/holidayTables.js"
       - "src/systems/localizedBook.js"
@@ -122,6 +141,7 @@ on:
       - "src/systems/quest/questPatches.js"
       - "src/systems/item/itemTemplatesData.js"
       - "src/net/raid/raidLaw.js"
+      - "src/net/staffEvent/staffEventLaw.js"
       - "src/net/gate/gateReceipt.js"
       - "src/net/bossBody.js"
       - "src/net/legalLaw.js"
@@ -130,17 +150,30 @@ on:
       - "src/net/starfall/starReceipt.js"
       - "src/net/starfall/starfallLaw.js"
       - "src/net/serpent/serpentHoardLaw.js"
+      - "src/net/dragon/dragonReceipt.js"
+      - "src/systems/dragon/dragonMount.js"
+      - "src/characters/dwarvenDragonId.js"
       - "src/net/arena/arenaReceipt.js"
       - "src/net/arena/arenaLaw.js"
       - "src/net/wire.js"
       - "src/net/eliteGates/egShape.js"
       - "src/net/siege/siegeRef.js"
+      - "src/net/siege/refereeHealthShare.js"
+      - "src/net/wild/pvpVitals.js"
       - "src/net/siege/siegeReceipt.js"
       - "src/net/duel/duelReceipt.js"
       - "src/net/wild/wildReceipt.js"
       - "src/net/wild/wildLaw.js"
+      - "src/net/sea/seaBountyLaw.js"
+      - "src/net/sea/seaSeasonLaw.js"
+      - "src/net/sea/seaPrizeLaw.js"
+      - "src/net/crewSignLaw.js"
       - "src/systems/wild/wildDropLaw.js"
+      - "src/systems/wild/wildInsureLaw.js"
+      - "src/systems/wild/pvpReward.js"
+      - "src/systems/wild/wildStoreLock.js"
       - "src/systems/wild/wildLeaf.js"
+      - "src/systems/wild/villainLaw.js"
       - "src/systems/item/itemKinds.js"
       - "src/net/gate/gateMods.js"
       - "src/net/insignia.js"
@@ -159,12 +192,16 @@ on:
       - "src/systems/mathf.js"
       - "src/net/card/cardWorthLaw.js"
       - "src/net/realm/realmTradeLaw.js"
+      - "src/net/appearanceLaw.js"
       - "src/net/bagLaw.js"
       - "src/net/guild/guildVaultLaw.js"
+      - "src/net/guild/guildShopLaw.js"
+      - "src/net/guild/guildLogoLaw.js"
       - "src/net/canon.js"
       - "src/net/realm/realmGoldLaw.js"
       - "src/net/realm/realmSaveCodec.js"
       - "src/world/mat4.js"
+      - "src/characters/handWrapsIds.js"
       - "src/characters/nameGen.json"
       - "src/characters/dyes.js"
       - "src/net/alchemyLaw.js"
@@ -172,6 +209,8 @@ on:
       - "src/systems/potionRecipes.js"
       - "src/characters/itemTemplates.json"
       - "src/net/superDungeon/sdReceipt.js"
+      - "src/net/ketch/ketchReceipt.js"
+      - "src/net/ketch/ketchLaw.js"
       - "src/net/eliteGates/egReceipt.js"
       - "src/net/eliteGates/egFeats.js"
       - "src/net/eliteGates/egLaw.js"
@@ -199,7 +238,20 @@ on:
       - "src/net/eliteGates/egStartLaw.js"
       - "src/net/superDungeon/sdMarks.js"
       - "src/net/postLaw.js"
+      - "src/net/shopLaw.js"
+      - "src/net/armoryLaw.js"
+      - "src/net/effectLaw.js"
+      - "src/net/battlePassLaw.js"
+      - "src/net/aurumLaw.js"
+      - "src/net/aurumCacheLaw.js"
+      - "src/net/giftLaw.js"
+      - "src/net/cacheProof.js"
+      - "src/net/lostLaw.js"
+      - "src/systems/superDungeon/sdSpoils.js"
+      - "src/systems/eliteGates/egSpoils.js"
+      - "src/systems/eliteGates/egLordArms.js"
       - "src/net/reportLaw.js"
+      - "src/net/hiddenSeen.js"
       - "src/systems/wind/wind.js"
       - "src/ai/blowShapes.js"
       - "src/ai/cover.js"
@@ -216,6 +268,8 @@ on:
       - "src/characters/nameHelper.js"
       - "src/characters/paperdoll/paperdoll.js"
       - "src/characters/paperdoll/paperdollArt.js"
+      - "src/characters/personNames.js"
+      - "src/characters/regionNames.js"
       - "src/characters/thunderlockIds.js"
       - "src/characters/weaponStates.js"
       - "src/characters/weapons.js"
@@ -246,6 +300,7 @@ on:
       - "src/player/classSkins.js"
       - "src/player/climbing.js"
       - "src/player/exteriorSurface.js"
+      - "src/player/groundRay.js"
       - "src/player/motor.js"
       - "src/player/moveScanner.js"
       - "src/player/parkour.js"
@@ -269,6 +324,10 @@ on:
       - "src/systems/effectBroker.js"
       - "src/systems/effects.js"
       - "src/systems/eliteGates/weirKeyRow.js"
+      - "src/systems/enemyExpansion/dexIds.js"
+      - "src/systems/enemyExpansion/dexTableText.js"
+      - "src/systems/enemyExpansion/mudexTableText.js"
+      - "src/systems/enemyExpansion/dexCsv.js"
       - "src/systems/enchanting.js"
       - "src/systems/enchantmentCatalogue.js"
       - "src/systems/enchantments.js"
@@ -296,12 +355,23 @@ on:
       - "src/systems/item/itemTemplates.js"
       - "src/systems/legacy/heirloom.js"
       - "src/systems/legacy/houseName.js"
+      - "src/systems/lockpick/lockpickRow.js"
       - "src/systems/legacy/legacyLaw.js"
+      - "src/systems/legacy/unionKinLaw.js"
       - "src/systems/livingWorld/keepsake.js"
+      - "src/systems/musicSheetRow.js"
+      - "src/systems/levelClimb.js"
+      - "src/systems/levelEven.js"
+      - "src/systems/levelCap.js"
+      - "src/systems/chargen.js"
+      - "src/systems/characterId.js"
+      - "src/systems/renownLayer.js"
       - "src/systems/livingWorld/seed.js"
       - "src/systems/loot/loot.js"
       - "src/systems/loot/lootDataTables.js"
+      - "src/systems/loot/lootLevelGate.js"
       - "src/systems/loot/lootRarity.js"
+      - "src/systems/loot/gemGrades.js"
       - "src/combat/technique/techniqueRoster.js"
       - "src/systems/masterSkills.js"
       - "src/systems/mentorMode.js"
@@ -316,6 +386,7 @@ on:
       - "src/systems/nearbyObjects.js"
       - "src/systems/online/onlineLane.js"
       - "src/systems/pageQuery.js"
+      - "src/systems/powerCeiling.js"
       - "src/systems/professions/profTemplates.js"
       - "src/systems/races.js"
       - "src/systems/racialLive.js"
@@ -331,10 +402,12 @@ on:
       - "src/systems/sigil/sigil.js"
       - "src/systems/sigil/sigilBroker.js"
       - "src/systems/sigil/sigilSets.js"
+      - "src/systems/sigil/setReach.js"
       - "src/systems/skillSoftcap.js"
       - "src/systems/skills.js"
       - "src/systems/soundClips.js"
       - "src/systems/specialAdvantages.js"
+      - "src/systems/spell/identifyRefund.js"
       - "src/systems/spell/spellPower.js"
       - "src/systems/spellcast.js"
       - "src/systems/spellcost.js"
@@ -347,8 +420,11 @@ on:
       - "src/systems/survival/needs.js"
       - "src/systems/survival/switch.js"
       - "src/systems/survival/temperature.js"
+      - "src/systems/handWraps.js"
+      - "src/systems/pistolet.js"
       - "src/systems/textureReplacement.js"
       - "src/systems/thunderlock.js"
+      - "src/systems/pass/resonantMaul.js"
       - "src/systems/timeScale.js"
       - "src/systems/transport.js"
       - "src/systems/travel/travelPace.js"
@@ -358,16 +434,20 @@ on:
       - "src/systems/walletItem.js"
       - "src/systems/upkeep/upkeepItemRows.js"
       - "src/systems/upkeep/upkeepTiers.js"
+      - "src/world/blockHash.js"
       - "src/world/buildingNames.js"
+      - "src/world/capitalLane.js"
       - "src/world/meshReader.js"
       - "src/world/perlin.js"
       - "src/world/puddleDry.js"
       - "src/world/puddleMask.js"
+      - "src/world/road/pathData.js"
       - "src/world/road/roadNetwork.js"
       - "src/world/spawnedDungeons.js"
       - "src/world/terrain/terrainSampler.js"
       - "src/world/terrain/terrainSurface.js"
       - "src/world/terrain/terrainTiles.js"
+      - "src/world/townShape.js"
       - "src/world/water/waterCorners.js"
       - "src/world/weather.js"
       - "src/systems/party/partyScale.js"
@@ -384,11 +464,14 @@ on:
       - "vendor/iliac-puddle-no-more/ItemTemplates.json"
       - ".github/workflows/account-deploy.yml"
       - "tools/discordModCommands.mjs"
+      - "tools/stripeMethods.mjs"
       - "tools/lib/isMain.mjs"
       - "src/systems/legacy/revived.js"
       - "src/poi/poiLaw.js"
       - "src/poi/poiMesh.js"
       - "src/poi/poiImage.js"
+      - "server/src/staffFeedLaw.js"
+      - "src/ui/touch/touchDevice.js"
   workflow_dispatch:
 
 permissions:
@@ -542,6 +625,50 @@ jobs:
             $WRANGLER r2 bucket create "$want"
           fi
 
+      # ═══ AUDIT B1 (SHADOW-FANG, 2026-09-26): AND THE RELAY GOES FIRST ══
+      #
+      # THE SERVICE SIGNS WHAT THE RELAY VERIFIES. identityToken.js is in
+      # both Workers, and a claim the RUNNING relay does not know - a new
+      # title or glyph - was refused whole by its claimsValid (`token
+      # claims`), which on the presence socket is terminal until the
+      # player changes room or reloads. This job and relay-deploy.yml
+      # start on the same push with nothing ordering them, and the last
+      # three paired deploys landed either way round. So this step waits
+      # until the relay's /health serves the version wire.js names (or a
+      # later one) - the relay carrying this push's vocabulary - and the
+      # job deploys NOTHING if it never does: the old service keeps
+      # minting the old vocabulary, which every relay admits. A push that
+      # changed no relay behaviour finds it served already: one request.
+      # The relay's address is the client's own (online.js
+      # DEFAULT_SERVER), never typed here.
+      # AUDIT STOREFRONT lane 3 F1 (2026-10-31): AND BEFORE THE MIGRATIONS. A migration
+      # can write what players read (0202's letter: "500 Aurum and the
+      # Crystal Spurs are on your account now"), and this wait can last
+      # five and a half hours. Waited here, the old service shows that
+      # letter for the minute the migrations and the deploy take, never
+      # for the wait; a relay that never comes migrates nothing.
+      - name: Wait for the relay to serve this push's version
+        run: |
+          set -euo pipefail
+          want=$(grep -oP "^export const RELAY_VERSION = '\K[^']+" src/net/wire.js)
+          host=$(grep -oP "^export const DEFAULT_SERVER = 'wss://\K[^'/]+" src/net/online.js)
+          test -n "$want" || { echo "::error::could not read RELAY_VERSION from src/net/wire.js"; exit 1; }
+          test -n "$host" || { echo "::error::could not read DEFAULT_SERVER from src/net/online.js"; exit 1; }
+          n() { printf '%s' "$1" | grep -oE '[0-9]+$' || echo -1; }
+          # SEAT2a part three (Seats-Arc 17): the relay's deploy now waits out a siege's blackout, so this waits to
+          # outlast it - five and a half hours (GitHub's job ceiling is six)
+          for i in $(seq 1 1000); do
+            got=$(curl -fsS --max-time 15 "https://$host/health" | sed -n 's/.*"version":"\([^"]*\)".*/\1/p' || true)
+            if [ "$got" = "$want" ] || { [ -n "$got" ] && [ "$(n "$got")" -ge "$(n "$want")" ]; }; then
+              echo "the relay serves ${got} - the service may sign what it verifies"
+              exit 0
+            fi
+            echo "the relay serves '${got:-unreachable}', not $want yet - waiting (${i}/1000)"
+            sleep 20
+          done
+          echo "::error::the relay never came to serve $want in five and a half hours - not deploying a service that may sign what the live relay refuses (dispatch relay-deploy.yml, then re-run this)"
+          exit 1
+
       # ── 2. THE MIGRATIONS ─────────────────────────────────────────
       #
       # `migrations apply` keeps a `d1_migrations` table in the database
@@ -658,45 +785,7 @@ jobs:
       # test/server/accountworker.test.js and this is the moment it is for.
       # `secret put` redeploys the Worker with the binding, so the
       # window is seconds long and nothing is using the service yet.
-      #
-      # ═══ AUDIT B1 (SHADOW-FANG, 2026-09-26): AND THE RELAY GOES FIRST ══
-      #
-      # THE SERVICE SIGNS WHAT THE RELAY VERIFIES. identityToken.js is in
-      # both Workers, and a claim the RUNNING relay does not know - a new
-      # title or glyph - was refused whole by its claimsValid (`token
-      # claims`), which on the presence socket is terminal until the
-      # player changes room or reloads. This job and relay-deploy.yml
-      # start on the same push with nothing ordering them, and the last
-      # three paired deploys landed either way round. So this step waits
-      # until the relay's /health serves the version wire.js names (or a
-      # later one) - the relay carrying this push's vocabulary - and the
-      # job deploys NOTHING if it never does: the old service keeps
-      # minting the old vocabulary, which every relay admits. A push that
-      # changed no relay behaviour finds it served already: one request.
-      # The relay's address is the client's own (online.js
-      # DEFAULT_SERVER), never typed here.
-      - name: Wait for the relay to serve this push's version
-        run: |
-          set -euo pipefail
-          want=$(grep -oP "^export const RELAY_VERSION = '\K[^']+" src/net/wire.js)
-          host=$(grep -oP "^export const DEFAULT_SERVER = 'wss://\K[^'/]+" src/net/online.js)
-          test -n "$want" || { echo "::error::could not read RELAY_VERSION from src/net/wire.js"; exit 1; }
-          test -n "$host" || { echo "::error::could not read DEFAULT_SERVER from src/net/online.js"; exit 1; }
-          n() { printf '%s' "$1" | grep -oE '[0-9]+$' || echo -1; }
-          # SEAT2a part three (Seats-Arc 17): the relay's deploy now waits out a siege's blackout, so this waits to
-          # outlast it - five and a half hours (GitHub's job ceiling is six)
-          for i in $(seq 1 1000); do
-            got=$(curl -fsS --max-time 15 "https://$host/health" | sed -n 's/.*"version":"\([^"]*\)".*/\1/p' || true)
-            if [ "$got" = "$want" ] || { [ -n "$got" ] && [ "$(n "$got")" -ge "$(n "$want")" ]; }; then
-              echo "the relay serves ${got} - the service may sign what it verifies"
-              exit 0
-            fi
-            echo "the relay serves '${got:-unreachable}', not $want yet - waiting (${i}/1000)"
-            sleep 20
-          done
-          echo "::error::the relay never came to serve $want in five and a half hours - not deploying a service that may sign what the live relay refuses (dispatch relay-deploy.yml, then re-run this)"
-          exit 1
-
+      # (AUDIT B1's wait for the relay stands before the migrations, above.)
       - name: Deploy
         id: deploy
         working-directory: server-account
@@ -901,6 +990,59 @@ jobs:
             echo "- the Patreon client's redirect URI: \`$base/v1/patreon/callback\`"
             echo "- the Patreon webhook's URL: \`$base/v1/patreon/webhook\`"
           } >> "$GITHUB_STEP_SUMMARY"
+
+      # ── 4d. THE SHOP'S TWO STRIPE SECRETS, WHERE THE REPOSITORY HAS THEM ──
+      #
+      # SHOP (bible/06-Systems/Shop.md): Stripe takes the money on its own page, and the service needs the two things only
+      # Stripe and the owner hold - the API's secret key (to open a checkout) and the webhook endpoint's signing secret
+      # (to believe Stripe's word on a payment). Put on EVERY deploy, Patreon's way, through one pipe so neither value is
+      # echoed. An unset one is not an error: the shop stays closed (shop.js shopOn). The summary names the webhook's URL.
+      - name: Put the Stripe secrets, where the repository has them
+        working-directory: server-account
+        env:
+          STRIPE_SECRET_KEY: ${{ secrets.STRIPE_SECRET_KEY }}
+          STRIPE_WEBHOOK_SECRET: ${{ secrets.STRIPE_WEBHOOK_SECRET }}
+        run: |
+          set -euo pipefail
+          base="${{ steps.deploy.outputs.base }}"
+          if [ -z "${STRIPE_SECRET_KEY}" ] && [ -z "${STRIPE_WEBHOOK_SECRET}" ]; then
+            echo "neither STRIPE_SECRET_KEY nor STRIPE_WEBHOOK_SECRET is set for this repository - the shop stays closed"
+          else
+            jq -n 'env | {STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET} | with_entries(select(.value != null and .value != ""))' | $WRANGLER secret bulk
+          fi
+          {
+            echo "### The shop"
+            echo ""
+            echo "- Stripe secret key: $([ -n "${STRIPE_SECRET_KEY}" ] && echo put || echo 'not set - the shop is closed')"
+            echo "- Stripe webhook secret: $([ -n "${STRIPE_WEBHOOK_SECRET}" ] && echo put || echo 'not set - the shop is closed')"
+            echo "- the Stripe webhook endpoint's URL: \`$base/v1/shop/webhook\` (events: checkout.session.completed, checkout.session.async_payment_succeeded, checkout.session.async_payment_failed, checkout.session.expired, charge.refunded, charge.dispute.created, charge.dispute.closed)"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      # SHOP-LOCAL (bible/06-Systems/Shop.md): THE SHOP'S WAYS TO PAY, SET BY THE DEPLOY - iDEAL, Wero, Bancontact, EPS,
+      # BLIK, Przelewy24, PayPal and Revolut Pay turned on in the Stripe account's default payment method configuration
+      # (tools/stripeMethods.mjs; the list is shop.js SHOP_PAY_METHODS), and the summary says which Stripe has active.
+      # Every deploy; a method already on is not asked again. Never red: cards are taken either way, so a refusal is a
+      # warning and its line. Skipped, said, with no key. The key is an env var, never an argument and never echoed.
+      - name: Turn on the shop's ways to pay, where the repository has the Stripe key
+        env:
+          STRIPE_SECRET_KEY: ${{ secrets.STRIPE_SECRET_KEY }}
+        run: |
+          set -uo pipefail
+          if [ -z "${STRIPE_SECRET_KEY}" ]; then
+            echo "STRIPE_SECRET_KEY is not set - the ways to pay are left as they are"
+            exit 0
+          fi
+          err="$RUNNER_TEMP/stripe-methods.err"
+          # AUDIT SHOP-LOCAL 1: the job's shell is bash -e, so a bare out=$(...) that fails ends the step red, its reason
+          # unsaid - read the exit in an if, as Discord's step does
+          if out=$(node tools/stripeMethods.mjs 2> "$err"); then code=0; else code=$?; fi
+          echo "$out"
+          { echo ""; echo "#### The ways to pay"; echo ""; echo "$out"; } >> "$GITHUB_STEP_SUMMARY"
+          if [ "$code" -ne 0 ]; then
+            cat "$err"
+            { echo ""; echo "**Not set:** $(head -c 300 "$err")"; } >> "$GITHUB_STEP_SUMMARY"
+            echo "::warning::the shop's ways to pay were not set - $(head -c 300 "$err")"
+          fi
 
       # SAFE5 + SAFE8 (bible/11-Multiplayer/Chat-Safety-Arc.md): THE CHAT'S SAFETY HAS TWO SECRETS - the reviewer's
       # ANTHROPIC_API_KEY (server-account/src/modAi.js) and the Discord bot's DISCORD_BOT_TOKEN (discord.js), each put
@@ -1215,7 +1357,8 @@ jobs:
           if [ "$code" != "200" ] || [ -z "$rc" ] || [ -z "$lease" ]; then
             echo "::error::the smoke's guest could not take a realm character ($code)"; cat /tmp/realm.json || true; exit 1
           fi
-          code=$(put /tmp/realmsave.json "$base/v1/realm/$rc/data" '{"level":1,"goldPieces":100,"items":[]}' "$lease")
+          # BIRTH-SKILL (#1484): a creation's skills, the least one gives (test/realmSeat.mjs freshSave) - else 'realm-birth'
+          code=$(put /tmp/realmsave.json "$base/v1/realm/$rc/data" '{"level":1,"goldPieces":100,"items":[],"career":{"primarySkills":[0,1,2],"majorSkills":[3,4,5],"minorSkills":[6,7,8,9,10,11]},"skills":[30,30,30,20,20,20,14,14,14,14,14,14,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3],"startingLevelUpSkillSum":144,"currentLevelUpSkillSum":144}' "$lease")
           echo "realm first save -> $code"
           if [ "$code" != "200" ] && ! { [ "$code" = "409" ] && grep -q '"seq":1' /tmp/realmsave.json; }; then
             echo "::error::the smoke's realm character's first save was refused ($code)"; cat /tmp/realmsave.json || true; exit 1
@@ -1277,7 +1420,7 @@ jobs:
             echo "::error::/v1/homes/decor/place did not refuse a guest as homes-need-account ($code)"; cat /tmp/place.json || true; exit 1
           fi
           # LEAN-READS (AUDIT LEAN-READS D7): THE KEPT BOARDS ARE LIVE, on D1
-          # itself - a town's yards (home_yards and home_yards_ver, read by anyone) and the
+          # itself - a town's yard cells (YARD-CELL: home_yard_cells and home_yard_cell_ver, read by anyone) and the
           # arena's board (arena_board_ver and arena_boards: read and
           # counted). A 500 is a migration that did not apply, or a read
           # D1 refuses that node:sqlite ran. AND KEPT (audit two, C3): a
@@ -1287,21 +1430,35 @@ jobs:
           # (`kept`): a board at its version, in a shape. A write landing
           # between the read and the ask is asked again, three times.
           kept() { timeout 60 $WRANGLER d1 execute "$DB_NAME" --remote --command "$1" --json 2>/dev/null | jq -r '.[0].results[0].n // 0' 2>/dev/null || echo 0; }
-          n=$(kept "SELECT (SELECT COUNT(*) FROM home_yards_ver) = 0 OR EXISTS (SELECT 1 FROM home_yards y JOIN home_yards_ver v ON v.map_id = y.map_id WHERE y.built = v.ver AND y.shape IS NOT NULL) AS n")
+          n=$(kept "SELECT (SELECT COUNT(*) FROM home_yard_cell_ver) = 0 OR EXISTS (SELECT 1 FROM home_yard_cells c JOIN home_yard_cell_ver v ON v.map_id = c.map_id AND v.cell = c.cell WHERE c.built = v.ver AND c.shape IS NOT NULL) AS n")
           if [ "$n" != "1" ]; then
-            echo "::error::no town's yards stand built in a shape on D1 - migration 0136's build did not run there"; exit 1
+            echo "::error::no town's yard cells stand built in a shape on D1 - migration 0190's build did not run there"; exit 1
           fi
-          # AUDIT LEAN-READS 2 D5: a town that stands yards, so the read answers off a row D1 itself built (a town with
+          # AUDIT LEAN-READS 2 D5: a cell that stands yards, so the read answers off a row D1 itself built (a cell with
           # none answers before it reads any)
-          map=$(kept "SELECT y.map_id AS n FROM home_yards y JOIN home_yards_ver v ON v.map_id = y.map_id WHERE y.built = v.ver AND y.rows IS NOT NULL AND y.rows != '[]' LIMIT 1")
+          map=$(kept "SELECT c.map_id AS n FROM home_yard_cells c JOIN home_yard_cell_ver v ON v.map_id = c.map_id AND v.cell = c.cell WHERE c.built = v.ver AND c.rows IS NOT NULL AND c.rows != '[]' LIMIT 1")
+          cell=$(kept "SELECT c.cell AS n FROM home_yard_cells c JOIN home_yard_cell_ver v ON v.map_id = c.map_id AND v.cell = c.cell WHERE c.map_id = ${map:-0} AND c.built = v.ver AND c.rows IS NOT NULL AND c.rows != '[]' LIMIT 1")
           [ "$map" -gt 0 ] 2>/dev/null || map=1
-          code=$(post /tmp/yards.json "$base/v1/homes/yards" "{\"secret\":\"$secret\",\"mapId\":$map}")
-          echo "homes/yards (town $map) -> $code"
-          if shed "$code" /v1/homes/yards; then :
-          elif [ "$code" != "200" ] || ! grep -q '"yards":\[' /tmp/yards.json; then
-            echo "::error::/v1/homes/yards did not answer a town's yards ($code)"; cat /tmp/yards.json || true; exit 1
+          [ "$cell" -ge 0 ] 2>/dev/null || cell=1
+          code=$(post /tmp/yards.json "$base/v1/homes/yards/cells" "{\"secret\":\"$secret\",\"mapId\":$map,\"cells\":[[$cell,0]]}")
+          echo "homes/yards/cells (town $map, cell $cell) -> $code"
+          if shed "$code" /v1/homes/yards/cells; then :
+          elif [ "$code" != "200" ] || ! grep -q '"cells":\[' /tmp/yards.json; then
+            echo "::error::/v1/homes/yards/cells did not answer a town's cells ($code)"; cat /tmp/yards.json || true; exit 1
           elif [ "$map" != "1" ] && ! grep -q '"yards":\[{' /tmp/yards.json; then
-            echo "::warning::town $map's built yards answered none - every piece the law's to hide?"
+            echo "::warning::town $map cell $cell's built yards answered none - every piece the law's to hide?"
+          fi
+          # YARD-CELL: the whole town's old route is refused - a build from before the cells is told by the build notice.
+          # An instance of the deploy before still answers it mid-rollout (HOME2's reason for the retry), so it is asked
+          # again until this deploy's answer comes, as a 404 is
+          for i in $(seq 1 7); do
+            code=$(post /tmp/oldyards.json "$base/v1/homes/yards" "{\"secret\":\"$secret\",\"mapId\":$map}")
+            [ "$code" = "410" ] && break
+            sleep 5
+          done
+          echo "homes/yards (the old route) -> $code"
+          if [ "$code" != "410" ] || ! grep -q '"client-update"' /tmp/oldyards.json; then
+            echo "::error::/v1/homes/yards did not refuse the old whole-town read as client-update ($code)"; cat /tmp/oldyards.json || true; exit 1
           fi
           code=$(post /tmp/arena.json "$base/v1/arena/board" "{\"secret\":\"$secret\"}")
           echo "arena/board -> $code"

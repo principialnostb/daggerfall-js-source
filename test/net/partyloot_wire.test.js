@@ -40,12 +40,13 @@ import { foeSeed, applyWireLook } from '../../src/characters/foeBodies.js';
 import { generateItems, addPileLootExtras, validLootList, LOOT_LIST_MAX, DUNGEON_LOOT_KEYS, LOOT_NEWER_TEXT } from '../../src/systems/loot/loot.js';
 import { rollLootRarity, pileSource, dungeonRarityTier, dungeonFamily, stampWonWeapons, LOOT_RARITY_KEY } from '../../src/systems/loot/lootRarity.js';
 import { peerHanded, neverPeerHanded, notCarried } from '../../src/systems/peerWord.js';
-import { addItem, stacksWith, isGoldPieces, addGoldPieces } from '../../src/systems/inventory.js';
+import { addItem, stacksWith, isGoldPieces, addGoldPieces, addCarryClaims, pieceKg } from '../../src/systems/inventory.js';
 import { isEquipped, unequipItem } from '../../src/systems/equip.js';
 import { planTake, applyTransfer } from '../../src/systems/item/itemTransfer.js';
 import { spawnEnemyLoot, wildLootAfter, rollRoomBonus } from '../../src/scenes/hostCombat.js';
 import { raiseEnemyDeath, corpseTextureOf } from '../../src/scenes/corpseMarker.js';
 import { rollCorpseKit, capFoeLoot } from '../../src/systems/foeLootCap.js';
+import { championTraitFor } from '../../src/systems/champions.js';   // PIN MOVED (CHAMP-BASE): the room block's import - a body's mark at the room's level
 import { makeEnemyEntity } from '../../src/characters/enemy/enemyEntity.js';
 import { ENEMY_BASICS } from '../../src/characters/enemy/enemyBasics.js';
 import { effectiveLevel } from '../../src/systems/mentorMode.js';
@@ -61,7 +62,10 @@ import { installRestItemLoot, isDeepPileKey } from '../../src/systems/rest/restI
 import { installSurvivalLoot } from '../../src/systems/survival/loot.js';
 import { grantEliteLoot } from '../../src/systems/eliteFoes.js';
 import { wildPileMore } from '../../src/systems/wild/wildZone.js';
+import { seaPileMore } from '../../src/systems/sea/seaSpoils.js';   // PIN MOVED (SEA-SET): the room's base rolls the deep's Tidemail last (roomLootHost.js)
+import { markRoomCarried } from '../../src/systems/loot/roomCarriedList.js';   // PIN MOVED (GOLD-WIRE): the room block marks the list it composes (roomLootHost.js)
 import { asTheRoom } from '../../src/systems/online/onlineLane.js';
+import { withRollerLevel } from '../../src/systems/loot/lootLevelGate.js';   // AUDIT UPDATE L1: the room's base at the room's level (roomLootHost.js rollRoomBase)
 import { CLAIM_KEEP_MS, CLAIMS_KEPT_MAX } from '../../src/systems/loot/claimLedger.js';
 import { SEARCH_COOLDOWN_MINUTES, SEARCH_LOOT_MAX } from '../../src/systems/searchables.js';
 import * as RL from '../../src/systems/roomLoot.js';
@@ -71,6 +75,9 @@ import { fakeRoom } from '../fakeRoom.mjs';
 import '../../src/systems/card/cardSources.js';   // CARDS9's death handler registers at import, as the hosts load it
 import '../../src/scenes/physicalItemsLayer.js';   // PI1's
 import { isClassEnemyId, enemyEntityType } from '../../src/characters/enemy/enemyBasics.js';   // DEX1: the hosts' class test and entity type (the mount's free names)
+import { appliedOwnerTm } from '../../src/net/ownerClock.js';   // PIN MOVED (OWNER-CLOCK): the stream door copies its frame's owner clock beside the feet - a free name of the mount
+import { bossStrikeAt, bossTakeAt, bossClockS } from '../../src/systems/bossTraits.js';
+import { strikeTraits, traitWire, traitWireKey, readTraitWire, traitsAuthority, traitsFrame } from '../../src/scenes/foeTraitsHost.js';   // AUDIT WORLD-EVENTS: the dungeon host's trait doors, in the harness's scope   // BOSS-TRAITS: the damage door's two halves, in the harness's scope
 
 installForaging(); installSmithing(); installHealingSupply(); installRestItemLoot(); installSurvivalLoot();   // the hosts' order (scenes/shared.js)
 setPref(LOOT_RARITY_KEY, true);   // the loot ladder - forced on online (OL1)
@@ -178,6 +185,7 @@ function dungeon(id, { authority, level, luck, renown, seed, foraging, partners,
     try { return fn(); } finally { Math.random = realRandom; }
   };
   const state = {
+    appliedOwnerTm,   // PIN MOVED (OWNER-CLOCK): the stream door's frame clock (net/ownerClock.js) - null outside a frame
     foes: [], _layoutFoes: nFoes, _sharedById: new Map(), lootPiles: [], searchables: [], _locationKey: ROOM,
     _lootSeen: new Set(), _lootUnreadable: new Set(), _lootAt: new Map(), _lootOpenKey: null, _lootTooBig: new Set(),
     _authority: authority, playerEntity: player, dfLocation: { mapTableData: { dungeonType: DUNGEON_TYPE } }, lootKey: DUNGEON_LOOT_KEYS[DUNGEON_TYPE],
@@ -185,13 +193,13 @@ function dungeon(id, { authority, level, luck, renown, seed, foraging, partners,
     SUPER_LOOT_DROP_MULT: 1.5, ELITE_LOOT_DROP_MULT: 1.2, SUPER_LOOT_QUALITY_MULT: 1.5, ELITE_LOOT_QUALITY_MULT: 1.2,
     opts: { selfId: () => id, onActions: (data) => { told.push(JSON.parse(JSON.stringify(data))); return send(data); }, onLootClaimed: () => {}, partyLevels: () => partners, roomHost: () => seat(), onFoeHit: () => assert.fail('the host applies its own blows') },
     _sharedStamp: `st${seed}`, clearSurplus: () => {},
-    addItem, stacksWith, isGoldPieces, addGoldPieces, isEquipped, unequipItem, neverPeerHanded, notCarried,   // AUDIT AUTO-HOLD: the give asks it (no realm session here: no filter)
+    addItem, stacksWith, isGoldPieces, addGoldPieces, addCarryClaims, pieceKg, isEquipped, unequipItem, neverPeerHanded, notCarried,   // AUDIT AUTO-HOLD: the give asks it (no realm session here: no filter)
     _wallNow: () => clock.t, performance: { now: () => clock.t }, respawnDue, validLootList, peerHanded, LOOT_LIST_MAX, LOOT_NEWER_TEXT, ENEMY_BASICS, corpseTextureOf,   // AUDIT DEX A1: the corpse mints read it
     isClassEnemyId, enemyEntityType,
     generateLootItems: generateItems, addPileLootExtras, rollLootRarity, pileSource, dungeonRarityTier, dungeonFamily, stampWonWeapons,
-    spawnEnemyLoot, wildLootAfter, grantEliteLoot, rollCorpseKit, raiseEnemyDeath, capFoeLoot, rollRoomBonus, egFindStruck, egFindKill,
+    spawnEnemyLoot, wildLootAfter, grantEliteLoot, rollCorpseKit, raiseEnemyDeath, capFoeLoot, rollRoomBonus, egFindStruck, egFindKill, championTraitFor,
     CLAIM_KEEP_MS, CLAIMS_KEPT_MAX, SEARCH_COOLDOWN_MINUTES, SEARCH_LOOT_MAX, sharedClassicMinutes,   // OUTDOOR-LOOT: the claim ledger's and the search find's constants the room block reads
-    wildPileMore, isDeepPileKey, effectiveLevel, liveStat, asTheRoom, ...RL,
+    wildPileMore, seaPileMore, isDeepPileKey, effectiveLevel, liveStat, asTheRoom, withRollerLevel, markRoomCarried, ...RL,
     eliteLootOpts: () => ({}), searchHeard: () => {}, settleLootFlat: () => {}, _sharedFoe: () => false, fightN: () => 1,
     spawnCorpseNow: async (f) => { f.corpsePos = [...f.ai.feet]; }, renderer: { destroyBillboardBatch: () => {} }, billboardBatches: [], renownFoeRevived: () => {},
     respawnFoe: () => false, camps: { applyOwner: () => {}, activate: () => false }, roomEncounterAsked: () => false, actions: { applyRemote: () => 0, collectSaveData: () => [] },
@@ -200,7 +208,7 @@ function dungeon(id, { authority, level, luck, renown, seed, foraging, partners,
     quickLootTake: () => false, showPickups: null, lootPile: () => null, pileBody: () => null, RANDOM_TREASURE_ARCHIVE: 216, surfacePlayer: () => {},
     // the kill door's neighbours (test/systems/loot7check.test.js's killDoor): nothing here reads a loot law
     feudWeakBlow: () => false, blowClassOf: () => null, lastPlayerFeet: [0, 0, 0], foeDeps: null, audio: {},
-    renownFoeStruck: () => {}, renownFoeDied: () => {}, reportPlayerKill: () => {}, takeWholeBlow: () => false, markFoeStruck: () => {}, markConcealedHit: () => {},
+    renownFoeStruck: () => {}, renownFoeDied: () => {}, reportPlayerKill: () => {}, killFxOf: () => null, takeWholeBlow: () => false, bossStrikeAt, bossTakeAt, bossClockS, strikeTraits, traitWire, traitWireKey, readTraitWire, traitsAuthority, traitsFrame, markFoeStruck: () => {}, markConcealedHit: () => {},
     handleAttackFromPlayer: () => {}, damageShieldPool: (e, n) => n, noteFighter: () => {}, PARTY_ME: 'me', partyFoeLoses: (f, n) => n,
     peerSoulTrapOf: () => null, attemptSoulTrap: () => ({ allowDeath: true }), isAzurasStarEquipped: () => false, fillEmptyTrap: () => false,
     hudText: { add: () => {} }, SOUL_TRAP_TEXT: {}, setEnemyAlert: () => {}, sayEnemyDied: () => null, playRareDrop: () => {}, addCorpseFood: () => {},
@@ -220,7 +228,7 @@ function dungeon(id, { authority, level, luck, renown, seed, foraging, partners,
     ${declSrc('onlineRoom')}
     ${declSrc('isRoomFoe')}
     ${declSrc('REMOTE_KILL')}
-    ${declSrc('SHARED_FOES_MAX')} ${declSrc('q2')} ${declSrc('q3')}
+    ${declSrc('SHARED_FOES_MAX')} ${declSrc('XF_WHOLE')} ${declSrc('q2')} ${declSrc('q3')}
     ${declSrc('FOES_FRAME_SLACK')} ${declSrc('FOE_MAX_PER_FRAME')} ${declSrc('_maxLeft')} ${declSrc('foeMaxOf')}
     ${['lootKeyOf', 'lootableBody', 'lootHolder', 'roomLootKey', 'lootRecords', 'publishLoot', 'sayRoomWord', 'applyLoot', 'applyActions'].map(fnSrc).join('\n')}
     ${BLOCK}

@@ -65,11 +65,11 @@ Mutants: `tools/mutants/fb1018d_crafthowto.json` (30, all dead).
 
 NOT PROVEN. Measured in Node over the real modules, on a 4-core container one and a half to two times slower than a
 gaming desktop (scripts, not committed):
-- the online realm checkpoint, every 120 s (`world.js:"if (checkpointDue(now, _checkpointAt)) {"`): at 4.37 MB (the
+- the online realm checkpoint, every 120 s (`world.js:"checkpointClock.frame(now);   // SCALE2b"`): at 4.37 MB (the
   size of the largest field save we hold) about 48 ms in one frame and another 33 ms in a later task once the put
   lands; about 9 ms at a typical 600 KB. A known hitch that grows with the save (Performance-Next.md), but its cadence
   is fixed, and the report's is not;
-- the checkpoint's landform lift fields (`world.js:"const LIFT_FIELDS_KEPT = 32;"`): about 37 ms a town pixel the
+- the checkpoint's landform lift fields (`groundFrameHost.js:"const LIFT_FIELDS_KEPT = 32;"`): about 37 ms a town pixel the
   memo misses, on synthetic bytes;
 - an offline save, 13.6 ms at 4.37 MB, only when the player saves;
 - the desktop file store's atomic write, 9-28 ms for a 4.3 MB save on this disk (Windows under antivirus is
@@ -116,7 +116,8 @@ B in, every station refuses, and the enchanting station says "This belongs to <t
 questions disagreed (THE ONE CONSTRUCTION SEAM):
 - the door asks the ACCOUNT (`mine`: `homes.js:"      const mine = h.player === player.id;"` on the service,
   `homeLaw.js:"  if (home.mine) return true;"`);
-- the stations asked THIS CHARACTER (`own`: `onlineHomes.js:"    const own = row.mine && typeof me === 'string' && row.character === me;"`),
+- the stations asked THIS CHARACTER (`own`: `onlineHomes.js` homeAt's `row.mine && typeof me === 'string' && row.character === me` - since
+  ACCOUNT-HOMES, `onlineHomes.js:"    const own = row.mine && !row.deed;"`, the account's too),
   through decorOwnerHere at the press and the seven station questions.
 
 FIXED. `onlineHomes.js:"export const homeStationsServe = (home) => home?.mine === true;"`, wired by the host's one line
@@ -300,7 +301,7 @@ alone. Left: the spoils are thrown when the account service answers the claim, n
 ### Item 5, the rest's short timer: the record's windows - and a key clash, the owner's call
 
 Measured on the real director, solo: the rest opens 6 s after the fall (EG_RD_WINDOW_MS) with the Vestige offer, the
-decrees, Ready and the respite together; each question is open 10 s (`egRun.js:"export const EG_ASK_MS = 10_000;"`);
+decrees, Ready and the respite together; each question was open 10 s (`egRun.js:"export const EG_ASK_MS = 30_000;"`, 30 s since FIELD BUGS 2026-10-25 ASK-LONGER);
 a decree no one votes takes the first shown, the offer's first card is taken at the next circle (96 s), and one yes to
 Ready ends a solo rest about 12 s later. All of it is the record's (16.2-16.4, 14, 15).
 
@@ -308,7 +309,7 @@ FOUND ON THE WAY, NOT FIXED. One key does two things there (Controls.md KB1 law 
 law 5, no raw read of a bound key):
 - Y is the default FreeMouse (`inputActions.js:"  ['KeyY', 'FreeMouse'],"`), heard first by the capture-phase toggle
   (`pointerLock.js:"  addEventListener('keydown', onKey, true);"`), which does not stop the key. The world's handler
-  then hands the same press to the Spire (`world.js:"if (!e.repeat && !gamePaused() && egClient?.key(e)) { e.preventDefault(); return; }"`),
+  then hands the same press to the Spire (`world.js:"if ((!e.repeat && !gamePaused() && egClient?.key(e)) || (!gamePaused() && staffView.key(e))) { e.preventDefault(); return; }"`),
   which reads Y as a Ready vote (`egClient.js:"if (open.length && (code === 'KeyY' || code === 'KeyN')) return this.vote("`).
   A solo player who frees the mouse to read the panel votes Ready, sees it marked - "the option is selected to
   continue" - and is pulled to the next circle about 12 s later with the first card and decrees taken.
@@ -324,7 +325,7 @@ the panel those keys and its hint says "Y: the Ready vote", while KB1 gives Y to
 Spire's controls, so it is Mac's: (a) the Spire never takes a key the world has bound (Y, N and the digits alike) (Ready by click, pad or
 `/breach vote yes`), rewording 27.8 and the hint; or (b) the panel's keys become rebindable actions on free codes. Ten
 seconds for a decree, read beside the cards, is tight for a solo reader; lengthening EG_ASK_MS is the record's law to
-change, also the owner's. What would prove it was Boar's path: whether he pressed Y or a number at the rest, or a
+change, also the owner's (the owner handed over the players' ask on 2026-10-25: ASK-LONGER, 30 s). What would prove it was Boar's path: whether he pressed Y or a number at the rest, or a
 relay `vote` with q `ready` from his account.
 
 ## KEY-LOGBOOK: the journal keys' rows name the window each skin opens (5)
@@ -474,7 +475,7 @@ quest marker of `remote dungeon9`. Every link from the door to the foe standing 
 Reproduced in Node with the real QuestMachine, Place, sceneMount, questRepair and smallerDungeons over N0B20Y05's own
 lines - taken online, entered public, saved and reloaded, the instance twice, copied offline and entered: the instance
 and the offline copy stand the Mage on the same marker; public stands nothing. That is INSTANCES' law
-(`worldModes.js:"if (!questMountsHere({ online: !!host.dungeonOnline?.(), builtSize: builtDungeonSize(dungeonLoc) }))"`),
+(`worldModes.js:"if (!questMountsHere({ online: !!host.dungeonOnline?.(), builtSize: dungeonRoomSize(dungeonLoc) }))"`),
 and the line the player read as "your quest is in here" is QUEST-ELSEWHERE's:
 `instanceDoor.js:"questHere: () => t('instance.door.questHere',"` - "Your quest's business here waits in your instance.".
 It was read the other way, and public was searched twice for it.

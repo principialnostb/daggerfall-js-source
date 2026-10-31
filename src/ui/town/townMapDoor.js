@@ -112,10 +112,10 @@ export function townSheetBag(deps = {}) {
     revealAll: deps.revealAll ?? null,
     player: deps.townPlayer ?? null,
     party: deps.townParty ?? null,   // DISC23-A: the party in these streets, feet in the location's frame (the classic window ignores it)
-    boards: deps.townBoards ?? null,   // TOWN-MARKS: the Notice Boards, feet in the location's frame (the classic window ignores them)
     homes: deps.townHomes ?? null,   // TOWN-MARKS: the player housing, by building key
     homesVersion: deps.townHomesVersion ?? null,
     questBuildings: deps.townQuestBuildings ?? null,   // GUIDE8's Town tier (AUDIT DELVE): the buildings a quest's journal names here
     title: deps.locationName ?? '',
+    imperial: deps.imperialSlice ?? null,   // IC-TOWNMAP: the Imperial City's slice the player stands in - the sheet draws the city (ui/town/imperialSheet.js)
   };
 }

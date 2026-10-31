@@ -2,12 +2,13 @@
   {
     "name": "GRANT4-room-socket-not-here",
     "file": "server/src/index.js",
-    "old": "    if (isWorldRoom(a.key) || (p && cellRoomOfWire(p.x, p.z) === a.key)) return true;",
-    "new": "    if (p && cellRoomOfWire(p.x, p.z) === a.key) return true;",
+    "old": "    if (isWorldRoom(a.key) || (p && inCover(a, cellRoomOfWire(p.x, p.z)))) return true;",
+    "new": "    if (p && inCover(a, cellRoomOfWire(p.x, p.z))) return true;",
     "why": "a world room's socket told `cell`",
     "tests": [
       "test/net/grant4_relay.test.js"
-    ]
+    ],
+    "note": "COST-2 3a (re-aimed by content: the cell-scoped law reads the socket's cover)."
   },
   {
     "name": "GRANT4-room-pixel-off-a-scene",
@@ -22,8 +23,8 @@
   {
     "name": "GRANT4-room-open-kinds",
     "file": "server/src/index.js",
-    "old": "    if (isWorldRoom(a.key) && GRANT_OPEN_KINDS.includes(ask.kind)) {",
-    "new": "    if (false && GRANT_OPEN_KINDS.includes(ask.kind)) {",
+    "old": "if (isWorldRoom(a.key) ? GRANT_OPEN_KINDS.includes(ask.kind) : GRANT_ROOM_KINDS.includes(ask.kind)) {",
+    "new": "if (false ? GRANT_OPEN_KINDS.includes(ask.kind) : GRANT_ROOM_KINDS.includes(ask.kind)) {",
     "why": "an encounter granted indoors",
     "tests": [
       "test/net/grant4_relay.test.js"
@@ -152,7 +153,7 @@
   {
     "name": "GRANT4-watch-grant-any-species",
     "file": "src/scenes/grantHost.js",
-    "old": "    if (gr.k === 'watch' && r.t !== KNIGHT_CITYWATCH_ID) return 'dice';",
+    "old": "  if (gr.k === 'watch' && r.t !== KNIGHT_CITYWATCH_ID) return 'dice';",
     "new": "",
     "why": "a watch grant stands a monster",
     "tests": [
@@ -203,8 +204,8 @@
   {
     "name": "GRANT4-carry-out-of-room-client",
     "file": "src/scenes/grantHost.js",
-    "old": "g.q !== room && isCellRoom(g.q));",
-    "new": "g.q !== room);",
+    "old": "g.q !== room && isCellRoom(g.q) && grantPixelReadBack(g, worldOk()));",
+    "new": "g.q !== room && grantPixelReadBack(g, worldOk()));",
     "why": "a room's grants carried into a cell",
     "tests": [
       "test/scenes/grant4_lanes.test.js"
@@ -313,8 +314,8 @@
   {
     "name": "GRANT8-reader-unchecked",
     "file": "src/scenes/grantHost.js",
-    "old": "      if (r.t !== grantSpecies(gr, i, c, false) && r.t !== grantSpecies(gr, i, c, true)) return 'dice';",
-    "new": "      void c; void i;",
+    "old": "    if (r.t !== grantSpecies(gr, i, c, false, z) && r.t !== grantSpecies(gr, i, c, true, z)) return 'dice';",
+    "new": "      void c; void i; void z;",
     "why": "an encr member of another species believed",
     "tests": [
       "test/scenes/grant4_lanes.test.js"
@@ -403,8 +404,8 @@
   {
     "name": "GRANT7-case-a-reports",
     "file": "server-account/src/grants.js",
-    "old": "const caseId = await openCaseFor(ctx, env, sender, 'review');",
-    "new": "const caseId = await openCaseFor(ctx, env, sender, 'report');",
+    "old": "const caseId = await openCaseFor(ctx, env, sender, 'review', 'spawn');",
+    "new": "const caseId = await openCaseFor(ctx, env, sender, 'report', 'spawn');",
     "why": "the grant case a report's",
     "tests": [
       "test/server/grant7_case.test.js"
@@ -439,5 +440,15 @@
     "tests": [
       "test/server/grant7_case.test.js"
     ]
+  },
+  {
+    "name": "GRANT-star-in-a-room",
+    "file": "src/net/grantLaw.js",
+    "old": "'encr', 'star']);",
+    "new": "'encr']);",
+    "tests": [
+      "test/scenes/grant3_pool.test.js"
+    ],
+    "note": "STAR-TUNE: a world room mints a star's kind"
   }
 ]

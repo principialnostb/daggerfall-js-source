@@ -20,7 +20,8 @@ import { QuestResource, matchFirst } from './questResource.js';
 import { Symbol as QuestSymbol } from './symbol.js';
 import { parseInt as questParseInt } from './parseUtils.js';
 import { foesTable } from './tables.js';
-import { GENDERS, getNameBankOfRegion, fullName, monsterName } from '../../characters/nameHelper.js';
+import { GENDERS, getNameBankOfRegion, monsterName } from '../../characters/nameHelper.js';
+import { personName } from '../../characters/personNames.js';   // REGION-NAMES
 import { srand, randomRange } from '../../formats/dfRandom.js';
 import { enemyDisplayName, isClassEnemyId } from '../../characters/enemy/enemyBasics.js';
 import { getLocalizedEnemyName } from '../textManager.js';   // L10N3e: the type name shown
@@ -49,6 +50,7 @@ export class Foe extends QuestResource {
     this.deathTrigger = false;     // true when the enemy should instantly die (Foe.cs:42); NOT save state
     this.isRestrained = false;     // true if enemy restrained by quest
     this.killCount = 0;            // kills of this spawn; does NOT rearm
+    this.learnedKills = new Map(); // QUEST-AUDIT III KILL-ONCE: a party member's kills an envelope brought, not yet credited, by whose envelope - transient
     // Q3-iii name state (Foe.cs:45-46, SetFoeName)
     //
     // AUDIT 24 (wave 27), EXAMINED AND NOT A DIVERGENCE - recorded so
@@ -100,6 +102,22 @@ export class Foe extends QuestResource {
   setRestrained() { this.isRestrained = true; }
   clearRestrained() { this.isRestrained = false; }
 
+  /** QUEST-AUDIT III KILL-ONCE (VERMIN-SHARED's "Said, not fixed"): a party member's kill of this Foe, counted on this
+   *  copy - their puppet's fall seen, their pose's word - unless their copy's envelope already brought it here
+   *  (`learnedKills`, machine.js updateSharedQuest's merge): each copy counted the kills it saw and the resync kept the
+   *  larger count, so an envelope that came before the credit counted one kill twice (a `killed 2` closed on one spider).
+   *  A credit the envelope never carried counts; the next envelope's larger count corrects any it held back. AUDIT QA3
+   *  E3: by WHOSE kill - `owner`, the member whose fall it is, spends only a kill their own envelope brought: a kill no
+   *  holder saw, learned, swallowed a third member's credit that no envelope ever corrects (a `killed 3` never closed).
+   *  Answers whether it counted. */
+  creditPartnerKill(owner = null) {
+    const key = owner == null ? '' : String(owner);
+    const n = this.learnedKills.get(key) ?? 0;
+    if (n > 0) { this.learnedKills.set(key, n - 1); return false; }
+    this.incrementKills();
+    return true;
+  }
+
   /** IncrementKills (Foe.cs:219-222). */
   incrementKills(amount = 1) {
     this.killCount += amount;
@@ -145,10 +163,16 @@ export class Foe extends QuestResource {
 
   /** GetClonedItemQueue (Foe.cs:254-265): null when empty, else a
    *  clone per item - "Original item UIDs will remain on Foe in
-   *  their item queue." */
+   *  their item queue." FIELD BUGS 2026-10-25i HEART-KEPT (AUDIT FB1025i
+   *  B1): CloneAll gives each clone a UID of its own, so the record the
+   *  player takes off a body is never the quest's own under
+   *  Contains(DaggerfallUnityItem) - the port's item IS its UID, and a
+   *  quest item's copy is found by its quest and symbol (a load restores
+   *  the two apart), so a clone says it is one (`questClone`,
+   *  itemTransfer.js heldQuestRecordIndex). */
   getClonedItemQueue() {
     if (!this.itemQueueCount) return null;
-    return this.itemQueue.map((it) => ({ ...it }));
+    return this.itemQueue.map((it) => (it?.questItem ? { ...it, questClone: true } : { ...it }));
   }
 
   setResource(line) {
@@ -197,7 +221,7 @@ export class Foe extends QuestResource {
     }
     this.humanoidGender = this._rolls()() < 0.55 ? GENDERS.Male : GENDERS.Female;
     srand(this._range(1000));
-    this.displayName = fullName(getNameBankOfRegion(world.currentRegionIndex()), this.humanoidGender);
+    this.displayName = personName(getNameBankOfRegion(world.currentRegionIndex()), this.humanoidGender);
   }
 
   // ---- the save envelope (Q4-iv; Foe.cs SaveData_v2) ----

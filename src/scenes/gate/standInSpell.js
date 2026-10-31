@@ -30,6 +30,7 @@
 //
 // Not a DFU member (every DFU foe is its own); the whole a Disintegrate counts here is gateBoss.js's (STAND_IN_WHOLE).
 import { applySpell, spellSways, isSoulTrapEffect, tickActiveEffects } from '../../systems/effects.js';
+import { bossStrike } from '../../systems/bossTraits.js';   // BOSS-TRAITS: the striker's half on a stand-in
 import { duelSpellOf } from '../../combat/duelCombat.js';
 import { reportPlayerAttack } from '../../combat/formulas.js';
 import { tellSpellLanded } from '../../systems/spell/spellPower.js';
@@ -47,7 +48,9 @@ import { SERPENT_HIT_CAP_X, SERPENT_HAND_REF } from '../../net/serpent/serpentBr
 export const carriedOnStandIn = (a) => a?.kind === 'continuousDamage' && !a.ended && a.roundsRemaining > 0;
 const NO_ROUNDS = Object.freeze([]);
 /** The sinks a stand-in's rounds and casts land through: every hurt summed into `got.n`, every other family nothing. */
-const counting = (got) => ({ hurt: (n) => { got.n += Math.max(0, n); }, heal() {}, drainFatigue() {}, restoreFatigue() {}, drainMagicka() {}, restoreMagicka() {} });
+/** The sinks a count on a stand-in runs through - `resist` its body (AUDIT WORLD-EVENTS L2-2: a carried round is resisted by
+ *  its element as it ticks, as the cast's own claim is in onBody - it went out whole). */
+const counting = (got, resist = null) => ({ hurt: (n, o) => { got.n += Math.max(0, resist && n > 0 ? bossStrike(resist, n, { kind: 'spell', element: o?.element ?? null }).damage : n); }, heal() {}, drainFatigue() {}, restoreFatigue() {}, drainMagicka() {}, restoreMagicka() {} });
 
 /**
  * A HARMFUL SPELL'S FAMILIES ON A STAND-IN, COUNTED: `harm` (duelSpellOf's) landed on `entity` by the one door every spell
@@ -111,7 +114,7 @@ export function createStandInRounds({ now = Date.now, rolls = Math.random } = {}
         let left = NO_ROUNDS;
         e.activeEffects = entries;
         try {
-          for (let k = 0; k < due && e.activeEffects.some(carriedOnStandIn); k++) tickActiveEffects(e, counting(got), rolls);
+          for (let k = 0; k < due && e.activeEffects.some(carriedOnStandIn); k++) tickActiveEffects(e, counting(got, e), rolls);
           left = e.activeEffects.filter(carriedOnStandIn);
         } finally { e.activeEffects = []; }
         if (left.length) kept.set(key, left); else kept.delete(key);
@@ -155,7 +158,8 @@ export function createStandInSpell(host) {
    *  kept when the claim went - a spell its ward or the ground turns lays nothing; one whose first round dealt nothing lays
    *  its rounds (it met the body: DFU pushes the entry whatever the round dealt). */
   function onBody(sp, body, harm, caster, land, key) {
-    const { dealt, r, kept } = countOnStandIn(harm, body.entity, player.level, player, rolls, rounds.carried(key));
+    const { dealt: counted, r, kept } = countOnStandIn(harm, body.entity, player.level, player, rolls, rounds.carried(key));
+    const dealt = counted >= 1 ? bossStrike(body.entity, counted, { kind: 'spell', element: sp.element ?? null }).damage : counted;   // BOSS-TRAITS: a relay boss's resistance to the spell's element (systems/bossTraits.js)
     if (!(dealt >= 1)) {
       const laid = kept.length > 0 && !turned(body);
       if (laid) rounds.keep(key, kept);
@@ -258,9 +262,9 @@ export function createStandInSpell(host) {
  * its host's hand door (`land(box, dealt)` - scenes/serpentHost.js handStruck, which holds it to 5,000 and sends it); no
  * number rises, as it never did. Its Continuous Damage carried as the court's is, each round's sum to the segment the spell
  * last met. `frame(alive)` each frame of the serpent's fight: none (the fight over, my ship's deck, my death) ends its rounds.
- * @param {{ player: any, standIn: () => any, land: (box: any, d: number) => any, now?: () => number, rolls?: () => number }} o
+ * @param {{ player: any, standIn: () => any, land: (box: any, d: number) => any, now?: () => number, rolls?: () => number, cap?: () => number }} o DRAGON3: the Dwarven Dragon's door too, `cap` the gate's (standInBlowCap)
  */
-export function createSerpentSpell({ player, standIn, land, now = Date.now, rolls = Math.random }) {
+export function createSerpentSpell({ player, standIn, land, now = Date.now, rolls = Math.random, cap = () => SERPENT_HIT_CAP_X * SERPENT_HAND_REF }) {
   const rounds = createStandInRounds({ now, rolls });
   let met = null;
   return {
@@ -271,7 +275,7 @@ export function createSerpentSpell({ player, standIn, land, now = Date.now, roll
       if (kept.length) met = box;
       rounds.keep('s', kept);
       if (!(dealt >= 1)) return kept.length > 0;
-      tellSpellLanded({ caster: player, target: e, foe: null, spell: sp, r, self: false, took: standInShown(dealt, SERPENT_HIT_CAP_X * SERPENT_HAND_REF), cast: caster?.cast ?? null });   // AUDIT SCHOOLS L2 F4: told to the riders - what can land, STAND-IN-WHOLE's law
+      tellSpellLanded({ caster: player, target: e, foe: null, spell: sp, r, self: false, took: standInShown(dealt, cap()), cast: caster?.cast ?? null });   // AUDIT SCHOOLS L2 F4: told to the riders - what can land, STAND-IN-WHOLE's law
       land(box, dealt);
       return true;
     },

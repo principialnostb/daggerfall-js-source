@@ -39,13 +39,13 @@
 import { accountKind, displayName, mintId, overRate } from './accounts.js';
 import { guildActorOf } from './guilds.js';
 import { marksOpenFor, balanceOf, guildBalanceOf } from './marks.js';
-import { profOpenFor, spendStatements, spendableSql, storeOf } from './professions.js';
+import { profOpenFor, spendStatements, spendableSql, storeOf, craftedBySql } from './professions.js';
 import { CHAR_ID_RE } from './service.js';
 import { realmHoldOf, realmActFirst, mustChange, dropIfUnnamed, recordMovedOf, dropObjects } from './realm.js';   // CRAFT-HOLD: a commission filled hands a crafted piece to another player
 import { prepareCraftedPiece, pieceComingBack } from './craftedPiece.js';   // INT19: and the piece leaves the crafter's realm record
 import { MARKS_MAX, utcDay } from '../../src/net/marksLaw.js';
 import { STORES_MAX } from '../../src/net/professionLaw.js';
-import { material, regionOk } from '../../src/net/nodeLaw.js';
+import { material, regionOk } from '../../src/net/nodeLaw.js';   // WW7-5: a town book's region any of the world's
 import { HANDLE_RE } from '../../src/net/handleShape.js';
 import { GUILD_RANK_MASTER } from '../../src/net/guild/guildLaw.js';
 import { fortMaterialOk, RAM_KIT_KEY } from '../../src/net/fortLaw.js';   // SEAT2b: what a seat writ may ask; part two: a Siege Camp's Ram Kits
@@ -262,11 +262,11 @@ async function eligibleHere(db, me, region, nowS) {
       JOIN products p ON p.owner = ?1 AND p.listed = 0 AND p.recipe = c.recipe AND (c.quality IS NULL OR p.quality >= c.quality)
         AND COALESCE(p.bought_with, '') != 'gold'   -- GOLD-MARKET: a piece bought with gold fills no Drakes commission
     WHERE c.crafter = ?1 AND c.region = ?2 AND c.state = 'open' AND c.expires_at > ?3
-      AND EXISTS (SELECT 1 FROM prof_crafts WHERE player = ?1 AND (provenance = p.provenance OR provenance2 = p.provenance))
+      AND p.provenance IN ${craftedBySql('?1')}   -- CRAFT-SET: the crafts read once, never once a piece
       AND NOT EXISTS (SELECT 1 FROM market_listings WHERE provenance = p.provenance AND state = 'open')
       AND NOT EXISTS (SELECT 1 FROM market_auctions WHERE provenance = p.provenance AND state = 'open')
       AND NOT EXISTS (SELECT 1 FROM market_deliveries WHERE provenance = p.provenance AND collected = 0)
-      AND NOT EXISTS (SELECT 1 FROM home_decor WHERE json_extract(item, '$.pv') = p.provenance)
+      AND NOT EXISTS (SELECT 1 FROM home_decor WHERE json_extract(item, '$.pv') = +p.provenance)   -- DECOR-SEEK: `+` lets idx_home_decor_pv be searched
     ORDER BY p.quality, p.provenance LIMIT ${WRIT_SHOWN * 4}`).bind(me, region, nowS).all();
   const out = new Map();
   for (const r of results) {
@@ -708,8 +708,9 @@ export async function fulfilCommission(ctx, player, env, { character, region, co
         AND COALESCE((SELECT balance FROM marks WHERE account = ?2), 0) + ?10 <= ?11`)
       .bind(id, me, nowS, provenance, character, tax, rid, nonce, region, pay, MARKS_MAX),
     mustChange(db),   // INT19: no fill, no piece out of the record - the record's step rolls back with it
-    // the piece the poster's, on its way to them at once (a delivery, PROF5's)
-    db.prepare(`UPDATE products SET credited = 0, owner = (SELECT poster FROM commissions WHERE id = ?1 AND fn = ?2), listed = 0, bought_with = 'marks'
+    // the piece the poster's, on its way to them at once (a delivery, PROF5's) - RPT1026-LEDGERLAW: the craft's record its
+    // owner's again, whoever the service last handed it to (ledger.js CRAFT_RECORD_SQL)
+    db.prepare(`UPDATE products SET credited = 0, owner = (SELECT poster FROM commissions WHERE id = ?1 AND fn = ?2), listed = 0, bought_with = 'marks', handed_to = NULL
       WHERE provenance = (SELECT provenance FROM commissions WHERE id = ?1 AND fn = ?2)`).bind(id, nonce),   // GOLD-MARKET: bought with Drakes
     db.prepare(`INSERT OR IGNORE INTO market_deliveries (id, player, char_id, provenance, wear, why, from_region, arrives_at, at)
       SELECT id, poster, poster_char, provenance, ?3, 'bought', region, ?4, ?4 FROM commissions WHERE id = ?1 AND fn = ?2`).bind(id, nonce, WEAR_WHOLE, nowS),

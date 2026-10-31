@@ -200,6 +200,63 @@ export const DFICON_ROWS = Object.freeze({
     '############',
     '............',
   ],
+  // DECOR-KINDS (FIELD BUGS 2026-10-29f): what a piece is
+  statues: [
+    '....####....',
+    '....####....',
+    '.....##.....',
+    '...######...',
+    '....####....',
+    '....####....',
+    '....#..#....',
+    '....#..#....',
+    '..########..',
+    '..########..',
+    '.##########.',
+    '.##########.',
+  ],
+  tools: [
+    '..######....',
+    '..######....',
+    '..######....',
+    '....##......',
+    '....##......',
+    '....##......',
+    '....##......',
+    '....##......',
+    '....##......',
+    '....##......',
+    '....##......',
+    '............',
+  ],
+  animals: [
+    '............',
+    '.........##.',
+    '........####',
+    '#......####.',
+    '.#########..',
+    '.#########..',
+    '.#########..',
+    '.##.....##..',
+    '.#.#...#.#..',
+    '.#.#...#.#..',
+    '.#.#...#.#..',
+    '............',
+  ],
+  remains: [
+    '##........##',
+    '###......###',
+    '.###....###.',
+    '..###..###..',
+    '...######...',
+    '....####....',
+    '....####....',
+    '...######...',
+    '..###..###..',
+    '.###....###.',
+    '###......###',
+    '##........##',
+  ],
   people: [
     '.....##.....',
     '....####....',
@@ -750,6 +807,63 @@ export const DFICON_ROWS = Object.freeze({
     '....####....',
     '.....##.....',
   ],
+  // NUDGE: the level push - an arrow over the floor's line
+  'nudge-left': [
+    '............',
+    '............',
+    '...#........',
+    '..##........',
+    '.##########.',
+    '##########..',
+    '.##########.',
+    '..##........',
+    '...#........',
+    '............',
+    '############',
+    '............',
+  ],
+  'nudge-right': [
+    '............',
+    '............',
+    '........#...',
+    '........##..',
+    '.##########.',
+    '..##########',
+    '.##########.',
+    '........##..',
+    '........#...',
+    '............',
+    '############',
+    '............',
+  ],
+  'nudge-fwd': [
+    '.....##.....',
+    '....####....',
+    '...######...',
+    '.....##.....',
+    '.....##.....',
+    '.....##.....',
+    '.....##.....',
+    '............',
+    '..########..',
+    '.##########.',
+    '############',
+    '............',
+  ],
+  'nudge-back': [
+    '.....##.....',
+    '.....##.....',
+    '.....##.....',
+    '.....##.....',
+    '...######...',
+    '....####....',
+    '.....##.....',
+    '............',
+    '..########..',
+    '.##########.',
+    '############',
+    '............',
+  ],
   smaller: [
     '############',
     '#..........#',
@@ -837,6 +951,15 @@ export const DFICON_CSS = `
   background-color: currentColor; -webkit-mask: var(--dficon) center / contain no-repeat; mask: var(--dficon) center / contain no-repeat; }
 ${Object.keys(DFICON_ROWS).map((k) => `[data-dficon="${k}"] { --dficon: ${dficonUrl(k)}; }`).join('\n')}
 `;
+
+/** AUDIT PACK-PICK A1: a tab's `wake` for the host's pictures, coalesced - the pictures that land in one frame redraw the
+ *  window once. Each landing was a whole redraw: a pack's fifty pictures were fifty, and the presses made under them were
+ *  swallowed. */
+export function frameWake(/** @type {() => void} */ redraw) {
+  let due = false;
+  const later = (/** @type {() => void} */ f) => (typeof requestAnimationFrame === 'function' ? requestAnimationFrame(f) : setTimeout(f, 16));
+  return () => { if (due) return; due = true; later(() => { due = false; redraw(); }); };
+}
 
 /** MENU-ORDER: a host's picture (ui/menu/menuPicture.js - `{ src, w, h }`) as a row's `<img>`, made with the row's own `el`:
  *  its fitted size, no words of its own (the row's name says them). Null for none. */

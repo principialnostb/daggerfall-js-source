@@ -7,6 +7,7 @@
 // fields (Alignment/Offset) do not apply to a 3D rig and are the
 // only WeaponBasics fields not carried.
 
+
 // FPSWeapon.cs: WeaponStates (index = WeaponBasics record index)
 export const WEAPON_STATES = ['Idle', 'StrikeDown', 'StrikeDownLeft', 'StrikeLeft', 'StrikeRight', 'StrikeDownRight', 'StrikeUp'];
 
@@ -153,6 +154,16 @@ export function registerMeleeWeaponAnimTime(fn) { _animTimeOverride = typeof fn 
 export function getBowCooldownTime(liveSpeed) {
   return (10 * (100 - liveSpeed) + 800) / CLASSIC_FRAME_UPDATE;
 }
+/** BOW-LAW (bible/01-Overview/Port-Ledger.md, BOW-LAW): A DEPARTURE - A BOW RELOADS ON THE SWING'S LAW. DFU's line above
+ *  keeps a shot 1.4-1.6 s apart at any Speed and nothing quickens it, so an archer lands half a swordsman's damage a
+ *  second. For a wielder the port knows, the reload is what is left of a five-frame swing of the bow - its weight
+ *  against Strength, both hands, the pace powers, SWING_FRAME_MIN - once the draw and the loose have played; DFU's line otherwise. */
+export function bowReloadSeconds(liveSpeed, ctx = null) {
+  if (!ctx?.entity) return getBowCooldownTime(liveSpeed);
+  const w = _swingReader?.(ctx) ?? null;
+  const frame = paced(swingFrameSeconds(liveSpeed, { heft: w ? swingHeft(w.weight, w.strength) : 1, handling: swingHandling(ctx.weaponType, !!w?.twoHanded) }), ctx, w);
+  return Math.max(0, MELEE_NUM_FRAMES.StrikeDown * frame - (BOW_NUM_FRAMES.StrikeUp + HIT_FRAME_BOW) * CLASSIC_UPDATE_INTERVAL);
+}
 
 // WeaponManager.cs verbatim
 export const MAX_GESTURE_SECONDS = 1.0;
@@ -190,10 +201,13 @@ export const BOW_DRAWN_HOLD_FRAME = 3;             // fully drawn; drawback hold
 // started the bow cooldown one classic tick early.
 export const BOW_NUM_FRAMES = { Idle: 1, StrikeUp: 4, StrikeDown: 7 };
 /** The Dwarven Thunderlock's, the port's own weapon: one trigger pull
- *  is six frames - flash, flash, smoke, smoke, wisp - on every strike
- *  direction, because a gun does not care which way you dragged. */
+ *  is its strip's frames - the rest, the flash and the bolt, smoke,
+ *  smoke, and three settling (THUNDERLOCK-ART2, the owner's seven; it was
+ *  the sheet's six) - on every strike direction, because a gun does not
+ *  care which way you dragged. */
+const TL_N = 7;   // THUNDERLOCK-ART2: the strip's frame count (combat/gun/thunderlockStrip.js) - a literal, because this leaf imports nothing (SWING-LAW: tools/neutral/build-viewer.mjs pastes it); thunderlockart2.test.js holds the two equal
 export const THUNDERLOCK_NUM_FRAMES = Object.freeze({
-  Idle: 1, StrikeDown: 6, StrikeDownLeft: 6, StrikeLeft: 6, StrikeRight: 6, StrikeDownRight: 6, StrikeUp: 6,
+  Idle: 1, StrikeDown: TL_N, StrikeDownLeft: TL_N, StrikeLeft: TL_N, StrikeRight: TL_N, StrikeDownRight: TL_N, StrikeUp: TL_N,
 });
 
 // FPSWeapon.cs:71 verbatim: the unarmed strike-to-the-LEFT plays its
@@ -280,6 +294,24 @@ export function machineAttack(m, strikeState) {
   return true;
 }
 
+/** A gun's machine (ranged, no bow - the Thunderlock) mid-shot or reloading: a technique waits for it (AUDIT PISTOL-PORT
+ *  C1), so the key refuses it as the busy hands it is (AUDIT TECH-FEEDBACK II F2). */
+export const machineGunBusy = (m) => !!m && m.ranged && !m.isBow && (m.state !== 'Idle' || m.now < m.cooldownUntil);
+
+/** TECH-CANCEL (Mac, 2026-10-30, forwarding #feature-feedback: "Make them independent of your regular attack cooldown /
+ *  animation cancel"): a weapon technique cuts the swing in flight - its hit not yet landed is lost - and waives the
+ *  attack's cooldown (a bow's reload with it), so the technique's strike starts now. Answers the machine as it was, to
+ *  put back if the strike cannot begin, or null when there was nothing to cut. */
+export function machineCut(m) {
+  if (m.state === 'Idle' && !(m.now < m.cooldownUntil)) return null;
+  if (m.ranged && !m.isBow) return null;   // a gun's shot and its reload stand (AUDIT PISTOL-PORT C1: a technique waits for them)
+  const was = { ...m };
+  m.state = 'Idle'; m.frame = m.isBow && m.bowIdleDrawn ? BOW_DRAWN_HOLD_FRAME : 0; m.ticks = 0; m.acc = 0; m.hold = 0;   // AUDIT TECH-FEEDBACK F1: a bow rests drawn (ARROW2)
+  m.animIndex = 0; m.damageDone = false;
+  m.cooldownUntil = m.now;
+  return was;
+}
+
 /** ActivateCenterObject / the hold cap: un-draw WITHOUT releasing an
  *  arrow (WeaponManager.cs:355-357). AUDIT 24 combat: the un-draw
  *  leaves isAttacking TRUE, so the very next Update takes the
@@ -291,7 +323,7 @@ export function machineAttack(m, strikeState) {
 export function machineCancelBowDraw(m, liveSpeed = 50) {
   if (m.isBow && m.state === 'StrikeUp') {
     m.state = 'Idle'; m.frame = 0; m.ticks = 0; m.acc = 0;
-    m.cooldownUntil = m.now + getBowCooldownTime(liveSpeed);
+    m.cooldownUntil = m.now + (m.cooldown ?? getBowCooldownTime(liveSpeed));   // BOW-LAW: the reload the shot would have paid
     return true;
   }
   return false;
@@ -328,6 +360,28 @@ export function blowSchedule(m, liveSpeed, animCtx = null, dt = 0) {
   return { seconds: (strikeTicks(m) + holdOf(m)) * step, hitAt: Math.max(0, (m.hitFrame ?? HIT_FRAME_MELEE) - at) * step, step };
 }
 
+/** MW-SHOT-PACE (the owner, 2026-10-30: "morrowind hand shoot bow slow"): A BOW'S SHOT, TIMED AS blowSchedule TIMES A
+ *  BLOW - when the loose (HIT_FRAME_BOW) lands and when the release ends, from the frame the shot stands on (a drawn idle
+ *  bow starts at BOW_DRAWN_HOLD_FRAME). The Morrowind arm fits its draw into it (combat/fpArm.js blowPace), so its
+ *  "shoot release" comes with the classic loose and a shot repeats as fast on both looks. Null for anything but a bow's
+ *  release not yet loosed. */
+export function shotSchedule(m, dt = 0) {
+  if (!m || !m.isBow || (m.state !== 'StrikeDown' && m.state !== 'StrikeUp')) return null;
+  const tick = m.tick ?? CLASSIC_UPDATE_INTERVAL;
+  if (!(tick > 0) || !Number.isFinite(tick)) return null;
+  const at = m.frame > 0 ? m.frame | 0 : 0;
+  const drawUp = m.state === 'StrikeUp';
+  // MW-DRAW-PACE (mob, 2026-10-30: "Long bow shoot same speed in Morrowind as short"): Bow Drawback's draw, timed to
+  // the hold frame the classic bow stops on, so the arm's long bow comes to full draw as soon as the sprite's
+  if (drawUp && at >= BOW_DRAWN_HOLD_FRAME) return null;
+  const hitFrame = m.hitFrame ?? HIT_FRAME_BOW;
+  if (at >= hitFrame) return null;
+  const frames = (m.frames ?? BOW_NUM_FRAMES).StrikeDown ?? BOW_NUM_FRAMES.StrikeDown;
+  const step = dt > 0 ? dt * Math.max(1, Math.ceil(tick / dt - 1e-9)) : tick;
+  if (drawUp) return { seconds: (BOW_DRAWN_HOLD_FRAME - at) * step, hitAt: (BOW_DRAWN_HOLD_FRAME - at) * step, step, draw: true };
+  return { seconds: (frames - at) * step, hitAt: (hitFrame - at) * step, step };
+}
+
 /** TWO-HANDS (AUDIT 2): the ticks a melee strike just begun takes from the frame it stands on to its end - FPSWeapon's
  *  eight-tick list for the unarmed strike to the left, else its frames past the one it stands on - before any held at
  *  its end (`m.hold`, machineStep). What an off-hand blow's burden is reckoned on (combat/twoHands/handsLaw.js offHandHold). */
@@ -362,8 +416,8 @@ export function machineStep(m, dt, liveSpeed, animCtx = null) {   // AUDIT-RR F1
   }
   // `m.frames` is the ONE departure this file carries: a weapon whose
   // animation is not five melee frames or the bow's draw-and-loose.
-  // The Dwarven Thunderlock's fire cycle is six (combat/thunderlockArt.js
-  // slices them off one sheet), and a machine that does not set it
+  // The Dwarven Thunderlock's fire cycle is its strip's seven frames
+  // (combat/gun/thunderlockStrip.js, THUNDERLOCK-ART2), and a machine that does not set it
   // reads exactly the two classic tables it always did.
   const frames = (m.frames ?? (m.isBow ? BOW_NUM_FRAMES : MELEE_NUM_FRAMES))[m.state] ?? 5;
   // FIELD-GUN7 (Mac, from play: "It still doesn't feel like the proto
@@ -428,11 +482,8 @@ export function machineStep(m, dt, liveSpeed, animCtx = null) {   // AUDIT-RR F1
         // end of a shot; only the bow DRAWS. Written as `?? m.isBow`
         // so a machine minted before this field existed - every
         // classic one - still reads exactly as it did.
-        // FIELD-GUN7: `m.cooldown` is the lab's fixed 1.7s reload.
-        // getBowCooldownTime is `(10 * (100 - speed) + 800) / 980` -
-        // 1.33s at an average 50 - so the gun was reloading faster
-        // than the prototype AND at a speed that moved with the
-        // character, which is the one thing a mechanism does not do.
+        // `m.cooldown` is the Thunderlock's reload in seconds (gunFeel.js thunderlockReloadSeconds),
+        // set before this step; BOW-LAW: a player's bow's is bowReloadSeconds (combat/playerWeapon.js _tuneClassic), else getBowCooldownTime.
         if (m.ranged ?? m.isBow) m.cooldownUntil = m.now + (m.cooldown ?? getBowCooldownTime(liveSpeed));
         break;
       }

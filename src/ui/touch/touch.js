@@ -124,6 +124,25 @@ let _touchSpire = () => null;
 export function setTouchSpire(fn) { _touchSpire = typeof fn === 'function' ? fn : () => null; }
 const touchSpire = () => { try { return _touchSpire() ?? null; } catch { return null; } };
 
+/**
+ * RPT1026-MISC TOUCH-FIELD (a private report from a phone: the Bank's amount could not be typed, while the map's name field
+ * could): THE FIELD A FINGER PRESSES RAISES THE KEYBOARD. A classic window's
+ * typed field (the Bank's amount; the spell and item makers' names) is the window's own keys, never an element a phone
+ * can focus - the map's name field is a real input, which is why that one worked. The layer's own text entry (the nav
+ * row's "abc", TI2) sends what is typed there to the window as its characters; a ported window's field opens it
+ * (ui/enhanced/enhancedPort.js, the field's press), `numeric` with the number pad. Answers whether an entry is up - false
+ * off a touch screen, where the window's keys are the keyboard's.
+ * @param {{ numeric?: boolean }} [o]
+ */
+let _openEntry = null;
+export const openTouchEntry = (o = {}) => { try { return _openEntry?.(o) === true; } catch { return false; } };
+/** AUDIT RPT1026 L1: WHERE THE ENTRY STANDS - over the window whose field raised it. The layer is one stacking context at
+ *  z-index 5, under every DOM window, and the entry was its child: a ported window's host (enhancedPortStyle.js
+ *  `.port-host`, z-index 13, the whole screen) covered it, so the amount a finger typed stood hidden behind the Bank and
+ *  only reached it on the keyboard's Enter. The entry is the page's own now (document.body), above the windows a typed
+ *  field stands in - the modal shells' tier, 39 - and under the asset picker (scenes/dataSource.js ASSET_PICKER_Z). */
+export const TOUCH_ENTRY_Z = 39;
+
 // TI2: the safe area. A phone's notch, rounded corners and home bar
 // sit INSIDE the viewport (play/index.html asks for viewport-fit=cover
 // so the canvas runs under them); every control is inset by the
@@ -136,7 +155,8 @@ const edge = (side, px) => `${side}:calc(${px}px + env(safe-area-inset-${side}, 
 // name every caller imports.
 import { isTouchDevice } from './touchDevice.js';
 export { isTouchDevice };
-import { touchButtonSlots, layoutTouchCorner, attackStroke } from './touchButtons.js';   // TOUCH-BUTTONS: the corner is the player's
+import { touchButtonSlots, layoutTouchCorner, attackStroke } from './touchButtons.js';
+import { setTouchHeld, clearTouchHeld } from './touchHeld.js';   // AUDIT TECH-FEEDBACK II F6: a hold button's action, held   // TOUCH-BUTTONS: the corner is the player's
 
 const KEY_NAMES = { KeyW: 'w', KeyA: 'a', KeyS: 's', KeyD: 'd', KeyZ: 'z', Space: ' ', ShiftLeft: 'Shift', Tab: 'Tab', Escape: 'Escape', Enter: 'Enter', ArrowUp: 'ArrowUp', ArrowDown: 'ArrowDown', Equal: '=', Minus: '-' };
 function synth(type, code) {
@@ -378,6 +398,7 @@ export function attachTouch(canvas, hooks = {}) {
     if (sig === cornerSig) return;
     cornerSig = sig;
     for (const [b, c] of slotHeld) { slotHeld.delete(b); upCode(c, liveNeeds()); }   // nothing stays down under a button that is going
+    clearTouchHeld();
     if (attacking) { attacking = null; hooks.attack?.(0, 0, false); }
     for (const b of slotButtons) b.remove();
     slotButtons = [];
@@ -386,7 +407,7 @@ export function attachTouch(canvas, hooks = {}) {
       let b = null;
       const at = [edge('right', right), edge('bottom', 16), action.w ?? 60];
       if (action.kind === 'hold') {
-        b = button(action.glyph, ...at, () => { slotHeld.set(b, downAction(action.id)); }, () => { const c = slotHeld.get(b) ?? null; slotHeld.delete(b); upCode(c, liveNeeds()); });
+        b = button(action.glyph, ...at, () => { slotHeld.set(b, downAction(action.id)); setTouchHeld(action.id, true); }, () => { const c = slotHeld.get(b) ?? null; slotHeld.delete(b); upCode(c, liveNeeds()); setTouchHeld(action.id, false); });
         if (action.id === 'Jump') jumpSlides(b);   // EG-ZH: in the Spire a Jump press that keeps sliding becomes look
       } else if (action.kind === 'tap') {
         // AUDIT CAPTAIN'S SEA S2: a SHARE's action (the Spyglass on K beside the road's follow) by the host's own door -
@@ -476,23 +497,26 @@ export function attachTouch(canvas, hooks = {}) {
   let entry = null;
   const sendText = (text) => { for (const ch of text) window.dispatchEvent(new KeyboardEvent('keydown', { key: ch, code: '', bubbles: true })); };
   function closeEntry() { if (entry) { entry.remove(); entry = null; } }
-  function openEntry() {
-    if (entry) return;
+  function openEntry({ numeric = false } = {}) {
+    if (entry) { entry.focus?.(); return true; }
     entry = document.createElement('input');
     entry.type = 'text';
-    entry.autocapitalize = 'words';
+    entry.autocapitalize = numeric ? 'off' : 'words';
     entry.autocomplete = 'off';
-    entry.placeholder = 'name';
-    entry.style.cssText = `position:absolute;left:50%;${edge('top', 76)};transform:translateX(-50%);width:min(70vw,360px);height:48px;padding:0 16px;box-sizing:border-box;${entryFace};color:#eee;background:rgba(14,16,19,.85);border:1px solid rgba(255,255,255,.3);border-radius:14px;outline:none;pointer-events:auto`;
+    if (numeric) entry.inputMode = 'numeric';   // RPT1026-MISC TOUCH-FIELD: an amount gets the number pad
+    entry.placeholder = numeric ? '0' : 'name';
+    entry.style.cssText = `position:fixed;z-index:${TOUCH_ENTRY_Z};left:50%;${edge('top', 76)};transform:translateX(-50%);width:min(70vw,360px);height:48px;padding:0 16px;box-sizing:border-box;${entryFace};color:#eee;background:rgba(14,16,19,.85);border:1px solid rgba(255,255,255,.3);border-radius:14px;outline:none;pointer-events:auto`;
     entry.addEventListener('keydown', (e) => {
       if (e.key === 'Enter') { const t = entry.value; closeEntry(); if (t) sendText(t); }
       else if (e.key === 'Escape') closeEntry();
     });
-    ui.appendChild(entry);
+    document.body.appendChild(entry);   // AUDIT RPT1026 L1: the page's, over the window that raised it - never under the layer's z-index 5
     entry.focus?.();
+    return true;
   }
+  _openEntry = openEntry;   // RPT1026-MISC TOUCH-FIELD: the layer's entry, for a window's field to raise
   {
-    const b = button('abc', edge('right', 312), edge('top', 16), 44, () => openEntry());
+    const b = button('abc', edge('right', 312), edge('top', 16), 44, () => { openEntry(); });
     nav.appendChild(b);
     const ok = button('✓', edge('right', 362), edge('top', 16), 44, () => { if (!entry) return; const t = entry.value; closeEntry(); if (t) sendText(t); });
     nav.appendChild(ok);
@@ -720,6 +744,6 @@ export function attachTouch(canvas, hooks = {}) {
     el: ui,
     setLockDot,
     axes: () => (stickId !== null && getPref('touchAnalogStick') ? { x: stickX, y: stickY } : null),   // TI2
-    dispose() { clearInterval(navTimer); setGyro(false); ui.remove(); },
+    dispose() { clearInterval(navTimer); setGyro(false); closeEntry(); clearTouchHeld(); ui.remove(); if (_openEntry === openEntry) _openEntry = null; },   // RPT1026-MISC TOUCH-FIELD: a layer gone raises no entry - AUDIT RPT1026 L1: and takes its entry, the page's own now
   };
 }

@@ -11,12 +11,12 @@
   {
     "name": "SHADOWCLOAK-the-paint",
     "file": "src/ui/playerBadge.js",
-    "old": "radiance: 'primarch', shadowcloak: 'shadowfang', seraphwings: 'founder', resonance: 'crystalfist', turninghour: 'hourbreaker', firsthour: 'hoursfirst', maelstrom: 'coilbreaker', beaconlight: 'kynbane', burningstair: 'wellheadwalker', firstlight: 'spirefirst', lilacwarren: 'wikimaid', witchfire: 'witchwarden' });",
-    "new": "radiance: 'primarch', shadowcloak: 'aegis', seraphwings: 'founder', resonance: 'crystalfist', turninghour: 'hourbreaker', firsthour: 'hoursfirst', maelstrom: 'coilbreaker', beaconlight: 'kynbane', burningstair: 'wellheadwalker', firstlight: 'spirefirst', lilacwarren: 'wikimaid', witchfire: 'witchwarden' });",
+    "old": "radiance: 'primarch', shadowcloak: 'shadowfang', seraphwings: 'founder', resonance: 'crystalfist', turninghour: 'hourbreaker', firsthour: 'hoursfirst', maelstrom: 'coilbreaker', beaconlight: 'kynbane', burningstair: 'wellheadwalker', firstlight: 'spirefirst', lilacwarren: 'wikimaid', witchfire: 'witchwarden', sagesmoke: 'nirnrootsage', eternal: 'genesis', dominion: 'eternalchampion', aetherium: 'heartwaker', gildedcoil: 'numidiumecho', aetherwings: 'heartwaker', vampirichaze: 'coldharbour' });",
+    "new": "radiance: 'primarch', shadowcloak: 'aegis', seraphwings: 'founder', resonance: 'crystalfist', turninghour: 'hourbreaker', firsthour: 'hoursfirst', maelstrom: 'coilbreaker', beaconlight: 'kynbane', burningstair: 'wellheadwalker', firstlight: 'spirefirst', lilacwarren: 'wikimaid', witchfire: 'witchwarden', sagesmoke: 'nirnrootsage', eternal: 'genesis', dominion: 'eternalchampion', aetherium: 'heartwaker', gildedcoil: 'numidiumecho', aetherwings: 'heartwaker', vampirichaze: 'coldharbour' });",
     "tests": [
       "test/net/shadowcloak.test.js"
     ],
-    "note": "SERAPH-WINGS (re-aimed by content): the wings joined the list. CRYSTAL-FIST (re-aimed by content): the line gained Flylighter's crystalfist. WIKIMAID (re-aimed by content)."
+    "note": "SERAPH-WINGS (re-aimed by content): the wings joined the list. CRYSTAL-FIST (re-aimed by content): the line gained Flylighter's crystalfist. WIKIMAID (re-aimed by content). NIRNROOT-SAGE (re-aimed by content): the list it quotes gained the Nirnroot Sage's word. SHOP (re-aimed by content): the line it quotes grew with the shop."
   },
   {
     "name": "SHADOWCLOAK-the-kind",
@@ -48,32 +48,32 @@
   {
     "name": "SHADOWCLOAK-the-aura-not-granted",
     "file": "server-account/src/titles.js",
-    "old": "primarch: 'radiance', shadowfang: 'shadowcloak', crystalfist: 'resonance', wikimaid: 'lilacwarren' });",
-    "new": "primarch: 'radiance', crystalfist: 'resonance', wikimaid: 'lilacwarren' });",
+    "old": "primarch: 'radiance', shadowfang: 'shadowcloak', crystalfist: 'resonance', wikimaid: 'lilacwarren', nirnrootsage: 'sagesmoke', coldharbour: 'vampirichaze' });",
+    "new": "primarch: 'radiance', crystalfist: 'resonance', wikimaid: 'lilacwarren', nirnrootsage: 'sagesmoke', coldharbour: 'vampirichaze' });",
     "tests": [
       "test/net/shadowcloak.test.js"
     ],
-    "note": "CRYSTAL-FIST (re-aimed by content): the line gained Flylighter's crystalfist. WIKIMAID (re-aimed by content)."
+    "note": "CRYSTAL-FIST (re-aimed by content): the line gained Flylighter's crystalfist. WIKIMAID (re-aimed by content). NIRNROOT-SAGE (re-aimed by content): the list it quotes gained the Nirnroot Sage's word."
   },
   {
     "name": "SHADOWCLOAK-granted-to-another-list",
     "file": "server-account/src/titles.js",
-    "old": "primarch: 'radiance', shadowfang: 'shadowcloak', crystalfist: 'resonance', wikimaid: 'lilacwarren' });",
-    "new": "primarch: 'radiance', penitent: 'shadowcloak', crystalfist: 'resonance', wikimaid: 'lilacwarren' });",
+    "old": "primarch: 'radiance', shadowfang: 'shadowcloak', crystalfist: 'resonance', wikimaid: 'lilacwarren', nirnrootsage: 'sagesmoke', coldharbour: 'vampirichaze' });",
+    "new": "primarch: 'radiance', penitent: 'shadowcloak', crystalfist: 'resonance', wikimaid: 'lilacwarren', nirnrootsage: 'sagesmoke', coldharbour: 'vampirichaze' });",
     "tests": [
       "test/net/shadowcloak.test.js"
     ],
-    "note": "CRYSTAL-FIST (re-aimed by content): the line gained Flylighter's crystalfist. WIKIMAID (re-aimed by content)."
+    "note": "CRYSTAL-FIST (re-aimed by content): the line gained Flylighter's crystalfist. WIKIMAID (re-aimed by content). NIRNROOT-SAGE (re-aimed by content): the list it quotes gained the Nirnroot Sage's word."
   },
   {
     "name": "SHADOWCLOAK-the-vocabularys-aura",
     "file": "src/net/identityToken.js",
-    "old": "export const AURAS = Object.freeze(['dagonfire', 'oblivionward', 'radiance', 'shadowcloak', 'seraphwings', 'resonance', 'turninghour', 'firsthour', 'maelstrom', 'beaconlight', 'burningstair', 'firstlight', 'lilacwarren', 'witchfire']);   // WITCH1 (2026-10-20, bible/06-Systems/Witches-Festival.md): WITCHFIRE last - a coven's green fire licking round the feet, tallow candles burning in its ring and their motes rising violet; bought from a Wyrd Sister for Soul Cakes (server-account/src/titles.js, `fest_wares`), held for good;   // WIKIMAID (2026-10-17, for SylviaBun: \"a purple aura with bunnies\"): THE LILAC WARREN last - rabbits hopping round the feet on a ring of lilac light, their prints fading behind them; the WikiMaid's own, granted with its title by name, never sold;",
-    "new": "export const AURAS = Object.freeze(['dagonfire', 'oblivionward', 'radiance', 'seraphwings', 'resonance', 'turninghour', 'firsthour', 'maelstrom', 'beaconlight', 'burningstair', 'firstlight', 'lilacwarren', 'witchfire']);   // WITCH1 (2026-10-20, bible/06-Systems/Witches-Festival.md): WITCHFIRE last - a coven's green fire licking round the feet, tallow candles burning in its ring and their motes rising violet; bought from a Wyrd Sister for Soul Cakes (server-account/src/titles.js, `fest_wares`), held for good;   // WIKIMAID (2026-10-17, for SylviaBun: \"a purple aura with bunnies\"): THE LILAC WARREN last - rabbits hopping round the feet on a ring of lilac light, their prints fading behind them; the WikiMaid's own, granted with its title by name, never sold;",
+    "old": "export const AURAS = Object.freeze(['dagonfire', 'oblivionward', 'radiance', 'shadowcloak', 'seraphwings', 'resonance', 'turninghour', 'firsthour', 'maelstrom', 'beaconlight', 'burningstair', 'firstlight', 'lilacwarren', 'witchfire', 'sagesmoke', 'eternal', 'dominion', 'aetherium', 'gildedcoil', 'aetherwings', 'vampirichaze']);",
+    "new": "export const AURAS = Object.freeze(['dagonfire', 'oblivionward', 'radiance', 'seraphwings', 'resonance', 'turninghour', 'firsthour', 'maelstrom', 'beaconlight', 'burningstair', 'firstlight', 'lilacwarren', 'witchfire', 'sagesmoke', 'eternal', 'dominion', 'aetherium', 'gildedcoil', 'aetherwings', 'vampirichaze']);",
     "tests": [
       "test/net/shadowcloak.test.js"
     ],
-    "note": "SERAPH-WINGS (re-aimed by content): the wings joined the list. CRYSTAL-FIST (re-aimed by content): the line gained Flylighter's Crystal Resonance. WIKIMAID (re-aimed by content)."
+    "note": "SERAPH-WINGS (re-aimed by content): the wings joined the list. CRYSTAL-FIST (re-aimed by content): the line gained Flylighter's Crystal Resonance. WIKIMAID (re-aimed by content). NIRNROOT-SAGE (re-aimed by content): the list it quotes gained the Nirnroot Sage's word. SHOP (re-aimed by content): the line it quotes grew with the shop."
   },
   {
     "name": "SHADOWCLOAK-the-hood-too-tall",
@@ -438,8 +438,8 @@
   {
     "name": "SHADOWCLOAK-the-strip-not-the-cloth",
     "file": "src/render/auraRing.js",
-    "old": "        if (look.mesh === 'cloak') this._drawCloak(w, look, torn, camAt);",
-    "new": "        if (false) this._drawCloak(w, look, torn, camAt);",
+    "old": "        if (look.mesh === 'cloak') this._drawCloak(w, look, torn, camAt, U);",
+    "new": "        if (false) this._drawCloak(w, look, torn, camAt, U);",
     "tests": [
       "test/net/shadowcloak.test.js"
     ]
@@ -456,11 +456,12 @@
   {
     "name": "SHADOWCLOAK-the-torn-cloth-still-drawn",
     "file": "src/render/auraRing.js",
-    "old": "    if (torn < CLOAK_RIP_S && !folded && Math.hypot(",
-    "new": "    if (!folded && Math.hypot(",
+    "old": "    if (torn < CLOAK_RIP_S && !folded && !auraEyeAtHead(",
+    "new": "    if (!folded && !auraEyeAtHead(",
     "tests": [
       "test/net/shadowcloak.test.js"
-    ]
+    ],
+    "note": "SHOP (re-aimed by content): the head test is auraEyeAtHead now."
   },
   {
     "name": "SHADOWCLOAK-the-shreds-never-drawn",
@@ -500,9 +501,9 @@
   },
   {
     "name": "SHADOWCLOAK-my-facing-the-views",
-    "file": "src/scenes/world.js",
-    "old": "_auraSelf.yaw = mwViewSpriteFacing()?.yaw ?? player.bodyYawFor(cam.yaw);",
-    "new": "_auraSelf.yaw = mwViewSpriteFacing()?.yaw ?? cam.yaw;",
+    "file": "src/scenes/auraHost.js",
+    "old": "self.yaw = faced?.yaw ?? player.bodyYawFor(deps.camYaw());",
+    "new": "self.yaw = faced?.yaw ?? deps.camYaw();",
     "tests": [
       "test/net/shadowcloak.test.js"
     ],
@@ -510,9 +511,9 @@
   },
   {
     "name": "SHADOWCLOAK-a-peers-facing-dropped",
-    "file": "src/scenes/world.js",
-    "old": "w.yaw = (peerWalkers?.faceOf?.(d.id) ?? peerRiders?.faceOf?.(d.id))?.yaw ?? peerBodyYaw(d.shown) ?? 0;",
-    "new": "w.yaw = 0;",
+    "file": "src/scenes/auraHost.js",
+    "old": "w.yaw = face; auraBeastStep(w, !!d.shown.wb, t);",
+    "new": "w.yaw = 0; auraBeastStep(w, !!d.shown.wb, t);",
     "tests": [
       "test/net/shadowcloak.test.js"
     ],
@@ -520,16 +521,16 @@
   },
   {
     "name": "SHADOWCLOAK-my-beast-form-ignored",
-    "file": "src/scenes/world.js",
-    "old": "auraBeastStep(_auraSelf, !!liveLycanthropy(playerEntity)?.isTransformed, t);",
-    "new": "auraBeastStep(_auraSelf, false, t);",
+    "file": "src/scenes/auraHost.js",
+    "old": "auraBeastStep(self, deps.beast(), t);",
+    "new": "auraBeastStep(self, false, t);",
     "tests": [
       "test/net/shadowcloak.test.js"
     ]
   },
   {
     "name": "SHADOWCLOAK-a-peers-beast-form-ignored",
-    "file": "src/scenes/world.js",
+    "file": "src/scenes/auraHost.js",
     "old": "auraBeastStep(w, !!d.shown.wb, t);",
     "new": "auraBeastStep(w, false, t);",
     "tests": [
@@ -738,7 +739,7 @@
   {
     "name": "SHADOWCLOAK-the-swing-never-set",
     "file": "src/render/auraRing.js",
-    "old": "gl.uniform4f(U.uSwing, sw?.x || 0, sw?.z || 0, sw?.lift || 0, sw?.twist || 0);",
+    "old": "gl.uniform4f(U.uSwing, sw[0], sw[1], sw[2], sw[3]);",
     "new": "gl.uniform4f(U.uSwing, 0, 0, 0, 0);",
     "tests": [
       "test/net/shadowcloak.test.js"
@@ -747,17 +748,17 @@
   {
     "name": "SHADOWCLOAK-the-pose-never-set",
     "file": "src/render/auraRing.js",
-    "old": "const sw = w.swing, pose = w.cape ?? CLOAK_REST_POSE;",
-    "new": "const sw = w.swing, pose = CLOAK_REST_POSE;",
+    "old": "const sw = auraSwingDrawn(w, this._swing), pose = w.cape ?? CLOAK_REST_POSE;",
+    "new": "const sw = auraSwingDrawn(w, this._swing), pose = CLOAK_REST_POSE;",
     "tests": [
       "test/net/shadowcloak.test.js"
     ]
   },
   {
     "name": "SHADOWCLOAK-my-bones-never-read",
-    "file": "src/scenes/world.js",
-    "old": "bones: mwViewBodyBones(CLOAK_BONES) ?? auraSpriteBones(mwViewSpriteFigure()) }",
-    "new": "bones: null ?? auraSpriteBones(mwViewSpriteFigure()) }",
+    "file": "src/scenes/auraHost.js",
+    "old": "bones: selfLiftNow > 0 ? null : mwViewBodyBones(CLOAK_BONES) ?? auraSpriteBones(mwViewSpriteFigure()), card: !!faced }",
+    "new": "bones: selfLiftNow > 0 ? null : null ?? auraSpriteBones(mwViewSpriteFigure()), card: !!faced }",
     "tests": [
       "test/net/shadowcloak.test.js"
     ],
@@ -765,8 +766,8 @@
   },
   {
     "name": "SHADOWCLOAK-a-peers-bones-never-read",
-    "file": "src/scenes/world.js",
-    "old": ": peerBodies?.bonesOf(w.id, CLOAK_BONES) ?? auraSpritePosed(",
+    "file": "src/scenes/auraHost.js",
+    "old": ": deps.bodies()?.bonesOf(w.id, CLOAK_BONES) ?? auraSpritePosed(",
     "new": ": null ?? auraSpritePosed(",
     "tests": [
       "test/net/shadowcloak.test.js"
@@ -775,8 +776,8 @@
   },
   {
     "name": "SHADOWCLOAK-my-crouch-ignored",
-    "file": "src/scenes/world.js",
-    "old": "w === _auraSelf ? player.height / CAPSULE_HEIGHT : 1);",
+    "file": "src/scenes/auraHost.js",
+    "old": "w === self ? player.height / CAPSULE_HEIGHT : 1);",
     "new": "1);",
     "tests": [
       "test/net/shadowcloak.test.js"
@@ -802,8 +803,8 @@
   },
   {
     "name": "SHADOWCLOAK-the-swing-never-stepped",
-    "file": "src/scenes/world.js",
-    "old": "auraMotionStep(w, auraNow); }",
+    "file": "src/scenes/auraHost.js",
+    "old": "auraMotionStep(w, now); }",
     "new": "}",
     "tests": [
       "test/net/shadowcloak.test.js"
@@ -811,27 +812,27 @@
   },
   {
     "name": "SHADOWCLOAK-the-draw-commented-out",
-    "file": "src/scenes/world.js",
-    "old": "} _auraPass?.draw(_auraDraw,",
-    "new": "} // _auraPass?.draw(_auraDraw,",
+    "file": "src/scenes/auraHost.js",
+    "old": "pass.draw(run, proj, view, eye, now, fog); ",
+    "new": "",
     "tests": [
       "test/net/shadowcloak.test.js"
     ]
   },
   {
     "name": "SHADOWCLOAK-my-riding-ignored",
-    "file": "src/scenes/world.js",
-    "old": "_auraSelf.mounted = !!player.riding;",
-    "new": "_auraSelf.mounted = false;",
+    "file": "src/scenes/auraHost.js",
+    "old": "/** @type {any} */ (self).mounted = !!player.riding || lift > 0;",
+    "new": "/** @type {any} */ (self).mounted = lift > 0;",
     "tests": [
       "test/net/shadowcloak.test.js"
     ]
   },
   {
     "name": "SHADOWCLOAK-a-peers-riding-ignored",
-    "file": "src/scenes/world.js",
-    "old": "w.mounted = !!d.shown.rd;",
-    "new": "w.mounted = false;",
+    "file": "src/scenes/auraHost.js",
+    "old": "w.seen = t; w.mounted = !!d.shown.rd;",
+    "new": "w.seen = t; w.mounted = false;",
     "tests": [
       "test/net/shadowcloak.test.js"
     ]
@@ -839,11 +840,12 @@
   {
     "name": "SHADOWCLOAK-a-riders-cape-drawn",
     "file": "src/render/auraRing.js",
-    "old": "    if (torn < CLOAK_RIP_S && !folded && Math.hypot(",
-    "new": "    if (torn < CLOAK_RIP_S && Math.hypot(",
+    "old": "    if (torn < CLOAK_RIP_S && !folded && !auraEyeAtHead(",
+    "new": "    if (torn < CLOAK_RIP_S && !auraEyeAtHead(",
     "tests": [
       "test/net/shadowcloak.test.js"
-    ]
+    ],
+    "note": "SHOP (re-aimed by content): the head test is auraEyeAtHead now."
   },
   {
     "name": "SHADOWCLOAK-a-riders-emblems-drawn",
@@ -956,11 +958,12 @@
   {
     "name": "SHADOWCLOAK-the-cloth-in-first-person",
     "file": "src/render/auraRing.js",
-    "old": " && Math.hypot(dx - c * hd[0] - sn * hd[2], eye[1] - w.at[1] - hd[1], dz + sn * hd[0] - c * hd[2]) >= CLOAK_INSIDE_M) {",
-    "new": ") {",
+    "old": " && !auraEyeAtHead(w, eye)) {   // the eye inside the hood",
+    "new": ") {   // the eye inside the hood",
     "tests": [
       "test/net/shadowcloak.test.js"
-    ]
+    ],
+    "note": "SHOP (re-aimed by content): the test is auraEyeAtHead now, the cape's and the cloak's one."
   },
   {
     "name": "SHADOWCLOAK-the-emblems-drawn-torn-through",
@@ -1145,11 +1148,12 @@
   {
     "name": "SHADOWCLOAK-inside-by-the-axis",
     "file": "src/render/auraRing.js",
-    "old": " && Math.hypot(dx - c * hd[0] - sn * hd[2], eye[1] - w.at[1] - hd[1], dz + sn * hd[0] - c * hd[2]) >= CLOAK_INSIDE_M) {",
-    "new": " && Math.hypot(dx, dz) >= 0.55) {",
+    "old": "  return Math.hypot(dx - c * hd[0] - sn * hd[2], eye[1] - w.at[1] - hd[1], dz + sn * hd[0] - c * hd[2]) < CLOAK_INSIDE_M;",
+    "new": "  return Math.hypot(dx, dz) < 0.55;",
     "tests": [
       "test/net/shadowcloak.test.js"
-    ]
+    ],
+    "note": "SHOP (re-aimed by content): the measure lives in auraEyeAtHead now."
   },
   {
     "name": "SHADOWCLOAK-the-fade-by-the-axis",
@@ -1226,7 +1230,7 @@
   {
     "name": "SHADOWCLOAK-the-rest-pose-posed-into",
     "file": "src/render/auraRing.js",
-    "old": "auraCapePose(posed.bones, w.cape && w.cape !== CLOAK_REST_POSE ? w.cape : null)",
+    "old": "auraCapePose(posed.bones, posedOwn(w.cape))",
     "new": "auraCapePose(posed.bones, w.cape ?? null)",
     "tests": [
       "test/net/shadowcloak.test.js"
@@ -1235,8 +1239,8 @@
   {
     "name": "SHADOWCLOAK-the-rest-pose-crouched-into",
     "file": "src/render/auraRing.js",
-    "old": "const c = w.cape && w.cape !== CLOAK_REST_POSE ? w.cape :",
-    "new": "const c = w.cape ? w.cape :",
+    "old": "const c = posedOwn(w.cape) ?? {",
+    "new": "const c = w.cape ?? {",
     "tests": [
       "test/net/shadowcloak.test.js"
     ]
@@ -1333,9 +1337,9 @@
   },
   {
     "name": "SHADOWCLOAK-my-step-commented-out",
-    "file": "src/scenes/world.js",
-    "old": "      _auraSelf.at[0] = f[0]; _auraSelf.at[1] = f[1]; _auraSelf.at[2] = f[2]; _auraSelf.aura = mine;",
-    "new": "      // _auraSelf.at[0] = f[0]; _auraSelf.at[1] = f[1]; _auraSelf.at[2] = f[2]; _auraSelf.aura = mine;",
+    "file": "src/scenes/auraHost.js",
+    "old": "        self.at[0] = f[0]; self.at[1] = f[1]; self.at[2] = f[2]; self.aura = mine;",
+    "new": "        // self.at[0] = f[0]; self.at[1] = f[1]; self.at[2] = f[2]; self.aura = mine;",
     "tests": [
       "test/net/shadowcloak.test.js"
     ]

@@ -5,10 +5,11 @@
 import { arenaTownLandmark } from '../world/arena/arenaCity.js';
 import { buildingSummaries } from '../world/buildingSummaries.js';
 import { createTownMapWindow, townMapDoorReady, townSheetBag } from '../ui/town/townMapDoor.js';   // FB1020c STREETS-TAB: the streets' one bag
-import { discoveredBuildings, restampQuestNames } from '../systems/discovery.js';
+import { discoveredBuildings, restampQuestNames, townBookOf } from '../systems/discovery.js';   // BAY-LEFT-MAPS (C7 = E2): a town's own book
 import { getLocalizedLocationName, getLocalizedRegionName } from '../systems/textManager.js';
 import { hasCustomLocationPosition } from '../world/locationLayout.js';
 import { isVendorWaypoint, vendorWaypointLabel, vendorWaypointVersion } from '../systems/vendorWaypoint.js';
+import { ensureVendorHouses, isVendorHouse, vendorHousesVersion } from '../systems/vendorHouses.js';   // VENDOR-HOUSES
 import { mwViewFirstPerson } from '../player/mwView.js';
 import { playerEntity } from '../characters/playerEntity.js';
 import { questTracker } from '../ui/quest/questTracker.js';
@@ -17,6 +18,8 @@ import { stampResidenceQuestNames } from '../ui/exteriorAutomapWindow.js';
 import { townHomeRows } from '../ui/town/townMapMarks.js';
 import { townQuestBuildings, townTierOn } from '../systems/quest/questGuidance.js';
 import { WORLD_PER_PX } from '../ui/ink/inkTown.js';
+import { townWallCellsOf, wallOnTownMap } from '../world/townWalls.js';   // TS6: a city past the Bay's wall on its town map
+import { capitalViewOf } from '../world/tamrielCapitals.js';   // IC-TOWNMAP: an Imperial City slice's map is the city's
 
 /** @param {any} host */
 export function createExteriorAutomapToggle(host) {
@@ -39,7 +42,7 @@ export function createExteriorAutomapToggle(host) {
     // conversion (setTopics' playerPos closure); the overlay holds
     // the motor, so the open-time capture stays truthful
     const local = [feet[0] - t[0] - b.locOrigin[0], feet[1] - t[1] - b.locOrigin[1], feet[2] - t[2] - b.locOrigin[2]];
-    const locId = `${dfLoc.regionIndex}:${dfLoc.name}`;
+    const locId = townBookOf(dfLoc);   // BAY-LEFT-MAPS (C7 = E2): past the Bay a town's own book, by its map id
     // ROAD-C c2/S10: the arrow/stamp is the REAL mesh 99900, rasterised
     // once from its CPU data (ui/meshStamp.js). Kicked off here and
     // read lazily - the window draws its two other layers meanwhile.
@@ -68,12 +71,13 @@ export function createExteriorAutomapToggle(host) {
       getQuest: (questID) => host.questBridge?.machine.getQuest(questID) ?? null,
       isBuildingQuestResource: (mapID, key) => host.topicTree.isBuildingQuestResource(mapID, key),
     }, dfLoc.mapTableData?.mapId ?? 0);
-    return { mapId: dfLoc.mapTableData?.mapId, deps: {
+    return { mapId: dfLoc.mapTableData?.mapId, region: dfLoc.regionIndex, deps: {
       holder: sheetHolderOf(() => weaponRig),   // MW-MAP1: the Morrowind hands lane on the M key, as on V
       locationName: shownLocation,   // L10N3e: the title, as shown - the key is locationId
       locationId: locId,
+      imperialSlice: capitalViewOf(dfLoc) ? dfLoc.capital.s : null,   // IC-TOWNMAP: the held map draws the whole city round this slice (ui/town/imperialSheet.js)
       gridW: dfLoc.exterior.exteriorData.width, gridH: dfLoc.exterior.exteriorData.height,
-      blocks: b.locBlocks.map((bl) => ({ x: bl.x, y: bl.y, autoMap: bl.dfBlock?.rmbBlock?.fldHeader?.autoMapData, landmark: arenaTownLandmark(bl.dfBlock) })),   // ARENA-MAP: the Arena's name (world/arena/arenaCity.js)
+      blocks: wallOnTownMap(b.locBlocks.map((bl) => ({ x: bl.x, y: bl.y, autoMap: bl.dfBlock?.rmbBlock?.fldHeader?.autoMapData, landmark: arenaTownLandmark(bl.dfBlock) })), townWallCellsOf(dfLoc), dfLoc.exterior.exteriorData.width),   // ARENA-MAP: the Arena's name (world/arena/arenaCity.js); TS6: a city past the Bay's wall on it (world/townWalls.js)
       yards: b.merchantYards ?? null,   // YARDS-FOUND: the town's Stable and Wagon Yard on the map - their ground and their names (ui/town/townMapDoor.js)
       ports: b.portSites ?? null,   // SHIPYARDS-FOUND: a port town's shipyard and lighthouse on it the same way
       playerPos: () => local,
@@ -113,20 +117,19 @@ export function createExteriorAutomapToggle(host) {
       // DISC23-A: the party in these streets, their feet taken into the location's frame by the SAME subtraction the
       // player's `local` is (the translation and the origin read at open, which the held motor keeps true)
       townParty: () => host.partyOnMaps().map((m) => ({ ...m, feet: [m.feet[0] - t[0] - b.locOrigin[0], m.feet[1] - t[1] - b.locOrigin[1], m.feet[2] - t[2] - b.locOrigin[2]] })),
-      // TOWN-MARKS (ui/town/townMapMarks.js): the town's Notice Boards, while the board is open (the boards noticeCountPoints
-      // counts over), with its unread count; and its player housing - the online homes and the bank's house
-      townBoards: () => host.townBoardMarks(b),
       // GUIDE8's Town tier (AUDIT DELVE, systems/quest/questGuidance.js): the buildings a quest's journal names in this town
       townQuestBuildings: () => (townTierOn() ? townQuestBuildings(questTracker.views, dfLoc.mapTableData?.mapId, questTracker.tracked()?.id ?? null) : []),
+      // TOWN-MARKS (ui/town/townMapMarks.js): its player housing - the online homes and the bank's house
       townHomes: () => townHomeRows({
         buildings: summaries, mapId: dfLoc.mapTableData?.mapId, regionIndex: dfLoc.regionIndex, houses: playerEntity.houses ?? null,
         homeAt: onlineHomes ? (mapId, buildingKey) => {
           const h = onlineHomes.homeAt(mapId, buildingKey);
-          // HOME-VENDOR: the trader's waypoint names its house on the town map
-          return h && isVendorWaypoint(mapId, buildingKey) ? { ...h, own: false, owner: vendorWaypointLabel(h.owner) } : h;
+          // HOME-VENDOR: the trader's waypoint names its house on the town map; VENDOR-HOUSES: a trader's house is inked blue
+          if (h && isVendorWaypoint(mapId, buildingKey)) return { ...h, own: false, vendor: true, waypoint: true, owner: vendorWaypointLabel(h.owner) };
+          return h && !h.own && isVendorHouse(mapId, buildingKey) ? { ...h, vendor: true } : h;
         } : null,
       }),
-      townHomesVersion: () => (onlineHomes?.version() ?? 0) + vendorWaypointVersion() * 100_000,   // HOME-VENDOR: a waypoint moved repaints
+      townHomesVersion: () => (onlineHomes?.version() ?? 0) + vendorWaypointVersion() * 100_000 + vendorHousesVersion() * 1e10,   // HOME-VENDOR: a waypoint moved repaints, and VENDOR-HOUSES a trader read (a number: asked a frame)
     } };
   };
   // A2: the exterior automap's own dispatch half (DaggerfallUI.cs
@@ -141,6 +144,7 @@ export function createExteriorAutomapToggle(host) {
     mwViewFirstPerson();   // MW-MAP1: MAP-POV's law for this sheet too - the town plan is read in the head, and the arm must be first-person before the window's first tick asks
     townTalk.showOverlay(createTownMapWindow(here.deps));
     onlineHomes?.ensure(here.mapId);   // TOWN-MARKS: a town heard from long ago is asked again, and its homes mark when it answers
+    if (onlineHomes) ensureVendorHouses(here.region);   // VENDOR-HOUSES: and its traders
   };
   /** FB1020c STREETS-TAB: what the travel key's window adds while the player stands in a town - the M key's streets
    *  (ui/town/townMapDoor.js townSheetBag over townHere's bag, the same building summaries and discovery record, so a
@@ -154,6 +158,7 @@ export function createExteriorAutomapToggle(host) {
     const here = townHere();
     if (!here) return {};
     onlineHomes?.ensure(here.mapId);   // TOWN-MARKS: as at the town key
+    if (onlineHomes) ensureVendorHouses(here.region);   // VENDOR-HOUSES: as at the town key
     return { town: townSheetBag(here.deps), where: here.deps.where, openOnSheet: 'world' };
   };
   return { toggleExteriorAutomap, travelTown };

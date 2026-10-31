@@ -1,14 +1,5 @@
 [
   {
-    "name": "TOWN-MARKS-reads-keep-a-placeless-board",
-    "file": "src/ui/town/townMapMarks.js",
-    "old": "  return rows.filter((r) => finite3(r?.feet))\n",
-    "new": "  return rows.filter((r) => r)\n",
-    "tests": [
-      "test/ui/town/town_marks.test.js"
-    ]
-  },
-  {
     "name": "TOWN-MARKS-reads-keep-a-home-with-no-building",
     "file": "src/ui/town/townMapMarks.js",
     "old": "  return rows.filter((r) => Number.isSafeInteger(r?.buildingKey) && r.buildingKey > 0 && typeof r.label === 'string')",
@@ -20,44 +11,8 @@
   {
     "name": "TOWN-MARKS-reads-any-truthy-own",
     "file": "src/ui/town/townMapMarks.js",
-    "old": "    .map((r) => ({ buildingKey: r.buildingKey, own: r.own === true, label: r.label }));",
-    "new": "    .map((r) => ({ buildingKey: r.buildingKey, own: !!r.own, label: r.label }));",
-    "tests": [
-      "test/ui/town/town_marks.test.js"
-    ]
-  },
-  {
-    "name": "TOWN-MARKS-a-bounty-board-marked",
-    "file": "src/ui/town/townMapMarks.js",
-    "old": "    if (bountyAt?.has?.(i) || !Array.isArray(box)",
-    "new": "    if (!Array.isArray(box)",
-    "tests": [
-      "test/ui/town/town_marks.test.js"
-    ]
-  },
-  {
-    "name": "TOWN-MARKS-the-origin-not-taken-off",
-    "file": "src/ui/town/townMapMarks.js",
-    "old": "(box[0] + box[3]) / 2 - o[0]",
-    "new": "(box[0] + box[3]) / 2",
-    "tests": [
-      "test/ui/town/town_marks.test.js"
-    ]
-  },
-  {
-    "name": "TOWN-MARKS-the-box-corner-not-its-middle",
-    "file": "src/ui/town/townMapMarks.js",
-    "old": "(box[2] + box[5]) / 2 - o[2]",
-    "new": "box[2] - o[2]",
-    "tests": [
-      "test/ui/town/town_marks.test.js"
-    ]
-  },
-  {
-    "name": "TOWN-MARKS-the-unread-count-dropped",
-    "file": "src/ui/town/townMapMarks.js",
-    "old": "  const label = boardMarkLabel(unseen);",
-    "new": "  const label = boardMarkLabel(0);",
+    "old": "    .map((r) => ({ buildingKey: r.buildingKey, own: r.own === true, ...(r.vendor",
+    "new": "    .map((r) => ({ buildingKey: r.buildingKey, own: !!r.own, ...(r.vendor",
     "tests": [
       "test/ui/town/town_marks.test.js"
     ]
@@ -65,8 +20,9 @@
   {
     "name": "TOWN-MARKS-another-towns-house-marked",
     "file": "src/ui/town/townMapMarks.js",
-    "old": "  const bought = slot?.buildingKey > 0 && Number.isFinite(Number(slot.mapId)) && (Number(slot.mapId) >>> 0) === id ? slot.buildingKey : 0;",
-    "new": "  const bought = slot?.buildingKey > 0 ? slot.buildingKey : 0;",
+    "old": ".filter((d) => Number.isFinite(Number(d.mapId)) && (Number(d.mapId) >>> 0) === id)",
+    "new": ".filter(() => true)",
+    "note": "Re-aimed by content (HOUSES-3): the region's three deeds.",
     "tests": [
       "test/ui/town/town_marks.test.js"
     ]
@@ -74,8 +30,9 @@
   {
     "name": "TOWN-MARKS-the-signed-map-id-unmatched",
     "file": "src/ui/town/townMapMarks.js",
-    "old": "(Number(slot.mapId) >>> 0) === id ? slot.buildingKey",
-    "new": "Number(slot.mapId) === id ? slot.buildingKey",
+    "old": "(Number(d.mapId) >>> 0) === id).map(",
+    "new": "Number(d.mapId) === id).map(",
+    "note": "Re-aimed by content (HOUSES-3): the region's three deeds.",
     "tests": [
       "test/ui/town/town_marks.test.js"
     ]
@@ -83,8 +40,8 @@
   {
     "name": "TOWN-MARKS-an-account-home-read-as-the-players",
     "file": "src/ui/town/townMapMarks.js",
-    "old": "    if (home) out.push({ buildingKey: key, own: home.own === true, label: homeDoorTitle(home) });",
-    "new": "    if (home) out.push({ buildingKey: key, own: home.own === true || home.mine === true, label: homeDoorTitle(home) });",
+    "old": "    if (home) out.push({ buildingKey: key, own: home.own === true, ...(home.vendor",
+    "new": "    if (home) out.push({ buildingKey: key, own: home.own === true || home.mine === true, ...(home.vendor",
     "tests": [
       "test/ui/town/town_marks.test.js"
     ]
@@ -92,8 +49,9 @@
   {
     "name": "TOWN-MARKS-the-bank-house-marked-twice",
     "file": "src/ui/town/townMapMarks.js",
-    "old": "    else if (key === bought) out.push(",
-    "new": "    if (key === bought) out.push(",
+    "old": "    else if (bought.has(key)) out.push(",
+    "new": "    if (bought.has(key)) out.push(",
+    "note": "Re-aimed by content (HOUSES-3): the region's three deeds.",
     "tests": [
       "test/ui/town/town_marks.test.js"
     ]
@@ -101,26 +59,8 @@
   {
     "name": "TOWN-MARKS-a-home-mirrored",
     "file": "src/ui/town/townSheet.js",
-    "old": "      out.push({ x, y: sheetY(h, y), own: r.own, label: r.label });",
-    "new": "      out.push({ x, y, own: r.own, label: r.label });",
-    "tests": [
-      "test/ui/town/town_marks.test.js"
-    ]
-  },
-  {
-    "name": "TOWN-MARKS-a-board-mirrored",
-    "file": "src/ui/town/townSheet.js",
-    "old": "y: sheetY(h, b.feet[2] / WORLD_PER_PX), label: b.label",
-    "new": "y: b.feet[2] / WORLD_PER_PX, label: b.label",
-    "tests": [
-      "test/ui/town/town_marks.test.js"
-    ]
-  },
-  {
-    "name": "TOWN-MARKS-a-board-in-metres",
-    "file": "src/ui/town/townSheet.js",
-    "old": "map((b) => ({ x: b.feet[0] / WORLD_PER_PX,",
-    "new": "map((b) => ({ x: b.feet[0],",
+    "old": "      out.push({ x, y: sheetY(h, y), own: r.own, ...(r.vendor",
+    "new": "      out.push({ x, y, own: r.own, ...(r.vendor",
     "tests": [
       "test/ui/town/town_marks.test.js"
     ]
@@ -171,28 +111,10 @@
     ]
   },
   {
-    "name": "TOWN-MARKS-the-boards-not-drawn",
-    "file": "src/ui/ink/inkTown.js",
-    "old": "  for (const b of opts.boards ?? []) {\n    const [x, y] = toPaper(view, b.x, b.y);\n    paintBoardMark(ctx, x, y);",
-    "new": "  for (const b of []) {\n    const [x, y] = toPaper(view, b.x, b.y);\n    paintBoardMark(ctx, x, y);",
-    "tests": [
-      "test/ui/town/town_marks.test.js"
-    ]
-  },
-  {
     "name": "TOWN-MARKS-the-own-fill-lost",
     "file": "src/ui/ink/inkTown.js",
-    "old": "    paintHomeMark(ctx, x, y, h.own === true);",
-    "new": "    paintHomeMark(ctx, x, y, false);",
-    "tests": [
-      "test/ui/town/town_marks.test.js"
-    ]
-  },
-  {
-    "name": "TOWN-MARKS-the-door-drops-the-boards",
-    "file": "src/ui/town/townMapDoor.js",
-    "old": "    boards: deps.townBoards ?? null,",
-    "new": "    boards: null,",
+    "old": "    paintHomeMark(ctx, x, y, h.own === true, h.vendor === true);",
+    "new": "    paintHomeMark(ctx, x, y, false, h.vendor === true);",
     "tests": [
       "test/ui/town/town_marks.test.js"
     ]
@@ -211,15 +133,6 @@
     "file": "src/ui/town/townMapDoor.js",
     "old": "    homesVersion: deps.townHomesVersion ?? null,",
     "new": "    homesVersion: null,",
-    "tests": [
-      "test/ui/town/town_marks.test.js"
-    ]
-  },
-  {
-    "name": "TOWN-MARKS-the-board-marked-while-closed",
-    "file": "src/scenes/world.js",
-    "old": "    if (!noticeBook || noticeBook.open !== true || !p?.boards?.length || !p.location) return [];",
-    "new": "    if (!noticeBook || !p?.boards?.length || !p.location) return [];",
     "tests": [
       "test/ui/town/town_marks.test.js"
     ]
@@ -292,15 +205,6 @@
     "file": "src/ui/ink/inkTown.js",
     "old": "  paintMarkShape(ctx, [[x - 5, y + t], [x - 5, y], [x - 7, y], [x, y - t],\n    [x + 7, y], [x + 5, y], [x + 5, y + t]],",
     "new": "  paintMarkShape(ctx, [[x - 5, y + t - 8], [x - 5, y - 8], [x - 7, y - 8], [x, y - t - 8],\n    [x + 7, y - 8], [x + 5, y - 8], [x + 5, y + t - 8]],",
-    "tests": [
-      "test/ui/town/town_marks.test.js"
-    ]
-  },
-  {
-    "name": "TOWN-MARKS-the-board-off-its-place",
-    "file": "src/ui/ink/inkTown.js",
-    "old": "  paintMarkShape(ctx, [[x - w / 2, y - h / 2], [x + w / 2, y - h / 2], [x + w / 2, y + h / 2], [x - w / 2, y + h / 2]], TOWN_PEN.halo);",
-    "new": "  paintMarkShape(ctx, [[x - w / 2, y - h], [x + w / 2, y - h], [x + w / 2, y], [x - w / 2, y]], TOWN_PEN.halo);",
     "tests": [
       "test/ui/town/town_marks.test.js"
     ]

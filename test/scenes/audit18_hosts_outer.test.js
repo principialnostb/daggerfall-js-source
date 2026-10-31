@@ -508,10 +508,11 @@ test('audit18 hosts: BOTH exterior hosts thread the weather style into the sky',
     // ES1 (2026-08-27) gave the call a fourth argument - the weather and
     // the classic clock, which the ENHANCED sky needs for its clouds and
     // its moons - so the night-sky flag is no longer the last thing on
-    // the line. It is still the third argument and still the weather's.
+    // the line. It is still the third argument and still the weather's. SEA-EVENTS: world.js's violence the Aether
+    // Storm's first, at sea (scenes/seaVenturesHost.js seaStormShown).
     assert.match(src(host), /sky\.use\([^;]*minute, weatherSkyOffset === 0[,)]/,
       `${host} shows NITE on every night minute regardless of weather`);
-    assert.match(src(host), /\{ weather, violence: weatherOverride \?\? currentWeatherRaw\(\), classicMinutes: playerTicker\.classicMinutes, skyMinutes: skyMinutes\(\), sun: wxNow\.sun, flash: flash - 1, pos: [^}]+ \}\);\s*\/\/ WEATHER2a[^\n]*ES1/,
+    assert.match(src(host), /\{ weather, violence: weatherOverride \?\? (?:seaStormShown\(\) \?\? )?currentWeatherRaw\(\), classicMinutes: playerTicker\.classicMinutes, skyMinutes: skyMinutes\(\), sun: wxNow\.sun, flash: flash - 1, pos: [^}]+ \}\);\s*\/\/ WEATHER2a[^\n]*ES1/,
       `${host} does not feed the enhanced sky its weather and clock (TIME1: the event clock the weather walks, the sky the moons are dated by)`);
   }
 });
@@ -547,7 +548,7 @@ test('audit18 hosts: BOTH exterior hosts take the fog colour from the shared law
     assert.doesNotMatch(s, /sky\.renderer\.fogColor = sky\.renderer\.clearColor;/);
   }
   const shared = src('src/scenes/shared.js');
-  assert.match(shared, /fogColorFor\(fogNow\) \{\s*\n\s*const own = dynamic\?\.fogColor \?\? outdoorFogColor\(fogNow, \(enhancedSky \?\? dynamicSky \?\? sky\)\.clearColor\);\s*\n\s*const c = sunbabyW > 0 \? sunbabyHaze\(own, sunbabyW, sunbabyEvil\) : own;[^\n]*\n\s*const d = dreadW > 0 \? dreadGrade\(c, dreadW\) : c;[^\n]*\n\s*return brassW > 0 \? sdBrassGrade\(d, brassW\) : d;/,   // SUNBABY1 (PIN MOVED): the sun baby's haze between the law and the dread's grade; SUNBABY2 (PIN MOVED): its wrath's weight with it; SD19 (PIN MOVED at AUDIT SD III): the brass near a standing Hollow last, over the dread's grade
+  assert.match(shared, /fogColorFor\(fogNow\) \{\s*\n\s*const own = litAir\(dynamic\?\.fogColor \?\? outdoorFogColor\(fogNow, \(enhancedSky \?\? dynamicSky \?\? sky\)\.clearColor\)\);[^\n]*\n\s*const c = sunbabyW > 0 \? sunbabyHaze\(own, sunbabyW, sunbabyEvil\) : own;[^\n]*\n\s*const d = dreadW > 0 \? dreadGrade\(c, dreadW\) : c;[^\n]*\n\s*return brassW > 0 \? sdBrassGrade\(d, brassW\) : d;/,   // PIN MOVED (NIGHT-FOG): the sky's colour through the lit air first (systems/weather/nightFog.js - the classic panorama's verbatim, test/systems/weather/nightfog.test.js); SUNBABY1 (PIN MOVED): the sun baby's haze between the law and the dread's grade; SUNBABY2 (PIN MOVED): its wrath's weight with it; SD19 (PIN MOVED at AUDIT SD III): the brass near a standing Hollow last, over the dread's grade
     'the controller answers SetSkyFogColor over the sky it holds, or the mod\u2019s own colour');
 });
 

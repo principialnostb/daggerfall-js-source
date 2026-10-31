@@ -188,7 +188,7 @@ test('GRAVE-PARTY law: a search\'s hours carry WHO searched - mine says SEARCHED
   // THE WIRE
   assert.deepEqual(OW_KINDS, ['sp', 'dg', 'gr']);
   assert.deepEqual(validOwIn({ k: 'gr', rows: [[101, 207, 3], [101, 207, 3]] }), { k: 'gr', rows: [[101, 207, 3]] });
-  for (const bad of [{ k: 'gr', rows: [] }, { k: 'gr', rows: [[101, 207]] }, { k: 'gr', rows: [[1000, 207, 3]] }, { k: 'gr', rows: [[101, 207, -1]] }, { k: 'gr', rows: [[101, 207, 3, M, 'acct-ann']] }]) assert.equal(validOwIn(bad), null, JSON.stringify(bad));
+  for (const bad of [{ k: 'gr', rows: [] }, { k: 'gr', rows: [[101, 207]] }, { k: 'gr', rows: [[8192, 207, 3]] }, { k: 'gr', rows: [[101, 207, -1]] }, { k: 'gr', rows: [[101, 207, 3, M, 'acct-ann']] }]) assert.equal(validOwIn(bad), null, JSON.stringify(bad));   // PIN MOVED (AUDIT RELEASE R2-3): a stone's pixel is the world's grid - (1000, 207) is land past the Bay now, (8192, 207) past the wire's
   assert.deepEqual(parseClient(JSON.stringify({ t: 'ow', k: 'gr', rows: [[101, 207, 3]] }), { hasHello: true }), { t: 'ow', k: 'gr', rows: [[101, 207, 3]] });
   assert.deepEqual(validOwOut({ k: 'gr', rows: [[101, 207, 3, M, 'acct-ann', 'Ann'], [101, 207, 3], 'x', [101, 207, 3, -1, 'acct-ann', 'Ann'], [101, 207, 3, M, '', 'Ann'], [101, 207, 3, M, 'acct-ann'], [101, 207, 3, M, 'acct-ann', 7], [101, 207, 3, M, 'acct-ann', 'x'.repeat(NAME_MAX + 1)], [101, 207, 4, M, 'acct-ann', '']] }),
     { k: 'gr', rows: [[101, 207, 3, M, 'acct-ann', 'Ann'], [101, 207, 4, M, 'acct-ann', '']] }, 'a row names its account and its character (or none) - nothing else is a row');
@@ -581,7 +581,7 @@ test('GRAVE-PARTY + AUDIT G2: a PARTY-LOOT pile whose room word this build canno
     ${fnSrc('lootableBody')}
     ${fnSrc('lootHolder')}
     ${fnSrc('roomLootKey')}
-    const { _roomState, _roomMine, isRoomBaseContainer, landRoomWord, roomClaimTick, roomRecordOf, roomSayNow, roomSettle, roomUnborn, settleRoomBonus, holderList, roomBaseHolder, composeRoomContainer, mintUnbornRoom } = createRoomLoot(${handles});
+    const { _roomState, _roomMine, isRoomBaseContainer, landRoomWord, roomClaimTick, roomRecordOf, roomSayNow, roomSettle, roomUnborn, roomUnreadableText, settleRoomBonus, holderList, roomBaseHolder, composeRoomContainer, mintUnbornRoom } = createRoomLoot(${handles});   // PIN MOVED (RPT1026-ITEMS LOOT-SKEW): the press asks the module which line
     ${fnSrc('lootRecords')}
     ${fnSrc('publishLoot')}
     ${fnSrc('sayRoomWord')}
@@ -593,9 +593,10 @@ test('GRAVE-PARTY + AUDIT G2: a PARTY-LOOT pile whose room word this build canno
     return { api, applyLoot, lootTargets, roomUnborn, roomClaimTick, mintUnbornRoom, _roomMine, buildPile, close: (key) => { _lootOpenKey = null; publishLoot(key); } };
   `, state);
   /** A pile as the loop builds it, and drawn: every pile's flat stands at the build, its list empty or not (dungeonContext.js
-   *  `pile.half = ...` and `pile.batch = renderer.createBillboardBatch(...)`, pinned below). */
+   *  `pile.half = ...` and `pile.batch = renderer.createBillboardBatch(...)`, pinned below). PIN MOVED (AUDIT-STOREFRONT
+   *  III D1): the half is set beside the archive's own, `[pile.half, pile.lawHalf] = ...`. */
   const pileAt = (x) => { h.buildPile({ x, y: 0, z: 0, position: 100 + x }, { originX: 0, originZ: 0 }, 0, true, false, 0); Object.assign(state.lootPiles.at(-1), { half: [0.5, 0.5], batch: {} }); return state.lootPiles.length - 1; };
-  assert.match(SRC, /pile\.half = \[size\.w \/ 2, size\.h \/ 2\];[\s\S]{0,2400}?pile\.batch = renderer\.createBillboardBatch\(RANDOM_TREASURE_ARCHIVE, pile\.record, size, \[\[g\[0\], g\[1\], g\[2\]\]\]\);/, 'every pile drawn at the build');
+  assert.match(SRC, /\[pile\.half, pile\.lawHalf\] = \[\[size\.w \/ 2, size\.h \/ 2\], \[law\.w \/ 2, law\.h \/ 2\]\];[\s\S]{0,2400}?pile\.batch = renderer\.createBillboardBatch\(RANDOM_TREASURE_ARCHIVE, pile\.record, size, \[\[g\[0\], g\[1\], g\[2\]\]\]\);/, 'every pile drawn at the build');
   const press = (key) => { said.length = 0; const n = windows.length; h.api.takeLoot(key, 'grab'); return windows.length > n ? windows.at(-1) : null; };
   const unreadable = (key) => h.applyLoot([{ k: key, g: 0, lv: 1, n: 1, tm: clock.t, x: 'from another build', c: [] }], 'a0a0-0001');
 

@@ -25,6 +25,7 @@ import { consumeVampirismPending, vampirismMagicRound } from './vampirism.js';  
 import { updatePoisons } from './poisons.js';
 import { tickActiveEffects } from './effects.js';
 import { skillValue, tallyMovementSkill, SKILLS } from './skills.js';   // MOVE-REAL: the motion tallies' own door
+import { timeScale } from './timeScale.js';   // RPT1026-PROGRESS: a journey's acceleration, which trains at the real clock
 import { FATIGUE_LOSS, FATIGUE_DRAIN_SCALE, killIfAnyLiveStatZero } from './statMods.js';
 import { decayEnemyAlert } from './encounters.js';   // PlayerEntity.Update:380-384, the 8-hour alert decay
 import { dice100, setPlayerStruckHook } from '../combat/formulas.js';
@@ -110,12 +111,14 @@ installSurvivalLoot({ enabled: corpseFoodOn });   // SURV2: an animal's corpse c
 // import, the same wire SURV2's icons come in by - AFTER the survival
 // pair, whose adjacency that mod's own pin holds.
 installThunderlockIcons();   // THUNDERLOCK: the templates, the find and the legendary register at its import; the icons here
+installPistoletIcons();   // PISTOLET: the second gun, the same wire - its row and its find register at its import
 import { normalizeReputations, NORMALIZE_INTERVAL_MINUTES, RECOVERY_INTERVAL_MINUTES } from './court.js';   // AUDIT 23 (C4); REP4: the week's recovery
 // S43: the entity update's 7-day and 38-day arms (PlayerEntity.cs:460-472).
 import { regionPowerUpdate } from './region/regionPower.js';
 import { runSurvivalMinutes, clearSurvivalMods, pauseSurvival } from './survival/needs.js';   // SURV1: the needs, a world minute at a time; AUDIT SURV A: and the drains dropped when the feed stops; AUDIT SURV-TIERS: and paused while Off
 import { installSurvivalIcons } from './survival/items.js';   // SURV2: the templates register at its import; the icons here
 import { installThunderlockIcons } from './thunderlock.js';   // THUNDERLOCK: same wire - the import IS the registration (AUDIT-THUNDERLOCK F1)
+import { installPistoletIcons } from './pistolet.js';   // PISTOLET: the same wire
 import './ayleidStones.js';   // LOOT21: the Ayleid stones - their rows, their late finds and their uses register at its import
 import './gems.js';   // GEM2: the graded gems - their rows and the world's gem find register at its import
 import { installSurvivalLoot } from './survival/loot.js';
@@ -756,9 +759,19 @@ function tickPlayerMinutesOnce({
   // MOVE-REAL: the motor's live odometer (player/motor.js), which the movement skills past 100 count - the host hands
   // it on with the activity (the climb's check, inside the motor's own step, reads it off the entity too)
   if (activity.odometer) entity._odometer = activity.odometer;
+  // RPT1026-PROGRESS (a private report: Jumping, and Running on auto-run, trained in seconds
+  // on an accelerated journey): AN ACCELERATED JOURNEY TRAINS AT THE REAL CLOCK.
+  // Travel Options runs a journey on Unity's Time.timeScale (TravelOptionsMod.cs SetTimeScale) and the port scales the
+  // motor and this tick with it (systems/timeScale.js) - so the run's tally (PlayerEntity.cs:309-320, a use every 0.25 s
+  // of scaled time) and the jump's (one a landed jump, and the scaled motor lands one a frame) came sixty to a hundred
+  // times faster a real second: the skill rests and arrivals raise filled in seconds, a held key on the road. DFU's own
+  // fast travel trains nothing. Here a journey's run counts its REAL seconds and each jump 1/scale of a use, so a
+  // journey trains as walking the same real minutes does; at x1 nothing changes. Port-Ledger A.
+  const pace = Math.max(1, timeScale());
   if (activity.jumped) {
     sinks.drainFatigue?.(Math.trunc(FATIGUE_LOSS.Jumping * fatigueMultiplier * FATIGUE_DRAIN_SCALE));   // BALANCE1: exertion's scale
-    tallyMovementSkill(entity, SKILLS.Jumping);
+    entity._jumpTallyAcc = (entity._jumpTallyAcc ?? 0) + 1 / pace;
+    if (entity._jumpTallyAcc >= 1) { entity._jumpTallyAcc -= 1; tallyMovementSkill(entity, SKILLS.Jumping); }
   }
   // CLIMB1 (the Enhanced Climbing arc): a mantle or a vault the enhanced
   // climb starts is one exertion - a jump's fatigue, the port's own price -
@@ -784,7 +797,7 @@ function tickPlayerMinutesOnce({
   // hosts built with the fatigue condition, so a grounded player
   // holding Run in place tallied nothing where DFU tallies 4/s.
   if (activity.runningTally) {
-    entity._runTallyAcc = (entity._runTallyAcc ?? 0) + dt;
+    entity._runTallyAcc = (entity._runTallyAcc ?? 0) + dt / pace;   // RPT1026-PROGRESS: a journey's run, its real seconds
     while (entity._runTallyAcc >= 0.25) {
       entity._runTallyAcc -= 0.25;
       tallyMovementSkill(entity, SKILLS.Running);   // MOVE-REAL: past 100 only the ground covered counts
@@ -1211,11 +1224,21 @@ function settleAbsence() {
   _absenceWaiting = null;
   if (waiting) waiting.pay(worldMinutes());
 }
+/** AUDIT FB1021 L3-1: THE RELAY'S CLOCK AS LAST HEARD - the world's minute at the welcome that heard it and this
+ *  machine's MONOTONIC clock then (`perf`, performance.now's ms; `n` the hearing's count this session), null before it. The
+ *  world's reading after it is the machine's wall clock run through the relay's offset (world.js's source), so a machine
+ *  clock set forward after the welcome moves it - an errand abroad reads it no further than the monotonic time since
+ *  (revenantErrands.js errandWorldMinute). */
+let _heardMark = null;
+export const sharedClockHeardMark = () => _heardMark;
+const monotonicMs = () => (typeof globalThis.performance?.now === 'function' ? globalThis.performance.now() : Date.now());
 /** AUDIT LIVED1b P4: the host has heard the relay's clock (its offset is in the source) - the waiting absence is paid on
- *  it. Answers whether a shared clock stands to hear. */
-export function hearSharedClock() {
+ *  it. Answers whether a shared clock stands to hear. AUDIT FB1021 L3-1: the hearing marked (`perf`, the monotonic clock
+ *  at it; tests hand their own). */
+export function hearSharedClock(perf = monotonicMs()) {
   if (!_sharedClock) return false;
   _sharedClockHeard = true;
+  _heardMark = Object.freeze({ world: worldMinutes(), perf, n: (_heardMark?.n ?? 0) + 1 });
   settleAbsence();
   return true;
 }
@@ -1240,6 +1263,7 @@ export function setSharedClock(source, wallOf = null, { sky = null, skyWall = nu
   _sharedLastTick = null;
   _worldWalked = [];   // AUDIT LIVED1 I, LIVED1b P3: a new session's world arms start at its first reading
   _sharedClockHeard = false;   // AUDIT LIVED1b P4: and it has not heard the relay's clock yet
+  _heardMark = null;   // AUDIT FB1021 L3-1: nor marked it
   _absenceWaiting = null;
   _ownMinutes = null;   // LIVED1: a clock installed or removed is a new session - the character's own time comes from its load
   _raisedMinutes = 0;   // TIME3: ...and its raises are counted from nought

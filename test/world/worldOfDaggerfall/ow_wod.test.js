@@ -219,8 +219,9 @@ test('OW-WOD-PATH: the host hands its planner the massifs less every pixel a roa
   assert.match(w, /if \(src === _tvRocksFrom && net === _tvRocksRoads && wm === _tvRocksMask && _tvRocks\) return _tvRocks;/, 'kept for the list, the roads and the zone it was read with');
   assert.match(w, /const onRoad = \(i\) => \(\(net\?\.roads\?\.\[i\] \?\? 0\) \| \(net\?\.tracks\?\.\[i\] \?\? 0\)\);\n\s*if \(src\) for \(let i = 0; i < n; i\+\+\) if \(src\[i\] && !onRoad\(i\)\) out\[i\] = 1;/, 'a path\'s pixel is no massif');
   // PIN MOVED (TV-BEYOND): the ground past the Bay handed in before the massifs (routeGround's `beyond`)
-  assert.match(w, /WATER_BYTE, 1000, 500, \(x, y\) => !tvWater\(x, y\)\)\)\.setRocks\(tvWodRocks\(\)\);[^\n]*\n\s*return _tvRouteGround;\n {2}\};/);
-  assert.match(w, /if \(!door && !water && tvRouteGround\(\)\.peakAt\(pix\.x, pix\.y\)\) \{ tvSay\(TRAVEL_VIEW_TEXT\.mountains\); return false; \}/);
+  // PIN MOVED (RUMARE-WATER): the ground's sea the Imperial City's lake too (world/rumareWaters.js rumareSeaPixel)
+  assert.match(w, /WATER_BYTE, 1000, 500, \(x, y\) => !tvWater\(x, y\), undefined, rumareSeaPixel\)\)\.setRocks\(tvWodRocks\(\)\);[^\n]*\n\s*return _tvRouteGround;\n {2}\};/);
+  assert.match(w, /if \(!door && !water && !dragonMounted\(\) && tvRouteGround\(\)\.peakAt\(pix\.x, pix\.y\)\) \{ tvSay\(TRAVEL_VIEW_TEXT\.mountains\); return false; \}/);   // PIN MOVED (DRAGON6): a journey begun on the dragon is flown straight (systems/dragon/dragonJourney.js)
 });
 
 // ── OW-TOWN-RING ────────────────────────────────────────────────────────
@@ -282,8 +283,8 @@ test('OW-TOWN-RING: a route through a town\'s pixel walks its ring - no leg aime
 
 test('OW-TOWN-RING: the host rings every location on the way (the build\'s own tile rect, from the blocks when the pixel is not built), and Travel Options walks the ring point to point - no ring point skipped on a resume, none taken for a road join', () => {
   const w = hostText('src/scenes/world.js');
-  assert.match(w, /const legs = routeLegs\(plan\.pixels, plan\.kinds, \{ ringAt: tvRingAt \}\);/);
-  assert.match(w, /const r = built\.get\(key\)\?\.locationRect \?\? setLocationTiles\(loc, maps, blocks, new Uint8Array\(128 \* 128\)\);/, 'the build\'s rect, or the same law over the location\'s blocks');
+  assert.match(w, /const legs = routeLegs\(plan\.pixels, plan\.kinds, \{ ringAt: tvRingAt \}, end && \[state\.worldCoords\(player\.pos\), end\]\);/);   // PIN MOVED (OW-TOWN-ROUND): a spot's own two ends rung too
+  assert.match(w, /const r = built\.get\(key\)\?\.locationRect \?\? \(onTheBay\(x, y\) \? setLocationTiles\(loc, maps, blocks, new Uint8Array\(128 \* 128\)\) : locationFootprintRect\(loc\)\);/, 'the build\'s rect, or the same law over the location\'s blocks');   // PIN MOVED (FAR-RINGS): past the Bay a place not built is rung by its footprint
   assert.match(w, /rects = locationRectsOf\(o\.x, o\.z, \{ x: r\.xMin, y: r\.yMin, width: r\.xMax - r\.xMin, height: r\.yMax - r\.yMin \}, loc\.mapTableData\.locationType === LOCATION_TYPES\.TownCity, hasCustomLocationPosition\(loc\)\);/, 'Travel Options\' own rects');
   const t = rd('src/systems/travel/travelOptions.js');
   assert.match(t, /\.\.\.\(l\.ring \? \{ ring: true \} : \{\}\)/, 'the journey keeps the mark');

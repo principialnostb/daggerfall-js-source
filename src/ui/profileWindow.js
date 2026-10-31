@@ -32,6 +32,7 @@ import { STAT_KEYS_ORDER } from '../systems/chargen.js';
 import { duelRecordText } from '../net/duel/duelRecord.js';   // DUEL1: the duelling record's words, the account card's own
 import { renownText } from '../net/renown.js';   // RENOWN1: Renown, left of the name
 import { guildTagText } from '../net/guild/guildLaw.js';   // GUILD1c: the guild's tag, right of the name
+import { guildArmsOf } from '../net/guild/guildArmsBook.js';   // GUILD-SHOP: a Guild Crest's arms, by the peer's tag
 import { localizedStrings, t } from '../systems/textManager.js';   // L10N3d: DFU's Internal_Strings, read in the player's language; STAR7: the stars' line through the core
 import { houseLine } from '../net/houseLaw.js';   // LEGACY7: the house, under the name
 
@@ -148,6 +149,12 @@ export function profileSerpentLine(record) {
   const n = record && typeof record === 'object' ? record.serpents?.slain : null;
   return Number.isSafeInteger(n) && n > 0 ? `Serpents slain: ${n}` : null;
 }
+/** AUDIT DRAGON: the Dwarven Dragons they helped slay - each a kill the relay signed and the service counted once
+ *  (server-account/src/dragons.js dragonRecordOf) - off the same record, said only once there is one. */
+export function profileDragonLine(record) {
+  const n = record && typeof record === 'object' ? record.dragons?.slain : null;
+  return Number.isSafeInteger(n) && n > 0 ? t('dragon.card.profile', 'Dragons slain: {n}', { n }) : null;
+}
 /** SD9b: the Hours they broke - each a Brass Remnant's fall the relay signed and the service counted once - off the same
  *  record, said only once there is one. */
 export function profileSdLine(record) {
@@ -160,6 +167,17 @@ export function profileStarLine(record) {
   const n = record && typeof record === 'object' ? record.stars?.held : null;
   return Number.isSafeInteger(n) && n > 0 ? t('starfall.card.profile', 'Stars held: {n}', { n }) : null;
 }
+/** KETCH (bible/11-Multiplayer/Sky-Ketch.md section 9): the voyages they sailed to the Tonal Warden's fall - each a receipt the
+ *  relay signed and the service counted once a voyage (server-account/src/ketch.js ketchRecordOf) - off the same record,
+ *  said only once there is one. */
+export function profileKetchLine(record) {
+  const n = record && typeof record === 'object' ? record.ketch?.sailed : null;
+  return Number.isSafeInteger(n) && n > 0 ? t('ketch.card.profile', 'Voyages sailed: {n}', { n }) : null;
+}
+/** KETCH: the account service's record as the Inspect card's lines - the gates closed, the towns defended, the serpents
+ *  slain, the Hours broken, the stars held, the voyages sailed - one door, so the world host lays them all (it laid the
+ *  stars none before it). */
+export const profileRecordLines = (record) => ({ gates: profileGateLine(record), raids: profileRaidLine(record), serpents: profileSerpentLine(record), dragons: profileDragonLine(record), hours: profileSdLine(record), stars: profileStarLine(record), voyages: profileKetchLine(record) });
 /** AUDIT RENOWN1 UI-3: a view with the peer's Renown as the session knows it NOW - the level rises on a renown frame
  *  while the card stands open, and the card showed the level it was opened with. A level the session does not know
  *  leaves the view's own. */
@@ -184,6 +202,8 @@ export function profileView({ name = null, peer = null, look = null, card = null
     house: houseLine(peer?.house),   // LEGACY7: the house the relay stamped - "☠ Ysolde II of House Hlaalu", or null
     title: titleBadge(peer),
     icon: readIcon(peer),   // WITCH1: the profile icon the relay stamped off their signed token - null for their face
+    iconArms: readIcon(peer) === 'guildcrest' ? guildArmsOf(peer?.gt) : undefined,   // GUILD-SHOP: their Guild Crest wears their guild's arms
+    iconTag: readIcon(peer) === 'guildcrest' ? peer?.gt ?? null : null,   // AUDIT GUILD-SHOP C6: and whose, to draw again when they come in
     glyphs: glyphBadges(peer),
     line: [card ? `Level ${card.level}` : null, race, klass].filter(Boolean).join(' '),
     attrs: card ? STAT_KEYS_ORDER.map((key, i) => ({ key, short: ATTR_SHORT[i], label: ATTR_LABELS[i], value: card.attrs[i] })) : [],
@@ -202,8 +222,10 @@ export function profileView({ name = null, peer = null, look = null, card = null
     gates: profileGateLine(record),
     raids: profileRaidLine(record),   // RAID4
     serpents: profileSerpentLine(record),   // AUDIT SERPENT D4
+    dragons: profileDragonLine(record),   // AUDIT DRAGON
     hours: profileSdLine(record),   // SD9b
     stars: profileStarLine(record),   // STAR7
+    voyages: profileKetchLine(record),   // KETCH
   };
 }
 
@@ -307,7 +329,7 @@ export function createProfileWindow({ canOpen = () => true, onOpen = null, onClo
   const paint = (v) => {
     card.replaceChildren();
     const head = el('div', 'dfprofile-head');
-    const icon = v.icon ? profileIconNode(doc, v.icon, 'dfprofile-icon', 56) : null;   // WITCH1: the icon they wear, over the name
+    const icon = v.icon ? profileIconNode(doc, v.icon, 'dfprofile-icon', 56, { arms: v.iconArms }) : null;   // WITCH1: the icon they wear, over the name
     if (icon) head.append(icon);
     if (v.title) head.append(paintTitle(el('div', 'dfprofile-title', v.title.text), v.title));   // SHADOW-FANG: its colour, or its gradient
     const nm = el('div', 'dfprofile-name');
@@ -327,7 +349,7 @@ export function createProfileWindow({ canOpen = () => true, onOpen = null, onClo
     if (v.line) head.append(el('div', 'dfprofile-line', v.line));
     // PROFILE-UI: their record - the duels (DUEL1), the gates closed (WB5b), the towns defended (RAID4), the serpents slain
     // (AUDIT SERPENT D4) - a row of plaques, each its own words, where four dim lines stood one under another
-    const facts = [['dfprofile-duels', v.duels], ['dfprofile-gates', v.gates], ['dfprofile-raids', v.raids], ['dfprofile-serpents', v.serpents], ['dfprofile-hours', v.hours], ['dfprofile-stars', v.stars]].filter(([, t]) => t);   // STAR7: and the fallen stars held
+    const facts = [['dfprofile-duels', v.duels], ['dfprofile-gates', v.gates], ['dfprofile-raids', v.raids], ['dfprofile-serpents', v.serpents], ['dfprofile-dragons', v.dragons], ['dfprofile-hours', v.hours], ['dfprofile-stars', v.stars], ['dfprofile-voyages', v.voyages]].filter(([, t]) => t);   // STAR7: and the fallen stars held; KETCH: and the voyages sailed
     if (facts.length) {
       const record = el('div', 'dfprofile-facts');
       for (const [cls, t] of facts) record.append(el('div', `dfprofile-fact ${cls}`, t));
@@ -409,9 +431,19 @@ export function createProfileWindow({ canOpen = () => true, onOpen = null, onClo
   };
 
   /** Stand the card for one peer. False when the host will not have a surface now, or there is no peer. */
+  /** AUDIT GUILD-SHOP C6: a Guild Crest drawn before its guild's arms came in is drawn again once they do (a few looks). */
+  const crestLater = (peerId, view, tries = 10) => {
+    if (!view?.iconTag || view.iconArms || tries <= 0 || typeof setTimeout !== 'function') return;
+    setTimeout(() => {
+      if (!alive || !open || shownPeer !== peerId) return;
+      const arms = guildArmsOf(view.iconTag);
+      if (arms) paint({ ...view, iconArms: arms }); else crestLater(peerId, view, tries - 1);
+    }, 600);
+  };
   const show = (peerId, view) => {
     if (!alive || !peerId || !view || !canOpen()) return false;
     paint(view);
+    crestLater(peerId, view);
     shownPeer = peerId;
     const was = open;
     open = true;
@@ -426,6 +458,7 @@ export function createProfileWindow({ canOpen = () => true, onOpen = null, onClo
   const update = (peerId, view) => {
     if (!alive || !open || !peerId || peerId !== shownPeer || !view) return false;
     paint(view);
+    crestLater(peerId, view);
     return true;
   };
 

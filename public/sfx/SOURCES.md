@@ -28,6 +28,33 @@ section 44, GATHER-FEEL), built by `tools/gatherSfx.mjs` from the same kit and t
 parry, a splash and a lock's click, which the acts borrowed; it has no axe in wood, no pick on stone, no leaves and no
 tree coming down.
 
+The `lock-*.wav` files are ours outright as well: the lockpicking minigame's tumblers - a pin lifted, a free pin
+springing back, a pin set, a spool's false set, a slip and a pick snapping (bible/06-Systems/Lockpicking.md, LOCKPICK),
+built by `tools/lockSfx.mjs` from the same kit and the same bake. DAGGER.SND has the picked lock's chime, which the world
+still plays as a lock opens; it has no tumblers.
+
+The `fx-kill-*`, `fx-portal-*` and `fx-season-*` files are ours outright as well: the kill effects' and the portal skins'
+own sounds - ash falling away, the void tearing, a pyre, a Dwemer resonance breaking, and four gates opening
+(bible/06-Systems/Storefront.md sections 4 and 5, STOREFRONT) - and the season's tremor and a Brass Fissure's hum
+(bible/06-Systems/Battle-Pass.md section 6), built by `tools/storefrontSfx.mjs` from the same kit and the same bake.
+DAGGER.SND has no body turning to ash, no gate of stone or brass and no earthquake.
+
+The `horse-*.wav` files are ours outright as well: the horse's snorts, blows, breaths and spook, and its hooves on grass,
+in snow and in water (bible/08-Audio/Audio.md HORSE-VOICE), built by `tools/horseSfx.mjs` from the same kit and the same
+bake. DAGGER.SND has one neigh, two clops on hard ground and the cart; it has no snort, no breath and no hoof on soft
+ground.
+
+The `sea-*`, `shore-*`, `wild-*` and `town-*` files are the soundscape's (SOUNDSCAPE, bible/08-Audio/Audio.md): the
+gulls at sea, the surf on a shore, the wild's voices and a town's smithies. Two kinds. OURS: a wave breaking, the owls
+and the wolves, built by `tools/soundscapeSfx.mjs` from the same kit and the same bake - DAGGER.SND has splashes, a bell
+and a lap of water, and no surf, no owl and no wolf (the deck's own eleven - the hull's slaps, the timbers' and the
+ropes' creaks, the canvas luffing, the spray - were removed with DECK-QUIET, 2026-10-26). RECORDED, each **CC0** (public domain) from
+[OpenGameArt](https://opengameart.org) - the gulls, a crow, the frogs and two anvils, whose character a synthesiser
+does badly - fetched from each page's own file and baked by `tools/soundscapeSfxInstall.mjs` (re-run it to rebuild them
+from the same sources). The soundscape's beds (the swell, the wash, the rigging, the surf, the marsh) are made at run
+time and ship no file (`src/systems/soundscape/soundBeds.js`); a town's murmur and its tavern are made at run time out
+of the player's own DAGGER.SND people.
+
 The `spell-heal.wav` file is the heal spell's landing (IMPACTFX, HEAL-FILE): the project owner's chosen heal sound
 (`02_Heal_02.wav`), softened for the game - its top tilted down 4.5 dB from 4.5 kHz and rolled off over 9 kHz, a soft
 diffuse bloom mixed under it, its sparkle's flicker evened out with a slow 3:1 compressor, a 25 ms fade in and a
@@ -109,4 +136,55 @@ over 5 kHz, which DAGGER.SND's format cannot hold. **Source and license: to be f
 | `gather-clean.wav` | gathering: a clean finish | `tools/gatherSfx.mjs` | ours | n/a | synthesised from noise and sine, deterministically - two soft bell notes a fourth apart (E6, A6) (GATHER-FEEL) |
 | `gather-haul.wav` | gathering: the goods into the bag | `tools/gatherSfx.mjs` | ours | n/a | synthesised from noise and sine, deterministically - a leather satchel's thump, its flap, the goods settling (GATHER-FEEL) |
 | `gather-rank.wav` | gathering: a rank risen | `tools/gatherSfx.mjs` | ours | n/a | synthesised from noise and sine, deterministically - three bell notes rising (C6, E6, G6) and a fourth above them (GATHER-FEEL) |
+| `lock-tick-1.wav` | lockpicking: the pick lifting a pin | `tools/lockSfx.mjs` | ours | n/a | synthesised from noise and sine, deterministically - a tiny steel tick on brass and the pin's short ring (LOCKPICK) |
+| `lock-tick-2.wav` | lockpicking: the pick lifting a pin (the other) | `tools/lockSfx.mjs` | ours | n/a | synthesised from noise and sine, deterministically - the same, a breath lower - two, so no lift is the one just heard (LOCKPICK) |
+| `lock-spring.wav` | lockpicking: a free pin springing back | `tools/lockSfx.mjs` | ours | n/a | synthesised from noise and sine, deterministically - a light ting and the spring's short buzz (LOCKPICK) |
+| `lock-set.wav` | lockpicking: a pin set at the shear line | `tools/lockSfx.mjs` | ours | n/a | synthesised from noise and sine, deterministically - a crisp click, the plug giving a hair (LOCKPICK) |
+| `lock-false.wav` | lockpicking: a spool pin's false set | `tools/lockSfx.mjs` | ours | n/a | synthesised from noise and sine, deterministically - a dull clunk and the plug turning back against the tension (LOCKPICK) |
+| `lock-slip.wav` | lockpicking: the pick slipping off a pin | `tools/lockSfx.mjs` | ours | n/a | synthesised from noise and sine, deterministically - a thin steel scrape (LOCKPICK) |
+| `lock-snap.wav` | lockpicking: the pick snapping | `tools/lockSfx.mjs` | ours | n/a | synthesised from noise and sine, deterministically - a sharp crack, and the broken tip ringing as it falls and lands (LOCKPICK) |
+| `fx-kill-ashen.wav` | kill effect: Ashen Shatter | `tools/storefrontSfx.mjs` | ours | n/a | synthesised from noise and sine, deterministically - a soft rush falling away and the embers ticking as they cool (STOREFRONT) |
+| `fx-kill-voidrend.wav` | kill effect: Voidrend | `tools/storefrontSfx.mjs` | ours | n/a | synthesised from noise and sine, deterministically - a swell drawn in, a hollow thump, a low ring beating as the tear closes (STOREFRONT) |
+| `fx-kill-pyre.wav` | kill effect: Daedric Pyre | `tools/storefrontSfx.mjs` | ours | n/a | synthesised from noise and sine, deterministically - the whoomph of a body taking fire, its crackle, the roar dying down (STOREFRONT) |
+| `fx-kill-tonal.wav` | kill effect: Tonal Shatter | `tools/storefrontSfx.mjs` | ours | n/a | synthesised from noise and sine, deterministically - a struck brass chord (C-G-C), cogs scattering and landing, a hiss of steam (STOREFRONT) |
+| `fx-portal-runic.wav` | portal skin: Runic Stone | `tools/storefrontSfx.mjs` | ours | n/a | synthesised from noise and sine, deterministically - a cold three-bell chime and its shimmer over a breath of frost (STOREFRONT) |
+| `fx-portal-daedric.wav` | portal skin: Daedric Stone | `tools/storefrontSfx.mjs` | ours | n/a | synthesised from noise and sine, deterministically - the ground rumbling, iron grinding as the arch comes up, a rush of fire (STOREFRONT) |
+| `fx-portal-aetheric.wav` | portal skin: Aetheric Stone | `tools/storefrontSfx.mjs` | ours | n/a | synthesised from noise and sine, deterministically - a rising run of five bell notes over a swell that blooms as the ring closes (STOREFRONT) |
+| `fx-portal-brass.wav` | portal skin: Brass Gate | `tools/storefrontSfx.mjs` | ours | n/a | synthesised from noise and sine, deterministically - a blast of steam, four cogs clanking home, the gate's beating hum (STOREFRONT) |
+| `fx-season-tremor.wav` | the season's tremor | `tools/storefrontSfx.mjs` | ours | n/a | synthesised from noise and sine, deterministically - the ground's deep roll swelling and dying, stones rattling, brass grinding far under (STOREFRONT) |
+| `fx-season-hum.wav` | a Brass Fissure | `tools/storefrontSfx.mjs` | ours | n/a | synthesised from noise and sine, deterministically - steam hissing from the crack over a low brass hum beating against itself (STOREFRONT) |
+| `horse-snort-1.wav` | horse: a snort | `tools/horseSfx.mjs` | ours | n/a | synthesised from noise and sine, deterministically - a forceful breath out through the nose's two bands (300 Hz, 1.6 kHz), fluttering at ~32 Hz |
+| `horse-snort-2.wav` | horse: a snort | `tools/horseSfx.mjs` | ours | n/a | synthesised from noise and sine, deterministically - the same, a shade lower and longer |
+| `horse-snort-3.wav` | horse: a snort | `tools/horseSfx.mjs` | ours | n/a | synthesised from noise and sine, deterministically - the same, a shade higher and shorter |
+| `horse-blow-1.wav` | horse: the long blow | `tools/horseSfx.mjs` | ours | n/a | synthesised from noise and sine, deterministically - the relaxed "brrr": a pulse train slowing 27 -> 21 Hz through the nose's bands, a breath under it |
+| `horse-blow-2.wav` | horse: the long blow | `tools/horseSfx.mjs` | ours | n/a | synthesised from noise and sine, deterministically - the same, quicker and shorter |
+| `horse-breath-1.wav` | horse: a gallop's breath | `tools/horseSfx.mjs` | ours | n/a | synthesised from noise and sine, deterministically - one short hard exhale and the effort's low grunt |
+| `horse-breath-2.wav` | horse: a gallop's breath | `tools/horseSfx.mjs` | ours | n/a | synthesised from noise and sine, deterministically - the same, lower |
+| `horse-breath-3.wav` | horse: a gallop's breath | `tools/horseSfx.mjs` | ours | n/a | synthesised from noise and sine, deterministically - the same, higher and shorter |
+| `horse-spook.wav` | horse: the spook | `tools/horseSfx.mjs` | ours | n/a | synthesised from noise and sine, deterministically - a sharp snort and a harder one on its heels, higher and quicker in the flutter |
+| `horse-soft-slow.wav` | horse: hooves on grass, slow | `tools/horseSfx.mjs` | ours | n/a | synthesised from noise and sine, deterministically - a dull thump, the turf's swish, a clod; HorseClop's own 1.508 s and four falls |
+| `horse-soft-fast.wav` | horse: hooves on grass, fast | `tools/horseSfx.mjs` | ours | n/a | synthesised from noise and sine, deterministically - the same on HorseClop2's 2.606 s and its falls |
+| `horse-snow-slow.wav` | horse: hooves in snow, slow | `tools/horseSfx.mjs` | ours | n/a | synthesised from noise and sine, deterministically - a crackle of grains packing (1.2-3.5 kHz) over a muffled thump; HorseClop's cadence |
+| `horse-snow-fast.wav` | horse: hooves in snow, fast | `tools/horseSfx.mjs` | ours | n/a | synthesised from noise and sine, deterministically - the same on HorseClop2's cadence |
+| `horse-water-slow.wav` | horse: hooves in shallow water, slow | `tools/horseSfx.mjs` | ours | n/a | synthesised from noise and sine, deterministically - a splash and its drops, a low plop; HorseClop's cadence |
+| `horse-water-fast.wav` | horse: hooves in shallow water, fast | `tools/horseSfx.mjs` | ours | n/a | synthesised from noise and sine, deterministically - the same on HorseClop2's cadence |
+| `shore-crash-1.wav` | shore: a wave breaking | `tools/soundscapeSfx.mjs` | ours | n/a | synthesised from noise and sine, deterministically - the roar rising as the wave curls (its top opening out), the crash, the foam running back with fizz in it |
+| `shore-crash-2.wav` | shore: a wave breaking | `tools/soundscapeSfx.mjs` | ours | n/a | synthesised from noise and sine, deterministically - the roar rising as the wave curls (its top opening out), the crash, the foam running back with fizz in it |
+| `wild-owl-1.wav` | wild: an owl at night | `tools/soundscapeSfx.mjs` | ours | n/a | synthesised from noise and sine, deterministically - a tawny's hoot and its tremolo (470 Hz) - sines sliding down with a breath of their band |
+| `wild-owl-2.wav` | wild: an owl at night | `tools/soundscapeSfx.mjs` | ours | n/a | synthesised from noise and sine, deterministically - a deeper owl's slow triple call (315 Hz) - sines sliding down with a breath of their band |
+| `wild-howl-1.wav` | wild: a wolf far off | `tools/soundscapeSfx.mjs` | ours | n/a | synthesised from noise and sine, deterministically - a howl gliding 360 to 640 Hz, held with a 5 Hz vibrato and falling away, overtones and a breath, the hills' two darker echoes |
+| `wild-howl-2.wav` | wild: a wolf far off | `tools/soundscapeSfx.mjs` | ours | n/a | synthesised from noise and sine, deterministically - a howl gliding 330 to 590 Hz, held with a 5 Hz vibrato and falling away, overtones and a breath, the hills' two darker echoes |
+| `sea-gull-1.wav` | sea: a gull | [Seagull Ambient 1.wav](https://opengameart.org/content/solo-seagull-sound-effects) | Rango Mango | CC0 | a herring gull's long call, three falling cries - the coast's own sound |
+| `sea-gull-2.wav` | sea: a gull | [Seagull Ambient 2.wav](https://opengameart.org/content/solo-seagull-sound-effects) | Rango Mango | CC0 | two short cries, a bird passing |
+| `sea-gull-3.wav` | sea: a gull | [Seagull Ambient 3.wav](https://opengameart.org/content/solo-seagull-sound-effects) | Rango Mango | CC0 | one cry, higher |
+| `sea-gull-4.wav` | sea: a gull | [Seagull Ambient 5.wav](https://opengameart.org/content/solo-seagull-sound-effects) | Rango Mango | CC0 | a laughing call, the one a harbour is full of |
+| `sea-gull-5.wav` | sea: a gull | [Seagull Ambient 6.wav](https://opengameart.org/content/solo-seagull-sound-effects) | Rango Mango | CC0 | a single mew |
+| `sea-gull-6.wav` | sea: a gull | [Seagull Big Ambient.wav](https://opengameart.org/content/solo-seagull-sound-effects) | Rango Mango | CC0 | a bigger bird's bark, low among the others |
+| `wild-crow-1.wav` | wild: a crow | [crow_0.ogg](https://opengameart.org/content/crow) | fvcalderan | CC0 | a crow's caw, dry: the hills and the woods by day |
+| `wild-frog-1.wav` | wild: a frog | [croak_01_0.mp3](https://opengameart.org/content/frog-croaks) | EZduzziteh | CC0 | a frog's croak, a marsh's night |
+| `wild-frog-2.wav` | wild: a frog | [croak_02.mp3](https://opengameart.org/content/frog-croaks) | EZduzziteh | CC0 | a short one, for a chorus |
+| `wild-frog-3.wav` | wild: a frog | [croak_03.mp3](https://opengameart.org/content/frog-croaks) | EZduzziteh | CC0 | a long rattling croak |
+| `wild-frog-4.wav` | wild: a frog | [croak_04.mp3](https://opengameart.org/content/frog-croaks) | EZduzziteh | CC0 | a deeper one |
+| `town-anvil-1.wav` | town: a smithy | [blacksmithhammer.wav](https://opengameart.org/content/blacksmiths-hammer) | VishwaJai | CC0 | one hammer blow on an anvil, ringing - a smithy at work |
+| `town-anvil-2.wav` | town: a smithy | [forger_0.ogg](https://opengameart.org/content/hammer-on-anvil) | themightyglider | CC0 | a run of blows on an anvil, a smith's rhythm |
 | `spell-heal.wav` | heal impact | `02_Heal_02.wav`, supplied by the project owner (2026-10-05) | TO FILL IN | TO FILL IN | the heal the player picked as perfect, softened and smoothed; kept at 22050 Hz 16-bit so its shimmer survives |

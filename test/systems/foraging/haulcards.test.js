@@ -47,6 +47,7 @@ test('HAUL-CARDS the law: a material\'s tier wears the loot\'s colours - 1 and 2
   assert.equal(rankProgress((xpForRank(34) + xpForRank(35)) / 2), 0.5);
   assert.equal(rankProgress(xpForRank(100) + 5000), 1, 'the top rank');
   assert.ok(HAUL_HOLD_MS > 2500 && LODE_HOLD_MS > HAUL_HOLD_MS);
+  assert.deepEqual([HAUL_HOLD_MS, LODE_HOLD_MS], [7200, 9000], 'GATHER-HOLD: four seconds longer than 3.2 s / 5 s');
   assert.deepEqual([HAUL_ICON_BOX, LODE_ICON_BOX], [32, 38]);
   assert.equal(haulCappedText(), 'Daily silver cap reached');   // SERPENT-SET: the serpents strike under the same cap; PIN MOVED (EG-E1): and the Spire's Redoubts; PIN MOVED (STAR7): and the held stars; PIN MOVED (VOICE2, in PLAIN-SWEEP's words): no dash aside (Voice.md rule 5); PIN MOVED (AUDIT STAR W2): a label through the text core, the chat's line names the cap
 });
@@ -363,7 +364,7 @@ test('HAUL-CARDS the seams by source: the world host hands the gathering host th
   assert.match(w, /onMarks: \(marks, data\) => \{ showHaul\(claimHauls\(data \?\? \{ marks \}, 'gate'\)\); return marksBook\?\.claimLines\(data \?\? \{ marks \}, 'gate'\) \?\? null; \},/);
   const g = rd('src/scenes/gatherHost.js');
   assert.match(g, /hauled = live && deps\.haul\?\.\(harvestHauls\(d, \{ name: k\?\.haulName\?\.\(d\) \?\? null, note \}\)\) === true;/);   // AUDIT HAUL-CARDS A3 (PIN MOVED): on a live world
-  assert.match(g, /try \{ k\?\.answered\?\.\(d, \(t\) => hud\.toast\(t\), \{ hauled \}\); \}/);
+  assert.match(g, /try \{ k\?\.answered\?\.\(d, \(t\) => hud\.toast\(t\), \{ hauled, entity: deps\.entity\?\.\(\) \?\? null \}\); \}/);   // PIN MOVED (HUNTERS-MARK): and the gather host's entity, a Trophy Hunter's trophy's pack
   assert.match(rd('src/ui/pickupFeed.js'), /const box = line\.lode \? LODE_ICON_BOX : line\.haul \? HAUL_ICON_BOX : PICKUP_ICON_BOX;/);
   assert.ok(materialImage('metal:iron') === null || Number.isInteger(materialImage('metal:iron').archive), 'an address or none');
 });

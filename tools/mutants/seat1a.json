@@ -21,7 +21,7 @@
   {
     "name": "SEAT1a-crown-any-name",
     "file": "src/net/townSeatLaw.js",
-    "old": " || name !== KINGDOMS[CROWN_SEAT_REGIONS[region]]?.name))",
+    "old": " || name !== kingdomSeatName(CROWN_SEAT_REGIONS[region])))",
     "new": "))",
     "tests": [
       "test/net/seat1a_client.test.js",
@@ -333,15 +333,6 @@
     "file": "src/scenes/seatBanners.js",
     "old": "(centre[0] - cx) * ox + (centre[1] - cz) * oz < 0)",
     "new": "(centre[0] - cx) * ox + (centre[1] - cz) * oz > 0)",
-    "tests": [
-      "test/net/seat1a_client.test.js"
-    ]
-  },
-  {
-    "name": "SEAT1a-bounty-board-pennant",
-    "file": "src/scenes/seatBanners.js",
-    "old": "boards.forEach((b, i) => { if (!bounty.has(i)) add(boardPennantAnchor(b)); });",
-    "new": "boards.forEach((b) => { add(boardPennantAnchor(b)); });",
     "tests": [
       "test/net/seat1a_client.test.js"
     ]

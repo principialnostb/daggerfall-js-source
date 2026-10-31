@@ -12,6 +12,8 @@ import { readFileSync } from 'node:fs';
 import { createExteriorFoes } from '../../src/scenes/exteriorFoes.js';
 import { createGrantHost } from '../../src/scenes/grantHost.js';
 import { foeHealthBound } from '../../src/net/foeBounds.js';
+import { staffEventBook, _resetStaffEvents } from '../../src/systems/staffEvents.js';
+import { validStaffEvent, staffEventKey } from '../../src/net/staffEvent/staffEventLaw.js';
 import { signGrant, grantMarksFor, GRANT_TTL_MS, GRANT_TALLY_MS } from '../../src/net/grantLaw.js';
 
 const { subtle } = globalThis.crypto;
@@ -81,7 +83,7 @@ const puppets = (D) => D.pool.foes.filter((f) => f.puppet === OWNER && !f._gone)
 test('FOE-BOUNDS A HAND-OFF NO BUILDER COULD GIVE IS REFUSED BEFORE IT IS MINE: an owner hands me a rat of 99,999 health - never adopted (nothing of it rides as mine), its copy taken down without a death, a body or its loot, tallied once against its SENDER and never against me, however often it is said; its honest twin and the maximum itself stand (mutants: the check left out of the street pool; a hand-off adopted before the check; tallied every frame)', async () => {
   const { D, honest } = await stood();
   assert.equal(puppets(D).length, 2, 'the honest pair stands');
-  const mx = foeHealthBound({ t: 0 }, { wild: true });
+  const mx = foeHealthBound({ t: 0 }, { wild: true, camp: false });   // STAR-TUNE: its frame tags no camp (unknown, a fallen star's coven's x2 is the worst)
   const atMax = { ...honest, n: 40, full: 0, f: [{ ...honest.f[1], k: mx, h: mx }] };
   D.pool.applyFoes(OWNER, atMax);
   await settle();
@@ -105,6 +107,30 @@ test('FOE-BOUNDS A RECORD NO BUILDER COULD GIVE IS NEVER BUILT: a new number at 
   await settle();
   assert.equal(puppets(D).length, 3, 'a companion: unverified, stood');
   assert.equal(D.host.tallied().get(`${OWNER}|stats`), 1, 'the companion tallied nothing');
+});
+
+test('BOSS-BOUND A LIVE STAFF EVENT\'S MINI BOSS IS HELD TO ITS EVENT\'S HEALTH: tagged its boss and its raider, a 10,000-health boss of an event set to 10,000 stands for a peer; past it, refused; with no such event in my book, or untagged, the plain bound holds (mutants: the boss tag unread; its bound unchecked)', async () => {
+  _resetStaffEvents();
+  try {
+    const { D, honest } = await stood();
+    const ev = validStaffEvent({ id: 'bossbound1', rg: 0, loc: -1, px: 3, py: 12, nm: 'Here', ct: 0, mt: [0], n: 20, m: 5, b: 0, bs: 200, bh: 10, hp: 10_000, at: Date.now(), ue: 0, eb: 1, fb: 0, by: 'mob' });
+    assert.ok(ev);
+    const key = staffEventKey(ev.id);
+    const boss = (i, k, o = {}) => D.pool.applyFoes(OWNER, { ...honest, n: i, full: 0, f: [{ ...honest.f[0], i, k, h: k, gr: undefined }], rz: [[i, key]], sb: [[i, 200]], ...o });
+    boss(900, 10_000);
+    await settle();
+    assert.equal(puppets(D).length, 2, 'no event in my book: the plain bound - refused');
+    staffEventBook([ev]);
+    boss(901, 10_000);
+    await settle();
+    assert.equal(puppets(D).length, 3, 'its event\'s own 10,000: stood');
+    boss(902, 10_001);
+    await settle();
+    assert.equal(puppets(D).length, 3, 'past it: refused');
+    boss(903, 10_000, { sb: [] });
+    await settle();
+    assert.equal(puppets(D).length, 3, 'untagged: a plain foe\'s bound');
+  } finally { _resetStaffEvents(); }
 });
 
 test('FOE-BOUNDS THE STAFF\'S SWITCH, AND AN OLDER RELAY: while the law is `off` nothing is judged; a relay before world223 is never handed `stats` - the rest of the tally goes (mutants: judged with the law off; `stats` to an older relay)', async () => {

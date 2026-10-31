@@ -17,7 +17,7 @@ import {
   PROFESSIONS, DISCIPLINES, SPECIALISATIONS, SPEC_RANKS, trackOf, disciplinesOf, disciplineName, specDiscipline, specOk, specOf,
   professionName, isProfession, isGathering, craftXpCap, xpForRank, PROF_XP_MAX, smeltRecipe,
 } from '../../src/net/professionLaw.js';
-import { RECIPES, masterworkSpec, recipeById, FIRST_CRAFT_XP, craftXp, cookXp } from '../../src/net/recipeLaw.js';
+import { RECIPES, masterworkSpec, recipeById, firstCraftXp, craftXp, cookXp } from '../../src/net/recipeLaw.js';
 import { mintPieces } from '../../src/systems/smithItems.js';
 
 const src = (p) => readFileSync(new URL(`../../${p}`, import.meta.url), 'utf8');
@@ -43,7 +43,7 @@ test('CRAFT3 DONE WHEN: a Silver Ring and an Iron Dagger raise one Smithing trac
     assert.equal(r.ok, true, `${id}: ${JSON.stringify(r)}`);
     made.push([id, r.data.track.profession, r.data.xp]);
   }
-  const each = craftXp(1, 0, false) + FIRST_CRAFT_XP;
+  const each = craftXp(1, 0) + 500;   // PIN MOVED (FIRST-BUDGET): Smithing's first-make share, the 500 a first always paid it
   assert.deepEqual(made, [['ring:silver', 'smithing', each], ['dagger:iron', 'smithing', each]]);
   assert.equal(book.track('smithing').xp, 2 * each);
   assert.equal(book.track('jewelcrafting'), book.track('smithing'), 'a discipline\'s track its craft\'s');
@@ -154,8 +154,9 @@ test('CRAFT3 law: ten tracks - the five that gather, the five that craft; eight 
   assert.deepEqual([ids('outfitting', 50), ids('enchanting', 100), ids('mining', 50)], [['tailor', 'leatherworker'], ['soulbinder', 'runecaster'], ['prospector', 'deep-delver']]);
   assert.deepEqual(['gemcutter', 'sculptor', 'chef', 'tailor', 'prospector', 'nobody'].map(specDiscipline), ['jewelcrafting', 'masonry', 'cooking', 'outfitting', 'mining', null]);
   assert.deepEqual([specOk('jewelcrafting', 50, 'weaponsmith'), specOk('smithing', 100, 'lapidary'), specOk('building', 50, 'sculptor'), specOf('masonry', 100, 'sculptor')?.name], [true, true, false, 'Sculptor']);
-  // a choice whose slice is to come is named, never chosen (AUDIT 29 A17) - the Trophy Hunter, the Couturier, the Saddler
-  assert.deepEqual([specOk('hunting', 100, 'trophy-hunter'), specOk('outfitting', 100, 'couturier'), specOk('outfitting', 100, 'saddler'), specOk('hunting', 100, 'butcher')], [false, false, false, true]);
+  // a choice whose slice is to come is named, never chosen (AUDIT 29 A17) - the Couturier, the Saddler; PIN MOVED
+  // (HUNTERS-MARK): the Trophy Hunter is chosen since its trophy was built (Professions-Arc 58)
+  assert.deepEqual([specOk('hunting', 100, 'trophy-hunter'), specOk('outfitting', 100, 'couturier'), specOk('outfitting', 100, 'saddler'), specOk('hunting', 100, 'butcher')], [true, false, false, true]);
   for (const p of PROFESSIONS) for (const r of SPEC_RANKS) assert.equal(SPECIALISATIONS[p.id][r].length, disciplinesOf(p.id).length > 1 ? 4 : 2, `${p.id} ${r}`);
 });
 
@@ -203,7 +204,7 @@ test('CRAFT3 service: the merge\'s free change - no Marks, in effect at once, an
   const dish = await book.craft('stew:north', { clean: false, name: 'Mac' }, (data) => mintPieces(data));
   assert.equal(dish.ok, true, JSON.stringify(dish));
   assert.deepEqual([dish.data.track.profession, dish.data.xp, dish.data.track.xp], ['provisioning', 100, xpForRank(51) - 1], 'held one short of 51');
-  assert.ok(cookXp(50) + FIRST_CRAFT_XP > dish.data.xp, 'the cap is what held it');
+  assert.ok(cookXp(50) + firstCraftXp(recipeById('stew:north')) > dish.data.xp, 'the cap is what held it');   // PIN MOVED (FIRST-BUDGET)
 });
 
 test('CRAFT3 service source: every track read and credit is the craft\'s - the craft, the smelt, the brew, the seats\' choices; a free change its own row (source pins)', () => {

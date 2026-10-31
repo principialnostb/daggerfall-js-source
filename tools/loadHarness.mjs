@@ -9,7 +9,8 @@
 //   node tools/loadHarness.mjs --help               every knob
 //
 // WRANGLER_BIN names a wrangler to run (`npm ci` in server/ installs one - server/node_modules/.bin/wrangler, which is
-// taken by default when it is there); without one, `npx --yes wrangler@4` (minutes a call on a cold cache).
+// taken by default when it is there); without one, `npx --yes wrangler@4` (minutes a call on a cold cache). It runs on
+// Linux, macOS and Windows (HARNESS-WIN: tools/lib/wranglerLaunch.mjs starts and stops wrangler on each).
 //
 // ═══ WHAT A BOT IS ══════════════════════════════════════════════════════════════════════════════════════════════════
 //
@@ -77,6 +78,7 @@ import { request as httpRequest } from 'node:http';
 import { Worker, isMainThread, parentPort, workerData } from 'node:worker_threads';
 
 import { isMain } from './lib/isMain.mjs';
+import { wranglerCommand, devSpawnOptions, killTree } from './lib/wranglerLaunch.mjs';
 import { OnlineSession } from '../src/net/online.js';
 import {
   accountTokenMinter, SESSION_KEY, SERVICE_KEY, beatPlay, register as registerCall,
@@ -100,6 +102,16 @@ import { MOTHERLODE_READ_MS } from '../src/net/motherlodeBook.js';
 import { PROF_CLOSED_RECHECK_MS } from '../src/net/profBook.js';
 import { utcDayOfMs } from '../src/net/nodeLaw.js';
 import { routeLabel } from '../server-account/src/metrics.js';
+import { ROLLED_START_MIN } from '../src/systems/levelClimb.js';
+/** BIRTH-SKILL (#1484): a first save the realm takes carries a creation's skills - the least one gives (test/realmSeat.mjs freshSave's). */
+const BIRTH = (() => {
+  const career = { primarySkills: [0, 1, 2], majorSkills: [3, 4, 5], minorSkills: [6, 7, 8, 9, 10, 11] };
+  const skills = new Array(35).fill(3);
+  for (const id of career.primarySkills) skills[id] = 30;
+  for (const id of career.majorSkills) skills[id] = 20;
+  for (const id of career.minorSkills) skills[id] = 14;
+  return { career, skills, startingLevelUpSkillSum: ROLLED_START_MIN, currentLevelUpSkillSum: ROLLED_START_MIN };
+})();
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 /** SCALE4c: the tab's one heartbeat (src/net/heartbeat.js), where the tree under test has it - its bots then keep the
@@ -339,7 +351,7 @@ export function saveText(bot, kb, at) {
 
 const localWrangler = join(ROOT, 'server/node_modules/.bin/wrangler');
 const WRANGLER_BIN = process.env.WRANGLER_BIN || (existsSync(localWrangler) ? localWrangler : '');
-const wrangler = (args) => (WRANGLER_BIN ? [WRANGLER_BIN, args] : ['npx', ['--yes', 'wrangler@4', ...args]]);
+const wrangler = (args) => wranglerCommand(args, { bin: WRANGLER_BIN });
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 /** Is anything answering (or holding) a local port? Only a refused connection says no - an orphaned workerd accepts and
@@ -367,12 +379,12 @@ async function healthy(port, path, waitS) {
   return false;
 }
 
-/** The processes this run started, each its own group - killed whole (npx -> wrangler -> workerd: the grandchild holds
- *  the port), on the way out and on a signal. */
+/** The processes this run started, each killed whole (npx -> wrangler -> workerd: the grandchild holds the port), on the
+ *  way out and on a signal - its own group off Windows, its tree on it (tools/lib/wranglerLaunch.mjs). */
 const started = new Set();
 function startDev(cwd, args, label) {
   const [bin, a] = wrangler(args);
-  const p = spawn(bin, a, { cwd, stdio: ['ignore', 'pipe', 'pipe'], detached: true });
+  const p = spawn(bin, a, devSpawnOptions({ cwd, stdio: ['ignore', 'pipe', 'pipe'] }));
   p.label = label; p.log = '';
   const keep = (d) => { p.log = (p.log + d).slice(-20_000); };
   p.stdout.on('data', keep); p.stderr.on('data', keep);
@@ -382,7 +394,7 @@ function startDev(cwd, args, label) {
 function stopDev(p) {
   if (!p) return;
   started.delete(p);
-  try { process.kill(-p.pid, 'SIGKILL'); } catch { /* already gone */ }
+  try { killTree(p.pid, 'SIGKILL'); } catch { /* already gone */ }
 }
 export const stopAll = () => { for (const p of [...started]) stopDev(p); };
 
@@ -393,13 +405,17 @@ export async function standServices(o, state) {
   for (const port of [accountPort, relayPort]) {
     if (await portHeld(port)) throw new Error(`something already holds 127.0.0.1:${port} - stop it (an orphaned workerd: \`ps aux | grep workerd\`), or pass --port`);
   }
-  console.log('== a throwaway signing pair (never written into the repository)');
+  console.log('== throwaway signing pairs (never written into the repository)');
   const { stdout } = await run(process.execPath, [join(ROOT, 'tools/mintIdentityKeys.mjs'), '--pipe']);
   const [priv, pub] = stdout.split('\n');
+  // WILD-REMAINS-LOSS: and the gate's receipt pair, the other direction (tools/mintGateKeys.mjs) - the relay signs a kill or
+  // a zone fall, and the service honours its receipt only with the public half (else 'no-gate-key': no seizure, no gate claim)
+  const gate = await run(process.execPath, [join(ROOT, 'tools/mintGateKeys.mjs'), '--pipe']);
+  const [gatePriv, gatePub] = gate.stdout.split('\n');
   const acctEnv = join(state, 'account.env');
-  writeFileSync(acctEnv, `IDENTITY_PRIVATE_KEY=${priv}\nIDENTITY_PUBLIC_KEY=${pub}\n`, { mode: 0o600 });
+  writeFileSync(acctEnv, `IDENTITY_PRIVATE_KEY=${priv}\nIDENTITY_PUBLIC_KEY=${pub}\nGATE_PUBLIC_KEY=${gatePub}\n`, { mode: 0o600 });
   const relayEnv = join(state, 'relay.env');
-  writeFileSync(relayEnv, `IDENTITY_PUBLIC_KEY=${pub}\n`, { mode: 0o600 });
+  writeFileSync(relayEnv, `IDENTITY_PUBLIC_KEY=${pub}\nGATE_SIGNING_KEY=${gatePriv}\n`, { mode: 0o600 });
 
   console.log('== the account database: every migration, through wrangler\'s ledger');
   const [mb, ma] = wrangler(['d1', 'migrations', 'apply', 'daggerfall-accounts', '--local', '--persist-to', state]);
@@ -413,8 +429,9 @@ export async function standServices(o, state) {
   console.log('== booting both Workers in workerd');
   const svc = { accountPort, relayPort, account: account(), relay: relay(), restartRelay: null };
   if (!(await healthy(accountPort, '/v1/health', 180))) throw new Error(`the account service never answered:\n${svc.account.log.slice(-2000)}`);
-  // AUDIT SCALE C11: the private half read and the service up - it leaves the disk now, not at the run's end (the relay's
-  // file holds the public half alone, and the storm restarts only the relay)
+  // AUDIT SCALE C11: the private half read and the service up - it leaves the disk now, not at the run's end (the storm
+  // restarts only the relay, whose file keeps the identity's public half and the gate's signing half for it, in the
+  // run's own state directory, which the run removes)
   rmSync(acctEnv, { force: true });
   if (!(await healthy(relayPort, '/health', 180))) throw new Error(`the relay never answered:\n${svc.relay.log.slice(-2000)}`);
   svc.restartRelay = async () => {
@@ -536,7 +553,7 @@ export async function setUp(bot, o) {
   const c = await realmCreate(io, bot.name, null);
   if (!c.ok) throw new Error(`bot ${bot.n}: no realm character (${c.error})`);
   const rs = createRealmSession({ io, id: c.data.id, lease: c.data.lease, seq: c.data.seq ?? 0, gzip: c.data.gzip === true, hidden: () => false, watchHidden: () => {} });
-  const first = await rs.checkpoint(JSON.stringify({ name: bot.name, level: 1, goldPieces: 100, items: [] }));
+  const first = await rs.checkpoint(JSON.stringify({ name: bot.name, level: 1, goldPieces: 100, items: [], ...BIRTH }));   // BIRTH-SKILL (#1484)
   if (!first?.ok) throw new Error(`bot ${bot.n}: the first save did not land (${first?.error})`);
   bot.realm = { id: c.data.id, session: rs };
   bot.minter = accountTokenMinter({ fetch: bot.fetch, storage: bot.storage, character: () => bot.realm.id });

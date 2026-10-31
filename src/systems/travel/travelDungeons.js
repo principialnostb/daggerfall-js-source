@@ -21,7 +21,8 @@
 // the way that feature tells them: NOTHING until it has (it says a spawn when its pixel is entered, never before - a
 // spawn next door is not said), then its mark, named once the pixel entry has filed it in the store.
 // ═══════════════════════════════════════════════════════════════════
-import { LOCATION_TYPES, getPixelFromPixelID, MAX_MAP_PIXEL_X, MAX_MAP_PIXEL_Y } from '../../formats/mapsFile.js';
+import { LOCATION_TYPES, getPixelFromPixelID } from '../../formats/mapsFile.js';
+import { WORLD_PIXEL_SPAN } from '../../world/worldWide/worldGrid.js';   // TVD-WORLD: the found spawns read on the world's grid
 import { TV_FAR_RANGE } from './travelFarPlaces.js';
 import { ARRIVAL_BUFFER } from './travelAutopilot.js';
 
@@ -114,7 +115,8 @@ export function nearDungeons({ at, dungeons, locAt, isFound, spawns = [], spawnK
     out.push({ key: `spawn:${s.loc.mapTableData?.mapId}`, x: s.x, y: s.y, loc: s.loc, row: null, d, found: !!spawnFound(s), spawn: true });
   }
   const nearer = (a, b) => a.d - b.d || a.x - b.x || a.y - b.y;
-  const inGrid = (g) => !g.found && Math.max(Math.abs(g.x - at.x), Math.abs(g.y - at.y)) <= grid;   // AUDIT OW5b D1
+  // AUDIT OW5b D1; AUDIT FB1030 Z1: and a found spawn there - nothing else plates it (SPAWN-PLATE), so past the twelve it had none
+  const inGrid = (g) => (!g.found || g.spawn) && Math.max(Math.abs(g.x - at.x), Math.abs(g.y - at.y)) <= grid;
   const rest = out.filter((g) => !inGrid(g));
   rest.sort((a, b) => (b.found ? 1 : 0) - (a.found ? 1 : 0) || nearer(a, b));   // AUDIT OW4 D7: the found first
   return [...out.filter(inGrid), ...rest.slice(0, max)].sort(nearer);
@@ -128,13 +130,15 @@ export function nearDungeons({ at, dungeons, locAt, isFound, spawns = [], spawnK
  * pixels, on the map) whose roll holds a spawn (`rolls`) and whose id is FILED (`filed`), and that the index does not
  * already speak for (`indexed` - a built spawn, or a real place), is asked what stands there (`stand`: the host's own
  * spawn tests and its clone, side-effect free - null for none) and comes back `{ x, y, loc }`, spawnedPixels' shape.
+ * TVD-WORLD (2026-10-27): on the world's grid - the spawns stand past the Bay too (SPAWN-WORLD), and the circle was held
+ * to the Bay's 1000 x 500.
  * @param {{ at: {x:number,y:number}, rolls: (x:number, y:number) => boolean, filed: (x:number, y:number) => boolean,
  *   indexed: (x:number, y:number) => boolean, stand: (x:number, y:number) => any, range?: number }} q
  */
 export function filedSpawns({ at, rolls, filed, indexed, stand, range = TV_FAR_RANGE }) {
   const out = [], r = Math.floor(range);
-  for (let y = Math.max(0, at.y - r); y <= Math.min(MAX_MAP_PIXEL_Y - 1, at.y + r); y++) {
-    for (let x = Math.max(0, at.x - r); x <= Math.min(MAX_MAP_PIXEL_X - 1, at.x + r); x++) {
+  for (let y = Math.max(1 - WORLD_PIXEL_SPAN, at.y - r); y <= Math.min(WORLD_PIXEL_SPAN - 1, at.y + r); y++) {
+    for (let x = Math.max(1 - WORLD_PIXEL_SPAN, at.x - r); x <= Math.min(WORLD_PIXEL_SPAN - 1, at.x + r); x++) {
       if (Math.hypot(x - at.x, y - at.y) > range || !rolls(x, y) || !filed(x, y) || indexed(x, y)) continue;
       const loc = stand(x, y);
       if (loc) out.push({ x, y, loc });

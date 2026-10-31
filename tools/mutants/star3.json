@@ -2,8 +2,9 @@
  {
   "name": "STAR3-the-star-index-unbounded",
   "file": "src/net/wire.js",
-  "old": "!intIn(m.k, 0, STAR_STARS_MAX - 1)",
-  "new": "!intIn(m.k, 0, STAR_STARS_MAX)",
+  "note": "WW5 (2026-10-27): re-aimed by content - the law moved with the Hollows' and the stars' lanes (bible/03-World/World-Wide.md WW5).",
+  "old": "k < STAR_STARS_MAX * STAR_LANES_WIRE && siteEventPixelOk(Math.floor(k / STAR_STARS_MAX), px, py);",
+  "new": "k < STAR_STARS_MAX * STAR_LANES_WIRE && siteEventPixelOk(0, px, py);",
   "tests": [
    "test/net/starfall/star3_relay.test.js"
   ]
@@ -47,8 +48,8 @@
  {
   "name": "STAR3-the-cell-unchecked",
   "file": "server/src/index.js",
-  "old": "if (worldRoom(m.px, m.py) !== a.key) { this._junk(ws); return; }\n    // NO STAR IN A LAYER",
-  "new": "if (false) { this._junk(ws); return; }\n    // NO STAR IN A LAYER",
+  "old": "if (junkOutsideCover(this, ws, a, worldRoom(m.px, m.py))) return;\n    // NO STAR IN A LAYER",
+  "new": "if (false) return;\n    // NO STAR IN A LAYER", "note": "COST-2 3a (re-aimed by content: the cell-scoped law reads the socket's cover).",
   "tests": [
    "test/net/starfall/star3_relay.test.js"
   ]
@@ -317,8 +318,9 @@
  {
   "name": "STAR3-the-held-list-unsaid-at-a-hello",
   "file": "server/src/index.js",
-  "old": "if (l.length) this._send(ws, JSON.stringify({ t: 'star', k: 'hds', l }));",
-  "new": "if (false) this._send(ws, JSON.stringify({ t: 'star', k: 'hds', l }));",
+  "note": "WW5 (2026-10-27): re-aimed by content - the law moved with the Hollows' and the stars' lanes (bible/03-World/World-Wide.md WW5).",
+  "old": "if (l.length) this._send(ws, JSON.stringify({ t: 'star', k: 'hds', l: starHeldOrder(l) }));",
+  "new": "if (false) this._send(ws, JSON.stringify({ t: 'star', k: 'hds', l: starHeldOrder(l) }));",
   "tests": [
    "test/net/starfall/star3_relay.test.js"
   ]
@@ -335,8 +337,9 @@
  {
   "name": "STAR3-the-welcome-ignored",
   "file": "src/net/online.js",
-  "old": "if (primary) this.starOk = relaySupportsStar(relayV);",
-  "new": "if (primary) this.starOk = true;",
+  "note": "WW5 (2026-10-27): re-aimed by content - the law moved with the Hollows' and the stars' lanes (bible/03-World/World-Wide.md WW5).",
+  "old": "if (primary) { this.starOk = relaySupportsStar(relayV); this.ww5Ok = relaySupportsWw5(relayV); this.delveOk = relaySupportsDelve(relayV); }",
+  "new": "if (primary) { this.starOk = true; this.ww5Ok = relaySupportsWw5(relayV); this.delveOk = relaySupportsDelve(relayV); }",
   "tests": [
    "test/net/starfall/star3_relay.test.js"
   ]
@@ -520,5 +523,45 @@
   "tests": [
    "test/net/starfall/star3_relay.test.js"
   ]
- }
+ },
+  {
+    "name": "STAR-TUNE-the-wire-nine",
+    "file": "src/net/wire.js",
+    "old": "export const STAR_WAVE_SIZE_MAX = 24;",
+    "new": "export const STAR_WAVE_SIZE_MAX = 9;",
+    "tests": [
+      "test/net/starfall/star3_relay.test.js"
+    ],
+    "note": "a wave past nine refused on the wire - every reader drops the ledger"
+  },
+  {
+    "name": "AUDIT-STAR-TUNE-F3-the-older-tab-dropped",
+    "file": "src/net/starfall/starfallLaw.js",
+    "old": "wz: Math.min(led.wz, STAR_WAVE_SIZE_OLD_MAX), kn: led.kn,",
+    "new": "wz: led.wz, kn: led.kn,",
+    "tests": [
+      "test/net/starfall/star3_relay.test.js"
+    ],
+    "note": "AUDIT STAR-TUNE F3: an older tab's validStarOut drops the whole st frame past nine - its party's third wave and master stood for nobody"
+  },
+  {
+    "name": "AUDIT-STAR-TUNE-F3-wx-unread",
+    "file": "src/net/wire.js",
+    "old": "wz: m.wx ?? m.wz,",
+    "new": "wz: m.wz,",
+    "tests": [
+      "test/net/starfall/star3_relay.test.js"
+    ],
+    "note": "AUDIT STAR-TUNE F3: a new tab stands nine of a wave of twenty-four"
+  },
+  {
+    "name": "AUDIT-STAR-TUNE-F3-wx-unbounded",
+    "file": "src/net/wire.js",
+    "old": "if (m.wx !== undefined && !(m.wz === STAR_WAVE_SIZE_OLD_MAX && intIn(m.wx, STAR_WAVE_SIZE_OLD_MAX + 1, STAR_WAVE_SIZE_MAX))) return null;",
+    "new": "if (m.wx !== undefined && !Number.isSafeInteger(m.wx)) return null;",
+    "tests": [
+      "test/net/starfall/star3_relay.test.js"
+    ],
+    "note": "AUDIT STAR-TUNE F3: a wave's size past the law's most read off the wire"
+  }
 ]

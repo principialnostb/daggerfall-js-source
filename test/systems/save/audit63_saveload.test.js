@@ -29,10 +29,11 @@ import { usingRightHandFromSaveVars, weaponPoseOf, applyWeaponPose, mergeWeaponP
 import { equipItem } from '../../../src/systems/equip.js';
 import { createRandomPotion, randomlyAddMap, randomlyAddPotionRecipe } from '../../../src/systems/loot/loot.js';   // AUDIT 63r F28: the three NAMELESS production mints
 import { templateByIndex } from '../../../src/systems/item/itemTemplates.js';
+import { hostText } from '../../hostText.mjs';   // HOST-SPLIT (at the merge of main into TESA): the world host read whole - its save is scenes/worldQuickSave.js's
 
 const rd = (p) => readFileSync(new URL(`../../../${p}`, import.meta.url), 'utf8');
 const WM = rd('src/scenes/worldModes.js');
-const WORLD = rd('src/scenes/world.js');
+const WORLD = hostText('src/scenes/world.js');
 const DC = rd('src/scenes/dungeonContext.js');
 const XF = rd('src/scenes/exteriorFoes.js');
 const CS = rd('src/systems/classicSave.js');
@@ -192,14 +193,14 @@ test('AUDIT 63 F25: both save hosts write the hand and land it, and neither re-r
   // the law is RUN here and what stays matched is the WIRING: which rig
   // each host offers, and that world.js lands the pair in the interior
   // rig as well because DFU sets ONE manager.
-  assert.match(WORLD, /const wp = modes\?\.weaponPose\?\.\(\) \?\? null;/, 'the world host asks the mode seam for the live rig');
+  assert.match(WORLD, /const wp = host\.modes\?\.weaponPose\?\.\(\) \?\? null;/, 'the world host asks the mode seam for the live rig');   // PIN MOVED (HOST-SPLIT, at the merge of main into TESA): the composer is scenes/worldQuickSave.js's, the mode host read live
   assert.match(WORLD, /\.\.\.mergeWeaponPose\(wp, weaponPoseOf\(weaponRig\.playerWeapon\)\),/,
     'per field: the mode seam, else this host\'s own rig');
   assert.deepEqual(mergeWeaponPose({ usingRightHand: false }, { weaponDrawn: true, usingRightHand: true }),
     { weaponDrawn: true, usingRightHand: false }, 'and PER FIELD is the law, not a whole-bag pick');
   const landed = { sheathed: true, usingRightHand: true };
   applyWeaponPose(landed, { usingRightHand: false });
-  assert.deepEqual(landed, { sheathed: true, usingRightHand: false }, ':421 sets the property, presence-gated');
+  assert.deepEqual(landed, { sheathed: true, usingRightHand: false, handRestored: false }, ':421 sets the property, presence-gated');   // AUDIT FB1029f D4: a pose without the HAND-FOLLOWS mark follows once   // PIN MOVED (HAND-FOLLOWS, FIELD BUGS 2026-10-29f): and marks the hand restored, so the next UpdateHands keeps it
   assert.match(WORLD, /applyWeaponPose\(weaponRig\.playerWeapon, pose\);/, 'the world host lands it through that law');
   assert.match(WORLD, /modes\?\.applyWeaponPose\?\.\(pose\);/, 'and the pair lands in the interior rig too - DFU sets ONE manager');
 
@@ -229,8 +230,8 @@ test('AUDIT 63 F25: both save hosts write the hand and land it, and neither re-r
   const rig = (sheathed, usingRightHand) => ({ playerWeapon: { sheathed, usingRightHand } });
 
   const drawnLeft = rig(false, false);
-  assert.deepEqual(seam('interior', drawnLeft).weaponPose(), { weaponDrawn: true, usingRightHand: false },
-    'inside a building the pair comes off the INTERIOR rig');
+  assert.deepEqual(seam('interior', drawnLeft).weaponPose(), { weaponDrawn: true, usingRightHand: false, handKept: true },
+    'inside a building the pair comes off the INTERIOR rig');   // PIN MOVED (AUDIT FB1029f D4): and the HAND-FOLLOWS mark
   // null in exterior AND dungeon mode: the world host composes its own
   // rig outdoors, and dungeonContext owns the whole pair underground
   // (:4690 save, :4766/:4772 restore) - answering here would shadow a
@@ -244,8 +245,8 @@ test('AUDIT 63 F25: both save hosts write the hand and land it, and neither re-r
   // its bit in the rig they will meet at the next door.
   const sheathedRight = rig(true, true);
   seam('exterior', sheathedRight).applyWeaponPose({ weaponDrawn: true, usingRightHand: false });
-  assert.deepEqual(sheathedRight.playerWeapon, { sheathed: false, usingRightHand: false },
-    'an outdoor-mode apply still reaches the interior rig');
+  assert.deepEqual(sheathedRight.playerWeapon, { sheathed: false, usingRightHand: false, handRestored: false },
+    'an outdoor-mode apply still reaches the interior rig');   // PIN MOVED (HAND-FOLLOWS): the restored hand marked
   const untouched = rig(true, true);
   seam('interior', untouched).applyWeaponPose({ yaw: 1 });
   assert.deepEqual(untouched.playerWeapon, { sheathed: true, usingRightHand: true }, 'presence-gated, like every additive pose member');
@@ -594,7 +595,7 @@ test('AUDIT 63r F30: the TWO exit transitions lower the flag - and the shared te
   }
   // the two teleport teardowns really are the same seam, and really do
   // not re-raise - which is why the third clear was a live bug.
-  for (const fn of ['async function teleportTo(pick)', 'async function _respawnAtSite(loc)']) {
+  for (const fn of ['async function teleportTo(pick, { zoneFree = false } = {})', 'async function _respawnAtSite(loc)']) {   // PIN MOVED (AUDIT TAMRIEL-WIDE III F1)
     const i = WORLD.indexOf(fn);
     assert.ok(i > 0, `${fn} exists`);
     const body = WORLD.slice(i, WORLD.indexOf('\n  }\n', i));

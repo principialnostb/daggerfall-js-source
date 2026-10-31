@@ -11,8 +11,8 @@
   {
     "name": "ORG2-a-row-placed-twice",
     "file": "src/ui/settings/settingsMap.js",
-    "old": "      \"feat:enhanced-climbing\", \"Enhancements/AdvancedClimbing\", \"feat:mod-foraging\"]),",
-    "new": "      \"feat:enhanced-climbing\", \"Enhancements/AdvancedClimbing\", \"feat:mod-foraging\", \"feat:grass\"]),",
+    "old": "      \"feat:enhanced-climbing\", \"Enhancements/AdvancedClimbing\", \"feat:resource-highlights\", \"feat:mod-foraging\"]),",
+    "new": "      \"feat:enhanced-climbing\", \"Enhancements/AdvancedClimbing\", \"feat:resource-highlights\", \"feat:mod-foraging\", \"feat:grass\"]),",
     "tests": [
       "test/systems/org2_options.test.js"
     ]
@@ -65,8 +65,8 @@
   {
     "name": "ORG2-the-preset-past-the-lane",
     "file": "src/ui/enhanced/enhancedMenu.js",
-    "old": "    if (i >= 0 && i !== st.at) st.set(i);",
-    "new": "    if (i >= 0 && i !== st.at) setPref(c.key, p.values[id]);",
+    "old": "    if (i >= 0 && (i !== st.at || c.write)) st.set(i);",
+    "new": "    if (i >= 0 && (i !== st.at || c.write)) setPref(c.key, p.values[id]);",
     "tests": [
       "test/systems/org2_options.test.js"
     ]

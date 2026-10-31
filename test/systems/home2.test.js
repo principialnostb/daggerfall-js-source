@@ -27,11 +27,11 @@ test('HOME2 the law: every house type is a house - House1-6 and the for-sale hou
   for (const t of [BUILDING_TYPES.Tavern, BUILDING_TYPES.Bank, BUILDING_TYPES.Palace, BUILDING_TYPES.GuildHall, BUILDING_TYPES.Temple, BUILDING_TYPES.Town23, BUILDING_TYPES.Ship]) {
     assert.equal(homeCandidate(b(t)), false, `type ${t}`);
   }
-  assert.deepEqual(HOME_VERB, { enter: 'home-enter', buy: 'home-buy', entry: 'home-entry', sell: 'home-sell', rent: 'home-rent' });   // HOME-RENT: and a room rented at the door
+  assert.deepEqual(HOME_VERB, { enter: 'home-enter', buy: 'home-buy', entry: 'home-entry', sell: 'home-sell', give: 'home-give', take: 'home-take', refuse: 'home-refuse', rent: 'home-rent' });   // HOME-RENT: and a room rented at the door; a house offered to one account
   assert.deepEqual(homeBuyRows(1234), [{ id: 'home-enter', label: 'Go in' }, { id: 'home-buy', label: 'Buy it: 1,234 gold' }], 'a plain click is still a plain click');   // HOME-PRICE: the thousands
   assert.deepEqual(homeBuyRows(1234, true)[1], { id: 'home-buy', label: 'Click again to buy: 1,234 gold' });
   assert.equal(HOME_BUY_ARM_MS, 5000);
-  assert.deepEqual(homeOwnerRows('party'), [{ id: 'home-enter', label: 'Go in' }, { id: 'home-entry', label: 'Who may enter: My party' }, { id: 'home-sell', label: 'Sell it' }]);
+  assert.deepEqual(homeOwnerRows('party'), [{ id: 'home-enter', label: 'Go in' }, { id: 'home-entry', label: 'Who may enter: My party' }, { id: 'home-sell', label: 'Sell it' }, { id: 'home-give', label: 'Transfer Ownership' }]);
   assert.equal(homeOwnerRows('nonsense')[1].label, 'Who may enter: Only me', 'an entry this build does not know reads as the default');
   assert.deepEqual(['private', 'party', 'public', 'guild'].map(homeNextEntry), ['party', 'public', 'guild', 'private']);   // GUILD1d (re-aimed by content): and the owner's guild, before round again
   assert.equal(homeNextEntry(undefined), 'party', 'no entry is the default, and moves on from it');
@@ -66,12 +66,13 @@ test('HOME2 the door, by source: the verbs listed in every mode but Steal and on
   assert.match(m, /const verbsSig = homeVerbsSig\(\);\n\s*if \(_doorTextKey === key && _doorTextGen === gen && _doorTextHomes === homesV && _doorTextVerbs === verbsSig\) return _doorText;/);
   assert.match(m, /const houseVerbs = homeDoorVerbs\(bd, home\);\n[\s\S]{0,1500}?const verbs = _doorText \? houseVerbs : null;\n\s*const homeLine = verbs \? null : home \?/);   // FIELD BUGS 2026-09-30b HOME-PLAQUE (PIN MOVED): the verbs read before the name
   assert.match(m, /if \(verbs\) _doorText = \{ \.\.\._doorText, actions: verbs \};\n\s*_doorTextKey = key; _doorTextGen = gen; _doorTextHomes = homesV; _doorTextVerbs = verbsSig;/);
-  assert.match(m, /function homeDoorVerbs\(bd, home\) \{\n\s*if \(!host\.onlineHomes \|\| getInteractionMode\(\) === 'steal'\) return null;\n\s*if \(home\?\.own\) return homeOwnerRows\(home\.entry\);\n\s*if \(home\) \{\n(?:\s*\/\/[^\n]*\n)*\s*const rows = \[\.\.\.\(homeVisitorRows\(home, homeDoorFor\(bd, home\)\) \?\? \[\]\), \.\.\.\(worldPlaqueOn\(\) \? homeVoteRows\(home\) : \[\]\)\];\n\s*return rows\.length \? rows : null;\n\s*\}\n\s*const price = homeOfferPrice\(bd\);\n\s*if \(!price\) return null;\n(?:\s*\/\/[^\n]*\n)*\s*const hall = homeHallBuyRow\(price, hallGuild\(\), hallArmed\(bd\)\);\n\s*return hall \? \[\.\.\.homeBuyRows\(price, homeArmed\(bd\)\), hall\] : homeBuyRows\(price, homeArmed\(bd\)\);/);   // HOME-RENT re-aim: another's home lists a tenant's room or a room to rent; GUILD1d re-aim: a hall's rows ride the visitor's, and a guildmaster's house for sale lists the guild's buy after its own; PIN MOVED: HOME-VOTE - another's home lists the town's votes under its own rows; PIN MOVED (AUDIT HOME-VOTE II D1): where the plaque draws a list
+  assert.match(m, /function homeDoorVerbs\(bd, home\) \{\n\s*if \(!host\.onlineHomes \|\| getInteractionMode\(\) === 'steal'\) return null;\n\s*if \(home\?\.own\) return homeOwnerRows\(home\.entry\);\n\s*if \(home\) \{\n(?:\s*\/\/[^\n]*\n)*\s*const rows = \[\.\.\.\(homeVisitorRows\(home, homeDoorFor\(bd, home\)\) \?\? \[\]\), \.\.\.\(worldPlaqueOn\(\) \? \[\.\.\.homeVoteRows\(home\), \.\.\.homeMuteRows\(home, homeTownOf\(bd\)\)\] : \[\]\)\];[^\n]*\n\s*return rows\.length \? rows : null;\n\s*\}\n\s*const price = homeOfferPrice\(bd\);\n\s*if \(!price\) return null;\n(?:\s*\/\/[^\n]*\n)*\s*const hall = homeHallBuyRow\(price, hallGuild\(\), hallArmed\(bd\)\);\n\s*return hall \? \[\.\.\.homeBuyRows\(price, homeArmed\(bd\)\), hall\] : homeBuyRows\(price, homeArmed\(bd\)\);/);   // HOME-RENT re-aim: another's home lists a tenant's room or a room to rent; GUILD1d re-aim: a hall's rows ride the visitor's, and a guildmaster's house for sale lists the guild's buy after its own; PIN MOVED: HOME-VOTE - another's home lists the town's votes under its own rows; PIN MOVED (AUDIT HOME-VOTE II D1): where the plaque draws a list   // PIN MOVED (HOME-MUTE, FIELD BUGS 2026-10-29f): and the row that hides it for me
   assert.match(m, /const homeVerbsSig = \(\) => `\$\{host\.onlineHomes && getInteractionMode\(\) !== 'steal' \? 'v' : ''\}\|\$\{_homeArm && performance\.now\(\) - _homeArm\.at <= HOME_BUY_ARM_MS \? _homeArm\.id : ''\}`;/);
   // the press
   assert.match(m, /return activateStaticDoor\(entries\[key\], entries, false, \{ verb: plaqueActionFor\(key\) \}\);/);
   const door = m.slice(m.indexOf('async function activateStaticDoor('));
-  assert.match(door, /^async function activateStaticDoor\(hit, entries, isBash = false, \{ homeAsked = false, verb = null, listed = plaqueListing\(\) && worldPlaqueOn\(\) \} = \{\}\) \{/);   // PIN MOVED (AUDIT HOME-VOTE II B4, D1): and whether the plaque listed - and drew - rows, read as the press lands
+  // PIN MOVED (LOCKPICK, bible/06-Systems/Lockpicking.md): the door's options carry `picked` - a front door the pick window opened walks in through the same door
+  assert.match(door, /^async function activateStaticDoor\(hit, entries, isBash = false, \{ homeAsked = false, verb = null, listed = plaqueListing\(\) && worldPlaqueOn\(\), picked = false \} = \{\}\) \{/);   // PIN MOVED (AUDIT HOME-VOTE II B4, D1): and whether the plaque listed - and drew - rows, read as the press lands
   assert.match(door, /if \(!isBash && !homeAsked && mode !== 'steal'\) \{/);
   assert.match(door, /if \(verb === HOME_VERB\.buy && price\) \{ pressHomeBuy\(bd, price\); return true; \}\n\s*if \(verb === HOME_VERB\.entry && door === 'own'\) \{ turnHomeEntry\(bd, home\); return true; \}\n\s*if \(verb === HOME_VERB\.sell && door === 'own'\) \{ openHomeSale\(bd\); return true; \}/);
   assert.ok(door.indexOf('if (verb === HOME_VERB.buy') < door.indexOf('const unlocked = homeOpen || resolveBuildingUnlocked(bd);'), 'before Daggerfall\'s lock ladder');
@@ -91,22 +92,22 @@ test('HOME2 the deploy: a smoke call that 404s is asked again, seven times five 
   // beat's and the first report's checks read (test/server/smoke_lost.test.js runs them) - the retry's law unchanged
   assert.match(wf, /ask\(\) \{\n\s*local out=\$1 url=\$2 got=404\n\s*shift 2\n\s*rm -f "\$out\.lost"\n\s*for i in \$\(seq 1 7\); do\n\s*got=\$\(curl -sS --max-time 15 -o "\$out" -w '%\{http_code\}' "\$@" "\$url"\) \|\| got=000\n\s*if \[ "\$got" != "404" \] && \[ "\$got" != "000" \] && \[ "\$\{got#5\}" = "\$got" \]; then break; fi\n\s*if \[ "\$got" = "000" \]; then : > "\$out\.lost"; fi\n[^\n]*\n\s*sleep 5\n\s*done\n\s*echo "\$got"\n\s*\}/, 'DEPLOY-FLAKE: a 404 and a 5xx are asked again - PR #592\'s deploy read renown/xp -> 500 in the platform\'s first moments after its migration; SMOKE-HANG: no answer (000) too - #950\'s and #947\'s read homes/town and homes/decor as 15 s with nothing');
   for (const route of ['/v1/account/played', '/v1/mod/mute', '/v1/renown/xp', '/v1/homes/town', '/v1/homes/claim', '/v1/homes/decor', '/v1/homes/decor/place',
-    '/v1/homes/yards', '/v1/arena/board', '/v1/market/vendors']) {
+    '/v1/homes/yards/cells', '/v1/homes/yards', '/v1/arena/board', '/v1/market/vendors']) {   // PIN MOVED (YARD-CELL): a town's cells read, and the old route's refusal asked
     assert.match(wf, new RegExp(`code=\\$\\(post /tmp/[a-z0-9]+\\.json "\\$base${route.replace(/\//g, '\\/')}" `), route);
   }
   // PIN MOVED (INT16, Integrity-Arc section 7): a Renown report is its seat's - the smoke's guest takes a realm character
   // first (realm/create, a ninth post) and its first save through the same retry, a PUT (`put`)
   // PIN MOVED (AUDIT LEAN-READS D7, 2026-10-20): the kept boards read on D1 itself - a town's yards, the arena's board and
   // the region's traders - three more posts, each through the retry
-  assert.equal((wf.match(/code=\$\(post /g) ?? []).length, 12, 'the twelve smoke calls, the repeated report, the realm character and the kept boards among them');
+  assert.equal((wf.match(/code=\$\(post /g) ?? []).length, 13, 'the thirteen smoke calls, the repeated report, the realm character and the kept boards among them - PIN MOVED (YARD-CELL): and the old yards route refused');
   // AUDIT LEAN-READS (audit two, C3): a board's keep is caught where D1 refuses it, so the answer says nothing of it - the
   // smoke asks D1 itself for the boards kept: the yards built in a shape, the arena's board and the region's traders at
   // their versions
-  for (const table of ['home_yards y JOIN home_yards_ver v ON v.map_id = y.map_id WHERE y.built = v.ver AND y.shape IS NOT NULL', 'arena_boards b JOIN arena_board_ver v ON v.id = 1 WHERE b.built = v.ver AND b.shape IS NOT NULL',
+  for (const table of ['home_yard_cells c JOIN home_yard_cell_ver v ON v.map_id = c.map_id AND v.cell = c.cell WHERE c.built = v.ver AND c.shape IS NOT NULL', 'arena_boards b JOIN arena_board_ver v ON v.id = 1 WHERE b.built = v.ver AND b.shape IS NOT NULL',
     'market_vendor_boards b JOIN market_vendor_ver v ON v.region = b.region WHERE b.region = 17 AND b.built = v.ver AND b.shape IS NOT NULL']) assert.ok(wf.includes(table), table);   // AUDIT LEAN-READS 2 B3: the versions rows of their own
   // AUDIT LEAN-READS 2 D5: a BUSY read shed through every try is said and passed - each of the smoke's four - and the yards
   // are read of a town that stands some
-  for (const route of ['/v1/homes/town', '/v1/homes/decor', '/v1/homes/yards', '/v1/market/vendors']) assert.match(wf, new RegExp(`if shed "\\$code" ${route.replaceAll('/', '\\/')}; then :\\n\\s+elif`), route);
+  for (const route of ['/v1/homes/town', '/v1/homes/decor', '/v1/homes/yards/cells', '/v1/market/vendors']) assert.match(wf, new RegExp(`if shed "\\$code" ${route.replaceAll('/', '\\/')}; then :\\n\\s+elif`), route);
   assert.match(wf, /shed\(\) \{ \[ "\$1" = "503" \] && echo "::warning::/);
   assert.match(wf, /"\$base\/v1\/homes\/yards" "\{\\"secret\\":\\"\$secret\\",\\"mapId\\":\$map\}"/);
   assert.match(wf, /\n\s*kept\(\) \{ timeout 60 \$WRANGLER d1 execute "\$DB_NAME" --remote --command "\$1" --json/, 'asked of D1 itself');

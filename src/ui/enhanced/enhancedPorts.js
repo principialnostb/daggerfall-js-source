@@ -25,9 +25,11 @@ import { TRANSACTION_TYPE, goldRegion, EMPIRE_ACCOUNT_REGION } from '../../syste
 import { REGION_NAMES } from '../../formats/mapsFile.js';   // BANK-REGION: the account's region, by the index its row reads
 import { PURCHASE_RECTS, PURCHASE_PANEL_X, PURCHASE_PANEL_Y } from '../bankPurchaseWindow.js';
 import { TRANSPORT_MODES } from '../../systems/transport.js';
+import { transportDragonText } from '../transportWindow.js';   // DRAGON5: the Dragon row's words
 import { POTION_RECTS } from '../potionMakerWindow.js';
 import { ITEM_RECTS, TAB_PAGES } from '../item/itemMakerWindow.js';
 import { enchantmentName, enchantmentParams, enchantmentParamName, PARAM_NONE } from '../../systems/enchantmentCatalogue.js';
+import { makerKeepsName } from '../../systems/enchanting.js';   // GILDED-MAKER: the rename's one law, both skins
 import {
   SPELL_MAKER_RECTS, SPELL_MAKER_TIPS, EFFECT_NAME_PANELS, TARGET_BUTTONS, ELEMENT_BUTTONS,
   EDITOR_RECTS, SPINNER_UP, SPINNER_DOWN, spinnerPart,
@@ -143,7 +145,7 @@ const bank = {
             { label: w.hooks.marks.pending() ? 'Counting a sale...' : 'Sell silver', act: () => w._button('sellMarks'), disabled: !w.enabled('sellMarks') },
           ] },
         ] } : null,
-        busy ? { type: 'field', label: BANK_FIELD_LABEL[w.transactionType] ?? 'Amount', value: w.value, active: true } : null,
+        busy ? { type: 'field', label: BANK_FIELD_LABEL[w.transactionType] ?? 'Amount', value: w.value, active: true, numeric: true } : null,   // RPT1026-MISC TOUCH-FIELD: an amount, the number pad on a phone (bankWindow.js AMOUNT_FIELD)
       ],
       foot: busy
         ? [{ label: 'Confirm', key: 'Enter', primary: true, act: () => w.input('Enter') },
@@ -183,6 +185,7 @@ const transport = {
         { label: 'Horse', act: pick(TRANSPORT_MODES.Horse), disabled: !w.enabled.horse, title: w.enabled.horse ? '' : 'You own no horse' },
         { label: 'Cart', act: pick(TRANSPORT_MODES.Cart), disabled: !w.enabled.cart, title: w.enabled.cart ? '' : 'You own no cart' },
         { label: 'Ship', act: pick(TRANSPORT_MODES.Ship), disabled: !w.enabled.ship, title: w.enabled.ship ? '' : 'No ship is at hand' },
+        ...(w.enabled.dragon ? [{ label: transportDragonText(), act: pick(TRANSPORT_MODES.Dragon) }] : []),   // DRAGON5: the tamed dragon, for its owner alone
       ] }],
       foot: [{ label: 'Exit', act: () => w.input('Escape') }],
     };
@@ -263,7 +266,7 @@ const itemMaker = {
           [{ type: 'group', cls: 'port-card', blocks: [
             sel ? { type: 'tiles', list: true, key: 'sel', items: [tile(sel, () => w._deselect(), { sub: 'Put it back' })] }
               : { type: 'text', center: true, rows: ['No item chosen.'] },
-            { type: 'field', label: 'Name', value: w.itemName, placeholder: sel ? itemName(sel) : '', button: { label: 'Rename', disabled: !sel, act: at(w, ITEM_RECTS.nameItem) } },
+            { type: 'field', label: 'Name', value: w.itemName, placeholder: sel ? itemName(sel) : '', button: { label: 'Rename', disabled: !sel || makerKeepsName(sel), act: at(w, ITEM_RECTS.nameItem) } },   // GILDED-MAKER: a Gilded piece keeps its record's name
           ] },
           { type: 'cols', cols: [
             [{ type: 'rows', title: 'Powers', key: 'pow', maxHeight: 170, empty: 'No powers yet.', items: enchantRows(w, shown.powers) },

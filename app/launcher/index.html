@@ -19,7 +19,7 @@
   <div class="night" aria-hidden="true"></div>
   <div class="launcher">
     <header class="top">
-      <h1 class="wordmark"><img src="dfo-online.png" alt="DFO Online" width="526" height="322"></h1>
+      <h1 class="wordmark"><img src="dfo-online.png" alt="DFO Online" width="1232" height="1034"></h1>
       <nav class="links caps" aria-label="Links">
         <button class="link" type="button" data-open="site">daggerfalljs.dev</button>
         <button class="link" type="button" data-open="discord">Discord</button>
@@ -56,6 +56,13 @@
           <h3 class="caps">Updates</h3>
           <label class="check"><input id="update-check" type="checkbox"> Check automatically</label>
           <button class="link" type="button" data-act="reinstall">Reinstall...</button>
+        </section>
+        <!-- GPU-BACKEND-LAUNCHER: Windows only; the shell shows it (app/lib/launcherState.cjs graphicsView) -->
+        <section id="graphics" class="opt" hidden>
+          <h3 class="caps">Graphics</h3>
+          <label class="check"><input id="backend-vulkan" type="checkbox" aria-describedby="backend-note"> Use Vulkan</label>
+          <p id="backend-note" class="files"></p>
+          <button class="link" type="button" data-act="restart" hidden>Restart to apply</button>
         </section>
       </aside>
     </div>

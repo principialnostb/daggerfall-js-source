@@ -17,12 +17,16 @@ import * as acorn from 'acorn';
 import { validPartyPose, validFoeRecord, FOE_HEALTH_MAX, FOE_LEVEL_MAX, CELL_FRAME_RECORDS_MAX, CELL_LOOSE_PUPPETS, FOES_FRAME_MAX,
   KEPT_KILL_POSE_MAX, KEPT_KILL_QUEST_RE, KEPT_KILL_SYMBOL_RE } from '../../../src/net/wire.js';
 import { validQuestTags, questMarkerYields, QUEST_PUPPETS_MAX, validLooseSeqs, companionNames } from '../../../src/scenes/exteriorFoes.js';
+import { summonedWord, summonedRecord, markSummoned } from '../../../src/systems/foeLootCap.js';   // PIN MOVED (RPT1026-PROGRESS, test/scenes/rpt1026_progress_peersummon.test.js): the own lane names its summons and marks their puppets
 import { KeptKillLedger, creditKeptKills, KEPT_KILL_HOLD_MS, KEPT_KILL_MEMORY_MS } from '../../../src/scenes/quest/questFoeHost.js';
 import { QuestMachine } from '../../../src/systems/quest/machine.js';
 import { loadQuestTables } from '../../../src/systems/quest/tables.js';
 import { receiveSharedQuest, prepareQuestShare } from '../../../src/systems/quest/questShare.js';
 import { getInnerSymbolName } from '../../../src/systems/quest/symbol.js';
 import { foeSeed, applyWireLook } from '../../../src/characters/foeBodies.js';   // AUDIT MW-NPC II K3: the dungeon context's look seed, in the mounted scope
+import { strikeTraits, traitWire, traitWireKey, readTraitWire, traitsAuthority, traitsFrame } from '../../../src/scenes/foeTraitsHost.js';   // AUDIT WORLD-EVENTS: the dungeon host's trait doors, in the mounted scope
+import { bossClockS } from '../../../src/systems/bossTraits.js';
+const TRAIT_DOORS = { strikeTraits, traitWire, traitWireKey, readTraitWire, traitsAuthority, traitsFrame, bossClockS };
 import { partyOnlyQuestShare } from '../../../src/scenes/quest/questFoeHost.js';   // QUEST-OWNER: the dungeon's quest seam, narrowed to the party (ownShare)
 import { isClassEnemyId, enemyEntityType } from '../../../src/characters/enemy/enemyBasics.js';   // DEX1: the hosts' class test and entity type (the mount's free names)
 
@@ -79,11 +83,12 @@ function side(self, { own = [], linked = true } = {}) {
   };
   const state = {
     foeSeed, applyWireLook,   // AUDIT MW-NPC II K3: the records' look seed (roomRecord, applyFoeRecord, the puppets' stands)
+    ...TRAIT_DOORS,   // AUDIT WORLD-EVENTS: the trait doors roomRecord, applyFoeRecord and setAuthority call
     partyOnlyQuestShare, opts: { selfId: () => self, questShare: () => share },
     _layoutFoes: 0, foes, _authority: true, _encId: undefined, _ctxDead: false, _locationKey: 'dungeon:7',
     _ownSeq: 0, _ownFrameSeq: 0, _ownGen: 0, _ownPups: new Map(), _ownPending: new Map(), _ownOwners: new Map(), _ownPendLoose: new Set(), _ownAdopted: new Map(), _ownKept: new Map(),
     FOE_HEALTH_MAX, FOE_LEVEL_MAX, CELL_FRAME_RECORDS_MAX, QUEST_PUPPETS_MAX, CELL_LOOSE_PUPPETS, LOOSE_PUPPETS_MAX: 24, HIT_DMG_MAX: 10000, FOES_FRAME_MAX,
-    isClassEnemyId, enemyEntityType, validFoeRecord, validQuestTags, validLooseSeqs, companionNames, questMarkerYields, GENDER_BIT: ['male', 'female'],   // PIN MOVED (AUDIT WK-U3, 2026-10-01): the own lane reads companions' names beside their places
+    isClassEnemyId, enemyEntityType, validFoeRecord, validQuestTags, validLooseSeqs, companionNames, questMarkerYields, summonedWord, summonedRecord, markSummoned, GENDER_BIT: ['male', 'female'],   // PIN MOVED (AUDIT WK-U3, 2026-10-01): the own lane reads companions' names beside their places
     _sharedFoe: () => false, fightN: () => 1, canStandFoe: () => true,
     applyFoeRecord: (f, r) => { if (r.f) f.ai.feet = [...r.f]; if (Number.isFinite(r.h)) f.entity.health = r.h; if (r.d === 1) f.dead = true; f._pup = { feet: [...(r.f ?? f.ai.feet)], yaw: r.y ?? 0 }; },
     buildFoeAt: async (e) => { const f = foe({ mobileType: e.mobileType, gender: e.gender, ai: { feet: [e.x, e.y, e.z], yaw: 0, resumeLive() { this.resumed = true; } } }); foes.push(f); return f; },
@@ -287,5 +292,7 @@ test('KEPT-KILL by source: both pools say a kept foe\'s fall each frame by the b
   assert.match(W, /onKeptDied: \(tag, i\) => \{ keptKills\.said\(tag, i, Date\.now\(\)\); \}/, 'said into the ledger');
   assert.match(W, /\.\.\.keptKillField\(\),/, 'the pose carries it');
   assert.match(W, /if \(p\?\.qk && social\.inMyParty\(acct\)\) creditKeptKills\(questBridge\?\.machine, keptKills, acct, p\.qk, Date\.now\(\)\);/, 'a member of my party alone');
-  assert.match(W, /if \(owner && Number\.isInteger\(i\) && !keptKills\.credit\(owner, tag\.q, tag\.s, i, Date\.now\(\)\)\) return;\n\s+foe\.incrementKills\?\.\(\);/, 'the witness counts through the ledger');
+  // PIN MOVED (QUEST-AUDIT III KILL-ONCE): and through the Foe's partner credit, which a kill the envelope brought already spends
+  // PIN MOVED (AUDIT QA3 E3, quest/foe.js creditPartnerKill): the credit names whose kill it is - it spends only what that owner's envelope brought
+  assert.match(W, /if \(owner && Number\.isInteger\(i\) && !keptKills\.credit\(owner, tag\.q, tag\.s, i, Date\.now\(\)\)\) return;\n\s+foe\.creditPartnerKill\?\.\(owner\);/, 'the witness counts through the ledger');
 });

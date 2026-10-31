@@ -1,7 +1,7 @@
 // TOWN-MARKS (2026-09-29, Mac: "For the notice boards in town. Can we physically mark them on the town map, and also mark
-// owned player housing"; bible/10-UI/UI-Arc.md TOWN-MARKS): THE TOWN MAP'S NOTICE BOARDS AND PLAYER HOUSING. The data
-// (ui/town/townMapMarks.js: which boards, which houses, what each is called), the ink (ui/ink/inkTown.js paintBoardMark,
-// paintHomeMark - under the names, lifted above their place), the sheet (ui/town/townSheet.js: into sheet space by the
+// owned player housing"; bible/10-UI/UI-Arc.md TOWN-MARKS): THE TOWN MAP'S PLAYER HOUSING (NOTICE-PANEL, 2026-10-29: the
+// boards' marks went with the boards). The data (ui/town/townMapMarks.js: which houses, what each is called), the ink
+// (ui/ink/inkTown.js paintHomeMark - under the names, lifted above their place), the sheet (ui/town/townSheet.js: into sheet space by the
 // plates' and the party's own seams, answered under the pointer, a repaint when the homes answer), and the wiring
 // (ui/town/townMapDoor.js, scenes/world.js toggleExteriorAutomap).
 import { test } from 'node:test';
@@ -9,10 +9,10 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
 import {
-  readTownBoards, readTownHomes, townBoardRows, townHomeRows, boardMarkLabel, TOWN_BOARD_LABEL, TOWN_HOUSE_LABEL, TOWN_MARK_REACH,
+  readTownHomes, townHomeRows, TOWN_HOUSE_LABEL, TOWN_MARK_REACH,
 } from '../../../src/ui/town/townMapMarks.js';
 import { createTownSheet } from '../../../src/ui/town/townSheet.js';
-import { TOWN_PEN, TOWN_MARK_HALF, ANCHOR_R, sheetY, WORLD_PER_PX, paintBoardMark, paintHomeMark } from '../../../src/ui/ink/inkTown.js';
+import { TOWN_PEN, TOWN_MARK_HALF, ANCHOR_R, sheetY, paintHomeMark } from '../../../src/ui/ink/inkTown.js';
 import { toPaper, PEN, CARET_R } from '../../../src/ui/ink/inkMap.js';
 import { nameplateAnchor } from '../../../src/ui/nameplateLayout.js';
 import { hostText } from '../../hostText.mjs';
@@ -54,36 +54,14 @@ const VIEW = { ox: 0, oy: 0, scale: 3 };
 const ENV = { view: VIEW, paperW: 2000, paperH: 2000, dpr: 1, pulse: 0 };
 const house = (buildingKey, blockX, blockY, x, z, extra = {}) => ({ buildingKey, blockX, blockY, position: [x, 0, z], buildingType: 17, isResidence: true, name: '', ...extra });
 
-test('TOWN-MARKS the reading: a board with no place and a home with no building are dropped; a board with no name is a Notice Board (mutants: the reads keep a bad row)', () => {
-  assert.deepEqual(readTownBoards(null), []);
-  assert.deepEqual(readTownBoards(() => 'nope'), []);
-  assert.deepEqual(readTownBoards(() => { throw new Error('x'); }), []);
-  assert.deepEqual(readTownBoards(() => [{ feet: [1, 2, 3], label: 'Notice Board: 2 new' }, { feet: [NaN, 0, 0] }, { label: 'x' }, { feet: [4, 5, 6] }]), [
-    { feet: [1, 2, 3], label: 'Notice Board: 2 new' },
-    { feet: [4, 5, 6], label: TOWN_BOARD_LABEL },
-  ]);
+test('TOWN-MARKS the reading: a home with no building is dropped (mutants: the reads keep a bad row)', () => {
+  assert.deepEqual(readTownHomes(null), []);
+  assert.deepEqual(readTownHomes(() => { throw new Error('x'); }), []);
   assert.deepEqual(readTownHomes(() => [{ buildingKey: 7, own: true, label: 'Your home' }, { buildingKey: 0, label: 'x' }, { buildingKey: 1.5, label: 'x' },
     { buildingKey: 9, label: 3 }, { buildingKey: 8, own: 'yes', label: "Mac's home" }]), [
     { buildingKey: 7, own: true, label: 'Your home' },
     { buildingKey: 8, own: false, label: "Mac's home" },
   ]);
-  assert.equal(boardMarkLabel(0), 'Notice Board');
-  assert.equal(boardMarkLabel(3), 'Notice Board: 3 new', 'the town\'s unread count, as the board floats it (boardLaw unseenText)');
-});
-
-test('TOWN-MARKS the boards: every board of the town\'s but its bounty boards, at the middle and foot of its box, in the location\'s frame (mutants: a bounty board marked; the origin not taken off; the box\'s corner, not its middle)', () => {   // ONE-BOARD REVERTED (PIN MOVED)
-  const p = {
-    locOrigin: [100, 5, 200],
-    boards: [{ box: [110, 5, 210, 112, 9, 214] }, { box: [150, 6, 260, 154, 10, 262] }, { box: [300, 5, 300, 302, 9, 302] }],
-  };
-  assert.deepEqual(townBoardRows(p, new Set([1]), 2), [
-    { feet: [11, 0, 12], label: 'Notice Board: 2 new' },
-    { feet: [201, 0, 101], label: 'Notice Board: 2 new' },
-  ]);
-  assert.deepEqual(townBoardRows(p, new Set(), 0).map((r) => r.feet), [[11, 0, 12], [52, 1, 61], [201, 0, 101]]);
-  assert.deepEqual(townBoardRows({ boards: p.boards }, new Set()), [], 'no origin, no frame');
-  assert.deepEqual(townBoardRows({ locOrigin: [0, 0, 0] }, new Set()), []);
-  assert.deepEqual(townBoardRows({ locOrigin: [0, 0, 0], boards: [{ box: [1, 2] }, {}] }, new Set()), []);
 });
 
 test('TOWN-MARKS the housing: an online home, the player\'s and every other player\'s, named as its door names it; the bank\'s house only in its own town (mutants: another town\'s house of the same key marked; the home read as the player\'s; offline homes asked)', () => {
@@ -111,11 +89,11 @@ test('TOWN-MARKS the housing: an online home, the player\'s and every other play
   assert.deepEqual(townHomeRows({ buildings, mapId: 4000000000, regionIndex: 4, houses }), [], 'no house in this region');
 });
 
-test('TOWN-MARKS the sheet: a home stands ON its building\'s place (the plates\' anchor, +Z up) and a board on its foot (the party\'s two steps); both under the names, the player\'s own in the player\'s ink (mutants: a mark mirrored; the wrong building; drawn over the names; the own fill lost)', () => {
+test('TOWN-MARKS the sheet: a home stands ON its building\'s place (the plates\' anchor, +Z up), under the names, the player\'s own in the player\'s ink (mutants: a mark mirrored; the wrong building; drawn over the names; the own fill lost)', () => {
   const buildings = [house(1, 0, 0, 30, 30), house(2, 1, 0, 60, 10, { name: 'Oakhouse', isResidence: false, buildingType: 15 })];
   const s = createTownSheet({
     gridW: 2, gridH: 2, blocks: [], buildings: () => buildings, discovered: () => [{ buildingKey: 2, displayName: 'Oakhouse' }],
-    boards: () => [{ feet: [16, 0, 48], label: 'Notice Board' }],
+    boards: () => [{ feet: [16, 0, 48], label: 'Notice Board' }],   // NOTICE-PANEL: a host's boards are no mark now
     homes: () => [{ buildingKey: 1, own: true, label: 'Your home' }, { buildingKey: 2, own: false, label: "Gryphoth's home" }, { buildingKey: 99, label: 'gone' }],
   });
   const h = s.field.h;
@@ -123,12 +101,12 @@ test('TOWN-MARKS the sheet: a home stands ON its building\'s place (the plates\'
   const [bx, by] = nameplateAnchor(1, 0, [60, 0, 10]);
   assert.deepEqual(s.homes(), [{ x: ax, y: sheetY(h, ay), own: true, label: 'Your home' }, { x: bx, y: sheetY(h, by), own: false, label: "Gryphoth's home" }],
     'at the plates\' own anchors; a home whose building is not in this town is not drawn');
-  assert.deepEqual(s.boards(), [{ x: 16 / WORLD_PER_PX, y: sheetY(h, 48 / WORLD_PER_PX), label: 'Notice Board' }]);
+  assert.equal(s.boards, undefined, 'NOTICE-PANEL: the sheet marks no board');
   const ctx = recordingCtx();
   s.paintOverlay(ctx, ENV);
-  const want = [...s.homes(), ...s.boards()].map((m) => toPaper(VIEW, m.x, m.y));
+  const want = s.homes().map((m) => toPaper(VIEW, m.x, m.y));
   const got = glyphBoxes(ctx).map((g) => [g.cx, g.cy]);
-  assert.equal(got.length, 3);
+  assert.equal(got.length, 2);
   want.forEach((w, i) => assert.ok(near(got[i], w), `mark ${i} is centred on its place (Mac: "on top of the building itself"): ${got[i]} vs ${w}`));
   const fills = ctx.calls.filter((c) => c.fn === 'fill').map((c) => c.fillStyle);
   assert.equal(fills.filter((f) => f === TOWN_PEN.home).length, 1, 'ONE house filled in the player\'s ink - the player\'s own');
@@ -138,11 +116,11 @@ test('TOWN-MARKS the sheet: a home stands ON its building\'s place (the plates\'
   assert.ok(firstName > 0 && lastMark >= 0 && lastMark < firstName, 'the marks go down before the names - a name is never under a glyph');
   // a sheet with no marks is the sheet it was
   const plain = createTownSheet({ gridW: 1, gridH: 1, blocks: [], buildings: () => buildings, discovered: () => [] });
-  assert.deepEqual([plain.homes(), plain.boards()], [[], []]);
+  assert.deepEqual(plain.homes(), []);
 });
 
 test('TOWN-MARKS the glyphs: centred ON the place, no taller than 2 x TOWN_MARK_HALF, on no post, no bigger than the caret (Mac: "I kinda wish the icons were on top of the building itself, not on the side") (mutants: a glyph off its place; the half grown)', () => {
-  for (const paint of [(c) => paintBoardMark(c, 100, 200), (c) => paintHomeMark(c, 100, 200, false), (c) => paintHomeMark(c, 100, 200, true)]) {
+  for (const paint of [(c) => paintHomeMark(c, 100, 200, false), (c) => paintHomeMark(c, 100, 200, true)]) {
     const ctx = recordingCtx();
     paint(ctx);
     const [g] = glyphBoxes(ctx);
@@ -186,19 +164,16 @@ test('TOWN-MARKS the names: a building a home\'s glyph stands on is named UNDER 
   assert.equal(back.marked, undefined);
 });
 
-test('TOWN-MARKS the pointer: over a glyph the town map names it - the board with its town\'s unread count, a home as its door does; past its reach it is the street (mutants: the reach lost)', () => {
+test('TOWN-MARKS the pointer: over a glyph the town map names it - a home as its door does; past its reach it is the street (mutants: the reach lost)', () => {
   const s = createTownSheet({
     gridW: 1, gridH: 1, blocks: [], buildings: () => [house(1, 0, 0, 30, 30)], discovered: () => [], title: 'Daggerfall',
-    boards: () => [{ feet: [16, 0, 48], label: 'Notice Board: 3 new' }],
     homes: () => [{ buildingKey: 1, own: false, label: "Gryphoth's home" }],
   });
   s.paintOverlay(recordingCtx(), ENV);
-  const [bx, by] = toPaper(VIEW, s.boards()[0].x, s.boards()[0].y);
-  assert.equal(s.hoverLabel(bx, by).label, 'Notice Board: 3 new');
-  assert.equal(s.hoverLabel(bx + TOWN_MARK_REACH - 1, by).label, 'Notice Board: 3 new', 'within reach');
-  assert.equal(s.hoverLabel(bx + TOWN_MARK_REACH + 1, by).label, 'Daggerfall', 'past it');
   const [hx, hy] = toPaper(VIEW, s.homes()[0].x, s.homes()[0].y);
   assert.equal(s.hoverLabel(hx, hy + TOWN_MARK_HALF).label, "Gryphoth's home");
+  assert.equal(s.hoverLabel(hx + TOWN_MARK_REACH - 1, hy).label, "Gryphoth's home", 'within reach');
+  assert.equal(s.hoverLabel(hx + TOWN_MARK_REACH + 1, hy).label, 'Daggerfall', 'past it');
 });
 
 test('TOWN-MARKS the repaint: the homes answer after the map is open - the plan breathes until it has painted the version it has, and then rests (mutants: never repainted; breathing for ever)', () => {
@@ -215,22 +190,170 @@ test('TOWN-MARKS the repaint: the homes answer after the map is open - the plan 
   assert.equal(offline.breathes(), false, 'no registry: the plan it always was');
 });
 
-test('TOWN-MARKS the wiring: the door hands the marks to the enhanced town map; the host marks the open Notice Board\'s boards and the town\'s housing, and asks for the town\'s homes as the map opens (mutants: a key dropped at the door; the board marked while closed; the homes never asked)', () => {
+test('TOWN-MARKS the wiring: the door hands the marks to the enhanced town map; the host marks the town\'s housing (NOTICE-PANEL: no board), and asks for the town\'s homes as the map opens (mutants: a key dropped at the door; the board marked while closed; the homes never asked)', () => {
   const door = src('src/ui/town/townMapDoor.js');
-  assert.match(door, /boards: deps\.townBoards \?\? null,/);
+  assert.doesNotMatch(door, /boards: |townBoards/);
   assert.match(door, /homes: deps\.townHomes \?\? null,/);
   assert.match(door, /homesVersion: deps\.townHomesVersion \?\? null,/);
   const w = src('src/scenes/world.js');
-  assert.match(w, /townBoards: \(\) => host\.townBoardMarks\(b\),/);   // HOST-SPLIT 2: read live through the toggle's handle (scenes/exteriorAutomapToggle.js)
-  assert.match(w, /townHomes: \(\) => townHomeRows\(\{\n\s*buildings: summaries, mapId: dfLoc\.mapTableData\?\.mapId, regionIndex: dfLoc\.regionIndex, houses: playerEntity\.houses \?\? null,\n\s*homeAt: onlineHomes \? \(mapId, buildingKey\) => \{\n\s*const h = onlineHomes\.homeAt\(mapId, buildingKey\);\n[^\n]*\n\s*return h && isVendorWaypoint\(mapId, buildingKey\) \? \{ \.\.\.h, own: false, owner: vendorWaypointLabel\(h\.owner\) \} : h;\n\s*\} : null,\n\s*\}\),/);
+  assert.doesNotMatch(w, /townBoards|townBoardMarks/);   // PIN MOVED (NOTICE-PANEL): no board stands to mark
+  // PIN MOVED (VENDOR-HOUSES): the waypoint's house and every trader's house (never my own) carry `vendor`
+  assert.match(w, /townHomes: \(\) => townHomeRows\(\{\n\s*buildings: summaries, mapId: dfLoc\.mapTableData\?\.mapId, regionIndex: dfLoc\.regionIndex, houses: playerEntity\.houses \?\? null,\n\s*homeAt: onlineHomes \? \(mapId, buildingKey\) => \{\n\s*const h = onlineHomes\.homeAt\(mapId, buildingKey\);\n[^\n]*\n\s*if \(h && isVendorWaypoint\(mapId, buildingKey\)\) return \{ \.\.\.h, own: false, vendor: true, waypoint: true, owner: vendorWaypointLabel\(h\.owner\) \};\n\s*return h && !h\.own && isVendorHouse\(mapId, buildingKey\) \? \{ \.\.\.h, vendor: true \} : h;\n\s*\} : null,\n\s*\}\),/);
   // PIN MOVED (FB1020c STREETS-TAB, at the merge of STAR0's move): the bag `townHere` builds for either key; the homes asked as the M key's window opens and as the travel
   // key's streets are handed over
-  assert.match(w, /townHomesVersion: \(\) => \(onlineHomes\?\.version\(\) \?\? 0\) \+ vendorWaypointVersion\(\) \* 100_000,[^\n]*\n\s*\} \};/);
-  assert.match(w, /townTalk\.showOverlay\(createTownMapWindow\(here\.deps\)\);\n\s*onlineHomes\?\.ensure\(here\.mapId\);/, 'the M key asks');
-  assert.match(w, /if \(!here\) return \{\};\n\s*onlineHomes\?\.ensure\(here\.mapId\);/, 'the travel key\'s streets ask too');
-  assert.match(w, /return \{ mapId: dfLoc\.mapTableData\?\.mapId, deps: \{/, 'the town\'s MapId');
-  const marks = w.slice(w.indexOf('const townBoardMarks = (p) => {'));
-  assert.match(marks, /^const townBoardMarks = \(p\) => \{\n\s*if \(!noticeBook \|\| noticeBook\.open !== true \|\| !p\?\.boards\?\.length \|\| !p\.location\) return \[\];\n\s*const bountyAt = boardSplitOf\(p\);\n\s*const town = noticeTownOf\(p\.px, p\.py, bountyAt\.size > 0\);\n\s*return town \? townBoardRows\(p, bountyAt, noticeBook\.unseen\(town\.mapId\)\) : \[\];/);   // ONE-BOARD REVERTED (PIN MOVED)
+  // PIN MOVED (VENDOR-HOUSES; AUDIT TECH-FEEDBACK F7: a number, the sheet asks it a frame)
+  assert.match(w, /townHomesVersion: \(\) => \(onlineHomes\?\.version\(\) \?\? 0\) \+ vendorWaypointVersion\(\) \* 100_000 \+ vendorHousesVersion\(\) \* 1e10,[^\n]*\n\s*\} \};/);
+  assert.match(w, /townTalk\.showOverlay\(createTownMapWindow\(here\.deps\)\);\n\s*onlineHomes\?\.ensure\(here\.mapId\);[^\n]*\n\s*if \(onlineHomes\) ensureVendorHouses\(here\.region\);/, 'the M key asks, its traders too');
+  assert.match(w, /if \(!here\) return \{\};\n\s*onlineHomes\?\.ensure\(here\.mapId\);[^\n]*\n\s*if \(onlineHomes\) ensureVendorHouses\(here\.region\);/, 'the travel key\'s streets ask too');
+  assert.match(w, /return \{ mapId: dfLoc\.mapTableData\?\.mapId, region: dfLoc\.regionIndex, deps: \{/, 'the town\'s MapId and region');
   // the classic exterior automap is DFU's own window: it draws DFU's marks alone
-  assert.doesNotMatch(src('src/ui/exteriorAutomapWindow.js'), /townBoards|townHomes|paintBoardMark|paintHomeMark/);
+  assert.doesNotMatch(src('src/ui/exteriorAutomapWindow.js'), /townHomes|paintHomeMark/);
+});
+
+// ---- VENDOR-HOUSES (Mac, 2026-10-30, forwarding #feature-feedback "Player Vendors") ---------------------------------
+
+const { registerVendorHouseReader, ensureVendorHouses, isVendorHouse, vendorHousesVersion, VENDOR_HOUSES_READ_S, VENDOR_HOUSES_RETRY_S, VENDOR_HOUSES_HUNG_S, _resetVendorHousesForTests } = await import('../../../src/systems/vendorHouses.js');
+const settle = () => new Promise((r) => setTimeout(r, 0));
+
+test('VENDOR-HOUSES the read: a region\'s traders by town and house, read once a while, past the Bay as in it (mutants: the reread every open; the version never moved; a house of another town of the same key marked)', async () => {
+  _resetVendorHousesForTests();
+  const asked = [];
+  const rows = { 17: [{ map: 4000000000, buildingKey: 12 }, { map: 77, buildingKey: 5 }, { map: 77, buildingKey: 0 }], 66: [{ map: 9100001, buildingKey: 3 }] };
+  registerVendorHouseReader((region) => { asked.push(region); return { ok: true, data: { rows: rows[region] ?? [] } }; });
+  const v0 = vendorHousesVersion();
+  ensureVendorHouses(17, 1000);
+  ensureVendorHouses(17, 1000);   // a read out: not asked twice
+  await settle();
+  assert.deepEqual(asked, [17]);
+  assert.ok(vendorHousesVersion() > v0, 'the marks moved, so the sheet repaints');
+  assert.ok(isVendorHouse(4000000000, 12) && isVendorHouse(-294967296, 12), 'a map id read signed or not');
+  assert.ok(isVendorHouse(77, 5) && !isVendorHouse(77, 12) && !isVendorHouse(77, 0), 'a key is its own town\'s');
+  ensureVendorHouses(17, 1000 + VENDOR_HOUSES_READ_S - 1);
+  await settle();
+  assert.deepEqual(asked, [17], 'read again only after VENDOR_HOUSES_READ_S');
+  const v1 = vendorHousesVersion();
+  ensureVendorHouses(17, 1000 + VENDOR_HOUSES_READ_S);
+  await settle();
+  assert.deepEqual(asked, [17, 17]);
+  assert.equal(vendorHousesVersion(), v1, 'the same traders: no repaint');
+  // a region past the Bay (TAMRIEL-WIDE): read and marked as the Bay's
+  ensureVendorHouses(66, 1000);
+  await settle();
+  assert.ok(isVendorHouse(9100001, 3));
+  rows[17] = [];
+  ensureVendorHouses(17, 1000 + 2 * VENDOR_HOUSES_READ_S);
+  await settle();
+  assert.ok(!isVendorHouse(77, 5) && vendorHousesVersion() > v1, 'a trader shut is no longer marked');
+  // the market shut, a refusal, no reader: nothing marked, nothing thrown
+  _resetVendorHousesForTests();
+  ensureVendorHouses(17, 0);
+  registerVendorHouseReader(() => null);
+  ensureVendorHouses(17, 0);
+  ensureVendorHouses(-1, 0);
+  await settle();
+  assert.ok(!isVendorHouse(4000000000, 12));
+  _resetVendorHousesForTests();
+});
+
+test('AUDIT TECH-FEEDBACK F4 VENDOR-HOUSES a read that failed: the market not open yet is asked again soon, a market shut marks nothing, a service error keeps what was read, a read never answered is let go (mutants: a failure waits the whole read; a shut market\'s houses kept; a hung read holds the region for good)', async () => {
+  _resetVendorHousesForTests();
+  let answer = null;
+  const asked = [];
+  registerVendorHouseReader((region) => { asked.push(region); return typeof answer === 'function' ? answer() : answer; });
+  ensureVendorHouses(17, 1000);   // the market not open: the reader answers none
+  await settle();
+  ensureVendorHouses(17, 1000 + VENDOR_HOUSES_RETRY_S - 1);
+  await settle();
+  assert.deepEqual(asked, [17], 'not asked again at once');
+  answer = { ok: true, data: { rows: [{ map: 77, buildingKey: 5 }] } };
+  ensureVendorHouses(17, 1000 + VENDOR_HOUSES_RETRY_S);
+  await settle();
+  assert.deepEqual(asked, [17, 17], 'asked again after VENDOR_HOUSES_RETRY_S, not VENDOR_HOUSES_READ_S');
+  assert.ok(VENDOR_HOUSES_RETRY_S < VENDOR_HOUSES_READ_S);
+  assert.ok(isVendorHouse(77, 5));
+  answer = { ok: false, error: 'server' };   // a service error: what was read stands
+  ensureVendorHouses(17, 2000);
+  await settle();
+  assert.ok(isVendorHouse(77, 5));
+  const v = vendorHousesVersion();
+  answer = null;   // the market shut: nothing of it is marked
+  ensureVendorHouses(17, 2000 + VENDOR_HOUSES_RETRY_S);
+  await settle();
+  assert.ok(!isVendorHouse(77, 5) && vendorHousesVersion() > v);
+  // a read never answered is let go after VENDOR_HOUSES_HUNG_S, and its late answer marks nothing
+  let late = null;
+  answer = () => new Promise((r) => { late = r; });
+  ensureVendorHouses(17, 3000);
+  ensureVendorHouses(17, 3000 + VENDOR_HOUSES_HUNG_S - 1);
+  assert.equal(asked.length, 5, 'held while it may still answer');
+  answer = { ok: true, data: { rows: [{ map: 77, buildingKey: 9 }] } };
+  ensureVendorHouses(17, 3000 + VENDOR_HOUSES_HUNG_S);
+  await settle();
+  assert.equal(asked.length, 6);
+  const v2 = vendorHousesVersion();
+  late({ ok: true, data: { rows: [{ map: 77, buildingKey: 1 }] } });
+  await settle();
+  assert.ok(isVendorHouse(77, 9) && !isVendorHouse(77, 1), 'the hung read\'s late answer is no one\'s');
+  assert.equal(vendorHousesVersion(), v2, 'and repaints nothing');
+  _resetVendorHousesForTests();
+});
+
+test('AUDIT TECH-FEEDBACK II F4/F5 VENDOR-HOUSES: a read that throws or rejects is a failure (asked again soon, its marks kept); a load forgets every read; nothing is marked while the market is shut (mutants: a rejection a success; a throw a shut market; the load remembered; the shut market marked)', async () => {
+  _resetVendorHousesForTests();
+  let mode = 'ok', open = true;
+  const asked = [];
+  registerVendorHouseReader((region) => {
+    asked.push(region);
+    if (mode === 'throw') throw new Error('boom');
+    if (mode === 'reject') return Promise.reject(new Error('net'));
+    return { ok: true, data: { rows: [{ map: 77, buildingKey: 5 }] } };
+  }, { open: () => open });
+  ensureVendorHouses(17, 1000, 1);
+  await settle();
+  assert.ok(isVendorHouse(77, 5));
+  for (const [m, at] of [['reject', 1200], ['throw', 1200 + VENDOR_HOUSES_RETRY_S]]) {
+    mode = m;
+    ensureVendorHouses(17, at, 1);
+    await settle();
+    assert.ok(isVendorHouse(77, 5), `${m}: what was read stands`);
+  }
+  mode = 'ok';
+  ensureVendorHouses(17, 1200 + 2 * VENDOR_HOUSES_RETRY_S, 1);
+  await settle();
+  assert.equal(asked.length, 4, 'each failure asked again after VENDOR_HOUSES_RETRY_S');
+  open = false;
+  assert.ok(!isVendorHouse(77, 5), 'the market shut: nothing marked');
+  open = true;
+  const v = vendorHousesVersion();
+  ensureVendorHouses(66, 5000, 2);   // a load: another character, another door's law
+  assert.ok(!isVendorHouse(77, 5) && vendorHousesVersion() > v, 'a load forgets every read');
+  _resetVendorHousesForTests();
+});
+
+test('VENDOR-HOUSES the mark: a trader\'s house carries `vendor` through the rows and the sheet and is filled blue with a parchment door; my own stays red (mutants: the flag dropped at a read; the blue fill lost; a trader\'s house in my red)', () => {
+  const buildings = [house(1, 0, 0, 30, 30), house(2, 1, 0, 60, 10), house(3, 1, 1, 10, 50)];
+  const reg = new Map([[1, { owner: 'Mac', own: true }], [2, { owner: 'Gryphoth', own: false, vendor: true }], [3, { owner: 'Trader waypoint - Eve', own: false, vendor: true, waypoint: true }]]);
+  const rows = townHomeRows({ buildings, mapId: 4000000000, regionIndex: 66, homeAt: (m, k) => reg.get(k) ?? null });
+  assert.deepEqual(rows, [
+    { buildingKey: 1, own: true, label: 'Your home' },
+    { buildingKey: 2, own: false, vendor: true, label: "Gryphoth's home - trader" },
+    { buildingKey: 3, own: false, vendor: true, label: "Trader waypoint - Eve's home" },
+  ]);
+  assert.deepEqual(readTownHomes(() => rows), rows);
+  const s = createTownSheet({ gridW: 2, gridH: 2, blocks: [], buildings: () => buildings, discovered: () => [], homes: () => rows });
+  assert.deepEqual(s.homes().map((h) => [h.own, h.vendor === true]), [[true, false], [false, true], [false, true]]);
+  const ctx = recordingCtx();
+  s.paintOverlay(ctx, ENV);
+  const fills = ctx.calls.filter((c) => c.fn === 'fill').map((c) => c.fillStyle);
+  assert.equal(fills.filter((f) => f === TOWN_PEN.vendor).length, 2, 'the two traders\' houses in blue');
+  assert.equal(fills.filter((f) => f === TOWN_PEN.home).length, 1, 'my own in my ink');
+  assert.equal(TOWN_PEN.vendor, PEN.vendor);
+  assert.equal(PEN.vendor, 'rgba(24, 85, 190, 0.95)', 'classic\'s shop blue (townQuarters.js CLASSIC_ARGB.shop), at the pen\'s strength');
+  const one = recordingCtx();
+  paintHomeMark(one, 100, 200, true, true);
+  assert.ok(one.calls.some((c) => c.fn === 'fill' && c.fillStyle === TOWN_PEN.home) && !one.calls.some((c) => c.fn === 'fill' && c.fillStyle === TOWN_PEN.vendor), 'my own trader is my house first');
+});
+
+test('VENDOR-HOUSES the wiring: the vendor host registers the directory\'s read, the market\'s gate on it', () => {
+  assert.match(src('src/scenes/vendorHost.js'), /registerVendorHouseReader\(\(region\) => \(vendorMarketOpen\(\) \? vendorReachable\(region\) : null\), \{ open: vendorMarketOpen \}\);/);   // PIN MOVED (AUDIT TECH-FEEDBACK II F5)
 });

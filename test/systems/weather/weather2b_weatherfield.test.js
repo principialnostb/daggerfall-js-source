@@ -60,7 +60,7 @@ test('WEATHER2b coordinates: field metres are the natives scaled to the pixel\'s
 });
 
 test('WEATHER2b the cells: three precipitating words with a spacing, a radius range, a coin and a base sky; the candidate is seeded by day, index and word; the drift is the day\'s heading times the minutes', () => {
-  assert.deepEqual(Object.keys(CELL_WORDS), ['rain', 'thunder', 'snow', 'sandstorm']);   // WEATHER2d: the sandstorm, never a zone's word, seats on desert land
+  assert.deepEqual(Object.keys(CELL_WORDS), ['rain', 'thunder', 'snow', 'sandstorm', 'ashfall']);   // WEATHER2d: the sandstorm, never a zone's word, seats on desert land   // PIN MOVED (ASHFALL1, 2026-10-27): the ashfall on the volcano's
   for (const w of Object.values(CELL_WORDS)) { assert.ok(w.spacing > 2 * w.radius[0] && w.radius[1] > w.radius[0] && w.p > 0 && w.p < 1); assert.ok(['overcast', 'cloudy'].includes(w.base)); }
   assert.equal(baseWordOf('rain'), 'overcast'); assert.equal(baseWordOf('thunder'), 'cloudy'); assert.equal(baseWordOf('snow'), 'overcast');
   for (const w of ['sunny', 'cloudy', 'overcast', 'fog']) assert.equal(baseWordOf(w), w, 'a whole-sky word makes no cells');
@@ -207,7 +207,7 @@ test('WEATHER2b the controller and the hosts: the sky eases on the front\'s own 
     assert.match(s, /const drained = tickWeather\(/, `${name}: the drain's answer`);
     assert.match(s, /sampleWeatherField\(Math\.floor\(playerTicker\.classicMinutes\), [^,]+, [^;]+, climateAt, drained \? 'drain' : 'live'\);/, `${name}: the field after the drain`);
     assert.match(s, /let seenCrossing = weatherCrossingStamp\(\);/, `${name}: the boot's stamp is the baseline`);
-    assert.match(s, /const crossing = weatherCrossingStamp\(\) !== seenCrossing;\s*\n\s*seenCrossing = weatherCrossingStamp\(\);\s*\n\s*if \(crossing && !jump\) sky\.weatherArrive\(\);/, `${name}: a crossing tells the sky, a jump wins`);
+    assert.match(s, /const crossing = weatherCrossingStamp\(\) !== seenCrossing(?: \|\| seaVentures\.stormTurned\(\))?;(?:\s*\/\/[^\n]*)?\s*\n\s*seenCrossing = weatherCrossingStamp\(\);\s*\n\s*if \(crossing && !jump\) sky\.weatherArrive\(\);/, `${name}: a crossing tells the sky, a jump wins`);
     assert.match(s, /cells: fieldCellsHere\(\), cloudBase: /, `${name}: the clouds' cells are the field's (WEATHER3c: the base they stand on beside them)`);
     assert.match(s, /const climateAt = \(px, py\) => maps\.getClimateIndex\(px, py\);/, `${name}: the map's lookup`);
   }

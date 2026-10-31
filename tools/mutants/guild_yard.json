@@ -29,7 +29,7 @@
   {
     "name": "GUILD-YARD-keepers-any-rank",
     "file": "server-account/src/decor.js",
-    "old": "      AND g.rank IN (${HALL_POWERS.decorate.join(', ')})\n      AND EXISTS",
+    "old": "      AND ${guildPowerSql('decorate', 'g.rank', 'g.guild_id')}\n      AND EXISTS",
     "new": "      AND g.rank >= 0\n      AND EXISTS",
     "tests": [
       "test/net/guild_yard.test.js"
@@ -111,11 +111,12 @@
   {
     "name": "GUILD-YARD-the-lot-no-halls",
     "file": "src/scenes/homeYards.js",
-    "old": "roads: yardRoadsOf(p, y.frame.at, y.lot), hall: !!home.hall };",
-    "new": "roads: yardRoadsOf(p, y.frame.at, y.lot), hall: false };",
+    "old": "roads: yardRoadsOf(p, y.frame.at, lot), hall: !!home.hall };",
+    "new": "roads: yardRoadsOf(p, y.frame.at, lot), hall: false };",
     "tests": [
       "test/net/guild_yard.test.js"
-    ]
+    ],
+    "note": "FIELD BUGS 2026-10-29f (PIN MOVED): re-aimed by content - the line it names moved or grew."
   },
   {
     "name": "GUILD-YARD-the-rooms-hall-lost",
@@ -147,9 +148,9 @@
   {
     "name": "GUILD-YARD-the-refresh-asks-no-keeper",
     "file": "src/scenes/world.js",
-    "old": "((row?.look && homeDecorShown(row)) || row?.mine || row?.keeper)) merged = true;",
-    "new": "((row?.look && homeDecorShown(row)) || row?.mine)) merged = true;",
-    "note": "HOME-VOTE (PIN MOVED): a look counts only where it is shown - a shunned home's stays in the merge",
+    "old": "((row?.look && homeDecorShownHere(row, p.homeTown)) || row?.mine || row?.keeper)) merged = true;",
+    "new": "((row?.look && homeDecorShownHere(row, p.homeTown)) || row?.mine)) merged = true;",
+    "note": "HOME-VOTE (PIN MOVED): a look counts only where it is shown - a shunned home's stays in the merge FIELD BUGS 2026-10-29f (PIN MOVED): re-aimed by content - the line it names moved or grew.",
     "tests": [
       "test/net/guild_yard.test.js"
     ]
@@ -221,8 +222,8 @@
   {
     "name": "AUDIT-GUILD-YARD-Y1-the-keeper-off-the-rank-alone",
     "file": "server-account/src/homes.js",
-    "old": "hallMay(rank, 'decorate') && h.me_realm === 1 ? { keeper: true }",
-    "new": "hallMay(rank, 'decorate') ? { keeper: true }",
+    "old": "guildMay(rank, 'decorate', powers) && h.me_realm === 1 ? { keeper: true }",
+    "new": "guildMay(rank, 'decorate', powers) ? { keeper: true }",
     "tests": [
       "test/net/guild_yard.test.js"
     ]
@@ -230,8 +231,8 @@
   {
     "name": "AUDIT-PROF-541-G2-hallEntry-asks-a-realm-character",
     "file": "server-account/src/homes.js",
-    "old": "hallMay(rank, 'hallEntry') ? { hallEntry: true }",
-    "new": "hallMay(rank, 'hallEntry') && h.me_realm === 1 ? { hallEntry: true }",
+    "old": "guildMay(rank, 'hallEntry', powers) ? { hallEntry: true }",
+    "new": "guildMay(rank, 'hallEntry', powers) && h.me_realm === 1 ? { hallEntry: true }",
     "tests": [
       "test/net/guild_yard.test.js"
     ]
@@ -301,16 +302,6 @@
     ]
   },
   {
-    "name": "AUDIT-GUILD-YARD-OWNS-home-any-character",
-    "file": "server-account/src/decor.js",
-    "old": "WHERE (h.guild_id IS NULL AND h.player = k.p AND h.char_id = k.c)",
-    "new": "WHERE (h.guild_id IS NULL AND h.player = k.p)",
-    "tests": [
-      "test/net/guild_yard.test.js",
-      "test/net/homelook.test.js"
-    ]
-  },
-  {
     "name": "AUDIT-GUILD-YARD-the-hall-word-for-every-yard",
     "file": "server-account/src/decor.js",
     "old": "    : barred && (S.seat",
@@ -325,8 +316,8 @@
   {
     "name": "AUDIT-PROF-541-G3-the-commits-cap-unasked",
     "file": "src/scenes/decor/decorTool.js",
-    "old": "    if (decorWhyNot({ price, ready: true, gold: deps.wallet().gold,",
-    "new": "    if (false && decorWhyNot({ price, ready: true, gold: deps.wallet().gold,",
+    "old": "    if (decorWhyNot({ price, ready: true, gold: deps.wallet().gold + (batching ? draftGoldNow() : 0),",
+    "new": "    if (false && decorWhyNot({ price, ready: true, gold: deps.wallet().gold + (batching ? draftGoldNow() : 0),",
     "tests": [
       "test/net/guild_yard.test.js"
     ]

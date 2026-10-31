@@ -231,9 +231,10 @@ test('ES1 seam: enhanced skin only, one renderer field, the classic pass untouch
   assert.match(classic, /export function buildDaySkyPanorama/);
   assert.match(classic, /export function nightSkyIndexForSky/);
   assert.doesNotMatch(classic, /enhanced/i, 'skyRenderer.js knows nothing of the enhanced sky');
-  // Both hosts hand the weather and the classic clock through.
+  // Both hosts hand the weather and the classic clock through (SEA-EVENTS: world.js the Aether Storm's first, at sea -
+  // scenes/seaVenturesHost.js seaStormShown, shown as the Sun Baby's clear day is).
   for (const host of ['src/scenes/world.js', 'src/scenes/exterior.js']) {
-    assert.match(read(host), /\{ weather, violence: weatherOverride \?\? currentWeatherRaw\(\), classicMinutes: playerTicker\.classicMinutes, skyMinutes: skyMinutes\(\), sun: wxNow\.sun, flash: flash - 1, pos: [^}]+ \}\);\s*\/\/ WEATHER2a[^\n]*ES1/, `${host} feeds the sky`);   // TIME1: two minutes
+    assert.match(read(host), /\{ weather, violence: weatherOverride \?\? (?:seaStormShown\(\) \?\? )?currentWeatherRaw\(\), classicMinutes: playerTicker\.classicMinutes, skyMinutes: skyMinutes\(\), sun: wxNow\.sun, flash: flash - 1, pos: [^}]+ \}\);\s*\/\/ WEATHER2a[^\n]*ES1/, `${host} feeds the sky`);   // TIME1: two minutes
   }
   // The lab is a page like the other prototypes, built as one.
   assert.match(read('vite.config.js'), /sky: 'sky\.html',/);
@@ -447,8 +448,8 @@ test('EE5 / VC4: the ground reads the slab\u2019s own shadow map through one blo
   assert.match(sky, /soft: Math\.max\(1e-3, state\.cloudSoft \?\? 0\.25\),/, 'a zero softness would divide by nothing');
   assert.match(sky, /time: state\.seconds \?\? 0,/);
   const sharedSrc = read('src/scenes/shared.js');
-  assert.match(sharedSrc, /if \(clouds\?\.shadow\) Object\.assign\(enhancedSky\.cloudShadow, clouds\.shadow, \{ far: farCoverSun\(\) \}\);/, 'the deck carries the map and its square');   // PIN MOVED (OW-HORIZON, 2026-10-20): and the far law past it
-  assert.match(sharedSrc, /if \(clouds\) return 1;   \/\/ VC4/, 'no global dim on top of the per-surface shadow');
+  assert.match(sharedSrc, /if \(cloudsShown\?\.shadow\) Object\.assign\(enhancedSky\.cloudShadow, cloudsShown\.shadow, \{ far: farCoverSun\(\) \}\);/, 'the deck carries the map and its square');   // PIN MOVED (OW-HORIZON, 2026-10-20): and the far law past it
+  assert.match(sharedSrc, /if \(cloudsShown\) return 1;   \/\/ VC4/, 'no global dim on top of the per-surface shadow');
   // both hosts hand it over immediately before the terrain draw, and
   // hand over NOTHING when there is no enhanced sky
   for (const host of ['src/scenes/world.js', 'src/scenes/exterior.js']) {

@@ -24,6 +24,7 @@
 // Worker does not bundle.
 // ═══════════════════════════════════════════════════════════════════
 import { decorSaleBack } from '../decorLaw.js';   // AUDIT REALM2 T3: what a room's placed pieces pay back
+import { deedsOfHouses } from '../homeLaw.js';   // HOUSES-3: every region's three deeds
 
 /** The letter of credit's template (systems/inventory.js LETTER_OF_CREDIT_TEMPLATE, pinned equal; a name of its own, so no symbol is declared twice - audit24 wave24). */
 export const REALM_LETTER_TEMPLATE = 275;
@@ -190,6 +191,7 @@ export function stashedItemLists(snap) {
   const feud = snap?.modData?.[REVENANT_VENDOR]?.list;   // ITEM-WALK C
   for (const r of Array.isArray(feud) ? feud : []) if (r?.sworn && !r.defeated) out.push(...lists(r.companion?.items));
   for (const r of Array.isArray(feud) ? feud : []) if (r?.sworn && !r.defeated && r.companion?.gear && typeof r.companion.gear === 'object') out.push(...lists(Object.values(r.companion.gear).filter((it) => it && typeof it === 'object')));   // RVN-GEAR: and the kit it wears (revenantGear.js)
+  out.push(...lists(snap?.dragonKeep?.bags));   // DRAGON5b: the tamed dragon's saddlebags (systems/dragon/dragonKeep.js)
   return out;
 }
 /** Every list of the character's own things where liquid wealth can lie, in the order customs takes from them: the
@@ -233,8 +235,8 @@ export function deedsOf(snap) {
     const ship = ownedShipType(snap);
     deeds.push({ slot: null, room: roomOf(interiorSceneName(SHIP_INTERIOR_MAP_IDS[ship], BUILDING_KEY_0)), value: shipSellPrice(ship) });
   }
-  for (const slot of Array.isArray(snap?.houses) ? snap.houses : []) {
-    if (slot?.buildingKey > 0 && !slot.crossed) deeds.push({ slot, room: roomOf(interiorSceneName(slot.mapId, slot.buildingKey)), value: Math.trunc(CUSTOMS_HOUSE_PRICE * DEED_SELL_MULT) });
+  for (const slot of deedsOfHouses(snap?.houses)) {   // HOUSES-3: three a region
+    if (!slot.crossed) deeds.push({ slot, room: roomOf(interiorSceneName(slot.mapId, slot.buildingKey)), value: Math.trunc(CUSTOMS_HOUSE_PRICE * DEED_SELL_MULT) });
   }
   for (const d of deeds) d.value += decorSaleBack(d.room?.decor);
   return deeds;

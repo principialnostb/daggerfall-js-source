@@ -78,8 +78,8 @@
   {
     "name": "A4-stats-door-never-resumes",
     "file": "src/ui/enhanced/enhancedMenu.js",
-    "old": "b.onclick = () => { onAction('handoff'); if (fn() === false) onAction('resume'); };",
-    "new": "b.onclick = () => { onAction('handoff'); fn(); };",
+    "old": "b.onclick = () => { handoff(fn); };",
+    "new": "b.onclick = () => { handoff(fn, () => true); };",
     "tests": [
       "test/ui/enhanced/audit27h.test.js",
       "test/ui/escbook.test.js",
@@ -155,8 +155,8 @@
   {
     "name": "S1-dungeon-breath-under-the-street-slot",
     "file": "src/scenes/dungeonContext.js",
-    "old": "breathTick(opts.breathHeld?.() ? 0 : dt, playerFeet, playerHeight);",
-    "new": "breathTick(dt, playerFeet, playerHeight);",
+    "old": "breathTick(opts.breathHeld?.() || dungeonPaused() ? 0 : dt, playerFeet, playerHeight);",
+    "new": "breathTick(dungeonPaused() ? 0 : dt, playerFeet, playerHeight);",
     "tests": [
       "test/player/searise.test.js"
     ]

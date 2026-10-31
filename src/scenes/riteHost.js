@@ -39,7 +39,8 @@ import { worldRoom, GATE_TOP_MAX } from '../net/wire.js';
 import { riteSiteId } from '../world/worldOfDaggerfall/wodShared.js';
 import { buildRiteModel, riteLayout, RITE_BRAZIER_H, RITE_BRAZIER_R, RITE_SIGIL_R, RITE_ALTAR } from '../world/riteModel.js';
 import { gateArt, riteArt, GATE_ARCHIVE } from '../world/gate/gateArt.js';
-import { RiteSmokeRenderer, SMOKE_FADE_MIN } from '../render/riteSmoke.js';
+import { RiteSmokeRenderer, RITE_SMOKE_PROGRAMS, SMOKE_FADE_MIN } from '../render/riteSmoke.js';
+import { compiledPass } from '../render/glProgram.js';   // FIRST-USE (#1144): the smoke built once its program is done
 import { FlatAnim } from '../render/flatAnimation.js';
 import { GLOBAL_SCALE } from '../player/activate.js';
 import { FIRE_FLAT, TENT_MODEL, FIRE_LIGHT_RANGE } from '../systems/survival/camp.js';
@@ -140,10 +141,10 @@ function groundSamples(L) {
  *   pixelTranslation: (px: number, py: number, out?: number[]) => number[],
  *   groundAt?: (x: number, z: number) => number, coarseGround?: ((px: number, py: number, x: number, z: number) => number)|null,
  *   feet?: () => number[]|null, online?: () => boolean, onBare?: (x0: number, z0: number, x1: number, z1: number) => void,
- *   foes?: { spawn: (career: number, xz: number[], o: { yaw: number, site: string, transient: boolean }) => Promise<any>, list: () => any[], drop: (site: string) => void, remove: (foe: any) => void, reclaim?: (site: string) => void, campId: () => number }|null,
+ *   foes?: { spawn: (career: number, xz: number[], o: { yaw: number, site: string, transient: boolean, eventFoe: boolean }) => Promise<any>, list: () => any[], drop: (site: string) => void, remove: (foe: any) => void, reclaim?: (site: string) => void, campId: () => number }|null,
  *   peerSprang?: (site: string) => boolean, peerHeldAgo?: (site: string) => number, forgetPeer?: (site: string) => void,
  *   sprang?: (site: string) => void, unsprang?: (site: string) => void, struckAt?: (foe: any) => (number|null),
- *   send?: (word: any, cell: string) => boolean, say?: (text: string) => void, sayNear?: (text: string) => void,
+ *   send?: (word: any, cell: string) => boolean, say?: (text: string, n?: number) => void, sayNear?: (text: string) => void,
  *   loot?: { seed: (items: any[], feet: number[], pixelKey: string) => any, keyOf?: (pile: any) => string }|null, level?: () => number, rolls?: () => number,
  * }} deps
  */
@@ -160,7 +161,10 @@ export function createRiteHost({
   let model = null, sigilModel = null, modelGen = -1, modelFailedGen = -1, mesh = null, sigilMesh = null, meshGen = -1, meshFailedGen = -1, artUp = false;
   let tent = null, tentTried = false;
   let fire = null, fireTried = false, flamesGen = -1, flamesList = NONE, anim = null;
-  let smokePass = null, smokeTried = false;
+  // FIRST-USE (#1144): the smoke is cosmetic - its door is never asked as needed, so the frame the smoke first fades in
+  // starts its compile and the smoke stands a few frames later, where its build had held the frame for the whole compile
+  let smokePass = null;
+  const smokeOf = gl ? compiledPass(gl, RITE_SMOKE_PROGRAMS, () => new RiteSmokeRenderer(gl), (e) => console.warn('[rite] the smoke would not build', e?.message ?? e)) : null;
   let colliderGen = -1;
   /** made once a heart and a ground: the stone's and the tents' matrices, the casket's target */
   let madeAt = null, mats = null, target = null;
@@ -275,7 +279,7 @@ export function createRiteHost({
   function riteFoe(f, summoner, career, camp, fresh) {
     f.riteRole = summoner ? 'summoner' : 'faithful'; f.riteCareer = career;
     f.campId = camp; f.campAlertRadius = RITE_ALERT_M;
-    if (f.entity) f.entity.campId = camp;
+    if (f.entity) { f.entity.campId = camp; f.entity.eventFoe = true; }   // STAR-MASTER-FLED: the rite's own - never a revenant, never "Unquiet"
     if (f.ai && !f.ai.target) f.ai.sightRadius = RITE_SIGHT_M;
     if (fresh && summoner && f.entity) { f.entity.maxHealth = Math.max(1, Math.round((f.entity.maxHealth ?? 1) * RITE_SUMMONER_HEALTH)); f.entity.health = f.entity.maxHealth; f.entity.healthMult = (f.entity.healthMult ?? 1) * RITE_SUMMONER_HEALTH; }   // TELL1: what was stood on the kind's own health (its poise)
   }
@@ -299,7 +303,7 @@ export function createRiteHost({
         if (f) { c.spawned = true; riteFoe(f, m.summoner, m.career, camp, true); if (f.entity && m.summoner) f.entity.properName = RITE_TEXT.summoner; }
         if (!c.pending && !c.spawned && C === c) unsprang(site);   // none stood: claimed by nobody, tried again
       };
-      foes.spawn(m.career, [c.heart[0] + x, c.heart[2] + z], { yaw, site, transient: true }).then(landed, () => landed(null));
+      foes.spawn(m.career, [c.heart[0] + x, c.heart[2] + z], { yaw, site, transient: true, eventFoe: true }).then(landed, () => landed(null));   // STAR-MASTER-FLED: the rite's own from its stand, before its promotion draws the mark
     }
   }
   /** One of the faithful seen dead with a body, counted once: the Summoner's fall while the rite holds, the others by
@@ -511,15 +515,12 @@ export function createRiteHost({
       // the hub's word, said once while the rite holds and the place is known (AUDIT WB12d D1: a page opened after the
       // break heard it before its omen, "in the wilds")
       const mem = riteMemory(C.day), b = brokenHere();
-      if (b && holds && C.near && !mem.saidBroken) { mem.saidBroken = 1; say(RITE_TEXT.broken({ near: C.near, by: b.by, n: b.n })); }
+      if (b && holds && C.near && !mem.saidBroken) { mem.saidBroken = 1; say(RITE_TEXT.broken({ near: C.near, by: b.by, n: b.n }), C.day); }   // AUDIT WW F5: its gate's number - the line on its own gate's card
       if (!holds && t >= C.win.to && !C.passed) pass(d);
       if (on && holds && d <= RITE_SAY_REACH_M) word(t);
       chest(d);
       if (C.known) { made(); ensureModel(); ensureMesh(); standCollider(); ensureTent(); ensureFire(); mountFlames(); }
-      if (!smokePass && !smokeTried && gl && smokeFade(t) > 0) {
-        smokeTried = true;
-        try { smokePass = new RiteSmokeRenderer(gl); } catch (e) { console.warn('[rite] the smoke would not build', e?.message ?? e); }
-      }
+      if (!smokePass && smokeOf && smokeFade(t) > 0) smokePass = smokeOf();
       return C;
     },
     /** The flames' clock (the host's per-frame tick): each batch a share of the cycle on from the last. */

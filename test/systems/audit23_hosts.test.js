@@ -139,7 +139,9 @@ test('AUDIT 23 C14 + combat-4: the exterior swing arms drain, tally fully, and n
   for (const [name, text] of [['exterior', EXTERIOR], ['world', WORLD]]) {
     assert.equal((text.match(/drainExteriorFatigue\(SWING_FATIGUE_COST\)/g) ?? []).length, 2,   // BALANCE1: DFU's swing loss on exertion's scale
       `${name}: the bow arm and the melee arm both drain`);
-    assert.ok(text.includes('tallySwingSkills(playerEntity, weaponRig.playerWeapon.weapon)'), `${name}: the full bow tally arm`);
+    // PIN MOVED (AUDIT PISTOLET A2): the bow arm tallies the hand's blow - whole for a bow or a lone gun, the off hand's
+    // weight for a pair's off-hand shot, as worldModes.js and dungeonContext.js always weighed it (THE FOUR HOSTS RULE)
+    assert.ok(text.includes('tallySwingSkills(playerEntity, weaponRig.playerWeapon.weapon, weaponRig.playerWeapon.blowWeight);   // AUDIT PISTOLET A2'), `${name}: the full bow tally arm`);
     assert.equal(/WEAPON_SKILL\[/.test(text), false, `${name}: the display-name double tally is gone`);
     assert.ok(text.includes("if (ev === 'bowSound') { audio.playOneShot(SOUND.ArrowShoot, 1.1); continue; }"), `${name}: the bow frame-4 sound`);
   }
@@ -212,7 +214,8 @@ test('AUDIT 23 characters-4/5: the population takes walkerRace (the climate race
     // REGIONAL-FOLK (FIELD BUGS 2026-10-10, PIN MOVED): the People map is characters/mobile/mobilePerson.js's, asked through
     // walkerRace with the climate's People and the region (test/systems/livingWorld/fb1010_regionalfolk.test.js holds the rule)
     assert.ok(/walkerRace\([^)]*people, dfLocation\.regionIndex\)/.test(text), `${name}: the People map, through walkerRace`);
-    assert.ok(text.includes('nameBank: getNameBankOfRegion('), `${name}: the region bank`);
+    // PIN MOVED (AUDIT-TESA A2-5): the world host's past the Bay the province's people (TESA3's bank), the region's on the Bay
+    assert.ok(text.includes(name === 'world' ? 'nameBank: provinceNameBank(provinceAt(px, py)?.key) ?? getNameBankOfRegion(' : 'nameBank: getNameBankOfRegion('), `${name}: the region bank`);
   }
   // ...and TownPopulation honors the bank for names while the race
   // keeps driving the billboards.

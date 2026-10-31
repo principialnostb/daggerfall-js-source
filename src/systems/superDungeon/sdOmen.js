@@ -14,7 +14,7 @@
 // Not a DFU member: Daggerfall has no world events. Ledger A (SUPER-DUNGEONS).
 import { sdPhase, sdStands, sdMarked, sdNameIn, sdWhere, SD_COLLAPSE_MS } from '../../net/superDungeon/sdLaw.js';
 import { timerText } from '../eventTimers.js';
-import { pixelOfLoc } from './sdSite.js';
+import { cityPixelOf } from './sdSite.js';
 import { MAX_ANSWERS_TELL_ME_ABOUT_OR_RUMORS } from '../rumorMill.js';
 import { sdMarksOf, sdEndingOf, sdOmensOf } from '../../net/superDungeon/sdMarks.js';   // SD18c: the Ending a Hollow keeps, by its slot
 
@@ -126,7 +126,7 @@ export function sdMarksLine({ name, s }) {
 }
 /** A found Hollow's last hour, said to the realm once. */
 export const SD_HOUR_LEFT_MS = 60 * 60 * 1000;
-export const sdHourLine = ({ name, near, region }) => `${name || 'The Abyss Dungeon'} ${sdWhere(near, region)} will fade within the hour.`;   // AUDIT SD III (T19): where, as the find's line says it
+export const sdHourLine = ({ name, near, region, province = '' }) => `${name || 'The Abyss Dungeon'} ${sdWhere(near, region, province)} will fade within the hour.`;   // AUDIT SD III (T19): where, as the find's line says it
 
 /** SD18c: what the taverns say of a Hollow by the Ending it keeps - the omen that goes with it. */
 export const SD_ENDING_RUMOR = Object.freeze({
@@ -155,7 +155,7 @@ export const sdRumorLine = (city, ending = null) => `They say the air goes brass
 export function sdRumor(rec, hollow, now, here, session, { rolls = Math.random } = {}) {
   const phase = sdPhase(rec, now);
   if (!rec || (phase !== 'risen' && phase !== 'found') || !hollow?.site?.city || hollow.s !== rec.s || !here || !session) return null;
-  const c = pixelOfLoc(hollow.site.city);
+  const c = cityPixelOf(hollow.site.city);
   if (here.px !== c.px || here.py !== c.py) return null;
   if (!((session.numAnswersGivenTellMeAboutOrRumors | 0) < MAX_ANSWERS_TELL_ME_ABOUT_OR_RUMORS || session.isSpyMaster)) return null;
   if (!(rolls() < SD_RUMOR_CHANCE)) return null;

@@ -18,6 +18,13 @@ import { telegraphPrograms } from '../../src/render/gate/gateTelegraph.js';
 import { GATE_FX_PROGRAMS } from '../../src/render/gate/gateFx.js';
 import { CRYSTAL_PROGRAMS } from '../../src/render/courtCrystals.js';
 import { NODE_GLINT_PROGRAMS } from '../../src/render/nodeGlint.js';
+import { AURA_PROGRAMS } from '../../src/render/auraRing.js';   // AURA-STALL: the auras' program, started with them
+import { ARMORY_PROGRAMS } from '../../src/render/armoryPass.js';   // ARMORY: the armory's pieces, started with them
+import { NODE_GLOW_PROGRAMS } from '../../src/render/nodeGlow.js';   // SHADER-EASE QUEUE-ORDER
+import { NAVAL_PROGRAMS } from '../../src/render/navalRender.js';   // SHADER-EASE QUEUE-ORDER
+import { AURORA_PROGRAMS } from '../../src/render/auroraPass.js';   // SKYRIM-AURORA: the sky's aurora
+import { FIRE_PROGRAMS } from '../../src/render/redMountainFire.js';   // AUDIT RED-MOUNTAIN F5: the volcano's fire
+import { GLOW_PROGRAMS } from '../../src/render/ghostfenceGlow.js';   // and the Ghostfence's glow
 import { GATE_VEIL_PROGRAMS } from '../../src/render/gate/gateVeil.js';
 import { createGateCourt } from '../../src/scenes/gate/gateCourt.js';
 import { createGateVeil } from '../../src/ui/gate/gateVeil.js';
@@ -112,12 +119,22 @@ test('AUDIT SHADER-STALL a warm whose pass the draw built meanwhile stands down 
   assert.equal(f.count('createProgram'), 1, 'never a second compile');
 });
 
-test('AUDIT SHADER-STALL the passes play meets are started at the boot\'s idle where the driver compiles beside the frames - every one a fight or a gate or a node draws - and nothing is started where it cannot (mutants: started without the extension; a pass left out)', () => {
-  const want = [...GATE_PASS_PROGRAMS, ...telegraphPrograms(false), ...telegraphPrograms(true), ...GATE_FX_PROGRAMS, ...CRYSTAL_PROGRAMS, ...NODE_GLINT_PROGRAMS];
+test('AUDIT SHADER-STALL the passes play meets are started at the boot\'s idle where the driver compiles beside the frames - every one a fight or a gate or a node draws, and the auras\' (AURA-STALL) - and nothing is started where it cannot (mutants: started without the extension; a pass left out)', async () => {
+  // PIN MOVED (AURA-STALL, #1137): and the auras' program - the first wearer in range waited its whole compile; PIN MOVED
+  // (AUDIT RED-MOUNTAIN F5): and the volcano's fire and the fence's glow, drawn wherever the horizon holds them; PIN MOVED
+  // (ARMORY): and the armory's eight body pieces, met wherever a wearer walks; PIN MOVED (SHADER-EASE QUEUE-ORDER): and the
+  // nodes' glow and the sea fight's effects, with the auras' and the armory's last; PIN MOVED (SKYRIM-AURORA): and the
+  // sky's aurora after them - met only in Skyrim, its door never waits (AUDIT SKYRIM-AURORA B5)
+  const want = [...GATE_PASS_PROGRAMS, ...telegraphPrograms(false), ...telegraphPrograms(true), ...GATE_FX_PROGRAMS, ...CRYSTAL_PROGRAMS, ...NODE_GLINT_PROGRAMS, ...FIRE_PROGRAMS, ...GLOW_PROGRAMS, ...NODE_GLOW_PROGRAMS, ...NAVAL_PROGRAMS, ...AURA_PROGRAMS, ...ARMORY_PROGRAMS, ...AURORA_PROGRAMS];
+  assert.equal(ARMORY_PROGRAMS.length, 10, 'a program a body piece');   // PIN MOVED: THANKS-POST - the Crystal Spurs'; GUILD-SHOP - the Insignia Armlet's
   assert.deepEqual(playPrograms(), want);
   const on = fakeGl();
-  assert.equal(startPlayPrograms(on.gl), true);
-  assert.equal(on.count('createProgram'), want.length, 'each started');
+  const turns = [];
+  assert.equal(startPlayPrograms(on.gl, () => new Promise((r) => turns.push(r))), true);
+  // PIN MOVED (COMPILE-QUEUE, FIELD BUGS 2026-10-27b): started in turn, the next once the driver says the last is done
+  assert.equal(on.count('createProgram'), 1, 'one started, the rest queued');
+  while (turns.length) { on.finish(); turns.shift()(); await new Promise((r) => setImmediate(r)); }
+  assert.equal(on.count('createProgram'), want.length, 'each started, once');
   assert.equal(on.count('link?'), 0, 'nothing waited on');
   const off = fakeGl({ parallel: false });
   assert.equal(startPlayPrograms(off.gl), false);

@@ -21,6 +21,11 @@ import { readStanding, readNews, readHeard } from './influence.js';   // LEGACY6
 import { BLOOD_MAX, HEARTH_MAX, ESTATE_SHARE, ESTATE_MAX } from './legacyLaw.js';   // INT18: the family law's bounds, the realm's to ask too
 import { readHouse } from '../../net/houseLaw.js';   // LEGACY7 part three: a player spouse's house
 import { validLook } from '../../net/wire.js';   // LEGACY7 part four: a member's look, the hello's own recipe
+import { NO_LINEAGE } from './casual.js';   // CASUAL-LIFE: the answer's home is the leaf the death laws read
+import { readUnionKin } from './unionKinLaw.js';   // UNION-CHILDREN: a union child's link, the card's law
+
+/** COURT-DEEDS: the deeds a courtship keeps the days of (courtDeeds.js DEEDS - that module stands above this one). */
+export const COURT_DEEDS = Object.freeze(['compliment', 'gift', 'embrace', 'kiss']);
 
 /** The save-data vendor - `modData.ProjectLegacy` (systems/modSaveData.js), the mod's IHasModSaveData. */
 export const LEGACY_VENDOR = 'ProjectLegacy';
@@ -36,7 +41,7 @@ export const isModel = (m) => m === MODELS.bloodline || m === MODELS.enduring;
  *  regular option, or the option that skips the liniage system entirely"): THE THIRD ANSWER - a character who founds no
  *  house. Never a family's model: the character's own answer (`entity.legacyChoice`, saved with them), and Project
  *  Legacy sits them out for good - at their birth and at every load, in either lane. */
-export const NO_LINEAGE = 'none';
+export { NO_LINEAGE };   // CASUAL-LIFE: online it is Casual (casual.js) - no house, and a death that costs nothing
 /** A character's answer to the model question - a model, or no lineage. */
 export const isLegacyChoice = (c) => isModel(c) || c === NO_LINEAGE;
 
@@ -115,13 +120,13 @@ export const fullNameOf = (given, sur) => (sur ? `${given} ${sur}` : given);
  *   stats:Record<string,number>|null, skills:number[]|null, groups:{primary:number[], major:number[], minor:number[]},
  *   blood:Record<string,number>, hearth:Record<string,number>, estate:number,
  *   parents:number[], children:number[], spouse:number|null, born:number, died:Death|null,
- *   heir:boolean|null, characterId:string|null, leveling:string|null, kind:'member'|'resident'|'player', residentId:string|null,
+ *   heir:boolean|null, characterId:string|null, leveling:string|null, kind:'member'|'resident'|'player'|'union', residentId:string|null,
  *   startAge:number, toll:number, bornOwn:number, lived:number, retired:number|null, bequest?:any[],
  *   parked?:{mapId:number, buildingKey:number}|null, courting?:Record<string, any>, wedAt?:number|null,
  *   childDay?:number|null, minor?:boolean, residentFace?:number|null, mapId?:number,
  *   standing?:import('./influence.js').Standing|null,
- *   realm?:{ sid:string, player:string, char:string, house:any }|null, look?:any, deedsTaken?:string[]
- * }} Person - LEGACY7 part three: `kind: 'player'` another player's realm character wed to a member, `realm` the union.
+ *   realm?:{ sid:string, player:string, char:string, house:any }|null, look?:any, deedsTaken?:string[], union?:{ sid:string, key:number, house:string|null }|null
+ * }} Person - LEGACY7 part three: `kind: 'player'` another player's realm character wed to a member, `realm` the union; `kind: 'union'` a child of it the other house raises, `union` the link (UNION-CHILDREN, unionKin.js).
  *   LEGACY7 part four: `look` what the member wore at their newest save (memberLook) - how the world draws them
  *   PERMADEATH-HOUSES: `deedsTaken` the dead's deeds their save took up, by house key (household.js deedsDue)
  * @typedef {{ v:number, id:string, surname:string, model:string, seat:{region:string, loc:string, mapId?:number, at?:number}|null, rev:number,
@@ -295,7 +300,7 @@ export function leanRecord(family) {
   let n = 0;
   for (const p of family?.people ?? []) {
     if (!p.died || !p.standing || family.pending?.fallenId === p.id) continue;
-    if (childrenOf(family, p).some((c) => !c.died && c.characterId == null)) continue;
+    if (childrenOf(family, p).some((c) => (c.kind ?? 'member') === 'member' && !c.died && c.characterId == null)) continue;   // UNION-CHILDREN: of the blood
     p.standing = null;
     n++;
   }
@@ -542,6 +547,8 @@ export function readFamily(rec) {
           // AUDIT LEGACY III A4/P2: who the courtship is with, for the wedding that needs no town loaded (marriage.js
           // court) - dropped here, every wedding after a load was a male Breton with no face
           sex: c.sex === 'female' ? 'female' : 'male', race: RACE_KEYS.includes(c.race) ? c.race : '', face: Number.isInteger(c.face) && c.face >= 0 ? c.face : 0,
+          // AUDIT FB1026d B1: the days a deed warmed it (marriage.js warmCourtship) - dropped here, a load handed every deed again
+          ...(c.deeds && typeof c.deeds === 'object' ? { deeds: Object.fromEntries(Object.entries(c.deeds).filter(([k, d]) => COURT_DEEDS.includes(k) && Number.isInteger(d))) } : {}),
         }]))
       : {};
     p.wedAt = Number.isFinite(raw.wedAt) ? raw.wedAt : null;
@@ -561,6 +568,8 @@ export function readFamily(rec) {
     // LEGACY7 part three: another player's character wed in - the union they were wed by, held to its shape
     if (p.kind === 'player') p.realm = readUnion(raw.realm);
     else delete p.realm;
+    // UNION-CHILDREN: a child the other house raises - its link held to shape, and never a character of this house's
+    if (p.kind === 'union') { p.union = readUnionKin(raw.union); p.characterId = null; } else delete p.union;
     // LEGACY7 part four: what they wore at their newest save, held to the hello's law - or nothing (never played)
     if (raw.look !== undefined && raw.look !== null) { const look = memberLook(raw.look); if (look) p.look = look; else delete p.look; }
     people.push(p);

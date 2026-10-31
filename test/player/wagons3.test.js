@@ -649,7 +649,7 @@ test('WAGONS3 ANOTHER PLAYER ON THEIR BENCH: a peer driving a bench wagon (their
   assert.deepEqual(pool.harnessEnds('ann').map((e) => e.kind), ['trace', 'trace', 'trace', 'trace', 'rein', 'rein']);
   const w = rd('src/scenes/world.js');
   assert.match(w, /for \(const d of drawable\) if \(d\?\.shown\) _peerMapPoses\.set\(d\.id, d\.shown\);\n\s*if \(hccOn\(\)\) hcc\.driverGlue\(drawable, \{ toWire: campToWire \}\);/, 'glued after the map\'s poses - where peerAnchor reads the puller');
-  assert.match(rd('src/net/remotePlayers.js'), /const rd = \(peer\.shown\?\.rd \| 0\) \|\| \(peer\.shown\?\.bench === 2 \? 2 : 0\);/, 'the cart still heard');
+  assert.match(rd('src/net/remotePlayers.js'), /const rd = peer\.shown\?\.rd === POSE_RIDE\.Dragon \? 0 : \(peer\.shown\?\.rd \| 0\) \|\| \(peer\.shown\?\.bench === 2 \? 2 : 0\);/, 'the cart still heard');   // PIN MOVED (DRAGON1): a dragon has no hooves
   // AUDIT WAGONS3 B3: the glue runs before this pool's frame - their puller moved on this frame, and their seat goes
   // with it, never a frame behind it
   anchor = [0, 0.9, 10.6];
@@ -726,7 +726,7 @@ test('WAGONS3 THIRD PERSON FROM THE BENCH (Mac: "Using a wagon doesnt allow you 
   mv.mwViewFrame({ fpEye: [0, 1.7, 0], feet: [0, 0, 0], yaw: 0, pitch: 0, dt: 0 });
   const src = rd('src/player/mwView.js');
   assert.match(src, /benchSeated = !!state\.seated;/);
-  assert.match(src, /mounted = !!state\.riding && !saddled;\n\s*if \(mounted\)/, 'RIDE-POV unchanged: the saddle holds the head');   // PIN MOVED, COATS3D: a saddle of no 3D horse
+  assert.match(src, /mounted = !!state\.riding && !saddled && !onDragon;\n\s*if \(mounted\)/, 'RIDE-POV unchanged: the saddle holds the head');   // PIN MOVED, COATS3D: a saddle of no 3D horse; DRAGON-POV: nor a dragon's
   assert.match(rd('src/player/mountRig.js'), /!mwViewHides\(\)\.horse\) \{/, 'the mount\'s picture asks the hides');
   // AUDIT WAGONS3 B2: the bench is the KIND's - a journey, a teleport or a load's first frames stand no seat, and the
   // third person stays out of the head through them

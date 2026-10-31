@@ -162,8 +162,8 @@
   {
     "name": "OW3-J5-start-exempt-again",
     "file": "src/systems/travel/travelRoute.js",
-    "old": ": goalExempt ? 2 : 1, leaving);",
-    "new": ": goalExempt ? 2 : 1, leaving || c === start);",
+    "old": ": goalExempt ? 2 : 1, leaving, beyond);",
+    "new": ": goalExempt ? 2 : 1, leaving || c === start, beyond);",
     "tests": [
       "test/systems/travel/tv2_click_to_move.test.js"
     ],
@@ -172,8 +172,8 @@
   {
     "name": "OW3-J5-plateau-climbed",
     "file": "src/systems/travel/travelRoute.js",
-    "old": "n !== goal ? 0 : goalExempt ? 2 : 1, leaving);",
-    "new": "n !== goal ? 0 : 2, leaving);",
+    "old": "n !== goal ? 0 : goalExempt ? 2 : 1, leaving, beyond);",
+    "new": "n !== goal ? 0 : 2, leaving, beyond);",
     "tests": [
       "test/systems/travel/tv2_click_to_move.test.js"
     ],
@@ -182,13 +182,13 @@
   {
     "name": "OW3-J5-spot-goal-exempt",
     "file": "src/scenes/world.js",
-    "old": "let plan = planRoute(from, pix, { roads: wnet?.roads ?? null, tracks: wnet?.tracks ?? null, ...tvRouteGround(), goalExempt: !!door, sea: seaAsk });",
-    "new": "let plan = planRoute(from, pix, { roads: wnet?.roads ?? null, tracks: wnet?.tracks ?? null, ...tvRouteGround(), sea: seaAsk });",
+    "old": "let plan = (dragonMounted() ? dragonFlightPlan(from, pix) : null) ?? planRoute(from, pix, { roads: wnet?.roads ?? null, tracks: wnet?.tracks ?? null, ...tvRouteGround(), goalExempt: !!door, sea: seaAsk });",
+    "new": "let plan = (dragonMounted() ? dragonFlightPlan(from, pix) : null) ?? planRoute(from, pix, { roads: wnet?.roads ?? null, tracks: wnet?.tracks ?? null, ...tvRouteGround(), sea: seaAsk });",
     "tests": [
       "test/systems/travel/tv2_click_to_move.test.js",
       "test/systems/travel/tv6_dungeons.test.js"
     ],
-    "note": "The spot's journey exempts its last step: up the plateau's cliff."
+    "note": "Re-aimed by content (DRAGON6): the line the dragon's flight joins. The spot's journey exempts its last step: up the plateau's cliff."
   },
   {
     "name": "OW3-J6-mw-body-ungrown",

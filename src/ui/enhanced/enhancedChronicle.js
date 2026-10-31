@@ -32,6 +32,7 @@ import { breakableNote, filedOutcome } from '../../systems/notebook.js';   // JO
 import { pageOfNote, pageRefusalText } from '../../net/journalPage.js';   // JOURNAL1: a note as the page it would be shown as, or why it cannot be
 import { isBountyQuestId, abandonBountyQuest, shareBountyQuest, bountyQuestShareable } from '../../systems/bounty/bountyJournal.js';   // BOUNTY1: a bounty's Abandon and Share
 import { isHuntQuestId, abandonHuntQuest } from '../../systems/huntJournal.js';   // RVN7c: a revenant's hunt - its Abandon
+import { listenWindowKeys } from '../windowStack.js';   // COVERED-KEYS: the window's keys, gated while a box covers it
 import { t } from '../../systems/textManager.js';   // L10N4: QUEST-SHELF-MAIN's words in the player's language, read when they are drawn
 
 const el = (tag, cls, text) => {
@@ -43,6 +44,7 @@ const el = (tag, cls, text) => {
 
 let host = null;
 let deps = {};
+let unlistenKeys = () => {};
 let onExit = () => {};
 let section = 'notes';
 let draft = '';   // PX24b: the note being written, kept across renders
@@ -288,9 +290,10 @@ function questState(e) {
     if (e.note) box.append(el('span', 'cr-wherenote', e.note));
   }
   if (e.clockSeconds != null) {
-    const t = el('span', `cr-timer${e.clockSeconds < QUEST_URGENT_SECONDS ? ' urgent' : ''}`, `Time remains: ${remainWords(e.clockSeconds)}`);
-    clockSpans.set(String(e.uid), t);
-    box.append(t);
+    // QUEST-AUDIT III SHELF-WORDS: the pause tab's own words (pause.journal.timeRemains), in the player's language
+    const span = el('span', `cr-timer${e.clockSeconds < QUEST_URGENT_SECONDS ? ' urgent' : ''}`, t('pause.journal.timeRemains', 'Time remains: {left}', { left: remainWords(e.clockSeconds) }));
+    clockSpans.set(String(e.uid), span);
+    box.append(span);
   }
   // GUIDE4: TRACK THIS QUEST on the HUD's card (ui/quest/questTracker.js) - the card follows the quest the journal last
   // changed until the player chooses one, here or in the pause window's Quests tab (the same toggle, one home).
@@ -307,7 +310,7 @@ function armClocks() {
     for (const [id, span] of clockSpans) {
       const left = live.get(id);
       if (!Number.isFinite(left)) { render(); return; }
-      span.textContent = `Time remains: ${remainWords(left)}`;
+      span.textContent = t('pause.journal.timeRemains', 'Time remains: {left}', { left: remainWords(left) });
       span.className = `cr-timer${left < QUEST_URGENT_SECONDS ? ' urgent' : ''}`;
     }
   }, 1000);
@@ -372,7 +375,7 @@ function paint() {
     // LW7c: THE PEOPLE, by standing - friends, then enemies, then the known - each a card: the name, the town, and what
     // they are to the player (the page's own words - people.js personWords: their fate, their standing, when last seen)
     const page = model.people ?? { friends: [], enemies: [], known: [] };
-    if (!counts.people) detail.append(el('p', 'px-note', 'No one in the Bay knows you yet.'));
+    if (!counts.people) detail.append(el('p', 'px-note', 'No one knows you yet.'));
     for (const [group, rows] of /** @type {[string, any[]][]} */ ([['Friends', page.friends], ['Enemies', page.enemies], ['Known', page.known]])) {
       if (!rows.length) continue;
       const line = el('div', 'sb-frame');
@@ -474,6 +477,26 @@ function paint() {
       detail.append(compose);
     }
     if (section === 'quests' && shelfWord) detail.append(el('p', 'px-note cr-shelfword', shelfWord));   // QUEST-SHELF-MAIN
+    // STORY-AGAIN (#982): a step of the main story that failed, above the quests - what happened and its one press (twice,
+    // the arming Abandon uses): started again from its first step (scenes/quest/questBridge.js journalClean.startStoryAgain)
+    const storyDoor = section === 'quests' ? deps.shelfDoor?.() ?? null : null;
+    for (const s of (storyDoor?.startStoryAgain && storyDoor.storyAgain?.()) || []) {
+      const card = el('div', 'cr-entry cr-story');
+      const top = el('div', 'cr-head');
+      top.append(el('span', 'cr-date', s.title));
+      const armed = bountyArmed === `st:${s.questName}`;
+      const go = el('button', 'cr-rm cr-share', armed ? t('chronicle.quests.restartArmed', 'Click again') : t('quest.story.again', 'Take it up again'));
+      go.title = t('quest.story.againTitle', 'Start this step of the main story again from the beginning, so the story can go on');
+      go.onclick = () => {
+        if (bountyArmed !== `st:${s.questName}`) { bountyArmed = `st:${s.questName}`; render(); return; }
+        bountyArmed = null;
+        shelfWord = storyDoor.startStoryAgain(s.questName)?.text ?? '';
+        render();
+      };
+      top.append(go);
+      card.append(top, el('p', null, t('quest.story.stalled', 'This step of the main story ended before the story could go on.')));
+      detail.append(card);
+    }
     if (!rows.length) {
       detail.append(el('p', 'px-note', section === 'notes' ? 'Nothing written yet.'
         : (section === 'quests' ? 'No active quests.' : 'No messages yet.')));
@@ -713,12 +736,13 @@ export function mountEnhancedChronicle(hostEl, d = {}) {
   shelfWord = '';   // QUEST-SHELF-MAIN: nor what the last one said
   folded.clear();   // MAC-F: a fresh open reads whole, as it always has
   render();
-  window.addEventListener('keydown', onKey, true);
+  unlistenKeys?.();   // a mount over a mount lays one listener, as the window's own addEventListener of one function did
+  unlistenKeys = listenWindowKeys(d.owner, onKey);   // COVERED-KEYS: d.owner, the chronicle's window (ui/chronicleDoor.js)
   return {
     render,
     destroy() {
       disarmClocks();
-      window.removeEventListener('keydown', onKey, true);
+      unlistenKeys();
       host = null; deps = {}; section = 'notes'; draft = ''; folded.clear(); sharing = null; shareWord = ''; bountyArmed = null;
     },
   };

@@ -115,9 +115,9 @@ Taken at the design, in the request's own order; each is Mac's to overrule.
   the Armorer and the WeaponSmith, a clerk at the Bank, a scholar at the Library and the Bookseller) and a hand at one
   of quality twelve or more, half the time; the tavern its innkeeper and one server (two at quality twelve) living
   there; the temple two priests living there; the guild hall two members; the palace two courtiers living there. The
-  trades are dealt to the houses' people in a seeded order, a trade left over lives where it works, the people left
-  over take the town's common work by its size (labourers, farmers - the villages' own -, a port's fishers, crafters,
-  homemakers, a city's beggars); `CENSUS_MAX` 260, the common hands trimmed first. `townCensus` gives the watch the
+  trades are dealt to the houses' people in a seeded order, a trade left over lives where it works, the rest
+  take the town's common work by its size (labourers, farmers - the villages' own -, a port's fishers, crafters,
+  homemakers, a city's beggars); `CENSUS_MAX` 260 (LW-DENSE: `censusMaxOf`), common hands trimmed first. `townCensus` gives the watch the
   palace and every traveller a house (an adventurer the tavern a quarter of the time) - LW-WALLS: of the buildings whose
   doors open onto the town's street, where the town knows them. Identity is `mintResident`'s:
   the climate's people - a Redguard region's Redguard (`walkerRace`, REGIONAL-FOLK) - half female, an outfit of `PERSON_TEXTURES`, a face of
@@ -161,9 +161,15 @@ Taken at the design, in the request's own order; each is Mac's to overrule.
   by regard.
 - **`relations.js`.** A regard per resident (-100..100), a stranger 0: a word +3 once a day, a polite word +1, a gift
   +8, help +20, a life saved +35, a blow -45, a crime -15, one of theirs slain -60, a blunt word -6 (TONE-TASTE: the
-  +1 and the -6 are a tone taken kindly and one taken ill, by the resident's own taste - section TONE-TASTE); friend at 40, enemy
+  +1 and the -6 are a tone taken kindly and one taken ill, by the resident's own taste - section TONE-TASTE); COURT-DEEDS
+  (`06-Systems/Legacy-Arc.md`): a compliment +2, a hug +3 and a kiss +4, the gift's +8 paid at last, each once a day; friend at 40, enemy
   at -40, hostile at -70; eased toward zero half a point a day unseen and never across; 600 kept; the save's record
-  `{ v: 1, people }`, a bad one nobody known.
+  `{ v: 1, people }`, a bad one nobody known. [REGARD-OWN, FIELD BUGS 2026-10-21d: its days are the character's own
+  (`regardClock.js` characterRelations, the one making), not the sky's living day - online the sky ran on while the
+  player was away and eased every regard to nought between evenings; the record says `clock: 'own'`, an older online
+  one rebased once (a friendship as last written, a grudge as the sky had eased it - AUDIT FB1021d RO-3; and offline too
+  where its stamps run ahead of the character's day, RO-5). A friend made - by a word, its tone or a deed - is said once
+  nothing covers the HUD, never under the talk window (RO-1, RO-4) - `01-Overview/bugs/Field-Bugs-2026-10-21d.md`.]
 
 ## LW2 - the town (2026-10-04)
 
@@ -290,8 +296,8 @@ the trample (`retire`), the probes.
   (0.09) a day of walking, out and home, weighed by the ground the way crosses (`GROUND_RISK`: a road 0.6, a track 0.9,
   open country 1.4), to `RISK_MAX` (0.55); a party carrying a fated death always meets it. It falls on the way out or
   home at a seeded stretch of the walk, or - a leg its first day does not finish - now and then (`CAMP_SHARE`, 0.3) on
-  that night's camp at eleven. THE FOES are the land's own: the climate's encounter table at the place it falls, day or
-  night, the campers' themed group (`campEncounters.js rollGroupComposition`, the TV7 bands' own roll), at the party's
+  that night's camp at eleven. THE FOES are the land's own: the climate's encounter table at the place it falls (past
+  the Bay its zone's wild, BAY-LEFT-GROUND below), day or night, the campers' themed group (`campEncounters.js rollGroupComposition`, the TV7 bands' own roll), at the party's
   level (its armed's best, two at least), sized to the party (the fated: the party and two more), to `FOES_MAX` (6).
   THE END: a fated encounter's is the lives' - the leader among the fated, the party FELL (the rest turn home); else
   WON at that cost. Any other is the party's strength (`strengthOf`: the armed 4 and 1.5 a level, a merchant 1.5, the
@@ -322,6 +328,35 @@ the trample (`retire`), the probes.
   won, a lost one fled). Read over the dice (`fateHits`, `troubleOf`'s `turnOf`), kept `TURNS_MAX` (200) a kind, saved
   beside the regards (a record with none reads as before). The host's books (the places, the fates, the trips) are
   made again at each turn and each load (`livingTurnsFresh`). The live fight that makes them is LW4b's.
+
+## BAY-LEFT-GROUND - the road's trouble on the land's own wild past the Bay (2026-10-26)
+
+The audit "no system left behind in the Bay" (2026-10-26, `01-Overview/audits/Audit-Left-In-The-Bay.md`), its item 9
+(D2); the owner: *"Every single thing here needs
+to be addressed. No exceptions."* LW4's trouble handed the encounter law no `fauna`, so a caravan past the Bay was beset
+out of Daggerfall's climate tables - Black Marsh's Centaurs, Orcs and Orc Warlords - against TESA-BIOME's recorded
+choice 4 (a province's own beasts, `03-World/Tamriel-Biomes.md`), which every other encounter path follows.
+
+- `trouble.js troubleOf` hands `foesOf` the place the trouble falls (`px`, `py`) beside its climate.
+- The host's `foesOf` left `bootWorld` for its own module (`scenes/livingWorld/troubleFoes.js` troubleFoesOf), the roads'
+  harness's producer too (`test/lwRoads.mjs` wrote the host's lambda out): on the land the campers' group rolled on
+  `faunaAt(px, py)` - the composed maps' `getFaunaBand`, as every other encounter path reads it; inside a dive's dungeon
+  the deep's own table, as LW6 wrote it. On the Bay a pixel is no zone's (`faunaBandAt` answers null) and the roll is the
+  climate's, roll for roll.
+
+Measured (lane D's probe p2, 400 groups of three at each city on the freeware's trace): at Helstrom 322 of the 1,200
+foes were the Bay's Centaurs and Orcs (Centaur 99, Orc Sergeant 83, Orc 70, Orc Warlord 70), none now - the zone's own
+(blackMarshHist's); Whiterun, Torval and Mournhold the same, each its zone's.
+
+THE FOUR HOSTS. `scenes/world.js` WIRED (the living world's trouble world). `scenes/exterior.js` FLAGGED - the fixed city
+streams no living world's roads. `scenes/worldModes.js` and `scenes/dungeonContext.js` FLAGGED - the trouble is the
+road's, rolled over the trips' world the streaming host composes.
+
+Pins: `test/systems/livingWorld/bayleftground_trouble.test.js` (4: the query's pixel the encounter's own; past the Bay
+the zone's roll and every foe of its tables, the Bay's unchanged over 240 seeds, a dive's the deep's; the host's
+wiring; with ARENA2 Helstrom, Whiterun, Torval and Mournhold on the real trace). PIN MOVED: `lw4_trouble`'s host line,
+`lw6_deep`'s dive line, `tesabiome_fauna`'s wiring. Mutants: `tools/mutants/bayleftground.json`'s D2 (5), all dead;
+`lw6.json`'s LW6-host-deep-from-the-land re-aimed by content onto the module.
 
 ## LW4b - the fight, stood (2026-10-05)
 
@@ -391,12 +426,15 @@ link with the ship AI at ports" - LW3's trips kept to the land; a port's travell
   with their merchant. The cycle's own dice ('sea'), apart from the road's, so a cycle that does not sail is the trip it
   always was.
 - **Where.** A port a lane of the Bay runs to from theirs (`world.lanesFrom`: the far port, the lane's length in
-  metres): the bigger and the nearer the likelier (a pilgrim's a temple town's). Lanes are the Bay's own - the ones its
+  metres): the bigger and the nearer the likelier (a pilgrim's a temple town's). Lanes are the Bay's own (WW7-7, `03-World/World-Wide.md`: a port town past the Bay's the lanes past it) - the ones its
   packets sail (LW5) - so a passage can reach a port beyond any road's `TRIP_REACH_PX`.
 - **When.** Out from the dock on a morning tide (`SEA_TIDE_H`, 6 to 9 o'clock); the crossing at `SEA_PACE_X` (3) a
   walker's pace, by night as by day; the stay (the job's `STAY_DAYS`); home on a later morning's tide, the same hour
   (a ship turns round overnight at the least). The whole passage inside the cycle: a lane too long for it gives way to
-  the longest shorter lane that fits; none that fits (or no lane at all), the road's trip it always was.
+  the longest shorter lane that fits; none that fits (or no lane at all), the road's trip it always was. WW7-11
+  (`03-World/World-Wide.md`; the owner: *"Make them longer"*): a FAR lane's passage (past the Bay or across its edge) takes
+  the whole cycles it needs, set out at the first cycle of its traveller's block of long passages (`voyageBlock`), and the
+  cycles it spends at sea make no trip of their own; the Bay's lanes keep a cycle a passage, to the byte.
 - **At sea, never on the road.** A passage is `sea` while it sails, out and home, and `stay` between - never `out` or
   `back`, so no road, Overworld mark or roadside fight shows it (it has no way under it). Its party is a caravan's
   like any trip's: a merchant's sellswords and the joiners of the day (LW3) take the same ship.
@@ -2067,3 +2105,166 @@ Pinned by `test/systems/livingWorld/tonetaste.test.js` (4: the law over every gr
 courtship, the talk's door); pins moved by intent, each a PIN MOVED note (`legacy5_marriage`, `lw7_deeds`,
 `lwfix2_watch`, `lw8_indoors`); `tools/mutants/tonetaste.json` (11, all dead) and six LW7/LW8 records re-aimed at the
 taste, dead.
+
+## IC-GRAND - a town of quarters (2026-10-26)
+
+The owner, walking the Imperial City: "Seems like NPCs arent navigating the entirety of the city". A capital's slice is
+cut from one city at its pixel's lines, so its walkers' grid holds pieces of several of the city's street nets (a
+district wall whose gate stands in the next slice parts it), and the town walked the one its most doors open onto - the
+others' people stayed in. A capital's slice is now A TOWN OF QUARTERS (`src/systems/livingWorld/places.js:"export function quartersOf(nav, doors, streets, main) {"`):
+every component QUARTER_MIN of its buildings open onto is the town's (its net the union) and each a quarter - the town's
+places over its own street alone (`quarters`, `quarterAt`). Its people are each quarter's own (`census.js` quarterCensus:
+the town's own quarter's as townCensus mints them - households, watch, travellers - each other quarter's households of
+its buildings alone, on the 'q' roll and slots of their own, QUARTER_SLOTS), and each one's day is planned over its
+home's quarter (`livingTown.js` `_placesFor` - a lodger's over its tavern's; a patron's errands and a browser's doors its
+quarter's), so every walk of a day runs on one street. A Bay town asks no quarters: one town, one net, as the field's law
+above keeps it (no pin of a Bay town moved). The Imperial City's own blocks' homes are world/imperialHomes.js's
+(bible/03-World/Arena-Provinces.md IC-GRAND). Pinned in `test/world/icgrand_living.test.js`; mutants in
+`tools/mutants/icgrand_people.json`.
+
+## STAND-LIFE - one standing stirs (2026-10-28)
+
+The owner: "Living world NPCs should not turn into static sprites when stopping". Two causes. A resident's billboard
+standing held the walk wheel's still frame for as long as they stood (LW-TALK), and one keeping their place alone stood
+as one of Daggerfall's still pictures (LW-LOOKS), and of the 63 pictures the kinds list 55 are a single frame (read off
+the freeware's TEXTURE files): a beggar, a labourer, a fisher, every woman at a stall or a temple door stood frozen.
+
+- **The stir** (`characters/residentWalker.js` IDLE_EVERY_S, IDLE_GLANCE_S, IDLE_GLANCE_YAW, IDLE_SHIFT_FPS,
+  IDLE_SHIFT_FRAMES, `shownYaw`). Every 3 to 7 seconds one standing glances aside (0.85 radians for 1.6 s, drawn on the
+  wheel the way they glance) or shifts their weight (the wheel's frames 1, 2, 1 at 3 a second), then stands again. The
+  rhythm is the body's own, seeded off its talk seed, so two bodies made together never stir as one. The yaw a circle
+  or an incident reads is unchanged; only the picture glances. The politeness gate's idle record is as it was.
+- **By facing** (AUDIT FULLER-LW B4, B5: `standFrameOf`, `shiftFramesOf`, SIDE_STAND_FRAME, SIDE_SHIFT_FRAMES,
+  GUARD_SHIFT_FRAMES). A side or three-quarter record's frame 0 is a full stride, and 1 to 2 a stride on the spot: one
+  stands there on frame 1, the legs together, and shifts to 3 and back. The front and back as above. The watch's axe is
+  drawn on frames 0 and 2 alone: it stands on 0, shifts to 2 front and back, and only glances side on. A glance turns
+  past the wheel's 45-degree sector, so it always shows. One in a circle or an incident at their spot (`attending`)
+  shifts their weight and never glances away from the talk.
+- **The still pictures that move** (`systems/livingWorld/looks.js` MOVING_STILLS, `stillFlatOf`). A still picture
+  stands only where the game's art moves: two of a merchant's, one of a priest's, two of the court's of each sex. A
+  kind or a sex with none keeps themselves and stirs. The blacksmith at his anvil moves too and is left out: a market's
+  crafters would all be him. So a beggar keeps their own body, in the Morrowind lane too (`rosterBodies.js`'s beggar
+  arm reads no picture now).
+- **Pinned** by `test/systems/livingWorld/standlife_street.test.js` (4: the stir, the rhythm, the pictures, on the street -
+  of those standing ten seconds and more at the synthetic square through an afternoon minute, none drawn one way) and
+  `tools/mutants/standlife.json`. PIN MOVED: `lwlooks_town` (the pictures of a kind are the moving ones; the street's
+  picture a merchant's at their stall; the freeware's frames hold MOVING_STILLS), `lwtalk_town` (a circle's facing
+  drawn by `shownYaw`), `lwstand_street` (a stand may show a shift's step).
+- **The four hosts.** The walker's and the town's own: `scenes/world.js` draws the street's billboards and
+  `scenes/worldModes.js` a room's (LW8, `world/travellerSprites.js`); `scenes/exterior.js` keeps DFU's walkers;
+  `scenes/dungeonContext.js` stands no town.
+
+## LW-DENSE - a town's people by its size (2026-10-28)
+
+The owner: "Depending on the size of the city, the living world should be more dense". A town's census was trimmed
+at CENSUS_MAX (260) whatever its size, and its street held DFU's cap (24 to 96), so a city of 42 blocks kept six people
+a block and a village seventeen, and Ripmarket's and Tuntale's squares stood at their cap of 48 all day.
+
+- **The census** (`census.js` CENSUS_PER_BLOCK, CENSUS_CAP, `censusMaxOf`). Ten a block of the town's grid, never
+  fewer than 260 nor more than 520. The common hands once trimmed are kept on, in their order, so the first 260 of a
+  town are the same people.
+- **The crowd** (`census.js` CROWD_FROM_BLOCKS, CENSUS_CROWD_MAX, `houseCrowdOf`). From 16 blocks a town's houses are fuller: each
+  holds `houseCrowdOf` more on average, rising to two more at 32 blocks, of the town's common work, on a stream of their own.
+  They are households (`h`), their slots after everyone kept before: no id moves, and on the Bay every id is one the
+  wire's LIVING_ID_RE takes (a capital's quarters' `q` ids are not: below).
+- **The street** (`livingTown.js` STREET_PER_BLOCK, STREET_MAX, `livingStreetCap`). DFU's cap under 16 blocks; from
+  there three a block to 160, never under DFU's.
+- **Measured** on the freeware's towns (the street about the square, 10 seconds in, 20 of frames read):
+
+  | town (blocks) | census before | after | street at 10:00 before | after |
+  |---|---|---|---|---|
+  | Daggerfall (64) | 331 | 591 | 44 | 93 |
+  | Dragontail (49) | 329 | 559 | 67 | 110 |
+  | Ripmarket (42) | 318 | 478 | 48 | 125 |
+  | Tuntale (42) | 318 | 478 | 48 | 124 |
+
+  A village and a hamlet are as they were.
+- **Found and fixed: the near ones waited** (`livingTown.js walkNear`). LW-PERF's fill on the synthetic great city's
+  street of 160: the three residents near a player standing still came on 5.5 s after the way in (its budget 2.5 s;
+  1.5 s before LW-DENSE). The census asked its walks not searched yet by their box's gap (a walk across the town is 0),
+  and behind every row's own. Now by where each would be, walked straight, and those in sight with the street's own:
+  1.0 s, a city of 36 blocks 1.5 s.
+- **The first frame** (`dayPlan.js nearestOf`). A great city's way in plans its whole census, and its favourites sorted
+  the town's shops and spots for each of them. The sort is kept by the home now: a household shares it.
+- **The cost** (`tools/livingPerfProbe.mjs`, this machine quiet, main beside it). The great city's way in 36-52 ms
+  (main 22-25; budget 60), its frames while stood at most 12 ms (budget 20), every frame after at most 9.3 ms (main 3.4;
+  budget 12), a frame's mean 0.4-0.7 ms (main 0.2). Its near ones on the street in 1 s (main 1.5 s), a city of 36 blocks
+  1.5 s (main 1 s). Every street budget holds.
+- **The carried word, a traveller a slice** (AUDIT FULLER-LW A7, `trips.js townTripsSteps`). LW16's word worked a town
+  about's whole day of trips in one slice, and the fourth rank made that slice dearer. Its towns about are now worked a
+  traveller at a time, the same trips. Measured cold over the synthetic map's 81 towns, a quiet machine, four runs: the
+  worst slice 5.7-15.4 ms before, 4.3-6.2 ms after (budget 10 ms).
+- **The day's deal** (AUDIT FULLER-LW A7, `stir.js` `metBy`). Each stay looked over every stay at its spot for those it
+  meets; now only those begun a longest stay before it to its end, in the same order. The same 1,174 incidents over ten
+  days of the city of 64 blocks, a day's deal 8.2-10.3 ms before, 7.4-8.3 ms after.
+- **Measured, the way in** (the city of 64 blocks, 623 people, a quiet machine): 36-49 ms (one run 71), its days'
+  plans 18-35 ms of it; budget 60. A frame at its square of 131 people 0.70 ms on average, 2.6 ms at the 95th. The
+  street's search was rewritten for speed and measured no faster, so it was left as it was; its answers are pinned
+  (`lwperf_fuller.test.js`).
+- **Pinned** by `test/systems/livingWorld/lwdense_town.test.js` (the census, the crowd, the street, the game's own towns) and
+  `tools/mutants/lwdense.json`. PIN MOVED: `lw1_livingWorld` (a city's cap by its size, its first 260 as they were),
+  `lwstir_street` (a fuller square meets AUDIT LW-STIR B5 more often - pinned exactly: FACE_M apart where a place before
+  the one who keeps their stand is free, else from their own).
+- **Recorded.** The capitals' quarters keep their own census each (`q`), and the wire's LIVING_ID_RE takes no `q` id:
+  a capital's resident the watch stands for online sends no `lr` (the record is refused whole). Before this slice;
+  the relay's next release. A town of quarters keeps CENSUS_CAP a quarter, so an Imperial City slice holds more than
+  520 (598 in slice 112).
+
+## LW-ANTICS - the street's shenanigans (2026-10-28)
+
+The owner: "Living world NPCs should partake in more activities, more shenanigans". Five newer kinds of incident,
+dealt from the plans as LW-STIR's are (`stir.js spotIncidents`, ANTIC_KINDS), every reader alike, and laid after the
+first five: a round keeps the incident it always had, and a newer one takes only a round none of them took, its people
+in no other at once (`antics: false` deals the first five alone, and the pin holds them equal).
+
+- **A cutpurse** (`lightFingered`, CUTPURSE_HANDS, CUTPURSE_SHARE, CUTPURSE_CROWD; `cutpurseScripts`). A sixth of the
+  town's beggars and labourers are light of finger; by day at the lift's own minute, at a spot of four or more, a third
+  of their stays end in a purse lifted from one standing there. It falls at the end of the thief's stay, the one robbed
+  staying on, so the run ends it (AUDIT FULLER-LW A1). The robbed shout; the watch on duty standing by gives chase
+  (`chaseLines`: caught, the purse is given back and the thief sent off), else they shout after the thief
+  (`gotAwayLines`).
+- **The run** (`cutpurseRun`, CHASE_M, CAUGHT_M; `livingTown.js _runOf`, `_chaseWayOf`). From the first shout the
+  cutpurse runs 12 m from their stand toward where they walk next, or off to that side of the one robbed, along the
+  first of eight bearings the street holds clear, at a frightened run's pace; in a lane, as far as it holds (RUN_MIN_M,
+  4 m, or no run). The watchman runs after them 0.6 s later, a little faster, and holds them a metre off, the cutpurse
+  turned to him. Said on the run (`speech`). Their words over, the thief stands where the run ended to the end of the
+  stay, and takes up their next walk where its line passes within JOIN_M of them (`_heldRun`, `_ranTo`).
+- **Of an evening** two of the town at dice (DICE_SHARE 0.05 of one's stays with another, the watch off duty too) or a
+  warmer word (FLIRT_SHARE 0.02, never the watch); a priest at their own temple's door with one there preaches
+  (SERMON_SHARE 0.8, `spotIncidents`' `spot`); a courier at their stint cries the news (`newsCries`). Their words go through the text core (`lines.js` `spoken`, `lw.*` keys).
+- **Measured** (`tools/livingStirProbe.mjs`, three days): the synthetic town of 9 blocks a day 0.7 cutpurses, 3.7 at
+  dice, 1.3 flirting, 0.3 sermons; of 45 blocks 3, 4.7, 2.7 and 0.3, beside 9.7 quarrels and 33 haggles.
+- **Found and fixed** (AUDIT LW-ANTICS A1, `livingTown.js _tickNow` `still`). An incident's two were filed under it the
+  round through even when one had gone on to another spot, so a labourer at their next stint stood turned to the last
+  one's partner. Now only while it runs or both still stand there. PIN MOVED: `auditlwstir` B7 (walking on, no longer
+  the incident's).
+- **Pinned** by `test/systems/livingWorld/lwantics_street.test.js` (10) and `tools/mutants/lwantics.json`. PIN MOVED:
+  `lwstir_street` (a chase said on the run).
+- **The four hosts.** The living town's (`stir.js`, `lines.js`, `livingTown.js`): `scenes/world.js` WIRED (its line
+  layer says them); `scenes/worldModes.js` FLAGGED as LW-STIR has it (no incident indoors); `scenes/exterior.js`
+  FLAGGED as LW2 has it; `scenes/dungeonContext.js` no town.
+
+## WATCH-LIFE - the watch about the town (2026-10-28)
+
+The owner: "Guards should have a more Living world presence and NPC interaction". A city of 64 blocks walked one pair
+on patrol a shift beside its four gate posts, and the watch spoke to the town only to break up a quarrel.
+
+- **More patrols** (`census.js watchExtraOf`, `townWatchCount`; `dayPlan.js watchDuty`). A pair more a shift from 25
+  blocks, two from 40, three from 60. A watchman whose rank passes the shift's strength walks one of them, in pairs,
+  each pair a beat of its own after the shift's own patrols: no post and no gate's law moves. Daggerfall's watch is 48
+  (24 before), twelve a shift. Each patrol's beat is a district apart from the shift's earlier ones (`patrolBeat`;
+  AUDIT FULLER-LW B8).
+- **The watch's word** (`stir.js` WATCH_WORD_SHARE, FOOD_SELLERS, MORNING_HOURS; `lines.js` `watchWords`,
+  `morningWatchWords`, `watchBuys`, `moveAlong`, `beggarWords`). Of the watch's stops on its rounds where one of the
+  town stands, 0.45 have a word with them: its talk (the morning's in the morning alone), a bite bought at a stall of
+  food (a fisher's, a farmer's, a carter's, a merchant's), a word with a beggar - moved along at the end of their pitch,
+  and they go. The first of a pair speaks; never to a stranger (LW-STIR's challenge is theirs), never at a stop that
+  stopped one, one word a day between a watchman and one of the town.
+- **The chase** of a cutpurse (LW-ANTICS) is the watch's too; and the watch off duty dices with the town.
+- **Measured** (`tools/livingStirProbe.mjs`): the synthetic town of 45 blocks 20 words of the watch a day (7.7 before
+  its extra patrols).
+- **Pinned** by `test/systems/livingWorld/lwantics_street.test.js` (the patrols, the word) and `tools/mutants/lwantics.json`.
+  PIN MOVED: `watchday_watch` (the strength's count; the duty's and the make's checks over the shift's own ranks; the
+  nights and the great city's shifts with the extra), `lw1_livingWorld` (the watch's counts).
+- **The four hosts** as WATCH-DAY's: the living world's core; `scenes/world.js` stands the street, `scenes/worldModes.js`
+  the rooms; `scenes/exterior.js` has no living town; `scenes/dungeonContext.js` no watch.

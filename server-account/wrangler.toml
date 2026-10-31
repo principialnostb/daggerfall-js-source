@@ -108,7 +108,7 @@ crons = ["* * * * *", "41 * * * *"]
 [vars]
 # Answered by /health so a deploy that did not happen cannot look like
 # one that did. Kept in step with ACCOUNT_VERSION in src/service.js.
-ACCOUNT_VERSION = "acct165"
+ACCOUNT_VERSION = "acct232"
 # WB5b: THE RELAY'S PUBLIC HALF, GATE_PUBLIC_KEY - the key an Oblivion
 # Gate's kill receipts verify with (src/net/gate/gateReceipt.js) - is NOT a
 # var here. GATE-KEYS (2026-09-26): the account deploy mints the pair
@@ -157,7 +157,24 @@ ALLOWED_ORIGIN = "*"
 # title, the glyph, the Seraph Wings, /red, /mute and /unmute, the developer's
 # acts and the POI editor's builder door - on their next token and next call.
 # Case-folded as every list is: the account roderic, Roderic or RODERIC.
-DEVELOPER_HANDLES = "Lattymoy,LostMyLeg,Tabby,RookieG,Roderic"
+# STAFF-PANEL1 (2026-10-22, mob: "can we just add me to the dev and my shadow fang just becomes vanity and i gain admin as
+# well?"): SirMcMobdon, with the whole set above - the developer's acts include the relay's live settings (/relay) and
+# the trade-freeze review's clear and roll back - and the staff panel's Admin role (server-account/src/staff.js), which is
+# this list. SHADOW_FANG_HANDLES still names them: that title, glyph and cloak stay theirs to wear.
+# STAFF-PANEL1 (2026-10-22, mob: "kpblca_1 needs added to them as welll"): the account kpblca_1, with the same whole set.
+DEVELOPER_HANDLES = "Lattymoy,LostMyLeg,Tabby,RookieG,Roderic,SirMcMobdon,kpblca_1"
+# STAFF-PANEL1 (2026-10-22, server-account/src/staff.js): THE STAFF PANEL'S OWNERS (mob: "only mob and Latty" read the audit
+# log) - staff who may also read the audit log of every staff sign-in and act, invite a staff member to enrol one more
+# extension (a new invite replaces the member's unspent one; keys stay) and cut one off (every key and session ended). A handle here that no role list names is no owner (staff.js isOwner). Comma-separated,
+# case-insensitive, read at every call.
+OWNER_HANDLES = "Lattymoy,SirMcMobdon"
+# STAFF-PANEL1: AN OWNER'S FIRST WAY IN - `handle:publicKey`, comma-separated, the key raw Ed25519 in base64url. The owner's own
+# staff panel extension minted the pair on their computer and holds the private half; this half only checks its signature,
+# so it is safe in a public repository. It is that owner's first way in; every other staff member is invited from the
+# panel. Empty: no owner can enrol (no key is a shut door, never an open one).
+# STAFF-PANEL1 (2026-10-22, mob pasted the key his panel showed): SirMcMobdon's first computer. Latty enrols by mob's invite,
+# or adds a pair here.
+OWNER_KEYS = "SirMcMobdon:1c9fniJJmmIwXevvrTVajM6SeIFagO8KEzYiAM08mYM"
 # POI-1 (2026-10-14, the POI editor; bible/06-Systems/POI-Editor-Arc.md): WHO BUILDS AND WHO APPROVES. Mac, asked how a
 # POI reaches players: "I need to be able to approve changes"; asked who uses the editor: "Developers + Builders". A
 # BUILDER imports models, places POIs, saves drafts and submits them - every developer above is one, and BUILDER_HANDLES
@@ -213,6 +230,10 @@ DISCORD_PUBLIC_KEY = "36e74945022f94ec7955a84ccccb270e63780100e558d30777742337b6
 # `<discord user id>:<in-game handle>` - the handle must also stand in MODERATOR_HANDLES or DEVELOPER_HANDLES, which
 # every press and /mod re-checks (discord.js actorOf); anyone not here is answered that only the game's moderators may act
 DISCORD_MODERATORS = "128705730965536768:Lattymoy"
+# STAFF-PANEL5-FREEZE (2026-10-22, mob, 03:22Z; design doc "DFO Staff Panel: design", Freeze player): DISCORD_INVITE_URL - the
+# server's Discord invite the frozen player's Staff tab shows beside its Copy button (server-account/src/staffFreeze.js
+# discordInvite), so it changes without a game update. An https address; empty, the tab shows none.
+DISCORD_INVITE_URL = "https://discord.gg/QADbZYQ73j"
 # FOUNDER5 (2026-10-07, Mac: "Can we grant every account before sept 25th
 # the founder title"): THE FOUNDERS BY NAME. Founder is held by every
 # registered account that first played by the end of 24 September on any
@@ -325,6 +346,14 @@ QUESTLINES_OPEN = "on"
 # and the Hearth Offerings (server-account/src/festival.js); outside them the days shut it whatever this says. Shut,
 # nothing is found, sold or set out, and every count is kept. "on" - the owner's ask is the event live for everyone.
 FESTIVAL_OPEN = "on"
+# STOREFRONT (bible/06-Systems/Battle-Pass.md): the Battle Pass - its finds, its tracks opened and its items bought - "off",
+# "dev" (DEVELOPER_HANDLES alone) or "on". A season's own days (src/net/battlePassLaw.js PASS_SEASONS) bound its
+# challenges; its tracks and the finds' Aurum never close.
+PASS_OPEN = "on"
+# AURUM (bible/06-Systems/Aurum.md): the Aurum - its daily wares and its packs - "off", "dev" (DEVELOPER_HANDLES alone) or
+# "on". Its packs are sold only "on" (and named in SHOP_ON_SALE). Shut, nothing is bought for Aurum or sold as Aurum;
+# what is struck and held is kept.
+AURUM_OPEN = "on"
 # CHAP4c (Chapters-Arc 6): THE CHAPTERS' TITLES - a seat's Master, officer and Former Master signed on the token - by
 # this switch, "on" or anything else for off. Shipped OFF: the relay must carry the five ids first (RELAY_VERSION
 # world183, which relay-deploy.yml deploys on the merge to main - AUDIT CHAP4 R2; CHAP6e's High Master and Season
@@ -337,6 +366,12 @@ CHAPTER_TITLES = "off"
 # Empty: no Season is counted (every once-a-Season rule keeps its 8-week stand-in). Set it, to a week not yet past, when
 # the seats open to everyone - never move it once a Season has begun.
 SEASON_ZERO_WEEK = "2"
+# DOMAIN3 (bible/11-Multiplayer/Domains.md section 7; the owner, 2026-10-24: "A transition to tamriel region control
+# instead of just city control"): the seat week the REGION LAW first rules (net/domainLaw.js domainsWeekOf) - one Charter
+# a region, keyed by its seat of power, every other seat town its holding. Week 6 is Season 1's first: Season 0's last
+# Turning (2026-11-01 18:00 UTC) wipes every Charter, so the law opens on an empty board and folds nothing. Any later
+# week folds at the Turning before it (seatTurning.js); empty keeps the seat law. Never move it back once it rules.
+DOMAINS_WEEK = "6"
 # PENITENT (2026-09-29, Mac: "This new custom title/glyph is for the user
 # Diggleborf", whose ask it is: "Looking to do a Trinimac themed one, so
 # maybe "Penitent" for the title starting gold and ending a sky blue", with
@@ -389,6 +424,25 @@ CRYSTAL_FIST_HANDLES = "Flylighter"
 # behind them. A list that grants an aura (titles.js TIER_AURA); taking the
 # handle off takes all three on the next token.
 WIKIMAID_HANDLES = "SylviaBun"
+# NIRNROOT-SAGE (2026-10-26, for Blob-Marley, an Immortal backer - his final
+# idea: "billowing smoke, circling nirn roots around midsection, small glowing
+# green runes encircling feet"): Nirnroot Sage - the title in a nirnroot's
+# deep green into its glow into the pale of its smoke, the nirnrootsage glyph
+# (a nirnroot sprig, its leaves and its glowing bud) and Sage's Smoke, smoke
+# billowing up about the body, nirnroots circling the waist and green runes
+# glowing in a ring round the feet. A list that grants an aura (titles.js
+# TIER_AURA); taking the handle off takes all three on the next token.
+NIRNROOT_SAGE_HANDLES = "Blob-Marley"
+# BLOOD-OF-COLDHARBOUR (2026-10-30, for trakel, a $200 patron - the owner: "Travel
+# is a $200 patron but isnt listed. All $200 patrons ingame have custom stuff";
+# Trakel's own words: the title "Blood of Coldharbour", "violet and crimson",
+# a rose for the glyph, and "a haze like effect around the sprite, that has
+# blood like particles rising up like embers" that "drift off into daedric
+# runes"): Blood of Coldharbour - the title crimson into violet, the
+# coldharbour glyph (a rose in a ring of thorns, a drop of blood at its foot)
+# and the Vampiric Haze. A list that grants an aura (titles.js TIER_AURA);
+# taking the handle off takes all three on the next token.
+COLDHARBOUR_HANDLES = "trakel"
 # PATREON-LINK (2026-10-01, Mac: "With patron and having to manually hand
 # out titles. Im running into a workflow where its really hard to keep up
 # with it"; asked, "Patreon auto-link"): A PATRON'S TITLE FOLLOWS THEIR
@@ -418,6 +472,46 @@ PATREON_CLIENT_ID = "xyF8_xJg78YwVgT0xRhs6uhPVeAdOzJu7_dcpaGqvqH-5DNdbLp-gugahtf
 # too - its pledge holds TITLE-N's Hierophant, the rose title and the
 # crown. A title made for one patron is still granted by name, beside it.
 PATREON_TIERS = "29666211:disciple,29666234:herald,29666221:hierophant"
+# AUDIT PATRON-AURUM H1 (2026-10-31): the campaign whose patrons' totals are paid as Aurum - its id on
+# Patreon (public, not a secret). Set, a link pays that campaign's member's total and no other; empty, a link
+# pays only where Patreon granted the `identity` scope alone, and the member webhook (signed, this campaign's
+# own) pays the rest at the next charge.
+PATREON_CAMPAIGN_ID = ""
+# SHOP (2026-10-28, the owner: "A new glyph panel alongside the timer and
+# mailbox that will be used for our monetization shop"; bible/06-Systems/
+# Shop.md): WHAT THE SHOP SELLS NOW - ware ids (src/net/shopLaw.js
+# SHOP_WARES), comma-separated. Every ware is pre-alpha only and "sold until
+# I dictate to remove it": take its id off and its sale ends on the next
+# deploy; those who bought it keep it. The shop takes payments only once the
+# deploy has put STRIPE_SECRET_KEY and STRIPE_WEBHOOK_SECRET from the
+# repository's own secrets (.github/workflows/account-deploy.yml).
+# ARMORY (2026-10-28, bible/04-Characters/Aura-Armory.md): and the Aura Armory's Eternal line, a piece a slot.
+# STOREFRONT (2026-10-29, bible/06-Systems/Storefront.md): and the sheet's wares - the kill effects, portal skins, mount
+# looks, name visuals and bundles. PASS-PANELS: the Battle Pass is no ware - its tracks are bought with Aurum.
+# AURUM (bible/06-Systems/Aurum.md): and the Aurum's packs, and the profile icons the daily wares sell - this one list
+# says what the daily wares may draw from too.
+SHOP_ON_SALE = "title:genesis,glyph:origin,aura:eternal,armory:eternalset,armory:eternalhalo,armory:eternalsigil,armory:eternalarmlets,armory:eternalgreaves,armory:eternaledge,kill:ashen,kill:voidrend,kill:pyre,portal:runic,portal:daedric,portal:aetheric,mount:spectral,mount:dawnfire,mount:warhorse,title:dawnbringer,title:voidwalker,title:eternalchampion,bundle:daedricchampion,bundle:portalmaster,bundle:lordofoblivion,aurum:500,aurum:1100,aurum:2400,aurum:3900,icon:gatefire,icon:aurbis,icon:elderscroll,icon:azurastar,icon:redmountain,icon:hourglass,icon:sanguinerose,icon:whitegold"
+# STOREFRONT: THE LAUNCH WINDOWS - what the shop's carousel features and when, a line a window: `<ware> <from> <to>`, UTC
+# days, the last day inside; `limited` after it sells the ware only inside that window. A ware is never sold before its
+# first window opens. One drop a fortnight, as the developer asked ("every step in Donate Shop should be rethinked 5
+# times before ship and in exact right moment").
+SHOP_FEATURED = """
+kill:ashen 2026-10-30 2026-11-12
+kill:voidrend 2026-10-30 2026-11-12
+kill:pyre 2026-10-30 2026-11-12
+portal:runic 2026-11-13 2026-11-26
+portal:daedric 2026-11-13 2026-11-26
+portal:aetheric 2026-11-13 2026-11-26
+title:dawnbringer 2026-11-27 2026-12-10
+title:voidwalker 2026-11-27 2026-12-10
+title:eternalchampion 2026-11-27 2026-12-10
+bundle:portalmaster 2026-11-27 2026-12-10 limited
+mount:spectral 2026-12-11 2026-12-24
+mount:dawnfire 2026-12-11 2026-12-24
+mount:warhorse 2026-12-11 2026-12-24
+bundle:daedricchampion 2026-12-25 2027-01-08 limited
+bundle:lordofoblivion 2026-12-25 2027-01-08 limited
+"""
 
 [[d1_databases]]
 binding = "DB"

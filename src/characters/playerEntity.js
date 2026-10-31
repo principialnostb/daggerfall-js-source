@@ -17,9 +17,11 @@
 // GetClassCareerTemplate), which a module-level literal cannot await
 // - and nothing reads these once chargen resolves. armor 0 until
 // player equipment. LiveSpeed lives in PlayerMotor stats.
+import { pvpLevitateBarred } from '../systems/wild/pvpRules.js';   // PVP-RULES: no Levitate under the flag
 import { SKILL_COUNT, SKILLS_RECENTLY_RAISED_WORDS } from '../systems/skills.js';
 import { SOCIAL_GROUP_COUNT } from '../formats/factionFile.js';   // AUDIT 65 SL-4: PlayerEntity.cs:128's socialGroupCount = 11
 import { pageHas } from '../systems/pageQuery.js';   // AUDIT ANTICHEAT A1: the probe gate's one parse a search
+import { openGuardCeiling, closeGuardCeiling } from '../systems/powerCeiling.js';   // POWER-CEILING: the guards composed, held to one share kept
 
 export const playerEntity = {
   isPlayer: true,
@@ -233,10 +235,17 @@ export function damageShieldPool(entity, dmg) {
  */
 let _damageVeto = null;
 const _staff = { god: false, fly: false };   // STAFF1: the staff's switches (setStaffPowers, below) - declared above their readers (BOOT-TDZ)
+/** STAFF-PANEL5-FREEZE (net/staffChat.js; design doc "DFO Staff Panel: design", Freeze player): STAFF FROZE THIS PLAYER until
+ *  then (epoch seconds) - the relay's word, never saved. While it stands the motor is held as paralysis holds it (every
+ *  host's paralysis gate ORs `staffFrozen()`) and no blow is delivered (the veto's door below): mob, "the player can only
+ *  look around". Only this screen's - the relay and the account service hold a game that ignores it. */
+let _frozenUntil = 0;
+export function setStaffFrozen(/** @type {unknown} */ until) { _frozenUntil = Number.isSafeInteger(until) && /** @type {number} */ (until) > 0 ? /** @type {number} */ (until) : 0; }
+export const staffFrozen = (nowS = Date.now() / 1000) => _frozenUntil > nowS;
 export function registerPlayerDamageVeto(fn) { _damageVeto = typeof fn === 'function' ? fn : null; }
 /** For a caller that needs to know a blow would be withheld before it
  *  spends anything on delivering one. */
-export const playerDamageWithheld = () => { if (_staff.god) return true; try { return !!_damageVeto?.(); } catch { return false; } };   // STAFF1: /god withholds every blow at the veto's own door
+export const playerDamageWithheld = () => { if (_staff.god || staffFrozen()) return true; try { return !!_damageVeto?.(); } catch { return false; } };   // STAFF1: /god withholds every blow at the veto's own door; STAFF-PANEL5-FREEZE: and so does a staff freeze
 
 /** STAFF1 (net/staffCommands.js): THE STAFF'S OWN TWO SWITCHES - /god (no blow delivered: the veto's door above, so a
  *  caller asking before it spends a blow is told too) and /fly (levitation without the spell: every host's motor-flag
@@ -254,7 +263,7 @@ export function registerLevitateWard(fn) { _levitateWard = typeof fn === 'functi
 /** EG-H2 (bible/11-Multiplayer/Elite-Gates.md section 10.7): ONE WARD. The Spire's ward is OR'd into the one
  *  registration (scenes/world.js - the made level's law, systems/madeLevel.js `levitate`, beside the siege's room), as
  *  the page asks; EG-PLAY's second seam beside it (registerSpireLevitateWard) is retired. */
-export const levitateWarded = () => { try { return !!_levitateWard?.(); } catch { return false; } };
+export const levitateWarded = () => { try { return !!_levitateWard?.() || pvpLevitateBarred(); } catch { return false; } };   // PVP-RULES: and a flagged fighter's, in the open zone (systems/wild/pvpRules.js)
 /** AUDIT-SEATS G4 (Seats-Arc 6.6: "a free camera over the town"; 19: "a free camera (WASD, the mouse, the pad's
  *  sticks)"): A SPECTATOR'S FLIGHT, registered by the host that knows who watches a battle from its room (scenes/
  *  world.js): while it answers true, the motor-flag write lifts the body as the staff's /fly does - the motor's own
@@ -291,6 +300,12 @@ const namedRegistry = (map) => (name, fn) => { if (typeof fn === 'function') map
 export const registerPlayerDamageMod = namedRegistry(_damageMods);
 export const registerPlayerDeathSave = namedRegistry(_deathSaves);
 export const registerPlayerHurtListener = namedRegistry(_hurtListeners);
+/** AUDIT WORLD-EVENTS L1-4 (RAISE BEFORE THE FALL): a HOLD on the player's body - `fn() -> boolean`, true while it lies down
+ *  where it fell for a made level's raise (scenes/ketch/ketchClient.js): the motor held as paralysis holds it (the hosts'
+ *  paralysis gate ORs `playerHeld()`, as it does `staffFrozen()`). */
+const _holds = new Map();
+export const registerPlayerHold = namedRegistry(_holds);
+export const playerHeld = () => { for (const fn of _holds.values()) { try { if (fn()) return true; } catch { /* a hold that throws holds nothing */ } } return false; };
 /** EG-ZR: a Shield pool's soak modifier (damageShieldPool, above - `fn(entity, entry) -> multiplier`). */
 export const registerShieldSoakMod = namedRegistry(_shieldSoaks);
 // AUDIT FINAL F10: THE DOOR OPENS - a DOOR-OPEN LISTENER, `fn(entity)`, told FIRST on every call, before the veto (a
@@ -321,12 +336,16 @@ function playerBlowEvaded(entity) {
   for (const fn of _evasions.values()) { try { if (fn(entity) === true) return true; } catch { /* as below */ } }
   return false;
 }
-/** The damage through every registered modifier, in registration order - a modifier that throws is skipped. */
+/** The damage through every registered modifier, in registration order - a modifier that throws is skipped. POWER-CEILING:
+ *  inside one share (powerCeiling.js) - each guard asks guardRoom, so together they keep GUARD_LEAST of the hurt. */
 export function playerDamageMods(entity, dmg) {
   let d = dmg;
-  for (const fn of _damageMods.values()) {
-    try { const n = fn(entity, d); if (Number.isFinite(n)) d = Math.max(0, n); } catch { /* a set is not the blow's problem */ }
-  }
+  const was = openGuardCeiling();
+  try {
+    for (const fn of _damageMods.values()) {
+      try { const n = fn(entity, d); if (Number.isFinite(n)) d = Math.max(0, n); } catch { /* a set is not the blow's problem */ }
+    }
+  } finally { closeGuardCeiling(was); }
   return d;
 }
 /** Does any registered death save take this blow? The first that answers true, in registration order. */
@@ -351,6 +370,22 @@ export function forcePlayerDeath(entity) {
   entity.health = 0;
   surfacePlayer();
   hearDeath(entity);
+  _deathPresenter?.(entity);
+  return true;
+}
+
+/**
+ * WILD-REJOIN: A DEATH ANOTHER PAGE ALREADY HEARD - the open zone's referee telling a page that came back that its
+ * character is still down from a fall its closed game died of (net/wild/wildRef.js wildDownWord). That page ran the
+ * death's door: OnDeath's subscribers decided it there (Project Legacy wrote its toll or its fall at once). So this
+ * death is presented alone - the health at zero and the host's screen - and no subscriber hears it a second time.
+ * Answers whether it was a death.
+ * @param {any} entity
+ */
+export function presentHeardDeath(entity) {
+  if (!((entity?.health ?? 0) > 0)) return false;
+  entity.health = 0;
+  surfacePlayer();
   _deathPresenter?.(entity);
   return true;
 }

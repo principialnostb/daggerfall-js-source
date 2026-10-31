@@ -53,7 +53,7 @@ export const isOnlinePage = (search = globalThis.location?.search ?? '') => page
 /** The keys main.js's front door DECIDES per choice (F12's law: set on
  *  the door that wants them, deleted on every other) - and so the keys
  *  a stale URL must not carry into the menu that decides them. */
-export const BOOT_DOOR_KEYS = Object.freeze(['load', 'online', 'loadkey', 'test', 'classic', 'classicload', 'realm', 'realmnew', 'legacyborn', 'region', 'loc']);   // HOUSE-WAITS (FIELD BUGS 2026-10-09f): a waiting house's birth, decided by the Online page   // REALM P1.3: the realm character's id, and a character born online
+export const BOOT_DOOR_KEYS = Object.freeze(['load', 'online', 'loadkey', 'test', 'classic', 'classicload', 'realm', 'realmnew', 'legacyborn', 'region', 'loc', 'seat', 'start']);   // BAY-LEFT-B: a birth's seat by its map id   // HOUSE-WAITS (FIELD BUGS 2026-10-09f): a waiting house's birth, decided by the Online page   // REALM P1.3: the realm character's id, and a character born online
 
 /**
  * MAC-N3 (2026-09-16, Mac: "Chat UI not visable with classic in online
@@ -147,6 +147,7 @@ export const ONLINE_PLAYERS_OWN_PREFS = [
   'hudBarsSplit',     // HUD-MOVE: whether this player's three bars move apart - the same screen's
   'hudSnap',          // HUD-SNAP: whether this player's pieces catch on each other while moved - the same screen's
   'shotDownload',     // LOAD1: whether THIS player's screenshot key also saves a file - their disk, nobody else's
+  'autoUpdates',      // AUTO-UPDATE: whether THIS player's game restarts itself onto a new version
   'skipStartVideo',   // UXB1-A: whether THIS player sits through the opening film - read at the front door, before any room
   'chatHidden',       // CHAT-R2: whether THIS player wants the chat on screen - the room does not get a say in what someone looks at
   'peerClassSprites', // 2026-09-17: how OTHER players are drawn on THIS machine (animated class sprite vs paperdoll) -
@@ -167,7 +168,10 @@ export const ONLINE_PLAYERS_OWN_PREFS = [
   'chatChannelColours', 'chatPingSound',   // CHAT-COLOURS, PING1: how THIS player's chat is coloured and whether a ping chimes - a screen and an ear, nothing the room agrees on
   'chatTrade', 'chatLfg',   // CHAT-TRADE: whether THIS player listens to the Trade and LFG channels - their tabs, nothing the room agrees on
   'standingAll',   // EVERY-STANDING: whether THIS player's Standing page lists every faction's number - a page they read, nothing the room agrees on
+  'shopHidden',   // SHOP-HIDE: whether THIS player's pause screen draws the shop's gem - the device's own choice, nothing the room agrees on
   'reducedMotion',   // EG-G1: whether THIS player's HUD stands still (ui/eliteGates/egAccess.js) - an accessibility choice, nothing the room agrees on
+  'townPanelFolded',   // NOTICE-PANEL: whether the town panel is folded to its name - a view of this screen's alone
+  'capeShown',   // CAPE-TOGGLE: whether THIS player's cloak is drawn - their own look, which the room is told (systems/capeShown.js)
 ];   // (RF4: grown by declareOnlinePrefs with the registry's 'player' answers - the dials)
 
 /** DISC22-A (2026-09-24, Mac: "repair magical items should be enabled by default and required online"): THE DFU
@@ -318,14 +322,6 @@ export const ONLINE_ROOM_MOD_KEYS = Object.freeze({
   // through each other's boulders - the roads' own reason, word for
   // word. Its one switch is the room's.
   'world-of-daggerfall': Object.freeze({ Enabled: true, Mountains: false }),   // WOD-PEAKS: and its spires the room's too - they level the ground and stand rock
-  // DS1 (2026-09-25): the third floor. Every owner's ship stands at the SAME
-  // map pixel - (2,2) for the small, (5,5) for the large (banking.js
-  // SHIP_COORDS) - so a room's sailors share one deck, and Detailed Ships
-  // stands collidable railings, crates, tenders and rigging on it. Two
-  // players who disagree would walk two decks and pass through each
-  // other's crates; the switch is the room's. (Below decks opens no room -
-  // worldModes' ship interior is the player's own.)
-  'detailed-ships': Object.freeze({ Enabled: true }),
   // WD3 (2026-10-01, Mac: "ensure this doesn't conflict or regress anything (For example housing customization)"): the
   // towns themselves. Beautiful Villages and Beautiful Cities lay 7,727 of Daggerfall's places out again - new streets,
   // new walls, every building where its block now stands - so two players who disagree walk two towns, one through the
@@ -471,7 +467,6 @@ export const ONLINE_PLAYERS_OWN_MODS = [
   'horse-cart-and-cargo',   // HCC: whose horse and wagon stand where is the player's own; the others only SEE them (the online half rides the pose and the cell's frame, never a switch of the room's ground)
   'warm-ashes-ships',       // WA1: my own voyage's ambush - my quest, my crew and pirates (a spawner's foes, WORLD2: a peer on the same deck sees them fight), my lent ship; the pirate vessels are my blocks' variant and stand 40-140 m off in open water, where a peer without them sees sea
   'foraging',               // FORAGE1: my own tools, my own pack, my own quests - a use, a food, a fetch quest all run on my save
-  'aquatic-sprites',        // AS1: 119 flats of scenery in three flooded dungeon blocks - no collider, no action, no marker; a peer without them walks the same rooms (the editor's seven sub-degree turns of a room model are under half a degree)
   'low-poly-trees',         // LPT1: how the wilderness's trees are DRAWN - a 3D tree or its far picture where the same flat stands; the tree's cover, its sway, its Logging node and its fall are the flat's own, so a peer without it walks the same wood
   'project-legacy',         // LEGACY1: my own family - its record, its births and its deaths are my characters'; the heirloom is an item in my save, and its power is folded where it is worn
   'physical-items',         // PI1: how MY loot lies - my own bodies' items stood round them (a peer's body shows none: its list is its owner's), my own shift-drops a pile as any drop is; a take off a dungeon's body is the room's word as the quick door's is (dungeonContext.js publishLoot), so what any peer reads of a container is the same switch on or off

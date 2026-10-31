@@ -50,17 +50,24 @@ import { accountRefusalText, handleShapeOk, HANDLE_MAX_LEN } from '../net/accoun
 import { letterAgeText, replySubject } from '../net/mail.js';   // MAIL1: the box the Letters tab draws
 import { LETTER_SUBJECT_MAX, LETTER_BODY_MAX, LETTER_LINES_MAX, cleanBody } from '../net/letterLaw.js';
 import {
-  GUILD_FOUND_GOLD, GUILD_FOUND_RENOWN, GUILD_MEMBERS_MAX, GUILD_NAME_MAX, GUILD_RANK_NAME_MAX, GUILD_RANK_NAMES,
-  guildMay, guildMayMove, guildOutranks, guildNameOf, guildTagOf, guildRankNamesOf, GUILD_MOVE_MAX,
-  GUILD_RANK_MASTER, GUILD_RANK_OFFICER, GUILD_RANK_RECRUIT, GUILD_RENAME_GOLD,   // GUILD2a: a new name, for a price
+  GUILD_FOUND_GOLD, GUILD_FOUND_RENOWN, GUILD_MEMBERS_MAX, GUILD_NAME_MAX, GUILD_RANK_NAMES,
+  guildMay, guildMayMove, guildOutranks, guildNameOf, guildTagOf, GUILD_MOVE_MAX,
+  GUILD_RANK_MASTER, GUILD_RANK_OFFICER, GUILD_RANK_RECRUIT,
 } from '../net/guild/guildLaw.js';   // GUILD1b: the Guild tab's rules are the service's
+import { GUILD_RENAME_SILVER } from '../net/guild/guildShopLaw.js';   // GUILD2a, GUILD-SHOP: a new name, for silver
+import { guildWareName } from './guild/guildShopText.js';   // GUILD-SHOP: a ware's name in a silver line
+import { guildShopNodes } from './guild/guildShopPage.js';   // GUILD-SHOP: the Shop page
+import { guildLogoNodes } from './guild/guildLogoPage.js';   // GUILD-LOGO: the Arms page's logo card
+import { GUILD_WINDOW_CSS, guildCrestNode, guildFieldHex, guildNavGroupAt, guildNavGroupName } from './guild/guildWindowLook.js';   // GUILD-SHOP: the window's look
 import { VAULT_RANK_DEFAULTS, VAULT_LIMIT_CHOICES, GUILD_VAULT_SLOTS, vaultStandingText, vaultMayTake, vaultMayPut } from '../net/guild/guildVaultLaw.js';   // GUILD2b: the vault
 import { tradeRefusal } from '../systems/tradePack.js';   // GUILD2b: what may leave a pack, for the vault as for a trade
 import { isLocked } from '../systems/item/itemLock.js';   // AUDIT2 GUILD2 U4: a locked piece stays in the pack
 import { GUILD_DEPOSIT_UNSURE, guildMemberOnline, guildSeenText } from '../net/guild/guildBook.js';   // GUILD-SEEN: a member's "last online"
 import { LETTER_OF_CREDIT_TEXT } from '../systems/tradeModes.js';   // GUILD-LETTER: the trade window's own line for a letter of credit
 import { writMay, guildMoveOk, writBudgetOk, GUILD_STORES_MAX, WRIT_BUDGET_MAX } from '../net/writLaw.js';   // PROF6: the guild Stores' and the writ budget's ranks and bounds
-import { guildRankLines, GUILD_RANK_ACTS_NOTE } from '../net/guild/guildPowers.js';   // GUILD3c: what each rank may do, in words
+import { guildRankLines, GUILD_RANK_ACTS_NOTE } from '../net/guild/guildPowers.js';
+import { guildRanksNodes } from './guild/guildRanksPage.js';   // GUILD-RANKS
+import { guildAskNodes, guildRequestsNodes } from './guild/guildRequestNodes.js';   // GUILD-REQUESTS   // GUILD3c: what each rank may do, in words
 import { STORES_MAX } from '../net/professionLaw.js';   // AUDIT 31 U8: a character's Stores' most of a material
 import { marksText, MARKS_FAUCETS, MARKS_MAX } from '../net/marksLaw.js';   // MARKS1: the Marks treasury's words   // MAIL1: the form's caps are the service's
 import { glyphBadges, glyphSvgNode, titleBadge } from './playerBadge.js';   // MAIL1: a sender's glyphs, in the one drawing every DOM face uses
@@ -70,15 +77,18 @@ import { bannerSvg, shieldSvg } from './heraldryArt.js';   // GUILD1d: the guild
 import { GUILD_HALL_PRICE_MULT, GUILD_HALL_ENTRIES, GUILD_HALL_ENTRY_WORDS, hallMay } from '../net/hallLaw.js';   // GUILD1d: the hall
 import { homeSaleRefund } from '../net/homeLaw.js';   // GUILD1d: what the hall sells back for
 import { REGION_NAMES } from '../formats/mapsTables.js';   // GUILD1d: where the hall stands
+import { CASTLE_PRICE, castleMay, castleLostRefund, castleSaleRefund, castleCityOf } from '../net/castleLaw.js';   // DOMAIN2: the castle's price, power and refunds; AUDIT TESA III E2-2: its city
 import { wagonItemName } from '../systems/wagon/wagonKinds.js';   // WAGONS2 (FINAL AUDIT): a marked wagon by its kind's name
 import { noteFirstUse } from '../systems/tutorials.js';   // TUT1: the first touch of a system pops its tutorial page
-import { t } from '../systems/textManager.js';   // GUILD-UX: the storage pages' new words in the player's language
+import { t, formatNumber, intlLocale } from '../systems/textManager.js';   // GUILD-UX: the storage pages' new words in the player's language; AUDIT DOMAINS C5: a castle's numbers
+import { levelShort } from '../systems/mentorText.js';   // MENTOR2: a member's level, short
 import { storeFilterAccepts, storeRarityAccepts, storeQuery, storeFilterOptions, storeRarityOptions } from './storeFilter.js';   // GUILD-UX: the stores' one filter
 import { showItemHover, hideItemHover } from './enhanced/enhancedInventory.js';   // GUILD-UX: the pack's one item card
 import { playerEntity } from '../characters/playerEntity.js';   // GUILD-UX: the card's comparison is against what I wear
 import { isEnhanced } from '../systems/uiSkin.js';   // AUDIT SUGGESTIONS-1019 L4-4: the card is the enhanced skin's
 import { itemLongName } from '../systems/item/itemInfo.js';   // AUDIT SUGGESTIONS-1019 L4-6: a row named as the pack names the piece
 import { LOOSE_ORIGIN } from '../net/bagLaw.js';   // AUDIT SUGGESTIONS-1019 L4-1: the loose units the service's room counts
+import { walledText } from './storesWalled.js';   // RPT1026-MARKET STORES-SAID: what the guild Stores may not take, said
 /** GUILD-UX: the vault row's card - the pack's own (enhancedInventory.js showItemHover), compared against what I wear. */
 // AUDIT SUGGESTIONS-1019 L4-4: on the enhanced skin alone - the card's sheet is the enhanced dress's (enhancedPlusStyle.js),
 // and on the classic skin it fell, unstyled, below the screen
@@ -96,6 +106,8 @@ const childOfClass = (n, cls) => {
   for (const c of n?.children ?? []) { const f = childOfClass(c, cls); if (f) return f; }
   return null;
 };
+/** GUILD-WINDOW: whether `n` is `anc` or stands under it - parent by parent, so it reads any DOM. */
+const within = (n, anc) => { for (let x = n; x; x = x.parentNode ?? x.parent) if (x === anc) return true; return false; };
 /** GUILD-UX: whether a vault row answers the filter `f` - its record's page and rarity (storeFilter.js, the stores' own
  *  tests) and the search over the name the row shows. */
 export function vaultRowAccepts(row, f) {
@@ -162,16 +174,47 @@ export const guildRealmGoldText = (hallGold, treasury, hall = false) => (Number.
 /** GUILD3c: A GUILD IN ONE LOOK, for a character in none - what one is for, before the invitations and the founding. */
 export const GUILD_PRIMER_LINES = Object.freeze([   // AUDIT GUILD3 W10: one reading each, and no town promised that is no seat
   'Guild members share a gold treasury, a silver treasury and a vault for items. A guild can also buy a hall under its own arms.',
-  'Together they can hold seats of the Iliac Bay: a palace\'s or a crown\'s Charter, contested from that town\'s Notice Board.',
+  'Together they can hold seats across Tamriel: a palace\'s or a crown\'s Charter, contested from that town\'s Notice Board.',
 ]);
 /** GUILD3c: where the rest of a guild is run - said on the Overview, so a member is never left to find the boards. */
 export const GUILD_ELSEWHERE_TEXT = 'Seats and sieges are run from the Seat tab of a seat town\'s Notice Board, where you can also read its Chronicle. Guild writs and contracts are posted from the Work tab of any Notice Board.';   // AUDIT GUILD3 W9: a Chronicle is read, never run
+/** GUILD-WINDOW (Guild-Overhaul.md GUILD-WINDOW): what each page holds, said under its name in the window's column of
+ *  pages - one line each, the page's sections in the order it shows them; read at each call, in the player's language. */
+export const guildPageWords = () => ({
+  overview: t('social.guild.page.overview', 'The arms, the hall, and where the rest is run'),
+  members: t('social.guild.page.members', 'The roster, its ranks, and invitations'),
+  ranks: t('social.guild.page.ranks', 'The rank names, and what each may do'),   // GUILD-RANKS
+  treasury: t('social.guild.page.treasury', 'Gold and silver, and their ledgers'),
+  vault: t('social.guild.page.vault', 'The pieces the guild keeps'),
+  stores: t('social.guild.page.stores', 'Materials, and the writ budget'),
+  shop: t('social.guild.page.shop', 'Guild wares and hall furniture, for silver'),
+  arms: t('social.guild.page.arms', 'The banner, the shield, the logo and the tag'),
+  settings: t('social.guild.page.settings', 'A new name, and leaving'),
+});
+/** GUILD-WINDOW: how many of a guild's members are online now, as the header's Members tile says it beneath its count -
+ *  each member by guildBook.js's own reading (`guildMemberOnline`, the roster rows' dot), so the two never disagree. */
+export const guildOnlineText = (members, now) => t('social.guild.online', '{n, number} online', { n: (members ?? []).filter((m) => guildMemberOnline(m, now) === true).length });
+/** The panel's name in its social mode - and again when the Guild window gives it back (GUILD-WINDOW). */
+const SOCIAL_LABEL = 'Friends and party';
+/** The Close button's name in the social mode - and again when the Guild window gives it back (AUDIT GUILD-WINDOW W11). */
+const CLOSE_SOCIAL_LABEL = 'Close social';
+/** GUILD-WINDOW: the screens the window takes whole, its pages a row across - the sheet's query and the column's
+ *  orientation read the one string (AUDIT GUILD-WINDOW W11). */
+export const GUILD_SMALL_QUERY = '(max-width: 760px), (max-height: 520px)';
+/** AUDIT GUILD-WINDOW W9: the pages' own names in the player's language, as the words under them are - read at each
+ *  call. (`guildPagesOf` keeps GUILD2's English ones, which the page ids stand beside.) */
+export const guildPageNames = () => ({
+  overview: t('social.guild.name.overview', 'Overview'), members: t('social.guild.name.members', 'Members'),
+  treasury: t('social.guild.name.treasury', 'Treasury'), vault: t('social.guild.name.vault', 'Vault'),
+  stores: t('social.guild.name.stores', 'Stores'), shop: t('social.guild.name.shop', 'Shop'), arms: t('social.guild.name.arms', 'Arms'),
+  settings: t('social.guild.name.settings', 'Settings'), ranks: t('social.guild.name.ranks', 'Ranks'),   // GUILD-RANKS
+});
 /** GUILD3c: the Settings page's list of what still holds a guild that would go - its heading. */
 export const GUILD_KEEPS_HEAD = 'Before the guild can be disbanded';   // AUDIT GUILD3 W13: the act the page names
 /** GUILD3c: the codes the service's view reads of what holds a guild (server-account/src/guilds.js guildHolds) - where
  *  the view carries its list, its word stands for these; a refusal's older word for one of them is not repeated. */
 export const GUILD_HOLD_CODES = Object.freeze(['guild-treasury', 'guild-stores', 'guild-writs', 'guild-writ-escrow', 'guild-contracts', 'guild-hall',
-  'guild-vault', 'guild-seat', 'guild-battle', 'guild-patron', 'marks-full']);   // AUDIT GUILD3 S3: the silver's room, the view's too
+  'guild-vault', 'guild-seat', 'guild-battle', 'guild-patron', 'guild-logo', 'marks-full']);   // AUDIT GUILD3 S3: the silver's room, the view's too; GUILD-LOGO: a review under way
 /** AUDIT GUILD3 S3: a hold the Settings list says in the going's own terms where the service's sentence is a general one
  *  (an account's cap, said of any silver it is paid). */
 export const GUILD_KEEPS_WORDS = Object.freeze({
@@ -204,7 +247,7 @@ export function guildKeepsOf(v, said) {
 }
 export const GUILD_HERALDRY_NONE_TEXT = 'Your guild has no arms yet.';   // AUDIT GUILD3 W6: one word - the page is "Arms"
 /** GUILD2 (bible/11-Multiplayer/Guild-Overhaul.md): the pages' own sentences. */
-export const GUILD_RENAME_COST_TEXT = `A new name or tag costs ${GUILD_RENAME_GOLD.toLocaleString('en-US')} gold from the treasury (gold put in by realm characters). You can rename again after two weeks. The old name is free for anyone at once.`;
+export const GUILD_RENAME_COST_TEXT = `A new name or tag costs ${marksText(GUILD_RENAME_SILVER)} from the silver treasury. You can rename again after two weeks. The old name is free for anyone at once.`;   // GUILD-SHOP: silver, no longer the realm's gold
 /** GUILD2a: when the next new name may come, from `at` (epoch seconds). */
 export const guildRenameSoonText = (at, nowS) => {
   const days = Math.max(1, Math.ceil((at - nowS) / 86_400));
@@ -253,12 +296,24 @@ export const GUILD_SILVER_LINE_WORDS = Object.freeze({
   // AUDIT GUILD3 W5: a vassal's 5% is its FEALTY share - "Tribute" is the seat's, paid where the guild pledged
   'fealty-tribute': Object.freeze({ in: 'received a vassal\'s fealty share of', out: 'paid its liege a fealty share of' }),
 });
+/** DOMAIN2: the castle's silver lines in words, in the player's language - read before GUILD_SILVER_LINE_WORDS (whose
+ *  English stands as it was), each a guild's own line ("The guild bought a castle for 120,000 silver"). */
+export const GUILD_SILVER_LINE_SAID = Object.freeze({
+  castle: () => t('social.guild.silver.castle', 'bought a castle for'),
+  // GUILD-SHOP, GUILD-LOGO (bible/11-Multiplayer/Guild-Shop.md): a new name, a ware bought, a logo's review fee held and home
+  'guild-rename': () => t('social.guild.silver.rename', 'renamed the guild for'),
+  'guild-shop': (/** @type {any} */ l) => t('social.guild.silver.shop', 'bought {ware} for', { ware: guildWareName(l?.ware) }),
+  'logo-escrow': () => t('social.guild.silver.logo', 'sent a logo for review, its fee held:'),
+  'logo-return': () => t('social.guild.silver.logoReturn', 'had a logo review fee come home:'),
+  'castle-sale': () => t('social.guild.silver.castleSale', 'gave up a castle, and got back'),
+  'castle-lost': () => t('social.guild.silver.castleLost', 'lost a castle with its crown, and got back'),
+});
 /** AUDIT GUILD3 W2: THE KINDS WHOSE `who` IS THE MEMBER WHO ACTED - the service writes their display name (marks.js
  *  deposits, withdrawals and deeds; halls.js the arms; contracts.js a contract put up; seatInfluence.js a Tribute;
  *  npcChapters.js a patron's bid). Every other kind's `who` is the service's own label - 'A Sellsword', 'The Turning', 'The
  *  registry', a writ's material, an auction's id, a work's name - and GUILD3b made it the sentence's subject ("A Sellsword
  *  hired a Sellsword for 1,500 silver"): those lines are the guild's own. */
-export const GUILD_SILVER_MEMBER_KINDS = Object.freeze(['guild-deposit', 'guild-withdraw', 'heraldry', 'guild-deed', 'contract-escrow', 'tribute', 'patron-escrow']);
+export const GUILD_SILVER_MEMBER_KINDS = Object.freeze(['guild-deposit', 'guild-withdraw', 'heraldry', 'guild-deed', 'contract-escrow', 'tribute', 'patron-escrow', 'guild-rename', 'guild-shop', 'logo-escrow']);   // GUILD-SHOP, GUILD-LOGO: the guildmaster's
 /** GUILD3b: a silver line in words - by its own kind and direction where the service sent them (`raw`, `out`); a kind with
  *  no words here said by its direction alone ("paid", "received"), never "put in" for silver that left; the member its
  *  subject where a member acted, the guild where the service did (AUDIT GUILD3 W2); an older service's line (no `raw`) by
@@ -266,10 +321,28 @@ export const GUILD_SILVER_MEMBER_KINDS = Object.freeze(['guild-deposit', 'guild-
 export function guildSilverLineText(l) {
   const amount = marksText(Number(l?.amount ?? 0));
   if (typeof l?.raw !== 'string') return `${l?.who} ${GUILD_MARKS_LEDGER_WORDS[l?.kind] ?? GUILD_MARKS_LEDGER_WORDS.deposit} ${amount}`;
-  const w = Object.hasOwn(GUILD_SILVER_LINE_WORDS, l.raw) ? GUILD_SILVER_LINE_WORDS[l.raw] : null;
+  const w = Object.hasOwn(GUILD_SILVER_LINE_SAID, l.raw) ? GUILD_SILVER_LINE_SAID[l.raw](l) : Object.hasOwn(GUILD_SILVER_LINE_WORDS, l.raw) ? GUILD_SILVER_LINE_WORDS[l.raw] : null;   // DOMAIN2: the castle's lines first
   const words = typeof w === 'string' ? w : w ? w[l.out === true ? 'out' : 'in'] : l.out === true ? 'paid' : 'received';
   return `${GUILD_SILVER_MEMBER_KINDS.includes(l.raw) ? l.who : 'The guild'} ${words} ${amount}`;
 }
+/** DOMAIN2 (bible/11-Multiplayer/Domains.md 6): THE CASTLE'S WORDS on the Guild window's Overview - read at each call, in
+ *  the player's language. `city` the crown city (castleLaw.js castleCityOf - AUDIT TESA III E2-2: a province's capital, never
+ *  the province), every number already in figures. */
+export const guildCastleText = Object.freeze({
+  head: () => t('social.guild.castle.head', 'Castle'),
+  none: () => t('social.guild.castle.none', "A guild that holds a crown's Charter - Daggerfall, Wayrest, Sentinel or a province's capital, but the Imperial City - may buy its castle for {price, number} silver from the treasury: its own instance of the castle, which only its members can enter. The castle goes with the Charter: if the region is lost, half its price comes home.", { price: CASTLE_PRICE }),
+  name: (city) => t('social.guild.castle.name', 'Castle {city}', { city }),
+  held: (city, paid) => t('social.guild.castle.held', "Your guild's own - choose it at the castle's door in {city}. Bought for {paid} silver.", { city, paid }),
+  rule: (city, lost, back) => t('social.guild.castle.rule', "It stays your guild's while the guild holds {city}'s crown. If the crown is lost, {lost} silver comes home; given up now, {back}.", { city, lost, back }),
+  sell: () => t('social.guild.castle.sell', 'Give up the castle'),
+  sellSure: (back) => t('social.guild.castle.sellSure', 'Sure? {back} silver comes home', { back }),
+  sold: (back) => t('social.guild.castle.sold', 'The castle is given up. {back} silver came home.', { back }),
+  offer: (city, price, has) => t('social.guild.castle.offer', 'Castle {city} can be your guild\'s: {price} silver from the treasury, which holds {has}.', { city, price, has }),
+  buy: (city) => t('social.guild.castle.buy', 'Buy Castle {city}', { city }),
+  short: () => t('social.guild.castle.short', 'the treasury holds too little silver'),
+  bought: (city) => t('social.guild.castle.bought', "Castle {city} is your guild's. Choose it at the castle's door.", { city }),
+  wait: () => t('social.guild.castle.wait', 'a moment'),   // AUDIT DOMAINS C5: a castle button held while an act is out
+});
 /** AUDIT GUILD1d R13: the hall's sale in words - the service's own sum (the deed share and its pieces' half). */
 export const guildHallSoldText = (r) => `The hall is sold. ${Number(r?.data?.back ?? 0).toLocaleString('en-US')} gold went back into the treasury.`;
 /** GUILD1d: where a hall stands, in words. */
@@ -385,6 +458,7 @@ ${PIXELIFY_FIVE_FACE}
 .dfsocial-why { flex: none; font-size: 11px; font-style: italic; color: var(--dim, #9a9486); margin-left: 4px; }
 .dfsocial-why:empty { display: none; }   /* GUILD-LIVE: a live button come alive keeps its span, empty */
 .dfsocial-empty { flex: none; font-size: 13px; color: var(--dim, #9a9486); padding: 6px 0; overflow-wrap: anywhere; }
+.dfsocial-mentor:empty { display: none; }
 /* MAIL1 (tools/mailProbe.mjs photographed it): A FRIEND'S ACTS ARE ONE GROUP THAT WRAPS. Letter made them three - Invite,
    Letter, Remove - and at the touch skin's 44px buttons, each with its reason beside its label, three are wider than a
    phone's panel: the name beside them was squeezed to one letter a line. The row wraps its acts BELOW the name when it
@@ -441,6 +515,144 @@ textarea.dfsocial-field { resize: vertical; min-height: 120px; line-height: 1.4;
 .dfsocial.touch .dfsocial-swatch { width: 44px; height: 44px; }
 .dfsocial.touch .dfsocial-tile { padding: 8px; }
 
+/* GUILD-WINDOW (2026-10-23, the owner: "overhaul the guild tab to be more of a full fledged detailed window with easy
+   navigation and readabity instead of being stuffed as a small window in the social tab" - Guild-Overhaul.md
+   GUILD-WINDOW): THE GUILD TAB IS A WINDOW OF ITS OWN. While it is up the panel is the Guild window (data-mode
+   "guild"): large, the social tabs put away behind its Social button, the guild's header and tiles over a column of
+   its pages, the page up in cards in a column of its own that scrolls under them, at a reading size, and a foot
+   where the last act's words stand. The panel's places beside and below the chat are its social mode's alone - the
+   open mark and :root put these rules past every one of them (the chat's fit included, whatever size it is dragged
+   to) - and nothing of the social mode's moves. Centred, or (AUDIT GUILD-WINDOW W7) beside the chat where the screen
+   holds both. Its heights read 100dvh where the browser has it (W6: a phone's toolbar stood over its foot). */
+:root .dfsocial[data-mode="guild"][data-open], :root .dfsocial.touch[data-mode="guild"][data-open] {
+  --dfguild-w: min(1060px, calc(100vw - 28px));
+  left: calc((100vw - var(--dfguild-w)) / 2); width: var(--dfguild-w);
+  top: calc((100vh - min(740px, calc(100vh - 56px))) / 2); top: calc((100dvh - min(740px, calc(100dvh - 56px))) / 2);
+  height: min(740px, calc(100vh - 56px)); height: min(740px, calc(100dvh - 56px)); max-height: none;
+  background: rgba(14, 16, 19, .97); border-color: #4a3b26; box-shadow: 0 12px 48px rgba(0, 0, 0, .6); }
+/* AUDIT GUILD-WINDOW W7: BESIDE THE CHAT where the screen holds the chat and a window 760 wide - the chat stays read and
+   typed into while the guild is run (AUDIT SOC C13's law, the panel's own); a chat dragged too wide for both leaves the
+   window 760 wide over its edge. */
+@media (min-width: 1240px) and (min-height: 521px) {
+  :root[data-dfchat-fit] .dfsocial[data-mode="guild"][data-open], :root[data-dfchat-fit] .dfsocial.touch[data-mode="guild"][data-open] {
+    --dfguild-l: max(calc((100vw - var(--dfguild-w)) / 2), min(calc(26px + min(var(--dfchat-w, 440px), calc(100vw - 28px)) + env(safe-area-inset-left, 0px)), calc(100vw - 774px)));
+    left: var(--dfguild-l); width: min(var(--dfguild-w), calc(100vw - 14px - var(--dfguild-l))); }
+}
+.dfsocial[data-mode="guild"] .dfsocial-tabs { display: none; }
+.dfsocial-back { display: none; flex: none; background: none; color: var(--dim, #9a9486); border: 1px solid var(--iron, #2b323b); border-radius: 3px;
+  font: inherit; font-size: 12px; padding: 3px 10px; cursor: pointer; }
+.dfsocial-back:hover, .dfsocial-back:focus-visible { color: var(--bone, #e9e4d9); border-color: var(--brass, #c08a3e); outline: none; }
+.dfsocial[data-mode="guild"] .dfsocial-back { display: block; }
+.dfsocial.touch .dfsocial-back { min-height: 44px; padding: 4px 12px; }   /* AUDIT SOC C8's finger, as Close has it */
+.dfguild-backbadge { margin-left: 6px; background: #c8503c; color: #f6efe2; border-radius: 8px; padding: 0 6px; font-size: 11px; }
+.dfguild-backbadge:empty { display: none; }
+.dfsocial[data-mode="guild"] .dfsocial-head { padding: 8px 12px; }
+.dfsocial[data-mode="guild"] .dfsocial-title { font-size: 15px; color: var(--brass, #c08a3e); }
+.dfsocial[data-mode="guild"] .dfsocial-body { overflow: hidden; padding: 0; }
+/* the header: the banner beside the name, and the tiles */
+.dfsocial[data-mode="guild"] .dfsocial-guildhead { gap: 16px; padding: 12px 18px; background: linear-gradient(rgba(192, 138, 62, .08), rgba(192, 138, 62, 0)); }
+.dfsocial[data-mode="guild"] .dfsocial-guildhead .dfsocial-subject { font-size: 22px; letter-spacing: .03em; }
+.dfguild-stats { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+.dfguild-stat { flex: none; min-width: 84px; padding: 5px 10px; background: rgba(0, 0, 0, .3); border: 1px solid var(--iron, #2b323b); border-radius: 4px; }
+.dfguild-statlabel { font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--dim, #9a9486); }
+.dfguild-statvalue { font-size: 15px; color: var(--bone, #e9e4d9); overflow-wrap: anywhere; }
+.dfguild-statsub { font-size: 11px; color: ${PARTY_GREEN_CSS}; }
+/* the pages beside the page */
+.dfguild-layout { flex: 1; min-height: 0; display: flex; }
+.dfsocial[data-mode="guild"] .dfguild-nav { width: 232px; flex-direction: column; flex-wrap: nowrap; gap: 2px; padding: 10px 8px; overflow-y: auto;
+  border-bottom: 0; border-right: 1px solid var(--iron, #2b323b); }
+.dfsocial[data-mode="guild"] .dfguild-nav .dfsocial-subtab { display: flex; flex-direction: column; align-items: stretch; gap: 2px; text-align: left;
+  border: 0; border-left: 3px solid transparent; border-radius: 0 4px 4px 0; padding: 8px 10px; color: var(--bone, #e9e4d9); text-transform: none; letter-spacing: 0; }
+.dfsocial[data-mode="guild"] .dfguild-nav .dfsocial-subtab:hover, .dfsocial[data-mode="guild"] .dfguild-nav .dfsocial-subtab:focus-visible { background: rgba(125, 116, 96, .16); outline: none; }
+.dfsocial[data-mode="guild"] .dfguild-nav .dfsocial-subtab.active { background: rgba(192, 138, 62, .16); border-left-color: var(--brass, #c08a3e); }
+.dfguild-navtop { display: flex; align-items: baseline; gap: 8px; }
+.dfguild-navlabel { flex: 1; font-size: 14px; letter-spacing: .05em; text-transform: uppercase; }
+.dfguild-navcount { flex: none; font-size: 12px; color: var(--dim, #9a9486); }
+.dfguild-navsub { font-size: 11px; line-height: 1.35; color: var(--dim, #9a9486); }
+/* the page: its column, its cards, and a reading size for everything in them */
+.dfguild-main { flex: 1; min-width: 0; overflow-y: auto; padding: 14px 18px 18px; display: flex; flex-direction: column; gap: 12px; }
+.dfguild-card { flex: none; display: flex; flex-direction: column; padding: 6px 14px 12px; background: rgba(255, 255, 255, .025);
+  border: 1px solid var(--iron, #2b323b); border-radius: 6px; }
+.dfguild-alone { align-items: center; }
+.dfguild-alone > * { box-sizing: border-box; width: 100%; max-width: 640px; }
+/* AUDIT GUILD-WINDOW W13: the foot - always drawn, the last act's words in it */
+.dfguild-foot { flex: none; box-sizing: border-box; min-height: 34px; display: flex; align-items: center; padding: 6px 18px;
+  border-top: 1px solid var(--iron, #2b323b); background: rgba(0, 0, 0, .3); }
+.dfsocial[data-mode="guild"] .dfguild-foot .dfguild-said { padding: 0; font-size: 13px; line-height: 1.4; color: var(--bone, #e9e4d9); overflow-wrap: anywhere; }
+.dfsocial[data-mode="guild"] .dfguild-foot .dfguild-said.dfsocial-err { color: #e0704a; }
+.dfsocial[data-mode="guild"] .dfguild-card > .dfsocial-sec { font-size: 12px; color: var(--brass, #c08a3e); padding: 6px 0; margin-bottom: 4px; border-bottom: 1px solid var(--iron, #2b323b); }
+.dfsocial[data-mode="guild"] .dfguild-main .dfsocial-note { font-size: 13px; line-height: 1.5; color: #e6d3ad; padding: 3px 0; }
+.dfsocial[data-mode="guild"] .dfguild-main .dfsocial-empty { font-size: 13px; line-height: 1.5; padding: 4px 0; }
+.dfsocial[data-mode="guild"] .dfguild-main .dfsocial-err { font-size: 13px; padding: 4px 0; }
+.dfsocial[data-mode="guild"] .dfguild-main .dfsocial-row { padding: 6px 2px; border-bottom: 1px solid rgba(255, 255, 255, .05); }
+.dfsocial[data-mode="guild"] .dfguild-main .dfsocial-row:last-child { border-bottom: 0; }
+.dfsocial[data-mode="guild"] .dfguild-main .dfsocial-name { font-size: 15px; }
+.dfsocial[data-mode="guild"] .dfguild-main .dfsocial-sub { font-size: 12px; }
+.dfsocial[data-mode="guild"] .dfguild-main .dfsocial-btn { font-size: 13px; padding: 5px 12px; }
+.dfsocial[data-mode="guild"] .dfguild-main .dfsocial-why { font-size: 12px; }
+.dfsocial[data-mode="guild"] .dfguild-main .dfsocial-form { max-width: 460px; }
+.dfsocial[data-mode="guild"] .dfguild-main .dfsocial-label { font-size: 11px; margin-top: 6px; }
+.dfsocial[data-mode="guild"] .dfguild-main .dfsocial-field { font-size: 14px; padding: 6px 8px; }
+.dfsocial[data-mode="guild"] .dfguild-main .dfsocial-ranks { font-size: 13px; line-height: 1.5; padding: 6px 0; }
+.dfsocial[data-mode="guild"] .dfguild-main .dfsocial-ranks > summary { font-size: 12px; }
+.dfsocial[data-mode="guild"] .dfguild-main .dfsocial-keeps { font-size: 13px; line-height: 1.5; }
+.dfsocial[data-mode="guild"] .dfguild-main .dfsocial-grant { padding: 0 0 8px 18px; }
+.dfsocial[data-mode="guild"] .dfguild-main .dfsocial-grant .dfsocial-field { flex: 0 1 300px; }
+.dfsocial[data-mode="guild"] .dfguild-main .dfsocial-filter { max-width: none; flex-direction: row; flex-wrap: wrap; gap: 6px; }
+.dfsocial[data-mode="guild"] .dfguild-main .dfsocial-filter .dfsocial-field { width: auto; flex: 0 1 200px; }
+.dfsocial[data-mode="guild"] .dfguild-main .dfsocial-filter .dfsocial-field[type="search"] { flex: 1 1 240px; }
+.dfsocial[data-mode="guild"] .dfguild-main .dfsocial-swatch { width: 24px; height: 24px; }
+.dfsocial[data-mode="guild"] .dfguild-main .dfsocial-armspics { gap: 18px; padding: 8px 0; }
+/* AUDIT GUILD-WINDOW W2: THE FINGER'S SIZES OUTRANK THE WINDOW'S - the reading sizes above outweighed AUDIT SOC C8's touch
+   rules: every swatch of the Arms 24px under a finger, and a field's 14px made a phone zoom the page into it */
+.dfsocial.touch[data-mode="guild"] .dfguild-main .dfsocial-swatch { width: 44px; height: 44px; }
+.dfsocial.touch[data-mode="guild"] .dfguild-main .dfsocial-field { font-size: 16px; min-height: 44px; }
+@media ${GUILD_SMALL_QUERY} {
+  :root .dfsocial[data-mode="guild"][data-open], :root .dfsocial.touch[data-mode="guild"][data-open] {
+    left: calc(6px + env(safe-area-inset-left, 0px)); top: calc(6px + env(safe-area-inset-top, 0px));
+    width: calc(100vw - 12px - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px));
+    height: calc(100vh - 12px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
+    height: calc(100dvh - 12px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)); }
+  .dfsocial[data-mode="guild"] .dfsocial-guildhead { padding: 8px 12px; gap: 10px; }
+  .dfsocial[data-mode="guild"] .dfsocial-guildhead img { width: 20px; height: 60px; }
+  .dfsocial[data-mode="guild"] .dfsocial-guildhead .dfsocial-subject { font-size: 17px; }
+  .dfguild-stat { min-width: 0; padding: 3px 8px; }
+  .dfguild-statvalue { font-size: 13px; }
+  .dfguild-layout { flex-direction: column; }
+  .dfsocial[data-mode="guild"] .dfguild-nav { width: auto; flex: none; flex-direction: row; overflow-x: auto; overflow-y: hidden; padding: 4px 6px;
+    border-right: 0; border-bottom: 1px solid var(--iron, #2b323b); background: rgba(14, 16, 19, .97); }
+  .dfsocial[data-mode="guild"] .dfguild-nav .dfsocial-subtab { flex: none; border-left: 0; border-bottom: 2px solid transparent; border-radius: 0; padding: 6px 10px; }
+  .dfsocial[data-mode="guild"] .dfguild-nav .dfsocial-subtab.active { border-bottom-color: var(--brass, #c08a3e); }
+  .dfguild-navsub { display: none; }
+  .dfguild-main { padding: 10px 10px 14px; }
+  .dfguild-foot { padding: 6px 12px; }
+}
+/* AUDIT GUILD-WINDOW W6: A SHORT SCREEN SCROLLS THE WINDOW AS ONE - a phone on its side kept the head, the tiles and the
+   row of pages standing and left the page 99 to 169px of it; the row of pages and the foot stay in sight as it goes */
+@media (max-height: 520px) {
+  .dfsocial[data-mode="guild"] .dfsocial-body { overflow-y: auto; }
+  .dfsocial[data-mode="guild"] .dfguild-layout { flex: none; }
+  .dfsocial[data-mode="guild"] .dfguild-main { flex: none; overflow: visible; }
+  .dfsocial[data-mode="guild"] .dfguild-nav { position: sticky; top: 0; z-index: 1; }
+  .dfsocial[data-mode="guild"] .dfguild-foot { position: sticky; bottom: 0; background: rgba(14, 16, 19, .97); }
+}
+/* AUDIT GUILD-WINDOW W1: THE TOASTS' STRIP IS THEIRS. Where the window takes a narrow screen, an invitation's toast (z 7,
+   this panel's) or a duel's (z 8, ui/duelPrompt.js) at the top centre stood over its head - a press on Close landed on
+   Decline (AUDIT SOC C3's fault again). While one stands, the window starts below the strip: 76px, where
+   duelPrompt.js already stacks a second toast, or below where this panel's toast was measured to end when a long name
+   wraps it lower (--dfsocial-toast-b, paintToast); and below a second toast when it stands too. */
+@media (max-width: 600px) {
+  :root:has(.dfsocial-toast[data-up="1"]) .dfsocial[data-mode="guild"][data-open], :root:has(.dfduel-toast[data-up="1"]) .dfsocial[data-mode="guild"][data-open] {
+    --dfguild-t: max(calc(76px + env(safe-area-inset-top, 0px)), calc(var(--dfsocial-toast-b, 0px) + 6px));
+    top: var(--dfguild-t);
+    height: calc(100vh - var(--dfguild-t) - 6px - env(safe-area-inset-bottom, 0px));
+    height: calc(100dvh - var(--dfguild-t) - 6px - env(safe-area-inset-bottom, 0px)); }
+  :root:has(.dfduel-toast.second[data-up="1"]) .dfsocial[data-mode="guild"][data-open] {
+    top: calc(144px + env(safe-area-inset-top, 0px));
+    height: calc(100vh - 150px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
+    height: calc(100dvh - 150px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)); }
+}
+
 /* AUDIT SOC C8: THE FINGER'S OWN SIZES. Every control this panel draws was built at the mouse's scale - the tabs 29
    tall, Close 27x19, Invite and Remove 22 - and online forces the enhanced lane on a phone as readily as on a
    desktop. Under the touch skin each one is at least the 44px the platforms ask for (ui/touch/touch.js draws its own
@@ -467,7 +679,7 @@ textarea.dfsocial-field { resize: vertical; min-height: 120px; line-height: 1.4;
   ${PIXEL_FONT_CSS} color: var(--bone, #e9e4d9); }
 .dfsocial-toast[data-up="1"] { display: flex; }
 .dfsocial-toast .dfsocial-btn { pointer-events: auto; }
-`;
+${GUILD_WINDOW_CSS}`;
 
 /** The sheet, once. */
 export function injectSocialStyle(doc = document) {
@@ -497,7 +709,8 @@ export function partyPoseText(p) {
   if (!p) return '';
   const hp = `${Math.round(p.h ?? 0)}/${Math.round(p.hm ?? 0)} HP`;
   const loc = typeof p.loc === 'string' ? p.loc.trim() : '';
-  return loc ? `${loc} - ${hp}` : hp;
+  const at = loc ? `${loc} - ${hp}` : hp;
+  return Number.isInteger(p.cl) ? `${levelShort(p.cl)} - ${at}` : at;   // MENTOR2: the member's level, so mentoring is no surprise
 }
 
 /**
@@ -533,7 +746,7 @@ export function friendOrder(friends) {
  * a panel with something above it IGNORES the key (does not close, does not stop it), and the one that handles it
  * calls `stopImmediatePropagation` so no other window listener - the host's pause door included - sees that press.
  */
-export function createSocialPanel({ social, send = null, mail = null, guild = null, keepLetter = null, journey = () => null, canLead = () => false, canOpen = () => true, onOpen = null, onClose = null, above = () => false, overlay = overlayOpen, doc = document, win = globalThis, touch = isTouchDevice(), itemCard = ITEM_CARD } = {}) {
+export function createSocialPanel({ social, send = null, mail = null, guild = null, keepLetter = null, journey = () => null, canLead = () => false, canOpen = () => true, onOpen = null, onClose = null, above = () => false, overlay = overlayOpen, doc = document, win = globalThis, touch = isTouchDevice(), itemCard = ITEM_CARD, mentorNote = () => null } = {}) {
   injectSocialStyle(doc);
   const el = (tag, cls, text) => { const n = doc.createElement(tag); n.className = cls; if (text != null) n.textContent = text; return n; };
 
@@ -542,11 +755,19 @@ export function createSocialPanel({ social, send = null, mail = null, guild = nu
   // AUDIT SOC C21: a labelled DIALOG, not an unnamed div with a stray aria-label - this panel takes the pointer and
   // the keyboard off the world while it stands, which is the one thing `role="dialog"` says.
   root.setAttribute('role', 'dialog');
-  root.setAttribute('aria-label', 'Friends and party');
+  root.setAttribute('aria-label', SOCIAL_LABEL);
+  root.dataset.mode = 'social';   // GUILD-WINDOW: 'guild' while the Guild tab is up - the panel is the Guild window then
   const head = el('div', 'dfsocial-head');
   const closeBtn = el('button', 'dfsocial-close', '✕');
-  closeBtn.type = 'button'; closeBtn.setAttribute('aria-label', 'Close social');
-  head.append(el('div', 'dfsocial-title', 'Social'), closeBtn);
+  closeBtn.type = 'button'; closeBtn.setAttribute('aria-label', CLOSE_SOCIAL_LABEL);
+  const titleEl = el('div', 'dfsocial-title', 'Social');
+  // GUILD-WINDOW: the Guild window's way back to the social tabs it put away - drawn in the window alone (its sheet)
+  const backBtn = guild ? el('button', 'dfsocial-back', t('social.guild.back', '← Social')) : null;
+  // AUDIT GUILD-WINDOW W11: its name holds the word it shows (and no Letters where there is no letterbox); W16: and the
+  // social tabs' badges summed beside it - a friend's request, an invitation, a letter are not hidden with their tabs
+  const backBadge = backBtn ? el('span', 'dfguild-backbadge') : null;
+  if (backBtn) { backBtn.type = 'button'; backBtn.setAttribute('aria-label', t('social.guild.backLabel', 'Back to Social')); backBtn.append(backBadge); }
+  head.append(...(backBtn ? [backBtn] : []), titleEl, closeBtn);
   // the hub's last refusal, in the hub's own words - the world tab gets it as a system line too (world.js
   // socialStart), and a player reading the panel should not have to look away from it to find out why nothing moved
   const err = el('div', 'dfsocial-err');
@@ -585,6 +806,8 @@ export function createSocialPanel({ social, send = null, mail = null, guild = nu
   let alive = true;
   let open = false;
   let tab = 'friends';
+  let socialTab = 'friends';   // GUILD-WINDOW: the social tab last up, where the window's Social button goes back to
+  let focusOwed = false;   // AUDIT GUILD-WINDOW W10: the window entered, its page's tab owed the focus until it is drawn
   /** PARTY-READY (2026-10-01, Mac: "when party readying up, the ui element is hidden"): the Party tab a covering window
    *  took down mid-journey - the travel map its own Travel map opened, or any window over an open round - put back when
    *  the cover lifts. A cover still closes the panel (SOC3); the journey's controls no longer stay gone with it. */
@@ -605,6 +828,7 @@ export function createSocialPanel({ social, send = null, mail = null, guild = nu
   let liveDots = [];                           // [{ el, of() }] - GUILD-SEEN: the presence dots that go out on the CLOCK alone
   const dotClass = (online) => `dfsocial-dot${online ? ' on' : ''}`;
   let toasted = null;                          // the invitation the toast is showing, or null
+  let toastFoot = -1, toastSaid = ['', ''];    // AUDIT GUILD-WINDOW W1: where the toast ends, and the words it was measured with
   // MAIL1: the Letters tab's own state. `mode` is the view (the box, one letter, the form); `draft` is the form's words,
   // kept HERE and written on every keystroke, so a repaint - or a close and a reopen - never loses a letter half
   // written; `sending` holds the Send button down while one is out; `del` is the letter whose Delete is armed.
@@ -621,7 +845,7 @@ export function createSocialPanel({ social, send = null, mail = null, guild = nu
   // AUDIT 31 H2: and the guild Stores read again at each look - they move while the tab is shut
   // AUDIT GUILD2 M2: and the vault read again at each look - read once a session, a piece another member took stood with
   // its Take until the panel was reloaded
-  const lookAtGuild = () => { guildUi.storesAsked = false; guildUi.vaultAsked = false; if (guild?.stale?.()) guild.refresh(); };
+  const lookAtGuild = () => { guildUi.storesAsked = false; guildUi.vaultAsked = false; guildUi.shopAsked = false; if (guild?.stale?.()) guild.refresh(); };
 
   /** One act out. A refusal that is the RATE GATE's (`send` answered false) is not the player's fault and not the
    *  row's: the button stays as it was and the note says so, because the act was right and the moment was not. */
@@ -860,6 +1084,11 @@ export function createSocialPanel({ social, send = null, mail = null, guild = nu
         if (!me && leads) n.append(btn('Kick', { warn: true, run: () => act({ k: 'party.kick', acct: m.acct }) }));
         out.push(n);
       }
+      // MENTOR2: what mentoring does for me now - written in place as it starts and ends, an empty line takes no room
+      const noteOf = () => { try { return mentorNote() ?? ''; } catch { return ''; } };
+      const note = el('div', 'dfsocial-empty dfsocial-mentor', noteOf());
+      liveSubs.push({ el: note, of: noteOf });
+      out.push(note);
       out.push(...journeyBody());   // PARTY-UI
       const leave = el('div', 'dfsocial-row');
       leave.append(btn('Leave party', { warn: true, run: () => act({ k: 'party.leave' }) }));
@@ -1078,6 +1307,9 @@ export function createSocialPanel({ social, send = null, mail = null, guild = nu
   const armed = (key) => guildUi.arm === key;
   const arm = (key) => { guildUi.arm = key; guildUi.armAt = social.now(); ui++; if (open) repaint(); };
   const rankName = (g, r) => (Array.isArray(g.ranks) ? g.ranks[r] : null) ?? GUILD_RANK_NAMES[r] ?? String(r);
+  /** GUILD-RANKS: how many ranks the guild keeps, and why a rank may not do `power` - the guildmaster's alone, or not this rank's. */
+  const rankCount = (v) => (Array.isArray(v?.ranks) && v.ranks.length >= 4 ? v.ranks.length : 4);
+  const rankWhy = (v, power) => (JSON.stringify(v?.powers?.[power] ?? [0]) === '[0]' ? t('social.guild.masterAlone', 'the guildmaster\'s alone') : t('social.guild.rankWhy', 'not your rank\'s'));
 
   /** No guild: the invitations standing for this account, and the founding form. */
   const guildJoinBody = (g) => {
@@ -1104,6 +1336,7 @@ export function createSocialPanel({ social, send = null, mail = null, guild = nu
     acts.append(liveBtn('Found', () => ({ enabled: !g.busy && !!guildNameOf(d.name) && !!guildTagOf(d.tag), why: g.busy ? 'a moment' : 'a name of 3 to 32 characters and a tag of 2 to 4 letters or digits' }),
       { run: () => guildDo(g.found(d.name, d.tag), 'Your guild is founded.', () => { d.name = ''; d.tag = ''; }) }));
     out.push(acts);
+    if (g.requestJoin) out.push(...guildAskNodes(guildKit(), g));   // GUILD-REQUESTS: or ask a guild by its tag
     return out;
   };
 
@@ -1169,6 +1402,10 @@ export function createSocialPanel({ social, send = null, mail = null, guild = nu
       form.append(el('div', 'dfsocial-label', 'Take out'), pick('A material of the guild Stores', takeable.map((r) => [r.material, `${ps.name(r.material, 2)} (${outMost(r.material).toLocaleString('en-US')})`]), d.storeOut, (k) => { d.storeOut = k; }));
     }
     guildField(form, t('social.stores.units', 'Units (leave empty for all)'), d.storeUnits ?? '', String(STORES_MAX).length, (x) => { d.storeUnits = x; });
+    // RPT1026-MARKET STORES-SAID: what your Stores hold that the guild's may not take (bought with gold, or from your pack),
+    // and why - Put in offered the rest and said nothing of it
+    const walled = walledText(stores, 'guild', (k) => ps.name(k, 2));
+    if (walled) form.append(el('p', 'dfsocial-note', walled));
     out.push(form);
     const acts = el('div', 'dfsocial-acts');
     if (mine.length) {
@@ -1246,7 +1483,7 @@ export function createSocialPanel({ social, send = null, mail = null, guild = nu
     }
     out.push(personRow({ name: guildHallWhereText(hall), sub: `Who may enter: ${GUILD_HALL_ENTRY_WORDS[hall.entry] ?? GUILD_HALL_ENTRY_WORDS.guild} - bought for ${Number(hall.paid).toLocaleString('en-US')} gold` }));
     const acts = el('div', 'dfsocial-acts');
-    if (hallMay(me, 'hallEntry')) {
+    if (guildMay(me, 'hallEntry', v.powers)) {
       const next = GUILD_HALL_ENTRIES[(Math.max(0, GUILD_HALL_ENTRIES.indexOf(hall.entry)) + 1) % GUILD_HALL_ENTRIES.length];
       acts.append(btn(next === 'public' ? 'Open it to anyone' : 'Members only', { enabled: !g.busy, why: 'a moment', run: () => guildDo(g.setHallEntry(next), `Who may enter the hall: ${GUILD_HALL_ENTRY_WORDS[next]}.`) }));
     }
@@ -1258,6 +1495,34 @@ export function createSocialPanel({ social, send = null, mail = null, guild = nu
     if (acts.children.length) out.push(acts);
     return out;
   };
+  /** DOMAIN2 (bible/11-Multiplayer/Domains.md 6): THE CASTLE - each castle the guild keeps (its door, what was paid, both
+   *  refunds said before the press, the Guildmaster's Give up, pressed twice), each one its crowns may buy (the
+   *  Guildmaster's, its price beside the treasury's silver), and with neither, what a castle is and how one is had. */
+  const guildCastleNodes = (g, v, me) => {
+    const castles = Array.isArray(v.castles) ? v.castles : [], offers = Array.isArray(v.castleOffers) ? v.castleOffers : [];
+    const out = [el('div', 'dfsocial-sec', guildCastleText.head())];
+    const n = (x) => formatNumber(Number(x ?? 0));   // AUDIT DOMAINS C5: in the player's own grouping, inside the player's own words
+    if (!castles.length && !offers.length) { out.push(el('div', 'dfsocial-note', guildCastleText.none())); return out; }
+    for (const c of castles) {
+      const city = castleCityOf(c.region) ?? REGION_NAMES[c.region] ?? '';   // AUDIT TESA III E2-2: its crown's seat - Solitude, never Skyrim
+      out.push(personRow({ name: guildCastleText.name(city), sub: guildCastleText.held(city, n(c.paid)) }));
+      out.push(el('div', 'dfsocial-note', guildCastleText.rule(city, n(castleLostRefund(c.paid)), n(castleSaleRefund(c.paid)))));
+      if (castleMay(me, 'sell')) {
+        const acts = el('div', 'dfsocial-acts'), key = `castle-sell-${c.region}`;
+        acts.append(armed(key) ? btn(guildCastleText.sellSure(n(castleSaleRefund(c.paid))), { warn: true, enabled: !g.busy, why: guildCastleText.wait(), run: () => guildDo(g.sellCastle(c.region), (r) => guildCastleText.sold(n(r?.data?.back))) })
+          : btn(guildCastleText.sell(), { enabled: !g.busy, why: guildCastleText.wait(), run: () => arm(key) }));
+        out.push(acts);
+      }
+    }
+    for (const o of offers) {
+      const city = castleCityOf(o.region) ?? REGION_NAMES[o.region] ?? '', has = Number(v.marks ?? 0);   // AUDIT TESA III E2-2
+      out.push(el('div', 'dfsocial-note', guildCastleText.offer(city, n(o.price), n(has))));
+      const acts = el('div', 'dfsocial-acts');
+      acts.append(btn(guildCastleText.buy(city), { enabled: !g.busy && has >= o.price, why: g.busy ? guildCastleText.wait() : guildCastleText.short(), run: () => guildDo(g.buyCastle(o.region), guildCastleText.bought(city)) }));
+      out.push(acts);
+    }
+    return out;
+  };
   // ═══ GUILD2 (bible/11-Multiplayer/Guild-Overhaul.md): THE GUILD PAGE, IN PAGES ══════════════════════════════════════
   // Asked: "the guild page needs an overhaul". GUILD1b's tab was one scroll - roster, invites, two treasuries and their
   // ledgers, the hall, the heraldry, the guild Stores, the rank names and leaving, every section under the one before. It
@@ -1267,8 +1532,9 @@ export function createSocialPanel({ social, send = null, mail = null, guild = nu
 
   /** The pages the tab shows, in order - the guild Stores only where the professions are this account's. */
   const guildPagesOf = (g) => [
-    ['overview', 'Overview'], ['members', 'Members'], ['treasury', 'Treasury'], ['vault', 'Vault'],
+    ['overview', 'Overview'], ['members', 'Members'], ['ranks', 'Ranks'], ['treasury', 'Treasury'], ['vault', 'Vault'],   // GUILD-RANKS
     ...(g.profStores?.writs && g.profStores.open?.() === true ? [['stores', 'Stores']] : []),
+    ...(g.readShop ? [['shop', 'Shop']] : []),   // GUILD-SHOP: where the book reads one
     ['arms', 'Arms'], ['settings', 'Settings'],
   ];
   /** Our own drawing as a picture - never markup (SOC3). */
@@ -1287,33 +1553,71 @@ export function createSocialPanel({ social, send = null, mail = null, guild = nu
     return s;
   };
 
-  /** THE HEADER over every page: the banner, the name and tag, the reader's rank and the treasury (GUILD1b's line). */
-  const guildHead = (v, me) => {
+  /** THE HEADER over every page: the banner, the name and tag, the reader's rank and the treasury (GUILD1b's line).
+   *  GUILD-WINDOW: its numbers as the window's tiles, each under its own name - the reader's rank, the gold, the silver
+   *  where it is this account's (the Treasury page's own switch), the members and how many of them are online (read
+   *  again on the live pass, as each row's dot is), the vault, and the hall. */
+  const guildHead = (g, v, me) => {
     const head = el('div', 'dfsocial-letterhead dfsocial-guildhead');
-    head.append(svgPicture(bannerSvg(v.heraldry, { width: 24 }), 24, 72, v.heraldry ? heraldryText(v.heraldry) : 'An undrawn banner'));
+    // GUILD-SHOP: the crest (its logo, or its shield on a ring) and the head washed in its field; the arms in words under the name
+    head.style?.setProperty?.('--dfguild-field', guildFieldHex(v.heraldry));
+    head.append(guildCrestNode(doc, svgPicture, v, v.heraldry ? heraldryText(v.heraldry) : 'An undrawn banner'));
     const who = el('div', 'dfsocial-who');
-    who.append(el('div', 'dfsocial-subject', `${v.name} [${v.tag}]`),
-      el('div', 'dfsocial-sub', `You are ${rankName(v, me)} - the treasury holds ${Number(v.treasury).toLocaleString('en-US')} gold`),
-      el('div', 'dfsocial-sub', `${v.members.length}/${GUILD_MEMBERS_MAX} members - the vault ${v.vault?.used ?? 0}/${v.vault?.max ?? GUILD_VAULT_SLOTS}`));
+    const stats = el('div', 'dfguild-stats');
+    const stat = (label, value, sub = null) => {
+      const s = el('div', 'dfguild-stat');
+      s.append(el('div', 'dfguild-statlabel', label), el('div', 'dfguild-statvalue', value));
+      if (sub) { const n = el('div', 'dfguild-statsub', sub()); s.append(n); liveSubs.push({ el: n, of: sub }); }
+      stats.append(s);
+    };
+    stat(t('social.guild.stat.rank', 'Rank'), rankName(v, me));
+    stat(t('social.guild.stat.gold', 'Gold'), Number(v.treasury).toLocaleString('en-US'));
+    if (g.marks?.state?.open === true) stat(t('social.guild.stat.silver', 'Silver'), Number(v.marks ?? 0).toLocaleString('en-US'));
+    stat(t('social.guild.stat.members', 'Members'), `${v.members.length}/${GUILD_MEMBERS_MAX}`, () => guildOnlineText(g.guild?.members ?? v.members, g.now()));
+    stat(t('social.guild.stat.vault', 'Vault'), `${v.vault?.used ?? 0}/${v.vault?.max ?? GUILD_VAULT_SLOTS}`);
+    stat(t('social.guild.stat.hall', 'Hall'), v.hall ? REGION_NAMES[v.hall.region] ?? t('social.guild.stat.bay', 'Iliac Bay') : t('social.guild.stat.noHall', 'None'));
+    who.append(el('div', 'dfsocial-subject', `${v.name} [${v.tag}]`), el('div', 'dfguild-motto', v.heraldry ? heraldryText(v.heraldry) : GUILD_HERALDRY_NONE_TEXT), stats);
     head.append(who);
     return head;
   };
   /** AUDIT2 GUILD2 U9: the strip's buttons as last drawn, by page - the focus put back on the page turned to. */
   let stripBtns = new Map();
-  /** THE PAGE STRIP: a tab for each page, the one up marked. */
-  const guildStrip = (g, page) => {
-    const strip = el('div', 'dfsocial-subtabs');
+  /** GUILD-WINDOW: the column of pages as last drawn - the arrow keys' (guildArrow) - and the page it marks up. */
+  let stripEl = null, stripPage = null;
+  /** THE PAGE STRIP: a tab for each page, the one up marked. GUILD-WINDOW: the window's column of pages - each its
+   *  name, its count where it has one (the members, the vault) and what it holds; the arrow keys walk it (guildArrow).
+   *  AUDIT GUILD-WINDOW W9: each name in the player's language, as the words under it are; W11: one tab in the Tab
+   *  order (the one up - the arrows reach the rest, the tabs pattern), and the column's orientation as it is drawn
+   *  (a row across under the small screen's query). */
+  const guildStrip = (g, page, v) => {
+    const strip = el('div', 'dfsocial-subtabs dfguild-nav');
     strip.setAttribute('role', 'tablist');
+    let row = false;
+    try { row = win.matchMedia?.(GUILD_SMALL_QUERY)?.matches === true; } catch { row = false; }
+    strip.setAttribute('aria-orientation', row ? 'horizontal' : 'vertical');
     stripBtns = new Map();
+    stripEl = strip; stripPage = page;
+    const counts = { members: `${v.members.length}/${GUILD_MEMBERS_MAX}`, vault: `${v.vault?.used ?? 0}/${v.vault?.max ?? GUILD_VAULT_SLOTS}` };
+    const words = guildPageWords();
+    const names = guildPageNames();
+    const shown = guildPagesOf(g).map(([id]) => id);
     for (const [id, label] of guildPagesOf(g)) {
-      const b = el('button', `dfsocial-subtab${id === page ? ' active' : ''}`, label);
+      // GUILD-SHOP: each group's name over its first page (the column's alone - a row across shows none)
+      const group = guildNavGroupAt(id, shown);
+      if (group) { const n = el('div', 'dfguild-navgroup', guildNavGroupName(group)); n.setAttribute('aria-hidden', 'true'); strip.append(n); }   // AUDIT GUILD-SHOP C8: a caption seen, no stray text among the tabs
+      const b = el('button', `dfsocial-subtab${id === page ? ' active' : ''}`);
+      const top = el('span', 'dfguild-navtop');
+      top.append(el('span', 'dfguild-navlabel', names[id] ?? label), ...(counts[id] ? [el('span', 'dfguild-navcount', counts[id])] : []));
+      b.append(top, el('span', 'dfguild-navsub', words[id] ?? ''));
       stripBtns.set(id, b);
       b.type = 'button'; b.dataset.page = id;
       b.setAttribute('role', 'tab'); b.setAttribute('aria-selected', id === page ? 'true' : 'false');
-      b.addEventListener('click', () => {
+      b.setAttribute('tabindex', id === page ? '0' : '-1');
+      b.addEventListener('click', b.turn = () => {
         if (guildUi.page === id) return;
         guildUi.page = id; guildUi.arm = null;
         if (id === 'vault') guildUi.vaultAsked = false;   // AUDIT GUILD2 M2: the vault read again at each turn to its page
+        if (id === 'shop') guildUi.shopAsked = false;   // GUILD-SHOP: and the shop
         if (id === 'settings') guild?.refresh?.();   // AUDIT GUILD3 C8: what holds the guild read again at each turn to its page - a hold cleared elsewhere (a battle fought, a writ withdrawn by an Officer) no longer waits on the tab
         ui++; if (open) repaint();
         // AUDIT2 GUILD2 U9: the keyboard's focus on the page turned to - the strip is drawn again, and the focus fell to
@@ -1328,9 +1632,17 @@ export function createSocialPanel({ social, send = null, mail = null, guild = nu
   /** OVERVIEW: the arms in words, the hall, and where the reader stands at the vault. */
   const guildOverviewNodes = (g, v, me) => {
     const out = [el('div', 'dfsocial-sec', 'The guild')];
-    out.push(el('div', 'dfsocial-note', v.heraldry ? heraldryText(v.heraldry) : GUILD_HERALDRY_NONE_TEXT));
+    // GUILD-SHOP: the arms in words stand in the head now; the guild's age, and the way to its Shop
+    if (Number(v.foundedAt) > 0) out.push(el('div', 'dfsocial-note', t('social.guild.founded', 'Founded {date}.', { date: new Date(Number(v.foundedAt) * 1000).toLocaleDateString(intlLocale(), { year: 'numeric', month: 'long', day: 'numeric' }) })));
     if (v.vault?.me) out.push(el('div', 'dfsocial-note', `At the vault: ${vaultStandingText(v.vault.me)}.`));
+    if (g.readShop) {
+      out.push(el('div', 'dfsocial-note', t('social.guild.shopNote', 'Hall furniture, the Insignia Armlet, the Guild Crest and the Guild Sailcloth are for sale in the Shop, for silver.')));
+      const acts = el('div', 'dfsocial-acts');
+      acts.append(btn(t('social.guild.shopOpen', 'Open the Shop'), { run: () => stripBtns.get('shop')?.turn?.() }));
+      out.push(acts);
+    }
     out.push(...guildHallNodes(g, v, me));
+    out.push(...guildCastleNodes(g, v, me));   // DOMAIN2: the region's castle, beside the hall
     out.push(el('div', 'dfsocial-sec', 'Elsewhere'), el('div', 'dfsocial-empty', GUILD_ELSEWHERE_TEXT));   // GUILD3c: where the rest is run
     return out;
   };
@@ -1343,7 +1655,7 @@ export function createSocialPanel({ social, send = null, mail = null, guild = nu
     const d = guildUi.draft;
     d.grants ??= {};
     out.push(el('div', 'dfsocial-sec', `Members (${v.members.length}/${GUILD_MEMBERS_MAX})`));
-    const mayGrant = guildMay(me, 'vaultGrant');
+    const mayGrant = guildMay(me, 'vaultGrant', v.powers);
     for (const m of v.members) {
       const standing = m.vault ? ` - ${vaultStandingText(m.vault)}${m.vault.granted ? ' (granted)' : ''}` : '';
       // GUILD-SEEN: when they were last online, as a friend's row says it - the dot and the line read again on the live
@@ -1354,8 +1666,8 @@ export function createSocialPanel({ social, send = null, mail = null, guild = nu
       const r = personRow({ name: m.you ? `${m.name} (you)` : m.name, sub: `${rankName(v, m.rank)}${standing}`, online, seen: guildSeenText(m, g.now()) });
       if (r.seenNode) liveSubs.push({ el: r.seenNode, of: () => guildSeenText(fresh(), g.now()) });
       if (r.dotNode) liveDots.push({ el: r.dotNode, of: () => guildMemberOnline(fresh(), g.now()) === true });
-      const mayMove = [guildMayMove(me, m.rank, m.rank - 1), guildMayMove(me, m.rank, m.rank + 1)];
-      const mayRemove = guildMay(me, 'remove') && guildOutranks(me, m.rank);
+      const mayMove = [guildMayMove(me, m.rank, m.rank - 1, v.powers, rankCount(v)), guildMayMove(me, m.rank, m.rank + 1, v.powers, rankCount(v))];   // GUILD-RANKS
+      const mayRemove = guildMay(me, 'remove', v.powers) && guildOutranks(me, m.rank);
       const mayHand = guildMay(me, 'handOver');
       if (!m.you && (mayMove[0] || mayMove[1] || mayRemove || mayHand)) {
         const racts = rowActs(r);   // GUILD-WRAP
@@ -1374,7 +1686,7 @@ export function createSocialPanel({ social, send = null, mail = null, guild = nu
       }
       out.push(r);
       // GUILD2b: THE LEADER'S GRANT - a member's standing at the vault set, or revoked back to its rank's
-      if (mayGrant && m.rank !== GUILD_RANK_MASTER) {
+      if (mayGrant && m.rank !== GUILD_RANK_MASTER && m.rank > me) {   // GUILD-RANKS: a rank given the grant grants below its own
         const was = m.vault?.granted ? m.vault.level : '';
         // AUDIT2 GUILD2 U7: a draft is of the standing it was made from - a grant, a rank moved, or another officer's Set
         // since starts it again from what stands (a draft kept over it read as "unchanged" against the new, or set the old)
@@ -1420,7 +1732,7 @@ export function createSocialPanel({ social, send = null, mail = null, guild = nu
     ranks.open = guildUi.ranksOpen === true;
     ranks.addEventListener?.('toggle', () => { guildUi.ranksOpen = !!ranks.open; });
     ranks.append(el('summary', null, 'What each rank may do'));
-    for (const line of guildRankLines(Array.isArray(v.ranks) ? v.ranks : GUILD_RANK_NAMES)) {
+    for (const line of guildRankLines(Array.isArray(v.ranks) ? v.ranks : GUILD_RANK_NAMES, v.powers)) {   // GUILD-RANKS: as the guild set them
       const p = el('p', null);
       p.append(el('b', null, `${line.name}: `), el('span', null, line.text));
       ranks.append(p);
@@ -1428,7 +1740,7 @@ export function createSocialPanel({ social, send = null, mail = null, guild = nu
     ranks.append(el('p', null, GUILD_RANK_ACTS_NOTE));
     out.push(ranks);
     // INVITE
-    if (guildMay(me, 'invite')) {
+    if (guildMay(me, 'invite', v.powers)) {
       out.push(el('div', 'dfsocial-sec', 'Invite'));
       const form = el('div', 'dfsocial-form');
       guildField(form, 'Username', d.handle, HANDLE_MAX_LEN, (x) => { d.handle = x; });
@@ -1439,6 +1751,7 @@ export function createSocialPanel({ social, send = null, mail = null, guild = nu
       out.push(acts);
       for (const inv of v.invites ?? []) out.push(personRow({ name: inv.name, sub: `invited by ${inv.by}` }));
     }
+    out.push(...guildRequestsNodes(guildKit(), g, v, me));   // GUILD-REQUESTS: the requests to join, to a rank that may answer
     return out;
   };
 
@@ -1459,9 +1772,9 @@ export function createSocialPanel({ social, send = null, mail = null, guild = nu
     // HALL-GOLD: one move is at most GUILD_MOVE_MAX - said on the button, not refused by the service after the press
     const overCap = () => goldTyped() > GUILD_MOVE_MAX;
     const capWhy = `at most ${GUILD_MOVE_MAX.toLocaleString('en-US')} at a time`;
-    tacts.append(liveBtn('Deposit', () => ({ enabled: !g.busy && goldTyped() > 0 && !overCap(), why: g.busy ? 'a moment' : overCap() ? capWhy : 'an amount' }),
+    tacts.append(liveBtn('Deposit', () => ({ enabled: !g.busy && goldTyped() > 0 && !overCap() && guildMay(me, 'deposit', v.powers), why: !guildMay(me, 'deposit', v.powers) ? rankWhy(v, 'deposit') : g.busy ? 'a moment' : overCap() ? capWhy : 'an amount' }),
       { run: () => { const n = goldTyped(); if (n > 0) guildDo(g.deposit(n), `${n.toLocaleString('en-US')} gold put in.`, () => { d.gold = ''; }); } }));
-    tacts.append(liveBtn('Withdraw', () => ({ enabled: !g.busy && goldTyped() > 0 && !overCap() && guildMay(me, 'withdraw'), why: guildMay(me, 'withdraw') ? (g.busy ? 'a moment' : overCap() ? capWhy : 'an amount') : 'the guildmaster\'s alone' }),
+    tacts.append(liveBtn('Withdraw', () => ({ enabled: !g.busy && goldTyped() > 0 && !overCap() && guildMay(me, 'withdraw', v.powers), why: guildMay(me, 'withdraw', v.powers) ? (g.busy ? 'a moment' : overCap() ? capWhy : 'an amount') : rankWhy(v, 'withdraw') }),
       { run: () => { const n = goldTyped(); if (n > 0) guildDo(g.withdraw(n), `${n.toLocaleString('en-US')} gold taken out.`, () => { d.gold = ''; }); } }));
     out.push(tacts);
     for (const l of v.ledger ?? []) {
@@ -1478,9 +1791,9 @@ export function createSocialPanel({ social, send = null, mail = null, guild = nu
       out.push(mform);
       const marksTyped = () => (/^\d{1,7}$/.test(String(d.marks ?? '').trim()) ? Number(String(d.marks).trim()) : 0);
       const macts = el('div', 'dfsocial-acts');
-      macts.append(liveBtn('Put in', () => ({ enabled: !g.busy && marksTyped() > 0, why: g.busy ? 'a moment' : 'an amount' }),
+      macts.append(liveBtn('Put in', () => ({ enabled: !g.busy && marksTyped() > 0 && guildMay(me, 'deposit', v.powers), why: !guildMay(me, 'deposit', v.powers) ? rankWhy(v, 'deposit') : g.busy ? 'a moment' : 'an amount' }),
         { run: () => { const n = marksTyped(); if (n > 0) guildDo(g.moveMarks(n, false), `${marksText(n)} put in.`, () => { d.marks = ''; }); } }));
-      macts.append(liveBtn('Take out', () => ({ enabled: !g.busy && marksTyped() > 0 && guildMay(me, 'withdraw'), why: guildMay(me, 'withdraw') ? (g.busy ? 'a moment' : 'an amount') : 'the guildmaster\'s alone' }),
+      macts.append(liveBtn('Take out', () => ({ enabled: !g.busy && marksTyped() > 0 && guildMay(me, 'withdraw', v.powers), why: guildMay(me, 'withdraw', v.powers) ? (g.busy ? 'a moment' : 'an amount') : rankWhy(v, 'withdraw') }),
         { run: () => { const n = marksTyped(); if (n > 0) guildDo(g.moveMarks(n, true), `${marksText(n)} taken out.`, () => { d.marks = ''; }); } }));
       out.push(macts);
       for (const l of v.marksLedger ?? []) out.push(personRow({ name: guildSilverLineText(l) }));   // GUILD3b: each line its own kind and way; AUDIT GUILD1d R5
@@ -1501,7 +1814,7 @@ export function createSocialPanel({ social, send = null, mail = null, guild = nu
   const vaultFilterBar = (items, shown, none) => {
     const f = vaultFilter();
     const recs = items.map((r) => r.rec ?? {});
-    const bar = el('div', 'dfsocial-form');
+    const bar = el('div', 'dfsocial-form dfsocial-filter');   // GUILD-WINDOW: one row in the window (its sheet)
     const q = doc.createElement('input');
     q.className = 'dfsocial-field'; q.type = 'search'; q.maxLength = 40; q.value = f.query;
     q.placeholder = t('social.vault.find', 'Find a piece'); q.setAttribute('aria-label', q.placeholder);
@@ -1734,7 +2047,7 @@ export function createSocialPanel({ social, send = null, mail = null, guild = nu
     return out;
   };
 
-  /** SETTINGS: a new name (the guildmaster's, for a price), the rank names, and leaving or disbanding. */
+  /** SETTINGS: a new name (the guildmaster's, for a price), and leaving or disbanding. */
   const guildSettingsNodes = (g, v, me) => {
     const out = [];
     const d = guildUi.draft;
@@ -1752,31 +2065,21 @@ export function createSocialPanel({ social, send = null, mail = null, guild = nu
       out.push(form);
       const typed = () => ({ name: guildNameOf(d.newName ?? ''), tag: guildTagOf(d.newTag ?? '') });
       const of = () => {
-        const t = typed();
-        const why = busy ? 'a moment' : !t.name || !t.tag ? 'a name of 3 to 32 characters and a tag of 2 to 4 letters or digits'
-          : t.name === v.name && t.tag === v.tag ? 'already the guild\'s'
+        const n = typed();
+        const why = busy ? 'a moment' : !n.name || !n.tag ? 'a name of 3 to 32 characters and a tag of 2 to 4 letters or digits'
+          : n.name === v.name && n.tag === v.tag ? 'already the guild\'s'
             : Number.isSafeInteger(v.renameAt) && v.renameAt > Math.floor(social.now() / 1000) ? 'not yet'
-              : Number(v.hallGold ?? 0) < GUILD_RENAME_GOLD ? `${GUILD_RENAME_GOLD.toLocaleString('en-US')} of the realm's gold in the treasury` : '';
+              : v.marks == null ? t('social.guild.renameSilverShut', 'silver open to this account')
+                : Number(v.marks) < GUILD_RENAME_SILVER ? t('social.guild.renameSilver', '{silver} in the silver treasury', { silver: marksText(GUILD_RENAME_SILVER) }) : '';   // GUILD-SHOP
         return { enabled: !why, why };
       };
       const acts = el('div', 'dfsocial-acts');
       acts.append(armed('rename')
-        ? liveBtn(`Sure? ${GUILD_RENAME_GOLD.toLocaleString('en-US')} gold`, of, { warn: true, run: () => { const t = typed(); guildDo(g.rename(t.name, t.tag), `The guild is ${t.name} [${t.tag}] now.`); } })
+        ? liveBtn(t('social.guild.renameSure', 'Sure? {silver}', { silver: marksText(GUILD_RENAME_SILVER) }), of, { warn: true, run: () => { const t = typed(); guildDo(g.rename(t.name, t.tag), `The guild is ${t.name} [${t.tag}] now.`); } })
         : liveBtn('Rename', of, { run: () => arm('rename') }));
       out.push(acts);
     }
-    // THE RANK NAMES
-    if (guildMay(me, 'renameRanks')) {
-      out.push(el('div', 'dfsocial-sec', 'Rank names'));
-      if (!Array.isArray(d.ranks)) d.ranks = [...(v.ranks ?? GUILD_RANK_NAMES)];
-      const rform = el('div', 'dfsocial-form');
-      d.ranks.forEach((name, i) => guildField(rform, `Rank ${i + 1}`, name, GUILD_RANK_NAME_MAX, (x) => { d.ranks[i] = x; }));
-      out.push(rform);
-      const racts = el('div', 'dfsocial-acts');
-      racts.append(liveBtn('Rename ranks', () => ({ enabled: !g.busy && !!guildRankNamesOf(d.ranks), why: g.busy ? 'a moment' : 'four different names' }),
-        { run: () => guildDo(g.renameRanks(d.ranks), 'The ranks are renamed.', () => { d.ranks = null; }) }));
-      out.push(racts);
-    }
+    // GUILD-RANKS: the rank names are the Ranks page's (ui/guild/guildRanksPage.js)
     // LEAVING
     out.push(el('div', 'dfsocial-sec', 'Leaving'));
     // GUILD3c: EVERYTHING that still holds the guild, before the press - the view's list (the service's guildHolds), the
@@ -1817,20 +2120,66 @@ export function createSocialPanel({ social, send = null, mail = null, guild = nu
     return out;
   };
 
-  /** In a guild: its header, its page strip, and the page up. */
+  /** GUILD-WINDOW: a page's sections as cards - each heading (`.dfsocial-sec`) opens one, and what stands before the first
+   *  heading is a card of its own. The nodes are MOVED, never rebuilt, so every hold a page kept on its own nodes (the
+   *  vault's filter over its rows, a grant drawn again in place, the arms' box) still holds. */
+  const guildCards = (nodes) => {
+    const out = [];
+    let card = null;
+    for (const n of nodes) {
+      if (!card || String(n?.className ?? '').split(/\s+/).includes('dfsocial-sec')) { card = el('div', 'dfguild-card'); out.push(card); }
+      card.append(n);
+    }
+    return out;
+  };
+
+  /** GUILD-SHOP: the window's kit, for a page drawn in a module of its own (ui/guild/guildShopPage.js, guildLogoPage.js). */
+  const guildKit = () => ({
+    el, btn, doc, picture: svgPicture, act: guildDo, arm, armed, draft: guildUi.draft, state: guildUi,
+    word: (e) => guildWordText(e, null, Math.floor(social.now() / 1000)), redraw: () => { ui++; if (open) repaint(); },
+    live: liveBtn, field: guildField, paint: paintLiveBtns, row: personRow, rowActs, now: () => social.now(),   // GUILD-RANKS, GUILD-REQUESTS
+  });
+  /** In a guild: its header, its page strip, and the page up. GUILD-WINDOW: the strip a column beside the page, and the
+   *  page in cards in a column of its own that scrolls under the header. */
   const guildMemberBody = (g, v) => {
     const me = v.rank;
     const pages = guildPagesOf(g).map(([id]) => id);
     const page = pages.includes(guildUi.page) ? guildUi.page : 'overview';
-    const out = [guildHead(v, me), guildStrip(g, page)];
+    const out = [];
     if (page === 'members') out.push(...guildMembersNodes(g, v, me));
     else if (page === 'treasury') out.push(...guildTreasuryNodes(g, v, me));
     else if (page === 'vault') out.push(...guildVaultNodes(g, v, me));
     else if (page === 'stores') out.push(...guildStoresNodes(g, g.profStores, me));   // PROF6 (Professions-Arc 7, 28)
-    else if (page === 'arms') out.push(...guildArmsNodes(g, v, me));
+    else if (page === 'shop') out.push(...guildShopNodes(guildKit(), g, v));   // GUILD-SHOP
+    else if (page === 'arms') out.push(...guildLogoNodes(guildKit(), g, v, guildMay(me, 'logo', v.powers)), ...guildArmsNodes(g, v, me));   // GUILD-LOGO: its logo, then the arms drawn
     else if (page === 'settings') out.push(...guildSettingsNodes(g, v, me));
+    else if (page === 'ranks') out.push(...guildRanksNodes(guildKit(), g, v, me));   // GUILD-RANKS
     else out.push(...guildOverviewNodes(g, v, me));
-    return out;
+    const main = el('div', 'dfguild-main');
+    main.dataset.page = page;
+    main.setAttribute('role', 'tabpanel');   // AUDIT GUILD-WINDOW W11: the panel the column's tabs show
+    main.setAttribute('aria-label', guildPageNames()[page] ?? page);
+    main.append(...guildCards(out));
+    const layout = el('div', 'dfguild-layout');
+    layout.append(guildStrip(g, page, v), main);
+    return [guildHead(g, v, me), layout];
+  };
+  /** GUILD-WINDOW: the window's body - a guild's header and pages as they are; anything else (no guild yet, signed out,
+   *  a read refused) in the one column, in cards. AUDIT GUILD-WINDOW W13: and THE FOOT, a line the window always has,
+   *  where the last act's words (`.dfguild-said`) stand - seen however far the page is scrolled (they stood at the top
+   *  of the column, out of sight under a press on the fortieth row), and moving nothing under the pointer as they come
+   *  and go (they pushed every row down by their height). */
+  const guildWindowBody = (nodes) => {
+    const isSaid = (n) => String(n?.className ?? '').split(/\s+/).includes('dfguild-said');
+    const rest = nodes.filter((n) => !isSaid(n));
+    const foot = el('div', 'dfguild-foot');
+    foot.setAttribute('role', 'status');
+    foot.append(...nodes.filter(isSaid));
+    if (rest.some((n) => String(n?.className ?? '').split(/\s+/).includes('dfguild-layout'))) return [...rest, foot];
+    const main = el('div', 'dfguild-main dfguild-alone');
+    main.dataset.page = '';
+    main.append(...guildCards(rest));
+    return [main, foot];
   };
 
   const guildBody = () => {
@@ -1839,7 +2188,7 @@ export function createSocialPanel({ social, send = null, mail = null, guild = nu
     if (g.state === 'guest') return [el('div', 'dfsocial-empty', accountRefusalText('guilds-need-account'))];
     if (g.state === 'unknown') return [el('div', 'dfsocial-empty', GUILD_LOOKING_TEXT)];
     const out = [];
-    if (guildUi.word) out.push(el('div', guildUi.bad ? 'dfsocial-err' : 'dfsocial-empty', guildUi.word));
+    if (guildUi.word) out.push(el('div', `${guildUi.bad ? 'dfsocial-err' : 'dfsocial-empty'} dfguild-said`, guildUi.word));
     if (g.state === 'error') {
       out.push(el('div', 'dfsocial-err', guildWordText(g.error)));
       const acts = el('div', 'dfsocial-acts');
@@ -1860,6 +2209,14 @@ export function createSocialPanel({ social, send = null, mail = null, guild = nu
     return n > 0 ? String(n) : '';
   };
 
+  /** AUDIT GUILD-WINDOW W16: the Social button's badge in the Guild window - every social tab's badge summed, read as
+   *  each tab's is (`badgeText`), so the two never disagree. */
+  const backBadgeText = () => {
+    let n = 0;
+    for (const id of tabBtns.keys()) if (id !== 'guild') n += Number(badgeText(id)) || 0;
+    return n > 0 ? String(n) : '';
+  };
+
   /** The whole body, and the tab badges over it. */
   const repaint = () => {
     hideCard();   // GUILD-UX: a vault row's card never outlives the row it was for
@@ -1872,9 +2229,43 @@ export function createSocialPanel({ social, send = null, mail = null, guild = nu
       t.b.setAttribute('aria-selected', id === tab ? 'true' : 'false');   // C21
       t.badge.textContent = badgeText(id);
     }
-    body.replaceChildren(...(tab === 'party' ? partyBody() : tab === 'letters' ? lettersBody() : tab === 'guild' ? guildBody() : friendsBody()));
+    // GUILD-WINDOW: the Guild tab up is the Guild window - its own name, the social tabs put away (the sheet)
+    const mode = tab === 'guild' ? 'guild' : 'social';
+    if (mode === 'social') socialTab = tab;
+    if (root.dataset.mode !== mode) focusOwed = mode === 'guild';   // a guild still being read draws no tab: owed until one is
+    if (root.dataset.mode !== mode) {
+      root.dataset.mode = mode;
+      titleEl.textContent = mode === 'guild' ? t('social.guild.title', 'Guild') : 'Social';
+      root.setAttribute('aria-label', mode === 'guild' ? t('social.guild.title', 'Guild') : SOCIAL_LABEL);
+      closeBtn.setAttribute('aria-label', mode === 'guild' ? t('social.guild.close', 'Close guild') : CLOSE_SOCIAL_LABEL);   // AUDIT GUILD-WINDOW W11
+    }
+    // GUILD-WINDOW: the page's column is drawn again at every act and every look, so where it was scrolled to is put
+    // back on the same page - a guildmaster promoting the fortieth member is not thrown back to the first. AUDIT
+    // GUILD-WINDOW W6: and the body's own scroll, which is the window's on a short screen; W12: and the row of pages
+    // across a phone, wherever the page is (a press on Settings, the row's last, no longer put it out of sight)
+    const was = childOfClass(body, 'dfguild-main');
+    const kept = was ? { page: was.dataset?.page, top: Number(was.scrollTop) || 0, body: Number(body.scrollTop) || 0, nav: Number(childOfClass(body, 'dfguild-nav')?.scrollLeft) || 0 } : null;
+    // AUDIT GUILD-WINDOW W3/W10: the keyboard's focus in the body is lost with the body drawn again - put back on the
+    // page's own tab, so the window's keys stay the window's (on the document's body they were the world's: ArrowDown
+    // its Professions door, which covered the HUD and shut the window)
+    const focusIn = mode === 'guild' && within(doc.activeElement, body);
+    stripBtns = new Map(); stripEl = null; stripPage = null;   // a body with no column of pages (no guild yet) keys none
+    body.replaceChildren(...(tab === 'party' ? partyBody() : tab === 'letters' ? lettersBody() : tab === 'guild' ? guildWindowBody(guildBody()) : friendsBody()));
+    const now = childOfClass(body, 'dfguild-main');
+    if (now && kept) {
+      const nav = childOfClass(body, 'dfguild-nav');
+      if (nav && kept.nav) nav.scrollLeft = kept.nav;
+      if (now.dataset?.page === kept.page) { if (kept.top) now.scrollTop = kept.top; if (kept.body) body.scrollTop = kept.body; } else body.scrollTop = 0;
+    } else if (now) body.scrollTop = 0;
+    if (open && (focusOwed || focusIn) && stripBtns.get(stripPage)) { stripBtns.get(stripPage).focus?.(); focusOwed = false; }   // W10: into the window, the focus with it
     paintLive();
   };
+  backBtn?.addEventListener('click', () => {
+    if (tab !== 'guild') return;
+    tab = socialTab; confirm = null; ui++;
+    if (tab === 'letters') lookAtLetters();
+    if (open) { repaint(); tabBtns.get(tab)?.b?.focus?.(); }   // AUDIT GUILD-WINDOW W10: the Social button goes with its window
+  });
 
   /**
    * The handful of things that move without the picture changing: the countdowns, the hub's last refusal, the note,
@@ -1899,6 +2290,7 @@ export function createSocialPanel({ social, send = null, mail = null, guild = nu
     // left the Party badge standing at a number that was no longer true - the body it belonged to was not even
     // drawn. Comparing the live count against what is on the badge costs two integers a frame and cannot go stale.
     for (const [id, t] of tabBtns) { const want = badgeText(id); if (t.badge.textContent !== want) t.badge.textContent = want; }
+    if (backBadge) { const want = backBadgeText(); if (backBadge.textContent !== want) backBadge.textContent = want; }   // AUDIT GUILD-WINDOW W16
     // AUDIT SOC B8: the sentences that go stale on the clock alone ("Last online 5 min ago"), written only when the
     // words changed - so the pins that count writes still hold and a quiet minute costs a string compare a row.
     for (const s of liveSubs) { const t = s.of(); if (s.el.textContent !== t) s.el.textContent = t; }
@@ -1926,12 +2318,22 @@ export function createSocialPanel({ social, send = null, mail = null, guild = nu
     if (noteMsg && now - noteAt > SOCIAL_NOTE_MS) noteMsg = '';
     if (toasted && (now >= toasted.expires || !social.invites.has(toasted.party))) toasted = null;
     const up = !!toasted;
+    const wasUp = toast.dataset.up === '1';
     if (toast.dataset.up !== (up ? '1' : '0')) toast.dataset.up = up ? '1' : '0';
     if (!up) return;
     const name = `${toasted.from.name} invites you to a party`;
     if (toastName.textContent !== name) toastName.textContent = name;
     const sub = noteMsg || `${toasted.members.map((m) => m.name).join(', ')} - ${inviteLeftText(toasted.expires - now)}`;
     if (toastSub.textContent !== sub) toastSub.textContent = sub;
+    // AUDIT GUILD-WINDOW W1: where the toast ends, published for the Guild window that starts below it on a narrow screen
+    // (its sheet) - measured as it is drawn, since a long name wraps it past the strip's 76px. Read only when a frame
+    // could have moved it: up, or its words written
+    if (!wasUp || name !== toastSaid[0] || sub !== toastSaid[1]) {
+      toastSaid = [name, sub];
+      const b = toast.getBoundingClientRect?.();
+      const y = b && b.height > 0 ? Math.ceil(b.bottom) : 0;
+      if (y !== toastFoot) { toastFoot = y; doc.documentElement?.style?.setProperty?.('--dfsocial-toast-b', `${y}px`); }
+    }
   };
   // a toast the rate gate refused STAYS UP with its note - the invitation is still standing and the player still
   // means to answer it, so the one thing that must not happen is the buttons going away
@@ -1993,11 +2395,38 @@ export function createSocialPanel({ social, send = null, mail = null, guild = nu
     swallowBrowserKey(e);
     e.stopPropagation();
   });
+  /** GUILD-WINDOW: THE WINDOW'S ARROW KEYS. AUDIT GUILD-WINDOW W3: an arrow pressed anywhere in the window is the window's,
+   *  never the world's - ArrowLeft and ArrowRight turned the character, ArrowUp chose an act and ArrowDown opened the
+   *  Professions door, which covered the HUD and so shut the window (inputActions.js DEFAULT_BINDINGS; the hosts hear
+   *  keys in the bubble phase). On the column of pages it turns the page, both ways round; elsewhere it is the
+   *  browser's (a scroll of the page's column, a choice of a list), a caret in a field untouched. W4: a key HELD turns
+   *  one page - every turn to the Vault reads it and to Settings reads the guild again, and a held key's repeats spent
+   *  the account's whole minute of asks in seconds. */
+  const guildArrow = (e) => {
+    if (root.dataset.mode !== 'guild' || isTextEntryTarget(e.target)) return;   // a field's keys are its own (DISC25-E stops them)
+    const step = e.code === 'ArrowDown' || e.code === 'ArrowRight' ? 1 : e.code === 'ArrowUp' || e.code === 'ArrowLeft' ? -1 : 0;
+    if (!step) return;
+    e.stopPropagation?.();
+    if (!stripEl || !within(e.target, stripEl)) return;   // a list's choice, the page's scroll: the browser's
+    e.preventDefault?.();
+    if (e.repeat) return;
+    const ids = [...stripBtns.keys()];
+    stripBtns.get(ids[(ids.indexOf(stripPage) + step + ids.length) % ids.length])?.turn?.();
+  };
+  root.addEventListener('keydown', guildArrow);
+  /** AUDIT GUILD-WINDOW W5: THE SOCIAL DOOR OPENS THE SOCIAL PANEL. The chat's Social button and the interact key with no
+   *  one in front open the panel as it was last left - and a panel last left on its Guild tab is the Guild window now,
+   *  the screen's middle for a press that asked for friends. The Guild window is the Guild tab's, `openGuild`'s and the
+   *  hall chest's; this door gives the social tab last up. */
+  const openSocial = () => {
+    if (tab === 'guild') { tab = socialTab; confirm = null; ui++; }
+    return openPanel();
+  };
 
   return {
     root, toast,
-    open: openPanel, close: closePanel,
-    toggle: () => (open ? closePanel() : openPanel()),
+    open: openSocial, close: closePanel,
+    toggle: () => (open ? closePanel() : openSocial()),
     isOpen: () => open,
     /** Which tab is up - for the host and for the pins. */
     tab: () => tab,

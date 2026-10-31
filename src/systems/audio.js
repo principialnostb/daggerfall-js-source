@@ -12,7 +12,7 @@
 // (byte - 128) / 128) and cache by index.
 
 import { SndFile, SAMPLE_RATE } from '../formats/sndFile.js';
-import { getFloat } from './settings/settings.js';   // SETT: SoundVolume
+import { getFloat, onSettingChange } from './settings/settings.js';   // SETT: SoundVolume; SOUND-LIVE: re-levelled as it is written
 import { REVERB_PRESET, reverbImpulse } from './reverbPresets.js';   // BA1: AudioReverbZone's presets and the impulse built from them
 import { setEquipSoundSink } from './equip.js';   // ES2: the equip moment's one audio door
 import { SOUND_REPLACEMENTS, soundBufferKey, fetchReplacement, soundSilenced, soundReplacementGen } from './soundReplacer.js';   // SNDREP1: a player's loose WAVs over classic clips, and the two night-sound switches
@@ -65,6 +65,48 @@ export const PANNING_MODEL = 'HRTF';
 /** AUDIT GATHER-FEEL F7: how long a voice taken back (play3dVoice's `stop`) takes to fade to nothing (s) - a stop at its
  *  level pops. */
 export const VOICE_FADE_S = 0.08;
+
+/** RPT1026-EVENTS VOICE-CAP (a private report from a crowded Dagon's Breach: the sound failed, and stayed silent for minutes
+ *  after the event ended): THE REAL VOICES. DFU plays through Unity, which sounds at
+ *  most ProjectSettings/AudioManager.asset's `m_RealVoiceCount` at once - 32 in DFU's project - and makes the rest virtual,
+ *  the least audible first. The port had no bound: every blow, step, cast and cry of forty players near was a source, a
+ *  gain and an HRTF panner of its own, all sounding together, and a one-shot's chain was never let go when it ended (the
+ *  RAIN-LEAK law, `releaseNodes`, held for the loops alone), so the bus carried thousands of dead chains until the page's
+ *  collector reached them. Now a one-shot - flat or positional - takes one of REAL_VOICES (voiceRoom: past them, the
+ *  quietest sounding is faded out for it, or a quieter shot does not start), and lets its chain go as it ends. Loops and
+ *  beds are not counted: they are few and long, and Unity's own count would cut an ambience. */
+export const REAL_VOICES = 32;
+/** The share of a positional shot's level that reaches the ear at distance `d` - WebAudio's PannerNode distance models, as
+ *  the Web Audio spec writes them (`linear` clamped to [ref, max], `inverse`, `exponential`). Pure. */
+export function distanceGain(d, { refDistance = 1, maxDistance = 500, distanceModel = 'inverse', rolloffFactor = 1 } = {}) {
+  const ref = Math.max(1e-6, refDistance), r = Math.max(0, rolloffFactor), x = Math.max(ref, Number.isFinite(d) ? d : 0);
+  if (distanceModel === 'linear') {
+    const max = Math.max(ref, maxDistance);
+    return max > ref ? Math.max(0, 1 - (r * (Math.min(x, max) - ref)) / (max - ref)) : 1;
+  }
+  if (distanceModel === 'exponential') return (x / ref) ** -r;
+  return ref / (ref + r * (x - ref));
+}
+/** THE VOICE LAW: may a shot at `level` (what reaches the ear) sound while `live` sound (each `{ level, flat? }`, oldest
+ *  first)? Under `max`, it plays; at it, it plays only as loud as the quietest sounding or louder, and that one (the oldest
+ *  of the quietest) is stolen for it. Answers `{ play, steal }` - `steal` the one to fade, or null. Pure.
+ *  AUDIT RPT1026 I2: THE PAGE'S OWN FIRST. A FLAT shot (`flat` - playOneShot's: the page's own, at the ear - the blow that
+ *  lands on me, my cry, my steps, a press, a quest's sound) always plays, the quietest positional voice stolen for it (the
+ *  quietest flat one only when every voice is flat); a positional shot never steals a flat voice. A peer's swing inside
+ *  its profile's six metres reaches the ear whole at 1.1 (net/remotePlayers.js PEER_SOUND_PROFILE) - louder than the blow
+ *  that lands on me (PLAYER_HIT_VOLUME 1), my cry (1) and my steps (0.7) - so thirty-two of them refused every one of
+ *  mine, and a near one stole any that did sound. (Unity ranks its voices by each source's priority before their
+ *  audibility; these two ranks stand in for that.) */
+export function voiceRoom(live, level, max = REAL_VOICES, flat = false) {
+  if (live.length < max) return { play: true, steal: null };
+  let q = null, qf = null;
+  for (const v of live) {
+    if (v.flat) { if (!qf || v.level < qf.level) qf = v; }
+    else if (!q || v.level < q.level) q = v;
+  }
+  if (flat) { const s = q ?? qf; return s ? { play: true, steal: s } : { play: false, steal: null }; }
+  return q && level >= q.level ? { play: true, steal: q } : { play: false, steal: null };
+}
 
 /** PEERFX1: one observer of every one-shot (index, volume) - the online layer hears "a blow landed on me" here
  *  (net/peer/peerFx.js isHurtClip). Null offline. */
@@ -136,7 +178,7 @@ export class AudioEngine {
    *  AudioSource.volume from it); a WebAudio graph does it once with
    *  a gain node every source connects through, so the setting is one
    *  multiply rather than one per call site. Re-read on each
-   *  connection so a launcher change lands on the next sound. */
+   *  connection, and re-levelled as the setting is written (SOUND-LIVE). */
   _out() {
     if (!this.ctx) return null;
     // minted once per context (a re-created context invalidates it)
@@ -156,9 +198,23 @@ export class AudioEngine {
       this._reverbIn = this.ctx.createGain();
       this._master.connect(this._reverbIn);
       this._reverb = null;   // a new context is a new bus; the zone is re-armed by its next setReverb
+      // SOUND-LIVE (2026-10-23, travddm: "some sounds in the game which are not tied to any volume sliders"): the
+      // setting is read here, so a slider moved with nothing new playing - the Options page over a quiet world - left
+      // every sound already going (the rain, the wind, a torch, the ride, a ship's loops) at the old level. The
+      // master re-levels the moment the setting is written, as the music's does (music.js resyncGain).
+      this._unwatchVolume ??= onSettingChange((section, key) => {
+        if (section === 'Controls' && key === 'SoundVolume') this._relevel();
+      });
     }
     this._master.gain.value = getFloat('Controls', 'SoundVolume', 0, 1);
     return this._master;
+  }
+
+  /** SOUND-LIVE: the master to the setting over 50 ms, so a slider step is not a zipper (the music's own ramp). */
+  _relevel() {
+    if (!this.ctx || !this._master || this._master.context !== this.ctx) return;
+    const g = this._master.gain, v = getFloat('Controls', 'SoundVolume', 0, 1), t = this.ctx.currentTime;
+    try { g.cancelScheduledValues(t); g.setValueAtTime(g.value, t); g.linearRampToValueAtTime(v, t + 0.05); } catch { g.value = v; }
   }
 
   /** GATE-MIX: the limiter (LIMITER, limiterCurve) built on this context and wired to the speakers - its compressor
@@ -568,14 +624,51 @@ export class AudioEngine {
     if (!this._ready()) return undefined;
     const buf = this._buffer(index);
     if (!buf) return undefined;
+    const level = volume * this._scale;
+    if (!this._voiceTake(level, true)) return undefined;   // RPT1026-EVENTS VOICE-CAP: counted; AUDIT RPT1026 I2: flat - the page's own at the ear, always a voice
     const src = this.ctx.createBufferSource();
     src.buffer = buf;
     src.playbackRate.value = pitch;
     const gain = this.ctx.createGain();
-    gain.gain.value = volume * this._scale;   // EG-ZH: a scope's gain (scaled) - 1 outside one
+    gain.gain.value = level;   // EG-ZH: a scope's gain (scaled) - 1 outside one
     src.connect(gain).connect(this._out());
+    this._voiceKeep(src, gain, null, level, buf.duration / (pitch || 1));   // RPT1026-EVENTS VOICE-CAP: counted, and its chain let go at its end
     src.start();
     return buf.duration;
+  }
+
+  /** RPT1026-EVENTS VOICE-CAP: may a one-shot reaching the ear at `level` take a voice now (voiceRoom over the ones still
+   *  sounding - the quietest faded out for it at REAL_VOICES)? AUDIT RPT1026 I2: `flat` a flat shot's, which always may. */
+  _voiceTake(level, flat = false) {
+    const ctx = this.ctx, live = (this._voices ??= []), now = ctx.currentTime;
+    for (let i = live.length - 1; i >= 0; i--) if (live[i].ended || live[i].ctx !== ctx || live[i].until <= now) live.splice(i, 1);
+    const room = voiceRoom(live, level, REAL_VOICES, flat);
+    const v = room.steal;
+    if (v) {
+      live.splice(live.indexOf(v), 1);
+      v.ended = true;
+      try {
+        v.gain.gain.cancelScheduledValues(now);
+        v.gain.gain.setValueAtTime(v.gain.gain.value, now);
+        v.gain.gain.linearRampToValueAtTime(0, now + VOICE_FADE_S);
+        v.src.stop(now + VOICE_FADE_S + 0.02);
+      } catch { try { v.src.stop(); } catch { /* already stopped */ } }
+    }
+    return room.play;
+  }
+  /** RPT1026-EVENTS VOICE-CAP: a one-shot's voice kept while it sounds (`seconds` its clip at its pitch), and at its end
+   *  (`onended` - its own, or a steal's stop) its whole chain let go and its voice freed; `onEnd` told. Answers the voice. */
+  _voiceKeep(src, gain, pan, level, seconds, onEnd = null) {
+    const v = { ctx: this.ctx, src, gain, level, until: this.ctx.currentTime + seconds + VOICE_FADE_S, ended: false, flat: pan == null };   // AUDIT RPT1026 I2: no panner, the page's own
+    (this._voices ??= []).push(v);
+    let done = false;
+    src.onended = () => {
+      if (done) return;
+      done = true; v.ended = true;   // its voice free: the next take's sweep lets it go
+      releaseNodes(src, gain, pan);
+      onEnd?.();
+    };
+    return v;
   }
 
   /** AUDIT 58 - THE ID DOOR. SoundReader.GetSoundIndex (SoundReader.cs
@@ -804,6 +897,8 @@ export class AudioEngine {
     if (!this._ready()) return undefined;
     const buf = this._buffer(index);
     if (!buf) return undefined;
+    const L0 = this._listener, level = volume * this._scale * distanceGain(Math.hypot(pos[0] - L0.x, pos[1] - L0.y, pos[2] - L0.z), { refDistance, maxDistance, distanceModel });
+    if (!this._voiceTake(level)) return undefined;   // RPT1026-EVENTS VOICE-CAP: past the real voices and quieter at my ear than every one sounding
     const src = this.ctx.createBufferSource();
     src.buffer = buf;
     src.playbackRate.value = pitch;
@@ -811,6 +906,7 @@ export class AudioEngine {
     const gain = this.ctx.createGain();
     gain.gain.value = volume * this._scale;   // EG-ZH: a scope's gain (scaled) - 1 outside one
     src.connect(gain).connect(pan).connect(this._out());
+    this._voiceKeep(src, gain, pan, level, buf.duration / (pitch || 1));   // RPT1026-EVENTS VOICE-CAP: counted, and its whole chain let go at its end
     src.start();
     if (far) {   // DISC17-B: its offset from the ear, held until the clip has run out
       const L = this._listener;
@@ -830,6 +926,8 @@ export class AudioEngine {
     const buf = this._buffer(index);
     if (!buf) return null;
     const ctx = this.ctx;
+    const L0 = this._listener, level = volume * distanceGain(Math.hypot(pos[0] - L0.x, pos[1] - L0.y, pos[2] - L0.z), { refDistance, maxDistance, distanceModel });
+    if (!this._voiceTake(level)) return null;   // RPT1026-EVENTS VOICE-CAP: the bus's voice is one of the real voices too
     const src = ctx.createBufferSource();
     src.buffer = buf;
     src.playbackRate.value = pitch;
@@ -837,12 +935,11 @@ export class AudioEngine {
     const gain = ctx.createGain();
     gain.gain.value = volume;
     src.connect(gain).connect(pan).connect(this._out());
-    let ended = false;
-    src.onended = () => { if (ended) return; ended = true; releaseNodes(src, gain, pan); onEnd?.(); };
+    const v = this._voiceKeep(src, gain, pan, level, buf.duration / (pitch || 1), onEnd);   // its chain let go and `onEnd` told as it ends, once (AUDIT GATHER-FEEL F7)
     src.start();
     return {
       stop(seconds = VOICE_FADE_S) {
-        if (ended) return;
+        if (v.ended) return;
         try {
           const t = ctx.currentTime;
           gain.gain.cancelScheduledValues(t);
@@ -941,6 +1038,13 @@ export class AudioEngine {
 
   /** Per-frame listener sync from the camera (position + forward), in SCENE coordinates - `_listener` keeps them so;
    *  the handedness is turned at the one door into WebAudio (audioFrame). */
+  /** SOUNDSCAPE: where the ear stands and faces, as the host's last setListener put it - the scene's frame (a module
+   *  that places its sounds about the listener reads it here rather than being handed it again). */
+  listenerPose() {
+    const L = this._listener;
+    return { pos: [L.x, L.y, L.z], fwd: [L.fx, L.fy, L.fz] };
+  }
+
   setListener(pos, forward) {
     const L = this._listener;
     [L.x, L.y, L.z] = pos; [L.fx, L.fy, L.fz] = forward;

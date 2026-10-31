@@ -129,11 +129,12 @@
   {
     "name": "LEGACY1-B11-birth-carries-load",
     "file": "src/systems/legacy/places.js",
-    "old": "  for (const k of ['load', 'loadkey', 'classicload', 'classic', 'class', 'test', 'realm', 'realmnew', 'spawn', 'legacyborn']) p.delete(k);",
-    "new": "  for (const k of ['classicload', 'class', 'test', 'realm', 'realmnew', 'spawn', 'legacyborn']) p.delete(k);",
+    "old": "  for (const k of ['load', 'loadkey', 'classicload', 'classic', 'class', 'test', 'realm', 'realmnew', 'spawn', 'legacyborn', 'seat', 'start']) p.delete(k);",
+    "new": "  for (const k of ['classicload', 'class', 'test', 'realm', 'realmnew', 'spawn', 'legacyborn', 'seat', 'start']) p.delete(k);",
     "tests": [
       "test/systems/legacy1_family.test.js"
-    ]
+    ],
+    "note": "Re-aimed by content (AUDIT STARTS W8): a birth drops the dev boot's start too."
   },
   {
     "name": "LEGACY3-U5-tree-flat",
@@ -212,11 +213,12 @@
   {
     "name": "LEGACY3-family-tab-whatever-the-switch",
     "file": "src/ui/enhanced/enhancedMenu.js",
-    "old": "const pauseTabShown = (id) => id !== 'family' || legacyOn();",
+    "old": "const pauseTabShown = (id) => id !== 'family' || familyTabShown();",
     "new": "const pauseTabShown = (id) => true;",
     "tests": [
       "test/systems/legacy3_familytab.test.js"
-    ]
+    ],
+    "note": "FAMILY-TAB (PIN MOVED): re-aimed by content - the tab's gate is familyTabShown now (the mod on and a house for the game played), its predicate pinned in tools/mutants/familytab.json."
   },
   {
     "name": "LEGACY1-birth-behind-the-front-door",

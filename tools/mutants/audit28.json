@@ -177,7 +177,7 @@
   {
     "name": "AUDIT28-N4-a-note-recruits-for-a-guild-its-author-left",
     "file": "server-account/src/board.js",
-    "old": "const recruits = (n) => !!n.guild_name && n.author_rank != null && guildMay(Number(n.author_rank), 'invite');",
+    "old": "const recruits = (n) => !!n.guild_name && n.author_rank != null && guildMay(Number(n.author_rank), 'invite', guildPowersOfRow({ ranks: n.guild_ranks, powers: n.guild_powers }));",
     "new": "const recruits = (n) => !!n.guild_name;",
     "tests": [
       "test/net/audit28_notice.test.js"
@@ -547,15 +547,6 @@
     "new": "        keep(null);   // the service looked and said no: nothing burnt, nothing owed",
     "tests": [
       "test/net/audit28_marks.test.js"
-    ]
-  },
-  {
-    "name": "AUDIT28-H8-the-board-split-sorted-every-frame",
-    "file": "src/scenes/world.js",
-    "old": "  const boardSplitOf = (p) => (p._boardSplit ??= (() => {",
-    "new": "  const boardSplitOf = (p) => (p._boardSplit = (() => {",
-    "tests": [
-      "test/systems/audit28_forage.test.js"
     ]
   }
 ]

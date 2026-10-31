@@ -396,7 +396,8 @@ test('WOD2: the streaming host wires the loader where DFU does - decision before
   assert.match(w, /wod: wodPicks \? \{ picks: wodPicks\.map\(\(p\) => \(\{ flatten: p\.flatten, rect: p\.rect, hide: !wodPiecewise\(p\.prefabName\), bounds: forests \|\| jungle \? wodSiteFootprint\(p\.prefab, p\.rect\) : null \}\)\) \} : null,[^\n]*/);   // FOREST1: and which picks are sites, with their footprints
   assert.match(w, /return net\?\.source === 'basic-roads' \? basicRoadsPathsPoint\(net, x, y\) : 0;/, 'only his mod answers getPathsPoint');
   // The object block: a collider per model, no climate remap, no doors.
-  const block = w.slice(w.indexOf('const place = wod.placements(wodPicks, wodAverages);'), w.indexOf('// EV7: the nature layout arrived'));
+  const block = w.slice(w.indexOf('const place = wod.placements(stood, wodAverages.filter((_, i) => !wodHeld[i]));'), w.indexOf('// EV7: the nature layout arrived'));   // PIN MOVED (GATE-AGREE): the picks whose objects stand
+  assert.ok(block.length > 100, 'the object block');
   assert.match(block, /late\.add\(key, cpu\.positions, cpu\.indices, m\.matrix, \{ translation: wodBucket \}\);/);   // PIN MOVED (ROCK-CLEAR): the pixel's solids through the world collider's gate (player/lateSolid.js; test/scenes/fb1019f_rockclear.test.js)
   assert.match(block, /addStatic\(cpu, m\.matrix, false, m\.normalMatrix\);/);
   assert.doesNotMatch(block, /remapSubMeshes|getStaticDoors|buildingDoors/, 'no climate swap and no doors off the terrain');
@@ -414,5 +415,6 @@ test('WOD2: THE FOUR HOSTS - world.js streams terrain and is wired; exterior.js,
     assert.doesNotMatch(rd(f), /openWodWorld|wodLocationLoader/, `${f} has no terrain to stand a wilderness site on`);
   }
   assert.match(rd('bible/03-World/World-Of-Daggerfall.md'), /THE FOUR HOSTS/);
-  assert.match(rd('src/world/terrain/terrainGenWorker.js'), /generatePixelTerrain\(\{ \.\.\.m, woods, roads, sites, climates \}\)/, 'the job crosses whole, so `wod` reaches the worker');
+  // PIN MOVED (BAY-LEFT-GROUND, D1): and the sites past the Bay beside the Bay's (test/world/terrain/bayleftground_sites.test.js)
+  assert.match(rd('src/world/terrain/terrainGenWorker.js'), /generatePixelTerrain\(\{ \.\.\.m, woods, roads, sites, beyond, climates \}\)/, 'the job crosses whole, so `wod` reaches the worker');
 });

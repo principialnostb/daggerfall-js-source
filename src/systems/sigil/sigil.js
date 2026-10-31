@@ -75,6 +75,7 @@
 
 import { PARTY_MAX } from '../../net/wire.js';
 import { registerWeaponBlowMod } from '../entityMods.js';
+import { blowRoom } from '../powerCeiling.js';   // POWER-CEILING: the blow's one product
 
 /** The power band per tier, per cent at full rank: [min, max] inclusive. */
 export const SIGIL_BANDS = Object.freeze({
@@ -102,7 +103,7 @@ export const SIGIL_XP_MAX = SIGIL_STAGES[SIGIL_STAGES.length - 1].xp;
 /** SET1: the sets a sigil may name (systems/sigil/sigilSets.js SIGIL_SETS, in its order) - the four of the world, then the
  *  gate boss's own, then (RAID4b) the three the raiding parties' raids pay: the knights', the bandits', the orcs' - then
  *  (SERPENT-SET) the sea serpent's own. */
-export const SIGIL_SET_IDS = Object.freeze(['malacath', 'dagon', 'nocturnal', 'mora', 'ruhn', 'oath', 'thieftaker', 'orcsbane', 'coilscale', 'numidium', 'panoply', 'wyrd', 'starspun']);   // WITCH1: THE WYRD'S RAIMENT, the Witches' Festival's; STAR7: THE STARSPUN WEAVE, the festival's Starfall's, last; SD9d: THE BRASS OF NUMIDIUM; EG15: THE BATTLEMAGE'S PANOPLY, last
+export const SIGIL_SET_IDS = Object.freeze(['malacath', 'dagon', 'nocturnal', 'mora', 'ruhn', 'oath', 'thieftaker', 'orcsbane', 'coilscale', 'numidium', 'panoply', 'wyrd', 'starspun', 'eltheric']);   // WITCH1: THE WYRD'S RAIMENT, the Witches' Festival's; STAR7: THE STARSPUN WEAVE, the festival's Starfall's; SEA-SET: THE ELTHERIC TIDEMAIL, the deep sea's, last; SD9d: THE BRASS OF NUMIDIUM; EG15: THE BATTLEMAGE'S PANOPLY, last
 
 const partyOf = (n) => (Number.isFinite(n) ? Math.max(1, Math.min(PARTY_MAX, Math.floor(n))) : 1);
 /** A fight's size as a sigil records it: whole, 1..PARTY_MAX (SET4: a set piece's record takes it the same way). */
@@ -241,12 +242,13 @@ let _carry = new WeakMap();
  * here, a hand without a sigil, or a session with no Renown.
  */
 export function sigilBlow(weapon, damage, attacker, target, info = null) {
-  if (!(damage > 0) || !weapon || !attacker?.isPlayer || attacker.peer || !target || target.isPlayer || _dueling) return damage;
-  const pct = sigilPercent(weapon.sigil, _renown);
+  const held = weapon ?? info?.wraps ?? null;   // HAND-WRAPS (AUDIT B4): a fist's blow carries its wraps' sigil
+  if (!(damage > 0) || !held || !attacker?.isPlayer || attacker.peer || !target || target.isPlayer || _dueling) return damage;
+  const pct = blowRoom(sigilPercent(held.sigil, _renown), 'sigil');   // POWER-CEILING: its room under the blow's one product
   if (!(pct > 0)) return damage;
-  const exact = (damage * pct) / 100 + (_carry.get(weapon) ?? 0);
+  const exact = (damage * pct) / 100 + (_carry.get(held) ?? 0);
   const more = Math.floor(exact + 1e-9);
-  if (!info?.estimate) _carry.set(weapon, Math.max(0, exact - more));   // AUDIT MARTIAL L2 F7: the Stats page's estimate keeps nothing
+  if (!info?.estimate) _carry.set(held, Math.max(0, exact - more));   // AUDIT MARTIAL L2 F7: the Stats page's estimate keeps nothing
   return damage + more;
 }
 registerWeaponBlowMod('sigil', sigilBlow);

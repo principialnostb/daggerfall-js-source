@@ -32,12 +32,13 @@ import '../../src/systems/item/itemLaw.js';   // the item law registers itself w
 import { addItem, stacksWith } from '../../src/systems/inventory.js';
 import { createWildFight } from '../../src/net/wild/wildFight.js';
 import { createWildRemains } from '../../src/net/wild/wildRemains.js';
-import { wildKin, sameGuild } from '../../src/net/wild/wildRef.js';
+import { wildKin, sameGuild, WILD_GRACE } from '../../src/net/wild/wildRef.js';
 import { readWildReceipt, readWildCollect, WILD_COLLECT_TTL_S } from '../../src/net/wild/wildReceipt.js';
 import { validWildData, validWildOut, validWildRefOut, worldRoom, PIXEL_UNITS, WILD_ITEMS_MAX, WILD_DATA_MAX, SOCIAL_ROOM, RELAY_VERSION, relaySupportsWildCollect } from '../../src/net/wire.js';
 import { SIEGE_UNITS_PER_M } from '../../src/net/siege/siegeRef.js';
 import { WILD_ESCROW_HOLD_S, escrowBackAt } from '../../server-account/src/wild.js';
 import { WILD_TEXT, wildDeathLines } from '../../src/systems/wild/wildZone.js';
+import { hostText } from '../hostText.mjs';
 
 const { subtle } = globalThis.crypto;
 const rd = (p) => readFileSync(new URL(`../../${p}`, import.meta.url), 'utf8');
@@ -73,6 +74,8 @@ async function stand({ guildmate = false } = {}) {
   // her pack, as the game makes it, laid as her record
   const fallen = { name: 'Riadne', gender: 'female', level: 9, items: [], wagonItems: [], goldPieces: 400 };
   assignStartingGear(fallen, { classIndex: 16, rolls: seeded(3) });
+  // PIN MOVED (PVP-REWARD): the service rolls the killer's piece over her worn gear - the longsword her one worn piece
+  for (const it of [...fallen.items]) if (isEquipped(it)) unequipItem(fallen, it);
   const sword = applyRarity(createWeapon(LONGSWORD, STEEL, seeded(7)), 'magic', seeded(8));
   fallen.items.push(sword);
   assert.notEqual(equipItem(fallen, sword), null);
@@ -192,12 +195,13 @@ const nowS = () => Math.floor(Date.now() / 1000);
 test('GUILDMATES ARE FRIENDS (Mac, 2026-10-14): in the open zone the referee lands no blow and calls no fall between two of one guild - the guild is kin, as the party, its truce and a duel are (net/wild/wildRef.js wildKin, the one law the relay\'s `_wildBlow` and the client\'s wildFair ask); two of no guild in common fight as before (mutants: the guild unread at the referee; the guild unread by the law)', () => withClock(async () => {
   const z = await stand({ guildmate: true });
   for (const ws of [z.fa, z.kb]) await z.r.raw(ws, JSON.stringify({ t: 'wild', data: { k: 'zone', z: 1 } }));
+  step(WILD_GRACE.ms);   // PIN MOVED (ZONE-GRACE, 2026-10-26): past the safe passage their entry gave them - kin, not grace, keeps him off her
   for (let k = 0; k < 40; k++) { step(300); await z.r.raw(z.kb, JSON.stringify({ t: 'wild', data: { k: 'strike', to: 'peer-0001', n: 1 + k, by: 'melee', p: W(1), d: 999 } })); }
   assert.deepEqual([z.refs(z.fa, 'hp').length, z.refs(z.kb, 'hp').length, z.refs(z.kb, 'fell').length], [0, 0, 0], 'his guildmate takes no harm from him, and never falls');
   // strangers: the same blows land
   const s = await stand();
   for (const ws of [s.fa, s.kb]) await s.r.raw(ws, JSON.stringify({ t: 'wild', data: { k: 'zone', z: 1 } }));
-  step(300); await s.r.raw(s.kb, JSON.stringify({ t: 'wild', data: { k: 'strike', to: 'peer-0001', n: 1, by: 'melee', p: W(1), d: 999 } }));
+  step(300 + WILD_GRACE.ms); await s.r.raw(s.kb, JSON.stringify({ t: 'wild', data: { k: 'strike', to: 'peer-0001', n: 1, by: 'melee', p: W(1), d: 999 } }));
   assert.ok(s.refs(s.fa, 'hp').length >= 1, 'a stranger\'s blow lands');
   // the one law, both ends: the client's door asks it with the tags the relay stamps (a tag is one guild's alone)
   assert.equal(wildKin({ guilds: ['HCR', 'HCR'] }), true);
@@ -391,16 +395,16 @@ test('THE HANDOFF\'S DOORS: a tab asks the escrow only for a room that signs col
   const d = await herDrop(z, rc, { collect: false });
   assert.equal(d.escrow, undefined, 'no collect asked: the room\'s old take');
   assert.equal(escrowRow(z.svc, d.r), undefined);
-  const w = rd('src/scenes/world.js');
-  assert.ok(w.includes("realm: at, room: lay, ...(online?.wildCollectAt?.(lay) ? { collect: 1 } : {}), ...wildFallWords("), 'my drop asks it for my room alone');   // PIN MOVED (AUDIT FB1019f B2): the words through wildFallWords (systems/wild/wildDeath.js) - the wagon's and COMPANION-DROP's `packs` (test/systems/fb1019f_companiondrop.test.js); PIN MOVED (CART-AWAY, Mac, 2026-10-15): my wagon's word beside it (test/systems/fb1015_cartaway.test.js)
+  const w = hostText('src/scenes/world.js');   // PIN MOVED (HOST-SPLIT): my drop and its answer in scenes/wildDropHost.js, read with its host
+  assert.ok(w.includes("realm: at, room: lay, ...(host.online?.wildCollectAt?.(lay) ? { collect: 1 } : {}), ...wildFallWords("), 'my drop asks it for my room alone');   // PIN MOVED (AUDIT FB1019f B2): the words through wildFallWords (systems/wild/wildDeath.js) - the wagon's and COMPANION-DROP's `packs` (test/systems/fb1019f_companiondrop.test.js); PIN MOVED (CART-AWAY, Mac, 2026-10-15): my wagon's word beside it (test/systems/fb1015_cartaway.test.js)
   // PIN MOVED (HOST-SPLIT, FIELD BUGS 2026-10-15c): the handoff's two sides live in scenes/wildEscrowHost.js, the host wiring them
   const eh = rd('src/scenes/wildEscrowHost.js');
   assert.ok(w.includes('const wildEscrow = createWildEscrowHost({ townTalk, session: realmSession, modes: () => modes, wildAccount, checkpoint: () => onlineCheckpoint() });'), 'the host wires the handoff');
   assert.ok(w.includes('collect: (cr, at) => wildEscrow.collectHeard(cr, at),'), 'the book\'s collect to my tab');
   assert.ok(w.includes('wildEscrow.frame();'), 'the zone\'s frame watches my escrows');
-  assert.ok(w.includes('const held = d.wi === 0 && !!d.escrow?.r;') && w.includes('setWildDeath({ killer: dd.killer, dropped: d.order ? n : 0, claimed, held, '), 'my death screen says my piece is held');   // PIN MOVED (BURNT-SAID, FIELD BUGS 2026-10-18b): a held record's drop and the letters said beside it (test/systems/fb1018b_burntsaid.test.js)
-  assert.ok(w.includes('if (held) wildEscrow.held(d.escrow, { killer: dd?.killer ?? null, name: claimed });'), 'and my tab watches it');
+  assert.ok(w.includes('const held = d.wi === 0 && !!d.escrow?.r;') && w.includes('setWildDeath({ killer: dd.killer, kill: true, dropped: d.order ? n - (d.wi === 0 ? 1 : 0) : 0, claimed, held, '), 'my death screen says my piece is held');   // PIN MOVED (AUDIT FOE-KEEPS H1): my take is a kill   // PIN MOVED (BURNT-SAID, FIELD BUGS 2026-10-18b): a held record's drop and the letters said beside it (test/systems/fb1018b_burntsaid.test.js)
+  assert.ok(w.includes('if (held) host.wildEscrow.held(d.escrow, { killer: dd?.killer ?? null, name: claimed });'), 'and my tab watches it');   // PIN MOVED (HOST-SPLIT)
   assert.ok(eh.includes("call: (at) => wildAccount.reclaim({ r, realm: at }), apply: (a) => wildEscrowBack(r, a?.data ?? null)"), 'taken back as an act on my record');
-  assert.ok(eh.includes("call: (at) => wildAccount.collect({ receipt: c.cr, realm: at }), apply: (a) => wildCollected(a?.data ?? null)"), 'collected as an act on mine');
+  assert.ok(eh.includes("call: (at) => wildAccount.collect({ receipt: c.cr, realm: at, free: entityMaxEncumbrance(playerEntity) - carriedWeight(playerEntity) }), apply: (a) => wildCollected(a?.data ?? null)"), 'collected as an act on mine');   // PIN MOVED (PVP-REWARD): with the weight a policy's gold must fit
   assert.ok(eh.includes('return { held: wildEscrowHeld, collectHeard: wildCollectHeard, frame: wildEscrowFrame };'), 'the module hands back its three doors');
 }));

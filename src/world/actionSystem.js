@@ -224,6 +224,15 @@ export const COLLISION_TRIGGER_FLAGS = Object.freeze([
 /** RDBLayout.cs:992-996 - "if a collision type action or action flat,
  *  add DaggerFallActionCollision component". */
 export const hasActionCollision = (o) => !!o && COLLISION_TRIGGER_FLAGS.includes(o.triggerFlag ?? TRIGGER_FLAGS.None);
+/** FIELD BUGS 2026-10-21d (FLAT-WALK; Krinton, "would randomly get rubber-band back to the entrance"): WHAT A WALK
+ *  HEARS. RDBLayout.AddAction gives an acting flat ("FLT") a BoxCollider with `isTrigger = true` - "for raycasting" -
+ *  and DaggerfallActionCollision hears only OnControllerColliderHit, which a CharacterController never raises for a
+ *  trigger: in DFU a flat's action fires on a click or a blow, never a walk. The port hears an effect's and a moving
+ *  flat's box on a walk (AUDIT PRE-MERGE 0929, a departure named in Port-Ledger A); a RELAY's never - a flat Teleport,
+ *  Activate or DoorText walked under fires nothing. FLAT-RELAY (2026-10-05c) had made 41 relay flats walk-ins for a
+ *  Collision03 flat Teleport the corpus does not hold: Edworyan Laboratory's six hanging roots, at head height in the
+ *  online build's first block, each sent the body back to the entrance. */
+export const walkHears = (o) => hasActionCollision(o) && !(o.isFlat === true && o.kind === 'relay');
 
 /** DISC29-A: THE STANDING RAY (DaggerfallActionCollision.cs:74-85). A hit that is not beneath the player is WalkInto -
  *  except on a Collision01 object, where DFU first casts "straight down from the controller's bottom, skinWidth long,
@@ -420,6 +429,14 @@ export const CASTLE_DAGGERFALL_FOYER_DOOR_LOAD_IDS = Object.freeze([29331574, 29
 const EARLY_KEY_PREFIX = 'act:decor:';
 const EARLY_MAX = 64;
 
+/** Stand an object's bucket at `m` (null: take it away). The collider's restand keeps its broad filing; a collider
+ *  without one (a test's stand-in) is asked to remove and add, which is what restand means. */
+function standBucket(collider, o, m) {
+  if (collider.restand) { collider.restand(o.key, o.cpu.positions, o.cpu.indices, m); return; }
+  collider.removeBucket(o.key);
+  if (m) collider.addMesh(o.key, o.cpu.positions, o.cpu.indices, m);
+}
+
 export class ActionSystem {
 constructor(collider, { damagePlayer = null, drainMagicka = null, castSpell = null, setGlobalVar = null, playerLevel = () => 1, lockpickSkill = () => 0, rolls = Math.random, insideDungeonCastle = () => false, magicDoorsContext = null } = {}) {
     this.collider = collider;
@@ -478,6 +495,7 @@ constructor(collider, { damagePlayer = null, drainMagicka = null, castSpell = nu
     this.onTeleport = null;
     this.onTeleportPortal = null;
     this.onLockedDoor = null;
+    this.onSealedDoor = null;   // DOOR-VOID: (o) - the player tried a door that opens onto nothing
     this.onActionSound = null;
     this.onPlayed = null;   // ECHO1: (o, triggerType) - every Receive that passed the gate, before its Play (systems/dungeon/dungeonEcho.js)
     this.onShowText = null;
@@ -497,6 +515,9 @@ constructor(collider, { damagePlayer = null, drainMagicka = null, castSpell = nu
     // ActivateLockUnlock sound on success
     this.onLockpickTally = null;
     this.onLockpickResult = null;
+    // LOCKPICK (bible/06-Systems/Lockpicking.md): onLockpickAttempt(o) - a host that plays the lock's tumblers
+    // (scenes/lockpickHost.js) takes the attempt from the roll below, and answers its opened lock through lockpicked(o)
+    this.onLockpickAttempt = null;
     // WAVE D: onFlatMoved(o) - a MOVE-flag FLAT reached a new pose.
     // The host owns the billboard, so it owns the draw; this system
     // owns the tween. Fires on every advance and on a restore settle,
@@ -766,10 +787,8 @@ constructor(collider, { damagePlayer = null, drainMagicka = null, castSpell = nu
       actionFlag: action.actionFlag ?? ACTION_FLAGS.None,
       index: action.index,
       axisRaw: action.axisRaw,
-      // FIELD BUGS 2026-10-05c (FLAT-RELAY; "red brick sections are not always working at teleporters"): an acting FLAT
-      // relay is heard by its box (dungeonContext collisionTriggers' standsOnAction), as addEffect's and addMoveFlat's
-      // are - left unset, the pass asked a flat's triangles, which it has none of, and a walk into a flat Teleport
-      // (Collision03) never fired: AUDIT PRE-MERGE 0929's "the acting flats keep the box", lost for relays alone
+      // FIELD BUGS 2026-10-05c (FLAT-RELAY): a relay keeps its flat's mark, as addEffect's and addMoveFlat's objects do.
+      // FLAT-WALK (2026-10-21d): the mark is what keeps a flat relay off the walk - `walkHears`; a click or a blow fires it
       isFlat: action.isFlat === true,
       activationCount: 0,
       state: 'start',
@@ -842,6 +861,9 @@ constructor(collider, { damagePlayer = null, drainMagicka = null, castSpell = nu
       // lock and restoreSaveData reads it back (both below), so a
       // failed pick no longer forgets itself across a save.
       failedSkillLevel: 0,
+      // FIELD BUGS 2026-10-25 DOOR-VOID (world/interior/doorsToNowhere.js): a door that opens onto nothing, set when
+      // its room is built - nothing opens it (_openDoor), and no save or peer stands it open (restoreSaveData)
+      sealed: false,
       matrix: baseMatrix,
     };
     this.objects.set(key, o);
@@ -1097,8 +1119,7 @@ constructor(collider, { damagePlayer = null, drainMagicka = null, castSpell = nu
       if (o.kind === 'moveFlat') { this._applyFlat(o); return; }
       this._applyMatrix(o);
       if (o.kind === 'action') {
-        this.collider.removeBucket(o.key);
-        this.collider.addMesh(o.key, o.cpu.positions, o.cpu.indices, o.matrix);
+        standBucket(this.collider, o, o.matrix);
       }
       return;
     }
@@ -1163,6 +1184,11 @@ constructor(collider, { damagePlayer = null, drainMagicka = null, castSpell = nu
    *      PlayingForward, CurrentLockValue = 0.
    *  Returns true when the swing started. */
   _openDoor(o, ignoreLocks = false, byPlayer = false) {
+    // DOOR-VOID: ahead of DFU's own order - no lock, spell, bash or record opens a door onto nothing
+    if (o.sealed) {
+      if (byPlayer) this.onSealedDoor?.(o);
+      return false;
+    }
     if (o.actionFlag === ACTION_FLAGS.DoorText && o.index > 0
         && (o.triggerFlag === TRIGGER_FLAGS.Door || o.triggerFlag === TRIGGER_FLAGS.Direct
           || o.triggerFlag === TRIGGER_FLAGS.MultiTrigger)
@@ -1283,6 +1309,7 @@ constructor(collider, { damagePlayer = null, drainMagicka = null, castSpell = nu
       this.toggleDoor(o, true);   // bash-close; ToggleDoor(true) fires the record
       return true;
     }
+    if (o.sealed) return false;   // DOOR-VOID: struck, heard, and never burst
     if (o.currentLockValue >= MAGIC_LOCK_THRESHOLD) return false;   // magically held: cannot bash
     const chance = 20 - o.currentLockValue;
     if (Math.floor(roll01 * 100) < chance) {      // Dice100.SuccessRoll
@@ -1304,6 +1331,11 @@ constructor(collider, { damagePlayer = null, drainMagicka = null, castSpell = nu
   activate(key, { steal = false, doorSpell = null } = {}) {
     const o = this.objects.get(key);
     if (!o) return false;
+    // DOOR-VOID: a sealed door answers its line and nothing more - an armed Open or Lock waits for another door
+    if (o.kind === 'door' && o.sealed) {
+      this.onSealedDoor?.(o);
+      return true;
+    }
     // X1: an ARMED Open/Lock spell fires on the next door activated
     // and consumes itself, whatever the interaction mode - DFU's Open
     // and Lock wait in forcedRoundsRemaining for exactly this and
@@ -1352,6 +1384,9 @@ constructor(collider, { damagePlayer = null, drainMagicka = null, castSpell = nu
    *  inventory. */
   attemptLockpicking(o) {
     if (o.state === 'forward' || o.state === 'reverse') return false;   // IsMoving
+    // LOCKPICK: a host that plays the tumblers takes a lock DFU would roll for - the magic arm below stays DFU's - and its
+    // snapped picks are what a retry costs, so the retry gate is not read for it (Ledger A, LOCKPICK)
+    if (this.onLockpickAttempt && o.currentLockValue < MAGIC_LOCK_THRESHOLD) { this.onLockpickAttempt(o); return false; }
     const skill = this._lockpickSkill();
     if (o.failedSkillLevel === skill) return false;   // the retry gate (:157) - == exactly, so a skill moved EITHER way re-opens it
     if (o.currentLockValue >= MAGIC_LOCK_THRESHOLD) {
@@ -1368,6 +1403,15 @@ constructor(collider, { damagePlayer = null, drainMagicka = null, castSpell = nu
     this.onLockpickResult?.(o, true);
     o.currentLockValue = 0;   // :176
     this.toggleDoor(o, true);   // :184 - a successful pick opens the door
+    return true;
+  }
+
+  /** LOCKPICK: the lock a host's tumblers opened (onLockpickAttempt) - AttemptLockpicking's success tail (:176-184): the
+   *  lock zeroed and the door opened. A door moving meanwhile, or already open, is left as it stands. */
+  lockpicked(o) {
+    if (!o || o.state === 'forward' || o.state === 'reverse' || o.currentLockValue <= 0) return false;
+    o.currentLockValue = 0;
+    this.toggleDoor(o, true);
     return true;
   }
 
@@ -1431,6 +1475,7 @@ constructor(collider, { damagePlayer = null, drainMagicka = null, castSpell = nu
     list?.forEach((sa) => {
       const o = this.objects.get(sa.key);
       if (!o) { this._keepEarly(remote ? withoutLock(sa) : sa); return; }   // HOME-DOORS (AUDIT): a placed door, hung a moment later, takes it then
+      if (o.sealed) return;   // DOOR-VOID: shut whatever a save from before the seal, or a peer, says
       o.state = sa.state;
       o.t = sa.t;
       // F185: activationCount deliberately NOT restored - an old
@@ -1467,14 +1512,10 @@ constructor(collider, { damagePlayer = null, drainMagicka = null, castSpell = nu
       else if (o.moveState === 'end') o.moveT = 1;
     }
     this._applyMatrix(o);
-    this.collider.removeBucket(o.key);
-    if (o.kind === 'door') {
-      // A door is solid only while its swing is fully closed - at its
-      // LIVE pose, which a Move record may have carried off the base.
-      if (o.state === 'start') this.collider.addMesh(o.key, o.cpu.positions, o.cpu.indices, o.matrix);
-    } else {
-      this.collider.addMesh(o.key, o.cpu.positions, o.cpu.indices, o.matrix);
-    }
+    // A door is solid only while its swing is fully closed - at its
+    // LIVE pose, which a Move record may have carried off the base.
+    const solid = o.kind !== 'door' || o.state === 'start';
+    standBucket(this.collider, o, solid ? o.matrix : null);
   }
 
   /** AUDIT LW-ROOMS (scenes/livingWorld/livingIndoors.js): `fn`'s answer with every
@@ -1558,7 +1599,7 @@ constructor(collider, { damagePlayer = null, drainMagicka = null, castSpell = nu
    *  between the mover and the world - HOLDS the mover at the last pose that closed on nobody, its `t` with it: the
    *  tween waits there, and plays on when the body is clear (DaggerfallAction's tween never stops - Port-Ledger A). */
   _standMover(o, t0, m0, body) {
-    const place = (m) => { this.collider.removeBucket(o.key); if (m) this.collider.addMesh(o.key, o.cpu.positions, o.cpu.indices, m); };
+    const place = (m) => standBucket(this.collider, o, m);
     place(o.matrix);
     if (!body) return;
     const t1 = o.t, m1 = o.matrix, n = moverSteps(this.collider, o.key, m0, m1, body);
@@ -1602,12 +1643,14 @@ constructor(collider, { damagePlayer = null, drainMagicka = null, castSpell = nu
   }
 }
 
-// WORLD3: the five ENTRIES a player or a foe reaches this graph by ride
+// WORLD3: the ENTRIES a player or a foe reaches this graph by ride
 // the change seam (_changed) - wrapped here, on the prototype, so each
 // keeps its own signature and its own body above; a nested entry (the
 // cascade's receive, a pick's toggleDoor, activate's three) rides the
-// outermost one and diffs nothing of its own.
-for (const name of ['activate', 'attemptBash', 'toggleDoor', 'receive', 'attemptLockpicking']) {
+// outermost one and diffs nothing of its own. LOCKPICK: and the lock a
+// host's tumblers opened (lockpicked) - its lock zeroed and its door
+// swung in one diff, as the roll's success always was.
+for (const name of ['activate', 'attemptBash', 'toggleDoor', 'receive', 'attemptLockpicking', 'lockpicked']) {
   const body = ActionSystem.prototype[name];
   ActionSystem.prototype[name] = function (...args) { return this._changed(() => body.apply(this, args)); };
 }

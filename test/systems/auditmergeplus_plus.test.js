@@ -20,6 +20,7 @@ import { noteMyBlow, poseFx, createPeerFxPlayer, FX_MIN_GAP_S, _resetPeerFxForTe
 import { validPose, POSE_HZ_MAX } from '../../src/net/wire.js';
 import { StreamingWorldState } from '../../src/world/streamingWorld.js';
 import { privateInteriorOf } from '../../src/net/privateInterior.js';
+import { withIndoorFloor, indoorSceneY } from '../../src/net/peer/indoorFloor.js';   // INDOOR-FLOOR: the frame's pose and law read a room's floor
 import * as HB from '../../src/systems/quickslots.js';
 import { equipTableOf, EQUIP_SLOTS, equipItem, isEquipped } from '../../src/systems/equip.js';
 import { TEMPLATES } from '../../src/systems/useItem.js';
@@ -34,6 +35,7 @@ import { setBindings } from '../../src/ui/input.js';
 import { attachGamepad } from '../../src/ui/gamepadInput.js';
 import { setPref, _resetForTests as resetPrefs } from '../../src/systems/uiPrefs.js';
 import { _resetForTests as resetSettings } from '../../src/systems/settings/settings.js';
+import { setModSetting, _resetModSettings } from '../../src/systems/modSettings.js';   // FIELD BUGS 2026-10-21b BELT-WAIST: B2's lantern held in the hand
 
 const read = (p) => readFileSync(new URL(`../../${p}`, import.meta.url), 'utf8');
 const strip = (s) => s.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/\/\/[^\n]*/g, ' ');
@@ -89,7 +91,7 @@ function bootOf(slices, { origin, comp, pos }) {
   const host = mount(
     `'use strict';\n${slices.camp}\n${slices.toScene}\n${slices.toWire}\n${slices.observer}\n`
       + `const frameIn = (mode, key = null) => { const overworld = mode === 'exterior'; const wc = state.worldCoords(player.pos);\n${slices.frame}\nreturn pose; };`,
-    { state, player, privateInteriorOf, cam: { yaw: 0.5, pitch: -0.1 }, noteMyBlow, peerFxPlayer: { splashed() {} }, setSplashObserver: (fn) => { observer = fn; } },
+    { state, player, privateInteriorOf, withIndoorFloor, indoorSceneY, modes: null, cam: { yaw: 0.5, pitch: -0.1 }, noteMyBlow, peerFxPlayer: { splashed() {} }, setSplashObserver: (fn) => { observer = fn; } },
     'return { frameIn, toScene: (p) => onlineToScene(p), campToWire };');
   return { ...host, strike: (pos) => observer(3, pos.slice(), { fromPlayer: true, damage: 5, maxHealth: 20 }) };
 }
@@ -112,7 +114,7 @@ test('AUDIT MERGE-PLUS B1 the struck point rides the mode\'s own law, by source:
   assert.match(W, /let onlineToScene = \(p\) => \[p\.x, p\.y, p\.z\];\s+let sceneToOnline = campToWire;/, 'declared beside the pose\'s own law');
   assert.match(W, /setSplashObserver\(\(bloodIndex, pos, hit\) => \{ peerFxPlayer\.splashed\(pos\); if \(hit\?\.fromPlayer\) noteMyBlow\(pos, bloodIndex, hit, \(q\) => sceneToOnline\(q\)\); \}\);/, 'my blow goes out through the law of the frame it was struck in');
   assert.ok(!/noteMyBlow\([^;]*campToWire/.test(W), 'no blow of mine is mapped by the overworld\'s law alone');
-  assert.match(frame, /\(p\) => \[p\.x, shedY \? p\.y \+ state\.compensation\[1\] : p\.y, p\.z\];\s*sceneToOnline = nativeFrame \? campToWire : \(q\) => \[q\[0\], shedY \? q\[1\] - state\.compensation\[1\] : q\[1\], q\[2\]\];$/, 'written each frame, beside its inverse');
+  assert.match(frame, /\(p\) => \[p\.x, shedY \? indoorSceneY\(p, mode === 'interior' && modes\?\.interiorCtx, state\.compensation\[1\]\) : p\.y, p\.z\];\s*sceneToOnline = nativeFrame \? campToWire : \(q\) => \[q\[0\], shedY \? q\[1\] - state\.compensation\[1\] : q\[1\], q\[2\]\];$/, 'written each frame, beside its inverse');   // PIN MOVED (INDOOR-FLOOR, FIELD BUGS 2026-10-30b): over the room's floor where both say one
   assert.equal((W.match(/\bsceneToOnline =/g) ?? []).length, 2, 'the declaration and the frame, nowhere else');
 });
 
@@ -198,6 +200,10 @@ test('AUDIT MERGE-PLUS B2 a torch slot whose last torch is gone, pressed under a
 });
 
 test('AUDIT MERGE-PLUS B2 a light that will not light - a Lantern with no oil, the one light a dead flame leaves in the pack - takes the shield off, puts it back, and leaves the equip pause what it was before the press; a torch that lights is a real swap and still pays for it (mutants: the refusal leaves the pause billed)', () => {
+  // PIN MOVED (FIELD BUGS 2026-10-21b BELT-WAIST): a lantern hung at the waist takes no hand, so its slot never moves the
+  // shield (test/systems/fb1021b_beltwaist.test.js) - this law is a HELD light's: the lantern held in the hand, the waist
+  // switch off
+  setModSetting('handheld-torches', 'Handling.LanternsAtWaist', false);
   try {
     for (const pause of [0, 1234]) {
       const r = shieldUp(lightOf(TEMPLATES.Lantern, 'Lantern', 0), { pause });
@@ -212,7 +218,7 @@ test('AUDIT MERGE-PLUS B2 a light that will not light - a Lantern with no oil, t
     assert.equal(lit.press().kind, 'light');
     assert.equal(isEquipped(lit.sh), false, 'the shield came off');
     assert.ok(lit.me.equipCountdown > 0, 'and a torch went up in its place: that swap is billed');
-  } finally { HB.clearQuickslots(); }
+  } finally { HB.clearQuickslots(); _resetModSettings(); }
 });
 
 // ── B3 / B6: the others' blows and hurts ──────────────────────────────────────────────────────────────────────────

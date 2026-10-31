@@ -3,7 +3,7 @@
 // WILD1 (2026-10-07, bible/11-Multiplayer/Wild-Zone.md) - THE ROOM'S REMAINS, AS THE RELAY KEEPS THEM.
 //
 // The owner: "the items lay around for 10 minutes and are marked for you to get them back and other players can take
-// em". A player who falls in the open zone drops what their bag and their cart held (never their worn gear, never the
+// em". A player killed by another player in the open zone (FOE-KEEPS: a foe's kill drops nothing) drops what their bag and their cart held (never their worn gear, never the
 // consumables the zone lets them keep - systems/wild/wildDeath.js says which); the fallen's own game sends the records here
 // in `fall` frames (net/wire.js validWildData) and forgets them. From then on THE ROOM'S OBJECT holds them, and it alone
 // decides who gets each one: the first `take` of a record wins it, the record goes to its taker alone, and everyone in
@@ -25,7 +25,7 @@
 // to takes only when they digest to the order's (`ok`); the killer's piece is the killer's alone. The service fits the
 // drop to the room's own bounds first (remainsFit - the same law foldFall keeps), so an honest deposit always digests.
 // ═══════════════════════════════════════════════════════════════════
-import { WILD_ITEMS_MAX, WILD_REMAINS_ITEMS_MAX, WILD_REMAINS_MS, WILD_ROOM_REMAINS_MAX, sanitizeName, WDUN_DAY_MS, WDUN_LOCK_MS, WDUN_RESET_MS, WDUN_STALE_MS } from '../wire.js';
+import { WILD_ITEMS_MAX, WILD_REMAINS_ITEMS_MAX, WILD_REMAINS_MS, WILD_ROOM_REMAINS_MAX, sanitizeName, WDUN_DAY_MS, WDUN_LOCK_MS, WDUN_RESET_MS, WDUN_STALE_MS, SEA_FLEET_PERIOD_MS, SEA_FLEET_OFFSET_MS, SEA_FLEET_SAIL_MS, SEA_FLEET_LATE_MS } from '../wire.js';
 
 /** A remains' bytes in storage, at most - under the object store's own bound for one value (128 KiB), with room. */
 export const WILD_REMAINS_BYTES_MAX = 100 * 1024;
@@ -200,12 +200,14 @@ export function remainsOf(v) {
 //   inside { hall: { acct: seen } }   - who is in a hall, by heartbeat; a silent one lapses after WDUN_STALE_MS
 //   empty  { hall: since }            - when a hall last emptied; past WDUN_RESET_MS its world room is wiped
 //   crows  { hall: until }            - a hall a body lies in, told to everyone online until its remains go
+//   giants { g: until }               - ZONE-GIANTS: a giant down, and when it walks again
+//   fleets { n: until }               - SEA-EVENTS: a treasure fleet's sailing whose flagship is down, kept till the next is over
 // Pure: the hub (server/src/index.js `_wdun*`) reads, calls these and writes; the pins read the same.
 // ═══════════════════════════════════════════════════════════════════
 export const WDUN_KEY = 'wdun';
 export const WDUN_ACCTS_MAX = 20000;
 export const wdunDay = (now) => Math.floor(now / WDUN_DAY_MS);
-export const wdunEmpty = () => ({ locks: {}, inside: {}, empty: {}, crows: {}, piles: {}, eps: {}, giants: {} });   // ZONE-GIANTS: `giants` - a giant's index -> when it walks again
+export const wdunEmpty = () => ({ locks: {}, inside: {}, empty: {}, crows: {}, piles: {}, eps: {}, giants: {}, fleets: {} });   // ZONE-GIANTS: `giants` - a giant's index -> when it walks again; SEA-EVENTS: `fleets` - a sailing whose flagship is down -> when it is let go
 /** A stored record, made safe (anything malformed is dropped). */
 export function wdunOf(v) {
   const out = wdunEmpty();
@@ -224,6 +226,7 @@ export function wdunPrune(st, now) {
   for (const [acct, p] of Object.entries(st.piles)) if (!(p?.until > now)) { delete st.piles[acct]; moved = true; }
   for (const [h, until] of Object.entries(st.crows)) if (!(until > now)) { delete st.crows[h]; moved = true; }
   for (const [g, until] of Object.entries(st.giants ?? {})) if (!(until > now)) { delete st.giants[g]; moved = true; }   // ZONE-GIANTS: up again
+  for (const [n, until] of Object.entries(st.fleets ?? {})) if (!(until > now)) { delete st.fleets[n]; moved = true; }   // SEA-EVENTS: a sailing long past
   for (const [h, who] of Object.entries(st.inside)) {
     let last = 0;
     for (const [acct, seen] of Object.entries(who)) if (!(now - seen < WDUN_STALE_MS)) { last = Math.max(last, seen); delete who[acct]; moved = true; }
@@ -245,6 +248,10 @@ export function wdunEnter(st, acct, h, now) {
   const occupied = st.inside[h] && Object.keys(st.inside[h]).length > 0;
   const reset = !occupied && since > 0 && now - since >= WDUN_RESET_MS;
   delete st.empty[h];
+  // AUDIT TESA III E2-5: A BODY STANDS IN ONE HALL - going into this one is leaving any other the record still holds it in
+  // (a hall it never said `out` of: a crash, a word lost), which then counts empty from now; so the halls one account
+  // stands in are one, never one a word
+  for (const [o, who] of Object.entries(st.inside)) if (o !== h && who[acct] != null) { delete who[acct]; if (!Object.keys(who).length) { delete st.inside[o]; st.empty[o] = now; } }
   (st.inside[h] ??= {})[acct] = now;
   // the hall's EPOCH: a reset is a new one, and every client keys the hall's chests by it (dungeonContext.js
   // searchLocationKey), so a reset fills them again for everyone, not only for whoever came in first
@@ -265,6 +272,10 @@ export function wdunLeave(st, acct, h, now) {
  *  circle the hall until the last remains in it go. */
 export function wdunDie(st, acct, h, now, until = now + WILD_REMAINS_MS) {
   wdunLeave(st, acct, h, now);
+  // AUDIT TESA III E2-5: ONE BODY AN ACCOUNT - its way back is its last remains alone (`piles` holds one), so the crows
+  // over the hall of the remains before go with them unless another's lie there: a word a death, in hall after hall,
+  // kept a crow over each for everyone online (and the game reads 128)
+  if (st.piles[acct] && st.piles[acct].h !== h) wdunGone(st, acct, now);
   st.piles[acct] = { h, until };
   st.crows[h] = Math.max(st.crows[h] ?? 0, until);
 }
@@ -285,16 +296,77 @@ export function wdunState(st, acct, now) {
     locks: Object.entries(st.locks[acct] ?? {}).filter(([, u]) => u > now).map(([h, u]) => [h, u - now]),
     crows: wdunCrows(st, now),
     giants: wdunGiants(st, now),
+    fleets: wdunFleets(st, now),
   };
 }
 export const wdunCrows = (st, now) => Object.entries(st.crows).filter(([, u]) => u > now).map(([h, u]) => [h, u - now]);
-/** Bound the record: past WDUN_ACCTS_MAX accounts with locks, the soonest-ending are let go first. */
-export function wdunBound(st) {
-  const accts = Object.keys(st.locks);
-  if (accts.length <= WDUN_ACCTS_MAX) return false;
-  const soon = accts.map((a) => /** @type {[string, number]} */ ([a, Math.max(.../** @type {number[]} */ (Object.values(st.locks[a])))])).sort((x, y) => x[1] - y[1]);
-  for (const [a] of soon.slice(0, accts.length - WDUN_ACCTS_MAX)) delete st.locks[a];
+/**
+ * AUDIT TESA III E2-5 (2026-10-26; the owner: "Take care of exclusions and gaps"): WHAT ONE SOCKET CAN MAKE THE HUB KEEP,
+ * BOUNDED. A hall is any world map pixel (`wdunHall` - the relay cannot see the map), and every word a socket said about
+ * one was kept - its epoch two days, its emptiness a day, a lock an hour - and the whole record written at each word: one
+ * signed-in socket at WDUN_HZ_MAX grew it 69 bytes a word, past Durable Object storage's 2 MB value in four hours. So:
+ *  - an account stands in ONE hall (`wdunEnter`), and brings at most WDUN_NEW_HALLS_MAX halls the record did not hold into
+ *    it a day (the hub's meter, `wdunMeterOf` - past it the word is answered and nothing is kept), so a churn of made-up
+ *    halls cannot push the real ones out;
+ *  - each of the record's maps holds at most its own count (`wdunBound`) - the halls (WDUN_HALLS_MAX each of `inside`,
+ *    `empty`, `eps`, `crows`, the least recently touched let go first), the accounts standing in halls (WDUN_INSIDE_MAX),
+ *    an account's locks (WDUN_ACCT_LOCKS_MAX) and all locks (WDUN_LOCKS_MAX, the soonest-ending first), the accounts with
+ *    locks (WDUN_ACCTS_MAX) and the remains (WDUN_PILES_MAX); at every count full and the widest keys the record is under
+ *    WDUN_RECORD_BYTES_MAX (pinned);
+ *  - the hub writes it at most each WDUN_SAVE_MS (server/src/index.js `_wdunSave`), never once a word.
+ */
+export const WDUN_HALLS_MAX = 2048;
+export const WDUN_INSIDE_MAX = 4096;
+export const WDUN_ACCT_LOCKS_MAX = 32;
+export const WDUN_LOCKS_MAX = 8192;
+export const WDUN_PILES_MAX = 4096;
+export const WDUN_NEW_HALLS_MAX = 64;
+export const WDUN_SAVE_MS = 10_000;
+export const WDUN_RECORD_BYTES_MAX = 1_500_000;
+/** Is `h` a hall the record holds nothing of? */
+export const wdunNewHall = (st, h) => !(h in st.inside) && !(h in st.empty) && !(h in st.eps) && !(h in st.crows);
+/** An account's own meter on the hub (in memory, `meters` a Map by account, the least recent let go past WDUN_ACCTS_MAX):
+ *  `{ b, d, n }` - its words' bucket across all its sockets, and the day `d` it brought `n` new halls in. */
+export function wdunMeterOf(meters, acct, now) {
+  let m = meters.get(acct);
+  if (m) meters.delete(acct);
+  else { m = { b: null, d: wdunDay(now), n: 0 }; if (meters.size >= WDUN_ACCTS_MAX) meters.delete(meters.keys().next().value); }
+  meters.set(acct, m);
+  if (m.d !== wdunDay(now)) { m.d = wdunDay(now); m.n = 0; }
+  return m;
+}
+/** Let go of a map's entries past `max`, the lowest `rank` first. Answers whether any went. @param {Record<string, any>} map */
+function capBy(map, max, rank) {
+  const keys = Object.keys(map);
+  if (keys.length <= max) return false;
+  const order = keys.map((k) => /** @type {[string, number]} */ ([k, rank(map[k])])).sort((x, y) => x[1] - y[1]);
+  for (const [k] of order.slice(0, keys.length - max)) delete map[k];
   return true;
+}
+const newest = (/** @type {Record<string, number>} */ who) => Math.max(0, ...Object.values(who));
+/** Bound the record (AUDIT TESA III E2-5, above): every map to its count, the least recent or soonest-ending let go first;
+ *  an account's locks past WDUN_ACCT_LOCKS_MAX, all locks past WDUN_LOCKS_MAX, the accounts with locks past WDUN_ACCTS_MAX.
+ *  Answers whether anything went. */
+export function wdunBound(st) {
+  let moved = false;
+  for (const halls of Object.values(st.locks)) moved = capBy(halls, WDUN_ACCT_LOCKS_MAX, (u) => u) || moved;
+  const all = Object.entries(st.locks).flatMap(([a, halls]) => Object.entries(halls).map(([h, u]) => /** @type {[string, string, number]} */ ([a, h, u])));
+  if (all.length > WDUN_LOCKS_MAX) {
+    for (const [a, h] of all.sort((x, y) => x[2] - y[2]).slice(0, all.length - WDUN_LOCKS_MAX)) { delete st.locks[a][h]; if (!Object.keys(st.locks[a]).length) delete st.locks[a]; }
+    moved = true;
+  }
+  moved = capBy(st.locks, WDUN_ACCTS_MAX, (halls) => Math.max(0, ...Object.values(halls))) || moved;
+  moved = capBy(st.piles, WDUN_PILES_MAX, (p) => p?.until ?? 0) || moved;
+  moved = capBy(st.inside, WDUN_HALLS_MAX, newest) || moved;
+  const inside = Object.entries(st.inside).flatMap(([h, who]) => Object.entries(who).map(([a, seen]) => /** @type {[string, string, number]} */ ([h, a, seen])));
+  if (inside.length > WDUN_INSIDE_MAX) {
+    for (const [h, a] of inside.sort((x, y) => x[2] - y[2]).slice(0, inside.length - WDUN_INSIDE_MAX)) { delete st.inside[h][a]; if (!Object.keys(st.inside[h]).length) delete st.inside[h]; }
+    moved = true;
+  }
+  moved = capBy(st.empty, WDUN_HALLS_MAX, (since) => since) || moved;
+  moved = capBy(st.eps, WDUN_HALLS_MAX, (e) => e?.at ?? 0) || moved;
+  moved = capBy(st.crows, WDUN_HALLS_MAX, (u) => u) || moved;
+  return moved;
 }
 
 // ── ZONE-GIANTS (2026-10-08, the owner: "always spawn 2 giants per tier and make em show on the map"): the hub keeps which
@@ -313,3 +385,20 @@ export function wdunGiantDie(st, g, now) {
 }
 /** The giants down: `[[g, msLeft]]`. */
 export const wdunGiants = (st, now) => Object.entries(st.giants ?? {}).filter(([, u]) => u > now).map(([g, u]) => [Number(g), u - now]);
+
+// ── SEA-EVENTS (2026-10-22, the owner: "Build ever single bit of this"; bible/03-World/Eltheric-Ocean.md SEA-EVENTS): the hub
+// keeps which treasure fleet's flagship is down (systems/sea/seaEvents.js - its route and its ships are every client's own
+// pure pick off the sailing's number), so a fleet scattered is scattered for everyone.
+/** A treasure fleet's flagship sunk: sailing `n` - only while she is under way by the hub's own clock, or SEA_FLEET_LATE_MS
+ *  after (AUDIT SEA VENTURES A7: a word in her hour in port, or the hour before, scattered a sailing before she sailed) -
+ *  kept down till the sailing after it is over (a second report moves nothing). Returns whether it was news. */
+export function wdunFleetSunk(st, n, now) {
+  const start = Number.isSafeInteger(n) ? n * SEA_FLEET_PERIOD_MS + SEA_FLEET_OFFSET_MS : NaN;
+  if (!(now >= start && now <= start + SEA_FLEET_SAIL_MS + SEA_FLEET_LATE_MS)) return false;
+  st.fleets ??= {};
+  if (st.fleets[n] > now) return false;
+  st.fleets[n] = (n + 2) * SEA_FLEET_PERIOD_MS;
+  return true;
+}
+/** The sailings whose flagship is down: `[n]`, oldest first. */
+export const wdunFleets = (st, now) => Object.entries(st.fleets ?? {}).filter(([, u]) => u > now).map(([n]) => Number(n)).sort((a, b) => a - b);

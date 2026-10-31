@@ -30,6 +30,9 @@ import {
   buildCode, treeOfCode, treeFault,
 } from '../net/firmament/firmamentLaw.js';
 import { firmamentBook } from '../net/firmament/firmamentBook.js';
+import { firmamentStatus, onFirmamentChange, firmamentMentorScale } from '../systems/firmamentLive.js';
+import { firmamentMentoringText } from '../systems/mentorText.js';   // MENTOR2: the combat stars' share while mentoring   // FIRM-STATUS: whether the stars act now, said on the side panel
+import { sigilDueling } from '../systems/sigil/sigil.js';
 import { accountRefusalText } from '../net/accountClient.js';   // AUDIT UICALM-FIRM1 L4 L4: a refusal the window has no words for, in the account's
 import { FRAME_TONES } from './enhanced/enhancedFrame.js';
 import { GRIM_TONES, GRIMOIRE_STACK, px } from './grimoireDress.js';
@@ -39,6 +42,7 @@ import { injectEnhancedStyle, injectEnhancedFonts } from './enhanced/enhancedSty
 import { registerOverlay } from './enhanced/enhancedOverlays.js';
 import { audio } from '../systems/audio.js';   // the UI's own click, for a press on the sky (its buttons click through ui/uiClickSound.js)
 import { SOUND } from '../systems/soundClips.js';
+import { capturePointer } from './pointerCapture.js';   // RPT1026-CLIENT: a pad's synthetic pointer is refused a capture, never thrown
 
 export const FIRM_STYLE_ID = 'firmament-window-css';
 
@@ -122,6 +126,8 @@ export const FIRM_CSS = `
 .fmt-side li.neg { color: #e08a7a; }
 .fmt-side .none { color: #b9b2a1; font-style: italic; }
 .fmt-side .fmt-note { color: #b9b2a1; font-size: 12px; margin: 10px 0 0; line-height: 1.4; }
+.fmt-side .fmt-live { color: #f3cf86; font-size: 14px; margin: 0 0 8px; line-height: 1.4; }
+.fmt-side .fmt-live.off { color: #e08a7a; }
 .fmt-tip { position: absolute; z-index: 2; pointer-events: none; min-width: 200px; max-width: 320px; padding: 10px 12px; font-family: var(--data); color: #e9e4d9; font-size: 13px; display: none; }
 .fmt-tip.on { display: block; }
 .fmt-tip .nm { font-family: var(--display); font-size: 18px; font-weight: 600; color: #f3cf86; line-height: 1.15; }
@@ -160,6 +166,8 @@ export const FIRM_CSS = `
 :root[data-plus-dress="grimoire"] .fmt-purse.life b { color: #c8f0a0; }
 :root[data-plus-dress="grimoire"] .fmt-btn.fmt-go, :root[data-plus-dress="grimoire"] .fmt-btn.fmt-exit { color: ${G.yellow}; }
 :root[data-plus-dress="grimoire"] .fmt-side li.capped { color: ${G.red}; }
+:root[data-plus-dress="grimoire"] .fmt-side .fmt-live { color: inherit; }
+:root[data-plus-dress="grimoire"] .fmt-side .fmt-live.off { color: ${G.redHi}; }
 :root[data-plus-dress="grimoire"] .fmt-tip li.neg, :root[data-plus-dress="grimoire"] .fmt-side li.neg, :root[data-plus-dress="grimoire"] .fmt-tip .ft.no { color: ${G.redHi}; }
 :root[data-plus-dress="grimoire"] .fmt-say { font-family: ${GRIMOIRE_STACK}; }
 /* THE SCROLLS (the lead dev, 2026-10-13: "give the tooltips when hovering a scroll look the upper message also a scroll
@@ -383,7 +391,7 @@ export function mountFirmamentWindow(host, { book = firmamentBook(), preview = n
   let preview_ = /** @type {Set<string>} */ (new Set());   // the way a hover would allocate
   let refundPreview = /** @type {Set<string>} */ (new Set());
   let matches = /** @type {Set<string>} */ (new Set());
-  /** @type {{ key: string, t0: number }[]} */
+  /** @type {{ key: string, t0: number|null }[]} - t0 is the FRAME clock's, stamped by the first frame that draws it */
   let bursts = [];
   let dead = false;
   let dirty = true;
@@ -443,6 +451,12 @@ export function mountFirmamentWindow(host, { book = firmamentBook(), preview = n
     const parts = [];
     parts.push(el('h3', null, sign ? sign.name : t('firmament.side.noSign', 'No birthsign chosen')));
     parts.push(el('p', 'fmt-sign', sign ? sign.lore : t('firmament.side.chooseSign', 'Click one of the seven large stars to choose your birthsign. The Serpent, in the center, can reach every part of the sky.')));
+    // FIRM-STATUS: the sums below are the stars held, whether or not they act - this line says whether they act now.
+    // A lab sky (preview) has no game to act in.
+    if (!preview) {
+      const status = firmamentStatus({ read: book?.state?.open === true, dueling: sigilDueling() });
+      parts.push(el('p', `fmt-live${status === 'active' ? '' : ' off'}`, statusText(status)));
+    }
     for (const ring of /** @type {const} */ (['combat', 'life'])) {
       parts.push(el('h3', null, ring === 'combat' ? t('firmament.side.combat', 'Combat') : t('firmament.side.craft', 'Crafting and trade')));
       const ul = el('ul');
@@ -456,8 +470,9 @@ export function mountFirmamentWindow(host, { book = firmamentBook(), preview = n
     }
     const p = purse();
     // the caps (firmamentLaw.js STAT_DEFS, BLOW_CAP, BLOW_TOTAL_CAP) and where the sky sleeps (firmamentPowers.js firmamentAwake: offline,
-    // a duel or an arena bout, mentoring; never a blow or a spell at a player - a siege and the Wrothgarian zone included)
-    parts.push(el('p', 'fmt-note', `${t('firmament.side.caps', 'Limits for all stars together: +30% weapon damage (up to +50% against unaware foes, or while you are below half Health), +30% spell damage, 15% less damage taken.')} ${t('firmament.side.where', 'Stars work only online, and not while you mentor. Combat stars do nothing in duels or Arena fights, and never add damage against other players.')}`));
+    // a duel or an arena bout; never a blow or a spell at a player - a siege and the Wrothgarian zone included). MENTOR2:
+    // mentoring scales the combat stars, it no longer stops them
+    parts.push(el('p', 'fmt-note', `${t('firmament.side.caps', 'Limits for all stars together: +30% weapon damage (up to +50% against unaware foes, or while you are below half Health), +30% spell damage, 15% less damage taken.')} ${t('firmament.side.where', 'Stars work only online. While you mentor, your combat stars work at a lower share. Combat stars do nothing in duels or Arena fights, and never add damage against other players.')}`));
     parts.push(el('p', 'fmt-note', `${p.renown < p.refund.freeBelow
       ? t('firmament.side.refundFree', 'Removing stars is free until Renown {renown}.', { renown: p.refund.freeBelow })
       : t('firmament.side.refundCost', 'Removing an accepted star costs {silver} silver.', { silver: p.refund.perStar })} ${t('firmament.side.respec', 'A respec removes all your stars and your birthsign for {gold, number} gold.', GOLD)}`));
@@ -548,7 +563,12 @@ export function mountFirmamentWindow(host, { book = firmamentBook(), preview = n
     pending = { start: pending.start, keys: pending.keys.filter((k) => !takes.has(k)) };
     refresh();
   }
-  function burst(key) { if (!still) bursts.push({ key, t0: performance.now() }); }
+  // RPT1026-CLIENT (a private report: an IndexSizeError, an arc's radius below nought, on every Accept): a
+  // burst was stamped with performance.now() and drawn by the requestAnimationFrame clock, and every callback of one frame
+  // is handed that frame's START - so a burst stamped later in the same frame (Accept's answer lands in a microtask after
+  // the world's own frame callback, which can run for half a second) had t - t0 < 0, and the ring's radius went negative.
+  // A burst now starts on the first frame that draws it: one clock, so its age is never below nought.
+  function burst(key) { if (!still) bursts.push({ key, t0: null }); }
 
   // ── the confirm ──
   let confirming = /** @type {'accept'|'respec'|'share'} */ ('accept');
@@ -691,6 +711,15 @@ export function mountFirmamentWindow(host, { book = firmamentBook(), preview = n
     if (KEPT.includes(error)) return respec ? t('firmament.refusal.respecLost', 'The server didn\'t answer the respec. Open the Firmament again in a moment to see if it went through.') : REFUSALS.offline;
     return /** @type {Record<string, string>} */ (REFUSALS)[error] ?? accountRefusalText(error);
   }
+  /** Whether the stars act now, in the player's words (firmamentLive.js firmamentStatus). */
+  function statusText(status) {
+    if (status === 'seat') return t('firmament.status.seat', 'Your stars are off: another tab or device is playing online, so this one is offline.');
+    if (status === 'unread') return t('firmament.status.unread', 'Your stars are off until they load from the server.');
+    if (status === 'no-sign') return t('firmament.status.noSign', 'Your stars are off until you choose a birthsign and press {accept}.', { accept: t('firmament.accept', 'Accept') });
+    if (status === 'mentoring') return firmamentMentoringText(firmamentMentorScale());   // MENTOR2: the combat stars at a share, the life stars whole
+    if (status === 'duel') return t('firmament.status.duel', 'Your combat stars are off during this duel or Arena fight. Your crafting and trade stars still work.');
+    return t('firmament.status.active', 'Your accepted stars are active.');
+  }
   /** UI-CALM (2026-10-14, a player: "why dont i get any stars ... with renown lvl 5"): a read the service refused was
    *  silent - the purses stood at their empty defaults ("0 of 0", Renown 1) as if that were the answer. Now it says so. */
   function readFailText(st) {
@@ -779,7 +808,7 @@ export function mountFirmamentWindow(host, { book = firmamentBook(), preview = n
   let longPress = 0;
   const local = (e) => { const r = canvas.getBoundingClientRect(); return { x: e.clientX - r.left, y: e.clientY - r.top }; };
   canvas.addEventListener('pointerdown', (e) => {
-    canvas.setPointerCapture?.(e.pointerId);
+    capturePointer(canvas, e.pointerId);
     const p = local(e);
     pointers.set(e.pointerId, p);
     if (pointers.size === 2) {
@@ -1127,11 +1156,12 @@ export function mountFirmamentWindow(host, { book = firmamentBook(), preview = n
   function sparks(t) {
     if (!bursts.length) return;
     const life = 900;
-    bursts = bursts.filter((b) => t - b.t0 < life);
+    for (const b of bursts) b.t0 ??= t;
+    bursts = bursts.filter((b) => t - /** @type {number} */ (b.t0) < life);
     for (const b of bursts) {
       const n = FIRM_NODES.get(b.key);
       if (!n) continue;
-      const u = (t - b.t0) / life;
+      const u = (t - /** @type {number} */ (b.t0)) / life;
       ctx.beginPath();
       ctx.arc(n.x, n.y, NODE_R[n.kind] + u * 60, 0, Math.PI * 2);
       ctx.strokeStyle = n.ring === 'life' ? P.edgeLifeLit : P.edgeLit;
@@ -1171,12 +1201,18 @@ export function mountFirmamentWindow(host, { book = firmamentBook(), preview = n
     if (dead) return;
     const was = committed;
     committed = cloneTree(book.current());
-    // a pending sky over a tree that moved under it starts again from the new one
-    if (treeDiff(was, committed).added.length || treeDiff(was, committed).removed.length) pending = cloneTree(committed);
+    // a pending sky over a tree that moved under it starts again from the new one - FIRM-SIGNPANEL: a birthsign alone
+    // is a move (UICALM-FIRM1 L4 M5's rule), or a sign accepted elsewhere left the panel saying none was chosen
+    const moved = treeDiff(was, committed);
+    if (moved.added.length || moved.removed.length || moved.startChanged) pending = cloneTree(committed);
     refresh();
     const fail = readFailText(book.state);
     if (fail) say(fail, true, true);
   }) : null;
+  // FIRM-STATUS: the side panel's status line moves when the page goes offline or online, or the mentor's share moves
+  const offSky = preview ? null : onFirmamentChange(() => {
+    if (!dead) refresh();
+  });
   if (!preview && book) book.read?.().catch?.(() => {});
 
   refresh();
@@ -1196,6 +1232,7 @@ export function mountFirmamentWindow(host, { book = firmamentBook(), preview = n
     watch?.disconnect?.();
     unregister();
     offBook?.();
+    offSky?.();
     root.remove();
     try { onExit(); } catch { /* the host's */ }
   }

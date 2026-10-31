@@ -25,13 +25,15 @@ import { drawQuestHerald } from '../quest/questHerald.js';   // GUIDE3: the ques
 import { drawQuestTracker } from '../quest/questTracker.js';   // GUIDE4: the quest the HUD follows, on the same one call
 import { drawRevenantCards } from '../revenant/revenantCard.js';   // REVENANT-CARD: a revenant's portrait and words, on the same one call (and the presenter it registers)
 import { drawLootBanners } from '../lootBanner.js';   // LOOT-BANNER: what arrived in the player's keeping, on the same one call (and the codex's door it registers)
+import { noteHeldLooks } from '../../systems/appearances.js';   // APPEARANCES: the pack's looks collected, on the same one call
+import { drawEventBoard } from '../eventBoard.js';   // EVENTS1: the shared events a player can still reach, and their news, on the same one call
 import { drawCrosshairAndModeIcon, crosshairCentreY } from './hudCrosshair.js';   // U38; AUDIT RETRO1 G5: the reticle's row, for the loot panel beside it
 import { playerDamageFlash } from '../damageFlash.js';   // AUDIT 24 (wave 39): ShowPlayerDamage rides the one HUD call
 import { playerBloodScreen, SCREEN_SPATTER_MIN } from '../bloodScreen.js';   // BLOOD2e: blood on the lens rides the same call
 import { bloodScreenOn } from '../../combat/blood/bloodSwitch.js';   // BLOOD2e: its row
-import { bloodAtlas, BLOOD_ATLAS_ARCHIVE, BLOOD_ATLAS_RECORD } from '../../combat/blood/bloodArt.js';   // BLOOD2e: the lens wears the marks' own atlas
+import { bloodAtlas, prewarmBloodAtlas, BLOOD_ATLAS_ARCHIVE, BLOOD_ATLAS_RECORD } from '../../combat/blood/bloodArt.js';   // BLOOD2e: the lens wears the marks' own atlas
 import { hudFade } from '../fadeLayer.js';   // D4: FadeBehaviour's target IS the HUD's parent panel
-import { drawHudLarge, dockedLargeHudHeight, largeHudEnabled } from './hudLarge.js';   // U45: the classic bottom bar - an ALTERNATIVE HUD, see below; E5: and the docked bar's height, the crosshair's re-centre term
+import { drawHudLarge, dockedLargeHudHeight, largeHudEnabled, LARGE_HUD_RECTS } from './hudLarge.js';   // U45: the classic bottom bar - an ALTERNATIVE HUD, see below; E5: and the docked bar's height, the crosshair's re-centre term
 import { cursorActive as freedCursor } from '../../player/pointerLock.js';   // BUFF-END: the freed mouse is the tooltip's gate too (DaggerfallHUD.cs:141-147)
 import { drawActiveSpells, activeSpellAt, createBlinkClock, hudPointer } from './hudActiveSpells.js';   // U46: the buff/debuff icon rows
 // VB1: the indicator rig (F148) and the colour swap (F149) - HUDVitals'
@@ -254,6 +256,20 @@ export async function loadHud({ fetchBytes, ImgFile, palette, renderer }) {
  *  makes a click fall through to the world. */
 let lastLargeHudBar = null;
 export const largeHudBar = () => lastLargeHudBar;
+/** NOTICE-PANEL (AUDIT FB1029g P6, P13): the classic compass as last drawn - the corner box, its Detect row above it, or
+ *  the large bar's - in its canvas's pixels, so the town panel stands on it; null while no classic HUD is drawn. */
+let lastCompassBox = /** @type {{ x: number, y: number, w: number, canvas: any } | null} */ (null);
+/** A compass box in the page's pixels: the right and bottom offsets of its top-right corner from a `vw` by `vh` viewport's
+ *  edges (its canvas's own pixels scaled to the canvas's place on the page), or null.
+ *  @param {{ x: number, y: number, w: number, canvas: any } | null} b @param {number} [vw] @param {number} [vh] */
+export function compassAnchorOf(b, vw, vh) {
+  const r = b?.canvas?.getBoundingClientRect?.();
+  if (!b || !r || !b.canvas.width || !b.canvas.height) return null;
+  const kx = r.width / b.canvas.width, ky = r.height / b.canvas.height;
+  return { right: Math.max(0, Math.round((vw ?? r.right) - (r.left + (b.x + b.w) * kx))), bottom: Math.max(0, Math.round((vh ?? r.bottom) - (r.top + b.y * ky))) };
+}
+/** ...the classic compass's, as last drawn. */
+export const classicCompassAnchor = () => compassAnchorOf(lastCompassBox, globalThis.innerWidth, globalThis.innerHeight);
 
 /** WORLD-HOVER: WHERE THE RETICLE IS, for anything that must stand
  *  beside it. This module's own comment already says the geometry
@@ -287,6 +303,7 @@ let _placedSpellIcons = [];
 // or covered returns before the rows, and the last frame's rects stood - a freed right-click there ended a spell with
 // nothing on the screen. Emptied on those returns, and a placement not drawn for a second answers none.
 let _placedAt = -Infinity;
+let _lensWarmed = false;   // OW-HITCH: the lens's blood sheet asked to grow in the page's idle time (drawHud)
 const PLACED_FRESH_MS = 1000;
 const nowMs = () => globalThis.performance?.now?.() ?? Date.now();
 export const activeSpellIconsPlaced = () => (nowMs() - _placedAt <= PLACED_FRESH_MS ? _placedSpellIcons : []);
@@ -508,6 +525,7 @@ export function hideHudTextSurfaces(hudText = null) {
   horseNameTooltip.hide();   // AUDIT HCC U6: the mod's HUD label, the same door
   // AUDIT GUIDE O1/T7/H9: the quest guide's two HUD faces, the same door - the herald's notices hide (their clock
   // stopped) and the card hides and gives the party list its line back, as they do under a street window
+  drawEventBoard({ hidden: true });   // EVENTS1: the event board, the same door
   drawQuestHerald({ hidden: true });
   drawQuestTracker({ hidden: true });
   drawRevenantCards({ hidden: true });   // REVENANT-CARD: the same door
@@ -528,6 +546,7 @@ export function drawHud(renderer, canvas, art, vitals, heading01, dt = 0,
   // RETRO-UI (FIELD BUGS 2026-10-03): under retro mode's pillarbox the HUD lays out in DFU's CustomScreenRect - the
   // pillarbox's canvas, drawn at its place (ui/uiScreen.js) - not over the black bars. Once: a UI canvas answers itself.
   reticleHidden ||= lookAroundHidesAim();
+  lastCompassBox = null;   // NOTICE-PANEL: set again only where a classic compass is drawn below
   const ui = uiCanvas(canvas);
   if (ui !== canvas) return onUiScreen(renderer, ui, () => drawHud(renderer, ui, art, vitals, heading01, dt, arguments[6]));
   // AUDIT 24 (wave 39): ShowPlayerDamage's red flash, under the bars.
@@ -636,6 +655,9 @@ export function drawHud(renderer, canvas, art, vitals, heading01, dt = 0,
   // flash's latch says a blow landed (the RemoveHealth edge - an enemy's
   // hit, a trap, a fall; never a spell, a load or a surrender).
   const blow = playerDamageFlash.takeBlow();
+  // OW-HITCH: the lens's sheet grown ahead of the first blow, as the marks' is (bloodMarks.js asks it only with the marks
+  // on - the lens has its own row): asked once its row is on, and idempotent (a sheet made or begun answers at once)
+  if (!_lensWarmed && bloodScreenOn()) { _lensWarmed = true; prewarmBloodAtlas(); }
   if (blow && bloodScreenOn() && lastHealthLostPercent() >= SCREEN_SPATTER_MIN) playerBloodScreen.spatter(lastHealthLostPercent(), bloodAtlas());
   playerBloodScreen.tick(dt);
   if (playerBloodScreen.count && renderer.uploadTexture) playerBloodScreen.draw(renderer, canvas, renderer.uploadTexture(BLOOD_ATLAS_ARCHIVE, BLOOD_ATLAS_RECORD, bloodAtlas(), { smooth: true }));
@@ -681,9 +703,13 @@ export function drawHud(renderer, canvas, art, vitals, heading01, dt = 0,
   // it answers that itself (ui/quest/questHerald.js). Its clock is the frame's
   // real seconds and stops under the HUD's hide gate - DFU's HUD does not
   // Update under a window (DaggerfallUI.cs:429-433).
+  // EVENTS1 (bible/10-UI/Event-Board.md): and the event board just before it, under the herald's own gate and clock, on
+  // every skin - the events' lines come to it instead of the chat, so the classic skin must show them too
+  drawEventBoard({ hidden: cursorActive || !hudRenderEnabled(), dt });
   drawQuestHerald({ hidden: cursorActive || !hudRenderEnabled(), dt });
   drawQuestTracker({ hidden: cursorActive || !hudRenderEnabled() });   // GUIDE4: the tracker's card, the same gate and the same hide door
   drawRevenantCards({ hidden: cursorActive || !hudRenderEnabled(), dt });   // REVENANT-CARD: the same gate, its clock the frame's - no card stands on the classic skin, so this is outside its gate as the herald is
+  try { noteHeldLooks(vitals); } catch { /* a look missed this frame is read the next */ }   // APPEARANCES (bible/04-Characters/Wardrobe.md): every look held is collected, on every skin and in every host
   // LOOT-BANNER: the same gate and clock, outside the skin's gate for a reason of its own - the watcher reads and marks the
   // pack on EVERY skin (the four hosts hand drawHud the player entity as `vitals`), so a piece found on the classic skin
   // is not announced when the player switches to Enhanced Plus; only Plus draws a banner
@@ -773,6 +799,8 @@ export function drawHud(renderer, canvas, art, vitals, heading01, dt = 0,
       ...largeHud,
       vitalsBars: { rig, skin, indicators },
     });
+    const cb = LARGE_HUD_RECTS.compass, bar = lastLargeHudBar;
+    if (bar) lastCompassBox = { x: bar.x + cb[0] * bar.s, y: bar.y, w: cb[2] * bar.s, canvas };   // NOTICE-PANEL: over the bar
     // ROAD-E E5: ...and it MOVES with the viewport. HUDCrosshair.cs
     // :43-52 re-centres the reticle into the view a DOCKED bar leaves,
     // because the world pass is now drawn there (ViewportChanger.cs
@@ -829,6 +857,7 @@ export function drawHud(renderer, canvas, art, vitals, heading01, dt = 0,
   const bx = canvas.width - art.compassBox.w * s;
   const by = canvas.height - art.compassBox.h * s;
   const { bw, bh } = drawCompassStrip(renderer, art, bx, by, s, heading01);
+  lastCompassBox = { x: bx, y: by - DETECT_MARKER_H * s, w: bw, canvas };   // NOTICE-PANEL: over its Detect row
   drawArrowCount(renderer, canvas, font, vitals, weaponSheathed, { bw, bh }, s);
   // NODE-MARKS: every profession's nodes near (a Prospector's veins, 500 m; a Tracker's animals, 100 m) - FIRST, so the
   drawNodeCompassMarks(renderer, nodes, playerXZ, heading01, { bx, by, bw, s });   // AUDIT: Detect markers, the party and the ships stand over them

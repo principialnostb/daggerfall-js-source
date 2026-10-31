@@ -34,7 +34,7 @@ test('PROF2 law: the kingdoms are SEAT0 4.3\'s, one home - three crowns, the Mar
   assert.deepEqual({ ...FREE_LANDS }, { balfiera: 9, orsinium: 26, wrothgarian: 16 });
   const all = [...Object.values(KINGDOMS).flatMap((k) => k.regions), ...K_MARCHES, ...Object.values(FREE_LANDS)];
   assert.equal(new Set(all).size, all.length, 'no region in two lands');
-  assert.equal(all.length, 44, 'the eighteen left out hold no seat');
+  assert.equal(all.length, 51, 'the Bay\'s 44 (the eighteen left out hold no seat) and seven provinces\' crowns');   // PIN MOVED (WW7-3, bible/03-World/World-Wide.md WW7): High Rock's and Hammerfell's past the Bay no crown's
   assert.deepEqual([kingdomOf(17), kingdomOf(23), kingdomOf(0), kingdomOf(21), kingdomOf(9), kingdomOf(31)], ['daggerfall', 'wayrest', 'sentinel', null, null, null]);
   assert.deepEqual([isMarch(21), isMarch(17), isFreeLand(26), isFreeLand(17)], [true, false, true, false]);
   assert.equal(MARCH_REGIONS, K_MARCHES, 'the nodes\' Marches are the kingdoms\' own object');
@@ -124,11 +124,14 @@ test('PROF2 law: the veins\' tables are PROF0 4.1\'s; a vein\'s tier is drawn ov
 });
 
 test('PROF2 law: the signatures by kingdom (PROF0 4.7) - on a confirmed pixel, Daggerfall\'s Moonstone two veins, the others one, beside the climate\'s (AUDIT 29 A6); never unconfirmed', () => {
-  assert.deepEqual(regionSignature(17), { ore: 'ore:moonstone', slots: 2 });
-  assert.deepEqual(regionSignature(23), { ore: 'ore:mithril', slots: 1 });
-  assert.deepEqual(regionSignature(0), { ore: 'ore:ebony', slots: 1 });
-  assert.deepEqual([regionSignature(26), regionSignature(16)], [{ ore: 'ore:orichalcum', slots: 1 }, { ore: 'ore:orichalcum', slots: 1 }]);
-  assert.deepEqual(regionSignature(9), { ore: 'ore:adamantium', slots: 1 });
+  // PIN MOVED (WW-C1, bible/03-World/World-Wide.md WW-C): a signature names the ore of each of its slots (`ores`) - a crown's
+  // its one ore, Cyrodiil's every province's (test/world/worldWide/wwc1_ground.test.js)
+  const signature = (r) => { const g = regionSignature(r); if (g) assert.deepEqual(g.ores, Array(g.slots).fill(g.ore), `${r}: one ore, each slot`); return g && { ore: g.ore, slots: g.slots }; };
+  assert.deepEqual(signature(17), { ore: 'ore:moonstone', slots: 2 });
+  assert.deepEqual(signature(23), { ore: 'ore:mithril', slots: 1 });
+  assert.deepEqual(signature(0), { ore: 'ore:ebony', slots: 1 });
+  assert.deepEqual([signature(26), signature(16)], [{ ore: 'ore:orichalcum', slots: 1 }, { ore: 'ore:orichalcum', slots: 1 }]);
+  assert.deepEqual(signature(9), { ore: 'ore:adamantium', slots: 1 });
   assert.equal(regionSignature(21), null, 'a March: its +25%, no signature');
   assert.equal(regionSignature(31), null);
   const at = (region, confirmed, climate = C.Woodlands) => veins({ x: 300, y: 200, day: DAY, climate, region, confirmed });
@@ -140,7 +143,7 @@ test('PROF2 law: the signatures by kingdom (PROF0 4.7) - on a confirmed pixel, D
   assert.equal(at(17, false).length, 4);
   const swamp = veins({ x: 300, y: 200, day: DAY, climate: C.Swamp, region: 17, confirmed: true });
   assert.deepEqual(swamp.map((v) => v.signature), [false, false, true, true], 'a Swamp pixel\'s two veins kept (MORE-NODES), and the two Moonstones');
-  // Orichalcum grows nowhere else: no climate's table and no other region's signature holds it
+  // Orichalcum grows nowhere else on the Bay: no climate's table and no other region's signature holds it (WW-C1: past it Skyrim's own, and Cyrodiil's)
   assert.ok(Object.values(VEIN_TABLES).every((t) => !t.includes('ore:orichalcum')));
   assert.ok(Array.from({ length: 62 }, (_, r) => r).filter((r) => regionSignature(r)?.ore === 'ore:orichalcum').every((r) => r === 26 || r === 16));
 });
@@ -167,11 +170,21 @@ test('PROF2 law: the boulders - the climate\'s count a day, tier 1, Rough Stone;
   assert.ok(mats.has('ore:dwarven') && mats.has('ore:adamantium'), 'Dwarven Scrap and Adamantium are found here');
   assert.deepEqual([...DUNGEON_VEINS], ['metal:silver', 'metal:gold', 'ore:dwarven', 'metal:platinum', 'ore:adamantium']);
   assert.ok(dungeonVeinTable(C.Woodlands).includes('ore:moonstone') && dungeonVeinTable(C.HauntedWoodlands).includes('ore:moonstone'));
-  for (let id = 1; id < 200; id++) for (const v of dungeonVeins({ dungeon: id, day: DAY, climate: C.Woodlands, confirmed: false })) assert.deepEqual([v.tier, v.material], [3, 'metal:silver'], 'unconfirmed: the least a deep vein is');
+  // PIN MOVED (DEEP-OPEN, Professions-Arc.md section 53; the owner: "FULL ORE TABLE"): a dungeon nobody has vouched for
+  // draws the deep veins' WHOLE table - it was held to tier 3, Silver - and never its climate's Moonstone, which waits on
+  // the witnesses; where the climate adds no ore the draw is the confirmed dungeon's, vein for vein
+  const unTiers = new Set(), unMats = new Set();
+  for (let id = 1; id < 400; id++) {
+    for (const v of dungeonVeins({ dungeon: id, day: DAY, climate: C.Woodlands, confirmed: false })) { unTiers.add(v.tier); unMats.add(v.material); }
+    assert.deepEqual(dungeonVeins({ dungeon: id, day: DAY, climate: C.Mountain, confirmed: false }), dungeonVeins({ dungeon: id, day: DAY, climate: C.Mountain, confirmed: true }), `dungeon ${id}`);
+  }
+  assert.deepEqual([...unTiers].sort(), [3, 4, 5, 6], 'unconfirmed: every tier of the table');
+  assert.deepEqual([...unMats].sort(), [...DUNGEON_VEINS].sort(), 'unconfirmed: every ore of the table - Dwarven Scrap and Adamantium among them - and no Moonstone');
   assert.equal(dveinKey({ dungeon: 123456, day: DAY, slot: 2 }), `dvein:123456:${DAY}:2`);
   assert.deepEqual(parseNodeKey(`dvein:123456:${DAY}:2`), { kind: 'dvein', dungeon: 123456, day: DAY, slot: 2 });
-  assert.equal(parseNodeKey(`dvein:${DUNGEON_ID_MAX + 1}:${DAY}:0`), null, 'past DFU\'s 20 bits');
-  assert.deepEqual([dungeonOk(0), dungeonOk(0xfffff), dungeonOk(-1), dungeonOk(1.5)], [true, true, false, false]);
+  // PIN MOVED (AUDIT TAMRIEL-WIDE C3): a dungeon past the Bay is its whole map id - DFU's 20 bits were the bound
+  assert.equal(parseNodeKey(`dvein:${DUNGEON_ID_MAX + 1}:${DAY}:0`), null, 'past an unsigned 32-bit id');
+  assert.deepEqual([dungeonOk(0), dungeonOk(0xfffff), dungeonOk(0xffffffff), dungeonOk(2 ** 32), dungeonOk(-1), dungeonOk(1.5)], [true, true, true, false, false, false]);
   assert.equal(dungeonVein({ dungeon: 5, day: DAY, slot: 4, climate: C.Mountain }), null);
 });
 
@@ -221,8 +234,9 @@ test('PROF2 law: smelting (PROF0 4.1) - two of a raw metal an ingot, Steel and B
     ['ingot:adamantium', 'ingot:adamantium', '2 ore:adamantium'],
     ['ingot:ebony', 'ingot:ebony', '2 ore:ebony'],
     ['ingot:orichalcum', 'ingot:orichalcum', '2 ore:orichalcum'],
+    ['ingot:daedric', 'ingot:daedric', '1 ingot:ebony + 1 part:daedra-heart'],   // PIN MOVED (DAEDRIC-SMELT, Professions-Arc.md section 53): PROF0 4.1's recipe, built
   ]);
-  assert.equal(smeltRecipe('ingot:daedric'), null, 'Daedric waits on its heart and its stone');
+  assert.deepEqual([smeltRecipe('ingot:daedric').embers, smeltRecipe('ingot:daedric').inputs[1].catalyst], [1, true], 'PIN MOVED (DAEDRIC-SMELT): its Sigil Stone the account\'s ember, its heart a catalyst - where it waited on both');
   assert.deepEqual([SMELT_MAX, FORGE_FEE], [100, 50]);
   assert.equal(smeltXp(5, 3), 150);
   assert.deepEqual(smeltOrigin(smeltRecipe('ingot:iron'), 5, [3]), { own: 3, bought: 2 }, 'units 0-2 bought: ingots 0 and 1 hold one');

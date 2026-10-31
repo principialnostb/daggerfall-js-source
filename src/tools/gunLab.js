@@ -82,60 +82,21 @@ import { MOD_SETTINGS } from '../systems/modSettings.js';
 import { walkSpeed, runSpeed } from '../player/motor.js';   // GetBaseSpeed's walk arm, the bob's baseSpeed
 export { createRecoil, createScreenShake, shakeNoise, GUN_FEEL } from '../combat/gun/gunFeel.js';   // FIELD-GUN6: the one home
 export { MUZZLE_CURVE, muzzleGlow } from '../combat/gun/gunFeel.js';   // FIELD-GUN13: the flash's curve, the same way
-import { muzzleGlow } from '../combat/gun/gunFeel.js';
+import { muzzleGlow, THUNDERLOCK_MUZZLE_CURVE } from '../combat/gun/gunFeel.js';
 export { widgetTransformRect };
 
 // FIELD-GUN12: placeSprite moved to combat/gun/gunPlacement.js, which
 // the game reads too - see that file's header.
 
-/**
- * THE CYCLE. A gun is not a sword: WeaponManager's six directional
- * strikes and the drag-to-swing gesture have nothing to say here, so
- * the lab runs the smallest machine that can be judged -
- *
- *   Idle -> Firing (frames 0..5 at `fps`) -> Cooling (`cooldownMs`,
- *   the pump) -> Idle
- *
- * - and keeps the two things the classic machine DOES have that
- * matter: a hit frame the damage would land on (FPSWeapon.GetHitFrame,
- * 2 for melee) and a one-shot that cannot be interrupted
- * (FPSWeapon.OnAttackDirection's rule). `auto` holds the trigger.
- */
-export function createGunMachine({ fps = 14, cooldownMs = 1700, hitFrame = 1 } = {}) {
-  const m = {
-    state: 'Idle', frame: 0, fps, cooldownMs, hitFrame,
-    trigger: false, shots: 0,
-    _t: 0, _cool: 0, _hitThisShot: false,
-    /** How far into the pump we are, in ms - what a caller needs to
-     *  land a sound or a second animation ON the reload rather than
-     *  after it. Zero outside Cooling. */
-    get cooledMs() { return m.state === 'Cooling' ? m._cool : 0; },
-  };
-  m.fire = () => {
-    if (m.state !== 'Idle') return false;   // the one-shot cannot be replaced
-    m.state = 'Firing'; m.frame = 0; m._t = 0; m._hitThisShot = false; m.shots++;
-    return true;
-  };
-  /** Answers the event this step produced: 'hit' on the hit frame,
-   *  'ready' when the pump finishes, null otherwise. */
-  m.step = (dt) => {
-    let event = null;
-    if (m.state === 'Firing') {
-      m._t += dt;
-      const adv = Math.floor(m._t * m.fps);
-      m.frame = Math.min(adv, FIRE_FRAMES - 1);
-      if (!m._hitThisShot && m.frame >= m.hitFrame) { m._hitThisShot = true; event = 'hit'; }
-      if (adv >= FIRE_FRAMES) { m.state = 'Cooling'; m._cool = 0; m.frame = 0; }
-    } else if (m.state === 'Cooling') {
-      m._cool += dt * 1000;
-      if (m._cool >= m.cooldownMs) { m.state = 'Idle'; event = 'ready'; }
-    } else if (m.trigger) {
-      m.fire();
-    }
-    return event;
-  };
-  return m;
-}
+// PISTOL-PORT: THE MACHINE IS THE GAME'S NOW (combat/gun/gunMachine.js) - the Dwarven Pistolet fires on it - and this lab
+// reads it back, gunSheet.js's arrow.
+export { createGunMachine } from '../combat/gun/gunMachine.js';
+
+// THUNDERLOCK-LAB (2026-10-25): the page draws the owner's seven-frame strip, cut as the game cuts it
+// (combat/thunderlockArt.js), and lights the room on the Thunderlock's own curve (gunFeel.js THUNDERLOCK_MUZZLE_CURVE).
+export { thunderlockFrames, THUNDERLOCK_STRIP } from '../combat/thunderlockArt.js';
+/** The room's light off the strip's flash: the Thunderlock's curve while the page's machine fires, 0 otherwise. */
+export const labThunderlockLight = (state, frame) => (state === 'Firing' ? THUNDERLOCK_MUZZLE_CURVE[frame] ?? 0 : 0);
 
 /**
  * The muzzle light. The flash is on frames 1-2 of the sheet

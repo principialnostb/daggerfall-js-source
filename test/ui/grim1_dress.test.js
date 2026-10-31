@@ -95,7 +95,7 @@ test('GRIM1: THE INK - a light word becomes the pack\'s brown ink, darker the br
   assert.equal(bone.h, 26);
   assert.equal(inkColour('rgb(243,239,44)'), GRIM_YELLOW, 'Daggerfall\'s yellow stays its yellow on a page, as the pack writes a value');
   const brass = hslOf(inkColour('#f3cf86'));
-  assert.deepEqual([brass.h, brass.l], [5, 0.29], 'Plus\'s brass is the pack\'s red');
+  assert.deepEqual([brass.h, brass.l], [5, 0.26], 'Plus\'s brass is the pack\'s red - PIN MOVED (AUDIT-STOREFRONT III C6): at 29% it read 4.48:1 on the darkest page');
   assert.deepEqual([snapSize(12), snapSize(20), snapSize(21), snapSize(26), snapSize(46)], [16, 16, 32, 32, 48], 'every size on the face\'s 16px grid');
   const green = hslOf(inkColour('#6fcf8a'));
   assert.ok(green.h > 120 && green.h < 150 && green.l <= 0.25 && green.l >= 0.15, 'a gain stays green, in ink - INK-READ: deepened only as far as it reads at 4.5:1');
@@ -130,7 +130,7 @@ test('GRIM1: a rule re-said - the face for everywhere (the pack\'s Alagard over 
   assert.match(css, /\.x:is\(\[data-grim="wood"\], \[data-grim="wood"\] \*\) \{ color: hsl\(40 /);
   assert.match(css, /\.x:is\(\[data-grim-desk\] \*\):not\(\[data-grim\], \[data-grim\] \*\) \{ color: hsl\(40 /);
   assert.match(css, /\.y:is\(\[data-grim="ink"\][^{]*\)::before \{ color: #f4e04c; text-shadow: /, 'a value in yellow carries its hard edge');
-  assert.match(inkCss('.z.on { color: rgb(243,239,44); }'), /\.z\.on:is[^{]*\{ color: hsl\(5 80% 29%\)/, 'a CHOSEN word is the pack\'s red');
+  assert.match(inkCss('.z.on { color: rgb(243,239,44); }'), /\.z\.on:is[^{]*\{ color: hsl\(5 80% 26%\)/, 'a CHOSEN word is the pack\'s red (PIN MOVED, AUDIT-STOREFRONT III C6)');
   assert.match(css, /\.y::before \{ content: none \}/);
   assert.doesNotMatch(css, /@keyframes/, 'a keyframe is a moment of an animation, never a page');
   assert.match(css, /@media \(max-width: 10px\) \{\n[^}]*\.z/);
@@ -299,7 +299,7 @@ test('GRIM5: THE LAST PIXELS - the sheet\'s vitals are the HUD\'s vial drawn to 
 
 test('GRIM6: the front door\'s desk is the pack\'s painting at its own resolution, drawn smooth; the settings never jump (Plus\'s ground out of the page); the held map\'s Find me gone; a slot\'s word inside its shelf box; the chat\'s words in ink on its page and outlined over the world; the points the ledger\'s own size in the figures\' column (mutants: the desk the grid cut again; the ground kept; a slot\'s word on the frame; the typed word white; the points at 48)', () => {
   const css = kitCss() + rosterCss();
-  assert.match(css, /\.px-home:not\(\.px-over\):not\(\.lv-sky\)::before \{[^}]*BIOG00I0\.IMG\.png"\) var\(--gbx\) var\(--gby\) \/ var\(--gbw\) var\(--gbh\) no-repeat; image-rendering: auto; \}/);
+  assert.match(css, /\.px-home:not\(\.px-over\):not\(\.lv-sky\):not\(\.px-title\)::before \{[^}]*BIOG00I0\.IMG\.png"\) var\(--gbx\) var\(--gby\) \/ var\(--gbw\) var\(--gbh\) no-repeat; image-rendering: auto; \}/);
   assert.match(css, /\.px-ground \{ display: none !important; \}/);
   assert.match(css, /\.hmroot\[data-hm-sheet="automap"\] \.hmfindme \{ display: none !important; \}/, 'Find me goes on the dungeon\'s sheet alone (FINDME-SHEET)');
   assert.doesNotMatch(css, /[^\]] \.hmfindme \{ display: none/, 'never off the world map\'s and the town\'s');
@@ -377,7 +377,8 @@ test('DESK-HD: the front door stands on the detailed desk (public/art/grimoire-d
   assert.equal(buf[0], 0xff, 'a JPEG'); assert.equal(buf[1], 0xd8);
   assert.ok(buf.length > 100_000, 'the detailed painting, not a stand-in');
   const css = grimoireKitCss();
-  const at = css.indexOf('.px-home:not(.px-over):not(.lv-sky)::before { content: \'\'; position: absolute; inset: 0; pointer-events: none;');
+  // TITLE-DOOR: the boot home on the film's held title stands on the map, not the desk - the desk's door is every other home
+  const at = css.indexOf('.px-home:not(.px-over):not(.lv-sky):not(.px-title)::before { content: \'\'; position: absolute; inset: 0; pointer-events: none;');
   assert.ok(at > 0);
   const rule = css.slice(at, css.indexOf('}', at));
   assert.ok(rule.includes(`url("${grimoireDeskUrl()}") var(--gbx) var(--gby) / var(--gbw) var(--gbh) no-repeat,`), 'the painting first');

@@ -125,17 +125,43 @@ is LIVE, which is what this one does.
 
 ## What it does not do
 
-It does not reload for the player. A reload mid-dungeon costs whatever
-is not saved, and the build notice says *save first* precisely because
-the automatic version of this would be the same class of mistake as an
-automatic save on `beforeunload` (`unloadGuard.js` declines that one for
-the same reason).
+It did not reload for the player, until UPDATE-FORCE below. The build
+poll rides the chat frame, so it runs only online. The first poll waits
+a full `BUILD_POLL_MS`, because a tab that has just loaded is current.
 
-The build poll rides the chat frame, so there is no notice where there
-is no chat window — the classic skin has nowhere to put it. The first
-poll waits a full `BUILD_POLL_MS` (10 minutes), because a tab that has
-just loaded is by definition current and asking at boot would put every
-page load on the CDN twice for an answer we already have.
+## UPDATE-FORCE (2026-10-29) - the game reloads itself
+
+The owner: "when theres an update we need a screen that forces player to
+logout and update /reload". A chat line was not enough: players stayed on
+old builds, met deleted chunks, and fought on two rule sets at once.
+
+Now a new build starts `ui/updateScreen.js`. The chat line and a banner
+give one minute (`UPDATE_WARN_MS`). Then a screen that cannot be closed
+covers the game and takes the keys, `onlineCheckpoint` saves, the unload
+guard stands down, and the page reloads after `UPDATE_SCREEN_MS`. A
+death screen or a duel holds it for at most `UPDATE_HOLD_MAX_MS`.
+`BUILD_POLL_MS` is two minutes now, was ten. The desktop app plays its
+own copy, so its poll stays current and its own notice stays.
+`test/ui/updatescreen.test.js` drives it. SUPERSEDED as the default at
+AUTO-UPDATE, below: the run starts only with the player's switch on.
+
+## AUTO-UPDATE (2026-10-30) - the player's choice, off by default
+
+The owner: "turn off the automatic updates by default. Im tired of players
+being forced out of the game". UPDATE-RESTART had made the desktop app
+restart too, and its check runs every five minutes.
+
+Settings, Starting up and loading, **Automatic updates** (`uiPrefs`
+`autoUpdates`, off): on, UPDATE-FORCE's run as before. Off, a new build on
+the site is said once in chat (`net.update.buildReady`) and nothing
+reloads. In the desktop app the update keeps DA8's HUD line: it runs at the
+next start, or now from File > Restart to Update. The launcher still
+installs an update before play. The switch is each player's online too.
+
+What comes back with it off: a player can stay on an old build, as before
+UPDATE-FORCE. A lazy chunk deleted by the deploy still reloads the page
+(`systems/staleChunk.js`). Pins: `test/ui/updatescreen.test.js` (AUTO-UPDATE).
+Mutants: `tools/mutants/autoupdate.json`, 4, all dead.
 
 ## The thing that must happen before any of this works
 

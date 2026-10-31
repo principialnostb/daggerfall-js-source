@@ -353,7 +353,7 @@ test('PROF7 items: the Skinning Knife is 603 (0.5 kg, 50 uses, 100 gold, DFU\'s 
     assert.deepEqual([knifeCustomItemsForGroup('UselessItems2'), knifeCustomItemsForGroup('Weapons')], [[603], []]);
     assert.ok(customItemsForGroup('UselessItems2').includes(603), 'on DFU\'s own custom-item loop');
   } finally { globalThis.location = where; }
-  assert.deepEqual(HIDE_TEMPLATE_ROWS.map((r) => r.index), [655, 656, 657, 658, 659, 660, 661, 662, 663, 664, 665, 666, 668, 669, 670, 671]);
+  assert.deepEqual(HIDE_TEMPLATE_ROWS.map((r) => r.index), [655, 656, 657, 658, 659, 660, 661, 662, 663, 664, 681, 682, 683, 665, 666, 668, 669, 670, 671]);   // PIN MOVED (FIELD BUGS 2026-10-20h DEX-HIDES): the Wolf Pelt, the Boar Hide, the Mudcrab Chitin
   assert.ok(HIDE_TEMPLATE_ROWS.every((r) => r.stackable === true && r.rarity === 10));
   assert.deepEqual([657, 659, 662, 665, 666, 670].map((t) => [templateByIndex(t).name, templateByIndex(t).baseWeight, templateByIndex(t).basePrice]),
     [['Bear Hide', 1, 16], ['Spider Silk', 0.25, 32], ['Harpy Feathers', 0.25, 72], ['Cured Leather', 1, 24], ['Hardened Leather', 1, 108], ['Silk Bolt', 0.5, 72]]);
@@ -457,8 +457,12 @@ test('PROF7 pages: the Loom at a Clothing Store - the cures for the hides held a
   // PIN MOVED (CRAFT2): the loom lists its patterns (a garment of the clothing shown), the cloth chosen in the box - none
   // held, so its first (Linen)
   const shirt = buttons().find((b) => b.textContent.startsWith('Short Shirt') && !b.textContent.includes(','));
-  assert.match(shirt.textContent, /needs materials/);
+  // PIN MOVED (CLOTH-GEMS, Professions-Arc 50): the four Bear Hides spin two Wool Bolts (SPIN_RECIPES), so the shirt can be
+  // made from raw and its Wool is picked; the Linen chosen in the box
+  assert.match(shirt.textContent, /can make from raw/);
   shirt.onclick();
+  assert.match(text(), /Wool Short Shirt - rank 10/);
+  buttons().find((b) => b.parentNode?.className?.includes('prof-made') && b.textContent === 'Linen').onclick();
   assert.match(text(), /Linen Short Shirt - rank 0/);
   loomTrack.specs[50] = 'tailor'; draw();   // PLAIN-ODDS: a Tailor's clothing says its step
   assert.ok(text().includes('Quality chances: Standard 50% | Fine 40% | Superior 10%. They get better the further your rank (10) is above the recipe\'s (0). Press every stitch on the beat to raise the result one quality. Being a Tailor raises clothing one more.'), text());
@@ -516,7 +520,7 @@ test('PROF7 pages: the Loom at a Clothing Store - the cures for the hides held a
   const hunting = page('Hunting');
   assert.doesNotMatch(hunting, /not practiced/);
   assert.match(hunting, /Today: 7 hides, 1 of 3 of grades 5 and 6 \(shared by all your characters\)/);   // PIN MOVED (CAP-OFF, 2026-10-07 - Mac: "Remove the cap on life skills"): '7 of 30 hides'
-  assert.match(hunting, /Comes when trophies are added/);
+  assert.match(hunting, /Trophy HunterA clean pelt of a grade 5 or 6 body gives a mounted trophy of the beast\./);   // PIN MOVED (HUNTERS-MARK): the trophy built - "Comes when trophies are added" no more
   assert.match(hunting, /Harpy Feathers, Dreugh Shell/);
   const outfitting = page('Outfitting');
   assert.doesNotMatch(outfitting, /not practiced/);
@@ -572,7 +576,7 @@ test('PROF7 wiring: the street and the dungeon stamp and list their bodies for H
   assert.doesNotMatch(idx, /'prof-hunt-cap':/);
   const c = src('src/net/accountClient.js');
   // SEAT2b part two (PIN MOVED): and the held town the station stands in (`seat`, its crafting halls' steps)
-  assert.match(c, /craft: \(character, recipe, clean, name, rid, heartwood = false, dye = null, seat = null, cracked = false\) => post\('\/v1\/prof\/craft', \{ character, recipe, clean, name, rid, heartwood, \.\.\.\(dye == null \? \{\} : \{ dye \}\), \.\.\.\(seat == null \? \{\} : \{ seat \}\), \.\.\.\(cracked === true \? \{ cracked: true \} : \{\}\) \}\),/);   // PIN MOVED (PROF10): a Lapidary's `cracked` gem
+  assert.match(c, /craft: \(character, recipe, clean, name, rid, heartwood = false, dye = null, seat = null, cracked = false\) => post\('\/v1\/prof\/craft', \{ character, recipe, clean, name, rid, heartwood, \.\.\.\(dye == null \? \{\} : \{ dye \}\), \.\.\.\(seat == null \? \{\} : \{ seat \}\), \.\.\.\(cracked === true \? \{ cracked: true \} : \{\}\), mint: MINT_VERSION \}\),/);   // PIN MOVED (PROF10): a Lapidary's `cracked` gem; PIN MOVED (AUDIT FB1026d C3): the mint version this build mints
   for (const word of ['prof-hunt-cap', 'prof-hunt-high', 'prof-foe', 'prof-dye']) assert.doesNotMatch(accountRefusalText(word), /problem|could not be read/, word);
   assert.match(src('.github/workflows/account-deploy.yml'), /- "src\/characters\/dyes\.js"/);
   assert.match(src('src/systems/foraging/foragingInstall.js'), /hudText\(brokeMessage\(item\.templateIndex, item\.name\)\);/);

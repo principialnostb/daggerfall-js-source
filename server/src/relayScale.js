@@ -56,10 +56,35 @@ export class Bounded extends Map {
  *  | double5/6  | frames in, their bytes                                       |
  *  | double7    | poses in                                                     |
  *  | double8/9  | frames sent, their bytes                                     |
- *  | double10/11| storage reads (get, list), storage writes (put, delete)      |
+ *  | double10/11| storage reads (get, list), storage rows written: a key       |
+ *  |            | each a put or delete names, one an alarm set or deleted      |
  *  | double12   | sockets refused (closed with a reason)                       |
+ *  | double13   | sockets refused 'room full' (SCALE5b, as all to double20)    |
+ *  | double14   | frames the byte budgets dropped (foes and own)               |
+ *  | double15   | the most sockets the room held in the window                 |
+ *  | double16/17| foes frames (and own), blows                                 |
+ *  | double18   | chat lines                                                   |
+ *  | double19/20| items the second wire batched, the batches that carried them |
+ *  | blob3      | blows the destination's funnels dropped (FOES-FIRST)         |
+ *  | blob4/5    | full foes frames the budget dropped, full foes frames asked  |
+ *  | blob6/7    | foes frames held for their turn (FOES-HOLD), held frames sent |
+ *  | blob8      | held frames that left the hold unsent (stale, sender gone)   |
+ *  | blob9      | the held frames' waits summed, ms (blob9 / blob7: the mean)  |
+ *  | blob10     | beats: empty frames said for a held sender (FOES-HOLD)       |
+ *  | blob11     | a cell's node level (COST-2, net/cellTree.js: 0 a fine cell, |
+ *  |            | 1-4 a coarse node), '' for a room told no node              |
+ *  | blob12/13  | the cell directory's moves made, and moves its nodes' rows   |
+ *  |            | blocked or a layer never answered (COST-2 part two)          |
  *
- *  Per kind, sends a pose: SUM(double8) / SUM(double7); storage a hello: SUM(double10 + double11) / SUM(double3). */
+ *  Per kind, sends a pose: SUM(double8) / SUM(double7); storage a hello: SUM(double10 + double11) / SUM(double3).
+ *
+ *  FOES-FIRST (2026-10-21, bible/11-Multiplayer/Scale-Arc.md FOES-FIRST): the twenty doubles are all spoken for, so the
+ *  counts past them are BLOBS, each its count in decimal (a five-minute window's count, well inside 32 bits), read back
+ *  as numbers by the SQL API's `toUInt32` - the blows dropped `SUM(_sample_interval * toUInt32(blob3))`, blob4 and blob5
+ *  the same way, and a kind's full frames' drop rate their quotient - over `WHERE blob3 != ''`: a point from a relay
+ *  before FOES-FIRST has the empty string there, which the reference does not say `toUInt32` reads. (ClickHouse's
+ *  `toUInt64OrZero` would read it as 0, but the SQL API's reference lists `toUInt8` and `toUInt32` alone - checked
+ *  2026-10-21; RELAY-LOAD met a 422 for less.) */
 export const METRICS_WINDOW_MS = 5 * 60 * 1000;
 /** SCALE2b: a room key's kind for a metric - its prefix, at most 16 characters (never an id or a place's name). */
 export const roomKindOf = (key) => { const k = String(key ?? ''); const i = k.indexOf(':'); return ((i > 0 ? k.slice(0, i) : k).replace(/[^a-z0-9_-]/gi, '').slice(0, 16)) || 'none'; };
@@ -67,18 +92,18 @@ export class RoomMetrics {
   constructor(now = Date.now()) { this.reset(now); }
   reset(now) {
     this.since = now;
-    this.c = { hellos: 0, busy: 0, frames: 0, bytesIn: 0, poses: 0, sends: 0, bytesOut: 0, reads: 0, writes: 0, refusals: 0, full: 0, drops: 0, peak: 0, foes: 0, hits: 0, chats: 0, owed: 0, batches: 0 };   // SCALE5b: from `full` on
+    this.c = { hellos: 0, busy: 0, frames: 0, bytesIn: 0, poses: 0, sends: 0, bytesOut: 0, reads: 0, writes: 0, refusals: 0, full: 0, drops: 0, peak: 0, foes: 0, hits: 0, chats: 0, owed: 0, batches: 0, hitDrops: 0, fullDrops: 0, fulls: 0, held: 0, heldSent: 0, heldGone: 0, heldMs: 0, beats: 0, cellMoves: 0, cellBlocked: 0 };   // SCALE5b: from `full` on; FOES-FIRST: from `hitDrops` on, the blobs; FOES-HOLD: from `held` on; COST-2 part two: the directory's moves
   }
   /** Anything to say? */
   get busy() { const c = this.c; return c.hellos + c.busy + c.frames + c.sends + c.reads + c.writes + c.refusals + c.full > 0; }   // SCALE5b: a room that only refused a socket for being full has that to say
   /** The window's point to `sink` (env.METRICS) when it is over (or `force`d), and a new window. True when written. */
-  flush(sink, kind, sockets, version, now = Date.now(), force = false) {
+  flush(sink, kind, sockets, version, now = Date.now(), force = false, level = '') {
     if (!force && now - this.since < METRICS_WINDOW_MS) return false;
     const c = this.c, wrote = this.busy && !!sink && typeof sink.writeDataPoint === 'function';
     if (wrote) {
       try {
         sink.writeDataPoint({
-          indexes: [kind], blobs: [kind, String(version)],
+          indexes: [kind], blobs: [kind, String(version), String(c.hitDrops), String(c.fullDrops), String(c.fulls), String(c.held), String(c.heldSent), String(c.heldGone), String(Math.round(c.heldMs)), String(c.beats), String(level), String(c.cellMoves), String(c.cellBlocked)],   // FOES-FIRST: blob3 to 5, counts - the doubles are all spoken for; FOES-HOLD: blob6 to 10; COST-2: blob11 the node's level; COST-2 part two: blob12 and 13 the directory's moves
           // SCALE5b (2026-10-10; bible/11-Multiplayer/Scale-Arc.md SCALE5b): WHAT SAYS A ROOM'S LIMIT IS NEAR, from double13 -
           // the sockets refused 'room full' (the Worker's door, which counted nothing - AUDIT SCALE II R1-5: a refusal the
           // walk could not get past, its last try's or a room's that does not layer, never a full layer it walked on from),
@@ -95,9 +120,18 @@ export class RoomMetrics {
     return wrote;
   }
 }
+/** The rows a storage write is billed: a put of an object of entries and a delete of a list of keys one a key, any other
+ *  write (a key's put or delete, deleteAll, an alarm set or deleted) one. */
+export const rowsWritten = (method, args) =>
+  method === 'put' && args[0] && typeof args[0] === 'object'
+    ? Object.keys(args[0]).length
+    : method === 'delete' && Array.isArray(args[0])
+      ? args[0].length
+      : 1;
 /** SCALE2b: the object's state with its storage COUNTED into `metrics` - every get and list a read, every put and delete
- *  a write. A Proxy, so each method is looked up on the real storage at the call (a harness that swaps one sees its
- *  own), and every other member of the state is the runtime's own, bound to it. */
+ *  a write. A write counts the rows it bills (rowsWritten), an alarm set or deleted among them, so `writes` (double11)
+ *  is the storage rows the bill counts. A Proxy, so each method is looked up on the real storage at the call
+ *  (a harness that swaps one sees its own), and every other member of the state is the runtime's own, bound to it. */
 export function countedState(state, metrics) {
   const storage = state?.storage;
   if (!storage) return state;
@@ -106,7 +140,11 @@ export function countedState(state, metrics) {
       const v = Reflect.get(t, k);
       if (typeof v !== 'function') return v;
       if (k === 'get' || k === 'list') return (...args) => { metrics.c.reads++; return v.apply(t, args); };
-      if (k === 'put' || k === 'delete' || k === 'deleteAll') return (...args) => { metrics.c.writes++; return v.apply(t, args); };
+      if (k === 'put' || k === 'delete' || k === 'deleteAll' || k === 'setAlarm' || k === 'deleteAlarm')
+        return (...args) => {
+          metrics.c.writes += rowsWritten(k, args);
+          return v.apply(t, args);
+        };
       return v.bind(t);
     },
     set(t, k, v) { return Reflect.set(t, k, v); },

@@ -27,43 +27,6 @@
     ]
   },
   {
-    "name": "ONE-BOARD-REVERTED-the-press-on-the-bounty-boards-too",
-    "file": "src/scenes/world.js",
-    "old": "...(!bountyAt.has(i) && noticeTown ? { notice: noticeTown, named: noticeBook.open === true } : {}),",
-    "new": "...(noticeTown ? { notice: noticeTown, named: noticeBook.open === true } : {}),",
-    "tests": [
-      "test/ui/board_ui.test.js",
-      "test/net/notice1.test.js"
-    ]
-  },
-  {
-    "name": "ONE-BOARD-REVERTED-the-count-over-the-bounty-boards-too",
-    "file": "src/scenes/world.js",
-    "old": "        if (bountyAt.has(i)) return;",
-    "new": "        if (i === -1) return;",
-    "tests": [
-      "test/ui/board_ui.test.js"
-    ]
-  },
-  {
-    "name": "ONE-BOARD-REVERTED-the-town-underfoot-with-every-board-a-bounty-board",
-    "file": "src/scenes/world.js",
-    "old": "return bountyAt.size < p.boards.length ? noticeTownOf(",
-    "new": "return bountyAt.size <= p.boards.length ? noticeTownOf(",
-    "tests": [
-      "test/ui/board_ui.test.js"
-    ]
-  },
-  {
-    "name": "ONE-BOARD-the-hover-unnamed",
-    "file": "src/scenes/worldModes.js",
-    "old": "bd?.named ? NOTICE_BOARD_TEXT : BULLETIN_BOARD_TEXT",
-    "new": "false ? NOTICE_BOARD_TEXT : BULLETIN_BOARD_TEXT",
-    "tests": [
-      "test/systems/auditbounty1.test.js"
-    ]
-  },
-  {
     "name": "BOARD-UI-tab-counts-the-old-notes",
     "file": "src/ui/noticeWindow.js",
     "old": "if (id === 'notices') return noticeCards({ town: deps.town, board, seenAt: seenAtOpen }).filter((c) => c.isNew).length || null;",
@@ -84,8 +47,8 @@
   {
     "name": "BOARD-UI-the-day-at-the-foot",
     "file": "src/ui/noticeWindow.js",
-    "old": "    body.append(el('p', 'notice-worktoday', `Writs today: ${today.filled} of ${today.max}${writsStale ? ' - the list may be out of date' : ''}`));\n    // CHAP3a: the account's Merit here",
-    "new": "    // CHAP3a: the account's Merit here",
+    "old": "    body.append(el('p', 'notice-worktoday', `Writs today: ${today.filled} of ${today.max}${writsStale ? ' - the list may be out of date' : ''}`));\n    // CRAFT-WRITS: the character's crafting writs above the Court's",
+    "new": "    // CRAFT-WRITS: the character's crafting writs above the Court's",
     "tests": [
       "test/ui/board_ui.test.js"
     ],
@@ -166,11 +129,12 @@
   {
     "name": "BOARD-UI-the-works-read-after",
     "file": "src/ui/seatTab.js",
-    "old": "    const works = book.forts ? Promise.resolve().then(() => book.forts(seat.key)).catch(() => null) : null;\n    try { r = await book.standings(seat.key, { force }); } catch { r = { data: null, error: 'offline' }; }\n",
-    "new": "    try { r = await book.standings(seat.key, { force }); } catch { r = { data: null, error: 'offline' }; }\n    const works = book.forts ? Promise.resolve().then(() => book.forts(seat.key)).catch(() => null) : null;\n",
+    "old": "    const works = book.forts ? Promise.resolve().then(() => book.forts(seat.key)).catch(() => null) : null;\n    const giving = book.gifts && host.giving ? Promise.resolve().then(() => book.gifts(seat.region)).catch(() => null) : null;   // DOMAIN1: asked at once too\n    let g;\n    try { r = await book.standings(seat.key, { force }); } catch { r = { data: null, error: 'offline' }; }\n",
+    "new": "    const giving = book.gifts && host.giving ? Promise.resolve().then(() => book.gifts(seat.region)).catch(() => null) : null;   // DOMAIN1: asked at once too\n    let g;\n    try { r = await book.standings(seat.key, { force }); } catch { r = { data: null, error: 'offline' }; }\n    const works = book.forts ? Promise.resolve().then(() => book.forts(seat.key)).catch(() => null) : null;\n",
     "tests": [
       "test/ui/board_ui.test.js"
-    ]
+    ],
+    "note": "Re-aimed by content (DOMAIN1): the gifts' read asked beside the works' now stands between them."
   },
   {
     "name": "BOARD-UI-the-battle-unnamed",

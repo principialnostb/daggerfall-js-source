@@ -41,11 +41,14 @@ export function containerPreviewItems(key, containers, { owned = false, shut = f
  * A chair, a station and a piece that is somebody else's answer null.
  * `itemsOf` is the room's own reader and is asked only for a storage piece.
  */
-export function decorPreviewItems(key, { pieceOf = null, itemsOf = null, shut = false } = {}) {
-  if (shut || typeof key !== 'string' || !key.startsWith('decor:')) return null;
-  const piece = pieceOf?.(key.slice('decor:'.length));
+export function decorPreviewItems(key, { pieceOf = null, itemsOf = null, shut = false, hall = false } = {}) {
+  if (typeof key !== 'string' || !key.startsWith('decor:')) return null;
+  const id = key.slice('decor:'.length);
+  const piece = pieceOf?.(id);
   if (!piece?.storage) return null;
-  const items = itemsOf?.(key.slice('decor:'.length));
+  // A shared chest (a hall's, or anyone's service bin) is a name until it is opened. The plaque does not ask the service.
+  if (hall || shut) return null;
+  const items = itemsOf?.(id);
   return Array.isArray(items) ? items : null;
 }
 
@@ -64,10 +67,12 @@ export function interiorHeldPreview(key, bag = {}) {
  * (OUTDOOR-LOOT) - asked of a stranger's cupboard alone; the player's own storage lists what it holds.
  */
 export function createInteriorPeek({ containers, decor, owned, shut, hall, today, unborn = () => false }) {
-  return (key) => (typeof key === 'string' && (key.startsWith('container:') || key.startsWith('decor:'))
-    ? interiorHeldPreview(key, {
+  return (key) => {
+    if (typeof key !== 'string' || (!key.startsWith('container:') && !key.startsWith('decor:'))) return null;
+    const inHall = !!hall();
+    return interiorHeldPreview(key, {
       containers: containers(), pieceOf: (id) => decor()?.pieceOf(id), itemsOf: (id) => decor()?.itemsOf(id),
-      owned: owned(), shut: shut(), hall: hall(), today: today(), unborn: !owned() && !!unborn(key),
-    })
-    : null);
+      owned: owned(), shut: shut(), hall: inHall, today: today(), unborn: !owned() && !!unborn(key),
+    });
+  };
 }

@@ -85,10 +85,12 @@ test('WITCH1 A FIND: the service\'s die decides at the source\'s odds; a guest, 
   assert.deepEqual(await findFestival(ctx(), player(alice), { source: 'foe' }, {}), { error: 'closed' });
   assert.deepEqual(await findFestival(ctx(AFTER_S), player(alice), { source: 'foe' }, ON), { error: 'closed' });
   assert.deepEqual(await findFestival(ctx(), player(alice), { source: 'gold' }, ON), { error: 'source' });
-  assert.deepEqual(await findFestival(ctx(DAY_S, MISS), player(alice), { source: 'foe' }, ON), { found: 0, cakes: 0 });
-  assert.deepEqual(await findFestival(ctx(DAY_S, HIT), player(alice), { source: 'foe' }, ON), { found: 1, cakes: 1 });
-  assert.deepEqual(await findFestival(ctx(DAY_S, HIT), player(alice), { source: 'endgame' }, ON), { found: 4, cakes: 5 });
-  assert.deepEqual(await findFestival(ctx(NIGHT_S, HIT), player(alice), { source: 'endgame' }, ON), { found: 8, cakes: 13 }, 'twice on a night the dead walk');
+  // PIN MOVED (CAKE-CAP-SAID, FIELD BUGS 2026-10-21b): each answer says the day's cakes found, this find's with them
+  assert.deepEqual(await findFestival(ctx(DAY_S, MISS), player(alice), { source: 'foe' }, ON), { found: 0, cakes: 0, today: 0 });
+  assert.deepEqual(await findFestival(ctx(DAY_S, HIT), player(alice), { source: 'foe' }, ON), { found: 1, cakes: 1, today: 1 });
+  assert.deepEqual(await findFestival(ctx(DAY_S, HIT), player(alice), { source: 'endgame' }, ON), { found: 4, cakes: 5, today: 5 });
+  assert.equal(utcDay(NIGHT_S), utcDay(DAY_S), 'the night falls on the same UTC day');
+  assert.deepEqual(await findFestival(ctx(NIGHT_S, HIT), player(alice), { source: 'endgame' }, ON), { found: 8, cakes: 13, today: 13 }, 'twice on a night the dead walk');
   assert.equal(row(alice.id).fest_cakes, 13);
   // the festival's own night, 31 October: a whole UTC day, every player at once - twice, never four times on a sky's night too
   const eve = FESTIVALS[0].eveFromMs / 1000 + 3600;
@@ -100,12 +102,28 @@ test('WITCH1 THE DAY\'S CAPS: FIND_ASKS_PER_DAY asks and FIND_CAKES_PER_DAY cake
   const { alice, player, ctx, db, row } = await stand();
   const day = utcDay(DAY_S);
   db._raw.prepare('INSERT INTO fest_finds (account, day, asks, found) VALUES (?, ?, ?, ?)').run(alice.id, day, FIND_ASKS_PER_DAY - 1, FIND_CAKES_PER_DAY - 3);
-  // the last ask of the day: the cakes it gives stop at the day's cap
-  assert.deepEqual(await findFestival(ctx(), player(alice), { source: 'endgame' }, ON), { found: 3, cakes: 3 });
+  // the last ask of the day: the cakes it gives stop at the day's cap - and say it (PIN MOVED, CAKE-CAP-SAID)
+  assert.deepEqual(await findFestival(ctx(), player(alice), { source: 'endgame' }, ON), { found: 3, cakes: 3, today: FIND_CAKES_PER_DAY, capped: true });
   assert.deepEqual(await findFestival(ctx(), player(alice), { source: 'foe' }, ON), { error: 'capped', cakes: 3 });
   assert.equal(row(alice.id).fest_cakes, 3);
   // the next UTC day starts afresh
   assert.equal((await findFestival(ctx(DAY_S + 86400), player(alice), { source: 'foe' }, ON)).found, 1);
+});
+
+test('CAKE-CAP-SAID: the day\'s cakes all found with asks to spare - a winning roll answers `capped`, never a miss\'s `{ found: 0 }` (FIELD BUGS 2026-10-21b, "Soul Cake stopped dropping")', async () => {
+  const { alice, player, ctx, db, row } = await stand();
+  const day = utcDay(DAY_S);
+  // the report: 120 found in the first hour of undead, a whole day of asks left
+  db._raw.prepare('INSERT INTO fest_finds (account, day, asks, found) VALUES (?, ?, ?, ?)').run(alice.id, day, 231, FIND_CAKES_PER_DAY - 1);
+  assert.deepEqual(await findFestival(ctx(DAY_S, MISS), player(alice), { source: 'undead' }, ON), { found: 0, cakes: 0, today: FIND_CAKES_PER_DAY - 1 }, 'a miss short of the cap is a miss');
+  assert.deepEqual(await findFestival(ctx(DAY_S, HIT), player(alice), { source: 'undead' }, ON), { found: 1, cakes: 1, today: FIND_CAKES_PER_DAY, capped: true }, 'the cake that ends the day says so');
+  assert.deepEqual(await findFestival(ctx(DAY_S, HIT), player(alice), { source: 'undead' }, ON), { found: 0, cakes: 1, today: FIND_CAKES_PER_DAY, capped: true }, 'a winning roll past it');
+  assert.deepEqual(await findFestival(ctx(DAY_S, MISS), player(alice), { source: 'undead' }, ON), { found: 0, cakes: 1, today: FIND_CAKES_PER_DAY, capped: true });
+  assert.equal(row(alice.id).fest_cakes, 1);
+  // the account's festival says the day's count, and a new UTC day's is nought
+  assert.equal((await festivalOf(ctx(), player(alice), ON)).today, FIND_CAKES_PER_DAY);
+  assert.equal((await festivalOf(ctx(DAY_S + 86400), player(alice), ON)).today, 0);
+  assert.deepEqual(await findFestival(ctx(DAY_S + 86400, HIT), player(alice), { source: 'undead' }, ON), { found: 1, cakes: 2, today: 1 }, 'the next UTC day finds again');
 });
 
 test('WITCH1 A SALE: the price taken only while the cakes cover it; an account ware laid on the row once; the same request id is one sale', async () => {
@@ -132,7 +150,7 @@ test('WITCH1 A SALE: the price taken only while the cakes cover it; an account w
   assert.equal((await buyFestival(ctx(AFTER_S), player(alice), { ware: 'card:warlock', rid: 'aaaaaaaaaaae' }, ON)).repeat, true);
 });
 
-test('WITCH1 THE HEARTH OFFERING: set out only at a home the character owns (never a hall), filled from the owner\'s cakes, taken from once a day by others, taken in with its cakes', async () => {
+test('WITCH1 THE HEARTH OFFERING: set out only at a home the account owns (never a hall), filled from the owner\'s cakes, taken from once a day by others, taken in with its cakes', async () => {
   const { alice, bob, player, ctx, cakes, bowls, home, row, db } = await stand();
   db._raw.prepare("INSERT INTO guilds (id, name, name_key, tag, ranks, founded_at) VALUES ('g1', 'The Coven', 'the coven', 'CVN', '[]', 1)").run();
   home(alice, MAP, HOME, CHAR);
@@ -140,7 +158,6 @@ test('WITCH1 THE HEARTH OFFERING: set out only at a home the character owns (nev
   const at = { mapId: MAP, buildingKey: HOME, character: CHAR };
   assert.deepEqual(await setOffering(ctx(), player(bob), at, ON), { error: 'home' }, 'not his home');
   assert.deepEqual(await setOffering(ctx(), player(alice), { ...at, buildingKey: HALL }, ON), { error: 'home' }, 'a guild hall is its guild\'s');
-  assert.deepEqual(await setOffering(ctx(), player(alice), { ...at, character: 'char-other' }, ON), { error: 'home' }, 'another character\'s');
   assert.deepEqual(await setOffering(ctx(), player(alice), at, ON), { error: 'item', bowls: 0 }, 'no bowl bought: the client\'s word is not a bowl');
   bowls(alice, 2);
   assert.deepEqual(await setOffering(ctx(), player(alice), at, ON), { ok: true, stock: 0, bowls: 1 });
@@ -170,6 +187,61 @@ test('WITCH1 THE HEARTH OFFERING: set out only at a home the character owns (nev
   assert.deepEqual(await takeInOffering(ctx(AFTER_S), player(alice), at), { ok: true, returned: 12, cakes: 12, bowls: 2 });
   assert.deepEqual(await takeInOffering(ctx(AFTER_S), player(alice), at), { error: 'none' });
   assert.deepEqual(await setOffering(ctx(AFTER_S), player(alice), at, ON), { error: 'closed' });
+});
+
+test('HEARTH-SIBLING: any character of the account sets the bowl out at the account\'s home, fills it and takes it in - a deed\'s home its holder\'s alone (FIELD BUGS 2026-10-29e)', async () => {
+  const { alice, bob, player, ctx, cakes, bowls, home, row, db } = await stand();
+  home(alice, MAP, HOME, CHAR);
+  home(alice, MAP, HALL, CHAR);
+  db._raw.prepare('UPDATE homes SET deed = 1 WHERE building_key = ?').run(HALL);
+  const sib = { mapId: MAP, buildingKey: HOME, character: 'char-other' };
+  bowls(alice, 2);
+  assert.deepEqual(await setOffering(ctx(), player(alice), { ...sib, buildingKey: HALL }, ON), { error: 'home' }, 'a deed\'s home is its holder\'s');
+  assert.deepEqual(await setOffering(ctx(), player(bob), sib, ON), { error: 'home' }, 'another account\'s');
+  assert.deepEqual(await setOffering(ctx(), player(alice), sib, ON), { ok: true, stock: 0, bowls: 1 });
+  assert.equal(db._raw.prepare('SELECT char_id FROM fest_offerings').get().char_id, CHAR, 'stored under the home\'s buyer');
+  assert.deepEqual(await setOffering(ctx(), player(alice), { ...sib, character: CHAR }, ON), { error: 'set' }, 'the buyer finds it set');
+  assert.equal((await festivalTown(ctx(), player(bob), { mapId: MAP }, ON)).offerings.length, 1, 'it stands in the town');
+  cakes(alice, 4);
+  assert.deepEqual(await fillOffering(ctx(), player(alice), sib, ON), { stock: 4, cakes: 0, moved: 4 });
+  assert.deepEqual(await takeInOffering(ctx(), player(alice), sib), { ok: true, returned: 4, cakes: 4, bowls: 2 });
+  assert.equal(row(alice.id).fest_bowls, 2);
+});
+
+test('HEARTH-SIBLING (AUDIT FB1029e H4, H5) a deed\'s home is filled by its holder alone; an heir taking the home up leaves the account\'s bowl standing', async () => {
+  const { alice, bob, player, ctx, cakes, bowls, home, db } = await stand();
+  home(alice, MAP, HOME, CHAR);
+  bowls(alice, 1);
+  cakes(alice, 10);
+  const at = { mapId: MAP, buildingKey: HOME, character: CHAR };
+  assert.deepEqual(await setOffering(ctx(), player(alice), at, ON), { ok: true, stock: 0, bowls: 0 });
+  db._raw.prepare('UPDATE homes SET deed = 1 WHERE building_key = ?').run(HOME);
+  assert.deepEqual(await fillOffering(ctx(), player(alice), { ...at, character: 'char-other' }, ON), { error: 'home' }, 'a deed\'s home: never a sibling\'s');
+  assert.equal((await fillOffering(ctx(), player(alice), at, ON)).moved, OFFERING_FILL, 'its holder fills it');
+  db._raw.prepare('UPDATE homes SET deed = 0, char_id = ? WHERE building_key = ?').run('char-heir', HOME);   // homes.js inheritHome
+  assert.equal((await festivalTown(ctx(), player(bob), { mapId: MAP }, ON)).offerings.length, 1, 'still standing in the town');
+  const mine = await festivalOf(ctx(), player(alice), ON);
+  assert.deepEqual([mine.offerings.length, mine.bowls], [1, 0], 'never sent home as an orphan');
+  assert.equal((await takeFromOffering(ctx(), player(bob), { mapId: MAP, buildingKey: HOME }, ON)).ok, true, 'and others still take from it');
+  db._raw.prepare("INSERT INTO guilds (id, name, name_key, tag, ranks, founded_at) VALUES ('g1', 'The Coven', 'the coven', 'CVN', '[]', 1)").run();
+  db._raw.prepare("UPDATE homes SET guild_id = 'g1' WHERE building_key = ?").run(HOME);
+  assert.equal((await festivalTown(ctx(), player(bob), { mapId: MAP }, ON)).offerings.length, 0, 'a home become a guild\'s hall stands no account\'s bowl');
+  assert.equal((await festivalOf(ctx(), player(alice), ON)).bowls, 1, 'its bowl home');
+});
+
+test('HEARTH-SIBLING (AUDIT FB1029e T5) a sibling finds the buyer\'s filled bowl set, its cakes kept; an offering is stored under its own home\'s buyer', async () => {
+  const { alice, player, ctx, cakes, bowls, home, db } = await stand();
+  home(alice, MAP, HOME, CHAR);
+  home(alice, MAP, HALL, 'char-two');
+  bowls(alice, 2); cakes(alice, 4);
+  const at = { mapId: MAP, buildingKey: HOME, character: CHAR };
+  assert.equal((await setOffering(ctx(), player(alice), at, ON)).ok, true);
+  assert.equal((await fillOffering(ctx(), player(alice), at, ON)).stock, 4);
+  assert.deepEqual(await setOffering(ctx(), player(alice), { ...at, character: 'char-other' }, ON), { error: 'set' });
+  assert.equal(db._raw.prepare('SELECT stock FROM fest_offerings WHERE building_key = ?').get(HOME).stock, 4, 'never reset');
+  assert.equal(db._raw.prepare('SELECT char_id FROM fest_offerings WHERE building_key = ?').get(HOME).char_id, CHAR, 'stored under its own home\'s buyer');
+  assert.equal((await setOffering(ctx(), player(alice), { mapId: MAP, buildingKey: HALL, character: CHAR }, ON)).ok, true);
+  assert.equal(db._raw.prepare('SELECT char_id FROM fest_offerings WHERE building_key = ?').get(HALL).char_id, 'char-two', 'the second home\'s buyer');
 });
 
 test('WITCH1 a bowl holds OFFERING_STOCK_MAX; an empty bowl gives nothing; one taken in since is `none`', async () => {
@@ -207,6 +279,25 @@ test('WITCH1 AN OFFERING OUTLIVES NO HOME: its home sold, it stands nowhere and 
   assert.equal(row(alice.id).fest_bowls, 1);
   assert.deepEqual(mine.offerings, []);
   assert.equal(db._raw.prepare('SELECT COUNT(*) AS n FROM fest_offerings').get().n, 0);
+});
+
+test('ORPHAN-GATE an account with no offerings asks no orphan batch - no write transaction on its read - and one with an offering still brings its orphans home (mutant: the batch on every read)', async () => {
+  const { alice, player, ctx, cakes, bowls, home, db } = await stand();
+  const batches = [];
+  const batch = db.batch.bind(db);
+  db.batch = (list) => { batches.push(list.length); return batch(list); };
+  const none = await festivalOf(ctx(), player(alice), ON);
+  assert.deepEqual([none.offerings, batches], [[], []], 'no offering, no batch');
+  home(alice, MAP, HOME, CHAR);
+  bowls(alice, 1);
+  await setOffering(ctx(), player(alice), { mapId: MAP, buildingKey: HOME, character: CHAR }, ON);
+  cakes(alice, 4);
+  batches.length = 0;
+  assert.equal((await festivalOf(ctx(), player(alice), ON)).offerings.length, 1);
+  assert.deepEqual(batches, [2], 'an offering standing: its orphans asked');
+  db._raw.prepare('DELETE FROM homes WHERE map_id = ? AND building_key = ?').run(MAP, HOME);
+  const mine = await festivalOf(ctx(), player(alice), ON);
+  assert.deepEqual([mine.offerings, mine.bowls], [[], 1], 'the orphan home, and the offerings read after it');
 });
 
 test('WITCH1 A HOME CHANGES HANDS: the old owner\'s bowl goes back to them whole, credited from its own row - a read of it between the set-out\'s look and its batch pays nothing twice (AUDIT WITCH1 A1)', async () => {

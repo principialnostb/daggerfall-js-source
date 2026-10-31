@@ -18,7 +18,7 @@ import { BlocksFile } from '../formats/blocksFile.js';
 import { bindWorldDataBlocks } from '../formats/worldData/worldDataReplacement.js';   // RR3b
 import { loadModWorldData } from './modWorldData.js';   // RR3b
 import { DFPalette } from '../formats/dfPalette.js';
-import { INTERIOR_AMBIENT, INTERIOR_NIGHT_AMBIENT, INTERIOR_LIGHT_DIR } from '../world/interior/interiorLights.js';
+import { INTERIOR_AMBIENT, INTERIOR_NIGHT_AMBIENT, INTERIOR_LIGHT_DIR, roomAmbient } from '../world/interior/interiorLights.js';   // RPT1026-WORLD DARK-ROOM: roomAmbient
 import { isNight } from '../world/worldClock.js';   // AUDIT 23 (C12)
 import { skyMinutes } from '../systems/worldTick.js';   // AUDIT 23 (C12); TIME1: the sky's night
 import { nearestLights } from '../world/city/cityLights.js';
@@ -41,7 +41,7 @@ import { makeFont } from '../ui/text.js';   // ROAD-C c2/S9: the map's status/ho
 import { FntFile } from '../formats/fntFile.js';   // ROAD-C c2/S9
 import { makeWindowStack, pauseWhileOpen } from '../ui/windowStack.js';   // ROAD-tail: UserInterfaceManager's stack, and its PAUSE, for the fourth host
 import { installConsoleProbe } from '../systems/consoleCommands.js';   // E3: the console's door
-import { swallowBrowserKey, actionsOf, keyboardLook } from '../ui/input.js';   // U47: F5/F6/F11 - one list, in ui/input.js; FIX-F: the automap through the registry, and the look keys off the same registry
+import { swallowBrowserKey, actionsOf, keyboardLook, letGoOnBlur } from '../ui/input.js';   // U47: F5/F6/F11 - one list, in ui/input.js; FIX-F: the automap through the registry, and the look keys off the same registry
 import { worldViewportRect, largeHudWorldAspect } from '../ui/hud/hudLarge.js';   // AUDIT RETRO1 A8/C4: the lens and the world rect the other hosts take - the docked bar's, and retro mode's texture aspect and pillarbox
 import { hudShortcutKey } from '../ui/hud/hudShortcuts.js';   // AUDIT RETRO1 C4: DaggerfallHUD's shortcuts, Shift-F11 among them, as in the other hosts
 import { frameCapSkip } from '../systems/frameCap.js';   // FPS-CAP1: DFU's TargetFrameRate, the fourth host's
@@ -97,7 +97,7 @@ export async function bootInterior(canvas, renderer, params, status) {
 
   // R8: verbatim interior ambient; verbatim InteriorFogSettings
   // (exponential 0.001, fog color black).
-  renderer.setLighting(new Float32Array(isNight(skyMinutes() % 1440) ? INTERIOR_NIGHT_AMBIENT : INTERIOR_AMBIENT), 0);   // AUDIT 23 (C12): PlayerAmbientLight.cs:75-80
+  renderer.setLighting(new Float32Array(roomAmbient(isNight(skyMinutes() % 1440) ? INTERIOR_NIGHT_AMBIENT : INTERIOR_AMBIENT, ctx.roomLamps)), 0);   // AUDIT 23 (C12): PlayerAmbientLight.cs:75-80; RPT1026-WORLD DARK-ROOM: a room with no lamp of its own (AUDIT RPT1026 J1: the lamps it was built with)
   renderer.setWindowEmission(windowEmissionRGB('disabled'));   // F002: the dev route draws the same Disabled interiors (DaggerfallInterior.cs:473/:517/:1270)
   renderer.setFog('exp', 0.001, 0, 0, new Float32Array([0, 0, 0]));
 
@@ -234,6 +234,7 @@ export async function bootInterior(canvas, renderer, params, status) {
   // above) and had never been told about the way up, so the automap
   // this host mounts could neither close on DFU's key UP nor hold a
   // key down for more than the browser's repeat.
+  letGoOnBlur(keys, null);   // KEYS-BLUR: a key held as the page lost focus is let go
   addEventListener('keyup', (e) => {
     keys.delete(e.code);
     if (!overlay) return;

@@ -48,7 +48,7 @@ import { buildYardModel, signBoxOf, yardPoints } from '../world/merchantYards/me
 import { yardArt, YARD_ARCHIVE } from '../world/merchantYards/merchantYardArt.js';
 import { dfLook, lookSeed } from '../world/dfLook.js';   // DF-LOOK: the yards' pictures in Daggerfall's colours
 import { wearPainted } from '../systems/studioArt/studioArt.js';   // STUDIO1: the studio's pictures over the painted ones (their rows top-down, as the yards' are)
-import { PERSON_TEXTURES, PERSON_IDLE_RECORD, PERSON_IDLE_FPS } from '../characters/mobile/mobilePerson.js';
+import { PERSON_TEXTURES, PERSON_IDLE_RECORD, PERSON_IDLE_FPS, spriteRaceOf } from '../characters/mobile/mobilePerson.js';
 import { mobileBillboardSize } from '../world/rmbFlats.js';
 import { folkLookOf } from '../characters/folkBodies.js';   // AUDIT MW-NPC II P1: a keeper's body, in the outfit their picture wears
 import { personActor } from '../characters/peopleBodies.js';   // AUDIT MW-NPC II P1: and turned to the eye as a standing person is
@@ -190,7 +190,7 @@ export function createMerchantYards({
     return null;
   }
   const keeperArchive = (site) => {
-    const T = PERSON_TEXTURES[site.race] ?? PERSON_TEXTURES.Breton;
+    const T = PERSON_TEXTURES[spriteRaceOf(site.keeper?.race, site.race)] ?? PERSON_TEXTURES.Breton;   // PROVINCE-FOLK: the keeper's own race's picture where Daggerfall draws one
     const set = T[site.keeper?.sex === 'female' ? 'female' : 'male'];
     return set[(site.keeper?.variant ?? 0) % set.length];
   };
@@ -205,13 +205,15 @@ export function createMerchantYards({
     for (const w of y.wagons) if (w.box) parts.push(boxTriangles([w.box[0], w.box[1], w.box[2]], [w.box[3], w.box[4], w.box[5]]));
     const count = parts.reduce((n, p) => n + p.positions.length, 0), icount = parts.reduce((n, p) => n + p.indices.length, 0);
     const positions = new Float32Array(count), indices = new Uint32Array(icount);
+    const sight = parts.some((p) => p.sight) ? new Uint8Array(icount / 3) : null;   // FIELD BUGS 2026-10-25i SIGN-PASS: a model's hung signboard a ray's, no body's (merchantYardModels.js assemble)
     let v = 0, i = 0;
     for (const p of parts) {
       positions.set(p.positions, v);
       for (let j = 0; j < p.indices.length; j++) indices[i + j] = p.indices[j] + v / 3;
+      if (sight && p.sight) sight.set(p.sight, i / 3);
       v += p.positions.length; i += p.indices.length;
     }
-    return { positions, indices };
+    return { positions, indices, sight };
   }
   /** A yard's wagons on show, their boxes in the yard's frame once their parts are in: each one's own box centred on its
    *  place, its wheels on the ground. Answers whether one came in this frame. */
@@ -237,7 +239,7 @@ export function createMerchantYards({
     if (y.colAt) { col.removeBucket?.(y.bucket); y.colAt = null; }
     if (!moved && feetInYard(y.site, y.at, feet())) return;   // held back while the player stands on its ground as it first rises
     const g = colliderGeometry(y);
-    col.addMesh(y.bucket, g.positions, g.indices, y.matrix);
+    col.addMesh(y.bucket, g.positions, g.indices, y.matrix, null, null, false, g.sight);   // SIGN-PASS: its boards met by rays, by no body
     y.colAt = [y.at[0], y.at[1], y.at[2]];
     y.colWagons = y.wagonsIn;
   }
@@ -385,7 +387,7 @@ export function createMerchantYards({
       for (const y of yards.values()) {
         const b = y.keeperBatch;
         if (!y.at || !b) continue;
-        const archive = keeperArchive(y.site), race = y.site.race ?? 'Breton', key = `${archive}|${race}`;
+        const archive = keeperArchive(y.site), race = y.site.keeper?.race ?? y.site.race ?? 'Breton', key = `${archive}|${race}`;   // PROVINCE-FOLK: past the Bay the keeper's own
         if (y._mwLookKey !== key) {
           y._mwLookKey = key;
           y._mwLook = folkLookOf({ archive, personFaceRecordId: 0, gender: y.site.keeper?.sex === 'female' ? GENDERS.Female : GENDERS.Male, guard: false }, race, textSeed(String(y.key)));

@@ -26,6 +26,8 @@
 //   gauntlets 0/1, boots 0/1..2);
 //   weapons = the template archive; an Either-hand weapon worn
 //   RIGHT draws record + 1;
+//   an artifact's armor or weapon = its own MAGIC.DEF record in the
+//   artifact archive (432/433), undyed (ART-DOLL);
 //   masks removed (ChangeMask: index 0xFF -> transparent; on an
 //   ITEM layer the mask exposes the background - HM1);
 // - dyes (ChangeDye through the C5b tables): clothing dye on the
@@ -44,16 +46,20 @@ import { packImgTexture } from './packArt.js';   // OVH2: a worn UI pack's backd
 import { racialPaperDollBackground, racialOverrideHeadArt, racialSuppressPaperDollBodyAndItems } from '../systems/vampirism.js';   // V5: the curse art laws, both curses' one switch
 import { CifRciFile } from '../formats/cifRciFile.js';
 import { getBool } from '../systems/settings/settings.js';   // UI3: EnableGeographicBackgrounds; ChildGuard/PlayerNudity gates the welds
+import { isProvinceRegion } from '../formats/mapsTables.js';   // AUDIT TAMRIEL-WIDE C6
 import { EQUIP_SLOTS, equipTableOf, getItemHands, ITEM_HANDS } from '../systems/equip.js';
 import { getTemplate, paperdollOrder } from '../characters/paperdoll/paperdoll.js';
 import { applyDyeToIndex, DYE_TARGETS, DYE_COLORS, CLOTHING_DYES } from '../characters/dyes.js';
 import { decodedTextureTopDown, preloadTextureRecord, textureReplacementRect } from '../systems/textureReplacement.js';
 import { dfmodImgImage, dfmodCifRciImage, dfmodCifRciRect, dfmodGeneration, resampleRgba, dfmodCarriesDollArt } from '../systems/dfmodTextures.js';   // DFMOD1: an attached mod's backdrop, body, head and hi-res items   // DW3: GetItemImage's import arm, by the item's dye; AUDIT-DW F1: decoded when the doll asks
-import { itemDyeColor } from '../systems/item/itemDye.js';   // DW3: DaggerfallUnityItem.dyeColor, as the port's items carry it
+import { itemDyeColor, itemDyeTarget } from '../systems/item/itemDye.js';   // DW3: DaggerfallUnityItem.dyeColor, as the port's items carry it
+import { ARTIFACT_MALE_TEXTURE_ARCHIVE, ARTIFACT_FEMALE_TEXTURE_ARCHIVE } from '../systems/loot/loot.js';   // ART-DOLL: an artifact's own doll archive
 import { customItemClass } from '../systems/roleplayRealismItems/rriItems.js';   // RRI1: a custom class's own archive and record on the doll
 import { ownItemImage } from '../systems/item/itemTemplates.js';   // THUNDERLOCK-ART: a weapon of the port's own wears its own doll layer
 import { clampArmorVariant, armorArchive, HUMAN_MORPHOLOGY, ARMOR_MATERIAL } from '../systems/armorMaterials.js';
 import { raceArt, FACES_PER_RACE, raceByKey } from '../systems/races.js';   // S3c/U9: all eight races
+import { drawnPiece } from '../net/appearanceLaw.js';   // APPEARANCES: a worn piece's look
+import { isHandWraps } from '../characters/handWrapsIds.js';   // HAND-WRAPS: no doll layer
 
 export const PAPERDOLL_W = 110;
 export const PAPERDOLL_H = 184;
@@ -118,11 +124,14 @@ export function paperDollBackground(raceBackground, {
   inTown = false, inDungeon = false, inGraveyard = false,
 } = {}) {
   if (!enabled) return raceBackground;
-  if (region < 0 || region >= regionCount || region >= REGION_BACKGROUND_CHARS.length) return raceBackground;
+  // DEPARTURE (AUDIT TAMRIEL-WIDE C6): a province past the Bay (62..70) takes the town's, dungeon's and graveyard's
+  // backdrops, which name no region; on its open road the race's, as DFU gives any region its table lacks
+  const bay = region >= 0 && region < regionCount && region < REGION_BACKGROUND_CHARS.length;   // BAY-OWN: the Bay's region backdrops; a province takes the context's (C6)
+  if (!bay && !isProvinceRegion(region)) return raceBackground;
   if (inTown) return CONTEXT_BG.town;
   if (inDungeon) return CONTEXT_BG.dungeon;
   if (inGraveyard) return CONTEXT_BG.graveyard;
-  return `SCBG0${REGION_BACKGROUND_CHARS[region]}I0.IMG`;
+  return bay ? `SCBG0${REGION_BACKGROUND_CHARS[region]}I0.IMG` : raceBackground;
 }
 
 // AUDIT 17e F32/F33: clampArmorVariant + the armor archive rule
@@ -132,10 +141,11 @@ export { clampArmorVariant };
 
 /** GetItemImage(forPaperDoll) resolution: {archive, record, dye,
  *  target} or null for groups with no paperdoll layer. */
-export function paperdollItemImage(item, { gender = 'male', race = 'Breton' } = {}, { helmetVariant = helmetPaperdollVariant(item) } = {}) {
+export function paperdollItemImage(worn, { gender = 'male', race = 'Breton' } = {}, { helmetVariant = helmetPaperdollVariant(worn) } = {}) {
+  const item = drawnPiece(worn);   // APPEARANCES (bible/04-Characters/Wardrobe.md): a piece wearing a look is drawn as the look - the player's doll and every peer's
   const morph = raceByKey(race)?.morphologyIndex ?? HUMAN_MORPHOLOGY;
   const t = getTemplate(item.templateIndex);
-  if (!t) return null;
+  if (!t || isHandWraps(item)) return null;   // HAND-WRAPS: worn on the fists, no layer of the doll's own
   // RRI1: GetItemImage(forPaperDoll) reads the same two virtuals the
   // inventory does (ItemHelper.cs:405-406), then bumps an Either-hand
   // weapon worn right by one (:412-414) - the Archer's Axe's second
@@ -150,6 +160,18 @@ export function paperdollItemImage(item, { gender = 'male', race = 'Breton' } = 
     const m = item.material ?? 0;
     const dye = item.group === 'Weapons' ? (MATERIAL_DYES[m] ?? DYE_COLORS.Unchanged) : (m >= ARMOR_MATERIAL.Iron ? MATERIAL_DYES[m - ARMOR_MATERIAL.Iron] ?? DYE_COLORS.Unchanged : DYE_COLORS.Unchanged);
     return { archive, record, dye, target: DYE_TARGETS.WeaponsAndArmor };
+  }
+  // FIELD BUGS 2026-10-25 ART-DOLL (Andink on Discord: "artifacts like Spellbreaker looks like a typical Dwarven Tower
+  // Dorito ... the thumbnails are correct but not on the paper doll"): GetItemImage(forPaperDoll) reads the same
+  // InventoryTextureArchive/Record the list does (ItemHelper.cs:405-406), so an artifact wears its OWN layer - the record
+  // SetArtifact wrote from MAGIC.DEF (GetInventoryTextureRecord's carve-out, DaggerfallUnityItem.cs:1745-1747, which
+  // inventoryItemImage already takes) in the artifact archive, undyed (SetArtifact :611 leaves it Unchanged). This drew
+  // the base template's Tower Shield from the body's armor archive, dyed by the plate band's Dwarven. Departure from
+  // GetArtifactTextureIndices: the archive is the WEARER's gender, not the minter's - an item here changes hands.
+  if (item.artifact && Number.isFinite(item.playerTextureRecord) && (item.group === 'Armor' || item.group === 'Weapons')) {
+    let record = item.playerTextureRecord;
+    if (item.group === 'Weapons' && item.equipSlot === EQUIP_SLOTS.RightHand && getItemHands(item) === ITEM_HANDS.Either) record += 1;
+    return { archive: gender === 'female' ? ARTIFACT_FEMALE_TEXTURE_ARCHIVE : ARTIFACT_MALE_TEXTURE_ARCHIVE, record, dye: itemDyeColor(item), target: itemDyeTarget(item) };
   }
   const variants = t.variants ?? 0;
   if (item.group === 'MensClothing' || item.group === 'WomensClothing') {
@@ -625,7 +647,7 @@ async function composeDoll(art, deps, entity, { background = true, scale: S = 1 
   for (const it of ordered) {
     const res = paperdollItemImage(it, { gender: deps.gender, race: deps.race });
     if (!res) continue;
-    const img = await loadRecord(res.archive, res.record, deps.getTexture, itemDyeColor(it), S);   // DW3: the import ask is by item.dyeColor (an artifact's is Unchanged); the remap below stays res.dye
+    const img = await loadRecord(res.archive, res.record, deps.getTexture, itemDyeColor(drawnPiece(it)), S);   // DW3: the import ask is by item.dyeColor (an artifact's is Unchanged); the remap below stays res.dye. APPEARANCES-II: the drawn piece's - a look's record asked in the piece's metal drew Diverse Weapons' picture of it in the wrong one
     if (!img) continue;
     // FIELD-GUN4: a vendor-only archive has no indexed bitmap to blit
     // through the palette - it hands back RGBA instead, and it is the
@@ -800,6 +822,19 @@ export function slotAtPaperDoll(px, py) {
  */
 export const paperDollPixels = () => _pixels;
 
+
+/** APPEARANCES-II (bible/04-Characters/Wardrobe.md section 4): THE PLAYER'S DOLL ON A STAND-IN - the Wardrobe's preview
+ *  of a look not yet worn (systems/appearances.js previewWearer). The inventory's own art set and deps, composed PURE of
+ *  the singleton: its composite, click mask and identity are untouched. `{ width, height, rgba }`, or null before a host
+ *  has loaded the art; a stand-in of another identity takes the peers' door. */
+export async function composeDollFor(entity) {
+  if (!_art || !_deps) return null;
+  if (paperDollIdentityDrift(entity)) return composePaperDollPixels(_deps, entity, { context: _ident?.context ?? 'town' });
+  try {
+    const { out, width, height } = await composeDoll(_art, _deps, entity, { scale: composeScale() });
+    return { width, height, rgba: out };
+  } catch { return null; }
+}
 
 /**
  * ONLINE1 (AUDIT ONLINE C1-C4, C8, C9): A DOLL FOR SOMEONE ELSE. The

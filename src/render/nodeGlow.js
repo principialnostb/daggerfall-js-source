@@ -177,7 +177,8 @@ void main() {
   float breath = mix(0.8 + 0.2 * sin(TAU * (tm * ${f(NODE_GLOW_RATES.breath)} + uSeed)), 0.9, uStill);
   float halo = across * up * breath;
   // THE SHIMMER: a soft band climbing it
-  float band = exp(-pow((fract(qy - tm * ${f(NODE_GLOW_RATES.shimmer)} + uSeed) - 0.5) * 8.0, 2.0)) * across * up * (1.0 - uStill);
+  float bq = (fract(qy - tm * ${f(NODE_GLOW_RATES.shimmer)} + uSeed) - 0.5) * 8.0;   // AUDIT GATHER F10: squared by hand - pow of a negative base is undefined in GLSL ES 3.00 (8.2), NaN where a driver takes exp2(y log2 x)
+  float band = exp(-bq * bq) * across * up * (1.0 - uStill);
   // THE MOTES: each its own place, pace and twinkle, born and gone dark (so its leap from the crown to the root is unseen)
   float motes = 0.0;
   for (int i = 0; i < ${NODE_GLOW_MOTES}; i++) {
@@ -194,6 +195,8 @@ void main() {
   float light = uForm.x * ${f(NODE_GLOW_GAIN.halo)} * halo + uForm.y * ${f(NODE_GLOW_GAIN.shimmer)} * band + uForm.z * ${f(NODE_GLOW_GAIN.mote)} * motes;
   o = vec4(uColor * light * uAlpha * fogFactorAt(vWorld), 1.0);
 }`;
+// SHADER-EASE QUEUE-ORDER (2026-10-29): its first build, started in the play queue (render/playPrograms.js).
+export const NODE_GLOW_PROGRAMS = Object.freeze([Object.freeze(/** @type {const} */ ([NODE_GLOW_VS, NODE_GLOW_FS]))]);
 
 /** The card: x across (-1, 1), y up (0, 1). Pure. */
 export function nodeGlowVertices() {

@@ -57,6 +57,7 @@ import { randomRangeInclusive } from '../formats/dfRandom.js';
 import { isAlly, isEnemy, flatArchive, flatRecord } from '../formats/factionFile.js';
 import { tokensToString } from './rumorMill.js';
 import { GENDERS } from '../characters/nameHelper.js';
+import { BUILDING_TYPES } from '../world/buildingNames.js';   // PROVINCE-COURTS: the questor pool's palace is DFLocation.BuildingTypes.Palace
 import { getLocalizedFactionName } from './textManager.js';   // L10N3e: the greeting's faction names in the player's language
 import {
   NO_RESPONSE_TEXT_ID, MIN_NEUTRAL_REACTION, MIN_LIKE_REACTION,
@@ -188,11 +189,16 @@ export class NPCSession {
   /** GetStaticNPCFactionData: an NPC with a NULL faction id belongs to
    *  the region's court inside a palace and to its people anywhere
    *  else (matched to classic); the three generic Random_* factions
-   *  are redirected to the court, DFU's own change. */
+   *  are redirected to the court, DFU's own change.
+   *
+   *  PROVINCE-COURTS: `buildingType` is DFU's BuildingTypes either way it comes - the click's name ('Palace', the host's
+   *  buildingType()) or the building's own number (BUILDING_TYPES.Palace, 16), which is what the questor pool hands
+   *  in (talkTopics.js questorCandidateBuildings, GetBuildingList :2814-2816). The pool's palace compared 16 with
+   *  'Palace' and missed, so a factionless palace noble's work was the People's - commoner work - on the Bay and past it. */
   getStaticNPCFactionData(factionId, buildingType) {
     let id = factionId;
     if (id === 0) {
-      id = buildingType === 'Palace'
+      id = buildingType === 'Palace' || buildingType === BUILDING_TYPES.Palace
         ? (this.deps.courtOfCurrentRegion?.() ?? 0)
         : (this.deps.peopleOfCurrentRegion?.() ?? 0);
     } else if (id === RANDOM_RULER || id === RANDOM_NOBLE || id === RANDOM_KNIGHT) {
@@ -622,7 +628,26 @@ export class NPCSession {
   getQuestorLocation() { return this.npcsWithWork.get(this.selectedNpcWorkKey)?.buildingName ?? ''; }
 
   /** RemoveNpcQuestor (:2600-2604) - the offer flow's seam. */
-  removeNpcQuestor(nameSeed) { this.npcsWithWork.delete(nameSeed); }
+  removeNpcQuestor(nameSeed) { this.npcsWithWork.delete(nameSeed); this._holdSelection(); }
+
+  /** QUESTOR-HELD (FIELD BUGS 2026-10-20h, Ledger A): while the pool
+   *  holds questors, the selection names one of them - the invariant the
+   *  build sets (:2869, the last questor added). C#'s RemoveNpcQuestor
+   *  and RestoreConversationData (:2541-2542) break it: the offer window
+   *  spends the questor the selection names, or a load brings in a pool
+   *  without it, and the next Work answer throws KeyNotFoundException out
+   *  of GetQuestorGender (TalkManagerMCP.cs:34) before SetRandomQuestor
+   *  (:2036) can move it, so the topic stays dead in that town. The
+   *  readers above answered '' instead, and the player was sent to "a
+   *  place called " to look for "someone named ". A stale selection takes
+   *  the build's own rule, the last questor the pool holds; one the pool
+   *  still holds is left alone, and nothing is drawn. */
+  _holdSelection() {
+    if (this.npcsWithWork.size === 0 || this.npcsWithWork.has(this.selectedNpcWorkKey)) return;
+    let last = this.selectedNpcWorkKey;
+    for (const k of this.npcsWithWork.keys()) last = k;
+    this.selectedNpcWorkKey = last;
+  }
 
   /** The questor half of GetBuildingList (:2762-2876). The block walk
    *  itself is the host's (it already feeds TK-ii's getBuildingList);
@@ -751,6 +776,10 @@ export class NPCSession {
       this.npcsWithWork = new Map(d.npcsWithWork.map(([k, v]) => [k, { ...v, npc: { ...v.npc } }]));
     }
     if (d.castleNPCsSpokenTo != null) this.castleNPCsSpokenTo = new Map(d.castleNPCsSpokenTo);
+    // QUESTOR-HELD: the save carries no selection (SaveDataConversation
+    // has none), and the pool it brings is another session's 25% draw -
+    // this session's selection is rarely in it
+    this._holdSelection();
   }
 
   // ---- the event handlers (:3593-3629) ----

@@ -52,6 +52,7 @@ import { MINUTES_PER_DAY, dayOfYear } from './gameDate.js';   // X6: the soul-ge
 import { SOUL_TRAP_TEMPLATE } from './mysticism.js';   // X6: one home for the template id (X5 put it there with fillEmptyTrap)
 import { ILIAC_CARD_TEMPLATE, CARD_PACK_TEMPLATE } from './iliac/iliacItems.js';   // AUDIT CARDS-5 C2: the collectible card, which no shop buys; CARDS9: nor its pack
 import { goodOfTemplate } from './naval/tradeGoods.js';   // AUDIT CAPTAIN'S SEA B2: the exchange's goods, which no shop buys
+import { landSold } from './stolenGoods.js';   // AUDIT UPDATE II B2: the sale's own door, for the counter's arrows
 import { OIL_TEMPLATE, ARROW_TEMPLATE, addItem } from './inventory.js';   // SHOP-ARROWS: the counter's quiver   // AUDIT-RR2 G10: the shelf's AddItem   // AUDIT 58: UselessItems2.Oil (ItemEnums.cs:357) - one home for the id
 import { getBool } from './settings/settings.js';   // AUDIT 58: DaggerfallUnity.Settings.PlayerTorchFromItems, read where DFU reads it
 import { FACTION_TYPES } from '../formats/factionFile.js';        // S41: UpdateRegionalPrices' type-7 region walk
@@ -60,7 +61,6 @@ import { MERCHANTS_FACTION_ID } from './guild/guilds.js';               // S41: 
 import { turnOnConditionFlag, turnOffConditionFlag, REGION_FLAGS, REGION_COUNT } from './region/regionConditions.js';   // S42: the store S41's flag was waiting on
 import { isOnlinePage } from './online/onlineLane.js';   // REALM P0.4: online, a shop pays at most half what it asks
 import { BAG_TEMPLATE, isBagItem } from '../net/bagLaw.js';   // BAG1: the Materials Bag, at every General Store online
-import { createPellets } from './thunderlock.js';   // SHOP-PELLETS: the gun's shot on the counter - the shot alone, never the gun
 import { BOAT_PARTS_TEMPLATE, BOAT_DEED_TEMPLATE } from './comeSailAway/comeSailAwayItems.js';   // SHIPYARDS: a ship's parts and deed, which no shop buys - a port's shipyard does
 
 // ItemGroups ids used by the shelf tables (DaggerfallUnityEnums).
@@ -105,21 +105,17 @@ export const SHOP_ITEM_GROUPS = Object.freeze({
 });
 
 /**
- * SHOP-PELLETS (2026-10-07, Mac: "allowing the purchase of the ammunition in stores"): THE THUNDERLOCK'S SHOT ON THE
- * COUNTER. Daggerfall has no gun and no shot to shelve - the Dwarven Thunderlock is the port's own (systems/thunderlock.js)
- * and stays a FIND: no shelf sells the gun. Its Dwemer Pellets are sold where Daggerfall sells weapons - every storefront
- * whose pair table above carries the Weapons group (0x03: the Weapon Smith at 0x46, the Armorer and the General Store at
- * 0x14, the Pawn Shop at 0x0A) - on the counter's shelf (shelfIndex 0, the one a counter sells from), from NO roll and
- * after every draw of DFU's, so the classic stream is what it was. The stack is the shop's own weight of weapons: its
- * Weapons chance over the Weapon Smith's, of SHOP_PELLETS_MAX, and a poor shop half of that (quality 1 half, 20 whole) -
- * a Weapon Smith 25 to 50, an Armorer or a General Store 7 to 14, a Pawn Shop 4 to 7. It sells out and comes back with
- * the day's restock, as the rest of the shelf does.
+ * PELLETS-SCARCE (2026-10-24, the owner: "Remove their ammo from shops and only have ammo has a rare resource drop (not
+ * super duper rare but still rare)"; bible/05-Combat/Dwarven-Thunderlock.md "PELLETS-SCARCE"): NO SHELF SELLS THE
+ * DWEMER PELLET. SHOP-PELLETS (2026-10-07) put the Thunderlock's shot on every weapon counter; that line is gone, and
+ * every other draw and stack on the shelf is what it was (it drew no roll). A Pellet is found - the loot door's last
+ * draw (systems/thunderlock.js, the Dwemer find) and the airship's hold (systems/ketch/ketchSpoils.js; bible/11-Multiplayer/
+ * Sky-Ketch.md section 9) - and passes between players by trade. A shop still BUYS one back, as it buys any weapon.
  */
-export const SHOP_PELLETS_MAX = 50;
 const WEAPONS_GROUP_ID = 0x03;
-/** THE COUNTER'S ROUNDS, one law for every ammunition (SHOP-PELLETS, SHOP-ARROWS): `max` at a quality-20 Weapon Smith,
- *  the shop's own Weapons chance over the Weapon Smith's of it, and a poor shop half of that; nothing where no weapon is
- *  sold. */
+/** THE COUNTER'S ROUNDS (SHOP-PELLETS' law, SHOP-ARROWS' since PELLETS-SCARCE took the Pellet off the counter): `max` at
+ *  a quality-20 Weapon Smith, the shop's own Weapons chance over the Weapon Smith's of it, and a poor shop half of that;
+ *  nothing where no weapon is sold. */
 export function shopAmmoStack(buildingType, quality, max) {
   const pairs = SHOP_ITEM_GROUPS[buildingType] ?? [];
   let chance = 0;
@@ -129,19 +125,59 @@ export function shopAmmoStack(buildingType, quality, max) {
   const q = Math.max(1, Math.min(20, Math.trunc(Number(quality)) || 1));
   return Math.max(1, Math.round(max * (chance / most) * (0.5 + (0.5 * (q - 1)) / 19)));
 }
-export const shopPelletStack = (buildingType, quality) => shopAmmoStack(buildingType, quality, SHOP_PELLETS_MAX);
 
 /**
  * SHOP-ARROWS (2026-10-11, Mac: "Buff the shop's stock of arrows"; bible/05-Combat/Arrow-Supply.md): A QUIVER ON THE
  * COUNTER. DFU's stock law shelves arrows as any weapon - a Weapons-chance draw a shelf, rarity 1, one stack of
  * Range(1, 21) (enemyEquipment.js createWeapon's arrow arm) - so a Weapon Smith's counter held twenty arrows at most, 70%
  * of the time, and a General Store's one day in five. Now every shop that sells weapons also carries a quiver on its
- * counter's shelf, from NO roll and after every draw of DFU's, sized by the pellets' law at SHOP_ARROWS_MAX: a Weapon
+ * counter's shelf, from NO roll and after every draw of DFU's, sized by the counter's law at SHOP_ARROWS_MAX: a Weapon
  * Smith 50 to 100, an Armorer or a General Store 14 to 29, a Pawn Shop 7 to 14 - merged into the shelf's own arrows
  * when DFU's draw put some there. It sells out and comes back with the day's restock, as the rest of the shelf does.
  */
 export const SHOP_ARROWS_MAX = 100;
 export const shopArrowStack = (buildingType, quality) => shopAmmoStack(buildingType, quality, SHOP_ARROWS_MAX);
+/**
+ * ENDLESS-ARROWS (2026-10-23, the owner: "give general stores always arrows for each player to buy they cant exhaust"): A
+ * GENERAL STORE'S QUIVER NEVER EMPTIES. Its counter shelf carries a full quiver (GENERAL_STORE_ARROWS, whatever the
+ * shop's quality - SHOP-ARROWS' 14 to 29 was a General Store's) from no roll, and every purchase that takes arrows off it
+ * puts back what it took, up to the whole (restockEndless), offline and online alike - unlike ENDLESS-STOCK's bag,
+ * campfire and rations, which online alone. AUDIT UPDATE E1: only what a PURCHASE took - an arrow stolen stays gone,
+ * so a theft and one arrow bought never fill the quiver again; E2: the counter's shelf alone (the hosts hand its shop
+ * for that shelf and no other). Online a shelf is the room's (WORLD6a), and the refill rides its published list, so no
+ * patron buys another's arrows out (AUDIT UPDATE E-N8). The other storefronts' quivers sell out as SHOP-ARROWS says. A
+ * declared departure (Port-Ledger A).
+ */
+export const GENERAL_STORE_ARROWS = SHOP_ARROWS_MAX;
+export const endlessArrowsAt = (buildingType) => buildingType === BUILDING_TYPES.GeneralStore;
+const isShelfArrow = (it) => it?.group === 'Weapons' && it.templateIndex === ARROW_TEMPLATE;
+/** ENDLESS-ARROWS: the counter's quiver, minted as the shelf mints its own (CreateWeapon's arrow arm, its roll a constant). */
+const mintQuiver = (n) => mintCondition(setItemFields({ ...createWeapon(ARROW_TEMPLATE, 0, () => 0), stackCount: n }));
+/** AUDIT UPDATE II B2: A SOLD PIECE ONTO A SHELF - STOLEN-GOODS' law (stolenGoods.js landSold), but an arrow sold at a
+ *  General Store's COUNTER is paid for and never shelved there (a departure from DFU's remoteItems, for these arrows
+ *  alone): its quiver is endless, and a sold row bought back would read as arrows the purchase took from it - a theft,
+ *  a sale and the buy-back stood the quiver again. `buildingType` the counter's shop, null for any other shelf.
+ *  Answers landSold's word: whether the piece is on the shelf. */
+export function landSoldAt(shelfItems, item, buildingType = null) {
+  if (endlessArrowsAt(buildingType) && isShelfArrow(item)) return false;
+  return landSold(shelfItems, item);
+}
+/** ENDLESS-ARROWS: a General Store's quiver given back what a purchase took of it, up to its whole; answers 1 when it
+ *  filled or stood one, else 0. AUDIT UPDATE E1: the arrows the purchase took, never the whole - what a theft took
+ *  stays gone. */
+function restockArrows(shelfItems, bought, buildingType) {
+  const took = (bought ?? []).filter(isShelfArrow).reduce((n, it) => n + Math.max(1, Math.trunc(it.stackCount ?? 1)), 0);
+  if (!endlessArrowsAt(buildingType) || !(took > 0)) return 0;
+  const stack = shelfItems.find(isShelfArrow);
+  if (stack) {
+    const was = stack.stackCount ?? 1;
+    if (was >= GENERAL_STORE_ARROWS) return 0;
+    stack.stackCount = Math.min(GENERAL_STORE_ARROWS, was + took);
+    return 1;
+  }
+  addItem(shelfItems, mintQuiver(Math.min(GENERAL_STORE_ARROWS, took)));
+  return 1;
+}
 
 // E3: DaggerfallTradeWindow.storeBuysItemType, verbatim - the item
 // groups each storefront BUYS from the player.
@@ -211,6 +247,7 @@ export const MAGIC_ITEMS_ENUM_TEMPLATE = 0;
 import { BOOK_TEMPLATE, createRegularMagicItem, createRandomPotion, randomlyAddPotionRecipe, getMagicItemTemplates, createRandomWeapon, createRandomArmor, createRandomClothing } from './loot/loot.js';   // G4: the guild shelves' two minters (AUDIT 26 F129/F130: + the recipe arm and the registry)
 import { SPELLBOOK_TEMPLATE_INDEX } from './spell/spellMaker.js';   // G4: one home for MiscItems 132
 import { restItemsStock } from './rest/restItems.js';   // REST6: the Bedroll, the Ember Jar, Firewood and the draughts
+import { isLockpick, ensureEndlessLockpicks, restockLockpicks } from './lockpick/lockpickItem.js';   // LOCKPICK: the counter's endless picks
 import { provisionsStock, campfireStock, createSurvivalItem, isSurvivalItem, isCampfireKit, TEMPLATE as SURVIVAL_TEMPLATE, ensureEndlessProvisions, ENDLESS_RATIONS_STACK } from './survival/items.js';   // SURV2: the general store's provisions shelf   // REST2: and online the Campfire alone, the arc Off
 import { sharedClockOn } from './worldTick.js';
 import { healingShelfCount, mintHealingPotion } from './healingSupply.js';   // POTION-COMMON: the shelf's Potions of Healing
@@ -282,15 +319,18 @@ export const stockSearched = (container, today) => Number.isFinite(container?.op
  *  same with campfires"): the rows a shop never sells out of - the Materials Bag and the Campfire. ENDLESS PROVISIONS
  *  (2026-10-04, Mac: "rations should be available in stores where it makes sense and unlimited as well"): and Rations. */
 const isRations = (item) => isSurvivalItem(item) && item.templateIndex === SURVIVAL_TEMPLATE.Rations;
-export const isEndlessStock = (item) => isBagItem(item) || (isSurvivalItem(item) && isCampfireKit(item)) || isRations(item);
+export const isEndlessStock = (item) => isBagItem(item) || (isSurvivalItem(item) && isCampfireKit(item)) || isRations(item) || isLockpick(item);   // LOCKPICK: and the counter's picks
 /** ENDLESS-STOCK: a purchase's endless rows put back on the shelf they were bought from - a fresh one for each (neither
  *  stacks), minted as the shelf mints it (worldModes.js commitTrade's Buy). Only a purchase restocks: a row taken from a
  *  closed shop's shelf is stolen, and stays gone. Online alone; and online no shop buys one back (shopBuysItem), so the only
  *  endless rows on a shelf are the ones it stocked itself. Answers how many went back. */
-export function restockEndless(shelfItems, bought) {
+export function restockEndless(shelfItems, bought, buildingType = null) {
+  if (!Array.isArray(shelfItems)) return 0;
+  // ENDLESS-ARROWS: a General Store's quiver, offline and online (`buildingType` the counter's shop)
+  let n = restockArrows(shelfItems, bought, buildingType);
   // AUDIT ENDLESS-STOCK F4: online alone, as the bag is - offline a shelf sells out as Daggerfall's does
-  if (!Array.isArray(shelfItems) || !isOnlinePage()) return 0;
-  let n = 0;
+  if (!isOnlinePage()) return n;
+  n += restockLockpicks(shelfItems, (bought ?? []).filter(isLockpick).reduce((k, it) => k + Math.max(1, Math.trunc(it.stackCount ?? 1)), 0));   // AUDIT LOCKPICK B4: what the purchase took
   for (const it of bought ?? []) {
     if (!isEndlessStock(it)) continue;
     if (isRations(it)) {
@@ -300,6 +340,7 @@ export function restockEndless(shelfItems, bought) {
       else { const r = createSurvivalItem(SURVIVAL_TEMPLATE.Rations, { stackCount: ENDLESS_RATIONS_STACK }); if (r) { addItem(shelfItems, r); n++; } }
       continue;
     }
+    if (isLockpick(it)) continue;   // LOCKPICK: stood back above, by what the purchase took
     const fresh = isBagItem(it)
       ? mintCondition(setItemFields({ group: 'UselessItems2', templateIndex: BAG_TEMPLATE }))
       : createSurvivalItem(SURVIVAL_TEMPLATE.Campfire);
@@ -510,11 +551,14 @@ export function stockShopShelf({ buildingType, quality }, playerEntity = {}, { r
   // every tier, Climates & Calories Off and offline too - after DFU's draws, from no roll. Online a purchase stands them
   // again (restockEndless); offline they sell out until the day's restock, as the rest of the shelf does (ENDLESS-STOCK F4)
   if (shelfIndex === 0 && (buildingType === BUILDING_TYPES.GeneralStore || buildingType === BUILDING_TYPES.PawnShop)) ensureEndlessProvisions(items);
+  // LOCKPICK (bible/06-Systems/Lockpicking.md section 2): and a stack of lockpicks - a lock needs one - from no roll, so DFU's
+  // draws above stand as they were; online a purchase stands it whole again (restockEndless), offline it sells out until the
+  // day's restock
+  if (shelfIndex === 0 && (buildingType === BUILDING_TYPES.GeneralStore || buildingType === BUILDING_TYPES.PawnShop)) ensureEndlessLockpicks(items);
   // SHOP-ARROWS (above): a quiver on the counter of every shop that sells weapons - after DFU's draws, from no roll; minted
   // as the shelf mints its own (CreateWeapon's arrow arm, its stack roll answered by a constant), so the two are one stack
-  if (shelfIndex === 0) { const n = shopArrowStack(buildingType, quality); if (n > 0) add({ ...createWeapon(ARROW_TEMPLATE, 0, () => 0), stackCount: n }); }
-  // SHOP-PELLETS (above): the Thunderlock's shot on the counter of every shop that sells weapons - after DFU's draws, from no roll
-  if (shelfIndex === 0) { const n = shopPelletStack(buildingType, quality); if (n > 0) addItem(items, createPellets(n)); }
+  // ENDLESS-ARROWS: a General Store's a full quiver at any quality (merged into DFU's drawn arrows as SHOP-ARROWS' is)
+  if (shelfIndex === 0) { const n = endlessArrowsAt(buildingType) ? GENERAL_STORE_ARROWS : shopArrowStack(buildingType, quality); if (n > 0) add({ ...createWeapon(ARROW_TEMPLATE, 0, () => 0), stackCount: n }); }
   // POTION-COMMON (2026-10-01, the field: "make health potions more common"): an alchemist's and a general store's day of
   // Potions of Healing (healingSupply.js) - at the shelf's end and from no roll, so DFU's own draws above are the same.
   // AUDIT ECON P1: on the shop's FIRST shelf alone, the one its counter sells from (worldModes.js openMerchantSell) -

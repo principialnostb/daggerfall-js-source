@@ -1,9 +1,10 @@
 [
   {
     "name": "AUTOHOLD-a-contested-claim-struck",
+    "reaimed": "STAFF-PANEL4-CENSUS: re-aimed by content - a copy written down keeps its first holder, its claimant and its print (ledger.js copyRows)",
     "file": "server-account/src/ledger.js",
-    "old": "    steps.push(...copyRows(db, keys, claimant, nowS), ...chargeSteps(db, claimant, keys, nowS, { strike: false }));",
-    "new": "    steps.push(...copyRows(db, keys, claimant, nowS), ...chargeSteps(db, claimant, keys, nowS));",
+    "old": "      ...chargeSteps(db, claimant, keys, nowS, { strike: false }));",
+    "new": "      ...chargeSteps(db, claimant, keys, nowS));",
     "tests": [
       "test/server/autohold.test.js",
       "test/systems/item/int4_itemids.test.js"
@@ -120,8 +121,8 @@
   {
     "name": "AUTOHOLD-the-timed-unwritten",
     "file": "server-account/src/verdict.js",
-    "old": "    s.held_until ?? null, s.law_holds ?? 0, s.law_at ?? null);",
-    "new": "    null, s.law_holds ?? 0, s.law_at ?? null);",
+    "old": "    s.held_until ?? null, s.law_holds ?? 0, s.law_at ?? null, s.law_v ?? null);",
+    "new": "    null, s.law_holds ?? 0, s.law_at ?? null, s.law_v ?? null);",
     "tests": [
       "test/server/autohold.test.js"
     ]
@@ -129,8 +130,8 @@
   {
     "name": "AUTOHOLD-the-clear-keeps-the-timed",
     "file": "server-account/src/review.js",
-    "old": "held = NULL, held_at = NULL, held_until = NULL, strikes = 0, law_holds = 0, law_at = NULL, review = NULL, law_excused = law_sig",
-    "new": "held = NULL, held_at = NULL, strikes = 0, review = NULL, law_excused = law_sig",
+    "old": "held = NULL, held_at = NULL, held_until = NULL, strikes = 0, law_holds = 0, law_at = NULL, review = NULL,\n",
+    "new": "held = NULL, held_at = NULL, strikes = 0, review = NULL,\n",
     "tests": [
       "test/server/autohold.test.js"
     ]
@@ -489,7 +490,7 @@
   {
     "name": "AUTOHOLD-AUDIT-the-review-promised",
     "file": "src/net/accountClient.js",
-    "old": "'This character\\'s trading is frozen. The notice shown when it froze says why, and until when.'",
+    "old": "'This character\\'s trading, gathering and crafting are frozen. The notice shown when it froze says why, and until when.'",
     "new": "'The realm is reviewing this character, and its trading is frozen until the review ends.'",
     "tests": [
       "test/server/autohold.test.js"
@@ -525,8 +526,8 @@
   {
     "name": "AUTOHOLD-AUDIT-twice-unasked-by-a-route",
     "file": "server-account/src/realm.js",
-    "old": "  const why = twice.length ? 'piece-dupe' : leaving.length ?",
-    "new": "  const why = leaving.length ?",
+    "old": "  const why = take ? null : twice.length ? 'piece-dupe' : leaving.length ?",
+    "new": "  const why = take ? null : leaving.length ?",
     "tests": [
       "test/server/autohold.test.js"
     ]

@@ -744,17 +744,18 @@ test('OH-E the loot events: EnemyEntity.OnLootSpawned carries the table key, the
   const ctx = readFileSync(new URL('../../src/scenes/dungeonContext.js', import.meta.url), 'utf8');
   assert.match(ctx, /addPileLootExtras\(items, lootKey, rolls, \{ locationIndex: dfLocation\.mapTableData\.dungeonType, luck, level, where: 'dungeon', quarters \}\);[^\n]*\n\s*rollLootRarity\(/, 'the dungeon\'s pile: the trio and the event, then the port\'s rarity roll');   // PIN MOVED (PARTY-LOOT): the roll's own terms
   const src = readFileSync(new URL('../../src/scenes/world.js', import.meta.url), 'utf8');
-  const body = src.slice(src.indexOf('const ohUpgrade = '), src.indexOf('_ohLootOff = () =>'));
+  const lootHost = readFileSync(new URL('../../src/scenes/ohLootHost.js', import.meta.url), 'utf8');   // PIN MOVED (HOST-SPLIT, EVENT-RULES): out of the world host whole
+  const body = lootHost.slice(lootHost.indexOf('const ohUpgrade = '), lootHost.indexOf('return () => { offTable(); offEnemy(); };'));
   assert.ok(body.includes('ohAbyss.shouldUpgradeLoot()'), 'ShouldUpgradeLoot gates both');
   assert.ok(body.includes('addBonusMagicLoot(lootMatrix(key).MI, items'), 'the key\'s MI column');
   assert.ok(body.indexOf('addBonusMagicLoot(') < body.indexOf('upgradeLoot('), 'AddBonusMagicLoot, then UpgradeLoot over the whole of Items');
-  assert.match(body, /tableLootSpawned\.add\(\(e\) => ohUpgrade\(e\.key, e\.items, \[\], e\.where, e\.rolls \?\? Math\.random, e\.roller \?\? playerEntity\)\)/);   // PIN MOVED (PARTY-LOOT): the raiser's dice and roller (a room's base rolls on the room's)
-  assert.match(body, /enemyLootSpawned\.add\(\(e\) => ohUpgrade\(e\.lootTableKey, e\.items, e\.worn, e\.where, e\.rolls \?\? Math\.random, e\.roller \?\? playerEntity\)\)/);
+  assert.match(body, /tableLootSpawned\.add\(\(e\) => ohUpgrade\(e\.key, e\.items, \[\], e\.where, e\.rolls \?\? Math\.random, e\.roller \?\? player\(\)\)\)/);   // PIN MOVED (PARTY-LOOT): the raiser's dice and roller (a room's base rolls on the room's)
+  assert.match(body, /enemyLootSpawned\.add\(\(e\) => ohUpgrade\(e\.lootTableKey, e\.items, e\.worn, e\.where, e\.rolls \?\? Math\.random, e\.roller \?\? player\(\)\)\)/);
   // AUDIT OH-F B3: the dungeon's rolls alone take the upgrade - the street's foes and guards roll during the build
   assert.match(body, /if \(where !== 'dungeon' \|\| !ohAbyss\.shouldUpgradeLoot\(\)\) return;/);
   assert.equal((ctx.match(/spawnEnemyLoot\(entity, e\.mobileType, basics, D\.playerEntity, \{ \.\.\.eliteLootOpts\(e\), where: 'dungeon' \}\)/g) ?? []).length, 2, 'both of the dungeon\'s foe arms');
   for (const f of ['src/scenes/exteriorFoes.js', 'src/scenes/cityGuards.js', 'src/scenes/interiorContext.js']) assert.doesNotMatch(readFileSync(new URL(`../../${f}`, import.meta.url), 'utf8'), /where: 'dungeon'/, `${f} is not the dungeon`);
-  assert.match(src, /_ohLootOff\?\.\(\);\s*_ohLootOff = null;\s*if \(ohAbyss\) \{/, 'a second world replaces the listeners');
+  assert.match(src, /_ohLootOff\?\.\(\);\s*_ohLootOff = null;\s*if \(ohAbyss\) _ohLootOff = ohLootUpgrades\(ohAbyss, \(\) => playerEntity\);/, 'a second world replaces the listeners');
   // PlayerEnterExit.Dungeon while SetDungeon lays it out: the modes seam answers the location before its context exists
   assert.match(src, /dungeon: \(\) => ohDungeonOf\(modes\?\.dungeonCtx\) \?\? ohLayingOutOf\(modes\?\.layingOutLocation\)/);
   const wm = readFileSync(new URL('../../src/scenes/worldModes.js', import.meta.url), 'utf8');
@@ -844,7 +845,8 @@ test('AUDIT OH-F B4 the descent is one move: `entering` from the pit to the arri
   assert.equal(entries(q.log, 'teleport').length, 2);
   const src = readFileSync(new URL('../../src/scenes/world.js', import.meta.url), 'utf8');
   assert.match(src, /function worldMoveBusy\(\) \{[^}]*\|\| !!ohAbyss\?\.entering;\s*\}/, 'loads, Recall, quests and jail wait for the descent');
-  assert.match(src, /function worldQuickSave\(saveName = QUICK_SAVE_NAME, \{ quiet = false, sink = null \} = \{\}\) \{\s*(?:\/\/[^\n]*\n\s*)*if \(ohAbyss\?\.entering\) \{ if \(!quiet\) townTalk\.say\('You cannot save now\.'\); return false; \}/, 'and a save refuses (AUDIT REALM2 M5: saying so to a save pressed, never to the quiet checkpoint)');
+  // PIN MOVED (HOST-SPLIT, at the merge of main into TESA): the save is scenes/worldQuickSave.js's, the descent read live through host
+  assert.match(readFileSync(new URL('../../src/scenes/worldQuickSave.js', import.meta.url), 'utf8'), /function worldQuickSave\(saveName = QUICK_SAVE_NAME, \{ quiet = false, sink = null \} = \{\}\) \{\s*(?:\/\/[^\n]*\n\s*)*if \(host\.ohAbyss\?\.entering\) \{ if \(!quiet\) townTalk\.say\('You cannot save now\.'\); return false; \}/, 'and a save refuses (AUDIT REALM2 M5: saying so to a save pressed, never to the quiet checkpoint)');
 });
 
 test('AUDIT OH-F B5 online: the Recall renames before the room is joined; a death wakes at the pit; the hour never brings a destroyed foe back', async () => {

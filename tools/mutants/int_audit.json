@@ -1,10 +1,11 @@
 [
   {
     "name": "INTA-the-holder-charged",
+    "reaimed": "STAFF-PANEL4-CENSUS: re-aimed by content - a copy written down keeps its first holder, its claimant and its print (ledger.js copyRows)",
     "file": "server-account/src/ledger.js",
     "note": "AUTO-HOLD (PIN MOVED): re-aimed by content - a contested claim locks the claimant with no strike, `{ strike: false }`",
-    "old": "    steps.push(...copyRows(db, keys, claimant, nowS), ...chargeSteps(db, claimant, keys, nowS, { strike: false }));",
-    "new": "    steps.push(...copyRows(db, keys, claimant, nowS), ...chargeSteps(db, char, keys, nowS, { strike: false }));",
+    "old": "      ...chargeSteps(db, claimant, keys, nowS, { strike: false }));",
+    "new": "      ...chargeSteps(db, char, keys, nowS, { strike: false }));",
     "tests": [
       "test/systems/item/int4_itemids.test.js"
     ]
@@ -113,7 +114,7 @@
   {
     "name": "INTA-strike-a-checkpoint",
     "file": "server-account/src/verdict.js",
-    "old": "  const rising = lawHolds > 0 && lawFindings.some((f) => f.code !== 'uid') && (row.law_sig == null || row.law_sig === row.law_excused);",
+    "old": "  const rising = lawHolds > 0 && lawFindings.some((f) => f.code !== 'uid') && (row.law_sig == null || lawExcused(row.law_excused, row.law_sig, row.law_v));",
     "new": "  const rising = lawHolds > 0 && lawFindings.some((f) => f.code !== 'uid');",
     "tests": [
       "test/server/int2_judge.test.js"
@@ -122,8 +123,8 @@
   {
     "name": "INTA-the-finding-every-time",
     "file": "server-account/src/verdict.js",
-    "old": "  if (law > 0 && sig !== row.law_sig) finding('law'",
-    "new": "  if (law > 0 && sig !== null) finding('law'",
+    "old": "  if (law > 0 && (sig !== row.law_sig || (rising && values !== (row.law_v ?? null)))) {",
+    "new": "  if (law > 0 && sig !== null) {",
     "tests": [
       "test/server/int2_judge.test.js"
     ]
@@ -131,7 +132,7 @@
   {
     "name": "INTA-the-excuse-unread",
     "file": "server-account/src/verdict.js",
-    "old": "  const lawHolds = law > 0 && sig !== row.law_excused ? law : 0;",
+    "old": "  const lawHolds = law > 0 && !lawExcused(row.law_excused, sig, values) ? law : 0;",
     "new": "  const lawHolds = law;",
     "tests": [
       "test/server/int2_judge.test.js"
@@ -250,8 +251,8 @@
   {
     "name": "INTA-the-pile-a-find",
     "file": "server-account/src/judge.js",
-    "old": "  for (const list of [...possessedItemLists(save), ...groundItemLists(save)]) {",
-    "new": "  for (const list of possessedItemLists(save)) {",
+    "old": "const wealthLists = (/** @type {any} */ save) => [...possessedItemLists(save), ...groundItemLists(save)];",
+    "new": "const wealthLists = (/** @type {any} */ save) => [...possessedItemLists(save)];",
     "tests": [
       "test/server/int2_judge.test.js"
     ]
@@ -259,8 +260,8 @@
   {
     "name": "INTA-the-craft-upgraded",
     "file": "server-account/src/judge.js",
-    "old": "      && (piece.q == null || (Number.isInteger(piece.q) && /** @type {number} */ (piece.q) <= Number(row.quality)));",
-    "new": "      && true;",
+    "old": "      && (piece.q == null || (Number.isInteger(piece.q) && /** @type {number} */ (piece.q) <= Number(row.quality)))\n",
+    "new": "      && true\n",
     "tests": [
       "test/server/int2_judge.test.js"
     ]
@@ -378,8 +379,8 @@
     "name": "INTA-the-excuse-unwritten",
     "file": "server-account/src/review.js",
     "note": "AUTO-HOLD (PIN MOVED): re-aimed by content - staff's clear forgets the timed hold beside it",
-    "old": "held = NULL, held_at = NULL, held_until = NULL, strikes = 0, law_holds = 0, law_at = NULL, review = NULL, law_excused = law_sig, allowance = NULL",
-    "new": "held = NULL, held_at = NULL, held_until = NULL, strikes = 0, law_holds = 0, law_at = NULL, review = NULL, allowance = NULL",
+    "old": "law_excused = CASE WHEN law_v IS NULL THEN law_sig ELSE law_sig || '|' || law_v END, allowance = NULL",
+    "new": "allowance = NULL",
     "tests": [
       "test/server/int2_judge.test.js"
     ]

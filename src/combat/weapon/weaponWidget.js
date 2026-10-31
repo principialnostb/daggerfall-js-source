@@ -66,7 +66,7 @@ export {
 import { getBool, getInt } from '../../systems/settings/settings.js';
 import { liveStat } from '../../systems/statMods.js';
 import {
-  getMeleeWeaponAnimTime, getBowCooldownTime, CLASSIC_UPDATE_INTERVAL, HIT_FRAME_MELEE, HIT_FRAME_BOW, MELEE_NUM_FRAMES, BOW_NUM_FRAMES,
+  getMeleeWeaponAnimTime, bowReloadSeconds, CLASSIC_UPDATE_INTERVAL, HIT_FRAME_MELEE, HIT_FRAME_BOW, MELEE_NUM_FRAMES, BOW_NUM_FRAMES,
 } from '../../characters/weaponStates.js';
 import { WEAPON_TYPES, STATE_INDEX, ALIGN, NATIVE_W, NATIVE_H, WEAPON_FILE, weaponTypeForItem } from '../fpsWeapon.js';
 import { weaponOffsetHeight } from '../../ui/hud/hudLarge.js';
@@ -534,7 +534,7 @@ export function createWeaponWidget({
         yield tick;
         while (machineStateIndex() === S.StrikeDown && w.currentFrame < BOW_NUM_FRAMES.StrikeDown - 1) {
           w.offsetTarget = [0, 0]; w.offsetCurrent = [0, 0];
-          if (w.currentFrame === hitFrame()) cooldownTime = w.time + getBowCooldownTime(liveSpeed());
+          if (w.currentFrame === hitFrame()) cooldownTime = w.time + bowReloadSeconds(liveSpeed(), animCtx());   // BOW-LAW: the machine's reload
           w.currentFrame += 1; updateWeapon();
           yield tick;
         }
@@ -550,7 +550,7 @@ export function createWeaponWidget({
       w.currentFrame = 3; changeWeaponState(S.StrikeDown); updateWeapon();
       yield tick;
       // BOW-VOICE: the IL's PlaySwingSound here is the loose's second voice - the machine's `bowSound` is its one
-      cooldownTime = w.time + getBowCooldownTime(liveSpeed());
+      cooldownTime = w.time + bowReloadSeconds(liveSpeed(), animCtx());   // BOW-LAW: the machine's reload
       yield tick;
       while (w.currentFrame < BOW_NUM_FRAMES.StrikeDown - 1) { w.offsetTarget = [0, 0]; w.offsetCurrent = [0, 0]; w.currentFrame += 1; updateWeapon(); yield tick; }
       do { w.offsetTarget = [0, 1]; yield FRAME; } while (w.time < cooldownTime);
@@ -793,10 +793,14 @@ export function createWeaponWidget({
     if (ctx.glow) renderer.drawScreenQuadGlow?.(tex, rect, uv, ctx.glow, { art: [rec.width, rec.height], view: [canvas.width, canvas.height] });   // WEAPON-GLOW1: this hand's own element, on its own rect and source
     return true;
   }
+  /** AUDIT SPELL-HAND L2-1: the clone has the weapon this frame - a context, its art, a weapon type - whether or not it
+   *  chooses silence: its flip (Ambidexterity's hand) stands through a Hide wind-up or recovery, and the spell hand's side
+   *  is read off it then too (combat/weapon/weaponRig.js spellHandSide). */
+  function applies() { return !!ctx && !!w.art && ctx.weaponType !== T.None; }
   /** TWO-HANDS: would draw() put a picture on the screen this frame - the clone applicable and not choosing silence
    *  (frame -1, hidden, third person, not shown with no slide). The pair's running hands take over from a hand that is. */
   function drawing() {
-    if (!ctx || !w.art || ctx.weaponType === T.None) return false;
+    if (!applies()) return false;
     if (w.currentFrame === -1 || !w.showWeapon || ctx.thirdPerson) return false;
     return !!(w.s.offset || ctx.shown);
   }
@@ -810,7 +814,7 @@ export function createWeaponWidget({
   }
 
   return {
-    lateUpdate, draw, drawing, endOfFrame, onAttackDamageCalculated, armsTransform, transformRect, pairRect,
+    lateUpdate, draw, drawing, applies, endOfFrame, onAttackDamageCalculated, armsTransform, transformRect, pairRect,
     /** The mod's `showWeapon` / `hideWeapon` messages. */
     setShowWeapon(v) { w.showWeapon = !!v; },
     setThirdPerson(v) { w.isInThirdPerson = !!v; },

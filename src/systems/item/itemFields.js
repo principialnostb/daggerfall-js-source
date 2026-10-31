@@ -33,8 +33,9 @@
 // runs the mints and pins that no undeclared key appears.
 
 import { GROUP_TEMPLATE_INDICES } from './itemTemplatesData.js';
-import { validAffix, RARITY_ORDER, SOCKET_VALUES } from '../loot/lootRarity.js';
+import { validAffix, RARITY_ORDER, SOCKET_VALUES, REFORGES_MAX } from '../loot/lootRarity.js';   // REFORGE-REPLACE: the count's bound
 import { validSigil } from '../sigil/sigil.js';   // SIGIL1
+import { validAppearanceField } from '../../net/appearanceLaw.js';   // APPEARANCES: a worn piece's look
 
 /** The longest string a field carries; the wire's own bound (loot.js LOOT_STR_MAX reads it). */
 export const ITEM_STR_MAX = 128;
@@ -110,6 +111,7 @@ export const ITEM_FIELDS = Object.freeze({
   questItem: bool(),
   questUID: int({ min: 0 }),
   questSymbol: rec((s) => typeof s.name === 'string'),
+  questClone: bool(),   // HEART-KEPT (FIELD BUGS 2026-10-25i): a foe's clone of a quest's item (quest/foe.js getClonedItemQueue) - CloneAll's UID of its own
   // the port's own (loot rarity, LR1-LR4)
   rarity: oneOf(RARITY_ORDER),
   legendary: str(),
@@ -119,8 +121,11 @@ export const ITEM_FIELDS = Object.freeze({
   qlNamed: bool(),   // AUDIT QUESTLINES REWARD-5: a questline's named piece - its name stands without a metal before it (itemInfo.js withholdsMaterialPrefix)
   exalted: bool(),   // LOOT2 (bible/06-Systems/Loot-Arc.md section 4): a Legendary minted Exalted - one line more, true or absent
   untaken: bool(),   // LOOT8 (bible/06-Systems/Loot-Arc.md section 10): a piece a source door rolled that no player has taken - true or absent; its first take clears it and counts for the drought
-  reforged: int({ min: 0, max: 15 }),   // LOOT9 (bible/06-Systems/Loot-Arc.md section 11): the one line the Reforge has rolled again (its index) - only it may be again
+  reforged: int({ min: 0, max: 15 }),   // LOOT9 (bible/06-Systems/Loot-Arc.md section 11): the one line the Reforge had rolled again (its index) - REFORGE-REPLACE: an old piece's, read as one reforge taken (lootRarity.js reforgeCount), never a lock; a reforge folds it into `reforges`
+  reforges: int({ min: 1, max: REFORGES_MAX }),   // REFORGE-REPLACE (Loot-Arc.md section 11): the reforges a piece has taken - what the next costs (reforge.js reforgePrice, temperLaw.js reforgeEssence), or absent
   imprint: str(),   // LOOT10 (bible/06-Systems/Loot-Arc.md section 12): a Rare's imprinted power - a Legendary record's id of its own group (loot.js validLootItem: lootRarity.js validImprint)
+  imbued: bool(),   // LOOT-GATE: a piece whose tier the Reforge's Imbue raised (reforge.js imbuePiece) - a counter pays for the piece it was, true or absent
+  imbueWorth: int({ min: 0 }),   // AUDIT UPDATE L5: the price the Imbue added (reforge.js imbuePiece) - what a counter takes off (lootRarity.js craftedRarityWorth), or absent
   honed: int({ min: 1, max: 63 }),   // LOOT17 (bible/06-Systems/Loot-II-Arc.md section 9): the hones a piece has taken - what the next costs (reforge.js honePrice), or absent
   cursed: rec(validEnchantment),   // LOOT16 (bible/06-Systems/Loot-II-Arc.md section 8): a cursed find's drawback - the enchantment the temple lifts, or absent (loot.js validLootItem: lootRarity.js validCurse)
   socket: oneOf(SOCKET_VALUES),   // LOOT20 (bible/06-Systems/Loot-II-Arc.md section 12): a piece's socket - 'empty' or the gem set in it, or absent (loot.js validLootItem: lootRarity.js validSocket)
@@ -211,11 +216,21 @@ export const ITEM_FIELDS = Object.freeze({
   horsePattern: int({ min: 1, max: 4 }),
   horseLegs: int({ min: 1, max: 2 }),
   horseSeed: int({ min: 1, max: 65535 }),
-  // STEED1 (bible/06-Systems/Horse-Care.md): a horse's bond with its owner, in tenths (systems/steedCare.js - absent,
+  // STEED1 (bible/06-Systems/Horse-Care.md; DRAGON5c: the tamed dragon's too): a horse's bond with its owner, in tenths (systems/steedCare.js - absent,
   // none) - the OWNER's mark, never carried to the next (net/realm/realmTradeLaw.js RECEIVER_MARKS); and the minute of its
   // owner's clock its food runs out (absent, never seen fed - it comes fed)
   horseBond: int({ min: 1, max: 1000 }),
   horseFed: int({ min: 1 }),
+  // DRAGON5 (bible/11-Multiplayer/Dwarven-Dragon.md section 10): a tamed dragon's tame (systems/dragon/dragonMount.js - the
+  // service's `dg` id, the judge's provenance) and its look (1 the Aetherbright; absent, the brass)
+  dragonId: str(),
+  dragonLook: int({ min: 1, max: 1 }),
+  // APPEARANCES (bible/04-Characters/Wardrobe.md): the look a worn piece is drawn in (net/appearanceLaw.js) - `{ t, m, v }`, a
+  // look there is, or absent. The WEARER's mark (net/realm/realmTradeLaw.js RECEIVER_MARKS): stripped off the wire
+  appearance: rec(validAppearanceField),
+  // GLOW-SET (bible/05-Combat/Weapon-Glow.md law 9): a staff's pick of glow, one of the wire's words (net/wire.js
+  // LOOK_GLOW_RE, test/systems/glowset.test.js holds the two equal). The piece's own, so it rides a trade
+  glowSet: oneOf(['fire1', 'fire2', 'fire3', 'frost1', 'frost2', 'frost3', 'shock1', 'shock2', 'shock3', 'arcane2', 'brand2', 'edge2', 'gilded2']),
 });
 
 /** The declared names, and those of one kind. */

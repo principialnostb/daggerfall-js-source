@@ -305,8 +305,8 @@ test('SIGIL1 the hosts: the session is online from the boot\'s first line and my
   const on = W.indexOf("setSigilOnline(params.has('online'));");
   assert.ok(boot >= 0 && on > boot && on < W.indexOf('openWodWorld(', boot), 'online from the boot\'s first lines - before any list is minted');
   assert.match(W, /setRenownLayer\(playerEntity, level\);\s*setSigilRenown\(level\);\s*computeEntityMods\(playerEntity\);\s*return renownNow;/, 'my Renown, where the page adopts it (SET3: and the sets\' stat fold recomputed with it)');
-  assert.match(W, /const xp = renownPartyXp\([^;]*;\s*renownTracker\.earn\(xp\);\s*sigilDrinks\(xp\);/, 'a kill feeds what it earns');
-  assert.match(W, /const xp = renownQuestXp\(playerEntity\.level, renownNow\);\s*renownTracker\.earn\(xp\);\s*sigilDrinks\(xp\);/, 'and a quest');
+  assert.match(W, /const xp = renownPartyXp\([^;]*;\s*renownTracker\.earn\(xp, villainMonsterLowers\(playerEntity\.level, renownFoeLevel\(foe\)\)\);\s*sigilDrinks\(xp\);/, 'a kill feeds what it earns');
+  assert.match(W, /const xp = renownQuestXp\(playerEntity\.level, renownNow\);[^\n]*\s*renownTracker\.earn\(xp, villainQuestLowers\(\)\);[^\n]*\s*sigilDrinks\(xp\);/, 'and a quest');
   assert.match(W, /rollLootRarity\(items, pileSource\(dungeonRarityTier\(WOD_LOOT_LOCATION_INDEX\)\), \{ luck: liveStat\(playerEntity, 'luck'\) \}\);\s*stampWonWeapons\(items, 1\);/, 'a World of Daggerfall pile');
   // the drink, mounted
   const a = W.indexOf('const sigilDrinks = (xp) => {');
@@ -358,5 +358,5 @@ test('SIGIL1 the hosts: the session is online from the boot\'s first line and my
   assert.match(D, /if \(r\.d !== 1\) f\._fightN = r\.n \?\? 1;/, 'a joiner reads the count off live records alone');
   assert.match(strip(read('src/scenes/exteriorFoes.js')), /if \(r\.d !== 1\) f\._fightN = r\.n \?\? 1;/, 'and an outdoor reader');
   assert.match(strip(read('src/scenes/cityGuards.js')), /stampWonWeapons\(g\.entity\.items, 1, \{ rolls: rand \}\);\s*raiseEnemyDeath\(g\.entity,/, 'the watch\'s kill');
-  assert.match(strip(read('src/scenes/interiorContext.js')), /pileSource\(INTERIOR_RARITY_TIER\), \{ luck \}\);\s*stampWonWeapons\(items, 1\);/, 'a tavern\'s treasure');
+  assert.match(strip(read('src/scenes/interiorContext.js')), /pileSource\(INTERIOR_RARITY_TIER\), \{ luck, level \}\);\s*stampWonWeapons\(items, 1\);/, 'a tavern\'s treasure');   // PIN MOVED (AUDIT UPDATE L4): the pile names the player's level
 });

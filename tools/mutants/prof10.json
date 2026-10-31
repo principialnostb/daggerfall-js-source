@@ -94,12 +94,13 @@
   {
     "name": "PROF10-no-pearl",
     "file": "src/net/recipeLaw.js",
-    "old": "[...GEMS.map((g) => g.key), PEARL.key]",
-    "new": "[...GEMS.map((g) => g.key)]",
+    "old": "[...GEMS.map((g) => g.key), PEARL.key, ...GRADED_GEMS",
+    "new": "[...GEMS.map((g) => g.key), ...GRADED_GEMS",
     "tests": [
       "test/net/prof10_law.test.js",
       "test/net/prof10_service.test.js"
-    ]
+    ],
+    "note": "PIN MOVED (CLOTH-GEMS, Professions-Arc 50): re-aimed by content - every grade of gem at the jeweller's bench (recipeLaw JEWEL_GEMS, gemPointsPct, takesCracked a plain gem's; the bench's grade row) and the craft's kin one JSON bind."
   },
   {
     "name": "PROF10-gem-word-lower",
@@ -334,12 +335,13 @@
   {
     "name": "PROF10-gemcutter-hand-unread",
     "file": "src/net/recipeLaw.js",
-    "old": "(r.gem ? GEM_POINTS + (hand === JEWEL_HAND_GEMCUTTER ? GEMCUTTER_POINTS : 0) : 0)",
-    "new": "(r.gem ? GEM_POINTS : 0)",
+    "old": "(r.gem ? gemPointsPct(r.gem) + (hand === JEWEL_HAND_GEMCUTTER ? GEMCUTTER_POINTS : 0) : 0)",
+    "new": "(r.gem ? gemPointsPct(r.gem) : 0)",
     "tests": [
       "test/net/prof10_law.test.js",
       "test/systems/prof10_client.test.js"
-    ]
+    ],
+    "note": "PIN MOVED (CLOTH-GEMS, Professions-Arc 50): re-aimed by content - every grade of gem at the jeweller's bench (recipeLaw JEWEL_GEMS, gemPointsPct, takesCracked a plain gem's; the bench's grade row) and the craft's kin one JSON bind."
   },
   {
     "name": "PROF10-points-rounded",
@@ -362,12 +364,13 @@
   {
     "name": "PROF10-cracked-anywhere",
     "file": "src/net/recipeLaw.js",
-    "old": "export const takesCracked = (r) => !!r && r.kind === 'jewel' && !!r.gem;",
+    "old": "export const takesCracked = (r) => !!r && r.kind === 'jewel' && !!r.gem && gemGradeOfKey(r.gem) === 'plain';",
     "new": "export const takesCracked = (r) => !!r && r.kind === 'jewel';",
     "tests": [
       "test/net/prof10_law.test.js",
       "test/net/prof10_service.test.js"
-    ]
+    ],
+    "note": "PIN MOVED (CLOTH-GEMS, Professions-Arc 50): re-aimed by content - every grade of gem at the jeweller's bench (recipeLaw JEWEL_GEMS, gemPointsPct, takesCracked a plain gem's; the bench's grade row) and the craft's kin one JSON bind."
   },
   {
     "name": "PROF10-no-master-jeweller",
@@ -558,8 +561,8 @@
   {
     "name": "PROF10-no-jeweller-station",
     "file": "src/net/decorLaw.js",
-    "old": "'workbench', 'loom', 'mason', 'jeweller', 'vendor']);",
-    "new": "'workbench', 'loom', 'mason', 'vendor']);",
+    "old": "'workbench', 'cooking', 'music', 'loom', 'mason', 'jeweller', 'vendor']);",
+    "new": "'workbench', 'cooking', 'music', 'loom', 'mason', 'vendor']);",
     "tests": [
       "test/net/prof10_law.test.js",
       "test/ui/homestations.test.js"
@@ -951,8 +954,8 @@
   {
     "name": "PROF10-door-cracked-unposted",
     "file": "src/net/accountClient.js",
-    "old": ", ...(cracked === true ? { cracked: true } : {}) }),",
-    "new": " }),",
+    "old": ", ...(cracked === true ? { cracked: true } : {}), mint: MINT_VERSION }),",
+    "new": ", mint: MINT_VERSION }),",
     "tests": [
       "test/systems/prof10_client.test.js"
     ]
@@ -1034,11 +1037,12 @@
   {
     "name": "PROF10-pages-visit-keeps-the-piece",
     "file": "src/ui/professions/profPages.js",
-    "old": "_jewel.piece = 'ring'; _jewel.base = 'silver'; _jewel.picked = null;",
+    "old": "_jewel.piece = 'ring'; _jewel.base = 'silver'; _jewel.grade = 'plain'; _jewel.picked = null;",
     "new": "_jewel.picked = null;",
     "tests": [
       "test/systems/prof10_client.test.js"
-    ]
+    ],
+    "note": "PIN MOVED (CLOTH-GEMS, Professions-Arc 50): re-aimed by content - every grade of gem at the jeweller's bench (recipeLaw JEWEL_GEMS, gemPointsPct, takesCracked a plain gem's; the bench's grade row) and the craft's kin one JSON bind."
   },
   {
     "name": "PROF10-pages-gold-at-40",
@@ -1243,8 +1247,8 @@
   {
     "name": "PROF10-pages-no-jewel-cold-line",
     "file": "src/ui/professions/profPages.js",
-    "old": "Jewelcrafting is done online, from your Stores page.';   // PROF10",
-    "new": "Smelting is done online, from your Stores page.';   // PROF10",
+    "old": "Jewelcrafting is done online, from your Crafting page.';   // PROF10",
+    "new": "Smelting is done online, from your Crafting page.';   // PROF10",
     "tests": [
       "test/systems/prof10_client.test.js"
     ]
@@ -1360,8 +1364,9 @@
   {
     "name": "AUDIT-PROF10-J2-kept-any-enchanted",
     "file": "src/systems/enchanting.js",
-    "old": "  if (!craftedJewelRecipe(item)) return null;\n  const out = [];",
+    "old": "  if (!jewel && !rareKeeps(item) && !gildedKeeps(item)) return null;\n  const out = [];",
     "new": "  const out = [];",
+    "note": "Re-aimed by content (GILDED-MAKER): the guard names the Gilded door too; the mutant still takes any enchanted item.",
     "tests": [
       "test/systems/prof10_client.test.js"
     ]
@@ -1486,11 +1491,12 @@
   {
     "name": "AUDIT-PROF-541-J4-no-fit",
     "file": "src/systems/smithItems.js",
-    "old": "applyRarity(item, eff.rarity, rolls, null, { fits })",
-    "new": "applyRarity(item, eff.rarity, rolls, null, {})",
+    "old": "applyRarity(item, eff.rarity, rolls, null, { fits, byLines",
+    "new": "applyRarity(item, eff.rarity, rolls, null, { byLines",
     "tests": [
       "test/systems/prof10_client.test.js"
-    ]
+    ],
+    "note": "REFORGE-REPLACE and AFFIX-LINES (2026-10-25): re-aimed by content - the roll's options carry its mint version's law beside the fit."
   },
   {
     "name": "AUDIT-PROF-541-J4-first-draw-stands",

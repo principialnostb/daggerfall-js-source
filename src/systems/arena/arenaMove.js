@@ -40,7 +40,9 @@ import { interiorSceneName, cacheScene, containsPermanentScene, addPermanentScen
 import { stampLayout } from '../layoutPins.js';   // FIELD BUGS 2026-10-07 CRATE-LAYOUT: the new house's record, in the layout it was picked in
 import { isResidence } from '../../world/buildingNames.js';
 import { templateByIndex } from '../item/itemTemplates.js';   // ARENA-FIX 11: a torch left burning, back into an item
-import { homeCandidate } from '../online/onlineHomes.js';   // ARENA4b: the buildings an online home may be
+import { homeCandidate, homeClaimLayout } from '../online/onlineHomes.js';   // ARENA4b: the buildings an online home may be; AUDIT FOUNDATION II P6: its town's layout
+import { regionDeedsOf } from '../../net/homeLaw.js';   // HOUSES-3: a region's three deeds
+import { homeListedOff } from '../../net/homeListingLaw.js';   // AUDIT FOUNDATION P3: the property rows
 
 /** The market's generator (banking.js housesForSale), seeded by what names this move. */
 function pick(n, mapId, oldKey) {
@@ -78,7 +80,7 @@ export function arenaHouseFor({ mapId, oldKey, oldType }, summaries, { held = ne
 export function arenaHomeFor(o, summaries, opts = {}) {
   // AUDIT FB1005 C2: never into a room that cannot be laid out - Daggerfall's GRVEAL27 holds twelve House5 graves and
   // CUSTAA05 two House6 with no room (FIELD BUGS 2026-10-05 CRYPT-SALE's law, homePurchasable's)
-  return arenaHouseFor(o, (summaries ?? []).filter((s) => homeCandidate(s) && s.hasInterior !== false), opts);
+  return arenaHouseFor(o, (summaries ?? []).filter((s) => homeCandidate(s) && s.hasInterior !== false && !homeListedOff(o?.mapId, s.buildingKey, undefined, homeClaimLayout(o?.mapId))), opts);   // AUDIT FOUNDATION P3: never a house off the market
 }
 
 /** The key of the new house's first container in its scene (scenes/worldModes.js restoreInteriorScene's `container:i`). */
@@ -160,8 +162,19 @@ export function emptyArenaScene(cache, from, to, { layout = null } = {}) {
  * moved, else null.
  */
 export function moveArenaRecords({ houses, summaries, oldTypeOf, held = new Set(), isActiveQuestBuilding = null, scenes = null, displaced = arenaRecordDisplaced } = {}, hooks = {}) {
-  const slot = houses?.[ARENA_REGION];
-  if (!slot || !(slot.buildingKey > 0) || !displaced(slot)) return null;
+  // HOUSES-3: the region holds three deeds - every one the arena displaced moves, never onto a house another of them
+  // names; the answer is the first move's
+  let first = null;
+  for (const slot of regionDeedsOf(houses, ARENA_REGION).filter((d) => displaced(d))) {
+    const own = regionDeedsOf(houses, ARENA_REGION).filter((d) => d !== slot && (Number(d.mapId) >>> 0) === (Number(slot.mapId) >>> 0)).map((d) => d.buildingKey);
+    const moved = moveArenaDeed(slot, { summaries, oldTypeOf, held: new Set([...held, ...own]), isActiveQuestBuilding, scenes }, hooks);
+    first ??= moved;
+  }
+  return first;
+}
+
+/** One deed the arena displaced, moved to a house of its town's (arenaHouseFor), its room emptied - or null, no house. */
+function moveArenaDeed(slot, { summaries, oldTypeOf, held, isActiveQuestBuilding, scenes }, hooks) {
   const from = slot.buildingKey;
   const to = arenaHouseFor({ mapId: slot.mapId, oldKey: from, oldType: oldTypeOf?.(from) ?? null }, summaries, { held, isActiveQuestBuilding });
   if (!to) return null;

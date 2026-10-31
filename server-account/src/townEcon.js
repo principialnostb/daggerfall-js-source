@@ -31,10 +31,13 @@ import { verifyWatchReceipt, WATCH_RECEIPT_TTL_S } from '../../src/net/watchRece
 import { isDeveloper } from './titles.js';   // AUDIT TOWN-ECON 2 SVC-1: a false town struck, the registry audited - a developer's
 import { RAID_KEY_RE } from '../../src/net/raid/raidLaw.js';
 import { utcDay } from '../../src/net/marksLaw.js';
+import { regionsProsperity, _resetRegionClockForTests } from './regionClock.js';   // FOUNDATION F2: the regions' prosperity, answered with the shares
 import {
   TOWN_ECON_CAPS, TOWN_ECON_DAYS, TOWN_ECON_KEPT_S, TOWN_ECON_SHARE_LEAST, TOWN_WATCH_CLAIM_MAX, TOWN_WITNESS_KIND,
   TOWN_WITNESS_HOUR, TOWN_SEA_REACH_PX, townReportOf, townReportText, parseTownReport, townActivity, townPlayersShare, townShareShown,
+  TOWN_AUDIT_PAGE, TOWN_AUDIT_CAPITAL_LANE,   // BAY-LEFT-SEA: the audit's pages and its order's lane
 } from '../../src/net/townEconLaw.js';
+import { seatRegionOk } from '../../src/net/townSeatLaw.js';   // WW7-5: a town's region any of the world's
 
 /**
  * ONE ACT AT A TOWN, as statements of a batch: the account's mark under its cap, and the town's day behind it - the
@@ -161,19 +164,28 @@ export async function strikeTown({ db, nowS }, dev, env, { map } = {}) {
 /**
  * AUDIT TOWN-ECON 2 SVC-1: THE REGISTRY'S AUDIT (`/town audit`, a developer's alone): a region's confirmed towns - map
  * id, pixel, place, when, and the accounts whose reports confirmed it - which the client sets beside the towns its own
- * map holds at those pixels. `{ ok, towns: [{ map, px, py, location, at, by: [handle] }] }` or `{ error }`.
+ * map holds at those pixels. BAY-LEFT-SEA (the audit's E4): TOWN_AUDIT_PAGE of them a `page` (0 the first), in the law's
+ * order (townEconLaw.js townAuditOrderSql: a province's capitals, then its places, then its countryside - where `ORDER BY
+ * location` over a province's negative indices listed its farthest hamlets and never a capital), `more` whether a page
+ * follows. `{ ok, towns: [{ map, px, py, location, at, by: [handle] }], page, more }` or `{ error }`.
  * @param {{ db: any }} ctx @param {any} dev @param {any} env @param {any} body
  */
-export async function auditTowns({ db }, dev, env, { region } = {}) {
+/** BAY-LEFT-SEA: the audit's order (townEconLaw.js townAuditRank, the same order): the rank - the Bay's, a capital's slice,
+ *  any other's past the Bay - then its index's size (a place's past the Bay before the countryside's), then the map id. */
+const AUDIT_ORDER_SQL = `CASE WHEN location >= 0 THEN 0 WHEN ((map >> 20) & 4095) = ${TOWN_AUDIT_CAPITAL_LANE} THEN 1 ELSE 2 END, ABS(location), map`;
+export async function auditTowns({ db }, dev, env, { region, page = 0 } = {}) {
   if (!isDeveloper(dev, env)) return { error: 'not-developer' };
-  if (!Number.isSafeInteger(region) || region < 0 || region > 61) return { error: 'bad-town' };
-  const { results: towns = [] } = await db.prepare('SELECT map, px, py, location, at FROM town_econ_towns WHERE region = ?1 ORDER BY location LIMIT 400').bind(region).all();
-  const { results: by = [] } = await db.prepare(`SELECT w.key, p.handle FROM world_witness w JOIN town_econ_towns t ON w.key = '1:' || t.map
-    LEFT JOIN players p ON p.id = w.account WHERE w.kind = ?1 AND t.region = ?2 ORDER BY w.at LIMIT 4000`).bind(TOWN_WITNESS_KIND, region).all();
+  if (!seatRegionOk(region) || !Number.isSafeInteger(page) || page < 0 || page > 9999) return { error: 'bad-town' };   // WW7-5: any region's town, the provinces' too
+  const { results: rows = [] } = await db.prepare(`SELECT map, px, py, location, at FROM town_econ_towns WHERE region = ?1 ORDER BY ${AUDIT_ORDER_SQL} LIMIT ?2 OFFSET ?3`)
+    .bind(region, TOWN_AUDIT_PAGE + 1, page * TOWN_AUDIT_PAGE).all();
+  const more = rows.length > TOWN_AUDIT_PAGE, towns = rows.slice(0, TOWN_AUDIT_PAGE);
+  // BAY-LEFT-SEA: the page's own towns' witnesses (a province's thousands kept the region's first 4,000 reports)
+  const { results: by = [] } = await db.prepare(`SELECT w.key, p.handle FROM world_witness w LEFT JOIN players p ON p.id = w.account
+    WHERE w.kind = ?1 AND w.key IN (SELECT '1:' || value FROM json_each(?2)) ORDER BY w.at LIMIT 4000`).bind(TOWN_WITNESS_KIND, JSON.stringify(towns.map((r) => Number(r.map)))).all();
   /** @type {Map<string, string[]>} */
   const names = new Map();
   for (const r of by) { const k = String(r.key); if (!names.has(k)) names.set(k, []); names.get(k)?.push(r.handle ?? '?'); }
-  return { ok: true, towns: towns.map((r) => ({ map: Number(r.map), px: Number(r.px), py: Number(r.py), location: Number(r.location), at: Number(r.at), by: (names.get(townWitnessKey(Number(r.map))) ?? []).slice(0, 3) })) };
+  return { ok: true, page, more, towns: towns.map((r) => ({ map: Number(r.map), px: Number(r.px), py: Number(r.py), location: Number(r.location), at: Number(r.at), by: (names.get(townWitnessKey(Number(r.map))) ?? []).slice(0, 3) })) };
 }
 
 /** SEA-TRADE: the claim's `sea` - the indices of the receipts that vouch a dealing, each once, in range; none is none.
@@ -282,12 +294,12 @@ export async function claimTownWatch({ db, nowS, subtle }, player, _env, { recei
   return { ok: true, counted, sea: seaCounted, why, full: [...full] };
 }
 
-/** @type {{ at: number, towns: Array<[number, number]> } | null} */
+/** @type {{ at: number, towns: Array<[number, number]>, regions: Array<[number, number]> } | null} */
 let _kept = null;
 /** The clock's last keeping of the shares in this isolate (keepTownShares) - a fresh row asks the database nothing. */
 let _keptAt = -Infinity;
 /** Tests stand a fresh service; the isolate's kept answer goes with the old one. */
-export const _resetTownEconForTests = () => { _kept = null; _keptAt = -Infinity; };
+export const _resetTownEconForTests = () => { _kept = null; _keptAt = -Infinity; _resetRegionClockForTests(); };   // FOUNDATION F2: and the regions' clock's day
 /** AUDIT TOWN-ECON 2 SVC-3: how long an isolate holds the kept answer before it reads the kept row again. */
 export const TOWN_ECON_ISOLATE_S = 60;
 
@@ -321,27 +333,31 @@ export async function keepTownShares(db, nowS) {
   const row = await db.prepare('SELECT at FROM town_econ_kept WHERE id = 1').first();
   if (row && nowS - Number(row.at) < TOWN_ECON_KEPT_S) { _keptAt = Number(row.at); return 0; }
   const towns = await countTownShares(db, nowS);
-  await db.prepare('INSERT INTO town_econ_kept (id, at, towns) VALUES (1, ?1, ?2) ON CONFLICT (id) DO UPDATE SET at = excluded.at, towns = excluded.towns')
-    .bind(nowS, JSON.stringify(towns)).run();
+  const regions = await regionsProsperity(db, nowS);   // FOUNDATION F2: the regions' prosperity, kept beside them
+  await db.prepare('INSERT INTO town_econ_kept (id, at, towns, regions) VALUES (1, ?1, ?2, ?3) ON CONFLICT (id) DO UPDATE SET at = excluded.at, towns = excluded.towns, regions = excluded.regions')
+    .bind(nowS, JSON.stringify(towns), JSON.stringify(regions)).run();
   _keptAt = nowS;
   return towns.length;
 }
 
 /**
  * THE TOWNS' SHARES (POST /v1/towns/econ): `{ towns: [[map, share], ...] }` - every town whose players' share is
- * TOWN_ECON_SHARE_LEAST or more today, one decimal. AUDIT TOWN-ECON 2 SVC-3: read off the row the clock keeps
+ * TOWN_ECON_SHARE_LEAST or more today, one decimal - and FOUNDATION F2's `regions: [[region, v], ...]`, each region's
+ * prosperity above nothing (regionClock.js). AUDIT TOWN-ECON 2 SVC-3: read off the row the clock keeps
  * (keepTownShares), held by the isolate TOWN_ECON_ISOLATE_S; counted here only where no row is kept yet (a service the
  * clock has not run on).
  * @param {{ db: any, nowS: number }} ctx
  */
 export async function townsEcon({ db, nowS }) {
-  if (_kept && nowS - _kept.at < TOWN_ECON_ISOLATE_S) return { ok: true, towns: _kept.towns };
-  const row = await db.prepare('SELECT towns FROM town_econ_kept WHERE id = 1').first();
-  let towns = null;
+  if (_kept && nowS - _kept.at < TOWN_ECON_ISOLATE_S) return { ok: true, towns: _kept.towns, regions: _kept.regions };
+  const row = await db.prepare('SELECT towns, regions FROM town_econ_kept WHERE id = 1').first();
+  let towns = null, regions = null;
   try { towns = row ? JSON.parse(String(row.towns)) : null; } catch { towns = null; }
+  try { regions = row?.regions ? JSON.parse(String(row.regions)) : null; } catch { regions = null; }
   if (!Array.isArray(towns)) towns = await countTownShares(db, nowS);
-  _kept = { at: nowS, towns };
-  return { ok: true, towns };
+  if (!Array.isArray(regions)) regions = await regionsProsperity(db, nowS);
+  _kept = { at: nowS, towns, regions };
+  return { ok: true, towns, regions };
 }
 
 /** The hourly sweep's SQL: a town's acts and days past the days kept (cron.js HOUR_JOBS, from townEconKeptFrom), and

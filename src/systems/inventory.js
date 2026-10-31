@@ -263,8 +263,21 @@ export function stacksWith(a, b) {
     sameFoundMark(a, b);
 }
 
+/** ItemCollection.FindExistingStack (ItemCollection.cs:699-718): the first held stack `item` merges into - the one
+ *  AddItem merges it into (:224-230) - or null. PORTAL-BULK (bible/06-Systems/Portal-Stone.md): one find, exported, so
+ *  a sale that mints a stack asks how much room is left on the very stack it lands on (systems/portalStone.js
+ *  portalStoneRoom). */
+export function findExistingStack(list, item) {
+  for (const held of list) {
+    // BOOK-SPLIT: FindExistingStack's first term, `checkItem != item` (:708) - a record already in the list is not its
+    // own stack-mate, or re-adding it doubles its count
+    if (held !== item && stacksWith(held, item)) return held;
+  }
+  return null;
+}
+
 /** ItemCollection.AddItem (ItemCollection.cs:217-252): merge into an
- *  existing stack or place the record at `position`.
+ *  existing stack (findExistingStack) or place the record at `position`.
  *
  *  AUDIT 64 F54: DFU's signature is
  *  `AddItem(item, AddPosition position = AddPosition.Back, ...)`, and
@@ -276,22 +289,22 @@ export function stacksWith(a, b) {
  *  stays FIRST and ignores the position, exactly as :224-230 does -
  *  which never fires for a quest item anyway, since IsStackable is
  *  false for one (DaggerfallUnityItem.cs:681-694). */
+/** The count, and the counter's marks, of `item` joined onto `held` (AddItem's merge). */
+export function absorbStack(held, item) {
+    held.stackCount = (held.stackCount ?? 1) + (item.stackCount ?? 1);
+    // AUDIT LW-II-2 S1 (the port's own field, Ledger A): a counter's piece merged in marks the stack - a patron takes no
+    // part of it (net/patronLaw.js PATRON_COUNTER_MARK), or a book bought joined to one found sold as found
+    if (item[PATRON_COUNTER_MARK] === true) held[PATRON_COUNTER_MARK] = true;
+    // LAW-3: and what a counter was paid a piece - the lower of two, so a merge never lifts a piece's resale cap
+    if (Number.isInteger(item[COUNTER_PAID_MARK])) held[COUNTER_PAID_MARK] = Number.isInteger(held[COUNTER_PAID_MARK]) ? Math.min(held[COUNTER_PAID_MARK], item[COUNTER_PAID_MARK]) : item[COUNTER_PAID_MARK];
+    // AUDIT TOWN-ECON 2 PRICE-6: and the value it was bought at, the lower of two (one template's value, one stack)
+    if (Number.isInteger(item[COUNTER_VALUE_MARK])) held[COUNTER_VALUE_MARK] = Number.isInteger(held[COUNTER_VALUE_MARK]) ? Math.min(held[COUNTER_VALUE_MARK], item[COUNTER_VALUE_MARK]) : item[COUNTER_VALUE_MARK];
+    return held;
+}
+
 export function addItem(list, item, position = 'back') {
-  for (const held of list) {
-    // BOOK-SPLIT: FindExistingStack's first term, `checkItem != item` (:708) - a record already in the list is not its
-    // own stack-mate, or re-adding it doubles its count
-    if (held !== item && stacksWith(held, item)) {
-      held.stackCount = (held.stackCount ?? 1) + (item.stackCount ?? 1);
-      // AUDIT LW-II-2 S1 (the port's own field, Ledger A): a counter's piece merged in marks the stack - a patron takes no
-      // part of it (net/patronLaw.js PATRON_COUNTER_MARK), or a book bought joined to one found sold as found
-      if (item[PATRON_COUNTER_MARK] === true) held[PATRON_COUNTER_MARK] = true;
-      // LAW-3: and what a counter was paid a piece - the lower of two, so a merge never lifts a piece's resale cap
-      if (Number.isInteger(item[COUNTER_PAID_MARK])) held[COUNTER_PAID_MARK] = Number.isInteger(held[COUNTER_PAID_MARK]) ? Math.min(held[COUNTER_PAID_MARK], item[COUNTER_PAID_MARK]) : item[COUNTER_PAID_MARK];
-      // AUDIT TOWN-ECON 2 PRICE-6: and the value it was bought at, the lower of two (one template's value, one stack)
-      if (Number.isInteger(item[COUNTER_VALUE_MARK])) held[COUNTER_VALUE_MARK] = Number.isInteger(held[COUNTER_VALUE_MARK]) ? Math.min(held[COUNTER_VALUE_MARK], item[COUNTER_VALUE_MARK]) : item[COUNTER_VALUE_MARK];
-      return held;
-    }
-  }
+  const held = findExistingStack(list, item);
+  if (held) return absorbStack(held, item);
   // AUDIT 68 S30-click-dup-quest-item: the duplicate-UID refusal (:232-237) - an item the collection already holds
   // is not added twice (the port's item IS its UID). A quest item's stand stays clickable until the next quest
   // tick hides it, and a second click there handed the player the same item again.
@@ -660,6 +673,32 @@ export const GOLD_PIECE_WEIGHT_KG = 0.0025;
  *  LevitateMotor's over-encumbered walk (:83). */
 export const carriedWeight = (entity) =>
   totalWeight(entity?.items ?? []) + goldPiecesOf(entity) * GOLD_PIECE_WEIGHT_KG;
+
+/** CARRY-CLAIMS: what `n` of a piece weighs in the pack - coin by the purse's own weight. */
+export const pieceKg = (item, n) => Math.max(0, n) * (isGoldPieces(item) ? GOLD_PIECE_WEIGHT_KG : effectiveUnitWeightInKg(item));
+
+// CARRY-CLAIMS (2026-10-30, the owner: "u can pick stuff up past your carry weight"): WHAT A SHARED PILE'S TAKES IN
+// FLIGHT WEIGH. A take off a shared pile - a room's chest or body (scenes/roomLootHost.js), a peer's foe or a building's
+// cupboard (systems/loot/claimLedger.js), a fallen player's remains (net/wild/wildRemains.js) - is lifted back OUT of the
+// pack until the pile's authority grants it. The carry gate (item/itemTransfer.js planTake) read a pack that did not hold
+// it, so every take inside that wait passed, and the grants then landed past the limit. Each keeper of such takes says
+// here what its open ones weigh, under its own key; the gate counts it as carried. A keeper answers null once it holds
+// nothing in flight, and is let go - so none outlives the dungeon or the pool that made it.
+/** @type {Map<any, (entity: any) => (number|null)>} */
+const _carryClaims = new Map();
+/** Registers (or keeps) `key`'s reading of its takes in flight: `fn(entity)` -> kg, or null when it holds none. */
+export function addCarryClaims(key, fn) { if (!_carryClaims.has(key)) _carryClaims.set(key, fn); }
+/** What `entity`'s takes in flight weigh, over every keeper; a keeper that answers null is let go. */
+export function claimedCarryKg(entity) {
+  let kg = 0;
+  for (const [key, fn] of [..._carryClaims]) {
+    let v = null;
+    try { v = fn(entity); } catch { v = null; }
+    if (v == null) { _carryClaims.delete(key); continue; }
+    if (Number.isFinite(v) && v > 0) kg += v;
+  }
+  return kg;
+}
 
 /** ComputeCanHoldAmount (DaggerfallInventoryWindow.cs:1444-1455,
  *  L-slice AUDIT 23 items-9): how many units of an item fit under a

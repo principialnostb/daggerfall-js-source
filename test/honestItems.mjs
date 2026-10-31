@@ -32,6 +32,7 @@ async function load(path) {
 
 const LOOT = await load('../src/systems/loot/loot.js');
 const LR = await load('../src/systems/loot/lootRarity.js');
+const LCURSE = await load('../src/systems/loot/lootCurse.js');   // AUDIT MAKER-RARE A1: the temple's lift, after the item maker
 const TECH_ROSTER = await load('../src/combat/technique/techniqueRoster.js');   // TECH1: a piece's technique family
 const PREFS = await load('../src/systems/uiPrefs.js');
 const SIGIL = await load('../src/systems/sigil/sigil.js');
@@ -50,7 +51,9 @@ const GATE = await load('../src/systems/gate/gateSpoils.js');
 const SPOILS_POOL = await load('../src/scenes/spoilsPool.js');
 const RAID = await load('../src/systems/raidSpoils.js');
 const SERPENT = await load('../src/systems/serpent/serpentSpoils.js');
+const DRAGON = await load('../src/systems/dragon/dragonSpoils.js');   // DRAGON4: the Dwarven Dragon's hoard
 const SD = await load('../src/systems/superDungeon/sdSpoils.js');
+const SEV = await load('../src/systems/staffEventSpoils.js');   // STAFF-EVENT THE REWARD: a staff event's spoils
 const BROKER = await load('../src/systems/sigil/sigilBroker.js');
 const AETH = await load('../src/systems/aetheric.js');
 const GILD = await load('../src/systems/gilded.js');
@@ -239,7 +242,7 @@ function craftMagicDef(records) {
  *  magic items, one row each, and the twenty-three artifacts, as readMagicDef answers them. PIN MOVED (INT1's audit,
  *  2026-10-09): the sweep minted its magic from sixty-four invented records of one to three rows of any kind - shapes no
  *  MAGIC.DEF holds, which the item law now proves against DFU's table. */
-function fakeMagicTemplates() {
+export function fakeMagicTemplates() {
   return MAGIC_DEF.readMagicDef(craftMagicDef(DFU_MAGIC_ITEMS));
 }
 
@@ -420,7 +423,7 @@ function sweep({ seeds, run, skip }) {
       }
     })));
 
-    // ── 3. the spoils: the gate's, a town's thanks, the serpent's hoard, the Hour's ──
+    // ── 3. the spoils: the gate's, a town's thanks, the serpent's hoard, the dragon's, the Hour's, a staff event's ──
     run('gateSpoils.rollSpoils / spoilsPool.spoilsList', (one, all) => {
       for (const s of seedsOf(S * 2)) for (const level of levels) {
         const list = SPOILS_POOL ? SPOILS_POOL.spoilsList(s, level, s % 5 === 0 ? { x: 'rite' } : s % 3 === 0 ? { r: 1 } : null) : GATE.rollSpoils(s, level).pieces.map((p) => ({ kind: 'item', item: p.item }));
@@ -437,9 +440,19 @@ function sweep({ seeds, run, skip }) {
         for (const p of SERPENT.serpentSpoilsList(s, level, earned)) if (p.kind === 'item') { one(p.item); keep([p.item]); }
       }
     });
+    run('dragonSpoils.dragonSpoilsList', (one) => {
+      for (const s of seedsOf(S * 2)) for (const level of levels) for (const earned of ['dealt', 'stood']) {
+        for (const p of DRAGON.dragonSpoilsList(s, level, earned)) if (p.kind === 'item') { one(p.item); keep([p.item]); }
+      }
+    });
     run('sdSpoils.sdSpoilsList', (one) => {
       for (const s of seedsOf(S * 2)) for (const level of levels) {
         for (const p of SD.sdSpoilsList(s, level)) if (p.kind === 'item') { one(p.item); keep([p.item]); }
+      }
+    });
+    run('staffEventSpoils.staffSpoilsList', (one) => {
+      for (const s of seedsOf(S * 2)) for (const level of levels) for (const rank of [0, 1, 2]) {
+        for (const p of SEV.staffSpoilsList(s, level, rank)) if (p.kind === 'item') { one(p.item); keep([p.item]); }
       }
     });
 
@@ -473,6 +486,7 @@ function sweep({ seeds, run, skip }) {
     });
     run('gilded.mintGilded / mintHourlock', (one) => {
       for (const r of GILD.GILDED_RECORDS) one(GILD.mintGilded(r));
+      for (const r of GILD.GILDED_ERAS) one(GILD.mintGilded(r));   // GUNS-UNFOUND: the guns minted before, as a save holds them
       one(GILD.mintHourlock());
       for (const s of seedsOf(S * 4)) one(GILD.rollHourlock(seeded(s)));   // one draw in fifty
     });
@@ -550,7 +564,10 @@ function runReforge(run, minted, seedsOf) {
     for (const base of tiered(600)) {
       n++;
       const item = copyItem(base);
-      if (item.rarity === 'legendary' && !item.exalted) { LR.exaltLegendary(item, seeded(n)); one(item); }
+      // GUNS-UNFOUND: never a cursed base - every door exalts before it curses (lootRarity.js rollLootRarity, foeLootCap.js) and
+      // the law holds the two apart (validCurse), as the technique's branch below already asks; a cursed Legendary reached
+      // this spread once the gun find stopped drawing its gun's tier
+      if (item.rarity === 'legendary' && !item.exalted && !LR.isCursed(item)) { LR.exaltLegendary(item, seeded(n)); one(item); }
       if ((item.rarity === 'rare' || item.rarity === 'legendary') && !LR.isCursed(item)) { const c = copyItem(base); if (LR.cursePiece(c, seeded(n ^ 5))) one(c); }
     }
   });
@@ -915,7 +932,7 @@ function makerSession(item, rolls, { souls, owner, picks = 6 }) {
     target = INV.splitStack(pack, item, 1) ?? item;
   }
   ENCH.applyEnchantments(target, [...powers, ...sideEffects], { owner });
-  if (rolls() < 0.3) target.name = `Honest ${target.name ?? 'Piece'}`.slice(0, 32);
+  if (rolls() < 0.3 && !ENCH.makerKeepsName?.(target)) target.name = `Honest ${target.name ?? 'Piece'}`.slice(0, 32);   // GILDED-MAKER: the window never renames a Gilded piece
   return target;
 }
 
@@ -965,6 +982,48 @@ function runItemMaker(run, seedsOf, S, crafted, minted) {
       const item = copyItem(base);
       if (!makerTakes(item)) continue;
       one(makerSession(item, seeded(hashOf(`jewel${n++}`)), { souls, owner: newPlayer(), picks: 6 }));
+    }
+  });
+  // MAKER-RARE (FIELD BUGS 2026-10-26): an identified Rare - a loot door's or a Masterwork - taken with the rows its ladder
+  // rolled kept and riding free (enchanting.js rareKeeps). AUDIT MAKER-RARE C3: a spread of them and EVERY cursed one the
+  // doors minted (a spread alone held three); A1: and each cursed piece the maker made, its curse lifted at the temple after
+  // - a bound soul's forced row of the drawback's kind once took the lift's place, and the law held the piece
+  const enchantedCursed = [];
+  run('enchanting.applyEnchantments (an identified Rare, found, cursed or a Masterwork, its ladder\'s rows kept)', (one) => {
+    let n = 0;
+    const rares = [...minted, ...crafted.map((c) => c.item)].filter((it) => it?.rarity === 'rare');
+    for (const base of [...spread(rares.filter((it) => !LR.isCursed(it)), 400), ...rares.filter((it) => LR.isCursed(it))]) {
+      const item = copyItem(base);
+      item.isIdentified = true;   // the Mages Guild's identify, first
+      if (!makerTakes(item)) continue;
+      const made = makerSession(item, seeded(hashOf(`rare${n++}`)), { souls, owner: newPlayer(), picks: 6 });
+      if (!made) continue;
+      one(made);
+      if (LR.isCursed(made)) enchantedCursed.push(made);
+    }
+  });
+  run('lootCurse.liftCurse (a cursed Rare the item maker enchanted, lifted after)', (one) => {
+    for (const made of enchantedCursed) {
+      const owner = newPlayer();
+      const item = copyItem(made);
+      owner.items.push(item);
+      if (LCURSE.liftCurse(item, owner)?.ok) one(item);
+    }
+  });
+  // GILDED-MAKER: every Gilded record and era, as its door mints it, through the maker - and back again, the first visit's
+  // rows kept at the head and costed (enchanting.js gildedKeeps)
+  run('enchanting.applyEnchantments (a Gilded piece, every record and era, its record\'s lines kept)', (one) => {
+    let n = 0;
+    for (const r of [...GILD.GILDED_RECORDS, ...GILD.GILDED_ERAS]) {
+      for (const s of seedsOf(Math.max(2, Math.ceil(S / 2)))) {
+        const item = GILD.mintGilded(r);
+        if (!makerTakes(item)) continue;
+        const made = makerSession(item, seeded(hashOf(`gilded${n++}`) ^ s), { souls, owner: newPlayer(), picks: 6 });
+        if (!made) continue;
+        one(made);
+        const again = makerTakes(made) ? makerSession(copyItem(made), seeded(hashOf(`gilded-again${n}`) ^ s), { souls, owner: newPlayer(), picks: 4 }) : null;
+        if (again) one(again);
+      }
     }
   });
   run('enchanting.applyEnchantments (found Magic and common pieces the window lists)', (one) => {

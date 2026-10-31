@@ -96,8 +96,8 @@ test('MENU-ORDER the decorator\'s presses: a placed piece\'s each its glyph, Rem
   assert.equal(one(root, 'dfdecor-card').dataset.view, 'grid', 'the room\'s pieces tile too');
   assert.deepEqual(all(rows(root)[0], 'dfdecor-badge').map((b) => b.dataset.dficon), ['light']);
   const btn = (re) => all(root, 'dfdecor-btn').find((b) => re.test(b.textContent));
-  assert.deepEqual([/^Move$/, /^Turn left$/, /^Turn right$/, /^Light/, /^Holds things/, /^Station:/, /^Remove$/].map((re) => btn(re).dataset.dficon),
-    ['move', 'turn-left', 'turn-right', 'light', 'storage', 'list', 'remove']);
+  assert.deepEqual([/^Move$/, /^Duplicate$/, /^Turn left$/, /^Turn right$/, /^Light/, /^Holds things/, /^Station:/, /^Remove$/].map((re) => btn(re).dataset.dficon),
+    ['move', 'place', 'turn-left', 'turn-right', 'light', 'storage', 'list', 'remove']);
   assert.ok(String(btn(/^Remove$/).className).split(/\s+/).includes('warn'), 'Remove, edged as a warning');
   const bar = createDecorBar({ on: {}, doc: fakeDoc() });
   assert.equal(bar.root.dataset.keys, '0', 'the legend folded');
@@ -106,10 +106,10 @@ test('MENU-ORDER the decorator\'s presses: a placed piece\'s each its glyph, Rem
   assert.equal(bar.root.dataset.keys, '1', 'Keys unfolds it');
   keysChip.fire('click');
   assert.equal(bar.root.dataset.keys, '0');
-  assert.deepEqual(['Place', 'Raise', 'Lower', 'Grid', 'Back'].map((w) => all(bar.root, w === 'Place' ? 'dfdecor-btn' : 'dfdecor-chip').find((c) => c.textContent === w).dataset.dficon),
-    ['place', 'up', 'down', 'grid', 'back']);
+  assert.deepEqual(['Place', 'Raise', 'Lower', 'Grid', 'Preview', 'Back'].map((w) => all(bar.root, w === 'Place' ? 'dfdecor-btn' : 'dfdecor-chip').find((c) => c.textContent === w).dataset.dficon),
+    ['place', 'up', 'down', 'grid', 'decorate', 'back']);
   assert.match(text(one(bar.root, 'dfdecor-bar-keys')), /^Fly: walk keys/, 'the legend, a name and what presses it');
-  assert.deepEqual(decorBarKeys(false).map(([k]) => k), ['Fly', 'Look', 'Turn', 'Raise/lower', 'Size', 'Grid', 'Place', 'Back']);
+  assert.deepEqual(decorBarKeys(false).map(([k]) => k), ['Fly', 'Look', 'Turn', 'Raise/lower', 'Nudge', 'Size', 'Grid', 'Place', 'Back']);   // PIN MOVED (NUDGE)
   assert.ok(!decorBarKeys(false, false).some(([k]) => k === 'Size'), 'a figure: no Size');
   assert.deepEqual(decorBarKeys(true).map(([k]) => k), ['Fly', 'Look']);
   assert.equal(decorFiltersText({ kinds: new Set(), size: null, storage: null, light: null }), 'Filters');
@@ -304,8 +304,10 @@ test('MENU-ORDER the rest: the Vendor page\'s pieces and the Market\'s crafted p
   // THE HOST HANDS THE PICTURES OVER (scenes/world.js): the Stores page's, the board's market and traders, a stall's, the Vendor page's
   const W = hostText('src/scenes/world.js');
   assert.match(W, /book: profBook, name: \(k\) => materialLabel\(k\), withdraw: [^\n]*\n\s*picture: \(k, wake\) => materialPicture\(k, \{ onReady: wake \}\),/, 'the Stores page');
-  assert.match(W, /hubs: marketHubs, name: \(k\) => materialLabel\(k\), countName: materialCountLabel,\n\s*picture: \(k, wake\) => materialPicture\(k, \{ onReady: wake \}\), itemPicture: \(it, wake\) => itemPicture\(it, \{ onReady: wake \}\), piecePicture: marketPiecePicture,/, 'the market');
-  assert.equal((W.match(/picture: \(it, wake\) => itemPicture\(it, \{ onReady: wake \}\),/g) ?? []).length, 3, 'the board\'s traders, a stall and the Vendor page');
+  // PIN MOVED (AUDIT PACK-PICK A10): the market and a stall hand a pack picker's box through (its card asks the pack grid's)
+  assert.match(W, /hubs: marketHubs\(\), name: \(k\) => materialLabel\(k\), countName: materialCountLabel,\n\s*picture: \(k, wake\) => materialPicture\(k, \{ onReady: wake \}\), itemPicture: \(it, wake, box\) => itemPicture\(it, \{ onReady: wake, box \}\), piecePicture: marketPiecePicture,/, 'the market');   // PIN MOVED (BAY-LEFT-SEA): the hubs as they stand when the tab opens (systems/region/marketHubs.js)
+  assert.equal((W.match(/picture: \(it, wake\) => itemPicture\(it, \{ onReady: wake \}\),/g) ?? []).length, 2, 'the board\'s traders and the Vendor page');
+  assert.match(W, /picture: \(it, wake, box\) => itemPicture\(it, \{ onReady: wake, box \}\),   \/\/ MENU-ORDER; PACK-PICK/, 'a stall');
   assert.match(W, /const marketPiecePicture = \(piece, wake\) => \{[^]*?return itemPicture\(_pieceItems\.get\(piece\.provenance\), \{ onReady: wake \}\);/, 'a crafted piece, minted once');
 });
 
@@ -330,7 +332,7 @@ test('MENU-ORDER a refused press says why when pressed (Plain-Words law 5, A FIN
   assert.equal(again.focused, true, 'the keys on the press drawn in its place');
   const reforge = readFileSync('src/ui/reforgeWindow.js', 'utf8');
   assert.equal((reforge.match(/setAttribute\('disabled'/g) ?? []).length, 0, 'no press of the Reforge is disabled');
-  assert.equal((reforge.match(/\) refusePress\(\w+, /g) ?? []).length, 9, 'its nine refusals: salvage, reforge, hone, imprint, extract, unset, set, scry, lift');
+  assert.equal((reforge.match(/\) refusePress\(\w+, /g) ?? []).length, 10, 'its ten refusals: salvage, reforge, hone, imprint, extract, unset, set, scry, lift, imbue');   // LOOT-GATE: the Imbue
   const broker = readFileSync('src/ui/brokerWindow.js', 'utf8');
   assert.equal((broker.match(/\) refusePress\(\w+, /g) ?? []).length, 2, 'the Broker\'s Buy and an insignia\'s');
   const sel = 'body .broker-shell .broker-win .act[aria-disabled="true"]';
@@ -703,7 +705,7 @@ test('AUDIT MENU-ORDER the screens: a station the provider has here reads Here, 
   });
   // C5: the vendor board asks every row's picture with one wake
   const vsrc = readFileSync('src/ui/vendor/vendorTab.js', 'utf8');
-  assert.match(vsrc, /const wake = \(\) => ui\.rerender\(\);/);
+  assert.match(vsrc, /const wake = frameWake\(\(\) => ui\.rerender\(\)\);/);   // PIN MOVED (AUDIT PACK-PICK A1): one wake, and once a frame
   assert.match(vsrc, /v\.picture\?\.\(row\.item, wake\)/, 'one wake, never a closure a row');
   // U1 + U11: the decorator on a short screen and a narrow one
   assert.match(DECOR_CSS, /@media \(max-height: 500px\) \{\n  \.dfdecor-ftoggle \{ display: inline-block; flex: none; \}\n  \.dfdecor-filters:not\(\[data-open="1"\]\) \.dfdecor-fline-more \{ display: none; \}/, 'U1: a landscape phone folds the filters');

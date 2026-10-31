@@ -304,7 +304,28 @@ test('DFMOD3 budget: past the bundle tier\'s memory budget a mod picture is not 
   tr.setBundleTextures([]);
   assert.equal(tr.bundleDecodedBytes(), 0, 'a new set starts a new budget');
   if (had) Object.defineProperty(nav, 'deviceMemory', had); else delete nav.deviceMemory;
-  assert.equal(tr.bundleBudgetBytes(), 1536 * 1024 * 1024, 'an 8 GB report (or none) keeps the full 1536 MB');
+  assert.equal(tr.bundleBudgetBytes(), 1536 * 1024 * 1024, 'an 8 GB report (or none, on a mouse-pointed browser) keeps the full 1536 MB');
+});
+
+// IOS-BUDGET (issue #1040): WebKit reports no deviceMemory, so an iPhone was read as an 8 GB machine and handed the mod
+// pictures 1536 MB of a tab iOS kills at 2 GB. The budget asks the device when the browser says nothing.
+test('IOS-BUDGET: a touch browser that reports no deviceMemory is read as a 2 GB tab (384 MB); a report, or a mouse, keeps the old reading', async () => {
+  const { bundleBudgetBytes, bundleBudgetGb, IOS_TAB_GB } = await import('../../src/systems/textureReplacement.js');
+  const MB = 1024 * 1024;
+  // A finger-pointed window, as ui/touch/touchDevice.js reads one: a touch event, a coarse pointer, no hover.
+  const media = (q) => ({ matches: q === '(pointer: coarse)' || q === '(hover: none)' });
+  const phone = { ontouchstart: null, navigator: { maxTouchPoints: 5 }, location: { search: '' }, matchMedia: media };
+  const desk = { navigator: { maxTouchPoints: 0 }, location: { search: '' }, matchMedia: () => ({ matches: false }) };
+  const silent = {};   // WebKit: no deviceMemory at all
+  assert.equal(IOS_TAB_GB, 2, 'the ceiling iOS gives a tab');
+  assert.equal(bundleBudgetGb(silent, phone), 2);
+  assert.equal(bundleBudgetBytes(silent, phone), 384 * MB, 'no report + a finger: 192 MB a GB of the 2 GB tab');
+  assert.equal(bundleBudgetBytes(silent, desk), 1536 * MB, 'no report + a mouse: the 8 GB reading, as before');
+  assert.equal(bundleBudgetBytes(silent, undefined), 1536 * MB, 'no window at all (node): the 8 GB reading');
+  assert.equal(bundleBudgetBytes({ deviceMemory: 4 }, phone), 768 * MB, 'a report wins over the device, finger or not (Android Chrome)');
+  assert.equal(bundleBudgetBytes({ deviceMemory: 1 }, phone), 192 * MB);
+  assert.equal(bundleBudgetBytes({ deviceMemory: 0 }, phone), 384 * MB, 'a zero report is no report');
+  assert.equal(bundleBudgetBytes({ deviceMemory: 16 }, desk), 1536 * MB, 'the 1536 MB cap still holds past 8 GB');
 });
 
 // ---- DWHD1: Diverse Weapons HD (crunched handhelds), GROUND1: DREAM's terrain tile sets ----
@@ -371,8 +392,10 @@ test('GROUND1 door: `<archive>-TexArray` is that ground archive\'s tile set - wh
   clearDfmodSources();
   // AUDIT PRECIP GROUND-2 (PIN MOVED): world.js reads a set's layers through one helper, for its own set and the winter
   // its twin carries (scenes/snowCoverHost.js twinLayers) - the mod's tiles first, the classic set's puddles carried
-  assert.match(src('scenes/world.js'), /const groundLayersOf = async \(archive, tex\) => \{\n\s+const modLayers = await dfmodGroundLayers\(archive, tex\), classic = \[\];\n[^\n]*\n\s+return \{ modLayers, layers: modLayers \? carryPuddleMask\(modLayers, markPuddleWater\(classic\)\) : markPuddleWater\(classic\) \};/);
-  assert.match(src('scenes/world.js'), /renderer\.uploadTileArray\(key, winter == null \? own\.layers : twinLayers\(own\.layers, \(await groundLayersOf\(winter, await getTexture\(winter\)\)\)\.layers\)\);/);
+  // PIN MOVED (OW-HITCH): the helper's home is scenes/groundSets.js (HOST-SPLIT) - the mod's tiles first, the classic marked
+  // a record a breath, a mod's set carried from it; the set or its twin uploaded a few layers a breath
+  assert.match(src('scenes/groundSets.js'), /const groundLayersOf = async \(archive, tex\) => \{\n\s+const modLayers = await dfmodGroundLayers\(archive, tex\), classic = \[\];\n[^\n]*\n\s+const marked = await stepsBreathing\(markPuddleWaterSteps\(classic\), breathe\);\n[^\n]*\n\s+return \{ modLayers, layers: modLayers \? await stepsBreathing\(carryPuddleMaskSteps\(modLayers, marked\), breathe\) : marked \};/);
+  assert.match(src('scenes/groundSets.js'), /const layers = winter == null \? own\.layers : twinLayers\(own\.layers, \(await groundLayersOf\(winter, await getTexture\(winter\)\)\)\.layers\);\n\s+await stepsBreathing\(renderer\.uploadTileArraySteps\(key, layers\), breathe\);/);
   for (const host of ['scenes/exterior.js']) {
     assert.match(src(host), /const modLayers = await dfmodGroundLayers\(groundArchive, groundTex\);[\s\S]{0,400}?const layers = modLayers \? carryPuddleMask\(modLayers, markPuddleWater\(classic\)\) : classic;\n\s+renderer\.uploadTileArray\(groundArchive, modLayers \? layers : markPuddleWater\(layers\)\);/, host);   // GROUND1-W: and the puddles' shapes from the classic set
   }

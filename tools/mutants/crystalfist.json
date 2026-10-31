@@ -62,12 +62,12 @@
   {
     "name": "CRYSTALFIST-the-glyph-stroked",
     "file": "src/ui/playerBadge.js",
-    "old": "primarch: false, crystalfist: false, wikimaid: false });",
-    "new": "primarch: false, crystalfist: true, wikimaid: false });",
+    "old": "primarch: false, crystalfist: false, wikimaid: false, nirnrootsage: false,",
+    "new": "primarch: false, crystalfist: true, wikimaid: false, nirnrootsage: false,",
     "tests": [
       "test/net/crystalfist.test.js"
     ],
-    "note": "Stroked, the slashes are outlines of themselves - the reference is filled. WIKIMAID (re-aimed by content)."
+    "note": "Stroked, the slashes are outlines of themselves - the reference is filled. WIKIMAID (re-aimed by content). NIRNROOT-SAGE (re-aimed by content): the list it quotes gained the Nirnroot Sage's word. SHOP (re-aimed by content): the line it quotes grew with the shop."
   },
   {
     "name": "CRYSTALFIST-the-words",
@@ -92,12 +92,12 @@
   {
     "name": "CRYSTALFIST-the-resonances-button",
     "file": "src/ui/playerBadge.js",
-    "old": "seraphwings: 'founder', resonance: 'crystalfist', turninghour: 'hourbreaker', firsthour: 'hoursfirst', maelstrom: 'coilbreaker', beaconlight: 'kynbane', burningstair: 'wellheadwalker', firstlight: 'spirefirst', lilacwarren: 'wikimaid', witchfire: 'witchwarden' });",
-    "new": "seraphwings: 'founder', resonance: 'aegis', turninghour: 'hourbreaker', firsthour: 'hoursfirst', maelstrom: 'coilbreaker', beaconlight: 'kynbane', burningstair: 'wellheadwalker', firstlight: 'spirefirst', lilacwarren: 'wikimaid', witchfire: 'witchwarden' });",
+    "old": "seraphwings: 'founder', resonance: 'crystalfist', turninghour: 'hourbreaker', firsthour: 'hoursfirst', maelstrom: 'coilbreaker', beaconlight: 'kynbane', burningstair: 'wellheadwalker', firstlight: 'spirefirst', lilacwarren: 'wikimaid', witchfire: 'witchwarden', sagesmoke: 'nirnrootsage', eternal: 'genesis', dominion: 'eternalchampion', aetherium: 'heartwaker', gildedcoil: 'numidiumecho', aetherwings: 'heartwaker', vampirichaze: 'coldharbour' });",
+    "new": "seraphwings: 'founder', resonance: 'aegis', turninghour: 'hourbreaker', firsthour: 'hoursfirst', maelstrom: 'coilbreaker', beaconlight: 'kynbane', burningstair: 'wellheadwalker', firstlight: 'spirefirst', lilacwarren: 'wikimaid', witchfire: 'witchwarden', sagesmoke: 'nirnrootsage', eternal: 'genesis', dominion: 'eternalchampion', aetherium: 'heartwaker', gildedcoil: 'numidiumecho', aetherwings: 'heartwaker', vampirichaze: 'coldharbour' });",
     "tests": [
       "test/net/crystalfist.test.js"
     ],
-    "note": "The resonance's button in the Aegis's violets, not the Crystal Fist's purple. WIKIMAID (re-aimed by content)."
+    "note": "The resonance's button in the Aegis's violets, not the Crystal Fist's purple. WIKIMAID (re-aimed by content). NIRNROOT-SAGE (re-aimed by content): the list it quotes gained the Nirnroot Sage's word. SHOP (re-aimed by content): the line it quotes grew with the shop."
   },
   {
     "name": "CRYSTALFIST-the-card-label",
@@ -133,43 +133,43 @@
   {
     "name": "CRYSTALFIST-the-glyphs-word",
     "file": "server-account/src/titles.js",
-    "old": "primarch: 'primarch', crystalfist: 'crystalfist', wikimaid: 'wikimaid' });",
-    "new": "primarch: 'primarch', crystalfist: 'disciple', wikimaid: 'wikimaid' });",
+    "old": "primarch: 'primarch', crystalfist: 'crystalfist', wikimaid: 'wikimaid', nirnrootsage: 'nirnrootsage', coldharbour: 'coldharbour' });",
+    "new": "primarch: 'primarch', crystalfist: 'disciple', wikimaid: 'wikimaid', nirnrootsage: 'nirnrootsage', coldharbour: 'coldharbour' });",
     "tests": [
       "test/net/crystalfist.test.js"
     ],
-    "note": "The title held, the Disciple's glyph carried for it. WIKIMAID (re-aimed by content)."
+    "note": "The title held, the Disciple's glyph carried for it. WIKIMAID (re-aimed by content). NIRNROOT-SAGE (re-aimed by content): the list it quotes gained the Nirnroot Sage's word."
   },
   {
     "name": "CRYSTALFIST-the-aura-not-granted",
     "file": "server-account/src/titles.js",
-    "old": "shadowfang: 'shadowcloak', crystalfist: 'resonance', wikimaid: 'lilacwarren' });",
-    "new": "shadowfang: 'shadowcloak', wikimaid: 'lilacwarren' });",
+    "old": "shadowfang: 'shadowcloak', crystalfist: 'resonance', wikimaid: 'lilacwarren', nirnrootsage: 'sagesmoke', coldharbour: 'vampirichaze' });",
+    "new": "shadowfang: 'shadowcloak', wikimaid: 'lilacwarren', nirnrootsage: 'sagesmoke', coldharbour: 'vampirichaze' });",
     "tests": [
       "test/net/crystalfist.test.js"
     ],
-    "note": "The title and the glyph granted, the resonance not. WIKIMAID (re-aimed by content): the WikiMaid's warren after it on the line, the Crystal Fist's entry still the one dropped."
+    "note": "The title and the glyph granted, the resonance not. WIKIMAID (re-aimed by content): the WikiMaid's warren after it on the line, the Crystal Fist's entry still the one dropped. NIRNROOT-SAGE (re-aimed by content): the list it quotes gained the Nirnroot Sage's word."
   },
   {
     "name": "CRYSTALFIST-the-wrong-aura-granted",
     "file": "server-account/src/titles.js",
-    "old": "shadowfang: 'shadowcloak', crystalfist: 'resonance', wikimaid: 'lilacwarren' });",
-    "new": "shadowfang: 'shadowcloak', crystalfist: 'oblivionward', wikimaid: 'lilacwarren' });",
+    "old": "shadowfang: 'shadowcloak', crystalfist: 'resonance', wikimaid: 'lilacwarren', nirnrootsage: 'sagesmoke', coldharbour: 'vampirichaze' });",
+    "new": "shadowfang: 'shadowcloak', crystalfist: 'oblivionward', wikimaid: 'lilacwarren', nirnrootsage: 'sagesmoke', coldharbour: 'vampirichaze' });",
     "tests": [
       "test/net/crystalfist.test.js"
     ],
-    "note": "Sureme's ward granted to Flylighter. WIKIMAID (re-aimed by content)."
+    "note": "Sureme's ward granted to Flylighter. WIKIMAID (re-aimed by content). NIRNROOT-SAGE (re-aimed by content): the list it quotes gained the Nirnroot Sage's word."
   },
   {
     "name": "CRYSTALFIST-the-vocabularys-aura",
     "file": "src/net/identityToken.js",
-    "old": "'shadowcloak', 'seraphwings', 'resonance', 'turninghour', 'firsthour', 'maelstrom', 'beaconlight', 'burningstair', 'firstlight', 'lilacwarren', 'witchfire']);   // WITCH1 (2026-10-20, bible/06-Systems/Witches-Festival.md): WITCHFIRE last - a coven's green fire licking round the feet, tallow candles burning in its ring and their motes rising violet; bought from a Wyrd Sister for Soul Cakes (server-account/src/titles.js, `fest_wares`), held for good;   // WIKIMAID (2026-10-17, for SylviaBun: \"a purple aura with bunnies\"): THE LILAC WARREN last - rabbits hopping round the feet on a ring of lilac light, their prints fading behind them; the WikiMaid's own, granted with its title by name, never sold;",
-    "new": "'shadowcloak', 'seraphwings', 'turninghour', 'firsthour', 'maelstrom', 'beaconlight', 'burningstair', 'firstlight', 'lilacwarren', 'witchfire']);   // WITCH1 (2026-10-20, bible/06-Systems/Witches-Festival.md): WITCHFIRE last - a coven's green fire licking round the feet, tallow candles burning in its ring and their motes rising violet; bought from a Wyrd Sister for Soul Cakes (server-account/src/titles.js, `fest_wares`), held for good;   // WIKIMAID (2026-10-17, for SylviaBun: \"a purple aura with bunnies\"): THE LILAC WARREN last - rabbits hopping round the feet on a ring of lilac light, their prints fading behind them; the WikiMaid's own, granted with its title by name, never sold;",
+    "old": "'shadowcloak', 'seraphwings', 'resonance', 'turninghour', 'firsthour', 'maelstrom', 'beaconlight', 'burningstair', 'firstlight', 'lilacwarren', 'witchfire', 'sagesmoke', 'eternal', 'dominion', 'aetherium', 'gildedcoil', 'aetherwings', 'vampirichaze']);",
+    "new": "'shadowcloak', 'seraphwings', 'turninghour', 'firsthour', 'maelstrom', 'beaconlight', 'burningstair', 'firstlight', 'lilacwarren', 'witchfire', 'sagesmoke', 'eternal', 'dominion', 'aetherium', 'gildedcoil', 'aetherwings', 'vampirichaze']);",
     "tests": [
       "test/net/crystalfist.test.js",
       "test/net/relayversion.test.js"
     ],
-    "note": "The token's vocabulary without the resonance: no relay admits it, no account may wear it. WIKIMAID (re-aimed by content)."
+    "note": "The token's vocabulary without the resonance: no relay admits it, no account may wear it. WIKIMAID (re-aimed by content). NIRNROOT-SAGE (re-aimed by content): the list it quotes gained the Nirnroot Sage's word. SHOP (re-aimed by content): the line it quotes grew with the shop."
   },
   {
     "name": "CRYSTALFIST-the-look-kind",
@@ -314,7 +314,7 @@
   {
     "name": "CRYSTALFIST-the-counts-ignored",
     "file": "src/render/auraRing.js",
-    "old": "  float lit = uResLit[int(clamp(k, 0.0, RES_N - 1.0))];",
+    "old": "  float lit = uResLit[col];",
     "new": "  float lit = ${RESONANCE_CELLS.toFixed(1)};",
     "tests": [
       "test/net/crystalfist.test.js"
@@ -324,8 +324,8 @@
   {
     "name": "CRYSTALFIST-the-counts-not-handed",
     "file": "src/render/auraRing.js",
-    "old": "if (look === AURA_LOOK.resonance) gl.uniform1fv(U.uResLit,",
-    "new": "if (look === AURA_LOOK.radiance) gl.uniform1fv(U.uResLit,",
+    "old": "if (look === AURA_LOOK.resonance) {",
+    "new": "if (look === AURA_LOOK.radiance) {",
     "tests": [
       "test/net/crystalfist.test.js"
     ],
@@ -344,8 +344,8 @@
   {
     "name": "CRYSTALFIST-the-count-off-by-one",
     "file": "src/render/auraRing.js",
-    "old": "  if (j >= lit) return vec4(0.0);",
-    "new": "  if (j > lit) return vec4(0.0);",
+    "old": "  if (j >= lit) {",
+    "new": "  if (j > lit) {",
     "tests": [
       "test/net/crystalfist.test.js"
     ],
@@ -354,8 +354,8 @@
   {
     "name": "CRYSTALFIST-the-gap-filled",
     "file": "src/render/auraRing.js",
-    "old": "  vec2 e = clamp((vec2(RES_SQ * 0.5) - abs(q)) / px + 0.5, 0.0, 1.0);",
-    "new": "  vec2 e = clamp((vec2(RES_SQ * 1.5) - abs(q)) / px + 0.5, 0.0, 1.0);",
+    "old": "  vec2 e = clamp((side * 0.5 - abs(q)) / px + 0.5, 0.0, 1.0);",
+    "new": "  vec2 e = clamp((side * 1.5 - abs(q)) / px + 0.5, 0.0, 1.0);",
     "tests": [
       "test/net/crystalfist.test.js"
     ],
@@ -394,7 +394,7 @@
   {
     "name": "CRYSTALFIST-the-feet-dropped",
     "file": "src/render/auraRing.js",
-    "old": "  float c = resCover(vec2((fract(cu) - 0.5) * pitch, r - uRingR), pitch, RES_PITCH) * uKindle;",
+    "old": "  float c = resCover(vec2(x, r - uRingR), pitch, RES_PITCH);",
     "new": "  float c = 0.0;",
     "tests": [
       "test/net/crystalfist.test.js"
@@ -404,8 +404,8 @@
   {
     "name": "CRYSTALFIST-the-feet-off-their-columns",
     "file": "src/render/auraRing.js",
-    "old": "  float c = resCover(vec2((fract(cu) - 0.5) * pitch, r - uRingR), pitch, RES_PITCH) * uKindle;",
-    "new": "  float c = resCover(vec2(fract(cu) * pitch, r - uRingR), pitch, RES_PITCH) * uKindle;",
+    "old": "float pitch = TAU * r / RES_N, x = (fract(cu) - 0.5) * pitch;",
+    "new": "float pitch = TAU * r / RES_N, x = fract(cu) * pitch;",
     "tests": [
       "test/net/crystalfist.test.js"
     ],
@@ -414,7 +414,7 @@
   {
     "name": "CRYSTALFIST-the-rings-guard-dropped",
     "file": "src/render/auraRing.js",
-    "old": "  if (abs(r - uRingR) > RES_SQ) return vec4(0.0);\n",
+    "old": "  if (!onRing && !onRip) return vec4(0.0);\n",
     "new": "",
     "tests": [
       "test/net/crystalfist.test.js"

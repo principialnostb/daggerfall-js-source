@@ -9,7 +9,8 @@
 // WHAT IT KEEPS of its own (snapshot/restore, beside the machine's envelope in the bridge's save): the rewards waiting to
 // be chosen - a quest's choice outlives the quest (the machine drops a tombstone after a week), so the three pieces are
 // the character's from the moment they are rolled, until one is taken - the gold a running quest has paid (REWARD-3: its
-// end settles it), and the questlines begun (QL12-QL16: its line runner's records, qlLineRunner.js).
+// end settles it), and the questlines begun (QL12-QL16: its line runner's records, qlLineRunner.js - QL-OFFERED: each one
+// the player took).
 import { startStamp, isStamped, observe, readObjectives, outcomeOf, outcomeNow, fallbackOutcome, questTierOf } from './qlLaw.js';
 import { sheetFor } from './qlSheets.js';
 import { scaleGold, goldFactor, goldStillOwed, rewardTier, payProfileOf, rollRewardChoice, rewardSeed, standingMovesOf } from './qlRewards.js';
@@ -17,6 +18,7 @@ import { isGoldPieces } from '../inventory.js';
 import { t, textRevision } from '../textManager.js';   // REWARD-3: the settled gold's line; LAW-11: a row read again when the words could read otherwise
 import { createLineRunner } from './qlLineRunner.js';
 import { noteFirstUse } from '../tutorials.js';   // QL2: the Tutorials' Questlines page, the first quest stamped
+import { isStartQuestName } from '../starts/starts.js';   // START1: a start's quest is begun on a new character, never taken
 
 /** How many rewards may wait to be chosen at once - a player who never chooses keeps the last few, never a hoard. */
 export const OFFERS_MAX = 12;
@@ -108,8 +110,10 @@ export function createQuestlines({ machine, questLists = null, ctx = {}, service
       const meta = questLists?.findQuestMeta?.(quest?.questName) ?? null;
       // QL2: the Tutorials' Questlines page, at the first quest that shows objectives - AUDIT QUESTLINES UI-13: one the
       // player TAKES, never one a new character is started on (scenes/quest/questBridge.js GAME_START_QUESTS, S0000977 and
-      // _BRISIEN, and the lists' init rows): the page popped at character creation, ahead of the Quests page itself
-      if (sheetFor(quest?.questName) && !['S0000977', '_BRISIEN'].includes(quest?.questName) && meta?.scope !== 'init') noteFirstUse('questlines');
+      // a start's quest - START1, systems/starts/starts.js - and the lists' init rows): the page popped at character
+      // creation, ahead of the Quests page itself. Nor _BRISIEN, the main quest's opener, which a start's commission
+      // starts: the story's own, never a quest taken
+      if (sheetFor(quest?.questName) && !['S0000977', '_BRISIEN'].includes(quest?.questName) && !isStartQuestName(quest?.questName) && meta?.scope !== 'init') noteFirstUse('questlines');
       st.tier = questTierOf({
         minReq: meta?.scope === 'init' ? null : meta?.quest?.minReq ?? null,
         social: meta?.scope === 'social',
@@ -187,7 +191,7 @@ export function createQuestlines({ machine, questLists = null, ctx = {}, service
      */
     reward(quest, dfItem, resource = null) {
       if (!isStamped(quest)) return;
-      if (resource?.itemName === 'letter') { runner.lettered(quest); return; }   // FB1020c LETTER-PACE: the next line waits an hour from it
+      if (resource?.itemName === 'letter') { runner.lettered(quest); return; }   // FB1020c LETTER-PACE: the next courier waits an hour from it
       const sheet = sheetFor(quest.questName);
       if (sheet) observe(quest, sheet, probe);
       if (sheet && dfItem && !quest.ql.paid) {
@@ -295,8 +299,11 @@ export function createQuestlines({ machine, questLists = null, ctx = {}, service
       return piece.item;
     },
 
-    /** QL12-QL16: the questlines, every one, as the window draws them (qlLineRunner.js rows). */
+    /** QL12-QL16: the questlines, every one begun or on offer, as the window draws them (qlLineRunner.js rows). */
     lineRows: () => runner.rows(),
+    /** QL-OFFERED: the player takes a line on offer (qlLineRunner.js takeLine) - `quest` the first step an offer was read
+     *  from (offerQuest), else its first step scheduled by name. */
+    takeLine: (id, opts) => runner.takeLine(id, opts),
     /** QL12 (section 4.4): what this character finished well, by quest name (a copy). */
     history: () => ({ ...history }),
     /** The line runner, for the pins. */

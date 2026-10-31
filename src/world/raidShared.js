@@ -15,6 +15,17 @@
 
 import { FOE_SEQ_MAX } from '../net/wire.js';
 import { RAID_KEY_RE } from '../net/raid/raidLaw.js';   // RAID3: a raid's key has one home, the relay's law beside it
+import { STAFF_EVENT_KEY_RE, STAFF_BOSS_SIZE_MIN, STAFF_BOSS_SIZE_MAX } from '../net/staffEvent/staffEventLaw.js';   // STAFF-EVENT: an event runs as a raid, under its own key
+/** A raid's key, or a staff event's (net/staffEvent/staffEventLaw.js - it runs as a raid: its raiders tagged, its words
+ *  said, its runner elected by the raid's own law). @param {unknown} key */
+const raidLikeKey = (key) => typeof key === 'string' && (RAID_KEY_RE.test(key) || STAFF_EVENT_KEY_RE.test(key));
+/** WW6 (bible/03-World/World-Wide.md WW6): IS A RAID THIS TOWN'S - the town the host's GPS names (FindCurrentRaid's
+ *  `{ regionIndex, locationIndex }`, the location the player stands outdoors in): on the Bay its region and its MAPS.BSA
+ *  location, as RAID1 asked; past the Bay its town's own location index alone - a place of the port's own, one index a
+ *  place of the world (world/arenaLocations.js, world/tamrielCapitals.js), whose stood record's region is its pixel's as
+ *  the land read it then. A staff event's town too (systems/staffEvents.js staffRaidHere).
+ *  @param {{ regionIndex: number, locationIndex: number }} r @param {{ regionIndex: number, locationIndex: number }|null|undefined} town */
+export const raidTownIs = (r, town) => !!town && r.locationIndex === town.locationIndex && (r.locationIndex < 0 || r.regionIndex === town.regionIndex);
 /** Two claims inside this window (a frame's latency, generously) are a race, settled by id - WOD7's own number
  *  (wodShared.js WOD_CLAIM_WINDOW_MS). */
 export const RAID_CLAIM_WINDOW_MS = 5000;
@@ -26,7 +37,7 @@ export const RAID_WORDS_MAX = 4;
 /** A reader's allowance for one owner's raiders: the mod's cap whole (systems/raidingParties.js MAX_RAID_ENEMIES,
  *  Mac's "Keep"), apart from CELL_PUPPETS_MAX as the watch's and the camps' are - twenty-five raiders stood in twelve
  *  slots were thirteen a reader could not see and was killed by. */
-export const RAID_PUPPETS_MAX = 25;
+export const RAID_PUPPETS_MAX = 40;
 /** The most tags a frame may carry - a frame's records (wire.js CELL_FRAME_RECORDS_MAX). */
 export const RAID_TAGS_MAX = 64;
 /** The most deaths a word may state, and the oldest claim, ms (two real hours - a raid is ten minutes). */
@@ -46,11 +57,35 @@ export function validRaidWords(raw) {
     if (out.length >= RAID_WORDS_MAX) break;
     if (!Array.isArray(e) || e.length !== 3) continue;
     const [key, n, age] = e;
-    if (typeof key !== 'string' || !RAID_KEY_RE.test(key) || seen.has(key)) continue;
+    if (!raidLikeKey(key) || seen.has(key)) continue;
     if (!Number.isInteger(n) || n < 0 || n > RAID_KILLS_WIRE_MAX) continue;
     if (!Number.isInteger(age) || age < -1 || age > RAID_CLAIM_AGE_MAX) continue;
     seen.add(key);
     out.push({ key, n, age });
+  }
+  return out;
+}
+
+/** RAID5 (bible/03-World/Raiding-Parties.md RAID5): the kinds a raid's objective word names (systems/raidKinds.js
+ *  RAID_KIND_ORDER - classic 0 says none), and the most either of its two numbers says (a standard's per cent; refugees). */
+export const RAID_OBJ_KINDS = 4;
+export const RAID_OBJ_MAX = 100;
+/** RAID5: a frame's word on the objectives of the raids its owner runs - `[[key, kind, a, b], ...]` - projected: the
+ *  valid entries, at most RAID_WORDS_MAX, each raid once. */
+export function validRaidObjWords(raw) {
+  /** @type {Array<{key: string, k: number, a: number, b: number}>} */
+  const out = [];
+  if (!Array.isArray(raw)) return out;
+  const seen = new Set();
+  for (const e of raw) {
+    if (out.length >= RAID_WORDS_MAX) break;
+    if (!Array.isArray(e) || e.length !== 4) continue;
+    const [key, k, a, b] = e;
+    if (!raidLikeKey(key) || seen.has(key)) continue;
+    if (!Number.isInteger(k) || k < 1 || k >= RAID_OBJ_KINDS) continue;
+    if (!Number.isInteger(a) || a < 0 || a > RAID_OBJ_MAX || !Number.isInteger(b) || b < 0 || b > RAID_OBJ_MAX) continue;
+    seen.add(key);
+    out.push({ key, k, a, b });
   }
   return out;
 }
@@ -64,7 +99,22 @@ export function validRaidTags(raw) {
     if (out.size >= RAID_TAGS_MAX) break;
     if (!Array.isArray(e) || e.length !== 2) continue;
     const [i, key] = e;
-    if (recordNumber(i) && typeof key === 'string' && RAID_KEY_RE.test(key)) out.set(i, key);
+    if (recordNumber(i) && raidLikeKey(key)) out.set(i, key);
+  }
+  return out;
+}
+
+/** STAFF-EVENT: a frame's mini boss - `[[i, size%], ...]`, the owner's record number of a staff event's mini boss and
+ *  its size (net/staffEvent/staffEventLaw.js STAFF_BOSS_SIZE_*) - into a Map; one an owner, as an event stands one. */
+export function validStaffBossTags(raw) {
+  /** @type {Map<number, number>} */
+  const out = new Map();
+  if (!Array.isArray(raw)) return out;
+  for (const e of raw) {
+    if (out.size >= 1) break;
+    if (!Array.isArray(e) || e.length !== 2) continue;
+    const [i, sz] = e;
+    if (recordNumber(i) && Number.isSafeInteger(sz) && sz >= STAFF_BOSS_SIZE_MIN && sz <= STAFF_BOSS_SIZE_MAX) out.set(i, sz);
   }
   return out;
 }

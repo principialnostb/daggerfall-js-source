@@ -48,6 +48,16 @@ test('TV-BEYOND, the crash: a click on the Overworld with the traveller and the 
   assert.ok(half.pixels.every((p) => p.y === 300), 'the straight walk, every step on its own row');
 });
 
+// GREEDY-BEYOND's mutants' sweep: TV-BEYOND's padded bounds are ROAD-BEYOND's reachOf's work now (the box the map's and the
+// far end's, grown by the rung's margin), so their records are equivalent; this pins the law where it is held
+test('TV-BEYOND, the box spans the map and the ends: a walk from the Bay\'s table to a spot far past its east and south edges crosses the land between', () => {
+  const from = { x: 500, y: 250 }, to = { x: 1700, y: 1100 };
+  const r = planRoute(from, to);
+  assert.ok(r, 'a way');
+  assert.deepEqual([r.pixels[0], r.pixels.at(-1)], [from, to]);
+  assert.ok(r.pixels.some((p) => p.x >= 1000 && p.x < 1400 && p.y >= 500 && p.y < 860), 'across the land between the map and the end');
+});
+
 test('TV-BEYOND, the ground past the table: routeGround asks the host\'s `beyond` for a pixel off its table (once a pixel, kept), the land there walked and its sea refused; without it off the table is the sea, DFU\'s empty edge', () => {
   const W = 20, H = 10;
   const calls = new Map();
@@ -102,7 +112,8 @@ test('TV-BEYOND, the host: the Overworld\'s water law is the ground\'s own past 
   const composed = tvWaterOf({ isTamrielGround: true, getHeightMapValue: (x) => (x < -10 ? 0 : 60) });
   assert.equal(composed(-1, 5), false, 'the land past the Bay is land');
   assert.equal(composed(-20, 5), true, 'and its sea the sea');
-  assert.match(w, /WATER_BYTE, 1000, 500, \(x, y\) => !tvWater\(x, y\)\)\)\.setRocks\(tvWodRocks\(\)\);/, 'routeGround is handed the land past the Bay as the view\'s own law reads it');
+  // PIN MOVED (RUMARE-WATER): and its voyages' sea the Imperial City's lake too (world/rumareWaters.js rumareSeaPixel)
+  assert.match(w, /WATER_BYTE, 1000, 500, \(x, y\) => !tvWater\(x, y\), undefined, rumareSeaPixel\)\)\.setRocks\(tvWodRocks\(\)\);/, 'routeGround is handed the land past the Bay as the view\'s own law reads it');
 });
 
 test('TV-BEYOND, the wire\'s world: every fit\'s frame lies inside WORLD_PIXEL_BOUND, and a pose anywhere on it is carried - the relay refused one past 1024 pixels and closed the socket on it ("bad pose")', () => {

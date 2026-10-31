@@ -2,8 +2,8 @@
   {
     "name": "TOWNECON-AUDIT2-SVC1-pixel-unread",
     "file": "src/net/townEconLaw.js",
-    "old": "  if (townPixelIdOf(map) !== py * 1000 + px) return null;\n",
-    "new": "",
+    "old": "|| townPixelIdOf(map) !== py * 1000 + px) return null;",
+    "new": ") return null;",
     "tests": [
       "test/systems/townecon.test.js"
     ],
@@ -143,8 +143,8 @@
   {
     "name": "TOWNECON-AUDIT2-SVC3-days-read",
     "file": "server-account/src/townEcon.js",
-    "old": "  let towns = null;\n  try { towns = row ? JSON.parse(String(row.towns)) : null; } catch { towns = null; }",
-    "new": "  let towns = null;",
+    "old": "  let towns = null, regions = null;\n  try { towns = row ? JSON.parse(String(row.towns)) : null; } catch { towns = null; }",
+    "new": "  let towns = null, regions = null;",
     "tests": [
       "test/server/townecon_service.test.js"
     ],
@@ -293,8 +293,8 @@
   {
     "name": "TOWNECON-AUDIT2-CLI6-device-clock",
     "file": "src/scenes/townEconHost.js",
-    "old": "relayNowS: () => (clockHeard() ? Math.floor(reading.nowMs() / 1000) : null) }) : null;",
-    "new": "relayNowS: () => Math.floor(reading.nowMs() / 1000) }) : null;",
+    "old": "relayNowS: () => (clockHeard() ? Math.floor(reading.nowMs() / 1000) : null), turnMs: dayTurnMs() }) : null;",
+    "new": "relayNowS: () => Math.floor(reading.nowMs() / 1000), turnMs: dayTurnMs() }) : null;",
     "tests": [
       "test/net/townecon_client.test.js"
     ],
@@ -457,8 +457,8 @@
   {
     "name": "TOWNECON-AUDIT2-PRICE6-merge-lost",
     "file": "src/systems/inventory.js",
-    "old": "      if (Number.isInteger(item[COUNTER_VALUE_MARK])) held[COUNTER_VALUE_MARK] = Number.isInteger(held[COUNTER_VALUE_MARK]) ? Math.min(held[COUNTER_VALUE_MARK], item[COUNTER_VALUE_MARK]) : item[COUNTER_VALUE_MARK];",
-    "new": "      if (Number.isInteger(item[COUNTER_VALUE_MARK]) && !Number.isInteger(held[COUNTER_VALUE_MARK])) held[COUNTER_VALUE_MARK] = item[COUNTER_VALUE_MARK];",
+    "old": "    if (Number.isInteger(item[COUNTER_VALUE_MARK])) held[COUNTER_VALUE_MARK] = Number.isInteger(held[COUNTER_VALUE_MARK]) ? Math.min(held[COUNTER_VALUE_MARK], item[COUNTER_VALUE_MARK]) : item[COUNTER_VALUE_MARK];",
+    "new": "    if (Number.isInteger(item[COUNTER_VALUE_MARK]) && !Number.isInteger(held[COUNTER_VALUE_MARK])) held[COUNTER_VALUE_MARK] = item[COUNTER_VALUE_MARK];",
     "tests": [
       "test/systems/townecon_audit2.test.js"
     ],

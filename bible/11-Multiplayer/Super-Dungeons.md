@@ -34,7 +34,9 @@ So, as decided here (each decision is argued in its section):
   each finisher's feat, and the account service pays it. Offline there is no Super dungeon; every dungeon is Regular.
 - **One at a time, until it is beaten.** The hub keeps ONE record (section 2). A Super dungeon stands until its boss
   falls - then it collapses - or until its time runs out unbeaten (48 hours) - then it fades. After either, the next
-  one rises somewhere else.
+  one rises somewhere else. Since WW5 (section 16, WW5), one at a time in each theatre: the Bay's and each province's
+  lane keeps its own record, Cyrodiil's open zone none - since FRONTS a province's rises on its turn, two at most
+  past the Bay (`03-World/World-Wide.md` FRONTS).
 - **"Where population is at its most" in both of its senses.** The relay counts the players in each of the Bay's 62
   regions at the moment one rises and picks the fullest (section 3); inside that region every client places it by the
   first of the region's cities, ranked as its hub is (a city, the one named for its region, then the largest), that has
@@ -61,7 +63,7 @@ So, as decided here (each decision is argued in its section):
   phasing and crumbling platforms over the void (section 9); **a fight that tests a build** - the Brass Remnant, three
   phases, a damage race, a coordination check and a timer (section 10).
 - **The chance, not the promise.** The kill pays gold and gear to everyone who earned it; a piece of the new set, THE
-  BRASS OF NUMIDIUM, one time in three; the Hourlock, the one Gilded piece, one time in fifty (GILDED1); the title
+  BRASS OF NUMIDIUM, one time in three; the Hourlock, the one Gilded piece, one time in fifty (GILDED1; one in a hundred since GILDED-RARER - `06-Systems/Gilded.md` section 10); the title
   *Hourbreaker* one time in four and the aura *The Turning Hour* one time in eight, each rolled once by the account
   service from the relay's own seed (section 11).
 - **Regular, Elite, Super - one word, everywhere a dungeon is named** (section 12).
@@ -84,6 +86,7 @@ Ledger A rows are SD-ONLINE (the world's dungeon sizes online), TIER1 (the label
    ▼
  the DUNGEON (whole, Super foes) ── its END: the RIFT (to the realm) + the RETURN (to the entrance)
    │ the Rift, pressed ─► the realm room `sd:<s>` admits ─► the SHATTERED HOUR (a made level)
+   │ SD-THROUGH: its first admission ─► the hub stamps `inAt`, fanned ─► the WAY THROUGH beside everyone in the Hollow and everyone entering it
    ▼
  THRESHOLD ─► ORRERY OF ENDINGS (puzzle: relay-judged) ─► UNMOORED STEPS (platforming: the shared clock)
    ─► THE LAST MOMENT (the Brass Remnant: relay brain, 250 ms beat)
@@ -95,7 +98,8 @@ Ledger A rows are SD-ONLINE (the world's dungeon sizes online), TIER1 (the label
 ## 2. The director - one record in the hub
 
 The hub (`chat:world`, the room every online tab holds) keeps the Super dungeon's record under the storage key `sdev`
-(outside the `look:`/`secret:`/`party:`/`world:` prefixes the sweeps delete - the relay map's trap). The record:
+(outside the `look:`/`secret:`/`party:`/`world:` prefixes the sweeps delete - the relay map's trap; WW5: that is the
+Bay's lane's, a province lane's is `sdev:<lane>` with its slots in its own span - section 16, WW5). The record:
 
 | field | meaning |
 |---|---|
@@ -104,6 +108,7 @@ The hub (`chat:world`, the room every online tab holds) keeps the Super dungeon'
 | `r` | the region the census chose (0..61), or -1: the Bay's great cities (section 3) |
 | `at` | when it rose (relay ms) |
 | `foundAt`, `fb` | when it was found, and by whom (the finder's display name; never an account id) |
+| `inAt` | SD-THROUGH: the hub's own instant as it hears its realm's first admission (a tell not landed is told again, so a lost first tell stamps a later instant - AUDIT SD-THROUGH C10); never on an unfound record. From then on the Way Through stands (section 6) |
 | `fellAt`, `top`, `n` | when its boss fell, the top fighter's name, how many fought it (every seat in its fight - the gate's and the serpent's own count) |
 | `until` | when an unbeaten Hollow fades: `at + SD_LIFETIME_MS` |
 | `next` | when the next may rise: `fellAt + SD_COLLAPSE_MS + SD_COOLDOWN_MS` (or `until + SD_COOLDOWN_MS`) |
@@ -123,9 +128,12 @@ opt-in is needed (this page first planned one, `sdv`; SD3 found it unneeded).
 
 ## 3. Where it rises - the census and the city
 
-**The census (relay).** When a Hollow is due to rise, the hub asks each of the 62 region rooms (`chat:region.0..61`)
+**The census (relay).** (WW5: a lane asks its own regions alone - a province's Hollow its province's room; section 16,
+WW5.) When a Hollow is due to rise, the hub asks each of the 62 region rooms (`chat:region.0..61`)
 through `/internal/sd/census`, each call bounded by `ROOM_CALL_MS`. A region room answers the number of DISTINCT
-verified, linked accounts among its sockets (a guest is not counted - one click makes a guest). The hub takes the
+verified, linked accounts among its sockets (a guest is not counted - one click makes a guest).
+
+The hub takes the
 region with the most, at least `SD_CENSUS_MIN` (2); ties are broken by the slot's hash, and the region the last Hollow
 rose in is skipped when another qualifies (the gate's bag seam rule, so one crowd does not keep every Hollow). With no
 region at the minimum, `r = -1`. A region with no town to rise by is never chosen, however full (SD-SEA,
@@ -193,6 +201,10 @@ and steps over the Orrery and the Steps can fell an empty Hour's Remnant in abou
 the Hollow for everyone. AUDIT SD II closed what such a script would need a second account for (the stones' rights,
 section 8; the signed level and the arena's share, section 10; the seats), and moderation has every name: the finder's,
 each turner's, each fighter's. Whether a Hollow should need company to collapse is put to Mac (section 16, SD11).
+SD-THROUGH widens what the same script does (AUDIT SD-THROUGH A2): a hello into the realm the moment the Hollow is found -
+nothing asks a soul in it to have walked the Hollow - stamps the record's `inAt`, and from then on every honest player
+in the Hollow is offered the Way Through; before, the script skipped the walk for itself alone. It mints nothing and
+grows nothing. Whether the stamp should wait (a floor after the find) is put to the owner (AUDIT SD-THROUGH).
 
 ## 5. The dungeon - Super
 
@@ -235,7 +247,8 @@ or the room can open one - a door open when they were stood moved all three, a c
   client already understands: *"The Rift will not take you yet."* / *"The Hour has closed."* During the collapse it
   refuses a newcomer and admits again whoever went through it, as the realm keeps them - remembered on the device, the
   last eight Hours (SD11c: a reload forgot them, and the Rift shut on its own fighters). One who died in its Hour is
-  refused for good: *"The Hour will not take you back."* (SD-ONELIFE). Its plaque counts its Hour under its own row
+  refused for good: *"The Hour will not take you back."* (SD-ONELIFE) - unless a friend's Resurrect, which the realm
+  records, raised it inside the body's minute (SD-REZ). Its plaque counts its Hour under its own row
   (`world/superDungeon/sdDungeon.js` `sdRiftCount`): *Fades in 1d 22h*, its last day by the second - the Timers' own words, as its
   banner says it (SD20e T6) - *Collapses in 2:31* in its collapse (SD11f: a Hollow unbeaten closed on everyone in it with no count anywhere inside).
 - **The Return** - a small portal of pale light beside it: it carries the player back to the dungeon's entrance (the
@@ -246,6 +259,22 @@ or the room can open one - a door open when they were stood moved all three, a c
   taken down at its end), where the player stood outside as they went in, never the Hour's own frame read in the
   street's (SD-LAND). The door is read in the street's own frame: the world host's door list keeps each door in its
   pixel's, and read raw it stood the player the streamer's vertical shift over the Hollow, in the sky (SD-SKY).
+- **The Way Through** (SD-THROUGH, 2026-10-21; the owner: *"When someone finds and enters the portal. I want a portal to
+  show up for anyone in the dungeon and anyone entering that automatically leads them there."*) - once the first soul
+  has stepped through the Rift (the record's `inAt`, section 2), a second Rift opens beside everyone in the Hollow and
+  beside everyone who enters it after, and leads straight to the Shattered Hour: *"The Rift stands open. The Way Through
+  opens beside you."* It is the Rift itself at its least size (2.6 m, `world/superDungeon/sdDungeon.js`
+  `SD_THROUGH_SIZE_M`), in the Rift's own state and GOLD (the way in, `Super-Dungeons-Look.md`'s five lights), three
+  metres from me (then half that) beside the way I look first - a half quarter-turn either side, then ahead, then round
+  - its face turned to me, where it STANDS WHOLE: its ring clear of every wall and of the ceiling, a body's way past it on
+  one side, dry, on the floor under my feet (`sdThroughPlace`; AUDIT SD-THROUGH). Where no spot stands it whole, my feet
+  are off their floor, or I stand within 12 m of the Hollow's Rift, it is not yet: asked again each second as I move, and
+  it opens - its line said then - when one does. PRESSED, NEVER WALKED INTO (the way home's law: it stands where players
+  walk, and one life is a Hollow's), its press `sdrift:1` yielding to anything firm behind it - the way out, a body, a
+  chest (`player/activate.js` `firmFirst`). Its press is the Rift's own step: its word asked, the Hour's veil, the realm's
+  hello. Its plaque: *The Way Through - To the Shattered Hour*, with the Rift's count, all in the player's language. It
+  does not open for one the Hour refused for good, and it goes out with the Return when the boss falls - a collapse's
+  fighters go back by the Rift itself.
 - **No Mark in a Hollow** (AUDIT SD IV F2): *"You cannot set a Mark in an Abyss Dungeon."* - a place that ends, as the
   court and the Hour are. A dungeon anchor knows its dungeon by its pixel alone, and a later Hollow may stand on that
   pixel in another layout: a Recall took the old one's spot there, in rock or the void.
@@ -319,10 +348,18 @@ Six Ending-stones stand on a ring in the hall, each carved with one of the Bay's
   a hand that mended another's turns, or never touched a stone, stands (AUDIT SD II, L7 H2: it was everyone in the hall,
   a griefer's weapon). Turning at random does not get there.
 - **The stones' rights** (AUDIT SD II, L7 H2). The thread is the hall's, and no one hand spends it: every turn moves
-  the road to the Concord by exactly one, and a turner that has turned the long way six times since the last snap is
+  the road to the Concord by exactly one, and a turner that has turned the long way six times in this Hollow is
   refused while anyone else has turned in the last minute - *"The stones will not answer you while others turn them."*
   A lone learner is never held, and a solver who knows the way never is; every guest turns as one (a guest is one
-  click). One griefer spends at most a dozen turns of the forty-eight.
+  click). One griefer spends at most a dozen turns of the forty-eight, once a Hollow. (RPT1026-EVENTS ORRERY-HANDS: the
+  count was begun again at every snap, so each griefer's dozen came back with the thread - below.) A hand the thread
+  held out behind held hands alone - a team that spent its six learning the gearing, kept out while one held hand
+  turned on - begins its count again at the snap (AUDIT RPT1026 I1, below).
+- **The hands named** (RPT1026-EVENTS ORRERY-HANDS). A stone's plaque, under the crosshair, names the last hand that
+  turned it - *"Last turned by Ash"* - and the snap's line names the turners it found no help in, the peers its lash
+  falls on: *"The Hour snaps back. No help came from Ash, Bram and 2 others."* (five named at most). The names
+  are this screen's roster's (the room's peers), so a turner whose body is concealed is named as any other. Nothing says
+  which way a turn went: the dial still says how many stones stand true, and nothing more.
 - **New every time.** The gearing, the starting hours, the true hours and the riddles are drawn from the slot's seed,
   so no Hollow's answer is another's.
 
@@ -493,7 +530,7 @@ throw never came, as I leave the Hour). A fighter who dealt and one who stood ar
 | one piece | Legendary or better 25% of the time, else Rare |
 | two pieces | Rare or better (source tier 24, luck 70) |
 | THE BRASS OF NUMIDIUM | one piece, one time in three (rolled after the pieces, so their rolls never move) |
-| the Hourlock | one time in fifty - a Gilded Thunderlock (GILDED1, `06-Systems/Gilded.md` section 4): one draw every time, rolled after the Brass, last of all, so it never moves an earlier roll; online alone, as the Hour is |
+| the Hourlock | one time in fifty (one in a hundred since GILDED-RARER, 2026-10-24 - `06-Systems/Gilded.md` section 10) - a Gilded Thunderlock (GILDED1, `06-Systems/Gilded.md` section 4; a Gilded Dwarven Long Bow since GUNS-UNFOUND, section 9): one draw every time, rolled after the Brass, last of all, so it never moves an earlier roll; online alone, as the Hour is |
 
 **THE BRASS OF NUMIDIUM** - a new Aetheric set (`systems/aetheric.js`, `systems/sigil/sigilSets.js`): Dwarven pieces, the
 Dwemer's brass, nine records in the places' order - the seven body pieces, a round shield and a ONE-HANDED Longsword,
@@ -621,11 +658,11 @@ One new frame type, `sd` (`net/wire.js`: `SD_KINDS`, `validSdIn`, `validSdOut`, 
 | client -> hub | `spent {s}` |
 | client -> cell | `found {s,px,py}` |
 | client -> `sd:<s>` | `in {lv,bv}`, `pz {i,a,q}`, `hit {q,d,r}`, `ehit {e,q,d,r}` (an Echo), `xhit {c,q,d,r}` (a Heart) |
-| hub -> client | `ev {s,ph,r,at,foundAt?,fb?,fellAt?,top?,n?,until,next}`, `rcpt {r}` |
+| hub -> client | `ev {s,ph,r,at,foundAt?,fb?,inAt?,fellAt?,top?,n?,until,next}`, `rcpt {r}` |
 | `sd:<s>` -> client | `st` (the whole state), `pz {st,f,lit,ok,ls?,w?}`, `mv`, `atk`, `hp`, `ph`, `ec` (Echoes), `cx`/`cxb`/`stun` (Hearts), `fell`, `rcpt`, `no {m}` |
 
 Internal doors (object to object): `/internal/sd/census`, `/internal/sd/found`, `/internal/sd/live`,
-`/internal/sd/fell`. The Worker mints an `sd:<s>` object only for the slot the hub's record names and only while it is
+`/internal/sd/fell`, `/internal/sd/in` (SD-THROUGH: a realm's first admission). The Worker mints an `sd:<s>` object only for the slot the hub's record names and only while it is
 `found` or `fell` (the gate's `gateHolds` law, read from the hub through `/internal/sd/live`). A hub that does not
 answer that ask is no answer, never "no record": the Worker mints nothing (the socket fails and the page reconnects on
 its backoff), and the realm refuses a hello as busy (`CLOSE_BUSY`, which the page tries again - never *"The Hour has
@@ -657,6 +694,14 @@ it is good and to an earner's seat at the fall; `spent {s}` in, to the hub alone
 bucket; the realm's tell to the hub carries its receipts (`rc`, [account, receipt] each) and who stood in the realm
 (`here`).
 
+SD-THROUGH (`world241` - `world239`, then `world240`, on its branch, renumbered past FOES-FIRST's and GUILD-CAP's at the merges) shipped the record's `inAt` and the realm's door to the hub, `/internal/sd/in` (`{s}` -
+`validSdInTell`): the realm tells it from its admission, unawaited; a tell not landed is owed and told again on the
+realm's alarm every 5 s until the hub answers, never once the realm's own Remnant has fallen (AUDIT SD-THROUGH A1, A4); the
+hub stamps the record once (`net/superDungeon/sdLaw.js` `sdEnter`) and fans it. "Admitted" is `_sdAdmit`'s word, not the
+welcome's: a hello the realm admits and the rest of the hello refuses (an id held, a welcome that cannot be sent) has
+been told (AUDIT SD-THROUGH A3 - only an abuser's hello meets it, and `realm.in` already counts it). An older client projects `inAt` away; an
+older relay never stamps it, and no Way Through stands.
+
 SD-HELLO: a page says nothing into `sd:<s>` but its hello (and the runtime's own ping) until the realm welcomes the
 socket. The realm's hello asks the hub (`/internal/sd/live`) before it names the socket, and a Durable Object takes the
 socket's next frame while that fetch is out: a pose read then is a pose before hello, refused for good. What waits for
@@ -672,9 +717,9 @@ gate's, a battle's, an arena's) write their own socket and never run in `sd:<s>`
 
 | host | what it carries |
 |---|---|
-| `scenes/world.js` | WIRED: the record, the omen and sighting, the found word, the Hollow at its pixel, the map/compass/timers, the realm's link, court, spoils, receipts, the veil, the ejections, the labels' entry line; one life a Hollow (SD-ONELIFE); the Hour's score (SD13), its voice, air and motes (SD14), the arena read and its title card (SD15), its blows seen (SD16), the Hour-Hand's beam (SD17), the marks card, the element and the save (SD18b), the taverns' word by the Ending (SD18c), the brass air, the door's banner and card (SD19 - the fog's grade through `scenes/shared.js` `setBrass`) |
+| `scenes/world.js` | WIRED: the record, the omen and sighting, the found word, the Hollow at its pixel, the map/compass/timers, the realm's link, court, spoils, receipts, the veil, the ejections, the labels' entry line; one life a Hollow (SD-ONELIFE); the Hour's score (SD13), its voice, air and motes (SD14), the arena read and its title card (SD15), its blows seen (SD16), the Hour-Hand's beam (SD17), the marks card, the element and the save (SD18b), the taverns' word by the Ending (SD18c), the brass air, the door's banner and card (SD19 - the fog's grade through `scenes/shared.js` `setBrass`); the Way Through's word (`through`) and its window and floor light in the Rift's pass, the veil on the nearer ring (SD-THROUGH) |
 | `scenes/worldModes.js` | WIRED: `enterSdRealm` / the way home, the realm's per-frame arm (lighting, fog, sky, the Orrery, the Steps, the arena), the dungeon's exit to the Hollow's door, the step through the fire under way (`stepping`, AUDIT SD III) |
-| `scenes/dungeonContext.js` | WIRED: the Super difficulty, the end (`dungeonEndOf`), the Rift and the Return, the realm's bodies (the Remnant, the Echoes, the Hearts) behind the gate's three seams, the refusals; the rig's body, its parts and gears (SD17), a strike's cast by its element (SD18b), the Remnant in its Ending's light (SD18c) |
+| `scenes/dungeonContext.js` | WIRED: the Super difficulty, the end (`dungeonEndOf`), the Rift and the Return, the realm's bodies (the Remnant, the Echoes, the Hearts) behind the gate's three seams, the refusals; the rig's body, its parts and gears (SD17), a strike's cast by its element (SD18b), the Remnant in its Ending's light (SD18c); the Way Through (SD-THROUGH, `scenes/superDungeon/sdThrough.js` wired) |
 | `scenes/exterior.js` | FLAGGED: the `?exterior` bench is offline; there is no Super dungeon offline. Its plaque is the World Tooltips mod's own *To <name>* - the tiers are said online alone (section 12). |
 
 ## 16. Slices and their records
@@ -695,6 +740,7 @@ gate's, a battle's, an arena's) write their own socket and never run in `sd:<s>`
 | SD10 | the collapse, the readouts, the audit |
 | SD11 | AUDIT SD II |
 | SD-ONELIFE | one life a Hollow |
+| SD-REZ | one life, unless a friend calls it back (EVENT-RULES) |
 | SD13-SD19 | the detail past the gates: the score, the voice, the air and the motes, the arena read, the blows seen, the body moved, the marks, the Hollow's presence |
 | SD20 | AUDIT SD III |
 | SD-ALONE | no companion through the Rift |
@@ -705,6 +751,10 @@ gate's, a battle's, an arena's) write their own socket and never run in `sd:<s>`
 | SD26 | AUDIT SD IV |
 | SD27 | AUDIT SD V (cut short) |
 | SD-HERALD | the Abyss Dungeon on Discord: its rise, find, fall and fade posted to the world events' channel |
+| SD-SEA | no Hollow rises at sea |
+| SD-THROUGH | the Way Through: once one has stepped through the Rift, a second Rift beside everyone in the Hollow and everyone entering it |
+| AUDIT SD-THROUGH | the Way Through audited in three lanes: pressed, never walked into; stood only whole; the relay's lost tell owed |
+| WW5 | a Hollow in every theatre: a slot a lane, the census every region's, a province's site, words, relay and page (`03-World/World-Wide.md` WW5) |
 
 Each slice records below what it shipped, what it pins and what it leaves.
 
@@ -1418,11 +1468,17 @@ origin - `arenaOf`).
   the Remnant at the far side facing the way in; it wakes 8 s on (`SD_OPENING_MS`). A share is the gate's law at its own
   numbers (`joinRemnant`: `SD_TTK_S` 420 x `dpsRef` x `SD_SHARE_X` 1.25, at the fraction it stands at, an empty bucket for
   one who comes to it bled, the first claim kept, 256 seats, an idle one freed); a fighter away 30 s takes its share out
-  (the gate's `retireShare`). LOST after 30 s with no living fighter in the arena (`SD_LOST_MS`).
+  (the gate's `retireShare`), at the fraction the Remnant stands at - a death too: the fallen's page leaves the realm at
+  once (SD-ONELIFE; `world.js`'s death branch, `online.leave()`), so its share goes 30 s on and the living fight what is
+  left at the fraction it stood at, each blow moving the bar further (RPT1026-FIGHTS, a private report: AS DESIGNED - the
+  Remnant does not keep the fallen's share as an Elite Breach's lords do, LORD-SHARES; a body a friend raises inside
+  `SD_REZ_MS` brings it back, at the fraction). LOST after 30 s with no living fighter in the arena (`SD_LOST_MS`).
 - **Belief** (`applyRemnantHit`, `applyEchoHit`, `applyHeartHit`): the gate's own hand and purse - `net/gate/gateBrain.js`
   exports `spendBlow` and `spendPurse` now, and the Remnant keeps no blow rate or bucket of its own: one hand and one purse
   for every body in the fight. A pose in the arena, a melee blow within reach of the body it meets; asleep, outside time or
-  past the Hour, nothing lands; a phase holds its floor; a stunned Remnant takes half again; the Last Moment's last blow
+  past the Hour, nothing lands; a blow that reaches the purse SEES its striker (RPT1026-FIGHTS RETIRED-BLOW: a share the
+  beat retired comes back first, at the fraction - `net/superDungeon/sdRemnant.js:"function sighted(f, p, now) {"` - and the relay drops a
+  blow from a pose older than `SD_POSE_FRESH_MS`, the census's own age); a phase holds its floor; a stunned Remnant takes half again; the Last Moment's last blow
   fells it - where it stands, the fight's best three and every fighter's part (the gate's `topDealers`, `damageChart`;
   `earned` reads it as the gate's does).
 - **The Walking Hour**: each body walks at its chosen (threat, then any) and strikes - the Stomp only within 5 m of its
@@ -1809,7 +1865,8 @@ already keeps a receipt until a slot's spoils are said spent (`spent {s}`).
   over the realm's real collider with its pillars); once a fight; never off another slot's receipt; rolled at the
   level the fight admitted or mine, the lower. A fighter the realm counted in with no receipt `SD_RECEIPT_WAIT_MS` into
   the fall is told so, once; a watcher is told nothing (`net/superDungeon/sdFightLink.js` `counted` - the realm counted me in this
-  fight, fallen or not). Leaving the Hour gathers whatever is still on the floor.
+  fight, fallen or not). Leaving the Hour gathers whatever is still on the floor. LOST-SPOILS (2026-10-22): its items go
+  to the mailbox, where it takes post, the gold to the purse (`06-Systems/Accounts-And-Cloud-Saves-Arc.md`).
 - **The pool** (`scenes/spoilsPool.js`): the burst takes a `roll` as the grant does, and a pool says its own words
   gathering (`gathered` - the Hour's said in the chat, SD11c). The Hour's pool keeps its own keys (`SD_SPOILS_KEYS`),
   its crash records (eight), each piece's own picture and the loot piles' words; a spent receipt is said to the hub as
@@ -2226,7 +2283,7 @@ good. You wake before the Abyss Dungeon's door."*) and is final for that Hollow 
   (`world/superDungeon/sdDungeon.js` `sdRiftWord`'s `fallen`) and says the realm's words before the step, found or collapsing, though
   I went through.
 - **No Resurrect in the Hour.** A body raised in place would stand in a fight its death has left; the death's way out
-  is the Hour's.
+  is the Hour's. RETIRED by SD-REZ (2026-10-25, below): a friend's Resurrect inside the body's minute raises it.
 
 What a fallen fighter earned stands: a part in the Remnant's kill is on its receipt (SD9a's law, the gate's), and the
 spoils thrown are the world's.
@@ -2242,6 +2299,47 @@ kept - `_sdFallen`, the death block's first statement - and the Rift asked with 
 in the Hour); `scenes/worldModes.js` FLAGGED - the death and its door are the mode machine's as in any dungeon, worded by
 the world host's respawn; `scenes/dungeonContext.js` FLAGGED - the Rift's refusal is its word off the outer host
 (`superRift`), unchanged; `scenes/exterior.js` FLAGGED - the `?exterior` bench is offline: no Hour to die in.
+
+### SD-REZ - shipped 2026-10-25 (one life, unless a friend calls it back - EVENT-RULES)
+
+The owner, 2026-10-25: *"A lot of people are unhappy with the world event restrictions"*; asked what to relax, *"Resurrect
+allowed"* - in the Hour, the Spire and the Sky-Ketch. SD-ONELIFE's "No Resurrect in the Hour" is retired; its one life
+stands for a death nobody answers:
+
+- **The realm keeps a death DOWN first** (`server/src/index.js` `_sdMarkFallenAt`): the account is kept as
+  `[sub, at, x, z]` - where its dying pose fell, the realm's metres - in the realm's `down` beside `dead` for `SD_REZ_MS`
+  (`net/superDungeon/sdLaw.js`: the body's minute and the page's ten seconds for its hello - AUDIT WORLD-EVENTS L1-5: it
+  said two minutes, and a friend's screen keeps a body `CORPSE_MS`, the death screen stands `ONLINE_RESPAWN_SECONDS`, both
+  60 s - pinned equal). A death the list cannot hold is buried, never forgotten (L1-7).
+- **The raise is the realm's to record** (AUDIT WORLD-EVENTS L1-1 - any hello inside the window was a rise, a friend's
+  spell or not: a second device or a cleared store walked back into the Hour): a living fighter of the realm casting
+  Resurrect at the body says so to it (`sd` `rz`, `net/raiseWord.js` from the world host's Resurrect door; `_sdRaise` -
+  `sdMayRaise`: the caster admitted, neither down nor dead, within `SD_REZ_REACH_M` of where the body fell, inside the
+  window), kept in `raised`. A hello of a down account is its RISE only once raised (`sdDownWord` -> `'rise'`); one nobody
+  raised is held at the door (`'down'` -> busy: its page asks again, the raise's word a moment behind it) and buried past
+  the window. A rise comes off `down` and `raised` only once the door has let it in (`_sdRose`, L1-8 - it was erased
+  before the door's refusals), and is a NEW LIFE on the count (`bodyLife`, L1-2 - the dying pose leaves with its socket, so
+  the count never stamped the death, and under enforcement it fell the raised again every BODY_TELL_MS). Past the window
+  - read at the next death and at the next hello - a death is buried (`_sdBury`): into `dead`, past the list under its
+  own key as before, and refused for good with SD_NO_FALLEN's words.
+- **The count raises only the raised** (`net/bossBody.js` `bodyCensus`, its `lives` asked of each body): a body the
+  relay's count has fallen comes back to the fight only where its account rose in the realm; any other stays dead to the
+  Remnant's brain, as SD-ONELIFE had it.
+- **The page asks only for a raise** (`systems/superDungeon/sdSlots.js`): the slot I die in is kept as before, its death's
+  moment stamped once (AUDIT WORLD-EVENTS L1-6 - the world host adds it every frame of the death screen, and the window
+  never shut); a friend's Resurrect in the Hour I fell in lets it go again (`rise`), and only inside the realm's window
+  less ten seconds (`mayRise`, `SD_REZ_PAGE_SLACK_MS` - a rise asked at the edge would reach a realm that has buried it).
+  The made level's tile says the minute ("within 60 seconds"). The world host's
+  Resurrect door asks `hourRezOpen()` (`scenes/world.js`) - always, but in the Hour I fell in past that window. A fallen
+  fighter who takes the death screen's way out keeps the slot, and the Rift refuses it as before.
+
+Pins: `test/net/superDungeon/sd12_onelife.test.js` (the window, the rise, the burial, the page's half);
+`test/net/superDungeon/auditwe_rez.test.js` (the raise recorded, held at the door, the new life, the minute, the stamp, the
+burial past the list - AUDIT WORLD-EVENTS); PINS MOVED -
+`test/net/int12_body_relay.test.js` (a death is `down`, not `dead`), `test/net/sd3_relay.test.js` (the realm's record keeps
+`down`), `test/net/superDungeon/sd20a_fight.test.js` (the census's `lives` the raised); `tools/mutants/eventrules.json`.
+THE FOUR HOSTS: `scenes/world.js` WIRED (the rise, the door); `scenes/dungeonContext.js`, `scenes/worldModes.js` and
+`scenes/exterior.js` as SD-ONELIFE's.
 
 ### SD13 - shipped 2026-10-07 (the Score of the Hour)
 
@@ -3316,6 +3414,8 @@ THE FOUR HOSTS: none wired - the herald is the relay's alone. `scenes/world.js`,
 `scenes/dungeonContext.js` and `scenes/exterior.js` are untouched (the chat's lines at a find, a fall and a fade are
 `scenes/superDungeon/sdHost.js`'s, unchanged).
 
+**HERALD-CARDS (2026-10-22).** These posts are cards now (`net/herald/heraldCard.js`; `World-Bosses.md` THE HERALD, HERALD-CARDS): the family The Abyss Dungeon, in its colour, the moment's title, its facts as fields (the rise: Fades unfound, never where; the find: Dungeon, Fades; the fall: Dungeon, Where, Next may rise; the fade: Where, Next may rise), and content only on a post that pings. When each is owed is unchanged. Its cards may go to a thread of their own of the channel (the relay setting `sdThread`), the gate's else.
+
 ### SD-SEA - 2026-10-20 (no Hollow rises at sea)
 
 The owner, 2026-10-20: *"Abyss Dungeons dont seem to be spawning anymore"*. The record is
@@ -3356,3 +3456,294 @@ disc7's list of versions and soc1.json's version record (world233).
 THE FOUR HOSTS: none wired. `scenes/world.js`, `scenes/worldModes.js`, `scenes/dungeonContext.js` and
 `scenes/exterior.js` are untouched. The fallback is `scenes/superDungeon/sdHost.js`'s, which `scenes/world.js` wires
 online alone.
+
+### SD-THROUGH - 2026-10-21 (the Way Through)
+
+AUDIT SD-THROUGH (the next record) changed what this slice shipped - its walk-in, its placement, its retries - and the
+record below it says what stands; what this one says is the slice as it first shipped, its errors corrected where they
+stand.
+
+The owner, 2026-10-21: *"So the abyss dungeon. When someone finds and enters the portal. I want a portal to show up for
+anyone in the dungeon and anyone entering that automatically leads them there."*
+
+**Before.** A Hollow's Rift stood at its end alone (section 6): every fighter walked the whole Super dungeon to reach
+the Shattered Hour, however many had gone through before them, and nothing told anyone inside that the Hour was open.
+
+**Decided.** "There" is the Shattered Hour, where the first soul went. The portal is the Rift itself, a second ring, so
+it reads as the way in (GOLD, the brass astrolabe - never the MOON of a way out) and its step is the Rift's step - the
+same word, the same refusals, the same veil, the same realm hello. It shows up beside each player rather than at one
+spot: for those already inside at the moment someone first goes through, and at the way in for those who enter after.
+A departure from nothing in DFU (Daggerfall has no shared world); Ledger A's SUPER-DUNGEONS row covers it - its files
+named there at AUDIT SD-THROUGH (C1: this said so while the row named none of them, and `test/tooling/doctrine.test.js`
+failed on `scenes/superDungeon/sdThrough.js` - unseen here, because the file was untracked when the suite ran).
+
+**The relay** (`world241` - `world239`, then `world240`, on its branch, renumbered past FIELD BUGS 2026-10-21c FOES-FIRST's `world239` and GUILD-CAP's `world240` at the merges; NOT YET DEPLOYED).
+
+- The record keeps `inAt` (`net/wire.js` `validSdRecord` - a relay instant, never on an unfound record), and the hub's
+  `ev` frame carries it to every client and every hello.
+- A Hollow's realm (`sd:<s>`) tells the hub at an admission while the record it holds is found and unstamped
+  (`Room._sdTellIn`, from `_sdAdmit`'s two exits - a newcomer's and a returner's): one tell in flight, unawaited (a hello
+  never waits on it), told again at the next admission until the hub answers (a 4xx is its last word), never in the
+  collapse. Its door is `/internal/sd/in` (`SD_INTERNAL_IN`, `validSdInTell` - the slot alone).
+- The hub stamps the record once (`net/superDungeon/sdLaw.js` `sdEnter`: found, its boss standing, no `inAt` yet - at the
+  hub's own instant), keeps it and fans it (`Room._sdInInternal`). Nothing names who went through: the record names the
+  finder and the top fighter alone.
+
+**The client.**
+
+- The world host's word on the Hollow's end carries `through` (`scenes/world.js` `sdRiftOf` - `world/superDungeon/sdDungeon.js`
+  `sdThroughStands`: the record's slot, `inAt`, and found).
+- The dungeon host wires `scenes/superDungeon/sdThrough.js` (`createSdThrough`) for a Hollow alone, framed beside the
+  Rift with the heading latched that frame (`_fpYaw`). Once a second it asks the word; the first ask that says through,
+  with the Rift admitting me, stands it - 3 m ahead along my heading, then 1.5 m, on the bearings nearest ahead first, the
+  first spot on my own floor with a clear line to it whose ring stands clear in its plane; else the first spot reached;
+  else, boxed in, at my feet (`sdThroughPlace`). Within 12 m of the Hollow's Rift at that ask, none opens this visit.
+  It goes out when the boss falls (the Return's own `returns`), for good this visit.
+- It is a second `createSdEnd` (`scenes/superDungeon/sdEnd.js`, which took a `riftKey` and a `riftTitle`): its key
+  `sdrift:1` rides the press ladder's `sdrift:` arm, its plaque says *The Way Through*, its press and walk-in are the
+  host's `sdRiftStep`. The collider's probe the Rift's place asks is one function now (`sdProbeOf`), the Rift's and the
+  Way Through's. Its window into the Hour and its floor light are drawn by the Rift's own pass (`world.js` `drawSdRift`,
+  `end.sdThroughLook`), its halo and light ride the end's lists, and the Hour's veil closes on the nearer of the two rings
+  (`sdVeilModelOf`, nothing made a frame).
+- Its two lines are the player's language's (L10N4: `sd.through.title`, `sd.through.opens` through `t()`, the English
+  catalog regenerated by `tools/l10nExtract.mjs`, and every language's row drafted in-session -
+  `tools/l10nInSession.mjs`, recorded as the machine's).
+
+**Not changed.** The Hour's laws (the realm's admission, one life, the seats) and the end's Rift and Return. The
+Hollow's walk is still there for whoever wants it, and the Rift at its end still stands.
+
+THE FOUR HOSTS: `scenes/dungeonContext.js` WIRED (the module made, framed, offered to the ray, named, pressed, drawn,
+lit and freed - its probe the end's); `scenes/world.js` WIRED (the word's `through`, the second ring in the Rift's pass,
+the veil's pivot); `scenes/worldModes.js` untouched (its `sdrift:` press arm and its `drawSdRift` call carry it as they
+are); `scenes/exterior.js` FLAGGED - the bench is offline, and no Super dungeon stands there. Host ceilings:
+`buildDungeonContext` +17 logical lines (8,463), `bootWorld` +4 (36,158) - measured on the base it was cut against
+(8,361 and 36,131; over the merged main, 8,369 -> 8,386 and 36,133 -> 36,137 - AUDIT SD-THROUGH C4).
+
+Pins: `test/net/superDungeon/sdthrough_relay.test.js` (4 - the wire and the law, the relay end to end over the real
+Room, the tell retried and stopped, the relay by source) and `test/world/superDungeon/sdthrough_way.test.js` (6 - the
+law, the place over a model hall, the module over a fake renderer, by the Rift, the veil's pivot, the hosts by source);
+`tools/mutants/sdthrough.json` (42, all dead). PIN MOVED: RELAY_VERSION's pin in 42 files, disc7's list of versions and
+soc1.json's version record (world241); `scale2b`'s count of the calls between rooms (28, each on a deadline); `sd4b_rift`'s hosts (the word, the namer, the press), `sd6c_hall`'s press,
+`sd25_orrery`'s halos and lights, `sd25_look`'s veil aim, `sd26_render`'s and the two lair tests' probe
+(`sdProbeOf`), `sd10b_audit`'s and `sd11c_page`'s `sdRiftOf` scope, `sd11d_words`' and `sd27_audit`'s pins anchored
+on their own lines (the Way Through repeated the Orrery hall's `say` and the Rift's `look` - AUDIT SD-THROUGH C9; one
+named closure each since, C13); `sd26_dungeon.json`, `sd25_orrery.json`,
+`sd25_look.json`, `sd11f.json`, `sd3.json`, `sd11d.json` and `sd27_audit.json` re-aimed by content, every record dead.
+
+### AUDIT SD-THROUGH - 2026-10-22 (the Way Through audited)
+
+The owner, of SD-THROUGH: *"Audit this"*. Read cold in three lanes - the relay, the wire and the law; the client at
+runtime (over model halls and 200 of the freeware's own Hollow entries, the host's own layout, collider and entry
+facing); the record, the pins and the process - none fixing while another read (`Home.md`). Every finding was checked
+against the code before it was fixed; each fix has a mutant that puts it back, and every one dies. Ids are the lanes'
+(A relay, B client, C record), as the code tags them (`AUDIT SD-THROUGH (<id>)`).
+
+| | what was wrong | now |
+|---|---|---|
+| B1 | WALKED INTO. At 129 of 200 real entries it stood dead ahead, 3 m off, and a player still walking in was in the Hour in under half a second (0.23-0.53 s by the motor's speeds) - one life a Hollow | pressed, never walked into (`createSdEnd`'s `walkIn` - the way home's law, AUDIT SD II L6 F9), and stood beside the way I look first |
+| B2 | its place: at real entries a quarter of rings stood through a wall or the ceiling, a third across a corridor, 9 of 200 with no way past at all; the fallback took any spot reached, else my feet; no ceiling over its axis, no water asked | it stands only WHOLE - its disc clear, its top and its air under the ceiling, a body's way past (`SD_THROUGH_PASS_M`) on one side, dry (the block's surface, `waterSurfaceYAt`) - else not yet. Over the same 200 entries: 140 stand at once, none through a wall or a ceiling, none across a corridor; the rest open as the player moves on |
+| B3 | its press box (2.6 m across, no surface) stood before the way out at some entries, and a press at the door took the Hour | its press yields to anything firm behind it (`riftYields`, `player/activate.js` `firmFirst` - another player's wagon's law) |
+| B4 | the mode machine never forwarded `superRiftLook`: AUDIT SD V's P1 door stood unreached since SD25, and every look of the Rift - and the Way Through's, four a frame each - made the whole word (world.js `sdRiftOf`) | forwarded (`scenes/worldModes.js`), the forward pinned beside its two ends |
+| B5 | feet off their floor at the ask (a jump, a fall, a swim) stood it in the air for the visit | asked from the floor under the feet, within a step; else not yet |
+| B6 | "by the Rift" decided the visit, by a straight line: a floor above the Rift, or one passing it at that second, had none for good | not yet - asked again as I move |
+| B8 | the two windows (the pass writes no depth) drew in one order: a farther Way Through painted over a nearer Rift | the farther first (`sdRingsFarFirst`, one kept pair) |
+| B9 | its light held one of the dungeon's slots from across the Hollow, pushing a torch beside me out | let go past 30 m (`SD_THROUGH_LIGHT_M`) |
+| B10 | its title read once at the build, its row the Rift's English | both read as the plaque is read; its row keyed (`sd.through.to`) |
+| A1 | a tell that did not land was dropped: admissions met with one in flight were thrown away with it, and nothing told it again - a party through together, or a lone fighter, whose one tell met a busy hub stood no Way Through for anyone until another walked the whole Hollow | OWED, and told again on the realm's alarm 5 s on (`_sdTellInNow`, `_sdInBeat`) - a woken instance asks by its own sockets' room, and an alarm sooner than the retry (a fight's beat) spends none of it (that last found by the audit's own mutant: it was spending it) |
+| A4 | a returner's tell in the gap between the realm's own kill and the hub hearing it stamped a record still found: a Way Through for seconds that the collapse refused | never told once the realm's own Remnant has fallen |
+| A5 | every 4xx was the hub's last word - an older hub's 404 mid-deploy too | a 400 alone (the door's refusal of a bad body); anything else owed |
+| A6, C11 | three laws pinned by source alone: one tell in flight, a refused fetch, the other slot's door (asked after the stamp, so `sdEnter` refused it whatever the slot) | each run over the real Room, the door before the first stamp |
+| B12, C5, C12 | the module's cases only faced north (a heading dropped survived), the half-way pass and the bearings' order were unpinned, `through` was pinned by source alone, and nothing ran real data | a heading in every case; exact spots (a mirrored order dies); the world host's own `sdRiftOf` run from its text; forty real Hollow entries asked by the collider itself |
+| C1 | the Ledger row named none of the slice's files - `test/tooling/doctrine.test.js` failed on `sdThrough.js` (unseen: untracked when the suite ran) | named in the SUPER-DUNGEONS row |
+| C2 | main took `world240` (GUILD-CAP) | renumbered `world241` at the merge, re-hashed in place for A1, A4 and A5 |
+| C3 | the version sweep moved `grant1_law`'s star-grant boundary (`'world238'` - a pin of STAR_GRANT_RELAY_MIN, not of RELAY_VERSION): `>` for `>=` survived | main's line again |
+| C6 | four titles named mutants with no record, twelve records no title named | every title's list its records' |
+| C7 | five languages said the familiar "you" where their rows say the formal (ru, uk, bg, el, tr - Turkish read "beside it"); Japanese plain where the brief asks plain polite | the formal forms, "yanınızda"; plain polite |
+| C4, C9, C10, C13 | the record's host numbers were its base's unsaid; it named the Rift's `say` (the hall's); `inAt` was called the first admission's own instant; the look and the say were the Rift's and the hall's closures copied word for word | corrected; one named closure each (`sdRiftLookNow`, `sdSayHere`) |
+
+**Put to the owner (A2), not built.** A scripted hello into the realm the moment the Hollow is found stamps `inAt`:
+nothing asks a soul in the Hour to have walked the Hollow (section 4 - a forger skips it as it ever could), and now
+every honest player in it is offered the Way Through from then. It mints nothing and grows nothing. Whether the stamp
+should wait - a floor after the find - is the owner's call.
+
+**Not changed.** A3 (written in section 14): `_sdAdmit`'s admission tells, though the rest of the hello may refuse it.
+A8: `validSdRecord` takes an `inAt` before `foundAt` - only the hub writes it, after the find. B7: a refusal the page
+cannot foresee (the Hour full) still carries the player out of the Hollow before the realm's hello - the Rift's own way
+since SD5a. B11: two underwater bells, out of phase; the reveal's toll as it opens - kept, its sound the Rift's. C8: the
+Rift's own plaque and the Hour's lines are English still (L10N4's ratchet holds `sdDungeon.js` at its count); the Way
+Through's are whole. 28 of the 140 real rings stand within 2.5 m of the way out - its press yields, so the door
+answers. The plaque's count asks the whole word on each frame the ray holds it (the Rift's too, since AUDIT SD II).
+
+Pins: `test/net/superDungeon/sdthrough_relay.test.js` (5) and `test/world/superDungeon/sdthrough_way.test.js` (8);
+`tools/mutants/sdthrough.json` (71, all dead). PIN MOVED (AUDIT SD-THROUGH): `sd4b_rift`'s and `sd11f_scenes`' Rift (its
+look the named closure), `sd6c_hall`'s and `sd11d_words`' hall (its say), `sd27_audit`'s P1 (the closure's body and the
+mode machine's forward); `sd11d.json`, `sd11f.json`, `sd26_dungeon.json` and `sd27_audit.json` re-aimed by content - with
+the slice's own re-aims (`sd3.json`, `sd25_look.json`, `sd25_orrery.json`, soc1.json's version record), every one dead.
+
+THE FOUR HOSTS: `scenes/dungeonContext.js` WIRED (the two named closures, the block's water to the probe - 8,386 logical
+lines, as the slice left it, of 8,463); `scenes/world.js` WIRED (the windows farther first - 36,136, one fewer, of
+36,158); `scenes/worldModes.js` WIRED (the look's forward, B4 - 10,956 of 10,998); `scenes/exterior.js` FLAGGED - offline,
+no Hollow.
+
+### WW5 - 2026-10-27 (a Hollow in every theatre)
+
+The owner, after the audit Left In The Bay (item 26), 2026-10-26: *"Every single thing here needs to be addressed. No
+exceptions."* One Hollow stood in the world, its census the Bay's 62 regions, its site over MAPS.BSA's rows. The owner's
+call taken with it: **a site-bound world event stands nowhere in the open PvP zone** - Cyrodiil's lane keeps no Hollow.
+The record is `03-World/World-Wide.md` WW5; what it means here:
+
+- **A slot a lane.** Each lane that stands (`net/wire.js` `SITE_EVENT_LANES`: the Bay's and the eight provinces') keeps
+  its own director and its own record: lane t's slots are `t x SD_LANE_SPAN + 1, + 2 ...` (`SD_LANE_SPAN` 10,000,000), so
+  the Bay's are the 1, 2, 3 they always were and every realm, receipt, spoils key and `sd_kills` row keeps its number. A
+  slot is still one Hollow's whole identity; its room `sd:<s>` nine digits at most (section 2's record, a lane at a time:
+  the Bay's under `sdev` as always, a province's under `sdev:<lane>`).
+- **The census counts every region** (`SD_REGION_COUNT` = `CHAT_REGION_COUNT`, 71): each lane asks its own regions
+  (`net/superDungeon/sdLaw.js` `sdLaneRegions` - the Bay's 62, a province's one), and a lane's Hollow rises in its own
+  (`sdLaneRegionOk`). A crowd in Skyrim draws Skyrim's Hollow, never the Bay's (section 3's law, a lane at a time).
+- **Its site** (`systems/superDungeon/sdSite.js`): its cities the registry's places of its theatre ranked by the hubs'
+  claim (`sdTheatreCities`), its pixel a suitable one of its theatre's gate scan whose nearest town is that city, on dry
+  ground (`findSdTheatreSite`), its location the Bay's own labyrinths and keeps cloned under the Hollows' world lane of
+  map ids (`sdWorldMapId`, `SD_WORLD_LANE` 0x35d).
+- **Its words** say its province: "in Skyrim" where a Bay Hollow's say its region (`sdWhere`'s `province`; the herald's
+  rise "somewhere in Skyrim" - `net/superDungeon/sdHerald.js` `sdProvinceName`).
+- **The relay**: a lane's record, mark, owed find and herald state under `<key>:<lane>` (`sdLaneKey`), an account's
+  receipt a lane (`sdReceiptKey(sub, lane)`); its beat runs every lane's director a lane at a time (`_sdLaneBeat`); its fan
+  and its hello say a province's record as `ln` (`SD_LANE_KIND` - an older client drops it; the Bay's stays `ev`); the live
+  door answers the asker's slot's lane. world270 and acct196, folded in while undeployed (`WW5_RELAY_MIN` 270).
+- **The page** (`scenes/superDungeon/sdLanes.js` `createSdLanes`): the Bay's lane is the host it always was
+  (`scenes/superDungeon/sdHost.js`), a province's lane a host of its own over its ground; a risen Hollow a province away is
+  never asked of its ground. Each reader of ONE Hollow reads the one in focus (the lane I stand in, else the nearest
+  standing Hollow, else the Bay's); the held map's rings, the Timers' rows and the event board are every lane's.
+- **The Hour** (sections 7-11) is every lane's alike: its room, fight, receipts and spoils are the slot's.
+
+THE FOUR HOSTS: `scenes/world.js` WIRED (the lanes in place of the one host, in place - `bootWorld` 35,799 -> 35,798
+logical lines); `scenes/dungeonContext.js` (the Hollow's own build, by its slot), `scenes/worldModes.js` and
+`scenes/exterior.js` (offline, no Hollow) FLAGGED - no Hollow site of their own.
+
+Pins: `test/world/worldWide/ww5_hollows.test.js`; mutants `tools/mutants/ww5_hollows.json`. PIN MOVED and the records
+re-aimed by content: `03-World/World-Wide.md` WW5.
+
+### RPT1026-EVENTS ORRERY-HANDS - 2026-10-26 (the stones' rights for the Hollow, and the hands named)
+
+A private report: a crowded Orrery stayed unsolved for half an hour, the reporter blaming concealed players who turned
+the stones the wrong way on purpose, and asking to see who they were.
+
+**What it was.** THE STONES' RIGHTS (AUDIT SD II, L7 H2) hold a turner that has lengthened the road six times while
+others turn, so one griefer spends at most a dozen of the fray's forty-eight turns. But the snap began the rights afresh
+(`server/src/index.js` `_sdTurn`: `orreryRightsFresh()` at every `res.x`), so each griefer's dozen came back with every
+thread. Four accounts spent the forty-eight between them, the Hour snapped back, and they spent it again, for as long as
+they cared to. Measured over the realm's own law (`orreryMayTurn`, `orreryTurned`): with four, five or eight griefer
+accounts against a team of three that knows the way, the Concord came in no slot of 24 within 1,200 turns. And a
+concealed body is drawn by nobody (INVIS-NET), so the forty could not tell which hand it was.
+
+**Chosen: both.** The puzzle is made hard to grief, and the hands are named.
+- **Counted for the Hollow** (`net/superDungeon/sdBrain.js` `orreryRightsSnapped`): past a snap the lash's nets (`ids`)
+  begin again with the thread, and each turner's count of the road it lengthened (`by`) is kept. Once a hand's six are
+  spent, it waits while others turn until the Hollow is gone, whatever the snaps. Over the same contest the Concord
+  comes in every slot, the Hour snapping back at most once for every two griefer accounts. A lone learner is still
+  never held (the company's minute is the law's), and a solver who knows the way never is. The bound is now per account
+  per Hollow: a griefer with many accounts still spends a dozen turns with each.
+- **AUDIT RPT1026 I1 (2026-10-27): the hands held out by held hands, freed at the snap.** Held hands hold each other:
+  a held hand waits while ANY other has turned in the company's minute, so the first held hand to turn keeps the thread
+  while it turns. The snap had freed every hand; counted for the Hollow, nothing did. A team that spent its six apiece
+  learning the gearing (each long turn mended) was held out of every thread by one held griefer account turning on: over
+  the realm's own judge the Concord came in no slot of 24 against a single griefer, where the old law's came in all 24.
+  Now a hand told to wait while every hand it waits behind is held too is marked
+  (`sdBrain.js:"export function orreryWaited("`), and the snap begins its count again (`orreryRightsSnapped`); a hand
+  held out by a free hand's turns -
+  a solver's, a learner's inside its six - keeps its count, so the contest above stands. The learned team reaches the
+  Concord in every slot against one, two, four or eight griefer accounts. Pinned by
+  `test/net/superDungeon/audit_rpt1026_events.test.js`; `tools/mutants/audit_rpt1026_events.json` (I1, 5).
+- **Named** (`scenes/superDungeon/sdHall.js` `sdHallNamed`, `sdSnapLine`; `scenes/world.js` sdHallHeard): the realm's
+  word on a turn already carried its turner's peer (`id`), and the snap's carried the peers its lash falls on (`ls`).
+  The world host names both off its roster (`peerName`, every peer of the room, drawn or concealed - "you" for me). The
+  stone's hover names its last turner (`Last turned by`), and the snap's line names the lashed, five at most and then a
+  count (`SD_LASH_NAMED`). Nothing says which way a turn went, so the riddles stay the puzzle.
+
+**Not a DFU member:** Daggerfall has no shared puzzle and no other players. Ledger A (ORRERY-HANDS).
+
+**Pins:** `test/net/superDungeon/rpt1026_events_orrery.test.js` (4): the contest (the old rights never reach the Concord
+in any slot, the kept ones always); the rights past a snap (the nets begun again, the count kept, the realm's judge
+refusing, a lone learner never held, and the relay's own line); the names (the turner, me as "you", an unknown id, the
+lashed, five then a count, nothing of the way); the plaque over the real hall. PIN MOVED: `sd11b_relay` (the snap no
+longer frees a griefer: she turns only after the company's minute; a second snap's lash is its own thread's; the page
+lashes named), `sd6c_hall`, `sd11a_scenes`
+and `sd20a_fight` (the world host's hall word as named), and `egseam_law`'s golden Orrery frames, the Hour's realm
+played through the real Room, taken again (229 frames): past its snap, a turner ten long turns behind waits while the
+others turn, and every frame up to that turn is the seam's word for word.
+`tools/mutants/rpt1026_events.json` (ORRERY-HANDS, 9). **The relay changed** (`sdBrain.js` and `index.js` are in its
+bundle): a RELAY_VERSION bump is owed (not taken here). THE FOUR HOSTS: `scenes/world.js` WIRED in two existing lines
+(no growth); the relay's `_message` untouched (`_sdTurn` is a Room method of its own).
+
+### SD-PARTY - 2026-10-28 (each party its own Shattered Hour)
+
+The owner: *"the abyss dungeon ... we need to make this a party instance ... to stop griefin on the bosses"*.
+
+**What it was.** The Hour was one room a slot, `sd:<s>`, open to every account up to 256. A stranger who walked in
+added a share to the Remnant's health and a Heart to each Reset, drew Gear Volleys, turned the Orrery's stones and
+woke the fight's fifteen-minute clock. The first kill then collapsed the Hollow for every other group in it.
+
+**The room.** A realm is now `sd:<s>.<owner>` (`sdLaw.js:"export const sdRoomKey = (s, owner) =>"`), the owner an
+account digest (`instanceOwnerOf`, the Ketch's crew law). The bare `sd:<s>` is no room: the Worker mints no object for
+it. The page picks the copy (`scenes/superDungeon/sdCopy.js` `sdCopyChoice`): the one it went into, while that slot is
+the same, the party is the same and its owner is still in it; else the party leader's; alone, its own. It is kept on
+the device, so a reload or a new leader keeps a fighter in the copy it fought in.
+
+**The door** (`server/src/sdCopy.js` `sdCopyRight`, asked first in `_sdAdmit`): the owner, staff, and a member of the
+owner's party, which the hub answers as it does for instances (`_instanceKinOf`). A stranger is refused *"This Hour
+belongs to another party."*; the hub silent is busy. At most eight fight in a copy (PARTY_MAX), so a copy's Remnant has
+at most eight shares and eight Hearts' worth of fighters.
+
+**One win a Hollow, and one copy for the dead (SD-BACK).** The owner, the same day: *"let them go back in if they die
+to that partys instance"*. The realm tells the hub each death with its copy (`down`, `o`); the hub keeps the first as
+`sdac:<account>` (`sdAcctInternal`). A death bars no return to its own copy: the hello is a rise, off the lying and
+the dead, a new life on the count (`_sdAdmit`'s `back`). A realm asks the hub before it takes a newcomer
+(`sdNewcomerWord`): one that died in another copy is refused SD_NO_FALLEN, and one that holds this slot's receipt
+(`sdrc:`) is refused *"You have already broken this Hour."* A hub that does not answer lets the newcomer in (AUDIT SD
+II L3 F2's law). The page no longer refuses its Rift after a death (`fallen: false`); the death's words lose "for good".
+
+**The kill.** A party's win closes its own Hour: its way home rises and its newcomers are refused, as before. The hub
+keeps the receipts and leaves the record found, so the Hollow stands for every other party until it fades. The hub's
+setting `sdCollapse` (`/relay sdCollapse on`, net/relayCfg.js) brings back the old law, where the first kill collapses
+the Hollow for everyone.
+
+**A won copy closes for its party (SD-WON).** The owner: *"the party after killing the boss closes for them"*. Once its
+kill's collapse has run (SD_COLLAPSE_MS from `fell.at`), the copy refuses one who was in it, SD_NO_CLOSED.
+
+**A shared Hour for players in no party (SD-SOLO).** The owner: *"if no one is in a party allow them to be put into a 8
+player instance so randoms arnt turned away"*. Its owner is `p<n>` (`sdPubOwner`, n under SD_PUB_MAX 64). Its door
+takes anyone to SD_PUB_SEATS (40 - SD-SOLO-40, the owner: *"lets up the amount in a non party to 40"*; it was 8); the seats are the first 40's and are never freed, so its dead can come back. The
+page asks the Worker's `/sd/open?s=&o=<my digest>` (`sdOpenDoor`), which walks the shared Hours in order and answers
+the first that holds me, else the first with a seat and its Remnant standing. None answering, the page goes to its
+own Hour. A party of one counts as no party.
+
+**The entry line.** The owner: *"player are told that only the party or how many player are already in that
+instance"*. Once the Hour has welcomed the page, it says *"Only your party can enter this Hour."* or *"3 of 40 players
+are in this shared Hour."* (`sdCopyLine`, said from `sdAloneFrame`). Refusals that name the Hour are said as the relay
+says them.
+
+**Not changed.** The owner: *"the puzzle room is the instance room let the dungeon be shared"*. The Hollow's walk is shared, and so are its find, its Rift and its Way Through. The Orrery, the Steps
+and the Remnant are each copy's own, drawn from the slot's seed as before.
+
+**Not a DFU member:** Daggerfall has no other players. Ledger A (SD-PARTY).
+
+**Pins:** `test/net/superDungeon/sdparty_relay.test.js` (11): the key, the door, a death's own copy, one win, the hub's
+word, the page's choice, the shared Hour's seats, the Worker's walk, the entry line, the won copy, the kill's two laws.
+`tools/mutants/sdparty.json` (20, all dead). PIN MOVED (SD-BACK): the one-life pins (`sd12_onelife`, `auditwe_rez`,
+`sd20b_relay`) now hold the return; SD12-ONELIFE-unread-at-the-door and -the-rift-blind are retired for
+SD-BACK-another-copy-admits and -the-rift-reads-the-death. PIN MOVED: the realm pins play their fighters as one party (`test/net/superDungeon/sdParty.mjs`); the
+kill's collapse pins (`sd8b_fight`, `sd10b_audit`, `sd11b_relay`, `sdherald`) run with `sdCollapse` on.
+**The relay changed:** RELAY_VERSION world275 (world274 on its branch, renumbered past LADDER-CUT at the merge), `server/src/sdCopy.js` joins the bundle. THE FOUR HOSTS:
+`scenes/world.js` WIRED (one line builds the chooser, two existing lines carry the owner); `createWorldModes` no longer;
+the relay's `_message` one existing line.
+
+### AUDIT TAMRIEL-WIDE B1 - one life and one win past the Bay (2026-10-28)
+
+The hub's answer to a realm (`sdAcctInternal`) read the Bay's lane alone: the record under SD_KEY and the Bay's death and
+receipt keys. Since WW5 a province's Hollow is kept under its lane's keys, so a slot past the Bay never matched: the hub
+answered ok and kept nothing. A player who died in one party's copy of a province's Hour came into another's, and a
+winner came into a second. The hub now reads the slot's own lane (`server/src/sdCopy.js:"const lane = sdLaneOf(c.s);"`):
+its record, its receipt, and a death kept as `sdac:<account>.<lane>`
+(`server/src/sdCopy.js:"export const sdAcctKey = (sub, lane = 0) =>"`). The Bay's key is `sdac:<account>`, as it was.
+Pins: `test/world/worldWide/audit_tamrielwide_relay.test.js` B1 (the Bay's Hollow beside Skyrim's). Mutants: `tools/mutants/audit_tamrielwide_relay.json` (5, dead); `sdparty.json` SD-BACK-the-last-copy-kept
+re-aimed by content. Relay world284.

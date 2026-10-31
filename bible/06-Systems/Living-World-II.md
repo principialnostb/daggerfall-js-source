@@ -424,7 +424,15 @@ Mac: "caravans ... that can be assaulted, protected or traded with". The law is 
     pickpocket sets is put back as it stood before it, because the report is the road's charge (AUDIT LW-II-2 C15:
     `townTalk.js activate` keeps the flag before the pickpocket; the road's door cleared every crime that stood);
   - a traveller struck down (LW7's `livingStrikeRoad`, a stood armed one, a fight the player started): Murder, naming
-    them;
+    them. FIELD BUGS 2026-10-25i ROAD-SPARE: never one the street's law spares (`cityGuards.js playerSparesPerson`:
+    Protect Bystanders while enemies are near, or a raid) - the swing stops on them and nothing is reported. Before it, a
+    swing at an escort's attacker just past the reach struck the caravan's merchant down, and the Murder charged at the
+    town (-20) had the watch stopping the player for 600 gold (`scenes/livingWorld/roadStrike.js`, the strike the host's
+    `livingStrikeRoad` is) - the likely cause of the report, not a proven one (the reporter's save was not read; A0C00Y17's
+    watch branch refused, DFU's own `legal repute -20`, ends at the same fine and stands). AUDIT FB1025i D2: a stood
+    traveller (LW7b) another hand cut down - a beast, a peer, an ally - is no deed of the player's and is not reported
+    (`roadStands.js`, the pool's `killedBy`); D3: the fight that spares is a fight near the player, a party member's foes
+    too (`encounters.js fightNear`);
   - a hold-up (4.4): Theft.
 - **WHERE IT LANDS** (`reportAt`): the minute the party next reaches a town - the one it set out for on the way out,
   home on the way back or once it has turned; a hunter's, whose way out ends in the wild, home (AUDIT LW-II-2 R9). The
@@ -1236,3 +1244,27 @@ token-fallback.
 9. LW11 (AUDIT LW-II-2 C9): a caravan the band robbed under the escort - pay it (built: paid, "robbed, but alive"),
    or end the contract unpaid? And the hold-up stands on the player's deeds alone: a caravan whose only guard the
    character struck down before hiring on yields as they walk beside it, and C2 then ends the contract unpaid.
+
+## 12. LW-WIDE - the road's fourth rank (2026-10-28)
+
+The owner: "Living world NPCs should be more dense in the entire world, more travellers, more dungeon divers". The
+census's roster grows by a fourth rank (`census.js` WIDE_JOBS, `wideCounts`), dealt after MORE_JOBS as decision 9
+asks: every id before it unchanged. Its first slot is kept on the roster (`wideFrom`), so a place's holder in any cycle
+is of it by slot (`isWidePlace`).
+
+- **Who**: the divers - a village's one adventurer more, a hamlet's two, a city's eight to ten - and a pedlar more
+  each eight blocks (to six), a pilgrim from four blocks and one more each 24, a courier from nine, a second hunter
+  in the country. Never a merchant or a sellsword (formCaravans' contract).
+- **The divers** dive in WIDE_DIVE_CHANCE (0.9) of their cycles (`trips.js ownTrip`), in companies of their own
+  (`companies.js companiesOf`: the first ranks' companies dealt as they always were, then the divers' among
+  themselves, `wide`).
+- **Measured** on the synthetic map, mixed as the game's is (14 days): parties within 1 px by day 0.67 before, 1.03
+  with (x1.54); within 3 px 2.49 and 4.02 (x1.61); dives set out 46 (75 divers) and 138 (299 divers).
+- **Pinned** by `test/systems/livingWorld/lwdense_town.test.js` (the rank, the divers, the road) and
+  `tools/mutants/lwdense.json`. PIN MOVED: `lw1_livingWorld`, `lw9_traffic` (the rosters to `wideFrom`), `lw13_companies`
+  (the deal by rank; the divers' chance), `lw6_deep` (the divers' chance), `lw5b_sea` and `auditlwii2_road` (a port's
+  copy reads the fourth rank at other slots; a hired company with two walking), `lwrooms_tavern` (an afternoon sat out,
+  and those who neither lodge nor work there - the divers lodge at the tavern), `lwerrands_town` (a knight of the fourth
+  rank met: his order).
+- **The four hosts** as LW3's: `scenes/world.js` WIRED (the roads, the deep); `scenes/worldModes.js` WIRED (the rooms);
+  `scenes/exterior.js` FLAGGED; `scenes/dungeonContext.js` WIRED (the divers met below, LW14).

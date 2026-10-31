@@ -10,6 +10,9 @@
 // its words fixed (server-account/src/egHonours.js egFirstPost), and (EG-ZM) the service's hourly clock a spent Weir Key
 // stake's, its words fixed too (server-account/src/eg.js spendLapsedStakes).
 
+import { shopWareById } from './shopLaw.js';   // SHOP: a receipt names the ware it granted
+import { giftOf } from './giftLaw.js';   // THANKS-POST: a letter names the gift it brought
+
 /** A piece's id: the service's mintId shape, or the operator's statement's `lower(hex(randomblob(12)))` - 24 hex. */
 export const POST_ID_RE = /^[A-Za-z0-9_-]{16,40}$/;
 /** An operator's send's name ('hours-first-hourlock'): lower-case words and hyphens. One piece a batch an account. */
@@ -52,7 +55,9 @@ export function postHead(p) {
   if (!from || !subject || !Number.isSafeInteger(p.sentAt)) return null;
   const item = p.item == null ? null : postItemHead(p.item);
   if (p.item != null && !item) return null;
-  return { id: p.id, from, subject, sentAt: p.sentAt, read: p.read === true, item, claimed: item ? p.claimed === true : false };
+  const ware = shopWareById(p.ware)?.id ?? null;   // SHOP: a receipt's ware, one of the shop's
+  const gift = giftOf(p.gift) ? /** @type {string} */ (p.gift) : null;   // THANKS-POST: the gift a letter brought
+  return { id: p.id, from, subject, sentAt: p.sentAt, read: p.read === true, item, claimed: item ? p.claimed === true : false, ...(ware ? { ware } : {}), ...(gift ? { gift } : {}) };
 }
 
 /** A WHOLE PIECE (`/v1/post/read`'s answer): its head and its body, or null. */

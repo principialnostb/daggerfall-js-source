@@ -29,7 +29,7 @@ const session = (now) => new OnlineSession({ url: 'wss://relay.test', name: 'Mac
 function hostFrame(s, mp, now, state) {
   const key = worldRoom(mp.x, mp.y);
   if (key !== state.key) { state.key = key; state.since = now; }
-  if (key !== s.room) { if (!s.room || (isCellRoom(key) && s.inRoom(key)) || now - state.since >= 500) s.join(key, pose); }
+  if (key !== s.room) { if (!s.room || (isCellRoom(key) && s.crossesNow(key)) || now - state.since >= 500) s.join(key, pose); }
   else s.sendPose(pose);
   const want = isCellRoom(s.room) ? cellHaloFor(mp.x, mp.y, { current: s.haloRooms() }) : [];
   if (isCellRoom(s.room) && isCellRoom(key) && key !== s.room) want.push(key);
@@ -71,7 +71,7 @@ test('AUDIT WORLD6b-iii(b) A1/B7/C2, A6: only a LIVE, OPEN halo is promoted - a 
   assert.equal(s.inRoom('world:3,12'), false);
   s.join('world:3,12', pose);
   assert.equal(s.room, 'world:3,12'); assert.equal(s.status, 'connecting', 'the ordinary join'); assert.equal(sockets.length, 3, 'a socket for the new cell at once');
-  assert.equal(sockets[2].url, 'wss://relay.test/room/world:3,12'); assert.deepEqual(s.haloRooms(), [], 'the stale entry gone, the old cell not demoted into a halo (leave took it)');
+  assert.equal(sockets[2].url.split('?')[0], 'wss://relay.test/room/world:3,12'); assert.deepEqual(s.haloRooms(), [], 'the stale entry gone, the old cell not demoted into a halo (leave took it)');
   assert.deepEqual(sockets[0].closed, { code: 1000, reason: 'leaving' });
   sockets[2].open();
   assert.equal(s.status, 'open');
@@ -110,11 +110,11 @@ test('AUDIT WORLD6b-iii(b) A2/A4/A5/A7: a halo\'s terminal close is REMEMBERED (
   assert.equal(sockets.length, 4, 'the primary retried'); sockets[3].open(); assert.equal(s.status, 'open'); assert.equal(h2.closed, null);
   // A7: a halo that never opens
   s.setHalo(['world:2,12', 'world:4,12']); const stuck = sockets[4];
-  assert.equal(stuck.url, 'wss://relay.test/room/world:4,12');
+  assert.equal(stuck.url.split('?')[0], 'wss://relay.test/room/world:4,12');
   now += BACKOFF_MAX_MS + 1; s.tick();
   assert.deepEqual(stuck.closed, { code: 1000, reason: 'timeout' }, 'A7: dropped past the longest backoff'); assert.equal(s._halo.get('world:4,12').status, 'closed');
   now += BACKOFF_MAX_MS + 1; s.tick();
-  assert.equal(sockets.length, 6, 'and retried'); assert.equal(sockets[5].url, 'wss://relay.test/room/world:4,12');
+  assert.equal(sockets.length, 6, 'and retried'); assert.equal(sockets[5].url.split('?')[0], 'wss://relay.test/room/world:4,12');
   // A4: the primary's terminal close
   sockets[3].drop(CLOSE_REPLACED);
   assert.equal(s.terminal, true); assert.deepEqual(s.haloRooms(), [], 'A4: every halo ended'); assert.deepEqual(h2.closed, { code: 1000, reason: 'leaving' }); assert.equal(s.peers.has('eve-0003'), false);
@@ -173,7 +173,8 @@ test('AUDIT WORLD6b-iii(b) B9: the geometry\'s diagonal is the Chebyshev MAX (a 
 
 test('AUDIT WORLD6b-iii(b) by source: the world host joins a held cell at once and keeps the cell it stands in wanted (B1/B8), composes the look before a halo opens (C5), prunes only on an answer (C3/B5); the pool takes a blow keyed to a held cell (C1); the session\'s doors; the records', () => {
   const w = rd('src/scenes/world.js');
-  assert.match(w, /\(isCellRoom\(key\) && online\.inRoom\(key\)\) \|\| now - _onlineKeySince >= ROOM_HOLD_MS/, 'B1/B8: a held cell is joined at once');
+  assert.match(w, /\(isCellRoom\(key\) && online\.crossesNow\(key\)\) \|\| now - _onlineKeySince >= ROOM_HOLD_MS/, 'B1/B8: a held cell is joined at once (HALO-WAIT: through crossesNow, a held cell among the rest)');
+  assert.match(rd('src/net/online.js'), /crossesNow\(key\) \{ return this\.inRoom\(key\) \|\| this\._haloWait\(key\); \}/, 'B1/B8: crossesNow answers yes for every cell inRoom does');
   assert.match(w, /if \(mp && isCellRoom\(online\.room\) && isCellRoom\(key\) && key !== online\.room\) wantHalo\.push\(key\);/, 'B1: the cell stood in, wanted until the join');
   assert.match(w, /if \(wantHalo\.some\(\(r\) => !online\.haloRooms\(\)\.includes\(r\)\)\) online\.setLook\(composeLook\(playerEntity\)\);/, 'C5 (PROFILE2: through setLook, so the sockets already open are told too)');
   assert.match(w, /const ids = ownerIds\(\); if \(ids\) exteriorFoes\.pruneOwners\(ids, now\);/, 'C3/B5');

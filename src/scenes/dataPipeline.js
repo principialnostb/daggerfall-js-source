@@ -10,14 +10,17 @@
 import { TextureFile, LAST_CLASSIC_TEXTURE_ARCHIVE } from '../formats/textureFile.js'; import { changeMask } from '../formats/baseImageFile.js';   // HM1: the item icons' removeMask (one line: the cites below stand)
 import { FlatsFile } from '../formats/flatsFile.js';   // NPC1: captions + portrait indices
 import { isExteriorWindow } from '../world/climateSwaps.js';
-import { isInteriorGlassArchive, interiorGlassMask } from '../world/interior/interiorGlass.js';   // RW1: an interior's own glass
+import { exteriorWindowMask } from '../world/exteriorGlass.js';   // WL1: a window DFU names whose glass is painted in its own colour
+import { standInWindowMask, facadeGlass } from '../world/imperialWindows.js';   // BLD: a stand-in wall that carries its own glass
+import { isInteriorGlassArchive, interiorGlassMask, interiorWindowOf } from '../world/interior/interiorGlass.js';   // RW1: an interior's own glass
 import { isEmissive, FIRE_WALLS_ARCHIVE, FIRE_WALL_COLOR, FIRE_WALL_SCALE } from '../world/emissiveTextures.js';   // TextureReader's auto-emissive table (lit lanterns, fireplaces, fire daedra)
 import { dfMeshToModel } from '../world/meshReader.js'; import { patchSeams } from '../world/arch3dSeams.js';   // DUNGEON-SEAMS (one line: the cites below stand)
 import { fetchBytes, texName } from './shared.js';
-import { decodedTexture, preloadTextureArchive, isVendorArchive, vendorTextureStandIn, setTextureDeriveContext, textureTierEpoch, textureTiersSettled } from '../systems/textureReplacement.js';   // M-TEX: user-supplied textures override the classic ones; AUDIT VE R1: the tiers' epoch
+import { decodedTexture, preloadTextureArchive, isVendorArchive, vendorTextureStandIn, setTextureDeriveContext, textureTierEpoch, textureTiersSettled, vendorCutout } from '../systems/textureReplacement.js';   // M-TEX: user-supplied textures override the classic ones; AUDIT VE R1: the tiers' epoch
 import { classicRecordRgba } from '../formats/derivedTexture.js';   // WD2: a mod sprite rebuilt from the player's own record
 import { setDfLookPalette } from '../world/dfLook.js';   // DF-LOOK: the port's own painted pictures in this palette's colours
 import { customModelBuilt, customAliasFor, aliasSubMeshes, customModelNeeds } from '../world/customModels.js';   // DS1: models no ARCH3D carries; WD3: a classic model with its pictures swapped
+import { registerChestModels } from '../world/chestModel.js';   // CHEST3D: the owner's chest over ARCH3D's three, on the model door
 import { dyeToken, changeDyeBitmap } from '../characters/dyes.js';   // DW3: the per-dye UI variant; DYE-ICON: and the classic arm's ChangeDye
 import { ROTOR, MACHINERY, MACHINERY_MODEL_ID, MACHINERY_CHILDREN, PLANK_GEAR, ROLLER } from '../world/windmillMesh.js';   // WM2b/WM2d/WM4b: the vendored mill and its machinery, uploaded like any other model
 import { skinnedBody } from '../world/windmills.js';   // WM2e: its walls and roof follow the climate
@@ -33,8 +36,12 @@ import { createPlaceHolds } from './placeHolds.js';   // FIELD BUGS 2026-10-04d 
 export { LAST_CLASSIC_TEXTURE_ARCHIVE };   // DS1's, kept here for its importers (formats/textureFile.js since STUDIO1: the studio reads it too)
 
 export function createDataPipeline({ renderer, arch, palette, fetch = fetchBytes }) {
+  registerChestModels();   // CHEST3D: before any chest is asked for
   const textureFiles = new Map();
   const texturePromises = new Map();
+  // WL1 (render/windowLight.js): which pictures may hold glass, asked before they are up - a mesh measures its windows at
+  // its upload, under its own records, while its climate's picture of each may come later
+  if (renderer) renderer.glassKeyTest = (a, r) => isExteriorWindow(a, r) || interiorWindowOf(a)?.record === r || !!facadeGlass(a, r);
 
   // NPC1: FLATS.CFG, warmed once and shared. It answers two questions
   // about any billboard in the world - what the flat is CALLED (the
@@ -173,6 +180,7 @@ export function createDataPipeline({ renderer, arch, palette, fetch = fetchBytes
   const _standInMisses = new Set();   // WD3: the stand-in records said once each
   const uploadRecord = (archive, record, { opaque = false, mips, removeMask = false, dye = null, dyeTarget = null, cutout = false } = {}) => {   // DYE-ICON: `dyeTarget` - the swatch the classic arm dyes (itemDye.js itemDyeTarget)   // DW3: `dye` - GetItemImage asks the replacement by the item's dye (ItemHelper.cs:458); the icon uploads under a per-dye variant and answers which   // REVIEW 2026-09-05: `mips: false` for item icons (ImageReader.cs:59 builds UI art with no chain); HM1: `removeMask` = ItemHelper's GetItemImage(removeMask: true), the item icons' door - 0xFF becomes the cutout before the upload   // DF-LOOK (DF-ART II's, kept): `cutout` - a model's picture whose glass is seen through (renderer.uploadTexture's RW1 cut-out; the port's ships' stern windows)
     const t = textureFiles.get(archive); freshen(archive);   // AUDIT VE R1
+    cutout ||= vendorCutout(archive, record);   // CAPITAL-TREES: a picture registered as a flat cut by its alpha (a capital tree's leaf spray) is cut wherever it is uploaded
     const bitmap = t.getDFBitmap(record, 0);
     // Spectral archives (ghost/wraith/Lysandus) take the verbatim
     // TextureReader path: SetSpectral gray remap + eye patch, albedo
@@ -246,8 +254,13 @@ export function createDataPipeline({ renderer, arch, palette, fetch = fetchBytes
     // window mask from - and IsExteriorWindow's `archive % 100` reads 1210's
     // record 3 as a window. A mod picture's billboard material carries no
     // window emission in DFU (GetStaticBillboardMaterial), so it gets none.
+    // BLD: a stand-in WALL that carries its own glass (world/imperialWindows.js - the Imperial City's facades, read off
+    // their own painting) takes the same window mask, lit by the window style after dark as a classic window is.
+    const ownGlass = t.vendor ? standInWindowMask(archive, record) : null;
     if (isExteriorWindow(archive, record) && !t.vendor) {
-      renderer.uploadEmissionTexture(archive, record, t.getWindowColors32(bitmap), { replacement, window: true });   // RW1: DFU's window mask - the rooms' glass from the street, the street's from inside (render/realWindows.js)
+      renderer.uploadEmissionTexture(archive, record, exteriorWindowMask(archive, record, bitmap, t), { replacement, window: true });   // RW1: DFU's window mask - the rooms' glass from the street, the street's from inside (render/realWindows.js); WL1: the twelve DFU names whose glass is not 0xff, read off their own colour (world/exteriorGlass.js)
+    } else if (ownGlass) {
+      renderer.uploadEmissionTexture(archive, record, ownGlass, { replacement, window: true });
     } else if (isEmissive(archive, record)) {
       // AUDIT 39 F49: THE AUTO-EMISSIVE ARM (MaterialReader.cs:419-423
       // -> TextureReader.cs:301-308 "Just reuse albedo map for basic
@@ -574,6 +587,7 @@ export function createDataPipeline({ renderer, arch, palette, fetch = fetchBytes
       tileArray: (archive) => h.hold('tile', archive),
       release: () => h.release(),
       settle: () => h.settle(),
+      rekey: (to) => h.rekey(to),   // IC-SWAP-BEHIND: a view built behind its pixel's, its pixel's from the swap
     };
   }
 

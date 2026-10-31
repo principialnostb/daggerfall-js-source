@@ -23,6 +23,7 @@ import { clearLightSourceOnLeave } from './item/itemTransfer.js';
 import { entityMaxEncumbrance } from '../combat/formulas.js';
 import { isBound, boundTradeText } from './item/itemBound.js';   // SS1: a bound piece never leaves for another player
 import { BOAT_TEMPLATES } from '../net/realm/realmTradeLaw.js';   // AUDIT REALM2 T1: nor a boat's deed or parts - what they stand for stays in the giver's save
+import { marketArrivedText, marketBackText } from '../net/marketArrivals.js';   // RPT1026-MARKET ARRIVE: what came, said
 
 /** BAG1: the Materials Bag stays with its owner - a list of its own rides with it (systems/materialsBag.js), which no
  *  trade moves; every General Store sells another. */
@@ -57,12 +58,28 @@ export function packTradeRefusal(item, entity) {
  *  shelf restated it, pinned by its text alone. */
 export const wagonLoadedHeld = (item, entity) => !!item && item === activeWagonItem(entity?.items ?? []) && (entity?.wagonItems?.length ?? 0) > 0;
 
+/** TRADE-WHOLE (FIELD BUGS 2026-10-20h, found tracing SOUL-LAW): A LOT IS CLAMPED WHOLE OR NOT AT ALL. validLootList lets a
+ *  piece the item law refuses go and keeps the rest (AUDIT INT: a forged piece in a chest cost every honest one beside
+ *  it) - right for a chest, and wrong for a trade, whose two sides hold the lot as offered. The Soul Gem an Ogre filled
+ *  (law 8 refused its soul) stood in its giver's offer and never rode the wire: hand to hand it left the giver's pack at
+ *  the commit and reached nobody, and the receiver's side of a forged lot shows less than was given. So an offer with
+ *  such a piece is said ("That cannot be traded."), and a lot that carries one is refused whole, as one of no shape is. */
+function wholeLot(records) {
+  const items = validLootList(records);
+  return items && items.length === records.length ? items : null;
+}
+
 /** The kilograms an offer takes out of the pack: each entry at the count offered, and the gold. */
 function offerWeight(entries, gold) {
   let w = gold * GOLD_PIECE_WEIGHT_KG;
   for (const e of entries) w += itemWeight({ ...e.item, stackCount: e.count });
   return w;
 }
+
+/** MARKET-ANY: another player's pack record, listed in the Goods view, as this game would hold it - through the wire's
+ *  clamp (validLootList) - or null. Its name (createMarketGoods goodName) and, MARKET-LOOK, the board's look at it
+ *  (ui/marketTab.js) both read this one item. @param {any} rec */
+export const goodItemOf = (rec) => (rec ? validLootList([rec])?.[0] ?? null : null);
 
 /**
  * The adapter over one entity's pack. `entity` is the live player entity (`items`, `goldPieces`).
@@ -89,13 +106,13 @@ export function createTradePack(entity, { stampIds = null } = {}) {
         if (have > 1 || count > 1) copy.stackCount = count;
         return copy;
       });
-      return validLootList(recs);
+      return wholeLot(recs);
     },
 
     /** The peer's records as this game would mint them - every one through the wire clamp - or null if any is no item,
      *  or any is BOUND (SS1: a peer that holds one out - an older build, a forged frame - offers what may not change
      *  hands, and the lot is refused whole, the trade's own word for a forgery). */
-    unwire(records) { const items = validLootList(records); return items && !items.some(isBound) ? items : null; },
+    unwire(records) { const items = wholeLot(records); return items && !items.some(isBound) ? items : null; },
 
     /** AUDIT REALM L1-F1: where each offered item stands in the pack - its index in the list a save writes as `items`
      *  (systems/save/save.js snapshotPlayer keeps the order) - read BEFORE the goods are reserved, so a realm trade's half
@@ -206,17 +223,20 @@ export function createMarketGoods(entity, { kept = () => false, say = () => {} }
     },
     /** A pack piece's record named as the pack names it - another player's record through the wire's clamp first. */
     goodName(/** @type {any} */ rec) {
-      const it = rec ? validLootList([rec])?.[0] : null;
+      const it = goodItemOf(rec);
       return it ? itemLongName(it) : 'a piece';
     },
     /** A piece collected - the record the service put into this character's record - into the pack as a trade's piece
-     *  comes (tradePack unwire: the wire's clamp, and a bound piece refused; give). False: this game will not hold it. */
-    receive(/** @type {any} */ rec) {
+     *  comes (tradePack unwire: the wire's clamp, and a bound piece refused; give). False: this game will not hold it.
+     *  RPT1026-MARKET ARRIVE: `why` - a settle's collect, the road's word on the piece ('bought', 'returned'): said as a
+     *  purchase arrived or a piece come back, since the player pressed nothing just then (net/marketArrivals.js). */
+    receive(/** @type {any} */ rec, /** @type {string | null} */ why = null) {
       const pack = createTradePack(entity);
       const items = rec ? pack.unwire([rec]) : null;
       if (!items?.length) return false;
       pack.give(items, 0);
-      say(`${itemLongName(items[0])} is in your pack.`);
+      const name = itemLongName(items[0]);
+      say(why === 'bought' ? marketArrivedText(name) : why === 'returned' ? marketBackText(name) : `${name} is in your pack.`);
       return true;
     },
   };

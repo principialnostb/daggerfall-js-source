@@ -439,7 +439,7 @@ test('RW1 view V9: the interior\'s merge keeps a sphere a model per sub-mesh, so
 test('RW1 view V10: THE FOUR HOSTS, the interior arm - the view out is asked once the room\'s light and air are set (its bracket puts them back), before the room\'s lamps and its beginFrame, and painted right after that beginFrame, never in the dungeon arm; world.js and exterior.js hand a street with the player\'s building in it (PANE-CLIP: the renderer leaves out the room\'s side of the glass); dungeonContext.js draws no view out (FLAGGED there: a dungeon has no window to the street) (mutants: the order swapped, a host without its street, the dungeon arm painting)', () => {
   const wm = rd('src/scenes/worldModes.js');
   const vo = wm.indexOf('const _rwView = viewOutFrame(viewOut, { renderer, mode: realWindowsMode(), proj, view, now: performance.now(), scene: host.outsideView?.() ?? null });');
-  const light = wm.indexOf('renderer.setLighting(new Float32Array(isNight(skyMinutes() % 1440) ? INTERIOR_NIGHT_AMBIENT : INTERIOR_AMBIENT), 0);');
+  const light = wm.indexOf('renderer.setLighting(new Float32Array(roomAmbient(isNight(skyMinutes() % 1440) ? INTERIOR_NIGHT_AMBIENT : INTERIOR_AMBIENT, interiorCtx.roomLamps)), 0);');   // PIN MOVED (RPT1026-WORLD DARK-ROOM): the room's ambient through roomAmbient; PIN MOVED (AUDIT RPT1026 J1): by the lamps the room was built with
   const fog = wm.indexOf("renderer.setFog('exp', 0.001, 0, 0, new Float32Array([0, 0, 0]));", light);
   const lamps = wm.indexOf('renderer.setPointLights(_itLit.data, null, _itLit.colors);\n    renderer.everyLightCasts();', vo);
   const begin = wm.indexOf('    renderer.beginFrame(proj, view, INTERIOR_LIGHT_DIR, WORLD_FRAME);   // AUDIT-EL F5: a WORLD frame - the lane replays its records for this one\n    renderer.setGlassView(_rwView);');
@@ -447,7 +447,7 @@ test('RW1 view V10: THE FOUR HOSTS, the interior arm - the view out is asked onc
   assert.ok(lamps > vo, 'the room\'s lamps after it - its own beginFrame takes no tier the room asked for (DISC15)');
   assert.ok(begin > lamps, 'painted right after the interior\'s beginFrame');
   assert.equal(wm.split('renderer.setGlassView(').length - 1, 1, 'one arm paints it');
-  const dungeonBegin = wm.indexOf('      renderer.beginFrame(proj, view, INTERIOR_LIGHT_DIR, WORLD_FRAME);');
+  const dungeonBegin = wm.indexOf('      renderer.beginFrame(proj, view, _ktLook?.sunDir ?? INTERIOR_LIGHT_DIR, WORLD_FRAME);');   // PIN MOVED (KETCH): on a ship's deck, the sun's own direction
   assert.ok(dungeonBegin > 0 && dungeonBegin < vo, 'the dungeon arm stands above it and returns before it');
   assert.ok(!rd('src/scenes/dungeonContext.js').includes('outsideViewFrame') && !rd('src/scenes/dungeonContext.js').includes('setGlassView'), 'the dungeon host draws no view out');
   for (const host of ['src/scenes/world.js', 'src/scenes/exterior.js']) {

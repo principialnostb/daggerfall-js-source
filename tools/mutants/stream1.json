@@ -2,7 +2,7 @@
  {
   "name": "STREAM1-every-promotion-is-paid-on-the-crossings-own-frame-again",
   "file": "src/scenes/world.js",
-  "old": "        if (want === 1) restridePending.set(`${p.px},${p.py}`, p);   // the dear way round\n        else { restridePending.delete(`${p.px},${p.py}`); restrideTerrain(p, want); }",
+  "old": "        if (want === 1) restridePending.set(`${p.px},${p.py}`, p);   // the dear way round\n        else { restridePending.delete(`${p.px},${p.py}`); (terrainGen.threaded ? restrideOffThread : restrideTerrain)(p, want); }   // OW-DEMOTE: the worker's too, where one is up",
   "new": "        restrideTerrain(p, want);",
   "tests": ["test/world/terrain/stream1_restride.test.js"]
  },
@@ -44,8 +44,8 @@
  {
   "name": "STREAM1-a-demotion-is-queued-too-so-a-far-pixel-stays-full-res-and-costs-every-frame",
   "file": "src/scenes/pixelBuild.js",
-  "old": "      if (wantStride === 1) host.restridePending.set(key, entry);\n      else restrideTerrain(entry, wantStride);",
-  "new": "      host.restridePending.set(key, entry);",
+  "old": "      if (wantStride === 1) host.restridePending.set(pkey, entry);   // IC-SWAP-BEHIND: the pixel's key\n      else restrideTerrain(entry, wantStride);",
+  "new": "      host.restridePending.set(pkey, entry);",
   "tests": ["test/world/terrain/stream1_restride.test.js"]
  }
 ]

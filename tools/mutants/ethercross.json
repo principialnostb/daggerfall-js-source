@@ -11,8 +11,8 @@
   {
     "name": "CROSS-gate-unforgotten",
     "file": "src/systems/naval/etherCrossing.js",
-    "old": "      if (way !== asked) asked = null;\n",
-    "new": "",
+    "old": "      if (way !== asked || (ours && n !== arrivals)) { asked = null; ours = false; }   // left them, or a journey arrived in them\n",
+    "new": "      if (ours && n !== arrivals) { asked = null; ours = false; }   // left them, or a journey arrived in them\n",
     "tests": [
       "test/systems/naval/ethercross.test.js"
     ]
@@ -83,7 +83,7 @@
   {
     "name": "CROSS-host-passengers",
     "file": "src/scenes/world.js",
-    "old": "csaPassengersOn(csaRuntime?.state?.CurrentBoat) > 0 ? 'passengers' : null);",
+    "old": "csaPassengersOn(csaRuntime?.state?.CurrentBoat, veilParty.kin) > 0 ? 'passengers' : null);",
     "new": "false ? 'passengers' : null);",
     "tests": [
       "test/systems/naval/ethercross.test.js"
@@ -127,7 +127,7 @@
   },
   {
     "name": "CROSS-host-land-ring",
-    "file": "src/scenes/world.js",
+    "file": "src/systems/naval/etherCrossing.js",
     "old": "        if (Math.max(Math.abs(dx), Math.abs(dy)) === r && !seaPixel(px + dx, py + dy)) { d = r; break ring; }",
     "new": "        if (!seaPixel(px + dx, py + dy)) { d = r; break ring; }",
     "tests": [
@@ -254,7 +254,7 @@
   {
     "name": "HOST-deepest",
     "file": "src/scenes/etherHost.js",
-    "old": "    L.deepest?.(etherDepthAt(px));\n",
+    "old": "    L.deepest?.(etherDepthAt(px), day());   // SEA-SEASON: and the season's, by the world's day\n",
     "new": "",
     "tests": [
       "test/systems/naval/ethercross.test.js"

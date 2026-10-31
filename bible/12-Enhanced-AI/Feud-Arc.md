@@ -747,8 +747,33 @@ deed underground makes that dungeon its lair.
 - **As built (RVN7a; the record at the foot)**: built in four parts (a the lair, b the rumour, c the map and the
   journal, d the lair stand). The host says where a deed is done through the player's door (`lairHere`). A lair once
   chosen is kept by a deed in the open world (the hunt the player was told of stays true); a deed underground moves it,
-  and a lair moved is one the player has not heard of (`lairKnown` false). A graveyard's crypt may be a lair (its stand
-  is underground).
+  and a lair a deed moves is one the player has not heard of (`lairKnown` false) - LAIR-DOOR's mend, below, keeps the one
+  it moves known. A graveyard's crypt may be a lair where its blocks place a door (LAIR-DOOR); its stand is underground.
+- **LAIR-DOOR (FIELD BUGS 2026-10-22d, `01-Overview/bugs/Field-Bugs-2026-10-22d.md`; Zenako through fogs: "the Revenant
+  lair designated on the Revenants page is inaccessible ... The Stuvam Graveyard")**: a lair is a dungeon the player can
+  go down into. 28 of the 774 graveyards MAPS.BSA flags with a dungeon lay one block, GRVEAS10 or GRVEAS36, that places
+  no dungeon-entrance door - nobody walks down into them, here or in DFU (a start, a quest's transfer, a Recall or a
+  vampire's cemetery wake can still set a player inside: CRUX1's doorless arm, AUDIT FB1022d B7) - and the world host's
+  door (`scenes/lairHost.js`
+  createLairDoor) offers only the ring's dungeons whose blocks place one, measured on the place as the pixel build lays it
+  and kept a session. A kept lair the host says nobody can enter is chosen again at the next deed in the open world
+  (`lairAfter`), and one already held is moved at once by every reader of a lair (`mendRevenantLairs`: the page, the map's
+  circle, the hunt, the rumours, and AUDIT FB1022d B3 a deed before it reads the lair) to the enterable dungeon nearest
+  it within a rumour's reach (`LAIR_MEND_PX`, 20 px, the larger axis - the rumour's own reach is a circle) - known as it
+  was known; with none, it roams, and a Dread waits where it is (B4). The mend waits for the character's mirror (B1: one
+  run before it was undone by the mirror's merge and never asked again that session). The Stuvam Graveyard is the one of the 28 with no other dungeon in its own
+  ring: its revenant goes to Morarker's Nest, 14 px south.
+- **LAIR-WORLD (2026-10-26, the owner: "with revenants and their lairs, this will work everywhere correct?"; asked, "Fix
+  both in this PR")**: the ring was the Bay's alone. The world host's named-dungeon index is MAPS.BSA's rows, so a deed
+  past the Bay found no dungeon in its ring and the revenant roamed - no lair, no hunt, no rumour, no circle, no trail -
+  and the mend (`nearest`) sought only the Bay's 1000 x 500. Past the Bay the dungeons are TESA8's lairs
+  (`world/tamrielDungeons.js`, one to an 8 x 8 cell on its site), and the places host now answers a pixel
+  (`scenes/tamrielPlacesHost.js` `lairAt`, the build's own row; `lairCloneAt`, the lair laid unstood; its region the
+  politic map's). The door reads them after the Bay's index (`scenes/lairHost.js` `pastBay`), judges each by the same
+  door test - a graveyard past the Bay is laid on a Bay template: 12 of the 350 within 200 px of the Imperial City place
+  no door, and are never offered (13 of 364 before NIBEN-SEA opened the Niben, `03-World/Tamriel.md`) - and the mend seeks the world's pixels (`net/wire.js` `worldPixelOk`). A lair's rumour,
+  circle (the held map reads it over the continent's sheet: `ui/bounty/bountyMapMark.js` `readBountyMarksIn`), hunt and
+  trail follow it. Pinned by `test/systems/revenant/lairworld.test.js`, `tools/mutants/lairworld.json` (20, all dead).
 
 ### 18.2 Rumour
 

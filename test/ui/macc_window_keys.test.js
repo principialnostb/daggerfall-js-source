@@ -96,9 +96,10 @@ test('MAC-C: the enhanced sheet page has a key of its own, and gives it back', (
   // ESC-BOOK: the pack's crossover is the Pack door's own - the host's arm, opened in its slot (sheetPageDoors)
   assert.match(s, /const pack = acts\.includes\('Inventory'\) \? sheetPageDoors\(pause\?\.\(\), close\)\.openPack : undefined;\n\s*if \(!acts\.includes\('CharacterSheet'\) && !pack\) return;/,
     'the sheet closes on its own key and crosses over on the pack’s, and claims nothing else');
-  assert.match(s, /globalThis\.addEventListener\?\.\('keydown', onSheetKey, true\)/,
-    'on CAPTURE - a modal overlay owns its input - and OPTIONAL, because node drives these hosts headless');
-  assert.match(s, /globalThis\.removeEventListener\?\.\('keydown', onSheetKey, true\)/,
+  // COVERED-KEYS: through the window's one key door (ui/windowStack.js listenWindowKeys: on CAPTURE, OPTIONAL for node)
+  assert.match(s, /unlistenSheetKeys = listenWindowKeys\(overlay, onSheetKey\);/,
+    'on CAPTURE - a modal overlay owns its input - and gated on the sheet\'s window, so a box over it keeps its keys');
+  assert.match(s, /    unlistenSheetKeys\(\);/,
     'EVERY LISTENER HAS AN OWNER: an orphan capture handler would eat F5 for the life of the page');
   // the handler is hoisted, because `close` names it and registerOverlay
   // is handed `close` before the declaration is reached (PX28's hazard).
@@ -119,7 +120,11 @@ test('MAC-C: every host hands the pack a sheet door, beside the spellbook one it
     // it stands with openSpellbook, which is the hook it is modelled on -
     // a door added anywhere else is a second bag by another name.
     const at = s.indexOf('openCharSheet: () =>');
-    const near = s.slice(Math.max(0, at - 1600), at);
+    // PIN MOVED (CHAT-POST's longer line pushed the bag's head past a 1600-character window): the pack's own
+    // construction, from its createInventoryWindow({ to the sheet's door - however many lines the bag grows
+    const bag = s.lastIndexOf('createInventoryWindow({', at);
+    assert.ok(bag >= 0, `${f}: the sheet's door is in a pack's bag`);
+    const near = s.slice(bag, at);
     // UI2: the spellbook's door rides the pack's door bag (`packDoors`, shared with a hotbar slot's Use) where a host has one
     assert.match(near, /openSpellbook:|\.\.\.packDoors,/, `${f}: it belongs in the ONE builder's bag`);
     if (near.includes('...packDoors,')) assert.match(s, /const packDoors = \{[\s\S]{0,900}?openSpellbook: \(\) =>/, `${f}: and the bag holds the spellbook's door`);

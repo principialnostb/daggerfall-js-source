@@ -20,8 +20,8 @@
   {
     "name": "AINV-B-hidden-owner-wagon-drawn",
     "file": "src/scenes/horseCartPool.js",
-    "old": "    if (!p?.wagon || !p.shownWagon || (p.hidden && p.wagon.kind !== HCC_WIRE_KIND.Deployed)) return null;",
-    "new": "    if (!p?.wagon || !p.shownWagon) return null;",
+    "old": "    if (!p?.wagon || !p.shownWagon || (p.hidden && p.wagon.kind !== HCC_WIRE_KIND.Deployed) || p.offGround) return null;",
+    "new": "    if (!p?.wagon || !p.shownWagon || p.offGround) return null;",
     "tests": [
       "test/systems/disc20.test.js"
     ]
@@ -29,8 +29,8 @@
   {
     "name": "AINV-B-parked-wagon-hidden-too",
     "file": "src/scenes/horseCartPool.js",
-    "old": "    if (!p?.wagon || !p.shownWagon || (p.hidden && p.wagon.kind !== HCC_WIRE_KIND.Deployed)) return null;",
-    "new": "    if (!p?.wagon || !p.shownWagon || (p.hidden)) return null;",
+    "old": "    if (!p?.wagon || !p.shownWagon || (p.hidden && p.wagon.kind !== HCC_WIRE_KIND.Deployed) || p.offGround) return null;",
+    "new": "    if (!p?.wagon || !p.shownWagon || (p.hidden) || p.offGround) return null;",
     "tests": [
       "test/systems/disc20.test.js"
     ]
@@ -47,7 +47,7 @@
   {
     "name": "AINV-B-host-hands-no-look",
     "file": "src/scenes/world.js",
-    "old": "  hcc.setPeerLook((id) => (_hiddenPeers.has(id) ? 'hidden' : (_veils.get(id) ?? null)));",
+    "old": "  hcc.setPeerLook((id) => (_hiddenPeers.has(id) || !gateCrowd.shows(id) ? 'hidden' : (_veils.get(id) ?? null)));",
     "new": "  hcc.setPeerLook(() => null);",
     "tests": [
       "test/systems/disc20.test.js"
@@ -92,8 +92,8 @@
   {
     "name": "AINV-F-page-to-the-concealed",
     "file": "src/scenes/world.js",
-    "old": "    return openPeers(near, isPartyMate).map((p) => ({ id: p.id, name: peerName(p.id) ?? 'Someone',",
-    "new": "    return near.map((p) => ({ id: p.id, name: peerName(p.id) ?? 'Someone',",
+    "old": "    return openPeers(near, isPartyMate).filter(crowdDrawnHere).map((p) => ({ id: p.id, name: peerName(p.id) ?? 'Someone',",
+    "new": "    return near.filter(crowdDrawnHere).map((p) => ({ id: p.id, name: peerName(p.id) ?? 'Someone',",
     "tests": [
       "test/net/invisnet.test.js"
     ]
@@ -101,7 +101,7 @@
   {
     "name": "AINV-G-hidden-drawn",
     "file": "src/net/remotePlayers.js",
-    "old": "      if (hidden(peer.id)) continue;\n",
+    "old": "      if (hid) { if (hid === 'bar') this._shown.push({ peer, height: bodyHeight(peer.id) || PEER_HEIGHT, hid: true }); continue; }\n",
     "new": "\n",
     "tests": [
       "test/net/invisnet.test.js"

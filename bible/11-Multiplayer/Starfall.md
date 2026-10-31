@@ -26,7 +26,9 @@ So, as decided here:
   `net/festivalLaw.js` `FESTIVALS`), the calendar the relay, every client and the questline read alike.
 - **Three stars a night, in one coven's land.** Every real hour is a night on the sky (TimeScale 24, `Online-Time-Arc.md`),
   and each night one of the Bay's covens works the rite: three stars fall in the wilds of its region, one after another,
-  near three different towns.
+  near three different towns. Since WW5 (section 16), every theatre's night: the Bay's covens on the Bay, each
+  province's own coven past it, Cyrodiil's open zone none - since FRONTS a province's on its turn alone
+  (`03-World/World-Wide.md` FRONTS).
 - **The foes are Daggerfall's own**, owned by a player's machine as every foe in the open world is (the rite's camp
   law), with Daggerfall's own AI, spells and pathing. The relay holds the ledger: the wave, the star's light, the
   master's fall, who defended. This is a departure from the world bosses' Option B, named in section 10.
@@ -161,8 +163,9 @@ All of it the port's own art, made in code (`world/starfall/starArt.js` through 
 pseudo-archives registered in `world/eliteGates/pseudoArchives.js`): no ARENA2 pixel is in it.
 
 - **The omen** (90 s before the fall): a new star burns over the region - a point of pale violet light, high in the
-  sky toward the site, swelling as the fall nears. The map marks the site, the compass points to it, and the chat
-  says where.
+  sky toward the site, swelling as the fall nears. The map marks the site, the compass points to it, and the HUD's event
+  board says where (its news, where the chat had said it before EVENTS1 - section 8) - the board ten minutes before it
+  falls.
 - **The fall** (8 s): the star tears loose and comes down at a slant, a white head and a violet trail kilometres long,
   lighting the land under it. It lands with a flash seen across the region, a ring of shock running out over the
   ground and a thunderclap that reaches each player its distance late (`systems/distantStorms.js` thunderOf). The ground
@@ -185,8 +188,16 @@ round it to a crest at 7 m and falling away to 9.6 m, nine stones thrown onto th
 upright, two and a half metres out of the earth and sunk most of a metre into it, the rest leaning out from it) and three
 strands of thread that wind up the stone and run 90 m straight up (`world/starfall/starModel.js`). Every shape is the star's
 own roll, so every screen builds the same crater. The host builds it for a player within `STAR_BUILD_M` (1500 m), puts
-the stone in the collider, keeps the grass off the crater and its rim (`STAR_BARE_R`) and builds it again when the
-ground under it is built finer (`scenes/starfall/starfallHost.js`). The sky is one foreign pass after the Hollow's omen
+the stone AND its crater - the floor, the rim and its stones - in the collider, keeps the grass off the crater and its
+rim (`STAR_BARE_R`) and builds it again when the ground under it is built finer (`scenes/starfall/starfallHost.js`).
+STAR-TUNE (2026-10-20, the owner, of the first run: "The dirt mound where the star is crashed can be walked through"):
+the first build gave the collider the stone alone (`buildStarModel`'s `ground: false`), so the rim's 1.1 m of thrown
+earth was drawn and never held. It is held now, as a LATE solid (`player/lateSolid.js`, ROCK-CLEAR's gate): a crater
+built round a body standing on its rim is withheld until the body is clear of it, never closed on it, and the world
+frame's own settle stands it behind them. AUDIT STAR-TUNE F4: and a crater built AGAIN - the ground under it read finer
+as a player walks up to it - is a new solid asked of the body the same way (taken down and added); only a recentre puts
+the same solid back where it is held. A foe's stand is read from over the rim's crest (`standOn`), so one stood on
+the rim or the floor - the master's circle, called about a master fighting at the stone - lands on it, never under it. The sky is one foreign pass after the Hollow's omen
 (`render/starfall/starfallPass.js`): the omen's glow, the streak's head and trail, the landing's flash and ring, and the
 beacon, each drawn scaled about the eye to `STAR_SKY_R` (4200 m) so the far plane (6000 m) never cuts a star that burns
 9 km up. The sounds are DAGGER.SND's own records, pitched (`systems/starfall/starSounds.js`).
@@ -217,6 +228,30 @@ them, and fixed each where it lives:
   in turn each frame made it again at every ask; and the pass's three programs are built at idle while the festival
   stands (PERF-COMPILE1's law, `render/warmPrograms.js`), never inside the frame of the first omen (R9).
 
+**As built (STAR-CLEAR, 2026-10-24).** The owner: *"The star fall world event has the tendency to fall into mountains and
+become inaccesable."* Read on the player's own map before anything changed, the land is not what shuts a star in: over
+the festival's 1,366 stars the ground within 40 m of a heart is steeper than 45 degrees under 0.6% of them, and at the
+foes' own walkable slope (35 degrees, `ai/nav/navmesh.js` maxSlope) one star in 1,366 is cut off from its town on a
+25.6 m grid. The mountains are World of Daggerfall's rock fields (`WOD_Rocks_*`, boulders scaled by hundreds; online the
+mod is the room's and its Mountains layouts are off): a star falls on the gate's suitable pixels, which keep off the
+game's own locations and nothing of the mod's, and 381 of the 1,366 had a rock piece's mesh box reach within 28 m of the
+heart (31 a piece's very position) - the star stood in a hill of rock its press, its word and its coven could not reach.
+The star does not move - its spot is the law's alone (`starSpotLocal`, the relay's too) - so the rock yields, the gate's
+own law (GATE-CLEAR, `03-World/World-Of-Daggerfall.md`): each star keeps `STAR_ROCK_M` (28 m - the crater's earth, the
+ring its coven stands on, `STAR_STAND_R` out to 20 m, and room past it) in the clearing set the gate and the Elite arches
+already share (`world/gate/gateClearance.js` gateClearSet's `stars`, keyed `star:<night>.<k>`), from `STAR_WARN_MS`
+before it falls (its town first named, on the Timers row and the event board) until it is gone
+(`scenes/starfall/starfallHost.js` starClears - the same frozen list while the same stars stand, read once a second at
+most). A whole site reaching the clearing stands none of its objects and keeps its pick and its level ground (GATE-AGREE,
+`03-World/World-Of-Daggerfall.md`), a piece whose mesh box reaches it is not stood, and
+the streamer's sweep builds a pixel again as a star's clearing comes and goes. The world host's memo of the set moved
+out with it (`gateClearMemo`: nine logical lines out of bootWorld, its ceiling 36,307 -> 36,298 on main's count at the
+merge). THE FOUR HOSTS:
+`scenes/world.js` wires it (the set's read by the pixel build and the sweep); `scenes/exterior.js`, `scenes/worldModes.js`
+and `scenes/dungeonContext.js` stand no World of Daggerfall site, no gate's clearing and no star, by design. Pinned in
+`test/scenes/starfall/starclear.test.js` (7, one over the festival's real stars, ARENA2-gated); `tools/mutants/starclear.json`,
+8 of 8 dead.
+
 ## 4. The defense - waves, the light, the master
 
 **Springing it.** The first player within `STAR_SAY_M` (55 m) of a fallen star springs its coven and owns their foes
@@ -226,8 +261,25 @@ player at the star after `STAR_ORPHAN_MS` (10 s). The relay starts the first wav
 first word from the star. (The first build sprang it from `STAR_SPRING_M`, 80 m - the audit's C2, below.)
 
 **The waves** (`STAR_WAVES` 4). The relay says each wave's start and its size (`starWaveSize(k, n)` -
-`clamp(2 + n + (k >= 3 ? 1 : 0), 3, 9)`, `n` the defenders standing at the star when it starts), so every screen
-agrees. The owner stands them, out of sight at the crater's edge (25 to 35 m), from the coven's roster for the
+`min(4 + 2(n - 1) + (k - 1), 24)`, `n` the defenders standing at the star when it starts, one at the least), so every
+screen agrees: a lone defender's 4, 5, 6 and 7; two, 6 to 9; four, 10 to 13; eight, 18 to 21; ten or more, the most by
+the last wave. Twenty-four is one spawn grant's most (`net/grantLaw.js`): the star stands under a grant kind of its own,
+`star` (a wave of any size its law gives one ask, its bucket its own - never the camps' `site`, nine a grant, which the
+first build's waves were held to; the open country's alone), and the `st` frame carries a wave that size
+(`net/wire.js` `STAR_WAVE_SIZE_MAX`). Each foe is shared by those who fight it besides (`systems/party/partyScale.js`).
+The most a star's owner stands at once is a wave's twenty-four, the master and two calls of the Heart-Star's circle -
+forty-five (`STAR_LIVE_MAX`), a reader's allowance the same (`WOD_STAR_PUPPETS_MAX`), under one owner's frame of
+sixty-four. The owner's stand rolls each place's angle and radius from blocks of its own, thirty-two a wave
+(`STAR_STAND_ROLLS`), so no wave of twenty-four shares a roll with the next. The coven's foes - its waves and its circle - stand with `STAR_FOE_HEALTH` (2)
+times their health, as the rite's Summoner stands with its own (`scenes/riteHost.js`): what the rite on a star calls is
+no foe of the road. The master is an elite already (x5), and stands as one. The relay bounds a camp's foe by it
+(`net/foeBounds.js` `FOE_BOUND.star`), so a reader never strips the coven its owner stood. STAR-TUNE (the owner, of the
+first run: "the enemies are too few and die too quickly. Does this not have scaling?"; then "we should go beyond the
+limit"): the first build's size was `clamp(2 + n + (k >= 3 ? 1 : 0), 3, 9)` - a lone defender's 3, 3, 4 and 4, a party
+of eight's nine - and its foes the road's, the wilds' own
+progression and the hero's threat alone (`scenes/exteriorFoes.js` spawnFoe). The owner stands them just past the
+crater's thrown earth (`STAR_STAND_R`, 14 to 20 m - 25 to 35 in the first build, whose waves spent their first seconds
+walking in), from the coven's roster for the
 defenders' level - the band (`starBandOf`, the median level of the defenders the relay heard: band 1 to level 8,
 band 2 to 15, band 3 from 16), because Daggerfall's monsters have fixed levels and some want silver, dwarven or mithril
 to hurt (`ENEMY_BASICS` minMetalToHit), so a band never stands a foe its players cannot fight:
@@ -243,9 +295,12 @@ The coven's members are women (DFU: a witches' coven's people are always female 
 their coven - *Sister of the Bluff*, *Dust Witch*. Mephala is the Patroness of the Dark Brotherhood, so her own are
 murderers as well as Daedra.
 
-A wave ends when its foes are all dead (the owner's word, never sooner than `STAR_KILL_MIN_MS` (2.5 s) a foe), or
+A wave ends when its foes are all dead (the owner's word, never sooner than its foes shared among its defenders could
+die: `starClearFloorMs`, `STAR_KILL_MIN_MS` (2.5 s) for each foe of a defender's share - AUDIT STAR-TUNE F2), or
 `STAR_WAVE_MAX_MS` (100 s) after it began - then the next comes whether the last is dead or not. Between waves the
-coven draws breath for `STAR_BREATH_MS` (12 s) and the star's light steadies (`STAR_BREATH_LIGHT`, 15).
+coven draws breath for `STAR_BREATH_MS` (5 s) and the star's light steadies (`STAR_BREATH_LIGHT`, 15). STAR-TUNE (the
+owner: "The time between waves is too long"): the first build's breath was 12 s and its waves stood 25 to 35 m out -
+some twenty seconds from a wave's last death to the next one's first blow; both are cut.
 
 **The light.** A star has `STAR_LIGHT` (100). The coven's summoned that fight hand to hand go for the STAR, not the
 defenders: the star stands in the target machine as a body of its own (the townsperson's law,
@@ -316,6 +371,24 @@ the client (`scenes/starfall/starfallHost.js`):
 - **The master is a world boss.** Its body carries `entity.worldBoss` on every screen - the owner's, a handed one, a
   peer's copy - and no witch of its coven does: its fall is the star's own deed, which the festival's finds pay once as a
   held star (section 12, "one deed, one find"), never again as an elite's body.
+- **The master never runs (STAR-MASTER-FLED, `01-Overview/bugs/Field-Bugs-2026-10-29g.md`).** A player's report: an
+  Unquiet Elite Daedra Lord was struck, ran, became their revenant, and the star waited on it until dawn - its fall
+  counts only with a body. The master is an event's own foe from its stand (`entity.eventFoe`, asked of the pool before
+  its elite's promotion draws the mark - AUDIT FB1029g STAR F3) and a world boss from its landing: it draws no mark,
+  never breaks, rises from no deed and wears no "Unquiet" (`06-Systems/Revenants.md` section 51, the one rule a staff
+  event's boss and a rite's faithful share). Pinned through the real street pool and this host
+  (`test/scenes/starfall/star5_host.test.js`, `test/systems/revenant/auditunquiet.test.js`).
+- **A master gone with no fall is stood again (STAR-MASTER-FLED; AUDIT FB1029g STAR F1, F6, F7).** One gone from the pool
+  with no body and no `mf` said (a dispel, a Wabbajack's removal) is let go, and stood again whole once nothing of its
+  site - mine or a peer's copy - has stood for `STAR_RESTAND_MS` since its going (`staffEvents.js` staffBossLost's
+  shape; C4 stands one that never stood the same way). A Wabbajack's changed foe lands inside that wait and is claimed
+  the master, never stood beside a fresh one (AUDIT WB12d C11). One stood again calls its circle afresh, and the bar's
+  fall moment needs a body, cleared when a master is taken.
+- **A master handed on is its heir's (AUDIT FB1029g STAR F2).** Handed alive at a door or a death (`exteriorFoes.js`
+  letGo marks it `_gone`), the master is the heir's: this screen gives the star up at once - its sites nobody's, its
+  word `o:0` - and holds it again only `STAR_YIELD_MS` (twice `STAR_ORPHAN_MS`) on, by when the heir holds it, and it
+  never stands a master over the heir's copy. Mutants in `tools/mutants/fb1029g_fieldbugs.json` and
+  `tools/mutants/audit_fb1029g_star.json`.
 
 ## 5. The relay holds the star
 
@@ -617,12 +690,20 @@ name, *Master of the Fallen Star* (the Heart-Star's: *Heart of the Web*), its he
 the ward holds. **The map** marks each star of the night with a card; **the compass** points to the nearest within the
 region; **the timers** row says the night's coven and the next fall.
 
+**EVENTS1 (2026-10-23, `10-UI/Event-Board.md`).** The region's lines and the hold above are said in the HUD's event
+board's news now (`systems/eventNotices.js`, kind `star`, each with its star's id - AUDIT EVENTS1 A1), where they had
+been the chat's, and are filed in the journal; and every star's town is named from `STAR_WARN_MS` (10 minutes) before it
+falls - on the Timers row and the board, with its pixel, the board's news to every screen; two at once where their falls
+are 7.5 minutes apart (AUDIT EVENTS1 A3) - where the next star's alone had been named from its omen (PanickedTofu,
+Discord: "I only ever get a notification about them AFTER they've been claimed by other players").
+
 **As built (STAR6).** Every line goes through the text core (`systems/starfall/starWords.js`, `t('starfall.*')`, its
 names as arguments), held to WB13b's style by a law over all of them (`test/systems/starfall/star6_words.test.js`). The
 Timers window shows each fallen star still undecided counting down to its deadline (*Fallen Star*, *Near Gothway
-Garden*, *The coven takes it when this runs out*) and the next to fall counting down to its landing (*A star falls* - the
-Heart-Star's own words - its town from its omen on, as the region hears it, and *The Daggerfall Witches are at their
-rite*), the next night's first once this night's last is down (`systems/starfall/starfallClient.js` starTimerRows). The
+Garden*, *The coven takes it when this runs out*), each star within `STAR_WARN_MS` of its fall counting down to its
+landing with its town, and the soonest beyond that without it (*A star falls* - the Heart-Star's own words - and *The
+Daggerfall Witches are at their rite*), the next night's first once this night's last is down
+(`systems/starfall/starfallClient.js` starTimerRows; its town from its omen on before EVENTS1). The
 held map's cards ride the raids' reader and a violet four-pointed star of its own (`ui/ink/inkMap.js` paintStarMark).
 **The compass's door, fixed at its root**: the world host had handed `drawHud` the sea serpent's and a found Hollow's
 compass marks since SERPENT1 and SD2c, and `drawHud` dropped both - neither ever showed on the enhanced strip. It
@@ -683,9 +764,11 @@ that lands in the grace turns its stone and its beacon gold from lit, never from
 | `{t:'star', k:'st', n, s, px, py, p, w, wz, kn, wl, lt, nd, b, ow, hc, hd, lo, why, hm?}` | cell -> cell, cell -> a speaker | the ledger: phase, wave, its size and deaths, the time left in the phase, light, defenders, band, an owner and its credited blows, held, lost and why; `hm` on the speaking socket's copy alone - its own account's credited blows, a count bounded like `hb` (`STAR_BLOWS_WIRE_MAX`) |
 | `{t:'star', k:'hd', n, s, px, py, at, top, c}` | cell -> cell, hub -> everyone | held, by whom (the first `STAR_TOP_MAX` named, `c` how many) |
 | `{t:'star', k:'rc', r}` | cell or hub -> one | an earner's receipt |
-| `{t:'star', k:'hds', l: [...]}` | hub -> a hello | the night's held stars |
+| `{t:'star', k:'hds', l: [...]}` | hub -> a hello | the night's held stars (WW5: every lane's, the Bay's first - section 16) |
 
 `STAR_RELAY_MIN` names the first relay that speaks it (`relaySupportsStar`), and an older relay is never sent a word.
+WW5 (section 16): a star past the Bay's three - a province's, on a world pixel off the Bay's map - goes only to a relay
+from `WW5_RELAY_MIN` (270) on (`relaySupportsWw5`); an older one refuses its word as junk.
 `STAR_HZ_MAX` bounds a socket's words (the rite's bucket, deeper than the client's burst). No live event gates it: the
 stars keep the festival's own days (section 12).
 
@@ -700,7 +783,7 @@ holds what it can check: the window, the cell, the pose, the order of the waves,
 
 **What the relay cannot check, said.** A word is its player's own. The owner's machine runs the foes, so the owner's
 word moves the waves, the light and the master's fall. A modified owner could clear a wave early (never sooner than
-2.5 s a foe), drain the star (never faster than 9 blows a second) or call the master fallen (never sooner than 45 s
+2.5 s for each foe of a defender's share), drain the star (never faster than 9 blows a second) or call the master fallen (never sooner than 45 s
 after it stood). The last pays the defenders who struck and stood there; the service bounds what a receipt is worth
 (once a star, nine a day). A word for a forged pixel is a ledger of its own and stands in no other's way: once over it
 costs no place, and while live it keeps one against a new star only while somebody stands at it - an account stands
@@ -765,6 +848,27 @@ they meet:
 
 ## 13. Versions and deploy order
 
+STAR-TUNE moves the relay alone, to **world238** (world236 on its branch, renumbered past LONE-HERALD's world236 and
+FIELD BUGS 2026-10-20f's world237 at the merge with main): the wave's size and the breath are the relay's law, the `star` grant
+kind its mint, the `st` frame's wave to twenty-four, and the foe bounds its strip reads (`net/foeBounds.js`); the star
+word does not change, so `STAR_RELAY_MIN` stays 235, and the account service's version does not move. Relay first,
+then the client - but the site goes live as soon as the account service answers its version, which STAR-TUNE does not
+move, while the relay's deploy sweeps and waits out live fights first, so for an hour or more either side can be the
+older (AUDIT STAR-TUNE):
+
+- **A new client, an older relay (F1).** The client asks the `star` grant kind only of a relay that mints it
+  (`net/grantLaw.js` `STAR_GRANT_RELAY_MIN` 238, the welcome's version - `online.js` `starGrantOk`); of an older one, the
+  stand's own kind, main's (`site`, the master `kept`), whose waves that relay's law holds to nine. Asked `star`, world237
+  answers `kind`: under `enforce` no wave stood, under `grantStrip` the coven was its owner's alone.
+- **An older client, the new relay (F3).** An older client's `validStarOut` read `wz` nine at most and dropped the whole
+  `st` frame past it - an older tab that owned a party's star stood its third wave on for nobody, nor the master. The
+  cell says `wz` nine at most and a larger wave whole in `wx` (`net/wire.js` `STAR_WAVE_SIZE_OLD_MAX`); this client
+  reads `wx` back into `wz`, an older one projects it away and stands nine (the wave still clears on its `wc`).
+- **An older reader, a new owner (F3, not fixable from here).** An older reader's foe bound gives a camp's monster no
+  coven's multiplier, so it removes a toughened coven foe whose health passes its old bound (silently, as a refused
+  record) - by about x1.3 for the band-1 Spider, Giant Bat and type 3, x2.2-2.7 for the rest; a level-20 hero's threat
+  alone is x1.48. Only its reload mends it; the bound would have had to ship a release before `toughen`.
+
 Relay first (it signs), then the account service (its migration first), then the client. The relay's version moves for
 the frame, the receipt and the hub's door - world235 (world233 on the branch, renumbered past SD-SEA's world233 and
 DEX1's world234 at the merge with main, `STAR_RELAY_MIN` with it, so neither of those relays is ever sent a star's word;
@@ -786,9 +890,61 @@ minted before this, so no finding a law made could be a finding to ask again (it
 | STAR7 | the rewards: the claim, the service, the spoils, Starglass (Starfall Glass since AUDIT STAR), the Starspun Weave |
 | STAR8 | the questline: The Thirteenth of Frostfall - four scripts and sheets, the `festival` group, `opens.event`, the `starfall` need on the festival's calendar, the `star-held` act, the `star`/`stars3` witnesses, Starwarden; `ql name` names a foe (`star8_frostfall`, `ql12_claim`) |
 | AUDIT STAR | the words, the plate, the glass's name and the Weave's powers read again (sections 6 and 8; `Sigil-Sets.md` 6f) |
+| AUDIT STAR-TUNE | STAR-TUNE read cold (pull request #1090): F1 the `star` kind asked only of a relay that mints it, F2 a wave's floor shared by its defenders, F3 an older tab's `st` kept (`wx`), F4 a crater built again asks the body again (sections 4, 10, 13; `Spawn-Grants.md` 4) |
+| WW5 | every theatre's night: a star's number its lane, the provinces' covens, a province's stars over its theatre's ground (section 16; `03-World/World-Wide.md` WW5) |
 
 ## 15. Not done, and why
 
 - **No Discord herald yet.** The gate's and the serpent's posts are the hub's alarm beat; a star an hour would post
   three times an hour. Left for the owner's word on how much of it the channel wants.
 - **No lamia.** Daggerfall's lamia never leaves the water (section "The lore").
+
+## 16. Every theatre's night (WW5, 2026-10-27)
+
+The owner, after the audit Left In The Bay (item 26), 2026-10-26: *"Every single thing here needs to be addressed. No
+exceptions."* The Starfall stood on the Bay alone: one coven a night over the Bay scan's pixels, a star word the Bay's
+0..999. Two calls of the owner's are taken with it: **a site-bound world event stands nowhere in the open PvP zone**
+(Cyrodiil's lane never stands a night), and **a province's covens are authored as content** - FACTION.TXT's covens are
+all the Bay's, so a province's night needs a coven of its own. The record is `03-World/World-Wide.md` WW5; here, what
+it means for the Starfall:
+
+- **One sky.** Every theatre that stands a night (`net/wire.js` `SITE_EVENT_LANES`: the Bay's lane and the eight
+  provinces') has its night in the same hour, its three stars at the Bay's instants (section 1). A star's NUMBER names
+  its lane: lane t's three are `3t + 0..2` (`net/starfall/starfallLaw.js` `starOfLane`, `starLaneOf`, `starIndexOf`), so
+  the Bay's are the 0, 1 and 2 they always were, and every ledger, receipt, row and key keeps its shape. Its instant, its
+  master and the Heart-Star read its place in the night (`starIndexOf`); its rolls, spot and ledger its number.
+- **The provinces' covens** (`systems/starfall/starfallCovens.js` `STAR_PROVINCE_COVENS`), the port's own, one a
+  province, each worshipping as the rite does. Each carries no FACTION.TXT faction and no MAPS.BSA place; its words go
+  through `t()` (`starfall.coven.<id>`, `starfall.member.<id>`, `starfall.leader.<id>`) in every complete locale, and its
+  leader comes for the star where a Bay coven's Coven Mother does (`systems/starfall/starCoven.js` `starMasterOf`):
+
+  | province | coven | a member | its leader |
+  |---|---|---|---|
+  | High Rock | The Sisters of the Moor | Sister of the Moor | Mother Gwenllian |
+  | Hammerfell | The Sand Witches | Sand Witch | Mother Adara |
+  | Skyrim | The Witches of the Rime | Witch of the Rime | Mother Hjordis |
+  | Morrowind | The Ash Witches | Ash Witch | Wise Woman Ulyne |
+  | Sumurset Isle | The Sisters of Dusk | Sister of Dusk | Mother Calanwe |
+  | Valenwood | The Briar Witches | Briar Witch | Mother Thaewen |
+  | Elsweyr | The Daughters of Mafala | Daughter of Mafala | Clan Mother Ri'shazra |
+  | Black Marsh | The Fen Witches | Fen Witch | Mother Neeta-Hei |
+
+  A theatre's night is its own covens' (`covensOfLane`): the Bay's bag night for night as before (section 2), a
+  province's one coven every night.
+- **A province's stars** (`systems/starfall/starfallSites.js` `findTheatreStarSites`): section 2's law over its
+  theatre's ground - the gate's suitable pixels of the theatre (`systems/gate/theatreGateSite.js` over the registry's
+  places), each star `STAR_APART_PX` from the others and from its theatre's gate of that game day, by a town of its own
+  where the province has them. The scans are the gate's own, kept (`scenes/gate/gateLanes.js` `keptTheatreScans`), warmed
+  a theatre at a time in idle moments (`scenes/eventTheatres.js`).
+- **The page** (`scenes/starfall/starfallHost.js`): every theatre's stars stand, each its own key, on a relay that keeps
+  them (`net/online.js` `ww5Ok`, `net/wire.js` `WW5_RELAY_MIN` 270); the map's cards are every theatre's; the Timers show
+  the theatre I stand in (the Bay's on the Bay, at sea and in Cyrodiil); a province's hold is said in its own theatre,
+  the Bay's to everyone as it always was.
+- **The relay and the account service.** The word in and out on its lane's pixel (`starWireOk`), the hub's held list 60
+  long and the Bay's first (`starHeldOrder` - an older client reads the first twelve), a stored ledger on its own lane's
+  pixel (`starLedgerSane`); the claim reads a province's star by its number, inside the service's nine a day (section 6).
+  world270 and acct196, folded in while undeployed (section 13's order: the relay, the account service, the site).
+- **The questline** reads a star by its number: a province's held star is `star-held` as a Bay star's is (section 7).
+
+Pins and mutants: `03-World/World-Wide.md` WW5 (`test/world/worldWide/ww5_stars.test.js`,
+`tools/mutants/ww5_stars.json`).

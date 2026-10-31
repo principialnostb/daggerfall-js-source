@@ -497,6 +497,30 @@ password. Recovery signs out *every* device including the one standing
 there, because the reason somebody is recovering may be that another
 person has their password.
 
+**AND NOTHING ALREADY UNDER WAY UNDOES IT** (RPT1026-SECNET, 2026-10-26, from a
+private security report). Each of these proved itself against the account as it
+found it at its start, then wrote by the account's id alone - so a thief who
+held the password, racing the owner's recovery, kept the account: a change
+already deriving wrote the thief's password on top of the owner's and ended the
+session the recovery had just opened; a sign-in already deriving opened a
+session the recovery's sign-out had already run past (and on an older-cost hash,
+wrote the old password back as its rehash). Every write now stands on what its
+request proved (`accounts.js` changePassword, login, openSession's `guard`): the
+change lands only while the password is still the one it checked and its session
+still stands, and signs the others out only while the password is still its own;
+a sign-in's rehash lands only where the hash it verified still stands, and its
+session only on the hash it holds (the row is asked once more where it moved, so
+two honest sign-ins at once on an older-cost hash both get in); a recovery's
+session only on the password it wrote, and its sign-out of every device only
+while that password is still the row's (AUDIT RPT1026 A3: a second recovery that
+wrote after it had signed every device out itself and been answered with a
+session, which the first one's sign-out by id alone then deleted), and a second
+device only through a device still in (`/v1/auth/session`, else `auth`). A loser
+is told what a wrong answer is told - `bad-login`, `codes-moved`, `auth`. Pinned
+by `test/server/rpt1026_secnet.test.js` over the real service, on a database
+that holds one request between two of its statements while another runs whole,
+and `test/server/audit_rpt1026_secnet_acct.test.js` (A3).
+
 **AND EMAIL IS COMPLETELY OPTIONAL AND MEANS IT.** The account
 registers, logs in, recovers and changes its password with no address
 ever set; an address a player never gave is not in the account view at
@@ -4024,6 +4048,22 @@ unique different version of the aura, a title named Hour's First, and each the g
   has 11 mutants, all dead.
 
 
+
+## TAMRIEL-POST — the Tamriel update's letter (2026-10-28, acct205)
+
+The owner: "Send a heartfelt, non-ai like message to players in their inbox and attach 10 portal stones".
+
+- **The send.** Migration 0188 writes every registered account standing when it runs one piece of the post from the
+  DFO Team (its own sender; every other piece's is The Developers): "Thank you, and something for the road", holding ten
+  Portal Stones in one stack (`src/systems/gate/gateSpoils.js` `portalStones`).
+  It is the tool's own statement (`node tools/sendServerPost.mjs --migration tamriel`, `everyoneSql`), once a send an
+  account. A guest is sent nothing, and an account made after the deploy is not sent it.
+- **Frozen.** The words and the record are `TAMRIEL_POST` and `TAMRIEL_POST_RECORD` in the tool; the test holds the record
+  to the mint's own and every sentence to 25 words.
+- **The claim.** Each claims the stones into the online character they are playing (the claim's own law, above); they
+  stack with the stones the pack holds. The stones are bound, as every Portal Stone is.
+- Pins: the letter in `test/tooling/serverpost_send.test.js` (applied over live accounts, claimed into a realm record).
+  `tools/mutants/serverpost.json` gained 3 mutants, all dead.
 ## EG-PLAY and after — the Elite Breach on the account service (2026-10-11 to 2026-10-13, acct137, migration 0119)
 
 The Elite Breach's account half, each piece recorded in `bible/11-Multiplayer/Elite-Gates.md` section 31 (sections 19
@@ -5436,6 +5476,13 @@ make the aura misallign".
   content in `seraphwings.json` (5), `shadowcloak.json` (2), `climb5.json` and `auditclimbarc.json`.
 - Left, said: not seen in a running game client - the test drives the real sprite body and the real peer layers frame
   by frame, no GPU; the wings still stand on a rider at the saddle's rest pose (no shoulders read off a horse's frame).
+- **At the painted body** (BACK-HOLSTER, 2026-10-30; Mac: "Why is the cape backwards on the side facing?"). The cape and
+  the wings hung from the sprite's feet, but a side view's picture paints its body up to a third of a metre toward its
+  back (the sword held out front widens it), so the cape was worn on the chest. For the aura pass alone,
+  `scenes/auraHost.js` moves each sprite's cape or wings to its painted body along the view's right
+  (`render/auraRing.js` auraSpriteAcross, the Aura Armory's own `dx`; auraShiftAcross) and back after it, so the swing
+  never reads a picture's change as a step. A ring at the feet stays at the feet (`06-Systems/Eye-Of-The-Beholder.md`
+  BACK-HOLSTER).
 
 ## LEGACY7 — Project Legacy's lines and the tombstone (2026-10-06, acct87 - acct84 on its branch, renumbered past SERPENT-SET's acct84, then YARD-SHED's acct85, then YARD-HEIGHT's acct86 at the merges of main)
 
@@ -5446,7 +5493,9 @@ Mac: "online integration with permadeath (Bloodline) or non-permadeath (Enduring
 - **`lineages`**: one row a family an account founded online - its id (`fam-...`, the client's), surname, model (the
   founder's, for good: `lineage-model`), record (bounded, `LINEAGE_MAX_BYTES`) and `rev`. `/v1/realm/lineages` lists
   them; `/v1/realm/lineage` writes one only past its rev, a stale write answered 409 with the stored record to merge
-  into. At most `LINEAGES_MAX` an account.
+  into. At most `LINEAGES_MAX` an account. FAMILY-REMOVE (acct221, `01-Overview/bugs/Field-Bugs-2026-10-29e.md`):
+  `/v1/realm/lineage/remove` lets go a line no living realm character plays, so a deleted or fallen house frees its slot;
+  its tombstones stay.
 - **`realm_characters.lineage_id`, `person_id`**: a character born with `{ lineage, person }` (`/v1/realm/create`) is
   that living member of the account's own line, named for good; never one another character played (`lineage-played`,
   a unique index behind it). A birth whose first save never landed is resumed, as customs' is.
@@ -5658,7 +5707,10 @@ S01-changepw-unthrottled-oracle) - and a guess at the code spends RECOVER's, eac
 WRITE IS THE AUTHORITY** (AUDIT 68 S01-register-recover-lost-update): it lands only on the row as it was read
 (`recovery_hash IS ?`), so two presses racing cannot both answer a set while only the second's works, and two of a
 set's codes recovering at once cannot both spend - the loser hears `codes-moved` (409), a sentence of its own that
-does not call a right code wrong.
+does not call a right code wrong. AUDIT 68 S01 guarded the writes a recovery makes itself and left the others a recovery races
+by id alone - a password change, a sign-in's rehash and its session, a second device: RPT1026-SECNET (2026-10-26) puts
+them on what they proved too (A PASSWORD IS CHANGED WITH THE OLD ONE, above), and a recovery whose session a second
+recovery outran hears `codes-moved` as well.
 
 **Not done, and offered:** passkeys (Face ID, a fingerprint, Windows Hello) as a second way in, and an emailed reset for
 the players who chose to give an address - each its own slice if it is wanted.
@@ -5907,3 +5959,301 @@ when the tenth is taken (`bible/11-Multiplayer/Elite-Gates.md` section 31, SPIRE
 the character's name and near names refused) and `tools/mutants/egeco_honours.json` SPIRE-FIRST-serveride-not-granted and
 SPIRE-FIRST-NAME-the-character-listed (dead). A handle list takes the account's handle, never a name off the herald,
 which since NAME-AS may be a character's (`bible/11-Multiplayer/Elite-Gates.md` section 31, SPIRE-FIRST-NAME).
+
+## LOST-SPOILS — the Lost and Found: what a boss's floor still holds goes to the mailbox (2026-10-22, acct173)
+
+The owner: "So I want to utilize the mailbox as a way to obtain lost items/loot if not picked up from a boss. For
+example, the oblivion gates. Abyss dungeons, elite breaches ,etc". Read against the code first, nothing on a boss's
+floor was lost. Leaving the Burning Court, the Last Moment's arena or an Elite Breach's Redoubt gathered every piece
+still on the floor into the pack (`scenes/spoilsPool.js` gather), and the crash's record covered the rest (WB5,
+`11-Multiplayer/World-Bosses.md` section 7). Two questions went back:
+
+- Should the mailbox take the floor's leftovers in the pack's place, or stand behind the pack as a safety net for the
+  rare true losses? The owner: **"Mail the leftovers"**.
+- Should an Elite Breach's Reliquaries, which a death or a bad end throws away, be mailed too? The owner: **"No, keep
+  the risk"**. The Spire's one-life stake stands (`11-Multiplayer/Elite-Gates.md` section 16.3).
+
+Not a DFU member: Daggerfall Unity has no boss spoils and no post. Port-Ledger A, the ONLINE row.
+
+### What the player sees
+
+- **Leaving a floor** (the way home, a death, a disconnect, the day's end, the Hour's collapse, leaving the Spire)
+  sends each ITEM still there, or still in the air, to the server's post, one piece an item. Each comes from the
+  **Lost and Found**, under *Left in the Burning Court*, *Left at the Last Moment* or *Left at a Redoubt*, with a body
+  that says where it was left and that a claim puts it in the pack of the online character being played. The gold goes
+  to the purse, as ever.
+- **The chat says it** at once (`spoils.lost.mailed`: *What you left on the floor will wait for you in your mailbox,
+  beside the hourglass in the pause menu.*). When the send lands the box looks again, so the envelope counts the pieces
+  and the world tab gives the post's own notice.
+- **Claim all.** The mailbox window shows *Claim all (N)* above the list while two or more items wait
+  (`net/serverPost.js` PostBox.claimAll). It claims one after another, each its own realm act as a press of Claim is.
+  A piece claimed meanwhile is passed over, and it stops at the first refusal the next claim would meet too, saying what
+  landed. Its buttons are down while it runs. The window is the post's own design (SERVER-POST, `10-UI/UI-Arc.md`), not
+  a DFU layout, so it cites that record.
+- **A first ember brings its book.** A claimed piece goes into the pack by a spoil's own door (`scenes/world.js`
+  takeGateSpoil), so a first Sigil Stone from the Lost and Found brings *On the Burning Doors* as the floor's does
+  (WB12c).
+- **When the mailbox cannot take post, the floor goes into the pack as before.** That is a box not known to take it (a
+  guest's - the post is a registered account's; signed out; not yet looked at this sitting), another account's spoils
+  on this device, or a crash record this device could not keep. So is a send the service refuses for good, or one not
+  landed after LOST_OWED_MAX_MS (eight days): *What you left on the floor could not be sent to your mailbox, so it is in
+  your pack.* (`spoils.lost.back`).
+
+Where: the court's pool (the Oblivion Gate) and the Hour's (the Brass Remnant, and an Elite Breach's Redoubts, which EG-E
+throws there). Unchanged: spoils given straight into the pack with no floor (a receipt that comes outside its court, a
+Redoubt claimed away from its hall, a Reliquary), and the raids', the serpent's and the stars' pools, which have no
+floor.
+
+### The pool (`scenes/spoilsPool.js`)
+
+- **ONE WRITE.** The hand-off rewrites the spew's crash record once. Its `pieces` become the ones the pack holds (pressed,
+  and gathered now), and the rest its `mail` (`{ i, piece }`, each piece's place in the spoils as rolled, which is the
+  service's once-a-piece key), with the account and when (`acct`, `mailAt`). The mailed pieces leave the floor and never
+  touch the pack. A crash between two writes could have handed a piece to both; this way the crash's door (recoverSpoils)
+  hands the pack's part alone, and the next sitting sends the mail.
+- **Sent, and asked again** (`mailOwed`): each record's pieces in one send, on its own account's session alone (the
+  pool's `me`, AUDIT SD II's law for the spent words). A yes lets them go. A refusal that will never be a yes
+  (`net/lostLaw.js` LOST_FINAL: no mailbox, a send's shape, the item law, past the window, the account's bound, a body
+  past its bound, a service from before the route) gives them to the pack: the record first, then the pack, held for the
+  next save. Anything else (no session, offline, the service's own failure, a kill not yet recorded) is asked again on
+  the pool's own timer: LOST_RETRY_MS (30 s) on, twice as long after each round that owed something and landed nothing,
+  to LOST_RETRY_MAX_MS (30 minutes). Found while reviewing: a flat 30 s would ask a kill the service never records
+  (a receipt its own claim refused) some 23,000 times in the window, where this asks a few hundred. A pool first asks
+  LOST_FIRST_MS (20 s) after it is made, for what an earlier sitting left owed. Pieces another character left wait for
+  that character to stand up.
+- **Only onto a record the device holds.** A crash record kept in the sitting's memory alone (a full quota, a private
+  window - AUDIT WB A6) dies with the tab, and its receipt is given again (AUDIT WBX S5). A floor owed to the mailbox on
+  one could be lost, or met twice, so it goes to the pack, as ever.
+- **A record owing the mailbox outlives what would end it.** The save that holds its pack's part leaves it with `pieces`
+  empty and its mail still owed. The records' cap neither counts it nor lets it go.
+- **A new burst over a floor not yet left gathers that floor first.** FOUND building this, and fixed with it: an Elite
+  Breach's next Redoubt threw its spoils over the last one's. The leftovers were then on no floor and in no pack, their
+  record never held, and the next boot handed back the whole of it, pressed pieces too. Now they go where leaving would
+  send them: the mailbox, or the pack.
+
+### The service (`server-account/src/lostSpoils.js`, `POST /v1/post/lost`)
+
+- **A registered account's alone**, the post's wall (`post-needs-account`).
+- **Under a kill the service recorded.** The client rolls the spoils (the roll reads the player's mods and prefs as well
+  as the seed - `systems/gate/gateSpoils.js`), so the service cannot roll them again. What it can say is that a fall
+  happened, to this account, and paid: the kill row the relay's receipt made. That is `gate_kills (day, account)`,
+  `sd_kills (slot, account)`, or `eg_redoubts (b, account, w)` with `paid = 1` - a Redoubt taken twice in a week pays
+  its gold alone. A send names its kill by the pool's own day (`net/lostLaw.js` lostKillOf). No row is `lost-no-kill`,
+  asked again, since the receipt's own claim may still be on its way. A row older than LOST_WINDOW_S (eight days, a day
+  past a receipt's week) is `lost-spent`.
+- **Once a piece.** A piece's batch is its kill and its place (`lost-gate-<day>-<i>`, `lost-sd-<slot>-<i>`,
+  `lost-eg-<breach>-<w>-<i>`), under 0093's one-a-batch index. What is already there is answered as sent BEFORE any
+  other check, so a send that landed with its answer lost is never refused later (past the window, past the bound) into
+  a second copy in the pack. A place is under LOST_INDEX_MAX (32), so no kill holds more.
+- **The shape and the law.** Places none twice; an item the box can name (`postItemHead`); no crafted `provenance`; a
+  checkpoint's `uid` dropped, so the post's piece is a new one to the ledger (INT4); every item judged by the item law
+  (`itemFindings`, the checkpoint's own - `lost-item`, the whole send refused).
+- **The bounds.** An item's record within LOST_ITEM_BYTES (4 KiB). The route's body is read to LOST_BODY_MAX (32 KiB);
+  every other route reads 4 KiB (`service.js` MAX_BODY_BYTES), and the largest spoils send 4.4 KB - found while
+  building, measured over the gate's portent nights, the Brass Remnant's and a Valkynaz's Redoubt. An account's
+  unclaimed Lost and Found pieces stop at LOST_WAITING_MAX (150), past which a floor goes to the pack (`lost-full`).
+- **Its words are the service's** (`LOST_WORDS`, `LOST_SENDER`), as the Spire's letters' are (`eg.js` EG_STAKE_POST): the
+  service writes them, and the client reads them off the box.
+
+### The claim is charged to the budget (INT5)
+
+A Lost and Found piece is claimed as any gift is (`post.js` claimPost, the guild vault's take), but its gain is never
+WITNESSED. `prepareRealmRecord` takes `witness: false` for a `lost-` batch, and the budget charges the piece as it
+charges that piece taken off the floor - the allowance the kill's receipt filled (`grantSpoils`). Witnessed, the mailbox
+would have been a road past the budget: a modified client could take a piece off the floor and mail it too, and the
+mailed copy would cost nothing. The developers' gifts, which the service mints, are witnessed as before. A piece claimed
+into another of the account's characters than the one that fought is that character's gain, charged to its own bucket
+(measured, not enforced - `BUDGET_DEFAULT.enforce`).
+
+### The four hosts
+
+`scenes/world.js` builds the door (`net/lostSpoils.js` lostSpoilsMail, over its post box, its lines in the chat) and
+hands it to the court's pool and the Hour's. `scenes/dungeonContext.js` and `scenes/worldModes.js` stand those floors
+through the world host's pools (the press, the plaque) and need nothing of their own. `scenes/exterior.js`, the fixed
+city, stands no boss floor. bootWorld takes ten logical lines (36,255 at the merge of main, under its 36,256).
+
+### Versions, words, pins
+
+- acct173 (acct168 on its branch, renumbered past STAFF-PANEL1's acct168, CRAFT-PAYS' acct169, PISTOLET's acct170, AUDIT COLLECTIONS-II's acct171 and SEA VENTURES' acct172 at the merge). No migration (server_post as it stands) and no relay change (the relay bundles none of these files). PIN
+  MOVED: the account version's pins (20 test files, among them the history `auditscale2_acct.test.js` holds them to) and its ten
+  version records, re-aimed by content, each dead - GATEKEYS-the-empty-var-back once its own test was green, which asked
+  first that the deploy carry the new files: the account Worker now bundles `src/net/lostLaw.js`, and through it `systems/superDungeon/sdSpoils.js`, `systems/eliteGates/egSpoils.js` and
+  `systems/eliteGates/egLordArms.js` (the floor's day-key parsers live there - ONE EXPORT), so the account deploy's path
+  filter (`.github/workflows/account-deploy.yml`) names all four, or a change to them would never deploy.
+- Nine new strings, drafted in the thirteen whole languages (`tools/l10nInSession.mjs`): the pool's two
+  (`spoils.lost.mailed`, `spoils.lost.back`), the window's two (`post.claimAll`, `post.claimedAll`), and a sentence for
+  each word the route can say (`account.refusal.lostPieces`, `lostItem`, `lostNoKill`, `lostSpent`, `lostFull` -
+  `test/server/accountflow.test.js` ACC1e walks the service for them; the pool turns each into its own line). The
+  drafting languages wait for them as for every new key.
+- Port-Ledger A: the ONLINE row names the law, the door and the service's file (LOST-SPOILS, beside MAIL1).
+- Pins: `test/server/lostspoils_service.test.js` (5), `test/scenes/lostspoils_pool.test.js` (7) and
+  `test/net/lostspoils_client.test.js` (4). The client's includes the whole road over the real service: a gate's receipt
+  claimed, its floor left, each item in the mailbox, the envelope counting them, and Claim all into the realm record.
+  Every floor in them is the game's own roll; 72,152 rolled pieces were judged by the item law while building, and none
+  was refused.
+- PIN MOVED: SERVER-POST's wiring pin (`test/net/serverpost_client.test.js`) - the claimed item's door is takeGateSpoil.
+- Mutants: `tools/mutants/lostspoils.json`, 37, all dead. Re-aimed by content, each dead: `int2.json` INT5-the-write-unwitnessed
+  and `fb1014_summonrepair.json` SUMMON-REPAIR-the-gold-unwitnessed (the `witness` bind); `serverpost.json`
+  SERVERPOST-the-dropped-batch-a-refusal (the status map's new row); `wb5.json` WB5-the-gather-leaving-pieces and
+  WB5-the-record-without-its-pieces, `auditwb_spoils.json` AUDWB-A7-one-slot and AUDWB-A7-unbounded, `auditraid.json`
+  RAID-R8a-records-cap-shared, `raid4b.json` RAID4b-pool-keys-ignored and `sd9e.json` SD9E-the-gates-words (the
+  pool's gather and its records' cap, moved into their own functions).
+- Found and left, not this slice's: two records aimed at `scenes/spoilsPool.js` SURVIVE their pins on main as here,
+  measured on a clean checkout of main - `audit_wb9.json` AUDIT-WB9-flown-over-the-collider-alone (the flight over the
+  kept floor's plane) and `wb12d.json` WB12d-the-gold-s-dress-moved-by-r (the second ember's picture drawn off the seed).
+  Every other record aimed at the files this slice changed (109) is dead.
+- Left, said: not seen in a running game client against a deployed service (the client's pin runs the whole road over
+  the real Worker); the Lost and Found's own words are English, as the developers' post is.
+
+## NIRNROOT-SAGE — Blob-Marley's own: the Nirnroot Sage, its glyph and Sage's Smoke (2026-10-26, world268, acct194)
+
+For the in-game account BLOB-MARLEY (Discord Blob-Marley), an Immortal backer, his custom aura worked out with
+SirMcMobdon: "a cloud of billowing smoke with nirnroots circling around me", and his final idea, "billowing smoke,
+circling nirn roots around midsection, small glowing green runes encircling feet". Asked, the owner named the title
+**Nirnroot Sage**, its glyph **a nirnroot sprig**, and the grant's handle **Blob-Marley**. WIKIMAID's law throughout -
+Daggerfall Unity has no accounts, titles, glyphs or auras, so there is no DFU member to read or depart from.
+
+- **The grant** (`server-account/src/titles.js`): `NIRNROOT_SAGE_HANDLES = "Blob-Marley"` (`server-account/wrangler.toml`)
+  grants the title, its glyph (`TIER_GLYPH.nirnrootsage`) and the aura (`TIER_AURA.nirnrootsage: 'sagesmoke'`) together,
+  case-folded, read off the config at every ask - TITLE-N's handle-list law. Taking the handle off the list takes all
+  three on the next token. A near name (`BlobMarley`, `Blob Marley`, the HOURS-FIRST account `Nirnroot`) is another
+  account and holds none of it.
+- **The vocabulary** (`src/net/identityToken.js`, in the relay bundle): `nirnrootsage` last in TITLES and GLYPHS,
+  `sagesmoke` last in AURAS. A relay before it refuses a token carrying them, so the relay is **world268** (world267 on its branch, renumbered past KETCH-WORDS at the merge) and the account
+  service **acct194**: THE RELAY FIRST, then the account service, then the site. Every token acct194 mints for Blob-Marley
+  carries the glyph whether or not he wears anything, so an account deployed first would shut him out of every room until
+  the relay landed (CRYSTAL-FIST AUDIT A1).
+- **The face** (`src/ui/playerBadge.js`, `NIRN_*`): five colours named once - a nirnroot's LEAF `#2e9e57`, its GLOW
+  `#7affb0` (the title's one colour, 62 from the nearest title's, the Disciple's teal - greener and brighter than every
+  green a title wears), the smoke's pale HAZE `#e2f0e8`, the DEEP green of the veins `#12391f` and the SMOKE's own grey
+  `#8a9a90`. "Nirnroot Sage" is drawn leaf into glow into haze, edged in black as every gradient title with a light end
+  is; the account card's button and the glyph in the glow. THE GLYPH: a nirnroot - a slender stem out of two broad leaves
+  at its foot, a narrower pair up the stem (the right one higher, as a plant grows) and the nirnroot's bulb at its top -
+  ONE outline, filled, never crossing itself (the aura's nirnroots are this path, filled even-odd), in M, L, Q and Z
+  alone; over it TWO DETAILS (`glyphDetails`): a vein down each leaf in the deep green, and the bulb's glowing heart in the
+  haze. `Y` on the classic face, the sprig. "Nirnroot Sage" on the account card in every drafted language (the title over
+  his head is never translated, so the label matches it). Seen in Chromium at 13 to 128 px over a night sky, a day sky,
+  stone, grass and snow: the bulb and the leaves read from 13 px, the veins from 24.
+- **The look** (`src/render/auraRing.js`, the fifteenth: `AURA_LOOK.sagesmoke`, kind 14, drawn PREMULTIPLIED - `shade`,
+  so the smoke COVERS what is behind it and a nirnroot stays green over a lit floor; the runes' light and the nirnroots'
+  glow are added):
+  - THE RUNES, the ground: SAGE_RUNES (10) small runes in the Oblivion Ward's alphabet (`runeD`, SAGE_SCRIPT the Sage's
+    own words) at SAGE_RUNE_R (0.6 m) round the feet, at SAGE_RUNE_SCALE (0.65) of the ward's size - about 0.18 m each -
+    lit pale at the heart, the glow's green about it, a leaf-green halo; turning slowly, a light passing round them that
+    lights each in turn; a fine line of the glow out from them and one in; drawn round from behind the wearer as it
+    kindles, as the ward is. Under them THE SHADE the smoke lays at the feet - the deep green, rolling across the ground
+    (a lattice in metres, never the angle's, which would pinch to spokes at the middle), thickest at the feet and gone
+    past the runes.
+  - THE LOW SMOKE, the wall, the pass's strip at the runes: smoke rolling up round the boots, the runes' green on its foot
+    and the smoke's grey above, gone by the knee (SAGE_WALL_H, 0.5 m) - thick where the eye looks along the strip, thin
+    where it looks across it (the radiance's shell), so the boots stay seen; and the runes' light rising off the ring,
+    gone by the shin. Kindled up.
+  - THE SMOKE AND THE NIRNROOTS, the third draw - SAGE_CARDS (21) cards:
+    - SAGE_PUFFS (16) puffs of smoke billowing up about the body, each rising for its life (4, 5 or 6 s by its number)
+      off a place round the feet, fast at first and slowing as it spreads, curling round the body, drifting out
+      (SAGE_PUFF_DRIFT) and growing from 0.3 m to 1.05 m as it climbs past the crown (SAGE_SMOKE_H, 2.1 m); then off
+      another place. Each a round billow, lumpy at its edge and gone at its card's round (never cut there), lit from above
+      - the haze on its crown over the smoke's grey - and, young, the runes' green on its belly; at its thickest
+      SAGE_PUFF_A (0.62) of a cover, so the body stays seen through the cloud.
+    - SAGE_ROOTS (5) nirnroots circling the midsection - the badge's own sprig (`GLYPH_PATH.nirnrootsage` and its two
+      details, cut by `glyphEdges` and filled in the shader), leaf green at its foot into its glow at the bulb, a soft
+      green glow about it - evenly round an orbit SAGE_ROOT_R (0.55 m) out at the waist (SAGE_ROOT_Y, 1 m), twelve times
+      round over the clock, bobbing, swaying a little about their stems and tilting as they bob; upright cards square to
+      the eye about the vertical. They come up one after another as it kindles.
+    - ONE LAW ON EVERY GPU (CRYSTAL-FIST AUDIT A2): where every card is, its size and what it is are node's
+      (`sagePuff`, `sageRoot`, `sageCardsInto`), handed over each frame (`uSage`, `uSageLook`) FARTHEST FIRST from the
+      eye - nothing in the pass writes depth, so a near nirnroot is laid over a far puff and a near puff over a far
+      nirnroot.
+    - THE WEARER'S OWN EYE: a puff nearer the eye than SAGE_NEAR (0.6 m) is not drawn and one past 1.6 m is whole, so the
+      wearer's own first person is never smoked out - the smoke at their feet (1.5 m and more below the eye) stays.
+  - Every rate whole over the clock (`sageRatesWhole`), every puff's life too and its flights wrapped with the clock, so
+    the smoke meets itself at the wrap.
+- **The hosts** - THE FOUR HOSTS: no host changed. `scenes/world.js` draws every look through the pass by its key;
+  `scenes/worldModes.js` and `scenes/dungeonContext.js` draw through world.js's pass; `scenes/exterior.js` draws no
+  aura - FLAGGED, unchanged.
+- **Collections** (`src/ui/collections/wardrobeCatalogue.js`, `10-UI/Collections.md` section 3): the title, the glyph and
+  the aura, each `bestowed` and each naming the other two it comes with; Sage's Smoke's look in words
+  (`coll.look.sagesmoke`), drafted in all 25 languages beside the other auras' looks (`tools/l10nInSession.mjs`), the
+  account card's "Nirnroot Sage" in the 21 that carry the WikiMaid's.
+- **Seen** in headless Chromium's WebGL2 (`tools/auraProbe.mjs`, 101/101 - Sage's Smoke's eight): it compiles, links and
+  draws with no GL error; from above the runes glow green round the feet; every nirnroot stands where node's law has it,
+  round the waist, glowing green; the smoke greys what is behind it at every thick puff; from the wearer's own eye no
+  smoke lies over the view ahead; no jump at the wrap; nothing before it kindles. THE PROBE ITSELF: since AURA-SPLIT a
+  comment written mid-line inside its page's script ended the `window.probe` object early, so the page never ran and
+  every check timed out; the comment stands on its own line now, and the probe takes a browser of the machine's own
+  (`CHROMIUM`, as `brokerProbe.mjs` does).
+- Pins: `test/net/nirnrootsage.test.js` (17) - the vocabulary and the face (each colour apart from every title's by more
+  than 40); the glyph's shape (one outline that never crosses itself, the bulb, the leaves, the veins inside the leaves,
+  the heart inside the bulb); the grant (case-folded, off the list, a guest, the other lists' holders and near names); the
+  service end to end; the token and the relay (world268); the name over a head, the glyph's SVG with its two details, the
+  account card's rules; the classic face's letters along the gradient; the look; the smoke's law (the rise, the growth,
+  the drift, the curl, the next flight elsewhere, the wrap); the nirnroots' law (the orbit, the spacing, the bob, the sway,
+  coming up one after another); every card at once (farthest first, the near fade, the kindle); a nirnroot RUN, a puff
+  RUN, the ground RUN, the wall RUN, the cards' vertex half RUN; the draw (premultiplied, node's cards handed on the
+  wearer's own clock). `tools/mutants/nirnrootsage.json` (59, all dead). PIN MOVED: the relay's pins to world268 (43 files
+  and the relay law's row, `test/net/relayversion.test.js`) and the account's to acct194 (20 files, the history
+  `auditscale2_acct.test.js` holds among them), crediting NIRNROOT-SAGE; the vocabulary's positional and whole-list pins in
+  `aegis`, `chap4c_titles`, `chap6e_titles`, `crystalfist`, `egeco_honours`, `hoursfirst`, `primarch`, `seraphwings`,
+  `serpent5_honours`, `shadowcloak`, `titlen`, `wikimaid`, `acc3titles`, `lampkeeper2`, `ql12_claim`, `sd9c_turning`,
+  `witch1_law` and `star8_frostfall`; Collections' recorded catalogue (`collections2`); the hard-coded English ratchet
+  (`l10n4_hardcoded`, playerBadge.js 36 to 37 - the title's words, as every title's); and AUDIT ATTACH A1's tripwires
+  (`auditattach`): every glyph at once now takes the widest place socket to 1151 bytes and a dungeon instance's to 1206 -
+  1152 and 1207 now, by the new word's bytes, 897 still under the runtime's 2048 (the WikiMaid's note stands: glyphs as
+  their places in GLYPHS would buy some 170 bytes back, a relay-wide change for its own slice). Re-aimed by content, each
+  dead: thirty-three records that quote the lists this extends (in `aegis.json`, `crystalfist.json`, `herald.json`,
+  `hoursfirst.json`, `penitent.json`, `primarch.json`, `sd9c.json`, `seraphwings.json`, `shadowcloak.json`,
+  `shadowfang.json` and `wikimaid.json`), the relay's version record (`soc1.json`) and the account's (`hackedgold`,
+  `bal9`, `crafthold` twice, `nameas`, `br5`, `fb1004d_knight_house`, `tech1`, `wb14g` and `gatekeys`). WIKIMAID-depth-nearest-first stays aimed at the warren's one site (the smoke's own sort is written apart, MUT-AIM).
+- Left as they are, said: not seen in a running game client - the probe and the interpreter are its readers; the
+  nirnroots and the puffs are cards square to the eye, so straight down from overhead a nirnroot is edge on; a close
+  third-person camera thins the nearest puffs as the first person's rule reaches it; like every aura it stands on a
+  wearer turned beast and on a rider.
+
+### NIRN-LEAF — the nirnroot redrawn as a serrated leaf (2026-10-29, the owner)
+
+The owner, over a shot of Sage's Smoke at night and Skyrim's nirnroot: "replace this with nicer nirnroot more marijuan
+style". The glyph and the aura's nirnroots are one path (`GLYPH_PATH.nirnrootsage`), so both change together.
+
+- **The shape** (`src/ui/playerBadge.js`): the sprig with its bulb is gone. A nirnroot LEAF in its place - a fan of seven
+  slender leaflets out of one point low in the box (`SAGE_FAN`, 8 by 12.4), the middle one the tallest (to 0.8), the
+  pairs either side shorter and lower, the last pair drooping past level; every leaflet serrated, its teeth leaning to
+  its tip; a short stem below. One outline of 151 edges, never crossing itself.
+- **Its details**: the VEINS in the haze, pale as Skyrim's nirnroot's (a midrib up every leaflet, and side veins off the
+  five long ones), then the STEM's core in the deep green. The bulb's heart is gone with the bulb.
+- **The aura** (`src/render/auraRing.js` sageCard): teal at the fan's heart out to pale mint at the tips
+  (`SAGE_LEAF_RGB`, over `SAGE_FAN_R` from the fan's point), the veins the haze, the stem's core the deep green; the
+  glow about it is as it was. The palette `NIRN_*` and the title are unchanged.
+- Pins: `test/net/nirnrootsage.test.js` - the shape test (the seven leaflets at their angles, open air between them,
+  serrated, the stem, the veins inside the leaf, the stem's core inside the stem) and the nirnroot RUN (teal at the
+  heart, mint at the tip, a midrib the haze, the stem's core the deep green) rewritten for the leaf.
+  `tools/mutants/nirnrootsage.json`: the six records that quoted the sprig re-aimed by content at the leaf, and one new
+  (the leaf one colour).
+- **Seen** in headless Chromium's WebGL2 (`tools/auraProbe.mjs`, 101/101): the leaves round the waist in the smoke, over
+  the runes. Not seen in a running game client.
+
+## BLOOD-OF-COLDHARBOUR — Trakel's own: Blood of Coldharbour, its rose and the Vampiric Haze (2026-10-30, world297, acct230)
+
+For the in-game account trakel, a $200 patron. The owner: "Travel is a $200 patron but isnt listed. All $200 patrons
+ingame have custom stuff", read as Trakel, whose own asks came with it: the title "Blood of Coldharbour", "violet and
+crimson ... especially when blended together", a rose glyph after their reference, and "a dark violet, smokey haze that
+drifts around the sprite with more pronounced particles of crimson like blood that bubble up from the ground and drift
+off into daedric runes". Asked, the owner named the handle **trakel**. NIRNROOT-SAGE's law throughout; no DFU member.
+
+- **The grant** (`server-account/src/titles.js`): `COLDHARBOUR_HANDLES = "trakel"` grants the title, its glyph
+  (`TIER_GLYPH.coldharbour`) and the aura (`TIER_AURA.coldharbour: 'vampirichaze'`) together, case-folded. Taking the
+  handle off takes all three on the next token. Trakel's Aurum is PATRON-AURUM's (`06-Systems/Aurum.md` section 3b).
+- **The vocabulary** (`src/net/identityToken.js`): `coldharbour` last in TITLES and GLYPHS, `vampirichaze` last in
+  AURAS. The relay reads them, so world297 is re-hashed in place; it deploys before acct230, as STOREFRONT says.
+- **The face** (`src/ui/playerBadge.js`, `COLD_*`): the ring's lavender, the outer petals' violet, the crimson, the
+  heart's blood, the spiral's rose, the haze's smoke and the magenta the crimson and the violet blend into - the title's
+  one colour, 63 from the nearest (Shadow Fang's crimson). The title is crimson into magenta into lavender, edged in
+  black. THE ROSE: a ring of eight hooked thorns, its inside wound back; five details over it - the violet petals, the
+  crimson points between them, the heart, its spiral, and the drop at the ring's foot. `R` on the classic face.
+- **The look** (`src/render/auraRing.js`, `AURA_LOOK.vampirichaze`, kind 20, premultiplied): crimson runes and pooling
+  blood over a violet shade at the feet, low haze on the strip, and the third draw - wisps of the haze drifting about the
+  body, and drops of blood rising like embers, each opening into a rune past `HAZE_RUNE_AT` of its rise and fading
+  (`hazePuff`, `hazeEmber`, `hazeCardsInto`). Its cards ride the Sage's uniforms (`HAZE_CARDS` no more than
+  `SAGE_CARDS`); every rate and life whole over the clock.
+- **Pinned** by `test/net/coldharbour.test.js` (the words and paint, the rose's shape, the grant, the service end to
+  end, the law, the shader and its vertex run); `tools/mutants/coldharbour.json`. Seen in headless Chromium through the
+  shop's own aura stage. Not seen in a running game client.

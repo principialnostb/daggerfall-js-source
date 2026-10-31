@@ -18,7 +18,7 @@
 // Physical Combat overhaul's model when it is on) - never a flat damage. A miss is still a miss.
 
 import { weaponSkillUsed } from '../../characters/weapons.js';
-import { THUNDERLOCK_TEMPLATE } from '../../characters/thunderlockIds.js';
+import { isGunTemplate } from '../../characters/thunderlockIds.js';
 import { SKILLS } from '../../systems/skills.js';
 import { RRI_CLASSES } from '../../systems/roleplayRealismItems/rriItems.js';   // AUDIT TECH1: an RRI class answers its family whatever its switch says
 
@@ -40,7 +40,7 @@ export function techniqueFamily(item) {
   if (!item || typeof item !== 'object') return null;
   if (item.group === 'Armor') return item.templateIndex === GAUNTLETS_TEMPLATE ? 'handToHand' : null;
   if (item.group !== 'Weapons' || !Number.isInteger(item.templateIndex)) return null;
-  if (item.templateIndex === THUNDERLOCK_TEMPLATE) return 'thunderlock';
+  if (isGunTemplate(item.templateIndex)) return 'thunderlock';   // PISTOLET: the guns' family - the Pistolet takes the Thunderlock's Piercing Shot, never a volley
   // AUDIT TECH1: a Roleplay & Realism class is its class with its switch off too - the piece in the pack is still that
   // weapon, and a family that came and went with a mod's switch made its line read as a forgery and its Reforge refuse
   const rri = RRI_CLASSES[item.templateIndex];
@@ -65,6 +65,9 @@ export const TECH_CHIP_COLOUR = '#59c7ff';
 /** The registry action (systems/inputActions.js) - here, in the leaf, so the card's host (ui/enhanced/enhancedInventory.js
  *  techniqueKeyWord) names the key without importing the runner; combat/techniques.js answers it and exports it on. */
 export const TECHNIQUE_ACTION = 'WeaponTechnique';
+/** TECH-KEY2 (Mac, 2026-10-30, forwarding #feature-feedback: "Have a key bindable for your 2nd weapon technique"): the
+ *  key that always answers the held martial path's signature, whatever line the weapon carries. Ships unbound. */
+export const SIGNATURE_ACTION = 'SignatureTechnique';
 
 /** What a line's `value` makes of the technique's own multiplier: `base * (1 + value/100)`. */
 export const techniqueMult = (base, value) => base * (1 + Math.max(0, value | 0) / 100);

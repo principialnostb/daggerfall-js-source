@@ -62,8 +62,8 @@
   {
     "name": "OW-ROADSIDE-join-ignored",
     "file": "src/systems/travel/travelOptions.js",
-    "old": ": leg.at ? spotRect(leg.at) : rectOf(o.x + MID_LO, o.z + MID_LO, P_SIZE, P_SIZE);",
-    "new": ": rectOf(o.x + MID_LO, o.z + MID_LO, P_SIZE, P_SIZE);",
+    "old": ": leg.at ? spotRect(leg.at) : leg.line ? spotRect(legEnd(leg, legMiddle)) : rectOf(",
+    "new": ": leg.line ? spotRect(legEnd(leg, legMiddle)) : rectOf(",
     "tests": [
       "test/systems/travel/tv2_click_to_move.test.js"
     ],
@@ -82,7 +82,7 @@
   {
     "name": "OW-ROADSIDE-alongside",
     "file": "src/scenes/world.js",
-    "old": "    if (!legs.length || (plan.kinds[0] !== 'road' && plan.kinds[0] !== 'track')) return legs;",
+    "old": "    if (!legs.length || (legs[0].ring && legs[0].x === from.x && legs[0].y === from.y) || (plan.kinds[0] !== 'road' && plan.kinds[0] !== 'track')) return legs;",
     "new": "    return legs;",
     "tests": [
       "test/systems/travel/tv2_click_to_move.test.js"
@@ -92,8 +92,8 @@
   {
     "name": "OW-ROADSIDE-drawn-beside",
     "file": "src/systems/travel/travelRoute.js",
-    "old": "(l) => (l.at ? [l.at.x, l.at.z] : centre(l))",
-    "new": "(l) => centre(l)",
+    "old": "(l) => (l.at ? [l.at.x, l.at.z] : onRoad(l, l.line ? [...l.line[l.line.length - 1]] : centre(l)))",
+    "new": "(l) => (onRoad(l, l.line ? [...l.line[l.line.length - 1]] : centre(l)))",
     "tests": [
       "test/systems/travel/tv2_click_to_move.test.js"
     ],
@@ -142,13 +142,13 @@
   {
     "name": "OW-MOUNTAINS-spot-in-the-peaks",
     "file": "src/scenes/world.js",
-    "old": "    if (!door && !water && tvRouteGround().peakAt(pix.x, pix.y)) { tvSay(TRAVEL_VIEW_TEXT.mountains); return false; }   // OW-MOUNTAINS; OW-WOD-PATH: a World of Daggerfall massif's pixel too\n",
+    "old": "    if (!door && !water && !dragonMounted() && tvRouteGround().peakAt(pix.x, pix.y)) { tvSay(TRAVEL_VIEW_TEXT.mountains); return false; }   // OW-MOUNTAINS; OW-WOD-PATH: a World of Daggerfall massif's pixel too\n",
     "new": "",
     "tests": [
       "test/systems/travel/tv2_click_to_move.test.js",
       "test/systems/travel/tv6_dungeons.test.js"
     ],
-    "note": "A spot among the peaks is walked to."
+    "note": "Re-aimed by content (DRAGON6): the line the dragon's flight joins. A spot among the peaks is walked to."
   },
   {
     "name": "OW-ONLY-lower-unheard",

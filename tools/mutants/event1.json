@@ -92,8 +92,8 @@
   {
     "name": "EVENT1-relay-late-joiner-untold",
     "file": "server/src/index.js",
-    "old": "now: Date.now(), ...(ev ? { ev } : {}), ...(tr.length ? { tr } : {}) }",
-    "new": "now: Date.now(), ...(tr.length ? { tr } : {}) }",
+    "old": "now: Date.now(), ...(isSocialRoom(a.key) ? { [YARD_WELCOME_FIELD]: 1 } : {}), ...(ev ? { ev } : {}), ...(tr.length ? { tr } : {}), ...(isSocialRoom",
+    "new": "now: Date.now(), ...(isSocialRoom(a.key) ? { [YARD_WELCOME_FIELD]: 1 } : {}), ...(tr.length ? { tr } : {}), ...(isSocialRoom",
     "tests": [
       "test/render/event1_live_event.test.js"
     ]
@@ -381,8 +381,8 @@
   {
     "name": "EVENT1-host-every-link-hears",
     "file": "src/scenes/world.js",
-    "old": "if (tab.room === SOCIAL_ROOM) link.onEvent = (ev, o) => { dread.set(ev, o); sunbaby.set(ev, o); };",
-    "new": "link.onEvent = (ev, o) => { dread.set(ev, o); sunbaby.set(ev, o); };",
+    "old": "if (tab.room === SOCIAL_ROOM) link.onEvent = (ev, o) => { dread.set(ev, o); sunbaby.set(ev, o); rocket.set(ev, o); };",
+    "new": "link.onEvent = (ev, o) => { dread.set(ev, o); sunbaby.set(ev, o); rocket.set(ev, o); };",
     "tests": [
       "test/render/event1_live_event.test.js"
     ]

@@ -29,6 +29,7 @@
 // cache miss, never an error.
 
 import { ROAD_DIALS } from './road/roadNetwork.js';
+import { landLayer } from './land/landLayer.js';   // FOUNDATION F4: the land's rows
 
 /** Bump when the generator changes shape. The dials are in the key on
  *  their own, so a tuned number does not need this.
@@ -38,18 +39,22 @@ export const GENERATOR_VERSION = 20;
 
 const DB = 'daggerfall-roads', STORE = 'networks';
 
-export function roadsCacheKey({ settlements, woodsLength, dials = {} }) {
+export function roadsCacheKey({ settlements, woodsLength, dials = {}, land = landLayer().stamp }) {
   let sum = 0;
   for (const s of settlements) sum = (sum + s.x * 31 + s.y * 17 + (s.type | 0) * 7) >>> 0;
   const d = { ...ROAD_DIALS, ...dials };
-  return `roads:v${GENERATOR_VERSION}:${settlements.length}:${sum}:${woodsLength}:${JSON.stringify(d)}`;
+  return `roads:v${GENERATOR_VERSION}:${settlements.length}:${sum}:${woodsLength}:${JSON.stringify(d)}${land ? `:land${land}` : ''}`;   // FOUNDATION F4: the land's rows move the ground the roads were laid on
 }
 
 /** The IndexedDB store. Every method answers null on any failure.
  *  DW-A: the database and store names are arguments (the roads' by default),
  *  so Iliac Puddle No More's coastline keeps its own cache through this one
- *  door rather than a second copy of it (deepWatersBakeCache.js). */
-export function idbStore(indexedDBRef = globalThis.indexedDB, { db: dbName = DB, store: storeName = STORE } = {}) {
+ *  door rather than a second copy of it (deepWatersBakeCache.js).
+ *  AUDIT TESA II R10: `set` answers the key once the value is kept (null when
+ *  it is not), and lets go of every key in each `evict` range ([lower, upper],
+ *  both in) in the same transaction - a store keeps one entry where a caller's
+ *  keys say only the newest is read again. `keyRange` is IDBKeyRange's door. */
+export function idbStore(indexedDBRef = globalThis.indexedDB, { db: dbName = DB, store: storeName = STORE, keyRange = globalThis.IDBKeyRange } = {}) {
   if (!indexedDBRef) return null;
   const open = () => new Promise((resolve) => {
     try {
@@ -70,7 +75,22 @@ export function idbStore(indexedDBRef = globalThis.indexedDB, { db: dbName = DB,
   });
   return {
     async get(key) { const db = await open(); if (!db) return null; const v = await tx(db, 'readonly', (s) => s.get(key)); db.close(); return v; },
-    async set(key, value) { const db = await open(); if (!db) return null; const v = await tx(db, 'readwrite', (s) => s.put(value, key)); db.close(); return v; },
+    async set(key, value, { evict = [] } = {}) {
+      const db = await open();
+      if (!db) return null;
+      const v = await new Promise((resolve) => {
+        try {
+          const t = db.transaction(storeName, 'readwrite'), s = t.objectStore(storeName);
+          for (const [lower, upper] of evict) s.delete(keyRange.bound(lower, upper));
+          s.put(value, key);
+          t.oncomplete = () => resolve(key);
+          t.onerror = () => resolve(null);
+          t.onabort = () => resolve(null);
+        } catch { resolve(null); }
+      });
+      db.close();
+      return v;
+    },
   };
 }
 

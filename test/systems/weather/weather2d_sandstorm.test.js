@@ -53,7 +53,7 @@ function stubGl() {
 }
 
 test('WEATHER2d the word: the eighth, appended - DFU\'s seven keep their enum; its fog row (denser than the heavy fog, the sky in it), sun scale, sand precipitation, the default sky offset', () => {
-  assert.equal(WEATHER_TYPES[7], 'sandstorm'); assert.equal(WEATHER_TYPES.length, 8); assert.equal(E.sandstorm, 7);
+  assert.equal(WEATHER_TYPES[7], 'sandstorm'); assert.equal(WEATHER_TYPES.length, 9); assert.equal(E.sandstorm, 7);   // PIN MOVED (ASHFALL1, 2026-10-27): the ashfall the ninth, after it
   assert.deepEqual(WEATHER_TYPES.slice(0, 7), ['sunny', 'cloudy', 'overcast', 'fog', 'rain', 'thunder', 'snow']);
   assert.deepEqual(FOG_SETTINGS.sandstorm, { mode: 'exp', density: 0.09, start: 0, end: 0, excludeSky: false });
   assert.ok(FOG_SETTINGS.sandstorm.density > FOG_SETTINGS.heavy.density);
@@ -71,7 +71,8 @@ test('WEATHER2d the sky, the clouds, the wind, the grass: a tan row; a wall on t
   assert.equal(Object.keys(WEATHER_SKY).length, WEATHER_TYPES.length);
   assert.ok(weatherRow('sandstorm').cover === 0.9, 'the eased row reads it');
   assert.deepEqual(VC_PROFILE.sandstorm, { base: 0, top: 900, density: 1.00, dark: 0.35, flat: 0.95, shear: 0.05, vary: 0.00 });   // VC6a: a wall is one thing everywhere
-  assert.deepEqual(CELL_TINT, { sandstorm: [0.88, 0.72, 0.46] });
+  assert.deepEqual(CELL_TINT.sandstorm, [0.88, 0.72, 0.46]);   // PIN MOVED (ASHFALL1, 2026-10-27): the ashfall's tint beside it (test/systems/weather/ashfall1.test.js)
+  assert.deepEqual(Object.keys(CELL_TINT).sort(), ['ashfall', 'sandstorm'], 'every other word white (ASHFALL1\'s second audit: the moved pin had let a tint on any other word through)');
   const c = cellOf('sandstorm', 10, 20, 9000);
   assert.deepEqual(c.tint, CELL_TINT.sandstorm); assert.equal(c.base, 0); assert.equal(c.cover, 0.9);
   assert.equal(cellOf('thunder', 0, 0, 1).tint, undefined, 'only the word that has one');
@@ -134,7 +135,7 @@ test('WEATHER2d the field: a sandstorm seats on the desert tables\' land under a
 
 test('WEATHER2d the sand: the wisps\' program in the sand\'s look - tan, dense, short, a lower box, no floor - the front\'s intensity its strength; the look is a uniform set, the wisps\' own unchanged', () => {
   assert.deepEqual(SAND_LOOK, { color: [0.80, 0.64, 0.40], alpha: [0.28, 0.30], len: [0.8, 1.2], count: 7000, floor: 0, box: 70 });   // WISPS-RETURN: no curl - the sand's streaks were always straight
-  assert.deepEqual(WISP_LOOK, { color: [0.86, 0.89, 0.94], alpha: [0.20, 0.24], len: [1.6, 2.4], count: WISP_MAX, floor: WISP_FLOOR, box: 90 });   // WISPS-RETURN: WIND3's streak length again (WIND5's flourish 2.6, 2.0) and no curl   // DISC17-A: the alpha doubled   // WIND4: the count and the floor are the look's own constants, cut there
+  assert.deepEqual(WISP_LOOK, { color: [0.86, 0.89, 0.94], alpha: [0.09, 0.11], len: [1.2, 1.8], count: WISP_MAX, floor: WISP_FLOOR, box: 90 });   // WISPS-RETURN: WIND3's streak length again (WIND5's flourish 2.6, 2.0) and no curl   // DISC17-A: the alpha doubled   // WIND4: the count and the floor are the look's own constants, cut there
   assert.equal(wispCount(0, SAND_LOOK), 0, 'no sand without a storm'); assert.equal(wispCount(1, SAND_LOOK), 7000);
   assert.ok(wispCount(0.5, SAND_LOOK) > 0 && wispCount(0.5, SAND_LOOK) < 7000);
   assert.equal(wispCount(0), Math.round(WISP_MAX * WISP_FLOOR), 'the wisps keep their floor');
@@ -162,14 +163,16 @@ test('WEATHER2d the sand: the wisps\' program in the sand\'s look - tan, dense, 
 
 test('WEATHER2d the hosts: the sand renderer built on the enhanced lane, the sand drawn before the rain\'s branch on the front\'s intensity as a foreign pass, and the rain program never built for it', () => {
   for (const [name, s, eye] of [['world', rd('src/scenes/world.js'), 'wxEye32'], ['exterior', rd('src/scenes/exterior.js'), 'eye32']]) {   // PIN MOVED (OW-WEATHER, FIELD BUGS 2026-10-01 #9): the world host's eye is the view's (test/net/peer/fb1001_overworld.test.js)
-    assert.match(s, /const sand = sky\.enhanced \? new WindWispsRenderer\(renderer\.gl, SAND_LOOK\) : null;/, `${name}: built at boot`);
-    assert.match(s, /if \(precipMode && precipMode !== 'sand' && !precip\) precip = new PrecipitationRenderer\(renderer\.gl, precipOpts\);/, `${name}: the rain program is not the sand's`);
-    const i = s.indexOf("if (precipShown === 'sand') {");
+    // PIN MOVED (ASHFALL1, 2026-10-27): the sand's renderer is the dry falls' (render/dryFall.js DryFallRenderer - its wisps in SAND_LOOK, and the
+    // ash beside them), the branch every dry fall's, the fall handed its kind
+    assert.match(s, /const dryFall = sky\.enhanced \? new DryFallRenderer\(renderer\.gl\) : null;/, `${name}: built at boot`);
+    assert.match(s, /if \(precipMode && !isDryFall\(precipMode\) && !precip\) precip = new PrecipitationRenderer\(renderer\.gl, precipOpts\);/, `${name}: the rain program is not the sand's`);
+    const i = s.indexOf('if (isDryFall(precipShown)) {');
     assert.ok(i > 0, `${name}: the sand branch`);
-    const draw = `sand.draw({ on: true, strength01: fx.intensity, windV: wd.windV, step: wd.step, gust: wd.gust }, proj, view, ${eye}, now / 1000);`;
+    const draw = `dryFall.draw({ on: true, kind: precipShown, strength01: fx.intensity, windV: wd.windV, step: wd.step }, proj, view, ${eye}, now / 1000, renderer.worldViewportPx?.[3]);`;
     assert.ok(new RegExp(`${draw.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\n\\s+renderer\\.markForeignPass\\(\\);`).test(s.slice(i, i + 600)), `${name}: the front's intensity, the one wind, a foreign pass`);   // RAIN-OVER-GRASS: the world host's falling weather is one closure, indented once more
     assert.ok(s.slice(i, i + 800).includes('} else if (precipShown && precip) {'), `${name}: the rain's branch after it`);
-    assert.ok(s.includes("SAND_LOOK } from '../render/windWisps.js'"), `${name}: imported`);
+    assert.ok(s.includes("import { DryFallRenderer } from '../render/dryFall.js';"), `${name}: imported`);   // PIN MOVED (ASHFALL1, 2026-10-27)
   }
 });
 

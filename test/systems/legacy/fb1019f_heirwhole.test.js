@@ -32,7 +32,7 @@ import { floorLanding } from '../../../src/player/enterExit.js';
 import { hurtPlayer, setDeathListener } from '../../../src/characters/playerEntity.js';
 import { planTake, applyTransfer } from '../../../src/systems/item/itemTransfer.js';
 import { isRemainsItem } from '../../../src/systems/legacy/heirloom.js';
-import { builtDungeonSize, dungeonLocationFor, onlineDungeonSize, dungeonSizeFor, builtSizeFor } from '../../../src/world/smallerDungeons.js';
+import { builtDungeonSize, dungeonRoomSize, dungeonLocationFor, onlineDungeonSize, dungeonSizeFor, builtSizeFor } from '../../../src/world/smallerDungeons.js';
 import { createInstanceDoor, INSTANCE_TEXT, dungeonSite, siteBase } from '../../../src/scenes/instanceDoor.js';
 import { remainsWholeAt, remainsInstanceEpoch } from '../../../src/systems/instancePlaces.js';
 import { instanceRoomOf, instanceWord, instanceAdmission } from '../../../src/net/instanceRoom.js';
@@ -131,9 +131,9 @@ function worldOf(w) {
   const state = { compensation: [0, 0, 0], worldCoords: (p) => ({ x: p[0] * 40, z: p[2] * 40 }), localFromWorld: (x, z) => [x / 40, z / 40] };
   const locationIndex = new Map([[`${PIXEL.x},${PIXEL.y}`, w.at]]);
   const names = ['playerTravelPixel', 'maps', 'locationIndex', 'modes', 'walkMode', 'playerSpawned', 'player', 'cam', 'REGION_NAMES', 'state', 'heightAt', 'floorLanding', 'collider',
-    'LEGACY_REMAINS_NEAR_DUNGEON', 'LEGACY_REMAINS_NEAR', 'createRemainsStand', 'droppedLoot', 'REMAINS_FLAT', 'groundFrameHeight', 'restandHeight', 'scaleOf', 'STREAMING_TERRAIN_SCALE', 'LEGACY_TEXT', 'builtDungeonSize'];
+    'LEGACY_REMAINS_NEAR_DUNGEON', 'LEGACY_REMAINS_NEAR', 'createRemainsStand', 'droppedLoot', 'REMAINS_FLAT', 'groundFrameHeight', 'restandHeight', 'scaleOf', 'STREAMING_TERRAIN_SCALE', 'LEGACY_TEXT', 'dungeonRoomSize'];   // PIN MOVED (DELVE II, AUDIT DLV5-6 M3)
   const vals = [() => ({ ...PIXEL }), { getRegionIndexAt: () => 23 }, locationIndex, modes, true, true, { get pos() { return w.pos; } }, { pos: [0, 0, 0] }, REGION_NAMES, state, () => -Infinity, floorLanding, { raycast: () => Infinity },
-    NEAR_DUNGEON, 2400, createRemainsStand, groundPool(), REMAINS_FLAT, (y) => y, (y) => y, () => 1, 1, LEGACY_TEXT, builtDungeonSize];
+    NEAR_DUNGEON, 2400, createRemainsStand, groundPool(), REMAINS_FLAT, (y) => y, (y) => y, () => 1, 1, LEGACY_TEXT, dungeonRoomSize];
   return new Function(...names, `${HERE}\n${IN_DUNGEON}\n${AT_PLACE}\n${ANCHOR}\n${FEET}\n${STAND}\nreturn { legacyHere, legacyAtPlace, legacyRemainsStand };`)(...vals);
 }
 
@@ -231,16 +231,17 @@ test('HEIR-WHOLE the report: the fallen dies in another player\'s instance of a 
   const pub = door.d.choose(site);
   await until(() => door.shown.length > n);
   const { win } = door.shown[n];
-  assert.deepEqual(win.options.map((o) => o.label), [`1 - ${INSTANCE_TEXT.public()}`, `2 - ${INSTANCE_TEXT.mine()}`, `Esc - ${INSTANCE_TEXT.leave()}`], 'Public, or an instance of their own');
+  // PIN MOVED (FIELD BUGS 2026-10-26 QUEST-FIRST): the re-laid room stands none of the remains, so it is the LAST row
+  assert.deepEqual(win.options.map((o) => o.label), [`1 - ${INSTANCE_TEXT.mine()}`, `2 - ${INSTANCE_TEXT.public()}`, `Esc - ${INSTANCE_TEXT.leave()}`], 'an instance of their own, or Public');
   assert.deepEqual(win.lines, ['Ruins of The Hold of Coppering', INSTANCE_TEXT.line(), INSTANCE_TEXT.questPublic()], 'said before the choice: the quest\'s business is in the instance alone');
-  win.input('Digit1');
+  win.input('Digit2');
   assert.deepEqual(await pub, PUBLIC);
   assert.equal(enter(t, RUINS, PUBLIC), 0, 'the public room is laid medium - another layout: no body');
   assert.equal(builtDungeonSize(t.w.dungeonLoc), 'medium');
   assert.equal(t.world.legacyAtPlace(t.row.place), false, 'and no list opens on the very spot');
   // Your instance: the heir's account, the remains' own epoch - never Ann's room
   t.w.mode = 'exterior';
-  const mine = await take(door, site, 'Digit2');
+  const mine = await take(door, site, 'Digit1');
   const EPOCH = hex(`instance:epoch:${t.host.family.id}:r1:remains`, 4);
   assert.deepEqual(mine, { instance: { owner: HEIR, epoch: EPOCH }, whole: true });
   assert.equal(await remainsInstanceEpoch(t.host.remainsWhere()[0]), EPOCH);
@@ -267,8 +268,8 @@ test('HEIR-WHOLE the room is the remains\' while they lie: the same room every e
   const t = fallenIn(RUINS, ANN_ENTRY);
   const door = doorOf(t);
   const site = door.d.dungeonSite(RUINS);
-  const first = await take(door, site, 'Digit2');
-  assert.deepEqual(await take(door, site, 'Digit2'), first, 'one room, every entry');
+  const first = await take(door, site, 'Digit1');   // PIN MOVED (QUEST-FIRST): the instance is the first row here
+  assert.deepEqual(await take(door, site, 'Digit1'), first, 'one room, every entry');
   const word = instanceWord(first.instance);
   assert.deepEqual(await door.d.entryFor(site, { ins: word }), first, 'a save made in it: back into it');
   const shown = door.shown.length;
@@ -284,7 +285,7 @@ test('HEIR-WHOLE the room is the remains\' while they lie: the same room every e
   t.w.mode = 'exterior';
   const quested = doorOf(t);
   const q = questAt(quested.m, RUINS.mapTableData.mapId);
-  const questRoom = await take(quested, site, 'Digit2');
+  const questRoom = await take(quested, site, 'Digit1');
   assert.deepEqual(questRoom, { instance: { owner: HEIR, epoch: q.instanceEpoch }, whole: true }, 'the quest\'s own room');
   assert.notEqual(q.instanceEpoch, first.instance.epoch);
   assert.equal(enter(t, RUINS, questRoom), 1, 'and it stands her');

@@ -64,7 +64,9 @@ test('F016: the static NPC name bank is the REGION\'s, and the race path is gone
   // (WORLD-HOVER added three: the dungeon plaque's, the interior
   // plaque's and the street's. Every hover arm reads the same bank as
   // the click beside it, or the two would call one person two things.)
-  assert.ok(wm.includes('const currentNameBank = () => getNameBankOfRegion('), 'GetNameBankOfCurrentRegion');
+  // PIN MOVED (AUDIT-TESA A2-5): past the Bay the current region's bank is the province's (the host's TESA3 bank), else
+  // the region's, as ever.
+  assert.ok(wm.includes('const currentNameBank = () => host.provinceBank?.() ?? getNameBankOfRegion('), 'GetNameBankOfCurrentRegion');
 });
 
 // ── F020 ──────────────────────────────────────────────────────────
@@ -203,8 +205,11 @@ test('F097: the questor gender is read only on a Work question', () => {
   const tm = src('systems/talk/talkMacros.js');
   // E7 moved the shared read into one helper - the four pronoun
   // overrides all fork on it - but the law is unchanged: only
-  // 'female' takes the female arm, and C#'s `default:` shares Male.
-  assert.ok(tm.includes("const female = () => ctx.questorGender?.() === 'female';"),
+  // Female takes the female arm, and C#'s `default:` shares Male.
+  // QUESTOR-SHE (FIELD BUGS 2026-10-20h, PIN MOVED): Female is the
+  // Genders enum the pool's NPCData carries, not the string 'female'
+  // this pin held, which no producer mints.
+  assert.ok(tm.includes('const female = () => ctx.questorGender?.() === GENDERS.Female;'),
     'the questor-gender read is one helper');
   assert.ok(tm.includes("pronoun() { return text(female() ? 'pronounShe' : 'pronounHe'); }"),
     'anything but female is the male pronoun');

@@ -29,6 +29,7 @@ import { LETTER_OF_CREDIT_TEMPLATE } from '../../src/systems/inventory.js';
 import { SEVERE_PUNISHMENT_BANISHED, SEVERE_PUNISHMENT_EXECUTED } from '../../src/systems/encounters.js';
 import { createArrestFlow } from '../../src/scenes/arrestFlow.js';
 import { CRIMES } from '../../src/systems/court.js';
+import { hostText } from '../hostText.mjs';   // HOST-SPLIT (at the merge of main into TESA): the world host read whole
 
 const src = (p) => readFileSync(new URL(`../../src/${p}`, import.meta.url), 'utf8');
 
@@ -264,7 +265,7 @@ test('F101/F115: both fast-travel callers now supply the perk', () => {
   assert.match(src('ui/travel/travelMapWindow.js'), /freeTavernRooms: this\.deps\.freeTavernRooms,/);
   // and the host answers it with the KnightlyOrder read, the one
   // hasShip's FreeShipTravel arm already makes
-  const w = src('scenes/world.js');
+  const w = hostText('src/scenes/world.js');   // PIN MOVED (HOST-SPLIT, DRAGON5b): the host read whole - the fare bag is scenes/travelFareHost.js
   const hook = w.slice(w.indexOf('      freeTavernRooms: () => {'));
   assert.match(hook.slice(0, 800), /joinedGuildOfGroup\(activeMemberships\(playerEntity\), GUILD_GROUPS\.KnightlyOrder\)/);
   assert.match(hook.slice(0, 800), /orderRegion: townTalk\.factionDict\?\.get\(order\.factionId\)\?\.region \?\? null/,
@@ -294,7 +295,7 @@ test('F114: aboard an owned ship, travel reckons from the BOARDING pixel', () =>
 });
 
 test('F114: the host routes the travel map AND the quest clock through the origin', () => {
-  const w = src('scenes/world.js');
+  const w = hostText('src/scenes/world.js');   // PIN MOVED (HOST-SPLIT, at the merge of main into TESA): questWorld is scenes/questWorld.js's - the host read whole
   assert.match(w, /function playerTravelOrigin\(\) \{\n\s*return playerTravelPosition\(playerEntity, playerEntity\.boardShipPosition \?\? null, playerTravelPixel\(\)\);/);
   const map = w.slice(w.indexOf('function buildTravelMapWindow'));
   // MAP-POV re-aimed this from a 900-char window to the builder's own body (up to its `...extra` spread): the

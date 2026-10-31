@@ -38,8 +38,8 @@
   {
     "name": "A2-price-guns-ignored",
     "file": "src/scenes/naval/navalHost.js",
-    "old": "if (!(Number.isFinite(k) && k > 0 && k !== 1)) return;\n    if (Number.isFinite(hurt.hull)) hurt.hull *= k;",
-    "new": "if (!(Number.isFinite(k) && k > 1)) return;\n    if (Number.isFinite(hurt.hull)) hurt.hull *= k;",
+    "old": "const k = (Number.isFinite(refit) && refit > 0 ? refit : 1) * captainsDue().guns;",
+    "new": "const k = (Number.isFinite(refit) && refit > 1 ? refit : 1) * captainsDue().guns;",
     "tests": [
       "test/systems/naval/auditrefit2.test.js"
     ]
@@ -225,15 +225,6 @@
     ]
   },
   {
-    "name": "A2-foul-before-blow",
-    "file": "src/scenes/naval/navalHost.js",
-    "old": "      if (!e.owner) strike(e, { hull: dealt, sail: 0, crew: ramMen(dealt, random()) }, myId());   // AUDIT 2: her blow first - a ram that sends her down (or strikes her colours) fouls nothing, nor says so\n      if (e.ship.damage.state === SHIP_STATES.afloat && !e.ship.boarded) { foul(e.ship, myId(), clock, deps.captain?.stats?.().foul); deps.say?.(t('naval.foul.rammed', 'The ships are locked together. Board before they break free!'), 3); }\n",
-    "new": "      if (e.ship.damage.state === SHIP_STATES.afloat && !e.ship.boarded) { foul(e.ship, myId(), clock, deps.captain?.stats?.().foul); deps.say?.(t('naval.foul.rammed', 'The ships are locked together. Board before they break free!'), 3); }\n      if (!e.owner) strike(e, { hull: dealt, sail: 0, crew: ramMen(dealt, random()) }, myId());\n",
-    "tests": [
-      "test/systems/naval/auditrefit2.test.js"
-    ]
-  },
-  {
     "name": "A2-flags-uncapped",
     "file": "src/scenes/shipFlagHost.js",
     "old": "if (!boat || !flag || list.length >= FLAGS_MAX) return;",
@@ -281,8 +272,8 @@
   {
     "name": "A2-key-board-blind",
     "file": "src/systems/comeSailAway/comeSailAwayWire.js",
-    "old": "rec.d ?? null, rec.p ?? null] : rec.m",
-    "new": "rec.d ?? null] : rec.m",
+    "old": "rec.d ?? null, rec.p ?? null, rec.h ?? null] : rec.m",
+    "new": "rec.d ?? null, rec.h ?? null] : rec.m",
     "tests": [
       "test/systems/naval/auditrefit2.test.js"
     ]
@@ -290,8 +281,8 @@
   {
     "name": "A2-key-board-unkeyed",
     "file": "src/systems/comeSailAway/comeSailAwayWire.js",
-    "old": "|| rec.d || rec.p ? [",
-    "new": "|| rec.d ? [",
+    "old": "|| rec.d || rec.p || rec.h ? [",
+    "new": "|| rec.d || rec.h ? [",
     "tests": [
       "test/systems/naval/auditrefit2.test.js"
     ]

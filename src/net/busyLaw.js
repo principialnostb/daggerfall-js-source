@@ -34,7 +34,7 @@
 /** The reads that stand back while the service is overloaded - route -> its method. */
 export const BUSY_READS = new Map([
   ['/v1/homes/town', 'POST'],       // a town's homes - the busiest route of the 2026-10-13 hour (88,079 asks)
-  ['/v1/homes/yards', 'POST'],      // a town's yards
+  ['/v1/homes/yards/cells', 'POST'], // a town's yard cells
   ['/v1/homes/layouts', 'POST'],    // every town's kept layout
   ['/v1/homes/mine', 'POST'],       // the caller's own homes
   ['/v1/homes/rooms', 'POST'],      // a home's rooms
@@ -51,6 +51,7 @@ export const BUSY_READS = new Map([
   ['/v1/prof/motherlodes', 'POST'], // BUSY-HEART: the day's three, and its pick
   ['/v1/towns/econ', 'POST'],       // AUDIT TOWN-ECON 2 CLI-8: the towns' shares - a display read every page asks each keeping
   ['/v1/festival/town', 'POST'],    // WITCH1: a town's Hearth Offerings, asked a minute while the festival is live (scenes/witchesHost.js)
+  ['/v1/hunt/state', 'POST'],       // HUNT-LEAN: a character's hunt, asked on the hunt book's clock (net/huntBook.js)
 ]);
 
 /** Whether a call is one of the reads that stand back. */

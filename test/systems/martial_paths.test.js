@@ -16,6 +16,7 @@ import * as MP from '../../src/systems/martialPaths.js';
 import * as POW from '../../src/systems/martialPowers.js';
 import * as WM from '../../src/systems/weaponMastery.js';
 import * as AP from '../../src/systems/arcanePaths.js';
+import { mentorProfile } from '../../src/systems/mentorMode.js';   // MENTOR2: the profile the producer mints
 import { createCharacter } from '../../src/systems/chargen.js';
 import { buildCustomCareer } from '../../src/systems/customClass.js';
 import { masterSkill, setMasterSkills } from '../../src/systems/masterSkills.js';
@@ -31,7 +32,7 @@ import { snapshotPlayer, restorePlayer } from '../../src/systems/save/save.js';
 import { maxFatigue, liveStat } from '../../src/systems/statMods.js';
 import { setPref } from '../../src/systems/uiPrefs.js';
 import { LOOT_RARITY_KEY, validAffix } from '../../src/systems/loot/lootRarity.js';
-import { techniqueInHand, refusal, stepTechnique, techniqueWait, techniqueHudChips, LADDER_OFF_TEXT, _resetTechniquesForTests } from '../../src/combat/techniques.js';
+import { techniqueInHand, refusal, stepTechnique, techniqueWait, techniqueHudChips, LADDER_OFF_TEXT, _resetTechniquesForTests, handOfKey, noSignatureText, BEAST_TEXT, SIGNATURE_ACTION } from '../../src/combat/techniques.js';
 import { TECHNIQUES, TECHNIQUE_FAMILIES, techniqueFamily, techniquesFor, GAUNTLETS_TEMPLATE } from '../../src/combat/technique/techniqueRoster.js';
 import { tellTechniqueLanded, tellTechniqueUsed } from '../../src/combat/technique/techniqueBlow.js';
 import { PlayerWeapon } from '../../src/combat/playerWeapon.js';
@@ -168,9 +169,10 @@ test('MARTIAL1 THE CHOICE: two weapon skills mastered open their path; the choic
   assert.equal(MP.chooseMartialPath(p, 'ranger').ok, false, 'chosen once');
   assert.deepEqual(MP.martialChoices(p), [], 'nothing more to choose');
   assert.equal(MP.martialHeld(p)?.id, 'ranger'); assert.equal(MP.martialAwake(p)?.id, 'ranger');
-  p._mentor = { level: 5 };
+  p._mentor = mentorProfile(p, [5]);
+  assert.ok(p._mentor, 'a level 20 beside a level 5: mentoring');
   assert.equal(MP.martialHeld(p)?.id, 'ranger', 'mentoring, held');
-  assert.equal(MP.martialAwake(p), null, 'mentoring, asleep');
+  assert.equal(MP.martialAwake(p)?.id, 'ranger', 'MENTOR2: mentoring, awake - its numbers at the mentor\'s share (martialPowers.js)');
   p._mentor = null;
   assert.equal(MP.martialHeld({ ...p, peer: 'x' }), null, 'never a peer\'s stand-in');
   const off = fighter([LB, AR]);
@@ -298,7 +300,13 @@ test('MARTIAL2 THE WEAPON PAST 100: online, each effective point of the climb - 
     lb.skills[LB] = 200;
     assert.equal(blow100(lsw, lb, { ...foe(), isPlayer: true }), 100, 'never at a player');
     assert.equal(blow100(lsw, lb, foe({ warded: true })), 100, 'nor the Warden\'s ward');
-    lb._mentor = { level: 3 }; assert.equal(blow100(lsw, lb, foe()), 100, 'mentoring'); lb._mentor = null;
+    // MENTOR2: mentoring pays the MENTORED climb - none beside a level 5 (Long Blade mentored under 100), some beside a level 20
+    lb._mentor = mentorProfile(lb, [5]); assert.equal(blow100(lsw, lb, foe()), 100, 'mentoring a level-5 group: no climb'); lb._mentor = null;
+    WM._resetWeaponMasteryForTests();
+    lb.level = 30; lb._mentor = mentorProfile(lb, [20]);
+    const mid = blow100(lsw, lb, foe());
+    assert.ok(mid > 100 && mid < 140, `mentoring a level-20 group: the mentored climb (${mid})`);
+    lb._mentor = null; lb.level = 20; WM._resetWeaponMasteryForTests();
     lb.isInBeastForm = true; assert.equal(blow100(lsw, lb, foe()), 100, 'the beast'); lb.isInBeastForm = false;
     setSigilDueling(true); try { assert.equal(blow100(lsw, lb, foe()), 100, 'a refereed fight'); } finally { setSigilDueling(false); }
     assert.equal(blow100(lsw, { ...lb, peer: 'x' }, foe()), 100, 'a peer\'s stand-in');
@@ -473,11 +481,13 @@ test('MARTIAL4 THE PASSIVES: each through its own seam, on both sides of its lin
   const br = pathFighter('brawler'); br.health = 100; br.fatigue = 0;
   POW.martialRound(br);
   assert.equal(br.health, 102); assert.equal(br.fatigue, Math.round(maxFatigue(br) * 0.02));
-  // asleep: a duel, mentoring, the beast
+  // asleep: a duel, the beast - MENTOR2: mentoring, at the mentor's share
   reset();
   const cz = pathFighter('cutthroat');
   setSigilDueling(true); try { assert.equal(blow100(w, cz, foe(), { unaware: true }), 100); } finally { setSigilDueling(false); }
-  cz._mentor = { level: 2 }; assert.equal(blow100(w, cz, foe(), { unaware: true }), 100); cz._mentor = null;
+  cz._mentor = mentorProfile(cz, [2]);
+  assert.equal(blow100(w, cz, foe(), { unaware: true }), 100 + Math.floor(MP.MARTIAL_NUMBERS.cheapShot.pct * cz._mentor.powerScale), 'Cheap Shot at the mentor\'s share');
+  cz._mentor = null; reset();
   cz.isInBeastForm = true; assert.equal(blow100(w, cz, foe(), { unaware: true }), 100);
 });
 
@@ -610,7 +620,49 @@ test('MARTIAL THE SEAMS: every host\'s rig registers the powers; the one ask, th
   // BAL10: both mods' arms hand the swing reader's word on, and the sheet's estimate reads the fists' modifiers as the cores do
   assert.match(src('src/systems/roleplayRealismItems/rriKits.js'), /shortBlade: !melee && techniqueFamily\(weapon\) === 'shortBlade',/);
   assert.match(src('src/systems/roleplayRealism/rrInstall.js'), /weight, shortBlade: !!w\?\.shortBlade \}\);/);
-  assert.match(src('src/combat/combatStats.js'), /return entity\.isInBeastForm \? d : weaponBlowMods\(null, d, entity, foe, ESTIMATE\);/);   // PIN MOVED (AUDIT MARTIAL L2 F7): the estimate's own word
+  assert.match(src('src/combat/combatStats.js'), /return entity\.isInBeastForm \? d : weaponBlowMods\(null, d, entity, foe, wraps \? \{ \.\.\.ESTIMATE, wraps \} : ESTIMATE\);/);   // PIN MOVED (HAND-WRAPS): the estimate carries the Hand Wraps; PIN MOVED (AUDIT MARTIAL L2 F7): the estimate's own word
+});
+
+test('TECH-KEY2 THE SIGNATURE KEY (Mac, 2026-10-30, forwarding #feature-feedback: "access to both your specialization technique and your weapons technique"): the second key answers the held path\'s signature whatever line the weapon carries, the first key the line; each its own clock; with no path, said; the claws refused; the HUD shows both chips (mutants: the second key reads the line; its press never stepped; its refusal unsaid; one chip)', () => {
+  reset();
+  const ranger = pathFighter('ranger');
+  ranger.fatigue = maxFatigue(ranger);
+  const lined = weapon(WEAPONS.Longsword, { affixes: [{ id: 'technique', param: 'whirlwind', value: 20 }] });
+  assert.equal(handOfKey(1, ranger, { weapon: lined })?.id, 'whirlwind', 'the technique key: the line');
+  assert.equal(handOfKey(2, ranger, { weapon: lined })?.id, 'huntersPounce', 'the signature key: the path\'s form, past the line');
+  const said = [];
+  const ctx = (h1, h2) => ({ ...press(ranger, lined, { held: h1 }), held2: h2, say: (l) => said.push(l), startSwing: () => true });
+  stepTechnique(1 / 60, ctx(false, false));
+  stepTechnique(1 / 60, ctx(true, false));
+  assert.equal(techniqueWait('whirlwind'), 10, 'the first key: the line\'s Whirlwind');
+  assert.equal(techniqueWait('huntersPounce'), 0);
+  stepTechnique(1 / 60, ctx(false, false));
+  // the pounce aims (a leap) and goes on the release; this press has no motor, so it is refused there - but it was the signature asked
+  stepTechnique(1 / 60, ctx(false, true));
+  stepTechnique(1 / 60, ctx(false, false));
+  assert.deepEqual(said, ['Not here.'], 'the second key asked the pounce, which needs a motor this press has none of');
+  // a swing form goes on the press: the Crusader's mace, its line a Skull Crack
+  reset();
+  const cr = pathFighter('crusader'); cr.fatigue = maxFatigue(cr);
+  const mace = weapon(WEAPONS.Mace, { affixes: [{ id: 'technique', param: 'crush', value: 20 }] });
+  const c2 = (h1, h2) => ({ ...press(cr, mace, { held: h1 }), held2: h2 });
+  stepTechnique(1 / 60, c2(false, false));
+  stepTechnique(1 / 60, c2(false, true));
+  assert.equal(techniqueWait('hallowedStrike'), 12, 'the second key: the path\'s form');
+  assert.equal(techniqueWait('crush'), 0, 'the line\'s clock untouched');
+  // the HUD: both chips, each its own key's word
+  const chips = techniqueHudChips(cr, { weapon: mace }, (a) => (a === 'WeaponTechnique' ? 'M3' : a === 'SignatureTechnique' ? 'G' : ''));
+  assert.deepEqual(chips.map((c) => [c.key, c.name, c.text, c.state]), [['technique', 'Skull Crack', 'M3', 'active'], ['technique2', 'Hallowed Strike', '12s', 'recovering']]);
+  assert.equal(techniqueHudChips(cr, { weapon: weapon(WEAPONS.Mace) }, 'X').length, 1, 'no line: the signature is the technique key\'s, one chip');
+  // no path held, or the claws: said, nothing paid
+  reset();
+  const none = fighter([]); none.fatigue = maxFatigue(none);
+  const n = []; const before = none.fatigue;
+  stepTechnique(1 / 60, { ...press(none, lined, { held: false }), held2: true, say: (l) => n.push(l) });
+  assert.deepEqual(n, [noSignatureText()]);
+  assert.equal(none.fatigue, before);
+  assert.equal(refusal(null, { pw: { weapon: { werecreatureClaws: true } } }, 2), BEAST_TEXT, 'the beast knows no technique on either key');
+  assert.equal(SIGNATURE_ACTION, 'SignatureTechnique');
 });
 
 // AUDIT MARTIAL L5 L2: every hook back at its rest when the file ends, whatever a test left

@@ -41,7 +41,10 @@ this is the port's own (Port-Ledger section A, LOAD1), drawn ONLY under the enha
     until then the screen names nothing (never the place being LEFT; `loadingPlaceOf`). The abyss wears its own name
     over the pixel it borrows; the party landing's wait is said on the screen, over the chat line that says it. The
     loop that raised the hold being claimed by another (`scenes/shared.js` `claimFrame`) lets it go - no frame of the
-    old loop will ever end it.
+    old loop will ever end it. A building's door is the exception the frame names itself (`syncInteriorLoad`, asked
+    before the hold ends): while that load is up the screen steps aside and a ring over the hotbar is the only mark
+    (`ui/interiorLoadMark.js`), so the street stays visible, and a door that finishes leaves the screen hidden through
+    its fade. A dungeon's door still raises the screen.
   - ASIDE, NEVER OVER (AUDIT LOAD1 2, 6). A full-screen video (`holdFrame` - an infection dream can play on a fast
     travel's arrival, the travel's screen still up) and a WINDOW (the frame asks every frame: `townTalk.overlayActive`
     or the mode's own window - a pause, a level-up box; the boot's chargen says so itself, shown mid-boot before any
@@ -50,7 +53,8 @@ this is the port's own (Port-Ledger section A, LOAD1), drawn ONLY under the enha
     before its fade.
 - `scenes/worldModes.js` - **WIRED THROUGH ITS HOST**: its building and dungeon doors (`gatedTransition`,
   `interiorTransition`, `dungeonTransition`, `startInDungeon`, `restoreInterior`) raise `transitioning`, which the world
-  frame reads. The module carries no call of its own - its builds are the host's question.
+  frame reads. A building's door also raises the ring (`markInteriorLoad` as the transition starts, and lowers it in
+  the same `finally` that lowers `transitioning`). The module's other builds stay the host's question.
 - `scenes/dungeonContext.js` - **NOTHING TO WIRE**: its own quickload restores in place synchronously (no frame passes
   to cover), and a load from another place is handed to world.js's `worldQuickLoad` (`_loading`), which the frame
   covers.
@@ -167,3 +171,18 @@ inside. The source sweep checks that every `renderer.resolveFrame();` in the hos
 with only notes and SS1's save shot between; that the cap's held line never pays; that `ui/screenshot.js` takes
 no frame callback of its own; and that neither modal host has a foot of its own. The mutants are in
 `tools/mutants/shot1.json`: 12, all dead.
+
+## SHADER-EASE GFX-BAR and FIX-STUTTER (2026-10-29)
+
+The owner: in Chrome the game froze for 30-60 s in the world after each update, while shaders compiled.
+
+**GFX-BAR.** A "Preparing graphics" bar at the foot of either boot menu (`main.js` raises it, `ui/gfxPrepBar.js` draws
+it) fills as the programs started at page load report done. It reads
+`glProgram.js:"export const startedPrograms = (gl) =>"`, never `startPrograms`' `ready()`, which starts again a program
+a build took; a taken program counts as done. Full, it says "Graphics ready" and holds while the menu stands.
+GFX-ALWAYS (the owner: "dont see shader bar"): a warm cache, or a build done during the intro, shows ready at once.
+No KHR_parallel_shader_compile shows no bar. It never holds Play.
+
+**FIX-STUTTER.** A page cannot clear the browser's shader cache. A Chromium tab gets a Fix stutter button whose panel
+gives the Windows and Mac folders to delete, each path with Copy. The desktop app clears its own (CACHE-TURN). Pins:
+`test/ui/gfxprepbar.test.js`. Mutants: `tools/mutants/shader_bar.json`, 21, all dead; `gfx_always.json`, 4, all dead.

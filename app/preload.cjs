@@ -22,9 +22,14 @@
 const { contextBridge, ipcRenderer } = require('electron');
 const path = require('node:path');
 const { createFileStorage } = require('./lib/fileStorage.cjs');
+const { webgl2Report } = require('./lib/graphicsBackend.cjs');
 
 const root = ipcRenderer.sendSync('dagger:user-data-path');
 const store = createFileStorage(root);
+
+// GPU-BACKEND: on a launch that took a graphics backend's switches, this page's own WebGL2 context, made before any game
+// script and told to the shell's guard (app/lib/graphicsBackend.cjs webgl2Report, watchBackend pageReport)
+if (ipcRenderer.sendSync('dagger:backend-probe') === true) ipcRenderer.send('dagger:backend-webgl2', webgl2Report(document));
 
 // DA8: an update that arrived while the game runs (app/main.cjs tellGame).
 // Heard HERE, before any game script, and kept - the page subscribes from
@@ -55,8 +60,14 @@ contextBridge.exposeInMainWorld('daggerShell', {
   },
   // MOD-DIAG1: asynchronous, best-effort event transport. The main process validates the sender and the record.
   diagnostics: { write: (record) => { try { ipcRenderer.send('dagger:diagnostic', record); } catch { /* diagnostics must not break the game */ } } },
+  // UPDATE-RESTART: the update screen's end in the app - the update the shell holds is put in place and the app reopens
+  // on it (app/main.cjs restartForUpdate); a reload would play this copy again
+  restartForUpdate: () => ipcRenderer.send('dagger:restart-for-update'),
   // FPS-VSYNC (AUDIT 28e): this launch lifted Chromium's wait (VSync off when it started) - the page paces its frames
   framesLifted: ipcRenderer.sendSync('dagger:frames-lifted') === true,
+  // GPU-TRAIL (src/render/gpuTrail.js): the GPU's last samples, handed over with each one - kept by the shell and written
+  // to crash.log when a process stops. Not sync: the renderer never waits on it.
+  gpuTrail: (trail) => ipcRenderer.send('dagger:gpu-trail', trail),
   storage: {
     length: () => store.length(),
     key: (i) => store.key(i),

@@ -61,10 +61,12 @@ function enhancedMerchantRepairOverlay(hooks) {
           { label: 'Repair item', onClick: () => { close(); hooks.onRepair?.(); } },
           { label: 'Talk', onClick: () => { close(); hooks.onTalk?.(); } },
           { label: 'Sell', onClick: () => { close(); hooks.onSell?.(); } },
+          ...(hooks.wardrobe ? [{ label: hooks.wardrobe.label, icon: 'clothing', onClick: () => { close(); hooks.wardrobe.onOpen?.(); } }] : []),   // APPEARANCES: the Wardrobe, at a tailor's and the smiths'
           ...(hooks.portal ? [{ label: hooks.portal.label, onClick: () => { close(); hooks.portal.onBuy?.(); } }] : []),   // PORTAL1: the Portal Stone, for shards
           { label: 'Exit', onClick: close },
         ],
         onExit: close,
+        owner: overlay,   // COVERED-KEYS: the window the panel's keys are gated on (ui/windowStack.js listenWindowKeys)
       });
     },
     alive: () => !fired, host, onDismiss: () => { host.remove(); fired = true; }, label: 'merchant-repair',

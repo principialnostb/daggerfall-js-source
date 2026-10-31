@@ -22,6 +22,7 @@ import { preloadTalkArt } from '../../src/ui/native/nativeTalk.js';
 import { BUILDING_TYPES } from '../../src/world/buildingNames.js';
 import { TownPopulation } from '../../src/systems/town/townPopulation.js';
 import { GENDERS, fullName, BANK_TYPES } from '../../src/characters/nameHelper.js';
+import { personName } from '../../src/characters/personNames.js';
 import { snapshotPlayer, restorePlayer } from '../../src/systems/save/save.js';
 import { legalRepOf, CRIMES, TEXT_FOUND_GUILTY } from '../../src/systems/court.js';
 
@@ -205,17 +206,20 @@ test('audit18 social F5: the townsperson carries their own minted name', async (
   srand(7);
   pop._randomiseNPC(person);
   assert.equal(person.gender, GENDERS.Female, 'rand 0.5 -> Range(0,2) == 1 -> female');
-  assert.equal(person.nameNPC, 'Belladabyth Hawksly');
+  // REGION-NAMES: PIN MOVED - NameHelper.FullName's draw beneath (its female sets), the walker named off it
   srand(7);
-  assert.equal(person.nameNPC, fullName(BANK_TYPES.Breton, GENDERS.Female), 'NameHelper.FullName, female sets');
+  assert.equal(fullName(BANK_TYPES.Breton, GENDERS.Female), 'Belladabyth Hawksly', 'NameHelper.FullName, female sets');
+  srand(7);
+  assert.equal(person.nameNPC, personName(BANK_TYPES.Breton, GENDERS.Female, { race: 'Breton' }));
   const guardPool = new TownPopulation(null, { totalBlocks: 16, race: 'Breton', makePerson: () => null, rand: seq(0) });
   const guard = { setIdentity() {} };
   srand(7);
   guardPool._randomiseNPC(guard);
   assert.equal(guard.gender, GENDERS.Male, 'the guard arm is male (MobilePersonNPC.cs:147)');
-  assert.equal(guard.nameNPC, 'Uthyrick Hawksly');
   srand(7);
-  assert.equal(guard.nameNPC, fullName(BANK_TYPES.Breton, GENDERS.Male), 'NameHelper.FullName, male sets');
+  assert.equal(fullName(BANK_TYPES.Breton, GENDERS.Male), 'Uthyrick Hawksly', 'NameHelper.FullName, male sets');
+  srand(7);
+  assert.equal(guard.nameNPC, personName(BANK_TYPES.Breton, GENDERS.Male, { race: 'Breton' }));
   assert.notEqual(guard.nameNPC, person.nameNPC, 'the gender really routes into the bank');
 
   // The name plate and %n both read THAT name, not the faction record.
@@ -225,8 +229,8 @@ test('audit18 social F5: the townsperson carries their own minted name', async (
   const walker = { pos: [0, 0, 5], nameNPC: person.nameNPC };
   const hooks = await talkTo(tt, walker);
   assert.equal(tt._debug().people, 'People of Daggerfall', 'the People faction is still the reaction source');
-  assert.equal(hooks.npcName, 'Belladabyth Hawksly');
-  assert.equal(tt._debug().npcName, 'Belladabyth Hawksly');
+  assert.equal(hooks.npcName, person.nameNPC);
+  assert.equal(tt._debug().npcName, person.nameNPC);
   assert.equal(hooks.question(building),
     'How do you do, Belladabyth Hawksly. Do you know where The Unfortunate Priest is?');
   sayGoodbye(tt);
@@ -516,6 +520,10 @@ test('AUDIT 21 F8: a sentence moves the world clock, and every release costs fou
     assert.equal(repDuringSkip, ordered.playerEntity.legalRep[17],
       'the sentence is CREDITED BEFORE the days elapse, not after');
     assert.notEqual(repDuringSkip, 0, 'and the credit is non-zero, so the check is not vacuous');
+    // FIELD BUGS 2026-10-21d: the non-zero read let ARENA2-TRIAGE-4 (the credit cut) live, on main too - Murder's 20
+    // charged reads -20 with no credit, and -15 with SENTENCE-MENDS' step alone. REP2's 10 back reads -10, the watch's
+    // line, where that step moves nothing: a literal, so it is the credit that is read and not the step.
+    assert.equal(repDuringSkip, -10, 'Murder\'s 20 charged and REP2\'s 10 credited before the skip, not SENTENCE-MENDS\' step alone');
 
     // (e) an EXPLICIT host hook is still honoured over the default
     setWorldMinutes(0);

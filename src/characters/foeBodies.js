@@ -13,6 +13,7 @@ import { EQUIP_SLOTS, equipTableOf } from '../systems/equip.js';
 import { creatureLook } from './creatureBodies.js';   // MWNPC9: a creature foe's look, its Morrowind creature
 import { ARMOR_ENUM, WEAPONS_ENUM, equipmentVariantFor } from '../combat/enemyEquipment.js'; import { ARMOR_MATERIAL } from '../systems/armorMaterials.js'; import { MOBILE_TYPES } from './mobile/mobileTypes.js';   // MWNPC10: a roster's people, armoured and armed by their class
 import { npcHint } from './wardrobe.js';   // MWNPC17: the man under the kit his own - his head, his hair, the clothes' records
+import { folkHere, folkWhere, folkRace, folkOfKey, FOLK_RACE_KEYS } from './provinceFolk.js';   // PROVINCE-FOLK: past the Bay a foe is one of the province's people
 import { isClassEnemyId, isClassicEnemyId } from './enemy/enemyBasics.js';   // DEX1: DFU's class test (DaggerfallEntity.IsClassEnemyId) - a mod's monster past 255 is no class; DEX7: a mod's person row names its own mobile
 
 /** The Iliac Bay's people, weighted - the races a class foe is drawn as (Daggerfall's own spelling, the look's). The
@@ -71,20 +72,43 @@ export function foeSeed(f) {
  *  (scenes/crewAshore.js stamps `person` on every body it stands - a crew hand his own, a sworn revenant its record's),
  *  and a revenant come back for the player (its record's `person` on its stamp - systems/revenant/revenant.js revenantPerson,
  *  minted off the body it was born in), so the one that kneels is the one that follows. It is the seed: every machine
- *  reads it off the wire (`ls`) as a foe's own, so the room sees the same man. Null: a foe of the place, drawn off where
- *  it stood. @param {any} f */
+ *  reads it off the wire (`ls`); past the Bay a copy's race is drawn where it stands (AUDIT PROVINCE-FOLK B3). Null: a
+ *  foe of the place, drawn off where it stood. @param {any} f */
 export function ownPerson(f) {
   const p = f?.person ?? f?.entity?.revenant?.person;
   return Number.isInteger(p) && p >= 0 && p <= 0xffffffff ? p : null;
 }
 const pick = (list, h) => list[h % list.length];
 
-/** MWNPC10: the person a seed draws - a race of the Bay's by its weight and a face - one home for the foe's look and
- *  the roster's (rosterLook). */
-function bayPerson(h) {
+/** MWNPC10: the person a seed draws - a race and a face - one home for the foe's look and the roster's (rosterLook).
+ *  PROVINCE-FOLK: `people` past the Bay (characters/provinceFolk.js), else the Bay's weights. */
+function bayPerson(h, people = null) {
   let r = mix(h ^ 0x51ed27) % RACE_TOTAL, race = FOE_RACES[0][0];
   for (const [name, w] of FOE_RACES) { if (r < w) { race = name; break; } r -= w; }
-  return { race, faceIndex: mix(h ^ 0xfa) % 10 };
+  return { race: folkRace(people, h) ?? race, faceIndex: mix(h ^ 0xfa) % 10 };
+}
+/** AUDIT PROVINCE-FOLK A1: the race a person of their own was born in (a revenant's record keeps it - revenant.js
+ *  `race`), or null: theirs is then the Bay's draw on their seed, wherever they stand. @param {any} f */
+export const ownRace = (f) => {
+  const r = f?.folk ?? f?.entity?.revenant?.race;
+  return typeof r === 'string' && FOLK_RACE_KEYS.includes(r) ? r : null;
+};
+/** AUDIT PROVINCE-FOLK A5: a foe of the place's race, drawn once a seed where it stands (provinceFolk.js folkWhere: the
+ *  pixel under its feet), so every machine that sees it stands the same people and a new kit never re-races it.
+ *  @param {any} f @param {number} h */
+function placeRace(f, h) {
+  if (f._mwRaceSeed !== h) { f._mwRaceSeed = h; f._mwRace = bayPerson(h, folkWhere(f.ai?.feet ?? null)).race; }
+  return f._mwRace;
+}
+/** A person foe's race off seed `h`: one of their own as they were born (else the Bay's draw), one of the place where
+ *  it stands. @param {any} f @param {number} h @param {string} bay the Bay's draw on `h` */
+const personRace = (f, h, bay) => (ownPerson(f) != null ? ownRace(f) ?? bay : placeRace(f, h));
+/** AUDIT PROVINCE-FOLK A1: the race a person foe's body is drawn in now (foeLook's), for a revenant to be born in - one
+ *  of the peoples past the Bay, else null. @param {any} f */
+export function bodyRaceOf(f) {
+  if (!isPersonFoe(f) || ORC_MOBILES.has(f.mobileType) || modRace(f.mobileType)) return null;
+  const h = foeSeed(f), r = personRace(f, h, bayPerson(h).race);
+  return FOLK_RACE_KEYS.includes(r) ? r : null;
 }
 /** MWNPC10: the clothes under what `items` already holds - a shirt, legs and shoes for each slot nothing fills, dyed
  *  off the seed (the reference's slot law: the armour shows, the clothes are under it). */
@@ -172,11 +196,13 @@ export function foeLook(f) {
   }
   f._mwLookSlots = slots.slice();
   const worn = f._mwWire === 'kit' ? f._mwWornWire : composeLook(e, { eotbSet: null }).items;
-  const wornKey = worn.map((it) => `${it.equipSlot}:${it.templateIndex}:${it.material ?? ''}:${it.dye ?? ''}`).join('|');
+  // APPEARANCES-II: a piece's style and the look it wears are the body too - a piece swapped for its twin in another
+  // look (a sworn one's gift, net/remotePlayers.js composeLook's `ap`) kept the old body
+  const wornKey = worn.map((it) => `${it.equipSlot}:${it.templateIndex}:${it.material ?? ''}:${it.dye ?? ''}:${it.variant ?? ''}:${it.ap ?? ''}`).join('|');
   if (f._mwLook && f._mwLookKey === wornKey && f._mwLookSeed === h) return f._mwLook;
   f._mwLookSeed = h;
   const bay = bayPerson(h), faceIndex = bay.faceIndex;
-  const race = ORC_MOBILES.has(f.mobileType) ? 'Orc' : modRace(f.mobileType) ?? bay.race;   // MWNPC12: an orc in Morrowind's Orc body; DEX7: a mod's person in its row's race
+  const race = ORC_MOBILES.has(f.mobileType) ? 'Orc' : modRace(f.mobileType) ?? personRace(f, h, bay.race);   // MWNPC12: an orc in Morrowind's Orc body; DEX7: a mod's person in its row's race
   const gender = f.gender === 'female' ? 'female' : 'male';
   f._mwLookKey = wornKey;
   return (f._mwLook = { race, gender, faceIndex, items: clothesUnder([...worn], FOE_WARDROBE[gender], h), npc: npcHint(h, 0), ...(VAMPIRE_MOBILES.has(f.mobileType) ? { vampire: true } : {}), ...(f.mobileType === WOLF_MOBILE ? { wolf: true } : {}) });   // MWNPC14: a vampire's face; MWNPC15: a werewolf's beast; MWNPC17: the seed every machine shares, so the copy is the same man
@@ -185,59 +211,77 @@ export function foeLook(f) {
 /** AUDIT MW-NPC II K2: a worn piece on the wire - [equipSlot, group (LOOK_GROUPS' index), templateIndex, material, dye,
  *  variant], -1 where the piece has none (net/wire.js validFoeRecord `lw`). */
 const WORN_FIELDS = Object.freeze(['material', 'dye', 'variant']);
-/** @param {any[]} items @returns {number[][]} */
-function encodeWorn(items) {
-  const out = [];
+/**
+ * THE KIT ON THE WIRE: its pieces (`lw`) and - APPEARANCES-II - the looks they wear (`la`, a piece's index in `lw` and its
+ * look's [t, m, v]), as a player's look item carries `ap`. OMITTED when no piece wears one, so a kit without one keeps
+ * its bytes; a field of its own, so a reader from before it drops `la` and stands the pieces in their own looks, where a
+ * longer piece would have refused the whole record.
+ * @param {any[]} items @returns {{ lw: number[][], la: number[][] | null }}
+ */
+function encodeKit(items) {
+  const lw = [], la = [];
   for (const it of items) {
     const g = LOOK_GROUPS.indexOf(it.group);
     if (g < 0 || !Number.isInteger(it.templateIndex) || !Number.isInteger(it.equipSlot)) continue;
-    out.push([it.equipSlot, g, it.templateIndex, ...WORN_FIELDS.map((k) => (Number.isInteger(it[k]) ? it[k] : -1))]);
+    if (Array.isArray(it.ap)) la.push([lw.length, ...it.ap]);
+    lw.push([it.equipSlot, g, it.templateIndex, ...WORN_FIELDS.map((k) => (Number.isInteger(it[k]) ? it[k] : -1))]);
   }
-  return out;
+  return { lw, la: la.length ? la : null };
 }
-/** The pieces a record's `lw` names, as a look's items. @param {number[][]} lw */
-export function decodeWorn(lw) {
-  return lw.map(([equipSlot, g, templateIndex, ...rest]) => {
+/** The pieces a record's `lw` names, as a look's items - each wearing its look from `la` as `ap`, which every renderer
+ *  draws through net/appearanceLaw.js drawnPiece (net/remotePlayers.js peerStubEntity). @param {number[][]} lw @param {number[][]|null} [la] */
+export function decodeWorn(lw, la = null) {
+  const items = lw.map(([equipSlot, g, templateIndex, ...rest]) => {
     const it = /** @type {any} */ ({ templateIndex, group: LOOK_GROUPS[g], equipSlot });
     WORN_FIELDS.forEach((k, i) => { if (rest[i] >= 0) it[k] = rest[i]; });
     return it;
   });
+  for (const [i, t, m, v] of la ?? []) if (items[i]) items[i].ap = [t, m, v];
+  return items;
 }
+/** APPEARANCES-II: a record's kit as it rides - `{ lw }`, `{ lw, la }` with a look worn, or null with no kit. */
+export const kitWire = (/** @type {{ lw?: number[][], la?: number[][] | null }} */ r) => (Array.isArray(r?.lw) ? (r.la ? { lw: r.lw, la: r.la } : { lw: r.lw }) : null);
+const kitKey = (/** @type {number[][]} */ lw, /** @type {number[][]|null|undefined} */ la) => `${lw.map((w) => w.join(',')).join(';')}${la ? `|${la.map((w) => w.join(',')).join(';')}` : ''}`;
 /**
  * AUDIT MW-NPC II K2-K4: WHAT THE OWNER STREAMS OF ITS FOE'S LOOK - its seed (`ls`, foeSeed) and, a person's, the kit it
- * wears (`lw`: the owner's equip table - or, a copy it adopted, the kit its first owner streamed, which it still wears).
- * `key` changes only when either does; kept on the foe, so a frame that changes nothing composes nothing.
- * @param {any} f @returns {{ seed: number, worn: number[][]|null, key: string }}
+ * wears (`lw`: the owner's equip table - or, a copy it adopted, the kit its first owner streamed, which it still wears),
+ * APPEARANCES-II: with the looks its pieces wear (`la`; `kit` the two as a record carries them). `key` changes only when
+ * one does; kept on the foe, so a frame that changes nothing composes nothing. A worn piece's look changes only off its
+ * slot (the Wardrobe dresses the player's own), so the slots' identity is still the whole question.
+ * @param {any} f @returns {{ seed: number, worn: number[][]|null, looks: number[][]|null, kit: { lw: number[][], la?: number[][] }|null, key: string }}
  */
 export function foeWireLook(f) {
   const seed = foeSeed(f);
-  let worn = null;
+  let worn = null, looks = null;
   if (isPersonFoe(f)) {
-    if (f._mwWornWireRaw) worn = f._mwWornWireRaw;
+    if (f._mwWornWireRaw) { worn = f._mwWornWireRaw; looks = f._mwWornWireLooks ?? null; }
     else {
       const slots = equipTableOf(f.entity), held = f._mwWireSlots;
       let same = !!held && held.length === slots.length;
       if (same) for (let i = 0; i < slots.length; i++) if (slots[i] !== held[i]) { same = false; break; }
-      if (!same) { f._mwWireSlots = slots.slice(); f._mwWireWorn = encodeWorn(composeLook(f.entity, { eotbSet: null }).items); f._mwWireKey = null; }
-      worn = f._mwWireWorn;
+      if (!same) { const kit = encodeKit(composeLook(f.entity, { eotbSet: null }).items); f._mwWireSlots = slots.slice(); f._mwWireWorn = kit.lw; f._mwWireLooks = kit.la; f._mwWireKey = null; }
+      worn = f._mwWireWorn; looks = f._mwWireLooks ?? null;
     }
   }
-  if (f._mwWireKey == null || f._mwWireKeySeed !== seed || f._mwWireKeyWorn !== worn) {
-    f._mwWireKeySeed = seed; f._mwWireKeyWorn = worn;
-    f._mwWireKey = `${seed}|${worn ? worn.map((w) => w.join(',')).join(';') : ''}`;
+  if (f._mwWireKey == null || f._mwWireKeySeed !== seed || f._mwWireKeyWorn !== worn || f._mwWireKeyLooks !== looks) {
+    f._mwWireKeySeed = seed; f._mwWireKeyWorn = worn; f._mwWireKeyLooks = looks;
+    f._mwWireKey = `${seed}|${worn ? kitKey(worn, looks) : ''}`;
+    f._mwWireKit = kitWire({ lw: worn ?? undefined, la: looks });
   }
-  return { seed, worn, key: f._mwWireKey };
+  return { seed, worn, looks, kit: f._mwWireKit, key: f._mwWireKey };
 }
 /**
- * AUDIT MW-NPC II K2-K4: a record's look onto the copy it drives - the owner's seed (`ls`) and kit (`lw`), each kept
- * until the owner says another (a record that carries neither changes nothing).
- * @param {any} f @param {{ ls?: number, lw?: number[][] }} r
+ * AUDIT MW-NPC II K2-K4: a record's look onto the copy it drives - the owner's seed (`ls`) and kit (`lw`, APPEARANCES-II:
+ * and the looks its pieces wear, `la`, which rides with it), each kept until the owner says another (a record that
+ * carries neither changes nothing).
+ * @param {any} f @param {{ ls?: number, lw?: number[][], la?: number[][] }} r
  */
 export function applyWireLook(f, r) {
   if (Number.isInteger(r.ls)) f._mwSeedWire = r.ls;
   if (Array.isArray(r.lw)) {
-    const k = r.lw.map((w) => w.join(',')).join(';');
-    if (k !== f._mwWornWireKey) { f._mwWornWireKey = k; f._mwWornWireRaw = r.lw; f._mwWornWire = decodeWorn(r.lw); f._mwWornWireSlots = [f._mwWornWire]; }   // the slots foeLook compares: the kit, as one piece
+    const la = Array.isArray(r.la) ? r.la : null;
+    const k = kitKey(r.lw, la);
+    if (k !== f._mwWornWireKey) { f._mwWornWireKey = k; f._mwWornWireRaw = r.lw; f._mwWornWireLooks = la; f._mwWornWire = decodeWorn(r.lw, la); f._mwWornWireSlots = [f._mwWornWire]; }   // the slots foeLook compares: the kit, as one piece
   }
 }
 
@@ -324,11 +368,11 @@ function orcKit(mobileType, h) {
  * its armour in their dyes, and steel for the classes that go in it (the watch helmed) - MWNPC10c: and its class's
  * blade in its hand (`rosterBlade`), and `race` its own where the caller knows it (a living world's resident). Kept on
  * `rec` while the mobile, gender, seed and race hold - one build for its life.
- * @param {any} rec @param {{ mobileType: number, gender?: string, seed?: number, race?: string }} o
+ * @param {any} rec @param {{ mobileType: number, gender?: string, seed?: number, race?: string, home?: string|null }} o
  */
-export function rosterLook(rec, { mobileType, gender = 'male', seed = 0, race = undefined }) {
-  if (rec._mwRosterMob === mobileType && rec._mwRosterG === gender && rec._mwRosterSeed === seed && rec._mwRosterRace === race) return rec._mwRosterLook;   // no key built a frame
-  rec._mwRosterMob = mobileType; rec._mwRosterG = gender; rec._mwRosterSeed = seed; rec._mwRosterRace = race;
+export function rosterLook(rec, { mobileType, gender = 'male', seed = 0, race = undefined, home = undefined }) {
+  if (rec._mwRosterMob === mobileType && rec._mwRosterG === gender && rec._mwRosterSeed === seed && rec._mwRosterRace === race && rec._mwRosterHome === home) return rec._mwRosterLook;   // no key built a frame
+  rec._mwRosterMob = mobileType; rec._mwRosterG = gender; rec._mwRosterSeed = seed; rec._mwRosterRace = race; rec._mwRosterHome = home;
   const orc = ORC_MOBILES.has(mobileType);   // MWNPC12: a person, never a creature
   const vampire = VAMPIRE_MOBILES.has(mobileType);   // MWNPC14: and a vampire
   const wolf = mobileType === WOLF_MOBILE;   // MWNPC15: and a werewolf
@@ -336,7 +380,7 @@ export function rosterLook(rec, { mobileType, gender = 'male', seed = 0, race = 
   if (mod?.sprite) return (rec._mwRosterLook = null);
   if (!orc && !vampire && !wolf && !mod && !isClassEnemyId(mobileType)) return (rec._mwRosterLook = creatureLook({ mobileType }));
   const h = mix((seed >>> 0) ^ mix((mobileType | 0) + 0x9e3779b9));
-  const bay = bayPerson(h);
+  const bay = bayPerson(h, race ? null : home === undefined ? folkHere() : folkOfKey(home));   // AUDIT PROVINCE-FOLK A3: `home` a roster's own people (provinceFolk.js folkOfKey - a ship's waters'; null the Bay's), else the place's
   const g = gender === 'female' ? 'female' : 'male';
   const items = /** @type {any[]} */ (orc ? orcKit(mobileType, h) : vampire || wolf || (mod && !isClassEnemyId(mobileType)) ? [] : [rosterBlade(h)]);   // MWNPC14: a vampire's claws are its own; DEX7: and a mod's monster's (SetEnemyCareer's table arms none - equipmentVariantFor)
   if (STEEL_CLASSES.has(mobileType)) {

@@ -49,12 +49,18 @@ import { possessedItemLists } from '../../src/systems/item/possessedItems.js';  
 import { MAX_STAT_VALUE } from '../../src/systems/statMods.js';
 import { SKILL_HARD_CAP } from '../../src/systems/skillSoftcap.js';
 import { STAT_KEYS_ORDER } from '../../src/systems/statMods.js';
+import { ROLLED_START_MIN } from '../../src/systems/levelClimb.js';   // LEVEL-45: a start no creation gives holds trade
 import { pathFindings } from '../../src/systems/arcanePaths.js';   // SCHOOLS5: a save's specialisation
+import { isMasterWork, masterSignature, masterLinesOfRecord } from '../../src/net/masterLaw.js';   // MASTER-ART: a Master's work's lines, its record's
+import { readProductRecord } from '../../src/net/productRecord.js';
+import { DRAGON_MOUNT_TEMPLATE, isDragonMount, dragonMountWellFormed, dragonLookOfItem } from '../../src/systems/dragon/dragonMount.js';   // DRAGON5: a tamed dragon's provenance
 
 /** The judge's version: the item law's, and its own character law beside it. */
 export const JUDGE_VERSION = ITEM_LAW_VERSION;
-/** The highest level the realm reads (realm.js REALM_LEVEL_CLAIM_MAX, the summary's own bound - pinned equal). */
-export const JUDGE_LEVEL_MAX = 1000;
+/** The highest level the realm reads (realm.js REALM_LEVEL_CLAIM_MAX, the summary's own bound - pinned equal). LEVEL-45
+ *  (2026-10-27, mob: "juidge will need changed to lvl 45"): the online cap (src/systems/levelCap.js ONLINE_LEVEL_CAP,
+ *  pinned equal), which every realm character is converted to at its join before its next checkpoint. */
+export const JUDGE_LEVEL_MAX = 45;
 /** The holds the law has come to before a held character is held for a time (verdict.js LAW_HOLD_S), whatever its next
  *  checkpoint says. */
 export const STRIKES_FOR_TIMED = 3;
@@ -70,7 +76,7 @@ const lists = (/** @type {any[]} */ ...ls) => ls.filter(Array.isArray);
 const arrayOf = (/** @type {unknown} */ x) => (Array.isArray(x) ? x : []);
 /** A count of gold in a save: a whole number, never below nothing - any other word (a fraction, Infinity, a string) is
  *  nothing (AUDIT INT: `goldPieces: 1e999` read as Infinity, and the verdict's NOT NULL threw the save away). */
-const goldOf = (/** @type {unknown} */ v) => (Number.isSafeInteger(v) && /** @type {number} */ (v) > 0 ? /** @type {number} */ (v) : 0);
+export const goldOf = (/** @type {unknown} */ v) => (Number.isSafeInteger(v) && /** @type {number} */ (v) > 0 ? /** @type {number} */ (v) : 0);
 
 /** THE LISTS THE CHARACTER HOLDS (possessedItemLists) - systems/item/possessedItems.js, their one home since AUDIT AUTO-HOLD
  *  (the client's shelf reads them too: a piece stowed in a ship's hold came back to its holder off a stale shelf), handed
@@ -98,6 +104,11 @@ export const realmLoanOwedMax = (/** @type {number} */ level) => Math.trunc(Math
  *  handed over, systems/item/itemBound.js) or a quest's (never sold). */
 const worthless = (/** @type {any} */ it) => it?.bound === true || lawTemplate(it?.templateIndex)?.bound === true || it?.questItem === true;
 
+/** The pieces wealthOf counts - every one the character holds or laid on the ground - and each as it counts it: a coin or
+ *  a letter at its gold (`liquid`), a bound or quest piece at nothing, any other at its worth. */
+const wealthLists = (/** @type {any} */ save) => [...possessedItemLists(save), ...groundItemLists(save)];
+const pieceWealth = (/** @type {any} */ it, liquid = liquidWorthOf(it)) => (liquid > 0 ? liquid : worthless(it) ? 0 : itemWorth(it));
+
 /**
  * THE CHARACTER'S WEALTH: the purse, every bank account less what it owes (the debt counted no further than
  * realmLoanOwedMax at `level` - the save's own, or the level the realm trusts), each deed at the realm's buy-back
@@ -112,14 +123,18 @@ export function wealthOf(save, { level = save?.level } = {}) {
   for (const a of arrayOf(save.bankAccounts)) { banks += goldOf(/** @type {any} */ (a)?.accountGold); owed += goldOf(/** @type {any} */ (a)?.loanTotal); }
   const deeds = deedsOf(save).reduce((s, d) => s + d.value, 0);
   let goods = 0;
-  for (const list of [...possessedItemLists(save), ...groundItemLists(save)]) {
-    for (const it of list) {
-      const liquid = liquidWorthOf(it);
-      goods += liquid > 0 ? liquid : worthless(it) ? 0 : itemWorth(it);
-    }
-  }
+  for (const list of wealthLists(save)) for (const it of list) goods += pieceWealth(it);
   const w = Math.trunc(purse + banks - Math.min(owed, realmLoanOwedMax(Number(level))) + deeds + goods);
   return Number.isSafeInteger(w) ? w : Math.sign(w) * Number.MAX_SAFE_INTEGER;
+}
+/** STAFF-PANEL3-REALM (design doc weak spots: "split gold from item worth"): THE GOODS OF wealthOf - its pieces that are
+ *  not gold, at its own worth; the rest of the wealth is gold, the debt off it (verdict.js writes it on a gain's finding).
+ *  @param {any} save */
+export function goodsOf(save) {
+  if (!save || typeof save !== 'object') return 0;
+  let goods = 0;
+  for (const list of wealthLists(save)) for (const it of list) if (!(liquidWorthOf(it) > 0)) goods += pieceWealth(it, 0);
+  return Math.trunc(goods);
 }
 
 /** A count the save may leave out, and must otherwise write as gold is written: a whole number, never below nothing. */
@@ -129,8 +144,9 @@ const goldWord = (/** @type {unknown} */ v) => v == null || (Number.isSafeIntege
 const purseWord = (/** @type {unknown} */ v) => goldWord(v) && !(/** @type {number} */ (v) > GOLD_INT_MAX);
 
 /**
- * THE CHARACTER LAW: a level the summary agrees with, attributes and skills inside the port's own caps, its gold - the
- * purse, each account and each loan - written as gold is. Answers the findings, as `{ code }` records.
+ * THE CHARACTER LAW: a level the summary agrees with, attributes and skills inside the port's own caps, a starting skill
+ * sum a creation gives (LEVEL-45: below ROLLED_START_MIN holds trade), its gold - the purse, each account and each loan -
+ * written as gold is. Answers the findings, as `{ code }` records.
  * @param {any} save @param {{ level?: unknown } | null} summary
  */
 export function characterFindings(save, summary) {
@@ -154,9 +170,47 @@ export function characterFindings(save, summary) {
       if (v != null && !(typeof v === 'number' && Number.isFinite(v) && v >= 0 && v <= SKILL_HARD_CAP)) out.push({ code: 'skill', at: i });
     });
   }
+  // LEVEL-45: a start no creation gives (skills zeroed before the first save) - the join converts it; a checkpoint that
+  // keeps or writes one below the floor holds trade
+  const start = save?.startingLevelUpSkillSum;
+  if (start != null && !(Number.isFinite(start) && /** @type {number} */ (start) >= ROLLED_START_MIN)) out.push({ code: 'skill-start' });
   for (const f of pathFindings(save)) out.push(f);   // SCHOOLS5: an honest save never breaks it - only the choice writes the path
   return out;
 }
+
+/** RPT1026-LEDGERLAW: the most characters a judgement's values (lawValuesOf) keep. */
+export const LAW_VALUES_MAX = 1000;
+/** The value a character finding was found on, as the save holds it. */
+function lawValueOf(/** @type {any} */ save, /** @type {any} */ summary, /** @type {{ code: string, at?: any }} */ f) {
+  if (f.code === 'level') return save?.level;
+  if (f.code === 'level-claim') return [save?.level, summary?.level];
+  if (f.code === 'gold') return save?.goldPieces;
+  if (f.code === 'bank') { const a = arrayOf(save?.bankAccounts)[f.at]; return [a?.accountGold, a?.loanTotal]; }
+  if (f.code === 'stat') return save?.stats?.[f.at];
+  if (f.code === 'skill') return save?.skills?.[f.at];
+  if (f.code === 'skill-start') return save?.startingLevelUpSkillSum;
+  if (f.code === 'path') return save?.arcanePath;
+  return undefined;
+}
+/**
+ * RPT1026-LEDGERLAW (a private report: staff's clear of one bad purse let every purse after it pass): THE
+ * VALUES THE CHARACTER LAW FOUND, each finding's key and the value it read - `gold@=-8000000`, `stat@agility=101` - sorted,
+ * or null for none. A law finding's signature (verdict.js lawSigOf) names a character finding by its code alone, so staff's
+ * clear of a negative purse excused every purse after it, however far past the game's own bound. The excuse is written over the
+ * signature AND these (review.js clear), so it excuses the state staff read and no other.
+ * @param {any} save @param {{ level?: unknown } | null} summary
+ */
+export function lawValuesOf(save, summary) {
+  const found = characterFindings(save, summary);
+  if (!found.length) return null;
+  return cutOf(found.map((f) => `${f.code}@${f.at ?? ''}=${cutOf(JSON.stringify(lawValueOf(save, summary, f)) ?? 'none', 40)}`).sort().join(','), LAW_VALUES_MAX);
+}
+/** AUDIT RPT1026 C5: THE MARK A JUDGEMENT'S VALUES CARRY WHERE THEY WERE CUT (a value past 40 characters, the whole past
+ *  LAW_VALUES_MAX). They were cut silently, so a state past the cut - eighty bank accounts below nothing ahead of the
+ *  purse in the sort - read the same whatever stood past it, and a clear of it excused every purse after it. A state
+ *  cut is no state an excuse can name (verdict.js lawExcused): staff mend it (PURSE-MEND, STAFF-SET-BANK). */
+export const LAW_VALUES_CUT = '\u2026';
+const cutOf = (/** @type {string} */ s, /** @type {number} */ n) => (s.length > n ? `${s.slice(0, n)}${LAW_VALUES_CUT}` : s);
 
 /** A law finding's item codes, safe: a piece the law cannot read without throwing (AUDIT INT: `enchantments: [null]`
  *  threw, and the checkpoint answered 500) is a piece of no shape the game writes. */
@@ -175,22 +229,25 @@ export function judgeSave(save, summary = null, o = {}) {
   const findings = [];
   let count = 0;
   const keep = (/** @type {any} */ f) => { count++; if (findings.length < FINDINGS_KEPT) findings.push(f); };
-  if (!save || typeof save !== 'object' || Array.isArray(save)) return { findings: [{ code: 'save' }], count: 1, wealth: 0, items: 0, provenances: [], pieces: [], arms: [0, 0] };
+  if (!save || typeof save !== 'object' || Array.isArray(save)) return { findings: [{ code: 'save' }], count: 1, wealth: 0, items: 0, provenances: [], pieces: [], arms: [0, 0], dragons: [] };
   for (const f of characterFindings(save, summary)) keep(f);
   let items = 0;
-  /** @type {{ provenance: string, t: number, m: unknown, q: unknown, w: number }[]} */
+  /** @type {{ provenance: string, t: number, m: unknown, q: unknown, w: number, l?: string }[]} */
   const provenances = [];
+  /** @type {{ id: string, look: number }[]} */
+  const dragons = [];   // DRAGON5: every tamed dragon it holds (judgeDragons reads them)
   possessedItemLists(save).forEach((list, li) => {
     list.forEach((/** @type {any} */ it, /** @type {number} */ i) => {
       items++;
       for (const code of findingsOf(it)) keep({ code, list: li, at: i, t: it?.templateIndex ?? null });
-      if (typeof it?.provenance === 'string' && PROVENANCE_RE.test(it.provenance)) provenances.push({ provenance: it.provenance, t: it.templateIndex, m: it.material, q: it.quality, w: worthless(it) ? 0 : itemWorth(it) });
+      if (isDragonMount(it) && dragonMountWellFormed(it)) dragons.push({ id: it.dragonId, look: dragonLookOfItem(it) });
+      if (typeof it?.provenance === 'string' && PROVENANCE_RE.test(it.provenance)) provenances.push({ provenance: it.provenance, t: it.templateIndex, m: it.material, q: it.quality, w: worthless(it) ? 0 : itemWorth(it), ...(isMasterWork(it) ? { l: masterSignature(it.affixes) } : {}) });   // MASTER-ART: a Master's work's lines
     });
   });
   // INT7: THE ARMS - the most reach of the weapons in the pack the law takes, and whether a lawful bow is among them
   // (net/siege/siegeRef.js armsOf); the identity mint signs them (`wa`), and every referee clips a blow between players to them
   const arms = armsOf(save.items, (it) => findingsOf(it).length === 0);
-  return { findings, count, wealth: wealthOf(save, o), items, provenances, pieces: ledgerPieces(save), arms };
+  return { findings, count, wealth: wealthOf(save, o), items, provenances, pieces: ledgerPieces(save), arms, dragons };
 }
 
 /** INT4: A PIECE'S KEY IN THE LEDGER - systems/item/itemIds.js ledgerKeyOf, its one home since AUTO-HOLD (the client's room
@@ -218,6 +275,13 @@ export function ledgerPieces(/** @type {any} */ save) {
   return out;
 }
 
+/** MASTER-ART: the lines a record's Master's work mints, as one string - '' for a record that names none, so no piece
+ *  claims a Master's lines on another craft's provenance. AUDIT HORIZONTAL B1: the values the record signs
+ *  (masterLaw.js masterLinesOfRecord), never a roll of today's bands. @param {unknown} record */
+const recordLines = (record) => {
+  const c = readProductRecord(record);
+  return c?.l ? masterSignature(masterLinesOfRecord(c.l) ?? []) : '';
+};
 /** How many provenances one statement asks about - D1 binds at most 100 a statement. */
 const PROVENANCE_CHUNK = 90;
 
@@ -228,11 +292,12 @@ const PROVENANCE_CHUNK = 90;
  * for another template or material, or holds lower than the piece claims, is no craft - a finding (AUDIT INT: a
  * Crude Iron Dagger's provenance on a Masterwork Daedric one passed, five of them at once). A piece disenchanted is gone
  * from the table and from the save together (alchemy.js), so no honest piece is left behind.
+ * MASTER-ART: a Master's work (`l`, its lines) holds a record that names a Master's lines, at the values it signs.
  * Answers `{ findings, arrived }` - `arrived` the lawful pieces `player`'s account owns that the service has not yet
  * witnessed arriving (`products.credited` 0: made, or bought at the market, since), each with its worth: the budget's
  * witness for a piece the service minted and the client's pack took (AUDIT INT: a crafted or market-bought piece was
  * charged to the budget as a find).
- * @param {any} db @param {{ provenance: string, t: number, m?: unknown, q?: unknown, w?: number }[]} provenances @param {string | null} [player]
+ * @param {any} db @param {{ provenance: string, t: number, m?: unknown, q?: unknown, w?: number, l?: string }[]} provenances @param {string | null} [player]
  * @returns {Promise<{ findings: any[], arrived: { provenance: string, w: number }[] }>}
  */
 export async function judgeProducts(db, provenances, player = null) {
@@ -245,16 +310,29 @@ export async function judgeProducts(db, provenances, player = null) {
   const have = new Map();
   for (let i = 0; i < ids.length; i += PROVENANCE_CHUNK) {
     const chunk = ids.slice(i, i + PROVENANCE_CHUNK);
-    const rows = await db.prepare(`SELECT provenance, template, material, quality, owner, credited FROM products WHERE provenance IN (${chunk.map(() => '?').join(', ')})`).bind(...chunk).all();
+    const rows = await db.prepare(`SELECT provenance, template, material, quality, owner, credited, record FROM products WHERE provenance IN (${chunk.map(() => '?').join(', ')})`).bind(...chunk).all();
     for (const r of rows?.results ?? []) have.set(r.provenance, r);
   }
   for (const [p, piece] of want) {
     const row = have.get(p);
     const lawful = !!row && row.template === piece.t
       && (piece.m == null || row.material == null || Number(row.material) === piece.m)
-      && (piece.q == null || (Number.isInteger(piece.q) && /** @type {number} */ (piece.q) <= Number(row.quality)));
+      && (piece.q == null || (Number.isInteger(piece.q) && /** @type {number} */ (piece.q) <= Number(row.quality)))
+      && (piece.l === undefined || piece.l === recordLines(row.record));   // MASTER-ART: a Master's lines are its record's
     if (!lawful) out.push({ code: 'provenance', at: p, t: piece.t });
     else if (player != null && row.owner === player && Number(row.credited) === 0) arrived.push({ provenance: p, w: Number.isSafeInteger(piece.w) ? /** @type {number} */ (piece.w) : 0 });
   }
   return { findings: out, arrived };
+}
+
+/** DRAGON5 (bible/11-Multiplayer/Dwarven-Dragon.md section 10): THE TAMED DRAGONS A SAVE HOLDS, against the service's own
+ *  tames (dragons.js `dragon_mounts`): a dragon whose id the service never drew for this account and character, drawn in
+ *  another look, or held twice, is no tame ('dragon-tame').
+ *  @param {any} db @param {{ id: string, look: number }[]} dragons @param {string} player @param {string} char */
+export async function judgeDragons(db, dragons, player, char) {
+  const r = await db.prepare('SELECT id, look FROM dragon_mounts WHERE account = ?1 AND char_id = ?2').bind(player, char).all();
+  const have = new Map((r?.results ?? []).map((/** @type {any} */ m) => [m.id, Number(m.look) || 0]));
+  const seen = new Set();
+  return dragons.filter((d) => { const ok = have.get(d.id) === d.look && !seen.has(d.id); seen.add(d.id); return !ok; })
+    .map((d) => ({ code: 'dragon-tame', at: d.id, t: DRAGON_MOUNT_TEMPLATE }));
 }

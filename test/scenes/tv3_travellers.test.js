@@ -24,7 +24,7 @@ import {
 } from '../../src/systems/travellerMarks.js';
 import { edgeHold, TV_EDGE_MARGIN } from '../../src/ui/travel/travelViewHud.js';
 import { perspective, mirrorProjectionX, lookAt } from '../../src/world/mat4.js';   // AUDIT DEEP T1-1: the host's own lens
-import { projectToScreen } from '../../src/player/tapRay.js';
+import { projectToScreen, createFrameProjector } from '../../src/player/tapRay.js';
 import { forwardOf, TV_TILT_DEFAULT, TV_RISE_S } from '../../src/player/travelCamera.js';
 import { createTravelView } from '../../src/scenes/travelView.js';   // AUDIT NAMES N2-1: the badge through the view's own drawHud
 import { readTravellerMarks, travellerMarksKey, TRAVELLER_MARK_CSS, TRAVELLER_LEGEND_TEXT } from '../../src/ui/partyMapMarks.js';
@@ -424,9 +424,31 @@ test('AUDIT DEEP T1-1: through the host\'s REAL lens (mirrored, 52 degrees down)
   // AUDIT DEEP T3-4/T3-7: the switch says what it shares, and with whom, truly
   assert.match(rd('src/ui/enhanced/enhancedMenu.js'), /players in your region see you on the overworld and the map/);
   assert.match(rd('src/ui/enhanced/enhancedMenu.js'), /Kept on this device\./);
-  assert.match(rd('src/scenes/world.js'), /project: \(p\) => \(_lastProj && _lastView \? projectToScreen\(p, canvas\.clientWidth, canvas\.clientHeight, _lastProj, _lastView, worldViewportRect\(canvas\.clientWidth, canvas\.clientHeight\), true\) : null\),/, 'the view\'s own projection asks for the mirror');
+  assert.match(rd('src/scenes/world.js'), /project: frameProject\.behind,/, 'the view\'s own projection asks for the mirror');
+  const fp = createFrameProjector({ clientWidth: W, clientHeight: H }, () => null, (take) => take(proj, view));
+  assert.deepEqual(fp.behind([-800, 0, -2000]), at([-800, 0, -2000]), 'its `behind` is the mirror');
   // the default stays the hide: every other caller never draws a mirror
   assert.deepEqual(projectToScreen([0, 0, -2000], W, H, proj, view), { x: 0, y: 0, depth: 0, front: false });
+  assert.deepEqual(fp.front([0, 0, -2000]), { x: 0, y: 0, depth: 0, front: false });
+});
+
+test('PERF-TV-PROJ: the frame\'s projection reads the canvas\'s size, the world\'s rect and proj x view once a frame - not once a point - and answers what projectToScreen answers', () => {
+  const W = 1280, H = 720, rect = { x: 0, y: 0.2, w: 1, h: 0.8 };
+  let reads = 0, rects = 0;
+  const canvas = { get clientWidth() { reads++; return W; }, get clientHeight() { reads++; return H; } };
+  const lens = () => mirrorProjectionX(perspective((65 * Math.PI) / 180, W / H, 0.2, 6000));
+  const eyeView = (x) => lookAt([x, 260, -203], [x, 200, -100], [0, 1, 0]);
+  let frame = null;
+  const fp = createFrameProjector(canvas, (w, h) => { rects++; assert.deepEqual([w, h], [W, H]); return rect; }, (take) => take(frame?.proj, frame?.view));
+  assert.equal(fp.front([0, 0, 0]), null, 'no frame yet: nothing projected');
+  frame = { proj: lens(), view: eyeView(0) };
+  for (let i = 0; i < 1000; i++) fp.behind([i, 0, 100]);
+  assert.deepEqual([reads, rects], [2, 1], 'a thousand points, one frame: the size and the rect read once');
+  assert.deepEqual(fp.front([40, 0, 120]), projectToScreen([40, 0, 120], W, H, frame.proj, frame.view, rect));
+  assert.deepEqual(fp.behind([40, 0, -2000]), projectToScreen([40, 0, -2000], W, H, frame.proj, frame.view, rect, true));
+  frame = { proj: lens(), view: eyeView(50) };   // the next frame: new matrices, as every frame builds them
+  assert.deepEqual(fp.front([40, 0, 120]), projectToScreen([40, 0, 120], W, H, frame.proj, frame.view, rect), 'the next frame\'s matrices, not the last');
+  assert.deepEqual([reads, rects], [4, 2], 'and read again once');
 });
 
 test('TV3 map: the travellers are marks placed to their 256th (the fraction turned round - y counts south), keyed on what moves them; painted under the party, a stranger\'s smaller ring', () => {
@@ -474,8 +496,8 @@ test('TV3 host wiring: the book hoisted above its readers, filled by the Region 
   const tvm = rd('src/scenes/travelViewMarks.js');
   assert.match(tvm, /if \(near\.has\(t\.id\) \|\| Math\.max\(Math\.abs\(t\.p\.px - me\.x\), Math\.abs\(t\.p\.py - me\.y\)\) <= TV_BODY_RANGE\) continue;/, 'inside the pose range a traveller is their body - marked as a player drawn here (OVERWORLD NAMES), never twice');
   assert.match(tvm, /const kind = host\.social\?\.isPartyPeer\(t\.id\) \? 'party' : 'traveller';/, 'AUDIT TV C3: the peer\'s id asked of the party\'s seats; AUDIT NAMES N1-10: as play\'s names ask it');
-  assert.match(tvm, /marks\.push\(\{ key: `trav:\$\{t\.id\}`, at: tvSceneKept\(t, w\.x, w\.z, 2, ship\), label: t\.name, kind: `\$\{kind\}\$\{ship \? ' ship' : ''\}\$\{t\.p\.tv \? ' journey' : ''\}`, edge: true, badge: tvBadgeOf\(t\),\n\s*kin: travellerKin\(\{ friend: !!host\.social\?\.isFriendPeer\(t\.id\), gt: t\.gt \}, myGt\), lv: t\.lv \?\? null \}\);/);   // OWS1: at sea, a ship; PIN MOVED (FIELD BUGS 2026-10-04e OW-KIN / OW-WHO): and their kin and Renown
-  assert.match(w, /return \[x, ringHeight\(byte, !!landform, fade\) \+ state\.pixelTranslation\(px\.x, px\.y\)\[1\] \+ lift, z\];/, 'past the grid, the far ring\'s own height (LANDFORM1: with the lift the row puts on the streamed ground; AUDIT LANDFORMS II I1: faded beside the sea)');   // PIN MOVED (AUDIT LANDFORMS II I1)
+  assert.match(tvm, /marks\.push\(\{ key: `trav:\$\{t\.id\}`, at: tvSceneKept\(t, w\.x, w\.z, 2, ship\), label: t\.name, kind: `\$\{kind\}\$\{ship \? ' ship' : ''\}\$\{t\.p\.tv \? ' journey' : ''\}`, edge: true, badge: tvBadgeOf\(t\),\n\s*kin: travellerKin\(\{ friend: !!host\.social\?\.isFriendPeer\(t\.id\), gt: t\.gt \}, myGt\), lv: t\.lv \?\? null, skull: pvpSkullOf\(t\.id\) \}\);/);   // OWS1: at sea, a ship; PIN MOVED (FIELD BUGS 2026-10-04e OW-KIN / OW-WHO): and their kin and Renown
+  assert.match(w, /return \[x, ringGroundAt\(px\.x, px\.y, ground \? \(bx, by\) => woods\.getHeightMapValue\(bx, by\) : \(\) => 0, !!landform\) \+ state\.pixelTranslation\(px\.x, px\.y\)\[1\] \+ lift, z\];/, 'past the grid, the far ring\'s own height (RELIEF-PEAKS: the kernel\'s ground at the pixel\'s centre, where the ring\'s vertex stands; LANDFORM1: with the lift the row puts on the streamed ground; AUDIT LANDFORMS II I1: faded beside the sea; BREATHTAKER2: the continent\'s lift at its pixel, as the ring stands it)');   // PIN MOVED (RELIEF-PEAKS): ringGroundAt; PIN MOVED (AUDIT LANDFORMS II I1); PIN MOVED (BREATHTAKER2 on the horizon)
   assert.match(rd('src/ui/heldMap.js'), /travellers: this\._trav\.filter\(\(t\) => playersOnMaps\(\) && playerShown\(t\)\)\.map\(\(t\) => \(\{ x: t\.x, y: t\.y, name: t\.name, color: TV_KIN_COLORS\[t\.kin\] \?\? TRAVELLER_MARK_CSS, journey: t\.journey, ship: t\.ship \}\)\),/);   // OWS1; PIN MOVED (FIELD BUGS 2026-10-04e OW-WHO / OW-KIN): the players' filters, and a friend's and a guild-mate's colour; PIN MOVED (MAP-PLAYERS): and the Players switch first
   // the relay: one arm, the region's channel alone, the attachment, the room's budget, the welcome
   const idx = rd('server/src/index.js');
@@ -512,7 +534,7 @@ test('OVERWORLD NAMES wire, book and host: a traveller frame keeps the Renown an
   // PIN MOVED (HOST-SPLIT 1, 2026-10-15): the Overworld's marks left world.js for scenes/travelViewMarks.js
   const tvm = rd('src/scenes/travelViewMarks.js');
   assert.match(tvm, /for \(const d of host\.online\?\.drawable\?\.\(\) \?\? \[\]\) \{\n\s*if \(!d\?\.shown \|\| _hiddenPeers\.has\(d\.id\) \|\| _veils\.has\(d\.id\)\) continue;/, 'the concealed and the veiled are never marked');
-  assert.match(tvm, /marks\.push\(\{ key: `peer:\$\{d\.id\}`, at: \[f\[0\], f\[1\] \+ h, f\[2\]\], label: d\.name \?\? '', kind: `\$\{party \? 'party' : 'traveller'\}\$\{isShipMark\(t\?\.p\) \? ' ship' : ''\}\$\{t\?\.p\.tv \? ' journey' : ''\}`, edge: party \|\| !!t, badge: tvBadgeOf\(d\),\n\s*kin: travellerKin\(\{ friend: !!host\.social\?\.isFriendPeer\(d\.id\), gt: d\.gt \}, myGt\), lv: d\.lv \?\? null \}\);/);   // OWS1: at sea, a ship; PIN MOVED (OW-KIN / OW-WHO)
+  assert.match(tvm, /marks\.push\(\{ key: `peer:\$\{d\.id\}`, at: \[f\[0\], f\[1\] \+ h, f\[2\]\], label: d\.name \?\? '', kind: `\$\{party \? 'party' : 'traveller'\}\$\{isShipMark\(t\?\.p\) \? ' ship' : ''\}\$\{t\?\.p\.tv \? ' journey' : ''\}`, edge: party \|\| !!t, badge: tvBadgeOf\(d\),\n\s*kin: travellerKin\(\{ friend: !!host\.social\?\.isFriendPeer\(d\.id\), gt: d\.gt \}, myGt\), lv: d\.lv \?\? null, skull: pvpSkullOf\(d\.id\) \}\);/);   // OWS1: at sea, a ship; PIN MOVED (OW-KIN / OW-WHO)
   assert.match(tvm, /const tvBadgeOf = \(p\) => \(\{ title: p\.title \?\? null, glyphs: Array\.isArray\(p\.glyphs\) \? p\.glyphs : \[\], lv: p\.lv \?\? null, gt: p\.gt \?\? null, rb: p\.rb \?\? null \}\);/);   // AUDIT-SEATS (PIN MOVED): and a Season's banner ribbon
   assert.match(w, /const namesOff = covered \|\| !!travelView\?\.active;/);
   assert.match(w, /remotePlayers\.nameFrame\(\{\n\s*proj, view, eye, toScene: onlineToScene, covered: namesOff,/);

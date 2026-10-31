@@ -14,7 +14,8 @@ import { readTip, TIP_LINES_MAX, TIP_TEXT_MAX } from '../../src/ui/eventMapMarks
 import { VEIN_TABLES, veins, regionSignature, UNCONFIRMED_VEIN_TIER } from '../../src/net/nodeLaw.js';
 import { minedMaterial } from '../../src/net/professionLaw.js';
 import { CLIMATES } from '../../src/formats/mapsFile.js';
-import { REGION_NAMES } from '../../src/formats/mapsTables.js';
+import { REGION_NAMES, CYRODIIL_REGION } from '../../src/formats/mapsTables.js';
+import { richness } from '../../src/net/provinceNodes.js';
 import { createGatherHost } from '../../src/scenes/gatherHost.js';
 import { mineKind } from '../../src/scenes/mineHost.js';
 import { TERRAIN_SIZE, HEIGHTMAP_DIMENSION } from '../../src/world/terrain/terrainSampler.js';
@@ -24,11 +25,13 @@ const src = (p) => readFileSync(new URL(`../../${p}`, import.meta.url), 'utf8');
 const GLENUMBRA = 59, SENTINEL = 20, ORSINIUM = 26, ALIKR = 0, BETONY = 19;
 
 test('ORE-MAP: the card says a pixel\'s veins, its dungeons\', its kingdom\'s own ore and its ground\'s witnessed state - for the report\'s own case, a Daggerfall woodland nobody has read yet (mutants: the signature unsaid; the held ores unsaid; a confirmed pixel said unwitnessed)', () => {
+  // PIN MOVED (DEEP-OPEN, Professions-Arc.md section 53): the Dungeons line is the table every dungeon draws on anyone's
+  // word, and the woods' deep Moonstone - which still waits on its dungeon's witnesses - is said on the state line
   assert.deepEqual(oreMapTip({ climate: CLIMATES.Woodlands, region: GLENUMBRA, fact: null }), { title: ORE_TIP_TITLE, lines: [
     'Veins: Iron, Copper, Tin, Lodestone',
-    'Dungeons: Silver, Gold, Dwarven Scrap, Platinum, Adamantium, Moonstone',
+    'Dungeons: Silver, Gold, Dwarven Scrap, Platinum, Adamantium',
     'Daggerfall\'s own ore: Moonstone',
-    'Moonstone only on witnessed ground',
+    'Moonstone only on witnessed ground; Moonstone in witnessed dungeons',
     ORE_WITNESS_RULE,
   ] });
   assert.deepEqual(oreMapTip({ climate: CLIMATES.Desert, region: SENTINEL, fact: { state: 'unconfirmed' } }).lines.slice(2), [
@@ -38,7 +41,8 @@ test('ORE-MAP: the card says a pixel\'s veins, its dungeons\', its kingdom\'s ow
     `${REGION_NAMES[ORSINIUM]}'s own ore: Orichalcum`, 'Witnessed ground: every vein can appear here',
   ], 'a Free Land\'s own, by its name; witnessed ground holds all of it');
   assert.equal(oreMapTip({ climate: CLIMATES.Mountain, region: ORSINIUM, fact: { state: 'disputed' } }).lines.at(-1), 'Witnessed ground: every vein can appear here', 'a disputed pixel keeps its confirmed answer');
-  assert.deepEqual(oreMapTip({ climate: CLIMATES.Woodlands, region: BETONY, fact: { state: 'none' } }).lines.slice(2), ['No vein here needs witnesses'], 'a March\'s woodland - no crown\'s own ore - holds nothing over Silver');
+  assert.deepEqual(oreMapTip({ climate: CLIMATES.Woodlands, region: BETONY, fact: { state: 'none' } }).lines.slice(2), ['Moonstone only in witnessed dungeons', ORE_WITNESS_RULE], 'a March\'s woodland - no crown\'s own ore - holds nothing over Silver on its ground; PIN MOVED (DEEP-OPEN): its dungeons\' Moonstone waits, where the card had said no vein did');
+  assert.deepEqual(oreMapTip({ climate: CLIMATES.Swamp, region: BETONY, fact: { state: 'none' } }).lines.slice(2), ['No vein here needs witnesses'], 'a Swamp - no deep ore of its own - waits on nothing');
   assert.equal(oreMapTip({ climate: CLIMATES.Ocean, region: GLENUMBRA }), null, 'the sea stands no vein');
   assert.equal(oreWord('ore:mithril'), 'Mithril');
   assert.equal(oreWord('ore:dwarven'), 'Dwarven Scrap');
@@ -53,7 +57,11 @@ test('ORE-MAP: the card is the vein law\'s own - over every climate a vein stand
         assert.ok(card.lines.length <= TIP_LINES_MAX && card.lines.every((l) => l.length <= TIP_TEXT_MAX));
         assert.equal(card.lines[0], `Veins: ${table.map(oreWord).join(', ')}`);
         const sig = regionSignature(region);
-        assert.equal(card.lines.some((l) => l.endsWith(`'s own ore: ${sig ? oreWord(sig.ore) : ''}`)), !!sig, `region ${region}'s own ore`);
+        // PIN MOVED (WW-C1, bible/03-World/World-Wide.md WW-C): a province's line says its richness after its own ore, and
+        // Cyrodiil's every province's ores and metals (net/provinceNodes.js)
+        const times = richness(region, 'vein') > 1 ? ` (${richness(region, 'vein')}x the veins)` : '';
+        if (region === CYRODIIL_REGION) assert.ok(card.lines.includes(`Cyrodiil holds every province's ores and metals${times}`), 'Cyrodiil: every province\'s');
+        else assert.equal(card.lines.some((l) => l.endsWith(`'s own ore: ${sig ? oreWord(sig.ore) : ''}${times}`)), !!sig, `region ${region}'s own ore`);
       }
     }
     // the law: an unwitnessed pixel's veins over thirty days hold none of what the card holds back

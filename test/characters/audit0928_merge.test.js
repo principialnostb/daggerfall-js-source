@@ -29,11 +29,17 @@ import { applyChampion } from '../../src/systems/champions.js';   // LOOT7: appl
 import { inFireWard } from '../../src/world/dungeon/dungeonFires.js';   // REST3: the spawn's ward (a free name there, the module's own import)
 import { freeLodgedFeet } from '../../src/characters/foeSpacing.js';   // FIELD BUGS 2026-10-04d CRATE-FREE: the build's stand (a free name there, the module's own import)
 import { auraWingLights } from '../../src/render/auraRing.js';   // SERAPH-WINGS: peerTorchLights' tail
+import { createGateCrowd } from '../../src/net/gate/gateCrowd.js';   // AUDIT CROWD-WIDE B3: peerTorchLights asks the crowd's count
 import { foeSeed, applyWireLook } from '../../src/characters/foeBodies.js';   // AUDIT MW-NPC II K3: the dungeon context's look seed, in the mounted scope
+import { strikeTraits, traitWire, traitWireKey, readTraitWire, traitsAuthority, traitsFrame } from '../../src/scenes/foeTraitsHost.js';   // AUDIT WORLD-EVENTS: the dungeon host's trait doors, in the mounted scope
+import { bossClockS } from '../../src/systems/bossTraits.js';
+const TRAIT_DOORS = { strikeTraits, traitWire, traitWireKey, readTraitWire, traitsAuthority, traitsFrame, bossClockS };
 import { partyOnlyQuestShare } from '../../src/scenes/quest/questFoeHost.js';   // QUEST-OWNER: the dungeon's quest seam, narrowed to the party (ownShare)
 import { adoptLight } from '../../src/render/lightId.js';   // LIGHT-ID: the dungeon's light copies adopt their lights
 import { ROOM_LOOT_OFF } from '../roomLootOff.mjs';   // PARTY-LOOT: the room's seams with no room
 import { setupFoeLook } from '../../src/characters/enemy/foeLook.js';   // DEX2: the arms' free name - SetupDemoEnemy's renderer
+import { summonedWord, markSummoned } from '../../src/systems/foeLootCap.js';   // PIN MOVED (RPT1026-PROGRESS, test/scenes/rpt1026_progress_peersummon.test.js): the own lane names its summons and marks their puppets
+import { appliedOwnerTm } from '../../src/net/ownerClock.js';   // PIN MOVED (OWNER-CLOCK): the stream door copies its frame's owner clock beside the feet - a free name of the mount
 
 function sliced(path) {
   const S = readFileSync(new URL(path, import.meta.url), 'utf8');
@@ -88,7 +94,7 @@ const FNS = ['fitMaxima', 'buildFoeAt', 'applySpawnAlliance', 'applyEliteScaling
   '_spawnEncounter', 'standSharedPuppet', 'applySharedRecords', 'applyFoeRecord', 'setFoeDead', 'dropSharedFoe', 'foesFrame', 'roomRecord',
   'spawnLooseFoe', 'ownFrame', 'standOwnPuppet', 'applyOwnRecord', 'dropOwnPuppet'];
 const DECLS = ['isRoomFoe', 'onlineRoom', 'questPoolOps', 'abyssFoeView', 'ENCOUNTER_PLACE_ATTEMPTS', 'GENDER_BIT', 'q2', 'q3', 'canStandFoe',
-  'SHARED_FOES_MAX', 'KILLED_BY_MS', 'FOES_FRAME_SLACK', 'ownLoose', 'ownQuestTag', 'ownShare', 'questTouched', 'ownPupKey', 'ownHeirIsMe', 'ownHeirElse',
+  'SHARED_FOES_MAX', 'XF_WHOLE', 'KILLED_BY_MS', 'FOES_FRAME_SLACK', 'ownLoose', 'ownQuestTag', 'ownShare', 'questTouched', 'ownPupKey', 'ownHeirIsMe', 'ownHeirElse',
   'foeMaxOf', 'FOE_MAX_PER_FRAME', '_maxLeft'];   // THE MERGE: AUDIT SETS M1's own lane pays a foe's maximum through these
 // AUDIT REST II F1 (RE-AIMED): the rest encounter's spot is one home now - encounterSpot, which _spawnEncounter calls
 // and a joiner's ask reads too - so it joins the optional helpers below
@@ -107,6 +113,9 @@ function context({ authority, self }) {
   const state = {
     ...ROOM_LOOT_OFF,   // PIN MOVED (PARTY-LOOT): the dungeon's room-loot seams, answering as an offline dungeon's (test/roomLootOff.mjs)
     foeSeed, applyWireLook,   // AUDIT MW-NPC II K3: the records' look seed (roomRecord, applyFoeRecord, the puppets' stands)
+    ...TRAIT_DOORS,   // AUDIT WORLD-EVENTS: the trait doors roomRecord, applyFoeRecord and setAuthority call
+    summonedWord, markSummoned,
+    appliedOwnerTm,   // PIN MOVED (OWNER-CLOCK): the stream door's frame clock (net/ownerClock.js) - null outside a frame
     console: { error: () => {}, warn: () => {}, info: () => {} },
     ENEMY_BASICS, enemyEntityType, isClassEnemyId, setupFoeLook, MobileUnit, enemyHierarchyOrder, validFoeRecord, FOE_HEALTH_MAX, FOE_LEVEL_MAX, FOES_FRAME_MAX, CELL_FRAME_RECORDS_MAX,
     foes: [], _layoutFoes: 0, _layoutStood: true, _spawnUid: 0, _ctxDead: false, _authority: authority,
@@ -353,7 +362,8 @@ function dungeonLights(abyss) {
     online: { peers: new Map([['p1', { id: 'p1', shown: pose }]]), visible: () => true },
     cam: { pos: [8, 1.7, 4], yaw: 0 }, onlineToScene: (s) => [s.x, s.y, s.z], peerTorchLight, _peerCandleLights: [candle],
     performance: { now: () => 0 },
-    auraWingLights, _auraWearers: [], _auraLights: [],   // SERAPH-WINGS: the list's tail - no wings worn here
+    auraHost: { wingLights: () => [] },   // SERAPH-WINGS: the list's tail - no wings worn here (PIN MOVED, ARMORY: the auras' own host, scenes/auraHost.js)
+    gateCrowd: createGateCrowd(),   // PIN MOVED (AUDIT CROWD-WIDE B3): a torch asks the crowd's count - a fresh one cuts nobody
   });
   const dgColor = new Float32Array([0.8, 0.6, 0.4]);
   const lit = mount(`

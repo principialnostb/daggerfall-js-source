@@ -41,9 +41,12 @@ import { installWindowMotion } from '../windowMotion.js';   // PLUS1/WM1: window
 import { isEnhancedPlus } from '../../systems/uiSkin.js';   // PLUS1: the Plus sheet is laid only under Plus
 import { pageHas } from '../../systems/pageQuery.js';   // PERF-URL: the page's query, parsed once a search
 import { paceControlsCss } from '../travel/travelPaceControls.js';   // PACE-DIALS: the Overworld block's speed dials
+import { effectInkCss } from '../effectText.js';   // AUDIT-STOREFRONT II: the effects' inks, one table for the profile and the shop
 import { SERPENT_RING_MAP_CSS } from '../serpentMapMark.js';   // SERPENT-TIMERS: the sea serpent's row marked in its waters' own colour
 import { SD_RING_MAP_CSS } from '../superDungeon/sdMapMark.js';   // SD2c: the Super dungeon's row in its omen's brass
 import { STAR_VIOLET_CSS } from '../starfall/starMapMark.js';   // STAR6: a fallen star's row in its violet
+import { EG_ARCH_RING_CSS } from '../eliteGates/egArchMapMark.js';   // TIMERS2: an Elite Breach's row in its arch's gold
+import { heraldCss } from '../../net/herald/heraldCard.js';   // TIMERS2 / HERALD-CARDS: the gate's red, the one its Discord card wears
 import { TIER_MARKS, tierMarkCss } from '../lootTierMarks.js';   // LOOT-MARKS: the quick loot's tier gem and wash
 import { SUPPORT_MARKS_CSS } from '../supportAsks.js';   // SUPPORT1: the asks' marks - the door's icons and the website's corner, one drawing
 
@@ -598,6 +601,9 @@ select, input, textarea { font: inherit; }
    joins it, because that is the question actually being asked. */
 @media (max-width: 860px), (pointer: coarse) {
   .shell { grid-template-columns: 1fr; grid-template-rows: auto 1fr auto; }
+  /* A tile's notice (ui/saveTile.js notice - STRANDED's way back) wears the backup line's compact button at a desk,
+     and a thumb's here */
+  .svnotice .act { min-height: 44px; }
   .side { display: contents; }
   .brand { padding: 22px 20px 16px; background: var(--ink); }
   .brand h1 { font-size: 27px; }
@@ -685,7 +691,7 @@ select, input, textarea { font: inherit; }
    wizard: its rail is a readout and its phone strip is its own (below).
    TALL-TOUCH (2026-10-13, Discord #bug-reports, on an ASUS ROG Xbox Ally X: "it's impossible to configure the game
    settings because of a huge game logo that won't minimize or go away"). NOT ONLY A SHORT ONE: ANY LANDSCAPE SCREEN.
-   The stack sizes the logo by the screen's WIDTH (59.5% of it, at the mark's 1.63:1), so held sideways it stands at
+   The stack sizes the logo by the screen's WIDTH (59.5% of it, at BR5's 1.63:1; BR6's 43.4% is that height), so held sideways it stands at
    least half the height at any size - 1280x720 (a 1080p handheld at Windows' 150%) drew it ~470 px of 720 and left
    the Settings pane a strip. The 560 px ceiling caught the AYN Thor and missed the Ally. So every landscape screen
    600 px wide or more that the stack would take - a touch screen of any height, or a window narrowed under 860 px -
@@ -950,7 +956,9 @@ body.draglock .wornrow, body.draglock .wornmap { touch-action: none; }
 
    AUDIT INV2 A7: THE LADDER, walked rather than eyeballed. Every
    z-index literal in src/ and index.html: the doors' hosts are 11-14,
-   the boot error and three bottom sheets are 20, enhancedChunk's "the
+   the boot error and three bottom sheets are 20, the layer a message box
+   lays over an open enhanced window to take its clicks is 29 (BOX-ON-TOP,
+   ui/boxClickCatcher.js), enhancedChunk's "the
    game was updated" scrim is 30, the notice stack (ENH-NOTICE1; AUDIT
    ENH-NOTICE3 A7 lifted it off a tie with that scrim) is 31, the asset
    picker is 40 (and test/scenes/mwattach.test.js holds that it outranks
@@ -1020,7 +1028,7 @@ img.fit { image-rendering: pixelated; }   /* AUDIT UI A1: a fitted picture drawn
 .itemrow[data-rarity="legendary"] .itemname > span:first-child, .packdetail .card[data-rarity="legendary"] h3, .wplaque-row[data-rarity="legendary"] > span:first-child { color: #e07a2e; }
 .itemrow[data-rarity="aetheric"] .itemname > span:first-child, .packdetail .card[data-rarity="aetheric"] h3, .wplaque-row[data-rarity="aetheric"] > span:first-child { color: #bfe8ff; }
 .itemrow[data-rarity="artifact"] .itemname > span:first-child, .packdetail .card[data-rarity="artifact"] h3, .wplaque-row[data-rarity="artifact"] > span:first-child { color: #b57bee; }
-.itemrow[data-rarity="gilded"] .itemname > span:first-child, .packdetail .card[data-rarity="gilded"] h3, .wplaque-row[data-rarity="gilded"] > span:first-child { color: #ffcf4d; }
+.itemrow[data-rarity="gilded"] .itemname > span:first-child, .packdetail .card[data-rarity="gilded"] h3, .wplaque-row[data-rarity="gilded"] > span:first-child { color: #ff3b4a; }
 .packdetail ul.rarity { list-style: none; margin: 4px 0 10px; padding: 0; font-family: var(--data); font-size: 13px; line-height: 1.5; }
 .packdetail ul.rarity li:first-child { text-transform: uppercase; letter-spacing: 0.16em; font-size: 11px; color: var(--dim); }
 .packdetail ul.rarity li.lore { color: var(--dim); font-style: italic; }   /* CARD-FIT: by its own class - the card's list carries no lore now, and its last AFFIX wore the lore's dim italic */
@@ -1066,6 +1074,18 @@ img.fit { image-rendering: pixelated; }   /* AUDIT UI A1: a fitted picture drawn
   font: inherit; font-size: 15px; font-variant-numeric: tabular-nums;
 }
 .goldfield input:focus-visible { outline: none; border-color: var(--brass); }
+/* GOLD-ALL: the verb and its "all", stacked in the 44px the box beside them already stands - one column of two equal
+   rows, so both presses are one size (the wider word's width, each half the box's height) and the floating field grows
+   neither taller nor wider (each keeps the kit's 104px, the one Stow's width before). They are the pack's own presses, at the Gold button's
+   12px; the pack's 2px word shadow is halved for the smaller face. */
+.goldfield .goldacts { display: grid; grid-template-columns: max-content; grid-template-rows: 1fr 1fr; gap: 4px;
+  flex: 0 0 auto; height: 44px; }
+.goldfield .goldacts .act { min-height: 0; height: auto; margin: 0; padding: 0 12px; box-sizing: border-box;
+  display: flex; align-items: center; justify-content: center; text-align: center;
+  font-size: 12px; line-height: 1; white-space: nowrap; }
+.pack-shell .goldfield .goldacts .act { text-shadow: 1px 1px 0 rgba(0,0,0,0.85); }
+.pack-shell .goldfield .goldacts .act.primary, .pack-shell .goldfield .goldacts .act:hover,
+.pack-shell .goldfield .goldacts .act:focus-visible { text-shadow: 1px 1px 0 rgb(93,77,12); }
 /* DISC25-F: the card's how-many field - a stack's split, beside the button that moves it */
 .qtyfield { display: inline-flex; align-items: center; gap: 6px; color: var(--dim); font-size: 12px; }
 .qtyfield input {
@@ -1165,6 +1185,8 @@ img.fit { image-rendering: pixelated; }   /* AUDIT UI A1: a fitted picture drawn
 .card .acctwear { margin: 0 0 16px; display: flex; flex-direction: column; gap: 6px; }
 .card .acctwear .fieldlabel { margin-top: 6px; }
 .card .acctwearrow { display: flex; flex-wrap: wrap; gap: 8px; }
+.card .acctarmoryrow { align-items: center; }   /* ARMORY: a slot's row - its name, then its pieces */
+.card .acctarmoryslot { min-width: 5.5em; font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--dim); }
 .card button.acttitle {
   font: inherit; font-size: 13px; letter-spacing: 0.04em;
   padding: 6px 12px; border: 1px solid currentColor; border-radius: 2px;
@@ -1196,6 +1218,65 @@ img.fit { image-rendering: pixelated; }   /* AUDIT UI A1: a fitted picture drawn
 .card button.acctglyph.worn { opacity: 1; }
 .card button.acctglyph:hover:not(:disabled) { border-color: rgba(255, 255, 255, 0.18); }
 .card button.acctglyph:disabled { cursor: default; }
+/* PROFILE-SLOTS (2026-10-28, the owner: "a detailed character slot section ... an actual preview") - THE CHARACTER, the
+   whole window's width under the plate: its slots down both sides of its stage, the picker of the slot pressed under
+   them (ui/characterSlots.js). A tile is the slot's name over what it wears, in that thing's own paint - the badge
+   rules above colour it, as they colour the picker's buttons. Narrow, the stage stands over its slots, two to a row. */
+.card .acctslots { min-width: 0; }
+.card .slots-stage { display: grid; grid-template-columns: minmax(0, 1fr) minmax(150px, 220px) minmax(0, 1fr); gap: 10px; align-items: stretch; }
+.card .slots-col { display: flex; flex-direction: column; justify-content: space-between; gap: 8px; min-width: 0; }
+.card .slots-left button.slottile { align-items: flex-end; text-align: right; }   /* the body's slots lean in toward it */
+.card .slots-right button.slottile { align-items: flex-start; }
+.card .slots-mid { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.card .slots-figure { position: relative; aspect-ratio: 3 / 4; overflow: hidden; border: 2px solid var(--iron);
+  background: radial-gradient(circle at 50% 42%, #1b1826 0%, #08070c 76%); }
+.card .slots-canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.card .slots-platehost { position: absolute; inset: 0; overflow: hidden; pointer-events: none; font-size: 13px;
+  font-family: ${PIXEL_STACK}; -webkit-font-smoothing: none; -moz-osx-font-smoothing: grayscale; }   /* the world's names' face (nameLayer.js .dfnames) */
+/* a name or title wider than the stage ends in an ellipsis inside it, never cut at its edges; the Renown and glyphs kept whole */
+.card .slots-platehost .dfname { max-width: calc(100% - 8px); }
+.card .slots-platehost .dfname-tag, .card .slots-platehost .dfname-title { max-width: 100%; }
+.card .slots-platehost .dfname-who, .card .slots-platehost .dfname-title { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.card .slots-platehost .dfname-renown, .card .slots-platehost .dfname-glyphs { flex-shrink: 0; }
+.card .slots-bodies { display: flex; justify-content: center; gap: 6px; }
+.card .slots-bodies button.acttitle { font-size: 11px; padding: 3px 8px; }
+.card .slots-bodies button.acttitle.worn { padding: 2px 7px; }
+.card button.slottile { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; width: 100%; min-width: 0;
+  padding: 7px 9px; border: 1px solid var(--iron); border-radius: 2px; background: rgba(0, 0, 0, 0.25); font: inherit;
+  text-align: left; cursor: pointer; opacity: 1; }
+.card button.slottile:hover { background: rgba(255, 255, 255, 0.06); }
+.card button.slottile.on { border-color: var(--brass); box-shadow: inset 0 0 0 1px var(--brass); background: rgba(255, 255, 255, 0.06); }
+.card button.slottile .slotname { font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--dim); }
+.card button.slottile .slotworn { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; }
+.card button.slottile.empty .slotworn { color: var(--dim); }
+.card button.slottile .slotglyphs { display: flex; gap: 4px; }
+.card button.slottile .sloticon { width: 18px; height: 18px; }
+.card .slots-picker { margin: 12px 0 0; }
+.card .slots-pickhead { display: flex; align-items: baseline; gap: 10px; }
+.card .slots-pickname { font-size: 12px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--brass); }
+.card button.acttitle.actnone { color: var(--dim); }
+/* a piece not held: tried on when pointed at, its way of being had said under the row - never worn from here */
+.card button.acttitle.actaura .actauraword { display: inline-block; }   /* an aura's or a piece's word, painted as its title's (badgeCss) */
+.card button.actarmory.locked.aura-dagonfire, .card button.actarmory.locked.aura-eternal, .card button.actarmory.locked.aura-guild, .card button.actarmory.locked.aura-crystal { opacity: 0.4; border-style: dashed; }   /* AUDIT lane 3 F5: every line's (net/armoryLaw.js ARMORY_LINES) */
+.card .slots-look { margin: 4px 0 0; min-height: 2.6em; }
+/* STOREFRONT (2026-10-29): the effects under the stage - the kill effect, the portals, the mount - three tiles, each in
+   its effect's own colour; the Mount slot's horse over its choices (ui/mountPreview.js). */
+.card .slots-under { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin: 10px 0 0; }
+.card .slots-mount { display: flex; justify-content: center; margin: 6px 0 8px; padding: 8px; border: 2px solid var(--iron);
+  background: radial-gradient(circle at 50% 60%, #1b1826 0%, #08070c 80%); }
+.card .slots-mount canvas.mountpreview { width: min(100%, 300px); height: auto; image-rendering: pixelated; }
+.card button.acteffect.locked { opacity: 0.45; border-style: dashed; }
+${effectInkCss()}
+/* AUDIT-STOREFRONT II (lane E 7): narrow, the stage stands first and the picker right under it - a choice pointed at is
+   tried on in sight - and the slots two to a row under them */
+@container (max-width: 480px) {
+  .card .acctslots { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 0 10px; }
+  .card .acctslots > *, .card .slots-stage > .slots-mid { grid-column: 1 / -1; }
+  .card .slots-stage { display: contents; }
+  .card .acctslots > .acctsechead { order: -3; }
+  .card .slots-mid { order: -2; justify-self: center; width: min(100%, 240px); }
+  .card .slots-picker { order: -1; margin: 8px 0 12px; }
+}
 /* PATREON-LINK - THE PATRON'S ROW. Link Patreon is a LINK (the account read carries it, so the press opens it at once,
    as TERMS1's document links do), worn as an .act so it reads as the button it is; what the pledge holds is a fact
    beside it, drawn as the glyphs' facts are - quiet, not pressable. */
@@ -1254,6 +1335,7 @@ ${badgeCss()}
 .card .acctportrait svg.accticon { position: absolute; inset: 0; width: 100%; height: 100%; }   /* WITCH1: a profile icon worn fills the well */
 .card .acticon { display: inline-flex; align-items: center; gap: 6px; }   /* WITCH1: an icon's button - its picture, then its word */
 .card .acticon svg.acticonart { flex: none; width: 22px; height: 22px; }
+.card .acteffect svg.acteffectart { flex: none; width: 22px; height: 22px; margin-right: 6px; vertical-align: middle; }
 .card .acctsilhouette { position: absolute; inset: 0; }
 .card .acctsilhouette::before { content: ''; position: absolute; left: 31%; top: 16%; width: 38%; height: 40%;
   border-radius: 48% 48% 44% 44%; background: #3a424d; }
@@ -2355,20 +2437,24 @@ ${badgeCss()}
    HEIGHT it had, so nothing above or below it moves: the door's old mark
    stood 540 x 769/2112 tall, and the same height at the new ratio is
    540 x 769/2112 x 526/322 = 321px wide (84vw -> 50vw; the short landscape
-   screen's 394px -> 234, 56vw -> 33.3vw). */
-.px-wordmark:has(.brand-logo) { width: min(321px, 50vw); line-height: 0; flex-shrink: 0; }
+   screen's 394px -> 234, 56vw -> 33.3vw).
+   BR6: the dragon mark is 1232 x 1034 (1.19:1), painted to its edges too;
+   the same heights at its ratio are 540 x 769/2112 x 1232/1034 = 234px
+   (36.4vw), and the short landscape screen's 171px (24.3vw). */
+.px-wordmark:has(.brand-logo) { width: min(234px, 36.4vw); line-height: 0; flex-shrink: 0; }
 .brand-logo { display: block; width: 100%; height: auto; object-fit: contain;
-  image-rendering: auto; }
+  image-rendering: auto; transform: translateX(-10%); }   /* LOGO-CENTRE: the letters on the centre line (brandMark.js) */
 /* BR5: the masthead's mark spent 769/2112 of the column's width in height
    (BR4's file less its empty rows); the DFO mark spends the same height at
    769/2112 x 526/322 = 59.5% of the width, centred. No margin pulls
-   anything up any more - the file has no empty rows. */
-.brand-home .brand-logo { width: 59.5%; margin: 0 auto; }
+   anything up any more - the file has no empty rows. BR6: the dragon
+   mark's 1.19:1 spends that height at 769/2112 x 1232/1034 = 43.4%. */
+.brand-home .brand-logo { width: 43.4%; margin: 0 auto; }
 .brand-home { display: block; width: 100%; border: 0; padding: 0; background: transparent; cursor: pointer; }
 .brand-home:focus-visible { outline: 2px solid var(--brass); outline-offset: 6px; }
 .shell .brand h1:has(.brand-logo) { line-height: 0; }
 @media (max-height: 560px) and (min-width: 600px) {
-  .px-wordmark:has(.brand-logo) { width: min(234px, 33.3vw); }   /* BR4: INTRO2's 430px, at the same height; BR5: BR4's 394px, at the same height */
+  .px-wordmark:has(.brand-logo) { width: min(171px, 24.3vw); }   /* BR4: INTRO2's 430px, at the same height; BR5 and BR6: BR4's 394px, at the same height */
 }
 .px-wordmark small { display: block; font-family: ${PIXEL_STACK};
   font-size: 16px; letter-spacing: 0.5em; text-indent: 0.5em;
@@ -2423,6 +2509,49 @@ ${badgeCss()}
 .px-about:hover, .px-about:focus-visible { outline: none;
   color: rgb(243,239,44); border-color: var(--brass);
   text-shadow: 2px 2px 0 rgb(93,77,12); }
+
+/* ── TITLE-DOOR (2026-10-27, the owner: "we use the intro title screen as the landing pad itself") ──
+   The boot door's face on the film's held title (enhancedMenu.js onTitle, ui/intro/introScreen.js land): the host is
+   see-through there - the film stands under it at 11 - and the home has no ground of its own. The doors stand in a row in
+   the band between the mark and the foot, where Tap to continue stood: the band starts at the film's --intro-doors-top
+   (the landed mark's foot), and the stage ends at the measured foot (--px-foot-h). Either skin's door, so this sheet's,
+   not a dress's; every rule outweighs the door's own column (Plus's MENU_CSS, UI-CALM's two questions) on purpose. */
+#enhanced-menu[data-over-title] { background: transparent !important; }
+.px-home.px-title { background: transparent; }
+#enhanced-menu .px-home.px-title > .px-stage:not(.px-acctstage) { justify-content: center; padding-top: calc(var(--intro-doors-top, 62dvh) + 6px); }
+.px-home.px-title .px-menu { flex-direction: row; flex-wrap: wrap; justify-content: center; align-items: stretch;
+  width: min(1120px, 100%); gap: 10px 14px; }
+.px-home.px-title .px-menu .doorbtn { flex: 0 1 auto; min-height: 50px; padding: 4px 18px; gap: 12px;
+  font-size: 20px; letter-spacing: 0.14em; text-indent: 0.14em; }
+.px-home.px-title .px-menu .doorbtn .px-c { font-size: 14px; }
+.px-home.px-title .px-menu[data-level="top"] { width: min(780px, 100%); gap: 10px 18px; }
+.px-home.px-title .px-menu[data-level="top"] .doorbtn { flex: 1 1 300px; min-height: 76px; padding-top: 8px; padding-bottom: 8px; font-size: 28px; }
+.px-home.px-title .px-menu[data-level="offline"] .px-pagehead,
+.px-home.px-title .px-menu[data-level="offline"] .px-pagenote { flex: 0 0 100%; margin: 0; }
+/* the offline level's word and line stand bare on the map, among its own names - a glow of the night under them (Plus's
+   alone: DFO Grimoire writes them on its page) */
+:root:not([data-plus-dress="grimoire"]) .px-home.px-title .px-menu[data-level="offline"] .px-pagehead,
+:root:not([data-plus-dress="grimoire"]) .px-home.px-title .px-menu[data-level="offline"] .px-pagenote { text-shadow: 1px 1px 0 #000, 0 0 6px #000, 0 0 14px #000; }
+.px-home.px-title .px-menu .doorbtn.door-back { margin-top: 0; min-height: 50px; font-size: 15px; }
+/* a phone: the two questions one over the other, the games two to a row and the way back under them */
+@media (max-width: 600px) {
+  .px-home.px-title .px-menu[data-level="top"] { flex-direction: column; width: min(420px, 100%); gap: 8px; }
+  .px-home.px-title .px-menu[data-level="top"] .doorbtn { flex: 0 0 auto; min-height: 68px; font-size: 24px; }
+  .px-home.px-title .px-menu:not([data-level="top"]) { gap: 8px; }
+  .px-home.px-title .px-menu:not([data-level="top"]) .doorbtn { flex: 1 1 calc(50% - 4px); min-height: 46px; padding: 2px 10px;
+    font-size: 16px; letter-spacing: 0.08em; text-indent: 0.08em; }
+  .px-home.px-title .px-menu .doorbtn.door-back { flex-basis: 100%; }
+}
+/* a short screen: the same row, a size down - the games and the way back on one row, their diamonds put away, and the
+   offline word and line left to the rail (Offline's door said them a press ago) */
+@media (max-height: 560px) {
+  .px-home.px-title .px-menu[data-level="top"] .doorbtn { min-height: 58px; padding-top: 4px; padding-bottom: 4px; font-size: 22px; }
+  .px-home.px-title .px-menu .doorbtn { min-height: 44px; padding: 2px 14px; font-size: 16px; letter-spacing: 0.1em; text-indent: 0.1em; }
+  .px-home.px-title .px-menu:not([data-level="top"]) .doorbtn .px-c { display: none; }
+  .px-home.px-title .px-menu .door-sub { font-size: 12px; }
+  .px-home.px-title .px-menu[data-level="offline"] .px-pagehead,
+  .px-home.px-title .px-menu[data-level="offline"] .px-pagenote { display: none; }
+}
 
 /* ── ACC1f: THE PROFILE MARK AND THE ACCOUNT WINDOW ─────────────────
    Mac: the online details live "as a popup on main menu startup and a
@@ -2504,7 +2633,7 @@ ${badgeCss()}
 /* SUPPORT1: ON THE FRONT DOOR THE CAPTION IS BOUNDED IN PIXELS. Its two lines' 14ch and 22ch are the font's - up to
    158px in Pixelify Sans - and a reach that is the font's cannot be the band's (THE CORNERS' BAND, below). 140px keeps
    "No character yet" whole (123px) and holds the mark's reach to 234px, so the band ended at 1007 under BR4's 540px
-   mark and a 1024x768 door still fit without a scroll (BR5's 321px mark ends it at 788); a character's longer line
+   mark and a 1024x768 door still fit without a scroll (BR5's 321px mark ended it at 788, BR6's 234px at 701); a character's longer line
    ends in its ellipsis three letters sooner. */
 .px-home:not(.px-over) .px-profilename { max-width: min(14ch, 140px); }
 .px-home:not(.px-over) .px-profilesub { max-width: min(22ch, 140px); }
@@ -2556,7 +2685,10 @@ ${SUPPORT_MARKS_CSS}
   .px-stage.px-acctstage { padding: max(10px, env(safe-area-inset-top)) 16px 10px; overflow: hidden; }
   .px-win.px-acctwin { max-height: calc(100dvh - 20px); }
 }
-.px-win.px-acctwin .px-body { padding: 22px 26px 24px; }
+.px-win.px-acctwin .px-body { padding: 22px 26px 24px;
+  overflow-anchor: none; }   /* AUDIT-STOREFRONT II (lane E 7): the narrow card shows the picker before the slots its markup puts first;
+  the browser's scroll anchor, chosen in markup order, then sat under a choice's words, and a choice's words grown moved
+  the row from under the pointer - tried on, left, tried on again. With no anchor, what grows pushes only what is below. */
 
 /* ═══ ONE AXIS ════════════════════════════════════════════════════
    Mac: "Nothing is centered". It was true and it read as rushed - a
@@ -2606,6 +2738,9 @@ ${SUPPORT_MARKS_CSS}
   .px-stage.px-acctstage { padding: max(10px, env(safe-area-inset-top)) 8px max(10px, env(safe-area-inset-bottom)); background: rgba(8,10,15,0.88); }
   .px-win.px-acctwin, .px-win.px-acctwin:has(.card.acct.acctin) { width: 100%; max-height: calc(100dvh - 20px); }
   .px-win.px-acctwin .px-body { padding: 18px 16px 20px; }
+  /* PROFILE-SLOTS: the stage's one track the screen's width - px-stage centres its tracks, so the window's 100% was
+     only ever its content's width (the skin card's row, which happened to fill it) */
+  .px-stage.px-acctstage { grid-template-columns: minmax(0, 1fr); }
 }
 .px-win.px-acctwin .card.acct.acctin .acctsec { text-align: left; }
 .px-win.px-acctwin .card.acct.acctin ul.acctfacts li { justify-content: space-between; }
@@ -2697,17 +2832,49 @@ ${SUPPORT_MARKS_CSS}
 .px-timersmark:hover .px-hourglass, .px-timersmark:focus-visible .px-hourglass { transform: rotate(180deg); transition: transform 240ms steps(4); }
 .px-timersstage { position: absolute; inset: 0; z-index: 5; display: grid; justify-items: center; align-items: center;
   padding: 24px 16px; background: rgba(8,10,15,0.6); }
-.px-win.px-timerswin { height: auto; max-height: min(680px, 86dvh); width: min(560px, 94vw); background: #0a0c11; }
-.px-win.px-timerswin .px-body { padding: 20px 24px 22px; overflow-y: auto; }
+/* AUDIT TIMERS2 H1, M6: ONE HEIGHT, AND THE LIST SCROLLS UNDER THE BAR. Sized to its rows and centred, the window shrank at a
+   filter's press (680px to 469 at 1280x800) and centred again: the bar moved off the pointer, a second press fell on Close
+   or the scrim and shut it. And the whole body scrolled, so the bar went up with the rows (1,185px off the top in a long
+   raid day). The window stands at its height whatever it shows, its head and bar stand still, and the list alone scrolls. */
+.px-win.px-timerswin { height: min(680px, 86dvh); max-height: min(680px, 86dvh); width: min(560px, 94vw); background: #0a0c11; }
+.px-win.px-timerswin .px-body { padding: 20px 24px 22px; display: flex; flex-direction: column; overflow: hidden; }
+.px-timerswin .tm-list { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
 .px-timerswin .tm-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .px-timerswin .tm-title { margin: 0; font-size: 22px; letter-spacing: 0.18em; text-transform: uppercase; color: #efe8d6; }
 .px-timerswin .tm-lead { margin: 6px 0 4px; font-size: 12px; color: var(--dim); }
-.px-timerswin .tm-section { margin: 16px 0 6px; font-size: 12px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--brass); }
+.px-timerswin .tm-section { margin: 16px 0 6px; font-size: 12px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--brass);
+  display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+/* TIMERS2: a group's head says how many of its rows are under way, at its right, in the live countdowns' green */
+.px-timerswin .tm-section-live { font-size: 11px; letter-spacing: 0.12em; color: #9fe8b4; white-space: nowrap; }
+/* TIMERS2: the bar - All and a button for each group with a row; the one shown pressed, each its count, a bar under it where
+   one is under way. AUDIT TIMERS2 M3: nothing in a button changes its width as the world moves - the mark is drawn under
+   it, not beside its word (a dot's 12px moved every button after it), and the count holds two figures' room (a tenth raid
+   wrapped Resets to a second line and dropped the list 36px) - so the bar's lines change only with its groups. L7: the
+   count in the button's own colour (at 0.75 it read 4.1:1 on Stone's light patches), and the mark dark on the pressed one
+   (green on brass read 2.1:1, and 1.06:1 on Stone). */
+.px-timerswin .tm-groups { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0 8px; flex: 0 0 auto; }
+.px-timerswin .tm-groups:empty { display: none; }
+.px-timerswin .tm-chip { display: inline-flex; align-items: center; gap: 6px; padding: 4px 8px; min-height: 30px; font-size: 12px;
+  letter-spacing: 0.08em; text-transform: uppercase; }
+.px-timerswin .tm-chip.on { color: #0a0c11; background: var(--brass); border-color: var(--brass); }
+.px-timerswin .tm-chip-n { font-variant-numeric: tabular-nums; min-width: 2ch; text-align: right; }
+.px-timerswin .tm-chip.live { box-shadow: inset 0 -3px 0 #9fe8b4; }
+.px-timerswin .tm-chip.on.live { box-shadow: inset 0 -3px 0 #0a0c11; }
+/* AUDIT TIMERS2 H2: a thumb's 44px (the sheet's law, AUDIT UI 2026-08-27's query) - the buttons measured 30px on a phone */
+@media (max-width: 860px), (pointer: coarse) {
+  .px-timerswin .tm-chip { min-height: 44px; }
+}
+/* TIMERS2: a row under way says "Now" above its countdown */
+.px-timerswin .tm-badge { font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: #9fe8b4; }
 .px-timerswin .tm-row { display: flex; align-items: center; gap: 12px; padding: 9px 10px 9px 14px; position: relative;
   border-bottom: 1px solid rgba(125,116,96,0.25); }
-.px-timerswin .tm-row::before { content: '\\25c6'; position: absolute; left: 0; top: 12px; font-size: 9px; color: var(--tm-kind, #9c937d); }
-.px-timerswin .tm-gate { --tm-kind: #e2554c; } .px-timerswin .tm-serpent { --tm-kind: ${SERPENT_RING_MAP_CSS}; } .px-timerswin .tm-super { --tm-kind: ${SD_RING_MAP_CSS}; } .px-timerswin .tm-star { --tm-kind: ${STAR_VIOLET_CSS}; } .px-timerswin .tm-raid { --tm-kind: #f2c46b; } .px-timerswin .tm-battle { --tm-kind: #d98074; }
-.px-timerswin .tm-seat { --tm-kind: #c08a3e; } .px-timerswin .tm-reset { --tm-kind: #85a8a1; }
+.px-timerswin .tm-name { position: relative; }
+/* AUDIT TIMERS2 L9: the row's mark by its title's line, wherever the row's height comes from - set at the row's top, it stood
+   10px above the title of a live row (its clock three lines tall with the "Now") and 11px above a one-line row's */
+.px-timerswin .tm-name::before { content: '\\25c6'; position: absolute; left: -14px; top: 50%; transform: translateY(-50%); font-size: 9px;
+  line-height: 1; color: var(--tm-kind, #9c937d); }
+.px-timerswin .tm-gate { --tm-kind: ${heraldCss('gate')}; } .px-timerswin .tm-serpent { --tm-kind: ${SERPENT_RING_MAP_CSS}; } .px-timerswin .tm-super { --tm-kind: ${SD_RING_MAP_CSS}; } .px-timerswin .tm-star { --tm-kind: ${STAR_VIOLET_CSS}; } .px-timerswin .tm-ketch { --tm-kind: ${heraldCss('ketch')}; } .px-timerswin .tm-raid { --tm-kind: #f2c46b; } .px-timerswin .tm-battle { --tm-kind: #d98074; }
+.px-timerswin .tm-front { --tm-kind: #8fd17a; } .px-timerswin .tm-seat { --tm-kind: #c08a3e; } .px-timerswin .tm-reset { --tm-kind: #85a8a1; } .px-timerswin .tm-elite { --tm-kind: ${EG_ARCH_RING_CSS}; }
 .px-timerswin .tm-row.live { background: rgba(192,138,62,0.08); }
 .px-timerswin .tm-text { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
 .px-timerswin .tm-name { font-size: 15px; color: #efe8d6; }
@@ -2727,9 +2894,21 @@ ${SUPPORT_MARKS_CSS}
 :root[data-plus-theme="stone"] .px-timerswin .tm-where { color: #fbf8f0; }
 :root[data-plus-theme="stone"] .px-timerswin .tm-count { color: #ffe3a6; }
 :root[data-plus-theme="stone"] .px-timerswin .tm-row.live .tm-count { color: #c8ffd6; }
+:root[data-plus-theme="stone"] .px-timerswin .tm-badge, :root[data-plus-theme="stone"] .px-timerswin .tm-section-live { color: #c8ffd6; }
+:root[data-plus-theme="stone"] .px-timerswin .tm-chip.live:not(.on) { box-shadow: inset 0 -3px 0 #c8ffd6; }
 @media (max-width: 560px) {
   .px-win.px-timerswin .px-body { padding: 16px 14px 18px; }
   .px-timerswin .tm-count { font-size: 16px; }
+  /* TIMERS2: a row's door on a line of its own on a phone - beside the clock it squeezed the row's words to a word a line */
+  .px-timerswin .tm-row { flex-wrap: wrap; }
+  .px-timerswin .tm-text { flex: 1 1 0; }
+  .px-timerswin .tm-door { flex: 1 0 100%; justify-content: center; text-align: center; }   /* AUDIT TIMERS2 H2: at the button's own 46px - a 36px rule here had taken 10px off a thumb's target */
+}
+/* AUDIT TIMERS2 M6: a short screen (a phone on its side) - the whole height, and the lead's line given to the list (the head
+   and the bar took 180 of a 370px window) */
+@media (max-height: 560px) {
+  .px-win.px-timerswin { height: calc(100dvh - 20px); }
+  .px-timerswin .tm-lead { display: none; }
 }
 /* SERVER-POST (Mac: "an ingame server mailbox that goes next to the hourglass in the pause menu. It should show
    notifications whenever players have a message"): THE MAILBOX - an envelope beside the hourglass (ui/enhanced/enhancedPost.js;
@@ -2776,14 +2955,16 @@ ${SUPPORT_MARKS_CSS}
   border: 1px solid rgba(192,138,62,0.55); background: rgba(192,138,62,0.08); }
 .px-postwin .pm-itemname { font-size: 16px; letter-spacing: 0.04em; }
 .px-postwin .pm-foot { display: flex; justify-content: space-between; gap: 12px; margin-top: 8px; }
+.px-postwin .pm-claimrow { justify-content: flex-end; margin: 0 0 8px; }   /* LOST-SPOILS: Claim all, above the list */
 .px-postwin [data-rarity="magic"] { color: #6f9ee8; } .px-postwin [data-rarity="rare"] { color: #e4c34f; } .px-postwin [data-rarity="legendary"] { color: #e07a2e; }
-.px-postwin [data-rarity="aetheric"] { color: #bfe8ff; } .px-postwin [data-rarity="artifact"] { color: #b57bee; } .px-postwin [data-rarity="gilded"] { color: #ffcf4d; }
+.px-postwin [data-rarity="aetheric"] { color: #bfe8ff; } .px-postwin [data-rarity="artifact"] { color: #b57bee; } .px-postwin [data-rarity="gilded"] { color: #ff3b4a; }
 /* AUDIT SERVER-POST: the tiers above are LR1's own hexes (systems/loot/lootRarity.js RARITIES, pinned against it - a stylesheet
    never imports the loot ladder, which reaches the whole combat graph); on Stone's light panel the three darkest read
-   3.0-3.3:1 and are lifted past 4.5:1 there alone. */
+   3.0-3.3:1 and are lifted past 4.5:1 there alone - and GILDED-RED's crimson, 2.3:1 on Stone's ground, to its own light. */
 :root[data-plus-theme="stone"] .px-postwin [data-rarity="magic"] { color: #b4cdf7; }
 :root[data-plus-theme="stone"] .px-postwin [data-rarity="legendary"] { color: #f7b27a; }
 :root[data-plus-theme="stone"] .px-postwin [data-rarity="artifact"] { color: #dcbaf9; }
+:root[data-plus-theme="stone"] .px-postwin [data-rarity="gilded"] { color: #ffb1b7; }
 :root[data-plus-theme="stone"] .px-postwin { --dim: #e2dccd; --brass: #ffd98a; text-shadow: 1px 1px 0 rgba(5,6,8,0.85); }
 /* PRIVATE-REPORT (2026-10-17): the mailbox window's report form and the readers' inbox (ui/enhanced/enhancedReport.js) - the
    post's own rows, buttons and dim words, and the account card's field (label.field) for its title and its words. */
@@ -2823,6 +3004,53 @@ ${SUPPORT_MARKS_CSS}
   .px-postwin .pm-item { flex-direction: column; align-items: stretch; }
 }
 @media (max-height: 560px) { .px-win.px-postwin { max-height: calc(100dvh - 20px); } }   /* AUDIT SERVER-POST: a short screen's window, as the timers' */
+/* SEASON-BOOK (the owner: "a new pause menu icon, like we did for the timers and mail. A condensed place to see season
+   related content and descriptions"): THE LAUREL - a wreath beside the envelope (ui/enhanced/enhancedSeason.js; placed as
+   the envelope is - 420px off the edge stands in until it is measured), and its window on the hourglass's own stage
+   (.px-timersstage): a section a clock - its title and countdown, its rows a name, the player's standing and a line on it. */
+.px-seasonmark { position: absolute; top: 12px; right: 420px; z-index: 4; display: flex; align-items: center;
+  min-height: 44px; min-width: 44px; justify-content: center; padding: 0 6px; background: none; border: 0; cursor: pointer; }
+.px-seasonmark:focus-visible { outline: 2px solid #f3cf86; outline-offset: 2px; }
+.px-laurel { display: block; width: 36px; height: 36px; image-rendering: pixelated; filter: drop-shadow(2px 2px 0 rgba(0,0,0,0.8));
+  background: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' shape-rendering='crispEdges'><rect x='2' y='0' width='1' height='1' fill='%23f3cf86'/><rect x='9' y='0' width='1' height='1' fill='%23f3cf86'/><rect x='1' y='1' width='2' height='1' fill='%23f3cf86'/><rect x='3' y='1' width='1' height='1' fill='%23c08a3e'/><rect x='8' y='1' width='1' height='1' fill='%23c08a3e'/><rect x='9' y='1' width='2' height='1' fill='%23f3cf86'/><rect x='0' y='2' width='2' height='1' fill='%23f3cf86'/><rect x='2' y='2' width='1' height='1' fill='%23c08a3e'/><rect x='9' y='2' width='1' height='1' fill='%23c08a3e'/><rect x='10' y='2' width='2' height='1' fill='%23f3cf86'/><rect x='0' y='3' width='1' height='1' fill='%23f3cf86'/><rect x='1' y='3' width='1' height='1' fill='%23c08a3e'/><rect x='2' y='3' width='1' height='1' fill='%23d8cfae'/><rect x='9' y='3' width='1' height='1' fill='%23d8cfae'/><rect x='10' y='3' width='1' height='1' fill='%23c08a3e'/><rect x='11' y='3' width='1' height='1' fill='%23f3cf86'/><rect x='0' y='4' width='2' height='1' fill='%23f3cf86'/><rect x='2' y='4' width='1' height='1' fill='%23c08a3e'/><rect x='9' y='4' width='1' height='1' fill='%23c08a3e'/><rect x='10' y='4' width='2' height='1' fill='%23f3cf86'/><rect x='0' y='5' width='1' height='1' fill='%23f3cf86'/><rect x='1' y='5' width='1' height='1' fill='%23c08a3e'/><rect x='2' y='5' width='1' height='1' fill='%23d8cfae'/><rect x='9' y='5' width='1' height='1' fill='%23d8cfae'/><rect x='10' y='5' width='1' height='1' fill='%23c08a3e'/><rect x='11' y='5' width='1' height='1' fill='%23f3cf86'/><rect x='0' y='6' width='2' height='1' fill='%23f3cf86'/><rect x='2' y='6' width='1' height='1' fill='%23c08a3e'/><rect x='9' y='6' width='1' height='1' fill='%23c08a3e'/><rect x='10' y='6' width='2' height='1' fill='%23f3cf86'/><rect x='1' y='7' width='1' height='1' fill='%23f3cf86'/><rect x='2' y='7' width='1' height='1' fill='%23c08a3e'/><rect x='3' y='7' width='1' height='1' fill='%23d8cfae'/><rect x='8' y='7' width='1' height='1' fill='%23d8cfae'/><rect x='9' y='7' width='1' height='1' fill='%23c08a3e'/><rect x='10' y='7' width='1' height='1' fill='%23f3cf86'/><rect x='1' y='8' width='2' height='1' fill='%23f3cf86'/><rect x='3' y='8' width='2' height='1' fill='%23c08a3e'/><rect x='7' y='8' width='2' height='1' fill='%23c08a3e'/><rect x='9' y='8' width='2' height='1' fill='%23f3cf86'/><rect x='2' y='9' width='2' height='1' fill='%23f3cf86'/><rect x='4' y='9' width='4' height='1' fill='%23c08a3e'/><rect x='8' y='9' width='2' height='1' fill='%23f3cf86'/><rect x='4' y='10' width='4' height='1' fill='%23b8322b'/><rect x='3' y='11' width='2' height='1' fill='%23b8322b'/><rect x='7' y='11' width='2' height='1' fill='%23b8322b'/></svg>") center / contain no-repeat; }
+.px-seasonmark:hover .px-laurel, .px-seasonmark:focus-visible .px-laurel { transform: translateY(-2px); transition: transform 160ms steps(2); }
+.px-win.px-seasonwin { height: auto; max-height: min(700px, 88dvh); width: min(660px, 94vw); background: #0a0c11; }   /* wider than the timers': a row's line on it wraps less */
+.px-win.px-seasonwin .px-body { padding: 20px 24px 22px; overflow-y: auto; }
+.px-seasonwin .sb-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.px-seasonwin .sb-title { margin: 0; font-size: 22px; letter-spacing: 0.18em; text-transform: uppercase; color: #efe8d6; }
+.px-seasonwin .sb-empty { margin: 12px 0 0; color: var(--dim); font-size: 13px; }
+.px-seasonwin .sb-section { --sb-accent: #f3cf86; margin-top: 14px; padding-top: 12px; border-top: 1px solid rgba(192,138,62,0.35); }
+.px-seasonwin .sb-seats { --sb-accent: #c08a3e; } .px-seasonwin .sb-festival { --sb-accent: ${STAR_VIOLET_CSS}; }
+.px-seasonwin .sb-shead { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 4px 12px; }   /* AUDIT SEASON-BOOK U7: a narrow screen's clock goes under its title, never squeezes it to a word a line */
+.px-seasonwin .sb-stext { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.px-seasonwin .sb-stitle { margin: 0; font-size: 15px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--brass); overflow-wrap: break-word; }
+.px-seasonwin .sb-ssub { font-size: 12px; color: var(--dim); }
+.px-seasonwin .sb-clock { flex: 0 0 auto; margin-left: auto; display: flex; flex-direction: column; align-items: flex-end; gap: 2px; text-align: right; }
+.px-seasonwin .sb-count { font-size: 18px; color: #f3cf86; font-variant-numeric: tabular-nums; letter-spacing: 0.04em; }
+.px-seasonwin .sb-when { font-size: 11px; color: var(--dim); white-space: nowrap; }
+.px-seasonwin .sb-lead { margin: 6px 0 2px; font-size: 12px; line-height: 1.45; color: #cfc6ad; }
+.px-seasonwin .sb-row { display: flex; align-items: center; gap: 12px; padding: 7px 0 7px 14px; position: relative;
+  border-bottom: 1px solid rgba(125,116,96,0.2); }
+.px-seasonwin .sb-row:last-of-type { border-bottom: 0; }
+.px-seasonwin .sb-row::before { content: ''; position: absolute; left: 2px; top: 14px; width: 5px; height: 5px; background: var(--sb-accent); transform: rotate(45deg); }
+.px-seasonwin .sb-text { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.px-seasonwin .sb-line { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 2px 12px; }
+.px-seasonwin .sb-name { font-size: 14px; color: #efe8d6; }
+.px-seasonwin .sb-standing { font-size: 13px; color: #f3cf86; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.px-seasonwin .sb-about { margin: 0; font-size: 12px; line-height: 1.4; color: var(--dim); }
+.px-seasonwin .sb-door { flex: 0 0 auto; min-height: 44px; padding: 0 14px; font-size: 13px; }   /* AUDIT SEASON-BOOK U10: the 44px target on every screen - a landscape phone's too */
+.px-seasonwin .sb-foot { margin: 8px 0 0; font-size: 11px; line-height: 1.4; color: var(--dim); font-style: italic; }
+/* Stone's light ground, the timers window's lift (AUDIT TIMERS1 UI-4): every word past 4.5:1 over a hard black drop */
+:root[data-plus-theme="stone"] .px-seasonwin { --dim: #e2dccd; --brass: #ffd98a; text-shadow: 1px 1px 0 rgba(5,6,8,0.85); }
+:root[data-plus-theme="stone"] .px-seasonwin .sb-count, :root[data-plus-theme="stone"] .px-seasonwin .sb-standing { color: #ffe3a6; }
+:root[data-plus-theme="stone"] .px-seasonwin .sb-lead { color: #fbf8f0; }
+@media (max-width: 560px) {
+  .px-win.px-seasonwin .px-body { padding: 16px 14px 18px; }
+  .px-seasonwin .sb-count { font-size: 16px; }
+  .px-seasonwin .sb-row { flex-wrap: wrap; row-gap: 6px; }   /* a phone's door under its words, the words the whole width */
+  .px-seasonwin .sb-text { flex-basis: 100%; }
+}
+@media (max-height: 560px) { .px-win.px-seasonwin { max-height: calc(100dvh - 20px); } }   /* a short screen's window, as the timers' */
 .px-over .px-win.px-acctwin { align-self: center; max-height: min(640px, 86dvh); }
 @media (max-width: 480px) {
   /* On a phone the wordmark owns the top, so the mark loses its caption
@@ -2874,12 +3102,12 @@ ${SUPPORT_MARKS_CSS}
    clear of the corner marks over a game. With a mark in each top corner, the door's stage starts below them wherever
    the wordmark is wide enough to reach under either: the asks reach 122px in (18, their 98, the Plus frame's 6), the
    profile 234 (18, its 58px portrait, the 12px gap, its caption's 140px bound, the frame's 6), and
-   (vw - min(321px, 50vw)) / 2 is less than 234 at every width under 789 (BR5: BR4's min(540px, 84vw) took it to
-   1008) - and on a phone, where the marks stand 10px in and the caption is hidden, always. Measured rather than argued: tools/supportAsksProbe.mjs maps the logo's own
+   (vw - min(234px, 36.4vw)) / 2 is less than 234 at every width under 702 (BR6: BR5's min(321px, 50vw) took it to
+   789, BR4's min(540px, 84vw) to 1008) - and on a phone, where the marks stand 10px in and the caption is hidden, always. Measured rather than argued: tools/supportAsksProbe.mjs maps the logo's own
    opaque pixels onto the screen across 192 sizes, a caption at its bound among them. The band costs height, and where
    the door no longer fits it scrolls (DOOR-FIT, above); its foot keeps the one-row foot's 68px, so the last row can be
    scrolled clear of About and Screenshots. */
-@media (min-width: 481px) and (max-width: 788px) {
+@media (min-width: 481px) and (max-width: 701px) {
   .px-home:not(.px-over) > .px-stage:not(.px-acctstage) { padding: 84px 24px 76px; }
 }
 @media (max-width: 480px) {
@@ -2898,6 +3126,10 @@ html.plus-pad-prompts-visible .px-over > .px-stage:not(.px-acctstage):not(.px-ti
   padding-bottom: calc(var(--plus-pad-clearance, 0px) + 64px); }
 html.plus-pad-prompts-visible .px-over > .px-stage:not(.px-acctstage):not(.px-timersstage) > .px-win {
   max-height: calc(100dvh - max(7dvh, 64px) - var(--plus-pad-clearance, 0px) - 64px); }
+/* AUDIT SEASON-BOOK U5: the windows on the hourglass's stage (the timers', the mailbox's, the season's) clear the
+   controller's prompt bar too - their last line had stood under it on a phone. */
+html.plus-pad-prompts-visible .px-over > .px-stage.px-timersstage { padding-bottom: calc(var(--plus-pad-clearance, 0px) + 10px); }
+html.plus-pad-prompts-visible .px-over > .px-stage.px-timersstage > .px-win { max-height: min(680px, calc(100dvh - var(--plus-pad-clearance, 0px) - 34px)); }
 /* AUDIT TIMERS1 UI-1: the timers window's stage is not the pause stage - two classes, so the rule above (one class,
    later) cannot take its padding and pin the window to the left; centred, its own padding, its list the one scroll.
    UI-2: and over the game on a short screen the pause window stands clear of the corner marks (the profile and the
@@ -2907,6 +3139,11 @@ html.plus-pad-prompts-visible .px-over > .px-stage:not(.px-acctstage):not(.px-ti
 @media (max-height: 560px) {
   .px-stage.px-timersstage { padding: 10px 12px; }
   .px-win.px-timerswin { max-height: calc(100dvh - 20px); }
+  .px-over .px-stage:not(.px-acctstage):not(.px-timersstage) { padding-top: max(7dvh, 64px); }
+}
+/* AUDIT SEASON-BOOK U4: and on a portrait phone - a row of four marks (profile, hourglass, envelope, laurel; 56px tall)
+   had the tops of the tabs under it below about 686px tall, a tap on GROWTH's top opening the season window. */
+@media (max-width: 480px) {
   .px-over .px-stage:not(.px-acctstage):not(.px-timersstage) { padding-top: max(7dvh, 64px); }
 }
 
@@ -3107,6 +3344,28 @@ html.plus-pad-prompts-visible .px-over > .px-stage:not(.px-acctstage):not(.px-ti
   .talk-topics { border-left: 0; border-top: 2px solid rgba(125,116,96,0.45); }
   .talk-say { grid-template-columns: auto 1fr; }
   .talk-say .talk-q { grid-column: 1 / -1; }
+}
+/* RPT1026-MISC TALK-SIDEWAYS (a private report from a phone's browser: the talk window ran off the screen and could not
+   be used): A PHONE ON ITS SIDE GIVES THE PANEL THE SCREEN'S HEIGHT. The panel was 52dvh - two hundred pixels
+   of a phone's 390 - and the head, the foot and the topics' two strips (the modes, the categories) took all of it: the
+   topic list stood 12 pixels tall, drawn past its column under the foot, and nothing could be asked. On a short screen
+   the panel stands the height less a margin, and the columns stay side by side however narrow (stacked, the strips
+   alone outgrew the topics' half). */
+@media (max-height: 500px) {
+  .talk-shell .talk-panel { height: calc(100dvh - 12px); bottom: 6px; }
+  .talk-main { grid-template-columns: 1fr minmax(200px, 40%); grid-template-rows: minmax(0, 1fr); }
+  .talk-topics { border-top: 0; border-left: 2px solid rgba(125,116,96,0.45); }
+  /* AUDIT RPT1026 L2: AND A NARROW ONE KEEPS ITS HEAD AND FOOT TO A ROW EACH. Under 720 pixels wide (a 360-wide phone on its
+     side, 640 x 360; an iPhone SE's 667 x 375 and 568 x 320) the phone rule above still stacked the name over the tones and
+     the question over Note and Ask - 108 and 90 pixels of a 308-pixel panel - and the topic list stood 66 pixels tall at
+     640 x 360, 26 at 568 x 320, under one row; the categories, in the topics' 40%, ran past the panel's edge, Work cut off
+     at 640 and wholly off the screen at 568. One row each, and the strip's buttons shrink to fit it. */
+  .talk-head { grid-template-columns: 1fr auto auto; }
+  .talk-head .door-goodbye { grid-row: auto; grid-column: auto; }
+  .talk-tone { grid-row: auto; grid-column: auto; }
+  .talk-say { grid-template-columns: 1fr auto auto; }
+  .talk-say .talk-q { grid-column: auto; }
+  .talk-cat { flex: 1 1 auto; min-width: 0; padding: 0 2px; letter-spacing: 0.04em; text-indent: 0.04em; }
 }
 /* ── PX30: THE GAMEPLAY HUD ─────────────────────────────────────
    Mac's reference is ESO's Clean UI - a compass across the top, the
@@ -3412,6 +3671,12 @@ ${paceControlsCss('tview')}
 .hud-foe { display: none; flex-direction: column; align-items: center; gap: 4px; }
 .hud-foe.on { display: flex; }
 .hud-foename { font-size: 13px; letter-spacing: 0.16em; text-transform: uppercase; }
+/* BOSS-TRAITS (bible/05-Combat/Boss-Traits.md): a hard foe's traits under its name, and its ward - a pale blue sheen over
+   its health from the left, its share of the whole */
+.hud-foetraits { display: none; margin-top: -3px; font-size: 11px; letter-spacing: 0.18em; text-transform: uppercase; color: #a9c8ff; }
+.hud-foe.traited .hud-foetraits { display: block; }
+.hud-foeward { position: absolute; left: 0; top: 0; bottom: 0; width: 0; pointer-events: none;
+  background: linear-gradient(180deg, rgba(214,232,255,0.85) 0 1px, rgba(120,170,255,0.6) 1px calc(100% - 1px), rgba(60,96,170,0.7) calc(100% - 1px)); }
 .hud-track { position: relative; width: min(320px, 46vw); height: 10px;
   background: rgba(10,12,17,0.75); border: 2px solid rgba(125,116,96,0.55); }
 .hud-fill { display: block; height: 100%; width: 100%; background: #d98074; }
@@ -5356,12 +5621,16 @@ ${paceControlsCss('tview')}
    fixed furniture (PX21e: the rows scroll, never the frame). AUDIT WAGON-FILTER C1: the first cut's wrapping chips and
    hint stood 202-236 px tall and left a phone on its side 1 px of list; one row is 44 px. The menu wears the search's
    dress, the brass on focus. */
-.storefilter { display: flex; align-items: center; gap: 6px; padding: 6px 10px; flex: 0 0 auto;
+.storefilter { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 6px 10px; flex: 0 0 auto;
   border-bottom: 2px solid rgba(125,116,96,0.3); }
+/* FILTER-FIT (2026-10-17): the menus keep their whole words. Where they do not fit beside the search - a container
+   of a few rows draws one column, a narrow window - they move under it together and share that row; on one row the
+   search takes the room left over. */
+.storemenus { display: flex; gap: 6px; flex: 1 1 auto; min-width: 0; }
 .storesearch, .storecat, .storerarity, .storemat { font: inherit; font-size: 13px; min-height: 32px; box-sizing: border-box; color: #d8cfae;
   background: rgba(0,0,0,0.35); border: 1px solid rgba(125,116,96,0.45); border-radius: 0; }
-.storesearch { flex: 1 1 0; min-width: 0; padding: 0 8px; }
-.storecat, .storerarity, .storemat { flex: 0 1 auto; max-width: 28%; padding: 0 4px; }
+.storesearch { flex: 999 1 140px; min-width: 0; padding: 0 8px; }
+.storecat, .storerarity, .storemat { flex: 1 1 0; min-width: 0; padding: 0 4px; text-overflow: ellipsis; }
 .storecat option, .storerarity option, .storemat option { color: #d8cfae; background: #10141a; }
 .storesearch::placeholder { color: #9c937d; }
 .storesearch:focus, .storecat:focus, .storerarity:focus, .storemat:focus { outline: none; border-color: var(--brass); }
@@ -5765,7 +6034,7 @@ ${tierMarkCss({ wash: (k) => TIER_MARKS[k], washAlpha: 0.2, edge: '#0b0805', sel
 /* OW-WHO: the Players row's word - the row's first cell, so never hidden with the glyphs' words on a phone (the
    grid's rows are display: contents, and a hidden first cell would shift every row after it a column) */
 .hmkeywho { font-size: 11px; color: #c5bda2; letter-spacing: 0.08em; text-transform: uppercase; text-shadow: 2px 2px 0 rgba(0,0,0,0.7); }
-/* WILD2: THE ZONE MAP'S LEGEND (ui/wild/wildZoneMap.js buildZoneLegend) - the Wrothgarian Mountains' four rings, where I
+/* WILD2: THE ZONE MAP'S LEGEND (ui/wild/wildZoneMap.js buildZoneLegend) - the open zone's four rings (Cyrodiil's), where I
    stand and the zone's laws, in the held map's plaque language (the hover card's frame, the key's bone and brass): a
    panel on the right of the paper, the room the zone map's view leaves it (ZONE_LEGEND_W). Each ring's swatch is its
    fill on the sheet; the ring I stand in wears the brass edge. A solid panel, so a press on it is never a drag. */
@@ -6257,16 +6526,18 @@ button.lv-note.lv-clickable:hover, button.lv-note.lv-clickable:focus-visible {
   color: #d8cfae; text-shadow: 2px 2px 0 rgba(0,0,0,0.85);
   /* AUDIT GUIDE U8: where the compass ends at the HUD's own scale (ui/quest/questTracker.js copies --hud-scale here) - the
      travel panel's --tp-top sum, less its gap - so a scaled-up compass or foe frame never stands on the card */
-  --qt-clear: calc(18px + 28px * var(--hud-scale, 1) + 30px);
+  --qt-clear: calc(18px + 28px * var(--hud-scale, 1) + 30px + var(--qt-town, 0px));
 }
 .qtrack.touch { top: calc(max(76px, var(--qt-clear)) + env(safe-area-inset-top, 0px)); }
 @media (max-width: 900px) {
-  body:has(.hud-foe.on) .qtrack { --qt-clear: calc(18px + 28px * var(--hud-scale, 1) + 30px + 46px * var(--hud-scale, 1)); }
-  body:has(.hud-foe.on.blade) .qtrack { --qt-clear: calc(18px + 28px * var(--hud-scale, 1) + 30px + 76px * var(--hud-scale, 1)); }
+  /* NOTICE-PANEL (AUDIT FB1029g P6): the town panel under the compass, its height its own (ui/hud/townPanel.js --dftown-h) */
+  body:has(.hud .dftown-panel.on) .qtrack { --qt-town: var(--dftown-h, 0px); }
+  body:has(.hud-foe.on) .qtrack { --qt-clear: calc(18px + 28px * var(--hud-scale, 1) + 30px + 46px * var(--hud-scale, 1) + var(--qt-town, 0px)); }
+  body:has(.hud-foe.on.blade) .qtrack { --qt-clear: calc(18px + 28px * var(--hud-scale, 1) + 30px + 76px * var(--hud-scale, 1) + var(--qt-town, 0px)); }
   /* TELL9: the poise track under it - its 6px, its border and its 4px gap more; AUDIT TELL U3: and its word under it,
      13px and a 3px gap */
-  body:has(.hud-foe.on.poised) .qtrack { --qt-clear: calc(18px + 28px * var(--hud-scale, 1) + 30px + 74px * var(--hud-scale, 1)); }
-  body:has(.hud-foe.on.blade.poised) .qtrack { --qt-clear: calc(18px + 28px * var(--hud-scale, 1) + 30px + 104px * var(--hud-scale, 1)); }
+  body:has(.hud-foe.on.poised) .qtrack { --qt-clear: calc(18px + 28px * var(--hud-scale, 1) + 30px + 74px * var(--hud-scale, 1) + var(--qt-town, 0px)); }
+  body:has(.hud-foe.on.blade.poised) .qtrack { --qt-clear: calc(18px + 28px * var(--hud-scale, 1) + 30px + 104px * var(--hud-scale, 1) + var(--qt-town, 0px)); }
 }
 /* AUDIT GUIDE T1/D1, U1, U7: the card steps aside - keeping its line, so the party list never jumps - for what stands
    in its corner a while: the Overworld's block at the top of a touch screen, a narrow screen's chat lines, a journey's

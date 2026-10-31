@@ -78,8 +78,9 @@ test('LW9 the census: the road\'s new traffic APPENDED after the first roster (L
   const first = travellerRoster({ ...city, type: undefined });
   assert.deepEqual(first.slice(0, base).map((r) => [r.id, r.name, r.job]), roster.slice(0, base).map((r) => [r.id, r.name, r.job]), 'every id before the new traffic unchanged');
   assert.ok(roster.slice(0, base).every((r) => TRAVELLER_JOBS.includes(r.job)));
-  assert.deepEqual(roster.slice(base).map((r) => `${r.id}:${r.job}`), ['patrol', 'patrol', 'patrol', 'noble', 'retainer', 'retainer', 'minstrel', 'pedlar', 'pedlar', 'pedlar', 'pedlar', 'pilgrim', 'courier'].map((j, i) => `L900.t${base + i}:${j}`));
-  assert.deepEqual(first.slice(base).map((r) => r.job), ['pedlar', 'pedlar', 'pedlar', 'pedlar', 'pilgrim', 'courier'], 'more of the road\'s own after the new traffic, whatever the kind of place');
+  // LW-WIDE: PIN MOVED - to the fourth rank (`wideFrom`), dealt after these
+  assert.deepEqual(roster.slice(base, roster.wideFrom).map((r) => `${r.id}:${r.job}`), ['patrol', 'patrol', 'patrol', 'noble', 'retainer', 'retainer', 'minstrel', 'pedlar', 'pedlar', 'pedlar', 'pedlar', 'pilgrim', 'courier'].map((j, i) => `L900.t${base + i}:${j}`));
+  assert.deepEqual(first.slice(base, first.wideFrom).map((r) => r.job), ['pedlar', 'pedlar', 'pedlar', 'pedlar', 'pilgrim', 'courier'], 'more of the road\'s own after the new traffic, whatever the kind of place');
   assert.deepEqual([...MORE_JOBS], ['pedlar', 'pilgrim', 'courier']);
   assert.deepEqual([[1], [2], [4], [9], [36]].map(([blocks]) => moreCounts({ mapId: 1, blocks })), [
     { pedlar: 0, pilgrim: 0, courier: 0 }, { pedlar: 1, pilgrim: 0, courier: 0 }, { pedlar: 1, pilgrim: 1, courier: 0 },
@@ -431,7 +432,8 @@ test('LW9 the host: the roads\' trouble world reads the patrol\'s cover, the tow
   const w = readFileSync(new URL('../../../src/scenes/world.js', import.meta.url), 'utf8');
   assert.match(w, /covered: \(trip\) => livingCovered\(patrolCover\(trip, livingTripWorld/);   // PIN MOVED (AUDIT LW-II E1): a cover waiting on a round's way waits
   assert.match(w, /town\.type === INN_TYPE \? innGuestsOf\(town, day, livingTripWorld, o\)/);
-  assert.match(w, /wanted: \(res, trip\) => \(res\.job === 'patrol' && trip\?\.from\?\.region != null && knownCriminal\(playerEntity, trip\.from\.region/);
+  // FIELD BUGS 2026-10-21d PATROL-GRACE: the region's law outside the grace an answered law gives (standing.js patrolHalts)
+  assert.match(w, /wanted: \(res, trip\) => \(res\.job === 'patrol' && trip\?\.from\?\.region != null && patrolHalts\(playerEntity, trip\.from\.region/);
   const r = readFileSync(new URL('../../../src/scenes/livingWorld/livingRoads.js', import.meta.url), 'utf8');
   assert.match(r, /if \(at\.inn\) continue;   \/\/ LW9: lodged at the inn on the road/);
   assert.equal(paceScale(CALENDAR_MPM), 1);

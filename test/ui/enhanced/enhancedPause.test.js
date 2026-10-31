@@ -174,7 +174,7 @@ test('U51: the pause door mounts the FRONT DOOR, not a second design', () => {
     'the pause screen IS ui/enhanced/enhancedMenu.js');
   // PX26 added the LANDING to this call; the law U51 guards is
   // unchanged - pause mode, the host's own hooks, one front door.
-  assert.match(src, /mountEnhancedMenu\(host, \{ mode: 'pause', hooks, onAction: act, at: hooks\.at \?\? null \}\)/,
+  assert.match(src, /mountEnhancedMenu\(host, \{ mode: 'pause', hooks, onAction: act, at: hooks\.at \?\? null, owner: overlay \}\)/,
     'mounted in pause mode with the host’s own hooks');
   // and it carries no design of its own, exactly as menu.html carries
   // none - the tokens and the layout live in ui/enhanced/enhancedStyle.js
@@ -313,9 +313,9 @@ test('U51: every listener has an owner', () => {
   // paused again: the dead listener keeps swallowing Escape.
   const src = read('src/ui/enhanced/enhancedMenu.js');
   const unmount = src.slice(src.indexOf('    unmount() {'));
-  assert.match(unmount, /removeEventListener\('keydown', keyHandler, \{ capture: true \}\)/);
+  assert.match(unmount, /unlistenKeys\?\.\(\);   \/\/ the press and the release both/);   // COVERED-KEYS: the one key door's unlisten
   assert.match(unmount, /removeEventListener\('pointerlockchange', lockHandler\)/);
-  assert.match(unmount, /keyHandler = null/);
+  assert.match(unmount, /unlistenKeys = null/);
 });
 
 test('U51: the pointer lock is dropped, and kept dropped', () => {
@@ -373,7 +373,8 @@ test('PX22: the rail is three named sections, always - Main, Side, Archived', ()
   // One helper, three calls, in order - not a conditional pair.
   // PIN MOVED (QL3): Main Quests is the first heading unless the rewards waiting stand above it (their section takes the
   // first heading's place while any wait) - the three sections stand either way
-  assert.match(fn, /section\(t\('pause\.journal\.main', 'Main Quests'\), mains, '', !offers\.length\);/);
+  // PIN MOVED (QUEST-AUDIT III STORY-AGAIN): and the main story's failed steps under it, after the running ones
+  assert.match(fn, /section\(t\('pause\.journal\.main', 'Main Quests'\), \[\.\.\.mains, \.\.\.story\], '', !offers\.length\);/);
   assert.match(fn, /section\(t\('pause\.journal\.side', 'Side Quests'\), sides, ''\);/);
   assert.match(fn, /section\(t\('pause\.journal\.archived', 'Archived'\), finished, ' done'\);/);
   assert.ok(fn.indexOf("'Main Quests'") < fn.indexOf("'Side Quests'"), 'main above side');
@@ -413,8 +414,9 @@ test('PX22: a quest is filed under its kind, never TITLED by it', () => {
   // AUDIT 68 S31-questshare-mainquest-dup: MOVED, deliberately - the predicate had a second copy in
   // systems/quest/questShare.js; its one home is systems/quest/questLists.js and the rail imports it.
   assert.match(read('src/ui/quest/questRail.js'), /import \{ isMainQuestName as isMainQuest \} from '\.\.\/\.\.\/systems\/quest\/questLists\.js';/);
+  // START1: and a start's quest (systems/starts/starts.js), the main quest's prologue - by its own name too
   assert.match(read('src/systems/quest/questLists.js'),
-    /export const isMainQuestName = \(questName\) => \/\^S0000\/\.test\(questName \?\? ''\) \|\| questName === '_BRISIEN';/);
+    /export const isMainQuestName = \(questName\) => \/\^S0000\/\.test\(questName \?\? ''\) \|\| questName === '_BRISIEN' \|\| isStartQuestName\(questName\);/);
   assert.match(src, /from '\.\.\/quest\/questRail\.js'/, 'and the pause window takes it from there');
   // The archive is NOT split by kind, and that is the data's shape: the
   // notebook's filed header keeps only the display name, so the
@@ -494,7 +496,7 @@ test('PX25: the Stats page carries the doors, and only the ones a host handed ov
   // The window goes DOWN before it opens: two overlays at once is the
   // stacking bug U55 found the other way round on this seam. ESC-BOOK:
   // as a handoff - the door's window takes the slot, nothing relocks.
-  assert.match(fn, /b\.onclick = \(\) => \{ onAction\('handoff'\); if \(fn\(\) === false\) onAction\('resume'\); \};/);
+  assert.match(fn, /b\.onclick = \(\) => \{ handoff\(fn\); \};/);   // PIN MOVED (AUDIT SEASON-BOOK S3): the handoff's one home
   assert.match(read('src/ui/enhanced/enhancedStyle.js'), /\.px-sheetdoors \.act \{ min-height: 44px; \}/);
 });
 
@@ -759,7 +761,9 @@ test('AUDIT UI 2: every enhanced window is REACHABLE from a host', () => {
   const text = Object.fromEntries(files.map((f) => [f, hostText(f)]));
   const edges = {};
   for (const f of files) {
-    edges[f] = [...new Set([...text[f].matchAll(/(?:from|import\()\s*['"](\.[^'"]+)['"]/g)]
+    // INTRO4: and a worker - `new Worker(new URL('./x.js', import.meta.url))` is how Vite bundles one, so the module
+    // it names is reached by the page that starts it (src/ui/intro/introBuildWorker.js, the first worker under src/ui/)
+    edges[f] = [...new Set([...text[f].matchAll(/(?:from|import\(|new Worker\(new URL\()\s*['"](\.[^'"]+)['"]/g)]
       .map((m) => relative(root, resolve(join(root, dirname(f)), m[1])))
       .filter((p) => text[p] !== undefined))];
   }

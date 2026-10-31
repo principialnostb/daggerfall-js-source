@@ -135,8 +135,8 @@ test('SEASON1 THE BANNER RIBBON ON THE TOKEN AND THE RELAY: a claim set may carr
   assert.equal('rb' in slyJoin, false, 'a frame that only types one gets none');
   // the wiring by source - the relay's two reads
   const relay = src('server/src/index.js');
-  assert.match(relay, /glyphs: c\.g, gx: c\.gx, au: c\.au, pi: c\.pi, rb: c\.rb, mu, lv: c\.lv,/);   // PIN MOVED (WITCH1): the profile icon worn beside the aura
-  assert.match(relay, /au: who\.au, \.\.\.\(who\.pi \? \{ pi: who\.pi \} : \{\}\), \.\.\.\(who\.rb \? \{ rb: who\.rb \} : \{\}\), lv: who\.lv,/);   // PIN MOVED (WITCH1): the profile icon worn beside the aura
+  assert.match(relay, /glyphs: c\.g, gx: c\.gx, au: c\.au, pi: c\.pi, rb: c\.rb, mu, lt, lv: c\.lv,/);   // PIN MOVED (LEASE1): the time of the word on the mute beside it; PIN MOVED (WITCH1): the profile icon worn beside the aura
+  assert.match(relay, /au: who\.au, \.\.\.\(who\.pi \? \{ pi: who\.pi \} : \{\}\), \.\.\.\(who\.rb \? \{ rb: who\.rb \} : \{\}\), lv: who\.lv, \.\.\.\(who\.ak \? \{ ak: who\.ak \} : \{\}\), \.\.\.\(who\.fx \? \{ fx: who\.fx \} : \{\}\),/);   // PIN MOVED (WITCH1): the profile icon worn beside the aura; PIN MOVED (STOREFRONT): the armory's kit and the effects kit; PIN MOVED (GUILD-SHOP, at the merge of main): the level ahead of the kits on the hello's row
 });
 
 test('SEASON1 THE BANNER RIBBON ON THE PAGE: the mint\'s answer hands mine to the page (null for none, nothing from an older service); the session keeps a peer\'s off the welcome and each hello (one taken off is gone), remembers it past a re-stand, and answers `ribbonOf`; the name point carries it; the bitmap face draws a band the run\'s width in the field colour under the name, edged in the border colour, none for none; the DOM face a band under the name row in both colours, written when it changes and off for none (mutants: the minter; the session\'s reads; the point; the bands; the DOM\'s colours and its off)', async () => {
@@ -215,7 +215,7 @@ test('SEASON1 THE BANNER RIBBON ON THE PAGE: the mint\'s answer hands mine to th
   const layer = createNameLayer({ doc, now: () => 1000 });
   const at = (rb) => { layer.render({ points: [{ ...pt, id: 'peer-0001', x: 400, y: 300, rb }] }); return layer.tagFor('peer-0001'); };
   let t = at([0, 2]);
-  assert.deepEqual(t.node.children.map((c) => c.className), ['dfname-bubble off', 'dfname-title', 'dfname-tag', 'dfname-house', 'dfname-ribbon'], 'under the name row (LEGACY7, PIN MOVED: the house\'s line between the name row and the ribbon)');
+  assert.deepEqual(t.node.children.map((c) => c.className), ['dfname-bubble off', 'dfname-skull off', 'dfname-bar off', 'dfname-title', 'dfname-tag', 'dfname-house', 'dfname-ribbon'], 'under the name row (LEGACY7, PIN MOVED: the house\'s line between the name row and the ribbon) - PIN MOVED (PVP-SKULL): the skull over the title, off for none - PIN MOVED (PVP-BAR): the bar under the skull, off for none');
   assert.deepEqual([t.ribbon.style.background, t.ribbon.style.borderBottomColor], ['#3b6fd8', '#d4a017']);
   t.ribbon.style.background = 'rgb(59, 111, 216)';   // a browser reads it back normalised
   t = at([0, 2]);

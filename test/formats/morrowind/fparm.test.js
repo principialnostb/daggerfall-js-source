@@ -426,10 +426,15 @@ test('MW-D10: the neck takes 0.75 of the look, and the port pitches the OTHER WA
   // OBJECT ROOT's frame and conjugates it into the node's own; with an
   // axis-aligned neck that is the identity, so armfp.nif TURNS its neck
   // 8 degrees and a port that rotates in the local frame moves the eye
-  // somewhere else.
+  // somewhere else. BOW-AIM (Field-Bugs-2026-10-26c.md): OSG's
+  // `worldOrient * rotate * worldOrient^-1 * localRot` is a ROW-vector
+  // product; in this port's column convention it is localRot * W^T *
+  // rotate * W (mwFirstPerson.js rootSpaceTurn), the letters' copy turned
+  // retail's neck the other way - MW-D20 below works it by hand.
   const src2 = rd('src/formats/morrowind/mwFirstPerson.js');
-  assert.match(src2, /mat33Mul\(mat33Mul\(mat33Mul\(w, rotate\), transpose33\(w\)\), local\.rotation\)/,
-    'worldOrient * rotate * worldOrient^-1 * localRot, in that order');
+  assert.match(src2, /mat33Mul\(mat33Mul\(mat33Mul\(local, transpose33\(w\)\), rotate\), w\)/,
+    'localRot * W^T * rotate * W - OSG\'s row-vector line in this port\'s column convention');
+  assert.match(src2, /const rotation = rootSpaceTurn\(local\.rotation, w, rotate\);/, 'and the neck turns through it');
 
   // AND THE SIGN CONVERSION. Morrowind counts pitch downward; this port
   // counts it upward (world.js SUBTRACTS the mouse's y delta). Passed
@@ -1110,9 +1115,14 @@ test('MW-D20: the neck conjugates in the OBJECT ROOT frame - the file root\'s ro
   // armneckx's root is Bip01 rotated Rz90 (kept by rule 34). The
   // reference's RotateController conjugates by the orientation relative
   // to mObjectRoot, which sits ABOVE the file root - so W includes that
-  // Rz90 and pitching the neck becomes a rotation about the GRAPH's Y:
-  //   W = Rz90;  W . Rx(-t) . W^T = Ry(-t)
-  //   rows: [c,0,-s],[0,1,0],[s,0,c]  with t = pitch * (0.75+0.25*aim)
+  // Rz90, and the neck's WORLD must turn by Rx(-t) in the graph's frame:
+  //   world' = Rx(-t) . W   with the neck's local the identity, so
+  //   local' = W^T . Rx(-t) . W = Ry(t) (Rz90 takes X to Y; W^T takes it
+  //   back, to -Y)
+  //   rows: [c,0,s],[0,1,0],[-s,0,c]  with t = pitch * (0.75+0.25*aim)
+  // BOW-AIM (Field-Bugs-2026-10-26c.md): this pin had W . Rx(-t) . W^T =
+  // Ry(-t) - OSG's line read in this port's column convention - whose
+  // world is Rx(+t) . W: the look's pitch the other way about the root.
   // Under the retired root-relative frame W was identity and the answer
   // stayed Rx(-t) - a neck that pitches about the wrong axis the moment
   // a retail root carries rotation.
@@ -1132,11 +1142,16 @@ test('MW-D20: the neck conjugates in the OBJECT ROOT frame - the file root\'s ro
   poseAssembly(assembly, { sampleTrack: st, neckPitch: 0.4, neckAim: 1 });
   const rot = [...assembly.pose.get(skel.byName.get('bip01 neck')).rotation];
   const c = Math.cos(0.4); const s = Math.sin(0.4);
-  const want = [c, 0, -s, 0, 1, 0, s, 0, c];
+  const want = [c, 0, s, 0, 1, 0, -s, 0, c];
   for (let i = 0; i < 9; i++) {
     assert.ok(Math.abs(rot[i] - want[i]) < 1e-5,
-      `element ${i}: ${rot[i]} vs Ry(-0.4)'s ${want[i]}`);
+      `element ${i}: ${rot[i]} vs Ry(0.4)'s ${want[i]}`);
   }
+  // and the world it stands in: the root's turn about the graph's X, laid on the file root's Rz90 (a forward axis that
+  // tips down - toward -Z - for a positive, Morrowind-downward pitch)
+  const world = [...assembly.mats.get(skel.byName.get('bip01 neck')).a];
+  const turned = [0, -1, 0, c, 0, s, -s, 0, c];   // Rx(-0.4) . Rz90, rows (Rz90: [0,-1,0],[1,0,0],[0,0,1])
+  for (let i = 0; i < 9; i++) assert.ok(Math.abs(world[i] - turned[i]) < 1e-5, `world element ${i}: ${world[i]} vs Rx(-0.4).Rz90's ${turned[i]}`);
 });
 
 test('MW-D22: mType reads from byte EIGHT, pinned against a layout the writer cannot share', async () => {
@@ -1951,7 +1966,7 @@ test('MW-D29: shadows trim the skin - whole slots gone, single sides kept on the
 test('MW-D29: the thread is unbroken - the menu reads the equip table, the build wears it', () => {
   const arm = readFileSync('src/combat/fpArm.js', 'utf8');
   // NUDE-FLATS: through the upper weld's door (composeWornModest composes, then welds a bare woman's chest)
-  assert.match(arm, /composeWornModest\(\{ pieces: armor \?\? \[\], armors: armors \?\? \[\], clothes: clothes \?\? \[\], bodyPool: parts, female, colourOf, helmStyle \}, showNudity\(\)\)/);   // MW-STEEL1: and the Steel Helm switch
+  assert.match(arm, /composeWornModest\(\{ pieces: armor \?\? \[\], armors: armors \?\? \[\], clothes: clothes \?\? \[\], bodyPool: parts, female, colourOf, helmStyle, beast, beastWear \}, showNudity\(\)\)/);   // MW-STEEL1: and the Steel Helm switch; BEAST-BOOTS: and the race's Beast flag
   assert.match(arm, /const armors = esmBytes\.flatMap\(\(e\) => walk\(e, 'armors', armorRecords\)\);/);
   assert.match(arm, /const clothes = esmBytes\.flatMap\(\(e\) => walk\(e, 'clothes', clothingRecords\)\);/);
   // MW-D31: ONE composition serves both rigs - buildFpArm composes,
@@ -1969,7 +1984,8 @@ test('MW-D29: the thread is unbroken - the menu reads the equip table, the build
   // TR2: the worn read lives in weaponRig's opts home now; the menu
   // reaches it through buildArmsFor (swept in the MW-D27 pin above).
   const rig = readFileSync('src/combat/weapon/weaponRig.js', 'utf8');
-  assert.match(rig, /armor: dfWornEquipment\(equipTableOf\(entity\), EQUIP_SLOTS, ARMOR_ENUM\)/);
+  // PIN MOVED (CAPE-TOGGLE, 2026-10-29): the table as the body is drawn (systems/capeShown.js) - the worn one, a hidden cloak left out
+  assert.match(rig, /armor: dfWornEquipment\(drawnEquipTable\(entity\), EQUIP_SLOTS, ARMOR_ENUM\)/);
   // and the readout itself: armor slots in, shields from hands, a
   // sword in a hand refused.
   const slots = []; slots[12] = { templateIndex: ARMOR_ENUM.Helm, material: 2 };
@@ -2163,7 +2179,8 @@ test('MW-D32: setWorn is one key compare per frame, and a change rebuilds throug
 
 test('MW-D32: the per-frame read in weaponRig hands the rig its worn list', () => {
   const rig = readFileSync('src/combat/weapon/weaponRig.js', 'utf8');
-  assert.match(rig, /fpArm\.setWorn\(dfWornEquipment\(equipTableOf\(entity\), EQUIP_SLOTS, ARMOR_ENUM\)\)/,
+  // PIN MOVED (CAPE-TOGGLE, 2026-10-29): the table as the body is drawn (systems/capeShown.js) - the worn one, a hidden cloak left out
+  assert.match(rig, /fpArm\.setWorn\(dfWornEquipment\(drawnEquipTable\(entity\), EQUIP_SLOTS, ARMOR_ENUM\)\)/,
     'the game no longer dresses the rig from the equip table');
   const arm = readFileSync('src/combat/fpArm.js', 'utf8');
   assert.match(arm, /return this\.build\(\{ \.\.\.lastBuildOpts, armor: pieces, weapon: lastBuildOpts\.weapon \}\);/,
@@ -2713,7 +2730,9 @@ test('MW-D36: the pack takes the model only when it stands, and never lets the m
 
 test('AUDIT 33: the figure stands in ANY view, through the one upload, at a quantised yaw', () => {
   const arm = readFileSync('src/combat/fpArm.js', 'utf8');
-  const fig = arm.slice(arm.indexOf('    figure({ yaw = 0, height = 384 } = {}) {'), arm.indexOf('    figure({ yaw = 0, height = 384 } = {}) {') + 2600);
+  // PIN MOVED (PROFILE-SLOTS): the figure's posing is posePortrait's, which figure() and the profile's stage() share
+  assert.match(arm.slice(arm.indexOf('    figure({ yaw = 0, height = 384 } = {}) {')), /^ {4}figure\(\{ yaw = 0, height = 384 \} = \{\}\) \{\n {6}if \(!posePortrait\(\)\) return null;/);
+  const fig = arm.slice(arm.indexOf('  function posePortrait() {'), arm.indexOf('  function posePortrait() {') + 2600);
   // F1: the inventory opens from first person; the figure must not
   // demand the wheel's view mode or a mesh only the wheel uploads.
   assert.ok(!/thirdActive\(\)/.test(fig), 'the figure gates on the wheel being active');
@@ -3063,7 +3082,7 @@ test('PX25: the pack hands the rig the worn table on every refresh', () => {
   const pack = readFileSync('src/ui/enhanced/enhancedInventory.js', 'utf8');
   const at = pack.indexOf('const refresh = () => {');
   const refresh = pack.slice(at, pack.indexOf('\n};', at));
-  assert.match(refresh, /arm\.setWorn\(dfWornEquipment\(equipTableOf\(deps\.entity\), EQUIP_SLOTS, ARMOR_ENUM\)\)/,
+  assert.match(refresh, /arm\.setWorn\(dfWornEquipment\(drawnEquipTable\(deps\.entity\), EQUIP_SLOTS, ARMOR_ENUM\)\)/,
     'refresh must tell the rig what is worn');
   // STANCE-FIRST: the hand goes first - the table's door is a whole rebuild that would carry the old hand and queue the
   // new one behind it (mutant: setWorn back above the hand)
@@ -3304,7 +3323,10 @@ test('MW-D39: readySpell and castSpell are the two doors, and neither gates the 
   // PIN MOVED (SHIELD-GUARD, SHIELD-BASH): and the shield's guard, the backhand's fist rule (strikeReversed), the bash's
   // own decision and the one-hander's bash under the fists' clip read it too
   // PIN MOVED (THUMB-FIST): and the fists' thumb, eased in by the fists' stance
-  assert.equal((src.match(/animWeaponType\(built\.mwType, sheathed, spellReady\)/g) || []).length, 8,
+  // PIN MOVED (MIXED-PAIR): the weapon group reads the blow's own type first - a mixed pair's off-hand blow plays its
+  // own weapon's group (was: `animWeaponType(built.mwType, ...)` at all three)
+  // AUDIT SPELL-HAND L5-9: the blow's own type in the weapon group alone (was: either form, three times)
+  assert.equal((src.match(/animWeaponType\((?:blowType \?\? )?built\.mwType, sheathed, spellReady\)/g) || []).length, 8,
     'stanceOf, the weapon group, the torch\'s carried-left rule (MW-D51), the shield\'s guard, the backhand, the bash and the fists\' thumb must all read the spell stance');
   assert.equal((src.match(/= stanceOf\(\);/g) || []).length, 3, 'the idle, the jump and the movement through stanceOf');
   assert.match(src, /readySpell\(ready\) \{[\s\S]*?refreshWeaponGroup\(\);\n      resetIdle\(\);\n      resetMovement\(\);/);
@@ -3343,7 +3365,11 @@ test('MW-D39: the hosts wire it through the rig\u2019s one door, on the referenc
   // PIN MOVED (MW-CAST1): the door now asks whether the Morrowind arm on screen took the cast, and if it did the release
   // waits for its "<type> release" (fpsSpellCasting's hold) - still ONE door, the range, the element and the release
   // PIN MOVED (CAST-SPEED): and the caster's rate, read once here and handed to both lanes (systems/castSpeed.js)
-  assert.match(rig, /castSpellAnim: \(rangeType, element, onRelease = null\) => \{\n\s+cast\.n = \(cast\.n \+ 1\) & 0xffff; cast\.rangeType = rangeType \| 0;[^\n]*\n(?:\s+eotbBody\.cast\(\);[^\n]*\n)?(?:\s*\/\/[^\n]*\n)*\s+const rate = castRate\(entity\);\n\s+const armCasts = fpArm\.castSpell\(rangeType, rate\) && \(fpArm\.active\(\) \|\| fpArm\.thirdActive\(\)\);\n(?:\s*\/\/[^\n]*\n)*\s+return fpsSpellCasting\.playOneShot\(element, onRelease, armCasts \? \{ hold: \(\) => fpArm\.takeCastRelease\(\) \|\| !fpArm\.castInFlight\(\), rate \} : \{ rate \}\);/,
+  // PIN MOVED (AUDIT SPELL-HAND L2-4): and the cast's hands decided as it starts - kept only by a cast that does (was:
+  // `return fpsSpellCasting.playOneShot(...)` straight)
+  // PIN MOVED (RPT1026-MISC CAST-PACE): the arm is handed the spell's moment (castReleaseS) and paced to it, and only an
+  // arm it could not pace holds the release (armHolds - was: every arm on screen, `armCasts ? { hold: ...`)
+  assert.match(rig, /castSpellAnim: \(rangeType, element, onRelease = null\) => \{\n\s+cast\.n = \(cast\.n \+ 1\) & 0xffff; cast\.rangeType = rangeType \| 0;[^\n]*\n(?:\s+eotbBody\.cast\(\);[^\n]*\n)?(?:\s*\/\/[^\n]*\n)*\s+const rate = castRate\(entity\);\n\s+const armCasts = fpArm\.castSpell\(rangeType, rate, castReleaseS\(rate\), castEndS\(rate\)\) && \(fpArm\.active\(\) \|\| fpArm\.thirdActive\(\)\);\n(?:\s*\/\/[^\n]*\n)*\s+const armHolds = armCasts && !fpArm\.castPaced\?\.\(\);\n\s+const oneHand = spellHandFits\(\);[^\n]*\n\s+const started = fpsSpellCasting\.playOneShot\(element, onRelease, armHolds \? \{ hold: \(\) => fpArm\.takeCastRelease\(\) \|\| !fpArm\.castInFlight\(\), rate \} : \{ rate \}\);\n\s+if \(started\) _castOneHand = oneHand;\n\s+return started;/,
     'the cast must have one door, and it carries the range, the element and the release');
   for (const host of ['src/scenes/dungeonContext.js', 'src/scenes/world.js']) {
     const h = readFileSync(host, 'utf8');
@@ -3371,7 +3397,7 @@ test('AUDIT 36 F1: ALL THREE hosts run the cast animation, on the cast moment, w
 
 test('AUDIT 36 F2: an INSTANT self-cast animates - the cast latches its own stance', async () => {
   const src = readFileSync('src/combat/fpArm.js', 'utf8');
-  const fn = src.slice(src.indexOf('    castSpell(rangeType = 2, rate = 1) {'), src.indexOf('    /** The held bow comes up.'));   // PIN MOVED (CAST-SPEED): the cast's rate
+  const fn = src.slice(src.indexOf('    castSpell(rangeType = 2, rate = 1, releaseIn = 0, endIn = 0) {'), src.indexOf('    /** The held bow comes up.'));   // PIN MOVED (CAST-SPEED): the cast's rate; PIN MOVED (RPT1026-MISC CAST-PACE): and the moment its release is paced to; PIN MOVED (MW-SHOT-PACE): and the hands' end
   // the old gate refused a cast that arrived before any frame read the
   // ready - which is EVERY CasterOnly spell, readied and cast in one
   // synchronous call (hostMagic readySpell -> castInput for range 0).
@@ -3387,7 +3413,9 @@ test('AUDIT 36 F2: an INSTANT self-cast animates - the cast latches its own stan
   // the same synchronous castInput, which is the case F2 exists for.
   // PIN MOVED (AUDIT WATCH-KIT WK-M9, 2026-10-01): my companion's two arms (COMPANION-KIT) stand among the mate's, in the
   // click's own order, where they stood in a block ahead of this one; the instant cast is still the arm's last line
-  assert.match(hm, /if \(sp\.rangeType === 0\) \{\n(?:\s*\/\/[^\n]*\n)*\s*if \(!free && allyCastable\(sp\) && allyInReach\([^\n]*\n(?:\s*\/\/[^\n]*\n)*\s*if \(companionInReach\([^\n]*\n(?:\s*\/\/[^\n]*\n)*\s*if \(!free && allyCastable\(sp\) && allyNear\([^\n]*\n\s*if \(companionNear\([^\n]*\n\s*if \(!free && hasResurrect\(sp\)\)[^\n]*\n\s*return castInput\(null, null\) !== false;\n\s*\}/,   // SPELL-GIFT: the near arm between   // AUDIT CONTRIB H3: the instant cast is the ready's answer   // RESURRECT1: the dead's own arm beside the ally's
+  // PIN MOVED (AUDIT SPELL-HAND L2-2): beside a weapon mid-blow the instant cast waits for the blow as a pressed one does
+  // (a kept press) - the line before it; the instant cast is still the arm's last
+  assert.match(hm, /if \(sp\.rangeType === 0\) \{\n(?:\s*\/\/[^\n]*\n)*\s*if \(!free && allyCastable\(sp\) && allyInReach\([^\n]*\n(?:\s*\/\/[^\n]*\n)*\s*if \(companionInReach\([^\n]*\n(?:\s*\/\/[^\n]*\n)*\s*if \(!free && allyCastable\(sp\) && allyNear\([^\n]*\n\s*if \(companionNear\([^\n]*\n\s*if \(!free && hasResurrect\(sp\)\)[^\n]*\n(?:\s*\/\/[^\n]*\n)*\s*if \(spellHandBusy\(\)\) \{ setPending\(true\); return true; \}\n\s*return castInput\(null, null\) !== false;\n\s*\}/,   // SPELL-GIFT: the near arm between   // AUDIT CONTRIB H3: the instant cast is the ready's answer   // RESURRECT1: the dead's own arm beside the ally's
     'the CasterOnly instant cast is the case F2 exists for');
   // ROAD-E6 folded the four release arms' identical tail into one
   // `done` closure - RaiseOnCastReadySpell (:2129) still runs BEFORE
@@ -3420,7 +3448,8 @@ test('PX26 F1/F2/F3: the menu figure carries the hand, instantly, and a mid-buil
   // F1: the portrait shows the weapon whether or not it is drawn
   // PIN MOVED (TWO-HANDS AUDIT): the window 3000 -> 3400 - the portrait poses a carried pair with both arms up (its
   // `mirror:`) and flags the left hand's blade, which moved the flag lines past the old edge
-  const fig = arm.slice(arm.indexOf('    figure({ yaw = 0, height = 384 } = {}) {'), arm.indexOf('    figure({ yaw = 0, height = 384 } = {}) {') + 3400);
+  // PIN MOVED (PROFILE-SLOTS): figure()'s posing and flags are posePortrait's (figure() opens with it - AUDIT 33's pin)
+  const fig = arm.slice(arm.indexOf('  function posePortrait() {'), arm.indexOf('  function posePortrait() {') + 3400);
   assert.match(fig, /if \(r\.slot === 'weapon'\) r\.hidden = false;/, 'a paperdoll shows what you carry, drawn or not');
   assert.match(fig, /else if \(r\.slot === 'arrow'\) r\.hidden = !arrowShown;/, 'the arrow still follows its shoot keys');
   // F2: the pack hands the rig the hand as well as the worn table
@@ -3518,7 +3547,7 @@ test('PX29: the movement rate divides by the PLAYING clip\u2019s own velocity (M
 // says what it is (the lesson of the nine dead probes, bible/09-Testing/Testing-Rows-2026-10-19.md).
 test('PX32: the inventory figure poses the body before it uploads it', () => {
   const arm = readFileSync('src/combat/fpArm.js', 'utf8');
-  const start = arm.indexOf('    figure({ yaw = 0, height = 384 } = {}) {');
+  const start = arm.indexOf('  function posePortrait() {');   // PIN MOVED (PROFILE-SLOTS): figure()'s posing, shared with stage()
   const fig = arm.slice(start, start + 3000);
   const pose = fig.indexOf('poseAssembly(t.arm');
   const upload = fig.indexOf('uploadThirdMesh(t);');

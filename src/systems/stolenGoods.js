@@ -85,12 +85,12 @@ export function landedInKeeping(/** @type {Set<any>|null|undefined} */ keeping, 
   return true;
 }
 
-/** A SOLD PIECE'S LAST STOP. An honest piece lands on the shelf the counter sells from (Port-Ledger T2); a stolen one is
- *  the merchant's to be rid of, and goes nowhere. Answers whether it was shelved. */
+/** A SOLD PIECE'S LAST STOP. SOLD-POOF (2026-10-30): A SOLD PIECE GOES NOWHERE - honest or stolen. Shelved (Port-Ledger T2), a piece sold at a
+ *  counter sat in the shop's shelf and could be stolen straight back and sold again. `shelfItems` is left untouched;
+ *  the shelf keeps its own stock. Answers whether it was shelved: never. */
 export function landSold(/** @type {any[]} */ shelfItems, /** @type {any} */ item) {
-  if (isStolen(item)) return false;
-  shelfItems.push(item);
-  return true;
+  void shelfItems; void item;
+  return false;
 }
 
 /** How many pieces a list holds - a stack counts its own. */
@@ -101,3 +101,9 @@ export const confiscatedText = (/** @type {number} */ n) => t('stolen.taken', 'T
 
 /** The piece's card line (the enhanced pack's, beside the lock's and the junk's). */
 export const stolenLine = () => t('stolen.card', 'Stolen. Merchants buy it but never sell it on, and the court takes it if you are convicted.');
+
+/** RPT1026-LEDGERLAW (a private report: a stolen piece another player sold looked like any other): the word a piece
+ *  offered to another player carries in its row - the market's Goods (ui/marketTab.js) and a home's trader
+ *  (ui/vendor/vendorTab.js). The mark rides the listing (a piece handed on is no less stolen), so its buyer takes the
+ *  court's risk and a counter that destroys it; the rows named it nowhere. */
+export const stolenTag = () => t('stolen.tag', 'Stolen');

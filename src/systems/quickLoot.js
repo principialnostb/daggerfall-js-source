@@ -262,6 +262,19 @@ export function plaqueActionFor(key) {
  *  off), where a door asks in a box of its own. */
 export const plaqueListing = () => !!(_actionIds && _actionIds.length && _sel);
 
+/** RPT1026-WORLD DECOR-VERBS: who needs the verbs folded where no plaque is drawn - a decorator while it browses
+ *  (scenes/decor/decorTool.js; systems/decor/decorLook.js decorPressFrame). Each asker's release is once-only. */
+const _verbAskers = new Set();
+export function wantPlaqueVerbs(asks) {
+  const one = { asks };
+  _verbAskers.add(one);
+  return () => { _verbAskers.delete(one); };
+}
+export function plaqueVerbsWanted() {
+  for (const one of _verbAskers) { try { if (one.asks()) return true; } catch { /* an asker torn down: no verbs of its */ } }
+  return false;
+}
+
 /** PROF-MENU: the act choice key's step over a list of verbs - `n` rows down (negative up), folded on the next frame
  *  as the wheel's nudge is (clamped there; the caller wraps). True when a list of verbs stands to step. */
 export function plaqueStep(n) {
@@ -364,15 +377,15 @@ export function resetQuickLoot() { _sel = null; _nudge = 0; _pending = null; _ac
 export function quickLootTake(key, hooks, playerEntity, say = () => {}, { getQuest = null, took = null } = {}) {
   const how = _pending;
   _pending = null;   // spent on the press it was armed for, whatever that press finds
-  if (how === 'open') return null;   // J: the player asked for the window
-  if (!quickLootOn() || !hooks || !playerEntity) return null;
-  // DISC10-E L3: a transformed lycanthrope's pack is refused
-  // (DaggerfallInventoryWindow.cs:583-587). Null is "open the window" -
-  // and the window's door says the line and opens nothing.
-  if (racialSuppressInventory(playerEntity)) return null;
+  // WERE-LOOT (2026-10-30, the owner: "let them loot ... just dont let them open inventory"): the beast's pack window
+  // stays shut (DISC10-E L3). WERE-PICK: with quick loot on its press takes one row - the lit one, else the first (AUDIT
+  // WERE-PICK P1: a touch screen draws no plaque) - and P the lot; with quick loot off a press takes the lot
+  const beast = !!racialSuppressInventory(playerEntity);
+  if (how === 'open' && !beast) return null;   // J: the player asked for the window
+  if ((!quickLootOn() && !beast) || !hooks || !playerEntity) return null;
   const items = hooks.items?.();
   if (!Array.isArray(items)) return null;
-  if (how === 'all') {
+  if (how === 'all' || (beast && !quickLootOn())) {
     // P: the lot, through the same one-item door - so the carry gate and
     // the gold rule are the window's here too, and a caller cannot get a
     // bulk take that spells them differently. `[...items]` because the
@@ -401,7 +414,7 @@ export function quickLootTake(key, hooks, playerEntity, say = () => {}, { getQue
     else if (refusal) { say(refusal.text); return QUICK_LOOT_REFUSED; }
     return n ? items : null;
   }
-  const item = quickLootItemAt(key, items);
+  const item = quickLootItemAt(key, items) ?? (beast ? hoverItemAt(items, 0, Infinity) : null);
   if (!item) return null;
   return takeOneItem(playerEntity, items, item, say, { getQuest, took });   // PI1: the one-item take, one home (below)
 }

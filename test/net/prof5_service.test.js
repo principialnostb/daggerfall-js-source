@@ -281,8 +281,9 @@ test('PROF5 service: a cancel returns a material\'s units with their origins (th
   assert.deepEqual((await s.call('/v1/market/report', { listing: p.body.listing.id }, mac.secret)).body, { error: 'market-own' });
   assert.equal((await s.read(ann, 'crafted')).body.rows[0].reports, undefined, 'a reader sees no count');
   assert.equal((await s.read(mod, 'crafted')).body.rows[0].reports, 1, 'a moderator does');
-  assert.deepEqual((await s.call('/v1/market/remove', { listing: p.body.listing.id }, ann.secret)).body, { error: 'not-moderator' });
-  assert.deepEqual((await s.call('/v1/market/remove', { listing: p.body.listing.id }, mod.secret)).body, { ok: true });
+  assert.deepEqual((await s.call('/v1/market/remove', { listing: p.body.listing.id }, ann.secret)).body, { error: 'not-developer' });
+  assert.deepEqual((await s.call('/v1/market/remove', { listing: p.body.listing.id }, mod.secret)).body, { error: 'not-developer' }, 'STAFF-PANEL2-FIX: a pull is an Admin\'s, never a Moderator\'s');
+  assert.deepEqual((await s.call('/v1/market/remove', { listing: p.body.listing.id }, mac.secret)).body, { ok: true }, 'a developer\'s');
   // PIN MOVED (INT19): the piece comes back as the record that left, collected into the seller's record
   const back = (await s.read(mac, 'mine')).body.road;
   assert.deepEqual(back.map((d) => [d.kind, d.why, d.ready, d.item.currentCondition]), [['item', 'returned', true, 500]]);
@@ -409,5 +410,5 @@ test('PROF5 service: the Weavers\' counter - a Wool Bolt 3 Marks and a Linen Bol
   assert.deepEqual([s.stores(mac, 'cloth:wool'), s.stores(mac, 'cloth:linen')], [[['bought', 10]], [['bought', 5]]]);
   assert.deepEqual(s.lines('stock').map((l) => l[4]), [30, 10]);
   const out = (await s.call('/v1/stores/withdraw', { character: mac.character, material: 'cloth:wool', qty: 1, rid: rid() }, mac.secret)).body;
-  assert.deepEqual([out.ok, out.store], [true, { material: 'cloth:wool', own: 0, bought: 9 }], 'PROF7 moved it: a Wool Bolt withdraws now (669)');
+  assert.deepEqual([out.ok, out.store], [true, { material: 'cloth:wool', own: 0, bought: 9, silver: 10 }], 'PROF7 moved it: a Wool Bolt withdraws now (669) - PIN MOVED (AUDIT WOVEN-PAYS): a cloth\'s count says its silver count beside it, and a withdrawal spends none of it');
 });

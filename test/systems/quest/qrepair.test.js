@@ -13,6 +13,7 @@ import { Place, SITE_TYPES } from '../../../src/systems/quest/place.js';
 import { QuestResourceBehaviour } from '../../../src/systems/quest/resourceBehaviour.js';
 import { isAlreadyInjected } from '../../../src/systems/quest/sceneMount.js';
 import { repairActiveQuests, questRepairText, targetedNames, goneOnPurpose, placementIntents } from '../../../src/systems/quest/questRepair.js';
+import { hostText } from '../../hostText.mjs';   // TESA's merge (HOST-SPLIT): the quest world and the quick save moved out of bootWorld - the host read whole
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..');
 const rd = (p) => readFileSync(join(ROOT, p), 'utf8');
@@ -141,14 +142,14 @@ test('QREPAIR never undoes the quest: a destroyed or at-home person, an item pic
   assert.equal(questRepairText({ quests: 3, people: 0, items: 0, foes: 0, relinked: 0, revealed: 0, topics: 0, failed: 0 }), 'Nothing was missing from your 3 active quests.');
 });
 
-test('QREPAIR THE SHARED SITE: a second quest placing where a first already had a link leaned on the first\'s (hasSiteLink asks the SITE, not the quest) - the repair gives it its own, so the first ending cannot strand it (mutants: the site\'s link counted as the quest\'s)', () => {
+test('QREPAIR THE SHARED SITE: a second quest placing where a first already had a link leaned on the first\'s (hasSiteLink asked the SITE, not the quest) - the repair gives it its own, so the first ending cannot strand it; PIN MOVED (QUEST-AUDIT III LINK-OWN): hasSiteLink asks for this quest\'s link for this Place now, so the placement makes its own and the repair is the backstop for a save made before (mutants: the site\'s link counted as the quest\'s)', () => {
   const w = world();
   w.add('npc', { isPerson: true, isHidden: false });
   w.act({ typeName: 'PlaceNpc', npcSymbol: sym('npc'), placeSymbol: sym('pub'), marker: -1 });
   w.pub.siteDetails.selectedMarker = { ...w.pub.siteDetails.questSpawnMarkers[0], targetResources: [sym('npc')] };   // placed, and held
   // the FIRST quest's link to the same building
   w.m.addSiteLink({ questUID: 999999, placeSymbol: sym('hall'), siteType: SITE_TYPES.Building, mapId: 4242, buildingKey: 77, magicNumberIndex: 0 });
-  assert.equal(w.m.hasSiteLink(w.quest, sym('pub')), true, 'DFU\'s own question answers yes - the site has a link');
+  assert.equal(w.m.hasSiteLink(w.quest, sym('pub')), false, 'another quest\'s link at the site is not this one\'s (DFU\'s own question answered yes)');
   const r = repairActiveQuests(w.m, {});
   assert.equal(r.people, 0, 'the npc was held - nothing to put back');
   assert.equal(r.relinked, 1, 'but the quest gets its OWN link');
@@ -189,11 +190,11 @@ test('QREPAIR the by-name mount: a behaviour restored from a save holds a DIFFER
 });
 
 test('QREPAIR the door, by source: every host\'s pause hands repairQuests off its own bridge (the world, the fixed city, the dungeon, and the interior pause through its host); the bridge runs the pass over the host\'s world seams; the world\'s talk says which quests have topics; a reveal answers whether it was new; the Settings row is the pause\'s, confirmed first, greyed on the front door with where it lives (mutants: a host without the hook; the row live at the door; no confirm)', () => {
-  const w = rd('src/scenes/world.js');
+  const w = hostText('src/scenes/world.js');
   assert.match(w, /questLog: \(\) => questBridge\?\.questLog\(\) \?\? \{ active: \[\], finished: \[\] \},\n\s+repairQuests: \(\) => questBridge\?\.repair\?\.\(\) \?\? null,/, 'the world pause');
   assert.match(w, /pauseQuestLog: \(\) => questBridge\?\.questLog\(\) \?\? \{ active: \[\], finished: \[\] \},\n\s+repairQuests: \(\) => questBridge\?\.repair\?\.\(\) \?\? null,/, 'the world\'s host bag, for the interior pause');
   assert.match(w, /hasQuestTopics: \(quest\) => topicTree\.dictQuestInfo\.has\(quest\.uid\),/);
-  assert.match(w, /return discoverLocation\(loc\.mapTableData\.mapId, \{ regionName: loc\.regionName, locationName: loc\.name \}\);/);
+  assert.match(w, /return discoverLocation\(loc\.mapTableData\.mapId, \{ regionName: loc\.regionName, locationName: loc\.arena && !loc\.capital \? '' : loc\.name \}\);/);   // PIN MOVED (AUDIT-TESA A1-2): an Arena place's name never rides a save
   const x = rd('src/scenes/exterior.js');
   assert.equal((x.match(/repairQuests: \(\) => questBridge\?\.repair\?\.\(\) \?\? null,/g) ?? []).length, 2, 'the fixed city: its pause and its host bag');
   assert.match(x, /return discoverLocation\(l\.mapTableData\.mapId, \{ regionName: l\.regionName, locationName: l\.name \}\);/);

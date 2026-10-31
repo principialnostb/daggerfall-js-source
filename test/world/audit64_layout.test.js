@@ -476,7 +476,10 @@ test('AUDIT 64 F16: a 216 pile is centred on its marker; only the RANDOM pile is
     'the RANDOM arm keeps AlignBillboardToGround (RDBLayout.cs:1619-1620)');
   // pile.half is set BEFORE the branch, so lootTargets and restorePiles
   // read one consistent record.
-  assert.ok(d.indexOf('pile.half = [size.w / 2, size.h / 2];') < d.indexOf('const g = pile.isFixed'));
+  // PIN MOVED (AUDIT-STOREFRONT III D1): the half is set beside the archive's own (`lawHalf`) - and found at all, which
+  // the bare indexOf (-1 below anything) never asked
+  const half = d.indexOf('[pile.half, pile.lawHalf] = [[size.w / 2, size.h / 2], [law.w / 2, law.h / 2]];');
+  assert.ok(half > 0 && half < d.indexOf('const g = pile.isFixed'));
 });
 
 // ---------------------------------------------------------------------------
@@ -512,7 +515,9 @@ test('AUDIT 64 F17: layoutInterior carries ObjectType, and 41409 climbs only as 
   // PIN MOVED (FIELD BUGS 2026-10-14 INN-BEDS): the gate lists a bed model before it skips - a bed is a mod's custom
   // activation (RoleplayRealism.cs:126-128), not furniture's action - and skips everything else as it did
   const gate = c.indexOf('if (p.objectType !== PROP_MODEL_TYPE) {');
-  assert.ok(gate >= 0 && /^if \(p\.objectType !== PROP_MODEL_TYPE\) \{\n\s*if \(isBedModel\(classicModelIdOf\(p\.modelIdNum\)\)\) beds\.push\(\{ cpu, matrix \}\);\n\s*continue;\n\s*\}/.test(c.slice(gate)),
+  // PIN MOVED (BUILT-IN-MODS, FIELD BUGS 2026-10-29e): and a bed written as scenery that is a built-in piece is taken out
+  // with its rest
+  assert.ok(gate >= 0 && /^if \(p\.objectType !== PROP_MODEL_TYPE\) \{\n\s*if \(isBedModel\(classicModelIdOf\(p\.modelIdNum\)\)\) \{\n\s*beds\.push\(\{ cpu, matrix \}\);\n\s*if \(baseKey\) base\.furnish\(baseKey, beds\[beds\.length - 1\]\);[^\n]*\n\s*\}\n\s*continue;\n\s*\}/.test(c.slice(gate)),
     'DaggerfallInterior.cs:500 gates the whole AddFurnitureAction chain on the same clause');
   assert.ok(gate < c.indexOf('if (isShopShelfModel(p.modelIdNum)) {'),
     'and it sits ahead of the shelf/house-container chain it gates');

@@ -124,8 +124,8 @@ test('LOOT10: the page - every record (the thirty, and AUDIT LOOT F8 a registere
   for (const r of rows) assert.ok(r.hint, `${r.id}: a hint`);
   const sets = CX.codexSets();
   assert.equal(sets.reduce((n, s) => n + s.pieces.length, 0), AETHERIC_RECORDS.length);
-  assert.deepEqual(CX.codexCount(), { legendary: 1, legendaries: LR.allLegendaries().length, aetheric: 0, aetherics: AETHERIC_RECORDS.length, gilded: 0, gildeds: GILDED_RECORDS.length }, 'GILDED1: and the Gilded rung\'s records (PIN MOVED, GILDED2: three)');
-  assert.equal(GILDED_RECORDS.length, 3, 'GILDED2: the Hourlock, the Dragonfire Oath and the Sunken Sovereign');
+  assert.deepEqual(CX.codexCount(), { legendary: 1, legendaries: LR.allLegendaries().length, aetheric: 0, aetherics: AETHERIC_RECORDS.length, gilded: 0, gildeds: GILDED_RECORDS.length }, 'GILDED1: and the Gilded rung\'s records (PIN MOVED, GILDED2: three; KETCH: five)');
+  assert.equal(GILDED_RECORDS.length, 5, 'GILDED2: the Hourlock, the Dragonfire Oath and the Sunken Sovereign; KETCH (PIN MOVED): Volendrung\'s Echo and the Ketchmaster\'s Word');
 });
 
 test('LOOT10: the imprint - a known, unworn Rare takes a found power of its group, once, for 20 shards and 5,000 gold; its card and its power', () => {
@@ -213,7 +213,7 @@ test('LOOT10: the pages - the Codex alone from the pack, the Imprint at the guil
     });
     try {
       const shell = one(host, 'reforge-shell');
-      assert.deepEqual(kids(shell, 'reforge-tab').map((t) => t.dataset.page), ['reforge', 'salvage', 'imprint', 'codex', 'scry', 'sockets'], 'the guild\'s four - PIN MOVED (LOOT19, bible/06-Systems/Loot-II-Arc.md section 11): and its scryers\' page, the fifth; (LOOT20, section 12) its sockets\', the sixth');
+      assert.deepEqual(kids(shell, 'reforge-tab').map((t) => t.dataset.page), ['reforge', 'imbue', 'salvage', 'imprint', 'codex', 'scry', 'sockets'], 'the guild\'s four - PIN MOVED (LOOT-GATE: the Imbue, second) - PIN MOVED (LOOT19, bible/06-Systems/Loot-II-Arc.md section 11): and its scryers\' page, the fifth; (LOOT20, section 12) its sockets\', the sixth');
       // AUDIT MENU-ORDER U5: a refused imprint - pressed, it says why and imprints nothing
       const gold = me.goldPieces;
       me.goldPieces = 0;

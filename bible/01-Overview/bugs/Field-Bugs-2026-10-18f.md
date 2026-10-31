@@ -186,7 +186,7 @@ game.
   (`enhancedHotbar.js:"function onKey(e) {"`). It stands down only while the HUD's last frame said the game is paused
   (`hud.js:"paused: !!cursorActive,"`).
 - **Underground no frame said so.** Both dungeon hosts return above `drawFoes` while a window pauses the game
-  (`worldModes.js:"if (dungeonCtx.uiOverlayActive) { dungeonCtx.hideHudText?.();"`, `dungeon.js:"ctx.hideHudText?.(); hideWorldPlaque(); ctx.tickOverlay(dt); ctx.drawOverlay(canvas);"`),
+  (`worldModes.js:"if (windowHoldsDungeon(dungeonCtx.uiOverlayActive, aliveUnder())) { dungeonCtx.hideHudText?.();"`, `dungeon.js:"ctx.hideHudText?.(); hideWorldPlaque(); ctx.tickOverlay(dt); ctx.drawOverlay(canvas);"`),
   and `drawFoes` is their only drawHud. For the life of a window the bar kept the last frame of play's word; the
   enhanced HUD also stayed painted under every dungeon window.
 
@@ -363,7 +363,7 @@ first: true`.
 - **The crafter's limit** (`06-Systems/Professions-Arc.md` 3.2, DECIDED; Mac kept it at CAP-OFF): two crafts past
   Journeyman, every other stopped at `professionLaw.js:"return past >= CRAFTS_ABOVE_JOURNEYMAN ? xpForRank(JOURNEYMAN_RANK + 1) - 1 : PROF_XP_MAX;"` -
   one XP short of 51, the report's "1xp off". The service credits each act through its own INSERT,
-  `professions.js:"MAX(0, MIN(?10 + f * ?13, ${cap} - COALESCE("` (the smelt's, temper's, brew's and disenchant's
+  `professions.js:"MAX(0, MIN(?10 + f * p * ?13, ${cap} - COALESCE("` (the smelt's, temper's, brew's and disenchant's
   alike), so at that ceiling every act pays none, its first's 500 too. With Provisioning at 50 the same craft paid 60
   and 500. Nothing else pays a rank-50 craft none (the Firmament's XP floors at -30%). The player's other two crafts are
   not in the screenshot, but only the limit makes that exact figure.

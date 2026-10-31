@@ -80,8 +80,8 @@
   {
     "name": "PROF7-spider-cured",
     "file": "src/net/professionLaw.js",
-    "old": "[MOB.Spider], 'part:venom', 'food:meat', null),",
-    "new": "[MOB.Spider], 'part:venom', 'food:meat', 'leather:cured'),",
+    "old": "[MOB.Spider, DEX.BloodSpider], 'part:venom', 'food:meat', null),",
+    "new": "[MOB.Spider, DEX.BloodSpider], 'part:venom', 'food:meat', 'leather:cured'),",
     "tests": [
       "test/net/prof7_law.test.js",
       "test/net/prof7_service.test.js"
@@ -195,10 +195,10 @@
     ]
   },
   {
-    "name": "PROF7-trophy-chosen",
+    "name": "HUNTERS-MARK-trophy-hunter-waits-again",
     "file": "src/net/professionLaw.js",
-    "old": "'A trophy decor piece from a tier 5+ kill.', 'trophy')",
-    "new": "'A trophy decor piece from a tier 5+ kill.')",
+    "old": "'A clean pelt of a grade 5 or 6 body gives a mounted trophy of the beast.'),",
+    "new": "'A clean pelt of a grade 5 or 6 body gives a mounted trophy of the beast.', 'trophy'),",
     "tests": [
       "test/net/prof7_law.test.js"
     ]
@@ -486,8 +486,8 @@
   {
     "name": "PROF7-market-crafted-undyed",
     "file": "server-account/src/market.js",
-    "old": "p.marked, p.dye, p.hand, p.record, p.template, p.material AS dfu_material\n      FROM market_listings l JOIN products p",
-    "new": "p.marked, p.hand, p.record, p.template, p.material AS dfu_material\n      FROM market_listings l JOIN products p",
+    "old": "p.marked, p.dye, p.hand, p.record, p.template, p.material AS dfu_material\n      ${from}",
+    "new": "p.marked, p.hand, p.record, p.template, p.material AS dfu_material\n      ${from}",
     "tests": [
       "test/net/prof7_service.test.js"
     ],
@@ -792,8 +792,8 @@
   {
     "name": "PROF7-host-ask-no-foe",
     "file": "src/scenes/huntHost.js",
-    "old": "        ask: { foe: b.foe },",
-    "new": "        ask: {},",
+    "old": "        ask: (skinned.set(b.key, b.foe), { foe: b.foe }),",
+    "new": "        ask: (skinned.set(b.key, b.foe), {}),",
     "tests": [
       "test/systems/prof7_client.test.js"
     ]
@@ -911,8 +911,8 @@
   {
     "name": "PROF7-book-dye-dropped",
     "file": "src/net/profBook.js",
-    "old": "Number.isInteger(w.dye) ? w.dye : null",
-    "new": "null",
+    "old": "w.rid, w.heartwood === true, Number.isInteger(w.dye) ? w.dye : null",
+    "new": "w.rid, w.heartwood === true, null",
     "tests": [
       "test/systems/prof7_client.test.js"
     ]
@@ -1070,8 +1070,8 @@
   {
     "name": "PROF7-no-loom-station",
     "file": "src/net/decorLaw.js",
-    "old": "export const DECOR_STATIONS = Object.freeze(['alchemy', 'spells', 'enchant', 'forge', 'workbench', 'loom', 'mason', 'jeweller', 'vendor']);",
-    "new": "export const DECOR_STATIONS = Object.freeze(['alchemy', 'spells', 'enchant', 'forge', 'workbench', 'mason', 'jeweller', 'vendor']);",
+    "old": "export const DECOR_STATIONS = Object.freeze(['alchemy', 'spells', 'enchant', 'forge', 'workbench', 'cooking', 'music', 'loom', 'mason', 'jeweller', 'vendor']);",
+    "new": "export const DECOR_STATIONS = Object.freeze(['alchemy', 'spells', 'enchant', 'forge', 'workbench', 'cooking', 'mason', 'jeweller', 'vendor']);",
     "tests": [
       "test/net/prof7_law.test.js",
       "test/ui/homestations.test.js"
@@ -1080,8 +1080,8 @@
   {
     "name": "PROF7-loom-licence-cheap",
     "file": "src/net/decorLaw.js",
-    "old": "workbench: 50_000, loom: 50_000, mason: 50_000, jeweller: 50_000, vendor: 25_000 });",
-    "new": "workbench: 50_000, loom: 5_000, mason: 50_000, jeweller: 50_000, vendor: 25_000 });",
+    "old": "workbench: 50_000, cooking: 50_000, music: 5_000, loom: 50_000, mason: 50_000, jeweller: 50_000, vendor: 25_000 });",
+    "new": "workbench: 50_000, cooking: 50_000, music: 5_000, loom: 5_000, mason: 50_000, jeweller: 50_000, vendor: 25_000 });",
     "tests": [
       "test/net/prof7_law.test.js",
       "test/ui/homestations.test.js"

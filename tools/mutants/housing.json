@@ -331,7 +331,7 @@
   {
     "name": "HOME-YARD-the-house-let-in",
     "file": "src/scenes/homeYards.js",
-    "old": "  if ((lot.walls ?? [lot.house]).some(meets)) return YARD_IN_HOUSE;",
+    "old": "  if ((lot.walls ?? [lot.house]).some(meets) && yardInHouse(lot, pos, ground, pos[1] + (/** @type {any} */ (foot)?.bottom ?? 0))) return YARD_IN_HOUSE;",
     "new": "  if (false) return YARD_IN_HOUSE;",
     "tests": [
       "test/scenes/homeyard.test.js"
@@ -359,17 +359,18 @@
   {
     "name": "HOME-YARD-one-cap-for-both",
     "file": "server-account/src/decor.js",
-    "old": "...countBinds, out ? DECOR_YARD_CAP : S.cap,",
-    "new": "...countBinds, S.cap,",
+    "old": "...countBinds, out ? DECOR_YARD_CAP : (guildHall ? DECOR_HALL_CAP : roomCap),",
+    "new": "...countBinds, roomCap,",
     "tests": [
       "test/scenes/homeyard.test.js"
-    ]
+    ],
+    "note": "FIELD BUGS 2026-10-29f (PIN MOVED): re-aimed by content - the line it names moved or grew."
   },
   {
     "name": "HOME-YARD-the-flag-unsent",
     "file": "src/scenes/homeYards.js",
-    "old": "    place: (a) => deps.api.place({ ...a, yard: true }),",
-    "new": "    place: (a) => deps.api.place({ ...a }),",
+    "old": "    place: async (a) => wrote(a, await deps.api.place({ ...a, yard: true })),",
+    "new": "    place: async (a) => wrote(a, await deps.api.place({ ...a })),",
     "tests": [
       "test/scenes/homeyard.test.js"
     ]
@@ -478,8 +479,8 @@
   {
     "name": "HOME-RENT-renting-from-oneself",
     "file": "src/systems/online/onlineHomes.js",
-    "old": "  if (!home.rent || home.mine) return null;",
-    "new": "  if (!home.rent) return null;",
+    "old": "  if (!home.rent || home.mine) return offer.length ? offer : null;",
+    "new": "  if (!home.rent) return offer.length ? offer : null;",
     "tests": [
       "test/server/homerent.test.js"
     ]
@@ -651,8 +652,8 @@
   {
     "name": "HOME-LOOK-the-preview-rebuilding",
     "file": "src/scenes/world.js",
-    "old": "((row?.look && homeDecorShown(row)) || row?.mine || row?.keeper)) merged = true;",
-    "note": "HOME-VOTE (PIN MOVED): a look counts only where it is shown - a shunned home's stays in the merge",
+    "old": "((row?.look && homeDecorShownHere(row, p.homeTown)) || row?.mine || row?.keeper)) merged = true;",
+    "note": "HOME-VOTE (PIN MOVED): a look counts only where it is shown - a shunned home's stays in the merge FIELD BUGS 2026-10-29f (PIN MOVED): re-aimed by content - the line it names moved or grew.",
     "new": "lookOfHome(p.homeTown, bk, row)) merged = true;",
     "tests": [
       "test/net/homelook.test.js"

@@ -33,12 +33,13 @@
 // Pure: no DOM, no clock (the host hands the day). Its seeds its own (mulberry32 on hash32), the global stream put back.
 import { hash32 } from '../world/spawnedDungeons.js';
 import { mulberry32 } from '../combat/blood/bloodArt.js';
-import { residentName } from './livingWorld/census.js';
+import { seededPersonName } from '../characters/personNames.js';   // REGION-NAMES
 import { getNameBankOfRegion, GENDERS } from '../characters/nameHelper.js';
 import { PLAYER_CREW, playerCrewCount, CREW_SHOWN } from './naval/crewLife.js';
 import { CREW_PER_HAND, MOBILE } from './naval/navalBoarding.js';
 import { CREW_ROLES, FIRST_MATE } from './naval/shipCrew.js';
 import { REPAIR_PRICE } from './naval/navalDamage.js';
+import { t } from './textManager.js';   // CREW-SIGNED: the hall's new words in the player's language
 
 /** How many sailors a hall has each day. */
 export const RECRUITS_A_DAY = 6;
@@ -133,7 +134,7 @@ export function recruitsOf({ mapId, day, regionIndex = -1, serving = null }) {
     const gi = RECRUIT_GRADES.indexOf(drawGrade(r));
     const grade = RECRUIT_GRADES[gi];
     const trade = mobile === MOBILE.Bard ? 'Bard' : drawTrade(r, gi);
-    const name = residentName(Math.floor(r() * 0xffffffff) >>> 0, bank, female ? GENDERS.Female : GENDERS.Male);
+    const name = seededPersonName(Math.floor(r() * 0xffffffff) >>> 0, bank, female ? GENDERS.Female : GENDERS.Male, { region: Number.isInteger(regionIndex) ? regionIndex : -1 });
     const lines = RECRUIT_LINES[grade.key];
     const rec = {
       id: `${mapId >>> 0}:${Math.floor(Number(day) || 0)}:${i}`, name, gender: female ? GENDERS.Female : GENDERS.Male, sex: female ? 'female' : 'male', mobile,
@@ -190,4 +191,10 @@ export const CREW_HALL_TEXT = Object.freeze({
   ashore: (who) => `${who} is ashore with you. Send them back aboard first.`,
   noShip: 'You have no crewed ship here. Bring it to this port, or lay it up.',
   noSea: 'Turn on Naval Combat to hire crew at the crew halls.',
+});
+/** CREW-SIGNED (scenes/crewSignBook.js): the hall's words for a hire the account service answers. */
+export const CREW_SIGN_TEXT = Object.freeze({
+  get unread() { return t('crewHall.unread', 'The crewmaster cannot check the roster now. Try again.'); },
+  get many() { return t('crewHall.many', 'You have signed on as many sailors as one day allows. Come back tomorrow.'); },
+  get asking() { return t('crewHall.asking', 'The crewmaster checks the roster.'); },
 });

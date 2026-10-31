@@ -77,6 +77,7 @@ The mod in DFU's terms (`BestiaryMod.cs`, cited below by line):
 | DEX7 | the Morrowind bodies (section 4); a NoShadow row's body casts none (AUDIT DEX B2) | SHIPPED (section 10) |
 | AUDIT DEX | the arc's cold audit (2026-10-20): five lanes over the frozen snapshot `d8db6d444`, every finding proven, then fixed and pinned with a mutant or recorded - `bible/01-Overview/audits/Audit-DEX.md`; its corrections are marked AUDIT DEX in each section | DONE |
 | MUDEX1 | Meaner Monsters beside DEX is MUDEX, its author's form of it for this mod (Ralzar, `vendor/mudex`): its two tables read after the mod's own, Meaner Monsters' rows, xml and PCAAO's edit of it standing aside (Mac, 2026-10-20: "We need to make everything compatible. No if ands or vutts", then "Approve MUDEX") | SHIPPED (section 13) |
+| DEX-HIDES | The mod's nine Animal rows skinned by Hunting - its kin's hide, or Wolf Pelt, Boar Hide and Mudcrab Chitin (681-683); its Hell Hound, Daedra, not (FIELD BUGS 2026-10-20h, and the Discord's #feature-feedback in FIELD BUGS 2026-10-21: "the variant bats and wolves I encountered have had no option for skinning"; AUDIT FB1021 L4-12: this table had no row) | SHIPPED (section 14) |
 
 ## 4. Morrowind
 
@@ -478,6 +479,15 @@ Tests: `test/systems/enemyExpansion/dex7_bodies.test.js` (the census by the mod'
 and the riders, the looks at the door with the switch either way, the doors' refusals, once a page; a NoShadow row's
 body casting none, DEX7-7), mutants `tools/mutants/dex7.json`.
 
+RPT1026-ITEMS DEX-CORPSE (2026-10-27, a private report: the new Dremora's bodies gone at death, a pool of blood and
+their loot left): checked lane by lane. On the classic lane the Dremora Churl (285) dies into its row's own corpse,
+1708 record 25 - the authors' picture of it lying - which the archive's stand-in carries, measures and uploads; on
+the Morrowind lane it is Morrowind's dremora, laid in that body's death, the corpse flat under it casting its shadow
+alone, and a body with no death to pose lets the flat draw (MWNPC4). Neither lane lacks a body for it. The report's
+picture fits the Morrowind lane only if its body stands and draws nothing, which needs Morrowind's own files to run
+(none in the tree). `test/systems/enemyExpansion/rpt1026_items_dexcorpse.test.js`; mutants in
+`tools/mutants/rpt1026_items.json`.
+
 ## 11. DEX5 - the Troll that gets back up
 
 The mod ships a PREFAB for the Troll's corpse picture (`1618_20`), and DFU stands it in the corpse's place
@@ -704,3 +714,16 @@ monsters field by field written and minted, the tables, Meaner Monsters standing
 `test/net/foebounds_law.test.js` (the seventh profile), `dex1_registry.test.js` (DEX alone, Meaner Monsters standing
 aside); mutants `tools/mutants/mudex1.json`, eleven, all dead.
 
+## 14. DEX-HIDES - the mod's animals skinned (FIELD BUGS 2026-10-20h and 2026-10-21)
+
+The Discord's #feature-feedback (Shines): "the new mobs are great! But the variant bats and wolves I encountered have had
+no option for skinning." Hunting skinned by DFU's MobileTypes alone (`net/professionLaw.js` `hideOfFoe`), and the mod's
+monsters are numbered past them (section 5: 256-290, a spawned foe's mobileType its id), so none of its animals was ever
+stamped at its kill (`scenes/huntHost.js`), listed as a body or taken by the account service. Each of the mod's nine rows
+of Affinity Animal is skinned now - its kin's hide where Hunting's ten have its kin (the Bat, the Blood Spider, the
+Mountain Lion, the Land Dreugh), and Wolf Pelt, Boar Hide and Mudcrab Chitin for the rest; its Hell Hound is the mod's
+Daedra and stays unskinned. The hides and their reasons are `06-Systems/Professions-Arc.md` 4.4 (DEX-HIDES); the record is
+`01-Overview/bugs/Field-Bugs-2026-10-20h.md`, which built it first (the same thread reached `Field-Bugs-2026-10-21.md`,
+whose own build gave way to it at the merge, carrying its audit's two fixes - the Bear Hide spent last of its tier, the
+Mudcrab Chitin counted as a mass). The ids are static numbers there, so the service needs no registry of the
+mod's, and a mod switched off rolls none of them (section 7).

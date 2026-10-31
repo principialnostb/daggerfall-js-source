@@ -64,8 +64,8 @@
   {
     "name": "the-row-is-hidden-under-the-online-heading",
     "file": "src/systems/inputActions.js",
-    "old": "  g('Online', [\n    ['SocialInteract', 'Interact with player'],\n  ]),",
-    "new": "  g('Online', [\n    ['SocialInteract', 'Interact with player'], ['FreeMouse', 'Free the mouse (press again to look)'],\n  ]),",
+    "old": "  g('Online', [\n    ['SocialInteract', 'Interact with player'],\n",
+    "new": "  g('Online', [\n    ['SocialInteract', 'Interact with player'], ['FreeMouse', 'Free the mouse (press again to look)'],\n",
     "tests": [
       "test/systems/freemouse.test.js",
       "test/systems/qs2_inputs.test.js",
@@ -104,11 +104,12 @@
   {
     "name": "a-freed-cursor-is-taken-back-by-a-passing-gesture",
     "file": "src/player/pointerLock.js",
-    "old": "  if (_cursorActive || _cursorHolds.size) return;\n  _lastRequestAt = nowMs();",
-    "new": "  if (_cursorHolds.size) return;\n  _lastRequestAt = nowMs();",
+    "old": "  if (_cursorActive || _cursorHolds.size) return;\n  // RPT1026-MISC TOUCH-NO-LOCK",
+    "new": "  if (_cursorHolds.size) return;\n  // RPT1026-MISC TOUCH-NO-LOCK",
     "tests": [
       "test/systems/freemouse.test.js",
       "test/scenes/menu_pointer_relock.test.js"
-    ]
+    ],
+    "note": "PIN MOVED (RPT1026-MISC): re-aimed by content - TOUCH-NO-LOCK put its touch gate between the cursor test and the request."
   }
 ]

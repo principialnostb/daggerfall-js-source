@@ -39,7 +39,10 @@ import { guestName, isHandleShaped, isGuestShaped } from './guestName.js';
 import { handleLooksLikeEmail } from '../../src/net/handleShape.js';   // HANDLE-EMAIL: a username is never an address
 import { NAME_MAX } from '../../src/net/wire.js';   // NAME-AS: the wire's bound on a name, a worn character's among them
 import { checkName } from '../../src/net/nameFilter.js';   // NAME-AS: which word a character's name was refused for (NAME-F: a refusal names it)
-import { wardrobeOf, equipRefusal, canModerate, auraRefusal, glyphRefusal, glyphsHidden, iconRefusal } from './titles.js';   // ACC3: what a player holds, wears and is true of - all four derived; WB9g: and the aura worn
+import { armoryKitWith, armoryKitOk, armoryKitPieces } from '../../src/net/armoryLaw.js';
+import { effectKitWith } from '../../src/net/effectLaw.js';   // STOREFRONT: the effects kit with one slot changed   // ARMORY: the kit with one slot changed, or a whole kit
+import { wardrobeOf, equipRefusal, canModerate, isDeveloper, auraRefusal, glyphRefusal, glyphsHidden, iconRefusal, armoryRefusal, armoryWorn, effectRefusal, effectsWorn } from './titles.js';   // ACC3: what a player holds, wears and is true of - all four derived; WB9g: and the aura worn
+import { brokerRidOk, brokerSaleOf, brokerSaleWrite, brokerRidFreeSql } from './brokerSales.js';   // AUDIT FB1024 (BROKER-RID): a press by its request id
 import { insigniaById, insigniaHeld } from '../../src/net/insignia.js';   // WB9g: the Broker's insignia - one law both ends
 import { ID_RE, nameIsIssuable } from '../../src/net/identityToken.js';
 import { PLAY_GRACE_S } from '../../src/net/playClock.js';   // ACC4: the widest gap one beat may credit - one home both ends
@@ -52,7 +55,7 @@ import {
   mintRecoveryCode, codeForHashing,
   mintRecoverySet, hashRecoverySet, joinRecoverySet, matchRecoveryCode, recoveryLeft,   // RECOVERY-SET: eight codes, each spent alone
 } from './password.js';
-import { seatRegionOk } from '../../src/net/townSeatLaw.js';   // SEAT1b: a gate claim's region
+import { gateRegionOk } from '../../src/net/townSeatLaw.js';   // SEAT1b: a gate claim's region; WW7-3: its lane's (a province's gate its own province's)
 import { DB_ANY, DB_ROOT } from './service.js';   // BOOKMARK-SPIRAL: a session started at any instance, and the binding behind it
 
 /** A session's raw secret, in bytes. 32 bytes of CSPRNG is the whole
@@ -237,8 +240,16 @@ export async function createGuest({ db, subtle, rand, nowS }, { deviceLabel = nu
 /**
  * A NEW DEVICE for an existing player. The raw secret is returned here
  * and nowhere else, ever again.
+ *
+ * RPT1026-SECNET (from a private security report) - `guard` is what the
+ * session STANDS ON, and the INSERT itself checks it: `{ password }` the
+ * hash its caller verified or wrote (a sign-in, a recovery), `{ session }`
+ * the device admitting this one. A recovery that signed every device out while the caller worked
+ * moved the one or deleted the other, so the session is never written and
+ * the answer is null - it would have outlived the sign-out. None for a
+ * guest's first session, which nothing can race.
  */
-export async function openSession({ db, subtle, rand, nowS }, playerId, deviceLabel = null) {
+export async function openSession({ db, subtle, rand, nowS }, playerId, deviceLabel = null, guard = null) {
   const secret = mintSecret(rand);
   const sessionId = mintId(rand);
   const hash = await hashSecret(secret, { subtle });
@@ -246,9 +257,16 @@ export async function openSession({ db, subtle, rand, nowS }, playerId, deviceLa
   // never trusted - a device is what holds the secret, not what it
   // calls itself.
   const label = typeof deviceLabel === 'string' ? deviceLabel.slice(0, 64) : null;
-  await db.prepare('INSERT INTO sessions (id, player_id, secret_hash, device_label, created_at, last_seen) VALUES (?, ?, ?, ?, ?, ?)')
-    .bind(sessionId, playerId, hash, label, nowS, nowS).run();
-  return { sessionId, secret };
+  const into = 'INSERT INTO sessions (id, player_id, secret_hash, device_label, created_at, last_seen)';
+  if (!guard) {
+    await db.prepare(`${into} VALUES (?, ?, ?, ?, ?, ?)`).bind(sessionId, playerId, hash, label, nowS, nowS).run();
+    return { sessionId, secret };
+  }
+  const stands = guard.session != null
+    ? db.prepare(`${into} SELECT ?, ?, ?, ?, ?, ? WHERE EXISTS (SELECT 1 FROM sessions WHERE id = ? AND player_id = ?)`).bind(sessionId, playerId, hash, label, nowS, nowS, guard.session, playerId)
+    : db.prepare(`${into} SELECT ?, ?, ?, ?, ?, ? WHERE EXISTS (SELECT 1 FROM players WHERE id = ? AND password = ?)`).bind(sessionId, playerId, hash, label, nowS, nowS, playerId, guard.password ?? null);
+  const wrote = await stands.run();
+  return wrote?.meta?.changes ? { sessionId, secret } : null;
 }
 
 /** SCALE4a (2026-10-08, Mac: "Do 1 2 and 3" - the session and its player were two reads in a row, 4.86 and 4.73 million
@@ -364,6 +382,10 @@ export async function closeAllSessions({ db }, playerId) {
   return { revoked: r?.meta?.changes ?? 0 };
 }
 
+/** STAFF-PANEL2-FIX (design doc, Weak spots: "a password change ends staff sessions too"): every staff panel session of
+ *  the account (staff.js) ended - a password changed or recovered is somebody who may have held the old one. */
+export const closeStaffSessions = ({ db }, playerId) => db.prepare('DELETE FROM staff_sessions WHERE player_id = ?').bind(playerId).run();
+
 /** The device list a player sees. No secrets and no hashes leave here -
  *  a hash is a credential's shadow and there is no reason to ship one. */
 export async function devicesOf({ db }, playerId) {
@@ -396,7 +418,7 @@ export const isMuted = (row, nowS) => mutedUntil(row) > nowS;
  * `muted_by` is written beside it, so a mute always says who did it -
  * a power with no record is a power nobody can review.
  */
-export async function muteAccount({ db, nowS }, actor, env, { target, minutes }) {
+export async function muteAccount({ db, nowS }, actor, env, { target, minutes, also = null }) {
   if (!canModerate(actor, env)) return { error: 'not-moderator' };
   if (typeof target !== 'string' || !ID_RE.test(target)) return { error: 'no-player' };
   if (!Number.isSafeInteger(minutes) || minutes < 0 || minutes > MUTE_MAX_MIN) return { error: 'bad-minutes' };
@@ -405,9 +427,19 @@ export async function muteAccount({ db, nowS }, actor, env, { target, minutes })
   if (!row) return { error: 'no-player' };
   if (canModerate(row, env)) return { error: 'protected' };
   const until = minutes ? nowS + minutes * 60 : null;
-  await db.prepare('UPDATE players SET muted_until = ?, muted_by = ? WHERE id = ?')
-    .bind(until, until ? actor.id : null, target).run();
-  return { ok: true, target, name: displayName(row), until: until ?? 0 };
+  // STAFF-PANEL2-FIX (design doc, Weak spots: "A Moderator can lift an Admin's ban" - "Store who set each sanction;
+  // lifting an Admin's needs an Admin"): a mute an Admin set (`mute_admin`, 0156) is lifted or cut short by an Admin
+  // alone, and stays the Admin's when another moderator lengthens it
+  const adminHeld = row.mute_admin === 1 && isMuted(row, nowS);
+  const admin = isDeveloper(actor, env);
+  if (adminHeld && !admin && (until ?? 0) < Number(row.muted_until)) return { error: 'admin-sanction' };
+  const write = db.prepare('UPDATE players SET muted_until = ?, muted_by = ?, mute_admin = ? WHERE id = ?')
+    .bind(until, until ? actor.id : null, until ? (admin || adminHeld ? 1 : 0) : null, target);
+  const done = { ok: true, target, name: displayName(row), until: until ?? 0 };
+  // STAFF-PANEL2-FIX: `also(answer)`, the caller's own statements for this write's batch (safety.js modAct: the act's
+  // record and its case closed, so they land with the mute or none does); without it the one write, as before
+  await (also ? db.batch([write, ...also(done)]) : write.run());
+  return done;
 }
 
 /**
@@ -465,6 +497,7 @@ export async function creditPlay({ db, nowS }, playerId, sessionId = null) {
          ELSE 0 END,
        played_at = MAX(COALESCE(played_at, ?1), ?1)
      WHERE id = ?3 AND COALESCE(banned_until, 0) <= ?1
+       AND COALESCE(frozen_until, 0) <= ?1   -- STAFF-PANEL5-FREEZE: a frozen account's beat credits nothing (a pass minted before the freeze)
        AND (?4 IS NULL OR EXISTS (SELECT 1 FROM sessions s WHERE s.id = ?4 AND s.player_id = ?3))
      RETURNING played_s`,
   ).bind(nowS, PLAY_GRACE_S, playerId, sessionId).first();
@@ -515,11 +548,43 @@ export async function equipAura({ db, nowS }, player, env, aura) {
 }
 
 /**
+ * ARMORY (bible/04-Characters/Aura-Armory.md) - WEAR ONE PIECE IN ITS SLOT, OR EMPTY THE SLOT: the aura's law a slot at a
+ * time. Refused against what the player HOLDS, derived now (armoryRefusal); the kit written is the one worn now with that
+ * slot changed, so a piece no longer held drops out at the write too. Answers the wardrobe after the write.
+ */
+export async function equipArmory({ db, nowS }, player, env, slot, piece) {
+  const why = armoryRefusal(slot, piece, player, env);
+  if (why) return { error: why };
+  const armory = armoryKitWith(armoryWorn(player, env) ?? null, /** @type {string} */ (slot), piece);
+  await db.prepare('UPDATE players SET armory = ?, last_seen = ? WHERE id = ?').bind(armory, nowS, player.id).run();
+  return { ok: true, ...wardrobeOf({ ...player, armory }, env, nowS) };
+}
+/** ARMORY: WEAR A WHOLE KIT AT ONCE - the Eternal set's Wear (`kit` every slot's piece, held) - or `null`, every slot bared.
+ *  Each piece refused as one worn alone would be (armoryRefusal). Answers the wardrobe after the write. */
+export async function equipArmoryKit({ db, nowS }, player, env, kit) {
+  if (kit !== null && !armoryKitOk(kit)) return { error: 'no-piece' };
+  for (const [slot, key] of Object.entries(armoryKitPieces(kit))) { const why = key ? armoryRefusal(slot, key, player, env) : null; if (why) return { error: why }; }
+  await db.prepare('UPDATE players SET armory = ?, last_seen = ? WHERE id = ?').bind(kit, nowS, player.id).run();
+  return { ok: true, ...wardrobeOf({ ...player, armory: kit }, env, nowS) };
+}
+
+/** STOREFRONT (bible/06-Systems/Storefront.md) - WEAR ONE EFFECT IN ITS SLOT, OR BARE IT: the armory's law for the kill
+ *  effect, the portal skin and the mount look. Refused against what the player holds now (effectRefusal); the kit written
+ *  is the one worn now with that slot changed. Answers the wardrobe after the write. */
+export async function equipEffect({ db, nowS }, player, env, slot, key) {
+  const why = effectRefusal(slot, key, player, env);
+  if (why) return { error: why };
+  const effects = effectKitWith(effectsWorn(player, env) ?? null, /** @type {string} */ (slot), key);
+  await db.prepare('UPDATE players SET effects = ?, last_seen = ? WHERE id = ?').bind(effects, nowS, player.id).run();
+  return { ok: true, ...wardrobeOf({ ...player, effects }, env, nowS) };
+}
+
+/**
  * WITCH1 (bible/06-Systems/Witches-Festival.md) - WEAR ONE PROFILE ICON, OR NONE (the character's face): the aura's law,
  * in the portrait well. Answers the wardrobe after the write; `not-held` for one the account does not hold.
  */
 export async function equipIcon({ db, nowS }, player, env, icon) {
-  const why = iconRefusal(icon, player);
+  const why = iconRefusal(icon, player, env);
   if (why) return { error: why };
   await db.prepare('UPDATE players SET icon = ?, last_seen = ? WHERE id = ?').bind(icon, nowS, player.id).run();
   return { ok: true, ...wardrobeOf({ ...player, icon }, env, nowS) };
@@ -565,23 +630,36 @@ export async function insigniaPurse({ db }, player) {
  * the pack; this is the half no client can skip. Answers the wardrobe after the write and the purse left.
  * @param {{ db: any, nowS: number }} ctx
  */
-export async function buyInsignia({ db, nowS }, player, env, id) {
+export async function buyInsignia({ db, nowS }, player, env, id, rid = null) {
   const offer = insigniaById(id);
   if (!offer) return { error: 'no-insignia' };
   if (!player?.handle) return { error: 'guest' };
-  if (insigniaHeld(player.insignia).includes(offer.id)) return { error: 'owned' };
+  // AUDIT FB1024 (BROKER-RID, brokerSales.js): a press with a request id - a fenced id writes nothing, the same press asked
+  // again answers its sale (before `owned`, which its own sale made true)
+  if (rid !== null && !brokerRidOk(rid)) return { error: 'rid' };
+  const had = rid ? await brokerSaleOf(db, player.id, rid) : null;
+  if (had?.kind === 'fence') return { error: 'fenced' };
+  if (had?.kind === 'insignia' && had.item === offer.id) return { ok: true, bought: offer.id, again: true, ...wardrobeOf(player, env, nowS), purse: await insigniaPurse({ db }, player) };
+  if (insigniaHeld(player.insignia).includes(offer.id) || isDeveloper(player, env)) return { error: 'owned' };   // ADMIN-ALL: an admin holds every offer (titles.js holdsAll)
   // AUDIT WB9 (insignia F3): the id APPENDED to the column the UPDATE matches, not written over it from the row read
   // before - two sales of two pieces at once each read the column empty, and the second wrote its id alone over the
   // first's: both paid for, one held (the id's shape is the law's own, insigniaWith's: space-separated, in sale order)
-  const row = await db.prepare(
-    `UPDATE players SET insignia = CASE WHEN COALESCE(insignia, '') = '' THEN ?2 ELSE insignia || ' ' || ?2 END,
-       insignia_spent = insignia_spent + ?3, last_seen = ?4
-     WHERE id = ?1
-       AND (' ' || COALESCE(insignia, '') || ' ') NOT LIKE ('% ' || ?2 || ' %')
-       AND ${EMBERS_EARNED_SQL} - insignia_spent >= ?3
-     RETURNING insignia, insignia_spent`,
-  ).bind(player.id, offer.id, offer.price, nowS).first();
+  // AUDIT FB1024 (BROKER-RID): the request id's guard rides the one UPDATE, and its row is written by that write alone
+  const [sold] = await db.batch([
+    db.prepare(
+      `UPDATE players SET insignia = CASE WHEN COALESCE(insignia, '') = '' THEN ?2 ELSE insignia || ' ' || ?2 END,
+         insignia_spent = insignia_spent + ?3, last_seen = ?4
+       WHERE id = ?1
+         AND (' ' || COALESCE(insignia, '') || ' ') NOT LIKE ('% ' || ?2 || ' %')
+         AND ${EMBERS_EARNED_SQL} - insignia_spent >= ?3${rid ? `
+         AND ${brokerRidFreeSql('?1', '?5')}` : ''}
+       RETURNING insignia, insignia_spent`,
+    ).bind(player.id, offer.id, offer.price, nowS, ...(rid ? [rid] : [])),
+    ...(rid ? [brokerSaleWrite(db, { account: player.id, rid, kind: 'insignia', item: offer.id, nowS })] : []),
+  ]);
+  const row = sold?.results?.[0] ?? null;
   if (!row) {
+    if (rid && (await brokerSaleOf(db, player.id, rid))?.kind === 'fence') return { error: 'fenced' };   // fenced while it was asked
     const now = await db.prepare('SELECT * FROM players WHERE id = ?').bind(player.id).first();
     if (insigniaHeld(now?.insignia).includes(offer.id)) return { error: 'owned' };
     return { error: 'short', purse: await insigniaPurse({ db }, now ?? player), price: offer.price };
@@ -841,11 +919,25 @@ export async function login({ db, subtle, rand, nowS }, { handle, password, devi
   // The cost of a hash goes up over the years. The only moment the
   // plaintext is in hand is a correct login, so that is when a row is
   // rewritten at the current count.
-  if (needsRehash(player.password)) {
+  // RPT1026-SECNET: AND BOTH WRITES STAND ON THE HASH THIS SIGN-IN VERIFIED.
+  // A recovery that landed while the derivation ran moved it: the rehash
+  // put the OLD password back in place of the recovered hash, and the session
+  // outlived the recovery's sign-out of every device. Now the rehash lands
+  // only where the row still holds the hash it verified, and the session only on the hash it holds.
+  let held = player.password;
+  if (needsRehash(held)) {
     const fresh = await hashPassword(password, { subtle, rand });
-    await db.prepare('UPDATE players SET password = ? WHERE id = ?').bind(fresh, player.id).run();
+    const re = await db.prepare('UPDATE players SET password = ? WHERE id = ? AND password = ?').bind(fresh, player.id, held).run();
+    if (re.meta.changes) held = fresh;
   }
-  const session = await openSession({ db, subtle, rand, nowS }, player.id, deviceLabel);
+  let session = await openSession({ db, subtle, rand, nowS }, player.id, deviceLabel, { password: held });
+  if (!session) {
+    // the row moved under it - a recovery, a change, or only another sign-in's rehash: the password typed is asked of
+    // the row as it stands now, once, so two sign-ins of one account at once both get in
+    const now = (await db.prepare('SELECT password FROM players WHERE id = ?').bind(player.id).first())?.password ?? null;
+    if (now && await verifyPassword(password, now, { subtle })) session = await openSession({ db, subtle, rand, nowS }, player.id, deviceLabel, { password: now });
+  }
+  if (!session) return { error: 'bad-login' };
   return { id: player.id, name: displayName(player), kind: accountKind(player), ...session };
 }
 
@@ -890,9 +982,17 @@ export async function recover({ db, subtle, rand, nowS }, { handle, code, passwo
   // AUDIT RECOVERY-SET A4: a code that WAS right and lost the race (two of one set's codes typed at once) is told to try
   // again, not that it was wrong - the caller has already shown a code, so the word leaks nothing
   if (!spent.meta.changes) return { error: 'codes-moved' };
-  await closeAllSessions({ db }, player.id);
+  // AUDIT RPT1026 A3: AND THE SIGN-OUT ONLY WHILE THE PASSWORD IS STILL THIS RECOVERY'S, as a change's is. A second
+  // recovery (another of the set's codes) that wrote after this one signed out every device itself and opened its own
+  // session - answered 200 - which this sign-out, by the account's id alone, then deleted. Every device from before the
+  // second is gone by its own sign-out, and nothing since stands on a password but the second's
+  await db.prepare('DELETE FROM sessions WHERE player_id = ? AND EXISTS (SELECT 1 FROM players WHERE id = ? AND password = ?)').bind(player.id, player.id, pw).run();
+  await closeStaffSessions({ db }, player.id);   // STAFF-PANEL2-FIX: a new password ends the staff panel's sessions too
   await clearRate({ db }, `recover:${lc}`);
-  const session = await openSession({ db, subtle, rand, nowS }, player.id, null);
+  // RPT1026-SECNET: on the password this recovery wrote - a second recovery (another of the set's codes) that signed
+  // every device out after this one's write is not outlived by this one's session
+  const session = await openSession({ db, subtle, rand, nowS }, player.id, null, { password: pw });
+  if (!session) return { error: 'codes-moved' };
   // AUDIT RECOVERY-SET B6: and the handle as the row holds it - the saved file names the account, not its typing
   const left = one ? { recoveryCode: one } : fresh ? { recoveryCodes: fresh, codesLeft: fresh.length, handle: player.handle } : { codesLeft: rest.length, handle: player.handle };
   return { id: player.id, name: displayName(player), ...left, ...session };
@@ -913,8 +1013,17 @@ export async function changePassword({ db, subtle, rand, nowS }, player, session
   if (!await verifyPassword(oldPassword, player.password, { subtle })) return { error: 'bad-login' };
   await clearRate({ db }, `login:${player.handle_lc}`);
   const pw = await hashPassword(password, { subtle, rand });
-  await db.prepare('UPDATE players SET password = ? WHERE id = ?').bind(pw, player.id).run();
-  await db.prepare('DELETE FROM sessions WHERE player_id = ? AND id != ?').bind(player.id, session.id).run();
+  // RPT1026-SECNET (from a private security report): THE CHANGE LANDS ON WHAT IT PROVED - the password it checked the
+  // old one against, still the row's, and the session asking, still standing. A recovery that landed while the
+  // derivations ran moved the one and deleted the other, and this write by id alone put the thief's password over the
+  // owner's recovered one. Refused then, as a wrong old password is.
+  const wrote = await db.prepare('UPDATE players SET password = ? WHERE id = ? AND password = ? AND EXISTS (SELECT 1 FROM sessions WHERE id = ? AND player_id = ?)')
+    .bind(pw, player.id, player.password, session.id, player.id).run();
+  if (!wrote.meta.changes) return { error: 'bad-login' };
+  // and the sign-out only while the password is still this change's: a recovery between the two statements signed every
+  // device out itself and opened its owner's, which this one would have deleted
+  await db.prepare('DELETE FROM sessions WHERE player_id = ? AND id != ? AND EXISTS (SELECT 1 FROM players WHERE id = ? AND password = ?)').bind(player.id, session.id, player.id, pw).run();
+  await closeStaffSessions({ db }, player.id);   // STAFF-PANEL2-FIX: and every staff panel session
   return { ok: true };
 }
 
@@ -995,8 +1104,10 @@ const DAY_S = 24 * 3600;
 
 /** An account's record: `{ wins, losses }`, counted off the results. */
 export async function duelRecordOf({ db }, playerId) {
-  const w = await db.prepare('SELECT COUNT(*) AS n FROM duel_results WHERE winner = ?1').bind(playerId).first();
-  const l = await db.prepare('SELECT COUNT(*) AS n FROM duel_results WHERE loser = ?1').bind(playerId).first();
+  const [w, l] = await Promise.all([   // AURA-FAST: both counts in one breath
+    db.prepare('SELECT COUNT(*) AS n FROM duel_results WHERE winner = ?1').bind(playerId).first(),
+    db.prepare('SELECT COUNT(*) AS n FROM duel_results WHERE loser = ?1').bind(playerId).first(),
+  ]);
   const n = (r) => (Number.isSafeInteger(Number(r?.n)) ? Number(r.n) : 0);
   return { wins: n(w), losses: n(l) };
 }
@@ -1108,7 +1219,7 @@ export async function claimGate({ db, nowS, subtle }, player, receipt, publicKey
   // row, which is no kill
   const embers = c.r === 1 ? 2 : 1;
   const kill = db.prepare('INSERT OR IGNORE INTO gate_kills (day, account, boss, earned, at, region, stones, body) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)')
-    .bind(c.d, player.id, c.b, c.x, nowS, c.x !== 'rite' && seatRegionOk(region) ? region : null, embers, c.m ? JSON.stringify(c.m) : null);   // INT14: the relay's count, kept
+    .bind(c.d, player.id, c.b, c.x, nowS, c.x !== 'rite' && gateRegionOk(c.d, region) ? region : null, embers, c.m ? JSON.stringify(c.m) : null);   // INT14: the relay's count, kept; WW2: a region the Bay's lane's alone - no gate past the Bay stands in a Bay region
   // MARKS1 / AUDIT 28 M4: the gate's Marks (marks.js gateStrikeStatement) IN THE SAME BATCH as the row - one transaction,
   // so a strike that fails takes the row with it and the retry claims afresh; `strike` null where Marks are not this
   // account's, and the row is written alone. WB12d: the rite alone is no breach closed - no strike

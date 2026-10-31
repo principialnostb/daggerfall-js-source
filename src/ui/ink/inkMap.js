@@ -8,9 +8,11 @@
 // terrain uses (ui/overworldModel.js isWaterPixel); the province
 // borders are where the politic bytes change hands between two land
 // pixels; the roads and tracks are Hazelnut's vendored arrays traced
-// into chains (traceChains - the port's own generated network is never
-// drawn on a map, bible/03-World/Roads.md, and the `source` field TO1
-// put on the network object is what tells them apart); the marks are
+// into chains (traceChains - the port's own generated network on the Bay
+// is never drawn on a map, bible/03-World/Roads.md, and the `source` field
+// TO1 put on the network object is what tells them apart; TESA13: past the
+// Bay Arena's network is the only road, and ui/tamrielInk.js draws it
+// through pathChains and strokePaths here); the marks are
 // MAPS.BSA through the classic window's discovery and bucket laws
 // (buildMarkerModel); the names are the game's own strings in a face
 // the port ships. It is drawn in an INK style - lines, carets for the
@@ -34,6 +36,7 @@
 // ═══════════════════════════════════════════════════════════════════
 
 import { CLIMATES, LOCATION_TYPES } from '../../formats/mapsFile.js';
+import { CLASSIC_ARGB, argbChannels } from '../town/townQuarters.js';   // VENDOR-HOUSES: classic's shop blue, the trader's house's fill
 import {
   isWaterPixel, buildMarkerModel, traceChains, simplifyChain,
   TREELINE_BYTE, SNOWLINE_BYTE,
@@ -43,6 +46,7 @@ import { GATE_RING_CSS, GATE_FILL_CSS } from '../gate/gateMapMark.js';   // WB1:
 import { SERPENT_MAP_INK } from '../serpentMapMark.js';   // SERPENT1: the sea serpent's ring, in the sea's colours
 import { SD_MAP_INK } from '../superDungeon/sdMapMark.js';   // SD2c: the Super dungeon's ring, in its omen's brass
 import { EG_ARCH_MAP_INK } from '../eliteGates/egArchMapMark.js';   // EG-F: my company's Elite arch, in its gold
+import { KT_MAP_INK } from '../ketch/ketchMapMark.js';   // KETCH: the Sky-Ketch over Daggerfall, in the aether's blue
 import { LODE_RING_CSS, LODE_FILL_CSS } from '../lodeMapMark.js';   // MINE-PERKS: a Motherlode Sense's Motherlodes, in the compass's aqua
 import { POI_RING_CSS, POI_FILL_CSS } from '../poi/poiMapMark.js';   // POI-2: the approved POIs, in their violet
 import { BOUNTY_RING_CSS, BOUNTY_FILL_CSS, REVENANT_RING_CSS, REVENANT_FILL_CSS } from '../bounty/bountyMapMark.js';   // BOUNTY1: a held bounty's black circle; RVN7c: a revenant's lair in blood red
@@ -52,6 +56,7 @@ import { wheelPath } from '../carriageWheel.js';   // OW-HUBS: a carriage town's
 import { paintVendorMark } from '../vendor/vendorMapMark.js';   // HOME-VENDOR: the trader's waypoint's coin
 import { seatMapMark, SEAT_RING_SIEGE } from '../../net/townSeatLaw.js';   // SEAT1a: how a seat is marked - its ring, a crown, a second ring; SEAT1c: held, Contested, a siege week
 import { STAR_VIOLET_CSS } from '../starfall/starMapMark.js';   // STAR6: a fallen star's violet
+import { FISSURE_BRASS_CSS, FISSURE_AETHER_CSS } from '../fissureMapMark.js';   // STOREFRONT: a Brass Fissure's brass and its crack's blue
 
 // ── THE INK (skin): the pen and its washes ───────────────────────────────────────────────
 /** THE TWO GROUNDS EVERY COLOUR ON THIS SHEET IS MIXED FROM. The pen
@@ -71,6 +76,7 @@ export const rgba = (rgb, a) => `rgba(${Math.round(rgb[0])}, ${Math.round(rgb[1]
  *  @returns {number[]} */
 export const mixRgb = (from, to, t) => [0, 1, 2].map((i) => from[i] + (to[i] - from[i]) * t);
 
+const SHOP_BLUE = argbChannels(CLASSIC_ARGB.shop);
 export const PEN = Object.freeze({
   line: rgba(INK_RGB, 0.92),         // the pen
   soft: rgba(INK_RGB, 0.42),         // borders, tracks, minor marks
@@ -82,6 +88,7 @@ export const PEN = Object.freeze({
   player: 'rgba(120, 28, 20, 0.95)',  // the player's own mark
   coords: 'rgba(120, 28, 20, 0.75)',  // MAP2: a bare-pixel destination's cross
   halo: rgba(PARCHMENT_RGB, 0.80),    // MAP-FIELD6: the parchment, quieted under a glyph or a name
+  vendor: rgba([SHOP_BLUE.r, SHOP_BLUE.g, SHOP_BLUE.b], 0.95),   // VENDOR-HOUSES: a player's trader's house, in classic's shop blue
 });
 
 /**
@@ -507,20 +514,55 @@ export function borderChains({ width, height, regionAt, isLand }) {
   }
   return linkSegments(segs).map((c) => inkChain(c, 0.9));
 }
-
 /**
  * The roads and tracks - ONLY the mod's arrays. The network object the
  * host hands carries `source: 'basic-roads'` when it was read off
  * vendor/roads-hazelnut (world/roadsProducer.js loadModRoads); the
- * port's own generated network carries no such word and is never inked
- * (bible/03-World/Roads.md). Chains are pixel CENTRES, so a road
- * meets a town's mark rather than its corner.
+ * port's own generated network on the Bay carries no such word and is
+ * never inked (bible/03-World/Roads.md). Chains are pixel CENTRES, so a
+ * road meets a town's mark rather than its corner.
  */
 export function roadChains(net, width, height) {
   if (!net || net.source !== 'basic-roads') return { roads: [], tracks: [] };
-  const centre = (chain) => chain.map((p) => ({ x: p.x + 0.5, y: p.y + 0.5 }));
-  const soften = (mask) => (mask ? traceChains(mask, width, height).map((c) => roundCorners(simplifyChain(centre(c)))) : []);
-  return { roads: soften(net.roads), tracks: soften(net.tracks) };
+  return { roads: pathChains(net.roads, width, height), tracks: pathChains(net.tracks, width, height) };
+}
+
+const centre = (chain) => chain.map((p) => ({ x: p.x + 0.5, y: p.y + 0.5 }));
+/** A path mask's chains as the sheet inks a road: walked (traceChains), on pixel CENTRES, thinned and rounded - or none
+ *  with no mask. TESA13: the roads past the Bay are walked through it too (ui/tamrielInk.js arenaRoadInk). */
+export function pathChains(mask, width, height) {
+  return mask ? traceChains(mask, width, height).map((c) => roundCorners(simplifyChain(centre(c)))) : [];
+}
+
+/** How wide a track is at far, paper pixels - a hair: the web reads, and no dash of it does (TESA15). */
+export const FAR_TRACK_PEN = 0.6;
+/** The roads and the tracks onto the sheet through a pen (penOf's `stroke`): the roads at every band, the tracks dotted,
+ *  each under its filter (TRUE hides). TESA13: the Bay's and the land past it, one law. TESA15 (the owner, of the map
+ *  past the Bay against the network's own picture: "doesnt match ... the fidelity of it"): at far the tracks are a hair
+ *  in the soft pen, not left off - a dot and a dash at a pixel a Bay pixel was noise, but the web of them is most of
+ *  what a country's ways are (on the freeware's continent two track pixels to every road's). */
+export function strokePaths(stroke, { roads = [], tracks = [] }, band, filters = {}) {
+  for (const kind of PATH_KINDS) {
+    if (filters[kind]) continue;
+    const pen = pathPen(kind, band);
+    stroke(kind === 'roads' ? roads : tracks, pen.width, pen.style, pen.dash);
+  }
+}
+/** AUDIT TESA II M10: the order strokePaths lays the kinds in - the roads, then the tracks over them. */
+export const PATH_KINDS = Object.freeze(/** @type {const} */ (['roads', 'tracks']));
+/** AUDIT TESA II M10: a kind's pen at a band - strokePaths' own, read by the land past the Bay's sliced paint
+ *  (ui/tamrielInk.js) so the two cannot part: the roads 1 at far and 1.5 in, the tracks the far hair or dotted.
+ *  @param {'roads' | 'tracks'} kind @param {string} band @returns {{ width: number, style: string, dash: ?number[] }} */
+export function pathPen(kind, band) {
+  if (kind === 'roads') return { width: band === 'far' ? 1 : 1.5, style: PEN.line, dash: null };
+  return band === 'far' ? { width: FAR_TRACK_PEN, style: PEN.soft, dash: null } : { width: 1, style: PEN.soft, dash: [2, 3] };
+}
+/** AUDIT TESA II M10: an `rgba(...)` pen as its solid colour and its alpha - a translucent pass laid solid on a scratch
+ *  canvas a step at a time, then down whole at the alpha, reads as one stroke (the overlaps of one fill or stroke are
+ *  never laid twice). @param {string} style @returns {{ solid: string, alpha: number }} */
+export function penSolid(style) {
+  const m = /^rgba\(\s*([\d.]+),\s*([\d.]+),\s*([\d.]+),\s*([\d.]+)\s*\)$/.exec(style);
+  return m ? { solid: `rgb(${m[1]}, ${m[2]}, ${m[3]})`, alpha: Number(m[4]) } : { solid: style, alpha: 1 };
 }
 
 /** Where each province's name sits: the mean of its land pixels. */
@@ -1006,58 +1048,19 @@ export function paintInkStatic(ctx, model, view, opts) {
     ctx.moveTo(x - k, y + k * 0.6); ctx.lineTo(x, y - k * 0.6); ctx.lineTo(x + k, y + k * 0.6);
   }
   ctx.stroke();
-  // the provinces
-  stroke(model.borders, 1, PEN.soft, [4, 3]);
+  // the provinces - REGION-LINES: not out on the continent, where the Bay is one province's share of the sheet and its
+  // sixty-two borders hatched it as no province past it is; the provinces' own line stands there (ui/tamrielInk.js)
+  if (!opts.continent) stroke(model.borders, 1, PEN.soft, [4, 3]);
   // the roads and the tracks
-  if (!opts.filters?.roads) stroke(model.roads, band === 'far' ? 1 : 1.5, PEN.line);
-  if (band !== 'far' && !opts.filters?.tracks) stroke(model.tracks, 1, PEN.soft, [2, 3]);
+  strokePaths(stroke, model, band, opts.filters ?? {});
   // WILD1 (ui/wild/wildMapInk.js): a sheet's own layer between the land and the marks - the open zone's fog and its red line,
   // laid over the mountains and the roads and under every place, so a town in the fog still reads
   if (typeof opts.underMarks === 'function') { ctx.save(); opts.underMarks(ctx); ctx.restore(); }
 
-  // the marks - and MAP2's harbour glyph beside a port's, while the mod
-  // restricts ship travel to ports (the classic page's ports button
-  // shows under the same condition, TravelOptionsMapWindow.cs:148)
-  const shown = BAND_MARKS[band] ?? BAND_MARKS.near;
-  // MAP-FIELD6: EVERY halo first, then every glyph. One pass per mark
-  // would let a neighbour's halo fall on the ink already laid down, so
-  // a crowded coast would come out with bites taken out of it - which
-  // is worse than the tangle the halo is here to fix.
-  const inked = [];
-  const harbours = [];   // PORT-MAP: [beside, x, y] - a port's anchor, at every band
-  const wheels = [];   // OW-HUBS: [beside, x, y] - a carriage town's wheel, at every band, as a port's anchor
-  for (const m of model.marks) {
-    if (!visible(m.x, m.y)) continue;
-    const ink = shown.has(m.colorIndex);
-    if (ink) inked.push([m, ...toPaper(view, m.x, m.y)]);
-    if (opts.ports && m.port) harbours.push([ink, ...toPaper(view, m.x, m.y)]);
-    if (m.carriage) wheels.push([ink, ...toPaper(view, m.x, m.y), m]);
-  }
-  // HUB1: a hub's circle goes down FIRST - its glyph's halo and ink then sit on it, so the town reads on the colour
-  for (const [m, x, y] of inked) if (m.hub) paintHubCircle(ctx, x, y, markReach(m) - (m.seat ? SEAT_RING_PAD : 0), !!m.hub.capital);
-  // SEAT1a (Seats-Arc 3.3): a seat's ring, in HUB1's order - under the glyph, round any hub's circle
-  for (const [m, x, y] of inked) if (m.seatMark) paintSeatRing(ctx, x, y, markReach(m), m.seatMark);
-  for (const [m, x, y] of inked) paintGlyph(ctx, m.kind, x, y, true);
-  for (const [m, x, y] of inked) {
-    paintGlyph(ctx, m.kind, x, y, false, opts.inks?.[m.kind] ?? (m.kind === 'hall' ? HALL_INK : undefined));   // MAP-KEY: in its classic dot's hue, where there is a palette (PVPDUNGEONS: a hall its own)
-  }
-  // PORT-MAP (2026-10-04, Mac: "Also ports don't show on my map"): a port's anchor at EVERY band - beside its mark where
-  // the band inks the place, ON the place where it does not (far inks the cities alone, and the map opens far) - so the
-  // ports the quays stand at read from the first look. MAP2 drew them at mid and near only.
-  for (const [beside, x, y] of harbours) paintHarbour(ctx, x, y, beside);
-  for (const [beside, x, y, m] of wheels) paintCarriageWheel(ctx, x, y, beside, m);   // OW-HUBS
-  // MAP2: the mod's MARK (TravelOptionsMapWindow.cs:532-550, drawn in
-  // MarkLocationColor) - a ring on the marked place at EVERY band, whether
-  // or not the band inks the place itself: the mark is the thing the
-  // player put there to steer by.
-  if (opts.markColor && opts.markedMapId != null && opts.markedMapId >= 0) {
-    for (const m of model.marks) {
-      if (m.mapId !== opts.markedMapId || !visible(m.x, m.y)) continue;
-      const [x, y] = toPaper(view, m.x, m.y);
-      ctx.strokeStyle = opts.markColor; ctx.lineWidth = 2;
-      ctx.beginPath(); ctx.arc(x, y, 9, 0, Math.PI * 2); ctx.stroke();
-    }
-  }
+  // MAP-PAN: the world sheet hands a marks layer and this is one blit. A caller
+  // with none still inks the marks here, which is what the pins drive.
+  if (opts.marksLayer) blitMarksLayer(ctx, opts.marksLayer, view);
+  else paintInkMarks(ctx, model, view, opts);
   // the names - MAP-FIELD6: haloed the same way, and for the same
   // reason. A name set in a light serif over the sheet's own cracks was
   // the least readable thing on the page.
@@ -1093,6 +1096,172 @@ export function paintInkStatic(ctx, model, view, opts) {
   }
 }
 
+/** MAP-PAN: how far past the paper the marks layer is baked, as a fraction of the paper,
+ *  so a pan shifts the layer instead of walking every place. */
+export const MARKS_PAN_PAD = 0.5;
+/** MAP-PAN: the marks bitmap stays within this on a side. A paper already there bakes flush. */
+export const MARKS_DEVICE_MAX = 8192;
+/** MAP-PAN: and within this many device pixels altogether (64MB of RGBA). A 5K sheet
+ *  with half a paper of pad on both axes is under the side cap and still ~150MB. */
+export const MARKS_DEVICE_PIXELS = 16_777_216;
+
+/** The margin, in paper pixels, the marks layer bakes past each edge. Both axes shrink
+ *  by the same fraction once the bitmap's area would pass the cap. */
+export function marksMargin(paperW, paperH, dpr = 1) {
+  const axis = (paper) => {
+    const spare = MARKS_DEVICE_MAX - paper * dpr;
+    if (!(spare > 0) || !(dpr > 0) || !(paper > 0)) return 0;
+    return Math.min(paper * MARKS_PAN_PAD * dpr, spare / 2) / dpr;
+  };
+  const padX = axis(paperW);
+  const padY = axis(paperH);
+  const w0 = (paperW + 2 * padX) * dpr;
+  const h0 = (paperH + 2 * padY) * dpr;
+  if (!(w0 > 0) || !(h0 > 0) || w0 * h0 <= MARKS_DEVICE_PIXELS) return { padX, padY };
+  // the largest shared fraction of the two pads whose bitmap still fits
+  let lo = 0;
+  let hi = 1;
+  for (let i = 0; i < 40; i++) {
+    const mid = (lo + hi) / 2;
+    const w = (paperW + 2 * padX * mid) * dpr;
+    const h = (paperH + 2 * padY * mid) * dpr;
+    if (w <= MARKS_DEVICE_MAX && h <= MARKS_DEVICE_MAX && w * h <= MARKS_DEVICE_PIXELS) lo = mid;
+    else hi = mid;
+  }
+  return { padX: padX * lo, padY: padY * lo };
+}
+
+/**
+ * MAP-PAN: THE PLACE MARKS. Glyphs, a hub's circle, a seat's ring, a port's anchor,
+ * a carriage town's wheel, and the marked place's ring - everything a pan only
+ * translates. A glyph is a paper-pixel size, so a zoom does not scale this layer:
+ * it is painted again. Assumes the context's transform is already the paper's.
+ * `cullPad` is in map pixels (the bake asks for a glyph's reach past its edge).
+ */
+export function paintInkMarks(ctx, model, view, opts) {
+  const { paperW, paperH } = opts;
+  const band = opts.band ?? zoomBand(view.scale);
+  const { visible } = penOf(ctx, view, paperW, paperH);
+  const reach = opts.cullPad ?? 2;
+  // the marks - and MAP2's harbour glyph beside a port's, while the mod
+  // restricts ship travel to ports (the classic page's ports button
+  // shows under the same condition, TravelOptionsMapWindow.cs:148)
+  const shown = BAND_MARKS[band] ?? BAND_MARKS.near;
+  // REGION-LINES (2026-10-25, the owner: "daggerfall's clustered icons need to be fixed amd standardized across tamriel"):
+  // out on the continent the Bay inks no mark of its own - its capitals stand with every other province's, in the
+  // continent's layer (ui/tamrielInk.js bayCapitals) - and none of the ports' anchors, the carriage wheels, the hubs' and
+  // the seats' rings that piled into a smudge where the Bay is a hand's width; the player's own mark stays (below)
+  const continent = !!opts.continent;
+  // MAP-FIELD6: EVERY halo first, then every glyph. One pass per mark
+  // would let a neighbour's halo fall on the ink already laid down, so
+  // a crowded coast would come out with bites taken out of it - which
+  // is worse than the tangle the halo is here to fix.
+  const inked = [];
+  const harbours = [];   // PORT-MAP: [beside, x, y] - a port's anchor, at every band
+  const wheels = [];   // OW-HUBS: [beside, x, y] - a carriage town's wheel, at every band, as a port's anchor
+  for (const m of model.marks) {
+    if (continent || !visible(m.x, m.y, reach)) continue;
+    const ink = shown.has(m.colorIndex);
+    if (ink) inked.push([m, ...toPaper(view, m.x, m.y)]);
+    if (opts.ports && m.port) harbours.push([ink, ...toPaper(view, m.x, m.y)]);
+    if (m.carriage) wheels.push([ink, ...toPaper(view, m.x, m.y), m]);
+  }
+  // HUB1: a hub's circle goes down FIRST - its glyph's halo and ink then sit on it, so the town reads on the colour
+  for (const [m, x, y] of inked) if (m.hub) paintHubCircle(ctx, x, y, markReach(m) - (m.seat ? SEAT_RING_PAD : 0), !!m.hub.capital);
+  // SEAT1a (Seats-Arc 3.3): a seat's ring, in HUB1's order - under the glyph, round any hub's circle
+  for (const [m, x, y] of inked) if (m.seatMark) paintSeatRing(ctx, x, y, markReach(m), m.seatMark);
+  for (const [m, x, y] of inked) paintGlyph(ctx, m.kind, x, y, true);
+  for (const [m, x, y] of inked) {
+    paintGlyph(ctx, m.kind, x, y, false, opts.inks?.[m.kind] ?? (m.kind === 'hall' ? HALL_INK : undefined));   // MAP-KEY: in its classic dot's hue, where there is a palette (PVPDUNGEONS: a hall its own)
+  }
+  // PORT-MAP (2026-10-04, Mac: "Also ports don't show on my map"): a port's anchor at EVERY band - beside its mark where
+  // the band inks the place, ON the place where it does not (far inks the cities alone, and the map opens far) - so the
+  // ports the quays stand at read from the first look. MAP2 drew them at mid and near only.
+  for (const [beside, x, y] of harbours) paintHarbour(ctx, x, y, beside);
+  for (const [beside, x, y, m] of wheels) paintCarriageWheel(ctx, x, y, beside, m);   // OW-HUBS
+  // MAP2: the mod's MARK (TravelOptionsMapWindow.cs:532-550, drawn in
+  // MarkLocationColor) - a ring on the marked place at EVERY band, whether
+  // or not the band inks the place itself: the mark is the thing the
+  // player put there to steer by.
+  if (opts.markColor && opts.markedMapId != null && opts.markedMapId >= 0) {
+    for (const m of model.marks) {
+      if (m.mapId !== opts.markedMapId || !visible(m.x, m.y, reach)) continue;
+      const [x, y] = toPaper(view, m.x, m.y);
+      ctx.strokeStyle = opts.markColor; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(x, y, 9, 0, Math.PI * 2); ctx.stroke();
+    }
+  }
+}
+
+/** MAP-PAN: where the blit will put the bitmap, in paper pixels. The shift is whole
+ *  device pixels, which is the rect a retained layer has to cover. */
+function marksBlitRect(layer, view) {
+  const dpr = layer.dpr || 1;
+  const dx = Math.round((layer.ox - view.ox) * view.scale * dpr) / dpr;
+  const dy = Math.round((layer.oy - view.oy) * view.scale * dpr) / dpr;
+  return { dx, dy, dw: layer.canvas.width / dpr, dh: layer.canvas.height / dpr };
+}
+
+/** MAP-PAN: the blit of `layer` still covers the whole paper. A zoom does not.
+ *  The check is the rounded device-pixel rect the blit actually draws: a layer
+ *  whose edge already sits inside the view, or whose bitmap runs short, does not hold. */
+export function marksLayerHolds(layer, view, paperW, paperH) {
+  if (!layer?.canvas || layer.scale !== view.scale || !(view.scale > 0)) return false;
+  const { dx, dy, dw, dh } = marksBlitRect(layer, view);
+  const eps = 1e-4;
+  return dx <= eps && dy <= eps && dx + dw >= paperW - eps && dy + dh >= paperH - eps;
+}
+
+/** MAP-PAN: lay the marks layer on the paper, shifted by the pan. Smoothing stays off so a
+ *  fractional step does not blur a glyph that was painted crisp; the shift is whole device pixels. */
+export function blitMarksLayer(ctx, layer, view) {
+  const { dx, dy, dw, dh } = marksBlitRect(layer, view);
+  const smooth = ctx.imageSmoothingEnabled;
+  ctx.imageSmoothingEnabled = false;
+  ctx.drawImage(layer.canvas, dx, dy, dw, dh);
+  ctx.imageSmoothingEnabled = smooth;
+}
+
+/**
+ * MAP-PAN: bake the marks, or keep the bake a pan still covers. `contentKey` is everything
+ * but the pan (the scale, the band, the paper, what the marks read). A zoom changes the
+ * scale, so it bakes again. No 2D context answers `{ layer: null }` and the sheet inks
+ * the marks where it always did.
+ * @returns {{ layer: object|null, baked: boolean }}
+ */
+export function syncMarksLayer(prev, spec) {
+  const { view, paperW, paperH, dpr = 1, contentKey, model, markOpts = {}, createCanvas } = spec;
+  if (prev && prev.contentKey === contentKey && marksLayerHolds(prev, view, paperW, paperH)) {
+    return { layer: prev, baked: false };
+  }
+  const canvas = prev?.canvas ?? createCanvas?.();
+  const lctx = canvas?.getContext?.('2d');
+  if (!lctx) return { layer: null, baked: false };
+  const { padX, padY } = marksMargin(paperW, paperH, dpr);
+  const bw = paperW + 2 * padX;
+  const bh = paperH + 2 * padY;
+  // ceil, so the bitmap is never a device pixel short of the paper it claims:
+  // a short one fails the hold and would be baked again on the next frame
+  const dw = Math.max(1, Math.ceil(bw * dpr));
+  const dh = Math.max(1, Math.ceil(bh * dpr));
+  // AUDIT-MAP2: assigning a canvas's width resets its bitmap even to the same value
+  if (canvas.width !== dw || canvas.height !== dh) { canvas.width = dw; canvas.height = dh; }
+  const scale = view.scale;
+  const bakeView = { ox: view.ox - padX / scale, oy: view.oy - padY / scale, scale };
+  lctx.setTransform(1, 0, 0, 1, 0, 0);
+  lctx.clearRect(0, 0, canvas.width, canvas.height);
+  lctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  lctx.lineCap = 'round';
+  lctx.lineJoin = 'round';
+  paintInkMarks(lctx, model, bakeView, {
+    ...markOpts, paperW: bw, paperH: bh, dpr, cullPad: 2 + 16 / scale,
+  });
+  return {
+    baked: true,
+    layer: { canvas, ox: bakeView.ox, oy: bakeView.oy, scale, paperW: bw, paperH: bh, contentKey, dpr },
+  };
+}
+
 /**
  * THE OVERLAY: the party, the selection and the player - the marks that
  * breathe or move without the sheet changing under them. `clear` false
@@ -1109,12 +1278,17 @@ export function paintInkOverlay(ctx, view, opts) {
   const pulse = opts.pulse ?? 0;
   // WB1: the gate's ring under everything else that breathes - a party member standing in it reads over it
   if (opts.gate && visible(opts.gate.cx, opts.gate.cy, opts.gate.r + 2)) paintGateRing(ctx, view, opts.gate, pulse);
+  // WW2: and the gates past the Bay, in the gate's own colours
+  for (const g of opts.gates ?? []) if (visible(g.cx, g.cy, g.r + 2)) paintGateRing(ctx, view, g, pulse);
   // SERPENT1: the sea serpent's ring beside it, in the sea's colours
   if (opts.serpent && visible(opts.serpent.cx, opts.serpent.cy, opts.serpent.r + 2)) paintGateRing(ctx, view, opts.serpent, pulse, SERPENT_MAP_INK);
-  // SD2c: the Super dungeon's ring once it is found, in its omen's brass
-  if (opts.sd && visible(opts.sd.cx, opts.sd.cy, opts.sd.r + 2)) paintGateRing(ctx, view, opts.sd, pulse, SD_MAP_INK);
+  // SD2c: the Super dungeon's ring once it is found, in its omen's brass - WW5: every theatre's (`sds`; `sd` the one ring a
+  // caller from before WW5 hands)
+  for (const m of opts.sds ?? (opts.sd ? [opts.sd] : [])) if (m && visible(m.cx, m.cy, m.r + 2)) paintGateRing(ctx, view, m, pulse, SD_MAP_INK);
   // EG-F: my company's Elite arch while it stands, in its gold
   if (opts.arch && visible(opts.arch.cx, opts.arch.cy, opts.arch.r + 2)) paintGateRing(ctx, view, opts.arch, pulse, EG_ARCH_MAP_INK);
+  // KETCH: the Sky-Ketch while she is in Daggerfall's sky, in the aether's blue
+  for (const k of opts.ketches ?? (opts.ketch ? [opts.ketch] : [])) if (k && visible(k.cx, k.cy, k.r + 2)) paintGateRing(ctx, view, k, pulse, KT_MAP_INK);   // KETCH-EVERYWHERE: every station's ring
   // BOUNTY1: each held bounty's black circle, under the party too
   for (const b of opts.bounties ?? []) if (visible(b.cx, b.cy, b.r + 2)) paintBountyRing(ctx, view, b, pulse);
   // RVN7c: each revenant lair the player has heard of - the same circle in blood red, under the party too
@@ -1127,6 +1301,8 @@ export function paintInkOverlay(ctx, view, opts) {
   for (const m of opts.raids ?? []) if (visible(m.x, m.y)) paintRaidMark(ctx, view, m, pulse);
   // STAR6: the night's fallen stars, beside the raids - none ever falls in a town
   for (const m of opts.stars ?? []) if (visible(m.x, m.y)) paintStarMark(ctx, view, m, pulse);
+  // STOREFRONT: the season's Brass Fissures, beside the stars - the Heart Fissures larger, ringed
+  for (const m of opts.fissures ?? []) if (visible(m.x, m.y)) paintFissureMark(ctx, view, m, pulse);
   // GUIDE5: where the quests point, over the raids and under the party - the diamond above its place, the followed
   // quest's filled
   for (const m of opts.quests ?? []) if (visible(m.x, m.y)) paintQuestMark(ctx, view, m);
@@ -1298,6 +1474,34 @@ export function paintStarMark(ctx, view, m, pulse = 0) {
   ctx.fill();
   ctx.strokeStyle = PEN.line;
   ctx.lineWidth = 1;
+  ctx.stroke();
+  ctx.restore();
+}
+
+/** STOREFRONT: A BRASS FISSURE - a brass cog on its pixel with a jagged crack of the aetherium's blue across it, outlined in
+ *  the pen's ink; a Heart Fissure's cog larger, a ring breathing about it as the gate's does. Skin. */
+export function paintFissureMark(ctx, view, m, pulse = 0) {
+  const [x, y] = toPaper(view, m.x, m.y);
+  const r = m.heart ? 7 : 5, teeth = 8;
+  ctx.save();
+  ctx.setLineDash([]);
+  if (m.heart) { ctx.strokeStyle = FISSURE_BRASS_CSS; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(x, y, 11 + pulse * 2, 0, Math.PI * 2); ctx.stroke(); }
+  ctx.beginPath();
+  for (let i = 0; i < teeth * 2; i++) {
+    const a0 = (i / (teeth * 2)) * Math.PI * 2, a1 = ((i + 1) / (teeth * 2)) * Math.PI * 2, rr = i % 2 ? r : r * 1.3;
+    if (i === 0) ctx.moveTo(x + Math.cos(a0) * rr, y + Math.sin(a0) * rr); else ctx.lineTo(x + Math.cos(a0) * rr, y + Math.sin(a0) * rr);
+    ctx.lineTo(x + Math.cos(a1) * rr, y + Math.sin(a1) * rr);
+  }
+  ctx.closePath();
+  ctx.fillStyle = FISSURE_BRASS_CSS;
+  ctx.fill();
+  ctx.strokeStyle = PEN.line;
+  ctx.lineWidth = 1;
+  ctx.stroke();
+  ctx.strokeStyle = FISSURE_AETHER_CSS;   // the crack across it
+  ctx.lineWidth = 1.6;
+  ctx.beginPath();
+  ctx.moveTo(x - r * 1.2, y - r * 0.5); ctx.lineTo(x - r * 0.3, y + r * 0.1); ctx.lineTo(x + r * 0.2, y - r * 0.3); ctx.lineTo(x + r * 1.2, y + r * 0.5);
   ctx.stroke();
   ctx.restore();
 }

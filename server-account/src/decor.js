@@ -19,26 +19,29 @@
 //
 // ═══ THE OWNER, IN THE SAME STATEMENT ══════════════════════════════
 //
-// Every write names the home's owner - the account AND the character,
-// a home being one character's (HOME1) - inside its own WHERE, so a
-// piece in somebody else's home is exactly as absent as none (`no-home`
+// Every write names the home's owner inside its own WHERE - the account
+// (ACCOUNT-HOMES, 2026-10-06: a home is its account's, every character
+// of it; the character a write names is the one whose record pays) - so
+// a piece in somebody else's home is exactly as absent as none (`no-home`
 // to place, `no-decor` to move or remove). A placement lands only while
-// the home holds fewer than DECOR_CAP. WHAT a piece is - a model, or a
-// flat - is written once, at the placement, into columns no later
-// statement touches: a move rewrites `place` alone.
+// the home holds fewer than its cap (DECOR-ROOMY: by its ground). WHAT
+// a piece is - a model, or a flat - is written once, at the placement,
+// into columns no later statement touches: a move rewrites `place` alone.
 // ═══════════════════════════════════════════════════════════════════
 import { accountKind, displayName, overRate } from './accounts.js';
-import { CHAR_ID_RE, DB_ROOT, replicaDb, bookmarkOf } from './service.js';
+import { CHAR_ID_RE } from './service.js';
 import { homeMapIdOk, homeBuildingKeyOk } from '../../src/net/homeLaw.js';
-import { DECOR_CAP, DECOR_ID_RE, DECOR_OPS_MAX, DECOR_OPS_WINDOW_S, DECOR_STATION_FEES, decorPieceOf, decorPlaceOf, decorHiddenOf, decorRefund, DECOR_YARD_CAP, DECOR_YARDS_TOWN_MAX, decorYardPieceOf, decorYardPlaceOf, decorYardHighOk, decorScaleOk } from '../../src/net/decorLaw.js';   // HOME-YARD: and a yard's; DECOR-FIGURE: a figure at its own size
+import { DECOR_CAP, DECOR_HALL_CAP, DECOR_CAP_MAX, decorCapOf, DECOR_ID_RE, DECOR_OPS_MAX, DECOR_OPS_WINDOW_S, decorPieceOf, decorPlaceOf, decorHiddenOf, DECOR_YARD_CAP, decorYardPieceOf, decorYardPlaceOf, decorYardHighOk, decorScaleOk, decorGoldMove, decorGoldDelta } from '../../src/net/decorLaw.js';   // HOME-YARD: and a yard's; DECOR-FIGURE: a figure at its own size; a guild hall's interior holds DECOR_HALL_CAP
+export { decorGoldMove, decorGoldDelta };
 import { prepareRealmRecord, realmSideOf, realmActFirst, recordMovedOf, mustChange, dropObjects, dropIfUnnamed, REALM_ID_RE } from './realm.js';   // REALM P2.2b; AUDIT REALM L1-F2: the record asked first; AUDIT REALM2 S2/S3
 import { payFromSave, creditSave } from '../../src/net/realm/realmGoldLaw.js';   // REALM P2.2b: the wallet's own order, over the record
 import { GUILD_TREASURY_MAX } from '../../src/net/guild/guildLaw.js';   // GUILD1d: a hall's treasury's cap
-import { HALL_POWERS } from '../../src/net/hallLaw.js';   // GUILD1d: a hall's keepers
+import { guildPowerSql } from './guildPowerSql.js';   // GUILD1d: a hall's keepers; GUILD-RANKS: as the guild set them
 import { SEAT_HALL_DECOR_CAP } from '../../src/net/townSeatLaw.js';   // SEAT-HALL: the Charter Room's pieces
 import { homeShownRead, homeShownOf } from './homeVotes.js';   // AUDIT HOME-VOTE A3: a shunned home's room, its insiders' alone; DECOR-BATCH: its read in the room's one request
 import { decorStaysShunned } from '../../src/net/homeVoteLaw.js';   // AUDIT HOME-VOTE B2: its hired trader stands
-import { shapeOf, keptPast, KEPT_BOARD_MAX_BYTES } from './keptBoard.js';   // AUDIT LEAN-READS B1: a built town's shape; 2 B7: its bound
+import { guildPieceRule, guildStockGuard, guildStockSpent } from './guildFurniture.js';   // GUILD-SHOP: a guild's own furniture, in its hall
+import { heraldryOfRow } from './halls.js';   // GUILD-SHOP: a hall's arms, said with its pieces
 
 /**
  * REALM P2.2b: WHAT A PIECE'S CHANGE COSTS, as the client's wallet pays it - placed: what it cost (`paid`); grown: the
@@ -53,20 +56,6 @@ import { shapeOf, keptPast, KEPT_BOARD_MAX_BYTES } from './keptBoard.js';   // A
  * half of the part records paid, and the ledger never stands above the piece's own cost.
  * @param {any} was @param {any} now @param {number} [ledger]
  */
-export function decorGoldMove(was, now, ledger = was?.paid) {
-  const paidWas = was ? Math.max(0, Number(was.paid) || 0) : 0;
-  const own = Math.min(paidWas, Math.max(0, Number(ledger) || 0));
-  if (!now) return { delta: decorRefund(own), ledger: 0 };
-  const paidNow = Math.max(0, Number(now.paid) || 0);
-  let delta, next;
-  if (paidNow >= paidWas) { delta = paidWas - paidNow; next = own + paidNow - paidWas; }
-  else { const base = Math.min(paidWas - paidNow, own); delta = Math.trunc(base / 2); next = own - base; }
-  if (now.station && now.station !== (was?.station ?? null)) delta -= DECOR_STATION_FEES[now.station] ?? 0;
-  return { delta, ledger: next };
-}
-/** The gold alone (decorGoldMove's `delta`). */
-export const decorGoldDelta = (/** @type {any} */ was, /** @type {any} */ now, /** @type {number} */ ledger = was?.paid) => decorGoldMove(was, now, ledger).delta;
-
 /** REALM P2.2b: a realm character names its record only when gold moves - a free write (one's own item, a piece moved
  *  and no bigger, a station unmade) is no act on the record. Answers realmSideOf's answer, or a refusal's. */
 function decorSideOf(/** @type {unknown} */ character, /** @type {unknown} */ realm, /** @type {number} */ delta) {
@@ -104,14 +93,17 @@ async function realmDecorWrite(ctx, player, at, { mapId, buildingKey, delta, wri
   return piece ? { ok: true, piece, gold: delta, realm: { seq: prep.seq } } : { error: 'no-decor' };   // AUDIT REALM L1-F3: the gold the record moved - the client takes it, never its own sum
 }
 
-/** The home is the caller's character's: map, key, account, character. GUILD1d (Seats-Arc 8.2: "decor in the hall by
- *  Officers"): or it is a guild's hall and the character is one of its keepers (hallLaw.js HALL_POWERS.decorate) - the
- *  same four places bound, in the same order, read once through `k`. GUILD-YARD: a hall's outside is its keepers' as its
- *  rooms are - homes.js setHomeLook asks the same (exported). */
+/** The home is the caller's: map, key, account, character. ACCOUNT-HOMES (2026-10-06, asked: "House ownership should be
+ *  account bound, not character bound"): a home is its ACCOUNT's - every character of it owns it, whichever bought it,
+ *  and the character bound is the one acting (whose record pays) - save a deed the realm gave (FIELD BUGS 2026-10-04d
+ *  KNIGHT-HOUSE), which stays its knight's: Daggerfall's house in that one save. GUILD1d (Seats-Arc 8.2: "decor in the
+ *  hall by Officers"): or it is a guild's hall and the character is one of its keepers (hallLaw.js
+ *  HALL_POWERS.decorate) - the same four places bound, in the same order, read once through `k`. GUILD-YARD: a hall's
+ *  outside is its keepers' as its rooms are - homes.js setHomeLook asks the same (exported). */
 export const OWNS = `EXISTS (SELECT 1 FROM (SELECT ? AS m, ? AS b, ? AS p, ? AS c) k JOIN homes h ON h.map_id = k.m AND h.building_key = k.b
-  WHERE (h.guild_id IS NULL AND h.player = k.p AND h.char_id = k.c)
+  WHERE (h.guild_id IS NULL AND h.player = k.p AND (h.deed = 0 OR h.char_id = k.c))
     OR (h.guild_id IS NOT NULL AND EXISTS (SELECT 1 FROM guild_members g WHERE g.guild_id = h.guild_id AND g.player = k.p AND g.char_id = k.c
-      AND g.rank IN (${HALL_POWERS.decorate.join(', ')})
+      AND ${guildPowerSql('decorate', 'g.rank', 'g.guild_id')}
       AND EXISTS (SELECT 1 FROM realm_characters rc WHERE rc.id = g.char_id AND rc.player = k.p))))`;   // AUDIT GUILD1d S2: a realm character's - its moves and stations are paid on its record, never on a client's word
 /** GUILD1d: the guild whose hall a building is, or null (a home, or nobody's). */
 const hallGuildOf = async (db, mapId, buildingKey) => (await db.prepare('SELECT guild_id FROM homes WHERE map_id = ? AND building_key = ?').bind(mapId, buildingKey).first())?.guild_id ?? null;
@@ -129,7 +121,7 @@ const hallGuildOf = async (db, mapId, buildingKey) => (await db.prepare('SELECT 
  */
 const SEAT_OWNS = `EXISTS (SELECT 1 FROM (SELECT ? AS m, ? AS b, ? AS p, ? AS c) k JOIN town_seat_holds h ON h.key = k.m
   WHERE h.tier = 'palace' AND EXISTS (SELECT 1 FROM guild_members g WHERE g.guild_id = h.guild_id AND g.player = k.p AND g.char_id = k.c
-    AND g.rank IN (${HALL_POWERS.decorate.join(', ')})
+    AND ${guildPowerSql('decorate', 'g.rank', 'g.guild_id')}
     AND EXISTS (SELECT 1 FROM realm_characters rc WHERE rc.id = g.char_id AND rc.player = k.p)))`;
 /** The guild holding the palace seat at `mapId`, or null. */
 const seatHallGuildOf = async (db, mapId) => (await db.prepare("SELECT guild_id FROM town_seat_holds WHERE key = ? AND tier = 'palace'").bind(mapId).first())?.guild_id ?? null;
@@ -151,6 +143,9 @@ const SEAT_STORE = Object.freeze({
   rule: (_mapId, _buildingKey, barred) => ['? = 0', [barred]],
 });
 const storeOf = (seat) => (seat === true ? SEAT_STORE : HOME_STORE);
+/** The word for a placement the caps refused: a room's `decor-cap`, a yard's own `yard-cap`. A town's yards have no cap
+ *  of their own (YARD-CELL: the yards are kept and read a block at a time, so no town-wide bound is the storage's). */
+const capWord = (/** @type {number} */ out) => (out ? 'yard-cap' : 'decor-cap');
 
 /**
  * GUILD1d: WHAT COMES BACK FROM A HALL'S PIECE GOES TO ITS GUILD. A piece in a hall is the guild's once it stands - its
@@ -179,11 +174,11 @@ async function hallPieceBack(ctx, player, guildId, { delta, write, after, refusa
 /** GUILD-YARD: WHAT A HALL'S RULE BARS of a placement - a keeper's own thing anywhere, and a yard's piece at a palace
  *  alone (a guild's hall stands its yard); 1 barred, 0 not. */
 const hallBars = (piece, S, out) => (piece.item || (out && S.seat) ? 1 : 0);
-const placeJson = ({ pos, rot, scale, light, storage, paid, station }) => JSON.stringify({ pos, rot, scale, light, storage, paid, ...(station ? { station } : {}) });   // HOME-STATIONS: the craft, when it serves one
+const placeJson = ({ pos, rot, scale, light, storage, paid, station, name }) => JSON.stringify({ pos, rot, scale, light, storage, paid, ...(station ? { station } : {}), ...(name ? { name } : {}) });   // HOME-STATIONS: the craft, when it serves one
 
 /** A stored row as a piece - projected again on the way out, so a row the law would refuse is never handed out.
  *  DECOR2a: `item` (migration 0012) is the owner's own item's descriptor, or NULL. */
-function pieceOfRow(row) {
+export function pieceOfRow(row) {
   let place = null;
   let item = null;
   try { place = JSON.parse(row.place); } catch { place = null; }
@@ -243,190 +238,47 @@ async function shopOf(db, mapId, pieces) {
  * trips in a row - three waits in the primary's queue for a read every visitor at a door makes (HOMES-SHED's law for
  * homes/town, Scale-Arc). A shunned home's traders, its shop, go as one more (they had been a trip apiece).
  */
-export async function decorOf({ db }, player, { mapId, buildingKey, seat = false } = {}) {
+export async function decorOf({ db }, player, { mapId, buildingKey, seat = false, yard = false, revOnly = false } = {}) {
   if (!homeMapIdOk(mapId) || !homeBuildingKeyOk(buildingKey)) return { error: 'bad-home' };
+  // A room someone is only standing in asks this, not the pieces. The full list is for a revision that moved.
+  if (revOnly === true) {
+    const row = await db.prepare('SELECT rev FROM decor_rev WHERE map_id = ? AND building_key = ?').bind(mapId, buildingKey).first();
+    return { mapId, buildingKey, rev: Number(row?.rev) || 0 };
+  }
+  // HOME-YARD: the street's Confirm reads the yard's pieces and the home's revision. The room's list stays the room's.
+  if (yard === true) {
+    const yardRead = db.prepare(`SELECT * FROM home_decor WHERE map_id = ? AND building_key = ? AND yard = 1
+      ORDER BY placed_at, id LIMIT ?`).bind(mapId, buildingKey, DECOR_YARD_CAP);
+    const yardRev = db.prepare('SELECT rev FROM decor_rev WHERE map_id = ? AND building_key = ?').bind(mapId, buildingKey);
+    const [{ results = [] }, revRow] = await db.batch([yardRead, yardRev]);
+    return { mapId, buildingKey, pieces: results.map(pieceOfRow).filter(Boolean), hidden: [], rev: Number(revRow?.results?.[0]?.rev) || 0 };
+  }
   const S = storeOf(seat);   // SEAT-HALL: a palace's Charter Room, its own table - nothing taken out of a palace
   const piecesRead = db.prepare(`SELECT * FROM ${S.table} WHERE map_id = ? AND building_key = ? AND yard = 0
-    ORDER BY placed_at, id LIMIT ?`).bind(mapId, buildingKey, S.cap);   // HOME-YARD: the room's alone
+    ORDER BY placed_at, id LIMIT ?`).bind(mapId, buildingKey, S.seat ? S.cap : Math.max(DECOR_HALL_CAP, DECOR_CAP_MAX));   // HOME-YARD: the room's alone. A house never passes its own cap (DECOR-ROOMY: decorCapOf, to DECOR_CAP_MAX); a guild hall may hold DECOR_HALL_CAP. The Charter Room keeps its own cap.
+  const revRead = db.prepare('SELECT rev FROM decor_rev WHERE map_id = ? AND building_key = ?').bind(mapId, buildingKey);
+  const revOf = (row) => Number(row?.rev ?? row?.results?.[0]?.rev) || 0;
   if (S.seat) {
-    const { results = [] } = await piecesRead.all();
-    return { mapId, buildingKey, pieces: results.map(pieceOfRow).filter(Boolean), hidden: [] };
+    const [{ results = [] }, revRow] = await db.batch([piecesRead, revRead]);
+    return { mapId, buildingKey, pieces: results.map(pieceOfRow).filter(Boolean), hidden: [], rev: revOf(revRow?.results?.[0]) };
   }
-  const [{ results = [] }, shown, hidden] = await db.batch([piecesRead, homeShownRead(db, mapId, buildingKey, player?.id), hiddenRead(db, mapId, buildingKey)]);
+  const capRead = db.prepare('SELECT ground, guild_id FROM homes WHERE map_id = ? AND building_key = ?').bind(mapId, buildingKey);   // DECOR-ROOMY
+  // GUILD-SHOP: a guild hall's arms, worn by its own pieces (their banners and shields) - in the same request
+  const armsRead = db.prepare(`SELECT g.tag, g.name, g.heraldry, l.id AS logo FROM homes h JOIN guilds g ON g.id = h.guild_id
+    LEFT JOIN guild_logos l ON l.id = g.logo AND l.state = 'approved' WHERE h.map_id = ? AND h.building_key = ?`).bind(mapId, buildingKey);
+  const [{ results = [] }, shown, hidden, revRow, capRow, armsRow] = await db.batch([piecesRead, homeShownRead(db, mapId, buildingKey, player?.id), hiddenRead(db, mapId, buildingKey), revRead, capRead, armsRead]);
+  const a = armsRow?.results?.[0];
+  const arms = a ? { arms: { tag: a.tag, name: a.name, heraldry: heraldryOfRow(a.heraldry), logo: a.logo ?? null } } : {};
   const pieces = results.map(pieceOfRow).filter(Boolean);
+  const rev = revOf(revRow?.results?.[0]);
+  const home = capRow?.results?.[0] ?? null;
+  const cap = home?.guild_id != null ? DECOR_HALL_CAP : decorCapOf(home?.ground);   // DECOR-ROOMY: the room's own, said with it
   // AUDIT HOME-VOTE A3: a home the town voted below zero is handed to anyone but its insiders as Daggerfall furnished it
   // - no placed piece but its hired trader with goods on sale (a shop, never a decoration: B2, II A1), nothing taken out
   // - by the service, so a build from before HOME-VOTE shows no more than the law (homeVotes.js homeShownTo)
-  if (!homeShownOf(shown?.results?.[0] ?? null)) return { mapId, buildingKey, pieces: await shopOf(db, mapId, pieces), hidden: [] };
-  return { mapId, buildingKey, pieces, hidden: hiddenListOf(hidden?.results?.[0] ?? null) };
+  if (!homeShownOf(shown?.results?.[0] ?? null)) return { mapId, buildingKey, pieces: await shopOf(db, mapId, pieces), hidden: [], rev, cap, ...arms };
+  return { mapId, buildingKey, pieces, hidden: hiddenListOf(hidden?.results?.[0] ?? null), rev, cap, measured: home?.ground != null, ...arms };
 }
-
-/**
- * HOME-YARD: EVERY YARD OF A TOWN, for everyone walking its streets - each home's pieces outside, by its building key,
- * oldest first; never more than DECOR_YARDS_TOWN_MAX in one answer.
- * @param {{db: any}} ctx
- */
-export async function yardsOf({ db }, _player, { mapId } = {}) {
-  if (!homeMapIdOk(mapId)) return { error: 'bad-home' };
-  // YARD-SNAP: the town's built row where it is its version's and its shape's (AUDIT LEAN-READS B1); the rows, as they
-  // stand, where it is not; no version row, no yard - unless (AUDIT LEAN-READS 2 B4) the town stands a yard piece all the
-  // same, read as it stands
-  const snap = await db.prepare(YARD_SNAP_READ).bind(mapId).first();
-  if (snap?.ver == null && !snap?.orphan) return { mapId, yards: [] };
-  const fresh = snap.ver != null && Number(snap.built) === Number(snap.ver) && snap.shape === YARD_SNAP_SHAPE;
-  if (fresh && snap.rows == null) keptPast('a town\'s yards', `town ${mapId}`);   // past the bound: read as they stand, said
-  const built = fresh ? yardRowsOf(snap.rows) : null;
-  const results = built ?? (await db.prepare(YARD_ROWS_SQL).bind(mapId).all()).results ?? [];
-  const by = new Map();
-  for (const row of results) {
-    const p = pieceOfRow(row);
-    if (!p || !decorYardPieceOf(p) || !decorYardHighOk(p)) continue;   // YARD-SWEEP: a tower's piece from before YARD-HEIGHT never served (migration 0109)
-    if (!by.has(row.building_key)) by.set(row.building_key, []);
-    by.get(row.building_key).push(p);
-  }
-  return { mapId, yards: [...by].map(([buildingKey, pieces]) => ({ buildingKey, pieces })) };
-}
-
-/**
- * YARD-SNAP (2026-10-19, the account database overloaded again; bible/11-Multiplayer/Scale-Arc.md YARD-SNAP; migration
- * 0136): A TOWN'S YARDS, ONE ROW. 673,882 yards reads on the day read some 1,400 rows each, sorted (9.1% of the
- * database's statement time) for an answer that moves only when a yard piece is written. `home_yards` holds each town's
- * rows as this read takes them, built at the version `home_yards_ver` holds - a number the database moves on every yard
- * row written, by a route, a cascade or a sweep alike (the migration's triggers), in a row of its own (AUDIT LEAN-READS 2
- * B3) - so a read is one row while it is its version's, and the rows as they stand while it is not (never an answer
- * older than the rows). A decor route builds its town again as it answers (settleYards); the minute's clock builds what
- * anything else left (settleStaleYards) - and (AUDIT LEAN-READS B1) a row built by another deploy's read, of another shape
- * (keptBoard.js), which yardsOf reads as stale.
- */
-/** The columns a built row keeps, in order - pieceOfRow's. */
-export const YARD_SNAP_COLS = Object.freeze(['map_id', 'building_key', 'id', 'model', 'flat_archive', 'flat_record', 'place', 'placed_at', 'item', 'paid', 'yard']);
-/** A TOWN'S YARD ROWS AS THEY STAND - the read a built row keeps and the read of a town no row answers, one text (AUDIT
- *  LEAN-READS 2 B5: the two were written apart, and the shape held only the columns, order and bound), `town` its
- *  town: a parameter, or the build's version row. In idx_home_decor_yard_order's order: no sort. */
-export const yardRowsSql = (/** @type {string} */ town) => `SELECT ${YARD_SNAP_COLS.join(', ')} FROM home_decor
-    WHERE map_id = ${town} AND yard = 1 ORDER BY building_key, placed_at, id LIMIT ${DECOR_YARDS_TOWN_MAX}`;
-const YARD_ROWS_SQL = yardRowsSql('?1');
-/** A town's version and its built row, and (AUDIT LEAN-READS 2 B4) whether a town with no version row stands a yard
- *  piece all the same - one index probe, asked only for such a town. */
-export const YARD_SNAP_READ = `SELECT v.ver, y.built, y.shape, y.rows, v.map_id IS NULL AND EXISTS (SELECT map_id FROM home_decor WHERE map_id = ?1 AND yard = 1) AS orphan
-  FROM (SELECT ?1 AS m) q LEFT JOIN home_yards_ver v ON v.map_id = q.m LEFT JOIN home_yards y ON y.map_id = q.m`;
-/** YARD-SNAP (AUDIT LEAN-READS B1, 2 B5): the build's shape - its read whole and its bound. Migration 0136 built every
- *  town in today's (its literal is pinned to this); a deploy that changes either reads every town's rows as they stand
- *  until the clock builds it again (re-backfill the towns in that change's own migration, as 0136 did, where that is
- *  too slow). */
-export const YARD_SNAP_SHAPE = shapeOf('yards: [columns...] each, NULL past the bound', yardRowsSql('?'), KEPT_BOARD_MAX_BYTES);
-/** How many stale towns the minute's clock builds a firing. */
-export const YARDS_SETTLE_A_MINUTE = 50;
-/** A town's row that answers: built at its version, in this shape. */
-const YARD_FRESH_SQL = (/** @type {string} */ v) => `EXISTS (SELECT 1 FROM home_yards y WHERE y.map_id = ${v}.map_id AND y.built = ${v}.ver AND y.shape = '${YARD_SNAP_SHAPE}')`;
-/** The build: every stale town `where` names (`v` its version row), its rows read in their own order and kept at the
- *  version read with them - in one statement, so no write lands between the read and the version; NULL past the bound. */
-const yardsBuildSql = (/** @type {string} */ where) => `INSERT INTO home_yards (map_id, built, shape, rows)
-  SELECT v.map_id, v.ver, '${YARD_SNAP_SHAPE}', (SELECT CASE WHEN length(CAST(j AS BLOB)) <= ${KEPT_BOARD_MAX_BYTES} THEN j END
-    FROM (SELECT json_group_array(json_array(${YARD_SNAP_COLS.join(', ')})) AS j FROM (${yardRowsSql('v.map_id')})))
-  FROM home_yards_ver v WHERE NOT ${YARD_FRESH_SQL('v')} AND ${where}
-  ON CONFLICT (map_id) DO UPDATE SET built = excluded.built, shape = excluded.shape, rows = excluded.rows`;
-/** A town's row built again, if a write left it stale - after a decor route's write (index.js). */
-export const settleYards = (/** @type {any} */ db, /** @type {unknown} */ mapId) =>
-  (homeMapIdOk(mapId) ? db.prepare(yardsBuildSql('v.map_id = ?1')).bind(mapId).run() : Promise.resolve(null));
-/** The minute's clock (cron.js `yard-snap`): the stale towns built, YARDS_SETTLE_A_MINUTE a firing; how many. */
-export async function settleStaleYards(/** @type {any} */ db) {
-  const r = await db.prepare(yardsBuildSql(`v.map_id IN (SELECT map_id FROM home_yards_ver s WHERE NOT ${YARD_FRESH_SQL('s')} LIMIT ${YARDS_SETTLE_A_MINUTE})`)).run();
-  return Number(r?.meta?.changes ?? 0);
-}
-/** A built row's rows as YARD_ROWS_SQL answers them, in the read's own order - or null for a text that is not one. */
-export function yardRowsOf(/** @type {unknown} */ text) {
-  let list;
-  try { list = JSON.parse(String(text)); } catch { return null; }
-  if (!Array.isArray(list)) return null;
-  const rows = [];
-  for (const a of list) {
-    if (!Array.isArray(a) || a.length !== YARD_SNAP_COLS.length) return null;
-    rows.push(Object.fromEntries(YARD_SNAP_COLS.map((c, i) => [c, a[i]])));
-  }
-  const cmp = (/** @type {any} */ x, /** @type {any} */ y) => (x < y ? -1 : x > y ? 1 : 0);
-  return rows.sort((x, y) => cmp(x.building_key, y.building_key) || cmp(x.placed_at, y.placed_at) || cmp(x.id, y.id));
-}
-
-/**
- * YARD-SHED (2026-10-06, the account service down - "D1_ERROR: D1 DB is overloaded. Requests queued for too long."): A
- * TOWN'S YARDS, KEPT. The day before, the accounts database answered 17.4 million reads, 3.0 million of them this town's
- * yards (43 rows each - 131 million rows), each behind its caller's session and player rows: 9 million reads for an
- * answer every caller of a town gets alike, and in the outage 577 of the 930 requests the Worker saw in 45 s. So one
- * isolate keeps each town's answer YARDS_KEPT_S, asks the database once for every caller of the same moment, and forgets
- * a town a decor write here touched - an answer read before that write is never kept (`gen`). Bounded: past
- * YARDS_KEPT_MAX towns the kept ones go, and are asked again.
- */
-export const YARDS_KEPT_S = 30;
-export const YARDS_KEPT_MAX = 4096;
-/** YARDS-REPLICA (2026-10-16, the account database's primary at its ceiling of round trips again - bible/11-Multiplayer/
- *  Scale-Arc.md YARDS-REPLICA): WHERE A TOWN'S YARDS ARE READ - a read replica, never the primary's queue. The isolates are
- *  many enough that YARDS_KEPT_S keeps almost nothing: 488,075 asks on 2026-10-15 cost the primary 506,889 reads of some
- *  1,100 rows each, the most of its statement time of any read but the session's lookup. SEAT-REPLICA's law, a town at a
- *  time: the read after this isolate's own decor write there starts at the primary ('first-primary', so it sees the
- *  write), every read after a kept one from the bookmark that one ended at (a replica behind what this isolate already
- *  answered never answers it), and the first, with neither, any instance's. Another isolate's write reached a kept answer
- *  YARDS_KEPT_S late before; now YARDS_KEPT_S and a replica's lag past it (PRIMARY-TRIPS audit) - the owner's page holds
- *  its own writes over any answer that long (scenes/homeYards.js YARD_WRITE_HOLD_MS), and a town's other callers see a
- *  piece a moment later, as they did. */
-export const YARDS_FROM = 'first-unconstrained';
-/** @type {Map<number, { at: number, answer: any }>} */
-const keptYards = new Map();
-/** @type {Map<number, Promise<any>>} */
-const askingYards = new Map();
-/** @type {Map<number, number>} each town's writes here, counted - an answer asked before one is not kept */
-const yardWrites = new Map();
-/** YARDS-REPLICA: a town -> the bookmark its last kept read ended at; and the towns written here since their last read. */
-/** @type {Map<number, string>} */
-const yardsMark = new Map();
-/** @type {Set<number>} */
-const yardsWritten = new Set();
-/** PRIMARY-TRIPS audit: the newest of the bookmarks let go with the kept towns (YARDS_KEPT_MAX) - a town read after them
- *  starts there, never older than this isolate already answered or wrote (D1's bookmarks sort oldest to newest:
- *  d1/reference/time-travel). Cleared with them, every town's next read could be a replica's from before them. */
-let yardsFloor = /** @type {string | null} */ (null);
-/** A town's yards as yardsOf answers them, from this isolate's kept answer while it is YARDS_KEPT_S old or younger. */
-export async function yardsKept(ctx, mapId, nowS) {
-  if (!homeMapIdOk(mapId)) return { error: 'bad-home' };
-  const kept = keptYards.get(mapId);
-  if (kept && nowS - kept.at < YARDS_KEPT_S) return kept.answer;
-  const asking = askingYards.get(mapId);
-  if (asking) return asking;
-  const gen = yardWrites.get(mapId) ?? 0;
-  // YARDS-REPLICA: the read on a session of its own - the primary's after this isolate's own write here, else from the
-  // last kept read's bookmark, else any instance's; a session D1 will not open is the request's database
-  const wrote = yardsWritten.has(mapId);
-  const from = wrote ? 'first-primary' : (yardsMark.get(mapId) ?? yardsFloor ?? YARDS_FROM);
-  const root = ctx.db?.[DB_ROOT] ?? ctx.db;
-  let db = ctx.db;
-  try { db = replicaDb(typeof ctx.db?.withSession === 'function' ? ctx.db : root, from); } catch { /* a bookmark D1 refuses: the request's database */ }
-  const ask = yardsOf({ ...ctx, db }, null, { mapId }).then((answer) => {
-    if (!('error' in answer) && (yardWrites.get(mapId) ?? 0) === gen) {
-      if (keptYards.size >= YARDS_KEPT_MAX && !keptYards.has(mapId)) {
-        for (const m of yardsMark.values()) if (yardsFloor == null || m > yardsFloor) yardsFloor = m;   // PRIMARY-TRIPS audit
-        keptYards.clear(); yardsMark.clear();
-      }
-      keptYards.set(mapId, { at: nowS, answer });
-      const mark = bookmarkOf(db);
-      if (mark) yardsMark.set(mapId, mark);
-      if (wrote) yardsWritten.delete(mapId);
-    }
-    return answer;
-  }, (e) => { if (yardsMark.get(mapId) === from) yardsMark.delete(mapId); if (yardsFloor === from) yardsFloor = null; throw e; })   // a read that failed from a bookmark: the next starts from none
-    .finally(() => { if (askingYards.get(mapId) === ask) askingYards.delete(mapId); });
-  askingYards.set(mapId, ask);
-  return ask;
-}
-/** YARD-SHED: a town's kept yards let go - a decor write on it here (index.js, after every place, move, hide or remove). */
-export function forgetYards(mapId) {
-  if (!homeMapIdOk(mapId)) return;
-  keptYards.delete(mapId);
-  askingYards.delete(mapId);
-  yardWrites.set(mapId, (yardWrites.get(mapId) ?? 0) + 1);   // one count a town written here - as many as the towns (homeMapIdOk)
-  yardsWritten.add(mapId);   // YARDS-REPLICA: and its next read the primary's, which has the write
-}
-/** Tests: every kept town forgotten. */
-export function _resetYardsKept() { keptYards.clear(); askingYards.clear(); yardWrites.clear(); yardsMark.clear(); yardsWritten.clear(); yardsFloor = null; }
 
 /** BASE-HIDE: what the home's owner took out of the room (migration 0015) - projected on the way out, so a list the law
  *  would refuse is handed out as none. */
@@ -463,7 +315,7 @@ export async function hideDecorBase(ctx, player, { mapId, buildingKey, character
  * written from that row alone (where its name carries one - a Masterwork, a Master Joiner's furniture), never from what
  * the client sent. A piece whose id the row does not bear out stands as the plain piece it is.
  */
-async function provenOf(db, player, p, mapId, buildingKey) {
+export async function provenOf(db, player, p, mapId, buildingKey) {
   const pv = p.item.pv;
   const plain = { ...p.item };
   delete plain.pv;
@@ -496,11 +348,16 @@ export async function placeDecor(ctx, player, { mapId, buildingKey, character, p
   if (!sent || !decorScaleOk(sent)) return { error: 'bad-decor' };   // DECOR-FIGURE: one of Daggerfall's people at its own size
   // GUILD1d: a hall holds the catalogue's pieces alone - never a keeper's own thing (whose would it be at the sale?);
   // GUILD-YARD (Seats-Arc 8.2): a guild's hall stands a yard, its keepers' as its rooms are - a palace's Charter Room none
-  if (S.seat || await hallGuildOf(db, mapId, buildingKey)) {   // SEAT-HALL: a palace is a hall
+  const guildHall = !S.seat && !!(await hallGuildOf(db, mapId, buildingKey));   // SEAT-HALL: a palace is a hall of its own, not a guild hall
+  if (S.seat || guildHall) {
     if (yard === true && S.seat) return { error: 'hall-yard' };
     if (sent.item) return { error: 'hall-item' };
   }
+  const guildRule = guildPieceRule(sent, { hall: guildHall, yard: yard === true });   // GUILD-SHOP: a guild's own piece, in its hall alone
+  if (guildRule) return { error: guildRule };
   const out = yard === true ? 1 : 0;
+  // DECOR-ROOMY: a home's room holds its own cap, by its ground
+  const roomCap = S.seat ? S.cap : decorCapOf((await db.prepare('SELECT ground FROM homes WHERE map_id = ? AND building_key = ?').bind(mapId, buildingKey).first())?.ground);
   const barred = hallBars(sent, S, out);   // the hall's rule, read again inside the write (AUDIT GUILD1d S3)
   const p = sent.item?.pv ? await provenOf(db, player, sent, mapId, buildingKey) : sent;   // PROF4: a crafted piece's mark off its own record
   if (!p) return { error: 'bad-decor' };
@@ -516,12 +373,13 @@ export async function placeDecor(ctx, player, { mapId, buildingKey, character, p
   // disenchant between the read and this INSERT took the row (and the piece) away
   const pv = typeof p.item?.pv === 'string' ? p.item.pv : null;
   const pvSql = pv ? ' AND EXISTS (SELECT 1 FROM products WHERE provenance = ? AND owner = ? AND listed = 0)' : '';
+  const [stockSql, stockBinds] = guildStockGuard(p, mapId, buildingKey);   // GUILD-SHOP: while the guild owns one more than its halls stand
   const insert = db.prepare(`INSERT OR IGNORE INTO ${S.table} (map_id, building_key, id, model, flat_archive, flat_record, place, placed_at, item, paid, yard)
     SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ? WHERE ${S.owns} AND (SELECT COUNT(*) FROM ${S.table} WHERE ${countSql}) < ?
-      AND ${ruleSql}${pvSql}`)
+      AND ${ruleSql}${pvSql}${stockSql}`)
     .bind(mapId, buildingKey, p.id, p.model, p.flat?.[0] ?? null, p.flat?.[1] ?? null, placeJson(p), nowS, p.item ? JSON.stringify(p.item) : null,
-      side.at ? ledger : 0, out, mapId, buildingKey, player.id, character, ...countBinds, out ? DECOR_YARD_CAP : S.cap,
-      ...ruleBinds, ...(pv ? [pv, player.id] : []));
+      side.at ? ledger : 0, out, mapId, buildingKey, player.id, character, ...countBinds, out ? DECOR_YARD_CAP : (guildHall ? DECOR_HALL_CAP : roomCap),
+      ...ruleBinds, ...(pv ? [pv, player.id] : []), ...stockBinds);
   /** AUDIT GUILD1d S3: a placement the hall's rule refused, in its own word - or null. AUDIT PROF-541 B2: a kept piece's
    *  row gone between, 'bad-decor' (the piece is not what was sent). */
   const hallWord = async () => (pv && !(await db.prepare('SELECT 1 FROM products WHERE provenance = ? AND owner = ? AND listed = 0').bind(pv, player.id).first()) ? 'bad-decor'
@@ -533,13 +391,14 @@ export async function placeDecor(ctx, player, { mapId, buildingKey, character, p
     return realmDecorWrite(ctx, player, side.at, {
       mapId, buildingKey, delta, write: insert, regionOf: S.regionOf,
       after: async () => pieceOfRow(await db.prepare(`SELECT * FROM ${S.table} WHERE map_id = ? AND building_key = ? AND id = ?`).bind(mapId, buildingKey, p.id).first()),
-      refusal: async () => (await hallWord()) ?? ((await db.prepare(`SELECT ${S.owns} AS owns`).bind(mapId, buildingKey, player.id, character).first())?.owns ? (out ? 'yard-cap' : 'decor-cap') : 'no-home'),
+      refusal: async () => (await hallWord()) ?? ((await db.prepare(`SELECT ${S.owns} AS owns`).bind(mapId, buildingKey, player.id, character).first())?.owns ? capWord(out) : 'no-home'),
     });
   }
   const r = await insert.run();
   if (r?.meta?.changes) return { ok: true, piece: p };
   const hallSaid = await hallWord();
   if (hallSaid) return { error: hallSaid };
+  if (await guildStockSpent(db, p, mapId, buildingKey) && !(await db.prepare(`SELECT 1 FROM ${S.table} WHERE map_id = ? AND building_key = ? AND id = ?`).bind(mapId, buildingKey, p.id).first())) return { error: 'guild-ware-none' };   // GUILD-SHOP
   const owns = await db.prepare(`SELECT ${S.owns} AS owns`).bind(mapId, buildingKey, player.id, character).first();
   if (!owns?.owns) return { error: 'no-home' };
   const row = await db.prepare(`SELECT * FROM ${S.table} WHERE map_id = ? AND building_key = ? AND id = ?`).bind(mapId, buildingKey, p.id).first();
@@ -547,7 +406,7 @@ export async function placeDecor(ctx, player, { mapId, buildingKey, character, p
     const had = pieceOfRow(row);
     return had && JSON.stringify(had) === JSON.stringify(p) ? { ok: true, repeat: true, piece: had } : { error: 'decor-taken' };
   }
-  return { error: out ? 'yard-cap' : 'decor-cap' };   // HOME-YARD (AUDIT): a yard's own cap, in its own words
+  return { error: capWord(out) };   // HOME-YARD (AUDIT): a yard's own cap, in its own words
 }
 
 /**
@@ -574,6 +433,7 @@ export async function moveDecor(ctx, player, { mapId, buildingKey, character, id
   // gold or hold things (a piece the law refuses reads as nothing, and its cost would be owed at a sale)
   const was = pieceOfRow(row);
   if (!was || !decorPieceOf({ ...was, ...pl })) return { error: 'bad-decor' };
+  if (guildPieceRule({ ...was, ...pl }, { hall: true, yard: false })) return { error: 'bad-decor' };   // AUDIT GUILD-SHOP S5: a guild piece moved stays one - nothing held, no station
   // DECOR-FIGURE: a figure moved to any size but its own is refused - one grown before this keeps its record's scale on a
   // turn or a station (it is drawn at its own size all the same), and is brought back to it by any move of the placer's
   if (!decorScaleOk({ ...was, ...pl }) && pl.scale !== was.scale) return { error: 'decor-figure' };   // AUDIT HOME-VOTE II C2: its own word - a stale copy's turn of a figure brought back to 1 on another device

@@ -57,10 +57,22 @@ const MW_STORE = 'morrowind';
  *  stale) became exactly the derived artifact this contract was kept
  *  for. Said out loud here so nobody reads the roads as living here. */
 const DERIVED_STORE = 'derived';
+/** TESA1 (bible/03-World/Arena-Provinces.md): the store that held the
+ *  player's own copy of The Elder Scrolls: Arena (CITYDATA.65 and A.EXE).
+ *  TESA12 retired the attachment - the places past the Bay are the
+ *  port's own - and nothing reads it now. It stays in the schema (the
+ *  upgrade's arms are additive: version 6 made it) and among the asset
+ *  stores so a wipe still sweeps it, and the world's boot empties it once
+ *  (clearRetiredArena): no copy of Arena's files stays in a browser. */
+const ARENA_STORE = 'arena';
 /** Every injected-asset store, so the upgrade and the helpers below
  *  cannot drift from each other - adding a domain is one entry. */
-const ASSET_STORES = [MUSIC_STORE, TEXTURE_STORE, MW_STORE, DERIVED_STORE];
+const ASSET_STORES = [MUSIC_STORE, TEXTURE_STORE, MW_STORE, DERIVED_STORE, ARENA_STORE];
 const mem = new Map(); // NAME -> Uint8Array
+/** AUDIT MEM-AUDIT M1: the names whose bytes came from IndexedDB or the network, so can be read again (forgetBytes) - a
+ *  memory-only session's picked set (the ingest's no-IDB arm, a quota's refusal too) is its only copy, and forgetting it
+ *  turned the classic sky to the gradient at its next ask. */
+const readAgain = new Set();
 
 // Ingest DIET (2026-08-14, the mobile storage fix): ARENA2 is 517MB
 // but the engine reads ~155MB - TEXTURE archives, the BSAs, palettes,
@@ -155,7 +167,8 @@ function openDb() {
     // 5 (R6): the derived store. The upgrade is ADDITIVE and every arm
     // below is guarded by `contains`, so a player arriving at any older
     // version gains the new store and keeps every byte of the old ones.
-    const req = indexedDB.open(DB_NAME, 5);
+    // 6 (TESA1): the Arena store, the same additive arm.
+    const req = indexedDB.open(DB_NAME, 6);
     req.onupgradeneeded = () => {
       const d = req.result;
       if (!d.objectStoreNames.contains(STORE)) d.createObjectStore(STORE);
@@ -292,9 +305,9 @@ async function finishIngest(entries, msg) {
     // no-IDB (private mode): a memory-only session still works if the
     // buffers survived (nothing was nulled when the FIRST write threw)
     let kept = 0;
-    for (const e of entries) if (e) { mem.set(e[0], new Uint8Array(e[1])); kept++; }
+    for (const e of entries) if (e) { keepOnlyInMemory(e[0], new Uint8Array(e[1])); kept++; }
     if (kept === entries.length) return null;
-    mem.clear();
+    mem.clear(); readAgain.clear();
     return `storage failed (${err?.name || err}). Your device may be low on space. Clear some space and pick again.`;
   }
 }
@@ -303,7 +316,7 @@ async function finishIngest(entries, msg) {
  *  PARTIAL store - idbCount > 0 skips the picker, then boot dies on
  *  the first missing file with no way back). */
 export async function clearStoredData() {
-  mem.clear();
+  mem.clear(); readAgain.clear();
   const d = await getDb();
   // The ARENA2 set AND every artifact DERIVED from it. The injected
   // stores (music, textures, Morrowind) are the player's own packs and
@@ -513,6 +526,8 @@ export async function storeDerived(key, bytes) {
     tx.objectStore(DERIVED_STORE).put(bytes, key);
     tx.oncomplete = () => res();
     tx.onerror = () => rej(tx.error);
+    // a commit the quota refuses aborts the transaction with no request error, so without this the write never settles
+    tx.onabort = () => rej(tx.error ?? new Error("derived store: write aborted"));
   });
   return true;
 }
@@ -531,6 +546,20 @@ export async function loadDerivedJson(key) {
     const bytes = await loadDerived(key);
     if (!bytes) return null;
     const env = JSON.parse(new TextDecoder().decode(bytes));
+    return env && env.key === key && Object.hasOwn(env, 'value') ? env.value : null;
+  } catch (e) {
+    console.warn(`[derived] ${key}: unreadable, rebuilding -`, e?.message ?? e);
+    return null;
+  }
+}
+/** FIRST-VISIT: a derived artifact kept as itself - a structured clone, so its typed arrays come back typed and no
+ *  JSON text is parsed. The envelope is the key, as storeDerivedJson's. */
+export async function storeDerivedValue(key, value) {
+  return storeDerived(key, { key, value });
+}
+export async function loadDerivedValue(key) {
+  try {
+    const env = await assetValue(DERIVED_STORE, key);
     return env && env.key === key && Object.hasOwn(env, 'value') ? env.value : null;
   } catch (e) {
     console.warn(`[derived] ${key}: unreadable, rebuilding -`, e?.message ?? e);
@@ -685,6 +714,23 @@ async function sampleStamp(blob) {
     for (let i = 0; i < bytes.length; i++) { h ^= bytes[i]; h = Math.imul(h, 0x01000193) >>> 0; }
   }
   return h.toString(16).padStart(8, '0');
+}
+
+/** FIRST-VISIT: drop every derived key `stale(key)` says is stale - a kept answer's older keys, once its new one is
+ *  written (systems/firstVisit/firstVisitStore.js staleKey), so the store holds one answer a cache scope, not one an
+ *  update. */
+export async function sweepDerived(stale) {
+  const d = await getDb();
+  await new Promise((res, rej) => {
+    const tx = d.transaction(DERIVED_STORE, 'readwrite');
+    const os = tx.objectStore(DERIVED_STORE);
+    const req = os.getAllKeys();
+    req.onsuccess = () => { for (const k of req.result ?? []) if (stale(k)) os.delete(k); };
+    tx.oncomplete = () => res();
+    tx.onerror = () => rej(tx.error);
+    tx.onabort = () => rej(tx.error ?? new Error("derived store: sweep aborted"));
+  });
+  return true;
 }
 
 /** Drop every derived key under a prefix (a getAllKeys sweep). */
@@ -983,6 +1029,14 @@ export async function registerMorrowindData() {
   return _mwCount;
 }
 
+// ---- TESA12: Arena's store, retired --------------------------------------
+
+/** TESA12: empty the store a copy of Arena was attached to (TESA1 to TESA6) - nothing reads it since the places past the
+ *  Bay became the port's own. The world's boot asks it once; no IndexedDB (private mode), nothing to clear. */
+export async function clearRetiredArena() {
+  try { await clearAssets(ARENA_STORE); } catch { /* no IndexedDB: nothing stored */ }
+}
+
 export async function pickMorrowindFiles() {
   return pickAssetFolder({
     title: 'Your Morrowind data',
@@ -1071,7 +1125,7 @@ export const ASSET_PICKER_Z = 40;
 /** MWFIX: is the asset picker on screen? A modal opened FROM another
  *  overlay has to be able to say so, because the opener may own the
  *  keyboard - the enhanced shell takes Escape on `globalThis` in
- *  CAPTURE and stops it (ui/enhanced/enhancedMenu.js:"globalThis.addEventListener('keydown', keyHandler, { capture: true })"), which is right for a
+ *  CAPTURE and stops it (ui/enhanced/enhancedMenu.js:"listenWindowKeys(owner, onKey, { types: ['keydown', 'keyup'], onCovered: () => { backArmed = null; } })"), which is right for a
  *  screen with nothing above it and wrong the moment something is.
  *  Its own stated law is that a modal overlay owns its input; this is
  *  how the one above it says "that's me". */
@@ -1104,7 +1158,7 @@ async function pickAssetFolder({ title, blurb, store, register, zip = null, dire
         await store(files, (t) => { msg.textContent = t; });   // DFMOD1: a store may report as it goes
         msg.textContent = 'registering...';
         count = await register();
-        msg.textContent = doneText ?? (count ? `${count} files will be used` : 'nothing usable in that folder');   // IIL3: a picker that is not counting files says its own
+        msg.textContent = (typeof doneText === 'function' ? doneText(count) : doneText) ?? (count ? `${count} files will be used` : 'nothing usable in that folder');   // IIL3: a picker that is not counting files says its own (TESA1: or says it by the count)
       } catch (err) {
         // NEVER TRAPS: a storage failure costs the pack, not the game.
         msg.textContent = `could not store that: ${err?.message ?? err}`;
@@ -1381,6 +1435,14 @@ export async function pickTextureFolder() {
  *  through `deps.fetchArena2Bytes`, and a test hands it a fixture. */
 export const fetchArena2Bytes = (name) => getBytes(name);
 
+/** MEM-AUDIT (2026-10-23): a file's bytes let go from the memory cache - its next read comes from IndexedDB (or the
+ *  network) again, the same bytes. For a file a reader keeps only while it uses it: a classic sky's SKY??.DAT, 7.8 MB
+ *  each and 32 of them, held for the session as a journey crossed climates, weathers and seasons. */
+/** AUDIT MEM-AUDIT M1: bytes this session holds and nowhere else - the ingest's no-IDB arm (private mode, a quota's
+ *  refusal): never forgotten, for nothing could read them again. */
+export function keepOnlyInMemory(name, u8) { mem.set(name, u8); readAgain.delete(name); }
+export function forgetBytes(name) { const key = normalizeName(name); if (readAgain.delete(key)) mem.delete(key); }
+
 /** The single data seam every reader goes through (via fetchBytes). */
 export async function getBytes(name) {
   const key = normalizeName(name);
@@ -1388,12 +1450,13 @@ export async function getBytes(name) {
   if (hit) return hit;
   try {
     const stored = await idbRead(key);
-    if (stored) { const u8 = new Uint8Array(stored); mem.set(key, u8); return u8; }
+    if (stored) { const u8 = new Uint8Array(stored); mem.set(key, u8); readAgain.add(key); return u8; }
   } catch { /* no IDB (private mode etc.) - fall through to network */ }
   const res = await fetch(`./arena2/${name}`);
   if (!res.ok) throw new Error(`${name}: ${res.status} - not in the stored ARENA2 selection and no server copy; re-pick a complete ARENA2 folder`);
   const u8 = new Uint8Array(await res.arrayBuffer());
   mem.set(key, u8);
+  readAgain.add(key);
   return u8;
 }
 

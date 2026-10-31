@@ -176,8 +176,8 @@
   {
     "name": "PROF5-law-hub-off-map",
     "file": "src/net/marketLaw.js",
-    "old": "Number.isSafeInteger(y) && x >= 0 && x < 1000 && y >= 0 && y < 500;",
-    "new": "Number.isSafeInteger(y) && x >= 0 && x <= 1000 && y >= 0 && y < 500;",
+    "old": "export const hubPixelOk = (x, y) => pixelOk(x, y);",
+    "new": "export const hubPixelOk = (x, y) => Number.isSafeInteger(x) && Number.isSafeInteger(y);",
     "tests": [
       "test/net/prof5_law.test.js"
     ]
@@ -495,8 +495,8 @@
   {
     "name": "PROF5-svc-own-bought",
     "file": "server-account/src/market.js",
-    "old": "  if (l.seller === me) return { error: 'market-own' };\n  // HOME-VENDOR: a trader's piece is bought at its trader alone",
-    "new": "  // HOME-VENDOR: a trader's piece is bought at its trader alone",
+    "old": "  if (l.seller === me) return { error: 'market-own' };\n  // STAFF-PANEL3-REALM: a seller held or banned sells nothing",
+    "new": "  // STAFF-PANEL3-REALM: a seller held or banned sells nothing",
     "tests": [
       "test/net/prof5_service.test.js"
     ]
@@ -733,8 +733,8 @@
   {
     "name": "PROF5-svc-anyone-removes",
     "file": "server-account/src/market.js",
-    "old": "  if (!canModerate(player, env)) return { error: 'not-moderator' };\n  if (!idOk(id)) return { error: 'bad-listing' };\n  const r = await",
-    "new": "  if (!idOk(id)) return { error: 'bad-listing' };\n  const r = await",
+    "old": "  if (!isDeveloper(player, env)) return { error: 'not-developer' };\n  /** @type {(how: { target",
+    "new": "  /** @type {(how: { target",
     "tests": [
       "test/net/prof5_service.test.js"
     ]
@@ -932,9 +932,10 @@
   },
   {
     "name": "PROF5-host-wear-unminted",
-    "file": "src/scenes/world.js",
-    "old": "    if (it.maxCondition > 0) it.currentCondition = wearCondition(it.maxCondition, piece.wear);\n    const home = isCraftedFurniture(it);",
-    "new": "    const home = isCraftedFurniture(it);",
+    "file": "src/systems/smithItems.js",
+    "old": "  if (it && it.maxCondition > 0) it.currentCondition = wearCondition(it.maxCondition, piece.wear);\n  return it;",
+    "new": "  return it;",
+    "note": "MARKET-LOOK: the host's mint at its wear moved to smithItems.js mintMarketPiece",
     "tests": [
       "test/net/prof5_client.test.js"
     ]
@@ -960,7 +961,7 @@
   },
   {
     "name": "PROF5-host-worn-listed",
-    "file": "src/scenes/world.js",
+    "file": "src/scenes/marketPiecesHost.js",
     "old": "filter((it) => it?.provenance && asMinted(it) && !tradeRefusal(it) && !isLocked(it) && !pieceKept(it.provenance))",
     "new": "filter((it) => it?.provenance && asMinted(it) && !pieceKept(it.provenance))",
     "tests": [

@@ -57,7 +57,7 @@ function host({ gold = 5000, online = false, realmAct = null, seats = 4, peers =
     player: { pos: [0, 0, 0], eyeAt: () => [0, 1.6, 0] },
     host: { realmAct, relock: () => said.push('<relock>'), seatedPeers: () => peers },
     say: (s) => said.push(s), cam: { yaw: 0, pitch: 0, pos: null },
-    getNameBankOfRegion: () => 0, residentName: (seed, bank, g) => `R${seed}:${g}`,
+    getNameBankOfRegion: () => 0, seededPersonName: (seed, bank, g) => `R${seed}:${g}`,   // REGION-NAMES: PIN MOVED - the regulars named through personNames.js
     stakesFor: sess.stakesFor, buyInRange: sess.buyInRange, goldAmount: court.goldAmount,
     holdCursor, renderer: {},
     createCardTableDraw: () => { draws.made++; return { draw() { draws.drawn++; }, destroy() { draws.destroyed++; } }; },
@@ -147,7 +147,8 @@ test('AUDIT CARDS-2 H1: a load\'s road pays nothing - the chips belonged to the 
   assert.match(body(WM, 'forceExitToExterior'), /standFromCardTable\(\{ cashOut: !load \}\);/);
   assert.match(WM, /cardTableLive: \(\) => !!cardGame\?\.session && !cardGame\.friendly,/);
   const W = read('src/scenes/world.js');
-  assert.match(body(W, 'worldQuickSave'), /if \(modes\?\.cardTableLive\?\.\(\)\) \{ if \(!quiet\) townTalk\.say\('You cannot save with chips on the table\.'\); return false; \}/);
+  // PIN MOVED (HOST-SPLIT, at the merge of main into TESA): the save is scenes/worldQuickSave.js's, the host's live names read through host
+  assert.match(body(read('src/scenes/worldQuickSave.js'), 'worldQuickSave'), /if \(host\.modes\?\.cardTableLive\?\.\(\)\) \{ if \(!quiet\) townTalk\.say\('You cannot save with chips on the table\.'\); return false; \}/);
   // PIN MOVED (CARDS10): the pause's Save also waits on a card staked at Iliac Hand
   assert.match(W, /savingPrevented: \(\) => !!naval\?\.saveRefused\?\.\(\) \|\| !!modes\?\.cardTableLive\?\.\(\) \|\| !!modes\?\.gambitStaked\?\.\(\) \|\| !!modes\?\.iliacStaked\?\.\(\),/);   // PIN MOVED (KG3): and gold staked on The King's Gambit
 });

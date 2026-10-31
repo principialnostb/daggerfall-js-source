@@ -113,8 +113,8 @@ boarders on the deck, left the sea for good when the player stepped below and ba
 the journey, the time scale and the yard ask - a hostile ship within the sea's reach of her deck (`navalHost.js`
 hostileNear) - and refuses in its own words, *You cannot enter the cabin with enemies nearby.*
 (`systems/sailingCabin.js:"if (hostile) return CABIN_REFUSAL.enemies;"`), after the helm's and the deck's refusals. Both doors
-ask it: the deck's (`world.js:"csa: () => csaRuntime, hostile: navalHostileNear,"` - the two helm seams folded into the
-runtime's own) and Transport > Ship's to a linked bank cabin
+ask it: the deck's (`world.js:"csa: () => csaRuntime, hostile: () => navalHostileNear() || !!naval?.pvp?.captainNear?.(),"` - the two helm seams folded into the
+runtime's own; AUDIT SEA VENTURES E6A: and a stranger captain's ship near in the open sea, `navalPvp.js` captainNear) and Transport > Ship's to a linked bank cabin
 (`world.js:"if (csaRuntime.isSailing() || navalHostileNear())"`). Another player's cabin has no door
 from the deck (a private room is reached by a staff landing alone), so there is nothing more to ask. DFU keeps the
 exterior waiting behind a door (`PlayerEnterExit.cs` DisableAllParents and EnableExteriorParent set the exterior parent
@@ -234,7 +234,7 @@ ARENA2 it is given before it writes anything, and refuses what fails:
 - **Records 0 and 1 are the author's.** No record covers record 0 (a
   52x41 splash) or any of record 1's twenty-four frames (the wind widget's
   arrow, `windDirectionWidgetTextures`, four blues on a clear canvas) by
-  Detailed Ships' search (`findClassicSource`: a record within a pixel of
+  the classic-source search (`tools/lib/classicSource.mjs` `findClassicSource`: a record within a pixel of
   the size, at every offset), neither whole nor cut to its visible box,
   and no square record matches more than 17% of the visible pixels of any
   block of them (`tools/lib/classicBlocks.mjs`). They are carried as
@@ -644,6 +644,13 @@ on, PlaceBoatAtRayHit refuses a water tile whose ground stands over the
 line - a town's harbour basin at its ground's height - with a word
 (PLACE_RAISED_TEXT), where it placed her beached; the mod off, the tile
 alone decides, as the C#'s.
+
+RUMARE-WATER (`03-World/Tamriel.md`): AUDIT TESA II C2 had stood a shore
+capital's every slice at the sea's floor, its streets 33.994 m and so
+water to the nodes. Its land stands a metre over the sea now (35 m,
+`world/terrain/capitalSea.js` CAPITAL_FREEBOARD) and only its water at
+the sea's height; the Imperial City's lake is that water too, so a boat
+sails up the canal and across the lake to the Waterfront.
 `01-Overview/bugs/Field-Bugs-2026-10-02.md`. The Terrain form reads the player's
 terrain unless one is given; the pixel form reads its own pixel's, and
 nothing where none is built. UpdateAllBoatsNodes is kept as the C# has
@@ -656,16 +663,17 @@ PersistentDungeonBoats keeps it; a near one stands and reads its nodes.
 The one-boat form never destroys and reads the nodes whatever it
 decided. It runs on OnTransition (the four doors, the Respawner's outside
 arm too) and on OnLoad; on FloatingOrigin's recentre EVERY boat moves by
-the offset and then asks its own visibility (FIELD-CSA1: the C# moved one
+the offset and asks its own visibility (FIELD-CSA1: the C# moved one
 only when it was active before or after that check, and the port
 recentres at every map pixel crossed, so a boat left out of sight stood
 wherever the old origins had it when its player came back by another
 pixel) - all but a dungeon's boat out of sight (Persistent Dungeon Boats),
-which stands in its dungeon's own frame, and which the C# never moved either. A teleport's new frame (`scenes/world.js` `_teleportToPixel`:
+in its dungeon's frame, which the C# never moved either. A teleport's new frame (`scenes/world.js` `_teleportToPixel`:
 InitWorld, no offset to ride - the respawn at a temple, a fast travel, a
 load's landing) carries every boat by the frame's own move, then shows or
-hides each for the new pixel, the helm not asked (`OnWorldReanchored`,
-the port's own; the C# left each at the old frame's numbers).
+hides each but a held helm's for the new pixel, the helm not asked
+(`OnWorldReanchored`, the port's own; the C# left each at the old frame's
+numbers; HELM-SIGHT).
 Inside a dungeon a boat is drawn, lit and baked by the dungeon's own
 frame (`host.drawModeMeshes`, `modeLights`, `extraBillboards`), and the
 runtime's Update and LateUpdate and the pool's LateUpdate run in every mode.
@@ -779,6 +787,13 @@ boat is gone ends at its next turn raising nothing, as Unity's destroyed
 transform ends the coroutine (AUDIT PRE-MERGE 0928 S1). The lantern key
 lights or douses the lanterns.
 
+HELM-SIGHT (2026-10-27, `01-Overview/bugs/Field-Bugs-2026-10-27.md`, read cold by
+`01-Overview/audits/Audit-Helm-Sight.md`) departs from StopSailing for a helm let
+go from another pixel than hers: a party's journey lets it go from its landing.
+Her own pixel stays on her, where the C# stamps the player's, and her visibility
+is asked for it (`stopSailingHead`); the player stays where the jump set them,
+where the C# sets the helmsman down at the helm (`stopSailingTail`).
+
 ### The collision and the beach
 
 CheckCollision sweeps the hull collider's half-beam (sharedMesh.bounds
@@ -835,6 +850,15 @@ one, "You're going to need a bigger boat" under a half), and it scales
 every speed and acceleration. It is weighed at the helm and every magic
 round while sailing (the world host's ticker - a round indoors is the
 mode's own clock and does not weigh it, DECLARED below).
+
+CARGO-ASHORE (FIELD BUGS 2026-10-29d, a departure): the cart's load
+counts only while the wagon is in its owner's keeping (Horse Cart and
+Cargo's WithPlayer, not stabled, its park not due) - a wagon parked,
+stabled or following on foot stays ashore, and so do the opt-in horse
+and cart items whose pair stands there (AUDIT FB1029d B6). While the
+load holds her under half her way, the helm panel's line says so
+(HEAVY-HINT), a passenger's card too. The Classic helm's Carrack, dead
+by her missing hold, is not told to lighten.
 
 ### The riders
 
@@ -1008,6 +1032,16 @@ end by a tenth of a radian a second (Vector3.RotateTowards, its length
 by up to one a step), until the two are equal, and then raises
 OnUpdateWind. The rain's and the snow's forces it sets on each step are
 the particles' (CSA-F).
+
+WIND-FIRST (FIELD BUGS 2026-10-29d, a departure): a door lays its wind
+before it shows its boats, and a load checks for the indoors' none
+before them too - the C# laid it after, and a boat whose visibility
+threw left that none on the open sea. NO-PIXEL: a boat with no map pixel
+takes the one she stands on, read off the player's terrain, where the C#
+threw (`csaPixel.js`); indoors or with no terrain the player's answers
+that read and is never kept on her (AUDIT FB1029d A1). WIND-HELD: a wind
+of nought the frame finds outdoors is the door's wind laid
+(`01-Overview/bugs/Field-Bugs-2026-10-29d.md`).
 
 ### The sails
 
@@ -1437,12 +1471,20 @@ minDistance over the distance past it, and no quieter past maxDistance,
 where Unity's (FMOD's inverse) rolloff stops attenuating: a boat's loops
 are heard at half their volume however far off while it is active (kept)
 - with the panner only placing it (`systems/audio.js` logarithmicRolloff;
-the loops' handle a live volume). They live as Unity's do: an AudioSource
-stops as its object goes inactive, and one left at AddComponent's
-playOnAwake (true: SpawnBoat never clears it) plays again from its start
-as its object comes back - so a boat back in view plays both loops, each
-at the volume it last had, the fast one's its first (1) if it never faded
-(kept). UpdateAudioSource (1904-1920) runs on a change of the mod's Audio
+the loops' handle a live volume). An AudioSource stops as its object goes
+inactive, as Unity's does. Unity's AddComponent leaves playOnAwake true
+(SpawnBoat never clears it), so a boat back in view played BOTH loops
+again, the fast one at its first volume (1) if it never faded - and a
+plain source's volume is handed over the bus with Sound Volume divided
+out, so every moored boat in earshot ran her wake's loop at full volume
+whatever the sliders said. RPT1026-WORLD LOOP-AWAKE (a private report,
+2026-10-25: every slider at 10%, in and out of a caravan by the
+shipwright - the boats' sound far over every slider; Port-Ledger A, LOOP-AWAKE): a
+loop comes back as it went - one that played as its object went inactive
+plays again from its start at the volume it had, one that did not stays
+silent, and a boat never put away this way wakes her slow loop alone, the
+one every placement starts (`comeSailAway.js` setBoatActive; pinned by
+`test/systems/comeSailAway/rpt1026_world_loops.test.js`). UpdateAudioSource (1904-1920) runs on a change of the mod's Audio
 section (LoadSettings 846-850; the host asks each frame, `checkSettings`,
 seeded at Start): each loop still heard takes SoundVolume times the new
 volume, one faded to nothing stays there.
@@ -2097,9 +2139,10 @@ way to it, where 64k - 27 m/s of way at an open journey's x60 - dropped a
 storm galleon's whole word from every screen. The change key carries it, so a boat brought up short is said at
 once. `scenes/comeSailAway/comeSailAwayPeers.js` LEADS a boat under way instead of
 chasing it: each frame it is carried on by the way's share of the frame
-(what the lead grew by - none past CSA_PEER_LEAD_MAX, 0.6 s, so a late
-word leads no further and the boat holds where the way took it) and eased
-the rest of the way to the word led from its arrival; the turn the same,
+(what the lead grew by - none past CSA_PEER_LEAD_MAX, so a late
+word leads no further and the boat holds where the way took it) and taken
+up the rest of the way to the word led from its arrival - under way at
+SEA-GLIDE's bounded catch, lying still eased (below); the turn the same,
 Rotate(up x turn) in the boat's own frame. A step past the snap is a
 teleport: CSA_PEER_SNAP_M (20 m), or what her word's way runs in
 CSA_PEER_SNAP_S (2.5 s) if farther (`peerSnapM` - AUDIT SHIPS A7: at a fixed
@@ -2107,6 +2150,25 @@ CSA_PEER_SNAP_S (2.5 s) if farther (`peerSnapM` - AUDIT SHIPS A7: at a fixed
 snap puts her passengers off). Each boat's frame keeps the pose before it (`moveOf`: none the
 frame it is built, none across a snap) and can be peeked a frame ahead
 (`poseAhead`).
+
+SEA-GLIDE (FIELD BUGS 2026-10-22d, `01-Overview/bugs/Field-Bugs-2026-10-22d.md`; Dahazed: "the boss fight turns into
+dodging friendly ships while they randomly speed up / warp in front of you"): the lead was 0.6 s and the rest eased at
+12 a second, so a boat whose words came only on the full frames (FOES_FULL_MS, 2 s - a crowded cell's relay drops the
+deltas past its budget, FOES-FIRST) stood still 1.4 s of every 2 and then ran 17 m in a fifth of a second (a replica of
+the law: 195 m/s at the worst, 70% of frames stopped). CSA_PEER_LEAD_MAX is two full frames' spacing now (4 s - a full
+frame held for its turn, FOES-HOLD, is led over too), and under way what the word says she is off by is taken up at the
+sea's PUPPET-GLIDE catch in shape (`glideToward`: CSA_PEER_CATCH 1 a second, never faster than CSA_PEER_CATCH_MPS 0.3 +
+CSA_PEER_CATCH_SHARE of her way - `scenes/naval/navalHost.js` PUPPET_CATCH's three, the share a quarter here where the
+puppets' is a tenth: AUDIT FB1022d C3); a boat lying still eases onto her word at 12 as before, and past the snap she
+snaps. AUDIT FB1022d: she is led along her turn's arc (`wayOver`, C2 - led straight, a boat circling at 10 degrees a
+second stood 12 m off her track); and the way she was led at stands until what she is off by is under
+CSA_PEER_LED_SETTLE_M (C1): a boat that stops between two full frames is led on until her stop's word comes, up to v x 2 s
+plus its lateness past where she stopped, and her snap, her glide back and the realign's pairing of a hull with a
+passenger aboard are judged by that way, not by her word at rest (which teleported her back and left the passenger on a
+still copy of her hull). On the real pool and module, words on the full frames alone each up to 300 ms late: never
+stopped, never past her way and the catch (13.5 m/s at 12), within 3.1 m of her place (p99), straight or circling at
+10, 20 or -15 degrees a second; a stop 0.1 s after a full frame never snaps and keeps her passenger on the one hull
+(`test/scenes/fb1022d_seaglide.test.js`).
 
 **Aboard** (`scenes/comeSailAway/comeSailAwayAboard.js`). A player comes aboard another's
 boat by its own ladder - BoardBoat (112401) answers on it as on one's own:
@@ -2168,15 +2230,29 @@ changes (standing still on a moving deck says nothing) and again on every
 full frame, null aboard nothing; the reader takes it past the same room
 test and owner law as `sa` (`scenes/exteriorFoes.js`: gone from the room or
 quiet past the stale time, a clear, a teardown). The pose frame could not
-carry it: the relay's `validPose` projects the pose field by field and a new
-field would be a relay change (every player dropped). Every reader stands a
+carry it then: the relay's `validPose` projects the pose field by field and a
+new field is a relay change (every player dropped) - DECK-POSE, below, made
+that change. Every reader stands a
 player aboard on their OWN copy of that boat at that place (glue, over
 `online.drawable()` before every layer reads it): the owner on the boat they
 sail - its move of this frame made ahead, since the online frame runs before
 the mod's LateUpdate (`csaPoseAhead`) - the others on the one they lead, a
-frame ahead the same way; the place eased toward each word, a new boat's
-taken at once. So the deck I walk is the deck they see me on, never a
-stride behind it.
+frame ahead the same way. So the deck I walk is the deck they see me on,
+never a stride behind it.
+
+DECK-POSE (2026-10-23, `01-Overview/bugs/Field-Bugs-2026-10-23.md`; the
+owner: "Players on board the ship jitter while sailing instead of staying
+put. Other players also slide when on board your ship/npc ships"): the
+place rides every pose too (`net/wire.js` validAboard, the pose's `ab`, the
+foes word's door the same law; RELAY_VERSION world252), the session plays it
+out with the walk it rides (`net/online.js` lerpPose, `aboardAlong`: eased on
+one deck, the newer whole onto another), and the glue stands a body where its
+drawn pose says, at once. The word eased toward - five a second at most, one
+in two seconds through a crowded cell's relay - drew a walk across a deck in
+lurches (3 m/s drawn at 0.5 to 7.7) and slid it on after it stopped; it
+stands now only for a sender whose poses never carry a place (an older
+build, an older relay), and one whose poses have carried one is ashore when
+drawn without one, whatever their last word said.
 
 **What a passenger may press.** Another's boat's pick is taken only where
 none of the player's own boats is under the ray, and it YIELDS (PR-WAGON1's
@@ -2292,7 +2368,8 @@ on the mod's own states (`bible/10-UI/Controls.md` HELM-KEYS has the keys):
   lasts (`ui/enhanced/enhancedHelm.js helmHint`). The Classic helm's alone: under the
   Responsive one (SAIL-FREE, below) her canvas draws in the wind's eye and drives her
   up into it, so she is never in irons.
-- **The panel teaches the arrows**: its line is the helm's hand at a glance.
+- **The panel teaches the arrows**: its line is the helm's hand at a glance,
+  save while a load holds her under half her way: then it says the load (HEAVY-HINT).
   HELM-LADDER (below) moved its sails' button to the mod's own toggle.
 
 ## One ladder for W, S and the arrows (HELM-LADDER, 2026-10-04 - DECLARED)
@@ -2376,7 +2453,9 @@ m/s^2 - so the handling choice never moves it. AUDIT SHIPS A3 (2026-10-06): HEAV
 at a way past HELM-WAY's is braked by it (`scenes/naval/navalHost.js` `heaveToDecel`), to BOARD_SPEED within HEAVE_TO_M (20 m):
 at SAIL-FREE's full way the fixed brake ran a galleon 50-64 m and a Carrack 73-93 m, out of BOARD_RANGE, the Carrack on
 her quarter past HEAVE_TO_S. Pins: `test/systems/naval/helmway.test.js` (the harness `test/csaScene.mjs`, the
-wind suite's scene, one module).
+wind suite's scene, one module). BOARD-MAGNET (2026-10-26, `03-World/Naval-Refit.md`) retired the heave-to with the ram:
+the seam is the grapples' haul brake now (`systems/naval/navalBoarding.js` `haulBrake` - her way off within GRAPPLE_S,
+CSA_BRAKE_MAX at most), pinned on this runtime by AUDIT SHIPS A3 and AUDIT SHIPS 2 XA5.
 
 GALLEON (2026-10-01): the Small Ship is Mac's galleon now (The new galleon, below) - five sails where the mod's galleon
 carried two lateens - and helmWay.js's header carries her figures, re-measured like for like (AUDIT NAV2 F20's pin
@@ -2974,12 +3053,55 @@ From the field: frames fell in a crowded inland town with "The sea & ships" on, 
 owned the mods cost nothing there; with boats owned, `animate` (the Animators' step at the head of LateUpdate, (19) of
 the Port-Ledger row) found every boat's Animators by walking her whole tree - a galleon's 1,228 nodes - every frame, for
 every boat the player had placed wherever it lay, and the peers' pose did the same for every other player's boat
-(`scenes/comeSailAway/comeSailAwayPeers.js`). `boatAnimators` keeps a tree's list while every tree's shape stands
+(`scenes/comeSailAway/comeSailAwayPeers.js`). `boatAnimators` keeps a tree's list while that tree's shape stands
 (`world/prefabNode.js` `prefabShapeStamp`, the stamp `world/prefabColliders.js` keeps a tree's colliders by): the same
 Animators, in the same order. The step itself is unchanged - a boat standing nowhere is still asked, because that ask is
 how an Animator starts over from its default state when she stands again ((18)). The naval HUD and the helm panel stopped
 making their keys' names for windows they were not showing. Measured, before and after, in
 `01-Overview/bugs/Field-Bugs-2026-10-11c.md`; `test/systems/comeSailAway/fb1011c_seatown.test.js`.
+
+Until BOAT-STAMP (2026-10-21) the stamp was one count for every tree in the game, so any boat built anywhere walked
+every boat's tree again the next frame; it is each tree's own now. BOAT-FAR (the same day) steps a peer's boat's
+Animators past 600 m of the player one frame in four on the time she missed, as the sea's ships' rigging steps; BOAT-OWN
+(the same day) steps mine the same - `animate` and `simulateParticles` call `scenes/comeSailAway/farLife.js`
+`createBoatLives`, from the pool's eye - and a boat switched on or off since she last lived lives that frame, so a far
+boat of mine stood again still starts over from her default state as she stands. All in
+`07-Rendering/Performance-Priority.md`.
+
+## The reading past the Bay (BAY-LEFT-MAPS, 2026-10-27 - DEPARTURE)
+
+AUDIT LEFT IN THE BAY C12, the lowest of its findings; the owner (2026-10-26): *"Every single thing here needs to be
+addressed. No exceptions."* - so it is built. The position reading's map is the mod's picture of the Bay (record 3, the
+travel map's), and the cross is drawn at the player's pixel on it: a boat past the Bay had no cross, its red lines off the
+rect.
+
+- **The sheet** (`systems/comeSailAway/comeSailAwayMap.js` mapSheetAt). While the player's pixel is on the Bay's map, the
+  reading is the mod's own, every draw unchanged. Past it, where the continent's frame holds the pixel, it is drawn on
+  Daggerfall's own painting of Tamriel - TMAP00I0.IMG, the picture the continent's trace is read off
+  (`ui/tamrielTrace.js`), rebuilt from the player's file on its own palette (MAP.PAL) as record 3 is
+  (`tamrielMapPicture`), and never carried. Past both (the Eltheric Ocean's box, north of the painting) it is the mod's.
+- **The rect and the cross.** The painting stands at its own 320 x 200 at the map's height (`TAMRIEL_SHEET_PX`, 2.5
+  screen pixels a picture pixel at scale 1, so 800 x 500), centred on the mod's rect (`sheetRect`). The cross stands where
+  the frame's fit puts the pixel on it (`tamrielCrossAt`, `world/tamriel/tamrielFrame.js` bayToPicture). The blink, the
+  thicknesses, the help lines and the backdrop are the mod's.
+- **The markers are their sheet's.** A marker placed on the painting carries `sheet: 'tamriel'` (`placedMarker`); every
+  marker before, and every one another mod adds (AddMapMarker), is the Bay's (no field). Each sheet draws, labels, marks
+  and removes its own markers alone (`markerOn` for IsPositionMarked, `markerDistance` for the right button), and the
+  save keeps a marker's sheet (`savedMarker`; a Bay marker's record is the one it was) and a load gives it back. A
+  marker's position stays the mod's: its offset off its sheet's rect corner (kept, as on the Bay).
+- **The runtime** (`createComeSailAwayRuntime`, a host that does not grow) changed in place alone: its mouse read, its
+  click, its right button, AddMapMarker, IsPositionMarked and the save's two lines take the module's laws - 2,496 -> 2,485
+  logical lines. **The world host's half** moved out first (HOST-SPLIT: `scenes/csaMapHost.js` createCsaMap, bootWorld
+  35,734 -> 35,688): the third picture is built beside record 3, and a quad is drawn by its sheet's picture.
+- **The four hosts.** `scenes/world.js` builds and draws the reading through `scenes/csaMapHost.js`; `scenes/exterior.js`,
+  `scenes/worldModes.js` and `scenes/dungeonContext.js` draw no reading.
+
+A departure from Come Sail Away, which knows the Bay alone: Port-Ledger A, BAY-LEFT-MAPS. Proof:
+`test/systems/comeSailAway/csa_map.test.js` - the sheet, the draws, the reading past the Bay and the save, the host's
+pictures, and the painting off the freeware (5 more); `tools/mutants/bayleftmaps.json` BLM-C12-* (20, all dead). PIN MOVED
+(HOST-SPLIT): the CSA-I host seams and FONT3's draw-list pin read the host whole; CSA-I-host-shadow-order retargeted by the
+tool (dead). Re-aimed by content and run (dead): CSA-I-cross-unscaled, CSA-I-cross-width, CSA-I-marked-any (`markerOn`'s
+now), CSA-I-left-colour, CSA-C-marker-twice.
 
 ## What was already waiting in the port
 

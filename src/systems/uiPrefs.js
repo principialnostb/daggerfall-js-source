@@ -54,6 +54,9 @@ export const PREF_DEFAULTS = Object.freeze({
   // (systems/faction/factionStanding.js). STANDING-ON (2026-10-11, Mac: "should be on by default"): on - the shelf writes no
   // default (PREF1), so a player who never pressed the row moves with it, and one who pressed it off keeps their Off.
   standingAll: true,
+  // SHOP-HIDE (2026-10-30, the owner: "a settings toggle that disables the shop interface ingame. Off by default"): on, the
+  // pause screen draws no shop gem and the shop's window never opens; the account's Aurum and what it holds are untouched.
+  shopHidden: false,
   // HUD-MOVE (2026-10-01, Mac: "make chat, hp mana stamina bar segment and all the element moveable and add a reset UI
   // and lock UI in the settings (lock should be on by default)"): the Enhanced Plus HUD's own layout. `hudLocked` is the
   // lock (on: nothing moves, the HUD is pointer-transparent as ever); `hudLayout` is { id: { x, y } }, each piece's
@@ -99,6 +102,9 @@ export const PREF_DEFAULTS = Object.freeze({
   // CHAT-TRADE (2026-10-14): the Trade and LFG channels this player joined (/join, /leave) - off until they choose one,
   // so a player who never does sees no new tab.
   chatTrade: false, chatLfg: false,
+  // STAFF-CHAT-RED (2026-10-23, mob: "give me a option next to chat to chat as /red or myself at all times"): the voice an
+  // Admin's chat lines go out in - 'me' (as themselves) or 'red' (each as /red would say it, net/chatVoice.js) - kept
+  chatAs: 'me',
   packPhoneDoll: false,   // PACK-PHONE (FIELD BUGS 2026-09-30): the pack's body on a phone - hidden until the header's Body shows it
   // PADPLUS1: the Plus controller - the crossbar ('auto' while a pad is connected, 'on', 'off'), run as a toggle on
   // the Run button, and the version of the one-time layout move already made (ui/plus/plusPad.js)
@@ -113,6 +119,10 @@ export const PREF_DEFAULTS = Object.freeze({
   // springs, its shake and the hands' dip (combat/technique/techniqueFx.js techniqueMotion); 0 moves nothing on the screen (its
   // burst and its sound stay). GATHER-FEEL II: and a gathering tool's landed blow (systems/gatherBlow.js gatherBlowFeel)
   techniqueMotion: 1,
+  // RPT1026-CLIENT (a private report: any spell landing some fourteen metres off shook the view, the player's or
+  // anyone's): how much ANOTHER player's spell shakes the view where it lands (scenes/hostMagic.js
+  // peerKickShare) - 1 Full, 0.5 Half, 0 Off; my own spells, a foe's and an event's keep their whole kick
+  peerSpellShake: 0.5,
   // EG-G1 (bible/11-Multiplayer/Elite-Gates.md section 25.7): THE SPIRE'S ACCESSIBILITY (ui/eliteGates/egAccess.js) - the danger
   // palette ('standard' | 'contrast' | 'deutan' | 'tritan'), a danger fill's light (0.5-1), and reduced motion (the
   // system's setting does the same)
@@ -176,9 +186,13 @@ export const PREF_DEFAULTS = Object.freeze({
   peerClassSprites: true,
   peerAttackSounds: true,   // PEER-FS2: other players' swing sounds - on by default
   monsterVolume: 1,   // MONSTER-VOL: a monster's calls, attack sounds and pain cries, 0..1 (systems/monsterVolume.js)
+  companionVolume: 1,   // COMPANION-VOL: a companion's idle calls (its moans and cries while it walks with you), 0..1, over Monster Volume
+  horseVolume: 1,   // HORSE-VOL: every horse's neigh and hooves, 0..1 (systems/animalVolume.js)
+  animalVolume: 1,   // ANIMAL-VOL: the town's dogs, cats, pigs and cows, 0..1 (systems/animalVolume.js)
   peerFootsteps: true,   // PEER-FS1: other players' footstep sounds - on by default
-  // GATE-CROWD (2026-10-07, Mac: "some type of filter when there are too many people"): how many other players an
-  // Oblivion Gate's court draws at once - the nearest, the party always (net/gate/gateCrowd.js GATE_CROWD_TIERS; 0 everyone,
+  // GATE-CROWD (2026-10-07, Mac: "some type of filter when there are too many people"): how many other players are drawn
+  // at once - the nearest, the party and the duel's opponent always; everywhere but where a stranger can fight me since
+  // CROWD-WIDE (2026-10-23), a gate's court alone before it (net/gate/gateCrowd.js GATE_CROWD_TIERS; 0 everyone,
   // the default - Mac: "The default other setting should be everyone"). Its GATE_CROWD_DEFAULT, pinned equal by
   // test/systems/gatecrowd.test.js and not imported: the shelf is on the boot path, and the import made net/gate/gateCrowd.js the
   // entry's 69th file, past BOOT2's ceiling (test/render/boot2.test.js)
@@ -203,6 +217,10 @@ export const PREF_DEFAULTS = Object.freeze({
   // on for a probe; this is the player's own switch on the Enhanced
   // pane. Off by default - a number over the game is a diagnostic.
   showFps: false,
+  // GPU-BACKEND (2026-10-26): the desktop app's graphics backend on Windows - 'default' (Chromium's own, Direct3D 11) or
+  // 'vulkan'. Read by the shell at launch (app/lib/graphicsBackend.cjs), never by the page; the row is drawn only in the
+  // app on Windows (ui/enhanced/enhancedMenu.js graphicsBackendRow).
+  graphicsBackend: 'default',
   // TUT1 (2026-10-11, Mac: "our own custom tutorial ... popups for whenever you are interacting with a new system"): the
   // tutorial's popups (on unless turned off, from the menu's Tutorials tab) and the pages read - ids of
   // systems/tutorialCatalogue.js, in its order; null is none read. The player's, not the character's
@@ -214,9 +232,18 @@ export const PREF_DEFAULTS = Object.freeze({
   // front door, and on the classic skin no ANIM0001 splash before the title (main.js). ?nointro and ?novideo do the
   // same for one visit. Off by default: the film is how the game introduces itself.
   skipStartVideo: false,
+  // AUTO-UPDATE (2026-10-30, the owner: "turn off the automatic updates by default"): a new version saves and restarts the
+  // game after a minute's warning (ui/updateScreen.js) only with this on; off, the player is told and updates when ready.
+  autoUpdates: false,
   // LOAD1 (2026-10-05): the PrintScreen key's download - on, the PNG is saved as KB1 always saved it; off, the shot is
   // kept in the gallery alone (ui/screenshot.js). The Screenshots pane's own switch, so it is no Features row.
   shotDownload: true,
+  // CAPE-TOGGLE (2026-10-29): the inventory's Cape switch - my worn cloak drawn, for me and everyone (never the aura)
+  // (systems/capeShown.js). The pack's own switch, so it is no Features row.
+  capeShown: true,
+  // NOTICE-PANEL (2026-10-29): the town panel under the compass folded to the town's name (ui/hud/townPanel.js) - its
+  // heading's own switch, so it is no Features row.
+  townPanelFolded: false,
   // MIDI-OUT1 (2026-10-11, a player asking for MIDI out): the Web MIDI output the music plays on, by its name - '' is
   // none, the game's own synth (systems/midiOut.js). A device, not a taste, so it is no Features row.
   midiOut: '',

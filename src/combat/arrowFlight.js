@@ -19,12 +19,14 @@
 // player is standing. The player arm and its damage law live here
 // now, one copy for the three hosts that share this flight.
 
-import { MISSILE_SPEED, MISSILE_COLLIDER_RADIUS, MISSILE_LIFESPAN_S, playerShotOrigin, missileHitsCapsule, missileReach, PLAYER_BODY_RADIUS } from '../systems/spellcast.js';   // FIELD-GUN17: playerMuzzleOrigin - the gun's own barrel, where GetAimPosition speaks for the bow   // AUDIT 65 CV-2: the player's own controller radius
+import { MISSILE_SPEED, ARROW_FLIGHT_SPEED, MISSILE_COLLIDER_RADIUS, MISSILE_LIFESPAN_S, playerShotOrigin, missileHitsCapsule, missileReach, PLAYER_BODY_RADIUS, sweepFrom } from '../systems/spellcast.js';   // FIELD-GUN17: playerMuzzleOrigin - the gun's own barrel, where GetAimPosition speaks for the bow   // AUDIT 65 CV-2: the player's own controller radius
 import { CAPSULE_HEIGHT } from '../player/motor.js';   // ROAD-H tail: the standing capsule, the contact's default height   // ROAD-H H1c: GetAimPosition's player arrow arm
 import { trs } from '../world/mat4.js';
 import { SWING_MODS, foeUnaware } from './playerWeapon.js';   // CalculateSwingModifiers, read live at the arrow's impact (SET2: and whether the shaft's foe had noticed me)
 import { bloodHit } from './blood/bloodDecals.js';   // BLOOD1b: the blow, in the shape the mark's ladder reads
 import { calculateAttackDamage } from './formulas.js';
+import { offHandToHit, OFF_HAND_BLOW } from './twoHands/handsLaw.js';   // AUDIT PISTOLET A1: a pair's off-hand shot, DUAL's terms as its swing's
+import { liveStat } from '../systems/statMods.js';
 import { segmentBoxEntry } from '../systems/naval/navalBallistics.js';   // SERPENT4: a shaft's step through a box - the guns' own test
 import { bowDamageArrow } from './enemyEquipment.js';   // MAC-N1: the recovered shaft is CreateWeapon's arrow, value and all
 import { backstabChanceOf, enemyPainVoice } from '../scenes/hostCombat.js';
@@ -33,6 +35,8 @@ import { hitSoundFor, ENEMY_HIT_VOLUME } from '../systems/soundClips.js';
 import { addItem, ARROW_TEMPLATE } from '../systems/inventory.js';
 import { noteShotRecoverable, shotTallyOpen } from '../systems/shotTally.js';   // ARENA-ARROWS: a recoverable shaft is no shot the healers pay; STUCK-ARROWS: nor one stuck on the sand
 import { RANDOM_TREASURE_ARCHIVE, RANDOM_TREASURE_ICONS } from '../systems/loot/loot.js';   // STUCK-ARROWS: the stuck shaft's container picture (seedPile's icon)
+import { bowShotAim } from '../ui/bowBloomRing.js';   // BOW-BLOOM
+import { bowShotStamp, bowFastDamage, whileShaftLands } from './bowBloom.js';   // BOW-FAST, BOW-KINDS
 import { orbArchiveFor, ORB_RECORD, noteOrbColour, ORB_SCALE } from '../characters/thunderlockIds.js';   // FIELD-GUN14: what this weapon's shot LOOKS like - the leaf, so no cycle   // FIELD-GUN17: ...and what colour it is, sampled the one moment the texture is in hand   // FIELD-GUN18: ...and how big it is drawn
 import { playerWeaponHitEntity } from '../systems/worldTick.js';   // DISC10-D H1: OnWeaponHitEntity's one dispatcher (worldTick never reaches this module - no cycle)
 import { sparedByPlayer } from './friendlyFire.js';   // SHIPMATES: the player's shaft passes their own crew by
@@ -230,6 +234,7 @@ export class ArrowFlight {
     // nothing and gets the verbatim arm, unchanged.
     // AUDIT FIELD-GUN-MW F2: the fork is playerShotOrigin's, once, for both spawn seams - a muzzle may now be a
     // WORLD point (the third-person Morrowind body's barrel, behind the camera).
+    if (meta.fromPlayer && !orb && !meta.technique) { dir = bowShotAim(dir, meta.weapon); meta = { ...meta, ...bowShotStamp(meta.weapon) }; }   // BOW-BLOOM, BOW-FAST, BOW-KINDS: a bow's own shot, never a gun's or a technique's
     const origin = meta.fromPlayer
       ? playerShotOrigin(from, dir, meta.muzzle)
       : [...from];
@@ -267,13 +272,13 @@ export class ArrowFlight {
       }
       m.age += dt;
       if (m.age > MISSILE_LIFESPAN_S) { m.dead = true; continue; }
-      const step = MISSILE_SPEED * (m.speedScale ?? 1) * dt;   // TELL6d: an aimed shot flies x1.3 as fast (BLOW.aimed.speed)
+      const step = (m.orb ? MISSILE_SPEED : ARROW_FLIGHT_SPEED) * (m.speedScale ?? 1) * dt;   // TELL6d: an aimed shot flies x1.3 as fast; BAL-ARCHERY: a shaft, not a gun's orb
       const { unit, reach } = missileReach(m.dir, step);   // ROAD-H tail: displacement.magnitude + ColliderRadius along the NORMALISED direction (DaggerfallMissile.cs:333 builds the displacement, :337 casts it - an ARROW always takes that Raycast arm, never the :339 SphereCast) - a crouch-dipped shaft carries |dir| > 1
       // TACT1: a tree, a crate - cover stops a shaft; AUDIT TACT B5: by touch, the bodies before it tested first
-      const cs = c ? coverStep(coverDistance(c, m.pos, unit, reach), c.raycast(m.pos, unit, reach), reach, reach - step * Math.hypot(m.dir[0], m.dir[1], m.dir[2]), step * Math.hypot(m.dir[0], m.dir[1], m.dir[2])) : null;
+      const cs = c ? coverStep(coverDistance(c, m.pos, unit, reach), c.raycast(m.pos, unit, reach), reach, reach - step * Math.hypot(m.dir[0], m.dir[1], m.dir[2]), step * Math.hypot(m.dir[0], m.dir[1], m.dir[2]), !!m.fromPlayer) : null;   // WALL-SHAFT: a player's shaft is swept (SHAFT-SWEEP), so a wall is met by touch and a foe before it first
       if (cs && Number.isFinite(cs.stop)) { this._stick(m, [m.pos[0] + unit[0] * cs.stop, m.pos[1] + unit[1] * cs.stop, m.pos[2] + unit[2] * cs.stop], unit); m.dead = true; continue; }   // met geometry: the arrow is LOST (DFU); STUCK-ARROWS: the player's stays where it struck - the RAY's point (`unit`, the collider's units)
       const adv = cs ? step * cs.advance : step;
-      const from = m.fromPlayer ? [m.pos[0], m.pos[1], m.pos[2]] : null;   // STUCK-ARROWS: the step's start, for the ground's crossing
+      const from = m.fromPlayer ? sweepFrom(m.pos, c) : null;   // STUCK-ARROWS: the step's start, for the ground's crossing (AUDIT WALL-SHAFT W1: and the sweep, never through a wall)
       const was = boxTargets?.length && m.fromPlayer ? [m.pos[0], m.pos[1], m.pos[2]] : null;   // SERPENT4: the step's start, for a box
       m.pos[0] += m.dir[0] * adv;
       m.pos[1] += m.dir[1] * adv;
@@ -327,12 +332,12 @@ export class ArrowFlight {
           if (!t?.feet || t.ref === m.shooterFoe || t.ref?.dead) continue;
           if (m.fromPlayer && sparedByPlayer(t.ref)) continue;   // DISC19-F (AUDIT DISC19): the player's shaft flies through the town's defenders, as their spells do (hostMagic.js sparedFromPlayer) - SHIPMATES: and the player's own crew (combat/friendlyFire.js)
           if (m.technique && (playerBody(t.ref) || m.technique.struck?.includes(t.ref))) continue;   // TECH1: a technique's shaft passes a player's body by (TECH law 3), and a piercing shot a foe it has struck
-          if (missileHitsCapsule(m.pos, t.feet, t.ref?.ai?.height)) {   // ROAD-H tail: the target's own CAPSULE (REVIEW 2026-09-05 had its centre as a point)
+          if (missileHitsCapsule(m.pos, t.feet, t.ref?.ai?.height, undefined, m.fromPlayer ? from : null)) {   // SHAFT-SWEEP: a player's shaft along its whole step (spellcast.js sweptSphereOverlapsCapsule)   // ROAD-H tail: the target's own CAPSULE (REVIEW 2026-09-05 had its centre as a point)
             // ROAD-H tail (review): an ENEMY shaft damages only the foe
             // it was loosed at (:669); any other foe it meets stops it
             // and takes nothing. A PLAYER shaft (WeaponDamage through
             // playerArrowHitFoe) has no such gate - it strikes what it hits.
-            if (!m.enemy || t.ref === m.aimFoe) foeImpact(m, t.ref);
+            if (!m.enemy || t.ref === m.aimFoe) whileShaftLands(m, () => foeImpact(m, t.ref));   // BOW-FAST: a duel's door reads the shaft's stacks
             // TECH1: a PIERCING SHOT flies on through - each foe it meets struck once, until it has struck its number
             if (techniquePierces(m, t.ref)) continue;
             m.dead = true;
@@ -452,7 +457,7 @@ export class ArrowFlight {
  *  loot's echo) ride its one claim (systems/playerDoor.js - OPEN-HAND's law, the gate's own). Answers what to claim. */
 export function shaftOnRelayBody(m, entity, rolled) {
   const body = { name: entity?.name ?? '', entity };
-  const dmg = m?.technique ? scaleBlowDamage(rolled, blowMult(m.technique, body)) : rolled;
+  const dmg = bowFastDamage(m, m?.technique ? scaleBlowDamage(rolled, blowMult(m.technique, body)) : rolled);   // BOW-FAST
   if (m?.technique) tellTechniqueLanded(m.technique, body, dmg);
   const owed = takeOwed(entity);
   return dmg > 0 ? dmg + owed : dmg;
@@ -478,9 +483,14 @@ export function playerArrowHitFoe(m, foe, {
   if (foe.yielded || foe.executing || foe.sparing || foe.leaving || foe.roaring) return 0;   // RVN4: nor one roaring its last stand
   const swing = SWING_MODS[playerWeapon?.machine?.state] ?? { damage: 0, toHit: 0 };
   const back = foe.ai && playerFeet ? isBackFacing(foe.ai.yaw, foe.ai.feet, playerFeet) : false;
+  // AUDIT PISTOLET A1 (TWO-HANDS DUAL): a pair's OFF-HAND shot strikes less surely and less hard, as the off hand's swing
+  // does (playerWeapon.js resolveHit) - Agility's to-hit term and OFF_HAND_BLOW's share and weight. Read off the gun the
+  // shot left, since the strike that fired it is over by the time it lands.
+  const off = !!playerWeapon?.isOffHandItem?.(m.weapon);
   const rolled = calculateAttackDamage(playerEntity, foe.entity, {
     weapon: m.weapon ?? null,
-    damageMod: swing.damage, toHitMod: swing.toHit,
+    damageMod: swing.damage, toHitMod: swing.toHit + (off ? offHandToHit(liveStat(playerEntity, 'agility')) : 0),
+    ...(off ? OFF_HAND_BLOW : {}),
     backstabChance: backstabChanceOf(playerEntity, back, foe),
     weaponAnimTime: playerWeapon?.lastDrawMs ?? 0,   // PCO1: the draw's length, for Roleplay Realism's archery
     rolls, onInflictPoison, say,
@@ -489,7 +499,7 @@ export function playerArrowHitFoe(m, foe, {
   // TECH1 (bible/05-Combat/Weapon-Techniques.md): a technique's shaft (a Volley's, a Piercing Shot's) weighs the formula's
   // number by the technique - never on a player's body (its shaft passes them by in flight; a door that hands one here
   // anyway gets the plain number)
-  const dmg = m.technique && !playerBody(foe) ? scaleBlowDamage(rolled, blowMult(m.technique, foe)) : rolled;
+  const dmg = bowFastDamage(m, m.technique && !playerBody(foe) ? scaleBlowDamage(rolled, blowMult(m.technique, foe)) : rolled);   // BOW-FAST
   if (m.technique && !playerBody(foe)) tellTechniqueLanded(m.technique, foe, dmg);   // MARTIAL3: a path's rider answers its signature's shaft
   const at = foe.ai?.feet ?? [m.pos[0], m.pos[1], m.pos[2]];
   // AUDIT 62 F20: the splash point is the struck foe's TRANSFORM

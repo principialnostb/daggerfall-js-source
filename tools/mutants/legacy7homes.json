@@ -11,12 +11,12 @@
   {
     "name": "LEGACY7H-unread-drops",
     "file": "src/scenes/legacyHost.js",
-    "old": "    if (held == null) return false;\n    return syncHouses(family, p.id, held, p.deedsTaken ?? []);",
-    "new": "    return syncHouses(family, p.id, held ?? [], p.deedsTaken ?? []);",
+    "old": "    if (held == null) return false;\n    return syncHouses(family, p.id, held, p.deedsTaken ?? [], { whole: deps.heldHousesWhole?.() === true });",
+    "new": "    return syncHouses(family, p.id, held ?? [], p.deedsTaken ?? [], { whole: deps.heldHousesWhole?.() === true });",
     "tests": [
       "test/systems/legacy/legacy7_homes.test.js"
     ],
-    "note": "PERMADEATH-HOUSES (PIN MOVED): re-aimed by content - the law it guards now stands at this line."
+    "note": "PERMADEATH-HOUSES (PIN MOVED): re-aimed by content - the law it guards now stands at this line. ACCOUNT-HOMES (PIN MOVED): re-aimed by content."
   },
   {
     "name": "LEGACY7H-registry-silent",
@@ -37,15 +37,6 @@
     ]
   },
   {
-    "name": "LEGACY7H-world-any-characters-homes",
-    "file": "src/scenes/world.js",
-    "old": ".filter((h) => h?.character === me).map((h) => ({",
-    "new": ".map((h) => ({",
-    "tests": [
-      "test/systems/legacy/legacy7_homes.test.js"
-    ]
-  },
-  {
     "name": "LEGACY7H-world-unnamed",
     "file": "src/scenes/world.js",
     "old": "        location: _townOfMapId.get(h.mapId >>> 0)?.name ?? '',",
@@ -57,8 +48,9 @@
   {
     "name": "LEGACY7H-world-offline-deeds-online",
     "file": "src/scenes/world.js",
-    "old": "heldHouses: () => (isOnlinePage() ? (realmSession ? _legacyOnlineHomes : null) : (playerEntity.houses",
-    "new": "heldHouses: () => ((playerEntity.houses",
+    "old": "heldHouses: () => (isOnlinePage() ? (realmSession ? _legacyOnlineHomes : null) : allDeeds(playerEntity.houses",
+    "new": "heldHouses: () => (allDeeds(playerEntity.houses",
+    "note": "Re-aimed by content (HOUSES-3): the region's three deeds.",
     "tests": [
       "test/systems/legacy/legacy7_homes.test.js"
     ]

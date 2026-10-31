@@ -58,6 +58,15 @@ nothing. A copy given a fresh id is a new piece to the ledger, and a new piece i
 
 ### INT1 - the item law (`src/systems/item/itemLaw.js`)
 
+SOUL-LAW (FIELD BUGS 2026-10-20h, law 9, `acct166`; `01-Overview/bugs/Field-Bugs-2026-10-20h.md`; the Discord's "Soul Trap (Ogre)"):
+a Soul Gem or Azura's Star may hold the soul of one of Daggerfall Enemy Expansion's fifty (the Ogre is 282), whose ids
+the law reads headless from the mod's own tables (`src/systems/enemyExpansion/dexIds.js`) - law 8 took DFU's MobileTypes
+alone, so every such gem was a 'soul' finding and its trapper's trade was held, with a strike. Migration 0143 lifts what
+that finding alone laid, read as 0130 reads (0130's own lift, which kept strikes, ends no count), and keeps the soul's
+signature, as 0125 kept the key's. TRADE-WHOLE, found on the way: a trade's pack clamps its lot whole
+(`src/systems/tradePack.js` wholeLot) - a piece the law refuses is said and kept off the table, never set out on it to ride
+no wire.
+
 KEY-LAW (2026-10-17, law 7, `acct151`; `01-Overview/bugs/Field-Bugs-2026-10-17.md`; slick: "flagged by the new key
 thing"): the Weir Key's row (`src/systems/eliteGates/weirKeyRow.js`, a leaf) is read beside the registry, as the rest's,
 Deep Waters' fish and the two mods' are - this service loads none of the key's home, so law 6 found every Weir Key a
@@ -182,9 +191,22 @@ at the next clean checkpoint until `STRIKES_FOR_TIMED` (3) HOLDS have come - a s
 audit: one piece carried six minutes was staff's), the same piece taken up again included - and the third is TIMED: a
 week, a month each after it, a clean checkpoint inside it no way out and the first past it lifting it (AUTO-HOLD); every
 law hold's notice says the holds are counting (RING-WARN, `01-Overview/bugs/Field-Bugs-2026-10-12.md`); its finding is
-written once a signature. Staff who judge the law's word wrong clear it (`law_excused`): the same signature holds
-nothing again, a new one does. A verdict writes over the row only as it read it (`judge_rev`): a staff act landing in
+written once a signature. Staff who judge the law's word wrong clear it (`law_excused`): the same finding holds
+nothing again, a new one does - the same pieces and the same values of the character law, an excuse of the values only
+until a checkpoint the law finds nothing in, and none of a state whose values were cut (RPT1026-LEDGERLAW and its audit,
+below: the signature alone excused every purse after a cleared one). A verdict writes over the row only as it read it (`judge_rev`): a staff act landing in
 between stands, and the next checkpoint judges again.
+
+What the player is told (RPT1026-MARKET HOLD-SAID, private reports 2026-10-26: gathering stopped overnight under a
+notice that named only a trade freeze and gave no reason; crafting and gathering were found counted as
+trading): a hold refuses every progression claim as well as every trade (INT16's seat, below - a harvest, a
+smelt, a craft, a brew, a disenchant, a temper, a writ's delivery), so every notice says the three a player meets - its
+trading, gathering and crafting - and its lifting says them open again. Staff's names no reason (the note is staff's own,
+`staffRealm.js`, and stays so) and says how to reach them: a private report with /bug, or the game's Discord. A
+`trade-held` refusal anywhere - a harvest's toast, a craft's, a sale's - says the standing hold's own notice as the
+session last heard it (`net/realm/realmTradeLaw.js` tradeHeldSaid, wired by `scenes/realmHoldHost.js`; with none heard
+yet, what a hold freezes), where it had said only that "the notice shown when it froze says why" - a line said once, in a
+chat a player may never have read. The notices are in the player's language now (they were English to every player).
 
 Every route that hands a realm character's value to another player says so - `prepareRealmRecord(..., { outbound: true
 })`: a market listing and purchase, a vault deposit, a treasury deposit, a rent, a card table's stake, a disenchant - and
@@ -218,7 +240,9 @@ witness needed); still with it past `DUPE_GRACE_S` (300 s), the claim was a COPY
 and locked (`item_dupes` - that piece moves by no route from it, and is never found twice), and the holder's piece stays
 the holder's to sell. It is no strike (AUTO-HOLD): the holder's checkpoint cannot tell a copier from a receiver whose
 giver's game died before its record saw the give. A crafted piece's copy is told by its craft's record: the account
-`products` names owns it, so a seller that kept a sold piece is the copier, never the buyer. A piece shown twice in one
+`products` names owns it, so a seller that kept a sold piece is the copier, never the buyer - the account the service
+last handed the piece to, where a hand-over came after its owner's and from the account the record named (RPT1026-LEDGERLAW
+and its audit, below: a realm trade moves no owner, and a maker that wrote a traded piece back into its save took it back). A piece shown twice in one
 record is that record's copy at once - one strike on `dupes` a checkpoint, however many pieces, and `dupes` holds
 nothing. A piece let go is no row (a row kept `gone` only
 while a copy of it is known, so the copy cannot take it up); a character that dies, retires or is deleted lets go of all
@@ -271,7 +295,7 @@ The record and staff's check: `01-Overview/bugs/Field-Bugs-2026-10-11g.md` HELD-
 
 A developer's alone: `/v1/mod/realm-holds` (the held and flagged, each with its last finding), `realm-findings` (a
 character's findings and its wealth by the hour), `realm-clear` (a hold, its strikes and its timed holds lifted, a flag cleared, the law's
-finding standing excused, the bucket refilled), `realm-hold` (a hold by hand), `realm-rollback` (the record back to its
+finding standing excused as it stands - RPT1026-LEDGERLAW, below - the bucket refilled), `realm-hold` (a hold by hand), `realm-rollback` (the record back to its
 last checkpoint judged clean - kept past the row's rotation, and carried forward by a service move made ON a clean record
 - its seat taken from any tab so the next join loads it; never past a move the service made since (`service-moved`: a
 sold piece would come back and stand sold), never for the dead, its size the clean save's) and `realm-budget` (the
@@ -347,6 +371,55 @@ node tools/realmReview.mjs mend <realm character id> <ticket> <was: the purse be
 Pinned by `test/net/fb1019f_pursemend.test.js` over the real Worker, a record the game writes (`save.js snapshotPlayer`)
 after the old counter's sale, checkpointed so the judge holds it; `tools/mutants/fb1019f_pursemend.json` (28, dead - AUDIT FB1019f's four among them: the
 lift's guard unread and unenforced, a letter and a faucet row of nothing).
+
+STAFF-SET-BANK (2026-10-23, mob: "we need a set bank setting"; asked before how to adjust a player's bank, and nothing
+could) added a fourth, the Staff Panel's alone: `/v1/staff/fix/bank { id, ticket, was, gold, note }`, an Admin's, with
+Fix account's note (`staffRealm.js`), the review's `bank` act (`review.js bankAct`). Online a character keeps one
+account, the Empire's (`banking.js` EMPIRE-ACCOUNT), and the panel's profile says the bank as one number, every
+account's gold together (`staffPlayers.js` `banks`, read by `repairLaw.js bankTotalOf`, the sum the set is checked
+against). The record's bank, still that total (`bank-moved` otherwise), becomes the Empire's account holding `gold` (0 to
+one int's worth), every other branch folded in at nothing as `foldEmpireAccounts` folds them, every loan where it stands;
+a record that keeps no Empire account is refused (`bank-none`: the game mints the table as a character loads, so its
+next checkpoint carries one). The repair's machinery again: once a ticket in `realm_repairs` (a bank set's row names
+faction -1, `BANK_SET_FACTION`, below every faction a repair or a mend names - no migration), the record seized one
+sequence on, the wealth it moved witnessed - up or down, so the budget charges no gain the service made and a set down
+hides none after it - the act written among the findings, and what it raised the bank by the `repair` faucet's (a bank
+below nothing counted none). A set down pays no faucet and writes no sink: the service keeps none for staff's removals,
+so the finding and the panel's audit row are its record. No hold is lifted. The service's acct177. Pinned by
+`test/server/staffsetbank.test.js` over the real Worker, the game's own bank table and the panel's own profile read;
+`tools/mutants/staff-set-bank.json` (31, dead).
+
+GUILD-LETTER-FIX (2026-10-25, a player's level 10 vampire: the Dark Brotherhood's tally at InviteSent, no letter
+pending, The Acceptance Test nowhere in the save; mob: "do it") added a fifth, the Staff Panel's alone:
+`/v1/staff/fix/letter { id, ticket, guild, op, note }`, an Admin's (`staffRealm.js`), the review's `letter` act
+(`review.js letterAct`) over `repairLaw.js applyGuildLetter`. DFU parks the crime-guild tally and clears its clock before
+the initiation quest starts, and a quest that will not parse answers nothing, so a letter whose quest could not be made
+spent the invitation for good; the game now parks only a quest that started (`crimeGuilds.js` DB-LETTER, a departure:
+a failed start is stamped again as a fresh letter), and staff mend a character it already caught. `send` (`db` the
+Brotherhood, `tg` the Thieves Guild) sets the tally at the guild's target and the letter due, so the game's own
+`handleStartingCrimeGuildQuests` sends it the next minute the player is outside - refused to a member in either
+membership book (`letter-member`, the vampire's book too), a save still holding the initiation quest, running, ended and
+kept or waiting (`letter-quest`), or a letter already on its way (`letter-pending`). `cancel` parks the tally with none
+pending (`letter-none` when there is nothing to call off). The repair's machinery: once a ticket, its `realm_repairs` row
+naming the guild's faction below nothing (-108, -42: below BANK_SET_FACTION, no migration) and the act as its flag, the
+record seized one sequence on, the act among the findings; no gold moves. Folded into acct186 before it shipped. Pinned
+by `test/server/staffguildletter.test.js` and `test/systems/crimeguilds.test.js`; `tools/mutants/guildletterfix.json`
+(12, dead) and `tools/mutants/dbletter.json` (4, dead).
+
+STAFF-GIVE (2026-10-24, mob: "add yes we will work on add as well", the card's pick "Pick from the item list", "include
+enchants") is Remove from a player's twin, an Admin's: `/v1/staff/item/catalogue` (the game's item list - each template
+with its groups and whether it stacks, a weapon's and an armour's materials, the item maker's enchantments with their
+settings and costs) and `/v1/staff/item/give { id, template, group?, material?, count?, gold?, enchant?, seq, confirm,
+reason, note }` (`server-account/src/staffGive.js`). The panel never writes the piece: the service mints it with the
+producers the game mints it with (`enemyEquipment.js` weaponOfMaterial and armorOfMaterial, CreateWeapon's arrow arm,
+`itemTemplates.js` setItemFields and mintCondition; a letter of credit's `gold` its value), lays the enchantments as the
+item maker lays them (`enchantmentCatalogue.js` pickEnchantment, a bound soul's forced rows with it, then
+`enchanting.js` applyEnchantments), and asks the item law before anything moves: a gift the law would find - powers past
+what the item holds - is shown with its findings and refused (`staff-item-unlawful`), so a gift never holds the trade of
+the player it was given to. Given, it is Put back's write: the record seized one sequence on with the piece in the pack,
+its worth witnessed, a valuable piece's ledger id minted and entered as the record's own, the act among the findings
+(`give`, the piece with it). Remove takes it off again. Pinned by `test/server/staffpanel3realm.test.js` over the real
+Worker, the player's next checkpoint carrying the gift unheld; `tools/mutants/staff-give.json` (10, dead).
 
 ### AUTO-HOLD - no hold waits on a person (2026-10-16, `server-account/src/verdict.js`, `ledger.js`, migration 0120)
 
@@ -464,11 +537,35 @@ shelf's fix - each finding reproduced over the real code before it counted. What
 
 Not changed, and why: a deploy runs the migration a moment before the new Worker serves, and an old Worker's
 checkpoint in that window can lift a migrated hold early - the new one's first checkpoint holds it again from
-`held_until`; a locked copy is locked for good (no route clears `item_dupes` - the owner's call is the piece, not a
-term); the dungeon's legacy piles and bodies were not re-traced past the find; a claim costs its maker nothing now (a contested
+`held_until`; a locked copy is locked for good (the owner's call is the piece, not a term) - save a record's copy of its
+own lifted by staff's purge with `keep` (COPY-LIFT, below); the dungeon's legacy piles and bodies were not re-traced past the find; a claim costs its maker nothing now (a contested
 claim is no strike - the owner's call), so a player who reads a piece's key off the wire and shows the same piece with
 it stops that piece moving for the grace (`DUPE_GRACE_S`, five minutes) each time, and takes nothing - its own copy
 locked.
+
+**COPY-LIFT (FIELD BUGS 2026-10-25i, Giljabrar: "I placed 89 rare/legendary items in a chest ... they were all 'Realm
+Locked'").** The decorator's Discard wrote a home's chests back as they stood when its draft opened
+(`scenes/decor/decorTool.js` CHEST-DRAFT): a piece taken out since stood in the chest and the pack, a key shown twice in
+one record - and in #1223's build a Discard in another room's decorator (a ship's, a caravan's, an offline house's)
+stood the home's pieces there in place of that room's own, with its chests and its own-things record: a copy of
+everything the chests held and of each own thing standing in the home, and the other room's own things lost (in no
+record: staff give one back fresh, Add an item, on the player's word). Such a pair is repaired by staff's purge with
+`keep: true`: one of each kept - of the record's own lists first (its pack before a room's chest), the first of the print
+its ledger row holds - and every other copy destroyed wherever the save holds it, the places the checkpoint never reads
+with them: a deserter revenant's take, a pile on the ground, a shop's shelf, a dungeon's chest
+(`staffRealm.js:"export function copiesOfKeys(save, keySet) {"`, said as `hidden`), and of a piece it lifts, the
+account's chests'. A `twice` copy is lifted in the same batch only where the act itself leaves the record one - its
+batch destroys a copy of it, or staff's Remove took one off the character and keeps it - its row the record's own, held
+and unclaimed and of the piece kept, no other record's copy known, and no trail check or one that found it innocent
+(`ledger.js:"export async function ownCopiesLiftable(db, char, pieces) {"`); the `dupe` finding and the answer's
+`lifted` say what the batch took, and a checkpoint landing between the act's read and its seizure refuses it `seq`. No
+checkpoint lifts a copy (AUDIT FB1025i): the record a checkpoint shows is the lists it holds, and a copy moved where it
+lists nothing - a revenant's take (RVN8: a deserter's split, `splitPack`, and a kill's, `pickTaken` - neither takes a
+realm-locked piece now, `revenant.js:"&& !isRealmLocked(item)"`), a counter or the ground under a modified client -
+and brought back after would leave the other one trading. Open: a copy sold at a counter before the keep is gone from
+the save - nothing the act can count, so nothing lifts on that word; the sale's gold stays, and the piece bought back is
+a second of one, locked again by the checkpoint that shows both. Pinned by `test/server/fb1025i_chestlock.test.js` and
+`staffpanel3realm.test.js`; `tools/mutants/fb1025i_chestlock.json`.
 
 ### 4b. The audit (2026-10-09, Mac: "Lets do a comprehensive audit on this")
 
@@ -527,10 +624,57 @@ save's copy on.
 the writs' files moved (PIN MOVED: sellers seated, the piece in the record first - `test/realmSeat.mjs` holdPieces - and
 the pins' own call naming the record for a crafted act, `test/accountDb.mjs`, as the client's realm act does).
 
+### RPT1026-LEDGERLAW - the craft's record follows the service's hand-overs; staff's excuse is of the state it read (2026-10-26, `server-account/src/ledger.js`, `verdict.js`, `review.js`, migration 0178)
+
+Two private reports, each with its steps run against the live code, both on lane 1's own law. Daggerfall has no realm,
+no ledger and no review: nothing of DFU's is departed from.
+
+- **A maker won back a crafted piece it had traded away.** INT4 settles a contested claim on a crafted piece for the account
+  `products.owner` names: a holder that is not it, past `DUPE_GRACE_S`, kept a piece it sold, and the piece goes to the
+  claimant. The market moves the owner with a sale, an auction and a commission (INT19); a realm trade, a market
+  delivery collected from the pack route (MARKET-ANY), a guild vault's withdrawal and a shared chest's take move the
+  piece and never the owner (Professions-Arc 18's hand-over of the owner was never built). So a maker who traded a piece
+  away, then wrote it back into its save with a modified client, won it back at its buyer's next checkpoint past the
+  grace: the buyer's piece moved to the maker and was locked as the copy (`craft`), the maker kept the price and an untouched
+  piece. Now the craft's record is the account the service last HANDED the piece to: every move of a crafted piece into
+  a record (`ledgerMoves`' entered set - the trade, the collect, the vault, the chest, a staff return, the zone's escrow)
+  BY THE ACCOUNT THE RECORD NAMES (AUDIT RPT1026 C1: the trade's other side, or the account its escrow row names - the
+  batch took any giver's, so a seller that kept a piece it sold, holding the ledger's row first, handed the record to an
+  accomplice by one trade or one listing, and the buyer's claim was the copy)
+  writes `products.handed_to` (NULL where it is the owner's own account), a sale that moves the owner clears it (market.js
+  `pieceSoldSteps`, writs.js's fill), and the uphold reads `COALESCE(handed_to, owner)` (`CRAFT_RECORD_SQL`) - and never
+  against the owner holding it: a piece come back to its owner by a peer's hands is the owner's, whoever the service
+  handed it to before. The maker's written-back piece is the claimant's copy, locked, no strike, as every contested
+  claim's. `products.owner` itself is unmoved: who may list a piece as a crafted piece, for which currency, stays the
+  market's own question (the hand-over of Professions-Arc 18 and `01-Overview/bugs/Field-Bugs-2026-10-01.md`'s question
+  (3) - should a handed-on piece count as bought with gold - are the owner's still).
+- **One cleared purse let every purse after it pass.** `review.js` clear wrote `law_excused = law_sig`, and the
+  signature names a character finding by its code alone (`gold:`, `stat:`): staff clearing a victim of a wrapped sale's
+  negative purse excused that character's every purse after it, however far past the game's bound. Now each judgement keeps
+  the character law's VALUES beside the signature (`judge.js` lawValuesOf: `gold@=-8000000`, `stat@agility=101` -
+  `realm_characters.law_v`), the clear excuses the two (`verdict.js` lawExcuseOf: the signature alone for a finding of
+  pieces, as every excuse was), and a checkpoint the law finds nothing in drops an excuse of the values (AUDIT RPT1026 C2:
+  a piece's stands - the batch dropped every one, so a cleared piece put away for a checkpoint held and struck its holder
+  when it came back). A state whose values were cut (1,000 characters, 40 a value) is marked so and no excuse names it
+  (C5: eighty bank accounts below nothing put the purse past the cut). A state that moves holds again - and back at the
+  state staff read, is excused again. An excuse written before this covers its pieces' findings still and no character
+  finding: an excused purse holds again at its next checkpoint, and that hold is a strike. The
+  clear's help says so (`tools/realmReview.mjs`); a purse below nothing is PURSE-MEND's (`mend`), which reads the
+  signature as it always did (`PURSE_SIG`).
+
+Left open: a crafted piece passed hand to hand (the ground, a shelf, a room's container) moves no craft's record - the
+ledger cannot tell a giver's copy from an owner's piece taken back, and the craft's record stands for the account the
+service last handed it to (its owner, where none) as it did for its owner - and a service move by its new holder hands it
+none either (AUDIT RPT1026 C1). An owner holding the piece keeps it whatever the record names, so a buyer whose checkpoint
+shows the piece gone while its maker's written-back copy still claims it hands it to the maker. `test/server/rpt1026_ledgerlaw.test.js`,
+`test/server/audit_rpt1026_ledgerlaw.test.js`; `tools/mutants/rpt1026_ledgerlaw.json`, `tools/mutants/audit_rpt1026_ledgerlaw.json`.
+
 ### What lane 1 leaves open
 
 - ~~**A crafted piece lists, auctions and fills a commission without its record (the exploit audit, 2026-10-11 - OPEN,
-  its plan below).**~~ **CLOSED by INT19 (above, 2026-10-17), to this plan.** The piece route (`server-account/src/market.js` marketList `kind: 'piece'`, marketAuction,
+  its plan below).**~~ **CLOSED by INT19 (above, 2026-10-17), to this plan - all but its last clause:** a realm trade
+  still moved no `products.owner`, so the ledger settled a contested claim on a traded piece for its maker, and the
+  honest holder was still the one it charged, until RPT1026-LEDGERLAW (above, 2026-10-26). The piece route (`server-account/src/market.js` marketList `kind: 'piece'`, marketAuction,
   `writs.js` fulfilCommission) decides on the `products` row alone - never the seller's lease, its record or the ledger -
   and the client takes the piece out of its pack only locally (`net/marketBook.js` postPiece). So a tab that lost its
   seat to a second device (it sends no checkpoint, so it never hears `lease`) lists a piece the live record still holds:
@@ -556,6 +700,15 @@ the pins' own call naming the record for a crafted act, `test/accountDb.mjs`, as
   (`01-Overview/bugs/Field-Bugs-2026-10-12f.md`, For Mac).
 - **Customs** brings an offline character's items in whole (RESTORE, "Keep all"); its first judgement charges what they
   add past its level's allowance to the budget, which holds nothing until staff turn it on.
+- **A side effect's setting laid twice** (SIDE-ONCE, `01-Overview/bugs/Field-Bugs-2026-10-19f.md`, its Open for the
+  owner): the item maker lays a setting once since 2026-10-19, and the item law still counts the maker's rows by effect
+  so a piece made before keeps its copies - so a modified client's new piece with ten copies of User Takes Damage passes
+  it too. RPT1026-LEDGERLAW traced what telling the two apart takes: the rows carry no time, and the item maker is the
+  client's (the service never sees it), so it is a record the service keeps - and each one found carries an owner's call:
+  a table of the stacked pieces' prints read off each record at its first checkpoint misses the pieces in transit then
+  (a listing, a delivery, a shelf - their next holders held) and lets any configuration it read be minted again; a law
+  against the record last judged clean (INT6's `clean_obj`) holds a receiver whose own record is held for something
+  else; locking every stacked piece from trade, as a copy is locked, changes what an honest pre-fix piece may do.
 - A piece's id rides only the character's own five lists' stamping: a piece set out in a room or kept in a chest since
   before INT4 carries none until it comes back to the pack, and the ledger does not follow it there.
 - A temper's or a Reforge's rise in a piece's worth is charged to the budget (small; the service knows the step, not
@@ -616,9 +769,9 @@ receipt's carrier); `scenes/dungeonContext.js` and `scenes/worldModes.js` NO DUE
   and every client door's (`wildRef.js:"export function wildKin"`); the guild was the client's alone, and a guildmate the
   maps and nameplates counted a friend could kill. A socket's close takes its fighter out
   of the zone (`wildGone`).
-- **The fight.** The Royal Tourney's vitality; every blow and cast the referee's; `wref hp` to both, `wref fell` to the
-  room. NO FREE BAR: a fighter is whole again only unstruck `WILD_REF.mendMs` AND in the zone as long (its vitality alone -
-  INT10), or away from the zone `WILD_REF.riseMs`; a word off and on keeps its bar. A fighter's bar is kept at the hub
+- **The fight.** Counted in the Royal Tourney's units; since SHARED-HEALTH (below) the count is the
+  player's own health as a share. Every blow and cast the referee's; `wref hp` to both, `wref fell` to the room. NO
+  FREE BAR: nothing refills by itself; away from the zone `WILD_REF.awayMs` a count starts again from the player's report. A fighter's bar is kept at the hub
   after each blow (`WILD_INTERNAL_VIT`, `wildCarry`) and taken by the next room it stands in (a step into another cell
   was a fresh bar); a fallen carried is down there too. A pose past any run is believed, and its fighter strikes nothing
   for `WILD_REF.jumpMs` (a jump was never believed, and a gallop left the place stale for good). A fallen rises whole on
@@ -628,30 +781,35 @@ receipt's carrier); `scenes/dungeonContext.js` and `scenes/worldModes.js` NO DUE
   (`characters/playerEntity.js` forcePlayerDeath - the SetHealth(0) door's AvoidDeath and withholding stood a fallen up).
   The fallen's game shows its killer its worn gear (`worn`, under the fall's id, each record minted alone so its place
   holds); the killer's body window picks ONE (`pick`, to the room that refereed the fall, with what the offer showed
-  there - `t`, `m`) within `WILD_REF.pickMs`, and the relay signs the fall - `f1` `{ f, c, k, r, w, wt }`, the fallen,
-  its realm character, the killer, the remains' id, the piece's place and what it was - and hands it to both; one away
+  there - `t`, `m`) within `WILD_REF.pickMs`, and the relay signs the fall - `f1` `{ f, c, k, r, w, wt, m, kc }`, the
+  fallen, its realm character, the killer, the remains' id, the piece's place and what it was (and SEA-BOUNTY's, 2026-10-22:
+  the room that refereed it and the killer's realm character - `03-World/Eltheric-Ocean.md` SEA-BOUNTY; an older relay's
+  receipt names neither; a SHIP wrecked at another captain's guns is signed apart, `n1` - SHIP-PVP) - and hands it to
+  both; one away
   hears it at its next zone word. Unpicked, it is signed without a piece; a building's or a dungeon's fall at once (no
   body is searched there); a fall waiting on its pick is kept in the room's storage (`WILD_FALL_PREFIX`) and signed by a
   room that restarted, and a full room's oldest is signed, never forgotten.
 - **The drop.** `/v1/wild/fall` takes it off the fallen's JUDGED record by ONE law (`systems/wild/wildDropLaw.js`
-  takeWildDeath): the killer's worn piece first (`wildPickOf` - the piece the offer showed, else none), then half the
-  purse and the cart's coin, then the bag's and the cart's drop BY WORTH (a bag of junk ahead of them kept the gold and
-  the valuables), fitted to one remains, every record within `WILD_RECORD_BYTES_MAX`, the rest put back where it came
-  from; the record's lit light follows its piece. CART-AWAY (FIELD BUGS 2026-10-15d; Mac, 2026-10-15: "if its parked
-  outside the zone nothing should be lost" - `11-Multiplayer/Wild-Zone.md` section 4): the cart's coin and its drop only
-  while the wagon is with the fallen. The zone's mask is the client's, so the fallen's own tab says its wagon is away
-  (`cart` 0 - `systems/wild/wildCart.js` wildCartAway), and the service takes the word only where the record it keeps says
-  the wagon is parked, stabled or none by its mode (`wildDropLaw.js:"export function wildCartMayBeAway"`) - never a
-  record that drives it, leads it or stands it beside them; a seizure takes no word, and a tab that says none drops the
-  cart as before. The service answers what it took as the game finds it again (`took`,
+  takeWildDeath): the killer's worn piece first (`wildPickOf` - the piece the offer showed, else none), then a tenth of
+  the purse (FOE-KEEPS, 2026-10-24: it was half), then the bag's drop BY WORTH (a bag of junk ahead of them kept the gold
+  and the valuables), fitted to one remains, every record within `WILD_RECORD_BYTES_MAX`, the rest put back where it came
+  from; the record's lit light follows its piece. STORE-KEEPS (2026-10-26, `11-Multiplayer/Wild-Zone.md` section 4): the
+  cart and the companions' packs are storage no death takes - CART-AWAY's word (FIELD BUGS 2026-10-15d: the cart's coin
+  and its drop while the wagon was with the fallen, on the fallen tab's word held to its record's mode) and
+  COMPANION-DROP's packs retired with it. WILD-INSURE (Wild-Zone.md section 4b): a piece under a policy the service wrote
+  against its premium (`wild_insurance`), in force at the fall's signing, is kept as a piece the ledger bars is, and the
+  fall spends it; REPEAT-SHIELD (4c): a fall by the same killer inside half an hour takes nothing. The service answers what it took as the game finds it again (`took`,
   `gold` - wildTookOf), and the fallen's game takes out EXACTLY that (`wildTakeTook` - it ran the law again without the
   ledger's word, and took what the service kept). The fallen's own act at its tab's `at` (`realmGoldAct`, its answer
   needed: checkpointed as it will rise, the service asked, the room named), or its killer's SEIZURE once
-  `WILD_FALL_GRACE_S` (30 s) has gone by (the record moved where it stands, its lease cleared, a dead record never), laid
+  `WILD_FALL_GRACE_S` (30 s) has gone by - at once since WILD-REJOIN where the fall was signed with its fallen gone from
+  the room (`g` 1, `11-Multiplayer/Wild-Zone.md` section 4) - (the record moved where it stands, its lease cleared, a dead record never), laid
   where the body fell and asked again on a word that says nothing. Once a fall (`wild_falls`, by the remains' id): a
   second asking is answered the first's records and THE SAME ORDER, issued at its first minting for its first room (`oi`,
   `wm`) and good its minute alone - and, for the fallen's own tab, where its record stands. A death to a foe has no
-  receipt: the fallen's own act on its tab's nonce, its remains' id a digest of the character and the nonce.
+  receipt: it was the fallen's own act on its tab's nonce, its remains' id a digest of the character and the nonce; since
+  FOE-KEEPS (2026-10-24, `11-Multiplayer/Wild-Zone.md` section 4) it drops nothing and the service refuses it (`foe`),
+  a fall taken before the word answered as it was taken.
   THE TWO-PHASE HANDOFF (MAC'S DECISION, 2026-10-14, "Yes, build it"): the fallen loses the killer's piece only once the
   killer has it. Where the tab says its room signs collects (`collect` 1), the piece leaves the record INTO ESCROW
   (`wild_escrow`, in the fall's own batch - its ledger key the service's, `ledger.js` ledgerMoves `escrow`), never a fresh
@@ -712,9 +870,24 @@ caster's cast window on every blow (the striker is unstruck), so a crafted clien
 vitality alone. **THE FOUR HOSTS.** `scenes/world.js` WIRED (the duel's, the zone's and a siege's casts, each a number
 for its referee); `scenes/dungeonContext.js` WIRED - the zone's halls through world.js's own `wildSpellOut`, the arena's
 rival through its own law pinned equal
-(`dungeonContext.js:"castAtDuel: opts.arenaRival ? (_id, sp) => spellOnRival(sp) : (opts.wildSpellOut ? (id, sp) => opts.wildSpellOut(id, sp) : null),"`);
+(`dungeonContext.js:"castAtDuel: (id, sp) => (arenaRivalBody()?.rival === id ? spellOnRival(sp) : !!opts.wildSpellOut?.(id, sp)),"`) -
+asked at the cast since RPT1026-FIGHTS HALL-SPELLS (2026-10-26, two private reports: no spell met a player in the PvP
+zone's dungeons): the seam had been chosen at the build by whether the context was handed the arena's door, and the world-hosted
+dungeon is handed it always (`worldModes.js` `arenaRival`, null off the sand), so until then no spell of a player met
+another in the zone's halls - only a swing did;
 `scenes/worldModes.js` (a building) no spell meets another player there - no fight is struck indoors; `scenes/exterior.js`
 NOT WIRED on purpose: offline, no other player.
+
+**RPT1026-FIGHTS STRIKE-UNVEILS (2026-10-26, a private report: a Chameleon stayed up after its wearer
+attacked a player).** A blow between players is rolled on a stub of the striker's sheet (INT8), so the
+formula's tail - EntityEffectManager.BreakNormalPowerConcealmentEffects, `formulas.js` calculateAttackDamage - took the
+normal-power concealment off the stub, and the striker's own Chameleon, Invisibility or Shadow stood through every blow
+it landed on a player. The one stand-in now carries the entity that strikes it (`duelCombat.js` duelStandIn(striker),
+`struckBy`), and a blow that lands damage unveils that entity (resolveDuelStrike) - DFU's law, on the striker, never its
+copy; the true powers stand. The world host's four rolls hand the player (a duel's, a siege work's, a battle's, the
+zone's - a hall's swing reaches the zone's). A spell's harm is counted with the player as its caster
+(`siegeCombat.js` siegeSpellNumbers), whose damage arms already unveil. Pins: `test/combat/rpt1026_fights_unveil.test.js`
+(2); the four rolls' pins (`auditcc_pvp`, `duel_combat`, `twohands`) moved with them.
 
 ### 5b. The audit (2026-10-09, Mac: "Lets audit this")
 
@@ -738,11 +911,11 @@ DORMANT: no caller sets it since INT8, kept as it stands and pinned so (`test/ne
 
 - **Customs** (Mac: "Your decision"): it stands as lane 1 left it - an offline character comes in whole, and its first
   judgement charges what it adds past its level's allowance to the budget, which holds nothing until staff turn it on.
-- A fight between players never touches the save's health (the sieges' law since PVP-REF), and a spell between players is
-  its harm alone: a paralysis, a drain or a slow from another player does not land, as a siege's never did. TWO
-  DEPARTURES FROM MAC'S DUEL1 ASKS, made by this lane and told to Mac in its pull request: "Loser drops to 1HP and both
-  are fully healed on duel end" - the duel's bar is the referee's vitality now, so the loser's health is never touched
-  and nothing needs healing; and "weapons, bows and spells all count" - a spell counts by its harm alone (its other
+- A spell between players is its harm alone: a paralysis, a drain or a slow from another player does not land, as a
+  siege's never did. Where a fight between players stands against the save's health is SHARED-HEALTH's (2026-10-26,
+  below): the referee's count IS that health. TWO DEPARTURES FROM MAC'S DUEL1 ASKS, made by this lane and told to Mac in
+  its pull request: "Loser drops to 1HP and both are fully healed on duel end" - since SHARED-HEALTH the loser does
+  drop, to 1, but nobody is healed at the end; and "weapons, bows and spells all count" - a spell counts by its harm alone (its other
   families, a paralysis or a drain, do not land on another player).
 - The zone's membership is each socket's own word, and its receipts are the relay's to sign and the service's to settle.
 
@@ -763,43 +936,80 @@ Mac, asked on a player's private report - in a duel, their own health bar did no
 bar read the save's health, which a duel never touches, and the referee's vitality stood in a line of its own under the
 battles' readout ("Your vitality: n / m"). **"Bar shows duel vitality."**
 
-- **DISPLAY ONLY.** For the length of a duel the HUD's health bar, on both skins, reads the referee's vitality - my own
-  entry of its word, off the duel manager's live duel (duelBar.js:"export function duelVitality") - and the save's
-  again when the duel ends: won, lost, yielded, left, called off, or let go where no word of the referee's comes (a
-  socket gone: the manager's own windows, as the ring and the readout end). The save's health is never written, and
-  the 2026-10-09 decision stands whole: nobody is hurt or healed by a duel. The read is a leaf of the client's own:
-  `net/duel/duelSession.js` is in the relay's bundle (the arena's bout reaches it), where a byte is a relay version,
-  and the HUD is no relay law.
+RETIRED BY SHARED-HEALTH (2026-10-26, below): the duel's count is the player's health now, so the world host hands
+drawHud no referee's pair and the bar reads the health it always read; neither readout prints "Your vitality" any more.
+What stands of DUEL-BAR is its seam, with no caller: the leaf (duelBar.js:"export function duelVitality") and the HUD's
+one pair below.
+
 - **ONE PAIR, BOTH SKINS.** The HUD reads one health (hudVitals.js:"export function hudHealth"): drawHud's
-  `healthBar`, which the world host hands it (world.js:"healthBar: duelVitality"), else the save's. The classic
+  `healthBar` where a host hands one (none does since SHARED-HEALTH), else the save's. The classic
   bars and the large HUD's draw off its snapshot (hud.js:"const health = hudHealth"), the enhanced HUD's off the pair
   drawHud hands on (enhancedHud.js:"const hp = opts.health"); and so does everything drawn off the HUD's health - the
   trails, the near-death tint, the blow's recoil, the lens. The turn each way is no blow and no heal
   (hudVitals.js:"if (_lastFrom !== null && _lastFrom !== from)"): the detector primes afresh, and the enhanced bar's
   held loss and its heal reading start again.
-- **THE OTHER BARS, THE HEALS, THE DEATH.** The referee holds vitality alone - no fatigue, no magicka, and no heal
-  between the two (duelRef.js:"last believed places") - so the fatigue and magicka bars are the save's, and a heal of
-  the save's under a duel (a potion of the player's own) moves no part of the duel's bar and floats no "+N". The death
-  screen reads the save's health as ever: a duel's fall is a loss, never a death, and a foe's blow that kills under a
-  duel ends it (the manager's `dead`).
 - **THE ARENA IS NOT THIS.** A bout between players on the arena's sand (ARENA4) writes its referee's share into the
   save's health and its healers come at the end (arenaBouts.js:"MY HEALTH IS THE"), so its bar already fell; it keeps
-  its own law. The open zone is not this either: its foes hurt the save, and a bar that read the zone's referee would
-  hide them.
-- **THE FOUR HOSTS.** `scenes/world.js` WIRED (one entry in its one drawHud call); `scenes/worldModes.js` and
-  `scenes/dungeonContext.js` NO DUEL on purpose (a duel is outdoors alone, INT8); `scenes/exterior.js` NOT WIRED on
-  purpose (offline, no other player).
+  its own law.
 
-A departure from DFU, whose vitals read PlayerEntity alone (HUDVitals.Update) - DFU has no other player to duel.
-Pinned: `test/ui/fb1019f_duelbar.test.js` (the real relay refereeing the bout into the real duel manager, read by the
-real drawHud on both skins); `tools/mutants/duel_bar.json`.
+Pinned: `test/ui/fb1019f_duelbar.test.js` (the seam read by the real drawHud on both skins, and the host handing it
+nothing); `tools/mutants/duel_bar.json`.
+
+### Decisions (2026-10-26, SHARED-HEALTH)
+
+Travis, on a field report from the open zone - a character of 67 health stood at 302 in a fight that only the other
+player could see, died there with a full health bar, and healed nothing a potion gave: "we should not have separate
+health pools for PvE and PvP - it should be the same health pool, synchronized properly, with scaling for pvp applied on
+top", the scaling a share of the player's own health, for the open zone, duels and sieges alike. And, the same day: no
+heal where these fights had none ("that was intentional because it's too op"), asked whether that blocks the zone's PvE
+healing too - only mid-PvP.
+
+- **ONE POOL, STILL REFEREED.** The referee keeps counting in the Royal Tourney's units (300 + 2 x Renown), and the
+  count is the player's own health as a share of it (refereeHealthShare.js:"export function takeHealthReport"). A blow
+  of 30 on a count of 302 takes a tenth of any player's health, so a fight lasts as long as it did. The client reports
+  its health as a share with the last referee word it applied (the `vit` frame, relay world277); the referee adds back
+  every change the client had not yet seen (its word log), so a lost report, a room changed or a blow in flight costs
+  nothing. Each referee word on a count is told to its player, whose mirror sets its health to the same share
+  (refereeHealthMirror.js:"export function createRefereeHealthMirror"), keeping what its health did since the report
+  the word includes.
+- **A LOSS AT ONCE, NO HEAL MID-PVP.** A report below the count (a foe, a fall, a poison) is taken at once, never
+  below 1; the client's own death is its own word. A report above it is a heal, and a fight between players heals
+  nobody: refused for `PVP_HEAL_BLOCK_MS` (30 s) after a player's blow or harmful spell on the fighter, and for a
+  duel's whole length. The client is pulled back to the count, so a potion
+  drunk then is spent for nothing. A siege takes no heal by report at all; its side-mate heal spells and the wave's rise
+  stand, being the referee's own change. Out of a fight between players a zone heal is taken whole. A count no report has
+  anchored is told to nobody (its whole would heal the client to full); the relay asks for one where it makes a count.
+- **NO FREE REFILL.** The zone's mend (whole again unstruck `WILD_REF.mendMs`) is gone. A count started again - a rise
+  after a fall, a return after `WILD_REF.awayMs` away - waits for the player's report, which can lower it and never lift
+  it; a bar carried from another room keeps its anchor, its no-heal window and the last report it took (`wildCarry`'s
+  `heard`, `pvpAt`, `rep`). A client before world277 never answers the ask, so its count stays unheard and keeps the
+  zone's old mend (wildRef.js:"const mendUnheard") - a struck old client is whole again unstruck 30 s, as before; a
+  count a report has anchored never mends by itself.
+- **PER MODE.** The zone: a fall at none is a death, as before (forcePlayerDeath). A duel: its fall leaves the loser at
+  1, a loss and never a death, and the bout's end heals nobody - the loser leaves hurt. A siege: a fall leaves the
+  player at 1 until its wave, and the rise heals the player's own health whole (siegeRef.js:"the rise heals the player's
+  own health whole"); a relay foe's blow reaches the player's health as a player's does. THE ROYAL TOURNEY IS NOT THIS:
+  its contenders keep the tourney's own count between bouts, and the relay neither asks nor tells them.
+- **WHAT IT COSTS.** The relay cannot see a player's health, so a crafted client that never reports a foe's blow keeps
+  that health against players, and one that claims a heal outside a fight between players is believed - as the zone's
+  old mend made a fighter whole after the same 30 s. It gains nothing a player could take from it (each blow still lands on the count), and
+  the health it keeps it could already keep on its own machine. A count starts at the client's own share, never above
+  its whole - no higher than the refereed bar started before.
+- **THE READOUTS.** The battles' readout shows the foe's count alone; my own is my health bar. DUEL-BAR above is retired.
+- **A KNOWN LIMIT.** A player struck in the zone while a duel of its own stands holds two counts, each told on its own;
+  a blow on one is not a report into the other.
+
+A departure from DFU only in that DFU has no other player; its health is PlayerEntity's alone, which is what the bar
+reads again. Pinned: `test/net/siege/sharedhealth_law.test.js` (the law and the mirror through the races),
+`test/net/int9_wild_ref.test.js`, `test/ui/fb1019f_duelbar.test.js` and `test/net/siege/pvpref_relay.test.js` (each mode
+on the real relay); `tools/mutants/shared_health.json`.
 
 ### What lane 2 leaves open
 
 - A client may OPT OUT of the zone's fights (never say `zone`): it fights nobody and drops nothing to a player. It cannot
   opt into another's fight, and an honest player outside the zone is nobody's target.
-- A death to a foe is the client's own word (the world is simulated on the player's machine): a client that never dies
-  to a foe drops nothing to one.
+- A death to a foe is the client's own word (the world is simulated on the player's machine) - and since FOE-KEEPS
+  (2026-10-24) it drops nothing for anyone: only a fall the relay signs takes a drop.
 - A fall the relay signed whose fallen's tab and killer both never carry its receipt within its hour drops nothing.
 - A room's referee is its memory: a relay object that restarts mid-fight forgets the fight (a fall already signed, or
   waiting on its pick, is kept); the hub keeps the bars a fighter carries in its memory too, and one that restarts sends
@@ -814,9 +1024,9 @@ real drawHud on both skins); `tools/mutants/duel_bar.json`.
 - A crafted piece the fallen takes back from its own remains is written down as its copy: it wears it, and never trades
   it (the craft's key cannot be minted afresh as an id is).
 - A pick at a piece the fallen no longer wears (it changed between the offer and the receipt) takes none.
-- Where a parked wagon stands (CART-AWAY) is the fallen's word, held to its record's mode alone: the wagon's record is
-  the player's own, so a client that writes its wagon parked off the zone keeps a cart it drove in, and rises with that
-  record. A seizure, its carrier holding neither the record nor the mask, takes the cart wherever it stood.
+- CART-AWAY's limit (the fallen's word on where its wagon stood) retired with STORE-KEEPS: no death takes the cart.
+- A policy (WILD-INSURE) is the service's and never the record's, so no client can write one it did not pay for; one in
+  force only past `WILD_INSURE_SETTLE_S`, against the relay's own signing, so none is written on the death screen.
 - A relay before world185 knows no `wref`, no `zone` and no `dref`: a client meets it fighting nobody and duelling
   nobody. A client from before world185 still open in a tab sends the zone's retired words (WILD1's `result` and
   `gave`) and the duel's own resolve, which the new relay refuses - it is closed for them until it reloads. The deploy
@@ -1057,6 +1267,12 @@ RENOWN_XP_HOUR_MAX), a raid's six cleanses a game day of two real hours (three a
 camps, a Watch tick each two minutes stood (thirty an hour, sixty held), twenty finds, thirty harvest silvers; and a guess
 for the professions (10,000 XP an hour, 20,000 held), which no route bounded by the hour.
 
+AUDIT PASS 3 (2026-10-29, `06-Systems/Battle-Pass.md` section 8): the Battle Pass's find (`/v1/pass/find`) is a claim of
+the account's seat too, on a ninth stream, `pass`: an ask answered spends one, and the first line is the day's 2,000 asks
+an hour. The Witches' Festival's find (`/v1/festival/find`) is the tenth, `festival`, its day's 1,500 asks an hour, the
+same way. A line staff wrote before a stream was added reads that stream's first line (`progress.js` progressConfig),
+where the whole line had been refused for the stream it lacked; a line staff write still names every stream.
+
 MEASURE FIRST (the owner, asked: "Measure first" - as the wealth budget and the boss fights' count were): while the line
 only measures, nothing is refused, the clock caps stand as they stood, and the bucket keeps no debt - so the day staff
 enforce it nobody starts in a measured week's hole. Staff read `node tools/realmReview.mjs progress 7` (each stream's
@@ -1211,6 +1427,14 @@ six records on the lines this slice touched run again, all dead.
 
 ## Progress
 
+- **RPT1026-LEDGERLAW (2026-10-26, the private report inbox): lane 1's law, two of its holes closed.** Section 4,
+  RPT1026-LEDGERLAW. A crafted piece's contested claim is settled for the account the service last handed it to
+  (`products.handed_to`, written by `ledgerMoves` where the account the record names hands it on, cleared by a sale), so a traded piece written back into its maker's
+  save is the maker's copy; and staff's clear excuses the law's finding with the character law's values beside its
+  signature (`realm_characters.law_v`), ended by a clean checkpoint, so a cleared purse excuses no other. AUDIT RPT1026
+  (lane C, 2026-10-27): the hand-over from the record's own account alone (C1), a piece's excuse kept through a clean
+  checkpoint (C2), a cut state excused never (C5). Migration 0178 (0176 on its branch, renumbered past main's 0176 and 0177 at the merge).
+  `test/server/rpt1026_ledgerlaw.test.js`; `tools/mutants/rpt1026_ledgerlaw.json`.
 - **INT19 (2026-10-17, the owner: "Take care of the integrity arc"; on #987 with lane 4): lane 1's open item closed - a
   crafted piece handed on leaves its seller's realm record.** Section 4, INT19. A listing, an auction and a commission's
   fill ask the record first and take the piece out of it by provenance in their own batch (`server-account/src/

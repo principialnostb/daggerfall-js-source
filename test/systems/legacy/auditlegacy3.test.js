@@ -20,7 +20,7 @@ import { renownHeldSql } from '../../../server-account/src/renownTracks.js';
 import { RENOWN_TRACKS_MAX } from '../../../src/net/renown.js';
 import { GUILD_FOUND_RENOWN, GUILD_RANK_MASTER } from '../../../src/net/guild/guildLaw.js';
 import {
-  mintToken, verifyToken, claimsValid, REALM_CHARACTER_RE, TOKEN_MAX_CHARS, TOKEN_BODY_MAX, tokenBodyOf, GLYPHS, SEAT_TITLES, AURAS, ICONS,
+  mintToken, verifyToken, claimsValid, REALM_CHARACTER_RE, TOKEN_MAX_CHARS, TOKEN_BODY_MAX, TOKEN_VILLAINY_MAX, tokenBodyOf, GLYPHS, SEAT_TITLES, AURAS, ICONS,
   RENOWN_MAX, ARENA_RATING_MAX, CHARACTER_LEVEL_MAX, TOKEN_ARMS_TOP_MAX,
 } from '../../../src/net/identityToken.js';
 import { HOUSE_NAME_MAX, HOUSE_GIVEN_MAX, HOUSE_GEN_MAX } from '../../../src/net/houseLaw.js';
@@ -177,12 +177,26 @@ test('AUDIT LEGACY III O11: THE TOKEN\'S BODY BOUND IS ONE - the relay\'s hello 
   const every = {
     s: 'a'.repeat(40), n: 'W'.repeat(NAME_MAX), k: 'linked', t: seatT, ts: [0xffffffff, 9999], g: [...GLYPHS], au: aura, pi: icon, mu: nowS + 10 ** 9, lv: RENOWN_MAX,
     gi: `g${'z'.repeat(10)}`, gt: 'WWWW', gm: `m${'9'.repeat(15)}`, rc: 1, rb: [15, 14], ar: ARENA_RATING_MAX, cl: CHARACTER_LEVEL_MAX,
+    ak: 'aaaaa',   // ARMORY: and a kit in every slot
+    fx: 'ddd',   // STOREFRONT: and an effect in every slot
   };
   const house = { hn: 'H'.repeat(HOUSE_NAME_MAX), hc: 'G'.repeat(HOUSE_GIVEN_MAX), hb: 1, hg: HOUSE_GEN_MAX };
   // INT7: and the arms (`wa`, at their widest) - every claim the realm signs, the house still inside the hello's bound
-  const widest = await mintToken({ ...every, ...house, ci: `r${'f'.repeat(20)}`, wa: [TOKEN_ARMS_TOP_MAX, 1] }, kp.privateKey, { subtle, nowS });
+  // PIN MOVED (AUDIT RELEASE R3-8, bible/01-Overview/audits/Audit-Release-R3.md): WW7-3's seven province crowns joined the
+  // glyphs, so every claim at once - every glyph, a crown of each province's too - beside a house at its bounds is 948,
+  // past the hello's 864: the mint then leaves the house unsaid (the rule this test reads below), and the token it makes
+  // is the one checked here. Without the province crowns the house still fits beside every other claim (855).
+  // PIN MOVED (STOREFRONT): the glyphs are signed as their mask (`gb`), and every claim, the effects kit and a house at
+  // its bounds, with the villain meter, is 651 - the house said again. As words they are 1,078, which this bound refuses.
+  const crowns = /^crown(SK|MW|SU|VW|EW|BM|CY)$/;
+  const arms = { ci: `r${'f'.repeat(20)}`, wa: [TOKEN_ARMS_TOP_MAX, 1], vl: TOKEN_VILLAINY_MAX };   // PVP-VILLAIN-KEEP: and the villain meter at its top
+  const asWords = Buffer.from(JSON.stringify({ ...every, ...house, ...arms })).toString('base64url').length;
+  assert.ok(asWords > TOKEN_BODY_MAX, `every glyph's word and a house: past the hello (${asWords}) - the mask is what makes the room`);
+  const bay = tokenBodyOf(await mintToken({ ...every, g: GLYPHS.filter((g) => !crowns.test(g)), ...house, ...arms }, kp.privateKey, { subtle, nowS })).length;
+  assert.ok(bay <= TOKEN_BODY_MAX, `the house beside every claim but the province crowns (${bay} of ${TOKEN_BODY_MAX})`);
+  const widest = await mintToken({ ...every, ...house, ...arms }, kp.privateKey, { subtle, nowS });   // what the mint makes of every claim and a house - the house kept (PIN MOVED, STOREFRONT)
   const body = tokenBodyOf(widest).length;
-  assert.ok(body > 640, `past the old bound (${body})`);
+  assert.ok(asWords > 640, `as words, past the old bound (${asWords})`);
   assert.ok(body <= TOKEN_BODY_MAX, `every claim, a house at its bounds and the character inside the hello (${body} of ${TOKEN_BODY_MAX})`);
   assert.ok(widest.length <= TOKEN_MAX_CHARS);
   assert.equal(parseClient(JSON.stringify({ t: 'hello', id: 'mac-0001', secret: 'shh-shh-shh-0001', name: 'Mac', look: { race: 'Nord', gender: 'male', faceIndex: 2, items: [] }, tok: widest })).tok, widest, 'the wire takes it');
@@ -1776,27 +1790,34 @@ function liftWorld(from, to) {
 test('AUDIT LEGACY III W1: THE LIVING WORLD\'S INDICES READ THE GAME\'S ROWS, AND AN ONLINE HOME IS NAMED - the boot emptied the rows before either index was built, so every town and dungeon index was empty (LW3\'s roads, LW6\'s deep) and every home of the line reached it with no town name: the rows go once BOTH indices stand, and a home is named off the boot\'s own complete table', async () => {
   const src = hostText('src/scenes/world.js');
   assert.equal((src.match(/_hubRows\.length = 0/g) ?? []).length, 1, 'emptied in one place');
-  assert.match(src, /const releaseHubRows = \(\) => \{ if \(_livingTowns && _livingDungeons\) _hubRows\.length = 0; \};/);
-  const body = liftWorld(/^  let _livingTowns = null;$/, /^    return _livingDungeons;$/) + '\n  };';
-  const make = new Function('_hubRows', 'populatesWanderingNpcs', 'longitudeLatitudeToMapPixel', 'getWorldClimateSettings', 'maps', 'hasPort', 'LOCATION_TYPES',
-    `${body}\nreturn { towns: livingTownsIndex, dungeons: livingDungeonsIndex };`);
-  const row = (name, mapId, locationType, x) => ({ name, regionIndex: 17, mapTableData: { mapId, locationType, longitude: x, latitude: 1 }, exterior: { exteriorData: { width: 2, height: 2 } } });
+  // PIN MOVED (WW1, bible/03-World/World-Wide.md): the indices read the world's registry (scenes/livingWorld/livingIndex.js),
+  // which takes the rows at the boot - so the rows go there, AFTER the registry has them, and both indices are built from
+  // it whenever they are first asked, in either order. The boot's own lines, lifted and run over the real modules.
+  const boot = liftWorld(/^  const worldPlaces = gamePlaces\(createWorldPlaces\(\)\);$/, /^  _hubRows\.length = 0;$/);   // PIN MOVED (AUDIT RELEASE R2-7): the registry handed to the Staff Panel's picker as it is made (net/staffPlaces.js gamePlaces)
+  const { createWorldPlaces } = await import('../../../src/world/worldWide/worldPlaces.js');
+  const { bayPlaceRows, BAY_SOURCE } = await import('../../../src/world/worldWide/bayPlaces.js');
+  const { createLivingIndex } = await import('../../../src/scenes/livingWorld/livingIndex.js');
+  const make = new Function('_hubRows', 'createWorldPlaces', 'gamePlaces', 'bayPlaceRows', 'BAY_SOURCE', 'hasPort', `${boot}\nreturn worldPlaces;`);
+  // MapsFile's longitude and latitude for a pixel (LongitudeLatitudeToMapPixel's inverse - 128 units a pixel, latitude counted from the south)
+  const row = (name, mapId, locationType, x) => ({ name, regionIndex: 17, mapTableData: { mapId, locationType, longitude: x * 128, latitude: (499 - 1) * 128 }, exterior: { exteriorData: { width: 2, height: 2 } } });
   for (const order of [['towns', 'dungeons'], ['dungeons', 'towns']]) {
     const rows = [row('Gothway Garden', 5001, LOCATION_TYPES.TownCity, 1), row('Castle Necromoghan', 6001, LOCATION_TYPES.DungeonLabyrinth, 2)];
-    const idx = make(rows, (t) => t === LOCATION_TYPES.TownCity, (lon, lat) => ({ x: lon, y: lat }), () => ({ people: 1 }), { getClimateIndex: () => 0 }, () => false, LOCATION_TYPES);
+    const places = make(rows, createWorldPlaces, (p) => p, bayPlaceRows, BAY_SOURCE, () => false);
+    assert.equal(rows.length, 0, 'let go at the boot, once the registry has them');
+    const idx = createLivingIndex({ places, populated: (t) => t === LOCATION_TYPES.TownCity, peopleAt: () => 1 });
     assert.equal(idx[order[0]]().size, 1, `${order[0]} first: built from the rows`);
-    assert.equal(rows.length, 2, 'kept for the other');
     assert.equal(idx[order[1]]().size, 1, `${order[1]} second: built from the rows too`);
-    assert.equal(rows.length, 0, 'let go once both stand');
   }
-  // a home of mine, as the line is handed it
+  // a home of the account, as the line is handed it - ACCOUNT-HOMES (2026-10-06, PIN MOVED: "mine alone", this realm
+  // character's rows, before): a home is its account's, every member's, so every row of the account's list is the line's
   const read = liftWorld(/^  let _legacyOnlineHomes = null;$/, /^  }$/);
   const mk = new Function('homesApi', 'realmSession', '_townOfMapId', `${read}\nreturn { read: legacyOnlineHomesRead, get homes() { return _legacyOnlineHomes; } };`);
-  const w = mk({ mine: async () => ({ ok: true, data: { homes: [{ mapId: 5001, buildingKey: 66051, region: 17, character: 'r-me' }, { mapId: 5002, buildingKey: 7, region: 17, character: 'r-other' }] } }) },
-    { id: 'r-me' }, new Map([[5001, { name: 'Gothway Garden' }]]));
+  const w = mk({ mine: async () => ({ ok: true, data: { homes: [{ mapId: 5001, buildingKey: 66051, region: 17, character: 'r-me' }, { mapId: 5002, buildingKey: 7, region: 17, character: 'r-other' }, null] } }) },
+    { id: 'r-me' }, new Map([[5001, { name: 'Gothway Garden' }], [5002, { name: 'Ripmarket' }]]));
   w.read();
   await new Promise((r) => { setImmediate(r); });
-  assert.deepEqual(w.homes, [{ regionIndex: 17, mapId: 5001, buildingKey: 66051, location: 'Gothway Garden' }], 'named, and mine alone');
+  assert.deepEqual(w.homes, [{ regionIndex: 17, mapId: 5001, buildingKey: 66051, location: 'Gothway Garden' }, { regionIndex: 17, mapId: 5002, buildingKey: 7, location: 'Ripmarket' }],
+    'named, and the account\'s - the other character\'s home the line\'s too, a row that is no home none');
 });
 
 test('AUDIT LEGACY III W5: THE ONLINE HOMES READ - THE LAST ASKED WINS, and a home the arena moved is read again: two reads after two writes could land in either order, and the older answer (a home since sold) was handed to the next save', async () => {
@@ -1840,6 +1861,6 @@ test('AUDIT LEGACY III U1/U2 (the pause window, by source - driven in Chromium):
   assert.match(src, /host\.addEventListener\?\.\('keydown', \(e\) => \{\n(?:    \/\/[^\n]*\n)*    if \(e\.repeat && \(e\.key === 'Enter' \|\| e\.key === ' '\) && !isTextEntryTarget\(e\.target\)\) \{ e\.preventDefault\(\); e\.stopPropagation\(\); \}\n  \}, true\);/, 'U1');
   assert.match(src, /document\.addEventListener\?\.\('keydown', tabIn, true\);/, 'U2: the Tab from outside');
   assert.match(src, /const close = \(\) => \{\n    if \(fired\) return;\n    rvnStars\.drop\(\);[^\n]*\n    document\.removeEventListener\?\.\('keydown', tabIn, true\);/, 'U2: gone with the window');   // PIN MOVED (GROWTH3): the Ascension and the Firmament are drawn in the window now - only a sworn revenant's stars (RVN-STARS) stand over it
-  assert.match(src, /view = mountEnhancedMenu\(host, \{ mode: 'pause', hooks, onAction: act, at: hooks\.at \?\? null \}\);\n      focusIn\(\);   \/\/ AUDIT LEGACY III U2/, 'U2: the focus taken as it mounts');
+  assert.match(src, /view = mountEnhancedMenu\(host, \{ mode: 'pause', hooks, onAction: act, at: hooks\.at \?\? null, owner: overlay \}\);   \/\/ COVERED-KEYS: the window its keys are gated on\n      focusIn\(\);   \/\/ AUDIT LEGACY III U2/, 'U2: the focus taken as it mounts');
   assert.match(src, /const to = host\.querySelector\?\.\('\.px-tabs button\.on'\) \?\? host\.querySelector\?\.\('button:not\(\[disabled\]\)'\);/);
 });

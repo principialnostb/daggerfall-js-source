@@ -56,9 +56,13 @@ import { syncHouses, householdOf, residentOf, familyResOf, kinGreeting, setFamil
 import { goldStack } from '../systems/inventory.js';
 import {
   topicsFor, topicLabel, topicQuestion, court, propose, betrothalOf, wed, childStep, childLine, spouseOf, childrenTogether,
-  splitName, dayOf as courtDayOf, MARRIAGE_TEXT, TOPIC, wedPlayer, unionSpouse, playerSpouseLost, residentInHouse, forgetCourtship,
+  splitName, dayOf as courtDayOf, MARRIAGE_TEXT, TOPIC, wedPlayer, unionSpouse, playerSpouseLost, residentInHouse, forgetCourtship, warmCourtship, deedDoneOn,
 } from '../systems/legacy/marriage.js';
+import { deedsFor, deedLabel, deedQuestion, deedRefusal, deedRegard, deedAffection, deedTally, DEED_TEXT, GIFT_GOLD } from '../systems/legacy/courtDeeds.js';   // COURT-DEEDS
+import { unionKinHeard, kinBornLine } from '../systems/legacy/unionKin.js';   // UNION-CHILDREN: the other house's children of a union
+import { deductGold, totalGoldAmount } from '../systems/court.js';   // COURT-DEEDS: a gift's gold, coin then letters
 import { memberStanding, inheritStanding, inheritRegards, noteNews, newsFor as houseNewsFor, hearNews } from '../systems/legacy/influence.js';
+import { HOUSES_PER_REGION } from '../systems/banking.js';   // HOUSES-3: the bank's three a region, said where an heir's house waits
 
 /** The reflexes a born member starts with - the wizard's own default (ui/chargenArt.js PLAYER_REFLEXES.Average). */
 export const BORN_REFLEXES = 2;
@@ -87,9 +91,10 @@ export const LEGACY_TEXT = Object.freeze({
   notSaved: 'Your game could not be saved here right now.',
   estate: (n) => `The estate left you a letter of credit for ${n} gold.`,
   bequest: (item) => `Your elder's bequest is yours: ${item}.`,
-  // PERMADEATH-HOUSES: a house of the line's dead, taken up by whoever carries the line - or waiting on a bank's one deed a region
+  // PERMADEATH-HOUSES: a house of the line's dead, taken up by whoever carries the line - or waiting on a bank's three deeds
+  // a region (HOUSES-3, systems/banking.js HOUSES_PER_REGION)
   deed: (loc, given) => `${given}'s house${loc ? ` in ${loc}` : ''} passes to you. Its deed is yours now.`,
-  deedWaits: (loc, given) => `${given}'s house${loc ? ` in ${loc}` : ''} is waiting for you, but you already own a house in that region and the bank allows one per region. Sell yours there to take it.`,
+  deedWaits: (loc, given) => `${given}'s house${loc ? ` in ${loc}` : ''} is waiting for you, but you already own ${HOUSES_PER_REGION} houses in that region, as many as the bank allows. Sell one there to take it.`,
   remainsName: (name) => `The remains of ${name}`,   // FB1013d: their own name - the map's ring and the body's plaque, one home
   remainsFound: (name) => `You have found the remains of ${name}.`,
   remainsTaken: (name) => `You carry the remains of ${name}. Lay them to rest at a temple, or at the family's seat.`,
@@ -186,7 +191,7 @@ export function mergeFamily(stored, saved, cid) {
  *   nearestTown:(here:any) => ({region:string, loc:string}|null), gold:() => number, say:(line:string) => void,
  *   boot:(search:string) => void, search:() => string, loadCharacter:(characterId:string) => boolean,
  *   saveNow:() => boolean, inFight:() => boolean, payEstate?:(gold:number) => void, rng?:() => number,
- *   heldHouses?:() => any[], houseHere?:() => ({mapId:number, buildingKey:number}|null),
+ *   heldHouses?:() => any[], heldHousesWhole?:() => boolean, houseHere?:() => ({mapId:number, buildingKey:number}|null),
  *   inheritHouse?:(row:any, fallen:any) => ('given'|'waits'|'gone'|'asking'|null),
  *   hasSave?:(characterId:string) => boolean, livingWorld?:() => boolean,
  *   templeOf?:() => (number|null), askWed?:(name:string, house:string, done:(takeName:boolean) => void) => boolean,
@@ -298,11 +303,12 @@ export function createLegacyHost(deps) {
   }
   /** The played member's held houses into the line's - offline their deeds, online their online homes (the world hands
    *  which). Null held is not known yet (online: the realm's homes not read): nothing learned, nothing dropped. Answers
-   *  whether they changed. */
+   *  whether they changed. ACCOUNT-HOMES: online the held are the account's homes, the line's WHOLE (`heldHousesWhole`)
+   *  - a row another member learned goes once the account no longer holds it. */
   function syncHousesNow(p) {
     const held = deps.heldHouses?.() ?? null;
     if (held == null) return false;
-    return syncHouses(family, p.id, held, p.deedsTaken ?? []);   // PERMADEATH-HOUSES: the dead's deeds their save took up
+    return syncHouses(family, p.id, held, p.deedsTaken ?? [], { whole: deps.heldHousesWhole?.() === true });   // PERMADEATH-HOUSES: the dead's deeds their save took up; ACCOUNT-HOMES: online, the account's homes whole
   }
   /** AUDIT LEGACY II A1: whether the character in the world IS the one the record plays - after a choice hands the line
    *  to another (the Succession, a switch) the page runs on under the old character until the boot lands, and the slow
@@ -1222,10 +1228,44 @@ export function createLegacyHost(deps) {
   function topicRows(res, ctx) {
     const me = current();
     if (!family || past || !me || !deps.on() || !playedHere(me) || !res?.id) return [];
-    return topicsFor(family, me, res, ctx.regard | 0).map((t) => ({
+    return [...topicsFor(family, me, res, ctx.regard | 0).map((t) => ({
+      topic: t,   // FIELD BUGS 2026-10-21d REGARD-OWN: which row it is - townTalk says where a new friend's Courtship is
       label: topicLabel(t),
       legacy: { question: (tone) => topicQuestion(t, tone), answer: (tone, taste) => answerTopic(t, res, taste, ctx) },
-    }));
+    })),
+    // COURT-DEEDS (systems/legacy/courtDeeds.js): a compliment, a gift, a hug, a kiss - after the courtship's own rows
+    ...(deps.regards?.() ? deedsFor(family, me, res) : []).map((k) => ({
+      topic: `deed:${k}`, label: deedLabel(k),
+      // AUDIT FB1026d B3: a deed hears the talk's tone itself (townTalk.js `hearsTone`), so its tally says what the whole answer moved
+      legacy: { hearsTone: true, question: (tone) => deedQuestion(k, tone), answer: (_tone, taste, heard) => answerDeed(k, res, taste, heard) },
+    }))];
+  }
+  /** COURT-DEEDS: a deed done - refused (and what it waits on), once a day, a gift's gold taken; the regard noted on the
+   *  Living World's relations, a courtship's affection warmed, and what it moved said after the answer. `heard` the
+   *  talk's tone, heard once the deed lands (AUDIT FB1026d B3: the tally counts it; II B2: a refusal costs nothing). */
+  function answerDeed(kind, res, taste, heard = null) {
+    const me = current(), rel = deps.regards?.();
+    const day = rel?.today?.() ?? deps.regardDay?.() ?? 0;
+    if (!me || !rel) return '';
+    const was = rel.regard(res.id, day);
+    const first = splitName(res.name)[0];
+    const spouse = spouseOf(family, me)?.residentId === res.id;
+    const courtship = spouse ? null : me.courting?.[res.id] ?? null;
+    const why = deedRefusal(kind, { regard: was, courtship, spouse });   // AUDIT FB1026d B2: the regard as it stands, never the page's
+    if (why) return why === 'friend' ? DEED_TEXT.notFriend(first) : DEED_TEXT.notCourting(first);
+    if (rel.deedDay?.(res.id, kind) === day) return DEED_TEXT.again(first);   // once a day, on the save's own stamp
+    if (kind === 'gift' && !(totalGoldAmount(deps.entity) >= GIFT_GOLD)) return DEED_TEXT.poor(first);
+    heard?.();   // AUDIT FB1026d II B2: the tone, heard as the deed lands - a refused one costs nothing
+    if (kind === 'gift') deductGold(deps.entity, GIFT_GOLD);
+    const after = rel.note(res.id, kind, day, deedRegard(kind, taste));
+    // AUDIT FB1026d B1, II B1: the courtship's own stamp gates its warm alone - a load hands the regard's day back, never
+    // the affection's: a save loaded on a deed's day, or from before later deeds, gives the regard as the save stands
+    // and warms nothing until the courtship's day for it is past (it refused the whole deed for every day rewound)
+    const warmable = courtship && !courtship.betrothed && !deedDoneOn(courtship, kind, day);
+    const warm = warmable ? warmCourtship(me, res.id, deedAffection(kind, taste), { deed: kind, day }) : null;
+    if (warm?.warmed) { touch(family); store(); }   // AUDIT FB1026d B6: a warm of nothing writes nothing
+    const line = kind === 'compliment' && taste < 0 ? DEED_TEXT.flat(first) : DEED_TEXT[/** @type {'compliment'|'gift'|'embrace'|'kiss'} */ (kind)](first);
+    return `${line} ${deedTally({ regard: after, gained: after - was, affection: warm ? warm.affection : null, warmed: warm?.warmed ?? 0 })}`;
   }
   function answerTopic(t, res, taste, ctx) {
     const me = current();
@@ -1337,7 +1377,7 @@ export function createLegacyHost(deps) {
   /** THE ACCOUNT'S UNIONS as the realm says them (a boot's read - realmSaves.js realmUnions): each union of this house's
    *  members recorded, and each the OTHER's death or delete ended (`endedBy` 'partner') ended in the record - the member
    *  may wed again. A union ended by this house's own member's death needs nothing: that death is this record's own.
-   *  Answers how many changed. */
+   *  UNION-CHILDREN: and the children the other's house raises, as it reads them (unionKin.js). Answers how many changed. */
   function unionsHeard(unions) {
     if (!family || !deps.on() || past || !Array.isArray(unions)) return 0;
     let n = 0;
@@ -1345,6 +1385,9 @@ export function createLegacyHost(deps) {
       if (!u || typeof u.sid !== 'string') continue;
       let s = unionSpouse(family, u.sid);
       if (!s && (s = wedPlayerHeard(u, { quiet: u.endedAt != null }))) n++;
+      const kin = s ? unionKinHeard(family, s, u.children) : null;   // UNION-CHILDREN: the children their house raises
+      if (kin?.added.length || kin?.changed) n++;
+      if (s?.spouse === family.currentId) for (const k of kin?.added ?? []) if (!k.died && k.minor) deps.say(kinBornLine(k, s));   // AUDIT FB1029 E-M2: a child heard grown was not just born
       if (!s || u.endedAt == null || u.endedBy !== 'partner' || !playerSpouseLost(family, s, deps.now(), u.endedWhy)) continue;
       n++;
       if (s.spouse === family.currentId) deps.say((u.endedWhy === 'gone' ? MARRIAGE_TEXT.gone : MARRIAGE_TEXT.lost)(fullNameOf(s.given, s.surname)));
@@ -1445,7 +1488,7 @@ export function createLegacyHost(deps) {
       const k = `${family.id}:${s.id}`;
       const was = residentOfKept.get(k);
       if (was?.sig === sig) { out.push({ res: was.res, sig }); continue; }
-      const res = { ...census, name: fullNameOf(s.given, s.surname), home, household: `F${family.id}`, legacy: { familyId: family.id, personId: s.id } };
+      const res = { ...census, race: s.race || census.race, name: fullNameOf(s.given, s.surname), home, household: `F${family.id}`, legacy: { familyId: family.id, personId: s.id } };   // AUDIT PROVINCE-FOLK A4: the line's race, as its record and its children have it
       residentOfKept.set(k, { sig, res });
       out.push({ res, sig });
     }

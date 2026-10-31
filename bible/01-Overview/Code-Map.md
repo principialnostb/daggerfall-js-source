@@ -92,7 +92,7 @@ wiring in `src/scenes/`. A feature with one or two modules in a layer keeps them
 | Deep Waters | `systems/deepWater/`, `world/deepWater/`, `scenes/deepWater/` |
 | Diverse Weapons | `combat/diverseWeapons/` |
 | Duels | `net/duel/` |
-| Dungeons | `systems/dungeon/`, `world/dungeon/` |
+| Dungeons | `systems/dungeon/`, `world/dungeon/`, `net/delve/`, `scenes/delve/`, `systems/delve/` (DELVE II's encounters) |
 | Dynamic Skies | `systems/dynamicSkies/` |
 | Elite Gates (the Elite Breach) | `systems/eliteGates/`, `net/eliteGates/`, `world/eliteGates/`, `render/eliteGates/`, `scenes/eliteGates/`, `ui/eliteGates/` |
 | Enemies | `characters/enemy/` |
@@ -107,8 +107,10 @@ wiring in `src/scenes/`. A feature with one or two modules in a layer keeps them
 | Grammar (translations) | `systems/grammar/` |
 | Guilds | `systems/guild/`, `net/guild/` |
 | Guns | `combat/gun/` |
+| Herald (the world events on Discord) | `net/herald/` - and each event's own: `net/gate/gateHerald.js`, `net/serpent/serpentHerald.js`, `net/superDungeon/sdHerald.js`, `net/eliteGates/egHerald.js` |
 | Home decorating | `systems/decor/`, `scenes/decor/` |
 | Horses | `systems/horse/` |
+| Hunt (HUNTERS-MARK: the trophies, what a character gathered) | `systems/hunt/`, and `net/huntLaw.js`, `net/huntBook.js`, `scenes/huntersMark.js` |
 | HUD (classic) | `ui/hud/` |
 | Iliac Hand | `systems/iliac/`, `net/iliac/` |
 | Ink maps | `ui/ink/` |
@@ -118,6 +120,7 @@ wiring in `src/scenes/`. A feature with one or two modules in a layer keeps them
 | King's Gambit | `systems/gambit/`, `net/gambit/` |
 | Level up | `ui/levelUp/` |
 | Living world | `systems/livingWorld/`, `scenes/livingWorld/` |
+| Lockpicking (the Lockpick and the tumblers) | `systems/lockpick/`, `scenes/lockpickHost.js`, `ui/lockpickDoor.js`, `ui/lockpickWindow.js` |
 | Loot | `systems/loot/` |
 | Map | `systems/map/`, `ui/map/` |
 | Menu | `ui/menu/` |
@@ -155,6 +158,7 @@ wiring in `src/scenes/`. A feature with one or two modules in a layer keeps them
 | Sieges | `net/siege/` |
 | Sigil Sets | `systems/sigil/` |
 | Starfall (the Witches' Festival's fallen stars) | `systems/starfall/`, `net/starfall/`, `world/starfall/`, `render/starfall/`, `scenes/starfall/`, `ui/starfall/` |
+| Soundscape (the sea's, the shore's, the wild's and the town's air; the sea's songs) | `systems/soundscape/`, `scenes/soundscapeHost.js` |
 | Spells | `systems/spell/`, `ui/spell/` |
 | Studio art (the artists' folder) | `systems/studioArt/` |
 | Survival | `systems/survival/` |
@@ -207,7 +211,7 @@ wiring in `src/scenes/`. A feature with one or two modules in a layer keeps them
 | `src/combat/diverseWeapons/` | The Diverse Weapons mod. |
 | `src/combat/gun/` | Guns. |
 | `src/combat/technique/` | Combat techniques. |
-| `src/combat/twoHands/` | Two hands (`05-Combat/Two-Hands.md`): the hands' law, the mirrored rig, both hands seen and animated. |
+| `src/combat/twoHands/` | Two hands (`05-Combat/Two-Hands.md`): the hands' law, the mirrored rig, both hands seen and animated; a blade and a Pistolet as a pair (`mixedArm.js`, the Morrowind arm's) and the spell hand beside a weapon (`spellHand.js`, `spellHandArm.js`). |
 | `src/combat/weapon/` | The first-person weapon: rig, alignment, the widget. |
 
 #### `src/formats/`
@@ -226,17 +230,23 @@ wiring in `src/scenes/`. A feature with one or two modules in a layer keeps them
 | `src/net/arena/` | The Arena: bouts, the ladder, the league (`11-Multiplayer/Arena.md`) - online - the law both ends run. |
 | `src/net/card/` | The tavern's card table: Hold'em and the regulars (`11-Multiplayer/Tavern-Cards.md`) - online - the law both ends run. |
 | `src/net/duel/` | Duels between players - online - the law both ends run. |
+| `src/net/delve/` | DELVE II, the dungeons' encounters (`03-World/Delve-II.md`) - offline and online - the law the game and the relay run: the kinds, the ledger's machine, the plan's hash. |
 | `src/net/eliteGates/` | The Elite Breach, the Battlespire's torn halls (`11-Multiplayer/Elite-Gates.md`, `Elite-Gates-Look.md`, `Elite-Gates-Ascent.md`) - online - the law both ends run: the director and the halls' law, the spans and the fragments, the legion, the lords and the run, the route and its proofs, the pay and the receipts. |
 | `src/net/firmament/` | The Firmament (`06-Systems/Firmament.md`) - online - the law both ends run. |
 | `src/net/gambit/` | The King's Gambit (`11-Multiplayer/Kings-Gambit.md`) - online - the law both ends run. |
 | `src/net/gate/` | The Oblivion Gate, the world boss on the shared clock (`11-Multiplayer/World-Bosses.md`) - online - the law both ends run. |
 | `src/net/guild/` | The guilds online: the guild book, the guild law and powers, the vault's law - the law both ends run. |
+| `src/net/herald/` | The world events' Discord herald's one card (`11-Multiplayer/World-Bosses.md`, HERALD-CARDS): the families, the card and its bounds, the door and its threads, the safe words - the relay's, which every herald builds its posts on. |
 | `src/net/iliac/` | Iliac Hand, the tavern's other card game - online - the law both ends run. |
+| `src/net/ketch/` | The Sky-Ketch, the weekly Dwarven airship raid (`11-Multiplayer/Sky-Ketch.md`, `Sky-Ketch-Look.md`) - online - the law both ends run: the voyage on the clock and the ship's door, the deck plan, the director, the constructs, the Tonal Warden, the judge, the `k1` receipt; the page's link fold and claims, the herald's cards. |
 | `src/net/peer/` | Other players: their bodies, riders, effects and pace - online - the law both ends run. |
 | `src/net/raid/` | Town raids - online - the law both ends run. |
+| `src/net/staffEvent/` | Staff events - online - the law the account service, the relay and the game run (`11-Multiplayer/Staff-Events.md`). |
 | `src/net/realm/` | The realm's gold, trade and save codec - online - the law both ends run. |
 | `src/net/safety/` | The chat's safety: the relay's stamp on a line, its feed to the reviewer, a report's law and the code of conduct (`11-Multiplayer/Chat-Safety-Arc.md`) - online - the law both ends run. |
+| `src/net/sea/` | The Eltheric Ocean's ventures (`03-World/Eltheric-Ocean.md` SEA-BOUNTY, SEA-SEASON, SHIP-PVP): the bounty board's and the season boards' law, a wreck's prize, the open sea's guns refereed - online - the law both ends run. |
 | `src/net/serpent/` | The sea serpent, the sea's world boss (`11-Multiplayer/Sea-Serpent.md`) - online - the law both ends run. |
+| `src/net/dragon/` | The Dwarven Dragon, the sky's world boss (`11-Multiplayer/Dwarven-Dragon.md`) - online - the law both ends run (its watch, its path, its brain, its receipt) and the relay's seed of a watch (`dragonSeed.js`). |
 | `src/net/siege/` | Sieges of a seat - online - the law both ends run. |
 | `src/net/starfall/` | The Starfall, the Witches' Festival's fallen stars (`11-Multiplayer/Starfall.md`) - online - the law both ends run: the night and its stars, the defense's ledger, the receipt. |
 | `src/net/superDungeon/` | The Abyss Dungeon, the super dungeons (`11-Multiplayer/Super-Dungeons-Look.md`) - online - the law both ends run. |
@@ -259,8 +269,10 @@ wiring in `src/scenes/`. A feature with one or two modules in a layer keeps them
 
 | Folder | What lives there |
 |---|---|
+| `src/render/dragon/` | The Dwarven Dragon (`11-Multiplayer/Dwarven-Dragon.md`) - its telegraphs, draped on the land. |
 | `src/render/eliteGates/` | The Elite Breach (`11-Multiplayer/Elite-Gates.md`, `Elite-Gates-Look.md`, `Elite-Gates-Ascent.md`) - its passes: the sky, the mist, the motes, the lines, the lamps and the stairs. |
 | `src/render/gate/` | The Oblivion Gate, the world boss on the shared clock (`11-Multiplayer/World-Bosses.md`) - its passes. |
+| `src/render/ketch/` | The Sky-Ketch (`11-Multiplayer/Sky-Ketch-Look.md`) - its passes: the gauges, every instrument aboard in one instanced draw. |
 | `src/render/starfall/` | The Starfall (`11-Multiplayer/Starfall.md`) - its sky: the omen, the fall, the landing and the beacon. |
 | `src/render/superDungeon/` | The Abyss Dungeon, the super dungeons (`11-Multiplayer/Super-Dungeons-Look.md`) - its passes. |
 
@@ -271,11 +283,13 @@ wiring in `src/scenes/`. A feature with one or two modules in a layer keeps them
 | `src/scenes/arena/` | The Arena: bouts, the ladder, the league (`11-Multiplayer/Arena.md`) - the hosts' wiring. |
 | `src/scenes/comeSailAway/` | Come Sail Away's boats (`03-World/Come-Sail-Away.md`) - the hosts' wiring. |
 | `src/scenes/decor/` | Decorating a home in the hosts: the base, the room, the tool. |
+| `src/scenes/delve/` | DELVE II, the dungeons' encounters (`03-World/Delve-II.md`) - the host the dungeon context wires: the plan, the seven kinds' foes, plates, carried pieces and breakable crystals, their props and marks, and the vault; the bench's own places and the curated blocks' lab (`delveBench.js`, `delveLab.js`). |
 | `src/scenes/deepWater/` | Deep Waters in the hosts: the host, swimming, the player, the fish, encounters, decor and loot. |
 | `src/scenes/eliteGates/` | The Elite Breach (`11-Multiplayer/Elite-Gates.md`, `Elite-Gates-Look.md`, `Elite-Gates-Ascent.md`) - the hosts' wiring: the client, the call and the arch, the fight, the spans, the circle's host and its swap, the look drawn. |
 | `src/scenes/gate/` | The Oblivion Gate, the world boss on the shared clock (`11-Multiplayer/World-Bosses.md`) - the hosts' wiring. |
+| `src/scenes/ketch/` | The Sky-Ketch (`11-Multiplayer/Sky-Ketch.md`, `Sky-Ketch-Look.md`) - the hosts' wiring: her sky over Daggerfall and the anchor-lift, the deck host, the fight on the deck and the bridge, the client that boards her. |
 | `src/scenes/livingWorld/` | The living world in the hosts (`06-Systems/Living-World-II.md`): indoors, the roads, the watch, the deep's remains. |
-| `src/scenes/naval/` | Ships and the sea in the hosts: the naval host, the crew, the flames. |
+| `src/scenes/naval/` | Ships and the sea in the hosts: the naval host, the crew, the flames; the world's packet lanes, the Bay's and the sea's past it (`worldLanes.js`). |
 | `src/scenes/quest/` | Quests - the hosts' wiring. |
 | `src/scenes/starfall/` | The Starfall (`11-Multiplayer/Starfall.md`) - the hosts' wiring: the stars on a screen, their defense on the camp law, and a held star's rewards. |
 | `src/scenes/superDungeon/` | The Abyss Dungeon, the super dungeons (`11-Multiplayer/Super-Dungeons-Look.md`) - the hosts' wiring. |
@@ -291,28 +305,35 @@ wiring in `src/scenes/`. A feature with one or two modules in a layer keeps them
 | `src/systems/card/` | The card table's law (`11-Multiplayer/Tavern-Cards.md`): the regulars, the session at a table, a remote table, where the cards come from. |
 | `src/systems/comeSailAway/` | Come Sail Away's boats: the boat itself, its hulls, models, items and waves, the helm's actions, the map, the wire's words and the boat's menu (`03-World/Come-Sail-Away.md`). |
 | `src/systems/decor/` | Decorating a home: the catalogue, placing, the rooms - the law. |
+| `src/systems/delve/` | DELVE II, the dungeons' encounters (`03-World/Delve-II.md`): their words and the vault's roll. |
 | `src/systems/deepWater/` | Deep Waters' law: the swimmer, the fish as items and as rows. |
+| `src/systems/dragon/` | The Dwarven Dragon (`11-Multiplayer/Dwarven-Dragon.md`) - where it comes down, its words, the tamed mount, and a journey flown. |
 | `src/systems/dungeon/` | A dungeon's state: its respawn, tier, echo and sense. |
 | `src/systems/dynamicSkies/` | The Dynamic Skies mod - the law. |
 | `src/systems/eliteGates/` | The Elite Breach's law on this screen (`11-Multiplayer/Elite-Gates.md`, `Elite-Gates-Look.md`, `Elite-Gates-Ascent.md`): the Weir Key and its find, the Spire's kit and Vestiges, the lords' arms, the spoils, the score and its mix and echo. |
 | `src/systems/enemyExpansion/` | Daggerfall Enemy Expansion (Kamer & Kab), the mod's own (`04-Characters/Enemy-Expansion.md`): its CSV reading, its tables and art index as generated text, the tables read as BestiaryMod reads them, its pictures on the texture door, its encounter tables as it picks them, its equipment as its copy of RRI's class arm reads a class (`dexEquipment.js`), and its install - the fifty enemies on DFU's custom-enemy doors. |
 | `src/systems/faction/` | The factions' relations, reputation and standing - the law. |
 | `src/systems/festival/` | The Witches' Festival on this screen (`06-Systems/Witches-Festival.md`): the Soul Cakes and the Hearth Offering, the finds, the Wyrd Sister's sales, the wearing, the offerings' moves and every word. |
+| `src/systems/firstVisit/` | The store a first visit's answers are kept in across launches - a key over each answer's inputs (`07-Rendering/Performance-Priority.md` FIRST-VISIT). |
 | `src/systems/foraging/` | The Foraging mod - the law. |
 | `src/systems/gambit/` | The King's Gambit (`11-Multiplayer/Kings-Gambit.md`) - the law. |
 | `src/systems/gate/` | The Oblivion Gate's law (`11-Multiplayer/World-Bosses.md`): the site, the omen, the score and the spoils. |
 | `src/systems/grammar/` | Language grammar for the translations (`06-Systems/Localization-Arc.md`). |
 | `src/systems/guild/` | The guilds' law: their factions and variants, services and how a service flows, the hall's reveal. |
 | `src/systems/horse/` | The horse and cart, the horses' coats, a horse that follows - the law. |
+| `src/systems/hunt/` | HUNTERS-MARK (`06-Systems/Bounty-Boards.md` section 12): the Mounted Trophy minted, the fish and trophies a character has gathered, and the week's named mark read off a peer's foe (`namedMark.js`, HUNTERS-MARK-II). |
 | `src/systems/iliac/` | Iliac Hand, the tavern's other card game - the law. |
 | `src/systems/item/` | Items: templates, the item law, ids, kinds, fields, powers, binding, locks, the lists a character holds, dye, junk and transfer. |
+| `src/systems/ketch/` | The Sky-Ketch's own systems (`11-Multiplayer/Sky-Ketch.md`, `Sky-Ketch-Look.md`): the Ketchmaster's hold's spoils, and every line of hers in the player's language. |
 | `src/systems/legacy/` | Project Legacy: age, family, heirs, the realm line (`06-Systems/Legacy-Arc.md`). |
 | `src/systems/livingWorld/` | The living world: its people, towns, caravans, outlaws and trips (`06-Systems/Living-World-II.md`). |
+| `src/systems/lockpick/` | Lockpicking (`06-Systems/Lockpicking.md`): the Lockpick (its row, its home, its picture), the tumblers' law and machine, and their ear. |
 | `src/systems/loot/` | Loot: its tables, powers, rarity, curses, the codex - the law. |
 | `src/systems/map/` | The map's tabs, directory and waypoints. |
 | `src/systems/naval/` | Ships and the sea: naval combat, crews, ship life, harbours, trade goods. |
 | `src/systems/online/` | The online save: checkpoints, homes, the lane, the sync - the law. |
 | `src/systems/party/` | A party: travelling, resting and walking together - the law. |
+| `src/systems/pass/` | The Battle Pass's season (`06-Systems/Battle-Pass.md`, STOREFRONT): the page's asks to the service and its notices, the season in the world's law (the tremor, the Brass Fissures, their camps and the Colossus) and its words, the Resonant Maul's record. |
 | `src/systems/professions/` | The professions' law (`06-Systems/Professions-Arc.md`): their items, templates and sounds. |
 | `src/systems/quest/` | The quest machine: the parser, its tables, actions and conditions. |
 | `src/systems/questlines/` | The questlines over the quest machine (`06-Systems/Questlines-Arc.md`): the objective sheets and branch patches by family, the actions, the rewards, the acts feed and the elite foe's act (`qlEliteFoe.js`, which the dungeon host hands its place - AUDIT QUESTLINES ACTS-8), the questlines, their runner and the guilds' ladders - the law. |
@@ -322,12 +343,16 @@ wiring in `src/scenes/`. A feature with one or two modules in a layer keeps them
 | `src/systems/roleplayRealism/` | The Roleplay Realism mod - the law. |
 | `src/systems/roleplayRealismItems/` | The Roleplay Realism: Items mod - the law. |
 | `src/systems/save/` | Saving and loading - the law. |
+| `src/systems/sea/` | The Eltheric Ocean's ventures' law (`03-World/Eltheric-Ocean.md` SEA-VAULTS, SEA-EVENTS, SEA-SET): the day's vaults of the deep, the Aether Storm and the treasure fleet on the shared clock, the deep sea's spoils. |
 | `src/systems/serpent/` | The sea serpent, the sea's world boss (`11-Multiplayer/Sea-Serpent.md`) - the law. |
 | `src/systems/settings/` | The settings: the store, its defaults and its words. |
 | `src/systems/sigil/` | Sigil Sets (`11-Multiplayer/Sigil-Sets.md`) - the law. |
+| `src/systems/snowfall/` | The snow's builds off the main thread (`07-Rendering/Performance-Exterior.md` SNOW-THREAD): the drawn ground's laws both threads read, the client the host wires, the kernel and its worker, and the `?snowthread=verify` cross-check. |
 | `src/systems/song/` | Music: the songs, their player and manager - the law. |
+| `src/systems/soundscape/` | The world heard (`08-Audio/Audio.md` SOUNDSCAPE, SEA-SCORE): the deck's air at sea, the shore's, the wild's and the town's on land, the sea's songs at a helm, the beds made off the main thread and the port's clips loaded - the law. |
 | `src/systems/spell/` | Spells: effects, the spell maker, power and the impact's sound. |
 | `src/systems/starfall/` | The Starfall (`11-Multiplayer/Starfall.md`) - the law: the covens and the night's coven, the night's stars over the gate's scan, the Witches' Night; the coven's waves, masters and circles, the star's law on a player's screen, every word it says and its sounds; Starfall Glass and a held star's spoils. |
+| `src/systems/starts/` | Where a character's story begins (`06-Systems/Alternate-Starts-Arc.md` START1, START2): the starts' registry, each province's start dungeon ranked, the start quests' Places, and the start quests themselves (`quests/`). |
 | `src/systems/studioArt/` | The studio (`07-Rendering/Studio-Art.md`): the game's artists' own pictures (`public/art/studio/`) on the texture door, and the slots they paint. |
 | `src/systems/superDungeon/` | The Abyss Dungeon's law (`11-Multiplayer/Super-Dungeons-Look.md`): the site, the omen, the score, the spoils, the rift's sound and the slots kept on the device. |
 | `src/systems/survival/` | Survival: needs, camping, food, rest, exposure. |
@@ -356,14 +381,19 @@ wiring in `src/scenes/`. A feature with one or two modules in a layer keeps them
 | `src/ui/automap/` | The automap's window: the sheet, its camera, chrome, markers and words, and its door. |
 | `src/ui/bounty/` | The bounty board's window, its door and its mark on the map. |
 | `src/ui/card/` | The card table's HUD, its panel kit and the binder's page. |
+| `src/ui/collections/` | The Collections page's wardrobe (`10-UI/Collections.md`): the catalogue of every title, aura, profile icon and glyph - where it comes from, whether it can be had now and how - and a kind's part, read and worn through the account's flow. |
 | `src/ui/eliteGates/` | The Elite Breach on screen (`11-Multiplayer/Elite-Gates.md`, `Elite-Gates-Look.md`, `Elite-Gates-Ascent.md`): the start window, the boards, the HUD and the party, the beats, the arch's map mark, the access settings. |
 | `src/ui/enhanced/` | The Enhanced skin's windows and HUD - its windows. |
 | `src/ui/gate/` | The Oblivion Gate on screen: the banner, the boss bar, the damage chart, the ground view, the marks and the title card. |
 | `src/ui/growth/` | The pause window's Growth tab (`10-UI/Growth.md`): its rail and landings, the specialisations' guide, and the stage that draws the Firmament, the captain's stars and the Ascension in its pane. |
+| `src/ui/guild/` | The guild window's pages (`11-Multiplayer/Guild-Shop.md`): its look and crest, the shop and its wares, the logo's pick and page, the ranks and the join requests. |
 | `src/ui/hud/` | The classic HUD: vitals, compass, crosshair, active spells - its windows. |
+| `src/ui/icons/` | The drawn icons' art, each drawn by `profileIcons.js` drawnIconNode: the profile icons' shared shapes and motions, Season One's and the daily wares' icons (none a figure, `06-Systems/Aurum.md` section 7) and the effect emblems (`06-Systems/Storefront.md` section 9). |
 | `src/ui/ink/` | The ink maps: town, dungeon, automap - its windows. |
-| `src/ui/intro/` | The intro: its screen, map, landscape and cue - its windows. |
+| `src/ui/intro/` | The intro: its screen, cue, landscape and shaders, the city it draws (`introCity.js`) and the continent (`introTamriel.js`), built in its worker (`introBuildWorker.js`, `introBuild.js`); the Bay's authored shape (`introMap.js`) - its windows. |
+| `src/ui/intro/set/` | The film's set (INTRO4, `10-UI/UI-Arc.md`): the Imperial City as the intro was shot on it - the city's plan (`imperialCity.js`), its landmarks (`capitalImperial.js`) and the shapes they are built of (`capitalShapes.js`), kept as shot, never the game's grown city. |
 | `src/ui/item/` | Items on screen: the icons, the item maker and the scroller. |
+| `src/ui/ketch/` | The Sky-Ketch on the screen (`11-Multiplayer/Sky-Ketch.md`, `Sky-Ketch-Look.md`): the voyage's tracker, the Tonal Warden's bar, her ring on the held map. |
 | `src/ui/legacy/` | Project Legacy: heirs and the realm line (`06-Systems/Legacy-Arc.md`) - its windows. |
 | `src/ui/levelUp/` | Levelling up: the notice, the view - its windows. |
 | `src/ui/map/` | The map's scale, skin and strip. |
@@ -385,6 +415,7 @@ wiring in `src/scenes/`. A feature with one or two modules in a layer keeps them
 | `src/ui/town/` | A town on screen: its sheet, its quarters, its marks and the door to its map. |
 | `src/ui/travel/` | Travel's windows: the travel map, its options, paths and junctions, pace, the pop-up and the HUD. |
 | `src/ui/vendor/` | A vendor's page, tab and map mark - its windows. |
+| `src/ui/wardrobe/` | The Wardrobe at a clothier's, armourer's or weaponsmith's counter: its window, its door and its preview (`04-Characters/Wardrobe.md`). |
 | `src/ui/wild/` | The open zone on screen: its map, ink and marks. |
 
 #### `src/world/`
@@ -392,24 +423,31 @@ wiring in `src/scenes/`. A feature with one or two modules in a layer keeps them
 | Folder | What lives there |
 |---|---|
 | `src/world/arena/` | The Arena's place: the city, the floor, the undercroft, the plaques and the model. |
+| `src/world/atlas/` | The world's places entity-major (`03-World/Foundation-Arc.md`, FOUNDATION): a place's bundle - its identity, grid, dungeon plan, buildings and doors - over a vocabulary of blocks, every name resolved as the layout serves it (`atlas.js`, `atlasServed.js`). |
+| `src/world/land/` | The land as data (`03-World/Foundation-Arc.md` F4): a shoreline or a hill fixed by a row of `landEdits.json`, written into the Bay's served files and asked by the ground past it (`landLayer.js`). |
 | `src/world/card/` | The card table in the world: the tables, the scene, the regulars, a hand and its motion. |
 | `src/world/city/` | A city's gates, lights and navigation - its models and assembly. |
 | `src/world/deepWater/` | Deep Waters in the world: the sea floor and its bathymetry, the surface, swimming, the look and the bake. |
-| `src/world/dungeon/` | A dungeon's build: its layout, lights, textures, fires, label and end. |
+| `src/world/dungeon/` | A dungeon's build: its layout, lights, textures, fires, encounter sites, curated blocks (DELVE II's, `curated*.js` - their records in `src/assets/delve/`), label and end. |
 | `src/world/eliteGates/` | The Elite Breach in the world (`11-Multiplayer/Elite-Gates.md`, `Elite-Gates-Look.md`, `Elite-Gates-Ascent.md`): the halls, the ground, the ruin, the vista and the underside, the platforms, the rooms, the kit and its art, the air and the lamps - its models and assembly. |
 | `src/world/gate/` | The Oblivion Gate in the world: the arena, the art, the boss, the model, the clearance and the spew. |
 | `src/world/interior/` | Interiors: layout, lights, glass - its models and assembly. |
-| `src/world/jungle/` | Bantha's jungle (`03-World/Bantha-Jungle.md`): where it is (the owner's area, `banthaArea.js`, and its field), the owner's trees and their measures, and its haze's law. |
+| `src/world/jungle/` | Bantha's jungle (`03-World/Bantha-Jungle.md`): where it is (the owner's area, `banthaArea.js`, and its field), the owner's trees and their measures, and its haze's law; Valenwood's closed canopy and its graht-oaks - where they stand and the trees themselves, made (`grahtOaks.js`, `grahtOakMesh.js`; `03-World/Graht-Oaks.md`). |
+| `src/world/ketch/` | The Sky-Ketch in the world (`11-Multiplayer/Sky-Ketch.md`, `Sky-Ketch-Look.md`): the ship made in code - her location, kit, art, model and pose; her look's shared numbers (the light meanings, the value ladder, her palette in ART_PAL's index space) and her light by the hour and the zone. |
+| `src/world/lands/` | The lands' landmarks past the Bay (`03-World/Tamriel-Lands.md`): the meshes made (`landPropMesh.js` - parasols, spires, the Hist, reeds, vines, groves) and where they stand, what they look like and their bodies (`landProps.js`). |
 | `src/world/merchantYards/` | A town's Stable and Wagon Yard (`03-World/Merchant-Yards.md`) - its models and assembly. |
+| `src/world/peaks/` | The mountains' high ground (`03-World/Peaks.md`): PEAKS1's snow caps and bare faces (`snowcap.js`), and PEAKS2's massif - its spurs, crests, summits and saddles (`massif.js`, built and pinned, not yet wired). |
 | `src/world/road/` | Roads: the network, its painter, verges and clearance - its models and assembly. |
 | `src/world/ships/` | The port's own ships: the galleon, the carrack, the large boat - its models and assembly. |
 | `src/world/starfall/` | The Starfall in the world: the star's art, its crater and stone, and Starfall Glass's picture. |
 | `src/world/superDungeon/` | The Abyss Dungeon in the world: the halls, the steps, the rift, the realm and its sky, the Remnant, and their art. |
-| `src/world/tamriel/` | The continent's ground: geography, frame, raster - its models and assembly. |
+| `src/world/tamriel/` | The continent's ground: geography, frame, raster - its models and assembly; TESA-LANDS' zones' own land (`tamrielLands.js`) and the ground's dress (`groundDress.js`, dressed on its own worker - `groundDressWorker.js`, the page's side `groundDressClient.js`; `03-World/Tamriel-Lands.md`). |
 | `src/world/terrain/` | Terrain generation, its worker and sampler - its models and assembly. |
 | `src/world/underwater/` | Under the water: its look, decorations, enemies and loot - its models and assembly. |
+| `src/world/urban/` | A town's fabric past the Bay (`03-World/Urban-Fabric.md`, URBANIZER): its streets, yards and dead ends read off its own blocks, its look by province, its art and its records - its models and assembly. |
 | `src/world/water/` | The water's bed, corners and ripples - its models and assembly. |
 | `src/world/worldOfDaggerfall/` | The World of Daggerfall mod: the entry (`worldOfDaggerfall.js`), its locations' data, loader, pack and objects, Privateer's Hold, the spawner. |
+| `src/world/worldWide/` | The whole world's seam (`03-World/World-Wide.md`): the world pixel grid, its theatres and areas (`worldGrid.js`), the registry of places every system reads (`worldPlaces.js`), the Bay's own rows into it (`bayPlaces.js`) and the world's ports past the Bay (`worldPorts.js`). |
 
 ### The tests, `test/`
 

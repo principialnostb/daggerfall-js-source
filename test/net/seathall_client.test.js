@@ -100,7 +100,7 @@ test('SEAT-HALL a room\'s own cap: the Charter Room\'s hundred is the decorator\
   assert.equal(await rig.tool.commit(), false, 'full at its own cap');
   assert.equal(writes.length, 0);
   const tool = src('src/scenes/decor/decorTool.js');
-  assert.match(tool, /const capHere = \(r\) => \(r\?\.yard && Number\.isSafeInteger\(deps\.yardCap\) \? deps\.yardCap : Number\.isSafeInteger\(r\?\.cap\) \? r\.cap : DECOR_CAP\);/);
+  assert.match(tool, /const capHere = \(r\) => \(r\?\.yard && Number\.isSafeInteger\(deps\.yardCap\) \? deps\.yardCap : Number\.isSafeInteger\(r\?\.cap\) \? r\.cap : r\?\.hall \? DECOR_HALL_CAP : DECOR_CAP\);/);   // PIN MOVED (DECOR-ACCESS): a guild hall's 300 after the room's own cap
   assert.match(tool, /const whyNotHere = \(p\) => deps\.placeOk\?\.\(p\.piece, footprintOf\(p\)\) \?\? charterWhyNot\(p\);/);
   assert.equal((tool.match(/whyNotHere\(p\)/g) ?? []).length, 3, 'the commit, the move and the placing bar');
 });
@@ -129,7 +129,7 @@ test('SEAT-HALL the hosts by source: the visit\'s palace latched at the door for
   assert.match(m, /if \(interiorSeatHall\?\.keeper\) return \{ kind: 'home', hall: true, seat: true, charter: true, cap: SEAT_HALL_DECOR_CAP, where: SEAT_HALL_TEXT\.where, mapId: homeTownOf\(b\), buildingKey: b\.buildingKey \};/);
   assert.match(m, /const decorKeeperHere = \(\) => !!\(interiorHome\?\.hall && interiorHome\.keeper\) \|\| !!interiorSeatHall\?\.keeper;/);
   assert.match(m, /const hallMemberHere = \(\) => !!\(interiorHome\?\.hall && interiorHome\.member\) \|\| !!interiorSeatHall\?\.member;/);
-  assert.match(m, /const seat = !interiorHome && !!interiorSeatHall;[^\n]*\n(?:    \/\/[^\n]*\n)*    if \(host\.homeLayoutsHeard\?\.\(\) === false\) \{[^\n]*\n    const visit = _decorVisit;\n    askDecorList\(\{\n      ask: \(\) => host\.homeDecor\.list\(homeTownOf\(b\), b\.buildingKey, seat\),/);
+  assert.match(m, /const seat = !interiorHome && !!interiorSeatHall;[^\n]*\n(?:    \/\/[^\n]*\n)*    if \(host\.homeLayoutsHeard\?\.\(\) === false\) \{[^\n]*\n    const visit = _decorVisit;\n    askDecorList\(\{\n      ask: \(\) => primedDecorList\(decorListKey\(homeTownOf\(b\), b\.buildingKey, seat\)\) \?\? host\.homeDecor\.list\(homeTownOf\(b\), b\.buildingKey, seat\),/);   // PIN MOVED (DECOR-ACCESS): the list the door primed, else the service's
   assert.match(m, /const at = \(a\) => \(interiorSeatHall && !interiorHome \? \{ \.\.\.a, seat: true \} : a\);\n    return \{ \.\.\.d, place: \(a\) => d\.place\(at\(a\)\), move: \(a\) => d\.move\(at\(a\)\), remove: \(a\) => d\.remove\(at\(a\)\) \};/);
   assert.match(m, /wallet: \(\) => decorWallet\(\), homeDecor: decorDoor\(\),/);
   assert.match(m, /charterClear: \(pt\) => charterClear\(pt\),/);
@@ -138,16 +138,17 @@ test('SEAT-HALL the hosts by source: the visit\'s palace latched at the door for
   assert.match(clear, /for \(const n of interiorCtx\?\.people \?\? \[\]\) if \(near\(n\.x, n\.z\)\) return SEAT_HALL_TEXT\.clear;/);
   assert.match(clear, /for \(const m of interiorCtx\?\.markers \?\? \[\]\) if \(\(m\.type === 11 \|\| m\.type === 18\) && near\(m\.x, m\.z\)\) return SEAT_HALL_TEXT\.clear;/);
   assert.match(clear, /for \(const q of questFlats \?\? \[\]\) if \(!q\.dead && near\(q\.x, q\.z\)\) return SEAT_HALL_TEXT\.clear;/);
-  assert.match(m, /if \(\(interiorHome\?\.hall && interiorHome\.member\) \|\| interiorSeatHall\?\.member\) \{ openHallChest\(\); return; \}/);
+  assert.match(m, /if \(\(interiorHome\?\.hall && interiorHome\.member\) \|\| interiorSeatHall\?\.member\) \{ \(interiorHome\?\.hall \? openSharedChest\(piece\.id\) : openHallChest\(\)\); return; \}/);   // PIN MOVED (DECOR-ACCESS): a guild hall's placed chest is that piece's bin; the palace's stays the hall's chest
   assert.match(m, /if \(c && \(\(interiorHome\?\.hall && interiorHome\.member\) \|\| interiorSeatHall\?\.member\)\) \{ openHallChest\(\); return true; \}/);
   assert.match(m, /const isHallBoard = \(piece\) => \(!!interiorHome\?\.hall \|\| !!interiorSeatHall\) && piece\?\.model === BULLETIN_BOARD_MODEL_ID && !piece\.item;/);
   assert.match(m, /const hallNameHere = \(\) => interiorHome\?\.hall\?\.name \?\? interiorSeatHall\?\.name \?\? '';/);
-  assert.match(m, /homeBed: homeBedIsMine\(interiorHome, Math\.floor\(Date\.now\(\) \/ 1000\)\) \|\| !!interiorSeatHall\?\.member,/);
-  const w = src('src/scenes/world.js');
-  const here = w.slice(w.indexOf('    seatHall: {'), w.indexOf('    guildHall: {'));
+  assert.match(m, /homeBed: homeBedIsMine\(interiorHome, Math\.floor\(Date\.now\(\) \/ 1000\)\) \|\| !!interiorSeatHall\?\.member(?:,| \|\| \(!!interiorHome && decorMayRest\()/);   // PIN MOVED (REST-GUEST, FIELD BUGS 2026-10-29f): a guest its owner named after
+  // PIN MOVED (DOMAIN2, HOST-SPLIT): the seat's halls moved out of bootWorld, into their own host (scenes/seatHallHost.js)
+  const w = src('src/scenes/seatHallHost.js');
+  const here = w.slice(w.indexOf('    here(mapId) {'), w.indexOf('    crown(mapId, instance = null) {'));
   assert.match(here, /const g = seat\?\.tier === 'palace' \? seat\.holder\?\.guild \?\? null : null;/, 'a crown\'s castle is no Charter Room');
   assert.match(here, /const member = seatHallOf\(seat, mine\?\.id \?\? null\);/);
-  assert.match(here, /keeper: member && hallMay\(Number\(mine\?\.rank\), 'decorate'\)/);
+  assert.match(here, /keeper: member && guildMay\(Number\(mine\?\.rank\), 'decorate', mine\?\.powers \?\? null\)/);   // PIN MOVED (GUILD-RANKS): the guild's own table
   const svc = src('server-account/src/index.js');
   assert.match(svc, /if \(\(path === '\/v1\/homes\/decor' \|\| path\.startsWith\('\/v1\/homes\/decor\/'\)\) && body\?\.seat === true && !seatsOpenFor\(who\.player, env\)\) return no\('seats-closed', 403, origin\);/);
 });

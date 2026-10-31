@@ -37,6 +37,8 @@ import { createEgClient } from '../../../src/scenes/eliteGates/egClient.js';
 import { egBreachNew, egEnter, egStateOf } from '../../../src/net/eliteGates/egBrain.js';
 import { validEgOut } from '../../../src/net/wire.js';
 import { realmToDungeon } from '../../../src/net/superDungeon/sdBrain.js';
+import { ketchShipLocation } from '../../../src/world/ketch/ketchShip.js';   // PIN MOVED (KETCH): the sky-ketch, a fourth made level
+import { KT_WORDS } from '../../../src/systems/ketch/ketchWords.js';
 
 const read = (p) => readFileSync(new URL(`../../../${p}`, import.meta.url), 'utf8');
 /** The world host's word, for a test: the made level under the player is `lv` (and its feet on traversal ground or not). */
@@ -48,16 +50,22 @@ test('EG-H2 THE LAW (section 24): madeLevelOf names each made location by its ow
   assert.equal(madeLevelOf(sdRealmLocation({ s: 3 })), 'hour');
   assert.equal(madeLevelOf(sdRealmLocation({ s: 0 })), 'hour', 'any slot is an Hour - slot zero too');
   assert.equal(madeLevelOf(egHallLocation({ b: '0123456789abcdef', seed: 9, c: 2 })), 'spire');
+  assert.equal(madeLevelOf(ketchShipLocation({ n: 0, owner: '0123456789abcdef' })), 'ketch', 'PIN MOVED (KETCH): a crew\'s ship');
   for (const loc of [null, undefined, {}, { name: 'Old Maze', dungeon: { recordElement: { header: { locationId: 99 } } } }, { ...sdRealmLocation({ s: 3 }), sdRealm: null }]) assert.equal(madeLevelOf(loc), null);
-  assert.deepEqual([...MADE_LEVELS], ['court', 'hour', 'spire']);
+  assert.deepEqual([...MADE_LEVELS], ['court', 'hour', 'spire', 'ketch']);   // PIN MOVED (KETCH)
   const none = Object.fromEntries(MADE_LEVEL_RULE_KEYS.map((k) => [k, k === 'jumpBuffer' || k === 'latePress' ? 0 : null]));
   // PIN MOVED (EG-PERFECT, 2026-10-18): the running leap refused on the Spire's spans and the Hour's Steps (`runLeap` -
   // test/player/egperfect_runleap.test.js runs it on the real motor)
+  // PIN MOVED (EVENT-RULES, 2026-10-25, the owner: "Back, held in a fight" and "Resurrect allowed"): every row's regeneration
+  // held, not off (systems/courtRules.js); no row refuses Resurrect (the Hour's one life kept by its realm's window - SD-REZ)
   assert.deepEqual(MADE_LEVEL_RULES, {
-    court: { ...none, save: 'refused', rest: 'refused', automap: 'off', mark: 'refused', portalStone: 'refused', companions: 'out', regen: 'off', death: 'castOut', unstuck: 'refused', says: 'mid' },
-    hour: { ...none, save: 'refused', rest: 'refused', automap: 'off', mark: 'refused', recall: 'refused', portalStone: 'refused', companions: 'out', regen: 'off', levitate: 'banned', runLeap: 'refused', resurrect: 'refused', death: 'final', unstuck: 'wayHome', says: 'hour' },
-    spire: { ...none, save: 'refused', rest: 'refused', automap: 'off', mark: 'refused', recall: 'refused', portalStone: 'refused', companions: 'out', regen: 'off', potions: 'counted', levitate: 'banned', slowfall: 'banned',
-      techFlight: 'refused', jumpBuffer: 0.12, latePress: 0.12, runLeap: 'refused', resurrect: 'refused', avoidDeath: 'refused', death: 'fall', deathPenalty: 'none', unstuck: 'refused', says: 'mid' },
+    court: { ...none, save: 'refused', rest: 'refused', automap: 'off', mark: 'refused', portalStone: 'refused', companions: 'out', regen: 'held', death: 'castOut', unstuck: 'refused', says: 'mid' },
+    hour: { ...none, save: 'refused', rest: 'refused', automap: 'off', mark: 'refused', recall: 'refused', portalStone: 'refused', companions: 'out', regen: 'held', levitate: 'banned', runLeap: 'refused', death: 'final', unstuck: 'wayHome', says: 'hour' },
+    spire: { ...none, save: 'refused', rest: 'refused', automap: 'off', mark: 'refused', recall: 'refused', portalStone: 'refused', companions: 'out', regen: 'held', potions: 'counted', levitate: 'banned', slowfall: 'banned',
+      techFlight: 'refused', jumpBuffer: 0.12, latePress: 0.12, runLeap: 'refused', avoidDeath: 'refused', death: 'fall', deathPenalty: 'none', unstuck: 'refused', says: 'mid' },
+    // PIN MOVED (KETCH, bible/11-Multiplayer/Sky-Ketch.md section 3): the Hour's row for the deck, the Spire's for flight, a death a fall
+    ketch: { ...none, save: 'refused', rest: 'refused', automap: 'off', mark: 'refused', recall: 'refused', portalStone: 'refused', companions: 'out', regen: 'held', levitate: 'banned', slowfall: 'banned',
+      techFlight: 'refused', runLeap: 'refused', avoidDeath: 'refused', death: 'fall', deathPenalty: 'none', unstuck: 'refused', says: 'mid' },
   });
   for (const lv of MADE_LEVELS) { assert.ok(Object.isFrozen(MADE_LEVEL_RULES[lv])); assert.deepEqual(Object.keys(MADE_LEVEL_RULES[lv]), [...MADE_LEVEL_RULE_KEYS], lv); }
   assert.deepEqual([EG_JUMP_BUFFER_S, EG_LATE_PRESS_S], [0.12, 0.12], 'section 10.8: 0.12 s each');
@@ -65,6 +73,8 @@ test('EG-H2 THE LAW (section 24): madeLevelOf names each made location by its ow
     court: { save: COURT_TEXT.noSave, rest: COURT_TEXT.noRest, automap: COURT_TEXT.noMap, mark: COURT_TEXT.noMark, unstuck: COURT_TEXT.noUnstuck },
     hour: { save: SD_REALM_TEXT.noSave, rest: SD_REALM_TEXT.noRest, automap: SD_REALM_TEXT.noMap, mark: SD_REALM_TEXT.noMark, recall: SD_REALM_TEXT.noRecall },
     spire: { save: EG_HALL_TEXT.noSave, rest: EG_HALL_TEXT.noRest, automap: EG_HALL_TEXT.noMap, mark: EG_TEXT.noRecall, recall: EG_TEXT.noRecall, unstuck: `${EG_TEXT.noRecall} The way home stands at a Redoubt.`, techFlight: EG_NO_FLIGHT_TEXT },
+    // PIN MOVED (KETCH): her own words, read in the player's language when she refuses (systems/ketch/ketchWords.js)
+    ketch: { save: KT_WORDS.noSave, rest: KT_WORDS.noRest, automap: KT_WORDS.noMap, mark: KT_WORDS.noMark, recall: KT_WORDS.noRecall, unstuck: KT_WORDS.noUnstuck, techFlight: KT_WORDS.noFlight },
   });
   assert.deepEqual([madeLevelRule(null, 'save'), madeLevelRule('arena', 'save'), madeLevelRule('spire', 'nope'), madeLevelRule(null, 'jumpBuffer'), madeLevelRule('court', 'latePress')], [null, null, null, 0, 0]);
   assert.deepEqual([madeLevelSays(null, 'save'), madeLevelSays('court', 'recall'), madeLevelSays('spire', 'regen')], ['', '', '']);
@@ -86,9 +96,9 @@ test('EG-H2 THE BURNING COURT AND THE HOUR, UNCHANGED (section 24): rule by rule
   // `isGateArena(dfLocation)`, `_sdRealm` arm), and what the law decides now
   const before = {
     court: { save: [true, COURT_TEXT.noSave], rest: [true, COURT_TEXT.noRest], automap: [true, COURT_TEXT.noMap], mark: [true, COURT_TEXT.noMark, 'mid'], recall: [false], companions: true, regen: true,
-      levitate: false, resurrect: false, death: 'castOut', unstuck: ['refused', COURT_TEXT.noUnstuck], portalStone: true },
+      levitate: false, resurrect: false, death: 'castOut', unstuck: ['refused', COURT_TEXT.noUnstuck], portalStone: true },   // EVENT-RULES (PIN MOVED): `regen` the hold, held now, not off
     hour: { save: [true, SD_REALM_TEXT.noSave], rest: [true, SD_REALM_TEXT.noRest], automap: [true, SD_REALM_TEXT.noMap], mark: [true, SD_REALM_TEXT.noMark, 'hour'], recall: [true, SD_REALM_TEXT.noRecall, 'hour'], companions: true, regen: true,
-      levitate: true, resurrect: true, death: 'final', unstuck: ['wayHome'], portalStone: true },
+      levitate: true, resurrect: false, death: 'final', unstuck: ['wayHome'], portalStone: true },   // EVENT-RULES (PIN MOVED): the Hour's Resurrect allowed (SD-REZ - its realm's window)
   };
   for (const [lv, d] of Object.entries(before)) {
     for (const r of ['save', 'rest']) assert.deepEqual([madeLevelRule(lv, r) === 'refused', madeLevelSays(lv, r)], d[r], `${lv} ${r}`);
@@ -96,7 +106,7 @@ test('EG-H2 THE BURNING COURT AND THE HOUR, UNCHANGED (section 24): rule by rule
     assert.deepEqual([madeLevelRule(lv, 'mark') === 'refused', madeLevelSays(lv, 'mark'), madeLevelRule(lv, 'says')], d.mark, `${lv} Mark`);
     assert.deepEqual(madeLevelRule(lv, 'recall') === 'refused' ? [true, madeLevelSays(lv, 'recall'), madeLevelRule(lv, 'says')] : [false], d.recall, `${lv} Recall`);
     assert.equal(madeLevelRule(lv, 'companions') === 'out', d.companions, `${lv} companions`);
-    assert.equal(madeLevelRule(lv, 'regen') === 'off', d.regen, `${lv} regeneration`);
+    assert.equal(madeLevelRule(lv, 'regen') === 'held', d.regen, `${lv} regeneration`);
     assert.equal(madeLevelRule(lv, 'levitate') === 'banned', d.levitate, `${lv} Levitate`);
     assert.equal(madeLevelRule(lv, 'resurrect') === 'refused', d.resurrect, `${lv} Resurrect`);
     assert.equal(madeLevelRule(lv, 'death'), d.death, `${lv} a death`);
@@ -255,7 +265,7 @@ test('EG-H2 THE SPIRE\'S TRAVERSAL GROUND AND THE CLIENT\'S LAW PIN (sections 10
 
 test('EG-H2 THE SWEEP (section 24, THE ONE CONSTRUCTION SEAM): every rule\'s door in the hosts and the systems reads the made level\'s law for its rule and asks no made level itself; no line anywhere pairs a level\'s own predicate with a rule\'s act; every rule the law names is read at a door (mutants: a door asking the level again; a rule no door reads)', () => {
   const PRED = /gateArenaDay|sdRealmSlot|egHallBreach|isGateArena\(|isSdRealm\(|isEgHall\(|\b_sdRealm\b|\b_egHall\b|diedHere\(/;
-  const FILES = { W: 'src/scenes/world.js', D: 'src/scenes/dungeonContext.js', M: 'src/scenes/worldModes.js', K: 'src/systems/eliteGates/spireKit.js', T: 'src/combat/techniques.js', S: 'src/scenes/shared.js' };
+  const FILES = { W: 'src/scenes/world.js', D: 'src/scenes/dungeonContext.js', M: 'src/scenes/worldModes.js', K: 'src/systems/eliteGates/spireKit.js', T: 'src/combat/techniques.js', S: 'src/scenes/shared.js', P: 'src/scenes/portalStoneHost.js' };   // PIN MOVED (PORTAL-BAY): the Portal Stone's door, out of world.js's bootWorld (HOST-SPLIT)
   const src = Object.fromEntries(Object.entries(FILES).map(([k, p]) => [k, read(p)]));
   /** [file, where the door begins, where it ends, the rules it must read] */
   const DOORS = [
@@ -272,17 +282,17 @@ test('EG-H2 THE SWEEP (section 24, THE ONE CONSTRUCTION SEAM): every rule\'s doo
     ['W', 'function madeSay(rule) {', '\n', ['says']],
     ['W', 'function setRecallAnchor() {', 'const inside =', ['mark']],
     ['W', 'async function recallToAnchor() {', 'const anchor = playerEntity.anchorPosition;', ['recall']],
-    ['W', 'const goldLost = wildRise', '\n', ['deathPenalty']],
+    ['W', 'const goldLost = wildKilled', '\n', ['deathPenalty']],   // PIN MOVED (FOE-KEEPS): a kill in the zone, no longer any death there
     ['W', 'const diedInHour =', 'const spireBack', ['death']],
     ['W', 'if (/^\\/unstuck(\\s+cancel)?$/i.test(text.trim())) {', 'const inZone =', ['unstuck']],
     ['W', 'registerLevitateWard(() =>', '\n', ['levitate']],
     ['W', 'registerJumpForgiveness(', '\n', ['jumpBuffer', 'latePress']],
     ['W', 'arenaFrame(dt);   // ARENA2', 'egCourtFrame();', ['regen']],
     ['W', 'if (!_rezSeen) _rezSeen =', 'if (rez && legacyHost', ['resurrect']],   // PIN MOVED (REZ-BLOODLINE, at the seventh merge of main): the rise asks Project Legacy first
-    ['W', 'const portalDoorRefusal = () => {', 'const hold = portalHoldNow();', ['portalStone']],
+    ['P', 'const portalDoorRefusal = () => {', 'const hold = portalHoldNow();', ['portalStone']],
     ['K', 'export function spirePotionRefusal(item) {', 'try {', ['potions']],
     ['K', 'export function spirePotionDrunk(item) {', 'try {', ['potions']],
-    ['T', 'export function refusal(hand, ctx) {', '\n}\n', ['techFlight']],
+    ['T', 'export function refusal(hand, ctx, key = 1) {', '\n}\n', ['techFlight']],
     ['S', 'export function parkourDeps(', '\n}\n', ['runLeap']],   // EG-PERFECT: the running leap's door, the four hosts' one parkour deps
   ];
   const readRules = new Set();

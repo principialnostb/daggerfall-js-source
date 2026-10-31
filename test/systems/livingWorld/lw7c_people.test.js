@@ -111,10 +111,10 @@ test('LW7c the chronicle\'s People: a section of its own where the host hands th
   } finally { view.destroy(); }
   const empty = globalThis.document.createElement('div');
   const v2 = mountEnhancedChronicle(empty, { section: 'people', people: () => ({ friends: [], enemies: [], known: [] }) });
-  try { assert.ok(all(empty, 'px-note').some((n) => n.textContent === 'No one in the Bay knows you yet.')); } finally { v2.destroy(); }
+  try { assert.ok(all(empty, 'px-note').some((n) => n.textContent === 'No one knows you yet.')); } finally { v2.destroy(); }   // PIN MOVED (AUDIT TAMRIEL-WIDE D6): the living world stands past the Bay too
   const none = globalThis.document.createElement('div');
   const v3 = mountEnhancedChronicle(none, { section: 'people' });
   try { assert.ok(all(none, 'cr-row')[0].className.includes(' on'), 'no page: the section unknown, the window opens on the quests'); } finally { v3.destroy(); }
   const w = rd('src/scenes/world.js');
-  assert.match(w, /people: livingWorldOn\(\) \? \(\) => peoplePage\(livingRelations, Math\.floor\(\(skyMinutes\(\) - 240\) \/ 1440\), livingTownOfId\) : undefined,/);
+  assert.match(w, /people: livingWorldOn\(\) \? \(\) => peoplePage\(livingRelations, livingRegardDay\(\), livingTownOfId\) : undefined,/);   // REGARD-OWN (FIELD BUGS 2026-10-21d): the regard's own day
 });

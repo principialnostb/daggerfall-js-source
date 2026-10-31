@@ -11,8 +11,13 @@
 
 /** Template 2000 and 2001 (net/festivalLaw.js SOUL_CAKE_TEMPLATE, HEARTH_OFFERING_TEMPLATE - pinned equal). */
 export const SOUL_CAKE_LAW_ROW = Object.freeze({
-  index: 2000, baseWeight: 0.05, hitPoints: 1, basePrice: 0, rarity: 20, bound: true, stackable: true, packOnly: true,
+  // CAKE-WEIGHT (2026-10-27, the owner: "can soulcakes weight nothing since its an event item you cant get rid off"): no
+  // drop, sale or chest takes a cake out of the pack, so it weighs nothing, as the Wallet and the Iliac cards do. A cake
+  // carries no `weightInKg` of its own (soulCake.js soulCakes), so every stack a save holds reads this.
+  index: 2000, baseWeight: 0, hitPoints: 1, basePrice: 0, rarity: 20, bound: true, stackable: true, packOnly: true,
 });
 export const HEARTH_OFFERING_LAW_ROW = Object.freeze({
-  index: 2001, baseWeight: 2, hitPoints: 100, basePrice: 0, rarity: 20, bound: true, stackable: true, packOnly: true,
+  // HEARTH-SIBLING (FIELD BUGS 2026-10-29e, "dead weight in my inventory"): the bowl leaves the pack only to the account's
+  // own door, so it weighs nothing, as CAKE-WEIGHT made the cake.
+  index: 2001, baseWeight: 0, hitPoints: 100, basePrice: 0, rarity: 20, bound: true, stackable: true, packOnly: true,
 });

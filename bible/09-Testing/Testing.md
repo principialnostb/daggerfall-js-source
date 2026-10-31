@@ -46,7 +46,9 @@ its push to the site; the suite alone ~6 minutes on a four-core runner, two whol
   `deploy.yml` pins main's head once, verifies that commit with the same jobs beside the site's own build of it, and
   publishes only after both passed. `release-desktop.yml`'s `gate` calls it too, on the release's own commit, and every
   OS leg waits for it (REL-FAST, 2026-10-15, Mac: "Yes, thats insanely slow" - the gate was `npm run check` in series,
-  27.4 of a release's 33 minutes); none of its checkouts keeps a token (AUDIT INSTALL L1-1). The shards: `tools/testShards.mjs` splits the files by their recorded times - the
+  27.4 of a release's 33 minutes); none of its checkouts keeps a token (AUDIT INSTALL L1-1). `intro-quality.yml`
+  runs the intro's own two test files before its probes, not the serial check (INTRO3, 2026-10-23, the owner's call:
+  the check had outgrown the job's 25 minutes, and every intro run from 2026-10-16 was cancelled before a probe ran). The shards: `tools/testShards.mjs` splits the files by their recorded times - the
   longest first, each onto the lightest shard - so the four finish together (~245 s of recorded time each, ~80 s a
   job); EVERY FILE IS IN EXACTLY ONE SHARD, and a file with no recorded time weighs the median.
 - **The times (FLOW1).** `npm run test:times` re-times every file into `tools/testTimes.json`. Stale times only
@@ -183,6 +185,30 @@ the call's and an engine that inlines it boxes nothing - the work is the law.
 The 35 allocation mutants over the ten suites and ALLOC-RACE's own three
 (`tools/mutants/allocrace.json`: the settle dropped from the list, the settle
 that waits for nothing, a suite's own list again): 38 dead.
+
+S7 kept failing after the settle (2026-10-25: pull requests 1220 and 1224
+read "look: 20.29" and "marks: 17.32", and neither touched the arena). The
+settle fixed a different failure. 17.32 is not the lower tier (a late
+compiler reads 2452): it is optimised code of another shape. Each child
+compiles its own shape and keeps it for its whole life. Which calls V8
+inlines under `remnantPose` turns on the feedback its background compiler
+reads, and when it reads it turns on the load. A shape that leaves a fresh
+number at a call's edge boxes it on each frame that makes the call:
+`keepInArena`'s on the Remnant's walking frames (the inlining trace shows it
+out of line), and in the 17.32 shape one more on every frame (the sampling
+heap profiler finds it in `remnantPose`'s own frame). All eight windows of
+such a child read the same, so more windows, a longer warm-up or more `gc()`
+cannot move it. A warm-up of every path over every
+fight state before the first window made the shape more common, not less.
+With sixteen children at once (Node 24 on 16 cores; CI runs 22, whose
+failures read the same 17.32), 11 runs of S7 in 128 failed, five of them at
+17.32, and a fresh child of the same code read 0.03. S7 now reads each path
+in fresh children until it reads clean, three at most, and its least reading
+counts: the least of the windows, carried across compilations. A list, an
+array or a closure made a frame shows in every shape. S7's three allocation
+mutants died in five runs of five, and the hands' mutant read 31.7 bytes a
+frame or more in each of 32 children. Under the same load 0 runs of S7 in 128
+failed. The other measuring suites still read one child each.
 
 Two tiers per module:
 1. **Synthetic fixtures** - in-memory data built inside the test. Always run;

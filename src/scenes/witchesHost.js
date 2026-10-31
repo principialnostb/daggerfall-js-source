@@ -7,8 +7,8 @@
 //   THE OFFERINGS. The town the player stands in is asked for its offerings (festivalClient townOfferings - one ask in
 //   flight, again each OFFERING_REFRESH_MS and after every move of mine) while the festival is live here, or while one of
 //   the account's own stands in it (to be taken in); and each stands at its home's door where the build kept its spot
-//   (world/witchesDecor.js `homes` - clear of the walls and of the dressing; a dressed town keeps no other): the bowl on its stool
-//   under a tallow lantern (world/festivalArt.js), a batch on the pixel's own list (its frame walk draws it, destroyPixel
+//   (world/witchesDecor.js `homes` - clear of the walls and of the dressing; a dressed town keeps no other): the pumpkin on its stool
+//   under a lantern (world/festivalArt.js OFFERING_ART), a batch on the pixel's own list (its frame walk draws it, destroyPixel
 //   frees it), its lantern among the pixel's lights, lit at dusk with the town's. Its box is a target in the street's one
 //   ray (`targets`), named under the crosshair with its cakes and its rows (`hoverName`): another's "Take a Soul Cake"
 //   (once a day an offering), the owner's "Fill" and "Take in".
@@ -25,11 +25,12 @@
 // stands none (the ?exterior bench builds its own street and runs no account service - no festival there);
 // dungeonContext.js stands no street. Not a DFU member. Ledger A (THE WITCHES' FESTIVAL).
 import {
-  bindFestival, festivalLive, festivalShut, festivalAccount, festivalState, festivalWardrobe, hearFestival, offeringMove, townOfferings,
-  refreshFestival, buyWare, wearWare, wearAccount, wareItem, loadWardrobe,
+  bindFestival, festivalLive, festivalShut, festivalAccount, festivalState, festivalFindsToday, festivalWardrobe, hearFestival, offeringMove, townOfferings,
+  refreshFestival, pendingSale, buyWare, wearWare, wearAccount, wareItem, loadWardrobe,
 } from '../systems/festival/festivalClient.js';
 import { setOfferingPlacer, hearthOffering } from '../systems/festival/soulCake.js';
 import { cakesText, cakesFoundText, festivalRefusalText, festivalNotice, festivalNightText, lastDayText } from '../systems/festival/festivalWords.js';
+import { eventNotice } from '../systems/eventNotices.js';   // EVENTS1: the festival's word in the event board's news
 import { festivalOpen, festivalNext, deadWalk, accountWare, bowlWare, wareById } from '../net/festivalLaw.js';
 import { doorFront, offeringSpot } from '../world/witchesDecor.js';
 import { FESTIVAL_ARCHIVE, FESTIVAL_ART } from '../world/festivalArt.js';
@@ -50,8 +51,9 @@ import { t } from '../systems/textManager.js';
 export const OFFERING_REFRESH_MS = 60_000;
 /** How near its door's middle the player stands to set an offering out there - metres. */
 export const OFFERING_SET_REACH = 4;
-/** The tallow lantern's flame, below the offering's picture's top - metres. */
-export const OFFERING_LIGHT_DROP = 0.32;
+/** The lantern's glow, below the offering's picture's top - metres (OFFERING-ART: festivalArt.js OFFERING_ART lanternY,
+ *  23 of 101 texels on a 1.7 m picture). */
+export const OFFERING_LIGHT_DROP = 0.39;
 /** An offering's target key: `witch:<mapId>:<buildingKey>`. */
 export const offeringKey = (/** @type {number} */ mapId, /** @type {number} */ buildingKey) => `witch:${mapId}:${buildingKey}`;
 
@@ -89,7 +91,10 @@ export function createWitchesHost(deps) {
   const stood = new Map();
   /** pixel key -> the list a stand is being made for (its texture awaited) */
   const standing = new Map();
-  let heard = false, noticed = false, nightSaid = -1, account = /** @type {string|null} */ (null);
+  // OVERLOAD-EASE (2026-10-29): the account's festival is asked once a sign-in, not at every relay reconnect - a failed
+  // ask again after OFFERING_REFRESH_MS, never every frame
+  let heardFor = /** @type {string|null} */ (null), mineAt = -Infinity, mineAsking = false;
+  let noticed = false, nightSaid = -1, account = /** @type {string|null} */ (null);
 
   const pixelKey = (/** @type {any} */ e) => `${e.px},${e.py}`;
   /** The street's ray's list, filled in place a frame - each box the ray's `{ min, max }` (FB1020e OFFERING-RAY: the
@@ -155,14 +160,16 @@ export function createWitchesHost(deps) {
     townOfferings(mapId).then((d) => { if (Array.isArray(d?.offerings) && JSON.stringify(d.offerings) !== JSON.stringify(town.list)) town.list = d.offerings; }, () => {})
       .finally(() => { town.at = Date.now(); town.asking = false; });
   }
-  /** The festival's word in the chat: once a session, and once a night the dead walk (the sky's own day, or the
-   *  festival's own night) while finds are asked here - offline, or a guest, nothing doubles, so nothing is promised. */
+  /** The festival's word: once a session, and once a night the dead walk (the sky's own day, or the festival's own
+   *  night) while finds are asked here - offline, or a guest, nothing doubles, so nothing is promised. EVENTS1: on the
+   *  event board's news (systems/eventNotices.js; `eventNotice` the tests'), where it had been the chat's. */
+  const herald = (/** @type {string} */ l) => (deps.eventNotice ?? eventNotice)('festival', l);
   function notice() {
     const now = Date.now();
     if (!festivalOpen(now)) return;
-    if (!noticed) { noticed = true; deps.chatNotice?.(festivalNotice(lastDayText(festivalNext(now)))); }
+    if (!noticed) { noticed = true; herald(festivalNotice(lastDayText(festivalNext(now)))); }
     const day = dayOfYearFromMinutes(Math.floor(skyMinutes())), night = deadWalk(day, nowMs()) ? day : -1;
-    if (night >= 0 && nightSaid !== night && festivalLive()) { nightSaid = night; deps.chatNotice?.(festivalNightText()); }
+    if (night >= 0 && nightSaid !== night && festivalLive()) { nightSaid = night; herald(festivalNightText()); }
   }
   /** Whether the town is asked for its offerings: while the festival is live here, or while one of the account's own
    *  stands in it (the town then shows its owner theirs alone, to take in). */
@@ -172,12 +179,19 @@ export function createWitchesHost(deps) {
     if (deps.mode?.() !== 'exterior') return;
     // offline, or another account signed in: nothing anyone's machine stood stands on (every pixel's, not this one's alone)
     const who = online() ? festivalAccount() : null;
-    if (who !== account) { account = who; heard = false; towns.clear(); for (const k of [...stood.keys()]) unstand(k); }
+    if (who !== account) {
+      account = who; towns.clear(); for (const k of [...stood.keys()]) unstand(k);
+      if (who && who === heardFor && pendingSale()) { heardFor = null; mineAt = -Infinity; }   // a sale whose answer was lost lands
+    }
     const entry = here();
     if (!entry) return;
     if (entry.witchHomes) notice();   // a town the festival dressed
     if (!online()) return;
-    if (!heard) { heard = true; refreshFestival().catch(() => {}); }
+    if (heardFor !== account && !mineAsking && Date.now() - mineAt >= OFFERING_REFRESH_MS) {
+      const asked = account;
+      mineAsking = true; mineAt = Date.now();
+      refreshFestival().then((ok) => { if (ok && asked === account) heardFor = asked; }, () => {}).finally(() => { mineAsking = false; });
+    }
     const key = pixelKey(entry), mapId = entry.homeTown;
     if (!asks(mapId)) { towns.delete(mapId); if (stood.has(key)) unstand(key); return; }
     const t = towns.get(mapId);
@@ -243,7 +257,7 @@ export function createWitchesHost(deps) {
   /** THE WYRD SISTER'S WINDOW - her wares as the account holds them, bought and worn through the festival's client. */
   function shop() {
     const win = createWyrdOverlay({
-      state: () => festivalState(), worn: () => festivalWardrobe(), shut: () => festivalShut(),
+      state: () => festivalState(), worn: () => festivalWardrobe(), shut: () => festivalShut(), today: () => festivalFindsToday(),   // CAKE-CAP-SAID
       lastDay: () => lastDayText(festivalNext(Date.now())),
       night: () => deadWalk(dayOfYearFromMinutes(Math.floor(skyMinutes())), nowMs()),
       itemOf: (/** @type {any} */ w) => wareItem(w) ?? (bowlWare(w) ? hearthOffering() : null), nameOf: (/** @type {any} */ item) => itemLongName(item), wearer: playerEntity,

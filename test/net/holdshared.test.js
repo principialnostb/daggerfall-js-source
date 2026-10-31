@@ -11,17 +11,18 @@ import { readFileSync } from 'node:fs';
 import { parse } from 'acorn';
 import { isStartDungeon, isStartCell } from '../../src/systems/startDungeon.js';
 import * as startDungeon from '../../src/systems/startDungeon.js';
-import { builtDungeonSize } from '../../src/world/smallerDungeons.js';
+import { dungeonRoomSize } from '../../src/world/smallerDungeons.js';   // PIN MOVED (DELVE II, AUDIT DLV5-6 M3): the room's layout word
 import { mapPixelToLongitudeLatitude } from '../../src/formats/mapsFile.js';
 import { setValue } from '../../src/systems/settings/settings.js';
 import { roomKeyFor } from '../../src/net/online.js';
-import { isWorldRoom } from '../../src/net/wire.js';
+import { isWorldRoom, seaVaultRoomId } from '../../src/net/wire.js';
 import * as chat from '../../src/net/chat.js';
 import { withMe } from '../../src/ui/partyPanel.js';
 import { privateInteriorOf } from '../../src/net/privateInterior.js';
 import { worldCoordToMapPixel } from '../../src/world/streamingWorld.js';
 import { validStaffDestination } from '../../src/net/staffTeleport.js';
 import { hostText } from '../hostText.mjs';   // HOST-SPLIT 2 (AUDIT, the second read): its negatives read the host whole
+import { withIndoorFloor, indoorSceneY } from '../../src/net/peer/indoorFloor.js';   // INDOOR-FLOOR: the key block's pose and law read a room's floor
 
 const read = (f) => readFileSync(new URL(`../../${f}`, import.meta.url), 'utf8');
 const HOLD_MAP_ID = 187853213;   // DaggerfallDungeon.cs:151 `case 187853213: // Daggerfall/Privateer's Hold`
@@ -56,8 +57,8 @@ const props = new Map();
   if (n.type === 'Property' && n.key?.name) props.set(n.key.name, WM.slice(n.start, n.end));
   for (const v of Object.values(n)) if (Array.isArray(v)) v.forEach(walk); else if (v && typeof v === 'object') walk(v);
 })(parse(WM, { ecmaVersion: 'latest', sourceType: 'module' }));
-const roomIdentityIn = (dungeonLoc) => Function('mode', 'dungeonLoc', 'isGateArena', 'isSdRealm', 'isEgHall', 'isArenaFloor', 'isStartDungeon', 'builtDungeonSize', 'host', 'placeInstance',
-  `return ({${props.get('roomIdentity')}}).roomIdentity();`)('dungeon', dungeonLoc, () => false, () => false, () => false, () => false, isStartDungeon, builtDungeonSize, {}, null);   // PIN MOVED (INSTANCES' audit): `placeInstance`, the mode's own - null, the public room   // INSTANCES: `host` - no door, so no instance (the public room this pins)
+const roomIdentityIn = (dungeonLoc) => Function('mode', 'dungeonLoc', 'isGateArena', 'isSdRealm', 'isEgHall', 'isKetchShip', 'isArenaFloor', 'isStartDungeon', 'dungeonRoomSize', 'host', 'placeInstance',
+  `return ({${props.get('roomIdentity')}}).roomIdentity();`)('dungeon', dungeonLoc, () => false, () => false, () => false, () => false, () => false, isStartDungeon, dungeonRoomSize, {}, null);   // PIN MOVED (KETCH): `isKetchShip` - a crew's ship is its own room, never the Hold   // PIN MOVED (INSTANCES' audit): `placeInstance`, the mode's own - null, the public room   // INSTANCES: `host` - no door, so no instance (the public room this pins)
 
 // world.js's key block, executed from its source - the one the frame names its room by
 const W = hostText('src/scenes/world.js');
@@ -67,8 +68,9 @@ function keyIn(ident) {
   const args = {
     modes: { mode: 'dungeon', sailingCabin: null, roomIdentity: () => ident },
     state: { compensation: [0, 0, 0], localFromWorld: (x, z) => [x, z], worldCoords: (p) => ({ x: p[0], z: p[2] }) },
-    player: { pos: [1, 2, 3] }, cam: { yaw: 0, pitch: 0 }, worldCoordToMapPixel, roomKeyFor, privateInteriorOf,
+    player: { pos: [1, 2, 3] }, cam: { yaw: 0, pitch: 0 }, worldCoordToMapPixel, roomKeyFor, privateInteriorOf, withIndoorFloor, indoorSceneY,
     _questLoc: () => null, privateRoomHere: () => assert.fail('a dungeon is never a private room'), siegeSession: null, royalSession: null, campToWire: (p) => p,
+    seaVaultRoomId, _wdunInside: null, seaVentures: { vaultHere: () => null },   // PIN MOVED (AUDIT SEA VENTURES D7, D8): a vault of the deep's room its own lane - a dungeon of the Bay its own map id, as before
   };
   return new Function(...Object.keys(args), `let onlineToScene, sceneToOnline; ${W.slice(KEY_FROM, KEY_TO)} return key;`)(...Object.values(args));
 }
@@ -105,7 +107,7 @@ test('HOLD-SHARED: a staff /tp to a player in the Hold lands at their place, as 
 });
 
 test('HOLD-SHARED: in the Hold a Local line goes to the room, two party members there are together, and nothing says the Hold is the player\'s own (AUDIT FB1007b H5 reverted)', () => {
-  const at = W.indexOf('  const chatSend = (tabId, text, from = tabId, { me = false } = {}) => {');
+  const at = W.indexOf('  const chatSend = (tabId, text, from = tabId, { me = false, item = null, items = null } = {}) => {');
   const end = W.indexOf('\n  };\n', at);
   assert.ok(at > 0 && end > at, 'chatSend');
   const sent = [];

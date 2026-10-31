@@ -61,7 +61,7 @@ test('SOC5: the port\'s own action - appended past DFU\'s forty-four, parseable,
   // moved from 44 to 42 (and MODE-WHEEL's five to 37); what holds is that every row before it is one of DFU's own.
   const at = DEFAULT_BINDINGS.findIndex(([, a]) => a === 'SocialInteract');
   assert.ok(DEFAULT_BINDINGS.slice(0, at).every(([, a]) => ACTIONS.indexOf(a) < 44), 'only DFU\'s rows stand before it');
-  assert.equal(at, 37);   // MODE-WHEEL: and F1-F4 and Sneak's Alt came out of it too (Ledger A) - 42 less five
+  assert.equal(at, 36);   // PARTY-PING: Mouse2 left this block (the ping's, below); MODE-WHEEL: F1-F4 and Sneak's Alt came out too (Ledger A) - 42 less six
   const codes = DEFAULT_BINDINGS.map(([c]) => c);
   assert.equal(codes.filter((c) => c === 'KeyF').length, 1, 'KeyF was free in SetupDefaults and is spent exactly once');
   // a live store built from the defaults answers F with the action, and the action with F
@@ -101,7 +101,7 @@ test('SOC5: the enhanced controls window offers the action in its own group, and
   // KB1: the pane's groups are the registry's ACTION_GROUPS, and SOC5's row is the whole of the Online one -
   // which is the claim this pin makes.
   const online = ACTION_GROUPS.find((g) => g.title === 'Online');
-  assert.deepEqual(online.rows.map((r) => ({ ...r })), [{ action: 'SocialInteract', label: 'Interact with player' }]);
+  assert.deepEqual(online.rows.map((r) => ({ ...r })), [{ action: 'SocialInteract', label: 'Interact with player' }, { action: 'PvpFlag', label: 'PvP on / off' }]);   // PVP-KEY: the flag's row beside it (PIN MOVED)
   // the classic faces keep their meaning exactly, read off the windows that draw them
   const grid = gridButtons().map((b) => b.action);
   assert.deepEqual(grid, ACTIONS.slice(2, 40), 'the grid is still DFU\'s SetupKeybindButtons slice');

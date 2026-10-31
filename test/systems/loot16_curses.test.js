@@ -35,8 +35,10 @@ import { rollGemFind } from '../../src/systems/gems.js';   // GEM2: the gem find
 
 const T = ENCHANTMENT_TYPES;
 const read = (p) => readFileSync(new URL(`../../${p}`, import.meta.url), 'utf8');
-const on = () => { _resetForTests(); setPref('lootRarity', true); LR._setCurseForTests(null); LR._setExaltedForTests(null); };
-const off = () => { _resetForTests(); setPref('lootRarity', false); LR._setCurseForTests(null); };
+// PIN MOVED (PELLETS-SCARCE, 2026-10-24): the Dwemer Pellet's final find is the door's draw after every pass these laws
+// read - held off here (test/systems/pelletsscarce.test.js holds it the door's very last)
+const on = () => { _resetForTests(); setPref('lootRarity', true); LR._setCurseForTests(null); LR._setExaltedForTests(null); LR._holdFinalFindsForTests(true); };
+const off = () => { _resetForTests(); setPref('lootRarity', false); LR._setCurseForTests(null); LR._holdFinalFindsForTests(false); };
 const lcg = (seed) => () => { seed = (seed * 1103515245 + 12345) & 0x7fffffff; return (seed >>> 8) / 0x800000; };
 /** A generator with no pattern between draws - for a rate over many seeds (the LCG's draws lean on each other). */
 const mulberry = (a) => () => { a |= 0; a = (a + 0x6D2B79F5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
@@ -357,7 +359,7 @@ test('LOOT16: the temple\'s row - a Cure Disease priest\'s, in the Reforge\'s pl
   on();
   const kids = (n, cls) => (n?.children ?? []).flatMap((c) => [...(c.classList?.contains(cls) ? [c] : []), ...kids(c, cls)]);
   const one = (n, cls) => kids(n, cls)[0] ?? null;
-  assert.deepEqual(REFORGE_GUILD_PAGES, ['reforge', 'salvage', 'imprint', 'codex', 'scry', 'sockets'], 'the guild\'s window never shows the temple\'s page (LOOT19, LOOT20: its scryers\' and its sockets\' are its own)');
+  assert.deepEqual(REFORGE_GUILD_PAGES, ['reforge', 'imbue', 'salvage', 'imprint', 'codex', 'scry', 'sockets'], 'the guild\'s window never shows the temple\'s page (LOOT19, LOOT20: its scryers\' and its sockets\' are its own)');
   withDom((dom) => {
     const cursed = known(cursedWith(amulet, T.BadRepWith, 3));
     const unknown = cursedWith(amulet, T.BadReactionsFrom);

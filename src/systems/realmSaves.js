@@ -38,7 +38,8 @@
 // lands with nothing newer behind it. A join whose record still stands
 // at that sequence - nothing landed after it, from any tab, device,
 // trade or act - plays the kept save and checkpoints it; a record that
-// moved past it drops it unread. The copy is the save's text; its put
+// moved past it never plays it, and sets it aside when a put of it failed
+// (STRANDED, below), or drops it. The copy is the save's text; its put
 // packs it as every checkpoint rides (REALM-GZIP, below).
 //
 // REALM-GZIP: IT RIDES PACKED (net/realm/realmSaveCodec.js). A long life's
@@ -54,6 +55,7 @@ import { REALM_DOOR_WORD } from '../net/wire.js';   // REALM-DOOR: the relay's w
 import { SESSION_PASS_HEADER } from '../net/sessionPassLaw.js';   // SESSION-SIGN: the pass's one name on the wire
 import { gzipText, gunzipText, saveTextOf, canGzip, canGunzip } from '../net/realm/realmSaveCodec.js';   // REALM-GZIP: a save rides packed
 import { houseLine } from '../net/houseLaw.js';   // LEGACY7: the house on the roster's tile
+import { t } from './textManager.js';   // STRANDED: the world's word in the player's language
 
 
 /**
@@ -138,6 +140,9 @@ export const realmLineages = async (/** @type {any} */ io) => {
  *  from (the list's, the last write's, the stale answer's) - none for a line founded here. */
 export const realmLineagePut = (/** @type {any} */ io, /** @type {string} */ id, /** @type {any} */ record, /** @type {number|null} */ base = null) =>
   realmAsk(io, '/v1/realm/lineage', { method: 'POST', json: base == null ? { id, record } : { id, record, base } });
+/** FAMILY-REMOVE: a line no living character plays let go, so the account has room to found another -
+ *  `{ ok }` or a refusal ('lineage-in-use', 'no-lineage'; server-account/src/legacy.js removeLineage). */
+export const realmLineageRemove = (/** @type {any} */ io, /** @type {string} */ id) => realmAsk(io, '/v1/realm/lineage/remove', { method: 'POST', json: { id } });
 /** LEGACY7: THE TOMBSTONE - the playing tab's character fallen for good, under its lease. Part three: `why` 'retired' -
  *  an elder's mantle passed, which keeps a union with another player's character (a death ends it). REZ-BLOODLINE AUDIT
  *  R1: `hold` - the death door's fall, held for a party's Resurrect (server-account/src/legacy.js realmDie). */
@@ -245,15 +250,21 @@ export const REALM_UNSENT_GRACE_MS = 1_500;
 /** SCALE2b (Scale-Arc "Checkpoints: every 120 s, sent even when the save has not changed"): a checkpoint whose save is
  *  the one that last landed, but for its clock and its look, goes at least this often - and otherwise not at all. */
 export const REALM_IDLE_CHECKPOINT_MS = 10 * 60 * 1000;
-/** SCALE2b: what a save says once its clock and its look are set aside - the character's two minutes (`classicMinutes`,
- *  the world's `worldMinutes`) and where the camera points (`pose.yaw`, `pose.pitch`, `pose.camera`) move every
- *  checkpoint of a player standing still; nothing else does. Null for a text that is not a save's JSON (no skip). */
+/** SCALE2b: what a save says once its clock and its look are set aside: the two minutes (`classicMinutes`,
+ *  `worldMinutes`), where the camera points (`pose.yaw`, `pitch`, `camera`), and what the clock moves in an idle tab -
+ *  each quest's `ownSecondsAt`, the automap's `lastVisited`, and `survival`'s `lastMinute`, `rotMinutes`, `thirst` and
+ *  `fed` (STRANDED's idle test, 2026-10-27). Thirst and fed also fall when the player eats or drinks, but eating spends
+ *  an item and a waterskin drink its charge, so the pack still differs: only a fountain's or a well's drink since the
+ *  last landed save is not told apart. Null for a text that is not a save's JSON (no skip). */
 export function idleKeyOf(text, summary = null) {
   let s;
   try { s = JSON.parse(text); } catch { return null; }
   if (!s || typeof s !== 'object' || Array.isArray(s)) return null;
   const { classicMinutes, worldMinutes, ...rest } = s;
   if (rest.pose && typeof rest.pose === 'object') { const { yaw, pitch, camera, ...pose } = rest.pose; rest.pose = pose; }
+  if (rest.survival && typeof rest.survival === 'object') { const { lastMinute, rotMinutes, thirst, fed, ...survival } = rest.survival; rest.survival = survival; }
+  for (const quest of Object.values(rest.quest?.machine?.quests ?? {})) if (quest && typeof quest === 'object') delete quest.ownSecondsAt;
+  for (const map of Object.values(rest.automap ?? {})) if (map && typeof map === 'object') delete map.lastVisited;
   return JSON.stringify([rest, summary]);
 }
 
@@ -307,7 +318,7 @@ export function keepUnsent(/** @type {any} */ storage, /** @type {string} */ id,
     if (lease && owner && owner !== lease) return false;
     prev = storage.getItem(unsentAtKey(id));
     storage.removeItem(unsentAtKey(id));
-    storage.setItem(unsentKey(id), text);
+    setYieldingStranded(storage, unsentKey(id), text, id);
   } catch {
     // AUDIT RESCUE-SAVE A5: the new text did not fit, and a refused write leaves the one before it standing - so does
     // its record: the copy already kept is newer than anything the service holds
@@ -369,10 +380,137 @@ export function ownsUnsent(/** @type {any} */ storage, /** @type {string} */ id,
 /** The character gone (its delete, here or elsewhere): the copy and the device's join of it with it. */
 function dropUnsent(/** @type {any} */ storage, /** @type {string} */ id) {
   forgetUnsent(storage, id);
+  forgetStranded(storage, id);
   try { storage?.removeItem?.(unsentOwnerKey(id)); } catch { /* storage away */ }
 }
+
+// ── STRANDED: A COPY THE RECORD MOVED PAST IS SET ASIDE, NEVER DELETED ──
+//
+// FIELD BUGS 2026-10-25 (guild standing and quests reset): a device whose puts were refused or unanswered kept its
+// newest save here, marked `missed`. The character was then played on another device, which plays the realm's older
+// save and checkpoints over it - and this device's next join or Online door deleted the copy unread, with everything
+// played since the last save that landed. The realm still never plays a copy over a record that moved (a trade or an
+// act since may have moved goods), but a missed copy that differs from the realm's save is now kept under its own key,
+// never played and never swept, and the world says so once (`openRealmBoot` `stranded`). A copy whose put was never
+// refused (an ordinary close) is dropped as before: its put usually landed, so the realm holds it.
+//
+// It can be wrong one way: a put that landed with its answer lost is `missed` too, and once another device saved
+// over it the realm's save no longer equals the copy - so the copy is set aside although the realm took it. The world's
+// word says the copy MAY hold progress for that reason.
+
+/** The set-aside copy's keys: its text (packed as it was kept, if it was) and its record beside it, written last. */
+export const REALM_STRANDED_PREFIX = 'dagger.realm.stranded.';
+const strandedKey = (/** @type {string} */ id) => `${REALM_STRANDED_PREFIX}${id}`;
+const strandedAtKey = (/** @type {string} */ id) => `${REALM_STRANDED_PREFIX}${id}.at`;
+
+/**
+ * The device's copy set aside, as it was kept: a text, or a packed one.
+ * @typedef {object} StrandedCopy
+ * @property {number} seq the record's sequence the copy followed
+ * @property {number} recordSeq the record's sequence when the copy was set aside
+ * @property {number | null} at when the copy was kept
+ * @property {number} strandedAt when it was set aside
+ * @property {string | null} text the save's text, or null when it is kept packed
+ * @property {string} [packed] the packed save (REALM_UNSENT_PACKED), when it is kept so
+ */
+
+/** Moves the device's copy of `id` to the set-aside keys, replacing any set aside before, and drops the copy. A write
+ *  the device has no room for sets nothing aside: the copy is dropped as it was before. Answers whether it was kept. */
+function strandUnsent(/** @type {any} */ storage, /** @type {string} */ id, /** @type {number} */ recordSeq) {
+  let kept = false;
+  try {
+    const record = JSON.parse(storage.getItem(unsentAtKey(id)) ?? 'null');
+    const text = storage.getItem(unsentKey(id));
+    if (Number.isSafeInteger(record?.seq) && typeof text === 'string' && text) {
+      forgetStranded(storage, id);
+      storage.setItem(strandedKey(id), text);
+      const at = Number.isFinite(record.at) ? record.at : null;
+      const player = typeof record.player === 'string' ? record.player : null;
+      storage.setItem(strandedAtKey(id), JSON.stringify({ seq: record.seq, recordSeq, at, strandedAt: Date.now(), player }));
+      kept = true;
+    }
+  } catch {
+    forgetStranded(storage, id);
+  }
+  forgetUnsent(storage, id);
+  return kept;
+}
+/** The copy set aside for `id` - or null. */
+export function readStranded(/** @type {any} */ storage, /** @type {string} */ id) {
+  try {
+    const record = JSON.parse(storage?.getItem?.(strandedAtKey(id)) ?? 'null');
+    const text = storage?.getItem?.(strandedKey(id)) ?? null;
+    if (!Number.isSafeInteger(record?.seq) || typeof text !== 'string' || !text) return null;
+    const isPacked = text.startsWith(REALM_UNSENT_PACKED);
+    /** @type {StrandedCopy} */
+    const copy = { seq: record.seq, recordSeq: record.recordSeq, at: record.at ?? null, strandedAt: record.strandedAt, text: isPacked ? null : text };
+    if (isPacked) copy.packed = text;
+    return copy;
+  } catch { return null; }
+}
+/** The copy set aside for `id` dropped - the record first. */
+export function forgetStranded(/** @type {any} */ storage, /** @type {string} */ id) {
+  try { storage?.removeItem?.(strandedAtKey(id)); storage?.removeItem?.(strandedKey(id)); } catch { /* storage away */ }
+}
+/** The ids of every character with a copy set aside on this device. */
+function strandedIds(/** @type {any} */ storage) {
+  const ids = [];
+  try {
+    for (let i = 0; i < (storage?.length ?? 0); i++) {
+      const key = storage.key(i);
+      if (typeof key === 'string' && key.startsWith(REALM_STRANDED_PREFIX) && key.endsWith('.at')) ids.push(key.slice(REALM_STRANDED_PREFIX.length, -'.at'.length));
+    }
+  } catch { /* storage away */ }
+  return ids;
+}
+/**
+ * Writes the device's copy of `id`, making room by dropping set-aside copies when the device has none left: this
+ * character's first, then every other. A copy set aside holds play that MAY not be in the realm; the copy being written
+ * holds play that is not. Throws as `setItem` does when even that is not room enough.
+ */
+function setYieldingStranded(/** @type {any} */ storage, /** @type {string} */ key, /** @type {string} */ text, /** @type {string} */ id) {
+  try {
+    storage.setItem(key, text);
+    return;
+  } catch (full) {
+    if (!strandedIds(storage).length) throw full;
+  }
+  // the copies dropped are put back when even that is not room enough: the write fails, and they hold play the realm may lack
+  const dropped = [];
+  const drop = (/** @type {string} */ stranded) => {
+    const at = storage.getItem(strandedAtKey(stranded)), held = storage.getItem(strandedKey(stranded));
+    if (at != null && held != null) dropped.push([stranded, at, held]);
+    forgetStranded(storage, stranded);
+  };
+  drop(id);
+  try {
+    storage.setItem(key, text);
+    return;
+  } catch { /* still no room: the others go too */ }
+  for (const other of strandedIds(storage)) drop(other);
+  try {
+    storage.setItem(key, text);
+  } catch (full) {
+    for (const [stranded, at, held] of dropped) {
+      try { storage.setItem(strandedKey(stranded), held); storage.setItem(strandedAtKey(stranded), at); } catch { /* storage away */ }
+    }
+    throw full;
+  }
+}
+/** A join found the device's copy behind the record it joined: set aside when a put of it failed and it is not the
+ *  save the realm holds now (`serviceText`), else dropped. Answers whether it was set aside. */
+async function settleMovedCopy(/** @type {any} */ storage, /** @type {string} */ id, /** @type {{ missed: boolean, text: string | null, packed?: string }} */ kept, /** @type {string} */ serviceText, /** @type {number} */ recordSeq) {
+  const text = kept.packed ? await unpackUnsent(kept.packed) : kept.text;
+  const realmHoldsIt = text === serviceText;
+  if (!kept.missed || text == null || realmHoldsIt) {
+    forgetUnsent(storage, id);
+    return false;
+  }
+  return strandUnsent(storage, id, recordSeq);
+}
 /** AUDIT RESCUE-SAVE A7: THE ONLINE DOOR'S SWEEP - a copy of one of the account's characters whose record has moved
- *  past it (played on elsewhere, a trade, an act) can never be played: dropped as the door lists them. Another account's
+ *  past it (played on elsewhere, a trade, an act) can never be played: dropped as the door lists them - unless a put of
+ *  it failed, when the next join sets it aside or drops it after reading the realm's save (STRANDED). Another account's
  *  characters on this device are not listed, and theirs stay. Answers how many went. */
 export function sweepUnsent(/** @type {any} */ storage, /** @type {any[]} */ rows, /** @type {string | null} */ player = null) {
   let n = 0;
@@ -382,7 +520,8 @@ export function sweepUnsent(/** @type {any} */ storage, /** @type {any[]} */ row
     listed.add(row.id);
     if (row.playing) continue;   // AUDIT RESCUE-SAVE 2 B6: a tab is playing it - its put may have landed unanswered yet
     const kept = readUnsent(storage, row.id);
-    if (kept && kept.seq !== row.seq) { forgetUnsent(storage, row.id); n++; }
+    // a copy whose put failed is left for the next join, which sets it aside unless the realm holds it (STRANDED)
+    if (kept && kept.seq !== row.seq && !kept.missed) { forgetUnsent(storage, row.id); n++; }
   }
   // AUDIT RESCUE-SAVE 2 B5: the account's own copies of characters it no longer holds (deleted from another device, never
   // joined here again) - found by the account their record names; another account's are not this door's to judge
@@ -443,6 +582,21 @@ export function createRealmSession({
   /** @type {(() => void) | null} */
   let unkeptTimer = null;
   let missed = false;   // AUDIT A8: a put refused or unanswered since the last that landed
+  // When the first put since the last that landed was refused or went unanswered: what the player has played since then
+  // is on this device alone, and the host tells them once it has been so for a while (online/realmUnsavedNotice.js)
+  /** @type {number | null} */
+  let missedSince = null;
+  // When the realm last held this tab's progress: the join, a put that landed, or a periodic save the realm already
+  // holds but for its clock (`idle`). The host tells the player when it is long ago (online/realmUnsavedNotice.js)
+  let savedAt = now();
+  const markMissed = () => {
+    missed = true;
+    missedSince ??= now();
+  };
+  /** The host is told after each put the realm answered, landed or not (never one that ended the session). */
+  const toldAnswered = () => {
+    try { session.onCheckpointAnswered?.(); } catch (e) { console.warn('[realm] the answer handler failed', e); }
+  };
   let landedKey = null, landedAt = -Infinity;   // SCALE2b: the last landed save's idle key (idleKeyOf), and when it landed
   let idleOk = false;   // SCALE2b: inside `idle` - the periodic checkpoint, the one call that may be answered by the save the service holds
   /** @type {string | null} */
@@ -451,7 +605,9 @@ export function createRealmSession({
   // RESCUE-PACK: every change of the copy is a generation; a packing that finishes after the copy moved on (a landing,
   // a drop, a newer save kept) writes nothing
   let copyGen = 0;
-  const keepNow = () => {
+  /** @type {(() => void) | null} */
+  let pageSave = null;   // CLOSE-SAVE: the host's page-hide checkpoint (saveAsItGoes)
+  const keepNow = (going = false) => {   // CLOSE-SAVE: `going` - the page goes now, visible or not (leave's keepalive)
     if (unkeptTimer) { unkeptTimer(); unkeptTimer = null; }
     if (unkept == null) return;
     const text = unkept, at = current, gen = ++copyGen, how = { lease, missed, player };
@@ -461,7 +617,7 @@ export function createRealmSession({
     };
     if (text.length <= REALM_UNSENT_PACK_OVER) { keepUnsent(storage, id, at, text, how); return; }
     // a long life's save: on a page going away, as it stands if the device takes it - nothing may wait there
-    if (hidden() && keepUnsent(storage, id, at, text, how)) return;
+    if ((going || hidden()) && keepUnsent(storage, id, at, text, how)) return;
     packLater();
   };
   const dropCopy = () => {
@@ -571,8 +727,10 @@ export function createRealmSession({
           heardLocked(r.data?.locked);
           landedText = job.text;
           landedKey = idleKeyOf(job.text, job.summary); landedAt = now();   // SCALE2b
+          savedAt = landedAt;
           // RESCUE-SAVE: the newest save landed - no copy; or a newer one waits, its copy at the sequence now held
           missed = false;
+          missedSince = null;
           if (pending) rebaseCopy(); else dropCopy();
           continue;
         }
@@ -581,13 +739,20 @@ export function createRealmSession({
         if (REALM_LOST.includes(r.error) || r.error === 'seq' || !putMayClear(r)) {
           // RESCUE-SAVE: kept for the next join to decide (another tab took the lease, the account signed out), or a copy
           // no join may play, dropped
-          if (UNSENT_KEPT_ON.includes(r.error)) { missed = true; keepNow(); revise({ missed: true }); } else dropCopy();
+          // STRANDED: a `lease` refusal marks the copy missed only when it differs from the last save that landed but for its
+          // clock and its look (idleKeyOf). Such a copy holds nothing the realm lacks (an idle tab at the seat's loss), so it
+          // is not set aside as one that "may hold progress". Any other copy holds play since the last landed put, up to a
+          // checkpoint's worth, and stays marked: the next join sets it aside unless the realm already holds it.
+          if (UNSENT_KEPT_ON.includes(r.error)) {
+            if (r.error !== 'lease' || idleKeyOf(job.text, job.summary) !== landedKey) { markMissed(); revise({ missed: true }); }
+            keepNow();
+          } else dropCopy();
           lose(r.error); last = { ok: false, error: r.error }; answer(job, last); break;
         }
         // offline, a busy service, the hour's bound: this save waits for the next checkpoint unless a newer one came - and
         // an answer lost on the way (offline, the service's own error) may be a checkpoint that landed
         if (r.error === 'offline' || r.error === 'server') unsure = true;
-        missed = true;   // RESCUE-SAVE, AUDIT A6/A8: on the device now, marked - the join says so
+        markMissed();   // RESCUE-SAVE, AUDIT A6/A8: on the device now, marked - the join says so
         keepNow();
         revise({ missed: true });
         if (!pending) pending = job;
@@ -602,11 +767,22 @@ export function createRealmSession({
       if (pending) answer(pending, lost ? { ok: false, error: lost } : last);
       running = null;
     }
+    if (!lost) toldAnswered();
     return last;
   }
   const session = {
     id,
     get seq() { return current; },
+    /** When the first put since the last that landed was refused or went unanswered (the session's `now`), or null
+     *  while every save handed has reached the realm. */
+    get missedSince() { return missedSince; },
+    /** When the realm last held this tab's progress (the session's `now`): the join, a put that landed, or a periodic
+     *  save answered by the save the realm holds. */
+    get savedAt() { return savedAt; },
+    /** Whether a put is out or a save waits for one - its answer is not in yet. */
+    get busy() { return !!running || !!pending; },
+    /** Told after each run of puts the realm answered, while the session stands; the host's to set. @type {(() => void) | null} */
+    onCheckpointAnswered: null,
     /** INT3: the judge's hold the last landed checkpoint said - a reason, null for none, undefined before any said. */
     get tradeHeld() { return tradeHeld; },
     /** The law's word on that hold (`{ code, t }`, or a timed hold's `{ code: 'until', t, until }`), or null. */
@@ -637,7 +813,10 @@ export function createRealmSession({
       // whatever it held - an account write every two minutes for someone standing still. The save the service holds
       // is answered for it: the one that last landed, but for its clock and its look (idleKeyOf), with nothing queued,
       // nothing missed, inside REALM_IDLE_CHECKPOINT_MS - and never on a page going away, whose save the next join reads.
-      if (idleOk && landedKey != null && !pending && !running && !missed && !hidden() && now() - landedAt < REALM_IDLE_CHECKPOINT_MS && idleKeyOf(text, summary) === landedKey) return Promise.resolve({ ok: true, seq: current, idle: true });
+      if (idleOk && landedKey != null && !pending && !running && !missed && !hidden() && now() - landedAt < REALM_IDLE_CHECKPOINT_MS && idleKeyOf(text, summary) === landedKey) {
+        savedAt = now();   // the realm holds this save but for its clock
+        return Promise.resolve({ ok: true, seq: current, idle: true });
+      }
       // RESCUE-SAVE: NEVER IN THIS PAGE'S MEMORY ALONE - on the device once its put waits out the grace, and at once on a
       // hidden page, whose put the page's going cuts off (a close, a reload, the keepalive leave ahead of it)
       unkept = text;
@@ -727,12 +906,19 @@ export function createRealmSession({
       const r = await realmWedHalf(io, id, lease, sid, partner, partnerChar, opts);
       return r.ok ? { ok: true, wed: r.data?.wed === true, union: r.data?.union ?? null } : { ok: false, error: r.error };
     },
+    /** CLOSE-SAVE: the host's page-hide checkpoint (whenPageHides hands it), asked by a leave as the page goes. */
+    saveAsItGoes(/** @type {() => void} */ fn) { pageSave = fn; },
     /** The session's end: what is waiting is sent first (unless the page is going - `keepalive` sends the leave alone,
-     *  which a browser can finish after the page is gone), then the lease given up. */
+     *  which a browser can finish after the page is gone), then the lease given up. CLOSE-SAVE (FIELD BUGS 2026-10-26,
+     *  a worn Ruhn's Warden-Plate gone after the update's reload): a page going asks the host's page-hide checkpoint
+     *  first (`saveAsItGoes`). A close, a reload and a navigation fire pagehide BEFORE visibilitychange (the HTML
+     *  spec's unload steps; Edge measured), so that checkpoint came after this leave and was refused: the page kept
+     *  nothing and sent nothing, and everything since the last landed checkpoint was lost. */
     async leave({ keepalive = false } = {}) {
       if (lost) return { ok: false, error: lost };
+      if (keepalive) { try { pageSave?.(); } catch (e) { console.warn('[realm] the page\'s last checkpoint failed', e); } }
       if (!keepalive) { if (running) await running; if (pending) await session.checkpoint(pending.text, pending.summary); }
-      keepNow();   // RESCUE-SAVE: whatever never landed is on the device before the lease goes
+      keepNow(keepalive);   // RESCUE-SAVE: whatever never landed is on the device before the lease goes - as it stands on a page going
       lost = 'left';
       return realmLeave(io, id, lease, { keepalive });
     },
@@ -809,7 +995,8 @@ export function realmRowAsSave(row, { dateText = () => null } = {}) {
  * character came from, from the join (RESTORE); `gzip` the join's word that the service opens a packed save
  * (REALM-GZIP), for the session's checkpoints - or `{ ok: false, error }`. RESCUE-SAVE: `restored: true` when the
  * save is the device's copy of one the service never took, played in place of the service's older one (`missed`: a
- * put of it was refused or unanswered - AUDIT A8, the only restore the world says). AUDIT RESCUE-SAVE A1: `held`, the
+ * put of it was refused or unanswered - AUDIT A8, the only restore the world says). STRANDED: `stranded: true` when a
+ * copy behind the record was set aside rather than dropped (the world says that too). AUDIT RESCUE-SAVE A1: `held`, the
  * spoils records the save's pack already holds - the crash's door adopts them and never hands them again.
  * @param {{ io: any, id: string }} at
  */
@@ -841,14 +1028,16 @@ async function joinRealmBoot(/** @type {{ io: any, id: string }} */ { io, id }) 
   if (kept && kept.seq === seq) {
     const snap = parseSave(kept.packed ? await unpackUnsent(kept.packed) : kept.text);   // RESCUE-PACK: opened first
     if (snap) { snap.characterId = id; return { ok: true, snap, lease, seq, origin: typeof origin === 'string' ? origin : null, restored: true, missed: kept.missed, gzip: joined.data?.gzip === true }; }
+    forgetUnsent(io.storage, id);   // a copy that will not open is dropped
   }
-  if (kept) forgetUnsent(io.storage, id);
   const got = await realmFetch(io, id);
-  if (!got.ok) return { ok: false, error: got.error };
+  if (!got.ok) return { ok: false, error: got.error };   // a copy behind the record stays for the next join to settle
+  // STRANDED: a copy behind the record is never played - set aside when a put of it failed and the realm does not hold it
+  const stranded = kept && kept.seq !== seq ? await settleMovedCopy(io.storage, id, kept, got.text, got.seq ?? seq) : false;
   const snap = parseSave(got.text);
   if (!snap) return { ok: false, error: 'no-data' };
   snap.characterId = id;
-  return { ok: true, snap, lease, seq: got.seq ?? seq, origin: typeof origin === 'string' ? origin : null, gzip: joined.data?.gzip === true };   // RESTORE: the offline id it came from
+  return { ok: true, snap, lease, seq: got.seq ?? seq, origin: typeof origin === 'string' ? origin : null, gzip: joined.data?.gzip === true, ...(stranded ? { stranded: true } : {}) };   // RESTORE: the offline id it came from
 }
 /** A save's text as the snapshot a slot load reads, or null. */
 function parseSave(/** @type {string | null} */ text) {
@@ -923,6 +1112,11 @@ export function realmRefusalText(/** @type {string} */ error) {
 }
 /** RESCUE-SAVE: said once the world stands, when the join played the device's copy of a save the realm never took. */
 export const REALM_RESTORED_TEXT = 'Your last save had not reached the realm when you left. This device kept it, and you continue from it.';
+/** STRANDED: said once the world stands, when the join set aside this device's copy of a save the realm never took
+ *  because the character was played on elsewhere since - in the player's language. "May": a put whose answer was lost
+ *  may have landed after all. And where it can be had again: the Online door copies it as an offline character
+ *  (systems/online/strandedCopy.js). */
+export const realmStrandedText = () => `${t('realm.stranded', 'This device kept a save of this character that did not reach the realm, and the character was played somewhere else since. That save may hold progress you do not have now. It is set aside on this device, not played.')} ${t('realm.strandedWayBack', 'To keep it, recover it from this character\u2019s tile at the Online door.')}`;
 /** Said once the world stands, when an online boot carried no realm character (a stale address, a local save). */
 export const REALM_OFFLINE_TEXT = 'Online characters live in the realm now, so this one plays offline. Use the Online door to bring it in. You can do this once.';
 
@@ -937,9 +1131,12 @@ export const realmDoorShut = (/** @type {any} */ session) => !!session?.terminal
 export const REALM_EXIT_WAIT_MS = 5_000;
 
 /** REALM P1.3: A PAGE PUT AWAY (a phone's home button, another tab) - `fn` runs as it hides, while it still can send.
- *  The realm's own hook, kept here: the world host's frame loop answers to no page-lifecycle timer (AUDIT WORLD7/8). */
-export function whenPageHides(/** @type {any} */ doc, /** @type {() => void} */ fn) {
+ *  The realm's own hook, kept here: the world host's frame loop answers to no page-lifecycle timer (AUDIT WORLD7/8).
+ *  CLOSE-SAVE: `session` is handed `fn` too, for its leave as the page goes - a close or a reload hides the page only
+ *  after pagehide, where the lease has gone. */
+export function whenPageHides(/** @type {any} */ doc, /** @type {() => void} */ fn, /** @type {any} */ session = null) {
   doc?.addEventListener?.('visibilitychange', () => { if (doc.visibilityState === 'hidden') fn(); });
+  session?.saveAsItGoes?.(fn);
 }
 /** AUDIT REALM2 C2: THE PAGE GOING, AND COMING BACK - `gone` as the page is unloaded or put in the back-forward cache
  *  (pagehide: the unload guard's "Leave site?" already answered, so a Stay never reaches it), `back` as a page that

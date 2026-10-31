@@ -66,8 +66,8 @@
   {
     "name": "WORLD-HOVER-corpse-prefix-stops-itemising",
     "file": "src/systems/worldHover.js",
-    "old": "export const ITEMISED_KEYS = Object.freeze(['loot:', 'corpse:', 'droppedLoot:', 'foeCorpse:', 'guardCorpse:', 'dwFish:', 'spoil:']);",
-    "new": "export const ITEMISED_KEYS = Object.freeze(['loot:', 'droppedLoot:', 'foeCorpse:', 'guardCorpse:', 'dwFish:', 'spoil:']);",
+    "old": "export const ITEMISED_KEYS = Object.freeze(['loot:', 'corpse:', 'droppedLoot:', 'foeCorpse:', 'guardCorpse:', 'dwFish:', 'spoil:', 'delve:']);",
+    "new": "export const ITEMISED_KEYS = Object.freeze(['loot:', 'droppedLoot:', 'foeCorpse:', 'guardCorpse:', 'dwFish:', 'spoil:', 'delve:']);",
     "tests": [
       "test/systems/worldhover.test.js"
     ]
@@ -122,7 +122,7 @@
   {
     "name": "WORLD-HOVER-skin-gate-removed-from-the-seam",
     "file": "src/ui/worldPlaque.js",
-    "old": "  if (!dom && !classic) { hideWorldPlaque(); return null; }   // (the hide",
+    "old": "  if (!dom && !classic && !verbs) { hideWorldPlaque(); return null; }   // (the hide",
     "new": "  if (false) { hideWorldPlaque(); return null; }   // (the hide",
     "tests": [
       "test/systems/worldhover.test.js",
@@ -315,8 +315,9 @@
   {
     "name": "WORLD-HOVER-city-walls-lose-their-special-case",
     "file": "src/systems/worldTooltips.js",
-    "old": "  const to = buildingType === BUILDING_TYPES.Town23\n    ? (locationName ? `${locationName} City Walls` : '')\n    : displayName;",
-    "new": "  const to = displayName;",
+    "old": "  const to = buildingType === BUILDING_TYPES.Town23\n    ? (locationName ? `${locationName} City Walls` : '')\n    : displayName || locationName;",
+    "new": "  const to = displayName || locationName;",
+    "note": "Re-aimed by content (IC-PROPS): a nameless building of another kind says its place; the mutant still drops the city walls' own word.",
     "tests": [
       "test/systems/worldhover.test.js"
     ]
@@ -360,7 +361,7 @@
   {
     "name": "WORLD-HOVER-raceWinner-tie-order-inverted",
     "file": "src/player/activationRace.js",
-    "old": "  return firmFirst([gate, broker, camp, water, wagon, horseCart, boat, torch, corpse, pile, ground, person, peer, foe], nearestInOrder);",
+    "old": "  return firmFirst([gate, broker, camp, water, wagon, horseCart, dragon, boat, torch, corpse, pile, ground, person, peer, foe], nearestInOrder);   // DRAGON5b: the tamed dragon with the mounts, after HCC's",
     "new": "  return firmFirst([foe, peer, person, ground, pile, corpse, torch, boat, horseCart, wagon, water, camp, broker, gate], nearestInOrder);",
     "tests": [
       "test/systems/worldhover.test.js"
@@ -495,8 +496,8 @@
   {
     "name": "WORLD-HOVER-a-foe-beats-a-townsperson-on-a-tie",
     "file": "src/player/activationRace.js",
-    "old": "  return firmFirst([gate, broker, camp, water, wagon, horseCart, boat, torch, corpse, pile, ground, person, peer, foe], nearestInOrder);",
-    "new": "  return firmFirst([gate, broker, camp, water, wagon, horseCart, boat, torch, corpse, pile, ground, foe, peer, person], nearestInOrder);",
+    "old": "  return firmFirst([gate, broker, camp, water, wagon, horseCart, dragon, boat, torch, corpse, pile, ground, person, peer, foe], nearestInOrder);   // DRAGON5b: the tamed dragon with the mounts, after HCC's",
+    "new": "  return firmFirst([gate, broker, camp, water, wagon, horseCart, dragon, boat, torch, corpse, pile, ground, foe, peer, person], nearestInOrder);",
     "tests": [
       "test/systems/worldhover.test.js"
     ]
@@ -504,8 +505,8 @@
   {
     "name": "WORLD-HOVER-a-townsperson-beats-the-door-on-a-tie",
     "file": "src/player/activationRace.js",
-    "old": "  return firmFirst([gate, broker, camp, water, wagon, horseCart, boat, torch, corpse, pile, ground, person, peer, foe], nearestInOrder);",
-    "new": "  return firmFirst([gate, broker, camp, water, wagon, horseCart, boat, torch, corpse, pile, person, peer, ground, foe], nearestInOrder);",
+    "old": "  return firmFirst([gate, broker, camp, water, wagon, horseCart, dragon, boat, torch, corpse, pile, ground, person, peer, foe], nearestInOrder);   // DRAGON5b: the tamed dragon with the mounts, after HCC's",
+    "new": "  return firmFirst([gate, broker, camp, water, wagon, horseCart, dragon, boat, torch, corpse, pile, person, peer, ground, foe], nearestInOrder);",
     "tests": [
       "test/systems/worldhover.test.js"
     ]
@@ -675,8 +676,8 @@
   {
     "name": "WORLD-HOVER-the-street-s-doors-outlive-the-street",
     "file": "src/scenes/worldModes.js",
-    "old": "  const setMode = (next) => { dropDoorCache(); if (next !== mode) interiorWeapon.silenceTorch();   /* DISC6: the building's rig leaves the frame - its torch loop with it */ if (next !== 'interior') closeCardWatches();   /* CARDS5: the watched tables' cloths go with the interior */ if (next !== 'interior') closeGambitWatches();   /* KG5: and the watched boards */ mode = next; if (next !== 'interior') { privateVisitRoom = null; privateVisitOwner = null; } if (next === 'exterior') placeInstance = null; };",
-    "new": "  const setMode = (next) => { if (next !== mode) interiorWeapon.silenceTorch();   /* DISC6: the building's rig leaves the frame - its torch loop with it */ if (next !== 'interior') closeCardWatches();   /* CARDS5: the watched tables' cloths go with the interior */ if (next !== 'interior') closeGambitWatches();   /* KG5: and the watched boards */ mode = next; if (next !== 'interior') { privateVisitRoom = null; privateVisitOwner = null; } if (next === 'exterior') placeInstance = null; };",
+    "old": "  const setMode = (next) => { dropDoorCache(); if (next !== mode)",
+    "new": "  const setMode = (next) => { if (next !== mode)",
     "tests": [
       "test/systems/worldhover.test.js"
     ]
@@ -713,15 +714,6 @@
     "file": "src/systems/worldTooltips.js",
     "old": "  return itemLongName(item, { differentiatePlantIngredients: false, getQuest }) || null;",
     "new": "  return itemLongName(item, { getQuest }) || null;",
-    "tests": [
-      "test/systems/worldhover.test.js"
-    ]
-  },
-  {
-    "name": "WORLD-HOVER-the-board-reaches-as-far-as-the-ray",
-    "file": "src/scenes/worldModes.js",
-    "old": "key: `board:${i}`, aabb, distance: RAY_DISTANCE, reach: BULLETIN_BOARD_ACTIVATION_DISTANCE }));",
-    "new": "key: `board:${i}`, aabb, distance: RAY_DISTANCE }));",
     "tests": [
       "test/systems/worldhover.test.js"
     ]
@@ -886,8 +878,8 @@
   {
     "name": "AUDIT-WH2-the-seam-gate-stops-hiding",
     "file": "src/ui/worldPlaque.js",
-    "old": "  if (!dom && !classic) { hideWorldPlaque(); return null; }   // (the hide",
-    "new": "  if (!dom && !classic) { return null; }   // (the hide",
+    "old": "  if (!dom && !classic && !verbs) { hideWorldPlaque(); return null; }   // (the hide",
+    "new": "  if (!dom && !classic && !verbs) { return null; }   // (the hide",
     "tests": [
       "test/systems/worldhover.test.js"
     ]
@@ -1014,8 +1006,8 @@
   {
     "name": "AUDIT-WH2-the-mode-flip-forgets-the-door-cache",
     "file": "src/scenes/worldModes.js",
-    "old": "  const setMode = (next) => { dropDoorCache(); if (next !== mode) interiorWeapon.silenceTorch();   /* DISC6: the building's rig leaves the frame - its torch loop with it */ if (next !== 'interior') closeCardWatches();   /* CARDS5: the watched tables' cloths go with the interior */ if (next !== 'interior') closeGambitWatches();   /* KG5: and the watched boards */ mode = next; if (next !== 'interior') { privateVisitRoom = null; privateVisitOwner = null; } if (next === 'exterior') placeInstance = null; };",
-    "new": "  const setMode = (next) => { if (next !== mode) interiorWeapon.silenceTorch();   /* DISC6: the building's rig leaves the frame - its torch loop with it */ if (next !== 'interior') closeCardWatches();   /* CARDS5: the watched tables' cloths go with the interior */ if (next !== 'interior') closeGambitWatches();   /* KG5: and the watched boards */ mode = next; if (next !== 'interior') { privateVisitRoom = null; privateVisitOwner = null; } if (next === 'exterior') placeInstance = null; };",
+    "old": "  const setMode = (next) => { dropDoorCache(); if (next !== mode)",
+    "new": "  const setMode = (next) => { if (next !== mode)",
     "tests": [
       "test/systems/worldhover.test.js"
     ]

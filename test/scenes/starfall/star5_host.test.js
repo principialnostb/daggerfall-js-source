@@ -11,11 +11,11 @@ import '../../modsOff.js';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  createStarfallHost, starfallStands, STAR_BLOWS_STORE, STAR_LIVE_MAX, STAR_RESTAND_MS, STAR_COARSE_EVERY, STAR_FLOOR_OFFSET, STAR_BUILD_M,
+  createStarfallHost, starfallStands, STAR_BLOWS_STORE, STAR_LIVE_MAX, STAR_RESTAND_MS, STAR_YIELD_MS, STAR_COARSE_EVERY, STAR_FLOOR_OFFSET, STAR_BUILD_M, STAR_GROUND_EVERY,
 } from '../../../src/scenes/starfall/starfallHost.js';
 import {
   starNightAt, starTimes, starCircleSize, starLostAt, STAR_ORPHAN_MS, STAR_CIRCLE_AT, STAR_LOST_DARK, STAR_LIFE_MS, STAR_AFTER_MS, STAR_GRACE_MS,
-  P_GATHER, P_WAVE, P_BREATH, P_MASTER, P_HELD, P_LOST,
+  P_GATHER, P_WAVE, P_BREATH, P_MASTER, P_HELD, P_LOST, STAR_FOE_HEALTH,
 } from '../../../src/net/starfall/starfallLaw.js';
 import { starCovenOf, covenWitches, STAR_COVENS } from '../../../src/systems/starfall/starfallCovens.js';
 import { findStarSites } from '../../../src/systems/starfall/starfallSites.js';
@@ -25,15 +25,27 @@ import { starHeldKey, STAR_SAY_M } from '../../../src/systems/starfall/starfallC
 import { STAR_REGION_TEXT, STAR_AT_TEXT } from '../../../src/systems/starfall/starWords.js';
 import { STAR_SOUNDS } from '../../../src/systems/starfall/starSounds.js';
 import { starSiteId, WOD_STAR_PUPPETS_MAX, WOD_CAMP_PUPPETS_MAX } from '../../../src/world/worldOfDaggerfall/wodShared.js';
+import { CELL_FRAME_RECORDS_MAX } from '../../../src/net/wire.js';
 import { createExteriorFoes } from '../../../src/scenes/exteriorFoes.js';
 import { skyClamp, STAR_SKY_R, STAR_RING_SEGS, STAR_RING_WIDTH_M } from '../../../src/render/starfall/starfallPass.js';
-import { rimAt } from '../../../src/world/starfall/starModel.js';
+import { rimAt, buildStarModel, STAR_CRATER_R, STAR_RIM_H } from '../../../src/world/starfall/starModel.js';
+import { lateSolidsOf } from '../../../src/player/lateSolid.js';
 import { thunderOf, thunderSourceAt } from '../../../src/systems/distantStorms.js';
 import { playerEntity } from '../../../src/characters/playerEntity.js';
 import { characterIdOf } from '../../../src/systems/characterId.js';
 import { midScreenText } from '../../../src/ui/midScreenText.js';
 import { renownFoeStruck } from '../../../src/net/renownTracker.js';
 import { FESTIVALS } from '../../../src/net/festivalLaw.js';
+import { Collider } from '../../../src/player/collider.js';
+import { setPref, _resetForTests as resetPrefs } from '../../../src/systems/uiPrefs.js';
+import { _resetRevenantForTests, revenantCandidate, livingRevenants } from '../../../src/systems/revenant/revenant.js';
+import { _forceUnquietForTests, isUnquiet } from '../../../src/systems/revenant/unquietMark.js';
+import { setRevenantPresenter } from '../../../src/systems/revenant/revenantVoice.js';
+import { foeTitle } from '../../../src/systems/foeTitle.js';
+import { foeCardRoll } from '../../../src/systems/card/cardSources.js';
+import { setTacticsClock, resetTactics } from '../../../src/ai/tactics.js';
+import { resetBlows } from '../../../src/ai/foeBlows.js';
+import { MOBILE_TYPES } from '../../../src/characters/mobile/mobileTypes.js';
 const FESTIVAL_FROM_MS = FESTIVALS[0].fromMs;   // the Witches' Festival's first day, the Starfall's own (net/festivalLaw.js)
 
 const N = starNightAt(FESTIVAL_FROM_MS) + 30;
@@ -83,15 +95,16 @@ function fakeGl() {
   });
 }
 /** A world with one player, the host on its bindings - `gfx` a renderer and a collider that keep what they are told,
- *  `surface` the drawn ground (the scene's), `coarse` the ground past it, `account` the signed-in account. */
-function world({ storage = memStorage(), t = starTimes(N, 0).omenAt - 1000, gfx = false, surface = () => 0, coarse = undefined, account = undefined } = {}) {
+ *  `surface` the drawn ground (the scene's), `coarse` the ground past it, `account` the signed-in account, `foes` a pool
+ *  of its own (the real street pool) in place of the recording one. */
+function world({ storage = memStorage(), t = starTimes(N, 0).omenAt - 1000, gfx = false, surface = () => 0, coarse = undefined, account = undefined, foes = null } = {}) {
   const w = { t, feet: null, region: COVEN.region, said: [], mids: [], sounds: [], heard: [], words: [], sprung: new Set(), peer: new Set(), peerAgo: 0, forgot: [], bare: [], storage, origin: [0, 0, 0] };
-  w.foes = pool();
-  w.session = { starReady: () => true, sendStar: (word, cell) => { w.words.push({ ...word, cell }); return true; } };
+  w.foes = foes ?? pool();
+  w.session = { starReady: () => true, starGrantOk: true, sendStar: (word, cell) => { w.words.push({ ...word, cell }); return true; } };   // AUDIT STAR-TUNE F1: a relay that mints the `star` kind
   w.gl = gfx ? fakeGl() : null;
   w.renderer = gfx ? { gl: w.gl, meshes: [], draws: [], createMesh(m) { const mesh = { m }; this.meshes.push(mesh); return mesh; }, destroyMesh() {}, uploadTexture() {}, uploadEmissionTexture() {}, drawMesh(mesh, mat) { w.draws.push({ mesh, mat: Array.from(mat), offset: w.gl.calls.filter(([k, c]) => (k === 'enable' || k === 'disable') && c === 'POLYGON_OFFSET_FILL').at(-1)?.[0] === 'enable' }); } } : null;
   w.draws = [];
-  w.col = { adds: [], removes: [], addMesh(b, pos, idx, m) { this.adds.push({ b, m: Array.from(m) }); }, removeBucket(b) { this.removes.push(b); }, surfaceHit: () => null };
+  w.col = { adds: [], removes: [], addMesh(b, pos, idx, m) { this.adds.push({ b, m: Array.from(m), tris: idx.length / 3 }); }, removeBucket(b) { this.removes.push(b); }, surfaceHit: () => null };
   const bindings = {
     renderer: w.renderer,
     state: { pixelTranslation: (px, py, out) => { out[0] = px * 100 + w.origin[0]; out[1] = w.origin[1]; out[2] = py * 100 + w.origin[2]; return out; } },
@@ -101,7 +114,7 @@ function world({ storage = memStorage(), t = starTimes(N, 0).omenAt - 1000, gfx 
     get online() { return w.session; },
     _wodPeerSprung: w.peer, wodPeerHeldAgo: () => w.peerAgo, wodForgetPeer: (s) => { w.forgot.push(s); w.peer.delete(s); },
     wodSprang: (s) => w.sprung.add(s), wodUnsprang: (s) => w.sprung.delete(s),
-    chatNotice: (s) => w.said.push(s), labGrassField: { invalidate: (...a) => w.bare.push(a) },
+    eventNotice: (kind, s) => { assert.equal(kind, 'star'); w.said.push(s); }, labGrassField: { invalidate: (...a) => w.bare.push(a) },
     _questRegionIndex: () => w.region, gamePaused: () => false, townTalk: { hudHidden: false },
     collider: gfx ? w.col : null, _sharedOffsetMs: 0,
     audio: { playOneShot: (clip) => w.sounds.push(clip), play3d: (clip, pos) => { w.sounds.push(clip); w.heard.push({ clip, pos: [...pos] }); } },
@@ -542,6 +555,163 @@ test('AUDIT STARFALL C4 A MASTER THAT NEVER STOOD IS STOOD AGAIN: a stand that c
   Date.now = realNow;
 });
 
+test('STAR-MASTER-FLED A MASTER GONE WITHOUT A FALL IS STOOD AGAIN: one removed from the pool with no body (a dispel) holds nothing; once nothing of its site has stood STAR_RESTAND_MS it is stood again whole, an event\'s own from its stand and a world boss from its landing; one that fell with a body is its fall and stands no second (Field-Bugs-2026-10-29g: the star waited on an escaped master until dawn) (mutants: the gone master kept; a fall read as gone; the wait)', async () => {
+  const w = world();
+  clockOf(w);
+  const ms = w.sites(2);
+  w.t = starTimes(N, 2).fallAt + 500; w.at(2, 5); w.frame();
+  w.st(2, { p: P_BREATH, w: 4, wz: 0, b: 1, nd: 2 });
+  w.st(2, { p: P_MASTER, w: 4, wz: 0, b: 1, nd: 2 });
+  await w.beat();
+  const masters = () => w.foes.stood.filter((f) => f?.site === ms.m);
+  assert.equal(masters().length, 1, 'the master stood');
+  assert.equal(masters()[0].opts.eventFoe, true, 'an event\'s own from its stand: its promotion draws no mark (exteriorFoes.js spawnFoe)');
+  w.t += 30_000; await w.beat();   // the fight
+  assert.equal(masters().length, 1, 'one standing is never stood twice');
+  masters()[0].dead = true;   // exteriorFoes.js removeFoe (a dispel): dead, no corpse
+  w.t += 100; await w.beat();
+  w.t += STAR_RESTAND_MS - 500; await w.beat();
+  assert.equal(masters().length, 1, 'not at once: what lands under its site in the wait is the master');
+  w.t += 1000; await w.beat();
+  assert.equal(masters().length, 2, 'stood again');
+  const again = masters()[1];
+  assert.deepEqual([again.entity.worldBoss, again.entity.eventFoe], [true, true]);
+  assert.equal(w.star(2).mf, false, 'its going held nothing');
+  again.dead = true; again.corpse = true;
+  w.t += 100; await w.beat();
+  again.corpse = false;   // its body looted away later: still its fall
+  for (let i = 0; i < 3; i++) { w.t += STAR_RESTAND_MS; await w.beat(); }
+  assert.equal(masters().length, 2, 'a fall stands no second');
+  assert.equal(w.star(2).mf, true);
+  Date.now = realNow;
+});
+
+/** To star 2's master, the master asked for and stood. */
+async function toMaster(w) {
+  w.t = starTimes(N, 2).fallAt + 500; w.at(2, 5); w.frame();
+  w.st(2, { p: P_BREATH, w: 4, wz: 0, b: 1, nd: 2 });
+  w.st(2, { p: P_MASTER, w: 4, wz: 0, b: 1, nd: 2 });
+  await w.beat();
+}
+
+test('AUDIT FB1029g STAR F1 A WABBAJACK ON THE MASTER LEAVES ONE MASTER: the master removed and its changed foe landing under its site inside the wait (scenes/world.js enchantReplaceFoe - online, after its grant) is claimed the master, and no fresh one stands beside it; a peer\'s copy under the site holds the wait too, counted again from its going (AUDIT WB12d C11) (mutants: the wait; the site\'s foes unread)', async () => {
+  const w = world();
+  clockOf(w);
+  const ms = w.sites(2), M = starMasterOf(1, 2);
+  await toMaster(w);
+  const stood = () => w.foes.stood.filter((f) => f?.site === ms.m);
+  const live = () => w.foes.foes.filter((f) => f.site === ms.m && !f.dead);
+  w.t += 30_000; await w.beat();
+  stood()[0].dead = true;   // enchantReplaceFoe: removeFoe - dead, no corpse
+  w.t += 16; w.frame();   // the star's frame while the changed foe stands up
+  const beast = handed(0, ms.m, w.heart(2), 70, 100);   // the Rat under siteFoeSpawn's site, the fight's damage carried
+  w.t += 1500; w.foes.foes.push(beast);
+  for (let i = 0; i < 6; i++) { w.t += 1000; await w.beat(); }
+  assert.deepEqual(live(), [beast], 'one master: the changed foe');
+  assert.equal(stood().length, 1, 'no fresh one stood beside it');
+  assert.equal(w.star(2).master, true);
+  assert.deepEqual([beast.entity.name, beast.entity.worldBoss, beast.entity.eventFoe, typeof beast.circleWard], [M.name(), true, true, 'function'], 'claimed: its name, a world boss, an event\'s own, its circle\'s ward');
+  beast.dead = true;   // removed in its turn, a peer's copy of a master standing under the site
+  const copy = { ...handed(M.career, ms.m, w.heart(2)), puppet: 'peer-1', seq: 9 };
+  w.foes.foes.push(copy);
+  for (let i = 0; i < 3; i++) { w.t += STAR_RESTAND_MS; await w.beat(); }
+  assert.equal(stood().length, 1, 'a peer\'s copy stands: none of mine beside it');
+  copy.dead = true;
+  w.t += 100; await w.beat();
+  w.t += STAR_RESTAND_MS - 500; await w.beat();
+  assert.equal(stood().length, 1, 'the wait counted from its going');
+  w.t += 1000; await w.beat();
+  assert.equal(stood().length, 2, 'then stood again');
+  Date.now = realNow;
+});
+
+test('AUDIT FB1029g STAR F2 A MASTER HANDED ON IS ITS HEIR\'S: handed alive at a door or a death (exteriorFoes.js letGo - dead, no body, `_gone`), the star is given up at once - its sites nobody\'s, the word o:0 - and held again only STAR_YIELD_MS on, by when its heir holds it; no master of mine stands over the heir\'s copy, and one stands again once nothing of it does (mutants: the handing read as a removal; the star kept; the yield; its length; a stand over a copy)', async () => {
+  const w = world();
+  clockOf(w);
+  const ms = w.sites(2), M = starMasterOf(1, 2);
+  await toMaster(w);
+  const stood = () => w.foes.stood.filter((f) => f?.site === ms.m);
+  w.t += 30_000; await w.beat();
+  assert.equal(w.star(2).own, true);
+  const m = stood()[0];
+  m._gone = true; m.dead = true; w.foes.foes = w.foes.foes.filter((f) => f !== m);   // handOver -> dropOwnLive -> letGo
+  w.t += 100; await w.beat();
+  assert.equal(w.star(2).own, false, 'given up');
+  assert.equal(w.words.at(-1).o, 0, 'said at once: the relay lets its owner go');
+  assert.deepEqual([...w.sprung], [], 'its sites nobody\'s - the heir\'s screen takes them');
+  w.t += STAR_ORPHAN_MS; await w.beat();
+  assert.equal(w.star(2).own, false, 'not taken back while the heir takes it');
+  assert.equal(stood().length, 1, 'no master stood over the heir\'s');
+  const copy = { ...handed(M.career, ms.m, w.heart(2), 150, 300), puppet: 'peer-B', seq: 3 };
+  w.foes.foes.push(copy); w.peer.add(ms.base); w.peerAgo = 0;   // the heir's copy, and its spring once it holds the star
+  w.t += STAR_YIELD_MS; await w.beat();
+  assert.equal(w.star(2).own, false, 'the heir holds it');
+  w.peerAgo = STAR_ORPHAN_MS; await w.beat();   // the heir quiet past the orphan's wait, its copy still standing
+  assert.equal(w.star(2).own, true, 'mine again');
+  assert.equal(stood().length, 1, 'its copy stands: none of mine over it');
+  copy.dead = true;
+  await w.beat();
+  assert.equal(stood().length, 2, 'nothing of it standing: stood again');
+  Date.now = realNow;
+});
+
+test('AUDIT FB1029g STAR F6 A MASTER STOOD AGAIN IS WHOLE: one that called both its circles and went without a fall is stood again with none of its calls made - at two-thirds its circle comes again (mutants: the calls kept)', async () => {
+  const w = world();
+  clockOf(w);
+  const ms = w.sites(2);
+  await toMaster(w);
+  const circle = () => w.foes.stood.filter((f) => f?.site === ms.c);
+  const first = w.foes.stood.find((f) => f?.site === ms.m);
+  first.entity.maxHealth = 300; first.entity.health = 90;
+  for (let i = 0; i < 3; i++) { w.t += 1000; await w.beat(); }
+  assert.equal(w.star(2).calls, 2, 'both its calls made');
+  const called = circle().length;
+  for (const f of circle()) { f.dead = true; f.corpse = true; }
+  first.dead = true;   // removed: no body
+  w.t += 100; await w.beat();
+  w.t += STAR_RESTAND_MS; await w.beat();
+  const second = w.foes.stood.filter((f) => f?.site === ms.m)[1];
+  assert.ok(second, 'stood again');
+  assert.equal(w.star(2).calls, 0, 'whole: none of its calls made');
+  second.entity.maxHealth = 300; second.entity.health = 300 * STAR_CIRCLE_AT[0];
+  await w.beat();
+  assert.ok(circle().length > called, 'its circle called again');
+  Date.now = realNow;
+});
+
+test('AUDIT FB1029g STAR F7 A FALL HAS A BODY: a master removed with none shows no fall moment, and the one stood after it shows its own fall at its moment - as does mine after a peer\'s copy fell (mutants: a fall without a body; the moment kept from before)', async () => {
+  const w = world();
+  clockOf(w);
+  const ms = w.sites(2), M = starMasterOf(1, 2);
+  await toMaster(w);
+  const first = w.foes.stood.find((f) => f?.site === ms.m);
+  w.t += 30_000; await w.beat();
+  first.dead = true;   // removed: no body
+  let S = w.frame();
+  assert.equal(Number.isFinite(S.fellAt), false, 'no body, no fall');
+  w.t += 100; await w.beat();
+  w.t += STAR_RESTAND_MS; await w.beat();
+  const second = w.foes.stood.filter((f) => f?.site === ms.m)[1];
+  w.t += 60_000; await w.beat();
+  second.dead = true; second.corpse = true;
+  S = w.frame();
+  assert.equal(S.fellAt, w.t, 'its fall, at its moment');
+  const v = world();
+  clockOf(v);
+  const copy = { ...handed(M.career, ms.m, v.heart(2)), puppet: 'peer-1', seq: 2 };
+  v.foes.foes.push(copy);
+  await toMaster(v);
+  assert.equal(v.foes.stood.length, 0, 'a peer\'s copy stands');
+  copy.dead = true; copy.corpse = true;
+  assert.equal(v.frame().fellAt, v.t, 'its fall seen');
+  v.t += 5000; await v.beat();
+  const mine = v.foes.stood.find((f) => f?.site === ms.m);
+  v.t += 60_000; await v.beat();
+  mine.dead = true; mine.corpse = true;
+  assert.equal(v.frame().fellAt, v.t, 'mine at its own moment');
+  Date.now = realNow;
+});
+
 test('AUDIT STARFALL C5 THE FESTIVAL\'S LAST STARS STAND TO THEIR END: a star that landed inside it is drawn, timed and marked past its close, until it is gone; one landing at its close is none (mutants: the stars outliving the days)', () => {
   const end = FESTIVALS[0].toMs, n = starNightAt(end - 1);
   assert.ok(starTimes(n, 1).fallAt < end && starTimes(n, 1).endAt > end && starTimes(n, 2).fallAt >= end);
@@ -621,7 +791,7 @@ const netFor = (id) => ({ room: () => 'world:3,12', selfId: () => id, peers: () 
 const flush = async () => { for (let i = 0; i < 6; i++) await new Promise((r) => setTimeout(r, 0)); };
 
 test('AUDIT STARFALL C7 A STAR\'S FOES UNDER AN ALLOWANCE THE SIZE OF ITS LAW: its owner never stands past STAR_LIVE_MAX of them at once - the most the law calls - and a reader stands that many of one owner\'s, apart from its camps\' sixteen (mutants: the bound, the star\'s allowance)', async () => {
-  assert.equal(STAR_LIVE_MAX, 9 + 1 + 2 * 10, 'a wave\'s nine, the master, two calls of the Heart-Star\'s circle');
+  assert.equal(STAR_LIVE_MAX, 24 + 1 + 2 * 10, 'a wave\'s twenty-four (STAR-TUNE), the master, two calls of the Heart-Star\'s circle');
   assert.equal(WOD_STAR_PUPPETS_MAX, STAR_LIVE_MAX, 'the reader\'s allowance is the owner\'s bound');
   assert.ok(WOD_STAR_PUPPETS_MAX > WOD_CAMP_PUPPETS_MAX);
   // the owner: a crowd of the circle's still standing, and a wave of nine called - only the room left stands
@@ -638,8 +808,10 @@ test('AUDIT STARFALL C7 A STAR\'S FOES UNDER AN ALLOWANCE THE SIZE OF ITS LAW: i
   const A = createExteriorFoes(poolRig());
   A.setNet(netFor('aaaa-0001')); A.setOnSites(() => {}, () => []);
   const star = starSiteId(3, 12, N, 0, 'c');
-  for (let i = 0; i < WOD_STAR_PUPPETS_MAX + 4; i++) await A.spawnFoe(0, [2000 + i * 3, 0, 2000], { placed: true, groundAlign: { hitDist: 0.5 }, site: star });
-  for (let i = 0; i < WOD_CAMP_PUPPETS_MAX + 2; i++) await A.spawnFoe(0, [2600 + i * 3, 0, 2000], { placed: true, groundAlign: { hitDist: 0.5 }, site: '3,12:7' });
+  // over each allowance, the whole inside one frame's sixty-four records (CELL_FRAME_RECORDS_MAX - STAR-TUNE: the star's forty-five and the camp's sixteen fit under it)
+  assert.ok(WOD_STAR_PUPPETS_MAX + 2 + WOD_CAMP_PUPPETS_MAX + 1 <= CELL_FRAME_RECORDS_MAX);
+  for (let i = 0; i < WOD_STAR_PUPPETS_MAX + 2; i++) await A.spawnFoe(0, [2000 + i * 3, 0, 2000], { placed: true, groundAlign: { hitDist: 0.5 }, site: star });
+  for (let i = 0; i < WOD_CAMP_PUPPETS_MAX + 1; i++) await A.spawnFoe(0, [2600 + i * 3, 0, 2000], { placed: true, groundAlign: { hitDist: 0.5 }, site: '3,12:7' });
   const B = createExteriorFoes(poolRig());
   B.setNet(netFor('bbbb-0002')); B.setOnSites(() => {});
   B.applyFoes('aaaa-0001', JSON.parse(JSON.stringify(A.foesFrame(true))));
@@ -827,4 +999,130 @@ test('AUDIT STARFALL THE GRACE, ONE TIME: this screen says its last word at the 
   assert.equal(beaconAt(d, 1), null, 'past the grace, unheld: its beacon out');
   assert.equal(starLostAt(N, 1), T.endAt + STAR_GRACE_MS);
   Date.now = realNow;
+});
+
+test('STAR-TUNE THE COVEN STANDS AS AN EVENT\'S (the owner, of the first run: "the enemies are too few and die too quickly"; "The dirt mound where the star is crashed can be walked through"): a wave\'s foes and its circle\'s stand with STAR_FOE_HEALTH times their health, the master as the elite it is, a foe handed to me as its owner stood it; the crater - floor, rim and stones with the stone - is the collider\'s, through the late-solid gate: a body standing on the rim as it is built is not closed in, and the rim stands once the body is clear; a stand is read from over the rim\'s crest, so a foe stood on it lands on it (mutants: STAR-TUNE-the-coven-as-the-road; STAR-TUNE-the-master-toughened; STAR-TUNE-the-crater-hollow; STAR-TUNE-the-gate-passed; STAR-TUNE-a-stand-under-the-rim)', async () => {
+  const w = world({ gfx: true });
+  clockOf(w);
+  const T = starTimes(N, 2), sites = w.sites(2);
+  // a body on the rim's crest as the crater builds: held back, never closed on it
+  const h = w.heart(2), onRim = [h[0] + STAR_CRATER_R, h[1], h[2]];
+  const late = lateSolidsOf(w.col);
+  late.settle({ pos: onRim, height: 1.8 });
+  w.t = T.fallAt + 500; w.feet = [...onRim];
+  w.frame(); w.frame();
+  const star = (b) => typeof b === 'string' && b.startsWith(`star:${N}.2@`);   // this star's bucket (the night's others stand, no body in their rims)
+  assert.equal(w.col.adds.filter((a) => star(a.b)).length, 0, 'withheld while the body stands in its rim');
+  assert.equal(late.settle({ pos: [h[0] + 40, h[1], h[2]], height: 1.8 }), 1, 'clear of it, it stands');
+  const solid = w.col.adds.filter((a) => star(a.b)).at(-1);
+  assert.equal(solid.tris, buildStarModel(N, 2, () => 0, { thread: false }).indices.length / 3, 'the stone AND its crater - floor, rim and stones');
+  assert.ok(solid.tris > buildStarModel(N, 2, () => 0, { ground: false, thread: false }).indices.length / 3, 'more than the stone alone');
+  // the waves: twice their health; stood on what is highest at their place
+  w.col.surfaceHit = (o) => (o[1] > STAR_RIM_H ? { dist: o[1] - 0.8 } : null);   // a surface 0.8 over the land wherever it is asked from above
+  w.at(2, 5);
+  w.st(2, { p: P_WAVE, w: 1, wz: 4, kn: 0, b: 1 });
+  await w.beat();
+  const wave = w.foes.stood.filter((f) => f && f.site === sites.base);
+  assert.equal(wave.length, 4);
+  for (const f of wave) {
+    assert.deepEqual([f.entity.maxHealth, f.entity.health, f.entity.healthMult], [100 * STAR_FOE_HEALTH, 100 * STAR_FOE_HEALTH, STAR_FOE_HEALTH], 'the coven\'s, no foe of the road');
+    assert.ok(Math.abs(f.ai.feet[1] - (h[1] + 0.8)) < 1e-6, `stood on the surface read from above (${f.ai.feet[1]})`);
+    assert.equal(f.opts.groundAlign.hitDist, 0.2, 'its drop from just over it');
+    assert.equal(f.opts.grantKind, 'star', 'a grant of the star\'s own kind - a wave of any size its law gives, one ask');
+  }
+  // AUDIT STAR-TUNE F1: a relay before the star's kind (the site live first) is asked the stand's own - main's, a wave of nine at most
+  w.session.starGrantOk = false;
+  w.st(2, { p: P_WAVE, w: 2, wz: 5, kn: 0, b: 1 });
+  await w.beat();
+  const older = w.foes.stood.filter((f) => f && f.site === sites.base).slice(wave.length);
+  assert.equal(older.length, 5, 'the next wave stands on an older relay too');
+  for (const f of older) assert.equal(f.opts.grantKind, undefined, 'its own shape\'s kind (net/grantLaw.js grantKindOf), never one the relay refuses');
+  w.session.starGrantOk = true;
+  // the master: an elite's own health; its circle the coven's
+  w.st(2, { p: P_MASTER, w: 4, wz: 0, kn: 0, b: 1, nd: 1 });
+  await w.beat();
+  const master = w.foes.stood.find((f) => f && f.site === sites.m);
+  assert.equal(master.entity.maxHealth, 100, 'the master as the elite it is - the pool\'s own, never twice');
+  master.entity.health = 100 * STAR_CIRCLE_AT[0];
+  await w.beat();
+  const circle = w.foes.stood.filter((f) => f && f.site === sites.c);
+  assert.ok(circle.length > 0);
+  for (const f of circle) assert.equal(f.entity.maxHealth, 100 * STAR_FOE_HEALTH, 'its circle the coven\'s');
+  Date.now = realNow;
+});
+
+test('AUDIT STAR-TUNE F4 A CRATER BUILT AGAIN ASKS THE BODY AGAIN: the ground under a standing crater built finer (a player walking up to it) makes the crater anew - a new solid, withheld while the body stands in its rim, never stood round it; a recentre alone puts the same solid back (mutants: AUDIT-STAR-TUNE-F4-the-rebuild-replaced)', () => {
+  let H = null, bump = 0;
+  const w = world({ gfx: true, surface: (x, z) => (H && Math.hypot(x - H[0], z - H[2]) > 2 ? bump : 0) });
+  clockOf(w);
+  const T = starTimes(N, 2);
+  const h = w.heart(2), onRim = [h[0] + STAR_CRATER_R, h[1], h[2]], away = [h[0] + 40, h[1], h[2]];
+  H = [h[0] - w.origin[0], h[1], h[2] - w.origin[2]];
+  const late = lateSolidsOf(w.col);
+  const star = (b) => typeof b === 'string' && b.startsWith(`star:${N}.2@`);
+  late.settle({ pos: away, height: 1.8 });
+  w.t = T.fallAt + 500; w.feet = [...away];
+  w.frame(); w.frame();
+  const stood = () => w.col.adds.filter((a) => star(a.b)).length;
+  assert.equal(stood(), 1, 'the crater stands, nobody in its rim');
+  // the body walks onto the rim; the ground under the crater is built finer
+  late.settle({ pos: onRim, height: 1.8 }); w.feet = [...onRim];
+  bump = 0.5;
+  for (let i = 0; i <= STAR_GROUND_EVERY; i++) w.frame();
+  assert.ok(w.col.removes.some(star), 'the old crater taken down');
+  assert.equal(stood(), 1, 'the new one withheld while the body stands in its rim - never stood round it');
+  assert.equal(late.settle({ pos: away, height: 1.8 }), 1, 'clear of it, the new crater stands');
+  assert.equal(stood(), 2);
+  Date.now = realNow;
+});
+
+// ── the field report through the real street pool (AUDIT FB1029g STAR F3, F8) ──
+
+test('AUDIT FB1029g STAR F3 F8 THE FIELD REPORT THROUGH THE REAL STREET POOL: the master the real pool stands, every draw of the mark forced to land, is an elite, an event\'s own and a world boss from its stand - no mark drawn, no "Unquiet", no candidate, no card - and struck to a tenth on every roll\'s win it stands and fights; the same pool\'s plain elite runs (Field-Bugs-2026-10-29g: an Unquiet Elite Daedra Lord ran and its star waited until dawn) (mutants: the stand\'s stamp; the pool\'s; the mark\'s gate; the rule unread - every reader at once; the card\'s guard)', async () => {
+  resetPrefs(); setPref('lootRarity', true); setPref('enhancedAI', false);
+  _resetRevenantForTests(); resetTactics(); resetBlows();
+  setRevenantPresenter(() => true);
+  let T = 0;
+  setTacticsClock(() => T);
+  const p = { isPlayer: true, name: 'Ayla Stormwind', characterId: 'char-star', level: 10, reflexes: 2, stats: { strength: 50, intelligence: 50, willpower: 50, agility: 50, endurance: 50, personality: 50, speed: 50, luck: 50 }, skills: new Array(40).fill(40), skillUses: new Array(40).fill(0), career: {}, activeEffects: [], items: [], health: 100, maxHealth: 100 };
+  const cfg = new Uint8Array(74), v = new DataView(cfg.buffer);   // a class's career (the master's kind), WB12d's rig's
+  cfg[10] = 0x08; v.setUint16(52, 4, true);
+  [40, 50, 50, 85, 50, 50, 90, 55].forEach((x, i) => v.setUint16(58 + i * 2, x, true));
+  const fetchBytes = async (n) => { if (n === 'MONSTER.BSA') return BSA; if (/^CLASS\d\d\.CFG$/.test(n)) return cfg; throw new Error(`no ${n} in this pin`); };
+  const foes = createExteriorFoes({ ...poolRig(), fetchBytes, collider: new Collider(() => 0), playerEntity: p, inLocation: () => true, rolls: () => 0.5, rand: () => 0.9, say: () => {}, fates: true, dropLoot: () => {}, shake: () => {} });
+  const w = world({ foes });
+  clockOf(w);
+  const ms = w.sites(2);
+  /** One blow to a tenth of its health, every roll a win - does it run? */
+  const struck = (f) => {
+    const feet = [f.ai.feet[0], f.ai.feet[1], f.ai.feet[2] - 3];
+    const step = (dt) => { T += dt; foes.update(dt, feet, [feet[0], feet[1] + 1.6, feet[2]]); };
+    step(0.016);
+    f.entity.health = Math.round(f.entity.maxHealth * 0.1);
+    const random = Math.random;
+    Math.random = () => 0;
+    try { step(0.016); } finally { Math.random = random; }
+    return !!f.fleeing;
+  };
+  _forceUnquietForTests(true);
+  try {
+    await toMaster(w);
+    const m = foes.foes.find((f) => f.site === ms.m);
+    assert.ok(m, 'the master stood');
+    const e = m.entity;
+    assert.deepEqual([e.eliteFoe, e.eventFoe, e.worldBoss], [true, true, true], 'an elite, an event\'s own and a world boss');
+    assert.notEqual(e.unquiet, true, 'no mark drawn: the gate refused it at its promotion');
+    assert.equal(isUnquiet(e), false);
+    assert.equal(revenantCandidate(e, m), false);
+    assert.doesNotMatch(foeTitle(e, 'Daedra Lord'), /Unquiet/);
+    assert.equal(foeCardRoll(e, () => 0), null, 'its body drops no card (systems/card/cardSources.js)');
+    assert.equal(struck(m), false, 'it stands and fights');
+    assert.deepEqual([m.dead, livingRevenants().length], [false, 0]);
+    const plain = await foes.spawnFoe(MOBILE_TYPES.Orc, [m.ai.feet[0] + 8, 0, m.ai.feet[2]], { feetGiven: true, level: 6, eliteFoe: true });
+    assert.equal(plain.entity.unquiet, true, 'the pool drew the mark on a plain elite');
+    assert.equal(struck(plain), true, 'and it runs');
+  } finally {
+    _forceUnquietForTests(null); setTacticsClock(null); setRevenantPresenter(null);
+    Date.now = realNow;
+  }
 });

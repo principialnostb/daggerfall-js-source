@@ -257,12 +257,12 @@ test('ETHER-SHIPS by source: the director told the sea (its band and its legend)
   assert.match(host, /const distress = relieving \|\| w\.ether \? null : distressAt\(crown\.name\);/);
   assert.match(host, /const watersCrown = \(\) => \{ const w = where\(\); return w\.ether \? null : crownOf/);
   assert.match(host, /if \(entry\.ether\) \{ chargeEther\(act, entry\); return; \}/);
-  assert.match(host, /const names = ether \? etherShipNames\(cls, spec\.seed\) : shipNames\(cls, spec\.seed, \{ regionIndex: region, crown \}\);/);
+  assert.match(host, /const area = namesArea\(spec, w\), names = ether \? etherShipNames\(cls, spec\.seed\) : watersShipNames\(cls, spec\.seed, region, crown, area\);/);   // PIN MOVED (WW7-8): the area kept for the wire   // PIN MOVED (AUDIT TESA II K7): the waters' names a module helper
   assert.match(host, /const etherTier = \(entry\) => \(entry\.ether \? BANDS\.find\(\(b\) => b\.id === entry\.ether\)\?\.tier \?\? 0 : 0\);/, 'her hold the band\'s tiers richer');
   assert.match(host, /deps\.hold\?\.\(key, tier \+ \(entry\.deep \? DEEP_TIER : 0\) \+ etherTier\(entry\)\)/);
   assert.match(host, /deep: !!entry\.deep \|\| !!entry\.ether \}\);/, 'her casks the deep\'s');
   const world = read('src/scenes/world.js');
   assert.match(world, /legendHere: \(px, py, o\) => etherHost\.legendHere\(px, py, o\),/);
-  assert.match(world, /sites: \(\) => \{ const p = playerTravelPixel\(\); return etherSea && inEther\(p\.x, p\.y\) \? \[\.\.\.harbourOffice\.sites\(\), \.\.\.etherHost\.sites\(p\.x, p\.y\)\] : harbourOffice\.sites\(\); \},/);
+  assert.match(world, /sites: \(\) => \{ const p = playerTravelPixel\(\); return etherSea && inEther\(p\.x, p\.y\) \? \[\.\.\.harbourOffice\.sites\(\), \.\.\.etherHost\.sites\(p\.x, p\.y\), \.\.\.seaVentures\.wrackSites\(p\.x, p\.y\)\] : harbourOffice\.sites\(\); \},/);   // PIN MOVED (SEA-EVENTS, 2026-10-22): and the Aether Storm's wrack
   assert.match(world, /waters: ether \? 'ether' : watersOf\(\{ nearPort, portPx: navalPortPx\(\) \}\), ether,/);
 });

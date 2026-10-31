@@ -54,6 +54,33 @@ test('FB1009 HOME-FOOT the ground a model stands on: its faces seen from above -
   assert.deepEqual(footRectsAt(null, trs(0, 0, 0, 0, 0, 0)), [], 'no ground, none placed');
 });
 
+test('FB1009 HOME-FOOT a roof past the walls is an eave: the ground under it is the yard, a step outside the walls is still the house, and a roof with no walls still covers its ground', () => {
+  const { modelFootRects, footRectsAt, yardLot, yardWhyNot, YARD_IN_HOUSE, YARD_MARGIN } = homeYards;
+  const base = lHouse();
+  const P = Array.from(base.positions);
+  const I = Array.from(base.indices);
+  const quad = (a, b, c, d) => { const n = P.length / 3; P.push(...a, ...b, ...c, ...d); I.push(n, n + 1, n + 2, n, n + 2, n + 3); };
+  quad([3.6, 3, 0], [5.2, 3, 0], [5.2, 3, 3.6], [3.6, 3, 3.6]);   // the back's roof, hung past the east wall
+  quad([4, 0.2, -2], [5.2, 0.2, -2], [5.2, 0.2, -0.8], [4, 0.2, -0.8]);   // a step, low, outside the walls
+  const house = { positions: new Float32Array(P), indices: new Uint32Array(I) };
+  const rects = modelFootRects(house.positions, house.indices);
+  const covers = (x, z) => rects.some(([a, c, b, d]) => x >= a && x < b && z >= c && z < d);
+  assert.equal(covers(1.8, 1.8), true, 'under the back roof');
+  assert.equal(covers(-1.8, -1.8), true, 'under the leg roof');
+  assert.equal(covers(4.4, 1.8), false, 'under the eave');
+  assert.equal(covers(4.6, -1.4), true, 'on the step');
+  assert.equal(covers(3.8, -1.4), false, 'and no cell past its edge (a face sampled inside itself - WALL-TOUCH takes the yards\' tests past a cell\'s slack)');
+  const origin = [0, 0, 0];
+  const place = trs(0, 0, 0, 0, 0, 0);
+  const box = transformedAabb(localAabb(house.positions), place);
+  const lot = yardLot(origin, box, YARD_MARGIN, footRectsAt(rects, place));
+  assert.equal(yardWhyNot([4.4, 0, 1.8], lot, [], CHAIR), null, 'the yard under the eave');
+  assert.equal(yardWhyNot([1.8, 0, 1.8], lot, [], CHAIR), YARD_IN_HOUSE, 'still inside under the roof');
+  assert.equal(yardWhyNot([4.6, 0, -1.4], lot, [], CHAIR), YARD_IN_HOUSE, 'the step is occupied ground');
+  const lid = { positions: new Float32Array([-1, 3, -1, 1, 3, -1, 1, 3, 1, -1, 3, 1]), indices: new Uint32Array([0, 1, 2, 0, 2, 3]) };
+  assert.ok(modelFootRects(lid.positions, lid.indices).length > 0, 'a roof with no walls still covers its ground');
+});
+
 test('FB1009 HOME-FOOT the lot asks the house\'s ground, not its box: the step before the door in an L\'s open corner is the yard\'s, under either roof it is the house\'s (a piece\'s middle on a seam between two of its rects too), and a neighbour\'s open corner is no neighbour\'s ground; a lot without its ground is its box, as before (mutants: the lot\'s box asked; the rects left in the box\'s frame; the middle unasked on a seam)', () => {
   const L = lHouse();
   const origin = [100, 7, 200];
@@ -113,7 +140,7 @@ function yardRig(svc, town, { who, charId, key, gold = 5000 }) {
   const doc = fakeDoc();
   const win = fakeWin();
   const yards = createHomeYards({
-    api: { yards: (m) => api.yards(m), place: (a) => api.place(a), move: (a) => api.move(a), remove: (a) => api.remove(a) },
+    api: { yardCells: (m, c) => api.yardCells(m, c), place: (a) => api.place(a), move: (a) => api.move(a), remove: (a) => api.remove(a) },
     homes: { homeAt: (m, k) => (k === key ? { owner: who.handle, own: true, mine: true, look: null } : town.built.homeFrames.has(k) ? { owner: 'Tomas', own: false } : null) },
     built: () => built, translation: () => T, feet: () => feet, outside: () => true, eye: () => cam.pos,
     collider: () => collider, meshes: { getGpuMesh: async (id) => ({ gpu: id }), cpuModels }, renderer, getTexture: async () => ({ recordCount: 1 }), uploadRecord() {},
@@ -193,10 +220,10 @@ test('FB1009 HOME-FOOT the world host by source: every building\'s ground measur
   // HOST-SPLIT 2: the host keeps modelFootRects and its pixel build imports footRectsAt - each from the yards' home
   for (const name of ['modelFootRects', 'footRectsAt']) assert.match(w, new RegExp(`import \\{[^}]*\\b${name}\\b[^}]*\\} from '\\./homeYards\\.js';`), name);
   assert.match(w, /const modelFeetOf = \(id, cpu\) => \{\n\s*let rs = modelFeet\.get\(id\);\n\s*if \(!rs\) modelFeet\.set\(id, rs = modelFootRects\(cpu\.positions, cpu\.indices\)\);\n\s*return rs;\n\s*\};/);
-  assert.match(w, /const rects = footRectsAt\(modelFeetOf\(placed\.modelIdNum, cpu\), local\);[^\n]*\n\s*const f = pixelHomeFrames\.get\(homeKey\);\n\s*if \(!f && at\) pixelHomeFrames\.set\(homeKey, \{ at, box: \[\.\.\.box\], rects, type: bd\?\.buildingType \?\? null, faction: bd\?\.factionId \?\? 0 \}\);\n\s*else if \(f\) \{ for \(let i = 0; i < 3; i\+\+\) \{ f\.box\[i\] = Math\.min\(f\.box\[i\], box\[i\]\); f\.box\[i \+ 3\] = Math\.max\(f\.box\[i \+ 3\], box\[i \+ 3\]\); \} f\.rects\.push\(\.\.\.rects\); \}/,
-    'the ground beside the box, a second model\'s joined to the first\'s (PIN MOVED, YARD-LINE: and its record\'s type and faction)');
+  assert.match(w, /const rects = footRectsAt\(modelFeetOf\(placed\.modelIdNum, cpu\), local\);[^\n]*\n\s*const ground = footGroundAt\(modelFootParts\(cpu\.positions, cpu\.indices\), local\);[^\n]*\n\s*const f = pixelHomeFrames\.get\(homeKey\);\n\s*if \(!f && at\) pixelHomeFrames\.set\(homeKey, \{ at, box: \[\.\.\.box\], rects, grounds: \[ground\], type: bd\?\.buildingType \?\? null, faction: bd\?\.factionId \?\? 0, parts: \[\[cpu, local\]\], terraced: isFabricDoorId\(placed\.modelIdNum\), block: b\.blockName, record: placed\.recordIndex \}\);[^\n]*\n\s*else if \(f\) \{ for \(let i = 0; i < 3; i\+\+\) \{ f\.box\[i\] = Math\.min\(f\.box\[i\], box\[i\]\); f\.box\[i \+ 3\] = Math\.max\(f\.box\[i \+ 3\], box\[i \+ 3\]\); \} f\.rects\.push\(\.\.\.rects\); f\.grounds\?\.push\(ground\); f\.parts\?\.push\(\[cpu, local\]\); \}/,
+    'the ground beside the box, a second model\'s joined to the first\'s (PIN MOVED, YARD-LINE: and its record\'s type and faction; PIN MOVED, AUDIT RPT1026 J2: and its models, for its banners\' walls; PIN MOVED, IC-BACKYARD: and its block and record; PIN MOVED, YARD-DECK: and each model\'s ground in parts, its walls\' lines and decks)');
   const y = src('src/scenes/homeYards.js');
-  assert.match(y, /lot: yardLot\(frame\.at, frame\.box, YARD_MARGIN, frame\.rects\)/);
+  assert.match(y, /get lot\(\) \{ if \(lot === undefined\) lot = lotOfFrame\(frame\); return lot; \}/);   // PIN MOVED (AUDIT TAMRIEL-WIDE A1): through lotOfFrame, which grows the lot from the same ground; PIN MOVED (AUDIT IC-BACKYARD P1): when first read
   assert.match(y, /const ground = f\.rects\?\.length \? f\.rects : \[\[f\.box\[0\], f\.box\[2\], f\.box\[3\], f\.box\[5\]\]\];/);
 });
 

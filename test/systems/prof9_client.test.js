@@ -136,7 +136,7 @@ test('PROF9 DONE WHEN: a Hunter\'s Stew cooked with a clean pan at a fire from t
   const page = pageOf();
   try {
     assert.match(page.text(), /The Fire/);
-    assert.match(page.text(), /A fire to cook at\. Provisioning 0 \(Novice\)\. A Skillet in your pack would widen the pan's window\./);   // PIN MOVED (CRAFT3): the fire reads Provisioning's track
+    assert.match(page.text(), /ProvisioningNovice 0[^]*?A fire to cook at\. A Skillet in your pack would widen the pan's window\./);   // PIN MOVED (CRAFT3): the fire reads Provisioning's track;// PIN MOVED (CRAFT-HALL): the rank is the station header's bar, not the station's sentence
     page.dish('Hunter\'s Stew (northern Root Bulb)').onclick();
     assert.match(page.text(), /Raw Meat 2 \/ 2 \(2 stored\)/);
     assert.match(page.text(), /Endurance \+5 for 2 hours\./);
@@ -153,9 +153,9 @@ test('PROF9 DONE WHEN: a Hunter\'s Stew cooked with a clean pan at a fire from t
     assert.match(stew.provenance, /^[0-9a-f]{16}$/);
     assert.deepEqual([isFood(stew), isDish(stew), foodOf(stew).satiety], [true, true, FOOD[TEMPLATE.Meat].satiety]);
     // PIN MOVED (CRAFT3): book.track('cooking') is Provisioning's track, the dish's XP credited there
-    assert.deepEqual([book.track('cooking').profession, book.track('cooking').xp, book.track('provisioning').xp], ['provisioning', 30 + 500, 30 + 500], 'a clean pan half again, and the first stew\'s 500');
+    assert.deepEqual([book.track('cooking').profession, book.track('cooking').xp, book.track('provisioning').xp], ['provisioning', 30 + 3155, 30 + 3155], 'a clean pan half again, and the first stew\'s - Provisioning\'s share');   // PIN MOVED (FIRST-BUDGET): 3,155
     assert.deepEqual([book.held('food:meat'), book.held('food:mushroom'), book.held('p1:13')], [0, 0, 0]);
-    assert.match(page.text(), /You cooked a Hunter's Stew \(\+530 Provisioning XP\)\./);   // PIN MOVED (CRAFT3): the fire's xp word
+    assert.match(page.text(), /You cooked a Hunter's Stew \(\+3185 Provisioning XP\)\./);   // PIN MOVED (FIRST-BUDGET)   // PIN MOVED (CRAFT3): the fire's xp word
     // EATEN: C&C's own law - the hunger met - and Endurance +5 for two hours, the player's own buff
     const now = 100_000;
     hungry(player, now);
@@ -285,7 +285,7 @@ test('PROF9 pages: The Fire - away from one, the word (no dish offered); at one,
     // a Skillet: the window half again; a Cook's two; a Provisioner's keeping
     const st = stubPages({ skillet: true, rank: 100, specs: { 50: 'cook', 100: 'provisioner' } });
     page = pageOf();
-    assert.match(page.text(), /Provisioning 100 \(Master\)\. Your Skillet widens the pan's window\./);   // PIN MOVED (CRAFT3): the fire reads Provisioning's track
+    assert.match(page.text(), /ProvisioningMaster 100[^]*?A fire to cook at\. Your Skillet widens the pan's window\./);   // PIN MOVED (CRAFT3): the fire reads Provisioning's track;// PIN MOVED (CRAFT-HALL): the rank is the station header's bar, not the station's sentence
     page.dish('Hunter\'s Stew (northern').onclick();
     assert.match(page.text(), /Endurance \+5 for 2 hours\. Yours never spoil\./);
     // PIN MOVED (CRAFT3): a dish raises Provisioning. PIN MOVED (FIELD BUGS 2026-10-18f CRAFT-LIMIT-SAID): a Master's track
@@ -357,7 +357,8 @@ test('PROF9 pages: Cooking practised on the Professions page - its four cards ch
       ['Brewer', 'Alchemy', false], ['Distiller', 'Alchemy', false], ['Cook', 'Cooking', false], ['Field Cook', 'Cooking', true],
       ['Master Alchemist', 'Alchemy', true], ['Transmuter', 'Alchemy', true], ['Chef', 'Cooking', true], ['Provisioner', 'Cooking', true],
     ], 'the Brewer, the Distiller and the Cook offered (a change), the Field Cook chosen, the four at 100 shut below it');
-    assert.deepEqual([...page.root().querySelectorAll('.px-stat')].map((r) => [r.querySelector('.k')?.textContent, r.querySelector('.v')?.textContent]), [
+    // PIN MOVED (CRAFT-HALL): the unlocks' rows, not the What raises rows beside them (prof-raise)
+    assert.deepEqual([...page.root().querySelectorAll('.px-stat')].filter((r) => !r.className.includes('prof-raise')).map((r) => [r.querySelector('.k')?.textContent, r.querySelector('.v')?.textContent]), [
       ['Alchemy: Orc Strength, Stamina, Healing, Water Walking', 'rank 0'], ['Cooking: Hunter\'s Stew, Fisherman\'s Supper', 'rank 0'],
       ['Alchemy: Resist Fire, Resist Frost, Resist Shock, Restore Power', 'rank 10'], ['Cooking: Orchard Tart', 'rank 10'],
       ['Alchemy: Slow Falling, Water Breathing, Cure Disease, Heal True', 'rank 25'], ['Alchemy: Resist Poison, Free Action, Levitation', 'rank 40'],
@@ -373,10 +374,10 @@ test('PROF9 items: the four dishes registered (685-688) on C&C\'s own rows - the
   assert.deepEqual({ ...DISH_FOODS }, { stew: TEMPLATE.Meat, supper: TEMPLATE.CookedFish, tart: TEMPLATE.Bread, feast: TEMPLATE.Meat });
   const cc = (t) => SURVIVAL_TEMPLATES.find((r) => r.index === t);
   assert.deepEqual(DISH_TEMPLATE_ROWS.map((r) => [r.index, r.name, r.worldTextureArchive, r.worldTextureRecord, r.baseWeight, r.basePrice, r.hitPoints, r.stackable, r.rarity]), [
-    [685, 'Hunter\'s Stew', cc(537).worldTextureArchive, cc(537).worldTextureRecord, 2, 45, 90, false, 10],
-    [686, 'Fisherman\'s Supper', cc(536).worldTextureArchive, cc(536).worldTextureRecord, 1.5, 18, 80, false, 10],
+    [685, 'Hunter\'s Stew', cc(537).worldTextureArchive, cc(537).worldTextureRecord, 0.5, 45, 90, false, 10],   // PIN MOVED: CRAFT-PAYS, the Meat's half kilo (2)
+    [686, 'Fisherman\'s Supper', cc(536).worldTextureArchive, cc(536).worldTextureRecord, 0.5, 18, 80, false, 10],   // PIN MOVED: CRAFT-PAYS, the Cooked Fish's (1.5)
     [687, 'Orchard Tart', cc(534).worldTextureArchive, cc(534).worldTextureRecord, 1.5, 15, 95, false, 10],
-    [688, 'Feast of the Hearth', cc(537).worldTextureArchive, cc(537).worldTextureRecord, 8, 180, 90, false, 10],
+    [688, 'Feast of the Hearth', cc(537).worldTextureArchive, cc(537).worldTextureRecord, 2, 180, 90, false, 10],   // PIN MOVED: CRAFT-PAYS, four Meats' (8)
   ]);
   for (const t of [685, 686, 687, 688]) assert.equal(templateByIndex(t)?.name, DISH_TEMPLATE_ROWS.find((r) => r.index === t).name);
   const tart = mintPiece({ recipe: 'tart:south', quality: -1, seed: 1, maker: 'Ann', hand: 2 }, PROV);
@@ -508,7 +509,7 @@ test('PROF9 wiring: the fire is any lit one (the street\'s camps and braziers, a
   assert.match(p, /\['fire', \(d\) => drawCookFire\(d, rerender, kit\)\],   \/\/ PROF9/);   // PIN MOVED (MENU-ORDER)
   assert.match(src('src/ui/enhanced/enhancedPlusStyle.js'), /\.prof-heatbar\.prof-panbar \{ background: linear-gradient/);
   const svc = src('server-account/src/professions.js');
-  assert.match(svc, /const xp = scaleXp\(r\.kind === 'dish' \? cookXp\(rank, \{ clean: clean === true, steps: halls \}\) : craftXp\(r\.tier, rank, false\),/);   // PIN MOVED (PROF12): the Apothecary's steps - FIRM1: the Firmament's hand around it (scaleXp)
+  assert.match(svc, /const xp = scaleXp\(r\.kind === 'dish' \? cookXp\(rank, \{ clean: clean === true, steps: halls \}\) : craftXp\(r\.tier, rank\),/);   // PIN MOVED (PROF12): the Apothecary's steps - FIRM1: the Firmament's hand around it (scaleXp)
   assert.match(svc, /const hand = dishHand\(r, specs\[100\]\) \?\? jewelHand\(r, specs\[50\]\);/);   // PIN MOVED (PROF10): or a jeweller's hand
   assert.match(src('server-account/migrations/0069_cooking.sql'), /ALTER TABLE products ADD COLUMN hand INTEGER CHECK \(hand IS NULL OR hand IN \(1, 2\)\);/);
   assert.equal(recipeById('feast:hearth').profession, 'cooking');

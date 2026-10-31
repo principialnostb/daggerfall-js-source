@@ -20,9 +20,9 @@
 // underscore, so `_one_day_` truncates to `_one_` and misses its
 // resource - the raw text stands, verbatim DFU; %pct (GuildTitle)
 // with no external MCP falls through the null-mcp arm to the
-// PLAYER's name; %di reads lastPlaceReferenced.scope BEFORE the
-// null check, so an unreferenced place THROWS out of expansion as
-// C#'s NRE does. L10N3g: GrammarManager.ProcessGrammar runs over each
+// PLAYER's name. (%di's NRE on an unreferenced place - C# reads
+// lastPlaceReferenced.scope BEFORE the null check - is retired:
+// QUEST-AUDIT III DI-UNREF, "...never mind...".) L10N3g: GrammarManager.ProcessGrammar runs over each
 // finished token (QuestMacroHelper.cs:158) - English's rules are the
 // identity, a language's resolve its pack's grammar tokens.
 //
@@ -36,7 +36,8 @@ import { liveStat } from '../statMods.js';                       // M-X: %mad's 
 import { permanentSkillValue, SKILL_NAMES } from '../skills.js'; // M-X: %ski
 import { entityMaxEncumbrance, damageModifier, toHitModifier, hitPointsModifier, healingRateModifier } from '../../combat/formulas.js'; // M-X: %enc (FormulaHelper.MaxEncumbrance over LiveStrength); ATTRMACRO1: and the four DERIVED modifiers
 import { surname, getRandomNameBank } from '../../characters/nameHelper.js';   // M-X: %ln (E-fix: GetRandomNameBank)
-import { GENDERS, getNameBankOfRegion, fullName, getNameBank, getRandomFullName } from '../../characters/nameHelper.js';   // AUDIT 58: GetRandomFullName's one home
+import { GENDERS, getNameBankOfRegion, fullName, getNameBank } from '../../characters/nameHelper.js';
+import { personName, randomPersonName } from '../../characters/personNames.js';   // REGION-NAMES: %n %fn %mn, and AUDIT 58's GetRandomFullName draw
 
 // FactionRaces number -> race key (FactionFile.cs:609-624 through
 // RaceTemplate.GetRaceFromFactionRace; unmapped falls to Breton in
@@ -48,6 +49,7 @@ const FACTION_RACE_KEYS = Object.freeze({
 import { dateFromSeconds, dateString, dayName, monthName, birthSignName, seasonName, CLASSIC_EPOCH_IN_SECONDS } from '../gameDate.js';
 import { skySecondsOfEvent } from '../skyCalendar.js';   // TIME3: a journal date (the event clock's) on the sky's calendar
 import { REGION_TEMPLES, LOCATION_TYPES } from '../../formats/mapsFile.js';
+import { REGION_NAMES, isProvinceRegion } from '../../formats/mapsTables.js';   // BAY-LEFT-B: %lp past the Bay, the province's own name
 import { factionRaceFromRace } from '../../characters/staticNpc.js';
 import { rulerTitle } from '../../world/buildingNames.js';   // AUDIT 68 S30-ruler-divine-tables-dup: GetRulerTitle's one home
 import { localizedStrings, localizedTable, localizedText, getLocalizedLocationName, getLocalizedRegionName } from '../textManager.js';   // L10N3d: DFU's Internal_Strings, read in the player's language; L10N3e: the place names shown
@@ -320,16 +322,16 @@ export function questMacroSource(quest) {
       const w = world();
       const bank = getNameBankOfRegion(w?.currentRegionIndex?.() ?? -1);
       const gender = randomRangeInclusive(0, 1) === 1 ? GENDERS.Female : GENDERS.Male;
-      return fullName(bank, gender);
+      return personName(bank, gender);
     },
     // %fn - seed uid; %mn - seed uid + 3457
     femaleName() {
       srand(quest.uid);
-      return fullName(getNameBankOfRegion(world()?.currentRegionIndex?.() ?? -1), GENDERS.Female);
+      return personName(getNameBankOfRegion(world()?.currentRegionIndex?.() ?? -1), GENDERS.Female);
     },
     maleName() {
       srand(quest.uid + 3457);
-      return fullName(getNameBankOfRegion(world()?.currentRegionIndex?.() ?? -1), GENDERS.Male);
+      return personName(getNameBankOfRegion(world()?.currentRegionIndex?.() ?? -1), GENDERS.Male);
     },
     // %kno - the quest faction's name, 'The ' trimmed for readability.
     // L10N3e: GetFactionData hands the name back in the player's
@@ -417,11 +419,25 @@ export function questMacroSource(quest) {
       }
       return templeDivine(w, factionId);
     },
-    // %di - C# QUIRK KEPT: LastPlaceReferenced.Scope is read BEFORE
-    // the null check, so an unreferenced place THROWS (the NRE)
+    // %di - C#'s LastPlaceReferenced.Scope is read BEFORE the null check, so an unreferenced place THREW (the NRE). QUEST-AUDIT
+    // III DI-UNREF: nothing referenced yet - a load or a share forgets it (no save state), and three messages a player
+    // reaches read %di before any person or place of theirs (V0C00Y00 1012 and Y0C00Y00 1012, the contact's answer after a
+    // load; P0B01L02's rumor 1010) - the talk answer or the quest's popup threw out to the host, which error-terminated the
+    // quest. Nothing referenced, it reads the Place a quest Person is to be found at - the last declared that has one, its
+    // dialog place (Person.getDialogPlace: where it stands, else its home - AUDIT QA3 C2: V0C00Y00's remote contact stands
+    // nowhere until the player walks into their home, and "If you go %di of here in __contact_" read "...never mind..."),
+    // never a questor's (they are where the player is) - else DFU's own "...never mind...", as every unresolvable
+    // direction answers
     direction() {
-      const place = quest.lastPlaceReferenced;
+      let place = quest.lastPlaceReferenced;
+      if (!place) {
+        for (const r of quest.resources?.values?.() ?? []) {
+          const at = r?.isPerson && !r.isQuestor ? r.getDialogPlace?.() : null;
+          if (at?.siteDetails) place = at;
+        }
+      }
       const w = world();
+      if (!place) return EN.resolvingError;
       if (place.scope === 'remote') {
         return w?.locationCompassDirection?.(place) ?? EN.resolvingError;
       } else if (place.scope === 'local') {
@@ -523,7 +539,7 @@ const HANDLERS = {
     if (!w) return null;
     // AUDIT 58: this arm IS MacroHelper.GetRandomFullName (:333-341),
     // now through its one home rather than a second copy of the body.
-    return getRandomFullName(w.currentRegionIndex?.() ?? -1);
+    return randomPersonName(getNameBankOfRegion(w.currentRegionIndex?.() ?? -1));
   },
   // %rt/%t: RegentTitle (MacroHelper.cs:644-650) DISCARDS
   // FindFactionByTypeAndRegion's bool and reads the out struct
@@ -570,7 +586,20 @@ const HANDLERS = {
     return fullName(getNameBank(FACTION_RACE_KEYS[fd?.race ?? 0]), gender);
   },
   '%vam': (mcp, hooks) => hooks?.world?.playerVampireClanName?.() ?? '%vam[ERROR: PC not a vampire]',
-  '%jok': (mcp, hooks) => hooks?.world?.getRandomText?.(200) ?? null,
+  // QUEST-AUDIT III JOKE-MACROS: TEXT.RSC 200's jokes carry their own macros (%ra in 22 of the 23, %nt, %cn, %cn2), and the
+  // expansion never walks inserted text - K0C00Y05's child and thirteen quests' rumors told the player "%ra" raw. Each is
+  // read through this table (a miss, or an answer in an error's shape, keeps the token as it was). AUDIT QA3 C4: a name
+  // that brings its own article after the joke's own "the " drops it ("Over at the %nt" - every tavern name is "The ...")
+  '%jok': (mcp, hooks) => {
+    const joke = hooks?.world?.getRandomText?.(200) ?? null;
+    if (typeof joke !== 'string') return null;
+    return joke.replace(/%[a-zA-Z][a-zA-Z0-9]*/g, (tok, at) => {
+      if (tok === '%jok' || !HANDLERS[tok]) return tok;
+      const v = getMacroValue(tok, mcp, hooks);
+      if (typeof v !== 'string' || v.startsWith(`${tok}[`)) return tok;
+      return /(^|[^a-z])the $/i.test(joke.slice(0, at)) ? v.replace(/^the /i, '') : v;
+    });
+  },
   // L10N3e: CityName (MacroHelper.cs:567-574) shows the location by its
   // map id (CurrentLocalizedLocationName, :571), else the region (:573)
   '%cn': (mcp, hooks) => {
@@ -735,6 +764,10 @@ const HANDLERS = {
 
   // PLACE (globals over the world hook)
   '%lp': (mcp, hooks) => {   // LocalProvince: Breton region -> High Rock, else Hammerfell
+    // BAY-LEFT-B (B7): a province's region past the Bay (WW-R, 62..70) is its own province - Skyrim, Morrowind, Cyrodiil -
+    // as shown (GetLocalizedRegionName, %reg's), where DFU's two answers said "Hammerfell" (or "High Rock") everywhere
+    const r = hooks?.world?.currentRegionIndex?.();
+    if (isProvinceRegion(r)) return getLocalizedRegionName(r, () => REGION_NAMES[r]);
     const race = hooks?.world?.currentRegionRace?.();
     if (race == null) return null;
     return race === LOCAL_PROVINCE_BRETON ? localizedText('highRock', 'High Rock') : localizedText('hammerfell', 'Hammerfell');

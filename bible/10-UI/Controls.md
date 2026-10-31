@@ -165,6 +165,8 @@ binds") - THE ARROWS ARE THE HELM (DECLARED, the Port-Ledger's HELM-KEYS row):
   the Responsive one's canvas driving her up into the wind's eye (SAIL-FREE, `03-World/Come-Sail-Away.md`). AUDIT NAV2 F17: while an Overworld journey holds
   the helm (the travel view up) the panel is covered and the arrows' More sail and Less sail, and the sail toggle, stand
   down - the journey sets her sails, and the turn keys were already the view's there.
+- **A load that holds her is said there too**: under half her way, the line says her load in place of the keys while it
+  holds her (HEAVY-HINT, `01-Overview/bugs/Field-Bugs-2026-10-29d.md`).
 
 ## The sea fight at the helm (NAV-H, 2026-09-28 - for Mac's read)
 
@@ -302,7 +304,7 @@ Generated from `ACTION_GROUPS` and the two default tables; the enhanced pane dra
 | `Jump` | SPACE | `JoystickButton5` | Jump |
 | `Crouch` | C | `JoystickButton4` | Crouch and sneak |
 | `Run` | LSHIFT | `JoystickButton8` | Run |
-| `AutoRun` | MIDDLE CLICK |  | Auto run |
+| `AutoRun` | F3 |  | Auto run |
 | `Sneak` | (unbound) |  | Sneak (held, no crouch) |
 | `WalkMode` | (unbound) |  | Walk mode on / off |
 | `FloatUp` | PG UP |  | Float up (levitate, swim) |
@@ -316,6 +318,7 @@ Generated from `ACTION_GROUPS` and the two default tables; the enhanced pane dra
 | `SwingWeapon` | RIGHT CLICK | `JoystickAxis10Button0` | Swing weapon |
 | `SwitchHand` | H |  | Switch hand |
 | `WeaponTechnique` | MOUSE3 |  | Weapon technique (hold to aim) |
+| `SignatureTechnique` | (unbound) |  | Martial technique (hold to aim) |
 | `ShotCycle` | (unbound) |  | Shot (aboard) |
 
 ### Magic
@@ -333,6 +336,7 @@ Generated from `ACTION_GROUPS` and the two default tables; the enhanced pane dra
 |---|---|---|---|
 | `ActivateCenterObject` | LEFT CLICK |  | Activate (mouse) |
 | `Interact` | E | `JoystickButton1` | Interact |
+| `Decorate` | (unbound) |  | Decorate this room |
 | `ModeWheel` | LALT |  | Mode wheel (hold, flick, release) |
 | `StealMode` | (unbound) |  | Steal mode |
 | `GrabMode` | (unbound) |  | Grab mode |
@@ -343,6 +347,7 @@ Generated from `ACTION_GROUPS` and the two default tables; the enhanced pane dra
 | `Transport` | T |  | Transport |
 | `Rest` | R |  | Rest |
 | `SaddlePanel` | F2 |  | Saddle panel: show or hide (riding) |
+| `PartyPing` | MIDDLE CLICK |  | Ping |
 
 ### Windows
 
@@ -387,13 +392,14 @@ Generated from `ACTION_GROUPS` and the two default tables; the enhanced pane dra
 | Action | Key | Pad | What it does |
 |---|---|---|---|
 | `SocialInteract` | F |  | Interact with player |
+| `PvpFlag` | CAPS |  | PvP on / off |
 
 ### Professions
 
 | Action | Key | Pad | What it does |
 |---|---|---|---|
 | `ActChoice` | UP |  | Next action at a profession node |
-| `Professions` | DOWN |  | Open your Professions page (online) |
+| `Professions` | DOWN |  | Open your Professions page, or the Crafting page at a station (online) |
 
 ### Game
 

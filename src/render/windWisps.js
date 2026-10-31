@@ -110,6 +110,8 @@ void main(){
   a *= vLife * (uAlpha.x + uAlpha.y * uStrength);
   o = vec4(uColor, a);
 }`;
+// SHADER-EASE MOUNT-START (2026-10-29): what the constructor builds, started at page load (render/mountPrograms.js).
+export const WISP_PROGRAMS = Object.freeze([Object.freeze(/** @type {const} */ ([WISP_VS, WISP_FS]))]);
 
 /** The box that follows the eye, metres a side (the rain's is 42; the
  *  wisps read from further, so the wind is legible over a field). */
@@ -140,11 +142,12 @@ export const WISP_FLOOR = 0.08;
 /** WEATHER2d: A LOOK - the program in a dress. The wisps' own, and the
  *  sandstorm's: tan, dense, short streaks in a lower box, no floor (no
  *  sand without a storm), the front's intensity its strength. */
-export const WISP_LOOK = Object.freeze({ color: Object.freeze([0.86, 0.89, 0.94]), alpha: Object.freeze([0.20, 0.24]), len: Object.freeze([1.6, 2.4]), count: WISP_MAX, floor: WISP_FLOOR, box: WISP_BOX });   // WISPS-RETURN: WIND3's streak length (WIND5's 2.6, 2.0 held a curl); DISC17-A's alpha kept (WIND3's 0.10, 0.12 doubled) - a gale's streak peaks at 0.44, a calm's at 0.20
+export const WISP_LOOK = Object.freeze({ color: Object.freeze([0.86, 0.89, 0.94]), alpha: Object.freeze([0.09, 0.11]), len: Object.freeze([1.2, 1.8]), count: WISP_MAX, floor: WISP_FLOOR, box: WISP_BOX });   // SWAY-SOFT (2026-10-21, Mac: "the wind effect more subtle and transparent"): the alpha under half DISC17-A's 0.20, 0.24 (a gale's streak peaks at 0.20 where it was 0.44, a calm's at 0.09 where it was 0.20) and the streak three quarters of WIND3's 1.6, 2.4
 export const SAND_LOOK = Object.freeze({ color: Object.freeze([0.80, 0.64, 0.40]), alpha: Object.freeze([0.28, 0.30]), len: Object.freeze([0.8, 1.2]), count: 7000, floor: 0, box: 70 });
 
 /** How many wisps a wind of `strength01` draws: the floor plus the rest
- *  over a smoothstep of the strength. Pure. */
+ *  over a smoothstep of the strength. Pure.
+ *  @param {number} strength01 @param {WispLook} [look] */
 export function wispCount(strength01, look = WISP_LOOK) {
   const s = Math.max(0, Math.min(1, strength01));
   const u = Math.max(0, Math.min(1, (s - 0.05) / 0.85));
@@ -167,9 +170,14 @@ function mat4Multiply(out, a, b) {
   return out;
 }
 
+/** A look (WEATHER2d): the program's dress - its colour, alpha (base, per strength), streak length (base, spread), count,
+ *  calm floor and box.
+ *  @typedef {{ color: ReadonlyArray<number>, alpha: ReadonlyArray<number>, len: ReadonlyArray<number>, count: number, floor: number, box: number }} WispLook */
+
 export class WindWispsRenderer {
   /** Built by the enhanced lane at boot, so a shader fault is a
-   *  constructor fault the boot probe sees (the rain's law). */
+   *  constructor fault the boot probe sees (the rain's law).
+   *  @param {any} gl @param {WispLook} [look] - the wisps' own, or the sand's (ASHFALL1: render/dryFall.js builds it) */
   constructor(gl, look = WISP_LOOK) {
     this.gl = gl;
     this.look = look;   // WEATHER2d

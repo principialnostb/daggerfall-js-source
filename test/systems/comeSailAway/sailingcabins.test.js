@@ -353,7 +353,8 @@ test('primary cabin routing publishes the actual indoor pose to the shared owner
   const args = { modes: { mode: 'interior', sailingCabin: { origin: [10, 20, 30] }, roomIdentity: () => ({ private: true, boatUid: 101 }) },
     state: { compensation: [0, 100, 0], localFromWorld: (x, z) => [x - 500, z - 600], worldCoords: (p) => ({ x: p[0] + 500, z: p[2] + 600 }) },
     player: { pos: [1, -30, 2] }, cam: { yaw: 0.2, pitch: 0.1 }, worldCoordToMapPixel, roomKeyFor, privateInteriorOf,
-    _questLoc: () => null, privateRoomHere: () => room, siegeSession: null, royalSession: null, campToWire: (p) => p };
+    _questLoc: () => null, privateRoomHere: () => room, siegeSession: null, royalSession: null, campToWire: (p) => p,
+    withIndoorFloor: (p) => p, indoorSceneY: (p, ctx, comp) => p.y + comp };   // INDOOR-FLOOR: a cabin is no interiorCtx's room - the wire's height (test/net/fb1030_indoorfloor.test.js)
   const route = new Function(...Object.keys(args), `let onlineToScene, sceneToOnline; ${worldSource.slice(start, end)} return { key, pose, mp, onlineToScene };`)(...Object.values(args));
   assert.equal(route.key, room); assert.equal(route.mp, null);
   assert.deepEqual([route.pose.x, route.pose.y, route.pose.z], [501, -130, 602]);
@@ -424,8 +425,22 @@ test('existing bank Transport callback enters the launched deed boat through the
     hudFade: { smashHUDToBlack: () => {}, fadeHUDFromBlack: () => calls.push('fade') },
     _teleportToPixel: async (x, y) => calls.push(['pixel', x, y]), state: { worldCoords: (p) => ({ x: p[0], z: p[2] }), compensation: [0, 0, 0] },
     csaSyncColliders: () => {}, CSA_TRIGGER_MODEL: TRIGGER_MODEL, player, cam, csaLocalOf: localOf, csaDeckPose: deckPose, townTalk: { say: (line) => said.push(line) },
-    navalHostileNear: () => false, CABIN_REFUSAL };   // FB1020c CABIN-FOES: no hostile ship near
+    navalHostileNear: () => false, CABIN_REFUSAL,   // FB1020c CABIN-FOES: no hostile ship near
+    // PIN MOVED (AUDIT SEA VENTURES C1): the cabin is a teleport to her boat's pixel like any - here neither the open zone's
+    // refusal nor the Veil's (each says its own); refused, it asks nothing further and boards nothing
+    // PIN MOVED (AUDIT TAMRIEL-WIDE E1): and of her landing, her hull's own point in the wire frame (campToWire, world.js's law)
+    wildTeleportRefused: (px, landing) => {
+      assert.deepEqual(px, { x: boat.MapPixel.X, y: boat.MapPixel.Y }, 'asked of her boat\'s pixel');
+      assert.deepEqual(landing, boat.GameObject ? [...boat.GameObject.position] : null, 'asked of her landing');
+      return false;
+    }, veilRefused: () => false,
+    campToWire: (p) => { const wc = args.state.worldCoords(p); return [wc.x, p[1] - args.state.compensation[1], wc.z]; },
+    boatPixelOf: (b) => ({ x: b.MapPixel.X, y: b.MapPixel.Y }) };
   const enter = new Function(...Object.keys(args), `return (${worldFunction('enterLinkedBankCabin')});`)(...Object.values(args));
+  const refusedArgs = { ...args, wildTeleportRefused: () => true };
+  const refusedEnter = new Function(...Object.keys(refusedArgs), `return (${worldFunction('enterLinkedBankCabin')});`)(...Object.values(refusedArgs));
+  assert.equal(await refusedEnter(), true, 'refused: answered');
+  assert.deepEqual(calls, [], 'refused: no exit, no fade, no boarding');
   const saved = JSON.stringify(r.s.rt.getSaveData());
   assert.equal(await enter(), true);
   assert.ok(readBankCabinLink(playerEntity.boatCabinLink));

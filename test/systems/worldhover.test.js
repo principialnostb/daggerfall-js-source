@@ -155,7 +155,7 @@ test('WORLD-HOVER: only the loot keys itemise - everything else is a name', () =
   // are the two above-ground bodies, which PX21c could not reach.
   // DW-E3: `dwFish:` is Iliac Puddle No More's fish, a DaggerfallLoot of one item.
   // WB9f: `spoil:` a piece of the Burning Court's spoils on its floor, a pile of one; its gold (`spoilGold:`) a name.
-  assert.deepEqual([...ITEMISED_KEYS], ['loot:', 'corpse:', 'droppedLoot:', 'foeCorpse:', 'guardCorpse:', 'dwFish:', 'spoil:']);
+  assert.deepEqual([...ITEMISED_KEYS], ['loot:', 'corpse:', 'droppedLoot:', 'foeCorpse:', 'guardCorpse:', 'dwFish:', 'spoil:', 'delve:']);   // PIN MOVED (DELVE II): a dungeon encounter's vault
   for (const k of ['loot:0', 'corpse:3', 'droppedLoot:9', 'foeCorpse:abc', 'guardCorpse:x', 'dwFish:12', 'spoil:2']) {
     assert.equal(keyItemises(k), true, k);
   }
@@ -197,6 +197,12 @@ test('CONTAINER-PEEK: a cupboard lists what it already holds, and stays a name u
   assert.equal(named.kind, 'name', 'so the plaque stays the name, and never says Empty');
   assert.equal(named.tone, 'private');
   assert.equal(named.rows.length, 0);
+  const verbs = resolveHover(hit('decor:chair'), {
+    name: () => ({ title: 'Chair', actions: [{ id: 'move', label: 'Move' }, { id: 'remove', label: 'Remove' }] }),
+    contents: () => null,
+  });
+  assert.equal(verbs.kind, 'actions', 'decorating lists the verbs; the contents glance does not drop them');
+  assert.deepEqual(verbs.rows.map((r) => r.id), ['move', 'remove']);
   let far = 0;
   assert.equal(resolveHover(hit('container:4', 9, 3.2), {
     name: () => { far += 1; return { title: 'Chest' }; }, contents: () => { far += 1; return [ruby]; },
@@ -957,7 +963,7 @@ test('AUDIT-WH H5: the location\'s name is read in the PORT\'s spelling, from ON
     'the three above-ground arms that take it - the building exit, the city wall and (AUDIT-WH M7) the dungeon entrance');
   assert.match(wm, /staticDoorName\('buildingExit', \{ locationName: currentLocationName\(\) \}\)/, 'the building exit, from inside');
   assert.match(wm, /staticDoorName\('dungeonEntrance', \{ locationName: currentLocationName\(\), tier: label\?\.tier \?\? null, size: label\?\.size \?\? null \}\)/, 'the dungeon entrance, from outside (PIN MOVED, TIER1: with its tier and size online)');
-  assert.match(wm, /locationName: currentLocationName\(\),\n\s+buildingType: bd\.buildingType,/, 'and the shopfront the city wall arm reads');
+  assert.match(wm, /locationName: bd\.townName \?\? currentLocationName\(\),[^\n]*\n\s+buildingType: bd\.buildingType,/, 'and the shopfront the city wall arm reads');   // PIN MOVED (IC-PROPS): the door's own town's name where the host's record carries it (a neighbouring slice's door), the player's where it does not
   // ...and the DUNGEON exit names the dungeon it is in, not the
   // location under the player, so it reads its own record - in the
   // same spelling.
@@ -1747,7 +1753,8 @@ test('AUDIT-WH H4/L2/L3/L4/L6: every host branch that returns above the hover sa
   // lives, and `hideHudText` already rode that exact line for this
   // exact reason. The record claimed the scheduling accident had been
   // replaced "by law"; it had not.
-  assert.match(wm, /if \(dungeonCtx\.uiOverlayActive\) \{ dungeonCtx\.hideHudText\?\.\(\); hideWorldPlaque\(\);/,
+  // PIN MOVED (RPT1026-FIGHTS WINDOW-ONLINE): the arm's window test is windowHoldsDungeon's - a window holds the dungeon offline, or over a death online (scenes/windowWorld.js)
+  assert.match(wm, /if \(windowHoldsDungeon\(dungeonCtx\.uiOverlayActive, aliveUnder\(\)\)\) \{ dungeonCtx\.hideHudText\?\.\(\); hideWorldPlaque\(\);/,
     'the world-hosted dungeon hides it on the overlay branch');
   assert.match(dj, /ctx\.hideHudText\?\.\(\); hideWorldPlaque\(\);/,
     'and so does the standalone ?dungeon door');
@@ -1842,11 +1849,8 @@ test('AUDIT-WH M1: every family in the ray carries a reach, and the widest of th
     const bare = [...read(f).matchAll(/key: [^\n]*distance: RAY_DISTANCE(?![^\n]*reach)/g)];
     assert.deepEqual(bare.map((m) => m[0].slice(0, 70)), [], `${f}: a family reaching for the ray with no reach of its own`);
   }
-  assert.match(read('src/scenes/worldModes.js'),
-    /key: `board:\$\{i\}`, aabb, distance: RAY_DISTANCE, reach: BULLETIN_BOARD_ACTIVATION_DISTANCE/,
-    'the board carries its handler\'s own constant (.cs:315-318, and ActivateBulletinBoard :709-713)');
-  assert.equal((await import('../../src/systems/bulletinBoard.js')).BULLETIN_BOARD_ACTIVATION_DISTANCE, CLAMP,
-    '...which IS the mobile band, from its one home');
+  // PIN MOVED (NOTICE-PANEL): the board that family was is gone from the ray - no board stands in a town
+  assert.doesNotMatch(read('src/scenes/worldModes.js'), /key: `board:/);
 });
 
 test('AUDIT-WH M2/M3/M4/M9: the mod\'s own asymmetries, ported as the mod has them', async () => {

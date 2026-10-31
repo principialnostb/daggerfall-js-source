@@ -23,6 +23,8 @@ import { skyLookAngles } from '../player/lookAround.js';
 //   baseCollider() - the collider to restore on exit.
 
 import { DecisionBoxWindow } from '../ui/decisionBox.js';   // REST-WARN2: the Plus decision box
+import { hallPiecePress } from './guildHallPress.js';   // GUILD-SHOP: a hall's board and its banker pressed
+import { markInteriorLoad } from '../ui/interiorLoadMark.js';   // a building's load is a ring over the hotbar, not the full screen
 import { restAilmentLines } from '../systems/rest/restWarning.js';   // REST-WARN
 import { healCurseOffer, healCursePaid, healCurseText } from '../systems/healCurse.js';   // HEAL-CURSE: the temple's second row
 import { walkModeOn } from '../player/walkMode.js';   // PADWALK
@@ -35,7 +37,7 @@ import { isOnlinePage } from '../systems/online/onlineLane.js';   // RESURRECT1:
 import { horseCareRules } from '../systems/upkeep/upkeepSwitch.js';   // STEED1: a Stable prices its horses by what they are while horses are cared for (HORSE-TIERS: any tier but Off, through the one accessor)
 import { bloodDecalDeps } from '../combat/blood/bloodSwitch.js';   // BLOOD1a
 import { createBloodMarks } from '../combat/blood/bloodMarks.js';   // BLOOD1a
-import { doorWorldAabb, doorWorldPosition, doorWorldNormal, interiorLanding, exteriorLanding, dungeonEntranceLanding, climbLadder, floorLanding, repositionFeetY, standsOnFloor, interiorVoidRescue, standFromVoid, NOTHING_OF_VALUE_TEXT, INTERIOR_VOID_TEXT, dungeonVoidText } from '../player/enterExit.js';   // FIELD BUGS 2026-10-04d VOID-ENTRY: the floor a landing stands on, the failsafe, and their two lines; FIELD BUGS 2026-10-19f VOID-DUNGEON: the dungeon's line
+import { doorWorldAabb, doorWorldPosition, doorWorldNormal, interiorLanding, exteriorLanding, dungeonEntranceLanding, climbLadder, floorLanding, repositionFeetY, dungeonExitFeet, standsOnFloor, interiorVoidRescue, standFromVoid, NOTHING_OF_VALUE_TEXT, INTERIOR_VOID_TEXT, dungeonVoidText } from '../player/enterExit.js';   // FIELD BUGS 2026-10-04d VOID-ENTRY: the floor a landing stands on, the failsafe, and their two lines; FIELD BUGS 2026-10-19f VOID-DUNGEON: the dungeon's line
 import { WORLD_FRAME } from '../render/renderer.js';   // AUDIT-EL F5
 import { STREAMING_TERRAIN_SCALE, DEFAULT_TERRAIN_SCALE } from '../world/terrain/terrainSampler.js';   // TERRAIN-SCALE1: the interior cache's frame and the ground its legacy heights stood on
 import { climbRigInput } from '../player/climb/climbPose.js';   // CLIMB6: the body's limbs on the climb
@@ -46,7 +48,7 @@ import { tacticsNow } from '../ai/tactics.js';   // TACT4: the brain's clock
 import { startRestGroundedCheck, TELEPORT_FREEZE_S, motionBagOf, afloatMessageStep, CANNOT_FLOAT_HUD_SECONDS, CAPSULE_HEIGHT } from '../player/motor.js';   // S40: the rest gate's grounded input; A6: DaggerfallAction.Teleport's physics settle; WW2: the one motion bag; DW-D: the dungeon arm's afloat line
 import { signalAutomapReset } from '../ui/automap/automapWindow.js';   // ROAD-C c2/S9: the M window inside a building
 import { createAutomapWindow, preloadAutomapArt, automapDoorReady } from '../ui/automap/automapDoor.js';   // EM3: the skin fork
-import { automapDungeonKey, getDungeonAutomap } from '../systems/automap/automap.js';   // ROAD-C c2/S9: Automap.cs:2362-2379's read of the dungeon dictionary
+import { automapKeyOf, getDungeonAutomap } from '../systems/automap/automap.js';   // ROAD-C c2/S9: Automap.cs:2362-2379's read of the dungeon dictionary
 import { INTERIOR_MARKER } from '../world/interior/interiorLayout.js';
 import { frameMark } from '../systems/frameClock.js';   // AUDIT-WH P1: the frame in flight, so one answer serves every reader in it
 import { pickActivatable, pickActivatableHit, worldAabb, activationTargets, liveFoeTargets, liveFoeFor, peacefulFoePass, doorDistanceOf, pickQuestFoe, pickFoe, rayAabb, presentNpcInfoText, tooFarAwayText, DOOR_ACTIVATION_DISTANCE, TREASURE_ACTIVATION_DISTANCE } from '../player/activate.js';   // QG1: the foe-click door; AUDIT 58: PresentNPCInfo's one line; AUDIT 62 F16/F28: TI1's lock pick
@@ -57,10 +59,10 @@ import { tryMobileEnemyActivate } from '../player/mobileEnemyActivate.js';
 import { FOUND_NOTHING_VALUABLE_TEXT_ID } from '../systems/talk/talk.js';
 import { searchReachFor } from '../systems/searchables.js';   // SEARCH1: a headstone's reach, half a door's - GRAVE-PARTY: from the body to the stone   // GetRandomText(8999)
 import { LOCK_PICK_DISTANCE } from '../player/lockOn.js';   // AUDIT 62 F16/F28: the tap-to-lock reach, the same the exterior and standalone-dungeon arms use
-import { removeOne, addItem, isEnchanted, carriedWeight, letterOfCredit, LETTER_OF_CREDIT_TEMPLATE, spendAmmoFor, takeOneInto, isSummoned } from '../systems/inventory.js';   // U40: the sell filter, the encumbrance gate and the letter
+import { addItem, isEnchanted, carriedWeight, letterOfCredit, LETTER_OF_CREDIT_TEMPLATE, spendAmmoFor, takeOneInto, isSummoned } from '../systems/inventory.js';   // U40: the sell filter, the encumbrance gate and the letter
 import { isEquipped, unequipSlot } from '../systems/equip.js';   // AUDIT 17e F4: worn gear is not merchandise
 import { targetAimPoint, missileAimDirection } from '../characters/enemy/enemyTargets.js';   // AUDIT WORLD6b-iii(a) C3: the ONE aim law for an enemy missile (the peer's transform, mine otherwise)
-import { playerEntity, surfacePlayer } from '../characters/playerEntity.js';
+import { playerEntity, surfacePlayer, staffFrozen, playerHeld } from '../characters/playerEntity.js';   // AUDIT WORLD-EVENTS L1-4: and a body lying down for a raise
 import { drawnFlat } from '../characters/nudeFlats.js';   // NUDE-FLATS: Show Nudity off draws a nude figure's clothed stand-in
 import { offHandQuickslot, offHandOffersSwap, tickQuickslotHold } from '../systems/quickslots.js';   // QS4: the off-hand cell's press, on THIS mode's own rig   // QS6: the off hand's swap question, and the hold machine this mode's frame drives
 import { createPlayerTicker , wireInfectionVideos, endRunToTitleMenu, exitToTitleMenu, doorSpellFor, exteriorOpenSpellFor, consumeDoorSpell, wireDoorSpells, createDetectFeed, createRestDeps, foeNearbyRecord, nearbyLootRecords} from './shared.js';   // AUDIT 18: the interior host's world clock; S40: its rest deps
@@ -75,7 +77,8 @@ import { wagonLoadedHeld } from '../systems/tradePack.js';   // WAGONS2 (AUDIT):
 import { caravanPaintRows } from '../systems/wagon/wagonLooks.js';   // WAGONS2: the caravan's inside, painted from the decorator
 import { caravanDecorDoc, readCaravanDecor, readCaravanHidden } from '../systems/caravanVisit.js';   // WAGONS2-VISIT: what a caravan's owner placed, said to its room and stood for its visitor
 import { caravanKeyOf } from '../net/privateInterior.js';   // WAGONS2-VISIT: a caravan's own room
-import { INTERIOR_SHELL_BUCKET } from './decor/decorBase.js';   // HOME-DOORS: a doorway is an opening in the shell's walls   // AUDIT 63 F22: AddFlats' RandomTreasure arm lives with the walk that finds its markers
+import { INTERIOR_SHELL_BUCKET, standRoomHidden } from './decor/decorBase.js';   // HOME-DOORS: a doorway is an opening in the shell's walls   // AUDIT 63 F22: AddFlats' RandomTreasure arm lives with the walk that finds its markers; DOOR-KEPT: the room's list stood whole
+import { noteHomeDecorList, homeDecorCap } from '../systems/decor/homeDecorCap.js';   // DECOR-ROOMY: a wider house holds more
 import { advanceMachinery, mountMachineryChild, machineryChildPos, MILL_SOUND } from '../world/windmills.js';   // WM4b: the machinery's moving parts; WM4c: its hum
 import { buildDungeonContext } from './dungeonContext.js';
 import { ambushNight } from '../systems/rest/restAct.js';   // AUDIT REST II P3: a quest's CreateFoe reaches the act's night, window or none
@@ -88,12 +91,12 @@ import { createCamps } from './camps.js';   // HEARTH1: not to STAND a camp indo
 import { CAMP_TEXT } from '../systems/survival/camp.js';   // AUDIT REST II H4: the carried-out word, said on the HUD outside
 import { collectHearths } from '../systems/survival/hearth.js';   // AUDIT HEARTH1 F4: the law's own collection, rather than a fourth hand-written copy of its test
 import { lanternColor, dungeonAmbient, dungeonTrilight, dungeonFog, interiorLightColor, interiorGrade } from '../render/enhancedLighting.js';   // EL1: the world host installed the lane; this reads it; EL4: the dark; AUDIT-EL F6: the fog with it; INTERIOR-DIM: a room's lamps and its grade
-import { INTERIOR_AMBIENT, INTERIOR_NIGHT_AMBIENT, INTERIOR_LIGHT_DIR } from '../world/interior/interiorLights.js';
+import { INTERIOR_AMBIENT, INTERIOR_NIGHT_AMBIENT, INTERIOR_LIGHT_DIR, roomAmbient } from '../world/interior/interiorLights.js';   // RPT1026-WORLD DARK-ROOM: roomAmbient
 import { isNight } from '../world/worldClock.js';   // AUDIT 23 (C12)
 import { worldMinutes, skyMinutes, setWorldMinutes, ownMinutes, ownTimeLeftText, ownTimeLeftShort, sharedClockOn, trustedWorldMinutes, worldSpanRealWords, tickInFlight } from '../systems/worldTick.js';   // AUDIT 23 (C12): the one clock; G4's probe moves it; LIVED1: the character's own clock, and its deadlines said in their time; AUDIT LIVED1b K1: the collapse box's guard is online's; AUDIT CARDS-6 B4: a round of damage over time stands nobody up from the cards
 import { exhaustionOutcome, exhaustedInWaterText } from '../systems/rest/rest.js';   // AUDIT 23 (C5)
 import { ActionTextBox } from '../ui/actionText.js';   // AUDIT 23 (C5)
-import { registerPresenter, hudText } from '../systems/notify.js';   // ENH-NOTICE3: the modal modes' slot, offered to the one door every message goes through
+import { registerPresenter, hudText, messageBox } from '../systems/notify.js';   // ENH-NOTICE3: the modal modes' slot, offered to the one door every message goes through; BOX-ON-TOP: the Identify spell's magicka refusal is a box
 import { toggleStatusReadout } from '../ui/statusBox.js';   // STATUS-LIVE: the Status readout, one composer for all four hosts
 import { liveVampirism } from '../systems/racialLive.js';   // SURV5: the vampire's one status line
 import { survivalOn } from '../systems/survival/switch.js';
@@ -113,6 +116,7 @@ import { setMidScreenText } from '../ui/midScreenText.js';   // AUDIT 64 F34: Da
 import { validYardKind, yardCounter, yardStock, YARD_TEXT } from '../systems/merchantYards.js';   // MERCHANT-YARDS: a town's Stable and Wagon Yard - their counters
 import { makeWindowStack, pauseWhileOpen, hidesHud } from '../ui/windowStack.js';   // ROAD-B B1: UserInterfaceManager's stack, under this host's one slot; ROAD-tail: and its PAUSE; AUDIT PRE-MERGE 0928 U8: and the HUD's outright hide
 import { createActivateGate, activateFrame } from '../systems/activateGate.js';   // A8: PlayerActivate's ActivateCenterObject frame
+import { CAST_PRESS } from './hostMagic.js';   // SPELL-HAND: a cast's own press, one imported word (HOST-SPLIT; the magic door's, so no host reads a two-hands module)
 import { FootstepMachine, pickFootstepSet, pickFootstepKind } from '../systems/footsteps.js';   // FS-slice; AUDIT DROPS E2: the kind the pose carries
 import { immersiveFootsteps } from '../systems/immersiveFootsteps.js';
 import { betterAmbience, classicFootstepAllowed } from '../systems/betterAmbience.js';   // BA1: Better Ambience - the shake, the dungeon's fog and light, the reverb, the indoor rain, its own stride   // IF1: Immersive Footsteps owns the stride and the three landing sounds once its clips are in (DisableVanillaFootsteps)
@@ -123,6 +127,9 @@ import { realmArt } from '../world/superDungeon/sdRealmArt.js';   // SD5a: its a
 import { isEgHall, egHallLocation, egHallBlocks, egLightsWith, egHallLighting, egHallFog, egHallGrade } from '../world/eliteGates/egHall.js';   // EG-PLAY: an Elite Breach's circle, a made level as the Hour is
 import { egRoomKey } from '../net/eliteGates/egLaw.js';   // EG-PLAY: its room, its halls, its words
 import { createEgCircleHost } from './eliteGates/egCircleHost.js';   // HOST-SPLIT (EG-LOOK): an Elite Breach's circle on this screen, moved out of this host
+import { createKetchDeckHost, ketchShipHit } from './ketch/ketchDeckHost.js';   // KETCH (HOST-SPLIT): the sky-ketch on this screen's dungeon host - its set, its seams, its look, its door
+import { isKetchShip } from '../world/ketch/ketchShip.js';   // KETCH: the sky-ketch, a made level as the Hour is
+import { KT_ARRIVE } from '../net/ketch/ketchDeck.js';   // KETCH: where the anchor-lift sets a crew down, and its facing
 import { EG_OCCLUDE_CHEST_M } from './eliteGates/egOcclude.js';   // EG-ZN (section 11.8): the occluders between the camera and the body dithered out
 import { madeLevelOf } from '../systems/madeLevel.js';   // EG-H2 (Elite-Gates.md section 24): which made level stands under the player - one law
 import { SD_HOUR_GRADE } from '../world/superDungeon/sdLook.js';   // SD-LOOK: the Hour's grade on the lane
@@ -143,7 +150,8 @@ import { WEAPON_REACH, weaponPoseOf, applyWeaponPose as setWeaponPose } from '..
 import { inflictPoison } from '../systems/poisons.js';   // AUDIT 39 (#64/#65): a poisoned shaft doses its mark
 import { tallySkill, skillValue, SKILLS, permanentSkillValue } from '../systems/skills.js';
 import { tallySwingSkills, SWING_FATIGUE_COST, playPlayerVoice, playerPainVoice, makeEnemiesHostile, isBowWeapon, aimedBlowInfo, playerBlowFrame } from './hostCombat.js';   // AUDIT 21 hosts F8: the swing law, shared with the dungeon and the guards; IF: the pain cry   // ROAD-B: GameManager.MakeEnemiesHostile
-import { createPopulationLane } from '../characters/npcBodies.js'; import { personLook, personActor } from '../characters/peopleBodies.js';   // MWNPC8a: the building's standing people in Morrowind bodies
+import { createPopulationLane } from '../characters/npcBodies.js'; import { personLook, personActor, standingPersonLook } from '../characters/peopleBodies.js';   // MWNPC8a: the building's standing people in Morrowind bodies
+import { createNpcMarks, staticNpcRouteIn } from './npcMarksHost.js';   // NPC-MARKS: the marks over the people who do something, and the click's route built in one place
 import { createExteriorFoes } from './exteriorFoes.js'; import { INTERIOR_CLEAR } from '../render/renderer.js';   // IF: the ONE foe-pool factory - see interiorFoes below; REVIEW 2026-09-05: the mode frames clear BLACK (CameraClearManager.cs:23-25)
 import { createCityGuards } from './cityGuards.js';   // ROAD-B: SpawnCityGuards' INDOOR arm needs a watch pool in the building
 import { createDroppedLoot, droppedLootHooks, containerDropPos } from './droppedLoot.js';
@@ -160,6 +168,7 @@ import { mwViewFrame, mwViewDrawBody, mwViewFootstep, mwViewTransition, mwViewFi
 import { MOBILE_TYPES } from '../characters/mobile/mobileTypes.js';   // IF: the daedric punishment's name->id door
 import { areEnemiesNearby, setEnemyAlert } from '../systems/encounters.js';   // IF: GameManager.AreEnemiesNearby, one method over this host's database; AUDIT 58: the 354 refusal's other term
 import { audio } from '../systems/audio.js';
+import { createLockpickHost } from './lockpickHost.js';   // LOCKPICK: a front door's pick plays the lock's tumblers
 import { lycanthropeMoveSound } from '../systems/lycanthropy.js';   // LM1: the 4-20s transformed move-sound loop
 import { inventoryDoorReady } from '../ui/inventoryDoor.js';   // DISC10-E: the door's own readiness gate - a ready door that built nothing REFUSED
 import { SpellbookWindow, preloadSpellbookArt, spellbookArtLoaded } from '../ui/spellbookWindow.js';   // U42: the classic art window (retires M2's keyed stand-in), and the guilds' BUY mode
@@ -177,6 +186,7 @@ import { trackHudPointer } from '../ui/hud/hudActiveSpells.js';   // U46: the sp
 import { ImgFile } from '../formats/imgFile.js';   // AUDIT 21 hosts F7: loadHud's reader
 // E2: the shop shelf browse/buy layer (node-pure laws in shopStock.js)
 import { ChoiceWindow } from '../ui/talkWindow.js';
+import { createHallSaleDoor } from './hallSaleDoor.js';   // GUILD-HALL-SALE: a hall sold at its door
 import { questMountsHere } from '../systems/instancePlaces.js';   // INSTANCES: where a quest's things stand online (bible/11-Multiplayer/Instances.md)
 import { instanceWord } from '../net/instanceRoom.js';   // INSTANCES (the audit): the instance a place was entered as, recorded (a save, an anchor, a staff landing)
 import { YesNoBoxWindow } from '../ui/yesNoBox.js';   // UXB1-M: DFU's YesNo box - the private-property question
@@ -194,10 +204,10 @@ import { plaqueListing } from '../systems/quickLoot.js';   // AUDIT HOME-VOTE B1
 import { lootPile } from '../player/lootStack.js';   // LOOT-STACK: the pile under the reticle, as the loot window's tabs
 import { silverFindAt } from '../systems/silverFinds.js';   // SILVER-FINDS (AUDIT 625 S2): an interior's treasure pile rolls its find too
 import { staticDoorName, npcHoverName, questResourceName, questStandItem, worldTooltipsOn, hideInteractTooltip,
-  houseContainerName, houseContainerHover, actionObjectName, lootPileName,
-  BOOKSHELF_TEXT, SHOP_SHELF_TEXT, LADDER_TEXT, BULLETIN_BOARD_TEXT, mobileEntityName, liveEntityName } from '../systems/worldTooltips.js'; import { questFoeSubs } from '../systems/quest/questFoeLine.js';   // WORLD-HOVER: the mod's ladder for the families THIS host stands; QUEST-FOE-LINE: a quest's foe says whose it is   // WORLD-HOVER: the mod's ladder for the families THIS host stands
+  houseContainerName, houseContainerHover, actionObjectName, lootPileName, indoorDecorHover,
+  BOOKSHELF_TEXT, SHOP_SHELF_TEXT, LADDER_TEXT, mobileEntityName, liveEntityName } from '../systems/worldTooltips.js'; import { questFoeSubs } from '../systems/quest/questFoeLine.js';   // WORLD-HOVER: the mod's ladder for the families THIS host stands; QUEST-FOE-LINE: a quest's foe says whose it is   // WORLD-HOVER: the mod's ladder for the families THIS host stands
 import { LOCATION_TYPES, REGION_NAMES, REGION_RACES } from '../formats/mapsFile.js';   // WORLD-HOVER: .cs:777-782 - a dungeon exit names its town, or the region   // WORLD-HOVER: the texture record is DERIVED at its one reader, off the stored model id
-import { isShop, isRepairShop, stockShopShelf, stockHouseContainer, PRIVATE_PROPERTY_TEXT_ID, privatePropertyRows, calculateCost, calculateTradePrice, regionPriceAdjustment, SHOP_BUYS_GROUPS, shopBuysItem, stockSoulGems, stockGuildMagicItems, stockGuildPotions, dayShelf, createStockedDate, needsRestock, stockSearched, restockEndless } from '../systems/shopStock.js';   // X6: the soul-gem shelf; G4: the two guild shelves; A2: the daily restock; ENDLESS-STOCK: the bag and the Campfire never sell out
+import { isShop, stockShopShelf, stockHouseContainer, PRIVATE_PROPERTY_TEXT_ID, privatePropertyRows, calculateCost, calculateTradePrice, regionPriceAdjustment, SHOP_BUYS_GROUPS, shopBuysItem, stockSoulGems, stockGuildMagicItems, stockGuildPotions, dayShelf, createStockedDate, needsRestock, stockSearched, restockEndless, landSoldAt } from '../systems/shopStock.js';   // X6: the soul-gem shelf; G4: the two guild shelves; A2: the daily restock; ENDLESS-STOCK: the bag and the Campfire never sell out
 import { BAG_WORDS, isBagItem, holdsOtherBag } from '../net/bagLaw.js';   // ONE-BAG: one Materials Bag to a character, on the keyed shelf too
 import { identifySpellPass, identifiedTallyText, notEnoughSpellPointsText, tradeCost, getTradePrice, markCounterBought } from '../systems/tradeModes.js';   // X7: the Identify SPELL's per-item roll; F067: its magicka refusal; FB0929: the keyed rows' prices are the counter's; AUDIT LW-II-2 S1: the counter's mark
 import { liveBundles, dispelBundle, dispellableBundles, DISPEL_MAGIC_TEXT } from '../systems/mysticism.js';   // X10: the Dispel Magic picker
@@ -214,15 +224,12 @@ import { questTracker } from '../ui/quest/questTracker.js';   // GUIDE8: the que
 // U23: the static-NPC seam and the guild service popup.
 import { STATIC_NPC_ACTIVATION_DISTANCE, DEFAULT_ACTIVATION_DISTANCE, RAY_DISTANCE } from '../systems/talk/talk.js';
 // PlayerActivate.ActivateBulletinBoard (:706-739) - the town sign's arm
-import { BULLETIN_BOARD_ACTIVATION_DISTANCE, bulletinBoardRows } from '../systems/bulletinBoard.js';
 import { applyDeathPenalty, deathPenaltyText } from '../systems/deathPenalty.js';   // DEATH-PENALTY: the in-place respawn is an online death too
 import { revenantTakes } from '../systems/revenant/revenant.js';   // AUDIT FEUD (RVN8): the in-place respawn's theft, as the world host's
 import { endPlayerFights } from '../systems/harmMark.js';   // AUDIT FEUD (RVN10): ...and its fights ended
-import { tokenRows } from '../ui/messageBox.js';
-import { staticNpcRoute, showsJoinButton, serviceAccess, onPushEffects, rankNeedsLines, wayBackLines, NO_POTION_INGREDIENTS, isServiceBox, SERVICE_LABEL, SERVICE_DESTINATION } from '../systems/guild/guildServiceFlow.js';
-import { isIngredient } from '../systems/potions.js';   // F201: MakePotionService's scan
-import { isPotionRecipe, USE_TEXT, expandItemMacro } from '../systems/useItem.js';   // AUDIT 63 F42: IsPotionRecipe (DaggerfallUnityItem.cs:344-347); RR1: the light's own "You douse the %it."
-import { canAccessService , hasCustomMerchantService, getCustomMerchantService, getCustomMerchantServiceLabel } from '../systems/guild/guildServices.js';   // G4: does THIS guild also sell soul gems?
+import { showsJoinButton, serviceAccess, onPushEffects, rankNeedsLines, wayBackLines, NO_POTION_INGREDIENTS, isServiceBox, SERVICE_LABEL, SERVICE_DESTINATION } from '../systems/guild/guildServiceFlow.js';
+import { USE_TEXT, expandItemMacro } from '../systems/useItem.js';   // AUDIT 63 F42: IsPotionRecipe (DaggerfallUnityItem.cs:344-347); RR1: the light's own "You douse the %it."
+import { canAccessService , getCustomMerchantService, getCustomMerchantServiceLabel } from '../systems/guild/guildServices.js';   // G4: does THIS guild also sell soul gems?
 import {
   receiveArmorDecision, claimArmor, SPYMASTER_GREETING_TEXT_ID,
   receiveHouseDecision, claimHouse, alreadyGivenHouseText,   // H1
@@ -262,19 +269,18 @@ import { createCardTableHud, cardHudModel, eventLine, showdownWinners, HOLDEM_RE
 import { tablePlaces, CardScene } from '../world/card/cardScene.js';   // CARDS3: the cards on the cloth
 import { hashSeed, chipDiscs, CARD_W, CARD_L } from '../world/card/cardMotion.js';   // CARDS3: and its throws' seeds (AUDIT CARDS-2 L9: the town's too)
 import { createCardTableDraw, cardMatrix } from '../render/cardTableDraw.js';   // CARDS3: and their bodies on the GL
-import { residentName } from '../systems/livingWorld/census.js';   // CARDS4: the tavern's regulars, named as the living world names its people
+import { seededPersonName } from '../characters/personNames.js';   // CARDS4: the tavern's regulars, named as the living world names its people (REGION-NAMES)
 import { registerPlayerHurtListener } from '../characters/playerEntity.js';   // CARDS2b: a hit stands you up
 import { BUILDING_TYPES, isResidence, isTavern } from '../world/buildingNames.js';   // ROAD-B B4: IsTavern joins IsResidence at the door latch
 import { getInteractionMode, setInteractionMode } from '../player/interactionMode.js';   // R1: PlayerActivate.currentMode, the one home
 import { buildingIsUnlocked, buildingLockValue, isBuildingOpen, lockedExteriorDoorText, buildingClosedText } from '../systems/buildingLocks.js';   // R1: opening hours + the unlocked ladder   // P1: the people gate reads the same hours   // WORLD-HOVER: the closed sentence, not the two tables it is built from
 import { peopleAreVisible, updateNpcPresence } from '../characters/interiorPeople.js';   // P1: AddPeople's visibility tail   // ROAD-B B5: OnPop's presence re-roll
-import { exteriorLockpickingChance, lookAtLockText, LOCKPICKING_SUCCESS_TEXT, LOCKPICKING_FAILURE_TEXT, isActionDoorObject } from '../world/actionSystem.js';   // AUDIT 63 F42: GetComponent<DaggerfallActionDoor>() with a name
+import { lookAtLockText, isActionDoorObject } from '../world/actionSystem.js';   // AUDIT 63 F42: GetComponent<DaggerfallActionDoor>() with a name
 import { tallyCrimeGuildRequirements } from '../systems/crimeGuilds.js';   // CG2: the break-in tally
 import { theftBasket, privatePropertyTheft, shopShelfTheft } from '../systems/theft.js';   // PT1: the two stealing laws
-import { landSold } from '../systems/stolenGoods.js';   // STOLEN-GOODS: a stolen piece sold is the merchant's to be rid of, never shelved
 import { buildingGreeting, shopQualityPresentation } from '../systems/buildingGreeting.js';
 import { setUnleveledLootWorld, unleveledLootPreTransition, unleveledLootExteriorTransition } from '../systems/unleveledLoot.js';   // UL1: PlayerEnterExit's world and its transition events   // BG1: the shop quality + the householder's greeting
-import { discoverBuilding, undiscoverBuilding, getDiscoveredBuilding, getLastLockpickAttempt, setLastLockpickAttempt, shownBuildingName } from '../systems/discovery.js';   // H3: selling a house takes its name back off the map
+import { discoverBuilding, undiscoverBuilding, getDiscoveredBuilding, shownBuildingName } from '../systems/discovery.js';   // H3: selling a house takes its name back off the map
 import { BUILDING_KEY_0 } from '../systems/talk/talkTopics.js';   // H3: the no-key key both ship interiors are filed under
 import { carriedPieces } from '../systems/item/itemIds.js';   // AUTO-HOLD: the room's word never lands a piece I carry (world/interior/interiorShared.js)
 import { interiorLocationKey, mintInteriorShared, composeInteriorShared, applyInteriorShared, applyInteriorLoot, interiorActionRecords, interiorLootOpen, interiorLootFrame, interiorLootUnborn, interiorLootRoll, interiorLootBirth, interiorLootAside, interiorLootLeave } from '../world/interior/interiorShared.js';   // WORLD6a: the building as a world room - the pure half; AUDIT WORLD6a A1: the bag minted there
@@ -298,7 +304,7 @@ import { reviveForPlay } from '../systems/deathRespawn.js';   // PH1: the in-pla
 import { reducedRepairCost } from '../systems/guild/guildServices.js';   // R1: FightersGuild.ReducedRepairCost finds its caller
 import {
   updateRepairTimes, repairJobsAt, repairRefusal, repairStatusLabel,
-  isBeingRepaired, isRepairFinished, collectRepaired, calculateItemRepairTime, leaveForRepair,
+  isBeingRepaired, isRepairFinished, collectRepaired, calculateItemRepairTime, leaveForRepair, repairWhole,
   MAGIC_ITEMS_CANNOT_BE_REPAIRED_TEXT_ID, DOES_NOT_NEED_TO_BE_REPAIRED_TEXT_ID, cannotBeRepairedText, TRANSPORT_CANNOT_BE_REPAIRED_TEXT,
   interruptRepairText,
 } from '../systems/repairService.js';
@@ -314,9 +320,12 @@ import { preloadMessageBoxArt } from '../ui/messageBox.js';
 import { nativeMetrics, pointToNative } from '../ui/native/nativePanel.js';
 import { templateByIndex, itemBaseValue } from '../systems/item/itemTemplates.js';
 import { questLetterName, itemLongName, shownItemName } from '../systems/item/itemInfo.js';   // ResolveItemLongName's quest-letter arm; DECOR2a: an own item's name; L10N3e: an item's name as shown
-import { applyTransfer } from '../systems/item/itemTransfer.js';   // DECOR2a: one's own item leaves the pack as a drop does
+import { createDecorPack, returnUnstood } from '../systems/decor/decorPack.js';   // DECOR2a/2b: the owner's own things' doors (AUDIT FB1025i E1); E8: a save's room's strays
 import { decorItemName, decorOwnBackLine } from '../systems/decor/decorItems.js';   // DECOR2a: an own item's piece named from its numbers
 import { isFurnishing, furnishingDeliveredLine, ownBackLines } from '../systems/decor/decorFurnish.js';   // DECOR2b: furniture delivered, never carried
+import { useDecorPiece } from '../systems/decor/decorUse.js';   // DECOR-USE: a placed bed slept in, a placed fire cooked on
+import { MUSIC_STATION } from '../systems/musicBox.js';   // MUSIC-BOX: a placed music box
+import { openMusicBox } from './musicBoxPress.js';
 import { goldAmount, totalGoldAmount, deductGold, addGold, payUndoable, setCrimeCommitted, CRIMES } from '../systems/court.js';   // PT1: the ONE crime write (V4's SuppressCrime gate rides it)
 // Q4-v: the quest layer's host wiring. The BRIDGE (scenes/quest/questBridge.js)
 // is created by the outer host (world.js) and rides in; this machine owns
@@ -331,7 +340,7 @@ import { currentWeather } from '../systems/weather/weatherSim.js';   // AUDIT AT
 import { weatherFlags } from '../world/weather.js';   // AUDIT AT F3: WeatherManager's four public flags, derived once from SetWeather's switch
 import { ServiceFlowWindow } from '../ui/guildServiceWindows.js';
 import { hasCart } from '../systems/inventorySession.js';   // AUDIT 28 W2c: the exit-door wagon prompt's cart test
-import { dungeonLocationFor, builtDungeonSize } from '../world/smallerDungeons.js';   // AUDIT 28 W4: the size the dungeon is built at (SD-ONLINE: and its room's, read off the build)
+import { dungeonLocationFor, dungeonRoomSize } from '../world/smallerDungeons.js';   // AUDIT 28 W4: the size the dungeon is built at (SD-ONLINE: and its room's, read off the build; DELVE II, AUDIT DLV5-6 M3: and its curated block's)
 import { tierShown } from '../systems/dungeon/dungeonTier.js';   // TIER1: a dungeon's tier, said online...
 import { dungeonTierLabel } from '../world/dungeon/dungeonLabel.js';   // ...with its size, never over a place the port made
 import { dismountOnTransition } from '../systems/transport.js';   // TR5: the interior dismount
@@ -350,7 +359,7 @@ import { freeTavernRooms } from '../systems/guild/guildServices.js';
 import { BankWindow, preloadBankArt, bankArtLoaded, BANK_RECTS, BANK_PANEL_X, BANK_PANEL_Y } from '../ui/bankWindow.js';
 import { BankPurchaseWindow, preloadPurchaseArt, purchaseArtLoaded } from '../ui/bankPurchaseWindow.js';   // H2
 import { titleDeed, shipLabel, BOAT_DEED_TEMPLATE as FLEET_DEED_TEMPLATE } from '../systems/fleet.js';   // HOLDINGS: a bought deed into the Fleet's book
-import { createBankAccounts, createHouses, BANK_REGION_COUNT, TRANSACTION_RESULT, ownsHouse, isHouseOwned, deedStands, ownedHouseKey, houseSellPrice, housesForSale, allocateHouseToPlayer, purchaseHouse, ownsShip, ownedShipType, purchaseShip, sellShip, sellHouse, SHIP_COORDS, SHIP_INTERIOR_MAP_IDS, creditMarksSale, marksSaleCredit, crossedDeedLines, goldRegion } from '../systems/banking.js';   // H1/H2   // H3: the two leaves - the sell price and the ship
+import { createBankAccounts, createHouses, BANK_REGION_COUNT, TRANSACTION_RESULT, ownsHouse, isHouseOwned, deedStands, deedHeldIn, regionDeeds, regionHousesFull, dropDeed, townDeeds, houseSellPrice, housesForSale, allocateHouseToPlayer, purchaseHouse, ownsShip, ownedShipType, purchaseShip, sellShip, sellHouse, SHIP_COORDS, SHIP_INTERIOR_MAP_IDS, creditMarksSale, marksSaleCredit, crossedDeedLines, goldRegion } from '../systems/banking.js';   // H1/H2   // H3: the two leaves - the sell price and the ship
 import { isEtherPlaceId } from '../world/etherPlaces.js';   // AUDIT CAPTAIN'S SEA P9: an isle town's buildings are no deed's
 // HOME1: the online homes - the door's one answer, the offer, the owner's menu, and an owned home's own scene
 import {
@@ -362,6 +371,7 @@ import {
   HALL_VERB, homeHallBuyRow, hallNextEntry, hallBoughtLine, hallShortLine, hallOldGoldLine, HALL_CHEST_SHUT, hallEntryTurnable,   // GUILD1d: a guild's hall; AUDIT PROF-541 R2-H1: its door's gate
   HALL_CHEST_TITLE, HALL_DROP_TEXT, HALL_VISITOR_MAGIC_TEXT, hallOfferLabel,   // AUDIT GUILD1d: the chest's name, a hall's floor and magic, the offer's hall
   HALL_BOARD_TITLE, hallBoardShutLine, HALL_BOARD_COLD,   // GUILD1e: the board in a hall
+  hallSellable, hallManaged,   // GUILD-HALL-SALE: a hall sold at its door, as a home is (its windows: scenes/hallSaleDoor.js)
   HALL_OF_RECORDS_TEXT, HALL_OF_RECORDS_SHUT,   // SEASON1 part three: a seat's Hall of Records
   homeDoorName,   // FIELD BUGS 2026-09-30b HOME-PLAQUE: a nameless house with verbs is a Residence
   homeClaimLayout,   // AUDIT PRE-MERGE 1003 WD1: a hall is bought in its town's layout, as a home is
@@ -370,7 +380,8 @@ import {
   homeVoteRows, homeVotePressable, homeVoteOfVerb, homeVoteChoices, homeVoteLines, isHomeVoteVerb,   // HOME-VOTE: the town's word on it, at its door
   homeStationsServe,   // FB1018D HOME-BENCH: a home's stations serve its owner's account, as its door does
 } from '../systems/online/onlineHomes.js';
-import { homeDecorShown, homeVotedLine, homeVotesLine, homeVoteRefusalLine, decorStaysShunned, HOME_VOTE_GONE_LINE } from '../net/homeVoteLaw.js';   // HOME-VOTE: a shunned home's decor stands for its insiders alone
+import { homeVotedLine, homeVotesLine, homeVoteRefusalLine, decorStaysShunned, HOME_VOTE_GONE_LINE } from '../net/homeVoteLaw.js';   // HOME-VOTE: a shunned home's decor stands for its insiders alone
+import { homeDecorShownHere, homeMuteRows, homeMuteLines, homeMuteOptions, pressHomeMute } from '../systems/online/homeMute.js';   // HOME-MUTE: a home's decor hidden for me alone, at its door
 import { goldSum, accountWords } from '../systems/homeWords.js';   // AUDIT HOME-PRICE E4: a home's sums and the account they moved in
 import { guildHallPrice, GUILD_HALL_ENTRY_WORDS } from '../net/hallLaw.js';   // GUILD1d: what a hall costs, in its refusal's words; who may walk in
 import { SEAT_HALL_DECOR_CAP, SEAT_HALL_CLEAR_M, SEAT_HALL_TEXT } from '../net/townSeatLaw.js';   // SEAT-HALL: the palace as the holder's hall
@@ -378,29 +389,34 @@ import { crownRulerFactionId, crownRulerHere, crownHallPlan, CROWN_HALL_TEXT } f
 import { hallPlaquePlan, PLAQUE_MODEL, PLAQUE_BARE_MODEL } from '../world/arena/arenaPlaques.js';   // ARENA5: the Hall of Champions' plaque wall
 import { bannerKeyOf } from './hallBanners.js';   // CROWN-HALL: the throne room's cloth, keyed as the street's
 import { HOME_ENTRIES, homePriceOk, homeOnlinePrice, rentCost, rentDaysLeft } from '../net/homeLaw.js';   // HOME-PRICE: what a home costs online
+import { homeListedPrice } from '../net/homeListingLaw.js';   // FOUNDATION F3: a row's price
 // HOME-RENT: a home's rooms, rented at its door and offered, priced and collected in its owner's decorator
 import {
   homeRooms, rentable, rentHomeRoom, collectHomeRent, rentPickLines, rentDaysLines, rentConfirmLines, rentDoneLine, rentShortLine,
   RENT_NONE_FREE, RENT_REALM_ONLY, rentWelcomeLine, homeBedIsMine, rentDayRows, rentNoneLine, RENT_FULL_LINE,   // FIELD BUGS 2026-10-01: RENT-REST, RENT-RENEW
 } from '../systems/homeRent.js';
 // DECOR1c: the pieces a room's owner placed (their law, and the pool that stands them in the room)
-import { decorPieceOf, decorSaleBack, DECOR_STATION_SERVICES, DECOR_STATION_NAMES } from '../net/decorLaw.js';
+import { decorPieceOf, decorSaleBack, decorCapOf, DECOR_STATION_SERVICES, DECOR_STATION_NAMES } from '../net/decorLaw.js';   // DECOR-ROOMY: an offline house's cap
+import { noteDecorGrants, decorMayRest, decorMayStorage, decorMayStation, decorIsShared, decorStationShut, bindDecorHouseFrom, openSharedChest, openDecorChest, openOwnChest } from '../systems/decor/decorGrants.js';   // DECOR-ACCESS
+import { openHomeTransfer, answerHomeTransfer } from '../ui/homeTransferWindow.js';
 import { VENDOR_STATION, VENDOR_COLD_LINE } from '../net/vendorLaw.js';   // HOME-VENDOR: a trader, and its word where none can trade
-import { forgeOffered, PROF_STATIONS, stationColdLine, enchantGoldPct, STORES_ACT_STATIONS, focusStoresStation } from '../ui/professions/profPages.js';   // AUDIT 29 B2: a Forge worked only where the Stores page is; PROF4: a Workbench
+import { forgeOffered, PROF_STATIONS, stationColdLine, enchantGoldPct, STORES_ACT_STATIONS, stationDoorAt, stationActLabel } from '../ui/professions/profPages.js';   // AUDIT 29 B2: a Forge worked only where the Stores page is; PROF4: a Workbench
 import { FORGE_FEE, WORKBENCH_FEE, LOOM_FEE, MASON_FEE, COOK_FIRE, JEWEL_FEE, ALCHEMY_FEE, ENCHANT_FEE } from '../net/professionLaw.js';   // PROF2: a smith's forge's use fee; PROF4: a furnisher's workbench's; PROF7: a tailor's loom's; PROF11: a General Store's mason's bench's; PROF10: a Pawn Shop's or a Gem Store's jeweller's bench's
 /** HOME-STATIONS: a station pressed whose maker's art has not landed yet. */
 const DECOR_STATION_NOT_READY = 'The station is not ready yet. Try again in a moment.';
 /** AUDIT HOME-STATIONS S7: a maker's refusal whose TEXT.RSC record did not answer. */
 const DECOR_STATION_REFUSED = 'You cannot use the station right now.';
-import { createDecorRoom, decorIdOfKey, askDecorList, offerDecorFigures } from './decor/decorRoom.js';   // MWNPC18: a placed figure in its body
+import { createDecorRoom, decorIdOfKey, askDecorList, offerDecorFigures, primeDecorList, primedDecorList, decorListKey } from './decor/decorRoom.js';   // MWNPC18: a placed figure in its body; the door's list starts when the player goes in
 // DECOR1d: the decorator itself - the button, the panel, the free camera - and what its catalogue scan reads
 import { createDecorTool } from './decor/decorTool.js';
 import { decorScanDeps } from '../systems/decor/decorScan.js';   // DECOR-DUNGEON: the scan's deps, one constructor for both hosts
 import { GLOBAL_SCALE } from '../world/meshReader.js';
 import { loadIcon } from '../ui/textureCanvas.js';
 import { isTouchDevice } from '../ui/touch/touchDevice.js';
-import { setCursorActive, holdCursor, cursorKeyClaimed } from '../player/pointerLock.js';
+import { holdCursor, cursorKeyClaimed } from '../player/pointerLock.js';
 import { decorKey } from '../systems/decor/decorCatalogue.js';
+import { decorBuiltInPlaque, decorPlaque, decorVerbKey } from '../systems/decor/decorLook.js';
+import { bookHouseOf } from './portalBookHost.js';   // PORTAL-BOOK: the house a Portal Book keeps
 import { BULLETIN_BOARD_MODEL_ID } from '../world/rmbLayout.js';   // GUILD1e: Daggerfall's own board, placed in a guild's hall
 import { accountRefusalText } from '../net/accountClient.js';
 // P1: the scene cache - what an interior remembers across a visit.
@@ -427,13 +443,13 @@ import { stampLayout, layoutStampAt, layoutLocationKeyOfMapId, layoutsMatch } fr
 // the tavern rents through, and FightersGuild.CanRest.
 import { findRentedRoom, removeExpiredRooms } from '../systems/tavern.js';
 import { canRest as guildCanRest } from '../systems/guild/guildServices.js';
-import { interiorRestPlace, restDecision, getPreventedRestMessage } from '../systems/rest/restSession.js';   // CanRest's inside-a-building bag + the scene-free open gate above it   // ROAD-B B5: GetPreventedRestMessage
+import { interiorRestPlace, restDecision, getPreventedRestMessage, interiorRestSpot } from '../systems/rest/restSession.js';   // CanRest's inside-a-building bag + the scene-free open gate above it   // ROAD-B B5: GetPreventedRestMessage   // RPT1026-MISC BED-PRESS-INDOOR: where a building's rest lies
 import { racialRestBlock } from '../systems/vampirism.js';   // V2b: the vampire's rest gate
 import { setPassiveSpecialsHost, FIGHTER_TRAINERS_FACTION } from '../systems/passiveSpecials.js';   // V2c: the sunlight/holy-place seam
 import { DaedraSummonedWindow, REFUSAL_FOE_COUNT, COVEN_FAIL_FOE_COUNT } from '../ui/daedraSummonedWindow.js';   // G7b: the summoning's own film window
 import { orderOf } from '../systems/guild/guildVariants.js';
 import { joinedGuildOfGroup } from '../systems/guild/guilds.js';
-import { GUILD_GROUPS } from '../formats/factionFile.js'; import { lootRarityOn } from '../systems/loot/lootRarity.js'; import { reforgePiece, salvagePiece, shardsHeld, honePiece, setGemPiece, unsetGemPiece, extractGemPiece } from '../systems/reforge.js'; import { buyPortalStone, portalStoneRefusal, shardsKept, PORTAL_TEXT } from '../systems/portalStone.js'; import { createReforgeOverlay } from '../ui/reforgeDoor.js'; import { imprintPiece } from '../systems/loot/lootCodex.js';   // LOOT9: the Mages Guild's Reforge; LOOT10: its imprint
+import { GUILD_GROUPS } from '../formats/factionFile.js'; import { lootRarityOn } from '../systems/loot/lootRarity.js'; import { reforgePiece, salvagePiece, honePiece, setGemPiece, unsetGemPiece, extractGemPiece } from '../systems/reforge.js'; import { createShopRows } from './shopRows.js'; import { createReforgeOverlay } from '../ui/reforgeDoor.js'; import { imprintPiece } from '../systems/loot/lootCodex.js';   // LOOT9: the Mages Guild's Reforge; LOOT10: its imprint
 import { liftCurse } from '../systems/loot/lootCurse.js';   // LOOT16: the temple's lifting
 import { setJunk } from '../systems/item/itemJunk.js';   // AUDIT LOOT II C5: a sold piece's mark ends at the shelf
 import { scryPlace } from '../systems/loot/lootScry.js';   // LOOT19: the guild's scryers
@@ -441,12 +457,14 @@ import { SpellMakerWindow, preloadSpellMakerArt, spellMakerArtLoaded } from '../
 import { hasSpellbook } from '../systems/spell/spellMaker.js';   // AUDIT 63 F12: MakeSpells' door gate (DaggerfallGuildServicePopupWindow.cs:391)
 // M2: the potion maker - the other half of the guild's magic economy.
 import { PotionMakerWindow, preloadPotionArt, potionArtLoaded } from '../ui/potionMakerWindow.js';
+import { potionMakerHooks } from './potionMakerHost.js';   // POTION-DOOR: the maker's hooks, DFU's and the brew's door (Professions-Arc 52)
 import { ItemMakerWindow, preloadItemMakerArt, itemMakerArtLoaded, ITEM_RECTS, rowLayout as itemMakerRowLayout } from '../ui/item/itemMakerWindow.js';
-import { createPotion, getMagicItemTemplates, LOOT_NEWER_TEXT, shownSpellName } from '../systems/loot/loot.js';   // M2: ItemBuilder.CreatePotion, one minter; G4: the MAGIC.DEF registry; L10N3e: a spell's name as shown
+import { getMagicItemTemplates, LOOT_NEWER_TEXT, shownSpellName } from '../systems/loot/loot.js';   // M2: ItemBuilder.CreatePotion, one minter; G4: the MAGIC.DEF registry; L10N3e: a spell's name as shown
 import { SITE_TYPES } from '../systems/quest/place.js';
 import { personOwnName } from '../systems/quest/person.js';   // QUEST-NAME-ONE: a quest stand answers to its Person's own name
-import { placeFoeFreely, questStandBox, rideSceneMarker, markerScenePosition, siteMarkerSpots, standSpot, buildingStandSpot, MARKER_FLOOR_REACH } from '../systems/quest/sceneMount.js';   // B1: CreateFoe's raycast ring, finally called; TOTEM-CAGE: a stand's box where it IS; QUEST-MARKERS: the building's backstop; FB1020c CROWD-CLEAR: a Person clear of the room's people
+import { placeFoeFreely, questStandBox, questFlatTargets, rideSceneMarker, markerScenePosition, siteMarkerSpots, standSpot, buildingStandSpot, MARKER_FLOOR_REACH, freeQuestStand } from '../systems/quest/sceneMount.js';   // B1: CreateFoe's raycast ring, finally called; TOTEM-CAGE: a stand's box where it IS; QUEST-MARKERS: the building's backstop; FB1020c CROWD-CLEAR: a Person clear of the room's people
 import { chestIdentity, matchChests } from './chestRecords.js';   // HOLD-KEPT: a house chest's record by which chest it is
+import { createArrivalSetDown } from './arrivalSetDown.js';   // HOLD-KEPT ON ARRIVAL: what a restored room cannot hold, set down where the player stands
 import { placeFoeEnv, placeRoomQuestFoe, entityOccupancy, questFoeGender, reviveQuestBehaviour as reviveQuestBehaviourFromSave, heldSpots, holdSpotWhile, restandMendedQuestFoe } from './quest/questFoeHost.js';   // B1 (PlaceFoeFreely reads the fieldOfView import below)   // AUDIT 63 F24: SerializableEnemy.cs:206-217 re-adds the component on restore
 import { standLooseFoe } from './hostEnchant.js';   // ROAD-G G1: SoulBound's break release / the Sanguine Rose, inside a building
 import { ENEMY_BASICS, enemyDisplayName } from '../characters/enemy/enemyBasics.js';   // MERGE: FinalizeFoe's Flying lift reads the behaviour flag // WORLD-HOVER H2: GetLocalizedEnemyName - Entity.Name for a live one (.cs:310)
@@ -478,9 +496,8 @@ import { noteFirstUse } from '../systems/tutorials.js';   // TUT1: the first tou
 import '../ui/tutorialPopup.js';   // TUT1: the popup's handler, registered by this host (the four hosts' rule)
 import { adoptLight } from '../render/lightId.js';   // LIGHT-ID: a tinted copy of a light is that light (the dungeon's flame tint, the abyss's candle)
 import { createQuestClickFirst, clickHeardByQuest } from './quest/questClickFirst.js';   // QUEST-WORDS-FIRST: a quest's words and reward before the NPC's door
-/** BOUNTY1: the plaque over a town's bounty board. */
-const BOUNTY_BOARD_TEXT = 'Bounty Board';
-const NOTICE_BOARD_TEXT = 'Notice Board';   // ONE-BOARD: a town's Notice Board, while it is open to this account
+import { ownerFoes } from './ownerCatchUp.js';   // HOST-CLOCK: a building's two pools through the page's one catch-up (OWNER-CLOCK's parity)
+import { windowHoldsDungeon } from './windowWorld.js';   // RPT1026-FIGHTS (WINDOW-ONLINE): online a window holds no dungeon while I live under it
 let _charT0 = (typeof performance !== 'undefined' ? performance.now() : 0);
 let _charAnimMode = 'idle'; // in-engine character animation: idle | walk | off (window.__anim)
 
@@ -861,10 +878,10 @@ export function createWorldModes(host) {
   const cardTableKey = () => `${homeTownOf(interiorBuilding) >>> 0}:${(interiorBuilding?.buildingKey ?? 0) >>> 0}:${cardSeat?.table ?? 0}`;
   /** AUDIT KG II C9: the tavern's own key - its regulars' (the same at each of its tables). */
   const cardTavernKey = () => `${homeTownOf(interiorBuilding) >>> 0}:${(interiorBuilding?.buildingKey ?? 0) >>> 0}`;
-  const tavernRegulars = (n) => regularSeeds(n).map((r) => residentName(r.seed, r.bank, r.gender));
+  const tavernRegulars = (n) => regularSeeds(n).map((r) => seededPersonName(r.seed, r.bank, r.gender, { region: interiorBuilding?.regionIndex ?? -1 }));
   /** CARDS4b: each regular's seed, bank and gender - the namer's own, so the same seed dresses him (world/card/cardRegulars.js). */
   const regularSeeds = (n) => {
-    const b = interiorBuilding, bank = getNameBankOfRegion(b?.regionIndex ?? 0);
+    const b = interiorBuilding, bank = host.provinceBank?.() ?? getNameBankOfRegion(b?.regionIndex ?? 0);   // AUDIT-TESA A2-5: past the Bay the province's
     const town = Math.imul(homeTownOf(b) >>> 0, 0x9E3779B1) >>> 0;
     return Array.from({ length: n }, (_, i) => ({ seed: (((b?.buildingKey ?? 1) * 31 + i * 7919 + 1) ^ town) >>> 0, bank, gender: i % 2 }));
   };
@@ -1373,7 +1390,7 @@ export function createWorldModes(host) {
     // CARDS6: a cash-out is gold - kept and claimed wherever the player is now, and the room told it is held
     if (typeof f?.cashout === 'string') {
       const j = host.cardStakes?.receive(f.cashout);
-      if (j) { host.cardOnline?.send({ op: 'ack', table: f.table, j }); host.cardStakes.claim(); }
+      if (j) { host.cardOnline?.send({ op: 'ack', table: f.table, j }); host.cardStakes.claim(say); }
       return;
     }
     if (mode !== 'interior' || !interiorCtx || !Number.isInteger(f?.table)) return;
@@ -1408,7 +1425,7 @@ export function createWorldModes(host) {
   }
   /** The watched tables' turn of the frame: their events onto their cloths; a table emptied, or of another room, let go. */
   function cardWatchFrame() {
-    if (interiorCtx && cardLookedCtx !== interiorCtx && host.cardOnline?.ok?.()) { cardLookedCtx = interiorCtx; cardLooksDue = (interiorCtx.tables ?? []).map((_, i) => i).slice(0, 16).filter((i) => cardTableNear(i, CARD_WATCH_M)); if (!cardLooksDue.length && (interiorCtx.tables?.length || inTavern())) cardLooksDue.push(0); host.cardStakes?.recover().then(() => host.cardStakes.claim()).catch(() => {}); cardElsewhereSay(); }   // CARDS6: a lost stake's answer asked again, the kept receipts claimed; section 24: gold owed elsewhere said; AUDIT TAVERN-TABLE M2: a tavern whose table found no floor still looks once - the relay hands what it owes here on a look, table or none
+    if (interiorCtx && cardLookedCtx !== interiorCtx && host.cardOnline?.ok?.()) { cardLookedCtx = interiorCtx; cardLooksDue = (interiorCtx.tables ?? []).map((_, i) => i).slice(0, 16).filter((i) => cardTableNear(i, CARD_WATCH_M)); if (!cardLooksDue.length && (interiorCtx.tables?.length || inTavern())) cardLooksDue.push(0); host.cardStakes?.recover().then(() => host.cardStakes.claim(say)).catch(() => {}); cardElsewhereSay(); }   // CARDS6: a lost stake's answer asked again, the kept receipts claimed; section 24: gold owed elsewhere said; AUDIT TAVERN-TABLE M2: a tavern whose table found no floor still looks once - the relay hands what it owes here on a look, table or none
     // CARDS6: a stake of this room the relay never sat - voided back, a word at a time as the gate lets go
     const room = host.cardStakes && host.cardOnline?.ok?.() ? host.cardOnline.room?.() : null;
     if (room) for (const v of host.cardStakes.voidable(room)) { if (!host.cardOnline.send({ op: 'void', table: v.table, stake: v.order })) break; host.cardStakes.voiding(v.id); }
@@ -1521,7 +1538,10 @@ export function createWorldModes(host) {
   // The host destructure moves with it, because `say` closes over
   // `townTalk`. It reads only the function's own argument, so it is
   // safe anywhere inside the body.
-  const { canvas, renderer, player, cam, keys, latch, blocks, pipeline, doorTargets, doorGeneration = null, npcTargets = null, boardTargets = null, buildingTargets = null, bulletinBoardNews = null, baseCollider, voxelfolk = false, piece = 0, paint = false, buildingDataForDoor = null, townTalk = null, magic = null, spellsByIndex = null, questBridge = null, questSceneCtx = null, npcSession = null, talkSave = null, onQuestRestored = null, layoutPinsLoaded = null, discoveryLocationId = null, questBuildingSource = null, gps = null, buildingDirectory = null, openBountyBoard = null, openNoticeBoard = null } = host;   // AUDIT 63 F49: questBuildingSource = PlayerGPS.DiscoverBuilding's { currentMapID, isBuildingQuestResource } pair   // H1: the location's whole building list, for the houses-for-sale roll   // V5: gps = PlayerGPS's location reads, for CanRest   // R1: the discovery store's location key (the anti-grind record's namespace)   // B4: the quicksave composer's trio + the world host's _questStarted latch   // Q4-v: the quest bridge + the host's scene-context closure ({mapId, locationIndex})   // M2: the host's cast engine + SPELLS.STD getter ride in   // host.foes: C8 E1 rigged class enemies in dungeons; buildingDataForDoor: E2's shop identity closure; townTalk: U23's static-NPC seam
+  const { canvas, renderer, player, cam, keys, latch, blocks, pipeline, doorTargets, doorGeneration = null, npcTargets = null, buildingTargets = null, baseCollider, voxelfolk = false, piece = 0, paint = false, buildingDataForDoor = null, townTalk = null, magic = null, spellsByIndex = null, questBridge = null, questSceneCtx = null, npcSession = null, talkSave = null, onQuestRestored = null, layoutPinsLoaded = null, discoveryLocationId = null, questBuildingSource = null, gps = null, buildingDirectory = null } = host;   // AUDIT 63 F49: questBuildingSource = PlayerGPS.DiscoverBuilding's { currentMapID, isBuildingQuestResource } pair   // H1: the location's whole building list, for the houses-for-sale roll   // V5: gps = PlayerGPS's location reads, for CanRest   // R1: the discovery store's location key (the anti-grind record's namespace)   // B4: the quicksave composer's trio + the world host's _questStarted latch   // Q4-v: the quest bridge + the host's scene-context closure ({mapId, locationIndex})   // M2: the host's cast engine + SPELLS.STD getter ride in   // host.foes: C8 E1 rigged class enemies in dungeons; buildingDataForDoor: E2's shop identity closure; townTalk: U23's static-NPC seam
+  // LOCKPICK (bible/06-Systems/Lockpicking.md): a building's front door picked in Steal mode plays the lock's tumblers
+  // (scenes/lockpickHost.js) in the street's slot - a lockpick from the pack. A page's life: the modes are never torn down
+  const lockHost = createLockpickHost({ talk: townTalk, mount: mountServiceWindow });   // AUDIT LOCKPICK A1: never `lockpick` - the steal ladder's own `lockpick` (the skill, DFU's name) shadowed it; A4: the mode's own slot
   let swingKeyLatch = false;   // MAC-SWING1: a swing bound to a key or pad code, polled in frame()
   const moveAxes = new MoveAxes();   // AUDIT 28 W8: MovementAcceleration - the modal frames' own axes
   // U43-ii: the interior HUD-text layer is the OUTER host's, and
@@ -1708,6 +1728,7 @@ export function createWorldModes(host) {
    *  NO pixel key - that argument is `TrackLooseObject`, and DFU puts
    *  it behind `!IsPlayerInside`. */
   const interiorDropped = createDroppedLoot({ renderer, getTexture, uploadRecordFrame });
+  const arrivalSetDown = createArrivalSetDown({ dropPile: (items, feet) => interiorDropped.dropPile(items, feet), say: (line) => say(line) });   // AUDIT SHIP-REFIT: held while a room restores, landed once the player stands
   // PI1 (Physical Items, scenes/physicalItemsLayer.js): THE ROOM'S HALF of the layer - the room's collider, the room's
   // foes' bodies (the pool lives as long as the interior does), the pack's wearer, the take's hooks and the outer host's
   // reveal for a map. Read at the frame.
@@ -1750,7 +1771,7 @@ export function createWorldModes(host) {
   const interiorHearths = [];
   const interiorCamps = createCamps({
     entity: playerEntity,
-    hearths: () => interiorHearths,
+    hearths: () => [...interiorHearths, ...interiorDecor.hearths()],   // DECOR-USE (systems/decor/decorUse.js): and the fires placed in it - a bowl of fire, a brazier, a cooking station
     place: () => ({ insideBuilding: true }),
     camera: () => ({ feet: player.pos, yaw: cam.yaw }),
     say: (l) => say(l), showOverlay: (w) => mountInterior(w),
@@ -1852,8 +1873,9 @@ export function createWorldModes(host) {
     collider: () => interiorCtx?.collider ?? null, origin: () => buildingOrigin(), eye: () => cam.pos,
     stick: () => host.stickAxes?.() ?? null,   // DECOR1e: the finger's or the pad's stick, analog - it flies the eye
     actionOf: (e) => actionOf(e, keys),
-    locked: () => typeof document !== 'undefined' && document.pointerLockElement === canvas, cursorOff: () => setCursorActive(false),
+    locked: () => typeof document !== 'undefined' && document.pointerLockElement === canvas, cursorOff: () => host.grabLook?.(),
     wallet: () => decorWallet(), homeDecor: decorDoor(), character: () => host.decorCharacter?.() ?? null,
+    social: () => host.social?.() ?? null,   // DECOR-ACCESS: Friends and Party, the lists the row sends
     charterClear: (pt) => charterClear(pt),   // SEAT-HALL: two metres from the court
     realm: () => host.realmAct ?? null,   // REALM P2.2b: a realm character's piece and its gold, one write on the service
     // DECOR2a: the player's own things - what is carried, one of it out, one back
@@ -1883,7 +1905,7 @@ export function createWorldModes(host) {
   const visitorDropRefusal = () => (mode === 'interior' && privateVisitRoom ? HOME_VISITOR_DROP_TEXT : interiorHome && !interiorHome.own && mode === 'interior' ? (interiorHome.hall ? HALL_DROP_TEXT : HOME_VISITOR_DROP_TEXT) : null);   // private visits keep no personal cache; refuse drops through the existing visitor gate
   /** HOME-MAGIC (2026-09-27, Discord: "Players can use magic in player non owned houses"): a VISITOR casts nothing in
    *  someone else's online home - no spell readied or fired, no item's spell - HOUSE-DROP's own test of who is a
-   *  visitor (a character of the same account included: a home is one character's). The owner's own home, an offline
+   *  visitor (ACCOUNT-HOMES: never a character of the owner's account - a home is its account's). The owner's own home, an offline
    *  house and every other building are as they were. Asked by the cast engine through the host (`castRefusal`). */
   const HOME_VISITOR_MAGIC_TEXT = 'You cannot cast spells in another\'s home.';
   // AUDIT GUILD1d A7 (decided): a hall's MEMBER casts in it - the hall is the guild's, as a home is its owner's; anyone
@@ -2037,6 +2059,11 @@ export function createWorldModes(host) {
   // 'people' lane under the switch's tier; a person's look read once (their StaticNPC data and their faction's row),
   // never while the faction table is still loading; let go with the room
   const peopleBodies = createPopulationLane({ laneName: 'people', renderer });
+  // NPC-MARKS (scenes/npcMarksHost.js): a bobbing mark over a body whose click is a quest's, a merchant's or a guild's - the
+  // room's people and the dungeon's; the route read in the place they stand (a building's, or none underground)
+  const npcMarks = createNpcMarks(renderer.gl);
+  const npcMarkCtx = { get dict() { return townTalk?.factionDict ?? null; }, get building() { return mode === 'interior' ? interiorBuilding : null; },
+    offersWork: (pn) => !!npcSession?.isNpcOfferingQuest(pn._mwSeed ??= staticNpcData(pn, staticNpcSceneCtx(pn)).nameSeed) };   // AUDIT NPC-MARKS L2: the work pool's questor - the click's own seed (questBridge.clickNpc's staticNpcData)
   // MWNPC18: what a placed figure is read by - FLATS.CFG and the region's race, asked only when a figure is first looked at.
   // AUDIT MWNPC16-18 D2: the race the room's building's region names (REGION_RACES, the yards' read in world.js) - the
   // quest scene's context is { mapId, locationIndex } and names none, so every room's figure stood a Breton
@@ -2048,7 +2075,7 @@ export function createWorldModes(host) {
     if (pn._mwLook !== undefined) return pn._mwLook;
     const dict = townTalk?.factionDict ?? null;
     if (!dict) return null;
-    return personLook(pn, staticNpcData(pn, staticNpcSceneCtx(pn)), dict.get(pn.factionID) ?? null);
+    return standingPersonLook(pn, staticNpcSceneCtx(pn), dict, figureCtx.race);   // AUDIT PROVINCE-FOLK A2: the faction table and the region's race, as the street's
   };
   /** MWNPC8c (section 13c): A QUEST'S STOOD PERSON (standQuestFlatIn - Azura summoned, a questor at a marker) read as
    *  the click reads them (clickQuestFlat: the Person's gender, faction and name seed through the bridge's SetLayoutData,
@@ -2498,7 +2525,8 @@ export function createWorldModes(host) {
   // HOME1: the online home the entered building IS, read once at its door and held for the visit - the storage's
   // scene (currentInteriorScene), the bed, the room and the cupboards all ask this answer, never a later one (a
   // town's answer landing mid-visit must not move my things to another scene). Null offline and for any building no
-  // player owns; `own` when it is this character's.
+  // player owns; `own` when it is this account's (ACCOUNT-HOMES: whichever of its characters plays - each keeps its own
+  // things in the home's scene of its own save).
   let interiorHome = null;
   /** SEAT-HALL (Seats-Arc 7.2: "the palace interior is the holder's guild hall"): the visit's palace, where it is a palace
    *  seat's - `{ key, name, member, keeper }` (host.seatHall.here: the holder's guild's name; whether this character is of
@@ -2545,7 +2573,7 @@ export function createWorldModes(host) {
   const privateRoomSceneName = (room) => (isCaravanRoom(room) ? CARAVAN_SCENE_NAME : cabinSceneName(room.uid));
   /** GetNameBankOfCurrentRegion (PlayerGPS.cs:421-427) - F016. An
    *  unknown region answers Breton, which is DFU's own fallback. */
-  const currentNameBank = () => getNameBankOfRegion(
+  const currentNameBank = () => host.provinceBank?.() ?? getNameBankOfRegion(   // AUDIT-TESA A2-5: past the Bay the province's people (TESA3)
     interiorBuilding?.regionIndex ?? buildingDirectory?.()?.regionIndex ?? -1);
   /** StaticNPC.SetLayoutData's scene context for one person - the
    *  entered building's key (0 outside a building, where the street and
@@ -2872,7 +2900,7 @@ export function createWorldModes(host) {
       // the floor asked as each law below asks it: the person's ray from its centre, the item's from just over it
       if (fallback) {
         [x, y, z] = buildingStandSpot([x, y, z], fallback(ctx), ctx.collider, isItem ? 0.2 : size.h / 2 + 0.2,
-          isItem ? null : size.w, ctx.people);   // FB1020c CROWD-CLEAR: and a Person never in a standing person's pick box (sceneMount.js)
+          isItem ? null : size.w, ctx.people, list, stand);   // FB1020c CROWD-CLEAR: and a Person never in a standing person's pick box (sceneMount.js); RPT1026-QUESTS QUEST-CROWD: nor in another quest Person's stood here
         stand.x = x; stand.z = z;
       }
       // AUDIT 26 F068: an ITEM and an NPC are stood by DIFFERENT laws.
@@ -2907,6 +2935,7 @@ export function createWorldModes(host) {
         const origin = by + size.h / 2 + 0.2;
         const drop = ctx.collider?.raycast?.([x, origin, z], [0, -1, 0], 4);
         if (Number.isFinite(drop)) by = (origin - drop) + size.h * 0.02;
+        if (inDungeon) { [x, by, z] = freeQuestStand(ctx.collider, [x, by, z], size.h); stand.x = x; stand.z = z; }   // QUEST-AUDIT III LODGED-STAND: never inside a model
       }
       stand.y = by;
       stand.batch = renderer.createBillboardBatch(drawArchive, drawRecord, size, [[x, by, z]]);
@@ -2977,24 +3006,6 @@ export function createWorldModes(host) {
     if (!res || res.isPerson === true || res.isFoe === true) return null;
     const t = questResourceName(questStandItem(res), { archive: st.archive ?? -1, record: st.record ?? -1, getQuest: (uid) => questBridge?.machine.getQuest(uid) ?? null });   // WHERE-ROBES: the Item's own item; AUDIT N1: a letter's signoff
     return t ? { title: t } : null;
-  };
-  /** DQ1: a quest stand's activation target, for whichever list the
-   *  host keeps. Extracted at DQ1 because the DUNGEON ray needed the
-   *  same walk and the alternative was a second copy of it - the shape
-   *  of the stand record is identical in both lists by construction
-   *  (standQuestFlatIn builds both). */
-  const questFlatTargets = (list) => {
-    const out = [];
-    list.forEach((s, i) => {
-      if (!s.width || !s.active || s.dead) return;
-      const isPerson = s.behaviour?.targetResource?.isPerson === true;
-      out.push({
-        key: `questflat:${i}`,
-        aabb: questStandBox(s),   // TOTEM-CAGE: where the stand IS - a stand riding an acting marker is clicked where it rode to
-        distance: isPerson ? STATIC_NPC_ACTIVATION_DISTANCE : DEFAULT_ACTIVATION_DISTANCE,
-      });
-    });
-    return out;
   };
   /** DQ1: and the click itself. `buildingKey` is the one thing that
    *  differs between the hosts - StaticNPC reads it from the runtime
@@ -3175,7 +3186,7 @@ export function createWorldModes(host) {
       // INSTANCES: a re-laid public room online stands none of a quest's things - its markers are the dungeon whole's
       // (systems/instancePlaces.js questMountsHere); it says once where they are, and moves nothing (QUEST-VOID's re-lay
       // would carry them into this room's blocks)
-      if (!questMountsHere({ online: !!host.dungeonOnline?.(), builtSize: builtDungeonSize(dungeonLoc) })) { host.instanceDoor?.questElsewhere?.(dungeonLoc); return 'elsewhere'; }   // QUEST-ELSEWHERE: a repair says so
+      if (!questMountsHere({ online: !!host.dungeonOnline?.(), builtSize: dungeonRoomSize(dungeonLoc) })) { host.instanceDoor?.questElsewhere?.(dungeonLoc); return 'elsewhere'; }   // QUEST-ELSEWHERE: a repair says so
       // QUEST-VOID (questRepair.js relayBuiltDungeon): a quest target on a marker this build has not - its foe in the
       // void, its item in rock - is laid again on the dungeon as built before anything stands.
       relayingBuilt = true;
@@ -3365,7 +3376,7 @@ export function createWorldModes(host) {
     });
     targets.push(...interiorDropped.lootTargets());   // ID1: the player's own piles, the dungeon's key vocabulary
     targets.push(...interiorTorches.targets());   // HT1: the dropped torches
-    targets.push(...interiorDecor.targets());   // DECOR1c: the pieces the room's owner placed
+    targets.push(...interiorDecor.targets(), ...(decorTool.flying() && !decorTool.ghost() ? (interiorCtx.base?.aimTargets?.() ?? []) : []));   // DECOR1c: the pieces the room's owner placed; decorating also aims the room's own furniture
     targets.push(...interiorCamps.targets());   // HEARTH1: the room's own fires - there is never a camp in this pool to add beside them
     // INTERIOR-BODIES (AUDIT-WH2 L2-F4, Mac: "Do it"): ...AND THE BODIES.
     //
@@ -3443,7 +3454,7 @@ export function createWorldModes(host) {
     (key) => interiorTorches.hoverName?.(key) ?? null,   // HT1, through the mod's extension API
     (key) => interiorCamps.hoverName?.(key) ?? null,     // HEARTH1, likewise
     (key) => (typeof key === 'string' && key.startsWith('cardtable:') ? { title: 'Card table' } : null),   // CARDS2: the port's own family, ungated
-    (key) => (typeof key === 'string' && key.startsWith('chair:') ? { title: chairName(interiorCtx?.chairs?.[Number(key.split(':')[1])]) } : null),   // SIT1: the port's own, ungated
+    (key) => (typeof key !== 'string' ? null : key.startsWith('chair:') ? decorBuiltInPlaque(chairName(interiorCtx?.chairs?.[Number(key.split(':')[1])]), interiorCtx?.chairs?.[Number(key.split(':')[1])], decorTool.flying() && !decorTool.ghost()) : (key.startsWith('bed:') && decorTool.flying() && !decorTool.ghost() ? decorBuiltInPlaque('Bed', interiorCtx?.beds?.[Number(key.split(':')[1])], true) : null)),   // SIT1: the port's own, ungated; decorating takes the chair or the bed out instead of using it
     // INTERIOR-BODIES: "<who> (dead)" for a body killed in this room -
     // `.cs:526`, the mod's own word, answered by the pool that STANDS
     // it exactly as both street hosts answer theirs. These sit with the
@@ -3454,7 +3465,7 @@ export function createWorldModes(host) {
     (key) => interiorGuards?.hoverName?.(key) ?? null,
     (key) => host.peerHoverName?.(key) ?? null,   // PEER-PLAQUE1: another player, by the outer host's own word - the port's own family, ungated like the corpses above
     (key) => {
-      if (!worldTooltipsOn()) return null;
+      if (!worldTooltipsOn() && !(decorVerbKey(key) && decorTool.flying() && !decorTool.ghost())) return null;   // RPT1026-WORLD DECOR-VERBS: the decorator's verbs are its own, whatever the readout's switch
       const hide = hideInteractTooltip();
       const b = interiorBuilding;
       // .cs:764-767 - a building's door, from INSIDE, names the place
@@ -3468,32 +3479,32 @@ export function createWorldModes(host) {
         const c = interiorCtx.containers[Number(key.split(':')[1])];
         const t = c && houseContainerName(c.modelIdNum);   // AUDIT-WH M3: the knob guards the ACTION arm's <Interact> and only that one (.cs:465-466); the container default has no guard
         // UXB1-N/O: somebody else's is private property, in its own colour, and says when this character has searched it
-        if (t && hallMemberHere()) return { title: HALL_CHEST_TITLE };   // AUDIT GUILD1d A6: a hall's cupboard is its members' chest, as the press opens it
-        return houseContainerHover(t, { owned: ownsThisInterior(b), searched: stockSearched(c, stockedToday()) });
+        if (t && hallMemberHere()) return decorTool.flying() && !decorTool.ghost() ? decorBuiltInPlaque(HALL_CHEST_TITLE, c, true) : { title: HALL_CHEST_TITLE };   // AUDIT GUILD1d A6: a hall's cupboard is its members' chest, as the press opens it; decorating takes it out
+        return decorTool.flying() && !decorTool.ghost() ? decorBuiltInPlaque(t || 'Cupboard', c, true) : houseContainerHover(t, { owned: ownsThisInterior(b), searched: stockSearched(c, stockedToday()) });
       }
       // .cs:549-551 vs :476-480 - one model, two things, and the port
       // already had the law that tells them apart (DaggerfallInterior
       // .cs:808-814). The plaque reads it rather than guessing.
       if (key.startsWith('shelf:')) {
-        if (hallOfRecordsHere(b)) return { title: HALL_OF_RECORDS_TEXT };   // SEASON1 part three: a seat's palace shelves are its Hall of Records
-        if (isBookshelfBuilding(b?.buildingType)) return { title: BOOKSHELF_TEXT };
-        return isShop(b?.buildingType) ? { title: SHOP_SHELF_TEXT } : null;
+        if (hallOfRecordsHere(b)) return decorTool.flying() && !decorTool.ghost() ? decorBuiltInPlaque(HALL_OF_RECORDS_TEXT, interiorCtx.shelves?.[Number(key.split(':')[1])], true) : { title: HALL_OF_RECORDS_TEXT };   // SEASON1 part three: a seat's palace shelves are its Hall of Records; decorating takes the shelf out
+        if (isBookshelfBuilding(b?.buildingType)) return decorTool.flying() && !decorTool.ghost() ? decorBuiltInPlaque(BOOKSHELF_TEXT, interiorCtx.shelves?.[Number(key.split(':')[1])], true) : { title: BOOKSHELF_TEXT };
+        return decorTool.flying() && !decorTool.ghost() ? decorBuiltInPlaque(isShop(b?.buildingType) ? SHOP_SHELF_TEXT : 'Shelf', interiorCtx.shelves?.[Number(key.split(':')[1])], true) : (isShop(b?.buildingType) ? { title: SHOP_SHELF_TEXT } : null);
       }
       if (key.startsWith('ladder:')) return { title: LADDER_TEXT };   // .cs:473-476
-      // DECOR1c: a placed piece, by the catalogue's name once the decorator has read it (DECOR1d), a storage model by
-      // the house container's own word until then; any other piece stays unnamed until the catalogue can name it
-      if (key.startsWith('decor:')) {
-        const piece = interiorDecor.pieceOf(decorIdOfKey(key));
-        if (!piece) return null;
-        if (piece.item) {   // DECOR2a: an own thing - the owner's own record names it in full, anyone else its numbers
-          const kept = interiorDecor.ownOf(piece.id);
-          const n = (kept ? itemLongName(kept) : null) || decorItemName(piece.item);
-          return n ? { title: n } : null;
-        }
-        if (isHallBoard(piece) && hallMemberHere()) return { title: HALL_BOARD_TITLE };   // GUILD1e: the hall's board, its members'
-        const t = decorNames.get(decorKey(piece)) ?? (piece.storage && piece.model != null ? houseContainerName(piece.model) : null);
-        const craft = piece.station ? DECOR_STATION_NAMES[piece.station] : null;   // AUDIT HOME-STATIONS S8: a station says so
-        return t ? { title: craft ? `${t} (${craft})` : t } : craft ? { title: craft } : null;
+      // DECOR1c: a placed piece that does something - one's own, a container, a station, the hall's board. A chair or a
+      // candle stays unnamed (indoorDecorHover).
+      if (key.startsWith('decor:') || key.startsWith('base:')) {
+        const row = key.startsWith('base:') ? (interiorCtx.base?.row?.(key.slice(5)) ?? null) : null;
+        const piece = row ? null : interiorDecor.pieceOf(decorIdOfKey(key));
+        const kept = piece?.item ? interiorDecor.ownOf(piece.id) : null;
+        if (row) return decorPlaque(null, decorTool.flying() && !decorTool.ghost() ? { key: row.key, kind: 'base', mayEdit: true, name: decorNames.get(decorKey(row)) ?? 'Piece', holds: row.holds } : null);
+        return decorPlaque(indoorDecorHover(piece, {
+          itemTitle: piece?.item ? ((kept ? itemLongName(kept) : null) || decorItemName(piece.item)) : null,
+          boardTitle: piece && isHallBoard(piece) && hallMemberHere() ? HALL_BOARD_TITLE : null,
+          catalogueName: piece ? (piece.name || (decorNames.get(decorKey(piece)) ?? null)) : null,
+          containerName: piece?.model != null ? houseContainerName(piece.model) : null,
+          stationName: piece?.station ? (DECOR_STATION_NAMES[piece.station] ?? null) : null,
+        }), decorTool.flying() && !decorTool.ghost() ? { piece, holds: !!interiorDecor.holdsAny?.(piece.id), mayEdit: true, name: piece ? (piece.name || (decorNames.get(decorKey(piece)) ?? null)) : null, use: piece ? decorTool.useLabel(piece.id) : null } : null);
       }
       // .cs:304-312 - a LIVE entity is `Entity.Name`, and only when
       // its motor says it is not hostile.
@@ -3506,7 +3517,8 @@ export function createWorldModes(host) {
       if (key.startsWith('door:') || key.startsWith('act:')) {
         const o = interiorCtx.actions.objects.get(key) ?? null;
         if (!o) return null;
-        return actionObjectName(o, { hideInteract: hide });   // .cs:400-471 then .cs:641-650 - SENSE1: the mod's order, and a special door is no DaggerfallActionDoor
+        const placed = key.startsWith('act:decor:') ? interiorDecor.pieceOf(key.slice(10)) : null;
+        return decorPlaque(actionObjectName(o, { hideInteract: hide }), decorTool.flying() && !decorTool.ghost() ? (o.roomDoor ? { piece: o, mayEdit: true, name: 'Door' } : (placed ? { piece: placed, holds: !!interiorDecor.holdsAny?.(placed.id), mayEdit: true, name: placed.name || (decorNames.get(decorKey(placed)) ?? 'Door'), use: decorTool.useLabel(placed.id) } : null)) : null);   // .cs:400-471 then .cs:641-650 - SENSE1: the mod's order, and a special door is no DaggerfallActionDoor. Decorating adds Remove on a swing door, and the full list on a placed one.
       }
       // .cs:325-393, through the port's own StaticNPC.DisplayName -
       // the same member the Info click speaks through, so the plaque
@@ -3934,7 +3946,7 @@ export function createWorldModes(host) {
         if (!isFurnishing(it)) addItem(playerEntity.items, it);
       }
       decorDeliver(staged.filter(isFurnishing));   // DECOR2b: the furnisher delivers
-      restockEndless(shelf.items, staged);   // ENDLESS-STOCK: a Materials Bag or a Campfire bought is back on the shelf - neither sells out
+      restockEndless(shelf.items, staged, shelf === interiorCtx?.shelves?.[0] ? interiorBuilding?.buildingType : null);   // ENDLESS-STOCK: a Materials Bag or a Campfire bought is back on the shelf - neither sells out; ENDLESS-ARROWS: nor a General Store's arrows, on its counter's shelf alone (AUDIT UPDATE E2)
       // HOLDINGS (bible/03-World/Holdings.md): a ship's deed bought goes to the Fleet's book, never the pack - she waits at this
       // town's port
       const town = buildingDirectory?.()?.locationName ?? '';   // the town the counter stands in
@@ -3962,11 +3974,11 @@ export function createWorldModes(host) {
       // mode IS the merchant's collection, so the goods are already on
       // the shelf by now and `remoteItems.Clear()` (:1051) only drops
       // the window's view of them. The port stages into the window and
-      // lands them here, which is what makes a sold item buyable back.
+      // lands them here; SOLD-POOF: landSold shelves nothing, so it is gone.
       for (const it of staged) {
         const i = playerEntity.items.indexOf(it);
         if (i >= 0) playerEntity.items.splice(i, 1);
-        landSold(shelf.items, it);   // sold goods land on the open shelf - STOLEN-GOODS: an honest piece; a stolen one is gone
+        landSoldAt(shelf.items, it, shelf === interiorCtx?.shelves?.[0] ? interiorBuilding?.buildingType : null);   // sold goods land on the open shelf - STOLEN-GOODS: an honest piece; a stolen one is gone (AUDIT UPDATE II B2: an arrow at a General Store's counter, never)
         setJunk(it, false);   // AUDIT LOOT II C5: the junk mark is the seller's word for what goes - gone, it is the merchant's, unmarked if bought back
       }
     } else if (mode === 'Repair') {
@@ -3990,7 +4002,7 @@ export function createWorldModes(host) {
       //     named that divergence and the keyed flow carried the queue
       //     law alone. It carries it here now.
       if (getBool('Controls', 'InstantRepairs')) {
-        for (const it of staged) it.currentCondition = it.maxCondition;
+        for (const it of staged) repairWhole(it);   // RPT1026-LEDGERLAW: a paid repair, its found piece's spent mends kept spent
       } else {
         for (const it of staged) {
           if (isBeingRepaired(it)) continue;   // already booked; UpdateRepairTimes only stretches it
@@ -4014,7 +4026,7 @@ export function createWorldModes(host) {
         // returns before ClearSelectedItems: the lot stays staged for
         // a caster who steps out and comes back with the points.
         if (identifySpell.cost > (playerEntity.magicka ?? 0)) {
-          townTalk?.say?.(notEnoughSpellPointsText());
+          messageBox(notEnoughSpellPointsText());   // BOX-ON-TOP: DaggerfallUI.MessageBox over the window (:962) - the HUD line is not drawn under it
           surfacePlayer();
           return false;
         }
@@ -4067,7 +4079,7 @@ export function createWorldModes(host) {
     // AUDIT HOLDINGS F8: a ship's deed off the keyed shelf goes to the Fleet's book as the counter's does (she waits at
     // this town's port); one the book will not take (no number) into the pack as before
     else if (!(it?.templateIndex === FLEET_DEED_TEMPLATE && titleDeed(it, { port: buildingDirectory?.()?.locationName ? { name: buildingDirectory().locationName } : null }))) addItem(playerEntity.items, it);
-    restockEndless(shelf.items, [it]);   // ENDLESS-STOCK: the keyed list's purchase, as the counter's
+    restockEndless(shelf.items, [it], shelf === interiorCtx?.shelves?.[0] ? interiorBuilding?.buildingType : null);   // ENDLESS-STOCK: the keyed list's purchase, as the counter's (ENDLESS-ARROWS: its shop's quiver, the counter's shelf alone - AUDIT UPDATE E2)
     tallySkill(playerEntity, SKILLS.Mercantile, 1);   // per completed trade (DFU OnTrade)
     surfacePlayer();
     return price;
@@ -4087,7 +4099,7 @@ export function createWorldModes(host) {
     if (isEquipped(it)) unequipSlot(playerEntity, it.equipSlot);
     addGold(playerEntity, price);
     playerEntity.items.splice(playerEntity.items.indexOf(it), 1);
-    landSold(shelf.items, it);   // sold goods land on the open shelf (DFU's remoteItems) - STOLEN-GOODS: an honest piece; a stolen one is gone
+    landSoldAt(shelf.items, it, shelf === interiorCtx?.shelves?.[0] ? interiorBuilding?.buildingType : null);   // sold goods land on the open shelf (DFU's remoteItems) - STOLEN-GOODS: an honest piece; a stolen one is gone (AUDIT UPDATE II B2)
     setJunk(it, false);   // AUDIT LOOT II C5: sold, its junk mark ends
     tallySkill(playerEntity, SKILLS.Mercantile, 1);
     surfacePlayer();
@@ -4277,46 +4289,6 @@ export function createWorldModes(host) {
    *  (:882 shelves, :907 the owned latch, :911 house containers), so
    *  it is spelled once here and not three times below. */
   const stockedToday = () => createStockedDate(gameDate());
-  /** ActivateBulletinBoard (PlayerActivate.cs:706-739), verbatim: the
-   *  reach gate first, then the mill's SIGN face, then the box.
-   *
-   *  The rumour comes back as TOKENS already macro-expanded by
-   *  GetNewsOrRumorsForBulletinBoard (:1378-1380), and DFU heads them
-   *  with the location's name - so the sign reads as a town notice
-   *  rather than a floating sentence. A town whose mill has nothing
-   *  fit for a sign STILL opens the box (:727 only guards the second
-   *  half): the name alone, which is the sign standing empty. */
-  function activateBulletinBoard(aabb, eye, dir) {
-    if (!aabb) return;
-    // :709-713 - `hit.distance > MobileNPCActivationDistance` speaks
-    // the mid-screen refusal and returns. The pick reached to
-    // RayDistance, so this is the board's own second test.
-    const d = rayAabb(eye, dir, aabb);
-    if (d === null || d > BULLETIN_BOARD_ACTIVATION_DISTANCE) {
-      // AUDIT 64 F34: PlayerActivate.cs:711 - SetMidScreenText.
-      setMidScreenText(tooFarAwayText());
-      return;
-    }
-    // PlayerGPS.CurrentLocalizedLocationName (:721). Standing in the
-    // wilderness there is no directory and no name - the head row is
-    // then empty, which is what C#'s own empty CurrentLocationName
-    // would give (no board stands out there to click regardless).
-    // L10N3e: the name as shown, by the location's MapId (PlayerGPS.cs:259).
-    const here = buildingDirectory?.() ?? null;
-    const locationName = here ? getLocalizedLocationName(here.mapId, here.locationName ?? '') : '';
-    // DaggerfallUI.MessageBox(tokens) (:738) - the composition, the
-    // token->row law and the starter-label drop all live in
-    // systems/bulletinBoard.js; this end owns only the window.
-    // BOUNTY1 (Mac, 2026-09-28): half of a town's boards are its BOUNTY boards (systems/bounty/bountyBoard.js
-    // questBoardIndices) - the box carries its town's pixel, and the host's bounty window stands instead of the notice
-    if (aabb.bounty && openBountyBoard?.(aabb.bounty)) return;
-    const rows = bulletinBoardRows(locationName, bulletinBoardNews?.() ?? null, tokenRows);
-    // NOTICE1 (PROF0 10.1): online, every other board of the town is its NOTICE BOARD - the same rumour pinned first on
-    // it (the name row is the window's own heading); offline, or while the service has not said it is open, the box
-    // below is DFU's, byte for byte (ROAD A9)
-    if (aabb.notice && openNoticeBoard?.(aabb.notice, rows.map((r) => r.text).filter((t, i) => !(i === 0 && t === locationName)))) return;
-    townTalk?.showOverlay?.(new ChoiceWindow({ lines: rows.map((r) => r.text) }));
-  }
 
 
   /** AUDIT 58 (talk lane) - ActivateStaticNPC's OWN switch
@@ -4420,21 +4392,9 @@ export function createWorldModes(host) {
     if (questBridge?.machine.factionListeners.has(pn.factionID)) return;
     // QUEST-WORDS-FIRST: the quest's words and its reward first, then this door
     if (!clicked && questWordsFirst.hold(afterWords)) return;
-    const dict = townTalk?.factionDict ?? null;
-    const npcFaction = dict?.get(pn.factionID) ?? null;
-    const buildingFactionId = interiorBuilding?.factionId ?? 0;
-    const route = staticNpcRoute({
-      npcFactionId: pn.factionID,
-      npcFaction,
-      buildingFaction: buildingFactionId ? (dict?.get(buildingFactionId) ?? null) : null,
-      buildingType: interiorBuilding?.buildingType ?? -1,
-      insideBuilding: !!interiorBuilding,
-      isShop,
-      isRepairShop,
-      isBank: (t) => t === BUILDING_TYPES.Bank,
-      isTavern: (t) => t === BUILDING_TYPES.Tavern,
-      hasCustomMerchantService,   // RR3: Services.HasCustomMerchantService (PlayerActivate.cs:1574)
-    });
+    // NPC-MARKS: the route's arguments built in one place (scenes/npcMarksHost.js staticNpcRouteIn), so the mark over a
+    // head and this click read the same route - RR3's Services.HasCustomMerchantService (PlayerActivate.cs:1574) among them
+    const route = staticNpcRouteIn({ npcFactionId: pn.factionID, dict: townTalk?.factionDict ?? null, building: interiorBuilding });
     if (route.kind === 'guildService') { openGuildService(pn, route, npcData); return; }
     // CW1: the coven's own popup (StaticNPCClick's WitchesCoven arm).
     if (route.kind === 'witchesCoven') { openWitchesCoven(pn, npcData); return; }
@@ -4464,7 +4424,7 @@ export function createWorldModes(host) {
           onRepair: () => openRepairService({}),
           onTalk: () => openStaticNpc(pn, { forceTalk: true }),
           onSell: () => openMerchantSell(),
-          portal: portalRow(),   // PORTAL1: the Portal Stone's row, for shards
+          ...shopRows.of(interiorBuilding?.buildingType),   // PORTAL1: the Portal Stone's row, for shards; APPEARANCES: an Armorer's or a Weaponsmith's Wardrobe (scenes/shopRows.js)
           // The U24 identity guard: a window that dispatches to another
           // must not be nulled by its OWN onClose.
           onClose: () => { if (interiorOverlay === win) interiorOverlay = null; },
@@ -4503,7 +4463,7 @@ export function createWorldModes(host) {
         label: custom ? getCustomMerchantServiceLabel(pn.factionID) : undefined,
         onTalk: () => openStaticNpc(pn, { forceTalk: true }),
         onService: () => { if (custom) openCustomMerchantService(custom); else if (banking) openBank(); else openMerchantSell(); },
-        portal: banking || custom ? undefined : portalRow(),   // PORTAL1: a shop's keeper sells the Portal Stone for shards - a teller and a mod's service never
+        ...(banking || custom ? {} : shopRows.of(interiorBuilding?.buildingType)),   // PORTAL1: a shop's keeper sells the Portal Stone for shards - a teller and a mod's service never; APPEARANCES: and a Clothing Store's its Wardrobe (scenes/shopRows.js)
         // AUDIT PORTAL1 C1: the U24 identity guard the repair popup's has - a popup that dispatches (the Portal Stone's
         // question pushed over it) is out of the slot, not left in it done under the box the question is. The popup is
         // the one holding THESE hooks: both skins keep them as `hooks` and call onClose on them
@@ -4631,7 +4591,10 @@ export function createWorldModes(host) {
   function currentHousesForSale() {
     const dir = buildingDirectory?.();
     if (!dir?.buildings?.length) return [];
-    if (isEtherPlaceId(dir.mapId)) return [];   // AUDIT CAPTAIN'S SEA P9: no house is sold past the Veil - its towns are no region's slot
+    // AUDIT CAPTAIN'S SEA P9: no house is sold past the Veil - its towns are no region's slot. BAY-LEFT-B: an Arena town, a
+    // country place and a capital past the Bay sell theirs - each its province's region's (WW-R), its deed held to its own
+    // map id (banking.js deedHeldIn: a key bought in one never owns its twin in another of the province)
+    if (isEtherPlaceId(dir.mapId)) return [];
     return housesForSale(dir.buildings, {
       mapId: dir.mapId,
       month: Math.floor(worldMinutes() / (MINUTES_PER_DAY * DAYS_PER_MONTH)),
@@ -4640,8 +4603,9 @@ export function createWorldModes(host) {
       isActiveQuestBuilding: (bs) => (questBridge ? questBridge.machine.isActiveQuestBuilding(dir.mapId, bs.buildingKey, bs.buildingType) : false),   // DISC28-I
       stands: (bs) => houseMeshRadius(bs) > 0,   // AUDIT WD3 H2: a house with no model of its own is no house to sell
       // FIELD BUGS 2026-10-04d KNIGHT-HOUSE: online, never a building the town's answer names - a player's home, or a deed
-      // the service holds for another knight - which the Seneschal handed on (the market is ReceiveHouse's list too)
-      owned: host.onlineHomes ? (bs) => !!host.onlineHomes.homeAt(dir.mapId, bs.buildingKey) : null,
+      // the service holds for another knight - which the Seneschal handed on (the market is ReceiveHouse's list too).
+      // HOUSES-3: nor one of the region's deeds - a region holds three, and the market is asked with one of them owned
+      owned: (bs) => houseOwnedAt({ townMapId: dir.mapId, regionIndex: dir.regionIndex }, bs.buildingKey) || !!host.onlineHomes?.homeAt(dir.mapId, bs.buildingKey),
     });
   }
   /**
@@ -4666,7 +4630,7 @@ export function createWorldModes(host) {
    *  the radius) - 0 for a model the reader cannot resolve. */
   function houseFootprintM2(building) {
     const id = building?.modelIdNum;
-    if (id == null) return 0;
+    if (id == null || building.footprintM2 > 0) return building?.footprintM2 > 0 ? building.footprintM2 : 0;   // IC-HOMES: a fabric building's own ground (talkTopics.js footprintOf)
     try {
       const rec = arch?.getRecordIndex?.(id);
       if (rec == null || rec < 0) return 0;
@@ -4761,14 +4725,14 @@ export function createWorldModes(host) {
    * buyOnlineHome); the deed's note stays, as Daggerfall's SellHouse leaves it. Any other refusal keeps the deed, held at
    * the next boot.
    */
-  function holdGrantedHouse(region, membership) {
-    const slot = playerEntity.houses[region];
+  function holdGrantedHouse(region, membership, slot) {
     const mapId = Number(slot.mapId) >>> 0, key = slot.buildingKey;
     Promise.resolve(host.holdRealmDeed({ region, mapId, buildingKey: key })).then((r) => {
       if (r?.ok || (r?.error !== 'home-taken' && r?.error !== 'home-layout')) return;
-      const now = playerEntity.houses?.[region];
-      if (now?.buildingKey !== key || (Number(now.mapId) >>> 0) !== mapId) return;   // the deed moved on meanwhile
-      playerEntity.houses[region] = { regionIndex: region, location: '', mapId: 0, buildingKey: 0 };
+      // HOUSES-3: the deed given, among the region's three - none when it moved on meanwhile
+      const now = regionDeeds(playerEntity.houses, region).find((d) => d.buildingKey === key && (Number(d.mapId) >>> 0) === mapId);
+      if (!now) return;
+      dropDeed(playerEntity.houses, region, now);
       membership.flags = (membership.flags ?? 0) & ~HOUSE_FLAG_MASK;
       removePermanentScene(sceneCache(), interiorSceneName(now.mapId, key));
       const locId = discoveryLocationId?.();
@@ -4855,7 +4819,7 @@ export function createWorldModes(host) {
     const decor = interiorHome || _seatHallVisit ? interiorDecor.kept() : interiorDecor.list();   // SEAT-HALL: a palace's Charter Room is the service's too - AUDIT SEATS-3 C2: for the whole visit
     const decorItems = interiorDecor.itemsSnapshot();
     const decorOwn = interiorDecor.ownSnapshot();   // DECOR2a: the owner's own things standing here - the save's, in every room
-    const hiddenBase = interiorHome || _seatHallVisit ? [..._keptHidden] : (ctx.base?.hidden() ?? []);   // BASE-HIDE: an online home's list is the service's - the save's own is written back as it came
+    const hiddenBase = interiorHome || _seatHallVisit ? _keptHidden : [...(ctx.base?.hidden() ?? []), ...(ctx.base?.roomDoors?.hidden?.() ?? [])];   // BASE-HIDE: an online home's list is the service's - the save's own is written back as it came. A room door taken out rides the same list (AUDIT FB1029f A3: an online home's doors too are the service's).
     const guildShelves = ctx.guildShelves ?? {};   // GUILD-SHELF: the day's guild shelves, as bought down - the building's, as its shop shelves are
     return { lootContainers, actionDoors, droppedPiles, droppedTorches, decor, decorItems, decorOwn, hiddenBase, frame: 'building', terrainScale: STREAMING_TERRAIN_SCALE, guildShelves };
   }
@@ -4912,6 +4876,7 @@ export function createWorldModes(host) {
    *  which is every first visit. */
   function restoreInteriorScene() {
     _keptHidden = [];   // BASE-HIDE: this visit's
+    arrivalSetDown.reset();   // AUDIT SHIP-REFIT: nothing held from another room
     _sceneHeldForLayout = null;
     // WAGONS2 (AUDIT): a PRIVATE ROOM THAT TRAVELS - a ship's cabin, a caravan - is no town's: its room is the same in
     // every layout, so the town it stands in this visit neither stamps its scene nor holds it back (a ship furnished in
@@ -4939,20 +4904,15 @@ export function createWorldModes(host) {
       if (!data) return;
     }
     const chestOf = matchChests(data.lootContainers, interiorCtx.containers, buildingOrigin());   // HOLD-KEPT: a chest by what it is, not where it fell in the list
-    let setDown = 0;
     for (const c of data.lootContainers) {
       const [kind, i] = c.key.split(':');
       const target = kind === 'shelf' ? interiorCtx.shelves?.[+i] : chestOf.get(c);
       // ARENA2: A HOUSE THE ARENA MOVED brought its chests', its storage pieces' and its floor's things in its first
       // container (systems/arena/arenaMove.js emptyArenaScene, `crate`): a house with none has them set down as a crate where
       // its owner first walks in - a pile of their own, in the building's frame, cached with the floor from here on.
-      // HOLD-KEPT: and so is what any chest held that no chest of this visit stands for - never dropped
-      if (!target && kind === 'container' && c.items?.length) {
-        const o = buildingOrigin(), f = player.pos;
-        data.droppedPiles = [...(data.droppedPiles ?? []), { pos: [f[0] - o[0], f[1] - o[1], f[2] - o[2]], items: c.items.map((it) => ({ ...it })) }];
-        if (!c.crate) setDown++;
-        continue;
-      }
+      // HOLD-KEPT: and so is what any chest held that no chest of this visit stands for - never dropped. AUDIT SHIP-REFIT:
+      // held, and set down where the player stands once stood (scenes/arrivalSetDown.js) - the restore runs before that
+      if (!target && kind === 'container' && c.items?.length) { arrivalSetDown.hold(c.items, { crate: !!c.crate }); continue; }
       // `items: null` is a shelf that was never opened - restoring it
       // as null keeps the LAZY stock, which is what makes a first
       // browse still roll fresh goods after an uneventful visit.
@@ -4966,7 +4926,6 @@ export function createWorldModes(host) {
       if (target && kind === 'container') target.openedOn = c.openedOn ?? 0;   // UXB1-O: a record cached before it carries none - never searched
     }
     interiorLootAside(interiorCtx, _intShared);   // OUTDOOR-LOOT: the cache has laid a stranger's cupboard the list of an earlier visit - online that is no one's word, the room's is
-    if (setDown) say('A chest that stood here is gone. What it held was set down at your feet.');   // HOLD-KEPT
     interiorCtx.guildShelves = data.guildShelves ?? {};   // GUILD-SHELF: a stale day's shelf is left for guildShelf to replace at the next open
     // #32: through the system's own restore, which settles the matrix
     // and the collider bucket (syncRestored) - a door restored open
@@ -4989,7 +4948,7 @@ export function createWorldModes(host) {
     const place = data.frame === 'building'
       ? (p) => [p[0] + o[0], p[1] + o[1], p[2] + o[2]]
       : (p) => [p[0], host.restandSceneHeight ? host.restandSceneHeight(p[1], p[0], p[2], was) : p[1], p[2]];
-    interiorDropped.restorePiles(data.droppedPiles ? data.droppedPiles.map((p) => ({ ...p, pos: place(p.pos) })) : data.droppedPiles);
+    interiorDropped.restorePiles(data.droppedPiles ? arrivalSetDown.unburied(data.droppedPiles.map((p) => ({ ...p, pos: place(p.pos) })), interiorCtx.collider) : data.droppedPiles);   // AUDIT SHIP-REFIT: a pile furniture now stands over is held for the arrival
     interiorTorches.restore(data.droppedTorches, place);   // HT1: a scene cached before this shipped carries none - cleared, as the piles are
     // DECOR1c: what the owner placed in the offline house or ship (the building's frame, as every piece is - the pool
     // stands it on this visit's origin), projected by the law on the way in; and what the storage pieces hold. An online
@@ -4999,9 +4958,12 @@ export function createWorldModes(host) {
     if (interiorHome || _seatHallVisit) interiorDecor.keep(placed); else interiorDecor.set(placed);   // SEAT-HALL (AUDIT SEATS-3 C2: the visit's latch)
     interiorDecor.setItems(data.decorItems);
     interiorDecor.setOwn(data.decorOwn);   // DECOR2a
+    // AUDIT FB1025i E8: a room whose pieces are the save's gives back what its record kept under pieces it no longer stands
+    // - a draft left by the door, not discarded (systems/decor/decorPack.js returnUnstood); an online home's list does its own
+    if (!(interiorHome || _seatHallVisit)) returnUnstood(interiorDecor, placed, decorPackGive, say);
     // BASE-HIDE: what the owner took out of the offline house's or ship's own furniture; an online home's comes from the
     // account service with its pieces (loadHomeDecor), and the save's own record for the building is kept to go back
-    if (interiorHome || _seatHallVisit) _keptHidden = [...(data.hiddenBase ?? [])]; else interiorCtx.base?.setHidden(data.hiddenBase ?? []);
+    if (interiorHome || _seatHallVisit) _keptHidden = data.hiddenBase ?? []; else (interiorCtx.base?.setHidden(data.hiddenBase ?? []), interiorCtx.base?.roomDoors?.apply?.(data.hiddenBase));
   }
   /** BASE-HIDE: the save's own list for an online home's building, written back as it came (the service's is the room's). */
   let _keptHidden = [];
@@ -5051,17 +5013,20 @@ export function createWorldModes(host) {
   function activateDecor(id) {
     const piece = interiorDecor.pieceOf(id);
     if (piece?.station === VENDOR_STATION) { openHomeVendor(piece, id); return; }   // HOME-VENDOR: anyone may trade with it
+    if (useDecorPiece(piece, interiorCamps, getInteractionMode, restFromInteriorBed, () => forgeOffered() && (interiorKeyCtx.togglePause({ at: stationDoorAt('fire') }), true))) return;   // DECOR-USE (systems/decor/decorUse.js): a placed fire or the cooking station opens what a brazier opens (a fire is nobody's), a placed bed is slept in as the room's own are (the rest window says who may)
+    if (piece?.station === MUSIC_STATION) return void openMusicBox(piece.id ?? id, { show: mountInterior, say });   // MUSIC-BOX: anyone may play it, their own tunes
     if (piece?.station) { useDecorStation(piece); return; }   // HOME-STATIONS
     if (piece?.storage && caravanGuestHere()) { say(homeBelongsLine({ owner: privateVisitOwner })); return; }   // WAGONS2-VISIT: a caravan's storage is its owner's, as a home's cupboards are - shut to its visitor, in its owner's name
-    if (isHallBoard(piece)) { openHallBoard(); return; }   // GUILD1e: the board in a guild's hall
+    if (hallPiecePress(piece, isHallBoard(piece), openHallBoard, openHallChest, !!(interiorHome?.hall && interiorHome.member), say)) return;   // GUILD1e: the board in a guild's hall; GUILD-SHOP: its banker, the vault (scenes/guildHallPress.js)
     if (!piece?.storage) return;
-    if ((interiorHome?.hall && interiorHome.member) || interiorSeatHall?.member) { openHallChest(); return; } else if (interiorSeatHall && !interiorHome) { say(CROWN_HALL_TEXT.chestShut(interiorSeatHall.name)); return; }   // AUDIT SEATS-2 C6: a visitor told whose it is   // GUILD1d: the guild's chest, as its cupboards; SEAT-HALL: a palace's too
-    if (!decorOwnerHere()) {
+    if ((interiorHome?.hall && interiorHome.member) || interiorSeatHall?.member) { (interiorHome?.hall ? openSharedChest(piece.id) : openHallChest()); return; } else if (interiorSeatHall && !interiorHome) { say(CROWN_HALL_TEXT.chestShut(interiorSeatHall.name)); return; }   // AUDIT SEATS-2 C6: a visitor told whose it is   // GUILD1d: a placed chest is that piece's bin; the cupboards stay the Stores. SEAT-HALL: a palace's too
+    if (decorIsShared(piece.id) || !decorOwnerHere()) {
+      if (decorIsShared(piece.id) || decorMayStorage(piece.id)) { openSharedChest(piece.id); return; }
       if (interiorHome) say(homeBelongsLine(interiorHome));
       return;
     }
-    const win = interiorInventory({ loot: { items: () => interiorDecor.itemsOf(id), storage: true } });   // SHIP-STORE: the owner's own storage, two-way
-    if (win) interiorOverlay = win;
+    // SHIP-STORE: the owner's own storage, two-way; HOME-SHARE-WAIT: in an online home, once the service has said it is not shared (decorGrants.js openOwnChest)
+    openOwnChest(piece.id, !!interiorHome, () => { interiorOverlay = interiorInventory({ loot: { items: () => interiorDecor.itemsOf(id), storage: true } }) ?? interiorOverlay; });
   }
 
   /** HOME-VENDOR (net/vendorLaw.js): A HOME'S TRADER PRESSED - its window (the host's: the owner stocks it, a visitor
@@ -5078,8 +5043,8 @@ export function createWorldModes(host) {
    *  of its owner's account (stationOwnerHere); the maker's own laws stand (the potion maker's ingredients, the spell
    *  maker's spellbook, what each charges). No guild is asked: the licence was paid when the piece was made a station. */
   function useDecorStation(piece) {
-    if (!stationOwnerHere()) {
-      if (!hallMemberHere()) {   // GUILD1d: a hall's stations are its members'
+    if (!stationOwnerHere() && !decorMayStation(piece.id)) {
+      if (!hallMemberHere() || decorStationShut(piece.id)) {   // GUILD1d: a hall's stations are its members', narrowed when its Access says so
         if (interiorHome) say(homeBelongsLine(interiorHome));
         if (!caravanGuestHere()) return;   // WAGONS2-VISIT: a caravan's stations serve its visitor
       }
@@ -5087,7 +5052,7 @@ export function createWorldModes(host) {
     // PROF2 (bible/06-Systems/Professions-Arc.md 23): a forge is no guild's maker - it opens the Stores' own forge, where
     // the player's smelting is done; where the Stores page is not (offline, the switch shut, the classic skin) it says
     // so (AUDIT 29 B2 - it landed on the Character page without a word)
-    if (PROF_STATIONS.includes(piece.station)) { if (forgeOffered()) interiorKeyCtx.togglePause({ at: 'stores' }); else say(stationColdLine(piece.station)); return; }   // PROF4: the workbench too; PROF7: the loom; PROF11: the mason's bench
+    if (PROF_STATIONS.includes(piece.station)) { if (forgeOffered()) interiorKeyCtx.togglePause({ at: stationDoorAt(piece.station) }); else say(stationColdLine(piece.station)); return; }   // PROF4: the workbench too; PROF7: the loom; PROF11: the mason's bench
     // STATION-DOOR (bible/01-Overview/bugs/Field-Bugs-2026-10-11f.md): an alchemy or enchanting station is Daggerfall's maker
     // AND its profession's act, which is the Stores page's (the brew, Disenchanting) - online the press offers both; the
     // maker alone where the page is not
@@ -5115,7 +5080,7 @@ export function createWorldModes(host) {
       lines: [DECOR_STATION_NAMES[kind]],
       options: [
         { code: 'Digit1', label: `1 - ${SERVICE_LABEL[maker]}`, action: () => { leave(); openStationMaker(piece); } },
-        { code: 'Digit2', label: `2 - ${STORES_ACT_STATIONS[kind]} (Stores page)`, action: () => { leave(); focusStoresStation(kind); interiorKeyCtx.togglePause({ at: 'stores' }); } },
+        { code: 'Digit2', label: stationActLabel(kind), action: () => { leave(); interiorKeyCtx.togglePause({ at: stationDoorAt(kind) }); } },   // AUDIT HORIZONTAL A7: in the player's language
         { code: 'Escape', label: 'Esc - close', action: () => {} },
       ],
     });
@@ -5207,8 +5172,9 @@ export function createWorldModes(host) {
       standCrownHall(dungeonCtx, dungeonLoc).catch(() => {});
     }
   }
-  /** CROWN-HALL: the crown seat this dungeon is the castle of, as the host dresses it, or null. */
-  const crownHere = () => (mode === 'dungeon' && dungeonLoc ? host.seatHall?.crown?.((dungeonLoc.mapTableData?.mapId ?? 0) >>> 0) ?? null : null);
+  /** CROWN-HALL: the crown seat this dungeon is the castle of, as the host dresses it, or null. DOMAIN2: in the public castle
+   *  and in its holder's own instance alone - the room's instance handed over (scenes/seatHallHost.js crown). */
+  const crownHere = () => (mode === 'dungeon' && dungeonLoc ? host.seatHall?.crown?.((dungeonLoc.mapTableData?.mapId ?? 0) >>> 0, placeInstance) ?? null : null);
   /** CROWN-HALL: STAND THE THRONE ROOM - at the dungeon's mount; the models asked of the pipeline, kept only while the same
    *  visit stands. */
   async function standCrownHall(ctx, loc) {
@@ -5318,13 +5284,13 @@ export function createWorldModes(host) {
     // owner's taken-out furniture, whose whole list the first piece taken out would write over the service's
     if ((interiorHome || interiorSeatHall) && _decorListed !== _decorVisit) return null;
     if (interiorHome?.hall) return { kind: 'home', hall: true, where: "Your guild's hall", mapId: homeTownOf(b), buildingKey: b.buildingKey };   // GUILD1d
-    if (interiorHome) return { kind: 'home', where: 'Your home', mapId: homeTownOf(b), buildingKey: b.buildingKey };
+    if (interiorHome) return { kind: 'home', where: 'Your home', mapId: homeTownOf(b), buildingKey: b.buildingKey, cap: homeDecorCap(Number(homeTownOf(b)) >>> 0, b.buildingKey) ?? undefined };   // DECOR-ROOMY: the service's cap
     // SEAT-HALL (7.2): the palace's Charter Room - its keepers', DECOR's catalogue, at most a hundred pieces, in its
     // largest room and clear of the court (decorTool.js charterWhyNot; charterClear below)
     if (interiorSeatHall?.keeper) return { kind: 'home', hall: true, seat: true, charter: true, cap: SEAT_HALL_DECOR_CAP, where: SEAT_HALL_TEXT.where, mapId: homeTownOf(b), buildingKey: b.buildingKey };
     if (isCaravanRoom(interiorCabin)) return { kind: 'caravan', where: CARAVAN_TEXT.where };   // WAGONS1: the caravan, furnished as a ship is (the save's, paid from the purse)
     if (b.buildingType === BUILDING_TYPES.Ship) return { kind: 'ship', where: 'Your ship' };
-    return { kind: 'house', where: 'Your house' };
+    return { kind: 'house', where: 'Your house', cap: decorCapOf(houseFootprintM2(b)) };   // DECOR-ROOMY: offline, the house's own ground
   }
   /** DECOR1d: what the catalogue scan reads - the town blocks (DECOR-DUNGEON: and the dungeons'), a model's radius off
    *  its ARCH3D header, a flat's billboard as the room stands it - the one constructor the yards' host builds too. */
@@ -5374,34 +5340,9 @@ export function createWorldModes(host) {
     sceneCache().permanent.delete(name);
     return back;
   }
-  /** DECOR2a: ONE OF THE PLAYER'S OWN THINGS OUT OF THE PACK, to stand in a room - one of a stack, moved as a drop
-   *  moves it (itemTransfer.js applyTransfer: a lit torch stops lighting the player, a stack splits one off) - or null
-   *  when it is no longer carried. */
-  function decorPackTake(item) {
-    if (isFurnishing(item)) {   // DECOR2b: a delivered piece leaves the deliveries whole
-      const list = decorHome(item);
-      const i = list.indexOf(item);
-      if (i < 0) return null;
-      list.splice(i, 1);
-      return item;
-    }
-    const pack = playerEntity.items ?? [];
-    if (!pack.includes(item)) return null;
-    return applyTransfer(item, { ok: true, amount: 1 }, pack, [], { entity: playerEntity, fromLocal: true }) ?? null;
-  }
-  /** DECOR2a: one of the player's own things back where it lives - taken down, or its room sold: the pack, or (DECOR2b)
-   *  a piece of furniture delivered again. */
-  function decorPackGive(item) {
-    if (isFurnishing(item)) { decorHome(item).push(item); return; }
-    playerEntity.items ??= [];
-    addItem(playerEntity.items, item);
-  }
-  /** DECOR2b: where one of the player's own things lives while it stands nowhere - the pack, or the furnisher's
-   *  deliveries (the save's `furnishings`: a bed is never carried). */
-  function decorHome(item) {
-    if (isFurnishing(item)) return (playerEntity.furnishings ??= []);
-    return (playerEntity.items ??= []);
-  }
+  // DECOR2a/DECOR2b: the owner's own things' doors - where one lives, one out to stand, one back (systems/decor/decorPack.js;
+  // AUDIT FB1025i E1: out of the host, so the decorator's pins stand on them)
+  const { decorHome, decorPackTake, decorPackGive } = createDecorPack(() => playerEntity);
   /** DECOR2b: FURNITURE BOUGHT (or stolen) - delivered, not carried, and said once for the lot. */
   function decorDeliver(items) {
     if (!items.length) return;
@@ -5467,20 +5408,23 @@ export function createWorldModes(host) {
     if (host.homeLayoutsHeard?.() === false) { console.warn('[layout] the homes\' towns are not heard yet - the room\'s pieces wait'); return; }
     const visit = _decorVisit;
     askDecorList({
-      ask: () => host.homeDecor.list(homeTownOf(b), b.buildingKey, seat),
+      ask: () => primedDecorList(decorListKey(homeTownOf(b), b.buildingKey, seat)) ?? host.homeDecor.list(homeTownOf(b), b.buildingKey, seat),
       live: () => visit === _decorVisit && interiorBuilding === b && _decorListed !== visit,
       stand: (r) => {
         _decorListed = visit;   // DECOR-SHELL: stood - nothing later will stand the room over a placement
         // HOME-VOTE: a home the town voted below zero stands as Daggerfall furnished it for everyone but its insiders - no
         // placed piece but its hired trader, nothing taken out (net/homeVoteLaw.js homeDecorShown, decorStaysShunned; the
         // owner, and a hall's guild, see theirs; the service hands out no more - decor.js decorOf)
-        const shown = homeDecorShown(interiorHome);
+        const shown = homeDecorShownHere(interiorHome, homeTownOf(b));   // HOME-MUTE: nor for me, a home I hid
         const pieces = r.data.pieces.map(decorPieceOf).filter((p) => p && (shown || decorStaysShunned(p)));   // AUDIT B2: its trader stands
         interiorDecor.set(pieces);
         if (interiorHome?.own) decorReturnStrays(pieces);   // DECOR2a: the owner's own things the room no longer stands
         if (interiorHome?.own && !_sceneHeldForLayout) decorSetDownHeld(r.data.pieces);   // HOLD-KEPT: and what a piece the service no longer has held
+        noteDecorGrants(host.homeDecor, Number(homeTownOf(b)) >>> 0, b.buildingKey, host.decorCharacter?.() ?? null, interiorHome?.own && !_sceneHeldForLayout ? interiorDecor : null, playerEntity);   // DECOR-ACCESS; HOME-STRANDED; REST-GUEST: asked whatever stands, so a guest rests in a home they hid: the owner's chests take back what the old pour left under the building
         if (!shown) { interiorCtx?.base?.setHidden([]); return; }   // HOME-VOTE: the room as Daggerfall furnished it
-        interiorCtx?.base?.setHidden(Array.isArray(r.data.hidden) ? r.data.hidden : []);   // BASE-HIDE: the room its owner cleared, for everyone
+        standRoomHidden(interiorCtx?.base, Array.isArray(r.data.hidden) ? r.data.hidden : []);   // BASE-HIDE: the room its owner cleared, for everyone; DOOR-KEPT: its doors too
+        noteHomeDecorList(Number(homeTownOf(b)) >>> 0, b.buildingKey, r.data, interiorHome?.own ? houseFootprintM2(b) : null, b.townBlocks ?? 0, host.homeDecor, host.decorCharacter?.() ?? null);   // DECOR-ROOMY: its cap, and its ground named once
+        bindDecorHouseFrom(host, playerEntity, say, accountRefusalText, Number(homeTownOf(b)) >>> 0, b.buildingKey, (loot) => (interiorOverlay = openDecorChest(interiorInventory, loot) ?? interiorOverlay));
       },
     });
   }
@@ -5507,7 +5451,7 @@ export function createWorldModes(host) {
    *  they ride the save with everything else; the array is minted on
    *  first use at the map reader's region count. */
   function openBank() {
-    if (host.wildNoBank?.()) return false;   // PVPDUNGEONS: no banks in the zone
+    if (host.wildNoBank?.()) return false;   // PVPDUNGEONS: no banks in the zone - ZONE-BANK: but a settlement's
     if (!bankArtLoaded() || !_shopFont) return false;
     // MapFileReader.RegionCount (:237-246). The host has no map
     // reader in scope, so the count comes from the accounts already
@@ -5526,20 +5470,13 @@ export function createWorldModes(host) {
       void host.marks.refresh();
       void host.marks.settle(marksSaleCredit(() => playerEntity.bankAccounts, bankRegion, host.saveSoon)).then((line) => { if (line) hudText(line); });   // PROF-SAVE: saved soon
     }
-    /** AUDIT 64 F26: ONE resolver for the owned house, because DFU's
-     *  window and manager both ask the same question -
-     *  `buildingDirectory.GetBuildingSummary(OwnedHouseKey, out house)`
-     *  (DaggerfallBankingWindow.cs:446-450, DaggerfallBankManager.cs:453)
-     *  - and the price, the offer box and the sale must never disagree
-     *  about the answer. Null covers BOTH of DFU's arms: no directory
-     *  at all (:452) and a key the directory does not hold. */
-    const ownedHouseSummary = () => {
-      const dir = buildingDirectory?.();
-      const key = ownedHouseKey(playerEntity.houses ?? [], bankRegion());
-      if (!key || !dir?.buildings?.length) return null;
-      if (!deedStands(playerEntity.houses?.[bankRegion()])) return null;   // AUDIT WD3 H1: a sleeping deed is neither priced nor sold
-      return dir.buildings.find((bs) => bs.buildingKey === key) ?? null;
-    };
+    /** AUDIT 64 F26: ONE resolver for the owned house, because DFU's window and manager both ask the same question -
+     *  `buildingDirectory.GetBuildingSummary(OwnedHouseKey, out house)` (DaggerfallBankingWindow.cs:446-450,
+     *  DaggerfallBankManager.cs:453) - and the price, the offer box and the sale must never disagree about the answer.
+     *  Null covers BOTH of DFU's arms: no directory at all (:452) and a key the directory does not hold. */
+    // HOUSES-3: the region's houses this town's directory resolves - what the bank prices, offers in turn and buys back
+    // here (banking.js townDeeds: AUDIT 64 F26's resolver, WD3 H1's sleeping deed and R2-9's slice, over the region's three)
+    const townHouses = () => townDeeds(playerEntity.houses ?? [], bankRegion(), buildingDirectory?.());
     let win = null;
     // D6: ONE mount for BOTH arms of DaggerfallBankPurchasePopUp -
     // there is only one popup class in DFU and the arms differ only in
@@ -5607,6 +5544,7 @@ export function createWorldModes(host) {
       // and the SELL path has been adding and dropping them since),
       // only the shipyard list was, and openShipPurchase below is it.
       ownsHouse: () => ownsHouse(playerEntity.houses ?? [], bankRegion()),
+      housesFull: () => regionHousesFull(playerEntity.houses ?? [], bankRegion()),   // HOUSES-3: the region's three owned
       housesForSale: () => currentHousesForSale().length,
       onlineHomeLines: () => (host.onlineHomes ? HOME_BANK_LINES : null),   // HOME1: online, a home is bought at its door
       // H2: BUY HOUSE reaches the purchase window. The U24 identity
@@ -5645,33 +5583,34 @@ export function createWorldModes(host) {
           return { result: r.result, amount: r.price ?? 0 };
         },
       }),
-      // H3 CLOSED the sell price, which had stubbed at zero because it
-      // needs the OWNED building's mesh radius and nothing resolved a
-      // model behind a buildingKey. Nothing new had to be built:
-      // `houseMeshRadius` already reads exactly that for the market
-      // list, and the location directory already carries `modelIdNum`
-      // on every building - the owned one just had to be found in it.
-      houseSellPrice: () => deedSellPrice(ownedHouseSummary()),   // AUDIT HOME-PRICE C1: online, the online price's share
-      // AUDIT 64 F26: SellHouseButton_OnMouseClick raises SELL_HOUSE_OFFER
-      // ONLY inside the two nested successes (DaggerfallBankingWindow
-      // .cs:443-451) and has no else, so an owned-but-unresolved house
-      // gets no box at all - not a box priced at zero.
-      ownedHouseResolved: () => ownedHouseSummary() !== null,
+      // H3 CLOSED the sell price, which had stubbed at zero because it needs the OWNED building's mesh radius and
+      // nothing resolved a model behind a buildingKey. Nothing new had to be built: `houseMeshRadius` already reads
+      // exactly that for the market list, and the location directory already carries `modelIdNum` on every building -
+      // the owned one just had to be found in it. AUDIT 64 F26: SellHouseButton_OnMouseClick raises SELL_HOUSE_OFFER
+      // ONLY inside the two nested successes (DaggerfallBankingWindow.cs:443-451) and has no else, so an
+      // owned-but-unresolved house gets no box at all - not a box priced at zero. HOUSES-3: each house of the region
+      // this town resolves is an offer, in turn, priced as H3 prices one (AUDIT HOME-PRICE C1: online, the online
+      // price's share) - and RESTORE's crossed words beside it: what came through customs is never bought back online.
+      houseOffers: () => townHouses().map(({ deed, summary }) => ({
+        price: deedSellPrice(summary),
+        crossed: crossedDeedLines('house', { houses: playerEntity.houses, regionIndex: bankRegion(), player: playerEntity, deed }),
+      })),
       ownsShip: () => ownsShip(playerEntity),
       ownedShip: () => ownedShipType(playerEntity),
-      // RESTORE: what came through customs is never bought back online - the house of this region, or the ship
-      crossedDeed: (kind) => crossedDeedLines(kind, { houses: playerEntity.houses, regionIndex: bankRegion(), player: playerEntity }),
+      crossedDeed: (kind) => crossedDeedLines(kind, { houses: playerEntity.houses, regionIndex: bankRegion(), player: playerEntity }),   // RESTORE: the ship's
       // The two SALES themselves. Both credit the bank ACCOUNT rather
       // than the purse - DFU pays a deed into the account - and both
       // drop what they made permanent.
-      sellHouse: () => {
+      sellHouse: (i = 0) => {
         const region = bankRegion();
         // AUDIT 64 F26: the SAME resolver the price and the offer box
         // ask, and its miss is DFU's own no-op (DaggerfallBankManager
-        // .cs:452-462) rather than a sale at a price of zero.
-        const owned = ownedHouseSummary();
+        // .cs:452-462) rather than a sale at a price of zero. HOUSES-3:
+        // the i-th house offered here, the deed itself sold.
+        const offered = townHouses()[i] ?? null;
+        const owned = offered?.summary ?? null;
         const sell = () => sellHouse(playerEntity.bankAccounts, playerEntity.houses, region,
-          { meshRadius: owned ? houseMeshRadius(owned) : 0, found: owned !== null, price: deedSellPrice(owned) }, {   // AUDIT HOME-PRICE C1
+          { meshRadius: owned ? houseMeshRadius(owned) : 0, found: owned !== null, price: deedSellPrice(owned), deed: offered?.deed ?? null }, {   // AUDIT HOME-PRICE C1
             removePermanentScene: (mapId, k) => { decorSold(interiorSceneName(mapId, k), region); removePermanentScene(sceneCache(), interiorSceneName(mapId, k)); },   // DECOR1e: its placed pieces' half first
             // the deed named the building "<player>'s residence"; selling
             // takes that name back off the map
@@ -5683,7 +5622,7 @@ export function createWorldModes(host) {
         // FIELD BUGS 2026-10-04d KNIGHT-HOUSE: online, the house the realm gave is held by the account service - the hold
         // goes first and the deed sells once the service agrees (HOME1's order: credited only once it is gone), or a
         // building sold here stayed held from every buyer; a deed it never held (`no-home`) sells as Daggerfall's
-        const slot = playerEntity.houses?.[region];
+        const slot = offered?.deed;
         if (host.onlineHomes && owned && realmDeedAt(playerEntity.houses, region, slot?.mapId, owned.buildingKey)) {
           host.onlineHomes.releaseDeed(slot.mapId, owned.buildingKey)
             .then((r) => { if (r.ok || r.error === 'no-home') sell(); else townTalk?.say?.(accountRefusalText(r.error)); })
@@ -5896,7 +5835,7 @@ export function createWorldModes(host) {
    *  IsLastNPCClickedAnActiveQuestor (:45-63). */
   function openQuestOfferFor(offer, npcData, mount) {
     if (!questBridge) return false;
-    const step = questBridge.offerSocialQuest(offer.npc ?? npcData, offer.socialGroup, offer.menu);
+    const step = questBridge.offerSocialQuest(offer.npc ?? npcData, offer.socialGroup, offer.menu, inTavern());   // QL-OFFERED: a tavern's own lines first (questBridge.js)
     const boxes = questBridge.offerBoxes(step, (id) => townTalk?.lines?.(id) ?? []);
     if (!boxes.length || !guildServiceArtLoaded() || !_shopFont) return true;
     // the U24 identity guard: a window that dispatches to another
@@ -6227,32 +6166,11 @@ export function createWorldModes(host) {
     return o ? mountServiceWindow(o) : null;
   }
 
-  /** PORTAL1 (systems/portalStone.js): THE PORTAL STONE AT THE COUNTER - every shop's keeper (isShop's nine kinds) offers
-   *  one on their popup's own row (ui/merchant/merchantServiceWindow.js portalRowRect; the Enhanced Plus panel's button), in a
-   *  building and nowhere else (a bank's teller and a street's driver have none). The row is the hook; undefined, none. */
-  const portalRow = () => (mode === 'interior' && isShop(interiorBuilding?.buildingType)
-    ? { label: PORTAL_TEXT.row, onBuy: () => askPortalStone() } : undefined);
-  /** A press asks first - DFU's Yes/No box on either skin - and Yes is the sale; a purse already short is told so at
-   *  once, its locked and worn shards named (AUDIT PORTAL1 C4: it was asked, and refused after the Yes). */
-  function askPortalStone() {
-    const items = playerEntity.items ?? [];
-    if (portalStoneRefusal(items)) { say(PORTAL_TEXT.shards(shardsHeld(items), shardsKept(items))); return; }
-    mountInterior(new YesNoBoxWindow({
-      rows: [{ text: PORTAL_TEXT.ask(shardsHeld(items)), center: true }],
-      onYes: () => buyPortalStoneNow(), onNo: () => {},
-    }));
-  }
-  /** THE SALE: the shards out, a fresh stone in (always in stock - nothing is kept to run out); refused in words,
-   *  nothing taken. No carry gate: the stone weighs less than its shards (portalStone.js portalStoneRefusal). */
-  function buyPortalStoneNow() {
-    playerEntity.items = playerEntity.items || [];
-    const sale = buyPortalStone(playerEntity.items);
-    if (!sale.ok) { say(PORTAL_TEXT.shards(shardsHeld(playerEntity.items), shardsKept(playerEntity.items))); return false; }
-    audio.playOneShot(SOUND.GoldPieces, 1);
-    surfacePlayer();
-    say(PORTAL_TEXT.bought);
-    return true;
-  }
+  /** PORTAL1 (systems/portalStone.js) and APPEARANCES (bible/04-Characters/Wardrobe.md): THE SHOP POPUPS' OWN ROWS - the
+   *  Portal Stone's at every shop and the Wardrobe's at a Clothing Store, an Armorer and a Weaponsmith, in a building and
+   *  nowhere else; their counters and the rows are scenes/shopRows.js. The slot's doors handed live (mountInterior is
+   *  declared below the construction). */
+  const shopRows = createShopRows({ say: (l) => say(l), mountInterior: (w) => mountInterior(w), mountService: mountServiceWindow });
 
   /** U42: the CLASSIC spellbook in CAST mode - the interior host's
    *  Backspace window, ONE construction. The player's own array is
@@ -6647,7 +6565,7 @@ export function createWorldModes(host) {
         return { rows: [{ text: accountRefusalText('home-layout'), center: true }] };
       }
       const decision = receiveHouseDecision(kept, { rankCeiling: host.rollPace?.(guild.factionId)?.book ?? null,   // AUDIT CHAP4 E2: the book's rank; SEAT-WORDS: online none (II F-3)
-        ownsHouse: ownsHouse(playerEntity.houses, region),
+        housesFull: regionHousesFull(playerEntity.houses, region),   // HOUSES-3: an order gives one while the region holds fewer than three
         housesForSale: homes ? currentHousesForSale().filter((h) => !homes.homeAt(dir?.mapId ?? 0, h.buildingKey)) : currentHousesForSale(),
         alreadyOwnResult: TRANSACTION_RESULT.ALREADY_OWN_HOUSE,
         noneForSaleResult: TRANSACTION_RESULT.NO_HOUSES_FOR_SALE,
@@ -6662,7 +6580,7 @@ export function createWorldModes(host) {
       // towns are heard (buyHomeAt's gates, AUDIT WD3 O1/O2/B1)
       if (host.homeTownsMissing?.()) return { rows: [{ text: accountRefusalText('home-towns'), center: true }] };
       if (host.homeLayoutsHeard?.() === false) { host.hearHomeLayouts?.(); return { rows: [{ text: accountRefusalText('home-layout'), center: true }] }; }
-      allocateHouseToPlayer(playerEntity.houses, region, {
+      const given = allocateHouseToPlayer(playerEntity.houses, region, {
         buildingKey: decision.house.buildingKey,
         mapId: dir?.mapId ?? 0,
         location: dir?.locationName ?? '',
@@ -6673,7 +6591,7 @@ export function createWorldModes(host) {
       });
       claimHouse(kept);
       surfacePlayer();
-      if (host.holdRealmDeed) holdGrantedHouse(region, kept);
+      if (host.holdRealmDeed && given) holdGrantedHouse(region, kept, given);   // HOUSES-3: the deed given, one of the region's three
       return { rows: rows?.(decision.textId) ?? [{ text: 'I have a house for you.', center: true }] };
     }
     if (destination === 'guildServiceTeleport') {
@@ -6702,71 +6620,15 @@ export function createWorldModes(host) {
     // destination immediately below: PotionMakerWindow in the interior
     // slot, behind MakePotionService's no-ingredient refusal.
     if (destination === 'guildServicePotionMaker' && potionArtLoaded() && _shopFont) {
-      // AUDIT 26 F201: MakePotionService (:670-686) closes the popup,
-      // scans pack AND wagon for any ingredient, and refuses with
-      // NoPotionIngredients (34) when there is none - the record id
-      // had shipped with zero callers and the mixer opened empty.
-      if (![...(playerEntity.items ?? []), ...(playerEntity.wagonItems ?? []), ...(playerEntity.bagItems ?? [])].some(isIngredient)) {   // BAG1: and the Materials Bag's herbs
-        return { rows: rows(NO_POTION_INGREDIENTS), closesWindow: true };
-      }
+      // POTION-DOOR (bible/06-Systems/Professions-Arc.md 52): the window's hooks are scenes/potionMakerHost.js's - DFU's own
+      // as M2 wired them (the pack, the cart and the bag; the carried recipes; the one minter; the walk's spend) and, online
+      // at an alchemy station, the brew's door. AUDIT 26 F201: MakePotionService (:670-686) closes the popup, scans pack
+      // AND wagon for any ingredient (and the Materials Bag's herbs; at a station the Stores' too), and refuses with
+      // NoPotionIngredients (34) when there is none
       let potionWin = null;
-      potionWin = new PotionMakerWindow({
-        packItems: () => (playerEntity.items ??= []),
-        // BAG1: THE SECOND LIST the walk reads is the cart's, and the Materials Bag's after it - the herbs a player gathered
-        // are DFU's own plants, and DFU's mixer takes them wherever they are carried (read here, spent by takeOne below)
-        wagonItems: () => [...(playerEntity.wagonItems ??= []), ...(playerEntity.bagItems ?? [])],
-        // AUDIT 58: Refresh's gold label is GetGoldAmount
-        // (DaggerfallPotionMakerWindow.cs:138) - coins PLUS letters of
-        // credit (PlayerEntity.cs:1313-1316), the same reader the item
-        // maker (itemMakerWindow.js), the spellbook and the character
-        // sheet take. The two windows whose labels really are the bare
-        // GoldPieces counter are the spell maker
-        // (DaggerfallSpellMakerWindow.cs:358) and the travel popup
-        // (DaggerfallTravelPopUp.cs:280), and both carry that note;
-        // this one had the coins-only reader without it.
-        gold: () => totalGoldAmount(playerEntity),
-        // AUDIT 63 F42: the picker's source is DFU's own - the recipe
-        // ITEMS the player carries, in the pack AND the wagon, each
-        // resolved through GetPotionRecipe(item.PotionRecipeKey)
-        // (Refresh :143-153, :150-151, :164-169). Recipes are not
-        // "learned": UseItem's recipe arm really is cannotUseThis, so
-        // the carried scroll IS the knowledge. The old read took
-        // `playerEntity.potionRecipeKeys`, which nothing in the port
-        // ever wrote, so the button answered "You have no recipes."
-        // for every character in every game.
-        // Key 0 is DFU's "no recipe" sentinel (potionRecipeKey([]) is
-        // 0, potions.js), so it never enters the set.
-        recipeKeys: () => {
-          const seen = new Set();
-          for (const it of [...(playerEntity.items ?? []), ...(playerEntity.wagonItems ?? [])]) {
-            if (isPotionRecipe(it) && it.potionRecipeKey) seen.add(it.potionRecipeKey);
-          }
-          return [...seen];
-        },
-        // ItemBuilder.CreatePotion (:324) - loot.js has minted these
-        // since E1 for random treasure; a mixed potion is the same
-        // bottle carrying the same key, so there is one minter.
-        addPotion: (recipe, key) => {
-          const bottle = createPotion(key);
-          bottle.name = recipe.name;
-          bottle.value = recipe.price;
-          addItem(playerEntity.items, bottle);
-          surfacePlayer();
-        },
-        takeOne: (templateIndex, where, group) => {
-          const list = where === 'pack' ? playerEntity.items : (playerEntity.wagonItems ?? []);
-          // F176: GetItem(group, template, allowEnchantedItem: false)
-          // (:338, :345) - the walk must not spend an enchanted twin
-          // of the plain reagent that went in the pot. (X11b's lesson
-          // stands: removeOne takes a TEMPLATE INDEX, not the item.)
-          if (removeOne(list, templateIndex, { group, allowEnchantedItem: false })) return true;
-          // BAG1: the second list's second half - the Materials Bag, after the cart
-          return where !== 'pack' && removeOne(playerEntity.bagItems ?? [], templateIndex, { group, allowEnchantedItem: false });
-        },
-        icons: { getTexture, uploadRecord, textures: renderer.textures },
-        entity: playerEntity,
-        onClose: () => closeSpellWindow(potionWin),
-      });  potionWin = enhancedWindow(potionWin, 'potionMaker');   // PORT4: the enhanced skin's face; the classic window unchanged
+      const hooks = potionMakerHooks({ player: playerEntity, surface: surfacePlayer, icons: { getTexture, uploadRecord, textures: renderer.textures }, onClose: () => closeSpellWindow(potionWin) });
+      if (!hooks.stocked()) return { rows: rows(NO_POTION_INGREDIENTS), closesWindow: true };
+      potionWin = enhancedWindow(new PotionMakerWindow(hooks), 'potionMaker');   // PORT4: the enhanced skin's face; the classic window unchanged
       return mountServiceWindow(potionWin);   // QUESTOR-SAID: handed back, as the book's - a null read "not available yet" over it
     }
     // M4: the item maker, the Mages Guild's own enchanter. M4 wired
@@ -7058,7 +6920,7 @@ export function createWorldModes(host) {
     deductGold(playerEntity, price);
     tallySkill(playerEntity, SKILLS.Mercantile, 1);   // OnTrade's tally (:1088)
     if (getBool('Controls', 'InstantRepairs')) {
-      it.currentCondition = it.maxCondition;   // the InstantRepairs branch (:1062-1065)
+      repairWhole(it);   // the InstantRepairs branch (:1062-1065) - RPT1026-LEDGERLAW: through the paid repair's one door
     } else {
       const now = Math.floor(ownMinutes());
       // DFU's commit pass runs over remoteItemsFiltered - EVERY job at
@@ -7272,12 +7134,12 @@ export function createWorldModes(host) {
    * the next line - so the sixth mode turns the suite red rather than
    * leaking a street.
    */
-  const setMode = (next) => { dropDoorCache(); if (next !== mode) interiorWeapon.silenceTorch();   /* DISC6: the building's rig leaves the frame - its torch loop with it */ if (next !== 'interior') closeCardWatches();   /* CARDS5: the watched tables' cloths go with the interior */ if (next !== 'interior') closeGambitWatches();   /* KG5: and the watched boards */ mode = next; if (next !== 'interior') { privateVisitRoom = null; privateVisitOwner = null; } if (next === 'exterior') placeInstance = null; };
+  const setMode = (next) => { dropDoorCache(); if (next !== mode) interiorWeapon.silenceTorch();   /* DISC6: the building's rig leaves the frame - its torch loop with it */ if (next !== 'interior') closeCardWatches();   /* CARDS5: the watched tables' cloths go with the interior */ if (next !== 'interior') closeGambitWatches();   /* KG5: and the watched boards */ if (next !== 'interior') { _arrowsCtx = null; interiorArrows.clear(); cardLookedCtx = null; cardStandsDue.clear(); gambitStandsDue.clear(); } if (next !== 'dungeon') { _crownTried = null; arenaWall = null; _arenaStage = _arenaStageCtx = null; _pitStage = _pitStageCtx = null; }   /* MEM-AUDIT (2026-10-23): THE PLACE LEFT IS LET GO - each latches the context it was made in and is read only against the live one, so it stood unread to the next place of its kind, holding the whole torn-down room or castle (its collider, its batch's arrays, its foes: 11-16 MB for Daggerfall's or Wayrest's castle) */ mode = next; if (next !== 'interior') { privateVisitRoom = null; privateVisitOwner = null; } if (next === 'exterior') placeInstance = null; };
   function exteriorDoorTargets() {
     const gen = doorGeneration?.();
     if (gen !== undefined && _doorCache && _doorCache.gen === gen) return _doorCache;
     const entries = doorTargets();
-    // AUDIT 65 MC-2: the DOOR reaches for the RAY, as the boards below do - ActivateStaticDoor's own `hit.distance > DoorActivationDistance` refusal (:501-504) can only speak if the pick hands the door over.
+    // AUDIT 65 MC-2: the DOOR reaches for the RAY, as the graves below do - ActivateStaticDoor's own `hit.distance > DoorActivationDistance` refusal (:501-504) can only speak if the pick hands the door over.
     const targets = entries.map((entry, i) => ({ key: i, aabb: doorWorldAabb(entry.door), distance: RAY_DISTANCE, reach: DOOR_ACTIVATION_DISTANCE }));
     _doorCache = { gen, entries, targets };
     return _doorCache;
@@ -7286,12 +7148,12 @@ export function createWorldModes(host) {
   /** AUDIT-WH P1: ...and the WHOLE list, once a frame.
    *
    *  The doors are cached by generation above; the live families - the
-   *  street's static NPCs and the boards - are not, and must not be
+   *  street's static NPCs and the graves - are not, and must not be
    *  (a stale person is a plaque naming someone who has walked away).
    *  But this function is called up to FOUR times in one frame on the
    *  streaming host: the enemy arm's rival distance, the press's own
    *  pick, the plaque's pick and the plaque's namer. Each call copies
-   *  the ~300-row door array and re-walks the people and the boards,
+   *  the ~300-row door array and re-walks the people and the graves,
    *  and every one of those calls is asking about the same frame.
    *
    *  So the answer is memoised on the FRAME, not on a generation:
@@ -7325,31 +7187,13 @@ export function createWorldModes(host) {
       if (pn.textureArchive != null && !isNpcFlat(pn.textureArchive)) return;
       targets.push({ key: `person:${i}`, aabb: personAabb(pn), distance: STATIC_NPC_ACTIVATION_DISTANCE });
     });
-    // THE BULLETIN BOARDS, in the SAME ray as the doors and the street
-    // NPCs - PlayerActivate casts one ray and routes by what it hit
-    // (:314, :393-398), so a board and a door compete by distance.
-    // Their reach here is the RAY's, not the board's: DFU's hit test
-    // is the raycast (RayDistance), and the board's own
-    // MobileNPCActivationDistance is a SECOND test inside
-    // ActivateBulletinBoard (:709-713) whose failure speaks the
-    // refusal instead of falling through. A board the player can see
-    // but not reach therefore consumes the click, exactly as C# does.
-    const boards = boardTargets?.() ?? [];
-    // AUDIT-WH M1: ...and it carries that constant as its REACH. Every
-    // other family here does (MC-2's law: reach for the ray, carry the
-    // handler's own beside it) and the board was the one that did not,
-    // so `pickActivatableHit` fell to `reach ?? distance` and handed the
-    // plaque a board at the RAY's 76.8 - naming a notice board halfway
-    // down the street, where the mod's own band is 6.4 (.cs:315-318).
-    // The PRESS is unchanged: its board arm returns above the reach
-    // gate, because the refusal is spoken inside activateBulletinBoard.
-    boards.forEach((aabb, i) => targets.push({ key: `board:${i}`, aabb, distance: RAY_DISTANCE, reach: BULLETIN_BOARD_ACTIVATION_DISTANCE }));
+    // NOTICE-PANEL: no town board stands in the street - the town panel under the compass is its press (scenes/townPanelHost.js)
     // SEARCH1 (systems/searchables.js): a graveyard's headstones - the streaming host's (scenes/world.js graveTargets);
     // the bench host stands none. The ray's distance, half a door's reach carried beside it - GRAVE-PARTY (FIELD BUGS
     // 2026-10-16): measured from the BODY to the stone's box (searchReachFor), as the dungeon's searchables are.
     const graves = host.graveTargets?.() ?? [];
     graves.forEach((aabb, i) => targets.push({ key: `grave:${i}`, aabb, distance: RAY_DISTANCE, reach: searchReachFor(aabb, player.pos, player.eye[1]) }));
-    // LEFAY1 (scenes/lefayMonumentHost.js): the monument to Julian LeFay outside Privateer's Hold - both exterior hosts stand it
+    // LEFAY1 (scenes/lefayMonumentHost.js): the monuments - Julian LeFay's, Patrick Stewart's - both exterior hosts stand them
     // (their `monumentTargets`), its steps' box and its column's met at its stone, its reach a static NPC's beside the ray's
     for (const t of host.monumentTargets?.() ?? []) targets.push(t);
     // MERCHANT-YARDS (scenes/merchantYardsHost.js): every city's and town's Stable and Wagon Yard - the streaming host's
@@ -7361,7 +7205,7 @@ export function createWorldModes(host) {
     for (const t of host.portTargets?.() ?? []) targets.push(t);
     // WITCH1 (scenes/witchesHost.js): the Hearth Offerings at the homes' doors - the streaming host's (the bench stands none)
     for (const t of host.witches?.targets() ?? []) targets.push(t);
-    _extList = { entries, npcs, boards, graves, targets };
+    _extList = { entries, npcs, graves, targets };
     _extMark = mark;
     return _extList;
   }
@@ -7613,7 +7457,7 @@ export function createWorldModes(host) {
       // its plaque says that one. A departure from the mod (Ledger A).
       const bd = doorBuilding(entry);
       if (!bd) return _doorText;
-      const locId = discoveryLocationId?.() ?? null;
+      const locId = bd.townBook ?? discoveryLocationId?.() ?? null;   // IC-PROPS: the door's own town's book, the one its press discovers into (a neighbouring slice's door read the player's slice's book and directory)
       if (!locId) return _doorText;
       discoverBuilding(locId, bd, null, questBuildingSource);   // .cs:719
       const db = getDiscoveredBuilding(locId, bd.buildingKey);
@@ -7627,8 +7471,8 @@ export function createWorldModes(host) {
       // stands and lists them (it drew none, and the click fell through to HOME-OFFER's box at every house)
       const houseVerbs = homeDoorVerbs(bd, home);
       _doorText = staticDoorName('building', {
-        displayName: home ? homeDoorTitle(home, questSiteHere(bd) && db.isOverrideName ? db.displayName : null) : homeDoorName(shownBuildingName(db, bd.name), !!houseVerbs),   // EMPIRE-BANK: a bank's name now; QUEST-RESIDENCE: a quest's home its name
-        locationName: currentLocationName(),
+        displayName: home ? homeDoorTitle(home, questSiteHere(bd) && db.isOverrideName ? db.displayName : null) : homeDoorName(shownBuildingName(db, bd.name), !!houseVerbs, bd.buildingType),   // IC-PROPS: a nameless house DFU's "Residence"; EMPIRE-BANK: a bank's name now; QUEST-RESIDENCE: a quest's home its name
+        locationName: bd.townName ?? currentLocationName(),   // IC-PROPS: the door's own town
         buildingType: bd.buildingType,
         unlocked: home ? true : resolveBuildingUnlocked(bd),
         quality: bd.quality ?? 0,
@@ -7644,8 +7488,7 @@ export function createWorldModes(host) {
       return _doorText;
     }
     if (typeof key !== 'string') return null;
-    if (key.startsWith('board:')) { const bd = _extList?.boards?.[Number(key.split(':')[1])]; return { title: bd?.bounty ? BOUNTY_BOARD_TEXT : bd?.named ? NOTICE_BOARD_TEXT : BULLETIN_BOARD_TEXT }; }
-    if (key.startsWith('grave:')) return { title: 'Grave' };   // SEARCH1   // .cs:315-318; BOUNTY1: a bounty board names itself
+    if (key.startsWith('grave:')) return { title: 'Grave' };   // SEARCH1
     if (key.startsWith('person:')) {                                       // .cs:325-393
       const pn = npcs[Number(key.split(':')[1])];
       if (!pn) return null;
@@ -7665,7 +7508,7 @@ export function createWorldModes(host) {
   /** H1's IsHouseOwned for a building where it stands - DFU's (region, key) law; AUDIT CAPTAIN'S SEA P9: never a building
    *  of an isle's town (no house is sold past the Veil, and a Betony deed's key owned the same key in every isle town of
    *  region 19 - its residents gone, its cupboards the player's). */
-  const houseOwnedAt = (b, key) => !isEtherPlaceId(homeTownOf(b)) && isHouseOwned(playerEntity.houses ?? [], b?.regionIndex ?? 0, key);
+  const houseOwnedAt = (b, key) => !isEtherPlaceId(homeTownOf(b)) && isHouseOwned(playerEntity.houses ?? [], b?.regionIndex ?? 0, key, homeTownOf(b));   // AUDIT RELEASE R2-9: a capital's slice's deed in its own slice alone; BAY-LEFT-B: and every place past the Bay's in its own town (banking.js deedHeldIn)
   /** The online home a building is, as this client last heard - null offline, for a building no player can own, or
    *  while its town is not known yet. */
   function homeOf(b) {
@@ -7685,7 +7528,7 @@ export function createWorldModes(host) {
    *  nobody can measure. */
   function homeListPrice(bd) {
     const price = homeOnlinePrice(houseFootprintM2(bd), bd?.townBlocks ?? 0);
-    return homePriceOk(price) ? price : 0;
+    return homePriceOk(price) ? homeListedPrice(homeTownOf(bd), bd?.buildingKey, price, undefined, homeClaimLayout(homeTownOf(bd))) : 0;   // FOUNDATION F3: its row's price, where one sets it
   }
   /** What a house I could buy costs - online, its town known, nobody's home, for sale (no quest in it) - at its online
    *  price (homeListPrice); 0 for none. */
@@ -7722,7 +7565,7 @@ export function createWorldModes(host) {
     if (home) {
       // HOME-RENT: a tenant's own room, or a room to rent; GUILD1d: a hall's members go in, its keepers say who may;
       // HOME-VOTE: and the town's word on it, under whatever else the door does, to anyone who is not its insider - where the plaque DRAWS a list (AUDIT HOME-VOTE II D1: the classic face folds a door's rows it never draws, and a wheel notch lit a vote the click cast unseen; there the Info box asks)
-      const rows = [...(homeVisitorRows(home, homeDoorFor(bd, home)) ?? []), ...(worldPlaqueOn() ? homeVoteRows(home) : [])];
+      const rows = [...(homeVisitorRows(home, homeDoorFor(bd, home)) ?? []), ...(worldPlaqueOn() ? [...homeVoteRows(home), ...homeMuteRows(home, homeTownOf(bd))] : [])];   // HOME-MUTE: and hidden for me
       return rows.length ? rows : null;
     }
     const price = homeOfferPrice(bd);
@@ -7738,7 +7581,7 @@ export function createWorldModes(host) {
   function homeVoteDoorText(text, bd, home, verbs) {
     if (!text || !home) return text;
     const voteOnly = isHomeVoteVerb(verbs?.[0]?.id);
-    const lines = [...(voteOnly && homeDoorFor(bd, home) === 'locked' ? ['Locked'] : []), ...homeVoteLines(home)];
+    const lines = [...(voteOnly && homeDoorFor(bd, home) === 'locked' ? ['Locked'] : []), ...homeVoteLines(home), ...homeMuteLines(home, homeTownOf(bd))];
     const said = lines.length ? { ...text, subs: [...(text.subs ?? []), ...lines] } : text;
     return voteOnly ? { ...said, actionsUnlit: true } : said;
   }
@@ -7793,6 +7636,9 @@ export function createWorldModes(host) {
       })
       .catch((e) => console.error(e));
   }
+  // GUILD-HALL-SALE (asked: "Guild houses should be able to be sold, like regular houses"): a hall sold at its door, as a
+  // home is - its menu in Info and its sale, asked first (scenes/hallSaleDoor.js)
+  const { openHallMenu, openHallSale } = createHallSaleDoor({ host, townTalk, homeOnward: (hit, entries) => homeOnward(hit, entries), turnHallEntry, homeIdOf, homeTownOf });
 
   /** BuildingIsUnlocked's ONE evaluation (PlayerActivate.cs:358): DFU
    *  computes it once off the hit BuildingSummary and hands the same
@@ -7844,13 +7690,13 @@ export function createWorldModes(host) {
    *  suffixes and all). */
   function activateBuilding(bd, unlocked) {
     if (getInteractionMode() !== 'info') return;
-    const locId = discoveryLocationId?.() ?? null;
+    const locId = bd.townBook ?? discoveryLocationId?.() ?? null;   // IC-PROPS: the building's own town's book
     if (!locId) return;
     discoverBuilding(locId, bd, null, questBuildingSource);
     const db = getDiscoveredBuilding(locId, bd.buildingKey);
     if (!db) return;
     const home = homeOf(bd);   // HOME1: a player's home is named for its owner, as its door is
-    townTalk?.say?.(home ? homeDoorTitle(home, questSiteHere(bd) && db.isOverrideName ? db.displayName : null) : db.displayName);   // QUEST-RESIDENCE
+    townTalk?.say?.(home ? homeDoorTitle(home, questSiteHere(bd) && db.isOverrideName ? db.displayName : null) : homeDoorName(db.displayName, false, bd.buildingType));   // QUEST-RESIDENCE; IC-PROPS: a nameless house "Residence", the plaque's word and DFU's (PlayerGPS.cs:1306-1309)
     if (!unlocked && bd.buildingType < BUILDING_TYPES.Temple
       && bd.buildingType !== BUILDING_TYPES.HouseForSale) {
       // WORLD-HOVER: the sentence has ONE home now (buildingLocks.
@@ -7873,7 +7719,7 @@ export function createWorldModes(host) {
     // swallow every entry click.
     const bd = buildingUnderRay(eye, dir);
     if (bd) activateBuilding(bd, resolveBuildingUnlocked(bd));
-    const { entries, npcs, boards, graves, targets } = exteriorActivationTargets();
+    const { entries, npcs, graves, targets } = exteriorActivationTargets();
     const { key, distance: _hitDist, reach: _hitReach } = pickActivatableHit(eye, dir, targets, baseCollider()) ?? { key: null };
     if (key === null) return false;
     // ...and the NPC arm ENDS the activation, exactly as the interior
@@ -7882,15 +7728,11 @@ export function createWorldModes(host) {
       activateStaticNpc(npcs[Number(key.split(':')[1])]);
       return true;
     }
-    if (typeof key === 'string' && key.startsWith('board:')) {
-      activateBulletinBoard(boards[Number(key.split(':')[1])], eye, dir);
-      return true;
-    }
     if (typeof key === 'string' && key.startsWith('grave:')) {   // SEARCH1: a headstone - too far speaks the refusal
       if (_hitDist > _hitReach) { setMidScreenText(tooFarAwayText()); return true; }
       return host.activateGrave?.(graves[Number(key.split(':')[1])], getInteractionMode()) ?? true;
     }
-    if (typeof key === 'string' && key.startsWith('lefay:')) {   // LEFAY1: the monument - too far speaks the refusal; the plaque's lit row is the verb
+    if (typeof key === 'string' && key.startsWith('monument:')) {   // LEFAY1: a monument - too far speaks the refusal; the plaque's lit row is the verb
       if (_hitDist > _hitReach) { setMidScreenText(tooFarAwayText()); return true; }
       return host.activateMonument?.(key, getInteractionMode(), plaqueActionFor(key)) ?? true;
     }
@@ -7906,7 +7748,7 @@ export function createWorldModes(host) {
       if (_hitDist > _hitReach) { setMidScreenText(tooFarAwayText()); return true; }
       return host.witches?.activate(key, getInteractionMode(), plaqueActionFor(key)) ?? true;
     }
-    if (_hitDist > _hitReach) { setMidScreenText(tooFarAwayText()); return true; }   // AUDIT 65 MC-2: ActivateStaticDoor's OWN first statement (:501-504), before the bash sound and the lock ladder; the board arm keeps its gate inside activateBulletinBoard (:709-712), as C# does
+    if (_hitDist > _hitReach) { setMidScreenText(tooFarAwayText()); return true; }   // AUDIT 65 MC-2: ActivateStaticDoor's OWN first statement (:501-504), before the bash sound and the lock ladder
     return activateStaticDoor(entries[key], entries, false, { verb: plaqueActionFor(key) });   // HOME2: the verb the door's plaque lit, if it listed any
   }
 
@@ -7921,7 +7763,7 @@ export function createWorldModes(host) {
   // AUDIT HOME-VOTE II B4: `listed` - whether the plaque listed rows - read as the press lands, beside its verb: the home's
   // town is waited for below, and a view turned away meanwhile emptied the plaque and popped the Info box at a door that
   // had been drawn; II D1: and only a list DRAWN - the classic face folds rows it never draws
-  async function activateStaticDoor(hit, entries, isBash = false, { homeAsked = false, verb = null, listed = plaqueListing() && worldPlaqueOn() } = {}) {
+  async function activateStaticDoor(hit, entries, isBash = false, { homeAsked = false, verb = null, listed = plaqueListing() && worldPlaqueOn(), picked = false } = {}) {
     // Route by verbatim door type: buildings to interiors, dungeon
     // entrances into the RDB crawl.
     // :507-509 - the bash SOUND, before any of the type routing and
@@ -7967,7 +7809,7 @@ export function createWorldModes(host) {
     // :523-524 skip them, and the two rolls sit where C# puts them.
     {
       const bd = buildingDataForDoor?.(hit) ?? null;
-      const locId = discoveryLocationId?.() ?? null;
+      const locId = bd?.townBook ?? discoveryLocationId?.() ?? null;   // IC-PROPS: the door's own town's book - the plaque reads the same
       // A door whose building the directory cannot resolve FAILS OPEN
       // (enters unconditionally) - the pre-R1 behavior, kept
       // deliberately: refusing entry on missing data would strand a
@@ -7991,11 +7833,13 @@ export function createWorldModes(host) {
           // room to rent - asks which room, and for how long, before Daggerfall's lock ladder
           if (home && !home.own && !isBash && !homeAsked && getInteractionMode() !== 'steal'
             && (verb === HOME_VERB.rent || (verb == null && door === 'locked' && home.rent))) { openHomeRent(bd, home).catch((e) => console.error(e)); return true; }
+          if (home?.offer && !isBash && !homeAsked && (verb === HOME_VERB.take || verb === HOME_VERB.refuse)) { answerHomeTransfer(Number(homeTownOf(bd)) >>> 0, bd.buildingKey, home, verb === HOME_VERB.take, host, (t) => townTalk?.say?.(t), accountRefusalText, (w) => townTalk?.showOverlay?.(w), homeWallet(bd.regionIndex ?? 0)); return true; }
           // HOME-VOTE: a vote row pressed - the vote its row says, on the home as it stands now (AUDIT B5: one gone since is
           // said so, never handed to Daggerfall's lock ladder); and an Info press on a home I may vote on asks - only where
           // the plaque lists no rows (AUDIT B1: a touch screen, World Tooltips off; a drawn plaque's plain click goes in)
           if (!isBash && !homeAsked && getInteractionMode() !== 'steal') {
             if (isHomeVoteVerb(verb)) { if (homeVotePressable(home, homeVoteOfVerb(verb))) pressHomeVote(bd, homeVoteOfVerb(verb)); else if (!home) townTalk?.say?.(HOME_VOTE_GONE_LINE); return true; }
+            if (pressHomeMute(verb, homeTownOf(bd), home, host, townTalk)) return true;   // HOME-MUTE: hidden for me, or shown again
             if (verb == null && getInteractionMode() === 'info' && homeVoteRows(home).length && !listed) { openHomeVoteMenu(bd, home, door, door === 'enter' ? homeOnward(hit, entries) : null); return true; }
           }
           if (door === 'locked') { townTalk?.say?.(homeLockedLine(home)); return true; }
@@ -8006,15 +7850,18 @@ export function createWorldModes(host) {
             if (verb === HOME_VERB.buy && price) { pressHomeBuy(bd, price); return true; }
             if (verb === HOME_VERB.entry && door === 'own') { turnHomeEntry(bd, home); return true; }
             if (verb === HOME_VERB.sell && door === 'own') { openHomeSale(bd); return true; }
+            if (verb === HOME_VERB.give && door === 'own') { openHomeTransfer(Number(homeTownOf(bd)) >>> 0, bd.buildingKey, host, (t) => townTalk?.say?.(t), accountRefusalText, home?.giving, (w) => townTalk?.showOverlay?.(w)); return true; }
             if (verb === HALL_VERB.buy && price) { pressHallBuy(bd, price); return true; }   // GUILD1d: the house bought as the guild's hall
             if (verb === HALL_VERB.entry && hallEntryTurnable(home)) { turnHallEntry(bd, home); return true; }   // GUILD1d: who may walk into the hall; AUDIT PROF-541 G2: as the service lets set it (R2-H1: the row's own gate)
+            if (verb === HALL_VERB.sell && hallSellable(home)) { openHallSale(bd, home); return true; }   // GUILD-HALL-SALE: sold at its door, as the service lets sell it
           }
           // ...and where the plaque listed none (a touch screen, World Tooltips off), the click's own ask - HOME-OFFER's
           // prompt: a house's offer in any mode but Steal, once a session per house (Info always asks); my home's menu
           // in Info
           if (verb == null) {
-            const prompt = homeDoorPrompt({ door, mode, price, declined: _homeDeclined.has(homeIdOf(bd)), asked: homeAsked, isBash });
+            const prompt = homeDoorPrompt({ door, mode, price, declined: _homeDeclined.has(homeIdOf(bd)), asked: homeAsked, isBash, hallMenu: hallManaged(home) });
             if (prompt === 'menu') { openHomeOwnerMenu(bd, home, hit, entries); return true; }
+            if (prompt === 'hall-menu') { openHallMenu(bd, home, hit, entries); return true; }   // GUILD-HALL-SALE: a hall I may turn or sell, its menu in Info
             if (prompt === 'offer') { openHomeOffer(bd, price, hit, entries); return true; }
           }
           homeOpen = door !== 'none';
@@ -8075,28 +7922,12 @@ export function createWorldModes(host) {
             setMidScreenText(lookAtLockText(lockValue, playerEntity.level, lockpick));
             return true;
           }
-          if (locId && lockpick <= getLastLockpickAttempt(locId, bd.buildingKey)) {
-            setMidScreenText(lookAtLockText(lockValue, playerEntity.level, lockpick));   // AUDIT 64 F34: LookAtInteriorLock, the same surface
-            return true;
-          }
-          tallySkill(playerEntity, SKILLS.Lockpicking, 1);
-          const chance = exteriorLockpickingChance(lockValue, lockpick);
-          const roll = 1 + Math.floor(Math.random() * 100);   // Random.Range(1, 101), success strictly chance > roll
-          if (chance > roll) {
-            // CG2: PlayerActivate.cs:552 - the tally lands BEFORE the
-            // success text and the unlock sound, as it does in C#. A
-            // picked exterior lock IS a break-in and counts one toward
-            // the Thieves Guild's ten; the FAILED roll below tallies
-            // nothing, because nothing was broken into.
-            tallyCrimeGuildRequirements(playerEntity, true, 1);
-            townTalk?.say?.(LOCKPICKING_SUCCESS_TEXT);
-            audio.playOneShot(SOUND.ActivateLockUnlock, 1);
-            isBrokenIn = true;   // :557 - the pick raises THIS and never buildingUnlocked
-          } else {
-            townTalk?.say?.(LOCKPICKING_FAILURE_TEXT);
-            if (locId) setLastLockpickAttempt(locId, bd.buildingKey, lockpick);
-            return true;
-          }
+          // LOCKPICK (bible/06-Systems/Lockpicking.md): the lock's tumblers (scenes/lockpickHost.js frontDoor), DFU's
+          // exterior chance their tolerance, where :543-566 rolled it - a lockpick from the pack, its snaps the retry's cost
+          // (the LastLockpickAttempt gate retired). Opened - CG2's tally, the success text, the unlock sound, the host's -
+          // the door is activated again, `picked`
+          if (!picked) return lockHost.frontDoor({ lock: lockValue, skill: lockpick, key: `front:${locId ?? 0}:${bd.buildingKey}`, enter: () => activateStaticDoor(hit, entries, false, { homeAsked, picked: true }).catch((e) => console.error(e)) });
+          isBrokenIn = true;   // :557 - the pick raises THIS and never buildingUnlocked
         }
         // ROAD-B - THE FIRST BASH ARM (:570-583). "Classic makes a roll
         // whether it is locked or not", and DFU's comment is the law:
@@ -8131,7 +7962,7 @@ export function createWorldModes(host) {
         // buildingGreetingsEnabled = true`. A static field, not a
         // settings key, so it is a constant here rather than an
         // invented registry entry (the port's own settings doctrine).
-        const greet = buildingGreeting({
+        const greet = (primeDecorList((home || (bd.buildingType === BUILDING_TYPES.Palace && host.seatHall?.here?.(homeTownOf(bd)))) && host.homeDecor ? decorListKey(homeTownOf(bd), bd.buildingKey, !home && bd.buildingType === BUILDING_TYPES.Palace) : null, () => host.homeDecor.list(homeTownOf(bd), bd.buildingKey, !home && bd.buildingType === BUILDING_TYPES.Palace)), buildingGreeting({
           buildingType: bd.buildingType,
           quality: bd.quality ?? 0,
           factionId: bd.factionId ?? 0,
@@ -8139,7 +7970,7 @@ export function createWorldModes(host) {
           isBrokenIn,
           houseOwned: home !== null || houseOwnedAt(bd, bd.buildingKey),   // HOME1: a player's home has no residents to greet anyone
           isShop: isShop(bd.buildingType),
-        });
+        }));
         if (greet) {
           // The house greeting is a RANDOM variant of record 256
           // (GetRandomText); the quality line is the record itself.
@@ -8243,7 +8074,6 @@ export function createWorldModes(host) {
   async function buyHomeAt(bd, price) {
     const homes = host.onlineHomes;
     if (!homes) return;
-    if (host.wildNoHouse?.()) return;   // PVPDUNGEONS (the owner: "Players cant use banks in zone and cant buy houses")
     // WD3 (AUDIT WD3 O1/O2): a home is a building key, which names a building only in its town's layout - none is bought
     // before the room's layouts of the homes' towns are heard, and a claim refused for its town's layout hears them again
     if (host.homeTownsMissing?.()) { townTalk?.say?.(accountRefusalText('home-towns')); return; }   // AUDIT WD3 B1: a town mod's pack did not load here
@@ -8253,6 +8083,7 @@ export function createWorldModes(host) {
     const purse = bankPurse();
     const r = await buyOnlineHome(homes, {
       mapId, buildingKey: bd.buildingKey, region, price,
+      ground: [houseFootprintM2(bd), bd.townBlocks ?? 0],   // DECOR-ROOMY: the measure its price was set from, kept with the claim
       afford: (n) => n <= purse.totalGold() + (homeAccount(region)?.accountGold ?? 0),
       pay: (n) => purse.pay(n, homeAccount(region)),   // MARKET-AUDIT: answering the undo of exactly what it took
       // REALM P2.2b: a realm character's record pays in the claim's own batch; a refusal gives the price back to the account
@@ -8296,6 +8127,7 @@ export function createWorldModes(host) {
       lines: [...rentPickLines(got.owner || home.owner), ...homeVoteLines(home)],   // AUDIT HOME-VOTE II B1: and its votes - where no plaque is drawn this box is the door's whole say
       options: [
         ...homeVoteChoices(home).map((c) => ({ code: c.code, label: c.label, action: () => pressHomeVote(bd, c.vote) })),   // AUDIT HOME-VOTE II B1
+        ...homeMuteOptions(home, homeTownOf(bd), host, townTalk),   // HOME-MUTE
         ...list.map((r, i) => ({
           code: `Digit${i + 1}`, label: `${i + 1} - Room ${r.room}: ${goldSum(r.price)} gold a day${r.yours ? ' (yours, renew it)' : ''}`,
           action: () => { const days = rentDayRows(r, nowS); if (days.length) openHomeRentDays(bd, r, days); else townTalk?.say?.(RENT_FULL_LINE); },   // RENT-RENEW: only the days the service takes - none left, said
@@ -8361,6 +8193,7 @@ export function createWorldModes(host) {
         { code: 'KeyG', label: 'G - go in', action: homeOnward(hit, entries) },
         { code: 'KeyW', label: 'W - who may enter', action: () => openHomeEntryMenu(bd, home.entry) },
         { code: 'KeyS', label: 'S - sell it', action: () => openHomeSale(bd) },
+        { code: 'KeyT', label: t('housing.transfer.transferIt', 'T - transfer it'), action: () => openHomeTransfer(Number(homeTownOf(bd)) >>> 0, bd.buildingKey, host, (t) => townTalk?.say?.(t), accountRefusalText, home?.giving, (w) => townTalk?.showOverlay?.(w)) },
         { code: 'Escape', label: 'Esc - close', action: () => {} },
       ],
     }));
@@ -8385,6 +8218,7 @@ export function createWorldModes(host) {
       options: [
         ...(onward ? [{ code: 'KeyG', label: 'G - go in', action: onward }] : []),
         ...homeVoteChoices(home).map((c) => ({ code: c.code, label: c.label, action: () => pressHomeVote(bd, c.vote) })),
+        ...homeMuteOptions(home, homeTownOf(bd), host, townTalk),   // HOME-MUTE
         { code: 'Escape', label: 'Esc - close', action: () => {} },
       ],
     }));
@@ -8467,7 +8301,7 @@ export function createWorldModes(host) {
    *  re-tested here; the click's own caller SPEAKS it (tryEnter, AUDIT 65 MC-2) and the swing keeps
    *  a NARROW pick (`distance: WEAPON_REACH`, no `reach`), because a swing at nothing is no refusal.
    *
-   *  Only DOORS are targets: the street's NPCs and bulletin boards are
+   *  Only DOORS are targets: the street's NPCs are
    *  in the activation ray, not the weapon's. The return is DFU's -
    *  `door.doorType != DoorTypes.DungeonExit`, i.e. the swing was
    *  consumed - which above ground is "a door was under it".
@@ -8579,7 +8413,7 @@ export function createWorldModes(host) {
     // TR5: TransportManager.HandleTransition (:196-202) - a BUILDING
     // interior puts you back on foot. The law shipped in TR1 with no
     // caller; this is it.
-    let _hccLanded = false;   // HCC: OnTransitionInterior fired, else OnFailedTransition on the way out
+    let _hccLanded = (markInteriorLoad(true), false);   // HCC: OnTransitionInterior fired, else OnFailedTransition on the way out. The comma raises the load ring as the door starts; the flag stays false.
     host.onPreTransition?.();   // AUDIT PSCALE1 NET-3: my foes to the players outside, before the door takes me
     host.horseCart?.()?.handlePreTransition({ type: 'ToBuildingInterior', door: hccDoorOf(hit) });   // HCC: OnPreTransition [IL_98f0] - the wagon's parking pose and the door's distance, BEFORE the dismount reads the mode
     unleveledLootPreTransition();   // UL1: OnPreTransition (TransitionInterior) - a listener beside TransportManager's HandleTransition, the raise itself is one
@@ -8744,7 +8578,7 @@ export function createWorldModes(host) {
           // mismatch ends the restore. A READ; nothing about a
           // building ever enters that dictionary (systems/automap/automap.js).
           dungeonEntranceDiscovered: !!getDungeonAutomap(
-            automapDungeonKey(hit.dfLocation?.regionIndex ?? -1, hit.dfLocation?.name ?? ''))?.entranceDiscovered,
+            automapKeyOf(hit.dfLocation))?.entranceDiscovered,   // TESA8: a lair's its own
         }).catch((e) => { buildingHold.release(); if (live()) say(NOTHING_OF_VALUE_TEXT); throw e; });   // PLACE-LRU: a build that throws hands no context back to release it; FIELD BUGS 2026-10-04d VOID-ENTRY: TransitionInterior's catch (PlayerEnterExit.cs:719-730) - a room that will not lay out says DFU's old chestnut; the player stays in the street (the hosts log the throw)
       if (!live()) { abandonContext(ctx); return false; }   // AUDIT 68 X3-transition-build-race: the world moved under the build (a load, a teleport) - nothing is published
       const siblings = entries.filter((e) =>
@@ -8814,10 +8648,12 @@ export function createWorldModes(host) {
       }
       interiorFoes = makeInteriorFoes(ctx);   // IF: the pool lives exactly as long as the interior does
       interiorGuards = makeInteriorGuards(ctx);   // ROAD-B: ...and so does the watch that can be called into it
+      ownerFoes.pools(interiorFoes, interiorGuards);   // HOST-CLOCK (scenes/ownerCatchUp.js): online with anyone else in the building's room, both pools take my clamped frame in FOE-CATCHUP's steps on the page's one plan - my player's pace, never past it
       _intNetOn = false; ensureInteriorNet();   // QUEST-PARTY phase 3b: online, the building's foes ride the room's own lane
       // X1: an armed Open/Lock spell fires on this interior's doors
       // too - the same law the dungeon context wires for its own.
       wireDoorSpells(ctx.actions, playerEntity, (t) => townTalk?.say?.(t));
+      lockHost.wire(ctx.actions, `inner:${interiorBuilding?.buildingKey ?? 0}`);   // AUDIT LOCKPICK A4: a door a Lock spell locked is picked as DFU picks it (ActivateActionDoor)
       // (the building was resolved above, before the context was
       // built - P1 needs it to gate the people.)
       ensureInteriorWindowArt();   // U23: every interior can open a window now
@@ -8860,6 +8696,7 @@ export function createWorldModes(host) {
       // a click.
       const spot = restore?.pos ?? floored;
       player.spawn(spot[0], spot[1], spot[2]);
+      arrivalSetDown.land(spot);   // AUDIT SHIP-REFIT: what the restore held, set down where the player now stands
       interiorNav.mount(ctx, spot);   // INDOOR-WATCH: the room's mesh, anchored on the arrival, the ways in and the doors' watch spots
       _hccLanded = true; host.horseCart?.()?.handleSuccessfulInteriorTransition({ type: 'ToBuildingInterior', buildingKey: interiorBuilding?.buildingKey ?? 0 });   // HCC: OnTransitionInterior [IL_99ac] - the wagon parks, the horse waits, the access id is this building's
       setMode('interior');
@@ -8871,7 +8708,7 @@ export function createWorldModes(host) {
       betterAmbience.onTransition({ building: true });   // BA1: OnTransitionInterior - the fog off, the 2D rain source   // AUDIT 62 F16/F28: the lock never outlives a mode change - the foe pool and the coordinate frame both change here, and lockOn breaks only on death, a null chest or 32 m, none of which fire for a street foe you walked away from through a door (the interior is parented at the building's world matrix, so it stays metres away).
       console.log(`interior: ${ctx.drawList.length} draws, ${ctx.doors.length} doors, ${ctx.lights.length} lights, ${ctx.people.length} people`);
     } finally {
-      transitioning = false;
+      transitioning = markInteriorLoad(false);   // the ring goes with the door, landed or not
       if (!_hccLanded) host.horseCart?.()?.handleFailedTransition({ type: 'ToBuildingInterior' });   // HCC: OnFailedTransition [IL_9c0c] - the pending deployment is undone, the team is back with the player
     }
     return true;
@@ -8901,7 +8738,7 @@ export function createWorldModes(host) {
   function tryExit({ pressCast = false, interact = false, actClick = false } = {}) {
     if (cardSeat) { standFromCardTable(); return true; }   // CARDS2: seated, the press stands you up and does nothing else
     if (chairSeat) { standFromChair(); return true; }   // SIT1: and off a chair
-    const eye = player.eye;
+    const eye = decorTool.flying() ? cam.pos : player.eye;   // DECOR1d: the press looks from the free camera, the same eye the plaque uses
     const dir = eyeDir();
     // FIELD BUGS 2026-10-07 INDOOR-SKIN: a profession node under the look takes the press first - a body of this
     // building's, its knife's act started (the outer host's gathering host) - tryExitDungeon's three arms, line for line:
@@ -9023,7 +8860,7 @@ export function createWorldModes(host) {
       // the geometric half-height. The teleport target re-floors via
       // gravity exactly as FixStanding would.
       const standing = [player.pos[0], player.pos[1] + 1.8 * 0.65, player.pos[2]];
-      const to = climbLadder(standing, interiorCtx.markers, INTERIOR_MARKER);
+      const to = climbLadder(standing, interiorCtx.markers, INTERIOR_MARKER, interiorCtx.ladders?.[Number(key.slice(7))]?.matrix);   // IC-INTERIORS: the ladder climbed's own markers
       if (to) {
         // Teleport just ABOVE the marker and let gravity floor it -
         // FixStanding's re-floor, without tunneling thin boards.
@@ -9037,7 +8874,7 @@ export function createWorldModes(host) {
         say('This storage belongs to the owner of this private room.'); return true;
       }
       if (key.startsWith('shelf:')) {
-        openShelf(Number(key.split(':')[1]));   // E2: the browse/buy window (no-op outside shops)
+        (decorTool.flying() && !decorTool.ghost() && plaqueActionFor(key) === 'out' ? decorTool.act('out', interiorCtx.shelves?.[Number(key.split(':')[1])]?.baseKey) : openShelf(Number(key.split(':')[1])));   // E2: the browse/buy window (no-op outside shops); decorating takes the shelf out
         return true;
       }
       if (key.startsWith('cardtable:')) {
@@ -9045,11 +8882,11 @@ export function createWorldModes(host) {
         return true;
       }
       if (key.startsWith('chair:')) {
-        sitOnChair(Number(key.split(':')[1]));   // SIT1
+        (decorTool.flying() && !decorTool.ghost() && plaqueActionFor(key) === 'out' ? decorTool.act('out', interiorCtx.chairs?.[Number(key.split(':')[1])]?.baseKey) : sitOnChair(Number(key.split(':')[1])));   // SIT1; decorating takes the chair out
         return true;
       }
       if (key.startsWith('bed:')) {
-        restFromInteriorBed();   // RR1: BedActivation (RoleplayRealism.cs:464-506) is DaggerfallUI's rest gate less its GiveOffer rung (CSA-J's audit), then the window; AUDIT-RR F6: `new DaggerfallRestWindow(uiManager, true)` (:524) - you rest in the bed you clicked, not the room's allocated one
+        (decorTool.flying() && !decorTool.ghost() && plaqueActionFor(key) === 'out' ? decorTool.act('out', interiorCtx.beds?.[Number(key.split(':')[1])]?.baseKey) : restFromInteriorBed());   // RR1: BedActivation (RoleplayRealism.cs:464-506) is DaggerfallUI's rest gate less its GiveOffer rung (CSA-J's audit), then the window; AUDIT-RR F6: `new DaggerfallRestWindow(uiManager, true)` (:524) - you rest in the bed you clicked, not the room's allocated one. Decorating takes the bed out.
         return true;
       }
       if (key.startsWith('person:')) {
@@ -9061,7 +8898,7 @@ export function createWorldModes(host) {
         return true;
       }
       if (key.startsWith('droppedTorch:')) { interiorTorches.activate(key, getInteractionMode()); return true; }   // HT1: PickUpLightSource
-      if (key.startsWith('decor:')) { activateDecor(decorIdOfKey(key)); return true; }   // DECOR1c: a placed piece - its storage opens for its owner
+      if (key.startsWith('decor:') || key.startsWith('base:')) { (key.startsWith('base:') ? (decorTool.flying() && !decorTool.ghost() && plaqueActionFor(key) === 'out' && decorTool.act('out', key.slice(5))) : (decorTool.flying() && !decorTool.ghost() && plaqueActionFor(key) ? decorTool.act(plaqueActionFor(key), decorIdOfKey(key)) : activateDecor(decorIdOfKey(key)))); return true; }   // DECOR1c: a placed piece - its storage opens for its owner; decorating runs the plaque's lit row, and Take out on the room's own furniture
       // INTERIOR-BODIES: ...AND THE PRESS ARM THE BODIES NEVER HAD.
       //
       // The same door the street opens (world.js / exterior.js) and the
@@ -9124,6 +8961,7 @@ export function createWorldModes(host) {
         return true;
       }
       if (key.startsWith('container:')) {
+        if (decorTool.flying() && !decorTool.ghost() && plaqueActionFor(key) === 'out') { decorTool.act('out', interiorCtx.containers[Number(key.split(':')[1])]?.baseKey); return true; }   // decorating takes the cupboard out instead of opening it
         // S2b/F209 -> HC1: the WHOLE HouseContainers arm of
         // PlayerActivate (:902-925). An owned interior - the house,
         // or a SHIP with OwnsShip (:905-906, "not distinguishing
@@ -9219,7 +9057,7 @@ export function createWorldModes(host) {
         }
         return true;
       }
-      interiorCtx.actions.activate(key, { steal: getInteractionMode() === 'steal', doorSpell: doorSpellFor(playerEntity) });   // X1
+      (decorTool.flying() && !decorTool.ghost() && plaqueActionFor(key) ? (interiorCtx.actions.objects.get(key)?.roomDoor ? decorTool.act('remove', interiorCtx.actions.objects.get(key).roomIndex) : (key.startsWith('act:decor:') ? decorTool.act(plaqueActionFor(key), key.slice(10)) : interiorCtx.actions.activate(key, { steal: getInteractionMode() === 'steal', doorSpell: doorSpellFor(playerEntity) }))) : interiorCtx.actions.activate(key, { steal: getInteractionMode() === 'steal', doorSpell: doorSpellFor(playerEntity) }));   // X1; decorating takes a swing door out, or runs the lit row of a placed one, instead of opening it
       return true;
     }
     // Verbatim BuildingTransitionExteriorLogic: the closest exterior
@@ -9347,12 +9185,12 @@ export function createWorldModes(host) {
    *  law: this host's dungeon arm with a level made in code, entered from the open world at the Hollow's own pixel (the
    *  world host takes the player out of the Hollow and to its pixel first, under the veil - scenes/world.js
    *  sdEnterRealm). `r` is { s: the Hollow's slot, hollow: { key, px, py, name } - where the way back leads, site: the
-   *  climate and region at its pixel }. The realm's room is the relay's `sd:<s>`. Online alone - the Hollow is. */
+   *  climate and region at its pixel, owner: the party's digest }. The realm's room is the relay's `sd:<s>.<owner>`. Online alone - the Hollow is. */
   async function enterSdRealm(r) {
-    if (mode !== 'exterior' || !r || !Number.isSafeInteger(r.s) || !(playerEntity.health > 0)) return false;
+    if (mode !== 'exterior' || !r || !sdRoomKey(r.s, r.owner) || !(playerEntity.health > 0)) return false;   // SD-PARTY: and a party's Hour to key
     const site = r.site ?? null;
-    const dfLocation = sdRealmLocation({ s: r.s, hollow: r.hollow ?? null, regionIndex: site?.regionIndex ?? -1, regionName: site?.regionName ?? '', climate: site?.climate ?? undefined });
-    const hit = { dfLocation, blocksFile: sdRealmBlocks(blocks), sdRealm: r.s, sdHollow: r.hollow ?? null, climateBase: site?.climateBase ?? 2, season: site?.season ?? 0, group: sdRoomKey(r.s), door: null, dfBlock: null, recordIndex: -1 };
+    const dfLocation = sdRealmLocation({ ...r, regionIndex: site?.regionIndex ?? -1, regionName: site?.regionName ?? '', climate: site?.climate ?? undefined });   // SD-PARTY: its slot, its owner and the Hollow it was entered from, as asked
+    const hit = { dfLocation, blocksFile: sdRealmBlocks(blocks), sdRealm: r.s, sdHollow: r.hollow ?? null, climateBase: site?.climateBase ?? 2, season: site?.season ?? 0, group: sdRoomKey(r.s, r.owner), door: null, dfBlock: null, recordIndex: -1 };
     return gatedTransition((live) => dungeonTransition(hit, [], true, live));
   }
   /** EG-PLAY (bible/11-Multiplayer/Elite-Gates.md section 31, EG-PLAY): INTO AN ELITE BREACH'S CIRCLE (world/eliteGates/egHall.js) -
@@ -9367,6 +9205,15 @@ export function createWorldModes(host) {
     const hit = { dfLocation, blocksFile: egHallBlocks(blocks), egHall: { b: r.b, seed: r.seed >>> 0, c: r.c, geo: r.geo ?? 0 }, climateBase: site?.climateBase ?? 2, season: site?.season ?? 0, group: egRoomKey(r.b), door: null, dfBlock: null, recordIndex: -1,
       egFrom: r.landing?.pos ? r.landing : null }   // EG-F (section 6.4): the opener's landing - before the arch (world/gate/gateArena.js gateLandingFor, an arch record);
     return gatedTransition((live) => dungeonTransition(hit, [], true, live));
+  }
+  /** KETCH (bible/11-Multiplayer/Sky-Ketch.md section 2): UP THE ANCHOR-LIFT ONTO A CREW'S SHIP (world/ketch/ketchShip.js) - the
+   *  Hour's law: this host's dungeon arm with a level made in code, entered from the fields under her lift (the world's
+   *  client rides it - scenes/ketch/ketchClient.js board). `r` is { n: the voyage, owner: the captain's digest, site: the
+   *  climate and region at Daggerfall }. The ship's room is the relay's `kt:<voyage>.<owner>`; where I stood is every way
+   *  down's landing (returnLanding's `from`). */
+  async function enterKetch(r) {
+    const hit = mode === 'exterior' && playerEntity.health > 0 ? ketchShipHit(r, blocks) : null;   // the made location and its blocks (scenes/ketch/ketchDeckHost.js)
+    return hit ? gatedTransition((live) => dungeonTransition(hit, [], true, live)) : false;
   }
   /** ARENA2: the floor's light and air - the sky open over the sand, the hour the torches are lit: a warm ambient the
    *  braziers add to, and a thin night fog the far tiers stand in (the court's shape, COURT_FOG). */
@@ -9571,8 +9418,13 @@ export function createWorldModes(host) {
   }
   /** EG-PLAY: AN ELITE BREACH'S CIRCLE on this screen - its mesh, its band's dress, its waystones, its portcullises, its
    *  occluders and THE SWAP (scenes/eliteGates/egCircleHost.js - HOST-SPLIT, EG-LOOK: moved out of this host, its seams read here). */
-  const egCircle = createEgCircleHost({ renderer, host, wm: { get mode() { return mode; }, get dungeonCtx() { return dungeonCtx; }, get dungeonLoc() { return dungeonLoc; } } });
+  /** The mode machine's live reads a made level's module takes (KETCH: one view for the Spire's circle and the ship - `place` the action teleport's stand, egPlace). */
+  const _madeView = { get mode() { return mode; }, get dungeonCtx() { return dungeonCtx; }, get dungeonLoc() { return dungeonLoc; }, place: (at, yaw) => egPlace(at, yaw) };
+  const egCircle = createEgCircleHost({ renderer, host, wm: _madeView });
   const { standEgHall, egCircleFrame, egPrebuild, egSwapCircle, egBandsDown, egOcc, egSwap } = egCircle;
+  /** KETCH (bible/11-Multiplayer/Sky-Ketch.md sections 3 and 11): A CREW'S SHIP on this screen - its set, its seams routed to the
+   *  world's client (`host.ketch`), its look (scenes/ketch/ketchDeckHost.js - HOST-SPLIT: built there, its reads here). */
+  const ketchDeck = createKetchDeckHost({ renderer, host, wm: _madeView });
   /** EG-ZN (2026-10-12, Elite-Gates.md section 11.8): THE OCCLUDERS DITHERED, this frame - after its beginFrame (the shadow
    *  record open) and before the dynamic draws: the circle's rock a ray from the third-person eye to my body (its pivot and
    *  its chest) crosses dithered out, the rest of the circle drawn whole (scenes/eliteGates/egOcclude.js). First person, a witness's
@@ -9594,7 +9446,7 @@ export function createWorldModes(host) {
   /** EG-PLAY: A BODY STOOD ELSEWHERE IN THE CIRCLE (a pull to the next hall's plate, the void's cast-back) - the action
    *  teleport's way (its settle, the eye with it), facing `yaw`, and the spans told where the void would cast it back to. */
   function egPlace(at, yaw = null) {
-    if (mode !== 'dungeon' || !isEgHall(dungeonLoc) || !Array.isArray(at)) return false;
+    if (mode !== 'dungeon' || !(isEgHall(dungeonLoc) || isKetchShip(dungeonLoc)) || !Array.isArray(at)) return false;   // KETCH: and a body stood elsewhere on a crew's ship (the bosun's line, the nets' cast-back)
     player.freezeMotor = TELEPORT_FREEZE_S; player.spawn(at[0], at[1], at[2]);   // the action teleport's settle
     cam.pos = [...player.eye];
     if (Number.isFinite(yaw)) cam.yaw = yaw;   // the pitch is the player's: only a DFU transition levels it (DE2)
@@ -9813,6 +9665,7 @@ export function createWorldModes(host) {
           // had nothing to read and its Load pane never refused online.
           dungeonOnline: () => host.dungeonOnline?.() ?? false,
           superRift: (s) => host.superRift?.(s) ?? null,
+          superRiftLook: (s) => host.superRiftLook?.(s) ?? null,   // AUDIT SD-THROUGH (B4): the Rift's look alone, a frame's - forwarded at last (AUDIT SD V P1's door stood unreached here, and every look made the whole word)
           sdTurn: (i, a) => host.sdTurn?.(i, a) ?? false,   // SD6c: a turn of the Orrery's stones - sent by the outer host (scenes/world.js), judged by the realm
           sdSay: (t, rank) => host.sdSay?.(t, rank) ?? false,   // AUDIT SD II (SD11d): the Hour's voice - the outer host's
           sdHallWord: () => host.sdHallWord?.() ?? null,   // SD6c: the realm's latest word on the Orrery's hall
@@ -9826,6 +9679,7 @@ export function createWorldModes(host) {
           sdHomeAge: () => host.sdHomeAge?.() ?? null,   // AUDIT SD II (L6 F16): how long ago it began to rise
           timers: (o) => host.timers?.(o) ?? null,   // TIMERS1: the dungeon's pause face reads the world host's source
           post: () => host.post?.() ?? null,   // SERVER-POST: and the mailbox's box
+          season: (o) => host.season?.(o) ?? null,   // SEASON-BOOK: and the laurel's boards
           // CASTLE1: the world host's load, for a save the dungeon's own
           // door finds was taken somewhere else (dungeonContext.js
           // quickLoad). Absent on a host with no such load, and the
@@ -9870,7 +9724,7 @@ export function createWorldModes(host) {
           onArenaHit: (hit) => !!host.onArenaHit?.(hit),   // ARENA4: and the door a blow's number on them leaves through - to the referee
           spoilContents: (key) => host.spoilContents?.(key) ?? null,   // WB9f: a piece of his spoils, listed on the plaque
           onActions: (data) => host.onActions?.(data), peers: () => host.peers?.() ?? null, selfId: () => host.selfId?.() ?? null, party: () => host.partyNear?.() ?? [], nodeMarks: (feet) => host.professionMarks?.(feet) ?? null, questMarks: () => dungeonQuestMarksHere(), grants: () => host.grants?.() ?? null,   // GUIDE8: the Exact tier's quest resources, on the dungeon's map and compass; NODE-MARKS: the dungeon's nodes on its compass, at its own feet; WORLD3: a door moved goes out; the peers the foes see; whose blow a puppet's is
-          postItem: (text) => host.postItem?.(text) ?? false, canPostItem: () => host.canPostItem?.() ?? false,   // CHAT-POST: the dungeon's pack posts through the outer host
+          linkItem: (item) => host.linkItem?.(item) ?? false, canPostItem: () => host.canPostItem?.() ?? false,   // CHAT-POST: the dungeon's pack links through the outer host
           allyMarks: (sp) => host.allyMarks?.(sp) ?? null,   // AID1 onto ALLY-CAST: the party mates' bodies, in the dungeon's frame - SPELL-GIFT: with the spell
           companionBodies: () => host.companionBodies?.() ?? null,   // COMPANION-KIT: my companions underground (the dungeon's own records)
           fates: !!host.openRevenantFate, shakeCamera: (k) => host.shakeCamera?.(k),   // REVENANT-FATE: the host opens a beaten revenant's choice; an execution's blow felt
@@ -9970,6 +9824,7 @@ export function createWorldModes(host) {
       if (hit.gateArena) gateStand.standCourt(ctx, hit.gateArena.day);   // WB3b: the court, before the start marker is read and before any namer - WB14b: its night's (scenes/gate/gateStand.js)
       if (hit.sdRealm != null) standSdRealm(ctx);   // SD5a: the Hour, before the start marker is read
       if (hit.egHall) standEgHall(ctx, hit.egHall);   // EG-PLAY: an Elite Breach's circle, the same
+      if (hit.ketch) ketchDeck.stand(ctx);   // KETCH: a crew's ship, the same
       if (hit.arenaFloor) standArenaFloor(ctx);   // ARENA2: the floor's gates, before any namer
       // OH-D: DaggerfallDungeon.OnSetDungeon - SetDungeon raises it after LayoutDungeon, before TransitionDungeonInterior
       // reads the start marker. A listener may hand back the work it started (the port's foe rebuilds - DFU's are
@@ -10143,6 +9998,7 @@ export function createWorldModes(host) {
         cam.pitch = 0;
       }
       if (hit.egHall) cam.yaw = 0;   // EG-PLAY: on a hall's plate, facing down its course
+      if (hit.ketch) cam.yaw = KT_ARRIVE.yaw;   // KETCH: in the anchor-lift, facing down the waist
       if (hit.gateArena) cam.yaw = Math.PI;   // WB3b: arriving by the bridge, facing him across the court (the start marker's own facing levelled the pitch)
       if (hit.arenaFloor) cam.yaw = (ARENA_ARRIVE[hit.arenaFloor] ?? ARENA_ARRIVE.ladder).yaw;   // ARENA2: at my mark facing my opponent, or over the sand from the terrace
       mountQuestResources();   // B2: AddQuestResourceObjects(SiteTypes.Dungeon) on the transition, as PlayerEnterExit raises it
@@ -10305,7 +10161,7 @@ export function createWorldModes(host) {
     if (key.startsWith('plaque:')) { readPlaque(key); return true; }   // ARENA5: a plaque in the Hall of Champions reads its champion
     // U26: droppedLoot: is the player's own pile - the same three-way
     // arm the standalone dungeon scene carries, kept in step here.
-    if (key.startsWith('loot:') || key.startsWith('corpse:') || key.startsWith('droppedLoot:') || key.startsWith('droppedTorch:') || key.startsWith('camp:') || key.startsWith('hearth:') || key.startsWith('search:')) {   // SEARCH1: a searchable takes the mode (Steal picks its lock); AUDIT-WH2 L2-F1: hearth: - HEARTH1's fourth host, stood and named down here since it shipped and never answered
+    if (key.startsWith('loot:') || key.startsWith('corpse:') || key.startsWith('droppedLoot:') || key.startsWith('droppedTorch:') || key.startsWith('camp:') || key.startsWith('hearth:') || key.startsWith('search:') || key.startsWith('delve:') || key.startsWith('aurum:')) {   // AURUM-CACHES: today's coffer, answered by the context's takeLoot; SEARCH1: a searchable takes the mode (Steal picks its lock); AUDIT-WH2 L2-F1: hearth: - HEARTH1's fourth host, stood and named down here since it shipped and never answered
       dungeonCtx.takeLoot(key, getInteractionMode());   // SURV3: a camp's fire takes the mode too   // opens the inventory with the pile as the remote target; HT1: a dropped torch takes the mode
       return true;
     }
@@ -10315,6 +10171,7 @@ export function createWorldModes(host) {
       return true;
     }
     if (key.startsWith('sdrift:') || key.startsWith('sdreturn:') || key.startsWith('sdstone:') || key.startsWith('sdplaque:')) { dungeonCtx.sdPress?.(key); return true; }
+    if (key.startsWith('kt:')) { host.ketch?.()?.press?.(key); return true; }   // KETCH: a crew's ship's - a cell, a socket, a resonator, the bosun's line, a way down, the chest
     if (key.startsWith('egstone:') || key.startsWith('egengine:')) { dungeonCtx.egPress?.(key); return true; }   // EG-FULL LAYER THREE: an Elite Breach's Orrery stone, a chamber's engine   // SD4b: a Super dungeon's Rift and Return (Super-Dungeons.md section 6) - the context's own
     if (key.startsWith('questflat:')) {
       // DQ1: buildingKey is 0 down here - StaticNPC reads it from the
@@ -10382,7 +10239,7 @@ export function createWorldModes(host) {
   const returnLanding = () => (dungeonReturn.gate ? host.gateLanding?.(dungeonReturn.gate) ?? null : dungeonReturn.arena ? host.arenaLanding?.() ?? dungeonReturn.arenaFrom ?? null : dungeonEntranceLanding(dungeonReturn.sdHollow ? host.sdHollowDoors?.(dungeonReturn.sdHollow) ?? [] : dungeonReturn.candidates.map((e) => e.door)) ?? dungeonReturn.from ?? null);   // ARENA2: out of the floor, before the Herald (AUDIT PRE-MERGE 1003b C7: or back where it was entered)
   function exitDungeonNow() {
     unleveledLootPreTransition();   // UL1: OnPreTransition (TransitionDungeonExterior) - and NO OnTransitionExterior here, bug for bug
-    // Verbatim PositionPlayerToDungeonExit; the camera faces the normal.
+    // PositionPlayerToDungeonExit, but for its height (TALL-DOOR, player/enterExit.js dungeonExitFeet); the camera faces the normal.
     const landing = returnLanding();   // WB3b: before the gate, out of the court
     dungeonCtx.overlayWindow?.()?.dispose?.();   // AUDIT SD II (L1 F1): forceExitToExterior's OnPop - a Hollow's end casts out under any window (AUDIT SD III: above the packing)
     const carried = dungeonCtx.camps?.packOwnFires?.({ quiet: true }) ?? 0;   // AUDIT REST-PARTY B3: before the room's memory goes - AUDIT REST II H4: said outside, below
@@ -10416,7 +10273,7 @@ export function createWorldModes(host) {
     if (landing) {
       // RepositionPlayer(DungeonEntrance): same law as the building
       // door - the door centre is the controller's centre, not the feet.
-      player.spawn(landing.pos[0], repositionFeetY(player.collider.heightAt(landing.pos[0], landing.pos[2]), landing.pos[1]), landing.pos[2]);
+      player.spawn(landing.pos[0], dungeonExitFeet(player.collider, landing), landing.pos[2]);   // TALL-DOOR: never over the floor before the door
       cam.yaw = Math.atan2(landing.normal[0], landing.normal[2]);
       // DE2: PositionPlayerToDungeonExit ends on
       // SetHorizontalFacing(foundDoorNormal) (StreamingWorld.cs
@@ -10528,7 +10385,7 @@ export function createWorldModes(host) {
     // (FrictionMotor :75-81, AcrobatMotor :135-141, WeaponManager
     // :235-239), which is the fold world.js and exterior.js took; the
     // dungeon arm keeps its context read, the same answer one seam over.
-    const paralyzed = (mode === 'dungeon' && dungeonCtx) ? (dungeonCtx.playerParalyzed?.() ?? false) : entityIsParalyzed(playerEntity);
+    const paralyzed = staffFrozen() || playerHeld() || ((mode === 'dungeon' && dungeonCtx) ? (dungeonCtx.playerParalyzed?.() ?? false) : entityIsParalyzed(playerEntity));   // STAFF-PANEL5-FREEZE: a staff freeze holds the motor as paralysis does
     // A6: FrictionMotor.GroundedMovement's head-dip guard reads
     // IsParalyzed itself (:90-93) - the zeroed input bag below is
     // the movement half of the same law, not this one.
@@ -10891,15 +10748,15 @@ export function createWorldModes(host) {
     const _activateDown = held(keys, 'ActivateCenterObject') || !!host.activateDown?.();
     const _act = activateFrame((latch.activate ??= createActivateGate()), {
       down: _activateDown,
-      hasReadySpell: (mode === 'dungeon' ? dungeonCtx?.spellArmed?.() : magic?.spellArmed()) ?? false,
+      hasReadySpell: ((mode === 'dungeon' ? dungeonCtx?.spellArmed?.() : magic?.spellArmed()) ?? false) && !host.activateLockOnly?.(),   // AUDIT SPELL-HAND L4-9: the stick-half tap is the lock pick and nothing below it (TS1) - never a cast, a spell readied or not
       touchSpell: ((mode === 'dungeon' ? dungeonCtx?.readiedSpell?.() : magic?.readied()) ?? null)?.rangeType === 1,   // rangeType 1 is ByTouch (spellcast.js:"ClassicTargetIndexToTargetType")
       hudBlocked: activeMouseOverLargeHUD(),
       paused: overlayHeld,
     });
     if (_act.cast && chairSeat) standFromChair();   // SIT1 (AUDIT FIVE-ASKS C3): a cast stands you up first - it leaves from the body's own eye
     if (_act.cast) {   // the frame's firePending sends it down the live look
-      if (mode === 'dungeon') dungeonCtx?.playerAttackInput?.(0, 0, true);
-      else magic?.interceptAttack(true);
+      if (mode === 'dungeon') dungeonCtx?.playerAttackInput?.(0, 0, true, true);   // SPELL-HAND: the cast's own press, never the swing's
+      else magic?.interceptAttack(true, CAST_PRESS);
     }
     const useEdge = pressed(latch.edge, keys, 'Interact');   // KB1: the Interact ACTION (E by default, Mac's call) - it was a raw `KeyE` beside DFU's E-AbortSpell, and one press did both
     // C9: per-mode routing (the old unconditional dungeonCtx read
@@ -10972,7 +10829,7 @@ export function createWorldModes(host) {
       if (isGateArena(dungeonLoc)) for (const d of dungeonCtx.dynamicDraws) if (d.shard) shardMatrix(d.shard, _deadS, d.object.matrix);   // WB6b: the floor's shards, bobbing and turning where the sky's clock has them (before the frame's draws, which the shadows record)
       // WB9b: and each walkway's stones rising as it is laid - the fight's crossings on the relay's clock (host.gateFloor)
       if (isGateArena(dungeonLoc)) { const _floor = host.gateFloor?.() ?? null; for (const d of dungeonCtx.dynamicDraws) if (d.slab) slabMatrix(d.slab, _floor?.xa ?? NO_XA, _floor?.now ?? 0, d.object.matrix); }
-      if (isSdRealm(dungeonLoc) && !dungeonCtx.uiOverlayActive) dungeonCtx.sdPose?.(dt, player.pos);   // AUDIT SD II (L2 F10): the Hour's hall and arena posed BEFORE the frame's draws, as the Steps are before the motor - posed in drawFoes, after the world pass, its hands and bodies were drawn a frame late (the Remnant behind its own telegraph); no window up, as drawFoes was
+      if (isSdRealm(dungeonLoc) && !windowHoldsDungeon(dungeonCtx.uiOverlayActive, aliveUnder())) dungeonCtx.sdPose?.(dt, player.pos);   // AUDIT SD II (L2 F10): the Hour's hall and arena posed BEFORE the frame's draws, as the Steps are before the motor - posed in drawFoes, after the world pass, its hands and bodies were drawn a frame late (the Remnant behind its own telegraph); no window up, as drawFoes was
       // AUDIT 26 F183: castle blocks and the one special area take
       // 0.58 where a plain dungeon takes 0.12 (PlayerAmbientLight.cs
       // :82-90) - Castle Daggerfall, Wayrest and Sentinel's non-hostile
@@ -11052,10 +10909,11 @@ export function createWorldModes(host) {
       if (isGateArena(dungeonLoc)) { const _court = withCourtLights(_dgLit, [...(host.gateCourtLights?.() ?? []), ...courtLightsNear(cam.pos, planOfDay(dungeonLoc.gate))]); renderer.setPointLights(_court.data, null, _court.colors); }
       if (isSdRealm(dungeonLoc)) { const _hour = realmLightsWith(_dgLit, host.sdRealmLights?.() ?? NO_LIGHTS, cam.pos, host.sdLampDim?.() ?? null); renderer.setPointLights(_hour.data, null, _hour.colors); }   // SD5a: the Hour's lamps, after the player's own lights, nearest first; SD9e: the spoils' light before them, as the court's; AUDIT SD II (L2 F9): into the realm's own arrays, made once; SD-LOOK S7: the arena's dimmed through the Reset
       if (isEgHall(dungeonLoc)) { const _sp = egLightsWith(_dgLit, host.egLights?.() ?? NO_LIGHTS, egCircle.lamps(), cam.pos); renderer.setPointLights(_sp.data, null, _sp.colors); }   // EG-PLAY: the Spire's lamps after the player's own lights, the fight's glows before them
+      const _ktLook = isKetchShip(dungeonLoc) ? ketchDeck.frameLook(mwv.eye, _dgLit, skyMinutes() % 1440) : null;   // KETCH: the deck's hour (its light, its haze, its sun) or below decks' lamps; the ship's lamps and the fight's glows after my own lights
       renderer.everyLightCasts();   // LA-SHADOW3: the level is drawn whole below (no view cull) - every torch keeps a shadow map, none lights through the rock as the nearest eight change (DISC15's rooms)
       renderer.setClearColor(INTERIOR_CLEAR);   // REVIEW 2026-09-05 (PR #55 review): the world-hosted dungeon/interior frame is THIS one - the host's own setClearColor sits after its `modes.frame` return
       renderer.setWorldViewport(worldViewportRect(canvas.clientWidth, canvas.clientHeight));   // E5: ViewportChanger.Update, every frame
-      renderer.beginFrame(proj, view, INTERIOR_LIGHT_DIR, WORLD_FRAME);   // AUDIT-EL F5: a WORLD frame - the lane replays its records for this one
+      renderer.beginFrame(proj, view, _ktLook?.sunDir ?? INTERIOR_LIGHT_DIR, WORLD_FRAME);   // AUDIT-EL F5: a WORLD frame - the lane replays its records for this one; KETCH: on deck, the sun's own direction
       renderer.beginCharacterSpriteBatch?.();
       try {
         mwViewDrawBody(canvas, { proj, view, eye: mwv.eye, feet: player.bodyFeetAt(), yaw: player.bodyYawFor(cam.yaw), viewYaw: cam.yaw });   // MW-D24; DISC18: the body at the capsule's own feet, not the camera's smoothed ones
@@ -11068,7 +10926,7 @@ export function createWorldModes(host) {
       for (const d of dungeonCtx.dynamicDraws) if (!d.hidden && !d.culled) renderer.drawMesh(d.gpu, d.object.matrix, d.texRemap ?? dungeonCtx.texRemap, d.noShadow ? DRAW_NO_SHADOW : DRAW_SHADOW);   // AUDIT SD II (L2 F11): a draw that says it is hidden (the Hour's gone steps and bodies) is no draw, and no shadow's record; SD-LOOK: a draw's own texRemap (a state's records), `noShadow` (a part that turns rebuilds no cube) and `culled` (a stage out of sight) - each read only where a draw carries it
       host.drawModeMeshes?.();   // CSA-C: a boat on the dungeon's water
       drawCrownHall({ proj, view, eye: mwv.eye });   // CROWN-HALL: the throne room's board, chest and banners - opaque, before the flats
-      drawArenaWall(); if (isArenaFloor(dungeonLoc)) host.drawSky?.(...skyLookAngles(cam.yaw, cam.pitch + (host.climbFeel?.pitch?.() ?? 0), decorTool.flying() || cardSeat ? null : mwv.look), fieldOfView() + (host.climbFeel?.fovRad() ?? 0), largeHudWorldAspect(canvas.clientWidth, canvas.clientHeight), renderer.worldViewportPx ?? [0, 0, renderer.gl.drawingBufferWidth, renderer.gl.drawingBufferHeight]);   // ARENA5: the Hall of Champions' plaques - opaque, before the flats; HOTFIX 1003l (live: "the private sessions are missing the sky and the entrance is black"): the floor is drawn as a dungeon, cleared to black - the world's own sky over it now, after the opaque level (it shades only what nothing nearer claimed) and before the flats
+      drawArenaWall(); if (isArenaFloor(dungeonLoc) || isKetchShip(dungeonLoc)) host.drawSky?.(...skyLookAngles(cam.yaw, cam.pitch + (host.climbFeel?.pitch?.() ?? 0), decorTool.flying() || cardSeat ? null : mwv.look), fieldOfView() + (host.climbFeel?.fovRad() ?? 0), largeHudWorldAspect(canvas.clientWidth, canvas.clientHeight), renderer.worldViewportPx ?? [0, 0, renderer.gl.drawingBufferWidth, renderer.gl.drawingBufferHeight]);   // ARENA5: the Hall of Champions' plaques - opaque, before the flats; HOTFIX 1003l (live: "the private sessions are missing the sky and the entrance is black"): the floor is drawn as a dungeon, cleared to black - the world's own sky over it now, after the opaque level (it shades only what nothing nearer claimed) and before the flats
       if (isGateArena(dungeonLoc)) host.drawGateBackdrop?.({ proj, view, eye: mwv.eye });   // WB6a: the Deadlands' sea and sky - after the court's solid geometry, so they burn only where they show (PERF2's law), before its flats, so a flat blended over the sky lands on it
       if (isSdRealm(dungeonLoc)) host.drawSdSky?.({ proj, view, eye: mwv.eye });   // SD5b: the Hour's sky - after its islands, before its flats (PERF2's law)
       if (isEgHall(dungeonLoc)) host.drawEgSky?.({ proj, view, eye: mwv.eye });   // EG-PLAY; EG-G2: the Spire's own sky (render/eliteGates/egSkyPass.js - its band's void and the Spire's underside)
@@ -11076,11 +10934,13 @@ export function createWorldModes(host) {
       renderer.drawFoeTelegraphs?.(drawableBlows(tacticsNow(), player.pos));   // TACT4: a foe's wind-up on the ground
       renderer.drawFoeTelegraphs?.(techniqueMarksNow());   // TECH1: and the player's own marks, after the foes' (bible/05-Combat/Weapon-Techniques.md)
       if (isGateArena(dungeonLoc)) host.drawGateBodies?.(canvas, proj, view, mwv.eye, dt);   // MWNPC10: the court's creatures in their bodies (their batches ride extraBillboards)
-      if (dungeonCtx.uiOverlayActive) dungeonCtx.drawWindowBodies?.(canvas, { proj, view, eye: cam.pos });   // AUDIT MW-NPC C6, FB1015 LOOT-BODY: under a window drawFoes' last bodies, frozen
+      if (windowHoldsDungeon(dungeonCtx.uiOverlayActive, aliveUnder())) dungeonCtx.drawWindowBodies?.(canvas, { proj, view, eye: cam.pos });   // AUDIT MW-NPC C6, FB1015 LOOT-BODY: under a window drawFoes' last bodies, frozen
       dungeonCtx.bloodMarks?.draw?.(camRight, UP_Y);   // BLOOD1a: the dungeon's own marks, on this host's pass   // BLOOD1b: and its chunks, on this host's own basis
       dungeonCtx.drawPeople?.(canvas, proj, view, mwv.eye, dt, offerDungeonQuestStands);   // MWNPC8b: the people in their bodies - before the level's billboards draw; MWNPC8c: and the quest's
       renderer.drawBillboards([...dungeonCtx.billboardBatches, ...dungeonCtx.campBatches(), ...dungeonCtx.torchBatches(), ...(host.extraBillboards?.() ?? [])], camRight, UP_Y);   // ONLINE1: the peers on the dungeon's own pass; HT1 the dropped torches; SURV3 the campfires
+      npcMarks.gather(npcMarkCtx, dungeonCtx.people, dungeonQuestFlats);   // NPC-MARKS: who of the people drawPeople stood earns a mark
       host.drawLootLines?.({ proj, view, eye: mwv.eye, finds: () => dungeonCtx.lootFinds?.() ?? [] });   // LOOT11: the lines of light over the dungeon's finds
+      if (npcMarks.draw(proj, view, mwv.eye, dungeonCtx.peopleLane, performance.now() / 1000)) renderer.markForeignPass();   // NPC-MARKS: the marks over its people, after the flats
       if (isGateArena(dungeonLoc)) host.drawGateCourt?.({ proj, view, eye: mwv.eye });
       if (dungeonCtx.sdEndLook) host.drawSdRift?.({ proj, view, eye: mwv.eye, end: dungeonCtx });   // SD-LOOK: the Rift's window into the Hour, its floor light and its heart; the Return's window home - after the flats (they composite over what stands behind them)
       // SD8d: the Brass Remnant's blows on the arena's floor, the court's way. AUDIT SD IV (R1): AFTER THE LAST FLAT - the
@@ -11088,8 +10948,9 @@ export function createWorldModes(host) {
       // them covered the light in front of it: drawFoes' late slot draws them (lateWorldDraw); a window up skips drawFoes,
       // so they are drawn here then, under it
       _sdLate.on = isSdRealm(dungeonLoc); _sdLate.proj = proj; _sdLate.view = view; _sdLate.eye = mwv.eye;
-      if (_sdLate.on && dungeonCtx.uiOverlayActive) host.drawSdTelegraph?.(_sdLate);
+      if (_sdLate.on && windowHoldsDungeon(dungeonCtx.uiOverlayActive, aliveUnder())) host.drawSdTelegraph?.(_sdLate);
       if (isEgHall(dungeonLoc)) host.drawEgFight?.({ proj, view, eye: mwv.eye });   // EG-PLAY: a hall's telegraphs, vents and rifts - after the flats, the court's way
+      if (isKetchShip(dungeonLoc)) host.drawKtFight?.({ proj, view, eye: mwv.eye });   // KETCH: the ship's telegraphs and the hold's spoils' lines - after the flats, the court's way; KETCH-LOOK KL3: its halos, and the renderer's own fog (her look's record, mode 'exp' with no range or eye, fogged none of them)
       // AUDIT 17e F1: this MUST return true like every other exit of
       // the dungeon branch. Returning undefined let the host fall
       // through and run its whole exterior frame on top - the town
@@ -11109,8 +10970,11 @@ export function createWorldModes(host) {
       // under the enhanced skin: they stay painted until told otherwise
       // (AUDIT 64 F37's law). A refusal spoken as a window opened stood
       // over that window until it closed.
-      if (dungeonCtx.uiOverlayActive) { dungeonCtx.hideHudText?.(); hideWorldPlaque(); dungeonCtx.tickOverlay(dt); host.drawPeerNames?.({ proj, view, eye: mwv.eye }); host.drawCompanionBars?.({ proj, view, eye: mwv.eye }); dungeonCtx.drawOverlay(canvas); return true; }   // U2b/U3: overlays gate the dungeon (AUDIT 18 F5: the overlay's own clock still runs)   // AUDIT-WH H4: and the plaque comes down on this line too - this return is ABOVE drawFoes, where the hover lives, so it hung frozen over every dungeon window showing a container's PRE-TAKE contents
-      dungeonCtx.drawFoes(dt, canvas, proj, view, cam.pos, player.pos, anyMove(moveHeld(keys)), player.height, !!player.isSneaking, motionBagOf(player), player.bobOffset ? player.bobOffset[1] : 0, !!player.crouching, player.feetAt(), climbRigInput(player, cam.yaw), aimView);   // DISC13-A: the render feet, the candle's   // CLIMB6: the climb's snapshot   // ROAD-H H1b: PlayerMotor.IsCrouching rides in beside the live height - the archer's 0.05 dip (DaggerfallMissile.cs:583-585) is the latched STATE, not a 0.9 capsule   // PX26 F4: the jump-state inputs the interior lane never sent - without them `grounded` read undefined, the rig thought the player was permanently airborne, and BOTH the movement selection and the jump play died in every interior   // moveHeld: the collision-trigger input gate (verbatim)   // C8 foes + S3b clock + S4b missiles - internally gated, must run foes or not (trap spells fire in empty dungeons)
+      // RPT1026-FIGHTS (WINDOW-ONLINE, scenes/windowWorld.js): the window HOLDS this frame offline alone (DFU's PauseGame) -
+      // online the world it stands in runs on under it (WINFOE1's law, underground at last): the frame below steps the
+      // foes, ticks the rounds and draws, the window last over it; the motor, the input and the breath stay held
+      if (windowHoldsDungeon(dungeonCtx.uiOverlayActive, aliveUnder())) { dungeonCtx.hideHudText?.(); hideWorldPlaque(); dungeonCtx.tickOverlay(dt); host.drawPeerNames?.({ proj, view, eye: mwv.eye }); host.drawCompanionBars?.({ proj, view, eye: mwv.eye }); dungeonCtx.drawOverlay(canvas); return true; }   // U2b/U3: overlays gate the dungeon (AUDIT 18 F5: the overlay's own clock still runs)   // AUDIT-WH H4: and the plaque comes down on this line too - this return is ABOVE drawFoes, where the hover lives, so it hung frozen over every dungeon window showing a container's PRE-TAKE contents
+      dungeonCtx.drawFoes(dt, canvas, proj, view, cam.pos, player.pos, !dungeonCtx.uiOverlayActive && anyMove(moveHeld(keys)), player.height, !!player.isSneaking, motionBagOf(player), player.bobOffset ? player.bobOffset[1] : 0, !!player.crouching, player.feetAt(), climbRigInput(player, cam.yaw), aimView);   // DISC13-A: the render feet, the candle's   // CLIMB6: the climb's snapshot   // ROAD-H H1b: PlayerMotor.IsCrouching rides in beside the live height - the archer's 0.05 dip (DaggerfallMissile.cs:583-585) is the latched STATE, not a 0.9 capsule   // PX26 F4: the jump-state inputs the interior lane never sent - without them `grounded` read undefined, the rig thought the player was permanently airborne, and BOTH the movement selection and the jump play died in every interior   // moveHeld: the collision-trigger input gate (verbatim)   // C8 foes + S3b clock + S4b missiles - internally gated, must run foes or not (trap spells fire in empty dungeons)
       // WATER-D1: the water plane is drawn INSIDE drawFoes now, before the
       // weapon overlay - a draw here landed after the lane's resolve and
       // showed through every wall (dungeonContext.js's note at the draw).
@@ -11124,7 +10988,7 @@ export function createWorldModes(host) {
       // (which is raised BY the draw) would never have appeared. The
       // other three hosts draw their slot unconditionally already;
       // this is the one that branched.
-      if (dungeonCtx.unpausedOverlay) { dungeonCtx.tickOverlay(dt); dungeonCtx.drawOverlay(canvas); }
+      if (dungeonCtx.unpausedOverlay || dungeonCtx.uiOverlayActive) { dungeonCtx.tickOverlay(dt); dungeonCtx.drawOverlay(canvas); }   // RPT1026-FIGHTS (WINDOW-ONLINE): and a pausing one the frame ran under, online
       return true;
     }
 
@@ -11140,7 +11004,7 @@ export function createWorldModes(host) {
     if (pendingInteriorExit) { pendingInteriorExit = false; exitInteriorNow(); return true; } else if (standFromVoid(interiorCtx.voidRescue, player)) { cam.pos = [...player.eye]; say(INTERIOR_VOID_TEXT); }   // FIELD BUGS 2026-10-04d VOID-ENTRY: THE FAILSAFE (enterExit.js standFromVoid) - a body below everything the building stands on fell for good, in the black ("Complete darkness and possibly stuck"); it stands again where the door landed it, and is told
     // AUDIT 23 (C12: cross-6 = wts-3) - PlayerAmbientLight.cs:75-80: a
     // night interior takes the darker purple-tinted ambient.
-    renderer.setLighting(new Float32Array(isNight(skyMinutes() % 1440) ? INTERIOR_NIGHT_AMBIENT : INTERIOR_AMBIENT), 0);   // TIME1: the sky's night
+    renderer.setLighting(new Float32Array(roomAmbient(isNight(skyMinutes() % 1440) ? INTERIOR_NIGHT_AMBIENT : INTERIOR_AMBIENT, interiorCtx.roomLamps)), 0);   // TIME1: the sky's night; RPT1026-WORLD DARK-ROOM: a room with no lamp of its own lit as DFU's Lit Interiors lights it (interiorLights.js roomAmbient) - AUDIT RPT1026 J1: by the lamps it was built with
     // AUDIT EV F-R1: no moonlight and no stale exterior indirect
     // through the walls - see the dungeon arm's note above.
     renderer.setMoonlight(null);
@@ -11315,6 +11179,7 @@ export function createWorldModes(host) {
     offerQuestStands(questFlats, peopleBodies, _peopleOn, interiorBuilding?.buildingKey ?? 0, mwv.eye, dt);   // MWNPC8c: and the quest's
     offerDecorFigures(interiorDecor.figures(), peopleBodies, _peopleOn, figureCtx, mwv.eye, dt);   // MWNPC18: and the figures the home's owner placed
     peopleBodies.draw(canvas, proj, view, mwv.eye, dt);
+    npcMarks.gather(npcMarkCtx, interiorCtx.people, questFlats);   // NPC-MARKS: who of them earns a mark (drawn after the billboards)
     host.drawLivingBodies?.(canvas, proj, view, mwv.eye, dt);   // MWNPC10c: the residents the day has in here, in their bodies (their batches ride livingBillboards)
     // BLOOD1 AUDIT (2026-09-20): THE INTERIOR'S OWN MARKS, and they
     // were missing. This host builds a pool like the other three,
@@ -11391,10 +11256,9 @@ export function createWorldModes(host) {
     if (magic) {
       // M2: the armed click's cast + missile flight, on the interior's
       // own collider (the engine's mode-aware raycast reads it).
-      magic.firePending([...cam.pos], eyeDir());
+      magic.firePending([...cam.pos], eyeDir(), overlayHeld);   // AUDIT SPELL-HAND L4-6: a kept press never leaves under a window
       magic.update(dt, player.pos, eyeDir(), player.height, player.feetAt());   // X11: the candle hangs off the look direction; DISC13-A off the render feet
       if (magic.batches().length) renderer.drawBillboards(magic.batches(), camRight, UP_Y);
-      magic.drawFx?.();   // IMPACTFX: the spells' landings in light, over their flashes
     }
     // LM1: the transformed move-sound loop, in this host's INTERIOR
     // arm (dungeon mode runs dungeonContext's frame, which carries its
@@ -11403,10 +11267,12 @@ export function createWorldModes(host) {
     { const mv = lycanthropeMoveSound(playerEntity, dt); if (mv != null) audio.playOneShot(mv, 1); }
     if (interiorCtx.animateChars) interiorCtx.animateChars((performance.now() - _charT0) / 1000, _charAnimMode);
     for (const d of interiorCtx.charDraws) renderer.drawCharacter(d.mesh, d.matrix);
+    magic?.drawFx?.();   // IMPACTFX: the spells' landings in light, over their flashes; STOREFRONT (AUDIT STOREFRONT RENDER L3): with the kill effects, after the room's last opaque draw (its characters) - no depth written, so a body drawn after them painted over them
     host.drawVeiledPeerBodies?.();   // INVIS-LOOK: the concealed peers' bodies, translucent - after the room's opaque draws, before the weapon's screen quads
     interiorFoes?.drawVeiledBodies();   // MWNPC5c: the concealed foes' bodies, beside the peers'
     interiorGuards?.drawVeiledBodies();   // MWNPC6: and the watch's
     host.drawLootLines?.({ proj, view, eye: mwv.eye, finds: () => [...interiorDropped.lootFinds(), ...(interiorFoes?.lootFinds?.() ?? [])] });   // LOOT11: the lines of light over a building's finds - additive, after the veiled bodies
+    if (npcMarks.draw(proj, view, mwv.eye, peopleBodies, performance.now() / 1000)) renderer.markForeignPass();   // NPC-MARKS: the marks over the people, after the veiled bodies
     // C9: the interior FP weapon - gesture/swing/sounds through the
     // rig; the strike frame runs the WeaponEnvDamage ray against the
     // interior's action objects (swing doors bash, verbatim). Bows
@@ -12326,7 +12192,7 @@ export function createWorldModes(host) {
       // that lets you sleep in it" - and that moment arrived in the
       // same merge: DaggerfallBankManager.IsHouseOwned is live over
       // the region's own registry slot.
-      houseOwned: !interiorHome && houseOwnedAt(b, b?.buildingKey ?? 0), homeBed: homeBedIsMine(interiorHome, Math.floor(Date.now() / 1000)) || !!interiorSeatHall?.member,   // HOME1: my online home's bed is mine; HOME-RENT: and a tenant rests in the home they rent in - RENT-REST (FIELD BUGS 2026-10-01): handed as the home's BED (homeBed), which the bag stands where a bought house stands (a tenant's visit is no permanent scene, and houseOwned alone was asked inside that test - refused); an online home never asks the offline bank's houses; GUILD1d: and a member's bed in their guild's hall (homeRent.js homeBedIsMine); SEAT-HALL: and the holder's members in their palace
+      houseOwned: !interiorHome && houseOwnedAt(b, b?.buildingKey ?? 0), homeBed: homeBedIsMine(interiorHome, Math.floor(Date.now() / 1000)) || !!interiorSeatHall?.member || (!!interiorHome && decorMayRest(Number(homeTownOf(b)) >>> 0, b?.buildingKey)),   // REST-GUEST: a guest its owner named   // HOME1: my online home's bed is mine; HOME-RENT: and a tenant rests in the home they rent in - RENT-REST (FIELD BUGS 2026-10-01): handed as the home's BED (homeBed), which the bag stands where a bought house stands (a tenant's visit is no permanent scene, and houseOwned alone was asked inside that test - refused); an online home never asks the offline bank's houses; GUILD1d: and a member's bed in their guild's hall (homeRent.js homeBedIsMine); SEAT-HALL: and the holder's members in their palace
       ...(caravanGuestHere() ? { homeBed: true } : {}),   // WAGONS2-VISIT: and a caravan's visitor rests in it (over the line above - a visit is no home of mine)
       // GetRentedRoom(mapId, buildingKey), through the SAME finder the
       // tavern window rents with - so the bed this answers is the bed
@@ -12440,10 +12306,10 @@ export function createWorldModes(host) {
     say,
     onLevelUp: onInteriorLevelUp,   // AUDIT 68 S23-levelup-closure-dup: the walk and the rest level up through ONE arm
     day: () => false, inside: () => true,   // a building interior, always
-    restKind: () => { const p = interiorRestPlaceHere(); return p.houseOwned || p.isShip || !!p.room ? 'bed' : interiorCamps.fireNear(player.pos) ? 'camp' : 'rough'; },
+    restKind: () => interiorRestSpot(interiorRestPlaceHere(), { pressedBed: _restFromBed, fireNear: interiorCamps.fireNear(player.pos) }).kind,   // RPT1026-MISC BED-PRESS-INDOOR: a bed pressed is a bed's rest, as the street's and the dungeon's hosts price it
     // REST1: online every building is a rest point and CanRest decides it (the rented room, the house, the ship, the hall),
     // as the window always has; a hearth in reach names the fire
-    restPoint: () => { const p = interiorRestPlaceHere(); return { kind: p.houseOwned || p.isShip || !!p.room ? 'bed' : interiorCamps.fireNear(player.pos) ? 'camp' : 'rough', where: !(p.houseOwned || p.isShip || p.room) && interiorCamps.fireNear(player.pos) ? 'fire' : null }; },   // SURV4: a rented room, your house or your ship is a bed; a guild hall's boards are rough - AUDIT SURV-TIERS: and its hearth a camp's rest, as a brazier is outdoors (HEARTH1 warmed the room and forgot the sleep)
+    restPoint: () => interiorRestSpot(interiorRestPlaceHere(), { pressedBed: _restFromBed, fireNear: interiorCamps.fireNear(player.pos) }),   // SURV4: a rented room, your house or your ship is a bed; a guild hall's boards are rough - AUDIT SURV-TIERS: and its hearth a camp's rest, as a brazier is outdoors (HEARTH1 warmed the room and forgot the sleep); RPT1026-MISC BED-PRESS-INDOOR: and a bed pressed, a bed (restSession.js interiorRestSpot)
   });
 
   /** ESC-BOOK (2026-09-27): THIS HOST'S PAUSE BAG, one arm for both doors that mount the pause window in a building -
@@ -12465,6 +12331,7 @@ export function createWorldModes(host) {
     loadingPrevented: host.loadingPrevented,   // ONLINE-LOAD1: forwarded from the world host, same as quickLoad above
     timers: host.timers,   // TIMERS1: the hourglass's window, the world host's source
     post: host.post,   // SERVER-POST: the mailbox's box, the world host's
+    season: host.season,   // SEASON-BOOK: the laurel's boards, the world host's
     playerName: host.playerName,
     playerId: host.playerId,   // AUDIT 27h A3: CHARID1's by-id Save list - the street's bag always carried it, this one never did
     saveAs: host.saveAs,
@@ -13232,7 +13099,7 @@ export function createWorldModes(host) {
     // ONLINE1: what the host needs to name the room - the mounted dungeon's
     // location, the interior's building; null in the exterior
     // ARENA4: the floor's instance standing a relay's bout is that bout's room (`arena:b<id>`)
-    roomIdentity: () => (mode === 'dungeon' ? (isGateArena(dungeonLoc) ? { kind: 'gate', day: dungeonLoc.gate } : isSdRealm(dungeonLoc) ? { kind: 'sd', s: dungeonLoc.sdRealm } : isEgHall(dungeonLoc) ? { kind: 'eg', b: dungeonLoc.egBreach } : isArenaFloor(dungeonLoc) && dungeonLoc.arenaBout ? { kind: 'arena', o: dungeonLoc.arenaBout } : { kind: 'dungeon', mapId: dungeonLoc?.mapTableData?.mapId ?? null, regionIndex: dungeonLoc?.regionIndex ?? -1, name: dungeonLoc?.name ?? '', size: builtDungeonSize(dungeonLoc), instance: placeInstance })   // WB3b: the court's room is its gate's own; SD-ONLINE: a dungeon's room is its layout's (the size it was BUILT at); HOLD-SHARED (2026-10-12): Privateer's Hold keys its shared room as every dungeon does (HOLD-SOLO's `solo` reverted)
+    roomIdentity: () => (mode === 'dungeon' ? (isGateArena(dungeonLoc) ? { kind: 'gate', day: dungeonLoc.gate } : isSdRealm(dungeonLoc) ? { kind: 'sd', s: dungeonLoc.sdRealm, o: dungeonLoc.sdOwner } : isEgHall(dungeonLoc) ? { kind: 'eg', b: dungeonLoc.egBreach } : isArenaFloor(dungeonLoc) && dungeonLoc.arenaBout ? { kind: 'arena', o: dungeonLoc.arenaBout } : isKetchShip(dungeonLoc) ? { kind: 'kt', key: dungeonLoc.ketch.key } : { kind: 'dungeon', mapId: dungeonLoc?.mapTableData?.mapId ?? null, regionIndex: dungeonLoc?.regionIndex ?? -1, name: dungeonLoc?.name ?? '', size: dungeonRoomSize(dungeonLoc), instance: placeInstance })   // WB3b: the court's room is its gate's own; SD-ONLINE: a dungeon's room is its layout's (the size it was BUILT at); HOLD-SHARED (2026-10-12): Privateer's Hold keys its shared room as every dungeon does (HOLD-SOLO's `solo` reverted)
       : mode === 'interior' ? { kind: 'interior', buildingKey: interiorBuilding?.buildingKey ?? 0, layout: _visitLayout, instance: placeInstance, ...(interiorCabin ? { boatUid: interiorCabin.uid } : {}), ...(_intShared?.owned ? { private: true, privateRoom: privateVisitRoom } : {}) } : null),   // personal interiors share presence in an owner-specific room, never world memory/loot
     get dungeonLocation() { return dungeonLoc; },   // B2: playerInside's dungeon arm
     /** X7: the Identify SPELL's window (Identify.cs:71-76 pushes the
@@ -13356,6 +13223,10 @@ export function createWorldModes(host) {
     egHallBreach: () => (mode === 'dungeon' && isEgHall(dungeonLoc) ? dungeonLoc.egBreach : null),   // EG-PLAY: the breach whose circle stands under this player
     egHallCircle: () => (mode === 'dungeon' && isEgHall(dungeonLoc) ? dungeonLoc.egCircle : null),   // EG-PLAY: and which circle it is
     enterEgHall,   // EG-PLAY: into a breach's circle (the world host steps the veil)
+    enterKetch,   // KETCH: up the anchor-lift onto a crew's ship (the world's client rides it)
+    ktShip: () => (mode === 'dungeon' && isKetchShip(dungeonLoc) ? dungeonLoc.ketch : null),   // KETCH: the crew's ship under this player - its voyage, its captain, its room
+    ktLeave: () => { if (mode !== 'dungeon' || !isKetchShip(dungeonLoc) || !dungeonCtx) return false; pendingDungeonExit = true; return true; },   // KETCH: down at the top of the next frame, to where I boarded (returnLanding's `from`)
+    ktPlace: egPlace,   // KETCH: stood elsewhere on the ship - the bosun's line's ride
     egPlace,   // EG-PLAY: stood elsewhere in the circle - a pull to the next hall's plate
     egLeave: () => { if (mode !== 'dungeon' || !isEgHall(dungeonLoc) || !dungeonCtx) return false; pendingDungeonExit = true; return true; },   // EG-PLAY: out of the breach at the top of the next frame, to where it was answered from (returnLanding's `from`)
     egHallReturn: () => (mode === 'dungeon' && isEgHall(dungeonLoc) ? dungeonReturn?.from ?? null : null),   // EG-PLAY: where a death or a new circle stands me outside
@@ -13683,6 +13554,7 @@ export function createWorldModes(host) {
      *  land the player one building offset away from where they set
      *  it. Same distinction the interior save half draws (IS1's
      *  `restore.pos` lands raw over the door landing). */
+    portalBookHere: () => bookHouseOf(interiorHome, mode === 'interior' && !!interiorBuilding && houseOwnedAt(interiorBuilding, interiorBuilding.buildingKey), interiorBuilding, homeTownOf(interiorBuilding), exitReturn?.siblings, player.pos, !!(interiorCabin || privateVisitRoom) || mode !== 'interior'),   // PORTAL-BOOK (scenes/portalBookHost.js): the house I stand in and the landing outside its front door, or null
     setPlayerLocalPosition(p) {
       player.spawn(p[0], p[1], p[2]);
       cam.pos = player.eyeAt();   // EV1: the interpolated render eye
@@ -13871,6 +13743,7 @@ export function createWorldModes(host) {
     attackInput(dx, dy, held) { if (held && decorTool.flying()) return; modalAttackSink()?.(dx, dy, held); },
     /** DECOR1e: the decorator's camera flies - the hosts' finger taps activate nothing under it. */
     decorFlying: () => decorTool.flying(),
+    musicBoxHere: (id) => mode === 'interior' && interiorDecor.pieceOf(id)?.station === MUSIC_STATION,   // MUSIC-BOX: a box in this room, for the world host's music chain (systems/musicBox.js createMusicBoxScore)
     /** CARDS-TOUCH (Tavern-Cards section 31): the player sits at a card table - the hosts' touch layer stands its look,
      *  swing and tap down (ui/touch/touch.js `cardTable`): the table's own listeners read the finger. */
     cardSeated: () => mode === 'interior' && !!cardSeat,
@@ -13997,6 +13870,9 @@ export function createWorldModes(host) {
     get insideOpenShop() { return !!interiorBuilding?.insideOpenShop; },
     get interiorCtx() { return interiorCtx; },
     get dungeonCtx() { return dungeonCtx; },
+    /** PARTY-PING: the plaque's list and its words, so a coffin, a shelf and a door are named as the plaque names them. */
+    pingLook() { return mode === 'dungeon' ? { targets: dungeonCtx?.dungeonActivationTargets?.() ?? [], name: (k) => dungeonCtx?.hoverName?.(k)?.title ?? '' } : mode === 'interior' ? { targets: interiorActivationTargets(), name: (k) => interiorHoverName(k)?.title ?? '' } : mode === 'exterior' ? { targets: exteriorActivationTargets().targets, name: (k) => exteriorHoverName(k)?.title ?? '' } : null; },
+    buildingBoxes() { return buildingTargets?.() ?? []; },
     /** OH-E: the location being laid out, or null (see `layingOutLoc`). */
     get layingOutLocation() { return layingOutLoc; },
     /** PROF2 (bible/06-Systems/Professions-Arc.md 23): THE FORGE THE PLAYER STANDS AT - a Weaponsmith's or an Armorer's
@@ -14051,10 +13927,14 @@ export function createWorldModes(host) {
     },
     /** PROF12 (bible/06-Systems/Professions-Arc.md 9.3; professionLaw ALCHEMY_FEE): THE ALCHEMY STATION THE PLAYER STANDS AT -
      *  an Alchemist's, open for trade (its use fee, ALCHEMY_FEE gold a brew or a transmutation), or their own home's alchemy
-     *  station (a hall member's) - or null. The station's DFU potion maker stays the station's own press (useDecorStation) - beside the brew, online (STATION-DOOR). */
+     *  station (a hall member's) - or null. The station's DFU potion maker stays the station's own press (useDecorStation) - beside the brew, online (STATION-DOOR).
+     *  POTION-DOOR (Professions-Arc 52): and a Mages Guild hall - the house of DFU's own Make Potions, whose maker brews
+     *  there now (scenes/potionMakerHost.js), at the Alchemist's fee. */
     alchemyHere() {
       if (mode !== 'interior' || !interiorBuilding) return null;
       if (interiorBuilding.buildingType === BUILDING_TYPES.Alchemist) return interiorBuilding.insideOpenShop === false ? null : { kind: 'shop', fee: ALCHEMY_FEE };
+      if (interiorBuilding.buildingType === BUILDING_TYPES.GuildHall && interiorBuilding.factionId
+        && guildGroupOfFaction(townTalk?.factionDict ?? null, interiorBuilding.factionId) === GUILD_GROUPS.MagesGuild) return { kind: 'shop', fee: ALCHEMY_FEE };
       if (stationOwnerHere() && interiorDecor.list().some((p) => p?.station === 'alchemy')) return { kind: 'home', fee: 0 };
       if (hallMemberHere() && interiorDecor.list().some((p) => p?.station === 'alchemy')) return { kind: 'home', fee: 0 };   // AUDIT GUILD1d A2's law
       return caravanGuestStation('alchemy');   // WAGONS2-VISIT: and a caravan's, its visitor's
@@ -14161,7 +14041,7 @@ export function createWorldModes(host) {
      *  (world.js's, this file's `interiorWeapon` :538, dungeonContext's
      *  and exterior.js's - which this seam does not reach: that host has no save path at all, its charter exterior.js:"the FACTION STORE"), and IS1 routed the inside-a-building save to
      *  the WORLD host's composer - which reads its own exterior rig
-     *  unconditionally (world.js:"const at = playerTravelPixel(); stampLayout"). So an F9 pressed in a shop
+     *  unconditionally (worldQuickSave.js:"const at = playerTravelPixel(); stampLayout"). So an F9 pressed in a shop
      *  recorded the street's sheath and hand, and the load wrote them
      *  back into the street's rig; the rig actually in the player's
      *  hands was in no envelope at all.
@@ -14265,7 +14145,7 @@ export function createWorldModes(host) {
         };
       }
       if (mode === 'dungeon') {
-        return { worldContext: WORLD_CONTEXT.Dungeon, local: [...player.pos], buildingKey: 0, interior: null, dungeon: { ...(placeInstance ? { ins: instanceWord(placeInstance) } : {}), whole: builtDungeonSize(dungeonLoc) === 'full' } };   // INSTANCES (the audit): the room and the layout the position stands in
+        return { worldContext: WORLD_CONTEXT.Dungeon, local: [...player.pos], buildingKey: 0, interior: null, dungeon: { ...(placeInstance ? { ins: instanceWord(placeInstance) } : {}), whole: dungeonRoomSize(dungeonLoc) === 'full' } };   // INSTANCES (the audit): the room and the layout the position stands in
       }
       return { worldContext: WORLD_CONTEXT.Exterior, local: null, buildingKey: 0, interior: null };
     },

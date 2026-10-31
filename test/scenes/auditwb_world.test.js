@@ -107,7 +107,7 @@ test('AUDIT WB C4 a clock that steps BACK never says a line twice; a new day say
 
 test('AUDIT WB C4 the seam: the world\'s omen is ready when the relay\'s clock is read and the hub has welcomed (or eight seconds on the relay\'s alone), and settles', () => {
   const world = hostText('src/scenes/world.js');
-  const at = world.indexOf('const gateOmen = params.has(\'online\') ? createGateOmen(');
+  const at = world.indexOf('const gateOmen = params.has(\'online\') ? createGateLanes(');   // PIN MOVED (WW2): the omen a lane at a time - its deps the same
   const deps = world.slice(at, world.indexOf('}) : null;', at));
   assert.match(deps, /ready: \(\) => \{ if \(!online\?\.clockRead\) \{ _omenClockAt = null; return false; \}/);
   assert.match(deps, /return !!socialLink\(\)\?\.clockRead \|\| performance\.now\(\) - _omenClockAt > 8000; \},/);
@@ -257,7 +257,7 @@ test('AUDIT WB C7 what a frame pays for: the stone\'s matrix only when it moves,
   pool.frame(0.016);
   assert.equal(pool.stands(), false, 'no GL, no pass: nothing for the host to build arguments for');
   const world = hostText('src/scenes/world.js');
-  assert.match(world, /if \(gatePool\?\.stands\(\) && gatePool\.drawPass\(proj, view, new Float32Array\(mwv\.eye\), now \/ 1000,/);
+  assert.match(world, /if \(gatePool\?\.stands\(\) && gatePool\.drawPass\(proj, view, wxEye32, now \/ 1000,/);
   const src = read('src/scenes/gate/gatePool.js');
   assert.match(src, /if \(k !== _matKey\) \{ _matKey = k; _mat = trs\(/);
   assert.match(src, /aabb: fireBox\(place, profile, fireHalfW\)/);

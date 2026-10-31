@@ -99,8 +99,9 @@ test('FB1015 LOOT-BODY (by source): both dungeon hosts draw the window\'s bodies
   const ctx = rd('src/scenes/dungeonContext.js');
   assert.ok(ctx.includes("    drawWindowBodies: (canvas, { proj, view, eye }) => drawBodiesUnderWindow(_npcLane, foes, _npcStood, { idOf: foeId, corpseFlat: (f) => f.corpseBatch, renderer, canvas, proj, view, eye }),"));
   assert.ok(!ctx.includes('showBodyFlats'), 'the flats-only door is gone');
+  // PIN MOVED (RPT1026-FIGHTS WINDOW-ONLINE): the arm's window test is windowHoldsDungeon's - a window holds the dungeon offline, or over a death online (scenes/windowWorld.js)
   for (const [file, show, draw, ret] of [
-    ['src/scenes/worldModes.js', '      if (dungeonCtx.uiOverlayActive) dungeonCtx.drawWindowBodies?.(canvas, { proj, view, eye: cam.pos });', '      renderer.drawBillboards([...dungeonCtx.billboardBatches,', 'if (dungeonCtx.uiOverlayActive) { dungeonCtx.hideHudText?.();'],
+    ['src/scenes/worldModes.js', '      if (windowHoldsDungeon(dungeonCtx.uiOverlayActive, aliveUnder())) dungeonCtx.drawWindowBodies?.(canvas, { proj, view, eye: cam.pos });', '      renderer.drawBillboards([...dungeonCtx.billboardBatches,', 'if (windowHoldsDungeon(dungeonCtx.uiOverlayActive, aliveUnder())) { dungeonCtx.hideHudText?.();'],
     ['src/scenes/dungeon.js', '    if (ctx.uiOverlayActive) ctx.drawWindowBodies?.(canvas, { proj, view, eye: cam.pos });', '    renderer.drawBillboards([...ctx.billboardBatches,', 'ctx.hideHudText?.(); hideWorldPlaque(); ctx.tickOverlay(dt); ctx.drawOverlay(canvas);'],
   ]) {
     const s = rd(file), a = s.indexOf(show), b = s.indexOf(draw, a), c = s.indexOf(ret, b);
@@ -169,7 +170,8 @@ test('FB1015 BODY-DEPTH: a card of its own vertical keeps its own depth - the tr
 
 test('FB1015 BODY-DEPTH (by source): the sprite target\'s depth is a texture on its depth attachment; the quad binds it on unit 1 and writes every drawn fragment\'s depth - the body\'s texel, an outline\'s nearest silhouette texel, an ember the quad\'s own', () => {
   const r = rd('src/render/renderer.js');
-  assert.ok(r.includes('gl.texImage2D(gl.TEXTURE_2D, 0, gl.DEPTH_COMPONENT16, S, S, 0, gl.DEPTH_COMPONENT, gl.UNSIGNED_SHORT, null);'));
+  // PIN MOVED (BODY-CROP, 2026-10-22): 24-bit - a cropped picture's depth is the frame's own, over its whole near-to-far
+  assert.ok(r.includes('gl.texImage2D(gl.TEXTURE_2D, 0, gl.DEPTH_COMPONENT24, S, S, 0, gl.DEPTH_COMPONENT, gl.UNSIGNED_INT, null);'));
   assert.ok(r.includes('gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, gl.TEXTURE_2D, depth, 0);'));
   assert.ok(!r.includes('gl.renderbufferStorage(gl.RENDERBUFFER, gl.DEPTH_COMPONENT16, CHAR_SPRITE_RT_SIZE, CHAR_SPRITE_RT_SIZE);'), 'no renderbuffer under the picture');
   assert.ok(r.includes('    if (dtex) { this._bindEmission(dtex); this._depthOnUnit1 = true; }'));
@@ -181,7 +183,7 @@ test('FB1015 BODY-DEPTH (by source): the sprite target\'s depth is a texture on 
   const outs = fs.split('outColor =').length - 1, writes = fs.split('gl_FragDepth =').length - 1;
   assert.equal(outs, 4, 'four drawn exits');
   assert.equal(writes, 4, 'each writes its depth');
-  assert.ok(r.includes("q.hitFlash, q.conceal, q.up, [it.tx / CHAR_SPRITE_RT_SIZE, it.ty / CHAR_SPRITE_RT_SIZE], q.fx, q.depth);"), 'the batch hands each quad its depth');
+  assert.ok(r.includes('q.hitFlash, q.conceal, q.up, [it.tx / S, it.ty / S], q.fx, q.depth);'), 'the batch hands each quad its depth');   // PIN MOVED (MW-DETAIL, 2026-10-22): over the target's edge as the flush finds it
 });
 
 /** a GL that records every call (invislook.test.js's shape) - textures and units by id */

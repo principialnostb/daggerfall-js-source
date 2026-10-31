@@ -29,6 +29,7 @@ import { CHAT_WORLD_ROOM } from '../../../src/net/wire.js';
 import { createExteriorFoes } from '../../../src/scenes/exteriorFoes.js';
 import { questShareTag, sharedQuestFoe, questPrivateTag, partyQuestFoe, questBehaviourFor, adoptsOrphanQuestFoe, partnerStandsQuestFoes, mintQuestFoeWave, KeptKillLedger } from '../../../src/scenes/quest/questFoeHost.js';
 import { fakeSocketClass } from '../../fakeSocket.mjs';
+import { hostText } from '../../hostText.mjs';   // TESA's merge (HOST-SPLIT): the quest world and the quick save moved out of bootWorld - the host read whole
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..');
 const VENDOR = join(ROOT, 'vendor', 'dfu-quests');
@@ -79,7 +80,7 @@ function town(seat) {
 }
 
 // ---- THE HOST: world.js's quest-share arm and both tryPlaceFoe partner calls, lifted verbatim ----
-const W = readFileSync(join(ROOT, 'src/scenes/world.js'), 'utf8');
+const W = hostText('src/scenes/world.js');
 function lift(src, marker) {
   const at = src.indexOf(marker);
   assert.ok(at >= 0 && marker.endsWith('{'), `world.js carries ${marker}`);
@@ -97,7 +98,8 @@ function lift(src, marker) {
 const makeHost = new Function('d', `
   const { questBridge, _questSyncSeen, partyMembersHere, prepareShareData, socialLink, performance, QUEST_SYNC_CHECK_MS,
     shareSignature, prepareQuestShare, link, social, receiveSharedQuest, activeMemberships, playerEntity, _questSharer,
-    setMidScreenText, sayShareRefusal, _questRefusalSaid, shareRefusalText, SHARE_REFUSAL_TEXT } = d;
+    setMidScreenText, sayShareRefusal, _questRefusalSaid, shareRefusalText, SHARE_REFUSAL_TEXT,
+    syncBaselineAfter, questBusyAgain, shareSomeone, shareReceivedLine, shareRefusedLine, shareSentLine } = d;   // QUEST-AUDIT III: the host's share wiring, moved to questShare.js
   let _questSyncCheckAt = -Infinity;
   ${lift(W, 'const questSyncTick = () => {')}
   ${lift(W, 'const shareQuestWithParty = (uid, questName, displayName) => {')}
@@ -108,8 +110,9 @@ const makeSeam = new Function('d', `const { questShareTag, questPrivateTag, part
 /** world.js's two partner calls - the open air's and the room's - each its own argument list, verbatim. */
 const callOf = (re) => { const m = re.exec(W); assert.ok(m, `world.js carries ${re}`); return m[1]; };
 const OUTDOOR = callOf(/\n {6}if \(partnerStandsQuestFoes\((\{[^\n]*\})\)\) return true;/);
-const INDOOR = callOf(/isWorldRoom\(online\.room\) && partnerStandsQuestFoes\((\{[^\n]*\})\)\) return true;/);
+const INDOOR = callOf(/isWorldRoom\((?:host\.)?online\.room\) && partnerStandsQuestFoes\((\{[^\n]*\})\)\) return true;/);
 const defers = new Function('d', `const { partnerStandsQuestFoes, handle, _liveSharer, social, peersNear, player, feet, exteriorFoes, modes } = d;
+  const host = d;   // TESA's merge (HOST-SPLIT): the calls are scenes/questWorld.js's, its live names read off \`host\`
   return { outdoor: partnerStandsQuestFoes(${OUTDOOR}), indoor: partnerStandsQuestFoes(${INDOOR}) };`);
 
 // ---- two real encounter pools on a synthetic MONSTER.BSA (the QS-J rig), one per player ----
@@ -156,7 +159,8 @@ function party() {
       prepareShareData: QS.prepareShareData, socialLink: () => s, performance: { now: () => clock.t }, QUEST_SYNC_CHECK_MS: 2000,
       shareSignature: QS.shareSignature, prepareQuestShare: QS.prepareQuestShare, link: s, social, receiveSharedQuest: QS.receiveSharedQuest,
       activeMemberships: () => ({}), playerEntity: {}, _questSharer: st.sharer, setMidScreenText: () => {}, sayShareRefusal: QS.sayShareRefusal,
-      _questRefusalSaid: new Set(), shareRefusalText: QS.shareRefusalText, SHARE_REFUSAL_TEXT: QS.SHARE_REFUSAL_TEXT });
+      _questRefusalSaid: new Set(), shareRefusalText: QS.shareRefusalText, SHARE_REFUSAL_TEXT: QS.SHARE_REFUSAL_TEXT,
+    syncBaselineAfter: QS.syncBaselineAfter, questBusyAgain: QS.questBusyAgain, shareSomeone: QS.shareSomeone, shareReceivedLine: QS.shareReceivedLine, shareSentLine: QS.shareSentLine, shareRefusedLine: QS.shareRefusedLine });
     const seam = makeSeam({ questShareTag, questPrivateTag, partyQuestFoe, questBridge: { machine: m }, social, sharedQuestFoe, keptKills: new KeptKillLedger(), questBehaviourFor, adoptsOrphanQuestFoe, online: { id: peer }, player: { feetAt: () => st.feet }, peersNear: () => [] });
     const p = pool(peer, seam);
     // world.js's _liveSharer (:16516), over this seat's machine and its sharer map
@@ -168,7 +172,7 @@ function party() {
       deliver: (from, quest) => quiet(() => sockets[0].receive({ t: 'quest', acct: from, name: from, quest })),
       /** world.js's two partner calls over this seat - its pool's records, its party, the other player beside it */
       defers: (handle, mode = 'interior') => defers({ partnerStandsQuestFoes, handle, _liveSharer, social, peersNear: () => [{ id: `peer-${other}`, feet: [3, 0, 0] }], player: { pos: st.feet }, feet: st.feet, exteriorFoes: { foes: p.foes }, modes: { insideFoes: () => p.foes.filter((f) => !f.dead) } })[mode === 'interior' ? 'indoor' : 'outdoor'],
-      /** CreateFoe.TryPlacement through this seat's host: the party's law first (world.js:"tryPlaceFoe: (handle)"'s), else the pool stands it */
+      /** CreateFoe.TryPlacement through this seat's host: the party's law first (questWorld.js:"tryPlaceFoe: (handle)"'s), else the pool stands it */
       place: (handle) => {
         if (st.defers(handle)) { st.defer++; return true; }
         st.own.push(handle.foe.symbol.name);

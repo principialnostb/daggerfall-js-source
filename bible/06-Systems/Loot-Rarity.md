@@ -27,9 +27,15 @@ Five tiers, three of which Daggerfall already had:
 | --- | --- | --- |
 | Common | a plain item | DFU's own mint, untouched |
 | Magic | one or two affixes; or one of DFU's own MAGIC.DEF items | a roll on an eligible item; or derived from any enchanted item |
-| Rare | three or four affixes, a two-part name, ONE of DFU's own catalogue enchantments | a roll |
+| Rare | three or four affixes, a name its lines give (a suffix always, a prefix where a line gives one - AFFIX-LINES, below), ONE of DFU's own catalogue enchantments | a roll |
 | Legendary | a fixed record: a name a player learns, a set affix signature, its own DFU enchantment, a line of lore | a roll, from `LEGENDARIES` (ten records over the three groups; thirty since LOOT3, `Loot-Arc.md`) |
 | Artifact | DFU's artifacts, untouched | DFU's own; the ceiling |
+
+THE CEILING HOLDS (POWER-CEILING, 2026-10-27; `05-Combat/Power-Ceiling.md`). The ladder
+is seven rungs now - Aetheric (SET6) and Gilded (GILDED1) came above the Legendary - and
+it stays seven: a new rung, a band above the Legendary, or a line past the Legendary
+band's top needs the owner's word, quoted on that page. `validAffix` is the per-line law;
+`test/combat/powerceiling_walk.test.js` walks every record and minted item against it.
 
 REPLACE, DON'T LAYER (decided, 2026-09-14). With the switch on there is
 one ladder: `rarityOf(item)` answers a rolled item's own field, an
@@ -54,7 +60,8 @@ Legendary).
 ## The source sets the odds, never the player
 
 Unleveled Loot's whole point is that the world does not scale to you,
-and the ladder keeps that law. `rollRarity(source)` draws once in
+and the ladder keeps that law. (LOOT-GATE (2026-10-25, Dudey; Port-Ledger A LOOT-GATE) departs from it: the roller's level now holds Rare and Legendary back for a young character. Recorded by AUDIT UPDATE (`01-Overview/audits/Audit-Update-2026-10-25.md` U1) as OPEN for Mac's ruling - this law is his standing call. The gate's levels and factors are never published (CLAUDE.md LOOT-GATE). The source's thresholds are
+still computed as below; the gate only scales the Rare and Legendary ones, never Magic.) `rollRarity(source)` draws once in
 [0, 1000) against three thresholds - Legendary first, then Rare, then
 Magic - computed by `rarityChances` from:
 
@@ -104,11 +111,15 @@ word takes in the name, and a banded range per tier (`AFFIX_RANGES`):
 | resist (%) | armour, jewellery | suffix | 10-20 | 20-35 | 35-50 | `savingThrow`, per element the spell carries, in the biography's slot - the rolled lines together counted to 45 an element since LOOT12 (`Loot-II-Arc.md` section 4: two Rares at +25 had made a body immune) |
 | skill | all | suffix | 5-10 | 10-20 | 20-30 | `skillValue` - a skill, by id |
 
-Magic rolls one or two, Rare three or four (guaranteed a prefix AND a
-suffix, so its name has both parts), a Legendary its record's. No kind
-repeats on an item; a kind with a parameter never repeats a parameter.
-The first pick leans to the group's own number half the time (a
-weapon's damage, a piece of armour's armour).
+Magic rolls one or two, Rare three or four, a Legendary its record's. No
+kind repeats on an item; a kind with a parameter never repeats a
+parameter. The first pick leans to the group's own number half the time
+(a weapon's damage, a piece of armour's armour). Every other pick is
+drawn over the LINES still open, not the kinds (AFFIX-LINES, 2026-10-25,
+below): a kind weighs the lines it may still give - an attribute's free
+attributes, a skill's free skills, carrying capacity its one - in ONE
+roll, as the even draw took (LOOT1's law), so a seeded stream keeps its
+count. The name follows the lines; no slot is forced.
 
 THE FOLD (RF1). Affixes ride an `affixes` list on the item and are
 folded onto the wearer by `affixFold`, ONE of the entity's modifier
@@ -138,8 +149,11 @@ unknown-key abort) affix-aware. Two lists, one wearer.
 
 ## Names
 
-- Magic: one word - `Soldier's Shortsword`, `Buckler of the Hare`.
-- Rare: both - `Sentinel's Cuirass of the Bear`. The words are the
+- Magic: one word - `Soldier's Shortsword`, `Buckler of the Hare` (two
+  where its two lines take a prefix and a suffix).
+- Rare: as its lines fall - `Sentinel's Cuirass of the Bear`, or
+  `Cuirass of the Bear` where no line is a prefix (AFFIX-LINES: a Rare
+  was held to both parts, and that hold was half of the bug below). The words are the
   affix's (`AFFIX_KINDS[kind].word`), banded by tier: strength's
   suffix runs `of the Ox` / `of the Bear` / `of the Titan`. The
   prefixes are possessives so the long name reads after DFU's material
@@ -151,7 +165,9 @@ unknown-key abort) affix-aware. Two lists, one wearer.
   material prefix (one gated arm on ResolveItemLongName's early return).
   MAT-SHOW: the metal is not gone. A Rare or better piece of armour or
   a weapon still puts it on `itemNameParts().material`, the same dim
-  sub-line a plain sword uses (`itemInfo.js:"if (!material || withholdsMaterialPrefix(item)) return name;"`).
+  sub-line a plain sword uses (`itemInfo.js:"if (!material || withholdsMaterialPrefix(item) || namesItsMetal(item, material)) return name;"`;
+  AUDIT PISTOLET C9: an item whose own name already says its metal - the Dwarven Pistolet, the Dwarven Thunderlock -
+  takes no second, a Magic's or a Rare's too: "Soldier's Dwarven Pistolet", PISTOLET-NAMES).
   The long name stays `Wyrmbane`, not `Dwarven Wyrmbane`. An artifact
   still says nothing of its metal. Handed down by Project Legacy it stays
   its own name under the house, `Hlaalu's Wyrmbane`, the metal still on
@@ -469,3 +485,117 @@ through it (a vault's, a market's), and the next checkpoint read it as forged: t
 the piece (`lootRarity.js` rehomedPrint, RARITY_HOMED_FROM). A piece with a Used cast and a worn power takes a wearable
 base too. Over 600 days of a quality-10 guild shelf, 52 of 4,200 pieces were
 such duds before, none now. A departure (Port-Ledger A, HELD-BASE). `test/systems/loot/fb1018f_heldbase.test.js`.
+
+## AFFIX-LINES (2026-10-25) - A LINE IS DRAWN OVER THE LINES, NOT THE KINDS
+
+A player, SaberGGaming: carrying capacity on four Rare pieces in five, found and crafted alike; the owner: "No band
+aids". Measured over 10,000 mints through the craft's own door (`smithItems.js:"applyRarity(item, eff.rarity, rolls, null, { fits, byLines: at(MINT_V_LINES), lean: at(MINT_V_ARMOR_LEAN), fists: at(MINT_V_JEWEL_KIN) });"`),
+no bias in the stream - the law made it, twice over. A pick drew a KIND at even weight and then its param
+(`lootRarity.js:"const draw = () => (byLines ? pickByLines(pool, (k) => drawWeight(k, item, out, lean), rolls) : pick(pool, rolls));"`,
+the old law's `pick`): carrying capacity is one line, the attributes eight, the resistances five and the skills 35, so
+it came up as often as all eight attributes together. And a Rare's LAST pick was held to whichever name slot its lines
+left empty (`lootRarity.js:"if (!byLines && tier === 'rare' && i === count - 1) {"`) - a jewel's one numeric prefix IS
+carrying capacity, so every Rare jewel carried it.
+
+THE LAW NOW (`lootRarity.js` pickByLines, kindLines, drawWeight): every number line a door draws - the roll's, an
+Exalted's (exaltLegendary), a curse's (cursePiece) and a reforge's (reforgeAffix) - is drawn over the lines its pool may
+still give, a kind weighed by its free params (or one, for a kind without; a kind that DOES something one while it has
+a flavour left, so the proc pass's even draw is the same draw). ONE roll a pick, its place in [0, 1) landing on a line,
+as `pick` took (LOOT1's law): every mint draws as many rolls as it did, and only which line a pick lands on moved. The
+first pick's lean to the group's own number (LOOT1) stands. A Rare is no longer held to a slot: its name is the words
+its lines give (`nameAround`), a suffix always (no group has three numeric prefixes to give) and a prefix where a line
+gives one.
+
+THE RECORDS (`net/productRecord.js` MINT_V_LINES, the CRAFT-PROCS precedent): a craft stamps mint version 2 on its
+record (acct187 - acct182 on its branch, renumbered at the merge); a record of 1 or none mints the piece it always did - each pick even over the kinds, a Rare held to
+both parts (`rollAffixes` `byLines` false). 18,048 pieces of every rolled recipe at versions 0 and 1 mint byte for byte
+as main's mint did. Every loot door draws the new law; a seeded door's pieces (a gate's spoils, a hoard) move with it,
+their draw count kept.
+
+THE NUMBERS, 10,000 seeded rolls a row (the share of pieces carrying the kind; the share of all lines):
+
+| piece | tier | carrying capacity, old law | now | the group's own number, old | now | skills' share of the lines, now |
+| --- | --- | --- | --- | --- | --- | --- |
+| a ring (lines: weight 1, stat 8, resist 5, skill 35) | Magic | 35.1% | 3.2% | - | - | 70.8% |
+| a ring | Rare | 100.0% | 7.1% | - | - | 71.2% |
+| a cuirass (armor 1, weight 1, stat 8, resist 5, skill 35) | Magic | 20.7% | 2.1% | armour 64.1% | 51.6% | 46.8% |
+| a cuirass | Rare | 57.9% | 6.0% | armour 82.0% | 53.4% | 60.7% |
+| a longsword (damage 1, stat 8, skill 35) | Magic | - | - | damage 72.0% | 51.8% | 53.3% |
+| a longsword | Rare | - | - | damage 100.0% | 53.9% | 69.1% |
+
+Every kind but the group's own number sits at its line share or under it; a jewel's at it exactly (no lean). THE COST,
+said plainly: a Rare weapon is no longer sure of its damage line (100% was the slot rule's - damage is a weapon's one
+numeric prefix) and holds it about half the time, by the first pick's lean; and the skills, 35 lines of a group's 44 to
+50, fill most of a piece's lines. The owner's law is the lines' share, and this is it.
+
+Pinned: `test/systems/affixlines_reforge.test.js` (the distribution over 10,000 mints a piece, one roll a pick under
+either law, the mint version, the Exalted's, curse's and reforge's draws at their lines' shares); `lr1_lootrarity` (a
+Rare named as its lines fall, the old law's both parts), `fb1013e_craftprocs` (the last pass pinned at its own version),
+`auditloot2` (A6's fixture, A7's sample), the seeded spoils and the hoard (`fb1003b_aethericmaker`'s Gatecleaver seed 17 -> 2, `serpentset`'s golden to seed 6 - seed 2's amulet was "Porter's"), `loot14_wardrobe`'s goldens and the fixed streams of `disc29_rarity`, `auditcc_ui` and `fb0929d_accompare` moved with it. `tools/mutants/affixlines.json` (36, all dead); every record whose pins moved judged again - 490, 485 dead, 5 equivalent as recorded (craft4's four, and loot9's LOOT9-carried-kind-again: a carried kind without params weighs no line in the draw), none alive.
+
+## MAKER-RARE (FIELD BUGS 2026-10-26) - THE ITEM MAKER TAKES A RARE
+
+The owner: "You cant enchant masterwork/rare armor". A Rare's flavour is one of DFU's catalogue enchantments, so DFU's
+item maker - which lists no enchanted item (AddFilteredItem) - kept every Rare off its list, found or a Masterwork. Now
+an identified Rare whose rows are the ladder's own (its group's flavour, a curse's drawback) is taken with them kept at
+the head of the maker's lists and costing none of its points, the maker's own rows after them costing as ever
+(`enchanting.js` rareKeeps, keptEnchantments). An unidentified Rare stays out - the maker would identify it for nothing
+- a Legendary keeps DFU's refusal with the artifacts, and with the ladder switched off the maker is DFU's, as a garment
+and a Masterwork are DFU's off (AUDIT LOOT II A9). The temple's lift takes the curse's own row, never one the maker laid: a bound soul's forced set may
+hold the drawback's very kind (`lootCurse.js` liftCurse; AUDIT MAKER-RARE A1). A departure (Port-Ledger A, THE ITEM MAKER
+TAKES A RARE); the record and its audit are `01-Overview/bugs/Field-Bugs-2026-10-26.md`.
+`test/systems/fb1026_makerrare.test.js`.
+
+## ARMOR-LEAN (2026-10-26) - LEATHER, CHAIN AND PLATE ROLL THEIR OWN LINES
+
+A player: "can we make differences regarding stat distribution for all types when stats are rolled on them". Before
+this, a piece of armour's family moved its armour rating, weight, worth and condition (`armorMaterials.js` and the
+item builder's tables) and nothing on the ladder: a Rare chain cuirass and a Rare plate one drew from one pool at one
+weight. THE LAW NOW (`lootRarity.js` ARMOR_LEAN, armorLean): the bands stay every piece's - a Rare is a Rare - and the
+family weighs WHICH lines it draws, by the class's NativeMaterialValue (the family the equip gate refuses by, so a
+Roleplay & Realism mail hauberk is chain and a brigandine or fur jerkin leather):
+
+| family | first line its armour | kinds after (x its lines) | attributes lean to | resistances lean to |
+| --- | --- | --- | --- | --- |
+| Leather | 35% | armour 0.5, carrying 2, attributes 1.5, resist 0.75 | Agility, Speed x3; Luck x1.5; Strength, Endurance x0.5 | Poison x2, Frost x1.5 |
+| Chain | 50% (as before) | resist 2 | Endurance x2; Agility, Willpower x1.5 | Magic x2; Fire, Frost x1.5; Shock x0.5 |
+| Plate | 65% | armour 3, carrying 2, attributes 1.25, resist 0.75 | Strength, Endurance x3; Agility, Speed x0.4 | Fire x2, Frost x1.5; Shock x0.5, Magic x0.75 |
+
+SKILLS ARE EVERY FAMILY'S ALIKE (the player: "plate shouldnt have weapon skills more often keep that for every type"):
+no family weighs the skill kind, and which skill a skill line names is LOOT1's body kin for all three.
+
+A weighting, never a fence: every line a piece of armour could roll, every family still can. It reaches the roll
+(rollAffixes), a curse's reward line and a reforge's - drawWeight and the stat and resistance param (leanedParam). An Exalted Legendary's line keeps A7's even param draw (`auditloot2`); its kind still weighs by
+the family. ONE roll a draw, as LOOT1 and AFFIX-LINES hold: a piece rolls as many lines as its seed gave it, and a line
+landing on another kind draws what that kind draws, so a seeded door holding armour moves as AFFIX-LINES' did.
+
+THE NUMBERS, 20,000 seeded Rare cuirasses a row (share of all lines; the attributes' share of the stat lines):
+
+| family | armour first | armour | carrying | attributes | resist | skills | Agility+Speed | Strength+Endurance |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| even (before) | 51% | 15% | 2% | 14% | 9% | 60% | 25% | 25% |
+| Leather | 35% | 11% | 3% | 20% | 6% | 59% | 51% | 9% |
+| Chain | 51% | 15% | 2% | 13% | 16% | 55% | 25% | 29% |
+| Plate | 67% | 20% | 3% | 16% | 6% | 55% | 8% | 54% |
+
+THE RECORDS (`net/productRecord.js` MINT_V_ARMOR_LEAN): a craft stamped mint version 3 (JEWEL-KIN, FIELD BUGS
+2026-10-26d: a craft is stamped with the version its client names, 4 from that build - and a client that names none,
+this release's among them, 2, the newest law every build reads alike, so its armour leaves the family lean until it
+updates - `craftMintVersion`, AUDIT FB1026d II D3); a record of 2 or less mints the
+piece it always did (`rollAffixes` `lean` false), so no crafted piece changes when the market or a temper mints it
+again. Pinned: `test/systems/loot/armorlean.test.js`; `affixlines_reforge` (the lines' law measured with the lean off,
+the first pick's share at the family's, versions 2 and 3); `tools/mutants/armorlean.json` (7, all dead).
+
+DAEDRIC-SALE (2026-10-26, the same player: "tune down daedric selling price by 50%"): a counter pays half for Daedric
+gear - weapons, plate and shields - at `tradeModes.js` counterValueOf, the one value every selling arm reads; a gem set
+in the piece sells whole, and what a shop ASKS stands. A patron at a hired trader is no counter: patronWorth
+(`net/patronLaw.js`) reads the piece's whole worth and is untouched. A departure from DFU's Sell arms (Port-Ledger A,
+A COUNTER PAYS HALF FOR DAEDRIC GEAR).
+
+## MASTER-ART (2026-10-27) - A CRAFTED LEGENDARY
+
+A crafter at Master makes a Legendary of no record: three lines of its group's pool, chosen, their values rolled in the
+Legendary band by the account service (`AFFIX_RANGES`' `legendary` column, never past its top). It carries no record's
+name, no DFU enchantment and no power, so the codex and the powers stay the drops'. The item law knows it by its
+provenance and its shape; the judge holds its lines to its record. The item maker refuses every Legendary now, this one
+too. The record is `06-Systems/Professions-Arc.md` section 57.

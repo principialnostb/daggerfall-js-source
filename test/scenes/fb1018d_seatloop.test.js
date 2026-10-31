@@ -18,11 +18,12 @@ import { respawnDue, validSharedFoe, FOES_STALE_MS, PIXEL_UNITS } from '../../sr
 import { generateItems, addPileLootExtras, validLootList, LOOT_LIST_MAX, DUNGEON_LOOT_KEYS, LOOT_NEWER_TEXT } from '../../src/systems/loot/loot.js';
 import { rollLootRarity, pileSource, dungeonRarityTier, dungeonFamily, stampWonWeapons, LOOT_RARITY_KEY } from '../../src/systems/loot/lootRarity.js';
 import { peerHanded, neverPeerHanded, notCarried } from '../../src/systems/peerWord.js';
-import { addItem, stacksWith, isGoldPieces, addGoldPieces } from '../../src/systems/inventory.js';
+import { addItem, stacksWith, isGoldPieces, addGoldPieces, addCarryClaims, pieceKg } from '../../src/systems/inventory.js';
 import { isEquipped, unequipItem } from '../../src/systems/equip.js';
 import { spawnEnemyLoot, wildLootAfter, rollRoomBonus } from '../../src/scenes/hostCombat.js';
 import { raiseEnemyDeath, corpseTextureOf } from '../../src/scenes/corpseMarker.js';
 import { rollCorpseKit, capFoeLoot } from '../../src/systems/foeLootCap.js';
+import { championTraitFor } from '../../src/systems/champions.js';   // PIN MOVED (CHAMP-BASE): the room block's import - a body's mark at the room's level
 import { makeEnemyEntity } from '../../src/characters/enemy/enemyEntity.js';
 import { ENEMY_BASICS } from '../../src/characters/enemy/enemyBasics.js';
 import { MOBILE_TYPES } from '../../src/characters/mobile/mobileTypes.js';
@@ -32,9 +33,12 @@ import { setSigilOnline } from '../../src/systems/sigil/sigil.js';
 import { setPref } from '../../src/systems/uiPrefs.js';
 import { grantEliteLoot } from '../../src/systems/eliteFoes.js';
 import { wildPileMore } from '../../src/systems/wild/wildZone.js';
+import { seaPileMore } from '../../src/systems/sea/seaSpoils.js';   // PIN MOVED (SEA-SET): the room's base rolls the deep's Tidemail last (roomLootHost.js)
+import { markRoomCarried } from '../../src/systems/loot/roomCarriedList.js';   // PIN MOVED (GOLD-WIRE): the room block marks the list it composes (roomLootHost.js)
 import { quickLootTake, foldQuickLoot, resetQuickLoot } from '../../src/systems/quickLoot.js';
 import { hoverLines } from '../../src/systems/worldHover.js';
 import { asTheRoom } from '../../src/systems/online/onlineLane.js';
+import { withRollerLevel } from '../../src/systems/loot/lootLevelGate.js';   // AUDIT UPDATE L1: the room's base at the room's level (roomLootHost.js rollRoomBase)
 import { isDeepPileKey } from '../../src/systems/rest/restItems.js';
 import { validActionRecord, sharedRecord } from '../../src/world/actionSystem.js';
 import { keepRebuiltSpawn } from '../../src/characters/enemy/enemyAnchor.js';
@@ -103,11 +107,11 @@ function entry({ id, seed, characterId, player, authority, clock }) {
     SUPER_LOOT_DROP_MULT: 1.5, ELITE_LOOT_DROP_MULT: 1.2, SUPER_LOOT_QUALITY_MULT: 1.5, ELITE_LOOT_QUALITY_MULT: 1.2,
     opts: { selfId: () => id, onActions: () => true, onLootClaimed: () => {}, partyLevels: () => [], roomHost: () => null },
     _foesFrom: null, _sharedStamp: `${id}:${seed}`, _sharedApplied: false, _eliteOnline: true, _foesSeqIn: -1, clearSurplus: () => {},
-    addItem, stacksWith, isGoldPieces, addGoldPieces, isEquipped, unequipItem, neverPeerHanded, notCarried,
+    addItem, stacksWith, isGoldPieces, addGoldPieces, addCarryClaims, pieceKg, isEquipped, unequipItem, neverPeerHanded, notCarried,
     onlineRoom: () => true, _wallNow: () => clock.t, respawnDue, validLootList, peerHanded, LOOT_LIST_MAX, LOOT_NEWER_TEXT, ENEMY_BASICS, corpseTextureOf,   // AUDIT DEX A1: the corpse mints read it
     generateLootItems: generateItems, addPileLootExtras, rollLootRarity, pileSource, dungeonRarityTier, dungeonFamily, stampWonWeapons,
-    spawnEnemyLoot, wildLootAfter, grantEliteLoot, rollCorpseKit, raiseEnemyDeath, capFoeLoot, rollRoomBonus,
-    wildPileMore, isDeepPileKey, effectiveLevel, liveStat, asTheRoom, ...RL,
+    spawnEnemyLoot, wildLootAfter, grantEliteLoot, rollCorpseKit, raiseEnemyDeath, capFoeLoot, rollRoomBonus, championTraitFor, _retyping: new Set(),
+    wildPileMore, seaPileMore, isDeepPileKey, effectiveLevel, liveStat, asTheRoom, withRollerLevel, markRoomCarried, ...RL,
     eliteLootOpts: () => ({}), searchHeard: () => {}, settleLootFlat: () => {}, _sharedFoe: () => false, fightN: () => 1,
     spawnCorpseNow: async (f) => { f.corpsePos = [...f.ai.feet]; }, renderer: { destroyBillboardBatch: () => {} }, billboardBatches: [], renownFoeRevived: () => {},
     respawnFoe: () => false, retypeFoe: async () => false, roomEncounterAsked: () => false,

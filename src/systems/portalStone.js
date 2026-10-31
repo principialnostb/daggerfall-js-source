@@ -6,10 +6,12 @@
 // stays open for a short time, allowing multiple players to traverse"): THE PORTAL STONE.
 //
 //   - THE STONE (systems/gate/gateSpoils.js, template 572 beside the Welkynd Shard's 571): bound, stacking with its own kind.
-//   - THE COUNTER: every shop's keeper (shopStock.js isShop - the nine kinds) sells one for PORTAL_STONE_SHARDS Welkynd
-//     Shards, from a row on the keeper's own popup (ui/merchant/merchantServiceWindow.js, ui/merchant/merchantRepairWindow.js, and the
+//   - THE COUNTER: every shop's keeper (shopStock.js isShop - the nine kinds) sells them for PORTAL_STONE_SHARDS Welkynd
+//     Shards apiece, from a row on the keeper's own popup (ui/merchant/merchantServiceWindow.js, ui/merchant/merchantRepairWindow.js, and the
 //     Enhanced Plus panel) - never from a shelf: a shelf is the gold trade's, and nothing here is gold. ALWAYS IN STOCK:
-//     nothing is kept, so every sale mints a fresh stone.
+//     nothing is kept, so every sale mints fresh stones. PORTAL-BULK (the players: "I hate that I have to buy portal
+//     shards one by one"): one sale buys as many as the purse and the stack allow (buyPortalStones, portalStoneMax) -
+//     the count asked at the counter (scenes/portalCounter.js).
 //   - THE USE: the pack's Use (or a hotbar press) hands the stone to the host's `openPortal` door - the open world's
 //     alone (scenes/world.js; a building, a dungeon and the standalone street say why not). The travel map opens in
 //     teleport mode; a place picked there spends ONE stone and tears a portal open in front of the player
@@ -29,10 +31,13 @@
 // ═══════════════════════════════════════════════════════════════════
 import { PORTAL_STONE, PORTAL_STONE_TEMPLATE, PORTAL_STONE_SHARDS, portalStones, isPortalStone, isWelkyndShard } from './gate/gateSpoils.js';
 import { shardsHeld, spendShards, shardsText } from './reforge.js';
-import { addItem } from './inventory.js';
+import { addItem, findExistingStack } from './inventory.js';
+import { LOOT_STACK_MAX } from './loot/loot.js';   // PORTAL-BULK: the most one stack holds (itemLaw.js flags a stack past it)
+import { t } from './textManager.js';
+import { eventGroundAt } from './eventGround.js';   // RPT1026-EVENTS GATE-WAY: no portal on an event's gate's ground
 import { registerItemUseHandler } from './item/itemTemplates.js';
-import { POSE_BOUND, POSE_Y_BOUND } from '../net/wire.js';
-import { MAX_MAP_PIXEL_X, MAX_MAP_PIXEL_Y } from '../formats/mapsTables.js';
+import { POSE_BOUND, POSE_Y_BOUND, worldPixelOk } from '../net/wire.js';
+import { nativePointOk, nativeOnPixel } from './portalBook.js';   // PORTAL-BOOK: a portal's landing at a kept door
 
 export { PORTAL_STONE, PORTAL_STONE_TEMPLATE, PORTAL_STONE_SHARDS, isPortalStone };
 
@@ -64,8 +69,11 @@ const ID_RE = /^[A-Za-z0-9_-]{1,24}$/;
 
 export const PORTAL_TEXT = Object.freeze({
   row: `Portal Stone (${PORTAL_STONE_SHARDS} shards)`,
-  ask: (held) => `Buy a ${PORTAL_STONE.name} for ${shardsText(PORTAL_STONE_SHARDS)}? You carry ${held}.`,
-  bought: `You buy a ${PORTAL_STONE.name}.`,
+  /** PORTAL-BULK: the offer - `n` stones at `n` prices, `held` the shards the purse may spend. */
+  ask: (n, held) => t('portal.buy.ask', '{n, plural, one {Buy a Portal Stone} other {Buy # Portal Stones}} for {price, plural, one {# Welkynd Shard} other {# Welkynd Shards}}? You carry {held}.', { n, price: n * PORTAL_STONE_SHARDS, held }),
+  bought: (n) => t('portal.buy.bought', '{n, plural, one {You buy a Portal Stone.} other {You buy # Portal Stones.}}', { n }),
+  /** PORTAL-BULK: the stack the stones land on holds no more (LOOT_STACK_MAX). */
+  full: (max) => t('portal.buy.full', 'Your stack of Portal Stones holds no more than {max, number}.', { max }),
   /** `held` the shards the purse may spend, `kept` the rest (locked, or worn as a crystal). */
   shards: (held, kept = 0) => `A ${PORTAL_STONE.name} costs ${shardsText(PORTAL_STONE_SHARDS)}. You carry ${held}${kept > 0 ? ` you may spend (${kept} more are locked or worn)` : ''}.`,
   notHere: 'A portal can only be opened under the open sky.',
@@ -76,6 +84,8 @@ export const PORTAL_TEXT = Object.freeze({
   noMap: 'You cannot see the map to choose a destination.',
   room: 'There is no room here for a portal.',
   ground: 'There is no ground here for a portal to stand on.',
+  /** RPT1026-EVENTS GATE-WAY (systems/eventGround.js): the place stands on an event's gate's ground. */
+  get event() { return t('portal.refused.event', 'A portal cannot open this close to an event\'s gate.'); },
   gone: `The ${PORTAL_STONE.name} is no longer where you kept it.`,
   opened: (name) => `A portal to ${name} tears open. Step through before it closes.`,
   /** PORTAL-GIFT (gateSpoils.js givePortalGift): said once the world stands. */
@@ -111,22 +121,49 @@ export const portalStoneLines = () => [
 // ---- the counter ---------------------------------------------------
 /** The shards in a pack the purse may NOT spend - locked, or worn (reforge.js shardsHeld's other half). */
 export const shardsKept = (items) => (Array.isArray(items) ? items : []).reduce((n, it) => n + (isWelkyndShard(it) ? (it.stackCount ?? 1) : 0), 0) - shardsHeld(items);
-/** Why a stone may not be bought, or null: 'shards' (fewer than the price the purse may spend). NO CARRY GATE: the
- *  trade LIGHTENS the pack - the stone weighs less than the shards it costs (the rows' weights, pinned) - and AUDIT
- *  PORTAL1 I3 found the pack's gate refusing an over-burdened player the very sale that made the load lighter. */
-export function portalStoneRefusal(items) {
-  return shardsHeld(items) < PORTAL_STONE_SHARDS ? 'shards' : null;
+/** PORTAL-BULK: THE ROOM ON THE STACK - how many stones the stack a sale lands on may still take. The sale's addItem
+ *  merges into inventory.js findExistingStack's answer (the pack's unlocked stack of stones; a LOCKED stack is never
+ *  merged into, so a fresh stack starts beside it, as the gift's does), and no stack holds more than LOOT_STACK_MAX
+ *  (loot.js): addItem merges with no cap, and itemLaw.js flags a stack past it ('stack') - a bulk sale over it would
+ *  have held an honest player's trading. */
+export function portalStoneRoom(items) {
+  const onto = Array.isArray(items) ? findExistingStack(items, portalStones(1)) : null;
+  return LOOT_STACK_MAX - (onto ? (onto.stackCount ?? 1) : 0);
 }
-/** THE SALE: the shards out of the pack (`items`, the list itself), a fresh stone in (onto the pack's unlocked stack) -
- *  all of it or none of it. Answers `{ ok: true, item }` or `{ ok: false, reason }` (portalStoneRefusal's). */
-export function buyPortalStone(items) {
+/** PORTAL-BULK: the most stones ONE sale may buy - a price's worth of spendable shards a stone, and no more than the
+ *  stack they land on may take. 0: none. */
+export function portalStoneMax(items) {
+  return Math.max(0, Math.min(Math.floor(shardsHeld(items) / PORTAL_STONE_SHARDS), portalStoneRoom(items)));
+}
+/** Why `n` stones may not be bought, or null: 'count' (`n` no whole number from 1), 'shards' (fewer than `n` prices
+ *  the purse may spend), 'stack' (more than the stack they land on may take - portalStoneRoom). So `n` is bought
+ *  exactly when it is a whole number from 1 to portalStoneMax. NO CARRY GATE: the trade LIGHTENS the pack - a stone
+ *  weighs less than the shards it costs (the rows' weights, pinned) - and AUDIT PORTAL1 I3 found the pack's gate
+ *  refusing an over-burdened player the very sale that made the load lighter. */
+export function portalStoneRefusal(items, n) {
+  if (!Number.isInteger(n) || n < 1) return 'count';
+  if (shardsHeld(items) < n * PORTAL_STONE_SHARDS) return 'shards';
+  if (n > portalStoneRoom(items)) return 'stack';
+  return null;
+}
+/** THE SALE: `n` stones for `n` prices - the shards out of the pack (`items`, the list itself; unlocked and unworn,
+ *  reforge.js spendShards), `n` fresh stones in as one stack (onto the pack's unlocked stack) - all of it or none of
+ *  it. Answers `{ ok: true, item, n }` or `{ ok: false, reason }` (portalStoneRefusal's), nothing taken. */
+export function buyPortalStones(items, n) {
   if (!Array.isArray(items)) return { ok: false, reason: 'shards' };
-  const why = portalStoneRefusal(items);
+  const why = portalStoneRefusal(items, n);
   if (why) return { ok: false, reason: why };
-  spendShards(items, PORTAL_STONE_SHARDS);
-  const item = portalStones(1);
+  if (!spendShards(items, n * PORTAL_STONE_SHARDS)) return { ok: false, reason: 'shards' };
+  const item = portalStones(n);
   addItem(items, item);
-  return { ok: true, item };
+  return { ok: true, item, n };
+}
+/** One stone: the same sale, never a second law. */
+export const buyPortalStone = (items) => buyPortalStones(items, 1);
+/** What the counter says when a sale is refused - `reason` portalStoneRefusal's ('stack' a full stack's words; any
+ *  other the purse's, its locked and worn shards named). */
+export function portalStoneRefusalText(items, reason) {
+  return reason === 'stack' ? PORTAL_TEXT.full(LOOT_STACK_MAX) : PORTAL_TEXT.shards(shardsHeld(items), shardsKept(items));
 }
 
 // ---- the use -------------------------------------------------------
@@ -162,6 +199,14 @@ export function portalPlace(feet, yaw, { ground = null, wall = null } = {}) {
   if (!Number.isFinite(d) || /** @type {number} */ (d) > PORTAL_GROUND_PROBE) return { refused: 'ground' };
   return { at: [x, top - /** @type {number} */ (d), z] };
 }
+/** RPT1026-EVENTS GATE-WAY: WHERE A PORTAL STONE'S PORTAL OPENS - portalPlace's place, refused 'event' where it stands within
+ *  EVENT_GROUND_M of an event's gate standing on this screen (systems/eventGround.js), where a crowd runs to its fire; nothing
+ *  is spent on a refusal. An Elite Breach's call opens its own portal by portalPlace alone: it is the way INTO the event.
+ *  @param {number[]} feet @param {number} yaw @param {Parameters<typeof portalPlace>[2]} [probes] */
+export function portalStonePlace(feet, yaw, probes = {}) {
+  const p = portalPlace(feet, yaw, probes);
+  return p.at && eventGroundAt(p.at) ? { refused: 'event' } : p;
+}
 /** Whether feet stand inside a portal at `at` (both in one frame). */
 export function insidePortal(feet, at) {
   if (!feet || !at) return false;
@@ -181,7 +226,8 @@ const q2 = (v) => Math.round(v * 100) / 100;
  *  each receiver reads it off its own map. */
 export const portalWire = (gate, nowMs = 0) => {
   const p = gate.native;
-  return { i: gate.id, p: [q2(p[0]), q2(p[1]), q2(p[2])], d: [gate.dest.pixel.x, gate.dest.pixel.y], r: Math.max(0, Math.round(gate.until - nowMs)) };
+  const a = gate.dest.at;   // PORTAL-BOOK: a kept house's door - where a step in lands, on the destination's pixel
+  return { i: gate.id, p: [q2(p[0]), q2(p[1]), q2(p[2])], d: [gate.dest.pixel.x, gate.dest.pixel.y], r: Math.max(0, Math.round(gate.until - nowMs)), ...(a ? { a: [q2(a[0]), q2(a[1]), q2(a[2])] } : {}) };
 };
 /** The record projected, or null: a field outside its law refuses the record WHOLE (wire.js's rule). */
 export function validPortalRecord(r) {
@@ -190,7 +236,10 @@ export function validPortalRecord(r) {
   if (!Array.isArray(r.p) || r.p.length !== 3 || !r.p.every(Number.isFinite)) return null;
   if (Math.abs(r.p[0]) > POSE_BOUND || Math.abs(r.p[2]) > POSE_BOUND || Math.abs(r.p[1]) > POSE_Y_BOUND) return null;
   if (!Array.isArray(r.d) || r.d.length !== 2 || !r.d.every(Number.isInteger)) return null;
-  if (r.d[0] < 0 || r.d[0] >= MAX_MAP_PIXEL_X || r.d[1] < 0 || r.d[1] >= MAX_MAP_PIXEL_Y) return null;
+  // AUDIT-TESA A2-2: a portal's end is a pixel of the world - the land past the Bay a stone reaches too, within
+  // the wire's own bound
+  if (!worldPixelOk(r.d[0]) || !worldPixelOk(r.d[1])) return null;
   if (!Number.isFinite(r.r) || r.r <= 0 || r.r > PORTAL_OPEN_MS) return null;
-  return { i: r.i, p: [r.p[0], r.p[1], r.p[2]], d: [r.d[0], r.d[1]], r: r.r };
+  if (r.a !== undefined && !(nativePointOk(r.a) && nativeOnPixel(r.a, r.d))) return null;   // PORTAL-BOOK: a landing off the destination's pixel refuses the record
+  return { i: r.i, p: [r.p[0], r.p[1], r.p[2]], d: [r.d[0], r.d[1]], r: r.r, ...(r.a !== undefined ? { a: [r.a[0], r.a[1], r.a[2]] } : {}) };
 }

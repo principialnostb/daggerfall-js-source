@@ -395,10 +395,12 @@ test('EOTB-IL: the hides - the FPV weapon and horse behind their keys, the spell
   // shape fpsspellcasting.test.js pins (WeaponManager.cs:247)
   // AUDIT 68 S09-eotb-canvas-null: the hide is the HANDS' alone - nulling the canvas took Don'tHideWeapon's weapon with it
   assert.match(rig, /const c = cv\(\);/);
-  assert.match(rig, /if \(c && !fpArm\.active\(\) && !eotbHidesSpellHands\(\)\) \{\s*\n\s*drawSpellCastHands\(/, 'the hands\' picture goes in third person');
+  // PIN MOVED (SPELL-HAND): the gate opens on the hands' one draw, which picks the free hand or DFU's two (was: the gate
+  // straight onto `drawSpellCastHands(`)
+  assert.match(rig, /if \(c && !fpArm\.active\(\) && !eotbHidesSpellHands\(\)\) \{\s*\n(?:\s*\/\/[^\n]*\n)*\s*const side = _spellHand \? spellHandSide\(\) : null;\n\s*const castHands = \(art, f\) => \(side \? drawSpellHand\(renderer, c, art, f, \{ side, tint: fpTint, guard: fpsSpellCasting\.isPlayingAnim \? 0 : _spellGuard\.hand \}\) : drawSpellCastHands\(renderer, c, art, f, \{ tint: fpTint \}\)\);\n\s*castHands\(/, 'the hands\' picture goes in third person');
   assert.equal((rig.match(/thirdPerson: fpArm\.thirdActive\(\) \|\| eotbHidesWeapon\(\)/g) ?? []).length, 2, 'the widget and the torch hand');
   assert.match(rig, /if \(eotbHidesWeapon\(\)\) return;\s*\n\s*if \(fpArm\.active\(\)\) \{ fpArm\.draw\(c\); return; \}/, 'the picture goes before any first-person draw');
-  assert.match(rd('src/player/mountRig.js'), /if \(art && isRiding\(player\.transportMode\) && !ridePaused && !mwViewHides\(\)\.horse\) \{/);
+  assert.match(rd('src/player/mountRig.js'), /if \(art && isHorseRide\(player\.transportMode\) && !ridePaused && !mwViewHides\(\)\.horse\) \{/);   // PIN MOVED (DRAGON5): a horse ride's alone - a dragon's rider sees its saddle (isHorseRide)
 });
 
 // ─────────────────────────────────────────────────────────────────
@@ -588,10 +590,12 @@ test('EOTB-FLIP: a decoded PNG is turned into the world billboard\'s row order O
 });
 
 test('EOTB-FLIP: the body\'s decode is the dropped torch\'s door - decodePng, then the converter - and never a canvas of its own', () => {
-  const body = rd('src/player/eyeOfTheBeholder/eotbBody.js');
-  assert.match(body, /export async function decodeSprite\(url\) \{\s*(?:if \(isLayeredKey\(url\)\)[^\n]*\s*)?const res = await fetch\(url\);\s*if \(!res\.ok\) throw new Error\([^)]*\);\s*return worldOrderColors\(await decodePng\(new Uint8Array\(await res\.arrayBuffer\(\)\)\), \{ owned: true \}\);[^\n]*\s*\}/,
-    'fetch, decodePng, worldOrderColors - the same three the dropped torch takes');
-  assert.ok(!/getImageData|new Image\(|OffscreenCanvas/.test(body), 'no canvas door of its own');
+  // PIN MOVED (PROFILE-SLOTS): the door is eotbSprite.js's, the body's (and the profile's stage's) one decode
+  const body = rd('src/player/eyeOfTheBeholder/eotbSprite.js');
+  assert.match(rd('src/player/eyeOfTheBeholder/eotbBody.js'), /decode = decodeSprite/);
+  assert.match(body, /export async function decodeSprite\(url\) \{\s*(?:if \(isLayeredKey\(url\)\)[^\n]*\s*)?return worldOrderColors\(await decodeServedPng\(url\), \{ owned: true \}\);[^\n]*\s*\}/,
+    'FIRST-VISIT: the decode workers\' fetch and decode (vanillaEnhancedPack.js decodeServedPng - decodePng\'s own, off this thread), then worldOrderColors');
+  assert.ok(!/getImageData|new Image\(|OffscreenCanvas/.test(body + rd('src/player/eyeOfTheBeholder/eotbBody.js')), 'no canvas door of its own');
   assert.match(rd('src/player/eyeOfTheBeholder/eotbSprite.js'), /import \{ toColor32, toColor32OrderInPlace \} from '\.\.\/\.\.\/formats\/color32Order\.js';/, 'the converter is the tree\'s (PERF-PEERS5: its in-place twin beside it)');
   assert.match(rd('src/scenes/droppedTorches.js'), /return toColor32\(await decodePng\(new Uint8Array\(await res\.arrayBuffer\(\)\)\)\);/, 'and the torch still takes it too');
   assert.deepEqual(MATERIAL.shade, { mode: 4, alpha: 0.6 });

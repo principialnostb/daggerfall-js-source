@@ -49,6 +49,7 @@ import { SAVE_MAX_BYTES } from './service.js';
 import { GUILD_RANK_MASTER } from '../../src/net/guild/guildLaw.js';   // AUDIT REALM L1-F7: a deleted guildmaster hands the guild over first
 import { homeMoved } from '../../src/net/homeLaw.js';   // QUEST-HOME: the homes a deleted character took with it
 import { liquidWealthOf, customsAllowance, REALM_BIRTH_LEVEL, REALM_BIRTH_WEALTH_MAX } from '../../src/net/realm/realmGoldLaw.js';
+import { birthSkillOk } from '../../src/systems/levelClimb.js';   // LEVEL-45: a birth's skill start is a real creation's (skills zeroed / start forged → no birth)
 import { cardWorthOf, cardPacksOf, customsCardAllowance, STARTER_DECK_WORTH } from '../../src/net/card/cardWorthLaw.js';   // CARDS9: the cards' customs - the client's law   // AUDIT REALM2 S1: the first save, measured as customs measures it
 import { ID_RE, armsIssuable } from '../../src/net/identityToken.js';   // CUSTOMS-PASS: an account named by its id; INT7: the arms' claim
 import { isGuestShaped, isHandleShaped } from '../../src/net/handleShape.js';   // CUSTOMS-PASS: a handle and a guest's name, told apart by their shape alone
@@ -58,8 +59,10 @@ import { linkFirstPlay } from './founderLink.js';   // FOUNDER5: a character bro
 import { saveTextOf, REALM_TEXT_MAX_BYTES } from '../../src/net/realm/realmSaveCodec.js';   // REALM-GZIP: a save read packed or plain
 import { lineageBirthRefusal, houseOn, endUnionsOf } from './legacy.js';   // LEGACY7: a realm character born as a person of the account's own line
 import { wealthOf, ledgerPieces, classicCount, WEALTH_VERSION } from './judge.js';   // INT5: what the service's own writes move, witnessed; INT4: the pieces it moves
+import { seaSeasonSteps } from './seaSeason.js';   // SEA-SEASON: the sea's season figures, off a clean checkpoint
 import { piecesRefusal, ledgerMoves, releaseSteps, ledgerReads, leavingKeys } from './ledger.js';   // INT4: a piece the record may give, and the ledger moved with it; SAVE-BATCH: its reads in the checkpoint's first batch
 import { budgetKept, budgetRead, budgetFrom } from './budget.js';   // SAVE-BATCH: and the budget's config, where the isolate kept none
+import { villainClamp } from '../../src/systems/wild/villainLaw.js';   // PVP-VILLAIN-KEEP: the meter the mint signs, held to its bounds
 import { verdictOn } from './verdict.js';   // INT2-INT5: the verdict on every checkpoint, in the checkpoint's own batch
 
 /** Realm characters an ACCOUNT may hold. A new one past it is refused; nothing is ever deleted to make room. */
@@ -155,8 +158,9 @@ export async function listRealm({ db, nowS }, /** @type {string} */ playerId) {
   return (r?.results ?? []).map((row) => view(row, nowS));
 }
 
-/** ARENA4b: the highest level a token's `cl` claim says - the summary's own bound (realmSummaryOf's `level`). */
-export const REALM_LEVEL_CLAIM_MAX = 1000;
+/** ARENA4b: the highest level a token's `cl` claim says - the summary's own bound (realmSummaryOf's `level`). LEVEL-45: the
+ *  online cap (src/systems/levelCap.js ONLINE_LEVEL_CAP), as the judge's JUDGE_LEVEL_MAX. */
+export const REALM_LEVEL_CLAIM_MAX = 45;
 
 /** WHAT THE IDENTITY MINT SIGNS OF THE CHARACTER IT IS MINTED FOR - `{ rc, cl, wa, house, name }`, one read of its row.
  *  - `rc` REALM-DOOR (2026-09-29, the field): IS THIS ONE OF THE ACCOUNT'S REALM CHARACTERS? The relay's door refuses a
@@ -177,7 +181,7 @@ export const REALM_LEVEL_CLAIM_MAX = 1000;
  *  - `name` NAME-AS (2026-10-12): ITS OWN NAME, as its row keeps it (realmNameOf's) - the name the mint signs where the
  *    account chose its character's (accounts.js wornNameOf, which asks whether the wire can carry it). A fifth answer of
  *    the same read, never a second statement: test/server/scale4f.test.js holds it to its own read beside the four.
- *  The four are read only for a character that is the realm's (`rc` 1), as the mint signs them only then.
+ *  - `vl` PVP-VILLAIN-KEEP: ITS VILLAIN METER (`villainy`, villainy.js), 0..VILLAIN.max. The four are read only for a character that is the realm's (`rc` 1), as the mint signs them only then.
  *  SCALE4f (2026-10-10, Mac: "really future proof our archetecture while also increasing performance"; bible
  *  11-Multiplayer/Scale-Arc.md SCALE4f): THE FOUR READS OF ONE ROW, IN ONE. These were four functions and four
  *  statements of the same realm_characters row (realmCharacterHeld, realmLevelOf, realmArmsOf, legacy.js realmHouseOf),
@@ -185,9 +189,9 @@ export const REALM_LEVEL_CLAIM_MAX = 1000;
  *  what the four answered: test/server/scale4f.test.js holds it to them, as they stood at acct106, over every state a row can be
  *  in. */
 export async function realmMintFacts({ db }, /** @type {string} */ playerId, /** @type {unknown} */ id) {
-  const none = { rc: 0, cl: null, wa: null, house: null, name: null };
+  const none = { rc: 0, cl: null, wa: null, house: null, name: null, vl: 0 };
   if (typeof id !== 'string' || !REALM_ID_RE.test(id)) return none;
-  const row = await db.prepare('SELECT r.dead_at, r.lease, r.summary, r.level_seen, r.arms_top, r.arms_bow, r.person_id AS person, r.name AS name, l.record AS record'
+  const row = await db.prepare('SELECT r.dead_at, r.lease, r.summary, r.level_seen, r.arms_top, r.arms_bow, r.person_id AS person, r.name AS name, r.villainy AS villainy, l.record AS record'
     + ' FROM realm_characters r LEFT JOIN lineages l ON l.player = r.player AND l.id = r.lineage_id WHERE r.id = ? AND r.player = ?').bind(id, playerId).first();
   if (!row || row.dead_at != null || row.lease == null) return none;
   let summary = null;
@@ -200,6 +204,7 @@ export async function realmMintFacts({ db }, /** @type {string} */ playerId, /**
     wa: armsIssuable(arms) ? /** @type {[number, 0|1]} */ (arms) : null,
     house: houseOn(row.record, row.person),   // no line, no record: none (houseOn's own null)
     name: typeof row.name === 'string' && row.name ? row.name : null,   // NAME-AS: its own name, for the mint to wear where chosen
+    vl: villainClamp(row.villainy),   // PVP-VILLAIN-KEEP: its villain meter, 0..10,000
   };
 }
 
@@ -237,14 +242,20 @@ export async function createRealm({ db, rand, nowS }, playerId, { name, summary 
   try {
     wrote = await db.prepare(
       'INSERT INTO realm_characters (id, player, name, summary, seq, bytes, lease, lease_at, origin_id, created_at, updated_at, lineage_id, person_id)'
-      + ' SELECT ?, ?, ?, ?, 0, 0, ?, ?, NULL, ?, ?, ?, ? WHERE (SELECT COUNT(*) FROM realm_characters WHERE player = ? AND dead_at IS NULL) < ?',
-    ).bind(id, playerId, n, realmSummaryOf(summary), lease, nowS, nowS, nowS, born ? lineage : null, born ? person : null, playerId, REALM_CHARACTERS_MAX).run();
+      + ' SELECT ?, ?, ?, ?, 0, 0, ?, ?, NULL, ?, ?, ?, ? WHERE (SELECT COUNT(*) FROM realm_characters WHERE player = ? AND dead_at IS NULL) < ?'
+      // AUDIT FB1029e F4: a birth lands only on a line that still stands - one removed since its check is no line
+      + ' AND (? IS NULL OR EXISTS (SELECT 1 FROM lineages WHERE player = ? AND id = ?))',
+    ).bind(id, playerId, n, realmSummaryOf(summary), lease, nowS, nowS, nowS, born ? lineage : null, born ? person : null, playerId, REALM_CHARACTERS_MAX,
+      born ? lineage : null, playerId, born ? lineage : null).run();
   } catch (e) {
     // LEGACY7: two tabs born as one person race to the unique index (migration 0084) - one wins
     if (born && /UNIQUE/i.test(String(/** @type {any} */ (e)?.message ?? e))) return { error: 'lineage-played' };
     throw e;
   }
-  if (!wrote.meta.changes) return { error: 'too-many-characters' };
+  if (!wrote.meta.changes) {
+    if (born && !(await db.prepare('SELECT 1 AS h FROM lineages WHERE player = ? AND id = ?').bind(playerId, lineage).first())) return { error: 'no-lineage' };
+    return { error: 'too-many-characters' };
+  }
   await freeOthers({ db }, playerId, id);
   return { id, lease, seq: 0 };
 }
@@ -459,7 +470,7 @@ export async function realmSaveTextOf(/** @type {any} */ object) {
  * AUDIT REALM2 S1: THE FIRST SAVE IS READ. The service took any bytes as a character's first checkpoint, so a character
  * "born online" could be any offline save (ten million gold, level sixty), customs' allowance was the client's alone to
  * apply - and the first save is the start every later check of the realm measures from. A character born online starts
- * as chargen starts one: level REALM_BIRTH_LEVEL, and no more liquid wealth than REALM_BIRTH_WEALTH_MAX ('realm-birth').
+ * as chargen starts one: level REALM_BIRTH_LEVEL, wealth to REALM_BIRTH_WEALTH_MAX, skills a creation's ('realm-birth').
  * A customs character brings no more than the allowance at the level customs was asked at - the level on its row's
  * summary, which nothing writes before the first save lands, never the first save's own word ('customs-allowance').
  * Wealth is customs' own measure (net/realm/realmGoldLaw.js liquidWealthOf): the purse, the banks, and every gold-piece item
@@ -475,7 +486,11 @@ export function firstSaveRefusal(text, row) {
   if (!row.origin_id) {
     // CARDS9: and no more cards than the binder's gift - the starter deck's worth (net/card/cardWorthLaw.js). AUDIT CARDS-6 A1:
     // and no sealed pack - chargen hands none, and the first save lands before the world is played
-    return shaped && save.level === REALM_BIRTH_LEVEL && liquidWealthOf(save) <= REALM_BIRTH_WEALTH_MAX && cardWorthOf(save) <= STARTER_DECK_WORTH && cardPacksOf(save) === 0 ? null : { error: 'realm-birth' };
+    // LEVEL-45 / BIRTH-SKILL: the skill start, current sum, 3/3/6 career and 35 skills agree; only a Legacy person's
+    // Hearth may use the larger start ceiling
+    return shaped && save.level === REALM_BIRTH_LEVEL && birthSkillOk(save, { legacy: row.lineage_id != null })
+      && liquidWealthOf(save) <= REALM_BIRTH_WEALTH_MAX && cardWorthOf(save) <= STARTER_DECK_WORTH && cardPacksOf(save) === 0
+      ? null : { error: 'realm-birth' };
   }
   let level = null;
   try { level = JSON.parse(row.summary ?? 'null')?.level ?? null; } catch { level = null; }
@@ -485,9 +500,10 @@ export function firstSaveRefusal(text, row) {
   return cardWorthOf(save) <= customsCardAllowance(level) ? null : { error: 'customs-cards' };
 }
 
-/** INT2-INT6: the judge's columns on a character's row (migration 0096; AUTO-HOLD's timed hold, 0120), as verdict.js reads them. */
+/** INT2-INT6: the judge's columns on a character's row (migration 0096; AUTO-HOLD's timed hold, 0120; RPT1026-LEDGERLAW's
+ *  `law_v`, 0178), as verdict.js reads them. */
 export const JUDGE_COLUMNS = 'judged_seq, held, held_at, strikes, review, wealth, witnessed, allowance, played_at, clean_obj, clean_seq,'
-  + ' dupes, judge_rev, svc_seq, level_seen, level_at, law_sig, law_excused, wealth_v, held_until, law_holds, law_at';
+  + ' dupes, judge_rev, svc_seq, level_seen, level_at, law_sig, law_excused, law_v, wealth_v, held_until, law_holds, law_at';
 
 /**
  * INT3: THE HOLD, AS A ROUTE ASKS IT - before any act that hands a realm character's value to another player (a market
@@ -561,12 +577,16 @@ export async function checkpointRealm({ db, bucket, rand, nowS }, playerId, { id
   // primary's statements. One snapshot, read before anything is judged, as the reads were
   const keptConfig = budgetKept(db);
   const [rowRes, mineRes, dupesRes, configRes] = await db.batch([
-    // SESSION-SIGN (AUDIT PLAN-1000 E3): and the session the save is asked under, and the account's ban, as they stand
-    db.prepare(`SELECT seq, lease, obj, prev, origin_id, summary, dead_at, ${JUDGE_COLUMNS},
+    // SESSION-SIGN (AUDIT PLAN-1000 E3): and the session the save is asked under, and the account's ban, as they stand;
+    // STAFF-PANEL4-CENSUS: and the census's latest tally, so an unchanged one is written nowhere (staffCensus.js censusStep)
+    db.prepare(`SELECT seq, lease, obj, prev, origin_id, lineage_id, summary, dead_at, ${JUDGE_COLUMNS},
     (SELECT played_s FROM players p WHERE p.id = realm_characters.player) AS played_now,
     (SELECT banned_until FROM players p WHERE p.id = realm_characters.player) AS ban_until_now,
     (SELECT ban_reason FROM players p WHERE p.id = realm_characters.player) AS ban_reason_now,
-    (SELECT 1 FROM sessions s WHERE s.id = ?3 AND s.player_id = realm_characters.player) AS session_alive
+    (SELECT frozen_until FROM players p WHERE p.id = realm_characters.player) AS frozen_until_now,
+    (SELECT frozen_reason FROM players p WHERE p.id = realm_characters.player) AS frozen_reason_now,
+    (SELECT 1 FROM sessions s WHERE s.id = ?3 AND s.player_id = realm_characters.player) AS session_alive,
+    (SELECT tally FROM item_census c WHERE c.char_id = realm_characters.id) AS census_tally
     FROM realm_characters WHERE id = ?1 AND player = ?2`).bind(id, playerId, session),
     ...ledgerReads(db, id),
     ...(keptConfig ? [] : [budgetRead(db)]),
@@ -581,6 +601,9 @@ export async function checkpointRealm({ db, bucket, rand, nowS }, playerId, { id
   // pass was minted saves nothing (a request the lookup answered knows both already; the save asks them all the same)
   if (session != null && row.session_alive == null) return { error: 'auth' };
   if (Number.isSafeInteger(row.ban_until_now) && row.ban_until_now > nowS) return { error: 'banned', player: { banned_until: row.ban_until_now, ban_reason: row.ban_reason_now } };
+  // STAFF-PANEL5-FREEZE (staffFreeze.js; design doc Weak spots: "checkpoints still save"): and the freeze - a frozen player
+  // only looks around, so its save moves nothing while the freeze stands
+  if (Number.isSafeInteger(row.frozen_until_now) && row.frozen_until_now > nowS) return { error: 'frozen', player: { frozen_until: row.frozen_until_now, frozen_reason: row.frozen_reason_now } };
   if (row.dead_at != null) return { error: 'dead' };   // LEGACY7: the tombstone - nothing of the dead is written again
   if (row.lease !== lease) return { error: 'lease' };
   if (seq !== row.seq + 1) return { error: 'seq', seq: row.seq };   // the service's own: a client whose last answer was lost resyncs
@@ -616,6 +639,8 @@ export async function checkpointRealm({ db, bucket, rand, nowS }, playerId, { id
         .bind(seq, bytes, key, nowS, said, nowS, id, playerId, lease, /** @type {number} */ (seq) - 1),
       mustChange(db),
       ...v.steps,
+      // SEA-SEASON (seaSeason.js): a clean checkpoint's season figures - after the verdict's write, so a hold it lays counts
+      ...(v.clean ? seaSeasonSteps(db, { player: playerId, char: id }, save, nowS) : []),
     ]);
     if (res?.[2]?.meta?.changes === 1) stood = v.set;
   } catch {
@@ -701,11 +726,17 @@ export function realmAtOf(/** @type {any} */ v) {
  * 'piece-dupe', whatever the act: no route moves that piece again. INT5: the wealth the change moves is WITNESSED - the
  * row's `witnessed` takes it in the same step, so the budget never charges a gain the service itself made. INT6: the
  * last checkpoint judged clean is never `prev` to drop.
+ * STAFF-PANEL3-REALM: `take` - staff take pieces out (staffRealm.js, the design's "Remove from a player"): a piece leaves
+ * whatever the ledger says of it, a copy above all, so INT4's refusals are not asked (design doc weak spots: "The repair
+ * path refuses to touch copied pieces").
+ * LOST-SPOILS: `witness` false - a piece the CLIENT rolled, carried into the record by the service (a boss's floor's
+ * leftover, claimed from the Lost and Found - post.js claimPost): the budget charges it as it charges that piece taken
+ * off the floor, so the service's hand is no road past the budget for what the client said.
  * @param {any} ctx @param {string} playerId @param {{ id: string, lease: string, seq: number }} at
- * @param {(save: any) => string | null} change @param {{ outbound?: boolean, escrow?: boolean | Set<string>, seize?: boolean }} [opts]
+ * @param {(save: any) => string | null} change @param {{ outbound?: boolean, escrow?: boolean | Set<string>, seize?: boolean, take?: boolean, witness?: boolean }} [opts]
  *   `escrow`: the pieces leaving in the service's hands (ledger.js ledgerMoves - true all, a Set those keys)
  */
-export async function prepareRealmRecord({ db, bucket, rand, nowS }, playerId, at, change, { outbound = false, escrow = false, seize = false } = {}) {
+export async function prepareRealmRecord({ db, bucket, rand, nowS }, playerId, at, change, { outbound = false, escrow = false, seize = false, take = false, witness = true } = {}) {
   if (!bucket) return { error: 'no-storage' };
   const row = await db.prepare('SELECT seq, lease, obj, prev, held, judged_seq, clean_obj FROM realm_characters WHERE id = ? AND player = ?').bind(at.id, playerId).first();
   if (!row) return { error: 'no-realm-character' };
@@ -731,7 +762,7 @@ export async function prepareRealmRecord({ db, bucket, rand, nowS }, playerId, a
   const piecesAfter = ledgerPieces(save);
   // AUDIT AUTO-HOLD: a key whose count fell is leaving - one of two the record held is a copy, never handed on
   const { leaving, twice } = leavingKeys(piecesBefore, piecesAfter);
-  const why = twice.length ? 'piece-dupe' : leaving.length ? await piecesRefusal(db, at.id, leaving) : null;
+  const why = take ? null : twice.length ? 'piece-dupe' : leaving.length ? await piecesRefusal(db, at.id, leaving) : null;
   if (why) return { error: why };
   const text = JSON.stringify(save);
   const bytes = new TextEncoder().encode(text).byteLength;
@@ -748,7 +779,7 @@ export async function prepareRealmRecord({ db, bucket, rand, nowS }, playerId, a
   const steps = [
     db.prepare(`UPDATE realm_characters SET seq = ?1, bytes = ?2, obj = ?3, prev = obj, updated_at = ?4, witnessed = witnessed + ?5, svc_seq = ?1${clean ? ', clean_obj = ?3, clean_seq = ?1' : ''}${seize ? ', lease = NULL' : ''}
       WHERE id = ?6 AND player = ?7 AND ${seize ? '?8 = ?8 AND dead_at IS NULL' : 'lease = ?8'} AND seq = ?9`)
-      .bind(at.seq + 1, bytes, key, nowS, wealthOf(save) - before, at.id, playerId, at.lease, at.seq),
+      .bind(at.seq + 1, bytes, key, nowS, witness ? wealthOf(save) - before : 0, at.id, playerId, at.lease, at.seq),
     mustChange(db),
     ...moves.left,
     ...moves.entered,
@@ -758,18 +789,18 @@ export async function prepareRealmRecord({ db, bucket, rand, nowS }, playerId, a
 
 /**
  * INT9: A REALM CHARACTER'S RECORD SEIZED - changed by the service on another player's word the relay signed (a death in
- * the zone, its killer carrying the fall's receipt after the fallen's own tab let WILD_FALL_GRACE_S go by:
+ * the zone, its killer carrying the fall's receipt after the fallen's own tab let its grace go by (wildReceipt.js wildFallGraceS):
  * server-account/src/wild.js), so with no tab's `at`: the record read where it stands, `change(save)` applied, written one
  * sequence on, and THE LEASE CLEARED - whatever tab held the character plays a record that moved under it, and its next
  * join reads the new one (the staff rollback's way, review.js). Answers prepareRealmRecord's `{ steps, key, prev, seq }`,
  * guarded on the sequence it read, or `{ error }`.
  * @param {any} ctx @param {string} playerId @param {string} charId
- * @param {(save: any) => string | null} change @param {{ escrow?: boolean | Set<string> }} [opts]
+ * @param {(save: any) => string | null} change @param {{ escrow?: boolean | Set<string>, take?: boolean }} [opts] `take` prepareRealmRecord's
  */
-export async function seizeRealmRecord(ctx, playerId, charId, change, { escrow = true } = {}) {
+export async function seizeRealmRecord(ctx, playerId, charId, change, { escrow = true, take = false } = {}) {
   const row = await ctx.db.prepare('SELECT seq, lease FROM realm_characters WHERE id = ? AND player = ? AND dead_at IS NULL').bind(charId, playerId).first();
   if (!row) return { error: 'no-realm-character' };
-  return prepareRealmRecord(ctx, playerId, { id: charId, lease: row.lease ?? '', seq: row.seq }, change, { escrow, seize: true });
+  return prepareRealmRecord(ctx, playerId, { id: charId, lease: row.lease ?? '', seq: row.seq }, change, { escrow, seize: true, take });
 }
 
 /** AUDIT REALM2 S3: AFTER A BATCH THAT THREW, the object it wrote goes only if the row names it nowhere (`obj` or
@@ -834,7 +865,10 @@ export async function leaveRealm({ db }, /** @type {string} */ playerId, /** @ty
  *  - then the row: saves.js's order, so a failure halfway leaves a row whose bytes lie rather than objects nothing
  *  names. AUDIT REALM L1-F7 / L3-F5: AND ITS ONLINE LIFE WITH IT, as the door promises ("its home and its guild place
  *  with it"): the row's delete carries its homes (their pieces and hidden furniture go by the tables' own cascade), its
- *  guild place and its Renown track in ONE batch. They stood under a dead id: a house nobody could buy again nor its
+ *  guild place and its Renown track in ONE batch. ACCOUNT-HOMES (2026-10-06; asked: "Deleted characters should remove
+ *  their houses from online", beside "House ownership should be account bound"): the homes are the ones it BOUGHT -
+ *  every character of the account owns them while it stands, and they go with it, whatever another of them placed in
+ *  them; goods another stocked at their traders wait ('home-vendor-stocked'). They stood under a dead id: a house nobody could buy again nor its
  *  owner sell, a guild whose master could never be succeeded, a track that counted against the account's sixty
  *  (RENOWN-CHAR: the character's Renown goes with it again, as the door said before RENOWN-ACCOUNT).
  *  A guildmaster with members hands the guild over first ('guild-master-leaves', the guild's own word for leaving).
@@ -878,8 +912,17 @@ export async function deleteRealm({ db, bucket, nowS = Math.floor(Date.now() / 1
   // out, kept from going by them (guildKeepsSql), its name and tag held for good (guilds.js disband and leave ask it too)
   if (master?.vault) return { error: 'guild-vault' };
   if (Number((await db.prepare(REALM_MARKET_OPEN_SQL).bind(playerId, id).first())?.n ?? 0) > 0) return { error: 'realm-market-open' };
+  // ACCOUNT-HOMES (2026-10-06): the homes it bought go with it ("Deleted characters should remove their houses from
+  // online"), and any character of the account may stock a trader in one now - so goods another of them has standing at
+  // one wait, as a sale waits for them (homes.js releaseHome): the delete would leave them for sale at a trader gone
+  if (Number((await db.prepare(HOME_VENDOR_STOCK_SQL).bind(playerId, id).first())?.n ?? 0) > 0) return { error: 'home-vendor-stocked' };
   // AUDIT CARDS-4 A3: a card table's stake still held comes home to this character first (cards.js cashoutCards)
   if (await db.prepare(`SELECT 1 FROM card_stakes WHERE player = ? AND char_id = ? AND status = 'held' LIMIT 1`).bind(playerId, id).first()) return { error: 'cards-held' };
+  // AUDIT SEA VENTURES B4: gold owed it at sea, a wreck's goods held for it, and its own hold's goods due back come home
+  // to it first (seaBounty.js, seaWreck.js) - deleted, they stood owed to no character for good
+  if (await db.prepare(`SELECT 1 FROM sea_bounty_owed WHERE killer = ?1 AND killer_char = ?2 AND paid_at IS NULL
+    UNION ALL SELECT 1 FROM sea_prizes WHERE killer = ?1 AND killer_char = ?2 AND state = 'held' AND until_s > ?3
+    UNION ALL SELECT 1 FROM sea_prizes WHERE victim = ?1 AND victim_char = ?2 AND state = 'held' AND until_s <= ?3 LIMIT 1`).bind(playerId, id, nowS).first()) return { error: 'sea-held' };
   // HOME-RENT: a room another player is renting in its home waits for its days to run out, and rent held for it waits to
   // be collected - the delete takes the home with it. AUDIT: then no room of it is offered any more, and both are asked
   // again - a rent landing between the first asking and the delete's batch was deleted with the home (a rent needs its
@@ -900,14 +943,19 @@ export async function deleteRealm({ db, bucket, nowS = Math.floor(Date.now() / 1
   // with the delete in one batch, so the answer names exactly what went
   const [gone] = await db.batch([
     db.prepare('SELECT map_id, building_key FROM homes WHERE player = ? AND char_id = ? ORDER BY map_id, building_key').bind(playerId, id),
+    // AUDIT FB1029f A1: the homes' access rows with them (a chest's, a station's, who may rest)
+    db.prepare(`DELETE FROM decor_access WHERE EXISTS (SELECT 1 FROM homes h WHERE h.map_id = decor_access.map_id
+      AND h.building_key = decor_access.building_key AND h.player = ? AND h.char_id = ?)`).bind(playerId, id),
     db.prepare('DELETE FROM homes WHERE player = ? AND char_id = ?').bind(playerId, id),
     db.prepare('DELETE FROM guild_members WHERE player = ? AND char_id = ?').bind(playerId, id),
+    db.prepare('DELETE FROM guild_requests WHERE player = ? AND char_id = ?').bind(playerId, id),   // AUDIT GUILD-RANKS B3: its requests to join
     db.prepare('DELETE FROM renown_tracks WHERE player = ? AND char_id = ?').bind(playerId, id),
     db.prepare('DELETE FROM prof_stores WHERE player = ? AND char_id = ?').bind(playerId, id),   // PROF-DELETE
     db.prepare('DELETE FROM prof_tracks WHERE player = ? AND char_id = ?').bind(playerId, id),   // PROF-DELETE
     db.prepare('DELETE FROM firmament WHERE player = ? AND char_id = ?').bind(playerId, id),   // AUDIT UICALM-FIRM1 L2 L2: its sky with it (firmament_sets stay - the ids' memory, so a replay is answered, never made again)
     db.prepare('DELETE FROM prof_unbruised WHERE player = ? AND char_id = ?').bind(playerId, id),   // AUDIT PROF-541 B5: the unbruised count goes with the Stores it counts
     db.prepare('DELETE FROM prof_carried WHERE player = ? AND char_id = ?').bind(playerId, id),   // BAG1: and what it was counted as carrying
+    db.prepare('DELETE FROM prof_silver_cloth WHERE player = ? AND char_id = ?').bind(playerId, id),   // WOVEN-PAYS: and its cloth's silver counts
     db.prepare('DELETE FROM npc_roll WHERE player = ? AND char_id = ?').bind(playerId, id),   // CHAP1: its standing with the guilds (npcRoll.js)
     db.prepare('DELETE FROM npc_roll_heads WHERE player = ? AND char_id = ?').bind(playerId, id),
     db.prepare('DELETE FROM npc_rep_events WHERE player = ? AND char_id = ?').bind(playerId, id),
@@ -930,6 +978,11 @@ export const HOME_TENANTS_SQL = `SELECT COUNT(*) AS n FROM home_rooms r JOIN hom
   WHERE h.player = ?1 AND h.char_id = ?2 AND r.tenant IS NOT NULL AND r.until > ?3`;
 /** HOME-RENT: the rent held on a character's homes, not yet collected (`due`) - its delete waits for it too. */
 export const HOME_RENT_DUE_SQL = 'SELECT COALESCE(SUM(rent_due), 0) AS due FROM homes WHERE player = ?1 AND char_id = ?2';
+/** ACCOUNT-HOMES: the goods standing for sale at the traders of the homes a character bought, whoever of the account
+ *  stocked them (`n`) - its delete takes those homes and their traders, so it waits for them. `?1` the account, `?2` the
+ *  character. */
+export const HOME_VENDOR_STOCK_SQL = `SELECT COUNT(*) AS n FROM market_listings l JOIN home_decor d ON d.map_id = l.vendor_map AND d.id = l.vendor_id
+  JOIN homes h ON h.map_id = d.map_id AND h.building_key = d.building_key WHERE l.state = 'open' AND h.player = ?1 AND h.char_id = ?2 AND h.guild_id IS NULL`;
 
 /** PROF-DELETE: A CHARACTER'S MARKET BUSINESS STILL OPEN (`?1` the account, `?2` the character) - each a thing another
  *  player is part of whose goods, piece or Marks' worth would come to this character: a listing or an auction still

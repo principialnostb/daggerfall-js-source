@@ -125,7 +125,8 @@ current design "does not work in an enjoyable manner"):
   KIT-CEILING and SELL-AS-FOUND (below), POTION-COMMON (a Potion of Healing
   on a looting foe 6 times in 100 and in a J-O pile 12 - 10 and 18 since
   LOOT-EASE, 2026-10-05, with a Potion of Restore Power beside it at 6 and 10,
-  `06-Systems/Loot-Arc.md` section 19 - and a few at every
+  `06-Systems/Loot-Arc.md` section 19; 4 and 8, and 2 and 4, since POT-THIN,
+  2026-10-21, `06-Systems/Professions-Arc.md` section 48 - and a few at every
   alchemist's and general store's counter each day -
   `src/systems/healingSupply.js`) and COMPANION-WEIGHT (a crew companion's
   pack carries what a person of his strength can, DFU's MaxEncumbrance -
@@ -236,7 +237,18 @@ mark and `MEND_SALE_SHARE` (a third) of `selfMended`, no more than the piece
 holds above the mark, rounded down (`foundSalePercentage`). Wear after the
 find eats the credit first, and below the mark the piece reads its own
 condition; a piece with no mark, and every piece offline, sell at their own
-condition. The Mages Guild's Sell Magic Items reads the same, online, for a
+condition. What wear ate stays eaten (RPT1026-LEDGERLAW, 2026-10-26, a private
+report: wear spent a found piece's own-mend credit, and a smith's restore
+paid it out again): `selfMended` is spent to what the piece holds above its mark at every
+rise of its condition - an own mend before it credits (`creditOwnMend`, from
+`spendOwnMends`), a smith's paid repair before it restores (`repairService.js`
+repairWhole: the counter's and the keyed flow's InstantRepairs arms and a
+finished job). Until then the count only grew - wear hid it while the piece was
+worn, and the smith's repair that raised the condition again made it count: a
+Daedric cuirass found at 19%, two field kits to 29%, worn back to its mark and
+repaired whole at a smith sold at 29% (19% now, as one only a smith ever
+repaired), and kits a wear apart credited 14,748 of a room the piece held
+6,555 of at once (35% at a smith; 26% now). The Mages Guild's Sell Magic Items reads the same, online, for a
 marked piece (AUDIT L3-1), and so does a patron's worth (L1-4).
 
 **What it does.** A smith's whole repair of a found piece adds nothing to its
@@ -260,13 +272,14 @@ over six Daedric cuirasses found at 47% adds 37,092 to their sale (134,100 to
 171,192), about 309 gold for each of the rest's 120 ticks; and a found piece
 the ring mends whole sells about 37% above its as-found price, over the
 roll's whole range. It is bounded by the loot itself: no piece's credit passes a third of
-its room above the mark, and wear and re-mending cannot stack it. Before
+its room above the mark, and wear and re-mending cannot stack it (they could, until RPT1026-LEDGERLAW above). Before
 SELL-AS-FOUND the same rest added 114,126; under it, nothing. The Varla Stone
 mends a worn enchanted piece whole once, a rare find (an enchanted Daedric
 cuirass found at 20%: 9,510 to 21,874).
 
 `test/systems/mend_third.test.js`, `test/systems/auditmendthird.test.js`,
-`tools/mutants/mend_third.json`, `tools/mutants/auditmendthird.json`.
+`test/systems/item/rpt1026_ledgerlaw_mend.test.js` (RPT1026-LEDGERLAW),
+`tools/mutants/mend_third.json`, `tools/mutants/auditmendthird.json`, `tools/mutants/rpt1026_ledgerlaw.json`.
 
 ## Homes, priced by what you get (HOME-PRICE, 2026-10-04)
 
@@ -357,7 +370,8 @@ decorator's piece lines (placed, removed, an edit's cost) still print bare
 numbers, mostly hundreds.
 
 **The sink this leaves** (AUDIT HOME-PRICE E1). The home sink shrank and is
-capped: three homes a character sink at most 750,000 where the field's prices
+capped: three homes a character sink at most 750,000 (HOUSES-3, 2026-10-27: three in
+each region now, `06-Systems/Online-Arc.md` HOUSES-3, so the cap is a region's) where the field's prices
 reached about 2.1-2.5 million, a hall at most 375,000 where one asked
 1,274,880, and past the cap a home no longer scales with wealth. Held for good,
 a home costs 15% of its price (the sale's 85% back, no upkeep), so an account's
@@ -382,6 +396,20 @@ deed and the sale; the dungeon host prices no door. `test/systems/homeprice.test
 tree has no ARENA2, so the spread over Daggerfall's real house models was not
 measured - the rate, the factor and the range are set from the field's prices
 and customs' allowance, and are open numbers (below).
+
+**IC-HOMES (2026-10-28, the owner: "Are buildings in IC not purchaseable?").**
+The Imperial City's own buildings (the fabric, `03-World/Arena-Provinces.md`
+BLD) had no price: a house is priced off its model's ARCH3D box, and a fabric
+building's one model is its door (`fabricDoorModelId`, no ARCH3D record), so
+each measured 0 - not for sale. Each fabric subrecord now carries its plot's
+ground (`imperialFabricBuildings.js:"sub.footprintM2 = areaOf(b.plot.q);"`), the
+door's record carries it (`talkTopics.js:"const footprintOf = (sub) =>"`), and
+the door prices a house by it. The castle stays the owner's call (DOMAIN2).
+Pins: the IC-HOMES tests in `test/world/icbld_buildings.test.js` and
+`test/systems/homeprice.test.js` - `tools/mutants/ichomes.json` (4, all dead);
+`fb1005_cryptsale.json`'s door record re-aimed by content.
+The price alone did not sell one: the open zone refused every house in Cyrodiil.
+ZONE-HOMES (`11-Multiplayer/Wild-Zone.md` section 29) lifted that.
 
 ## Open numbers
 

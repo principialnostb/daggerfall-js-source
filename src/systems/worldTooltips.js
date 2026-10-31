@@ -250,7 +250,6 @@ export const SHOP_SHELF_TEXT = 'Shop Shelf';
 export const LOOT_PILE_TEXT = 'Loot Pile';
 export const LADDER_TEXT = 'Ladder';
 export const BOOKSHELF_TEXT = 'Bookshelf';
-export const BULLETIN_BOARD_TEXT = 'Bulletin Board';
 
 /**
  * A dropped pile's or a random treasure's word (.cs:534-548). A pile
@@ -499,10 +498,14 @@ export function staticDoorName(kind, {
   }
   if (kind !== 'building') return null;
   // Town23 is the city-wall "building", which has no name of its own
-  // (.cs:726-733).
+  // (.cs:726-733). IC-PROPS (bible/03-World/Arena-Provinces.md IC-PROPS): any
+  // other building with no name of its own - a ship's deck - says the place it
+  // stands in, so every door a player can walk through names where it goes (the
+  // mod would print "To" and nothing; DFU names every house "Residence" - the
+  // host's homeDoorName - and every shop by BuildingNames).
   const to = buildingType === BUILDING_TYPES.Town23
     ? (locationName ? `${locationName} City Walls` : '')
-    : displayName;
+    : displayName || locationName;
   if (!to) return null;
   const subs = [];
   if (!unlocked) subs.push(`Lock Level: ${buildingLockValue(quality)}`);   // .cs:735-738
@@ -512,4 +515,18 @@ export function staticDoorName(kind, {
       { subject: buildingType === BUILDING_TYPES.Palace ? 'Palace' : null }));   // .cs:747-748
   }
   return { title: `To\n${to}`, subs };
+}
+
+/**
+ * A placed decoration indoors. A chair, a candle or any other piece that does nothing stays unnamed. One's own
+ * thing, a container, a station and a hall's board keep the word the press acts on.
+ */
+export function indoorDecorHover(piece, { itemTitle = null, boardTitle = null, catalogueName = null, containerName = null, stationName = null } = {}) {
+  if (!piece) return null;
+  if (piece.item) return itemTitle ? { title: itemTitle } : null;
+  if (boardTitle) return { title: boardTitle };
+  if (!piece.storage && !piece.station) return null;
+  const t = catalogueName ?? (piece.storage && piece.model != null ? containerName : null);
+  const craft = piece.station ? stationName : null;
+  return t ? { title: craft ? `${t} (${craft})` : t } : craft ? { title: craft } : null;
 }

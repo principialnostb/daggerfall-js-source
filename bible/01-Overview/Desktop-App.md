@@ -292,6 +292,69 @@ the next merge cuts the release the stalled ones would have.
 `test/tooling/audit_install2.test.js` (E-54's test), `tools/mutants/rel9.json`
 (2).
 
+**STE-NOTES (2026-10-26, the owner: "The law for patch notes is now
+ASD-STE100 Simplified Technical English (STE)"): THE NOTES ARE WRITTEN IN
+STE.** A pull request's `## Patch notes` (REL6) reach every player twice -
+the release's text and the launcher's news - and many of them read English
+as a second language. ASD-STE100 is the controlled English the aerospace
+industry writes its maintenance manuals in for that reader: a dictionary in
+which each approved word has one meaning and one part of speech, and
+writing rules that keep a sentence short and on one topic. The
+specification is the ASD's (asd-ste100.org, free on request); its
+dictionary is never copied into the tree.
+
+What binds the notes:
+
+- Words: STE's approved words only, in their approved meanings and parts of
+  speech. The game's own names - an item, a skill, a place, a setting, a
+  window, a control - are technical names, which STE permits; write a
+  control or an item as the game shows it, and mark it **bold**. One thing
+  has one name: the name the game shows.
+
+- Verbs: the simple present, the simple past and the future, with the past
+  participle only as an adjective. No -ing form of a verb outside a
+  technical name, and no helping verb that makes a complex verb ("has
+  been", "have fixed"). The active voice wherever it can be used.
+
+- Sentences: one topic. 25 words at most; an instruction 20 at most, one to
+  a sentence, in the imperative, with its condition first. An article or
+  "this" before a noun where it fits, no noun cluster past three words, and
+  no word left out to make a sentence short.
+
+- Paragraphs: one topic, six sentences at most; a list for steps or
+  choices, after a colon.
+
+- Punctuation: no semicolons, no contractions ("does not", never
+  "doesn't").
+
+`scripts/steNotes.mjs` holds the part a machine can read: it reads the
+notes as the release does (`patchNotesOf`) and reports each sentence and
+paragraph past its length, each semicolon, -ing form, contraction and
+complex verb. It counts a hyphenated word, a number with its unit, and a
+name in **bold**, `code` or quotes as one word each. Its -ing rule is
+stricter than STE in one place, said out loud: a lowercase word that ends
+in -ing is a verb form unless it is on `NOT_A_VERB` (`thing`, `setting`,
+`during`), so an -ing word the dictionary approves goes on that list with
+its reason.
+
+`.github/workflows/ste-notes.yml` runs it on a pull request
+when it opens, each time its description is edited and on every push -
+`pull_request`, a read-only token, the description handed over through the
+environment - and a description with no notes passes. The notes are not in
+the tree, so `verify` cannot read them; making `ste-notes` a required
+check is a branch rule, a person's setting.
+
+A clean run is not proof: the
+dictionary, one topic, the articles, the noun clusters and the voice are
+the writer's and the reviewer's. Draft first - write the description to a
+file and run `node scripts/steNotes.mjs <file>`. Unchanged: REL6 (the notes
+live on the pull request), REL7 (an edited description rewrites its
+release), LOOT-GATE (the notes never give the loot gate's numbers). Notes
+already published stay as written: rewriting an old description rewrites
+its release's notes (REL7), so an old one is put into STE only when its
+release's notes need a fix anyway. `test/tooling/ste_notes.test.js` (11),
+`tools/mutants/ste_notes.json` (31, all dead).
+
 
 `.github/workflows/release-desktop.yml` cuts a release through any
 of three doors: pushing a tag shaped `app-v*`, a workflow_dispatch
@@ -625,6 +688,9 @@ Along the bottom, the status bar - checking, downloading with its MB
 and "Play without updating", installing, "Updated to v...", "Up to
 date", offline, off - and PLAY.
 
+On Windows the column also has **Graphics** (2026-10-30): Use Vulkan, the
+game's own row, the same setting (GPU-BACKEND-LAUNCHER, below).
+
 **Play is held only while something is being decided for the player**:
 an update checked for (at most CHECK_TIMEOUT_MS), fetched or installing,
 or no game files. Detection runs at once (the player chooses while the
@@ -866,7 +932,10 @@ closed or crashed first) at the next launch. A new install starts over: the inst
 "Updated to v...", and nothing installs or restarts. With the game running, it is kept and told on the HUD, and plays
 from the page's next document load: File > Restart to Update reloads onto it now (the game's own Leave/Stay asks first
 where progress is at risk), and the next launch plays it otherwise. The installer runs only for a release that changes
-the shell itself.
+the shell itself. Only a navigation that loads the game's own pages (`dagger://game/`) switches it
+(`app/lib/readyGameSwitch.cjs`): Electron raises `did-start-navigation` before `will-navigate`, so a navigation the
+fence then cancelled used to switch the version under the page still running and count its trial with no boot to prove
+it - and the next launch rolled back the version the HUD had called ready.
 
 **Every failure is the installer's.** A manifest that does not read, a pack that is not the manifest's, a range, a hash,
 the disk, a boot that never came up: the version is remembered (`failed`) and that release goes the installer's path at
@@ -904,10 +973,11 @@ differ from the Linux leg's that the pack is cut from (each leg builds its own; 
 first update - the hashes decide, never the build); the NSIS install, the AppImage and macOS running the channel; and
 Windows Defender reading the new files.
 
-**Pinned** in `test/tooling/da13_gamechannel.test.js` (14: the per-file pack from the real producer, the manifest's laws, the
+**Pinned** in `test/tooling/da13_gamechannel.test.js` (15: the per-file pack from the real producer, the manifest's laws, the
 plan, the ranges, the range answer, a version staged from ranges of the real pack byte for byte, a flipped byte and a
-200 refused with nothing staged, the trial and its rollback, a version that no longer reads, the route, the launcher,
-the shell's wiring and the pipeline's, the release script's commands run); `tools/mutants/da13.json`: 51, all dead.
+200 refused with nothing staged, the trial and its rollback, a version that no longer reads, which navigations switch,
+the route, the launcher, the shell's wiring and the pipeline's, the release script's commands run);
+`tools/mutants/da13.json`: 54, all dead.
 Pins moved in `test/tooling/updatecheck.test.js` (the channel's one door, the fourth fetch), `test/tooling/autoupdate.test.js` (the
 menu's check), `test/tooling/da10_launcher.test.js` and `test/tooling/da12_directplay.test.js` (the game's version kept as played;
 `--play` asks the channel first), `test/tooling/da8_launcher.test.js` (the HUD's one sentence: an update that is here plays
@@ -1054,6 +1124,365 @@ own frames (`src/systems/frameCap.js` installFramePacer; a held frame would cost
 one file (`lib/fileStorage.cjs` readPref), not a whole store: building one listed every save slot before the
 single-instance lock. On macOS closing the window does not quit the app, so "the next time the app starts" means a
 quit (Cmd+Q) and a start - reopening from the dock keeps the old switches.
+
+## The GPU's kept programs (GPU-CACHE, 2026-10-23)
+
+#tech-support: "It happens the 1st time I do anything ... until I close the game and restart" - in the app, not in
+the browser. Chromium keeps each WebGL program it links, in memory and in `<userData>/GPUCache`, so a launch links
+from the kept binary instead of compiling; both stores are capped at 6 MiB unless told otherwise. On Windows a kept
+program is ANGLE's D3D11 binary (its stages' HLSL and every variant's bytecode), the game's first town alone links 111
+programs from 2.4 MB of GLSL, and so the app evicted programs from the first town on and compiled them again every
+launch - seconds a program on D3D11. Chrome runs a newer cache on Windows by field trial; Electron's Chromium does not
+get field trials. `main.cjs` sizes both stores to 128 MiB (GPU_CACHE_KB, the `gpu-disk-cache-size-kb` switch), before
+the app is ready, beside FPS-VSYNC's, PERF-GPU1's and PERF-GC1's switches. The record and the shell's two-launch
+measurement: `bugs/Field-Bugs-2026-10-23b.md`. Pins: `test/tooling/fb1023b_gpucache.test.js`.
+
+SHADER-EASE CACHE-TURN (2026-10-29, the owner: the game locks up on load after each update, and deleting GPUCache,
+GrShaderCache and ShaderCache cures it). Each update changes the GLSL, so the 128 MiB cache fills with programs no page
+links again, and Chromium reads every kept one into the GPU process at start. `app/lib/gpuCacheTurn.cjs` deletes the
+GPU caches under userData when the version played is not the one in `gpu-cache-turn.json`, then records it. The key is
+the shell's version and the game's (`gameVersion()`): the channel (DA13) brings new shaders without a new shell, so
+`main.cjs` opens the game store before ready and turns the cache there, by the one instance, before Chromium opens it.
+A held folder is logged and tried again next launch; it never stops one. Pins: `test/tooling/shaderease_cacheturn.test.js`.
+
+## The GPU's last ten minutes, kept with a crash (GPU-TRAIL, 2026-10-24)
+
+Players report the game's page stopping after a while of play, and the box says "It ran out of memory". That is only
+Electron's `render-process-gone` reason in the player's words (RENDERER-GONE, `lib/rendererGone.cjs` GONE_WHY). One
+reporter's kernel log (RDNA3 on Linux, Mesa) showed the GPU hang (`ring gfx_0.0.0 timeout`) and a full GPU reset, not
+an allocation that failed. A census on Windows/D3D11 found no GPU object leak from terrain streaming or idling;
+multiplayer, combat and dungeons were not measured. Nobody asks a reporter for more and nobody here has the hardware,
+so `crash.log` carries the evidence.
+
+The page (`src/render/gpuTrail.js`) counts the live textures, buffers, vertex arrays, framebuffers and programs of the
+renderer's own WebGL2 context. The entry shadows the canvas's `getContext` before `new Renderer(canvas)`, so the count
+starts at the constructor's first object, and wraps that context's `create*` and `delete*` (a delete counts only an
+object the count saw made). Five seconds in, every 30 s from the start, and at the moments the context is lost and given
+back, it takes a sample: those counts, the FPS counter's last second (`ui/fpsCounter.js` `last`: fps, mean and worst ms,
+the minute's worst hitch - 0 when the minute held none - draws, binds, the view out's and the shadow maps' draws, all `-`
+when the counter has not moved since the last sample), the JS heap (`performance.memory`), and three flags: the page
+hidden, the context lost, and `restored` on the sample taken as the context came back. It keeps the last 20,
+ten minutes, and hands all of them to the shell with each sample (`daggerShell.gpuTrail`, an async `dagger:gpu-trail`),
+so a page that stops between samples has already said its last. Nothing runs in the frame: no `getError`, no
+`getParameter`. The module is behind the entry's door, opened only when the shell's bridge offers `gpuTrail`, so a tab
+loads none of it and BOOT2's static reach is unchanged. There is no byte estimate: a texture uploaded again at a level
+and a buffer filled again make a running byte total mislead on exactly the question asked.
+
+The shell keeps the newest trail from the game's window only, read field by field (`trailFrom`: known numbers, three
+flags, a GPU name of at most 160 characters, the newest 20 samples), and `logGone` writes it under the stop's line -
+the renderer's and the GPU process's alike - through `logWith`, so the 64 KB cap holds. A stopped page's trail is let go
+after it is written, so the page after it never writes the dead one's samples as its own.
+
+GPU-TRAIL-LOST (2026-10-25, the desktop app's crash run): the GPU process's death reaches the shell before the page's
+lost-context sample crosses the bridge, so its entry, written at once, never held the moment the GPU went. The entry now
+waits (`lib/rendererGone.cjs` `createGpuGoneWait`) until a trail lands whose newest sample is lost, or 2 s at most; a
+renderer stop or a quit in the meantime writes it first. Its line keeps the time the GPU died. An entry:
+
+```text
+2026-10-24T07:47:31.000Z renderer oom exitCode=-536870904
+  gpu ANGLE (AMD, Radeon RX 7800 XT)
+  2026-10-24T07:47:00.000Z up=1234s tex=812 buf=2300 vao=1100 fbo=24 prog=140 fps=60 ms=16.7 worst=33 hitch=121 draws=430 binds=900 view=0 shadow=120 heap=512MB
+```
+
+Verified on Windows (D3D11) in the built app: `forcefullyCrashRenderer()` wrote the entry, the GPU's name and the samples;
+the GPU process killed by `chrome://gpucrash` in a hidden window wrote its own entry (2026-10-25). Pins:
+`test/render/gputrail.test.js`, `test/tooling/gputrail_crashlog.test.js`, `test/tooling/gputrail_lost.test.js`; mutants:
+`tools/mutants/gputrail.json`, `tools/mutants/gputrail_lost.json`.
+
+## The graphics backend: Vulkan, the player's opt-in on Windows (GPU-BACKEND, 2026-10-26)
+
+The performance proposal's P8. The game never picks a graphics API: Chromium's ANGLE translates WebGL2, and on Windows
+to Direct3D 11. In Edge on the RTX 5080 (2026-10-27, Daggerfall city, 15:00, interleaved D3D11 / Vulkan twice on a
+quiet machine; `dfo-verify/tools/perf/backend-ab-2026-10-27/notes.md`) ANGLE's Vulkan backend cut a cold launch's shader
+link wait from 19.1 / 19.5 s to 0.4 / 0.4 s, and its worst frozen frame from 16.9 / 17.2 s to 2.3 / 2.5 s. Warm, the
+two are the same (worst stall 2.15 to 2.35 s). Steady frame rate is 4 to 7% LOWER on Vulkan: standing 161.3 / 152.3
+against 167.3 / 170.3 fps, flying 149.8 / 141.4 against 158.5 / 153.1 fps. So Vulkan's case is the cold compile alone.
+
+Superseded: the 2026-10-25 survey (`baseline-2026-10-25/be-*`: 37.4 s against 1.3 s, standing 139 against 120, flying
+118 against 107), whose D3D11 arm ran under another session's load. Chromium keeps D3D11 the default
+because Vulkan drivers vary on older Intel and AMD GPUs, and a backend that fails to start does NOT fall back to D3D11:
+Chromium draws on its software renderer (WARP, 2 fps). So Vulkan is the player's choice, and the shell guards it.
+
+- **The choice.** `graphicsBackend` on the port's own shelf (`dagger.ui.v1`, `src/systems/uiPrefs.js`): `default` or
+  `vulkan`. Settings > Graphics > Display draws it after VSync, in the app on Windows only, with the restart tier's dot
+  and words (`enhancedMenu.js` graphicsBackendRow). The launcher's Graphics option sets the same pref
+  (GPU-BACKEND-LAUNCHER, below). A browser chooses its own backend.
+- **The switches.** `lib/graphicsBackend.cjs` backendLaunch reads the pref before the app is ready (one file, through
+  `fileStorage.cjs` readPref, as FPS-VSYNC reads VSync) and answers `use-gl=angle`, `use-angle=vulkan` and `disable-gpu-sandbox` (see "The GPU sandbox" below), and skips FPS-VSYNC's switches ("VSync stays on"). `main.cjs`
+  appends them beside FPS-VSYNC's. A failure on record in `config.json` (`graphicsBackendFailure`) holds the launch on
+  the default. The module reads `config.json` itself: `main.cjs` defines CONFIG_FILE after the switches are appended.
+- **The guard.** watchBackend, on a launch that took the switches. Each of these four checks fails the launch:
+  1. Chromium's renderer. Once the first window has loaded, `app.getGPUInfo('complete')` (10 s deadline, then
+     'basic'). It fails on a software renderer (`Basic Render Driver`, `WARP`, `SwiftShader`, `llvmpipe` in the
+     renderer string; WARP as a word), or on a renderer that does not name the chosen backend (ANGLE started on another
+     one).
+
+  2. The game page's own WebGL2 context. The game page's preload asks the shell (`dagger:backend-probe`) and, on an
+     armed launch only, makes one `canvas.getContext('webgl2')` before any game script runs, reads its unmasked
+     renderer, loses the context again, and reports (`dagger:backend-webgl2`, heard from the game window only). It
+     fails on no WebGL2 context, a software renderer, or a renderer that does not name the backend. This is the check
+     that catches a backend that draws on the card but gives the page no WebGL2: `use-angle=d3d9` draws as
+     `Direct3D9Ex`, and Electron 42's Chromium reports no WebGL2 feature status to read instead.
+
+  3. The game page's silence. The clock starts when the game window is made; no report within 60 s
+     (`PAGE_REPORT_TIMEOUT_MS`) fails the launch, so a hung or blank page cannot leave a player on a broken backend.
+     The first report counts; a reload's is ignored.
+  4. The GPU process gone within the first minute (its own `child-process-gone` listener). One lost after the first
+     minute is crash.log's alone, and so is a `clean-exit`, as main.cjs treats a renderer's.
+
+  A failure writes the record, shows a one-button notice ("Vulkan could not start on this graphics card"), and
+  `app.relaunch()`es, once. The relaunch has no switches, because the record holds it. `app.exit` skips `will-quit`,
+  so the guard first flushes the GPU-gone entry that GPU-TRAIL-LOST holds back for crash.log (`beforeExit`). A launch
+  that passes check 2 logs `[shell] GPU-BACKEND: vulkan up - the game page's WebGL2 renderer: ...`.
+  Before `app.relaunch()` the guard calls `app.releaseSingleInstanceLock()`: the new copy can start before this one has quit,
+  and one refused the lock quits, so the player's restart would close the app for good (AUDIT INSTALL R2-A1). If the
+  record did not land (`saveConfig` swallows a write error, as with a read-only userData), the relaunch carries
+  `--dagger-default-backend`, which holds that launch on the default; without it every start would fail and show the notice
+  again. The next start tries Vulkan again.
+- **The record's key and the retry.** The key is the physical GPU and its driver, `vvvv:dddd@driver`. A launch that fell
+  to WARP cannot see the card: Chromium then lists only ANGLE's synthetic `0xffff` "SwANGLE" device. So its record is
+  written with `gpu: null`, and the next launch, on D3D11, keys it with the card it runs on.
+
+  The record also keeps the
+  Chromium version it failed on (`process.versions.chrome`). A held launch whose GPU, driver or Chromium differs from
+  the record's clears it, and the NEXT start tries Vulkan again. That covers a driver update, and an app update that
+  brings a new Electron, whose Chromium carries a new ANGLE that may start where the old one did not. A game-only update
+  (DA13's channel) keeps the Chromium, so it keeps the record. Retrying takes two starts, and the record stops a
+  relaunch loop. The pref itself is a file in `<userData>/Prefs`, and the record is in `<userData>/config.json`.
+  Updates do not touch userData (BR1), so both survive them.
+- **The probe's door.** `DAGGER_GRAPHICS_BACKEND` names a backend for one launch over the pref; the pref itself names
+  only `vulkan`. `metal`: ANGLE's Metal backend cannot start on Windows, and Chromium falls to WARP, as a failed
+  Vulkan would. `d3d9`: draws on the card under its own name, so check 1 passes, but the page gets no WebGL2 context -
+  it forces check 2 alone. `gl`, which failed in Edge
+  ("Initialization of all (0) EGL display types failed"), STARTS in the app: `ANGLE (NVIDIA Corporation, NVIDIA
+  GeForce RTX 5080/PCIe/SSE2, OpenGL 4.5.0)`.
+
+Measured 2026-10-27 on head `48fe4e5395`, on Windows 11, i9-12900KF + RTX 5080 (driver 32.0.16.1088), 240 Hz, on the
+`app/` dev shell (Electron 42) over the dev server, one scene (Daggerfall city, 15:00, `&fly`). Electron was started
+with `--remote-debugging-port` and `--play`. The renderer was read from the page's `WEBGL_debug_renderer_info`. The
+`boot,settled` phases were the perf probe's, run in the app's window over CDP. The runs interleaved off and on: a
+discarded warm-up launch, then off, on, off, on. Each run was a launch on a fresh userData (cold: every program compiled)
+and a second launch on the same userData (warm: Chromium's shader cache kept). Every launch waited for CPU under 10%
+(typeperf, three samples) with no test suite and no other game window; none had to be redone.
+
+Means of two runs each, the spread (lowest to highest) in brackets:
+
+| Launch | Worst frozen frame (boot) | Frames over 50 ms in the boot | Their sum | Standing, 20 s |
+|---|---|---|---|---|
+| Pref off, cold | 15.8 s (15.8-15.9) | 39.5 (37-42) | 21.5 s (21.0-21.9) | 137.5 fps (137.3-137.7) |
+| Pref off, warm | 1.9 s (1.8-1.9) | 29.5 (29-30) | 5.9 s (5.8-6.0) | 143.5 fps (136.9-150.0) |
+| Pref on, cold | 1.9 s (1.9-1.9) | 29.0 (27-31) | 5.9 s (5.8-6.1) | 144.8 fps (138.3-151.3) |
+| Pref on, warm | 1.6 s (1.4-1.8) | 33.0 (30-36) | 6.2 s (6.0-6.4) | 142.8 fps (134.8-150.7) |
+
+Off drew on `ANGLE (NVIDIA, NVIDIA GeForce RTX 5080 (0x00002C02) Direct3D11 vs_5_0 ps_5_0, D3D11)`, on on
+`ANGLE (NVIDIA, Vulkan 1.4.341 (NVIDIA NVIDIA GeForce RTX 5080 (0x00002C02)), NVIDIA)`.
+
+- **Vulkan's gain is the cold launch.** A D3D11 launch with no shader cache froze for about 16 s; Vulkan's cold launch
+  matched a warm D3D11 one. A cold launch is the first one on a new profile, and the first after an update that
+  changes the programs.
+- **Warm, the backends are level.** About 1.6 to 1.9 s worst frame and 6 s over 50 ms on both; the rest of the boot's
+  long frames are not shader compiles.
+- **Standing frame rate did not separate them at that size.** Every arm's spread overlaps the others' (p50 8.3 ms on all).
+  That was a window of about 1280x800 on the GPU-sandboxed Vulkan, which hides the cost below.
+
+Every frame gap is in each run's `boot-gaps.json` and `settled-gaps.json`. Runs, load logs and screenshots:
+`dfo-verify/tools/perf/desktop-vulkan-2026-10-26/interleaved-2026-10-27/`.
+
+Superseded: the first in-app numbers (2026-10-26, head `1af08cb134`, two cold launches per arm, not interleaved and not
+load-gated): off 16.1 s / 24.1 s worst frame, on 2.1 s / 1.8 s, standing 120 / 120 against 89 / 118 fps. The 24.1 s and
+the 89 fps did not come again on a quiet machine.
+
+### The GPU sandbox, and the frame rate at 2560x1440 (2026-10-28)
+
+With Chromium's GPU sandbox on, ANGLE's Vulkan path has no GPU compositor on Windows: `gpu_compositing` reads
+`disabled_software` and `webgl` `enabled_readback`, so each frame's WebGL canvas is read back and composited on the CPU.
+The cost grows with the window's pixels: about 2 ms at 735p, about 11 ms at 1440p. At 2560x1440 fullscreen the
+sandboxed Vulkan held 64 to 66 fps against D3D11's 120 (the cap) or 274 to 294 uncapped
+(`dfo-verify/tools/perf/vulkan-half-2026-10-28/notes.md`). The earlier A/Bs, at 1280x720 and in Edge under Playwright's
+`--no-sandbox`, hid it. Electron 45 and 46-alpha behave as 42 does.
+
+Vulkan's switch list now carries `disable-gpu-sandbox`, and only Vulkan's: D3D11 keeps its sandbox. The trade: a
+compromised GPU process is no longer contained (the renderers stay sandboxed). The risk in this app is smaller than a
+browser's, because the game window's renderer already runs with `sandbox: false` (`app/main.cjs` webPreferences, for
+the preload's file IO), fenced to `dagger://` by its navigation handlers. Lifting the GPU sandbox adds only what reaches
+the driver through WebGL: the game's own shaders and its own or installed textures. Pins: `test/tooling/gpubackend.test.js`.
+
+Measured on commit `2997be5e07` (the `app/` dir unpackaged over its own `dist/`, not the installed exe; the owner's
+Video settings; 2560x1440 fullscreen; CPU under 15% at each launch; interleaved; runs and `gpuinfo.json` in
+`dfo-verify/tools/perf/vulkan-half-2026-10-28/branch-1440p/`). Every Vulkan run reads `gpu_compositing: enabled`.
+
+| Case | D3D11 | Vulkan, GPU sandbox off |
+|---|---|---|
+| Cap 120 | 120.0 / 120.1 fps (p50 8.3 ms) | 120.0 / 120.0 fps (p50 8.4 ms) |
+| Cap off | 238.9 / 238.6 / 188.8 fps, mean 222.1 | 225.8 / 171.2 / 204.2 / 194.6 fps, mean 199.0 |
+
+At the cap the two are the same. Uncapped, Vulkan is about 10% lower on the mean, and the ranges overlap: this machine's
+run-to-run spread is large on both. So Vulkan's case is the cold compile, and it costs a little in play. Superseded
+for 1440p: the sandboxed Vulkan's 64 to 66 fps.
+
+### Switches tried to speed Vulkan up (2026-10-28)
+
+Read from chrome://gpu on Vulkan's switches (`switch-trials/chrome-gpu.txt`, `angle-features.json`) and tried one
+at a time with VSync on, interleaved, against plain Vulkan and D3D11. The CPU never fell under 10%, so the launch gate was
+25% with no other game or test run. None is kept: each equals plain Vulkan inside the run-to-run noise.
+
+- `enableParallelCompileAndLink` (off): turns on `KHR_parallel_shader_compile`, and changes no cold-boot number.
+- `skipPipelineCacheSerialization` off, `preferMonolithicPipelinesOverLibraries`: no change on cold or warm boots.
+- `mergeProgramPipelineCachesToGlobalCache` with `syncMonolithicPipelinesToBlobCache`: crashed the GPU process at launch;
+  the guard fell back to D3D11.
+- `--enable-features=Vulkan`, `--enable-zero-copy`, `--enable-gpu-rasterization`: 170 to 177 fps against plain Vulkan's 174
+  (rasterization reads `enabled_force` with no gain). There is no async command queue feature in this ANGLE.
+
+Plain Vulkan's boot stall of 1.4 to 2.3 s is the same warm, so it is not shader compile. Shipped mode (Vulkan, VSync on)
+runs about 172 fps against D3D11's 201 at 2560x1440, about 15% lower. Data: `dfo-verify/tools/perf/vulkan-half-2026-10-28/switch-trials/`.
+
+### VSync stays on with Vulkan (2026-10-28)
+
+With the GPU sandbox off, Vulkan's GPU compositing and either of FPS-VSYNC's switches (`disable-gpu-vsync`,
+`disable-frame-rate-limit`) froze the page for good: on a stream of resizes within 3 to 6 steps, and on leaving
+fullscreen. With VSync on there was no freeze in 400 steps or 20 toggles; the sandboxed Vulkan and D3D11 never froze
+(`dfo-verify/tools/perf/vulkan-half-2026-10-28/notes.md`).
+
+`graphicsBackend.cjs` holdsVSync: a launch that took Vulkan's switches keeps VSync on whatever the setting says, and
+`main.cjs` skips `frameRateSwitches` then (the page is told the wait is not lifted). A launch held on the default, or
+the relaunch after a failed Vulkan, took no switches and gets the VSync setting as before. The VSync row's help and the
+Vulkan row's note say so. Pins: `test/tooling/gpubackend.test.js`, `test/ui/settings/disc28e_vsync.test.js`.
+
+Re-checked on commit `2a85b3e372` (the `app/` dir unpackaged over its own `dist/`; Vulkan chosen, the setting VSync
+off): 400 of 400 drag steps and 20 of 20 fullscreen toggles answered, each ending "after frame ok". A control with the two
+switches added by hand froze at step 2 (`dfo-verify/tools/perf/vulkan-half-2026-10-28/branch-resize/`).
+
+The guard in the app (2026-10-27, head `0765a2564a`, the same machine and shell, one launch each, fresh userData; the
+notice answered with Enter; `dfo-verify/tools/perf/desktop-vulkan-2026-10-26/webgl2-check/`):
+
+| Launch | What the guard saw | Result |
+|---|---|---|
+| Pref on Vulkan | the page's WebGL2 context on `ANGLE (NVIDIA, Vulkan 1.4.341 (NVIDIA NVIDIA GeForce RTX 5080 (0x00002C02)), NVIDIA)` | logged `vulkan up`; no record |
+| `DAGGER_GRAPHICS_BACKEND=d3d9` | the page got no WebGL2 context (check 2; Chromium's renderer names Direct3D9, so check 1 passes) | recorded, relaunched; the relaunch drew on D3D11 and keyed the record `10de:2c02@32.0.16.1088` |
+| `DAGGER_GRAPHICS_BACKEND=metal` | the page's renderer is a software one: `ANGLE (Microsoft, Microsoft Basic Render Driver (0x0000008C) Direct3D11 vs_5_0 ps_5_0, D3D11)` | recorded, relaunched; the relaunch drew on D3D11 and keyed the record |
+
+Each failed launch wrote its record with `gpu: null`: the page's report arrives before Chromium's GPU info is read, so
+the relaunch keys it. Each relaunch drew on `ANGLE (NVIDIA, NVIDIA GeForce RTX 5080 (0x00002C02) Direct3D11 ...)`. An
+earlier cut keyed SwANGLE's device (`ffff:ffff@...`), and the relaunch then cleared the record as "another GPU". That
+would have tried the failed backend on every other start.
+
+Not verified: the built app over `dagger://` (the shell code is the same; the page is not), the GPU process's own loss
+(it cannot be forced from the shell), the page's 60 s silence (a unit test holds it), a real driver update, and any GPU
+but this one NVIDIA card. Every run used `--play`, never the launcher first. A later start held by a keyed record on the
+same driver was driven only as the relaunch itself; the unit test holds the rest. The settings row was seen in the app
+(before/after screenshots, base `284f59cefa`). Pins: `test/tooling/gpubackend.test.js`, and the row in
+`test/systems/org2_options.test.js`.
+
+### The backdrop blur is off on Vulkan (VULKAN-FLIP, 2026-10-28)
+
+A player in #bug-reports, on the Vulkan option's first day: "Screen flips when opening an inventory UI while using the
+Vulkan". The pack (`.pack-shell.on`) and the dial (`.px-dial.on`) blur the world behind them with CSS
+`backdrop-filter`. Chromium's compositor draws that backdrop from the WebGL canvas, and on Vulkan with the GPU sandbox
+off the compositor is the GPU's (`gpu_compositing: enabled`, above). The game's own frame is the same WebGL on both
+backends: a flipped frame would show with no window open. The pack's 3D figure is a `readPixels` of the game's own
+target (`fpArm.js` figure), the same on both backends too. So the backdrop is the one draw the pack adds that the
+backend can change.
+
+`src/ui/vulkanBackdrop.js` guardBackdrops: in the desktop shell, a page whose own WebGL renderer names Vulkan
+(`renderer.gpuName`) gets one style that sets `backdrop-filter: none !important` on every element and pseudo-element.
+Each window keeps its own dim. `src/main.js` runs it behind the shell's door just after the renderer is made, off the
+entry's static graph (BOOT2). It reads the page's renderer, not a shell flag, so a game-only update (DA13) reaches an
+installed app. D3D11 and every browser keep the blur.
+
+Checked in Playwright's Chromium: the rule takes the pack's, the dial's, an inline and a pseudo-element's backdrop
+filter to `none`, and a pack opened after it never blurs, its arrival transition included. Not verified: the flip and
+its end on a Vulkan GPU. On Linux, Chromium composites SwiftShader's Vulkan in software, and the backdrop stood upright
+there with and without Vulkan's switches, headless and under Xvfb. The check on a Windows GPU: open the pack on a
+Vulkan launch, and the world behind it stands upright, unblurred. Pins: `test/ui/vulkanflip.test.js`.
+
+### The player's word, and the launcher's option (VULKAN-BLANK, GPU-BACKEND-LAUNCHER, 2026-10-30)
+
+Issue #1379, a player after the Vulkan release: *"the interface is blank, but the buttons are still here"*, in the
+launcher and in the game. Every check above passed: Chromium named Vulkan and the page got its context. The one
+switch back was the game's own row, behind a blank window. Not reproduced: no Windows GPU here, and the cause on that
+machine is not known.
+
+**VULKAN-BLANK.** On a Vulkan launch, each window asks the player once as it shows (`watchBackend` windowShown):
+"Can you see the DFO Online launcher?", then "Can you see the game?", Keep Vulkan or Go back. Windows draws the box,
+not Chromium, so it shows over a blank window. The box is owned by its window: a box with no owner can stand behind a
+fullscreen game. It waits for check 1, so a software renderer gets the notice instead, and any failure found while it
+is up closes it.
+
+Go back, Enter or Escape is a failure on record, keyed, with the relaunch and without the notice. No answer within
+20 s (`CONFIRM_TIMEOUT_MS`, the box closed by its `signal`), or a box that failed, holds this launch alone
+(`--dagger-default-backend`): a player away from the keys is no proof that Vulkan fails. Only a Keep over the game is
+recorded (`graphicsBackendConfirmed`: backend, GPU key, Chromium), because the launcher can draw while the game's
+canvas does not. A launch on the same three is not asked again. A driver or app update asks again, and a launch with no
+GPU key keeps and matches nothing.
+
+**GPU-BACKEND-LAUNCHER.** The launcher's side column has Graphics, on Windows only: Use Vulkan, the box showing the
+backend the next start uses (`launcherState.cjs` graphicsView). It writes the page's shelf from the shell
+(`graphicsBackend.cjs` chooseBackend, `fileStorage.cjs` writePref), so the game's row and the launcher never
+disagree. Vulkan chosen here clears the failure record: the player asked to try again, and the guard still stands.
+
+"Restart to apply" shows only while the choice differs from this launch, never after Play or over a download or an
+install. It relaunches and quits, as `restartForUpdate` does, without `--dagger-default-backend`. A staged self-swap restarts by its own quit (UPDATE-SWAP),
+which a plain relaunch would race. The notes: "Vulkan did not work on this graphics card." (a record holds it), "Direct3D
+11 for this start only." (the one-launch hold, which offers no Restart), "The setting could not be saved." (a shelf
+that is not JSON, left alone). A record the guard clears as the launcher opens frees the box (`onCleared`). The window
+grew from 600 to 660 px for the row.
+
+The box covers a blank launcher and a blank game. The launcher's option is the way back for a player who kept Vulkan
+and later wants it off, without the game's settings. The fix is in the shell, which the game's own update (DA13) does not carry: a player
+stuck on an older build gets it from the launcher's install before Play (DA8), which needs no click, so a blank
+launcher still takes it. Pins: `test/tooling/gpubackend.test.js`, `test/tooling/da10_launcher.test.js`. Not verified on
+a Windows GPU: the box over a blank window, and the restart.
+
+## The compiled scripts are kept (CODE-CACHE, 2026-10-27)
+
+A player reported that the app loaded worse than the browser. Chrome keeps V8's code cache for an https site. Electron
+keeps none for a custom scheme unless the scheme asks for one (the CustomScheme privilege `codeCache`, "only works when
+`standard` is also set to true. Default false"). So `main.cjs` registers `dagger` with `codeCache: true`. The launcher's
+`dagger://launcher` shares the scheme and is cached too.
+
+Chromium's rule decides when the cache is used. The first load of a script writes a marker, and the second load
+produces the cache after the compile. The third and later loads consume it. Measured in the built app (Electron 42,
+Windows, an i9-12900KF with an RTX 5080), three launches on one new profile each, base and head interleaved:
+
+| launch | 1 | 2 | 3 |
+|---|---|---|---|
+| boot, base A / head / base B (s) | 28.8 / 26.8 / 26.5 | 11.0 / 9.4 / 9.4 | 11.0 / 9.4 / 9.2 |
+| compile on the main thread, base B / head (ms) | 639 / 531 | 612 / 664 | 607 / 623 |
+| compile off the main thread, base B / head (ms) | 320 / 296 | 320 / 298 | 303 / 6 |
+| `Code Cache/js` on head | 200 KB | 26.6 MB | 26.6 MB |
+
+Launch 3 consumed 748 scripts (25.7 MB), and V8 rejected none. Launch 2 paid 288 ms to produce the cache. The work the
+cache removes is the module compile, which Chromium streams on a worker thread. The main thread's compile is mostly lazy
+functions (`V8.CompileCode`), and the module cache does not hold them. So on this CPU the boot is no faster. A machine
+with fewer cores, where the worker competes with the main thread, is where the cache can show. Base A ran in an earlier
+slot, and its 1.6 s lead over the other two columns is drift, not the change.
+
+An update cannot be served stale code: every script in `dist/` has a content hash in its name, so a changed script is a
+new URL with no cache. Checked: one line added to `src/main.js` and the app rebuilt changed only `main-*.js`. On the
+profile above, that script compiled with no cache, its line ran, and the other 747 came from the cache. A script whose
+text changed at the same URL would rely on V8's own check of the cache alone. `dist/` has no such script.
+
+## The boot runs behind another window (BOOT-HIDDEN, 2026-10-27)
+
+The same player reported that the app did not load while its window was covered or minimized. The world's build yields
+between models (`src/systems/buildBreather.js`, PERF7), and it waited on the next animation frame. A hidden page gets
+none, so the boot stopped at its first pixel until the player looked again. Measured on the base, the boot stood at
+"building player pixel" from 7 s until the window came back at 90 s, minimized or covered alike (95.8 s each).
+
+`webContents.setBackgroundThrottling(false)` does not fix it: with it off to the boot's end, the minimized page stayed
+`hidden` and the boot stalled the same (93.5 s). Windows gives a minimized window no frames. So the fix is in the
+breather: in the desktop app (a `daggerShell` bridge), a hidden page yields one event-loop turn (a `MessageChannel`
+message) instead of a frame (`breathFrame`). The browser build keeps the frame. A slice resumed by a turn is not lent to
+the frame clock (PERF-EXT24): no frame sampled it. A window minimized while a breath's frame is pending gets none, so
+the breath also resumes by a turn when `visibilitychange` shows the page hidden (pinned by execution, not run in the
+built app).
+
+Measured in the built app, the throttling left as Electron's default: the cold boot took 26.6 s covered and 26.4 s
+minimized, where a visible one took 26.5-26.8 s; a warm minimized boot took 9.2 s. In play the throttling is the
+base's. Minimized, the page drew 8 frames in 8 s (base 0, full rate about 1,900). Covered after a visible boot, it drew
+0 (base 0). One limit: a window covered from the launch to the end of the boot keeps drawing about 100 frames a second
+while it stays covered, until its visibility next changes (seen with and without the throttling lift; the base never
+reaches play covered). Pins: `test/tooling/boot_hidden.test.js`.
 
 ## What deliberately did NOT move
 

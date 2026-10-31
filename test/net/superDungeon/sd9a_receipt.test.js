@@ -27,6 +27,9 @@ import { PIXEL_M } from '../../../src/net/gate/gateLaw.js';
 import { fakeRooms } from '../../fakeRoom.mjs';
 import { fakeSocketClass } from '../../fakeSocket.mjs';
 import { OnlineSession } from '../../../src/net/online.js';
+import { sdTestKey, sdOneParty } from './sdParty.mjs';   // SD-PARTY: the rig's one party's Hour
+
+sdOneParty();
 
 const subtle = webcrypto.subtle;
 const read = (p) => readFileSync(new URL(`../../../${p}`, import.meta.url), 'utf8');
@@ -129,7 +132,7 @@ async function withRealm(fn) {
       const cell = world.room(worldRoom(PX, PY));
       const mara = cell.connect(); await cell.hello(mara, 'peer-mara', doorPose(10), { name: 'Mara' });
       await cell.raw(mara, JSON.stringify({ t: 'sd', k: 'found', s: rec.s, px: PX, py: PY }));
-      const realm = world.room(sdRoomKey(rec.s));
+      const realm = world.room(sdTestKey(rec.s));
       { const h = await realm.room._sdHallOf(rec.s); h.ok = true; await realm.room.state.storage.put('sdorrery', h); }   // AUDIT SD: past the Orrery, kept as a realm keeps it - the fight's door asks its Concord (PIN MOVED)
       const beat = async (ms) => { const end = clock + ms; while (realm.alarm.at != null && realm.alarm.at <= end) { clock = Math.max(clock, realm.alarm.at); await realm.fire(); } clock = end; };
       await fn({ world, hub, realm, rec, beat, step: (ms) => { clock += ms; }, now: () => clock });
@@ -263,9 +266,9 @@ function rig(room, { acct = null, v = RELAY_VERSION } = {}) {
 
 test('SD9a THE PAGE: my receipt heard from my own realm or the hub - never a cell\'s, never another\'s shape; a slot\'s spoils said `spent` to the hub alone, by a signed-in account (mutants: a receipt from anywhere; spent from a realm)', async () => {
   const bare = await mintSdReceipt(CLAIM, null, { subtle, nowS: T0S });
-  const realm = rig(sdRoomKey(7), { acct: 'acct-ann' });
+  const realm = rig(sdTestKey(7), { acct: 'acct-ann' });
   realm.ws.receive({ t: 'sd', k: 'rcpt', r: bare });
-  assert.deepEqual(realm.got, [[bare, sdRoomKey(7)]]);
+  assert.deepEqual(realm.got, [[bare, sdTestKey(7)]]);
   const hub = rig(SOCIAL_ROOM, { acct: 'acct-ann' });
   hub.ws.receive({ t: 'sd', k: 'rcpt', r: bare });
   assert.deepEqual(hub.got.map(([r]) => r), [bare]);
@@ -293,5 +296,5 @@ test('SD9a the relay by source: the receipts minted before the fall is said, by 
   assert.match(w, /if \(sub\) \{ try \{ await this\._sdReceiptTo\(ws, sub, now\); \}/);   // PIN MOVED, SCALE5c: among the hub's words (`_hubHelloWords`), by the verified subject
   assert.match(w, /'sweep:sdrc'/);
   assert.match(w, /import \{ mintSdReceipt, readSdReceipt, SD_RECEIPT_TTL_S \} from '\.\.\/\.\.\/src\/net\/superDungeon\/sdReceipt\.js';/);
-  assert.match(read('test/net/relayversion.test.js'), /'src\/net\/superDungeon\/sdReceipt\.js'(?:, 'src\/net\/(?:eliteGates\/)?eg[A-Za-z]+\.js')*\]/, 'net/superDungeon/sdReceipt.js in the bundle');   // PIN MOVED (EG-FILE): the Elite Breach's relay modules in net/eliteGates/   // PIN MOVED (INT12): last still - net/superDungeon/sdRemnant.js walks earlier now, under net/bossRef.js; PIN MOVED (EG-PLAY): an Elite Breach's five walk after it
+  assert.match(read('test/net/relayversion.test.js'), /'src\/net\/superDungeon\/sdReceipt\.js'(?:, '(?:src\/net\/(?:eliteGates\/)?eg[A-Za-z]+|src\/net\/dragon\/dragon[A-Za-z]+|server\/src\/dragonFights)\.js')*\]/, 'net/superDungeon/sdReceipt.js in the bundle');   // PIN MOVED (EG-FILE): the Elite Breach's relay modules in net/eliteGates/   // PIN MOVED (INT12): last still - net/superDungeon/sdRemnant.js walks earlier now, under net/bossRef.js; PIN MOVED (EG-PLAY): an Elite Breach's five walk after it; PIN MOVED (DRAGON2): and the Dwarven Dragon's relay modules among them
 });

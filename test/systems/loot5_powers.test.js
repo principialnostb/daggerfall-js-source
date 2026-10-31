@@ -84,7 +84,7 @@ test('LOOT5: thirty powers - one a record, named, briefed inside the card\'s 32,
     ['registerPlayerKillListener', 'lootKill'], ['registerAbsorptionChance', 'lootAbsorbChance'], ['registerMagicRoundHook', 'lootRound'], ['registerLegendaryFind', 'lootFind']]) {
     assert.match(src, new RegExp(`\\n${seam}\\(LOOT_POWERS, ${fn}\\);`), `${seam} -> ${fn}`);
   }
-  assert.match(read('src/scenes/world.js'), /setHudSetChips\(\(e\) => \[\.\.\.setHudChips\(e\), \.\.\.lootHudChips\(e\)\]\);/, 'the HUD hears both');
+  assert.match(read('src/scenes/world.js'), /setHudSetChips\(\(e\) => \[\.\.\.setHudChips\(e\), \.\.\.lootHudChips\(e\), \.\.\.martialHudChips\(e\)\]\);/, 'the HUD hears both');   // PIN MOVED (RPT1026-PROGRESS): and a martial path's passive beside them
 });
 
 test('LOOT5: who - my worn pieces, one count a power, a weapon\'s on its own blows, asleep in a duel, nothing off', () => {
@@ -318,10 +318,10 @@ test('LOOT5: death, the vigil, the kill, the round, the absorption, the find', (
   door([], me);
   assert.equal(LP.lootFind(), 1);
   wear(me, legendary('foxglove'));
-  assert.equal(LP.lootFind(), 1.5);
-  assert.equal(LR.legendaryFindMult(), 1.5, 'registered: the host door\'s finders');
-  const c = LR.rarityChances({ kind: 'pile', tier: 10, find: 1.5 }), c0 = LR.rarityChances({ kind: 'pile', tier: 10 });
-  assert.equal(c.legendary, c0.legendary * 1.5, 'the source\'s own chance, times one and a half');
+  assert.equal(LP.lootFind(), 1.25, 'PIN MOVED (FOX-STACK, Loot-Arc.md section 22): a quarter, it was a half');
+  assert.equal(LR.legendaryFindMult(), 1.25, 'registered: the host door\'s finders');
+  const c = LR.rarityChances({ kind: 'pile', tier: 10, find: 1.25 }), c0 = LR.rarityChances({ kind: 'pile', tier: 10 });
+  assert.equal(c.legendary, c0.legendary * 1.25, 'the source\'s own chance, times one and a quarter');
   assert.ok(LR.rarityChances({ kind: 'corpse', tier: 0, luck: 100, find: 1000 }).legendary <= LR.rarityChances({ kind: 'corpse', tier: 0, luck: 100 }).rare, 'never past the Rare');
   setPlayerDoor(null);
 });

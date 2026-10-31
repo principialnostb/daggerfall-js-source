@@ -56,8 +56,8 @@ import { growthPageAt } from './growth/growthPages.js';   // GROWTH1: the Growth
 import { revenantStarsOver } from './firmamentOver.js';   // RVN-STARS: a sworn one's stars, over Companions
 import { levelUpScreenFor } from './charSheetDoor.js';   // GROWTH1: a level owed's rollout, drawn in the Growth tab (the view is the tab's own)
 import { playerEntity } from '../characters/playerEntity.js';   // the shared entity the Stats page already reads (enhancedMenu's sheetModel)
-import { profPagesShown, PROF_PAGE_SECTIONS } from './professions/profPages.js';   // CLASSIC-PAGES: the professions' two pages, on either skin
-import { FAMILY_PAGE_SECTIONS } from './familyPages.js';   // LEGACY3: Project Legacy's Family tab, on either skin
+import { profPagesShown, PROF_PAGE_SECTIONS, professionsKeyAt } from './professions/profPages.js';   // CLASSIC-PAGES: the professions' pages, on either skin
+import { FAMILY_PAGE_SECTIONS, familyTabShown, familyProvider, noFamilyLine } from './familyPages.js';   // LEGACY3: Project Legacy's Family tab, on either skin; FAMILY-TAB: and only where the game is played with it
 import { hudText } from '../systems/notify.js';
 import { t } from '../systems/textManager.js';   // L10N4: the professions' closed line in the player's language
 import { isTextEntryTarget } from './input.js';   // AUDIT PRIVATE-REPORT UI-10: a field's held key is the field's
@@ -180,7 +180,7 @@ export function pauseMenuAct(hooks, close) {
  */
 /** CLASSIC-PAGES: what a door pressed for a professions page says when the pages are not this account's (offline, the
  *  professions' switch closed, the book not read yet). */
-export const PROF_PAGES_CLOSED_LINE = 'Professions are online only. Your Professions and Stores pages open while you play online.';
+export const PROF_PAGES_CLOSED_LINE = 'Professions are online only. Your Professions, Crafting and Stores pages open while you play online.';   // CRAFT-HALL: three pages
 /** L10N4: the line in the player's language (PROF_PAGES_CLOSED_LINE stays the English the pins read). */
 export const profPagesClosedLine = () => t('pause.profPagesClosed', PROF_PAGES_CLOSED_LINE);
 /** Whether a door's landing page is one of the professions' own (the Professions key's, a station's). */
@@ -219,14 +219,20 @@ export function openPauseFlow(show, hooks = {}) {
 function openPauseFlowNow(show, hooks) {
   if (profPageAt(hooks.at)) {
     if (!profPagesShown()) { hudText(profPagesClosedLine()); return null; }
-    if (typeof document !== 'undefined') return enhancedPauseOverlay(show, hooks);
+    // CRAFT-HALL: at a station the Professions key opens the Crafting page on it
+    if (typeof document !== 'undefined') return enhancedPauseOverlay(show, hooks.at === 'professions' ? { ...hooks, at: professionsKeyAt() } : hooks);
   }
   // LEGACY3: Project Legacy's Family tab (its key, the death's Succession) - the classic pause has no tabs, so the family's
   // pages open the enhanced pause on either skin, as the professions' do
-  if (familyPageAt(hooks.at) && typeof document !== 'undefined') return enhancedPauseOverlay(show, hooks);
+  if (familyPageAt(hooks.at)) {
+    // FAMILY-TAB (2026-10-06): a game played without Project Legacy has no Family tab - the key says why (the pages' own
+    // words) and opens nothing, as a professions door with no pages does
+    if (!familyTabShown()) { hudText(noFamilyLine(familyProvider())); return null; }
+    if (typeof document !== 'undefined') return enhancedPauseOverlay(show, hooks);
+  }
   // SERVER-POST: the mailbox (`/mail`, ui/enhanced/enhancedPost.js) is the enhanced face's - the classic pause window has no envelope - so
   // its door opens the enhanced pause on either skin, as the family's pages do
-  if ((hooks.at === 'mailbox' || hooks.at === 'report') && typeof document !== 'undefined') return enhancedPauseOverlay(show, hooks);   // PRIVATE-REPORT: `/bug`, its form
+  if ((hooks.at === 'mailbox' || hooks.at === 'report' || hooks.at === 'season') && typeof document !== 'undefined') return enhancedPauseOverlay(show, hooks);   // PRIVATE-REPORT: `/bug`, its form; SEASON-BOOK: `/season`, the laurel's window
   // GROWTH4: the Growth tab (the classic sheet's specialisation rows, a door to the level or the skies) - the classic pause
   // has no tabs, so its pages open the enhanced pause on either skin, as the family's do (the owner, asked: the classic skin
   // reaches it)
@@ -292,7 +298,7 @@ function enhancedPauseOverlay(show, base) {
   const rvnStars = revenantStarsOver({
     alive: () => !fired,
     below: () => { try { view?.unmount(); } catch { /* already gone */ } view = null; },
-    back: () => { if (!fired && seams) view = seams.mountEnhancedMenu(host, { mode: 'pause', hooks, onAction: act, at: 'companions' }); },
+    back: () => { if (!fired && seams) view = seams.mountEnhancedMenu(host, { mode: 'pause', hooks, onAction: act, at: 'companions', owner: overlay }); },
   });
   const host = document.createElement('div');
   host.id = 'enhanced-pause';
@@ -379,7 +385,7 @@ function enhancedPauseOverlay(show, base) {
     mount: (mod) => {
       const { mountEnhancedMenu } = mod;
       seams = mod;
-      view = mountEnhancedMenu(host, { mode: 'pause', hooks, onAction: act, at: hooks.at ?? null });
+      view = mountEnhancedMenu(host, { mode: 'pause', hooks, onAction: act, at: hooks.at ?? null, owner: overlay });   // COVERED-KEYS: the window its keys are gated on
       focusIn();   // AUDIT LEGACY III U2
     },
     alive: () => !fired, host, onDismiss: () => { host.remove(); fired = true; }, label: 'pause',

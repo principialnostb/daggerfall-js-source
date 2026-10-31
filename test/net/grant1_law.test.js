@@ -9,14 +9,18 @@ import {
   GRANT_SIG_V, GRANT_TTL_MS, GRANT_SKEW_MS, GRANT_ELITE_CHANCE, GRANT_ELITE_MIN_RENOWN, GRANT_CHAMPION_PER_MILLE, GRANT_CHAMPION_TRAITS,
   GRANT_KINDS, GRANT_CELL_CEILING, GRANT_REFUSALS, GRANT_DICE,
   grantRng, grantDice, grantMarks, validGrant, grantBytes, signGrant, verifyGrant, grantMintGate, grantRefusal, grantMarksAllow,
+  STAR_GRANT_RELAY_MIN, relaySupportsStarGrant,
 } from '../../src/net/grantLaw.js';
 import { ELITE_FOE_OVERWORLD_CHANCE, ELITE_FOE_MIN_RENOWN, eliteRng, eliteHash } from '../../src/systems/eliteFoes.js';
 import { CHAMPION_PER_MILLE, CHAMPION_TRAITS } from '../../src/systems/champions.js';
 import { ROAD_PARTY_MAX } from '../../src/systems/roadEncounters.js';
 import { CAMP_SIZE } from '../../src/systems/campEncounters.js';
 import { PARTY_SCALE_EXTRA_MAX } from '../../src/systems/party/partyScale.js';
+import { HOLD_WAVE_MAX } from '../../src/net/delve/delveLaw.js';
 import { chooseRandomEnemy } from '../../src/systems/encounters.js';
 import { signEgCall } from '../../src/net/eliteGates/egCallSig.js';
+import { STAR_WAVE_MAX } from '../../src/net/starfall/starfallLaw.js';
+import { RELAY_VERSION } from '../../src/net/wire.js';
 
 const { subtle } = globalThis.crypto;
 const T0 = 1_800_000_000_000;
@@ -30,6 +34,17 @@ test('GRANT1 THE PINNED RATES: each copy the relay holds equals its home - the e
   assert.equal(GRANT_CHAMPION_TRAITS, CHAMPION_TRAITS.length);
   assert.equal(GRANT_KINDS.enc.max, ROAD_PARTY_MAX, 'an encounter: the road party\'s most, its party\'s extra inside it');
   assert.equal(GRANT_KINDS.camp.max, CAMP_SIZE[1] + PARTY_SCALE_EXTRA_MAX, 'a camp: its own most and the party\'s extra');
+  assert.equal(GRANT_KINDS.star.max, STAR_WAVE_MAX, 'STAR-TUNE: a fallen star\'s coven - its law\'s largest wave, one grant');
+  assert.equal(GRANT_KINDS.delve.max, HOLD_WAVE_MAX, 'DLV3: a dungeon encounter\'s foes - its law\'s largest wave, one grant');
+  assert.equal(STAR_GRANT_RELAY_MIN, 238, 'AUDIT STAR-TUNE F1: the relay that mints the star\'s kind is STAR-TUNE\'s');
+  // AUDIT (the desync branch's integration lane): the gate names a VERSION, and a renumber at a merge moves RELAY_VERSION,
+  // its law row and its pins - never this. Held to the release it names: the law row of world<STAR_GRANT_RELAY_MIN> is
+  // STAR-TUNE's (test/net/relayversion.test.js), and no later than the relay this tree builds. A merge that renumbers
+  // STAR-TUNE past another release fails here until the gate moves with it.
+  const lawRow = readFileSync(new URL('./relayversion.test.js', import.meta.url), 'utf8').split('\n').find((l) => l.trimStart().startsWith(`world${STAR_GRANT_RELAY_MIN}: '`));
+  assert.ok(lawRow && lawRow.includes('STAR-TUNE'), `world${STAR_GRANT_RELAY_MIN}'s law row is STAR-TUNE's (${lawRow?.slice(0, 120)})`);
+  assert.ok(STAR_GRANT_RELAY_MIN <= Number(RELAY_VERSION.slice('world'.length)), 'the gate is no later than the relay this tree builds');
+  assert.deepEqual(['world237', 'world238', 'world300', 'nope', undefined].map(relaySupportsStarGrant), [false, true, true, false, false], 'an older relay is asked the stand\'s own kind');
   assert.deepEqual(Object.keys(GRANT_KINDS).slice(0, 2), ['enc', 'camp'], 'GRANT2\'s first stream; the other sources\' with GRANT4 (grant3_pool)');   // PIN MOVED (GRANT4): every source's kind
   for (const [s, salt] of [[0, 'marks'], [0xdeadbeef, 'species:2'], [12345, 'health:0']]) {
     const a = grantRng(s, salt), b = eliteRng(eliteHash('grant', s, salt));
@@ -40,7 +55,7 @@ test('GRANT1 THE PINNED RATES: each copy the relay holds equals its home - the e
   assert.deepEqual(GRANT_DICE, ['species', 'level', 'weapon', 'health']);
   assert.deepEqual(GRANT_REFUSALS, ['kind', 'size', 'bucket', 'ceiling', 'unsigned', 'sender', 'cell', 'expired', 'member', 'marks']);
   const src = readFileSync(new URL('../../src/net/grantLaw.js', import.meta.url), 'utf8');
-  assert.deepEqual([...src.matchAll(/^import .* from '([^']+)';/gm)].map((m) => m[1]), ['./identityToken.js', './wire.js'], 'the relay imports it: nothing that reaches the loot tables');
+  assert.deepEqual([...src.matchAll(/^import .* from '([^']+)';/gm)].map((m) => m[1]), ['./identityToken.js', './cellTree.js', './wire.js'], 'the relay imports it: nothing that reaches the loot tables');   // PIN MOVED (COST-2): and the cell tree's law (a grant stands in any cell its reader's socket covers), which imports wire.js alone
 });
 
 test('GRANT1 A GRANT READ WHOLE OR NOT AT ALL: every field in its law, a fresh copy back; an unknown kind, a size past its kind, an elite that is also a champion, a mark past the members, a bad pixel, a level or Renown no token carries, a bad signature\'s shape - each refused (mutants: the kind\'s most ignored; an elite champion believed; the guest\'s 0 refused)', () => {
@@ -56,7 +71,7 @@ test('GRANT1 A GRANT READ WHOLE OR NOT AT ALL: every field in its law, a fresh c
     ['past its kind', { n: 5, e: 0, c: [-1, -1, -1, -1, -1] }], ['a camp past its own', { k: 'camp', n: 9, e: 0, c: Array(9).fill(-1) }],
     ['an elite champion', { c: [3, 2, -1] }], ['an elite past the members', { e: 0b1000 }], ['c short', { c: [3, -1] }],
     ['a trait past the list', { c: [5, -1, -1] }], ['a trait below none', { c: [-2, -1, -1] }],
-    ['a pixel off the map', { p: [1000, 200] }], ['a pixel short', { p: [300] }], ['a level no token carries', { l: 1001 }],
+    ['a pixel off the world', { p: [8192, 200] }], ['a pixel off the world, north', { p: [300, -8192] }], ['a pixel not whole', { p: [300.5, 200] }], ['a pixel short', { p: [300] }], ['a level no token carries', { l: 1001 }],
     ['a Renown no token carries', { r: 51 }], ['a seed past 32 bits', { s: 2 ** 32 }], ['a negative minute', { m: -1 }],
     ['no expiry', { x: 0 }], ['a socket id of bad shape', { o: 'a b' }], ['an account of bad shape', { a: 'x' }],
     ['a room of bad shape', { q: 'w/300' }], ['a number past 31 bits', { g: 2 ** 31 }], ['a signature of bad shape', { sg: 'short' }],
@@ -64,6 +79,9 @@ test('GRANT1 A GRANT READ WHOLE OR NOT AT ALL: every field in its law, a fresh c
   ]) assert.equal(validGrant({ ...G, ...bad }), null, why);
   assert.equal(validGrant(null), null);
   assert.equal(validGrant('grant'), null);
+  // AUDIT TESA-BIOME F2: a cell past the Bay mints the pixel the relay reads off the pose (TV-BEYOND) - the Imperial City's,
+  // the Eltheric Ocean's - and the reader reads it whole; it was refused as "off the map", so no grant past the Bay stood
+  for (const p of [[2475, 824], [-862, -975], [5137, 2774], [4000, -5000]]) assert.deepEqual(validGrant({ ...G, p })?.p, p, `${p}`);
 });
 
 test('GRANT1 THE RELAY\'S SIGNATURE: every field signed in one fixed order behind its own version, verified with the public half; any field moved, another key, no signature or no key refused; a grant\'s bytes are no arch call\'s (mutants: a field left out of the bytes; any signature taken)', async () => {

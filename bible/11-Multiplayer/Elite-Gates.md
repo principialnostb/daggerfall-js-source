@@ -338,8 +338,8 @@ THE COUNT CHIP, THE RECAP, THE REHEARSAL, RIDDEN POSES, THE SPIRE MIX, ROLE READ
 **The item.** Template **575**, free today (the gate's 570-572 and the Ayleid stones' 573-574 come before it). It is a
 row of its own, `WEIR_KEY_ROW` in `src/systems/eliteGates/weirKey.js`:
 
-- `{index:575, baseWeight:0.25, hitPoints:1000, basePrice:500, rarity:20, bound:true, stackable:true, packOnly:true}`
-  (the leaf `WEIR_KEY_LAW_ROW`, `src/systems/eliteGates/weirKeyRow.js`, since KEY-LAW; pack-only since KEY-FACE, below), in the
+- `{index:575, baseWeight:0, hitPoints:1000, basePrice:500, rarity:20, bound:true, stackable:true, packOnly:true}`
+  (the leaf `WEIR_KEY_LAW_ROW`, `src/systems/eliteGates/weirKeyRow.js`, since KEY-LAW; pack-only since KEY-FACE, below; weightless since KEY-WEIGHT, below), in the
   miscellany group (`UselessItems2`), never a gem (PORTAL1's lesson: every Gems piece is a crystal a slot takes);
 - its art: a Battlemage's key in gold leaf with a blue stone in its bow, painted in code under the Spire's held archive
   block (`src/world/eliteGates/egKeyArt.js`, EG-ZH), which EG1's registry holds - never a borrowed record, because Port-Doctrine
@@ -347,7 +347,10 @@ row of its own, `WEIR_KEY_ROW` in `src/systems/eliteGates/weirKey.js`:
 - named in `BOUND_TEMPLATES` (`src/net/realm/realmTradeLaw.js`), so the realm's trade refuses it as the client does;
 - its line (`EG_TEXT.keyLine`), on its info card under its name and weight, as the Portal Stone's card is built
   (`src/systems/item/itemInfo.js` `survivalInfoTokens` - AUDIT EG V): *One of the Spire's portal keys, surrendered to the Kyn
-  in 3E 398. It opens the Weir Gate's road from this side.*
+  in 3E 398. Use it under open sky to open an Elite Breach.* - and under it, since RPT1026-CLIENT (the balance is the
+  account's, below, and nothing the player saw said so), *Every character on your account shares the same Weir Keys.*
+  (`itemInfo.js` weirKeySharedLine, `eg.key.shared`, in the player's language: EG_TEXT rides the relay's bundle, and a
+  line the relay never reads is the card's own)
 
 **The balance is the account's.** Every dungeon drop is the client's own `Math.random`: the Integrity arc's ledger
 (`06-Systems/Integrity-Arc.md`) measures it after the fact and does not enforce. A key from a forged drop would open a
@@ -378,10 +381,29 @@ real relay instance, so the key is a service-side balance and the item is its fa
   of the pack; it loads with every one folded away (`foldStrayWeirKeys`, called from `save.js` restorePlayer beside the
   load's item repairs, over every list the save holds but the pack - the one walk, `savedItemLists` - and a room's own
   things, `decorOwn`), so the account's balance restacks the pack whole and nothing turns to rust. A face the find threw
-  on a body and the player never took up is folded the same way at the next load. OPEN: that throw is the one face
-  still made outside the pack - taken up only after a later answer restacked the pack to the whole balance, it leaves
-  the pack one over, and the next answer says the rust line for it (the account loses nothing). Pinned:
+  on a body and the player never took up is folded the same way at the next load. Pinned:
   `test/net/eliteGates/fb1019f_keyface.test.js` (5), `tools/mutants/fb1019f_keyface.json` (13, all dead).
+- **The faces lying on bodies count** (RPT1026-CLIENT, 2026-10-26, closing KEY-FACE's one open door; a private report:
+  a pack's count of Weir Keys falling back to one now and then). The find's throw is the one face made outside the pack, and it
+  restacked the pack to the balance less that face alone: a second find before the first body was looted, or any answer
+  landing before the take-up, restacked as if no face lay anywhere, so each face taken up showed a key the account never
+  held and the next answer said the rust line for it. Every face thrown is kept with the body's list it lies in
+  (`weirKey.js` throwWeirKeyFace), and every restack sets the pack to the balance less the faces still lying
+  (`weirKeysLying`): one taken up - gone from its list - leaves the count, so the pack and the bodies always show the
+  balance together. Out of the dungeon (the find's place door, `setWeirKeyFacesHere`) the faces left behind are folded off
+  their bodies at the next answer and the pack shows the whole balance; a load keeps none as lying (`foldStrayWeirKeys`).
+  AUDIT RPT1026 K1: a face is kept against the VISIT it was thrown in - the world host's door is `egFindPlace`, the
+  dungeon's tier and its context, built new at every entry - so one out of the dungeon and into the next (or the same one
+  built again) before any answer landed outside is folded too: it had been counted in the next dungeon, on a body that dungeon
+  never had, and the pack stood a key short of the balance for each. A find answered after the player left the visit it was
+  asked in puts its key in the pack, not on the body left behind.
+  The key's card says the keys are the account's (above).
+- **It weighs nothing** (KEY-WEIGHT, 2026-10-31, Mac: "Remove weight from weir keys"). It was 0.25 kg. A key leaves the
+  pack only to the Spire's own stake, so it is no load to carry, as CAKE-WEIGHT made the Soul Cake
+  (`src/systems/festival/festivalRows.js` SOUL_CAKE_LAW_ROW). A face carries no `weightInKg` of its own (`weirKey.js` weirKeys), so every stack a
+  save holds reads the row. Pinned: `test/systems/eliteGates/key_weight.test.js` (1), `tools/mutants/key_weight.json`
+  (1, dead).
+  Pinned: `test/systems/eliteGates/rpt1026_client_weirface.test.js` (3), `test/scenes/audit_rpt1026_client.test.js` (K1, 5).
 
 **Where they come from.** The service rolls every one with its own `rand`, at a claim it already verifies. This is
 the `sdHonoursRoll` way: AUDIT SD III R4 moved the Hour's honours off the receipt seed because the page can read the
@@ -1261,7 +1283,9 @@ itself is held (EG-SWEEP-RED, section 31).
   local clock: a peer on a Drift swinging at 3.1 m/s would float 0.5-1.7 m beside it. So a pose on a moving piece
   carries `pl`, the piece's index, and its offset from that piece's top at the sender's time. A receiver draws
   `stepAt(piece, tDraw) + offset`. The field joins `validPose` (a relay version, EG8). A peer on a crumble the viewer
-  has seen fall is drawn on a ghost slab. The relay stands a ridden pose on its piece only where the pose's own feet
+  has seen fall is drawn on a ghost slab. RIDE-PLAY (FIELD BUGS 2026-10-23, `01-Overview/bugs/Field-Bugs-2026-10-23.md`):
+  the session's play-out carries the ride (`net/online.js` lerpPose, rideAlong) - it dropped it until then, so no ridden
+  peer reached `rideAt`. The relay stands a ridden pose on its piece only where the pose's own feet
   stand on it - its top as it stood within `EG_SUPPORT_LAG_S`, the capsule about it (`net/eliteGates/egFair.js` `egRideHolds`) -
   and judges the raw pose otherwise (AUDIT EG V: a pose on a fight floor claiming a far Drift was stood on it, off
   every floor, where no blow found it).
@@ -1818,7 +1842,11 @@ byte. The Spire's lords are written to it. The gate's brain already exports the 
     for the company standing before it.
   - **From its wake no fall takes a share out of it.** The living finish what the fallen left, so a death makes a fight
     harder for the company, never easier. The gate and the Remnant retire a share only for absence (`ABSENT_RETIRE_MS`),
-    and the Remnant keeps a fallen body's. A recall finds its member's share where it was. A member never seen whose
+    at the fraction the boss stands at - and there a death IS an absence: the fallen's page leaves the room at once
+    (`world.js`'s death branch, `online.leave()`), so neither holds a fallen fighter's share as a lord does. [Corrected by
+    RPT1026-FIGHTS (a private report, 2026-10-20): this said "and the Remnant keeps a fallen body's" - true of its law (a
+    body seen dead in its arena keeps its share) and never of play, since no fallen body's pose stays in the arena.] A
+    recall finds its member's share where it was. A member never seen whose
     absence becomes a fall (section 6.1's 180 s) takes nothing with it: it never brought any.
   - The members a hall can gain mid-fight are the late and those a Memento calls back into it (a member is admitted only
     in the open window, before the first wake: section 6.1), each bringing its share at the fraction. The last share in
@@ -2436,7 +2464,10 @@ fight hall's door is no part. A receipt banks:
 - **the depth**: the Redoubt joins the member's taken Redoubts, this season and all time;
 - **the week's spoils** of that Redoubt, rolled from the seed its claim answers - the receipt's secret seed (section 22)
   mixed with the account service's own draw, so no page rolls a receipt's spoils before the service has said which
-  receipt the week pays (AUDIT EG V) - and thrown at the beacon like the gate's spew (section 19);
+  receipt the week pays (AUDIT EG V) - and thrown at the beacon like the gate's spew (section 19). LOST-SPOILS
+  (2026-10-22, `06-Systems/Accounts-And-Cloud-Saves-Arc.md`): an item still there when the member leaves the Spire, or
+  when the next Redoubt's spoils are thrown, goes to the mailbox from the Lost and Found, its gold to the purse; a
+  Reliquary does not (the owner: "No, keep the risk");
 - **Marks**, and the embers section 19 pays, thrown among the spoils (AUDIT EG V);
 - **a sealed Reliquary**, when that Redoubt pays this week (section 16.3);
 - **the board's standing** (section 20).
@@ -2447,7 +2478,7 @@ The mode's heartbeat fires in an order, timed from the lord's `fell`:
 
 | at | what |
 |---|---|
-| 0 s | the gate's fall beats (WB13e): *FELLED*, the body down |
+| 0 s | the gate's fall beats (WB13e; on every lord since EG-FALL): *FELLED*, the body down - the cry, the burst, the white flash and the shake; its thud at 1.5 s and the column of embers; its corpse left where it fell |
 | 1.5 s | the beacon climbs at the court's heart with SPIRREDT's first chord, under the card *Redoubt 5* / *The Broken Galleries* |
 | 3 s | the count's chip takes its time: *+15:00* (or *+10:00 - the Covenant's Press*, or *+3:00 - the last word* when the last word clamps it) |
 | 3.5 s | the spoils thrown at the beacon, at least 12 m from the way home |
@@ -2515,7 +2546,8 @@ same cooldown and says its seconds): *here*, *danger* or *mine* (an errand claim
 a blue pillar 6 m tall whose glyph names the kind, with a chime (blue is the company's, section 25.2).
 
 A company choice (the decrees, Dagon's Bargain, a respite, the Ready vote) is a prompt at the beacon or the shrine,
-open for 10 s to every member, the witnesses included. It passes on a majority of those who answer; silence abstains,
+open for 30 s (`EG_ASK_MS`; 10 s until FIELD BUGS 2026-10-25 ASK-LONGER - players could not read a rest's
+decrees in it) to every member, the witnesses included. It passes on a majority of those who answer; silence abstains,
 and a tie refuses (for the decrees, a tie takes the first shown). One silent player never blocks the company, and
 nobody decides for eight alone. A respite that passes is asked again, and the Ready with it; a Ready and a respite in one
 word take the respite whole (section 6.2).
@@ -2562,7 +2594,11 @@ fallen their spoils at risk and the company a member until the next Redoubt, or 
 Losing the whole company still costs the run.
 
 - **The Unfallen**: a company that takes Redoubt 10 with no fall, in a breach begun at Hall 1, holds the title *the
-  Unfallen* and a flame on its board row (section 20).
+  Unfallen* and a flame on its board row (section 20). AS BUILT (AUDIT COLLECTIONS-II, 2026-10-22,
+  `01-Overview/audits/Audit-Collections-II.md` L1-4): the fall counted is the member's own - a Redoubt receipt's `fl`
+  is its member's falls (`egBrain.js:"fl: m.falls ?? 0"`) and egHonourBitsOf grants on it
+  (`egHonours.js:"c.fl === 0 && c.ew === 0"`) - so a member who never fell holds the title whoever else in the company fell. The
+  Collections page says what is built; which is meant is the owner's to decide.
 - **The Lone Beacon**: a Court felled by one living member, in a company of four or more, gives that member the title
   *the Lone Beacon* and a herald line (section 20).
 
@@ -2939,7 +2975,9 @@ the pay law `net/eliteGates/egPay.js`, and the Broker sells the Panoply's sink. 
 - **The sink.** `POST /v1/eg/sink { piece }` (one of `EG_PANOPLY_IDS`) is one conditional UPDATE in the insignia's way:
   `insignia_spent + 20`, where the purse covers it and no `eg_sink` row stands this week. The week's row is written by
   that write alone. It answers `{ ok, piece, week, purse }`, or refuses `guest` 403, `piece` 400, `bought` 409 (which
-  piece) or `short` 409 (the purse and the price). It is in `ROUTES`, the eg act map, `EG_STATUS` and the route comment.
+  piece) or `short` 409 (the purse and the price). BROKER-RID (AUDIT FB1024): `rid`, the press's request id, is written
+  beside the sale in its batch (`broker_sales`, migration 0174) - refused `fenced` 409 where a settle fenced it first,
+  `rid` 400 where it is not one; the same id asked again answers its sale (`again`). It is in `ROUTES`, the eg act map, `EG_STATUS` and the route comment.
 - **`server-account/src/index.js`**: the claim takes `{ receipt, character }`. INT5's `grantSpoils` fires only for a
   recorded, paid Redoubt.
 - **Migration 0117** (EG-PLAY's, unshipped; 0111, 0112, 0113, 0114 then 0116 on its branch, renumbered past NAME-AS's 0111, SEAT-FACTS' 0112, LAMP-KEEPER II's 0113, FIRMAMENT-ON's 0114, KG6's 0115 and POI-1's 0116 at the merges) gains a block of its own:
@@ -2951,7 +2989,9 @@ the pay law `net/eliteGates/egPay.js`, and the Broker sells the Panoply's sink. 
     `piece`;
   - `systems/sigil/sigilBroker.js` `panoplySale`, the insignia's two halves. The host's `mint` comes first (a piece it cannot
     make is never paid for). Then the embers leave the pack before the service is asked. A refusal gives them back. A
-    lost answer is asked after (`held`). A held sale adds the piece, with no Broker price on it, and is saved;
+    lost answer is asked after by the press's own request id (`/v1/broker/settle`: the sale, or the id fenced and the
+    embers back; BROKER-RID, AUDIT FB1024 - `01-Overview/bugs/Field-Bugs-2026-10-24.md`). A held sale adds the piece,
+    with no Broker price on it, and is saved. One unheard twice is owed, and her next open settles it;
   - `ui/brokerWindow.js`: "The Battlemage's Panoply" under the insignia (`panoplyRows`, the nine pieces by section 19's
     names). It shows the price and "One a week", and its Buy says why not ("Need 15 more", "Bought", "Next week"). A
     sale in flight holds every other;
@@ -3163,6 +3203,8 @@ everything"*.)
 - **Pins**: `test/net/eliteGates/egeco_herald.test.js` (9), `test/net/eliteGates/egeco_receipts.test.js` (3), `test/systems/eliteGates/egeco_find.test.js` (4), and
   `tools/mutants/egeco_relay.json` (72, every one dead). `RELAY_VERSION` `world197` is re-hashed with
   `net/eliteGates/egHerald.js` in its graph.
+
+**HERALD-CARDS (2026-10-22).** These posts are cards now (`net/herald/heraldCard.js`; `World-Bosses.md` THE HERALD, HERALD-CARDS): the family The Battlespire, in its colour, the moment's title, its facts as fields (the tenth Redoubt and First of the Spire: Hall, Time, Began at, Company; the Descent record: Bracket, Company, Deepest hall, Time), and content only on a post that pings. When each is owed is unchanged. Its cards may go to a thread of their own of the channel (the relay setting `egThread`), the gate's else.
 
 ## 21. Integrity - what the relay judges
 
@@ -3557,16 +3599,44 @@ The Burning Court and the Hour are re-plugged with their behaviour unchanged.
 | Recall | as today | refused | refused |
 | the Portal Stone | refused | refused | refused |
 | companions (GATE-ALONE, SD-ALONE) | kept out | kept out | kept out |
-| natural regeneration (`courtRules`) | off | off | off |
+| natural regeneration (`courtRules`) | held (EVENT-RULES) | held | held |
 | restoring potions | as today | as today | two a hall (THE POTION LAW) |
 | Levitate | as today | banned | banned |
 | Slowfall | as today | as today | banned |
 | a technique's flight on traversal ground | as today | as today | refused |
 | the jump buffer and the late press | none | none | 0.12 s each |
-| Resurrect | as today | refused | refused |
+| Resurrect | as today | raise before the fall (EVENT-RULES, AUDIT WORLD-EVENTS L1-4) | raise before the fall (EVENT-RULES, AUDIT WORLD-EVENTS L1-4) |
 | Stendarr's AvoidDeath | as today | as today | refused |
 | a death | cast out | final for the Hollow | a fall (section 16.5) |
 | DEATH-PENALTY | as today | as today | none |
+
+**EVENT-RULES (2026-10-25, the owner: "A lot of people are unhappy with the world event restrictions including the regen
+not working"; asked, "Back, held in a fight" and "Resurrect allowed").** Two rows changed for every made level, the
+Sky-Ketch's among them. REGENERATION IS HELD, not off (`systems/courtRules.js`): every natural source - the class's and
+the race's, a ring's, a technique's, Grit's, the Firmament's, Hist-Sap's, the Warden's Steadfast (AUDIT WORLD-EVENTS L1-3:
+the last three had never asked) - regrows at half (`REGEN_HELD_SHARE`, each source's fraction carried round to round, each
+body its own carry - L1-9) and not at all for 5 s after the player is hurt (`REGEN_HELD_HURT_MS`, started at the player's
+hurt door, `systems/courtRulesDoor.js` - L1-10: a frame-to-frame health diff started it on a maximum's fall and missed a hit
+healed in the same frame), so a boss's blows still cost but a breather between them pays; WBX6's "off" had no word on the
+screen, and players read it as a broken regeneration. RESURRECT IS ALLOWED: no level refuses a party member's Resurrect;
+the Hour's one life is kept by the relay (`Super-Dungeons.md` SD-REZ), so a fallen member may be raised within the body's
+minute there. THE RULES ARE SAID: a made level's tile on the HUD's status row (`ui/hud/statusTips.js madeRulesTile`)
+names the place and lists what it holds and refuses, the regeneration's pause counting down on it. The tile is the
+enhanced HUD's alone (AUDIT WORLD-EVENTS L1-11, kept): the classic skin is Daggerfall's own status row, which has no
+tile for any rule; its player hears each rule where it bites - a refusal's own words, the death's card.
+
+**RAISE BEFORE THE FALL (AUDIT WORLD-EVENTS L1-4, 2026-10-25; the owner, asked what "Resurrect allowed" means where a
+death is a fall: "Raise before the fall").** Removing the refusal did nothing here: a lethal blow in the Spire is caught by
+the fall's death save (the witness's view, section 16.5), so no body ever lay for a spell. Now a death in a hall's fight,
+with another member living, lays the member DOWN where it fell for `EG_DOWN_MS` (60 s, the Hour's minute -
+`net/eliteGates/egBrain.js egLayDown`): out of the fight (`alive` 0), its Reliquaries still its own, its company told
+(`down`); its page holds the witness's eye, its body dying on every screen (`net/online.js poseDown`). A party member's
+Resurrect at it (`rz`, `net/raiseWord.js` from the world host's Resurrect door; `egRezMember`: the caster living in the
+breach, within `EG_REZ_REACH_M` of where the body lies, inside the window) stands it there at `EG_REZ_PCT` (Resurrect's
+own 30%, pinned equal), a new life on the count (`rise`, said by name to the hall). Past the window, given up (the card's
+key - `yield`), with nobody living left to raise it, or the hall cleared (the Redoubt's recall falls the downs first), it
+is THE FALL as ever. A death with no hall's fight about it (a rest, the stair) falls at once. Pins:
+`test/net/eliteGates/auditwe_down.test.js`.
 
 **The world's clock does not stop.** The shared clock turns during a three-hour breach (36 game hours, a game day and
 a half). A quest's deadline can lapse inside, which is why the start window warns of it (section 5).
@@ -9528,7 +9598,8 @@ was DFU's dungeon drips and doors (`systems/ambientEffects.js`), a crypt's, over
 
 **What shipped.**
 - **A song's own voices** (`systems/song/songPlayer.js`): `songVoices`, `songKit`, `unisonCents`, `VOICE_RANGE`,
-  `KIT_RANGE`, `SONG_FLOOR_HZ`, `SongPlayer._drumLayers` and `_makeFloor` - unison pairs as loud as the one pair, a sub, a
+  `KIT_RANGE`, `SONG_FLOOR_HZ`, `SongPlayer._drumLayers` and `_makeFloor` (INTRO3c, 2026-10-24: the bowed voice `_bow`, a
+  channel's `_insert`, `_vibrato`, `_breath`, a song's `_routeTone` - `10-UI/UI-Arc.md` INTRO3c) - unison pairs as loud as the one pair, a sub, a
   spread laid either side of the channel, a drum's click and body, a bend keeping the spread, and THE FLOOR, a 30 Hz
   high-pass under a voiced song before its press (a 1:1 FM pair's first lower sideband lands on 0 Hz; a quarter of the
   spiccato's energy stood under 40 Hz, and the press answered it by pressing the whole song). Every song MIDI.BSA holds
@@ -10255,3 +10326,166 @@ SPIRE-FIRST-severide-not-granted re-aimed as SPIRE-FIRST-serveride-not-granted, 
 be seen by their character is seen so in Discord too. A list in config is still a person's edit: Hour's First's names
 came from the clears' claims (`sd-clears.yml`), which carry the account; the Spire's company has no such workflow, so
 the next name put on a handle list off the herald is checked against the account first.
+
+### EG-FALL - 2026-10-21 - A LORD'S FALL IS THE GATE'S
+
+The owner: *"I notice in the Elite Breaches, when the boss dies it freezes in place. Oblivion gates do the boss death the
+best way"*. Audited cold the same day at the owner's word, *"Audit this"* (AUDIT EG-FALL,
+`01-Overview/audits/Audit-EG-FALL.md`: three lanes on a frozen head, 32 findings, 30 distinct, 2 of them bugs); this record reads as
+the audit left it, each correction marked with its finding's id.
+
+**What was there (FACT, at 8089d374f).** A felled lord stays in its hall's fight on the relay's word: `egLordHit`
+(`net/eliteGates/egLords.js`) sets `EG_FL.fell` and the fall's instant, and keeps the body, so the Twins' fifteen seconds
+can raise one (`egLink.js` `fellOf` clears it again). The screen drew that body through `egBodyAct`
+(`scenes/eliteGates/egFight.js`), whose fallen branch read `frame: Math.min(3, ...)` over 1.2 s with `sink: 0` and had no
+end: the lord played four hurt frames and then stood on the fourth, upright and full size, for as long as the hall stood.
+Section 16.2 promised "the gate's fall beats (WB13e): *FELLED*, the body down"; the card shipped (`beats`), the body
+never went down, and none of the gate's other beats had been carried over - no cry, no thud, no light, no shake.
+(EG-ZJ's record says "a lord's flags fallen lay it down at once": the fold's state, never the picture - AUDIT EG-FALL L3-12.)
+
+**The fall.** `scenes/eliteGates/egLordFall.js` (new; `egFight.js` wires it) gives every lord the Warden's fall from the
+Burning Court (`world/gate/gateBoss.js` `bossAct`, `scenes/gate/gateCourt.js` `fallEvent`, `drawCorpse` and `lights`).
+It is on the gate's own numbers - `FALL_MS`, `THUD_AT_MS`, `FALL_FLASH_MS`, `FALL_SHAKE`, `COLUMN_BURSTS`,
+`COLUMN_STEP_MS`, `FALL_CRY_LATE_MS`, and the ones the court had written in line, now named there and read here
+(`FALL_BURST_UP`, `FALL_FLASH_Y`, `FALL_FLASH_K`, `FALL_FLASH_RANGE`, `FALL_NEWS_MS` in `gateCourt.js`, `GLOW_UP_SHARE` and
+`FALL_GLOW_K` in `gateBoss.js` - AUDIT EG-FALL L2-9, L3-9). Three of them grow with the lord's drawn size over the
+Warden's 3 (`EG_FALL_PER` - Grath at 4.8 sinks 2.4 m): its sink, its corpse's scale, and the height its beats stand at
+(`egFallTallM`, the Warden's `BOSS_H` grown - not the drawn sprite's height); the flash, the glow's reach, the shake and the
+bursts' size are the gate's as they are (AUDIT EG-FALL L3-1, L3-7):
+- **The body** (`egLordFallAct`, which `egBodyAct` answers for a fallen lord): its hurt picture to the floor by 1.5 s -
+  Daggerfall's hurt records hold one frame each (TEXTURE.270 and 280-291, records 10-14), so the frame index the gate's
+  formula runs is one held picture, as the gate's own is (AUDIT EG-FALL L1-5) - then sunk into the stone over the rest of
+  2.4 s, then gone. A winged body falls beating its wings (the Mother of Dusk aloft: her winged table looped at the flyers'
+  ten a second, as the gate's host's winged fall - L1-5), and a flyer drops out of its hover by the thud (`aloft`). It lies
+  where it fell: the place first seen fallen is held (`placeOf`), never carried on by a walk said before the fall nor moved
+  by a later word, and the relay stops a felled lord's walk at its fall (`egStop` in `egLordHit`, relay world248), so the
+  place the room says once its whole fight is heard is taken and every screen lays it in one place (AUDIT EG-FALL L1-2,
+  L2-2).
+- **The kill**: its death cry (the gate's `fall` cue in the lord's own bark - `egFallCry`; a Daedra Lord's is the gate's
+  own), a burst of Dagon's size out of its chest - a flyer's in the air it fell from (L1-4) - whose sparks rest on its
+  floor, the hall's light white for 0.4 s, and the camera shaken 4 under the Spire's motion law (`egShakeMotion`: reduced
+  motion none, Technique camera motion its share).
+- **The thud** at 1.5 s, and three embers rising off the floor a quarter second apart; its ember's glow at its chest dies
+  over the fall, dropping with a flyer. The ember is the gate's own under the lord's element's aspect (`egLordEmber`: fire
+  the Burning's, frost the Rime's, shock the Storm's, poison the Venom's; Vael the fire and Isk the frost; no element, its
+  band's).
+- **Its body left**: its mobile's own corpse (`enemyBasics.js` `corpseTexture`; every lord's mobile has one, and every one
+  stands in Daggerfall's files - TEXTURE.096, 306, 400 and 405) where it fell, grown as the lord is - Grath's 9.0 by 4.2 m -
+  with no giant's shadow (OW-BIG's law). It lies there while the fight keeps the lord, and is put away when the Twin is
+  raised (her next fall plays again from its own instant, also when the screen never saw her stand), when the lord leaves
+  the fight, at a new hall even before its fight is heard, and when the breach is left.
+- **One fall is one fall** (AUDIT EG-FALL L1-1, L2-1): a lord that is not its fight's last to fall (a Twin's first, the
+  Old Masters', Clan Feud's) is told by `efl` alone, which the link stamps at its arrival, and the next whole fight (`efs`,
+  every 2 s) brings the relay's own instant. The moved instant re-anchors the fall (`EG_FALL_SAME_MS`, a fall's span: no
+  lord is raised and felled again inside one), where before it played the whole fall a second time - a second cry, shake,
+  burst, thud and column in five of the eight timings the audit swept.
+- Each beat plays once a fall, and only while news, as the gate's do: a screen that comes to the hall later sees the
+  corpse on the floor and hears nothing.
+- The sparks are drawn by the gate's spark pass (`render/gate/gateFx.js`) in the fight's world pass, after the telegraph
+  floors (`egFight.js` `drawPass`), sized by the world image's height as the Hour sizes them (L1-7). The pass is warmed while
+  a lord stands, so the kill's frame links nothing, and freed with the breach (`GateFxRenderer.destroy`, new - L1-6). The
+  corpses ride the fight's batches, and the flash and glow - each a record refilled in place - ride its lights: at most two
+  a fall, the flash's 0.4 s and the glow's 2.4 s (AUDIT EG-FALL L3-2). Neither casts a shadow: the Spire's light seam
+  (`world/eliteGates/egHall.js` `egLightsWith`) now honours a light's `carried` mask as the gate's does; it had dropped it,
+  and the fall's two lights took shadow casters' slots (L1-3).
+
+**The four hosts.** None touched (HOST-SPLIT): the fall rides the fight's own batches, lights and world pass, which
+`scenes/eliteGates/egClient.js` hands on (AUDIT EG-FALL L3-11).
+
+**DFU, and the departures.** Not a DFU member. Daggerfall Unity's foe has no fall of its own: `EnemyDeath.CompleteDeath`
+sets it inactive at once (`gameObject.SetActive(false)`), lays a lootable corpse marker in its corpse picture
+(`GameObjectHelper.CreateLootableCorpseMarker`) and plays `SoundClips.BodyFall` where it lies. The gate's fall (WB13e) is
+the port's own and departs from that - the fall itself, the corpse laid at 2.4 s, BodyFall at the thud pitched for his size
+- and this follows the gate (AUDIT EG-FALL L3-3: the record said DaggerfallEnemy, and none of the beats DFU does have).
+It departs from the gate four times: the cry is the lord's own voice where the gate's is always the Warden's; the kill's
+sparks rest on the floor where the gate's rest at his chest's height; the corpse casts no shadow where the gate's does; and
+a Colossal lord's sink and corpse grow with its size where the gate's Colossal Warden keeps 1.5 m and 3 (L1-8, L3-5).
+Ledger A's ELITE-GATES row names the file; no row of its own (the lords are no DFU foes - WB13's precedent).
+
+**The relay.** world248 (`src/net/wire.js` `RELAY_VERSION`; NOT YET DEPLOYED - world240 on its branch, renumbered past
+main's world240 to world247 at the merge): `egLordHit` stops a felled lord's walk. No word changes and no client gate: a
+page facing an older relay holds the fall's place itself, and an older page reads the stop as any walk's. Its law row in
+`test/net/relayversion.test.js` (796f8ce9...; 89a91c15... as world240 on the branch); the version pins of 43 test files
+moved to it (PIN MOVED), and `tools/mutants/soc1.json`'s S38 re-aimed.
+
+**Pins.** `test/net/eliteGates/eg_lordfall.test.js` (20 - fourteen through `egFight.js`'s own draw path over a recording
+renderer and audio engine, the others the module's law, its pass over a recording WebGL, and the Spire's light seam; the
+last, Daggerfall's own pictures, runs where ARENA2 stands - `tools/fetch-data.sh` - and skips where it does not) and
+`test/net/eliteGates/eg_lordfall_relay.test.js` (2, the relay's own words: the director runs the Twin Court, `egLordHit`
+fells the lord, each word crosses the wire's check and folds at its own arrival - the two bugs, each failing at the audited
+head). `test/scenes/nudedecor.test.js` names the new billboard host (NUDE-HOSTS: a corpse, never a person).
+`tools/mutants/eg_fall.json`: 78 (the first run's 37, twelve re-aimed where the audit moved their lines; one a fix; L2's
+21 surviving gaps on the new code; the first run of the audit's own records left five alive - the flash moved at a
+re-anchor, the stopped and the walking row's place, the fight's warm, a destroyed pass's draw - and each was pinned), all dead. `tools/mutants/wb13e.json` and `wb8c.json`: one record each re-aimed at the
+gate's named numbers.
+
+**Left as it is, said.** Not seen on a running screen: a breach needs a relay and a company. What was read instead is the
+draw path, the renderer's, the audio's and the GL's calls, and Daggerfall's own pictures measured where ARENA2 stands - the
+reason is the relay, never the data (AUDIT EG-FALL L3-4: this record first gave ARENA2 as the reason, against CLAUDE.md's
+freeware rule). The FELLED card still stands at the word's arrival (the gate's waits 1.7 s, over his spoils). The legion's
+adds fall as they did (1.2 s, `edie`), and a mirror still crumbles. A raised Twin stands at once; she does not climb up out
+of the floor. Under a relay before world248, a screen that comes to the hall after a walking lord fell lays the corpse where
+that relay carried it.
+
+### EG-SPANS-HELD - 2026-10-22 - THE SPANS' CLOCK PIN ON A HELD PAGE CLOCK
+
+The site's deploy 1592 (#1126's merge, `d4c96bea7`) was refused by `verify / tests 8/8`, on the one failure among that
+shard's 3,948 tests: EG-ZD's THE SPANS' CLOCK in `test/net/eliteGates/egz_return.test.js`, *not re-anchored for a wander
+under the step*. The tree was #1126's head's to the byte (`fb8bde413`), whose check had passed the same pin, and AUDIT
+QUESTLINES had seen it fail once under load and pass alone (`01-Overview/audits/Audit-Questlines.md`, "Not this arc's") -
+named there for this arc.
+
+**Why it failed.** `spanSeconds` reads render/deadlands.js `anchoredClock`, which carries the seconds on the page's clock
+(`performance.now()`) from an anchor on the wall. The pin held the wall (`Date.now`) and not the page's clock: between the
+two reads it compared, the wall stepped the round trip's 100 ms and the page's clock moved by whatever the runner spent on
+a frame and a ping's answer - and the pin allowed that 50 ms. A busy runner spent more, and the seconds moved by it, as
+the law says they should: the pin was wrong, not the clock. Reproduced: a 60 ms stall between the two reads fails it on
+that assertion.
+
+**The fix** is 52aff580b's (#1124, the staff panel's branch, which had reproduced it under load on its own): the pin holds
+the page's clock still as well, so the seconds move only when the anchor is taken again - a wander under the step leaves
+them where they stood, where taking the anchor again moves them 103 ms, either side of the pin's 50. This record's branch
+made the same fix after the deploy failed and withdrew it at the merge (main's is the file). The same stall passes it.
+
+**The pins.** `tools/mutants/egz_return.json` - 71, every one dead on the held clock, the spans' five among them
+(EGZ-spans-clock-outside, EGZ-reanchor-every-sample, EGZ-reanchor-never, EGZ-host-spans-on-the-welcome and
+EGZ-host-egnow-on-the-welcome).
+
+**Left, said.** `prof3_client`, the other test the audit named, strikes the Anvil on real 400 ms timers; it is the
+Anvil's arc's, and not touched here.
+
+**The game.** Nothing in `src/` moved. **The four hosts.** None touched (HOST-SPLIT).
+
+### RPT1026-EVENTS - 2026-10-26 - A REDOUBT'S SPOILS PRESSED IN THE SPIRE, AND A WINDOW THAT SLEPT TAKEN INTO THE NEXT CIRCLE
+
+Two private reports each, from players of the Elite Breach.
+
+**SPIRE-SPOILS** (two reports: a Redoubt's spoils lay on the Court's floor and none of them could be taken). A
+Redoubt's spoils are thrown from its Court's
+heart into the Hour's floor pool (`scenes/world.js` egSpoilsPaid, kept to the Court's floor by
+`scenes/eliteGates/egClient.js` beaconAt), and the press takes a piece as a target the one ray wins. The gate's court
+(`scenes/gate/gateStand.js`) and the Hour's realm (`scenes/worldModes.js` standSdRealm) stand the pool's targets and their
+names in the context they stand in. The Spire's circle stood neither, so every piece lay drawn on the Court's floor, its
+line rising, and no press reached it. Leaving the Spire took it to the pack, and since LOST-SPOILS to the mailbox, so
+nothing was lost, but nothing could be picked up where it lay. Now the circle (`scenes/eliteGates/egCircleHost.js`
+standEgHall) stands the pool's targets (`addActivationTargets`) and its names (`addActivationNamer`) as the court and the
+realm do.
+
+**SPIRE-CATCHUP** (a report: a member whose window was in the background when the rest ended stayed in the finished
+circle and lost what they carried). The company steps into its next circle in the rest's end. A member's page took that step on the frame that
+first saw the new circle, but only while the room's stage read `arrive` (the gather's seconds, thirty at most). A hidden
+window draws no frame, while its socket's words still come, so the state woke past the arrival into the trial. Every
+frame after it returned in the finished Court until the absent law (`EG_ABSENT_TRIAL_MS`, 180 s) cast the member out,
+and the Reliquaries they carried with them. Now a member is taken into the company's circle at whatever stage it first
+draws, unless that stage is the rest (the one stage whose next circle is still being built). They land on its arrival
+plate and walk to the fight as a late arrival does.
+
+**Not DFU members:** Daggerfall has no shared run, no Redoubt and no company. Ledger A (EG).
+
+**Pins:** `test/scenes/eliteGates/rpt1026_events_spire.test.js` (2). SPIRE-SPOILS: the real circle stood into a context
+of the dungeon host's shape, and the real pool throwing a Redoubt's real spoils (`egSpoilsList`) from the Court's heart
+over the circle's own collider; each piece offered, named and picked. SPIRE-CATCHUP: played against the relay's real Room
+(EG-PLAY's harness), with a hidden window's beats beside it (the room's words, no frame, no pose). The member stays in
+circle 1 while the room fights circle 2's trial; it is in circle 2, on its arrival plate and alive, at its first frame.
+It failed before the fix (circle 1, not 2). `tools/mutants/rpt1026_events.json` (SPIRE-SPOILS 2, SPIRE-CATCHUP 1, all
+dead). **The four hosts:** none grown; `createEgClient` changed in one existing line (its ceiling holds).

@@ -341,8 +341,8 @@
   {
     "name": "DISC10-D-V4-the-transfer-never-leaves-the-interior",
     "file": "src/scenes/world.js",
-    "old": "    const pos = longitudeLatitudeToMapPixel(mapTable[idx].longitude, mapTable[idx].latitude);\n    modes?.forceExitToExterior();\n",
-    "new": "    const pos = longitudeLatitudeToMapPixel(mapTable[idx].longitude, mapTable[idx].latitude);\n",
+    "old": "    if (!pos) { console.warn('[infection] no cemetery in this region - the transfer is skipped (DFU throws here)'); return; }\n    modes?.forceExitToExterior();\n",
+    "new": "    if (!pos) { console.warn('[infection] no cemetery in this region - the transfer is skipped (DFU throws here)'); return; }\n",
     "tests": [
       "test/systems/disc10_vampire.test.js"
     ]
@@ -504,10 +504,19 @@
     ]
   },
   {
-    "name": "DISC10-E-L3-the-quickslot-potion-for-the-beast",
+    "name": "WERE-POTIONS-the-beast-refused-every-potion",
     "file": "src/systems/quickslots.js",
-    "old": "  // :583-587). The window's own line, and nothing is consumed.\n  const sup = racialSuppressInventory(entity);\n  if (sup) { say?.(sup.text); return { kind: 'refused' }; }\n",
-    "new": "  // :583-587). The window's own line, and nothing is consumed.\n",
+    "old": "  if (sup && !isPotion(r?.item)) { say?.(sup.text); return { kind: 'refused' }; }",
+    "new": "  if (sup) { say?.(sup.text); return { kind: 'refused' }; }",
+    "tests": [
+      "test/systems/disc10_lycan.test.js"
+    ]
+  },
+  {
+    "name": "WERE-POTIONS-any-pack-item-for-the-beast",
+    "file": "src/systems/quickslots.js",
+    "old": "  if (sup && !isPotion(r?.item)) { say?.(sup.text); return { kind: 'refused' }; }",
+    "new": "",
     "tests": [
       "test/systems/disc10_lycan.test.js"
     ]
@@ -522,10 +531,37 @@
     ]
   },
   {
-    "name": "DISC10-E-L3-quick-loot-takes-for-the-beast",
+    "name": "WERE-LOOT-the-beast-takes-nothing",
     "file": "src/systems/quickLoot.js",
-    "old": "  if (racialSuppressInventory(playerEntity)) return null;\n",
-    "new": "",
+    "old": "  const beast = !!racialSuppressInventory(playerEntity);\n",
+    "new": "  const beast = false;\n",
+    "tests": [
+      "test/systems/disc10_lycan.test.js"
+    ]
+  },
+  {
+    "name": "WERE-PICK-every-beast-press-the-lot",
+    "file": "src/systems/quickLoot.js",
+    "old": "  if (how === 'all' || (beast && !quickLootOn())) {",
+    "new": "  if (how === 'all' || beast) {",
+    "tests": [
+      "test/systems/disc10_lycan.test.js"
+    ]
+  },
+  {
+    "name": "WERE-PICK-the-beast-never-takes-the-lot",
+    "file": "src/systems/quickLoot.js",
+    "old": "  if (how === 'all' || (beast && !quickLootOn())) {",
+    "new": "  if (how === 'all') {",
+    "tests": [
+      "test/systems/disc10_lycan.test.js"
+    ]
+  },
+  {
+    "name": "AUDIT-WERE-PICK-P1-no-first-row",
+    "file": "src/systems/quickLoot.js",
+    "old": "  const item = quickLootItemAt(key, items) ?? (beast ? hoverItemAt(items, 0, Infinity) : null);",
+    "new": "  const item = quickLootItemAt(key, items);",
     "tests": [
       "test/systems/disc10_lycan.test.js"
     ]
@@ -789,6 +825,24 @@
     "new": "      playerWeaponKillReported(playerEntity, { mobileType: 146 });",
     "tests": [
       "test/systems/disc10_online_kill.test.js"
+    ]
+  },
+  {
+    "name": "WERE-WRAPS-the-change-strips-the-wraps",
+    "file": "src/systems/lycanthropy.js",
+    "old": "if (!isHandWraps(equipTableOf(entity)[slot])) unequipSlot(entity, slot);",
+    "new": "unequipSlot(entity, slot);",
+    "tests": [
+      "test/systems/disc10_lycan.test.js"
+    ]
+  },
+  {
+    "name": "WERE-WRAPS-the-claws-strike-bare",
+    "file": "src/combat/playerWeapon.js",
+    "old": "  get wraps() { return this.wrapsOf(this.activeHand); }",
+    "new": "  get wraps() { return this.weapon?.werecreatureClaws ? null : this.wrapsOf(this.activeHand); }",
+    "tests": [
+      "test/systems/disc10_lycan.test.js"
     ]
   }
 ]

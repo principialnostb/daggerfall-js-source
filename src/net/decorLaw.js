@@ -28,6 +28,8 @@
 import { PROVENANCE_RE, makerName } from './recipeLaw.js';   // PROF4: a crafted piece's id and mark, one home
 import { TEMPLATES } from '../systems/item/itemKinds.js';   // INT9: the kept-back list's templates - a leaf
 import { isNpcFlat } from '../world/npcFlatArchives.js';   // DECOR-FIGURE: a person's flat (RDBLayout.NPCFlatArchives) - a leaf
+import { t } from '../systems/textManager.js';   // DECOR-USE: the cooking station's name in the player's language
+import { TROPHY_TEMPLATE } from './trophyLaw.js';   // HUNTERS-MARK: a mounted trophy hangs
 
 /** The items kept back by name: paper worth money or a house (a letter of credit, a deed) and the book of the
  *  player's own spells - set down in a home, it would be out of reach wherever the player went (DECOR2a; INT9: its home
@@ -36,16 +38,33 @@ export const DECOR_OWN_KEPT_BACK = Object.freeze(new Set([TEMPLATES.Spellbook, T
 
 /** How many pieces one home holds - a room full of furniture, not a frame-rate. */
 export const DECOR_CAP = 200;
+/** A guild hall's interior. A house holds DECOR_CAP or more by its ground (decorCapOf). The palace Charter Room keeps its own cap. */
+export const DECOR_HALL_CAP = 300;
+/** DECOR-ROOMY (FIELD BUGS 2026-10-29f, the housing thread's item 6: "Some houses, for example in Sentinel, are REALLY
+ *  WIDE and take as much as three times the space of a small house"): a home holds DECOR_CAP to DECOR_CAP_GROUND_M2 of
+ *  ground and as much more again for each as much more - three times as wide, three times the pieces - to DECOR_CAP_MAX,
+ *  in steps of DECOR_CAP_STEP. The ground is HOME-PRICE's (the building's model box - net/homeLaw.js homeGroundOk). */
+export const DECOR_CAP_GROUND_M2 = 200;
+export const DECOR_CAP_MAX = 600;
+export const DECOR_CAP_STEP = 10;
+export function decorCapOf(groundM2) {
+  if (!(typeof groundM2 === 'number' && Number.isFinite(groundM2) && groundM2 > 0)) return DECOR_CAP;
+  const n = Math.floor((DECOR_CAP * groundM2) / DECOR_CAP_GROUND_M2 / DECOR_CAP_STEP) * DECOR_CAP_STEP;
+  return Math.min(DECOR_CAP_MAX, Math.max(DECOR_CAP, n));
+}
 /** A piece's id: the client mints it (the save and the service key on the same one). */
 export const DECOR_ID_RE = /^[A-Za-z0-9_-]{1,24}$/;
+/** REST-GUEST (FIELD BUGS 2026-10-29f): the home's own row among its pieces' access rows - who besides its owner may rest
+ *  in it. mintDecorId never makes it (twelve of [0-9a-z]). */
+export const DECOR_REST_ID = '_rest';
 /** ARCH3D model ids run to six digits; TEXTURE records below 512, and archives below 512 - DECOR2c: or the port's own
  *  past them (Roleplay & Realism's weapons and armour, 513 to 526; Climates & Calories', 532 to 539), so a mounted
  *  weapon of theirs shows its own picture.
  *  DECOR-MODFLATS (2026-09-27, Discord: "Above #49 decorations stopped working. Most sprites decorations are invisable
- *  above this number"): or a MOD's, to five digits. The catalogue is read out of the world's own blocks, and the ships
- *  Detailed Ships lays in them carry its own flats (archives 1210 and 1230) and the DET flats the port stands in (10009
- *  to 10027) - "Decoration 49" onward, numbered after the classic ones. The bound refused every one: the piece being
- *  placed was never a piece, so its picture never stood and Place did nothing. */
+ *  above this number"): or a MOD's, to five digits. The catalogue holds the town mods' flats (archives 1210 and 1230)
+ *  and the DET flats the port stands in (10009 to 10028) - "Decoration 49" onward, numbered after the classic ones.
+ *  The bound refused every one: the piece being placed was never a piece, so its picture never stood and Place did
+ *  nothing. */
 export const DECOR_MODEL_MAX = 999_999;
 export const DECOR_ARCHIVE_MAX = 99_999;
 export const DECOR_RECORD_MAX = 511;
@@ -65,6 +84,11 @@ export const DECOR_PRICE_MAX = 400;
  *  hundred, and this stops a script, not a decorator. */
 export const DECOR_OPS_MAX = 600;
 export const DECOR_OPS_WINDOW_S = 3600;
+/** One Confirm: how many final changes it may carry, and how large the body may be. The other JSON routes stay at 4 KiB. */
+export const DECOR_BATCH_OPS = 64;
+export const DECOR_BATCH_BYTES = 128 * 1024;
+/** A batch's own id, so a lost answer is asked again as the same write. */
+export const DECOR_TXN_RE = /^[A-Za-z0-9_-]{16,64}$/;
 
 const fin = (v) => typeof v === 'number' && Number.isFinite(v);
 const round = (v, places) => {
@@ -122,8 +146,11 @@ export const DECOR_ARROW_TEMPLATE = 131;
 export function decorIsMount(piece) {
   const it = piece?.item;
   if (!it || piece.model != null || !Array.isArray(piece.flat)) return false;
-  return (it.g === DECOR_WEAPONS_GROUP && it.t !== DECOR_ARROW_TEMPLATE) || it.g === DECOR_ARMOR_GROUP;
+  return (it.g === DECOR_WEAPONS_GROUP && it.t !== DECOR_ARROW_TEMPLATE) || it.g === DECOR_ARMOR_GROUP || it.t === TROPHY_TEMPLATE;
 }
+/** HUNTERS-MARK (Bounty-Boards.md 12.5): A MOUNTED TROPHY - a mount of its own kind, its beast its item's message (`p`):
+ *  hung on its plaque (scenes/decor/trophyArt.js), never as a pack picture. */
+export const decorIsTrophy = (piece) => decorIsMount(piece) && piece.item.t === TROPHY_TEMPLATE && Number.isSafeInteger(piece.item.p);
 
 /** DECOR-FLIP (2026-09-27, Discord: "Some sprites flipped (allow rotation)"): A FLAT TURNED HALF ROUND FACES THE OTHER
  *  WAY. A billboard turns to the eye whatever its record says, so the one turn a picture has is WHICH WAY it faces:
@@ -217,19 +244,19 @@ export function decorLightOf(raw) {
 /** HOME-STATIONS (2026-09-27, Discord - Tabitha: "CRAFTABLE / PURCHASABLE CRAFT / GUILD STATIONS [Spellmaking, Alchemy,
  *  Enchanting] FOR HOMES / SHIPS"): the three crafts a placed piece may be made to serve - the guilds' own makers
  *  (DFU's MakePotions, MakeSpells and MakeMagicItems services), at home. */
-export const DECOR_STATIONS = Object.freeze(['alchemy', 'spells', 'enchant', 'forge', 'workbench', 'loom', 'mason', 'jeweller', 'vendor']);   // HOME-VENDOR: a hired trader (net/vendorLaw.js)   // PROF2: the forge - smelting at home (bible/06-Systems/Professions-Arc.md 23); PROF4: the workbench (25); PROF7: the loom and tanning rack (29); PROF11: the mason's bench (professionLaw MASON_FEE); PROF10: the jeweller's bench (JEWEL_FEE)
+export const DECOR_STATIONS = Object.freeze(['alchemy', 'spells', 'enchant', 'forge', 'workbench', 'cooking', 'music', 'loom', 'mason', 'jeweller', 'vendor']);   // HOME-VENDOR: a hired trader (net/vendorLaw.js)   // PROF2: the forge - smelting at home (bible/06-Systems/Professions-Arc.md 23); PROF4: the workbench (25); PROF7: the loom and tanning rack (29); PROF11: the mason's bench (professionLaw MASON_FEE); PROF10: the jeweller's bench (JEWEL_FEE)   // DECOR-USE: the cooking station - any piece the room's fire (systems/decor/decorUse.js decorHearth)   // MUSIC-BOX: a music box (systems/musicBox.js), after the cooking station so the stations counted from the end stand
 /** What a station costs to make, once - a licence for the craft in that piece, not the piece's own price (`paid`), so
  *  nothing of it comes back when the piece is removed or the room sold. STATION-FEES (2026-09-27, Discord: "Make
  *  crafting stations in interiors way more expensive"): ten times the first pass (5,000, 10,000 and 20,000) - a
  *  guild's maker at home is a hall's worth of gold, not an afternoon's. */
-export const DECOR_STATION_FEES = Object.freeze({ alchemy: 50_000, spells: 100_000, enchant: 200_000, forge: 50_000, workbench: 50_000, loom: 50_000, mason: 50_000, jeweller: 50_000, vendor: 25_000 });   // HOME-VENDOR: a trader's licence   // PROF2: a forge as the alchemy station; PROF4: a workbench as the forge; PROF7: a loom as the workbench; PROF11: a mason's bench as the loom; PROF10: a jeweller's bench as the mason's
+export const DECOR_STATION_FEES = Object.freeze({ alchemy: 50_000, spells: 100_000, enchant: 200_000, forge: 50_000, workbench: 50_000, cooking: 50_000, music: 5_000, loom: 50_000, mason: 50_000, jeweller: 50_000, vendor: 25_000 });   // HOME-VENDOR: a trader's licence   // PROF2: a forge as the alchemy station; PROF4: a workbench as the forge; PROF7: a loom as the workbench; PROF11: a mason's bench as the loom; PROF10: a jeweller's bench as the mason's   // DECOR-USE: the cooking station at the crafts' own licence   // MUSIC-BOX: no craft, a tenth of one's licence
 /** The guild service each craft opens - the same maker windows the Mages Guild and the temples offer (worldModes.js
  *  openServiceFlow's destinations). PROF2: the forge is no guild's - it opens the Stores' forge (ui/professions/profPages.js);
  *  PROF4: nor the workbench - the Stores' workbench; PROF7: nor the loom - the Stores' loom; PROF11: nor the mason's
  *  bench - the Stores' bench; PROF10: nor the jeweller's bench. */
 export const DECOR_STATION_SERVICES = Object.freeze({ alchemy: 'guildServicePotionMaker', spells: 'guildServiceSpellMaker', enchant: 'guildServiceItemMaker' });
 /** A station's name, as the panel and the room say it. */
-export const DECOR_STATION_NAMES = Object.freeze({ alchemy: 'Alchemy station', spells: 'Spellmaking station', enchant: 'Enchanting station', forge: 'Forge', workbench: 'Workbench', loom: 'Loom', mason: 'Mason\'s bench', jeweller: 'Jeweller\'s bench', vendor: 'Hired trader' });   // HOME-VENDOR   // PROF11; PROF10
+export const DECOR_STATION_NAMES = Object.freeze({ alchemy: 'Alchemy station', spells: 'Spellmaking station', enchant: 'Enchanting station', forge: 'Forge', workbench: 'Workbench', get cooking() { return t('decor.station.cooking', 'Cooking station'); }, get music() { return t('decor.station.music', 'Music box'); }, loom: 'Loom', mason: 'Mason\'s bench', jeweller: 'Jeweller\'s bench', vendor: 'Hired trader' });   // HOME-VENDOR   // PROF11; PROF10   // DECOR-USE
 
 /**
  * WHERE a piece stands and what it cost - the half a move may change - projected and rounded (a millimetre, a tenth
@@ -237,6 +264,17 @@ export const DECOR_STATION_NAMES = Object.freeze({ alchemy: 'Alchemy station', s
  * HOME-STATIONS: `station` the craft it serves (DECOR_STATIONS), carried only when it serves one - a piece holds
  * things or serves a craft, never both (one press, one thing it does).
  */
+/** A placed piece's own name. Empty clears it. Longer than this, or with a control character, is no name. */
+export const DECOR_NAME_MAX = 32;
+export function decorNameOf(raw) {
+  if (raw == null || raw === '') return null;
+  if (typeof raw !== 'string') return false;
+  const name = raw.replace(/\s+/g, ' ').trim();
+  if (!name) return null;
+  if (name.length > DECOR_NAME_MAX || /[\u0000-\u001f\u007f<>]/.test(name)) return false;
+  return name;
+}
+
 export function decorPlaceOf(raw) {
   if (!raw || typeof raw !== 'object') return null;
   const { pos, rot, scale, light = null, storage = false, paid, station = null } = raw;
@@ -247,14 +285,16 @@ export function decorPlaceOf(raw) {
   if (!Number.isSafeInteger(paid) || paid < 0 || paid > DECOR_PRICE_MAX) return null;
   const lit = light === null ? null : decorLightOf(light);
   if (light !== null && !lit) return null;
-  return { pos: pos.map((v) => round(v, 3)), rot: rot.map((v) => round(v, 1)), scale: round(scale, 3), light: lit, storage, paid, ...(station ? { station } : {}) };
+  const name = decorNameOf(raw.name);
+  if (name === false) return null;
+  return { pos: pos.map((v) => round(v, 3)), rot: rot.map((v) => round(v, 1)), scale: round(scale, 3), light: lit, storage, paid, ...(station ? { station } : {}), ...(name ? { name } : {}) };
 }
 
 /** A WHOLE piece - its id, what it is, where it stands - projected, or null. DECOR2a: the owner's own item costs
  *  nothing to stand (Mac: "Free and can be picked back up") and holds nothing - it IS a thing, not a place to keep
  *  things - so one that says it cost gold (half of it would come back at a sale) or holds things is no piece. */
 export function decorPieceOf(raw) {
-  if (typeof raw?.id !== 'string' || !DECOR_ID_RE.test(raw.id)) return null;
+  if (typeof raw?.id !== 'string' || !DECOR_ID_RE.test(raw.id) || raw.id === DECOR_REST_ID) return null;   // AUDIT FB1029f A5: the home's rest row's id is no piece's
   const what = decorWhatOf(raw);
   const place = decorPlaceOf(raw);
   if (!what || !place || (what.item && (place.paid !== 0 || place.storage || place.station))) return null;   // HOME-STATIONS: one's own item serves no craft
@@ -284,6 +324,25 @@ export function decorRescale(radiusMetres, paid, scale) {
   return { pay: 0, refund: Math.trunc((was - now) / 2), paid: now };
 }
 
+/**
+ * WHAT A PIECE'S CHANGE COSTS. Placed: its price. Grown: the difference. Shrunk or removed: half of what records
+ * paid (`ledger`, never a cost the client merely named). A station's licence is paid and never given back.
+ * `delta` is what the record gains (negative: the purse pays). `ledger` is what records have now paid for it.
+ */
+export function decorGoldMove(was, now, ledger = was?.paid) {
+  const paidWas = was ? Math.max(0, Number(was.paid) || 0) : 0;
+  const own = Math.min(paidWas, Math.max(0, Number(ledger) || 0));
+  if (!now) return { delta: decorRefund(own), ledger: 0 };
+  const paidNow = Math.max(0, Number(now.paid) || 0);
+  let delta, next;
+  if (paidNow >= paidWas) { delta = paidWas - paidNow; next = own + paidNow - paidWas; }
+  else { const base = Math.min(paidWas - paidNow, own); delta = Math.trunc(base / 2); next = own - base; }
+  if (now.station && now.station !== (was?.station ?? null)) delta -= DECOR_STATION_FEES[now.station] ?? 0;
+  return { delta, ledger: next };
+}
+/** The gold alone (decorGoldMove's `delta`). */
+export const decorGoldDelta = (was, now, ledger = was?.paid) => decorGoldMove(was, now, ledger).delta;
+
 /** A fresh piece id - twelve base-36 characters, the client's own (the save and the service key on it). */
 export function mintDecorId(rand = Math.random) {
   let s = '';
@@ -309,19 +368,24 @@ export function mintDecorId(rand = Math.random) {
 // into the room its owner cleared. Pure, as the rest of this file is.
 
 /** One built-in piece's name - `m<placement>:<model>` or `f<flat>:<archive>.<record>`, every number canonical. WD3: a
- *  flat's archive runs to five digits - the town mods' interiors (Beautiful Villages, Beautiful Cities) and Detailed
- *  Ships' cabins lay flats of the mods' own archives (DET's 10010-10028, the table clutter's 56790), and a name with a
+ *  flat's archive runs to five digits - the town mods' interiors (Beautiful Villages, Beautiful Cities) lay flats of
+ *  the mods' own archives (DET's 10010-10028, the table clutter's 56790), and a name with a
  *  classic archive's three digits could not name them: online the room's whole list was refused, offline the piece came
  *  back at the next load. */
-export const DECOR_BASE_KEY_RE = /^(?:m(?:0|[1-9]\d{0,3}):(?:0|[1-9]\d{0,5})|f(?:0|[1-9]\d{0,3}):(?:0|[1-9]\d{0,4})\.(?:0|[1-9]\d{0,2}))$/;
-/** How many built-in pieces one room may keep taken out - more than any interior lays, and a whole list at its widest
- *  (eighteen bytes a name) still one write under the service's 4 KiB body (service.js MAX_BODY_BYTES). */
+export const DECOR_BASE_KEY_RE = /^(?:m(?:0|[1-9]\d{0,3}):(?:0|[1-9]\d{0,5})|f(?:0|[1-9]\d{0,3}):(?:0|[1-9]\d{0,4})\.(?:0|[1-9]\d{0,2})|intdoor:(?:0|[1-9]\d{0,2}))$/;
+/** DOOR-KEPT (FIELD BUGS 2026-10-29f): a room's swing door taken out rides the same list (systems/decor/decorInteriorDoors.js
+ *  `intdoor:<record>`), so an online home's is the service's - every visitor's and every device's - as its furniture is. */
+export const decorIsDoorKey = (key) => typeof key === 'string' && key.startsWith('intdoor:');
+/** How many built-in pieces one room may keep taken out - more than any home lays (127 at most, measured with the town
+ *  mods' furniture built in; AUDIT FB1029e H3: a Detailed Ships cabin lays up to 456, and keeps this many out), and a
+ *  whole list at its widest (eighteen bytes a name) still one write under the service's 4 KiB body (service.js
+ *  MAX_BODY_BYTES). */
 export const DECOR_HIDDEN_CAP = 200;
 export const decorBaseModelKey = (placement, model) => `m${placement}:${model}`;
 export const decorBaseFlatKey = (flat, archive, record) => `f${flat}:${archive}.${record}`;
 /** A built-in piece's name read back: `{ model }` or `{ flat: [archive, record] }`, or null for no such name. */
 export function decorBaseWhat(key) {
-  if (typeof key !== 'string' || !DECOR_BASE_KEY_RE.test(key)) return null;
+  if (typeof key !== 'string' || !DECOR_BASE_KEY_RE.test(key) || decorIsDoorKey(key)) return null;   // DOOR-KEPT: a door is no piece
   const at = key.indexOf(':');
   if (key[0] === 'm') return { model: Number(key.slice(at + 1)) };
   const [a, r] = key.slice(at + 1).split('.').map(Number);
@@ -374,9 +438,6 @@ export const decorYardHighOk = (pl) => Array.isArray(pl?.pos) && Number(pl.pos[1
 /** YARD-HEIGHT (AUDIT Y3): the refusal in its one sentence - the decorator's (scenes/homeYards.js YARD_TOO_HIGH) and the
  *  service's `yard-high` (net/accountClient.js), as townSeatLaw.js's rosters' words are the board's and the service's. */
 export const DECOR_YARD_HIGH_WHY = `Too high. Yard decorations can be at most ${DECOR_YARD_HIGH} m above the ground.`;
-/** The most pieces one town's yards answer at once. */
-export const DECOR_YARDS_TOWN_MAX = 2_000;
-
 /** A yard piece's place, projected (decorPlaceOf's), or null - one that holds things, serves a craft, gives light or
  *  stands past the yard's bound is no yard's. */
 export function decorYardPlaceOf(raw) {

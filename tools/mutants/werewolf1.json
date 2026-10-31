@@ -173,8 +173,8 @@
   {
     "name": "WEREWOLF1-peer-wolf-holds-the-sword",
     "file": "src/net/peer/peerBodies.js",
-    "old": "      const want = b.wolf ? null : tool ?? peerWeaponOf(look, shown);",
-    "new": "      const want = tool ?? peerWeaponOf(look, shown);",
+    "old": "      const want = b.wolf ? null : tool ?? (hands?.dual",
+    "new": "      const want = tool ?? (hands?.dual",
     "tests": [
       "test/net/peer/werewolf1.test.js"
     ]
@@ -209,8 +209,8 @@
   {
     "name": "WEREWOLF1-wolf-kept-out-of-the-bodies",
     "file": "src/scenes/world.js",
-    "old": "const afoot = seen.filter((d) => (peerRidesIn3d(d) || !peerRiders.isRiding(d.id)) && !d.shown?.wb || (peerIsWolf(d.shown) && !d.shown.rd));",
-    "new": "const afoot = seen.filter((d) => (peerRidesIn3d(d) || !peerRiders.isRiding(d.id)) && !d.shown?.wb);",
+    "old": "const afoot = seen.filter((d) => d.shown?.rd !== POSE_RIDE.Dragon && (peerRidesIn3d(d) || !peerRiders.isRiding(d.id)) && !d.shown?.wb || (peerIsWolf(d.shown) && !d.shown.rd));",
+    "new": "const afoot = seen.filter((d) => d.shown?.rd !== POSE_RIDE.Dragon && (peerRidesIn3d(d) || !peerRiders.isRiding(d.id)) && !d.shown?.wb);",
     "tests": [
       "test/net/peer/werewolf1.test.js"
     ]

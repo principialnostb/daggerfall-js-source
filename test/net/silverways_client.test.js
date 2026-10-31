@@ -157,13 +157,15 @@ test('SILVER-WAYS the Work tab\'s contracts: each a card under its guild - what 
   await ticks();
   const cards = byClass(host, 'notice-writ');
   assert.equal(cards.length, 2);
-  assert.match(cards[0].textContent, /Guild contractThe Silver Hand \[SH\] pays the defenders of Daggerfall's towns against raiders/);
-  assert.match(cards[0].textContent, /40 silver each - 7 defenders left of 10/);
-  assert.match(cards[0].textContent, /5 days left/);
-  assert.match(cards[0].textContent, /Officers and the Guildmaster are not paid by their own guild's contracts\./, 'an Officer of the posting guild');   // BOARD-UI (PIN MOVED)
-  assert.match(cards[1].textContent, new RegExp(`paid when the raid is counted, less ${marksText(saleTax(20))} tax`));
-  assert.equal(byClass(cards[1], 'work-withdraw').length, 0, 'another guild\'s: no Withdraw');
-  byClass(cards[0], 'work-withdraw')[0].click();
+  // PIN MOVED (BOARD-SIFT): the work ends soonest first - C2's two days before C1's five
+  const [c2, c1] = cards;
+  assert.match(c1.textContent, /Guild contractThe Silver Hand \[SH\] pays the defenders of Daggerfall's towns against raiders/);
+  assert.match(c1.textContent, /40 silver each - 7 defenders left of 10/);
+  assert.match(c1.textContent, /5 days left/);
+  assert.match(c1.textContent, /Officers and the Guildmaster are not paid by their own guild's contracts\./, 'an Officer of the posting guild');   // BOARD-UI (PIN MOVED)
+  assert.match(c2.textContent, new RegExp(`paid when the raid is counted, less ${marksText(saleTax(20))} tax`));
+  assert.equal(byClass(c2, 'work-withdraw').length, 0, 'another guild\'s: no Withdraw');
+  byClass(c1, 'work-withdraw')[0].click();
   await ticks();
   assert.deepEqual(calls.at(-1), ['withdrawContract', 'C1']);
   assert.match(host.textContent, /The Silver Hand \[SH\]: 10 silver to each of 5 defenders more/);
@@ -208,7 +210,8 @@ test('SILVER-WAYS the world host by source: the raid claims say the book\'s silv
   // HAUL-CARDS (PIN MOVED): the silver as cards too (ui/haulCards.js claimHauls), the book's lines said as ever
   assert.match(w, /onMarks: \(data\) => \{ showHaul\(claimHauls\(data, 'raid'\)\); return marksBook\?\.claimLines\(data, 'raid'\) \?\? null; \},/);
   assert.match(w, /onMarks: \(marks, data\) => \{ showHaul\(claimHauls\(data \?\? \{ marks \}, 'gate'\)\); return marksBook\?\.claimLines\(data \?\? \{ marks \}, 'gate'\) \?\? null; \},/);
-  assert.match(w, /return site \? \{ region: site\.region, character \} : character \? \{ character \} : null;/);
+  // PIN MOVED (WW-GATES-EVERYWHERE A2b): the region its own word (scenes/gate/gateSeat.js gateSeatRegion - a lane past the Bay's its province's)
+  assert.match(w, /return region != null \? \{ region, character \} : character \? \{ character \} : null;/);
   // PIN MOVED: AUDIT GUILD3 T1 - one list of holds, the gate's and the view's: a contract standing, or a closed one's escrow not yet home
   assert.match(src('server-account/src/guilds.js'), /\['guild-contracts', \(\/\*\* @type \{string\} \*\/ p\) => `EXISTS \(SELECT 1 FROM guild_contracts WHERE guild_id = \$\{p\} AND state = 'open'\)`\]/);
   assert.match(src('server-account/src/guilds.js'), /\['guild-writ-escrow', \(\/\*\* @type \{string\} \*\/ p\) => `EXISTS \(SELECT 1 FROM guild_contracts WHERE guild_id = \$\{p\} AND state IN \('filled', 'withdrawn', 'expired'\) AND \+returned = 0 AND escrow > 0\)`\]/);

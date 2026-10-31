@@ -228,8 +228,8 @@
   {
     "name": "TECHCARD-the-chip-in-the-sigil-rune",
     "file": "src/ui/enhanced/enhancedHud.js",
-    "old": "t.set === 'technique' ? techniqueGlyphTileSrc(shade) : sigilRuneTileSrc(shade)",
-    "new": "sigilRuneTileSrc(shade)",
+    "old": "pic.src = weapon ? techniqueGlyphTileSrc(shade) : sigilRuneTileSrc(shade)",
+    "new": "pic.src = sigilRuneTileSrc(shade)",
     "tests": [
       "test/ui/techcard1.test.js"
     ]
@@ -407,9 +407,9 @@
   },
   {
     "name": "FINALAUDIT-the-world-word-pad-blind",
-    "file": "src/scenes/world.js",
-    "old": " || _techKeyRev !== rev || _techKeyPad !== pad) {",
-    "new": " || _techKeyRev !== rev) {",
+    "file": "src/ui/techniqueKeyWord.js",
+    "old": " || _rev !== rev || _pad !== pad) {",
+    "new": " || _rev !== rev) {",
     "tests": [
       "test/scenes/tech1_hosts.test.js"
     ]

@@ -99,7 +99,7 @@ const swing = (e, weapon, target, n = 100) => { const d = setBlow(weapon, n, e, 
 // ─── THE LAW ──────────────────────────────────────────────────────────────────────────────────────────────────────────
 
 test('SERPENT-SET the law: Sethrakul\'s Coilscale after the raids\' three - Aetheric, Satakal its patron, no raiding party\'s, never a world set; Sea-Scale, Constrict and Shed Skin at 2, 4 and 6 pieces, each a whole pair from Faint to Ascendant, every brief inside BRIEF_MAX at every stage (mutants: the set out of the record; a world set; a raid\'s; a tier\'s number)', () => {
-  assert.deepEqual(SIGIL_SET_IDS.slice(-5), ['coilscale', 'numidium', 'panoply', 'wyrd', 'starspun'], 'the serpent\'s own, after the raids\' - SD9d\'s Brass of Numidium after it (PIN MOVED), EG15\'s Battlemage\'s Panoply after that (PIN MOVED), WITCH1\'s Wyrd\'s Raiment (PIN MOVED), STAR7\'s Starspun Weave last (PIN MOVED)');
+  assert.deepEqual(SIGIL_SET_IDS.slice(-6), ['coilscale', 'numidium', 'panoply', 'wyrd', 'starspun', 'eltheric'], 'PIN MOVED (SEA-SET): the Eltheric Tidemail last - the serpent\'s own, after the raids\' - SD9d\'s Brass of Numidium after it (PIN MOVED), EG15\'s Battlemage\'s Panoply after that (PIN MOVED), WITCH1\'s Wyrd\'s Raiment (PIN MOVED), STAR7\'s Starspun Weave last (PIN MOVED)');
   const s = setById('coilscale');
   assert.deepEqual([s.id, s.name, s.prince, s.colour, s.aetheric, 'raid' in s, s.role],
     ['coilscale', "Sethrakul's Coilscale", 'Satakal', '#3a9ad9', true, false, 'The Old Coil, shed and worn']);
@@ -202,15 +202,18 @@ test('SERPENT-SET the hoard: every hoard - a ship that dealt and one that stood 
   // the seed's own, pinned whole: a dealer's seed 2 at level 12 - the hoard's own two, the broadsword carrying CAST-SPEED's
   // line off its last pass (PIN MOVED (CAST-SPEED): that draw moved the Coilscale roll after it, which found Constrictor's
   // Grip before; seed 12345 at level 20 finds the set piece now - serpent1_client's hoard pin)
-  const h = rollSerpentSpoils(2, 12, 'dealt');
-  assert.deepEqual([h.gold, h.pieces.map((p) => [p.item.name, p.tier])], [2100, [
-    ["Warrior's Broadsword of Skill", 'rare'], ["Porter's Amulet", 'magic'],
+  // PIN MOVED (AFFIX-LINES, 2026-10-25): every line drawn over the lines moved seed 2's stream - its broadsword takes no
+  // last-pass line now and its amulet Strength where carrying capacity ("Porter's Amulet") was - so the pin's shape,
+  // a Rare piece's last-pass line and then its technique as the hoard's last draw, is seed 6's
+  const h = rollSerpentSpoils(6, 12, 'dealt');
+  assert.deepEqual([h.gold, h.pieces.map((p) => [p.item.name, p.tier])], [1940, [
+    ["Warrior's Flail of Skill", 'rare'], ['Torc of Warding', 'magic'],
   ]]);
   // PIN MOVED (TECH1, bible/05-Combat/Weapon-Techniques.md): a weapon's technique is the hoard's very last draw, after the
   // gem arc's - this seed's broadsword rolls Leap Strike there, its line after the last pass's
-  assert.deepEqual(h.pieces[0].item.affixes.filter((a) => !isTechniqueAffix(a)).at(-1), { id: 'potency', value: 8 }, 'the last pass\'s line, the kind that moved the roll');   // PIN MOVED (BAL9c, bible/05-Combat/Balance-Arc.md section 15): the same draw lands on potency in a blade's pool of five, castSpeed's band its own
-  assert.deepEqual(h.pieces[0].item.affixes.at(-1), { id: 'technique', param: 'leap', value: 30 }, 'TECH1: and the technique\'s, last');
-  assert.deepEqual(rollSerpentSpoils(2, 12, 'dealt'), h, 'the same seed, the same hoard');
+  assert.deepEqual(h.pieces[0].item.affixes.filter((a) => !isTechniqueAffix(a)).at(-1), { id: 'potency', value: 10 }, 'the last pass\'s line, the kind that moved the roll');   // PIN MOVED (BAL9c, bible/05-Combat/Balance-Arc.md section 15): the same draw lands on potency in a blade's pool of five, castSpeed's band its own
+  assert.deepEqual(h.pieces[0].item.affixes.at(-1), { id: 'technique', param: 'slam', value: 18 }, 'TECH1: and the technique\'s, last');
+  assert.deepEqual(rollSerpentSpoils(6, 12, 'dealt'), h, 'the same seed, the same hoard');
   const grip = rollSerpentSpoils(12345, 20, 'dealt').pieces[2];
   assert.equal(grip.tier, AETHERIC, 'a dealer\'s set piece, last');
   assert.ok(validLootItem(JSON.parse(JSON.stringify(grip.item))));

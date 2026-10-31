@@ -43,6 +43,7 @@ import { fakeSocketClass } from '../../fakeSocket.mjs';
 import { seededRng } from '../../../src/systems/wind/wind.js';
 import { sigilParty } from '../../../src/systems/sigil/sigil.js';
 import { GLOBAL_SCALE } from '../../../src/player/activate.js';
+import { cardOf } from '../../heraldCards.mjs';   // HERALD-CARDS: a post read as its card
 
 const read = (p) => readFileSync(new URL(`../../../${p}`, import.meta.url), 'utf8');
 const DAY = 700;
@@ -631,7 +632,7 @@ test('AUDIT WB12d (G2): the burned earth - the circle says where no grass grows 
   assert.deepEqual(r2.bare.at(-1), [E + 100 - RITE_BARE_R, N - RITE_BARE_R, E + 100 + RITE_BARE_R, N + RITE_BARE_R], 'gone: placed again where the scene has it now');
   assert.equal(r2.host.clearing(), null);
   const w = read('src/scenes/world.js');
-  assert.match(w, /const _bare = riteHost\?\.clearing\(\) \?\? starfall\?\.clearing\(\) \?\? null;/);
+  assert.match(w, /const _bare = riteHost\?\.clearing\(\) \?\? starfall\?\.clearing\(\) \?\? passSeason\?\.clearing\(\) \?\? null;/);   // PIN MOVED (STOREFRONT): and a Brass Fissure's scorch
   assert.match(w, /if \(_bare && \(x - _bare\.x\) \* \(x - _bare\.x\) \+ \(z - _bare\.z\) \* \(z - _bare\.z\) <= _bare\.r \* _bare\.r\) return null;/);
   assert.match(w, /onBare: \(x0, z0, x1, z1\) => labGrassField\?\.invalidate\(x0, z0, x1, z1\),/);
 });
@@ -965,8 +966,9 @@ test('WB12d the claim: a rite\'s own receipt is "Rite recorded." and closes no b
 
 test('WB12d the omen\'s order: right after the omen\'s line, before tonight\'s marks, once a day - AUDIT WB12d (D3): the Discord post\'s own sentence; (C8, L5) never once the hub says this breach\'s rite broken, nor on a relay that cannot keep it (mutants: the line unsaid; said after the marks; said over a broken rite; said to an old relay)', () => {
   assert.equal(riteOmenLine(), 'The faithful work their rite nearby. Kill their Summoner before the breach opens.');
-  const post = omenPost({ day: DAY, place: 'Copperham' }).content;
-  assert.ok(post.includes(`seals it at <t:${Math.floor(T.sealAt / 1000)}:t>. ${riteOmenLine()} ${gateBossOf(DAY).name} comes`), `Discord says it so, after the times and before the marks: ${post}`);
+  const post = cardOf(omenPost({ day: DAY, place: 'Copperham' }));
+  assert.ok(post.text.startsWith(`${riteOmenLine()} ${gateBossOf(DAY).name} comes`), `Discord says it so, first in the card's text and before the marks (HERALD-CARDS: the times its fields): ${post.text}`);
+  assert.equal(post.fields.Seals, `<t:${Math.floor(T.sealAt / 1000)}:t>`);
   const site = { ...SITE, ring: { cx: PX, cy: PY, r: 3 }, spot: [400, 400] };
   const run = (deps = {}) => {
     const said = [], seen = [];
@@ -1030,9 +1032,9 @@ test('AUDIT WB12d (C14, C5, R1, D4): a day\'s faithful are a site of their own -
   assert.equal(validRiteOut(w).n, 2);
   assert.equal(validRiteOut({ ...w, by: [...Array(12)].map((_, i) => `N${i}`), n: 12 }).by.length, RITE_BY_MAX);
   // the channel's post, the kill's own sentence (net/gate/gateHerald.js fellPost): the event, the place, the first three and how many more
-  assert.equal(ritePost({ place: 'Copperham', by: ['Ann', 'Bo', 'Cy', 'Di'], n: 9 }).content, '**The faithful\'s rite is broken** near Copperham, by Ann, Bo, Cy and 6 others.');
-  assert.equal(ritePost({ by: ['Ann'], n: 2 }).content, '**The faithful\'s rite is broken** in the wilds, by Ann and 1 other.');
-  assert.equal(ritePost({ place: 'Copperham', by: [] }).content, '**The faithful\'s rite is broken** near Copperham.');
+  assert.deepEqual(cardOf(ritePost({ place: 'Copperham', by: ['Ann', 'Bo', 'Cy', 'Di'], n: 9 })), { content: null, author: 'Dagon\'s Breach', colour: 0xe2554c, footer: 'Rite broken', title: 'The faithful\'s rite is broken', text: null, fields: { Where: 'Near Copperham', 'Broken by': 'Ann, Bo, Cy and 6 others' } });   // HERALD-CARDS: the kill's own card
+  assert.deepEqual(cardOf(ritePost({ by: ['Ann'], n: 2 })).fields, { Where: 'In the wilds', 'Broken by': 'Ann and 1 other' });
+  assert.deepEqual(cardOf(ritePost({ place: 'Copperham', by: [] })).fields, { Where: 'Near Copperham' });
   assert.deepEqual(ritePost({ by: ['<@&1> x'] }).allowed_mentions, { parse: [] }, 'pings nobody');
   assert.match(read('server/src/index.js'), /ritePost\(\{ day: st\.riteOwe\.d, place: site\?\.pl \?\? null, by: riteNames\(c\), n: Object\.keys\(c\.h\)\.length \}\)/);
 });
@@ -1097,10 +1099,10 @@ test('WB12d the world host by source: the host made beside the gate on the camps
   const w = read('src/scenes/world.js');
   const at = w.indexOf('const riteHost = gateOmen ? createRiteHost(');
   const deps = w.slice(at, w.indexOf('}) : null;', at));
-  assert.match(deps, /omen: \(\) => gateOmen\.current\(\),/);
+  assert.match(deps, /omen: \(\) => gateOmen\.nearCurrent\(\),/);   // PIN MOVED (WW2): the nearest gate's - its circle stands where the player is
   assert.match(deps, /fellAt: \(day\) => gateLink\?\.fellAt\(day\) \?\? null,/);
   assert.match(deps, /online: \(\) => !!online\?\.riteOk,/);
-  assert.match(deps, /return exteriorFoes\.spawnFoe\(career, \[x, y, z\], \{ yaw, placed: true, groundAlign: \{ hitDist: hitDistance\(hit\) \}, site, transient \}\);/);
+  assert.match(deps, /return exteriorFoes\.spawnFoe\(career, \[x, y, z\], \{ \.\.\.o, placed: true, groundAlign: \{ hitDist: hitDistance\(hit\) \} \}\);/);   // PIN MOVED (STAR-MASTER-FLED): the rite's options whole - its yaw, site, transient and `eventFoe`
   assert.match(deps, /drop: \(site\) => exteriorFoes\.dropSiteFoes\(site\),/);
   assert.match(deps, /remove: \(f\) => exteriorFoes\.removeFoe\(f\),/);
   assert.match(deps, /reclaim: \(site\) => exteriorFoes\.reclaimSite\(site\),/);
@@ -1118,7 +1120,7 @@ test('WB12d the world host by source: the host made beside the gate on the camps
   assert.equal(w.split('...(riteHost?.lights() ?? [])').length - 1, 2, 'both light lists');
   assert.match(w, /riteHost\?\.draw\(renderer, null, mwv\.eye\);/, 'AUDIT WB12d (G6): the eye, for the sigil');
   assert.match(w, /riteHost\.tick\(dt\); livePersonBatches\.push\(\.\.\.riteHost\.batches\(\)\);/);
-  assert.match(w, /if \(riteHost\?\.smoking\(\) && riteHost\.drawSmoke\(proj, view, new Float32Array\(mwv\.eye\), now \/ 1000,[^\n]*\n[^\n]*camPos: renderer\._camPos, focus: renderer\._focus, haze: renderer\._haze, light: \(renderer\._ambient\[0\] \+ renderer\._ambient\[1\] \+ renderer\._ambient\[2\]\) \/ 3 \+ 0\.6 \* renderer\._sunScale \}\)\) renderer\.markForeignPass\(\);/, 'the smoke handed the travel view\'s focus, the jungle\'s haze (AUDIT BANTHA1 HAZE-3) and (AUDIT WB12d G8) the frame\'s light, its foreign pass marked');
+  assert.match(w, /if \(riteHost\?\.smoking\(\) && riteHost\.drawSmoke\(proj, view, wxEye32, now \/ 1000,[^\n]*\n[^\n]*camPos: renderer\._camPos, focus: renderer\._focus, haze: renderer\._haze, light: \(renderer\._ambient\[0\] \+ renderer\._ambient\[1\] \+ renderer\._ambient\[2\]\) \/ 3 \+ 0\.6 \* renderer\._sunScale \}\)\) renderer\.markForeignPass\(\);/, 'the smoke handed the travel view\'s focus, the jungle\'s haze (AUDIT BANTHA1 HAZE-3) and (AUDIT WB12d G8) the frame\'s light, its foreign pass marked');
   assert.ok(w.indexOf('try { riteHost?.frame(); }') < w.indexOf('renderer.beginFrame(proj, view, sunDirection(minute), WORLD_FRAME);'), 'AUDIT WB12d (G14): its frame - the smoke\'s pass built there - before the renderer\'s');
   assert.match(w, /\(key\) => sigilBroker\?\.hoverName\(key\) \?\? null,[^\n]*\n\s*\(key\) => riteHost\?\.hoverName\(key\) \?\? null,/, 'named after the gate and the Broker');
   assert.ok(w.indexOf('(key) => riteHost?.hoverName(key) ?? null,') < w.indexOf("(key) => (typeof key === 'string' && key.startsWith('droppedLoot:')"), 'its pile named before the piles\' word');

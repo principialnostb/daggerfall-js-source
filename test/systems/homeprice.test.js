@@ -30,6 +30,10 @@ import { createBankAccounts, createHouses, sellHouse, houseSellPrice, EMPIRE_ACC
 import { EXT_NUM_MAX_BLOCKS } from '../../src/ui/automap/automapCamera.js';
 import { accountRefusalText } from '../../src/net/accountClient.js';
 import { GLOBAL_SCALE } from '../../src/world/meshReader.js';
+import { homeListedPrice } from '../../src/net/homeListingLaw.js';   // FOUNDATION F3: the door's price reads a row's
+
+/** The door's town of a building (worldModes.js homeTownOf), its record's. */
+const townOf = (b) => b?.townMapId ?? 0;
 
 const src = (p) => readFileSync(new URL(`../../${p}`, import.meta.url), 'utf8');
 const RICH = (name) => ({ name, level: 9, goldPieces: 2_000_000, items: [], bankAccounts: new Array(62).fill(0).map(() => ({ accountGold: 0 })) });
@@ -101,7 +105,7 @@ test('HOME-PRICE the service holds the range: a claim at Daggerfall\'s price (a 
   assert.match(src('server-account/src/halls.js'), /if \(!homePriceOk\(price\)\) return \{ error: 'home-update' \};/);
 });
 
-test('HOME-PRICE the sale pays what was PAID, and the town tells it to the character whose door can sell: its deed share of `paid` and the rent held on it; a carried-in home nothing (crossed); a home from before the realm, another character\'s of the account and another account\'s, no sum; a claim says its own (mutants: the refund off the price; the character unasked; a home from before the realm told; a crossed house refunded; a refund of nothing dropped; the rent unsaid; the claim\'s answer silent)', async () => {
+test('HOME-PRICE the sale pays what was PAID, and the town tells it to the characters whose doors can sell - ACCOUNT-HOMES: every realm character of the account: its deed share of `paid` and the rent held on it; a carried-in home, and one from before the realm, nothing (crossed); another account\'s, no sum; a claim says its own (mutants: the refund off the price; the character unasked; a home from before the realm told; a crossed house refunded; a refund of nothing dropped; the rent unsaid; the claim\'s answer silent)', async () => {
   const s = await standService();
   const who = await s.registered('Aldric');
   const other = await s.registered('Mara');
@@ -117,16 +121,17 @@ test('HOME-PRICE the sale pays what was PAID, and the town tells it to the chara
   row(10, R.id, 1, 1);                   // AUDIT HOME-PRICE D6: a record that paid 1 under the old law - its share is nothing, and says so
   const town = async (w, character) => Object.fromEntries((await s.call('/v1/homes/town', { mapId: 77, character }, w.secret)).body.homes.map((h) => [h.buildingKey, h]));
   const mine = await town(who, R.id);
+  // ACCOUNT-HOMES (PIN MOVED): the home my other character bought is mine to sell too - its sum is said at my door
   assert.deepEqual([3, 4, 5, 6, 10].map((k) => [mine[k].refund, mine[k].rentDue]), [
-    [homeSaleRefund(600_100), 240], [undefined, undefined], [undefined, undefined], [undefined, undefined], [0, undefined],
+    [homeSaleRefund(600_100), 240], [undefined, undefined], [undefined, undefined], [homeSaleRefund(120_000), undefined], [0, undefined],
   ]);
-  assert.equal(mine[4].crossed, true);
-  assert.equal((await town(who, R2.id))[3].refund, undefined, 'my other character\'s door cannot sell it - its sum is not said there');
+  assert.deepEqual([mine[4].crossed, mine[5].crossed], [true, true], 'carried in, or from before the realm: no record paid for either - no sale, the account\'s still');
+  assert.equal((await town(who, R2.id))[3].refund, homeSaleRefund(600_100), 'my other character\'s door can sell it too - its sum is said there');
   assert.equal((await town(who, R2.id))[6].refund, homeSaleRefund(120_000));
   assert.ok(Object.values(await town(other, null)).every((h) => !('refund' in h) && !('price' in h) && !('rentDue' in h)), 'another account learns nothing of what was paid');
   assert.ok(Object.values(await town(other, R.id)).every((h) => !('refund' in h) && !('rentDue' in h)), 'nor by naming my character');
   const old = (await town(who, 'char-old'))[5];
-  assert.ok(!('refund' in old) && !('crossed' in old), 'a home from before the realm is no realm sale, whoever is named');
+  assert.ok(!('refund' in old) && old.crossed === true, 'a home from before the realm is no realm sale, whoever is named - ACCOUNT-HOMES: the account\'s, and crossed');
   // and what the sale pays is that sum, with the rent held on it
   const sold = await s.call('/v1/homes/release', { mapId: 77, buildingKey: 3, realm: R.at() }, who.secret);
   assert.deepEqual([sold.status, sold.body?.refund, sold.body?.rent], [200, mine[3].refund, 240]);
@@ -168,7 +173,7 @@ test('HOME-PRICE the door\'s chain, run (AUDIT HOME-PRICE D5): worldModes\' hous
   const m = src('src/scenes/worldModes.js');
   const chain = `${lift(m, '  function houseFootprintM2(building) {', '\n  }')}\n${lift(m, '  function homeListPrice(bd) {', '\n  }')}\nreturn { houseFootprintM2, homeListPrice };`;
   const arch = { getRecordIndex: (id) => (id === 456 ? 3 : -1), getMesh: (rec) => (rec === 3 ? { radius: 400, size: { x: 400, y: 300, z: 480 } } : null) };
-  const door = new Function('arch', 'homeFootprintM2', 'GLOBAL_SCALE', 'homeOnlinePrice', 'homePriceOk', chain)(arch, homeFootprintM2, GLOBAL_SCALE, homeOnlinePrice, homePriceOk);
+  const door = new Function('arch', 'homeFootprintM2', 'GLOBAL_SCALE', 'homeOnlinePrice', 'homePriceOk', 'homeListedPrice', 'homeTownOf', 'homeClaimLayout', chain)(arch, homeFootprintM2, GLOBAL_SCALE, homeOnlinePrice, homePriceOk, homeListedPrice, townOf, () => null);   // PIN MOVED (AUDIT FOUNDATION II P6): the town's layout - Daggerfall's own here
   assert.equal(door.houseFootprintM2({ modelIdNum: 456 }), 120);
   assert.deepEqual([door.homeListPrice({ modelIdNum: 456, townBlocks: 9 }), door.homeListPrice({ modelIdNum: 456, townBlocks: 64 }), door.homeListPrice({ modelIdNum: 456 })], [54_000, 99_000, 36_000]);
   assert.deepEqual([door.homeListPrice({ modelIdNum: 999, townBlocks: 9 }), door.homeListPrice({ townBlocks: 9 })], [0, 0], 'no record, no sale');
@@ -178,6 +183,19 @@ test('HOME-PRICE the door\'s chain, run (AUDIT HOME-PRICE D5): worldModes\' hous
   assert.doesNotMatch(m, /\bhousePrice\(/, 'no door asks Daggerfall\'s radius x 1280 online');
   assert.match(src('src/scenes/world.js'), /townBlocks: homeTownBlocks\(dfLoc\),/);
   assert.match(src('src/scenes/exterior.js'), /regionIndex: dfLocation\.regionIndex, townBlocks: homeTownBlocks\(dfLocation\),/);
+});
+
+test('IC-HOMES the door\'s chain over a building the port made (the owner: "Are buildings in IC not purchaseable?"): the Imperial City\'s fabric building has one model, its door (world/imperialFabricBuildings.js fabricDoorModelId, no ARCH3D record), so it carries its plot\'s ground (`footprintM2`) and is priced by it; with none it is not for sale, and an ARCH3D house is measured as ever (mutant: the ground unread)', () => {
+  const m = src('src/scenes/worldModes.js');
+  const chain = `${lift(m, '  function houseFootprintM2(building) {', '\n  }')}\n${lift(m, '  function homeListPrice(bd) {', '\n  }')}\nreturn { houseFootprintM2, homeListPrice };`;
+  const arch = { getRecordIndex: (id) => (id === 456 ? 3 : -1), getMesh: (rec) => (rec === 3 ? { radius: 400, size: { x: 400, y: 300, z: 480 } } : null) };
+  const door = new Function('arch', 'homeFootprintM2', 'GLOBAL_SCALE', 'homeOnlinePrice', 'homePriceOk', 'homeListedPrice', 'homeTownOf', 'homeClaimLayout', chain)(arch, homeFootprintM2, GLOBAL_SCALE, homeOnlinePrice, homePriceOk, homeListedPrice, townOf, () => null);   // PIN MOVED (AUDIT FOUNDATION II P6): the town's layout - Daggerfall's own here
+  const FABRIC_DOOR = 7_200_000;
+  assert.equal(door.houseFootprintM2({ modelIdNum: FABRIC_DOOR, footprintM2: 150 }), 150, 'its plot\'s ground');
+  assert.equal(door.homeListPrice({ modelIdNum: FABRIC_DOOR, footprintM2: 150, townBlocks: 64 }), homeOnlinePrice(150, 64), 'priced as any house of that ground in a city that size');
+  assert.ok(homePriceOk(door.homeListPrice({ modelIdNum: FABRIC_DOOR, footprintM2: 150, townBlocks: 64 })));
+  assert.deepEqual([door.houseFootprintM2({ modelIdNum: FABRIC_DOOR }), door.homeListPrice({ modelIdNum: FABRIC_DOOR, townBlocks: 64 })], [0, 0], 'its door measured alone: no sale');
+  assert.deepEqual([door.houseFootprintM2({ modelIdNum: 456 }), door.houseFootprintM2({ modelIdNum: 456, footprintM2: 0 })], [120, 120], 'an ARCH3D house as ever');
 });
 
 test('HOME-PRICE a knightly order\'s free house, online (AUDIT HOME-PRICE C1): the bank buys its deed back at the deed share of the ONLINE price - never Daggerfall\'s radius x 1280, up to a million - and Daggerfall\'s offline; the grant skips a building that is a player\'s home, and waits for the town\'s homes (mutants: the radius online; the online price offline; the town unread; the grant over a home; the town unasked)', () => {
@@ -192,13 +210,14 @@ test('HOME-PRICE a knightly order\'s free house, online (AUDIT HOME-PRICE C1): t
   const m = src('src/scenes/worldModes.js');
   const chain = `${lift(m, '  function houseFootprintM2(building) {', '\n  }')}\n${lift(m, '  function homeListPrice(bd) {', '\n  }')}\n${lift(m, '  function deedSellPrice(owned) {', '\n  }')}\nreturn deedSellPrice;`;
   const arch = { getRecordIndex: (id) => (id === 456 ? 3 : -1), getMesh: () => ({ radius: 400, size: { x: 400, y: 300, z: 480 } }) };
-  const priced = (online) => new Function('arch', 'homeFootprintM2', 'GLOBAL_SCALE', 'homeOnlinePrice', 'homePriceOk', 'homeRefund', 'houseSellPrice', 'houseMeshRadius', 'isOnlinePage', 'buildingDirectory', chain)(
-    arch, homeFootprintM2, GLOBAL_SCALE, homeOnlinePrice, homePriceOk, homeRefund, houseSellPrice, () => 400, () => online, () => ({ townBlocks: 64 }));
+  const priced = (online) => new Function('arch', 'homeFootprintM2', 'GLOBAL_SCALE', 'homeOnlinePrice', 'homePriceOk', 'homeListedPrice', 'homeTownOf', 'homeRefund', 'houseSellPrice', 'houseMeshRadius', 'isOnlinePage', 'buildingDirectory', 'homeClaimLayout', chain)(
+    arch, homeFootprintM2, GLOBAL_SCALE, homeOnlinePrice, homePriceOk, homeListedPrice, townOf, homeRefund, houseSellPrice, () => 400, () => online, () => ({ townBlocks: 64 }), () => null);   // PIN MOVED (AUDIT FOUNDATION II P6)
   assert.equal(priced(true)({ modelIdNum: 456 }), homeRefund(99_000), 'online: 120 m2 in an 8 x 8 city, its share');
   assert.equal(priced(false)({ modelIdNum: 456 }), houseSellPrice(400), 'offline: Daggerfall\'s');
   assert.equal(priced(true)(null), 0);
-  assert.match(m, /houseSellPrice: \(\) => deedSellPrice\(ownedHouseSummary\(\)\),/);
-  assert.match(m, /found: owned !== null, price: deedSellPrice\(owned\) \}/);
+  // PIN MOVED (HOUSES-3): each house the town resolves is an offer, priced at its own deed share; the sale the one offered
+  assert.match(m, /houseOffers: \(\) => townHouses\(\)\.map\(\(\{ deed, summary \}\) => \(\{\n\s*price: deedSellPrice\(summary\),/);
+  assert.match(m, /found: owned !== null, price: deedSellPrice\(owned\), deed: offered\?\.deed \?\? null \}/);
   // the grant
   assert.match(m, /if \(homes && !homes\.known\(dir\?\.mapId \?\? 0\)\) \{\n\s*void homes\.ensure\(dir\?\.mapId \?\? 0\);/);
   assert.match(m, /housesForSale: homes \? currentHousesForSale\(\)\.filter\(\(h\) => !homes\.homeAt\(dir\?\.mapId \?\? 0, h\.buildingKey\)\) : currentHousesForSale\(\),/);

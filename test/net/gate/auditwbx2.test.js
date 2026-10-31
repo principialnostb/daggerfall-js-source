@@ -104,6 +104,8 @@ test('AUDIT WBX2 M3 a spent word that comes before the kill\'s own is kept in th
     assert.equal((await fell([['acct-peer-0005', r]])).status, 200, 'a tell said twice');
     const phone = hub.connect(); await hub.hello(phone, 'peer-0025', null, { tokenSub: 'acct-peer-0005', cl: 1 });   // ONE-SEAT: a device going online claims
     assert.equal(rcpts(phone).length, 0, 'another device is handed nothing');
+    // WW2: the hello that READS the mark (the kill's word dropped SCALE2b's "none held"; the hello between it read none)
+    assert.deepEqual(await hub.room.state.storage.get(gateReceiptKey('acct-peer-0005')), mark, 'a hello after the kill leaves the word standing');
     // its life ends: the sweep, or the next hello, forgets it
     clock.t = (mark.e + 1) * 1000;
     const late = hub.connect(); await hub.hello(late, 'peer-0035', null, { tokenSub: 'acct-peer-0005', cl: 1 });   // ONE-SEAT: a device going online claims
@@ -213,7 +215,10 @@ test('AUDIT WBX2 M9 the sweep reads its cursors in one storage read (AUDIT RAID 
   // IV, the net group; Elite-Gates.md section 23): a breach's lapsed calls (`egcall:<sub>`) are swept too - their cursor joins it
   // PIN MOVED (STAR3, bible/11-Multiplayer/Starfall.md section 5): the hub keeps an account's star receipts under
   // `starrc:<sub>` (the raid's keep) - their cursor joins the one read
-  assert.match(idx, /const cur = \(await this\.state\.storage\.get\(\['sweep:acct', 'sweep:party', 'sweep:gaterc', 'sweep:raidrc', 'sweep:serpentrc', 'sweep:sdrc', 'sweep:egrc', 'sweep:egcall', 'sweep:starrc'\]\)\);/);
+  // PIN MOVED (AUDIT KETCH L1-2, bible/01-Overview/audits/Audit-Ketch.md): the hub keeps an earner's Ketch receipt under
+  // `ktrc:<sub>` (the Hour's keep) - its cursor joins the one read
+  assert.match(idx, /const cur = \(await this\.state\.storage\.get\(\['sweep:acct', 'sweep:party', 'sweep:gaterc', 'sweep:raidrc', 'sweep:serpentrc', 'sweep:sdrc', 'sweep:egrc', 'sweep:egcall', 'sweep:starrc', 'sweep:ktrc', 'sweep:dragonrc'\]\)\);/);   // PIN MOVED (AUDIT DRAGON): and the dragon receipts' cursor
+  assert.doesNotMatch(idx, /storage\.get\('sweep:dragonrc'\)/);
   assert.doesNotMatch(idx, /storage\.get\('sweep:starrc'\)/);
   assert.doesNotMatch(idx, /storage\.get\('sweep:egrc'\)/);
   assert.doesNotMatch(idx, /storage\.get\('sweep:egcall'\)/);

@@ -122,7 +122,7 @@ test('PROF11 DONE WHEN: Rough Stone cut with a clean chisel at a General Store\'
   const page = pageOf();
   try {
     assert.match(page.text(), /The Mason's Bench/);
-    assert.match(page.text(), /The mason's bench - 50 gold a cut, a mix or a carving\. Building 0 \(Novice\)\./);   // PIN MOVED (CRAFT3): the bench says its craft's track
+    assert.match(page.text(), /BuildingNovice 0[^]*?The mason's bench - 50 gold a cut, a mix or a carving\./);   // PIN MOVED (CRAFT3): the bench says its craft's track;// PIN MOVED (CRAFT-HALL): the rank is the station header's bar, not the station's sentence
     // THE CUT: five cuts, the chisel struck true four times
     const cutQty = page.qty(0);
     cutQty.value = '5';
@@ -134,10 +134,11 @@ test('PROF11 DONE WHEN: Rough Stone cut with a clean chisel at a General Store\'
     await settled();
     assert.equal(book.held('stone:cut'), 5);
     assert.equal(book.held('stone:rough'), 10);
-    assert.equal(book.track('masonry').xp, 5 * 20 * 1.5 + 500, 'a clean chisel half again, and the first cut\'s 500');
-    assert.deepEqual([said.at(-1), player.gold], ['+650 building', 950]);   // PIN MOVED (CRAFT3): the service answers the Building track
-    // THE MIX: rank 10 opens it (the cut alone brought 650 of 1,000)
-    assert.match(page.text(), /rank 10/, 'Mortar shut below rank 10');
+    assert.equal(book.track('masonry').xp, 5 * 20 * 1.5 + 1823, 'a clean chisel half again, and the first cut\'s - Building\'s share');   // PIN MOVED (FIRST-BUDGET): 1,823
+    assert.deepEqual([said.at(-1), player.gold], ['+1973 building', 950]);   // PIN MOVED (FIRST-BUDGET)   // PIN MOVED (CRAFT3): the service answers the Building track
+    // THE MIX: rank 10 opens it - PIN MOVED (FIRST-BUDGET): the cut alone brought 650 of 1,000; with its first's -
+    // Building's share - 1,973 now, rank 14, so the Mortar stands open after it (Mortar's rank pinned by the service's own test)
+    assert.match(page.text(), /BuildingNovice 14[^]*Mortar x10[^]*Mix/, 'the cut alone past rank 10: the Mortar open');   // PIN MOVED (CRAFT-HALL): the rank is the station header's bar, not the station's sentence
     track(xpForRank(10));
     assert.equal((await book.refresh({ force: true })).ok, true);
     page.draw();
@@ -145,7 +146,7 @@ test('PROF11 DONE WHEN: Rough Stone cut with a clean chisel at a General Store\'
     await settled();
     assert.equal(book.held('stone:mortar'), 10, 'ten at a time');
     assert.deepEqual([book.held('metal:sulphur'), book.held('metal:lead'), book.held('stone:rough')], [0, 0, 5]);
-    assert.equal(said.at(-1), `+${1 * 20 * 2 + 500} building`, 'a quick mix: no chisel, no half again - rank 10\'s tier, and its first 500');   // PIN MOVED (CRAFT3): the service answers the Building track
+    assert.equal(said.at(-1), `+${1 * 20 * 2 + 1823} building`, 'a quick mix: no chisel, no half again - rank 10\'s tier, and its first\'s share');   // PIN MOVED (FIRST-BUDGET)   // PIN MOVED (CRAFT3): the service answers the Building track
     // THE SCULPTOR'S COLUMN: a Master who chose the Sculptor, the dice steered to a Masterwork (the mark)
     track(PROF_XP_MAX, 'quarryman', 'sculptor');
     give('stone:cut', 12);
@@ -217,8 +218,8 @@ test('PROF11 pages: the Mason\'s Bench at a General Store - the cut and the mix 
   try {
     assert.deepEqual([...PROF_STATIONS], ['forge', 'workbench', 'loom', 'mason', 'jeweller']);   // PIN MOVED (PROF10): the jeweller's bench
     assert.equal(stationColdLine('mason'), MASON_COLD_LINE);
-    assert.match(MASON_COLD_LINE, /Masonry is done online, from your Stores page/);
-    assert.match(page.text(), /The mason's bench - 50 gold a cut, a mix or a carving\. Building 0 \(Novice\)\./);   // PIN MOVED (CRAFT3): the bench says its craft's track
+    assert.match(MASON_COLD_LINE, /Masonry is done online, from your Crafting page/);   // PIN MOVED (CRAFT-HALL): the stations are worked from the Crafting page
+    assert.match(page.text(), /BuildingNovice 0[^]*?The mason's bench - 50 gold a cut, a mix or a carving\./);   // PIN MOVED (CRAFT3): the bench says its craft's track;// PIN MOVED (CRAFT-HALL): the rank is the station header's bar, not the station's sentence
     assert.match(page.text(), /stone:cut2 stone:rough \(9\)/, 'the cut and its stone held');
     assert.match(page.text(), /stone:mortar x101 metal:sulphur \(2\) \+ 1 metal:lead \(2\) \+ 5 stone:rough \(9\) - rank 10/, 'ten a mix, shut below rank 10');
     assert.deepEqual([masonVerb('cut:stone'), masonVerb('mix:mortar')], ['Cut', 'Mix']);
@@ -285,7 +286,7 @@ test('PROF11 pages: the Mason\'s Bench at a General Store - the cut and the mix 
   // a home's bench: no fee
   stubPages({ bench: { kind: 'home', fee: 0 } });
   const home = pageOf();
-  try { assert.match(home.text(), /Your mason's bench\. Building 0/); } finally { home.done(); }   // PIN MOVED (CRAFT3): the bench says its craft's track
+  try { assert.match(home.text(), /BuildingNovice 0[^]*?Your mason's bench\./); } finally { home.done(); }   // PIN MOVED (CRAFT3): the bench says its craft's track; PIN MOVED (CRAFT-HALL): the rank in the header
   // away from a bench: the word
   stubPages({ bench: null });
   const away = pageOf();
@@ -433,7 +434,8 @@ test('PROF11 pages: the Sculptor\'s stone decor - shut to all but a Sculptor ("a
     assert.doesNotMatch(card('Builder').textContent, /Comes with the fortifications/);
     assert.doesNotMatch(card('Fortifier').textContent, /Comes with the fortifications/);
     // PIN MOVED (CRAFT3): Masonry's unlocks among Carpentry's on the Building track, each named its discipline's, by tier
-    const unlocks = [...root.querySelectorAll('.px-stat')].map((r) => r.textContent);
+    // PIN MOVED (CRAFT-HALL): the unlocks' rows, not the What raises rows beside them (prof-raise)
+    const unlocks = [...root.querySelectorAll('.px-stat')].filter((r) => !r.className.includes('prof-raise')).map((r) => r.textContent);
     assert.deepEqual(unlocks.filter((u) => u.startsWith('Masonry: ')), ['Masonry: Cut Stone, from Rough Stonerank 0', 'Masonry: Mortar, from Sulphur, Lead and Rough Stonerank 10']);
     assert.equal(unlocks.every((u) => /^(Carpentry|Masonry): /.test(u)), true, unlocks.join(' | '));
     const ranks = unlocks.map((u) => Number(/rank (\d+)$/.exec(u)?.[1]));

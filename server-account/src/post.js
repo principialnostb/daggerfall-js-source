@@ -41,7 +41,10 @@
 import { realmActFirst, prepareRealmRecord, mustChange, dropObjects, dropIfUnnamed, recordMovedOf, REALM_ID_RE } from './realm.js';
 import { giveTradeGoods } from '../../src/net/realm/realmTradeLaw.js';
 import { POST_ID_RE, POST_BOX_MAX, postItemHead } from '../../src/net/postLaw.js';
+import { isLostBatch } from '../../src/net/lostLaw.js';   // LOST-SPOILS: the Lost and Found's pieces, charged to the budget
 import { isReportReader, reportCountsOf } from './reports.js';   // PRIVATE-REPORT: a reader's box counts the reports waiting
+import { shopWareById } from '../../src/net/shopLaw.js';   // SHOP: a receipt names the ware it granted
+import { giftOf } from '../../src/net/giftLaw.js';   // THANKS-POST: a letter names the gift it brought
 
 /** The record a row holds, or null. AUDIT SERVER-POST: ONE ANSWER to "does this piece hold an item" for the box, the
  *  claim and the throw - a record the box can name (postItemHead) - so no row can be listed as words alone and refused as
@@ -60,6 +63,8 @@ const headOf = (/** @type {any} */ row) => {
   return {
     id: row.id, from: row.sender, subject: row.subject, sentAt: row.sent_at, read: row.read_at != null,
     item, claimed: item ? row.claimed_at != null : false,
+    ...(shopWareById(row.ware) ? { ware: row.ware } : {}),   // SHOP: a receipt's ware, drawn in the letter - nothing to claim
+    ...(giftOf(row.gift) ? { gift: row.gift } : {}),   // THANKS-POST: the gift the letter brought, on the account already
   };
 };
 
@@ -73,7 +78,7 @@ const headOf = (/** @type {any} */ row) => {
 export async function postBoxOf({ db }, reader, env = null) {
   // AUDIT SERVER-POST: WHAT WAITS FIRST - a gift not yet claimed, then the unread, then the rest newest first: the box
   // lists POST_BOX_MAX, and a gift behind fifty newer pieces had been neither shown nor counted
-  const { results = [] } = await db.prepare(`SELECT id, sender, subject, item, sent_at, read_at, claimed_at FROM server_post
+  const { results = [] } = await db.prepare(`SELECT id, sender, subject, item, sent_at, read_at, claimed_at, ware, gift FROM server_post
     WHERE to_id = ? ORDER BY (item IS NOT NULL AND claimed_at IS NULL) DESC, (read_at IS NULL) DESC, sent_at DESC, id DESC LIMIT ?`).bind(reader.id, POST_BOX_MAX).all();
   const post = results.map(headOf);
   return {
@@ -91,7 +96,7 @@ export async function postBoxOf({ db }, reader, env = null) {
  */
 export async function readPost({ db, nowS }, reader, id) {
   if (typeof id !== 'string' || !POST_ID_RE.test(id)) return { error: 'no-post' };
-  const row = await db.prepare('SELECT id, sender, subject, body, item, sent_at, read_at, claimed_at FROM server_post WHERE id = ? AND to_id = ?')
+  const row = await db.prepare('SELECT id, sender, subject, body, item, sent_at, read_at, claimed_at, ware, gift FROM server_post WHERE id = ? AND to_id = ?')
     .bind(id, reader.id).first();
   if (!row) return { error: 'no-post' };
   if (row.read_at == null) await db.prepare('UPDATE server_post SET read_at = ? WHERE id = ? AND to_id = ? AND read_at IS NULL').bind(nowS, id, reader.id).run();
@@ -115,12 +120,14 @@ export async function claimPost(ctx, reader, { id, character, realm = null } = {
   if (side.error) return side;
   if (!side.at) return { error: 'realm-needed' };
   if (typeof id !== 'string' || !POST_ID_RE.test(id)) return { error: 'no-post' };
-  const row = await db.prepare('SELECT id, item, claimed_at FROM server_post WHERE id = ? AND to_id = ?').bind(id, reader.id).first();
+  const row = await db.prepare('SELECT id, batch, item, claimed_at FROM server_post WHERE id = ? AND to_id = ?').bind(id, reader.id).first();
   if (!row) return { error: 'no-post' };
   const rec = recordOf(row);
   if (!rec) return { error: 'post-no-item' };
   if (row.claimed_at != null) return { error: 'post-claimed' };
-  const prep = await prepareRealmRecord(ctx, reader.id, side.at, (save) => { giveTradeGoods(save, [rec], 0); return null; });
+  // LOST-SPOILS: a boss's leftover is the client's roll - charged to the budget as the floor's piece is, never witnessed
+  // (lostLaw.js); the developers' gifts the service minted are witnessed, as every act of its own is
+  const prep = await prepareRealmRecord(ctx, reader.id, side.at, (save) => { giveTradeGoods(save, [rec], 0); return null; }, { witness: !isLostBatch(row.batch) });
   if ('error' in prep) return prep;
   try {
     await db.batch([

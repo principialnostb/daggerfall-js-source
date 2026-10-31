@@ -46,6 +46,7 @@ import { iliacGrade } from '../../src/systems/iliac/iliacPatrons.js';
 import { giveBinderAtChargen } from '../../src/systems/iliac/iliacItems.js';
 import { skillValue, SKILLS } from '../../src/systems/skills.js';
 import { liveStat } from '../../src/systems/statMods.js';
+import { hostText } from '../hostText.mjs';
 
 beforeEach(() => resetPrefs());
 
@@ -443,10 +444,10 @@ test('KG3 the board drawn and freed: the mat and the pieces\' plates made as the
 // harness tests run it (test/systems/auditcards6_e.test.js's way), offline, over the real panels and the real game ──────────────
 const read = (p) => readFileSync(new URL(`../../${p}`, import.meta.url), 'utf8');
 const grab = (src, re, what) => { const m = re.exec(src); assert.ok(m, `${what} is no longer where this pin reads it`); return m[1]; };
-const WM = read('src/scenes/worldModes.js'), WORLD = read('src/scenes/world.js');
+const WM = read('src/scenes/worldModes.js'), WORLD = hostText('src/scenes/world.js');   // PIN MOVED (TESA's merge): the quick save is scenes/worldQuickSave.js's - the host read whole, `modes` its live name
 const BLOCK = WM.slice(WM.indexOf('  let cardSeat = null;'), WM.indexOf('\n', WM.indexOf("registerPlayerHurtListener('cards-seat'")));
 const STAKED = grab(WM, /\n {4}gambitStaked: (\(\) => [^\n]*?),   \/\/ KG3/, "worldModes' gambitStaked");
-const SAVE_DOOR = grab(WORLD, /\n {4}(if \(modes\?\.gambitStaked\?\.\(\)[^\n]*?return false; \})/, "world.js's quick save's KG3 door");
+const SAVE_DOOR = grab(WORLD, /\n {4}(if \((?:host\.)?modes\?\.gambitStaked\?\.\(\)[^\n]*?return false; \})/, "world.js's quick save's KG3 door");
 const SAVE_PREVENTED = grab(WORLD, /\n {4}savingPrevented: (\(\) => [^\n]*?),   \/\/ AUDIT NAV1/, "world.js's savingPrevented");
 
 function cardHost({ friendly = false } = {}) {
@@ -461,7 +462,7 @@ function cardHost({ friendly = false } = {}) {
     player: { pos: [0, 0, 0], eyeAt: () => [0, 1.6, 0] },
     host: { realmAct: friendly ? { realm: true } : null, relock: () => {}, seatedPeers: () => [], cardOnline: null, iliacOnline: null, iliacRanked: { why: () => '', vouch: async () => ({ ok: false }), board: async () => ({ ok: false }) }, iliacClaims: { add: () => {} } },
     say: (x) => said.push(x), cam: { yaw: 0, pitch: 0, pos: null },
-    getNameBankOfRegion: () => 0, residentName: (seed, bank, g) => `R${seed}:${g}`,
+    getNameBankOfRegion: () => 0, seededPersonName: (seed, bank, g) => `R${seed}:${g}`,   // REGION-NAMES: PIN MOVED - the regulars named through personNames.js
     stakesFor: sess.stakesFor, buyInRange: sess.buyInRange, goldAmount: court.goldAmount,
     holdCursor, renderer: {},
     createCardTableDraw: () => ({ draw() {}, destroy() {} }),
@@ -518,7 +519,7 @@ test('KG3 THE HOST\'S WIRING (scenes/worldModes.js\'s card block, run as the six
   const stake = gg.g.game.stake;
   assert.ok(stake > 0 && h.api.gambitStaked(), 'staked');
   assert.equal(h.playerEntity.goldPieces, 5000 - stake);
-  const door = new Function('modes', 'townTalk', 'quiet', 'stakedSaveRefusal', `${SAVE_DOOR}\nreturn true;`);
+  const door = (modes, ...rest) => new Function('host', 'modes', 'townTalk', 'quiet', 'stakedSaveRefusal', `${SAVE_DOOR}\nreturn true;`)({ modes }, modes, ...rest);
   const told = [];
   assert.equal(door({ gambitStaked: h.api.gambitStaked }, { say: (x) => told.push(x) }, false, stakedSaveRefusal), false, 'the quick save refused');
   assert.equal(door({ gambitStaked: h.api.gambitStaked }, { say: (x) => told.push(x) }, true, stakedSaveRefusal), false, 'the quiet checkpoint too');

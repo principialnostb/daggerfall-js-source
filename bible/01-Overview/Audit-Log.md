@@ -8,6 +8,207 @@
 
 Newest first.
 
+**2026-10-31 - AUDIT PROP-GROUND.** The owner: *"Audit"*, of PROP-GROUND (`3582fe992`, the street laid under a prop past
+the Bay). Three cold lanes on the frozen head, each finding proven on the freeware. Paid: a lamp's own cell (the town
+map's 250 and 251) still stood on old ground; the last step laid lone flags; cobbles notched the pavement and setts met
+the dirt; 31,632 flats stood 5 to 13 cm under the new street; ARCH3D 41712's foot plate flickered in the setts (43603's
+found beside it); kerb feet hung 5 cm over the land; six mutants lived and the ARENA2 pin restated its rule; the record's
+15 cm. All fixed: the street's own lines and laws under the props, the flats stood on it, 41 mutants, all dead. Record:
+`03-World/Urban-Fabric.md` section 11.
+
+**2026-10-30 - AUDIT FOUNDATION II.** The owner: *"Audit this"*, again, of FOUNDATION with the first audit's fixes. Four
+fresh reviews, given the code alone. Paid: one island row on the Bay moved the continent's fit and the countryside's
+rates; a land row kept the mountain's detail under it; a row in the Eltheric Ocean's box read two ways; past the Bay a
+row's climate missed the air and the snow line; a curated price kept any ground; a key row applied in a layout where
+its key is another building; the game's check never read a place past the Bay. All fixed, with 26 mutants, all dead.
+Record: `03-World/Foundation-Arc.md` AUDIT FOUNDATION II.
+
+**2026-10-30 - AUDIT FOUNDATION.** The owner: *"Audit this"*, of FOUNDATION F0-F5 (the atlas, the regions' clock, property
+and the land as data, the build's open files). Four reviews, one a slice, read the code apart from its writer. Paid: a
+day's acts read before its late Watch claims and patron sales landed (never counted); a cell row that missed block 0,0's
+first building; a curated price that dropped a home's ground; past the Bay a shallow water row that stood as land, a row
+in the seam band diluted, a land row over the sea read as water, and a climate row the landforms and the far ring never
+read; a harbour slice whose location read region 0. All fixed, with fifteen mutants, all dead. Record:
+`03-World/Foundation-Arc.md` AUDIT FOUNDATION.
+
+**2026-10-30 - AUDIT LIGHT-REACH.** The owner: *"Audit"*, of LIGHT-REACH (#1456), the street's lamps and windows lit farther.
+Five cold lanes on a frozen head (`d19e9f1a7`), each finding proven on the real code. Paid: a tile an overflowing near list
+trimmed lost up to 74% of its light every other frame; beside a long wall the far cut fell to 12 m; a yard's candle reached
+7.5 on the lane; the far tier and its shader walk could break with every pin green; the record's "no pixel changed" was
+false for the back-face skip (a leak closed, kept); the patch notes' 160 m was not a busy street's. Record:
+`audits/Audit-Light-Reach.md` (AUDIT LIGHT-REACH).
+
+**2026-10-30 - AUDIT TECH-FEEDBACK II.** Mac: *"Audit this"*, again, of the pass and its first audit. One review of the
+branch, each finding read against the code: eight reported, seven fixed, one kept. Paid: a flight's backs were read from
+its landing, so a Lunge through a foe facing me backstabbed it (F1); a gun mid-reload started an aim that failed silent
+(F2); a leap pressed mid-swing kept the swing, whose hit landed mid-air beside the landing's (F3); a rejected or thrown
+vendor read waited two minutes or cleared every mark (F4), and a load or a shut market kept the blue (F5); the touch
+corner had no Martial technique (F6 - back, read by the rig); the cut's busy test was written twice (F8). Kept: F7,
+the card's key word - the same law, read once a render. 14 mutants, all dead.
+Record: `05-Combat/Weapon-Techniques.md`, `10-UI/Enhanced-Maps-Arc.md`.
+
+**2026-10-30 - AUDIT TECH-FEEDBACK.** Mac: *"Audit this"*, of the same day's #feature-feedback pass. One review of the
+branch, each finding read against the code: eight reported, seven fixed, one refuted. Paid: a bow resting drawn was cut
+to frame 0 (F1); a cut made before the strike could begin lost the swing for nothing (F2), and the Morrowind arm was cut
+only with the machine (F6); the touch and d-pad Martial technique pressed nothing, its action having no key (F3 - taken
+out); a failed or hung vendor read held its region (F4); the homes' version was a string a frame (F7); the waypoint's
+house was told by its English words (F8). Refuted: F5 - the door leaves out only the town's defenders, the player's
+allies. 9 mutants, all dead. Record: `05-Combat/Weapon-Techniques.md`, `10-UI/Enhanced-Maps-Arc.md`.
+
+**2026-10-28 - AUDIT TAMRIEL-NODES.** The request: *"audit the main tamriel PR and just ensure the new gathering points
+show in the overworld across tamriel properly"*, of #1184's gathering past the Bay (WW-C1). The Overworld's groups, marks
+and filter read no ground of the Bay's, and every zone's herbs, veins and trees stood their law on the kernel's own
+ground. Paid: no boulder stood anywhere past the Bay or on the Eltheric isles - a boulder is a rock field's piece, and the
+fields are the Bay's alone - so the stone-rich provinces' boulders were never seen and every Mining group counted veins
+alone. Past the Bay a boulder is now a heap on the stone (STONE-HEAPS). 9 mutants, all dead. Record:
+`03-World/World-Wide.md` STONE-HEAPS.
+
+**2026-10-27 - AUDIT RED-MOUNTAIN.** The owner: *"Audit this"*, of RED-MOUNTAIN and GHOSTFENCE, the volcano at
+Vvardenfell's heart and the Tribunal's fence round it. Five cold lanes on a frozen head (`774fbff133`), each reproducing
+every finding with a node probe on the real code. Paid: a body walked through the fence at 22 runs (its solid one flat
+quad a run over gullies); from a far eye the lake showed through the summit; snow lay white on the volcano in winter;
+42 spawned dungeons stood on the fence's line, and the route planner walked straight across it; the flats painted over
+the glow. The owner's call: one Red Mountain, this change's; RELIEF-PEAKS's cone retired at the merge. 51 mutants, all
+dead. Record: `audits/Audit-Red-Mountain.md` (AUDIT RED-MOUNTAIN).
+
+**2026-10-26 - AUDIT PVP-EASE.** The owner: *"Can we audit this"*, of PVP-EASE, the open PvP overhaul, the day it was
+written. Four cold lanes on a frozen worktree, each reproducing every finding with a probe on the real code; 21 reported,
+16 defects, all fixed. Paid: a cell crossed and a room woken from its sleep granted a fresh minute of safe passage (the
+hub's carry was a struck fighter's alone, read within the mend); the repeat shield measured by when a fall was carried, so
+a killer holding a receipt half an hour took the second kill whole; policies on pieces long gone shut the insurer's door
+for good; the game's policy book read once, for an id the save had not loaded yet; ships' guns blind to safe passage; the
+grace's end said outside the zone; a tutorial row in twelve languages still saying the cart drops. The owner's four calls:
+a combat lock on storing for a minute after a player's blow (storage open anywhere had made the drop optional), a policy
+spent only when it saved its piece, any take from remains ends safe passage, and every rise in the zone grants it. 39
+mutants, all dead. Relay world270, account acct196 (world269 and acct195 on its branch, renumbered past the TESA fold's
+at its fold into #1184). Record: `audits/Audit-PvP-Ease.md` (AUDIT PVP-EASE).
+
+**2026-10-25 - AUDIT STARTS.** The owner: *"Audit this and ensure its perfect"*, of the alternate starts (START1-START3,
+pull request #1216). Five cold lanes on a frozen head - the quest layer, the world host, the voyages, the page and the
+map, the pins - each given the asks and the files and never the record's conclusions; 51 reported, 45 defects. Paid: the
+writ of passage, which never sailed (the machine files a task under its inner name, and the pin built one by hand), and
+would have sailed a week past the start's end and on the Bay's letter; the Imperial start online, in the open zone's
+sealed dungeons; a birth online's reload woken at the dungeon's door into a room without its quest; a load mid-start
+overrun, a trace that never landed, a refused start, a failed move, an unlatched move, a door inside a model, a save from
+before the story; `_BRISIEN`'s cave and wreck told as every player's; a phone's tap committing a start unseen; a journey
+and a portal offered past the Bay, a dead press on the zone map, "(you are here)" refused in the start dungeon; the
+voyage back from Daggerfall to six ports, each refusal a freeze of seconds (and the fix's first cut, at five); French's
+doubled article, Bulgarian's names, the writ's row off the picker; and twelve pins that could not fail. Each fixed and
+pinned red, with a mutant. 61 mutants, all dead. Record: `Audit-Starts.md` (AUDIT STARTS).
+
+**2026-10-27 - AUDIT HORIZONTAL.** The owner: *"Audit this"*, of pull request #1334 - the horizontal progression
+(CRAFT-HALL, MASTER-ART, HUNTERS-MARK, MARKS-OF-MASTERY, POWER-CEILING, APPEARANCES, SEA-OPEN and the PLAIN-TEXT law).
+Seven cold lanes on a frozen snapshot (37a7bd3a0), each finding proven on the real code. Paid: a Veil party took a
+member who had left the ship (C1); parallel crew asks signed past 24 a day (C2); a Master's work judged against today's
+tables (B1); an older build dropping a Master's work it held (B7); a quay tow through land and a ship under way giving
+the quay up (C3, C10); the composite cut falling on the last registry asked (D4); clears past 48 a day dropped (F3).
+Every one fixed and pinned red, its mutant record dead, or left and said. Record: `audits/Audit-Horizontal.md`.
+
+**2026-10-27 - AUDIT RPT1026.** The owner: *"Audit this"*, of FIELD BUGS 2026-10-26r (the 293 private reports, 100
+fixed in twelve lanes). Thirteen cold lanes at the batch head (2dc8f31a2), one for each fixing lane and one for the
+record and the integration, each finding proven on the real code; 68 found. Paid: the shared chest's window let a Use, a
+Salvage or a Dismantle work on its own copy of the pack - a duplication open to anyone with a home; a seller who kept a
+sold piece won it back through an accomplice's trade; a cleared piece moved through a vault held its owner again with a
+strike; a guest's kept hold locked an owner out of their chest; a fight on a stalled line closed the socket for good;
+one griefer stopped an Orrery a team had learned; a No made a choice in three questline quests; a purchase pressed
+during a sweep never arrived; a self-cast absorb at a full pool killed its caster (#286, AS DESIGNED no longer); the
+phone's Bank keypad behind the Bank; the record's tally not its rows'. Every one fixed or its record corrected, pinned
+red; 130 mutants, all dead. ACCOUNT_VERSION acct198, RELAY_VERSION world272 (main's CHAT-POST and MASTER-THREE took world270 and world271, and JEWEL-KIN acct197). Record:
+`audits/Audit-Rpt1026.md` (AUDIT RPT1026).
+
+**2026-10-26 - AUDIT LOCKPICK.** The owner: *"Audit this"* and *"Also ensure this is enhanced ui plus"*, of the branch
+that built LOCKPICK, RESOURCE-HIGHLIGHTS and AUDIT GATHER. Four cold lanes on a frozen snapshot (81ff3671f), each finding
+proven on the real code; 38 reported. Paid: every front-door pick threw (the steal ladder's own `lockpick`, the skill,
+shadowed the host - no test made the press); a fixed rhythm set every pin at every chance; a death in the opened lock's
+hold ran its success tail; a Lock spell's door inside a building never pickable; the Lockpick's card lines on no card; a
+shoplift then one purchase put the stolen picks back; the lock's window its own Georgia box no Plus colour, Grimoire or
+pad prompt reached, its presses off a phone on its side; F1 keeping a first ask's seat refusal; F3 bounding hauls, not
+schools; a Motherlode's strike played past its close. Every one fixed or its record corrected, pinned red; 48 mutants, 47
+dead, one recorded equivalent. Account acct195 (migration 0176) before the site. Record: `audits/Audit-Lockpick.md`
+(AUDIT LOCKPICK).
+
+**2026-10-26 - AUDIT KETCH II.** The owner: *"Can you audit the airship raid. Its a buggy mess"*, of the Sky-Ketch on
+main after the four slices that followed AUDIT KETCH. Five cold lanes, each reproducing every finding with a probe on the
+real code; 36 reported, 30 defects. Paid: nobody could board (the page ran her sky aboard alone, a slice's misplaced
+`else`), and a fall from a fallen section of the bridge's ring landed in her shut belly; the tracker said the Watch was
+waiting through its last two waves; the room never heard a heal before the bridge; the lid's cast-back stood nobody
+anywhere, a cost a frame to 1 HP; the Sailwalk skipped over the engine house's roof; the Pellet cap a page's and a room's
+and spent before the bosses; constructs' health read off who posed last; Sentries out over the bow's nets, stacked two to a
+post and never firing when chased; twenty minutes after she weighs anchor shorter than a voyage, and a fight lost before a
+solo could climb back. 26 fixed and pinned red, each with a mutant (33, all dead); two left with their reasons; the solo's
+pace the owner's to set. Relay world266. Record: `audits/Audit-Ketch-II.md` (AUDIT KETCH II).
+
+**2026-10-25 - AUDIT FB-FEEDBACK-1024 (AIM-ENDS, FERRY-CLEAR, DECOR-USE, PERK-TRIAL).** The owner: *"Audit"*, of the
+branch's four slices for the Discord's feature-feedback (2026-10-24). Four cold lanes on a frozen snapshot, each given the
+ask and the files and never the record's conclusions; each lane built its own harness over the real code (the naval
+host's eye over every hull's ends, world.js's hand on Come Sail Away's runtime, a real decor room wired to the camps,
+the page and the book over the real Worker and its D1). Paid: the stern's aim eye past the barrel's mark and the bow's
+inside a galley's prow and behind a set jib, its 29-56 m jump between sides; a landfall rowed in through a ship moored
+off its shore, a departure frozen under no sail and no oar, a boat of mine or a peer's at the next berth seen as
+water, a ship under way looked for where she stood; a placed fire taking its wall's door's press, a fireplace model no
+hearth, the cooking station opening the brazier's door, Daggerfall's fireplaces named "Furniture 26"; a card shown
+free charged 1,000 Marks past its day, a lost answer answered as the old one, a change bought across the deploy left
+waiting its week, a choice made the day before it given no trial. Each failed on the snapshot, fixed and pinned, with a
+mutant. The pins themselves: F2's oars rowed her off an islet's edge, so "she arrived" no longer told whether her beam
+was looked along - the crossings hold her off land and HULL_CLEAR_M off a hull now. Left, each with its reason, in the
+slices' records. 121 mutant records judged, 120 dead; the survivor, AUDIT SHIPS A5's `the-gain-on-every-coast`
+(`comeSailAway.js`), survives on main too - not this branch's, left for its own slice. Records: `03-World/Naval-Combat.md`
+AUDIT AIM-ENDS, `03-World/Passage.md` AUDIT FERRY-CLEAR, `06-Systems/Online-Arc.md` AUDIT DECOR-USE,
+`06-Systems/Professions-Arc.md` AUDIT PERK-TRIAL.
+
+**2026-10-24 - AUDIT KETCH.** The owner: *"Its time to be a deep audit on this and ensure absolute perfection"*, of the
+Sky-Ketch slice (KETCH and the asks before it on the same branch). Five cold lanes on a frozen snapshot, each given the
+asks and the files and never the record's conclusions; 67 reported, 62 defects. Paid: the Engine's spiders numbered into
+the Warden's forks and unkillable six minutes in; a fallen earner off the ship losing its receipt, and one share paying
+again on every other device; the Keel-Song never counted; a ninth aboard breaking every page; a quitter's place never
+freed; a modified page warping through the carry and the Sailwalk; the Ketch's spoils in the Hour's pool and promised to a
+mailbox that refused them; the bridge's rail walling off the gangway and the cabin, the nets drawn solid, DFU's climb over
+the gallery's wall into the barred hold, a 24 m drop down the lift's shaft; the line's book paid as its reward at the
+letter, "every Loredas" false on the game's own calendar, three cells a hand no crew of eight could meet, and lore that
+promised constructs, a stone and a hum the game did not have. Each fixed and pinned red, with a mutant; the lodestone made
+true; the untested fight pinned. One left, with its reason (the loot ladder off is DFU's own loot). 297 mutants, 295
+dead, two recorded equivalent. Record: `Audit-Ketch.md` (AUDIT KETCH).
+
+**2026-10-23 - AUDIT GUILD-WINDOW.** The owner: *"Audit thus"*, of the Guild window (GUILD-WINDOW, the same day). Two
+cold lanes and a measured pass in Chromium; sixteen findings (two HIGH: an invitation's Decline over the window's Close
+on a phone, the touch sizes outranked), each reproduced, fixed and pinned. The record is
+`11-Multiplayer/Guild-Overhaul.md`, AUDIT GUILD-WINDOW.
+
+**2026-10-22 - AUDIT FB1021d (pull request #1118, FIELD BUGS 2026-10-21d: FLAT-WALK, RAVEN-CLOSE, SENTENCE-MENDS, REGARD-OWN,
+PASSAGE).** The owner: *"Audit this"*. Five cold lanes, one a report, read-only over the pull request's own diff at
+`cff651e83` against Daggerfall Unity's C# and the freeware's data, given the reports and the files and never the
+record's conclusions. The worst: a sentence's mend landed before a day was served, so a save under the prison screen
+kept it for nothing (SM-1); the friend line lumin asked for was said under the talk window and ran out unseen (RO-1); a
+booked ship whose master's hand was off - a foe near, aground - was steered by nobody (PS-2), and 25 sailed legs were
+still aimed at land, hidden by the test's own filter (PS-1). The rest: two FLAT-WALK pins too weak to tell a Teleport
+from every flat relay, its count (27, not 41) and FLAT-RELAY's refuted diagnosis left standing on four pages (2026-10-05c
+report 5 reopened); the Raven close's price (a map read after the knight's word) named and pinned; the mend wearing a
+crime's own mark, a petty crime's cheap step, and a Curfew doubling charges laid anywhere in its town; grudges given back
+whole by the rebase and an offline copy frozen; a deed's friend never said; the town rings lost on the land a party
+embarks from; a passenger's autorun outliving the helm; the plate hidden under a bar that never covered it; a passenger's
+card with no dial or Leave. Every finding is in the record's own section with what became of it
+(`01-Overview/bugs/Field-Bugs-2026-10-21d.md`, AUDIT FB1021d): fixed and pinned, or taken under the owner's standing
+word (FW-6, RC-1, SM-3, SM-4, RO-3, PS-2), or found and left with its reason (LW-II's open item 6 on the road's sword;
+the unsaved charge; a realm-era build reading the record; my own boat's embark legs). The campaign, 1,291 mutants on
+the merged tree: 1,275 dead, 2 equivalent, 14 survived - the seven of this change's own answered (four pinned, PS-3's
+reading cut to the half that is the whole of it, SM-4's prison-arm read recorded equivalent with its reason pinned), the
+seven others surviving on main as here (four of them equivalent since PLEA-LOOP), named in the record.
+
+**2026-10-21 - AUDIT STAR-TUNE (pull request #1090, the Starfall from its first run).** The owner: *"Audit this"*. One
+cold lane over the pull request's own diff, read-only, at the head that renumbered it world238 past main's world236 and
+world237. Four findings, each fixed and pinned (`bible/11-Multiplayer/Starfall.md` sections 4, 10 and 13; `Spawn-Grants.md`
+section 4): F1, the site goes live before the relay's deploy is through (the account service, which STAR-TUNE does not
+move, is all `deploy.yml` waits on), and a new client asked world237 a `star` grant it refuses - under `enforce` no wave
+stood, under `grantStrip` the coven was its owner's alone; the kind is now asked only of world238 and later
+(`STAR_GRANT_RELAY_MIN`), the stand's own kind of an older relay. F2, the wave's clearing floor stayed a foe's 2.5 s while
+a party's wave grew to twenty-one - an empty crater waited out to 52.5 s after a 25 s fight; it is shared by the
+defenders now (`starClearFloorMs`). F3, an older tab's `st` dropped a wave past nine whole, so an older owner stood a
+party's third wave and master for nobody; the cell says nine in `wz` and the wave in `wx`. An older reader removing a
+toughened coven foe past its old bound is recorded, not fixable from here. F4, a crater built again under a standing
+player skipped the late-solid gate's body check. Sound: the wave law, the grant's size and ceiling, toughening across
+handovers, the frame's 64 records, the stand height, the renumber. Mutants: 7 new and 3 re-aimed (`star1`, `star3`,
+`star5`), all dead.
+
 **2026-10-20 - AUDIT PERF-PASS (the performance pass, pull request #1078: TRIP-PICKS, the BOOT-FREEZE slices,
 TRADE-VIRT, SHADER-STALL, SNOW-BUDGET and the GATE-MIX merge).** The owner: *"I need you to audit this and ensure this is
 perfect and fidelity isnt lost"*. Four cold lanes on a frozen head (7e5cdfcb80), read-only, each against the code before

@@ -16,6 +16,7 @@
 // head, a mesh not in hand).
 import { portraitRenderer } from '../render/portraitRenderer.js';
 import { EQUIP_SLOTS, equipTableOf } from '../systems/equip.js';
+import { drawnPiece } from '../net/appearanceLaw.js';   // APPEARANCES: a worn helm's look
 import { getPref } from '../systems/uiPrefs.js';
 import { getAppearanceIdentity } from './bodyMorphs.js';
 
@@ -38,14 +39,15 @@ export function headDataStamp() {
   }
   return _data.morrowindDataCount() > 0 ? _data.morrowindDataGeneration() : 0;
 }
-/** A live character's Morrowind head, as a key: the data and the helm worn (its item, and the steel helm's style,
- *  MW-STEEL1) - '0' with no data. The curse's state is the caller's (its override art, which changes with it).
+/** A live character's Morrowind head, as a key: the data and the helm worn (its item, the steel helm's style,
+ *  MW-STEEL1, and the Beast Helmets switch, BEAST-BOOTS) - '0' with no data. The curse's state is the caller's (its
+ *  override art, which changes with it).
  *  @param {any} entity */
 export function playerHeadKey(entity) {
   const stamp = headDataStamp();
   if (!stamp) return '0';
-  const helm = entity?.equip ? equipTableOf(entity)?.[EQUIP_SLOTS.Head] ?? null : null;
-  return `${stamp}|${helm ? `${helm.templateIndex}/${helm.material ?? 0}/${getPref('mwSteelHelm')}` : '-'}`;
+  const helm = drawnPiece(entity?.equip ? equipTableOf(entity)?.[EQUIP_SLOTS.Head] ?? null : null);   // APPEARANCES: the helm as it is drawn - a look worn over it is a new face
+  return `${stamp}|${helm ? `${helm.templateIndex}/${helm.material ?? 0}/${getPref('mwSteelHelm')}/${getPref('mwBeastHelm')}` : '-'}`;
 }
 
 /** The data gate the player's face reads - the same count the player's body stands on. */

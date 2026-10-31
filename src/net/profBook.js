@@ -55,17 +55,19 @@
 // Pure - the door, the storage, the clock and the ids are handed in - so
 // the pins drive it without a network.
 // ═══════════════════════════════════════════════════════════════════
-import { HARVEST_LATE_S, HIGH_HIDES_PER_DAY, WITHDRAW_MAX, smeltRecipe, trackOf, craftLimitOf } from './professionLaw.js';   // PROF7: the day's rare hides (CAP-OFF: no day's cap); BAG1: a work's inputs; CRAFT-LIMIT-SAID: the crafter's limit over a track
+import { HARVEST_LATE_S, HIGH_HIDES_PER_DAY, WITHDRAW_MAX, smeltRecipe, trackOf, craftLimitOf, specTrialShown, workEmbers } from './professionLaw.js';   // PROF7: the day's rare hides (CAP-OFF: no day's cap); BAG1: a work's inputs; CRAFT-LIMIT-SAID: the crafter's limit over a track; DAEDRIC-SMELT: a work's embers
 import { CARRIED_MAX, DEPOSIT_MAX, LOOSE_ORIGIN, carriedUsable, carriedWorkable, carriedTotal, clampCarried } from './bagLaw.js';   // BAG1: what a character carries, counted
-import { recipeById, recipeInputs, recipeOpen } from './recipeLaw.js';   // BAG1: a craft's inputs, moved in from the bag first; AUDIT CRAFT1: whether the rank opens it
+import { recipeById, recipeInputs, recipeOpen, counterMade } from './recipeLaw.js';   // BAG1: a craft's inputs, moved in from the bag first; AUDIT CRAFT1: whether the rank opens it
 import { potionById, brewSpends } from './alchemyLaw.js';   // BAG1: a brew's
 import { chainPlan, chainNeeded, storesRoom } from './chainLaw.js';   // CRAFT1: the works a craft's inputs want first
 import { temperableRecipe, temperCost } from './temperLaw.js';   // CRAFT4: a temper's input, moved in from the bag first
+import { MASTER_CATALYSTS, masterDayOf } from './masterLaw.js';   // MASTER-ART: a Master's work's catalysts, moved in from the bag first; its day
 import { pixelKey, parseNodeKey } from './nodeLaw.js';
 import { accountRefusalText } from './accountClient.js';
 import { ASK_AGAIN_NOW, jittered } from './backoff.js';   // SCALE1: asks again spread out, and never at once into a minute's refusal
 import { t } from '../systems/textManager.js';   // L10N4: the Stores' words in the player's language
 import { noteAct } from '../systems/questlines/qlActs.js';   // QL11: the features' acts, heard by the running quests
+import { turnedDayOf } from './dayTurn.js';   // DAY-TURN: a page's day turns at its own moment past midnight
 
 /** Where this device keeps the acts whose answers did not come: { [account|character]: { harvests, withdrawals } }. */
 export const PROF_KEPT_KEY = 'prof1.kept';
@@ -89,6 +91,9 @@ export const PROF_DUNGEONS_MAX = 4;
  *  read answered for another UTC day than this device's (the two clocks either side of midnight) is not stale again
  *  before it either. */
 export const PROF_REFRESH_BACKOFF_MS = 30_000;
+/** AUDIT HORIZONTAL A (the read held across a craft): a state read an act's answer overtook is read again, at most this
+ *  many times in all - then applied as it stands. */
+export const PROF_STATE_READS = 3;
 /** AUDIT 29 C8: a shut switch is asked again this often - it opens without a reload. */
 export const PROF_CLOSED_RECHECK_MS = 300_000;
 /** The answers an act is asked again after: the network, the service's own fault, the account's minute spent; GATHER-SAID:
@@ -99,6 +104,15 @@ const WAIT = Object.freeze(['no-session', 'auth', 'elsewhere']);
 /** The answers that say the professions are not this account's now. */
 const SHUT = Object.freeze(['prof-closed', 'prof-need-account']);
 const keptAnswer = (r) => RETRY.includes(r?.error) || WAIT.includes(r?.error);
+/** AUDIT GATHER F1 (Professions-Arc section 55): the seat's refusals (INT16 - the realm character's lease gone to another
+ *  device, `progress-seat`; the judge's hold, `trade-held`), answered at the service's door before the route reads a word -
+ *  so before it looks a harvest's rid up. A CARRIED harvest refused so may have landed with its answer lost: it is kept,
+ *  and asked again until the seat answers it (a landed one as made, one that never landed refused) - Materials-Bag.md 7's
+ *  law, "a carried harvest is never let go unminted". */
+export const SEAT_REFUSALS = Object.freeze(['progress-seat', 'trade-held']);
+/** AUDIT LOCKPICK D1 (Professions-Arc section 55, F1): how long a carried harvest kept on a seat refusal waits before it is
+ *  asked again - a hold is days long, and the pump's thirty seconds spent the account's whole door rate on it. */
+export const PROF_SEAT_RETRY_MS = 5 * 60_000;
 
 /** A request id: `p` and fifteen of base 36, from the handed-in randomness (crypto's by default). */
 export function mintProfRid(rand = (b) => globalThis.crypto.getRandomValues(b)) {
@@ -126,14 +140,21 @@ const dayOf = (ms) => Math.floor(ms / 86_400_000);
  *   give?: (key: string, n: number) => { bag: number, pack: number, over: number },
  *   stamped?: (id: string) => boolean, unstamp?: (id: string) => void,
  *   stamps?: () => { id: string, material: string, qty: number, order?: string }[],
- *   flush?: () => (boolean|Promise<boolean>) }} CarryHands
+ *   flush?: () => (boolean|Promise<boolean>),
+ *   embers?: { held: () => number, take: (n: number) => { taken: number, back: () => void } } }} CarryHands
  *   BAG1: the host's hands on the bag and the pack - what they hold of a material, how many more fit, the units minted
  *   into them (the bag first), and the units taken out of them with the undo that puts them back. AUDIT2 BAG1: `give` the
  *   units the service handed over, every one minted (what finds no room into the pack past its weight - B5's law);
  *   `stamped`/`unstamp`/`stamps` a deposit's stamp in the save (takeCarried's `stamp` - its id, material, units and
  *   order); `flush` a checkpoint that LANDED (the save holding the take is the realm's before the deposit is asked).
+ *   DAEDRIC-SMELT (bible/06-Systems/Professions-Arc.md section 53): `embers` the pack's Deadlands Embers - how many it
+ *   holds unlocked, and a take of them with its undo (systems/sigil/sigilBroker.js emberHands) - the pack's half of a
+ *   work that spends them, as the Broker's sale takes its price.
  */
-export function createProfBook({ door, storage = null, character = () => null, now = () => Date.now(), rid = () => mintProfRid(), sleep = (ms) => new Promise((r) => setTimeout(r, ms)), carry = /** @type {CarryHands|null} */ (null) }) {
+export function createProfBook({ door, storage = null, character = () => null, now = () => Date.now(), rid = () => mintProfRid(), sleep = (ms) => new Promise((r) => setTimeout(r, ms)), carry = /** @type {CarryHands|null} */ (null), turnMs = 0 }) {
+  /** DAY-TURN (net/dayTurn.js): the day this book holds its answers for - the UTC day, turned at this page's moment past
+   *  midnight (`turnMs`, the host's; 0 turns at midnight). An answer held is good while its day is not before it. */
+  const heldDay = () => turnedDayOf(now(), turnMs);
   const state = {
     /** whether the professions are this account's: true, false, or null not yet asked */
     open: /** @type {boolean|null} */ (null),
@@ -149,8 +170,17 @@ export function createProfBook({ door, storage = null, character = () => null, n
     stores: new Map(),
     /** BAG1: the service's carried count, by material - every unit it handed to the bag or the pack (bagLaw.js) */
     carried: new Map(),
+    /** WOVEN-PAYS (AUDIT WOVEN-PAYS): a cloth's silver count, by material - the bolts bought with silver its stations have
+     *  not used since (professions.js `prof_silver_cloth`) */
+    silver: new Map(),
     writs: { today: 0, max: 3 },
+    /** BOARD-SIFT: the Work tab's filter and order (ui/workSift.js), kept for the session - null until the board opens */
+    workSift: /** @type {any} */ (null),
     caps: /** @type {any} */ (null),
+    /** CRAFT-HALL: what the service says the character has made, or null from an older service */
+    made: /** @type {{ crafts: Set<string>, works: Set<string>, brews: Set<string> }|null} */ (null),
+    /** MASTER-ART: whether today's Master's work is made (null unknown - an older service), and the last one's answer */
+    master: /** @type {{ made: boolean|null, last: any }} */ ({ made: null, last: null }),
     /** PROF3: the account's Marks as the smith's stock last answered them, or null */
     marks: /** @type {number|null} */ (null),
     /** PROF7: the account's hides today, every character's together, and of them those of tiers 5-6 (PROF0 6: 3 a day -
@@ -241,11 +271,17 @@ export function createProfBook({ door, storage = null, character = () => null, n
   const shutBy = (r) => { if (SHUT.includes(r?.error)) { state.open = false; state.account = account(); } };
 
   // ─── WHAT THE SERVICE SAID ─────────────────────────────────────────
-  const applyTrack = (t) => { if (t && typeof t.profession === 'string') state.tracks.set(t.profession, t); };
+  /** AUDIT HORIZONTAL A: moved on by every answer laid on the state, so a state read begun before one is read again - a
+   *  read answered before a craft and heard after it put back the goods it spent, its XP and its first (writGen's way). */
+  let stateGen = 0;
+  const applyTrack = (t) => { if (t && typeof t.profession === 'string') { stateGen++; state.tracks.set(t.profession, t); } };
   // GOLD-MARKET: and what gold bought, where there is any - to the pack or back on the market for gold, nowhere else.
   // AUDIT BAG-CRAFT A1: and what a station's put-in brought loose from the pack - to a station or back to the pack
   const applyStore = (s) => {
     if (!s || typeof s.material !== 'string') return;
+    stateGen++;
+    // WOVEN-PAYS: a cloth's count says its silver count beside it (professions.js storeOf); a count without it leaves it standing
+    if (Number.isSafeInteger(s.silver)) { if (s.silver > 0) state.silver.set(s.material, s.silver); else state.silver.delete(s.material); }
     const gold = s.gold | 0, loose = s[LOOSE_ORIGIN] | 0;
     if ((s.own | 0) + (s.bought | 0) + gold + loose > 0) {
       state.stores.set(s.material, { material: s.material, own: s.own | 0, bought: s.bought | 0, ...(gold > 0 ? { gold } : {}), ...(loose > 0 ? { [LOOSE_ORIGIN]: loose } : {}) });
@@ -254,11 +290,13 @@ export function createProfBook({ door, storage = null, character = () => null, n
   /** BAG1: a carried count as the service said it, in the Stores' shape. */
   const applyCarried = (c) => {
     if (!c || typeof c.material !== 'string') return;
+    stateGen++;
     const gold = c.gold | 0;
     if ((c.own | 0) + (c.bought | 0) + gold > 0) state.carried.set(c.material, { material: c.material, own: c.own | 0, bought: c.bought | 0, ...(gold > 0 ? { gold } : {}) });
     else state.carried.delete(c.material);
   };
   function apply(data) {
+    const was = state.character;
     state.open = true;
     state.reread = false;   // REFUSALS-LEARNED: read
     state.account = account();
@@ -272,16 +310,28 @@ export function createProfBook({ door, storage = null, character = () => null, n
     for (const s of data?.stores ?? []) applyStore(s);
     state.carried = new Map();
     for (const c of data?.carried ?? []) applyCarried(c);   // BAG1
+    state.silver = new Map(Object.entries(data?.silver && typeof data.silver === 'object' ? data.silver : {}).filter(([, n]) => Number.isSafeInteger(n) && n > 0));   // WOVEN-PAYS
     if (data?.writs) state.writs = { today: data.writs.today | 0, max: data.writs.max | 0 };
     state.caps = data?.caps ?? null;
     applyHunt(data?.hunt);
     applyHauls(data?.hauls);
+    state.made = madeOf(data?.made);   // CRAFT-HALL
+    // MASTER-ART: the day's work as the service says it; the last one's card kept for its own character alone
+    state.master = { made: typeof data?.master?.made === 'boolean' ? data.master.made : null, last: was === state.character ? state.master.last : null };
   }
+  /** CRAFT-HALL: the state's `made` as Sets, or null when the service sent none. */
+  function madeOf(m) {
+    if (!m || typeof m !== 'object') return null;
+    const ids = (/** @type {unknown} */ l) => new Set(Array.isArray(l) ? l.filter((x) => typeof x === 'string') : []);
+    return { crafts: ids(m.crafts), works: ids(m.works), brews: ids(m.brews) };
+  }
+  /** CRAFT-HALL: records a made act as soon as the service confirms it, so its first-time bonus shows as spent. */
+  const noteMade = (/** @type {'crafts'|'works'|'brews'} */ kind, /** @type {string} */ id) => { if (state.made && typeof id === 'string') { stateGen++; state.made[kind].add(id); } };
   /** PROF7: the account's hides today, as the state or a skinning answered them. */
   /** PROF8: the account's hauls today, as the service counted them. */
-  function applyHauls(n) { if (Number.isSafeInteger(n) && n >= 0) state.hauls = n; }
+  function applyHauls(n) { if (Number.isSafeInteger(n) && n >= 0) { stateGen++; state.hauls = n; } }
   function applyHunt(h) {
-    if (h && typeof h === 'object') state.hunt = { hides: Math.max(0, h.hides | 0), high: Math.max(0, h.high | 0) };
+    if (h && typeof h === 'object') { stateGen++; state.hunt = { hides: Math.max(0, h.hides | 0), high: Math.max(0, h.high | 0) }; }
   }
 
   /** The pixels' states, as the service last said them this UTC day: 'x,y' -> { day, state, climate?, region?, stale? }. */
@@ -378,8 +428,13 @@ export function createProfBook({ door, storage = null, character = () => null, n
       const read = { key, promise: null };
       _refresh = read;
       read.promise = (async () => {
-        const r = await ask(() => door.state(c), key);
-        if (key !== slot()) return { ok: false, error: 'elsewhere', elsewhere: true };
+        let r = null;
+        for (let i = 0; i < PROF_STATE_READS; i++) {
+          const gen = stateGen;
+          r = await ask(() => door.state(c), key);
+          if (key !== slot()) return { ok: false, error: 'elsewhere', elsewhere: true };
+          if (!r?.ok || gen === stateGen) break;   // AUDIT HORIZONTAL A: an act answered while it was read - read again
+        }
         if (r?.ok) apply(r.data);
         else shutBy(r);
         state.readAt = now();
@@ -394,7 +449,7 @@ export function createProfBook({ door, storage = null, character = () => null, n
       if (state.open === false) return account() !== state.account || now() - state.readAt >= PROF_CLOSED_RECHECK_MS;
       if (state.character !== character() || state.account !== account()) return true;
       if (state.reread && now() - state.readAt >= PROF_REFRESH_BACKOFF_MS) return true;   // REFUSALS-LEARNED
-      return state.day !== dayOf(now()) && now() - state.readAt >= PROF_REFRESH_BACKOFF_MS;
+      return state.day < heldDay() && now() - state.readAt >= PROF_REFRESH_BACKOFF_MS;   // DAY-TURN: another day at this page's turn
     },
     /** REFUSALS-LEARNED: whether today a refusal closed `key` for the account - `deep` (its veins in dungeons nobody has
      *  vouched for). CAP-OFF: the account's day in a craft (`account:<profession>`) closes nothing - there is none. */
@@ -450,12 +505,20 @@ export function createProfBook({ door, storage = null, character = () => null, n
     /** BAG1: whether this book carries (a host handed it the bag and the pack) - every harvest and withdrawal is then
      *  the bag's or the pack's, never the Stores'. */
     carrying() { return !!carry; },
+    /** DAEDRIC-SMELT (bible/06-Systems/Professions-Arc.md section 53): the Deadlands Embers the pack holds unlocked - what a
+     *  work that spends them may take (`carry`'s embers) - or null where this book holds no pack (the Forge bounds by the
+     *  service's purse alone, its refusal `prof-embers`). */
+    embers() { return carry?.embers ? carry.embers.held() : null; },
     /** BAG1: the service's carried count of a material, as it last said it. */
     carried(material) { return state.carried.get(material) ?? { material, own: 0, bought: 0 }; },
     /** BAG1: what of the carried count a station may use - as far as the bag and the pack still hold it, never gold's. */
     carriedUsable(material) { return carry ? carriedUsable(this.carried(material), carry.held(material)) : 0; },
     /** BAG-CRAFT: what of what the character carries a station may work - every unit held but gold's, counted or not. */
     carriedWorkable(material) { return carry ? carriedWorkable(this.carried(material), heldAll(material)) : 0; },   // AUDIT TOWN-ECON 2 PRICE-2: a counter's pieces a station's
+    /** WOVEN-PAYS (AUDIT WOVEN-PAYS): a cloth's silver count as the service last said it - the bolts bought with silver its
+     *  stations have not used since; while it stands, a piece made wholly of cloth lays no first on (recipeLaw firstCraftPays).
+     *  The loom's first-time line reads it (ui/professions/profPages.js silverOf). */
+    silver(material) { return state.silver.get(material) ?? 0; },
     /** BAG1: whether one more unit of a material has nowhere to go - neither the bag nor the pack has room, or the
      *  service's count of it is at its bound (professionLaw.js storesFullIn asks it of a carrying book). */
     carryFull(material) { return !carry || carry.room(material) < 1 || carriedTotal(clampedCarried(material)) >= CARRIED_MAX; },
@@ -467,7 +530,7 @@ export function createProfBook({ door, storage = null, character = () => null, n
 
     // ─── THE PIXELS ─────────────────────────────────────────────────
     /** A streamed pixel's witnessed state today, or null not yet asked. */
-    pixel(x, y) { const p = pixels.get(pixelKey(x, y)); return p && p.day === dayOf(now()) ? p : null; },
+    pixel(x, y) { const p = pixels.get(pixelKey(x, y)); return p && p.day >= heldDay() ? p : null; },   // DAY-TURN: yesterday's until this page's turn
     /** GROUND-STALE: whether the host should ask after a pixel - not yet known today, or a harvest answered on it since. */
     pixelWanted(x, y) { const p = this.pixel(x, y); return !p || p.stale === true; },
     /** Asks after the pixels not yet known today, PROF_PIXELS_MAX at a time, one read in flight. Answers the pixels
@@ -477,7 +540,8 @@ export function createProfBook({ door, storage = null, character = () => null, n
       const c = character();
       const day = dayOf(now());
       const owner = slot();
-      const want = (list ?? []).filter(([x, y]) => { const p = pixels.get(pixelKey(x, y)); return p?.day !== day || p.stale === true; }).slice(0, PROF_PIXELS_MAX);   // GROUND-STALE: and one a harvest answered on
+      const held = heldDay();
+      const want = (list ?? []).filter(([x, y]) => { const p = pixels.get(pixelKey(x, y)); return !(p && p.day >= held) || p.stale === true; }).slice(0, PROF_PIXELS_MAX);   // GROUND-STALE: and one a harvest answered on - DAY-TURN: one held for a day before this page's turn
       if (!c || !want.length) return [];
       _pixelsBusy = (async () => {
         const r = await ask(() => door.pixels(c, want));
@@ -487,7 +551,7 @@ export function createProfBook({ door, storage = null, character = () => null, n
         for (const p of r.data?.pixels ?? []) {
           const k = pixelKey(p.x, p.y);
           const before = pixels.get(k);
-          pixels.set(k, { day, state: p.state, climate: p.climate ?? null, region: p.region ?? null });
+          pixels.set(k, { day, state: p.state, climate: p.climate ?? null, region: p.region ?? null, ...(p.jungle === true ? { jungle: true } : {}) });   // AUDIT TESA II J5: a confirmed jungle's word
           // GROUND-MIDNIGHT (AUDIT 2026-10-01 part four): yesterday's word is no word - the day's turn stood every pixel
           // again before today's states were read (the ground's least), so a pixel confirmed yesterday AND today was
           // never stood again: it stood unconfirmed all day, its signature veins gone
@@ -499,8 +563,8 @@ export function createProfBook({ door, storage = null, character = () => null, n
     },
 
     // ─── THE DUNGEONS (PROF2) ───────────────────────────────────────
-    /** A dungeon's witnessed state today (its id DFU's MapId & 0xfffff), or null not yet asked. */
-    dungeon(id) { const d = dungeons.get(id); return d && d.day === dayOf(now()) ? d : null; },
+    /** A dungeon's witnessed state today (its id scenes/dungeonIdentity.js's), or null not yet asked. */
+    dungeon(id) { const d = dungeons.get(id); return d && d.day >= heldDay() ? d : null; },   // DAY-TURN: as the pixels
     /** GROUND-STALE: whether the host should ask after a dungeon - not yet known today, or a harvest answered in it since. */
     dungeonWanted(id) { const d = this.dungeon(id); return !d || d.stale === true; },
     /** Asks after a dungeon not yet known today, beside no pixels - one read in flight. Answers whether its state is
@@ -792,7 +856,7 @@ export function createProfBook({ door, storage = null, character = () => null, n
      * works before it done (`refined`). `chain: false` asks none.
      * @returns {Promise<{ ok: boolean, data?: any, error?: string, kept?: boolean, elsewhere?: boolean, refined?: { id: string, count: number, xp: number, made: number }[] }>}
      */
-    async craft(recipe, { clean = false, name = null, heartwood = false, fee = 0, dye = null, seat = null, cracked = false, chain = true } = {}, mint) {
+    async craft(recipe, { clean = false, name = null, heartwood = false, fee = 0, dye = null, seat = null, cracked = false, chain = true, master = null } = {}, mint) {
       if (_craftBusy) return { ok: false, error: 'prof-busy' };
       const key = slot();
       const c = character();
@@ -800,7 +864,8 @@ export function createProfBook({ door, storage = null, character = () => null, n
       _craftBusy = (async () => {
         // BAG1: what the Stores lack, from the bag and the pack first - the anvil's route spends the Stores
         const r0 = recipeById(recipe);
-        const inputs = r0 ? recipeInputs(r0, { heartwood: heartwood === true, joiner: book.track(r0.profession ?? 'smithing').specs?.[50] === 'joiner', cracked: cracked === true }) : [];
+        const inputs = !r0 ? [] : Array.isArray(master) ? recipeInputs(r0)   // MASTER-ART: a Master's work spends its recipe's own goods, no stand-in
+          : recipeInputs(r0, { heartwood: heartwood === true, joiner: book.track(r0.profession ?? 'smithing').specs?.[50] === 'joiner', cracked: cracked === true });
         // CRAFT1: the chain's works first, their products kept in the Stores for the craft
         /** @type {{ id: string, count: number, xp: number, made: number }[]} */
         const refined = [];
@@ -824,7 +889,16 @@ export function createProfBook({ door, storage = null, character = () => null, n
         const ready = r0 ? await book.ensureInStores(inputs, { work: true }) : { ok: true };   // BAG-CRAFT: the bag and the pack, counted or not
         // AUDIT2 BAG1 K5: never `kept` - no craft was kept; an unanswered put-in is said as such (`deposit-kept`)
         if (!ready.ok) return { ok: false, error: ready.error ?? 'materials-short', material: ready.material, moved: ready.moved ?? 0, ...(refined.length ? { refined } : {}) };
+        // MASTER-ART: a Master's work's catalysts, the counted units alone. AUDIT HORIZONTAL B6: a key its goods ask too (a
+        // Pearl jewel's Pearl) held for both after, the goods' share loose or counted - as the service holds them (masterWork.js)
+        const lines = Array.isArray(master) ? master.filter((x) => typeof x === 'string') : null;
+        const share = (/** @type {{ key: string }} */ k) => inputs.filter((i) => i.key === k.key).reduce((n, i) => n + i.n, 0);
+        const cats = lines ? await book.ensureInStores(MASTER_CATALYSTS.map((k) => ({ key: k.key, n: k.n }))) : { ok: true };
+        const both = lines && cats.ok ? await book.ensureInStores(MASTER_CATALYSTS.filter((k) => share(k) > 0).map((k) => ({ key: k.key, n: k.n + share(k) })), { work: true }) : { ok: true };
+        const fell = !cats.ok ? cats : both;
+        if (!fell.ok) return { ok: false, error: fell.error ?? 'materials-short', material: fell.material, moved: (ready.moved ?? 0) + (cats.moved ?? 0) + (both.moved ?? 0), ...(refined.length ? { refined } : {}) };
         const w = { rid: rid(), recipe, clean: clean === true, name: typeof name === 'string' ? name : null, character: c, heartwood: heartwood === true,   // PROF4: a Heartwood for a plank
+          ...(lines ? { master: lines } : {}),   // MASTER-ART: a Master's work, its lines chosen
           fee: Number.isSafeInteger(fee) && fee > 0 ? fee : 0, ...(Number.isInteger(dye) ? { dye } : {}),   // PROF7: a garment's dye
           ...(Number.isSafeInteger(seat) && seat >= 0 ? { seat } : {}),   // SEAT2b part two: the held town the station stands in (its crafting halls' steps)
           ...(cracked === true ? { cracked: true } : {}) };   // PROF10: a Lapidary's Siege-cracked Gem for the piece's gem
@@ -917,16 +991,17 @@ export function createProfBook({ door, storage = null, character = () => null, n
       return m.promise;
     },
     /** CRAFT4: A REFORGE WITH ESSENCE (Professions-Arc 41.7) - an Enchanter's: 2 Arcane Essence for a Magic piece's line,
-     *  5 for a Rare's, answered the seed the line is rolled again with. Kept as a temper is. */
-    async reforge(tier) {
+     *  5 for a Rare's, answered the seed the line is replaced with. REFORGE-REPLACE: `count` the piece's reforges
+     *  (lootRarity.js reforgeCount), the price doubled for each (temperLaw.js reforgeEssence). Kept as a temper is. */
+    async reforge(tier, count = 0) {
       const c = character();
       if (!c) return { ok: false, error: 'prof-character' };
       const origin = slot();
-      const key = `reforge|${origin}|${tier}`;
+      const key = `reforge|${origin}|${tier}|${count}`;
       const m = idFor(key, PROF_QUEUE_MS);
       if (m.promise) return m.promise;
       m.promise = (async () => {
-        const r = await ask(() => door.reforge(c, tier, m.id), origin);
+        const r = await ask(() => door.reforge(c, tier, m.id, count), origin);
         m.promise = null;
         if (!keptAnswer(r) && r?.error !== 'elsewhere') ids.delete(key);
         if (origin !== slot()) return { ...r, elsewhere: true };
@@ -1019,6 +1094,45 @@ export function createProfBook({ door, storage = null, character = () => null, n
       return p;
     },
 
+    /** CRAFT-WRITS (bible/06-Systems/Professions-Arc.md section 49): A CRAFTING WRIT FILLED - its goods out of the realm
+     *  record where it stands (`realm`, the host's realm act: systems/realmSaves.js realmGoldAct asks again itself, so this
+     *  asks once), `pieces` a dish or kit writ's provenance ids. The id is the writ's own until an answer comes, so a press
+     *  after a lost answer is the same delivery. Answers the service's answer; the track and the Work list moved with it -
+     *  the caller takes the goods out of the pack. */
+    async craftDeliver(writId, pieces = null, realm = null) {
+      const c = character();
+      if (!c) return { ok: false, error: 'prof-character' };
+      const origin = slot();
+      const key = `craft|${origin}|${writId}`;
+      const m = idFor(key, PROF_QUEUE_MS);
+      if (m.promise) return m.promise;
+      m.promise = (async () => {
+        const once = () => (origin === slot() ? door.craftWrit(c, writId, m.id, realm, pieces) : Promise.resolve({ ok: false, error: 'elsewhere', elsewhere: true }));
+        const r = await Promise.resolve().then(once).catch(() => ({ ok: false, error: 'offline' }));
+        m.promise = null;
+        if (!keptAnswer(r) && r?.error !== 'elsewhere') ids.delete(key);
+        if (origin !== slot()) return { ...r, elsewhere: true };
+        if (r?.ok) {
+          applyTrack(r.data?.track);
+          // the Work list's own card filled, and the day's count - every region's list of this slot (the writs are the account's)
+          for (const [wk, hit] of writCache) {
+            if (!wk.startsWith(`${slot()}|`) || !hit?.data?.crafts) continue;
+            hit.data = { ...hit.data, crafts: { writs: hit.data.crafts.writs.map((w) => (w.id === writId ? { ...w, state: 'mine' } : w)), today: r.data?.today ?? hit.data.crafts.today } };
+          }
+          writGen++;   // AUDIT CRAFT-WRITS C1: a list read while this was asked shows the writ open - read again
+        } else {
+          shutBy(r);
+          // C4: the record moved under the ask - this act landed with its answer lost, or another's: the track and the list
+          // read again
+          if (r?.error === 'seq') { state.reread = true; writGen++; }
+        }
+        return r;
+      })();
+      const asking = m.promise;   // a throw lets the writ's id go (AUDIT2 BAG1 K13's law)
+      asking.catch(() => { if (m.promise === asking) m.promise = null; });
+      return asking;
+    },
+
     // ─── A SMELT AT A FORGE (PROF2) ─────────────────────────────────
     /** A recipe `count` times at the forge. The id is kept until an answer comes, so a press after a lost answer is the
      *  same smelt, never a second. Answers the service's answer; the Stores and Smithing's track moved with it. PROF11:
@@ -1036,13 +1150,24 @@ export function createProfBook({ door, storage = null, character = () => null, n
       m.promise = (async () => {
         // BAG1: the work's inputs the Stores lack, from the bag and the pack first
         const work = smeltRecipe(recipe);
+        // DAEDRIC-SMELT (bible/06-Systems/Professions-Arc.md section 53): THE EMBERS A WORK SPENDS - the pack's half (`carry`'s
+        // embers, the insignia's own law: systems/sigil/sigilBroker.js insigniaSale), the account's purse the service's.
+        // Asked before anything moves: a pack short of them puts nothing in the Stores
+        const embers = workEmbers(work, count), pack = carry?.embers ?? null;
+        if (embers > 0 && pack && pack.held() < embers) { m.promise = null; return { ok: false, error: 'embers', need: embers, have: pack.held() }; }
         const ready = work ? await book.ensureInStores(work.inputs.map((i) => ({ key: i.key, n: i.n * count })), { work: true }) : { ok: true };   // BAG-CRAFT
         if (!ready.ok) { m.promise = null; return { ok: false, error: ready.error ?? 'materials-short', material: ready.material, moved: ready.moved ?? 0 }; }   // AUDIT2 BAG1 K8
+        // the pack's embers out FIRST, so nothing spent while the service is asked leaves them untaken (AUDIT WB9 F1's
+        // order) - and back on every answer but the work's own: a refusal, or an answer that never came (the same id asked
+        // again is answered `repeat`, and takes them then)
+        const took = embers > 0 && pack ? pack.take(embers) : null;
+        if (took && took.taken < embers) { took.back(); m.promise = null; return { ok: false, error: 'embers', need: embers, have: pack?.held() ?? 0 }; }
         const r = await ask(() => door.smelt(c, recipe, count, m.id, clean === true));
+        if (!r?.ok) took?.back();
         m.promise = null;
         if (!keptAnswer(r)) ids.delete(key);
         if (owner !== slot()) return { ok: false, error: 'elsewhere', elsewhere: true };
-        if (r?.ok) { for (const s of r.data?.stores ?? []) applyStore(s); applyTrack(r.data?.track); } else shutBy(r);
+        if (r?.ok) { for (const s of r.data?.stores ?? []) applyStore(s); applyTrack(r.data?.track); noteMade('works', recipe); } else shutBy(r);   // CRAFT-HALL
         // BAG1: AND WHAT IT MADE INTO THE BAG OR THE PACK - as much as fits; the rest stays in the Stores, said
         if (r?.ok && carry && work && stay !== true) r.data.put = await carryOut(work.out, (Number(r.data.own) || 0) + (Number(r.data.bought) || 0) + (Number(r.data.loose) || 0));   // AUDIT BAG-CRAFT A1: its loose products too
         return r;
@@ -1057,25 +1182,34 @@ export function createProfBook({ door, storage = null, character = () => null, n
     // ─── A SPECIALISATION ───────────────────────────────────────────
     /** A specialisation chosen (PROF0 3.3) - free the first time, 1,000 Marks and a week after. Asked with the choice
      *  this client sees standing (AUDIT 29 A15): the service refuses a change the player was shown as free, and a
-     *  refusal that says the track moved reads it again. */
-    async choose(profession, rank, spec) {
+     *  refusal that says the track moved reads it again. PERK-TRIAL: free and at once on its choice's day of trial, and
+     *  asked so (`trial`) - a day run out meanwhile is refused, never charged. AUDIT PERK-TRIAL P1: `shown.trial` is what
+     *  the page offered (free, or paid) - the press buys that, whatever the clock says by the second press; without it,
+     *  the track's own day at the press. */
+    async choose(profession, rank, spec, shown = {}) {
       const c = character();
       if (!c) return { ok: false, error: 'prof-character' };
-      const from = this.track(profession).specs?.[rank] ?? null;
+      const tr = this.track(profession);
+      const from = tr.specs?.[rank] ?? null;
+      const trial = !!from && (typeof shown?.trial === 'boolean' ? shown.trial : specTrialShown(tr, rank, now() / 1000));
       profession = trackOf(profession);   // CRAFT3: asked of the craft's track
       const owner = slot();
-      const key = `spec|${owner}|${profession}|${rank}|${spec}|${from ?? ''}`;
+      const key = `spec|${owner}|${profession}|${rank}|${spec}|${from ?? ''}|${trial ? 't' : ''}`;
       const m = idFor(key, PROF_QUEUE_MS);
       if (m.promise) return m.promise;
       m.promise = (async () => {
-        const r = await ask(() => door.spec(c, profession, rank, spec, from, m.id));
+        const r = await ask(() => door.spec(c, profession, rank, spec, from, m.id, trial));
         m.promise = null;
         if (!keptAnswer(r)) ids.delete(key);
         if (owner !== slot()) return { ok: false, error: 'elsewhere', elsewhere: true };
-        if (r?.ok) applyTrack(r.data?.track);
-        else {
+        if (r?.ok) {
+          applyTrack(r.data?.track);
+          // AUDIT PERK-TRIAL P3: a choice answered is the rank's news - an id kept for another choice at it (an answer
+          // lost) names a request the track has moved past, and asked again it would be answered as made, nothing changed
+          for (const k of [...ids.keys()]) if (k !== key && k.startsWith(`spec|${owner}|${profession}|${rank}|`)) ids.delete(k);
+        } else {
           shutBy(r);
-          if (r?.error === 'prof-spec-stale' || r?.error === 'prof-spec-taken') await book.refresh({ force: true });
+          if (r?.error === 'prof-spec-stale' || r?.error === 'prof-spec-taken' || r?.error === 'prof-trial-over') await book.refresh({ force: true });
         }
         return r;
       })();
@@ -1088,6 +1222,7 @@ export function createProfBook({ door, storage = null, character = () => null, n
     if (key !== slot()) return { ok: false, error: 'elsewhere', kept: true };
     const body = {
       character: h.character, node: h.node, kind: h.kind, climate: h.climate, region: h.region, act: h.act, at: h.at, rid: h.rid,
+      ...(h.jungle === true ? { jungle: true } : {}),   // AUDIT TESA II J5: its pixel past the Bay a jungle zone's (nodeLaw.js jungleWoods - witnessed)
       ...(h.foe === undefined ? {} : { foe: h.foe }),   // PROF7: the foe a body is (PROF0 6: the client's claim)
       ...(typeof h.watch === 'string' ? { watch: h.watch } : {}),   // PROF2b: a Motherlode's - the relay's Watch receipt for its pixel
       ...(h.carry === true ? { carry: true, ...heldBody(h) } : {}),   // BAG1: into the bag or the pack
@@ -1124,10 +1259,14 @@ export function createProfBook({ door, storage = null, character = () => null, n
     }
     // RATE-KEPT (AUDIT 2026-10-01 part four): the hour's acts spent (`prof-rate`) said "Try again later" and let the harvest
     // go - the act played and the tool worn for nothing; kept now, and asked again inside its ten minutes
-    if (keptAnswer(r) || r?.error === 'prof-rate' || r?.error === 'progress-play') {   // INT17: and the play that pays for it, enforced - refilled by play
+    // AUDIT GATHER F1: a carried one refused at the seat, kept - only once an earlier ask went unanswered (AUDIT LOCKPICK
+    // D1): refused on its first ask it never landed, and the seat's own words are the truth (it was kept a hold long,
+    // "will be counted", asked every thirty seconds)
+    const seatHeld = h.carry === true && SEAT_REFUSALS.includes(r?.error) && (h.tries | 0) > 0;
+    if (keptAnswer(r) || r?.error === 'prof-rate' || r?.error === 'progress-play' || seatHeld) {   // INT17: and the play that pays for it, enforced - refilled by play
       const kept = keptOf(key);
       const k = kept.harvests.find((x) => x.rid === h.rid);
-      if (k) { k.tries = (k.tries | 0) + 1; k.nextAt = now() + PROF_PUMP_MS[Math.min(k.tries - 1, PROF_PUMP_MS.length - 1)]; writeKept(kept, key); }
+      if (k) { k.tries = (k.tries | 0) + 1; k.nextAt = now() + (seatHeld ? PROF_SEAT_RETRY_MS : PROF_PUMP_MS[Math.min(k.tries - 1, PROF_PUMP_MS.length - 1)]); writeKept(kept, key); }
       return { ok: false, error: r?.error ?? 'offline', kept: true };
     }
     drop(h.rid, key);
@@ -1187,6 +1326,7 @@ export function createProfBook({ door, storage = null, character = () => null, n
   async function craftOne(w, key, mint) {
     const r = await ask(() => (w.brew === true   // PROF12: a brew kept as a craft is
       ? door.brew(w.character, w.recipe, w.keys, w.rid, Number.isSafeInteger(w.seat) ? w.seat : null)
+      : Array.isArray(w.master) ? door.master(w.character, w.recipe, w.master, w.name, w.rid, Number.isInteger(w.dye) ? w.dye : null)   // MASTER-ART
       : door.craft(w.character, w.recipe, w.clean, w.name, w.rid, w.heartwood === true, Number.isInteger(w.dye) ? w.dye : null, Number.isSafeInteger(w.seat) ? w.seat : null, w.cracked === true)), key);   // PROF10: the cracked gem
     // AUDIT 32 B5: heard after a switch, the craft waits kept for its own character's settle - asked again there, the
     // service's row answers the same pieces into the right pack
@@ -1198,6 +1338,13 @@ export function createProfBook({ door, storage = null, character = () => null, n
       writeKept(kept, key);   // let go BEFORE the pieces are made: a mint that threw is never a second mint
       for (const st of r.data?.stores ?? []) applyStore(st);
       applyTrack(r.data?.track);
+      // CRAFT-HALL: what it made; a judged cloth pattern only by the craft that laid its first on (WOVEN-PAYS, `firstPaid`)
+      if (w.brew === true) noteMade('brews', w.recipe);
+      else if (Array.isArray(w.master)) state.master = { made: state.master.made === true || Number(r.data?.day) === masterDayOf(now() / 1000), last: r.data };   // MASTER-ART: the work made, its card; AUDIT HORIZONTAL B5: today's by an answer of today's day alone
+      else if (!counterMade(recipeById(w.recipe)) || r.data?.firstPaid === true) noteMade('crafts', w.recipe);
+      // AUDIT CRAFT-WRITS C7: a brew, a dish or a kit moves what a crafting writ's card holds (its `brewed`, its `pieces`)
+      const made = w.brew === true ? null : recipeById(w.recipe);
+      if (w.brew === true || made?.kind === 'dish' || made?.product === 'kit') { writCache.clear(); writGen++; }
       if (!had) return { ok: true, data: r.data, elsewhere: true };
       try { mint(r.data, w); } catch (e) { console.warn('[prof] a craft would not mint', e); }   // AUDIT 30 C4: the kept craft its fee
       // AUDIT QUESTLINES ACTS-4: nor a dish - Cooking's recipes are crafts too (recipeLaw.js dishRecipe, kind 'dish'), and a
@@ -1208,6 +1355,7 @@ export function createProfBook({ door, storage = null, character = () => null, n
     if (keptAnswer(r)) return { ok: false, error: r?.error ?? 'offline', kept: true };
     kept.crafts = kept.crafts.filter((x) => x.rid !== w.rid);
     writeKept(kept, key);
+    if (r?.error === 'prof-master-day') state.master = { ...state.master, made: true };   // MASTER-ART: made elsewhere today
     shutBy(r);
     return { ok: false, error: r?.error ?? 'server' };
   }

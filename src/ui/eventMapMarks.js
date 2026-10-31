@@ -17,6 +17,7 @@
 // Not a DFU member. Ledger A (EVENT-TIP).
 import { raidActive, raidKey, raidTypeName } from '../systems/raidingParties.js';
 import { MAP_WIDTH, MAP_HEIGHT } from '../formats/woodsFile.js';
+import { raidKillsX } from '../systems/raidKinds.js';   // RAID-BANNER
 
 /** The bay, when a caller does not say. */
 const BAY = Object.freeze({ width: MAP_WIDTH, height: MAP_HEIGHT });
@@ -78,8 +79,9 @@ export function raidMapMarks(raids, nowMinutes, { regionName = () => '', localTi
     // FIELD BUGS 2026-10-11g RAID-WORD: at a raid relay the town's count is the ledger's (every defender's deaths, its
     // target the day's roll of 15 to 25), not this machine's share - "20 kills, and nothing pops up" read a share
     const led = typeof relay === 'function' ? relay(raidKey(r)) : null;
-    const killed = Number.isInteger(led?.n) ? led.n : r.killed;
-    const target = Number.isInteger(led?.tg) && led.tg > 0 ? led.tg : r.attackAmount;
+    const x = raidKillsX(r);   // RAID-BANNER: a Standard's count in deaths
+    const killed = (Number.isInteger(led?.n) ? led.n : r.killed) * x;
+    const target = (Number.isInteger(led?.tg) && led.tg > 0 ? led.tg : r.attackAmount) * x;
     if (killed > 0 && target > 0) lines.push(`${Math.min(killed, target)} of ${target} driven off`);
     const local = typeof localTime === 'function' ? localTime(r.endMinute) : null;
     lines.push(local ? `Withdraws at ${local} your time` : `Withdraws at ${clockText(r.endMinute)}`);
@@ -109,6 +111,16 @@ export const tipKey = (tip) => (tip ? `${tip.title}\n${tip.lines.join('\n')}` : 
  * @param {{width:number, height:number}} [size]
  */
 export function readRaidMarks(fn, size = BAY) {
+  return readRaidMarksIn(fn, { x0: 0, y0: 0, w: size.width, h: size.height });
+}
+
+/** BAY-LEFT-MAPS (bible/10-UI/Held-Map-Arc.md): the raided towns (and STAR6's stars) over a BOX of map pixels (`box` {x0, y0,
+ *  w, h} - the held map's sheet: the continent's frame while it is shown, the Bay's own rectangle else), as the bounties
+ *  are read (ui/bounty/bountyMapMark.js readBountyMarksIn): a town past the Bay the host marks is drawn where the Bay's
+ *  1000 x 500 dropped it. The Bay's own box is readRaidMarks', to the pixel. WW6 (bible/03-World/World-Wide.md WW6) read
+ *  its raids over the same sheet with a reader of its own; the two met at AUDIT BAY-LEFT's merge, and this is the one.
+ *  @param {(() => any) | undefined} fn @param {{x0:number, y0:number, w:number, h:number}} box */
+export function readRaidMarksIn(fn, box) {
   let list = null;
   try { list = typeof fn === 'function' ? fn() : null; } catch { return []; }
   if (!Array.isArray(list)) return [];
@@ -116,12 +128,11 @@ export function readRaidMarks(fn, size = BAY) {
   for (const m of list) {
     if (!m || typeof m !== 'object') continue;
     const { px, py } = m;
-    if (!Number.isInteger(px) || !Number.isInteger(py) || px < 0 || py < 0 || px >= size.width || py >= size.height) continue;
+    if (!Number.isInteger(px) || !Number.isInteger(py) || px < box.x0 || py < box.y0 || px >= box.x0 + box.w || py >= box.y0 + box.h) continue;
     out.push(Object.freeze({ key: String(m.key ?? `${px},${py}`), px, py, x: px + 0.5, y: py + 0.5, label: String(m.label ?? '').slice(0, TIP_TEXT_MAX), tip: readTip(m.tip) }));
   }
   return out;
 }
-
 /** What the held map repaints its raids on: where they stand and what they say. */
 export const raidMarksKey = (marks) => marks.map((m) => `${m.key}@${m.px},${m.py}|${m.label}|${tipKey(m.tip)}`).join(';');
 

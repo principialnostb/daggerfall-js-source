@@ -73,13 +73,17 @@ import { FLAT_DISSOLVE_GLSL } from '../systems/dissolve.js';   // DISSOLVE: the 
 import { FLAT_CRACK_GLSL } from '../systems/veinCrack.js';   // VEIN-CRACKS: the classic BB_FS's own
 import { HIT_FLASH_GLSL, ELITE_GLOW_GLSL, GLINT_GLSL } from '../systems/hitFlash.js';   // HITFLASH1: the struck-red term, the classic BB_FS's own
 import { pageParam } from '../systems/pageQuery.js';   // PERF-URL: the page's query, parsed once a search
+import { roadEdgeGlsl } from './roadEdgeGlsl.js';   // ROAD-LOOK: a road's edge blended into its ground, both terrain programs' one chunk
+import { groundEdgeGlsl } from './groundEdgeGlsl.js';   // COAST-LOOK: the ground's kinds blended and the sea's cut on their line, both terrain programs' one chunk
 import { ecotoneGlsl } from './ecotoneGlsl.js';   // ECOTONE1: the ground's share of its neighbours, both terrain programs' one chunk
-import { snowCoverGlsl } from './snowCoverGlsl.js';   // PRECIP4: the snow the ground keeps, after it
+import { snowCoverGlsl, SNOW_TILE_M } from './snowCoverGlsl.js';   // PRECIP4: the snow the ground keeps, after it
+import { snowCapGlsl } from './snowCapGlsl.js';   // PEAKS1: a steep face over the cap's line is bare rock
 import { WATER_BED_GLSL, waterBedMix } from './waterBedGlsl.js';   // WATER-NEXT 2: under the enhanced water the ground is a bed
-import { RING_SEA_GLSL } from './horizonHaze.js';   // FAR-SEA1: the ring's sea and the horizon's haze, the classic ring's own text
+import { RING_SEA_GLSL, FLORA_GLSL } from './horizonHaze.js';   // FAR-SEA1: the ring's sea and the horizon's haze, the classic ring's own text; FAR-FLORA: the canopy's grain
 import { RING_HAZE_GLSL } from './hazeGlsl.js';   // BANTHA1: and the jungle's haze over it, the classic ring's own text
 import { realWindowsGlsl, RW_MAIN_DERIVS, RW_MAIN_CUTOUT, RW_MAIN_GLASS, RW_MAIN_ROOM } from './realWindows.js';   // RW1: the real windows, the classic FS's own block on the lane's codec
 import { MESH_ALPHA_GLSL } from './meshAlpha.js';   // POI-2: the lane's mesh FS ends on the same translucency as the classic one
+import { windowLightGlsl } from './windowLight.js';   // WL1: the windows' light, read in the lantern loop's own function
 
 /** The lane's light cap - the classic lane's sixteen, tripled. Forty-eight
  *  vec4 + forty-eight vec3 are 96 uniform vectors; ES 3.0 guarantees 224
@@ -395,8 +399,11 @@ int elClusterLight(highp uvec2 cell, int j) {
 // takes the attenuation alone - it has no normal, as in the classic lane).
 // LC1: the loop walks the fragment's CELL (elCluster) - two or three
 // lights where it walked forty-eight - and every light with the grid off.
-const EL_POINT_LIT_GLSL = `
+// WL1: `wlShadow` is windowLightGlsl's - a surface's programs read the sun map per fragment, the flat's takes its quad's
+// one read (TREES1, LA-COST3: a flat's fragment reads no sun map).
+const elPointLitGlsl = (wlShadow) => `
 ${EL_CLUSTER_GLSL}
+${windowLightGlsl({ atten: 'elAttenuation(rl, r)', shadow: wlShadow })}
 // BLOOD2f / BLOOD AUDIT 5: the lantern loop with a WET surface's glint
 // beside the diffuse - ONE loop, ONE shadow answer for both (a mark in a
 // contact shadow is glint-shadowed as it is diffuse-shadowed), the
@@ -430,6 +437,10 @@ vec3 elPointLitWet(vec3 wp, vec3 n, float wet, out vec3 glint) {
     float d = length(L);
     if (d >= uPointLights[i].w) continue;   // EL5: outside the window the term is exactly zero - no shadow taps, no glint, no pow for it
     vec3 Ln = L / max(d, 1e-4);
+    // LIGHT-REACH: a surface turned from the light takes none of it, and pays for no shadow taps. AUDIT LIGHT-REACH S2:
+    // its diffuse was zero, but its glint and wet glint were not - an eye grazing it from the far side of the lamp has
+    // N.H near 1 - so a lamp behind a wall glinted on its face. The skip closes that leak; it is not free of pixels.
+    if (dot(n, Ln) <= 0.0) continue;
     int k = uCasterOf[i];   // EL8: the light's caster slot in one lookup
     // EL2: the lantern's map; EL8: every other lantern a contact shadow off the previous frame's depth;
     // F3/MAC-T1: never for the light in the hand - by name, -2 in the caster table (LIGHT-NEAR1: and no longer by its distance to the camera, which dropped the lamp overhead too);
@@ -450,7 +461,7 @@ vec3 elPointLitWet(vec3 wp, vec3 n, float wet, out vec3 glint) {
     }
   }
   glint *= ${glslFloat(EL_WET_STRENGTH)} * wet;
-  return acc;
+  return acc + winLit(wp, n, 0.0, 1.0);   // WL1: the windows' light, through their glass
 }
 vec3 elPointLit(vec3 wp, vec3 n) { vec3 g; return elPointLitWet(wp, n, 0.0, g); }
 // a flat's lantern term, attenuation only; its shadow is read at the
@@ -463,7 +474,7 @@ vec3 elPointLit(vec3 wp, vec3 n) { vec3 g; return elPointLitWet(wp, n, 0.0, g); 
 // redraws every third frame): a flat walking away from its lamp read its
 // own late card nearer the lamp than itself and lost that lamp's light whole
 // - the player's own sprite in third person at 60 Hz, a townsman at 20 Hz.
-vec3 elPointFlat(vec3 wp, vec3 base) {
+vec3 elPointFlat(vec3 wp, vec3 base, float flatSun) {   // WL1: flatSun the flat's sun map word, read once a quad (vBBSunVis)
   vec3 acc = vec3(0.0);
   highp uvec2 cell = elCluster(wp);   // LC1
   int cellCount = int(cell.y);
@@ -478,7 +489,7 @@ vec3 elPointFlat(vec3 wp, vec3 base) {
     float sh = shadowOfLight(i, uPointLights[i], at, vec3(0.0));   // EL2; EL5: any caster's; DISC15: either tier
     acc += sh * elAttenuation(d, uPointLights[i].w) * uPointColors[i];
   }
-  return acc;
+  return acc + winLit(wp, vec3(0.0), 1.0, flatSun);   // WL1: a flat takes the windows' light by its attenuation alone, as a lantern's - its sun through glass by the quad's one read (LA-COST3)
 }
 vec3 elIndirectLit(vec3 wp, vec3 n) {
   vec3 iL = uIndirect.xyz - wp;
@@ -533,6 +544,8 @@ vec3 elFinish(vec3 lit, vec3 wp) {
   return dwWaterFog(col, wp) + (bayer4(gl_FragCoord.xy) - ${BAYER_MEAN}) / 255.0;   // EL6: dithered at the byte, zero-mean - a lantern's falloff on a dark floor is bands without it   // DW-C: the sea's distance fog on the DISPLAY colour - the mod's post effect reads the camera's finished image
 }
 `;
+const EL_POINT_LIT_GLSL = elPointLitGlsl(true);
+const EL_POINT_LIT_FLAT_GLSL = elPointLitGlsl('flat');   // WL1: the billboard program's
 
 /** The mesh fragment shader of the lane - the classic FS's every term
  *  (the automap presentation, the trilight, emission's cancel-and-return,
@@ -670,7 +683,7 @@ ${EL_GLSL}
 ${SHADOW_GLSL}
 ${AIR_CONTACT_GLSL}
 ${EL_FOG_GLSL}
-${EL_POINT_LIT_GLSL}
+${EL_POINT_LIT_FLAT_GLSL}
 ${COLUMN_GLSL}
 ${HIT_FLASH_GLSL}
 ${ELITE_GLOW_GLSL}
@@ -716,7 +729,7 @@ ${LPT_FS_TEXEL}  if (tex.a < ((uSpectral == 1 || uConceal.x > 0.0) ? 0.1 : 0.5))
   // vertex shader (EL_BB_VS_EXT) reads it at that same point, with the same
   // function, at each corner - the four agree - and hands it here flat.
   vec3 sunLit = dot(uBBSun, uBBSun) > 0.0 ? uBBSun * cloudShadowAt(vBBWorld) * vBBSunVis : vec3(0.0);
-  vec3 lit = albedo * (uTint + sunLit + elPointFlat(vBBWorld, base) + elIndirectFlat(vBBWorld)) + emission;
+  vec3 lit = albedo * (uTint + sunLit + elPointFlat(vBBWorld, base, vBBSunVis) + elIndirectFlat(vBBWorld)) + emission;
   float undyed = dot(lit, vec3(0.2126, 0.7152, 0.0722));   // VEIN-HUE: the lit flat's brightness, in the lane's linear light
   lit *= elDecode(uBatchTint);   // ARENA5: the batch's wash after both maps (the classic lane's law, in the lane's linear light - white is white)
   if (uBatchDye > 0.0) lit = mix(lit, undyed * elDecode(uBatchTint), uBatchDye);   // VEIN-HUE: a dyed batch's wash is its colour
@@ -753,11 +766,12 @@ precision mediump int;   // LA-COST3: the fragment stage's default, so the unifo
 uniform vec3 uCamPos;
 uniform vec3 uBBSun;
 uniform float uSunLift;   // AUDIT BANTHA1 TREE-2: the share of the drawn height the sun is read at - 0 the root's half unit (every flat, every Low Poly Tree); a jungle tree's crown
+uniform int uWinOn;   // WL1: 2 while a window's sun stands in the sun map - indoors, where uBBSun is none (render/windowLight.js)
 flat out float vBBSunVis;   // LA-COST3: the sun map's word at the flat's base, one value for the whole quad
 ${SHADOW_GLSL}`,
   main: `
   vec3 sunAt = vBBBase + vec3(0.0, max(0.5, uSunLift * uSize.y * (uMesh > 0.5 ? aScale : abs(aCorner.x) * 2.0)), 0.0);   // AUDIT BANTHA1 TREE-2: a jungle tree reads its sun at its crown, near and far alike - at its root under a closed canopy every crown, an emergent's in full sun, stood in its neighbours' shade
-  vBBSunVis = dot(uBBSun, uBBSun) > 0.0 ? (uMesh > 0.5 ? sunShadowAt(sunAt, vec3(0.0, 1.0, 0.0)) : sunShadowSoftAt(sunAt, vec3(0.0, 1.0, 0.0), uSize.y)) : 1.0;   // LA-COST3: EL2's point, TREES1's kernel, PERF-SUN2's gate; AUDIT FLICKER S1: its height, off its own card; AUDIT LPT B4: a low-poly tree's every VERTEX runs this, so one tap at its root`,
+  vBBSunVis = (dot(uBBSun, uBBSun) > 0.0 || uWinOn == 2) ? (uMesh > 0.5 ? sunShadowAt(sunAt, vec3(0.0, 1.0, 0.0)) : sunShadowSoftAt(sunAt, vec3(0.0, 1.0, 0.0), uSize.y)) : 1.0;   // LA-COST3: EL2's point, TREES1's kernel, PERF-SUN2's gate; AUDIT FLICKER S1: its height, off its own card; AUDIT LPT B4: a low-poly tree's every VERTEX runs this, so one tap at its root`,
 });
 
 /** MAC-BUG W6 (2026-09-20, Mac: "super dark coloring instead of red") -
@@ -991,6 +1005,7 @@ uniform int uFogMode;
 uniform float uFogDensity;
 uniform vec2 uFogRange;
 uniform vec3 uCamPos;
+uniform vec4 uFadeTint;   // MID-RING: a just-built pixel's tint (rgb, linear) and its share left (a)
 ${CLOUD_SHADOW_GLSL}
 ${EL_GLSL}
 ${SHADOW_GLSL}
@@ -999,7 +1014,7 @@ ${EL_FOG_GLSL}
 ${EL_POINT_LIT_GLSL}
 ${ecotoneGlsl('elDecode')}
 ${snowCoverGlsl('elDecode')}
-${WATER_BED_GLSL}
+${snowCapGlsl('elDecode', SNOW_TILE_M)}
 out vec4 outColor;
 const mat2 ROT[4] = mat2[4](
   mat2(1.0, 0.0, 0.0, 1.0),
@@ -1008,6 +1023,9 @@ const mat2 ROT[4] = mat2[4](
   mat2(0.0, 1.0, -1.0, 0.0));
 const vec2 TRANS[4] = vec2[4](
   vec2(0.0, 0.0), vec2(0.0, 1.0), vec2(1.0, 1.0), vec2(1.0, 0.0));
+${roadEdgeGlsl('elDecode')}
+${groundEdgeGlsl('elDecode')}   // COAST-LOOK: a transition's two kinds, the sea's cut on their line (render/groundEdgeGlsl.js)
+${WATER_BED_GLSL}
 void main() {
   vec2 unwrapped = vLocalXZ / uTileSize;
   ivec2 cell = clamp(ivec2(floor(unwrapped)), ivec2(0), ivec2(127));
@@ -1037,11 +1055,20 @@ void main() {
   vec2 gx = ROT[t] * dFdx(unwrapped);
   vec2 gy = ROT[t] * dFdy(unwrapped);
   vec3 tex = elDecode(textureGrad(uTileArr, vec3(tuv, float(layer)), gx, gy).rgb);
+  // COAST-LOOK (render/groundEdgeGlsl.js): a transition is its two kinds' own ground, each its own picture at its share,
+  // each taking the border's sets (ECOTONE1) and the snow's winter twin by the same
+  highp uint geA, geB; float geS;
+  bool ge = groundMix(data, tileUV, unwrapped, geA, geB, geS);
+  vec2 dux = transpose(ROT[t]) * gx, duy = transpose(ROT[t]) * gy;   // the coordinate's own gradient (ROT is orthonormal)
   vec4 ew = ecoWeights(vLocalXZ);   // ECOTONE1: the border's shares, once (AUDIT PRECIP GROUND-6: the snow crosses it by the same)
-  tex = ecotone(tex, ew, vec3(tuv, float(layer)), gx, gy);   // ECOTONE1: a border's ground, its neighbours' share
-  float snowC = snowCover(vLocalXZ, vWorldPos.y, normalize(vNormal), gx, gy);   // PRECIP4: the snow the ground keeps (the bed below reads it too)
-  tex = snowGround(tex, ew, snowC, vec3(tuv, float(layer)), gx, gy);
+  if (ge) tex = mix(ecotone(geBase(geA, tileUV, dux, duy), ew, vec3(tileUV, float(geA)), dux, duy), ecotone(geBase(geB, tileUV, dux, duy), ew, vec3(tileUV, float(geB)), dux, duy), geS);
+  tex = roadEdge(tex, data, unwrapped, gx, gy, t);   // ROAD-LOOK: a road's edge blended into its ground, its neighbour decoded as its own
+  if (!ge) tex = ecotone(tex, ew, vec3(tuv, float(layer)), gx, gy);   // ECOTONE1: a border's ground, its neighbours' share
+  float snowC = snowCover(vLocalXZ, vWorldPos.y, gx, gy);   // PRECIP4: the snow the ground keeps (the bed below reads it too)
+  snowC = snowFace(tex, snowC, vLocalXZ, vWorldPos.y, normalize(vNormal), tuv, gx, gy);   // PEAKS1: a steep face over the cap's line is bare rock (render/snowCapGlsl.js)
+  tex = ge ? mix(snowGround(tex, ew, snowC, vec3(tileUV, float(geA)), dux, duy), snowGround(tex, ew, snowC, vec3(tileUV, float(geB)), dux, duy), geS) : snowGround(tex, ew, snowC, vec3(tuv, float(layer)), gx, gy);
   ${waterBedMix((t) => `elDecode(${t})`)}
+  tex = mix(tex, uFadeTint.rgb, uFadeTint.a);   // MID-RING: out of the middle ring's tint, a just-built pixel's
   vec3 n = normalize(vNormal);
   // PERF-SUN2 (2026-09-19, Mac: "over 1000 calls and looking up in the sky
   // restores frame rate"): THE SUN'S SHADOW IS NOT READ WHERE THE SUN
@@ -1156,6 +1183,7 @@ uniform vec3 uSeaMoonColor;
 ${RING_SEA_GLSL}
 ${RING_CLOUD_GLSL}
 ${RING_HAZE_GLSL}
+${FLORA_GLSL}
 ${EL_GLSL}
 out vec4 outColor;
 void main() {
@@ -1165,7 +1193,7 @@ void main() {
   float diff = max(dot(n, uLightDir), 0.0);
   float mdiff = max(dot(n, uMoonDir), 0.0);
   float sun = ringSun();   // OW-HORIZON: the clouds' shadow where their map knows the ground, the far law past it
-  vec3 lit = elDecode(vColor) * (uAmbient + uSunColor * (sun * diff) + uMoonColor * (uMoonScale * mdiff));
+  vec3 lit = mix(elDecode(vColor) * (uAmbient + uSunColor * (sun * diff) + uMoonColor * (uMoonScale * mdiff)), elDecode(vCanopy) * floraLight(uAmbient, uSunColor, sun, uMoonColor, uMoonScale) * floraGrain(vWorld.xz), vFlora);   // FAR-FLORA: the canopy over the ground, lit as the trees are near
   vec3 shown = elEncode(elTonemapRGB(lit * ex));   // HQ1
   // FAR-SEA1: the sea is the water's own - and the water surface is a classic-space program on every lane, so the sea
   // beside it is summed in the same space, from the same light (AUDIT FAR-SEA1 L1: its body and its glints, not the
@@ -1174,7 +1202,7 @@ void main() {
   if (sea > 0.0) shown = mix(shown, ringSea(uSeaAmbient, uSeaSunColor, uSeaMoonColor, sun), sea);
   // EL-DISTANCE: the ring fades into the fog in DISPLAY space, as elFinish and the classic ring do - mixed in linear
   // it reached the fog colour long before the streamed ground beside it (FAR-SEA1: the horizon's one law)
-  vec3 col = mix(shown, uFogColor, ringHaze(horizonHaze(vDist, uFogStart, uFogEnd, uRimStart, uRimEnd, uHazeHold)));   // BANTHA1: and the jungle's haze
+  vec3 col = mix(shown, uFogColor, ringHaze(horizonHaze(vDist, uFogStart, uFogEnd, uRimStart, uRimEnd, summitHold(uHazeHold, vDist))));   // BANTHA1: and the jungle's haze
   outColor = vec4(col + (bayer4(gl_FragCoord.xy) - ${BAYER_MEAN}) / 255.0, 1.0);   // EL6: the ring's sky gradient, dithered at the byte
 }`;
 

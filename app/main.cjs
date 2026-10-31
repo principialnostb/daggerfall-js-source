@@ -37,6 +37,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { pathToFileURL } = require('node:url');
 const { frameRateSwitches } = require('./lib/frameRate.cjs');   // FPS-VSYNC: VSync off lifts Chromium's wait
+const { backendLaunch, holdsVSync, watchBackend, backendOption, chooseBackend, restartArgs } = require('./lib/graphicsBackend.cjs');   // GPU-BACKEND: the Vulkan opt-in and its guard
 
 // DAGGER_USER_DATA points saves/config somewhere else - the probe's
 // door (tools/appShellProbe.mjs writes into a temp dir it can read
@@ -54,11 +55,22 @@ const { frameRateSwitches } = require('./lib/frameRate.cjs');   // FPS-VSYNC: VS
 if (process.env.DAGGER_USER_DATA) app.setPath('userData', process.env.DAGGER_USER_DATA);
 else app.setPath('userData', path.join(app.getPath('appData'), 'Daggerfall JavaScript'));
 
+// GPU-BACKEND (2026-10-26): Vulkan on Windows, the player's opt-in (`graphicsBackend`), held on the default while a
+// failure is on record. The guard reads the renderer once the first window is up and relaunches on the default when
+// the chosen backend did not start (app/lib/graphicsBackend.cjs). VULKAN-BLANK (#1379): and asks the player whether they
+// see each window, in a box Windows draws without Chromium, owned by that window (the signal closes it at the timeout).
+const BACKEND_LAUNCH = backendLaunch(app.getPath('userData'));
+for (const [name, value] of BACKEND_LAUNCH.switches) app.commandLine.appendSwitch(name, value);
+const askOver = (opts, signal, win) => (win && !win.isDestroyed() ? dialog.showMessageBox(win, { ...opts, signal }) : dialog.showMessageBox({ ...opts, signal }));
+const backendGuard = watchBackend({ app, launch: BACKEND_LAUNCH, loadConfig, saveConfig, notify: (opts) => dialog.showMessageBox(opts), confirm: askOver, onCleared: () => launcherDispatch({ type: 'backend-cleared' }), beforeExit: () => gpuGone.flush() });
+app.once('browser-window-created', (_e, w) => w.webContents.on('did-finish-load', backendGuard.check));
+
 // FPS-VSYNC (2026-09-28): the player's saved VSync, read BEFORE the app is ready - Chromium takes its switches at
 // launch or never. VSync off lifts the screen's wait, and the page's Frame Rate Cap holds the frames instead
 // (DFU's own law, app/lib/frameRate.cjs). VSync on - DFU's default - changes nothing. Read ONCE: the page is told
 // what this launch runs with (dagger:frames-lifted, below) - its pacer is for a lifted wait only (AUDIT 28e).
-const FRAME_SWITCHES = frameRateSwitches(app.getPath('userData'));
+// GPU-BACKEND: a launch on Vulkan keeps VSync on whatever the setting says (holdsVSync); the page is told so below.
+const FRAME_SWITCHES = holdsVSync(BACKEND_LAUNCH) ? [] : frameRateSwitches(app.getPath('userData'));
 for (const s of FRAME_SWITCHES) app.commandLine.appendSwitch(s);
 
 // PERF-GPU1 (2026-10-10, a player via Mac: 5 fps in every room "with the graphics all low", playable only at 800x600):
@@ -76,6 +88,20 @@ app.commandLine.appendSwitch('force_high_performance_gpu');
 // mean 2.2-2.6 ms -> 2.0 (64 MB: 1.8, kept smaller for the low-memory machines). The picture is untouched; the browser
 // build keeps the browser's own. Before the app is ready, as every switch.
 app.commandLine.appendSwitch('js-flags', '--max-semi-space-size=32');
+
+// GPU-CACHE (2026-10-23, #tech-support: "It happens the 1st time I do anything ... it doesnt do it for that action
+// again until I close the game and restart"; "tested in browser and there has no problem"): THE COMPILED PROGRAMS
+// KEPT. Chromium keeps every WebGL program it links - in memory and in <userData>/GPUCache - so a launch links from
+// the kept binary instead of compiling. Both stores are capped at 6 MiB (gpu_preferences.h
+// kDefaultMaxProgramCacheMemoryBytes), and on Windows a binary is ANGLE's D3D11 one: each stage's translated HLSL and
+// the bytecode of every variant (ProgramExecutableD3D::save). One town's boot links 111 programs from 2.4 MB of GLSL,
+// so the cap is passed before the player leaves it: the rest are evicted, and every launch compiles again - seconds a
+// program on D3D11, the frame waiting where a pass is built at its first use. Chrome itself runs a newer cache on
+// Windows (its GpuPersistentCache field trial), which the app's Chromium does not get. The one switch sizes both
+// stores (gpu_preferences.cc GetDefaultGpuDiskCacheSize); the memory holds what was kept, not the cap. Before the app
+// is ready, as every switch.
+const GPU_CACHE_KB = 128 * 1024;
+app.commandLine.appendSwitch('gpu-disk-cache-size-kb', String(GPU_CACHE_KB));
 
 // ONE instance per userData. Two shells over the same Saves folder
 // hold two independent storage indexes that go mutually stale (the
@@ -116,10 +142,12 @@ const CONFIG_FILE = () => path.join(app.getPath('userData'), 'config.json');
 // only the rest, each checked against its sha256, into a version of its own under <userData>/Game
 // (lib/gameStore.cjs), played from the game's next load and proved by its first boot. The installer runs only for a
 // release that changes the shell itself (or that the channel could not bring); macOS and the portable exe, which
-// have no installer of their own to run, get the game's updates too. Opened at ready, by the one instance only - a
+// have no installer of their own to run, get the game's updates too. Opened before ready, by the one instance only - a
 // second one's sweep would delete a version the first is writing.
 const { GAME_ENTRY, parseManifestFile, routeFor, gameAssetsOf, versionOfTag } = require('./lib/gameChannel.cjs');
 const { openGameStore, loadSeed } = require('./lib/gameStore.cjs');
+const { switchesReadyGame } = require('./lib/readyGameSwitch.cjs');
+const { turnGpuCache } = require('./lib/gpuCacheTurn.cjs');
 const GAME_SEED = path.join(__dirname, 'game-seed.json');
 const GAME_ROOT = () => path.join(app.getPath('userData'), 'Game');
 /** The game store, or null: an unpackaged run, a build cut without a release (it carries no seed), or a store that
@@ -141,6 +169,10 @@ function openGame() {
 /** The version of the game this copy plays - the channel's, or the install's own. What the player is told they have,
  *  what a release is compared against, and what Play keeps as the last played. */
 const gameVersion = () => gameStore?.version() ?? app.getVersion();
+
+// SHADER-EASE CACHE-TURN (2026-10-29): the store opens before ready, so the GPU caches are turned for the game this
+// launch plays - the channel brings new shaders without a new shell - before Chromium opens them (lib/gpuCacheTurn.cjs).
+if (isSingleInstance) { openGame(); turnGpuCache({ userData: app.getPath('userData'), version: `${app.getVersion()}/${gameVersion()}` }); }
 
 // ---- config.json: { arena2Path } ----------------------------------
 function loadConfig() {
@@ -323,9 +355,11 @@ async function locateArena2(win) {
 // ---- the dagger:// protocol ---------------------------------------
 // Standard + fetch-capable so the game's relative fetches, ESM
 // imports and workers behave exactly as they do over https.
+// CODE-CACHE (bible/01-Overview/Desktop-App.md): and V8's code cache, as Chrome keeps one for an https site - without
+// it every launch compiled the game's scripts again. Electron's default is off for a custom scheme.
 protocol.registerSchemesAsPrivileged([{
   scheme: 'dagger',
-  privileges: { standard: true, secure: true, supportFetchAPI: true, stream: true },
+  privileges: { standard: true, secure: true, supportFetchAPI: true, stream: true, codeCache: true },
 }]);
 
 const MIME = {
@@ -458,10 +492,36 @@ const RELEASES_PAGE = 'https://github.com/Lattymoy/daggerfall-js-source/releases
 const { isNewerRelease } = require('./lib/updateCheck.cjs');
 const { updateTransport } = require('./lib/autoUpdate.cjs');
 const { UNLOAD_ASK, leaves, restartAsk, reinstallAsk, installFailedAsk, goesAhead } = require('./lib/shellDialogs.cjs');
+const { goneAsk, restarts, hangAsk, restartsHung, createStopCount, goneLine, logWith } = require('./lib/rendererGone.cjs');   // FIELD BUGS 2026-10-21b RENDERER-GONE
+/** RENDERER-GONE: crash.log beside the saves - a process gone, when and why (its oldest lines dropped past its most). */
+const CRASH_LOG = () => path.join(app.getPath('userData'), 'crash.log');
+const { trailFrom, trailLines } = require('./lib/rendererGone.cjs');   // GPU-TRAIL
+const { createGpuGoneWait } = require('./lib/rendererGone.cjs');   // GPU-TRAIL-LOST
+/** GPU-TRAIL: the game page's newest GPU samples (dagger:gpu-trail), written under a process gone's line - and let go
+ *  with a page that stopped, so the page after it never writes the dead one's as its own. */
+let gpuTrail = null;
+function logGone(what, details, at = Date.now()) {
+  if (what === 'renderer') gpuGone.flush();   // GPU-TRAIL-LOST: a GPU entry still held is written first, in its order
+  try {
+    const file = CRASH_LOG();
+    const had = fs.existsSync(file) ? fs.readFileSync(file, 'utf8') : '';
+    fs.writeFileSync(file, logWith(had, goneLine(what, details, at) + trailLines(gpuTrail)));
+  } catch { /* a log that cannot be written is no reason to stop */ }
+  if (what === 'renderer') gpuTrail = null;
+}
+// RENDERER-GONE: the GPU's process gone is logged too - Chromium starts it again, and the page says the graphics stopped
+// itself (main.js webglcontextlost: tap to reload). GPU-TRAIL-LOST: its entry waits for the page's lost sample
+// (lib/rendererGone.cjs createGpuGoneWait), and a quit writes one still held.
+const gpuGone = createGpuGoneWait({ write: (details, at) => logGone('gpu', details, at) });
+app.on('child-process-gone', (_e, details) => { if (details?.type === 'GPU') gpuGone.gone(details, Date.now()); });
+app.on('will-quit', () => gpuGone.flush());
+// GPU-BACKEND: a chosen backend's GPU process gone in its first minute is that backend failing to start
+app.on('child-process-gone', (_e, details) => { if (details?.type === 'GPU') backendGuard.onGpuGone(details); });
 const { RELEASES_URL, latestDownloadUrl, releaseAssetUrl, manualDownloadFile } = require('./lib/downloads.cjs');
+const { assetCheck, swapPlan, swapScript } = require('./lib/selfSwap.cjs');   // UPDATE-SWAP: the Mac app and the portable exe update themselves
 const {
   CHECK_TIMEOUT_MS, RECHECK_MS, INSTALL_NOTICE_MS, INSTALL_GIVEUP_MS, DOWNLOAD_STALL_MS, DETECT_DEADLINE_MS, JUDGE_DEADLINE_MS, PICK_DEADLINE_MS,
-  initialState, reduce, nextStep, viewOf, newsFrom, cachedNews, notArena2Detail, installAttemptFor, directPlay,
+  initialState, reduce, nextStep, viewOf, newsFrom, cachedNews, notArena2Detail, installAttemptFor, directPlay, PLAY_SWITCH,
 } = require('./lib/launcherState.cjs');
 
 /** Which transport THIS copy updates by - lib/autoUpdate.cjs's table
@@ -726,9 +786,124 @@ async function restartToUpdate() {
     const parent = gameWindow && !gameWindow.isDestroyed() ? gameWindow : null;
     const opts = restartAsk(updateReady?.version);
     const { response } = await (parent ? dialog.showMessageBox(parent, opts) : dialog.showMessageBox(opts));
+    // UPDATE-SWAP: a copy that swaps itself quits for it - the swap starts once the quit is sure (will-quit)
+    if (goesAhead(response) && updateReady?.swap) { quitForSwap(); return; }
     if (goesAhead(response)) installNow(updateReady?.version);
   } finally { restartAsking = false; }
 }
+
+/** UPDATE-RESTART (2026-10-30, the owner: "we should close the desktop app instead of reload it does not update" /
+ *  "make sure it updates"): the game's update screen, at its end (app/preload.cjs restartForUpdate). The update this
+ *  copy holds is put in place by quitting and starting again - never a reload, which can leave the page on the copy it
+ *  had: a version the channel brought is played by the next launch (gameStore.startup activates it, and the GPU caches
+ *  turn for it before Chromium opens them), straight back into the game (`--play`); an installer's runs silently and
+ *  reopens the app (installNow). No box: the screen already saved, and stood the page's unload guard down. With
+ *  nothing held, the page reloads, as it would in a browser. */
+let restartingForUpdate = false;
+function restartForUpdate() {
+  if (restartingForUpdate || installStarted) return;
+  if (updateReady?.game) {
+    restartingForUpdate = true;
+    app.relaunch({ args: [...process.argv.slice(1).filter((a) => a !== PLAY_SWITCH), PLAY_SWITCH] });
+    app.quit();
+    return;
+  }
+  if (updateReady?.swap) { restartingForUpdate = true; quitForSwap(); return; }
+  if (updateReady && currentUpdateTransport() === 'updater') { installNow(updateReady.version); return; }
+  reloadOntoUpdate();
+}
+
+// ---- UPDATE-SWAP: the copies that cannot install, updated anyway (lib/selfSwap.cjs) ----
+const SWAP_DIR = () => path.join(app.getPath('userData'), 'Update');
+/** The swap in flight - { version } - one at a time; and the versions a swap failed on, told by hand instead. */
+let swapJob = null;
+const swapFailedOn = new Set();
+/** Whether a swap is bringing `version` (or already brought it): the notice waits for it. */
+const swapping = (version) => (swapJob?.version === version || (updateReady?.swap && updateReady.version === version)) && !swapFailedOn.has(version);
+
+function swapPlanHere(file) {
+  const writable = (dir) => { try { fs.accessSync(dir, fs.constants.W_OK); return true; } catch { return false; } };
+  return swapPlan({ platform: process.platform, packaged: app.isPackaged, portableFile: process.env.PORTABLE_EXECUTABLE_FILE, execPath: process.execPath, file, writable });
+}
+
+/** `url` to `dest`, held to `check` (size, and sha256 where listed) - or a throw, and nothing left behind. */
+async function downloadChecked(url, dest, check) {
+  const { createHash } = require('node:crypto');
+  const { Readable, Transform } = require('node:stream');
+  const { pipeline } = require('node:stream/promises');
+  const res = await gameFetch(url, { headers: { 'User-Agent': 'daggerfall-js-app' } });   // DA6's one door: this repository's release downloads only
+  if (!res.ok || !res.body) throw new Error(`HTTP ${res.status}`);
+  const hash = createHash('sha256');
+  let size = 0;
+  const count = new Transform({ transform(chunk, _enc, done) { size += chunk.length; hash.update(chunk); done(null, chunk); } });
+  try {
+    await pipeline(Readable.fromWeb(res.body), count, fs.createWriteStream(dest));
+    if (size !== check.size) throw new Error(`${size} bytes, the release lists ${check.size}`);
+    if (check.sha256 && hash.digest('hex') !== check.sha256) throw new Error('its sha256 is not the release\'s');
+  } catch (err) { fs.rmSync(dest, { force: true }); throw err; }
+}
+
+/** macOS: the app out of the disk image, beside the one running (`plan.staged`); the image let go either way. */
+async function stageMacApp(dmg, plan) {
+  const { execFile } = require('node:child_process');
+  const run = (cmd, args) => new Promise((res, rej) => execFile(cmd, args, (err) => (err ? rej(err) : res())));
+  const mnt = path.join(SWAP_DIR(), 'mnt');
+  fs.mkdirSync(mnt, { recursive: true });
+  await run('hdiutil', ['attach', '-nobrowse', '-noautoopen', '-readonly', '-mountpoint', mnt, dmg]);
+  try {
+    const name = fs.readdirSync(mnt).find((n) => n.endsWith('.app'));
+    if (!name) throw new Error('the disk image holds no app');
+    fs.rmSync(plan.staged, { recursive: true, force: true });
+    await run('ditto', [path.join(mnt, name), plan.staged]);
+  } finally { await run('hdiutil', ['detach', mnt, '-force']).catch(() => {}); }
+}
+
+/** A newer release on the notice transport: this copy's own file, downloaded and staged, then told to the game as an
+ *  update it can restart onto (manual: false) - or, where it cannot swap or the download fails, the HUD line as before. */
+function startSwap(version, latest) {
+  if (swapJob || swapFailedOn.has(version) || (updateReady?.swap && updateReady.version === version)) return;
+  const plan = swapPlanHere(latest.file);
+  if (!plan.kind || !latest.asset || !latest.download) return;
+  swapJob = { version };
+  if (updateReady?.swap) { updateReady = null; buildMenu(); }   // an older staged copy is written over: it is not swapped in half-written
+  const dest = path.join(SWAP_DIR(), plan.kind === 'mac' ? 'update.dmg' : 'update.exe');
+  (async () => {
+    fs.mkdirSync(SWAP_DIR(), { recursive: true });
+    await downloadChecked(latest.download, plan.kind === 'portable' ? plan.staged : dest, latest.asset);
+    if (plan.kind === 'mac') { try { await stageMacApp(dest, plan); } finally { fs.rmSync(dest, { force: true }); } }
+  })().then(() => {
+    swapJob = null;
+    updateReady = { version, told: false, swap: plan };
+    updateReady.told = tellGame({ version, manual: false });
+    buildMenu();
+  }, (err) => {
+    swapJob = null;
+    swapFailedOn.add(version);
+    console.warn(`[update] v${version} could not be swapped in - it is the player's to download:`, err?.message ?? err);
+    if (manualUpdate?.version === version && !manualUpdate.told) manualUpdate.told = tellGame({ version, manual: true }) ? 'game' : false;
+  });
+}
+
+/** The swap runs once this process has ended: started at will-quit, so a quit the player called off swaps nothing. */
+let swapRelaunch = false;
+function quitForSwap() {
+  swapRelaunch = true;
+  app.quit();
+}
+app.on('will-quit', () => {
+  const plan = updateReady?.swap;
+  if (!plan) return;
+  try {
+    const os = require('node:os');
+    const { spawn } = require('node:child_process');
+    const win = plan.kind === 'portable';
+    const script = path.join(os.tmpdir(), `dfo-swap-${process.pid}.${win ? 'cmd' : 'sh'}`);
+    fs.writeFileSync(script, swapScript(plan, { pid: process.pid, relaunch: swapRelaunch, args: swapRelaunch ? [PLAY_SWITCH] : [] }), { mode: 0o700 });
+    const child = win ? spawn('cmd.exe', ['/d', '/c', script], { detached: true, stdio: 'ignore', windowsHide: true })
+      : spawn('/bin/sh', [script], { detached: true, stdio: 'ignore' });
+    child.unref();
+  } catch (err) { console.warn('[update] the swap could not be started:', err?.message ?? err); }
+});
 
 /** A box over the window the player is looking at - never behind a
  *  fullscreen game (AUDIT INSTALL R2-A10, as L2-2 put the restart's). */
@@ -798,7 +973,9 @@ async function fetchLatestRelease() {
     const listed = file ? releaseAssetUrl(json, file) : null;
     if (tag && listed) listedDownload = listed;
     // DA13: and the release's game - its manifest and pack, as the release lists them (null on a release with none)
-    return tag ? { tag, url, download: file ? listed ?? latestDownloadUrl(file) : url, game: gameAssetsOf(json) } : null;
+    // UPDATE-SWAP: and this copy's own file's size and sha256, which a swap's download must match (null where it is not listed)
+    const asset = listed ? assetCheck(json.assets.find((a) => a?.browser_download_url === listed)) : null;
+    return tag ? { tag, url, download: file ? listed ?? latestDownloadUrl(file) : url, game: gameAssetsOf(json), asset, file } : null;
   } catch { return null; }
 }
 
@@ -813,6 +990,7 @@ async function noticeCheck() {
   if (fresh) manualUpdate = { version, download: latest.download, told: false };
   else manualUpdate.download = latest.download;
   if (fresh) buildMenu();
+  startSwap(version, latest);
   return { newer: true, fresh, version, download: latest.download };
 }
 
@@ -823,6 +1001,7 @@ async function noticeCheck() {
  *  after it saw nothing new. */
 function tellNotice(r) {
   if (!r?.newer || !manualUpdate || manualUpdate.version !== r.version || manualUpdate.told) return;
+  if (swapping(r.version)) return;   // UPDATE-SWAP: the copy updates itself - told when it is here (swapReady), or this line if it fails
   const u = launcher?.state.update;
   if (launcher && !launcher.state.launch && u?.status === 'notice' && u.version === r.version) { manualUpdate.told = 'launcher'; return; }
   manualUpdate.told = tellGame({ version: r.version, manual: true }) ? 'game' : false;
@@ -1283,6 +1462,11 @@ async function createWindow({ onShown = null } = {}) {
     },
   });
   gameWindow = win;
+  backendGuard.pageOpened();   // GPU-BACKEND: the clock the game page's WebGL2 report must beat
+  // VULKAN-BLANK: the player is asked over the game at its first paint, or when that paint is late (reveal's own bound)
+  const askOverGame = () => backendGuard.windowShown('game', win);
+  win.once('ready-to-show', askOverGame);
+  setTimeout(askOverGame, GAME_REVEAL_MS).unref?.();
   if (onShown) {
     let shown = false;
     const reveal = () => {
@@ -1337,16 +1521,41 @@ async function createWindow({ onShown = null } = {}) {
   }
   // DA13: a version on trial counts this boot (gameStore.bootStarting); a version readied while a page ran is switched
   // to at this page's next document load (playReadyGame), never under it; and one on trial whose page fails to load, or
-  // whose renderer dies before the game came up, is given up at once - the one before it plays again (rollback)
-  win.webContents.on('did-start-navigation', (d) => { if (d?.isMainFrame && !d.isSameDocument) playReadyGame(); });
+  // whose renderer dies before the game came up, is given up at once - the one before it plays again (rollback).
+  // Only for a navigation that loads the game's own pages (lib/readyGameSwitch.cjs says why)
+  win.webContents.on('did-start-navigation', (d) => {
+    if (switchesReadyGame(d)) playReadyGame();
+  });
   const giveUp = (why) => {
     const bad = gameStore?.rollback();
-    if (!bad) return;
+    if (!bad) return false;
     console.warn(`[game] v${bad} ${why} - the version before it plays again`);
     if (!win.isDestroyed()) win.webContents.reload();
+    return true;
   };
   win.webContents.on('did-fail-load', (_e, code, _text, _url, isMainFrame) => { if (isMainFrame && code !== -3) giveUp('did not load'); });
-  win.webContents.on('render-process-gone', () => giveUp('stopped before it came up'));
+  // FIELD BUGS 2026-10-21b RENDERER-GONE (app/lib/rendererGone.cjs): a page that stopped after its trial was met by nothing -
+  // the window stood black. It is said now, kept in crash.log, and restarted at the player's word; a hung page is offered
+  // Wait or Restart (Restart crashes it on purpose, and that stop restarts without asking again)
+  const stops = createStopCount();
+  let restarting = false, hangAsked = false;
+  win.webContents.on('render-process-gone', async (_e, details) => {
+    if (details?.reason !== 'clean-exit') logGone('renderer', details);
+    if (giveUp('stopped before it came up') || win.isDestroyed() || details?.reason === 'clean-exit') return;
+    if (restarting) { restarting = false; win.webContents.reload(); return; }
+    const { response } = await dialog.showMessageBox(win, goneAsk(details?.reason, stops.stop(Date.now())));
+    if (win.isDestroyed()) return;
+    if (restarts(response)) win.webContents.reload(); else app.quit();
+  });
+  win.webContents.on('unresponsive', async () => {
+    if (hangAsked || win.isDestroyed()) return;
+    hangAsked = true;
+    const { response } = await dialog.showMessageBox(win, hangAsk());
+    hangAsked = false;
+    if (!restartsHung(response) || win.isDestroyed()) return;
+    restarting = true;
+    win.webContents.forcefullyCrashRenderer();
+  });
   gameStore?.bootStarting();
   await win.loadURL('dagger://game/play/index.html');
   // a boot that serves a folder clears the copy a pick asked to be cleared (a game on the in-page picker keeps its own)
@@ -1395,7 +1604,7 @@ const fromLauncher = (e) => !!launcher && e.sender === launcher.win.webContents 
 function openLauncherWindow() {
   const win = new BrowserWindow({
     width: 960,
-    height: 600,
+    height: 660,   // GPU-BACKEND-LAUNCHER: the Graphics option's room in the side column
     useContentSize: true,
     resizable: false,
     maximizable: false,
@@ -1413,6 +1622,7 @@ function openLauncherWindow() {
   launcherContents.add(win.webContents);
   if (process.platform !== 'darwin') win.removeMenu();
   win.once('ready-to-show', () => { if (!win.isDestroyed()) win.show(); });
+  win.once('ready-to-show', () => backendGuard.windowShown('launcher', win));   // VULKAN-BLANK: asked over the launcher once it shows
   win.on('closed', () => {
     if (launcher?.win !== win) return;
     const handingOver = launcher.state.launch === 'started';
@@ -1567,6 +1777,26 @@ async function launcherChooseFolder() {
   }));
 }
 
+/** GPU-BACKEND-LAUNCHER (#1379): the launcher's Graphics option. The game's own row was the only switch, and a game
+ *  that drew blank on Vulkan hid it. Same pref, so the two never disagree; not once Play was pressed. A write that
+ *  failed redraws the box as it was, and says so. */
+function setBackendFromLauncher(arg) {
+  if (!launcher?.state.backend || launcher.state.launch) return;
+  const backend = arg === 'vulkan' ? 'vulkan' : 'default';
+  launcherDispatch(chooseBackend(app.getPath('userData'), backend, { loadConfig, saveConfig }) ? { type: 'backend-chosen', backend } : { type: 'backend-refused' });
+}
+
+/** GPU-BACKEND-LAUNCHER: Restart, only while the view offers it - the Graphics option differs from this launch, and
+ *  no download or install is under way. A staged self-swap goes in by its own quit, which relaunches the new copy
+ *  (UPDATE-SWAP: a plain relaunch would start the old file while the swap moves it). Relaunch and quit, as
+ *  restartForUpdate does: only an update's quit gives up the lock (R2-A1). */
+function restartFromLauncher() {
+  if (!launcher || !viewOf(launcher.state).options.graphics?.restart) return;
+  if (updateReady?.swap) { quitForSwap(); return; }
+  app.relaunch({ args: restartArgs(process.argv) });
+  app.quit();
+}
+
 /** DA10: Reinstall - this copy's own installer, the newest, by the name
  *  that never moves (REL5), downloaded in the player's browser to install
  *  over this copy. Asked first: the player hears that their saves are safe
@@ -1676,6 +1906,8 @@ function runLauncher() {
       // a config.json written before DA10 has no lastPlayed: the build it runs now is new to that player
       returning,
       installFailedFor: attempt.failed,
+      // GPU-BACKEND-LAUNCHER: the Graphics option, on Windows only - a browser and the other platforms choose their own
+      backend: process.platform === 'win32' ? backendOption(app.getPath('userData'), BACKEND_LAUNCH) : null,
     }),
   };
   buildMenu();
@@ -1756,6 +1988,8 @@ ipcMain.on('launcher:act', async (e, msg) => {
     case 'open-saves': openSavesFolder(); break;
     case 'set-update-check': setCheckOnLaunch(arg === true); break;
     case 'reinstall': await reinstallFromLauncher(); break;
+    case 'set-backend': setBackendFromLauncher(arg); break;
+    case 'restart': restartFromLauncher(); break;
     case 'open': if (Object.hasOwn(LAUNCHER_LINKS, arg)) shell.openExternal(LAUNCHER_LINKS[arg]); break;
     default: break;
   }
@@ -1797,6 +2031,14 @@ app.on('web-contents-created', (_e, contents) => {
 // proved itself: the one before it goes (gameStore.bootDone). Heard from the game's window only.
 ipcMain.on('dagger:game-up', (e) => {
   if (gameWindow && !gameWindow.isDestroyed() && e.sender === gameWindow.webContents) gameStore?.bootDone();
+});
+// GPU-TRAIL (src/render/gpuTrail.js, app/lib/rendererGone.cjs trailFrom): the game page's GPU samples, handed over with
+// each one so a page that stops between them has already said its last - kept from the game's window only, read field
+// by field, and written by logGone.
+ipcMain.on('dagger:gpu-trail', (e, trail) => {
+  if (!gameWindow || gameWindow.isDestroyed() || e.sender !== gameWindow.webContents) return;
+  gpuTrail = trailFrom(trail);
+  gpuGone.heard(gpuTrail);   // GPU-TRAIL-LOST: the lost sample landed - a GPU entry held for it is written now
 });
 
 // MOD-DIAG1: best-effort, bounded NDJSON diagnostics. Only the actual game window may write;
@@ -1844,14 +2086,22 @@ ipcMain.on('dagger:user-data-path', (e) => { e.returnValue = app.getPath('userDa
 // FPS-VSYNC (AUDIT 28e): whether this launch lifted Chromium's wait - the page paces its frames by the cap then
 // (src/systems/frameCap.js installFramePacer), since a held frame costs a whole refresh with the wait lifted
 ipcMain.on('dagger:frames-lifted', (e) => { e.returnValue = FRAME_SWITCHES.length > 0; });
+// GPU-BACKEND: the game page's own WebGL2 context - whether its preload makes one, and what it got (app/preload.cjs)
+ipcMain.on('dagger:backend-probe', (e) => { e.returnValue = backendGuard.pageAsks(); });
+ipcMain.on('dagger:backend-webgl2', (e, report) => {
+  if (gameWindow && !gameWindow.isDestroyed() && e.sender === gameWindow.webContents) backendGuard.pageReport(report);
+});
 // ESC-LOCK (2026-09-27, Mac: "when you hit esc to leave a menu, your cursor remains on the screen"): Escape is no user
 // activation, and after the player ends a pointer lock the next one needs one - so a menu closed on Escape could not
 // take the look back. The page asks (preload relockPointer) and its own fixed hook runs here as a user gesture.
+// UPDATE-RESTART: only the game's own window may restart the app onto its update
+ipcMain.on('dagger:restart-for-update', (e) => {
+  if (gameWindow && !gameWindow.isDestroyed() && e.sender === gameWindow.webContents) restartForUpdate();
+});
 ipcMain.on('dagger:relock', (e) => { e.sender.executeJavaScript('globalThis.__daggerRelock?.()', true).catch(() => {}); });
 
 app.whenReady().then(() => {
   if (!isSingleInstance) return;   // quitting; do not raise a window on the way out
-  openGame();   // DA13: before the first request is served - the version played is the store's
   protocol.handle('dagger', handleDagger);
   // L1-2: the launcher is granted nothing it asks for; every other page keeps Electron's default (granted).
   // AUDIT INSTALL R2-B3: nor anything it merely CHECKS. Chromium asks two questions - the request (a prompt) and the

@@ -130,6 +130,14 @@ party's bonus, never past the last stage (`SIGIL_XP_MAX`). A rise is said once f
 Dagon's Brand brightens: Kindled."), and the card names the piece holding the set back. A piece swapped in fresh
 pulls the set down to its stage until it catches up - the price of a new piece, and the reason to keep one.
 
+SET-CATCHUP (POWER-CEILING, 2026-10-27; a player: "Add more horizontal progression please!"): the price is paid
+faster. A set's REACH is the highest stage it has stood at for this character - two of its pieces worn at that
+stage, or the save's record of it (AUDIT HORIZONTAL D1: a piece in the pack counts for nothing - a lent pair carried
+for one kill made a reach the set never stood at). A piece below its set's reach drinks three times the XP until it
+reaches that stage, and the rest of the drink that gets it there is paid whole; at or past the reach it drinks as
+before. Grow together stands: the set's stage is still its lowest piece's. The card says the pace beside the piece:
+"Kindled: grow your Helm (3x XP to Radiant)". The record is the SET-CATCHUP section below.
+
 ## 6. Aetheric, and Ruhn's Regalia (SET6)
 
 **Aetheric** is the ladder's new top rung under Artifact: a colour of its own (the aether's pale blue-white,
@@ -361,6 +369,48 @@ are, and never a drop.
 Through the same seams: Wyrd-Sight the FOLD, Tallow-Ward the BLOW, Soul Harvest the KILL listener (`sigilSetPowers.js`).
 Its words are the festival's (`systems/festival/festivalWords.js` HARVEST_TEXT - its name, its proc, its recovery's end).
 
+## 6h. The deep sea's own set (SEA-SET, 2026-10-22)
+
+`03-World/Eltheric-Ocean.md` SEA-SET (the owner: "Build ever single bit of this and dont return until its perfected" - the
+Eltheric Ocean's Abyss-only gear): one more Aetheric set, the law's fourteenth, **The Eltheric Tidemail** - what the deep
+gives back to those who sail it - and its patron no Daedra but the Drowned Queen, Maraveth, Thrice Drowned: the sea's
+legends are its makers, and every piece was taken off one of them (`sigilSets.js` `eltheric`, `sigil.js` `SIGIL_SET_IDS`
+last). Nine fixed records of Adamantium, the one metal no other set wears - the seven body pieces, a round shield and a
+ONE-HANDED Saber, so all nine are worn at once - every affix at the Legendary band's MIDDLE (armour 16, an attribute 13, a
+resistance 43, a skill 25, weight 43, damage 30) and Maraveth's Mercy's blow the band's middle too (10): the Old Coil's
+measure, since the deep is a world boss's ground. One resistance of an element at most, and never shock - the 2-piece
+tier carries it (`systems/aetheric.js` `ELTHERIC_SET_PIECES`, `AETHERIC_RECORDS` last).
+
+The Drowned Admiral's Helm, the Right and Left Pauldrons of the Deep, The Tidemail Cuirass, Gauntlets of the Wheel,
+Greaves of the Sounding Line, The Hooded Pilot's Boots, The Starless Shield (Round Shield), Maraveth's Mercy (Saber).
+
+**Where it comes from - the deep alone** (`ELTHERIC_CHANCE`, `elthericChance`, `rollElthericPiece`, each source's last roll
+on its own stream, so every earlier roll stays what it was for its seed; the Shallows and the Reaches carry none):
+
+| source | the Deep Aether | the Abyss |
+|---|---|---|
+| a legend sunk or taken (`navalHost.js` legendTidemail, off her seed `^ TIDEMAIL_SALT`, into the boat I sail) - the Deep's Ninefold Hunger and Lantern-Eater, the Abyss's Pale Regent and Starless; the Reaches' two carry none | 1 in 4 | every time |
+| a vault of the deep's pile (SEA-VAULTS - the hall's ring the door stamps, `seaSpoils.js` seaPileSource) | 1 in 4 | 1 in 2 |
+| an isle's ruin's treasure pile (`systems/sea/seaSpoils.js` seaPileMore - the layout's pile offline, a pile the room emptied, and the room's seeded base online, on its own dice) | 1 in 20 | 1 in 10 |
+| the treasure fleet's flagship sunk or taken (SEA-EVENTS, `scenes/naval/treasureFleet.js` ended, off her seed `^ TIDEMAIL_SALT`, into the boat I sail) | every time | every time |
+| a cask of the Aether Storm's wrack (SEA-EVENTS, `scenes/seaVenturesHost.js` gather, on the cask's own stream - `seaEvents.js` wrackOf) | 1 in 40 | 1 in 20 |
+
+No world drop, shelf or Broker rolls one. These are the client's rolls, as a Legendary's are: no relay or service receipt
+seeds the sea's legends or its ruins (the gate's, the serpent's, a star's and the Spire's sets ride one) - the item law
+holds each piece to its record (item law 11, `itemLaw.js` ITEM_LAW_VERSION; acct172), never to its source.
+
+| pieces | ability | Faint -> Ascendant |
+|---|---|---|
+| 2 | **Stormwrack** - shock resistance, Speed | +10 -> +30; +2 -> +6 |
+| 4 | **Undertow** - your weapon deals more while you stand in the open Eltheric Ocean (the open PvP zone on the sea's ground: `wildZone.js` wildZoneKind, never Veilhaven's peace), and half of that anywhere else | +15% -> +40% (half ashore) |
+| 6 | **The Captain's Due** - your ship's guns deal more, and your ship takes less from guns and rams | guns +10% -> +30%; hull -10% -> -25% |
+
+Through the same seams and one of its own: Stormwrack the FOLD, Undertow the BLOW (a weapon's blow alone; the half carried
+as every per cent is), and the Captain's Due THE SHIP'S DOOR - `sigilSetPowers.js` `captainsDue(entity)`, the player the
+player's door names (`systems/playerDoor.js` player()), read by the naval host at each of my balls over her Guns refit
+(`navalHost.js` gunsRefit) and at a ball's (`dueOnHull`) or a ram's hurt on a ship of mine. A serpent's blow is no gun's nor
+a ram's: the tier leaves it whole, as it says. It has no timer, so no chip.
+
 ## 7. The Sigil Broker - Sigil Stones buy the day's stock (SET7)
 
 A Daedra trader (the game has no Dremora sprite; a Daedra Seducer stands in) is held at each breach's faithful's
@@ -387,6 +437,14 @@ Faint. The stock is minted from FIXED TABLES - the game's own templates and mate
 registered custom pieces or the player's level: the WB5 spoils read the player's world, and a shop every player shares
 must not. The record of what a character bought rides that character's SAVE, not the device, so it travels with the
 pack it describes: a save from before a sale holds its stones and its unmarked offer alike.
+
+**What "Bought" says** (FIELD BUGS 2026-10-25i BOUGHT-YOURS; #bug-reports, "Can't buy this piece": "I did dismantle the
+other chest i bought days ago, but still i cant buy this one"). A Legendary wears its base record's name, so a name comes
+back on another day under another set: The Warden, a chest, was Malacath's on 2026-10-22 and Mora's on 2026-10-25. A
+mark is its offer's own id, the day in it, so an older sale never blocks today's and a dismantle frees nothing (SS5).
+The refusal said "Bought today", which a player holding the older Warden read as "you have one already", and a second
+press after a sale said it over the sale's own word. It says whose sale it was now: "You bought this one today. You can
+buy each piece once a day." (`systems/sigil/sigilBroker.js` BROKER_REFUSALS).
 
 **The price in gold** (AUDIT SET D2, D5; re-measured at SS2; closed at SS4). A stone sold as a gem of 5,000 (the WB5
 spoils' record). What it bought resold for more: over two thousand days of stock (days 0 to 1,999 of the shared clock, the
@@ -1115,6 +1173,15 @@ nine records (`aetheric.js` `STARSPUN_SET_PIECES`, `AETHERIC_RECORDS` last) and 
 HURT listener, the round's "ready again", the chip). Pinned by `test/systems/starfall/star7_rewards.test.js`; the order pins of
 SET1, SERPENT-SET, SD9d and EG15 moved for it. Mutants in `tools/mutants/star7.json`.
 
+### SEA-SET - the deep sea's own set (2026-10-22)
+
+**The Eltheric Tidemail** (section 6h): the law's fourteenth set (`sigilSets.js` `eltheric`, `sigil.js` `SIGIL_SET_IDS`
+last), its nine records (`aetheric.js` `ELTHERIC_SET_PIECES`, `AETHERIC_RECORDS` last), its shares and its roll
+(`ELTHERIC_CHANCE`, `rollElthericPiece`), the deep's piles (`systems/sea/seaSpoils.js`) and a legend's (`navalSeaSet.js`
+legendTidemail - out of createNavalHost, AUDIT SEA VENTURES D12), its three powers (`sigilSetPowers.js`: the FOLD, the BLOW, `captainsDue` and the naval host's three
+reads), item law 11 (10 on its branch, past PISTOLET's at the merge). Pinned by `test/systems/sea/seaset.test.js`; the order pins of SET1, SERPENT-SET, SD9d, EG15 and STAR7
+moved for it. Mutants in `tools/mutants/seaset.json`.
+
 ### AUDIT STAR - the Weave's powers and the chips, read again (2026-10-20)
 
 Bound in Silk's cut on the held blow's landing, whatever its weight; the Veil's words (its effect, its spell's and chip's
@@ -1122,3 +1189,30 @@ names through the text core); every chip's tier, which the HUD's card reads; the
 (section 6f); the Wyrd's Raiment given its section (6g) and the Weave its right heading and count. Pinned by
 `test/systems/starfall/auditstar.test.js`, and the chips' pins of SET5 and RAID4b moved for the tier. Mutants in
 `tools/mutants/auditstar.json`.
+
+### SET-CATCHUP - going sideways costs less (2026-10-27)
+
+POWER-CEILING's fourth decision (`05-Combat/Power-Ceiling.md` section 6). `systems/sigil/setReach.js` holds the law
+and its save slot: `CATCH_UP_MULT` 3, a set's reach from its worn ranks (`reachOfRanks`: the second best,
+`REACH_PIECES` 2 - the first tier's count), the record kept at every drink and never lowered (`noteReach`), and the
+drink a piece below its reach takes (`catchUpXp`). The record is the save's mod record `SigilSetReach`, a forged or
+unknown entry dropped, a new game empty.
+
+`drinkWorn` reads the reach before the drink and records it after, so a rise the drink made counts even when its
+pieces are sold later. `setCardView` gives the card a `catchUp` (the reach, its name, the pace) when the piece holding
+the set is below the reach; the card's stage line and the classic tooltip's head say it (`catchUpText`).
+
+AUDIT HORIZONTAL D6: the pace is English, as the line it sits in. It went through the text core alone (`sets.catchUp`,
+`sets.catchUpTo`), and a German card read "Kindled: grow your Helm (3x EP bis Radiant)". No other word of the sets'
+lines is routed - the stage names have no keys - so the two keys are gone and the merge's catalogue drops them. The
+sets' routing batch owes the stage line and the tooltip's head as whole patterns, the stage names keyed with them.
+
+Four hosts: none edited - world.js's `sigilDrinks` calls `drinkWorn` for every kill and quest the streamed world,
+an interior and a dungeon pay; `exterior.js`, the offline bench, earns no Renown and drinks nothing (FLAGGED as before).
+No service, relay or wire change.
+
+Pinned by `test/systems/sigil/setcatchup.test.js` (6). PIN MOVED (SET-CATCHUP): `set4_drops_growth`'s rise (with a and
+b at Bright, c catches up to Bright, not Kindled) and `set5_ui`'s stage line (the helm below three Bright pieces says
+"(3x XP)"). `_resetSigilSetsForTests` forgets the reach too, so no test's reach leaks into the next. The SET4 and SET3
+mutant records that quoted the drink and Unbroken's halving are re-aimed by content (`set4.json`, `set3.json`).
+Mutants in `tools/mutants/power-ceiling.json` (the `SET-CATCHUP-` records).

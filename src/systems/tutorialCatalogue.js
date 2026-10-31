@@ -19,6 +19,7 @@
 import { t } from './textManager.js';   // KG3: a page's words read through the text core when shown
 import { isEnhanced } from './uiSkin.js';   // AUDIT SUGGESTIONS-1019 L6-4: a line only the enhanced skin's Stats page bears out
 import { ROLL_GAIN_DAY_MAX, ROLL_BOOK_RANK_MAX, SEAT_RANK } from '../net/npcChapterLaw.js';   // SEAT-WORDS: the Chapters page's numbers, the law's own
+import { ETHER_WORD } from '../world/ethericSea.js';   // FOE-KEEPS: the open zone's page names the sea by its one home (ELTHERIC)
 
 /** @typedef {{ id: string, group: string, title: string, trigger: string, body: ReadonlyArray<string>, points?: ReadonlyArray<string> }} Tutorial */
 
@@ -60,7 +61,10 @@ export const TUTORIALS = Object.freeze([
   page({
     id: 'welcome', group: 'basics', title: 'Welcome to DFO', trigger: TOUR,
     body: [
-      'You awaken in a small cave. Take what you need from your pack, find the way out and make for the nearest town.',
+      // START1 (bible/06-Systems/Alternate-Starts-Arc.md): the main story waits on the commission (systems/starts/starts.js) -
+      // START2: in whichever start the character chose, so the page names none of them. AUDIT STARTS U9: neither "find
+      // them" (the commission in hand starts in the pack) nor "begins when you do" (it begins in the city they name)
+      "Your story begins with the Emperor's sealed orders, your commission. When you hold them, open them from your pack: they name the city where the main story begins.",
       'When you meet something new, a short note like this one explains it. All of them can be read again under Menu > Tutorials.',
     ],
   }),
@@ -126,7 +130,7 @@ export const TUTORIALS = Object.freeze([
   page({
     id: 'spellbook', group: 'combat', title: 'Casting Spells', trigger: 'When you first open your spellbook.',
     body: [
-      '{CastSpell} opens your spellbook. Choose a spell, then aim and cast it with {SwingWeapon}.',
+      '{CastSpell} opens your spellbook. Choose a spell, then aim and cast it with {ActivateCenterObject}. With a one-handed weapon drawn and your other hand empty, the spell waits in that hand and {SwingWeapon} still swings the weapon.',
       '{RecastSpell} casts your last spell again and {AbortSpell} lets it go. The Mages Guild sells spells and lets you make your own.',
     ],
   }),
@@ -253,6 +257,7 @@ export const TUTORIALS = Object.freeze([
   page({
     id: 'travel-map', group: 'travel', title: 'The Travel Map', trigger: 'When you first open the travel map.',
     body: [
+      // AUDIT TAMRIEL-WIDE D5: true past the Bay too since TRAVEL-EVERYWHERE (pastBayTravel.js pastBayJourney)
       '{TravelMap} opens the map of the whole land. Choose a place to travel there. The journey takes days in the game but only a moment for you.',
       'You decide how fast to go, how to travel and whether to camp or stop at inns. Online, journeys over land are made along the roads instead.',
     ],
@@ -402,7 +407,7 @@ export const TUTORIALS = Object.freeze([
   page({
     id: 'bounties', group: 'quests', title: 'Bounties', trigger: 'When you first read a bounty board.',
     body: [
-      'Bounty boards list four hunts. Take one, slay the quarry and return for gold and an item. It also raises your standing in the region.',
+      'Bounty boards list four hunts. Take one and make for the middle of its black circle on your map, or the dungeon it names. There the quarry shows itself, or you are told which way it waits; the Quests tab keeps the way. The last kill pays gold and an item and raises your standing in the region.',
     ],
   }),
   page({
@@ -469,17 +474,17 @@ export const TUTORIALS = Object.freeze([
     // tutorial (doesn't have to be step for step, but something that helps new players know where to look)"): where the
     // stations stand - the shops the interior host's station questions answer (scenes/worldModes.js forgeHere ..
     // enchantHere), a joinery's bench (scenes/world.js workbenchHere), any fire (net/professionLaw.js COOK_FIRE) - and
-    // that a station is worked on the Stores page - by the Professions key, the one door to it on either skin (AUDIT FB1018D
-    // L1-6). Each crafting profession's own page says the rest
+    // that a station is worked on the Crafting page, the Professions key's landing at a station (CRAFT-HALL; the Stores
+    // page, its second press, until then - AUDIT FB1018D L1-6's one door on either skin). Each crafting profession's own page says the rest
     // (ui/professions/profPages.js CRAFT_HOW). Pops with the first gather, after the two pages it follows.
     id: 'crafting', group: 'livelihood',
     get title() { return t('tutorials.crafting.title', 'Crafting'); },
     get trigger() { return t('tutorials.crafting.trigger', 'When you first gather something.'); },
-    get body() { return [t('tutorials.crafting.body', 'Online, you craft at a station: stand at one, press {Professions} and open Holdings > Stores. Cook at any fire.')]; },
+    get body() { return [t('tutorials.crafting.body', 'Online, stand at a station and press {Professions}: the Crafting page opens on it. Cook at any fire.')]; },
     get points() {
       return [
         t('tutorials.crafting.shops1', 'Forge: Weaponsmiths, Armorers. Loom: Clothing Stores. Workbench: Furniture Stores, joineries.'),
-        t('tutorials.crafting.shops2', 'Jeweler\'s bench: Pawn Shops, Gem Stores. Mason\'s bench: General Stores. Alchemy: Alchemists. Enchanting: Mages Guild halls.'),
+        t('tutorials.crafting.shops2', 'Jeweler\'s bench: Pawn Shops, Gem Stores. Mason\'s bench: General Stores. Alchemy: Alchemists, Mages Guilds. Enchanting: Mages Guild halls.'),
         t('tutorials.crafting.more', 'Your home can hold stations too. Each crafting profession under {Professions} says more.'),
       ];
     },
@@ -528,7 +533,9 @@ export const TUTORIALS = Object.freeze([
   page({
     id: 'arena', group: 'challenges', title: 'The Arena', trigger: 'When you first visit the arena.',
     body: [
-      'The arena stands in the province\'s capital. Speak with the Herald at the gate to fight. The recruiters will take you onto a team, and the bookmaker takes wagers.',
+      // AUDIT TAMRIEL-WIDE II T1: two arenas - Daggerfall city's and the Imperial City's Arena District (IC-GRAND;
+      // world/arena/arenaCity.js standsArena); TUT1 names no Daggerfall
+      'An arena stands in the Imperial City and in the Iliac Bay\'s westernmost crown city. Speak with the Herald at the gate to fight. The recruiters will take you onto a team, and the bookmaker takes wagers.',
       'There are ten ranks to climb, and the purse reaches 10,000 gold. One defeat ends your run, and potions are forbidden.',
     ],
   }),
@@ -545,6 +552,18 @@ export const TUTORIALS = Object.freeze([
       'Online, there is one Abyss Dungeon at a time, near a city in the busiest region. Look for the pillar of light, or listen to the talk in that city\'s taverns.',
       'The Rift at its end leads to the Shattered Hour and the Brass Remnant. You have only one life in there.',
     ],
+  }),
+  page({
+    id: 'sky-ketch', group: 'challenges',
+    // KETCH: the whole page in the player's language (L10N4), as the guilds' is
+    get title() { return t('tutorials.skyKetch.title', 'The Sky-Ketch'); },
+    get trigger() { return t('tutorials.skyKetch.trigger', 'When you first ride the anchor-lift up to the Sky-Ketch.'); },
+    get body() {
+      return [
+        t('tutorials.skyKetch.body1', 'Every ten hours the Sky-Ketch stays over the fields east of the capital for seven hours. Ride its anchor-lift up with your party, eight players at most.'),
+        t('tutorials.skyKetch.body2', 'Carry aether cells to the engine. A hit makes you drop the cell. Nets catch a fall; only death wakes you in the fields below.'),
+      ];
+    },
   }),
   page({
     id: 'ocean-holes', group: 'challenges', title: 'Ocean Holes', trigger: 'When you first dive into an Ocean Hole.',
@@ -608,10 +627,15 @@ export const TUTORIALS = Object.freeze([
   }),
   page({
     id: 'wild-zone', group: 'online', title: 'The Open Zone', trigger: 'When you first enter the open zone.',
-    body: [
-      'In the Wrothgarian Mountains players may fight one another. The monsters there are tougher and the spoils richer.',
-      'If you die there, you lose what is in your bag and cart, and your killer may take one item you were wearing.',
-    ],
+    // FOE-KEEPS; AUDIT FOE-KEEPS O4: the page pops in either zone, the sea's too. PVP-WORDS (PVP-REWARD, 2026-10-29): a
+    // kill drops nothing - its killer's one roll, a piece, a policy's gold or the last tenth - and any other death there
+    // costs the usual tenth; through the text core (L10N4), read when shown; WW-C2: the open zone is Cyrodiil's
+    get body() {
+      return [
+        t('tutorials.wildZone.body1', 'Players may fight one another in Cyrodiil and on the open {word} Ocean, where monsters are tougher and spoils richer.', { word: ETHER_WORD }),
+        t('tutorials.wildZone.body2', 'If another player kills you there, nothing drops. They may take one uninsured worn piece, or else one policy\'s gold, or else a tenth of your coin and letters of credit. Any other death costs the usual tenth.'),
+      ];
+    },
   }),
   // SEAT-WORDS / STANDING-WORDS (Field-Bugs-2026-10-15g): the guilds online - the Roll's pace and the seats - popped at
   // the first word for a member and at the book's hold (scenes/rollNoticeHost.js)

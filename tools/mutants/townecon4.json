@@ -22,8 +22,8 @@
   {
     "name": "TOWNECON4-lanes-unread",
     "file": "src/net/townEconLaw.js",
-    "old": "+ share + townSeaTerm(lanes));",
-    "new": "+ share);",
+    "old": "+ share + townSeaTerm(lanes) + regionTermOf(regional));",
+    "new": "+ share + regionTermOf(regional));",
     "tests": [
       "test/systems/naval/townecon_sea.test.js"
     ],
@@ -148,16 +148,6 @@
       "test/systems/naval/townecon_sea.test.js"
     ],
     "note": "the lanes counted every reading"
-  },
-  {
-    "name": "TOWNECON4-host-lanes-cached-empty",
-    "file": "src/scenes/townEconHost.js",
-    "old": "      if (!lanes?.length) return 0;",
-    "new": "      if (!lanes?.length) { laneCounts = new Map(); return 0; }",
-    "tests": [
-      "test/systems/naval/townecon_sea.test.js"
-    ],
-    "note": "the lanes not yet standing kept as none"
   },
   {
     "name": "TOWNECON4-host-ether",

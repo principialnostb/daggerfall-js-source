@@ -11,7 +11,8 @@ import { decorCatalogue, collectDecor } from '../src/systems/decor/decorCatalogu
 import { DECOR_CAP, decorPrice } from '../src/net/decorLaw.js';
 import { PROP_MODEL_TYPE } from '../src/world/interior/interiorLayout.js';
 import { isFurnishing } from '../src/systems/decor/decorFurnish.js';
-import { decorMatrix, decorKeyOf } from '../src/scenes/decor/decorRoom.js';
+import { createDecorPack } from '../src/systems/decor/decorPack.js';   // AUDIT FB1025i E1: the producer's own doors
+import { decorMatrix, decorKeyOf, createDecorRoom } from '../src/scenes/decor/decorRoom.js';
 import { localAabb } from '../src/render/frustum.js';
 import { createHomeYards } from '../src/scenes/homeYards.js';
 import { applyClimate, SEASON } from '../src/world/climateSwaps.js';
@@ -83,7 +84,7 @@ export function fakeWin() {
 export const all = (n, cls, out = []) => { if (String(n.className).split(/\s+/).includes(cls)) out.push(n); for (const c of n.children ?? []) all(c, cls, out); return out; };
 export const one = (n, cls) => all(n, cls)[0];
 export const text = (n) => (n.textContent || '') + (n.children ?? []).map(text).join('');
-export const chipNamed = (root, label) => all(root, 'dfdecor-chip').find((c) => c.textContent === label);
+export const chipNamed = (root, label) => all(root, 'dfdecor-chip').find((c) => c.textContent === label || c.getAttribute?.('aria-label') === label);
 
 /** A small catalogue: two beds (models - rrRealism.js BED_MODELS), a chest (storage), a candle (a light flat), a book (a flat). */
 export function catalogue() {
@@ -119,7 +120,8 @@ export const ACTIONS = new Map([['KeyW', 'MoveForwards'], ['KeyS', 'MoveBackward
  * put again by its id stands in its place, `holds` the ids of the pieces holding something. The wallet pays from and
  * credits `w.gold`, `hand.stick` is the host's stickAxes reading (null: no stick in hand), and `rays` each eye ray's
  * bucket filter. `radius(model)` the scan's measure of a model (null: unread). DECOR2a: `pack` the items carried -
- * packTake moves one of a stack out (a copy of one; the whole item when it is the last), packGive puts one back.
+ * packTake moves one of a stack out as a drop does, packGive puts one back through the pack's own door - AUDIT FB1025i E1: the
+ * host's own doors (systems/decor/decorPack.js) over the rig's lists, never a fake that pushed where the host refuses.
  * DECOR2b: `furnishings` the furniture delivered - where a piece of furniture lives, as the host's decorHome has it:
  * taken out whole, given back there, never to the pack. DECOR2c: `state.normal` the surface's normal the eye's ray
  * answers (null: none, as before), and the renderer's decal pass and texture cache, faked - `decals` every batch made
@@ -142,12 +144,13 @@ export const ACTIONS = new Map([['KeyW', 'MoveForwards'], ['KeyS', 'MoveBackward
  * the pipeline's texture door over the rig's, and `flatPicture` the host's picture door for a flat (none unless handed).
  * DECOR-TURN (AUDIT Y1): `later(fn, ms)` the host's clock a turn's write waits on (the page's setTimeout unless handed).
  */
-export function toolRig({ room = { kind: 'house', where: 'Your house' }, gold = 1000, homeDecor = null, locked = true, touch = false, radius = () => 0.8, base = null, mwPicture = null, collider = null, iconUrl = async () => null, getGpuMesh = async (id) => ({ gpu: id }), now = () => 0, extraFlats = [], extraPeople = [], recordSize = () => ({ width: 16, height: 32 }), realm = null, doors = [], doorsHere = null, walls = null, rent = null, look = null, placeOk = null, lot = null, yardCap = null, charterClear = null, scan = {}, prepareModel = null, getTexture = null, flatPicture = null, later = null, thumbHold = null } = {}) {
+export function toolRig({ room = { kind: 'house', where: 'Your house' }, gold = 1000, homeDecor = null, locked = true, touch = false, radius = () => 0.8, base = null, mwPicture = null, collider = null, iconUrl = async () => null, getGpuMesh = async (id) => ({ gpu: id }), now = () => 0, extraFlats = [], extraPeople = [], recordSize = () => ({ width: 16, height: 32 }), realm = null, doors = [], doorsHere = null, walls = null, rent = null, look = null, placeOk = null, lot = null, yardCap = null, charterClear = null, scan = {}, prepareModel = null, getTexture = null, flatPicture = null, later = null, thumbHold = null, keys = [] } = {}) {
   const doc = fakeDoc();
   const win = fakeWin();
   const entries = decorCatalogue(collectDecor([rmb([41000, 41000, 41001, 41811], [[210, 3], [209, 0]]), rmb([41000], [[209, 0]], doors, extraPeople)]));
   const standing = [];
   const holds = new Set();
+  const aim = [];
   const owned = new Map();   // DECOR2a: the owner's own items by piece id (scenes/decor/decorRoom.js keepOwn and its kin)
   const solid = (p) => {
     if (!collider?.addMesh) return;
@@ -159,16 +162,27 @@ export function toolRig({ room = { kind: 'house', where: 'Your house' }, gold = 
     const tris = new Uint32Array([0, 1, 2, 0, 2, 3, 4, 6, 5, 4, 7, 6, 0, 4, 5, 0, 5, 1, 3, 2, 6, 3, 6, 7, 0, 3, 7, 0, 7, 4, 1, 5, 6, 1, 6, 2]);
     collider.addMesh(decorKeyOf(p.id), at, tris, decorMatrix(p, [10, 0, 10]));
   };
+  // FIELD BUGS 2026-10-25i CHEST-DRAFT: what the storage pieces hold is the REAL room's store (scenes/decor/decorRoom.js
+  // itemsOf, itemsSnapshot, setItems) - the fake's no-op `setItems` and empty `itemsSnapshot` let "Discard puts the room
+  // back" pass while the discard wrote every chest back as it stood when the draft opened. `chests` is that store.
+  const chests = createDecorRoom({ meshes: {}, renderer: null, getTexture: async () => null, uploadRecord() {}, uploadRecordFrame() {}, collider: () => null, origin: () => [10, 0, 10] });
   const pool = {
     put: (p) => { const i = standing.findIndex((x) => x.id === p.id); if (i >= 0) standing[i] = p; else standing.push(p); solid(p); },
     remove: (id) => { const i = standing.findIndex((x) => x.id === id); if (i >= 0) standing.splice(i, 1); collider?.removeBucket?.(decorKeyOf(id)); },
     list: () => standing.map((p) => ({ ...p })),
     size: () => standing.length,
-    holdsAny: (id) => holds.has(id),
+    holdsAny: (id) => holds.has(id) || chests.holdsAny(id),
+    pieceOf: (id) => standing.find((p) => p.id === id) ?? null,
+    targets: () => aim,
     ownOf: (id) => owned.get(id) ?? null,
     keepOwn: (id, item) => { if (item) owned.set(id, item); },
     takeOwn: (id) => { const it = owned.get(id) ?? null; owned.delete(id); return it; },
     ownIds: () => [...owned.keys()],
+    itemsOf: (id) => chests.itemsOf(id),
+    itemsSnapshot: () => chests.itemsSnapshot(),
+    setItems: (record) => chests.setItems(record),
+    ownSnapshot: () => Object.fromEntries([...owned].map(([id, item]) => [id, { ...item }])),
+    setOwn(record) { owned.clear(); if (record) for (const [id, item] of Object.entries(record)) owned.set(id, item); },
   };
   const names = new Map();
   const slots = [];
@@ -178,6 +192,7 @@ export function toolRig({ room = { kind: 'house', where: 'Your house' }, gold = 
   const pack = [];   // DECOR2a: the items carried - packTake moves one of a stack out, as a drop does
   const furnishings = [];   // DECOR2b: the furniture delivered (worldModes.js decorHome)
   const homeOf = (item) => (isFurnishing(item) ? furnishings : pack);
+  const ownDoors = createDecorPack(() => ({ items: pack, furnishings }));   // AUDIT FB1025i E1: the host's own (worldModes.js wires the same)
   const rays = [];   // each eye ray's bucket filter (player/collider.js raycastHit's fourth), or null
   let visit = 1;
   let cursorOff = 0;
@@ -199,6 +214,8 @@ export function toolRig({ room = { kind: 'house', where: 'Your house' }, gold = 
     setFog() {}, setLighting() {},
   };
   const state = { room, locked, normal: null };
+  const bound = new Map(ACTIONS);
+  for (const [code, action] of keys) bound.set(code, action);
   const tool = createDecorTool({
     doc, win, touch, renderer, pool, names,
     canvas: { width: 1600, height: 900, getBoundingClientRect: () => ({ left: 0, top: 0, width: 800, height: 450 }) },
@@ -220,21 +237,14 @@ export function toolRig({ room = { kind: 'house', where: 'Your house' }, gold = 
     mwPicture,   // MW-MOUNT
     collider: () => collider ?? ({ raycastHit: (e, d, max, filter = null) => { rays.push(filter); return { dist: 2, normal: state.normal }; } }), origin: () => [10, 0, 10], eye: () => [10, 1.6, 10],
     stick: () => hand.stick,
-    actionOf: (e) => ACTIONS.get(e.code) ?? null,
+    actionOf: (e) => bound.get(e.code) ?? null,
     locked: () => state.locked, cursorOff: () => { cursorOff++; },
     wallet: () => ({ gold: w.gold, pay: (n) => { w.paid.push(n); w.gold -= n; }, credit: (n) => { w.credited.push(n); w.gold += n; } }),
     homeDecor, character: () => 'char-me', visit: () => visit,
     realm: () => realm,   // REALM P2.2b: a realm character's act on its record (systems/realmSaves.js realmGoldAct), none unless a pin hands one
     pack: () => pack, identity: () => null, furnishings: () => furnishings, packHas: (item) => homeOf(item).includes(item),
-    packTake: (item) => {
-      const list = homeOf(item);
-      const i = list.indexOf(item);
-      if (i < 0) return null;
-      if (list === pack && (item.stackCount ?? 1) > 1) { item.stackCount -= 1; return { ...item, stackCount: 1 }; }
-      list.splice(i, 1);
-      return item;
-    },
-    packGive: (item) => { homeOf(item).push(item); },
+    packTake: (item) => ownDoors.decorPackTake(item),
+    packGive: (item) => ownDoors.decorPackGive(item),
     openSlot: (o) => slots.push(['open', o]), closeSlot: (o) => slots.push(['close', o]),
     say: (l) => said.push(l), refusal: (word) => `refused: ${word}`, now,
     ...(doorsHere ? { doorsHere } : {}), ...(walls ? { walls } : {}),   // HOME-DOORS
@@ -249,7 +259,7 @@ export function toolRig({ room = { kind: 'house', where: 'Your house' }, gold = 
   const cam = { pos: [10, 1.6, 10], yaw: 0, pitch: 0 };
   const frame = (over = {}) => tool.frame({ dt: 0.1, cam, overlayUp: false, interior: true, ...over });
   return {
-    tool, doc, win, entries, standing, holds, owned, hand, rays, pack, furnishings, names, slots, said, w, cam, frame, draws, state, decals, textures, renderer,
+    tool, doc, win, entries, standing, holds, chests, aim, owned, hand, rays, pack, furnishings, names, slots, said, w, cam, frame, draws, state, decals, textures, renderer,
     setVisit: (v) => { visit = v; }, cursorOffs: () => cursorOff,
   };
 }
@@ -274,6 +284,27 @@ export const WOODS = getWorldClimateSettings(231).climateType;
 /** An archive the town's climate swaps (applyClimate's own answer) - found, never assumed. */
 export const SWAPPED = [...Array(500).keys()].find((a) => applyClimate(a, 0, DESERT, SEASON.Summer) !== a && applyClimate(a, 0, DESERT, SEASON.Summer) !== applyClimate(a, 0, WOODS, SEASON.Summer));
 export const yardPiece = (over = {}) => ({ id: 'p1', model: null, flat: [504, 12], pos: [8, 0, 2], rot: [0, 0, 0], scale: 2, light: null, storage: false, paid: 120, ...over });
+
+/**
+ * YARD-CELL: A FAKE SERVICE'S CELL ROUTE over a whole-town answer `yards(mapId)` (the shape the old route answered) - the
+ * town read again at every ask, each asked cell answered at a version past any the page holds, as the old route sent
+ * the whole town each time. A refusal passes through as it came.
+ */
+export function townCellsApi(yards) {
+  let ver = 0;
+  return async (mapId, cells) => {
+    const answer = await yards(mapId);
+    if (!answer?.ok) return answer;
+    ver++;
+    const byCell = new Map();
+    for (const yard of answer.data?.yards ?? []) {
+      const cell = Math.floor(yard.buildingKey / 256);
+      if (!byCell.has(cell)) byCell.set(cell, []);
+      byCell.get(cell).push(yard);
+    }
+    return { ok: true, data: { mapId, cells: cells.map(([cell]) => ({ cell, ver, yards: byCell.get(cell) ?? [] })), more: [] } };
+  };
+}
 
 /** The real yard host over a town pixel built in `season`, its town of `climate`, a home (300) holding `pieces` - `own`
  *  the player's, who stands on its lot - with the panel's picture door `iconUrl`. DECOR-LPT: `trees` the world's Low Poly
@@ -304,7 +335,7 @@ export function yardWorld({ pieces, season = SEASON.Summer, climate = WOODS, sea
   const built = new Map([['0,0', pixel(season)]]);
   const sizes = { 504: [40, 120], 505: [44, 130], 201: [30, 20], ...own_sizes };
   const yards = createHomeYards({
-    api: { yards: async () => ({ ok: true, data: { yards: [{ buildingKey: 300, pieces: town.pieces }, ...Object.entries(neighbours).map(([k, n]) => ({ buildingKey: Number(k), pieces: n.pieces }))] } }) },
+    api: { yardCells: townCellsApi(async () => ({ ok: true, data: { yards: [{ buildingKey: 300, pieces: town.pieces }, ...Object.entries(neighbours).map(([k, n]) => ({ buildingKey: Number(k), pieces: n.pieces }))] } })) },
     homes: { homeAt: (m, k) => (k === 300 ? { owner: 'Tomas', own, look: null, ...home } : neighbours[k] ? { owner: 'Ilsa', own: false, look: null } : null) },
     built: () => built, translation: () => shift, feet: () => (own ? [18, 0, 10] : [100, 0, 100]), outside: () => true, eye: () => (own ? [18, 1.6, 10] : [100, 1.6, 100]),
     collider: () => ({ addMesh() {}, removeBucket() {} }),

@@ -29,6 +29,7 @@
 import { QUEST_OWN_SECOND_KEYS, QUEST_WORLD_SECOND_KEYS, shiftQuestStamps, markOwnClock } from './quest/questStamps.js';
 import { LEGACY_VENDOR } from './legacy/family.js';
 import { skyOfEventLaw, eventOfSkyLaw } from './skyCalendar.js';   // AUDIT WAITS B1: a banishment's days are the sky's calendar's
+import { markRealmCopy } from './realmCopyMark.js';
 
 /** AUDIT LIVED1b F3 (S4): a save's clock - classic minutes, an unsigned count below 2^31 (4,000 years of the calendar;
  *  DFU's is a uint) - or null for anything else. The doors and the load (save.js restorePlayer) read the envelope's
@@ -132,16 +133,27 @@ export const BOUNTY_RECORD_VENDOR = 'bountyBoard';
 /** AUDIT CAPTAIN'S SEA L4: the captain's ledger's record (captainLedger.js CAPTAIN_SAVE_VENDOR - pinned equal,
  *  test/systems/naval/auditcaptsea.test.js; this module stays off the ledger's graph as it does off the board's). */
 export const CAPTAIN_RECORD_VENDOR = 'Captain';
+/** SEA-SEASON (bible/03-World/Eltheric-Ocean.md SEA-SEASON): THE SEA'S SEASON FIGURES ARE THE REALM'S ALONE - the
+ *  captain's ledger's `ether.season` (the deepest voyage and the legends ended this season, the service's season boards
+ *  read them off a judged checkpoint). Neither door carries them: an offline game's voyages are on its own clock, and
+ *  a copy brought online starts the season's boards from nothing, as a new character does. */
+function dropSeason(copy) {
+  const e = copy.modData?.[CAPTAIN_RECORD_VENDOR]?.ether;
+  if (e && typeof e === 'object') e.season = null;
+}
 
 /** The copy an offline slot keeps: the world's stamps rebased onto the character's clock, `worldMinutes` dropped. */
 export function offlineCopyOf(snap) {
   const copy = JSON.parse(JSON.stringify(snap ?? null));
   if (!copy || typeof copy !== 'object') return copy;
   dropLineage(copy);
+  dropSeason(copy);
   const own = saneSaveClock(copy.classicMinutes), world = saneSaveClock(copy.worldMinutes);
   delete copy.worldMinutes;
   delete copy.joinFresh;
   delete copy.realmHeld;   // AUDIT RESCUE-SAVE A1: the realm's spoils records (systems/realmSaves.js REALM_HELD_FIELD) - a new character holds none
+  // The copy's new id was never counted by the realm, so customs can never let it in: the Online door reads the mark.
+  markRealmCopy(copy);
   if (own === null || world === null) return copy;
   if (copy.modData && typeof copy.modData === 'object') delete copy.modData[RAID_RECORD_VENDOR];   // AUDIT LIVED1b R1
   rebaseWorldStamps(copy, Math.floor(own) - Math.floor(world), daysBetween(own, world), { questOwn: 'legacy' });   // classic minutes: the character's clock less the world's
@@ -161,6 +173,7 @@ export function onlineCopyOf(snap, worldNow) {
   const copy = JSON.parse(JSON.stringify(snap ?? null));
   if (!copy || typeof copy !== 'object') return copy;
   dropLineage(copy);
+  dropSeason(copy);
   if (!Number.isFinite(worldNow)) return copy;
   const own = saneSaveClock(copy.classicMinutes);
   copy.worldMinutes = Math.floor(worldNow);

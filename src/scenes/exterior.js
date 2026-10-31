@@ -59,7 +59,7 @@ import { flashPlayerDamage } from '../ui/damageFlash.js';   // ROAD-G G2: an arr
 import { knockedDown } from '../systems/blowEffects.js';   // TELL6e: knocked down, no swing
 import { weaponTypeForItem, WEAPON_TYPES } from '../combat/fpsWeapon.js';
 import { targetAimPoint, missileAimDirection } from '../characters/enemy/enemyTargets.js';   // AUDIT WORLD6b-iii(a) C3: the ONE aim law for an enemy missile (the peer's transform, mine otherwise)
-import { playerEntity, surfacePlayer, hurtPlayer, setDeathPresenter, setAvoidDeathHook, playerBlowCameToNothing } from '../characters/playerEntity.js';
+import { playerEntity, surfacePlayer, hurtPlayer, setDeathPresenter, setAvoidDeathHook, playerBlowCameToNothing, staffFrozen } from '../characters/playerEntity.js';
 import { heldPlayerBlow, remarkPlayerBlow } from '../systems/sigil/sigilSetPowers.js';   // AUDIT SETS L3: a guard's blow the arrest flow holds back
 import { SOUND } from '../systems/soundClips.js';
 import { Collider } from '../player/collider.js';
@@ -81,7 +81,7 @@ import { setDefaultEnchantCtx } from '../systems/enchantments.js';   // AUDIT 58
 import { createEnchantCtx, standLooseFoe, LOOSE_FOE_PLACE_ATTEMPTS } from './hostEnchant.js';   // FS1 (wave D): the ONE ctx body + SD1's loose-foe placement
 import { windowEmissionRGB } from '../render/windowEmission.js';
 import { realWindowsMode, clockFogColor } from '../render/realWindows.js';   // RW1: the rooms behind the glass, and the street a building's glass looks out on
-import { CITY_LIGHT_COLOR, CITY_LIGHT_RANGE, LIGHTS_ARCHIVE, collectCityLights, nearestLights } from '../world/city/cityLights.js';
+import { CITY_LIGHT_COLOR, LIGHTS_ARCHIVE, collectCityLights, nearestLights, streetLanternAnimator, streetLightRange } from '../world/city/cityLights.js';
 import { isHearthFlat } from '../systems/survival/hearth.js';   // HEARTH1: which of those lanterns is a fire you could cook on
 import { syncLightingLane, lanternColor } from '../render/enhancedLighting.js';   // EL1
 import { withPlayerLights } from './magicCandle.js';   // X11/T1: the lights the PLAYER carries
@@ -92,7 +92,7 @@ import { RMB_SIDE, layoutLocation, hasCustomLocationPosition } from '../world/lo
 import { lookAt, multiply, perspective, mirrorProjectionX, transformPoint, trs, UP_Y } from '../world/mat4.js';   // HANDEDNESS: the one mirror (mat4's law)
 import { frustumPlanes, aabbOutside, localAabb, transformedAabb, flatBatchAabb, cullDisabled } from '../render/frustum.js';   // EV3: the frustum
 import { decorCullVerdict, DECOR_DRAW } from './decor/decorRoom.js';   // PERF-WAGON: the street's verdict on a cart's, a wagon's and a tent's box
-import { withMoonAmbient } from '../render/enhancedSky.js';   // EV5: secunda rides the ambient
+import { withMoonAmbient, lightStreetAt } from '../render/enhancedSky.js';   // EV5: secunda rides the ambient; WL1: the street lit by the clock
 import { drawCharacterSprite } from '../render/characterSprite.js';
 import { collectBlockFlats, billboardSize, mobileBillboardSize, centredBase, isNatureArchive, NATURE_FLATS_Y } from '../world/rmbFlats.js'; import { blockHillSeat, seatNatureFlat, blockHillPatch } from '../world/townStandIns.js';   // TREES-SEATED: a block's trees on the hills drawn under them; FIELD BUGS 2026-10-13e HILL-SEAT: and the pads under what its author stood on them
 import { blockSolids } from '../world/flatFields.js';   // FIELD BUGS 2026-10-04d CROPS: a crop field keeps a metre off the block's solids
@@ -102,6 +102,7 @@ import { horseNameTooltip } from '../ui/horseNameTooltip.js';   // AUDIT HCC U6:
 import { createHorseCartPool } from './horseCartPool.js';   // HCC: the presentation, world.js's twin on this host
 import { wagonPoolDeps } from '../world/wagonModels.js';   // WAGONS1: the pool's two words, one seam for both hosts
 import { birthHorses, riddenHorseLook } from '../systems/horse/horseCoats.js';   // COATS1: the horses born; COATS3D: and the ridden one's look, for the 3D horse
+import { ownMountLook } from '../systems/horse/mountLook.js';   // STOREFRONT: the 3D horse under me in my mount look
 import { createHorseCartRuntime } from '../systems/horse/horseCart.js';   // HCC: TrailingWagonRuntime over this host's seams
 import { setHoldingsProvider, stableProviderFor } from '../ui/holdingsPages.js';   // HOLDINGS: the Stable page over this host's horse and wagon (no boats here)
 import { isQualifyingThreatState } from '../systems/horse/horseFollow.js';   // HCC: CollectThreats' qualification
@@ -118,6 +119,7 @@ import { InputMessageBoxWindow } from '../ui/inputMessageBox.js';   // HCC: the 
 import { isLocalPlayerTarget } from '../characters/enemy/enemyTargets.js';   // HCC: CollectThreats' `senses.Target == player`
 import { SeasonHelper, archivePrefix as seasonPrefixOf } from '../systems/seasonsIliacBay.js';   // SIB1: Seasons of the Iliac Bay's SeasonHelper; WINDFALL1: and its atlases' prefixes, which Windfall's own tables key on
 import { loadSeasonsTextures, seasonsInstalled } from '../systems/seasonsIliacBayAssets.js';   // SIB1: its textures, from the player's own copy of the mod
+import { sightMarksOf } from '../world/signSolid.js';   // FIELD BUGS 2026-10-25i SIGN-PASS: a shop's sign stops a body where it stands, never where it hangs
 import { isBulletinBoard, isCityGate, CITY_GATE_OPEN_MODEL_ID, CITY_GATE_CLOSED_MODEL_ID } from '../world/rmbLayout.js';   // RMBLayout.cs:1013-1017 - the one model id a town sign wears; :1007-1011 - the two a city gate wears
 import { makeCityGate, updateCityGate } from '../world/city/cityGate.js';   // AUDIT 64 F14: DaggerfallCityGate
 import { staticBuildingBox, staticBuildingWorldAabb } from '../world/staticBuildings.js';   // AUDIT 64 F11: RMBLayout's StaticBuilding array
@@ -125,16 +127,17 @@ import { collectExteriorNpcs, exteriorNpcRecord } from '../characters/exteriorNp
 import { createStandingHorses, isStandingHorseFlat } from '../world/standingHorses.js';   // STAND-HORSE: the location's town horses as the 3D horse
 import { isStandFlat, standFlatId, standFlatRecord } from '../world/standFlats.js';   // STAND-FLAT: a town horse and a person's flat no StaticNPC holds, a batch each   // C2 / AUDIT 26: RMBLayout's street StaticNPCs
 import { drawnFlat } from '../characters/nudeFlats.js';   // NUDE-FLATS: Show Nudity off draws a nude figure's clothed stand-in
-import { CityLightAnimator, SUN_RIG_COLOR, INDIRECT_LIGHT_COLOR, INDIRECT_LIGHT_RANGE, exteriorAmbient, indirectLightScale, isCityLightsOn, isNight, parseTimeOfDay, sunDirection, sunScale, windowStyleForTime, viewOutLight } from '../world/worldClock.js';
+import { SUN_RIG_COLOR, INDIRECT_LIGHT_COLOR, INDIRECT_LIGHT_RANGE, exteriorAmbient, indirectLightScale, isCityLightsOn, isNight, parseTimeOfDay, sunDirection, sunScale, windowStyleForTime, viewOutLight } from '../world/worldClock.js';
 import { audio } from '../systems/audio.js';
 import { AmbientEffects, EXTERIOR_AMBIENT_WAITS, presetForExterior } from '../systems/ambientEffects.js';
 import { createWeatherFront, blendTerms, soundWeather, fallTerms } from '../systems/weather/weatherFront.js';   // WX2: the front reaches the ground; RAIN-SPRINKLE: the look of what falls
 import { createAnimalAmbience } from '../systems/animalAmbience.js';   // A4
 import { CityNavigation } from '../world/city/cityNavigation.js';   // T1 towns
+import { townWallCellsOf, wallOnTownMap, wallLaidBytes } from '../world/townWalls.js';   // AUDIT TESA III E1-2: TS7's wall on the bench's town map and walk grid
 import { TownPopulation } from '../systems/town/townPopulation.js';
 import { GUARD_TEXTURE, MobilePerson, PERSON_TEXTURES, personWantsToStop, walkerRace } from '../characters/mobile/mobilePerson.js';
 import { createTownTalk, rayPersonDistance, nearestPerson } from './townTalk.js';   // T3b   // AUDIT 63 F33 (review): the townsfolk's own pick distance, the enemy arm's rival
-import { createPlayerMagic } from './hostMagic.js';   // M2: spellcasting above ground
+import { createPlayerMagic, CAST_PRESS, liveCollider } from './hostMagic.js';   // M2: spellcasting above ground; GROUND-BOLT: its collider, the ground with it
 import { preloadSpellbookArt, spellbookArtLoaded } from '../ui/spellbookWindow.js';   // U42: the classic art window (retires M2's keyed stand-in)
 import { createSpellbookWindow } from '../ui/spellbookDoor.js';   // PX23: the book's one door
 import { worldMinutes, skyMinutes, setWorldMinutes, ownMinutes, sharedClockOn, trustedWorldMinutes, raisedMinutes } from '../systems/worldTick.js';   // AUDIT 23 (C2): the ONE clock; AUDIT WORLD5 C10 / WORLD7: the quest clocks' played step, this host's word too
@@ -144,7 +147,7 @@ import { preloadRestArt } from '../ui/restWindow.js';   // S40: rest above groun
 import { createRestWindow } from '../ui/restDoor.js';   // RESTDOOR1: the enhanced/native fork, same law as ui/tradeDoor.js
 import { DecisionBoxWindow } from '../ui/decisionBox.js';   // REST-WARN2: the Plus decision box
 import { restAilmentLines } from '../systems/rest/restWarning.js';   // REST-WARN: the fourth host's rest asks too
-import { setEnemyAlert, areEnemiesNearby, intermittentEnemySpawn } from '../systems/encounters.js';
+import { setEnemyAlert, areEnemiesNearby, intermittentEnemySpawn, fightNear } from '../systems/encounters.js';
 import { revenantToReturn, revenantSpawnOptions, revenantPresence, takeRevenantNotice, revenantSay, releaseRevenantStand, revenantRoutSweep, revenantRoutedEvent } from '../systems/revenant/revenant.js';   // REVENANT: the world host's twin - who comes back, and what the player is told
 import { createStandingWatch, installLegalNotices } from './standingHost.js';   // REP1: the watch's stop; REP5: the law's notices
 import { setForagingHost } from '../systems/foraging/foragingInstall.js';   // FORAGE1: Foraging's reaches into the world, this host's answers
@@ -156,7 +159,7 @@ import { toggleStatusReadout } from '../ui/statusBox.js';   // STATUS-LIVE: the 
 import { statusReadoutTakesAction } from '../systems/statusReadout.js';   // STATUS-LIVE: ...and the yield this host's own key ladder owes, which never reaches routeAction
 import { liveStat } from '../systems/statMods.js';
 import { maxFatigue, clampFatigue } from '../systems/statMods.js';   // AUDIT 23 (C5); AUDIT C&C N5: SetFatigue's clamp
-import { FootstepMachine, pickFootstepSet } from '../systems/footsteps.js';   // FS-slice
+import { FootstepMachine, pickFootstepSet, pickFootstepKind } from '../systems/footsteps.js';   // FS-slice; HORSE-VOICE: the kind the hooves read
 import { immersiveFootsteps } from '../systems/immersiveFootsteps.js';
 import { betterAmbience, classicFootstepAllowed } from '../systems/betterAmbience.js';   // BA1: Better Ambience - the shake, the dungeon's fog and light, the reverb, the indoor rain, its own stride   // IF1: Immersive Footsteps owns the stride and the three landing sounds once its clips are in (DisableVanillaFootsteps)
 import { calculateCastCost } from '../systems/spellcost.js';   // M2
@@ -166,7 +169,7 @@ import { getNameBankOfRegion } from '../characters/nameHelper.js';   // AUDIT 23
 import { createHitEffects } from './hitEffects.js';
 import { createTownScratch, createPersonTextureKeys } from './townScratch.js';   // PERF-TOWN1: the town loop's per-frame seats, and the memoised texture key
 import { createDroppedTorches } from './droppedTorches.js';
-import { createLefayMonument } from './lefayMonumentHost.js'; import { isLefayTown, lefaySpotOf, lefayExitOf, carveLefay } from '../world/lefayMonument.js'; import { dungeonEntranceLanding } from '../player/enterExit.js';   // LEFAY1: the monument to Julian LeFay, when the place on the bench is Privateer's Hold (HOLD-MONUMENT)
+import { createMonuments } from './lefayMonumentHost.js'; import { isLefayTown, monumentSpotOf, carveLefay } from '../world/lefayMonument.js';   // LEFAY1: the monuments (GOTHWAY-MONUMENT: Gothway Garden's stands on the bench)
 import { createCamps } from './camps.js'; import { PORTAL_TEXT } from '../systems/portalStone.js';   // SURV3: the camps this host stands; PORTAL1: the street's own refusal
 import { drinkAtSource, isWaterSourceFlat, isDrySourceFlat, WATER_SOURCE_MODELS, DRY_SOURCE_TEXT } from '../systems/survival/items.js';   // SURV3: the mod's water sources
 import { survivalOn } from '../systems/survival/switch.js';   // HT1: Handheld Torches' dropped lights, thrown torches and burning foes   // AUDIT 24 (wave 39): EnemyBlood.ShowBloodSplash
@@ -181,6 +184,7 @@ import { createCityGuards } from './cityGuards.js';   // G1
 import { createExteriorFoes } from './exteriorFoes.js';
 import { createPopulationLane } from '../characters/npcBodies.js'; import { folkActor } from '../characters/folkBodies.js';   // MWNPC7: the walkers in Morrowind bodies
 import { personLook, personActor, figureLook } from '../characters/peopleBodies.js'; import { staticNpcData } from '../characters/staticNpc.js';   // MWNPC8c: and its standing people
+import { createNpcMarks } from './npcMarksHost.js';   // NPC-MARKS: the marks over its people who do something
 import { createArrestFlow } from './arrestFlow.js';   // G2
 import { makeInView } from '../player/cameraView.js';   // AUDIT 17e F24
 import { pickActivatableHit, pickQuestFoe, pickFoe, peacefulFoePass } from '../player/activate.js';   // G3: corpse loot; QG1/ROAD-G G2: the foe-click door; TI1: the lock-on pick
@@ -242,7 +246,7 @@ import { spellRecordOfIndex } from '../systems/loot/loot.js';   // QG1: CastSpel
 import { fetchBytes, loadMagicRegistries, seasonOverride, createSkyController, createPlayerTicker, createRestDeps, plainLines, wireInfectionVideos, createMusicDirector, motorStats, climbingDeps, parkourDeps, createDetectFeed, foeNearbyRecord, lootNearbyRecord, nearbyLootRecords, claimFrame, frameAlive, frameHeld, applyFallLanding, ensureAudio, applyMotorEffectFlags, populatesWanderingNpcs, endRunToTitleMenu, exitToTitleMenu, subscribeFoePools, sensesContext, routeMouseDrag, liveEnchantFoes, liveEnchantFoeSinks, enchantFoeHost, liveCastEngine } from './shared.js';   // AUDIT 58 (f2/hosts): the live enchant pool, its sinks router and the membership question
 import {
   WEATHER_TYPES, fogForWeather, skyOffsetForWeather, weatherSunlightScale,
-  weatherRng, fogFactor, precipitationForWeather,
+  weatherRng, fogFactor, precipitationForWeather, isDryFall,
   LightningPlayer,
 } from '../world/weather.js';
 // WM2b: the windmill's law, and the vendored rotor it turns.
@@ -263,7 +267,7 @@ import { foeFrameDt } from '../characters/enemy/enemyMotor.js';   // AUDIT TACT:
 import { drawableBlows, registerBlowDodgedListener } from '../ai/foeBlows.js';   // TACT4; AUDIT ARENA-LADDER: a dodge told
 import { techniqueMarksNow } from '../combat/techniques.js';   // TECH1: the player's own marks on the ground, after the foes'
 import { windDrive, floraSwayOf, floraSwayOn } from '../systems/wind/windDrive.js';   // WIND3: the one wind in every consumer's units (GR2's slider inside it); the flats' sway
-import { WindWispsRenderer, wispsOn, SAND_LOOK } from '../render/windWisps.js';   // WIND3: the wind, seen; WEATHER2d: the sandstorm's sand in the same program
+import { WindWispsRenderer, wispsOn } from '../render/windWisps.js'; import { DryFallRenderer } from '../render/dryFall.js';   // WIND3: the wind, seen; WEATHER2d: the sandstorm's sand in the same program - ASHFALL1: the dry falls, the sand and the ash, one renderer
 import { HeatHazeRenderer } from '../render/heatHaze.js';   // HAZE1: Heat Haze's ring, drawn
 import { createHeatHaze, hazeFrameSettings } from '../systems/heatHaze.js';   // HAZE1: Heat Haze's law (demifiend000, vendor/heat-haze/)
 import { createWindfallHost } from './windfallHost.js';   // WINDFALL1: Windfall (demifiend000, vendor/windfall/) - world.js's twin
@@ -273,7 +277,7 @@ import { gridValueAt } from '../world/terrain/terrainSurface.js';   // SNOWFALL1
 import { BODY_CAPSULE_RADIUS } from '../systems/spellcast.js';   // SNOWFALL1: a foe's controller, as its track's width reads it
 import { windfallResponse } from '../systems/windfall.js';   // WINDFALL1: a flora batch's share of the mod's lean
 import { createWindAudio, windSoundOn } from '../systems/wind/windAudio.js';   // WIND3: the wind, heard
-import { PrecipitationRenderer } from '../render/precipitation.js';
+import { PrecipitationRenderer, precipWarmStep } from '../render/precipitation.js';
 import { warmPrograms } from '../render/warmPrograms.js';
 import { setWeather, setHeardWeather, heardWeather, fallingWeather, currentWeather, currentWeatherRaw, tickWeather, weatherJumpStamp, sampleWeatherField, weatherCrossingStamp, currentFieldCells, currentWeatherIntensity, currentCloudBase, currentWindApproach, currentMapSystems, sampleWeatherIndoors, weatherArrivalStamp, mapGround } from '../systems/weather/weatherSim.js';   // W1: the live weather state; WEATHER2b: the field; WEATHER3b: the map's intensity; WEATHER3c: its sky and wind
 import { createDistantStorms, thunderSourceAt, THUNDER_SOURCE_M } from '../systems/distantStorms.js';   // WEATHER3d: the storms at a distance
@@ -292,7 +296,7 @@ import { HeadBobber } from '../player/headBobber.js';   // AUDIT 28 W10: HeadBob
 import { createClimbFeelHost } from '../player/climb/climbFeel.js';   // CLIMB4: the climb's camera
 import { lastHealthLost, lastHealthLostPercent } from '../ui/hud/hudVitals.js';   // AUDIT 28 W9: the detector's loss
 import { fieldOfView } from '../ui/viewSettings.js';   // MENU: Video/FieldOfView, one home for five hosts
-import { keyEdges, noteKeyDown, noteKeyUp, beginInputFrame, pressed, released, actionsOf, held, moveHeld, anyMove, swallowBrowserKey, isTextEntryTarget, mouseCode, isSwingButton, keyboardLook, routeAction, installContextMenuGuard, POLLED_ACTIONS, QUICKSLOT_ACTIONS, swingKeyHeld, bindings } from '../ui/input.js';
+import { keyEdges, noteKeyDown, noteKeyUp, letGoOnBlur, beginInputFrame, pressed, released, actionsOf, held, moveHeld, anyMove, swallowBrowserKey, isTextEntryTarget, mouseCode, isSwingButton, keyboardLook, routeAction, installContextMenuGuard, POLLED_ACTIONS, QUICKSLOT_ACTIONS, swingKeyHeld, bindings } from '../ui/input.js';
 import { useQuickslot, swapQuickslot, offHandQuickslot, spellQuickslotPress, offHandOffersSwap, tickQuickslotHold } from '../systems/quickslots.js';   // QS2/QS4: the diamond's performers   // QS6: the spell slot, the off hand's swap question, and the hold machine
 import { armUnloadGuard, releaseUnloadGuard } from '../systems/unloadGuard.js';   // MAC-L3: one door in front of every way out of a running game; AUDIT-MACL F3: ...and down for a door the game opened itself   // I2: the rebindable registry; AUDIT 39r: the mouse half of the held set
 import { hudShortcutKey, retroToggleKey, hudRenderEnabled } from '../ui/hud/hudShortcuts.js';   // AUDIT 64 F36/F37: DaggerfallHUD.Update's LargeHUDToggle / HUDToggle arms; AUDIT PRE-MERGE 1003 U8: the arena's HUD hides with the toggle
@@ -305,7 +309,7 @@ import { WORLD_PER_PX } from '../ui/ink/inkTown.js';   // EM4: the town plan's o
 import { installConsoleProbe } from '../systems/consoleCommands.js';   // E3: the console's door
 import { buildingSummaries } from '../world/buildingSummaries.js';   // ROAD-C c2/S10: the plate anchor's Position-bearing walk
 import { ServiceFlowWindow } from '../ui/guildServiceWindows.js';   // ROAD-C c2/S10: the plate rename's input box
-import { discoveredBuildings, setDiscoveredBuildingCustomName, discoverLocation, undiscoverBuilding } from '../systems/discovery.js';   // A2: the nameplates' gate; c2/S10: the plate rename; QX1: RevealLocation's filing
+import { discoveredBuildings, setDiscoveredBuildingCustomName, discoverLocation, undiscoverBuilding, townBookId } from '../systems/discovery.js';   // A2: the nameplates' gate; c2/S10: the plate rename; QX1: RevealLocation's filing; BAY-LEFT-MAPS (C7 = E2): the one key-maker (the Bay's own key here)
 import { activeMemberships } from '../systems/guild/guilds.js';   // F117
 import { revealGuildHallsOnMap, revealingMemberships } from '../systems/guild/guildHallReveal.js';   // AUDIT 63 F9: ThievesGuild/DarkBrotherhood RevealGuildHallOnMap; AUDIT CHAP2 D4: either book's
 import { avoidDeath, avoidDeathText } from '../systems/guild/guildServices.js';   // F117: Stendarr
@@ -326,6 +330,7 @@ import { WORLD_CONTEXT, makeAnchor, teleportPlan, ANCHOR_MUST_BE_SET } from '../
 import { STREAMING_TERRAIN_SCALE } from '../world/terrain/terrainSampler.js';   // TERRAIN-SCALE1: the anchor's stamp
 import { locationWorldRect } from '../world/streamingWorld.js';   // TP2: the native frame this host's origin stands at
 import { GLOBAL_SCALE, DOOR_TYPE } from '../world/meshReader.js';   // TP2: scene units <-> native world units; ARENA1: the undercroft's stair
+import { isHouseSign } from '../world/houseSigns.js';   // HOUSE-SIGN: a shop's sign at a house's door does not stand
 import { isClimateFreeModel, NO_CLIMATE_REMAP } from '../world/customModels.js';   // ARENA1: the colosseum wears its own pictures
 import { isUndercroftDoor, isArenaCity, undercroftLocation, ARENA_BLOCK, ARENA_GATE_PEOPLE, arenaTownLandmark } from '../world/arena/arenaCity.js';   // ARENA1: the undercroft below the city; ARENA-FIX 12: the colosseum's block and its Herald; ARENA-MAP: its name on the town map
 import { createArenaBouts } from './arena/arenaBouts.js';   // ARENA-FIX 12: THE FOUR HOSTS - the bout driver on this host too
@@ -343,6 +348,8 @@ import { registerPlayerSwingListener } from '../combat/playerWeapon.js';
 import { raceDisplayName } from '../systems/talk/talkSession.js';   // MACRO-ONE: %ra's display name, as world.js reads it
 import { localizedText, getLocalizedLocationName, getLocalizedRegionName, getLocalizedFactionName } from '../systems/textManager.js';   // L10N3d: DFU's Internal_Strings, read in the player's language; L10N3e: and the place names shown
 import { startTutorialTour } from '../ui/tutorialPopup.js';   // TUT1: the welcome tour - and the popups' handler, registered by this host (the four hosts' rule)
+import { HAND_START_QUEST } from '../systems/starts/starts.js';   // START2: a character born in the bench's town
+import { feltClimateIndex } from '../world/tamriel/tamrielGround.js';   // TESA-LANDS' audit: the body's air past the Bay a zone's own
 
 export async function bootExterior(canvas, renderer, params, status) {
   const regionName = params.get('region') || 'Daggerfall';
@@ -442,6 +449,7 @@ export async function bootExterior(canvas, renderer, params, status) {
   const _locPixel = longitudeLatitudeToMapPixel(dfLocation.mapTableData.longitude, dfLocation.mapTableData.latitude);
   const locClimateIndex = maps.getClimateIndex(_locPixel.x, _locPixel.y);
   const footsteps = new FootstepMachine();
+  let _townFootstepKind = 0;   // HORSE-VOICE: the stride's kind (the set's own ctx, below), the hooves' ground - world.js's PEER-FS1 cache, here
   const groundArchive = getTerrainGroundArchive(dfLocation.climate, season);   // the TERRAIN member, Desert winter-guarded (TerrainMaterialProvider.cs:126-133)
   const natureArchive = getNatureArchive(dfLocation.climate.natureArchive, season);
   const texRemap = new Map();
@@ -473,7 +481,7 @@ export async function bootExterior(canvas, renderer, params, status) {
       for (const hf of HOLD_FLATS) archives.add(hf.archive);
     }
     for (const placed of b.layout.models) {
-      modelIds.add(placed.modelIdNum);
+      if (!isBulletinBoard(placed.modelIdNum)) modelIds.add(placed.modelIdNum);   // AUDIT FB1029g R6: no board stands, none is fetched
       // AUDIT 64 F14: a city gate swaps between BOTH variants at dawn
       // and dusk (DaggerfallCityGate.cs:29-34), so both meshes have to
       // be resident, climate-remapped and their archives fetched before
@@ -539,7 +547,7 @@ export async function bootExterior(canvas, renderer, params, status) {
   // EV2 swept for exactly this class of per-frame garbage.
   const precipOpts = { enhanced: sky.enhanced, countCap: Number(params.get('rain')) || null };
   if (sky.pixelSnow) precipOpts.pixelSnow = sky.pixelSnow;   // DS1: Dynamic Skies' InitSnow - the pixel snow replacement, when its switch is on
-  let precip = precipMode ? new PrecipitationRenderer(renderer.gl, precipOpts) : null;
+  let precip = precipMode && !isDryFall(precipMode) ? new PrecipitationRenderer(renderer.gl, precipOpts) : null;   // ASHFALL1's audit: a dry fall at boot builds no rain program either
   const eye32 = new Float32Array(3);   // RAIN-LEAK: the falling weather's eye, filled each frame (world.js's twin)
   // PERF-WARM: the renderer's on-demand programs, and the rain's whole
   // renderer, paid for at idle rather than on the frame that first needs
@@ -551,14 +559,14 @@ export async function bootExterior(canvas, renderer, params, status) {
   void warmPrograms([
     ...renderer.warmSteps(),
     ...(renderer.lazyWarmSteps?.() ?? []),   // PERF-COMPILE1: the telegraph pass and the windows' background, at idle
-    () => { if (!precip) precip = new PrecipitationRenderer(renderer.gl, precipOpts); },
+    precipWarmStep(renderer.gl, precipOpts, () => precip, (made) => { precip = made; }),   // SHADER-EASE WARM-POLL: started, then built
   ]);
   const wisps = sky.enhanced ? new WindWispsRenderer(renderer.gl) : null;   // WIND3: built on the enhanced lane, so a shader fault is a boot fault; its row is read per frame
   const hazeGl = sky.enhanced ? new HeatHazeRenderer(renderer.gl) : null;   // HAZE1: Heat Haze on the enhanced lane (world.js's twin note) - this host's one city has no floating origin to shift it
   const heatHaze = createHeatHaze();
   const windfall = createWindfallHost({ gl: renderer.gl, enhanced: !!sky.enhanced });   // WINDFALL1: world.js's twin note - this host's one city has no floating origin to shift it
   const windAudio = createWindAudio();   // WIND3: the wind loop, ticked on the exterior frame and stopped on the modal one
-  const sand = sky.enhanced ? new WindWispsRenderer(renderer.gl, SAND_LOOK) : null;   // WEATHER2d: the sandstorm's sand - the wisps' program in the sand's look
+  const dryFall = sky.enhanced ? new DryFallRenderer(renderer.gl) : null;   // WEATHER2d: the sandstorm's sand - the wisps' program in the sand's look; ASHFALL1: and the ashfall's ash and embers (render/dryFall.js)
   const distantStorms = createDistantStorms();   // WEATHER3d: the storms at a distance
   const stormLights = createStormLights();   // BOLT (world.js's twin note)
   const boltsGl = sky.enhanced ? new LightningBoltsRenderer(renderer.gl) : null;
@@ -586,7 +594,7 @@ export async function bootExterior(canvas, renderer, params, status) {
     weatherSkyOffset = skyOffsetForWeather(w, weatherSeed);
     weatherSun = weatherSunlightScale(w, season === SEASON.Winter);
     precipMode = precipitationForWeather(w);
-    if (precipMode && precipMode !== 'sand' && !precip) precip = new PrecipitationRenderer(renderer.gl, precipOpts);   // WEATHER2d: the sand is not the rain program's
+    if (precipMode && !isDryFall(precipMode) && !precip) precip = new PrecipitationRenderer(renderer.gl, precipOpts);   // WEATHER2d: the sand is not the rain program's; ASHFALL1: nor the ash
     lightning = w === 'thunder'
       ? (lightning ?? new LightningPlayer(Number(params.get('wseed')) || 1)) : null;
   }
@@ -669,6 +677,9 @@ export async function bootExterior(canvas, renderer, params, status) {
   // MWNPC8c (section 13c): AND ITS STANDING PEOPLE - each a batch of their own (the NPC pass), read as the buildings'
   // are (their StaticNPC data with the location's region race, their faction's row)
   const standPeople = createPopulationLane({ laneName: 'people', renderer, collider: () => collider });
+  // NPC-MARKS (scenes/npcMarksHost.js): a bobbing mark over a standing person's body whose click is a quest's or a guild's -
+  // the route read in the street (no building), as world.js's street reads it
+  const npcMarks = createNpcMarks(renderer.gl), standMarkCtx = { get dict() { return townTalk.factionDict ?? null; }, building: null };
   // STAND-FLAT / STAND-HORSE (section 28): the location's town horses as the 3D horse, and its people no StaticNPC holds
   // read as a placed figure is (FLATS.CFG's sex and caption, the location's region race)
   const standingHorses = createStandingHorses({ renderer });
@@ -693,7 +704,6 @@ export async function bootExterior(canvas, renderer, params, status) {
   const ambientAnimals = [];    // A4: archive-201 town animals as audio sources
   const exteriorNpcFlats = [];  // AUDIT 26 (F019): the flats RMBLayout stands as StaticNPCs
   const locStandFlats = [];  // STAND-FLAT / STAND-HORSE: the town horses and the people no StaticNPC holds - a batch each
-  const bulletinBoards = [];    // the blocks' BULLETIN BOARDS (model 41739), world-frame boxes
   const cityGates = [];         // AUDIT 64 F14: {gate, entry, matrix, bucketKey} - DaggerfallCityGate's placements
   /** AUDIT 64 F11: RMBLayout's StaticBuilding array (:864-882) - ONE
    *  per building subrecord, off the first model of that record that
@@ -705,7 +715,7 @@ export async function bootExterior(canvas, renderer, params, status) {
   const staticBuildings = [];
   const animalAmbience = createAnimalAmbience(audio, () => ambientAnimals);
   const cityNav = new CityNavigation(loc.width, loc.height);   // T1 towns
-  let lefaySpot = null;   // LEFAY1: world.js's spot - this host's frame is the location's own (HOLD-MONUMENT: outside Privateer's Hold, measured once its blocks stand)
+  let lefaySpot = null;   // LEFAY1: world.js's spot (world/lefayMonument.js monumentSpotOf) - this host's frame is the location's own
   for (const b of loc.blocks) {
     const originMatrix = trs(b.originX, 0, b.originZ, 0, 0, 0);
     if (b.blockName === ARENA_BLOCK && isArenaCity(dfLocation)) arenaCityOrigin = [b.originX, 0, b.originZ];   // ARENA-FIX 12
@@ -722,6 +732,10 @@ export async function bootExterior(canvas, renderer, params, status) {
       // WM2f: the mill's companion building is part of an enhanced-skin
       // departure; the 1:1 lane must not see it.
       if (placed.enhancedOnly && !isEnhanced()) continue;
+      if (isHouseSign(placed, b, (id) => cpuModels.get(id)?.doors)) continue;   // HOUSE-SIGN: a shop's sign at a house's door does not stand
+      // NOTICE-PANEL: a town's board (RMBLayout's standalone 41739) does not stand. FLAGGED: the bench stands no town panel.
+      // It runs no account service and no rumour mill, the panel's two halves (scenes/townPanelHost.js)
+      if (isBulletinBoard(placed.modelIdNum)) continue;
       const mesh = gpuMeshes.get(placed.modelIdNum);
       if (!mesh) continue;
       const matrix = multiply(originMatrix, placed.matrix);
@@ -753,17 +767,9 @@ export async function bootExterior(canvas, renderer, params, status) {
       // ticks below.
       const bucketKey = isCityGate(placed.modelIdNum)
         ? `gate:${b.dfBlock.index}:${placed.recordIndex}:${cityGates.length}` : 'world';
-      collider.addMesh(bucketKey, cpu.positions, cpu.indices, matrix);
+      collider.addMesh(bucketKey, cpu.positions, cpu.indices, matrix, null, null, false, sightMarksOf(placed.modelIdNum, cpu));   // SIGN-PASS: a sign's board met by every ray, by no body
       if (isCityGate(placed.modelIdNum)) {
         cityGates.push({ gate: makeCityGate(placed.modelIdNum), entry, matrix, bucketKey });
-      }
-      // THE BULLETIN BOARDS. RMBLayout stands model 41739 STANDALONE
-      // (:857, :935) so it can carry DaggerfallBulletinBoard (:966-970)
-      // - the component PlayerActivate's ray looks for (:393-398).
-      // World-frame here, like this host's doors and its street NPCs.
-      if (isBulletinBoard(placed.modelIdNum)) {
-        const b3 = transformedAabb(archAabb(placed.modelIdNum, cpu.positions), matrix);
-        bulletinBoards.push({ min: [b3[0], b3[1], b3[2]], max: [b3[3], b3[4], b3[5]] });
       }
       colliderTris += cpu.indices.length / 3;
       // Building models expose their static doors for E-transitions
@@ -884,7 +890,9 @@ export async function bootExterior(canvas, renderer, params, status) {
     // tree flat BLOCKS its cell), tile weights from the same ground
     // grid the renderer reads.
     // WATER-NPC: the same wider family, off the same one switch.
-    cityNav.setBlockData(b.x, b.y, b.dfBlock.rmbBlock.fldHeader.autoMapData,
+    // AUDIT TESA III E1-2: a Bay city walled on its outline (TS7, the door's read) carries its wall in its bytes here - no
+    // walker crosses it (the streaming host's townWalkShut; this bench stands no terrain mask)
+    cityNav.setBlockData(b.x, b.y, wallLaidBytes(dfLocation, b.x, b.y, b.dfBlock.rmbBlock.fldHeader.autoMapData),
       (tx, ty) => srcTiles[tx][ty].textureRecord, { enhancedWater: waterSwitchOn() });
     for (const light of collectCityLights(b.dfBlock, lightSize)) {
       const l = { x: light.x + b.originX, y: light.y, z: light.z + b.originZ };
@@ -896,12 +904,9 @@ export async function bootExterior(canvas, renderer, params, status) {
       if (isHearthFlat(LIGHTS_ARCHIVE, light.record)) cityHearths.push({ ...l, foot: light.foot, w: light.w, h: light.h });   // FIX-D: and its sprite, for the eye's box
     }
   }
-  // HOLD-MONUMENT (AUDIT FIVE-ASKS B1): world.js's spot, beside the Hold's way out - DFU's exit landing over the dungeon-entrance
-  // doors this host's blocks stood (its frame the location's own), clear of World of Daggerfall's camp on or off
-  if (isLefayTown(dfLocation)) {
-    lefaySpot = lefaySpotOf(loc, { camp: { block: PRIVATEERS_HOLD_BLOCK, models: HOLD_MODELS }, exit: lefayExitOf(dungeonEntranceLanding(buildingDoors.filter((e) => e.door.doorType === DOOR_TYPE.DUNGEON_ENTRANCE).map((e) => e.door))) });
-    if (!lefaySpot) console.warn('[lefay] no open ground for the monument outside Privateer\'s Hold');   // AUDIT FIVE-ASKS B8: never silent
-  }
+  // GOTHWAY-MONUMENT, STEWART-MONUMENT: world.js's spot, a function of the layout alone
+  lefaySpot = monumentSpotOf(dfLocation, loc);
+  if (isLefayTown(dfLocation) && !lefaySpot) console.warn('[lefay] no open ground for the monument in Gothway Garden');   // AUDIT FIVE-ASKS B8: never silent
   // WOD4: THE CAMP AT PRIVATEER'S HOLD (world/worldOfDaggerfall/wodPrivateersHold.js),
   // world.js's stand in this host's location frame: the models with the
   // location's climate (DaggerfallLocation re-skins every mesh under its
@@ -1370,7 +1375,7 @@ export async function bootExterior(canvas, renderer, params, status) {
     const hour = (((wm % 1440) + 1440) % 1440) / 60;
     const sheltered = m === 'exterior' && !!playerEntity.isResting && !!camps.tentNear(feet);   // AUDIT C&C I2: a rest at a tent sleeps under its roof
     return {
-      climateIndex: locClimateIndex,
+      climateIndex: feltClimateIndex(_locPixel.x, _locPixel.y, locClimateIndex),   // TESA-LANDS' audit: past the Bay a zone's air
       month: dateFromClassicMinutes(wm).month, hour, weather, falling: fallingWeather(weather),   // WET-FALL: the skin reads what the street's frame saw fall
       insideBuilding: m === 'interior', insideDungeon: m === 'dungeon',
       inSunlight: m === 'exterior' && sunlit({ hour, weather, sheltered }),   // AUDIT C&C: the sun's one law, the replay's too
@@ -1523,6 +1528,8 @@ export async function bootExterior(canvas, renderer, params, status) {
     lookPitch: () => cam.pitch, lookYaw: () => cam.yaw, groundHeightAt: (x, z) => collider.heightAt(x, z),
     enhancedRiding: () => (rrRidingOn() ? { terrainFollowing: rrRidingSetting('followTerrainEnabled') === true, softenFollow: rrRidingSetting('followTerrainSoftenFactor') ?? 8 } : null),
     horseCart: () => hccRuntimeOn(),   // HCC: TrailingWagonTransportWindow's gate and route (declared below; read at open)
+    // HORSE-VOICE (systems/horse/horseVoice.js): world.js's three - the ground under the rider, foes in sight, horse care's breath
+    surfaceKind: () => _townFootstepKind, foesNear: () => areEnemiesNearby([...cityGuards.guards, ...exteriorFoes.foes]), horseBreath: () => upkeep.bar(player.transportMode),
   });
   preloadCharSheetArt({ renderer, fetchBytes, palette });   // U8a: INFO00I0 warms at boot
   warmLevelUpWindow();   // LV1's audit: the level-up window opens because the GAME decided, so its chunk warms at boot rather than inside a pause nobody asked for
@@ -1604,7 +1611,7 @@ export async function bootExterior(canvas, renderer, params, status) {
     if (_questStarted) return;
     if (!questBridge) { _questStartPending = true; return; }
     _questStarted = true;
-    questBridge.initAtGameStart();
+    questBridge.initAtGameStart(HAND_START_QUEST);   // START2: the bench's town is no start - the commission in hand (systems/starts/starts.js)
     startTutorialTour();   // TUT1: DFO's welcome tour, where DFU's _TUTOR__ spoke its first page (questBridge.js GAME_START_QUESTS)
   };
   /** QX1: the two journal seams a character sheet and an F5 journal
@@ -1744,15 +1751,15 @@ export async function bootExterior(canvas, renderer, params, status) {
     say: (l) => townTalk.say(l), showOverlay: (w) => townTalk.showOverlay(w), openRest: () => { townTalk.closeOverlay(); toggleRest(); },
     advanceMinutes: (n) => { playerTicker.advance(n); runEncounterTick(walkMode ? player.pos : cam.pos, true); },   // CAMP-REST: a camp meal is a skip - no group roll on the replay
   });
-  // LEFAY1: THE MONUMENT TO JULIAN LEFAY (scenes/lefayMonumentHost.js) - world.js's twin: on the bench the location's
-  // frame is the scene's, so its spot stands still and the ground is the one plane
+  // LEFAY1: THE MONUMENTS (scenes/lefayMonumentHost.js) - world.js's twin: on the bench the location's frame is the
+  // scene's, so a spot stands still and the ground is the one plane
   const _lefaySite = lefaySpot ? [lefaySpot.x, lefaySpot.z] : null;
-  const lefay = createLefayMonument({
+  const lefay = createMonuments({
     renderer, getTexture, uploadRecord, billboardSize, collider: () => collider,
-    site: () => (_mode() === 'exterior' ? _lefaySite : null),
+    site: (id) => (_mode() === 'exterior' && lefaySpot?.id === id ? _lefaySite : null),
     groundAt: () => GROUND_OFFSET * 0.025,
     eye: () => cam.pos, feet: () => (walkMode ? player.pos : null),
-    tribute: () => playerEntity.lefayTribute, keep: (next) => { playerEntity.lefayTribute = next; },
+    tribute: (field) => playerEntity[field], keep: (field, next) => { playerEntity[field] = next; },
     say: (text) => townTalk.say(text), midText: (text) => setMidScreenText(text),
     sound: () => audio.playOneShot(SOUND.SwingHighPitch, 0.4),
   });
@@ -1904,7 +1911,7 @@ export async function bootExterior(canvas, renderer, params, status) {
       ? waterSourceHoverName(!!springAt(key)?.dry) : null),
     (key) => wagonHoverName(key),
     (key) => hcc.hoverName(key),   // HCC
-    (key) => lefay.hoverName(key),   // LEFAY1: the monument to Julian LeFay - last, as world.js's twin
+    (key) => lefay.hoverName(key),   // LEFAY1: the monuments - last, as world.js's twin
   ];
   /**
    * WORLD-HOVER H2: THE MOD'S MOBILE BAND (.cs:297-320), IN ITS OWN
@@ -1993,7 +2000,7 @@ export async function bootExterior(canvas, renderer, params, status) {
     renderer, collider, fetchBytes, getTexture, uploadRecordFrame, playerEntity, audio, hitEffects,
     playerWeaponSheathed: () => !!weaponRig.playerWeapon.sheathed,   // AUDIT 24 (wave 42): pacification's drawn-weapon penalty
     shake: (k) => betterAmbience.weaponKick(k),   // AUDIT TELL H6: my blow that staggers a watchman kicks the camera
-    fightHere: () => areEnemiesNearby([...cityGuards.guards, ...exteriorFoes.foes]),   // PROTECT-FIGHT: world.js's twin
+    fightHere: () => fightNear([...cityGuards.guards, ...exteriorFoes.foes], player.pos),   // PROTECT-FIGHT: world.js's twin (AUDIT FB1025i D3: encounters.js fightNear)
     say: (l) => townTalk.say(l),   // C-slice: equipment breaks speak
     currentMinute: () => Math.floor(playerTicker.ownMinutes),   // AUDIT 23 (hosts-3): a guard's poison anchors at NOW, not 0
     makeAreaHostile: _makeEnemiesHostile,   // ROAD-G G1: DaggerfallEntityBehaviour.cs:255-258 - a struck PASSIVE watchman turns the area
@@ -2895,7 +2902,7 @@ export async function bootExterior(canvas, renderer, params, status) {
       }
     },
     renderer, audio, getTexture, uploadRecord, uploadRecordFrame,
-    collider: { raycast: (o, d, m) => ((modes?.mode === 'interior' && modes?.interiorCollider) ? modes?.interiorCollider : collider).raycast(o, d, m) },
+    collider: liveCollider(() => ((modes?.mode === 'interior' && modes?.interiorCollider) ? modes?.interiorCollider : collider)),   // GROUND-BOLT: the mesh ray and the ground - a missile meets the terrain
     playerEntity,
     now: () => playerTicker.ownMinutes,   // V2a: MorphSelf's once-a-day clock
     playerSinks: playerSpellSinks,
@@ -3415,7 +3422,7 @@ export async function bootExterior(canvas, renderer, params, status) {
     // A2: the exterior automap (Actions.AutoMap outdoors,
     // DaggerfallUI.cs:633-650); this host always stands on a location.
     toggleAutomap: () => {
-      const locId = `${dfLocation.regionIndex}:${dfLocation.name ?? locationName}`;
+      const locId = townBookId(dfLocation.regionIndex, dfLocation.name ?? locationName, dfLocation.mapTableData?.mapId);
       // ROAD-C c2/S10: the real mesh-99900 arrow (rasterised once by
       // ui/meshStamp.js) and the Position-bearing subrecord walk the
       // plate anchors now come off.
@@ -3435,8 +3442,8 @@ export async function bootExterior(canvas, renderer, params, status) {
       //   The THIRD source arm, `isBuildingQuestResource`, is
       // TalkManager's (:698-705, the `locationWasMarkedOnMapByNPC`
       // half) and stays ABSENT: it needs a topic tree, and this route
-      // runs no rumor mill or topic tree at all - the same reason its
-      // bulletin board opens on the location name alone.
+      // runs no rumor mill or topic tree at all - the same reason it
+      // stands no board and no town panel (NOTICE-PANEL).
       //   AND THAT COSTS THE WHOLE PLATE, not one clause. residenceQuestName
       // optional-calls the arm at exteriorAutomapWindow.js:"if (!r?.isQuestResource) continue;" and the
       // NEXT line is `if (!r?.isQuestResource) continue`, which skips
@@ -3460,7 +3467,7 @@ export async function bootExterior(canvas, renderer, params, status) {
         locationName: shownLocation,   // L10N3e: the title, as shown - the key is locationId
         locationId: locId,
         gridW: loc.width, gridH: loc.height,
-        blocks: loc.blocks.map((bl) => ({ x: bl.x, y: bl.y, autoMap: bl.dfBlock?.rmbBlock?.fldHeader?.autoMapData, landmark: arenaTownLandmark(bl.dfBlock) })),   // ARENA-MAP: the Arena's name (world/arena/arenaCity.js)
+        blocks: wallOnTownMap(loc.blocks.map((bl) => ({ x: bl.x, y: bl.y, autoMap: bl.dfBlock?.rmbBlock?.fldHeader?.autoMapData, landmark: arenaTownLandmark(bl.dfBlock) })), townWallCellsOf(dfLocation), loc.width),   // ARENA-MAP: the Arena's name (world/arena/arenaCity.js); AUDIT TESA III E1-2: TS7's wall drawn (world/townWalls.js), as the streaming host's town map draws it
         playerPos: () => (walkMode ? [...player.pos] : [...cam.pos]),
         // this host lays the location at the map pixel's own origin, so
         // the location frame IS the tile frame DFU's modulo needs
@@ -3740,6 +3747,7 @@ export async function bootExterior(canvas, renderer, params, status) {
   // movement Set since the first host and never told the open window
   // anything; DFU's buttons hear both edges (Button.cs:79-92) and the
   // travel popup's EXIT is the deferral that needs the release.
+  letGoOnBlur(keys, latch.edge);   // KEYS-BLUR: a key held as the page lost focus is let go
   addEventListener('keyup', (e) => { keys.delete(e.code); noteKeyUp(latch.edge, e.code); if (e.code === 'Escape') backButtonHeld = false; if (e.code === 'AltLeft') e.preventDefault(); townTalk.keyup(e); modes?.keyup?.(e); });   // ROAD-E E1: the up seam reaches BOTH slots this host feeds - the outer overlay and the mode machine's
   // U45: Actions.ActivateCursor (Enter) frees the mouse during play
   // and takes it back - PlayerMouseLook.cursorActive, which had been
@@ -3966,8 +3974,8 @@ export async function bootExterior(canvas, renderer, params, status) {
   //   - THE TALK SEAMS (addQuestTopics, the six rumor doors, the four
   //     %f-faction NAME getters, removeNpcQuestor). This route runs no
   //     rumor mill, topic tree or NPC session at all - the same absence
-  //     its bulletin board records when it opens on the location name
-  //     alone. The faction-TYPE family beside them is a different
+  //     that leaves it no board and no town panel (NOTICE-PANEL).
+  //     The faction-TYPE family beside them is a different
   //     question with a different producer - the persistent store - and
   //     is mounted below.
   //   - THE ITEM SEAMS (giveItemToPlayer and its four siblings) and the
@@ -4024,6 +4032,7 @@ export async function bootExterior(canvas, renderer, params, status) {
     }),
     getBlock: (name) => blocks.getBlockByName(name),
     flatCaption: (archive, record) => pipeline.flatCaption(archive, record),   // NPC1: the =symbol_ macro's caption
+    getRandomText: (id) => townTalk.randomText?.(id) ?? null,   // QUEST-AUDIT III: %oth and %jok's TEXT.RSC pool, as world.js's quest world reads it
     // AUDIT 39 (#23) / QX1 review: EVERY faction read below goes
     // through `_questStore()` - PlayerEntity.FactionData, the MUTABLE
     // clone factionRep owns - and never the raw FACTION.TXT dictionary
@@ -4031,14 +4040,14 @@ export async function bootExterior(canvas, renderer, params, status) {
     // below) has always been the clone, so a read off the file was a
     // read of a different Map: `change repute with _npc_ by 30` landed
     // on one and `when repute with _npc_ is at least N` asked the
-    // other. world.js:"playerPixel: () => playerTravelOrigin" is the same line.
+    // other. questWorld.js:"playerPixel: () => playerTravelOrigin" is the same line.
     getFactionData: (id) => _questStore()?.dict.get(id) ?? null,
     /** PersistentFactionData.FindFactions by type - Person.cs's
      *  _getRandomFactionOfType (:967-1018). Unmounted, a Person
      *  declared `factiontype Temple/Daedra/Witches_Coven` threw. */
     findFactionsOfType: (type) => { const s = _questStore(); return s ? [...s.dict.values()].filter((f) => f.type === type) : []; },
     /** FindFactionByTypeAndRegion (PersistentFactionData.cs:236-265),
-     *  %rn/%rt's producer - world.js:"currentLocationIndex: () => _questLoc()?.locationIndex ?? -1". */
+     *  %rn/%rt's producer - questWorld.js:"? provinces.locationIndexOf(r, _questLoc()) : _questLoc()?.locationIndex ?? -1". */
     findFactionByTypeAndRegion: (type, regionIndex) => {
       const s = _questStore();
       return s ? findFactionByTypeAndRegion(s.dict, type, regionIndex) : null;
@@ -4087,7 +4096,7 @@ export async function bootExterior(canvas, renderer, params, status) {
       && ((e.subType ?? 0) & 0xff) === ((effect.subType ?? 0) & 0xff)),
     legalRepNow: () => legalRepOf(playerEntity, dfLocation.regionIndex),   // %ltn's fourteen bands
     changeLegalRep: (amount) => changeLegalRep(playerEntity, dfLocation.regionIndex, amount),
-    isHouseOwned: (buildingKey) => isHouseOwned(playerEntity.houses ?? [], dfLocation.regionIndex, buildingKey),
+    isHouseOwned: (buildingKey) => isHouseOwned(playerEntity.houses ?? [], dfLocation.regionIndex, buildingKey, dfLocation.mapTableData?.mapId ?? null),   // AUDIT RELEASE R2-9: the town asking
     buildingNameOpts: () => townTalk.nameOpts?.() ?? {},
     // %cbd - MacroHelper.CurrentBuilding (:849-867): inside a building
     // the name is REGENERATED from the building's own seed; outside one
@@ -4136,7 +4145,7 @@ export async function bootExterior(canvas, renderer, params, status) {
      *  city's rect for its whole life (`_musicInLocationRect` is
      *  `() => true`), so the wilderness arm (:252-257) has no reachable
      *  branch here at all and the ring is the default one, unqualified.
-     *  Everything else is world.js:"M-X: the macro table's"'s arm term for term: the cast
+     *  Everything else is questWorld.js:"M-X: the macro table's"'s arm term for term: the cast
      *  origin is the controller CENTRE (DFU rays from
      *  PlayerObject.transform.position, not the feet), the FOV is
      *  handed over in DEGREES (`fieldOfView()` answers radians), the
@@ -4208,7 +4217,7 @@ export async function bootExterior(canvas, renderer, params, status) {
     // in the fixed city must take its residences back off the map here
     // exactly as it does in the streaming world.
     undiscoverBuilding: (buildingKey, buildingName) => undiscoverBuilding(
-      `${dfLocation.regionIndex}:${dfLocation.name ?? locationName}`, buildingKey, true, buildingName ?? null),
+      townBookId(dfLocation.regionIndex, dfLocation.name ?? locationName, dfLocation.mapTableData?.mapId), buildingKey, true, buildingName ?? null),
     classicSeconds: () => playerTicker.ownMinutes * 60,   // TIME3 (Online-Time-Arc.md 6.3): the quest's clock is the CHARACTER's own - its countdowns, intervals and tombstones; a rest spends it (the one clock offline)
     skySeconds: () => skyMinutes() * 60,   // TIME3: a quest's hour, date and season are the sky's
     worldSeconds: () => playerTicker.classicMinutes * 60,   // TIME3: the event clock - the journal's dates are stamped on it
@@ -4326,7 +4335,7 @@ export async function bootExterior(canvas, renderer, params, status) {
       // WAGONS2 (FINAL AUDIT): and the weather's - the street frame's own terms (world/worldClock.js viewOutLight), so the clock's
       // air below compares a dimmed sun with a dimmed sun
       const light = viewOutLight(clockMinute, getFloat('Enhancements', 'NightAmbientLightScale', 0, 1), weatherTerms().sun, sky.sunFactor());
-      r.setLighting(withMoonAmbient(light.ambient, sky.moonlight()), light.sun, SUN_RIG_COLOR);
+      lightStreetAt(r, light, sky.moonlight(clockMinute), SUN_RIG_COLOR);   // WL1: and the moon of the hour, whose light a window lets in (render/enhancedSky.js) - the sky's night light at the clock's minute
       r.setFogColor(clockFogColor(keptFog, keptSun, r._sunScale));   // RW1 (AUDIT): ...re-lit by the clock
       r.setWindowEmission(windowEmissionRGB(windowStyleForTime(clockMinute)));
       r.setPointLights(lightsOnAt(clockMinute) ? nearestLights(cityLights, cam.pos, r.maxPointLights, lightAnimator.ranges) : new Float32Array(0), CITY_LIGHT_COLOR_F32);   // RW1 (AUDIT): the town's lanterns by the clock - never the player's own light
@@ -4500,7 +4509,7 @@ export async function bootExterior(canvas, renderer, params, status) {
     // DiscoverBuilding silently no-op in the ?exterior host (locId
     // null skips both) - the same `region:location` string the world
     // host and townTalk's reveal use.
-    discoveryLocationId: () => `${dfLocation.regionIndex}:${dfLocation.name ?? locationName}`,
+    discoveryLocationId: () => townBookId(dfLocation.regionIndex, dfLocation.name ?? locationName, dfLocation.mapTableData?.mapId),
     // QX1: THE BRIDGE RIDES INTO THE MODE MACHINE. This is what makes
     // the machine mount OVER THIS CITY rather than beside it: worldModes
     // runs `questBridge.mountScene(adapter, SITE_TYPES.Building,
@@ -4573,22 +4582,11 @@ export async function bootExterior(canvas, renderer, params, status) {
     // the same list the activation ray reads for a building's people,
     // one mode up (PlayerActivate.ActivateStaticNPC :741-767).
     npcTargets: () => exteriorNpcs,
-    // ...and the town signs, in the same ray (PlayerActivate.cs:314,
-    // :393-398). This probe host runs no rumor mill, so it hands over
-    // no `bulletinBoardNews` and the board opens on the location name
-    // alone - which is the arm C# itself takes when the mill has
-    // nothing fit for a sign (:727 guards only the second half).
-    boardTargets: () => bulletinBoards,
-    monumentTargets: () => lefay.targets(),   // LEFAY1: the monument to Julian LeFay, in the street's one ray
+    monumentTargets: () => lefay.targets(),   // LEFAY1: the monuments, in the street's one ray
     activateMonument: (key, mode, verb) => lefay.activate(key, mode, verb),   // LEFAY1: read it, or throw it a flower
-    // ...and that name is not free: the heading is PlayerGPS
-    // .CurrentLocalizedLocationName (PlayerActivate.cs:721), which
-    // worldModes reads off `buildingDirectory` (:1649) and nowhere
-    // else. Without this key the "location name alone" arm above drew
-    // a BLANK parchment - one empty row, the starter label shifted off
-    // (bulletinBoard.js:"if (rows.length && rows[0].text === '')"). This host knows its own location outright,
-    // so it hands over the same bag the world host builds - the mapId,
-    // region and port-town byte are the host's real ones.
+    // PlayerGPS's building directory: this host knows its own location
+    // outright, so it hands over the same bag the world host builds -
+    // the mapId, region and port-town byte are the host's real ones.
     buildingDirectory: () => ({
       // AUDIT 64 F26: ...and `buildings` is no longer empty. DFU's
       // StreamingWorld.GetCurrentBuildingDirectory hands back the whole
@@ -4993,7 +4991,7 @@ export async function bootExterior(canvas, renderer, params, status) {
     },
   });
 
-  const lightAnimator = new CityLightAnimator(cityLights.length, CITY_LIGHT_RANGE);
+  const lightAnimator = streetLanternAnimator(cityLights.length, lightingOn);   // LIGHT-REACH: the lane's lanterns reach farther
   // WOD4: the Hold's FireLights burn at every hour, each in its own
   // colour: with the lanterns (while lit) through the one nearest-N
   // selection and its colour arm - world.js's _wodSelect, fixed frame.
@@ -5005,7 +5003,7 @@ export async function bootExterior(canvas, renderer, params, status) {
     if (!lanternsOn) return nearestLights(holdLights, eye, renderer.maxPointLights, _holdOnlyRanges, (l) => l.color);
     const animated = Math.min(cityLights.length, lightAnimator.ranges.length);
     _holdAllRanges.set(lightAnimator.ranges.subarray(0, animated), 0);
-    _holdAllRanges.fill(CITY_LIGHT_RANGE, animated, cityLights.length);
+    _holdAllRanges.fill(streetLightRange(lightingOn), animated, cityLights.length);
     return nearestLights(_holdAll, eye, renderer.maxPointLights, _holdAllRanges, (l, i) => (i < cityLights.length ? CITY_LIGHT_COLOR_F32 : l.color));
   };
   const nightAmbientFloor = new Float32Array([0.25, 0.25, 0.25]);
@@ -5057,7 +5055,7 @@ export async function bootExterior(canvas, renderer, params, status) {
   // static-NPC door does (worldModes.js's ensureFactions arm).
   Promise.resolve(townTalk.ensureFactions?.()).then(() => {
     revealGuildHallsOnMap(revealingMemberships(playerEntity),   // AUDIT CHAP2 D4: either book's
-      `${dfLocation.regionIndex}:${dfLocation.name ?? locationName}`,
+      townBookId(dfLocation.regionIndex, dfLocation.name ?? locationName, dfLocation.mapTableData?.mapId),
       buildingSummaries(dfLocation.exterior?.buildings ?? [], loc.blocks,
         { locationName: dfLocation.name ?? locationName, regionName: maps.getRegionName(dfLocation.regionIndex), locationIndex: dfLocation.locationIndex ?? 0 }),
       { factionName: (id) => { const n = townTalk.factionDict?.get(id)?.name; return n == null ? '' : getLocalizedFactionName(id, n); } });   // L10N3e: GetGuildName's GetFactionData, a translation's name for the id (ThievesGuild.cs:246, DarkBrotherhood.cs:255, PersistentFactionData.cs:176)
@@ -5285,7 +5283,7 @@ export async function bootExterior(canvas, renderer, params, status) {
     // return, WeaponManager (:235-239) does ShowWeapons(false) and
     // takes no swing. Declared above `walkMode` because the motor and
     // the weapon rig are two sibling blocks.
-    const paralyzed = entityIsParalyzed(playerEntity);
+    const paralyzed = entityIsParalyzed(playerEntity) || staffFrozen();   // STAFF-PANEL5-FREEZE: a staff freeze holds the motor as paralysis does
     // A6: FrictionMotor.GroundedMovement's head-dip guard reads
     // IsParalyzed itself (:90-93) - the zeroed input bag below is
     // the movement half of the same law, not this one.
@@ -5417,7 +5415,7 @@ export async function bootExterior(canvas, renderer, params, status) {
         const odo = player.odometer?.h ?? 0, metres = _upkeepOdo == null ? 0 : Math.max(0, odo - _upkeepOdo);
         _upkeepOdo = odo;
         const mode = player.transportMode;
-        const galloping = !_overlayHeld && mode === TRANSPORT_MODES.Horse && !!player.isRunning && !player.standing;
+        const galloping = !_overlayHeld && (mode === TRANSPORT_MODES.Horse || mode === TRANSPORT_MODES.Dragon) && !!player.isRunning && !player.standing;   // DRAGON5c: the dragon gallops on horse care's breath
         upkeep.tick(gamePaused() ? 0 : dt, {
           mode, galloping, moving: !player.standing,
           metres, road: _surfPath, load: wagonLoadShare(),
@@ -5442,6 +5440,12 @@ export async function bootExterior(canvas, renderer, params, status) {
         // player is walking on or swimming in exterior water".
         const _onWater = _surf.water !== ON_EXTERIOR_WATER.None;
         _townOnWater = _onWater;   // AUDIT WATER-NEXT m12: the ripple field's stir reads the same answer
+        const _fsCtx = {
+          inside: false, winter: season === SEASON.Winter, climateIndex: locClimateIndex,
+          onExteriorWater: _onWater,
+          onExteriorPath: _surf.path,               // OnPathTile: records 46, 47, 55
+          onStaticGeometry: _surf.staticGeometry,
+        };
         const _step = footsteps.update(player.pos, {
           grounded: player.grounded, swimming: player.swimming, levitating: player.levitating,
           spriteStep: mwViewFootstep(),   // AUDIT-EOTB2: SyncFootsteps - the sprite's stride while it is on screen
@@ -5458,12 +5462,8 @@ export async function bootExterior(canvas, renderer, params, status) {
           halfSpeed: player.movingLessThanHalfSpeed,
           onFoot: isOnFoot(player.transportMode),   // :221-227, the mounted gate's water exception
           onExteriorWater: _onWater,
-        }, pickFootstepSet({
-          inside: false, winter: season === SEASON.Winter, climateIndex: locClimateIndex,
-          onExteriorWater: _onWater,
-          onExteriorPath: _surf.path,               // OnPathTile: records 46, 47, 55
-          onStaticGeometry: _surf.staticGeometry,
-        }));
+        }, pickFootstepSet(_fsCtx));
+        _townFootstepKind = pickFootstepKind(_fsCtx);   // HORSE-VOICE: the same ctx's kind, for the hooves
         if (_step) hitEffects?.footfall?.(player.pos, [Math.sin(cam.yaw), 0, Math.cos(cam.yaw)]);   // BLOOD2d: a foot came down - treading in blood tracks it
         if (_step && classicFootstepAllowed(_step.clip)) audio.playOneShot(_step.clip, _step.volume);   // IF1: DisableVanillaFootsteps - every classic clip is None while the mod owns the stride; BA1: Better Ambience nulls all but Dungeon2 and Outside2 (DisableBuiltInFootsteps' slip)
         // IF1: ImmersiveFootstepsObject.FixedUpdate - the exterior arm off this host's climate and the tile the classic set reads.
@@ -5510,12 +5510,12 @@ export async function bootExterior(canvas, renderer, params, status) {
 
       const _act = activateFrame((latch.activate ??= createActivateGate()), {
         down: held(keys, 'ActivateCenterObject') || _tapArmed > 0,   // AUDIT 62 F8: the touch tap is the ACTION, not a synthesized 'Mouse0' - a rebind off Mouse0 must not kill the finger, and no key code can honestly stand for a mouse binding
-        hasReadySpell: magic.spellArmed(),
+        hasReadySpell: magic.spellArmed() && !_tapLockOnly,   // AUDIT SPELL-HAND L4-9: the stick-half tap is the lock pick and nothing below it (TS1) - never a cast, a spell readied or not
         touchSpell: magic.readied()?.rangeType === 1,   // rangeType 1 is ByTouch (spellcast.js:"ClassicTargetIndexToTargetType")
         hudBlocked: activeMouseOverLargeHUD(),
         paused: _overlayHeld,
       });
-      if (_act.cast) magic.interceptAttack(true);   // the frame's firePending sends it down the live look
+      if (_act.cast) magic.interceptAttack(true, CAST_PRESS);   // the frame's firePending sends it down the live look (SPELL-HAND: the cast's own press)
       const useEdge = pressed(latch.edge, keys, 'Interact');   // KB1: the Interact ACTION (E by default, Mac's call) - it was a raw `KeyE` beside DFU's E-AbortSpell, and one press did both
       if ((_act.activate || useEdge) && !modes.transitioning) {
         // T3b: a townsperson under the ray wins the activation (the
@@ -5696,7 +5696,7 @@ export async function bootExterior(canvas, renderer, params, status) {
     const mwv = (!shotMode || walkMode) && !riding
       ? mwViewFrame({ fpEye: cam.pos, feet: player.feetAt(), yaw: cam.yaw, pitch: cam.pitch,
           dt, riding: !!player.riding && !_driverSeat && !(player.transportMode === TRANSPORT_MODES.Cart && hcc.benchKind()),   // AUDIT-EOTB F3/F4: the host's own clock, and the one state only it has; WAGONS3: the bench is no saddle (AUDIT WAGONS3 B2: on a frame with no seat either)
-          horse: player.transportMode === TRANSPORT_MODES.Horse ? { look: riddenHorseLook(playerEntity.items ?? []), slow: player.slowRide } : null,   // COATS3D: on a horse (never the cart), the Morrowind body sits a 3D horse in this look; HORSE-WALK: held under the gallop on a slow ride
+          horse: player.transportMode === TRANSPORT_MODES.Horse ? { look: ownMountLook(riddenHorseLook(playerEntity.items ?? [])), slow: player.slowRide } : null,   // COATS3D: on a horse (never the cart), the Morrowind body sits a 3D horse in this look (STOREFRONT: my mount look over it); HORSE-WALK: held under the gallop on a slow ride
           ...(_driverSeat ? { seated: true, stopped: true, feet: _driverSeat.feet } : {}),   // WAGONS3: seated on it, still on it, the camera's feet the seat's (after `feet`: it wins)
           pivotFloor: _driverSeat ? hcc.cameraFloor() : null,   // BENCH-CAM: the third-person camera turns about a pivot over my wagon's roof, never in my head
           cart: player.transportMode === TRANSPORT_MODES.Cart, onExteriorPath: _surfPath,   // EOTB-IL: UpdateWagon's two host facts
@@ -5895,7 +5895,7 @@ export async function bootExterior(canvas, renderer, params, status) {
     camps.draw(renderer, texRemap, streetCull);   // SURV3: the tents; PERF-WAGON: by the street's view test
     hcc.draw(renderer, texRemap, undefined, streetCull);   // HCC: the wagon and its cargo; PERF-WAGON: by the street's view test
     try { lefay.frame(); } catch (e) { console.warn('[lefay] monument', e?.message ?? e); }   // LEFAY1: stood, its flowers in flight and laid
-    lefay.draw(renderer);   // LEFAY1: the monument to Julian LeFay
+    lefay.draw(renderer);   // LEFAY1: the monuments
     renderer.setWindowRooms(realWindowsMode());   // RW1 (render/realWindows.js): this frame's rooms behind the town's glass, asked after its beginFrame (world.js's twin); and the street kept for a building's view out
     // GROUND-LAST (2026-09-21): the ground is drawn AFTER every opaque
     // mesh - the buildings, the mills, the rig, the arrows - below, just
@@ -6110,6 +6110,7 @@ export async function bootExterior(canvas, renderer, params, status) {
       else sf.batch.castOnly = false;
     }
     standPeople.draw(canvas, proj, view, eye, townTalk.overlayActive ? 0 : dt);
+    npcMarks.gather(standMarkCtx, exteriorNpcs);   // NPC-MARKS: who of them earns a mark (drawn after the person billboards)
     if (standingHorses.end(dt, { proj, view })) standingHorses.draw(canvas, { eye, proj, view });
     _visBatches.length = 0; _castBatches.length = 0;
     for (const b of billboardBatches) {
@@ -6128,7 +6129,6 @@ export async function bootExterior(canvas, renderer, params, status) {
     renderer.drawBillboards(_visBatches, camRight, UP_Y);
     if (_castBatches.length) renderer.recordShadowBillboards(_castBatches, camRight, UP_Y);   // SHADOW-REACH: for the maps alone, on the same wind
     if (magic.batches().length) renderer.drawBillboards(magic.batches(), camRight, UP_Y);   // M2: spell missiles in flight
-    magic.drawFx?.();   // IMPACTFX: the spells' landings in light, over their flashes
     // T1: the wandering townsfolk - population ticks at 10Hz, the
     // politeness idle gate whole (mobilePerson.personWantsToStop),
     // daytime only; live persons render as C11-style mobile batches
@@ -6211,6 +6211,7 @@ export async function bootExterior(canvas, renderer, params, status) {
       cityGuards.drawVeiledBodies();   // MWNPC6: and the watch's
       folkStreet.drawVeiled();   // MWNPC7: and the walkers'
       hcc.drawVeiled3d();   // AUDIT COATS3D A5: and a concealed owner's 3D horses
+      if (npcMarks.draw(proj, view, eye, standPeople, now / 1000)) renderer.markForeignPass();   // NPC-MARKS: the marks over the standing people
     }
     // WINDFALL1: the leaves and the snow, with the opaque world (world.js's twin note)
     if (windfall.particles && windfall.draw(proj, view, renderer.flatLightAt(walkMode ? player.pos : cam.pos))) renderer.markForeignPass();
@@ -6220,14 +6221,16 @@ export async function bootExterior(canvas, renderer, params, status) {
         grounded: !walkMode || !!player.grounded, settings: hazeFrameSettings() });   // AUDIT ENVIRONS W4 (world.js's twin): the ease on the real clock, the shimmer on the game's
       if (hz.visible && hazeGl.draw(hz, proj, view, renderer.worldViewportPx ?? [0, 0, renderer.gl.drawingBufferWidth, renderer.gl.drawingBufferHeight], hz.seconds)) renderer.markForeignPass();
     }
+    magic.drawFx?.();   // IMPACTFX: the spells' landings in light, over their flashes; STOREFRONT (AUDIT STOREFRONT RENDER L3): with the kill effects, after the walkers, the watch, the foes and the Windfall - no depth written, so a flat drawn after them painted over them (world.js's twin note)
     // WX2: what falls is what the front SHOWS (world.js's twin note)
     eye32[0] = eye[0]; eye32[1] = eye[1]; eye32[2] = eye[2];
     const precipShown = enhancedFront ? fx.shown : precipMode;
-    if (precipShown === 'sand') {
+    if (isDryFall(precipShown)) {
       // WEATHER2d: THE SANDSTORM'S SAND - the wisps' program in the sand's look, the front's intensity its
-      // strength, on the one wind's rate and travel; the rain program never draws it
-      if (sand) {
-        sand.draw({ on: true, strength01: fx.intensity, windV: wd.windV, step: wd.step, gust: wd.gust }, proj, view, eye32, now / 1000);
+      // strength, on the one wind's rate and travel; the rain program never draws it. ASHFALL1: the ashfall's ash
+      // and embers the same way, by the fall's kind (render/dryFall.js)
+      if (dryFall) {
+        dryFall.draw({ on: true, kind: precipShown, strength01: fx.intensity, windV: wd.windV, step: wd.step }, proj, view, eye32, now / 1000, renderer.worldViewportPx?.[3]);
         renderer.markForeignPass();
       }
     } else if (precipShown && precip) {   // W1 review: the gate is the MODE, never the object - the renderer outlives a clear-up
@@ -6271,7 +6274,7 @@ export async function bootExterior(canvas, renderer, params, status) {
       // fly through this host's world every walk frame.
       if ((modes?.mode ?? 'exterior') === 'exterior') {
         const _mfwd = [Math.sin(cam.yaw) * Math.cos(cam.pitch), Math.sin(cam.pitch), Math.cos(cam.yaw) * Math.cos(cam.pitch)];
-        magic.firePending([...cam.pos], _mfwd);
+        magic.firePending([...cam.pos], _mfwd, gamePaused());   // AUDIT SPELL-HAND L4-6: a kept press never leaves under a window
         magic.update(dt, player.pos, _mfwd, player.height, player.feetAt());   // X11: the candle hangs off the look direction; DISC13-A off the render feet
         { const mv = lycanthropeMoveSound(playerEntity, dt); if (mv != null) audio.playOneShot(mv, 1); }   // LM1: the beast's own noise while transformed (real time)
       }
@@ -6291,7 +6294,7 @@ export async function bootExterior(canvas, renderer, params, status) {
             // and a BOW always takes the FULL tally arm (Archery AND
             // CriticalStrike) - this arm tallied Archery alone, free.
             drainExteriorFatigue(SWING_FATIGUE_COST);
-            tallySwingSkills(playerEntity, weaponRig.playerWeapon.weapon);
+            tallySwingSkills(playerEntity, weaponRig.playerWeapon.weapon, weaponRig.playerWeapon.blowWeight);   // AUDIT PISTOLET A2: an off-hand shot counts as its blow weighs, as the other two hosts count it (THE FOUR HOSTS RULE)
             arrows.fire(eye, fwd, { fromPlayer: true, weapon: weaponRig.playerWeapon.weapon, muzzle: weaponRig.thunderlockMuzzle(fieldOfView()), summoned: shot.summoned });   // FIELD-GUN17: the barrel's own offset when the hand holds the gun, null for every bow - the rig answers, the lane forks   // #64: LastBowUsed rides the shaft - the impact prices off it   // ROAD-H H1c: ArrowFlight.fire applies GetAimPosition's player arm (the bow hand), as DFU's missile does its own
           }
           continue;

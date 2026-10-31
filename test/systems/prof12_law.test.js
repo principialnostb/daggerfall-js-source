@@ -11,7 +11,7 @@ import * as potions from '../../src/systems/potions.js';
 import * as effects from '../../src/systems/effects.js';
 import {
   POTIONS, POTION_PRICE_TIERS, potionTier, potionById, ingredientKeys, keyTemplate, brewSpends, brewKeys, brewFirstPays, brewCount, potentChance,
-  potentPct, potentOk, potentEffect, POTENT, brewXp, templatePoints, piecePoints, essenceOf, ESSENCE_POINTS, disenchantXp, DISENCHANT_XP,
+  potentPct, potentOk, potentEffect, POTENT, brewXp, brewFirstXp, templatePoints, piecePoints, essenceOf, ESSENCE_POINTS, disenchantXp, DISENCHANT_XP,
   enchantDiscountPct, enchantGold, ENCHANT_DISCOUNT,
   potentLasts, magnitudeDefault,   // AUDIT PROF12 A3
   potentAble,   // AUDIT PROF-541 B3
@@ -21,7 +21,7 @@ import {
   smeltRecipe, stockOf, materialOf, MATERIAL_FAMILIES, gemTierOfPrice, PLANT_GROUP_TEMPLATES, SPECIALISATIONS, specOk,
   NO_PACK_FORM, withdrawable, topTierOf, TRANSMUTE_IN,   // AUDIT PROF12 E1, E2, E3
 } from '../../src/net/professionLaw.js';
-import { recipeById, cookXp, FIRST_CRAFT_XP, firstCraftPays } from '../../src/net/recipeLaw.js';
+import { recipeById, cookXp, firstCraftPays } from '../../src/net/recipeLaw.js';
 import { GROUP_TEMPLATE_INDICES } from '../../src/systems/item/itemTemplatesData.js';
 
 const TEMPLATES = JSON.parse(readFileSync(new URL('../../src/characters/itemTemplates.json', import.meta.url), 'utf8'));
@@ -76,7 +76,7 @@ test('PROF12 law: THE APOTHECARIES\' SIXTEEN (4.5) - exactly the ingredients DFU
   assert.deepEqual(APOTHECARY_STOCK.map((x) => x.key), REAGENTS.map((r) => r.key));
   assert.deepEqual(COUNTER_ONLY.slice(0, 2), ['cloth:linen', 'cloth:wool']);
   assert.deepEqual(MATERIAL_FAMILIES.map(([id]) => id), ['metals', 'wood', 'herbs', 'hides', 'food', 'stone', 'gems', 'essences', 'spoils', 'siege'], 'no new filter');
-  assert.deepEqual([ALCHEMY_FEE, ENCHANT_FEE], [50, 50]);
+  assert.deepEqual([ALCHEMY_FEE, ENCHANT_FEE], [25, 50]);   // PIN MOVED: CRAFT-PAYS, the alchemy station's 50 halved (Professions-Arc.md section 48)
   assert.deepEqual([ARCANE_ESSENCE.key, ARCANE_ESSENCE.family, ARCANE_ESSENCE.tier, ARCANE_ESSENCE.templateIndex, ARCANE_ESSENCE.name, [...ARCANE_ESSENCE.icon]],
     ['essence:arcane', 'essences', 3, 680, 'Arcane Essence', [254, 39]]);
   assert.equal(materialOf('essence:arcane', () => null).value, 4);
@@ -108,12 +108,19 @@ test('PROF12 law: THE CAULDRON - every ingredient of the twenty held in the Stor
   assert.equal(brewFirstPays(null), false);
 });
 
-test('PROF12 law: THE BREW - its potions (one below Journeyman, two at it, a Brewer\'s three, three at Master); Potent\'s chance (none below Expert, 10 at it, 20 at Master; +5 an unbruised herb, +10 a Distiller, +10 an Apothecary\'s step; at most 100) and its share (+25, a Master Alchemist\'s +40); the magnitudes raised by it, rounded; XP 20 x the tier, quartered, +500 the first', () => {
-  assert.deepEqual([0, 49, 50, 99, 100].map((r) => brewCount(r)), [1, 1, 2, 2, 3]);
-  assert.deepEqual([brewCount(50, 'brewer'), brewCount(49, 'brewer'), brewCount(100, 'brewer'), brewCount(50, 'distiller')], [3, 1, 3, 2]);
+test('PROF12 law: THE BREW - its potions (CRAFT-PAYS: two below Journeyman, two at it, a Brewer\'s three, three at Master); Potent\'s chance (none below Expert, 10 at it, 20 at Master; +5 an unbruised herb, +10 a Distiller, +10 an Apothecary\'s step; at most 100) and its share (+25, a Master Alchemist\'s +40); the magnitudes raised by it, rounded; XP 20 x the tier, quartered, +500 the first', () => {
+  // PIN MOVED: CRAFT-PAYS (Professions-Arc.md section 48) - a Novice's two; it was [1, 1, 2, 2, 3] and [3, 1, 3, 2]
+  assert.deepEqual([0, 49, 50, 99, 100].map((r) => brewCount(r)), [2, 2, 2, 2, 3]);
+  assert.deepEqual([brewCount(50, 'brewer'), brewCount(49, 'brewer'), brewCount(100, 'brewer'), brewCount(50, 'distiller')], [3, 2, 3, 2]);
   // AUDIT PROF-541 R2-S1: a potion wholly of the Apothecaries' goods brews one whatever the rank or the Brewer; another its rank's
   for (const id of ['waterBreathing', 'levitation']) assert.deepEqual([brewCount(100, 'brewer', potionById(id)), brewCount(50, 'brewer', potionById(id)), brewCount(0, null, potionById(id))], [1, 1, 1], id);
   assert.deepEqual([brewCount(100, null, potionById('healing')), brewCount(50, 'brewer', potionById('healing')), brewCount(50, null, null)], [3, 3, 2]);
+  // CRAFT-PAYS: the service writes the count into prof_brews, whose CHECK holds it to 1-3 - a fourth would be refused by
+  // the INSERT OR IGNORE and answered as short Stores, so no rank or choice may ask more than the table takes
+  const counts = [0, 49, 50, 99, 100].flatMap((r) => [null, 'brewer', 'distiller'].flatMap((sp) => [brewCount(r, sp), ...POTIONS.map((p) => brewCount(r, sp, p))]));
+  assert.equal(Math.max(...counts), 3);
+  assert.equal(Math.min(...counts), 1);
+  assert.match(src('server-account/migrations/0070_alchemy.sql'), /count +INTEGER NOT NULL CHECK \(count BETWEEN 1 AND 3\)/);
   assert.deepEqual(POTENT, { expert: 10, master: 20, expertRank: 75, unbruised: 5, distiller: 10, apothecary: 10, pct: 25, masterPct: 40 });
   assert.deepEqual([0, 74, 75, 99, 100].map((r) => potentChance(r)), [0, 0, 10, 10, 20]);
   assert.equal(potentChance(0, { unbruised: 3 }), 15);
@@ -129,7 +136,8 @@ test('PROF12 law: THE BREW - its potions (one below Journeyman, two at it, a Bre
   assert.deepEqual(potentEffect(e, 40), { ...e, magnitudeBaseLow: 7, magnitudeBaseHigh: 7, magnitudeLevelBase: 13, magnitudeLevelHigh: 13 });
   assert.equal(potentEffect(e, 30), e, 'a share no brew makes moves nothing');
   const h = potionById('healing'), inv = potionById('invisibility');
-  assert.deepEqual([brewXp(h, 0), brewXp(h, 0, true), brewXp(inv, 70), brewXp(h, 55)], [20, 20 + FIRST_CRAFT_XP, 120, 5], 'a tier-1 brew past rank 55 quartered');
+  assert.deepEqual([brewXp(h, 0), brewXp(h, 0, true), brewXp(inv, 70), brewXp(h, 55)], [20, 20, 120, 5], 'a tier-1 brew past rank 55 quartered');   // PIN MOVED (FIRST-BUDGET): the first's XP its track's first-make share (recipeLaw firstCraftXp, brewFirstXp, workFirstXp), no longer a flat 500 - the brew's law no longer takes a first (brewFirstXp, beside it)
+  assert.deepEqual([brewFirstXp(h), brewFirstXp(inv), brewFirstXp(potionById('levitation'))], [3155, 3155, 0], 'Provisioning\'s share - none for the Apothecaries\' goods alone');
 });
 
 test('PROF12 law: THE TRANSMUTER (3.3; 4.1: "Mercury (Alchemy\'s Transmuter)"; AUDIT PROF12 E3, Mac: "2 + Mercury -> 1") - two of a metal and a Mercury make one of the next up the ladder (Tin, Copper, Silver, Gold, Platinum) at the alchemy station, no XP, its door the choice at 100; the Transmuter\'s card chosen', () => {

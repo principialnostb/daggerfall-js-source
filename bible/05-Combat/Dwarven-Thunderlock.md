@@ -193,6 +193,46 @@ Nothing in DFU's own pool sets that flag, so the classic pairings are
 exactly what they were: a dagger can still be Wyrmbane or
 Nightwhisper.
 
+## PISTOLET: rarer, and a second gun beside it (2026-10-21)
+
+The owner, giving the Dwarven Pistolet its numbers: *"make the thunderlock in general more rare along with the new hand
+cannon"*. The Thunderlock's unique find keeps its weight and mints EITHER gun now, each half the time (`GUN_SHARE`, its
+one mint draw picking the gun and counting the Pellets - `systems/thunderlock.js`), so each turns up half as often as
+the Thunderlock did, at every source, and every seed draws what it drew. (The first cut was two finds at `FIND_WEIGHT`
+0.5, neither half nor seed-stable: AUDIT PISTOLET A5/A8/C2/C3/D6.) The Pistolet eats this weapon's Pellet, flies the
+same orb and runs this weapon's machine - and the rig's gun functions serve both (`heldFeel()`, `heldSfx()`). Its record
+is `Dwarven-Pistolet.md`.
+
+**A left-handed player's Thunderlock is drawn in the mirror** (PISTOLET, AUDIT PISTOLET D33). `gunFrameRect` mirrored the
+gun's place and the lab mirrored its whole sprite, but the game drew the texture unflipped, so a left-handed player's
+Thunderlock sat on the left as a RIGHT hand, its forearm cut mid-screen. The rig reads the source rect right to left
+under the same switch (`handsLaw.js MIRROR_UV`, the melee pair's door), and its muzzle light comes from the side the gun
+is drawn on.
+
+**The Last Lock claims both guns** (AUDIT PISTOLET C5): this weapon's exclusive Legendary record names the Pistolet's
+template beside its own, so a Legendary Pistolet is The Last Lock rather than a blade's record.
+
+## GUNS-UNFOUND: found no more (2026-10-23)
+
+The owner: *"So I want to remove the thunderlock and pistolet from the loot pool and revert the gilded weapon from the
+serpent. Dont remove them from players who have them, but it should no longer be able to drop. Ammo should still
+drop"*. Neither gun drops now, from any source:
+
+- **The find mints its Pellets alone** (`systems/thunderlock.js`). It stays registered - its id, weight, tier and place
+  among the finds - and its mint still takes its ONE draw, which counts the Pellets (6-18) as it always did. So every
+  draw before it, and every list it does not fire on, is what it was (Loot-II-Arc law 9); a list it fires on loses only
+  the gun's own tier roll, as it loses the gun. The ammunition still drops at the rows above, and the shops still sell it
+  (SHOP-PELLETS). `GUN_SHARE` and `setSecondGun` are gone: `systems/pistolet.js` hands the find nothing.
+- **The Gilded records mint no gun**: the Hourlock is a Dwarven Long Bow and the Sunken Sovereign the Ebony Saber again
+  (`06-Systems/Gilded.md` section 9).
+- **A held gun is the player's.** Nothing reads a gun out of a pack: the templates, the art, the machine, the Pellet and
+  the item law stay, and a gun Hourlock or gold Pistolet a save holds stays lawful as its record's era
+  (`HOURLOCK_GUN_ERA`, `SOVEREIGN_PISTOLET_ERA`).
+- **The Last Lock** stays registered, so a Legendary gun already held keeps its power and its codex row; no gun drops to
+  roll up as it, so its codex hint says "No longer found".
+
+Still minted, and only here: the loot test character's rows (`systems/testRoom.js`), a bench, not a drop.
+
 ## FIELD-GUN: the two the audit walked past
 
 Mac, the first time he held one:
@@ -1839,6 +1879,9 @@ closed (an open cube capped facing out; the shipped gun and its twin with no bou
 
 ## SHOP-PELLETS (2026-10-07): the shot on the counter
 
+**Retired by PELLETS-SCARCE (2026-10-24, below):** no shelf sells the Pellet now. The counter's law
+(`shopAmmoStack`) stays, as the quiver's (`Arrow-Supply.md` section 4). What follows is the record of what shipped.
+
 Mac: "allowing the purchase of the ammunition in stores." Until now the gun arrived loaded (6-18 pellets with the find)
 and every pellet after that was a body's or a pile's - "a gun found with no ammunition is a gun that cannot be fired and
 cannot be bought shot for", as `thunderlock.test.js` put it.
@@ -1859,7 +1902,7 @@ stays a find: the shelf still names nothing of it, and `thunderlock.test.js` sto
 finds none.
 
 A departure of kind (Port-Ledger section A): a shelf carries a thing DFU's never does. **Pins**
-(`test/systems/shoppellets.test.js`, 3; `tools/mutants/shoppellets.json`, 7 dead) - and the four that enumerate a Weapon Smith's,
+(`test/systems/shoppellets.test.js`, 3; `tools/mutants/shoppellets.json`, 7 dead; both RETIRED by PELLETS-SCARCE) - and the four that enumerate a Weapon Smith's,
 an Armorer's or a General Store's shelf moved with it, each saying so.
 
 ## MW-GUN-FEEL (2026-10-07): the kick and the reload, under the Morrowind arm
@@ -1967,6 +2010,10 @@ fight up and down, off through the sheathe). PIN MOVED: `climb6` C16 (the hook b
 the `hold` line). Mutant records whose anchor this slice moved, re-aimed by content and re-run (both dead): `rvn10`'s
 `RVN10-end-keeps-low` and `RVN10-end-keeps-fights` (`endPlayerFights` forgets the harm's time too).
 
+PISTOL-STANCE (2026-10-22, `Dwarven-Pistolet.md`): the arm reaches this stance through `combat/gun/gunHold.js` now, which
+hands each gun the stance its row's `holdAs` names - the Thunderlock's `'rifle'` this one, the Pistolet's `'pistol'` its
+own one-handed hold. This stance, its step and its eases are unchanged; the riflestance pins pass as they stood.
+
 ## RIFLE-AIM-LOW (2026-10-18): the first-person aim under the crosshair
 
 Mac: "the thunderlock in first person (morrowind) when shooting/aiming sits too high on the screen."
@@ -1995,3 +2042,203 @@ their holds, the low ready lower still. PIN MOVED: the first-person test's aim i
 within 1.5) and its left hand is read by its fingers on the forend (it read the wrist, now under the picture's edge).
 `tools/mutants/riflestance.json`: 16 dead - the two new, `RIFLE-AIM-LOW-the-old-row` (the stance as it was: the pins
 fail on it) and `RIFLE-AIM-LOW-level` (the barrel level again).
+
+## GUN-LORE (2026-10-24): what the guns are, and how the shot works
+
+The owner: *"A proper lore pass on both weapons and how their projectiles work according to the dweamer"*.
+
+The guns had names and nothing else, and the Pellet had less: the name, a price and a stack. The lore now has one
+home, `systems/thunderlock.js` `GUN_LORE`, and every reader takes it from there.
+
+**Canon it stands on (UESP):** the Dwemer, the Deep Folk, who vanished at Red Mountain in the First Era. Their **tonal
+architecture** was the art of making the world answer a struck note (Kagrenac's tools, Keening and Sunder). The
+**Rourken** were the clan that would not join the Chimer: their lord threw the hammer **Volendrung** out of Morrowind
+and built **Volenfell** where it fell, in the Alik'r. **Aetherium** is the Dwemer's blue crystal. Nothing here
+contradicts a canon source, and nothing in DFU says anything about guns.
+
+**The port's own:** the guns are Rourken work. A gun's lock holds no flint and no powder but a **tonal coil**. The
+trigger frees its striker, the coil sings one note pitched to the **mote of aetherium** sealed in a Pellet's brass, the
+note unbinds the mote's charge, and the bead leaves the barrel as a ball of **bound lightning**. That is the shock orb
+every hit sees, and FIELD-GUN17's one colour for the orb and the flash is the lore's: the report is the note, the flash
+its light. A coil that has sung must be wound again by its key before it sings another note, and the reload's two
+clacks are the key turned and set. The Pistolet is a **boarding piece**, made for the decks of the Rourken sky-ketches.
+Its short coil winds slowly, so their marines carried them in braces of two, one singing while the other was wound:
+the pair's own law, said as history. The Pellets are found and never bought, because no forge in the Bay has made one
+since the Dwemer went. That is PELLETS-SCARCE's law in the world's words.
+
+**Where it is said:**
+- **The Info box**: `systems/item/itemTemplates.js` `registerTemplateLore` / `templateLore`. A template's words, read
+  for every item of it (a Common, a Gilded, a gun era's piece), are drawn as their own box under the item's name
+  (`ui/enhanced/enhancedInventory.js` `itemInfoBoxes`). The Thunderlock, the Pistolet and the Pellet each register
+  theirs.
+- **Two books** (`systems/portBooks.js`, in the BOK format's own bytes, at ids above every classic book's with low
+  bytes no classic book uses), both by Imrah Bel-Tavir, Antiquarian of Sentinel. ***Rourken Thunder*** (418), 8 pages:
+  Volendrung and Volenfell, tonal architecture, the coil, the bead and the lightning, the long gun and the short, why so
+  few survive (the foundry was aboard the sky-ketch), and counsel to anyone who finds one. ***The Ketch That Never
+  Lands*** (419), 8 pages: the sky-ketch *Mzunthar* (`bible/11-Multiplayer/Sky-Ketch.md`), its keel-song, why it still
+  sails, the anchor-lift that holds eight and will not rise for nine, its decks and the Tonal Warden on its bridge. Both
+  are on the shelves the port's books are on, and the Sky-Ketch questline hands them over.
+
+A departure of kind (Port-Ledger section A, GUN-LORE): the item Info box carries a box DFU's has no source for.
+
+**Pins** (`test/systems/gunlore.test.js`, 4): each template its own words for every item of it, and none for a DFU
+weapon; the words agree with the shot (a coil, one note, the aetherium thrown as lightning, wound again, no powder,
+no flint); the Info box draws them under the name; the books are lawful port books, eight closed pages each, saying
+what the shot and the ship are. `tools/mutants/gunlore.json`: 7 dead.
+
+## PELLETS-SCARCE (2026-10-24): no shelf sells the shot - it is found
+
+The owner: *"Remove their ammo from shops and only have ammo has a rare resource drop (not super duper rare but still
+rare)"*.
+
+- **No shelf.** SHOP-PELLETS' counter line is gone from `systems/shopStock.js`, with `SHOP_PELLETS_MAX`,
+  `shopPelletStack` and the shop stock's import of the Pellet's mint. Every other draw and stack on every shelf is what it
+  was, because that line drew no roll. The counter's law it used (`shopAmmoStack`) is the quiver's alone now. A smith
+  still buys shot back, as it buys any weapon.
+- **The old find's place, kept.** The Thunderlock's old find (`dwarven-thunderlock`) minted the Pellets since
+  GUNS-UNFOUND took the gun out of it. It stays registered at its weight, its tier and its place among the finds, and
+  its mint still takes its one draw, so every seeded list draws exactly what it drew (Loot-II-Arc law 9), but it hands
+  nothing over. Its curve was the gun's, a thousandth at best, and the shot is not the gun.
+- **The Dwemer find** (`dwemer-pellets`): a **final** find. `systems/loot/lootRarity.js` `rollFinalFinds` is the loot
+  door's very last draw, after the technique's (law 9 again: a new roll goes after every earlier one). It runs on its own
+  curve, `PELLET_FIND_WEIGHTS` (base 6, 2.5 a tier, cap 60, per mille): from source tier 1 (a rat's nest never), about
+  1% of lists at tier 1, 2% at tier 6, 3% at tier 10, 4% at tier 14 and 6% at most. A pile's x1.3 and a boss's x2.5 fall
+  under the same 6% cap, and Luck nudges it as it nudges every find. That is rare, a few lists in a hundred, but never
+  the gun's one in a thousand. It mints `PELLET_FIND_STACK`, 4 to 12, counted on one draw. `registerUniqueFind` takes a
+  find's own `weights` for this, and `final: true`.
+- **And the airship**: the Ketchmaster's hold pays every share 20 to 40 Pellets from the Ketch's own foundry
+  (`Sky-Ketch.md` section 9 - her constructs drop nothing: the relay runs them), and players trade them.
+- **Loot rarity off** (AUDIT SHIP C2, 2026-10-24): the Dwemer find is a find, not a tier, so the switch off still rolls the
+  final finds (`rollLootRarity`), the DFU list otherwise untouched. Before it, the switch off left no Pellet anywhere,
+  with the shelves selling none, and a gun owned offline starved.
+
+A departure of kind (Port-Ledger section A, PELLETS-SCARCE): an item DFU never had, found on the port's own curve.
+
+**Pins** (`test/systems/pelletsscarce.test.js`, 5): no shop of any kind, quality or shelf, at any draw, carries a
+Pellet, and the stock law names none; the old find kept, taking one draw and handing nothing over; the Dwemer find's
+curve, cap, boss and pile, tier 0 never, the stack from one draw, and a find under its tier costing a seed no draw; over
+29 seeds the door's last draw, with every earlier draw the seed's own; the switch off still dropping it (AUDIT SHIP C2). PIN MOVED: `shopstock.test.js`,
+`audit18_systems_items.test.js`, `arrowsupply.test.js`, `pistolet.test.js`, `thunderlock.test.js` (the old find mints
+nothing), `loot21_stones.test.js` and `tech1_roster.test.js` (each holds the final finds off where it compares two
+doors' draws). `test/systems/shoppellets.test.js` is RETIRED with its law. `tools/mutants/pelletsscarce.json`: 11
+dead (AUDIT SHIP C2's checked by hand). `shoppellets.json` is retired too: its three records that read the counter's law moved to `arrowsupply.json`,
+each re-aimed at the quiver's pins, and the rest went with the line they mutated. Re-aimed by content: `gunsunfound.json`
+(2), `pistolet.json` (2), `loot21.json` (3), `tech1.json` (1).
+
+## THUNDERLOCK-ART2 (2026-10-24): the owner's new sprite
+
+The owner, with seven first-person frames and a list picture: *"Heres the new thunderlock sprite replacement"*.
+
+**The frames** (`public/art/thunderlock-frames.png`, the owner's seven 160x98 frames side by side, pixels unchanged):
+the rest frame, the shot (its muzzle flash and the Dweamer's bolt along the barrel), two of smoke, and three settling,
+with the fifth held for a beat. `combat/thunderlockArt.js` `thunderlockFrames` reads them the Pistolet's way
+(`Dwarven-Pistolet.md`):
+
+- **The stride.** Each frame is registered to the others by its canvas, so the frames are cut at a fixed stride, with no
+  background key and no crop to content.
+- **The canvas is the anchor.** The owner placed the gun in its canvas, with both forearms leaving through the foot, so
+  the canvas is what sits on the screen's corner (AlignRight). It is drawn at `THUNDERLOCK_ART.scale` design pixels per
+  texel: 160 of the surface's 320, close to the 0.49 the old sheet's gun took.
+- **The cut.** The frames are cut to one bit at the screen quad's 0.5 and are otherwise drawn exactly as drawn.
+- **Seated, never stretched.** A first cut carried the forearms straight down below the foot, for PISTOL-EDGE's reason,
+  and the owner took it back: *"Why is it stretched at the bottom. You need to place it correctly"*. So nothing is
+  invented under the frames. Instead the canvas is seated the kick's height (`GUN_FEEL.kick`, 5) below the screen's foot
+  (`THUNDERLOCK_ART.raise`). Weapon Widget's transform never lifts the foot off where it is seated (its floor), and the
+  shot's kick, applied after it, lifts it at most that far, so the cut foot never shows.
+- **The cycle is seven frames.** The count lives on a leaf (`combat/gun/thunderlockStrip.js`
+  `THUNDERLOCK_STRIP.frames`), and `THUNDERLOCK_ANIMS` reads it. The machine's `THUNDERLOCK_NUM_FRAMES` keeps its own
+  literal, because `characters/weaponStates.js` imports nothing (SWING-LAW: the neutral viewer pastes its source), and
+  `thunderlockart2.test.js` holds the two equal. The rest
+  frame is first and the flash second, as the sheet had them, so the hit still lands on the flash
+  (`GUN_FEEL.hitFrame`). A shot is 0.5 s at the lab's 14 fps, one frame longer than the sheet's 0.43 s, and the 1.7 s
+  cooldown starts when it ends: one shot every 2.2 s where the sheet gave one every 2.13 s, about 3% slower. The
+  Pistolet keeps its own six (`PISTOLET_ANIMS`, read off `PISTOL_STRIP.frames`), and each gun's machine is handed its
+  own cycle's length (`createGunMachine` `frames`).
+- **The light is the flash's frame.** The sheet drew its flash on two frames, and `MUZZLE_CURVE` (0.82 on the second)
+  was written for it. The strip draws it on one, so the Thunderlock has its own curve
+  (`THUNDERLOCK_MUZZLE_CURVE`, `combat/gun/gunFeel.js`): full on the flash frame and falling from the smoke. The
+  Pistolet keeps `MUZZLE_CURVE`.
+- **The muzzle** is the centre of the largest white-hot body on the shot frame, which is the flash's ball at the
+  barrel's end (`flashBodyPoint`, `combat/gun/gunFlash.js`). The bolt's smaller sparks along the barrel would pull an
+  average of every hot texel down the gun. The shot kicks the gun inside the canvas, so "what got brighter"
+  (`muzzlePoint`, the sheet's reading, retired with it) would measure the moved gun as well. The flash's laws (the
+  white-hot luma, the core, the flame grown out of it) are one leaf both guns read, so a retune moves both.
+- **The Gilded look** (Volendrung's Echo, the Hourlock's gun era): the gun's own brass is gilded on every frame
+  (`thunderlockGildKeep`): hue 32 to 60, saturated, lit. The gloves are as warm but duller and darker, and the sleeve is
+  grey, so neither is gilded. The flash never is: neither its white-hot core nor the painted orange glow round it, which
+  reads as brass by hue alone, so the keep leaves out the Pistolet's flame mask (`flashMask`) as well.
+- **The enchanted look** (`thunderlockShimmer`): the shimmer goes on the brass and on everything drawn bright (the flash,
+  the bolt, the smoke), and never on the hands. A whole-frame shimmer had turned the grey sleeve blue.
+
+**The list picture** (`public/art/thunderlock-icon.png`, the owner's 88x31, pixels unchanged): `tools/gunIcons.mjs` trims
+it into `gun-icon.png` (80x23) and lays its gold twin, `gun-icon-gilded.png`, on the same ramp. The gun is drawn whole,
+so nothing is healed. `healGap` stays the answer for a doll layer that has no picture of its own.
+
+**Not changed:**
+- The doll layer (`gun-paperdoll.png` and its gold twin) is the old art, because its fist's gap and its place on the doll
+  (`PAPERDOLL_OFFSET`) are the owner's placement to make.
+- The gun lab (`gun-proto.html`, `src/tools/gunLab.js`) still cuts the old six-frame sheet (`gun-fire-sheet.webp`, kept
+  for it).
+
+**The audit** (the owner: *"Audit this"*). Eleven findings, all taken:
+- The light stayed at 0.82 on a frame of smoke: the Thunderlock's own curve (above).
+- The gold took the flash's orange glow: the keep leaves out the flame mask (above).
+- The slower rate of fire was unsaid: the cycle bullet above and the patch notes say it.
+- FIELD-GUN7's parity pin had been loosened to one tick. The cause was the lab machine's `Math.floor(t * fps)` landing
+  just under 7 at 0.5 s, a sum of sixtieths. `createGunMachine` now reads that edge with a 1e-9 epsilon on its later
+  side, as the game's machine does, and the pin is exact again.
+- The Pistolet's machines and `_pistolLeft` had the old sheet's six by coincidence (`FIRE_FRAMES`): both read
+  `PISTOL_STRIP.frames` now.
+- A strip wider or taller than seven 160x98 frames was cut short without a word: it is refused, as a narrower one was.
+- The sheet's readers (`handMask`, `gildKeep`, `boxBlur`, `GILD`, `muzzlePoint`, `MUZZLE_GAIN`, `KEY_THRESHOLD`,
+  `KEY_CHROMA`, `NATIVE_WIDTH`, `SHEET_FILE`) were dead in the game but still held by pins and mutants: retired, and
+  the pins and mutants moved onto the laws the game runs.
+- `TL_FLASH_LUMA` and the body search were a second copy of the Pistolet's: one leaf, `combat/gun/gunFlash.js`. Left
+  as it is: `thunderlockGildKeep`'s six-line `hsl` against `pixelClass`'s, which classifies with early exits and would
+  move the Pistolet's gold for no change of behaviour.
+- The cycle's length was three separate literals: the strip's leaf, read by the anim table, and the machine's one
+  literal (its file imports nothing), pinned equal.
+- The art's `thunderlockMuzzle(lit, w, h)` shared a name with the rig's `thunderlockMuzzle(fovRad, forward)`: it is
+  `flashBodyPoint` now.
+- Comments that still described the six-frame sheet: rewritten.
+
+**Pins:**
+- `test/systems/thunderlockart2.test.js` (new, read off the committed strip): the strip, the canvas anchor, the frames
+  as drawn texel for texel, and the seating under the kick; the cycle of seven, with the Pistolet's six; the muzzle on the ball; the gold and the shimmer on the gun alone.
+- PIN MOVED:
+  - `thunderlock.test.js`: the table and the machine at seven; FIELD-GUN3's orientation read off a strip; FIELD-GUN7's
+    parity with the lab's machine at seven, exact; FIELD-GUN17a's muzzle read by `flashBodyPoint`.
+  - `gilded1_gilded.test.js`: GILDED1's gold in the hand read by `thunderlockGildKeep`.
+  - `pistolet.test.js`: the Pistolet's own table.
+  - `thunderlockart.test.js`: the list picture is the owner's.
+  - `doctrine.test.js`: the two new files' provenance.
+- Mutants: `tools/mutants/thunderlockart.json`, with 13 records added and 1 re-aimed (the gap left). Re-aimed by
+  content onto the laws the game runs: `fieldgun17.json` 10-12 (`flashBodyPoint`; record 11's equivalence went with the
+  brightness weighting, so the campaign is 18 dead and 1 equivalent), `gilded1.json`'s hand and alpha,
+  `fieldgunmwaudit.json` F1 and `pistolet.json`'s resting pistol (the curve argument). Each run once and dead.
+
+## THUNDERLOCK-LAB (2026-10-25): the lab draws the new sprite
+
+The owner: *"Can you insert the new thunderlock sprite into the prototype so I can adjust it"*. `gun-proto.html` now
+draws the owner's seven-frame strip (`public/art/thunderlock-frames.png`) instead of the old six-frame sheet.
+
+- **The cut is the game's.** `thunderlockFrames`, `THUNDERLOCK_STRIP` and `labThunderlockLight` reach the page
+  through `src/tools/gunLab.js`. The page cuts at a fixed stride with the 1-bit alpha, and uses the canvas as both
+  anchor and union.
+- **The defaults are the game's pose.** The panel opens at size 50 (the game's 160 of 320) and raise -5 (seated the
+  kick's height under the screen). FIELD-GUN8 (`test/systems/thunderlock.test.js`) holds those two to
+  `THUNDERLOCK_ART` now, not to `GUN_FEEL`'s old-sheet numbers.
+- **The cycle has seven frames.** The page's machine runs seven frames, and the hit slider reaches frame 7. The room
+  is lit on `THUNDERLOCK_MUZZLE_CURVE`.
+- **Gone from the panel:** the old sheet's controls, which were the idle-pose switch, the key and the chroma.
+  `tools/gunProtoProbe.mjs` now checks the strip's seven frames.
+
+## THUNDERLOCK-PLACE (2026-10-26): the owner's placement, off the lab
+
+The owner, after adjusting the new sprite in the gun lab: *"placement: 0.085 Offset, 44 size, -11 raise"*. The game now
+uses those three numbers. `THUNDERLOCK_ART` (`src/combat/thunderlockArt.js`) holds them as `widthPct` 0.44, `offset`
+0.085 and `raise` -11. The art's `pose` carries all three, and `weaponRig.js` `drawThunderlock` already reads
+`pose.offset`. The records' scale is derived from the width (0.44 x 320 / 160), so the records are drawn at the size the
+pose gives them. The canvas used to take 160 of the surface's 320 and sat the kick's 5 below the screen's foot; at -11
+the foot sits deeper still, so the shot's kick never shows the cut. The lab (`gun-proto.html`) opens on the same three
+numbers, and FIELD-GUN8 holds the lab and the game equal.

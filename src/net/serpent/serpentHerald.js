@@ -17,13 +17,17 @@
 //   the site's native point to the whole unit in the gate's pixel slots). A cell keeps a fight for every site named to
 //   it, a forged one too (AUDIT SERPENT S1), so the channel hears the kill AT THE AGREED SITE alone: a forged site's
 //   fight, however it ends, never reaches it. Until a site is agreed the bells name no place (it is ringed on every map)
-//   and a kill waits.
+//   and a kill waits. WW7-12: the site agreed is told back to every game online (serpentAtWord - the hub's `at`): the site
+//   is rolled over the world's lanes, and a game that cannot roll it (the land past the Bay off) rises its serpent there.
 // - SAFE TO POST: gateHerald.js's law - the one role named in `allowed_mentions`, a name or a place held to letters,
 //   digits, spaces and a little punctuation.
+// - HERALD-CARDS (2026-10-22): each post is a card (net/herald/heraldCard.js) - the family The Sea Serpent, in its ring's
+//   colour, the moment's title and its facts as fields.
 //
 // Not a DFU member: Daggerfall has no other players and no Discord. Ledger A (SERPENT2).
-import { serpentDayAt, isSerpentDay, serpentAt, serpentTimes, serpentBossOf, sameSerpentSite, SERPENT_EVERY_DAYS, SERPENT_DIVE_MS } from './serpentLaw.js';
-import { heraldName, heraldStamp, heraldList, heraldRole, agreedGateSite, HERALD_FELL_KEEP_MS, GATE_SITE_SKEW_MS } from '../gate/gateHerald.js';
+import { serpentDayAt, isSerpentDay, serpentAt, serpentTimes, serpentBossOf, sameSerpentSite, SERPENT_EVERY_DAYS, SERPENT_DIVE_MS, SERPENT_SITE_LAW } from './serpentLaw.js';
+import { agreedGateSite, HERALD_FELL_KEEP_MS, GATE_SITE_SKEW_MS } from '../gate/gateHerald.js';
+import { heraldCard, heraldName, heraldStamp, heraldWhen, heraldWho, heraldRole } from '../herald/heraldCard.js';   // HERALD-CARDS: the one card
 import { SERPENT_TOP_MAX } from '../wire.js';
 
 /** The role the serpent's bells ping: its own, when the operator names one, else the gate's - or null, none pinged. */
@@ -31,34 +35,37 @@ export const serpentHeraldRole = (own, gate) => heraldRole(own) ?? heraldRole(ga
 
 /**
  * THE BELLS' POST: where it is sighted, when it rises and when it dives (SERPENT4: its waters open till then) - the role
- * pinged first. The chat's own sentence (serpentLaw.js sightingLine), its times in each reader's own clock.
+ * pinged first. HERALD-CARDS: the card - its title the sighting and its text the hunt, in the chat's words (serpentLaw.js
+ * sightingLine), its fields when it rises, when it dives and where; the content the role and how soon.
  * @param {{day: number, place?: string|null, role?: string|null}} o
  */
 export function serpentOmenPost({ day, place = null, role = null }) {
   const t = serpentTimes(day), boss = serpentBossOf(day);
-  const ping = role ? `<@&${role}> ` : '';
-  const where = place ? `off ${heraldName(place)}` : 'on the packet lanes';
-  const map = place ? '' : ' Its waters are ringed on your map.';
-  return {
-    content: `${ping}**Bells ring in the harbors: a great serpent is sighted ${where}.** ${boss.name}, ${boss.nick}, rises ${heraldStamp(t.riseAt, 'R')} (${heraldStamp(t.riseAt, 't')}). It hunts until it dives at ${heraldStamp(t.soundAt, 't')}, and every ship may join until then. One ship alone cannot bring it down: sail out together.${map}`,
-    allowed_mentions: role ? { roles: [role] } : { parse: [] },
-  };
+  const off = place ? heraldName(place) : '';
+  return heraldCard({
+    family: 'serpent', moment: 'Bells', role,
+    title: `A great serpent is sighted ${off ? `off ${off}` : 'on the packet lanes'}`,
+    ping: `${boss.name} rises ${heraldStamp(t.riseAt, 'R')}.`,
+    text: `Bells ring in the harbors. ${boss.name}, ${boss.nick}, hunts until it dives, and every ship may join until then. One ship alone cannot bring it down: sail out together.`,
+    fields: [['Rises', heraldWhen(t.riseAt)], ['Dives', heraldStamp(t.soundAt, 't')], ['Where', off ? `Off ${off}` : 'Ringed on your map']],
+  });
 }
 
 /**
- * THE KILL'S POST: the serpent slain, where, and by whom - its top dealers and how many more fought. Pings nobody. The
- * chat's own sentence (serpentLaw.js slainLine).
+ * THE KILL'S POST: the serpent slain, where, and by whom - its top dealers and how many more fought. Pings nobody.
+ * HERALD-CARDS: the card - its title the kill, its fields where and by whom, its text the hoard (the chat's own
+ * sentence's parts, serpentLaw.js slainLine).
  * @param {{day: number, place?: string|null, top?: ReadonlyArray<string>, n?: number}} o
  */
 export function serpentFellPost({ day, place = null, top = [], n = 0 }) {
   const boss = serpentBossOf(day);
-  const names = (Array.isArray(top) ? top : []).slice(0, SERPENT_TOP_MAX).map(heraldName).filter(Boolean);
-  const others = Number.isSafeInteger(n) ? Math.max(0, n - names.length) : 0;
-  const by = names.length ? ` by ${heraldList([...names, ...(others ? [`${others} other${others === 1 ? '' : 's'}`] : [])])}` : '';
-  return {
-    content: `**${boss.name} is slain**${place ? ` off ${heraldName(place)}` : ''}${by}. Its hoard goes to the ships that fought it.`,
-    allowed_mentions: { parse: [] },
-  };
+  const off = place ? heraldName(place) : '';
+  return heraldCard({
+    family: 'serpent', moment: 'Slain',
+    title: `${boss.name} is slain`,
+    text: 'Its hoard goes to the ships that fought it.',
+    fields: [['Where', off ? `Off ${off}` : null], ['Slain by', heraldWho((Array.isArray(top) ? top : []).slice(0, SERPENT_TOP_MAX), n)]],
+  });
 }
 
 /**
@@ -86,11 +93,32 @@ export const serpentHeraldFellLive = (day, nowMs) => isSerpentDay(day) && nowMs 
  *  before the turn? */
 export const serpentSiteDayOk = (day, nowMs) => Number.isSafeInteger(day) && (day === serpentAt(nowMs).day || day === serpentAt(nowMs + GATE_SITE_SKEW_MS).day);
 
+/** AUDIT TAMRIEL-WIDE E3: does the hub fold a `site` word - its own site law's (serpentLaw.js SERPENT_SITE_LAW), of the
+ *  day the clock is about? A build on another law rolls another site, and its word would split the vote. */
+export const serpentSiteWordOk = (m, nowMs) => m?.sl === SERPENT_SITE_LAW && serpentSiteDayOk(m.d, nowMs);
+/** Where the hub keeps its record: one a site law, so a deploy never folds a word into the older law's record. */
+export const SERPENT_SITE_RECORD = `serpentsite.${SERPENT_SITE_LAW}`;
+
 /** The site the hub's record agrees on for day `day`, as `{sx, sz, place}` (the gate's record's pixel slots hold the
  *  serpent's native point), or null. */
 export function agreedSerpentSite(rec, day) {
   const a = agreedGateSite(rec, day);
   return a ? { sx: a.px, sz: a.py, place: a.pl } : null;
+}
+
+/**
+ * WW7-12 (bible/03-World/World-Wide.md WW7-12; the owner, 2026-10-26: "Fucking do it"): THE HUB'S WORD OF WHERE THE
+ * SERPENT LIES - `{t: 'serpent', k: 'at', d, sx, sz, pl}`, the site its record agrees on (agreedSerpentSite) for the day
+ * the record is of while that day is the one the clock is about (serpentSiteDayOk), or null. The site is rolled over the
+ * world's lanes now, which a game without the land past the Bay (or before its picture comes) cannot roll: the hub tells
+ * every game online as the accounts come to agree, and each hello, and such a game rises its serpent there.
+ * @param {any} rec the hub's record (foldGateSite's) @param {number} nowMs
+ */
+export function serpentAtWord(rec, nowMs) {
+  const d = rec && typeof rec === 'object' ? rec.d : null;
+  if (!serpentSiteDayOk(d, nowMs)) return null;
+  const a = agreedSerpentSite(rec, d);
+  return a ? { t: 'serpent', k: 'at', d, sx: a.sx, sz: a.sz, pl: a.place } : null;
 }
 
 /**

@@ -23,6 +23,8 @@ import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { studioListing, STUDIO_TREE } from '../../scripts/studioArtIndex.mjs';   // STUDIO1
 import { writePng } from '../../tools/pngIO.mjs';   // AUDIT STUDIO1 C12: the studio arm's own pictures
+import { dwarvenDragonSpriteEntries, DWARVEN_DRAGON_ART } from '../../src/characters/dwarvenDragon.js';   // DWARVEN-DRAGON: its sprites' rows
+import { SADDLE_PICTURES } from '../../src/systems/staffDragon.js';   // DRAGON-RIDE: its saddle's two
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const tracked = (dir) => execFileSync('git', ['ls-files', '-z', dir], { cwd: root, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 })   // RRI1: 13,000 tracked sprites outgrew the 1 MB default (ENOBUFS)
@@ -50,10 +52,11 @@ const PUBLIC_ALLOWLIST = new Map([
   // INTRO2 (2026-09-18): restored at Mac's explicit request. The credit
   // marks and score are the identical U65 assets, not ARENA2-derived data.
   // Credit marks identify their respective projects; no new rights claimed.
+  // INTRO-REVERT (2026-10-25, the owner): the recording is back with its row.
   ['src/assets/intro/interkarma.webp', 'U65 credit artwork identifying Interkarma / Daggerfall Unity; recovered unchanged'],
   ['src/assets/intro/nexus.webp', 'U65 credit artwork identifying Nexus Mods; recovered unchanged'],
   ['src/assets/intro/theme.mp3', 'U65 original theme recording; recovered unchanged at Mac\'s request'],
-  ['src/assets/branding/dfo-online.png', 'BR5: Mac\'s supplied DFO Online logo, 2026-10-11, his own file with alpha, cut to its painted bounds with every pixel inside unchanged; no ARENA2 data'],
+  ['src/assets/branding/dfo-online.png', 'BR6: Mac\'s supplied DFO Online dragon logo, 2026-10-26 (BR5\'s mark before it), his own file with alpha, cut to its painted bounds and scaled to 1232 x 1034 at his word; no ARENA2 data'],
   // THE SITE'S PICTURES (U60c) WERE RETIRED with the DA site cleanup
   // (Mac, 2026-08-31): the landing page carries no raster at all now -
   // landing.test.js pins <img> absent - so the three menu screens,
@@ -87,11 +90,22 @@ const PUBLIC_ALLOWLIST = new Map([
   ['public/fonts/opendyslexic/OFL.txt', 'TEXT-FONT: the font\'s SIL Open Font License, which travels with it'],
   ['public/art/gun-idle.png', "OURS - Mac's own weapon art for the gun lab (2026-09-19); no ARENA2 pixel in it"],
   ['public/art/gun-fire-sheet.webp', "OURS - Mac's own six-frame fire sheet for the gun lab (2026-09-19); no ARENA2 pixel in it"],
+  ['public/art/hearth-offering.png', "OURS - the owner's own picture of the Hearth Offering at a door, a carved pumpkin on a stool under a lantern (OFFERING-ART, 2026-10-28), its pixels unchanged; no ARENA2 pixel in it"],
+  ['public/art/pistol-frames.png', "OURS - the owner's own six fire frames for the pistol lab (2026-10-21), laid side by side with their pixels unchanged; no ARENA2 pixel in it"],
+  ['public/art/pistolet-icon.png', "OURS - the owner's own Dwarven Pistolet sprite (PISTOLET, 2026-10-21), its 24x17 pixels recovered from the owner's screenshot; the inventory picture as it is; no ARENA2 pixel in it"],
+  ['public/art/pistolet-paperdoll.png', "OURS - pistolet-icon.png with the fist's gap cut across its grip, flipped left to right and tilted barrel-down toward the other hand (RotSprite, no new colour) by tools/pistoletArt.mjs (the right hand's doll layer); no ARENA2 pixel in it"],
+  ['public/art/pistolet-paperdoll-left.png', "OURS - pistolet-icon.png with the fist's gap cut across its grip and tilted barrel-down (RotSprite, no new colour) by tools/pistoletArt.mjs (the left hand's doll layer); no ARENA2 pixel in it"],
+  ['public/art/pistolet-icon-gilded.png', "OURS - pistolet-icon.png laid on the gold-leaf ramp by tools/pistoletArt.mjs (tools/gunIcons.mjs gild - the Sunken Sovereign's); no ARENA2 pixel in it"],
+  ['public/art/pistolet-paperdoll-gilded.png', "OURS - pistolet-paperdoll.png in gold leaf by tools/pistoletArt.mjs; no ARENA2 pixel in it"],
+  ['public/art/pistolet-paperdoll-left-gilded.png', "OURS - pistolet-paperdoll-left.png in gold leaf by tools/pistoletArt.mjs; no ARENA2 pixel in it"],
   ['public/art/gun-paperdoll.png', "OURS - Mac's own weapon art for the gun lab (2026-09-19), baked down and cut for the doll's hand by tools/gunPaperdoll.mjs; no ARENA2 pixel in it"],
   ['public/art/gun-ammo.png', "OURS - Mac's own ammunition art for the gun lab (2026-09-19), baked down by tools/gunPaperdoll.mjs; no ARENA2 pixel in it"],
   // THUNDERLOCK-ART + GILDED1 (2026-10-07): the gun's list picture and the Hourlock's gold pair, each DERIVED from the
   // doll layer above by tools/gunIcons.mjs (test/systems/thunderlockart.test.js re-runs it and holds them pixel for pixel)
-  ['public/art/gun-icon.png', "OURS - gun-paperdoll.png (Mac's own art) with the fist's gap healed from its own pixels and trimmed, by tools/gunIcons.mjs; no ARENA2 pixel in it"],
+  // THUNDERLOCK-ART2 (2026-10-24): the owner's new Thunderlock - seven first-person frames and the list picture
+  ['public/art/thunderlock-frames.png', "OURS - the owner's own seven first-person Thunderlock frames (THUNDERLOCK-ART2, 2026-10-24), 160x98 each, laid side by side with their pixels unchanged; no ARENA2 pixel in it"],
+  ['public/art/thunderlock-icon.png', "OURS - the owner's own Thunderlock list picture (THUNDERLOCK-ART2, 2026-10-24), 88x31, its pixels unchanged (palette to RGBA); no ARENA2 pixel in it"],
+  ['public/art/gun-icon.png', "OURS - thunderlock-icon.png (the owner's own) trimmed to what it draws, by tools/gunIcons.mjs (THUNDERLOCK-ART2; it was gun-paperdoll.png with the fist's gap healed); no ARENA2 pixel in it"],
   ['public/art/gun-icon-gilded.png', 'OURS - gun-icon.png laid on a gold-leaf ramp by tools/gunIcons.mjs (the Hourlock\'s list picture); no ARENA2 pixel in it'],
   ['public/art/gun-paperdoll-gilded.png', 'OURS - gun-paperdoll.png laid on a gold-leaf ramp by tools/gunIcons.mjs (the Hourlock\'s doll layer); no ARENA2 pixel in it'],
   ['public/sfx/SOURCES.md', 'documentation - where every sound in this folder came from, with its license'],
@@ -158,6 +172,23 @@ const PUBLIC_ALLOWLIST = new Map([
   ['public/sfx/gather-clean.wav', 'OURS - GATHER-FEEL: synthesised from noise and sine by tools/gatherSfx.mjs, deterministically; no recording in it at all'],
   ['public/sfx/gather-haul.wav', 'OURS - GATHER-FEEL: synthesised from noise and sine by tools/gatherSfx.mjs, deterministically; no recording in it at all'],
   ['public/sfx/gather-rank.wav', 'OURS - GATHER-FEEL: synthesised from noise and sine by tools/gatherSfx.mjs, deterministically; no recording in it at all'],
+  ['public/sfx/lock-tick-1.wav', 'OURS - LOCKPICK: synthesised from noise and sine by tools/lockSfx.mjs, deterministically; no recording in it at all'],
+  ['public/sfx/lock-tick-2.wav', 'OURS - LOCKPICK: synthesised from noise and sine by tools/lockSfx.mjs, deterministically; no recording in it at all'],
+  ['public/sfx/lock-spring.wav', 'OURS - LOCKPICK: synthesised from noise and sine by tools/lockSfx.mjs, deterministically; no recording in it at all'],
+  ['public/sfx/lock-set.wav', 'OURS - LOCKPICK: synthesised from noise and sine by tools/lockSfx.mjs, deterministically; no recording in it at all'],
+  ['public/sfx/lock-false.wav', 'OURS - LOCKPICK: synthesised from noise and sine by tools/lockSfx.mjs, deterministically; no recording in it at all'],
+  ['public/sfx/lock-slip.wav', 'OURS - LOCKPICK: synthesised from noise and sine by tools/lockSfx.mjs, deterministically; no recording in it at all'],
+  ['public/sfx/lock-snap.wav', 'OURS - LOCKPICK: synthesised from noise and sine by tools/lockSfx.mjs, deterministically; no recording in it at all'],
+  ['public/sfx/fx-kill-ashen.wav', 'OURS - STOREFRONT: synthesised from noise and sine by tools/storefrontSfx.mjs, deterministically; no recording in it at all'],
+  ['public/sfx/fx-kill-voidrend.wav', 'OURS - STOREFRONT: synthesised from noise and sine by tools/storefrontSfx.mjs, deterministically; no recording in it at all'],
+  ['public/sfx/fx-kill-pyre.wav', 'OURS - STOREFRONT: synthesised from noise and sine by tools/storefrontSfx.mjs, deterministically; no recording in it at all'],
+  ['public/sfx/fx-kill-tonal.wav', 'OURS - STOREFRONT: synthesised from noise and sine by tools/storefrontSfx.mjs, deterministically; no recording in it at all'],
+  ['public/sfx/fx-portal-runic.wav', 'OURS - STOREFRONT: synthesised from noise and sine by tools/storefrontSfx.mjs, deterministically; no recording in it at all'],
+  ['public/sfx/fx-portal-daedric.wav', 'OURS - STOREFRONT: synthesised from noise and sine by tools/storefrontSfx.mjs, deterministically; no recording in it at all'],
+  ['public/sfx/fx-portal-aetheric.wav', 'OURS - STOREFRONT: synthesised from noise and sine by tools/storefrontSfx.mjs, deterministically; no recording in it at all'],
+  ['public/sfx/fx-portal-brass.wav', 'OURS - STOREFRONT: synthesised from noise and sine by tools/storefrontSfx.mjs, deterministically; no recording in it at all'],
+  ['public/sfx/fx-season-tremor.wav', 'OURS - STOREFRONT: synthesised from noise and sine by tools/storefrontSfx.mjs, deterministically; no recording in it at all'],
+  ['public/sfx/fx-season-hum.wav', 'OURS - STOREFRONT: synthesised from noise and sine by tools/storefrontSfx.mjs, deterministically; no recording in it at all'],
   ['public/sfx/climb-grab-1.wav', 'OURS - CLIMB4: synthesised from noise and sine by tools/climbSfx.mjs, deterministically; no recording in it at all'],
   ['public/sfx/climb-grab-2.wav', 'OURS - CLIMB4: synthesised from noise and sine by tools/climbSfx.mjs, deterministically; no recording in it at all'],
   ['public/sfx/climb-catch.wav', 'OURS - CLIMB4: synthesised from noise and sine by tools/climbSfx.mjs, deterministically; no recording in it at all'],
@@ -169,6 +200,40 @@ const PUBLIC_ALLOWLIST = new Map([
   ['public/sfx/climb-pull.wav', 'OURS - CLIMB4: synthesised from noise and sine by tools/climbSfx.mjs, deterministically; no recording in it at all'],
   ['public/sfx/climb-whoosh.wav', 'OURS - CLIMB4: synthesised from noise and sine by tools/climbSfx.mjs, deterministically; no recording in it at all'],
   ['public/sfx/climb-crumble.wav', 'OURS - CLIMB4: synthesised from noise and sine by tools/climbSfx.mjs, deterministically; no recording in it at all'],
+  ['public/sfx/horse-snort-1.wav', 'OURS - HORSE-VOICE: synthesised from noise and sine by tools/horseSfx.mjs, deterministically; no recording in it at all'],
+  ['public/sfx/horse-snort-2.wav', 'OURS - HORSE-VOICE: synthesised from noise and sine by tools/horseSfx.mjs, deterministically; no recording in it at all'],
+  ['public/sfx/horse-snort-3.wav', 'OURS - HORSE-VOICE: synthesised from noise and sine by tools/horseSfx.mjs, deterministically; no recording in it at all'],
+  ['public/sfx/horse-blow-1.wav', 'OURS - HORSE-VOICE: synthesised from noise and sine by tools/horseSfx.mjs, deterministically; no recording in it at all'],
+  ['public/sfx/horse-blow-2.wav', 'OURS - HORSE-VOICE: synthesised from noise and sine by tools/horseSfx.mjs, deterministically; no recording in it at all'],
+  ['public/sfx/horse-breath-1.wav', 'OURS - HORSE-VOICE: synthesised from noise and sine by tools/horseSfx.mjs, deterministically; no recording in it at all'],
+  ['public/sfx/horse-breath-2.wav', 'OURS - HORSE-VOICE: synthesised from noise and sine by tools/horseSfx.mjs, deterministically; no recording in it at all'],
+  ['public/sfx/horse-breath-3.wav', 'OURS - HORSE-VOICE: synthesised from noise and sine by tools/horseSfx.mjs, deterministically; no recording in it at all'],
+  ['public/sfx/horse-spook.wav', 'OURS - HORSE-VOICE: synthesised from noise and sine by tools/horseSfx.mjs, deterministically; no recording in it at all'],
+  ['public/sfx/horse-soft-slow.wav', 'OURS - HORSE-VOICE: synthesised from noise and sine by tools/horseSfx.mjs, deterministically; no recording in it at all'],
+  ['public/sfx/horse-soft-fast.wav', 'OURS - HORSE-VOICE: synthesised from noise and sine by tools/horseSfx.mjs, deterministically; no recording in it at all'],
+  ['public/sfx/horse-snow-slow.wav', 'OURS - HORSE-VOICE: synthesised from noise and sine by tools/horseSfx.mjs, deterministically; no recording in it at all'],
+  ['public/sfx/horse-snow-fast.wav', 'OURS - HORSE-VOICE: synthesised from noise and sine by tools/horseSfx.mjs, deterministically; no recording in it at all'],
+  ['public/sfx/horse-water-slow.wav', 'OURS - HORSE-VOICE: synthesised from noise and sine by tools/horseSfx.mjs, deterministically; no recording in it at all'],
+  ['public/sfx/horse-water-fast.wav', 'OURS - HORSE-VOICE: synthesised from noise and sine by tools/horseSfx.mjs, deterministically; no recording in it at all'],
+  ['public/sfx/shore-crash-1.wav', 'OURS - SOUNDSCAPE: synthesised from noise and sine by tools/soundscapeSfx.mjs, deterministically; no recording in it at all'],
+  ['public/sfx/shore-crash-2.wav', 'OURS - SOUNDSCAPE: synthesised from noise and sine by tools/soundscapeSfx.mjs, deterministically; no recording in it at all'],
+  ['public/sfx/wild-owl-1.wav', 'OURS - SOUNDSCAPE: synthesised from noise and sine by tools/soundscapeSfx.mjs, deterministically; no recording in it at all'],
+  ['public/sfx/wild-owl-2.wav', 'OURS - SOUNDSCAPE: synthesised from noise and sine by tools/soundscapeSfx.mjs, deterministically; no recording in it at all'],
+  ['public/sfx/wild-howl-1.wav', 'OURS - SOUNDSCAPE: synthesised from noise and sine by tools/soundscapeSfx.mjs, deterministically; no recording in it at all'],
+  ['public/sfx/wild-howl-2.wav', 'OURS - SOUNDSCAPE: synthesised from noise and sine by tools/soundscapeSfx.mjs, deterministically; no recording in it at all'],
+  ['public/sfx/sea-gull-1.wav', 'CC0 (OpenGameArt, Rango Mango: Seagull Ambient 1.wav), public domain - baked to DAGGER.SND\'s 11025Hz 8-bit by tools/soundscapeSfxInstall.mjs; see public/sfx/SOURCES.md'],
+  ['public/sfx/sea-gull-2.wav', 'CC0 (OpenGameArt, Rango Mango: Seagull Ambient 2.wav), public domain - baked to DAGGER.SND\'s 11025Hz 8-bit by tools/soundscapeSfxInstall.mjs; see public/sfx/SOURCES.md'],
+  ['public/sfx/sea-gull-3.wav', 'CC0 (OpenGameArt, Rango Mango: Seagull Ambient 3.wav), public domain - baked to DAGGER.SND\'s 11025Hz 8-bit by tools/soundscapeSfxInstall.mjs; see public/sfx/SOURCES.md'],
+  ['public/sfx/sea-gull-4.wav', 'CC0 (OpenGameArt, Rango Mango: Seagull Ambient 5.wav), public domain - baked to DAGGER.SND\'s 11025Hz 8-bit by tools/soundscapeSfxInstall.mjs; see public/sfx/SOURCES.md'],
+  ['public/sfx/sea-gull-5.wav', 'CC0 (OpenGameArt, Rango Mango: Seagull Ambient 6.wav), public domain - baked to DAGGER.SND\'s 11025Hz 8-bit by tools/soundscapeSfxInstall.mjs; see public/sfx/SOURCES.md'],
+  ['public/sfx/sea-gull-6.wav', 'CC0 (OpenGameArt, Rango Mango: Seagull Big Ambient.wav), public domain - baked to DAGGER.SND\'s 11025Hz 8-bit by tools/soundscapeSfxInstall.mjs; see public/sfx/SOURCES.md'],
+  ['public/sfx/wild-crow-1.wav', 'CC0 (OpenGameArt, fvcalderan: crow_0.ogg), public domain - baked to DAGGER.SND\'s 11025Hz 8-bit by tools/soundscapeSfxInstall.mjs; see public/sfx/SOURCES.md'],
+  ['public/sfx/wild-frog-1.wav', 'CC0 (OpenGameArt, EZduzziteh: croak_01_0.mp3), public domain - baked to DAGGER.SND\'s 11025Hz 8-bit by tools/soundscapeSfxInstall.mjs; see public/sfx/SOURCES.md'],
+  ['public/sfx/wild-frog-2.wav', 'CC0 (OpenGameArt, EZduzziteh: croak_02.mp3), public domain - baked to DAGGER.SND\'s 11025Hz 8-bit by tools/soundscapeSfxInstall.mjs; see public/sfx/SOURCES.md'],
+  ['public/sfx/wild-frog-3.wav', 'CC0 (OpenGameArt, EZduzziteh: croak_03.mp3), public domain - baked to DAGGER.SND\'s 11025Hz 8-bit by tools/soundscapeSfxInstall.mjs; see public/sfx/SOURCES.md'],
+  ['public/sfx/wild-frog-4.wav', 'CC0 (OpenGameArt, EZduzziteh: croak_04.mp3), public domain - baked to DAGGER.SND\'s 11025Hz 8-bit by tools/soundscapeSfxInstall.mjs; see public/sfx/SOURCES.md'],
+  ['public/sfx/town-anvil-1.wav', 'CC0 (OpenGameArt, VishwaJai: blacksmithhammer.wav), public domain - baked to DAGGER.SND\'s 11025Hz 8-bit by tools/soundscapeSfxInstall.mjs; see public/sfx/SOURCES.md'],
+  ['public/sfx/town-anvil-2.wav', 'CC0 (OpenGameArt, themightyglider: forger_0.ogg), public domain - baked to DAGGER.SND\'s 11025Hz 8-bit by tools/soundscapeSfxInstall.mjs; see public/sfx/SOURCES.md'],
   ['public/skin/skin-intensity.png', 'OURS - intensity baked from our own generated turnaround'],
   ['public/skin/skin-uv.json', "OURS - UVs over our own rig's geometry, no pixels at all"],
   ['public/skin/skin-layout.json', 'OURS - atlas cell rectangles, no pixels at all'],
@@ -426,15 +491,6 @@ const PUBLIC_ALLOWLIST = new Map([
   ['vendor/climates-calories/Textures/539_0-0.png', "THIRD-PARTY - Climates & Calories 1.7.1 (Ralzar), carried on the author's permission (relayed by Mac); the mod's own pixel art - the waterskin"],
   ['vendor/climates-calories/Textures/50_7-0.png', "THIRD-PARTY - Climates & Calories 1.7.1 (Ralzar), carried on the author's permission (relayed by Mac); the mod's own pixel art - the tent's canvas (SURV-TENT)"],
   ['vendor/climates-calories/Textures/67_10-0.png', "THIRD-PARTY - Climates & Calories 1.7.1 (Ralzar), carried on the author's permission (relayed by Mac); the mod's own pixel art - the tent's pole (SURV-TENT)"],
-  // DS1 (2026-09-25): DETAILED SHIPS 1.0.0 (Cliffworms) - the four of its
-  // thirteen pictures that NO classic record is, measured against every
-  // record of every TEXTURE file at every offset (tools/detailedShipsAssets.mjs);
-  // the nine that are classic records ship as specs over the player's
-  // own (Textures/derived.json), never as pixels.
-  ['vendor/detailed-ships/Textures/1210_10-0.png', "THIRD-PARTY - Detailed Ships 1.0.0 (Cliffworms), carried under the author's readme ('may be distributed ... as long as I am credited'); the author's own 7x15 drawing - a green bottle"],
-  ['vendor/detailed-ships/Textures/1210_11-0.png', "THIRD-PARTY - Detailed Ships 1.0.0 (Cliffworms), carried under the author's readme ('may be distributed ... as long as I am credited'); the author's own 7x15 drawing - a blue bottle"],
-  ['vendor/detailed-ships/Textures/1210_12-0.png', "THIRD-PARTY - Detailed Ships 1.0.0 (Cliffworms), carried under the author's readme ('may be distributed ... as long as I am credited'); the author's own 7x15 drawing - an amber bottle"],
-  ['vendor/detailed-ships/Textures/1230_30-0.png', "THIRD-PARTY - Detailed Ships 1.0.0 (Cliffworms), carried under the author's readme; the Kynareth statue the readme credits to King of Worms and Zoran ('for the deity statues'), credited beside him"],
   // FOEBAR1 (2026-09-17): THE TARGET BAR'S BLADE FACE. Two pictures a
   // friend of Mac's drew for this port and sent through him to be its
   // alternate enemy health bar - a twin-bladed shape with a skull hub,
@@ -459,6 +515,10 @@ const PUBLIC_ALLOWLIST = new Map([
   ['src/assets/mw/source/Pellet_Shot.fbx', "OURS - Mac's own Blender export of the Dwarven Thunderlock, committed so the two files below are a DERIVATION the gate can re-run rather than a blob"],
   ['src/assets/mw/meshes/thunderlock.nif', "OURS - Mac's own Dwarven Thunderlock model, baked to a Morrowind NIF by tools/nifWrite.mjs; a Bethesda format, no Bethesda data"],
   ['src/assets/mw/textures/thunderlock.dds', 'OURS - generated from that mesh\'s own geometry by tools/meshTexture.mjs (position, normal and cast occlusion); no image input, no ARENA2 or Morrowind pixel in it'],
+  ['src/assets/mw/meshes/pistolet.nif', "OURS - the Dwarven Pistolet modelled part by part by tools/modelPistolet.mjs and written by tools/nifWrite.mjs (PISTOLET-MODEL); a Bethesda format, no Bethesda data"],
+  ['src/assets/mw/textures/pistolet.dds', "OURS - that model's atlas, painted from its own surface by tools/modelPistolet.mjs; no ARENA2 or Morrowind pixel in it"],
+  ['src/assets/mw/meshes/pistolet_gilded.nif', "OURS - the same model as pistolet.nif (the Sunken Sovereign's twin), naming its own texture, by tools/bakePistolet.mjs; a Bethesda format, no Bethesda data"],
+  ['src/assets/mw/textures/pistolet_gilded.dds', "OURS - that model's atlas painted in gold leaf by tools/modelPistolet.mjs; no ARENA2 or Morrowind pixel in it"],
   ['src/assets/mw/meshes/thunderlock_gilded.nif', "OURS - the same baked mesh as thunderlock.nif (GILDED1, the Hourlock's twin), naming its own texture, by tools/bakeThunderlock.mjs; a Bethesda format, no Bethesda data"],
   ['src/assets/mw/textures/thunderlock_gilded.dds', 'OURS - generated from that mesh\'s own geometry by tools/meshTexture.mjs on its gold-leaf bands (GILDED_BANDS); no image input, no ARENA2 or Morrowind pixel in it'],
   // MW-BRIG1 (2026-09-29): the Steel Brigandine, the port's own worn
@@ -709,6 +769,10 @@ const PUBLIC_ALLOWLIST = new Map([
   ['src/assets/egfrags/source/egheroOssuary.fbx', 'OURS - the Ossuary\'s scene, written by tools/egHeroOssuaryScene.mjs from numbers alone; no ARENA2 data, no third-party art'],
   ['src/assets/egfrags/egheroOssuary.law.json', 'OURS - egheroOssuary.fbx\'s law half (its markers, section 11.5\'s record) baked by tools/bakeEgHeroOssuary.mjs; numbers only'],
   ['src/assets/egfrags/egheroOssuary.mesh.json', 'OURS - egheroOssuary.fbx\'s mesh half baked by tools/bakeEgHeroOssuary.mjs; geometry only, its pictures the band\'s painted dress, no ARENA2 data'],
+  // DELVE II (DLV6, bible/03-World/Delve-II.md section 8): the curated blocks' records - numbers and names alone (a base
+  // block's name, Daggerfall's model and flat ids, the places); each block is made of the player's own BLOCKS.BSA at the build
+  ...['crypt-hall', 'mine-gallery', 'desecrated-chapel', 'throne-hall'].map((id) => [`src/assets/delve/${id}.json`,
+    "OURS - a curated block's record (DELVE II DLV6): its base's name, the ids it drops and adds, its anchor; numbers only, no ARENA2 data"]),
   ['src/assets/egfrags/source/egheroMistStair.fbx', 'OURS - the Mist Stair\'s scene, written by tools/egHeroMistStairScene.mjs from numbers alone; no ARENA2 data, no third-party art'],
   ['src/assets/egfrags/egheroMistStair.law.json', 'OURS - egheroMistStair.fbx\'s law half (its markers, section 11.5\'s record) baked by tools/bakeEgHeroMistStair.mjs; numbers only'],
   ['src/assets/egfrags/egheroMistStair.mesh.json', 'OURS - egheroMistStair.fbx\'s mesh half baked by tools/bakeEgHeroMistStair.mjs; geometry only, its pictures the band\'s painted dress, no ARENA2 data'],
@@ -753,6 +817,9 @@ const PUBLIC_ALLOWLIST = new Map([
   // tools/bakeWagons.mjs re-makes the three JSONs from it (tools/shipBake.mjs), and test/tooling/wagons1_bake.test.js holds them
   // to the bytes. Their pictures carry no file: world/wagonArt.js paints them at load.
   ['src/assets/wagons/source/Wagon_Cart_Tiny_1.fbx', "SUPPLIED - Mac's Blender export of his wagons' scene, the Wagon Cart, the Open Wagon and the Caravan among its stations (2026-10-09; the newest of the four he sent), committed so the three wagon JSONs are DERIVATIONS the gate can re-run"],
+  // CHEST3D (2026-10-31): the chest every chest model stands as (world/chestModel.js), in Daggerfall's pictures at run time
+  ['src/assets/chest/source/Low_Poly_Chest_Mimic.fbx', "SUPPLIED - the owner's FBX of the chest (CHEST3D, 2026-10-31: \"I want to implement this and ensure any chests use this\"), as sent, committed so chest.json is a DERIVATION the gate can re-run; no material, no picture, no ARENA2 data"],
+  ['src/assets/chest/chest.json', "SUPPLIED - Low_Poly_Chest_Mimic.fbx baked to the chest's frame by tools/bakeChest.mjs; geometry only, shut and open - its pictures are the player's own ARENA2 at run time"],
   ['src/assets/wagons/cart.json', "SUPPLIED - Wagon_Cart_Tiny_1.fbx's Wagon Cart baked to the wagon's frame by tools/bakeWagons.mjs; geometry only, no ARENA2 or Horse Cart and Cargo data"],
   ['src/assets/wagons/openWagon.json', "SUPPLIED - Wagon_Cart_Tiny_1.fbx's Open Wagon baked to the wagon's frame by tools/bakeWagons.mjs; geometry only, no ARENA2 or Horse Cart and Cargo data"],
   ['src/assets/wagons/caravan.json', "SUPPLIED - Wagon_Cart_Tiny_1.fbx's Caravan baked to the wagon's frame by tools/bakeWagons.mjs; geometry only, no ARENA2 or Horse Cart and Cargo data"],
@@ -760,6 +827,7 @@ const PUBLIC_ALLOWLIST = new Map([
   // MEADOW'S FIVE SPRITES, supplied by Mac as indexed PNGs and committed as he supplied them. Nothing ships them:
   // tools/bakeMeadow.mjs bakes them into render/meadowArt.js, and test/render/grassmeadow.test.js holds that module to
   // them texel for texel. Their colours are not looked up in any palette at runtime - the sprites carry their own.
+  ['src/assets/tamriel/source/tamriel-heightmap.png', "SUPPLIED - the owner's heightmap of the whole continent (TAMRIEL-RELIEF, 2026-10-24: 'Heres the entire tamriel height map btw', then 'This is the heightmap. Use it'), as he sent it - a phone's screenshot, its map cropped to 930x705 and saved as PNG; its own source not stated - its licence the owner's permission (AUDIT TESA II G9, the owner 2026-10-25: 'We have permission'; bible/03-World/Tamriel.md TAMRIEL-RELIEF). Greys only, no ARENA2 pixel in it; the PNG ships nowhere, and its derivative does: tools/bakeTamrielRelief.mjs lays it on the trace into src/world/tamriel/tamrielReliefData.js, a chunk of the build - a height every cell, the sea's too, so nothing of the trace ships in it (AUDIT TESA II G1)"],
   ['src/assets/grass/source/tuft-tall.png', "SUPPLIED - Mac's tall grass tuft for the meadow grass (MEADOW1, 2026-10-06), 32x32 indexed, his own PNG bytes - his own pixel art, no ARENA2 pixel in it (his word, AUDIT MEADOW1 2026-10-06)"],
   ['src/assets/grass/source/tuft-short.png', "SUPPLIED - Mac's short grass tuft for the meadow grass (MEADOW1, 2026-10-06), 32x32 indexed, his own PNG bytes - his own pixel art, no ARENA2 pixel in it (his word, AUDIT MEADOW1 2026-10-06)"],
   ['src/assets/grass/source/flowers.png', "SUPPLIED - Mac's flower tuft for the meadow grass (MEADOW1, 2026-10-06), 32x32 indexed, his own PNG bytes - his own pixel art, no ARENA2 pixel in it (his word, AUDIT MEADOW1 2026-10-06)"],
@@ -786,6 +854,18 @@ const PUBLIC_ALLOWLIST = new Map([
   ['src/assets/jungle/source/jungle_tree5.obj', "SUPPLIED - the owner's mahogany for the Jungle of Bantha (BANTHA1, 2026-10-18), the owner's Blender 5.2 OBJ export as handed over - geometry only, read at run time by world/jungle/jungleModels.js"],
   ['src/assets/jungle/source/jungle_tree5.mtl', "SUPPLIED - the owner's mahogany's material (BANTHA1, 2026-10-18), as handed over - it names the picture its tree is cut from"],
   ['src/assets/jungle/source/jungle_tree5_252w.png', "SUPPLIED - the owner's mahogany picture for the Jungle of Bantha (BANTHA1, 2026-10-18), 252x164 RGBA cut by its alpha, the owner's own PNG bytes as handed over - the owner's art (the owner, 2026-10-18: \"These textures are ours\" - no ARENA2 pixel)"],
+  // JUNGLE-ROADSIDE (2026-10-23, the owner, through Mac: "These trees are meant for the jungle biome and roadside. Making
+  // it more like a jungle with the vines stringing across the roads"): THE ROADSIDE PAIRS, three Blender 5.2 OBJs and
+  // their MTLs committed as handed over, byte for byte (their own names - Blender's file was pine.blend). Each is two of
+  // the trees above and lianas between them, and wears only the pictures above - no picture of their own. They ship as
+  // they are: systems/jungleTreesAssets.js fetches them and world/jungle/jungleRoadside.js reads them at run time (no
+  // bake); test/world/jungleroadside.test.js reads the same bytes.
+  ['src/assets/jungle/source/pine.obj', "SUPPLIED - the owner's roadside pair for the Jungle of Bantha (JUNGLE-ROADSIDE, 2026-10-23): the mahogany and a kapok leant over the road, lianas strung between them - the owner's Blender 5.2 OBJ export as handed over, geometry only, read at run time by world/jungle/jungleRoadside.js"],
+  ['src/assets/jungle/source/pine.mtl', "SUPPLIED - the leaning pair's materials (JUNGLE-ROADSIDE, 2026-10-23), as handed over - they name the kapok's, the fig's and the mahogany's pictures above"],
+  ['src/assets/jungle/source/pine-1.obj', "SUPPLIED - the owner's roadside pair for the Jungle of Bantha (JUNGLE-ROADSIDE, 2026-10-23): the mahogany and a fig, lianas strung between them - the owner's Blender 5.2 OBJ export as handed over, geometry only, read at run time by world/jungle/jungleRoadside.js"],
+  ['src/assets/jungle/source/pine-1.mtl', "SUPPLIED - the fig pair's materials (JUNGLE-ROADSIDE, 2026-10-23), as handed over - they name the fig's and the mahogany's pictures above"],
+  ['src/assets/jungle/source/pine2.obj', "SUPPLIED - the owner's roadside pair for the Jungle of Bantha (JUNGLE-ROADSIDE, 2026-10-23): the mahogany and a kapok sunk 2 m into its ground, lianas strung between them - the owner's Blender 5.2 OBJ export as handed over, geometry only, read at run time by world/jungle/jungleRoadside.js"],
+  ['src/assets/jungle/source/pine2.mtl', "SUPPLIED - the sunk pair's materials (JUNGLE-ROADSIDE, 2026-10-23), as handed over - they name the kapok's, the fig's and the mahogany's pictures above"],
   // COATS3D (2026-10-11, the owner: "The first image is for the horse itself and the second is for the tail"): THE
   // COURSER, a rigged horse supplied as five saves of one Blender rig and two pictures painted for its own UV layout -
   // the newest whole save committed, as the ships' and the wagons' scenes are. tools/bakeHorse.mjs re-makes
@@ -795,6 +875,13 @@ const PUBLIC_ALLOWLIST = new Map([
   ['src/assets/horse/courser.json', "SUPPLIED - courser.fbx baked to the armature's frame by tools/bakeHorse.mjs; geometry, skin and gaits only, no ARENA2 data"],
   ['src/assets/horse/body.png', "SUPPLIED - the owner's body picture for the Courser (COATS3D, 2026-10-11), 256x256 indexed, as sent - a hide painted for the 3D model's own UV islands, no ARENA2 pixel in it (Daggerfall's horse is a sprite; this painting has no sprite's silhouette)"],
   ['src/assets/horse/hair.png', "SUPPLIED - the owner's mane and tail picture for the Courser's nine alpha cards (COATS3D, 2026-10-11), 512x512 RGBA, as sent - no ARENA2 pixel in it"],
+  // DWARVEN-DRAGON (2026-10-28): the staff's clockwork dragon's ninety sprites, archive 1800 - our own three.js renders of
+  // our own model, posed by the werewolf's joint directions (no Morrowind or ARENA2 pixel; src/characters/dwarvenDragon.js).
+  // PIN MOVED (DRAGON7): the files that ship alone - the Aetherbright's archive 1801 is these under its palette, no file of its own
+  ...dwarvenDragonSpriteEntries({ fetchBytes: async () => new Uint8Array(0) }).filter((e) => e.archive === 1800).map((e) => [`public/${DWARVEN_DRAGON_ART}${e.fileName}.png`,
+    "OURS - the Dwarven Dragon's sprite (DWARVEN-DRAGON, 2026-10-28), rendered from our own model, 471x262 indexed"]),
+  // DRAGON-RIDE (2026-10-28): the saddle drawn over an Admin's view on the dragon - our own model's rider view again
+  ...SADDLE_PICTURES.map((n) => [`public/${DWARVEN_DRAGON_ART}${n}.png`, "OURS - the Dwarven Dragon's saddle view (DRAGON-RIDE, 2026-10-28), rendered from our own model, 320x97 indexed"]),
 ]);
 
 test('doctrine: nothing ships out of public/ or src/assets/ that is not provably ours', () => {
@@ -1000,7 +1087,7 @@ const BUNDLE_ART = new Map([
   // manifest for them: the folder answers to the listing tools/layered-armor/listing.mjs writes (every picture, its sha256).
   ['vendor/layered-armor/',
     { manifest: 'vendor/layered-armor/layered-armor.files.json', derived: LAYERED_DERIVED,
-      why: "OURS - Layered Gearing (DFO, made for the game), carried under the owner's third exception; the worn-armor strips of both bodies, the cloak layer and the hood fixes, drawn from Daggerfall's class sprites 1540/1541 and the enemy frames of TEXTURE.475-490 - the 7,369 PNGs its listing names (see vendor/layered-armor/README.md)" }],
+      why: "OURS - Layered Gearing (DFO, made for the game), carried under the owner's third exception; the worn-armor strips of both bodies, the cloak layer, the hood fixes and the weapon rig cut from the strips' own hammer (LAYERED-WEAPONS), drawn from Daggerfall's class sprites 1540/1541 and the enemy frames of TEXTURE.475-490 - the 7,768 PNGs its listing names (see vendor/layered-armor/README.md)" }],
   // DEX0 (2026-10-19, Mac: "I want to implement this as our next mod 1:1"): DAGGERFALL ENEMY EXPANSION's pictures, in two
   // directories by what they are, each answering to the listing tools/dexExtract.mjs writes (every name and its sha256)
   // after measuring every picture against every TEXTURE record: the authors' own renders, and the repaints the fourth

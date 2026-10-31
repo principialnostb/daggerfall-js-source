@@ -43,7 +43,8 @@ import {
 } from '../ink/inkTown.js';
 import { nameplateAnchor, resolveNameplates, WORLD_PER_PX, STAR_PLATE } from '../nameplateLayout.js';   // FB1020c STAR-PLATE: the surrender's "*", one home
 import { readPartyBodies, PARTY_MARK_CSS } from '../partyMapMarks.js';   // DISC23-A: the party's bodies in the streets
-import { readTownBoards, readTownHomes, TOWN_MARK_REACH } from './townMapMarks.js';   // TOWN-MARKS: the Notice Boards and the player housing
+import { readTownHomes, TOWN_MARK_REACH } from './townMapMarks.js';   // TOWN-MARKS: the player housing
+import { createImperialSheet } from './imperialSheet.js';   // IC-TOWNMAP: the Imperial City's slices draw the city
 
 /** The fit at rest has ONE HOME in ui/ink/inkMap.js - re-exported so a
  *  pin that has this sheet does not also have to reach for it. */
@@ -98,8 +99,7 @@ const EMPTY_SIZE = Object.freeze({ width: 1, height: 1 });
  *   revealAll?: () => boolean,
  *   player?: () => {x:number, y:number, yaw?:number}|null,
  *   party?: () => Array<{acct?: string|null, name?: string, feet?: number[], yaw?: number}>,
- *   boards?: () => Array<{feet: number[], label?: string}>,
- *   homes?: () => Array<{buildingKey: number, own?: boolean, label: string}>,
+ *   homes?: () => Array<{buildingKey: number, own?: boolean, vendor?: boolean, label: string}>,
  *   homesVersion?: () => number,
  *   questBuildings?: () => Array<{buildingKey: number, followed?: boolean}>,
  *   title?: string,
@@ -109,6 +109,9 @@ const EMPTY_SIZE = Object.freeze({ width: 1, height: 1 });
 const PARTY_REACH = 12;
 
 export function createTownSheet(deps = {}) {
+  // IC-TOWNMAP: in any of the Imperial City's slices the sheet is the city itself, its plan and its fabric round this
+  // slice's own blocks - which it draws through this sheet, made without `imperial`
+  if (deps.imperial != null) return createImperialSheet(deps, createTownSheet);
   let field = null;      // the town's bytes, built once
   let plan = null;       // { chains, wash }, traced once
   let plates = null;     // { key, rows } - laid out per view
@@ -211,13 +214,6 @@ export function createTownSheet(deps = {}) {
     }));
   }
 
-  /** TOWN-MARKS: the town's Notice Boards, in sheet space - the host hands each at its foot in the location's frame,
-   *  and it crosses into the sheet by the party's two steps (metres to layout pixels, then +Z up). */
-  function boardsOnSheet() {
-    const h = ensureField().h;
-    return readTownBoards(deps.boards).map((b) => ({ x: b.feet[0] / WORLD_PER_PX, y: sheetY(h, b.feet[2] / WORLD_PER_PX), label: b.label }));
-  }
-
   /** TOWN-MARKS: the player housing, in sheet space - each home at its building's place, by the plates' own anchor law
    *  (nameplateAnchor, then sheetY), so a home's mark and its building's name stand on one place. */
   function homesOnSheet() {
@@ -231,7 +227,7 @@ export function createTownSheet(deps = {}) {
       const b = at.get(r.buildingKey);
       if (!b) continue;
       const [x, y] = nameplateAnchor(b.blockX ?? 0, b.blockY ?? 0, b.position ?? [0, 0, 0]);
-      out.push({ x, y: sheetY(h, y), own: r.own, label: r.label });
+      out.push({ x, y: sheetY(h, y), own: r.own, ...(r.vendor ? { vendor: true } : {}), label: r.label });   // VENDOR-HOUSES
     }
     return out;
   }
@@ -348,7 +344,12 @@ export function createTownSheet(deps = {}) {
 
     ensure() {
       ensureField();
-      return plan?.chains?.length ? plan : null;
+      // IC-TOWNMAP: A GRID WITH NOTHING BUILT ON IT IS STILL THE STREETS THE PLAYER STANDS ON. The plan was null with no
+      // chain, and the window paints nothing for a null model (heldMap.js:"if (!ctx || !model) return;") - no heading,
+      // no caret, no Find me cross: 242 of the Imperial City's 442 slices, its whole Palace District, are closed cells
+      // and open ground (world/tamrielCapitals.js CAPITAL_CLOSED_BYTE, in no quarter). A town with blocks hands its plan,
+      // empty or not; only a town with none is the quiet nothing
+      return deps.blocks?.length ? plan : null;
     },
 
     staticKey() {
@@ -381,7 +382,6 @@ export function createTownSheet(deps = {}) {
         party: partyOnSheet(),   // DISC23-A
         partyFill: PARTY_MARK_CSS,
         homes: homesOnSheet(),   // TOWN-MARKS
-        boards: boardsOnSheet(),
       });
       paintedHomes = deps.homesVersion?.() ?? null;
     },
@@ -398,8 +398,8 @@ export function createTownSheet(deps = {}) {
           const [x, y] = toPaper(lastView, m.x, m.y);
           if ((x - px) ** 2 + (y - py) ** 2 <= PARTY_REACH * PARTY_REACH) return { label: m.name, cursor: '' };
         }
-        // TOWN-MARKS: a board's or a home's glyph under the pointer names it - the glyph stands on its place
-        for (const m of [...boardsOnSheet(), ...homesOnSheet()]) {
+        // TOWN-MARKS: a home's glyph under the pointer names it - the glyph stands on its place
+        for (const m of homesOnSheet()) {
           const [x, y] = toPaper(lastView, m.x, m.y);
           if ((x - px) ** 2 + (y - py) ** 2 <= TOWN_MARK_REACH * TOWN_MARK_REACH) return { label: m.label, cursor: '' };
         }
@@ -450,7 +450,6 @@ export function createTownSheet(deps = {}) {
     names: named,
     quests: questMarks,
     party: partyOnSheet,
-    boards: boardsOnSheet,   // TOWN-MARKS
     homes: homesOnSheet,
     platesAt: (view, paperW, paperH, measure, reserveTop = 0, hands = null) => ensurePlates(view, paperW, paperH, measure, reserveTop, hands),
     get paperW() { return lastPaper; },

@@ -41,7 +41,10 @@
 import {
   addItem, canHoldAmount, effectiveUnitWeightInKg, totalWeight, isSummoned,
   splitStack, GOLD_PIECE_WEIGHT_KG, goldPiecesOf, addGoldPieces, isGoldPieces, tellTaken,
+  findExistingStack, goldStack, claimedCarryKg,
 } from '../inventory.js';
+import { LOOT_STACK_MAX } from '../loot/loot.js';   // GOLD-WIRE: the most one stack rides the room's word in
+import { isRoomCarried } from '../loot/roomCarriedList.js';   // GOLD-WIRE: whether the room's word carries the list a drop lands in
 import { isMap, isLightSource, isSpellbook } from '../useItem.js';   // AUDIT 26 F156/F157: the map interception + the lit-torch clear; KEEP-SPELLBOOK
 import { cannotRemoveItemText } from '../createItem.js';
 // AUDIT 26: DaggerfallEntity.MaxEncumbrance, enchantment allowance and
@@ -50,7 +53,7 @@ import { entityMaxEncumbrance } from '../../combat/formulas.js';
 import { makeItemPermanent } from '../quest/item.js';   // TransferItem's MakePermanent arm (:1502-1504)
 import { getBool } from '../settings/settings.js';   // GUI/CanDropQuestItems
 import { setLightSource } from '../lightSource.js';   // DISC7: the light in hand's one door
-import { localizedText, formatText } from '../textManager.js';   // L10N3d: DFU's Internal_Strings, read in the player's language
+import { localizedText, formatText, t } from '../textManager.js';   // L10N3d: DFU's Internal_Strings, read in the player's language; QUEST-AUDIT III: the port's own
 import { REMAINS_LIST } from '../legacy/heirloom.js';   // AUDIT LEGACY II H4: a remains' list, open
 import { BAG_WORDS, isBagItem, holdsOtherBag } from '../../net/bagLaw.js';   // BAG1: a loaded Materials Bag never leaves the pack; ONE-BAG: one to a character
 import { SMALL_CART_KG } from '../wagon/wagonKinds.js';   // WAGONS1: DFU's 750, one literal
@@ -106,11 +109,15 @@ export const REFUSAL = Object.freeze({
   /** ONE-BAG (2026-10-04, Mac: "you shouldnt be able to hold multiple gathering bags"): one Materials Bag to a character -
    *  a second is never taken into the pack, bought into a basket or carried off a shelf. */
   secondBag: { reason: 'secondBag', text: BAG_WORDS.second },
+  /** QUEST-AUDIT III SHELF-TWIN: a quest item is never taken while a copy of it is already kept (holdsQuestTwin). */
+  questTwin: { reason: 'questTwin', get text() { return t('items.refusal.questTwin', 'You already have this quest item.'); } },
   /** The drop-gold field's own refusal, and it is SILENT because DFU's
    *  is: an amount below 1 or above the purse is REFUSED OUTRIGHT
    *  rather than clamped (:1272-1300), and the field simply does not
    *  take it. */
   badAmount: { reason: 'badAmount', text: null },
+  /** GOLD-WIRE: the gold pile in a container the room's word carries holds LOOT_STACK_MAX already (sharedGoldRoom). */
+  sharedGoldFull: { reason: 'sharedGoldFull', get text() { return sharedGoldFullText(); } },
 });
 
 /**
@@ -163,6 +170,53 @@ export function sendQuestItemClick(item, getQuest = null) {
  * THIS IS THE ONE RUNG THAT WRITES, which is why `planStore` and
  * `planTake` take a `dryRun` - see there.
  */
+/** QUEST-AUDIT III SHELF-TWIN: does any of `lists` keep another copy of the quest item `item` (its quest and symbol)? */
+export function holdsQuestTwin(lists, item) {
+  if (!item?.questItem) return false;
+  const name = item.questSymbol?.name;
+  return lists.some((l) => Array.isArray(l) && l.some((x) => x !== item && x?.questItem && x.questUID === item.questUID && x.questSymbol?.name === name));
+}
+
+/** QUEST-AUDIT III SHELF-TWIN: does the player keep the quest Item resource `res`'s item anywhere - the pack, the wagon,
+ *  the Materials Bag, a repairer's hands (DFU's OtherItems)? The host's `carriesQuestItem`: the reclaim of a quest set
+ *  aside hands an item back only when none is kept (machine.js reclaimQuest). */
+export function keepsQuestItem(entity, res) {
+  const uid = res?.parentQuest?.uid, name = res?.symbol?.name;
+  return [entity?.items, entity?.wagonItems, entity?.bagItems, entity?.otherItems]
+    .some((l) => Array.isArray(l) && l.some((it) => it?.questItem && it.questUID === uid && it.questSymbol?.name === name));
+}
+
+/**
+ * FIELD BUGS 2026-10-25i HEART-KEPT (AUDIT FB1025i B1): WHERE A QUEST'S OWN RECORD `dfItem` STANDS IN `items` - the
+ * host's playerHasItem and removeItemFromPlayer (scenes/world.js). DFU looks it up by its UID
+ * (ItemCollection.Contains(DaggerfallUnityItem) and RemoveItem, ItemCollection.cs:157-163 and :278-287), and the port's
+ * item IS its UID: the record itself. A load restores the pack's copy and the resource's record apart (AUDIT 24), so a
+ * copy of the same quest and symbol stands for it - but never a FOE'S CLONE (`questClone`, quest/foe.js
+ * getClonedItemQueue), which CloneAll gave a UID of its own. Q0C4XY04 gives its heart to each of four kinds as it is
+ * hurt (GiveItem.cs:117-121 takes the quest's own record from the pack): read by quest and symbol alone, the heart the
+ * player had taken off the first body was pulled out of the pack onto the second kind, and the witches had nothing to
+ * take. `clones` widens the match to a clone when no own copy stands - Item.Dispose's sweep, the port's (a quest that
+ * ends takes back what its foes gave as well; DFU's RemoveItem leaves a clone to the load's orphan sweep). -1 for none.
+ * @param {any[]} items @param {any} dfItem @param {{ clones?: boolean }} [opts]
+ */
+export function heldQuestRecordIndex(items, dfItem, { clones = false } = {}) {
+  const list = Array.isArray(items) ? items : [];
+  const direct = list.indexOf(dfItem);
+  if (direct >= 0) return direct;
+  if (!dfItem?.questItem) return -1;
+  const same = (it) => !!it?.questItem && it.questUID === dfItem.questUID && it.questSymbol?.name === dfItem.questSymbol?.name;
+  const own = list.findIndex((it) => same(it) && !it.questClone);
+  return own >= 0 || !clones ? own : list.findIndex(same);
+}
+
+/** MakePermanent over the pack's copies of a quest's item `sym` (item.js's sync) - the host's `makeHeldQuestItemsPermanent`,
+ *  out of bootWorld (HOST-SPLIT) beside its quest-item kin. */
+export function makeHeldQuestItemsPermanent(entity, uid, sym) {
+  for (const it of entity?.items ?? []) {
+    if (it.questItem && it.questUID === uid && it.questSymbol?.name === sym?.name) makeItemPermanent(it);
+  }
+}
+
 export function questTransferRefused(item, { fromLocal, toWagon = false, getQuest = null, trade = false } = {}) {
   if (!item?.questItem) return false;
   const quest = getQuest?.(item.questUID) ?? null;
@@ -200,6 +254,17 @@ export const wagonFullGoldText = (n) => formatText(localizedText('wagonFullGold'
  *  refuses in its own words, the port's: DFU has no companion to name. */
 export const packFullText = (name) => `${name || 'Your companion'} cannot carry any more.`;
 export const packFullGoldText = (name, n) => `${name || 'Your companion'} could only carry ${n} gold pieces.`;
+/** GOLD-WIRE (FIELD BUGS 2026-10-25b): a container the room's word carries (loot/roomCarriedList.js) takes coin up to the
+ *  room left on the gold stack it lands on, in its own words - the port's: DFU has no other player to share one with. */
+export const sharedGoldText = (n) => t('items.gold.sharedRoom', 'Only {n, number} more gold pieces fit here. Everyone here shares this container, and one pile of gold in it holds no more than {max, number}.', { n, max: LOOT_STACK_MAX });
+export const sharedGoldFullText = () => t('items.gold.sharedFull', 'No more gold fits here. Everyone here shares this container, and one pile of gold in it holds no more than {max, number}.', { max: LOOT_STACK_MAX });
+/** GOLD-WIRE: how much more gold the stack a drop lands on may take in a list the room's word carries. The drop's addItem
+ *  merges the coin into findExistingStack's answer, and a stack past LOOT_STACK_MAX - the most one stack rides the room's
+ *  word in - made that word unreadable to everyone else in the room (portalStone.js portalStoneRoom's law, for coin). */
+export function sharedGoldRoom(remote) {
+  const onto = findExistingStack(remote, goldStack(1));
+  return Math.max(0, LOOT_STACK_MAX - (onto ? (onto.stackCount ?? 1) : 0));
+}
 /** AUDIT ECON C5: a storage whose keeper is gone (a quickload under his window that left him aboard) takes nothing - what
  *  it took would go into a list nothing keeps. */
 export const packGoneText = (name) => `${name || 'Your companion'} is no longer with you.`;
@@ -217,11 +282,17 @@ const packRefuses = (capacity, item, units, remote) => !!capacity.gone || canHol
  * read, because a screen holding an entity and a screen holding only
  * an item list both ask this.
  *
+ * GOLD-WIRE: `shared` - the room's word carries `remote` (by default,
+ * whether it is marked so) - clamps the amount to the room left on the
+ * gold stack it lands on (sharedGoldRoom), with a box that names it, as
+ * the wagon does. The port's own: DFU has no shared container.
+ *
  * @returns {{ok:true, amount:number, notice:string|null}
  *          |{ok:false, refusal:object, notice:string|null}}
  */
-export function planDropGold(text, { carried = 0, usingWagon = false, remote = [], groundRefusal = null, capacity = null, wagonKg = WAGON_KG_LIMIT } = {}) {
+export function planDropGold(text, { carried = 0, usingWagon = false, remote = [], shared = isRoomCarried(remote), groundRefusal = null, storeRefusal = null, capacity = null, wagonKg = WAGON_KG_LIMIT } = {}) {
   if (groundRefusal && !usingWagon) return { ok: false, refusal: { reason: 'ground', text: groundRefusal }, notice: null };   // HOUSE-DROP: gold on a floor that refuses it
+  if (storeRefusal) return { ok: false, refusal: { reason: 'store', text: storeRefusal }, notice: null };   // AUDIT PVP-EASE L2-1: the combat lock (inventorySession.js storeRefusalOf)
   // A numeric field of 8 opening on "0": anything that is not a run of
   // digits is not a number, and 0 fails the range below.
   const asked = /^[0-9]+$/.test(String(text)) ? Number(text) : 0;
@@ -234,6 +305,12 @@ export function planDropGold(text, { carried = 0, usingWagon = false, remote = [
     const amount = Math.min(asked, canCarry);
     if (amount < 1) return { ok: false, refusal: packFull(capacity), notice };
     return { ok: true, amount, notice };
+  }
+  if (!usingWagon && shared) {
+    const room = sharedGoldRoom(remote);
+    const amount = Math.min(asked, room);
+    if (amount < 1) return { ok: false, refusal: REFUSAL.sharedGoldFull, notice: sharedGoldFullText() };
+    return { ok: true, amount, notice: asked > room ? sharedGoldText(room) : null };
   }
   if (!usingWagon) return { ok: true, amount: asked, notice: null };
   // :1296-1303 - the 750kg headroom in COINS, and the box names it.
@@ -263,13 +340,16 @@ export function planDropGold(text, { carried = 0, usingWagon = false, remote = [
  * @returns {{ok:false, refusal:object}|{ok:true, amount:number, sound:'click'}}
  */
 export function planStore(item, {
-  remote = [], usingWagon = false, chooseOne = null, getQuest = null, dryRun = false, groundRefusal = null, capacity = null, bagLoaded = false, wagonKg = WAGON_KG_LIMIT,
+  remote = [], usingWagon = false, chooseOne = null, getQuest = null, dryRun = false, groundRefusal = null, storeRefusal = null, capacity = null, bagLoaded = false, wagonKg = WAGON_KG_LIMIT,
 } = {}) {
   if (!item) return { ok: false, refusal: REFUSAL.missing };
   if (bagLoaded && isBagItem(item)) return { ok: false, refusal: REFUSAL.bagLoaded };   // BAG1
   // HOUSE-DROP (2026-09-27): the ground itself refuses - the window hands the host's word (inventorySession
   // groundRefusalOf) only when the destination IS the ground, so a wagon, a chest and a trade are untouched
   if (groundRefusal) return { ok: false, refusal: { reason: 'ground', text: groundRefusal } };
+  // AUDIT PVP-EASE L2-1 (the owner chose "Combat lock"): storage no zone death takes refuses a fighter fresh from a fight -
+  // the window hands it (inventorySession.js storeRefusalOf) only when the destination IS such storage
+  if (storeRefusal) return { ok: false, refusal: { reason: 'store', text: storeRefusal } };
   if (item.group === 'Transportation') return { ok: false, refusal: REFUSAL.transport };
   if (isKeptSpellbook(item) && !usingWagon) return { ok: false, refusal: REFUSAL.spellbook };   // KEEP-SPELLBOOK: the own wagon takes it, nothing else
   if (isSummoned(item)) return { ok: false, refusal: REFUSAL.summoned };
@@ -347,6 +427,9 @@ export function planTake(item, {
   // the character's own wagon a bag taken - it is already theirs, and two held from before were locked in the wagon for good
   const ownWagon = Array.isArray(entity?.wagonItems) && entity.wagonItems.includes(item);
   if (isBagItem(item) && !ownWagon && holdsOtherBag([bag, entity?.wagonItems], item)) return { ok: false, refusal: REFUSAL.secondBag };
+  // QUEST-AUDIT III SHELF-TWIN: a quest's item abandoned onto the ground is handed back when the quest is reclaimed
+  // (machine.js reclaimQuest) - and the copy on the ground, picked up, was a second; a permanent one outlives the quest
+  if (holdsQuestTwin([bag, entity?.items, entity?.wagonItems, entity?.bagItems], item)) return { ok: false, refusal: REFUSAL.questTwin };
   // AUDIT 26: the quest arm, the OTHER caller. `from` is remoteItems
   // here, so the refusal cannot fire without CanDropQuestItems, and
   // picking the item back up CLEARS PlayerDropped (:1499-1500) - which
@@ -369,7 +452,7 @@ export function planTake(item, {
   const canCarry = entity
     ? canHoldAmount(stack, effectiveUnitWeightInKg(item),
       entityMaxEncumbrance(entity),
-      totalWeight(bag) + goldPiecesOf(entity) * GOLD_PIECE_WEIGHT_KG)
+      totalWeight(bag) + goldPiecesOf(entity) * GOLD_PIECE_WEIGHT_KG + claimedCarryKg(entity))   // CARRY-CLAIMS: a shared pile's takes awaiting their grant weigh too
     : stack;
   // The window's own gate went silent when it had no entity to read
   // and spoke when it did; there is one answer here, because the only
@@ -488,11 +571,17 @@ export function clearLightSourceOnLeave(item, entity, fromLocal) {
  * nothing to follow (LOOT-BULK's bulkMove, the quick door and the trade windows already ask `from.includes(item)`). Every
  * caller in src/ hands the list the piece is in (swept: the windows' own, quick loot, Physical Items, the naval plunder's
  * one-piece source, a decor take).
+ *
+ * RPT1026-CHESTGOLD (a private report): A LIST WHOSE MOVES A SERVICE SETTLES KEEPS ITS COIN A PILE (`from.pileCoins`, the
+ * shared chest's - systems/decor/decorGrants.js openSharedChest). The gold arm spent the pile into the purse at the click,
+ * every checkpoint after carried the purse, and a settle the service refused left the pile in the chest as well: gold
+ * twice. From such a list the pile lands in the window's pack as itself, and the purse takes it when the settle lands -
+ * in both windows, which both end their takes here. A departure from DoTransferItem's gold interception, Ledger A.
  */
 export function applyTransfer(item, plan, from, to, { entity = null, fromLocal = false, toPlayer = false, rolls = Math.random, stolenFrom = null, returnTo = null } = {}) {
   if (Array.isArray(from) && !from.includes(item)) return null;
   clearLightSourceOnLeave(item, entity, fromLocal);
-  if (toPlayer && isGoldPieces(item)) {
+  if (toPlayer && isGoldPieces(item) && from?.pileCoins !== true) {
     const coin = _splitOff(item, plan, from, rolls);
     const at = from.indexOf(coin);
     if (at >= 0) from.splice(at, 1);
@@ -558,7 +647,8 @@ function _applyTransfer(item, plan, from, to, rolls = Math.random, beforeLanding
   // droppable quest item into the wagon or the ground pile inserts at
   // that collection's front too, and DaggerfallTradeWindow's clicks
   // inherit the same member.
-  const held = addItem(to, moved, moved?.questItem ? 'front' : 'dontCare');
+  // A shared chest records each stack on its own. Merging here would add the count onto a pile the settle also stores.
+  const held = to?.unstacked === true ? (to.push(moved), moved) : addItem(to, moved, moved?.questItem ? 'front' : 'dontCare');
   afterLanding?.(moved, held);   // STOLEN-GOODS AUDIT S1: where the owner's piece came to rest - the record that holds it is theirs
   return moved;
 }

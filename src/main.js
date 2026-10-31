@@ -11,7 +11,7 @@
 // the cursor (DFU shape); WASD + mouse, Shift for speed.
 // ?shot raises window.__shotReady at a fixed vantage for tools/screenshot.mjs.
 
-import { crashText } from './ui/crashText.js';   // the crash line, pinned in its own module
+import { crashText, isBenignWindowError } from './ui/crashText.js';   // the crash line, pinned in its own module
 import { Renderer } from './render/renderer.js';
 import { retroFrameConfig } from './systems/retroMode.js';   // RETRO1: the renderer's retro source - the settings are read here, not in render/
 import { renderScaleSetting } from './systems/renderScale.js';   // PERF-SCALE: the renderer's render-scale source, read the same way
@@ -56,8 +56,23 @@ async function boot() {
   installFramePacer();   // FPS-VSYNC: first, before any loop asks for a frame - a no-op but in the app with the wait lifted
   installCursor();   // CLASSIC-CURSOR: DFU's own arrow on the classic skin, from the first frame - it needs no game data
   const canvas = document.getElementById('c');
+  // GPU-TRAIL (render/gpuTrail.js): the desktop shell keeps the GPU's last samples with a crash, so the canvas is counted
+  // before the renderer makes its first object. Behind a door, as the shell's update notice is: a tab has no shell.
+  const gpuTrail = typeof globalThis.daggerShell?.gpuTrail === 'function'
+    ? await import('./render/gpuTrail.js').then((m) => m.gpuTrailOn(canvas, globalThis.daggerShell.gpuTrail)).catch(() => null) : null;
   const renderer = new Renderer(canvas);
   onPageGone(() => { pageGoing = true; loseGlContext(renderer.gl); });   // GL-LEAK: the game's own context, let go as the page goes
+  // VULKAN-FLIP (ui/vulkanBackdrop.js): the app on Vulkan drops the windows' backdrop blur, which it drew upside down.
+  // Behind a door, as the shell's other doors are: a tab has no shell and loads nothing.
+  if (globalThis.daggerShell) import('./ui/vulkanBackdrop.js').then((m) => m.guardBackdrops(document, renderer.gpuName, globalThis.daggerShell)).catch(() => {});
+  // The boot's programs start compiling now, on the driver's threads, while the boot does its own work; each pass's
+  // build then reads a link made meanwhile (render/bootPrograms.js). Behind a door: BOOT2's ceiling on the entry's graph.
+  import('./render/bootPrograms.js').then((m) => m.startBootPrograms(renderer, location.search)).catch((err) => console.warn('[boot] the programs could not be started early:', err?.message ?? err));
+  // SHADER-EASE GFX-BAR (2026-10-29): the menus' graphics bar and Fix stutter button (ui/gfxPrepBar.js), up while one shows
+  // - mounted at once from the loaded module, so its key listener is laid before the menu's
+  let gfxMod = null;
+  const gfxBar = import('./ui/gfxPrepBar.js').then((m) => (gfxMod = m)).catch(() => null);
+  const gfxPrep = (on) => { try { if (on) gfxMod?.gfxPrepUp(renderer.gl); else gfxMod?.gfxPrepDown(); } catch { /* the menu stands without it */ } };
   import('./render/portraitRenderer.js').then(({ setPortraitRenderer }) => setPortraitRenderer(renderer)).catch(() => {});   // PORTRAIT3D: the faces' renderer, for the menu's wells that hold none (behind a door: BOOT2's ceiling)
   renderer.setRetroSource(retroFrameConfig);   // RETRO1: DFU's retro mode - asked once per world frame, so the settings screen's change lands on the next
   renderer.setRenderScaleSource(renderScaleSetting);   // PERF-SCALE: the world's share of the window's pixels - asked once per world frame, and retro wins
@@ -81,7 +96,8 @@ async function boot() {
       .then(([updates, notify]) => updates.listenForShellUpdates(globalThis.daggerShell, (text) => notify.hudTextWhenShown(text, 12)))
       .catch((err) => console.warn('[update] the update notice could not load:', err?.message ?? err));
   }
-  mountFpsCounter({ enabled: () => params.has('fps') || !!getPref('showFps'), stats: () => renderer.stats, info: () => renderer.frameInfo });   // FPS1: over every host, on the pref or the probe door; PERF3: with the renderer's counts; PERF-SCALE: and its GPU and frame size
+  const fps = mountFpsCounter({ enabled: () => params.has('fps') || !!getPref('showFps'), stats: () => renderer.stats, info: () => renderer.frameInfo });   // FPS1: over every host, on the pref or the probe door; PERF3: with the renderer's counts; PERF-SCALE: and its GPU and frame size
+  gpuTrail?.start(renderer, fps.last);   // GPU-TRAIL: the counter's seconds are the trail's frames
   // FB0930-TITLE: a boot's steps name themselves in the title, and a null step is the boot done - the bare name, so
   // the window does not say "loading the saved game" for the rest of the session.
   const status = (msg) => {
@@ -199,8 +215,10 @@ async function boot() {
     // choosing a game closes it before any in-game or classic video audio.
     status('introduction');
     const freeze = import.meta.env.DEV && params.has('introat') ? Number(params.get('introat')) : null;
+    await gfxBar;
     choice = await runCinematicFrontDoor(() => {
       status('main menu');
+      gfxPrep(true);   // before the menu: the panel's key listener is laid first
       return runEnhancedMenu();
     }, {
       // UXB1-A: the player's own Skip start video (uiPrefs skipStartVideo), beside the probes' one-visit ?nointro -
@@ -210,6 +228,7 @@ async function boot() {
       debug: import.meta.env.DEV && params.has('introdebug'),
       freezeAt: freeze !== null && Number.isFinite(freeze) ? Math.max(0, freeze) : null,
     }).finally(detachMenuPad);   // PAD-DOOR: the choice is made - the door's pad stops before the scene's starts
+    gfxPrep(false);
   }
   if (choice !== 'begin') {
     await ensureData();
@@ -248,7 +267,11 @@ async function boot() {
       params.set('legacyborn', String(legacyBirth.personId));
       params.set('region', legacyBirth.region);
       params.set('loc', legacyBirth.loc);
-    } else { params.delete('legacyborn'); params.delete('region'); params.delete('loc'); }
+      // BAY-LEFT-B: and the seat's map id - a seat past the Bay is in no MAPS.BSA table, and the world host stands it by
+      // its id (scenes/bootStartHost.js); a seat that never learnt its id is found by its names
+      if (Number.isInteger(legacyBirth.mapId)) params.set('seat', String(legacyBirth.mapId >>> 0));
+      else params.delete('seat');
+    } else { params.delete('legacyborn'); params.delete('region'); params.delete('loc'); params.delete('seat'); }
     // TR3: the Test Room door - the pane answers 'test:<preset>' and
     // the world host seeds the character and the armory off the same
     // testRoom home the pane showed. The param family follows F12's
@@ -256,6 +279,9 @@ async function boot() {
     // that once entered the room would re-enter it on New Game.
     if (typeof choice === 'string' && choice.startsWith('test:')) params.set('test', choice.slice(5));
     else params.delete('test');
+    // AUDIT STARTS W8: `?start=` is a headless boot's dev door (scenes/startsHost.js) - no menu door is one, so a URL that
+    // once carried it never moves a later new character into a province (F12's law: DELETED on every door)
+    params.delete('start');
     // TSR4b (Mac: "it either places me in the dungeon or places me in
     // the ground"): the classic start is Privateer's Hold - a map cell
     // out of settings, and StartInDungeon puts a new character INSIDE
@@ -322,7 +348,9 @@ async function boot() {
     }
   }
   const { runMenu } = await import('./scenes/menu.js');
-  const action = await runMenu(canvas, renderer, status);
+  await gfxBar;
+  gfxPrep(true);
+  const action = await runMenu(canvas, renderer, status).finally(() => gfxPrep(false));
   // Load Game rides the dungeon host's OWN quickLoad (the F12 path) -
   // dungeon.js calls ctx.quickLoad once the context is built. A
   // menu-side loader would be a second copy of a working path.
@@ -345,6 +373,7 @@ async function boot() {
   // non-classicload action either.
   if (action === 'classicload') params.set('classicload', '1');
   else params.delete('classicload');
+  params.delete('start');   // AUDIT STARTS W8: the dev door's start rides no menu's door
   // U31: THE CLASSIC START IS THE WORLD, not the standalone dungeon
   // scene. scenes/dungeon.js has no exit path at all - its only
   // activation arm is ctx.actions.activate - so booting it left
@@ -425,14 +454,33 @@ function crashOverlay(msg) {
     // that names the cause - keep a count and the newest text.
     prior._count = (prior._count ?? 1) + 1;
     prior.textContent = `CRASH (${prior._count})\n${msg}`;
+    crashDismiss(prior);
     return prior;
   }
   const el = document.createElement('pre');
   el.id = 'crash';
   el.style.cssText = 'position:fixed;left:8px;right:8px;bottom:8px;max-height:45%;overflow:auto;background:#300;color:#f88;font:12px monospace;-webkit-font-smoothing:antialiased;letter-spacing:normal;padding:8px;border:1px solid #f66;z-index:20;white-space:pre-wrap;pointer-events:none';   // PL3: a report, not a wall - it sat over the bottom half of the canvas and ate every click that should have relocked the pointer
   el.textContent = `CRASH\n${msg}`;
+  crashDismiss(el);
   document.body.appendChild(el);
   return el;
+}
+// RPT1026-CLIENT (private reports: the Firmament's Accept, a pad's A on the world map - the report covered the lower
+// screen, the Health bar and the hotkeys with it, until the game was left and loaded again): not every throw that
+// reaches the page kills the
+// game - a window's own frame, an input handler - and the report stood over the HUD of a session that ran on, with no
+// way off it (FIELD BUGS 2026-10-02c KEY-BOOT: "no dismiss"). Its body stays click-through (PL3); one button after the
+// text takes clicks and takes the report down, so a probe's first line is still the error's.
+function crashDismiss(el) {
+  // AUDIT RPT1026 K2: never on a report that is the game's way back - a lost graphics context's (below): nothing draws
+  // again on that page, and dismissed, its click-to-reload went with it and left a dead picture saying nothing
+  if (el._kept) return;
+  const b = document.createElement('button');
+  b.textContent = 'Dismiss';
+  b.style.cssText = 'display:block;margin-top:6px;padding:2px 10px;font:12px monospace;pointer-events:auto;cursor:pointer';
+  b.onclick = (e) => { e?.stopPropagation?.(); el.remove(); };   // never the lost context's tap-to-reload beneath it
+  el._dismiss = b;
+  el.appendChild(b);
 }
 
 // GL-LEAK (FIELD BUGS 2026-10-03, Swololo: "GPU memory leaks that do not lower down even after closing the tab"): every
@@ -443,7 +491,7 @@ function crashOverlay(msg) {
 let pageGoing = false;
 addEventListener('pagehide', (e) => { if (!e.persisted) releaseGlContexts(); });
 
-addEventListener('error', (e) => crashOverlay(crashText(e.error, e) || e.message));
+addEventListener('error', (e) => { if (!isBenignWindowError(e)) crashOverlay(crashText(e.error, e) || e.message); });
 addEventListener('unhandledrejection', (e) => crashOverlay(`unhandled rejection\n${crashText(e.reason)}`));
 
 // A lost WebGL context is the classic MOBILE black screen: the page
@@ -454,10 +502,14 @@ addEventListener('unhandledrejection', (e) => crashOverlay(`unhandled rejection\
 document.getElementById('c')?.addEventListener('webglcontextlost', (e) => {
   e.preventDefault();
   if (pageGoing) return;   // GL-LEAK: let go on purpose as the page goes - no "context lost" over a closing tab
-  const el = crashOverlay('the graphics stopped (often low memory on a phone)\n\ntap here to reload');
+  // RPT1026-CLIENT (a private report from a PC, loading into an Oblivion Gate: the line blamed a phone's memory on a
+  // desktop with memory to spare): the browser says only THAT its context is gone - a phone short of memory, or on any
+  // machine the graphics driver resetting the card - so the line names both and blames neither
+  const el = crashOverlay('the graphics stopped: the graphics card was reset, or ran short of memory\n\nclick or tap here to reload');
   // AUDIT 68 S02-contextlost-tap-dead: PL3 made the report click-through,
   // so the promised tap fell to the dead canvas. This one takes taps, and
   // by onclick - a second loss must not stack a second listener.
   el.style.pointerEvents = 'auto';
   el.onclick = () => location.reload();
+  el._kept = true; el._dismiss?.remove?.();   // AUDIT RPT1026 K2: the way back is never dismissed (crashDismiss), nor given a Dismiss by a later throw
 });

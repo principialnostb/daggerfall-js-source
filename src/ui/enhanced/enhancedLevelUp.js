@@ -56,6 +56,8 @@ import {
   LANE_OGHMA, liveNote, liveTint, starLabel,
 } from '../levelUp/levelUpView.js';
 
+import { listenWindowKeys } from '../windowStack.js';   // COVERED-KEYS: the window's keys, gated while a box covers it
+
 const SVG_NS = 'http://www.w3.org/2000/svg';
 
 const el = (tag, cls, text) => {
@@ -129,7 +131,7 @@ function meterRow(label, now, max, fill) {
  * spent here or wherever a level-up opens next. The OK still commits, and `onExit` follows it.
  *
  * @param {HTMLElement} hostEl
- * @param {{screen: any, entity?: any, onExit?: () => void, embed?: boolean}} d
+ * @param {{screen: any, entity?: any, onExit?: () => void, embed?: boolean, owner?: any}} d
  */
 export function mountEnhancedLevelUp(hostEl, d = {}) {
   injectEnhancedStyle();
@@ -432,7 +434,8 @@ export function mountEnhancedLevelUp(hostEl, d = {}) {
     raceName.textContent = [m.crown.race, m.crown.career].filter(Boolean).join(' ');
     levelJump.textContent = crownTitle(m.crown);
     levelFill.style.width = `${m.progress.max > 0 ? Math.max(0, Math.min(100, (m.progress.now / m.progress.max) * 100)) : 0}%`;
-    levelNote.textContent = t('levelup.progress.bar', '{label}: {now}/{max}', { label: m.progress.label, now: m.progress.now, max: m.progress.max })
+    levelNote.textContent = m.progress.cap ? m.progress.label   // AUDIT FB1026d II C3: "Highest level reached", never its 1/1
+      : t('levelup.progress.bar', '{label}: {now}/{max}', { label: m.progress.label, now: m.progress.now, max: m.progress.max })
       + (m.progress.carried > 0 ? ` · ${t('levelup.progress.carried', '{n} carried over', { n: m.progress.carried })}` : '');
 
     plateCount.textContent = String(m.pool);
@@ -523,7 +526,7 @@ export function mountEnhancedLevelUp(hostEl, d = {}) {
       const sk = ribbonRows[ribbonAt];
       const g = el('span', 'g', sk.group);
       skRole.textContent = '';
-      skRole.append(g, document.createTextNode(` · ${sk.note}`));
+      skRole.append(g, document.createTextNode(sk.note ? ` · ${sk.note}` : ''));   // AUDIT FB1026d II C3: no note at the cap
     } else {
       skRole.textContent = '';
     }
@@ -588,7 +591,7 @@ export function mountEnhancedLevelUp(hostEl, d = {}) {
    *  (LV1's audit). One listener, owned by the teardown below. */
   const onResize = () => { if (!dead) drawPixelGround(ground, vw(), vh(), 0); };
   if (still) globalThis.addEventListener?.('resize', onResize);
-  globalThis.addEventListener?.('keydown', onKey, true);
+  const unlistenKeys = listenWindowKeys(d.owner, onKey);   // COVERED-KEYS: d.owner, the Ascension's window (ui/charSheetDoor.js; in the Growth tab the pause window's, through growthTab.js)
   if (!embed) unregister = registerOverlay(closeArm);   // GROWTH3: in the tab the pause window is the overlay
   // GROWTH3: in the tab the stage moves under it - the sky redrawn to its size
   let watch = null;
@@ -606,7 +609,7 @@ export function mountEnhancedLevelUp(hostEl, d = {}) {
       dead = true;
       if (groundTimer) clearInterval(groundTimer);
       groundTimer = null;
-      globalThis.removeEventListener?.('keydown', onKey, true);
+      unlistenKeys();
       if (still) globalThis.removeEventListener?.('resize', onResize);
       watch?.disconnect?.();
       unregister();

@@ -24,8 +24,9 @@ import { FOG_GLSL, FOCUS_GLSL } from '../../src/render/fogGlsl.js';
 import { SHADOW_GLSL } from '../../src/render/shadowPass.js';
 import { VC_PROFILE } from '../../src/render/volumetricClouds.js';
 import { ACTIONS, DEFAULT_BINDINGS, PORT_ACTIONS, ACTION_GROUPS } from '../../src/systems/inputActions.js';
+import { hostText } from '../hostText.mjs';
 
-const rd = (p) => readFileSync(new URL(`../../${p}`, import.meta.url), 'utf8');
+const rd = (p) => hostText(p);   // TESA's merge (HOST-SPLIT): the quest world and the quick save moved out of bootWorld (scenes/questWorld.js, scenes/worldQuickSave.js) - the host read whole
 const near = (a, b, eps = 1e-9) => Math.abs(a - b) <= eps;
 const deg = (d) => (d * Math.PI) / 180;
 
@@ -39,7 +40,7 @@ test('TV1 camera: Mac\'s band - 150 to 450 m over the traveller, 15 to 75 degree
   // the deck, per the weather the clouds are drawn for (render/volumetricClouds.js VC_PROFILE) - the view reads the
   // same table the sky does, so the camera is under the very clouds the player sees
   const ceilings = Object.fromEntries(Object.entries(VC_PROFILE).map(([w, r]) => [w, ceilingFor(r.base)]));
-  assert.deepEqual(ceilings, { sunny: 450, cloudy: 450, overcast: 450, fog: 90, rain: 450, snow: 450, thunder: 440, sandstorm: 40 });
+  assert.deepEqual(ceilings, { sunny: 450, cloudy: 450, overcast: 450, fog: 90, rain: 450, snow: 450, thunder: 440, sandstorm: 40, ashfall: 390 });   // PIN MOVED (ASHFALL1, 2026-10-27): the ash's pall, base 450
   assert.equal(ceilingFor(null), 450, 'no deck: the band\'s top');
   assert.equal(ceilingFor(Number.NaN), 450);
   assert.deepEqual(heightBand(450), [150, 450]);
@@ -677,7 +678,7 @@ test('TV1 host wiring: the frame draws from the view\'s eye risen out of the bod
   assert.match(w, /alive: \(\) => frameAlive\(_frameToken\),/);
   // the view's host deps: the deck the sky draws, the foes the map refuses on, the body held, the cursor freed
   assert.match(w, /cloudBase: \(\) => VC_PROFILE\[weather\]\?\.base \?\? null,/);
-  assert.match(w, /danger: \(\) => duelEnemyNear\(\) \|\| areEnemiesNearby\(wildSeen\(exteriorFoePool\(\)\)\) \|\| navalHostileNear\(\),/, 'AUDIT DEEP2 A9: a live duel too (WILD-ALERT: never a foe that has not noticed a fast traveller)');
+  assert.match(w, /danger: \(\) => duelEnemyNear\(\) \|\| \(!playerEntity\.staffHidden && areEnemiesNearby\(wildSeen\(exteriorFoePool\(\)\)\)\) \|\| navalHostileNear\(\),/, 'AUDIT DEEP2 A9: a live duel too (WILD-ALERT: never a foe that has not noticed a fast traveller; STAFF-UNSEEN: no foe near a hidden staff member)');
   assert.match(w, /holdBody: \(on\) => mwViewHoldThird\(on\),/);
   assert.match(w, /freeCursor: \(free\) => \{ if \(free\) \{ tvCursorWas = cursorActive\(\); setCursorActive\(true\); releaseLook\(\);/);
   // the gate: the enhanced lane, a walking body in the open air, alive and above the water - each refusal said
@@ -823,7 +824,7 @@ test('AUDIT DEEP2 D2 view: the floating origin re-anchors under a moving travell
 test('AUDIT DEEP2 D2/D6 by source: the host rebases the view with the origin; the riders and the walkers take the view\'s eye and right, as the dolls do', () => {
   const w = rd('src/scenes/world.js');
   assert.match(w, /mwViewRebase\(r\.offset\);[^\n]*\n\s*travelView\?\.rebase\(r\.offset\);/);
-  assert.match(w, /const peerYaw = travelView\?\.active && travelView\.camera \? travelView\.camera\.yaw : cam\.yaw;\n\s*const peerEye = travelView\?\.eye \?\? cam\.pos, peerRight = \[Math\.cos\(peerYaw\), 0, -Math\.sin\(peerYaw\)\];/);
+  assert.match(w, /const peerYaw = travelView\?\.active && travelView\.camera \? travelView\.camera\.yaw : cam\.yaw;\n(?:\s*\/\/[^\n]*\n)*\s*const peerEye = travelView\?\.eye \?\? \(renderer\._view \? renderer\._camPos : cam\.pos\), peerRight = \[Math\.cos\(peerYaw\), 0, -Math\.sin\(peerYaw\)\];/);
   assert.match(w, /peerRiders\.sync\(seen, onlineToScene, \{ eye: peerEye, right: peerRight,/);
   assert.match(w, /peerWalkers\.sync\(seen, onlineToScene, \{ eye: peerEye, right: peerRight,/);
 });

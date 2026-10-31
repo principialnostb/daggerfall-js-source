@@ -5,6 +5,7 @@
 // ports (test/lwRoads.mjs `sea`) and the synthetic town.
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { isWidePlace } from '../../../src/systems/livingWorld/census.js';   // LW-WIDE
 import { readFileSync } from 'node:fs';
 import { synthMap, livingMap, partiesOver } from '../../lwRoads.mjs';
 import { synthTown } from '../../lwTown.mjs';
@@ -15,6 +16,7 @@ import { LivingTown } from '../../../src/systems/livingWorld/livingTown.js';
 import { ResidentWalker } from '../../../src/characters/residentWalker.js';
 import { lwRng } from '../../../src/systems/livingWorld/seed.js';
 import { DAY_MIN } from '../../../src/systems/livingWorld/dayPlan.js';
+import { createLivingLanes } from '../../../src/scenes/livingWorld/livingLanes.js';   // AUDIT WW F7: a town's lanes, the living lanes' book's
 
 const rd = (p) => readFileSync(new URL(`../../../${p}`, import.meta.url), 'utf8');
 const O = () => ({ mpm: CALENDAR_MPM, memo: new Map() });
@@ -33,6 +35,7 @@ test('LW5b the passage: a port town\'s traveller sails on about SEA_CHANCE of th
       for (let k = 40; k < 70; k++) {
         const t = ownTrip(res, town, k, sea.world, O());
         if (!town.port || !(SEA_CHANCE[res.job] > 0)) { assert.ok(!t?.sea, `${res.job} of ${town.name}: never by sea`); continue; }
+        if (isWidePlace(res, sea.world.rosterOf(town))) continue;   // LW-WIDE: PIN MOVED - the fourth rank stands after a port's sailors, so its places are other slots on the land's copy
         const lt = ownTrip(res, landOf.get(town.mapId), k, land.world, O());
         if (!t) { assert.equal(lt, null, 'no trip at all: none by road either'); continue; }
         trips++;
@@ -76,7 +79,7 @@ test('LW5b the passage: a port town\'s traveller sails on about SEA_CHANCE of th
   // the fallback: the cycles a port's traveller's dice said sail, with no lane to sail, are the road's trips they always were
   const noLanes = { ...sea.world, lanesFrom: () => [] };
   let fellBack = 0;
-  for (const r of sea.world.rosterOf(port).filter((x) => SEA_CHANCE[x.job] > 0)) {
+  for (const r of sea.world.rosterOf(port).filter((x) => SEA_CHANCE[x.job] > 0 && !isWidePlace(x, sea.world.rosterOf(port)))) {   // LW-WIDE: the first ranks (the land's copy holds the fourth at other slots)
     for (let k = 40; k < 70; k++) {
       if (!(lwRng(r.town, r.slot, k, 0x736561)() < SEA_CHANCE[r.job])) continue;
       const lt = ownTrip(r, landOf.get(port.mapId), k, land.world, O());
@@ -183,6 +186,15 @@ test('LW5b the town by the dock: a traveller sailing walks to the dock and is go
 
 test('LW5b the streaming host: a port town\'s lanes from the Bay\'s own network - the far port, the lane\'s length - none for a town with no harbour, none yet while the map is unread (mutants: the lanes, the harbour, the unread)', () => {
   const w = rd('src/scenes/world.js');
-  assert.match(w, /livingTripWorld\.lanesFrom = \(town\) => \{\n\s*if \(!town\?\.port\) return \[\];\n\s*if \(!mapDict \|\| \(typeof _lanesReady !== 'undefined' && !_lanesReady\)\) return undefined;/);
-  assert.match(w, /got = laneNet\(\)\.filter\(\(l\) => l\.a\.id === id \|\| l\.b\.id === id\)\.flatMap\(\(l\) => \{\n\s*const way = livingLaneWay\(l\), to = livingTownOfPort\(l\.a\.id === id \? l\.b\.id : l\.a\.id\);\n\s*return way && to \? \[\{ to, len: way\.len, key: l\.key \}\] : \[\];/);
+  assert.match(w, /livingTripWorld\.lanesFrom = \(town\) => \{\n\s*if \(!town\?\.port\) return \[\];\n\s*if \(!mapDict \|\| \(typeof _lanesReady !== 'undefined' && !_lanesReady\)\) return undefined;[^\n]*\n\s*return livingLanes\.from\(town\);/);
+  // PIN MOVED (AUDIT WW F7, bible/03-World/World-Wide.md "The audit"): a town's lanes are the living lanes' book's
+  // (scenes/livingWorld/livingLanes.js), run here - the far port's town, the lane's length, none where the water joins not
+  const town = (px, py) => ({ mapId: (1 << 20) | (py * 1000 + px), px, py, port: true });
+  const a = town(200, 100), b = town(300, 110), c = town(400, 120);
+  const byPort = new Map([a, b, c].map((t) => [t.py * 1000 + t.px, t]));
+  const lane = (key, p, q) => ({ key, a: { id: p.py * 1000 + p.px, px: p.px, py: p.py }, b: { id: q.py * 1000 + q.px, px: q.px, py: q.py } });
+  const lanes = createLivingLanes({ lanes: () => [lane('ab', a, b), lane('bc', b, c)], way: (l) => (l.key === 'ab' ? { len: 9, pts: [] } : null), townOfPort: (id) => byPort.get(id) ?? null, sailorsOf: () => [], generation: () => 0 });
+  assert.deepEqual(lanes.from(a), [{ to: b, len: 9, key: 'ab' }], 'the far port, the lane\'s length');
+  assert.deepEqual(lanes.from(b), [{ to: a, len: 9, key: 'ab' }], 'from either end, the other');
+  assert.deepEqual(lanes.from(c), [], 'a lane its water joins not: none');
 });

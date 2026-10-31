@@ -15,6 +15,9 @@ import { feudWeakBlow } from '../../src/systems/feudLedger.js';   // AUDIT FEUD:
 import { ARENA_PUPPET_OWNER } from '../../src/net/arena/arenaLaw.js';   // ARENA4: the kill door's puppet test, the real owner word (no puppet here)
 import { foeSeed, applyWireLook } from '../../src/characters/foeBodies.js';   // AUDIT MW-NPC II K3: the dungeon context's look seed, in the mounted scope
 import { isClassEnemyId, enemyEntityType } from '../../src/characters/enemy/enemyBasics.js';   // DEX1: the hosts' class test and entity type (the mount's free names)
+import { bossStrikeAt, bossTakeAt, bossClockS } from '../../src/systems/bossTraits.js';
+import { strikeTraits, traitWire, traitWireKey, readTraitWire, traitsAuthority, traitsFrame } from '../../src/scenes/foeTraitsHost.js';   // AUDIT WORLD-EVENTS: the dungeon host's trait doors, in the harness's scope   // BOSS-TRAITS: the damage door's two halves, in the harness's scope
+const TRAIT_DOORS = { strikeTraits, traitWire, traitWireKey, readTraitWire, traitsAuthority, traitsFrame, bossClockS };   // AUDIT WORLD-EVENTS
 
 const D = readFileSync(new URL('../../src/scenes/dungeonContext.js', import.meta.url), 'utf8');
 const W = readFileSync(new URL('../../src/scenes/world.js', import.meta.url), 'utf8');
@@ -49,7 +52,7 @@ const mount = (body, state) => new Function('__s', `with (__s) { ${body} }`)(sco
 const surplusSrc = () => ['FOE_SEQ_MAX_SURPLUS', '_surplus', '_surplusPending', '_hiddenFrom', '_layoutMismatchSaid'].map(declSrc).join('\n') + '\n' + ['sayLayoutMismatch', 'hideBeyondHostLayout', 'surplusRecord', 'dropSurplus', 'clearSurplus'].map(fnSrc).join('\n');
 const tick = () => new Promise((r) => setTimeout(r, 0));
 
-const CONSTS = ['REST_ASK_WAIT_MS', 'REST_ASK_GAP_MS', 'REST_ASK_BAND_MAX', 'SHARED_FOES_MAX', 'HIT_POS_MAX', 'HIT_DMG_MAX', 'q2', 'q3'];
+const CONSTS = ['REST_ASK_WAIT_MS', 'REST_ASK_GAP_MS', 'REST_ASK_BAND_MAX', 'SHARED_FOES_MAX', 'XF_WHOLE', 'HIT_POS_MAX', 'HIT_DMG_MAX', 'q2', 'q3'];   // XF_WHOLE's declaration names XF_STANDING too
 const consts = () => CONSTS.map(declSrc).join('\n');
 const K = mount(`${consts()}\nreturn { ${CONSTS.join(', ')} };`, {});
 
@@ -67,6 +70,7 @@ function restDoors(over = {}) {
   const spawned = [], asked = [];
   const state = {
     foeSeed, applyWireLook,   // AUDIT MW-NPC II K3: the records' look seed (roomRecord, applyFoeRecord, the puppets' stands)
+    ...TRAIT_DOORS,   // AUDIT WORLD-EVENTS: the trait doors roomRecord, applyFoeRecord and setAuthority call
     opts: { selfId: () => null, onActions: (d) => { asked.push(d); return true; } },
     _authority: true, lastPlayerFeet: [1.234, 2, 3.456], _motorYaw: 0.5, _locationKey: 'dungeon:7', _restAskAt: null, _restAskSentAt: -Infinity,   // AUDIT III E1: the joiner's own last ask
     _askAt: new Map(), ENEMY_BASICS: { 5: {}, 9: {} }, clock: 1000,
@@ -151,6 +155,7 @@ function side({ authority, layout = [], shared = [], over = {} }) {
   const built = [], applied = [], destroyed = [], dropped = [];
   const state = {
     foeSeed, applyWireLook,   // AUDIT MW-NPC II K3: the records' look seed (roomRecord, applyFoeRecord, the puppets' stands)
+    ...TRAIT_DOORS,   // AUDIT WORLD-EVENTS: the trait doors roomRecord, applyFoeRecord and setAuthority call
     _authority: authority, _layoutFoes: layout.length, foes, _sharedById: new Map(shared.map((f) => [f._encId, f])),
     _sharedSeq: Math.max(0, ...shared.map((f) => f._encId)), _sharedPending: new Map(), _ctxDead: false,
     _foesSeq: 0, _foesSeqIn: -1, _foesFrom: null, _locationKey: 'dungeon:7', _keyMismatchSaid: false, _retypeFails: new Map(), RETYPE_TRIES: 3,
@@ -307,7 +312,7 @@ test('REST-SYNC: a joiner\'s blow at the room\'s encounter goes to the host by t
   const layout0 = foe(), pup = foe({ _encId: 7 });
   const j = {
     _authority: false, ARENA_PUPPET_OWNER, blowClassOf, feudWeakBlow, foes: [layout0, pup], _layoutFoes: 1, lastPlayerFeet: [1, 0, 1], _ecvT: 0,
-    opts: { onFoeHit: (h) => sent.push(h) }, renownFoeStruck() {}, takeWholeBlow: () => false, markFoeStruck() {}, markConcealedHit() {},
+    opts: { onFoeHit: (h) => sent.push(h) }, renownFoeStruck() {}, takeWholeBlow: () => false, bossStrikeAt, bossTakeAt, bossClockS, strikeTraits, traitWire, traitWireKey, readTraitWire, traitsAuthority, traitsFrame, markFoeStruck() {}, markConcealedHit() {},
   };
   const jd = mount(`${consts()}\n${declSrc('isRoomFoe')}\n${fnSrc('damageFoe')}\nreturn { damageFoe };`, j);
   jd.damageFoe(pup, 5, [2, 0, 3]);
@@ -358,7 +363,7 @@ test('REST-SYNC: the encounter is weighed by who fights it and hands over with t
     ai: { feet: [0, 0, 0], yaw: 0, target: { id: 'p' }, resumeLive() { resumed.push(this); } },
     attack: { machine: { state: 'Swing', acc: 3 }, firedRanged: true, swingSeq: 4 }, mobile: { doMeleeDamage: true, shootArrow: true },
   });
-  const s = { _authority: false, _foesSeqIn: 5, _foesFrom: 'old', foes: [layout0, own, enc, ally], _layoutFoes: 1, _sharedById: new Map([[3, enc], [9, ally]]), ownRides: () => false, roomTakeSeat: () => {} };   // PARTY-LOOT: the seat's claims (test/systems/partyloot.test.js judges them)   // PSCALE-OWN / SUMMON-SYNC: nothing of mine on the own lane here
+  const s = { _authority: false, _foesSeqIn: 5, _foesFrom: 'old', foes: [layout0, own, enc, ally], _layoutFoes: 1, _sharedById: new Map([[3, enc], [9, ally]]), ownRides: () => false, roomTakeSeat: () => {}, ...TRAIT_DOORS };   // PARTY-LOOT: the seat's claims (test/systems/partyloot.test.js judges them)   // PSCALE-OWN / SUMMON-SYNC: nothing of mine on the own lane here
   const d = mount(`${declSrc('isRoomFoe')}\n${fnSrc('_sharedFoe')}\n${fnSrc('setAuthority')}\n${surplusSrc()}\nreturn { _sharedFoe, setAuthority };`, s);
   assert.equal(d._sharedFoe(enc), true, 'the room\'s encounter is weighed by its fighters');
   assert.equal(d._sharedFoe(layout0), true);
@@ -402,7 +407,7 @@ test('REST-SYNC by source: the rest, the hour\'s check, the act door, the frame,
   assert.match(D, /if \(hit\) \{ restEncounter\(hit\); break; \}/, 'the rest\'s spawn is the room\'s');
   assert.match(D, /enemiesNearby: \(\) => roomEncounterComing\(\) \|\| areEnemiesNearby\(foes, \{ resting: true \}\),/, 'the asker\'s rest breaks at the hour');
   assert.match(D, /const asked = data\.rs != null && roomEncounterAsked\(id, data\.rs\);[^\n]*\n[^\n]*\n\s*return n > 0 \|\| asked;/, 'the host hears the ask');
-  assert.match(D, /applySharedRecords\(Array\.isArray\(data\.x\) \? data\.x : \[\], data\.xf === 1\);/, 'the joiner hears the encounters');
+  assert.match(D, /applySharedRecords\(Array\.isArray\(data\.x\) \? data\.x : \[\], data\.xf === XF_WHOLE \|\| data\.xf === XF_STANDING \? data\.xf : 0\);/, 'the joiner hears the encounters');   // PIN MOVED (RPT1026-ITEMS BODY-CAP): and a capped frame's 2
   assert.match(D, /const _roomFoe = isRoomFoe\(f, _fi\);[^\n]*\n\s*const _puppet = isPuppetFoe\(f, _fi\);/, 'a joiner\'s copy is a puppet (QUEST-PARTY phase 3c: and a party member\'s quest foe)');
   assert.match(D, /const isPuppetFoe = \(f, i = foes\.indexOf\(f\)\) => f != null && \(\(!_authority && isRoomFoe\(f, i\)\) \|\| f\._ownFrom != null\);/, 'AUDIT PRE-MERGE 0928 O6: the frame\'s one test - the room\'s foes (a shared encounter too) while another holds the seat');
   assert.match(D, /f\.ai\.update\(foeFrameDt\(dt\), _pf, _armed\(f, _senses, _roomFoe\), _fParalyzed, _fPaused\);/, 'and the host\'s hunts every player (FOE-CATCHUP re-aim: the frame at most three steps)');

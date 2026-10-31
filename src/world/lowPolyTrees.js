@@ -368,16 +368,27 @@ export function readLowPolyTrees(json, treesBin, atlasesBin) {
 /** The prototype standing for (archive, record), or null - a record the mod leaves a flat. */
 export const lptProto = (lpt, archive, record) => lpt?.protos.get(`${archive}_${record}`) ?? null;
 
+/** Whether a frame's `cut` holds a far picture's batch's `lptProto` - a handle, or JUNGLE-ROADSIDE: any of several (a
+ *  jungle species' batch, its roadside pairs' halves with it - scenes/roadsidePairs.js). */
+export const lptCuts = (cut, proto) => (Array.isArray(proto) ? proto.some((h) => cut.has(h)) : cut.has(proto));
+
 // ---- the far picture ------------------------------------------------------------------------------------------------
 
 /** The far picture's texels a metre of the tree's height (the classic flats run about 7-14), and its bounds. */
 export const LPT_IMPOSTOR_PER_M = 8;
 export const LPT_IMPOSTOR_MIN = 24;
 export const LPT_IMPOSTOR_MAX = 256;
-/** The light the far picture is drawn under: from the viewer's side and above. BB_VS lights a 3D tree's faces by the
- *  same law (0.72 + 0.28 n.l) under this light turned to face the eye, crossfaded to the sun's own by day - so the two
- *  agree where they hand over at night and nearly by day (AUDIT LPT A2). */
-export const LPT_IMPOSTOR_LIGHT = Object.freeze([0, 0.6, -0.8]);
+/** The light the far picture is drawn under: the sky's, from straight above. BB_VS lights a 3D tree's faces by the same
+ *  law (0.72 + 0.28 n.l) under this same light, crossfaded to the sun's own by day - so the two agree where they hand
+ *  over at night and nearly by day (AUDIT LPT A2). FLORA-GROUND (FIELD BUGS 2026-10-27, the owner: "reflective flora can
+ *  be seen ... in first person"; the coordinator: "the material matte at its root"): it was [0, 0.6, -0.8], from the
+ *  viewer's side and above, and the 3D tree took it TURNED TO FACE THE EYE - a light no lamp casts, that followed the
+ *  player round every tree, bush and stump: the faces toward them lit whole, the faces away at half, the shine moving
+ *  over the crown as they walked (whole by night, a share of it at dusk, at dawn and under a storm's dim sun). A matte
+ *  face's light does not ask where the eye is - DFU's own nature batch is Lambert (DaggerfallBillboardBatch.shader:
+ *  `#pragma surface surf Lambert`, no specular, no view term in its albedo) - so the light is the sky's, a world's
+ *  direction, and the far picture is drawn under the same. */
+export const LPT_IMPOSTOR_LIGHT = Object.freeze([0, 1, 0]);
 const lptShade = (n0, n1, n2) => {
   const l = LPT_IMPOSTOR_LIGHT, len = Math.hypot(n0, n1, n2) || 1;
   return Math.min(1, Math.max(0.5, 0.72 + 0.28 * ((n0 * l[0] + n1 * l[1] + n2 * l[2]) / len)));
@@ -526,8 +537,10 @@ export const LPT_INSTANCE_FLOATS = 5;
  * is drawn under it, so its crown keeps off the roads and streets beside it.
  * BANTHA1: and `own` - each tree's scale as its layout gave it (world/terrain/jungleNature.js `js`), in place of DFU's
  * variety: the jungle's storeys are its own. Its turn is still lptVariety's.
+ * JUNGLE-ROADSIDE: and `turn` - each tree's turn as its layout gave it (a roadside pair's, its axis across its road -
+ * world/jungle/jungleRoadside.js standPairs), in place of lptVariety's.
  * @param {number} px @param {number} py the pixel
- * @param {{ h: number, centers: number[][], wild: Uint8Array|null, fit?: Float32Array|null, own?: Float32Array|null }[]} groups
+ * @param {{ h: number, centers: number[][], wild: Uint8Array|null, fit?: Float32Array|null, own?: Float32Array|null, turn?: Float32Array|null }[]} groups
  */
 export function buildTreeSet(px, py, groups) {
   let n = 0;
@@ -543,7 +556,7 @@ export function buildTreeSet(px, py, groups) {
       const o = k * LPT_SET_FLOATS;
       trees[o] = g.h; trees[o + 1] = c[0]; trees[o + 2] = c[1]; trees[o + 3] = c[2];
       trees[o + 4] = g.fit ? Math.min(sc, g.fit[i]) : sc;   // LPT-FIT
-      trees[o + 5] = v.yaw;
+      trees[o + 5] = g.turn ? g.turn[i] : v.yaw;   // JUNGLE-ROADSIDE
       centers[k++] = c;
     }
   }

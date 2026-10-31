@@ -20,7 +20,7 @@ import { witnessedFact } from '../../src/net/nodeLaw.js';
 import { createTownSeatBook, parseSeatCommand, SEAT_USAGE, SEAT_LIST_CACHE_MS, SEAT_REPORTED_KEY } from '../../src/net/townSeatBook.js';
 import { buildInkMarks, markReach, paintSeatRing, SEAT_RING_PAD, SEAT_SECOND_PAD } from '../../src/ui/ink/inkMap.js';
 import { plainBannerOf } from '../../src/ui/heraldryArt.js';
-import { seatBannerAnchors, gateBannerAnchor, boardPennantAnchor, palaceKeysOf, townCentreOf, createSeatBanners, GATE_BANNER_DROP_M, BOARD_PENNANT_RISE_M } from '../../src/scenes/seatBanners.js';
+import { seatBannerAnchors, gateBannerAnchor, palaceKeysOf, townCentreOf, createSeatBanners, GATE_BANNER_DROP_M } from '../../src/scenes/seatBanners.js';
 import { countSeats } from '../../tools/seatCount.mjs';
 import { hostText } from '../hostText.mjs';   // HOST-SPLIT 2: the world host whole
 
@@ -78,10 +78,14 @@ test('SEAT1a the law: a report canonical in its bytes and read back; a crown in 
   assert.deepEqual(parseSeatReport(seatReportText(a)), { seat: a });
   assert.equal(parseSeatReport('[3021,"Anticlere",21,"palace",402]'), null);
   assert.equal(parseSeatReport('[3021, "Anticlere",21,"palace",402,151]'), null, 'only the canonical bytes');
-  for (const bad of [{ ...a, key: -1 }, { ...a, key: 2 ** 32 }, { ...a, name: '' }, { ...a, name: 'x'.repeat(49) }, { ...a, name: 'Antié' }, { ...a, region: 62 },
-    { ...a, tier: 'castle' }, { ...a, pixel: [1000, 0] }, { ...a, pixel: [0, 500] }, { ...a, pixel: [1.5, 2] }]) assert.equal(seatReportOf(bad), null, JSON.stringify(bad));
+  for (const bad of [{ ...a, key: -1 }, { ...a, key: 2 ** 32 }, { ...a, name: '' }, { ...a, name: 'x'.repeat(49) }, { ...a, name: 'Antié' }, { ...a, region: 71 },
+    { ...a, tier: 'castle' }, { ...a, pixel: [8192, 0] }, { ...a, pixel: [0, -8192] }, { ...a, pixel: [1.5, 2] }]) assert.equal(seatReportOf(bad), null, JSON.stringify(bad));
+  // PIN MOVED (WW7-3, bible/03-World/World-Wide.md WW7): a seat past the Bay - a province's region, a pixel of the world's grid
+  assert.ok(seatReportOf({ ...a, region: 64, pixel: [1000, 0] }) && seatReportOf({ ...a, region: 70, pixel: [-40, 600] }));
   assert.ok(seatReportOf({ ...a, name: 'x'.repeat(48) }));
-  assert.deepEqual(CROWN_SEAT_REGIONS, { 17: 'daggerfall', 23: 'wayrest', 20: 'sentinel' });
+  assert.deepEqual(CROWN_SEAT_REGIONS, { 17: 'daggerfall', 23: 'wayrest', 20: 'sentinel', 64: 'skyrim', 65: 'morrowind', 66: 'summerset', 67: 'valenwood', 68: 'elsweyr', 69: 'blackmarsh', 70: 'cyrodiil' });   // PIN MOVED (WW7-3, bible/03-World/World-Wide.md WW7): the provinces' crowns
+  assert.ok(seatReportOf({ key: 2, name: 'Solitude', region: 64, tier: 'crown', pixel: [1600, 30] }), 'a province crown bears its capital\'s name');
+  assert.equal(seatReportOf({ key: 2, name: 'Skyrim', region: 64, tier: 'crown', pixel: [1600, 30] }), null, 'never its kingdom\'s');
   assert.ok(seatReportOf({ key: 1, name: 'Wayrest', region: 23, tier: 'crown', pixel: [1, 1] }));
   assert.equal(seatReportOf({ key: 1, name: 'Sentinel', region: 23, tier: 'crown', pixel: [1, 1] }), null);
   assert.equal(seatReportOf({ key: 1, name: 'Anticlere', region: 21, tier: 'crown', pixel: [1, 1] }), null);
@@ -121,7 +125,8 @@ test('SEAT1a the words and the marks: the Charter, the arrival line, the map\'s 
   assert.equal(seatArrivalLine(crown, { name: 'Ebon Oath', tag: 'EO' }), 'Wayrest, capital of the Kingdom of Wayrest, held by Ebon Oath <EO>.');
   assert.equal(seatInfoLine(pal), 'The Charter of Anticlere: unheld');
   assert.equal(SEAT_RING_UNHELD, '#8a8a8a');
-  assert.deepEqual(KINGDOM_METALS, { daggerfall: '#3b6fd8', wayrest: '#b3262e', sentinel: '#d4a017' });
+  assert.deepEqual(KINGDOM_METALS, { daggerfall: '#3b6fd8', wayrest: '#b3262e', sentinel: '#d4a017',
+    skyrim: '#e6e6e6', morrowind: '#7d1f1f', summerset: '#7fb3e6', valenwood: '#1f7f7f', elsweyr: '#c46a1b', blackmarsh: '#5a3e22', cyrodiil: '#7a3fa0' });   // PIN MOVED (WW7-3): the provinces' crowns' metals
   assert.equal(FREE_LAND_RING, '#2f8f4e');
   // SEAT1c (PIN MOVED): an unheld, quiet seat's mark names no fill, no split and no siege
   assert.deepEqual(seatMapMark(crown), { ring: '#8a8a8a', crown: '#b3262e', second: null, fill: null, split: null, siege: false });
@@ -176,7 +181,7 @@ test('SEAT1a the book: open by the service\'s word; the list kept its minutes (a
   now += 86_400_000;
   assert.equal(await book.witness(seat), true, 'the next day, again');
   assert.deepEqual(witnessed, [3021, 3021]);
-  assert.equal(await book.witness({ ...seat, pixel: [1000, 0] }), false, 'a bad seat is no report');
+  assert.equal(await book.witness({ ...seat, pixel: [8192, 0] }), false, 'a bad seat is no report');   // PIN MOVED (WW7-3, bible/03-World/World-Wide.md WW7): off the world's grid
   answer = { ok: false, error: 'seats-closed' };
   now += SEAT_LIST_CACHE_MS + 1;
   await book.read();
@@ -220,7 +225,7 @@ test('SEAT1a the map: a seat\'s mark carries its ring, round any hub\'s circle, 
   assert.ok(w.indexOf('paintSeatRing(ctx, x, y, markReach(m), m.seatMark)') < w.indexOf('for (const [m, x, y] of inked) paintGlyph(ctx, m.kind, x, y, true);'), 'under the glyph and its halo');
 });
 
-test('SEAT1a the banners: the palace door\'s two, a gate\'s on its town side beside its post, a rumour board\'s pennant over it (never a bounty board\'s), eight at most; the palace\'s keys off its blocks\' own records; the kingdom\'s plain cloth hung while the seats are open, none in a Free Land (mutants: the town side; the bounty test; the cap; the palace type; the open gate)', () => {
+test('SEAT1a the banners: the palace door\'s two, a gate\'s on its town side beside its post, no board\'s pennant (NOTICE-PANEL: no board stands), eight at most; the palace\'s keys off its blocks\' own records; the kingdom\'s plain cloth hung while the seats are open, none in a Free Land (mutants: the town side; the bounty test; the cap; the palace type; the open gate)', () => {
   const blocks = [{ x: 1, y: 2, dfBlock: { rmbBlock: { fldHeader: { buildingDataList: [{ buildingType: 17 }, { buildingType: BUILDING_TYPES.Palace }, { buildingType: BUILDING_TYPES.Palace }] }, subRecords: [{}, {}] } } }];
   assert.deepEqual(palaceKeysOf(blocks, makeBuildingKey), [makeBuildingKey(1, 2, 1)], 'the palace record, inside the block\'s own count');
   const I = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1];
@@ -230,14 +235,11 @@ test('SEAT1a the banners: the palace door\'s two, a gate\'s on its town side bes
   assert.equal(g.top[1], 6 - GATE_BANNER_DROP_M);
   assert.ok(g.top[2] > 0.5, 'off the gate\'s face');
   assert.deepEqual(gateBannerAnchor(gate, [0, -20]).out, [0, 0, -1], 'the other side, never a signed zero');
-  const b = boardPennantAnchor({ local: I, box: [0, 0, 0, 1, 2, 0.2] });
-  assert.deepEqual(b.top, [0.5, 2 + BOARD_PENNANT_RISE_M, 0.1]);
   const frames = new Map([[makeBuildingKey(1, 2, 1), { at: [0, 0, 0], box: [-5, 0, -5, 5, 8, 5], door: { a: [-1, 0, 5], b: [1, 0, 5] } }]]);
   const boards = [{ local: I, box: [0, 0, 0, 1, 2, 0.2] }, { local: I, box: [3, 0, 0, 4, 2, 0.2] }];
-  const all = seatBannerAnchors({ frames, palaceKeys: [makeBuildingKey(1, 2, 1)], gates: [gate], boards, bounty: new Set([1]), centre: [0, 20] });   // ONE-BOARD REVERTED (PIN MOVED): a pennant over every rumour board
-  assert.equal(all.length, 4, 'the door\'s two, the gate\'s one, the rumour board\'s one - never the bounty board\'s');
-  assert.deepEqual(all[3], boardPennantAnchor(boards[0]), 'the pennant over the rumour board itself');
-  assert.equal(seatBannerAnchors({ boards, centre: [0, 20] }).length, 2, 'no bounty board: a pennant over each');
+  const all = seatBannerAnchors(/** @type {any} */ ({ frames, palaceKeys: [makeBuildingKey(1, 2, 1)], gates: [gate], boards, bounty: new Set([1]), centre: [0, 20] }));   // PIN MOVED (NOTICE-PANEL): no pennant over a board
+  assert.equal(all.length, 3, 'the door\'s two, the gate\'s one - a board\'s place hangs nothing');
+  assert.equal(seatBannerAnchors(/** @type {any} */ ({ boards, centre: [0, 20] })).length, 0, 'boards alone hang nothing');
   const many = seatBannerAnchors({ gates: Array(12).fill(gate), centre: [0, 20] });
   assert.equal(many.length, SEAT_BANNERS_MAX);
   assert.deepEqual(townCentreOf(new Map([[1, { at: [2, 0, 4] }], [2, { at: [4, 0, 8] }]])), [3, 6]);
@@ -259,16 +261,17 @@ test('SEAT1a the hosts by source: the boot pass derives the seats over the hubs\
   // PIN MOVED (AUDIT LEGACY III W1): the rows are let go once the Living World's two indices over them stand (releaseHubRows)
   // - emptied here at the boot, every index read nothing
   assert.match(w, /const townSeats = deriveTownSeats\(_hubRows, \{ regionNameOf: \(r\) => maps\.getRegionName\(r\), isHub: \(k\) => regionHubs\.byMapId\.has\(k\) \}\);/, 'the game\'s own rows');
-  assert.match(w, /const releaseHubRows = \(\) => \{ if \(_livingTowns && _livingDungeons\) _hubRows\.length = 0; \};/, '...let go once both indices stand');
+  // PIN MOVED (WW1, bible/03-World/World-Wide.md): the seats are derived before the rows go - and they go once the world's
+  // registry has them (test/systems/legacy/auditlegacy3.test.js runs the boot's lines)
+  assert.ok(w.indexOf('const townSeats = deriveTownSeats(_hubRows,') < w.indexOf('worldPlaces.register(BAY_SOURCE, bayPlaceRows(_hubRows, { hasPort }));\n  _hubRows.length = 0;'), '...derived before the rows are let go');
   // SEAT1b (PIN MOVED): the book's door is named once, for the Watch's account beside it
   assert.match(w, /const _seatDoor = params\.has\('online'\) \? accountSeats\(\{ fetch: \(u, i\) => globalThis\.fetch\(u, i\), storage: appStorage\(\) \}\) : null;\n\s*const seatBook = _seatDoor\n\s*\? createTownSeatBook\(\{\n\s*door: _seatDoor,/);
   assert.match(w, /const seatHere = \(mapId\) => \(seatBook\?\.open === true \? seatBook\.dressed\(seatAtMapId\(townSeats, mapId\)\) : null\);/);   // SEAT1c (PIN MOVED): dressed in its holder
   assert.match(w, /if \(seat\) \{ townTalk\.say\(seatArrivalLine\(seat\), 5\); seatBook\.witness\(seat\); \}\n\s*else if \(hub\) townTalk\.say\(hubArrivalLine\(hub\), 5\);/);
   assert.match(w, /seatAt: seatBook \? \(summary\) => seatHere\(summary\?\.mapID \?\? summary\?\.mapId\) : null,/);
   assert.match(w, /const seatAnchors = pixelBoardSplit \? seatBannerAnchors\(\{/);
-  assert.match(w, /gates: pixelGates\.map\(\(g\) => \(\{ local: g\.local, box: g\.entry\?\._box \}\)\), boards: pixelBoards, bounty: pixelBoardSplit,/);   // PIN MOVED (AUDIT SEATS-3 F5): the anchors' own, not the siege field's; ONE-BOARD REVERTED (PIN MOVED)
-  assert.match(w, /const pixelBoardSplit = dfLocation && locBlocks && seatAtMapId\(townSeats, dfLocation\.mapTableData\?\.mapId\) \? boardSplitOf\(\{ boards: pixelBoards \}\) : null;/, 'BOUNTY1\'s split through its one memo (AUDIT 28 H8)');
-  assert.match(w, /if \(isBulletinBoard\(placed\.modelIdNum\)\) pixelBoards\.push\(\{ box, local \}\);/);
+  assert.match(w, /gates: pixelGates\.map\(\(g\) => \(\{ local: g\.local, box: g\.entry\?\._box \}\)\), centre: townCentreOf\(pixelHomeFrames\),/);   // PIN MOVED (NOTICE-PANEL): the anchors take no board
+  assert.match(w, /const pixelBoardSplit = dfLocation && locBlocks && seatAtMapId\(townSeats, dfLocation\.mapTableData\?\.mapId\) \? questBoardIndices\(pixelBoards\) : null;/, 'BOUNTY1\'s split, once a build - the siege field\'s Market');
   // PIN MOVED (AUDIT SEATS-3): the halls' and the seats' merged into one kept list (C4: no spread a frame)
   assert.match(w, /for \(const b of hallBanners\?\.list\(\) \?\? \[\]\) all\.push\(b\);\n\s*for \(const b of seatBanners\?\.list\(\) \?\? \[\]\) all\.push\(b\);/);
   assert.match(w, /const hung = bannersHung\(\);/);

@@ -15,6 +15,9 @@ import { REFUSALS } from '../../net/accountClient.js';
 import { placeBeside } from './enhancedTimers.js';
 import { reportPane, reportPaneKey } from './enhancedReport.js';   // PRIVATE-REPORT
 import { t } from '../../systems/textManager.js';
+import { shopWareTag, injectShopStyle } from './enhancedShop.js';   // SHOP: a receipt's ware, in its own paint
+import { giftOf } from '../../net/giftLaw.js';   // THANKS-POST: the gift a letter brought
+import { armoryPieceName } from '../armoryText.js';
 
 /** How often the mark's count and the open window look at the box's version, ms. */
 export const POST_TICK_MS = 500;
@@ -29,6 +32,12 @@ export const postRefusalText = (/** @type {string|undefined} */ w) => (w && (POS
 
 /** A piece's date, in the player's own clock: "8 Oct". */
 export const postDayText = (/** @type {number} */ sentAtS) => new Date(sentAtS * 1000).toLocaleDateString(undefined, { day: 'numeric', month: 'short' });
+
+/** THANKS-POST: what a letter's gift gave, in words - its Aurum and each piece's name; [] for no gift. */
+export const postGiftWords = (/** @type {unknown} */ key) => {
+  const g = giftOf(key);
+  return g ? [t('post.giftAurum', '{n, number} Aurum', { n: g.aurum }), ...g.armory.map((k) => armoryPieceName(k))] : [];
+};
 
 /** An item's rarity as its name wears it (`data-rarity`, LR1's attribute - the sheet colours each rung, enhancedStyle.js),
  *  or null: a rung's word alone, never anything the sheet could read as more. */
@@ -128,6 +137,7 @@ export function postWindow(doc, { box, onClose, every = POST_TICK_MS, keep = {} 
     b.addEventListener('click', fn);
     return b;
   };
+  injectShopStyle(doc);   // SHOP: a receipt's ware tag is the shop's sheet's
   const win = el('div', 'px-win px-postwin');
   win.setAttribute('role', 'dialog');
   win.setAttribute('aria-modal', 'true');
@@ -220,6 +230,15 @@ export function postWindow(doc, { box, onClose, every = POST_TICK_MS, keep = {} 
       return;
     }
     if (!b.post.length) { empty('Your mailbox is empty.'); return; }
+    // LOST-SPOILS: a boss's floor's leftovers come a piece an item - claimed together (net/serverPost.js PostBox.claimAll)
+    const waiting = b.post.filter((/** @type {any} */ p) => p.item && !p.claimed).length;
+    if (waiting >= 2) {
+      const row = el('div', 'pm-foot pm-claimrow');
+      const all = keyed(button('pm-claimall', b.claimingAll ? 'Claiming...' : t('post.claimAll', 'Claim all ({n})', { n: waiting }), () => claimAllNow()), 'claimall');
+      if (b.busy || b.claimingAll) all.disabled = true;
+      row.append(all);
+      view.append(row);
+    }
     const list = el('div', 'pm-list');
     for (const p of b.post) {
       const row = /** @type {any} */ (keyed(el('button', `pm-row${p.read ? '' : ' unread'}${p.item && !p.claimed ? ' gift' : ''}`), p.id));
@@ -234,6 +253,13 @@ export function postWindow(doc, { box, onClose, every = POST_TICK_MS, keep = {} 
         const rar = postRarity(p.item.rarity);
         if (rar) name.setAttribute('data-rarity', rar);
         chip.append(name, el('span', 'pm-state', p.claimed ? 'Claimed' : 'Waiting'));
+        row.append(chip);
+      } else if (p.ware) {   // SHOP: a receipt - its ware is on the account already, nothing to claim
+        const tag = shopWareTag(doc, p.ware);
+        if (tag) { const chip = el('span', 'pm-chip'); chip.append(tag, el('span', 'pm-state', t('post.wareHeld', 'On your account'))); row.append(chip); }
+      } else if (p.gift) {   // THANKS-POST: a gift - on the account already, nothing to claim
+        const chip = el('span', 'pm-chip');
+        chip.append(el('span', null, postGiftWords(p.gift).join(', ')), el('span', 'pm-state', t('post.wareHeld', 'On your account')));
         row.append(chip);
       }
       row.addEventListener('click', () => openOne(p.id));
@@ -262,10 +288,23 @@ export function postWindow(doc, { box, onClose, every = POST_TICK_MS, keep = {} 
       else {
         const claim = keyed(button('pm-claim', b.busy ? 'Claiming...' : 'Claim', () => claimOne(head.id)), 'claim');
         claim.setAttribute('aria-label', `Claim ${head.item.name}`);
-        if (b.busy) claim.disabled = true;
+        if (b.busy || b.claimingAll) claim.disabled = true;   // LOST-SPOILS: nor while a Claim all runs
         card.append(claim);
       }
       piece.append(card);
+    } else if (head.ware) {   // SHOP: the receipt's ware, and where it is worn
+      const tag = shopWareTag(doc, head.ware);
+      if (tag) {
+        const card = el('div', 'pm-item');
+        card.append(tag, el('span', 'pm-state', t('post.wareWear', 'Wear it from your profile.')));
+        piece.append(card);
+      }
+    } else if (head.gift) {   // THANKS-POST: the gift, each part on the account already
+      for (const words of postGiftWords(head.gift)) {
+        const card = el('div', 'pm-item');
+        card.append(el('span', 'pm-itemname', words), el('span', 'pm-state', t('post.wareHeld', 'On your account')));
+        piece.append(card);
+      }
     }
     const foot = el('div', 'pm-foot');
     foot.append(back);
@@ -321,6 +360,20 @@ export function postWindow(doc, { box, onClose, every = POST_TICK_MS, keep = {} 
     const r = await going;
     if (r.ok) { tell(`${r.item?.name ?? 'The item'} is in your pack.`, true); focusTo = 'back'; }
     else tell(postRefusalText(r.error));
+    draw(true);
+  };
+  /** LOST-SPOILS: every item waiting, claimed one after another - what landed said, and where it stopped. */
+  const claimAllNow = async () => {
+    const b = box();
+    if (!b || b.busy || b.claimingAll) return;
+    tell('');
+    const going = b.claimAll();
+    focusTo = 'claimall';
+    draw(true);
+    const r = await going;
+    const n = r.items?.length ?? 0;
+    if (r.ok) tell(t('post.claimedAll', '{n, plural, one {# item is} other {# items are}} in your pack.', { n }), true);
+    else tell(n ? `${t('post.claimedAll', '{n, plural, one {# item is} other {# items are}} in your pack.', { n })} ${postRefusalText(r.error)}` : postRefusalText(r.error));
     draw(true);
   };
   const throwOne = async (/** @type {string} */ id) => {

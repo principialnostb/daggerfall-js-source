@@ -14,7 +14,8 @@
 //     their lowest vertex like a prop. DFU places them like any model.
 //   - IsBadInteriorModel: DFU's classic-data repair table - 27 block/record
 //     combos where a misplaced model 31000 overlaps stairs and traps the
-//     player upstairs. Filtered identically.
+//     player upstairs. Filtered only at the misplaced spot (FIELD BUGS
+//     2026-10-25 BAD-CELL), so a town pack's own 31000 in a listed room stands.
 //   - Flats: position (X, -Y, Z) * scale, billboard bottom-anchored.
 //     Editor flats (archive 199) are kept as markers but hidden from the
 //     render list, exactly as DFU spawns-then-hides them. Light flats
@@ -34,6 +35,7 @@
 // they are pure layout data, position-only.
 
 import { ROTATION_DIVISOR } from '../../formats/blocksFile.js';
+import { aliasTurnOf } from '../customModels.js';   // BED-TURN: a mod's piece drawn on a classic mesh that faces another way
 import { GLOBAL_SCALE, DOOR_TYPE } from '../meshReader.js';   // MAC-BUG1: a synthesised exit is a BUILDING door like any other
 import { EDITOR_FLATS_ARCHIVE } from '../rmbFlats.js';
 import { getStaticDoors } from '../staticDoors.js';
@@ -115,9 +117,21 @@ const BAD_INTERIOR_MODEL_RECORDS = new Map([
   [1278, [1, 2, 3, 4]],   // CUSTGA05.RMB
 ]);
 
-/** Verbatim DaggerfallInterior.IsBadInteriorModel. */
-export function isBadInteriorModel(blockIndex, recordIndex, modelIdNum) {
-  if (modelIdNum !== BAD_MODEL_ID) return false;
+/** FIELD BUGS 2026-10-25 BAD-CELL: where the misplaced 31000 stands in Daggerfall's own data - the same record
+ *  position in every one of the table's 60 records (BLOCKS.BSA, measured with ARENA2). */
+const BAD_MODEL_SPOT = Object.freeze({ xPos: 192, yPos: -192, zPos: 64 });
+
+/**
+ * DaggerfallInterior.IsBadInteriorModel, narrowed to the model it repairs. DFU drops EVERY 31000 of a listed
+ * block/record. FIELD BUGS 2026-10-25 BAD-CELL (our departure): only the one standing at the misplaced spot. A town
+ * pack that rebuilds a listed room (Beautiful Cities rebuilds seven) stands its own 31000 elsewhere, a ground-floor
+ * room cell, and dropping it left a hole a player fell through. Daggerfall's own records drop exactly what DFU drops.
+ * @param {number} blockIndex @param {number} recordIndex
+ * @param {{ modelIdNum: number, xPos: number, yPos: number, zPos: number }} obj the record's 3D object
+ */
+export function isBadInteriorModel(blockIndex, recordIndex, obj) {
+  if (obj.modelIdNum !== BAD_MODEL_ID) return false;
+  if (obj.xPos !== BAD_MODEL_SPOT.xPos || obj.yPos !== BAD_MODEL_SPOT.yPos || obj.zPos !== BAD_MODEL_SPOT.zPos) return false;
   const records = BAD_INTERIOR_MODEL_RECORDS.get(blockIndex);
   return records !== undefined && records.includes(recordIndex);
 }
@@ -135,8 +149,17 @@ function lowestY(model) {
 /** DaggerfallInterior.AssignBlockData's refusal (DaggerfallInterior.cs:388-389): a building subrecord whose interior
  *  holds no 3D model cannot be laid out - TransitionInterior says "This house has nothing of value." (PlayerEnterExit.cs
  *  :719-730). FIELD BUGS 2026-10-05 CRYPT-SALE: the one law the layout refuses by and the house market asks of a door.
- *  A subrecord with no interior header at all is not known to be empty. */
-export const hasInteriorModels = (sub) => sub?.interior?.header?.num3dObjectRecords !== 0;
+ *  A subrecord with no interior header at all is not known to be empty. IC-INTERIORS: a MADE interior (interiorCast) is
+ *  laid from Daggerfall's kit - it holds its models before they are made. */
+export const hasInteriorModels = (sub) => sub?.interior?.made === true || sub?.interior?.header?.num3dObjectRecords !== 0;
+/** IC-INTERIORS (bible/03-World/Arena-Provinces.md IC-INTERIORS): THE RECORD A BUILDING'S CAST IS READ FROM. A MADE
+ *  interior (world/imperialFabricBuildings.js fabricBuildingInterior - an Imperial City building's own, laid from
+ *  Daggerfall's kit) makes its records when one is first read, and names the Daggerfall record its people and its markers
+ *  are its own building's from (`cast`): a walk over a town's buildings - the questor pool, a quest's site search, which
+ *  read a building's people and markers and never stand them - reads that, in that record's frame (the frame a laid
+ *  person's name is drawn in - its `castPos` - and the frame a quest's site holds its markers in until the building is
+ *  entered: systems/quest/castMarkers.js). Any other interior is its own cast. */
+export const interiorCast = (sub) => (sub?.interior?.made ? sub.interior.cast : sub?.interior) ?? null;
 
 /**
  * Assemble one building interior.
@@ -164,7 +187,7 @@ export function layoutInterior(dfBlock, blockIndex, recordIndex, getModel) {
   // AddModels.
   for (const obj of recordData.interior.block3dObjectRecords) {
     // Filter out bad interior models.
-    if (isBadInteriorModel(blockIndex, recordIndex, obj.modelIdNum)) continue;
+    if (isBadInteriorModel(blockIndex, recordIndex, obj)) continue;
 
     const model = getModel(obj.modelIdNum);
     // NEVER TRAPS: getModel resolves through getGpuMesh, which returns
@@ -202,7 +225,7 @@ export function layoutInterior(dfBlock, blockIndex, recordIndex, getModel) {
     const matrix = trs(
       px, py, pz,
       -obj.xRotation / ROTATION_DIVISOR,
-      -obj.yRotation / ROTATION_DIVISOR,
+      -(obj.yRotation + aliasTurnOf(obj.modelIdNum)) / ROTATION_DIVISOR,
       -obj.zRotation / ROTATION_DIVISOR,
       ...modelScaleVector(obj),
     );
