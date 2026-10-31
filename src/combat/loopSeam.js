@@ -103,9 +103,14 @@ const nlerpQ = (a, b, w) => {
   return q.map((v) => v / l);
 };
 /** `under` read with its corners rounded (CLIP_SMOOTH). */
-export function smoothSampler(under, h = CLIP_SMOOTH.h) {
+export function smoothSampler(under, h = CLIP_SMOOTH.h, window = null) {
   return (track, time) => {
-    const a = under(track, time - h), b = under(track, time), c = under(track, time + h);
+    // GUARD-STEP-BASE: a walking loop's neighbours belong to that loop, not the next group's keys.
+    // Keep entry/exit segments and overlays on their own clocks.
+    const span = window ? window.stop - window.start : 0;
+    const periodic = span > 0 && time >= window.start && time <= window.stop && !track?.__overlay;
+    const read = (t) => under(track, periodic ? window.start + ((t - window.start) % span + span) % span : t);
+    const a = read(time - h), b = read(time), c = read(time + h);
     const mix = (x, y, z) => (x && y && z ? y.map((v, i) => 0.25 * x[i] + 0.5 * v + 0.25 * z[i]) : y);
     return {
       rotation: a.rotation && b.rotation && c.rotation ? nlerpQ(nlerpQ(a.rotation, c.rotation, 0.5), b.rotation, 0.5) : b.rotation,
@@ -124,8 +129,9 @@ export function createLoopSeam({ sampleTrack, loopWindow }) {
       const smooth = on && smoothOn();   // CLIP-SMOOTH: every clip's corners rounded, a loop's seam carried first
       if (!on || !state || !source || !/^(walk|run|sneak|turn|swim|idle)/.test(String(state.group ?? ''))) return smooth ? smoothOf(under) : under;
       if (memo && memo.under === under && memo.state === state && memo.source === source && memo.smooth === smooth) return memo.fn;
-      const seam = seamSampler(under, sampleTrack, state, source, loopWindow(state, source.keys));
-      memo = { under, state, source, smooth, fn: smooth ? smoothSampler(seam) : seam };
+      const window = loopWindow(state, source.keys);
+      const seam = seamSampler(under, sampleTrack, state, source, window);
+      memo = { under, state, source, smooth, fn: smooth ? smoothSampler(seam, CLIP_SMOOTH.h, /^walk/.test(state.group) ? window : null) : seam };
       return memo.fn;
     },
   };

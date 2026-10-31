@@ -315,6 +315,32 @@ test('TRAILING-FOOT: stopped under a blow struck walking, the stride\'s back foo
   assert.ok(d(ballOf(m, body, 'L'), L0) < 0.6, 'the lead foot where it stood');
 });
 
+test('FEET-FREED: walking on after a blow struck walking, the feet stay on the stride - never anchored while the body moves', () => {
+  const sk = buildSkeleton(parseNif(retailSkeleton()));
+  const body = bodyOf(sk, GRAPH_ROOT, sm);
+  const rest = sm(sk, new Map(), GRAPH_ROOT), ft = (s) => rest.get(body.bones[s].foot).t, th = (s) => rest.get(body.bones[s].thigh).t;
+  const stride = (t) => {
+    const a = 0.22 * body.leg * Math.sin(2 * Math.PI * 1.4 * t), pose = new Map();
+    solveBody(sk, pose, GRAPH_ROOT, sm, {
+      w: 1, hip: { at: [(th('L')[0] + th('R')[0]) / 2, (th('L')[1] + th('R')[1]) / 2, th('L')[2] - 0.07 * body.leg], yaw: 0, roll: 0, pitch: 0 },
+      feet: { L: { at: [ft('L')[0], ft('L')[1] + a, ft('L')[2]], toe: [0, 1, 0], up: [0, 0, 1], w: 1 }, R: { at: [ft('R')[0], ft('R')[1] - a, ft('R')[2]], toe: [0, 1, 0], up: [0, 0, 1], w: 1 } },
+    });
+    return pose;
+  };
+  const legs = createBlowLegs();
+  let f = 0, worst = 0, anchored = 0;
+  for (const [sec, k] of [['windup', 20], ['release', 8], ['follow', 30], [null, 90]]) for (let i = 0; i <= k; i++, f++) {
+    legs.step(1 / 60, true, { on: true, grounded: true, speed: 4.4, blow: sec ? blow('chop', sec, i / k) : null }, 0);
+    const clip = stride(f / 60), c = sm(sk, clip, GRAPH_ROOT), pose = new Map(clip);
+    legs.apply(sk, pose, GRAPH_ROOT, sm);
+    const m = sm(sk, pose, GRAPH_ROOT);
+    if (legs.status().anchored) anchored++;
+    if (legs.weight() > 0.05) for (const s of ['L', 'R']) worst = Math.max(worst, d(m.get(body.bones[s].foot).t, c.get(body.bones[s].foot).t));
+  }
+  assert.equal(anchored, 0, 'never anchored while moving');
+  assert.ok(worst < 0.5, `the feet on the stride's own (off by ${worst.toFixed(2)} units at most)`);
+});
+
 test('BLOW-LEGS: wired - the motion word to the weight layer, the hips and feet before the elbows\' clearance', () => {
   const bw = rd('src/characters/bodyMotion/bodyWeight.js');
   assert.match(bw, /legs\.step\(dt, active, word, weight\);/);

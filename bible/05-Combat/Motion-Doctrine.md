@@ -534,6 +534,223 @@ the thighs -51..62 (-36..51; a 1.42 stride with the calves free threw them to -5
 planted foot keeping the body's pace. Pinned in `test/characters/bodyMotion/stride.test.js` (RUN-STRIDE). Not yet seen in
 the owner's game; the Proving Ground's boots timed out streaming the world.
 
+**FEET-FREED** (2026-10-30, measured after the owner's "the legs degraded"): GUARD-WALK's rise kept the layer on after a moving
+blow, `stand` climbed and the feet were anchored while the body still walked - 91 frames, up to 32 cm off the stride. Feet are
+now anchored only by a body standing (a standing blow or the step home). Offline after it: never anchored walking.
+Pinned in `test/characters/bodyMotion/blowlegs.test.js` (FEET-FREED). Not yet seen in the owner's game.
+
+**MAO-SOURCE** (2026-10-30, the owner: wooden straight legs, the toes lifted). The Animation Overhaul setting did nothing: the
+pack ships `Xbase_anim.kf`, the loader's case-sensitive glob asked for `xbase_anim.kf` and found nothing, silently - so the
+game walked on the retail clips, whose walkforward2c locks the knee at 180 degrees and lifts the toes 38 at touchdown (MAO's:
+157 and 16; earlier records of "MAO's run" here were not measured). The glob now takes either case, and the setting has
+three choices for the owner to compare: Vanilla, MAO movement (walk, run, sneak, turn; the stance, idles and blows stay the
+game's), MAO movement + combat. A saved 1 now means MAO movement. RUN-STRIDE's numbers were read on MAO's clip; on the retail
+run (3.2 m/s) the same law plays 1.95x. Pinned in `test/formats/morrowind/mwwalkassets.test.js`. Not yet seen in the game.
+
+The owner, comparing the three in the game: "the new run" and the stance's walk are better, MAO is the standard - but the plain walk stays as it was, and no setting: the choice was the test's. So the pack now always answers the run, sneak, turn and the walks in a stance (`isMovementAnimationGroup`); the plain walk, the stance, idles and blows are as before; the `AnimationOverhaul` key is retired.
+
+**SHOULDER-HOLD, WALK-STRIDE, STRIDE-SMOOTH** (2026-10-30, the owner on MAO: the left shoulder shaking and sunk in the body; walking, the limbs jerk fast; the run smooth, with small jerks as the pace rises). Measured over MAO's real clips: the collarbones hang from the neck, which the clip swings, so holding them on it left the shoulders 5 cm back and 6 ahead and the left arm straight (5 degrees, its elbow 6.6 cm inside the cuirass ellipse); the neck is now laid at rest first (`bodySolve.js` holdCollars; the arm bends 50, its elbow 3.1 cm outside). A walk takes the run's law, its clip at most 1.5x and the rest in the thighs (src/characters/bodyMotion/stride.js:"export const WALK_STRIDE"), the calves left as the clip has them and the toes held to 22 degrees (a 1.66 stride raised them to 41-63). The stride's height compensation followed the lower foot at once, 13.7 cm/frame^2 of hip jerk in a steady run; it and the speed ratio are now followed (`STRIDE_SMOOTH`). Long-walk speed-up: not traced, the motor's walk speed reads only stats and the Proving Ground's run did not boot. Pinned in `test/characters/bodyMotion/stride.test.js`. Not yet seen in the owner's game.
+
+**PROFILE-WALK** (2026-10-31, the owner's side-view recording: ordinary walking looks straight-legged, front and rear accepted).
+WALK-STRIDE enlarged the thigh swing while keeping the clip's calf rotation: a longer step with the old knee bend.
+The ordinary forward walk now rounds off extension by a 15-degree soft bend and gives flexion 0.2 of the extra stride,
+up to 85 degrees of flexion, in the knee's existing plane
+(src/characters/bodyMotion/stride.js:"export const WALK_KNEES"). The foot keeps its rig-space orientation;
+the existing ground compensation includes the changed ankle height. The stance's walk, moving blows and the run do
+not opt in. The motor's speed and the cadence law stay as before. Reference read: DFU `PlayerMotor.FixedUpdate`
+and `UpdateSpeed` (`Assets/Scripts/Game/PlayerMotor.cs`) drive the controller and get speed from PlayerSpeedChanger;
+this 3D player's knee shaping is the port's own presentation, not a DFU limb law. The four hosts (`src/scenes/world.js`, `src/scenes/exterior.js`, `src/scenes/worldModes.js`,
+`src/scenes/dungeonContext.js`) inherit it through `createBodyWeight` in the shared weapon rig; none grows. Pinned in `test/characters/bodyMotion/stride.test.js`:
+the knee must actually bend, foot orientation and the knee plane stay, the lower ankle keeps its ground, and
+non-ordinary groups are unchanged. The owner judged ordinary movement generally acceptable on 2026-10-31,
+then moved the focus to walking and running in the combat stance.
+
+**GUARD-TRAVEL** (2026-10-31, the owner's 01-52-39 recording): the forward guard walk kept a shorter 1.35 stride,
+with cadence taking the remainder; its real-clip checks keep foot separation under 82 MW units and hip excursion
+under 17. The smaller moving-sword effort (`blowLegs.js`, `GUARD_BLOW_MOVE`) stays: less sink, no extra advance,
+no anchored feet while travelling. The owner's 02-54-33 recording judged the walk partly improved but still jerky,
+and the run unimproved. The attempted running knee cap is REMOVED: on MAO runforward2c it moved the ankle up to
+26.9 cm relative to its hip and changed compensating hip height by 7.7 cm before temporal smoothing. Angle bounds
+were not a test of a coherent trajectory. The shorter guard walk and accepted standing blows remain.
+
+**GUARD-CONTINUITY** (2026-10-31, the owner: inspect code as well as frames, then proceed):
+
+- A third-person movement/jump owns its lower bones continuously, before, during and after an upper-body attack
+  (`src/combat/lowerBodyLayer.js:"export function createLowerBodyLayer"). Its own sampler smooths and closes the
+  movement clip at the movement clock before overlay blending. Previously the outer smoothing kernel queried the
+  weapon time three times but received one fixed movement sample. Starting/ending a moving attack no longer restarts
+  the lower fade or holds the last movement clock. Hit/death and the off switch clear the owner; a real stop still
+  eases back to the standing clip.
+- `src/formats/morrowind/mwPoseContinuity.js:"export function preserveOwnedPose"` keeps fully owned lower samples out
+  of the later whole-body weapon snapshot fade. Upper-body blending remains active. A real retail-skeleton test calls
+  poseAssembly and checks the produced owned bones against the current movement pose during a 3% weapon blend.
+- `src/combat/movementContinuity.js:"export function movementPhaseTime"` transfers the interval between left/right
+  footstep markers across a walk/run change in the same direction; normalized loop phase is the fallback. The outgoing
+  clip advances during LOWER-SWAP rather than holding one pose. A real MAO-state test checks both the incoming time
+  and outgoing sampling clock.
+- `src/combat/guardLocomotion.js:"export function guardMovementGroup"` selects the accepted ordinary `runforward`
+  base for a shown two-handed sword's forward run in the third-person MotionDoctrine path when available. The
+  movement source's own velocity determines cadence as before; the two-handed carry still owns the arms and weapon.
+  With no plain run, other weapon types, or the switch off, the original group resolver stands. This deliberately
+  leaves the armed `runforward2c` clip behind; no new knee cap warps its foot path. Full-cycle tests at 8.1 and 5.8 m/s
+  compare pelvis, thighs, calves and ankles to the accepted free-run stride, rather than pinning an arbitrary knee angle.
+- `src/characters/bodyMotion/travelStride.js:"export function createTravelStride"` applies ONE stride transform and
+  ONE height history, selecting the accepted ordinary walk/run or shorter guard-walk profile. Outgoing and incoming
+  stride instances no longer multiply one another during a transition. Ordinary-walk knee softening remains as accepted.
+
+Reference read: DFU `PlayerMotor.FixedUpdate` / `UpdateSpeed` (`Assets/Scripts/Game/PlayerMotor.cs`) own controller
+travel and read PlayerSpeedChanger; they have no articulated player gait. OpenMW's lower-body priority in
+Morrowind-Rules rule 26 remains the basis: movement owns the legs under a weapon animation. The continuous owner,
+phase transfer, own-clock smoothing, and chosen free-run presentation are our explicit presentation departures.
+Motor speed, attack timing, damage, and the standing sword's key poses are unchanged. The four hosts
+(`src/scenes/world.js`, `src/scenes/exterior.js`, `src/scenes/worldModes.js`, `src/scenes/dungeonContext.js`) inherit the
+shared rig seam; none grows. `createFpArm` stays at its baseline 3709 logical lines (its existing ceiling failure
+predates this change). Tests: `test/combat/lowerbody.test.js`, `test/combat/movementcontinuity.test.js`,
+`test/characters/bodyMotion/guardstride.test.js`, and the existing standing-blow/ordinary-stride suites.
+Proving Ground ran 585 frames in third person with the steel claymore: guard walk, walking attack, forward run,
+running attack, run-to-walk, stop, standing attack and recovery. The recorded movement groups were `walkforward2c`
+and the selected `runforward`; the rig returned to `idle2c` with the two-handed weapon equipped. Frames and bone traces
+remain local under `.proving-ground/out/continuity*`. This verifies the chosen runtime path, not that every visible
+jerk is gone. Visual acceptance in the owner's game remains pending.
+
+**RUNNING-BLOW-LEGS** (2026-10-31, the owner's correction: running in the combat stance is fine; only striking
+while running makes the legs lag and fling sideways). RUN-FADE was gated by speed (5.5..7 m/s), not `motionWord`'s
+actual `running` flag. A running attack below that band still turned/dropped the pelvis and re-solved both legs to
+their stride feet with poseFoot's toe-derived knee pole; a tail of a walking blow could do it too. The running mode
+now resets and bypasses BLOW-LEGS while travelling, leaving the ready running pose untouched. No new locomotion
+clip, stride, speed or upper attack change in this fix. Standing attacks keep their accepted keys, even with the run
+key held; the existing still-time gate determines the handoff after stopping.
+
+Regression in `test/characters/bodyMotion/guardstride.test.js` warms an active walking blow, then strikes in running
+mode with chop/slash/thrust at six speeds including 5.8, 4.4 and 2.5 m/s. The entire produced pose must be exactly
+unchanged by BLOW-LEGS and no anchor/IK weight may remain. Before this gate the test fails with changed pelvis/leg
+rotations. A second RUNNING-BLOW-PIPELINE regression uses the real motionWord producer, body carry, bodyWeight,
+lower overlay and poseAssembly over real MAO movement/attack tracks. At 2.5/5.8/8.1 m/s and 30/60 Hz, repeated
+running blows must leave every pelvis/thigh/calf/foot matrix identical to the same run without a blow. Removing
+the gate reproduces the mismatch in that full pipeline. Standing with the run flag retains a full-weight blow. Reference: DFU PlayerMotor's running mode remains
+the motor's word; this is our articulated-body presentation, not a change to movement or damage. All four hosts
+(`src/scenes/world.js`, `src/scenes/exterior.js`, `src/scenes/worldModes.js`, `src/scenes/dungeonContext.js`) inherit the
+shared bodyWeight/blowLegs seam; none grows. The owner accepted this result on 2026-10-31
+("everything looks excellent"), then asked to reduce the excessive vertical rocking of the guard walk.
+
+**GUARD-WALK-LEVEL** (2026-10-31): the accepted run and running blows stay as above. The shorter armed walk still
+carries a large vertical hip excursion from its clip and stride ground compensation. Increasing the ground filter
+alone leaves most of that bounce and adds ankle-height error. Instead,
+`src/characters/bodyMotion/guardWalkBalance.js:"export function createGuardWalkBalance"` follows the hip midpoint's
+mean and retains a quarter of its oscillation, easing in/out over 0.16 s. A 3.5%-of-leg lower centre leaves knee room
+at the low point; without that margin, lifting toward the mean hits the reach ceiling and leaves a sharp notch.
+The layer preserves each ankle's sampled position and foot orientation, re-solves with the original knee direction,
+and preserves the sampled pelvis rotation. The reach cap never asks for a straighter leg than the source or 97% reach.
+It remains wired for the fallback armed forward walk through shared travelStride; when the accepted free walk is
+available, GUARD-STEP-BASE below selects it instead and this correction is inactive. Other steady gait groups receive no correction. The movement clock, motor speed and attack keys are unchanged.
+
+Real MAO/retail-hierarchy regression at 30/60/120 Hz reduces steady hip excursion from 14.5-14.8 cm to 4.7-5.5 cm,
+reduces the largest frame height change below 70% of the previous one, preserves ankle position/orientation, and
+keeps both knees on their original bending side. Removing the balance layer must fail that excursion check.
+The running-blow full-pipeline regression and accepted free-run trajectory comparisons remain required.
+DFU reference remains PlayerMotor.FixedUpdate/UpdateSpeed above: this is our articulated-body presentation departure.
+The four hosts (`src/scenes/world.js`, `src/scenes/exterior.js`, `src/scenes/worldModes.js`,
+`src/scenes/dungeonContext.js`) inherit the shared bodyWeight seam; none grows. The new leveling awaits the owner's
+visual judgment in the game; the numerical bounds alone do not establish its appearance. The owner's 11-04-26 recording
+then showed that the legs still lacked smoothness, independently of the reduced hip bounce.
+
+**GUARD-STEP-BASE** (2026-10-31, owner's 11-04-26 recording): reducing hip bounce while pinning the existing ankle
+path retained the armed MAO walk's abrupt foot swing. The previous height-only check did not establish smooth joint
+motion. `src/combat/guardLocomotion.js:"export function guardMovementGroup"` now selects the already accepted
+`walkforward` base under the two-handed carry, as it already does for `runforward`. The ordinary walk's existing stride,
+knee softening and cadence are reused; the drawn weapon's carry and walking-blow effort remain. If the free walk is
+absent, the shorter, leveled armed walk remains the fallback. Other weapon types and the off switch retain the original
+resolver. In real-clip checks of both feet at 60 Hz the peak acceleration drops from 392 to 211 m/s² without key
+smoothing, and from 358 to 172 with it. These are rig-space derivative diagnostics, not motor acceleration.
+
+**GUARD-STEP-LOOP**: CLIP-SMOOTH used time±h outside a walking loop at its boundary, sampling adjacent keys from the
+shared animation file. `src/combat/loopSeam.js:"export function smoothSampler"` accepts a loop window; createLoopSeam
+passes it for walking only. Neighbour samples wrap inside that window after seam correction. Intro/exit samples and
+overlay tracks retain their own clocks. Running and attack sampling retain the existing path. A real MAO sampler
+regression checks the two sides of the loop, with the existing seam-angle tolerance. Removing the periodic window
+fails with a root-position discontinuity; removing the chosen free walk fails the gait/foot-motion regression.
+
+Checks exercise 30/60/120 Hz, smoothing on/off, both ankle trajectories, the actual group resolver, and equality with
+the accepted ordinary gait at full and reduced walking speeds. Running-blow/standing-blow regressions remain required.
+Reference remains DFU PlayerMotor.FixedUpdate/UpdateSpeed: the motor owns speed; our choice of articulated gait and
+periodic walking interpolation are presentation departures. The four hosts (`src/scenes/world.js`,
+`src/scenes/exterior.js`, `src/scenes/worldModes.js`, `src/scenes/dungeonContext.js`) inherit the shared weapon rig;
+none grows. Proving Ground played 645 synchronized frames in third person with the steel claymore: forward guard walk,
+walking blow, run, running blow, run-to-walk, stop, standing blow and recovery. After the equip transition, every walking
+frame selected `walkforward`; running kept `runforward`, and stopping returned to `idle2c`. The two-handed weapon and
+upper attack remained active. Local captures are `.proving-ground/out/walk-base*`; that fork lane has key smoothing off,
+so the periodic smoothing fix is verified by the real-clip sampler tests above. Visual acceptance of the new walking
+base was judged smooth by the owner, who rejected its identical-to-ordinary character in the next review.
+
+**GUARD-WALK-POSE** (2026-10-31, the owner: keep the smoothness but continue the slightly bent-legged combat stance
+through the walk). GUARD-STEP-BASE by itself was insufficient: reusing an ordinary gait unchanged removed the stance's
+character. `src/characters/bodyMotion/guardWalkPose.js:"export function createGuardWalkPose"` now gives the drawn
+two-handed forward ground walk its own posture and stride. The continuous source supplies phase and foot transfer;
+the guard caps stride at 1.55 instead of ordinary walking's 1.7, lowers the hip centre by 5.5% of leg length, and retains
+60% of its oscillation around a followed mean. Original knee directions and ankle goals/orientations are preserved by
+the shared solve. Knees yield through the cycle rather than locking to one squat angle. The posture and stride share
+ease in/out over 0.18 s. Standing attacks and running retain their accepted paths; ordinary/sheathed walking, one-handed
+weapons, sideways movement, swimming, levitation and busy states do not activate this posture.
+
+The real motionWord -> lower-body ownership -> body motion/weight -> poseAssembly regression at 30/60/120 Hz compares
+ordinary and guarded walking, requiring a 3-7 cm lower mean pelvis, a supporting knee bent over 25 degrees, mean flexion
+at least 8 degrees greater, and more than 30 degrees of flexion variation through the cycle. It also bounds bounce and
+foot acceleration against ordinary walking. Direct real-clip checks preserve ankle goals and rotations, require an actual
+lowered body, and verify gradual release back to exact ordinary cadence. Running-blow and standing-blow regressions stay
+required. These numerical bounds establish a distinct coherent gait, not its final visual acceptance.
+
+Reference remains DFU PlayerMotor.FixedUpdate/UpdateSpeed: this is our articulated combat-gait presentation departure,
+not a motor or damage change. The four hosts (`src/scenes/world.js`, `src/scenes/exterior.js`, `src/scenes/worldModes.js`,
+`src/scenes/dungeonContext.js`) inherit the shared bodyWeight/travelStride seam. No host grows.
+Proving Ground ran another 645 synchronized frames with the equipped steel claymore: walking, walking blow, running,
+running blow, run-to-walk, stop, standing blow and recovery. Against the preceding smooth ordinary-base capture, the
+steady walking segment's mean pelvis is 5.45 cm lower and its minimum knee flexion is 34.7 rather than 5.8 degrees.
+The captures/bone traces are local under `.proving-ground/out/guard-pose*`. The owner visually accepted the resulting
+combat walk on 2026-10-31 ("excellent result") and requested the commit. Standing and running regression suites remain green.
+
+
+**DIRECTION-WALK-SMOOTH** (2026-10-31, owner's 11-42-46 recording): backward combat walking and sideways combat
+steps remained abrupt, while runs in those directions were accepted. Ordinary backward walking had a milder version;
+ordinary sideways walking/running was accepted. The forward-only guard posture did not cause or repair these groups.
+MAO's directional walk curves at the speed-driven cadence and extended stride amplify sharp key-to-key changes.
+The accepted run clips are not a substitute for a walking gait: testing that option changed knee folding and posture.
+
+`src/combat/directionalWalkSampler.js:"export function createDirectionalWalkSampler"` rounds the existing directional
+walk on its own loop clock, before lower-body overlay blending. Seven symmetric binomial samples cover +/-0.12 clip
+seconds for walkback2c/walkleft2c/walkright2c, with a maximum of 16% of the loop; ordinary walkback takes only +/-0.045.
+Quaternion samples align hemispheres before averaging and normalization; translation averages with the same weights.
+Each neighbour wraps within the loop after seam correction. Entry/exit segments and overlay tracks are passed through.
+The movement's actual time, speed, step events, source and stride/cadence law remain unchanged. Running, forward walking,
+ordinary lateral walking, standing and upper attacks keep the exact old sampler. The layer memoizes the function and
+same-track/time results, since the outer pose filter can ask repeatedly for one owned movement sample.
+
+The new sampler is wired in `src/combat/lowerBodyLayer.js:"export function createLowerBodyLayer"`, so both the incoming
+and still-advancing outgoing clip use their own processed clocks during a swap. Real MAO tracks on the retail hierarchy
+exercise motionWord, lower-body ownership, bodyMotion/bodyWeight and poseAssembly at 30/60/120 Hz, global CLIP-SMOOTH
+on/off. Back/left/right combat and ordinary backward samples must reduce foot acceleration peaks and overall foot/knee
+roughness without slowing the movement clock. Scope tests preserve the exact sampler for accepted gait groups; wrap,
+entry and overlay tests keep their clocks. Bypassing the new wiring must fail the full composed-motion regression.
+
+Reference remains DFU PlayerMotor.FixedUpdate/UpdateSpeed for controller travel; OpenMW's linear/slerp clip sampling
+(Morrowind-Rules MW-D33) remains the reader. This local presentation filter is our departure from raw clip curves,
+not a change to the reader or motor. The four hosts (`src/scenes/world.js`, `src/scenes/exterior.js`,
+`src/scenes/worldModes.js`, `src/scenes/dungeonContext.js`) inherit shared lowerBodyLayer; none grows. New visual
+acceptance remains the owner's.
+
+**GUARD-DIRECTION-BASE** (2026-10-31, the owner's 11-42-46 recording, continuing DIRECTION-WALK-SMOOTH): foot acceleration does
+not separate what the owner rejected from what the owner accepted. In the composed pipeline at 60 Hz the accepted free
+`walkleft` peaks at 389 m/s^2 against 365 for the rejected `walkleft2c`, so a filter that lowers this number proves nothing
+about the eye. What does separate the back walk: `walkback2c` swings the thigh at 919 deg/s with 14.9 cm of hip travel, free
+`walkback` 519 and 8.3. So the road that already worked forward (GUARD-STEP-BASE) is taken for all three directions:
+`src/combat/guardLocomotion.js:"const GUARD_BASES ="` plays the free walks under the two-handed carry, the armed run clips
+stay. The side clips already carry a bent knee (36-56 degrees, the same as the armed ones), so they take no pose;
+`src/characters/bodyMotion/guardWalkPose.js:"export function guardWalks"` and the stride profile extend the guard pose to
+the back walk, keeping its stance: knee never below 39 degrees (free 22), hip travel 4.8 cm, thigh 582 deg/s. The
+DIRECTION-WALK-SMOOTH filter now acts on `walkback`, and on the armed clips only as the fallback when a free clip is absent.
+Proving Ground, fresh session (`hmr: false`: a running page keeps its old code), 865 frames with the steel claymore:
+`guard back/left/right` played `walkback/walkleft/walkright` under WeaponEquipped, the runs stayed `run*2c`. Reference
+stays DFU PlayerMotor; this is our presentation departure, no host grows. Visual acceptance remains the owner's.
+
 Then step 3's rest: the two-hander's blows in third person. Every step sits behind a switch "as now / by the formula",
 is judged by the owner in the game, and lives in a module of its own (HOST-SPLIT, `01-Overview/Host-Split.md`).
 

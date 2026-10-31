@@ -14,7 +14,7 @@ import { orthonormal } from '../../combat/climbRig.js';
 import { clearArms } from './armClearance.js';   // ARM-CLEARANCE: the elbows out of the trunk, wider in heavier armour
 import { createBlowLegs } from './blowLegs.js';   // BLOW-LEGS: the body under a blow struck standing
 import { createArmouredSword } from './armouredSword.js';
-import { createStride, runStrideShare, RUN_STRIDE } from './stride.js';   // RUN-STRIDE: a run's longer, slower stride
+import { createTravelStride } from './travelStride.js';
 import { sampleTrack } from '../../formats/morrowind/mwAnim.js';
 import { loopWindow } from '../../combat/leftArmLayer.js';
 import { MW_UNITS_PER_METER } from '../../formats/morrowind/mwFirstPerson.js';
@@ -95,7 +95,7 @@ export function createBodyWeight() {
   let weight = 0; let on = false; let slotMemo = null; let moving = 0; let armorW = 0; let clearOn = false;
   const legs = createBlowLegs();
   const sword = createArmouredSword();
-  const runStride = createStride({ sampleTrack, loopWindow, share: runStrideShare, groups: /^run/i, calf: RUN_STRIDE.calf });   // RUN-STRIDE
+  const travelStride = createTravelStride({ sampleTrack, loopWindow });
   let strideOn = false;   // RUN-STRIDE: last frame's switch, for the movement's rate (read before the frame's step)
   const elbowTurns = { L: 0, R: 0 };
   let frameDt = 0;
@@ -148,14 +148,14 @@ export function createBodyWeight() {
       legs.step(dt, active, word, weight);   // BLOW-LEGS, by the body's weight just read
       sword.step(dt, active, word, armorW);
       strideOn = !!on && !dead;
-      runStride.stepRig(dt, strideOn, moveState, moveSource, cam, moveSpeed, MW_UNITS_PER_METER);   // RUN-STRIDE
+      travelStride.stepRig(dt, strideOn, moveState, moveSource, cam, moveSpeed, MW_UNITS_PER_METER, active ? word : null);
       return lean;
     },
     /** BLOW-LEGS's word, for the rig's status. */
     legs: () => legs.status(),
     /** RUN-STRIDE: the movement clip's playback rate for the speed ratio `k` (the body's over the clip's) - a run's
      *  capped, its legs lengthened by the rest; any other group's `k`. */
-    moveRate: (k, group) => runStride.rate(k, strideOn, group),
+    moveRate: (k, group) => travelStride.rate(k, strideOn, group),   // each answers its own groups
     /** The trunk's lean now (radians, bodyTurn's sense: pitch + the front down, roll + the right side down). */
     lean: () => ({ pitch: pitch.x, roll: roll.x }),
     /** The step's shift over the standing foot now: its full roll (radians) and how far it is on (0..1). */
@@ -164,7 +164,7 @@ export function createBodyWeight() {
     /** poseAssembly's `motion` slot with this layer after `inner` (the body-motion layer's): the lean on the trunk. */
     slot(inner) {
       if (slotMemo && slotMemo.inner === inner) return slotMemo.fn;
-      const strided = runStride.slot(inner);   // RUN-STRIDE: the run's legs lengthened before the body motion sees them
+      const strided = travelStride.slot(inner);   // RUN-STRIDE: the run's legs lengthened before the body motion sees them
       slotMemo = { inner, fn: (skeleton, pose, rootRef, skelMats) => {
         const report = strided(skeleton, pose, rootRef, skelMats);
         const lean = layer.lean(), sway = layer.sway();

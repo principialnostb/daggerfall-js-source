@@ -11,8 +11,10 @@ const FILES = IN_BROWSER
       '../../../Mods/Animations/Simply Walking/**/*.{kf,KF}',
       "../../../Mods/Animations/Axel's Sexy Walk Fixed/Animation/axel fixed/female/*.{kf,KF}",
       // MAO files remain user-supplied under Mods/Animations; they are not vendored in this repository.
-      '../../../Mods/Animations/Morrowind Animation Overhaul/Data Files/Meshes/xbase_anim.kf',
-      '../../../Mods/Animations/Morrowind Animation Overhaul/Data Files/Meshes/xbase_anim_female.kf',
+      // MAO-SOURCE (2026-10-30): the pack ships Xbase_anim.kf, and the glob is case-sensitive - spelled in lower case it
+      // found nothing, and the setting silently left the game's own clips playing
+      '../../../Mods/Animations/Morrowind Animation Overhaul/Data Files/Meshes/{x,X}base_anim.kf',
+      '../../../Mods/Animations/Morrowind Animation Overhaul/Data Files/Meshes/{x,X}base_anim_female.kf',
       // Morrowind Animation Overhaul is intentionally excluded pending explicit reuse permission.
     ], {
       eager: true, query: '?url', import: 'default',
@@ -109,9 +111,9 @@ export async function loadWalkAnimationAssets({ female = false } = {}) {
     { entry: axelFemale, variant: 'axel', family: 'walk' },
     { entry: axelRunFemale, variant: 'axel', family: 'run' },
   ] : [];
-  const overhaul = modSetting('morrowind-animation', 'AnimationOverhaul') === 1
-    ? { entry: female ? overhaulFemale : overhaulMale, variant: 'overhaul', family: 'all' }
-    : null;
+  // MAO-SOURCE (2026-10-30, the owner compared Vanilla and MAO in the game): the pack's movement is the standard - its run
+  // and its walks in a stance; the plain walk, the stance and the blows stay as they were. No setting: the choice is made.
+  const overhaul = { entry: female ? overhaulFemale : overhaulMale, variant: 'overhaul', family: 'all', movementOnly: true };
   const selected = [];
   if (!simplyCandidates.some(({ entry }) => entry) && !warnedMissingWalkAssets) {
     warnedMissingWalkAssets = true;
@@ -121,7 +123,7 @@ export async function loadWalkAnimationAssets({ female = false } = {}) {
   try {
     if (overhaul?.entry) {
       const data = await bytes(overhaul.entry);
-      if (data) selected.push({ name: overhaul.entry.path, bytes: data, variant: 'overhaul', walkVariant: 'overhaul', family: 'all', animationFamily: 'all', walkOnly: false, runOnly: false, animationOverhaul: true });
+      if (data) selected.push({ name: overhaul.entry.path, bytes: data, variant: 'overhaul', walkVariant: 'overhaul', family: 'all', animationFamily: 'all', walkOnly: false, runOnly: false, animationOverhaul: true, movementOnly: overhaul.movementOnly });
     }
     for (const { entry, variant, family } of simplyCandidates) {
       if (!entry) continue;
@@ -511,8 +513,22 @@ export function inspectWalkAnimationAssets() {
     axelRunFemale: axelRunFemale?.path ?? null,
     overhaulMale: overhaulMale?.path ?? null,
     overhaulFemale: overhaulFemale?.path ?? null,
-    overhaulEnabled: modSetting('morrowind-animation', 'AnimationOverhaul') === 1,
+    overhaulEnabled: true,
   };
+}
+
+/** MAO-SOURCE: the groups the overhaul answers: a run, a sneak, a turn in place and a walk in a stance (walkforward2c) - not
+ *  the plain walk with no stance (walkforward, walkback, walkleft, walkright: the owner kept the one it had), an idle, a
+ *  jump or a blow. */
+export function isMovementAnimationGroup(name) {
+  const n = String(name ?? '');
+  return /^(?:walk|run|sneak|turn)/i.test(n) && !/^walk(?:forward|back|left|right)$/i.test(n);
+}
+export function isMovementAnimationKey(key) {
+  return String(key?.text ?? '').split(/\r?\n/).some((line) => {
+    const colon = line.indexOf(':');
+    return colon > 0 && isMovementAnimationGroup(line.slice(0, colon).trim());
+  });
 }
 
 /** The engine's walk group family; this intentionally excludes sneak/run/turn. */

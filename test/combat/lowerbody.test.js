@@ -32,11 +32,11 @@ test('LOWER-BODY: a skeleton with no bip01 spine1 (a creature) overlays nothing'
   assert.equal(lowerBodyBones(null).size, 0);
 });
 
-test('LOWER-BODY: the legs go to the movement, else the jump, only while a blow wins a third-person frame', () => {
+test('LOWER-BODY: the legs go to the movement, else the jump, through entry and exit of a third-person blow', () => {
   assert.equal(lowerBodyOwner({ third: true, action: true, movement: true, jump: true }), 'movement');
   assert.equal(lowerBodyOwner({ third: true, action: true, jump: true }), 'jump');
   assert.equal(lowerBodyOwner({ third: true, action: true }), null, 'standing: the attack clip keeps its legs (WeaponLowerBody over the idle)');
-  assert.equal(lowerBodyOwner({ third: true, movement: true }), null, 'no blow: the movement is the winner already');
+  assert.equal(lowerBodyOwner({ third: true, movement: true }), 'movement', 'no blow: keep ownership so an attack cannot restart the lower fade');
   assert.equal(lowerBodyOwner({ third: false, action: true, movement: true }), null, 'first person: no legs to hand over');
   assert.equal(lowerBodyOwner({ third: true, action: true, movement: true, hit: true }), null, 'a recoil moves the whole body');
   assert.equal(lowerBodyOwner({ third: true, action: true, movement: true, dead: true }), null);
@@ -110,4 +110,34 @@ test('LOWER-SWAP: the legs\u2019 clip changed under a blow is crossed over LOWER
   assert.ok(first < 12, `the first frame of the run still near the walk (${first.toFixed(2)}, the run stands at 20.2)`);
   for (let i = 0; i < Math.ceil(LOWER_BODY_EASE.swap * 60 * 2); i++) frame({ group: 'runforward2c', startTime: 20, time: 20.2 });
   assert.ok(Math.abs(at() - 20.2) < 0.1, `the run\u2019s own legs once crossed (${at().toFixed(2)})`);
+});
+
+
+test('GUARD-CONTINUITY: a moving attack never reopens the lower fade, and its end does not freeze the movement clock', () => {
+  for (const dt of [1 / 30, 1 / 60, 0.027]) {
+    const layer = createLowerBodyLayer({ sampleTrack });
+    const run = new Map([['bip01 l calf', track(1)]]), base = new Map([['bip01 l calf', track(-10)]]);
+    const mask = new Set(['bip01 l calf']);
+    const movement = { group: 'runforward', startTime: 0, time: 0.2 };
+    for (let i = 0; i < 90; i++) layer.step(dt, { third: true, movement, movementTracks: run });
+    for (const action of [{}, {}, null, {}, null]) {
+      movement.time += dt;
+      layer.step(dt, { third: true, action, movement, movementTracks: run });
+      const tr = layer.tracks(base, mask).get('bip01 l calf');
+      assert.equal(layer.weight(), 1, 'the lower body already belongs to travel');
+      assert.deepEqual(layer.sampler(sampleTrack)(tr, -99).translation, [1, movement.time, 0]);
+    }
+  }
+});
+
+test('GUARD-CONTINUITY: the movement track is smoothed at its own clock under an unrelated weapon time', () => {
+  const sample = (_tr, t) => ({ rotation: [1, 0, 0, 0], translation: [t * t, 0, 0], scale: 1 });
+  const layer = createLowerBodyLayer({ sampleTrack: sample });
+  const map = new Map([['bip01 l calf', {}]]), mask = new Set(['bip01 l calf']);
+  const keys = [{ time: 0, text: 'runforward: start' }, { time: 1, text: 'runforward: stop' }];
+  const movement = { group: 'runforward', startTime: 0, stopTime: 1, time: 0.5 };
+  for (let i = 0; i < 90; i++) layer.step(1 / 60, { third: true, action: {}, movement, movementTracks: map, movementSource: { keys, trackMap: map } });
+  const tr = layer.tracks(map, mask).get('bip01 l calf');
+  const value = layer.sampler(sample)(tr, 42).translation[0];
+  assert.ok(Math.abs(value - (0.25 + 0.5 / 3600)) < 1e-12, `the smoothing kernel must reach the movement clock (${value})`);
 });

@@ -106,8 +106,7 @@ test('MW-ANIM-4: first-person providers accept male and female biped rigs, but n
 
 test('ANIM-UI5: identical archive-only source choices are not duplicated', () => {
   const keys = MOD_SETTINGS['morrowind-animation'].keys;
-  assert.deepEqual([...keys.AnimationOverhaul.options], ['Vanilla', 'Morrowind Animation Overhaul']);
-  assert.equal(keys.AnimationOverhaul.default, 0);
+  assert.equal(keys.AnimationOverhaul, undefined, 'MAO-SOURCE: no setting, the pack is the standard');
   assert.deepEqual([...keys.FirstPersonSource.options], [
     'Vanilla',
     'ReAnimation v3 · 1-е лицо',
@@ -258,4 +257,15 @@ test('MW-ANIM-7: ODAR ArmPoses bundle retains all named arm-pose groups', () => 
     { time: 0.5, text: 'armsakimbo: stop' },
     { time: 0, text: 'armsgesture: start' },
   ]);
+});
+
+test('MAO-SOURCE: the glob finds the pack as it ships (Xbase_anim.kf), and it answers a run, a sneak, a turn and a walk in a stance - never the plain walk, an idle, a jump or a blow', async () => {
+  const { readFileSync } = await import('node:fs');
+  const src = readFileSync(new URL('../../../src/formats/morrowind/mwWalkAnimationAssets.js', import.meta.url), 'utf8');
+  assert.match(src, /Meshes\/\{x,X\}base_anim\.kf/);
+  const { isMovementAnimationGroup: g, isMovementAnimationKey: k } = await import('../../../src/formats/morrowind/mwWalkAnimationAssets.js');
+  for (const name of ['walkforward2c', 'walkleft1h', 'runforward', 'runleft1h', 'sneakback2c', 'turnleft']) assert.ok(g(name), name);
+  for (const name of ['walkforward', 'walkback', 'walkleft', 'walkright', 'idle2c', 'jump2c', 'weapontwohand', 'hit1', 'knockdown']) assert.ok(!g(name), name);
+  assert.ok(k({ text: 'walkforward2c: start' }));
+  assert.ok(!k({ text: 'weapontwohand: chop start' }));
 });

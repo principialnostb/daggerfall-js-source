@@ -47,6 +47,8 @@ export const BLOW_PIVOT = Object.freeze({ back: 0.6, lead: 0.2, ball: 0.14 });
  *  walking ended 0.35-0.6 m higher than standing. The body coming to a stand hands its hips over to the standing blow
  *  over `ease` seconds, the feet anchored where the stride has just set them. */
 export const BLOW_MOVE = Object.freeze({ share: 0.7, fwd: 0.5, ease: 0.15, crouch: Object.freeze([0.015, 0.03]), lean: Object.freeze([0.07, 0.14]), dip: Object.freeze([0.01, 0.02]), run: 8, guardIn: 0.18, guardOut: 0.3, fade: Object.freeze([5.5, 7]) });
+/** GUARD-TRAVEL: a two-hander struck moving keeps its stride, without the standing lunge's depth and advance. */
+export const GUARD_BLOW_MOVE = Object.freeze({ share: 0.35, fwd: 0, crouch: Object.freeze([0.005, 0.008]), lean: Object.freeze([0.03, 0.05]), dip: Object.freeze([0.003, 0.006]) });
 /* RUN-FADE (2026-10-29, the Proving Ground's walk -> run under a slash: the knees jumped 12-15 degrees a frame and folded
  * to 42, the legs splayed into a near split): over the run's long stride the pinned feet and the guarded reach sank the hips
  * to the floor. The run is not this pass's: between `fade` m/s the moving blow goes, and the run keeps its clip's legs. */
@@ -194,8 +196,10 @@ export function createBlowLegs() {
   // LEG-DRIVE: a lead foot stepped out stays out through a series (the blow's own follow-through sent it home, and the
   // next blow's drive out again - forward, back, forward); it goes home once the blows stop, the layer held on for it
   let stepped = false;
+  let planting = false;   // FEET-FREED: only a body standing has its feet anchored
   let stand = 1;
   let fromMove = false;   // TRAILING-FOOT: the feet about to be anchored were the stride's
+  let guardTravel = false;
   let guard = 0;   // GUARD-WALK: how far the stride is sunk into a fighting walk   // BLOW-MOVE: how far the blow is the standing one (0 struck moving: the stride's feet, a share of the hips)
   let sinceBlow = Infinity;   // STEP-HOP: seconds since the last blow
   /** @type {null | { off: Record<string, number[]>, order: string[], toe: number[], up: number[], done?: boolean }} */
@@ -206,9 +210,14 @@ export function createBlowLegs() {
     /** One frame: `on` the switch in third person, `word` the motion word, `heavy` the body's weight (0..1). */
     step(dt, on, word, heavy = 0) {
       lastDt = Math.max(0, dt);
+      guardTravel = !!word?.shown && word.mwType === MW_WEAPON_TYPE.LongBladeTwoHand;
+      const movingKeys = guardTravel ? GUARD_BLOW_MOVE : BLOW_MOVE;
       still = word && Number(word.speed) > BLOW_LEGS_TIME.still ? 0 : still + Math.max(0, dt);
       const grounded = !!word && word.on !== false && !word.busy && word.grounded !== false && !word.swimming && !word.levitating;
       const standing = grounded && still >= BLOW_LEGS_TIME.after;
+      // RUNNING-BLOW-LEGS: running is a motor mode, not the 5.5..7 m/s speed band. Never re-solve
+      // a running stride toward the attack's feet or pole, including any tail left by a walking blow.
+      if (grounded && word.running && !standing) { layer.reset(); return 0; }
       const struck = on && grounded && word.blow ? blowLegsPose({ ...word.blow, sword: word.shown && word.mwType === MW_WEAPON_TYPE.LongBladeTwoHand }, heavy) : null;
       const asked = standing ? struck : null;
       // BLOW-MOVE: struck moving (or in the stop's first `after` seconds) - a share of the hips over the stride's own feet
@@ -226,18 +235,19 @@ export function createBlowLegs() {
       // GUARD-WALK: after a moving blow the layer stays on while the hips rise out of the crouch (cut at its own ease out, 0.12 s,
       // they rose 10 cm in it)
       const rising = !struck && grounded && !standing && guard > 0.02;
+      planting = !!(asked || homing);
       const on1 = asked || homing || moving || rising;
       w = ease(w, on1 ? 1 : 0, on1 ? BLOW_LEGS_TIME.in : BLOW_LEGS_TIME.out, dt);
       if (on1 && w > 0.999) w = 1;
-      const k = BLOW_MOVE.share + (1 - BLOW_MOVE.share) * stand;   // the hips' share: moving, standing, between
+      const k = movingKeys.share + (1 - movingKeys.share) * stand;   // the hips' share: moving, standing, between
       const src = asked ?? moving;
       // STRIKE-MOVE: read by the body's speed, walk to run
       const v = clamp01((Number(word?.speed) || 0) / BLOW_MOVE.run), by = (pair) => pair[0] + (pair[1] - pair[0]) * v;
       const m = 1 - stand, drv = src?.drive ?? 0, fadeK = stand + m * runFade;   // RUN-FADE: the moving share, gone at a run
-      const crouch = by(BLOW_MOVE.crouch) * guard;
+      const crouch = by(movingKeys.crouch) * guard;
       const goal = src ? {
-        fwd: src.fwd * (stand + BLOW_MOVE.fwd * m) * fadeK, drop: (src.drop * k + by(BLOW_MOVE.dip) * drv * m) * fadeK + crouch, yaw: src.yaw * k * fadeK,
-        pitch: (src.pitch * k + by(BLOW_MOVE.lean) * drv * m) * fadeK, side: src.side * stand,
+        fwd: src.fwd * (stand + movingKeys.fwd * m) * fadeK, drop: (src.drop * k + by(movingKeys.dip) * drv * m) * fadeK + crouch, yaw: src.yaw * k * fadeK,
+        pitch: (src.pitch * k + by(movingKeys.lean) * drv * m) * fadeK, side: src.side * stand,
       } : { fwd: 0, drop: crouch, yaw: 0, pitch: 0, side: 0 };
       const to = (k) => ease(pose[k], goal[k], BLOW_LEGS_TIME.tau, dt);
       pose = { fwd: to('fwd'), drop: to('drop'), yaw: to('yaw'), pitch: to('pitch'), side: to('side') };
@@ -263,7 +273,9 @@ export function createBlowLegs() {
       }
       if (stand < 1e-3) { anchor = null; settle = null; stepped = false; fromMove = true; feet.L.reset(); feet.R.reset(); }
       // the anchors: where the stance stood the feet when the layer came on - the clip's own slides are not followed
-      if (stand >= 1e-3 && !anchor) {
+      // FEET-FREED (2026-10-30, measured): rising out of a moving blow's crouch, still walking, `stand` climbed and the feet
+      // were anchored - pinned for 91 frames, 32 cm off the stride; the owner's deformed legs and lagging knees
+      if (planting && !anchor) {
         anchor = {};
         for (const s of ['L', 'R']) {
           const ref = body.bones[s].foot, ax = body.footAxes[s], R = rotationPart(mats.get(ref).a);
@@ -331,7 +343,8 @@ export function createBlowLegs() {
         const d = sub(hip, f.at), h = Math.hypot(d[0], d[1]), R = Math.max(LUNGE_GUARD.reach, (anchor ? anchor[sd].reach : clipFeet[sd].reach) ?? 0) * leg;
         if (d[2] > 0 && h < R && Math.hypot(h, d[2]) > R) sink = Math.max(sink, d[2] - Math.sqrt(R * R - h * h));
       }
-      dv[2] -= Math.min(sink, LUNGE_GUARD.sink * leg);
+      // GUARD-TRAVEL: the standing reach guard must not sink a travelling stride into a lunge.
+      if (planting || !guardTravel) dv[2] -= Math.min(sink, LUNGE_GUARD.sink * leg);
       const lv = scale(apply(transpose(P), dv), 1 / sp);
       pose0.set(pelvis, {
         rotation: mul(transpose(P), mul(T, mul(P, local.rotation))),
@@ -341,7 +354,7 @@ export function createBlowLegs() {
       lastDt = 0;   // a frame's clocks spent once
       return solveBody(skeleton, pose0, rootRef, skelMats, plan);
     },
-    reset() { w = 0; stand = 1; guard = 0; fromMove = false; want = null; anchor = null; settle = null; stepped = false; sinceBlow = Infinity; pose = { fwd: 0, drop: 0, yaw: 0, pitch: 0, side: 0 }; feet.L.reset(); feet.R.reset(); },
+    reset() { w = 0; planting = false; stand = 1; guard = 0; fromMove = false; want = null; anchor = null; settle = null; stepped = false; sinceBlow = Infinity; pose = { fwd: 0, drop: 0, yaw: 0, pitch: 0, side: 0 }; feet.L.reset(); feet.R.reset(); },
   };
   return layer;
 }

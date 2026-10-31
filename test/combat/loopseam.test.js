@@ -62,3 +62,22 @@ test('CLIP-SMOOTH: a corner in the curve of a clip is rounded over its h either 
   assert.ok(Math.abs(angleOf(smooth(kink, 0.8)) - angleOf(sampleTrack(kink, 0.8))) < 1e-9, 'past the corner: the clip as it was');
   assert.ok(Math.abs(angleOf(smooth(kink, 0.2))) < 1e-12, 'before it: still');
 });
+
+
+import { parseNif } from '../../src/formats/morrowind/mwNifFile.js';
+import { extractTracks, collectTextKeys, normalizeTextKeys, resetClip, sampleTrack as sampleMwTrack } from '../../src/formats/morrowind/mwAnim.js';
+import { loopWindow } from '../../src/combat/leftArmLayer.js';
+
+test('GUARD-STEP-LOOP: the actual smoothed walking sampler meets across the MAO loop without reading neighbouring groups', () => {
+  const nif = parseNif(readFileSync(new URL('../../Mods/Animations/Morrowind Animation Overhaul/Data Files/Meshes/Xbase_anim.kf', import.meta.url)));
+  const source = { keys: normalizeTextKeys(collectTextKeys(nif)), trackMap: extractTracks(nif) };
+  const state = resetClip(source.keys, 'walkforward'), win = loopWindow(state, source.keys);
+  setPref('mwClipSmooth', true);
+  const sampler = createLoopSeam({ sampleTrack: sampleMwTrack, loopWindow }).sampler(sampleMwTrack, state, source);
+  for (const bone of ['bip01', 'bip01 l thigh', 'bip01 r thigh', 'bip01 l calf', 'bip01 r calf', 'bip01 l foot', 'bip01 r foot']) {
+    const tr = source.trackMap.get(bone), a = sampler(tr, win.start + 1e-7), b = sampler(tr, win.stop - 1e-7);
+    const sign = a.rotation.reduce((v, x, i) => v + x * b.rotation[i], 0) < 0 ? -1 : 1;
+    assert.ok(Math.hypot(...a.rotation.map((x, i) => x - sign * b.rotation[i])) < LOOP_SEAM.minAngle / 2, `${bone}: rotation jumps at wrap`);
+    if (a.translation && b.translation) assert.ok(Math.hypot(...a.translation.map((x, i) => x - b.translation[i])) < 1e-3, `${bone}: position jumps at wrap`);
+  }
+});
