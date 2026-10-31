@@ -43,7 +43,7 @@ function recordingRenderer() {
     updateSkinPalette: (mesh, pal) => { r.log.push({ up: mesh, pal: Float32Array.from(pal) }); },
     queueCharacterSprite: (it) => { r.log.push({ drawn: it.mesh }); },
     characterSpriteBatchOpen: true, retroImageSpan: null,
-    renderCharacterSprite: () => ({}), drawCharacterSpriteQuad: () => {}, drawScreenOverlayQuad: () => {},
+    drawCharacter: () => {}, renderCharacterSprite: () => ({}), drawCharacterSpriteQuad: () => {}, drawScreenOverlayQuad: () => {},
     uploadTexture: (a, b, px) => px, evictTexture: () => true, createBillboardBatch: (archive, record) => ({ archive, record, origin: [0, 0, 0] }),
     destroyBillboardBatch() {}, createMesh: () => ({}),
   });

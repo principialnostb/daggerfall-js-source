@@ -276,22 +276,6 @@ test('BODY-CROP: the quad writes a window picture\'s depth as it stands (uDepthK
   assert.ok(floor > 0 && own > floor, 'after the glow\'s floor: a ring or an ember keeps the quad\'s depth');
 });
 
-test('MW-DETAIL: the switch - a Features row, Morrowind Model Detail, enhanced, the viewer\'s own, Pixelated by default, beside the Billboard Look; read where each Morrowind picture is sized - the bodies and horses (drawBodyPicture), the first-person arm and the rider\'s horse in first person', () => {
-  const row = FEATURES.find((f) => f.id === 'mw-model-detail');
-  assert.ok(row, 'the row');
-  assert.deepEqual([row.group, row.kinds, row.control.store, row.control.key, row.control.initial, row.control.online], ['world', ['enhanced'], 'prefs', 'mwModelDetail', 'pixel', 'player']);
-  assert.deepEqual(row.control.tiers.map(([v, l]) => [v, l]), [['pixel', 'Pixelated'], ['sharp', 'Sharp']]);
-  assert.equal(row.title, 'Morrowind Model Detail');
-  assert.match(row.note, /full resolution/);
-  assert.equal(FEATURE_PREF_DEFAULTS.mwModelDetail, 'pixel');
-  assert.equal(PREF_DEFAULTS.mwModelDetail, 'pixel');
-  assert.ok(JSON.stringify(CATEGORIES).includes('"feat:mw-billboard-look","feat:mw-model-detail"'), 'beside the Billboard Look');
-  const arm = rd('src/combat/fpArm.js');
-  const draw = arm.slice(arm.indexOf('    draw(canvas) {'), arm.indexOf('    status()'));
-  assert.match(draw, /const pixel = mwModelPixel\(\);\s*\n\s*const wantW = canvas\.clientWidth \/ pixel;\s*\n\s*const wantH = canvas\.clientHeight \/ pixel;/, 'the first-person arm');
-  assert.equal(arm.match(/drawBodyPicture\(renderer, canvas, thirdMesh, model, /g)?.length, 2, 'the body, and the rider with the horse');
-  assert.ok(!/drawRigSpriteBox\(/.test(arm), 'and no card of its own');
-  const horse = rd('src/world/horseRig.js');
-  assert.match(horse, /drawBodyPicture\(renderer, canvas, h\.mesh, h\.model, \{ \.\.\.bx, up, conceal, hitFlash \}, proj, view, eye\);/, 'a horse alone');
-  assert.match(horse, /const pixel = mwModelPixel\(\);[^\n]*\n\s*const wantW = canvas\.clientWidth \/ pixel, wantH = canvas\.clientHeight \/ pixel;\s*\n\s*const edge = renderer\.charSpriteRoom\?\.\(Math\.ceil\(Math\.max\(wantW, wantH\)\)\) \?\? CHAR_SPRITE_RT_SIZE;/, 'the rider\'s horse in first person, and its room');
+test('MW-DETAIL gave way: CHAR-PIX1 draws the Morrowind bodies, so no Morrowind Model Detail row stands', () => {
+  assert.equal(FEATURES.find((f) => f.id === 'mw-model-detail'), undefined);
 });

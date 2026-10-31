@@ -35,7 +35,7 @@ function recordingRenderer() {
     queueCharacterSprite: (it) => { r.log.push({ drawn: it.mesh }); },
     beginCharacterSpriteBatch: () => r.log.push({ bind: true }), flushCharacterSpriteBatch: () => {},
     characterSpriteBatchOpen: true, retroImageSpan: null,
-    renderCharacterSprite: () => ({}), drawCharacterSpriteQuad: () => {}, drawScreenOverlayQuad: () => {},
+    drawCharacter: () => {}, renderCharacterSprite: () => ({}), drawCharacterSpriteQuad: () => {}, drawScreenOverlayQuad: () => {},
     createBillboardBatch: (archive, record) => ({ archive, record, origin: [0, 0, 0] }), destroyBillboardBatch() {},
   });
 }
