@@ -171,7 +171,7 @@ export function createBodyWeight() {
         let mats = null;
         if (LEAN_ON && sway.roll > 1e-4) {
           const body = bodyOf(skeleton, rootRef, skelMats);
-          mats = body ? skelMats(skeleton, pose, rootRef) : null;
+          mats = body ? skelMats(skeleton, pose, rootRef, [body.bones.L.foot, body.bones.R.foot, body.chest]) : null;   // the feet here, the trunk in leanTrunk
           const zl = mats ? at(mats, body.bones.L.foot)?.[2] : null, zr = mats ? at(mats, body.bones.R.foot)?.[2] : null;
           if (Number.isFinite(zl) && Number.isFinite(zr)) lean.roll -= sway.roll * clamp((zr - zl) / (SWAY.lift * body.leg), -1, 1);
         }
@@ -196,7 +196,7 @@ export function leanTrunk(skeleton, pose, rootRef, skelMats, { pitch = 0, roll =
   if (!(Math.abs(pitch) > 1e-5 || Math.abs(roll) > 1e-5 || Math.abs(yaw) > 1e-5)) return false;
   const body = bodyOf(skeleton, rootRef, skelMats);
   if (!body || !body.trunk?.length) return false;
-  const mats = posed ?? skelMats(skeleton, pose, rootRef);   // the slot's own, when it read the feet off this pose
+  const mats = posed ?? skelMats(skeleton, pose, rootRef, [body.chest]);   // only the trunk and its ancestors
   const n = body.trunk.length;
   const step = bodyTurn(yaw / n, roll / n, pitch / n);
   /** @type {ArrayLike<number>} */

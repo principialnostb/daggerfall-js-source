@@ -117,7 +117,9 @@ export function lengthenLegs(skeleton, pose, rootRef, skelMats, { stride = 1, w 
   const s = 1 + (stride - 1) * clamp01(w);
   if (!(Math.abs(s - 1) > 1e-4) || !means || !skeleton?.byName) return null;
   const feet = STRIDE.feet.map((n) => skeleton.byName.get(n)).filter((r) => r != null);
-  const before = feet.length ? skelMats(skeleton, pose, rootRef) : null;
+  const root = skeleton.byName.get(rootBone);
+  const measured = root == null ? feet : [...feet, root];
+  const before = feet.length ? skelMats(skeleton, pose, rootRef, feet) : null;
   const lowBefore = before ? Math.min(...feet.map((r) => before.get(r)?.t?.[2] ?? Infinity)) : null;
   let did = false;
   for (const name of STRIDE.bones) {
@@ -136,12 +138,11 @@ export function lengthenLegs(skeleton, pose, rootRef, skelMats, { stride = 1, w 
   if (knees) softenWalkKnees(skeleton, pose, rootRef, skelMats, s, clamp01(w));
   if (toeMax != null) holdToes(skeleton, pose, rootRef, skelMats, toeMax, clamp01(w));
   if (!feet.length || !Number.isFinite(lowBefore)) return 0;
-  const after = skelMats(skeleton, pose, rootRef);
+  const after = skelMats(skeleton, pose, rootRef, measured);
   let dz = Math.min(...feet.map((r) => after.get(r)?.t?.[2] ?? Infinity)) - lowBefore;
   // STRIDE-SMOOTH: the lower foot changes sides and the height asked leaps with it (13.7 cm/frame^2 of hip jerk in a steady
   // run): followed, never taken at once
   if (settle) { settle.dz = settle.dz == null ? dz : ease(settle.dz, dz, STRIDE_SMOOTH.ground, settle.dt); dz = settle.dz; }
-  const root = skeleton.byName.get(rootBone);
   if (!(Math.abs(dz) > 1e-3) || root == null) return 0;
   const node = skeleton.nodes.get(root), local = pose.get(root) ?? node.rest;
   const parent = node.parent != null ? after.get(node.parent) : null;
@@ -160,7 +161,7 @@ export function lengthenLegs(skeleton, pose, rootRef, skelMats, { stride = 1, w 
  * 13-9-14 cm, a hump its clip does not have); the accepted run keeps its own leg chain. */
 function softenWalkKnees(skeleton, pose, rootRef, skelMats, stride, w) {
   const { sub, cross, dot, len, scale } = algebra;
-  const mats = skelMats(skeleton, pose, rootRef);
+  const mats = skelMats(skeleton, pose, rootRef, ['l', 'r'].map((side) => skeleton.byName.get(`bip01 ${side} foot`)).filter((r) => r != null));   // the feet carry the thighs and calves as ancestors
   for (const side of ['l', 'r']) {
     const [thigh, calf, foot] = ['thigh', 'calf', 'foot'].map((b) => skeleton.byName.get(`bip01 ${side} ${b}`));
     if ([thigh, calf, foot].some((r) => r == null || !mats.has(r))) continue;
@@ -193,7 +194,8 @@ function softenWalkKnees(skeleton, pose, rootRef, skelMats, stride, w) {
 function holdToes(skeleton, pose, rootRef, skelMats, toeMax, w) {
   const body = bodyOf(skeleton, rootRef, skelMats);
   if (!body?.footAxes) return;
-  const rest = skelMats(skeleton, new Map(), rootRef), now = skelMats(skeleton, pose, rootRef);
+  const feet = [body.bones.L.foot, body.bones.R.foot];
+  const rest = skelMats(skeleton, new Map(), rootRef, feet), now = skelMats(skeleton, pose, rootRef, feet);
   for (const s of ['L', 'R']) {
     const ref = body.bones[s].foot, ax = body.footAxes[s], node = skeleton.nodes.get(ref);
     if (!ax || !node) continue;

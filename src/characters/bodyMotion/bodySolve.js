@@ -147,7 +147,8 @@ export function solveBody(skeleton, pose, rootRef, skelMats, plan) {
     const Rp = p != null && skeleton.nodes.has(p) ? rotNow(p) : null;
     pose.set(ref, { rotation: orthonormal(Rp ? mul(transpose(Rp), decided.get(ref)) : decided.get(ref)), translation: local.translation, scale: local.scale });
   }
-  let mats = skelMats(skeleton, pose, rootRef);
+  // legsOnly: a plan with no arms reads only the legs and what carries them
+  let mats = plan.legsOnly && !plan.arms ? skelMats(skeleton, pose, rootRef, [bones.L.foot, bones.R.foot]) : skelMats(skeleton, pose, rootRef);
   // the body moved so the hips' middle stands where it was asked: the root's own place, and every matrix under it
   if (plan.hip?.at) {
     const mid = scale(add(at(mats, bones.L.thigh), at(mats, bones.R.thigh)), 0.5);

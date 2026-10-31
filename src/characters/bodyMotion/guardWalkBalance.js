@@ -30,7 +30,7 @@ export function createGuardWalkBalance(config = GUARD_WALK_LEVEL) {
       if (!(w > 1e-3)) return null;
       const body = bodyOf(skeleton, root, skelMats);
       if (!body?.footAxes) return null;
-      const mats = skelMats(skeleton, pose, root);
+      const mats = skelMats(skeleton, pose, root, [body.bones.L.foot, body.bones.R.foot]);   // the thighs and calves are the feet's ancestors
       const mid = scale(add(at(mats, body.bones.L.thigh), at(mats, body.bones.R.thigh)), 0.5);
       mean = mean == null ? mid[2] : ease(mean, mid[2], config.mean, dt);
       let z = mid[2] + (mean - body.leg * config.settle + (mid[2] - mean) * config.share - mid[2]) * clamp01(w);
@@ -46,7 +46,7 @@ export function createGuardWalkBalance(config = GUARD_WALK_LEVEL) {
           pole: kneePole(hip, knee, apply(R, axes.fwd), length), stance: true, w: 1 };
       }
       if (Math.abs(z - mid[2]) < 1e-5) return null;
-      return solveBody(skeleton, pose, root, skelMats, { w: 1, hip: { at: [mid[0], mid[1], z], keepTurn: true }, feet });
+      return solveBody(skeleton, pose, root, skelMats, { w: 1, hip: { at: [mid[0], mid[1], z], keepTurn: true }, feet, legsOnly: true });
     },
     slot(inner) {
       if (cached && cached.inner === inner) return cached.fn;
