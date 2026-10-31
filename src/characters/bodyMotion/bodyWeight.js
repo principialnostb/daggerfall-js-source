@@ -171,7 +171,7 @@ export function createBodyWeight() {
         let mats = null;
         if (LEAN_ON && sway.roll > 1e-4) {
           const body = bodyOf(skeleton, rootRef, skelMats);
-          mats = body ? skelMats(skeleton, pose, rootRef) : null;
+          mats = body ? skelMats(skeleton, pose, rootRef, [body.bones.L.foot, body.bones.R.foot, body.chest]) : null;   // the feet here, the trunk in leanTrunk
           const zl = mats ? at(mats, body.bones.L.foot)?.[2] : null, zr = mats ? at(mats, body.bones.R.foot)?.[2] : null;
           if (Number.isFinite(zl) && Number.isFinite(zr)) lean.roll -= sway.roll * clamp((zr - zl) / (SWAY.lift * body.leg), -1, 1);
         }

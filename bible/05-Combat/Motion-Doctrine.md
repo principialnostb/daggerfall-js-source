@@ -751,6 +751,13 @@ Proving Ground, fresh session (`hmr: false`: a running page keeps its old code),
 `guard back/left/right` played `walkback/walkleft/walkright` under WeaponEquipped, the runs stayed `run*2c`. Reference
 stays DFU PlayerMotor; this is our presentation departure, no host grows. Visual acceptance remains the owner's.
 
+**MOTION-FRAME-COST** (2026-10-31, the owner: the optimised Dev must not get slower): merging this work into Dev measured
++0.3 ms a frame on the third-person walk. Every whole-skeleton walk it added now asks for the bones it reads
+(`src/formats/morrowind/mwSkin.js:"export function skeletonSpaceMatrices"`): the knees, the toes, the guard walk's level and,
+with `legsOnly`, its solve; `preserveOwnedPose` runs only under a cross-fade, where it has something to restore. The poses
+are the same (`test/characters/bodyMotion/guardwalkpose.test.js`, the partial walks against whole ones). Measured in
+`docs/Dev-Merge-2026-10-31.md`; what remains is named there.
+
 Then step 3's rest: the two-hander's blows in third person. Every step sits behind a switch "as now / by the formula",
 is judged by the owner in the game, and lives in a module of its own (HOST-SPLIT, `01-Overview/Host-Split.md`).
 

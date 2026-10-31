@@ -62,6 +62,7 @@ export function createLowerBodyLayer({ sampleTrack }) {
   let key = null; let prev = null; let mix = 1; let swapT = 0;
   let clipState = null; let clipSource = null; let clipSampler = sampleTrack; let lastRate = 1;
   const ownership = { weight: 0 };
+  const frameSamples = new Map();
   const seams = createLoopSeam({ sampleTrack, loopWindow });
   const walking = createDirectionalWalkSampler({ loopWindow });
   const blend = (a, b, t) => ({
@@ -72,8 +73,13 @@ export function createLowerBodyLayer({ sampleTrack }) {
   const sampler = (track, time) => {
     if (!track || !track.__overlay) return inner(track, time);
     // Process each clip at its OWN clock before mixing. The outer filter's time belongs to the weapon.
-    let o = clipSampler(track.__overlay, clock);
-    if (prev && mix < 1 && track.__prev) o = blend(prev.sample(track.__prev, prev.state.time), o, mix);
+    // MOTION-FRAME-COST: the outer filter asks three times a frame; the owned clip's answer does not depend on its time.
+    let o = frameSamples.get(track);
+    if (!o) {
+      o = clipSampler(track.__overlay, clock);
+      if (prev && mix < 1 && track.__prev) o = blend(prev.sample(track.__prev, prev.state.time), o, mix);
+      frameSamples.set(track, o);
+    }
     const k = Math.min(1, Math.max(0, w));
     if (k >= 1 || !track.__base) return o;
     return blend(inner(track.__base, time), o, k);
@@ -81,6 +87,7 @@ export function createLowerBodyLayer({ sampleTrack }) {
   const layer = {
     /** Movement owns its lower bones continuously, including while the upper attack enters and leaves. */
     step(dt, { on = true, third = false, action = null, hit = null, dead = null, movement = null, movementTracks = null, movementSource = null, jump = null, jumpTracks = null, jumpSource = null } = {}) {
+      frameSamples.clear();
       if (!on || !third || hit || dead) { layer.reset(); return 0; }
       const owner = lowerBodyOwner({ on, third, action: !!action, hit: !!hit, dead: !!dead, movement: !!movement, jump: !!jump });
       const state = owner === 'movement' ? movement : jump;

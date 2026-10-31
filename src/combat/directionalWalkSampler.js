@@ -24,14 +24,14 @@ export function createDirectionalWalkSampler({ loopWindow }) {
         const rotation = center.rotation ? [0, 0, 0, 0] : null, translation = center.translation ? [0, 0, 0] : null;
         for (let i = 0; i < WEIGHTS.length; i++) {
           const t = win.start + ((time + (i - 3) * width / 3 - win.start) % span + span) % span;
-          const sample = under(track, t), w = WEIGHTS[i] / 64;
+          const sample = t === time ? center : under(track, t), w = WEIGHTS[i] / 64;
           if (rotation && sample?.rotation) {
-            const sign = sample.rotation.reduce((v, x, j) => v + x * center.rotation[j], 0) < 0 ? -1 : 1;
+            const a = sample.rotation, b = center.rotation, sign = a[0] * b[0] + a[1] * b[1] + a[2] * b[2] + a[3] * b[3] < 0 ? -1 : 1;
             for (let j = 0; j < 4; j++) rotation[j] += sample.rotation[j] * w * sign;
           }
           if (translation && sample?.translation) for (let j = 0; j < 3; j++) translation[j] += sample.translation[j] * w;
         }
-        const length = rotation ? Math.hypot(...rotation) || 1 : 1;
+        const length = rotation ? Math.hypot(rotation[0], rotation[1], rotation[2], rotation[3]) || 1 : 1;
         const value = { ...center, rotation: rotation ? rotation.map((x) => x / length) : center.rotation,
           translation: translation ?? center.translation };
         cache.set(track, { time, value });

@@ -7,7 +7,7 @@ import { collectTextKeys, normalizeTextKeys, extractTracks, resetClip, sampleTra
 import { buildSkeleton, poseSkeleton, skeletonSpaceMatrices as sm, accumRootRef, GRAPH_ROOT } from '../../../src/formats/morrowind/mwSkin.js';
 import { retailSkeleton } from '../../fixtures/mw/retailRig.mjs';
 import { loopWindow } from '../../../src/combat/leftArmLayer.js';
-import { kneePole } from '../../../src/characters/bodyMotion/guardWalkBalance.js';
+import { createGuardWalkBalance, kneePole } from '../../../src/characters/bodyMotion/guardWalkBalance.js';
 import { createBodyWeight } from '../../../src/characters/bodyMotion/bodyWeight.js';
 import { MW_UNITS_PER_METER, MW_WEAPON_TYPE } from '../../../src/formats/morrowind/mwFirstPerson.js';
 import { bodyOf } from '../../../src/characters/bodyMotion/bodyKit.js';
@@ -130,4 +130,22 @@ test('GUARD-KNEE-POLE: a nearly straight leg whose clip knee strays behind its l
   assert.ok(towardToes([0, -0.5, 55]) > 0, 'behind the line by a hair: the toes decide');
   assert.ok(towardToes([0, 12, 55]) > 0, 'a bent knee stays forward');
   assert.ok(towardToes([0, -20, 55]) < 0, 'a real backward knee stays the clip own');
+});
+
+test('GUARD-WALK-LEVEL: the partial skeleton walks answer the same pose as whole walks', () => {
+  const sk = buildSkeleton(parseNif(retailSkeleton()));
+  const run = (walk) => {
+    const balance = createGuardWalkBalance({ share: 0.6, mean: 0.18, ease: 0.01, reach: 0.97, settle: 0.055 });
+    balance.step(1, true);
+    const pose = new Map();
+    balance.apply(sk, pose, GRAPH_ROOT, walk);
+    return pose;
+  };
+  const partial = run(sm), whole = run((s, p, r) => sm(s, p, r));
+  assert.ok(partial.size > 0, 'the balance posed');
+  assert.equal(partial.size, whole.size);
+  for (const [ref, local] of partial) {
+    assert.deepEqual([...local.rotation], [...whole.get(ref).rotation], `rotation of ${ref}`);
+    assert.deepEqual([...local.translation], [...whole.get(ref).translation], `translation of ${ref}`);
+  }
 });
