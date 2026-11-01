@@ -21,12 +21,12 @@ const FOUND = IN_BROWSER
  *  the root stands before, so an archive without a Data Files level still lands where the loaders look). `home` is where
  *  the pack's files live under Mods/; `prefix` goes between it and a path that lacks the level the loaders read. */
 export const SUPPORTED_MODS = Object.freeze([
-  Object.freeze({ id: 'oda', name: 'OpenMW Dynamic Animations', url: 'https://www.nexusmods.com/morrowind/mods/57633', home: 'Animations/OpenMW Dynamic Animations/', marker: /(?:^|\/)(animations\/xbase_anim\.1st\/(?:walk|run|sneak)(?:forward|back|left|right)_base;\.kf)$/i }),
-  Object.freeze({ id: 'reanimation', name: 'ReAnimation v3', url: 'https://www.nexusmods.com/morrowind/mods/52596', home: 'Animations/ReAnimation v3 - Complete - first-person animation pack/', marker: /(?:^|\/)(00 core\/animations\/xbase_anim\.1st\/[^/]*\.kf)$/i }),
-  Object.freeze({ id: 'mao', name: 'Morrowind Animation Overhaul', url: 'https://www.nexusmods.com/morrowind/mods/60253', home: 'Animations/Morrowind Animation Overhaul/', marker: /(?:^|\/)((?:data files\/)?meshes\/xbase_anim(?:_female)?\.kf)$/i, level: 'Data Files/' }),
-  Object.freeze({ id: 'hands', name: 'Better Hands', url: 'https://www.nexusmods.com/morrowind/mods/52552', home: 'Bodies/Better Hands/', marker: /(?:^|\/)(meshes\/b\/[^/]*\.1st\.nif)$/i }),
-  Object.freeze({ id: 'robert', name: "Robert's Bodies", url: 'https://www.nexusmods.com/games/morrowind/mods?keyword=Robert%27s+Bodies', home: "Bodies/Robert's bodies/", marker: /(?:^|\/)((?:data files\/)?meshes\/bbr\/[^/]*\.nif)$/i, level: 'Data Files/' }),
-  Object.freeze({ id: 'bodies', name: 'Better Bodies', url: 'https://www.nexusmods.com/morrowind/mods/3880', home: 'Bodies/Better Bodies/', marker: /(?:^|\/)(nude\/data files\/meshes\/bb\/bb_skin[^/]*\.nif)$/i }),
+  Object.freeze({ id: 'oda', blurb: 'Walks, runs and sneaks by direction.', name: 'OpenMW Dynamic Animations', url: 'https://www.nexusmods.com/morrowind/mods/57633', home: 'Animations/OpenMW Dynamic Animations/', marker: /(?:^|\/)(animations\/xbase_anim\.1st\/(?:walk|run|sneak)(?:forward|back|left|right)_base;\.kf)$/i }),
+  Object.freeze({ id: 'reanimation', blurb: 'New first-person blows and weapon motion.', name: 'ReAnimation v3', url: 'https://www.nexusmods.com/morrowind/mods/52596', home: 'Animations/ReAnimation v3 - Complete - first-person animation pack/', marker: /(?:^|\/)(00 core\/animations\/xbase_anim\.1st\/[^/]*\.kf)$/i }),
+  Object.freeze({ id: 'mao', blurb: 'New run, and walks in a stance.', name: 'Morrowind Animation Overhaul', url: 'https://www.nexusmods.com/morrowind/mods/60253', home: 'Animations/Morrowind Animation Overhaul/', marker: /(?:^|\/)((?:data files\/)?meshes\/xbase_anim(?:_female)?\.kf)$/i, level: 'Data Files/' }),
+  Object.freeze({ id: 'hands', blurb: 'Better first-person hand models.', name: 'Better Hands', url: 'https://www.nexusmods.com/morrowind/mods/52552', home: 'Bodies/Better Hands/', marker: /(?:^|\/)(meshes\/b\/[^/]*\.1st\.nif)$/i }),
+  Object.freeze({ id: 'robert', blurb: 'The arm and skin under Better Hands. Attach both.', name: "Robert's Bodies", url: 'https://www.nexusmods.com/games/morrowind/mods?keyword=Robert%27s+Bodies', home: "Bodies/Robert's bodies/", marker: /(?:^|\/)((?:data files\/)?meshes\/bbr\/[^/]*\.nif)$/i, level: 'Data Files/' }),
+  Object.freeze({ id: 'bodies', blurb: 'Better body models and skins.', name: 'Better Bodies', url: 'https://www.nexusmods.com/morrowind/mods/3880', home: 'Bodies/Better Bodies/', marker: /(?:^|\/)(nude\/data files\/meshes\/bb\/bb_skin[^/]*\.nif)$/i }),
 ]);
 
 const FILE_KEPT = /\.(?:kf|nif|dds|tga)$/i;

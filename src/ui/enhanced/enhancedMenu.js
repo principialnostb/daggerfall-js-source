@@ -3471,61 +3471,64 @@ function waitForTextureStore() {
  *  DFMOD1: and every pack comes OFF here too - each has a Remove beside its Attach once something is attached,
  *  behind the same confirm Delete Save uses - and Daggerfall Unity .dfmod texture mods (DREAM and its kin) attach
  *  as files, each listed with its own Remove. */
-/** MODS-BYO: the third-party packs the game has adapters for. A missing one links to its author's page; a folder or a
- *  .zip attached here is recognised by its files and kept in this browser. Changes apply on reload. */
+/** MODS-BYO: the third-party packs the game has adapters for. Each row: not attached, Nexus and Attach; attached, on/off and
+ *  Remove. A folder or a .zip is recognised by its files and kept in this browser. Changes apply on reload. */
 let _modsNote = null;
-function supportedModsCard() {
+export function supportedModsCard() {
   const c = el('div', 'card');
-  c.append(el('h3', null, t('menu.supportedMods.title', 'Supported Morrowind mods')));
+  c.append(el('h3', null, t('menu.supportedMods.title', 'Morrowind mods')));
   c.append(el('p', 'meta', t('menu.supportedMods.blurb', 'Download a mod from its author, then attach its folder or .zip. Unpack .7z and .rar first.')));
-  if (_modsNote) { c.append(el('p', 'meta', _modsNote)); _modsNote = null; }
+  const note = (text, reload = false) => { _modsNote = { text, reload }; render(); };
+  if (_modsNote) {
+    const line = el('div');
+    line.style.cssText = 'display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:8px 0';
+    line.append(el('p', 'meta', _modsNote.text));
+    if (_modsNote.reload) line.append(acts([{ label: t('menu.supportedMods.reload', 'Reload game'), primary: true, onClick: () => window.location.reload() }]));
+    c.append(line);
+    _modsNote = null;
+  }
   const zipIn = el('input'); zipIn.type = 'file'; zipIn.accept = '.zip,application/zip'; zipIn.style.display = 'none';
   const dirIn = el('input'); dirIn.type = 'file'; dirIn.setAttribute('webkitdirectory', ''); dirIn.multiple = true; dirIn.style.display = 'none';
+  let wanted = null;
   const take = async (picked) => {
     const { attachModFiles } = await import('../../scenes/dataSource.js');
     const ids = await attachModFiles(picked);
-    _modsNote = ids.length
-      ? t('menu.supportedMods.attached', 'Attached: {names}. Reload the game to use them.', { names: ids.map((id) => SUPPORTED_MODS.find((m) => m.id === id)?.name).join(', ') })
-      : t('menu.supportedMods.unknown', 'No supported mod found in that selection.');
-    render();
+    if (ids.includes(wanted?.id)) note(t('menu.supportedMods.attached', '{name} is attached. Reload the game to use it.', { name: wanted.name }), true);
+    else note(t('menu.supportedMods.wrong', 'This is not {name}: its files were not found in that selection.', { name: wanted?.name ?? '' }), ids.length > 0);
   };
   zipIn.onchange = async () => {
     const f = zipIn.files?.[0]; if (!f) return;
     try {
       const { readZipEntries } = await import('../../scenes/dataSource.js');
       const entries = await readZipEntries(f);
-      await take(entries.map((e) => ({ path: e.name ?? e.path, blob: new Blob([e.bytes ?? e.data ?? e.buffer]) })));
-    } catch (err) { _modsNote = t('menu.supportedMods.readFailed', 'Could not read {file}: {error}', { file: f.name, error: err?.message ?? err }); render(); }
+      await take(entries.map((e) => ({ path: e.name, blob: new Blob([e.data]) })));
+    } catch (err) { note(t('menu.supportedMods.readFailed', 'Could not read {file}: {error}', { file: f.name, error: err?.message ?? err })); }
   };
   dirIn.onchange = () => take([...(dirIn.files ?? [])].map((f) => ({ path: f.webkitRelativePath || f.name, blob: f })));
   c.append(zipIn, dirIn);
-  c.append(acts([
-    { label: t('menu.supportedMods.attachFolder', 'Attach folder'), onClick: () => dirIn.click() },
-    { label: t('menu.supportedMods.attachZip', 'Attach .zip'), onClick: () => zipIn.click() },
-    { label: t('menu.supportedMods.reload', 'Reload game'), onClick: () => window.location.reload() },
-  ]));
   for (const mod of SUPPORTED_MODS) {
-    const row = el('div', 'card');
-    row.append(el('p', null, mod.name));
-    if (supportedModFound(mod.id)) {
-      const on = modEnabled(mod.id);
-      row.append(el('p', 'meta', on ? t('menu.supportedMods.found', 'Installed, on') : t('menu.supportedMods.foundOff', 'Installed, off')));
-      const buttons = [{ label: on ? t('menu.supportedMods.off', 'Turn off') : t('menu.supportedMods.on', 'Turn on'), onClick: () => {
-        setModEnabled(mod.id, !on);
-        _modsNote = t('menu.supportedMods.reloadNote', 'Reload the game to apply this.');
-        render();
-      } }];
-      if (supportedModAttached(mod.id)) buttons.push({ label: t('menu.supportedMods.remove', 'Remove'), onClick: async () => {
-        const { removeAttachedMod } = await import('../../scenes/dataSource.js');
-        await removeAttachedMod(mod.id);
-        _modsNote = t('menu.supportedMods.reloadNote', 'Reload the game to apply this.');
-        render();
-      } });
-      row.append(acts(buttons));
-    } else {
-      row.append(el('p', 'meta', t('menu.supportedMods.missing', 'Not installed')));
-      row.append(acts([{ label: t('menu.supportedMods.get', 'Get from Nexus Mods'), onClick: () => window.open(mod.url, '_blank', 'noopener') }]));
-    }
+    const row = el('div');
+    row.style.cssText = 'display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:10px 0;border-top:1px solid rgba(201,178,120,.25)';
+    const about = el('div');
+    about.style.cssText = 'flex:1 1 220px;min-width:0';
+    about.append(el('p', null, mod.name), el('p', 'meta', mod.blurb));
+    const found = supportedModFound(mod.id), on = modEnabled(mod.id);
+    const state = el('p', 'meta', !found ? t('menu.supportedMods.missing', 'Not installed') : on ? t('menu.supportedMods.found', 'Installed, on') : t('menu.supportedMods.foundOff', 'Installed, off'));
+    if (found && on) state.style.color = '#8fce8f';
+    about.append(state);
+    const buttons = found
+      ? [{ label: on ? t('menu.supportedMods.off', 'Turn off') : t('menu.supportedMods.on', 'Turn on'), primary: !on, onClick: () => { setModEnabled(mod.id, !on); note(t('menu.supportedMods.reloadNote', 'Reload the game to apply this.'), true); } }]
+      : [
+        { label: t('menu.supportedMods.get', 'Download from Nexus Mods'), onClick: () => window.open(mod.url, '_blank', 'noopener') },
+        { label: t('menu.supportedMods.attachFolder', 'Attach mod folder'), primary: true, onClick: () => { wanted = mod; dirIn.click(); } },
+        { label: t('menu.supportedMods.attachZip', 'Attach .zip'), onClick: () => { wanted = mod; zipIn.click(); } },
+      ];
+    if (supportedModAttached(mod.id)) buttons.push({ label: t('menu.supportedMods.remove', 'Remove'), onClick: async () => {
+      const { removeAttachedMod } = await import('../../scenes/dataSource.js');
+      await removeAttachedMod(mod.id);
+      note(t('menu.supportedMods.reloadNote', 'Reload the game to apply this.'), true);
+    } });
+    row.append(about, acts(buttons));
     c.append(row);
   }
   return c;
