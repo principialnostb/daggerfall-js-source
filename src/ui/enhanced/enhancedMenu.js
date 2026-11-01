@@ -3474,6 +3474,7 @@ function waitForTextureStore() {
 /** MODS-BYO: the third-party packs the game has adapters for. Each row: not attached, Nexus and Attach; attached, on/off and
  *  Remove. A folder or a .zip is recognised by its files and kept in this browser. Changes apply on reload. */
 let _modsNote = null;
+let _modsChoosing = null;   // the row whose Attach was pressed: a browser has no one picker for a folder and a file
 export function supportedModsCard() {
   const c = el('div', 'card');
   c.append(el('h3', null, t('menu.supportedMods.title', 'Morrowind mods')));
@@ -3520,8 +3521,12 @@ export function supportedModsCard() {
       ? [{ label: on ? t('menu.supportedMods.off', 'Turn off') : t('menu.supportedMods.on', 'Turn on'), primary: !on, onClick: () => { setModEnabled(mod.id, !on); note(t('menu.supportedMods.reloadNote', 'Reload the game to apply this.'), true); } }]
       : [
         { label: t('menu.supportedMods.get', 'Download from Nexus Mods'), onClick: () => window.open(mod.url, '_blank', 'noopener') },
-        { label: t('menu.supportedMods.attachFolder', 'Attach mod folder'), primary: true, onClick: () => { wanted = mod; dirIn.click(); } },
-        { label: t('menu.supportedMods.attachZip', 'Attach .zip'), onClick: () => { wanted = mod; zipIn.click(); } },
+        ...(_modsChoosing === mod.id
+          ? [
+            { label: t('menu.supportedMods.attachFolder', 'Mod folder'), primary: true, onClick: () => { wanted = mod; dirIn.click(); } },
+            { label: t('menu.supportedMods.attachZip', '.zip file'), primary: true, onClick: () => { wanted = mod; zipIn.click(); } },
+          ]
+          : [{ label: t('menu.supportedMods.attach', 'Attach mod files'), primary: true, onClick: () => { _modsChoosing = mod.id; render(); } }]),
       ];
     if (supportedModAttached(mod.id)) buttons.push({ label: t('menu.supportedMods.remove', 'Remove'), onClick: async () => {
       const { removeAttachedMod } = await import('../../scenes/dataSource.js');
