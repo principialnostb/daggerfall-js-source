@@ -863,16 +863,7 @@ export function mwViewDrawBody(canvas, { proj, view, eye, feet, yaw, viewYaw = y
   // AUDIT OW3 J6: OW-BIG's grown traveller is the Morrowind body's too - `face.grow` (player/travelCamera.js tvOwnGrow)
   // reached the sprite body alone, and under the travel view the Morrowind body stood a speck at its own size.
   // AUDIT OW4 J6: and `face.up` - its quad leaned as the sprite lane's is (eotbBody.js), not upright under a pitched picture
-  return fpArm.drawThird(canvas, {
-    proj,
-    view,
-    eye,
-    feet,
-    yaw,
-    grow: face?.grow > 1 ? face.grow : 1,
-    up: face?.up ?? null,
-    horse,
-  });
+  return fpArm.drawThird(canvas, { proj, view, eye, feet, yaw, grow: face?.grow > 1 ? face.grow : 1, up: face?.up ?? null, horse, who: 'player' });
 }
 
 /** SHADOW-CLOAK: the third-person Morrowind body's named bones where they stand this frame, in its own frame

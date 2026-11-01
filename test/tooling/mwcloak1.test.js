@@ -19,7 +19,7 @@ import { assembleFirstPersonArm, poseAssembly } from '../../src/formats/morrowin
 import { composeWornArmor, composeWornModest, fpWornAdds, itemMapCoverage, mwItemReport, CLOTHING_NAME, DF_CLOTHING_DYE_RGB } from '../../src/formats/morrowind/mwItemMap.js';
 import { ARMOR_MATERIAL } from '../../src/systems/armorMaterials.js';
 import { CLASSIC_ARMOR_TEMPLATE } from '../../src/characters/ownModels/ownArmorModels.js';
-import { CLOAK_NAMES, CLOAK_PAINTINGS, CLOAK_DYE_PAINTING, ownCloakFor, ownCloakModelPaths, cloakModel, isCloakSlot } from '../../src/characters/ownModels/ownClothingModels.js';
+import { CLOAK_NAMES, CLOAK_PAINTINGS, CLOAK_DYE_PAINTING, ownCloakFor, ownCloakModelPaths, cloakModel, isCloakSlot, SIMPLY_CLOAK_MODEL_BY_PAINTING, isSimplyCloakModel } from '../../src/characters/ownModels/ownClothingModels.js';
 import { CLOAK_CLEARANCE, CLOAK_PUSH_LIMIT, HIP_PITCH_LIMIT, SLUNG_PITCH_LIMIT, cloakSheet, sheetCellKey, fitCloakOver, fitStowedGear, surfaceSamples } from '../../src/formats/morrowind/mwCloakFit.js';
 import { readPng } from '../../tools/pngIO.mjs';
 import { readFbx } from '../../tools/fbxRead.mjs';
@@ -55,6 +55,22 @@ test('MW-CLOAK1: every mesh and painting re-made from the committed export, its 
     purple: 'b03ff57c60aeeaa9', light_brown: '44ab89ca4623df56', white: '28a58ead1db153ae', green: '346963f96aa29096',
   });
   for (const path of ownCloakModelPaths()) assert.ok(existsSync(new URL(`../../src/assets/mw/${path}`, import.meta.url)), `${path} ships`);
+});
+
+test('Simply Animated Cloaks: every selected replacement mesh and its authored texture are bundled and discoverable', () => {
+  assert.deepEqual(Object.keys(SIMPLY_CLOAK_MODEL_BY_PAINTING), [...CLOAK_PAINTINGS]);
+  for (const [painting, model] of Object.entries(SIMPLY_CLOAK_MODEL_BY_PAINTING)) {
+    assert.equal(isSimplyCloakModel(model), true, `${model} is recognized as an animated cloak`);
+    const path = `src/assets/mw/meshes/${model}`;
+    assert.ok(existsSync(new URL(`../../${path}`, import.meta.url)), `${path} ships`);
+    const [batch] = flattenNif(parseNif(onDisk(path)));
+    assert.ok(batch.positions.length > 0, `${model} has drawable geometry`);
+    assert.ok(batch.skinned, `${model} is skinned for animation`);
+    const rawTexture = String(batch.material?.textureFile ?? '').split(String.fromCharCode(92)).join('/').split('/').filter(Boolean).join('/');
+    const texture = rawTexture.startsWith('textures/') ? rawTexture : `textures/${rawTexture.split('/').pop()}`;
+    assert.ok(existsSync(new URL(`../../src/assets/mw/${texture}`, import.meta.url)), `${texture} ships for ${model} (${painting})`);
+  }
+  assert.equal(isSimplyCloakModel('cloak_blue.nif'), false, 'the classic mesh is not mistaken for the animated one');
 });
 
 test('MW-CAPE-RIGID: the cloak is its object in the scene\'s placement (smoothed, MW-CLOAK2), one skinned shape on ONE bone - the chest, Bip01 Spine2 - every vertex wholly its own and no other bone in the mesh', () => {
@@ -173,6 +189,21 @@ test('MW-CAPE-RIGID: through the binder on retail\'s rig the cloak moves with th
   }
 });
 
+test('Vanilla Animated live-pose contact fit removes a forced body penetration outside the static pose envelope', async () => {
+  const asm = await body(ARMOR_MATERIAL.Steel);
+  const livePose = turned(asm, { 'bip01 l thigh': 50, 'bip01 r thigh': -45, 'bip01 spine2': 15 });
+  // Keep the live GPU pose available to the fitter, then update the CPU reference positions for assertions.
+  poseAssembly(asm, { ...livePose, skin: false });
+  poseAssembly(asm, livePose);
+  const cloak = asm.pieces.find(isCloak);
+  for (let i = 1; i < cloak.batch.positions.length; i += 3) cloak.batch.positions[i] += 4;
+  poseAssembly(asm, livePose);
+  assert.ok(through(asm, isUnder) > 0, 'the deliberately advanced cloak now intersects the body');
+  const fit = fitCloakOver(asm, { isCloak, isUnder, poses: [asm.pose], passes: 2 });
+  assert.ok(fit.pushed > 0, 'the live-pose solver corrected cloak vertices');
+  assert.ok(through(asm, isUnder) <= 1e-3, 'the body is no longer visible through the corrected cloak');
+});
+
 test('MW-CLOAK1: the cloak eases back over the armour under it - the ebony pauldrons through its shoulders, then behind it in every pose; the cloak\'s batch replaced, never written into', async () => {
   const asm = await body(ARMOR_MATERIAL.Ebony);
   const before = through(asm, isUnder);
@@ -273,6 +304,17 @@ test('MW-CLOAK1: stowed gear against the cloak, on the addon\'s own scabbards - 
   const was = bare.pieces[0].source;
   assert.equal(fitStowedGear(bare, { isCloak, isGear }), null);
   assert.equal(bare.pieces[0].source, was);
+});
+
+test('MW-CLOAK setting: the visible feature writes the exact runtime setting that chooses the cloak mesh', () => {
+  const features = src('src/systems/features.js');
+  const runtime = src('src/combat/fpArm.js');
+  const settings = src('src/systems/modSettings.js');
+  assert.ok(features.includes("id: 'simply-animated-cloaks'"));
+  assert.ok(features.includes("control: Object.freeze({ store: 'mods', vendor: 'morrowind-animation', key: 'SimplyAnimatedCloaks' })"));
+  assert.ok(runtime.includes("modSetting('morrowind-animation', 'SimplyAnimatedCloaks') !== false"));
+  assert.ok(settings.includes("SimplyAnimatedCloaks: Object.freeze({\n        default: true,"));
+  assert.match(runtime, /const hasBoundCloak = \(built\) => \{[\s\S]*?piece\.kind !== 'skinned'[\s\S]*?built\.arm\?\.notes[\s\S]*?influences are skipped/);
 });
 
 test('MW-CLOAK1 by source: the third-person build fits the cloak over the body\'s skin and what it wears, once it is assembled, and ties the stowed gear to it; a weapon swap fits the new holster; seated or astride the cloak rides the chest as standing (MW-CAPE-RIGID: no batch swapped); a cloak\'s icon is its own', () => {

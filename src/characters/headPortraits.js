@@ -18,6 +18,7 @@ import { portraitRenderer } from '../render/portraitRenderer.js';
 import { EQUIP_SLOTS, equipTableOf } from '../systems/equip.js';
 import { drawnPiece } from '../net/appearanceLaw.js'; // APPEARANCES: a worn helm's look
 import { getPref } from '../systems/uiPrefs.js';
+import { getAppearanceIdentity } from './bodyMorphs.js';
 
 /** The shape a door that draws a head at its record's own size draws it at (the party's plate, the family's and the
  *  succession's cards, the escorts' column): the widest of FACE##I0.CIF's heads is 31 x 32 (ui/partyPanel.js
@@ -96,6 +97,7 @@ export async function playerHeadImage(who, { px = 128, ph = px, renderer = portr
       ph,
     });
   }
+  const identity = who.npc ? null : getAppearanceIdentity();
   return headPortrait({
     renderer,
     race: mwRaceId(who.race ?? 'Breton'),

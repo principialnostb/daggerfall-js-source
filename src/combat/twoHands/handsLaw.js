@@ -518,6 +518,12 @@ export function runHandsWanted({
   );
 }
 
+/** A weapon in an equipment slot is not occupying a hand while sheathed. A shield still occupies its hand. */
+export function runHandsSlotsEmpty({ rightOccupied = false, leftOccupied = false, sheathed = false, shieldInHand = false } = {}) {
+  if (shieldInHand) return false;
+  return !!sheathed || (!rightOccupied && !leftOccupied);
+}
+
 /**
  * One hand's place in the pump at stride phase `phase`: `{ dx, dy, frame, s }` - dx a share of the view's width toward
  * the middle (+), dy a share of the frame's height DOWN (never up: 0 at the top of the stroke, its foot on the view's
@@ -550,9 +556,11 @@ export function pumpOf(phase, hand) {
  * retail biped's) - so each fist came up toward the middle; 0.6 is 21 cm, before and just outside its own shoulder.
  */
 export const RUN_3D = Object.freeze({
-  TOP: Object.freeze({ x: 0.6, y: -0.62, d: 0.42 }),
-  BOTTOM: Object.freeze({ x: 0.8, y: -1.7, d: 0.38 }),
-  CURL: 1.5,
+  TOP: Object.freeze({ x: 0.36, y: -0.62, d: 0.42 }),
+  BOTTOM: Object.freeze({ x: 0.6, y: -1.7, d: 0.38 }),
+  // A moderate running fist keeps the fingers naturally folded; the old 1.5-rad curl
+  // over-folded the thumb into the palm and made the hand read as a malformed claw.
+  CURL: 1.15,
 });
 /** One hand's place in the 3D pump at stride phase `phase`: { x, y, d, s } (see RUN_3D; x toward the hand's own side). */
 export function pumpTarget3D(phase, hand) {

@@ -376,7 +376,7 @@ export function mwClothingRecord(clothes, name, { dye = null, colourOf = null, t
  * THE SPRITE, and `note` says why in words the report can print.
  */
 export function mwArmorRecords(armorRecords, templateIndex, material) {
-  const row = armorRowOf(templateIndex); // MW-ASSIGN: a mod's piece by the classic row of its shape
+  const row = armorRowOf(templateIndex);   // MW-ASSIGN: a mod's piece by the classic row of its shape
   if (!row) return { records: [], row: null, note: `template ${templateIndex} is not an armor row` };
   const mName = matName(ARMOR_MATERIAL, material);
   const chain = DF_TO_MW_ARMOR_MATERIAL[mName] ?? null;
@@ -792,18 +792,7 @@ export function dfWornArmor(slots, EQUIP_SLOTS, ARMOR_ENUM) {
  * is the race record's Beast flag, `beastWear` the two switches'
  * modes for one (BEAST-BOOTS, beastCut below).
  */
-export function composeWornArmor({
-  pieces,
-  armors,
-  clothes,
-  bodyPool,
-  female = false,
-  colourOf = null,
-  helmStyle = undefined,
-  beast = false,
-  beastWear = BEAST_WEAR_WORN,
-}) {
-  // MW-STEEL1: helmStyle, the Steel Helm switch (undefined: the default style)
+export function composeWornArmor({ pieces, armors, clothes, bodyPool, female = false, colourOf = null, helmStyle = undefined, looks = null, beast = false, beastWear = BEAST_WEAR_WORN }) {   // MW-STEEL1: helmStyle, the Steel Helm switch (undefined: the default style); MW-IRON1: looks, every other own piece's by its id
   const notes = [];
   const wear = beast ? beastWear : null; // BEAST-BOOTS
   const bodyById = new Map((bodyPool ?? []).map((b) => [String(b.id || '').toLowerCase(), b]));
@@ -837,6 +826,10 @@ export function composeWornArmor({
   let cloakName = null; // MW-CLOAK1: the cloak, which no slot holds
   let outfitAdd = null; // MW-FOLK1: a townsperson's whole outfit, which no slot holds either
   const covers = new Set();
+  // MW-FP-SEAM: a part's `hides` is a skin fallback, not permission to
+  // evict another armour mesh that fills that slot. Resolve these claims
+  // after all worn pieces have had a chance to provide their own geometry.
+  const deferredHides = [];
   for (const piece of ordered) {
     // MW-FOLK1: A TOWNSPERSON'S OUTFIT IS THE PORT'S OWN (characters/ownModels/ownClothingModels.js TOWNSFOLK_OUTFITS) - one
     // skinned mesh of every garment their picture wears, claiming no slot (the cloak's door): the skin it covers all
@@ -857,22 +850,8 @@ export function composeWornArmor({
         continue;
       }
       const prio = ((0 + 1) << 1) + 0;
-      outfitAdd = {
-        slot: `outfit (${o.id})`,
-        partName: 'outfit',
-        bones: [],
-        model: o.model,
-        recordId: o.id,
-        piece,
-        hides: o.hides,
-      };
-      for (const h of o.hides)
-        claim(
-          ARMO_PART.findIndex((r) => r.name === h),
-          prio,
-          null,
-          outfitAdd,
-        );
+      outfitAdd = { slot: `outfit (${o.id})`, partName: 'outfit', bones: [], model: o.model, recordId: o.id, piece, hides: o.hides };
+      for (const h of o.hides) deferredHides.push({ part: ARMO_PART.findIndex((r) => r.name === h), prio, under: outfitAdd });
       for (const c of o.covers) covers.add(c);
       continue;
     }
@@ -962,7 +941,7 @@ export function composeWornArmor({
     // armour's priority, part by part, as composeRefs claims a record's.
     const own = ownArmorModelFor(piece);
     if (own) {
-      const ownParts = ownArmorParts(own, { helmStyle }); // MW-STEEL1: the style the Steel Helm switch asks for
+      const ownParts = ownArmorParts(own, { helmStyle, looks });   // MW-STEEL1: the style the Steel Helm switch asks for
       // BEAST-BOOTS: an own part is a head part when it hangs on the head or covers it (the closed helm's `hides`)
       const ownHead =
         wear && wear.helm !== 'worn' && ownParts.some((p) => p.part === 'head' || (p.hides ?? []).includes('head'));
@@ -979,33 +958,18 @@ export function composeWornArmor({
         }
         const at = ARMO_PART.findIndex((r) => r.name === p.part);
         const row = ARMO_PART[at];
-        const add = {
-          slot: `${row.name} (${own.id})`,
-          partName: row.name,
-          bones: row.bones,
-          model: p.model,
-          recordId: own.id,
-          piece,
-          ...(own.skinFrom ? { skinFrom: own.skinFrom, fitTo: own.fitTo ?? null } : {}),
-        }; // MW-BRIG2: skinned from the body under it; MW-BRIG3: fitted onto the part it hides. MW-STEEL4: a model shipped skinned (the steel plate) carries neither - its mesh is bound as a retail part's is
+        const add = { slot: `${row.name} (${own.id})`, partName: row.name, bones: row.bones, model: p.model, recordId: own.id, piece, ...(p.showsSkin ? { showsSkin: true } : {}),
+          ...(own.skinFrom ? { skinFrom: own.skinFrom, fitTo: own.fitTo ?? null } : {}) };   // MW-BRIG2: skinned from the body under it; MW-BRIG3: fitted onto the part it hides. MW-STEEL4: a model shipped skinned (the steel plate) carries neither - its mesh is bound as a retail part's is
         claim(at, prio, add);
+        if (p.showsSkin && row.shadows) covers.add(row.shadows);   // MW-IRON1: open where its picture is - the skin under it stays drawn, but it is covered
         // MW-STEEL1: what the part covers beyond its own slot is OCCUPIED with no mesh (reserveIndividualPart), so its
         // skin is not drawn under the plate - at the armour's priority, the law's own gate. MW-FIT1: under that part
-        for (const h of p.hides ?? [])
-          claim(
-            ARMO_PART.findIndex((r) => r.name === h),
-            prio,
-            null,
-            add,
-          );
+        for (const h of p.hides ?? []) deferredHides.push({ part: ARMO_PART.findIndex((r) => r.name === h), prio, under: add });
       }
       continue;
     }
     const res = mwArmorRecords(armors, piece.templateIndex, piece.material);
-    if (!res.records.length) {
-      notes.push(`armor ${piece.templateIndex}: ${res.note}`);
-      continue;
-    }
+    if (!res.records.length) { notes.push(`armor ${piece.templateIndex}: ${res.note}`); continue; }
     // BEAST-BOOTS: a refused helm is not worn, so it hides no hair either - the cut comes before the rule below
     const refused = wear
       ? res.records.map((r) => ({ id: r.id, why: beastCut(r, wear).refused })).find((r) => r.why)
@@ -1054,6 +1018,15 @@ export function composeWornArmor({
       composeRefs(cut?.rec ?? armo, prio, female, bodyById, claim, notes, piece);
     }
   }
+  // A gauntlet must hide bare skin under its cuff, but must not reserve
+  // away a forearm plate (or another valid part mesh) merely because that
+  // mesh is declared later in equipment order. Existing mesh ownership wins;
+  // the mesh's own claim already shadows the skin in that slot.
+  for (const h of deferredHides) {
+    const slot = slots[h.part];
+    if (slot && !slot.add) claim(h.part, h.prio, null, h.under);
+    else if (slot?.add?.showsSkin) slot.hiddenUnder = true;   // MW-IRON5: a part that shows its skin still hides it when another part covers it whole
+  }
   if (hairHidden) claim(1, hairHidden, null);
   const adds = [];
   const shadows = new Set();
@@ -1061,7 +1034,7 @@ export function composeWornArmor({
   for (let i2 = 0; i2 < slots.length; i2++) {
     if (!slots[i2].shadow) continue;
     if (slots[i2].add) adds.push(slots[i2].add);
-    const key = ARMO_PART[i2].shadows;
+    const key = slots[i2].add?.showsSkin && !slots[i2].hiddenUnder ? null : ARMO_PART[i2].shadows;   // MW-IRON1: a part that shows the skin under it hides none - unless another hides it (MW-IRON5)
     if (key) shadows.add(key);
     // MW-FIT1: A PART THE FIRST PERSON DOES NOT DRAW HIDES NOTHING FROM IT. A pauldron sleeves the upper arm, but it
     // hangs on the clavicle and the first person draws the arm-bone parts alone - so there the upper arm under it is
@@ -1158,6 +1131,32 @@ function shieldMeshOf(armo, female, bodyById, notes) {
   return { model: armo.model, recordId: null, ground: true };
 }
 
+/**
+ * Body surfaces used to geometrically fit clothing panels. This deliberately
+ * does not opt clothing into the separate skin-transfer renderer: the original
+ * NIF remains responsible for its UVs, material and bone weights.
+ */
+const CLOTHING_FIT_SLOTS = Object.freeze({
+  chest: Object.freeze(['chest', 'groin']),
+  groin: Object.freeze(['groin', 'upperleg', 'knee']),
+  'right upper leg': Object.freeze(['upperleg', 'knee', 'groin']),
+  'left upper leg': Object.freeze(['upperleg', 'knee', 'groin']),
+  'right knee': Object.freeze(['knee', 'upperleg']),
+  'left knee': Object.freeze(['knee', 'upperleg']),
+  'right upper arm': Object.freeze(['upperarm', 'forearm']),
+  'left upper arm': Object.freeze(['upperarm', 'forearm']),
+  'right forearm': Object.freeze(['forearm', 'upperarm', 'wrist']),
+  'left forearm': Object.freeze(['forearm', 'upperarm', 'wrist']),
+  'right wrist': Object.freeze(['wrist', 'forearm', 'hand']),
+  'left wrist': Object.freeze(['wrist', 'forearm', 'hand']),
+  'right hand': Object.freeze(['hand', 'wrist']),
+  'left hand': Object.freeze(['hand', 'wrist']),
+  'right ankle': Object.freeze(['ankle', 'foot']),
+  'left ankle': Object.freeze(['ankle', 'foot']),
+  'right foot': Object.freeze(['foot', 'ankle']),
+  'left foot': Object.freeze(['foot', 'ankle']),
+});
+
 /** One record's part references, claimed at one priority. */
 function composeRefs(rec, prio, female, bodyById, claim, notes, piece = null) {
   for (const ref of rec.parts ?? []) {
@@ -1168,10 +1167,12 @@ function composeRefs(rec, prio, female, bodyById, claim, notes, piece = null) {
     }
     if (row.name === 'weapon') continue;
     const id = (female && ref.female) || ref.male || ref.female;
-    if (!id) {
-      notes.push(`${rec.id}: ${row.name} names no body part`);
-      continue;
-    }
+    // EMPTY-PART (Mac's screenshot, 2026-10-26: the leather glove's outer arm in skin): a reference that names no body
+    // part still RESERVES its slot - NpcAnimation::addPartGroup's `else reserveIndividualPart(part.mPart, group,
+    // priority)` - so the skin under it is not drawn. Retail's netch gauntlet names its wrist so (INDX 9, no model): the
+    // wrist is the cuff's, and the body's fuller wrist came out through it. (A NAMED part no BODY record carries keeps
+    // its skin, below - the never-traps law, MW-D29's.)
+    if (!id) { notes.push(`${rec.id}: ${row.name} names no body part`); claim(ref.part, prio, null); continue; }
     const body = bodyById.get(id);
     if (!body) {
       notes.push(`${rec.id}: ${row.name} wants "${id}" and no BODY record carries it`);
@@ -1182,12 +1183,11 @@ function composeRefs(rec, prio, female, bodyById, claim, notes, piece = null) {
     // tests the part TYPE (npcanimation.cpp:799-801's PRT_Hair filter),
     // never a display string.
     claim(ref.part, prio, {
-      slot: `${row.name} (${rec.id})`,
-      partName: row.name,
-      bones: row.bones,
-      model: body.model,
-      recordId: id,
-      piece,
+      slot: `${row.name} (${rec.id})`, partName: row.name,
+      bones: row.bones, model: body.model, recordId: id, piece,
+      ...(piece?.kind === 'clothing' && CLOTHING_FIT_SLOTS[row.name]
+        ? { fitBodySlots: CLOTHING_FIT_SLOTS[row.name],
+            fitMode: DF_CLOTHING_ROWS[piece.name ?? CLOTHING_NAME[piece.templateIndex]]?.type === MW_CLOTHING_TYPE.Pants ? 'conform' : 'clearance' } : {}),
     });
   }
 }
@@ -1298,17 +1298,14 @@ export function firstPersonPartGroup(rec, bodyPool, female = false) {
  *  itself it hides with the neck-scale trick, so a helmet or a
  *  cuirass never floats in your face. The port has no body in fp at
  *  all, so the same picture falls out of a FILTER: worn adds pass
- *  into the fp build only on the arm-family bones and the shield
- *  bone. Everything else is the third person's business. */
+ *  into the fp build on arm-family bones, clavicles (pauldrons), and the
+ *  shield bone. A pauldron is attached to the clavicle, but its sleeve
+ *  covers the upper arm; omitting it leaves exposed skin where worn shoulder
+ *  armour should appear. Head, torso, and legs remain third-person only. */
 const FP_WORN_BONES = new Set([
-  'left hand',
-  'right hand',
-  'left wrist',
-  'right wrist',
-  'left forearm',
-  'right forearm',
-  'left upper arm',
-  'right upper arm',
+  'left hand', 'right hand', 'left wrist', 'right wrist',
+  'left forearm', 'right forearm', 'left upper arm', 'right upper arm',
+  'left clavicle', 'right clavicle', // worn pauldrons sleeve the upper arm
   'shield bone',
 ]);
 export function fpWornAdds(adds) {

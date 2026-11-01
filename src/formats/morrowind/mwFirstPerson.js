@@ -1,3 +1,6 @@
+import { preserveOwnedPose } from './mwPoseContinuity.js';
+import { getBodyMorphs } from '../../characters/bodyMorphs.js';
+import { deformPlayerBodyGeometry, measureBodyFrame, isMorphedBodySlot, weldMorphedNormals } from '../../characters/bodyShape.js';   // BODY-SHAPE
 // MW-D: THE DIAGNOSTIC, and it deliberately draws nothing.
 //
 // The Morrowind import arc was reverted whole on 2026-08-28 after three
@@ -166,8 +169,9 @@ const zstr = (bytes, s, n) => {
 export { MW_BODY_PARTS, isFirstPersonId } from './mwEsmFile.js';
 import { MW_BODY_PARTS, isFirstPersonId } from './mwEsmFile.js';
 import FACE_TABLE from '../mwFaceTable.json' with { type: 'json' };
-import { GRAPH_ROOT, ACCUM_ROOT_NAMES } from './mwSkin.js';
-import { transferSkin, sourceSkin, fitLift, liftBatch } from './mwSkinTransfer.js';   // MW-BRIG2: a worn model skinned from the body under it; MW-BRIG3: and fitted onto it
+import { GRAPH_ROOT, ACCUM_ROOT_NAMES, blendPoseMaps } from './mwSkin.js';
+import { CUFF_FIT, fitCuffsToHand, handStart, trimToCuff, wristFrame } from './mwCuffFit.js';   // CUFF-FIT: the worn cuff sat on the donor hand
+import { transferSkin, sourceSkin, fitLift, liftBatch, fitGarmentClearance } from './mwSkinTransfer.js';   // MW-BRIG2: a worn model skinned from the body under it; MW-BRIG3: and fitted onto it
 import { getTextKeyTime, animVelocity, collectTextKeys, normalizeTextKeys, clipGroups, resetClip, parseAnimGroups, extractTracks } from './mwAnim.js';
 import { mat33Mul } from './mwNifMesh.js';   // AUDIT 68 S11-affine-dup: the one row-major 3x3 product
 import { batchMoves, posePartBatch, nodeAffineAt, nodeClockAt, clockFor } from './mwPartClock.js';   // MW-BOW1: a part's own clock
@@ -346,9 +350,15 @@ export const DF_STRIKE_TO_MW_ATTACK = Object.freeze({
  * screen-right and crosses to the left); StrikeRight is the backhand.
  * The chops and the thrust have no side a reversal would honour (a chop
  * backwards is an uppercut), and a shot is one draw.
+ *
+ * SHIELD-GUARD (2026-10-26): NOR A FIST. Hand-to-hand's slash is a hook, and backwards it is a punch pulled: its
+ * reversed follow-through throws the right fist 45 units forward before the release (0.53 s, up to 784 units/s), and
+ * the reversed release - where the blow lands - snaps it back 59 units, the left fist thrown out 26 (retail
+ * xbase_anim.kf, "handtohand"; the first person's .1st clip pulls its right fist back 37 units the same way). The
+ * fists' StrikeRight is their own hook, played forward.
  */
 export const REVERSED_STRIKES = Object.freeze(['StrikeRight']);
-export const strikeReversed = (strike) => REVERSED_STRIKES.includes(strike);
+export const strikeReversed = (strike, weaponType = null) => REVERSED_STRIKES.includes(strike) && weaponType !== MW_WEAPON_TYPE.HandToHand;
 
 /** Rule 11's ranged case: every bow swing is "shoot", and the release
  *  key is "shoot release" where a melee blow is "<type> hit". */
@@ -646,6 +656,17 @@ export function isTwoHandedMelee(type) {
  * @param type    an MW_WEAPON_TYPE
  * @param hasGroup(name) -> boolean, the file's own answer
  */
+/** SNEAK-STANCE (2026-10-26, Mac: "crouched with a one-hander the wrist bends, the blade to the floor"): THE CROUCH'S
+ *  IDLE FOR THE DRAWN STANCE. The reference's crouch is the one bare "idlesneak"; ReAnimation v3 ships one for every
+ *  stance as `idle<short>sneak` (idle1hsneak, idle1ssneak, idle2csneak, idle2wsneak, idlebowsneak, idlecrossbowsneak,
+ *  idle1tsneak, idlehhsneak), and OpenMW's spelling is `idlesneak<short>`. Those first, the bare crouch after them; null
+ *  where the rig has none. A departure where a pack carries them - the reference plays "idlesneak" whatever is drawn. */
+export function sneakIdleGroup(type, hasGroup) {
+  const short = weaponShortGroup(type);
+  for (const g of short ? [`idle${short}sneak`, `idlesneak${short}`] : []) if (hasGroup(g)) return g;
+  return hasGroup('idlesneak') ? 'idlesneak' : null;
+}
+
 export function composeStanceGroup(base, type, hasGroup) {
   const short = weaponShortGroup(type);
   const asked = short ? `${base}${short}` : base;
@@ -1682,8 +1703,16 @@ export function facePools(parts, race, female, { has = null, own: ownAsked = fal
   if (own && (!has || [...own.heads, ...own.hairs].every((r) => has(`meshes/${r.model}`)))) return { heads: own.heads, hairs: own.hairs };
   const want = String(race || '').toLowerCase();
   const pool = (slot) => {
-    const forSlot = (parts ?? []).filter((p) => p.race === want && p.slot === slot
-      && p.skin && p.playable && !p.firstPerson);
+    // Later masters override earlier records with the same ID. Deduplicate
+    // before sorting, otherwise a vanilla BODY record can mask Better Heads'
+    // replacement mesh because the stable sort preserves the earlier entry.
+    const latest = new Map();
+    for (const p of parts ?? []) {
+      if (p.race === want && p.slot === slot && p.skin && p.playable && !p.firstPerson) {
+        latest.set(String(p.id).toLowerCase(), p);
+      }
+    }
+    const forSlot = [...latest.values()];
     const sexed = forSlot.filter((p) => p.female === !!female);
     return (sexed.length ? sexed : forSlot.filter((p) => !p.female))
       .slice().sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
@@ -1729,7 +1758,7 @@ export function curatedAnswersFace(pools, race, female, faceIndex, faceTable = F
   return !!c && !!poolRecord(pools.heads, c.head) && !!poolRecord(pools.hairs, c.hair);
 }
 
-export function playerBodyRows(parts, race, female, { beast = false, faceIndex = 0, faceTable = FACE_TABLE, faceMatch = null, vampire = false, walk = null, has = null, ownHeads = false } = {}) {   // MWNPC14: `vampire` the race's vampire head; MWNPC17: `walk` an NPC's { head, hair }; AUDIT MW-HEADS1: `has` the archives' (facePools); MW-HEADS2: `ownHeads` a player's - the port's own heads
+export function playerBodyRows(parts, race, female, { beast = false, faceIndex = 0, faceTable = FACE_TABLE, faceMatch = null, faceRace = race, vampire = false, walk = null, has = null, ownHeads = false, appearanceHeadId = null, appearanceHairId = null } = {}) {   // MWNPC14: `vampire` the race's vampire head; MWNPC17: `walk` an NPC's { head, hair }; AUDIT MW-HEADS1: `has` the archives' (facePools); MW-HEADS2: `ownHeads` a player's - the port's own heads
   const want = String(race || '').toLowerCase();
   // MW-D32: the sweep slots resolve through getBodyParts-whole
   // (npcanimation.cpp:1167-1297 - LAST proper match wins, male-for-
@@ -1761,7 +1790,7 @@ export function playerBodyRows(parts, race, female, { beast = false, faceIndex =
   // authored by eye. A curated id wins when the pool carries it; an id
   // the archives do not carry falls back to the walk (never traps),
   // and the row's verdict says which happened.
-  const curated = curatedFace(race, female, faceIndex, faceTable);
+  const curated = curatedFace(faceRace, female, faceIndex, faceTable);
   // The sex law, list-shaped: the matching sex's pool, else the male
   // pool retail relies on - never a mix, or the index would walk across
   // sexes. AUDIT MW-A F2: the sort and the index are the FACE'S law and
@@ -1771,7 +1800,7 @@ export function playerBodyRows(parts, race, female, { beast = false, faceIndex =
   // AUDIT 68 S11-facepools-dup: facePools IS that law - the pools the
   // matcher measured are the pools walked here, by construction (the
   // same `has`: AUDIT MW-HEADS1).
-  const pools = facePools(parts, race, female, { has, own: ownHeads });
+  const pools = facePools(parts, faceRace, female, { has, own: ownHeads });
   for (const slot of ['head', 'hair']) {
     const sorted = slot === 'head' ? pools.heads : pools.hairs;
     let chosen = null;
@@ -1798,6 +1827,14 @@ export function playerBodyRows(parts, race, female, { beast = false, faceIndex =
         chosen = sorted[((faceIndex % sorted.length) + sorted.length) % sorted.length];
         how = wantId ? `derived (curated "${wantId}" is not in these archives)` : 'derived';
       }
+      // The character editor's independent head/hair selections override the
+      // portrait-derived pair, but only when the requested model exists in this
+      // race/sex pool. NPC seed-walks remain authoritative.
+      if (!walk) {
+        const appearanceId = slot === 'head' ? appearanceHeadId : appearanceHairId;
+        const explicit = appearanceId ? poolRecord(sorted, appearanceId) : null;
+        if (explicit) { chosen = explicit; how = 'selected in appearance editor'; }
+      }
     }
     rows.push({
       slot,
@@ -1808,7 +1845,7 @@ export function playerBodyRows(parts, race, female, { beast = false, faceIndex =
   }
   // MWNPC14: A VAMPIRE'S FACE - the race's vampire head over the one walked (npcanimation.cpp updateNpcBase: the head
   // model is getVampireHead's when there is one, the hair the actor's own); none for the race and the face stands
-  const vamp = vampire ? vampireHeadRecord(parts, race, female) : null;
+  const vamp = vampire ? vampireHeadRecord(parts, faceRace, female) : null;
   if (vamp) {
     const row = rows.find((r) => r.slot === 'head');
     if (row) { row.record = vamp; row.verdict = 'third-person record found, a vampire\'s (getVampireHead)'; }
@@ -2279,7 +2316,21 @@ export function bindPartsInto(assembly, parts) {
   // are bare instances under nodes of the scabbard's graph, so they wear
   // the scabbard's PAT exactly as the arrow wears the weapon's (MW-D44).
   let sheathBoneOffset = null;
+  // A third-person skeleton with the Weapon Sheathing addon has a dedicated
+  // back mount. Keep the original hand-mounted shield for combat, and bind a
+  // second rigid instance to AttachShield for the stowed pose. First-person
+  // rigs normally lack this addon bone, so their shield path stays unchanged.
+  const boundParts = [];
+  // Sections successfully bound from Better Bodies suppress only their matching
+  // vanilla arm slot. Keep vanilla meshes as a per-section fallback: some
+  // race/sex replacements or third-party variants omit a section entirely.
+  const betterBodiesSections = new Set();
+  const firstPiece = pieces.length;   // CUFF-FIT: this call's own pieces
+  const cuffWholes = [];   // CUFF-FIT: a worn cuff's shapes no triangle of which rides the arm whole - trimmed later
   for (const part of parts) {
+    boundParts.push(part);
+  }
+  for (const part of boundParts) {
     // `part.bones` overrides the table so a test can drive real assembly
     // against a fixture skeleton whose bone names are not Morrowind's.
     const bones = part.bones ?? mod.PART_BONES[part.slot] ?? [];
@@ -2289,28 +2340,80 @@ export function bindPartsInto(assembly, parts) {
     let nif;
     try {
       nif = mod.parseNif(part.bytes);
+      // Optional per-part texture transplant: preserve the original equipped model's
+      // external texture paths while drawing a replacement geometry donor.
+      if (Array.isArray(part.textureFiles) && part.textureFiles.length) {
+        const sources = nif.records.filter((record) => record.type === 'NiSourceTexture' && record.external);
+        for (let i = 0; i < sources.length; i++) {
+          sources[i].fileName = part.textureFiles[Math.min(i, part.textureFiles.length - 1)];
+        }
+      }
     } catch (err) {
       notes.push(`${part.slot}: ${err.message}`);
       continue;
     }
+    // Prefer the actual rendered Better Bodies surface when present; otherwise use the matching BODY records.
+    // This is geometry-only fitting, not weight transfer, so the full-body replacement is safe as a filtered surface.
+    const bodyReplacement = parts.find((candidate) => candidate.slot === 'betterBodies')?.bytes ?? null;
+    const fitSourceNifs = part.fitSources?.map((src) => bodyReplacement ? { ...src, bytes: bodyReplacement } : src) ?? [];
+    // Clothing fit is a private vertex-position pass; the garment keeps its authored skinning/material path.
+    const fitSources = fitSourceNifs.length ? bindGarmentFitSources(assembly, fitSourceNifs) : [];
+    const fitCtx = fitSources.length ? clothingFitContext(assembly) : null;
     // MW-D6: the nameless-shape extension binds ONCE for the part; a
     // NAMED shape binds once PER SIDE, filtered. See the block below.
     let tookNameless = false;
     const piecesBefore = pieces.length;
     let shapeCensus = null;
     for (const bone of bones.length ? bones : [null]) {
+      // Keep vanilla geometry only for arm sections the Better Bodies mesh
+      // did not provide. The check is per bone so partial meshes stay usable.
+      if (part.fallbackBetterBodies) {
+        const fallbackSection = betterBodiesFallbackSectionKey(part.slot, bone);
+        if (fallbackSection && betterBodiesSections.has(fallbackSection)) continue;
+      }
       if (bone && !skeleton.byName.has(bone.toLowerCase())) {
         notes.push(`${part.slot}: this skeleton has no bone "${bone}"`);
         continue;
       }
       let bound;
       try {
-        bound = mod.bindPart(skeleton, nif, { ...(bone ? { attachBone: bone } : {}), underNode: part.underNode, excludeNode: part.excludeNode });   // WS1: a subtree of the file
+        bound = mod.bindPart(skeleton, nif, { ...(bone ? { attachBone: bone } : {}), ...(part.retargetSkinToBone ? { retargetSkinToBone: part.retargetSkinToBone } : {}), underNode: part.underNode, excludeNode: part.excludeNode });   // WS1: a subtree of the file
       } catch (err) {
         notes.push(`${part.slot} @ ${bone}: ${err.message}`);
         continue;
       }
+      // Clothing geometry clearance against the current body. No skin weights, UVs,
+      // material records or source NIF bytes are changed.
+      if (fitCtx && bound.skinned.length) {
+        for (let i = 0; i < bound.skinned.length; i++) {
+          const original = bound.skinned[i];
+          if (geomFitCandidate(original, part)) {
+            const sideMatch = String(part.partName ?? part.slot).toLowerCase().match(/\b(left|right)\b/);
+            const fitted = fitGarmentClearance(original, fitSources, fitCtx, {
+              clearance: part.fitMode === 'conform' ? 0.18 : 0.2,
+              maxDistance: part.fitMode === 'conform' ? 4.0 : 2.5,
+              maxPush: 1.25, conform: part.fitMode === 'conform',
+              // A leg panel must not snap to the opposite thigh just because
+              // baggy source geometry happens to be closer to that surface.
+              side: sideMatch?.[1] ?? null,
+            });
+            if (fitted !== original) bound.skinned[i] = fitted;
+          }
+        }
+      }
+      // Better Bodies: apply the checked-in atlas corrections to this part's
+      // flattened skin sections before they are packed for the live renderer.
+      // The Better Bodies body is authored as skinned sections in NIF order.
+      if (Array.isArray(part.uvEdits) && bound.skinned) {
+        applyBetterBodiesUvEdits(bound.skinned, part.uvEdits);
+      }
       const bonePiecesBefore = pieces.length;
+      if (bound.retargetedBones?.length) {
+        const say = part.slot + ': custom skin bones '
+          + bound.retargetedBones.map((b) => '"' + b + '"').join(', ')
+          + ' retargeted to "' + (bound.retargetTarget ?? 'unknown') + '" for chest-following cloth physics';
+        if (!notes.includes(say)) notes.push(say);
+      }
       // RULE 40's report: skipped influences draw wrong, not invisibly,
       // so the card must say WHY a finger sags or a strip collapses.
       // One note per part, not per bone - the names are the same.
@@ -2355,16 +2458,37 @@ export function bindPartsInto(assembly, parts) {
       // silently missed this test, filtering a wig on the bone "head".
       const geomFilter = (part.partName ?? part.slot) === 'hair' ? 'hair' : bone;
       let namelessHere = false;
-      for (const batch of bound.skinned) {
+      for (let batch of bound.skinned) {
         const nameless = !String(batch.name || '').trim();
         if (nameless && tookNameless) continue;
         if (geomFilter && !shapeMatchesBone(batch.name, geomFilter)) continue;
+        // The full-body Better Bodies NIF bypasses ordinary per-slot skin rows.
+        // Apply the same worn-slot shadows section-by-section before drawing it.
+        if (part.slot === 'betterBodies' && Array.isArray(part.showSlots) && !betterBodiesSectionVisible(batch.name, part.showSlots)) continue;
+        if (part.slot === 'betterBodies' && betterBodiesSectionShadowed(batch.name, part.hideSlots)) continue;
+        // A gauntlet whose hands a donor mesh draws keeps only its cuff (fpArm.js, the Robert's gauntlet substitution).
+        // CUFF-FIT: its whole shape kept beside, trimmed where the donor hand begins once the donor is bound
+        const whole = part.forearmShapesOnly ? batch : null;
+        if (part.forearmShapesOnly && !(batch = armWeightedTriangles(batch))) { if (ridesTheArm(whole)) cuffWholes.push({ part, bone, whole }); continue; }
+        if (part.handShapesOnly && isDonorCuffShape(batch)) continue;   // CUFF-FIT: and the donor its hands alone
         // MW-D7: the piece KEEPS its batch, and `positions` is its own
         // buffer - never an alias of batch.positions, which poseAssembly
         // reads every frame. Aliasing them is the runaway the viewer
         // documents at mwViewer.js:"Skinned batches are".
+        const betterBodiesSection = part.slot === 'betterBodies' ? betterBodiesSectionKey(batch.name) : null;
+        // A section name alone is not proof that its geometry can replace the
+        // retail arm. Missing skin bones are skipped by the skin blend; if we
+        // mark such a section as supplied, its vanilla fallback is suppressed
+        // and both sources can disappear (or collapse). Only suppress vanilla
+        // for a drawable section whose skin influences all resolve on this rig.
+        const hasDrawableGeometry = (batch.positions?.length ?? 0) >= 9 && (batch.indices?.length ?? 0) >= 3;
+        const hasMissingSkinInfluences = (batch.skin?.bones ?? []).some((skinBone) => skinBone.ref == null);
+        if (betterBodiesSection && hasDrawableGeometry && !hasMissingSkinInfluences) {
+          betterBodiesSections.add(betterBodiesSection);
+        }
         pieces.push({ slot: part.slot, bone, kind: 'skinned', mirrored: false,
-          batch, source: null, attachRef: null,
+          bodySection: betterBodiesSection, batch, source: null, attachRef: null,
+          cuffFit: part.cuffFit ?? (part.forearmShapesOnly ? 'cuff' : part.handShapesOnly ? 'hand' : null),   // CUFF-FIT: who sits on whom
           // MW-D11: the UVs and the material ride WITH the piece. They
           // were reachable through `batch` for a skinned piece and lost
           // entirely for a rigid one (which keeps only its positions), so
@@ -2372,6 +2496,7 @@ export function bindPartsInto(assembly, parts) {
           uvs: batch.uvs || null, colors: batch.colors || null, material: batch.material || null,
           positions: new Float32Array(batch.positions.length), indices: batch.indices,
           normals: posedNormals(batch) });   // MW-SMOOTH: the mesh's own normals, skinned with it
+        if (whole) pieces[pieces.length - 1].cuffWhole = whole;
         if (nameless) namelessHere = true;
       }
       tookNameless = tookNameless || namelessHere;
@@ -2394,7 +2519,7 @@ export function bindPartsInto(assembly, parts) {
         const say = `${part.slot}: ${bound.attached.length} unskinned shape(s) in a RIG file are not `
           + 'attached (attach.cpp:42-46 seeds only skinned geometry)';
         if (!notes.includes(say)) notes.push(say);
-      } else if (bound.attached.length) {
+      } else if (bound.attached.length && !part.forearmShapesOnly) {   // a rigid gauntlet rides the hand bone: all hand, no cuff
         // The mirror is fixed HERE, at bind time, because it is a fact
         // about the bone's NAME, not about the pose. Re-deriving it per
         // frame invites a pose-dependent mirror, which is a left hand
@@ -2542,6 +2667,7 @@ export function bindPartsInto(assembly, parts) {
       notes.push(`${part.slot}: nothing bound - the mesh has no geometry to bind`);
     }
   }
+  fitCuffPieces(assembly, firstPiece, cuffWholes);   // CUFF-FIT: the worn cuff sat on the donor hand, side by side
 }
 
 /**
@@ -2789,13 +2915,43 @@ export function posePartClocks(assembly, value, { frameTime = value, slots = WEA
   return moved;
 }
 
+// Player-only local vertex morphs (characters/bodyShape.js): the posed player vertices are altered, never the shared
+// source arrays or NPC/item geometry.
+export { deformPlayerBodyGeometry };
+
+let cloakProbeQuery = null;
 export function poseAssembly(assembly, { tracks = null, sampleTrack = null,
-  time = 0, accumRoot = null, neckPitch = 0, neckAim = 0, neckOffset = null, climb = null, skin = true, mirror = null, run = null, hold = null, motion = null, aim = null } = {}) {
+  time = 0, accumRoot = null, neckPitch = 0, neckAim = 0, neckOffset = null, climb = null, skin = true, mirror = null, run = null, hold = null, motion = null, bodyProportions = false, blendFrom = null, blendWeight = 1, aim = null } = {}) {
   const { fns, skeleton, pieces } = assembly;
   if (!fns || !skeleton) return assembly;
+  const geometryMorph = bodyProportions ? (typeof bodyProportions === 'object' ? bodyProportions : getBodyMorphs()) : null;
   // MIRROR-BIND: an arm mirrored across the picture is mirrored by the binds of the skins it wears (mirrorBindsOf)
   if (mirror?.plane && mirror.plane.binds === undefined) mirror.plane.binds = mirrorBindsOf(assembly);
-  const pose = fns.poseSkeleton(skeleton, tracks, sampleTrack, time, { accumRoot });
+  const sampledPose = fns.poseSkeleton(skeleton, tracks, sampleTrack, time, { accumRoot });
+  // Keep raw animation data separate from morph/neck/climb edits for the next transition.
+  assembly.rawPose = new Map(sampledPose);
+  // Only a cross-fade can move an owned bone off its sample; the plain copy has nothing to restore and pays no walk over the skeleton.
+  const pose = blendFrom && blendWeight < 1 ? preserveOwnedPose(blendPoseMaps(blendFrom, sampledPose, blendWeight), sampledPose, skeleton, tracks) : new Map(sampledPose);
+  // SHOWN-POSE (MOTION-DOCTRINE, bible/05-Combat/Motion-Doctrine.md 7c): the pose as this frame shows it, its cross-fade
+  // included - a transition begun while another still runs must start from here, not from the raw clip (rawPose)
+  assembly.shownPose = blendFrom && blendWeight < 1 ? new Map(pose) : assembly.rawPose;
+  // Morphs needing an anatomical region are applied to body vertices below,
+  // using shared whole-body bounds. Only head scale remains a bone transform;
+  // uniform limb scales made unrelated controls behave like overall body scale.
+  if (bodyProportions) {
+    const morph = typeof bodyProportions === 'object' ? bodyProportions : getBodyMorphs();
+    const headScale = 1 + Math.max(-1, Math.min(1, Number(morph.headScale) || 0)) * 0.12;
+    if (headScale !== 1) {
+      for (const [ref, node] of skeleton.nodes) {
+        const name = String(node.name || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+        if (!name.includes('head')) continue;
+        const current = pose.get(ref);
+        if (!current) continue;
+        const scale = typeof current.scale === 'number' ? current.scale : 1;
+        pose.set(ref, { ...current, scale: scale * headScale });
+      }
+    }
+  }
   // TWO-HANDS (bible/05-Combat/Two-Hands.md): THE SECOND HAND - an arm, or the whole body, as the mirror of another
   // (combat/twoHands/mirrorRig.js), straight over the clip's pose and under every law that follows it (the neck's look, the
   // climb's hands): a left-hand blow, a second weapon held up. An arm read from ANOTHER clip (`clip`: the idle under a
@@ -2854,6 +3010,15 @@ export function poseAssembly(assembly, { tracks = null, sampleTrack = null,
       if (p.normals && p.sourceNormals) placeNormalsAtBone(p.sourceNormals, placed, p.mirrored, p.normals);   // MW-SMOOTH
     }
   }
+  if (geometryMorph) {
+    // BODY-SHAPE: measured once after skinning every body piece - the skeleton's landmarks and the box in one frame
+    const bodyPieces = pieces.filter((p) => p.kind === 'skinned' && isMorphedBodySlot(p.slot) && p.positions?.length);
+    const frame = measureBodyFrame(bodyPieces, skeleton, mats);
+    if (frame) {
+      for (const p of bodyPieces) deformPlayerBodyGeometry(p, geometryMorph, frame, skeleton);
+      weldMorphedNormals(bodyPieces, frame);
+    }
+  }
   assembly.pose = pose;
   // The rig-space transform of every node, kept so rule 54 can read the
   // camera node's translation without re-posing the skeleton.
@@ -2863,6 +3028,93 @@ export function poseAssembly(assembly, { tracks = null, sampleTrack = null,
   // cloak (formats/morrowind/mwCloakFit.js followCloak), which reads the cloak where this pose just put it
   if (assembly.afterPose) assembly.afterPose(assembly);
   assembly.bounds = pieces.length ? foldPieceBounds(pieces) : null;   // PR-BOW1b: and each piece's own box, in the same walk
+  // MW-CLOAK-PROBE: opt-in, read-only telemetry. Enabled only by
+  // ?mwcloakprobe=1 or the Playwright harness. The browser overlay lives
+  // in the user's normal game tab, so this shares the real session/assets.
+  if (typeof window !== 'undefined') {
+    // LOAD-STALL 2: the page's query read once - this ran a URLSearchParams parse at every pose of every body, every frame
+    const queryEnabled = (cloakProbeQuery ??= typeof location !== 'undefined'
+      && new URLSearchParams(location.search).get('mwcloakprobe') === '1');
+    if (queryEnabled && !window.__mwCloakProbeInitialized) {
+      window.__mwCloakProbeInitialized = true;
+      window.__mwCloakProbeEnabled = true;
+      window.__mwCloakProbeFrames = [];
+      window.__mwCloakProbeOnPose = (frame) => {
+        const pieces = frame.pieces ?? [];
+        const cloak = pieces.filter((p) => /cloak/i.test(p.slot + ' ' + p.name));
+        const legs = pieces.filter((p) => /leg|foot|groin|chest|body/i.test(p.slot + ' ' + p.name + ' ' + p.kind));
+        if (!cloak.length || !legs.length || window.__mwCloakProbeStopped) return;
+        const now = performance.now();
+        if (now - (window.__mwCloakProbeLastAt ?? -Infinity) < 100) return;
+        window.__mwCloakProbeLastAt = now;
+        const samples = window.__mwCloakProbeFrames;
+        samples.push({ wallTimeMs: now, time: frame.time, cpuSkinned: frame.cpuSkinned, cloak, legs, bones: frame.bones });
+        if (samples.length > 4000) samples.shift();
+        const count = document.getElementById('__mwCloakProbeCount');
+        if (count) count.textContent = 'Samples: ' + samples.length;
+      };
+      const mount = () => {
+        if (!document.body || document.getElementById('__mwCloakProbePanel')) return;
+        const panel = document.createElement('div');
+        panel.id = '__mwCloakProbePanel';
+        panel.style.cssText = 'position:fixed;z-index:2147483647;right:10px;top:10px;max-width:330px;padding:10px;background:#111827;color:#fff;border:1px solid #64748b;border-radius:8px;font:13px/1.4 sans-serif;box-shadow:0 3px 14px #0008';
+        const status = document.createElement('div');
+        status.textContent = 'Cloak diagnostics active (read-only)';
+        status.style.cssText = 'margin-bottom:6px;font-weight:600';
+        const count = document.createElement('div');
+        count.id = '__mwCloakProbeCount';
+        count.textContent = 'Samples: 0 — equip a cloak and play normally';
+        count.style.cssText = 'margin-bottom:8px';
+        const save = document.createElement('button');
+        save.textContent = 'Stop and download capture';
+        save.style.cssText = 'padding:7px 9px;cursor:pointer';
+        save.addEventListener('click', () => {
+          window.__mwCloakProbeStopped = true;
+          const report = {
+            schema: 'mw-cloak-probe-v1',
+            generatedAt: new Date().toISOString(),
+            url: location.href,
+            title: document.title,
+            sampleCount: window.__mwCloakProbeFrames?.length ?? 0,
+            note: 'Raw posed geometry capture. Read-only; not a collision verdict. Samples require cloak and body pieces to be present.',
+            frames: window.__mwCloakProbeFrames ?? [],
+          };
+          const blob = new Blob([JSON.stringify(report)], { type: 'application/json' });
+          const link = document.createElement('a');
+          link.href = URL.createObjectURL(blob);
+          link.download = 'mw-cloak-capture.json';
+          link.click();
+          setTimeout(() => URL.revokeObjectURL(link.href), 1000);
+          status.textContent = 'Capture stopped; download requested';
+          save.disabled = true;
+          save.textContent = 'Capture stopped';
+        });
+        panel.append(status, count, save);
+        document.body.appendChild(panel);
+      };
+      if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', mount, { once: true });
+      else mount();
+    }
+    if (window.__mwCloakProbeEnabled === true && typeof window.__mwCloakProbeOnPose === 'function') {
+      try {
+        window.__mwCloakProbeOnPose({
+          time, cpuSkinned: assembly.cpuSkinned,
+          pieces: pieces.map((p) => ({
+            slot: String(p.slot ?? ''), kind: String(p.kind ?? ''),
+            name: String(p.name ?? p.id ?? ''),
+            positions: p.positions ? Array.from(p.positions) : [],
+            indices: p.batch?.indices ? Array.from(p.batch.indices) : [],
+          })),
+          bones: [...(skeleton.nodes ?? [])].map(([ref, node]) => ({
+            ref: String(ref), name: String(node?.name ?? ''),
+            matrix: mats?.get?.(ref) ? Array.from(mats.get(ref)) : null,
+          })),
+        });
+      } catch (error) {
+        window.__mwCloakProbeError = String(error?.stack ?? error);
+      }
+    }
+  }
   return assembly;
 }
 
@@ -3002,6 +3254,116 @@ export function armPieceRows(pieces) {
 }
 
 /**
+ * Bind body surfaces for clothing clearance fitting. The garment itself keeps
+ * its authored skinning, UVs and material; only its private vertex positions
+ * are adjusted against these already-bound body surfaces.
+ */
+function bindGarmentFitSources(assembly, fitSources) {
+  const mod = assembly.fns;
+  const { skeleton, notes } = assembly;
+  const sources = [];
+  for (const src of fitSources) {
+    let srcNif;
+    try { srcNif = mod.parseNif(src.bytes); }
+    catch (err) { notes.push(`clothing fit: body ${src.slot}: ${err.message}`); continue; }
+    for (const bone of mod.PART_BONES[src.slot] ?? []) {
+      if (!skeleton.byName.has(bone.toLowerCase())) continue;
+      let bound;
+      try { bound = mod.bindPart(skeleton, srcNif, { attachBone: bone }); }
+      catch { continue; }
+      if (bound.skinned.length) {
+        let tookNameless = false;
+        for (const batch of bound.skinned) {
+          const nameless = !String(batch.name || '').trim();
+          if (nameless ? tookNameless : !shapeMatchesBone(batch.name, bone)) continue;
+          if (nameless) tookNameless = true;
+          sources.push({ ...batch, fitSlot: src.slot, fitBone: bone });
+        }
+        continue;
+      }
+      const ref = skeleton.byName.get(bone.toLowerCase());
+      const mirrored = (skeleton.nodes.get(ref)?.name ?? '').includes('Left');
+      for (const batch of bound.attached) {
+        sources.push({ ...sourceSkin(batch, { attachRef: bound.attachRef, mirrored, boneOffset: bound.boneOffset || null }), fitSlot: src.slot, fitBone: bone });
+      }
+    }
+  }
+  return sources;
+}
+
+function geomFitCandidate(batch, part) {
+  return !!part.fitSources?.length && !!batch?.positions?.length && !!batch?.indices?.length;
+}
+
+/**
+ * CUFF-FIT (formats/morrowind/mwCuffFit.js): each side's worn cuff (`cuffFit: 'cuff'`, the gauntlet's forearm shapes)
+ * fitted to that side's donor hand (`cuffFit: 'hand'`) in the rest pose, about the wrist - the skeleton's forearm to its
+ * hand. A side with no donor, or a skeleton without those bones, keeps its cuff as it was authored.
+ *
+ * Mac's screenshots (2026-10-26, "the arm shows through the leather glove, a pale stripe, in every pose"; "gaps either
+ * side of the plate's wrist"): the cuff was cut by WEIGHTS - a triangle kept only if all three of its corners rode the
+ * forearm - and a cuff's wrist end rides the hand as much as the arm, so retail's netch cuff lost a long wedge down
+ * its length and the plates their wrist band either side. With a donor bound, the worn gauntlet is cut by WHERE THE
+ * DONOR HAND BEGINS instead: every triangle short of it (CUFF_FIT.bury in) stays - its cuff and its wrist band, whole -
+ * and what the donor hand covers goes (mwCuffFit.js trimToCuff).
+ */
+function fitCuffPieces(assembly, from, wholes = []) {
+  const mine = assembly.pieces.slice(from).filter((p) => p.cuffFit && p.kind === 'skinned');
+  // the worn cuff on the donor gauntlet hand; BETTER-HANDS: the arm's own skin (its wrist) under the bare hand, no flare
+  const pairs = [['cuff', 'hand', {}], ['skin', 'bareHand', { flare: false }]];
+  if (!pairs.some(([c, h]) => (mine.some((p) => p.cuffFit === c) || (c === 'cuff' && wholes.length)) && mine.some((p) => p.cuffFit === h))) return;
+  const ctx = clothingFitContext(assembly);
+  const sideOf = (p) => (/\bleft\b/.test(`${p.bone ?? ''} ${p.bodySection ?? ''} ${p.batch?.name ?? p.whole?.name ?? ''}`.toLowerCase()) ? 'l' : 'r');
+  for (const side of ['l', 'r']) {
+    const handRef = assembly.skeleton.byName.get(`bip01 ${side} hand`), foreRef = assembly.skeleton.byName.get(`bip01 ${side} forearm`);
+    const hand = ctx.mats.get(handRef)?.t, fore = ctx.mats.get(foreRef)?.t;
+    if (!hand || !fore) continue;
+    const frame = wristFrame([...hand], [hand[0] - fore[0], hand[1] - fore[1], hand[2] - fore[2]]);
+    for (const [c, h, opts] of pairs) {
+      const cuffs = mine.filter((p) => sideOf(p) === side && p.cuffFit === c);
+      const donors = mine.filter((p) => sideOf(p) === side && p.cuffFit === h);
+      if (!donors.length) continue;
+      if (c === 'cuff') {
+        const limit = handStart(donors.map((p) => p.batch), ctx, frame);
+        if (limit != null) {
+          for (const p of cuffs) {
+            const t = p.cuffWhole ? trimToCuff(p.cuffWhole, ctx, frame, limit + CUFF_FIT.bury) : null;
+            if (t) { p.batch = t; p.indices = t.indices; }
+          }
+          for (const r of wholes.filter((w) => sideOf({ bone: w.bone, whole: w.whole }) === side)) {
+            const t = trimToCuff(r.whole, ctx, frame, limit + CUFF_FIT.bury, { least: CUFF_FIT.strayShare });
+            if (t) { const p = cuffPiece(r.part, r.bone, t); assembly.pieces.push(p); cuffs.push(p); }
+          }
+        }
+      }
+      if (!cuffs.length) continue;
+      // a worn cuff kept clear of the arm's own skin under it (mwCuffFit.js armGirth)
+      const skins = c === 'cuff' ? mine.filter((p) => sideOf(p) === side && p.cuffFit === 'skin').map((p) => p.batch) : [];
+      const fitted = fitCuffsToHand(cuffs.map((p) => p.batch), donors.map((p) => p.batch), ctx, frame, { ...opts, skins });
+      cuffs.forEach((p, i) => { if (fitted[i] !== p.batch) { p.batch = fitted[i]; p.normals = posedNormals(fitted[i]); } });
+    }
+  }
+}
+
+/** A worn cuff's piece for a shape trimmed whole (fitCuffPieces) - the bind loop's skinned piece, as it builds it. */
+function cuffPiece(part, bone, batch) {
+  return { slot: part.slot, bone, kind: 'skinned', mirrored: false, bodySection: null, batch, source: null, attachRef: null,
+    cuffFit: 'cuff', uvs: batch.uvs || null, colors: batch.colors || null, material: batch.material || null,
+    positions: new Float32Array(batch.positions.length), indices: batch.indices, normals: posedNormals(batch) };
+}
+
+/** Whether any of the batch's skin rides the forearm or the upper arm. */
+function ridesTheArm(batch) {
+  return !!batch?.skin?.bones?.some((b) => /\b(forearm|upper ?arm)\b/.test(String(b.name ?? '').toLowerCase()));
+}
+
+function clothingFitContext(assembly) {
+  const mod = assembly.fns;
+  const pose = mod.poseSkeleton(assembly.skeleton, null, null, 0, {});
+  return { skeleton: assembly.skeleton, pose, mats: mod.skelMats(assembly.skeleton, pose, GRAPH_ROOT), skinBatch: mod.skinBatch };
+}
+
+/**
  * MW-BRIG2: bind a garment SKINNED FROM THE BODY. `part.skinFrom` lists the body parts it is fitted over (the
  * player's own skin meshes, `{ slot, bones?, bytes }`); each is bound exactly as the body binds it - a skinned
  * shape by rule 15's filter per bone, a rigid one at its bone with rule 13's mirror and rule 14's offset - and the
@@ -3067,6 +3429,10 @@ function bindSkinnedFromBody(assembly, part, bones) {
       notes.push(`${part.slot}: no ${part.fitTo} to fit it to - drawn at its baked height`);
     }
   }
+  // Clearance fitting is deliberately not applied at runtime yet. The first
+  // BVH prototype's signed-normal heuristic is not reliable enough on concave
+  // body regions; validate garment placement in the isolated browser preview
+  // before enabling geometric vertex pushes in the live assembly.
   for (const g of worn) {
     for (const batch of transferSkin(g, sources, ctx)) {
       pieces.push({ slot: part.slot, bone: bones[0] ?? null, kind: 'skinned', mirrored: false,
@@ -3097,6 +3463,141 @@ function applyPre(positions, pre) {
  *  shape name, with Morrowind's "Tri " convention stripped first. A shape
  *  with NO name matches everything, because a nameless shape in a
  *  one-shape part file is the part. */
+/**
+ * Better Bodies is one full-body NIF, unlike Morrowind's separate BODY
+ * records. Ordinary slot shadows therefore do not hide its geometry unless
+ * the matching section is omitted here; otherwise breasts/back/limbs remain
+ * drawn through a cuirass or gauntlet even though the armor's own slot wins.
+ * Names are the NIF section names (for example "Tri Chest"), while shadows
+ * are ARMO_PART keys such as "chest" and "hand:right".
+ */
+export function betterBodiesSectionKey(shapeName) {
+  // Better Bodies NIFs can name a drawable after the anatomy ("Hand L")
+  // or after its skeleton node ("Bip01 L Hand"). Normalize exporter
+  // prefixes as well as side/region order; failing to strip Bip01 leaves
+  // every section unrecognized and the vanilla arm remains visible.
+  const name = String(shapeName || '').trim().toLowerCase()
+    .replace(/^tri\s+/, '')
+    .replace(/[._-]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .replace(/^(?:(?:bip(?:ed)?\s*0?1|skeleton|scene root|root)\s+)+/, '')
+    .trim();
+  if (['chest', 'groin', 'neck', 'head', 'hair', 'tail'].includes(name)) return name;
+  const regions = {
+    hand: 'hand', wrist: 'wrist', forearm: 'forearm', 'lower arm': 'forearm',
+    'upper arm': 'upperarm', upperarm: 'upperarm',
+    foot: 'foot', ankle: 'ankle', knee: 'knee',
+    'upper leg': 'upperleg', upperleg: 'upperleg',
+  };
+  let match = /^(left|right) (.+)$/.exec(name);
+  let side = match?.[1] ?? null;
+  let regionName = match?.[2] ?? '';
+  if (!side) {
+    match = /^(.+) (left|right)$/.exec(name);
+    regionName = match?.[1] ?? '';
+    side = match?.[2] ?? null;
+  }
+  if (!side) {
+    match = /^([lr]) (.+)$/.exec(name);
+    side = match?.[1] === 'l' ? 'left' : match?.[1] === 'r' ? 'right' : null;
+    regionName = match?.[2] ?? '';
+  }
+  if (!side) {
+    match = /^(.+) ([lr])$/.exec(name);
+    side = match?.[2] === 'l' ? 'left' : match?.[2] === 'r' ? 'right' : null;
+    regionName = match?.[1] ?? '';
+  }
+  // Better Hands may export the palm and individual digits as separate shapes
+  // (for example "Bip01 L Finger0" or "Thumb R"). Keep those shapes in the
+  // corresponding hand slot instead of dropping them during section filtering.
+  const region = /\b(?:hand|palm|finger|thumb)(?:\s*\d+)?\b/.test(regionName)
+    ? 'hand'
+    : regions[regionName];
+  return side && region ? region + ':' + side : null;
+}
+
+function betterBodiesSectionShadowed(shapeName, shadows = []) {
+  const key = betterBodiesSectionKey(shapeName);
+  return Boolean(key && (shadows ?? []).includes(key));
+}
+
+/** Apply the project's checked-in UV corrections to matching flattened NIF sections.
+ * Prefer stable section names; the index is only a compatibility fallback because
+ * skinned-only binding can omit sections from the original NIF order. */
+export function applyBetterBodiesUvEdits(batches, edits) {
+  let applied = 0;
+  for (const edit of edits ?? []) {
+    const wantedName = String(edit?.name || '').trim().toLowerCase();
+    const batch = (wantedName
+      ? batches?.find((candidate) => String(candidate.name || '').trim().toLowerCase() === wantedName)
+      : null) ?? batches?.[edit.meshIndex];
+    const transform = edit?.transform;
+    if (!batch?.uvs || !transform) continue;
+    const { u = 0, v = 0, su = 1, sv = 1 } = transform;
+    for (let i = 0; i + 1 < batch.uvs.length; i += 2) {
+      batch.uvs[i] = batch.uvs[i] * su + u;
+      batch.uvs[i + 1] = batch.uvs[i + 1] * sv + v;
+    }
+    applied++;
+  }
+  return applied;
+}
+
+export function betterBodiesFallbackSectionKey(slot, bone) {
+  const region = ({ hand: 'hand', wrist: 'wrist', forearm: 'forearm', upperarm: 'upperarm' })[String(slot ?? '').toLowerCase()];
+  if (!region) return null;
+  const name = String(bone ?? '').toLowerCase();
+  const side = /\bleft\b/.test(name) ? 'left' : /\bright\b/.test(name) ? 'right' : null;
+  return side ? `${region}:${side}` : null;
+}
+function betterBodiesSectionVisible(shapeName, showSlots = []) {
+  const key = betterBodiesSectionKey(shapeName);
+  return Boolean(key && (showSlots ?? []).includes(key));
+}
+
+/** THE CUFF OF A GAUNTLET'S HAND FILE: the triangles every corner of which rides mostly the forearm or the upper arm.
+ *  Per triangle, not per shape - retail splits its gauntlet into shapes (a_imperial_skins.nif "Tri Left Hand 3" is the
+ *  cuff, Forearm 58 of 64), but the port's own steel and ebony gauntlets are ONE shape from the fingers to the elbow.
+ *  Answers a copy of the batch drawing those triangles alone, or null when it has none. */
+export function armWeightedTriangles(batch) {
+  const idx = batch?.indices;
+  const onArm = armWeightTest(batch);
+  if (!onArm) return null;
+  const kept = [];
+  for (let t = 0; t + 2 < idx.length; t += 3) {
+    if (onArm(idx[t]) && onArm(idx[t + 1]) && onArm(idx[t + 2])) kept.push(idx[t], idx[t + 1], idx[t + 2]);
+  }
+  if (!kept.length) return null;
+  return kept.length === idx.length ? batch : { ...batch, indices: Uint16Array.from(kept) };
+}
+/** Whether vertex v of the batch rides mostly the forearm or the upper arm - null for a batch with no skin. */
+function armWeightTest(batch) {
+  const count = (batch?.positions?.length ?? 0) / 3;
+  if (!batch?.indices?.length || !count || !batch.skin?.bones?.length) return null;
+  const arm = new Float32Array(count), all = new Float32Array(count);
+  for (const b of batch.skin.bones) {
+    const isArm = /\b(forearm|upper ?arm)\b/.test(String(b.name ?? '').toLowerCase());
+    const vs = b.indices ?? [], ws = b.weights ?? [];
+    for (let i = 0; i < vs.length; i++) {
+      all[vs[i]] += ws[i];
+      if (isArm) arm[vs[i]] += ws[i];
+    }
+  }
+  return (v) => all[v] > 0 && arm[v] / all[v] > 0.5;
+}
+/** CUFF-FIT: THE DONOR'S OWN CUFF - a shape of the donor hand's file most of whose triangles ride the arm (Robert's
+ *  "Tri Left Hand 2", elbow to wrist, 250 of 440), which the worn gauntlet's cuff stands in for. Its hands and fingers
+ *  ("Tri Left Hand 0", 7 arm triangles of 816 - the wrist's own) are not one. */
+export function isDonorCuffShape(batch) {
+  const idx = batch?.indices;
+  const onArm = armWeightTest(batch);
+  if (!onArm) return false;
+  let arm = 0;
+  for (let t = 0; t + 2 < idx.length; t += 3) if (onArm(idx[t]) && onArm(idx[t + 1]) && onArm(idx[t + 2])) arm++;
+  return arm * 2 >= idx.length / 3;
+}
+
 export function shapeMatchesBone(shapeName, bone) {
   const name = String(shapeName || '').trim().toLowerCase();
   if (!name) return true;
@@ -3483,6 +3984,42 @@ export function clipSweepTimes(sources, idleState, { perClip = 9 } = {}) {
     for (let i = 0; i < perClip; i++) out.push(a + ((b - a) * i) / (perClip - 1));
   }
   return out;
+}
+
+/** LOAD-STALL 2 (bible/07-Rendering/Load-Stalls.md): clipUnionBounds IN SLICES. The reach sweep poses the whole arm at
+ *  every clip's samples - two thousand poses on a retail rig with the animation packs, measured 500-750 ms held on the
+ *  frame's thread at every equip (tools/mwBuildProbe.mjs). The same union, the same poses in the same order; the thread
+ *  is handed back each `budgetMs`. `yieldNow` is the door back (a macrotask by default). */
+const macrotask = () => new Promise((resolve) => {
+  if (typeof globalThis.MessageChannel === 'function') { const ch = new globalThis.MessageChannel(); ch.port1.onmessage = () => { ch.port1.close(); resolve(); }; ch.port2.postMessage(0); }
+  else setTimeout(resolve, 0);
+});
+export async function clipUnionBoundsSliced(assembly, poseAt, times, { budgetMs = 6, yieldNow = macrotask, now = () => performance.now() } = {}) {
+  let acc = null;
+  let mark = now();
+  for (const t of times ?? []) {
+    poseAt(t);
+    const b = assembly.bounds;
+    if (b) {
+      acc = acc ? {
+        minX: Math.min(acc.minX, b.minX), minY: Math.min(acc.minY, b.minY), minZ: Math.min(acc.minZ, b.minZ),
+        maxX: Math.max(acc.maxX, b.maxX), maxY: Math.max(acc.maxY, b.maxY), maxZ: Math.max(acc.maxZ, b.maxZ),
+      } : { ...b };
+    }
+    if (now() - mark >= budgetMs) { await yieldNow(); mark = now(); }
+  }
+  return acc;
+}
+
+/** LOAD-STALL 2: A SHADOW OF THE ARM TO SWEEP - its skeleton, its pieces' bind data and placement, every posed output
+ *  its own (positions; no normals - a box reads none). Posing it writes nothing of the arm's: the frame's crossfade
+ *  reads the arm's last raw pose (fpArm's fpBlend), so a sweep run beside the frames must never pose the arm itself.
+ *  No afterPose: the one there is (the cloak's follow) is the third body's, never swept. */
+export function sweepShadowOf(assembly) {
+  return {
+    fns: assembly.fns, skeleton: assembly.skeleton, afterPose: null,
+    pieces: (assembly.pieces ?? []).map((p) => ({ ...p, positions: new Float32Array(p.positions?.length ?? 0), normals: null, sourceNormals: null, box: undefined })),
+  };
 }
 
 export function clipUnionBounds(assembly, poseAt, times) {

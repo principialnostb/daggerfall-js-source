@@ -1,3 +1,4 @@
+import { INVENTORY_FACES_CSS } from './inventoryFacesStyle.js';
 // PLUS1 (2026-09-25): THE ENHANCED PLUS SHEET - everything the refresh dresses the enhanced skin in, as ONE sheet
 // injected after the enhanced one (systems/uiSkin.js isEnhancedPlus). Plus is the enhanced sheet with this laid over
 // it, which is why every rule here is written to win by ORDER over the enhanced rule it replaces. PLUS-ONLY
@@ -2659,6 +2660,52 @@ export const ARMOUR_CSS = `
   color: #efe8d6; background: rgba(5,6,8,0.8); border: 1px solid rgba(192,138,62,0.8); border-radius: 7px 7px 1px 1px;
   text-shadow: 1px 1px 0 #050608; }
 .pack-shell .equipped .worncount ~ .wornhood { right: 20px; }
+/* LOOK-VARIANTS: a worn piece with other looks - a small set gem in the free corner, the rune's gold; it wakes when the
+   panel is hovered or picked, as a stone catches the light */
+.pack-shell .equipped .wornlook { position: absolute; right: 6px; bottom: 6px; z-index: 2; width: 7px; height: 7px;
+  transform: rotate(45deg); background: linear-gradient(135deg, #f3d48a, #8a5a1c); border: 1px solid #050608;
+  box-shadow: 0 0 0 1px rgba(192,138,62,0.55); opacity: 0.75; transition: opacity 0.2s, box-shadow 0.2s; pointer-events: none; }
+.pack-shell .equipped .wornrow:hover .wornlook, .pack-shell .equipped .wornrow.on .wornlook { opacity: 1;
+  box-shadow: 0 0 0 1px rgba(243,212,138,0.9), 0 0 6px 1px rgba(243,212,138,0.55); }
+/* LOOK-THUMBS: a worn piece's looks in its card - one framed picture each, the worn one lit in the rune's gold */
+.pack-shell .look-row { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; width: 100%; margin: 2px 0 4px; }
+.pack-shell .look-pick { width: 56px; height: 56px; padding: 2px; display: flex; align-items: center; justify-content: center;
+  background: radial-gradient(circle at 50% 40%, rgba(70,62,48,0.55), rgba(8,9,12,0.85)); border: 1px solid rgba(192,138,62,0.35);
+  cursor: pointer; transition: border-color 0.15s, box-shadow 0.15s; }
+.pack-shell .look-pick img { width: 100%; height: 100%; object-fit: contain; image-rendering: pixelated; pointer-events: none; }
+.pack-shell .look-pick .look-name { font-size: 10px; color: #e6dec6; text-transform: uppercase; letter-spacing: 0.08em; }
+.pack-shell .look-pick:hover, .pack-shell .look-pick:focus-visible { border-color: rgba(243,212,138,0.8); }
+.pack-shell .look-pick.on { border-color: #f3d48a; box-shadow: 0 0 0 1px rgba(243,212,138,0.9), 0 0 8px 1px rgba(243,212,138,0.45); }
+.pack-shell .helmet-appearance { width: 100%; }
+.pack-shell .look-tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin: 3px 0 8px; }
+/* Use the very same .act/.primary skin as Take off/Info; only layout belongs here. */
+.pack-shell .look-tabs .look-tab { width: 100%; text-align: center; }
+.pack-shell .helmet-appearance .look-panel { min-height: 90px; display: flex; align-items: center; justify-content: center;
+  padding: 0; background: transparent; border: 0; }
+.pack-shell .helmet-appearance .look-pick { box-sizing: border-box; width: 68px; height: 76px; padding: 6px;
+  border-color: #756448; box-shadow: inset 1px 1px #37362e, inset -1px -1px #08090b; }
+.pack-shell .helmet-appearance .look-pick.on { border-color: #f3d48a;
+  box-shadow: inset 0 0 0 1px #ab8948, 0 0 6px #c89c4d55; }
+/* Equal full-image bounds make bare domes huge and crested helmets tiny.
+   These per-design corrections normalize the helmet body, keeping 3D open/horned unchanged. */
+.pack-shell .helmet-appearance [data-helmet-model="closed"] img { transform: scale(1.16); }
+.pack-shell .helmet-appearance [data-helmet-art="0"] img,
+.pack-shell .helmet-appearance [data-helmet-art="1"] img { transform: scale(.88); }
+.pack-shell .helmet-appearance [data-helmet-art="2"] img { transform: scale(.76); }
+.pack-shell .helmet-appearance [data-helmet-art="3"] img,
+.pack-shell .helmet-appearance [data-helmet-art="4"] img { transform: scale(1.06); }
+.pack-shell .helmet-appearance [data-helmet-art="5"] img { transform: scale(.88); }
+.pack-shell .look-cards { display: grid; grid-template-columns: repeat(3, 68px); gap: 8px; }
+.pack-shell .helmet-2d-row { flex-wrap: nowrap; align-items: center; }
+.pack-shell .look-pages { display: flex; flex-direction: column; gap: 6px; }
+.pack-shell .look-pages button { position: relative; width: 30px; height: 34px; padding: 0;
+  background: linear-gradient(#292b30, #15171c); border: 1px solid #a38a56;
+  box-shadow: inset 1px 1px #49473d, inset -1px -1px #08090b; color: #e4d3a2; cursor: pointer; }
+.pack-shell .look-pages button::before { content: ''; position: absolute; left: 9px; top: 13px; width: 8px; height: 8px;
+  border-top: 2px solid currentColor; border-left: 2px solid currentColor; transform: rotate(45deg); }
+.pack-shell .look-pages .look-page-next::before { top: 9px; transform: rotate(225deg); }
+.pack-shell .look-pages button:disabled { color: #625d4e; border-color: #4e493c; cursor: default; }
+.pack-shell .look-pages button:enabled:hover, .pack-shell .look-pages button:focus-visible { border-color: #f3d48a; color: #fff0b7; }
 /* CAPE-TOGGLE: the Cape switch, an eye in the Cloaks panel's bottom-right corner (its grid-cell sibling), lit while shown.
    The top-right stays the count's and the raised hood's; on a phone, where the name stands at the panel's foot, it keeps
    the corner's room (the touch-phone rule's own query, ui/enhanced/enhancedStyle.js PACK-PHONE) */
@@ -2765,4 +2812,5 @@ ${MENU_CSS}
 ${FRAME_CSS}
 /* RARITY-UI + SIGIL-UI, then PLUS-DRESS: after the kit - each outranks the kit's stone at the same weight */
 ${OVER_KIT_CSS.join('\n')}
+${INVENTORY_FACES_CSS}
 `;

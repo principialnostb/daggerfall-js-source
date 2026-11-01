@@ -14,6 +14,7 @@ import { readFileSync } from 'node:fs';
 import { parseNif } from '../../../src/formats/morrowind/mwNifFile.js';
 import { flattenNif } from '../../../src/formats/morrowind/mwNifMesh.js';
 import { assembleFirstPersonArm } from '../../../src/formats/morrowind/mwFirstPerson.js';
+import { fitGarmentClearance } from '../../../src/formats/morrowind/mwSkinTransfer.js';
 import { composeWornArmor, fpWornAdds } from '../../../src/formats/morrowind/mwItemMap.js';
 import { ARMOR_MATERIAL } from '../../../src/systems/armorMaterials.js';
 import { CLASSIC_ARMOR_TEMPLATE, ownArmorModelFor, ownArmorParts, STEEL_HELM_STYLES } from '../../../src/characters/ownModels/ownArmorModels.js';
@@ -97,16 +98,17 @@ test('MW-FIT1: so each pauldron hides its upper arm in the third person - and no
 
 test('MW-FIT1: a closed helm is the head - the steel plate\'s closed helm and the ebony helm hide it, as retail\'s closed helmets fill its slot; the open helm shows the face and keeps it; each takes the hair', () => {
   const steelHelm = [piece(T.Helm, 'Steel')];
-  assert.deepEqual(STEEL_HELM_STYLES, ['closed', 'open']);
+  assert.deepEqual(STEEL_HELM_STYLES, ['closed', 'open', 'horned']);
   assert.deepEqual(compose(steelHelm).shadows, ['head', 'hair'], 'the closed steel helm, the default');
   assert.deepEqual(compose(steelHelm, 'closed').shadows, ['head', 'hair']);
   assert.deepEqual(compose(steelHelm, 'open').shadows, ['hair'], 'the open helm leaves the head');
+  assert.deepEqual(compose(steelHelm, 'horned').shadows, ['hair'], 'MW-HORN5: the horned helm is open under its mask - it leaves the head');
   assert.deepEqual(compose([piece(T.Helm, 'Ebony')]).shadows, ['head', 'hair'], 'the ebony helm is closed');
   // the helm's own mesh stays in the hair slot (its shapes are named for it - rule 15); the head is occupied with none
-  for (const [metal, style] of [['Steel', 'closed'], ['Steel', 'open'], ['Ebony', undefined]]) {
+  for (const [metal, style] of [['Steel', 'closed'], ['Steel', 'open'], ['Steel', 'horned'], ['Ebony', undefined]]) {
     const worn = compose([piece(T.Helm, metal)], style);
     assert.deepEqual(worn.adds.map((a) => a.partName), ['hair'], `${metal} ${style ?? ''}: one add, the hair's`);
-    assert.deepEqual(ownArmorParts(ownArmorModelFor(piece(T.Helm, metal)), { helmStyle: style }).map((p) => p.hides ?? []), [style === 'open' ? [] : ['head']]);
+    assert.deepEqual(ownArmorParts(ownArmorModelFor(piece(T.Helm, metal)), { helmStyle: style }).map((p) => p.hides ?? []), [style === 'open' || style === 'horned' ? [] : ['head']]);
   }
 });
 
@@ -142,4 +144,54 @@ test('MW-FIT1: the closed helms stand where Mac fitted them on the body - in ret
   assert.ok(covered['Steel 0'].every((n) => n >= 26), `the steel visor and breastplate round most of the neck at every height: ${covered['Steel 0']}`);
   assert.ok(covered[`Ebony ${HELM_LIFT}`].some((n) => n < 30), `raised, the ebony coif leaves the neck bare: ${covered[`Ebony ${HELM_LIFT}`]}`);
   assert.ok(covered[`Steel ${HELM_LIFT}`].some((n) => n < 10), `raised, the steel helm leaves a band of neck: ${covered[`Steel ${HELM_LIFT}`]}`);
+});
+
+test('MW-FIT2: trousers conform to the nearest body surface while preserving their own UVs and leaving the body unchanged', () => {
+  const body = {
+    positions: Float32Array.from([-1, -1, 0, 1, -1, 0, 1, 1, 0, -1, 1, 0]),
+    indices: Uint16Array.from([0, 1, 2, 0, 2, 3]),
+  };
+  const garment = {
+    positions: Float32Array.from([-0.5, -0.5, 1, 0.5, -0.5, 1, 0, 0.5, 1]),
+    indices: Uint16Array.from([0, 1, 2]),
+    uvs: Float32Array.from([0, 0, 1, 0, 0.5, 1]),
+    material: { texture: 'pants.dds' },
+  };
+  const bodyBefore = Float32Array.from(body.positions);
+  const uvBefore = Float32Array.from(garment.uvs);
+  const ctx = { skinBatch: (batch, _skeleton, _pose, _mats, out) => out.set(batch.positions) };
+  const fitted = fitGarmentClearance(garment, [body], ctx, {
+    clearance: 0.18, maxDistance: 4, conform: true,
+  });
+  assert.notEqual(fitted, garment, 'the fitted garment receives its own adjusted position buffer');
+  assert.ok(Array.from({ length: 3 }, (_, v) => fitted.positions[v * 3 + 2]).every((z) => Math.abs(z - 0.18) < 1e-5),
+    'all garment vertices land on the body surface plus the 0.18 fabric clearance');
+  assert.deepEqual(fitted.uvs, uvBefore, 'the garment keeps its authored UVs');
+  assert.equal(fitted.material, garment.material, 'the garment keeps its authored material');
+  assert.deepEqual(body.positions, bodyBefore, 'the body source geometry is never mutated');
+});
+
+test('MW-FIT2: left and right trouser panels only conform to their own leg surface even when the opposite leg is closer', () => {
+  const plane = (x, fitBone) => ({
+    positions: Float32Array.from([x, -2, -2, x, 2, -2, x, 2, 2, x, -2, 2]),
+    indices: Uint16Array.from([0, 1, 2, 0, 2, 3]),
+    fitSlot: 'upperleg',
+    fitBone,
+  });
+  const left = plane(-1, 'Bip01 L Thigh');
+  const right = plane(-0.85, 'Bip01 R Thigh'); // deliberately closer to the garment
+  const garment = {
+    positions: Float32Array.from([-0.9, -0.2, -0.2, -0.9, 0.2, -0.2, -0.9, 0, 0.2]),
+    indices: Uint16Array.from([0, 1, 2]),
+    uvs: Float32Array.from([0, 0, 1, 0, 0.5, 1]),
+  };
+  const ctx = { skinBatch: (batch, _skeleton, _pose, _mats, out) => out.set(batch.positions) };
+  const fitted = fitGarmentClearance(garment, [left, right], ctx, {
+    clearance: 0.18, maxDistance: 4, conform: true, side: 'left',
+  });
+  for (let i = 0; i < fitted.positions.length; i += 3) {
+    assert.ok(Math.abs(fitted.positions[i] - (-0.82)) < 1e-5,
+      'the left trouser panel follows the left thigh rather than the closer right thigh');
+  }
+  assert.deepEqual(fitted.uvs, garment.uvs, 'side-aware fitting preserves authored UVs');
 });

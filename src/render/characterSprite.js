@@ -17,6 +17,28 @@ import { CHAR_PIXEL, CHAR_SPRITE_RT_SIZE, MW_ARM_PIXEL } from './renderer.js';
 import { getPref } from '../systems/uiPrefs.js';   // BODY-CARD: the billboard look, read where the card is stood
 import { glowPad } from './weaponGlowGlsl.js';   // WEAPON-GLOW1 (AUDIT MW-3): a glowing weapon's outline's room - a leaf
 
+// MW-TP-SHARP: Morrowind third-person meshes get one render texel per screen pixel, not the FP viewmodel's chunky 3px dial.
+export const MW_THIRD_PERSON_PIXEL = 1;
+
+// MW-TP-STABLE: hold the per-mesh sprite height through one-pixel projection
+// fluctuations. Re-rounding the render target every frame makes fine details
+// (especially heads and shoulders) shimmer when the camera is nearly still.
+const stableSpriteHeight = new WeakMap();
+function stablePixelHeight(mesh, wanted) {
+  if (!mesh || typeof mesh !== 'object') return wanted;
+  const previous = stableSpriteHeight.get(mesh);
+  if (!Number.isFinite(previous)) {
+    stableSpriteHeight.set(mesh, wanted);
+    return wanted;
+  }
+  const deadband = Math.max(2, Math.round(previous * 0.02));
+  if (Math.abs(wanted - previous) >= deadband) {
+    stableSpriteHeight.set(mesh, wanted);
+    return wanted;
+  }
+  return previous;
+}
+
 /** World up - landAnchor's vertical when it is handed none, and the upright card's (BODY-CARD). */
 const WORLD_UP = Object.freeze([0, 1, 0]);
 /** AUDIT RETRO1 C6: a texel of `pixel` screen pixels in the pixels of the image the world is drawn into - `span` the
@@ -92,8 +114,9 @@ export function bodyFxPad(fx) {
 /** COATS3D: `also`, optional - more meshes in the same picture ({ mesh, model } each: the horse under a rider), drawn
  *  after `mesh` under the same camera and depth (renderer.js _renderCharacterSprite, and a batch's tiles). The box is the caller's, and holds
  *  them all. */
-export function drawRigSpriteBox(renderer, canvas, mesh, rigMat, { center, halfW: boxW, halfH: boxH, anchor = null, hitFlash = 0, conceal = null, up = null, fx = null, also = null, glowLook = null }, proj, view, eye, pixel = CHAR_PIXEL) {   // WEAPON-GLOW1: `glowLook` the held weapon's glow, whose outline needs room
-  const aim = anchor && Math.hypot(anchor[0] - eye[0], anchor[1] - eye[1], anchor[2] - eye[2]) > 1e-6 ? anchor : center;   // PR-BOW1: the ray the picture is taken along
+export function drawRigSpriteBox(renderer, canvas, mesh, rigMat, { center, halfW: boxW, halfH: boxH, anchor = null, lookAt: targetOverride = null, hitFlash = 0, conceal = null, up = null, fx = null, also = null, glowLook = null }, proj, view, eye, pixel = CHAR_PIXEL) {   // WEAPON-GLOW1: `glowLook` the held weapon's glow, whose outline needs room
+  const target = targetOverride ?? anchor;
+  const aim = target && Math.hypot(target[0] - eye[0], target[1] - eye[1], target[2] - eye[2]) > 1e-6 ? target : center;   // PR-BOW1: the ray the picture is taken along
   // BODY-FLAT (2026-10-23, a player: "The billboard look still has the same issue"; asked, a true flat sprite): THE
   // BILLBOARD LOOK IS A CLASSIC FLAT. Its card was upright with the picture taken down the PITCHED ray, so the eye
   // foreshortened the body twice - cos(pitch) of its height, and up close, where the ray to a body's middle points nearly
@@ -151,6 +174,7 @@ export function drawRigSpriteBox(renderer, canvas, mesh, rigMat, { center, halfW
   const rows = span ? span[0] : canvas.clientHeight;
   const cap = renderer.charSpriteRoom?.(Math.min(Math.round(screenPxH / texel), Math.ceil(rows / texel))) ?? CHAR_SPRITE_RT_SIZE;
   let ph = Math.min(cap, Math.max(2, Math.round(screenPxH / texel)));
+  if (pixel === MW_THIRD_PERSON_PIXEL) ph = stablePixelHeight(mesh, ph);
   // MWNPC5: the tells' room - `pad` texels a side, the world half-extents grown by the same texels (one texel the
   // picture's 2 halfH / ph), so a texel stays the size it was. AUDIT WEAPON-GLOW MW-3: and a glowing weapon's outline's
   // (render/weaponGlowGlsl.js glowPad) - the larger of the two, as both stand off the same silhouette

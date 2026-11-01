@@ -139,6 +139,7 @@ import { exportSavesZip, collectSlots, importSlots, entriesFromFiles, slotPathOf
 import { appStorage, tabStorage } from '../../systems/appStorage.js';   // SP1: the store under this build - the browser's on the site, the file store in the app   // SAV4: the slot store; SLOTS1: every slot
 import { uiSkin, SKIN_NAMES, isEnhanced } from '../../systems/uiSkin.js';   // FD1: which boot rail
 import { getPref, setPref, isOpen, setOpen, PREF_DEFAULTS } from '../../systems/uiPrefs.js';
+import { SUPPORTED_MODS, supportedModFound } from '../../systems/supportedMods.js'; // MODS-BYO
 import { EG_DANGER_PALETTES, EG_DANGER_PALETTE_KEYS } from '../eliteGates/egAccess.js';   // EG-G1: the Spire's danger palettes, named once
 import { TOUCH_BUTTON_SLOTS, touchButtonSlots, nextTouchButton, touchButtonChoices } from '../touch/touchButtons.js';   // TOUCH-BUTTONS: the corner's three slots
 import { DEFAULT_SERVER } from '../../net/online.js';   // ONLINE1: the relay this port hosts, the field's placeholder   // R7: the port's own switches; SO1: the folded tiers' memory
@@ -2008,7 +2009,7 @@ function itemNodes(item, ctx) {
   if (item === 'mods-index') return modsIndexRows();
   if (item === 'bindings') { const box = el('div', 'opt-bindings'); paneControls(box, { render }); return [box]; }
   if (item.startsWith('card:')) {
-    const make = { morrowind: () => morrowindCard(), packs: () => packsCard(), peerSprites: () => peerSpritesCard(), nightSounds: () => nightSoundsCard() }[item.slice(5)];
+    const make = { morrowind: () => morrowindCard(), packs: () => packsCard(), supportedMods: () => supportedModsCard(), peerSprites: () => peerSpritesCard(), nightSounds: () => nightSoundsCard() }[item.slice(5)];
     return make ? [make()] : [];
   }
   return [];
@@ -3390,6 +3391,9 @@ export function morrowindCard({ count = morrowindDataCount(), armState = fpArm.s
       },
     ) });
   }
+  // MW-TP-ONLY: the Morrowind body in third person alone (combat/weapon/weaponRig.js)
+  mw.append(el('p', 'meta', `Third Person: ${getPref('morrowindThirdPersonOnly') ? 'On' : 'Off'}`));
+  actions.push({ label: 'Third Person', onClick: () => { setPref('morrowindThirdPersonOnly', !getPref('morrowindThirdPersonOnly')); render(); } });
   mw.append(acts(actions));
   for (const line of morrowindTroubleLines(armState)) mw.append(el('p', 'meta', line));
   return mw;
@@ -3467,6 +3471,24 @@ function waitForTextureStore() {
  *  DFMOD1: and every pack comes OFF here too - each has a Remove beside its Attach once something is attached,
  *  behind the same confirm Delete Save uses - and Daggerfall Unity .dfmod texture mods (DREAM and its kin) attach
  *  as files, each listed with its own Remove. */
+/** MODS-BYO: the third-party packs the game has adapters for, found or not; a missing one links to its author's page. */
+function supportedModsCard() {
+  const c = el('div', 'card');
+  c.append(el('h3', null, t('menu.supportedMods.title', 'Supported Morrowind mods')));
+  c.append(el('p', 'meta', t('menu.supportedMods.blurb', 'Their files stay with their authors. Download them yourself. For now the game finds them only in a local Mods folder.')));
+  for (const mod of SUPPORTED_MODS) {
+    const row = el('div', 'card');
+    row.append(el('p', null, mod.name));
+    if (supportedModFound(mod.id)) row.append(el('p', 'meta', t('menu.supportedMods.found', 'Installed')));
+    else {
+      row.append(el('p', 'meta', t('menu.supportedMods.missing', 'Not installed')));
+      row.append(acts([{ label: t('menu.supportedMods.get', 'Get from Nexus Mods'), onClick: () => window.open(mod.url, '_blank', 'noopener') }]));
+    }
+    c.append(row);
+  }
+  return c;
+}
+
 function packsCard() {
   waitForTextureStore();   // AUDIT VE R2: the attached mods registered before they are listed - a host may not have yet
   installVanillaEnhancedPack();   // VE4: the shipped mods are listed even before a host has registered the store

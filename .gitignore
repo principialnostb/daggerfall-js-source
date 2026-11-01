@@ -123,3 +123,21 @@ Thumbs.db
 desktop.ini
 # the private server bundles (scripts/privateRelay.mjs)
 app/private/
+
+# MW-STOCK: Morrowind's own data and the mod packs whose terms do not allow carrying them (docs/PR-Asset-Manifest.md).
+/Morrowind models/
+/Mods/*
+!/Mods/Animations/
+/Mods/Animations/*
+!/Mods/Animations/OpenMW Dynamic Animations/
+# MW-HORN5, MW-IRON1: Skyrim's meshes and paintings, made from the player's own install (tools/skyrim/), never committed.
+src/assets/mw/source/Steel_Plate_Horned_Helm.*
+src/assets/mw/meshes/steel_plate_helm_horned.nif
+src/assets/mw/textures/steel_plate_helm_horned.dds
+src/assets/mw/looks/steel_plate_helm_horned.png
+src/assets/mw/meshes/iron_*.nif
+src/assets/mw/textures/iron_*.dds
+src/assets/mw/looks/iron_*.png
+src/assets/mw/meshes/skyrim_steel_battleaxe.nif
+src/assets/mw/textures/skyrim_steel_battleaxe.dds
+src/assets/mw/looks/skyrim_steel_battleaxe.png

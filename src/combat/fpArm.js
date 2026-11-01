@@ -1,3 +1,6 @@
+import { MW_STOCK } from '../systems/mwStockChoices.js';   // MW-STOCK
+import { setPlayerBusyProbe } from '../characters/playerBuildHold.js';   // LOAD-STALL 3
+import { modDiagnostics } from '../systems/modDiagnostics.js';   // MOD-DIAG1: trace cloak resolution through the live third-person build
 // MW-D8: THE MORROWIND FIRST-PERSON ARM, IN THE GAME.
 //
 // Seven stages of this arc shipped diagnostics and nothing touched the
@@ -49,6 +52,7 @@ import { climbRequestToRig, climbRequestToFirstPerson } from './climbRig.js';   
 import { seatRequestFor, seatedCamera, saddleRequestFor } from '../player/seatPose.js';   // CARDS2b: the seat in the rig's space; WAGONS3: and the body still on it; COATS3D: and astride
 import { fieldOfView } from '../ui/viewSettings.js';   // CLIMB6: the world lens the arm's hands are matched to
 import { CHAR_SPRITE_RT_SIZE } from '../render/renderer.js';
+import { blockPixels, boxCorners, charPixelRows, drawPixelatedCharacters } from '../render/charPixelLayer.js';   // CHAR-PIX1
 import {
   sampleTrack, resetClip, advanceClip, getTextKeyTime, getStartTime,
 } from '../formats/morrowind/mwAnim.js';
@@ -57,11 +61,11 @@ import { nodeTransformOf } from '../formats/morrowind/mwCharacter.js';
 import { parseNif } from '../formats/morrowind/mwNifFile.js';
 import { flattenNif } from '../formats/morrowind/mwNifMesh.js';
 import {
-  assembleFirstPersonArm, poseAssembly, armPieceRows, clipReport, clipUnionBounds, clipSweepTimes, bindPartsInto,
+  assembleFirstPersonArm, poseAssembly, armPieceRows, clipReport, clipUnionBounds, clipUnionBoundsSliced, sweepShadowOf, clipSweepTimes, bindPartsInto,
   armReport, armMeshPaths, bodyParts,
   weaponRecords, dfWeaponToMw, dfWeaponShape, pickWeaponRecord, weaponAttachBone, MW_WEAPON_TYPE,
   ammoTypeFor, arrowAttachBone, ARROW_FALLBACK_NODE, reloadsItself, shootsRatherThanSwings,
-  firstPersonCameraRef, composeStanceGroup, composeWeaponGroup, mwAttackType, attackKeys, MW_SHOOT_ATTACK, strikeReversed,
+  firstPersonCameraRef, composeStanceGroup, sneakIdleGroup, composeWeaponGroup, mwAttackType, attackKeys, MW_SHOOT_ATTACK, strikeReversed,
   weaponShortGroup, calculateWindUp, releaseStartPoint, EQUIP_KEYS, UNEQUIP_KEYS, isRealWeapon,
   aimingFactor, fpAnimSources, pickAnimSource, anySourceHasGroup, FP_BASE_MODEL, animSourceName,
   gmstValue, GMST_SNEAK_DELTA, sneakOffset,
@@ -78,20 +82,313 @@ import {
   placeAtBone,   // TWO-HANDS AUDIT 2: a blade placed at rest, for the pair's guard (bladePictureHeight)
 } from '../formats/morrowind/mwFirstPerson.js';
 import { PART_BONES, dfRaceKeyOf } from '../formats/morrowind/mwNpc.js';
+import { betterBodiesAssetUrls, betterBeastsAssetUrls, robertBodiesFirstPersonAssetUrls } from '../formats/morrowind/mwBetterBodies.js';
+import { firstPersonHandsSource } from '../formats/morrowind/mwBetterBodiesPaths.js';
+import { prepareThumbFist, FIST_GROUP } from '../formats/morrowind/mwThumbFist.js';   // THUMB-FIST: the clenched fist's thumb, Better Bodies'
 import { isHandWraps } from '../characters/handWrapsIds.js';   // HAND-WRAPS: the empty hand, glowing
 import { portraitFeatures, headFeatures, hairFeatures, matchFace, FACE_MATCH_VERSION } from '../formats/morrowind/mwFaceMatch.js';
 import { CifRciFile } from '../formats/cifRciFile.js';
 import { DFPalette } from '../formats/dfPalette.js';
 import { raceArt } from '../systems/races.js';
 import { appStorage } from '../systems/appStorage.js';   // DA1: the storage seam
-import { drawBodyPicture, mwModelPixel } from '../render/characterSprite.js';
+import { modSetting } from '../systems/modSettings.js';
+import { loadWalkAnimationAssets, loadFirstPersonAnimationAssets, loadHitReactionAnimationAssets, loadOpenMWDynamicThirdPersonAnimationAssets, selectOpenMWDynamicAnimationVariants, isMovementAnimationGroup, isMovementAnimationKey, isWalkAnimationGroup, isWalkAnimationKey, isRunAnimationGroup, isRunAnimationKey, isWalkVariantEnabled, isRunVariantEnabled, walkVariantForActor, runVariantForActor, remapAnimationGroupKeys, normalizeAnimationGroupKeys, hitReactionTargetGroup, hitReactionTransitionBlend } from '../formats/morrowind/mwWalkAnimationAssets.js';
+import { drawRigSpriteBox, MW_THIRD_PERSON_PIXEL } from '../render/characterSprite.js';
 import { WEAPONS } from '../characters/weapons.js';
 import { materialName } from '../systems/item/itemInfo.js';
+import { ARMOR_MATERIAL } from '../systems/armorMaterials.js';
 import { composeWornArmor, composeWornModest, shadowSkinRows, fpWornAdds, mwArmorRecords, mwClothingRecord, CLOTHING_NAME, werewolfRobeOf, firstPersonPartGroup } from '../formats/morrowind/mwItemMap.js';   // WEREWOLF1: the robe and its first-person ladder; NUDE-FLATS: the upper weld
 import { showNudity } from '../characters/nudeFlats.js';   // NUDE-FLATS: Show Nudity, the weld's switch
 import { getPref } from '../systems/uiPrefs.js';   // MW-STEEL1: the Steel Helm switch, read where the worn set is composed
 import { skinMips, skinUseOf, skinUseKey } from '../characters/werewolfSkin.js';   // SHADOW-FANG: the werewolf's skin, a law over its own textures
 import { correctTexturePath, correctActorModelPath, wrapModes, warningImage, decodeTextureImage } from '../formats/morrowind/mwTexture.js';
+
+// Robert's Bodies Based Gauntlets (Pherim): use its finger/hand geometry as a temporary
+// first-person donor for all gauntlets, while retaining the equipped model's texture path.
+const robertIronGauntletFirstPersonUrls = typeof window !== 'undefined'
+  ? import.meta.glob("../../Mods/Textures/Robert's Bodies Based Gauntlets/meshes/a/a_iron_hands.1st.nif", {
+      eager: true, query: '?url', import: 'default',
+    })
+  : {};
+const robertIronGauntletFirstPersonUrl = Object.values(robertIronGauntletFirstPersonUrls)[0] ?? null;
+
+const animationDiagnosticStorageKey = 'morrowind-animation-diagnostics-v1';
+const MAX_MEMORY_ANIMATION_DIAGNOSTICS = 1000;
+const MAX_PERSISTED_ANIMATION_DIAGNOSTICS = 200;
+let storedAnimationDiagnostics = [];
+try {
+  const saved = globalThis.localStorage?.getItem(animationDiagnosticStorageKey);
+  if (saved) {
+    const parsed = JSON.parse(saved);
+    if (Array.isArray(parsed)) storedAnimationDiagnostics = parsed.slice(-MAX_MEMORY_ANIMATION_DIAGNOSTICS);
+  }
+} catch (error) {
+  console.warn('[Morrowind animation diagnostic] Could not read persistent local diagnostics:', error);
+}
+const animationDiagnosticKeys = new Set(
+  storedAnimationDiagnostics.map((entry) => entry?._diagnosticKey).filter(Boolean),
+);
+const animationDiagnosticLog = globalThis.__morrowindAnimationDiagnostics
+  ?? (globalThis.__morrowindAnimationDiagnostics = storedAnimationDiagnostics);
+
+function logAnimationDiagnostic(key, detail) {
+  if (animationDiagnosticKeys.has(key)) return;
+  animationDiagnosticKeys.add(key);
+  const entry = { timestamp: new Date().toISOString(), ...detail, _diagnosticKey: key };
+  animationDiagnosticLog.push(entry);
+  // Persist each event immediately in this browser profile, across reloads.
+  // Bound both the in-memory log and the durable snapshot. Older builds wrote up to 5,000
+  // detailed events on every event, which could permanently exceed the browser's storage quota.
+  if (animationDiagnosticLog.length > MAX_MEMORY_ANIMATION_DIAGNOSTICS) {
+    animationDiagnosticLog.splice(0, animationDiagnosticLog.length - MAX_MEMORY_ANIMATION_DIAGNOSTICS);
+  }
+  try {
+    globalThis.localStorage?.setItem(animationDiagnosticStorageKey, JSON.stringify(animationDiagnosticLog.slice(-MAX_PERSISTED_ANIMATION_DIAGNOSTICS)));
+  } catch {
+    // Existing profiles may already be full. Retry with a smaller tail, and never let diagnostics
+    // spam the console or interrupt animation/body assembly because storage is unavailable.
+    try {
+      globalThis.localStorage?.setItem(animationDiagnosticStorageKey, JSON.stringify(animationDiagnosticLog.slice(-25)));
+    } catch { /* best effort only; the in-memory export remains available */ }
+  }
+  console.info('[Morrowind animation diagnostic]', entry);
+}
+
+// In DevTools, run copyMorrowindAnimationDiagnostics() to copy the accumulated
+// JSON to the clipboard. Logs are persisted locally automatically; no download.
+if (typeof globalThis.copyMorrowindAnimationDiagnostics !== 'function') {
+  globalThis.copyMorrowindAnimationDiagnostics = async () => {
+    const payload = JSON.stringify({
+      generatedAt: new Date().toISOString(),
+      count: animationDiagnosticLog.length,
+      entries: animationDiagnosticLog,
+    }, null, 2);
+    try {
+      if (!globalThis.navigator?.clipboard?.writeText) {
+        console.info('[Morrowind animation diagnostic] Clipboard API unavailable. JSON follows:', payload);
+        return payload;
+      }
+      await globalThis.navigator.clipboard.writeText(payload);
+      console.info(`[Morrowind animation diagnostic] Copied ${animationDiagnosticLog.length} entries to clipboard.`);
+      return payload;
+    } catch (error) {
+      console.warn('[Morrowind animation diagnostic] Clipboard copy failed; JSON follows:', error, payload);
+      return payload;
+    }
+  };
+}
+if (typeof globalThis.clearMorrowindAnimationDiagnostics !== 'function') {
+  globalThis.clearMorrowindAnimationDiagnostics = () => {
+    animationDiagnosticLog.splice(0, animationDiagnosticLog.length);
+    animationDiagnosticKeys.clear();
+    try {
+      globalThis.localStorage?.removeItem(animationDiagnosticStorageKey);
+    } catch (error) {
+      console.warn('[Morrowind animation diagnostic] Could not clear persistent local diagnostics:', error);
+    }
+    console.info('[Morrowind animation diagnostic] Local diagnostic log cleared.');
+  };
+}
+
+/** Adapt ReAnimation's Alt/Sub group names to the runtime's canonical weapon groups. */
+function normalizeReAnimationAttackSource(source) {
+  const basename = String(source?.name ?? '').replace(/\\/g, '/').split('/').pop() ?? '';
+  const stem = basename.replace(/\.kf$/i, '');
+  const isAlt = /alt$/i.test(stem);
+  const isSub = /sub\d*$/i.test(stem);
+  let normalized = source;
+  if (isAlt || isSub) {
+    const token = isAlt ? /alt(?=extra$)|alt$/i : /sub\d*(?=extra$)|sub\d*$/i;
+    const groupMap = new Map((source.groups ?? []).map((group) => {
+      const name = String(group).toLowerCase();
+      return [name, name.replace(token, '')];
+    }));
+    const groups = [...new Set(groupMap.values())];
+    const keys = (source.keys ?? []).map((key) => {
+      const text = String(key?.text ?? '');
+      const colon = text.indexOf(':');
+      if (colon < 0) return key;
+      const group = text.slice(0, colon).trim().toLowerCase();
+      const mapped = groupMap.get(group);
+      return mapped ? { ...key, text: mapped + text.slice(colon) } : key;
+    });
+    normalized = { ...source, keys, groups, groupSet: new Set(groups) };
+  }
+  // This file contains both WeaponOneHand and WeaponOneHand1 windows. Split
+  // them so the alternate window can be selected without hiding the base one.
+  if (stem.toLowerCase() !== 'x1haltattacks') return [normalized];
+  const variantGroups = (normalized.groups ?? []).filter((group) => /^weapononehand1(?:extra)?$/i.test(String(group)));
+  if (!variantGroups.length) return [normalized];
+  const groupOf = (key) => {
+    const text = String(key?.text ?? '');
+    const colon = text.indexOf(':');
+    return colon < 0 ? '' : text.slice(0, colon).trim().toLowerCase();
+  };
+  const baseGroups = (normalized.groups ?? []).filter((group) => !variantGroups.includes(group));
+  const baseKeys = (normalized.keys ?? []).filter((key) => !variantGroups.includes(groupOf(key)));
+  const variantKeys = (normalized.keys ?? []).filter((key) => variantGroups.includes(groupOf(key))).map((key) => {
+    const text = String(key.text);
+    const colon = text.indexOf(':');
+    const group = groupOf(key).replace(/^weapononehand1(?=extra$|$)/, 'weapononehand');
+    return { ...key, text: group + text.slice(colon) };
+  });
+  const variantTargetGroups = variantGroups.map((group) => String(group).toLowerCase().replace(/^weapononehand1(?=extra$|$)/, 'weapononehand'));
+  return [
+    { ...normalized, name: `${normalized.name}#onehand-base`, keys: baseKeys, groups: baseGroups, groupSet: new Set(baseGroups) },
+    { ...normalized, name: `${normalized.name}#onehand-variant1`, keys: variantKeys, groups: variantTargetGroups, groupSet: new Set(variantTargetGroups) },
+  ];
+}
+
+const betterBodiesAssetByteCache = new Map();
+async function loadBetterBodiesAssetBytes(url, label) {
+  let pending = betterBodiesAssetByteCache.get(url);
+  if (!pending) {
+    pending = fetch(url).then(async (response) => {
+      if (!response.ok) throw new Error(`${label} HTTP ${response.status}`);
+      return new Uint8Array(await response.arrayBuffer());
+    }).catch((error) => {
+      betterBodiesAssetByteCache.delete(url);
+      throw error;
+    });
+    betterBodiesAssetByteCache.set(url, pending);
+  }
+  // BB-ONCE: THE SAME ARRAY EVERY CALL - read-only to every caller (a stem rewrite works on its own copy,
+  // preparedBetterBodiesBytes), so parseNifOnce's identity memo answers the body's parse from the second build on
+  return pending;
+}
+
+// Robert's first-person NIF is used as a temporary geometry donor for every gauntlet.
+// Keep the equipped model's external texture path(s), so the mesh shape is shared while
+// material appearance remains item-specific. Armor records can attach to hand OR wrist bones.
+export function isRobertGauntletFirstPersonAdd(add) {
+  const bones = new Set((add.bones ?? []).map((bone) => String(bone).toLowerCase()));
+  // The donor NIF contains hands and fingers, not the forearm. A wrist-bound
+  // vanilla part may include the cuff/forearm surface even when its declared
+  // bone list does not say "forearm"; replacing it creates the cuff-to-elbow
+  // hole. Only replace dedicated hand parts and always retain wrist geometry.
+  if (['left forearm', 'right forearm', 'left wrist', 'right wrist'].some((bone) => bones.has(bone))) return false;
+  const handPiece = ['left hand', 'right hand'].some((bone) => bones.has(bone));
+  if (!handPiece) return false;
+
+  const piece = add.piece;
+  if (piece && Number.isFinite(piece.templateIndex)) return piece.templateIndex === 103;
+
+  const identity = `${add.recordId ?? ''} ${add.model ?? ''} ${add.partName ?? ''} ${add.slot ?? ''}`
+    .replaceAll(String.fromCharCode(92), '/')
+    .toLowerCase();
+  return /(gauntlet|glove|bracer|vambrace|hand)/.test(identity)
+    && !/(shield|sleeve|forearm armor)/.test(identity);
+}
+const firstPersonHandsSettingEnabled = () => {
+  const value = MW_STOCK.FirstPersonHands;
+  return value === true || firstPersonHandsSource(value) === 'better-hands';   // BETTER-HANDS: a retired "Better Bodies" (2) too
+};
+
+// Female actors share the Nord-female body geometry, but still need the DDS
+// for their own race. NIF texture paths are embedded in the binary; rewrite
+// the same-length race stem in this private byte copy before parsing it.
+function rewriteBetterBodiesTextureStem(bytes, fromStem, toStem) {
+  if (!bytes || fromStem === toStem) return bytes;
+  const from = new TextEncoder().encode(fromStem);
+  const to = new TextEncoder().encode(toStem);
+  if (from.length !== to.length) return bytes;
+  outer: for (let i = 0; i <= bytes.length - from.length; i++) {
+    for (let j = 0; j < from.length; j++) {
+      if (bytes[i + j] !== from[j]) continue outer;
+    }
+    bytes.set(to, i);
+    i += from.length - 1;
+  }
+  return bytes;
+}
+/** BEASTS: rewriteBetterBodiesTextureStem, matching the name in any case - a NIF writes "TX_B_N_" and "Tx_B_N_" alike. */
+function rewriteTextureStemCaseless(bytes, fromStem, toStem) {
+  if (!bytes || fromStem.length !== toStem.length) return bytes;
+  const from = new TextEncoder().encode(fromStem.toLowerCase());
+  const to = new TextEncoder().encode(toStem);
+  const lower = (c) => (c >= 65 && c <= 90 ? c + 32 : c);
+  outer: for (let i = 0; i <= bytes.length - from.length; i++) {
+    for (let j = 0; j < from.length; j++) {
+      if (lower(bytes[i + j]) !== from[j]) continue outer;
+    }
+    bytes.set(to, i);
+    i += from.length - 1;
+  }
+  return bytes;
+}
+/** BB-ONCE (the owner, 2026-10-28: every equip froze the game): THE BODY'S BYTES, PREPARED ONCE. The fetch memo hands
+ *  a fresh view of one shared buffer each call, and the stem was rewritten INTO that buffer - so every build's body was
+ *  a new array to parseNifOnce's identity memo (the whole Better Bodies mesh parsed again on every equip, every NPC's
+ *  build), and a second race's rewrite searched a buffer the first had already rewritten. One private copy per
+ *  (mesh, stem pair), rewritten once and kept: the same array every build, so the parse memo answers. */
+const betterBodiesPartBytes = new Map();
+function preparedBetterBodiesBytes(url, rawBytes, fromStem, toStem) {
+  const key = `${url}|${fromStem}|${toStem}`;
+  let bytes = betterBodiesPartBytes.get(key);
+  if (!bytes) { bytes = rewriteBetterBodiesTextureStem(rawBytes.slice(), fromStem, toStem); betterBodiesPartBytes.set(key, bytes); }
+  return bytes;
+}
+/** BB-ONCE / BEASTS: a beast body's NIF with each of its skins renamed (rewriteTextureStemCaseless), on its own copy,
+ *  once per mesh and set of names - the same array every build, so the parse memo answers it. */
+function betterBeastBytes(url, rawBytes, stems) {
+  const key = `${url}|${stems.map(([a, b]) => `${a}>${b}`).join(',')}`;
+  let bytes = betterBodiesPartBytes.get(key);
+  if (!bytes) {
+    bytes = rawBytes.slice();
+    for (const [stem, own] of stems) bytes = rewriteTextureStemCaseless(bytes, stem, own);
+    betterBodiesPartBytes.set(key, bytes);
+  }
+  return bytes;
+}
+const betterBodiesTextureBytes = new Map();
+const betterBodiesTextureBasename = (path) => String(path || '')
+  .replaceAll(String.fromCharCode(92), '/').split('/').pop().toLowerCase();
+const BETTER_BODIES_FEMALE_SKIN_TONES = Object.freeze({
+  br: [1.06, 0.91, 0.84], de: [0.73, 0.70, 0.88],
+  he: [1.10, 0.94, 0.72], im: [1.04, 0.87, 0.78],
+  no: [1.00, 0.98, 0.94], or: [0.70, 0.88, 0.62],
+  rg: [0.92, 0.70, 0.54], we: [0.96, 0.82, 0.66],
+});
+function tintBetterBodiesFemaleSkin(image, textureFile) {
+  const match = /b[bnu]_skinf_(br|de|he|im|no|or|rg|we)\.(?:dds|tga|targa|bmp)$/i.exec(   // NUDITY-SYNC: the variant names; the HD skins (h*) are coloured per race by their own authors
+    String(textureFile || '').replaceAll(String.fromCharCode(92), '/'));
+  if (!match || !image?.mips?.length) return image;
+  const raceKey = match[1].toLowerCase();
+  const tone = BETTER_BODIES_FEMALE_SKIN_TONES[raceKey];
+  if (!tone || raceKey === 'no') return image;
+  for (const mip of image.mips) {
+    const rgba = mip?.rgba;
+    if (!rgba) continue;
+    for (let i = 0; i + 3 < rgba.length; i += 4) {
+      if (rgba[i + 3] === 0) continue;
+      rgba[i] = Math.min(255, (rgba[i] * tone[0] + 0.5) | 0);
+      rgba[i + 1] = Math.min(255, (rgba[i + 1] * tone[1] + 0.5) | 0);
+      rgba[i + 2] = Math.min(255, (rgba[i + 2] * tone[2] + 0.5) | 0);
+    }
+  }
+  return image;
+}
+/** Registers the skin's bytes under its basename; answers whether they CHANGED (BB-ONCE: the same file's bytes again -
+ *  a view of the buffer the fetch memo already holds - keep the decoded picture). */
+function registerBetterBodiesRaceTexture(archives, texturePath, textureBytes) {
+  const basename = betterBodiesTextureBasename(texturePath);
+  const prev = betterBodiesTextureBytes.get(basename);
+  const changed = !prev || prev.buffer !== textureBytes.buffer || prev.byteOffset !== textureBytes.byteOffset || prev.byteLength !== textureBytes.byteLength;
+  betterBodiesTextureBytes.set(basename, textureBytes);
+  let adapter = archives.find((archive) => archive.__betterBodiesRaceTexture);
+  if (!adapter) {
+    adapter = {
+      __betterBodiesRaceTexture: true,
+      has: (path) => betterBodiesTextureBytes.has(betterBodiesTextureBasename(path)),
+      loaded: () => true,
+      load: async () => null,
+      get: (path) => betterBodiesTextureBytes.get(betterBodiesTextureBasename(path)) ?? null,
+    };
+    archives.push(adapter);
+  }
+  return changed;
+}
+
 import { decodeTextureOffThread } from '../formats/morrowind/mwTextureClient.js';   // MW-TEXTHREAD: the preload's decodes, in the pool
 import { diffuseAt, emissiveAt } from '../formats/morrowind/mwNifMesh.js';   // MWT2: the emission the pass has always resolved and never read
 import { fpLightingOn } from './fpsWeapon.js';   // MAC-P: the first-person lighting switch, shared with the classic sprite it stands in for
@@ -104,11 +401,22 @@ import { injectSkeletonNodes } from '../formats/morrowind/mwSkin.js';   // WS1: 
 // the hands hold, and where its corners land on the composite
 import { deltaTracks, heldSampler, paperPiece, refreshPaperSource, projectPaperCorners, normaliseHeldPose, HELD_POSE_DEFAULT } from './heldPose.js';
 import { farthestVertexIndex, posedVertex, viewOffsetOf, worldPointOf } from './rigMuzzle.js';   // AUDIT FIELD-GUN-MW F2: where the barrel ends, off the posed piece
+import { firstPersonLens, stepAxePlacement, axeReadyHold } from './weapon/axeViewPlacement.js';
 import { armKickMatrix } from './gun/gunFeel.js';   // MW-GUN-FEEL: the gun's recoil and reload, as one pose over the viewmodel
 import { rifleStanceStep } from './gun/rifleStance.js';   // RIFLE-STANCE: a long gun held in the hands - the low ready, the aim
 import { applyGunStance } from './gun/gunHold.js';   // PISTOL-STANCE: the hold by the gun's kind - the rifle's or the pistol's
 import { createHipLantern, HIP_LANTERN_HEIGHT } from '../systems/lanternSwing.js';   // HT-WAIST: the one swing law both bodies feed (BODY-MOTION: its rider moved there); HT-WAIST-SIZE: the one height they hang
+import { createBodyWeight } from '../characters/bodyMotion/bodyWeight.js';   // BODY-WEIGHT: the trunk's answer to the body's mass and acceleration
 import { createBodyMotion, motionWord } from '../characters/bodyMotion/bodyMotion.js';   // BODY-MOTION: the third-person body's gait, carry and blows
+import { shieldGuardStance, carriesShield, isHandShieldSlot, shieldBashHold } from './shieldGuard.js';   // SHIELD-GUARD: the fists behind a shield - the stance, the bash
+import { createLeftArmLayer, leftArmPlan, leftArmModeOf, loopWindow } from './leftArmLayer.js';   // LEFT-ARM: the shield's and the free hand's arm over the clip, by weight
+import { guardMovementGroup } from './guardLocomotion.js';
+import { createLowerBodyLayer, lowerBodyBones } from './lowerBodyLayer.js';   // LOWER-BODY: the legs under a blow keep the stride (rule 26)
+import { settleIdle, createTurnGate, blendSourceOf, createMoveGrace, carriesBlend } from './idleSettle.js';   // IDLE-SETTLE: a stop lands the idle where its legs are quiet
+import { createFpInertia } from './fpInertia.js';   // FP-INERTIA: the first-person hands carry weight
+import { createLoopSeam } from './loopSeam.js';   // LOOP-SEAM: a loop's stop carried to its start
+import { hitResponse } from './hitResponse.js';   // HIT-RESPONSE: the striking arm's hitstop
+import { BLOW_FLOW, holdFor, calmBlowPlan, driftRate, recoverRate, poseKindOf, blowBlendSeconds, blendWeightAt, createVariantCycle, bashesNow } from './blowFlow.js';   // BLOW-FLOW: the window after a blow, the blends; MW-PACE2: the player's calm pace; SHIELD-BASH: in turn
 import { spinePitchFactor, spineAimSlot } from './spineAim.js';   // BOW-AIM: the third-person body's ranged aim follows the look
 import { vfxOf, createVfx, vfxCapacity, vfxTextures } from '../formats/morrowind/mwVfx.js';   // MW-SPELLFX1: an effect mesh, running
 import { spellFxPlan } from '../formats/morrowind/mwSpellFx.js';   // MW-SPELLFX1: which visuals a spell wears
@@ -153,7 +461,7 @@ import { t } from '../systems/textManager.js';   // L10N4: AUDIT MW-FOLK1's note
  *  Never throws - a path that will not load is reported by the read that
  *  follows, in that read's own words. An archive with no `load` door is
  *  already resident, which is the old two-door duck. */
-async function loadFromArchives(archives, paths) {
+async function loadFromArchives(archives, paths, urgent = false) {   // LOAD-STALL 4: `urgent` - the player's, ahead of the street's
   const seen = new Set();
   const jobs = [];
   for (const path of paths ?? []) {
@@ -162,10 +470,48 @@ async function loadFromArchives(archives, paths) {
     const arc = (archives ?? []).find((a) => a.has(path));
     if (!arc || typeof arc.load !== 'function') continue;
     if (typeof arc.loaded === 'function' && arc.loaded(path)) continue;
-    jobs.push(Promise.resolve(arc.load(path)).catch(() => null));
+    jobs.push(archiveRead(() => arc.load(path), urgent).catch(() => null));
   }
   if (jobs.length) await Promise.all(jobs);
 }
+
+/** LOAD-STALL 4 (the owner, 2026-10-28: "[mw] weapon swap Claymore in 102187 ms - ... meshes 36508, textures 65357"):
+ *  EVERY ARCHIVE READ THROUGH ONE QUEUE, THE PLAYER'S FIRST. The reads went out all at once - the street's bodies' meshes
+ *  and pictures, the warm-up's, the player's sword - and the browser holds six connections to the dev server (the
+ *  packs' files) and its own line for the store's (the .bsa's ranges, the loose files): the sword's few reads stood
+ *  behind hundreds. At most ARCHIVE_READS_NORMAL ordinary reads run at once and ARCHIVE_READS_MAX in all, so an urgent
+ *  read always finds a place, and the urgent line is served first. */
+export const ARCHIVE_READS_MAX = 6;
+export const ARCHIVE_READS_NORMAL = 4;
+export const ARCHIVE_READ_LEASE_MS = 15000;
+const archiveReads = { running: 0, urgent: [], normal: [] };
+export function archiveRead(read, urgent = false) {
+  return new Promise((resolve, reject) => {
+    (urgent ? archiveReads.urgent : archiveReads.normal).push({ read, resolve, reject });
+    pumpArchiveReads();
+  });
+}
+function pumpArchiveReads() {
+  for (;;) {
+    const line = archiveReads.urgent.length && archiveReads.running < ARCHIVE_READS_MAX ? archiveReads.urgent
+      : archiveReads.normal.length && archiveReads.running < ARCHIVE_READS_NORMAL ? archiveReads.normal : null;
+    if (!line) return;
+    const job = line.shift();
+    archiveReads.running++;
+    // LOAD-HOLD: a read that never answers gives its place back after ARCHIVE_READ_LEASE_MS and is answered as failed
+    // (its caller reads a miss and says so; the read, if it lands later, is in the archive for the next load) - one
+    // stalled read held its place for ever, and a few of them held every read behind them
+    let settled = false;
+    const done = () => { if (settled) return false; settled = true; clearTimeout(lease); archiveReads.running--; pumpArchiveReads(); return true; };
+    const lease = setTimeout(() => { if (done()) job.reject(new Error('archive read timed out')); }, ARCHIVE_READ_LEASE_MS);
+    /** @type {any} */ (lease)?.unref?.();
+    let p;
+    try { p = Promise.resolve(job.read()); } catch (e) { p = Promise.reject(e); }
+    p.then((v) => { if (done()) job.resolve(v); }, (e) => { if (done()) job.reject(e); });
+  }
+}
+/** Test seam: the queue's state. */
+export const _archiveReadState = () => ({ running: archiveReads.running, urgent: archiveReads.urgent.length, normal: archiveReads.normal.length });
 
 /** MW-LOAD: `find`, asserting the bytes are in hand. A path no archive
  *  carries answers null exactly as `find` does, and every caller already
@@ -198,7 +544,7 @@ function findLoaded(archives, path) {
  *  answer with the warning image and its reason, exactly as it always
  *  has. Without a generation there is no memo to fill, and
  *  collectArmTextures decodes as before. */
-async function preloadArmTextures(pieces, archives, gen = null) {
+async function preloadArmTextures(pieces, archives, gen = null, urgent = false) {   // LOAD-STALL 3: `urgent` - the player's rig, ahead of the NPCs' in the pool
   const paths = [];
   const want = [];   // MW-TEXTHREAD: [file, path] - the memo is keyed by the file the piece names
   const seen = new Set();
@@ -212,14 +558,14 @@ async function preloadArmTextures(pieces, archives, gen = null) {
     paths.push(path);
     want.push([file, path]);
   }
-  await loadFromArchives(archives, paths);
+  await loadFromArchives(archives, paths, urgent);
   if (gen === null) return;
   await Promise.all(want.map(async ([file, path]) => {
     const key = `${gen}:${file}`;
     const arc = archives.find((a) => a.has(path));
     if (!arc || (typeof arc.loaded === 'function' && !arc.loaded(path))) return;   // collectArmTextures says why
     let image;
-    try { image = await decodeTextureOffThread(path, arc.get(path)); } catch (err) {
+    try { image = await decodeTextureOffThread(path, arc.get(path), { urgent }); } catch (err) {
       // AUDIT MW-TEXTHREAD F4: THE DECODER'S REFUSAL IS KEPT TOO. The
       // decoder is pure, so the same bytes refuse again on any thread;
       // left unkept, collectArmTextures decoded the whole file a second
@@ -237,6 +583,18 @@ async function preloadArmTextures(pieces, archives, gen = null) {
  *  browser and Node 16+), Date.now() as the floor. */
 const mwNow = () => (typeof performance !== 'undefined' && performance && typeof performance.now === 'function'
   ? performance.now() : Date.now());
+
+/** WEAPON-FIRST (the owner, 2026-10-28: a weapon's first equip "может и вовсе не прогрузиться"): a hand whose swap
+ *  failed is asked again SWAP_RETRY_MAX times, SWAP_RETRY_MS further apart each time, then left as the card says. */
+export const SWAP_RETRY_MAX = 3;
+/** TEXTURE-HEAL: how many times, and how far apart (times the try), a picture that did not come is asked for again. */
+export const TEXTURE_HEAL_TRIES = 3;
+export const TEXTURE_HEAL_MS = 2000;
+export const SWAP_RETRY_MS = 1500;
+export function swapRetryDue(token, key, now = mwNow()) {
+  const f = token?.weaponFailTry;
+  return !!f && f.key === key && f.tries < SWAP_RETRY_MAX && now - f.at >= SWAP_RETRY_MS * f.tries;
+}
 
 /** WEREWOLF1 (2026-09-26, Mac: "it's the 3d model" - "it needs to be imported if its not"): THE WEREWOLF'S TWO
  *  SKELETONS, files/settings-default.cfg [Models] wolfskin and wolfskin1st. They ship with Bloodmoon, so a player
@@ -306,8 +664,9 @@ export const carriedLeftVisible = (type) => !(weaponFlags(type) & MW_TWO_HANDED)
 export const FP_IDLE_SNEAK = 'idlesneak';
 /** MW-D51: the carried light's group - base_anim.kf's "Torch", played on the left arm. */
 export const TORCH_GROUP = 'torch';
-export function idleBaseFor({ sneaking = false, inJump = false, hasGroup = () => false } = {}) {
-  return sneaking && !inJump && hasGroup(FP_IDLE_SNEAK) ? FP_IDLE_SNEAK : FP_IDLE_BASE;
+export function idleBaseFor({ sneaking = false, inJump = false, hasGroup = () => false, type = MW_WEAPON_TYPE.None } = {}) {
+  // SNEAK-STANCE: a crouch the rig has for the drawn stance (sneakIdleGroup) is a crouch too
+  return sneaking && !inJump && sneakIdleGroup(type, hasGroup) ? FP_IDLE_SNEAK : FP_IDLE_BASE;
 }
 
 /**
@@ -385,6 +744,117 @@ export const UPPER_BODY = Object.freeze({
 export const UPPER_BODY_NAME = Object.freeze(
   Object.fromEntries(Object.entries(UPPER_BODY).map(([k, v]) => [v, k])),
 );
+
+/**
+ * Choose when a held 3D weapon is hidden during the first-person
+ * unequip animation. Some animation packs omit the "unequip detach"
+ * text key; in that case the weapon must remain visible through the
+ * hand's return motion and disappear only when the section ends.
+ */
+export function unequipWeaponHideMode({ animationStarted, detachKeyTime, reversedEquipFallback = false }) {
+  if (!animationStarted) return 'immediate';
+  // A reversed equip clip has no unequip-detach marker semantics: its
+  // equip-attach key is deliberately ignored while Unequipping, and the
+  // weapon remains visible until the reverse section completes.
+  if (reversedEquipFallback) return 'animation-end';
+  return detachKeyTime >= 0 ? 'detach-key' : 'animation-end';
+}
+
+/**
+ * Text keys only prove that a clip window exists; they do not prove that its
+ * tracks move any bone in the active rig. A few KF providers ship valid
+ * unequip markers around a static/foreign-rig window. Detect that before
+ * accepting the window, so sheathing can fall back to the known-working
+ * equip motion played backwards.
+ */
+export function animationWindowHasMotion(source, state, skeleton) {
+  if (!state || !(state.stopTime > state.startTime)
+    || typeof source?.trackMap?.get !== 'function' || !skeleton?.nodes) return false;
+
+  const start = state.startTime;
+  const span = state.stopTime - start;
+  const sampleTimes = Array.from({ length: 9 }, (_, i) => start + span * i / 8);
+  for (const [, node] of skeleton.nodes) {
+    // A first-person KF can move a weapon attachment, root, or other
+    // non-arm node while leaving the rendered hands static. That is not a
+    // usable sheathing pose: the renderer's arm meshes are driven by the
+    // left/right arm chain. Only let those tracks validate the unequip
+    // window; otherwise setSheathed must use the known-working equip clip
+    // in reverse instead of accepting a false-positive and snapping away.
+    const boneName = String(node.name ?? '');
+    if (!/(?:^|\s)[lr]\s+(?:clavicle|upper\s*arm|upperarm|fore\s*arm|forearm|hand|finger\d*)\b/i.test(boneName)) continue;
+    const track = source.trackMap.get(boneName.toLowerCase());
+    if (!track) continue;
+    const times = new Set(sampleTimes);
+    const addKeys = (keys) => {
+      for (const key of keys ?? []) {
+        if (Number.isFinite(key?.time) && key.time >= start && key.time <= state.stopTime) times.add(key.time);
+      }
+    };
+    addKeys(track.rotationKeys);
+    for (const group of track.xyzRotations ?? []) addKeys(group?.keys);
+    addKeys(track.translations?.keys);
+    addKeys(track.scales?.keys);
+    const orderedTimes = [...times].sort((a, b) => a - b);
+    let baseline = null;
+    try {
+      for (const time of orderedTimes) {
+        const sample = sampleTrack(track, time);
+        if (!baseline) { baseline = sample; continue; }
+        const differs = (a, b, rotation = false) => {
+          if (a == null || b == null) return a !== b;
+          if (Array.isArray(a) && Array.isArray(b)) {
+            if (a.length !== b.length) return true;
+            if (rotation && a.length === 4) {
+              const dot = a.reduce((sum, value, i) => sum + value * b[i], 0);
+              const na = Math.hypot(...a), nb = Math.hypot(...b);
+              return na > 0 && nb > 0 ? 1 - Math.min(1, Math.abs(dot) / (na * nb)) > 1e-5
+                : a.some((value, i) => Math.abs(value - b[i]) > 1e-5);
+            }
+            return a.some((value, i) => Math.abs(value - b[i]) > 1e-5);
+          }
+          return Number.isFinite(a) && Number.isFinite(b)
+            ? Math.abs(a - b) > 1e-5 : a !== b;
+        };
+        if (differs(baseline.rotation, sample.rotation, true)
+          || differs(baseline.translation, sample.translation)
+          || differs(baseline.scale, sample.scale)) return true;
+      }
+    } catch {
+      // An unreadable track cannot establish that the window is animated.
+    }
+  }
+  return false;
+}
+
+/** Choose a graceful first-person fallback when a provider has no unequip window. */
+export function unequipActionPlan({ unequipStarted, equipStarted, detachKeyTime = -1 }) {
+  if (unequipStarted) {
+    return {
+      kind: 'unequip',
+      start: UNEQUIP_KEYS.start,
+      stop: UNEQUIP_KEYS.stop,
+      reversed: false,
+      hideMode: unequipWeaponHideMode({ animationStarted: true, detachKeyTime }),
+    };
+  }
+  if (equipStarted) {
+    return {
+      kind: 'reverse-equip',
+      start: EQUIP_KEYS.start,
+      stop: EQUIP_KEYS.stop,
+      reversed: true,
+      hideMode: unequipWeaponHideMode({ animationStarted: true, reversedEquipFallback: true }),
+    };
+  }
+  return {
+    kind: 'immediate',
+    start: null,
+    stop: null,
+    reversed: false,
+    hideMode: 'immediate',
+  };
+}
 
 /** setAccurateAiming's argument, verbatim. Casting sits above
  *  AttackEnd in the reference's enum and is out of scope here, so the
@@ -983,6 +1453,20 @@ const ESM_MASTERS = Object.freeze(['morrowind.esm', 'tribunal.esm', 'bloodmoon.e
  * round: there the first archive that has a path answers it.
  * @param {string[]} names
  */
+/** Include bundled mod plugins after retail masters and before user overrides. */
+async function morrowindRecordLoadOrder(d) {
+  const stored = (await d.storedMorrowindNames()).filter((n) => /\.es[mp]$/i.test(n));
+  if (!stored.some((n) => /\.esm$/i.test(n))) return [];
+  const masters = stored.filter((n) => ['morrowind.esm', 'tribunal.esm', 'bloodmoon.esm'].includes(String(n).split(/[\\/]/).pop().toLowerCase()));
+  const userMods = stored.filter((n) => !masters.includes(n));
+  let bundled = [];
+  try {
+    const mods = await import('../systems/bundledMorrowindMods.js');
+    bundled = mods.bundledMorrowindPluginNames();
+  } catch {}
+  return esmLoadOrder([...masters, ...bundled, ...userMods]);
+}
+
 export function esmLoadOrder(names) {
   // AUDIT MW-NPC II G2: the masters by their WHOLE names - by prefix, "Morrowind Patch.esm" ranked as Morrowind's own
   // and, stored before it (' ' sorts before '.'), lost every record it patched to the master it patches
@@ -1235,18 +1719,18 @@ function clothingColourOf(rec, parts, archives, gen) {
  *  pool's level 0 into the memo clothingColourOf answers from; a
  *  refusal is its null, kept, as that measure keeps one. Anything this
  *  cannot measure is left to clothingColourOf, in its own words. */
-async function preloadClothingColour(rec, parts, archives, gen) {
+async function preloadClothingColour(rec, parts, archives, gen, urgent = false) {
   const key = `${gen}:${rec.id}`;
   if (CLOT_COLOUR_CACHE.has(key)) return;
-  await loadFromArchives(archives, [clothingMeshPath(rec, parts)]);
+  await loadFromArchives(archives, [clothingMeshPath(rec, parts)], urgent);
   let tpath;
   try { tpath = clothingTexturePath(rec, parts, archives); } catch { return; }   // a mesh that did not load or parse
   if (!tpath) return;
-  await loadFromArchives(archives, [tpath]);
+  await loadFromArchives(archives, [tpath], urgent);
   const tarc = archives.find((a) => a.has(tpath));
   if (!tarc || (typeof tarc.loaded === 'function' && !tarc.loaded(tpath))) return;
   let rgb;
-  try { rgb = garmentColourOf((await decodeTextureOffThread(tpath, tarc.get(tpath), { levels: 1 })).mips[0]); }
+  try { rgb = garmentColourOf((await decodeTextureOffThread(tpath, tarc.get(tpath), { levels: 1, urgent })).mips[0]); }
   catch (err) { if (!err?.decoderError) return; rgb = null; }
   if (!CLOT_COLOUR_CACHE.has(key)) CLOT_COLOUR_CACHE.set(key, rgb);
 }
@@ -1276,7 +1760,7 @@ export async function inLanes(list, fn, lanes = MEASURE_LANES) {
  *  and the recorded records are then measured asynchronously. The real
  *  run that follows finds every answer already in the memo.
  *  mwClothingRecord's pool law stays in mwItemMap, where it lives. */
-async function prepareClothingColours(resolve, parts, archives, gen) {
+async function prepareClothingColours(resolve, parts, archives, gen, urgent = false) {
   const asked = [];
   const probe = (rec) => {
     asked.push(rec);
@@ -1289,7 +1773,7 @@ async function prepareClothingColours(resolve, parts, archives, gen) {
   // at a time (inLanes)
   const seen = new Set();
   const once = asked.filter((rec) => !seen.has(rec.id) && seen.add(rec.id));
-  await inLanes(once, (rec) => preloadClothingColour(rec, parts, archives, gen));
+  await inLanes(once, (rec) => preloadClothingColour(rec, parts, archives, gen, urgent));
 }
 
 /** MW-D38: the icon cache, per data generation / record / size / dye. */
@@ -1312,14 +1796,40 @@ function adoptMemoGeneration(genOf) {
   const gen = genOf();
   if (gen !== memoGen) {
     memoGen = gen;
-    for (const m of [ESM_WALK_CACHE, CLIP_REPORT_CACHE, TEXTURE_CACHE, FACE_MATCH_CACHE, CLOT_COLOUR_CACHE, ITEM_ICON_CACHE, HEAD_PORTRAIT_CACHE]) m.clear();
+    for (const m of [ESM_WALK_CACHE, CLIP_REPORT_CACHE, TEXTURE_CACHE, FACE_MATCH_CACHE, CLOT_COLOUR_CACHE, ITEM_ICON_CACHE, HEAD_PORTRAIT_CACHE, REACH_CACHE, ESM_MERGE_CACHE]) m.clear();
     headCatalog = null;   // PORTRAIT3D: and the catalogue the portraits read
   }
   return gen;
 }
+/** LOAD-STALL 2: the reach sweep's union, by the arm it measured (buildFpArm) - one generation, the newest
+ *  REACH_CACHE_CAP arms. */
+const REACH_CACHE = new Map();
+/** LOAD-STALL 2: the load order's records joined, by generation and order (buildFpArm). */
+const ESM_MERGE_CACHE = new Map();
+const REACH_CACHE_CAP = 32;
+function rememberReach(key, union) {
+  REACH_CACHE.delete(key);
+  REACH_CACHE.set(key, Object.freeze({ ...union }));
+  while (REACH_CACHE.size > REACH_CACHE_CAP) REACH_CACHE.delete(REACH_CACHE.keys().next().value);
+}
+/** LOAD-STALL 2: WHICH ARM - each piece's slot, part, batch and size, and a few of its bind-pose floats (a gauntlet's
+ *  for another of the same count is not the same arm). Read off the bind data, never the posed copy. */
+export function armShapeKey(pieces) {
+  const out = [];
+  for (const p of pieces ?? []) {
+    const pos = p.batch?.positions ?? null;
+    let sample = '';
+    if (pos && pos.length) {
+      const step = Math.max(3, Math.floor(pos.length / 8 / 3) * 3);
+      for (let i = 0; i < pos.length; i += step) sample += `${Math.round(pos[i] * 100)},`;
+    }
+    out.push(`${p.slot}/${p.partName ?? ''}/${p.batch?.name ?? ''}/${pos?.length ?? 0}/${p.indices?.length ?? 0}/${sample}`);
+  }
+  return out.sort().join(';');
+}
 /** Test seam: the entries the generation memos hold. */
 export const _memoEntryCount = () => ESM_WALK_CACHE.size + CLIP_REPORT_CACHE.size + TEXTURE_CACHE.size
-  + FACE_MATCH_CACHE.size + CLOT_COLOUR_CACHE.size + ITEM_ICON_CACHE.size;
+  + FACE_MATCH_CACHE.size + CLOT_COLOUR_CACHE.size + ITEM_ICON_CACHE.size + REACH_CACHE.size + ESM_MERGE_CACHE.size;
 
 /** MW-MOUNT: THE FACE-ON FRAME a displayed item's picture is taken
  *  under - a thing hung flat on a wall is seen along its thinnest
@@ -1743,6 +2253,7 @@ export const archiveHas = (archives) => (p) => (archives ?? []).some((a) => a.ha
  *  a fault the player sees from the chair and could not name - the
  *  card's note is the same sentence, but the card is a menu away. */
 import { ammoCountFor } from '../systems/inventory.js';   // AUDIT 68 S27-ammoCount-dup: the ammunition count's one home, beside the spend law
+import { WEAPON_LOOKS_PREF, weaponLookKey } from '../characters/ownModels/localWeaponModels.js';
 import { ownWeaponModelFor } from '../characters/ownModels/ownWeaponModels.js';   // FIELD-GUN-MW2: the weapons Morrowind does not have - a leaf too
 import { glowUnit } from '../render/weaponGlowGlsl.js';   // WEAPON-GLOW1: the glow's unit off the lens's rows - a leaf
 import { drawnPiece } from '../net/appearanceLaw.js';   // APPEARANCES: a worn piece's look - a leaf
@@ -1955,19 +2466,15 @@ export function resolveOffWeaponParts({ weapon, allWeapons, find, skeletonBytes,
   return { parts: [{ slot: 'offweapon', bones: [OFF_WEAPON_BONE], bytes: main.bytes, ...(main.preTransform ? { preTransform: main.preTransform } : {}) }], info: { ...r.weaponInfo, bone: OFF_WEAPON_BONE }, notes };
 }
 
-export function resolveWeaponParts({ weapon, hasAmmo = false, allWeapons, find, skeletonBytes, has = null }) {
+export function resolveWeaponParts({ weapon, hasAmmo = false, allWeapons, find, skeletonBytes, has = null, firstPerson = false }) {
   const notes = [];
   const parts = [];
   let weaponInfo = null;
   let arrowInfo = null;
   const mwType = dfWeaponToMw(weapon, WEAPONS);
-  // FIELD-GUN-MW2: THE PORT'S OWN WEAPONS FIRST, because Morrowind has
-  // no record for them and no type to look one up by. This arm cannot
-  // shadow a Morrowind weapon - `ownWeaponModelFor` answers only for
-  // template indices `registerCustomTemplates` minted, which are past
-  // every DFU index - and it returns before the type lookup rather than
-  // after it, so the note below ("Morrowind has no weapon type for what
-  // you are holding") stays true of the items it is actually about.
+  // FIELD-GUN-MW2: authored models first. MW-SKY-AXE also uses this seam
+  // for the owner's optional steel axe replacement, only when its local
+  // mesh AND texture exist; absent files retain the normal record path.
   const own = ownWeaponModelFor(weapon);
   if (own) {
     const path = `meshes/${own.model}`;
@@ -1982,7 +2489,8 @@ export function resolveWeaponParts({ weapon, hasAmmo = false, allWeapons, find, 
     } else {
       // RIFLE-STANCE: the row's attitude on the bone (a pistol grip through the fist - ownWeaponModels.js GUN_GRIP_ATTITUDE),
       // and how the arms hold it (combat/gun/rifleStance.js)
-      parts.push({ slot: 'weapon', bones: [own.bone], bytes: nifBytes(arc, path), ...(own.attitude ? { preTransform: own.attitude } : {}) });
+      const attitude = firstPerson && 'firstPersonAttitude' in own ? own.firstPersonAttitude : own.attitude;
+      parts.push({ slot: 'weapon', bones: [own.bone], bytes: nifBytes(arc, path), ...(attitude ? { preTransform: attitude } : {}) });
       weaponInfo = { id: own.id, name: own.name, model: own.model, type: own.animateAs, bone: own.bone, speed: own.speed, own: true, holdAs: own.holdAs ?? null, attitude: own.attitude ?? null };
     }
     // THE BORROWED TYPE IS WHAT GOES BACK, not None, and it is the
@@ -2089,13 +2597,17 @@ export function resolveWeaponParts({ weapon, hasAmmo = false, allWeapons, find, 
  *  hides the very chest it copies; hidden is not drawn, and the skin is still the body's). Nothing for a retail add,
  *  nor for a model the port ships skinned (the steel plate, MW-STEEL4). */
 export function ownBodyPaths(add, rows) {
-  return (add.skinFrom ?? []).flatMap((slot) => rows
+  const slots = add.fitBodySlots ?? add.skinFrom ?? [];
+  return slots.flatMap((slot) => rows
     .filter((r) => r.record && r.slot === slot).map((r) => ({ slot, path: `meshes/${r.record.model}` })));
 }
 
-/** ...and what the binder takes beside the add's own mesh: those bodies' bytes out of the loaded archives, and the part
- *  it is fitted onto (MW-BRIG3 `fitTo`). Nothing at all for an add that is not skinned from the body. */
+/** Resolve the wearer's body NIFs once. Geometry fitting keeps the garment's own renderer/material path;
+ *  the legacy skinFrom path remains available for existing armor that explicitly opts into it. */
 export function ownBodyPart(add, rows, find) {
+  if (add.fitBodySlots) return {
+    fitSources: ownBodyPaths(add, rows).map((b) => ({ slot: b.slot, bytes: nifBytes(find(b.path), b.path) })).filter((b) => b.bytes),
+  };
   if (!add.skinFrom) return {};
   return {
     skinFrom: ownBodyPaths(add, rows).map((b) => ({ slot: b.slot, bytes: nifBytes(find(b.path), b.path) })).filter((b) => b.bytes),
@@ -2142,6 +2654,7 @@ export function bareHeadRows(rows, worn, pieces, werewolf = false) {
  */
 async function buildTpBody({
   race, female, beast, faceIndex, faceMatch, weapon, hasAmmo, worn, archives, parts, allWeapons, find, gen = null,
+  appearanceHeadId = null, appearanceHairId = null,
   torch = false, allLights = [],   // MW-D51
   sheathing = true, ammoCount = null,   // WS1: the holster, and the quiver's count (null: a full quiver when there is ammunition)
   hipLight = false,   // HT-WAIST: a lit lantern at the waist
@@ -2149,21 +2662,97 @@ async function buildTpBody({
   skin = null,   // SHADOW-FANG (AUDIT D2): the wolf's skin, painted here
   vampire = false,   // MWNPC14: a vampire - the race's vampire head (getVampireHead)
   walk = null,   // MWNPC17: an NPC's own head and hair, walked off its seed ({ head, hair } - playerBodyRows)
+  npcHint = null,   // MWNPC17: stable NPC seed/tier for deterministic animation variant selection
   ownHeads = false,   // MW-HEADS2: a player's body - the port's own heads where its race has them
+  urgent = false,   // LOAD-STALL 3: the player's rig - its pictures ahead of the NPCs' in the pool
 }) {
   const exists = (p) => archives.some((a) => a.has(p));
   const settingsSkeleton = tpSkeletonPath({ female, beast, werewolf });
   const skeletonPath = correctActorModelPath(settingsSkeleton, exists);
   try {
     // MW-LOAD: covers the skeleton read on the next line.
-    await loadFromArchives(archives, [skeletonPath]);
+    await loadFromArchives(archives, [skeletonPath], urgent);
     const skelArc = find(skeletonPath);
     if (!skelArc) return { ok: false, stage: 'skeleton', error: `${skeletonPath} is not in your archives` };
     const skeletonBytes = nifBytes(skelArc, skeletonPath);
 
     // WEREWOLF1: the wolf's head and hair, by id - every other skin slot is empty, the robe is the body
-    const rows = werewolf ? werewolfHeadRows(parts) : playerBodyRows(parts, race, female, { beast, faceIndex, faceMatch, vampire, walk, has: exists, ownHeads });   // MWNPC14: a vampire's head; MWNPC17: an NPC's own; AUDIT MW-HEADS1: the port's own heads where these archives carry them
+    const rows = werewolf ? werewolfHeadRows(parts) : playerBodyRows(parts, race, female, { beast, faceIndex, faceMatch, faceRace: race, vampire, walk, has: exists, ownHeads, appearanceHeadId, appearanceHairId });   // MWNPC14: a vampire's head; MWNPC17: an NPC's own; AUDIT MW-HEADS1: the port's own heads where these archives carry them
     const missing = [];
+    // Better Bodies is selected by the actor's own race and sex. The matching
+    // texture is registered by basename, so concurrent NPC builds cannot overwrite
+    // one another's skin bytes through a shared "current texture" adapter.
+    let betterBodiesPart = null;
+    // BEASTS: the Argonian's and the Khajiit's whole body from Better Bodies 3.2 (mwBetterBodies.js betterBeastsAssetUrls)
+    if (MW_STOCK.BetterBodiesSource === 2 && beast && !werewolf && !vampire) {
+      try {
+        const asset = betterBeastsAssetUrls({ race, female });
+        if (!asset) throw new Error(`no Better Beasts body for race "${String(race)}" / ${female ? 'female' : 'male'}`);
+        const [rawBytes, ...skins] = await Promise.all([
+          loadBetterBodiesAssetBytes(asset.model, 'Better Beasts NIF'),
+          ...asset.textures.map((tex) => loadBetterBodiesAssetBytes(tex.url, 'Better Beasts DDS')),
+        ]);
+        // its skins carry retail's own names (TX_B_N_Argonian_F_F...): each is renamed in the NIF, same length, to a
+        // "b3" name no archive holds - else retail's feet and tail, cut for retail's mesh, answered first
+        // BB-ONCE: the renamed copy made once per body (the fetch memo's array is every caller's, never written), and a
+        // skin's decode dropped only when its bytes moved
+        const stems = asset.textures.map((tex) => { const stem = tex.name.replace(/\.dds$/, ''); return [stem, 'b3' + stem.slice(2)]; });
+        const bytes = betterBeastBytes(asset.model, rawBytes, stems);
+        stems.forEach(([, own], k) => {
+          if (registerBetterBodiesRaceTexture(archives, `textures/${own}.dds`, skins[k])) {   // BB-ONCE: only when the bytes moved
+            for (const key of TEXTURE_CACHE.keys()) if (String(key).toLowerCase().endsWith(own + '.dds')) TEXTURE_CACHE.delete(key);
+          }
+        });
+        betterBodiesPart = { slot: 'betterBodies', bones: [], bytes, uvEdits: [], hideSlots: worn.shadows, texturePath: null };
+        console.info('[Better Bodies] beast body loaded', { raceKey: asset.raceKey, female, underwear: asset.underwear, skins: asset.textures.length });
+      } catch (error) {
+        const reason = 'Better Beasts body unavailable: ' + String(error?.message ?? error);
+        missing.push(reason);
+        console.warn('[Better Bodies] falling back to the standard beast body:', reason);
+      }
+    }
+    if (MW_STOCK.BetterBodiesSource === 2 && !beast && !werewolf && !vampire) {
+      try {
+        const asset = betterBodiesAssetUrls({ race, female });
+        if (!asset) throw new Error(`no Better Bodies asset for race "${String(race)}" / ${female ? 'female' : 'male'}`);
+        // UV-EDITS-OFF (Gleb, 2026-10-27, from play: the bra at the waist, "stockings" at the thighs and knees): the
+        // checked-in bb_skinf_no-uv-edits.json was cut to fit the high-resolution female skin onto Better Bodies' own
+        // mesh - which never fits it (the pack ships its own mesh, now drawn with it: betterBodiesAssetUrls). On Better
+        // Bodies' own skins it moved the underwear down the body and broke the legs' texture at every shape's edge.
+        // Measured live with and without it: without, every skin lands where its painter put it. Kept loadable, not read.
+        const uvEdits = [];
+        const [rawBytes, textureBytes] = await Promise.all([
+          loadBetterBodiesAssetBytes(asset.model, 'NIF'),
+          loadBetterBodiesAssetBytes(asset.texture, 'DDS'),
+        ]);
+        const genderKey = female ? 'f' : 'm';
+        const bytes = preparedBetterBodiesBytes(
+          asset.model, rawBytes,
+          `bb_skin${genderKey}_${asset.geometryRaceKey}`,
+          asset.runtimeTextureStem,   // NUDITY-SYNC: the variant's own name, which no other archive answers
+        );
+        const textureChanged = registerBetterBodiesRaceTexture(archives, asset.texturePath, textureBytes);
+        betterBodiesPart = {
+          slot: 'betterBodies', bones: [], bytes, uvEdits, hideSlots: worn.shadows,
+          texturePath: asset.texturePath,
+        };
+        const basename = betterBodiesTextureBasename(asset.texturePath);
+        if (textureChanged) {   // BB-ONCE: the decoded skin is dropped only when its bytes moved - not on every equip
+          for (const key of TEXTURE_CACHE.keys()) {
+            if (String(key).toLowerCase().endsWith(basename)) TEXTURE_CACHE.delete(key);
+          }
+        }
+        console.info('[Better Bodies] race/sex body asset loaded', {
+          raceKey: asset.raceKey, female, modelBytes: bytes.byteLength,
+          textureBytes: textureBytes.byteLength, uvEdits: uvEdits.length,
+          wornAdds: worn.adds?.length ?? 0,
+        });
+      } catch (error) {
+        const reason = 'Better Bodies race/sex skin unavailable: ' + String(error?.message ?? error);
+        missing.push(reason);
+        console.warn('[Better Bodies] falling back to standard Morrowind body:', reason);
+      }
+    }
     // MW-D29/D31: the worn verdicts arrive COMPOSED - one arbitration
     // in buildFpArm serves both rigs. shadowSkinRows applies the
     // shadows to the skin rows' bone lists so a right gauntlet hides
@@ -2173,6 +2762,11 @@ async function buildTpBody({
     let skinRows = shadowSkinRows(
       rows.filter((r) => r.record).map((r) => ({ slot: r.slot, bones: PART_BONES[r.slot] ?? [], model: r.record.model })),
       worn.shadows);
+    if (betterBodiesPart) {
+      // The full-body NIF includes chest, groin, arms, legs, hands and feet;
+      // only keep the separate head/hair pieces from the race skin set.
+      skinRows = skinRows.filter((row) => row.slot === 'head' || row.slot === 'hair');
+    }
     // WEREWOLF1: the wolf's hair only while its head is the skin's (npcanimation.cpp:654 - PRT_Head's priority <= 1)
     if (werewolf && worn.shadows.includes('head')) skinRows = skinRows.filter((r) => r.slot !== 'hair');
     for (const row of rows) {
@@ -2191,16 +2785,24 @@ async function buildTpBody({
       ...weaponPartPaths({ weapon, hasAmmo, allWeapons, has: archiveHas(archives) }),   // MW-D50
       ...torchPartPaths({ torch, allLights, has: archiveHas(archives) }),   // MW-D51
       ...hipLanternPartPaths({ hipLight, allLights, has: archiveHas(archives) }),   // HT-WAIST
-    ]);
+    ], urgent);
     const partBytes = [];
+    if (betterBodiesPart) partBytes.push(betterBodiesPart);
     for (const row of [...skinRows, ...worn.adds]) {
       const path = `meshes/${row.model}`;
       const arc = find(path);
       if (!arc) { missing.push(`${row.slot}: ${path} is not in your archives`); continue; }
-      // partName rides along: a worn add's slot is a label carrying its
-      // record id, and the binder's part rules key on the part itself.
-      partBytes.push({ slot: row.slot, partName: row.partName, bones: row.bones, bytes: nifBytes(arc, path),
-        ...ownBodyPart(row, rows, find) });   // MW-BRIG2: the body under it; MW-BRIG3: the part it is fitted onto
+      // Keep each worn item's authored skin source and attach bones. The
+      // full-body Better Bodies mesh is a render replacement, not a valid
+      // universal weight-transfer source: nearest-surface skin transfer across
+      // the whole body can assign cuirass/glove vertices to leg bones.
+      partBytes.push({
+        slot: row.slot, partName: row.partName, bones: row.bones, bytes: nifBytes(arc, path),
+        // Simply Animated Cloak has a foreign skin-root frame; retarget its unknown
+        // cloak bones to the actor's chest (Bip01 Spine2), preserving the intended
+        // attachment behavior from before the later coordinate experiments.
+        ...ownBodyPart(row, rows, find),
+      });   // MW-BRIG2
     }
     if (!partBytes.length) {
       return { ok: false, stage: 'parts', error: werewolf ? 'no werewolf body mesh resolved - its robe, head and hair are Bloodmoon\'s' : `no third-person body mesh resolved for race "${race}"`, notes: missing, rows };
@@ -2222,7 +2824,7 @@ async function buildTpBody({
     // skeleton's animations/ folder only under `use additional anim sources`, default off, and the base model is
     // not the wolf's (npcanimation.cpp:503-510)
     const boneSourcePaths = werewolf ? [] : boneSourcesFor(TP_BASE_MODEL, skeletonPath, archives);
-    await loadFromArchives(archives, [...boneSourcePaths, ...holsterPartPaths({ weaponModel: resolvedWeapon.weaponInfo?.model })]);
+    await loadFromArchives(archives, [...boneSourcePaths, ...holsterPartPaths({ weaponModel: resolvedWeapon.weaponInfo?.model })], urgent);
     const boneSources = boneSourcePaths.map((path) => ({ name: path, bytes: nifBytes(find(path), path) })).filter((b) => b.bytes);
     const resolvedHolster = sheathing
       ? resolveHolsterParts({
@@ -2240,13 +2842,10 @@ async function buildTpBody({
     partBytes.push(...resolvedHip.parts);
 
     let arm = await assembleFirstPersonArm({ skeletonBytes, parts: partBytes, boneSources, parseNif: parseNifOnce, offWeaponBone: true });   // MWNPC3: one parse a mesh, every body; TWO-HANDS AUDIT: the left hand's weapon bone
-    if (!arm.ok) {
-      return { ok: false, stage: arm.stage || 'assembly', error: arm.error, notes: [...missing, ...(arm.notes || [])], rows };
-    }
     // HEAD-HELD: a helm that bound nothing gives back the head and hair it hid - assembled again with them, never headless
     const bare = bareHeadRows(rows, worn, arm.pieces, werewolf);
     if (bare.length) {
-      await loadFromArchives(archives, bare.map((r) => `meshes/${r.model}`));
+      await loadFromArchives(archives, bare.map((r) => `meshes/${r.model}`), urgent);
       const back = bare.flatMap((r) => {
         const path = `meshes/${r.model}`, arc = find(path);
         return arc ? [{ slot: r.slot, bones: r.bones, bytes: nifBytes(arc, path) }] : [];
@@ -2260,11 +2859,11 @@ async function buildTpBody({
       }
     }
     hangHipLight(arm);   // HT-WAIST: the hook and the anchor, once, on the assembled skeleton
-    const cloakFit = fitThirdPersonCloak(arm, new Set([...skinRows, ...worn.adds].map((row) => row.slot)));   // MW-CLOAK1
+    const cloakFit = fitThirdPersonCloak(arm, new Set([...skinRows, ...worn.adds, ...(betterBodiesPart ? [{ slot: 'betterBodies' }] : [])].map((row) => row.slot)));   // MW-CLOAK1
     // MW-LOAD: covers collectArmTextures' synchronous reads - rule 36's
     // ladder over the names the assembled pieces carry, which are only
     // knowable now that the NIFs are parsed.
-    await preloadArmTextures([...arm.pieces, ...(arm.effects ?? [])], archives, gen);   // MAC-Q: and the flame's
+    await preloadArmTextures([...arm.pieces, ...(arm.effects ?? [])], archives, gen, urgent);   // MAC-Q: and the flame's
     const textures = collectArmTextures([...arm.pieces, ...(arm.effects ?? [])], archives, gen);
     if (werewolf) await preskinTextures(arm.pieces, textures, skin);   // SHADOW-FANG (AUDIT D2): the skin, here and not in the frame
 
@@ -2280,7 +2879,7 @@ async function buildTpBody({
     }
     // MW-LOAD: covers cachedClipReport's bytesOf below - the .kf
     // animation sources, read synchronously inside the callback.
-    await loadFromArchives(archives, sourcePaths);
+    await loadFromArchives(archives, sourcePaths, urgent);
     const sources = [];
     for (const p of sourcePaths) {
       const one = await cachedClipReport(gen, skeletonPath, p, () => find(p).get(p).slice(), arm.skeleton);
@@ -2290,6 +2889,160 @@ async function buildTpBody({
         trackMap: one.trackMap, binding: one.binding,
         wouldAccumRoot: accumRootRef(arm.skeleton, one.trackMap),
       });
+    }
+    // OpenMW Dynamic Animations third-person catalog. The original OpenMW Lua
+    // controller is not executable here; its KF variants are translated to the
+    // runtime's canonical groups and one variant per group is chosen deterministically
+    // from this actor's stable identity. Walk-only user selectors below retain priority.
+    if (!werewolf) {
+      const dynamicAssets = await loadOpenMWDynamicThirdPersonAnimationAssets({ skeletonPath, race });
+      const seed = [npcHint?.seed ?? '', npcHint?.tier ?? '', skeletonPath, race, female ? 'female' : 'male', beast ? 'beast' : 'biped',
+        faceIndex ?? '', appearanceHeadId ?? '', appearanceHairId ?? '',
+        walk?.head?.model ?? walk?.head?.id ?? '', walk?.hair?.model ?? walk?.hair?.id ?? ''].join('|');
+      const selectedDynamicAssets = selectOpenMWDynamicAnimationVariants(dynamicAssets, seed);
+      for (const asset of selectedDynamicAssets) {
+        const report = await cachedClipReport(gen, skeletonPath, asset.name, () => asset.bytes, arm.skeleton);
+        logAnimationDiagnostic(`odar|${skeletonPath}|${asset.name}`, {
+          family: 'openmw-dynamic-third-person', rig: skeletonPath, file: asset.name,
+          targetGroup: asset.targetGroup, ok: !!report.ok, error: report.ok ? null : report.error,
+          groups: report.groups ?? [], keyCount: report.keys?.length ?? 0,
+          matchedTracks: report.binding?.matched?.length ?? 0,
+        });
+        if (!report.ok) {
+          missing.push(`OpenMW Dynamic Animations clip ${asset.name}: ${report.error}`);
+          continue;
+        }
+        if (!(report.binding?.matched?.length)) {
+          missing.push(`OpenMW Dynamic Animations clip ${asset.name}: no tracks bind to this rig; archive source retained`);
+          continue;
+        }
+        const sourceGroup = String(asset.sourceGroup ?? '').toLowerCase();
+        const targetGroup = String(asset.targetGroup ?? '').toLowerCase();
+        let groups;
+        let keys;
+        if (targetGroup === 'armposes') {
+          const poseGroups = report.groups.filter((name) => /^arms/i.test(name));
+          const sourceGroups = poseGroups.length ? poseGroups : report.groups;
+          groups = [...new Set(sourceGroups.map((name) => String(name).toLowerCase()))];
+          keys = normalizeAnimationGroupKeys(report.keys, sourceGroups);
+        } else {
+          const aliases = new Set([sourceGroup, sourceGroup.replace(/^[xz]/, ''), targetGroup,
+            `x${targetGroup}`, `z${targetGroup}`]);
+          const sourceGroups = report.groups.filter((name) => aliases.has(String(name).toLowerCase()));
+          keys = remapAnimationGroupKeys(report.keys, sourceGroups, targetGroup);
+          groups = sourceGroups.length ? [targetGroup] : [];
+        }
+        if (!groups.length || !keys.length) {
+          missing.push(`OpenMW Dynamic Animations clip ${asset.name}: no compatible ${targetGroup} group; archive source retained`);
+          continue;
+        }
+        sourcePaths.push(asset.name);
+        sources.push({
+          name: asset.name, keys, groups, groupSet: new Set(groups),
+          trackMap: report.trackMap, binding: report.binding,
+          wouldAccumRoot: accumRootRef(arm.skeleton, report.trackMap),
+          animationFamily: 'dynamic-third-person', animationPack: 'openmw-dynamic-animations',
+        });
+      }
+    }
+    // MW-ANIM-1: The uploaded Simply Walking set replaces WALK groups only.
+    // The separate Feminine Walk Cycle is a female-only, walk-only override;
+    // other actions keep the game's own sources and priority.
+    if (!werewolf && !beast) {
+      const walkAssets = await loadWalkAnimationAssets({ female });
+      for (const asset of walkAssets) {
+        const report = await cachedClipReport(gen, skeletonPath, asset.name, () => asset.bytes, arm.skeleton);
+        if (asset.animationOverhaul || asset.family === 'all') {
+          logAnimationDiagnostic(`mao|${skeletonPath}|${asset.name}`, {
+            family: 'morrowind-animation-overhaul', rig: skeletonPath, file: asset.name,
+            ok: !!report.ok, error: report.ok ? null : report.error,
+            groups: report.groups ?? [], keyCount: report.keys?.length ?? 0,
+            matchedTracks: report.binding?.matched?.length ?? 0,
+          });
+        }
+        if (!report.ok) {
+          const reason = `walk animation ${asset.name}: ${report.error}`;
+          missing.push(reason);
+          console.warn('[Morrowind animations] replacement KF could not be parsed/bound; vanilla walk retained:', reason);
+          continue;
+        }
+        const isOverhaul = asset.family === 'all' || asset.animationOverhaul === true;
+        const isFamilyGroup = asset.movementOnly ? isMovementAnimationGroup : asset.family === 'run' ? isRunAnimationGroup : isWalkAnimationGroup;   // MAO-SOURCE
+        const isFamilyKey = asset.movementOnly ? isMovementAnimationKey : asset.family === 'run' ? isRunAnimationKey : isWalkAnimationKey;
+        const familyKeys = isOverhaul && !asset.movementOnly ? report.keys : report.keys.filter(isFamilyKey);
+        const familyGroups = isOverhaul && !asset.movementOnly ? report.groups : report.groups.filter(isFamilyGroup);
+        if (!familyGroups.length || !familyKeys.length) {
+          const reason = `locomotion animation ${asset.name}: no usable ${asset.family || 'walk'} groups; vanilla source retained`;
+          missing.push(reason);
+          console.warn('[Morrowind animations] replacement KF has no recognised locomotion groups; vanilla source retained:', {
+            asset: asset.name, family: asset.family || 'walk', groups: report.groups, keyCount: report.keys.length,
+          });
+          continue;
+        }
+        sources.push({
+          name: asset.name,
+          keys: familyKeys,
+          groups: familyGroups,
+          groupSet: new Set(familyGroups),
+          trackMap: report.trackMap,
+          binding: report.binding,
+          wouldAccumRoot: accumRootRef(arm.skeleton, report.trackMap),
+          walkOnly: asset.family === 'walk',
+          runOnly: asset.family === 'run',
+          animationOverhaul: isOverhaul,
+          animationFamily: asset.family,
+          walkVariant: asset.variant,
+        });
+      }
+    }
+    // Hit Reactions Animated v2: third-person human and beast rigs only, and
+    // only reaction/death groups. Rig-folder filtering in the loader prevents
+    // male, female, and beast clips from competing; locomotion/weapon groups stay untouched.
+    if (!werewolf && !/\.1st\.nif$/i.test(skeletonPath)) {
+      const assets = await loadHitReactionAnimationAssets({ skeletonPath });
+      const reactionGroup = /^(?:x)?(?:hit|stagger|death)/i;
+      let nextHitGroup = 1;
+      let nextDeathGroup = 1;
+      for (const asset of assets) {
+        const report = await cachedClipReport(gen, skeletonPath, asset.name, () => asset.bytes, arm.skeleton);
+        logAnimationDiagnostic(`hit|${skeletonPath}|${asset.name}`, {
+          family: 'hit-reactions-v2', rig: skeletonPath, file: asset.name,
+          ok: !!report.ok, error: report.ok ? null : report.error,
+          groups: report.groups ?? [], keyCount: report.keys?.length ?? 0,
+          matchedTracks: report.binding?.matched?.length ?? 0,
+        });
+        if (!report.ok) { missing.push(`Hit reaction clip ${asset.name}: ${report.error}`); continue; }
+        if (!(report.binding?.matched?.length)) {
+          missing.push(`Hit reaction clip ${asset.name}: no tracks bind to this rig; archive reaction retained`);
+          continue;
+        }
+        const sourceGroups = report.groups.filter((name) => reactionGroup.test(name));
+        if (!sourceGroups.length) {
+          missing.push(`Hit reaction clip ${asset.name}: no hit/stagger/death group; archive fallback retained`);
+          continue;
+        }
+        // The OpenMW pack names clips HitReact/StaggerBack/DeathBack, while
+        // this runtime requests hit1..hitN and death1..deathN. Adapt the
+        // text-key group so the existing deterministic combat selector can play it.
+        const target = hitReactionTargetGroup(asset.name, nextHitGroup, nextDeathGroup);
+        if (!target) continue;
+        const keys = remapAnimationGroupKeys(report.keys, sourceGroups, target.group);
+        if (!keys.length) {
+          missing.push(`Hit reaction clip ${asset.name}: no usable text keys for ${target.group}`);
+          continue;
+        }
+        if (target.family === 'death') nextDeathGroup++;
+        else nextHitGroup++;
+        const groups = [target.group];
+        sourcePaths.push(asset.name);
+        sources.push({
+          name: asset.name, keys, groups, groupSet: new Set(groups),
+          trackMap: report.trackMap, binding: report.binding,
+          wouldAccumRoot: accumRootRef(arm.skeleton, report.trackMap),
+          animationFamily: 'hit-reaction', animationPack: 'hit-reactions-v2',
+          reactionKind: /stagger/i.test(asset.name) ? 'stagger' : target.family,
+        });
+      }
     }
     const groupSet = new Set(sources.flatMap((so) => so.groups));
     const idleProbe = composeStanceGroup(FP_IDLE_BASE, animWeaponType(resolvedWeapon.mwType, true), (n) => groupSet.has(n));
@@ -2356,7 +3109,7 @@ async function buildCreatureBody({ creature, flies = false, deps = null }) {
     const d = deps || await import('../scenes/dataSource.js');
     const archives = await d.loadMorrowindArchives();
     if (!archives.length) return { ok: false, stage: 'data', error: 'no Morrowind .bsa attached' };
-    const esmNames = esmLoadOrder((await d.storedMorrowindNames()).filter((n) => /\.esm$/i.test(n)));   // AUDIT MW-NPC D6
+    const esmNames = await morrowindRecordLoadOrder(d);   // AUDIT MW-NPC D6
     if (!esmNames.length) return { ok: false, stage: 'data', error: 'no Morrowind .esm attached - the creature records live there' };
     const gen = adoptMemoGeneration(d.morrowindDataGeneration);
     const found = new Map();
@@ -2399,6 +3152,46 @@ async function buildCreatureBody({ creature, flies = false, deps = null }) {
       if (!one.ok) return { ok: false, stage: 'clip', error: `${p}: ${one.error}`, notes: arm.notes };
       sources.push({ name: p, keys: one.keys, groups: one.groups, groupSet: new Set(one.groups), trackMap: one.trackMap, binding: one.binding,
         wouldAccumRoot: accumRootRef(arm.skeleton, one.trackMap) });
+    }
+    // OpenMW Dynamic Animations also ships rig-specific creature clips. Apply
+    // the same deterministic group adapter used for bipedal bodies; a missing or
+    // incompatible clip never replaces the creature's archive source.
+    const dynamicAssets = await loadOpenMWDynamicThirdPersonAnimationAssets({ skeletonPath: modelPath, race: rec.id });
+    const selectedDynamicAssets = selectOpenMWDynamicAnimationVariants(dynamicAssets, `${rec.id}|${modelPath}`);
+    for (const asset of selectedDynamicAssets) {
+      const report = await cachedClipReport(gen, modelPath, asset.name, () => asset.bytes, arm.skeleton);
+      if (!report.ok) {
+        arm.notes?.push(`OpenMW Dynamic Animations creature clip ${asset.name}: ${report.error}`);
+        continue;
+      }
+      if (!(report.binding?.matched?.length)) {
+        arm.notes?.push(`OpenMW Dynamic Animations creature clip ${asset.name}: no tracks bind to this rig; archive source retained`);
+        continue;
+      }
+      const sourceGroup = String(asset.sourceGroup ?? '').toLowerCase();
+      const targetGroup = String(asset.targetGroup ?? '').toLowerCase();
+      let groups;
+      let keys;
+      if (targetGroup === 'armposes') {
+        const poseGroups = report.groups.filter((name) => /^arms/i.test(name));
+        const sourceGroups = poseGroups.length ? poseGroups : report.groups;
+        groups = [...new Set(sourceGroups.map((name) => String(name).toLowerCase()))];
+        keys = normalizeAnimationGroupKeys(report.keys, sourceGroups);
+      } else {
+        const aliases = new Set([sourceGroup, sourceGroup.replace(/^[xz]/, ''), targetGroup,
+          `x${targetGroup}`, `z${targetGroup}`]);
+        const sourceGroups = report.groups.filter((name) => aliases.has(String(name).toLowerCase()));
+        keys = remapAnimationGroupKeys(report.keys, sourceGroups, targetGroup);
+        groups = sourceGroups.length ? [targetGroup] : [];
+      }
+      if (!groups.length || !keys.length) continue;
+      sourcePaths.push(asset.name);
+      sources.push({
+        name: asset.name, keys, groups, groupSet: new Set(groups),
+        trackMap: report.trackMap, binding: report.binding,
+        wouldAccumRoot: accumRootRef(arm.skeleton, report.trackMap),
+        animationFamily: 'dynamic-third-person', animationPack: 'openmw-dynamic-animations',
+      });
     }
     const groupSet = new Set(sources.flatMap((so) => so.groups));
     const idlePick = groupSet.has(FP_IDLE_BASE) ? pickAnimSource(sources, FP_IDLE_BASE, resetClip, { loopFallback: true }) : null;
@@ -2518,7 +3311,7 @@ function headCatalogOf(d) {
   const promise = (async () => {
     const archives = await d.loadMorrowindArchives();
     if (!archives.length) return null;
-    const esmNames = esmLoadOrder((await d.storedMorrowindNames()).filter((n) => /\.esm$/i.test(n)));
+    const esmNames = await morrowindRecordLoadOrder(d);
     if (!esmNames.length) return null;
     const parts = [], armors = [], races = new Map();
     for (const n of esmNames) {
@@ -2655,8 +3448,9 @@ const beastWearPref = () => ({ feet: getPref('mwBeastFeet'), helm: getPref('mwBe
  *  `skin`); and what is worn on it (`armor`, the build's own list - a helm, a hooded outfit); a player's (`ownHeads`) the
  *  port's own heads where its race has them, as a player's body wears them (MW-HEADS2). `{ width, height, data }`
  *  or null (no data attached, no renderer, no head for the race, the skeleton or a mesh or a texture not in hand).
- *  @param {{ renderer?: any, race?: string|null, female?: boolean, faceIndex?: number, npcFace?: { head: number, hair: number }|null, ownHeads?: boolean, vampire?: boolean, werewolf?: boolean, skin?: string|null, armor?: any[]|null, px?: number, ph?: number, deps?: any }} [opts] */
-export async function headPortrait({ renderer, race, female = false, faceIndex = 0, npcFace = null, vampire = false, werewolf = false, skin = null, armor = null, ownHeads = false, px = 128, ph = px, deps = null } = {}) {
+ *  @param {{ renderer?: any, race?: string|null, female?: boolean, faceIndex?: number, npcFace?: { head: number, hair: number }|null, ownHeads?: boolean, vampire?: boolean, werewolf?: boolean, skin?: string|null, armor?: any[]|null, appearanceHeadId?: string|null, appearanceHairId?: string|null, px?: number, ph?: number, deps?: any }} [opts] */
+export async function headPortrait({ renderer, race, female = false, faceIndex = 0, npcFace = null, vampire = false, werewolf = false, skin = null, armor = null, ownHeads = false, appearanceHeadId = null, appearanceHairId = null, px = 128, ph = px, deps = null } = {}) {
+  if (!getPref('morrowind3dPaperDoll')) return null;
   if (!renderer || !race) return null;
   const d = deps || await import('../scenes/dataSource.js');
   const cat = await headCatalogOf(d);
@@ -2666,14 +3460,16 @@ export async function headPortrait({ renderer, race, female = false, faceIndex =
   const beast = !!(raceRec && raceRec.radt && raceRec.beast);   // AUDIT MW-A F1: the race record's own bit, as the build reads it
   const pools = werewolf || npcFace ? null : facePools(cat.parts, race, female, { has: exists, own: ownHeads });
   const faceMatch = await faceMatchOf({ race, female, faceIndex, werewolf, npcFace, pools, archives: cat.archives, gen: cat.gen, d });
-  const rows = (werewolf ? werewolfHeadRows(cat.parts) : playerBodyRows(cat.parts, race, female, { beast, faceIndex, faceMatch, vampire, walk: npcFace, has: exists, ownHeads }))
-    .filter((r) => r.slot === 'head' || r.slot === 'hair');
+  const rows = (werewolf ? werewolfHeadRows(cat.parts) : playerBodyRows(cat.parts, race, female, {
+    beast, faceIndex, faceMatch, vampire, walk: npcFace, has: exists, ownHeads,
+    appearanceHeadId: npcFace ? null : appearanceHeadId, appearanceHairId: npcFace ? null : appearanceHairId,
+  })).filter((r) => r.slot === 'head' || r.slot === 'hair');
   if (!rows.some((r) => r.slot === 'head' && r.record)) return null;
   // what is worn on the head, composed as the body composes it - the wolf wears nothing (WEREWOLF1), and the clothes
   // are no head's (a cloak, a robe: their dyes are measured for the body alone)
   const pieces = werewolf ? [] : (armor ?? []).filter((p) => p && p.kind !== 'clothing');
   const worn = pieces.length
-    ? composeWornArmor({ pieces, armors: cat.armors, clothes: [], bodyPool: cat.parts, female, helmStyle: getPref('mwSteelHelm'), beast, beastWear: beastWearPref() })
+    ? composeWornArmor({ pieces, armors: cat.armors, clothes: [], bodyPool: cat.parts, female, helmStyle: getPref('mwSteelHelm'), looks: getPref('mwArmorLooks'), beast, beastWear: beastWearPref() })
     : { adds: [], shadows: [], notes: [] };
   const heads = worn.adds.filter((a) => capsHead(a) || (a.bones ?? []).some((b) => /^head$/i.test(b)));
   let skinRows = shadowSkinRows(rows.filter((r) => r.record).map((r) => ({ slot: r.slot, bones: PART_BONES[r.slot] ?? [], model: r.record.model })), worn.shadows);
@@ -2689,7 +3485,7 @@ export async function headPortrait({ renderer, race, female = false, faceIndex =
 }
 
 export async function buildFpArm({
-  race, female = false, beast = null, faceIndex = 0, weapon = null, hasAmmo = false, armor = null, deps = null,
+  race, female = false, beast = null, faceIndex = 0, appearanceHeadId = null, appearanceHairId = null, weapon = null, hasAmmo = false, armor = null, deps = null,
   torch = false,   // MW-D51: a lit Daggerfall torch in hand at the build
   sheathing = true, ammoCount = null,   // WS1: the holster on the third-person body, and the quiver's count
   hipLight = false,   // HT-WAIST: a lit lantern hung at the waist at the build (the third-person body's alone)
@@ -2700,7 +3496,9 @@ export async function buildFpArm({
   vampire = false,   // MWNPC14: a vampire's face - the race's vampire head
   flies = false,   // AUDIT MW-NPC II K5: a creature body that must fly (its CREA record's Flies flag)
   npcFace = null,   // MWNPC17: an NPC's head and hair, each walked off its seed ({ head, hair } - characters/wardrobe.js npcFaceOf): no portrait to match
+  npcHint = null,   // MWNPC17: stable NPC seed/tier used by deterministic animation variant selection
   ownHeads = false,   // MW-HEADS2 (the owner: "only the player Britons should recieve the new heads, not npcs"): a player's body - the local player's (weaponRig.js armBuildOptsOf) and a peer's (net/peer/peerBodies.js playerBuildOpts) - wears the port's own heads; every other the data's
+  urgent = false,   // LOAD-STALL 3: the player's rig (createFpArm's playerAppearance) - its pictures ahead of the NPCs' in the pool
   offWeapon = null,   // TWO-HANDS AUDIT 2: a pair's left-hand weapon, bound in the build on both rigs - the rig's own rebuilds hand the one it holds (setOffWeapon records it)
 } = {}) {
   if (creature) return buildCreatureBody({ creature, flies, deps });   // MWNPC9
@@ -2729,7 +3527,7 @@ export async function buildFpArm({
   // ONE line, never per file: a log per entry is what makes a slow boot
   // slower and a console unreadable.
   const t0 = mwNow();
-  const spans = { archives: 0, esm: 0, meshes: 0, textures: 0, sweep: 0 };
+  const spans = { archives: 0, esm: 0, meshes: 0, textures: 0, third: 0, sweep: 0 };
   let stageMark = t0;
   const stage = (name) => { const n = mwNow(); spans[name] += n - stageMark; stageMark = n; };
   try {
@@ -2751,7 +3549,7 @@ export async function buildFpArm({
     // Reading all of them is also what the engine does - later masters
     // add to and override earlier ones - so this is the load order
     // rather than a workaround for it. AUDIT MW-NPC D6: in that order - the store answers alphabetically.
-    const esmNames = esmLoadOrder((await d.storedMorrowindNames()).filter((n) => /\.esm$/i.test(n)));
+    const esmNames = await morrowindRecordLoadOrder(d);
     if (!esmNames.length) {
       return { ok: false, stage: 'data', error: 'no Morrowind .esm attached - the body records live there, not in the .bsa' };
     }
@@ -2836,26 +3634,38 @@ export async function buildFpArm({
     // returns mwEsmFile's body shape; armReport wants bodyParts' shape;
     // there is no adapter and writing one by guess inside this slice is
     // exactly how MW7 died. Raw bytes through the pinned path instead.
-    const parts = esmBytes.flatMap((e) => walk(e, 'parts', bodyParts));
-    // MW-D29: the ARMO records ride the same esm walk, load order and
-    // all - the composer resolves DF pieces against them by token.
-    const armors = esmBytes.flatMap((e) => walk(e, 'armors', armorRecords));
-    const clothes = esmBytes.flatMap((e) => walk(e, 'clothes', clothingRecords));
-    // MW-D9: THE WEAPON RECORDS. MW-LOAD hoisted them here, beside the
-    // other three walks, because weaponPartPaths needs them to name the
-    // weapon and arrow meshes BEFORE resolveWeaponParts reads them -
-    // and because one stage of the clock should hold every esm walk.
-    const allWeapons = esmBytes.flatMap((e) => walk(e, 'weapons', weaponRecords));
-    // MW-D51: THE LIGHT RECORDS, the same walk - a lit torch's mesh is
-    // named by a LIGH record the way a blade's is by a WEAP.
-    const allLights = esmBytes.flatMap((e) => walk(e, 'lights', lightRecords));
-    // MW-SPELLFX1: THE MAGIC EFFECTS AND THE STATICS THEIR VISUALS ARE, the same walk - a later master's record of an
-    // index or an id replaces an earlier one's, which is the load order
-    const magic = { effects: new Map(), statics: new Map() };
-    for (const e of esmBytes) {
-      for (const m of walk(e, 'magicEffects', magicEffectRecords)) magic.effects.set(m.index, m);
-      for (const st of walk(e, 'statics', vfxStaticRecords)) magic.statics.set(st.id, st.model);
+    // LOAD-STALL 2: THE MERGE IS MEMOISED WITH THE WALKS - the load order's records joined (thousands of rows, five
+    // ways) were joined again at every equip; one generation and one load order join once. Read-only downstream.
+    const mergeKey = gen !== null ? `${gen}|${esmBytes.map((e) => e.name).join('|')}` : null;
+    let merged = mergeKey ? ESM_MERGE_CACHE.get(mergeKey) : undefined;
+    if (!merged) {
+      const magicOf = { effects: new Map(), statics: new Map() };
+      // MW-SPELLFX1: THE MAGIC EFFECTS AND THE STATICS THEIR VISUALS ARE, the same walk - a later master's record of an
+      // index or an id replaces an earlier one's, which is the load order
+      for (const e of esmBytes) {
+        for (const m of walk(e, 'magicEffects', magicEffectRecords)) magicOf.effects.set(m.index, m);
+        for (const st of walk(e, 'statics', vfxStaticRecords)) magicOf.statics.set(st.id, st.model);
+      }
+      merged = {
+        parts: esmBytes.flatMap((e) => walk(e, 'parts', bodyParts)),
+        // MW-D29: the ARMO records ride the same esm walk, load order and
+        // all - the composer resolves DF pieces against them by token.
+        armors: esmBytes.flatMap((e) => walk(e, 'armors', armorRecords)),
+        clothes: esmBytes.flatMap((e) => walk(e, 'clothes', clothingRecords)),
+        // MW-D9: THE WEAPON RECORDS. MW-LOAD hoisted them here, beside the
+        // other three walks, because weaponPartPaths needs them to name the
+        // weapon and arrow meshes BEFORE resolveWeaponParts reads them -
+        // and because one stage of the clock should hold every esm walk.
+        allWeapons: esmBytes.flatMap((e) => walk(e, 'weapons', weaponRecords)),
+        // MW-D51: THE LIGHT RECORDS, the same walk - a lit torch's mesh is
+        // named by a LIGH record the way a blade's is by a WEAP.
+        allLights: esmBytes.flatMap((e) => walk(e, 'lights', lightRecords)),
+        magic: magicOf,
+      };
+      if (mergeKey) ESM_MERGE_CACHE.set(mergeKey, merged);
     }
+    const { parts, armors, clothes, allWeapons, allLights } = merged;
+    const magic = { effects: merged.magic.effects, statics: merged.magic.statics };
     // RULE 32(a)'s GMST, read from the player's own data. Later masters
     // override earlier ones, so the LAST .esm that carries it wins -
     // which is the load order, not a preference.
@@ -2873,7 +3683,7 @@ export async function buildFpArm({
     // out loud if one ever stops having one.
     const find = (p) => findLoaded(archives, p);
     // MW-LOAD: covers the skeleton read on the next line.
-    await loadFromArchives(archives, [skeletonPath]);
+    await loadFromArchives(archives, [skeletonPath], urgent);
     const skelArc = find(skeletonPath);
     if (!skelArc) return { ok: false, stage: 'skeleton', error: `${skeletonPath} is not in your archives` };
     const skeletonBytes = nifBytes(skelArc, skeletonPath);
@@ -2900,14 +3710,19 @@ export async function buildFpArm({
     // not carry a second copy of mwClothingRecord's pool law.
     if (!werewolf) {
       await prepareClothingColours(
-        (probe) => composeWornArmor({ pieces: armor ?? [], armors: armors ?? [], clothes: clothes ?? [], bodyPool: parts, female, colourOf: probe, helmStyle, beast, beastWear }),
-        parts, archives, gen);
+        (probe) => composeWornArmor({ pieces: armor ?? [], armors: armors ?? [], clothes: clothes ?? [], bodyPool: parts, female, colourOf: probe, helmStyle, looks: getPref('mwArmorLooks'), beast, beastWear }),
+        parts, archives, gen, urgent);
     }
     // NUDE-FLATS: and a woman's bare chest wears the upper weld while Show Nudity is off - this body is the
     // player's own figure and every peer's, each drawn by the viewer's setting as the classic doll is.
+    // NUDITY-SYNC (Gleb, 2026-10-27: "no in-game clothing on top - only whether the model has its underwear painted
+    // or is nude"): a Better Bodies body is its own modesty - Show Nudity off selects its underwear skin
+    // (betterBodiesAssetUrls), so it never wears the weld's shirt over it.
+    const ownModesty = MW_STOCK.BetterBodiesSource === 2 && !werewolf && !vampire && (!beast || !!betterBeastsAssetUrls({ race, female }));   // BEASTS: theirs too
+    const bareChestShown = () => ownModesty || showNudity();
     const worn = werewolf
       ? composeWornArmor({ pieces: robe ? [{ kind: 'record', record: robe, reserve: 'robe' }] : [], armors: [], clothes: [], bodyPool: parts, female })
-      : composeWornModest({ pieces: armor ?? [], armors: armors ?? [], clothes: clothes ?? [], bodyPool: parts, female, colourOf, helmStyle, beast, beastWear }, showNudity());   // BEAST-BOOTS: a beast race wears what the beast switches draw of it
+      : composeWornModest({ pieces: armor ?? [], armors: armors ?? [], clothes: clothes ?? [], bodyPool: parts, female, colourOf, helmStyle, looks: getPref('mwArmorLooks'), beast, beastWear }, bareChestShown());
     // AUDIT C7: which of the two it is - Bloodmoon.esm not attached, or attached and naming no robe (a mod's master)
     if (werewolf && !robe) {
       worn.notes.push(esmNames.some((n) => /^bloodmoon\.esm$/i.test(n))
@@ -2931,6 +3746,76 @@ export async function buildFpArm({
     for (const [slot, rec] of fpAll) {
       if (ARM_PARTS.includes(slot)) continue;
       if (rec && rec.model) wanted.push({ slot, record: rec.id, firstPerson: true, path: `meshes/${rec.model}` });
+    }
+    // BETTER-HANDS (Mac, 2026-10-26: "one arm, not a Frankenstein"): the first-person arm is Robert's Bodies' - the wrist,
+    // forearm and upper arm of its whole-body mesh, in its skin - and the hands are Better Hands' mesh (the geometry
+    // Robert's Bodies' hands are), in the same skin. Before it the hands' arm was the RETAIL forearm (Robert's
+    // first-person file carries hands alone), a different skin at the wrist. Better Bodies' own hand is read, never
+    // drawn: the clenched fist's thumb is corrected against its thumb (formats/morrowind/mwThumbFist.js). None of it
+    // touches the third-person body.
+    let betterBodiesFpArms = null;
+    let betterBodiesFpHands = null;
+    let thumbReference = null;
+    if (firstPersonHandsSource(MW_STOCK.FirstPersonHands) === 'better-hands' && !beast && !werewolf && !vampire) {
+      try {
+        const body = betterBodiesAssetUrls({ race, female });
+        const hands = robertBodiesFirstPersonAssetUrls({ race, female });
+        if (!body?.handModel || !hands?.bodyModel || !hands?.bodyTexture || !hands?.handModel || !hands?.handTexture) {
+          throw new Error(`Robert's Bodies / Better Hands assets missing for race "${String(race)}" / ${female ? 'female' : 'male'}`);
+        }
+        // (Mac: "the hand and the arm do not match - take the arms' texture from Robert's too, and smooth the hand into
+        // the forearm"): the arm is Robert's Bodies' whole-body mesh's - its wrist, forearm and upper arm - in its own
+        // skin, the very file Better Hands' hands wear (byte for byte), its wrist sat under the hand (mwCuffFit.js)
+        const [armBytes, armTextureBytes, bodyHandBytes, rawHandBytes, handTextureBytes] = await Promise.all([
+          loadBetterBodiesAssetBytes(hands.bodyModel, "Robert's Bodies body NIF for first-person arms"),
+          loadBetterBodiesAssetBytes(hands.bodyTexture, "Robert's Bodies DDS for first-person arms"),
+          loadBetterBodiesAssetBytes(body.handModel, 'Better Bodies hand NIF (the fist thumb reference)'),
+          loadBetterBodiesAssetBytes(hands.handModel, 'Better Hands NIF'),
+          loadBetterBodiesAssetBytes(hands.handTexture, 'Better Hands DDS'),
+        ]);
+        const armTextureBasename = betterBodiesTextureBasename(hands.bodyTexturePath);
+        if (registerBetterBodiesRaceTexture(archives, hands.bodyTexturePath, armTextureBytes)) {   // BB-ONCE: only when the bytes moved
+          for (const cacheKey of TEXTURE_CACHE.keys()) {
+            if (String(cacheKey).toLowerCase().endsWith(armTextureBasename)) TEXTURE_CACHE.delete(cacheKey);
+          }
+        }
+        betterBodiesFpArms = {
+          slot: 'betterBodies', partName: 'robertBodiesFirstPersonArms', bones: [],
+          bytes: armBytes, modelUrl: hands.bodyModel,
+          texturePath: hands.bodyTexturePath,
+          showSlots: ['wrist:left', 'wrist:right', 'forearm:left', 'forearm:right', 'upperarm:left', 'upperarm:right'],
+          hideSlots: worn.fpShadows ?? worn.shadows,
+          cuffFit: 'skin',   // CUFF-FIT: its wrist sat under the bare hand
+        };
+        // Both packs name their DDS textures <race>_<sex>. Give Better Hands
+        // a same-length, race-specific path so the two texture sets coexist.
+        const handTextureStem = `x${hands.raceKey[0]}_${hands.genderKey}`;
+        const handTexturePath = `textures/bbr/${handTextureStem}.dds`;
+        const handBytes = preparedBetterBodiesBytes(   // BB-ONCE: its own copy, rewritten once
+          hands.handModel, rawHandBytes,
+          `${hands.raceKey}_${hands.genderKey}`,
+          handTextureStem,
+        );
+        if (registerBetterBodiesRaceTexture(archives, handTexturePath, handTextureBytes)) {   // BB-ONCE: only when the bytes moved
+          for (const cacheKey of TEXTURE_CACHE.keys()) {
+            if (String(cacheKey).toLowerCase().endsWith(handTextureStem + '.dds')) TEXTURE_CACHE.delete(cacheKey);
+          }
+        }
+        betterBodiesFpHands = {
+          slot: 'betterBodies', partName: 'betterHandsFirstPersonHands', bones: [],
+          bytes: handBytes, modelUrl: hands.handModel,
+          texturePath: handTexturePath,
+          showSlots: ['hand:left', 'hand:right'],
+          hideSlots: worn.fpShadows ?? worn.shadows,
+          cuffFit: 'bareHand',   // CUFF-FIT: the arm's wrist is sat under it
+        };
+        thumbReference = bodyHandBytes;
+      } catch (error) {
+        betterBodiesFpArms = null;
+        betterBodiesFpHands = null;
+        thumbReference = null;
+        console.warn('[Better Hands] first-person arm/hand assets unavailable; using standard Morrowind arms:', String(error?.message ?? error));
+      }
     }
     const partBytes = [];
     const missing = [];
@@ -2969,27 +3854,84 @@ export async function buildFpArm({
       ...(offWeapon ? weaponPartPaths({ weapon: offWeapon, allWeapons, has: archiveHas(archives) }) : []),   // TWO-HANDS AUDIT 2: the left hand's, bound below on both rigs
       ...torchPartPaths({ torch, allLights, has: archiveHas(archives) }),   // MW-D51
       ...sourcePaths,
-    ]);
+    ], urgent);
+    if (betterBodiesFpArms) partBytes.push(betterBodiesFpArms);
+    if (betterBodiesFpHands) partBytes.push(betterBodiesFpHands);
     for (const w of fpRows) {
       const arc = find(w.path);
       if (!arc) { missing.push(`${w.slot}: ${w.path} is not in your archives`); continue; }
-      partBytes.push({ slot: w.slot, bones: w.bones, bytes: nifBytes(arc, w.path) });
+      partBytes.push({ slot: w.slot, bones: w.bones, bytes: nifBytes(arc, w.path), fallbackBetterBodies: !!(betterBodiesFpArms || betterBodiesFpHands) && ARM_PARTS.includes(w.slot) });
     }
     // And the fp camera sees what the reference shows it: gauntlets,
     // sleeves, the shield - fpWornAdds' filter - never a helmet in
     // your face.
     missing.push(...worn.notes);
+    const handsSettingValue = MW_STOCK.FirstPersonHands;
+    console.info("[Robert's Bodies Based Gauntlets] integration diagnostic", {
+      setting: handsSettingValue,
+      settingEnabled: firstPersonHandsSettingEnabled(),
+      assetUrlResolved: !!robertIronGauntletFirstPersonUrl,
+      firstPersonAdds: fpAdds.map((add) => ({
+        recordId: add.recordId, model: add.model, partName: add.partName,
+        slot: add.slot, bones: add.bones,
+        candidate: isRobertGauntletFirstPersonAdd(add),
+      })),
+    });
+    let robertGauntletAdded = false;
     for (const add of fpAdds) {
       const path = `meshes/${add.model}`;
+      const handsSetting = firstPersonHandsSettingEnabled();
+      const isRobertGauntlet = handsSetting
+        && !!robertIronGauntletFirstPersonUrl
+        && isRobertGauntletFirstPersonAdd(add);
       const arc = find(path);
       if (!arc) { missing.push(`${add.slot}: ${path} is not in your archives`); continue; }
-      partBytes.push({ slot: add.slot, partName: add.partName, bones: add.bones, bytes: nifBytes(arc, path) });
+      const originalBytes = nifBytes(arc, path);
+      // The donor is hands and fingers only. A gauntlet's cuff-to-elbow lives in its HAND part's own file (retail
+      // "Tri Left Hand 3", skinned to Bip01 L Forearm), so each side keeps those shapes of its original.
+      const originalForearm = { slot: add.slot, partName: add.partName, bones: add.bones, bytes: originalBytes, forearmShapesOnly: true };
+      if (isRobertGauntlet && robertGauntletAdded) {
+        // The Robert NIF contains both hands; append the paired geometry once.
+        partBytes.push(originalForearm);
+        continue;
+      }
+      if (isRobertGauntlet) {
+        try {
+          const bytes = await loadBetterBodiesAssetBytes(
+            robertIronGauntletFirstPersonUrl,
+            "Robert's Bodies Based Gauntlets NIF",
+          );
+          parseNif(bytes);
+          // Keep the equipped glove/gauntlet's texture references, but use Robert's
+          // larger hand/finger geometry. This is intentionally a temporary UV fit:
+          // material textures can look stretched until dedicated per-material meshes exist.
+          const textureFiles = parseNif(originalBytes).records
+            .filter((record) => record.type === 'NiSourceTexture' && record.external && record.fileName)
+            .map((record) => record.fileName);
+          partBytes.push({
+            slot: add.slot, bones: ['left hand', 'right hand'], bytes,
+            textureFiles,
+            handShapesOnly: true,   // CUFF-FIT: its hands alone - the worn cuff is fitted onto them (mwCuffFit.js)
+            modelUrl: robertIronGauntletFirstPersonUrl, source: "Robert's Bodies Based Gauntlets",
+          });
+          partBytes.push(originalForearm);
+          robertGauntletAdded = true;
+          console.info("[Robert's Bodies Based Gauntlets] first-person gauntlet geometry loaded", {
+            slot: add.slot, recordId: add.recordId, bones: add.bones,
+            model: robertIronGauntletFirstPersonUrl, textureFiles, bytes: bytes.byteLength,
+          });
+          continue;
+        } catch (error) {
+          missing.push(`${add.slot}: Robert-based gauntlet mesh unavailable; using archive model (${String(error?.message ?? error)})`);
+        }
+      }
+      partBytes.push({ slot: add.slot, partName: add.partName, bones: add.bones, bytes: originalBytes });
     }
     // MW-D9: THE WEAPON - resolveWeaponParts above, the one home MW-D19
     // gave it so a live weapon swap resolves through the very same door
     // as the build. Its two reads are covered by the preload above,
     // through weaponPartPaths.
-    const resolvedWeapon = resolveWeaponParts({ weapon, hasAmmo, allWeapons, find, skeletonBytes, has: archiveHas(archives) });   // MW-D50
+    const resolvedWeapon = resolveWeaponParts({ weapon, hasAmmo, allWeapons, find, skeletonBytes, has: archiveHas(archives), firstPerson: true });   // MW-D50
     partBytes.push(...resolvedWeapon.parts);
     // MW-D51: the held torch, at the first-person rig's Shield Bone -
     // the fp camera sees a shield (fpWornAdds keeps 'shield bone'), so
@@ -3018,6 +3960,52 @@ export async function buildFpArm({
       };
     }
     const arm = await assembleFirstPersonArm({ skeletonBytes, parts: partBytes, parseNif: parseNifOnce, offWeaponBone: true });   // MWNPC3: one parse a mesh, every body; TWO-HANDS AUDIT: the left hand's weapon bone
+    // Do not silently claim the Better Bodies integration succeeded merely because
+    // its NIF parsed: only recognized, drawable arm sections suppress the vanilla
+    // fallback. Surface any sections that still came from the ordinary BODY meshes.
+    if (betterBodiesFpArms && arm.ok) {
+      const renderedSections = new Set((arm.pieces ?? [])
+        .filter((piece) => piece.slot === 'betterBodies' && piece.bodySection)
+        .map((piece) => piece.bodySection));
+      const hiddenSections = new Set(worn.fpShadows ?? worn.shadows ?? []);
+      const expectedSections = [
+        'hand:left', 'hand:right', 'wrist:left', 'wrist:right',
+        'forearm:left', 'forearm:right', 'upperarm:left', 'upperarm:right',
+      ];
+      const fallbackSections = expectedSections.filter((section) =>
+        !renderedSections.has(section) && !hiddenSections.has(section));
+      if (fallbackSections.length) {
+        const sourceName = 'Better Hands';
+        const note = `${sourceName} first-person mesh did not provide recognized sections for ${fallbackSections.join(', ')}; standard arm meshes remain as fallback for those sections.`;
+        missing.push(note);
+        console.warn(`[${sourceName}] first-person arm section fallback:`, fallbackSections);
+      }
+    }
+    // Local-player diagnostic: distinguish a source-selection issue from a NIF section/binding issue.
+    // NPC builds stay quiet; DevTools shows the selected asset, recognized sections and standard fallbacks.
+    if (ownHeads) {
+      const sourceSetting = MW_STOCK.FirstPersonHands;
+      if (firstPersonHandsSource(sourceSetting) !== 'better-hands' && !betterBodiesFpArms) {
+        console.warn('[Better Hands] first-person hand source is set to Standard Morrowind.', { sourceSetting });
+      }
+      console.info('[Better Hands] first-person arm integration', {
+        race, female,
+        sourceSetting,
+        requested: firstPersonHandsSource(sourceSetting) === 'better-hands',
+        assetLoaded: Boolean(betterBodiesFpArms),
+        modelUrl: betterBodiesFpArms?.modelUrl ?? null,
+        dedicatedHandAssetLoaded: Boolean(betterBodiesFpHands),
+        handModelUrl: betterBodiesFpHands?.modelUrl ?? null,
+        assemblyOk: Boolean(arm.ok),
+        betterBodiesSections: (arm.pieces ?? [])
+          .filter((piece) => piece.slot === 'betterBodies')
+          .map((piece) => ({ name: piece.batch?.name ?? null, section: piece.bodySection ?? null, vertices: piece.batch?.positions?.length ? piece.batch.positions.length / 3 : 0 })),
+        standardArmFallbacks: (arm.pieces ?? [])
+          .filter((piece) => piece.slot !== 'betterBodies' && ARM_PARTS.includes(piece.slot))
+          .map((piece) => ({ slot: piece.slot, bone: piece.bone ?? null })),
+        notes: (arm.notes ?? []).filter((note) => /betterBodies|skin|bone|hand|wrist|forearm|upperarm/i.test(note)).slice(0, 20),
+      });
+    }
     stage('meshes');
     // MW-D11: the textures the assembled pieces NAME, resolved through
     // rule 36's path law and decoded now - while the archives are still
@@ -3028,7 +4016,7 @@ export async function buildFpArm({
     // here - preloadArmTextures covers every read collectArmTextures
     // makes, walking rule 36's ladder with `has` alone.
     // MAC-Q: the particle systems' textures ride the same catalog as the pieces'
-    if (arm.ok) await preloadArmTextures([...arm.pieces, ...(arm.effects ?? [])], archives, gen);
+    if (arm.ok) await preloadArmTextures([...arm.pieces, ...(arm.effects ?? [])], archives, gen, urgent);
     const textures = arm.ok ? collectArmTextures([...arm.pieces, ...(arm.effects ?? [])], archives, gen) : new Map();
     if (arm.ok && werewolf) await preskinTextures(arm.pieces, textures, skin);   // SHADOW-FANG (AUDIT D2): the skin, here and not in the frame
     stage('textures');
@@ -3039,7 +4027,7 @@ export async function buildFpArm({
     catalog.magic = magic;   // MW-SPELLFX1: and the magic the world's spell effects draw with
     // MW-D24: the THIRD-PERSON BODY, while the same archives are open.
     // Its refusal is a note on the card, never the arm's refusal.
-    const tpBody = (wornNow) => buildTpBody({ race, female, beast, faceIndex, faceMatch, weapon, hasAmmo, worn: wornNow, archives, parts, allWeapons, find, gen, torch, allLights, sheathing, ammoCount, hipLight, werewolf, skin: werewolf ? skin : null, vampire: !!vampire, walk: npcFace, ownHeads: !!ownHeads });   // (the wolf's rows read no face)   // MW-D51; WS1; HT-WAIST; WEREWOLF1; SHADOW-FANG; MWNPC14; MWNPC17
+    const tpBody = (wornNow) => buildTpBody({ race, female, beast, faceIndex, faceMatch, weapon, hasAmmo, worn: wornNow, archives, parts, allWeapons, find, gen, torch, allLights, sheathing, ammoCount, hipLight, werewolf, skin: werewolf ? skin : null, vampire: !!vampire, walk: npcFace, npcHint, ownHeads: !!ownHeads, appearanceHeadId, appearanceHairId, urgent });   // (the wolf's rows read no face)   // MW-D51; WS1; HT-WAIST; WEREWOLF1; SHADOW-FANG; MWNPC14; MWNPC17
     let third = arm.ok ? await tpBody(worn) : null;
     // AUDIT MW-FOLK1 (L2-F2): AN OUTFIT THAT BOUND NOTHING HIDES NOTHING AND DRESSES NOTHING. Its `hides` took the skin
     // under it and its `covers` stood the modesty shirt down at the composition, before its mesh was read; one whose mesh
@@ -3049,7 +4037,7 @@ export async function buildFpArm({
     let wornBuilt = worn;
     const lost = third?.ok ? worn.adds.filter((a) => isOutfitSlot(a.slot) && !third.arm.pieces.some((p) => p.slot === a.slot)) : [];
     if (lost.length) {
-      const without = composeWornModest({ pieces: (armor ?? []).filter((p) => !lost.some((a) => a.piece === p)), armors: armors ?? [], clothes: clothes ?? [], bodyPool: parts, female, colourOf, helmStyle, beast, beastWear }, showNudity());
+      const without = composeWornModest({ pieces: (armor ?? []).filter((p) => !lost.some((a) => a.piece === p)), armors: armors ?? [], clothes: clothes ?? [], bodyPool: parts, female, colourOf, helmStyle, looks: getPref('mwArmorLooks'), beast, beastWear }, bareChestShown());
       without.notes.push(...lost.map((a) => `outfit ${a.recordId}: ${t('body.outfit.unbound', 'none of it bound - drawn without it')}`));   // the label outside the language, as the composer's notes
       const again = await tpBody(without);
       if (again.ok) { third = again; wornBuilt = without; }
@@ -3059,6 +4047,7 @@ export async function buildFpArm({
     // Weapon Bone Left AS ASSEMBLED (the made one where the bytes have none) through the part loop's own door - the swap's
     // way, the archives still open. Left to the next frame's swap, a rebuild cleared it and the pair stood one-bladed
     // until the archives reopened (23 frames at a 600 ms reopen).
+    stage('third');   // LOAD-CLOCK: the third-person body's own assembly (buildTpBody, twice when an outfit was lost) - it rode `meshes`
     const offBound = { first: null, third: null };
     if (offWeapon && arm.ok) {
       for (const [key, r] of /** @type {const} */ ([['first', { arm, textures, skeletonBytes }], ['third', third?.ok ? third : null]])) {
@@ -3066,7 +4055,7 @@ export async function buildFpArm({
         const res = resolveOffWeaponParts({ weapon: offWeapon, allWeapons, find, skeletonBytes: r.skeletonBytes, has: archiveHas(archives), hasBone: (n) => r.arm.skeleton.byName.has(String(n).toLowerCase()) });
         bindPartsInto(r.arm, res.parts);
         const fresh = r.arm.pieces.filter((p) => p.slot === 'offweapon');
-        await preloadArmTextures(fresh, archives, gen);
+        await preloadArmTextures(fresh, archives, gen, urgent);
         for (const [file, tex] of collectArmTextures(fresh, archives, gen)) if (!r.textures.has(file)) r.textures.set(file, tex);
         offBound[key] = res;
       }
@@ -3117,8 +4106,86 @@ export async function buildFpArm({
         wouldAccumRoot: accumRootRef(arm.skeleton, one.trackMap),
       });
     }
+    // First-person animation providers belong on this rig, after the archive source
+    // list. ReAnimation contributes stance/weapon groups; OpenMW Dynamic Animations
+    // contributes only canonical directional locomotion groups and can layer over it.
+    if (!werewolf && /\.1st\.nif$/i.test(skeletonPath)) {
+      const assets = await loadFirstPersonAnimationAssets({ skeletonPath });
+      for (const asset of assets) {
+        const report = await cachedClipReport(gen, skeletonPath, asset.name, () => asset.bytes, arm.skeleton);
+        logAnimationDiagnostic(`fp-v2|${skeletonPath}|${asset.name}`, {
+          family: 'first-person', pack: asset.variant, rig: skeletonPath, file: asset.name,
+          ok: !!report.ok, error: report.ok ? null : report.error,
+          groups: report.groups ?? [], keyCount: report.keys?.length ?? 0,
+          matchedTracks: report.binding?.matched?.length ?? 0,
+          // Preserve the actual KF text keys so later analysis can distinguish
+          // parse/bind success from the exact attack windows the runtime can play.
+          textKeys: (report.keys ?? []).map((key) => String(key?.text ?? '')).filter(Boolean),
+        });
+        if (!report.ok) {
+          missing.push(`First-person clip ${asset.name}: ${report.error}`);
+          continue;
+        }
+        if (!(report.binding?.matched?.length)) {
+          missing.push(`First-person clip ${asset.name}: no tracks bind to this rig; archive source retained`);
+          continue;
+        }
+        const dynamicLocomotion = asset.variant === 'openmw-dynamic-first-person';
+        let groups = report.groups.map((name) => String(name).toLowerCase());
+        let keys = report.keys.map((key) => ({
+          ...key,
+          text: String(key?.text ?? '').split(/\r?\n/).map((line) => {
+            const colon = line.indexOf(':');
+            return colon <= 0 ? line : line.slice(0, colon).trim().toLowerCase() + line.slice(colon);
+          }).join('\n'),
+        }));
+        if (dynamicLocomotion) {
+          const targetGroup = String(asset.targetGroup ?? '').toLowerCase();
+          const aliases = new Set([targetGroup, `${targetGroup}_base`, `x${targetGroup}`, `x${targetGroup}_base`]);
+          const sourceGroups = report.groups.filter((name) => aliases.has(String(name).toLowerCase()));
+          groups = sourceGroups.length ? [targetGroup] : [];
+          keys = remapAnimationGroupKeys(report.keys, sourceGroups, targetGroup);
+        }
+        if (!groups.length || !keys.length) {
+          missing.push(`First-person clip ${asset.name}: no compatible animation groups; archive fallback retained`);
+          continue;
+        }
+        sourcePaths.push(asset.name);
+        const source = {
+          name: asset.name, keys, groups, groupSet: new Set(groups),
+          trackMap: report.trackMap, binding: report.binding,
+          wouldAccumRoot: accumRootRef(arm.skeleton, report.trackMap),
+          animationFamily: 'first-person', animationPack: asset.variant,
+        };
+        sources.push(...(asset.variant === 'reanimation-v3'
+          ? normalizeReAnimationAttackSource(source)
+          : [source]));
+      }
+    }
     // hasAnimation: ANY source. The reverse search below picks WHICH.
     const groupSet = new Set(sources.flatMap((so) => so.groups));
+    // Record the final source list for this specific build, not just the KF
+    // parse result. A clip can parse successfully yet be excluded before it
+    // becomes playable; the per-file event above cannot prove admission.
+    if (!werewolf && /\\.1st\\.nif$/i.test(skeletonPath)) {
+      logAnimationDiagnostic(`fp-source-inventory-v2|${gen}|${skeletonPath}`, {
+        family: 'first-person-source-inventory-v2',
+        rig: skeletonPath,
+        generation: gen,
+        providerChoice: Number(MW_STOCK.FirstPersonSource ?? 0),
+        sourceCount: sources.length,
+        reAnimationSourceCount: sources.filter((source) => source.animationPack === 'reanimation-v3').length,
+        openMwFirstPersonSourceCount: sources.filter((source) => source.animationPack === 'openmw-dynamic-first-person').length,
+        sourceInventory: sources.map((source) => ({
+          file: source.name,
+          pack: source.animationPack ?? 'archive-or-vanilla',
+          groups: source.groups ?? [],
+          keyCount: source.keys?.length ?? 0,
+          matchedTracks: source.binding?.matched?.length ?? 0,
+        })),
+        notes: [...missing],
+      });
+    }
     // THE REFUSAL MOVES WITH THE RULE. MW-D8 refused when "Idle" did not
     // reset; that group need not exist at all in a first-person .kf that
     // only carries idle1h and friends. What must exist is SOME idle this
@@ -3152,6 +4219,10 @@ export async function buildFpArm({
     // player swung, which is a rig that walks away mid-blow.
     const accumRoot = sources.reduce((acc, so) => (acc ?? so.wouldAccumRoot), null) ?? null;
     for (const so of sources) so.accumRoot = accumRoot;
+    // THUMB-FIST: the clenched fist's thumb laid on Better Bodies', fitted in the fists' stance's first frame
+    const fistPick = thumbReference ? pickAnimSource(sources, FIST_GROUP, resetClip) : null;
+    const thumbFist = fistPick ? prepareThumbFist(arm, { referenceBytes: thumbReference, handBytes: betterBodiesFpHands?.bytes,
+      fist: { tracks: fistPick.source.trackMap, sampleTrack, time: fistPick.state.startTime, accumRoot } }) : null;
     const poseAt = (t) => poseAssembly(arm, { tracks, sampleTrack, time: t, accumRoot });
     // PX27 (Mac: the full arms do not show on a swing or a bow): THE
     // REACH IS SWEPT OVER EVERY CLIP THE ARM WILL EVER PLAY, not the
@@ -3169,7 +4240,27 @@ export async function buildFpArm({
     // lens. A peer's body, the family's, the card table's and every NPC's are drawn in third person alone, so their
     // builds (`reachSweep: false` - peerBuildOpts) take the idle's reach for both planes and skip the sweep.
     const sweep = reachSweep ? clipSweepTimes(sources, idleCheck) : null;
-    const union = sweep ? clipUnionBounds(arm, poseAt, sweep) : null;
+    // LOAD-STALL 2: the sweep's union is the arm's - its skeleton, the idle source's tracks, the samples and the
+    // first-person pieces - and nothing else, so a worn change that leaves the arm alone (a cuirass, the legs, a helm,
+    // a cloak) answers it from REACH_CACHE; a new one is swept in slices, the thread handed back between
+    const reachKey = sweep && gen !== null ? `${gen}|${skeletonPath}|${idlePick.source.name}|${sweep.length}|${armShapeKey(arm.pieces)}` : null;
+    // An arm not yet swept stands NOW on its idle's reach and is swept AFTER, beside the frames, on a shadow of itself
+    // (sweepShadowOf) - the piece appears at once and the far plane widens when the sweep lands (createFpArm's build).
+    // A test's deps carry no generation: there the sweep stands inside the build, as it always has.
+    let union = reachKey ? REACH_CACHE.get(reachKey) ?? null : null;
+    let sweepLater = null;
+    if (sweep && !union) {
+      if (gen === null) union = await clipUnionBoundsSliced(arm, poseAt, sweep);
+      else {
+        const shadow = sweepShadowOf(arm);
+        const shadowAt = (t) => poseAssembly(shadow, { tracks, sampleTrack, time: t, accumRoot });
+        sweepLater = async () => {
+          const u = await clipUnionBoundsSliced(shadow, shadowAt, sweep);
+          if (u) rememberReach(reachKey, u);
+          return u;
+        };
+      }
+    }
     const c = idleCheck;
     const idleTimes = Array.from({ length: 25 }, (_, i) => c.startTime + ((c.stopTime - c.startTime) * i) / 24);
     poseAt(c.startTime);
@@ -3199,7 +4290,7 @@ export async function buildFpArm({
     // closest to the eye.
     const eye = firstPersonEye(arm.mats, cameraRef);
     const idleReach = armReach(eye, clipUnionBounds(arm, poseAt, idleTimes));
-    const reach = union ? armReach(eye, union) : idleReach;   // MWNPC3: no sweep, the idle's
+    const reach = union ? armReach(eye, union) : idleReach;   // MWNPC3: no sweep, the idle's (LOAD-STALL 2: or not yet)
     poseAt(c.startTime);
     if (weaponInfo) weaponInfo.side = weaponRestSide(arm, weaponInfo.bone);
     if (arrowInfo) arrowInfo.side = weaponRestSide(arm, arrowInfo.bone);
@@ -3214,17 +4305,19 @@ export async function buildFpArm({
       esm: Math.round(spans.esm),
       meshes: Math.round(spans.meshes),
       textures: Math.round(spans.textures),
+      third: Math.round(spans.third),
       sweep: Math.round(spans.sweep),
       total: Math.round(mwNow() - t0),
     };
     console.log(`[mw] arm built in ${timings.total} ms - archives ${timings.archives}, `
-      + `esm ${timings.esm}, meshes ${timings.meshes}, textures ${timings.textures}, sweep ${timings.sweep}`);
+      + `esm ${timings.esm}, meshes ${timings.meshes}, textures ${timings.textures}, third ${timings.third}, sweep ${timings.sweep}`);
 
     return {
       ok: true,
       arm,
       tracks,
       accumRoot,
+      thumbFist,   // THUMB-FIST: eased by the fists' stance, frame by frame
       keys: idlePick.source.keys,
       // MW-D33: THE WORN VERDICTS, ON THE CARD. Mac's report - clothing
       // and armor not showing - arrived with nothing on screen saying
@@ -3254,6 +4347,8 @@ export async function buildFpArm({
       textures,
       cameraRef,
       reach,
+      // LOAD-STALL 2: the sweep still owed this arm - the reach it lands on, or null (createFpArm's build runs it)
+      sweepLater: sweepLater ? async () => { const u = await sweepLater(); return u ? armReach(eye, u) : null; } : null,
       idleReach,
       skeletonPath,
       settingsSkeleton,
@@ -3343,7 +4438,7 @@ export function collectArmTextures(pieces, archives, gen = null) {
       // .dds probe misses (resourcehelpers.cpp:112-114), and feeding
       // that to decodeDds turned a texture the archives DO carry into
       // the magenta warning.
-      const entry = { ok: true, path, image: decodeTextureImage(path, arc.get(path).slice()) };
+      const entry = { ok: true, path, image: tintBetterBodiesFemaleSkin(decodeTextureImage(path, arc.get(path).slice()), file) };
       out.set(file, entry);
       if (gen !== null) TEXTURE_CACHE.set(`${gen}:${file}`, entry);
     } catch (err) {
@@ -3585,7 +4680,21 @@ export function gpuSkinOn(renderer, search) {
   return !!(renderer && typeof renderer.createSkinnedCharacterMesh === 'function') && pageParam('gpuskin', search) !== 'off';
 }
 
-export function createFpArm() {
+/**
+ * Place a posed third-person body on its actor's feet without mutating the shared model matrix.
+ * NIF Z is the source body's vertical axis; transform the measured lowest body point into world space,
+ * then correct only the model translation along world Y.
+ */
+export function groundThirdPersonModel(model, bodyMinZ, feetY) {
+  if (!model || model.length < 16 || !Number.isFinite(bodyMinZ) || !Number.isFinite(feetY)) return model;
+  const lowest = transformPoint(model, 0, 0, bodyMinZ);
+  if (!lowest || !Number.isFinite(lowest[1])) return model;
+  const grounded = model.slice();
+  grounded[13] += feetY - lowest[1];
+  return grounded;
+}
+
+export function createFpArm({ playerAppearance = false } = {}) {
   let renderer = null;
   let camera = null;
   let built = null;
@@ -3610,6 +4719,9 @@ export function createFpArm() {
   // MW-D19: the equip identity this arm currently wears, and the deps
   // seam it was built through - the swap resolves through the same one.
   let wornKey = null;
+  // STANCE-FIRST: the hand the game last ASKED for (setWeapon's key, every frame through weaponRig's handArm) - the
+  // swing waits while it is not the hand the mesh and the stance hold (handSettled)
+  let wantKey = null;
   let buildDeps = null;
   // MW-D32: what the body last dressed in, and the opts to dress it
   // again. The equip table is read every frame by weaponRig; when the
@@ -3618,6 +4730,17 @@ export function createFpArm() {
   // not the last time someone pressed Build.
   let wornEquipKey = null;
   let lastBuildOpts = null;
+  // MW-ANIM-BLEND: transition source is the last raw third-person pose, not a stale clip clock.
+  let thirdPoseState = null;
+  let thirdPoseSource = null;
+  let thirdBlendFromSource = null;
+  let thirdBlendFrom = null;
+  let thirdBlendElapsed = 0;
+  // BLOW-FLOW (combat/blowFlow.js): the blows' serial and kinds the views' blends read, the first person's own blend, the
+  // window held after a blow, the attack windows played in turn, and a thrust behind a shield that bashes
+  let blowSerial = 0, thirdPoseKind = 'pose', thirdBlendSeconds = null, recoverHeld = 0, blowBash = false, blowHit = false, seriesWanted = false, bashExit = 0;
+  const blowVariants = createVariantCycle();
+  const fpBlend = { state: null, kind: 'pose', from: null, elapsed: 0, seconds: 0, at: -1 };
 
   // MW-D12: TWO CLIP SLOTS, because Morrowind's first-person arm plays
   // TWO animations and the port had one.
@@ -3647,8 +4770,14 @@ export function createFpArm() {
   let movementGroup = null;
   let movementSource = null;
   let movementBase = null;
+  let movementClipPreference = null;
   let movementStance = null;
   let movementRate = 1;
+  // SHIELD-STRIDE, SHIELD-GUARD, LEFT-ARM (combat/leftArmLayer.js): forward/back clips keep their own body and weapon
+  // hand, but the shield arm borrows the left strafe's pose - and the fists behind a shield and a one-hander's free hand
+  // their own - laid over the clip by weight, eased on and off
+  const leftArm = createLeftArmLayer({ pickAnimSource, resetClip, composeMovementGroup, composeStanceGroup, sampleTrack });
+  const lowerBody = createLowerBodyLayer({ sampleTrack });   // LOWER-BODY (combat/lowerBodyLayer.js)
   // MW-D39: THE FOURTH SLOT - JUMP. Priority_Jump sits BELOW
   // Priority_Movement in the reference's enum (character.hpp:34-35),
   // so the winner ladder reads action > movement > JUMP > idle - and
@@ -3665,7 +4794,8 @@ export function createFpArm() {
   // character.cpp:2355-2366 - the turn animation HOLDS 0.05s past the
   // last actual rotation, so mouse jitter does not flicker it.
   let lastYaw = null;
-  let turnHold = 0;
+  const turnGate = createTurnGate();   // TURN-GATE (combat/idleSettle.js)
+  const moveGrace = createMoveGrace();   // MOVE-GRACE (combat/idleSettle.js)
   let turnDir = 0;
   let upper = UPPER_BODY.None;
   let spellReady = false;        // MW-D39: a spell is readied (the stance)
@@ -3732,6 +4862,9 @@ export function createFpArm() {
   // MOTION - its gait, its carry and a blow's body - one per rig, stepped below after the clips and laid on the pose
   // through poseAssembly's `motion` slot; the clips still decide every group, and it steps aside where they own the body
   const motion = createBodyMotion();
+  const bodyWeight = createBodyWeight();   // BODY-WEIGHT (characters/bodyMotion/bodyWeight.js)
+  const fpInertia = createFpInertia();   // FP-INERTIA (combat/fpInertia.js)
+  const loopSeam = createLoopSeam({ sampleTrack, loopWindow });   // LOOP-SEAM (combat/loopSeam.js)
   // AUDIT MW-TORCH F4: THE OVERLAY ALLOCATES ONCE PER CHANGE, NOT PER
   // FRAME. update()'s contract is "no allocation after the first pack";
   // the merged track map is rebuilt only when the base tracks, the torch
@@ -3764,7 +4897,7 @@ export function createFpArm() {
   let offKey = null, pendingOff;
   const mirrorCarry = { first: {}, third: {} };
   const strikeSides = new Map();
-  const runPump = { wanted: false, speed: 0, w: 0, phase: 0, given: null, targets: null };
+  const runPump = { wanted: false, running: false, speed: 0, w: 0, phase: 0, given: null, targets: null };
   const pairGuard = { L: 0, R: 0 };   // TWO-HANDS AUDIT: each hand's guard weight - the arm lowered while the other strikes
   let guardDipMemo = null;   // TWO-HANDS AUDIT 2: the guard's angles, per rig and bound blades (guardDipNow)
   let pairSpread = 0, spreadMemo = null;   // TWO-HANDS SPREAD: the first-person pair's arms' turn out this frame, eased; and what its blades ask, per rig and bound blades (stepPairSpread)
@@ -3835,6 +4968,11 @@ export function createFpArm() {
   let attackStrength = 1;
   let sheathed = true;
   let weaponShown = false;
+  let hideWeaponAtUnequipEnd = false;
+  let hideWeaponAtUnequipEndReason = null;
+  let unequipDiagnosticSequence = 0;
+  // ANIM-DIAG: distinguish selecting a KF window from actually advancing and sampling it.
+  const actionPlaybackDiagnosticMarks = new WeakMap();
   // MW-D16: the held round. FALSE at build, because the reference does
   // not attach one until a "shoot attach" key fires - a freshly drawn bow
   // is empty until you start to draw it, and only the CROSSBOW reloads
@@ -3911,6 +5049,10 @@ export function createFpArm() {
   /** BEAST-SELF: the arm and the body stand aside for a transformed lycanthrope (setStandIn) - no Morrowind beast */
   let standIn = false;
   let thirdBuilt = null;
+  // MW-TP-GROUND-SMOOTH: freeze the support height from a standing pose. A posed
+  // range's minZ changes as the legs swing; grounding against that moving bound
+  // translates the entire actor every frame and makes the pelvis/legs bob.
+  let thirdGroundMinZ = null;
   let thirdMesh = null;
   let thirdPacked = null;
   let thirdSkin = null;          // MWNPC1: the third body's GPU skin layout (formats/morrowind/mwGpuSkin.js), while it skins on the GPU
@@ -3926,10 +5068,21 @@ export function createFpArm() {
   const nonBiped = () => !!(built && built.ok && built.creature && !built.creature.bipedal);
   const stanceOf = () => {
     const t = animWeaponType(built.mwType, sheathed, spellReady);
-    return nonBiped() && !isRealWeapon(t) ? MW_WEAPON_TYPE.None : t;
+    if (nonBiped() && !isRealWeapon(t)) return MW_WEAPON_TYPE.None;
+    // CLIMB-STANCE (Mac: "the climbing hands and the combat stance's both show"): the fists on the stone stand bare - the
+    // clip under the climb's hands is the idle's hands-down, not the boxer's guard up in the picture when a hold leaves it
+    if (climbHands && t === MW_WEAPON_TYPE.HandToHand) return MW_WEAPON_TYPE.None;
+    return shieldGuardStance(t, carriesShield(built) || carriesShield(thirdBuilt));
   };
 
-  const active = () => !standIn && !!(built && built.ok && mesh && renderer && camera && (actionState || movementState || jumpState || idleState)
+  // Keep the Morrowind first-person rig independent from the Third-Person-only world-body/UI preference.
+  // Inventory icons and PaperDoll have their own switches; this gate must not silently suppress 3D hands/weapons.
+  // Keep the first-person rig drawable when an animation pack has no
+  // playable bare-hand idle. update() deliberately leaves the last valid
+  // assembled pose untouched when every animation slot is empty; requiring
+  // an active clip here hid the entire arm mesh on sheathe, making hands and
+  // weapon disappear together even though only the weapon range was hidden.
+  const active = () => !standIn && !!(built && built.ok && mesh && renderer && camera
     && viewMode === 'first');
   // MWNPC4 (AUDIT, 2026-10-09): a body in its recoil or its death stands too - die() resets every other state, so a
   // dying body answered false here, its lane let it go (PeerBodies._standing) and its corpse flat drew instead
@@ -4177,15 +5330,61 @@ export function createFpArm() {
   }
 
   function releaseThirdMesh() { releaseGpu(thirdMesh); thirdMesh = null; thirdSkin = null; }   // MWNPC1: a rebuilt mesh lays its pieces out again
+
+  /** TEXTURE-HEAL (the owner, 2026-10-28: "проверь ... качество загрузки что бы не пропадала текстура с оружия"): A
+   *  PICTURE WHOSE BYTES NEVER CAME IS ASKED FOR AGAIN. A texture whose read failed or lagged (a store or a dev server
+   *  answering late) stood as the warning image on the rig for its whole life - only a picture the FILE refused is kept
+   *  in the memo (collectArmTextures, AUDIT MW-TEXTHREAD F4), so an entry that is not ok and not in the memo is a read
+   *  that can still land. Both views are read again, a few times, further apart, and what lands replaces its warning
+   *  on the standing rig (its meshes hang their ranges again at the next draw). Ends with the rig. */
+  async function healTextures(token, tries = 0) {
+    const gen = token?.catalog?.gen ?? null;
+    if (gen === null || tries >= TEXTURE_HEAL_TRIES) return 0;
+    const views = () => [token, thirdBuilt && thirdBuilt.ok ? thirdBuilt : null].filter((v) => v && v.textures && v.arm);
+    const missingOf = (v) => new Set([...v.textures].filter(([file, e]) => e && !e.ok && !TEXTURE_CACHE.has(`${gen}:${file}`)).map(([file]) => file));
+    if (!views().some((v) => missingOf(v).size)) return 0;
+    await new Promise((r) => setTimeout(r, TEXTURE_HEAL_MS * (tries + 1)));
+    if (built !== token) return 0;
+    const d = buildDeps || await import('../scenes/dataSource.js');
+    const archives = await d.loadMorrowindArchives();
+    let healed = 0;
+    for (const v of views()) {
+      const missing = missingOf(v);
+      if (!missing.size) continue;
+      const pieces = [...v.arm.pieces, ...(v.arm.effects ?? [])].filter((p) => missing.has(p.material?.textureFile));
+      await preloadArmTextures(pieces, archives, gen, playerAppearance);
+      if (built !== token) return healed;
+      for (const [file, e] of collectArmTextures(pieces, archives, gen)) if (e.ok) { v.textures.set(file, e); healed++; }
+    }
+    if (healed) {
+      releaseMesh(); packed = null; releaseThirdMesh(); thirdPacked = null;
+      console.info(`[mw] ${healed} texture(s) that had not loaded are drawn now`);
+    }
+    if (views().some((v) => missingOf(v).size)) return healed + await healTextures(token, tries + 1);
+    return healed;
+  }
   /** AUDIT OW3 J6 / MWNPC16: metres a Morrowind unit, `grow` times (the travel view's OW-BIG, MWNPC10's larger body). */
   const thirdUnit = (grow) => (grow > 1 ? grow : 1) / MW_UNITS_PER_METER;
+  // MWV2-PROPORTIONS: a coherent third-person body proportion pass.
+  // Scale BOTH horizontal axes together so the silhouette gains body volume from
+  // the front, side, and rear instead of looking wider in only one camera angle.
+  // A very small height reduction balances the broader shoulders/torso without
+  // changing animation tracks, first-person arms, race records, or source NIFs.
+  const THIRD_PERSON_HORIZONTAL_SCALE = 1.22;
+  const THIRD_PERSON_HEIGHT_SCALE = 0.96;
   /** MW-D24 / MWNPC16: the third body's world model matrix at `feet` facing `yaw`, `grow` times its size about its feet
    *  (drawThird's own placement, one home for the draw and the cast). */
   function thirdModel(feet, yaw, grow = 1) {
     const u = thirdUnit(grow);
     const yawDeg = (yaw * 180 / Math.PI) + 180;
     const rs = (built && built.raceScale) || { weight: 1, height: 1 };
-    return multiply(trs(feet[0], feet[1], feet[2], 0, yawDeg, 0, -u * rs.weight, u * rs.height, u * rs.weight), NIF_TO_PASS);
+    // Body width/height are vertex morphs in poseAssembly. Do not apply them
+    // again to the actor transform: that double-scaled the body and scaled
+    // attached equipment/placement with it.
+    return multiply(trs(feet[0], feet[1], feet[2], 0, yawDeg, 0,
+      -u * rs.weight * THIRD_PERSON_HORIZONTAL_SCALE,
+      u * rs.height * THIRD_PERSON_HEIGHT_SCALE,
+      u * rs.weight * THIRD_PERSON_HORIZONTAL_SCALE), NIF_TO_PASS);
   }
   /** PR-BOW1 / MWNPC16: the posed box drawThird folds over what it draws (the shown ranges'), else the assembly's. */
   function thirdBox() {
@@ -4218,7 +5417,22 @@ export function createFpArm() {
    * layout refused - a vertex past the shader's influences - answers false for that list, its sentence on the notes,
    * and the CPU skin draws it as it always did. The door shut mid-session lets a skinned mesh go.
    */
-  function thirdSkinReady(t) {
+  function thirdSkinReady(t, bodyProportions = null) {
+    // Local vertex morphs modify the CPU-skinned output positions. The GPU path
+    // uploads the bind-pose stream only once and updates bone palettes, so it
+    // cannot display those edits. When any player morph is active, deliberately
+    // drop the GPU layout and use the CPU path for both posing and mesh upload.
+    // Accept the editor's draft values here: they are not persisted until Done.
+    const morphs = playerAppearance
+      ? (bodyProportions && typeof bodyProportions === 'object' ? bodyProportions : false)
+      : null;
+    const morphActive = morphs && Object.values(morphs).some((value) => Math.abs(Number(value) || 0) > 1e-6);
+    if (morphActive) {
+      if (thirdMesh && thirdMesh.skin) releaseThirdMesh();
+      thirdSkin = null;
+      thirdSkinRefused = null;
+      return false;
+    }
     if (!gpuSkinOn(renderer)) { if (thirdMesh && thirdMesh.skin) releaseThirdMesh(); return false; }
     if (thirdSkin && skinSamePieces(thirdSkin, t.arm.pieces)) return true;
     if (thirdSkinRefused === t.arm.pieces) return false;
@@ -4274,10 +5488,15 @@ export function createFpArm() {
    *  pick kept per body and group, so a repaint picks nothing twice.
    *  Null when the body's .kf names no idle this stance can reach. */
   const portraitPicks = new WeakMap();   // third body -> Map(group -> pick)
-  function portraitPose(t) {
+  function portraitPose(t, { neutral = false } = {}) {
     if (!t || !t.ok || !t.sources) return null;
+    // The appearance editor is not an inventory doll: it must not inherit
+    // the weapon-derived combat idle/guard stance. Ask the body's own
+    // animation sources for the unarmed base idle only.
     const type = animWeaponType(t.mwType ?? (built && built.mwType), false, spellReady);
-    const composed = composeStanceGroup(FP_IDLE_BASE, type, (n) => anySourceHasGroup(t.sources, n));
+    const composed = neutral
+      ? { group: anySourceHasGroup(t.sources, FP_IDLE_BASE) ? FP_IDLE_BASE : null }
+      : composeStanceGroup(FP_IDLE_BASE, type, (n) => anySourceHasGroup(t.sources, n));
     if (!composed.group) return null;
     let memo = portraitPicks.get(t);
     if (!memo) { memo = new Map(); portraitPicks.set(t, memo); }
@@ -4317,15 +5536,111 @@ export function createFpArm() {
    *  reverted arc's whole failure mode in miniature. */
   function playAction(start, stop, startPoint = 0, reversed = false) {
     if (!rig() || !weaponGroup) return false;
-    const pick = pickAnimSource(rig().sources, weaponGroup, resetClip, { start, stop, startPoint });
+    const activeRig = rig();
+    const sources = activeRig.sources ?? [];
+    const options = { start, stop, startPoint };
+    const providerChoice = Number(MW_STOCK.FirstPersonSource ?? 0);
+    const reAnimationEnabled = providerChoice === 1 || providerChoice === 3;
+    const actionType = String(start ?? '').match(/(?:^|\s)(chop|slash|thrust|shoot|throw)(?:\s|$)/i)?.[1]?.toLowerCase();
+    let pick = null;
+    let reAnimationCandidates = [];
+    let fallbackReason = null;
+    // ReAnimation clips are not a blanket replacement for every group. For
+    // attacks, choose only a clip that contains this exact action window;
+    // unsupported weapon/action combinations must keep the archive animation.
+    if (reAnimationEnabled && ['chop', 'slash', 'thrust', 'shoot', 'throw'].includes(actionType)) {
+      const vanillaSources = sources.filter((source) => source.animationPack !== 'reanimation-v3');
+      const reAnimationSources = sources.filter((source) => source.animationPack === 'reanimation-v3');
+      reAnimationCandidates = reAnimationSources.map((source) => {
+        const candidatePick = pickAnimSource([source], weaponGroup, resetClip, options);
+        const groupKeys = (source.keys ?? []).map((key) => String(key?.text ?? ''))
+          .flatMap((value) => value.split(/\r?\n/))
+          .filter((value) => value.toLowerCase().startsWith(`${String(weaponGroup).toLowerCase()}:`));
+        const hasStart = groupKeys.some((value) => value.slice(value.indexOf(':') + 1).trim().toLowerCase() === String(start).toLowerCase());
+        const hasStop = groupKeys.some((value) => value.slice(value.indexOf(':') + 1).trim().toLowerCase() === String(stop).toLowerCase());
+        return {
+          source, pick: candidatePick, hasGroup: (source.groups ?? []).some((group) => String(group).toLowerCase() === String(weaponGroup).toLowerCase()),
+          hasStart, hasStop, groupKeys,
+        };
+      });
+      const candidates = reAnimationCandidates.filter((candidate) => candidate.pick);
+      if (candidates.length) {
+        const seed = `${String(weaponGroup).toLowerCase()}|${actionType}`;
+        let hash = 2166136261;
+        for (let i = 0; i < seed.length; i++) {
+          hash ^= seed.charCodeAt(i);
+          hash = Math.imul(hash, 16777619);
+        }
+        candidates.sort((a, b) => String(a.source.name).localeCompare(String(b.source.name)));
+        pick = candidates[(hash >>> 0) % candidates.length].pick;
+      } else {
+        fallbackReason = reAnimationSources.length
+          ? 'no ReAnimation source can play this exact group/start/stop window'
+          : 'no ReAnimation sources were added to this rig';
+        pick = pickAnimSource(vanillaSources, weaponGroup, resetClip, options);
+      }
+    } else {
+      if (['chop', 'slash', 'thrust', 'shoot', 'throw'].includes(actionType) && !reAnimationEnabled) {
+        fallbackReason = 'ReAnimation provider disabled by FirstPersonSource setting';
+      }
+      pick = pickAnimSource(sources, weaponGroup, resetClip, options);
+    }
+    logAnimationDiagnostic(`fp-action-v2|${Date.now()}|${viewMode}|${activeRig.skeletonPath ?? activeRig.settingsSkeleton ?? 'unknown-rig'}|${weaponGroup}|${start}|${stop}`, {
+      family: 'first-person-action-selection-v3', weaponGroup, start, stop,
+      providerChoice, reAnimationEnabled, actionType,
+      activeViewMode: viewMode,
+      activeRigSkeleton: activeRig.skeletonPath ?? activeRig.settingsSkeleton ?? null,
+      activeRigSourceCount: sources.length,
+      activeRigPackCounts: {
+        reanimation: sources.filter((source) => source.animationPack === 'reanimation-v3').length,
+        openMwFirstPerson: sources.filter((source) => source.animationPack === 'openmw-dynamic-first-person').length,
+        archiveOrVanilla: sources.filter((source) => !source.animationPack).length,
+      },
+      activeRigSourceInventory: sources.map((source) => ({
+        file: source.name, pack: source.animationPack ?? 'archive-or-vanilla',
+        groups: source.groups ?? [],
+      })),
+      reAnimationSourceCount: reAnimationCandidates.length,
+      reAnimationCandidates: reAnimationCandidates.map(({ source, pick: candidatePick, hasGroup, hasStart, hasStop, groupKeys }) => ({
+        file: source.name, groups: source.groups ?? [], hasGroup, hasStart, hasStop,
+        windowPlayable: !!candidatePick,
+        groupTextKeys: groupKeys,
+        rejectionReason: candidatePick ? null
+          : !hasGroup ? 'weapon group absent'
+          : !hasStart ? `start marker missing: ${start}`
+          : !hasStop ? `stop marker missing: ${stop}`
+          : 'resetClip rejected the requested window (see raw text keys)',
+      })),
+      fallbackReason,
+      selectedFile: pick?.source?.name ?? null,
+      selectedPack: pick?.source?.animationPack ?? 'archive-or-vanilla',
+      selectedGroups: pick?.source?.groups ?? [],
+      found: !!pick,
+    });
     if (!pick) {
       actionState = null;
+      actionSource = null;
       notes.push(`${weaponGroup}: no source has "${weaponGroup}: ${start}" and "${weaponGroup}: ${stop}"`);
       return false;
     }
     actionState = pick.state;
     actionState.reversed = !!reversed;   // MS1: the pose reads this window backwards
     actionSource = pick.source;
+    actionPlaybackDiagnosticMarks.set(actionState, new Set());
+    logAnimationDiagnostic(`fp-action-playback-start|${Date.now()}|${weaponGroup}|${start}|${stop}|${actionSource?.name ?? 'unknown'}`, {
+      family: 'first-person-action-playback-v1',
+      event: 'action-playback-started',
+      weaponGroup, start, stop,
+      animationSource: actionSource?.name ?? null,
+      activeViewMode: viewMode,
+      activeRigSkeleton: activeRig.skeletonPath ?? activeRig.settingsSkeleton ?? null,
+      clipStartTime: actionState.startTime,
+      clipStopTime: actionState.stopTime,
+      initialTime: actionState.time,
+      initialPoseTime: poseTime(actionState),
+      reversed: actionState.reversed,
+      playing: actionState.playing,
+    });
     return true;
   }
 
@@ -4338,7 +5653,7 @@ export function createFpArm() {
    * on the drawn weapon, so sheathing has to be able to change it without
    * anything else being torn down.
    */
-  function refreshIdle(force = false) {
+  function refreshIdle(force = false, settle = false) {
     if (!built || !built.ok || dead) return;   // MWNPC4: a dead actor's states are no longer refreshed
     // MWNPC9: refreshIdleAnims' non-biped arm (character.cpp:680-685) - a creature lets its idle go while an upper-body
     // action, a movement or a recoil plays, and takes it up again from its start once none does
@@ -4349,9 +5664,10 @@ export function createFpArm() {
     const type = stanceOf();   // MWNPC9: a non-biped's bare stance
     // MW-D52: the idle STATE picks the base - "idlesneak" while sneaking
     // on the ground where a source carries it, else the plain idle with
-    // its weapon suffix. The sneak idle takes no suffix and no loop dice.
-    const base = idleBaseFor({ sneaking, inJump: !!jumpState, hasGroup });
-    const compose = () => (base === FP_IDLE_SNEAK ? { group: base } : composeStanceGroup(base, type, hasGroup));
+    // its weapon suffix. The sneak idle takes no loop dice; SNEAK-STANCE: and
+    // it is the drawn stance's own crouch where a pack carries one (sneakIdleGroup).
+    const base = idleBaseFor({ sneaking, inJump: !!jumpState, hasGroup, type });   // SNEAK-STANCE: the crouch of the drawn stance
+    const compose = () => (base === FP_IDLE_SNEAK ? { group: sneakIdleGroup(type, hasGroup) } : composeStanceGroup(base, type, hasGroup));
     if (!force && idleState && idleState.playing) {
       // Only the GROUP can have gone stale; a playing idle of the right
       // group is left exactly where it is.
@@ -4376,12 +5692,13 @@ export function createFpArm() {
     idleGroup = composed.group;
     idleState = pick.state;
     idleSource = pick.source;
+    if (settle) settleIdle(idleState, idleSource, sampleTrack);   // IDLE-SETTLE: a stop lands in the idle's quiet legs
   }
 
   /** resetCurrentIdleState (:1850-1853 via mResetIdleOnAttackEnd): drop
    *  the idle so the next refresh replays it from its start with a fresh
    *  loop count, rather than resuming mid-swing-shaped. */
-  function resetIdle() { idleState = null; idleGroup = null; refreshIdle(true); }
+  function resetIdle(settle = false) { idleState = null; idleGroup = null; refreshIdle(true, settle); }
   /** SPELL-HAND: a spell readied in the free hand beside the weapon (readySpell's door while the spell hand is up): the arm
    *  keeps the weapon's stance - its left arm the Spell idle's (spellHandArm) - and a cast's latched Spell stance (castSpell)
    *  lets go as its cast ends (stepUpper's unreadyAfterCast), back to the weapon's. */
@@ -4590,6 +5907,11 @@ export function createFpArm() {
         req.carry.key = `fists:${attackHand}`;
       }
     }
+    // SHIELD-BASH: the shield throws the blow - the weapon arm (or the right fist) holds the stance's guard, as the
+    // idle has it, while the left drives the shield out (shieldBash, the `hold` slot)
+    // BASH-EXIT (Mac: "after the shield bash the one-hander in the right hand twitches"): and through the return to the
+    // stance - that blend starts from the fists' clip, whose right arm is a fist's thrust; the stance's arm held over it
+    if (((blowBash && attackingNow()) || bashExit > 0) && idle) { req.limbs = { R: { clip: idle, side: 'R', mirror: false } }; req.carry.key = 'bash'; }
     return req;
   }
   /**
@@ -4660,6 +5982,10 @@ export function createFpArm() {
    */
   function firstRun(cam) {
     runPump.targets = null;
+    // FORK-FP-RUN: the procedural fist pump is only for empty hands. When a
+    // weapon is held, its native first-person run clip owns the wrist and
+    // fingers; overlaying screen-space hand targets distorts the grip.
+    if (weaponShown && !spellStance()) return null;
     if (!(runPump.w > 0) || !cam || !built.arm.mats) return null;
     const node = built.arm.mats.get(built.cameraRef);
     if (!node) return null;
@@ -4744,9 +6070,22 @@ export function createFpArm() {
   }
 
   function resetMovement() {
-    movementState = null; movementGroup = null; movementSource = null; movementBase = null;
+    movementState = null; movementGroup = null; movementSource = null; movementBase = null; movementClipPreference = null;
     movementStance = null;
   }
+
+  /** SHIELD-GUARD: the fists drawn behind a shield (shieldGuardStance's stance), nothing else in the hand - either view. */
+  const shieldGuardNow = () => !sheathed && !spellStance() && !climbHands && !held && !!built?.ok
+    && animWeaponType(built.mwType, sheathed, spellReady) === MW_WEAPON_TYPE.HandToHand && carriesShield(rig()) && !torchVisible();
+  /** SHIELD-GUARD / SHIELD-BASH: a blow that bashes (attack()'s blowBash - the fists' thrust behind a shield, whose
+   *  release drives the LEFT fist out in both clips, and a one-hander's thrust in turn with its own) as a bash from
+   *  where the guard holds the shield (combat/shieldGuard.js); poseAssembly's `hold` slot, or null. */
+  const shieldBash = () => (blowBash && actionState && attackingNow() && !climbHands && !held
+    // (the shield comes home over the recovery - BLOW-FLOW - home by its follow-through's end or the window's, not in a frame)
+    ? shieldBashHold(UPPER_BODY_NAME[upper], upper === UPPER_BODY.AttackEnd && blowPlan?.lead ? Math.min(1, Math.max(recoverHeld / holdFor(attackType), clipCompletion(actionState))) : clipCompletion(actionState), viewMode) : null);
+  /** LEFT-ARM: who holds the left arm this frame (combat/leftArmLayer.js leftArmModeOf). */
+  const leftArmMode = () => leftArmModeOf({ view: viewMode, type: animWeaponType(built?.mwType, sheathed, spellReady), shield: carriesShield(rig()),
+    dual: handsMode === 'dual', free: !!built?.ok && !sheathed && !spellStance() && !climbHands && !held && !torchVisible() });
 
   /** resetCurrentJumpState (character.cpp:350-354). */
   function resetJump() {
@@ -4866,8 +6205,7 @@ export function createFpArm() {
       // (net/peer/peerBodies.js peerCamera), so `yaw` is the wire's there.
       const d = wrapAngle(yaw - lastYaw);
       yawRate = d / dt;
-      if (d !== 0) { turnDir = Math.sign(d); turnHold = 0.05; }
-      else { turnHold -= dt; if (turnHold <= 0) turnDir = 0; }
+      turnDir = turnGate.step(d, dt, MW_STOCK.MotionDoctrine !== 0);   // TURN-GATE (combat/idleSettle.js): a stop's twitch is no turn
     }
     lastYaw = yaw;
     const mv = (cam && cam.move) || null;
@@ -4884,12 +6222,13 @@ export function createFpArm() {
       turning: turnDir,
       thirdPerson: viewMode === 'third' && !nonBiped(),   // MWNPC9: turning animations are a biped's (character.cpp:2178)
     });
+    const keepMove = moveGrace.step(!base, dt, MW_STOCK.MotionDoctrine !== 0);   // MOVE-GRACE (combat/idleSettle.js)
     if (!base) {
       // MW-D29: the frame the movement EMPTIES while one was playing,
       // the idle resets with it (character.cpp:646-651) - so it replays
       // from its start with freshly rolled loop dice (:824, :811)
       // instead of resuming mid-clip on a stale counter.
-      if (movementState) { resetMovement(); resetIdle(); }
+      if (movementState && !keepMove) { resetMovement(); resetIdle(MW_STOCK.MotionDoctrine !== 0); }   // IDLE-SETTLE (combat/idleSettle.js)
       return;
     }
     const isTurn = base.startsWith('turn');
@@ -4901,28 +6240,101 @@ export function createFpArm() {
     // frame - the port's old gate keyed on the movestate name alone and
     // kept the bare-handed walk playing with the sword out.
     const stance = stanceOf();   // MWNPC9: a non-biped's bare walk
-    const fresh = !(movementState && movementState.playing
+    const isWalkingGroup = isWalkAnimationGroup(base);
+    const isRunningGroup = isRunAnimationGroup(base);
+    const actorOptions = {
+      player: playerAppearance,
+      ownHeads: !!lastBuildOpts?.ownHeads,
+      female: !!lastBuildOpts?.female,
+    };
+    const movementPreference = isWalkingGroup ? walkVariantForActor({
+      ...actorOptions,
+      playerChoice: MW_STOCK.PlayerWalkSource ?? 0,
+      npcMaleChoice: MW_STOCK.NpcMaleWalk ?? 0,
+      npcFemaleChoice: MW_STOCK.NpcFemaleWalk ?? 0,
+    }) : isRunningGroup ? runVariantForActor({
+      ...actorOptions,
+      playerChoice: MW_STOCK.PlayerRunSource ?? 0,
+      npcMaleChoice: 0,
+      npcFemaleChoice: MW_STOCK.NpcFemaleRun ?? 0,
+    }) : null;
+    const preferenceKey = isWalkingGroup ? `walk:${movementPreference}`
+      : isRunningGroup ? `run:${movementPreference}` : null;
+    const preferenceChanged = movementClipPreference !== preferenceKey;
+    const fresh = preferenceChanged || !(movementState && movementState.playing
       && movementBase === base && movementStance === stance);
+    if (fresh) movementClipPreference = preferenceKey;
     if (fresh) {
-      const composed = composeMovementGroup(base, stance, hasGroup);
+      const composed = guardMovementGroup(base, stance, hasGroup, viewMode === 'third' && MW_STOCK.MotionDoctrine !== 0);
       if (!composed.group) {
         if (movementState) { resetMovement(); resetIdle(); }   // :701-707 resets BOTH
         movementBase = base; movementStance = stance;
         return;
       }
-      if (!(movementState && movementState.playing && movementGroup === composed.group)) {
+      if (!(movementState && movementState.playing && movementGroup === composed.group && !preferenceChanged)) {
         const startPoint = movementGroup === composed.group ? clipCompletion(movementState) : 0;
-        const pick = pickAnimSource(rig().sources, composed.group, resetClip,
+        const movementSources = rig().sources.filter((source) => {
+          if (isWalkingGroup) return isWalkVariantEnabled(source, movementPreference ?? 'vanilla');
+          if (isRunningGroup) return isRunVariantEnabled(source, movementPreference ?? 'vanilla');
+          return !source?.walkOnly && !source?.runOnly;
+        });
+        const pick = pickAnimSource(movementSources, composed.group, resetClip,
           { loopFallback: true, loopCount: Infinity, startPoint });
+        // Record the actual gameplay resolver result, not just successful
+        // replacement-pack loads. This distinguishes a selected archive clip
+        // from a replacement candidate that was discovered but rejected.
+        const diagnosticRig = rig()?.skeletonPath ?? (viewMode === 'third' ? TP_BASE_MODEL : FP_BASE_MODEL);
+        const diagnosticActor = playerAppearance ? 'player'
+          : lastBuildOpts?.ownHeads ? 'peer-player'
+            : lastBuildOpts?.female ? 'female-npc' : 'male-or-unknown-npc';
         if (!pick) {
+          logAnimationDiagnostic(
+            `movement-selection-v1|${diagnosticRig}|${diagnosticActor}|${composed.group}|no-compatible-source`,
+            {
+              family: 'movement-source-selection',
+              rig: diagnosticRig,
+              actor: diagnosticActor,
+              group: composed.group,
+              preference: movementPreference ?? 'vanilla',
+              candidateCount: movementSources.length,
+              selected: false,
+              fallback: 'no-compatible-source',
+            },
+          );
           resetMovement();
           notes.push(`movement: no source gives "${composed.group}" a start and a stop key`);
           movementBase = base; movementStance = stance;   // AUDIT MWBODY A14: remembered, or the note is pushed again every frame
           return;
         }
+        logAnimationDiagnostic(
+          `movement-selection-v1|${diagnosticRig}|${diagnosticActor}|${composed.group}|${pick.source?.name ?? 'unknown-source'}`,
+          {
+            family: 'movement-source-selection',
+            rig: diagnosticRig,
+            actor: diagnosticActor,
+            group: composed.group,
+            preference: movementPreference ?? 'vanilla',
+            candidateCount: movementSources.length,
+            file: pick.source?.name ?? null,
+            sourcePack: pick.source?.walkVariant ?? pick.source?.variant ?? 'archive-or-unlabelled',
+            animationFamily: pick.source?.animationFamily ?? pick.source?.family ?? 'archive-or-unlabelled',
+            selected: true,
+          },
+        );
         movementGroup = composed.group;
         movementState = pick.state;
         movementSource = pick.source;
+        if (pick.source?.walkOnly) {
+          const diagnosticRig = rig()?.skeletonPath ?? (viewMode === 'third' ? TP_BASE_MODEL : FP_BASE_MODEL);
+          logAnimationDiagnostic(`locomotion-selection|${diagnosticRig}|${composed.group}|${pick.source.name}`, {
+            family: 'replacement-locomotion-selection',
+            rig: diagnosticRig,
+            group: composed.group,
+            file: pick.source.name,
+            selected: true,
+          });
+          console.info('[Morrowind animations] playing replacement locomotion group:', composed.group, 'from', pick.source.name);
+        }
       }
       movementBase = base; movementStance = stance;
       // MW-D29: the clip speed refreshes on EVERY state change, not only
@@ -4961,8 +6373,8 @@ export function createFpArm() {
     // in MW units.
     movementRate = isTurn
       ? turnAnimSpeed(yawRate)
-      : Math.min(MOVEMENT_SPEED_CAP,
-        ((mv && mv.speed ? mv.speed : 0) * MW_UNITS_PER_METER) / movementAnimSpeed);
+      : bodyWeight.moveRate(Math.min(MOVEMENT_SPEED_CAP,   // RUN-STRIDE (characters/bodyMotion/stride.js): a run's rate capped, its stride the rest
+        ((mv && mv.speed ? mv.speed : 0) * MW_UNITS_PER_METER) / movementAnimSpeed), movementGroup);
   }
 
   /** Rule 9's long group for the CURRENT stance, and the equip/unequip
@@ -4983,8 +6395,19 @@ export function createFpArm() {
     // listener's own branches (CharacterController::handleTextKey,
     // character.cpp:1074-1087), gated there on Equipping/Unequipping
     // exactly as the machine is here.
-    if (action === EQUIP_KEYS.attach) weaponShown = true;
-    else if (action === UNEQUIP_KEYS.detach) weaponShown = false;
+    if (action === EQUIP_KEYS.attach && upper === UPPER_BODY.Equipping) weaponShown = true;
+    else if (action === UNEQUIP_KEYS.detach && upper === UPPER_BODY.Unequipping) {
+      weaponShown = false;
+      hideWeaponAtUnequipEnd = false;
+      hideWeaponAtUnequipEndReason = null;
+      logAnimationDiagnostic(`fp-unequip-detach|${Date.now()}|${weaponGroup}|${actionSource?.name ?? 'unknown'}`, {
+        family: 'first-person-weapon-sheathing-v1',
+        event: 'weapon-hidden-at-detach-key',
+        weaponGroup,
+        animationSource: actionSource?.name ?? null,
+        keyTime: time,
+      });
+    }
     // RULE 24's ranged actions (character.cpp:1153-1165). Two keys
     // attach and one releases, and "shoot follow attach" is the second
     // attach - the round that goes on the string during the
@@ -5035,7 +6458,8 @@ export function createFpArm() {
     if (!playAction(k.release.start, k.release.stop, startPoint, k.reversed)) beginFollow();
     // MW-PACE1: the release ENDS on the blow - "<type> hit" - so it is fitted to the machine's hit, from where the
     // arm is now: a wind-up that ran a frame long is made up here, not carried into the damage.
-    else if (blowPlan) blowPlan.rate = blowRate(actionState.stopTime - actionState.time, blowPlan.hitAt - blowPlan.clock);
+    else if (blowPlan && !blowPlan.lead) blowPlan.rate = blowRate(actionState.stopTime - actionState.time, blowPlan.hitAt - blowPlan.clock);   // MW-PACE2: the player's keeps its one speed
+    else if (blowPlan) blowPlan.rate = blowPlan.relRate;   // MW-PACE3: the player's release snaps (combat/blowFlow.js PACE)
   }
 
   /** AttackRelease -> AttackEnd (:1793-1812): the follow-through, whose
@@ -5044,9 +6468,17 @@ export function createFpArm() {
   function beginFollow() {
     upper = UPPER_BODY.AttackEnd;
     const k = attackKeys(attackType, attackStrength, { reversed: attackReversed });
+    recoverHeld = 0;   // BLOW-FLOW: the window after this blow is counted from its follow-through's end
+    blowHit = true;   // MW-PACE2: the release is done - the arm's blow has landed (takeBlowHit)
     if (!playAction(k.follow.start, k.follow.stop, 0, k.reversed)) endAttack();
     // MW-PACE1: and the follow-through ends where the machine's blow does, so the next blow finds the arm ready.
-    else if (blowPlan) blowPlan.rate = blowRate(actionState.stopTime - actionState.time, blowPlan.seconds - blowPlan.clock);
+    else if (blowPlan && !blowPlan.lead) blowPlan.rate = blowRate(actionState.stopTime - actionState.time, blowPlan.seconds - blowPlan.clock);
+    // MW-PACE3: the player's recovers with inertia (combat/blowFlow.js recoverRate) - SERIES-FLOW: a series still going
+    // spreads its follow-through over the time the machine still takes, so the next blow takes a moving arm
+    else if (blowPlan) {
+      blowPlan.seriesBase = driftRate(actionState.stopTime - actionState.startTime, blowPlan.seconds - blowPlan.clock, recoverRate(blowPlan, 0, false));
+      blowPlan.rate = recoverRate(blowPlan, 0, seriesWanted);
+    }
   }
 
   /** AttackEnd -> WeaponEquipped (:1821-1856). */
@@ -5058,6 +6490,9 @@ export function createFpArm() {
     attackType = null;
     attackHand = null;   // TWO-HANDS
     blowPlan = null;
+    // SHIELD-BASH: the weapon's own group again; BASH-EXIT: the stance's right arm held through the return (mirrorFor),
+    // its idle carried on rather than restarted under it
+    if (blowBash) { blowBash = false; bashExit = BLOW_FLOW.exit; resetIdleOnAttackEnd = false; refreshWeaponGroup(); }
     if (blowType != null) { blowType = null; refreshWeaponGroup(); }   // MIXED-PAIR: the arm's own group again
     if (resetIdleOnAttackEnd) { resetIdleOnAttackEnd = false; resetIdle(); }
   }
@@ -5109,8 +6544,11 @@ export function createFpArm() {
     if (!blow || holdWindUp) return null;
     if (!(blow.hitAt > 0) || !(blow.seconds >= blow.hitAt) || !Number.isFinite(blow.seconds)) return null;
     const span = (a, b) => { const t0 = keyTime(a); const t1 = keyTime(b); return t0 >= 0 && t1 > t0 ? t1 - t0 : 0; };
-    const toHit = (actionState ? actionState.stopTime - actionState.startTime : 0) + span(k.release.start, k.release.stop);
+    const wind = actionState ? actionState.stopTime - actionState.startTime : 0, release = span(k.release.start, k.release.stop);
+    const toHit = wind + release;
     if (!(toHit > 0)) return null;
+    // MW-PACE3: the player's own blow, led by its arm, plays each section at its own speed (combat/blowFlow.js calmBlowPlan)
+    if (blow.lead) return calmBlowPlan(blow, wind, release);
     return { seconds: blow.seconds, hitAt: blow.hitAt, clock: 0, rate: blowRate(toHit, blow.hitAt) };
   }
 
@@ -5123,9 +6561,13 @@ export function createFpArm() {
 
   /** UPDATEWEAPONSTATE's tail, run once per frame: every transition here
    *  is "the section that was playing has finished". */
-  function stepUpper() {
+  function stepUpper(dt = 0) {
     const playing = !!(actionState && actionState.playing);
-    if (playing) return;
+    const recovering = upper === UPPER_BODY.AttackEnd && blowPlan?.lead;
+    if (recovering) recoverHeld += dt;
+    bashExit = Math.max(0, bashExit - dt);   // BASH-EXIT: the return to the stance after a bash (mirrorFor)
+    // BLOW-FLOW: a series ended - the recovery gives way to the stance at the window's end, wherever it is (the exit blend)
+    if (playing && !(recovering && !seriesWanted && recoverHeld >= holdFor(attackType))) return;
     switch (upper) {
       case UPPER_BODY.Equipping:
         actionState = null; actionSource = null;
@@ -5139,8 +6581,23 @@ export function createFpArm() {
       case UPPER_BODY.Unequipping:
         // :1857-1859 - THIS is where the weapon type becomes None, and
         // with it the stance drops to the bare "idle" of rule 10's
-        // endless loop.
+        // endless loop. If this animation pack has no detach text key,
+        // keep the weapon visible until this exact boundary instead of
+        // making it vanish at the beginning of the hand's return motion.
+        if (hideWeaponAtUnequipEnd) {
+          weaponShown = false;
+          hideWeaponAtUnequipEnd = false;
+          logAnimationDiagnostic(`fp-unequip-end-hide|${weaponGroup}|${actionSource?.name ?? 'unknown'}`, {
+            family: 'first-person-weapon-sheathing-v1',
+            event: 'weapon-hidden-at-unequip-end',
+            weaponGroup,
+            animationSource: actionSource?.name ?? null,
+            animationStopTime: actionState?.stopTime ?? null,
+            fallbackReason: hideWeaponAtUnequipEndReason ?? 'missing unequip detach text key',
+          });
+        }
         actionState = null; actionSource = null;
+        hideWeaponAtUnequipEndReason = null;
         upper = UPPER_BODY.None;
         sheathed = true;
         refreshWeaponGroup();
@@ -5155,9 +6612,14 @@ export function createFpArm() {
         if (!holdWindUp) beginRelease();
         break;
       case UPPER_BODY.AttackRelease:
+        // BLOW-FLOW / MW-PACE3 (Mac: "a frozen last frame instead of the weapon easing back"): every blow plays its
+        // follow-through after the hit, braking (beginFollow, recoverRate) - never a still frame at the hit.
         beginFollow();
         break;
       case UPPER_BODY.AttackEnd:
+        // the follow-through done (or the window spent, above), the stance takes the arm back - blended (blowBlendSeconds);
+        // SERIES-FLOW: while the series goes on, the arm waits for the next blow instead (BLOW_FLOW.wait at most)
+        if (recovering && seriesWanted && recoverHeld < BLOW_FLOW.wait) break;
         endAttack();
         break;
       case UPPER_BODY.Casting:
@@ -5226,6 +6688,102 @@ export function createFpArm() {
 
   const api = {
     attach(r, cam) { renderer = r || null; camera = cam || null; },
+    /**
+     * Build an editor-owned copy of this actor's current body/head/hair identity.
+     * It shares only the renderer and source asset/dependency references; the
+     * skeleton, assembled meshes, animation state and render target work are owned
+     * by a new rig. Equipment is intentionally omitted so the editor previews nude.
+     */
+    /**
+     * Rebuild the live actor after a global body-asset preference changes.
+     * buildFpArm resolves the Better Bodies underwear/nude asset at build time,
+     * so a stored preference alone cannot change the already assembled meshes.
+     */
+    async refreshBodyVariant() {
+      if (!lastBuildOpts) return { ok: false, error: 'The live character has not finished building.' };
+      return this.build({ ...lastBuildOpts });
+    },
+    async getAppearanceChoices({ race = null, female = false, faceIndex = 0 } = {}) {
+      const d = await import('../scenes/dataSource.js');
+      const cat = await headCatalogOf(d);
+      if (!cat) return { ok: false, error: 'Morrowind data is not loaded.' };
+      const raceKey = String(race || lastBuildOpts?.race || 'nord');
+      const exists = archiveHas(cat.archives);
+      const poolsFor = (raceName, isFemale) => facePools(cat.parts, raceName, isFemale, { has: exists, own: true });
+      const unique = (items) => {
+        const seen = new Set();
+        return items.filter((item) => {
+          const key = String(item.model || item.id || '').toLowerCase();
+          if (!key || seen.has(key)) return false;
+          seen.add(key);
+          return true;
+        }).map((item) => ({ id: item.id, model: item.model, label: String(item.id).replace(/[_]+/g, ' ') }));
+      };
+      // Audit every playable race/sex pool, not just the currently displayed
+      // one. Duplicate mesh paths are collapsed independently for heads/hairs.
+      const raceKeys = ['breton', 'dark elf', 'high elf', 'imperial', 'nord', 'orc', 'redguard', 'wood elf', 'argonian', 'khajiit'];
+      const audit = raceKeys.flatMap((name) => [false, true].map((isFemale) => {
+        const pool = poolsFor(name, isFemale);
+        const heads = unique(pool.heads), hairs = unique(pool.hairs);
+        return {
+          race: name, female: isFemale,
+          headCount: pool.heads.length, uniqueHeads: heads.length, duplicateHeads: pool.heads.length - heads.length,
+          hairCount: pool.hairs.length, uniqueHairs: hairs.length, duplicateHairs: pool.hairs.length - hairs.length,
+        };
+      }));
+      const pools = poolsFor(raceKey, !!female);
+      const heads = unique(pools.heads);
+      const hairs = unique(pools.hairs);
+      const index = Number.isInteger(faceIndex) ? faceIndex : 0;
+      const faceMatch = await faceMatchOf({ race: raceKey, female: !!female, faceIndex: index, pools, archives: cat.archives, gen: cat.gen, d });
+      const rows = playerBodyRows(cat.parts, raceKey, !!female, { faceIndex: index, faceMatch, has: exists, ownHeads: true });
+      return {
+        ok: true, heads, hairs, audit,
+        selected: {
+          headId: rows.find((row) => row.slot === 'head')?.record?.id ?? heads[0]?.id ?? null,
+          hairId: rows.find((row) => row.slot === 'hair')?.record?.id ?? hairs[0]?.id ?? null,
+        },
+      };
+    },
+    async createAppearancePreviewRig({ race = null, female = null, faceIndex = null, headId = null, hairId = null } = {}) {
+      if (!lastBuildOpts || !renderer) return { ok: false, error: 'The live character has not finished building.' };
+      const previewRig = createFpArm({ playerAppearance: true });
+      previewRig.attach(renderer, camera);
+      const opts = {
+        ...lastBuildOpts,
+        // Identity is the editor's draft, never inherited from the currently built actor.
+        // Do not let a live transformation/creature/NPC face mask the chosen player race.
+        race: String(race || lastBuildOpts.race || 'nord'),
+        female: typeof female === 'boolean' ? female : !!lastBuildOpts.female,
+        faceIndex: Number.isInteger(faceIndex) ? faceIndex : (lastBuildOpts.faceIndex | 0),
+        appearanceHeadId: headId || null,
+        appearanceHairId: hairId || null,
+        beast: null,
+        werewolf: false,
+        vampire: false,
+        creature: null,
+        npcFace: null,
+        ownHeads: true,
+        // The editor preview must render the draft identity, not the saved/live identity.
+        // build() normally applies the persisted identity to player-appearance rigs.
+        appearanceIdentityDraft: true,
+        armor: [],
+        weapon: null,
+        offWeapon: null,
+        hasAmmo: false,
+        ammoCount: 0,
+        torch: false,
+        hipLight: false,
+        spellReady: false,
+        reachSweep: false,   // LOAD-STALL 2: the editor's figure is the third body alone - no first-person far plane to sweep (MWNPC3's door)
+      };
+      const builtPreview = await previewRig.build(opts);
+      if (!builtPreview?.ok) {
+        previewRig.unload();
+        return { ok: false, error: builtPreview?.error || builtPreview?.stage || 'Could not build the preview model.' };
+      }
+      return { ok: true, rig: previewRig };
+    },
     active,
     ready,
     /** MWA3: WHO the standing arm was built for - the identity third
@@ -5235,6 +6793,16 @@ export function createFpArm() {
      *  and `ready()` alone says only that SOME arm stands - an
      *  Argonian save loaded over a human's standing arm kept the
      *  human's body until the pack was toggled off and on. */
+    /** STANCE-FIRST (the owner, 2026-10-28: "машет двуручником из одноручной стойки"): IS THE HAND THE GAME ASKED FOR
+     *  THE ONE THE ARM HOLDS? The swap is async (its meshes and pictures load) and a rebuild in flight holds it queued,
+     *  while the game's weapon changed at once - a blow started in the gap was the new weapon's, thrown from the old
+     *  stance. While this is false the arm draws no blow (attack) and leads none (weaponRig's armLed) - the game's blow
+     *  is never held for a picture: the client draws, the game decides (LOAD-STALL's MECHANICS-UNTOUCHED). True with no
+     *  standing arm, for the wolf (it holds nothing) and for a swap this rig refused (nothing is coming). */
+    handSettled() {
+      if (!built || !built.ok || built.werewolf || wantKey === null) return true;
+      return wantKey === wornKey || built.weaponFailed === wantKey;
+    },
     builtFor() { return built && built.ok && lastBuildOpts ? { race: lastBuildOpts.race ?? null, female: !!lastBuildOpts.female, faceIndex: lastBuildOpts.faceIndex | 0, werewolf: !!lastBuildOpts.werewolf, vampire: !!lastBuildOpts.vampire } : null; },   // WEREWOLF1: and the form; PORTRAIT3D: and the curse's face   // AUDIT MW-TORCH: null when nothing stands - an unloaded or refused rig was built for no one
     /** MW-EARLY: WHO THE ARM IS BEING BUILT FOR - the identity third of
      *  the build that will stand once the queue drains (the queued one,
@@ -5260,6 +6828,8 @@ export function createFpArm() {
       // report by another road. The latest opts wait and run the moment
       // the in-flight build settles; the worn/hand/light queued for the
       // rig being replaced go with it (the build's opts carry theirs).
+      // LOAD-STALL 3: the player's own bodies (the live one, the editor's preview) decode ahead of the NPCs'
+      if (playerAppearance && opts && !opts.urgent) opts = { ...opts, urgent: true };
       if (busy) { pendingBuild = opts; return { ok: false, stage: 'build', error: 'already building - queued behind it', queued: true }; }
       busy = true;
       buildingOpts = opts ?? null;   // MW-EARLY
@@ -5279,6 +6849,7 @@ export function createFpArm() {
         // named note, and the machine stands back up in first person -
         // the one view that cannot be missing.
         thirdBuilt = res && res.ok ? (res.third || null) : null;
+        thirdGroundMinZ = null; // a rebuilt body/equipment set needs a fresh standing support height
         viewMode = res && res.ok && res.creature && thirdBuilt ? 'third' : 'first';   // MWNPC9: a creature is its body, from the first frame
         wornKey = fpWeaponKey(opts && opts.weapon, !!(opts && opts.hasAmmo));
         // TWO-HANDS: a new rig measures its clips afresh, and holds the left hand's weapon the build bound (AUDIT 2: the one
@@ -5289,10 +6860,20 @@ export function createFpArm() {
         wornEquipKey = wornEquipKeyOf(opts && opts.armor);
         lastBuildOpts = opts ? { ...opts } : null;
         buildDeps = (opts && opts.deps) || null;
+        // LOAD-STALL 2: the sweep the build owes, beside the frames; it lands on this rig alone, and only while the arm
+        // it measured still stands (a hand swapped since reset the reach itself), through the held sheet's floor
+        if (res && res.ok && typeof res.sweepLater === 'function') {
+          const piecesAt = res.arm.pieces;
+          res.sweepLater().then((r) => {
+            if (r == null || built !== res || res.arm.pieces !== piecesAt) return;
+            if (held && held.built === res) held.reach0 = r;
+            else res.reach = r;
+          }, () => { /* the idle's reach stands */ });
+        }
         idleState = null; actionState = null; idleGroup = null; weaponGroup = null; weaponClock = { group: null, value: 0 };   // MW-BOW1: no group, no state
         movementState = null; movementGroup = null; movementSource = null; movementBase = null;
         jumpState = null; jumpGroup = null; jumpSource = null; jumpStance = null; jumpKind = null;   // MW-D39
-        lastYaw = null; turnDir = 0; turnHold = 0;
+        lastYaw = null; turnDir = 0; turnGate.reset();
         upper = UPPER_BODY.None; attackType = null; holdWindUp = false;
         blowType = null; attackHand = null;   // AUDIT MIXED-PAIR L3-7: a blow a rebuild cuts takes its hand and group with it
         weaponShown = false; arrowShown = false; notes.length = 0; aimFactor = 0; sneaking = false;
@@ -5312,6 +6893,7 @@ export function createFpArm() {
         if (thirdBuilt && thirdBuilt.ok) thirdBuilt.hipHang = thirdBuilt.arm.pieces.find((p) => p.slot === HIP_LIGHT_SLOT)?.hang ?? null;
         hipLantern.reset();
         if (!res.ok) { reason = `${res.stage}: ${res.error}`; built = res; return res; }
+        healTextures(res).catch(() => 0);   // TEXTURE-HEAL: a picture that did not come is asked for again
         refreshWeaponGroup();
         refreshIdle(true);
         refreshTorch(true);
@@ -5348,10 +6930,10 @@ export function createFpArm() {
       releaseMesh(); built = null; packed = null;
       offKey = null; pendingOff = undefined; strikeSides.clear(); mirrorCarry.first = {}; mirrorCarry.third = {};   // TWO-HANDS
       held = null; heldMemo = null; lastFrame = null; drewLast = false;   // MAP3: the sheet goes with the rig
-      releaseThirdMesh(); thirdBuilt = null; thirdPacked = null; viewMode = 'first';
+      releaseThirdMesh(); thirdBuilt = null; thirdGroundMinZ = null; thirdPacked = null; viewMode = 'first';
       movementState = null; movementGroup = null; movementSource = null; movementBase = null;
       jumpState = null; jumpGroup = null; jumpSource = null; jumpStance = null; jumpKind = null;   // MW-D39
-      lastYaw = null; turnDir = 0; turnHold = 0;
+      lastYaw = null; turnDir = 0; turnGate.reset();
       idleState = null; actionState = null; idleGroup = null; weaponGroup = null; weaponClock = { group: null, value: 0 };   // MW-BOW1: no group, no state
       upper = UPPER_BODY.None; attackType = null; holdWindUp = false;
       blowType = null; attackHand = null;   // AUDIT MIXED-PAIR L3-7
@@ -5411,20 +6993,76 @@ export function createFpArm() {
           return true;
         }
         upper = UPPER_BODY.Unequipping;
-        // If the file has no "unequip detach" key the weapon is hidden
-        // by hand, immediately (:1412-1414).
         const detach = keyTime(UNEQUIP_KEYS.detach);
-        if (!playAction(UNEQUIP_KEYS.start, UNEQUIP_KEYS.stop, 0)) {
+        const unequipStarted = playAction(UNEQUIP_KEYS.start, UNEQUIP_KEYS.stop, 0);
+        const unequipHasMotion = unequipStarted
+          && animationWindowHasMotion(actionSource, actionState, built.arm.skeleton);
+        if (unequipStarted && !unequipHasMotion) {
+          logAnimationDiagnostic(`fp-unequip-static-window|${weaponGroup}|${actionSource?.name ?? 'unknown'}`, {
+            family: 'first-person-weapon-sheathing-v1',
+            event: 'unequip-window-has-no-matching-bone-motion',
+            weaponGroup,
+            animationSource: actionSource?.name ?? null,
+            activeRigSkeleton: built.arm.skeletonPath ?? null,
+            clipStartTime: actionState?.startTime ?? null,
+            clipStopTime: actionState?.stopTime ?? null,
+            fallback: 'play equip section backwards',
+          });
+        }
+        // A window with text markers but no changing transforms is not a usable
+        // sheathing animation. Use the working equip motion in reverse instead.
+        const equipStarted = !unequipHasMotion && playAction(EQUIP_KEYS.start, EQUIP_KEYS.stop, 0, true);
+        const plan = unequipActionPlan({ unequipStarted: unequipHasMotion, equipStarted, detachKeyTime: detach });
+        if (plan.kind === 'immediate') {
+          hideWeaponAtUnequipEnd = false;
+          hideWeaponAtUnequipEndReason = null;
           upper = UPPER_BODY.None; sheathed = true; weaponShown = false; arrowShown = false;
+          logAnimationDiagnostic(`fp-unequip-no-clip|${weaponGroup}|${++unequipDiagnosticSequence}`, {
+            family: 'first-person-weapon-sheathing-v1',
+            event: 'unequip-animation-unavailable',
+            weaponGroup,
+            animationSource: actionSource?.name ?? null,
+            fallbackReason: 'neither unequip nor reversible equip section is playable',
+            weaponHiddenImmediately: true,
+          });
           refreshWeaponGroup(); refreshIdle(true);
           return true;
         }
-        if (detach < 0) weaponShown = false;
-        // detachArrow() (character.cpp:1410), unconditionally, as the
-        // unequip section starts - not at its "unequip detach" key.
+        const hideMode = plan.hideMode;
+        hideWeaponAtUnequipEnd = hideMode === 'animation-end';
+        hideWeaponAtUnequipEndReason = hideWeaponAtUnequipEnd
+          ? (plan.kind === 'reverse-equip' ? 'reversed equip fallback completed' : 'missing unequip detach text key')
+          : null;
+        if (hideMode === 'detach-key') hideWeaponAtUnequipEnd = false;
+        if (plan.kind === 'reverse-equip') {
+          logAnimationDiagnostic(`fp-unequip-reverse-equip|${weaponGroup}|${++unequipDiagnosticSequence}`, {
+            family: 'first-person-weapon-sheathing-v1',
+            event: 'unequip-using-reversed-equip-clip',
+            weaponGroup,
+            animationSource: actionSource?.name ?? null,
+            animationStartTime: actionState?.startTime ?? null,
+            animationStopTime: actionState?.stopTime ?? null,
+            fallback: 'play equip section backwards; hide weapon when the section completes',
+          });
+        } else if (hideMode === 'animation-end') {
+          // The clip exists but does not declare when the blade leaves
+          // the hand. Defer hiding until stepUpper observes completion.
+          logAnimationDiagnostic(`fp-unequip-missing-detach|${weaponGroup}|${++unequipDiagnosticSequence}`, {
+            family: 'first-person-weapon-sheathing-v1',
+            event: 'unequip-detach-key-missing',
+            weaponGroup,
+            animationSource: actionSource?.name ?? null,
+            animationStartTime: actionState?.startTime ?? null,
+            animationStopTime: actionState?.stopTime ?? null,
+            fallback: 'hide weapon at animation end',
+          });
+        }
+        // A real detach marker hides the weapon at the intended point.
+        // detachArrow() is unconditional at section start in the reference.
         arrowShown = false;
         return true;
       }
+      hideWeaponAtUnequipEnd = false;
       sheathed = false;
       // AUDIT SPELL-HAND L3-3: drawn with the spell kept in the free hand, the weapon comes up in ITS stance - the two-handed
       // Spell stance the sheathed hands held is let go first, never the spellcast group's own equip played for the blade
@@ -5540,6 +7178,7 @@ export function createFpArm() {
       // AUDIT 68 S08-fparm-busy-queue-drops-latest: the WHOLE request,
       // queued before the key compare (wornKey is the old hand until a
       // swap lands, so switching back mid-swap was dropped).
+      wantKey = fpWeaponKey(item, hasAmmo);
       if (busy) { pendingWeapon = { item, hasAmmo, ammoCount }; return false; }
       // AUDIT SPELL-HAND L3-9: A CAST FINISHES BEFORE THE HAND CHANGES - OpenMW's equip waits for the upper body to come
       // back to WeaponEquipped (character.cpp updateWeaponState); the swap cut the cast's motion and let its spell go at
@@ -5553,14 +7192,19 @@ export function createFpArm() {
       // AUDIT 68 X7-fparm-swap-rejection-unhandled: a swap that failed on
       // THIS rig is not retried by the per-frame door; another weapon, a
       // rebuild or a re-attach (a new rig) asks again.
-      if (built.weaponFailed === key) return false;
+      // WEAPON-FIRST: a failed swap is asked again, a few times, further apart each time - a read that failed once (a
+      // file the store answered late) left the hand empty for the rig's whole life
+      if (built.weaponFailed === key && !swapRetryDue(built, key)) return false;
       busy = true;
       const token = built;
       token.weaponFailed = null;
+      const clock = { t0: mwNow(), at: mwNow(), spans: { archives: 0, meshes: 0, textures: 0, third: 0 } };   // WEAPON-FIRST: the swap's own line
+      const span = (name) => { const n = mwNow(); clock.spans[name] += n - clock.at; clock.at = n; };
       return (async () => {
         try {
           const d = buildDeps || await import('../scenes/dataSource.js');
           const archives = await d.loadMorrowindArchives();
+          span('archives');
           // Unloaded or rebuilt while the archives opened: this swap's
           // target is gone, and the newer state already carries its own
           // wornKey. Walk away.
@@ -5570,10 +7214,10 @@ export function createFpArm() {
           // below read synchronously - this rig's and, further down, the
           // third-person one's. The two resolves pick the SAME records
           // off the same allWeapons, so one load serves both.
-          await loadFromArchives(archives, weaponPartPaths({ weapon: item, hasAmmo, allWeapons: token.allWeapons, has: archiveHas(archives) }));   // MW-D50
+          await loadFromArchives(archives, weaponPartPaths({ weapon: item, hasAmmo, allWeapons: token.allWeapons, has: archiveHas(archives) }), playerAppearance);   // MW-D50
           const resolved = resolveWeaponParts({
             weapon: item, hasAmmo, allWeapons: token.allWeapons, find,
-            skeletonBytes: token.skeletonBytes, has: archiveHas(archives),   // MW-D50
+            skeletonBytes: token.skeletonBytes, has: archiveHas(archives), firstPerson: true,   // MW-D50
           });
           // MW-D24: the SAME swap on the third-person body - same door
           // (resolveWeaponParts), this rig's own skeleton bytes, so the
@@ -5594,7 +7238,7 @@ export function createFpArm() {
             // WS1: the holster follows the hand - the scabbard preloaded,
             // the parts resolved against THIS rig's skeleton (its addons
             // already in it), the old three slots dropped with the weapon's.
-            await loadFromArchives(archives, holsterPartPaths({ weaponModel: tResolved.weaponInfo?.model }));
+            await loadFromArchives(archives, holsterPartPaths({ weaponModel: tResolved.weaponInfo?.model }), playerAppearance);
             tHolster = t.sheathing !== false
               ? resolveHolsterParts({
                 mwType: tResolved.mwType, weaponModel: tResolved.weaponInfo?.model,
@@ -5609,14 +7253,16 @@ export function createFpArm() {
           const arm = token.arm;
           arm.pieces = arm.pieces.filter((p) => p.slot !== 'weapon' && p.slot !== 'arrow');
           bindPartsInto(arm, resolved.parts);
+          span('meshes');
           // Textures the NEW pieces name, resolved while the archives
           // are open; what the arm already decoded stays.
           const fresh = arm.pieces.filter((p) => p.slot === 'weapon' || p.slot === 'arrow');
           // MW-LOAD: covers collectArmTextures' reads for the new pieces.
-          await preloadArmTextures(fresh, archives, gen);
+          await preloadArmTextures(fresh, archives, gen, playerAppearance);   // LOAD-STALL 3: the player's swap goes first
           for (const [file, tex] of collectArmTextures(fresh, archives, gen)) {
             if (!token.textures.has(file)) token.textures.set(file, tex);
           }
+          span('textures');
           const oldType = token.mwType;
           token.mwType = resolved.mwType;
           token.weapon = resolved.weaponInfo;
@@ -5646,7 +7292,7 @@ export function createFpArm() {
             t.notes = [...(t.notes || []).filter((n) => !/^holster[ :@]/.test(n)), ...tHolster.notes, ...tFit.notes];
             const tFresh = t.arm.pieces.filter((p) => swapped.has(p.slot));
             // MW-LOAD: same cover for the third-person rig's new pieces.
-            await preloadArmTextures(tFresh, archives, gen);
+            await preloadArmTextures(tFresh, archives, gen, playerAppearance);
             for (const [file, tex] of collectArmTextures(tFresh, archives, gen)) {
               if (!t.textures.has(file)) t.textures.set(file, tex);
             }
@@ -5657,6 +7303,12 @@ export function createFpArm() {
             releaseThirdMesh();
             thirdPacked = null;
           }
+          span('third');
+          const ms = (v) => Math.round(v);
+          console.log(`[mw] weapon swap ${item?.name ?? 'bare hands'} in ${ms(mwNow() - clock.t0)} ms - archives ${ms(clock.spans.archives)}, `
+            + `meshes ${ms(clock.spans.meshes)}, textures ${ms(clock.spans.textures)}, third ${ms(clock.spans.third)}`);
+          token.weaponFailTry = null;
+          healTextures(token).catch(() => 0);   // TEXTURE-HEAL: and the new hand's
           releaseMesh();
           packed = null;
           // The old action clip belonged to the old weapon's group.
@@ -5703,6 +7355,8 @@ export function createFpArm() {
           // key is remembered so the frame door does not ask again.
           const msg = err?.message ?? String(err);
           token.weaponFailed = key;
+          const prior = token.weaponFailTry;
+          token.weaponFailTry = { key, tries: prior && prior.key === key ? prior.tries + 1 : 1, at: mwNow() };   // WEAPON-FIRST
           token.notes = [...(token.notes || []).filter((n) => !/^weapon: the swap /.test(n)), swapFailedNote('weapon', msg)];
           console.warn(`[mw] weapon swap failed - ${msg}`);
           return false;
@@ -5756,6 +7410,9 @@ export function createFpArm() {
      */
     attack(strike, { hold = false, blow = null, roll = 0, hand = null } = {}) {   // TWO-HANDS: `hand` - the hand the law gave the blow
       if (!built || !built.ok || sheathed || dead) return null;   // MWNPC4: the dead swing nothing
+      // STANCE-FIRST: no blow drawn with a hand the game has already put away - the new one is still loading; the blow
+      // itself is the game's and lands on its own clock (weaponRig's armLed leads none while this is so)
+      if (!api.handSettled()) return null;
       if (nonBiped()) return creatureAttack(roll, blow);   // MWNPC9: claws and jaws - one of its attacks by the roll
       // MW-PACE1: A BLOW IN THE FOLLOW-THROUGH IS CUT FOR THE NEXT. The machine starts a strike only from Idle, so
       // a strike arriving here is a blow it has already finished; refusing it (the reference's gate, which knows no
@@ -5782,6 +7439,11 @@ export function createFpArm() {
       if (!type) { if (blowType != null) { blowType = null; refreshWeaponGroup(); } return null; }
       attackType = type;
       attackHand = blowHand;
+      // BLOW-FLOW: a new blow - its own serial (its sections one pose kind), its window chosen afresh, and a thrust
+      // behind a shield the bash (the fists' always, a one-hander's in turn with its own thrust)
+      blowSerial++; blowHit = false; bashExit = 0;
+      blowBash = handsMode !== 'dual' && !torchVisible() && bashesNow({ thrust: type === 'thrust', shield: carriesShield(rig()),
+        fists: animWeaponType(built.mwType, sheathed, spellReady) === MW_WEAPON_TYPE.HandToHand, cycle: blowVariants });
       attackStrength = 1;
       resetIdleOnAttackEnd = true;
       // `hold` is the caller's machine, not a guess about bows. The
@@ -5793,13 +7455,17 @@ export function createFpArm() {
       // game path never sends.
       holdWindUp = !!hold;
       upper = UPPER_BODY.AttackWindUp;
+      // SHIELD-BASH: a one-hander's bash is the fists' own blow - the hand-to-hand thrust's body under it (the right arm
+      // holds the stance's guard, mirrorFor; the shield is the `hold` slot's), so it looks as the fists' bash does;
+      // the weapon's group comes back as the blow ends (endAttack)
+      if (blowBash && animWeaponType(built.mwType, sheathed, spellReady) !== MW_WEAPON_TYPE.HandToHand) weaponGroup = composeWeaponGroup(MW_WEAPON_TYPE.HandToHand, hasGroup).group ?? weaponGroup;
       // MS1: the backhand - the slash alone has a side. TWO-HANDS AUDIT: A BLOW THE BODY THROWS IN THE MIRROR (its
       // composition the whole body mirrored - a pair's left hand, the fist its clip does not throw with: mirrorFor, the
       // one law) KEEPS THE WAY THE PLAYER ASKED across the screen - the sprite lane's law (handsLaw.js mirrorStrike):
       // its clip is the MIRROR strike's, so a left hand's sweep to the left is the right hand's backhand in the glass.
       // The clip was picked for the strike unmirrored and then mirrored: every left-hand slash swept the other way.
       const inMirror = !!mirrorFor(viewMode, rig(), 0).full;
-      attackReversed = type === 'slash' && strikeReversed(inMirror ? mirrorStrike(strike) : strike);
+      attackReversed = type === 'slash' && strikeReversed(inMirror ? mirrorStrike(strike) : strike, animWeaponType(built.mwType, sheathed, spellReady));   // SHIELD-GUARD: never a fist's
       const k = attackKeys(type, 1, { reversed: attackReversed });
       // MW-D42 (Mac: the arrow is not shown on the bow during the
       // animation): THE NOCK HAS A FLOOR AT THE DRAW. Rule 24's "shoot
@@ -5855,6 +7521,11 @@ export function createFpArm() {
      *  arms posed on the lip or the face this frame. The weapon rig keeps the arms ON the screen then (CLIMB4 lowered
      *  them out of it: an arm with no pose for the climb had nothing better to show). */
     climbPosed() { return climbHands && viewMode === 'first' && !held; },
+    /** FP-SHEATHE (Mac: "putting the two-hander away it just vanishes, hands and all"): the first-person arms are putting
+     *  the weapon away - the unequip section (or the equip played backwards) running from the sheathe to its stop. The
+     *  weapon is already sheathed to the machine (playerWeapon.sheathed), so the rig's weapon gate is shut; this keeps the
+     *  arms on the screen until the section is done, as a run's arms already were. */
+    sheathing() { return upper === UPPER_BODY.Unequipping && viewMode === 'first' && !!built?.ok; },
     /** MAP3: HOLD THE SHEET. The travel map's holder calls this when it
      *  opens on a drawn Morrowind arm: the pose deltas go over the idle,
      *  the weapon/arrow/torch hide, and a parchment piece of `aspect`
@@ -5942,14 +7613,26 @@ export function createFpArm() {
      *  the metres a second over the ground its stride walks by, and - when the rig has one - the stride's `phase` itself
      *  (the head bob's clock as the stroke's, handsLaw.js: one step one stroke, the right forward as the left foot falls),
      *  which the pump then takes as it stands instead of walking its own. Every frame; a frame without a phase walks. */
-    setRunHands(wanted, { speed = 0, phase = null } = {}) {
+    setRunHands(wanted, { speed = 0, phase = null, running = false } = {}) {
       runPump.wanted = !!wanted;
+      runPump.running = !!running;
       runPump.speed = Number.isFinite(speed) ? speed : 0;
       runPump.given = Number.isFinite(phase) ? phase : null;
     },
     /** TWO-HANDS: the first-person arms are posed on the run - the pump's weight on the hands, no sheet in them, no stone
      *  under them. The rig opens its draw gate on it (a sheathed run is the everyday one), as it does for the climb. */
     runPosed() { return viewMode === 'first' && runPump.w >= 0.5 && !held && !climbHands; },
+    // The first-person rig must remain drawable on physical runs and jumps
+    // even when the current race/stance has no usable run clip. The run pump
+    // can pose Better Bodies hands independently of the animation source.
+    movementPosed() {
+      if (viewMode !== 'first' || dead || held || climbHands) return false;
+      const group = String(movementState?.group ?? '');
+      // Physical running is an independent draw reason: some race/stance
+      // animation sets lack a usable first-person run clip, but the hands
+      // still belong on screen and the run pump may pose them separately.
+      return runPump.running || runPump.wanted || runPump.w >= 0.5 || /^run/i.test(group) || !!jumpState?.playing;
+    },
     /** TWO-HANDS: the pins' read. */
     handsState() {
       const arm = built && built.ok ? built.arm : null;
@@ -5992,7 +7675,7 @@ export function createFpArm() {
           const archives = await d.loadMorrowindArchives();
           if (built !== token) return false;
           const find = (p) => findLoaded(archives, p);
-          if (item) await loadFromArchives(archives, weaponPartPaths({ weapon: item, hasAmmo: false, allWeapons: token.allWeapons, has: archiveHas(archives) }));
+          if (item) await loadFromArchives(archives, weaponPartPaths({ weapon: item, hasAmmo: false, allWeapons: token.allWeapons, has: archiveHas(archives) }), playerAppearance);
           // TWO-HANDS AUDIT: the left hand's node asked of each skeleton AS ASSEMBLED (the holster's law) - the one the mirror
           // made where the bytes have none (assembleFirstPersonArm's `offWeaponBone`)
           const boneOf = (r) => (n) => r.arm.skeleton.byName.has(String(n).toLowerCase());
@@ -6004,7 +7687,7 @@ export function createFpArm() {
             r.arm.pieces = r.arm.pieces.filter((p) => p.slot !== 'offweapon');
             bindPartsInto(r.arm, parts);
             const fresh = r.arm.pieces.filter((p) => p.slot === 'offweapon');
-            await preloadArmTextures(fresh, archives, gen);
+            await preloadArmTextures(fresh, archives, gen, playerAppearance);   // LOAD-STALL 3: the player's swap goes first
             for (const [file, tex] of collectArmTextures(fresh, archives, gen)) if (!r.textures.has(file)) r.textures.set(file, tex);
             r.pieces = armPieceRows(r.arm.pieces).length;
           }
@@ -6083,7 +7766,7 @@ export function createFpArm() {
           const archives = await d.loadMorrowindArchives();
           if (built !== token) return false;
           const find = (p) => findLoaded(archives, p);
-          await loadFromArchives(archives, torchPartPaths({ torch: true, allLights: token.allLights, has: archiveHas(archives) }));
+          await loadFromArchives(archives, torchPartPaths({ torch: true, allLights: token.allLights, has: archiveHas(archives) }), playerAppearance);
           const resolveFor = (rigBuilt) => resolveTorchPart({ torch: true, allLights: token.allLights, find, skeletonBytes: rigBuilt.skeletonBytes, has: archiveHas(archives) });
           // AUDIT 68 X7-fparm-swap-rejection-unhandled: both rigs resolve
           // (the reads that can throw) before either changes.
@@ -6096,7 +7779,7 @@ export function createFpArm() {
             rigBuilt.arm.effects = (rigBuilt.arm.effects ?? []).filter((e) => e.slot !== 'torch');   // MAC-Q: the old flame goes with the old torch
             bindPartsInto(rigBuilt.arm, resolved.parts);
             const fresh = [...rigBuilt.arm.pieces.filter((p) => p.slot === 'torch'), ...rigBuilt.arm.effects.filter((e) => e.slot === 'torch')];
-            await preloadArmTextures(fresh, archives, gen);
+            await preloadArmTextures(fresh, archives, gen, playerAppearance);   // LOAD-STALL 3: the player's swap goes first
             for (const [file, tex] of collectArmTextures(fresh, archives, gen)) {
               if (!rigBuilt.textures.has(file)) rigBuilt.textures.set(file, tex);
             }
@@ -6161,7 +7844,7 @@ export function createFpArm() {
           const archives = await d.loadMorrowindArchives();
           if (built !== token || thirdBuilt !== tRig) return false;
           const find = (p) => findLoaded(archives, p);
-          await loadFromArchives(archives, hipLanternPartPaths({ hipLight: true, allLights: token.allLights, has: archiveHas(archives) }));
+          await loadFromArchives(archives, hipLanternPartPaths({ hipLight: true, allLights: token.allLights, has: archiveHas(archives) }), playerAppearance);
           const resolved = resolveHipLanternPart({ hipLight: true, allLights: token.allLights, find, skeletonBytes: tRig.skeletonBytes, has: archiveHas(archives), hasBone: (b) => tRig.arm.skeleton.byName.has(String(b).toLowerCase()) });   // the body's own skeleton, addons and all
           const gen = token.catalog?.gen ?? null;
           tRig.arm.pieces = tRig.arm.pieces.filter((p) => p.slot !== HIP_LIGHT_SLOT);
@@ -6169,7 +7852,7 @@ export function createFpArm() {
           bindPartsInto(tRig.arm, resolved.parts);
           tRig.hipHang = hangHipLight(tRig.arm);
           const fresh = [...tRig.arm.pieces.filter((p) => p.slot === HIP_LIGHT_SLOT), ...tRig.arm.effects.filter((e) => e.slot === HIP_LIGHT_SLOT)];
-          await preloadArmTextures(fresh, archives, gen);
+          await preloadArmTextures(fresh, archives, gen, playerAppearance);   // LOAD-STALL 3: the player's swap goes first
           for (const [file, tex] of collectArmTextures(fresh, archives, gen)) {
             if (!tRig.textures.has(file)) tRig.textures.set(file, tex);
           }
@@ -6384,6 +8067,17 @@ export function createFpArm() {
       if (!built || !built.ok) return false;
       return upper === UPPER_BODY.Equipping || upper === UPPER_BODY.AttackWindUp || upper === UPPER_BODY.AttackRelease;
     },
+    /** SERIES-FLOW: the player is still attacking (combat/weapon/attackSeries.js) - the rig says so every frame. */
+    setSeriesWanted(on) { seriesWanted = !!on; },
+    /** MW-PACE2: has the player's led blow landed (its release done) since last asked? CONSUMING, as takeShootRelease. */
+    takeBlowHit() { const hit = blowHit; blowHit = false; return hit; },
+    /** MW-PACE2: the hands still throw a blow - drawing, winding up, releasing. The rig starts no blow while it answers
+     *  true; the series' window, held where the blow struck (BLOW_FLOW.hold), is free, so an exchange continues from
+     *  there. Every state it names ends as its section plays out. */
+    blowBusy() {
+      if (!built || !built.ok) return false;
+      return upper === UPPER_BODY.Equipping || upper === UPPER_BODY.AttackWindUp || upper === UPPER_BODY.AttackRelease;
+    },
 
     release(blow = null) {
       if (upper !== UPPER_BODY.AttackWindUp) return false;
@@ -6418,6 +8112,7 @@ export function createFpArm() {
      *  camera node every frame). */
     update(dt, { pose = true, effectsDt = dt } = {}) {
       if (!built || !built.ok || !renderer) return;
+      if (playerAppearance) dt = hitResponse.armDt(dt);   // HIT-RESPONSE: the striking arm holds its beat (combat/hitResponse.js)
       partClock += dt;   // MW-BOW1: frame time, an AutoPlay node's clock
       const cam = seatedCamera(camera && camera());   // WAGONS3: seated (a wagon's bench), the body plays no stride under the seat
       sneaking = !!(cam && cam.sneaking);
@@ -6428,6 +8123,7 @@ export function createFpArm() {
       stepPairGuard(dt);   // TWO-HANDS AUDIT: the pair's guard
       stepPairSpread(dt);   // TWO-HANDS SPREAD: the pair's arms turned out
       stepRifle(cam, dt);   // RIFLE-STANCE: the long gun's hold
+      stepAxePlacement(built, weaponInHand() && !handsTaken(built) && !cam?.seat && !cam?.saddle, dt, attackingNow(), !!movementState);
       // refreshCurrentAnims' order, and it is not arbitrary: the weapon
       // state is stepped FIRST because the idle refresh below depends on
       // it - "idle handled last as it can depend on the other states"
@@ -6455,12 +8151,39 @@ export function createFpArm() {
         // blow's own clock advanced beside it (blowPace). The record's pace is the fallback, unchanged.
         const paced = attacking && blowPlan;
         if (paced) blowPlan.clock += dt;
+        if (paced && blowPlan.lead && upper === UPPER_BODY.AttackEnd) blowPlan.rate = recoverRate(blowPlan, clipCompletion(actionState), seriesWanted);   // MW-PACE3
         // CAST-SPEED: a cast plays at its own rate, where OpenMW plays the spellcast group at 1
         if (castPlan && upper === UPPER_BODY.Casting) castPlan.clock += dt;   // MW-SHOT-PACE: the cast's own clock
         const speed = paced ? blowPlan.rate : upper === UPPER_BODY.Casting ? castRate : weapSpeed;
-        advanceClip(actionState, (actionSource || rig()).keys, dt * speed, onActionKey);
+        const steppedAction = actionState;
+        advanceClip(steppedAction, (actionSource || rig()).keys, dt * speed, onActionKey);
+        // Log only meaningful milestones, not every render frame. A selection event alone
+        // cannot prove that the KF playhead advanced or that poseTime moved across the clip.
+        const marks = actionPlaybackDiagnosticMarks.get(steppedAction) ?? new Set();
+        actionPlaybackDiagnosticMarks.set(steppedAction, marks);
+        const duration = steppedAction.stopTime - steppedAction.startTime;
+        const progress = duration > 0 ? (steppedAction.time - steppedAction.startTime) / duration : 1;
+        for (const threshold of [0.25, 0.5, 0.75, 1]) {
+          if (progress + 1e-6 < threshold || marks.has(threshold)) continue;
+          marks.add(threshold);
+          logAnimationDiagnostic(`fp-action-playback-progress|${Date.now()}|${weaponGroup}|${steppedAction.group}|${threshold}`, {
+            family: 'first-person-action-playback-v1',
+            event: threshold === 1 ? 'action-playback-ended' : 'action-playback-progress',
+            weaponGroup, animationGroup: steppedAction.group,
+            animationSource: actionSource?.name ?? null,
+            activeViewMode: viewMode,
+            clipStartTime: steppedAction.startTime,
+            clipStopTime: steppedAction.stopTime,
+            clipTime: steppedAction.time,
+            poseTime: poseTime(steppedAction),
+            progress: Math.min(1, progress),
+            reversed: !!steppedAction.reversed,
+            playing: steppedAction.playing,
+            dt, playbackRate: speed,
+          });
+        }
         noteWeaponClock();   // MW-BOW1: before stepUpper ends the section - the group's state keeps its last time
-        stepUpper();
+        stepUpper(dt);   // BLOW-FLOW: the window after a blow is counted in seconds
       }
       // MWNPC4: the recoil plays once and lets go (refreshHitRecoilAnims - the first of refreshCurrentAnims' refreshes:
       // `!isPlaying(mCurrentHit)` clears the hit state); the death plays once and HOLDS its last frame - playDeath's autodisable is false
@@ -6473,6 +8196,9 @@ export function createFpArm() {
       const inJump = refreshJump((cam && cam.move) || null);
       refreshMovement(cam, dt, inJump);
       if (movementState) advanceClip(movementState, (movementSource || rig()).keys, dt * movementRate, null);
+      // LEFT-ARM: the shield's or the free hand's arm, on the stride the movement now stands at
+      leftArm.step(dt, { plan: leftArmPlan({ mode: leftArmMode(), view: viewMode, moving: !!movementState, base: movementBase, attacking: attackingNow(), jumping: !!jumpState, bashing: blowBash && attackingNow() }),
+        sources: rig()?.sources, hasGroup, stance: movementState ? movementStance : stanceOf(), movement: movementState, movementSource });
       // The jump plays at speedmult 1.0 (character.cpp:528-531 pass
       // 1.0f) - no rate scaling, unlike movement.
       if (jumpState) advanceClip(jumpState, (jumpSource || rig()).keys, dt, null);
@@ -6484,6 +8210,8 @@ export function createFpArm() {
       refreshTorch();
       if (torchState) advanceClip(torchState, (torchSource || rig()).keys, dt, null);
       aimFactor = aimingFactor(aimFactor, accurateAiming(upper), dt);
+      // LOWER-BODY: under a third-person blow the legs are the movement's or the jump's, at their clocks (rule 26)
+      lowerBody.stepRig(dt, MW_STOCK.MotionDoctrine !== 0 && viewMode === 'third', thirdBuilt, actionState, hitState, deathState, movementState, movementSource, jumpState, jumpSource);
       // BODY-MOTION: its clocks, after the clips so a blow reads this frame's section (a frame that does not pose still walks)
       // the word the layer reads, a line for each of what it says: the body, its blow, its hands (AUDIT BODY-MOTION RIG-10)
       motion.step(dt, motionWord({
@@ -6491,6 +8219,8 @@ export function createFpArm() {
         attackType, reversed: attackReversed, hand: attackHand, progress: actionState ? clipCompletion(actionState) : 0, strength: attackStrength,
         shown: weaponInHand(), hands: handsMode, torch: torchVisible(), spell: spellStance(), spellHand: spellHand && spellInHand, rifle: rifle.w, guard: pairDip(),
       }));
+      bodyWeight.stepRig(dt, MW_STOCK.MotionDoctrine !== 0 && viewMode === 'third', cam, lastBuildOpts?.armor, thirdBuilt?.mwType, dead, motion.word(), movementState, movementSource, movementAnimSpeed);   // BODY-WEIGHT; BLOW-LEGS; RUN-STRIDE
+      fpInertia.stepRig(dt, MW_STOCK.MotionDoctrine !== 0 && viewMode === 'first', cam, lastBuildOpts?.armor, built?.mwType, dead);   // FP-INERTIA
       if (!actionState && !movementState && !jumpState && !idleState && !hitState && !deathState) return;
       // THE WINNER, not a blend. See the two-slot note above: in first
       // person both animations are played on BlendMask_All, so the higher
@@ -6523,7 +8253,11 @@ export function createFpArm() {
         if (!t || !t.ok) return;
         // MW-D51: the torch overlay on the body's own LeftArm mask.
         const tBase = poseSource ? poseSource.trackMap : t.tracks;
-        const tOverlay = torchState && torchSource && !deathState && t.leftArm && t.leftArm.size;   // MWNPC4: the death takes the left arm too (Priority_Death over Priority_Torch)
+        // LEFT-ARM (combat/leftArmLayer.js): the shield's or the free hand's arm over the clip, by its weight - never over
+        // the recoil or the fall, which move the whole body. The shield and carried torch share the left-hand slot; never
+        // nest their clocked overlays. The original torch path is otherwise unchanged.
+        const thirdTracks = state !== hitState && state !== deathState ? leftArm.tracks(tBase, t.leftArm) : tBase;
+        const tOverlay = thirdTracks === tBase && torchState && torchSource && !deathState && t.leftArm && t.leftArm.size;
         if (tOverlay) overlayClock = torchState.time;
         // HT-WAIST: the lantern at the waist swings on the frame's motion before the body is posed around it - on the
         // body motion's stride while it walks the legs (BODY-MOTION), else on the walk clip's
@@ -6533,21 +8267,48 @@ export function createFpArm() {
         // same, so the next posing frame lands where the clock is.
         if (pose) {
           posePartClocks(t.arm, weaponClockValue(), { frameTime: partClock });   // MW-BOW1: the bow draws, the arrow with it
+          // MW-ANIM-BLEND: cross-fade every third-person clip transition (walk/idle/run/jump/attack) over a short fixed window.
+          if (thirdPoseState !== state || thirdPoseSource !== poseSource) {
+            // BLOW-FLOW: a blow's change of pose blends by its own law (combat/blowFlow.js) - the sections of one blow
+            // never (one clip), a blow cut by the next briefly, the return to the stance slowly
+            const kindNow = poseKindOf(state === actionState && attackingNow(), blowSerial), seconds = blowBlendSeconds(thirdPoseKind, kindNow, thirdPoseState, state);   // SECTION-SEAM
+            if (!carriesBlend(seconds, thirdBlendFrom, thirdBlendElapsed, thirdBlendSeconds, MW_STOCK.MotionDoctrine !== 0)) {   // BLEND-CARRY (combat/idleSettle.js)
+              thirdBlendFrom = blendSourceOf(t.arm, MW_STOCK.MotionDoctrine !== 0);   // SHOWN-POSE (combat/idleSettle.js)
+              thirdBlendFromSource = thirdPoseState === null ? null : thirdPoseSource;
+              thirdBlendElapsed = 0; thirdBlendSeconds = seconds;
+            }
+            thirdPoseState = state; thirdPoseSource = poseSource; thirdPoseKind = kindNow;
+          }
+          thirdBlendElapsed += Math.max(0, dt);
+          const blendChoice = Math.max(0, Math.min(3, Number(MW_STOCK.AnimationBlendDuration) || 0));
+          const reactionRule = hitReactionTransitionBlend(thirdBlendFromSource, poseSource, 1);
+          const blendDuration = reactionRule?.duration ?? thirdBlendSeconds ?? [0, 0.16, 0.25, 0.4][blendChoice];
+          const blendProgress = thirdBlendFrom && blendDuration > 0
+            ? Math.min(1, thirdBlendElapsed / blendDuration)
+            : 1;
+          const easedReactionRule = hitReactionTransitionBlend(thirdBlendFromSource, poseSource, blendProgress);
+          const thirdBlendWeight = thirdBlendFrom && blendDuration > 0
+            ? (easedReactionRule?.weight ?? (thirdBlendSeconds != null ? blendWeightAt(thirdBlendElapsed, blendDuration) : blendProgress))
+            : 1;
           poseAssembly(t.arm, {
-            tracks: tOverlay ? overlayFor(tBase, t.leftArm) : tBase,
-            sampleTrack: tOverlay ? overlaySample : sampleTrack,
+            tracks: lowerBody.tracks(tOverlay ? overlayFor(thirdTracks, t.leftArm) : thirdTracks, lowerBodyBones(t.arm.skeleton)),   // LOWER-BODY
+            sampleTrack: loopSeam.sampler(lowerBody.sampler(thirdTracks !== tBase ? leftArm.sampler() : tOverlay ? overlaySample : sampleTrack), state, poseSource, MW_STOCK.MotionDoctrine !== 0),   // LOOP-SEAM
             time: poseTime(state),   // MS1: a backhand's window runs backwards
+            blendFrom: thirdBlendFrom,
+            blendWeight: thirdBlendWeight,
             accumRoot: t.accumRoot,
             climb: thirdClimb(climbWorld, cam),   // CLIMB6
             mirror: mirrorFor('third', t, dt),   // TWO-HANDS: the second hand - the pair's left arm, a left-hand blow
-            hold: rifleHold('third', t),   // RIFLE-STANCE: the long gun in the hands
-            motion: motion.slot,   // BODY-MOTION: the gait, the carry and a blow's body over the clip's
+            hold: rifleHold('third', t) ?? shieldBash(),   // RIFLE-STANCE: the long gun in the hands; SHIELD-GUARD: else the bash
+            motion: bodyWeight.slot(motion.slot),   // ARM-CLEARANCE (bodyWeight.js's slot) over BODY-MOTION: third-person gait, weapon carry and melee body layered over the clip
+            bodyProportions: false,
             // BOW-AIM (combat/spineAim.js): a ranged weapon drawn, the spine pitched by the look - rot[0] is + down, cam.pitch + up.
             // Asked only while the look pitches and the upper body is past WeaponEquipped (the factor's own first test): every
             // peer's and townsperson's body runs this rig at pitch 0
             aim: cam?.pitch && upper > UPPER_BODY.WeaponEquipped ? spineAimSlot(-cam.pitch * spinePitchFactor({ upper: UPPER_BODY_NAME[upper], weaponType: stanceOf(), group: weaponGroup, time: actionState ? actionState.time : -1, startTime: keyTime(attackKeys(attackType).windUp.start), minAttackTime: keyTime(attackKeys(attackType).minAttack), completion: clipCompletion(actionState) })) : null,
             skin: !thirdSkinReady(t),   // MWNPC1: the skin in the vertex shader - the pose is the skeleton alone
           });
+          if (thirdBlendWeight >= 1) thirdBlendFrom = null;
           uploadThirdMesh(t);
           // MAC-Q: the body's particle systems, on the clock its parts ride
           stepRigEffects(t.arm, { dt: effectsDt, clock: tOverlay ? overlayClock : poseTime(state), renderer, mesh: thirdMesh, textures: t.textures, hidden: effectHidden });
@@ -6557,6 +8318,9 @@ export function createFpArm() {
         if (!thirdMesh) return;   // never posed yet: nothing to hide
         // Rule 57 hides on the SAME flags: sheathed vanilla shows no
         // weapon on the body, and the arrow follows the shoot keys.
+        // A back-mounted copy exists only when this skeleton carries the
+        // Weapon Sheathing AttachShield bone. Fall back to the original hand
+        // shield on rigs without the addon rather than making the shield vanish.
         for (const r of thirdMesh.ranges) {
           if (r.slot === 'weapon') r.hidden = !weaponInHand() || climbHands;   // CLIMB6: no weapon in hands on the stone; MW-CAST1: nor in casting ones
           else if (r.slot === 'offweapon') r.hidden = !offShown(t) || climbHands;   // TWO-HANDS: the left hand's, while a pair is drawn
@@ -6578,6 +8342,9 @@ export function createFpArm() {
       if (fOverlay) overlayClock = torchState.time;
       let fTracks = fOverlay ? overlayFor(fBase, built.leftArm) : fBase;
       let fSampler = fOverlay ? overlaySample : sampleTrack;
+      // LEFT-ARM / SHIELD-GUARD: the fists' blow behind a shield keeps the stance's shield arm (their clip raised it across
+      // half the picture), by the layer's weight - never over a lit torch's overlay, a recoil or a fall
+      if (!fOverlay && state !== hitState && state !== deathState && leftArm.tracks(fBase, built.leftArm) !== fBase) { fTracks = leftArm.tracks(fBase, built.leftArm); fSampler = leftArm.sampler(); }
       if (held) {
         // MAP3: a rebuild (an equip's follow) mints a piece list without
         // the sheet; it is put back where the eye is now. AUDIT-MAP2: the
@@ -6596,20 +8363,32 @@ export function createFpArm() {
         fTracks = hm.tracks; fSampler = hm.sampler;
       }
       const fClimb = held ? null : firstClimb(climbWorld, cam);   // CLIMB6: the hands reach the stone they hold (the sheet's hands are the sheet's)
+      // BLOW-FLOW: the first person blends a blow's change of pose as the third does (combat/blowFlow.js) - into a blow,
+      // a blow cut by the next, and back to the stance; any other change is the clip's own, as it always was
+      const fKind = poseKindOf(state === actionState && attackingNow(), blowSerial);
+      // (from the pose of the frame before alone - a view switch carries nothing: TWO-HANDS AUDIT finding 6)
+      if (fpBlend.state !== state) Object.assign(fpBlend, { from: fpBlend.state && fpBlend.at === frames ? blendSourceOf(built.arm, MW_STOCK.MotionDoctrine !== 0) : null, seconds: blowBlendSeconds(fpBlend.kind, fKind, fpBlend.state, state) ?? 0, elapsed: 0, state, kind: fKind });
+      fpBlend.at = frames + 1;
+      fpBlend.elapsed += Math.max(0, dt);
       posePartClocks(built.arm, weaponClockValue(), { frameTime: partClock });   // MW-BOW1: the bow draws, the arrow with it
+      built.thumbFist?.step(dt, animWeaponType(built.mwType, sheathed, spellReady) === MW_WEAPON_TYPE.HandToHand);   // THUMB-FIST: the fist's thumb
       poseAssembly(built.arm, {
         tracks: fTracks,
         sampleTrack: fSampler,
         time: poseTime(state),   // MS1: a backhand's window runs backwards
+        blendFrom: fpBlend.seconds > 0 ? fpBlend.from : null,   // BLOW-FLOW
+        blendWeight: blendWeightAt(fpBlend.elapsed, fpBlend.seconds),
         climb: fClimb,
         // TWO-HANDS AUDIT: the running hands, UNDER the climb's request - the run solved at its weight, the climb over it
         // at its own, each wrist eased by the climb from where the run put it: (1 - c) . run + c . climb, so the run
         // weighs run.w . (1 - climb.w) and the climb climb.w; under a sheet raised, the run's weight alone, easing out.
         // No choosing: the slot took the climb OR the run, and the frame a climb started (a sheet came up) the run's
         // hands were dropped whole - a wrist 1.0 units in a frame where the stroke moves it 0.08 - and came back whole
-        run: firstRun(cam),
+        // FORK-FP-RUN: let the native first-person run clip pose the bare hands.
+        // The procedural fist-pump IK produces malformed-looking hands on this rig.
+        run: null,
         mirror: mirrorFor('first', built, dt),   // TWO-HANDS: the second hand - the pair's left arm, a left-hand blow
-        hold: rifleHold('first', built),   // RIFLE-STANCE: the long gun in the hands, the low ready or the aim
+        hold: axeReadyHold(built, rifleHold('first', built) ?? shieldBash()),   // RIFLE-STANCE: the long gun in the hands, the low ready or the aim; SHIELD-GUARD: else the bash
         // Rule 56's accum root is STICKY and rig-wide, so it does not
         // follow the source the way the tracks do.
         accumRoot: built.accumRoot,
@@ -6689,6 +8468,9 @@ export function createFpArm() {
         if (climbHands && (r.slot === 'weapon' || r.slot === 'arrow' || r.slot === 'torch')) r.hidden = true;
         // TWO-HANDS: and the left hand's weapon with them - a sheet held, the stone
         if ((held || climbHands) && r.slot === 'offweapon') r.hidden = true;
+        // ...and the shield: the third person slings it on the back for the climb (shieldCombatReady's !climbHands),
+        // which the first person cannot see - here it leaves the hand
+        if (isHandShieldSlot(r.slot)) r.hidden = !!(held || climbHands);
       }
       frames++;
     },
@@ -6703,10 +8485,11 @@ export function createFpArm() {
       if (!active() || !canvas) return false;
       const cam = camera();
       if (!cam) return false;
-      // MW-D43: the ARM's dial, not the sprite pass's. See MW_ARM_PIXEL. MW-DETAIL: the viewer's - one pixel a texel on Sharp.
-      const pixel = mwModelPixel();
-      const wantW = canvas.clientWidth / pixel;
-      const wantH = canvas.clientHeight / pixel;
+      // MW-D43: the ARM's dial, not the sprite pass's. See MW_ARM_PIXEL. CHAR-PIX1: the player's own now, in rows per
+      // screen height (render/charPixelLayer.js) - its 360 is MW_ARM_PIXEL's 3 on a 1080p screen.
+      const armPixel = blockPixels(canvas.clientHeight, charPixelRows('fp'));
+      const wantW = canvas.clientWidth / armPixel;
+      const wantH = canvas.clientHeight / armPixel;
       // DISC13-C: no pad to fit in the target - a moved frame needs one column and one row more at most (fpFrameWindow's note).
       const spare = screenTransform ? 1 : 0;
       // MW-DETAIL: the target grows to the screen's frame where it can (Sharp's is the screen's own size)
@@ -6743,14 +8526,13 @@ export function createFpArm() {
       // and still moved on Mac's retail data; classic-sprite semantics
       // ("the weapon ignores the look") are now taken literally.
       const pitch = followCam ? 0 : (cam.pitch || 0);
-      const fwd = [0, Math.sin(pitch), -Math.cos(pitch)];
-      const lens = lookAt(eye, [eye[0] + fwd[0], eye[1] + fwd[1], eye[2] + fwd[2]], [0, 1, 0]);
+      const lens = firstPersonLens(eye, pitch, built);
       // MW-GUN-FEEL (combat/gun/gunFeel.js): THE GUN'S RECOIL AND ITS RELOAD, over the WHOLE viewmodel in the eye's own axes -
       // turned about the shoulder, moved back and down - laid in front of the lens, so the arms and the gun move as one
       // and nothing else in the pass does. Not through the neck (poseAssembly's neckPitch/neckOffset): glued arms take
       // no look there by IG4's construction, and a kick is not a look. The frame record below carries it, so the muzzle
       // (weaponMuzzle) and a held sheet's corners stand where the eye sees them.
-      const view = gunFeel ? multiply(armKickMatrix(gunFeel, MW_UNITS_PER_METER), lens, new Float32Array(16)) : lens;
+      const view = fpInertia.view(gunFeel ? multiply(armKickMatrix(gunFeel, MW_UNITS_PER_METER), lens, new Float32Array(16)) : lens, MW_UNITS_PER_METER);   // FP-INERTIA over the kick
 
       // MW-D23: NO MIRROR. THIS PASS IS ALREADY CHIRALITY-TRUE, and the
       // mirror MW-D9 borrowed from the world pass is what put Mac's
@@ -6900,6 +8682,45 @@ export function createFpArm() {
      *  what the camera's queued-mode gate consults (camera.cpp:135):
      *  a stable stance, no action section in flight, no build in
      *  flight. */
+    /**
+     * WEAPON-FIRST (the owner, 2026-10-28: a weapon's FIRST equip "может достигать и 30 секунд", a second one quick):
+     * what a first swap waits on is the weapon's own files - its meshes read out of the archives, its pictures decoded -
+     * and nothing of it needs the hand. The pack hands the carried weapons over when it opens (and the rig when it
+     * stands), and each is read and decoded beside the frames, one at a time, in the pool's ordinary line - so the click
+     * finds it in hand. Once a weapon a standing rig; answers how many were warmed.
+     */
+    async prewarmWeapons(items) {
+      if (!built || !built.ok || built.werewolf) return 0;
+      const token = built;
+      const seen = (token.prewarmed ??= new Set());
+      const d = buildDeps || await import('../scenes/dataSource.js');
+      const archives = await d.loadMorrowindArchives();
+      const gen = token.catalog?.gen ?? null;
+      let warmed = 0;
+      for (const item of items ?? []) {
+        if (built !== token) break;
+        const key = fpWeaponKey(item, false);
+        if (seen.has(key)) continue;
+        seen.add(key);
+        const paths = weaponPartPaths({ weapon: item, hasAmmo: false, allWeapons: token.allWeapons, has: archiveHas(archives) });
+        if (!paths.length) continue;
+        try {
+          await loadFromArchives(archives, paths);
+          const pieces = [];
+          for (const path of paths) {
+            const arc = archives.find((a) => a.has(path));
+            if (!arc || (typeof arc.loaded === 'function' && !arc.loaded(path))) continue;
+            pieces.push(...flattenNif(parseNif(arc.get(path).slice())));   // the icon's own read (renderGroundMesh's preload)
+          }
+          await preloadArmTextures(pieces, archives, gen);
+          warmed++;
+        } catch { /* the swap reads it again and says why */ }
+        await new Promise((r) => setTimeout(r, 0));
+      }
+      return warmed;
+    },
+    /** LOAD-STALL 3: is a build or a swap under way (the body queue waits on the player's - playerBuildHold.js)? */
+    rigBusy: () => busy,
     upperBodyReady: () => !busy && !actionState
       && (upper === UPPER_BODY.None || upper === UPPER_BODY.WeaponEquipped),
     /** What the wheel may cross INTO: a body that refused keeps the
@@ -6975,7 +8796,7 @@ export function createFpArm() {
      * (chirality-true by MW-D23's measurement) already shows it.
      * Winding is safe: drawCharacter disables CULL_FACE.
      */
-    drawThird(canvas, { proj, view, eye, feet, yaw, hitFlash = 0, conceal = null, grow = 1, up = null, fx = null, cast = false, anchored = false, horse = null }) {   // MWNPC5: `fx` a foe's tells (renderer.js drawCharacterSpriteQuad); MWNPC16: `cast` - the body's own shadow (AUDIT MWNPC16-18 A3: `anchored` one that never walks); COATS3D: `horse` the one under the body
+    drawThird(canvas, { proj, view, eye, feet, yaw, hitFlash = 0, conceal = null, grow = 1, up = null, fx = null, cast = false, anchored = false, horse = null, who = 'npc' }) {   // MWNPC5: `fx` a foe's tells (renderer.js drawCharacterSpriteQuad); MWNPC16: `cast` - the body's own shadow (AUDIT MWNPC16-18 A3: `anchored` one that never walks); COATS3D: `horse` the one under the body
       if (!thirdActive() || !canvas || !feet) return false;
       const t = thirdBuilt;
       // AUDIT OW3 J6: `grow` - the travel view's OW-BIG, the body drawn that many times its size ABOUT ITS FEET (the root
@@ -7017,13 +8838,32 @@ export function createFpArm() {
       const handGlow = handGlowShown();   // HAND-WRAPS: the fists' own, padded as a blade's
       thirdMesh.handGlow = handGlow;
       const padLooks = offGlow || handGlow ? [glowLook, offGlow?.look, handGlow?.look].filter(Boolean) : glowLook;
-      const halfH = ((maxZ - minZ) * u * rs.height) / 2;
-      const halfW = (Math.hypot(maxX - minX, maxY - minY) * u * rs.weight) / 2;
-      const center = transformPoint(model, (minX + maxX) / 2, (minY + maxY) / 2, (minZ + maxZ) / 2);
+      const halfH = ((maxZ - minZ) * u * rs.height * THIRD_PERSON_HEIGHT_SCALE) / 2;
+      const halfW = (Math.hypot(maxX - minX, maxY - minY) * u * rs.weight * THIRD_PERSON_HORIZONTAL_SCALE) / 2;
+      // MW-TP-GROUND: use the same foot correction for BOTH render paths.
+      // Previously only the close/pitched 3D path grounded the posed mesh;
+      // the distance/angle-dependent sprite path kept the uncorrected matrix.
+      // That made the feet jump vertically when the camera crossed the path
+      // switch, even though the pose and actor feet had not changed.
+      const body = visibleRangeBounds(thirdMesh.ranges, thirdBodyBox, CARRIED_SLOTS);
+      // Capture support height only from a standing pose, then keep it stable through
+      // the gait. Recomputing it from every animated frame makes the root bounce as
+      // the feet alternately rise and fall. Until a standing pose is seen, retain the
+      // current bound so first-frame rendering still has a valid ground correction.
+      if (playerAppearance && body && thirdGroundMinZ == null && !movementState && !jumpState) thirdGroundMinZ = body.minZ;
+      // MW-TP-GROUND-NPC: NPCs do not necessarily get a standing frame before
+      // they start walking. Latch their first posed support height once instead
+      // of feeding each animated frame's changing leg minimum back into the root
+      // transform; that feedback makes the feet/pelvis bob and the legs appear to
+      // twitch, especially from a low upward camera angle.
+      if (!playerAppearance && body && thirdGroundMinZ == null) thirdGroundMinZ = body.minZ;
+      const supportMinZ = Number.isFinite(thirdGroundMinZ) ? thirdGroundMinZ : body?.minZ;
+      const groundedModel = !horse && body && Number.isFinite(supportMinZ) ? groundThirdPersonModel(model, supportMinZ, feet[1]) : model;
+      const center = transformPoint(groundedModel, (minX + maxX) / 2, (minY + maxY) / 2, (minZ + maxZ) / 2);
       // MWNPC16: the shape it casts, where it is asked (an NPC's lane - net/peer/peerBodies.js `casts`, which never asks it of a
       // body the travel view grows: OW-BIG's law, no giant's shadow), at its size (MWNPC10's boss stands larger, and casts
       // so); never a veiled body's - a concealed foe and a ghost cast nothing, as their flats never did
-      if (cast && !conceal && renderer.recordShadowBody) castBody(model, center, halfW, halfH, anchored);
+      if (cast && !conceal && renderer.recordShadowBody) castBody(groundedModel, center, halfW, halfH, anchored);
       // PR-BOW1: THE PICTURE IS OF THE BODY. The sprite is true world
       // size, so its size on screen is set by where its quad stands -
       // and that was the box centre, which is not the body: a longsword
@@ -7038,8 +8878,16 @@ export function createFpArm() {
       // (characterSprite.js drawRigSpriteBox's `anchor`): the box is the
       // window, never the size. Every host's body and every peer's draws
       // through here.
-      const body = visibleRangeBounds(thirdMesh.ranges, thirdBodyBox, CARRIED_SLOTS);
-      const anchor = transformPoint(model, 0, 0, body ? (body.minZ + body.maxZ) / 2 : (minZ + maxZ) / 2);
+      // MWHEAD-LEVEL: aim the sprite camera at the upper body/head, not the torso midpoint.
+      // When the third-person camera gets close, aiming at the midpoint creates a steep downward
+      // ray from the player's eye to the NPC's chest. The camera-facing card then leans with that
+      // ray and makes the head visually collapse toward the shoulders. Keep the aim near head
+      // height so close-range viewing preserves the familiar eye-level silhouette without scaling
+      // the model or distorting its skeleton. Use the body-only bounds so carried weapons cannot
+      // move this point.
+      const anchor = transformPoint(groundedModel, 0, 0, body
+        ? body.minZ + (body.maxZ - body.minZ) * 0.88
+        : minZ + (maxZ - minZ) * 0.88);
       // MW-D43b: the body is a Morrowind MESH, so it takes the arm's
       // dial, not the sprite standard - the same fix MW-D43 made for
       // the first-person pass and missed here (MW-DETAIL: the viewer's
@@ -7053,12 +8901,32 @@ export function createFpArm() {
       // COATS3D: ASTRIDE, ONE PICTURE. `horse` ({ mesh, model, box } - world/horseRig.js, stepped this frame) is drawn in
       // the body's own picture, under the same depth: the window grows to hold the horse's box as well, and the picture
       // is OF the horse - its middle is the anchor, so the figure is the rider on it, sized where the horse stands
-      if (horse && horse.mesh && horse.model && horse.box) {
-        const u = spriteBoxUnion({ center, halfW, halfH }, horse.box);
-        drawBodyPicture(renderer, canvas, thirdMesh, model, { ...u, anchor: horse.box.anchor, hitFlash, conceal, up, fx, also: [{ mesh: horse.mesh, model: horse.model }], glowLook: padLooks }, proj, view, eye);
+      // MW-TP-MESH-ALL: non-concealed Morrowind actors and mounts stay on
+      // the posed world mesh at every distance. Sprite composition is reserved
+      // for effects such as concealment, whose fade is implemented in that pass.
+      // MW-TP-MESH-ALL: Morrowind actors use their posed mesh at every distance and pitch.
+      // The old distance/pitch LOD switched between a perspective mesh and a camera-facing
+      // sprite. Around the threshold, leg depth and grounding visibly popped; at distance,
+      // the sprite's finite render target made skin and limbs pixelate. Do not switch
+      // representations based on camera position: keep the exact same skinned pose.
+      // Mounted pairs must stay in one representation too. Draw the horse first, then the
+      // rider with its grounded model, rather than baking both into a camera-facing card.
+      // CHAR-PIX1: through the pixel pass, at the player's dial or everyone else's (render/charPixelLayer.js).
+      if (!conceal) {
+        const draws = horse && horse.mesh && horse.model ? [{ mesh: horse.mesh, model: horse.model }] : [];
+        draws.push({ mesh: thirdMesh, model: groundedModel });
+        const corners = draws.length === 1 ? boxCorners(box, (x, y, z) => transformPoint(groundedModel, x, y, z)) : null;
+        drawPixelatedCharacters(renderer, draws, charPixelRows(who), corners);
         return true;
       }
-      drawBodyPicture(renderer, canvas, thirdMesh, model, { center, halfW, halfH, anchor, hitFlash, conceal, up, fx, glowLook: padLooks }, proj, view, eye);   // HITFLASH1: a struck peer's body flashes
+      // Concealment still uses the sprite compositor because its dissolve/fade contract
+      // is implemented there. This is an explicit effect path, not a camera-distance LOD.
+      if (horse && horse.mesh && horse.model && horse.box) {
+        const u = spriteBoxUnion({ center, halfW, halfH }, horse.box);
+        drawRigSpriteBox(renderer, canvas, thirdMesh, groundedModel, { ...u, anchor: horse.box.anchor, hitFlash, conceal, up, fx, also: [{ mesh: horse.mesh, model: horse.model }], glowLook: padLooks }, proj, view, eye, MW_THIRD_PERSON_PIXEL);
+        return true;
+      }
+      drawRigSpriteBox(renderer, canvas, thirdMesh, groundedModel, { center, halfW, halfH, anchor, hitFlash, conceal, up, fx, glowLook: padLooks }, proj, view, eye, MW_THIRD_PERSON_PIXEL);   // HITFLASH1: a struck peer's body flashes
       return true;
     },
 
@@ -7077,10 +8945,10 @@ export function createFpArm() {
       const rs = (built && built.raceScale) || { weight: 1, height: 1 };
       const u = thirdUnit(grow);
       const { minX, minY, minZ, maxX, maxY, maxZ } = box;
-      const halfH = ((maxZ - minZ) * u * rs.height) / 2;
-      const halfW = (Math.hypot(maxX - minX, maxY - minY) * u * rs.weight) / 2;
+      const halfH = ((maxZ - minZ) * u * rs.height * THIRD_PERSON_HEIGHT_SCALE) / 2;
+      const halfW = (Math.hypot(maxX - minX, maxY - minY) * u * rs.weight * THIRD_PERSON_HORIZONTAL_SCALE) / 2;
       const reach = renderer.shadowReachSphere;
-      const mid = Math.hypot(((minX + maxX) / 2) * u * rs.weight, ((minY + maxY) / 2) * u * rs.weight, ((minZ + maxZ) / 2) * u * rs.height);
+      const mid = Math.hypot(((minX + maxX) / 2) * u * rs.weight * THIRD_PERSON_HORIZONTAL_SCALE, ((minY + maxY) / 2) * u * rs.weight * THIRD_PERSON_HORIZONTAL_SCALE, ((minZ + maxZ) / 2) * u * rs.height * THIRD_PERSON_HEIGHT_SCALE);
       if (reach && !renderer.shadowReachSphere(feet[0], feet[1], feet[2], Math.hypot(halfW, halfH) + mid)) return false;
       const model = thirdModel(feet, yaw, grow);
       const center = transformPoint(model, (minX + maxX) / 2, (minY + maxY) / 2, (minZ + maxZ) / 2);
@@ -7100,14 +8968,15 @@ export function createFpArm() {
      *  onReady dance. Null when no build stands or nothing resolves:
      *  the classic icon stands (never traps). Cached per record, size
      *  and dye per data generation. */
-    itemIcon(item, { size = 96 } = {}) {
+    itemIcon(item, { size = 96, force = false } = {}) {
+      if (!force && !getPref('morrowind3dInventoryIcons')) return null;
       if (!(built && built.ok && built.catalog && renderer) || !item) return null;
       const cat = built.catalog;
       // MW-LOAD: the door above. A lazily opened archive holds none of
       // what this getter reads until it is asked to; the first ask kicks
       // those loads and answers null, and the repaint the kick triggers
       // asks again with everything in hand.
-      const askKey = `${cat.gen}:${item.group ?? ''}:${item.templateIndex}:${item.material ?? ''}:${item.dye ?? ''}`;
+      const askKey = `${cat.gen}:${item.group ?? ''}:${item.templateIndex}:${item.material ?? ''}:${item.dye ?? ''}:${getPref(WEAPON_LOOKS_PREF)?.[weaponLookKey(item)] ?? 'classic'}`;
       if (archivesAreLazy(cat.archives) && !iconReady.has(askKey)) {
         preloadIcon(cat, item, askKey);
         return null;
@@ -7143,6 +9012,7 @@ export function createFpArm() {
      *  the parse names) before it renders. Cached per record and size
      *  per data generation, with the icons. */
     async mountPicture(item, { px = 256 } = {}) {
+      if (!getPref('morrowind3dInventoryIcons')) return null;
       if (!(built && built.ok && built.catalog && renderer) || !item) return null;
       const cat = built.catalog;
       const stamp = api.mountPictureStamp();   // AUDIT DYE-ICON 4: what the picture is good for - the host's own question
@@ -7190,9 +9060,80 @@ export function createFpArm() {
      *  {width, height, data} or null when no third-person body stands -
      *  the panel then keeps the classic doll (never traps). Display
      *  only by Mac's decision: unequip stays with the item list. */
-    figure({ yaw = 0, height = 384 } = {}) {
-      if (!posePortrait()) return null;
-      const model = portraitModel(yaw);
+    figure({ yaw = 0, height = 384, force = false, neutral = false, bodyProportions = null } = {}) {
+      // The editor explicitly asks for a preview; do not let the inventory-display preference
+      // suppress it. The built rig and renderer are still required below.
+      if (!force && !getPref('morrowind3dPaperDoll')) return null;
+      // AUDIT 33 F1: a built body, not an ACTIVE wheel - the inventory
+      // is opened from first person, where the wheel is off.
+      if (!(built && built.ok && thirdBuilt && thirdBuilt.ok && renderer)) return null;
+      const t = thirdBuilt;
+      // PX32 (Mac: the 3D paperdoll "sometimes shows in your last
+      // animated state"): THE PORTRAIT POSES ITSELF. poseAssembly for
+      // this body runs in ONE place - stepUpper's `viewMode === 'third'`
+      // arm - and the inventory is opened from FIRST person, where that
+      // arm never runs. So figure() uploaded whatever bone matrices
+      // happened to be in t.arm from the last time the wheel was in
+      // third person, or from the build if it never was. Not a stale
+      // frame: a stale SESSION.
+      //
+      // MF1 (Mac: the model in the inventory "takes time to ... change
+      // stances and is just overall clunky"): THE PORTRAIT STANDS.
+      // PX32 posed the body at the wheel's live playhead, and in first
+      // person that playhead is a FIRST-PERSON clip: idleSource is the
+      // .1st.kf, its trackMap the ARM's tracks, its time the arm's
+      // time. The body took those tracks by bone name and stood in the
+      // arm's pose - the hands held up before a camera - shifting with
+      // the arm's idle loop and jumping on every rebuild, which is what
+      // "changes stances" looks like from the chair. The body is posed
+      // with ITS OWN sources now: the stance's idle (the DRAWN stance,
+      // since a paperdoll holds what it carries - PX26) at that clip's
+      // START, the standing frame Morrowind's own inventory doll holds.
+      // Deterministic, so the panel's cache is exact and two renders of
+      // one wardrobe are one picture.
+      const pose = portraitPose(t, { neutral });
+      // A portrait must be posed even when this race/rig has no named idle group.
+      // Previously a null portraitPose skipped poseAssembly entirely, so sliders changed
+      // saved values but the preview kept uploading the last unmodified mesh.
+      thirdSkinReady(t, bodyProportions);   // MWV2-APPEARANCE: draft morphs require CPU skinning
+      if (t.hipHang) t.hipHang.rot.set(PLUMB);   // HT-WAIST: a still portrait, a plumb lantern (stepHipSwing re-swings it)
+      poseAssembly(t.arm, {
+        tracks: pose?.source?.trackMap ?? null,
+        sampleTrack,
+        time: pose?.state?.startTime ?? 0,
+        accumRoot: t.accumRoot,
+        bodyProportions: playerAppearance ? (bodyProportions && typeof bodyProportions === 'object' ? bodyProportions : false) : false,   // MWV2-APPEARANCE: editor draft or persisted player proportions
+        mirror: portraitMirror(),   // TWO-HANDS AUDIT
+        skin: true,   // portraits must apply CPU vertex morphs before upload
+      });
+      uploadThirdMesh(t);
+      // PX26 F1 (Mac: weapons and shields are not on the menu sprite):
+      // THE FIGURE IS A PORTRAIT, NOT THE WORLD. The wheel hides the
+      // weapon when it is sheathed - rule 57, right for a body standing
+      // in the world - and the inventory panel inherited that, so the
+      // sword you just equipped was invisible because you had not drawn
+      // it. A paperdoll shows what you carry. The arrow still follows
+      // its own shoot keys: a nocked arrow on a portrait is a pose, not
+      // an inventory.
+      for (const r of thirdMesh.ranges) {
+        if (r.slot === 'weapon') r.hidden = false;
+        else if (r.slot === 'offweapon') r.hidden = !(handsMode === 'dual' && t.offWeapon);   // TWO-HANDS AUDIT: the left hand's, while a pair is carried - never the last world frame's flag
+        else if (r.slot === 'arrow') r.hidden = !arrowShown;
+        else if (r.slot === 'torch') r.hidden = !torchLit;   // MW-D51: a portrait shows what you carry - the lit light, whatever the hand holds
+        else if (r.slot === HIP_LIGHT_SLOT) r.hidden = !hipLit;   // HT-WAIST: and the lantern at the waist, lit
+        else if (HOLSTER_SLOTS.includes(r.slot)) r.hidden = holsterHidden(r.slot, true, { arrowShown, tag: r.piece?.tag });   // WS1: the weapon is in the hand here, so the holster is empty; the scabbard and quiver show
+      }
+      const u = 1 / MW_UNITS_PER_METER;
+      const rs = (built && built.raceScale) || { weight: 1, height: 1 };
+      // The same body-vertex morphs are already applied by poseAssembly.
+      // Keep the portrait transform limited to race scale and portrait framing.
+      // Applying width/height here too made those controls act twice and
+      // incorrectly scaled any attached geometry.
+      // feet at the origin, facing the viewer: drawThird's +180 makes yaw
+      // 0 face -Z in pass space, and the eye below sits on +Z.
+      const yawDeg = (yaw * 180 / Math.PI) + 180;
+      const model = multiply(trs(0, 0, 0, 0, yawDeg, 0,
+        -u * rs.weight, u * rs.height, u * rs.weight), NIF_TO_PASS);
       // PR-BOW1b (2026-09-24): FRAMED ON WHAT IT DRAWS, AT THE BODY'S
       // SCALE - after the flags above, off the per-range boxes the upload
       // just folded (portraitWindow). It framed meshBounds over EVERY
@@ -7202,8 +9143,12 @@ export function createFpArm() {
       // in its cell. The window is what is drawn at this yaw, and no wider.
       const win = portraitWindow(thirdMesh.ranges, model, figureBodyBox);
       if (!(win && win.halfW > 0 && win.halfH > 0)) return null;
-      const halfH = win.halfH * 1.06;
-      const halfW = win.halfW * 1.06;
+      // The preview is a full-body editor, not a tightly cropped inventory icon.
+      // Posed hands/forearms can extend beyond conservative per-range bounds, and
+      // the canvas then crops them even when its own CSS has spare space. Use a
+      // deliberately generous orthographic frame on both axes.
+      const halfH = win.halfH * 1.24;
+      const halfW = win.halfW * 1.55;
       const center = win.center;
       const ph = Math.min(CHAR_SPRITE_RT_SIZE, Math.max(2, Math.round(height)));
       const pw = Math.min(CHAR_SPRITE_RT_SIZE, Math.max(2, Math.round(ph * halfW / halfH)));
@@ -7240,6 +9185,12 @@ export function createFpArm() {
         notes: built && built.notes,
         binding: built && built.binding,
         weapon: built && built.ok ? built.weapon : null,
+        // MW-FP-DIAG: distinguish a genuinely late NIF/texture swap from the animation's attach key.
+        weaponSwapBusy: !!busy,
+        weaponSwapQueued: !!pendingWeapon,
+        weaponFailed: built && built.weaponFailed ? String(built.weaponFailed) : null,
+        weaponVisible: !!weaponShown,
+        sheathed: !!sheathed,
         spellReady,                       // MW-D39
         casting: upper === UPPER_BODY.Casting,
         weaponInHand: weaponInHand(),     // MW-CAST1: the casting hands are empty
@@ -7270,7 +9221,6 @@ export function createFpArm() {
         attackReversed: reversedNow(),   // MS1: the backhand in flight
         blow: blowPlan ? { ...blowPlan } : null,   // MW-PACE1: the machine's blow this one is paced to, and how far in
         castPlan: castPlan ? { ...castPlan } : null,   // MW-SHOT-PACE: the paced cast's clock and its end
-        sheathed,
         sneaking,
         sneakDelta: built && built.ok ? built.sneakDelta : null,
         weaponShown,
@@ -7287,7 +9237,7 @@ export function createFpArm() {
         hipLit,
         hipShown: hipVisible(),
         hipSwing: { fore: hipLantern.swing.fore, side: hipLantern.swing.side },
-        motion: motion.status(),   // BODY-MOTION
+        motion: { ...motion.status(), legs: bodyWeight.legs() },   // BODY-MOTION; BLOW-LEGS
         loopsLeft: idleState && Number.isFinite(idleState.loopCount) ? idleState.loopCount : null,
         groups: built && built.ok ? built.groups : null,
         sources: built && built.ok ? built.sourcePaths : null,
@@ -7431,7 +9381,8 @@ export function createFpArm() {
   return api;
 }
 
-export const fpArm = createFpArm();
+export const fpArm = createFpArm({ playerAppearance: true });
+setPlayerBusyProbe(() => fpArm.rigBusy());   // LOAD-STALL 3: the street's bodies wait while the player's builds
 
 /** SHADOW-FANG (AUDIT D2) test seam: has the build already painted `image` in `skin` for `use` (the frame then only
  *  finds it)? */

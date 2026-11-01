@@ -15,8 +15,8 @@
 //   fix (237,43);
 // - item images (GetItemImage forPaperDoll + GetInventoryTexture*):
 //   clothing = template.playerTextureArchive + bodyMorphology
-//   (SetRace), the morphology resolved from the LIVE race since S3c/U9
-//   - `raceByKey(race)?.morphologyIndex` over systems/races.js's
+//   (SetRace), the morphology resolved from the paperdoll display identity
+//   (appearance-editor override first, live race otherwise) via `raceByKey(race)?.morphologyIndex` over systems/races.js's
 //   MORPHOLOGY_OF -> BODY_MORPHOLOGY, all eight races, Human's +2 now
 //   only the fallback; record = playerTextureRecord
 //   (+1 for cloaks' interior-first record) + variant;
@@ -40,6 +40,8 @@
 // identity and this file reloads on identity change - AUDIT 23).
 
 import { ImgFile } from '../formats/imgFile.js';
+import { helmetPaperdollVariant } from '../systems/helmetPaperdollLooks.js';
+import { getAppearanceIdentity } from '../characters/bodyMorphs.js';
 import { packImgTexture } from './packArt.js';   // OVH2: a worn UI pack's backdrop
 import { racialPaperDollBackground, racialOverrideHeadArt, racialSuppressPaperDollBodyAndItems } from '../systems/vampirism.js';   // V5: the curse art laws, both curses' one switch
 import { CifRciFile } from '../formats/cifRciFile.js';
@@ -139,7 +141,7 @@ export { clampArmorVariant };
 
 /** GetItemImage(forPaperDoll) resolution: {archive, record, dye,
  *  target} or null for groups with no paperdoll layer. */
-export function paperdollItemImage(worn, { gender = 'male', race = 'Breton' } = {}) {
+export function paperdollItemImage(worn, { gender = 'male', race = 'Breton' } = {}, { helmetVariant = helmetPaperdollVariant(worn) } = {}) {
   const item = drawnPiece(worn);   // APPEARANCES (bible/04-Characters/Wardrobe.md): a piece wearing a look is drawn as the look - the player's doll and every peer's
   const morph = raceByKey(race)?.morphologyIndex ?? HUMAN_MORPHOLOGY;
   const t = getTemplate(item.templateIndex);
@@ -181,7 +183,7 @@ export function paperdollItemImage(worn, { gender = 'male', race = 'Breton' } = 
     const archive = armorArchive(gender, morph);
     const m = item.material ?? 0;
     let record = t.playerTextureRecord;
-    if (variants > 0) record += clampArmorVariant(item.templateIndex, m, item.variant ?? 0);
+    if (variants > 0) record += clampArmorVariant(item.templateIndex, m, helmetVariant ?? item.variant ?? 0);
     const dye = m >= ARMOR_MATERIAL.Iron ? MATERIAL_DYES[m - ARMOR_MATERIAL.Iron] ?? DYE_COLORS.Unchanged : DYE_COLORS.Unchanged;
     return { archive, record, dye, target: DYE_TARGETS.WeaponsAndArmor };
   }
@@ -228,11 +230,12 @@ let _version = 0;
 let _refreshing = false;
 let _pending = null;   // AUDIT 17e F16: the coalesced follow-up
 
-/** S3c/U9: the art set is keyed by the ENTITY'S identity. Reloads
- *  when the identity changes (chargen picks a race/gender/face after
- *  boot, and the doll must follow) - `_identity` is the guard that
- *  used to be a bare `if (_art) return`. */
+/** The art set is keyed by the display identity: the appearance editor's
+ *  visual-only override when present, otherwise the live entity identity.
+ *  Reloads when that identity changes; `_identity` is the guard that used
+ *  to be a bare `if (_art) return`. */
 let _identity = null;
+let _lastEntity = null;
 /** The IDENT the loaded set was built from, not just its key - the
  *  context and the region live here, so the drift check below can ask
  *  for the entity's identity WHERE the doll already is. */
@@ -259,19 +262,45 @@ export const paperDollIdentityKey = ({ race = 'Breton', gender = 'male', faceInd
  *  for the rest of the session.
  *
  *  So the invalidation is DERIVED rather than remembered: the compose
- *  itself asks whether the set it is about to draw is this entity's,
- *  and no host has to know. Returns the ident the set would have to be
- *  loaded with, or null when what is loaded already fits. Pure.
+ *  asks whether the loaded set matches the resolved display identity,
+ *  and no host has to know. Returns the ident to load, or null when the
+ *  current set already fits. Pure.
  *  Context and region are the loaded set's own - a load does not move
  *  the player, so only the identity can have drifted. */
-export function paperDollIdentityDrift(entity, ident = _ident) {
-  if (!ident) return null;
-  const want = {
-    ...ident,
+const PAPERDOLL_RACE_FOR_APPEARANCE = Object.freeze({
+  breton: 'Breton', 'dark elf': 'DarkElf', 'high elf': 'HighElf',
+  imperial: 'Breton', nord: 'Nord', orc: 'Nord', redguard: 'Redguard',
+  'wood elf': 'WoodElf', argonian: 'Argonian', khajiit: 'Khajiit',
+});
+
+/**
+ * Display-only identity for the paperdoll and gendered item art.
+ * The appearance editor's saved choice is deliberately never copied onto
+ * the gameplay entity: combat, race abilities, saves and game rules keep
+ * reading the real entity identity. Morrowind-only races use the closest
+ * Daggerfall paperdoll body family where no matching classic body exists.
+ */
+export function paperDollDisplayIdentity(entity, appearance = getAppearanceIdentity()) {
+  const actual = {
     race: entity?.race ?? 'Breton',
     gender: entity?.gender ?? 'male',
     faceIndex: entity?.faceIndex ?? 0,
   };
+  if (!appearance) return actual;
+  const raceKey = String(appearance.race ?? '').trim().toLowerCase();
+  const race = PAPERDOLL_RACE_FOR_APPEARANCE[raceKey];
+  return {
+    race: race ?? actual.race,
+    gender: typeof appearance.female === 'boolean'
+      ? (appearance.female ? 'female' : 'male')
+      : actual.gender,
+    faceIndex: Number.isInteger(appearance.faceIndex) ? appearance.faceIndex : actual.faceIndex,
+  };
+}
+
+export function paperDollIdentityDrift(entity, ident = _ident) {
+  if (!ident) return null;
+  const want = { ...ident, ...paperDollDisplayIdentity(entity) };
   return paperDollIdentityKey(want) === paperDollIdentityKey(ident) ? null : want;
 }
 
@@ -367,10 +396,7 @@ export async function preloadPaperDollArt(deps, ident = {}) {
 /** Load the art for whatever identity the entity currently carries
  *  (chargen writes race/gender/faceIndex onto it). */
 export const preloadPaperDollForEntity = (deps, entity, context = 'town') =>
-  preloadPaperDollArt(deps, {
-    race: entity?.race ?? 'Breton', gender: entity?.gender ?? 'male',
-    faceIndex: entity?.faceIndex ?? 0, context,
-  });
+  preloadPaperDollArt(deps, { ...paperDollDisplayIdentity(entity), context });
 export const paperDollArtLoaded = () => !!_art;
 
 /** Blit an indexed bitmap into the 110x184 RGBA composite at its
@@ -636,6 +662,7 @@ async function composeDoll(art, deps, entity, { background = true, scale: S = 1 
 }
 
 export async function refreshPaperDoll(entity) {
+  _lastEntity = entity ?? _lastEntity;
   if (!_art || !_deps) return;
   // AUDIT 17e F16 / ASYNC NEVER DROPS: this guard used to DISCARD a
   // refresh requested while one was in flight, so an equip landing
@@ -685,6 +712,15 @@ export async function refreshPaperDoll(entity) {
     _refreshing = false;
     if (_pending) { const next = _pending; _pending = null; await refreshPaperDoll(next); }
   }
+}
+
+// Appearance edits are visual-only, but the open inventory should repaint as soon
+// as the editor commits them. Recompose from the same live entity/equipment;
+// only paperDollDisplayIdentity changes the art lookup.
+if (typeof globalThis.addEventListener === 'function') {
+  globalThis.addEventListener('mw-appearance-identity-change', () => {
+    if (_lastEntity) void refreshPaperDoll(_lastEntity);
+  });
 }
 
 /** One TEXTURE.### record as an indexed bitmap + its baked offset
@@ -823,6 +859,15 @@ export async function composePaperDollPixels(deps, entity, { context = 'town', b
     const { out } = await composeDoll(art, { ...deps, gender: ident.gender, race: ident.race }, entity, { background });
     return { width: PAPERDOLL_W, height: PAPERDOLL_H, rgba: out };
   } catch { return null; }
+}
+
+/** A separate composite for the inventory card; never changes the live doll or peer art. */
+export async function composeInventoryDollPixels(entity, identity) {
+  if (!_deps) return null;
+  const art = await loadArtSet(_deps, identity);
+  const density = composeScale();
+  const { out, width, height } = await composeDoll(art, { ..._deps, race: identity.race, gender: identity.gender }, entity, { scale: density });
+  return { width, height, rgba: out, density };
 }
 
 /** Test seam. */

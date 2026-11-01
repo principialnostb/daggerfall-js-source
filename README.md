@@ -107,3 +107,7 @@ in `bible/01-Overview/Desktop-App.md`; headless proof:
 `xvfb-run -a node tools/appShellProbe.mjs` (point `DAGGER_SHELL_EXE`
 at a packaged binary to prove an installer's payload). The packaged
 app bundles NO game data - same doctrine as the site.
+
+## Vanilla Animated cloak collision
+
+The working branch `fix/vanilla-animated-cloak-collision` keeps the prior Y-axis cloak correction, widens body sampling, and checks projected cloak triangles at exact body sample coordinates to avoid missed contacts caused by integer-grid rounding. The two-handed stance/overhead chop motion was traced to `characters/bodyMotion/carry.js` and `melee.js`; this remains unverified in-game. See [Vanilla Animated cloak collision](docs/Vanilla-Animated-Cloak-Collision.md). Back-slung weapons and scabbards remain independent of live cloak animation.

@@ -1,0 +1,53 @@
+blending_rules:
+  - from: "*"
+    to: "idle*"
+    easing: "sineOut"
+    duration: 0.4
+  - from: "*"
+    to: "idle2*"
+    easing: "sineOut"
+    duration: 0.6
+  - from: "*:*follow start"
+    to: "idle*"
+    easing: "sineInOut"
+    duration: 0.4
+  - from: "*:*follow start"
+    to: "idle2*"
+    easing: "sineInOut"
+    duration: 0.6
+  - from: "*"
+    to: "idle2"
+    easing: "sineOut"
+    duration: 0.4
+  - from: "*"
+    to: "swim*"
+    easing: "sineOut"
+    duration: 0.4
+  - from: "*"
+    to: "walk*"
+    easing: "sineOut"
+    duration: 0.4
+  - from: "*"
+    to: "run*"
+    easing: "sineOut"
+    duration: 0.4
+  - from: "*"
+    to: "sneak*"
+    easing: "sineOut"
+    duration: 0.4
+  - from: "*"
+    to: "swim*"
+    easing: "sineOut"
+    duration: 0.4
+  - from: "*"
+    to: "jump*"
+    easing: "cubicOut"
+    duration: 0.7
+  - from: "*"
+    to: "jump*:loop start"
+    easing: "cubicOut"
+    duration: 0.6
+  - from: ""
+    to: "*"
+    easing: "linear"
+    duration: 0.0

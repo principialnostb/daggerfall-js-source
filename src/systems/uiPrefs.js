@@ -35,6 +35,10 @@ import {
 } from './upkeep/upkeepTiers.js'; // HORSE-TIERS / WAGON-TIERS: what the two upkeep keys may hold (a leaf too)
 
 export const PREF_DEFAULTS = Object.freeze({
+  inventoryFaces: null,
+  helmetPaperdollLooks: null,
+  mwCloakLooks: null,
+  mwWeaponLooks: null,
   // PX30c: the enhanced HUD's scale. It lives HERE and not in DFU's
   // settings, and two pins said so before I listened: the settings
   // defaults are BAKED from DFU's vendored ini and nothing hand-edits
@@ -197,6 +201,11 @@ export const PREF_DEFAULTS = Object.freeze({
   // is, puppeted by their pose instead of AI. Off returns to the flat paperdoll every peer used to be drawn as.
   // Defaults ON: this needs no attached data and no build step, so there is nothing to opt INTO the way Morrowind
   // assets are - only a look a player might prefer to opt OUT of.
+  // MW-TP-ONLY: keep Morrowind's NIF body in third person while the first-person view uses the classic arm/sprite path.
+  morrowindThirdPersonOnly: false,
+  // MW-UI-SPLIT: keep Morrowind meshes in the world/first-person rig without replacing classic UI art.
+  morrowind3dInventoryIcons: false,
+  morrowind3dPaperDoll: false,
   peerClassSprites: true,
   peerAttackSounds: true, // PEER-FS2: other players' swing sounds - on by default
   monsterVolume: 1, // MONSTER-VOL: a monster's calls, attack sounds and pain cries, 0..1 (systems/monsterVolume.js)

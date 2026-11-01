@@ -474,6 +474,8 @@ select, input, textarea { font: inherit; }
    shows on the ACTIVE tab only, because that is the only tab the
    gesture applies to. */
 .subbtn .more-dot { display: none; }
+/* Custom Morrowind settings are grouped beneath the built-in categories. */
+.subrail .custom-settings-group { display: flex; flex-direction: column; margin-top: 24px; }
 
 .row {
   display: flex; align-items: center; gap: 14px; width: 100%;
@@ -649,6 +651,12 @@ select, input, textarea { font: inherit; }
     padding: 12px 15px;
   }
   .subbtn.on { border-left: 0; border-bottom-color: var(--brass); }
+  /* Keep the built-in tabs on the first line and the custom group on the next. */
+  .subrail { flex-wrap: wrap; overflow-x: auto; overflow-y: auto; }
+  .subrail .custom-settings-group {
+    display: flex; flex-direction: row; flex-wrap: nowrap; flex: 0 0 100%;
+    gap: 0; margin-top: 16px; border-top: 0; overflow-x: auto;
+  }
   .subbtn .count { float: none; margin-left: 7px; }
   /* THE ONLY WAY TO THE CATEGORY CARD ON A PHONE (AUDIT F8), so the
      gesture needs to be visible. Active tab only - it is the only tab
@@ -5885,6 +5893,11 @@ ${tierMarkCss({ wash: (k) => TIER_MARKS[k], washAlpha: 0.2, edge: '#0b0805', sel
   color: #d8cfae; text-shadow: 2px 2px 0 rgba(0,0,0,0.8); }
 .px-setwrap .subbtn.on { color: rgb(243,239,44); text-shadow: 2px 2px 0 rgb(93,77,12); }
 .px-setwrap .subbtn .count { font-size: 11px; }
+/* Custom settings form their own second row without a separator line. */
+.px-setwrap .subrail .custom-settings-group {
+  display: flex; flex-direction: row; flex-wrap: wrap; flex: 0 0 100%;
+  gap: 2px; margin-top: 16px; border-left: 0; padding-left: 0;
+}
 .px-setwrap .list { flex: 1; overflow-y: auto; padding: 8px 12px 12px; background: none; }   /* PX10b: the old sheet's slate panel, off */
 .px-setwrap .row { min-height: 44px; }
 /* AUDIT MERGE-PLUS D7: A LABEL IS NEVER CUT FOR ITS VALUE. On a 320px phone the skin's name ("Enhanced Plus") took
@@ -6127,6 +6140,13 @@ ${tierMarkCss({ wash: (k) => TIER_MARKS[k], washAlpha: 0.2, edge: '#0b0805', sel
 .sec-jumpbtn { font-family: var(--data); font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--dim);
   background: none; border: 1px solid var(--iron); padding: 5px 9px; cursor: pointer; }
 .sec-jumpbtn:hover { color: var(--bone); border-color: var(--dim); }
+.animation-switches { display: block; padding-top: 8px; }
+.animation-switch-group { display: flex; align-items: flex-start; gap: 10px; padding: 6px 0; }
+.animation-switch-label { flex: 0 0 48px; padding-top: 9px; font-family: var(--data); letter-spacing: 0.08em; text-transform: uppercase; }
+.animation-switch-buttons { display: flex; flex: 1 1 auto; flex-wrap: wrap; gap: 4px; min-width: 0; }
+.sec-jumpbtn.animation-switch.is-active { color: var(--bone); border-color: var(--brass); background: rgba(180, 151, 91, 0.14); }
+.animation-source-options { display: flex; gap: 4px; padding: 0 0 8px; }
+.animation-source-options .sec-jumpbtn:disabled { opacity: 1; cursor: default; }
 .sec-jumpbtn:focus-visible { outline: 2px solid var(--brass); outline-offset: 1px; }
 .sec-head { padding: 22px 18px 8px; scroll-margin-top: 100px; border-bottom: 1px solid #20262e; }
 .sec-title { display: flex; align-items: baseline; gap: 8px; }

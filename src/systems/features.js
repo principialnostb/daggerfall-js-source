@@ -38,6 +38,7 @@
 // features from closing a cycle on this file's constants.
 
 import { ALL_KEYS } from './settings/settings.js';
+import { CHAR_PIXEL_INITIAL, CHAR_PIXEL_TIERS } from './charPixel.js'; // CHAR-PIX1
 import { MOD_SETTINGS } from './modSettings.js';
 import { declareOnlinePrefs } from './online/onlineLane.js';   // RF4: the lane learns its answers from the rows
 import { t, localizedText } from './textManager.js';   // L10N4: the screen's words in the player's language, read as they are read
@@ -1321,15 +1322,6 @@ export const FEATURES = Object.freeze([
   // Mac's answers: a switch here beside Weapon Sheathing, closed by default. The VIEWER'S, as the sheathing is: it is
   // how this machine draws a steel helm - the player's and every peer's - and it never reaches the wire. Read where the
   // worn set is composed (combat/fpArm.js); the tile rebuilds the body at once (ui/enhanced/enhancedMenu.js TILE_AFTER).
-  Object.freeze({
-    id: 'steel-helm',
-    group: 'combat',
-    title: 'Steel Helm',
-    note: 'With the Morrowind body, choose how a Steel Helm looks: Closed has a visor and a plume; Open is a nasal helm that shows the face.',
-    effect: 'Takes effect at once with the Morrowind body.',
-    kinds: Object.freeze(['enhanced']),
-    control: Object.freeze({ store: 'prefs', key: 'mwSteelHelm', initial: 'closed', online: 'player', tiers: Object.freeze([['closed', 'Closed'], ['open', 'Open']]) }),
-  }),
   // BEAST-BOOTS (2026-10-24, asked: the Beast Boots look and hiding helmets on Khajiit and Argonians as options, not the
   // default): what a beast race wears on its feet and its head, two switches of three ways each, As worn by default.
   // The VIEWER'S, as the Steel Helm is: how this machine draws every Khajiit and Argonian - the player, a peer, an NPC -
@@ -1459,16 +1451,29 @@ export const FEATURES = Object.freeze([
   // stays the default. The VIEWER'S: how this machine draws a body, never on the wire. Read where each picture is sized
   // (render/characterSprite.js mwModelPixel), so it takes effect at once. Sharp grows the sprite target to the screen's
   // size where a picture needs it (render/renderer.js charSpriteRoom, CHAR_SPRITE_RT_MAX).
-  Object.freeze({
-    id: 'mw-model-detail',
-    group: 'world',
-    get title() { return t('features.mwModelDetail.title', 'Morrowind Model Detail'); },
-    get note() { return t('features.mwModelDetail.note', 'With the Morrowind body, Pixelated draws bodies, horses and your arms in large pixels '
-      + 'like the classic sprites. Sharp draws them at your screen’s full resolution and uses more video memory.'); },
-    get effect() { return t('features.effect.atOnce', 'Takes effect at once.'); },
-    kinds: Object.freeze(['enhanced']),
-    control: Object.freeze({ store: 'prefs', key: 'mwModelDetail', initial: 'pixel', online: 'player', tiers: Object.freeze([tier('pixel', () => t('features.mwModelDetail.pixel', 'Pixelated')), tier('sharp', () => t('features.mwModelDetail.sharp', 'Sharp'))]) }),
-  }),
+  // CHAR-PIX1 (2026-10-27, the owner): THE MORROWIND BODIES, PIXELATED LIKE DAGGERFALL'S SPRITES - three dials, the
+  // first-person hands, the player's body and everyone else's, each in rows per screen height (render/charPixelLayer.js).
+  ...[
+    ['fp', 'char-pixel-fp', 'charPixelFp', 'Pixelated hands (1st person)', 'The first-person hands and weapon drawn in coarse pixels, like the world around them.'],
+    ['player', 'char-pixel-player', 'charPixelPlayer', 'Pixelated player body (3rd person)', 'Your own Morrowind body drawn in coarse pixels in third person.'],
+    ['npc', 'char-pixel-npc', 'charPixelNpc', 'Pixelated NPC bodies', 'Every other Morrowind body drawn in coarse pixels like the classic sprites.'],
+  ].map(([who, id, key, title, note]) =>
+    Object.freeze({
+      id,
+      group: 'world',
+      get title() {
+        return t(`features.${key}.title`, title);
+      },
+      get note() {
+        return t(`features.${key}.note`, `${note} Classic is Daggerfall's own 320x200 frame.`);
+      },
+      get effect() {
+        return t('features.effect.atOnce', 'Takes effect at once.');
+      },
+      kinds: Object.freeze(['enhanced']),
+      control: Object.freeze({ store: 'prefs', key, initial: CHAR_PIXEL_INITIAL[who], online: 'player', tiers: CHAR_PIXEL_TIERS }),
+    }),
+  ),
   // ORL1 (2026-09-17): OBLIVION-REMASTER-LIKE LEVELING - the first
   // Morrowind mod, and the only row whose effect line has to say NEXT
   // CHARACTER. Every other mod's switch lands on the running game; this

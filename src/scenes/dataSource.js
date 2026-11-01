@@ -601,6 +601,40 @@ export function makeLooseArchive(files) {
   };
 }
 
+/** LOAD-STALL 3: the loose files by name, their bytes read when loaded - `read(name)` the store's. MwBsaFile's doors:
+ *  `get` answers what is in hand and throws for a file nobody loaded (a missed preload says so, as the .bsa's does);
+ *  a read in flight is that read; a failed one is not kept. */
+export function makeLazyLooseArchive(names, read) {
+  const norm = (p) => String(p).replace(/\\/g, '/').toLowerCase();
+  const byKey = new Map(names.map((n) => [norm(n), n]));
+  const bytes = new Map();
+  const inflight = new Map();
+  return {
+    loose: true,
+    names: [...byKey.values()],
+    has: (p) => byKey.has(norm(p)),
+    loaded: (p) => bytes.has(norm(p)),
+    get(p) {
+      const k = norm(p);
+      if (bytes.has(k)) return bytes.get(k);
+      if (!byKey.has(k)) return null;
+      throw new Error(`loose ${p}: not loaded - await load(path) first`);
+    },
+    load(p) {
+      const k = norm(p);
+      if (bytes.has(k)) return Promise.resolve(bytes.get(k));
+      if (!byKey.has(k)) return Promise.resolve(null);
+      let job = inflight.get(k);
+      if (!job) {
+        job = Promise.resolve(read(byKey.get(k))).then((b) => { inflight.delete(k); if (b) bytes.set(k, b); return b ?? null; },
+          (e) => { inflight.delete(k); throw e; });
+        inflight.set(k, job);
+      }
+      return job;
+    },
+  };
+}
+
 export async function storeMorrowindFiles(files) {
   // .bsa archives + .esm/.esp records; MwBsaFile magic-checks at read,
   // so a wrong archive fails loudly there, not silently here.
@@ -730,7 +764,15 @@ export const loadMorrowindArmRecords = async (fileName) => {
   if (!_mwRecordsCache || _mwRecordsCache.gen !== _mwGeneration) _mwRecordsCache = { gen: _mwGeneration, files: new Map() };
   const cache = _mwRecordsCache;   // AUDIT 68 S18-mw-cache-stale-generation: loadMorrowindFile's law
   if (cache.files.has(fileName)) return cache.files.get(fileName);
-  const blob = await assetBlob(MW_STORE, fileName);
+  let blob;
+  if (String(fileName).startsWith('bundled:')) {
+    const bundled = await import('../systems/bundledMorrowindMods.js');
+    const bytes = await bundled.loadBundledMorrowindPlugin(fileName);
+    if (!bytes) return null;
+    blob = new Blob([bytes]);
+  } else {
+    blob = await assetBlob(MW_STORE, fileName);
+  }
   if (!blob) return null;
   const { extractArmRecords, isArmRecords, ARM_RECORDS_VERSION } = await import('../formats/morrowind/mwFirstPerson.js');
   const key = `${ARM_RECORDS_PREFIX}:v${ARM_RECORDS_VERSION}:${fileName}:${blob.size}:${await sampleStamp(blob)}`;
@@ -780,6 +822,9 @@ async function _openMorrowindArchives(gen) {
   };
   names.sort((a, b) => rank(a) - rank(b));
   const archives = [];
+  // The failed high-resolution female skin replacer is disabled. The new
+  // texture/model packs are loaded as one deterministic bundled archive below;
+  // user-provided loose files still retain the normal highest precedence.
   // MW-D40: LOOSE FILES FIRST - the engine's own data-files-over-BSA
   // law. Every stored non-archive asset joins one {has, get} duck
   // ranked ahead of every .bsa, so a mod's meshes/textures/sounds
@@ -787,14 +832,18 @@ async function _openMorrowindArchives(gen) {
   // exact seam fpArm already speaks, and can also OVERRIDE an
   // archived file of the same path. Resident like the archives are -
   // the IG2 cost statement above covers both.
+  // LOAD-STALL 3: the loose files are OPENED, not read - their names now, a file's bytes when a reader loads it (the
+  // .bsa's MW-LOAD law). Every one used to be read whole out of the store, one after another, before the first body
+  // could build: a Data Files folder attached whole is thousands of them.
   const looseNames = (await storedMorrowindNames()).filter((n) => MW_LOOSE_EXT.test(n));
-  if (looseNames.length) {
-    const loose = new Map();
-    for (const n of looseNames) {
-      const bytes = await assetBytes(MW_STORE, n);
-      if (bytes) loose.set(n, bytes);
-    }
-    archives.push(makeLooseArchive(loose));
+  if (looseNames.length) archives.push(makeLazyLooseArchive(looseNames, (n) => assetBytes(MW_STORE, n)));
+  // Bundled replacement packs follow user loose files (which win collisions)
+  // and precede retail BSA archives.
+  try {
+    const bundled = await import('../systems/bundledMorrowindMods.js');
+    archives.push(bundled.bundledMorrowindModsArchive());
+  } catch (err) {
+    console.warn('bundled Morrowind mods: ' + err.message);
   }
   // WS1: Weapon Sheathing's vendored scabbards and bone addons, after
   // the player's own loose files (a replacer wins) and before every
