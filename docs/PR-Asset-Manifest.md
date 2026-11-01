@@ -8,6 +8,7 @@
 | Better Hands (Nexus 52552) | Asset use allowed; conversion to other games not allowed | Not carried: bring your own |
 | Robert's bodies | Readme: use anywhere with credit | Not carried: bring your own |
 | Better Bodies, Better Beasts (Psychodog Studios and others) | Not found | Not carried: bring your own |
+| Robert's Bodies Based Gauntlets (Pherim) | Readme: free to use, credit the Robert's Bodies authors | **Integrated**, under `Mods/Textures/` |
 | Skyrim iron set, horned helm, steel battleaxe | Made from a Bethesda game's files | Tools only; outputs never committed |
 | Paperdoll Enhanced | Player attaches their own copy | Not in the repo |
 

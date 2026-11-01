@@ -1,3 +1,4 @@
+import { registerModTable } from '../systems/supportedMods.js'; // MODS-BYO
 import { MW_STOCK } from '../systems/mwStockChoices.js';   // MW-STOCK
 import { setPlayerBusyProbe } from '../characters/playerBuildHold.js';   // LOAD-STALL 3
 import { modDiagnostics } from '../systems/modDiagnostics.js';   // MOD-DIAG1: trace cloak resolution through the live third-person build
@@ -110,6 +111,7 @@ const robertIronGauntletFirstPersonUrls = typeof window !== 'undefined'
       eager: true, query: '?url', import: 'default',
     })
   : {};
+registerModTable(robertIronGauntletFirstPersonUrls, /^textures\/robert's bodies based gauntlets\/meshes\/a\/a_iron_hands\.1st\.nif$/);   // MODS-BYO
 const robertIronGauntletFirstPersonUrl = Object.values(robertIronGauntletFirstPersonUrls)[0] ?? null;
 
 const animationDiagnosticStorageKey = 'morrowind-animation-diagnostics-v1';

@@ -2675,7 +2675,11 @@ export async function bootExterior(canvas, renderer, params, status) {
       sound: (clip, volume, pitch) => audio.playOneShot(clip, volume, pitch),   // TECH-FX: the technique's layer over the swing's own
     },
   });
-  autoBuildArms(playerEntity);   // MWA1: the arms at boot, when the switch is on and the archives are attached
+  // MWA1 / FP-VIEWMODEL: finish the first-person rig build before the host starts drawing.
+  // While this was fire-and-forget, the weapon rig could enter play on the classic 2D
+  // sprite lane before the model build had resolved; waiting here makes boot expose a
+  // concrete build failure instead of silently looking like the 2D implementation.
+  await autoBuildArms(playerEntity);
   // M2 (the AUDIT 23 hosts-2 priority row): SPELLCASTING ABOVE GROUND.
   // One engine per page, mode-aware deps - exterior mode targets the
   // live guards through the SAME damage door as melee; interior mode
@@ -5893,7 +5897,8 @@ export async function bootExterior(canvas, renderer, params, status) {
     renderer.setWorldViewport(worldViewportRect(canvas.clientWidth, canvas.clientHeight));   // E5: ViewportChanger.Update, every frame
     renderer.beginFrame(proj, view, sunDirection(minute), WORLD_FRAME);   // AUDIT-EL F5: a WORLD frame - the lane replays its records for this one
     renderer.setCloudShadow(sky?.cloudShadow ?? null);   // VC4: the frame's deck, for the body and everything before the terrain
-    mwViewDrawBody(canvas, { proj, view, eye, feet: player.bodyFeetAt(), yaw: player.bodyYawFor(cam.yaw), viewYaw: cam.yaw });   // MW-D24; DISC18: the body at the capsule's own feet, not the camera's smoothed ones
+    // Restore v3: the body renderer follows view yaw; no idle-facing gate.
+    mwViewDrawBody(canvas, { proj, view, eye, feet: player.bodyFeetAt(), yaw: player.bodyYawFor(cam.yaw), viewYaw: cam.yaw });   // restore v3 body-facing behavior
     hcc.draw3d(canvas, { eye, proj, view });   // COATS3D: Horse Cart and Cargo's horses, 3D on the Morrowind lane
     mwViewDrawWagon(renderer, texRemap, streetCull);   // EOTB-IL: the cart, when the transport is the cart; PERF-WAGON: by the street's view test
     camps.draw(renderer, texRemap, streetCull);   // SURV3: the tents; PERF-WAGON: by the street's view test

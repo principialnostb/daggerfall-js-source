@@ -130,6 +130,9 @@ app/private/
 !/Mods/Animations/
 /Mods/Animations/*
 !/Mods/Animations/OpenMW Dynamic Animations/
+!/Mods/Textures/
+/Mods/Textures/*
+!/Mods/Textures/Robert's Bodies Based Gauntlets/
 # MW-HORN5, MW-IRON1: Skyrim's meshes and paintings, made from the player's own install (tools/skyrim/), never committed.
 src/assets/mw/source/Steel_Plate_Horned_Helm.*
 src/assets/mw/meshes/steel_plate_helm_horned.nif

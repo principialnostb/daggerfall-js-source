@@ -13,6 +13,7 @@ const FOUND = IN_BROWSER
       mao: import.meta.glob('../../Mods/Animations/Morrowind Animation Overhaul/Data Files/Meshes/{x,X}base_anim.kf', { query: '?url' }),
       hands: import.meta.glob('../../Mods/Bodies/Better Hands/Meshes/b/*.1st.nif', { query: '?url' }),
       robert: import.meta.glob("../../Mods/Bodies/Robert's bodies/Data Files/Meshes/bbr/*.nif", { query: '?url' }),
+      gauntlets: import.meta.glob("../../Mods/Textures/Robert's Bodies Based Gauntlets/meshes/a/*.1st.nif", { query: '?url' }),
       bodies: import.meta.glob('../../Mods/Bodies/Better Bodies/Nude/Data Files/Meshes/bb/bb_skin*.nif', { query: '?url' }),
     }
   : {};
@@ -26,6 +27,7 @@ export const SUPPORTED_MODS = Object.freeze([
   Object.freeze({ id: 'mao', blurb: 'New run, and walks in a stance.', name: 'Morrowind Animation Overhaul', url: 'https://www.nexusmods.com/morrowind/mods/60253', home: 'Animations/Morrowind Animation Overhaul/', marker: /(?:^|\/)((?:data files\/)?meshes\/xbase_anim(?:_female)?\.kf)$/i, level: 'Data Files/' }),
   Object.freeze({ id: 'hands', blurb: 'Better first-person hand models.', name: 'Better Hands', url: 'https://www.nexusmods.com/morrowind/mods/52552', home: 'Bodies/Better Hands/', marker: /(?:^|\/)(meshes\/b\/[^/]*\.1st\.nif)$/i }),
   Object.freeze({ id: 'robert', blurb: 'The arm and skin under Better Hands. Attach both.', name: "Robert's Bodies", url: 'https://www.nexusmods.com/games/morrowind/mods?keyword=Robert%27s+Bodies', home: "Bodies/Robert's bodies/", marker: /(?:^|\/)((?:data files\/)?meshes\/bbr\/[^/]*\.nif)$/i, level: 'Data Files/' }),
+  Object.freeze({ id: 'gauntlets', blurb: 'Gauntlet fingers with better shapes in first person.', name: "Robert's Bodies Based Gauntlets", url: 'https://www.nexusmods.com/games/morrowind/mods?keyword=Robert%27s+Bodies+Based+Gauntlets', home: "Textures/Robert's Bodies Based Gauntlets/", marker: /(?:^|\/)(meshes\/a\/a_iron_hands\.1st\.nif)$/i }),
   Object.freeze({ id: 'bodies', blurb: 'Better body models and skins.', name: 'Better Bodies', url: 'https://www.nexusmods.com/morrowind/mods/3880', home: 'Bodies/Better Bodies/', marker: /(?:^|\/)(nude\/data files\/meshes\/bb\/bb_skin[^/]*\.nif)$/i }),
 ]);
 
