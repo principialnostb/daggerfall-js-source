@@ -49,7 +49,7 @@ const deps = {
     if (archives) return archives;
     archives = [];
     for (const [mod, fn] of [['/src/systems/bundledMorrowindMods.js', 'bundledMorrowindModsArchive'], ['/src/systems/weaponSheathingAssets.js', 'weaponSheathingArchive'],
-      ['/src/systems/simplyAnimatedCloaksAssets.js', 'simplyAnimatedCloaksArchive'], ['/src/systems/ownMwAssets.js', 'ownMwArchive']]) {
+      ['/src/systems/ownMwAssets.js', 'ownMwArchive']]) {
       const a0 = performance.now();
       try { archives.push((await load(mod))[fn]()); } catch (e) { console.warn(`${fn}: ${e.message}`); }
       if (process.env.PROBE_ARCHIVES) console.error(`[archives] ${fn} ${Math.round(performance.now() - a0)}ms`);
