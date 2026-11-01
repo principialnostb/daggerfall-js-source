@@ -3482,9 +3482,10 @@ let _modsNote = null;
 let _modsChoosing = null;   // the row whose Attach was pressed: a browser has no one picker for a folder and a file
 export function supportedModsCard() {
   const c = el('div', 'card');
+  const repaint = () => c.replaceWith(supportedModsCard());
   c.append(el('h3', null, t('menu.supportedMods.title', 'Morrowind graphics improvements')));
   c.append(el('p', 'meta', t('menu.supportedMods.blurb', 'Download a mod from its author, then attach its folder or .zip. Unpack .7z and .rar first.')));
-  const note = (text, reload = false) => { _modsNote = { text, reload }; render(); };
+  const note = (text, reload = false) => { _modsNote = { text, reload }; repaint(); };
   if (_modsNote) {
     const line = el('div');
     line.style.cssText = 'display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:8px 0';
@@ -3522,10 +3523,10 @@ export function supportedModsCard() {
     if (pack?.enabled) state.style.color = '#8fce8f';
     about.append(el('p', null, 'Paperdoll Enhanced'), el('p', 'meta', t('menu.supportedMods.paperdoll', 'New portraits and 2D helms in the paperdoll.')), state);
     row.append(about, acts(pack
-      ? [{ label: pack.enabled ? t('menu.supportedMods.off', 'Turn off') : t('menu.supportedMods.on', 'Turn on'), onClick: () => { setDfmodEnabled(pack.key, !pack.enabled); render(); } }]
+      ? [{ label: pack.enabled ? t('menu.supportedMods.off', 'Turn off') : t('menu.supportedMods.on', 'Turn on'), onClick: () => { setDfmodEnabled(pack.key, !pack.enabled); repaint(); } }]
       : [
         { label: t('menu.supportedMods.get', 'Download from Nexus Mods'), onClick: () => window.open('https://www.nexusmods.com/games/daggerfallunity/mods?keyword=Paperdoll+Enhanced', '_blank', 'noopener') },
-        { label: t('menu.supportedMods.attach', 'Attach mod files'), primary: true, onClick: async () => { const ds = await import('../../scenes/dataSource.js'); await ds.pickDfmodFiles(); render(); } },
+        { label: t('menu.supportedMods.attach', 'Attach mod files'), primary: true, onClick: async () => { const ds = await import('../../scenes/dataSource.js'); await ds.pickDfmodFiles(); repaint(); } },
       ]));
     c.append(row);
   }
@@ -3548,7 +3549,7 @@ export function supportedModsCard() {
             { label: t('menu.supportedMods.attachFolder', 'Mod folder'), primary: true, onClick: () => { wanted = mod; dirIn.click(); } },
             { label: t('menu.supportedMods.attachZip', '.zip file'), primary: true, onClick: () => { wanted = mod; zipIn.click(); } },
           ]
-          : [{ label: t('menu.supportedMods.attach', 'Attach mod files'), primary: true, onClick: () => { _modsChoosing = mod.id; render(); } }]),
+          : [{ label: t('menu.supportedMods.attach', 'Attach mod files'), primary: true, onClick: () => { _modsChoosing = mod.id; repaint(); } }]),
       ];
     // a found pack can be attached again over itself: the way to repair or update it
     if (found) buttons.push(...(_modsChoosing === mod.id
@@ -3556,7 +3557,7 @@ export function supportedModsCard() {
         { label: t('menu.supportedMods.attachFolder', 'Mod folder'), onClick: () => { wanted = mod; dirIn.click(); } },
         { label: t('menu.supportedMods.attachZip', '.zip file'), onClick: () => { wanted = mod; zipIn.click(); } },
       ]
-      : [{ label: t('menu.supportedMods.attachAgain', 'Attach again'), onClick: () => { _modsChoosing = mod.id; render(); } }]));
+      : [{ label: t('menu.supportedMods.attachAgain', 'Attach again'), onClick: () => { _modsChoosing = mod.id; repaint(); } }]));
     if (supportedModAttached(mod.id)) buttons.push({ label: t('menu.supportedMods.remove', 'Remove'), onClick: async () => {
       const { removeAttachedMod } = await import('../../scenes/dataSource.js');
       await removeAttachedMod(mod.id);

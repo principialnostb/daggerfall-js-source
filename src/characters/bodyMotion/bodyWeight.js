@@ -11,6 +11,9 @@
 import { algebra, bodyOf, bodyTurn, turnOf, transpose, mul, clamp, clamp01, ease, at } from './bodyKit.js';
 import { MW_WEAPON_TYPE } from '../../formats/morrowind/mwFirstPerson.js';
 import { orthonormal } from '../../combat/climbRig.js';
+import { clearArms } from './armClearance.js';   // ARM-CLEARANCE: the elbows out of the trunk, wider in heavier armour
+import { createBlowLegs } from './blowLegs.js';   // BLOW-LEGS: the body under a blow struck standing
+import { createArmouredSword } from './armouredSword.js';
 import { createTravelStride } from './travelStride.js';
 import { sampleTrack } from '../../formats/morrowind/mwAnim.js';
 import { loopWindow } from '../../combat/leftArmLayer.js';
@@ -90,6 +93,8 @@ export function createBodyWeight() {
   const vel = { f: 0, r: 0 }; let velPrev = null;
   const pitch = { x: 0, v: 0 }, roll = { x: 0, v: 0 };
   let weight = 0; let on = false; let slotMemo = null; let moving = 0; let armorW = 0; let clearOn = false;
+  const legs = createBlowLegs();
+  const sword = createArmouredSword();
   const travelStride = createTravelStride({ sampleTrack, loopWindow });
   let strideOn = false;   // RUN-STRIDE: last frame's switch, for the movement's rate (read before the frame's step)
   const elbowTurns = { L: 0, R: 0 };
@@ -140,10 +145,14 @@ export function createBodyWeight() {
       clearOn = !!on;
       const active = !!on && !dead && !!mv && mv.grounded !== false && !mv.swimming && !mv.levitating && !mv.climbing && !cam?.climb && !cam?.seat && !cam?.saddle;
       const lean = layer.step(dt, { active, move: mv, armor, mwType });
+      legs.step(dt, active, word, weight);   // BLOW-LEGS, by the body's weight just read
+      sword.step(dt, active, word, armorW);
       strideOn = !!on && !dead;
       travelStride.stepRig(dt, strideOn, moveState, moveSource, cam, moveSpeed, MW_UNITS_PER_METER, active ? word : null);
       return lean;
     },
+    /** BLOW-LEGS's word, for the rig's status. */
+    legs: () => legs.status(),
     /** RUN-STRIDE: the movement clip's playback rate for the speed ratio `k` (the body's over the clip's) - a run's
      *  capped, its legs lengthened by the rest; any other group's `k`. */
     moveRate: (k, group) => travelStride.rate(k, strideOn, group),   // each answers its own groups
@@ -167,12 +176,15 @@ export function createBodyWeight() {
           if (Number.isFinite(zl) && Number.isFinite(zr)) lean.roll -= sway.roll * clamp((zr - zl) / (SWAY.lift * body.leg), -1, 1);
         }
         if (LEAN_ON) leanTrunk(skeleton, pose, rootRef, skelMats, lean, mats);
+        leanTrunk(skeleton, pose, rootRef, skelMats, sword.pose());
+        if (clearOn) legs.apply(skeleton, pose, rootRef, skelMats);   // BLOW-LEGS: a standing blow's hips and feet
+        if (clearOn) clearArms(skeleton, pose, rootRef, skelMats, { armor: armorW, previous: elbowTurns, dt: frameDt });   // ARM-CLEARANCE, last: over the lean and the carry
         frameDt = 0;
         return report;
       } };
       return slotMemo.fn;
     },
-    reset() { elbowTurns.L = elbowTurns.R = 0; frameDt = 0;  moving = 0; travel = null; yaw0 = null; vel.f = vel.r = 0; velPrev = null; pitch.x = pitch.v = roll.x = roll.v = 0; },
+    reset() { elbowTurns.L = elbowTurns.R = 0; frameDt = 0; sword.reset(); legs.reset(); moving = 0; travel = null; yaw0 = null; vel.f = vel.r = 0; velPrev = null; pitch.x = pitch.v = roll.x = roll.v = 0; },
   };
   return layer;
 }

@@ -433,7 +433,6 @@ export const CATEGORIES = Object.freeze([
       'GUI/LargeHUDOffsetHorse',
     ]),
   ]),
-  tab('pixelation', 'Пикселизация', [sec('pixelation', 'Пикселизация', ['feat:char-pixel-fp', 'feat:char-pixel-player', 'feat:char-pixel-npc'])]),
   tab('mods', 'Mods & files', [
     sec('files', 'Your files', ['card:morrowind', 'card:supportedMods']),
     sec('packs', 'Replacement packs', ['card:packs']),
@@ -448,6 +447,7 @@ export const CATEGORIES = Object.freeze([
     ]),
     sec('index', 'Every mod', ['mods-index']),
   ]),
+  tab('pixelation', 'Pixelation', [sec('pixelation', 'Pixelation', ['feat:char-pixel-fp', 'feat:char-pixel-player', 'feat:char-pixel-npc'])]),
 ]);
 
 function tab(id, title, sections) {

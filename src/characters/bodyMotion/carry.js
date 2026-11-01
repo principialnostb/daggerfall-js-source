@@ -37,54 +37,47 @@ export function carryClassOf({ mwType = MW_WEAPON_TYPE.None, shown = false, hand
   if (!shown) return 'free';
   if (hands === 'dual') return 'dual';
   switch (mwType) {
-    case MW_WEAPON_TYPE.HandToHand:
-      return 'fists';
-    case MW_WEAPON_TYPE.ShortBladeOneHand:
-    case MW_WEAPON_TYPE.LongBladeOneHand:
-    case MW_WEAPON_TYPE.BluntOneHand:
-    case MW_WEAPON_TYPE.AxeOneHand:
-      return 'one';
-    case MW_WEAPON_TYPE.LongBladeTwoHand:
-    case MW_WEAPON_TYPE.BluntTwoClose:
-    case MW_WEAPON_TYPE.AxeTwoHand:
-      return 'two';
-    case MW_WEAPON_TYPE.BluntTwoWide:
-      return 'wide';
-    case MW_WEAPON_TYPE.SpearTwoWide:
-      return 'spear';
-    case MW_WEAPON_TYPE.MarksmanBow:
-    case MW_WEAPON_TYPE.MarksmanCrossbow:
-    case MW_WEAPON_TYPE.MarksmanThrown:
-      return 'clip';
+    case MW_WEAPON_TYPE.HandToHand: return 'fists';
+    case MW_WEAPON_TYPE.ShortBladeOneHand: case MW_WEAPON_TYPE.LongBladeOneHand:
+    case MW_WEAPON_TYPE.BluntOneHand: case MW_WEAPON_TYPE.AxeOneHand: return 'one';
+    case MW_WEAPON_TYPE.LongBladeTwoHand: case MW_WEAPON_TYPE.BluntTwoClose: case MW_WEAPON_TYPE.AxeTwoHand: return 'two';
+    case MW_WEAPON_TYPE.BluntTwoWide: return 'wide';
+    case MW_WEAPON_TYPE.SpearTwoWide: return 'spear';
+    case MW_WEAPON_TYPE.MarksmanBow: case MW_WEAPON_TYPE.MarksmanCrossbow: case MW_WEAPON_TYPE.MarksmanThrown: return 'clip';
     // hands shown with nothing in them are fists, whatever the hands' mode says (AUDIT BODY-MOTION MELEE-3: the third
     // person's empty hands are None - fpArm.js resolveWeaponParts - and 'single' on every peer's and person's body, and
     // on the player's with a shield or a light: their blows were 'free', and vanished)
-    case MW_WEAPON_TYPE.None:
-      return 'fists';
-    default:
-      return 'free';
+    case MW_WEAPON_TYPE.None: return 'fists';
+    default: return 'free';
   }
 }
 
 /** Does the class hold its weapon in BOTH hands (the left on the haft)? Where on the haft (arm lengths along the blade
  *  from the right hand's grip: - toward the pommel, + toward the point) the left hand closes. */
-export const TWO_HAND_GRIP = Object.freeze({ two: -0.4, wide: 0.5, spear: 0.55 }); // AUDIT BODY-MOTION CARRY-1: the two-hander's left a fifth of an arm down sat inside the right forearm
+export const TWO_HAND_GRIP = Object.freeze({ two: -0.4, wide: 0.5, spear: 0.55 });   // AUDIT BODY-MOTION CARRY-1: the two-hander's left a fifth of an arm down sat inside the right forearm
 /** How far along the haft (arm lengths from the right hand's grip, as TWO_HAND_GRIP) the left hand may slide to where
  *  its arm reaches: a two-hander's hilt, a staff's and a spear's shaft (AUDIT BODY-MOTION MELEE-9: held at its one
  *  point, a staff's and a spear's left hand fell 0.2 to 0.54 arm lengths short of the haft through a blow). */
-export const TWO_HAND_HAFT = Object.freeze({
-  two: Object.freeze([-0.5, -0.2]),
-  wide: Object.freeze([0.15, 1.1]),
-  spear: Object.freeze([0.2, 1.0]),
-});
+export const TWO_HAND_HAFT = Object.freeze({ two: Object.freeze([-0.5, -0.2]), wide: Object.freeze([0.15, 1.1]), spear: Object.freeze([0.2, 1.0]) });
+/** GRIP-ANATOMY (2026-10-29, the owner's video: "the hand sinks into the body"): where a two-hander's left hand closes in
+ *  the CARRY - against the right fist, as a sword's hilt is held (a fifth of an arm, some 11 cm, a hand's width). Two
+ *  fifths down, toward the pommel - and the pommel stands back toward the body in every carry row - the left hand stood
+ *  at the right hip 4 cm in front of the chest's middle, its arm straight across the cuirass. A blow keeps TWO_HAND_GRIP. */
+export const TWO_HAND_CLOSE = Object.freeze({ two: -0.2 });
+/** GRIP-ANATOMY (the owner, 2026-10-29: the fists sat together high on the hilt): in the still gaits the left fist closes
+ *  at the pommel end - 0.35 of an arm (some 17 cm) below the right at the guard, of the claymore's 31 cm from the right
+ *  fist to the pommel's end; the run keeps TWO_HAND_CLOSE. */
+export const TWO_HAND_STILL = Object.freeze({ two: -0.35 });
+/** GRIP-ANATOMY: how far (degrees, about the blade) a two-hander's left fist turns round the hilt off the right's mirror in
+ *  the still gaits - its knuckles toward the left, so the forearm comes to it from outside the body. */
+export const LEFT_FIST_ROLL = Object.freeze({ idle: -70, walk: -40 });
 
 // A row: [flex, abduct, elbow, twist] degrees, `swing` the share of the gait's arm swing, `blade`/`edge` the weapon's
 // ways in the chest frame (right arm), `gaitElbow` how much of the gait's own elbow it rides. `grip: true` - the LEFT
 // arm closes on the right's haft; `mirror` - the left arm holds a pair's left blade as the right holds its own. A class's
 // `via` (the chest frame): the way its blade passes on its way between a still row's and the run's - round the outside
 // of the body (AUDIT BODY-MOTION CARRY-6).
-const row = (flex, abduct, elbow, twist, swing, extra = {}) =>
-  Object.freeze({ flex, abduct, elbow, twist, swing, ...extra });
+const row = (flex, abduct, elbow, twist, swing, extra = {}) => Object.freeze({ flex, abduct, elbow, twist, swing, ...extra });
 const dir = (...v) => Object.freeze(norm(v));
 
 /**
@@ -102,119 +95,71 @@ export const CARRY = Object.freeze({
     sneak: { R: row(14, 16, 40, 10, 0.6), L: row(14, 16, 40, 10, 0.6) },
   }),
   one: Object.freeze({
-    idle: {
-      R: row(5, 21, 8, -7, 0, { blade: dir(0.26, 0.74, -0.62), edge: dir(-0.26, -0.56, -0.78) }),
-      L: row(3, 8, 12, 4, 0),
-    },
-    walk: {
-      R: row(5, 22, 3, -1, 0.3, { blade: dir(0.23, 0.81, -0.53), edge: dir(-0.39, -0.42, -0.82) }),
-      L: row(2, 8, 12, 6, 1, { gaitElbow: 1 }),
-    },
+    idle: { R: row(5, 21, 8, -7, 0, { blade: dir(0.26, 0.74, -0.62), edge: dir(-0.26, -0.56, -0.78) }), L: row(3, 8, 12, 4, 0) },
+    walk: { R: row(5, 22, 3, -1, 0.3, { blade: dir(0.23, 0.81, -0.53), edge: dir(-0.39, -0.42, -0.82) }), L: row(2, 8, 12, 6, 1, { gaitElbow: 1 }) },
     // ONE-RUN (feature-feedback via Mac, 2026-10-26: "Running and sprinting with one-handed weapon looks off, because hand
     // is in twisted position pointing weapon to the side unnaturally"): the stand's own format at a run - the arm low and
     // out, nearly straight, swinging with the stride, the blade forward and a little down. The blade had trailed behind,
     // down and out to the right, the forearm turned 64 to 74 degrees off its elbow's hinge to hold it there; a bent elbow
     // with the blade still forward and down asked the wrist for 40 to 95 degrees of ulnar deviation. And no `via`: the
     // trailing blade's way round, back and up, swung the new one 11 degrees a frame between a stand and a run.
-    run: {
-      R: row(8, 21, 16, -4, 0.35, { blade: dir(0.2, 0.97, -0.14), edge: dir(-0.15, -0.11, -0.98) }),
-      L: row(8, 18, 0, -4, 1, { gaitElbow: 1 }),
-    },
-    sneak: {
-      R: row(21, 29, 54, -44, 0.2, { blade: dir(0.12, 0.98, -0.18), edge: dir(0.8, -0.2, -0.56) }),
-      L: row(14, 16, 40, 10, 0.6),
-    },
+    run: { R: row(8, 21, 16, -4, 0.35, { blade: dir(0.2, 0.97, -0.14), edge: dir(-0.15, -0.11, -0.98) }), L: row(8, 18, 0, -4, 1, { gaitElbow: 1 }) },
+    sneak: { R: row(21, 29, 54, -44, 0.2, { blade: dir(0.12, 0.98, -0.18), edge: dir(0.8, -0.2, -0.56) }), L: row(14, 16, 40, 10, 0.6) },
     stand: { feet: { L: [0, 0.05], R: [0.02, -0.03] }, hipYaw: -6 },
   }),
   two: Object.freeze({
-    // TWO-CLEAR (feature-feedback via Mac, 2026-10-26: the claymore's hands through the body): the guard's hands before the
-    // belly, a little right of the middle - the low guard's blade still forward and down. Held at the right hip, the left
-    // hand closed a third of an arm down the grip reached across the body at its full length, and the left arm ran
-    // through the chest - 4.5 to 6.3 units into the audit's trunk at rest, at a walk and sneaking.
-    idle: {
-      R: row(36, -3, 10, 52, 0, { blade: dir(-0.34, 0.89, -0.29), edge: dir(-0.41, -0.42, -0.81) }),
-      L: row(0, 0, 0, 0, 0, { grip: true }),
-    },
-    walk: {
-      R: row(40, -7, 11, 11, 0.12, { blade: dir(-0.34, 0.94, -0.1), edge: dir(-0.35, -0.22, -0.91) }),
-      L: row(0, 0, 0, 0, 0, { grip: true }),
-    },
-    run: {
-      R: row(43, 10, 0, -31, 0, { blade: dir(0.8, -0.23, -0.55), edge: dir(-0.31, 0.62, -0.72) }),
-      L: row(0, 0, 0, 0, 0, { grip: true }),
-    },
-    sneak: {
-      R: row(52, -2, 11, 52, 0.1, { blade: dir(-0.26, 0.95, 0.17), edge: dir(-0.21, 0.12, -0.97) }),
-      L: row(0, 0, 0, 0, 0, { grip: true }),
-    }, // AUDIT BODY-MOTION CARRY-3: the guard raised to level - the chest's lean tipped the low guard's blade into the ground and the right thigh
+    // the guard as it stood before the 2026-10-28 reshaping (the owner, 2026-10-29: back to it), its blade and edge kept;
+    // GRIP-ANATOMY (the owner's video, 2026-10-29: the left hand sinks into the body): the hilt 6 cm nearer the middle,
+    // 6 ahead and 4 down (row [29, 7, 10, 42] held it at the right hip, the left arm straight across the cuirass); the
+    // walk's 3 nearer the middle (from [40, -5, 7, 56]); the run's 6 cm off the belt (from [-15, 19, 70, 30]). Then (the
+    // owner's drawing: the point raised, the elbows bent) the guard's and the walk's point raised 20 degrees about the
+    // blade's level line, the hilt 8 cm up to the belt; then (the fists apart, TWO_HAND_STILL) the hilt 8 cm further out,
+    // 4 walking, so the left fist stands a fist ahead of the cuirass at the middle, as a middle guard's (with the point low
+    // a bent right elbow cocked the wrist past its range - 17 degrees of bend, 60 ulnar; the audit's limit 40)
+    // the walk's hilt 8 cm to the right, to the body's middle (the owner's video, 2026-10-29: walking, the right forearm lay
+    // across the chest to a hilt left of the middle)
+    idle: { R: row(45, 3.5, 21, 70, 0, { blade: dir(-0.32, 0.95, -0.01), edge: dir(-0.19, -0.07, -0.98) }), L: row(0, 0, 0, 0, 0, { grip: true }) },
+    // running (GUARD-ARMS), the hilt at the right of the belt in both bent hands, the point trailing down behind (straight
+    // arms reached TWO-RUN's grip under the hip joint; bent, they cannot)
+    walk: { R: row(40, 14.5, 42.5, 60, 0, { blade: dir(-0.52, 0.83, 0.2), edge: dir(-0.05, 0.2, -0.98) }), L: row(0, 0, 0, 0, 0, { grip: true }) },
+    run: { R: row(-7, 17.5, 70, 25.5, 0, { blade: dir(0.30, -0.62, -0.72), edge: dir(0.95, 0.26, 0.17) }), L: row(0, 0, 0, 0, 0, { grip: true }) },
+    sneak: { R: row(51, 2, 7, 22, 0.1, { blade: dir(-0.34, 0.94, 0.09), edge: dir(-0.1, 0.06, -0.99) }), L: row(0, 0, 0, 0, 0, { grip: true }) },   // AUDIT BODY-MOTION CARRY-3: the guard raised to level - the chest's lean tipped the low guard's blade into the ground and the right thigh
     stand: { feet: { L: [-0.02, 0.15], R: [0.04, -0.09] }, hipYaw: -16, lean: 3 },
-    via: dir(0, -0.259, 0.966),
-    runTurn: -32,
-    runLean: 10,
+    // RUN-STOP (the owner's video, 2026-10-29: the turn after a run "bends wrong"): round the right side and back - over the
+    // head, up and back, bent the wrists 17 to 19 degrees past their held pose (the right to 122, the left to 88); round the
+    // side, under 1
+    via: dir(0.7, -0.3, 0.65),
+    runTurn: -32, runLean: 10,
+    // GRIP-ANATOMY: the trunk under the weapon, [yaw (+ the left), pitch (+ forward)] degrees, the weapon held where the
+    // row puts it - turned toward the hilt at the right so the left shoulder comes forward to it, and leant over it: the
+    // guard's left elbow bends 5 to 40 degrees, the walk's 12 to 44, the run's stands off the breastbone
+    // the third, `square`: the share of the clip's own chest turn taken out first (the owner's second video, 2026-10-29:
+    // idle2c stood the chest about 40 degrees right, the hilt and the left fist at the right flank, the left arm straight
+    // across the chest) - the guard and the walk stand on the facing; the run keeps its clip's turn
+    trunk: { idle: [-10, 8, 1], walk: [-14, 8, 1], run: [-18, 4, 0], sneak: [0, 0, 0] },
   }),
   wide: Object.freeze({
-    idle: {
-      R: row(18, 10, 50, 34, 0, { blade: dir(-0.55, 0.42, 0.72), edge: dir(0, 1, 0) }),
-      L: row(0, 0, 0, 0, 0, { grip: true }),
-    },
-    walk: {
-      R: row(17, 12, 52, -8, 0.12, { blade: dir(-0.52, 0.42, 0.74), edge: dir(0.26, 0.91, -0.34) }),
-      L: row(0, 0, 0, 0, 0, { grip: true }),
-    },
-    run: {
-      R: row(-2, 15, 33, -49, 0.2, { blade: dir(0.44, -0.85, -0.3), edge: dir(-0.13, 0.27, -0.96) }),
-      L: row(8, 18, 0, -4, 1, { gaitElbow: 1 }),
-    },
-    sneak: {
-      R: row(21, 11, 57, 8, 0.1, { blade: dir(-0.52, 0.53, 0.67), edge: dir(-0.06, 0.76, -0.65) }),
-      L: row(0, 0, 0, 0, 0, { grip: true }),
-    },
+    idle: { R: row(18, 10, 50, 34, 0, { blade: dir(-0.55, 0.42, 0.72), edge: dir(0, 1, 0) }), L: row(0, 0, 0, 0, 0, { grip: true }) },
+    walk: { R: row(17, 12, 52, -8, 0.12, { blade: dir(-0.52, 0.42, 0.74), edge: dir(0.26, 0.91, -0.34) }), L: row(0, 0, 0, 0, 0, { grip: true }) },
+    run: { R: row(-2, 15, 33, -49, 0.2, { blade: dir(0.44, -0.85, -0.3), edge: dir(-0.13, 0.27, -0.96) }), L: row(8, 18, 0, -4, 1, { gaitElbow: 1 }) },
+    sneak: { R: row(21, 11, 57, 8, 0.1, { blade: dir(-0.52, 0.53, 0.67), edge: dir(-0.06, 0.76, -0.65) }), L: row(0, 0, 0, 0, 0, { grip: true }) },
     stand: { feet: { L: [-0.02, 0.12], R: [0.04, -0.07] }, hipYaw: -12, lean: 2 },
     via: dir(-0.259, 0, 0.966),
   }),
   spear: Object.freeze({
-    idle: {
-      R: row(11, 12, 40, 55, 0, { blade: dir(-0.33, 0.74, 0.58), edge: dir(0.26, 0.66, -0.7) }),
-      L: row(0, 0, 0, 0, 0, { grip: true }),
-    },
-    walk: {
-      R: row(3, 19, 62, 25, 0.12, { blade: dir(-0.54, 0.69, 0.49), edge: dir(0.05, 0.61, -0.79) }),
-      L: row(0, 0, 0, 0, 0, { grip: true }),
-    },
-    run: {
-      R: row(-7, 17, 35, -21, 0.2, { blade: dir(0.05, 0.97, -0.23), edge: dir(-0.09, -0.22, -0.97) }),
-      L: row(8, 18, 0, -4, 1, { gaitElbow: 1 }),
-    },
-    sneak: {
-      R: row(-11, 5, 67, -15, 0.1, { blade: dir(-0.29, 0.76, 0.59), edge: dir(0.03, 0.62, -0.78) }),
-      L: row(0, 0, 0, 0, 0, { grip: true }),
-    },
+    idle: { R: row(11, 12, 40, 55, 0, { blade: dir(-0.33, 0.74, 0.58), edge: dir(0.26, 0.66, -0.7) }), L: row(0, 0, 0, 0, 0, { grip: true }) },
+    walk: { R: row(3, 19, 62, 25, 0.12, { blade: dir(-0.54, 0.69, 0.49), edge: dir(0.05, 0.61, -0.79) }), L: row(0, 0, 0, 0, 0, { grip: true }) },
+    run: { R: row(-7, 17, 35, -21, 0.2, { blade: dir(0.05, 0.97, -0.23), edge: dir(-0.09, -0.22, -0.97) }), L: row(8, 18, 0, -4, 1, { gaitElbow: 1 }) },
+    sneak: { R: row(-11, 5, 67, -15, 0.1, { blade: dir(-0.29, 0.76, 0.59), edge: dir(0.03, 0.62, -0.78) }), L: row(0, 0, 0, 0, 0, { grip: true }) },
     stand: { feet: { L: [-0.02, 0.14], R: [0.04, -0.08] }, hipYaw: -14, lean: 2 },
   }),
   dual: Object.freeze({
-    idle: {
-      R: row(8, 23, 12, -34, 0, { blade: dir(0.24, 0.8, -0.55), edge: dir(-0.49, -0.39, -0.78) }),
-      L: row(8, 23, 12, -34, 0, { blade: dir(0.24, 0.8, -0.55), edge: dir(-0.49, -0.39, -0.78), mirror: true }),
-    },
-    walk: {
-      R: row(5, 24, 6, 28, 0.28, { blade: dir(0.31, 0.81, -0.51), edge: dir(-0.38, -0.38, -0.84) }),
-      L: row(5, 24, 6, 28, 0.28, { blade: dir(0.31, 0.81, -0.51), edge: dir(-0.38, -0.38, -0.84), mirror: true }),
-    },
+    idle: { R: row(8, 23, 12, -34, 0, { blade: dir(0.24, 0.8, -0.55), edge: dir(-0.49, -0.39, -0.78) }), L: row(8, 23, 12, -34, 0, { blade: dir(0.24, 0.8, -0.55), edge: dir(-0.49, -0.39, -0.78), mirror: true }) },
+    walk: { R: row(5, 24, 6, 28, 0.28, { blade: dir(0.31, 0.81, -0.51), edge: dir(-0.38, -0.38, -0.84) }), L: row(5, 24, 6, 28, 0.28, { blade: dir(0.31, 0.81, -0.51), edge: dir(-0.38, -0.38, -0.84), mirror: true }) },
     // DUAL-RUN (2026-10-20, Mac: "super stiff"): pumping a fifth of the gait's elbow and 0.4 of its swing behind the hips,
     // the shoulder turned out 60 so the forearm turns 66 off its hinge (locked straight and swinging a tenth, it turned 128)
-    run: {
-      R: row(-42, 10, 8, -60, 0.4, { blade: dir(0.55, -0.8, 0.3), edge: dir(0.3, -0.14, -0.94), gaitElbow: 0.2 }),
-      L: row(-42, 10, 8, -60, 0.4, {
-        blade: dir(0.55, -0.8, 0.3),
-        edge: dir(0.3, -0.14, -0.94),
-        gaitElbow: 0.2,
-        mirror: true,
-      }),
-    },
-    sneak: {
-      R: row(20, 20, 30, -44, 0.15, { blade: dir(0.12, 0.98, -0.18), edge: dir(0.26, -0.2, -0.95) }),
-      L: row(20, 20, 30, -44, 0.15, { blade: dir(0.12, 0.98, -0.18), edge: dir(0.26, -0.2, -0.95), mirror: true }),
-    },
+    run: { R: row(-42, 10, 8, -60, 0.4, { blade: dir(0.55, -0.8, 0.3), edge: dir(0.3, -0.14, -0.94), gaitElbow: 0.2 }), L: row(-42, 10, 8, -60, 0.4, { blade: dir(0.55, -0.8, 0.3), edge: dir(0.3, -0.14, -0.94), gaitElbow: 0.2, mirror: true }) },
+    sneak: { R: row(20, 20, 30, -44, 0.15, { blade: dir(0.12, 0.98, -0.18), edge: dir(0.26, -0.2, -0.95) }), L: row(20, 20, 30, -44, 0.15, { blade: dir(0.12, 0.98, -0.18), edge: dir(0.26, -0.2, -0.95), mirror: true }) },
     stand: { feet: { L: [-0.03, 0.06], R: [0.03, -0.04] }, hipYaw: -4 },
     runLean: 7,
     via: dir(0, 0.259, 0.966),
@@ -222,10 +167,7 @@ export const CARRY = Object.freeze({
   fists: Object.freeze({
     idle: { R: row(34, 20, 118, 12, 0, { fist: true }), L: row(48, 18, 104, 10, 0, { fist: true }) },
     walk: { R: row(34, 20, 116, 12, 0.1, { fist: true }), L: row(48, 18, 102, 10, 0.1, { fist: true }) },
-    run: {
-      R: row(14, 18, 20, -4, 1, { fist: true, gaitElbow: 1 }),
-      L: row(14, 18, 20, -4, 1, { fist: true, gaitElbow: 1 }),
-    },
+    run: { R: row(14, 18, 20, -4, 1, { fist: true, gaitElbow: 1 }), L: row(14, 18, 20, -4, 1, { fist: true, gaitElbow: 1 }) },
     sneak: { R: row(36, 20, 112, 12, 0.1, { fist: true }), L: row(46, 18, 100, 10, 0.1, { fist: true }) },
     stand: { feet: { L: [0, 0.16], R: [0.03, -0.08] }, hipYaw: -18, lean: 4 },
   }),
@@ -246,11 +188,22 @@ export function strideRide(cls, shares, armWL = 1) {
   return 1 - clamp01(blendRow(cls, 'L', shares).grip) * clamp01(armWL);
 }
 
+/** GRIP-ANATOMY: the turn a class lays on the trunk under its weapon at the gait's `shares` - { yaw, pitch } radians
+ *  (bodySolve.js leanUnder), none for a class without a `trunk`. Pure. */
+export function trunkOf(cls, shares) {
+  const t = CARRY[cls]?.trunk;
+  let yaw = 0, pitch = 0, square = 0;
+  if (t) for (const g of ['idle', 'walk', 'run', 'sneak']) {
+    const k = shares[g] ?? 0;
+    if (k > 0 && t[g]) { yaw += t[g][0] * k; pitch += t[g][1] * k; square += (t[g][2] ?? 0) * k; }
+  }
+  // the collarbones held at rest on the chest where the trunk is squared (the guard, the walk)
+  return { yaw: yaw * RAD, pitch: pitch * RAD, square, collar: square };
+}
+
 /** The gait's four shares (idle, walk, run, sneak) - summing to one. */
 export function gaitShares(gp) {
-  const m = clamp01(gp.move),
-    sn = clamp01(gp.sneak),
-    rn = clamp01(gp.run);
+  const m = clamp01(gp.move), sn = clamp01(gp.sneak), rn = clamp01(gp.run);
   const sneak = sn;
   const moving = (1 - sn) * m;
   return { idle: (1 - sn) * (1 - m), walk: moving * (1 - rn), run: moving * rn, sneak };
@@ -258,8 +211,7 @@ export function gaitShares(gp) {
 
 /** Along the great circle from unit `a` to unit `b`, `t` of the way. */
 function slerpV(a, b, t) {
-  const c = Math.min(1, Math.max(-1, dot(a, b))),
-    th = Math.acos(c);
+  const c = Math.min(1, Math.max(-1, dot(a, b))), th = Math.acos(c);
   if (th < 1e-6) return a;
   return norm(add(scale(a, Math.sin((1 - t) * th) / Math.sin(th)), scale(b, Math.sin(t * th) / Math.sin(th))));
 }
@@ -274,45 +226,20 @@ function slerpV(a, b, t) {
  */
 export function blendRow(cls, side, shares) {
   const table = CARRY[cls] ?? CARRY.free;
-  const out = {
-    flex: 0,
-    abduct: 0,
-    elbow: 0,
-    twist: 0,
-    swing: 0,
-    gaitElbow: 0,
-    blade: null,
-    edge: null,
-    grip: 0,
-    fist: false,
-    mirror: false,
-  };
-  let bw = 0,
-    aw = 0;
-  const still = [0, 0, 0],
-    stillEdge = [0, 0, 0];
+  const out = { flex: 0, abduct: 0, elbow: 0, twist: 0, swing: 0, gaitElbow: 0, blade: null, edge: null, grip: 0, fist: false, mirror: false };
+  let bw = 0, aw = 0;
+  const still = [0, 0, 0], stillEdge = [0, 0, 0];
   for (const g of ['idle', 'walk', 'run', 'sneak']) {
     const k = shares[g];
     if (!(k > 0)) continue;
     const r = table[g][side];
-    if (r.grip) {
-      out.grip += k;
-      continue;
-    } // the haft's share: its angles are no arm's
+    if (r.grip) { out.grip += k; continue; }   // the haft's share: its angles are no arm's
     aw += k;
-    out.flex += r.flex * k;
-    out.abduct += r.abduct * k;
-    out.elbow += r.elbow * k;
-    out.twist += r.twist * k;
-    out.swing += r.swing * k;
-    out.gaitElbow += (r.gaitElbow ?? 0) * k;
+    out.flex += r.flex * k; out.abduct += r.abduct * k; out.elbow += r.elbow * k; out.twist += r.twist * k;
+    out.swing += r.swing * k; out.gaitElbow += (r.gaitElbow ?? 0) * k;
     if (r.blade) {
       bw += k;
-      if (g !== 'run')
-        for (let i = 0; i < 3; i++) {
-          still[i] += r.blade[i] * k;
-          stillEdge[i] += r.edge[i] * k;
-        }
+      if (g !== 'run') for (let i = 0; i < 3; i++) { still[i] += r.blade[i] * k; stillEdge[i] += r.edge[i] * k; }
     }
     if (r.fist) out.fist = true;
     if (r.mirror) out.mirror = true;
@@ -321,23 +248,29 @@ export function blendRow(cls, side, shares) {
   if (bw > 0) {
     const run = table.run?.[side]?.blade ? (shares.run > 0 ? shares.run : 0) : 0;
     const s = run / bw;
-    if (s <= 0) {
-      out.blade = norm(still);
-      out.edge = norm(stillEdge);
-    } else if (s >= 1) {
-      out.blade = table.run[side].blade;
-      out.edge = table.run[side].edge;
-    } else {
-      const A0 = norm(still),
-        A1 = table.run[side].blade,
-        V = table.via ?? null;
+    if (s <= 0) { out.blade = norm(still); out.edge = norm(stillEdge); }
+    else if (s >= 1) { out.blade = table.run[side].blade; out.edge = table.run[side].edge; }
+    else {
+      const A0 = norm(still), A1 = table.run[side].blade, V = table.via ?? null;
+      let firstLeg = true;
       if (V) {
-        const t1 = Math.acos(Math.min(1, dot(A0, V))),
-          t2 = Math.acos(Math.min(1, dot(V, A1))),
-          u = s * (t1 + t2);
-        out.blade = u < t1 ? slerpV(A0, V, t1 > 0 ? u / t1 : 1) : slerpV(V, A1, t2 > 0 ? (u - t1) / t2 : 1);
+        const t1 = Math.acos(Math.min(1, dot(A0, V))), t2 = Math.acos(Math.min(1, dot(V, A1))), u = s * (t1 + t2);
+        firstLeg = u < t1;
+        out.blade = firstLeg ? slerpV(A0, V, t1 > 0 ? u / t1 : 1) : slerpV(V, A1, t2 > 0 ? (u - t1) / t2 : 1);
       } else out.blade = slerpV(A0, A1, s);
-      out.edge = norm(lerp3(norm(stillEdge), table.run[side].edge, s));
+      // Carry the blade's whole frame along its path. Blending the edge
+      // independently can make it parallel to the blade and flip the wrist.
+      // RUN-STOP (2026-10-29): along the path the blade takes - through `via` in two legs; one least turn from the still
+      // way flipped sides once the path passed half a turn (the walk's point forward to the run's trailing, 70 to 84
+      // degrees of roll a step)
+      const A = norm(still), B = table.run[side].blade;
+      const square = (v, axis) => norm(sub(v, scale(axis, dot(v, axis))));
+      const edge0 = square(norm(stillEdge), A);
+      const edgeV = V ? apply(rotFromTo(A, V), edge0) : null;
+      const carried = firstLeg ? apply(rotFromTo(A, out.blade), edge0) : apply(rotFromTo(V, out.blade), edgeV);
+      const end = V ? apply(rotFromTo(V, B), edgeV) : apply(rotFromTo(A, B), edge0), goal = square(table.run[side].edge, B);
+      const twist = Math.atan2(dot(B, cross(end, goal)), dot(end, goal));
+      out.edge = apply(rotAxisAngle(out.blade, twist * s), carried);
     }
   }
   return out;
@@ -359,8 +292,7 @@ export function armByAngles(side, S, F, a, b, { flex = 0, abduct = 0, elbow = 0,
   let hinge = apply(Ra, apply(Rf, F.right));
   hinge = apply(rotAxisAngle(scale(upper, -1), sgn * twist * RAD), hinge);
   const fore = apply(rotAxisAngle(hinge, Math.max(0, elbow) * RAD), upper);
-  const E = add(S, scale(upper, a)),
-    W = add(E, scale(fore, b));
+  const E = add(S, scale(upper, a)), W = add(E, scale(fore, b));
   const sw = sub(W, S);
   const ls = len(sw);
   const along = ls > 1e-9 ? scale(sw, dot(sub(E, S), sw) / (ls * ls)) : [0, 0, 0];
@@ -382,8 +314,8 @@ function freeHand(side, arm, F, fist) {
  *  elbow's wave (more bent swinging forward) where the row rides the gait's elbow. */
 function withSwing(side, r, gp) {
   const sgn = side === 'R' ? 1 : -1;
-  const swing = (gp.arm.swing ?? 0) * sgn * r.swing; // radians
-  const fwdShare = (Math.cos(2 * Math.PI * gp.arm.phase) * sgn + 1) / 2; // 1 swung forward, 0 back
+  const swing = (gp.arm.swing ?? 0) * sgn * r.swing;   // radians
+  const fwdShare = (Math.cos(2 * Math.PI * gp.arm.phase) * sgn + 1) / 2;   // 1 swung forward, 0 back
   const gaitElbow = lerp(gp.arm.elbow[0], gp.arm.elbow[1], fwdShare);
   const k = clamp01(r.gaitElbow);
   return {
@@ -400,15 +332,9 @@ export function turnAbout(h, S, R) {
   const pt = (p) => add(S, apply(R, sub(p, S)));
   const way = (d) => (d ? apply(R, d) : d);
   return {
-    ...h,
-    at: pt(h.at),
-    fingers: way(h.fingers),
-    palm: way(h.palm),
-    pole: way(h.pole),
+    ...h, at: pt(h.at), fingers: way(h.fingers), palm: way(h.palm), pole: way(h.pole),
     ...(h.grip ? { grip: pt(h.grip) } : {}),
-    ...(h.frame
-      ? { frame: { blade: apply(R, h.frame.blade), edge: apply(R, h.frame.edge), flat: apply(R, h.frame.flat) } }
-      : {}),
+    ...(h.frame ? { frame: { blade: apply(R, h.frame.blade), edge: apply(R, h.frame.edge), flat: apply(R, h.frame.flat) } } : {}),
   };
 }
 
@@ -416,13 +342,7 @@ export function turnAbout(h, S, R) {
 export function mirrorRequest(h, C, n) {
   if (!h) return null;
   const pt = (p) => add(C, reflect(sub(p, C), n));
-  return {
-    ...h,
-    at: pt(h.at),
-    fingers: h.fingers && reflect(h.fingers, n),
-    palm: h.palm && reflect(h.palm, n),
-    pole: h.pole && reflect(h.pole, n),
-  };
+  return { ...h, at: pt(h.at), fingers: h.fingers && reflect(h.fingers, n), palm: h.palm && reflect(h.palm, n), pole: h.pole && reflect(h.pole, n) };
 }
 
 /** The left hand on the right's haft: the right hand's request reflected across the blade's own plane (the left hand
@@ -431,23 +351,17 @@ export function mirrorRequest(h, C, n) {
  *  the arm reaches (the one nearest the shoulder where none does). */
 export function hafHand(rightReq, rightGrip, Rblade, along, arm, slide = null) {
   if (!rightReq) return null;
-  const b = norm(Rblade.blade),
-    n = norm(Rblade.flat);
+  const b = norm(Rblade.blade), n = norm(Rblade.flat);
   const req = mirrorRequest(rightReq, rightGrip, n);
   let a = along;
   if (slide && arm > 0) {
     // the wrist at `x` along: W0 + b x arm; reachable where |W0 + b x arm - S| <= R
-    const [lo, hi] = slide.range,
-      R = slide.reach * 0.98,
-      d = sub(req.at, slide.shoulder);
-    const bd = dot(b, d),
-      disc = bd * bd - (dot(d, d) - R * R);
+    const [lo, hi] = slide.range, R = slide.reach * 0.98, d = sub(req.at, slide.shoulder);
+    const bd = dot(b, d), disc = bd * bd - (dot(d, d) - R * R);
     const clampTo = (x) => Math.min(hi, Math.max(lo, x));
     if (disc >= 0) {
-      const x1 = (-bd - Math.sqrt(disc)) / arm,
-        x2 = (-bd + Math.sqrt(disc)) / arm;
-      const inLo = Math.max(lo, x1),
-        inHi = Math.min(hi, x2);
+      const x1 = (-bd - Math.sqrt(disc)) / arm, x2 = (-bd + Math.sqrt(disc)) / arm;
+      const inLo = Math.max(lo, x1), inHi = Math.min(hi, x2);
       a = inLo <= inHi ? Math.min(inHi, Math.max(inLo, along)) : clampTo(-bd / arm);
     } else a = clampTo(-bd / arm);
   }
@@ -457,14 +371,11 @@ export function hafHand(rightReq, rightGrip, Rblade, along, arm, slide = null) {
 /** TWO-CLEAR: how far along `fwd` the haft hand's wrist `at` must move to stand `clear` off the trunk's line (`a` the
  *  pelvis, `c` the neck) - 0 where it already does. */
 export function trunkPush(at, a, c, fwd, clear) {
-  const ab = sub(c, a),
-    u = norm(ab);
+  const ab = sub(c, a), u = norm(ab);
   const t = Math.max(0, Math.min(1, dot(sub(at, a), ab) / dot(ab, ab)));
   const v = sub(at, add(a, scale(ab, t)));
   if (len(v) >= clear) return 0;
-  const f = sub(fwd, scale(u, dot(fwd, u))),
-    ff = dot(f, f),
-    vf = dot(v, f);
+  const f = sub(fwd, scale(u, dot(fwd, u))), ff = dot(f, f), vf = dot(v, f);
   if (ff < 1e-9) return 0;
   return Math.max(0, (-vf + Math.sqrt(Math.max(0, vf * vf - ff * (dot(v, v) - clear * clear)))) / ff);
 }
@@ -501,37 +412,20 @@ export function carryHands(cls, gp, ctx, { armW = { L: 1, R: 1 }, shares: given 
   for (const side of ['R', 'L']) {
     if (!(armW[side] > 0)) continue;
     const r = withSwing(side, blendRow(cls, side, shares), gp);
-    if (r.grip >= 1 - 1e-9) continue; // the haft's hand wholly, after the right
+    if (r.grip >= 1 - 1e-9) continue;   // the haft's hand wholly, after the right
     const S = frames.shoulder[side];
     const limb = body.bones[side];
-    const a = len(sub(at(mats, limb.fore), at(mats, limb.upper))),
-      b = len(sub(at(mats, limb.hand), at(mats, limb.fore)));
+    const a = len(sub(at(mats, limb.fore), at(mats, limb.upper))), b = len(sub(at(mats, limb.hand), at(mats, limb.fore)));
     if (r.blade && r.mirror && side === 'L') {
       // the pair's left: the right's own request for the mirrored arm, reflected back across the chest's middle
       const arm = armByAngles('R', add(C, reflect(sub(S, C), F.right)), F, a, b, r);
-      const req = gripRequest(mats, body, 'R', body.wb, {
-        wrist: arm.wrist,
-        blade: inFrame(frames.chest, r.blade),
-        edge: inFrame(frames.chest, r.edge),
-        pole: arm.pole,
-        w: armW.L,
-      });
+      const req = gripRequest(mats, body, 'R', body.wb, { wrist: arm.wrist, blade: inFrame(frames.chest, r.blade), edge: inFrame(frames.chest, r.edge), pole: arm.pole, w: armW.L });
       out.L = held(req && mirrorRequest(req, C, F.right), S, r);
       continue;
     }
     const arm = armByAngles(side, S, F, a, b, r);
     if (r.blade && side === 'R') {
-      const req = held(
-        gripRequest(mats, body, 'R', body.wb, {
-          wrist: arm.wrist,
-          blade: inFrame(frames.chest, r.blade),
-          edge: inFrame(frames.chest, r.edge),
-          pole: arm.pole,
-          w: armW.R,
-        }),
-        S,
-        r,
-      );
+      const req = held(gripRequest(mats, body, 'R', body.wb, { wrist: arm.wrist, blade: inFrame(frames.chest, r.blade), edge: inFrame(frames.chest, r.edge), pole: arm.pole, w: armW.R }), S, r);
       out.R = req;
       if (req) out.grip.R = req.grip;
       continue;
@@ -541,14 +435,26 @@ export function carryHands(cls, gp, ctx, { armW = { L: 1, R: 1 }, shares: given 
   }
   const lRow = blendRow(cls, 'L', shares);
   if (lRow.grip > 0 && out.R && out.grip.R && TWO_HAND_GRIP[cls] != null && armW.L > 0) {
-    const haf = hafHand(out.R, out.grip.R, out.R.frame, TWO_HAND_GRIP[cls], body.arm, {
-      shoulder: frames.shoulder.L,
-      reach: body.arms.L,
-      range: TWO_HAND_HAFT[cls],
-    });
+    // the still gaits (idle, walk) hold the left elbow down and a little back, as before the guard was reshaped
+    // (2026-10-28); the run's keeps ELBOW-OUT's way, out to the left and forward (the run's own hold, 2026-10-29)
+    const still = cls === 'two' ? clamp01(shares.idle + shares.walk) : 0;
+    const along = TWO_HAND_STILL[cls] != null ? lerp(TWO_HAND_CLOSE[cls], TWO_HAND_STILL[cls], still) : TWO_HAND_CLOSE[cls] ?? TWO_HAND_GRIP[cls];
+    const haf = hafHand(out.R, out.grip.R, out.R.frame, along, body.arm, { shoulder: frames.shoulder.L, reach: body.arms.L, range: TWO_HAND_HAFT[cls] });
     if (haf) {
       haf.w = armW.L;
-      haf.pole = norm(add(scale(F.right, -0.55), add(scale(F.up, -0.75), scale(F.fwd, 0.45)))); // TWO-CLEAR: the elbow before the chest (back, it folded into it)
+      // ELBOW-OUT (2026-10-28, the owner: "the left arm goes into the body with this pose"): measured in the game, the
+      // claymore's left elbow stood 0.02-0.05 m off the spine's axis - inside the cuirass - its way had been down, left and
+      // a little BACK; out to the left and forward, clear of the chest, plate or none
+      // GRIP-ANATOMY (the owner's screenshot, 2026-10-29: the left elbow pressed to the chest, the left wrist ugly): in the
+      // still gaits the left fist turns 40 degrees round the hilt, its knuckles toward the left, and the elbow goes out and
+      // down - the right's exact mirror bent the left wrist 68-70 degrees off the forearm with the elbow on the chest; turned,
+      // 32-38, the elbow outside the shoulder's line
+      const walkShare = still > 0 ? shares.walk / still : 0;   // walking, the left elbow a little higher and ahead: out of the cuirass's side
+      haf.pole = norm(add(scale(F.right, lerp(-0.55, -1, still)), add(scale(F.up, lerp(-0.3, lerp(-0.3, -0.1, walkShare), still)), scale(F.fwd, lerp(0.8, lerp(0.1, 0.3, walkShare), still)))));
+      if (still > 0) {
+        const b = norm(out.R.frame.blade), G = add(out.grip.R, scale(b, haf.along * body.arm)), Q = rotAxisAngle(b, ((LEFT_FIST_ROLL.idle * shares.idle + LEFT_FIST_ROLL.walk * shares.walk) / still) * RAD * still);
+        Object.assign(haf, { at: add(G, apply(Q, sub(haf.at, G))), fingers: apply(Q, haf.fingers), palm: apply(Q, haf.palm) });
+      }
       // closed on the haft by the haft's own share, eased off the free arm the other rows give it
       const k = clamp01(lRow.grip);
       out.L = k >= 1 - 1e-9 || !out.L ? haf : blendHand(out.L, haf, k * k * (3 - 2 * k));
@@ -567,22 +473,13 @@ export function blendHand(a, b, t) {
   if (!a) return b && t > 0 ? { ...b, w: (b.w ?? 1) * t } : null;
   if (!b || !(t > 0)) return a;
   if (t >= 1) return b;
-  let fingers = b.fingers ?? a.fingers,
-    palm = b.palm ?? a.palm;
+  let fingers = b.fingers ?? a.fingers, palm = b.palm ?? a.palm;
   if (a.fingers && b.fingers && a.palm && b.palm) {
-    const frame = (f, p) => {
-      const x = norm(f),
-        z = norm(cross(x, p));
-      return fromColumns(x, cross(z, x), z);
-    };
-    const Ra = frame(a.fingers, a.palm),
-      Q = rotFraction(mul(frame(b.fingers, b.palm), transpose(Ra)), t);
-    fingers = apply(Q, norm(a.fingers));
-    palm = apply(Q, norm(sub(a.palm, scale(norm(a.fingers), dot(a.palm, norm(a.fingers))))));
-  } else if (a.fingers && b.fingers)
-    fingers = apply(rotFraction(rotFromTo(norm(a.fingers), norm(b.fingers)), t), norm(a.fingers));
-  const pole =
-    a.pole && b.pole ? apply(rotFraction(rotFromTo(norm(a.pole), norm(b.pole)), t), norm(a.pole)) : (b.pole ?? a.pole);
+    const frame = (f, p) => { const x = norm(f), z = norm(cross(x, p)); return fromColumns(x, cross(z, x), z); };
+    const Ra = frame(a.fingers, a.palm), Q = rotFraction(mul(frame(b.fingers, b.palm), transpose(Ra)), t);
+    fingers = apply(Q, norm(a.fingers)); palm = apply(Q, norm(sub(a.palm, scale(norm(a.fingers), dot(a.palm, norm(a.fingers))))));
+  } else if (a.fingers && b.fingers) fingers = apply(rotFraction(rotFromTo(norm(a.fingers), norm(b.fingers)), t), norm(a.fingers));
+  const pole = a.pole && b.pole ? apply(rotFraction(rotFromTo(norm(a.pole), norm(b.pole)), t), norm(a.pole)) : (b.pole ?? a.pole);
   return { ...a, at: lerp3(a.at, b.at, t), fingers, palm, pole, w: lerp(a.w ?? 1, b.w ?? 1, t) };
 }
 

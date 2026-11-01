@@ -1465,7 +1465,7 @@ export const FEATURES = Object.freeze([
         return t(`features.${key}.title`, title);
       },
       get note() {
-        return t(`features.${key}.note`, `${note} Classic is Daggerfall's own 320x200 frame.`);
+        return t(`features.${key}.note`, `${note} Retro is Daggerfall's own 320x200 frame.`);
       },
       get effect() {
         return t('features.effect.atOnce', 'Takes effect at once.');
