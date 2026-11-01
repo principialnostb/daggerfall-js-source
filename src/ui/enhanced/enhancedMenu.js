@@ -3550,6 +3550,13 @@ export function supportedModsCard() {
           ]
           : [{ label: t('menu.supportedMods.attach', 'Attach mod files'), primary: true, onClick: () => { _modsChoosing = mod.id; render(); } }]),
       ];
+    // a found pack can be attached again over itself: the way to repair or update it
+    if (found) buttons.push(...(_modsChoosing === mod.id
+      ? [
+        { label: t('menu.supportedMods.attachFolder', 'Mod folder'), onClick: () => { wanted = mod; dirIn.click(); } },
+        { label: t('menu.supportedMods.attachZip', '.zip file'), onClick: () => { wanted = mod; zipIn.click(); } },
+      ]
+      : [{ label: t('menu.supportedMods.attachAgain', 'Attach again'), onClick: () => { _modsChoosing = mod.id; render(); } }]));
     if (supportedModAttached(mod.id)) buttons.push({ label: t('menu.supportedMods.remove', 'Remove'), onClick: async () => {
       const { removeAttachedMod } = await import('../../scenes/dataSource.js');
       await removeAttachedMod(mod.id);
