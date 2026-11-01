@@ -14,6 +14,7 @@
 // UPPERCASE basenames - real ARENA2 ships uppercase, user folders vary.
 
 import { isTouchDevice } from '../ui/touch/touchDevice.js';   // TI3
+import { identifyPacks, modFileKey, applyModFiles, SUPPORTED_MODS } from '../systems/supportedMods.js'; // MODS-BYO
 import { isEnhanced } from '../systems/uiSkin.js';   // FONT3: the asset picker's face follows the skin
 import { PIXEL_FONT_CSS } from '../ui/pixelifyFive.js';   // FONT3
 import { optionPath } from '../ui/settings/settingsMap.js';   // ORG2
@@ -67,7 +68,8 @@ const DERIVED_STORE = 'derived';
 const ARENA_STORE = 'arena';
 /** Every injected-asset store, so the upgrade and the helpers below
  *  cannot drift from each other - adding a domain is one entry. */
-const ASSET_STORES = [MUSIC_STORE, TEXTURE_STORE, MW_STORE, DERIVED_STORE, ARENA_STORE];
+const MOD_STORE = 'attached-mods'; // MODS-BYO: a supported pack's files, keyed by their path under Mods/
+const ASSET_STORES = [MUSIC_STORE, TEXTURE_STORE, MW_STORE, DERIVED_STORE, ARENA_STORE, MOD_STORE];
 const mem = new Map(); // NAME -> Uint8Array
 /** AUDIT MEM-AUDIT M1: the names whose bytes came from IndexedDB or the network, so can be read again (forgetBytes) - a
  *  memory-only session's picked set (the ingest's no-IDB arm, a quota's refusal too) is its only copy, and forgetting it
@@ -168,7 +170,7 @@ function openDb() {
     // below is guarded by `contains`, so a player arriving at any older
     // version gains the new store and keeps every byte of the old ones.
     // 6 (TESA1): the Arena store, the same additive arm.
-    const req = indexedDB.open(DB_NAME, 6);
+    const req = indexedDB.open(DB_NAME, 7);   // 7 (MODS-BYO): the attached mods' store, the same additive arm
     req.onupgradeneeded = () => {
       const d = req.result;
       if (!d.objectStoreNames.contains(STORE)) d.createObjectStore(STORE);
@@ -835,6 +837,7 @@ async function _openMorrowindArchives(gen) {
   // LOAD-STALL 3: the loose files are OPENED, not read - their names now, a file's bytes when a reader loads it (the
   // .bsa's MW-LOAD law). Every one used to be read whole out of the store, one after another, before the first body
   // could build: a Data Files folder attached whole is thousands of them.
+  await hydrateAttachedMods();   // MODS-BYO
   const looseNames = (await storedMorrowindNames()).filter((n) => MW_LOOSE_EXT.test(n));
   if (looseNames.length) archives.push(makeLazyLooseArchive(looseNames, (n) => assetBytes(MW_STORE, n)));
   // Bundled replacement packs follow user loose files (which win collisions)
@@ -1544,6 +1547,44 @@ export const incompleteArena2Text = (missing) =>
  *  entry that inflates past what it declared is stopped there). A
  *  refusal throws an Error whose `code` is 'zip-too-large'. Without one,
  *  nothing below changes. */
+/** MODS-BYO: put a pick's files in the store. `picked` is [{ path, blob }]; answers the packs it held, by id. */
+export async function attachModFiles(picked) {
+  const packs = identifyPacks(picked.map((f) => f.path));
+  const d = await getDb();
+  for (const pack of packs) {
+    for (const f of picked) {
+      const key = modFileKey(pack, f.path);
+      if (!key) continue;
+      await new Promise((res, rej) => {
+        const tx = d.transaction(MOD_STORE, 'readwrite');
+        tx.objectStore(MOD_STORE).put(f.blob, key);
+        tx.oncomplete = () => res();
+        tx.onerror = () => rej(tx.error);
+      });
+    }
+  }
+  return packs.map((p) => p.id);
+}
+
+/** MODS-BYO: a supported pack's attached files out of the store. */
+export async function removeAttachedMod(id) {
+  const home = SUPPORTED_MODS.find((m) => m.id === id)?.home;
+  if (home) await deleteAssets(MOD_STORE, (await assetNames(MOD_STORE)).filter((n) => n.startsWith(home)));
+}
+
+let _modsHydrated = null;
+/** MODS-BYO: the attached files into the loaders' tables, once, before the first rig reads them. */
+export function hydrateAttachedMods() {
+  return (_modsHydrated ??= (async () => {
+    const files = [];
+    for (const key of await assetNames(MOD_STORE)) {
+      const blob = await assetBlob(MOD_STORE, key);
+      if (blob) files.push([key, URL.createObjectURL(blob)]);
+    }
+    applyModFiles(files);
+  })().catch((e) => console.warn('attached mods:', e?.message ?? e)));
+}
+
 export async function readZipEntries(file, { pick = (names) => names, onProgress, limit = null } = {}) {
   const buf = new Uint8Array(await file.arrayBuffer());
   const dv = new DataView(buf.buffer);

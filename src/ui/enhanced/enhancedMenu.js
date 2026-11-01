@@ -139,7 +139,7 @@ import { exportSavesZip, collectSlots, importSlots, entriesFromFiles, slotPathOf
 import { appStorage, tabStorage } from '../../systems/appStorage.js';   // SP1: the store under this build - the browser's on the site, the file store in the app   // SAV4: the slot store; SLOTS1: every slot
 import { uiSkin, SKIN_NAMES, isEnhanced } from '../../systems/uiSkin.js';   // FD1: which boot rail
 import { getPref, setPref, isOpen, setOpen, PREF_DEFAULTS } from '../../systems/uiPrefs.js';
-import { SUPPORTED_MODS, supportedModFound } from '../../systems/supportedMods.js'; // MODS-BYO
+import { SUPPORTED_MODS, supportedModFound, supportedModAttached, modEnabled, setModEnabled } from '../../systems/supportedMods.js'; // MODS-BYO
 import { EG_DANGER_PALETTES, EG_DANGER_PALETTE_KEYS } from '../eliteGates/egAccess.js';   // EG-G1: the Spire's danger palettes, named once
 import { TOUCH_BUTTON_SLOTS, touchButtonSlots, nextTouchButton, touchButtonChoices } from '../touch/touchButtons.js';   // TOUCH-BUTTONS: the corner's three slots
 import { DEFAULT_SERVER } from '../../net/online.js';   // ONLINE1: the relay this port hosts, the field's placeholder   // R7: the port's own switches; SO1: the folded tiers' memory
@@ -3471,16 +3471,58 @@ function waitForTextureStore() {
  *  DFMOD1: and every pack comes OFF here too - each has a Remove beside its Attach once something is attached,
  *  behind the same confirm Delete Save uses - and Daggerfall Unity .dfmod texture mods (DREAM and its kin) attach
  *  as files, each listed with its own Remove. */
-/** MODS-BYO: the third-party packs the game has adapters for, found or not; a missing one links to its author's page. */
+/** MODS-BYO: the third-party packs the game has adapters for. A missing one links to its author's page; a folder or a
+ *  .zip attached here is recognised by its files and kept in this browser. Changes apply on reload. */
+let _modsNote = null;
 function supportedModsCard() {
   const c = el('div', 'card');
   c.append(el('h3', null, t('menu.supportedMods.title', 'Supported Morrowind mods')));
-  c.append(el('p', 'meta', t('menu.supportedMods.blurb', 'Their files stay with their authors. Download them yourself. For now the game finds them only in a local Mods folder.')));
+  c.append(el('p', 'meta', t('menu.supportedMods.blurb', 'Download a mod from its author, then attach its folder or .zip. Unpack .7z and .rar first.')));
+  if (_modsNote) { c.append(el('p', 'meta', _modsNote)); _modsNote = null; }
+  const zipIn = el('input'); zipIn.type = 'file'; zipIn.accept = '.zip,application/zip'; zipIn.style.display = 'none';
+  const dirIn = el('input'); dirIn.type = 'file'; dirIn.setAttribute('webkitdirectory', ''); dirIn.multiple = true; dirIn.style.display = 'none';
+  const take = async (picked) => {
+    const { attachModFiles } = await import('../../scenes/dataSource.js');
+    const ids = await attachModFiles(picked);
+    _modsNote = ids.length
+      ? t('menu.supportedMods.attached', 'Attached: {names}. Reload the game to use them.', { names: ids.map((id) => SUPPORTED_MODS.find((m) => m.id === id)?.name).join(', ') })
+      : t('menu.supportedMods.unknown', 'No supported mod found in that selection.');
+    render();
+  };
+  zipIn.onchange = async () => {
+    const f = zipIn.files?.[0]; if (!f) return;
+    try {
+      const { readZipEntries } = await import('../../scenes/dataSource.js');
+      const entries = await readZipEntries(f);
+      await take(entries.map((e) => ({ path: e.name ?? e.path, blob: new Blob([e.bytes ?? e.data ?? e.buffer]) })));
+    } catch (err) { _modsNote = t('menu.supportedMods.readFailed', 'Could not read {file}: {error}', { file: f.name, error: err?.message ?? err }); render(); }
+  };
+  dirIn.onchange = () => take([...(dirIn.files ?? [])].map((f) => ({ path: f.webkitRelativePath || f.name, blob: f })));
+  c.append(zipIn, dirIn);
+  c.append(acts([
+    { label: t('menu.supportedMods.attachFolder', 'Attach folder'), onClick: () => dirIn.click() },
+    { label: t('menu.supportedMods.attachZip', 'Attach .zip'), onClick: () => zipIn.click() },
+    { label: t('menu.supportedMods.reload', 'Reload game'), onClick: () => window.location.reload() },
+  ]));
   for (const mod of SUPPORTED_MODS) {
     const row = el('div', 'card');
     row.append(el('p', null, mod.name));
-    if (supportedModFound(mod.id)) row.append(el('p', 'meta', t('menu.supportedMods.found', 'Installed')));
-    else {
+    if (supportedModFound(mod.id)) {
+      const on = modEnabled(mod.id);
+      row.append(el('p', 'meta', on ? t('menu.supportedMods.found', 'Installed, on') : t('menu.supportedMods.foundOff', 'Installed, off')));
+      const buttons = [{ label: on ? t('menu.supportedMods.off', 'Turn off') : t('menu.supportedMods.on', 'Turn on'), onClick: () => {
+        setModEnabled(mod.id, !on);
+        _modsNote = t('menu.supportedMods.reloadNote', 'Reload the game to apply this.');
+        render();
+      } }];
+      if (supportedModAttached(mod.id)) buttons.push({ label: t('menu.supportedMods.remove', 'Remove'), onClick: async () => {
+        const { removeAttachedMod } = await import('../../scenes/dataSource.js');
+        await removeAttachedMod(mod.id);
+        _modsNote = t('menu.supportedMods.reloadNote', 'Reload the game to apply this.');
+        render();
+      } });
+      row.append(acts(buttons));
+    } else {
       row.append(el('p', 'meta', t('menu.supportedMods.missing', 'Not installed')));
       row.append(acts([{ label: t('menu.supportedMods.get', 'Get from Nexus Mods'), onClick: () => window.open(mod.url, '_blank', 'noopener') }]));
     }

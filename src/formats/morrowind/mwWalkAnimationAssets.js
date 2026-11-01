@@ -1,3 +1,4 @@
+import { registerModTable } from '../../systems/supportedMods.js'; // MODS-BYO
 import { MW_STOCK } from '../../systems/mwStockChoices.js';
 // Runtime loader for animation packs under Mods/Animations.
 // Files are bundled by Vite as URLs; their bytes are parsed by the same NIF/KF
@@ -57,17 +58,21 @@ const OPENMW_DYNAMIC_THIRD_PERSON_FILES = IN_BROWSER
   : {};
 
 const norm = (value) => String(value).replace(/\\/g, '/').toLowerCase();
-const entries = Object.entries(FILES).map(([path, url]) => ({ path: path.replace(/\\/g, '/'), lower: norm(path), url }));
-const standardMale = entries.find((e) => e.lower.includes('/simply walking purist edition/meshes/xbase_anim.kf'));
+registerModTable(FILES, /^animations\/morrowind animation overhaul\/data files\/meshes\/xbase_anim(?:_female)?\.kf$/);
+registerModTable(FIRST_PERSON_FILES, /^animations\/reanimation[^/]*\/00 core\/animations\/xbase_anim\.1st\/.*\.kf$/);
+registerModTable(OPENMW_DYNAMIC_FIRST_PERSON_FILES, /^animations\/openmw dynamic animations\/animations\/xbase_anim\.1st\/[^/]*\.kf$/);
+registerModTable(OPENMW_DYNAMIC_THIRD_PERSON_FILES, /^animations\/openmw dynamic animations\/animations\/(?!xbase_anim\.1st\/).*\.kf$/);
+const entries = () => Object.entries(FILES).map(([path, url]) => ({ path: path.replace(/\\/g, '/'), lower: norm(path), url }));
+const standardMale_ = () => entries().find((e) => e.lower.includes('/simply walking purist edition/meshes/xbase_anim.kf'));
 // Keep the general female walk and Feminine Walk Cycle as distinct selectable
 // variants. The resolver filters each source to its declared family and chooses
 // the selected variant only; unsupported groups retain the game's own source.
-const puristFemale = entries.find((e) => e.lower.includes('/simply walking purist edition/meshes/xbase_anim_female.kf'));
-const feminineFemale = entries.find((e) => e.lower.includes('/simply walking/feminine walk cycle/meshes/xbase_anim_female.kf'));
-const axelFemale = entries.find((e) => e.lower.includes("/axel's sexy walk fixed/animation/axel fixed/female/walkforward;.kf"));
-const axelRunFemale = entries.find((e) => e.lower.includes("/axel's sexy walk fixed/animation/axel fixed/female/runforward;.kf"));
-const overhaulMale = entries.find((e) => e.lower.includes('/morrowind animation overhaul/data files/meshes/xbase_anim.kf'));
-const overhaulFemale = entries.find((e) => e.lower.includes('/morrowind animation overhaul/data files/meshes/xbase_anim_female.kf'));
+const puristFemale_ = () => entries().find((e) => e.lower.includes('/simply walking purist edition/meshes/xbase_anim_female.kf'));
+const feminineFemale_ = () => entries().find((e) => e.lower.includes('/simply walking/feminine walk cycle/meshes/xbase_anim_female.kf'));
+const axelFemale_ = () => entries().find((e) => e.lower.includes("/axel's sexy walk fixed/animation/axel fixed/female/walkforward;.kf"));
+const axelRunFemale_ = () => entries().find((e) => e.lower.includes("/axel's sexy walk fixed/animation/axel fixed/female/runforward;.kf"));
+const overhaulMale_ = () => entries().find((e) => e.lower.includes('/morrowind animation overhaul/data files/meshes/xbase_anim.kf'));
+const overhaulFemale_ = () => entries().find((e) => e.lower.includes('/morrowind animation overhaul/data files/meshes/xbase_anim_female.kf'));
 
 const cache = new Map();
 let warnedMissingWalkAssets = false;
@@ -93,20 +98,20 @@ async function bytes(entry) {
 export async function loadWalkAnimationAssets({ female = false } = {}) {
   if (!IN_BROWSER) return [];
   const simplyCandidates = female
-    ? [{ entry: puristFemale, variant: 'simply', family: 'walk' }]
-    : [{ entry: standardMale, variant: 'simply', family: 'walk' }];
+    ? [{ entry: puristFemale_(), variant: 'simply', family: 'walk' }]
+    : [{ entry: standardMale_(), variant: 'simply', family: 'walk' }];
   const feminineCandidate = female
-    ? { entry: feminineFemale, variant: 'feminine', family: 'walk' }
+    ? { entry: feminineFemale_(), variant: 'feminine', family: 'walk' }
     : null;
   // Each female walk pack has its own visible option. fpArm filters the KF
   // down to the walk family and only admits the chosen variant.
   const overrides = female ? [
-    { entry: axelFemale, variant: 'axel', family: 'walk' },
-    { entry: axelRunFemale, variant: 'axel', family: 'run' },
+    { entry: axelFemale_(), variant: 'axel', family: 'walk' },
+    { entry: axelRunFemale_(), variant: 'axel', family: 'run' },
   ] : [];
   // MAO-SOURCE (2026-10-30, the owner compared Vanilla and MAO in the game): the pack's movement is the standard - its run
   // and its walks in a stance; the plain walk, the stance and the blows stay as they were. No setting: the choice is made.
-  const overhaul = { entry: female ? overhaulFemale : overhaulMale, variant: 'overhaul', family: 'all', movementOnly: true };
+  const overhaul = { entry: female ? overhaulFemale_() : overhaulMale_(), variant: 'overhaul', family: 'all', movementOnly: true };
   const selected = [];
   try {
     if (overhaul?.entry) {
@@ -493,14 +498,14 @@ export async function loadHitReactionAnimationAssets({ skeletonPath } = {}) {
 export function inspectWalkAnimationAssets() {
   return {
     browser: IN_BROWSER,
-    standardMale: standardMale?.path ?? null,
-    puristFemale: puristFemale?.path ?? null,
-    feminineFemale: feminineFemale?.path ?? null,
-    feminineCycleEnabledAsIndependentVariant: !!feminineFemale,
-    axelFemale: axelFemale?.path ?? null,
-    axelRunFemale: axelRunFemale?.path ?? null,
-    overhaulMale: overhaulMale?.path ?? null,
-    overhaulFemale: overhaulFemale?.path ?? null,
+    standardMale: standardMale_()?.path ?? null,
+    puristFemale: puristFemale_()?.path ?? null,
+    feminineFemale: feminineFemale_()?.path ?? null,
+    feminineCycleEnabledAsIndependentVariant: !!feminineFemale_(),
+    axelFemale: axelFemale_()?.path ?? null,
+    axelRunFemale: axelRunFemale_()?.path ?? null,
+    overhaulMale: overhaulMale_()?.path ?? null,
+    overhaulFemale: overhaulFemale_()?.path ?? null,
     overhaulEnabled: true,
   };
 }

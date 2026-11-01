@@ -203,6 +203,7 @@ export const PREF_DEFAULTS = Object.freeze({
   // assets are - only a look a player might prefer to opt OUT of.
   // MW-TP-ONLY: keep Morrowind's NIF body in third person while the first-person view uses the classic arm/sprite path.
   morrowindThirdPersonOnly: false,
+  supportedModsOff: null, // MODS-BYO: the packs switched off, by id
   // MW-UI-SPLIT: keep Morrowind meshes in the world/first-person rig without replacing classic UI art.
   morrowind3dInventoryIcons: false,
   morrowind3dPaperDoll: false,

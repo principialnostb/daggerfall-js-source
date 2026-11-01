@@ -1,3 +1,4 @@
+import { registerModTable } from '../../systems/supportedMods.js'; // MODS-BYO
 import { MW_STOCK } from '../../systems/mwStockChoices.js';
 // Better Bodies asset resolver for the Morrowind character pipeline.
 //
@@ -89,6 +90,16 @@ const betterBodiesFemaleUvEditsUrl = IN_BROWSER
     }))[0] ?? null
   : null;
 
+// MODS-BYO: attached packs enter these tables (systems/supportedMods.js)
+registerModTable(nudeBodyModelUrls, /^bodies\/better bodies\/nude\/data files\/meshes\/bb\/bb_skin[^/]*\.nif$/);
+registerModTable(nudeHandModelUrls, /^bodies\/better bodies\/nude\/data files\/meshes\/bb\/bb_hand[^/]*\.nif$/);
+registerModTable(nudeHandTextureUrls, /^bodies\/better bodies\/nude\/data files\/textures\/bb\/bb_hand[^/]*\.dds$/);
+registerModTable(nudeBodyTextureUrls, /^bodies\/better bodies\/nude\/data files\/textures\/bb\/bb_skin[^/]*\.dds$/);
+registerModTable(underwearBodyModelUrls, /^bodies\/better bodies\/underwear\/data files\/meshes\/bb\/bb_skin[^/]*\.nif$/);
+registerModTable(underwearHandModelUrls, /^bodies\/better bodies\/underwear\/data files\/meshes\/bb\/bb_hand[^/]*\.nif$/);
+registerModTable(underwearHandTextureUrls, /^bodies\/better bodies\/underwear\/data files\/textures\/bb\/bb_hand[^/]*\.dds$/);
+registerModTable(underwearBodyTextureUrls, /^bodies\/better bodies\/underwear\/data files\/textures\/bb\/bb_skin[^/]*\.dds$/);
+
 const RACE_CODES = Object.freeze({
   breton: 'br', darkelf: 'de', highelf: 'he', imperial: 'im',
   nord: 'no', orc: 'or', redguard: 'rg', woodelf: 'we',
@@ -118,6 +129,11 @@ const betterHandsTextureUrls = IN_BROWSER
       eager: true, query: '?url', import: 'default',
     })
   : {};
+
+registerModTable(robertBodyModelUrls, /^bodies\/robert's bodies\/data files\/meshes\/bbr\/[^/]*\.nif$/);
+registerModTable(robertBodyTextureUrls, /^bodies\/robert's bodies\/data files\/textures\/bbr\/[^/]*\.dds$/);
+registerModTable(betterHandsModelUrls, /^bodies\/better hands\/meshes\/b\/[^/]*\.1st\.nif$/);
+registerModTable(betterHandsTextureUrls, /^bodies\/better hands\/textures\/bbr\/[^/]*\.dds$/);
 
 const ROBERT_RACE_NAMES = Object.freeze({
   breton: 'breton', darkelf: 'dark elf', highelf: 'high elf', imperial: 'Imperial',

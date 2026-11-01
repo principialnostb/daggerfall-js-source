@@ -15,16 +15,13 @@ The fork's owner regards the Morrowind body lane as a Morrowind modification, be
 | Robert's Bodies (readme) | use anywhere | - | - | yes, credit | - | not checked | carried, credit required |
 | Better Bodies (Psychodog Studios) | not found | not found | not found | not found | not found | several authors | carried, unconfirmed: maintainers to clear |
 
-## How held packs connect
-
-The loaders use Vite globs over `Mods/` (git-ignored), so a pack placed there is picked up at dev or build time. A player of a published build cannot add one yet: that needs a runtime attach, not built here. Without a pack, the game's own clips and bodies are used.
 
 
 ## Delivery: bring your own files
 
 DFO Online gives these mods separate technical support and claims no ownership of them. Players and testers fetch the originals from the authors' pages. Only OpenMW Dynamic Animations is carried, as its terms allow with credit. The table's "carried" words for the others are superseded: their files are not in this branch.
 
-**Built:** the list in Mods & Files (`src/systems/supportedMods.js`), the Nexus links and detection of a local `Mods/` folder. **Not built:** attaching an archive in a published build, and the on/off switch. The Better Bodies link has not been confirmed to open.
+**Built:** Mods & Files lists the six packs. A player attaches a folder or a .zip; the game recognises the pack by its files, keeps them in the browser (IndexedDB store `attached-mods`, `src/systems/supportedMods.js`) and hands them to the existing loaders as URLs after a reload. Each pack has on/off and Remove. A missing pack falls back to the game's own files. **Limits:** .7z and .rar must be unpacked first. No version check. The Better Bodies link has not been confirmed to open.
 
 ## Installing for testers
 
