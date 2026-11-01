@@ -3391,9 +3391,14 @@ export function morrowindCard({ count = morrowindDataCount(), armState = fpArm.s
       },
     ) });
   }
-  // MW-TP-ONLY: the Morrowind body in third person alone (combat/weapon/weaponRig.js)
-  mw.append(el('p', 'meta', `Third Person: ${getPref('morrowindThirdPersonOnly') ? 'On' : 'Off'}`));
-  actions.push({ label: 'Third Person', onClick: () => { setPref('morrowindThirdPersonOnly', !getPref('morrowindThirdPersonOnly')); render(); } });
+  // MW-UI-SPLIT: on, the 2D paperdoll and icons stay with Morrowind's 3D bodies; off, the inventory is 3D too (combat/fpArm.js)
+  const paperdollOn = !getPref('morrowind3dPaperDoll');
+  mw.append(el('p', 'meta', paperdollOn ? t('menu.mw.paperdollOn', 'Paperdoll: on. The inventory stays 2D with Morrowind models.') : t('menu.mw.paperdollOff', 'Paperdoll: off. The inventory is 3D, as in Morrowind.')));
+  actions.push({ label: paperdollOn ? t('menu.mw.paperdollDisable', 'Turn paperdoll off') : t('menu.mw.paperdollEnable', 'Turn paperdoll on'), onClick: () => {
+    setPref('morrowind3dPaperDoll', paperdollOn);
+    setPref('morrowind3dInventoryIcons', paperdollOn);
+    render();
+  } });
   mw.append(acts(actions));
   for (const line of morrowindTroubleLines(armState)) mw.append(el('p', 'meta', line));
   return mw;
@@ -3477,7 +3482,7 @@ let _modsNote = null;
 let _modsChoosing = null;   // the row whose Attach was pressed: a browser has no one picker for a folder and a file
 export function supportedModsCard() {
   const c = el('div', 'card');
-  c.append(el('h3', null, t('menu.supportedMods.title', 'Morrowind mods')));
+  c.append(el('h3', null, t('menu.supportedMods.title', 'Morrowind graphics improvements')));
   c.append(el('p', 'meta', t('menu.supportedMods.blurb', 'Download a mod from its author, then attach its folder or .zip. Unpack .7z and .rar first.')));
   const note = (text, reload = false) => { _modsNote = { text, reload }; render(); };
   if (_modsNote) {
@@ -3507,6 +3512,23 @@ export function supportedModsCard() {
   };
   dirIn.onchange = () => take([...(dirIn.files ?? [])].map((f) => ({ path: f.webkitRelativePath || f.name, blob: f })));
   c.append(zipIn, dirIn);
+  {
+    const pack = attachedDfmods().find((m) => /paperdoll\s*enhanced/i.test(`${m.title ?? ''} ${m.key ?? ''}`));
+    const row = el('div');
+    row.style.cssText = 'display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:10px 0;border-top:1px solid rgba(201,178,120,.25)';
+    const about = el('div');
+    about.style.cssText = 'flex:1 1 220px;min-width:0';
+    const state = el('p', 'meta', !pack ? t('menu.supportedMods.missing', 'Not installed') : pack.enabled ? t('menu.supportedMods.found', 'Installed, on') : t('menu.supportedMods.foundOff', 'Installed, off'));
+    if (pack?.enabled) state.style.color = '#8fce8f';
+    about.append(el('p', null, 'Paperdoll Enhanced'), el('p', 'meta', t('menu.supportedMods.paperdoll', 'New portraits and 2D helms in the paperdoll.')), state);
+    row.append(about, acts(pack
+      ? [{ label: pack.enabled ? t('menu.supportedMods.off', 'Turn off') : t('menu.supportedMods.on', 'Turn on'), onClick: () => { setDfmodEnabled(pack.key, !pack.enabled); render(); } }]
+      : [
+        { label: t('menu.supportedMods.get', 'Download from Nexus Mods'), onClick: () => window.open('https://www.nexusmods.com/games/daggerfallunity/mods?keyword=Paperdoll+Enhanced', '_blank', 'noopener') },
+        { label: t('menu.supportedMods.attach', 'Attach mod files'), primary: true, onClick: async () => { const ds = await import('../../scenes/dataSource.js'); await ds.pickDfmodFiles(); render(); } },
+      ]));
+    c.append(row);
+  }
   for (const mod of SUPPORTED_MODS) {
     const row = el('div');
     row.style.cssText = 'display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:10px 0;border-top:1px solid rgba(201,178,120,.25)';

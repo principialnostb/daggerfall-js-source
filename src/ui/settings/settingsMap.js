@@ -92,7 +92,6 @@ export const CATEGORIES = Object.freeze([
       'Video/EnableTextureArrays',
       'GUI/AccelerateUICopyTexture',
     ]),
-    sec('pixelation', 'Pixelation', ['feat:char-pixel-fp', 'feat:char-pixel-player', 'feat:char-pixel-npc']),
     sec('retro', 'Retro look', [
       'Video/RetroRenderingMode',
       'Video/PostProcessingInRetroMode',
@@ -435,7 +434,9 @@ export const CATEGORIES = Object.freeze([
     ]),
   ]),
   tab('mods', 'Mods & files', [
-    sec('files', 'Your files', ['card:supportedMods', 'card:morrowind', 'card:packs']),
+    sec('files', 'Your files', ['card:morrowind', 'card:supportedMods']),
+    sec('pixelation', 'Pixelation', ['feat:char-pixel-fp', 'feat:char-pixel-player', 'feat:char-pixel-npc']),
+    sec('packs', 'Replacement packs', ['card:packs']),
     sec('dfu', "Daggerfall Unity's mod system", [
       'Enhancements/LypyL_ModSystem',
       'Enhancements/AssetInjection',

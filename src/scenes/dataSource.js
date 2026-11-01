@@ -1582,6 +1582,7 @@ export function hydrateAttachedMods() {
       if (blob) files.push([key, URL.createObjectURL(blob)]);
     }
     applyModFiles(files);
+    console.info(`[mods] attached files in this browser: ${files.length}`);
   })().catch((e) => console.warn('attached mods:', e?.message ?? e)));
 }
 

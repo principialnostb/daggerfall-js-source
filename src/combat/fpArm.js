@@ -2896,6 +2896,7 @@ async function buildTpBody({
     // from this actor's stable identity. Walk-only user selectors below retain priority.
     if (!werewolf) {
       const dynamicAssets = await loadOpenMWDynamicThirdPersonAnimationAssets({ skeletonPath, race });
+      console.info(`[mods] third-person clips: ${dynamicAssets.length}`);
       const seed = [npcHint?.seed ?? '', npcHint?.tier ?? '', skeletonPath, race, female ? 'female' : 'male', beast ? 'beast' : 'biped',
         faceIndex ?? '', appearanceHeadId ?? '', appearanceHairId ?? '',
         walk?.head?.model ?? walk?.head?.id ?? '', walk?.hair?.model ?? walk?.hair?.id ?? ''].join('|');
@@ -2950,6 +2951,7 @@ async function buildTpBody({
     // other actions keep the game's own sources and priority.
     if (!werewolf && !beast) {
       const walkAssets = await loadWalkAnimationAssets({ female });
+      console.info('[mods] walk and run sources:', walkAssets.map((a) => a.variant).join(', ') || 'none');
       for (const asset of walkAssets) {
         const report = await cachedClipReport(gen, skeletonPath, asset.name, () => asset.bytes, arm.skeleton);
         if (asset.animationOverhaul || asset.family === 'all') {
@@ -4111,6 +4113,7 @@ export async function buildFpArm({
     // contributes only canonical directional locomotion groups and can layer over it.
     if (!werewolf && /\.1st\.nif$/i.test(skeletonPath)) {
       const assets = await loadFirstPersonAnimationAssets({ skeletonPath });
+      console.info(`[mods] first-person clips: ${assets.length} for ${skeletonPath}`);
       for (const asset of assets) {
         const report = await cachedClipReport(gen, skeletonPath, asset.name, () => asset.bytes, arm.skeleton);
         logAnimationDiagnostic(`fp-v2|${skeletonPath}|${asset.name}`, {
