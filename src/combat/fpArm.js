@@ -9237,7 +9237,7 @@ export function createFpArm({ playerAppearance = false } = {}) {
         hipLit,
         hipShown: hipVisible(),
         hipSwing: { fore: hipLantern.swing.fore, side: hipLantern.swing.side },
-        motion: { ...motion.status(), legs: bodyWeight.legs() },   // BODY-MOTION; BLOW-LEGS
+        motion: motion.status(),   // BODY-MOTION
         loopsLeft: idleState && Number.isFinite(idleState.loopCount) ? idleState.loopCount : null,
         groups: built && built.ok ? built.groups : null,
         sources: built && built.ok ? built.sourcePaths : null,
