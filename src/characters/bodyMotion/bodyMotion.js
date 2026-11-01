@@ -518,6 +518,8 @@ export function createBodyMotion({ trunkClear = TRUNK_CLEAR } = {}) {
     weight: () => w,
     /** The gait's stride phase (0..1), its weight and the hips' turn off the facing (radians, as last posed, by the
      *  layer's weight) - what a swinging hip lantern follows. */
+    /** The word this frame was stepped with (travelStride reads it, through bodyWeight.js). */
+    word: () => input,
     stride: () => ({ phase: gait.shown, move: gait.move * w, hipYaw: last?.gp ? last.gp.hip.yaw * w : 0 }),
     /** The debug card's line and the sheets' blades. */
     status() {
