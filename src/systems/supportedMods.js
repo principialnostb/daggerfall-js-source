@@ -5,12 +5,12 @@
 const IN_BROWSER = typeof window !== 'undefined';
 const FOUND = IN_BROWSER
   ? {
-      oda: import.meta.glob('../../Mods/Animations/OpenMW Dynamic Animations/animations/xbase_anim.1st/*.{kf,KF}'),
-      reanimation: import.meta.glob('../../Mods/Animations/ReAnimation v3 - Complete - first-person animation pack/00 Core/Animations/xbase_anim.1st/*.{kf,KF}'),
-      mao: import.meta.glob('../../Mods/Animations/Morrowind Animation Overhaul/Data Files/Meshes/{x,X}base_anim.kf'),
-      hands: import.meta.glob('../../Mods/Bodies/Better Hands/Meshes/b/*.1st.nif'),
-      robert: import.meta.glob("../../Mods/Bodies/Robert's bodies/Data Files/Meshes/bbr/*.nif"),
-      bodies: import.meta.glob('../../Mods/Bodies/Better Bodies/Nude/Data Files/Meshes/bb/bb_skin*.nif'),
+      oda: import.meta.glob('../../Mods/Animations/OpenMW Dynamic Animations/animations/xbase_anim.1st/*.{kf,KF}', { query: '?url' }),
+      reanimation: import.meta.glob('../../Mods/Animations/ReAnimation v3 - Complete - first-person animation pack/00 Core/Animations/xbase_anim.1st/*.{kf,KF}', { query: '?url' }),
+      mao: import.meta.glob('../../Mods/Animations/Morrowind Animation Overhaul/Data Files/Meshes/{x,X}base_anim.kf', { query: '?url' }),
+      hands: import.meta.glob('../../Mods/Bodies/Better Hands/Meshes/b/*.1st.nif', { query: '?url' }),
+      robert: import.meta.glob("../../Mods/Bodies/Robert's bodies/Data Files/Meshes/bbr/*.nif", { query: '?url' }),
+      bodies: import.meta.glob('../../Mods/Bodies/Better Bodies/Nude/Data Files/Meshes/bb/bb_skin*.nif', { query: '?url' }),
     }
   : {};
 
