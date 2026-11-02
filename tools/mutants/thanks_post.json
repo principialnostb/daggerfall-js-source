@@ -56,8 +56,8 @@
   {
     "name": "THANKS-POST-the-ledger-not-once",
     "file": "tools/sendServerPost.mjs",
-    "old": "INSERT OR IGNORE INTO aurum_ledger (account, kind, ref, amount, day, at)",
-    "new": "INSERT INTO aurum_ledger (account, kind, ref, amount, day, at)",
+    "old": "INSERT OR IGNORE INTO aurum_ledger (account, kind, ref, amount, day, at)\nSELECT p.id, 'gift', ${sqlText(g)}, ${GIFTS[g].aurum}",
+    "new": "INSERT INTO aurum_ledger (account, kind, ref, amount, day, at)\nSELECT p.id, 'gift', ${sqlText(g)}, ${GIFTS[g].aurum}",
     "tests": [
       "test/server/thanks_post.test.js"
     ]

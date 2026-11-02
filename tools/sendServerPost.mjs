@@ -109,9 +109,8 @@ export const THANKS_POST = Object.freeze({
   ].join('\n'),
 });
 
-/** MAINTENANCE-APOLOGY (2026-11-02, the owner: "Please grant all users 500 aurum and an apology for the maintence"): the
- *  apology's letter, to every registered account standing, naming its gift - 500 Aurum, on the account already
- *  (net/giftLaw.js `maintenance`). Migration 0209 (`--migration maintenance`) sends it; its words are FROZEN here. */
+/** The downtime apology's letter, to every registered account standing, naming its gift (500 Aurum, on the account
+ *  already). Its words are frozen: a migration holds this text and never runs again. */
 export const MAINTENANCE_POST = Object.freeze({
   batch: 'maintenance-apology',
   gift: 'maintenance',
@@ -128,8 +127,7 @@ export const MAINTENANCE_POST = Object.freeze({
     'The DFO Team',
   ].join('\n'),
 });
-/** MAINTENANCE-APOLOGY (the owner: "Grant MarioTheShiba 1000 aurum. In total 1500 for Mario"): one account's extra 1000,
- *  on top of the apology's 500 - its gift `maintenanceplus`, its own letter. Migration 0209 sends it; FROZEN here. */
+/** One account's extra 1000 Aurum on top of the apology's 500, with its own letter. Frozen, as the apology is. */
 export const MAINTENANCE_PLUS_POST = Object.freeze({
   batch: 'maintenance-apology-plus',
   gift: 'maintenanceplus',
@@ -251,9 +249,8 @@ FROM players p WHERE p.handle IS NOT NULL;
 ${everyoneSql(THANKS_POST)}`;
 }
 
-/** MAINTENANCE-APOLOGY: A GIFT AND ITS LETTER - its key on each account (players.gifts), its Aurum a ledger line (`gift`,
- *  ref the key - once an account by the line's key), and the letter naming it (once a send an account, 0093's index). To
- *  every registered account standing, or to the accounts `handles` names (postHandles' shape). Each once, run again. */
+/** A gift and its letter: its key on each account, its Aurum a ledger line, and the letter naming it. To every
+ *  registered account standing, or to the accounts `handles` names. Each write is keyed, so a second run adds nothing. */
 export function giftPostSql({ batch, gift, sender, subject, body, handles = null }) {
   const g = giftOf(gift);
   if (!g) throw new Error(`not a gift: ${JSON.stringify(gift)}`);
@@ -271,7 +268,7 @@ INSERT OR IGNORE INTO server_post (id, to_id, batch, sender, subject, body, item
 SELECT lower(hex(randomblob(12))), p.id, ${sqlText(b)}, ${sqlText(sender)}, ${sqlText(words.subject)}, ${sqlText(words.body)}, NULL, ${now}, ${sqlText(gift)}
 FROM players p WHERE ${pwho};`;
 }
-/** MAINTENANCE-APOLOGY: migration 0209's statement - the apology to every registered account, then the one account's extra. */
+/** The apology's statement: the gift to every registered account, then the one account's extra. */
 export const maintenancePostSql = () => `${giftPostSql(MAINTENANCE_POST)}
 ${giftPostSql(MAINTENANCE_PLUS_POST)}`;
 

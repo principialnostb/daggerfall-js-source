@@ -8,9 +8,9 @@
 /** Every gift: its Aurum and the Aura Armory pieces it gives. */
 export const GIFTS = Object.freeze({
   thanks: Object.freeze({ aurum: 500, armory: Object.freeze(['crystalspurs']) }),
-  // MAINTENANCE-APOLOGY (2026-11-02, the owner: "grant all users 500 aurum and an apology for the maintence"): migration 0209
+  // An apology for downtime: Aurum alone, to every registered account
   maintenance: Object.freeze({ aurum: 500, armory: Object.freeze([]) }),
-  // MAINTENANCE-APOLOGY (the owner: "Grant MarioTheShiba 1000 aurum. In total 1500 for Mario"): on top of `maintenance`, 0209
+  // One account's extra, on top of `maintenance`
   maintenanceplus: Object.freeze({ aurum: 1000, armory: Object.freeze([]) }),
 });
 const GIFT_RE = /^[a-z]{3,24}$/;

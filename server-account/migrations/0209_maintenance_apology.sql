@@ -1,10 +1,8 @@
--- MAINTENANCE-APOLOGY (2026-11-02, the owner: "Please grant all users 500 aurum and an apology for the maintence. Grant
--- MarioTheShiba 1000 aurum. In total 1500 for Mario"): every registered account standing when this runs holds the gift
--- `maintenance` (src/net/giftLaw.js: 500 Aurum), a ledger line of its Aurum, and a letter in the post naming it; the account
--- MarioTheShiba holds `maintenanceplus` besides (1000 Aurum, its own letter) - 1500 in all. An account made after holds none.
--- The statement is the tool's own (tools/sendServerPost.mjs `--migration maintenance`), its words FROZEN there;
--- test/server/maintenance_post.test.js holds the two equal. Each write is once an account, run again: the gift's key, the
--- ledger line's key (account, 'gift', ref), 0093's one-a-send index.
+-- The downtime apology: every registered account standing when this runs holds the gift `maintenance` (500 Aurum),
+-- a ledger line of its Aurum and a letter naming it. The account MarioTheShiba holds `maintenanceplus` besides (1000
+-- Aurum, its own letter). An account made after holds none. The statement is the tool's own
+-- (tools/sendServerPost.mjs `--migration maintenance`), and test/server/maintenance_post.test.js holds the two equal.
+-- Each write is keyed, so a second run adds nothing.
 UPDATE players SET gifts = trim(gifts || ' ' || 'maintenance')
 WHERE handle IS NOT NULL AND instr(' ' || gifts || ' ', ' maintenance ') = 0;
 INSERT OR IGNORE INTO aurum_ledger (account, kind, ref, amount, day, at)

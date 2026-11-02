@@ -1,6 +1,5 @@
-// MAINTENANCE-APOLOGY (2026-11-02, the owner: "Please grant all users 500 aurum and an apology for the maintence. Grant
-// MarioTheShiba 1000 aurum. In total 1500 for Mario"). The two gifts' law, migration 0209 run over accounts that stand (the
-// real Worker on node:sqlite), and the letters in the box naming their gifts.
+// The downtime apology: both gifts' law, the migration run over accounts that stand (the real Worker on
+// node:sqlite), and the letters in the box naming their gifts.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -12,7 +11,7 @@ import { postGiftWords } from '../../src/ui/enhanced/enhancedPost.js';
 
 const src = (p) => readFileSync(new URL(`../../${p}`, import.meta.url), 'utf8');
 
-test('MAINTENANCE-APOLOGY the gifts\' law: `maintenance` gives 500 Aurum, `maintenanceplus` 1000, neither an armory piece; the letter\'s words name the Aurum', () => {
+test('Maintenance apology: the gifts\' law: `maintenance` gives 500 Aurum, `maintenanceplus` 1000, neither an armory piece; the letter\'s words name the Aurum', () => {
   assert.deepEqual(GIFTS.maintenance, { aurum: 500, armory: [] });
   assert.deepEqual(GIFTS.maintenanceplus, { aurum: 1000, armory: [] });
   assert.deepEqual(giftsOf({ gifts: 'thanks maintenance maintenanceplus' }), ['thanks', 'maintenance', 'maintenanceplus']);
@@ -22,7 +21,7 @@ test('MAINTENANCE-APOLOGY the gifts\' law: `maintenance` gives 500 Aurum, `maint
   assert.throws(() => giftPostSql({ ...MAINTENANCE_POST, gift: 'nope' }), /not a gift/);
 });
 
-test('MAINTENANCE-APOLOGY migration 0209 is the tool\'s own statement; the apology to everyone, the extra to MarioTheShiba alone', () => {
+test('Maintenance apology: migration 0209 is the tool\'s own statement; the apology to everyone, the extra to MarioTheShiba alone', () => {
   const mig = src('server-account/migrations/0209_maintenance_apology.sql');
   assert.ok(mig.trimEnd().endsWith(maintenancePostSql()), 'the tool\'s statement, as it prints it');
   assert.deepEqual([MAINTENANCE_POST.batch, MAINTENANCE_POST.gift, MAINTENANCE_POST.sender], ['maintenance-apology', 'maintenance', 'The DFO Team']);
@@ -32,7 +31,7 @@ test('MAINTENANCE-APOLOGY migration 0209 is the tool\'s own statement; the apolo
   assert.match(MAINTENANCE_PLUS_POST.body, /1,500 in all/);
 });
 
-test('MAINTENANCE-APOLOGY over the accounts that stand: every registered account 500 Aurum and the apology, MarioTheShiba 1500 and both letters; a guest and an account made after none; run again, nothing doubles', async () => {
+test('Maintenance apology: over the accounts that stand: every registered account 500 Aurum and the apology, MarioTheShiba 1500 and both letters; a guest and an account made after none; run again, nothing doubles', async () => {
   const s = await standService({ AURUM_OPEN: 'on' });
   const raw = s.env.DB._raw;
   const a = await s.registered('Patient'), b = await s.seated('AlsoPatient'), mario = await s.registered('MarioTheShiba'), g = await s.guest();
