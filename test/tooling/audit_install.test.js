@@ -188,8 +188,8 @@ test('L1-1/L1-5/L3-2/L3-5/L3-6: the release workflow - no token left behind, a t
   const publish = wf.slice(wf.indexOf('\n  publish:'));
   const guard = publish.indexOf('- name: The tag has no published release'), stage = publish.indexOf('uses: softprops/action-gh-release@');
   assert.ok(guard > 0 && stage > guard, 'the guard stands before anything is staged');
-  assert.match(publish, /if gh api "repos\/\$GITHUB_REPOSITORY\/releases\/tags\/\$TAG" --silent 2>lookup-error\.txt; then\s*echo "::error::\$TAG is already published[^"]*"\s*exit 1\s*fi\s*grep -q 'HTTP 404' lookup-error\.txt \|\| \{ cat lookup-error\.txt >&2; exit 1; \}/);
-  assert.match(publish, /if CURRENT=\$\(gh api "repos\/\$GITHUB_REPOSITORY\/releases\/latest" --jq \.tag_name 2>latest-error\.txt\); then :\s*elif grep -q 'HTTP 404' latest-error\.txt; then CURRENT=''\s*else cat latest-error\.txt >&2; exit 1\s*fi/,
+  assert.match(publish, /if gh api "repos\/\$RELEASE_REPO\/releases\/tags\/\$TAG" --silent 2>lookup-error\.txt; then\s*echo "::error::\$TAG is already published[^"]*"\s*exit 1\s*fi\s*grep -q 'HTTP 404' lookup-error\.txt \|\| \{ cat lookup-error\.txt >&2; exit 1; \}/);
+  assert.match(publish, /if CURRENT=\$\(gh api "repos\/\$RELEASE_REPO\/releases\/latest" --jq \.tag_name 2>latest-error\.txt\); then :\s*elif grep -q 'HTTP 404' latest-error\.txt; then CURRENT=''\s*else cat latest-error\.txt >&2; exit 1\s*fi/,
     'only a 404 is "nothing is latest yet" - a 5xx fails the step rather than handing an old re-cut `latest`');
   assert.doesNotMatch(publish, /2>\/dev\/null \|\| true/);
 });

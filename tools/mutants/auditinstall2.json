@@ -39,7 +39,7 @@
   {
     "name": "AUDIT-INSTALL-R2-C2-the-old-draft-is-reused",
     "file": ".github/workflows/release-desktop.yml",
-    "old": "          LEFT=$(gh api --paginate \"repos/$GITHUB_REPOSITORY/releases?per_page=100\" --jq '.[] | select(.draft and .tag_name == env.TAG) | .id')\n          for ID in $LEFT; do\n            gh api -X DELETE \"repos/$GITHUB_REPOSITORY/releases/$ID\" --silent\n            echo \"deleted draft $ID, left at $TAG by an earlier run\"\n          done\n",
+    "old": "          LEFT=$(gh api --paginate \"repos/$RELEASE_REPO/releases?per_page=100\" --jq '.[] | select(.draft and .tag_name == env.TAG) | .id')\n          for ID in $LEFT; do\n            gh api -X DELETE \"repos/$RELEASE_REPO/releases/$ID\" --silent\n            echo \"deleted draft $ID, left at $TAG by an earlier run\"\n          done\n",
     "new": "",
     "tests": ["test/tooling/audit_install2.test.js"],
     "note": "softprops keeps the lowest-id draft for the tag: the failed run's notes, and the commit the tag is then cut at."
@@ -47,8 +47,8 @@
   {
     "name": "AUDIT-INSTALL-R2-C2-a-failed-listing-deletes-nothing-silently",
     "file": ".github/workflows/release-desktop.yml",
-    "old": "          LEFT=$(gh api --paginate \"repos/$GITHUB_REPOSITORY/releases?per_page=100\" --jq '.[] | select(.draft and .tag_name == env.TAG) | .id')\n          for ID in $LEFT; do\n",
-    "new": "          for ID in $(gh api --paginate \"repos/$GITHUB_REPOSITORY/releases?per_page=100\" --jq '.[] | select(.draft and .tag_name == env.TAG) | .id'); do\n",
+    "old": "          LEFT=$(gh api --paginate \"repos/$RELEASE_REPO/releases?per_page=100\" --jq '.[] | select(.draft and .tag_name == env.TAG) | .id')\n          for ID in $LEFT; do\n",
+    "new": "          for ID in $(gh api --paginate \"repos/$RELEASE_REPO/releases?per_page=100\" --jq '.[] | select(.draft and .tag_name == env.TAG) | .id'); do\n",
     "tests": ["test/tooling/audit_install2.test.js"]
   },
   {

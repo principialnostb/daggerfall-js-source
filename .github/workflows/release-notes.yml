@@ -44,6 +44,10 @@ jobs:
     permissions:
       contents: write        # the release's body
       pull-requests: read    # the notes are the merged pull requests' own
+    env:
+      # Where the releases are (release-desktop.yml's publish job has the same setting): the tags
+      # and the pull requests stay here, the release's text is written there.
+      RELEASE_REPO: ${{ vars.RELEASE_REPO || github.repository }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -87,12 +91,13 @@ jobs:
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
+          HOST_TOKEN: ${{ (vars.RELEASE_REPO == '' || vars.RELEASE_REPO == github.repository) && github.token || secrets.RELEASE_TOKEN }}
           TAG: ${{ steps.release.outputs.tag }}
         run: |
-          gh api "repos/$GITHUB_REPOSITORY/releases/tags/$TAG" > release.json
+          GH_TOKEN="$HOST_TOKEN" gh api "repos/$RELEASE_REPO/releases/tags/$TAG" > release.json
           node -e "process.stdout.write(require('./release.json').body ?? '')" > current-body.md
           node scripts/desktopRelease.mjs renotes "$TAG" current-body.md > release-notes.md
           ID=$(node -p "require('./release.json').id")
-          gh api -X PATCH "repos/$GITHUB_REPOSITORY/releases/$ID" -F body=@release-notes.md --silent
+          GH_TOKEN="$HOST_TOKEN" gh api -X PATCH "repos/$RELEASE_REPO/releases/$ID" -F body=@release-notes.md --silent
           echo "the notes of $TAG, written again:"
           cat release-notes.md

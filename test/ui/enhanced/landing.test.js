@@ -191,15 +191,19 @@ test('U60: the injected block IS the skin\'s token block, and the skin still wea
   assert.match(svg, /<path d="M16 5l11 11-11 11L5 16z"/, 'a diamond');
 });
 
-test('U60: the build stamp fills every stamp on the page, links the commit, and stays empty unstamped', () => {
+test('U60: the build stamp fills every stamp on the page as text, and stays empty unstamped', () => {
   const out = transformLanding(landing, { sha: 'abc1234' });
-  const stamps = [...out.html.matchAll(/<a class="build" data-build="([^"]*)" href="([^"]*)">([^<]*)<\/a>/g)];
+  const stamps = [...out.html.matchAll(/<span class="build" data-build="([^"]*)">([^<]*)<\/span>/g)];
   assert.equal(stamps.length, 2, 'the rail foot and the page end each carry one');
-  for (const [, data, href, text] of stamps) {
+  for (const [, data, text] of stamps) {
     assert.equal(data, 'abc1234');
     assert.equal(text, 'abc1234');
-    assert.ok(href.endsWith('/commit/abc1234'), href);
   }
+  // the commit is in the private repository, so the page links none: a player reads the stamp into a report
+  assert.doesNotMatch(landing, /\/commit\/|\/blob\/main\/bible\//, 'no link into commits or docs the public copy does not carry');
+  // a stamp that does link a commit still gets the sha on the end of it
+  const linked = transformLanding('<a class="build" data-build="" href="https://x/commit/"></a>', { sha: 'abc1234' }).html;
+  assert.match(linked, /<a class="build" data-build="abc1234" href="https:\/\/x\/commit\/abc1234">abc1234<\/a>/);
   const bare = transformLanding(landing, { sha: '' });
   assert.equal(bare.html, landing, 'no sha, no stamp - the page is left as written');
   assert.match(landing, /\.build:empty, \.stat:empty \{ display: none; \}/, 'and an empty stamp or figure is invisible');

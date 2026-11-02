@@ -176,7 +176,7 @@ test('REL4: the workflow - one number, legs that only build, one publish gated o
   assert.match(publish, /RELEASE_ID: \$\{\{ steps\.release\.outputs\.id \}\}/, 'the draft it staged, by id - a draft has no tag to look up');
   assert.match(publish, /permissions:\n\s+contents: write/, 'only the publish job writes');
   assert.match(wf, /^permissions:\n {2}contents: read$/m, 'everything else reads');
-  assert.match(publish, /target_commitish: \$\{\{ github\.sha \}\}/, 'AUDIT 68: the tag lands on the commit the files were built from');
+  assert.match(publish, /target_commitish: \$\{\{ steps\.host\.outputs\.target \}\}/, 'AUDIT 68: the tag lands on the commit the files were built from (the host step names it)');
   // REL6: the notes are read off the merged pull requests, with the job's own token
   assert.match(publish, /permissions:\n\s+contents: write\n\s+pull-requests: read\b/, 'REL6: the publish job may read pull requests');
   const notesStep = publish.slice(publish.indexOf('- name: Write the notes'), publish.indexOf('desktopRelease.mjs notes'));

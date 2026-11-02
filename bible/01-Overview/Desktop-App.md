@@ -72,6 +72,19 @@ by the owner, a member or a collaborator (`NOTES_AUTHORS`). A read that fails pu
 release whose tag holds the merge, and rewrites that release's notes (`renotes`). GitHub's generated list stays below.
 No patch-notes file may be committed (`PATCH_NOTES_PATH_RE`).
 
+**The release host.** Installed copies read their releases from `Lattymoy/daggerfall-js-source` by name
+(`app/main.cjs` `RELEASES_LATEST_API`, `app/lib/downloads.cjs` `RELEASES_URL`). That repository must stay public.
+Unset, `vars.RELEASE_REPO` is the repository the workflow runs in. Set to another, `publish` stages there with
+`secrets.RELEASE_TOKEN`, a token for that repository alone. Its tag goes on the host's default branch, because the
+built commit is not there. The same tag is cut here at the built commit, so `notes` and `renotes` still find it.
+
+**The public copy.** `.github/workflows/public-copy.yml` fills a new public repository by hand, and its Actions must
+be off. `seed` pushes main's tree as one commit with no history and no tags. It leaves out the bible, every
+`CLAUDE.md`, `.claude/` and all Markdown but `vendor/`, `SECURITY.md`, `SUPPORT.md` and `public/sfx/SOURCES.md`. Its
+README is `.github/public-copy/README.md`. It goes on top of GitHub's creation commit (a licence, README or
+`.gitignore`) if the repository has one, and on nothing else. A second seed is refused. `tags` copies releases whole,
+and the newest takes `latest`.
+
 ## STE-NOTES
 
 Patch notes are written in ASD-STE100 Simplified Technical English (the owner). Players read them twice, in the
@@ -196,6 +209,8 @@ All Chromium switches go on before the app is ready.
 - DevTools stay in the installed app (Mac). `test/tooling/anticheat_devtools.test.js` holds this.
 - ARENA2 never enters the repo, the build or the installer. The shell reads the player's folder.
 - The appId `dev.daggerfalljs.app` never changes, or installed copies stop seeing updates.
+- The repository named `Lattymoy/daggerfall-js-source` stays public, keeps that name and is never archived. Installed
+  copies ask it for every update, and accept downloads from it alone.
 
 ## Daggerfall Unity
 
@@ -215,6 +230,7 @@ All Chromium switches go on before the app is ready.
 - `test/systems/save/filestorage.test.js`, `test/systems/save/savetransfer.test.js` - the stores
 - `test/tooling/rel4_release.test.js`, `test/tooling/rel7_renotes.test.js`, `test/tooling/rel8_updates.test.js`,
   `test/tooling/ste_notes.test.js`, `test/tooling/audit_install2.test.js` - releases and notes
+- `.github/workflows/public-copy.yml`, `test/tooling/releasehost.test.js` - the release host and the public copy
 - `test/tooling/updatecheck.test.js`, `test/tooling/autoupdate.test.js`, `test/tooling/selfswap.test.js`,
   `test/tooling/da13_gamechannel.test.js` - updating
 - `test/tooling/da10_launcher.test.js`, `test/tooling/da12_directplay.test.js`, `test/tooling/da9_arena2detect.test.js`
