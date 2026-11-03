@@ -12,7 +12,7 @@
 //   node tools/sendServerPost.mjs --look <handles> <batch>                                 the dry run's statement
 //   node tools/sendServerPost.mjs --words <subject> <message>                              the words as they will be sent
 //   node tools/sendServerPost.mjs --sql <handles> <batch> <item> <subject> <message>       the send's statement
-//   node tools/sendServerPost.mjs --migration hours-first|tamriel|thanks|maintenance|outage a frozen send's migration
+//   node tools/sendServerPost.mjs --migration hours-first|tamriel|thanks|maintenance|outage|ddos a frozen send's migration
 //
 // `handles` is comma-separated, as the config's lists are; `item` is one of POST_ITEMS - an item is MINTED here by the
 // game's own code (the Hourlock as its drop mints it, src/systems/gilded.js), never typed into a workflow; `message`
@@ -163,6 +163,25 @@ export const OUTAGE_POST = Object.freeze({
   ].join('\n'),
 });
 
+/** The attack apology's letter, to every registered account standing, naming its gift (500 Aurum, on the account
+ *  already). Frozen, as the other apologies are. */
+export const DDOS_POST = Object.freeze({
+  batch: 'ddos-apology',
+  gift: 'ddos',
+  sender: 'The DFO Team',
+  subject: 'Sorry for the attack on our servers',
+  body: [
+    'Our servers were hit by a DDoS attack. We know it kept many of you from playing, and we are sorry.',
+    '',
+    'As an apology, 500 Aurum is on your account now.',
+    '',
+    'Thank you for sticking with us through it.',
+    '',
+    'With love,',
+    'The DFO Team',
+  ].join('\n'),
+});
+
 /** A word as an SQL string, its quotes doubled - nothing in it can end the string. */
 export const sqlText = (/** @type {string} */ s) => `'${String(s).replaceAll("'", "''")}'`;
 
@@ -292,6 +311,8 @@ export const maintenancePostSql = () => `${giftPostSql(MAINTENANCE_POST)}
 ${giftPostSql(MAINTENANCE_PLUS_POST)}`;
 /** The server issues apology's statement: the gift to every registered account. */
 export const outagePostSql = () => giftPostSql(OUTAGE_POST);
+/** The attack apology's statement: the gift to every registered account. */
+export const ddosPostSql = () => giftPostSql(DDOS_POST);
 
 function main(argv) {
   if (argv[0] === '--names' && argv.length === 2)
@@ -313,8 +334,10 @@ function main(argv) {
     return void process.stdout.write(`${maintenancePostSql()}\n`);
   if (argv[0] === '--migration' && argv[1] === 'outage' && argv.length === 2)
     return void process.stdout.write(`${outagePostSql()}\n`);
+  if (argv[0] === '--migration' && argv[1] === 'ddos' && argv.length === 2)
+    return void process.stdout.write(`${ddosPostSql()}\n`);
   throw new Error(
-    'usage: node tools/sendServerPost.mjs --names <handles> | --look <handles> <batch> | --words <subject> <message> | --sql <handles> <batch> <item> <subject> <message> | --migration hours-first|tamriel|thanks|maintenance|outage',
+    'usage: node tools/sendServerPost.mjs --names <handles> | --look <handles> <batch> | --words <subject> <message> | --sql <handles> <batch> <item> <subject> <message> | --migration hours-first|tamriel|thanks|maintenance|outage|ddos',
   );
 }
 
