@@ -1,0 +1,20 @@
+[
+  {
+    "name": "OUTAGE-the-aurum",
+    "file": "src/net/giftLaw.js",
+    "old": "outage: Object.freeze({ aurum: 200,",
+    "new": "outage: Object.freeze({ aurum: 20,",
+    "tests": [
+      "test/server/outage_post.test.js"
+    ]
+  },
+  {
+    "name": "OUTAGE-the-statement-unsent",
+    "file": "tools/sendServerPost.mjs",
+    "old": "export const outagePostSql = () => giftPostSql(OUTAGE_POST);",
+    "new": "export const outagePostSql = () => giftPostSql({ ...OUTAGE_POST, handles: 'Nobody' });",
+    "tests": [
+      "test/server/outage_post.test.js"
+    ]
+  }
+]

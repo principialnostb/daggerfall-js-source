@@ -12,7 +12,7 @@
 //   node tools/sendServerPost.mjs --look <handles> <batch>                                 the dry run's statement
 //   node tools/sendServerPost.mjs --words <subject> <message>                              the words as they will be sent
 //   node tools/sendServerPost.mjs --sql <handles> <batch> <item> <subject> <message>       the send's statement
-//   node tools/sendServerPost.mjs --migration hours-first|tamriel|thanks|maintenance       a frozen send's migration
+//   node tools/sendServerPost.mjs --migration hours-first|tamriel|thanks|maintenance|outage a frozen send's migration
 //
 // `handles` is comma-separated, as the config's lists are; `item` is one of POST_ITEMS - an item is MINTED here by the
 // game's own code (the Hourlock as its drop mints it, src/systems/gilded.js), never typed into a workflow; `message`
@@ -138,6 +138,25 @@ export const MAINTENANCE_PLUS_POST = Object.freeze({
     'On top of the 500 Aurum from our maintenance apology, an extra 1,000 Aurum is on your account now - 1,500 in all.',
     '',
     'Thank you for everything you do for the game.',
+    '',
+    'With love,',
+    'The DFO Team',
+  ].join('\n'),
+});
+
+/** The server issues apology's letter, to every registered account standing, naming its gift (200 Aurum, on the
+ *  account already). Frozen, as the maintenance apology is. */
+export const OUTAGE_POST = Object.freeze({
+  batch: 'server-issues-apology',
+  gift: 'outage',
+  sender: 'The DFO Team',
+  subject: 'Sorry for the server issues',
+  body: [
+    "We're sorry for the recent server issues. We know they got in the way of your time in the game.",
+    '',
+    'As an apology, 200 Aurum is on your account now.',
+    '',
+    'Thank you for your patience while we work on it.',
     '',
     'With love,',
     'The DFO Team',
@@ -271,6 +290,8 @@ FROM players p WHERE ${pwho};`;
 /** The apology's statement: the gift to every registered account, then the one account's extra. */
 export const maintenancePostSql = () => `${giftPostSql(MAINTENANCE_POST)}
 ${giftPostSql(MAINTENANCE_PLUS_POST)}`;
+/** The server issues apology's statement: the gift to every registered account. */
+export const outagePostSql = () => giftPostSql(OUTAGE_POST);
 
 function main(argv) {
   if (argv[0] === '--names' && argv.length === 2)
@@ -290,8 +311,10 @@ function main(argv) {
     return void process.stdout.write(`${thanksPostSql()}\n`);
   if (argv[0] === '--migration' && argv[1] === 'maintenance' && argv.length === 2)
     return void process.stdout.write(`${maintenancePostSql()}\n`);
+  if (argv[0] === '--migration' && argv[1] === 'outage' && argv.length === 2)
+    return void process.stdout.write(`${outagePostSql()}\n`);
   throw new Error(
-    'usage: node tools/sendServerPost.mjs --names <handles> | --look <handles> <batch> | --words <subject> <message> | --sql <handles> <batch> <item> <subject> <message> | --migration hours-first|tamriel|thanks|maintenance',
+    'usage: node tools/sendServerPost.mjs --names <handles> | --look <handles> <batch> | --words <subject> <message> | --sql <handles> <batch> <item> <subject> <message> | --migration hours-first|tamriel|thanks|maintenance|outage',
   );
 }
 
