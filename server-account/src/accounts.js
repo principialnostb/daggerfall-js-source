@@ -834,13 +834,13 @@ export const ADDRESS_MAX = ACCOUNT_MAX * 5;
  * The per-account bound sits behind the session read, so junk tokens would otherwise each cost a read. A request with
  * no address is the relay's service binding: Cloudflare sets the header on every caller from outside. The first refusal
  * of a window is logged, so the logs say whether anyone meets this ceiling, and who.
- * @param {string | null} ip @param {number} nowS @param {number} [max] @param {number} [windowS]
+ * @param {string | null} address @param {number} nowS @param {number} [max] @param {number} [windowS]
  */
-export function overAddressRate(ip, nowS, max = ADDRESS_MAX, windowS = ACCOUNT_WINDOW_S) {
-  if (!ip) return false;
-  const key = `addr:${ip}`;
+export function overAddressRate(address, nowS, max = ADDRESS_MAX, windowS = ACCOUNT_WINDOW_S) {
+  if (!address) return false;
+  const key = `addr:${address}`;
   const over = overAccountRate(key, nowS, max, windowS);
-  if (over && accountWindows.get(key)?.count === max + 1) console.warn('[rate] address over its ceiling', ip);
+  if (over && accountWindows.get(key)?.count === max + 1) console.warn('[rate] address over its ceiling', address);
   return over;
 }
 
