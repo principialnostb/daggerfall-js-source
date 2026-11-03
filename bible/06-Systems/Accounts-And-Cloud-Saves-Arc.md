@@ -24,6 +24,9 @@ saves and everything durable. They trust each other through a signed identity to
   profile behind the password and one current code (`/v1/auth/recover` uses a code).
 - *Sessions*: one per device, idle out after a year (`SESSION_IDLE_S`). Logins are rate limited (`LOGIN_MAX` per
   `LOGIN_WINDOW_S`).
+- *Address ceiling*: one address gets `ADDRESS_MAX` requests a minute across every route, then 429 `rate`, before any
+  D1 statement (`overAddressRate`). It is counted per isolate. The relay's service binding carries no address and is not
+  counted. The first refusal each window logs `[rate] address over its ceiling` with the address.
 - *Terms*: a new account ticks the Terms of Service and the Privacy Policy (`terms/index.html`, `privacy/index.html`)
   before it exists.
 

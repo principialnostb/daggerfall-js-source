@@ -826,6 +826,24 @@ export function accountRateFull(id, nowS, max = ACCOUNT_MAX, windowS = ACCOUNT_W
 /** The accounts counted in this isolate (the pins' window). */
 export const accountRateKeys = () => accountWindows.size;
 
+/** Five accounts flat out behind one router still fit, so a household or a carrier's NAT is not the caller refused. */
+export const ADDRESS_MAX = ACCOUNT_MAX * 5;
+
+/**
+ * Whether one address is past its ceiling across every route, in the isolate's memory, so a flood costs D1 nothing.
+ * The per-account bound sits behind the session read, so junk tokens would otherwise each cost a read. A request with
+ * no address is the relay's service binding: Cloudflare sets the header on every caller from outside. The first refusal
+ * of a window is logged, so the logs say whether anyone meets this ceiling, and who.
+ * @param {string | null} ip @param {number} nowS @param {number} [max] @param {number} [windowS]
+ */
+export function overAddressRate(ip, nowS, max = ADDRESS_MAX, windowS = ACCOUNT_WINDOW_S) {
+  if (!ip) return false;
+  const key = `addr:${ip}`;
+  const over = overAccountRate(key, nowS, max, windowS);
+  if (over && accountWindows.get(key)?.count === max + 1) console.warn('[rate] address over its ceiling', ip);
+  return over;
+}
+
 /** A successful login forgives the key, so a player who mistyped twice
  *  and then got it right is not still on a countdown. */
 export async function clearRate({ db }, key) {

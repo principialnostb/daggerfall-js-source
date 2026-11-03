@@ -232,7 +232,7 @@
 import {
   createGuest, openSession, resolveSession, closeSession, closeAllSessions,
   devicesOf, accountView, displayName, accountKind,
-  register, login, recover, changePassword, setEmail, overRate, overAccountRate, accountRateFull,
+  register, login, recover, changePassword, setEmail, overRate, overAccountRate, accountRateFull, overAddressRate,
   newRecoveryCodes,   // RECOVERY-SET: a new set of codes from the profile
   accountWardrobe, equipTitle, equipAura, equipArmory, equipArmoryKit, equipEffect, equipIcon, equipGlyph, buyInsignia, insigniaPurse, creditPlay, isMuted, mutedUntil,
   duelRecordOf, claimDuel, gateRecordOf, claimGate, legalRefusal,
@@ -829,6 +829,9 @@ const service = {
         },
       });
     }
+
+    // Above every answer that can reach D1: the public siege read below and a junk token's session read have no bound of their own.
+    if (overAddressRate(request.headers.get('cf-connecting-ip'), nowS)) return no('rate', 429, origin);
 
     // SEAT2a part three: THE DEPLOY BLACKOUT'S QUESTION (Seats-Arc 17) - public, as the health is: whether any battle is
     // live or starts within thirty minutes, and the latest end among them. It names no guild.
