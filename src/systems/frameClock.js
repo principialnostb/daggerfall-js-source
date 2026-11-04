@@ -156,7 +156,7 @@ export function frameEnd(now = typeof performance !== 'undefined' ? performance.
   const cut = now - WINDOW_MS;
   let i = 0;
   while (i < samples.length && samples[i][0] < cut) i++;
-  if (i) samples = samples.slice(i);
+  if (i) samples.splice(0, i); // in place: a copy of the whole window a frame was the clock's own garbage
 }
 
 /** The last second's script time: mean and worst frame, ms; null

@@ -111,8 +111,10 @@ export function isInLocationRect(worldX, worldZ, rect) {
 export const nearestFirstFrom = (current) => (a, b) => {
   const ca = Math.max(Math.abs(a.px - current.x), Math.abs(a.py - current.y));
   const cb = Math.max(Math.abs(b.px - current.x), Math.abs(b.py - current.y));
-  if (ca !== cb) return ca - cb;
-  return (a.px - current.x) ** 2 + (a.py - current.y) ** 2 - ((b.px - current.x) ** 2 + (b.py - current.y) ** 2);
+  if (ca !== cb) return ca < cb ? -1 : 1;
+  const nearA = (a.px - current.x) ** 2 + (a.py - current.y) ** 2,
+    nearB = (b.px - current.x) ** 2 + (b.py - current.y) ** 2;
+  return nearA < nearB ? -1 : nearA > nearB ? 1 : 0; // the sign alone, as the difference gave it: a sort over a double's difference boxes a number a compare
 };
 
 export class StreamingWorldState {

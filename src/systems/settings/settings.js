@@ -454,42 +454,59 @@ function warnOnce(fn, section, key, raw, fallback) {
   console.warn(`[settings] ${fn}() could not read value [${section}]${key}. Returning ${fallback}.`);
 }
 
+/** One key's last parse. The getters run every frame (the field of view, retro mode's five, the frame cap) and each
+ *  trimmed, matched and converted the same text again; the text is compared, so a changed value is parsed anew and a
+ *  new bad value is still said once. */
+const _parses = new Map();
+function parseOf(section, key, raw) {
+  let keys = _parses.get(section);
+  if (!keys) _parses.set(section, (keys = new Map()));
+  let kept = keys.get(key);
+  if (!kept || kept.raw !== raw) keys.set(key, (kept = { raw, int: undefined, bool: undefined, float: undefined }));
+  return kept;
+}
+
 /** GetBool (:921-936): bool.Parse, and a value that will not parse
  *  reads FALSE - not the default. C# bool.Parse accepts "True"/"true"
  *  with surrounding whitespace and nothing else. */
 export function getBool(section, key) {
   const raw = getData(section, key);
-  const s = String(raw ?? '')
-    .trim()
-    .toLowerCase();
-  if (s === 'true') return true;
-  if (s === 'false') return false;
-  warnOnce('GetBool', section, key, raw, 'False');
-  return false;
+  const kept = parseOf(section, key, raw);
+  if (kept.bool === undefined) {
+    const s = String(raw ?? '')
+      .trim()
+      .toLowerCase();
+    kept.bool = s === 'true' ? true : s === 'false' ? false : null;
+    if (kept.bool === null) warnOnce('GetBool', section, key, raw, 'False');
+  }
+  return kept.bool === true;
 }
 
 /** GetInt (:939-964). Without a range: int.Parse, 0 on failure. With
  *  one: parse then Mathf.Clamp, and MIN on failure. */
 export function getInt(section, key, min = null, max = null) {
   const raw = getData(section, key);
-  const n = /^[+-]?\d+$/.test(String(raw ?? '').trim()) ? parseInt(raw, 10) : NaN;
-  if (Number.isNaN(n)) {
-    const fallback = min === null ? 0 : min;
-    warnOnce('GetInt', section, key, raw, fallback);
-    return fallback;
+  const kept = parseOf(section, key, raw);
+  if (kept.int === undefined) {
+    kept.int = /^[+-]?\d+$/.test(String(raw ?? '').trim()) ? parseInt(raw, 10) : NaN;
+    if (Number.isNaN(kept.int)) warnOnce('GetInt', section, key, raw, min === null ? 0 : min);
   }
+  const n = kept.int;
+  if (Number.isNaN(n)) return min === null ? 0 : min;
   return min === null ? n : clamp(n, min, max);
 }
 
 /** GetFloat (:971-996), the same shape as GetInt. */
 export function getFloat(section, key, min = null, max = null) {
   const raw = getData(section, key);
-  const n = Number(String(raw ?? '').trim());
-  if (!Number.isFinite(n) || String(raw ?? '').trim() === '') {
-    const fallback = min === null ? 0 : min;
-    warnOnce('GetFloat', section, key, raw, fallback);
-    return fallback;
+  const kept = parseOf(section, key, raw);
+  if (kept.float === undefined) {
+    const n = Number(String(raw ?? '').trim());
+    kept.float = !Number.isFinite(n) || String(raw ?? '').trim() === '' ? NaN : n;
+    if (Number.isNaN(kept.float)) warnOnce('GetFloat', section, key, raw, min === null ? 0 : min);
   }
+  const n = kept.float;
+  if (Number.isNaN(n)) return min === null ? 0 : min;
   return min === null ? n : clamp(n, min, max);
 }
 
@@ -583,4 +600,5 @@ export function resetToDefaults() {
 export function _resetForTests() {
   _values = null;
   _warned.clear();
+  _parses.clear();
 }

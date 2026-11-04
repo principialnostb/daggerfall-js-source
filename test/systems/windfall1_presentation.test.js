@@ -320,7 +320,8 @@ test('WINDFALL1 the hosts: world.js and exterior.js build the one runtime on the
   for (const host of ['src/scenes/worldModes.js', 'src/scenes/dungeonContext.js']) assert.doesNotMatch(read(host), /createWindfallHost/, `${host}: none`);
   // the passes: the shadow and the air replay by the law the flats were drawn with
   const sp = read('src/render/shadowPass.js');
-  assert.match(sp, /if \(P\.bb\.wfAxis\) \{ gl\.uniform4fv\(P\.bb\.wfSway, r\.wfSway\); gl\.uniform4fv\(P\.bb\.wfAxis, r\.wfAxis\); \}/);
+  assert.match(sp, /this\._windUniforms\(P\.bb, r\);/);   // the record's law, sent when it differs from the last record's
+  assert.match(sp, /const sway = r\.wfSway, axis = r\.wfAxis;[\s\S]{0,400}?gl\.uniform4fv\(prog\.wfSway, sway\)[\s\S]{0,300}?gl\.uniform4fv\(prog\.wfAxis, axis\)/);
   assert.match(sp, /const sw = swayShare\(b, law\);/);
   assert.match(read('src/render/airPass.js'), /gl\.uniform1f\(P\.emitBb\.uSway, swayShare\(b, windfallLawOn\(r\.windfall\)\)\);/);
 });

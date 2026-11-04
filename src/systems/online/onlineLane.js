@@ -238,9 +238,8 @@ export const ONLINE_FORCED_SETTINGS = Object.freeze({
  *  G2): every settings read comes through here - retro mode's, a dozen a frame - and the page test builds a
  *  URLSearchParams each time, for the one key in the table. */
 export function onlineForcedSetting(section, key, search) {
-  return Object.hasOwn(ONLINE_FORCED_SETTINGS[section] ?? {}, key) && isOnlinePage(search)
-    ? ONLINE_FORCED_SETTINGS[section][key]
-    : undefined;
+  const forced = ONLINE_FORCED_SETTINGS[section]; // read without a fresh object for a section the table lacks: every settings read comes through here
+  return forced !== undefined && Object.hasOwn(forced, key) && isOnlinePage(search) ? forced[key] : undefined;
 }
 
 /** The forced value of a uiPrefs key on an online page, else undefined.

@@ -616,10 +616,22 @@ export function swingKeyHeld(keys) {
   if (!keys) return false;
   const b = bindings();
   pollLatch(b, keys);
-  for (const dict of [b.primary, b.secondary]) {
-    for (const [code, a] of dict) if (a === 'SwingWeapon' && !MOUSE_CODES.includes(code) && codeDown(b, keys, code)) return true;
-  }
+  const codes = swingCodes(b);
+  for (let i = 0; i < codes.length; i++) if (codeDown(b, keys, codes[i])) return true;
   return false;
+}
+/** The swing's non-mouse codes, the primary dict's then the secondary's in their own order, kept on the store and
+ *  rebuilt on its `rev` (as actionCodes keeps its lists): this is read every frame. */
+function swingCodes(b) {
+  const rev = b.rev ?? 0;
+  if (b._swingRev === rev && b._swingCodes) return b._swingCodes;
+  const codes = [];
+  for (const dict of [b.primary, b.secondary]) {
+    for (const [code, a] of dict) if (a === 'SwingWeapon' && !MOUSE_CODES.includes(code)) codes.push(code);
+  }
+  b._swingCodes = codes;
+  b._swingRev = rev;
+  return codes;
 }
 
 /** FIX-F: THE KEYBOARD LOOK, InputManager.FindKeyboardActions'
