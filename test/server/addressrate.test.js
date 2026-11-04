@@ -18,10 +18,10 @@ async function held(t, nowS) {
   return { ...s, log };
 }
 
-/** A request from an address, carrying a token nobody holds, shaped as a minted secret, so the session lookup asks D1 about it. */
+/** A request from an address, carrying a token nobody holds, long enough that the session lookup asks D1 about it. */
 const junk = (ip) => ({
   method: 'GET',
-  headers: { authorization: `Bearer ${'x'.repeat(43)}`, ...(ip ? { 'cf-connecting-ip': ip } : {}) },
+  headers: { authorization: `Bearer ${'x'.repeat(32)}`, ...(ip ? { 'cf-connecting-ip': ip } : {}) },
 });
 
 test('the ceiling leaves room for several accounts flat out behind one router', () => {

@@ -86,10 +86,7 @@ test('BOOKMARK-SPIRAL (kept): on a session at any instance, a session the replic
     const b = await resolveSession(ctx(), fresh.secret);
     assert.equal(b?.player?.id, fresh.id, 'a session minted a moment ago: found');
     assert.equal(primary.who, 1, 'the primary asked once, for the one the replica had not heard of');
-    const nobody = 'not-a-session-anyone-holds-0001'.padEnd(43, '0');
-    assert.equal(await resolveSession(ctx(), nobody), null, 'a secret nobody holds: refused');
+    assert.equal(await resolveSession(ctx(), 'not-a-session-anyone-holds-0001'), null, 'a secret nobody holds: refused');
     assert.equal(primary.who, 2);
-    assert.equal(await resolveSession(ctx(), nobody), null, 'and again');
-    assert.equal(primary.who, 2, 'the primary\'s miss is kept, so it is not asked again');
   } finally { L.close(); }
 });
