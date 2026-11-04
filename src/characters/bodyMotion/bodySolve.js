@@ -187,6 +187,7 @@ export function solveBody(skeleton, pose, rootRef, skelMats, plan) {
       // holds it, at full weight. Each eased to its own goal by the layer's weight, they parted mid-blend: a run's
       // ground flicker, a blow's return, a run's stop, and the left hand left the hilt.
       const hold = plan.haft && req.L?.at && req.R?.at && req.R.fingers && req.R.palm;
+      const clipL = hold ? clipHand(mats, body) : null;   // HILT-EASE: the left as the clip has it, on the clip's right
       for (const side of hold ? ['R'] : ['L', 'R']) {
         const h = req[side];
         if (!h || !h.at) continue;
@@ -195,7 +196,12 @@ export function solveBody(skeleton, pose, rootRef, skelMats, plan) {
       }
       if (hold) {
         mats = skelMats(skeleton, pose, rootRef);
-        const L = onRightHand(req.L, req.R, mats, body);
+        // HILT-EASE (the owner's video, 2026-11-05: the hand held but jerked): the left goes from where the clip holds it
+        // to the carry's grip by the layer's weight, both read on the right hand as it now stands. At full weight on the
+        // first frame, it jumped each time the layer came in or went out around a blow.
+        const k = clamp01((req.L.w ?? 1) * w);
+        const grip = onRightHand(req.L, req.R, mats, body), own = clipL ? onRightHand(clipL.l, clipL.r, mats, body) : null;
+        const L = grip && own ? blendHand(own, grip, k) : grip;
         const wr = L ? poseHand(skeleton, pose, mats, body, 'L', L, 1) : null;
         if (wr) report.reach.L = len(sub(wr, L.at));
       }
@@ -400,6 +406,25 @@ function onRightHand(l, r, mats, body) {
   const M = mul(basis(fr.fingers, fr.palm), transpose(basis(r.fingers, r.palm)));
   const dir = (v) => (v ? norm(apply(M, v)) : v);
   return { ...l, at: add(W, apply(M, sub(l.at, r.at))), fingers: dir(l.fingers), palm: dir(l.palm), pole: dir(l.pole) };
+}
+
+/** HILT-EASE: the clip's own left hand (`l`: wrist, fingers, palm, elbow's way) and right (`r`) as requests, or null. */
+function clipHand(mats, body) {
+  const side = (s) => {
+    const limb = body.bones[s], S = at(mats, limb.upper), E = at(mats, limb.fore), W = at(mats, limb.hand);
+    const fr = handFrame(mats, limb, s);
+    if (!S || !E || !W || !fr?.fingers || !fr.palm) return null;
+    const sw = norm(sub(W, S));
+    return { at: W, fingers: fr.fingers, palm: fr.palm, pole: norm(sub(E, add(S, scale(sw, dot(sub(E, S), sw))))) };
+  };
+  const l = side('L'), r = side('R');
+  return l && r ? { l, r } : null;
+}
+
+/** HILT-EASE: two hand requests mixed by `k` (0 the first, 1 the second); the ways renormalised. */
+function blendHand(a, b, k) {
+  const way = (u, v) => (u && v ? norm(lerp3(u, v, k)) : v ?? u);
+  return { ...b, at: lerp3(a.at, b.at, k), fingers: way(a.fingers, b.fingers), palm: way(a.palm, b.palm), pole: way(a.pole, b.pole) };
 }
 
 /**
