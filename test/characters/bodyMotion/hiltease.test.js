@@ -38,3 +38,18 @@ test('HILT-EASE: the left hand stands as the clip has it at no weight, on the gr
   assert.ok(dist(clip.L, full.L) > 5, 'the grip moved the left hand');
   assert.ok(jump < dist(clip.L, full.L) / 5, `a step of a twentieth threw the left ${jump.toFixed(2)} units`);
 });
+
+test('HILT-THROUGH: with the layer stepped aside for a blow, the left hand still closes on the hilt by the right as the clip holds it', () => {
+  const sk = buildSkeleton(parseNif(retailSkeleton())), pose = new Map(), body = bodyOf(sk, GRAPH_ROOT, sm);
+  const before = sm(sk, pose, GRAPH_ROOT), L0 = before.get(body.bones.L.hand).t, R0 = before.get(body.bones.R.hand).t;
+  const arms = ({ mats }) => {
+    const fr = handFrame(mats, body.bones.R, 'R'), R = mats.get(body.bones.R.hand).t;
+    return { R: { at: R, fingers: fr.fingers, palm: fr.palm, w: 1 }, L: { at: [R[0] - 20, R[1] + 10, R[2] + 5], fingers: fr.fingers, palm: fr.palm, w: 1 } };
+  };
+  assert.equal(solveBody(sk, pose, GRAPH_ROOT, sm, { w: 0, hold: 0, haft: true, arms }), null, 'no layer at all: the clip');
+  assert.ok(solveBody(sk, pose, GRAPH_ROOT, sm, { w: 0, hold: 1, haft: true, arms }), 'the hold runs through the blow');
+  const after = sm(sk, pose, GRAPH_ROOT);
+  assert.ok(dist(after.get(body.bones.R.hand).t, R0) < 1e-6, 'the right hand stays the clip\'s');
+  assert.ok(dist(after.get(body.bones.L.hand).t, [R0[0] - 20, R0[1] + 10, R0[2] + 5]) < 1, 'the left hand on the hilt');
+  assert.ok(dist(L0, [R0[0] - 20, R0[1] + 10, R0[2] + 5]) > 5, 'the clip had it elsewhere');
+});

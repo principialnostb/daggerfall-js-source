@@ -331,7 +331,16 @@ export function createBodyMotion({ trunkClear = TRUNK_CLEAR } = {}) {
       // frame, the carry's hands left the clip's in one - a claymore's blade leapt 0.38 m on the second frame of every blow;
       // the layer now lets go over MOTION_EASE.blowEntry, as BLOW-RETURN takes it back over blowReturn
       const entry = bp ? 1 - smooth(blowAge / MOTION_EASE.blowEntry) : 1;
-      if (cls === 'free' || !(entry > 1e-3)) { last = null; return null; }
+      const haft = TWO_HAND_GRIP[cls] != null && (!clsFrom || TWO_HAND_GRIP[clsFrom] != null);   // HILT-HOLD (bodySolve.js)
+      if (cls === 'free') { last = null; return null; }
+      // HILT-THROUGH (the owner's video, 2026-11-05: the left hand opened off the hilt in a blow's wind-up): the layer
+      // steps aside for a blow, but the left hand stays on the hilt where the blow's right hand holds it
+      if (!(entry > 1e-3)) {
+        last = null;
+        if (!haft) return null;
+        const gpHold = gaitPose(gait, gi, body);
+        return solveBody(skeleton, pose, rootRef, skelMats, { w: 0, hold: w, haft, arms: (ctx) => handsFor(ctx, gpHold, null, null) });
+      }
 
       const gp = gaitPose(gait, gi, body);
       // BLOW-RETURN (Mac: "after the blow the two-hander stays raised and goes back to neutral instantly"): the layer comes
@@ -345,7 +354,8 @@ export function createBodyMotion({ trunkClear = TRUNK_CLEAR } = {}) {
         armW: { L: armW.L, R: armW.R },
         arms: (ctx) => handsFor(ctx, gp, null, null),
         trunk: trunkNow(),
-        haft: TWO_HAND_GRIP[cls] != null && (!clsFrom || TWO_HAND_GRIP[clsFrom] != null),   // HILT-HOLD (bodySolve.js)
+        haft,
+        hold: w,   // HILT-THROUGH: the hilt's hold eased by the layer alone, never by a blow's entry or return
       };
       const report = solveBody(skeleton, pose, rootRef, skelMats, plan);
       last = { gp, bp, report };
