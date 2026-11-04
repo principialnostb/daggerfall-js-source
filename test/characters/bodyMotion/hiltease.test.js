@@ -6,7 +6,8 @@ import { buildSkeleton, skeletonSpaceMatrices as sm, GRAPH_ROOT } from '../../..
 import { retailSkeleton } from '../../fixtures/mw/retailRig.mjs';
 import { bodyOf } from '../../../src/characters/bodyMotion/bodyKit.js';
 import { solveBody } from '../../../src/characters/bodyMotion/bodySolve.js';
-import { handFrame } from '../../../src/combat/climbRig.js';
+import { handFrame, rotAxisAngle } from '../../../src/combat/climbRig.js';
+import { mul } from '../../../src/characters/bodyMotion/bodyKit.js';
 
 const sub = (a, b) => a.map((v, i) => v - b[i]);
 const dist = (a, b) => Math.hypot(...sub(a, b));
@@ -37,4 +38,22 @@ test('HILT-EASE: the left hand stands as the clip has it at no weight, on the gr
   const full = leftAt(1);
   assert.ok(dist(clip.L, full.L) > 5, 'the grip moved the left hand');
   assert.ok(jump < dist(clip.L, full.L) / 5, `a step of a twentieth threw the left ${jump.toFixed(2)} units`);
+});
+
+test('ARC-EASE: an elbow asked opposite the clip\'s turns along its arc as the layer comes in - never flips in a frame', () => {
+  const sk = buildSkeleton(parseNif(retailSkeleton())), body = bodyOf(sk, GRAPH_ROOT, sm);
+  const node = sk.nodes.get(body.bones.R.fore), clip = new Map([[body.bones.R.fore, { ...node.rest, rotation: mul(node.rest.rotation, rotAxisAngle([0, 0, 1], 1.2)) }]]);
+  const rest = sm(sk, clip, GRAPH_ROOT), S = rest.get(body.bones.R.upper).t;
+  const E = rest.get(body.bones.R.fore).t, W = rest.get(body.bones.R.hand).t, mid = [(S[0] + W[0]) / 2, (S[1] + W[1]) / 2, (S[2] + W[2]) / 2];
+  const away = [mid[0] - E[0], mid[1] - E[1], mid[2] - E[2]];   // asked the other way from the clip's elbow
+  const at = [...W];   // a bent arm, the hand before the chest
+  let last = null, leap = 0;
+  for (let i = 0; i <= 100; i++) {
+    const pose = new Map(clip), fr = handFrame(rest, body.bones.R, 'R');
+    solveBody(sk, pose, GRAPH_ROOT, sm, { w: i / 100, arms: () => ({ R: { at, fingers: fr.fingers, palm: fr.palm, pole: away, w: 1 } }) });
+    const elbow = sm(sk, pose, GRAPH_ROOT).get(body.bones.R.fore).t;
+    if (last) leap = Math.max(leap, dist(elbow, last));
+    last = elbow;
+  }
+  assert.ok(leap < 2, `the elbow leapt ${leap.toFixed(2)} units for a hundredth of weight`);
 });

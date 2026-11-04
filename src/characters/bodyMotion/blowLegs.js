@@ -14,7 +14,7 @@
 // body to strike with and OpenMW plays the clip as it is: the port's own (SCOPE1).
 
 import { algebra, bodyOf, bodyTurn, transpose, mul, apply, clamp01, ease, smooth, at } from './bodyKit.js';
-import { solveBody } from './bodySolve.js';
+import { solveBody, swingWay } from './bodySolve.js';
 import { kneePole } from './guardWalkBalance.js';   // CLIP-KNEE
 import { rotationPart } from '../../combat/climbRig.js';
 import { MW_WEAPON_TYPE } from '../../formats/morrowind/mwFirstPerson.js';
@@ -85,7 +85,7 @@ export const SWORD_BLOW_KEYS = Object.freeze({
  * frame's jump); the layer comes on over `in` and goes over `out` (a body set moving gives its legs to the stride). A
  * body heavier by `heavy` (bodyWeight.js's 0..1) strikes deeper by that share. `still` m/s: under it the body stands.
  */
-export const BLOW_LEGS_TIME = Object.freeze({ hold: 0.25, home: 0.55, step: 0.16, lift: 0.06, tau: 0.035, release: 0.25, in: 0.06, out: 0.12, heavy: 0.4, still: 0.3, after: 0.4, rest: 0.5 });
+export const BLOW_LEGS_TIME = Object.freeze({ hold: 0.25, home: 0.55, step: 0.16, lift: 0.06, tau: 0.035, release: 0.25, leave: 0.45, in: 0.06, out: 0.12, heavy: 0.4, still: 0.3, after: 0.4, rest: 0.5 });
 /* LEGS-RELEASE (the owner's video, 2026-11-04, 60.45 -> 60.48 s: the legs jumped as a series stopped): with no blow to
  * follow the hips rose out of the lunge at `tau`, one frame, the knees snapping straight - they let go over `release`. */
 /* STEP-HOP: the stepped foot waits `rest` seconds after the last blow before it steps home - blows clicked one by one
@@ -208,6 +208,7 @@ export function createBlowLegs() {
   let guardTravel = false;
   let guard = 0;   // GUARD-WALK: how far the stride is sunk into a fighting walk   // BLOW-MOVE: how far the blow is the standing one (0 struck moving: the stride's feet, a share of the hips)
   let sinceBlow = Infinity;   // STEP-HOP: seconds since the last blow
+  let leave = 0;   // FEET-HOME: how far the anchored feet have gone back to the clip's stance
   /** @type {null | { off: Record<string, number[]>, order: string[], toe: number[], up: number[], done?: boolean }} */
   let settle = null;   // STOP-UNDER-A-BLOW
   let still = Infinity;   // STOP-UNDER-A-BLOW: seconds since the body last moved
@@ -244,7 +245,10 @@ export function createBlowLegs() {
       // they rose 10 cm in it)
       const rising = !struck && grounded && !standing && guard > 0.02;
       planting = !!(asked || homing);
-      const on1 = asked || homing || moving || rising;
+      // FEET-HOME (the owner's video, 2026-11-05: after the blows the feet stayed wide on their anchors, the legs straight as
+      // an A, then let go in 0.12 s): past `rest`, a standing body's feet go back to the clip's stance over `leave`
+      leave = asked ? ease(leave, 0, BLOW_LEGS_TIME.in, dt) : anchor && standing && sinceBlow >= BLOW_LEGS_TIME.rest ? Math.min(1, leave + dt / BLOW_LEGS_TIME.leave) : leave;
+      const on1 = !(leave >= 1 && !asked) && (asked || homing || moving || rising || (!!anchor && standing));
       w = ease(w, on1 ? 1 : 0, on1 ? BLOW_LEGS_TIME.in : BLOW_LEGS_TIME.out, dt);
       if (on1 && w > 0.999) w = 1;
       const k = movingKeys.share + (1 - movingKeys.share) * stand;   // the hips' share: moving, standing, between
@@ -338,6 +342,15 @@ export function createBlowLegs() {
         // BLOW-MOVE: coming to a stand, the anchored feet taken over from the stride's as the blow becomes the standing one
         plan.feet[s] = stand >= 1 ? planted : { ...planted, at: lerp3(clipFeet[s].at, planted.at, stand), toe: norm(lerp3(clipFeet[s].toe, planted.toe, stand)) };
       }
+      // FEET-HOME: the anchored feet eased onto the clip's, the knee's way along its arc to the clip's own
+      const back = smooth(leave);
+      if (back > 0) {
+        for (const s of ['L', 'R']) {
+          const f = plan.feet[s], c = clipFeet[s], flat = [f.toe[0], f.toe[1], 0], own = norm(add(flat, [(s === 'R' ? 1 : -1) * 0.12, 0, 0.02]));
+          const at3 = lerp3(f.at, c.at, back), pole = swingWay(own, c.pole, sub(at3, at(mats, body.bones[s].thigh)), back);
+          plan.feet[s] = { ...f, at: at3, toe: norm(lerp3(f.toe, c.toe, back)), up: norm(lerp3(f.up, c.up, back)), pole };
+        }
+      }
       }
       // the hips: turned about their own joint and moved, additively over the clip's
       const node = skeleton.nodes.get(pelvis);
@@ -374,7 +387,7 @@ export function createBlowLegs() {
     reset() { clearLegs(); trunk = { yaw: 0, pitch: 0 }; },
   };
   function clearLegs() {
-    w = 0; planting = false; stand = 1; guard = 0; fromMove = false; want = null; anchor = null; settle = null; stepped = false; sinceBlow = Infinity; pose = { fwd: 0, drop: 0, yaw: 0, pitch: 0, side: 0 }; feet.L.reset(); feet.R.reset();
+    w = 0; leave = 0; planting = false; stand = 1; guard = 0; fromMove = false; want = null; anchor = null; settle = null; stepped = false; sinceBlow = Infinity; pose = { fwd: 0, drop: 0, yaw: 0, pitch: 0, side: 0 }; feet.L.reset(); feet.R.reset();
   }
   return layer;
 }

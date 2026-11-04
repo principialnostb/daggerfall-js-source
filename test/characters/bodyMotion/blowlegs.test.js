@@ -364,3 +364,27 @@ test('BLOW-TRUNK: a blow struck running turns the trunk as far as a standing one
   const bw = readFileSync(new URL('../../../src/characters/bodyMotion/bodyWeight.js', import.meta.url), 'utf8');
   assert.match(bw, /if \(clearOn\) leanTrunk\(skeleton, pose, rootRef, skelMats, legs\.trunkTurn\(\)\);[^\n]*\n\s+if \(clearOn\) legs\.apply\(/);
 });
+
+test('FEET-HOME: past the blows, feet anchored wide go back to the clip\'s stance over a moment - never held as an A and let go in a frame', () => {
+  const sk = buildSkeleton(parseNif(retailSkeleton()));
+  const body = bodyOf(sk, GRAPH_ROOT, sm);
+  const rest = sm(sk, new Map(), GRAPH_ROOT), ft = (s) => rest.get(body.bones[s].foot).t, wide = new Map();
+  solveBody(sk, wide, GRAPH_ROOT, sm, { w: 1, feet: { L: { at: [ft('L')[0] - 0.1 * body.leg, ft('L')[1] + 0.3 * body.leg, ft('L')[2]], toe: [0, 1, 0], up: [0, 0, 1], w: 1 }, R: { at: [ft('R')[0] + 0.1 * body.leg, ft('R')[1] - 0.12 * body.leg, ft('R')[2]], toe: [0, 1, 0], up: [0, 0, 1], w: 1 } } });
+  const legs = createBlowLegs(), frames = [];
+  const frame = (clip, b) => {
+    legs.step(1 / 60, true, { on: true, grounded: true, speed: 0, blow: b }, 0);
+    const pose = new Map(clip);
+    legs.apply(sk, pose, GRAPH_ROOT, sm);
+    const m = sm(sk, pose, GRAPH_ROOT);
+    frames.push({ L: [...m.get(body.bones.L.foot).t], R: [...m.get(body.bones.R.foot).t], w: legs.weight() });
+  };
+  for (let i = 0; i < 60; i++) frame(wide, blow('slash', 'windup', 1));
+  for (let i = 0; i < 150; i++) frame(new Map(), null);   // the blows over, the clip's own stance narrow
+  const tail = frames.slice(60);
+  let leap = 0;
+  for (let i = 1; i < tail.length; i++) for (const s of ['L', 'R']) leap = Math.max(leap, d(tail[i][s], tail[i - 1][s]));
+  assert.ok(leap < 1.5, `a foot leapt ${leap.toFixed(2)} units in a frame`);
+  const end = tail[tail.length - 1];
+  assert.equal(end.w, 0, 'the layer let the legs go');
+  for (const s of ['L', 'R']) assert.ok(d(end[s], ft(s)) < 0.5, `the ${s} foot on the clip's stance`);
+});

@@ -201,7 +201,7 @@ export function solveBody(skeleton, pose, rootRef, skelMats, plan) {
         // first frame, it jumped each time the layer came in or went out around a blow.
         const k = clamp01((req.L.w ?? 1) * w);
         const grip = onRightHand(req.L, req.R, mats, body), own = clipL ? onRightHand(clipL.l, clipL.r, mats, body) : null;
-        const L = grip && own ? blendHand(own, grip, k) : grip;
+        const L = grip && own ? blendHand(own, grip, k, at(mats, body.bones.L.upper)) : grip;
         const wr = L ? poseHand(skeleton, pose, mats, body, 'L', L, 1) : null;
         if (wr) report.reach.L = len(sub(wr, L.at));
       }
@@ -423,7 +423,7 @@ function clipHand(mats, body) {
 
 /** HILT-EASE: two hand requests mixed by `k` (0 the first, 1 the second). The hand is turned the shorter way as one
  *  body (the owner's game, 2026-11-05: its fingers and palm mixed apart, the wrist wrung after a blow). */
-function blendHand(a, b, k) {
+function blendHand(a, b, k, shoulder = null) {
   const way = (u, v) => (u && v ? norm(lerp3(u, v, k)) : v ?? u);
   const frame = (h) => { const x = norm(h.fingers), z = norm(sub(h.palm, scale(x, dot(h.palm, x)))); return fromColumns(x, cross(z, x), z); };
   let fingers = way(a.fingers, b.fingers), palm = way(a.palm, b.palm);
@@ -431,8 +431,19 @@ function blendHand(a, b, k) {
     const D = rotFraction(mul(frame(b), transpose(frame(a))), k);
     fingers = norm(apply(D, a.fingers)); palm = norm(apply(D, a.palm));
   }
-  const pole = a.pole && b.pole ? norm(apply(rotFraction(rotFromTo(norm(a.pole), norm(b.pole)), k), norm(a.pole))) : way(a.pole, b.pole);   // the elbow along its arc, never through nothing
-  return { ...b, at: lerp3(a.at, b.at, k), fingers, palm, pole };
+  const at3 = lerp3(a.at, b.at, k);
+  const pole = a.pole && b.pole && shoulder ? swingWay(a.pole, b.pole, sub(at3, shoulder), k) : way(a.pole, b.pole);   // ARC-EASE: the elbow swung about the arm's line
+  return { ...b, at: at3, fingers, palm, pole };
+}
+
+/** ARC-EASE: a joint's way `a` turned toward `b` by `k` ABOUT the limb's own line `axis` (root to its end) - an elbow or
+ *  a knee swings round its limb, so its way never lies along the limb, where the reach cannot tell its side (turned the
+ *  short way between two near-opposite ways, it crossed the line midway and flipped in a frame). */
+export function swingWay(a, b, axis, k) {
+  const d = norm(axis), pa = sub(a, scale(d, dot(a, d))), pb = sub(b, scale(d, dot(b, d)));
+  if (!(len(pa) > 1e-6) || !(len(pb) > 1e-6)) return norm(lerp3(norm(a), norm(b), k));
+  const ang = Math.atan2(dot(cross(pa, pb), d), dot(pa, pb));
+  return norm(apply(rotAxisAngle(d, ang * k), norm(pa)));
 }
 
 /**
@@ -448,13 +459,18 @@ function poseHand(skeleton, pose, mats, body, side, h, w) {
   if (!(k > 0) || !h.at || !S || !E || !W) return null;
   const sw = norm(sub(W, S));
   const clipElbow = norm(sub(E, add(S, scale(sw, dot(sub(E, S), sw)))));
-  const pole = h.pole ? norm(lerp3(len(clipElbow) > 0.5 ? clipElbow : h.pole, h.pole, k)) : clipElbow;
+  // ARC-EASE (the owner's video, 2026-11-05: the elbow wrung at a blow's end, as the layer came back): the elbow's way
+  // and the hand's turn eased along their arcs. Mixed as loose vectors, an elbow asked nearly opposite the clip's passed
+  // through nothing and flipped in a frame, and the fingers and the palm, mixed apart, twisted the wrist.
+  const ask = h.pole ? norm(h.pole) : null;
+  const reach = lerp3(W, h.at, k);
+  const pole = ask && len(clipElbow) > 0.5 ? swingWay(clipElbow, ask, sub(reach, S), k) : ask ?? clipElbow;
   const fr = h.fingers ? handFrame(mats, limb, side) : null;
-  return reachLimb(skeleton, pose, mats, limb.upper, limb.fore, limb.hand, lerp3(W, h.at, k), pole, (Rh, D) => {
+  return reachLimb(skeleton, pose, mats, limb.upper, limb.fore, limb.hand, reach, pole, (Rh, D) => {
     if (!fr) return null;
     const f0 = norm(apply(D, fr.fingers)), p0 = fr.palm ? norm(apply(D, fr.palm)) : null;
-    const want = norm(lerp3(f0, h.fingers, k));
-    return mul(p0 && h.palm ? rotFrames(f0, p0, want, norm(lerp3(p0, h.palm, k))) : rotFromTo(f0, want), Rh);
+    const whole = p0 && h.palm ? rotFrames(f0, p0, norm(h.fingers), norm(h.palm)) : rotFromTo(f0, norm(h.fingers));
+    return mul(rotFraction(whole, k), Rh);
   });
 }
 
