@@ -17,7 +17,6 @@ import { algebra, bodyOf, bodyTurn, transpose, mul, apply, clamp01, ease, smooth
 import { solveBody } from './bodySolve.js';
 import { rotationPart } from '../../combat/climbRig.js';
 import { MW_WEAPON_TYPE } from '../../formats/morrowind/mwFirstPerson.js';
-import { guardStance } from './guardStance.js';
 
 const { add, sub, scale, len, norm, lerp3 } = algebra;
 
@@ -216,7 +215,7 @@ export function createBlowLegs() {
     /** One frame: `on` the switch in third person, `word` the motion word, `heavy` the body's weight (0..1). */
     step(dt, on, word, heavy = 0) {
       lastDt = Math.max(0, dt);
-      guardTravel = !!word?.shown && guardStance(word.mwType);   // GUARD-STANCE: a one-hander strikes moving as the two-hander
+      guardTravel = !!word?.shown && word.mwType === MW_WEAPON_TYPE.LongBladeTwoHand;   // the claymore's moving blow; a one-hander's legs keep BLOW_MOVE (its keys crossed a one-hander's feet)
       const movingKeys = guardTravel ? GUARD_BLOW_MOVE : BLOW_MOVE;
       still = word && Number(word.speed) > BLOW_LEGS_TIME.still ? 0 : still + Math.max(0, dt);
       const grounded = !!word && word.on !== false && !word.busy && word.grounded !== false && !word.swimming && !word.levitating;
