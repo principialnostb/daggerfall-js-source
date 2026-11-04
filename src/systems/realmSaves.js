@@ -1009,7 +1009,7 @@ export async function openRealmBoot(/** @type {BootAt} */ at, /** @type {{ line:
   let said = false;
   const say = at.onBusy ?? (() => { loading?.line(realmBootBusyText()); });
   const onBusy = () => { if (!said) { said = true; say(); } };
-  const { slowTimer = (/** @type {() => void} */ fn, /** @type {number} */ ms) => { const h = setTimeout(fn, ms); return () => clearTimeout(h); } } = at;
+  const { slowTimer = (/** @type {() => void} */ onSlow, /** @type {number} */ delayMs) => { const timer = setTimeout(onSlow, delayMs); return () => clearTimeout(timer); } } = at;
   const stop = slowTimer(onBusy, REALM_BOOT_SLOW_MS);
   try {
     return heldOut(await joinRealmBoot({ ...at, onBusy }));
@@ -1034,15 +1034,15 @@ export const realmBootBusyText = () => t('realm.bootBusy', 'Servers may be slow 
  * first wait. Past `busyMaxMs` the last answer stands.
  * @param {() => Promise<any>} ask @param {BootAt} at
  */
-async function askThroughBusy(ask, { onBusy = () => {}, wait = (ms) => new Promise((r) => { setTimeout(r, ms); }), now = () => Date.now(), rand = Math.random, busyMaxMs = REALM_BUSY_MAX_MS }) {
+async function askThroughBusy(ask, { onBusy = () => {}, wait = (delayMs) => new Promise((resolve) => { setTimeout(resolve, delayMs); }), now = () => Date.now(), rand = Math.random, busyMaxMs = REALM_BUSY_MAX_MS }) {
   const until = now() + busyMaxMs;
-  for (let n = 1; ; n++) {
-    const r = await ask();
-    if (r.ok || !REALM_ACT_TRANSIENT.includes(r.error)) return r;
-    const ms = busyWaitMs(n, rand());
-    if (now() + ms > until) return r;
-    if (n === 1) onBusy();
-    await wait(ms);
+  for (let tries = 1; ; tries++) {
+    const answer = await ask();
+    if (answer.ok || !REALM_ACT_TRANSIENT.includes(answer.error)) return answer;
+    const delayMs = busyWaitMs(tries, rand());
+    if (now() + delayMs > until) return answer;
+    if (tries === 1) onBusy();
+    await wait(delayMs);
   }
 }
 /** AUDIT RESCUE-SAVE A1: THE BOOT'S SAVE GIVES UP THE RECORDS ITS PACK HOLDS - `held`, read out of whichever save the
@@ -1308,10 +1308,10 @@ export async function realmGoldAct({ session, checkpoint, reserve = null, apply 
       if (r?.error === 'seq') return i > 0 && r.seq === at.seq + 1 && !needsAnswer && !read ? { ok: true, landed: true, seq: r.seq } : unanswered;
       if (!REALM_ACT_TRANSIENT.includes(r?.error)) return r;   // the service's own word, asked where the record stands: nothing moved
       if (read && i + 1 >= REALM_READ_TRIES) return unanswered;
-      const ms = read ? REALM_READ_RETRY_MS * (i + 1) : busyWaitMs(i + 1, rand());
-      if (waited + ms > REALM_BUSY_MAX_MS) return unanswered;
-      waited += ms;
-      await wait(ms);
+      const delayMs = read ? REALM_READ_RETRY_MS * (i + 1) : busyWaitMs(i + 1, rand());
+      if (waited + delayMs > REALM_BUSY_MAX_MS) return unanswered;
+      waited += delayMs;
+      await wait(delayMs);
     }
   });
   const undo = reserve ? reserve() : null;   // the hold began above: no checkpoint of the purse with it out goes
