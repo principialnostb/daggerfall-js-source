@@ -50,6 +50,7 @@
 // ═══════════════════════════════════════════════════════════════════
 
 import { privateRunOn } from '../net/privateServer.js';
+import { busyWaitMs } from '../net/busyLaw.js';
 import { storedSession, serviceBase, forgetSession, accountRefusalText, forgetD1Bookmark, sessionPassFor, noteSessionPass, forgetSessionPass, passKeptThrough } from '../net/accountClient.js';   // AUDIT SCALE II A-2: a write forgets the page's D1 bookmark; SESSION-SIGN: the checkpoint carries the session's pass
 import { realmTradeRefusalText, LOCKED_SAID_MAX } from '../net/realm/realmTradeLaw.js';   // REALM P2.1: a trade the realm settles
 import { REALM_DOOR_WORD } from '../net/wire.js';   // REALM-DOOR: the relay's word for a token that names no realm character
@@ -1001,7 +1002,49 @@ export function realmRowAsSave(row, { dateText = () => null } = {}) {
  * spoils records the save's pack already holds - the crash's door adopts them and never hands them again.
  * @param {{ io: any, id: string }} at
  */
-export async function openRealmBoot(/** @type {{ io: any, id: string }} */ at) { return privateRunOn() ? { ok: false, error: 'private' } : heldOut(await joinRealmBoot(at)); }   // a private run never reaches the realm (net/privateServer.js)
+export async function openRealmBoot(/** @type {BootAt} */ at, /** @type {{ line: (text: string) => void } | null} */ loading = null) {
+  if (privateRunOn()) return { ok: false, error: 'private' };   // a private run never reaches the realm (net/privateServer.js)
+  // The loading screen says why it waits, once, whether the realm answered busy or is only slow to answer. The boot's
+  // next step writes its own line over this one.
+  let said = false;
+  const say = at.onBusy ?? (() => { loading?.line(realmBootBusyText()); });
+  const onBusy = () => { if (!said) { said = true; say(); } };
+  const { slowTimer = (/** @type {() => void} */ onSlow, /** @type {number} */ delayMs) => { const timer = setTimeout(onSlow, delayMs); return () => clearTimeout(timer); } } = at;
+  const stop = slowTimer(onBusy, REALM_BOOT_SLOW_MS);
+  try {
+    return heldOut(await joinRealmBoot({ ...at, onBusy }));
+  } finally {
+    stop();
+  }
+}
+/** @typedef {{ io: any, id: string, onBusy?: () => void, wait?: (ms: number) => Promise<void>, now?: () => number, rand?: () => number, busyMaxMs?: number, slowTimer?: (fn: () => void, ms: number) => () => void }} BootAt */
+
+/** How long a busy realm is asked again, by the boot and by an act, before the door says why. It stays under the
+ *  loading screen's own hold. */
+export const REALM_BUSY_MAX_MS = 300_000;
+/** A boot still waiting on the realm this long says the servers may be slow, though nothing was refused. */
+export const REALM_BOOT_SLOW_MS = 4_000;
+/** The loading screen's line while the boot waits on a busy realm. */
+export const realmBootBusyText = () => t('realm.bootBusy', 'Servers may be slow due to traffic, please wait...');
+
+/**
+ * One boot step, asked again while the realm answers a word that may clear (REALM_ACT_TRANSIENT). An overloaded
+ * database answers `server` for seconds at a time, and a player sent to the title by one of them must start over.
+ * The waits are the busy gate's (busyWaitMs), so a crowd of boots does not ask again in step. `onBusy` hears the
+ * first wait. Past `busyMaxMs` the last answer stands.
+ * @param {() => Promise<any>} ask @param {BootAt} at
+ */
+async function askThroughBusy(ask, { onBusy = () => {}, wait = (delayMs) => new Promise((resolve) => { setTimeout(resolve, delayMs); }), now = () => Date.now(), rand = Math.random, busyMaxMs = REALM_BUSY_MAX_MS }) {
+  const until = now() + busyMaxMs;
+  for (let tries = 1; ; tries++) {
+    const answer = await ask();
+    if (answer.ok || !REALM_ACT_TRANSIENT.includes(answer.error)) return answer;
+    const delayMs = busyWaitMs(tries, rand());
+    if (now() + delayMs > until) return answer;
+    if (tries === 1) onBusy();
+    await wait(delayMs);
+  }
+}
 /** AUDIT RESCUE-SAVE A1: THE BOOT'S SAVE GIVES UP THE RECORDS ITS PACK HOLDS - `held`, read out of whichever save the
  *  join plays (the device's copy or the service's: a put that landed with its answer lost cleared no record either),
  *  and taken out of the save the world loads. */
@@ -1012,10 +1055,12 @@ function heldOut(/** @type {any} */ r) {
   return { ...r, held };
 }
 /** The join and the save it plays (openRealmBoot's, before the records come out of it). */
-async function joinRealmBoot(/** @type {{ io: any, id: string }} */ { io, id }) {
+async function joinRealmBoot(/** @type {BootAt} */ at) {
+  const { io, id } = at;
   if (!io) return { ok: false, error: 'signed-out' };
   if (typeof id !== 'string' || !REALM_ID_SHAPE.test(id)) return { ok: false, error: 'no-realm-character' };
-  const joined = await realmJoin(io, id);
+  // A join asked again only mints a newer lease, and the newest is the one this tab plays under
+  const joined = await askThroughBusy(() => realmJoin(io, id), at);
   if (!joined.ok) {
     if (joined.error === 'no-realm-character') dropUnsent(io.storage, id);   // AUDIT RESCUE-SAVE A2: deleted elsewhere - its copy goes too
     return { ok: false, error: joined.error };
@@ -1031,7 +1076,7 @@ async function joinRealmBoot(/** @type {{ io: any, id: string }} */ { io, id }) 
     if (snap) { snap.characterId = id; return { ok: true, snap, lease, seq, origin: typeof origin === 'string' ? origin : null, restored: true, missed: kept.missed, gzip: joined.data?.gzip === true }; }
     forgetUnsent(io.storage, id);   // a copy that will not open is dropped
   }
-  const got = await realmFetch(io, id);
+  const got = await askThroughBusy(() => realmFetch(io, id), at);
   if (!got.ok) return { ok: false, error: got.error };   // a copy behind the record stays for the next join to settle
   // STRANDED: a copy behind the record is never played - set aside when a put of it failed and the realm does not hold it
   const stranded = kept && kept.seq !== seq ? await settleMovedCopy(io.storage, id, kept, got.text, got.seq ?? seq) : false;
@@ -1219,9 +1264,10 @@ export function realmTradeEscrow({ session, checkpoint, wait, now, heldSaid = nu
 
 // ── REALM P2.2: AN ACT THAT MOVES A REALM CHARACTER'S GOLD ON THE SERVICE ──
 
-/** How many times an act asks again when its answer is lost, and how long it waits a time (ms, times the try). */
-export const REALM_ACT_TRIES = 4;
-export const REALM_ACT_RETRY_MS = 1_000;
+/** How many times a read asks when its answer is lost, and how long it waits a time (ms, times the try). A read never
+ *  ends the session, so its caller says "try again" soon rather than hold the player. */
+export const REALM_READ_TRIES = 4;
+export const REALM_READ_RETRY_MS = 1_000;
 /** AUDIT REALM L1-F2: the answers that say nothing about the act - no answer (offline), the service's own error, and the
  *  account's request rate, which the Worker answers before any route: asked again. */
 export const REALM_ACT_TRANSIENT = Object.freeze(['offline', 'server', 'rate']);
@@ -1235,8 +1281,8 @@ export const REALM_ACT_TRANSIENT = Object.freeze(['offline', 'server', 'rate']);
  * outcome is checkpointed. A LOST ANSWER IS ASKED AGAIN with the same record: while the hold stands nothing else moves
  * the record, and every realm act answers where the record stands before any other word (AUDIT REALM L1-F2), so a `seq`
  * refusal one ahead, when the act was asked before, is this act, landed - and any other word is the act refused, nothing
- * moved. A `seq` on the first asking is a move this tab never made. Still lost after REALM_ACT_TRIES, the session ends
- * (`unknown`) with the gold where it is - only a join reads how the act ended.
+ * moved. A `seq` on the first asking is a move this tab never made. Lost past REALM_BUSY_MAX_MS of busy waits, the
+ * session ends (`unknown`) with the gold where it is - only a join reads how the act ended.
  * `apply(answer)` gets the service's answer; an act whose client needs it (`needsAnswer` - a sale, whose refund the
  * service's price decides) cannot take a landed act without it, and ends the session instead.
  * AUDIT CARDS-6 E6: A READ (`read` - an ask that moves nothing on the record, a ranked seat's deck order: the service
@@ -1245,14 +1291,15 @@ export const REALM_ACT_TRANSIENT = Object.freeze(['offline', 'server', 'rate']);
  * this ask, landed: it lands nothing; a move this tab never made is its own checkpoint's to meet), is the realm not
  * answering: `{ ok: false, error: 'offline', why: 'offline' }`. Asked as an act, `unknown` sent the player to the title.
  * @param {{ session: any, checkpoint: () => any, reserve?: (() => (() => void)) | null, apply?: ((answer: any) => void) | null,
- *   call: (at: { id: string, lease: string, seq: number }) => Promise<any>, wait?: (ms: number) => Promise<void>, needsAnswer?: boolean, read?: boolean }} at
+ *   call: (at: { id: string, lease: string, seq: number }) => Promise<any>, wait?: (ms: number) => Promise<void>, rand?: () => number, needsAnswer?: boolean, read?: boolean }} at
  */
-export async function realmGoldAct({ session, checkpoint, reserve = null, apply = null, call, wait = (ms) => new Promise((r) => { setTimeout(r, ms); }), needsAnswer = false, read = false }) {
+export async function realmGoldAct({ session, checkpoint, reserve = null, apply = null, call, wait = (ms) => new Promise((r) => { setTimeout(r, ms); }), rand = Math.random, needsAnswer = false, read = false }) {
   checkpoint();
   const unanswered = read ? { ok: false, error: 'offline', why: 'offline' } : { ok: false, error: 'offline', unknown: true };   // AUDIT CARDS-6 E6
   const outcome = session.transact(async (/** @type {any} */ at) => {
     const where = { id: at.id, lease: at.lease, seq: at.seq };
-    for (let i = 0; i < REALM_ACT_TRIES; i++) {
+    let waited = 0;   // the sum of the waits, not the clock: the bound holds wherever the waits come from
+    for (let i = 0; ; i++) {
       const r = await call(where);
       if (r?.ok) return { ...r, seq: r.data?.realm?.seq ?? at.seq };   // the service says when the record moved; unsaid, it did not
       // AUDIT REALM L1-F2: every realm act answers where the record stands before any other word (server-account/src/
@@ -1260,9 +1307,12 @@ export async function realmGoldAct({ session, checkpoint, reserve = null, apply 
       // landed; on its first asking, or any further on, it is a move nothing this tab sent made: only a join reads it
       if (r?.error === 'seq') return i > 0 && r.seq === at.seq + 1 && !needsAnswer && !read ? { ok: true, landed: true, seq: r.seq } : unanswered;
       if (!REALM_ACT_TRANSIENT.includes(r?.error)) return r;   // the service's own word, asked where the record stands: nothing moved
-      await wait(REALM_ACT_RETRY_MS * (i + 1));
+      if (read && i + 1 >= REALM_READ_TRIES) return unanswered;
+      const delayMs = read ? REALM_READ_RETRY_MS * (i + 1) : busyWaitMs(i + 1, rand());
+      if (waited + delayMs > REALM_BUSY_MAX_MS) return unanswered;
+      waited += delayMs;
+      await wait(delayMs);
     }
-    return unanswered;
   });
   const undo = reserve ? reserve() : null;   // the hold began above: no checkpoint of the purse with it out goes
   const r = await outcome;

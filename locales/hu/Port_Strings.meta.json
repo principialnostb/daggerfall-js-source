@@ -15473,5 +15473,10 @@
   "en": "9429cfe23a19",
   "tr": "9429cfe23a19",
   "by": "claude-in-session"
+ },
+ "realm.bootBusy": {
+  "en": "d445e1659813",
+  "tr": "6affa2e4c92c",
+  "by": "claude-in-session"
  }
 }
