@@ -183,8 +183,8 @@
   {
     "name": "AUDIT3-B6-a-day-old-find-asked",
     "file": "src/systems/pass/passClient.js",
-    "old": "    if (x?.at >= since && typeof x.rid === 'string'",
-    "new": "    if (typeof x.rid === 'string'",
+    "old": "  for (const x of keptFinds()[who] ?? []) if (x?.at >= since && isPassSource(x.source)",
+    "new": "  for (const x of keptFinds()[who] ?? []) if (isPassSource(x.source)",
     "tests": [
       "test/systems/pass/passclient_audit3.test.js"
     ]

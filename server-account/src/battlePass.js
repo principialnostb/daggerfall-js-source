@@ -11,7 +11,7 @@ import { aurumRow, balanceOfRow, aurumOpenFor, AURUM_BALANCE_SQL } from './aurum
 import { utcDay } from '../../src/net/marksLaw.js';
 import {
   PASS_SOURCES, PASS_DAY_ASKS, PASS_DAY_AURUM, PASS_CHALLENGES, PASS_FINDS_FROM_MS, PASS_PREMIUM_AURUM,
-  passSeasonAt, passSeasonShown, passSeasonById, passStageAt, passTracksOpen, passItemOf, passItemsOf, passBuyBlock, passFindSources, PASS_FIND_BATCH_MAX, PASS_ALL_GRANTS,
+  passSeasonAt, passSeasonShown, passSeasonById, passStageAt, passTracksOpen, passItemOf, passItemsOf, passBuyBlock, isPassSource, PASS_ALL_GRANTS,
 } from '../../src/net/battlePassLaw.js';
 
 /** A pass's finds an account an hour, in the isolate's memory (the festival's law: the day's asks bound them across). */
@@ -85,13 +85,13 @@ export async function passOf({ db, nowS }, player, env) {
     season: season.id, open: passOpenFor(player, env), stage: passStageAt(season, nowS * 1000),
     tracks: { free: true, premium: admin || !!track?.results?.length },
     bought: (admin ? PASS_ALL_GRANTS : passItemsOf(row?.results?.[0]?.pass_items)).filter((g) => !!passItemOf(season.id, g)),
-    today: int(day?.results?.[0]?.aurum), dayMax: PASS_DAY_AURUM, spent, batch: PASS_FIND_BATCH_MAX,
+    today: int(day?.results?.[0]?.aurum), dayMax: PASS_DAY_AURUM, spent,
     challenges: PASS_CHALLENGES.map((c) => { const g = /** @type {any} */ (got.get(c.key)); return { key: c.key, n: Math.min(int(g?.n), c.n), paid: int(g?.paid) > 0 }; }),
   };
 }
 
 /**
- * A FIND: a deed's Aurum for `body.source`, or for each of `body.sources` (battlePassLaw.js passFindSources), in ONE TRANSACTION - the day's row takes the
+ * A FIND: a deed's Aurum for `body.source` (battlePassLaw.js PASS_SOURCES), in ONE TRANSACTION - the day's row takes the
  * ask under PASS_DAY_ASKS and the Aurum under PASS_DAY_AURUM (its `last` what it took, every SET reading the old row), the
  * ledger's day line takes the same, and each challenge of the running stage and its source counts one and pays its Aurum
  * once on the deed that completes it. `{ gained, found, today, done: [challenge keys paid], season }` - `found` the
@@ -109,20 +109,16 @@ export async function findPass(ctx, player, body, env) {
   const kept = rid ? await passAskOf(db, player.id, rid) : null;
   if (kept) return kept;
   if (!passOpenFor(player, env) || nowS * 1000 < PASS_FINDS_FROM_MS) return { error: 'closed' };
-  // a page whose answers come slowly sends its waiting finds as one: counted as that many, each by its own source
-  const sources = passFindSources(body);
-  if (!sources) return { error: 'source' };
-  const k = sources.length;
+  const source = body?.source;
+  if (!isPassSource(source)) return { error: 'source' };
   if (overAccountRate(`pass:${player.id}`, nowS, PASS_OPS_MAX, PASS_OPS_WINDOW_S)) return { error: 'rate' };
   const day = utcDay(nowS);
-  const ask = await db.prepare(`INSERT INTO pass_days (account, day, asks, aurum, last) VALUES (?1, ?2, ?4, 0, 0)
-    ON CONFLICT (account, day) DO UPDATE SET asks = asks + ?4 WHERE asks + ?4 <= ?3 RETURNING asks`).bind(player.id, day, PASS_DAY_ASKS, k).first();
+  const ask = await db.prepare(`INSERT INTO pass_days (account, day, asks, aurum, last) VALUES (?1, ?2, 1, 0, 0)
+    ON CONFLICT (account, day) DO UPDATE SET asks = asks + 1 WHERE asks < ?3 RETURNING asks`).bind(player.id, day, PASS_DAY_ASKS).first();
   if (!ask) return { error: 'capped' };
   const season = passSeasonAt(nowS * 1000), stage = season ? passStageAt(season, nowS * 1000) : -1;
-  // the day's bound clamps the sum as it clamps each find in turn: min(a + b, room) is min(a, room) then min(b, what is left)
-  const base = sources.reduce((a, src) => a + PASS_SOURCES[/** @type {keyof typeof PASS_SOURCES} */ (src)], 0);
-  const countOf = (/** @type {any} */ challenge) => sources.filter((src) => challenge.sources.includes(src)).length;
-  const mine = season ? PASS_CHALLENGES.filter((challenge) => challenge.stage === stage && countOf(challenge) > 0) : [];
+  const base = PASS_SOURCES[/** @type {keyof typeof PASS_SOURCES} */ (source)];
+  const mine = season ? PASS_CHALLENGES.filter((c) => c.stage === stage && c.sources.includes(source)) : [];
   const where = 'account = ?1 AND season = ?2';
   const asked = rid ? [db.prepare('INSERT INTO pass_asks (account, rid, day) VALUES (?1, ?2, ?3)').bind(player.id, rid, day)] : [];
   let out;
@@ -132,14 +128,14 @@ export async function findPass(ctx, player, body, env) {
       db.prepare(`INSERT INTO aurum_ledger (account, kind, ref, amount, day, at) SELECT ?1, 'find', ?2, last, ?3, ?4 FROM pass_days WHERE account = ?1 AND day = ?3 AND last > 0
         ON CONFLICT (account, kind, ref) DO UPDATE SET amount = amount + excluded.amount, at = excluded.at`).bind(player.id, String(day), day, nowS),
       ...mine.flatMap((c) => [
-        db.prepare('INSERT INTO pass_counts (account, season, challenge, n, paid) VALUES (?1, ?2, ?3, ?4, 0) ON CONFLICT (account, season, challenge) DO UPDATE SET n = n + ?4').bind(player.id, /** @type {any} */ (season).id, c.key, countOf(c)),
+        db.prepare('INSERT INTO pass_counts (account, season, challenge, n, paid) VALUES (?1, ?2, ?3, 1, 0) ON CONFLICT (account, season, challenge) DO UPDATE SET n = n + 1').bind(player.id, /** @type {any} */ (season).id, c.key),
         db.prepare(`INSERT INTO aurum_ledger (account, kind, ref, amount, day, at) SELECT ?1, 'challenge', ?2 || ':' || ?3, ?4, ?6, ?7
           WHERE EXISTS (SELECT 1 FROM pass_counts WHERE ${where} AND challenge = ?3 AND n >= ?5 AND paid = 0)`).bind(player.id, /** @type {any} */ (season).id, c.key, c.aurum, c.n, day, nowS),
         db.prepare(`UPDATE pass_counts SET paid = ?4 WHERE ${where} AND challenge = ?3 AND n >= ?5 AND paid = 0 RETURNING challenge`).bind(player.id, /** @type {any} */ (season).id, c.key, nowS, c.n),
       ]),
       db.prepare('SELECT aurum AS today, last FROM pass_days WHERE account = ?1 AND day = ?2').bind(player.id, day),
       ...asked,
-      ...(ask.asks === k ? [passAskSweep(db, player.id, day)] : []),   // the day's first find: the account's older ids go
+      ...(ask.asks === 1 ? [passAskSweep(db, player.id, day)] : []),   // the day's first find: the account's older ids go
     ]);
   } catch (e) {
     const twin = rid ? await passAskOf(db, player.id, rid) : null;   // a twin of this ask landed first: its answer is this one's
@@ -150,7 +146,7 @@ export async function findPass(ctx, player, body, env) {
   const end = out[2 + mine.length * 3]?.results?.[0] ?? {};
   const found = int(end.last), today = int(end.today);
   const gained = found + mine.filter((c) => done.includes(c.key)).reduce((a, c) => a + c.aurum, 0);
-  const answer = { gained, found, today, day, ...(today >= PASS_DAY_AURUM ? { capped: true } : {}), done, season: season?.id ?? null, finds: k };   // AUDIT-STOREFRONT III B4: `day`, the UTC day `today` counts
+  const answer = { gained, found, today, day, ...(today >= PASS_DAY_AURUM ? { capped: true } : {}), done, season: season?.id ?? null };   // AUDIT-STOREFRONT III B4: `day`, the UTC day `today` counts
   if (rid) {
     try { await db.prepare('UPDATE pass_asks SET answer = ?3 WHERE account = ?1 AND rid = ?2').bind(player.id, rid, JSON.stringify(answer)).run(); } catch { /* the find counted either way */ }
   }

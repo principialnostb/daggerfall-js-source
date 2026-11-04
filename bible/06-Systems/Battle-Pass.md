@@ -39,13 +39,6 @@ one `find` ledger line, and `PASS_DAY_ASKS` (2,000) asks. A find carries its own
 service is unreachable; the service keeps the id with its answer (`pass_asks`), so a retry is counted once. Acts with
 no receipt behind them pay no find (`src/systems/questlines/qlActs.js` `ACT_NOT_FOUND`).
 
-**Fewer finds asked** (`src/systems/pass/passClient.js`). The page asks no find that could change nothing: the day's
-100 found and every challenge of the running stage that counts its source paid (`passFindIdle`). Near a UTC day's or a
-stage's edge (`PASS_EDGE_MS`, a minute) it asks anyway. The finds queued while one is asked go as one, under the first
-one's id: `sources`, at most `PASS_FIND_BATCH_MAX` (20), counted as that many finds against the day's asks, its Aurum
-and each challenge, and kept on the device as one. The page sends them so only when the pass says it takes them
-(`batch` in `/v1/pass/mine`).
-
 **Challenges** (`PASS_CHALLENGES`). Five a stage, counted while the stage runs, each paying once (`challenge` lines):
 470 Aurum in the first stage, 560 in the second, 710 in the third.
 
@@ -89,8 +82,7 @@ spend. Under reduced motion pages change without turning.
 - The capstone is the developer wing aura in light blue (the owner).
 - TAMRIEL-WIDE: fissures stand in the Bay and the eight provinces' theatres, Cyrodiil's open zone none
   (`src/net/wire.js` `SITE_EVENT_LANES`). The camp, Colossus, Maul and tremor read only the fissure's own place.
-- `/v1/pass/find` and the Maul claim are progression claims, asked of the seated realm character (`pass` stream). A
-  find carrying several deeds spends the stream once a deed.
+- `/v1/pass/find` and the Maul claim are progression claims, asked of the seated realm character (`pass` stream).
 - A refusal rests the page (`src/net/askRest.js`); a shut pass is read again ten minutes on.
 
 ## Code and tests
@@ -103,8 +95,6 @@ spend. Under reduced motion pages change without turning.
 - `test/net/passpanels_law.test.js`, `test/server/passpanels_service.test.js` - the panels and their service
 - `test/systems/pass/passclient.test.js`, `test/server/storefront_passaudit.test.js`,
   `test/server/storefront_audit2_pass.test.js` - finds, retries, refusals
-- `test/systems/pass/passidle.test.js`, `test/systems/pass/passmerge.test.js`, `test/server/passbatch.test.js` - finds
-  left unasked, and several deeds in one find
 - `test/scenes/seasonaudit_world.test.js`, `test/scenes/storefront_audit2_world.test.js`,
   `test/world/gate/seasonclear.test.js`, `test/systems/pass/fissureroads.test.js` - the world
 - `test/server/seasonmaul_service.test.js` - the Maul's day

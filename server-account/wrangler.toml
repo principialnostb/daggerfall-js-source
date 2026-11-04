@@ -108,7 +108,7 @@ crons = ["* * * * *", "41 * * * *"]
 [vars]
 # Answered by /health so a deploy that did not happen cannot look like
 # one that did. Kept in step with ACCOUNT_VERSION in src/service.js.
-ACCOUNT_VERSION = "acct245"
+ACCOUNT_VERSION = "acct244"
 # WB5b: THE RELAY'S PUBLIC HALF, GATE_PUBLIC_KEY - the key an Oblivion
 # Gate's kill receipts verify with (src/net/gate/gateReceipt.js) - is NOT a
 # var here. GATE-KEYS (2026-09-26): the account deploy mints the pair
@@ -595,13 +595,6 @@ class_name = "AdmitGate"
 # relay (src/sanctions.js pushLaw) goes Worker to Worker through this binding, never out to the relay's public address,
 # which one Worker of an account may be refused to fetch from another (Cloudflare's error 1042). The relay binds this
 # service back (server/wrangler.toml ACCOUNTS) for its reviewer's feed; both Workers exist, so either deploys first.
-# One address's requests a minute, counted by Cloudflare across every isolate in a location (src/accounts.js
-# overAddressLimit), so a flood spread over isolates is refused before it reaches D1. `limit` is ADDRESS_MAX.
-[[ratelimits]]
-name = "ADDRESS_LIMIT"
-namespace_id = "1001"
-simple = { limit = 1200, period = 60 }
-
 [[services]]
 binding = "RELAY"
 service = "daggerfall-online"

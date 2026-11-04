@@ -51,14 +51,6 @@ export const PASS_PATHS = Object.freeze([
   '/v1/chapters/list',
   '/v1/seats/list',
   '/v1/festival/town',
-  // the next busiest reads, each of the account's id and handle alone
-  '/v1/homes/decor',
-  '/v1/safety/blocks',
-  '/v1/prof/motherlodes',
-  '/v1/market/vendors',
-  '/v1/firmament/state',
-  '/v1/marks/balance',
-  '/v1/hunt/state',
 ]); // WITCH1: and a town's Hearth Offerings, asked as its homes are
 const PASS_PATH_SET = new Set(PASS_PATHS);
 /** The realm checkpoint (service.js's realm data path), a PUT. */

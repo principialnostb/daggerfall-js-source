@@ -47,7 +47,7 @@
   {
     "name": "AUDIT2-B2-never-swept",
     "file": "server-account/src/battlePass.js",
-    "old": "      ...(ask.asks === k ? [passAskSweep(db, player.id, day)] : []),",
+    "old": "      ...(ask.asks === 1 ? [passAskSweep(db, player.id, day)] : []),",
     "new": "      ...([]),",
     "tests": [
       "test/server/storefront_audit2_pass.test.js"
@@ -56,8 +56,8 @@
   {
     "name": "AUDIT2-B2-the-door-drops-the-id",
     "file": "src/net/accountClient.js",
-    "old": "post('/v1/pass/find', Array.isArray(source) ? { sources: source, rid } : { source, rid })",
-    "new": "post('/v1/pass/find', Array.isArray(source) ? { sources: source } : { source })",
+    "old": "post('/v1/pass/find', { source, rid })",
+    "new": "post('/v1/pass/find', { source })",
     "tests": [
       "test/server/storefront_audit2_pass.test.js"
     ]
@@ -65,8 +65,8 @@
   {
     "name": "AUDIT2-B2-a-new-id-each-time",
     "file": "src/systems/pass/passClient.js",
-    "old": "      const r = await _api.find(ask, rid).catch(() => null);",
-    "new": "      const r = await _api.find(ask, _doors.rid()).catch(() => null);",
+    "old": "      const r = await _api.find(source, rid).catch(() => null);",
+    "new": "      const r = await _api.find(source, _doors.rid()).catch(() => null);",
     "tests": [
       "test/server/storefront_audit2_pass.test.js"
     ]

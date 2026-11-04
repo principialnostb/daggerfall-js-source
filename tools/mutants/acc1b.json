@@ -73,12 +73,13 @@
   {
     "name": "ACC1b-8-a-short-secret-is-looked-up-anyway",
     "file": "server-account/src/accounts.js",
-    "old": "  if (typeof secret !== 'string' || !SECRET_RE.test(secret)) return null;",
+    "old": "  if (typeof secret !== 'string' || secret.length < 16 || secret.length > 128) return null;",
     "new": "  if (typeof secret !== 'string') return null;",
     "tests": [
-      "test/server/sessionshed.test.js"
+      "test/server/accountworker.test.js"
     ],
-    "note": "a secret never minted costs the database a lookup"
+    "equivalent": true,
+    "why": "A wrong secret of any length hashes to something no row holds, so the lookup answers null either way. The bound is here to say no before a digest and a query rather than after them, which is the same reason the Worker bounds a body before parsing it."
   },
   {
     "name": "ACC1b-9-the-guest-shape-enumerates-an-alphabet-again",
