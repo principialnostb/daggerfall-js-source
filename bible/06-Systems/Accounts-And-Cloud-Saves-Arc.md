@@ -24,9 +24,14 @@ saves and everything durable. They trust each other through a signed identity to
   profile behind the password and one current code (`/v1/auth/recover` uses a code).
 - *Sessions*: one per device, idle out after a year (`SESSION_IDLE_S`). Logins are rate limited (`LOGIN_MAX` per
   `LOGIN_WINDOW_S`).
+- *Session lookup*: a secret not in `mintSecret`'s shape (`SECRET_RE`) is refused before any D1 statement. A secret
+  the primary did not know, or one signed out or idle, is refused from the isolate's memory for `SESSION_MISS_KEPT_S`
+  (ten minutes), at most `SESSION_MISS_KEYS` of them. A replica's miss is never kept: the session may be new.
 - *Address ceiling*: one address gets `ADDRESS_MAX` requests a minute across every route, then 429 `rate`, before any
-  D1 statement (`overAddressRate`). It is counted per isolate. The relay's service binding carries no address and is not
-  counted. The first refusal each window logs `[rate] address over its ceiling` with the address.
+  D1 statement. It is counted twice: per isolate (`overAddressRate`), and across every isolate in a location by
+  Cloudflare's rate limiter (`overAddressLimit`, the `ADDRESS_LIMIT` binding in `server-account/wrangler.toml`). A
+  missing or failing limiter refuses no one. The relay's service binding carries no address and is not counted. The
+  first per-isolate refusal each window logs `[rate] address over its ceiling` with the address.
 - *Terms*: a new account ticks the Terms of Service and the Privacy Policy (`terms/index.html`, `privacy/index.html`)
   before it exists.
 

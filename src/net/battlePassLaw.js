@@ -52,6 +52,14 @@ export const PASS_CONSTRUCT_MOBILES = Object.freeze([289, 270, 290]);
 /** A UTC day's bounds an account: the asks heard, and the Aurum its finds may earn. */
 export const PASS_DAY_ASKS = 2000;
 export const PASS_DAY_AURUM = 100;
+/** The most deeds one find may carry (`sources`): a page whose answers come slowly sends its waiting finds as one.
+ *  Counted as that many finds, against the day's asks and Aurum alike. */
+export const PASS_FIND_BATCH_MAX = 20;
+/** A find's deeds as its body names them - `sources` (1 to PASS_FIND_BATCH_MAX), or the one `source` - or null. */
+export function passFindSources(/** @type {any} */ body) {
+  const list = Array.isArray(body?.sources) ? body.sources : body?.sources === undefined ? [body?.source] : null;
+  return list && list.length >= 1 && list.length <= PASS_FIND_BATCH_MAX && list.every(isPassSource) ? list : null;
+}
 /** When finds start paying (ms): with Season One's tracks, before its world. They never stop - Aurum is the account's,
  *  not a season's. */
 export const PASS_FINDS_FROM_MS = PASS_SEASONS[0].tracksFromMs;

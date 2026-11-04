@@ -56,11 +56,14 @@ import {
   mintRecoverySet, hashRecoverySet, joinRecoverySet, matchRecoveryCode, recoveryLeft,   // RECOVERY-SET: eight codes, each spent alone
 } from './password.js';
 import { gateRegionOk } from '../../src/net/townSeatLaw.js';   // SEAT1b: a gate claim's region; WW7-3: its lane's (a province's gate its own province's)
-import { DB_ANY, DB_ROOT } from './service.js';   // BOOKMARK-SPIRAL: a session started at any instance, and the binding behind it
+import { DB_ANY, DB_ROOT, DB_FIRST_PRIMARY } from './service.js';   // BOOKMARK-SPIRAL: a session started at any instance, and the binding behind it
 
 /** A session's raw secret, in bytes. 32 bytes of CSPRNG is the whole
  *  of the credential; nothing about the player is encoded in it. */
 export const SECRET_BYTES = 32;
+/** A secret as mintSecret writes it: SECRET_BYTES in unpadded base64url. Anything else was never minted, so it is
+ *  refused before it costs the database a lookup. */
+export const SECRET_RE = new RegExp(`^[A-Za-z0-9_-]{${Math.ceil((SECRET_BYTES * 4) / 3)}}$`);
 /** How long a session may sit unused before a sweep may take it. A
  *  year, because a player who opens the game twice a year is still that
  *  player and their friends list is still theirs. */
@@ -281,6 +284,27 @@ export const SESSION_COLUMNS = Object.freeze(['id', 'player_id', 'secret_hash', 
 const WHO_SQL = `SELECT ${SESSION_COLUMNS.map((c) => `s.${c} AS "s.${c}"`).join(', ')}, p.*
   FROM sessions s LEFT JOIN players p ON p.id = s.player_id WHERE s.secret_hash = ?`;
 
+/** How long a secret the primary did not know is refused without a lookup. A minted secret is random and its row is
+ *  written before the secret is handed out, so a miss never turns into a session: the bound is memory, not truth. */
+export const SESSION_MISS_KEPT_S = 600;
+/** The most missed secrets one isolate remembers a database; past it the oldest go first. */
+export const SESSION_MISS_KEYS = 20_000;
+/** The database binding -> secret hash -> until when (s) its miss is kept. Keyed by the binding, so one database's
+ *  misses never refuse another's sessions. */
+const sessionMisses = new WeakMap();
+function sessionMissKept(/** @type {any} */ root, /** @type {string} */ hash, /** @type {number} */ nowS) {
+  const until = root && typeof root === 'object' ? sessionMisses.get(root)?.get(hash) : undefined;
+  return until !== undefined && Number.isSafeInteger(nowS) && nowS < until;
+}
+function keepSessionMiss(/** @type {any} */ root, /** @type {string} */ hash, /** @type {number} */ nowS) {
+  if (!root || typeof root !== 'object' || !Number.isSafeInteger(nowS)) return;
+  let misses = sessionMisses.get(root);
+  if (!misses) sessionMisses.set(root, (misses = new Map()));
+  misses.delete(hash);
+  if (misses.size >= SESSION_MISS_KEYS) misses.delete(misses.keys().next().value);
+  misses.set(hash, nowS + SESSION_MISS_KEPT_S);
+}
+
 /**
  * WHO IS THIS? Resolved by the secret alone, in ONE indexed lookup -
  * the caller has not proved a player id yet, so it cannot be part of
@@ -295,14 +319,20 @@ const WHO_SQL = `SELECT ${SESSION_COLUMNS.map((c) => `s.${c} AS "s.${c}"`).join(
  *
  * @returns {Promise<{player: any, session: any}|null>}
  */
-export async function resolveSession({ db, subtle, nowS }, secret) {
-  if (typeof secret !== 'string' || secret.length < 16 || secret.length > 128) return null;
+export async function resolveSession({ db, primary, subtle, nowS }, secret) {
+  if (typeof secret !== 'string' || !SECRET_RE.test(secret)) return null;
   const hash = await hashSecret(secret, { subtle });
+  const root = db?.[DB_ROOT] ?? db;
+  if (sessionMissKept(root, hash, nowS)) return null;
   let row = await db.prepare(WHO_SQL).bind(hash).first();
   // BOOKMARK-SPIRAL (service.js ANY_REPLICA_ROUTES): a session started at any instance may stand on a replica that has
   // not yet heard of a session minted a moment ago - its miss asks the primary before it is a refusal
-  if (!row && db?.[DB_ANY] === true) row = await (db[DB_ROOT] ?? db).prepare(WHO_SQL).bind(hash).first();
-  if (!row) return null;
+  if (!row && db?.[DB_ANY] === true) row = await root.prepare(WHO_SQL).bind(hash).first();
+  if (!row) {
+    // A replica's miss may be a session minted a moment ago, so only the primary's is kept
+    if (db === primary || db === root || db?.[DB_ANY] === true || db?.[DB_FIRST_PRIMARY] === true) keepSessionMiss(root, hash, nowS);
+    return null;
+  }
   /** @type {any} */ const session = {};
   /** @type {any} */ const found = {};
   for (const [k, v] of Object.entries(row)) {
@@ -329,6 +359,7 @@ export async function resolveSession({ db, subtle, nowS }, secret) {
     try {
       await db.prepare('DELETE FROM sessions WHERE id = ?').bind(session.id).run();
     } catch { /* the refusal below is what matters; the row is retried next time */ }
+    keepSessionMiss(root, hash, nowS);
     return null;
   }
 
@@ -338,7 +369,10 @@ export async function resolveSession({ db, subtle, nowS }, secret) {
   // A session whose player is gone is not a session. It cannot happen
   // through the cascade, and it is checked because "cannot happen" is
   // how a null reaches a caller that reads `.handle` off it.
-  if (!player) return null;
+  if (!player) {
+    keepSessionMiss(root, hash, nowS);
+    return null;
+  }
 
   // ═══ AUDIT-ACC F10: A FAILED TOUCH MUST NOT FAIL THE REQUEST ═════
   //
@@ -842,6 +876,21 @@ export function overAddressRate(address, nowS, max = ADDRESS_MAX, windowS = ACCO
   const over = overAccountRate(key, nowS, max, windowS);
   if (over && accountWindows.get(key)?.count === max + 1) console.warn('[rate] address over its ceiling', address);
   return over;
+}
+
+/**
+ * Whether one address is past ADDRESS_MAX a minute as Cloudflare's rate limiter counts it (wrangler.toml's
+ * ADDRESS_LIMIT), across every isolate in a location: a flood spread over isolates slips past overAddressRate. A
+ * service with no limiter, or one that fails, refuses no one.
+ * @param {any} limiter @param {string | null} address
+ */
+export async function overAddressLimit(limiter, address) {
+  if (!address || typeof limiter?.limit !== 'function') return false;
+  try {
+    return (await limiter.limit({ key: address }))?.success === false;
+  } catch {
+    return false;
+  }
 }
 
 /** A successful login forgives the key, so a player who mistyped twice

@@ -317,7 +317,7 @@ export function progressSpentOf(path, a) {
       break;
     case '/v1/pass/find':
     case '/v1/festival/find':
-      add(PROGRESS_ROUTES[path][0], 1);
+      add(PROGRESS_ROUTES[path][0], Number.isSafeInteger(a.finds) && a.finds > 0 ? a.finds : 1); // a pass's ask may carry several finds
       break; // AUDIT PASS 3: an ask answered (PASS-PANELS: a pass's Aurum is the account's, never a profession's)
     case '/v1/writs/deliver':
       if (a.ok) {
