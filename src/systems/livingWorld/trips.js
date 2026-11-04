@@ -444,10 +444,10 @@ export const marketDay = (town, day, band = null) => {
  * that is too far - the next nearer), at the stall till MARKET_OUT_H, home by the evening. Null for none; undefined while
  * a way is asked.
  * @param {Resident} res @param {LwTown} home @param {number} k @param {TripWorld} world
- * @param {{ start: number, len: number, pace: number, rng: () => number }} o
+ * @param {{ start: number, len: number, pace: number, rng: () => number, memo?: Map<string, any> }} o - `memo` the trips' book, its ways kept by the pair
  * @returns {Trip|null|undefined}
  */
-export function marketTrip(res, home, k, world, { start, len, pace, rng }) {
+export function marketTrip(res, home, k, world, { start, len, pace, rng, memo }) {
   const [, rMax] = ROAD_RANGE_PX.carter;
   const dist = (/** @type {LwTown} */ t) => Math.hypot((t.px ?? 0) - (home.px ?? 0), (t.py ?? 0) - (home.py ?? 0));
   const near = world.townsNear(home.px ?? 0, home.py ?? 0, rMax)
@@ -458,10 +458,9 @@ export function marketTrip(res, home, k, world, { start, len, pace, rng }) {
     let day = -1;
     for (let d = start; d < start + len; d++) if (marketDay(to, d, world.marketBandOf?.(to, d) ?? null)) { day = d; break; }   // TOWN-ECON TE3: its band kept for that day (AUDIT TOWN-ECON 2 LIV-9: read at its first asking)
     if (day < 0) continue;
-    const plan = world.routeOf(home, to);
-    if (plan === undefined) return undefined;
-    if (!plan || !(plan.pixels?.length >= 2)) continue;
-    const way = wayOf(plan, world.dryAt);
+    const way = wayBetween(home, to, world, memo, false);
+    if (way === undefined) return undefined;
+    if (!way) continue;
     const [trim0, trim1] = wayTrims(home, to, way);   // WALL-WAY: past each town's walls
     const walk = Math.max(0, way.len - trim0 - trim1) / pace;
     const outT0 = day * DAY_MIN + leave;
@@ -593,19 +592,19 @@ export function ownTrip(res, home, k, world, o) {
   if (!goes && !holyCycle) return null;
   const pace = (rowOf(TRIP_PACE, ROAD_PACE, res.job) ?? 1) * mpm * NATIVE_PER_M;   // native a clock minute
   // LW9: a carter's day to market, a hunter's into the wild - their own laws
-  if (res.job === 'carter') return marketTrip(res, home, k, world, { start, len, pace, rng });
+  if (res.job === 'carter') return marketTrip(res, home, k, world, { start, len, pace, rng, memo: o.memo });
   if (res.job === 'hunter') return wildTrip(res, home, k, world, { start, len, pace, rng });
   // LW6: an adventurer's cycle a DIVE now and then - its own dice, so a cycle that is none is the trip it always was
   if (res.job === 'adventurer' && world.dungeonsNear) {
     const drng = lwRng(res.town, res.slot, k, 0x64697665);   // 'dive'
     if (drng() < (isWidePlace(res, world.rosterOf(home)) ? WIDE_DIVE_CHANCE : company ? COMPANY_DIVE_CHANCE : DIVE_CHANCE)) {   // LW13: a company the likelier; LW-WIDE: the divers likelier still
-      const dive = diveTrip(res, home, k, world, { start, len, pace, rng: drng });
+      const dive = diveTrip(res, home, k, world, { start, len, pace, rng: drng, memo: o.memo });
       if (dive !== null) return dive;   // undefined (a way asked) or the dive; none that fits, the town trip
     }
   }
   // LW13: a pilgrim's cycle with a temple town's holy day in reach goes to it (its own draw), as a band with its town's
   if (holyCycle) {
-    const holy = holyTrip(res, home, k, world, { start, len, pace });
+    const holy = holyTrip(res, home, k, world, { start, len, pace, memo: o.memo });
     if (holy !== null) return holy;   // undefined (a way asked) or the holy day's; none, the trip it always was
     if (!goes) return null;   // AUDIT LW-II F7: no holy day this cycle, and its chance said stay
   }
@@ -626,10 +625,9 @@ export function ownTrip(res, home, k, world, o) {
   const departH = res.job === 'adventurer' ? 6 + rng() * 2 : 7 + rng() * 2;
   const offsetRoll = rng();
   for (const to of order) {
-    const plan = world.routeOf(home, to);
-    if (plan === undefined) return undefined;
-    if (!plan || !(plan.pixels?.length >= 2)) continue;
-    const way = innsAlong(wayOf(plan, world.dryAt), plan, world, home, to);   // LW9: the inns on its road
+    const way = wayBetween(home, /** @type {LwTown} */ (to), world, o.memo, true);   // with the inns on its road
+    if (way === undefined) return undefined;
+    if (!way) continue;
     const [trim0, trim1] = wayTrims(home, /** @type {LwTown} */ (to), way);   // WALL-WAY: past each town's walls
     const walk = Math.max(0, way.len - trim0 - trim1) / pace;   // minutes of daylight walking, each way
     const estDays = 2 * Math.ceil(walk / ((WALK_TO_H - WALK_FROM_H) * 60)) + stay + 1;
@@ -773,18 +771,17 @@ export const HOLY_IN_H = 10;
  * they go as a band) to arrive by HOLY_IN_H of it, home the morning after - inside the cycle, or none (null); the
  * pilgrim's own draw (HOLY_CHANCE) says whether it goes. Undefined while a way is asked.
  * @param {Resident} res @param {LwTown} home @param {number} k @param {TripWorld} world
- * @param {{ start: number, len: number, pace: number }} o
+ * @param {{ start: number, len: number, pace: number, memo?: Map<string, any> }} o - `memo` the trips' book, its ways kept by the pair
  * @returns {Trip|null|undefined}
  */
-export function holyTrip(res, home, k, world, { start, len, pace }) {
+export function holyTrip(res, home, k, world, { start, len, pace, memo }) {
   if (!holyDraw(res, k)) return null;
   const holy = holyDayOf(templesNear(home, world), start, len);
   if (!holy) return null;
-  const plan = world.routeOf(home, holy.town);
-  if (plan === undefined) return undefined;
-  if (!plan || !(plan.pixels?.length >= 2)) return null;
   const to = /** @type {LwTown} */ (holy.town);
-  const way = innsAlong(wayOf(plan, world.dryAt), plan, world, home, to);
+  const way = wayBetween(home, to, world, memo, true);
+  if (way === undefined) return undefined;
+  if (!way) return null;
   const [trim0, trim1] = wayTrims(home, to, way);   // WALL-WAY: past each town's walls
   const walk = Math.max(0, way.len - trim0 - trim1) / pace;
   const by = holy.day * DAY_MIN + HOLY_IN_H * 60;
@@ -923,10 +920,10 @@ export function cyclesAbout(res, home, k, world, scale) {
  * nearer ones, farthest first, as a trip's town), set out of a morning, walked by day, its hours inside (DIVE_MIN) in
  * place of a stay, and home - inside the cycle, or none (null); undefined while a way is asked.
  * @param {Resident} res @param {LwTown} home @param {number} k @param {TripWorld} world
- * @param {{ start: number, len: number, pace: number, rng: () => number }} o
+ * @param {{ start: number, len: number, pace: number, rng: () => number, memo?: Map<string, any> }} o - `memo` the trips' book, its ways kept by the pair
  * @returns {Trip|null|undefined}
  */
-export function diveTrip(res, home, k, world, { start, len, pace, rng }) {
+export function diveTrip(res, home, k, world, { start, len, pace, rng, memo }) {
   const [rMin, rMax] = DIVE_RANGE_PX;
   const near = (world.dungeonsNear?.(home.px ?? 0, home.py ?? 0, rMax) ?? [])
     .filter((d) => Math.max(Math.abs((d.px ?? 0) - (home.px ?? 0)), Math.abs((d.py ?? 0) - (home.py ?? 0))) >= rMin);
@@ -943,10 +940,9 @@ export function diveTrip(res, home, k, world, { start, len, pace, rng }) {
   const departH = 6 + rng() * 2;
   const offsetRoll = rng();
   for (const to of order) {
-    const plan = world.routeOf(home, to);
-    if (plan === undefined) return undefined;
-    if (!plan || !(plan.pixels?.length >= 2)) continue;
-    const way = wayOf(plan, world.dryAt);
+    const way = wayBetween(home, to, world, memo, false);
+    if (way === undefined) return undefined;
+    if (!way) continue;
     const [trim0, trim1] = wayTrims(home, to, way);   // WALL-WAY: past each town's walls
     const walk = Math.max(0, way.len - trim0 - trim1) / pace;
     const estDays = 2 * Math.ceil(walk / ((WALK_TO_H - WALK_FROM_H) * 60)) + Math.ceil(inside / DAY_MIN) + 1;
@@ -972,8 +968,30 @@ export function diveTrip(res, home, k, world, { start, len, pace, rng }) {
 export function memoTrip(res, town, k, world, o) {
   const key = `${res.id}:${k}`;
   let trip = o.memo?.get(key);
-  if (trip === undefined) { trip = ownTrip(res, town, k, world, o); if (trip !== undefined) o.memo?.set(key, trip); }
+  if (trip === undefined) {
+    trip = ownTrip(res, town, k, world, o);
+    if (trip !== undefined) o.memo?.set(key, trip);
+    else /** @type {any} */ (o.memo)?.waits?.(key, res, town, k);   // a book that keeps the trips still asked (the host's)
+  }
   return trip;
+}
+
+/**
+ * The way a trip walks from `home` to `to`, kept in the book by the pair - `way:` with its inns (a traveller's), `line:`
+ * without (a dive's, a carter's): null for no road, undefined while the planner is asked. The same way for every trip
+ * of the pair, so a trip planned again while a later choice of its waits walks nothing twice.
+ * @param {LwTown} home @param {LwTown} to @param {TripWorld} world @param {Map<string, any> | undefined} memo @param {boolean} inns
+ * @returns {Way|null|undefined}
+ */
+export function wayBetween(home, to, world, memo, inns) {
+  const key = `${inns ? 'way' : 'line'}:${home.mapId}>${to.mapId}`;
+  const kept = memo?.get(key);
+  if (kept !== undefined) return kept;
+  const plan = world.routeOf(home, to);
+  if (plan === undefined) return undefined;
+  const way = !plan || !(plan.pixels?.length >= 2) ? null : inns ? innsAlong(wayOf(plan, world.dryAt), plan, world, home, to) : wayOf(plan, world.dryAt);
+  memo?.set(key, way);
+  return way;
 }
 
 /** The contract's deal: the town's merchants and its sellswords, each in slot order (formCaravans, contractOf). @param {Resident[]} roster */

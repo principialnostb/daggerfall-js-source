@@ -120,9 +120,8 @@ import { LIVING_WORLD_VENDOR } from '../systems/livingWorld/relations.js';   // 
 import { characterRelations } from '../systems/livingWorld/regardClock.js';   // FIELD BUGS 2026-10-21d REGARD-OWN: counted in the character's own days
 import { friendCards } from '../systems/livingWorld/friendWord.js';   // AUDIT FB1021d RO-4: a friend made, named for the HUD
 import { firstNameOf } from '../systems/livingWorld/lines.js';
-import { mintResident } from '../systems/livingWorld/census.js';   // LW4: a newcomer to a place the road emptied (LW3's travellers: scenes/livingWorld/livingTrips.js)
 import { townTrips, townTripsSteps, visitorsOf as tripVisitorsOf, awayOf as tripAwayOf, placeCycle, setsOut, newsOf, paceScale, NEWS_DAYS, diversAt, cycleOf, handsOn, divesIn, TRIP_REACH_PX } from '../systems/livingWorld/trips.js';   // LW3: the roads, pure; LW4: the places' cycles, the town's news; LW7: a townsperson's cycle, a trip's hand deaths
-import { placeAt, turnKey } from '../systems/livingWorld/lives.js';   // LW4: who holds a traveller's place
+import { turnKey } from '../systems/livingWorld/lives.js';   // LW4: who holds a traveller's place
 import { peoplePage, residentOfId, regardBadge } from '../systems/livingWorld/people.js';   // LW7c: the chronicle's People page; AUDIT FB1010 C1: a betrothed as the census mints them
 import { troubleOf, troubledTrip } from '../systems/livingWorld/trouble.js';   // LW4: trouble on the road
 import { foeWord } from '../systems/livingWorld/lines.js';   // LW4: a foe's word for the town's talk and a mark
@@ -140,6 +139,7 @@ import { pastBayJourney, teleportJourney } from '../systems/travel/pastBayTravel
 import { bayPlaceRows, BAY_SOURCE } from '../world/worldWide/bayPlaces.js';   // WW1: the game's own rows, the registry's first provider
 import { createTownTable } from '../world/worldWide/townTable.js';   // WW7: a town by its map id, the Bay's and the registry's
 import { createLivingTrips } from './livingWorld/livingTrips.js';   // WW1: the living world's towns and dungeons, off the registry; WW7-7: its trips' world, everywhere
+import { createLivingBooks } from './livingWorld/livingBooks.js';   // the trips', places' and troubles' books kept across frames, and what a turn renews
 import { createWorldPorts, portIdOf, portIdOfLocation, COMPASS_WAYS } from '../world/worldWide/worldPorts.js';   // WW3: the world's ports past the Bay, off the registry
 import { rumareSeaPixel } from '../world/rumareWaters.js';   // RUMARE-WATER: the Imperial City's lake the sea's - its ports' shore, its voyages' water
 import { createWorldLanes, onWorldSea, bayLaneWater } from './naval/worldLanes.js';   // The Bay's packet lanes and the sea's past it, one book
@@ -2990,33 +2990,14 @@ export async function bootWorld(canvas, renderer, params, status) { handHeroGend
   const livingTownAt = livingIndex.townAt;
   // LW4: THE LIVES AND THE TROUBLE (lives.js, trouble.js) - who holds each traveller's place in a cycle (the census's
   // newcomer after a death on the road; nobody while the place stands empty) and what befalls each party, read over the
-  // character's own turns of fate (relations.js); each kept in a book, made again when a turn is made or a save loaded
+  // character's own turns of fate (relations.js); each kept in a book a turn of fate renews only where it reaches
   const livingTownOfId = livingIndex.townOfId;
-  const _livingPlaces = new Map();
-  const _livingFates = new Map();
-  let _livingTurnsRel = null, _livingTurnsV = -1;
-  const livingTurnsFresh = () => {
-    const v = livingRelations.turnsVersion();
-    if (_livingTurnsRel === livingRelations && _livingTurnsV === v) return;
-    _livingTurnsRel = livingRelations; _livingTurnsV = v;
-    _livingPlaces.clear(); _livingFates.clear(); _livingTripMemo.clear();
-  };
-  /** A resident's place in cycle `k`: who holds it (null: empty), whether the road takes its holder that cycle, and (LW7)
-   *  the minute a hand took them (null: none) - a townsperson's as a traveller's, the newcomer the census's own mint. */
-  const livingPlaceOf = (res, k) => {
-    const key = turnKey(res, k);
-    let got = _livingPlaces.get(key);
-    if (!got) {
-      const pl = placeAt(res, k, livingRelations.turns());
-      const town = pl.vacant || pl.holder == null ? null : livingTownOfId(res.town);
-      const holder = pl.vacant ? null : pl.holder == null ? res
-        : (town ? mintResident(town, res.roll ?? 't', res.slot, res.job, { gen: pl.holder, home: res.home, work: res.work, faction: res.faction }) : res);
-      got = { holder, dies: !pl.vacant && pl.dies, hand: pl.hand };
-      if (_livingPlaces.size > 30000) _livingPlaces.clear();
-      _livingPlaces.set(key, got);
-    }
-    return got;
-  };
+  // the books kept across frames - the places, the troubles, the trips still asked and the roads' words that wait on
+  // them - and what a turn of fate or a way landing makes again: scenes/livingWorld/livingBooks.js
+  const livingBooks = createLivingBooks({ book: _livingTripMemo, world: livingTripWorld, townOfId: livingTownOfId, relations: () => livingRelations, mpm: () => PERSON_MOVE_SPEED / livingBaseRate(), fresh: livingMemoFresh });
+  const _livingFates = livingBooks.fates;
+  const livingTurnsFresh = () => livingBooks.turnsFresh();
+  const livingPlaceOf = livingBooks.placeOf;
   const livingScale = () => paceScale(PERSON_MOVE_SPEED / livingBaseRate());
   /** LW7: the cycle a resident's place lives by on `day` - a traveller's (placeCycle, over their town's roster), else the
    *  resident's own (cycleOf: a townsperson's place keeps a cycle too, for the lives to read a hand's death by). */
@@ -3115,12 +3096,13 @@ export async function bootWorld(canvas, renderer, params, status) { handHeroGend
     livingMemoFresh();   // a new network, new ways
     livingTurnsFresh();
     livingWordFresh();   // LW16: the town's news kept with the roads
+    if (livingBooks.waits(town, day)) return undefined;   // its word still waits on the trips it waited on: not planned again
     const o = { mpm: PERSON_MOVE_SPEED / livingBaseRate(), memo: _livingTripMemo };
     const noon = day * 1440 + 240 + 720;
     const trips = townTrips(town, noon, livingTripWorld, o);
     const roadVisitors = tripVisitorsOf(town, day, livingTripWorld, o);
     const guests = town.type === INN_TYPE ? innGuestsOf(town, day, livingTripWorld, o) : [];   // LW9: the inn on the road's guests
-    if (trips === undefined || roadVisitors === undefined || guests === undefined) return undefined;
+    if (trips === undefined || roadVisitors === undefined || guests === undefined) return livingBooks.wait(town, day);   // a way still asked: the word waits on the trips that waited
     const visitors = roadVisitors.concat(guests.filter((g) => !roadVisitors.some((v) => v.res.id === g.res.id)));
     // LW4: who holds each traveller's place today (a holder the road takes with no road to meet it on is gone abroad,
     // the whole cycle), and each one's away windows by their own id
@@ -3140,7 +3122,7 @@ export async function bootWorld(canvas, renderer, params, status) { handHeroGend
     const { told, news } = livingRoadNewsAt(town, noon, o);
     // LW-TALK: the towns of its road - where its people's trips of these days were bound - for its talk's {place}
     const places = [...new Set([...trips, ...told].map((tr) => placeName(tr.to)).filter(Boolean))].sort();   // AUDIT LW-II E7: never "the wild" (a hunter's: no town)
-    return { away, visitors, holders, news, places };
+    return livingBooks.done({ away, visitors, holders, news, places });
   };
   /** LW4: a town's news of the road at minute `t` - its own parties' troubles of the last NEWS_DAYS days, each known once
    *  they were home (trips.js newsOf); LW7 a fight the player turned (`helped`); LW12 a band by its name. */
@@ -32406,7 +32388,7 @@ const _pixelOrder = [];   // NEAR-FIRST: the frame's pixel walk, nearest first -
     folkStreet.draw(canvas, proj, view, mwv.eye, townTalk.overlayActive ? 0 : dt);   // MWNPC7: the walkers' bodies - held under a talk, as the street is
     // LW3: THE ROADS - the living world's parties near, in file by day and about their fires by night (scenes/
     // livingRoads.js), on the ground and grown under the Overworld; the planner asked a few ways a frame
-    livingWays.frame(); livingMemoFresh();   // LW3: a new network, new ways (AUDIT-B8: and the memo's bound)
+    livingBooks.step(); livingWays.frame(); livingMemoFresh();   // LW3: a new network, new ways (AUDIT-B8: and the memo's bound); the trips still asked, asked again on the budget left
     livingTurnsFresh();   // LW4: a turn of fate made, or a save loaded - the books made again
     if (livingWorldOn() && _mode() === 'exterior') {
       livingRoadsOf().frame(townTalk.overlayActive ? 0 : dt, cam.pos, { overworld: tvf ? { grow: tvf.grow, blend: tvf.blend } : null });

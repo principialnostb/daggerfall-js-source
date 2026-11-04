@@ -43,6 +43,8 @@ export const RELATIONS_MAX = 600;
 /** LW4: the kinds of a character's turns of fate, and the most kept of each (the oldest leave first). */
 export const TURN_KINDS = Object.freeze(['spared', 'fallen', 'won', 'lost']);
 export const TURNS_MAX = 200;
+/** How many of the last turns are kept with their versions, for a reader to renew only what each touched. */
+export const TURNS_RECENT = 64;
 /** LW7: the hand deaths - a turn with its minute, whether it was seen and the name (`{ t, seen, who }`), kept as the
  *  turns are. */
 export const HAND_KINDS = Object.freeze(['slain', 'died', 'killed']);
@@ -142,6 +144,12 @@ export function createRelations(record = null) {
       /** @type {any} */ ({ ...turns, ...hands, ...marks, ...tales })
     );
   let turnsVersion = 0;
+  /** The last turns made, each with the version it made (`turnsSince`). @type {{ v: number, kind: string, key: string }[]} */
+  const recent = [];
+  const noted = (/** @type {string} */ kind, /** @type {string} */ key) => {
+    recent.push({ v: ++turnsVersion, kind, key });
+    if (recent.length > TURNS_RECENT) recent.shift();
+  };
   const turnOk = (key) => typeof key === 'string' && key.length > 0 && key.length <= 80;
   /** LW11: the road's records - AUDIT LW-II-2 C3 `left` the stacks partly taken (place -> what is left)
    *  @type {Map<string, { gone: Set<number>, left: Map<number, number>, coin: number, robbed: number | null }>} */
@@ -352,7 +360,7 @@ export function createRelations(record = null) {
         if (!turnOk(key) || tale.has(key) || !Number.isFinite(at?.t)) return false;
         tale.set(key, { t: Number(at?.t), seen: true, who: nameOk(at?.who) });
         if (tale.size > TURNS_MAX) tale.delete(/** @type {string} */ (tale.keys().next().value));
-        turnsVersion++;
+        noted(kind, key);
         return true;
       }
       const hand = hands[kind];
@@ -360,20 +368,23 @@ export function createRelations(record = null) {
         if (!turnOk(key) || hand.has(key) || !Number.isFinite(at?.t)) return false;
         hand.set(key, { t: Number(at?.t), seen: !!at?.seen, who: nameOk(at?.who) });
         if (hand.size > TURNS_MAX) hand.delete(/** @type {string} */ (hand.keys().next().value));
-        turnsVersion++;
+        noted(kind, key);
         return true;
       }
       const set = turns[kind] ?? marks[kind]; // LW6b: a mark is kept as a turn is
       if (!set || !turnOk(key) || set.has(key)) return false;
       set.add(key);
       if (set.size > TURNS_MAX) set.delete(/** @type {string} */ (set.values().next().value));
-      turnsVersion++;
+      noted(kind, key);
       return true;
     },
     /** LW4: the character's turns of fate, by kind (read them; `turn` writes) - LW7 the hand deaths' maps beside them. */
     turns: () => allTurns,
     /** LW4: bumped at each new turn (the host's books read through them are made again). */
     turnsVersion: () => turnsVersion,
+    /** The turns made since version `v` (oldest first), or null when more were made than are kept. */
+    turnsSince: (/** @type {number} */ v) =>
+      v >= turnsVersion ? [] : recent.length && recent[0].v <= v + 1 ? recent.filter((r) => r.v > v) : null,
     /** LW11: a caravan's counter as this character left it - the goods gone from its shelf (their places in it) and the
      *  coin its purse has paid out; none, null. AUDIT LW-II-2 C3: `left` the stacks partly taken, what is left of each.
      *  @param {string} tripId */
