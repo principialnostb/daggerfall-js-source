@@ -72,7 +72,7 @@ const toward = (Rc, Rt, w) => (w >= 1 ? Rt : mul(rotFraction(mul(Rt, transpose(R
  */
 export function solveBody(skeleton, pose, rootRef, skelMats, plan) {
   const w = clamp01(plan?.w ?? 0);
-  if (!(w > 0)) return holdOnly(skeleton, pose, rootRef, skelMats, plan);
+  if (!(w > 0)) return null;
   const body = bodyOf(skeleton, rootRef, skelMats);
   if (!body) return null;
   const { bones } = body;
@@ -186,7 +186,7 @@ export function solveBody(skeleton, pose, rootRef, skelMats, plan) {
       // HILT-HOLD: a haft held in both hands - the right first, then the left closed on the hilt where the right now
       // holds it, at full weight. Each eased to its own goal by the layer's weight, they parted mid-blend: a run's
       // ground flicker, a blow's return, a run's stop, and the left hand left the hilt.
-      const hold = plan.haft && holds(req);
+      const hold = plan.haft && req.L?.at && req.R?.at && req.R.fingers && req.R.palm;
       const clipL = hold ? clipHand(mats, body) : null;   // HILT-EASE: the left as the clip has it, on the clip's right
       for (const side of hold ? ['R'] : ['L', 'R']) {
         const h = req[side];
@@ -196,39 +196,18 @@ export function solveBody(skeleton, pose, rootRef, skelMats, plan) {
       }
       if (hold) {
         mats = skelMats(skeleton, pose, rootRef);
-        holdHilt(skeleton, pose, mats, body, req, clipL, clamp01((req.L.w ?? 1) * clamp01(plan.hold ?? w)), report);
+        // HILT-EASE (the owner's video, 2026-11-05: the hand held but jerked): the left goes from where the clip holds it
+        // to the carry's grip by the layer's weight, both read on the right hand as it now stands. At full weight on the
+        // first frame, it jumped each time the layer came in or went out around a blow.
+        const k = clamp01((req.L.w ?? 1) * w);
+        const grip = onRightHand(req.L, req.R, mats, body), own = clipL ? onRightHand(clipL.l, clipL.r, mats, body) : null;
+        const L = grip && own ? blendHand(own, grip, k) : grip;
+        const wr = L ? poseHand(skeleton, pose, mats, body, 'L', L, 1) : null;
+        if (wr) report.reach.L = len(sub(wr, L.at));
       }
     }
   }
   report.mats = mats;
-  return report;
-}
-
-/** HILT-HOLD: a request whose left can close on the right's hilt. */
-const holds = (req) => !!(req?.L?.at && req?.R?.at && req.R.fingers && req.R.palm);
-
-/** HILT-EASE (the owner's video, 2026-11-05: the hand held but jerked): the left goes from where the clip holds it to
- *  the carry's grip by `k`, both read on the right hand as it now stands. At full weight on the first frame, it jumped
- *  each time the layer came in or went out. */
-function holdHilt(skeleton, pose, mats, body, req, clipL, k, report) {
-  const grip = onRightHand(req.L, req.R, mats, body), own = clipL ? onRightHand(clipL.l, clipL.r, mats, body) : null;
-  const L = grip && own ? blendHand(own, grip, k) : grip;
-  const wr = L ? poseHand(skeleton, pose, mats, body, 'L', L, 1) : null;
-  if (wr) report.reach.L = len(sub(wr, L.at));
-}
-
-/** HILT-THROUGH: the layer stepped aside (`plan.w` 0, a blow) - only the left hand kept on the hilt where the clip's
- *  right holds it, by `plan.hold` (the layer's own weight). Null where there is no haft to hold. */
-function holdOnly(skeleton, pose, rootRef, skelMats, plan) {
-  const hw = clamp01(plan?.hold ?? 0);
-  if (!(plan?.haft && plan.arms && hw > 0)) return null;
-  const body = bodyOf(skeleton, rootRef, skelMats);
-  if (!body) return null;
-  const mats = skelMats(skeleton, pose, rootRef), frames = bodyFrames(body, mats);
-  const req = frames ? plan.arms({ body, mats, frames, skeleton }) : null;
-  if (!holds(req)) return null;
-  const report = { hip: null, reach: { L: null, R: null }, feet: { L: null, R: null }, mats };
-  holdHilt(skeleton, pose, mats, body, req, clipHand(mats, body), clamp01((req.L.w ?? 1) * hw), report);
   return report;
 }
 
