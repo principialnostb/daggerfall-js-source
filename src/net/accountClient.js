@@ -2184,7 +2184,7 @@ export function accountBattlePass({ fetch, storage, waitMs = ACCOUNT_ACT_WAIT_MS
   const post = waitedPost({ fetch, storage }, waitMs);
   return {
     mine: () => post('/v1/pass/mine', {}),
-    find: (/** @type {string} */ source, /** @type {string} */ rid) => post('/v1/pass/find', { source, rid }),
+    find: (/** @type {string|string[]} */ source, /** @type {string} */ rid) => post('/v1/pass/find', Array.isArray(source) ? { sources: source, rid } : { source, rid }),
     me: () => storedSession(storage)?.id ?? null,
     guest: () => (storedSession(storage)?.kind ?? null) === 'guest',
   };

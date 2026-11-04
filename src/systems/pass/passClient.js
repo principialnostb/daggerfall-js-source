@@ -12,7 +12,7 @@ import { registerPlayerKillListener } from '../playerKills.js';
 import { hearActs, ACT_KINDS, ACT_NOT_FOUND } from '../questlines/qlActs.js';
 import { KNIGHT_CITY_WATCH } from '../../characters/mobile/mobileTypes.js';
 import { foeFindSource } from '../festival/festivalFoes.js';
-import { isPassSource, passChallengeOf, PASS_DAY_AURUM, PASS_FINDS_FROM_MS, PASS_CONSTRUCT_MOBILES } from '../../net/battlePassLaw.js';
+import { isPassSource, passChallengeOf, passSeasonAt, passStageAt, PASS_CHALLENGES, PASS_DAY_AURUM, PASS_FIND_BATCH_MAX, PASS_FINDS_FROM_MS, PASS_CONSTRUCT_MOBILES } from '../../net/battlePassLaw.js';
 import { utcDay } from '../../net/marksLaw.js';
 import { createAskRest } from '../../net/askRest.js';
 
@@ -45,6 +45,8 @@ export const PASS_FIND_KEEP_MS = 86_400_000;
 /** @type {any} */ let _api = null;
 /** @type {any} */ let _state = null;
 let _stateOf = /** @type {string|null} */ (null);
+/** The UTC day the state's `today` counts, or null while unknown. */
+let _todayDay = /** @type {number|null} */ (null);
 let _fullSaid = '';
 const _hear = new Set();
 let _version = 0;
@@ -67,6 +69,7 @@ export function bindPass(doors = null) {
   _doors = doors ? { ...NO_DOORS, storage: doors.storage !== undefined ? doors.storage : appStorage(), ...doors } : NO_DOORS;
   _api = doors ? (doors.api ?? accountBattlePass({ fetch: (/** @type {any} */ u, /** @type {any} */ i) => globalThis.fetch(u, i), storage: appStorage() })) : null;
   _rest.reset();
+  _todayDay = null;
   _resumed.clear();
   if (doors) { refreshPass().catch(() => {}); resumeFinds(); }
   return _api;
@@ -94,7 +97,10 @@ function resumeFinds() {
   if (!who || _resumed.has(who)) return;
   _resumed.add(who);
   const since = _doors.nowMs() - PASS_FIND_KEEP_MS;
-  for (const x of keptFinds()[who] ?? []) if (x?.at >= since && isPassSource(x.source) && typeof x.rid === 'string') askFind(x.source, x.rid, who).catch(() => 0);
+  for (const x of keptFinds()[who] ?? []) {
+    const sources = Array.isArray(x?.sources) ? x.sources : [x?.source];
+    if (x?.at >= since && typeof x.rid === 'string' && sources.length && sources.every(isPassSource)) askFind(sources, x.rid, who).catch(() => 0);
+  }
 }
 /** A listener told whenever the account's season changes; answers its unregistering. */
 export function hearPass(/** @type {() => void} */ fn) { _hear.add(fn); return () => { _hear.delete(fn); }; }
@@ -116,7 +122,15 @@ function learn(/** @type {any} */ d, /** @type {boolean} */ told) {
   const was = passState();
   // AUDIT-STOREFRONT III B4: a find counted on another UTC day (asked again past midnight) says nothing of today's
   const ofToday = !Number.isSafeInteger(d.day) || d.day === utcDay(Math.floor(_doors.nowMs() / 1000));
+  const day = utcDay(Math.floor(_doors.nowMs() / 1000));
+  if (!told) _todayDay = Number.isSafeInteger(d.today) ? day : null;
+  else if (ofToday && Number.isSafeInteger(d.today)) _todayDay = day;
   _state = told ? { ...(was ?? {}), ...(ofToday && Number.isSafeInteger(d.today) ? { today: d.today } : {}) } : d;
+  // a challenge a find paid is paid on the card too, so a find it no longer counts toward can be left unasked
+  if (told && Array.isArray(d.done) && Array.isArray(_state.challenges)) {
+    const paid = new Set(d.done);
+    _state = { ..._state, challenges: _state.challenges.map((/** @type {any} */ c) => (paid.has(c?.key) ? { ...c, paid: true, n: passChallengeOf(c.key)?.n ?? c.n } : c)) };
+  }
   _stateOf = account();
   if (told && Array.isArray(d.done)) {
     for (const key of d.done) { const c = passChallengeOf(key); if (c) _doors.onEvent({ kind: 'challenge', key, aurum: c.aurum }); }
@@ -137,6 +151,25 @@ async function readPass() {
   _rest.heard(r.data?.open);
   return true;
 }
+/** How near a UTC day's or a stage's edge the page's clock may stand from the service's and still be trusted. */
+export const PASS_EDGE_MS = 60_000;
+/** WHETHER A FIND OF `source` WOULD CHANGE NOTHING THE SERVICE KEEPS: the day's Aurum found already and every challenge it
+ *  could count paid, read off the season as last heard. Unheard, another season, or near a day's or stage's edge: asked. */
+export function passFindIdle(/** @type {string} */ source) {
+  const s = passState(), nowMs = _doors.nowMs();
+  if (!s || !Number.isSafeInteger(s.today) || s.today < (Number.isSafeInteger(s.dayMax) ? s.dayMax : PASS_DAY_AURUM)) return false;
+  const edges = [nowMs - PASS_EDGE_MS, nowMs, nowMs + PASS_EDGE_MS];
+  if (edges.some((t) => utcDay(Math.floor(t / 1000)) !== _todayDay)) return false;
+  const seasons = edges.map(passSeasonAt), season = seasons[1];
+  if (seasons.some((x) => x !== season)) return false;
+  if (!season) return true;
+  if (s.season !== season.id || !Array.isArray(s.challenges)) return false;
+  const stages = edges.map((t) => passStageAt(season, t));
+  if (stages.some((x) => x !== stages[1])) return false;
+  const paid = new Set(s.challenges.filter((/** @type {any} */ c) => c?.paid === true).map((/** @type {any} */ c) => c.key));
+  return PASS_CHALLENGES.every((c) => c.stage !== stages[1] || !c.sources.includes(source) || paid.has(c.key));
+}
+
 /** Ask the service for the account's season, queued with the finds. Answers whether it was heard. */
 export const refreshPass = () => queued(readPass);
 
@@ -148,24 +181,54 @@ export function askPassFind(/** @type {string} */ source) {
   resumeFinds();
   const rid = _doors.rid();
   keepFinds(who, (l) => [...l, { rid, source, at: _doors.nowMs() }]);
-  return askFind(source, rid, who);
+  return askFind([source], rid, who);
 }
+/** The most finds one ask carries: the service's word (its pass's `batch`), never past the law's; 1 from one that says none. */
+function passBatchMax() {
+  const n = passState()?.batch;
+  return Number.isSafeInteger(n) && n > 1 ? Math.min(n, PASS_FIND_BATCH_MAX) : 1;
+}
+/** The finds queued and not yet asked, oldest first. A find's turn takes the ones behind it, of its account, into its own
+ *  ask, so a page whose answers come slowly sends fewer asks. */
+const _waiting = /** @type {{ rid: string, sources: string[], who: string, merged: boolean }[]} */ ([]);
 /** A find asked, queued, for `who` - the account whose deed it was (AUDIT-STOREFRONT III B5: never paid to another one
- *  signed in meanwhile); kept on the device until the service answers it (B6). */
-function askFind(/** @type {string} */ source, /** @type {string} */ rid, /** @type {string} */ who) {
+ *  signed in meanwhile); kept on the device until the service answers it (B6). `sources` the deeds it carries; one taken
+ *  into an earlier find's ask answers 0, the Aurum told by that one. */
+function askFind(/** @type {string[]} */ sources, /** @type {string} */ rid, /** @type {string} */ who) {
+  const me = { rid, sources: [...sources], who, merged: false };
+  _waiting.push(me);
   const settle = (/** @type {number} */ n) => { keepFinds(who, (l) => l.filter((x) => x?.rid !== rid)); return n; };
   // not askable now: let go under a refusal standing the page back; kept for its account's next bind otherwise (signed
   // out, another account signed in, off line)
   const held = () => (account() === who && _rest.resting() ? settle(0) : 0);
   const mine = () => passLive() && account() === who;
   return queued(async () => {
+    const at = _waiting.indexOf(me);
+    if (at >= 0) _waiting.splice(at, 1);
+    if (me.merged) return 0;
     if (!mine()) return held();
     // the day's bound is told against the pass as read: read it first; and a pass said shut, again
     const due = _rest.due(passState()?.open);
     if ((due || !passState()) && !(await readPass()) && due) { _rest.unheard(); return 0; }
     if (passState()?.open === false) return settle(0);
+    const max = passBatchMax(), taken = [];
+    for (const o of [..._waiting]) {
+      if (me.sources.length >= max) break;
+      if (o.who !== who || me.sources.length + o.sources.length > max) continue;
+      o.merged = true;
+      _waiting.splice(_waiting.indexOf(o), 1);
+      me.sources.push(...o.sources);
+      taken.push(o.rid);
+    }
+    me.sources = me.sources.filter((src) => !passFindIdle(src));
+    // the device keeps the ask as it is sent: one id for every deed it carries, so a reload asks them again as one
+    if (taken.length || me.sources.length !== sources.length) {
+      keepFinds(who, (l) => [...l.filter((x) => x?.rid !== rid && !taken.includes(x?.rid)), ...(me.sources.length ? [{ rid, sources: me.sources, at: _doors.nowMs() }] : [])]);
+    }
+    if (!me.sources.length) return 0;
+    const ask = me.sources.length === 1 ? me.sources[0] : me.sources;
     for (let i = 0; ; i++) {
-      const r = await _api.find(source, rid).catch(() => null);
+      const r = await _api.find(ask, rid).catch(() => null);
       if (r?.ok) {
         learn(r.data, true);
         // B4: a repeat counted on another day, or not yet answered, leaves today's to the card
@@ -208,4 +271,4 @@ hearActs(PASS_FIND, (/** @type {string} */ kind) => {
 });
 
 /** For the tests: forget everything. */
-export function _resetPassClientForTests() { _doors = NO_DOORS; _api = null; _state = null; _stateOf = null; _fullSaid = ''; _chain = Promise.resolve(); _hear.clear(); _rest.reset(); _resumed.clear(); }
+export function _resetPassClientForTests() { _doors = NO_DOORS; _api = null; _state = null; _stateOf = null; _todayDay = null; _fullSaid = ''; _chain = Promise.resolve(); _waiting.length = 0; _hear.clear(); _rest.reset(); _resumed.clear(); }
