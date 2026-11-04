@@ -124,13 +124,21 @@ test('GUARD-WALK-POSE: lowering the guard preserves ankle targets and foot orien
 test('GUARD-KNEE-POLE: a nearly straight leg whose clip knee strays behind its line still bends toward the toes; a bent knee keeps its own way', () => {
   const hip = [0, 0, 100], ankle = [0, 0, 10], toe = [0, 1, 0], length = 90;
   const towardToes = (knee) => {
-    const pole = kneePole(hip, knee, toe, length), d = [0, 0, -1], along = pole[0] * d[0] + pole[1] * d[1] + pole[2] * d[2];
+    const pole = kneePole(hip, knee, toe, length, ankle), d = [0, 0, -1], along = pole[0] * d[0] + pole[1] * d[1] + pole[2] * d[2];
     return pole[1] - along * d[1];
   };
   assert.ok(ankle[2] < hip[2]);
   assert.ok(towardToes([0, -0.5, 55]) > 0, 'behind the line by a hair: the toes decide');
   assert.ok(towardToes([0, 12, 55]) > 0, 'a bent knee stays forward');
-  assert.ok(towardToes([0, -20, 55]) < 0, 'a real backward knee stays the clip own');
+  assert.ok(towardToes([0, -20, 55]) > 0, 'KNEE-FORWARD: a knee never folds backward');
+  // KNEE-FORWARD: the knee swept from behind the line to before it - the pole turns smoothly, never flips
+  let last = null, turn = 0;
+  for (let y = -20; y <= 20; y += 0.25) {
+    const pole = kneePole(hip, [3, y, 55], toe, length, ankle);
+    if (last) turn = Math.max(turn, Math.acos(Math.min(1, pole.reduce((s, v, i) => s + v * last[i], 0))));
+    last = pole;
+  }
+  assert.ok(turn < 0.1, `the pole turned ${turn.toFixed(2)} rad in a quarter unit`);
 });
 
 test('GUARD-WALK-LEVEL: the partial skeleton walks answer the same pose as whole walks', () => {

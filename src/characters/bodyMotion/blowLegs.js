@@ -15,6 +15,7 @@
 
 import { algebra, bodyOf, bodyTurn, transpose, mul, apply, clamp01, ease, smooth, at } from './bodyKit.js';
 import { solveBody } from './bodySolve.js';
+import { kneePole } from './guardWalkBalance.js';   // CLIP-KNEE
 import { rotationPart } from '../../combat/climbRig.js';
 import { MW_WEAPON_TYPE } from '../../formats/morrowind/mwFirstPerson.js';
 
@@ -280,7 +281,12 @@ export function createBlowLegs() {
       const clipFeet = {};
       for (const s of ['L', 'R']) {
         const ref = body.bones[s].foot, ax = body.footAxes[s], R = rotationPart(mats.get(ref).a);
-        clipFeet[s] = { at: [...at(mats, ref)], toe: ax ? norm(apply(R, ax.fwd)) : [0, 1, 0], up: ax ? norm(apply(R, ax.up)) : [0, 0, 1], w: 1, stance: true, reach: len(sub(at(mats, ref), at(mats, body.bones[s].thigh))) / leg };
+        const hip = at(mats, body.bones[s].thigh), knee = at(mats, body.bones[s].calf), toe = ax ? norm(apply(R, ax.fwd)) : [0, 1, 0];
+        // CLIP-KNEE (the owner's game, 2026-11-05, traced: the left knee leapt 14 cm between a blow's sections, foot and hip
+        // still): the stride's foot solved with a pole of the toes alone put the knee elsewhere than the clip, and each
+        // frame the layer let go it went back - the clip's own knee now steers the solve
+        clipFeet[s] = { at: [...at(mats, ref)], toe, up: ax ? norm(apply(R, ax.up)) : [0, 0, 1], w: 1, stance: true, reach: len(sub(at(mats, ref), hip)) / leg,
+          pole: kneePole(hip, knee, toe, len(sub(knee, hip)) + len(sub(at(mats, ref), knee)), at(mats, ref)) };
       }
       if (stand < 1e-3) { anchor = null; settle = null; stepped = false; fromMove = true; feet.L.reset(); feet.R.reset(); }
       // the anchors: where the stance stood the feet when the layer came on - the clip's own slides are not followed

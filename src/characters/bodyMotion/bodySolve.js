@@ -421,10 +421,18 @@ function clipHand(mats, body) {
   return l && r ? { l, r } : null;
 }
 
-/** HILT-EASE: two hand requests mixed by `k` (0 the first, 1 the second); the ways renormalised. */
+/** HILT-EASE: two hand requests mixed by `k` (0 the first, 1 the second). The hand is turned the shorter way as one
+ *  body (the owner's game, 2026-11-05: its fingers and palm mixed apart, the wrist wrung after a blow). */
 function blendHand(a, b, k) {
   const way = (u, v) => (u && v ? norm(lerp3(u, v, k)) : v ?? u);
-  return { ...b, at: lerp3(a.at, b.at, k), fingers: way(a.fingers, b.fingers), palm: way(a.palm, b.palm), pole: way(a.pole, b.pole) };
+  const frame = (h) => { const x = norm(h.fingers), z = norm(sub(h.palm, scale(x, dot(h.palm, x)))); return fromColumns(x, cross(z, x), z); };
+  let fingers = way(a.fingers, b.fingers), palm = way(a.palm, b.palm);
+  if (a.fingers && a.palm && b.fingers && b.palm) {
+    const D = rotFraction(mul(frame(b), transpose(frame(a))), k);
+    fingers = norm(apply(D, a.fingers)); palm = norm(apply(D, a.palm));
+  }
+  const pole = a.pole && b.pole ? norm(apply(rotFraction(rotFromTo(norm(a.pole), norm(b.pole)), k), norm(a.pole))) : way(a.pole, b.pole);   // the elbow along its arc, never through nothing
+  return { ...b, at: lerp3(a.at, b.at, k), fingers, palm, pole };
 }
 
 /**
