@@ -21,15 +21,17 @@ test('GUARD-CONTINUITY: missing foot markers keep normalized phase instead of re
   const b = { group: 'runforward', startTime: 10, stopTime: 11, time: 10 };
   assert.ok(Math.abs(movementPhaseTime(a, [], b, []) - 10.45) < 1e-10);
 });
-test('GUARD-CONTINUITY: only enabled two-handed forward locomotion chooses the accepted free gait', () => {
-  const has = (g) => ['runforward', 'runforward2c', 'runforward1h', 'walkforward', 'walkforward2c', 'walkforward1h'].includes(g);
+test('GUARD-CONTINUITY: only enabled stance-weapon locomotion chooses the accepted free gait - the two-hander and (GUARD-STANCE) the one-handers alike', () => {
+  const has = (g) => ['runforward', 'runforward2c', 'runforward1h', 'runforwardbow', 'walkforward', 'walkforward2c', 'walkforward1h'].includes(g);
   assert.deepEqual(guardMovementGroup('runforward', MW_WEAPON_TYPE.LongBladeTwoHand, has, true), { group: 'runforward', walked: false });
   assert.equal(guardMovementGroup('runforward', MW_WEAPON_TYPE.LongBladeTwoHand, has, false).group, 'runforward2c');
-  assert.equal(guardMovementGroup('runforward', MW_WEAPON_TYPE.LongBladeOneHand, has, true).group, 'runforward1h');
+  assert.equal(guardMovementGroup('runforward', MW_WEAPON_TYPE.LongBladeOneHand, has, true).group, 'runforward', 'a one-hander runs as the two-hander');
+  assert.equal(guardMovementGroup('runforward', MW_WEAPON_TYPE.LongBladeOneHand, has, false).group, 'runforward1h');
+  assert.notEqual(guardMovementGroup('runforward', MW_WEAPON_TYPE.MarksmanBow, has, true).group, 'runforward', 'a bow keeps its own');
   assert.equal(guardMovementGroup('walkforward', MW_WEAPON_TYPE.LongBladeTwoHand, has, true).group, 'walkforward');
   assert.equal(guardMovementGroup('walkforward', MW_WEAPON_TYPE.LongBladeTwoHand, has, false).group, 'walkforward2c');
   assert.equal(guardMovementGroup('walkforward', MW_WEAPON_TYPE.LongBladeTwoHand, (g) => g === 'walkforward2c', true).group, 'walkforward2c');
-  assert.equal(guardMovementGroup('walkforward', MW_WEAPON_TYPE.LongBladeOneHand, has, true).group, 'walkforward1h');
+  assert.equal(guardMovementGroup('walkforward', MW_WEAPON_TYPE.LongBladeOneHand, has, true).group, 'walkforward');
   assert.equal(guardMovementGroup('runforward', MW_WEAPON_TYPE.LongBladeTwoHand, (g) => g === 'runforward2c', true).group, 'runforward2c');
 });
 

@@ -37,6 +37,9 @@ const { add, scale, sub, cross, norm, len, lerp } = algebra;
  *  `carryRun` the run's share's own, slower: a run's carry stands furthest from the guard (a two-hander's blade turns
  *  some 140 degrees between them), and at `carry` a stop turned it 14 to 29 degrees a frame (RUN-STOP, 2026-10-29). */
 export const MOTION_EASE = Object.freeze({ in: 0.14, out: 0.1, outFast: 0.05, armIn: 0.12, armOut: 0.07, cls: 0.14, carry: 14, carryRun: 7, sneak: 0.6, blowReturn: 0.5, blowEntry: 0.12 });
+/** HILT-HOLD: seconds off the ground before the layer lets go - a run's ground flicker over uneven street is not a jump,
+ *  and the carry let go for it showed the free run's arms under the two-hander. */
+export const AIR_GRACE = 0.2;
 
 /** The blade's length (MW units) each class draws on the contact sheets - the sheet's alone; the rig draws the mesh. */
 const SHEET_BLADE = Object.freeze({ one: 58, two: 88, wide: 112, spear: 120, dual: 54 });
@@ -120,6 +123,7 @@ export function createBodyMotion({ trunkClear = TRUNK_CLEAR } = {}) {
   const gait = createGaitState();
   let input = sceneInput({ on: false });
   let w = 0;
+  let airT = 0;   // HILT-HOLD: seconds the body has been off the ground
   const armW = { L: 0, R: 0 };
   let sneakHand = false;   // SNEAK-GUARD: the one-hander's arm handed to the sneak clip, or on its way back from it
   let sinceBlow = Infinity;   // BLOW-RETURN: seconds since the clip last had a blow (the layer steps aside for one)
@@ -224,7 +228,8 @@ export function createBodyMotion({ trunkClear = TRUNK_CLEAR } = {}) {
       // walk, the bank and the feet it had left)
       if (input.on && !wasOn) Object.assign(gait, createGaitState());
       wasOn = !!input.on;
-      const free = !!input.on && !input.busy && input.grounded !== false && !input.swimming && !input.levitating;
+      airT = input.grounded === false ? airT + Math.max(0, dt) : 0;   // HILT-HOLD
+      const free = !!input.on && !input.busy && airT < AIR_GRACE && !input.swimming && !input.levitating;
       w = ease(w, free ? 1 : 0, free ? MOTION_EASE.in : (input.busy === 'dead' || input.busy === 'hit' ? MOTION_EASE.outFast : MOTION_EASE.out), dt);
       if (!free && w < 1e-3) { w = 0; last = null; }   // AUDIT BODY-MOTION RIG-9: the card says off once the body is the clip's
       const next = carryClassOf(input);
@@ -340,6 +345,7 @@ export function createBodyMotion({ trunkClear = TRUNK_CLEAR } = {}) {
         armW: { L: armW.L, R: armW.R },
         arms: (ctx) => handsFor(ctx, gp, null, null),
         trunk: trunkNow(),
+        haft: TWO_HAND_GRIP[cls] != null && (!clsFrom || TWO_HAND_GRIP[clsFrom] != null),   // HILT-HOLD (bodySolve.js)
       };
       const report = solveBody(skeleton, pose, rootRef, skelMats, plan);
       last = { gp, bp, report };
@@ -367,7 +373,7 @@ export function createBodyMotion({ trunkClear = TRUNK_CLEAR } = {}) {
         arms: { L: armW.L, R: armW.R },   // AUDIT SPELL-HAND L3-5: each arm's weight under the layer (0: the clip's)
       };
     },
-    reset() { Object.assign(gait, createGaitState()); w = 0; armW.L = 0; armW.R = 0; sneakHand = false; sinceBlow = Infinity; cls = 'free'; clsFrom = null; clsMix = 1; last = null; shares.x = null; lastBlow = null; cut = null; drawn = null; },
+    reset() { Object.assign(gait, createGaitState()); w = 0; airT = 0; armW.L = 0; armW.R = 0; sneakHand = false; sinceBlow = Infinity; cls = 'free'; clsFrom = null; clsMix = 1; last = null; shares.x = null; lastBlow = null; cut = null; drawn = null; },
   };
   return motion;
 }

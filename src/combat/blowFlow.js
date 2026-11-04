@@ -56,9 +56,12 @@ export const PACE = Object.freeze({ wind: 1.35, release: 2.2, recover: 1.4, sett
  *  the next blow - so the arm is still moving when the machine lets the next blow go. */
 export function recoverRate(plan, p, series) {
   const q = Math.min(1, Math.max(0, Number.isFinite(p) ? p : 1));
-  if (series && plan?.seriesBase > 0) return plan.seriesBase * (1.5 - q);
   const top = PACE.recover * (plan?.sf > 0 ? plan.sf : 1);
-  return top * (1 - (1 - PACE.settle) * q);
+  const lone = top * (1 - (1 - PACE.settle) * q);
+  // SERIES-PACE (the owner's game, 2026-11-04: a series' follow-through fell to 0.17x, each blow slower than the last):
+  // a series' follow-through is never slower than a lone blow's at the same point - an arm done early waits in the stance
+  if (series && plan?.seriesBase > 0) return Math.max(lone, plan.seriesBase * (1.5 - q));
+  return lone;
 }
 
 /** MW-PACE2's band: the hit `hitTicks` of the machine's ticks after the blow begins, never sooner than `min` seconds nor

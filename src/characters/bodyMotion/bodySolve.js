@@ -183,11 +183,21 @@ export function solveBody(skeleton, pose, rootRef, skelMats, plan) {
     const req = frames ? plan.arms({ body, mats, frames, skeleton }) : null;
     if (req && frames && plan.trunk) mats = leanUnder(skeleton, pose, mats, body, frames, plan.trunk, w, rootRef, skelMats);
     if (req) {
-      for (const side of ['L', 'R']) {
+      // HILT-HOLD: a haft held in both hands - the right first, then the left closed on the hilt where the right now
+      // holds it, at full weight. Each eased to its own goal by the layer's weight, they parted mid-blend: a run's
+      // ground flicker, a blow's return, a run's stop, and the left hand left the hilt.
+      const hold = plan.haft && req.L?.at && req.R?.at && req.R.fingers && req.R.palm;
+      for (const side of hold ? ['R'] : ['L', 'R']) {
         const h = req[side];
         if (!h || !h.at) continue;
         const wr = poseHand(skeleton, pose, mats, body, side, h, w);
         if (wr) report.reach[side] = len(sub(wr, h.at));
+      }
+      if (hold) {
+        mats = skelMats(skeleton, pose, rootRef);
+        const L = onRightHand(req.L, req.R, mats, body);
+        const wr = L ? poseHand(skeleton, pose, mats, body, 'L', L, 1) : null;
+        if (wr) report.reach.L = len(sub(wr, L.at));
       }
     }
   }
@@ -374,6 +384,22 @@ function poseFoot(skeleton, pose, mats, body, side, f, w) {
     }
     return mul(rotFrames(curToe, curUp, toeTo, upTo), Rf);
   });
+}
+
+/** HILT-HOLD: the left hand's request `l`, asked against the right's `r`, carried onto where the right hand now stands
+ *  (its wrist and its fingers' and palm's ways) - the same place on the hilt, whatever share of its goal the right
+ *  reached. Null where the right hand cannot be read. */
+function onRightHand(l, r, mats, body) {
+  const limb = body.bones.R;
+  const W = at(mats, limb.hand), fr = handFrame(mats, limb, 'R');
+  if (!W || !fr?.fingers || !fr.palm) return null;
+  const basis = (f, p) => {
+    const x = norm(f), z = norm(sub(p, scale(x, dot(p, x))));
+    return fromColumns(x, cross(z, x), z);
+  };
+  const M = mul(basis(fr.fingers, fr.palm), transpose(basis(r.fingers, r.palm)));
+  const dir = (v) => (v ? norm(apply(M, v)) : v);
+  return { ...l, at: add(W, apply(M, sub(l.at, r.at))), fingers: dir(l.fingers), palm: dir(l.palm), pole: dir(l.pole) };
 }
 
 /**

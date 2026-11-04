@@ -348,3 +348,19 @@ test('BLOW-LEGS: wired - the motion word to the weight layer, the hips and feet 
   assert.match(rd('src/combat/fpArm.js'), /thirdBuilt\?\.mwType, dead, motion\.word\(\)[,)]/);   // RUN-STRIDE: the movement clip passed after the word
   assert.match(rd('src/characters/bodyMotion/bodyMotion.js'), /word: \(\) => input,/);
 });
+
+test('BLOW-TRUNK: a blow struck running turns the trunk as far as a standing one turns the hips; walking, the trunk takes what the hips leave; standing, nothing', () => {
+  const turnAt = (word) => {
+    const legs = createBlowLegs();
+    for (let i = 0; i <= 12; i++) legs.step(1 / 60, true, { on: true, grounded: true, ...word, blow: blow('slash', 'release', i / 12) }, 0);
+    return legs.trunkTurn();
+  };
+  const want = blowLegsPose(blow('slash', 'release', 1), 0);
+  const ran = turnAt({ speed: 8, running: true });
+  assert.ok(Math.abs(ran.yaw - want.yaw) < 0.1 * Math.abs(want.yaw) + 1e-3, `running: the trunk ${ran.yaw.toFixed(3)} of ${want.yaw.toFixed(3)}`);
+  const walked = turnAt({ speed: 3 });
+  assert.ok(Math.abs(walked.yaw - want.yaw * (1 - BLOW_MOVE.share)) < 0.1 * Math.abs(want.yaw) + 1e-3, `walking: the share the hips leave (${walked.yaw.toFixed(3)})`);
+  assert.ok(Math.abs(turnAt({ speed: 0 }).yaw) < 1e-6, 'standing: the hips take it all');
+  const bw = readFileSync(new URL('../../../src/characters/bodyMotion/bodyWeight.js', import.meta.url), 'utf8');
+  assert.match(bw, /if \(clearOn\) leanTrunk\(skeleton, pose, rootRef, skelMats, legs\.trunkTurn\(\)\);[^\n]*\n\s+if \(clearOn\) legs\.apply\(/);
+});

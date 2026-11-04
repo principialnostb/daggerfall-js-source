@@ -46,7 +46,10 @@ export function leftArmPlan({ mode = null, view = 'third', moving = false, base 
   const strafeOf = walkingStraight ? b.replace(/(forward|back)$/, 'left') : null;
   // SHIELD-BASH: a one-hander's bash throws the shield from where the guard holds it, as the fists' does
   if (mode === 'shield' && bashing) return view === 'first' ? { kind: 'stance', base: 'idle', stance: 'drawn', still: true } : { kind: 'movement', base: 'walkleft', stance: 'drawn', still: true };
-  if (mode === 'shield') return view === 'third' && strafeOf && !attacking ? { kind: 'movement', base: strafeOf, stance: 'drawn', still: false } : null;
+  // GUARD-STANCE: the stance's steps are the free ones in every way (combat/guardLocomotion.js) - whatever way the body
+  // moves, the shield is the drawn strafe's arm, never the free walk's or run's swing
+  const shieldStrafe = moving && b && !/^turn/.test(b) ? `${/^run/.test(b) ? 'run' : 'walk'}left` : null;
+  if (mode === 'shield') return view === 'third' && shieldStrafe && !attacking ? { kind: 'movement', base: shieldStrafe, stance: 'drawn', still: false } : null;
   if (mode === 'guard') {
     if (view === 'first') return attacking || jumping ? { kind: 'stance', base: 'idle', stance: 'drawn', still: true } : null;
     if (strafeOf) return { kind: 'movement', base: strafeOf, stance: 'drawn', still: false };

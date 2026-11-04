@@ -49,8 +49,11 @@ test('MW-PACE3: every blow\'s sections at their own speeds - a quick wind-up, a 
   assert.ok(Math.abs(recoverRate(plan, 1, false) - PACE.recover * PACE.settle) < 1e-12);
   assert.ok(recoverRate(plan, 0.5, false) < recoverRate(plan, 0.2, false), 'braking');
   assert.ok(PACE.settle > 0, 'never a still frame');
+  // SERIES-PACE: a slow series' follow-through is a lone blow's at least; a quick one keeps its own
   const series = { ...plan, seriesBase: 0.4 };
-  assert.ok(Math.abs(recoverRate(series, 0, true) - 0.6) < 1e-12 && Math.abs(recoverRate(series, 1, true) - 0.2) < 1e-12);
+  for (const q of [0, 0.3, 0.7, 1]) assert.equal(recoverRate(series, q, true), recoverRate(plan, q, false), 'never slower than a lone blow');
+  const quick = { ...plan, seriesBase: 2 };
+  assert.ok(Math.abs(recoverRate(quick, 0, true) - 3) < 1e-12, 'a series quicker than a lone blow keeps its pace');
   assert.equal(recoverRate(series, 0.3, false), recoverRate(plan, 0.3, false), 'the series over: the ended recovery');
   // the window a blow holds: a thrust's the shorter
   assert.equal(holdFor('thrust'), BLOW_FLOW.thrustHold);
@@ -303,6 +306,14 @@ test('SERIES-FLOW: the series and its buffer - a press waits SERIES.buffer to be
   assert.equal(s.wanted(), false, 'and ends SERIES.intent after the last press');
   s.step(dt, true); s.consume();
   assert.equal(s.buffered(), false, 'a blow begun spends the press');
+  // SERIES-OWN-PRESS: the press a blow began is no series; held past a click, or pressed again, it is
+  s.step(dt, false);
+  assert.equal(s.wanted(), false, 'a lone click is no series');
+  s.step(dt, true);
+  assert.equal(s.wanted(), true, 'a second press is');
+  s.consume();
+  for (let i = 0; i < frames(SERIES.held) + 1; i++) s.step(dt, true);
+  assert.equal(s.wanted(), true, 'the button held past a click is');
   // the drift: the follow-through's share over the machine's time left, never faster than the blow, never stopped
   assert.equal(driftRate(0.5, 1, 1.5), 0.5 * SERIES_DRIFT / 1);
   assert.equal(driftRate(0.5, 0.01, 1.5), 1.5, 'no time left: the blow\'s own speed at most');

@@ -471,18 +471,16 @@ test('SERIES-FLOW: while the series goes on the led blow does not freeze after i
   const blow = { seconds: 5 * step, hitAt: 2 * step, step, lead: true };
   arm.setSeriesWanted(true);
   assert.equal(arm.attack('StrikeDown', { blow }), 'chop');
-  let hitRate = null;
-  for (let i = 0; i < 400 && arm.status().upper !== UPPER_BODY.AttackEnd; i++) { hitRate = arm.status().blow.rate; arm.update(dt); }
+  for (let i = 0; i < 400 && arm.status().upper !== UPPER_BODY.AttackEnd; i++) arm.update(dt);
   assert.equal(arm.status().upper, UPPER_BODY.AttackEnd);
+  // SERIES-PACE (the owner's game, 2026-11-04: a series' follow-through fell to 0.17x): never slower than a lone blow's,
+  // so the arm is done before the machine's second is - it waits there, and the next blow takes it from there
   const drift = arm.status().blow.rate;
-  assert.ok(drift < hitRate, `slower than the blow (${drift.toFixed(2)} < ${hitRate.toFixed(2)})`);
+  assert.ok(drift >= PACE.recover - 1e-9, `no slower than a lone blow (${drift.toFixed(2)})`);
   let clock = arm.status().blow.clock;
-  while (clock < blow.seconds - 10 * dt) { arm.update(dt); clock += dt; }
-  const t0 = arm.status().time;
-  for (let i = 0; i < 10; i++) arm.update(dt);
-  assert.ok(arm.status().time > t0, 'still moving as the machine lets the next blow go - no frozen window inside a series');
-  for (let i = 0; i < 40; i++) arm.update(dt);
-  assert.equal(arm.status().upper, UPPER_BODY.AttackEnd, 'still waiting for the next blow well past the window\'s own length');
+  let t0 = arm.status().time, still = 0;
+  while (clock < blow.seconds) { arm.update(dt); clock += dt; const t = arm.status().time; still = t === t0 ? still + dt : 0; t0 = t; }
+  assert.ok(still > 0, 'the follow-through done before the machine lets the next blow go - no slow motion');
   assert.equal(arm.attack('StrikeLeft', { blow }), 'slash', 'and the next blow takes it from there');
   // the series ends: the window, then the stance
   arm.setSeriesWanted(false);
@@ -527,7 +525,7 @@ test('BLOW-FLOW: a thrust holds its window the shorter - a jab\'s straight arm c
   Math.random = () => 0.95;   // a full-strength blow: the fixture's large follow-through (its weaker ones have none)
   try {
     assert.equal(endedAt('StrikeUp', between), true, 'a thrust past its window: the stance at once');
-    assert.equal(endedAt('StrikeDown', between), false, 'a cut inside its own: still recovering');
+    // SERIES-PACE: a series no longer drifts - a cut's recovery inside its own window is pinned by windowOf below
     assert.equal(endedAt('StrikeDown', BLOW_FLOW.hold + 0.05), true, 'a cut past it: the stance at once');
   } finally { Math.random = random; }
   const chop = windowOf('StrikeDown'), thrust = windowOf('StrikeUp');

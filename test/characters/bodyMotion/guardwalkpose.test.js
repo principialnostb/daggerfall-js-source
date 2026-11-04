@@ -30,10 +30,11 @@ function walkingWord(cam, shown = true, type = MW_WEAPON_TYPE.LongBladeTwoHand, 
     shown, upper: 'WeaponEquipped', ...extra });
 }
 
-test('GUARD-WALK-POSE: only the drawn two-handed ground walk receives the combat posture', () => {
+test('GUARD-WALK-POSE: only a drawn stance weapon\'s ground walk receives the combat posture - the two-hander\'s and (GUARD-STANCE) a one-hander\'s alike', () => {
   const cam = { move: { speed: 4.43, forward: 1, grounded: true } };
   assert.equal(guardWalks(walkingWord(cam), 'walkforward'), true);
-  for (const word of [walkingWord(cam, false), walkingWord(cam, true, MW_WEAPON_TYPE.LongBladeOneHand),
+  assert.equal(guardWalks(walkingWord(cam, true, MW_WEAPON_TYPE.LongBladeOneHand), 'walkforward'), true, 'a one-hander walks as the two-hander');
+  for (const word of [walkingWord(cam, false), walkingWord(cam, true, MW_WEAPON_TYPE.MarksmanBow), walkingWord(cam, true, MW_WEAPON_TYPE.HandToHand),
     walkingWord(cam, true, MW_WEAPON_TYPE.LongBladeTwoHand, { hit: true }),
     walkingWord({ move: { ...cam.move, running: true } }), walkingWord({ move: { ...cam.move, grounded: false } })]) {
     assert.equal(guardWalks(word, 'walkforward'), false);

@@ -17,6 +17,7 @@ import { algebra, bodyOf, bodyTurn, transpose, mul, apply, clamp01, ease, smooth
 import { solveBody } from './bodySolve.js';
 import { rotationPart } from '../../combat/climbRig.js';
 import { MW_WEAPON_TYPE } from '../../formats/morrowind/mwFirstPerson.js';
+import { guardStance } from './guardStance.js';
 
 const { add, sub, scale, len, norm, lerp3 } = algebra;
 
@@ -84,7 +85,9 @@ export const SWORD_BLOW_KEYS = Object.freeze({
  * frame's jump); the layer comes on over `in` and goes over `out` (a body set moving gives its legs to the stride). A
  * body heavier by `heavy` (bodyWeight.js's 0..1) strikes deeper by that share. `still` m/s: under it the body stands.
  */
-export const BLOW_LEGS_TIME = Object.freeze({ hold: 0.25, home: 0.55, step: 0.16, lift: 0.06, tau: 0.035, in: 0.06, out: 0.12, heavy: 0.4, still: 0.3, after: 0.4, rest: 0.5 });
+export const BLOW_LEGS_TIME = Object.freeze({ hold: 0.25, home: 0.55, step: 0.16, lift: 0.06, tau: 0.035, release: 0.25, in: 0.06, out: 0.12, heavy: 0.4, still: 0.3, after: 0.4, rest: 0.5 });
+/* LEGS-RELEASE (the owner's video, 2026-11-04, 60.45 -> 60.48 s: the legs jumped as a series stopped): with no blow to
+ * follow the hips rose out of the lunge at `tau`, one frame, the knees snapping straight - they let go over `release`. */
 /* STEP-HOP: the stepped foot waits `rest` seconds after the last blow before it steps home - blows clicked one by one
  * stepped it out and home again each time, a hop on every blow. */
 /* STOP-UNDER-A-BLOW (2026-10-29, the owner's video: stopped under a held attack the legs keep "the last frame before the
@@ -193,6 +196,9 @@ export function trailingStep(anchor, hips, leg) {
  *  third-person motion slot (bodyWeight.js's), after the carry and before the elbows' clearance. */
 export function createBlowLegs() {
   let w = 0; let want = null; let pose = { fwd: 0, drop: 0, yaw: 0, pitch: 0, side: 0 }; let anchor = null; let lastDt = 0;
+  // BLOW-TRUNK: the share of a blow's turn the hips do not take moving (all of it at a run) - laid on the spine above
+  // them, so a blow swings as wide walking and running as standing and the stride's legs are left alone
+  let trunk = { yaw: 0, pitch: 0 };
   // LEG-DRIVE: a lead foot stepped out stays out through a series (the blow's own follow-through sent it home, and the
   // next blow's drive out again - forward, back, forward); it goes home once the blows stop, the layer held on for it
   let stepped = false;
@@ -210,15 +216,17 @@ export function createBlowLegs() {
     /** One frame: `on` the switch in third person, `word` the motion word, `heavy` the body's weight (0..1). */
     step(dt, on, word, heavy = 0) {
       lastDt = Math.max(0, dt);
-      guardTravel = !!word?.shown && word.mwType === MW_WEAPON_TYPE.LongBladeTwoHand;
+      guardTravel = !!word?.shown && guardStance(word.mwType);   // GUARD-STANCE: a one-hander strikes moving as the two-hander
       const movingKeys = guardTravel ? GUARD_BLOW_MOVE : BLOW_MOVE;
       still = word && Number(word.speed) > BLOW_LEGS_TIME.still ? 0 : still + Math.max(0, dt);
       const grounded = !!word && word.on !== false && !word.busy && word.grounded !== false && !word.swimming && !word.levitating;
       const standing = grounded && still >= BLOW_LEGS_TIME.after;
       // RUNNING-BLOW-LEGS: running is a motor mode, not the 5.5..7 m/s speed band. Never re-solve
       // a running stride toward the attack's feet or pole, including any tail left by a walking blow.
-      if (grounded && word.running && !standing) { layer.reset(); return 0; }
       const struck = on && grounded && word.blow ? blowLegsPose({ ...word.blow, sword: word.shown && word.mwType === MW_WEAPON_TYPE.LongBladeTwoHand }, heavy) : null;
+      const trunkTau = struck ? BLOW_LEGS_TIME.tau : BLOW_LEGS_TIME.release;   // LEGS-RELEASE: the trunk lets go as the hips do
+      const toTrunk = (yaw, pitch) => { trunk = { yaw: ease(trunk.yaw, yaw, trunkTau, dt), pitch: ease(trunk.pitch, pitch, trunkTau, dt) }; };
+      if (grounded && word.running && !standing) { clearLegs(); toTrunk(struck?.yaw ?? 0, struck?.pitch ?? 0); return 0; }
       const asked = standing ? struck : null;
       // BLOW-MOVE: struck moving (or in the stop's first `after` seconds) - a share of the hips over the stride's own feet
       const runFade = 1 - smooth(((Number(word?.speed) || 0) - BLOW_MOVE.fade[0]) / (BLOW_MOVE.fade[1] - BLOW_MOVE.fade[0]));
@@ -249,12 +257,16 @@ export function createBlowLegs() {
         fwd: src.fwd * (stand + movingKeys.fwd * m) * fadeK, drop: (src.drop * k + by(movingKeys.dip) * drv * m) * fadeK + crouch, yaw: src.yaw * k * fadeK,
         pitch: (src.pitch * k + by(movingKeys.lean) * drv * m) * fadeK, side: src.side * stand,
       } : { fwd: 0, drop: crouch, yaw: 0, pitch: 0, side: 0 };
-      const to = (k) => ease(pose[k], goal[k], BLOW_LEGS_TIME.tau, dt);
+      const to = (k) => ease(pose[k], goal[k], src ? BLOW_LEGS_TIME.tau : BLOW_LEGS_TIME.release, dt);   // LEGS-RELEASE
       pose = { fwd: to('fwd'), drop: to('drop'), yaw: to('yaw'), pitch: to('pitch'), side: to('side') };
-      if (!on1 && w < 1e-3) layer.reset();
+      const hips = src ? k * fadeK : 0;   // BLOW-TRUNK: what the hips took of the standing turn
+      toTrunk(struck ? struck.yaw * (1 - hips) : 0, struck ? struck.pitch * (1 - hips) : 0);
+      if (!on1 && w < 1e-3) clearLegs();
       return w;
     },
     weight: () => w,
+    /** BLOW-TRUNK: the turn for the spine (bodyWeight.js lays it with leanTrunk, before `apply`). */
+    trunkTurn: () => trunk,
     /** The layer's own word, for the rig's status. */
     status: () => ({ w, fwd: pose.fwd, drop: pose.drop, yaw: pose.yaw, pitch: pose.pitch, air: { L: feet.L.air(), R: feet.R.air() }, anchored: !!anchor }),
     /** THE POSE over the clip's: the hips moved and turned, the feet set on their anchors (the lead one stepping). */
@@ -354,7 +366,10 @@ export function createBlowLegs() {
       lastDt = 0;   // a frame's clocks spent once
       return solveBody(skeleton, pose0, rootRef, skelMats, plan);
     },
-    reset() { w = 0; planting = false; stand = 1; guard = 0; fromMove = false; want = null; anchor = null; settle = null; stepped = false; sinceBlow = Infinity; pose = { fwd: 0, drop: 0, yaw: 0, pitch: 0, side: 0 }; feet.L.reset(); feet.R.reset(); },
+    reset() { clearLegs(); trunk = { yaw: 0, pitch: 0 }; },
   };
+  function clearLegs() {
+    w = 0; planting = false; stand = 1; guard = 0; fromMove = false; want = null; anchor = null; settle = null; stepped = false; sinceBlow = Infinity; pose = { fwd: 0, drop: 0, yaw: 0, pitch: 0, side: 0 }; feet.L.reset(); feet.R.reset();
+  }
   return layer;
 }
