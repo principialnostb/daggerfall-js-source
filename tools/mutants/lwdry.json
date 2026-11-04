@@ -47,8 +47,8 @@
   {
     "name": "LW-DRY-ground-unread",
     "file": "src/systems/livingWorld/trips.js",
-    "old": "    const way = innsAlong(wayOf(plan, world.dryAt), plan, world, home, to);   // LW9: the inns on its road\n    const [trim0, trim1] = wayTrims(home, /** @type {LwTown} */ (to), way);   // WALL-WAY: past each town's walls",
-    "new": "    const way = innsAlong(wayOf(plan), plan, world, home, to);   // LW9: the inns on its road\n    const [trim0, trim1] = wayTrims(home, /** @type {LwTown} */ (to), way);   // WALL-WAY: past each town's walls",
+    "old": "  const way = !plan || !(plan.pixels?.length >= 2) ? null : inns ? innsAlong(wayOf(plan, world.dryAt), plan, world, home, to) : wayOf(plan, world.dryAt);",
+    "new": "  const way = !plan || !(plan.pixels?.length >= 2) ? null : inns ? innsAlong(wayOf(plan), plan, world, home, to) : wayOf(plan, world.dryAt);",
     "tests": [
       "test/systems/livingWorld/lwdry_ground.test.js"
     ]
@@ -56,8 +56,8 @@
   {
     "name": "LW-DRY-dive-ground-unread",
     "file": "src/systems/livingWorld/trips.js",
-    "old": "    const way = wayOf(plan, world.dryAt);\n    const [trim0, trim1] = wayTrims(home, to, way);   // WALL-WAY: past each town's walls\n    const walk = Math.max(0, way.len - trim0 - trim1) / pace;\n    const estDays = 2 * Math.ceil(walk / ((WALK_TO_H - WALK_FROM_H) * 60)) + Math.ceil(inside / DAY_MIN) + 1;",
-    "new": "    const way = wayOf(plan);\n    const [trim0, trim1] = wayTrims(home, to, way);   // WALL-WAY: past each town's walls\n    const walk = Math.max(0, way.len - trim0 - trim1) / pace;\n    const estDays = 2 * Math.ceil(walk / ((WALK_TO_H - WALK_FROM_H) * 60)) + Math.ceil(inside / DAY_MIN) + 1;",
+    "old": "  const way = !plan || !(plan.pixels?.length >= 2) ? null : inns ? innsAlong(wayOf(plan, world.dryAt), plan, world, home, to) : wayOf(plan, world.dryAt);",
+    "new": "  const way = !plan || !(plan.pixels?.length >= 2) ? null : inns ? innsAlong(wayOf(plan, world.dryAt), plan, world, home, to) : wayOf(plan);",
     "tests": [
       "test/systems/livingWorld/lwdry_ground.test.js"
     ]

@@ -47,7 +47,7 @@
   {
     "name": "LW7-hand-version",
     "file": "src/systems/livingWorld/relations.js",
-    "old": "        if (hand.size > TURNS_MAX) hand.delete(/** @type {string} */ (hand.keys().next().value));\n        turnsVersion++;\n        return true;",
+    "old": "        if (hand.size > TURNS_MAX) hand.delete(/** @type {string} */ (hand.keys().next().value));\n        noted(kind, key);\n        return true;",
     "new": "        if (hand.size > TURNS_MAX) hand.delete(/** @type {string} */ (hand.keys().next().value));\n        return true;",
     "tests": [
       "test/systems/livingWorld/lw7_deeds.test.js"
@@ -694,7 +694,7 @@
   },
   {
     "name": "LW7-host-hand-dropped",
-    "file": "src/scenes/world.js",
+    "file": "src/scenes/livingWorld/livingBooks.js",
     "old": "      got = { holder, dies: !pl.vacant && pl.dies, hand: pl.hand };",
     "new": "      got = { holder, dies: !pl.vacant && pl.dies, hand: null };",
     "tests": [

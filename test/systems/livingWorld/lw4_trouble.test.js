@@ -450,7 +450,7 @@ test('LW4 the streaming host: the trouble\'s world (the climate at the place, th
   assert.match(w, /const livingCovered = \(c\) => \{ if \(c === undefined\) _livingCoverPending = true; return !!c; \};/);
   assert.match(w, /covered: \(trip\) => livingCovered\(patrolCover\(trip, livingTripWorld, /);
   assert.match(rd('src/scenes/livingWorld/livingBooks.js'), /const holder = pl\.vacant \? null : pl\.holder == null \? res\n\s*: \(town \? mintResident\(town, res\.roll \?\? 't', res\.slot, res\.job, \{ gen: pl\.holder, home: res\.home, work: res\.work, faction: res\.faction \}\) : res\);/, 'LW7: a townsperson\'s newcomer the census\'s own mint too');
-  assert.match(rd('src/scenes/livingWorld/livingBooks.js'), /const everything = \(\) => \{ places\.clear\(\); fates\.clear\(\); book\.clear\(\); \};/, 'another record, or a turn the books cannot place: the books made again');   // PIN MOVED: the books live in scenes/livingWorld/livingBooks.js, and a turn renews only what it reaches (test/systems/livingWorld/tripbook_overworld.test.js)
+  assert.match(rd('src/scenes/livingWorld/livingBooks.js'), /const everything = \(\) => \{ places\.clear\(\); fates\.clear\(\); book\.clear\(\); \};/, 'another record, or a turn the books cannot place: the books made again');   // the books live in scenes/livingWorld/livingBooks.js, and a turn renews only what it reaches (test/systems/livingWorld/tripbook_overworld.test.js)
   assert.match(w, /const livingTurnsFresh = \(\) => livingBooks\.turnsFresh\(\);/, 'the host asks its books');
   assert.match(w, /livingTurnsFresh\(\);   \/\/ LW4: a turn of fate made, or a save loaded/);
   assert.match(w, /const h = pl\.holder && pl\.dies && setsOut\(pl\.holder, town, k, livingTripWorld, o\) === false \? null : pl\.holder;/);

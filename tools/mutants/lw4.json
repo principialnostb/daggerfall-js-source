@@ -535,11 +535,12 @@
   },
   {
     "name": "LW4-host-turns-stale",
-    "file": "src/scenes/world.js",
-    "old": "    _livingPlaces.clear(); _livingFates.clear(); _livingTripMemo.clear();",
-    "new": "    void _livingFates;",
+    "file": "src/scenes/livingWorld/livingBooks.js",
+    "old": "  const everything = () => { places.clear(); fates.clear(); book.clear(); };",
+    "new": "  const everything = () => { void places; };",
     "tests": [
-      "test/systems/livingWorld/lw4_trouble.test.js"
+      "test/systems/livingWorld/lw4_trouble.test.js",
+      "test/systems/livingWorld/tripbook_overworld.test.js"
     ]
   },
   {
