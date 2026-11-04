@@ -47,12 +47,19 @@ const HOT = (character) => [
   ['/v1/chapters/list', { character }],
   ['/v1/seats/list', {}],
   ['/v1/festival/town', { mapId: 7 }],   // PIN MOVED (WITCH1): a town's Hearth Offerings, asked as its homes are
+  ['/v1/homes/decor', { mapId: 7, buildingKey: 300 }],
+  ['/v1/safety/blocks', {}],
+  ['/v1/prof/motherlodes', { character }],
+  ['/v1/market/vendors', { region: 17, character }],
+  ['/v1/firmament/state', { character }],
+  ['/v1/marks/balance', {}],
+  ['/v1/hunt/state', { character }],
 ];
 
 test('SESSION-SIGN the oracle: every hot route answers under a pass exactly as under the lookup - for a guest, an account, a developer, a newcomer a week can not yet witness and a muted one, with the switches on and at `dev`, in a town with a home - and asks no lookup; the first ask, the lookup\'s, hands the pass back, exposed to the page; a banned account is handed none (mutants: a field the pass leaves out; the handle; the registration; the mute; a route added; the mint before the ban)', async () => {
   assert.deepEqual(HOT('c').map(([path]) => path), [...PASS_PATHS], 'the oracle asks every hot route there is');
   for (const sw of ['on', 'dev']) {
-    const t = await stand({ DEVELOPER_HANDLES: 'mac', BOARD_OPEN: sw, SEATS_OPEN: sw, CHAPTERS_OPEN: sw, PROFESSIONS_OPEN: sw, FESTIVAL_OPEN: sw });
+    const t = await stand({ DEVELOPER_HANDLES: 'mac', BOARD_OPEN: sw, SEATS_OPEN: sw, CHAPTERS_OPEN: sw, PROFESSIONS_OPEN: sw, FESTIVAL_OPEN: sw, FIRMAMENT_OPEN: sw });
     try {
       const guest = await t.s.guest();
       const eve = await t.s.seated('eve');
@@ -64,6 +71,10 @@ test('SESSION-SIGN the oracle: every hot route answers under a pass exactly as u
       // WITCH1 (PIN MOVED): and a Hearth Offering at its door, so the town's offerings answer each account its own way
       t.raw.prepare('INSERT INTO fest_offerings (map_id, building_key, player, char_id, stock, placed_at) SELECT map_id, building_key, player, char_id, 3, ? FROM homes WHERE map_id = 7 AND building_key = 300').run(T0);
       t.raw.prepare('UPDATE players SET registered_at = ? WHERE id IN (?, ?, ?, ?)').run(T0 - 30 * 86400, eve.id, mac.id, muted.id, banned.id);
+      // the town voted eve's home down, so its room is hers to see and a shop to the rest; eve blocks mac
+      t.raw.prepare('UPDATE homes SET score = -1000 WHERE map_id = 7 AND building_key = 300').run();
+      t.raw.prepare('INSERT INTO blocks (player, blocked, at) VALUES (?, ?, ?)').run(eve.id, mac.id, T0);
+      t.raw.prepare("INSERT INTO prof_tracks (player, char_id, profession, xp, updated_at) VALUES (?, ?, 'mining', 5000, ?)").run(eve.id, eve.character, T0);   // and eve's character mines
       t.raw.prepare('UPDATE players SET registered_at = ? WHERE id = ?').run(T0 - 3600, newcomer.id);
       t.raw.prepare('UPDATE players SET muted_until = ? WHERE id = ?').run(T0 + 86400, muted.id);
       t.raw.prepare("UPDATE players SET banned_until = ?, ban_reason = 'spam' WHERE id = ?").run(T0 + 86400, banned.id);

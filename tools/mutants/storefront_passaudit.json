@@ -193,8 +193,8 @@
   {
     "name": "PASSAUDIT-11-the-queued-asks-past-a-refusal",
     "file": "src/systems/pass/passClient.js",
-    "old": "  return queued(async () => {\n    if (!mine()) return held();\n",
-    "new": "  return queued(async () => {\n",
+    "old": "    if (me.merged) return 0;\n    if (!mine()) return held();\n",
+    "new": "    if (me.merged) return 0;\n",
     "tests": [
       "test/systems/pass/passclient.test.js"
     ]

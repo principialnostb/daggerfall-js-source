@@ -93,7 +93,9 @@ back to the title screen with the reason. A read gives up after `REALM_READ_TRIE
 **Fewer trips.** The play beat, the letterbox and the town board ride one `/v1/heartbeat` request
 (`src/net/heartbeat.js`, `server-account/src/heartbeat.js`). Hot routes believe a signed session pass
 (`x-session-pass`, `server-account/src/sessionPass.js`) instead of looking the session up; a pass lives `PASS_TTL_S`
-(five minutes) and is renewed `PASS_RENEW_S` before it ends. The periodic realm checkpoint runs every
+(five minutes) and is renewed `PASS_RENEW_S` before it ends. A hot route reads nothing of the account but the pass's
+fields (`PASS_PATHS`). Battle Pass finds that could change nothing are not asked, and queued ones go as one
+(`06-Systems/Battle-Pass.md`). The periodic realm checkpoint runs every
 `ONLINE_CHECKPOINT_MS` (five minutes) (`src/systems/online/onlineCheckpoint.js`); trades, crafts and profession acts save
 at once.
 
