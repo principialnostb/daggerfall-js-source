@@ -191,7 +191,7 @@ test('REALM P1.3: a notice crosses the reload once; the boot\'s address carries 
 test('REALM P1.3 by source: the boot joins before any save is read, never a slot; a save of a realm character is the service\'s checkpoint in every composer; the exits leave; a born character is made, saved at 1 and booted from the realm', () => {
   const w = hostText('src/scenes/world.js');
   const boot = w.indexOf('export async function bootWorld(');
-  const join = w.indexOf("const realmBoot = params.has('online') && params.has('realm') && params.has('load') ? await openRealmBoot({ io: realmIoNow(), id: params.get('realm') }) : null;");
+  const join = w.indexOf("const realmBoot = params.has('online') && params.has('realm') && params.has('load') ? await openRealmBoot({ io: realmIoNow(), id: params.get('realm') }, bootLoading) : null;");
   assert.ok(join > boot && join < w.indexOf('const bootLoadPick'), 'joined before the load door\'s pick');
   assert.match(w, /if \(realmBoot && !realmBoot\.ok\) \{ setRealmNotice\(globalThis\.sessionStorage, realmRefusalText\(realmBoot\.error\)\); exitToTitleMenu\(\); return; \}/);
   assert.match(w, /const realmRefused = params\.has\('online'\) && !realmBoot && !realmNew;\s*\n\s*if \(realmRefused\) \{ params\.delete\('online'\); publishBootParams\(params\); \}/, 'no realm character, no online');

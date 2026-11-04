@@ -176,8 +176,8 @@
   {
     "name": "REALM5-no-checkpoint-first",
     "file": "src/systems/realmSaves.js",
-    "old": "export async function realmGoldAct({ session, checkpoint, reserve = null, apply = null, call, wait = (ms) => new Promise((r) => { setTimeout(r, ms); }), needsAnswer = false, read = false }) {\n  checkpoint();\n",
-    "new": "export async function realmGoldAct({ session, checkpoint, reserve = null, apply = null, call, wait = (ms) => new Promise((r) => { setTimeout(r, ms); }), needsAnswer = false, read = false }) {\n",
+    "old": "export async function realmGoldAct({ session, checkpoint, reserve = null, apply = null, call, wait = (ms) => new Promise((r) => { setTimeout(r, ms); }), rand = Math.random, needsAnswer = false, read = false }) {\n  checkpoint();\n",
+    "new": "export async function realmGoldAct({ session, checkpoint, reserve = null, apply = null, call, wait = (ms) => new Promise((r) => { setTimeout(r, ms); }), rand = Math.random, needsAnswer = false, read = false }) {\n",
     "tests": [
       "test/net/realm5.test.js"
     ]
