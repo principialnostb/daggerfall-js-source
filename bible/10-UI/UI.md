@@ -56,7 +56,7 @@ ESCORTING FACES - the quest escorts' portrait column, FE1 - and the CREDITS TABL
 - and WITCH1's WYRD SISTER (`wyrdDoor.js` and `wyrdWindow.js`: the Witches' Festival's vendor window, the Broker's house in the festival's colours - its insignia, the Wyrd's Raiment, the festival's cards and the Hearth Offering for Soul Cakes; `profileIcons.js`: the profile icons, drawn in code - `06-Systems/Witches-Festival.md`)
 - and STARFALL's FACES (`starfall/starTracker.js`: a fallen star's plate - its name, its town, its coven, how it stands, its light and its deadline, made once and written only where it changed, in every skin; `starfall/starBar.js`: the master's bar on the gate's, its circle's two calls and its ward; `starfall/starMapMark.js`: the star's violet and its held gold, the one leaf every face reads; `11-Multiplayer/Starfall.md` section 8)
 - and the HUD's 2026-10-20 three (`hud/hudTip.js`: the HUD's hover card, the pack's own card; `hud/statusTips.js`: what a buff, a debuff, a need or a disease tile says under the pointer - STATUS-TIPS; `hud/hudAdvance.js`: the two tiles beside the Renown bar, the skills ready and the Firmament's stars not yet placed, clear of the hotbar - SKILL-READY, FIRM-STARS; `UI-Arc.md`)
-- and TRADE-VIRT's LANDING TILES (`enhanced/landingTiles.js`: a picture into the tile that waited on it, one pass a frame - the pack's, the shop counter's and the trade between players' one home; `07-Rendering/Performance-Priority.md` TRADE-VIRT)
+- and TRADE-VIRT's LANDING TILES (`enhanced/landingTiles.js`: a picture into the tile that waited on it, one pass a frame - the pack's, the shop counter's and the trade between players' one home; `07-Rendering/Performance-Priority.md` TRADE-VIRT);
 - and BOARD-SIFT's BAR (`workSift.js`: the Notice Board's Work tab sifted and ordered - the kind, a search, Only what I can fill, the order, forty cards at a time; `06-Systems/Professions-Arc.md` 10.13)
 - and COLLECTIONS-II's WARDROBE (`collections/wardrobeCatalogue.js`: every title, aura, profile icon and glyph, where it comes from, whether it can be had now and how; `collections/wardrobePart.js`: the Collections page's part a kind, read off the account and worn from - `10-UI/Collections.md`)
 - and SEASON-BOOK's LAUREL (`enhanced/enhancedSeason.js`: the pause face's third mark beside the hourglass and the envelope, and its window - the ranked season, the seats' Season and the festival, each counting down, the player's standing on each board - `10-UI/UI-Arc.md` SEASON-BOOK);
@@ -94,7 +94,7 @@ ESCORTING FACES - the quest escorts' portrait column, FE1 - and the CREDITS TABL
 - and GUILD-RANKS' and GUILD-REQUESTS' TWO (`guild/guildRanksPage.js`: the guild window's Ranks page, the names and the grid of powers; `guild/guildRequestNodes.js`: a request to join sent and answered - `11-Multiplayer/Guild-Shop.md` sections 13 and 14);
 - and FIGUREHEAD's ONE (`figureheadPanel.js`: a ship's carving on her Fleet card - `03-World/Naval-Refit.md` FIGUREHEAD);
 - and PASS-PANELS' ONE (`enhanced/enhancedPass.js`: the shop's Folios - their covers and their pages - `06-Systems/Battle-Pass.md` section 7);
-495 modules
+499 modules
 live under `src/ui/`. Items still routed here are
 collected in `01-Overview/Port-Ledger.md` section C; scope in
 `01-Overview/Port-Doctrine.md` phase plan.
@@ -144,3 +144,7 @@ on what has already shipped.
 AUDIT 18 rewrote this page: its opening paragraph declared the arc
 unstarted through the whole U arc. See the note on
 `06-Systems/Systems.md` for the pin that now holds both pages honest.
+
+## Local equipment inventory extension (2026-10-29)
+
+The cosmetic face picker, independent 2D/3D helmet selector and retained appearance card are described in [Equipment-Claude-Handoff](../../docs/Equipment-Claude-Handoff.md). Face art stays separate from gameplay identity; item art stays separate from the world model. The latest size/anchor refinements still need an in-game visual pass.

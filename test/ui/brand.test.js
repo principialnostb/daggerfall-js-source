@@ -195,7 +195,7 @@ test('BR1: what the rebrand deliberately did NOT touch, and why', () => {
   // config.json with the ARENA2 path in it. The storage root is pinned
   // to the folder that already exists, whatever the product is called.
   assert.match(read('app/main.cjs'),
-    /else app\.setPath\('userData', path\.join\(app\.getPath\('appData'\), 'Daggerfall JavaScript'\)\);/,
+    /else app\.setPath\('userData', path\.join\(app\.getPath\('appData'\), 'Daggerfall JavaScript Mod'\)\);/,
     'the desktop shell keeps writing where it already wrote - a rebrand is a name, not a migration');
 });
 
@@ -308,7 +308,7 @@ test('BR4: what the rebrand deliberately did NOT touch, and why', () => {
   assert.ok(read('index.html').includes('https://discord.gg/jM2JdwSM8w'), 'and so is the Discord');
   // The desktop shell's install identity and storage root, as BR1 left them.
   assert.match(read('app/package.json'), /"appId": "dev\.daggerfalljs\.app"/, 'an update installs over the copy that is there');
-  assert.match(read('app/main.cjs'), /app\.setPath\('userData', path\.join\(app\.getPath\('appData'\), 'Daggerfall JavaScript'\)\)/,
+  assert.match(read('app/main.cjs'), /app\.setPath\('userData', path\.join\(app\.getPath\('appData'\), 'Daggerfall JavaScript Mod'\)\)/,
     'and the saves stay where they are');
 });
 

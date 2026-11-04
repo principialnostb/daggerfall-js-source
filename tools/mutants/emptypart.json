@@ -1,0 +1,11 @@
+[
+  {
+    "name": "EMPTY-PART-the-skin-drawn-under-the-cuff",
+    "file": "src/formats/morrowind/mwItemMap.js",
+    "old": "if (!id) { notes.push(`${rec.id}: ${row.name} names no body part`); claim(ref.part, prio, null); continue; }",
+    "new": "if (!id) { notes.push(`${rec.id}: ${row.name} names no body part`); continue; }",
+    "tests": [
+      "test/formats/morrowind/fparm.test.js"
+    ]
+  }
+]

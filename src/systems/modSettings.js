@@ -1641,6 +1641,111 @@ export const MOD_SETTINGS = Object.freeze({
       }),
     }),
   }),
+
+  // MW-ANIM-1: actor-scoped gait sources. Each setting has a real runtime
+  // consumer in fpArm.js. Keep choices mutually exclusive: two KF sources
+  // must never compete to own the same walk group for one actor.
+  'morrowind-animation': Object.freeze({
+    title: 'Animations',
+    author: 'Port integration',
+    keys: Object.freeze({
+      SimplyAnimatedCloaks: Object.freeze({
+        default: 2,
+        options: lazyWords('Vanilla', 'Vanilla Animated', 'Вкл'),
+        legacyBooleanChoice: true,
+        description: 'Vanilla keeps the selected cloak static. Vanilla Animated adds secondary motion: cloth simulation for classic cloaks, or shared heavy-pelt motion for wolf skins, with anchored shoulders and a damped lower drape. Вкл selects the Simply Animated Cloaks mesh and its authored animation together; if it cannot bind to an actor rig, the runtime tries the compatible fallback mesh. A selected wolf appearance keeps its own mesh and animates in Vanilla Animated mode.',
+      }),
+      AnimationBlendDuration: Object.freeze({
+        default: 1,
+        options: lazyWords('Vanilla', 'Smooth · 0.16 s', 'Smooth · 0.25 s', 'Smooth · 0.40 s'),
+        description: 'Browser-native port of Animation Blending for third-person character rigs. Smooths transitions between supported clips; Vanilla disables the cross-fade. The original MWSE Lua script and its per-animation YAML rules are not executable in this browser port, and first-person animation is unchanged.',
+      }),
+      MotionDoctrine: Object.freeze({
+        default: 1,
+        options: lazyWords('Как сейчас', 'По формуле'),
+        description: 'По формуле: the legs keep the stride under a blow, the transitions and loops run without jumps, the elbows stay out of the body, armoured two-handed swords carry starts, stops and moving blows through the trunk, the first-person hands dip on a landing without added camera sway, and a landed blow holds for a short beat with a soft shake. Как сейчас keeps the clips as they are.',
+      }),
+      FirstPersonSource: Object.freeze({
+        default: 1,
+        options: lazyWords('Vanilla', 'ReAnimation v3 · 1-е лицо', 'OpenMW Dynamic Animations · 1-е лицо', 'ReAnimation v3 + OpenMW Dynamic Animations · 1-е лицо'),
+        description: 'First-person sources can be used independently or layered. ReAnimation v3 supplies stance, weapon, jump and related clips; OpenMW Dynamic Animations supplies directional walk/run/sneak clips; the combined option overlays those movement groups on ReAnimation. Assets are attempted on the male `xbase_anim.1st.nif` and female `base_anim_female.1st.nif` first-person rigs. Each clip must still parse and bind to the active rig\'s bones; incompatible rigs and clips retain archive fallback.',
+      }),
+      OpenMWDynamicAnimations: Object.freeze({
+        // Keep Vanilla as the default: this provider can replace the game's
+        // existing walk/run/sneak groups, so it must never silently change gait.
+        default: 0,
+        options: lazyWords('Vanilla', 'OpenMW Dynamic Animations · 3-е лицо'),
+        description: 'Third-person animation source for compatible rigs. OpenMW Dynamic Animations replaces matching game/archive groups, including directional walking, running, and sneaking; it can therefore change Vanilla locomotion, not just add new actions. Vanilla keeps the game/archive clips. The browser port translates KF group selection and deterministic variant choice into the JavaScript runtime; it does not execute the original OpenMW Lua scripts.',
+      }),
+      HitReactionSource: Object.freeze({
+        default: 1,
+        options: lazyWords('Vanilla', 'Hit Reactions Animated v2'),
+        description: 'Third-person hit-reaction provider. Only hit, stagger, and death groups are admitted after binding to the active skeleton; locomotion and weapon groups remain on their selected sources. Vanilla keeps the game/archive reactions.',
+      }),
+      PlayerWalkSource: Object.freeze({
+        default: 1,
+        options: lazyWords('Original', 'Vanilla', 'Simply Walking', 'Feminine Walk Cycle', "Axel's Sexy Walk Fixed"),
+        description: "Player walking source. Original bypasses bundled mod imports for the walk group and uses the game's original/archive animation. Vanilla keeps the fork's default source behavior. Simply Walking, Feminine Walk Cycle, and Axel's Sexy Walk Fixed are independent walk-only sources for supported groups; the feminine cycle and Axel are female-only. Running is configured separately. Unsupported groups fall back to the game/archive source.",
+      }),
+      PlayerRunSource: Object.freeze({
+        default: 1,
+        options: lazyWords('Original', 'Vanilla', "Axel's Sexy Walk Fixed"),
+        description: "Player running source. Original bypasses bundled mod imports for running and uses the game's original/archive animation. Vanilla keeps the fork's default source behavior. Axel's RunForward clip is available only for female player rigs; male players and unsupported run groups remain on the game/archive source. This choice does not change walking.",
+      }),
+      NpcMaleWalk: Object.freeze({
+        default: 1,
+        options: lazyWords('Original', 'Vanilla', 'Simply Walking'),
+        description: "Male NPC walking source. Original bypasses bundled mod imports for walking and uses the game's original/archive animation. Vanilla keeps the fork's default source behavior. Simply Walking replaces supported male walk groups; running and unsupported groups remain on the game/archive source.",
+      }),
+      NpcFemaleWalk: Object.freeze({
+        default: 1,
+        options: lazyWords('Original', 'Vanilla', 'Simply Walking', 'Feminine Walk Cycle', "Axel's Sexy Walk Fixed"),
+        description: "Female NPC walking source. Original bypasses bundled mod imports for walking and uses the game's original/archive animation. Vanilla keeps the fork's default source behavior. Simply Walking, Feminine Walk Cycle, and Axel's Sexy Walk Fixed are independent walk-only choices. Running is configured separately. Unsupported groups fall back to the game/archive source.",
+      }),
+      NpcFemaleRun: Object.freeze({
+        default: 1,
+        options: lazyWords('Original', 'Vanilla', "Axel's Sexy Walk Fixed"),
+        description: "Female NPC running source. Original bypasses bundled mod imports for running and uses the game's original/archive animation. Vanilla keeps the fork's default source behavior. Axel's RunForward clip replaces supported female NPC run groups; unsupported groups remain on the game/archive source. This choice does not change walking.",
+      }),
+      // Legacy key retained so old stored data is not silently redefined.
+      // Runtime no longer reads this key; actor-scoped settings are independent.
+      FemaleWalk: Object.freeze({
+        default: 0,
+        options: lazyWords('Standard', 'Feminine Walk Cycle', "Axel's Sexy Walk Fixed"),
+        description: 'Legacy setting retained for migration compatibility; new runtime selection uses the actor-specific walk settings above.',
+      }),
+    }),
+  }),
+  // MW-TEXTURE-PACKS: optional Morrowind asset layers. These are OFF by default;
+  // the browser archive is assembled from these choices at startup. A page/game
+  // reload is required after changing one because NIF/texture archives are cached.
+  'morrowind-textures': Object.freeze({
+    title: 'Morrowind texture and equipment packs',
+    author: 'Port integration',
+    keys: Object.freeze({
+      BetterBodies: Object.freeze({ default: true, conflictGroup: 'morrowind-body-geometry', conflictLabel: 'Better Bodies', get description() { return 'Use the Better Bodies body meshes and matching race/sex skin for the player. Off restores the standard Morrowind body meshes and first-person arms.'; } }),
+      BetterBodiesSource: Object.freeze({ default: 2, options: lazyWords('Original', 'Vanilla', 'Better Bodies'), description: 'Independent player-body source. Original uses the upstream game body; Vanilla preserves the current default body selection; Better Bodies selects the replacement meshes and matching skins.' }),
+      FirstPersonHands: Object.freeze({ default: 1, options: lazyWords('Vanilla', 'Better Hands'), description: "Choose the player's first-person arms independently of the third-person body: Vanilla, or Better Hands - Better Bodies' arm and skin with Better Hands' hands, the clenched fist's thumb taken from Better Bodies. Applies to supported human races; beasts and werewolves keep their normal assets." }),
+      HighResolutionBetterBodyFemaleTextures: Object.freeze({ default: true, get description() { return 'Use the high-resolution female Better Bodies skin and hand textures, with underwear, body-hair and no-hair variants selected in the appearance editor. Keeps the project-corrected Better Bodies mesh and UV coordinates; requires Better Bodies.'; } }),
+      SeamlessDMRA: Object.freeze({ default: false, get description() { return 'Use Seamless DMRA female body geometry in place of the base Better Bodies female mesh. Better Bodies remains the base skin and male-body source; only one female body mesh is selected at a time.'; } }),
+      SeamlessDMRASource: Object.freeze({ default: 1, options: lazyWords('Original', 'Vanilla', 'Seamless DMRA'), description: 'Independent female body geometry source. Original and Vanilla use the existing base geometry; Seamless DMRA selects the alternative female mesh.' }),
+      IntelligentTextures: Object.freeze({ default: false, get description() { return 'Use Intelligent Textures 00 Core. The 01 Atlas Textures set is excluded because it requires matching atlas meshes.'; } }),
+      VurtsBetterClothes: Object.freeze({ default: false, get description() { return 'Use Vurt\'s Better Clothes Retexture for matching clothing texture paths.'; } }),
+      BetterClothesRetextured: Object.freeze({ default: false, get description() { return 'Use Better Clothes Retextured for matching non-pants texture paths. Pants remain on their existing textures as a fit-quality control.'; } }),
+      BetterMorrowindArmor: Object.freeze({ default: false, get description() { return 'Use Better Morrowind Armor meshes, textures and base plugin. Incompatible alternative armor patches are not loaded automatically.'; } }),
+      CompleteArmorJoints: Object.freeze({ default: false, get description() { return 'Use the Complete Armor Joints add-on for Better Morrowind Armor. Requires Better Morrowind Armor.'; } }),
+      WestlysFineClothiers: Object.freeze({ default: false, get description() { return 'Use Westly\'s Fine Clothiers meshes, textures and plugin.'; } }),
+      WestlysFacesRefurbished: Object.freeze({ default: false, get description() { return 'Use Westly\'s Faces Refurbished head and hair meshes/textures.'; } }),
+      HighResolutionBetterBodyFemaleTexturesSource: Object.freeze({ default: 1, options: lazyWords('Original', 'Vanilla', 'High Resolution Better Body Textures'), description: 'Independent resource source. Original selects the upstream baseline, Vanilla preserves the existing default, and the named option explicitly selects this pack.' }),
+      IntelligentTexturesSource: Object.freeze({ default: 1, options: lazyWords('Original', 'Vanilla', 'Intelligent Textures'), description: 'Independent resource source. Original selects the upstream baseline, Vanilla preserves the existing default, and the named option explicitly selects this pack.' }),
+      VurtsBetterClothesSource: Object.freeze({ default: 1, options: lazyWords('Original', 'Vanilla', "Vurt's Better Clothes"), description: 'Independent resource source. Original selects the upstream baseline, Vanilla preserves the existing default, and the named option explicitly selects this pack.' }),
+      BetterClothesRetexturedSource: Object.freeze({ default: 1, options: lazyWords('Original', 'Vanilla', 'Better Clothes Retextured'), description: 'Independent resource source. Original selects the upstream baseline, Vanilla preserves the existing default, and the named option explicitly selects this pack.' }),
+      BetterMorrowindArmorSource: Object.freeze({ default: 1, options: lazyWords('Original', 'Vanilla', 'Better Morrowind Armor'), description: 'Independent resource source. Original selects the upstream baseline, Vanilla preserves the existing default, and the named option explicitly selects this pack.' }),
+      CompleteArmorJointsSource: Object.freeze({ default: 1, options: lazyWords('Original', 'Vanilla', 'Complete Armor Joints'), description: 'Independent resource source. Original selects the upstream baseline, Vanilla preserves the existing default, and the named option explicitly selects this pack.' }),
+      WestlysFineClothiersSource: Object.freeze({ default: 1, options: lazyWords('Original', 'Vanilla', "Westly's Fine Clothiers"), description: 'Independent resource source. Original selects the upstream baseline, Vanilla preserves the existing default, and the named option explicitly selects this pack.' }),
+      WestlysFacesRefurbishedSource: Object.freeze({ default: 1, options: lazyWords('Original', 'Vanilla', "Westly's Faces Refurbished"), description: 'Independent resource source. Original selects the upstream baseline, Vanilla preserves the existing default, and the named option explicitly selects this pack.' }),
+    }),
+  }),
 });
 
 let memory = null;
@@ -1686,9 +1791,49 @@ export const SWITCH_RESETS = Object.freeze([
  *  value is let go on load, once, and the file written back; a file that never mentioned the key is not touched. */
 export const RETIRED_KEYS = Object.freeze([
   Object.freeze({ vendor: 'roleplay-realism', key: 'fightersTeachHandToHand' }),
+  Object.freeze({ vendor: 'morrowind-animation', key: 'AnimationOverhaul' }),   // MAO-SOURCE: the pack's movement is the standard
 ]);
 function migrate(m) {
   let changed = false;
+  // ANIM-UI4: the visible option order changed to Vanilla first. Translate the
+  // prior numeric indices once, so a saved Standard/Simply Walking choice is
+  // not silently changed to Vanilla when the labels are reordered.
+  const animation = m?.['morrowind-animation'];
+  if (animation && animation['WalkSourceChoices@ANIM-UI4'] !== true) {
+    const walkKeys = ['PlayerWalkSource', 'NpcMaleWalk', 'NpcFemaleWalk'];
+    if (walkKeys.some((key) => Object.hasOwn(animation, key))) {
+      if (Object.hasOwn(animation, 'PlayerWalkSource')) {
+        const old = Math.trunc(Number(animation.PlayerWalkSource));
+        animation.PlayerWalkSource = ({ 0: 1, 1: 1, 2: 2, 3: 0 })[old] ?? 1;
+      }
+      if (Object.hasOwn(animation, 'NpcMaleWalk')) {
+        const old = Math.trunc(Number(animation.NpcMaleWalk));
+        animation.NpcMaleWalk = ({ 0: 1, 1: 0 })[old] ?? 1;
+      }
+      if (Object.hasOwn(animation, 'NpcFemaleWalk')) {
+        const old = Math.trunc(Number(animation.NpcFemaleWalk));
+        animation.NpcFemaleWalk = ({ 0: 1, 1: 2, 2: 0 })[old] ?? 1;
+      }
+      animation['WalkSourceChoices@ANIM-UI4'] = true;
+      changed = true;
+    }
+  }
+  // ANIM-UI5: drop duplicate Original entries only for providers where the runtime
+  // resolves Original and Vanilla identically. Translate saved numeric indices once.
+  if (animation) {
+    const compactChoiceMaps = [
+      ['FirstPersonSource', { 0: 0, 1: 0, 2: 1, 3: 2, 4: 3 }, 'FirstPersonSourceChoices@ANIM-UI5'],
+      ['OpenMWDynamicAnimations', { 0: 0, 1: 0, 2: 1 }, 'OpenMWDynamicAnimationsChoices@ANIM-UI5'],
+      ['HitReactionSource', { 0: 0, 1: 0, 2: 1 }, 'HitReactionSourceChoices@ANIM-UI5'],
+    ];
+    for (const [key, mapping, stamp] of compactChoiceMaps) {
+      if (!Object.hasOwn(animation, key) || animation[stamp] === true) continue;
+      const old = Math.trunc(Number(animation[key]));
+      animation[key] = mapping[old] ?? 0;
+      animation[stamp] = true;
+      changed = true;
+    }
+  }
   // a mod the port no longer carries keeps no settings: its stored entry is let go, once
   for (const vendor of Object.keys(m ?? {})) {
     if (Object.hasOwn(MOD_SETTINGS, vendor)) continue;
@@ -1793,6 +1938,9 @@ function coerce(def, v) {
     return pair.every(Number.isFinite) ? Object.freeze(pair) : def.default;
   }
   if (isChoiceKey(def)) {
+    // Preserve the former boolean Simply Animated Cloaks switch when it becomes a three-way choice:
+    // false meant the classic mesh, true meant the Simply Animated mesh (the final option).
+    if (def.legacyBooleanChoice && typeof v === 'boolean') return v ? def.options.length - 1 : 0;
     const n = Math.trunc(Number(v));
     return Number.isFinite(n) ? Math.max(0, Math.min(def.options.length - 1, n)) : def.default;
   }
@@ -1883,15 +2031,93 @@ export function modSettingsOf(vendor) {
  *  (the EOTB camera and body) re-reads when there is something new
  *  rather than never - the same idiom as `morrowindDataGeneration`. */
 let _generation = 0;
+const _modSettingNotices = new Map();
 export const modSettingsGeneration = () => _generation;
+
+/** The latest dependency/conflict resolution message attached to a setting row. */
+export function modSettingNotice(vendor, key) {
+  return _modSettingNotices.get(`${vendor}/${key}`) ?? '';
+}
 
 export function setModSetting(vendor, key, value) {
   const def = declaredKey(vendor, key);
   if (!def) throw new Error(`setModSetting: ${vendor}/${key} is not a declared switch`);
   const m = load();
   const v = coerce(def, value);
+  const notices = [];
+  _modSettingNotices.clear();
+
+  // Source selectors are UI-facing; keep the established boolean switches as the
+  // runtime compatibility seam so existing asset loaders and saved settings retain
+  // their behavior. Original disables optional replacement packs; Vanilla preserves
+  // each pack's shipped default; the named pack option enables that pack.
+  if (vendor === 'morrowind-textures' && key.endsWith('Source')) {
+    const baseKey = key.slice(0, -'Source'.length);
+    const baseDef = declaredKey(vendor, baseKey);
+    if (baseDef) {
+      const original = v === 0;
+      const vanilla = v === 1;
+      const baseline = baseDef.default === true;
+      (m[vendor] ??= {})[baseKey] = original ? false : (vanilla ? baseline : true);
+    }
+  }
+
+  // Generic exclusive-resource rule: every setting may declare a conflictGroup.
+  // Turning one member on disables any other active member of that same group,
+  // regardless of which vendor/store owns it. This is used for body geometry
+  // replacements and can be reused for future overlapping animation/armor packs.
+  if (v === true && def.conflictGroup) {
+    const disabled = [];
+    for (const [otherVendor, vendorDef] of Object.entries(MOD_SETTINGS)) {
+      for (const [otherKey, otherDef] of Object.entries(vendorDef.keys ?? {})) {
+        if (otherVendor === vendor && otherKey === key) continue;
+        if (otherDef.conflictGroup !== def.conflictGroup || modSetting(otherVendor, otherKey) !== true) continue;
+        (m[otherVendor] ??= {})[otherKey] = false;
+        const label = otherDef.conflictLabel ?? otherKey;
+        notices.push([otherVendor, otherKey, `Отключён: ${label}`]);
+        disabled.push(label);
+      }
+    }
+    if (disabled.length) notices.push([vendor, key, disabled.map((label) => `Отключён: ${label}`).join('; ')]);
+  }
+
+  // DMRA is a female-geometry variant that relies on Better Bodies' base skin
+  // and male-body source. Keep that base enabled, while the resolver selects
+  // exactly one female mesh (DMRA when selected, Better Bodies otherwise).
+  if (vendor === 'morrowind-textures' && key === 'SeamlessDMRA' && v === true) {
+    if (modSetting(vendor, 'BetterBodies') !== true) {
+      (m[vendor] ??= {}).BetterBodies = true;
+      notices.push([vendor, 'SeamlessDMRA', 'Включён необходимый базовый набор: Better Bodies']);
+    } else {
+      notices.push([vendor, 'SeamlessDMRA', 'Для женских моделей выбран Seamless DMRA вместо базовой геометрии Better Bodies']);
+    }
+  }
   (m[vendor] ??= {})[key] = v;
+  if (vendor === 'morrowind-textures' && key === 'BetterBodies' && v === false
+      && modSetting(vendor, 'SeamlessDMRA') === true) {
+    m[vendor].SeamlessDMRA = false;
+    notices.push([vendor, 'BetterBodies', 'Отключён: Seamless DMRA body replacer']);
+  }
+
+  // Morrowind texture/equipment pack dependency: Complete Armor Joints is an
+  // add-on, not a standalone replacer. Enabling it also enables its required
+  // base pack; disabling the base pack turns the add-on off to prevent a
+  // misleading "enabled" state that would not load any joint meshes.
+  if (vendor === 'morrowind-textures' && key === 'CompleteArmorJoints' && v === true) {
+    const base = declaredKey(vendor, 'BetterMorrowindArmor');
+    if (base && modSetting(vendor, 'BetterMorrowindArmor') !== true) {
+      (m[vendor] ??= {}).BetterMorrowindArmor = true;
+      notices.push([vendor, 'CompleteArmorJoints', 'Включён необходимый набор: Better Morrowind Armor']);
+    }
+  }
+  (m[vendor] ??= {})[key] = v;
+  if (vendor === 'morrowind-textures' && key === 'BetterMorrowindArmor' && v === false
+      && modSetting(vendor, 'CompleteArmorJoints') === true) {
+    m[vendor].CompleteArmorJoints = false;
+    notices.push([vendor, 'BetterMorrowindArmor', 'Отключён: Complete Armor Joints']);
+  }
   for (const r of SWITCH_RESETS) if (r.vendor === vendor && r.key === key) m[vendor][r.stamp] = true;   // DISC20-E: chosen after the reset - kept
+  for (const [noticeVendor, noticeKey, message] of notices) _modSettingNotices.set(`${noticeVendor}/${noticeKey}`, message);
   save();
   _generation++;
   return v;
@@ -1929,4 +2155,4 @@ export function flattenModPreset(vendor, values) {
 }
 
 /** For tests: forget everything. */
-export function _resetModSettings() { memory = null; _generation++; _loadedForGame.clear(); try { appStorage()?.removeItem(STORE_KEY); } catch { /* none */ } }
+export function _resetModSettings() { memory = null; _modSettingNotices.clear(); _generation++; _loadedForGame.clear(); try { appStorage()?.removeItem(STORE_KEY); } catch { /* none */ } }

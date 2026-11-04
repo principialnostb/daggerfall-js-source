@@ -58,6 +58,8 @@ contextBridge.exposeInMainWorld('daggerShell', {
     // - the word that it came up, which proves a version on trial (app/main.cjs dagger:game-up, gameStore.bootDone)
     ipcRenderer.send('dagger:game-up');
   },
+  // MOD-DIAG1: asynchronous, best-effort event transport. The main process validates the sender and the record.
+  diagnostics: { write: (record) => { try { ipcRenderer.send('dagger:diagnostic', record); } catch { /* diagnostics must not break the game */ } } },
   // UPDATE-RESTART: the update screen's end in the app - the update the shell holds is put in place and the app reopens
   // on it (app/main.cjs restartForUpdate); a reload would play this copy again
   restartForUpdate: () => ipcRenderer.send('dagger:restart-for-update'),

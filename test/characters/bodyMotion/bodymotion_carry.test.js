@@ -21,7 +21,7 @@ import { buildSkeleton, skeletonSpaceMatrices, injectSkeletonNodes, GRAPH_ROOT }
 import { MW_WEAPON_TYPE, MW_UNITS_PER_METER } from '../../../src/formats/morrowind/mwFirstPerson.js';
 import { offWeaponBoneAddon } from '../../../src/combat/twoHands/mirrorRig.js';
 import { bodyOf, frac } from '../../../src/characters/bodyMotion/bodyKit.js';
-import { carryClassOf, CARRY, TWO_HAND_GRIP, TWO_HAND_HAFT, armByAngles } from '../../../src/characters/bodyMotion/carry.js';
+import { carryClassOf, CARRY, TWO_HAND_GRIP, TWO_HAND_HAFT, TWO_HAND_STILL, armByAngles } from '../../../src/characters/bodyMotion/carry.js';
 import { U, blowU, blowPose, meleeFamilyOf, blowName } from '../../../src/characters/bodyMotion/melee.js';
 import { createBodyMotion, sceneInput, motionWord } from '../../../src/characters/bodyMotion/bodyMotion.js';
 import { bodyFrames } from '../../../src/characters/bodyMotion/bodySolve.js';
@@ -120,17 +120,21 @@ test('BODY-MOTION A ONE-HANDER, HELD DOWN AND AWAY FROM THE SIDE (Mac\'s stance)
   });
   assert.ok(runB.every((v) => v[1] > 0.6 && v[2] < 0), 'running: the blade forward and down, as the stand holds it (ONE-RUN)');
   assert.ok(Math.min(...runOut) > 0.2 * A, 'the arm still out from the side');
-  assert.ok(Math.max(...freeSwing) - Math.min(...freeSwing) > 0.5 * A, 'the free arm swings');
+  // PIN MOVED (LEFT-ARM, combat/leftArmLayer.js - Mac: "the left arm has a very strange animation"): the free arm is the
+  // clip's now - the walk's own swing, laid over the one-hander's - so the layer alone holds it still
+  assert.ok(Math.max(...freeSwing) - Math.min(...freeSwing) < 0.05 * A, 'the free arm is the clip\'s, not the carry\'s');
 });
 
 test('BODY-MOTION A TWO-HANDER: at rest a low guard with both hands on the grip (the left on the haft toward the pommel - AUDIT BODY-MOTION CARRY-NIT: it said below); at a run carried at the hip (Mac: "running with a 2 hander by the hip") in BOTH hands - TWO-RUN, Mac after the merge: "the greatsword running doesnt use both hands", then "held lower at the hip, but not attached to the hip" - the grip low by the hip, under its joint by more than a twentieth of a leg (it stood 0.02 to 0.06 under), held clear of the thigh by 7 units and ahead of the hip by 4 (it stood 5 off the thigh and beside the hip), the blade trailing behind and down, the left hand on the hilt toward the pommel and the chest turned toward the weapon to reach it (mutants: BODY-MOTION-haft-hand-unplaced, BODY-MOTION-two-run-at-the-chest, TWO-RUN-the-left-lets-go, TWO-RUN-the-chest-square, TWO-RUN-the-arms-swing, TWO-RUN-held-against-the-hip, TWO-RUN-the-chest-upright)', () => {
   const idle = play({ weapon: MW_WEAPON_TYPE.LongBladeTwoHand }, 1.5).mats;
   const grip = pt(idle, 'weapon bone'), b = blade(idle, 'weapon bone');
-  const haft = [grip[0] + b[0] * TWO_HAND_GRIP.two * A, grip[1] + b[1] * TWO_HAND_GRIP.two * A, grip[2] + b[2] * TWO_HAND_GRIP.two * A];
+  // GRIP-ANATOMY: standing, the left fist at the pommel end (TWO_HAND_STILL); a blow keeps TWO_HAND_GRIP
+  const haft = [grip[0] + b[0] * TWO_HAND_STILL.two * A, grip[1] + b[1] * TWO_HAND_STILL.two * A, grip[2] + b[2] * TWO_HAND_STILL.two * A];
   // the left hand's grip point: where its fist closes - the left Weapon Bone's origin (the mirror of the right's)
   assert.ok(len(sub(pt(idle, 'weapon bone left'), haft)) < 0.12 * A, `the left hand closed on the haft (${(len(sub(pt(idle, 'weapon bone left'), haft)) / A).toFixed(2)} arms off)`);
-  assert.ok(b[1] > 0.5 && b[2] < -0.3, 'a low guard: the blade forward and down');
-  const hipZ = [], blades = [], off = [], along = [], facing = [], clear = [], ahead = [];
+  // GRIP-ANATOMY (the owner's drawing, 2026-10-29): the point raised to level - forward, neither into the ground nor up
+  assert.ok(b[1] > 0.5 && Math.abs(b[2]) < 0.3, 'the guard: the blade forward, the point at the waist');
+  const hipZ = [], blades = [], off = [], along = [], facing = [], clear = [], ahead = [], bends = [];
   const toSeg = (a, b, p) => { const ab = sub(b, a), t = Math.max(0, Math.min(1, dot(sub(p, a), ab) / dot(ab, ab))); return len(sub(p, [a[0] + ab[0] * t, a[1] + ab[1] * t, a[2] + ab[2] * t])); };
   for (const speed of [8.1, 5.5]) {
     play({ weapon: MW_WEAPON_TYPE.LongBladeTwoHand, forward: 1, speed, running: true }, 2, (m, mo, t) => {
@@ -144,10 +148,17 @@ test('BODY-MOTION A TWO-HANDER: at rest a low guard with both hands on the grip 
       const g = pt(m, 'weapon bone'), hip = pt(m, 'bip01 r thigh');
       clear.push(toSeg(hip, pt(m, 'bip01 r calf'), g) - 6.5);   // the thigh as a capsule (the audit's radius)
       ahead.push(g[1] - hip[1]);
+      for (const sd of ['l', 'r']) {
+        const u = sub(pt(m, `bip01 ${sd} forearm`), pt(m, `bip01 ${sd} upperarm`)), f = sub(pt(m, `bip01 ${sd} hand`), pt(m, `bip01 ${sd} forearm`));
+        bends.push(Math.acos(dot(u, f) / (len(u) * len(f))) / RAD);
+      }
     });
   }
   assert.ok(hipZ.every((z) => Math.abs(z) < 0.3 * body.leg), `the grip at the hip (${hipZ.map((z) => (z / body.leg).toFixed(2)).slice(0, 4)})`);
-  assert.ok(Math.max(...hipZ) < -0.05 * body.leg, `held low: the grip at most ${(Math.max(...hipZ) / body.leg).toFixed(3)} of a leg under the hip joint`);
+  // GUARD-ARMS (2026-10-29, the owner: the run "with the same approach" as the guard's arms): held at the belt, both
+  // elbows bent - under the hip joint (TWO-RUN's first reading) only a straight arm reached it
+  assert.ok(Math.max(...hipZ) < 0.2 * body.leg, `held low: the grip at most ${(Math.max(...hipZ) / body.leg).toFixed(3)} of a leg over the hip joint`);
+  assert.ok(Math.min(...bends) > 35, `both elbows bent at a run (${Math.min(...bends).toFixed(0)} degrees at the least)`);
   assert.ok(Math.min(...clear) > 7, `held off the hip: the grip ${Math.min(...clear).toFixed(1)} units off the thigh at its nearest`);
   assert.ok(Math.min(...ahead) > 4, `held ahead of the hip: ${Math.min(...ahead).toFixed(1)} units at its least`);
   assert.ok(blades.every((v) => v[1] < -0.55 && v[2] < -0.25), 'the blade trailing behind and down');
@@ -174,18 +185,21 @@ test('BODY-MOTION A PAIR: at rest both held down and away from the sides as mirr
   assert.ok(behind.every(([, , br, bl]) => br < -0.6 && bl < -0.6), 'both blades trailing');
 });
 
-test('BODY-MOTION THE CLIP KEEPS WHAT IT CARRIES: a bow and the draw leave the arms to the clip (the layer\'s arms at no weight), a lit torch the left arm and the right still the carry\'s, and a shield the left arm with a one-hander drawn or the weapon sheathed - standing and at a run, where the free run\'s pump swung it up behind the head (SHIELD-RUN, the Discord: "sprinting with my mace and shield out just makes me look incredibly stupid") - but not with fists drawn, which hide it (a spell, and the trunk under the clip\'s arms: AUDIT BODY-MOTION RIG-4\'s pin) (mutants: BODY-MOTION-torch-arm-taken, BODY-MOTION-equip-arms-taken, SHIELD-RUN-the-shield-pumped, SHIELD-RUN-fists-lose-the-guard)', () => {
+test('BODY-MOTION THE CLIP KEEPS WHAT IT CARRIES: a bow and the draw leave the arms to the clip (the layer\'s arms at no weight), a lit torch the left arm and the right still the carry\'s, and a shield the left arm with a one-hander drawn or the weapon sheathed - standing and at a run, where the free run\'s pump swung it up behind the head (SHIELD-RUN, the Discord: "sprinting with my mace and shield out just makes me look incredibly stupid") - and with fists drawn behind it as well (SHIELD-GUARD, combat/shieldGuard.js: the shield held as a one-hander holds it, not raised in the boxer\'s guard) (a spell, and the trunk under the clip\'s arms: AUDIT BODY-MOTION RIG-4\'s pin) (mutants: BODY-MOTION-torch-arm-taken, BODY-MOTION-equip-arms-taken, SHIELD-RUN-the-shield-pumped, SHIELD-GUARD-fists-raise-the-shield)', () => {
   const rest = sm(sk, new Map(), GRAPH_ROOT);
   const still = (scene, side) => len(sub(play(scene, 1.2).mats.get(sk.byName.get(`bip01 ${side} hand`)).t, rest.get(sk.byName.get(`bip01 ${side} hand`)).t));
   assert.ok(still({ weapon: MW_WEAPON_TYPE.MarksmanBow }, 'r') < 3 && still({ weapon: MW_WEAPON_TYPE.MarksmanBow }, 'l') < 3, 'a bow: the clip\'s arms (the hands where the trunk carries them)');
   assert.ok(still({ weapon: MW_WEAPON_TYPE.LongBladeOneHand, equip: true }, 'r') < 3, 'the draw: the clip\'s');
   assert.ok(still({ weapon: MW_WEAPON_TYPE.LongBladeOneHand, torch: true }, 'l') < 3, 'a torch: the clip\'s left arm');
   assert.ok(still({ weapon: MW_WEAPON_TYPE.LongBladeOneHand, torch: true }, 'r') > 3, 'and the right still the carry\'s');
+  // (a one-hander's free hand is the clip's anyway now - LEFT-ARM - so the torch's own leg is read on a two-hander's)
+  assert.ok(still({ weapon: MW_WEAPON_TYPE.LongBladeTwoHand, torch: true }, 'l') < 3, 'a torch: the clip\'s left arm off a two-hander\'s haft');
   for (const scene of [{ weapon: MW_WEAPON_TYPE.BluntOneHand, shield: true }, { shield: true }]) {
     assert.ok(still(scene, 'l') < 3, `a shield (${scene.weapon ? 'a mace drawn' : 'sheathed'}): the clip's left arm`);
   }
   assert.ok(still({ weapon: MW_WEAPON_TYPE.BluntOneHand, shield: true }, 'r') > 3, 'and the mace\'s arm still the carry\'s');
-  assert.ok(still({ weapon: MW_WEAPON_TYPE.HandToHand, hands: 'fists', shield: true }, 'l') > 3, 'fists drawn hide the shield: the guard keeps both arms');
+  assert.ok(still({ weapon: MW_WEAPON_TYPE.HandToHand, hands: 'fists', shield: true }, 'l') < 3, 'fists drawn behind a shield: the clip\'s left arm (SHIELD-GUARD)');
+  assert.ok(still({ weapon: MW_WEAPON_TYPE.HandToHand, hands: 'fists', shield: true }, 'r') > 3, 'and the right fist still the guard\'s');
   // at a run: the layer writes no bone of the shield's arm (the free run's pump stood its Shield Bone 10 units under the head)
   let written = 0;
   const runner = createBodyMotion();

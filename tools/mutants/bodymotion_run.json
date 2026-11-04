@@ -120,17 +120,17 @@
   {
     "name": "SHIELD-RUN-the-shield-pumped",
     "file": "src/characters/bodyMotion/bodyMotion.js",
-    "old": "      const shieldArm = !!input.shield && (cls === 'one' || cls === 'free');",
+    "old": "      const shieldArm = !!input.shield && (cls === 'one' || cls === 'free' || cls === 'fists');",
     "new": "      const shieldArm = false;",
     "tests": [
       "test/characters/bodyMotion/bodymotion_carry.test.js"
     ]
   },
   {
-    "name": "SHIELD-RUN-fists-lose-the-guard",
+    "name": "SHIELD-GUARD-fists-raise-the-shield",
     "file": "src/characters/bodyMotion/bodyMotion.js",
-    "old": "      const shieldArm = !!input.shield && (cls === 'one' || cls === 'free');",
-    "new": "      const shieldArm = !!input.shield;",
+    "old": "      const shieldArm = !!input.shield && (cls === 'one' || cls === 'free' || cls === 'fists');",
+    "new": "      const shieldArm = !!input.shield && (cls === 'one' || cls === 'free');",
     "tests": [
       "test/characters/bodyMotion/bodymotion_carry.test.js"
     ]

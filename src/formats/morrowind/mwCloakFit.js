@@ -72,6 +72,19 @@ export const CLOAK_FIT_POSES = Object.freeze([
   Object.freeze({ 'bip01 r thigh': ['z', 35], 'bip01 l thigh': ['z', -30], 'bip01 l calf': ['z', 45], 'bip01 l upperarm': ['z', 25], 'bip01 r upperarm': ['z', -25] }),
   Object.freeze({ 'bip01 l thigh': ['z', 35], 'bip01 r thigh': ['z', -30], 'bip01 r calf': ['z', 45], 'bip01 l upperarm': ['z', 25], 'bip01 r upperarm': ['z', -25] }),
   Object.freeze({ 'bip01 spine2': ['z', -10] }),
+  // The walk envelope swings the arms back; attacks also sweep them forward
+  // across the shoulders and upper back. Fit those poses too, or the animated
+  // hem can start inside an arm before secondary motion even runs.
+  Object.freeze({ 'bip01 l upperarm': ['z', -40] }),
+  Object.freeze({ 'bip01 r upperarm': ['z', 40] }),
+  Object.freeze({ 'bip01 l upperarm': ['z', -35], 'bip01 r upperarm': ['z', 35] }),
+  // Leg envelope: combat stance and deeper knee flexion. These are bind-time
+  // samples, not runtime collision solving; keep both lead-leg choices so the
+  // fitted sheet covers left/right stance asymmetry as well as the walk cycle.
+  Object.freeze({ 'bip01 l thigh': ['z', 20], 'bip01 r thigh': ['z', -20], 'bip01 l calf': ['z', 65] }),
+  Object.freeze({ 'bip01 r thigh': ['z', 20], 'bip01 l thigh': ['z', -20], 'bip01 r calf': ['z', 65] }),
+  Object.freeze({ 'bip01 r thigh': ['z', 50], 'bip01 l thigh': ['z', -40], 'bip01 l calf': ['z', 60] }),
+  Object.freeze({ 'bip01 l thigh': ['z', 50], 'bip01 r thigh': ['z', -40], 'bip01 r calf': ['z', 60] }),
 ]);
 /** AUDIT MW-CLOAK: the follow's solve - its rounds of a linear law re-taken where the last left the gear, the sweeps of
  *  each, a unit's slide priced as a turn of `slideCost` radians, the most it turns and slides a pose, and the cell of
@@ -111,7 +124,7 @@ export function surfaceSamples(positions, indices, step = SAMPLE_STEP, keep = nu
   return out;
 }
 
-function samplesWhere(positions, indices, step, keep, edges = edgesOf(indices)) {
+function samplesWhere(positions, indices, step, keep, edges = edgesOf(indices), includeTriangleInteriors = true) {
   const out = [];
   for (let v = 0; v < positions.length; v += 3) if (keep(positions[v], positions[v + 1], positions[v + 2])) out.push(positions[v], positions[v + 1], positions[v + 2]);
   for (let k = 0; k < edges.length; k += 2) {
@@ -121,10 +134,39 @@ function samplesWhere(positions, indices, step, keep, edges = edgesOf(indices)) 
     const n = Math.floor(Math.hypot(dx, dy, dz) / step);
     for (let i = 1; i <= n; i++) { const f = i / (n + 1); const x = ax + dx * f, y = ay + dy * f, z = az + dz * f; if (keep(x, y, z)) out.push(x, y, z); }
   }
+  // Vertices and edge interiors alone miss contacts through the middle of a
+  // large leg/greave triangle. Static fitting samples triangle interiors too;
+  // the live per-frame fit can disable them to avoid allocating thousands of
+  // transient points on every animation frame.
+  if (includeTriangleInteriors) for (let t = 0; t + 2 < indices.length; t += 3) {
+    const a = indices[t] * 3, b = indices[t + 1] * 3, c = indices[t + 2] * 3;
+    const ax = positions[a], ay = positions[a + 1], az = positions[a + 2];
+    const bx = positions[b], by = positions[b + 1], bz = positions[b + 2];
+    const cx = positions[c], cy = positions[c + 1], cz = positions[c + 2];
+    const longest = Math.max(
+      Math.hypot(bx - ax, by - ay, bz - az),
+      Math.hypot(cx - bx, cy - by, cz - bz),
+      Math.hypot(ax - cx, ay - cy, az - cz),
+    );
+    const divisions = Math.ceil(longest / step);
+    if (divisions < 2) continue;
+    for (let i = 1; i < divisions; i++) {
+      for (let j = 1; j < divisions - i; j++) {
+        const wa = 1 - (i + j) / divisions, wb = i / divisions, wc = j / divisions;
+        const x = wa * ax + wb * bx + wc * cx;
+        const y = wa * ay + wb * by + wc * cy;
+        const z = wa * az + wb * bz + wc * cz;
+        if (keep(x, y, z)) out.push(x, y, z);
+      }
+    }
+  }
   return out;
 }
-/** A mesh's edges, each once, as vertex pairs. */
+/** A mesh's edges, each once, as vertex pairs. Topology is immutable after binding, so cache it across live-pose fits. */
+const EDGE_CACHE = new WeakMap();
 function edgesOf(indices) {
+  const cached = EDGE_CACHE.get(indices);
+  if (cached) return cached;
   const seen = new Set(); const out = [];
   for (let t = 0; t < indices.length; t += 3) {
     for (let e = 0; e < 3; e++) {
@@ -134,7 +176,9 @@ function edgesOf(indices) {
       seen.add(k); out.push(a, b);
     }
   }
-  return Int32Array.from(out);
+  const edges = Int32Array.from(out);
+  EDGE_CACHE.set(indices, edges);
+  return edges;
 }
 
 /** A rotation matrix (row-major) as the quaternion a track answers, [w, x, y, z] - Shepperd's, any angle. */
@@ -151,18 +195,25 @@ function quatOf(m) {
  *  assembly is not touched. A bone the skeleton lacks is left at rest. */
 function poseOf(assembly, turns = {}) {
   const { fns, skeleton } = assembly;
-  const rots = new Map();
-  for (const [name, [axis, deg]] of Object.entries(turns)) {
-    const node = skeleton.nodes.get(skeleton.byName.get(name));
-    if (!node) continue;
-    const rest = node.rest.rotation;
-    const a = deg * Math.PI / 180, c = Math.cos(a), s = Math.sin(a);
-    const r = axis === 'x' ? [1, 0, 0, 0, c, -s, 0, s, c] : axis === 'y' ? [c, 0, s, 0, 1, 0, -s, 0, c] : [c, -s, 0, s, c, 0, 0, 0, 1];
-    rots.set(name, quatOf(mul33(rest, r)));
+  let pose;
+  if (turns instanceof Map) {
+    // A live pose is supplied by Vanilla Animated's per-frame contact pass.
+    // Reuse it verbatim; synthetic fit poses below still start from the rest rig.
+    pose = turns;
+  } else {
+    const rots = new Map();
+    for (const [name, [axis, deg]] of Object.entries(turns)) {
+      const node = skeleton.nodes.get(skeleton.byName.get(name));
+      if (!node) continue;
+      const rest = node.rest.rotation;
+      const a = deg * Math.PI / 180, c = Math.cos(a), s = Math.sin(a);
+      const r = axis === 'x' ? [1, 0, 0, 0, c, -s, 0, s, c] : axis === 'y' ? [c, 0, s, 0, 1, 0, -s, 0, c] : [c, -s, 0, s, c, 0, 0, 0, 1];
+      rots.set(name, quatOf(mul33(rest, r)));
+    }
+    pose = rots.size
+      ? fns.poseSkeleton(skeleton, new Map([...rots.keys()].map((k) => [k, k])), (k) => ({ rotation: rots.get(k) }), 0, { accumRoot: null })
+      : fns.poseSkeleton(skeleton, null, null, 0, { accumRoot: null });
   }
-  const pose = rots.size
-    ? fns.poseSkeleton(skeleton, new Map([...rots.keys()].map((k) => [k, k])), (k) => ({ rotation: rots.get(k) }), 0, { accumRoot: null })
-    : fns.poseSkeleton(skeleton, null, null, 0, { accumRoot: null });
   const mats = fns.skelMats(skeleton, pose, GRAPH_ROOT);
   const place = (p, batch = p.batch, source = p.source) => {
     if (p.kind === 'skinned') {
@@ -176,11 +227,27 @@ function poseOf(assembly, turns = {}) {
 }
 
 /**
+ * Pose selected assembly pieces through one shared live skeleton pose. This is
+ * used by animated-cloth contacts so both cloth and rigid gear are compared in
+ * the same character-local space without changing either rendered mesh.
+ */
+export function posePiecePositions(assembly, pose, requests) {
+  const posed = poseOf(assembly, pose);
+  return requests.map(({ piece, batch }) => posed.place(piece, batch ?? piece.batch));
+}
+
+/**
  * The cloak as a height field over the rig's (x, z): for each unit cell its triangles cover (keyed by sheetCellKey), the
  * sheet's FRONT (the largest y, the layer nearest the body where it folds) and BACK, and the triangle each came from.
  */
 export function cloakSheet(positions, indices) {
   const cells = new Map();
+  // Keep the original integer height-field for compatibility, but also index the actual
+  // projected triangles by unit cell. The integer raster alone has holes: a point can be
+  // inside a triangle while its rounded (x,z) sample lies just outside it, especially at
+  // the cloak's edge. Exact queries below remove that false-negative path.
+  const triangleCells = new Map();
+  const bucketKey = (i, j) => (i + 32768) * 65536 + (j + 32768);
   for (let t = 0; t < indices.length; t += 3) {
     const a = indices[t] * 3, b = indices[t + 1] * 3, c = indices[t + 2] * 3;
     const ax = positions[a], ay = positions[a + 1], az = positions[a + 2];
@@ -188,6 +255,14 @@ export function cloakSheet(positions, indices) {
     const cx = positions[c], cy = positions[c + 1], cz = positions[c + 2];
     const d = (bx - ax) * (cz - az) - (cx - ax) * (bz - az);
     if (Math.abs(d) < 1e-9) continue;   // edge-on in (x, z): its neighbours carry the sheet
+    const tri = { t, ax, ay, az, bx, by, bz, cx, cy, cz, d };
+    for (let i = Math.floor(Math.min(ax, bx, cx)); i <= Math.floor(Math.max(ax, bx, cx)); i++) {
+      for (let j = Math.floor(Math.min(az, bz, cz)); j <= Math.floor(Math.max(az, bz, cz)); j++) {
+        const k = bucketKey(i, j);
+        const list = triangleCells.get(k);
+        if (list) list.push(tri); else triangleCells.set(k, [tri]);
+      }
+    }
     for (let i = Math.ceil(Math.min(ax, bx, cx) - 0.5); i <= Math.floor(Math.max(ax, bx, cx) + 0.5); i++) {
       for (let j = Math.ceil(Math.min(az, bz, cz) - 0.5); j <= Math.floor(Math.max(az, bz, cz) + 0.5); j++) {
         const wa = ((bx - i) * (cz - j) - (cx - i) * (bz - j)) / d;
@@ -203,6 +278,24 @@ export function cloakSheet(positions, indices) {
       }
     }
   }
+  // Query the true projected triangles at the body's exact (x,z), rather than rounding
+  // to a lattice point first. Folded sheets retain both the foremost and rearmost layer.
+  cells.at = (x, z) => {
+    const list = triangleCells.get(bucketKey(Math.floor(x), Math.floor(z)));
+    if (!list) return null;
+    let front = null, frontTri = -1, back = null, backTri = -1;
+    for (const q of list) {
+      const { ax, ay, az, bx, by, bz, cx, cy, cz, d, t } = q;
+      const wa = ((bx - x) * (cz - z) - (cx - x) * (bz - z)) / d;
+      const wb = ((cx - x) * (az - z) - (ax - x) * (cz - z)) / d;
+      const wc = 1 - wa - wb;
+      if (wa < -1e-6 || wb < -1e-6 || wc < -1e-6) continue;
+      const y = wa * ay + wb * by + wc * cy;
+      if (front == null || y > front) { front = y; frontTri = t; }
+      if (back == null || y < back) { back = y; backTri = t; }
+    }
+    return front == null ? null : { front, frontTri, back, backTri };
+  };
   return cells;
 }
 
@@ -232,7 +325,7 @@ function solve3(m, v) {
  * deep }` - how many of the cloak's vertices moved, the furthest, and how many points stood more than the limit through
  * it and were left so - or null when the body wears no cloak.
  */
-export function fitCloakOver(assembly, { isCloak, isUnder, clearance = CLOAK_CLEARANCE, limit = CLOAK_PUSH_LIMIT, radius = CLOAK_EASE_RADIUS, poses = CLOAK_FIT_POSES }) {
+export function fitCloakOver(assembly, { isCloak, isUnder, clearance = CLOAK_CLEARANCE, limit = CLOAK_PUSH_LIMIT, radius = CLOAK_EASE_RADIUS, poses = CLOAK_FIT_POSES, passes = 12, sampleStep = SAMPLE_STEP, updatePosed = true, includeTriangleInteriors = true }) {
   const cloaks = assembly.pieces.filter((p) => p.kind === 'skinned' && isCloak(p));
   if (!cloaks.length) return null;
   const underPieces = assembly.pieces.filter((p) => !cloaks.includes(p) && isUnder(p)).map((p) => ({ p, edges: edgesOf(p.indices) }));
@@ -247,7 +340,7 @@ export function fitCloakOver(assembly, { isCloak, isUnder, clearance = CLOAK_CLE
     // a pose's push is exact in that pose (its own triangle the whole way, straight back) and the ease moves a fold's
     // layers together, so one pass clears every pose on the bodies the port dresses; a second is for a pose whose step
     // back another pose turns forward - a bone turned past a right angle between them - and finds nothing otherwise
-    for (let pass = 0; pass < 12; pass++) {
+    for (let pass = 0; pass < passes; pass++) {
       let moved = false;
       for (const set of sets) {
         // skinning is affine in the bind position - a vertex lands at J v + t, its blend's own J and t in this pose - so
@@ -276,8 +369,10 @@ export function fitCloakOver(assembly, { isCloak, isUnder, clearance = CLOAK_CLE
             x0 = Math.min(x0, posed[v]); x1 = Math.max(x1, posed[v]); y1 = Math.max(y1, posed[v + 1]);
             z0 = Math.min(z0, posed[v + 2]); z1 = Math.max(z1, posed[v + 2]);
           }
-          const inside = (x, y, z) => x > x0 - 1 && x < x1 + 1 && z > z0 - 1 && z < z1 + 1 && y < y1 + clearance;
+          const inside = (x, y, z) => x > x0 - 2 && x < x1 + 2 && z > z0 - 2 && z < z1 + 2 && y < y1 + clearance;
           set.under = [];
+          const bodyPositions = [];
+          const bodyIndices = [];
           for (const { p, edges } of underPieces) {
             const placed = set.place(p);
             // a piece wholly outside that region (a gauntlet, a boot, the helm) is not sampled at all
@@ -286,9 +381,19 @@ export function fitCloakOver(assembly, { isCloak, isUnder, clearance = CLOAK_CLE
               lx = Math.min(lx, placed[v]); hx = Math.max(hx, placed[v]); ly = Math.min(ly, placed[v + 1]);
               lz = Math.min(lz, placed[v + 2]); hz = Math.max(hz, placed[v + 2]);
             }
-            if (hx < x0 - 1 || lx > x1 + 1 || hz < z0 - 1 || lz > z1 + 1 || ly > y1 + clearance) continue;
-            set.under.push(samplesWhere(placed, p.indices, SAMPLE_STEP, inside, edges));
+            if (hx < x0 - 2 || lx > x1 + 2 || hz < z0 - 2 || lz > z1 + 2 || ly > y1 + clearance) continue;
+            set.under.push(samplesWhere(placed, p.indices, sampleStep, inside, edges, includeTriangleInteriors));
+            // Keep the same body surface for the reverse contact query. The old
+            // one-way test only asked whether body samples passed through the
+            // cloak's X/Z height field; a cloak triangle can cross a body triangle
+            // between those samples and remain untouched.
+            const offset = bodyPositions.length / 3;
+            for (let k = 0; k < placed.length; k++) bodyPositions.push(placed[k]);
+            for (let k = 0; k < p.indices.length; k++) bodyIndices.push(p.indices[k] + offset);
           }
+          set.bodySheet = bodyIndices.length
+            ? cloakSheet(Float32Array.from(bodyPositions), Uint32Array.from(bodyIndices))
+            : null;
         }
         const sheet = cloakSheet(posed, cloak.indices);
         const need = new Float64Array(n);
@@ -296,7 +401,10 @@ export function fitCloakOver(assembly, { isCloak, isUnder, clearance = CLOAK_CLE
         const deepest = new Map();
         for (const u of set.under) {
           for (let v = 0; v < u.length; v += 3) {
-            const cell = sheet.get(sheetCellKey(u[v], u[v + 2]));
+            // Query the actual projected triangles at the body's exact (x,z).
+            // The integer height-field is useful as a coarse index, but rounding
+            // here can miss a shin/greave just inside a triangle near its edge.
+            const cell = sheet.at(u[v], u[v + 2]);
             if (!cell) continue;
             const over = cell.front - (u[v + 1] - clearance);
             if (over <= 1e-4) continue;
@@ -311,6 +419,60 @@ export function fitCloakOver(assembly, { isCloak, isUnder, clearance = CLOAK_CLE
             if (at == null) { deepest.set(ck, through.length); through.push(u[v], u[v + 2], over); } else if (over > through[at + 2]) { through[at] = u[v]; through[at + 1] = u[v + 2]; through[at + 2] = over; }
             // its own triangle the whole way, so every pass makes headway
             for (let k = 0; k < 3; k++) { const w = rep[cloak.indices[cell.frontTri + k]]; if (over > need[w]) need[w] = over; }
+          }
+        }
+        // Symmetric contact pass: test points on the cloak triangles against the
+        // projected body surface too. This catches triangle/triangle crossings
+        // where no sampled body point happens to land through the cloak sheet.
+        // A point is only pushed backward when the body's foremost surface at
+        // the same X/Z is within clearance of it; distant cloth remains untouched.
+        if (set.bodySheet) {
+          const contact = (x, y, z, tri) => {
+            const body = set.bodySheet.at(x, z);
+            if (!body) return;
+            const over = y - (body.front - clearance);
+            if (over <= 1e-4) return;
+            let room = Infinity;
+            for (let k = 0; k < 3; k++) room = Math.min(room, limit - total[rep[cloak.indices[tri + k]]]);
+            if (over > room + 1e-6) { deepSeen.add(sheetCellKey(x, z)); return; }
+            const ck = sheetCellKey(x, z);
+            const at = deepest.get(ck);
+            if (at == null) { deepest.set(ck, through.length); through.push(x, z, over); }
+            else if (over > through[at + 2]) { through[at] = x; through[at + 1] = z; through[at + 2] = over; }
+            for (let k = 0; k < 3; k++) {
+              const w = rep[cloak.indices[tri + k]];
+              if (over > need[w]) need[w] = over;
+            }
+          };
+          for (let t = 0; t + 2 < cloak.indices.length; t += 3) {
+            const ia = cloak.indices[t] * 3, ib = cloak.indices[t + 1] * 3, ic = cloak.indices[t + 2] * 3;
+            const a = [posed[ia], posed[ia + 1], posed[ia + 2]];
+            const b = [posed[ib], posed[ib + 1], posed[ib + 2]];
+            const c = [posed[ic], posed[ic + 1], posed[ic + 2]];
+            contact(...a, t); contact(...b, t); contact(...c, t);
+            const edges = [[a, b], [b, c], [c, a]];
+            for (const [p, q] of edges) {
+              const length = Math.hypot(q[0] - p[0], q[1] - p[1], q[2] - p[2]);
+              const count = Math.floor(length / sampleStep);
+              for (let i = 1; i <= count; i++) {
+                const f = i / (count + 1);
+                contact(p[0] + (q[0] - p[0]) * f, p[1] + (q[1] - p[1]) * f, p[2] + (q[2] - p[2]) * f, t);
+              }
+            }
+            if (includeTriangleInteriors) {
+              const longest = Math.max(
+                Math.hypot(b[0] - a[0], b[1] - a[1], b[2] - a[2]),
+                Math.hypot(c[0] - b[0], c[1] - b[1], c[2] - b[2]),
+                Math.hypot(a[0] - c[0], a[1] - c[1], a[2] - c[2]),
+              );
+              const divisions = Math.ceil(longest / sampleStep);
+              for (let i = 1; i < divisions; i++) for (let j = 1; j < divisions - i; j++) {
+                const wa = 1 - (i + j) / divisions, wb = i / divisions, wc = j / divisions;
+                contact(wa * a[0] + wb * b[0] + wc * c[0],
+                  wa * a[1] + wb * b[1] + wc * c[1],
+                  wa * a[2] + wb * b[2] + wc * c[2], t);
+              }
+            }
           }
         }
         if (!through.length) continue;
@@ -359,7 +521,7 @@ export function fitCloakOver(assembly, { isCloak, isUnder, clearance = CLOAK_CLE
       // MW-CLOAK2: the normals its new shape has, turned as the old ones faced
       const normals = cloak.batch.normals ? faceAs(vertexNormals(bind, cloak.indices, rep), cloak.batch.normals) : cloak.batch.normals;
       cloak.batch = { ...cloak.batch, positions: bind, normals };
-      if (assembly.pose && assembly.mats) assembly.fns.skinBatch(cloak.batch, assembly.skeleton, assembly.pose, assembly.mats, cloak.positions, cloak.normals ?? null);
+      if (updatePosed && assembly.pose && assembly.mats) assembly.fns.skinBatch(cloak.batch, assembly.skeleton, assembly.pose, assembly.mats, cloak.positions, cloak.normals ?? null);
     }
   }
   return { pushed, most, deep };
@@ -433,20 +595,24 @@ function gearGroups(assembly, isGear) {
  * within HIP_PITCH_LIMIT clears it, or the move back would pass SLUNG_MOVE_LIMIT: left as it hangs) - or null when the
  * body wears no cloak.
  */
-export function fitStowedGear(assembly, { isCloak, isGear, clearance = CLOAK_CLEARANCE, pitchLimit = HIP_PITCH_LIMIT, slungLimit = SLUNG_PITCH_LIMIT, moveLimit = SLUNG_MOVE_LIMIT }) {
+export function fitStowedGear(assembly, { isCloak, isGear, clearance = CLOAK_CLEARANCE, shieldClearance = clearance, pitchLimit = HIP_PITCH_LIMIT, slungLimit = SLUNG_PITCH_LIMIT, moveLimit = SLUNG_MOVE_LIMIT }) {
   const cloaks = assembly.pieces.filter((p) => p.kind === 'skinned' && isCloak(p));
   if (!cloaks.length) return null;
   const rest = poseOf(assembly);
   const sheets = cloaks.map((c) => cloakSheet(rest.place(c), c.indices));
-  const front = (x, z) => { let y = null; for (const s of sheets) { const c = s.get(sheetCellKey(x, z)); if (c && (y == null || c.front > y)) y = c.front; } return y; };
-  const back = (x, z) => { let y = null; for (const s of sheets) { const c = s.get(sheetCellKey(x, z)); if (c && (y == null || c.back < y)) y = c.back; } return y; };
+  const front = (x, z) => { let y = null; for (const s of sheets) { const c = s.at(x, z); if (c && (y == null || c.front > y)) y = c.front; } return y; };
+  const back = (x, z) => { let y = null; for (const s of sheets) { const c = s.at(x, z); if (c && (y == null || c.back < y)) y = c.back; } return y; };
   const rows = [];
   for (const [ref, pieces] of gearGroups(assembly, isGear)) {
+    // The back-mounted shield needs its own torso/cloak clearance; don't move unrelated holsters farther out.
+    const groupClearance = pieces.some((p) => /^shield-back\b/i.test(p.slot ?? '')) ? shieldClearance : clearance;
     const at = assembly.fns.attachmentTransform(rest.mats, ref);
     // the search runs on the vertices, cheap, and each answer is held to every sample before it is taken
     const corners = pieces.map((p) => rest.place(p));
     const posed = corners.map((q, i) => surfaceSamples(q, pieces[i].indices));
-    const slung = under(assembly.skeleton, ref, SLUNG_UNDER);
+    // The dedicated AttachShield mount is a back-slung item even if a rig's node hierarchy
+    // does not place it beneath Spine1; it must translate away from the cloak, not use hip-gear pitch.
+    const slung = pieces.some((p) => /^shield-back\b/i.test(p.slot ?? '')) || under(assembly.skeleton, ref, SLUNG_UNDER);
     const bone = pieces[0].bone;
     const t = at.t;
     let reached = false;
@@ -469,7 +635,7 @@ export function fitStowedGear(assembly, { isCloak, isGear, clearance = CLOAK_CLE
       // vertices ask, and the search stops at the first whose vertices already ask more than the best found: exact
       const needAt = (set, deg) => {
         let need = 0; let here = false;
-        each(set, deg, (x, y, z) => { const s = back(x, z); if (s == null) return; here = true; need = Math.max(need, y - (s - clearance)); });
+        each(set, deg, (x, y, z) => { const s = back(x, z); if (s == null) return; here = true; need = Math.max(need, y - (s - groupClearance)); });
         return here ? need : null;
       };
       const turns = [];
@@ -495,7 +661,7 @@ export function fitStowedGear(assembly, { isCloak, isGear, clearance = CLOAK_CLE
       if (best.need > 1e-4 || best.deg) move = { rot: best.deg ? pitch(best.deg) : null, d: [0, -best.need, 0], how: 'over', by: best.need, deg: best.deg };
     } else {
       // under it: the least whole degree forward that keeps every piece in front of the sheet's front
-      const clearAt = (set, deg) => each(set, deg, (x, y, z) => { const s = front(x, z); if (s == null) return; reached = true; if (y < s + clearance) return false; });
+      const clearAt = (set, deg) => each(set, deg, (x, y, z) => { const s = front(x, z); if (s == null) return; reached = true; if (y < s + groupClearance) return false; });
       // the vertices find the least turn that could clear (every sample clear means every vertex clear), the samples
       // go on from there - the same degree the samples alone would find
       let deg = 0;
@@ -571,6 +737,11 @@ export function followCloak(assembly, { isCloak, isGear, clearance = CLOAK_CLEAR
   }
   const groups = [];
   for (const [ref, pieces] of gearGroups(assembly, isGear)) {
+    // Back-slung weapons and their scabbards are rigidly attached to the spine's holster bone.
+    // The cloak must never drive that bone's pieces: following the animated sheet makes the weapon
+    // snap/rotate as the hem crosses its contact samples. fitStowedGear still performs the one-time
+    // rest-pose clearance fit; only animated cloak-follow is skipped for back-slung gear.
+    if (under(assembly.skeleton, ref, SLUNG_UNDER)) continue;
     const at = assembly.fns.attachmentTransform(rest.mats, ref);
     const ai = inv3(at.a);
     const cells = new Map();   // a cell of the gear's (x, z), its point nearest the cloak

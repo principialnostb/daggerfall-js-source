@@ -317,6 +317,7 @@ regions or a 0..999 bound, except as the Bay's own data behind `inBay`, marked
 - `02-Formats/` - binary format readers (BSA, TEXTURE, IMG/CIF, ARCH3D, BLOCKS, MAPS, SND, SKY)
 - `03-World/` - block assembly, terrain, location layout, streaming
 - `04-Characters/` - voxel rigs, paperdoll-as-outfits, NPCs
+  - `04-Characters/Cloaks.md` - classic cloak placement, Vanilla Animated secondary motion, and Simply Animated Cloaks compatibility.
 - `05-Combat/` - FormulaHelper port, weapons, hit resolution
 - `06-Systems/` - quests, items, magic, guilds, calendar, save format
 - `07-Rendering/` - WebGL2 renderer, palettes, lighting, sky

@@ -8134,9 +8134,9 @@ export async function buildDungeonContext(deps, dfLocation, blocks, climateBaseT
     ownerFoes.step(foes, frameDt, stepFoes, foes.some((f, i) => !f.dead && !isPuppetFoe(f, i)));   // HOST-CLOCK: the frame's foes, stepped through the page's one catch-up - AUDIT HOST-CLOCK 1: and caught up only with a foe of mine among them (a joiner's are the host's puppets, led by its stream)
     dt = frameDt;   // HOST-CLOCK: the rest of the frame - the bodies' end, the flats, the water, the HUD - on its own time
     // MWNPC5b: THE DEAD IN THEIR BODIES - the death played where they fell (the pose's `dd`), the corpse flat casting its
-    // shadow alone while the body lies there; the living stand first (the lane's priority). Then the frame's bodies,
-    // synced, drawn in one bind of the sprite target (MWNPC2), and every offered foe's billboard cast-only where its
-    // body stands - after the sync, so a body arriving or leaving is never a frame drawn twice or not at all.
+    // shadow alone while the body lies there; the living stand first (the lane's priority). Then the frame's bodies
+    // are synced and drawn as opaque world-space meshes (MW-TP-MESH-ALL), and every offered foe's billboard is cast-only
+    // where its body stands - after the sync, so a body arriving or leaving is never drawn twice or not at all.
     _corpseWasCast.length = 0; _corpseLate.length = 0;
     for (const f of foes) {
       if (f.corpseBatch?.castOnly) _corpseWasCast.push(f.corpseBatch);
@@ -8148,8 +8148,11 @@ export async function buildDungeonContext(deps, dfLocation, blocks, climateBaseT
     if (npcLane) {
       npcLane.end(dt, eye);
       for (const f of _npcStood) { const b = f.dead ? f.corpseBatch : f.batch; if (b) b.castOnly = npcLane.has('foe', foeId(f)); }
-      renderer.beginCharacterSpriteBatch?.();
-      try { npcLane.draw(canvas, { proj, view, eye }); } finally { renderer.flushCharacterSpriteBatch?.(); }
+      // MW-TP-MESH-ALL: drawThird now emits opaque Morrowind bodies directly in world space.
+      // Wrapping this call in the character-sprite target silently reintroduced the old finite-resolution
+      // card path: close bodies compressed and distant skin/limbs pixelated. Veiled bodies own their
+      // sprite compositor in drawVeiled(), after the opaque world pass.
+      npcLane.draw(canvas, { proj, view, eye });
     }
     for (const b of _corpseWasCast) if (!b.castOnly) _corpseLate.push(b);   // AUDIT MW-NPC II H3: its body gone this frame (the cut, the switch) - its flat on this frame after all
     if (_corpseLate.length) renderer.drawBillboards(_corpseLate, new Float32Array([-view[0], -view[4], -view[8]]), UP_Y);   // (the level's pass drew it cast-only, ahead of the sync)

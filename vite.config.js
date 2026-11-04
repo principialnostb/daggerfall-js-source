@@ -2,7 +2,8 @@ import { defineConfig } from 'vite';
 import { createReadStream, readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { landingHtml, readBuildSha } from './scripts/landingHtml.mjs';
-import { studioArtIndex } from './scripts/studioArtIndex.mjs';   // STUDIO1: the studio's listing, served and built from the folder
+import { studioArtIndex } from './scripts/studioArtIndex.mjs';
+import { devLazyUrlGlobs } from './scripts/devLazyUrlGlobs.mjs';   // LOAD-STALL 3: the dev server's URL globs without a request per file   // STUDIO1: the studio's listing, served and built from the folder
 import { firstVisitPinsPlugin } from './scripts/firstVisitPins.mjs';   // FIRST-VISIT: the kept answers' pins, computed by the build and the dev server
 import { noImportedTopLevelAwait } from './scripts/noTopLevelAwait.mjs';   // WEBKIT-TLA (AUDIT FB1029g TLA-1): no imported chunk awaits at its top level
 import { limitOpenFiles } from './scripts/openFileLimit.mjs';   // FOUNDATION F5: the assets' reads held under Windows' open-file limit (EMFILE)
@@ -120,6 +121,10 @@ function buildTagMeta() {
 // custom domain (daggerfalljs.dev, U64) without a rebuild.
 export default defineConfig({
   base: './',
+  server: {
+    host: '0.0.0.0',
+    allowedHosts: true,
+  },
   build: {
     target: 'es2022',
     // AUDIT DEPS1 (the review): Vite 8 minifies CSS with Lightning CSS -
@@ -291,5 +296,5 @@ export default defineConfig({
       },
     },
   },
-  plugins: [arena2DevServer(), buildTagMeta(), landingHtml(), studioArtIndex(), firstVisitPinsPlugin(), noImportedTopLevelAwait()],
+  plugins: [devLazyUrlGlobs(), arena2DevServer(), buildTagMeta(), landingHtml(), studioArtIndex(), firstVisitPinsPlugin(), noImportedTopLevelAwait()],
 });

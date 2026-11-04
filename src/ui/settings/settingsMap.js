@@ -47,7 +47,7 @@ export const CATEGORIES = Object.freeze([
     sec("plants", "Plants, trees & wind", [
       "feat:grass", "feat:wind", "feat:mod-windfall", "feat:mod-low-poly-trees", "feat:mod-seasons-iliac-bay"]),
     sec("looks", "Textures & looks", [
-      "link:overhauls", "feat:dungeon-wall-style", "Video/RandomDungeonTextures", "Video/MainFilterMode", "GUI/GUIFilterMode", "GUI/VideoFilterMode",
+      "feat:dungeon-wall-style", "Video/RandomDungeonTextures", "Video/MainFilterMode", "GUI/GUIFilterMode", "GUI/VideoFilterMode",
       "Video/EnableTextureArrays", "GUI/AccelerateUICopyTexture"]),
     sec("retro", "Retro look", [
       "Video/RetroRenderingMode", "Video/PostProcessingInRetroMode", "Video/UseMipMapsInRetroMode", "Video/RetroModeAspectCorrection",
@@ -99,7 +99,7 @@ export const CATEGORIES = Object.freeze([
     sec("weapons", "Weapons in hand", [
       "feat:weapon-glow", "feat:mod-weapon-widget", "feat:mod-shield-widget", "feat:mod-readied-spellcasting-hands", "feat:mod-diverse-weapons", "feat:bows-left-hand", "Enhancements/BowLeftHandWithSwitching"]),
     sec("morrowind", "With Morrowind data", [
-      "feat:mod-weapon-sheathing", "feat:steel-helm", "feat:beast-footwear", "feat:beast-helmets", "feat:mw-spell-effects", "feat:mw-body-motion", "feat:mw-npc-bodies", "feat:mw-billboard-look", "feat:mw-model-detail", "feat:npc-marks"]),
+      "feat:mod-weapon-sheathing", "feat:beast-footwear", "feat:beast-helmets", "feat:mw-spell-effects", "feat:npc-marks"]),
     sec("aftermath", "Seeing & bleeding", [
       "feat:enhanced-combat-visuals", "feat:blood"]),
     sec("sea", "At sea", [
@@ -197,6 +197,69 @@ export const CATEGORIES = Object.freeze([
       "Daggerfall/MyDaggerfallPath", "Daggerfall/MyDaggerfallUnitySavePath", "Daggerfall/MyDaggerfallUnityScreenshotsPath"]),
     sec("index", "Every mod", [
       "mods-index"]),
+  ]),
+  tab("animations", "Анимации", [
+    sec("locomotion", "Передвижение", [
+      "group:running", "label:running-player", "feat:morrowind-player-run-animation",
+      "label:running-npc", "info:npc-run", "feat:morrowind-female-npc-run-animation",
+      "group:walking", "label:walking-player", "feat:morrowind-player-walk-animation",
+      "label:walking-npc", "feat:morrowind-male-npc-walk-animation", "feat:morrowind-female-npc-walk-animation",
+    ]),
+    sec("posture", "Положение и скрытность", [
+      "group:posture",
+      "label:sneak", "info:player-sneak", "info:npc-sneak",
+      "group:turning",
+      "label:turning", "info:player-turning", "info:npc-turning",
+      "group:idle",
+      "label:idle", "info:player-idle", "info:npc-idle",
+    ]),
+    sec("combat", "Бой", [
+      "group:attacks", "label:attacks", "info:player-attacks", "info:npc-attacks",
+      "group:blocking", "label:blocking", "info:player-blocking", "info:npc-blocking",
+    ]),
+    sec("magic", "Магия и заклинания", [
+      "info:player-magic", "info:npc-magic",
+    ]),
+    sec("actions", "Действия и взаимодействие", [
+      "info:player-actions", "info:npc-actions",
+    ]),
+    sec("traversal", "Специальное передвижение", [
+      "group:jumping", "label:jumping", "info:player-jumping", "info:npc-jumping",
+      "group:swimming", "label:swimming", "info:player-swimming", "info:npc-swimming",
+      "group:falling", "label:falling", "info:player-falling", "info:npc-falling",
+    ]),
+    sec("reactions", "Реакции", [
+      "group:damage", "label:damage", "feat:morrowind-hit-reaction-animation-source", "info:player-damage", "info:npc-damage",
+      "group:death", "label:death", "info:player-death", "info:npc-death",
+    ]),
+    sec("third-person", "Источники анимаций (3-е лицо)", [
+      "feat:morrowind-animation-blending", "feat:morrowind-motion-doctrine",
+      "feat:morrowind-openmw-dynamic-animations",
+    ]),
+    sec("first-person", "Анимации от первого лица", [
+      "feat:morrowind-first-person-animation-source",
+    ]),
+  ]),
+  tab("bodies", "Тела", [
+    sec("morrowind-bodies", "Модели тел и экипировка", [
+      "feat:mw-better-bodies", "feat:mw-first-person-hands", "feat:mw-seamless-dmra", "feat:mw-npc-bodies", "feat:mw-billboard-look",
+      "feat:simply-animated-cloaks", "feat:steel-helm",
+    ]),
+    sec("pixelation", "Пикселизация", [
+      "feat:char-pixel-fp", "feat:char-pixel-player", "feat:char-pixel-npc",
+    ]),
+    sec("pixelation", "Пикселизация", [
+      "feat:char-pixel-fp", "feat:char-pixel-player", "feat:char-pixel-npc",
+    ]),
+  ]),
+  tab("textures", "Текстуры", [
+    sec("texture-sources", "Настройки текстур", [
+      "feat:mw-textures-high-resolution-bodies", "feat:mw-textures-intelligent",
+      "feat:mw-textures-vurt-clothes", "feat:mw-textures-better-clothes",
+      "feat:mw-textures-better-armor", "feat:mw-textures-armor-joints",
+      "feat:mw-textures-westly-clothiers", "feat:mw-textures-westly-faces",
+      "link:overhauls",
+    ]),
   ]),
 ]);
 

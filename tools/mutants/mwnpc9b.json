@@ -74,8 +74,8 @@
  {
   "name": "MWNPC9b-stance-suffixed",
   "file": "src/combat/fpArm.js",
-  "old": "return nonBiped() && !isRealWeapon(t) ? MW_WEAPON_TYPE.None : t;",
-  "new": "return t;",
+  "old": "if (nonBiped() && !isRealWeapon(t)) return MW_WEAPON_TYPE.None;",
+  "new": "if (false) return MW_WEAPON_TYPE.None;",
   "tests": [
    "test/characters/mwnpc9b_creaturerig.test.js"
   ]

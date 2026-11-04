@@ -9,6 +9,7 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "dist:mod": "node tools/buildModDesktop.mjs",
     "preview": "vite preview",
     "test": "node tools/testShards.mjs 1/1",
     "lint": "eslint --cache --cache-strategy content --cache-location node_modules/.cache/eslint/ src/ server/src/ server-account/src/ test/ tools/ scripts/ app/ *.config.js",
@@ -36,7 +37,6 @@
     "account": "node tools/accountProbe.mjs",
     "load": "node tools/loadHarness.mjs",
     "acctcard": "node tools/accountCardProbe.mjs",
-    "savetile": "node tools/saveTileProbe.mjs",
     "chargenphone": "node tools/chargenPhoneProbe.mjs",
     "gunsfx": "node tools/gunSfx.mjs && node tools/gunSfxInstall.mjs",
     "gunart": "node tools/gunPaperdoll.mjs",
@@ -45,7 +45,13 @@
     "mwinspect": "node tools/mwInspectProbe.mjs",
     "mwarm": "node tools/mwArmProbe.mjs",
     "mwviewer": "node tools/mwViewerProbe.mjs",
-    "mwattach": "node tools/mwAttachProbe.mjs"
+    "mwattach": "node tools/mwAttachProbe.mjs",
+    "mwcloakprobe": "node tools/mwCloakAnimationProbe.mjs",
+    "mwcloak:analyze": "python diagnostics/mw-cloak-probe/diagnose_cloak_capture.py",
+    "mwcloak:intersections": "python diagnostics/mw-cloak-probe/diagnose_cloak_triangle_intersections.py",
+    "mwcloak:analyze:all": "npm run mwcloak:analyze && npm run mwcloak:intersections",
+    "savetile": "node tools/saveTileProbe.mjs",
+    "mwcloak:visualize": "python diagnostics/mw-cloak-probe/visualize_cloak_intersections.py"
   },
   "devDependencies": {
     "acorn": "^8.18.0",

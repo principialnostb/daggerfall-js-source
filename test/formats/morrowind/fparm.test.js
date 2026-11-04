@@ -9,10 +9,16 @@ import { portraitFeatures, headFeatures, hairFeatures, matchFace } from '../../.
 import { assembleFirstPersonArm, poseAssembly } from '../../../src/formats/morrowind/mwFirstPerson.js';
 import {
   packFpArm, fpSkeletonPath, buildFpArm, createFpArm, wornVerdicts, animWeaponType, UPPER_BODY, wornEquipKeyOf,
+  unequipWeaponHideMode, animationWindowHasMotion,
   FP_CLIP_PATH, NIF_TO_PASS, FP_FIELD_OF_VIEW, firstPersonEye, FP_FLOATS,
-  collectArmTextures,
+  collectArmTextures, isRobertGauntletFirstPersonAdd,
 } from '../../../src/combat/fpArm.js';
-import { firstPersonCameraRef, FP_NECK_ROTATE_FACTOR } from '../../../src/formats/morrowind/mwFirstPerson.js';
+import {
+  shieldGuardStance, carriesShield, isHandShieldSlot, bashStroke, bashReach, BASH, shieldBashHold,
+} from '../../../src/combat/shieldGuard.js';
+import { leftArmModeOf, leftArmPlan, createLeftArmLayer, LEFT_ARM_EASE } from '../../../src/combat/leftArmLayer.js';
+import { U } from '../../../src/characters/bodyMotion/melee.js';
+import { firstPersonCameraRef, FP_NECK_ROTATE_FACTOR, betterBodiesSectionKey, armWeightedTriangles } from '../../../src/formats/morrowind/mwFirstPerson.js';
 
 // MW-D8: THE ARM IN THE GAME.
 //
@@ -25,6 +31,215 @@ import { firstPersonCameraRef, FP_NECK_ROTATE_FACTOR } from '../../../src/format
 
 const f = (n) => new Uint8Array(readFileSync(new URL(`../../fixtures/mw/${n}`, import.meta.url)));
 const rd = (p) => readFileSync(new URL(`../../../${p}`, import.meta.url), 'utf8');
+
+test('Better Hands substitutes hand/wrist geometry without deleting forearm meshes', () => {
+  const gauntlet = (bones) => ({
+    piece: { templateIndex: 103 },
+    recordId: 'iron_gauntlet_right',
+    partName: 'right hand',
+    bones,
+  });
+  assert.equal(isRobertGauntletFirstPersonAdd(gauntlet(['right hand'])), true);
+  assert.equal(isRobertGauntletFirstPersonAdd(gauntlet(['right wrist'])), false,
+    'a wrist-bound part keeps its own geometry (f4f505ad9f)');
+  assert.equal(isRobertGauntletFirstPersonAdd(gauntlet(['right forearm'])), false,
+    'the hand-only donor must never replace a forearm mesh');
+  assert.equal(isRobertGauntletFirstPersonAdd(gauntlet(['right hand', 'right forearm'])), false,
+    'a combined hand/forearm mesh must stay intact rather than lose its forearm section');
+  assert.equal(isRobertGauntletFirstPersonAdd({
+    ...gauntlet(['right hand']), piece: { templateIndex: 102 },
+  }), false, 'unrelated armor must not be substituted');
+});
+
+test('Better Hands keeps the gauntlet\'s cuff: a forearm-only part draws its forearm-weighted triangles alone', async () => {
+  // A gauntlet's cuff to the elbow is geometry of its HAND part skinned to the forearm (retail a_imperial_skins.nif
+  // "Tri Left Hand 3"; the port's own steel and ebony gauntlets, one shape from the fingers up) - no forearm part
+  // carries it, so the hands-only donor must not take it away. One shape, four corners: 0 and 1 on the forearm,
+  // 2 on the hand, 3 on the upper arm.
+  const batch = {
+    positions: new Float32Array(12),
+    indices: Uint16Array.from([0, 1, 3, 0, 1, 2]),
+    skin: { bones: [
+      { name: 'bip01 l forearm', indices: [0, 1, 2], weights: [1, 0.8, 0.1] },
+      { name: 'bip01 l hand', indices: [1, 2], weights: [0.2, 0.9] },
+      { name: 'bip01 l upperarm', indices: [3], weights: [1] },
+    ] },
+  };
+  const cuffOf = armWeightedTriangles(batch);
+  assert.deepEqual([...cuffOf.indices], [0, 1, 3], 'the arm triangle stays, the one reaching the hand is the donor\'s');
+  assert.equal(cuffOf.skin, batch.skin, 'the skin rides along untouched');
+  assert.deepEqual([...batch.indices], [0, 1, 3, 0, 1, 2], 'the bound batch itself is not cut');
+  assert.equal(armWeightedTriangles({ ...batch, indices: Uint16Array.from([0, 1, 3]) }).indices.length, 3);
+  assert.equal(armWeightedTriangles({ ...batch, indices: Uint16Array.from([0, 1, 2]) }), null, 'a hand-only shape draws nothing');
+  assert.equal(armWeightedTriangles({ ...batch, skin: null }), null, 'an unskinned shape is no cuff');
+  // Through the assembly: the fixture's hands are skinned to the hand bones alone, so the forearm-only part binds
+  // nothing of them, while the same bytes as a whole part bind both sides.
+  const whole = await assembleFirstPersonArm({ skeletonBytes: f('armskel.nif'), parts: [{ slot: 'hand', bytes: f('armhand.nif') }] });
+  const cuff = await assembleFirstPersonArm({ skeletonBytes: f('armskel.nif'), parts: [
+    { slot: 'hand', bytes: f('armhand.nif') },
+    { slot: 'gauntlet', bones: ['left hand', 'right hand'], bytes: f('armhand.nif'), forearmShapesOnly: true },
+  ] });
+  assert.equal(whole.pieces.filter((p) => p.slot === 'hand').length, 2);
+  assert.equal(cuff.pieces.filter((p) => p.slot === 'gauntlet').length, 0, 'the hand shapes stay with the donor');
+  // and the gauntlet substitution pushes each side's original as that part, beside the donor
+  const src = rd('src/combat/fpArm.js');
+  assert.match(src, /const originalForearm = \{[^}]*forearmShapesOnly: true \}/);
+  assert.equal(src.match(/partBytes\.push\(originalForearm\)/g)?.length, 2, 'the side that loads the donor and the side that reuses it');
+});
+
+test('SHIELD-GUARD: the fists behind a shield stand as a one-hander does; the blows stay the fists\'', () => {
+  const T = MW_WEAPON_TYPE;
+  assert.equal(shieldGuardStance(T.HandToHand, true), T.LongBladeOneHand, 'a shield and no weapon: the one-hander\'s guard');
+  assert.equal(shieldGuardStance(T.HandToHand, false), T.HandToHand, 'bare fists keep their own stance');
+  for (const t of [T.None, T.Spell, T.ShortBladeOneHand, T.BluntOneHand, T.MarksmanBow]) {
+    assert.equal(shieldGuardStance(t, true), t, `type ${t} is its own stance, shield or not`);
+  }
+  const rig = (...slots) => ({ ok: true, arm: { pieces: slots.map((slot) => ({ slot })) } });
+  assert.equal(carriesShield(rig('hand', 'shield (iron_shield)')), true);
+  assert.equal(carriesShield(rig('hand', 'shield-back (iron_shield)')), true, 'the slung copy is a shield worn too');
+  assert.equal(carriesShield(rig('hand', 'weapon')), false);
+  assert.equal(carriesShield({ ok: false, arm: rig('shield').arm }), false, 'a failed build carries nothing');
+  assert.equal(carriesShield(null), false);
+  assert.equal(isHandShieldSlot('shield (iron_shield)'), true);
+  assert.equal(isHandShieldSlot('shield-back (iron_shield)'), false, 'the stow copy is not the hand\'s');
+  assert.equal(isHandShieldSlot('weapon'), false);
+  // the wiring: the stance doors (idle, walk, jump) ask stanceOf, which asks the guard; the blows' group does not
+  const src = rd('src/combat/fpArm.js');
+  assert.match(src, /const stanceOf = \(\) => \{[\s\S]*?return shieldGuardStance\(t, carriesShield\(built\) \|\| carriesShield\(thirdBuilt\)\);/);
+  // CLIMB-STANCE: on the stone the fists stand bare - the clip under the climb's hands (a hold behind the eye is not
+  // reached: climbRig.js climbRequestToFirstPerson) is the idle's hands-down, never the boxer's guard in the picture
+  assert.match(src, /const stanceOf = \(\) => \{[\s\S]*?if \(climbHands && t === MW_WEAPON_TYPE\.HandToHand\) return MW_WEAPON_TYPE\.None;\s+return shieldGuardStance/);
+  assert.match(src, /function refreshWeaponGroup\(\) \{[\s\S]*?const type = animWeaponType\(built\.mwType, sheathed, spellReady\);\s+weaponGroup = composeWeaponGroup\(type, hasGroup\)\.group;/);
+});
+
+test('LEFT-ARM: who holds the left arm, and which clip\'s arm each plan lays (the shield\'s, the guard\'s, the free hand\'s)', () => {
+  const T = MW_WEAPON_TYPE;
+  assert.equal(leftArmModeOf({ type: T.HandToHand, shield: true }), 'guard');
+  assert.equal(leftArmModeOf({ view: 'first', type: T.HandToHand, shield: true }), 'guard', 'the guard in both views');
+  assert.equal(leftArmModeOf({ type: T.LongBladeOneHand, shield: true }), 'shield');
+  assert.equal(leftArmModeOf({ type: T.LongBladeOneHand }), 'free', 'a one-hander and no shield: the free hand');
+  assert.equal(leftArmModeOf({ type: T.LongBladeOneHand, dual: true }), null, 'a pair: both hands are blades');
+  assert.equal(leftArmModeOf({ type: T.LongBladeTwoHand }), null, 'a two-hander holds its haft');
+  assert.equal(leftArmModeOf({ view: 'first', type: T.LongBladeOneHand }), null, 'the first person\'s arms are the clip\'s');
+  assert.equal(leftArmModeOf({ type: T.HandToHand, shield: true, free: false }), null, 'the stone, a spell, a sheet, a light');
+  const plan = (o) => leftArmPlan(o);
+  // the guard: moving straight the strafe's arm on the stride; standing the stance's own (lowered); a blow or a jump the
+  // strafe's arm held still, eased up
+  assert.deepEqual(plan({ mode: 'guard', moving: true, base: 'runback' }), { kind: 'movement', base: 'runleft', stance: 'drawn', still: false });
+  assert.equal(plan({ mode: 'guard', moving: false }), null, 'standing behind the shield: the one-hander\'s idle lowers it');
+  assert.equal(plan({ mode: 'guard', moving: true, base: 'walkright' }), null, 'a strafe\'s arm is its own');
+  assert.deepEqual(plan({ mode: 'guard', moving: false, attacking: true }), { kind: 'movement', base: 'walkleft', stance: 'drawn', still: true });
+  assert.deepEqual(plan({ mode: 'guard', moving: true, base: 'walkright', attacking: true }), { kind: 'movement', base: 'walkleft', stance: 'drawn', still: true });
+  assert.deepEqual(plan({ mode: 'guard', moving: false, jumping: true }), { kind: 'movement', base: 'walkleft', stance: 'drawn', still: true });
+  assert.deepEqual(plan({ mode: 'guard', view: 'first', attacking: true }), { kind: 'stance', base: 'idle', stance: 'drawn', still: true }, 'the first person\'s blow keeps the idle\'s shield arm');
+  assert.equal(plan({ mode: 'guard', view: 'first', moving: true, base: 'walkforward' }), null);
+  // a one-hander and a shield: the strafe's arm walking straight, the attack clip's own in a blow
+  assert.deepEqual(plan({ mode: 'shield', moving: true, base: 'walkforward' }), { kind: 'movement', base: 'walkleft', stance: 'drawn', still: false });
+  assert.equal(plan({ mode: 'shield', moving: true, base: 'walkforward', attacking: true }), null);
+  assert.equal(plan({ mode: 'shield', moving: false }), null);
+  // the free hand: the bare walk's arm, any way but a turn, never in a blow
+  assert.deepEqual(plan({ mode: 'free', moving: true, base: 'walkleft' }), { kind: 'movement', base: 'walkleft', stance: 'bare', still: false });
+  assert.equal(plan({ mode: 'free', moving: true, base: 'turnleft' }), null);
+  assert.equal(plan({ mode: 'free', moving: true, base: 'runforward', attacking: true }), null);
+  assert.equal(plan({ mode: 'free', moving: false }), null);
+  // BODY-MOTION's carry leaves those arms to the clip: a shield's (fists too) and a one-hander's free hand
+  assert.match(rd('src/characters/bodyMotion/bodyMotion.js'), /const shieldArm = !!input\.shield && \(cls === 'one' \|\| cls === 'free' \|\| cls === 'fists'\);/);
+  assert.match(rd('src/characters/bodyMotion/bodyMotion.js'), /const freeArm = cls === 'one';/);
+});
+
+test('LEFT-ARM: the layer eases its arm on and off - a plan withdrawn lowers it from where it stood, a held plan keeps its frame', () => {
+  const group = (base, type) => ({ group: type === MW_WEAPON_TYPE.None ? base : `${base}1h` });
+  const picks = [];
+  const pickAnimSource = (sources, g) => {
+    picks.push(g);
+    return { state: { group: g, startTime: 10, stopTime: 11, time: 10 }, source: { keys: [{ time: 10.2, text: `${g}: loop start` }, { time: 10.8, text: `${g}: loop stop` }], trackMap: new Map([['bip01 l hand', { k: g }]]) } };
+  };
+  let clockSeen = null;
+  const sampleTrack = (track, time) => {
+    if (track.k) clockSeen = time;
+    return { rotation: track.k ? [1, 0, 0, 0] : [0, 1, 0, 0], translation: [track.k ? 1 : 0, 0, 0], scale: 1 };
+  };
+  const layer = createLeftArmLayer({ pickAnimSource, resetClip: null, composeMovementGroup: group, composeStanceGroup: group, sampleTrack });
+  const base = new Map([['bip01 l hand', { b: 1 }], ['bip01 head', { b: 2 }]]);
+  const mask = new Set(['bip01 l hand']);
+  const blow = { kind: 'movement', base: 'walkleft', stance: 'drawn', still: true };
+  const frame = { plan: blow, sources: [], hasGroup: () => true, stance: MW_WEAPON_TYPE.LongBladeOneHand };
+  assert.equal(layer.tracks(base, mask), base, 'no plan: the clip\'s own');
+  layer.step(0.04, frame);
+  assert.deepEqual(picks, ['walkleft1h']);
+  const w1 = layer.weight();
+  assert.ok(w1 > 0.3 && w1 < 1, `eased in, not snapped (${w1})`);
+  for (let i = 0; i < 20; i++) layer.step(0.02, frame);
+  assert.ok(layer.weight() > 0.99);
+  const tracks = layer.tracks(base, mask);
+  assert.notEqual(tracks, base);
+  assert.equal(tracks.get('bip01 head'), base.get('bip01 head'), 'only the mask\'s bones');
+  layer.sampler()(tracks.get('bip01 l hand'), 3);
+  assert.equal(clockSeen, 10.2, 'held still at the loop\'s first frame');
+  // withdrawn: down over LEFT_ARM_EASE.out, the same clip and frame, then let go
+  layer.step(0.05, { plan: null });
+  const half = layer.sampler()(layer.tracks(base, mask).get('bip01 l hand'), 3);
+  assert.ok(half.translation[0] > 0 && half.translation[0] < 1, 'between the guard\'s arm and the stance\'s');
+  for (let i = 0; i < 120; i++) layer.step(0.02, { plan: null });
+  assert.equal(layer.weight(), 0);
+  assert.equal(layer.tracks(base, mask), base, 'let go: the clip\'s own again');
+  assert.ok(LEFT_ARM_EASE.in < LEFT_ARM_EASE.out, 'up for a blow faster than down to the stance');
+});
+
+test('SHIELD-GUARD: the thrust behind a shield is a bash - wound, thrown with the trunk, out on the hit and home', () => {
+  // the stroke on melee.js's blow clock, and the reach per view: the first person's shorter, out of the picture's middle
+  assert.equal(bashStroke(0) + 0, 0);
+  assert.equal(+bashStroke(U.windup).toFixed(6), -1, 'drawn back at the wind-up\'s end');
+  assert.equal(+bashStroke(U.hit).toFixed(6), 1, 'out on the hit - where the damage is dealt');
+  assert.equal(+bashStroke(1).toFixed(6) + 0, 0, 'and home by the follow-through\'s end');
+  for (const view of ['third', 'first']) {
+    assert.equal(+bashReach(U.hit, view).toFixed(6), BASH[view].reach);
+    assert.equal(+bashReach(U.windup, view).toFixed(6), -BASH[view].back);
+  }
+  // PIN MOVED (Mac: "in the first person the bash is not seen at all"): out where the eye sees it, short of the third's
+  assert.ok(BASH.first.reach >= 0.3 && BASH.first.reach < BASH.third.reach, 'the first person\'s bash seen, and shorter than the third\'s');
+  assert.ok(BASH.first.yaw === 0 && BASH.first.lean === 0, 'the trunk (the camera\'s) kept');
+  assert.ok(BASH.third.yaw < 0 && BASH.third.wind > 0 && BASH.third.lean > 0, 'the third person\'s trunk thrown behind it');
+  // the hold slot: a bash only inside the machine's blow
+  assert.equal(shieldBashHold('WeaponEquipped', 0.5), null);
+  for (const upper of ['AttackWindUp', 'AttackRelease', 'AttackEnd']) assert.equal(typeof shieldBashHold(upper, 0.5, 'first'), 'function');
+  // the wiring: the thrust under the guard, in both views' hold slot, after the rifle's
+  const src = rd('src/combat/fpArm.js');
+  // PIN MOVED (SHIELD-BASH): the blow decides it once (attack()'s blowBash: the fists' thrust, a one-hander's in turn)
+  assert.match(src, /const shieldBash = \(\) => \(blowBash && actionState && attackingNow\(\) && !climbHands && !held\s+(?:\/\/[^\n]*\s+)?\? shieldBashHold\(UPPER_BODY_NAME\[upper\], upper === UPPER_BODY\.AttackEnd && blowPlan\?\.lead \? Math\.min\(1, Math\.max\(recoverHeld \/ holdFor\(attackType\), clipCompletion\(actionState\)\)\) : clipCompletion\(actionState\), viewMode\) : null\);/);
+  assert.match(src, /blowBash = handsMode !== 'dual' && !torchVisible\(\) && bashesNow\(\{ thrust: type === 'thrust', shield: carriesShield\(rig\(\)\),/);
+  assert.match(src, /hold: rifleHold\('third', t\) \?\? shieldBash\(\),/);
+  assert.match(src, /hold: rifleHold\('first', built\) \?\? shieldBash\(\),/);
+  // and the layer rides both views' poses, never a recoil's or a fall's
+  assert.match(src, /const thirdTracks = state !== hitState && state !== deathState \? leftArm\.tracks\(tBase, t\.leftArm\) : tBase;/);
+  assert.match(src, /if \(!fOverlay && state !== hitState && state !== deathState && leftArm\.tracks\(fBase, built\.leftArm\) !== fBase\)/);
+  assert.match(src, /leftArm\.step\(dt, \{ plan: leftArmPlan\(\{ mode: leftArmMode\(\), view: viewMode, moving: !!movementState, base: movementBase, attacking: attackingNow\(\), jumping: !!jumpState, bashing: blowBash && attackingNow\(\) \}\),/);
+});
+
+test('SHIELD-GUARD: the first person\'s shield leaves the hand on the stone and under a held sheet', () => {
+  // The third person slings it on the back for the climb (shieldCombatReady carries !climbHands); the first person has
+  // no back to see, so its hand shield hides on the same flag - and shows again, set every frame, once off the wall.
+  const src = rd('src/combat/fpArm.js');
+  assert.match(src, /const shieldCombatReady = weaponInHand\(\) && !sheathed && !spellStance\(\) && !climbHands;/);
+  assert.match(src, /if \(isHandShieldSlot\(r\.slot\)\) r\.hidden = !!\(held \|\| climbHands\);/);
+});
+
+test('Better Bodies first-person sections recognize anatomical and Bip01-prefixed NIF names', () => {
+  const cases = [
+    ['Left Hand', 'hand:left'],
+    ['Hand_R', 'hand:right'],
+    ['Tri Bip01 L Hand', 'hand:left'],
+    ['Bip01 R Wrist', 'wrist:right'],
+    ['Bip01 L Forearm', 'forearm:left'],
+    ['Bip01 Upper Arm R', 'upperarm:right'],
+    ['Bip01 L Upper_Arm', 'upperarm:left'],
+    ['Bip01 Lower Arm Right', 'forearm:right'],
+  ];
+  for (const [name, expected] of cases) {
+    assert.equal(betterBodiesSectionKey(name), expected, name);
+  }
+  assert.equal(betterBodiesSectionKey('Bip01 Spine'), null, 'non-arm bones do not suppress vanilla arm slots');
+});
 
 /** The MW-D10 first-person rig: an eye, arms forward of and below it,
  *  and a quiet sway - the shape rule 54 needs and no earlier fixture had. */
@@ -1345,7 +1560,7 @@ test('MW-D26: the machine WALKS - the slot plays the group at the clip\'s own sp
   assert.equal(arm.status().movementRate, MOVEMENT_SPEED_CAP, 'vanilla caps the played speed at 10');
   // and stopping RESETS the slot
   cam.move.forward = 0; cam.move.running = false; cam.move.speed = 0;
-  arm.update(1 / 60);
+  for (let i = 0; i < 6; i++) arm.update(1 / 60);   // PIN MOVED (MOVE-GRACE, combat/idleSettle.js): a stop lets the clip go after its 0.06 s grace
   assert.equal(arm.status().movementGroup, null, 'standing still again resets the slot');
 });
 
@@ -1389,13 +1604,13 @@ test('MW-D26: turning plays turnleft/turnright in THIRD person only, at the turn
   // min(1.5, |rot|/dt/pi) (character.cpp:2396)
   assert.equal(arm.setViewMode('third'), true);
   arm.update(1 / 60);   // settle lastYaw on the new frame
-  cam.yaw += 0.3;
-  arm.update(1 / 60);
+  // PIN MOVED (TURN-GATE, combat/idleSettle.js): a turn in place needs two frames of a real turn - one frame's twitch of
+  // the yaw (a stop's) is no turn
+  for (let i = 0; i < 2; i++) { cam.yaw += 0.3; arm.update(1 / 60); }
   let st = arm.status();
   assert.equal(st.movementGroup, 'turnright', 'yaw increasing = turning right');
   assert.equal(st.movementRate, 1.5, 'a fast spin pins the turn clip at 1.5');
-  cam.yaw -= 0.001;
-  arm.update(1 / 60);
+  for (let i = 0; i < 2; i++) { cam.yaw -= 0.012; arm.update(1 / 60); }
   st = arm.status();
   assert.equal(st.movementGroup, 'turnleft', 'and the sign flips the side');
   assert.ok(st.movementRate < 1.5, `a slow turn plays slower (${st.movementRate})`);
@@ -1449,8 +1664,8 @@ test('MW-D27: the faceIndex THREAD is unbroken, swept at the source', () => {
   // PIN MOVED (MWNPC17, section 25): and an NPC's walked head and hair
   // PIN MOVED (AUDIT MW-HEADS1): and the archives' directory, so the port's own heads stand only where their archive is
   // PIN MOVED (MW-HEADS2): and whether the body is a player's - the port's own heads are a player's alone
-  assert.match(arm, /playerBodyRows\(parts, race, female, \{ beast, faceIndex, faceMatch(, vampire(, walk(, has: exists(, ownHeads)?)?)?)? \}\)/,
-    'the body build no longer hands the face to the picker');
+  assert.match(arm, /playerBodyRows\(parts, race, female, \{ beast, faceIndex, faceMatch, faceRace: race, vampire, walk, has: exists, ownHeads, appearanceHeadId, appearanceHairId \}\)/,
+    'the body build no longer hands the face and explicit editor selections to the picker');
   // TR2: the menu's inline opts moved into weaponRig's ONE HOME - the
   // sweep follows the thread there (menu -> buildArmsFor ->
   // armBuildOptsOf -> fpArm.build), because a sweep of a door that no
@@ -1718,6 +1933,14 @@ test('MW-D29: the composer dresses, shadows, sexes, and never traps', () => {
   // the female pick takes CNAM when it exists, BNAM when it does not.
   const fem = composeWornArmor({ pieces, armors, bodyPool, female: true });
   assert.deepEqual(fem.adds.map((a) => a.recordId).sort(), ['b_cu', 'b_gr_f', 'b_wr']);
+  // EMPTY-PART: a reference naming no body part (retail's netch gauntlet's wrist, INDX 9 with no model) reserves its slot
+  // - addPartGroup's reserveIndividualPart: no mesh, and the skin under it hidden
+  const netch = [{ id: 'iron_gauntlet_left', model: 'g.nif', name: '', enchanted: false,
+    parts: [{ part: 7, male: 'b_gl', female: null }, { part: 9, male: null, female: null }] }];
+  const gloved = composeWornArmor({ pieces: [{ templateIndex: ARMOR_ENUM.Gauntlets, material: ARMOR_MATERIAL.Iron }], armors: netch,
+    bodyPool: [{ id: 'b_gl', model: 'm/gl.nif' }], female: false });
+  assert.deepEqual(gloved.adds.map((a) => a.recordId), ['b_gl'], 'the empty reference draws nothing');
+  assert.deepEqual([...gloved.shadows].sort(), ['hand:left', 'wrist:left'], 'and its wrist is hidden under the cuff');
   // a piece with no MW record at all is one note, no adds.
   const none = composeWornArmor({ pieces: [{ templateIndex: ARMOR_ENUM.Helm, material: ARMOR_MATERIAL.Chain }], armors, bodyPool, female: false });
   assert.equal(none.adds.length, 0);
@@ -2083,6 +2306,30 @@ test('MW-D35: head and hair features, and the match picks by measured likeness',
   assert.equal(bald.hair, 'black_short');
   // nothing measurable -> nulls, and the walk stands.
   assert.deepEqual(matchFace(null, heads, hairs).head, null);
+});
+
+test('appearance editor: independent face and hair overrides stay inside the selected race/sex pool', () => {
+  const P = (id, slot, female = false) => ({
+    id, slot, race: 'fprace', female, skin: true, playable: true, firstPerson: false, model: `f/${id}.nif`,
+  });
+  const parts = [
+    P('b_head_01', 'head'), P('b_head_02', 'head'),
+    P('b_hair_01', 'hair'), P('b_hair_02', 'hair'),
+    P('b_head_f1', 'head', true), P('b_hair_f1', 'hair', true),
+  ];
+  const resolve = (female, options) => new Map(playerBodyRows(parts, 'fprace', female, {
+    faceIndex: 0, faceTable: {}, ...options,
+  }).map((row) => [row.slot, row]));
+  const male = resolve(false, { appearanceHeadId: 'b_head_02', appearanceHairId: 'b_hair_02' });
+  assert.equal(male.get('head').record.id, 'b_head_02');
+  assert.equal(male.get('hair').record.id, 'b_hair_02');
+  assert.match(male.get('head').verdict, /selected in appearance editor/);
+  const invalid = resolve(false, { appearanceHeadId: 'not_in_pool', appearanceHairId: 'not_in_pool' });
+  assert.equal(invalid.get('head').record.id, 'b_head_01', 'invalid face choice falls back to the race/sex pool');
+  assert.equal(invalid.get('hair').record.id, 'b_hair_01', 'invalid hairstyle falls back to the race/sex pool');
+  const female = resolve(true, { appearanceHeadId: 'b_head_f1', appearanceHairId: 'b_hair_f1' });
+  assert.equal(female.get('head').record.id, 'b_head_f1', 'female face stays in the female pool');
+  assert.equal(female.get('hair').record.id, 'b_hair_f1', 'female hairstyle stays in the female pool');
 });
 
 test('MW-D35: precedence - curated over matched over the walk, and the wiring', () => {
@@ -2833,10 +3080,14 @@ test('PX25: a worn change during a rebuild is applied when the build settles, no
 
 test('PX25: the pack hands the rig the worn table on every refresh', () => {
   const pack = readFileSync('src/ui/enhanced/enhancedInventory.js', 'utf8');
-  const refresh = pack.slice(pack.indexOf('const refresh = () => {'), pack.indexOf('const refresh = () => {') + 1400);
-  // PIN MOVED (CAPE-TOGGLE, 2026-10-29): the table as the body is drawn (systems/capeShown.js) - the worn one, a hidden cloak left out
+  const at = pack.indexOf('const refresh = () => {');
+  const refresh = pack.slice(at, pack.indexOf('\n};', at));
   assert.match(refresh, /arm\.setWorn\(dfWornEquipment\(drawnEquipTable\(deps\.entity\), EQUIP_SLOTS, ARMOR_ENUM\)\)/,
     'refresh must tell the rig what is worn');
+  // STANCE-FIRST: the hand goes first - the table's door is a whole rebuild that would carry the old hand and queue the
+  // new one behind it (mutant: setWorn back above the hand)
+  assert.ok(refresh.indexOf('deps.handArm()') >= 0 && refresh.indexOf('deps.handArm()') < refresh.indexOf('arm.setWorn('),
+    'the hand must be handed over before the worn table');
   const src = readFileSync('src/combat/fpArm.js', 'utf8');
   assert.match(src, /if \(busy\) \{ pendingWorn = pieces; return false; \}/);
   // MAC-S1: the flush is flushPending()'s now, and build() calls it.
@@ -3069,12 +3320,14 @@ test('MW-D39: readySpell and castSpell are the two doors, and neither gates the 
   // the stance re-composes on ready, and the three group readers take the flag
   // PIN MOVED (MWNPC9, bible/04-Characters/Morrowind-NPCs.md section 14b): the idle, the jump and the movement read it
   // through `stanceOf()` - the stance a non-biped creature takes bare - which reads it once
+  // PIN MOVED (SHIELD-GUARD, SHIELD-BASH): and the shield's guard, the backhand's fist rule (strikeReversed), the bash's
+  // own decision and the one-hander's bash under the fists' clip read it too
+  // PIN MOVED (THUMB-FIST): and the fists' thumb, eased in by the fists' stance
   // PIN MOVED (MIXED-PAIR): the weapon group reads the blow's own type first - a mixed pair's off-hand blow plays its
   // own weapon's group (was: `animWeaponType(built.mwType, ...)` at all three)
   // AUDIT SPELL-HAND L5-9: the blow's own type in the weapon group alone (was: either form, three times)
-  assert.equal((src.match(/animWeaponType\(blowType \?\? built\.mwType, sheathed, spellReady\)/g) || []).length, 1, 'the weapon group: the blow\'s type first');
-  assert.equal((src.match(/animWeaponType\((?:blowType \?\? )?built\.mwType, sheathed, spellReady\)/g) || []).length, 3,
-    'stanceOf, the weapon group and the torch\'s carried-left rule (MW-D51) must all read the spell stance');
+  assert.equal((src.match(/animWeaponType\((?:blowType \?\? )?built\.mwType, sheathed, spellReady\)/g) || []).length, 8,
+    'stanceOf, the weapon group, the torch\'s carried-left rule (MW-D51), the shield\'s guard, the backhand, the bash and the fists\' thumb must all read the spell stance');
   assert.equal((src.match(/= stanceOf\(\);/g) || []).length, 3, 'the idle, the jump and the movement through stanceOf');
   assert.match(src, /readySpell\(ready\) \{[\s\S]*?refreshWeaponGroup\(\);\n      resetIdle\(\);\n      resetMovement\(\);/);
   // PIN MOVED (MW-CAST1): an un-ready mid-cast is the spell GOING - Daggerfall clears the ready at its release - so
@@ -3269,7 +3522,7 @@ test('PX29: the movement rate divides by the PLAYING clip\u2019s own velocity (M
   // Reverted at his direction; the multi-source walk stays exported.
   const src = readFileSync('src/combat/fpArm.js', 'utf8');
   assert.match(src, /const vel = movementSource \? sourceVelocityOf\(movementSource, movementGroup\) : 0;/,
-    'the rate must divide by the clip that is playing');
+    'the rate must divide by the clip that is playing');   // FOOT-SPEED set aside (Motion-Doctrine.md 7d): the pin back as it was
   assert.ok(!/sourcesVelocity\(rig\(\)\.sources, movementGroup\)/.test(src), 'the multi-source walk must not decide the movement rate');
   assert.match(src, /PX29 - REVERTED AT MAC'S DIRECTION/, 'a declared divergence must say so where it lives');
   // the helper reads ONE source and answers 0 for a source with no
@@ -3345,4 +3598,80 @@ test('PX33: a weapon swap notifies the panel, like every other settlement', asyn
   assert.ok(fin > 0, 'the swap still ends in a finally');
   assert.match(body.slice(fin), /for \(const fn of listeners\)/,
     'and notifies the panel there, so a throw still repaints');
+});
+
+test('MW-TP-GROUND-NPC: NPC foot support is latched once instead of following every animated leg minimum', () => {
+  const src = rd('src/combat/fpArm.js');
+  assert.match(src, /if \(!playerAppearance && body && thirdGroundMinZ == null\) thirdGroundMinZ = body\.minZ;/,
+    'an NPC that begins in motion latches its first posed support height');
+  assert.match(src, /const supportMinZ = Number\.isFinite\(thirdGroundMinZ\) \? thirdGroundMinZ : body\?\.minZ;/,
+    'subsequent animation frames do not feed their changing leg height back into the root transform');
+});
+
+
+test('MW first-person arms: physical running opens the draw gate without a run clip', () => {
+  const arm = createFpArm();
+  arm.setRunHands(false, { running: true });
+  assert.equal(arm.movementPosed(), true,
+    'the first-person body must remain drawable even if this race or stance has no usable run clip');
+  arm.setRunHands(false, { running: false });
+  assert.equal(arm.movementPosed(), false,
+    'the running draw reason closes when movement stops and no run/jump pose is active');
+});
+
+
+test('MW-FP-UNEQUIP: a missing detach key hides the weapon at animation end, not at animation start', () => {
+  assert.equal(
+    unequipWeaponHideMode({ animationStarted: true, detachKeyTime: -1 }),
+    'animation-end',
+    'a playable return animation must keep the weapon visible until the section completes',
+  );
+  assert.equal(
+    unequipWeaponHideMode({ animationStarted: true, detachKeyTime: 0.42 }),
+    'detach-key',
+    'when the animation declares a detach key, preserve its authored timing',
+  );
+  assert.equal(
+    unequipWeaponHideMode({ animationStarted: false, detachKeyTime: -1 }),
+    'immediate',
+    'without a playable unequip section there is no animation to wait for',
+  );
+});
+
+
+test('MW-FP-UNEQUIP: text markers without moving transforms use a real fallback', () => {
+  const skeleton = { nodes: new Map([[1, { name: 'Bip01 R Hand' }]]) };
+  const state = { startTime: 0, stopTime: 1 };
+  const moving = {
+    trackMap: new Map([['bip01 r hand', {
+      translations: { type: 1, keys: [
+        { time: 0, value: [0, 0, 0] },
+        { time: 1, value: [1, 0, 0] },
+      ] },
+    }]]),
+  };
+  const staticWindow = {
+    trackMap: new Map([['bip01 r hand', {
+      translations: { type: 1, keys: [
+        { time: 0, value: [0, 0, 0] },
+        { time: 1, value: [0, 0, 0] },
+      ] },
+    }]]),
+  };
+  assert.equal(animationWindowHasMotion(moving, state, skeleton), true);
+  assert.equal(animationWindowHasMotion(staticWindow, state, skeleton), false);
+  assert.equal(animationWindowHasMotion(moving, { startTime: 1, stopTime: 1 }, skeleton), false);
+
+  // A clip that only moves a weapon/root node must not pass the arm-motion
+  // gate; that false positive was allowing an unusable unequip clip to win.
+  const unrelatedMotion = {
+    trackMap: new Map([['bip01 weapon', {
+      translations: { type: 1, keys: [
+        { time: 0, value: [0, 0, 0] },
+        { time: 1, value: [1, 0, 0] },
+      ] },
+    }]]),
+  };
+  const nonArmSkeleton = { nodes: new Map([[1, { name: 'Bip01 Weapon' }]]) };
+  assert.equal(animationWindowHasMotion(unrelatedMotion, state, nonArmSkeleton), false);
 });

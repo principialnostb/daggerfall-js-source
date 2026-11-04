@@ -17,7 +17,7 @@ import { CATEGORIES, CATEGORY_IDS, whereIs, optionPath, isSettingItem, keysOf } 
 import { GRAPHICS_PRESETS, PRESET_ROWS, PRESET_PARTS, presetNow } from '../../src/systems/graphicsPresets.js';
 import { ALL_KEYS, DEFAULTS, effectiveSettings, setValue, _resetForTests as resetSettings } from '../../src/systems/settings/settings.js';
 import { getPref, setPref, PREF_DEFAULTS, _resetForTests as resetPrefs } from '../../src/systems/uiPrefs.js';
-import { _resetModSettings } from '../../src/systems/modSettings.js';
+import { _resetModSettings, modSetting, setModSetting, modSettingNotice } from '../../src/systems/modSettings.js';
 import { _resetRenderScaleDoor } from '../../src/systems/renderScale.js';
 import { restAloneText } from '../../src/systems/party/partyRestLaw.js';
 import { TIER_TEXT } from '../../src/ui/settings/settingsCopy.js';
@@ -57,7 +57,31 @@ function withRows(fn, { shell = { platform: 'win32' } } = {}) {
 }
 
 const SPECIAL = ['preset:graphics', 'link:overhauls', 'bindings', 'mods-index'];
-const CARDS = ['card:morrowind', 'card:packs', 'card:peerSprites', 'card:nightSounds'];   // PIN MOVED (TESA1): the Arena card; TESA12: gone with Arena
+const INFO = ['player-run','npc-run','player-turning','npc-turning','player-idle','npc-idle','player-sneak','npc-sneak','player-attacks','npc-attacks','player-blocking','npc-blocking','player-magic','npc-magic','player-actions','npc-actions','player-jumping','npc-jumping','player-swimming','npc-swimming','player-falling','npc-falling','player-damage','npc-damage','player-death','npc-death'];
+const CARDS = ['card:morrowind', 'card:packs', 'card:peerSprites', 'card:nightSounds'];
+
+test('MW-TEXTURE-PACKS: optional texture packs default off; Complete Armor Joints resolves its dependency visibly', () => {
+  fresh();
+  assert.equal(modSetting('morrowind-textures', 'BetterBodies'), true);
+  assert.equal(modSetting('morrowind-textures', 'SeamlessDMRA'), false);
+  for (const key of ['IntelligentTextures', 'VurtsBetterClothes', 'BetterClothesRetextured', 'BetterMorrowindArmor', 'CompleteArmorJoints', 'WestlysFineClothiers', 'WestlysFacesRefurbished']) {
+    assert.equal(modSetting('morrowind-textures', key), false, key + ' defaults off');
+  }
+  setModSetting('morrowind-textures', 'SeamlessDMRA', true);
+  assert.equal(modSetting('morrowind-textures', 'BetterBodies'), true);
+  assert.match(modSettingNotice('morrowind-textures', 'SeamlessDMRA'), /Seamless DMRA/);
+  setModSetting('morrowind-textures', 'BetterBodies', false);
+  assert.equal(modSetting('morrowind-textures', 'SeamlessDMRA'), false);
+  assert.equal(modSettingNotice('morrowind-textures', 'BetterBodies'), 'Отключён: Seamless DMRA body replacer');
+  fresh();
+  setModSetting('morrowind-textures', 'CompleteArmorJoints', true);
+  assert.equal(modSetting('morrowind-textures', 'BetterMorrowindArmor'), true);
+  assert.equal(modSettingNotice('morrowind-textures', 'CompleteArmorJoints'), 'Включён необходимый набор: Better Morrowind Armor');
+  setModSetting('morrowind-textures', 'BetterMorrowindArmor', false);
+  assert.equal(modSetting('morrowind-textures', 'CompleteArmorJoints'), false);
+  assert.equal(modSettingNotice('morrowind-textures', 'BetterMorrowindArmor'), 'Отключён: Complete Armor Joints');
+  fresh();
+});
 
 test('ORG2: the map is TOTAL and DISJOINT over every option - each of DFU\'s keys, each Features row and each of the port\'s own rows stands in exactly one section of one tab (mutant: a row dropped, or placed twice)', () => {
   const seen = new Map();
@@ -80,6 +104,9 @@ test('ORG2: the map is TOTAL and DISJOINT over every option - each of DFU\'s key
     if (isSettingItem(item)) assert.ok(ALL_KEYS.includes(item), `${item} is mapped but is not one of DFU's keys`);
     else if (item.startsWith('feat:')) assert.ok(row(item.slice(5)), `${item} is mapped but is no Features row`);
     else if (item.startsWith('port:')) assert.ok(pool.has(item.slice(5)), `${item} is mapped but no builder draws it`);
+    else if (item.startsWith('info:')) assert.ok(INFO.includes(item.slice(5)), `${item} is a known animation info card`);
+    else if (item.startsWith('label:')) assert.ok(['player','npc','walking-player','walking-npc','running-player','running-npc','walking','running','turning','idle','sneak','attacks','blocking','jumping','swimming','falling','damage','death'].includes(item.slice(6)), `${item} is a known animation label`);
+    else if (item.startsWith('group:')) assert.ok(['walking','running'].includes(item.slice(6)), `${item} is a known nested animation group`);
     else assert.ok(CARDS.includes(item) || SPECIAL.includes(item), `${item} is a piece the screen does not know`);
   }
   for (const k of ALL_KEYS) assert.ok(seen.has(k), `${k} has no place - it would vanish from the screen`);
@@ -108,7 +135,21 @@ test('GPU-BACKEND: the graphics backend row stands after VSync, drawn in the des
 });
 
 test('ORG2: Graphics leads, with the preset at its head, and the tabs a player looks for in the order they look (mutant: the preset or a tab moved)', () => {
-  assert.deepEqual(CATEGORY_IDS, ['graphics', 'gameplay', 'combat', 'world', 'interface', 'audio', 'controls', 'accessibility', 'mods']);
+  assert.deepEqual(CATEGORY_IDS, ['graphics', 'gameplay', 'combat', 'world', 'interface', 'audio', 'controls', 'accessibility', 'animations', 'textures', 'bodies', 'mods']);
+  assert.deepEqual(whereIs('feat:morrowind-player-walk-animation')?.section.id, 'locomotion');
+  assert.deepEqual(whereIs('feat:morrowind-male-npc-walk-animation')?.section.id, 'locomotion');
+  assert.deepEqual(whereIs('feat:morrowind-player-run-animation')?.section.id, 'locomotion');
+  assert.deepEqual(whereIs('info:npc-run')?.section.id, 'locomotion');
+  assert.deepEqual(whereIs('feat:morrowind-female-npc-run-animation')?.section.id, 'locomotion');
+  assert.equal(whereIs('card:packs')?.tab.id, 'textures');
+  assert.equal(whereIs('feat:mw-better-bodies')?.tab.id, 'bodies');
+  assert.equal(whereIs('feat:mw-npc-bodies')?.tab.id, 'bodies');
+  assert.deepEqual(whereIs('feat:morrowind-female-npc-walk-animation')?.section.id, 'locomotion');
+  assert.deepEqual(whereIs('feat:morrowind-first-person-animation-source')?.section.id, 'first-person');
+  assert.deepEqual(whereIs('feat:morrowind-openmw-dynamic-animations')?.section.id, 'third-person');
+  assert.deepEqual(whereIs('feat:morrowind-hit-reaction-animation-source')?.section.id, 'reactions');
+  assert.deepEqual(whereIs('group:walking')?.section.id, 'locomotion');
+  assert.deepEqual(whereIs('group:running')?.section.id, 'locomotion');
   const g = CATEGORIES[0];
   assert.deepEqual(g.sections[0].items, ['preset:graphics'], 'Quality first, the preset alone in it');
   for (const id of PRESET_ROWS) assert.equal(whereIs(`feat:${id}`)?.tab.id, 'graphics', `${id}, a row the preset sets, is on the same tab`);
@@ -116,6 +157,19 @@ test('ORG2: Graphics leads, with the preset at its head, and the tabs a player l
   for (const k of ['Video/FieldOfView', 'Video/TargetFrameRate', 'Video/VSync']) assert.equal(whereIs(k)?.section.id, 'display', k);
   assert.equal(whereIs('bindings')?.tab.id, 'controls');
   assert.equal(whereIs('mods-index')?.tab.id, 'mods');
+});
+
+test('ANIMATION UI: subgroup selection is derived from the active section and each section keeps its own choice', () => {
+  const menu = read('src/ui/enhanced/enhancedMenu.js');
+  assert.ok(menu.includes("const DEFAULT_ANIMATION_GROUP_BY_SECTION = Object.freeze({\n  locomotion: 'running',\n  posture: 'posture',\n  combat: 'attacks',\n  traversal: 'jumping',\n  reactions: 'damage',"));
+  assert.ok(menu.includes("const ANIMATION_GROUPS_BY_SECTION = Object.freeze({"));
+  assert.ok(menu.includes("const animationClipGroupBySection = { ...DEFAULT_ANIMATION_GROUP_BY_SECTION };"));
+  assert.ok(menu.includes("const animationClipGroup = () => {"));
+  assert.ok(menu.includes("return groups.includes(remembered) ? remembered : groups[0];"));
+  assert.ok(menu.includes("animationClipGroupBySection[selectedSectionByTab.animations] = group;"));
+  assert.ok(menu.includes("if (tab.id === 'animations') {"));
+  assert.ok(menu.includes("clipGroup !== animationClipGroup()"));
+  assert.doesNotMatch(menu, /let animationClipGroup\s*=/, 'avoid duplicate global selection state');
 });
 
 test('ORG2: a key a Features row owns stands in that row\'s own section - so FT13\'s "drawn by the row, never twice" is true on the page too (mutant: a moved key filed elsewhere)', () => {

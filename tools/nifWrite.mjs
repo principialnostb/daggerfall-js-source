@@ -167,6 +167,12 @@ export const WRITERS = {
     o.u16(0);                                         // no match groups
   },
 
+  NiAlphaProperty(o, rec) {
+    objectNET(o, rec);
+    o.u16(rec.flags ?? 0x1200);
+    o.u8(rec.threshold ?? 128);
+  },
+
   NiMaterialProperty(o, rec) {
     objectNET(o, rec);
     o.u16(rec.flags ?? 1);
@@ -386,7 +392,7 @@ export function meshesToNif(shapes, { node = null, keepV = false } = {}) {
 /** One shape's records under root 0 - the shape, its data, material, texturing, stencil and source - and, for a
  *  skinned one (MW-STEEL4), its skin instance and data after them. A rigid shape is the records meshesToNif always
  *  wrote, in the same order. */
-function shapeRecords(records, { mesh, texture = null, name = '', skin = null }, keepV) {
+function shapeRecords(records, { mesh, texture = null, name = '', skin = null, alphaTest = false }, keepV) {
   if (!mesh?.positions?.length) throw new Error('this mesh has no positions');
   if (!mesh.indices?.length) throw new Error('this mesh has no triangles');
   // V GOES DOWN in a NIF. See the header.
@@ -406,6 +412,7 @@ function shapeRecords(records, { mesh, texture = null, name = '', skin = null },
   );
   if (texture) records.push({ type: 'NiSourceTexture', fileName: texture });
   if (skin) records.push({ type: 'NiSkinInstance', data: skinAt + 1, skeletonRoot: 0, bones: skin.bones }, { type: 'NiSkinData', bones: skin.data });
+  if (alphaTest) { records[at].properties.push(records.length); records.push({ type: 'NiAlphaProperty' }); }
 }
 
 /** An affine's inverse, for the rigid transforms a skeleton's bind is made of: (R^T, -R^T t). */
@@ -468,10 +475,10 @@ export function skinnedMeshesToNif(shapes, { node, bones, keepV = false }) {
   });
   // the bones' records come after every shape's, so their indices are known once the shapes are laid out
   let next = 1;
-  for (const s of shapes) next += (s.texture ? 6 : 5) + 2;
+  for (const s of shapes) next += (s.texture ? 6 : 5) + 2 + (s.alphaTest ? 1 : 0);
   for (const b of bones) if (shapeSkins.some((list) => list.some((x) => x.name === b.name))) boneAt.set(b.name, next++);
   shapes.forEach((shape, i) => shapeRecords(records, {
-    mesh: shape.mesh, texture: shape.texture ?? null, name: shape.name ?? '',
+    mesh: shape.mesh, texture: shape.texture ?? null, name: shape.name ?? '', alphaTest: shape.alphaTest ?? false,
     skin: { bones: shapeSkins[i].map((x) => boneAt.get(x.name)), data: shapeSkins[i].map((x) => x.data) },
   }, keepV));
   for (const b of bones) {

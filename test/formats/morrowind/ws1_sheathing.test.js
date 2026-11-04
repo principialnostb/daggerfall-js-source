@@ -400,7 +400,7 @@ test('WS1: the wiring, by source - the third-person build takes the addons and t
   assert.match(menu, /\n  mwSheathing: rebuildMorrowindBody,\n/, 'the sheathing tile takes that rebuild');
   assert.match(menu, /set: \(i\) => \{ setPref\(c\.key, i === 1\); TILE_AFTER\[c\.key\]\?\.\(\); \} \};/, 'through the prefs switch\'s one write');
   const ds = rd('src/scenes/dataSource.js');
-  const loosePush = ds.indexOf('archives.push(makeLooseArchive(loose));');
+  const loosePush = ds.indexOf('archives.push(makeLazyLooseArchive(looseNames, (n) => assetBytes(MW_STORE, n)));');
   const vendPush = ds.indexOf('archives.push(ws.weaponSheathingArchive());');
   const bsaPush = ds.indexOf('archives.push(await MwBsaFile.open(blob));');
   assert.ok(loosePush > 0 && vendPush > loosePush && bsaPush > vendPush, 'loose, then vendored, then the .bsa archives');

@@ -20,6 +20,13 @@ import { widgetFor, formatValue, stepValue, NUMBER_LAW, ENUM_LAW, COLOUR_KEYS } 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..');
 const src = (f) => readFileSync(join(root, 'src', f), 'utf8');
 
+test('ANIMATION UI: each clip section opens on its first switch and remembers its own last choice', () => {
+  const menu = src('ui/enhanced/enhancedMenu.js');
+  assert.ok(menu.includes("const DEFAULT_ANIMATION_GROUP_BY_SECTION = Object.freeze({\n  locomotion: 'running',\n  posture: 'posture',\n  combat: 'attacks',\n  traversal: 'jumping',\n  reactions: 'damage',"));
+  assert.ok(menu.includes("animationClipGroupBySection[selectedSectionByTab.animations] = group;"));
+  assert.ok(menu.includes("animationClipGroup = animationClipGroupBySection[s.id] ?? DEFAULT_ANIMATION_GROUP_BY_SECTION[s.id] ?? animationClipGroup;"));
+});
+
 test('MENU T1: the category map is TOTAL and DISJOINT over the store', () => {
   const seen = new Map();
   for (const cat of CATEGORY_IDS) {

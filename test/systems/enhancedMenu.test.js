@@ -516,3 +516,15 @@ test('A54: and the envelope really does carry it there (E4)', async () => {
   delete old.goldPieces;
   assert.equal(old.goldPieces ?? null, null, 'null, not a bogus 0');
 });
+
+test('MW-ANIM-1: choice-valued mod settings render their declared options, not an Enabled switch', () => {
+  const src = read('src/ui/enhanced/enhancedMenu.js');
+  const start = src.indexOf('export function tileStates(f)');
+  const end = src.indexOf('function toggleWords', start);
+  assert.ok(start >= 0 && end > start, 'tileStates implementation is present');
+  const body = src.slice(start, end);
+  assert.match(body, /const def = MOD_SETTINGS\[c\.vendor\]\?\.keys\?\.\[c\.key\]/);
+  assert.match(body, /if \(isChoiceKey\(def\)\)/);
+  assert.match(body, /labels: Array\.from\(def\.options/);
+  assert.match(body, /set: \(i\) => setModSetting\(c\.vendor, c\.key, i\)/);
+});

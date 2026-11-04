@@ -30,6 +30,7 @@ node_modules
 
 # The desktop shell's packaged installers (electron-builder output).
 app/release/
+/app/release-mod/
 # DA13: the bundled game's index, written by the release workflow before electron-builder packs it.
 app/game-seed.json
 
@@ -119,3 +120,46 @@ weapon-glow-probe/
 ._*
 Thumbs.db
 desktop.ini
+# MW-HORN5: the horned steel helm is Skyrim's iron helmet, made from the player's own install by
+# tools/skyrim/importIronHelmet.mjs - Bethesda's mesh and painting, never committed.
+src/assets/mw/source/Steel_Plate_Horned_Helm.*
+src/assets/mw/meshes/steel_plate_helm_horned.nif
+src/assets/mw/textures/steel_plate_helm_horned.dds
+src/assets/mw/looks/steel_plate_helm_horned.png
+# MW-IRON1: Skyrim's heavy iron cuirass and pauldrons, made from the player's own install by
+# tools/skyrim/importIronCuirass.mjs - Bethesda's meshes and painting, never committed.
+src/assets/mw/meshes/iron_*.nif
+src/assets/mw/textures/iron_*.dds
+src/assets/mw/looks/iron_*.png
+
+# Local Pelts o Plenty sources and adapted wolf cloaks (player-provided assets).
+/Mods/Textures/Pelts 'o' Plenty - Fur Pelt Cloaks/
+/src/assets/mw/meshes/wolf_pelt_*.nif
+/src/assets/mw/textures/wolf_pelt_*.dds
+/src/assets/mw/looks/wolf_pelt_*.png
+
+# Locally imported Skyrim shields.
+/src/assets/mw/meshes/shield_sky_*.nif
+/src/assets/mw/textures/shield_sky_*.dds
+/src/assets/mw/looks/shield_sky_*.png
+/src/assets/mw/meshes/wolf_armor_*.nif
+/src/assets/mw/textures/wolf_armor_*.dds
+
+# Player-owned Skyrim battleaxe (tools/skyrim/importBattleaxe.mjs).
+src/assets/mw/meshes/skyrim_steel_battleaxe.nif
+src/assets/mw/textures/skyrim_steel_battleaxe.dds
+
+src/assets/mw/looks/skyrim_steel_battleaxe.png
+
+# PROVING-GROUND: local profiles, settings and generated captures.
+.proving-ground/
+
+# TEST-PR: third-party mods, Morrowind game files and ARENA2 stay on this machine, never in git.
+/Mods/
+/Morrowind models/
+/Morrowind models.zip
+/ARENA2/
+/arena2/
+/paperdoll enhanced.*
+/AUDIT-source-code-mod.md
+/PR-description.md

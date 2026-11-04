@@ -1,0 +1,173 @@
+[
+  {
+    "name": "CUFF-FIT-no-clearance",
+    "file": "src/formats/morrowind/mwCuffFit.js",
+    "tests": [
+      "test/formats/morrowind/cufffit.test.js"
+    ],
+    "old": "const want = ring.radius(x, y, a) + CUFF_FIT.clearance * (1 - 2 * sink);",
+    "new": "const want = ring.radius(x, y, a);"
+  },
+  {
+    "name": "CUFF-FIT-the-weights-not-lent",
+    "file": "src/formats/morrowind/mwCuffFit.js",
+    "old": "mixed.set(bi, (mixed.get(bi) ?? 0) + w * f); lent += w * f;",
+    "new": "lent += w * f;",
+    "tests": [
+      "test/formats/morrowind/cufffit.test.js"
+    ]
+  },
+  {
+    "name": "CUFF-FIT-the-flare-squashed",
+    "file": "src/formats/morrowind/mwCuffFit.js",
+    "tests": [
+      "test/formats/morrowind/cufffit.test.js"
+    ],
+    "old": "const r2 = flared ? (r < out ? r + f * (out - r) : r) : r + f * (want - r);",
+    "new": "const r2 = r + f * (want - r);"
+  },
+  {
+    "name": "CUFF-FIT-drawn-down-the-arm",
+    "file": "src/formats/morrowind/mwCuffFit.js",
+    "tests": [
+      "test/formats/morrowind/cufffit.test.js"
+    ],
+    "old": "const ends = !flared && a1 > ring.a0 - CUFF_FIT.reach;",
+    "new": "const ends = !flared;"
+  },
+  {
+    "name": "CUFF-FIT-the-skin-not-solved",
+    "file": "src/formats/morrowind/mwCuffFit.js",
+    "old": "    if (!inv) continue;",
+    "new": "    continue;",
+    "tests": [
+      "test/formats/morrowind/cufffit.test.js"
+    ]
+  },
+  {
+    "name": "CUFF-FIT-every-wrist-a-cuff",
+    "file": "src/formats/morrowind/mwFirstPerson.js",
+    "old": "  return arm * 2 >= idx.length / 3;",
+    "new": "  return arm > 0;",
+    "tests": [
+      "test/formats/morrowind/cufffit.test.js"
+    ]
+  },
+  {
+    "name": "CUFF-FIT-the-donor-keeps-its-cuff",
+    "file": "src/formats/morrowind/mwFirstPerson.js",
+    "old": "        if (part.handShapesOnly && isDonorCuffShape(batch)) continue;   // CUFF-FIT: and the donor its hands alone",
+    "new": "",
+    "tests": [
+      "test/formats/morrowind/cufffit.test.js"
+    ]
+  },
+  {
+    "name": "CUFF-FIT-never-fitted",
+    "file": "src/formats/morrowind/mwFirstPerson.js",
+    "old": "  fitCuffPieces(assembly, firstPiece, cuffWholes);",
+    "new": "",
+    "tests": [
+      "test/formats/morrowind/cufffit.test.js"
+    ]
+  },
+  {
+    "name": "CUFF-FIT-the-end-not-buried",
+    "file": "src/formats/morrowind/mwCuffFit.js",
+    "tests": [
+      "test/formats/morrowind/cufffit.test.js"
+    ],
+    "old": "const sink = smooth01((a - ring.a0) / CUFF_FIT.bury);",
+    "new": "const sink = 0;"
+  },
+  {
+    "name": "CUFF-FIT-the-tongue-for-the-end",
+    "file": "src/formats/morrowind/mwCuffFit.js",
+    "tests": [
+      "test/formats/morrowind/cufffit.test.js"
+    ],
+    "old": "if (a[i] - a[i - CUFF_FIT.ringVerts + 1] <= CUFF_FIT.ringSpan) return a[i];",
+    "new": "return a[i];"
+  },
+  {
+    "name": "CUFF-FIT-the-draw-at-the-end-alone",
+    "file": "src/formats/morrowind/mwCuffFit.js",
+    "tests": [
+      "test/formats/morrowind/cufffit.test.js"
+    ],
+    "old": "const da = ends ? (ring.a0 + CUFF_FIT.bury - a1) * Math.min(1, Math.max(0, (c[0] - aStart) / span)) : 0;",
+    "new": "const da = ends ? (ring.a0 + CUFF_FIT.bury - a1) * smooth01((c[0] - (a1 - CUFF_FIT.reach)) / CUFF_FIT.reach) : 0;"
+  },
+  {
+    "name": "CUFF-FIT-the-skin-kept-as-a-flare",
+    "file": "src/formats/morrowind/mwCuffFit.js",
+    "tests": [
+      "test/formats/morrowind/cufffit.test.js"
+    ],
+    "old": "const flared = flare && a1 > ring.a0 + CUFF_FIT.flare;",
+    "new": "const flared = a1 > ring.a0 + CUFF_FIT.flare;"
+  },
+  {
+    "name": "CUFF-FIT-the-drawn-vertex-left-behind",
+    "file": "src/formats/morrowind/mwCuffFit.js",
+    "tests": [
+      "test/formats/morrowind/cufffit.test.js"
+    ],
+    "old": "    if (!(f > 0)) { targets.set(v, to); continue; }   // drawn on, or cleared, alone: its own bones\n",
+    "new": "    if (!(f > 0)) continue;\n"
+  },
+  {
+    "name": "CUFF-FIT-the-arm-skin-ignored",
+    "file": "src/formats/morrowind/mwFirstPerson.js",
+    "old": "const skins = c === 'cuff' ? mine.filter((p) => sideOf(p) === side && p.cuffFit === 'skin').map((p) => p.batch) : [];",
+    "new": "const skins = [];",
+    "tests": [
+      "test/formats/morrowind/cufffit.test.js"
+    ]
+  },
+  {
+    "name": "CUFF-FIT-the-chords-ignored",
+    "file": "src/formats/morrowind/mwCuffFit.js",
+    "old": "want = (r0 + CUFF_FIT.skinClearance) / Math.cos(ht);",
+    "new": "want = r0 + CUFF_FIT.skinClearance;",
+    "tests": [
+      "test/formats/morrowind/cufffit.test.js"
+    ]
+  },
+  {
+    "name": "CUFF-FIT-pushed-any-distance",
+    "file": "src/formats/morrowind/mwCuffFit.js",
+    "old": "if (!(r < want) || want - r > CUFF_FIT.maxPush || r < 1e-6) return null;",
+    "new": "if (!(r < want) || r < 1e-6) return null;",
+    "tests": [
+      "test/formats/morrowind/cufffit.test.js"
+    ]
+  },
+  {
+    "name": "CUFF-FIT-cut-by-weights",
+    "file": "src/formats/morrowind/mwFirstPerson.js",
+    "old": "const t = p.cuffWhole ? trimToCuff(p.cuffWhole, ctx, frame, limit + CUFF_FIT.bury) : null;",
+    "new": "const t = null;",
+    "tests": [
+      "test/formats/morrowind/cufffit.test.js"
+    ]
+  },
+  {
+    "name": "CUFF-FIT-the-stray-kept",
+    "file": "src/formats/morrowind/mwCuffFit.js",
+    "old": "if (!kept.length || kept.length < least * I.length) return null;",
+    "new": "if (!kept.length) return null;",
+    "tests": [
+      "test/formats/morrowind/cufffit.test.js"
+    ]
+  },
+  {
+    "name": "CUFF-FIT-the-hand-kept-not-the-cuff",
+    "file": "src/formats/morrowind/mwCuffFit.js",
+    "old": "/ 3 < limit) kept.push(I[t], I[t + 1], I[t + 2]);",
+    "new": "/ 3 >= limit) kept.push(I[t], I[t + 1], I[t + 2]);",
+    "tests": [
+      "test/formats/morrowind/cufffit.test.js"
+    ]
+  }
+]

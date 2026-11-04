@@ -10,7 +10,8 @@
 import { deref } from './mwNifFile.js';
 import { flattenNif } from './mwNifMesh.js';
 import { particleSystemOf, affineInverse } from './mwParticles.js';   // MAC-Q: a part's particle systems, off the same walk; MWNPC9: a creature node's rest undone
-import { skeletonSpaceMatrices, poseSkeleton, GRAPH_ROOT } from './mwSkin.js';
+import { affineMul } from './mwAffine.js';
+import { buildSkeleton, skeletonSpaceMatrices, poseSkeleton, skinPost, GRAPH_ROOT } from './mwSkin.js';
 
 /**
  * Rebind one part's batches onto the base skeleton.
@@ -235,27 +236,60 @@ export function bindPart(skeleton, partNif, opts = {}) {
   const skinned = [];
   const attached = [];
   const missingBones = new Set();
+  const retargetedBones = new Set();
+  const retargetRef = opts.retargetSkinToBone
+    ? skeleton.byName.get(String(opts.retargetSkinToBone).toLowerCase())
+    : undefined;
+  // A foreign skinned part has its OWN skin root. Its bone matrices and skin
+  // transforms are expressed relative to that root, not the NIF file's scene root.
+  // Rebinding must preserve the source bind pose relative to the source skin root,
+  // then place that whole frame at the actor's chest.
+  const actorRestMats = retargetRef === undefined ? null : skeletonSpaceMatrices(skeleton, new Map(), GRAPH_ROOT);
+  const sourceSkeleton = retargetRef === undefined ? null : buildSkeleton(partNif);
   for (const batch of batches) {
     if (!batch.skinned || !batch.skin) {
       attached.push(batch);
       continue;
     }
     const skin = batch.skin;
-    // RULE 40: A MISSING BONE IS NOT FATAL. The reference logs
-    // "RigGeometry did not find bone", stores nullptr, and skips every
-    // influence naming it in the blend (riggeometry.cpp:195-196) - it
-    // does NOT abort the part. This used to THROW here, which on a
-    // retail mesh weighting one bone the first-person skeleton lacks
-    // (a finger, say) dropped the WHOLE hand where the reference draws
-    // it. The ref is null now, skinBatch skips it, and the caller gets
-    // the names so the card can say what was skipped.
+    // Use the NIF's actual skin root (for Simply Animated Cloaks, "cloakbone"),
+    // not the file root. `skin.transform` and `shapeTransform` belong to that
+    // source bind frame, so fold them into the retargeted inverse binds and clear
+    // them on the rebound batch; otherwise the source offset is applied twice.
+    const sourceRestMats = retargetRef === undefined
+      ? null
+      : skeletonSpaceMatrices(sourceSkeleton, new Map(), skin.skeletonRoot);
+    const sourcePost = retargetRef === undefined
+      ? null
+      : skinPost({ ...skin, rootBone: skin.skeletonRoot }, sourceSkeleton, null);
+    // RULE 40: an absent actor bone normally skips its influences. A foreign cloak
+    // is different: its own bones are attached to the chest, preserving the complete
+    // source bind pose relative to the skin root. Names that do exist on the actor
+    // keep their animation, but receive the same bind-space conversion.
     const bones = skin.bones.map((bone) => {
-      const ref = skeleton.byName.get(bone.name);
-      if (ref === undefined) {
+      const name = String(bone.name).toLowerCase();
+      const actorRef = skeleton.byName.get(name);
+      if (retargetRef !== undefined) {
+        const sourceRef = sourceSkeleton.byName.get(name);
+        const sourceRest = sourceRef === undefined ? null : sourceRestMats.get(sourceRef);
+        const targetRef = actorRef === undefined ? retargetRef : actorRef;
+        const targetRest = actorRestMats.get(targetRef);
+        const chestRest = actorRestMats.get(retargetRef);
+        const sourceBind = sourceRest
+          ? affineMul(sourcePost, affineMul(sourceRest, bone.invBind))
+          : affineMul(sourcePost, bone.invBind);
+        // D * newInvBind == chestRest * sourceBind, where D is the actor bone
+        // chosen for this influence. The source post-transform is absorbed exactly
+        // once, so the rebound batch itself has identity post-transform.
+        const invBind = affineMul(affineInverse(targetRest), affineMul(chestRest, sourceBind));
+        retargetedBones.add(bone.name);
+        return { ...bone, ref: targetRef, invBind };
+      }
+      if (actorRef === undefined) {
         missingBones.add(bone.name);
         return { ...bone, ref: null };
       }
-      return { ...bone, ref };
+      return { ...bone, ref: actorRef };
     });
     // MW-D20: A REBOUND PART LIVES IN GRAPH SPACE, FULL STOP. The port
     // used to resolve the part's declared skin-root NAME into the base
@@ -271,7 +305,17 @@ export function bindPart(skeleton, partNif, opts = {}) {
     // data that is a hand floating away from the forearm it belongs
     // to, and on every fixture (identity roots throughout) it was
     // invisible.
-    batch.skin = { ...skin, bones, skeletonRoot: GRAPH_ROOT, rootBone: GRAPH_ROOT };
+    const identityTransform = () => ({
+      rotation: Float32Array.from([1, 0, 0, 0, 1, 0, 0, 0, 1]),
+      translation: [0, 0, 0],
+      scale: 1,
+    });
+    batch.skin = retargetRef === undefined
+      ? { ...skin, bones, skeletonRoot: GRAPH_ROOT, rootBone: GRAPH_ROOT }
+      : {
+          ...skin, bones, skeletonRoot: GRAPH_ROOT, rootBone: GRAPH_ROOT,
+          transform: identityTransform(), shapeTransform: identityTransform(),
+        };
     skinned.push(batch);
   }
   let attachRef = null;
@@ -288,7 +332,13 @@ export function bindPart(skeleton, partNif, opts = {}) {
     // offset from.
     boneOffset = boneOffsetOf(partNif);
   }
-  return { skinned, attached, attachRef, boneOffset, missingBones: [...missingBones], effects };
+  return {
+    skinned, attached, attachRef, boneOffset,
+    missingBones: [...missingBones],
+    retargetedBones: [...retargetedBones],
+    retargetTarget: retargetRef === undefined ? null : skeleton.nodes.get(retargetRef)?.name ?? null,
+    effects,
+  };
 }
 
 /** MWNPC9: the debug shapes a creature's model carries ("Tri Bip01 ..."), which OpenMW strips from a creature's

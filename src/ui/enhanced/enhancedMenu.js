@@ -208,7 +208,7 @@ import { openPlusPadBinds, plusPadLegend } from '../plus/plusPadBinds.js';   // 
 import { plusBindsOpen, resetPlusDpad } from '../plus/plusPad.js';
 import { peerBindBusy } from '../peerMenuBindCard.js';   // PEERMENU1   // PADPLUS10: the window over this one answers its own keys
 import { modKeyRows } from '../../systems/controlsConfig.js';   // UXB1-F: a mod's keys, read-only on its tile
-import { MOD_SETTINGS, modSetting, setModSetting, onlineModSetting, isIntKey, isFloatKey, isChoiceKey, isTextKey, isTupleKey } from '../../systems/modSettings.js';   // REALM P0.2: onlineModSetting, the room's value for a key it owns (whole mods included)
+import { MOD_SETTINGS, modSetting, setModSetting, modSettingNotice, onlineModSetting, isIntKey, isFloatKey, isChoiceKey, isTextKey, isTupleKey } from '../../systems/modSettings.js';   // REALM P0.2: onlineModSetting, the room's value for a key it owns (whole mods included)
 import { keyCodeForDomCode, KEYCODE_NONE } from '../../systems/keyCodes.js';   // HT1: a TextKey's capture spells the key as Unity would
 import { isOnlinePage, onlineForcedPref, onlineForcedModSetting, onlineForcedSetting, onlineWholeModKey, ONLINE_ROOM_MOD_KEYS } from '../../systems/online/onlineLane.js';   // OL1: online is the enhanced lane, whole - a forced switch is shown locked   // ROADS 24; DS1: the integer keys; UL1: the choice keys
 import { onlineSyncPlan, applyOnlineSync, lastOnlineSync, undoOnlineSync } from '../../systems/online/onlineSync.js';   // UXB1-E: the room's rules, copied home
@@ -1897,6 +1897,28 @@ function paneExit(body) {
 // graphicsPresets.js). The pause window draws the same screen, condensed as PX10 had it: the rows that act in play.
 
 let optQuery = '';          // ORG2: the search, over every tab - kept across a repaint, cleared by a tab change
+const selectedSectionByTab = { animations: 'locomotion' }; // The open section for each settings tab.
+const ANIMATION_GROUPS_BY_SECTION = Object.freeze({
+  locomotion: Object.freeze(['running', 'walking']),
+  posture: Object.freeze(['posture', 'turning', 'idle']),
+  combat: Object.freeze(['attacks', 'blocking']),
+  traversal: Object.freeze(['jumping', 'swimming', 'falling']),
+  reactions: Object.freeze(['damage', 'death']),
+});
+const DEFAULT_ANIMATION_GROUP_BY_SECTION = Object.freeze({
+  locomotion: 'running',
+  posture: 'posture',
+  combat: 'attacks',
+  traversal: 'jumping',
+  reactions: 'damage',
+});
+const animationClipGroupBySection = { ...DEFAULT_ANIMATION_GROUP_BY_SECTION };
+const animationClipGroup = () => {
+  const section = selectedSectionByTab.animations ?? 'locomotion';
+  const groups = ANIMATION_GROUPS_BY_SECTION[section] ?? ANIMATION_GROUPS_BY_SECTION.locomotion;
+  const remembered = animationClipGroupBySection[section];
+  return groups.includes(remembered) ? remembered : groups[0];
+};
 let optFilter = 'all';      // ORG2: 'all' | 'changed' | a KINDS id
 let pickedFeature = null;   // ORG2: the Features row the help pane reads (pickedKey is DFU's key)
 let optScrollTo = null;     // ORG2: a row to bring into view after the next paint (the mods' list sends you to one)
@@ -1962,6 +1984,46 @@ function itemKinds(item) {
 function itemText(item, pool) {
   if (isSettingItem(item)) return `${labelOf(item)} ${helpOf(item)} ${item}`;
   if (item.startsWith('feat:')) { const f = FEATURES.find((x) => x.id === item.slice(5)); return f ? featureSearchText(f) : ''; }
+  if (item.startsWith('group:')) return ({ walking: 'ходьба walking walk', running: 'бег running run' })[item.slice(6)] ?? '';
+  if (item.startsWith('label:')) return ({
+    player: 'player игрок', npc: 'npc нпс',
+    walking: 'ходьба walking walk', running: 'бег running run',
+    'walking-player': 'ходьба игрок player', 'walking-npc': 'ходьба npc нпс',
+    'running-player': 'бег игрок player', 'running-npc': 'бег npc нпс',
+    turning: 'повороты развороты turning turn', idle: 'стойка ожидание idle stance',
+    sneak: 'скрытность sneak stealth', attacks: 'атаки attacks',
+    blocking: 'блокирование защита blocking block', jumping: 'прыжки jumping jump',
+    swimming: 'плавание swimming swim', falling: 'падение приземление falling landing',
+    damage: 'получение урона damage hit', death: 'смерть death',
+  })[item.slice(6)] ?? '';
+  if (item.startsWith('info:')) return ({
+    'player-run': 'player передвижение бег run running sprint locomotion',
+    'npc-run': 'npc передвижение бег run running sprint locomotion',
+    'player-turning': 'player повороты разворот turn turning',
+    'npc-turning': 'npc повороты разворот turn turning',
+    'player-idle': 'player стойка ожидание idle stance wait',
+    'npc-idle': 'npc стойка ожидание idle stance wait',
+    'player-sneak': 'player скрытность sneak stealth crouch',
+    'npc-sneak': 'npc скрытность sneak stealth crouch',
+    'player-attacks': 'player атаки attacks combat weapon strike',
+    'npc-attacks': 'npc атаки attacks combat weapon strike',
+    'player-blocking': 'player блокирование защита blocking block guard',
+    'npc-blocking': 'npc блокирование защита blocking block guard',
+    'player-magic': 'player магия заклинания magic spell cast',
+    'npc-magic': 'npc магия заклинания magic spell cast',
+    'player-actions': 'player действия взаимодействие actions interaction use activate',
+    'npc-actions': 'npc действия взаимодействие actions interaction daily use',
+    'player-jumping': 'player прыжки jump jumping',
+    'npc-jumping': 'npc прыжки jump jumping',
+    'player-swimming': 'player плавание swim swimming',
+    'npc-swimming': 'npc плавание swim swimming',
+    'player-falling': 'player падение приземление fall falling landing',
+    'npc-falling': 'npc падение приземление fall falling landing',
+    'player-damage': 'player получение урона damage hit hurt',
+    'npc-damage': 'npc получение урона damage hit hurt',
+    'player-death': 'player смерть death dying',
+    'npc-death': 'npc смерть death dying',
+  })[item.slice(5)] ?? '';
   if (item.startsWith('port:')) return pool.get(item.slice(5))?.textContent ?? '';
   if (item === 'preset:graphics') return presetSearchText();
   if (item === 'link:overhauls') return 'overhauls looks textures vanilla enhanced sounds interface';
@@ -2001,6 +2063,97 @@ function itemNodes(item, ctx) {
     const f = FEATURES.find((x) => x.id === item.slice(5));
     return f ? [mark(featureTile(f))] : [];
   }
+  if (item.startsWith('group:')) {
+    const group = item.slice(6);
+    const labels = {
+      walking: 'Ходьба', running: 'Бег',
+      posture: 'Положение и скрытность', turning: 'Повороты и развороты', idle: 'Стойка и ожидание',
+      attacks: 'Атаки', blocking: 'Блокирование и защита',
+      jumping: 'Прыжки', swimming: 'Плавание', falling: 'Падение и приземление',
+      damage: 'Получение урона', death: 'Смерть',
+    };
+    const button = el('button', `sec-jumpbtn animation-switch animation-clip-group${animationClipGroup() === group ? ' is-active' : ''}`, labels[group] ?? group);
+    button.type = 'button';
+    button.setAttribute('aria-expanded', String(animationClipGroup() === group));
+    button.addEventListener('click', (event) => {
+      // This is a nested selector, not a settings-row action. Keep the outer
+      // menu from interpreting the click, update the selected clip family,
+      // and repaint the same live body node so the matching controls replace
+      // the previous family's controls immediately.
+      event.preventDefault();
+      event.stopPropagation();
+      const sectionForGroup = {
+        walking: 'locomotion', running: 'locomotion',
+        posture: 'posture', turning: 'posture', idle: 'posture',
+        attacks: 'combat', blocking: 'combat',
+        jumping: 'traversal', swimming: 'traversal', falling: 'traversal',
+        damage: 'reactions', death: 'reactions',
+      };
+      selectedSectionByTab.animations = sectionForGroup[group] ?? 'posture';
+      animationClipGroupBySection[selectedSectionByTab.animations] = group;
+      const body = ctx.body;
+      if (!body || !body.isConnected) return;
+      paintOptionsBody(body, { pause: ctx.pause });
+      // Keep the family selector in view after the section is repainted.
+      body.querySelector('.animation-clip-group.is-active')?.scrollIntoView?.({ block: 'nearest', inline: 'nearest' });
+    });
+    return [button];
+  }
+  if (item.startsWith('label:')) {
+    const labels = {
+      player: 'Игрок', npc: 'NPC',
+      'walking-player': 'Игрок', 'walking-npc': 'NPC',
+      'running-player': 'Игрок', 'running-npc': 'NPC',
+      walking: 'Ходьба', running: 'Бег',
+      turning: 'Повороты и развороты', idle: 'Стойка и ожидание', sneak: 'Скрытность',
+      attacks: 'Атаки', blocking: 'Блокирование и защита',
+      jumping: 'Прыжки', swimming: 'Плавание', falling: 'Падение и приземление',
+      damage: 'Получение урона', death: 'Смерть',
+    };
+    return [el('h4', 'animation-actor-heading', labels[item.slice(6)] ?? item.slice(6))];
+  }
+  if (item.startsWith('info:')) {
+    const copy = {
+      'player-run': ['Бег игрока', 'Отдельный источник бега игрока пока не подключён: используется штатный игровой клип. Настройка бега отделена от выбора ходьбы, чтобы будущий пак мог заменять только Run.'],
+      'npc-run': ['Бег NPC · мужчины', 'Для мужчин пока используется штатный игровой клип. Для женских NPC ниже доступен отдельный выбор источника бега.'],
+      'player-turning': ['Повороты игрока', 'Повороты и развороты выделены в отдельную группу. Совместимый внешний источник пока не подключён.'],
+      'npc-turning': ['Повороты NPC', 'Повороты и развороты NPC выделены отдельно. Совместимый внешний источник пока не подключён.'],
+      'player-idle': ['Стойка и ожидание игрока', 'Idle и переходы между стойками остаются на штатных клипах до подключения отдельного совместимого источника.'],
+      'npc-idle': ['Стойка и ожидание NPC', 'Idle и переходы между стойками NPC остаются на штатных клипах до подключения отдельного совместимого источника.'],
+      'player-sneak': ['Скрытность игрока', 'Sneak и связанные переходы выделены отдельно от обычной ходьбы. Совместимый внешний источник пока не подключён.'],
+      'npc-sneak': ['Скрытность NPC', 'Sneak и связанные переходы NPC выделены отдельно. Совместимый внешний источник пока не подключён.'],
+      'player-attacks': ['Атаки игрока', 'Атаки и замахи выделены независимо от блока. Morrowind Animation Overhaul не подключён: перед использованием нужно проверить разрешения и совместимость клипов.'],
+      'npc-attacks': ['Атаки NPC', 'Отдельный совместимый набор атак NPC пока не подключён; используются штатные клипы.'],
+      'player-blocking': ['Блокирование игрока', 'Блок, парирование и защитные стойки выделены отдельно от атак. Совместимый внешний источник пока не подключён.'],
+      'npc-blocking': ['Блокирование NPC', 'Защитные клипы NPC выделены отдельно от атак. Совместимый внешний источник пока не подключён.'],
+      'player-magic': ['Магия игрока', 'Совместимый и разрешённый внешний источник анимаций заклинаний пока не подключён.'],
+      'npc-magic': ['Магия NPC', 'Отдельный совместимый источник магии NPC пока не подключён.'],
+      'player-actions': ['Действия и взаимодействие игрока', 'Использование предметов и прочие действия вне боя используют штатные клипы; отдельный источник пока не подключён.'],
+      'npc-actions': ['Действия и взаимодействие NPC', 'Повседневные действия и взаимодействия NPC пока используют штатные клипы.'],
+      'player-jumping': ['Прыжки игрока', 'Прыжки выделены в отдельную группу. Пока используется штатный игровой клип.'],
+      'npc-jumping': ['Прыжки NPC', 'Прыжки NPC выделены в отдельную группу. Пока используется штатный игровой клип.'],
+      'player-swimming': ['Плавание игрока', 'Анимации плавания выделены независимо от прыжков и падений; внешний источник пока не подключён.'],
+      'npc-swimming': ['Плавание NPC', 'Анимации плавания NPC выделены независимо от прыжков и падений; внешний источник пока не подключён.'],
+      'player-falling': ['Падение и приземление игрока', 'Падение и приземление выделены независимо от прыжков. Пока используются штатные клипы.'],
+      'npc-falling': ['Падение и приземление NPC', 'Падение и приземление NPC выделены независимо от прыжков. Пока используются штатные клипы.'],
+      'player-damage': ['Получение урона игроком', 'Hit и реакции на урон выделены отдельно от смерти. Пока используются штатные клипы.'],
+      'npc-damage': ['Получение урона NPC', 'Hit и реакции NPC на урон выделены отдельно от смерти. Пока используются штатные клипы.'],
+      'player-death': ['Смерть игрока', 'Клипы смерти выделены отдельно от получения урона. Совместимый внешний источник пока не подключён.'],
+      'npc-death': ['Смерть NPC', 'Клипы смерти NPC выделены отдельно от получения урона. Совместимый внешний источник пока не подключён.'],
+    }[item.slice(5)];
+    if (!copy) return [];
+    const card = el('div', 'dcard animation-source-card');
+    card.append(el('h3', null, copy[0]));
+    const choices = el('div', 'animation-source-options');
+    const vanilla = el('button', 'sec-jumpbtn animation-switch is-active', 'Vanilla');
+    vanilla.type = 'button';
+    vanilla.disabled = true;
+    vanilla.setAttribute('aria-pressed', 'true');
+    vanilla.setAttribute('aria-label', 'Vanilla — единственный подключённый источник в этой категории');
+    choices.append(vanilla);
+    card.append(choices, el('p', 'meta', copy[1]));
+    return [card];
+  }
   if (item === 'port:language') { const r = pool.get('language'); const pack = r ? translationPackRow() : null; return r ? [mark(r), ...(pack ? [pack] : [])] : []; }   // L10N3b: the translation pack rides under the language row
   if (item.startsWith('port:')) { const r = pool.get(item.slice(5)); return r ? [mark(r)] : []; }
   if (item === 'preset:graphics') return [graphicsPresetRow()];
@@ -2035,7 +2188,15 @@ function tabSections(tab, ctx) {
   const fold = [];
   const out = [];
   for (const s of tab.sections) {
-    const nodes = s.items.flatMap((item) => itemNodes(item, { ...ctx, fold }));
+    let clipGroup = null;
+    const nodes = s.items.flatMap((item) => {
+      if (tab.id === 'animations' && item.startsWith('group:')) {
+        clipGroup = item.slice(6);
+        return itemNodes(item, { ...ctx, fold });
+      }
+      if (tab.id === 'animations' && clipGroup && clipGroup !== animationClipGroup()) return [];
+      return itemNodes(item, { ...ctx, fold });
+    });
     if (nodes.length) out.push({ s, nodes });
   }
   return { sections: out, fold };
@@ -2061,7 +2222,7 @@ function tabCount(tab, ctx) {
  *  every render. */
 function paintOptionsBody(body, { pause = false } = {}) {
   const pool = portPool({ pause });
-  const ctx = { pool, pause };
+  const ctx = { pool, pause, body };
   body.replaceChildren();
   const q = optQuery.trim();
   if (q) {
@@ -2080,22 +2241,60 @@ function paintOptionsBody(body, { pause = false } = {}) {
   const tab = CATEGORIES.find((c) => c.id === category) ?? CATEGORIES[0];
   if (tab.id === 'mods' && isOnlinePage()) body.append(el('p', 'meta opt-note', noteText(ONLINE_MODS_NOTE)));   // MODS-ONLINE-2: said once, over the mods; L10N4: in the player's language
   const { sections, fold } = tabSections(tab, ctx);
-  if (sections.length >= 3 && !pause) {
-    const strip = el('nav', 'sec-jump');
-    strip.setAttribute('aria-label', 'Sections');
+  if (sections.length > 1) {
+    // Every multi-section tab uses the same compact section picker: only the
+    // selected section is rendered, instead of stacking every section vertically.
+    const nav = el('nav', 'sec-jump animation-switches');
+    nav.setAttribute('aria-label', `${tab.title} sections`);
+    const group = el('div', 'animation-switch-group');
+    group.append(el('div', 'meta animation-switch-label', 'Раздел'));
+    const buttons = el('div', 'animation-switch-buttons');
+    const rememberedId = selectedSectionByTab[tab.id];
+    const selectedId = sections.some(({ s }) => s.id === rememberedId) ? rememberedId : sections[0].s.id;
     for (const { s } of sections) {
-      const b = el('button', 'sec-jumpbtn', s.title);
+      const b = el('button', `sec-jumpbtn animation-switch${selectedId === s.id ? ' is-active' : ''}`, s.title);
       b.type = 'button';
-      b.onclick = () => document.getElementById(`sec-${tab.id}-${s.id}`)?.scrollIntoView({ block: 'start' });
-      strip.append(b);
+      b.setAttribute('aria-pressed', String(selectedId === s.id));
+      b.onclick = () => {
+        selectedSectionByTab[tab.id] = s.id;
+        if (tab.id === 'animations') {
+          const allowed = ANIMATION_GROUPS_BY_SECTION[s.id] ?? [];
+          if (allowed.length && !allowed.includes(animationClipGroupBySection[s.id])) {
+            animationClipGroupBySection[s.id] = allowed[0];
+          }
+        }
+        paintOptionsBody(body, { pause });
+      };
+      buttons.append(b);
     }
-    body.append(strip);
-  }
-  const many = sections.length > 1;
-  for (const { s, nodes } of sections) {
-    const n = nodes.filter(isOptionNode).length;
-    if (many) body.append(sectionHead(tab, s, n));
-    body.append(...nodes);
+    group.append(buttons);
+    nav.append(group);
+    body.append(nav);
+    const selected = sections.find(({ s }) => s.id === selectedId) ?? sections[0];
+    if (selected) {
+      const isAnimationSection = tab.id === 'animations';
+      const nodes = isAnimationSection
+        ? selected.nodes.filter((node) => !node.classList?.contains('animation-clip-group'))
+        : selected.nodes;
+      const n = nodes.filter(isOptionNode).length;
+      body.append(sectionHead(tab, selected.s, n));
+      if (isAnimationSection) {
+        const switches = el('div', 'animation-switch-buttons animation-clip-group-switches');
+        const groups = ANIMATION_GROUPS_BY_SECTION[selected.s.id] ?? [];
+        for (const group of groups) {
+          const button = itemNodes(`group:${group}`, { ...ctx, fold })[0];
+          if (button) switches.append(button);
+        }
+        if (switches.childElementCount) body.append(switches);
+      }
+      body.append(...nodes);
+    } else body.append(empty('Nothing here'));
+  } else {
+    for (const { s, nodes } of sections) {
+      const n = nodes.filter(isOptionNode).length;
+      if (sections.length > 1) body.append(sectionHead(tab, s, n));
+      body.append(...nodes);
+    }
   }
   if (!sections.length) body.append(empty(optFilter === 'changed' ? 'Nothing changed' : 'Nothing here'));
   if (pause) body.append(el('p', 'meta opt-note', 'More options in the main menu\u2019s Settings.'));   // PX10: the closing line says so
@@ -2198,6 +2397,7 @@ function paneSettings(pane, { pause = false } = {}) {
   const pool = portPool({ pause });
 
   const rail = el('div', 'subrail');
+  const customSettingsGroup = el('div', 'custom-settings-group');
   for (const cat of CATEGORIES) {
     const on = cat.id === category && !optQuery.trim();
     const b = el('button', `subbtn${on ? ' on' : ''}`, cat.title);
@@ -2226,8 +2426,15 @@ function paneSettings(pane, { pause = false } = {}) {
       render();
     };
     if (on) b.append(el('span', 'more-dot'));
-    rail.append(b);
+    // Keep the custom Morrowind settings together, below the built-in categories.
+    if (['animations', 'bodies', 'textures'].includes(cat.id)) {
+      b.classList.add('custom-settings-tab');
+      customSettingsGroup.append(b);
+    } else {
+      rail.append(b);
+    }
   }
+  if (customSettingsGroup.childElementCount) rail.append(customSettingsGroup);
 
   const list = el('div', 'list');
   const body = el('div', 'opt-body');
@@ -3363,6 +3570,7 @@ export function morrowindCard({ count = morrowindDataCount(), armState = fpArm.s
     [t('menu.mw.data', 'Data'), t('menu.mw.archives', '{n, plural, =0 {none attached} one {# archive attached} other {# archives attached}}', { n: count || 0 })],
     ...(count ? [[t('menu.mw.arms', 'Arms'), morrowindArmsLine(armState)]] : []),
   ]));
+  mw.append(el('p', 'meta', t('menu.mw.thirdOnlyState', 'Только Third Person: {state}', { state: getPref('morrowindThirdPersonOnly') ? 'Вкл' : 'Выкл' })));
   const attach = async () => {
     const ds = await import('../../scenes/dataSource.js');
     const n = await ds.pickMorrowindFiles();
@@ -3375,6 +3583,7 @@ export function morrowindCard({ count = morrowindDataCount(), armState = fpArm.s
     render();
   };
   const actions = [{ label: t('menu.mw.attach', 'Attach data'), primary: !count, onClick: attach }];
+  actions.push({ label: 'Только Third Person', onClick: () => { setPref('morrowindThirdPersonOnly', !getPref('morrowindThirdPersonOnly')); render(); } });
   // MWA2 (2026-09-16): the door that removes the data itself - the one off there is now. Routed through the same
   // confirm-before-destroy pattern as Delete Save.
   if (count) {
@@ -3383,6 +3592,7 @@ export function morrowindCard({ count = morrowindDataCount(), armState = fpArm.s
       t('menu.mw.removeBody', 'This clears the Morrowind files from this browser and unloads the arms. You can attach them again later.'),
       t('menu.packs.removeYes', 'Remove'),
       async () => {
+        setPref('morrowindThirdPersonOnly', false);
         fpArm.unload();
         const ds = await import('../../scenes/dataSource.js');
         await ds.clearStoredMorrowind();
@@ -3747,11 +3957,24 @@ export function tileStates(f) {   // FT18: exported for the All off pins, which 
     }
     return null;
   }
-  // a vendored mod's Enabled - the player's online too (MODS-ONLINE-2), but for the road switches the room's ground depends on
+  // A vendored mod may expose a choice (MultipleChoiceKey), not an Enabled
+  // switch. Treating every mod control as boolean made FemaleWalk appear as
+  // Off/On and never exposed its Standard/Female options.
+  const def = MOD_SETTINGS[c.vendor]?.keys?.[c.key];
+  if (isChoiceKey(def)) {
+    const raw = Number(modSetting(c.vendor, c.key));
+    const fallback = Number.isInteger(Number(def.default)) ? Number(def.default) : 0;
+    const at = Number.isInteger(raw) && raw >= 0 && raw < def.options.length
+      ? raw : Math.max(0, Math.min(def.options.length - 1, fallback));
+    return { labels: Array.from(def.options, (label) => String(label)), at,
+      locked: onlineForcedModSetting(c.vendor, c.key) !== undefined,
+      set: (i) => { const value = setModSetting(c.vendor, c.key, i); TILE_AFTER[c.key]?.(); return value; } };
+  }
+  // A vendored mod's Enabled - the player's online too (MODS-ONLINE-2), but for the road switches the room's ground depends on
   const on = modSetting(c.vendor, c.key) === true || modSetting(c.vendor, c.key) === 'True';
   return { labels: ['Off', 'On'], shown: toggleWords(), at: on ? 1 : 0,
     locked: onlineForcedModSetting(c.vendor, c.key) !== undefined,
-    set: (i) => setModSetting(c.vendor, c.key, i === 1) };
+    set: (i) => { const value = setModSetting(c.vendor, c.key, i === 1); TILE_AFTER[c.key]?.(); return value; } };
 }
 /** L10N4: what a two-state bar SHOWS for its law's ['Off', 'On'] - the labels stay the law's words (All off, the
  *  switch reading and Restore find Off by them), the shown words are the player's language. */
@@ -3784,7 +4007,9 @@ const rebuildMorrowindBody = async () => {
 };
 const TILE_AFTER = Object.freeze({
   mwSheathing: rebuildMorrowindBody,
-  mwSteelHelm: rebuildMorrowindBody,   // MW-STEEL1: the steel helm's style, closed or open, on the standing body at once
+  BetterBodies: rebuildMorrowindBody,
+  FirstPersonHands: rebuildMorrowindBody, // Rebuild the live first-person rig when its independent hand source changes.
+  SeamlessDMRA: rebuildMorrowindBody,
   mwBeastFeet: rebuildMorrowindBody,   // BEAST-BOOTS: a beast's footwear and helmet, on the standing body at once
   mwBeastHelm: rebuildMorrowindBody,
 });
@@ -3859,6 +4084,8 @@ export function featureTile(f) {
   if (st) ctl.append(segBar(st, f.title));
   else ctl.append(featureRow(f));
   tile.append(ctl);
+  const settingNotice = c.store === 'mods' ? modSettingNotice(c.vendor, c.key) : '';
+  if (settingNotice) tile.append(el('p', 'meta ft-tile-notice', settingNotice));
 
   // the drawer's door: a mod's modules and dials.
   //
@@ -3874,7 +4101,7 @@ export function featureTile(f) {
   if (vendor) {
     const mods = modModules(vendor);
     const dials = modDials(vendor);
-    const keys = modKeyRows(vendor, bindings());   // UXB1-F
+    const keys = vendor === 'morrowind-textures' ? [] : modKeyRows(vendor, bindings());   // MW-TEXTURE-PACKS: these switches already have one row each in the Textures tab
     if (mods.length || dials.length || keys.length) {
       const open = featureOpen === f.id;
       const b = el('button', 'ft-tile-more');

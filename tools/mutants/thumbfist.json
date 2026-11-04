@@ -1,0 +1,65 @@
+[
+  {
+    "name": "THUMB-FIST-the-thumb-made-longer",
+    "file": "src/formats/morrowind/mwThumbFist.js",
+    "old": "if (q) out.set(name, [Math.min(0, q[0] - c[0]), q[1] - c[1], q[2] - c[2]]);",
+    "new": "if (q) out.set(name, [q[0] - c[0], q[1] - c[1], q[2] - c[2]]);",
+    "tests": [
+      "test/formats/morrowind/thumbfist.test.js"
+    ]
+  },
+  {
+    "name": "THUMB-FIST-the-move-unturned",
+    "file": "src/formats/morrowind/mwThumbFist.js",
+    "old": "const a = m.a, w = [a[0] * d[0] + a[1] * d[1] + a[2] * d[2], a[3] * d[0] + a[4] * d[1] + a[5] * d[2], a[6] * d[0] + a[7] * d[1] + a[8] * d[2]];",
+    "new": "const a = m.a, w = [d[0], d[1], d[2]];",
+    "tests": [
+      "test/formats/morrowind/thumbfist.test.js"
+    ]
+  },
+  {
+    "name": "THUMB-FIST-the-centre-in-the-world",
+    "file": "src/formats/morrowind/mwThumbFist.js",
+    "old": "for (let i = 0; i < 3; i++) c[i] += (a[i] * d[0] + a[3 + i] * d[1] + a[6 + i] * d[2]) / s2;",
+    "new": "for (let i = 0; i < 3; i++) c[i] += d[i];",
+    "tests": [
+      "test/formats/morrowind/thumbfist.test.js"
+    ]
+  },
+  {
+    "name": "THUMB-FIST-the-palm-pulled-too",
+    "file": "src/formats/morrowind/mwThumbFist.js",
+    "old": "    if (!isThumbBone(b.name) || b.ref == null) continue;\n    const m = pose.mats.get(b.ref);",
+    "new": "    if (b.ref == null) continue;\n    const m = pose.mats.get(b.ref);",
+    "tests": [
+      "test/formats/morrowind/thumbfist.test.js"
+    ]
+  },
+  {
+    "name": "THUMB-FIST-at-once",
+    "file": "src/formats/morrowind/mwThumbFist.js",
+    "old": "      w = goal > w ? Math.min(goal, w + k) : Math.max(goal, w - k);",
+    "new": "      w = goal;",
+    "tests": [
+      "test/formats/morrowind/thumbfist.test.js"
+    ]
+  },
+  {
+    "name": "THUMB-FIST-the-mesh-written",
+    "file": "src/formats/morrowind/mwThumbFist.js",
+    "old": "    p.batch = { ...p.batch, positions: Float32Array.from(open) };",
+    "new": "    p.batch.positions = Float32Array.from(open);",
+    "tests": [
+      "test/formats/morrowind/thumbfist.test.js"
+    ]
+  },
+  {
+    "name": "THUMB-FIST-not-in-the-fists",
+    "file": "src/combat/fpArm.js",
+    "old": "built.thumbFist?.step(dt, animWeaponType(built.mwType, sheathed, spellReady) === MW_WEAPON_TYPE.HandToHand);",
+    "new": "built.thumbFist?.step(dt, animWeaponType(built.mwType, sheathed, spellReady) !== MW_WEAPON_TYPE.HandToHand);",
+    "tests": [
+      "test/formats/morrowind/thumbfist.test.js"
+    ]
+  }
+]

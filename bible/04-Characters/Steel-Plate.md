@@ -180,6 +180,12 @@ pauldron's upper arm is the first person's skin.
 
 ## The Steel Helm switch
 
+**THE ROW IS GONE (2026-10-27, the owner: "the same helms open, closed, horned still hang in the settings ... remove
+what is no longer current").** A helm's look is turned on the worn piece in the inventory (LOOK-VARIANTS,
+`04-Characters/Look-Bench.md` section 2), which writes the same pref, `mwSteelHelm`, and rebuilds the body itself
+(lookVariants.js rebuildForLook); the `steel-helm` Features row, its place on the Bodies tab and its TILE_AFTER step are
+removed, and an unset pref is the closed helm. The paragraph below records the switch as it was built.
+
 Mac's answers: a Features switch beside Weapon Sheathing, **closed by default**. `steel-helm` (systems/features.js,
 group Combat, the port's own): pref `mwSteelHelm`, `closed` or `open` (ownArmorModels.js STEEL_HELM_STYLES - the
 switch's values ARE the helm's styles). It is the VIEWER's, as the sheathing is: read where the worn set is composed

@@ -98,7 +98,7 @@ test('HAND-WRAPS AUDIT B11: the item law knows the wraps headless - its own impo
 
 test('HAND-WRAPS AUDIT C5: the running hands - the wraps leave the hands empty, and the running fists wear their glow (mutants: the wraps a held item; the run drawn without the glow)', () => {
   const rig = readFileSync(new URL('../../src/combat/weapon/weaponRig.js', import.meta.url), 'utf8');
-  assert.ok(rig.includes('const held = (s) => slots?.[s] && !isHandWraps(slots[s]);'));
+  assert.ok(rig.includes('const held = (item) => !!item && !isHandWraps(item);'));
   assert.ok(rig.includes('twoHands.drawRun(renderer, c, artFor(null), { ...(pairUp() && shown() ? o : { ...o, shown: false }), glowFor: handGlowOf });'));
   const two = readFileSync(new URL('../../src/combat/twoHands/twoHands.js', import.meta.url), 'utf8');
   assert.ok(two.includes("if (glow) renderer.drawScreenQuadGlow?.(q.tex, rect, uv, glow, { art: [q.rec.width, q.rec.height], view: [canvas.width, canvas.height] });   // HAND-WRAPS"), 'the run\'s swap');

@@ -43,7 +43,7 @@ function boxPart(asm, bone, slot, [min, max]) {
 }
 
 test('AUDIT MW-CLOAK: fit 1 holds the cloak over the poses - the rest, a stride each way with both arms back, and (MW-CAPE-RIGID) the chest leant back - so no piece of the ebony plate comes through it in any pose of the sweep; fitted at rest alone, an arm swung back still brought a pauldron through, and without the lean, leaning back brought the tassets through', async () => {
-  assert.equal(CLOAK_FIT_POSES.length, 4);
+  assert.equal(CLOAK_FIT_POSES.length, 7);
   assert.deepEqual(CLOAK_FIT_POSES[0], {}, 'the rest first');
   assert.deepEqual(CLOAK_FIT_POSES[3], { 'bip01 spine2': ['z', -10] }, 'the chest leant back as far as the sweep leans it');
   for (const pose of CLOAK_FIT_POSES.slice(1, 3)) {
@@ -65,6 +65,11 @@ test('AUDIT MW-CLOAK: fit 1 holds the cloak over the poses - the rest, a stride 
   for (const [name, turns] of Object.entries(SWEEP)) {
     poseAssembly(asm, Object.keys(turns).length ? turned(asm, turns) : {});
     assert.ok(through(asm, isUnder) <= 1e-3, `${name}: nothing stands behind the sheet`);
+  }
+  // Regression: forward arm sweeps used by attacks were missing from the fit envelope.
+  for (const [i, turns] of CLOAK_FIT_POSES.slice(4).entries()) {
+    poseAssembly(asm, turned(asm, turns));
+    assert.ok(through(asm, isUnder) <= 1e-3, `forward attack fit pose ${i + 1}: nothing stands behind the sheet`);
   }
 });
 

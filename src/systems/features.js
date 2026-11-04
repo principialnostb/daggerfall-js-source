@@ -40,7 +40,8 @@
 import { ALL_KEYS } from './settings/settings.js';
 import { MOD_SETTINGS } from './modSettings.js';
 import { declareOnlinePrefs } from './online/onlineLane.js';   // RF4: the lane learns its answers from the rows
-import { t, localizedText } from './textManager.js';   // L10N4: the screen's words in the player's language, read as they are read
+import { t, localizedText } from './textManager.js';
+import { CHAR_PIXEL_INITIAL, CHAR_PIXEL_TIERS } from './charPixel.js';   // CHAR-PIX1   // L10N4: the screen's words in the player's language, read as they are read
 
 /** The three kinds, in label order. `label` is what the row wears and
  *  the chip says; the colour is the skin's (ui/enhanced/enhancedStyle.js .kind).
@@ -1297,20 +1298,8 @@ export const FEATURES = Object.freeze([
     kinds: Object.freeze(['mod']),
     control: Object.freeze({ store: 'prefs', key: 'mwSheathing', initial: true, online: 'player' }),
   }),
-  // MW-STEEL1 (2026-10-06, Mac: "the armor replacement of the morrowind steel armor with a varient to toggle the helmet
-  // type"): the steel plate's helm, two ways - closed (a visor and a plume) or open (a nasal helm, the face showing).
-  // Mac's answers: a switch here beside Weapon Sheathing, closed by default. The VIEWER'S, as the sheathing is: it is
-  // how this machine draws a steel helm - the player's and every peer's - and it never reaches the wire. Read where the
-  // worn set is composed (combat/fpArm.js); the tile rebuilds the body at once (ui/enhanced/enhancedMenu.js TILE_AFTER).
-  Object.freeze({
-    id: 'steel-helm',
-    group: 'combat',
-    title: 'Steel Helm',
-    note: 'With the Morrowind body, choose how a Steel Helm looks: Closed has a visor and a plume; Open is a nasal helm that shows the face.',
-    effect: 'Takes effect at once with the Morrowind body.',
-    kinds: Object.freeze(['enhanced']),
-    control: Object.freeze({ store: 'prefs', key: 'mwSteelHelm', initial: 'closed', online: 'player', tiers: Object.freeze([['closed', 'Closed'], ['open', 'Open']]) }),
-  }),
+  // MW-STEEL1's Steel Helm row is gone (MOTION-DOCTRINE settings pass, 2026-10-27): a helm's look is turned on the worn
+  // piece in the inventory (systems/lookVariants.js), which writes the same viewer's pref, `mwSteelHelm`.
   // BEAST-BOOTS (2026-10-24, asked: the Beast Boots look and hiding helmets on Khajiit and Argonians as options, not the
   // default): what a beast race wears on its feet and its head, two switches of three ways each, As worn by default.
   // The VIEWER'S, as the Steel Helm is: how this machine draws every Khajiit and Argonian - the player, a peer, an NPC -
@@ -1354,21 +1343,36 @@ export const FEATURES = Object.freeze([
     kinds: Object.freeze(['enhanced']),
     control: Object.freeze({ store: 'prefs', key: 'mwSpellEffects', initial: true, online: 'player' }),
   }),
-  // BODY-MOTION (2026-10-18, Mac: "I want to build improved animations for the morrowind rig (3rd person)"; bible/04-Characters/
-  // Body-Motion.md): the Morrowind body's own motion in third person - its walk, run and sneak paced to its speed and its
-  // race's leg, each weapon carried its own way, a blow thrown with the whole body while the legs keep moving
-  // (characters/bodyMotion/) - over Morrowind's clips. On by default. The VIEWER'S, as the Steel Helm is: how this machine
-  // draws a body - mine, a peer's, the people's - never the wire. Read every frame where each rig builds its word
-  // (characters/bodyMotion/bodyMotion.js motionWord), so it eases in or out at once.
+  // MW-BB-SETTINGS: the player's own body geometry. Better Bodies is the selected default;
+  // switching it off restores the standard Morrowind body and first-person arms.
   Object.freeze({
-    id: 'mw-body-motion',
-    group: 'combat',
-    get title() { return t('features.mwBodyMotion.title', 'Morrowind Body Motion'); },
-    get note() { return t('features.mwBodyMotion.note', 'In third person a Morrowind body walks at the pace you move, carries each weapon its own way, and '
-      + 'swings with its whole body while its legs keep moving. Off plays Morrowind\u2019s own animations.'); },
-    get effect() { return t('features.effect.atOnce', 'Takes effect at once.'); },
+    id: 'mw-better-bodies',
+    group: 'character',
+    title: 'Better Bodies',
+    effect: 'Takes effect at once.',
     kinds: Object.freeze(['enhanced']),
-    control: Object.freeze({ store: 'prefs', key: 'mwBodyMotion', initial: true, online: 'player' }),
+    get note() { return MOD_SETTINGS['morrowind-textures'].keys.BetterBodiesSource.description; },
+    control: Object.freeze({ store: 'mods', vendor: 'morrowind-textures', key: 'BetterBodiesSource' }),
+  }),
+  // First-person arm geometry is independent of the third-person body source.
+  Object.freeze({
+    id: 'mw-first-person-hands',
+    group: 'character',
+    title: 'Руки от первого лица',
+    get note() { return MOD_SETTINGS['morrowind-textures'].keys.FirstPersonHands.description; },
+    effect: 'После перестройки модели рук.',
+    kinds: Object.freeze(['mod']),
+    control: Object.freeze({ store: 'mods', vendor: 'morrowind-textures', key: 'FirstPersonHands' }),
+  }),
+  // DMRA is a female-only geometry variant of the Better Bodies base.
+  Object.freeze({
+    id: 'mw-seamless-dmra',
+    group: 'character',
+    title: 'Seamless DMRA · женская геометрия',
+    get note() { return MOD_SETTINGS['morrowind-textures'].keys.SeamlessDMRASource.description; },
+    effect: 'Геометрия — сразу; дополнительные карты — после перезагрузки.',
+    kinds: Object.freeze(['mod']),
+    control: Object.freeze({ store: 'mods', vendor: 'morrowind-textures', key: 'SeamlessDMRASource' }),
   }),
   // MW-SHOULDER (FIELD BUGS 2026-10-26c, feature-feedback via Mac: "please, add an option to move camera a bit to the side
   // ... for morrowind 3rd person models ... because crosshair is located on top of character's head"): the reference's
@@ -1434,22 +1438,20 @@ export const FEATURES = Object.freeze([
     kinds: Object.freeze(['enhanced']),
     control: Object.freeze({ store: 'prefs', key: 'mwBillboardLook', initial: false, online: 'player' }),
   }),
-  // MW-DETAIL (2026-10-22, a player's report: "morrowind 3d models are always pixelated ... this should probably be
-  // optional"): every Morrowind picture - the bodies, the 3D horses, the first-person arm - is drawn at MW_ARM_PIXEL
-  // screen pixels a texel, the owner's look; Sharp draws them a texel a pixel, at the screen's own resolution. Pixelated
-  // stays the default. The VIEWER'S: how this machine draws a body, never on the wire. Read where each picture is sized
-  // (render/characterSprite.js mwModelPixel), so it takes effect at once. Sharp grows the sprite target to the screen's
-  // size where a picture needs it (render/renderer.js charSpriteRoom, CHAR_SPRITE_RT_MAX).
-  Object.freeze({
-    id: 'mw-model-detail',
+  // CHAR-PIX1 (2026-10-27, the owner): THE MORROWIND BODIES, PIXELATED LIKE DAGGERFALL'S SPRITES - three dials, the
+  // first-person hands, the player's body and everyone else's, each in rows per screen height (render/charPixelLayer.js).
+  ...[['fp', 'char-pixel-fp', 'charPixelFp', 'Pixelated hands (1st person)', 'The first-person hands and weapon drawn in coarse pixels, like the world around them.'],
+    ['player', 'char-pixel-player', 'charPixelPlayer', 'Pixelated player body (3rd person)', 'Your own Morrowind body drawn in coarse pixels in third person. The body keeps its true depth and contact with the ground.'],
+    ['npc', 'char-pixel-npc', 'charPixelNpc', 'Pixelated NPC bodies', 'Every other Morrowind body - NPCs, foes, guards and other players - drawn in coarse pixels like the classic sprites.'],
+  ].map(([who, id, key, title, note]) => Object.freeze({
+    id,
     group: 'world',
-    get title() { return t('features.mwModelDetail.title', 'Morrowind Model Detail'); },
-    get note() { return t('features.mwModelDetail.note', 'With the Morrowind body, Pixelated draws bodies, horses and your arms in large pixels '
-      + 'like the classic sprites. Sharp draws them at your screen’s full resolution and uses more video memory.'); },
+    get title() { return t(`features.${key}.title`, title); },
+    get note() { return t(`features.${key}.note`, `${note} Classic is Daggerfall's own 320x200 frame.`); },
     get effect() { return t('features.effect.atOnce', 'Takes effect at once.'); },
     kinds: Object.freeze(['enhanced']),
-    control: Object.freeze({ store: 'prefs', key: 'mwModelDetail', initial: 'pixel', online: 'player', tiers: Object.freeze([tier('pixel', () => t('features.mwModelDetail.pixel', 'Pixelated')), tier('sharp', () => t('features.mwModelDetail.sharp', 'Sharp'))]) }),
-  }),
+    control: Object.freeze({ store: 'prefs', key, initial: CHAR_PIXEL_INITIAL[who], online: 'player', tiers: CHAR_PIXEL_TIERS }),
+  })),
   // ORL1 (2026-09-17): OBLIVION-REMASTER-LIKE LEVELING - the first
   // Morrowind mod, and the only row whose effect line has to say NEXT
   // CHARACTER. Every other mod's switch lands on the running game; this
@@ -1463,6 +1465,120 @@ export const FEATURES = Object.freeze([
   // the character played when the mod is on (at creation, or at the first load of a character made before it), and its
   // model is the family's for good - so the switch lands at once for the tree and the key, and a family keeps its model.
   modFeature('project-legacy', () => t('features.mod.projectLegacy.effect', 'Takes effect at once; a family keeps the model it was founded with.'), 'character'),
+  // MW-TEXTURE-PACKS: individually selectable layers; optional packs default off.
+  ...[
+    ['mw-textures-high-resolution-bodies', 'High Resolution Better Body Female Textures', 'HighResolutionBetterBodyFemaleTexturesSource'],
+    ['mw-textures-intelligent', 'Intelligent Textures · 00 Core', 'IntelligentTexturesSource'],
+    ['mw-textures-vurt-clothes', "Vurt\'s Better Clothes Retexture", 'VurtsBetterClothesSource'],
+    ['mw-textures-better-clothes', 'Better Clothes Retextured', 'BetterClothesRetexturedSource'],
+    ['mw-textures-better-armor', 'Better Morrowind Armor', 'BetterMorrowindArmorSource'],
+    ['mw-textures-armor-joints', 'Complete Armor Joints', 'CompleteArmorJointsSource'],
+    ['mw-textures-westly-clothiers', "Westly\'s Fine Clothiers of Tamriel", 'WestlysFineClothiersSource'],
+    ['mw-textures-westly-faces', "Westly\'s Faces Refurbished", 'WestlysFacesRefurbishedSource'],
+  ].map(([id, title, key]) => Object.freeze({
+    id,
+    group: 'world',
+    title,
+    get note() { return MOD_SETTINGS['morrowind-textures'].keys[key].description; },
+    effect: 'После перезагрузки игры.',
+    kinds: Object.freeze(['mod']),
+    control: Object.freeze({ store: 'mods', vendor: 'morrowind-textures', key }),
+  })),
+  Object.freeze({
+    id: 'morrowind-animation-blending',
+    group: 'character',
+    title: 'Плавность переходов (3-е лицо)',
+    get note() { return MOD_SETTINGS['morrowind-animation'].keys.AnimationBlendDuration.description; },
+    effect: 'Takes effect immediately.',
+    kinds: Object.freeze(['mod']),
+    control: Object.freeze({ store: 'mods', vendor: 'morrowind-animation', key: 'AnimationBlendDuration' }),
+  }),
+  Object.freeze({
+    id: 'morrowind-motion-doctrine',
+    group: 'character',
+    title: 'Формула движения',
+    get note() { return MOD_SETTINGS['morrowind-animation'].keys.MotionDoctrine.description; },
+    effect: 'Takes effect immediately.',
+    kinds: Object.freeze(['mod']),
+    control: Object.freeze({ store: 'mods', vendor: 'morrowind-animation', key: 'MotionDoctrine' }),
+  }),
+  Object.freeze({
+    id: 'morrowind-first-person-animation-source',
+    group: 'character',
+    title: 'Источник анимаций (1-е лицо)',
+    get note() { return MOD_SETTINGS['morrowind-animation'].keys.FirstPersonSource.description; },
+    effect: 'After rebuilding the first-person rig.',
+    kinds: Object.freeze(['mod']),
+    control: Object.freeze({ store: 'mods', vendor: 'morrowind-animation', key: 'FirstPersonSource' }),
+  }),
+  Object.freeze({
+    id: 'morrowind-openmw-dynamic-animations',
+    group: 'character',
+    title: 'Источник анимаций (3-е лицо) · OpenMW',
+    get note() { return MOD_SETTINGS['morrowind-animation'].keys.OpenMWDynamicAnimations.description; },
+    effect: 'After rebuilding affected character rigs.',
+    kinds: Object.freeze(['mod']),
+    control: Object.freeze({ store: 'mods', vendor: 'morrowind-animation', key: 'OpenMWDynamicAnimations' }),
+  }),
+  Object.freeze({
+    id: 'morrowind-hit-reaction-animation-source',
+    group: 'character',
+    title: 'Реакции на попадания',
+    get note() { return MOD_SETTINGS['morrowind-animation'].keys.HitReactionSource.description; },
+    effect: 'After rebuilding the character rig.',
+    kinds: Object.freeze(['mod']),
+    control: Object.freeze({ store: 'mods', vendor: 'morrowind-animation', key: 'HitReactionSource' }),
+  }),
+  // MAO: full third-person KF replacement. The loader uses the selected
+  // sex-matched source for supported human/elf/orc rigs; the original source
+  // remains available as the Vanilla fallback.
+  // MW-ANIM-2: actor-scoped walk selectors. Each row is a category-specific
+  // source choice, persisted independently and consumed by the walk resolver.
+  Object.freeze({
+    id: 'morrowind-player-run-animation',
+    group: 'character',
+    get title() { return 'Бег игрока'; },
+    get note() { return MOD_SETTINGS['morrowind-animation'].keys.PlayerRunSource.description; },
+    get effect() { return t('features.effect.atOnce', 'Takes effect at once.'); },
+    kinds: Object.freeze(['mod']),
+    control: Object.freeze({ store: 'mods', vendor: 'morrowind-animation', key: 'PlayerRunSource' }),
+  }),
+  Object.freeze({
+    id: 'morrowind-female-npc-run-animation',
+    group: 'character',
+    get title() { return 'Бег NPC · женщины'; },
+    get note() { return MOD_SETTINGS['morrowind-animation'].keys.NpcFemaleRun.description; },
+    get effect() { return t('features.effect.atOnce', 'Takes effect at once.'); },
+    kinds: Object.freeze(['mod']),
+    control: Object.freeze({ store: 'mods', vendor: 'morrowind-animation', key: 'NpcFemaleRun' }),
+  }),
+  Object.freeze({
+    id: 'morrowind-player-walk-animation',
+    group: 'character',
+    get title() { return 'Ходьба игрока'; },
+    get note() { return MOD_SETTINGS['morrowind-animation'].keys.PlayerWalkSource.description; },
+    get effect() { return t('features.effect.atOnce', 'Takes effect at once.'); },
+    kinds: Object.freeze(['mod']),
+    control: Object.freeze({ store: 'mods', vendor: 'morrowind-animation', key: 'PlayerWalkSource' }),
+  }),
+  Object.freeze({
+    id: 'morrowind-male-npc-walk-animation',
+    group: 'character',
+    get title() { return 'Мужчины'; },
+    get note() { return MOD_SETTINGS['morrowind-animation'].keys.NpcMaleWalk.description; },
+    get effect() { return t('features.effect.atOnce', 'Takes effect at once.'); },
+    kinds: Object.freeze(['mod']),
+    control: Object.freeze({ store: 'mods', vendor: 'morrowind-animation', key: 'NpcMaleWalk' }),
+  }),
+  Object.freeze({
+    id: 'morrowind-female-npc-walk-animation',
+    group: 'character',
+    get title() { return 'Женщины'; },
+    get note() { return MOD_SETTINGS['morrowind-animation'].keys.NpcFemaleWalk.description; },
+    get effect() { return t('features.effect.atOnce', 'Takes effect at once.'); },
+    kinds: Object.freeze(['mod']),
+    control: Object.freeze({ store: 'mods', vendor: 'morrowind-animation', key: 'NpcFemaleWalk' }),
+  }),
   // FT10 (2026-09-14): DFU'S OWN DUNGEON ENHANCEMENTS - three of the
   // Enhancements section's switches, each read by the port at the point
   // of use as DFU reads it. DFU Classic: Daggerfall Unity's departures
@@ -1833,6 +1949,16 @@ export const FEATURES = Object.freeze([
         Object.freeze({ key: 'blood-screen', get label() { return t('features.blood.screen', 'On the lens'); } }),
       ]),
     }),
+  }),
+  // CLOAKS1: the live character rig can skin Simply Animated Cloaks; keep the original rigid cloak available as a fallback.
+  Object.freeze({
+    id: 'simply-animated-cloaks',
+    group: 'character',
+    get title() { return t('features.simplyAnimatedCloaks.title', 'Simply Animated Cloaks'); },
+    get note() { return t('features.simplyAnimatedCloaks.note', 'Use the skinned cloak meshes and follow the character’s movement. Turn off to use the classic rigid cloak.'); },
+    get effect() { return t('features.simplyAnimatedCloaks.effect', 'Takes effect as characters are rebuilt; reload the game for existing characters.'); },
+    kinds: Object.freeze(['enhanced']),
+    control: Object.freeze({ store: 'mods', vendor: 'morrowind-animation', key: 'SimplyAnimatedCloaks' }),
   }),
   Object.freeze({
     id: 'mod-climates-calories',   // a mod-row id: WM3's law reaches the credits' vendor through it

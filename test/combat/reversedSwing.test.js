@@ -15,7 +15,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { REVERSED_STRIKES, strikeReversed, DF_STRIKE_TO_MW_ATTACK, attackKeys, MW_SHOOT_ATTACK } from '../../src/formats/morrowind/mwFirstPerson.js';
+import { REVERSED_STRIKES, strikeReversed, DF_STRIKE_TO_MW_ATTACK, attackKeys, MW_SHOOT_ATTACK, MW_WEAPON_TYPE } from '../../src/formats/morrowind/mwFirstPerson.js';
 import { createFpArm, UPPER_BODY } from '../../src/combat/fpArm.js';
 
 const f = (n) => new Uint8Array(readFileSync(new URL(`../fixtures/mw/${n}`, import.meta.url)));
@@ -25,6 +25,11 @@ test('MS1: the table - the one strike that runs against Morrowind\'s slash', () 
   assert.deepEqual([...REVERSED_STRIKES], ['StrikeRight']);
   for (const s of Object.keys(DF_STRIKE_TO_MW_ATTACK)) assert.equal(strikeReversed(s), s === 'StrikeRight', s);
   assert.equal(strikeReversed('StrikeLeft'), false, 'StrikeLeft IS Morrowind\'s slash');
+  // SHIELD-GUARD: a fist's slash is a hook, and backwards a punch pulled - the fists' StrikeRight plays forward
+  assert.equal(strikeReversed('StrikeRight', MW_WEAPON_TYPE.HandToHand), false, 'a fist has no backhand');
+  for (const t of [MW_WEAPON_TYPE.LongBladeOneHand, MW_WEAPON_TYPE.ShortBladeOneHand, MW_WEAPON_TYPE.AxeTwoHand]) {
+    assert.equal(strikeReversed('StrikeRight', t), true, `a blade's (type ${t}) still does`);
+  }
 });
 
 test('MS1: attackKeys reversed - the sections in reverse order, each pair still in file order, a shot never', () => {
@@ -143,6 +148,6 @@ test('MS1: no mirror anywhere - the draws are untouched and the pose alone reads
   assert.match(src, /actionState\.reversed = !!reversed;/);
   // PIN MOVED (TWO-HANDS AUDIT): a blow the body throws in the mirror reverses by the MIRROR strike (handsLaw.js
   // mirrorStrike), so its way across the screen is the one asked; a blow not in the mirror reads the strike as before
-  assert.match(src, /attackReversed = type === 'slash' && strikeReversed\(inMirror \? mirrorStrike\(strike\) : strike\);/);
+  assert.match(src, /attackReversed = type === 'slash' && strikeReversed\(inMirror \? mirrorStrike\(strike\) : strike, animWeaponType\(built\.mwType, sheathed, spellReady\)\);/);
   assert.match(src, /attackReversed = false;\s*\/\/ MS1: a cast has no side/);
 });

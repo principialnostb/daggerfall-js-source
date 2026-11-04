@@ -22,8 +22,8 @@
 // Not a DFU member: Daggerfall's horse is a sprite. Ledger A (COATS3D).
 import { HORSE_MODEL_URL, HORSE_PICTURE_URLS, horseSkinStream, horsePaletteShape, horsePoseScratch, horseGait, stepHorseGait, writeHorsePalette, startTexelMap, rgbaMips, horseHide } from './horseModel.js';
 import { dyeHorseTexelRows, dyeHorseHairRows, dyesPoints, horseLookCode, horseLookOfCode } from '../systems/horse/horseCoats.js';
-import { drawBodyPicture, mwModelPixel } from '../render/characterSprite.js';
-import { CHAR_SPRITE_RT_SIZE } from '../render/renderer.js';
+import { drawRigSpriteBox, MW_THIRD_PERSON_PIXEL } from '../render/characterSprite.js';
+import { MW_ARM_PIXEL, CHAR_SPRITE_RT_SIZE } from '../render/renderer.js';
 import { decodePng } from '../systems/textureReplacement.js';
 import { multiply, trs, transformPoint } from './mat4.js';
 
@@ -268,17 +268,21 @@ export function createHorseRig({ renderer, fetchJson = (u) => fetch(u).then((r) 
   function seen(h, view, proj, bx = h?.model ? box(h) : null) {
     return !bx || !outOfView(bx.center, Math.hypot(bx.halfW, bx.halfH), view, proj);
   }
-
-  /** A horse alone, through the sprite pass at the Morrowind body's dial - none out of the view (AUDIT COATS3D A12: a
-   *  horse behind the eye was skinned and drawn all the same, and one at the eye's plane a whole-screen tile).
-   *  HORSE-VIEW: `fresh` - its caller skipped its pose out of the view - and a pose behind its clock is caught up before
-   *  it is drawn, so a horse the view swings onto is never drawn in a pose from when it was last seen. */
+  /** A horse alone. Keep the skinned world mesh at every distance: baking it to a finite
+   *  camera-facing target caused its near-side rump/barrel/head to appear vertically compressed
+   *  as the camera approached, and made the coat visibly pixelate at distance. Concealment
+   *  remains on the sprite compositor because that path owns the dissolve effect. */
   function draw(h, canvas, { proj, view, eye, up = null, conceal = null, hitFlash = 0, fresh = false }) {
     if (!h?.model || !canvas) return false;
     const bx = box(h);
     if (!seen(h, view, proj, bx)) return false;
     if (fresh) pose(h);
-    drawBodyPicture(renderer, canvas, h.mesh, h.model, { ...bx, up, conceal, hitFlash }, proj, view, eye);
+    if (outOfView(bx.center, Math.hypot(bx.halfW, bx.halfH), view, proj)) return false;
+    if (!conceal) {
+      renderer.drawCharacter(h.mesh, h.model);
+      return true;
+    }
+    drawRigSpriteBox(renderer, canvas, h.mesh, h.model, { ...bx, up, conceal, hitFlash }, proj, view, eye, MW_THIRD_PERSON_PIXEL);
     return true;
   }
 
@@ -286,7 +290,7 @@ export function createHorseRig({ renderer, fetchJson = (u) => fetch(u).then((r) 
    *  the world where Daggerfall drew its riding sprite (the hosts draw the hands after it). */
   function drawFirstPerson(h, canvas, { proj, view }) {
     if (!h?.model || !canvas) return false;
-    const pixel = mwModelPixel();   // MW-DETAIL: the viewer's dial, and the target's room for the screen's frame at it
+    const pixel = MW_ARM_PIXEL;   // the arm's dial, and the target's room for the screen's frame at it
     const wantW = canvas.clientWidth / pixel, wantH = canvas.clientHeight / pixel;
     const edge = renderer.charSpriteRoom?.(Math.ceil(Math.max(wantW, wantH))) ?? CHAR_SPRITE_RT_SIZE;
     const s = Math.min(1, edge / wantW, edge / wantH);

@@ -1,6 +1,6 @@
 {
-  "name": "daggerfall-js-app",
-  "productName": "DFO Online",
+  "name": "daggerfall-js-app-mod",
+  "productName": "DFO Online Mod",
   "private": true,
   "version": "0.1.0",
   "description": "DFO Online - the downloadable desktop shell. Loads the same dist/ the website deploys; adds ARENA2-from-disk and file-backed saves.",
@@ -8,7 +8,7 @@
   "homepage": "https://daggerfalljs.dev/",
   "repository": {
     "type": "git",
-    "url": "https://github.com/Lattymoy/daggerfall-js-source.git"
+    "url": "https://github.com/principialnostb/daggerfall-js-source.git"
   },
   "main": "main.cjs",
   "scripts": {
@@ -21,18 +21,18 @@
     "electron-builder": "^25.1.8"
   },
   "build": {
-    "appId": "dev.daggerfalljs.app",
-    "productName": "DFO Online",
+    "appId": "dev.daggerfalljs.app.mod",
+    "productName": "DFO Online Mod",
     "icon": "../public/icons/icon-512.png",
     "afterPack": "./afterPack.cjs",
-    "artifactName": "DFO-Online-${os}-${arch}.${ext}",
+    "artifactName": "DFO-Online-Mod-${os}-${arch}.${ext}",
     "directories": {
       "output": "release"
     },
     "publish": [
       {
         "provider": "github",
-        "owner": "Lattymoy",
+        "owner": "principialnostb",
         "repo": "daggerfall-js-source"
       }
     ],
@@ -75,13 +75,13 @@
       ]
     },
     "nsis": {
-      "artifactName": "DFO-Online-win-${arch}-setup.${ext}",
+      "artifactName": "DFO-Online-Mod-win-${arch}-setup.${ext}",
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
       "perMachine": false
     },
     "portable": {
-      "artifactName": "DFO-Online-win-${arch}-portable.${ext}"
+      "artifactName": "DFO-Online-Mod-win-${arch}-portable.${ext}"
     },
     "mac": {
       "target": [

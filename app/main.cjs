@@ -53,7 +53,7 @@ const { backendLaunch, holdsVSync, watchBackend, backendOption, chooseBackend, r
 // rebrand is a name, not a migration. The folder keeps the name it was
 // created with, whatever the product is called on the outside.
 if (process.env.DAGGER_USER_DATA) app.setPath('userData', process.env.DAGGER_USER_DATA);
-else app.setPath('userData', path.join(app.getPath('appData'), 'Daggerfall JavaScript'));
+else app.setPath('userData', path.join(app.getPath('appData'), 'Daggerfall JavaScript Mod'));
 
 // GPU-BACKEND (2026-10-26): Vulkan on Windows, the player's opt-in (`graphicsBackend`), held on the default while a
 // failure is on record. The guard reads the renderer once the first window is up and relaunches on the default when
@@ -486,9 +486,9 @@ function handleDagger(req) {
 // check's own request - asked beside it at launch, under its two gates -
 // and its answer is kept in news.json, so the panel is never empty while
 // the next one is asked for, or when GitHub does not answer.
-const RELEASES_LATEST_API = 'https://api.github.com/repos/Lattymoy/daggerfall-js-source/releases/latest';
-const RELEASES_LIST_API = 'https://api.github.com/repos/Lattymoy/daggerfall-js-source/releases?per_page=20';
-const RELEASES_PAGE = 'https://github.com/Lattymoy/daggerfall-js-source/releases/latest';
+const RELEASES_LATEST_API = 'https://api.github.com/repos/principialnostb/daggerfall-js-source/releases/latest';
+const RELEASES_LIST_API = 'https://api.github.com/repos/principialnostb/daggerfall-js-source/releases?per_page=20';
+const RELEASES_PAGE = 'https://github.com/principialnostb/daggerfall-js-source/releases/latest';
 const { isNewerRelease } = require('./lib/updateCheck.cjs');
 const { updateTransport } = require('./lib/autoUpdate.cjs');
 const { UNLOAD_ASK, leaves, restartAsk, reinstallAsk, installFailedAsk, goesAhead } = require('./lib/shellDialogs.cjs');
@@ -1307,6 +1307,13 @@ function openSavesFolder() {
   shell.openPath(dir);
 }
 
+/** MOD-DIAG1: a direct door to the diagnostic files for support reports. */
+function openDiagnosticsFolder() {
+  const dir = path.join(app.getPath('userData'), 'Diagnostics');
+  fs.mkdirSync(path.join(dir, 'mods'), { recursive: true });
+  shell.openPath(dir);
+}
+
 /** DA10: the update check's switch. The launcher's toggle and the File
  *  menu's checkbox are one setting (config.json updateCheck); turned on
  *  while the launcher is open, it checks now rather than next launch. */
@@ -1340,6 +1347,7 @@ function buildMenu() {
       label: 'File',
       submenu: [
         { label: 'Open Saves Folder', click: () => openSavesFolder() },
+        { label: 'Open Diagnostics Folder', click: () => openDiagnosticsFolder() },
         {
           label: 'Locate ARENA2 Folder...',
           click: async () => {
@@ -2031,6 +2039,45 @@ ipcMain.on('dagger:gpu-trail', (e, trail) => {
   if (!gameWindow || gameWindow.isDestroyed() || e.sender !== gameWindow.webContents) return;
   gpuTrail = trailFrom(trail);
   gpuGone.heard(gpuTrail);   // GPU-TRAIL-LOST: the lost sample landed - a GPU entry held for it is written now
+});
+
+// MOD-DIAG1: best-effort, bounded NDJSON diagnostics. Only the actual game window may write;
+// renderer-controlled values can select a sanitized mod filename, never a path.
+const DIAGNOSTIC_LEVELS = new Set(['debug', 'info', 'warn', 'error']);
+const diagnosticText = (value, limit = 1200) => String(value ?? '').replace(/[\u0000-\u001f\u007f]/g, ' ').slice(0, limit);
+const diagnosticModFile = (value) => {
+  const name = diagnosticText(value || 'core', 240).replace(/\\/g, '/').split('/').pop()
+    .replace(/[^a-zA-Z0-9._ -]/g, '_').trim().slice(0, 120);
+  return (name || 'unknown-mod') + '.ndjson';
+};
+let diagnosticWriteQueue = Promise.resolve();
+ipcMain.on('dagger:diagnostic', (e, raw) => {
+  if (!gameWindow || gameWindow.isDestroyed() || e.sender !== gameWindow.webContents) return;
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return;
+  try {
+    const details = raw.details && typeof raw.details === 'object' && !Array.isArray(raw.details) ? raw.details : {};
+    const record = {
+      timestamp: /^\d{4}-\d\d-\d\dT/.test(raw.timestamp ?? '') ? diagnosticText(raw.timestamp, 40) : new Date().toISOString(),
+      sessionId: diagnosticText(raw.sessionId, 100),
+      sequence: Number.isSafeInteger(raw.sequence) && raw.sequence >= 0 ? raw.sequence : 0,
+      level: DIAGNOSTIC_LEVELS.has(raw.level) ? raw.level : 'info',
+      phase: diagnosticText(raw.phase || 'runtime', 100),
+      action: diagnosticText(raw.action || 'event', 120),
+      modId: diagnosticText(raw.modId || 'core', 240),
+      resource: raw.resource == null ? null : diagnosticText(raw.resource, 500),
+      message: diagnosticText(raw.message, 2000),
+      details,
+    };
+    if (Buffer.byteLength(JSON.stringify(record), 'utf8') > 16000) record.details = { note: 'details omitted: record exceeded 16 KB' };
+    const line = JSON.stringify(record) + '\n';
+    const root = path.join(app.getPath('userData'), 'Diagnostics');
+    const modPath = path.join(root, 'mods', diagnosticModFile(record.modId));
+    diagnosticWriteQueue = diagnosticWriteQueue.then(async () => {
+      await fs.promises.mkdir(path.dirname(modPath), { recursive: true });
+      await fs.promises.appendFile(path.join(root, 'integration.ndjson'), line, 'utf8');
+      await fs.promises.appendFile(modPath, line, 'utf8');
+    }).catch((error) => { console.error('[diagnostics] log write failed:', error?.message ?? error); });
+  } catch (error) { console.error('[diagnostics] rejected malformed record:', error?.message ?? error); }
 });
 
 // The preload asks for its storage root synchronously at page boot -

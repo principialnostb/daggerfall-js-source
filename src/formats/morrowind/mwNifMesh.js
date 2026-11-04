@@ -204,6 +204,7 @@ export function resolveMaterial(nif, props, hasVertexColors = false) {
     alpha: 1,
     textureFile: null,
     clampMode: 3,
+    uvSet: 0,
     alphaBlend: false,
     alphaTest: false,
     alphaThreshold: 0,
@@ -249,6 +250,9 @@ export function resolveMaterial(nif, props, hasVertexColors = false) {
           if (src && src.external && src.fileName) {
             out.textureFile = src.fileName;
             out.clampMode = base.clampMode;
+            // NiTexturingProperty selects the UV channel for its base map;
+            // do not silently force every texture to channel zero.
+            out.uvSet = Number.isInteger(base.uvSet) ? base.uvSet : 0;
           }
         }
         break;
@@ -522,6 +526,9 @@ export function flattenNif(nif, opts = {}) {
         })),
       };
     }
+    const material = resolveMaterial(nif, props, !!data.colors);
+    const uvSet = Number.isInteger(material.uvSet) ? material.uvSet : 0;
+    const selectedUvs = data.uvSets[uvSet] ?? data.uvSets[0] ?? null;
     batches.push({
       name: shape.name || '',
       // MW-BOW1: where the shape hangs - its record and every record from the file root down to it - and its
@@ -536,10 +543,10 @@ export function flattenNif(nif, opts = {}) {
       skin,
       positions,
       normals,
-      uvs: data.uvSets.length ? Float32Array.from(data.uvSets[0]) : null,
+      uvs: selectedUvs ? Float32Array.from(selectedUvs) : null,
       colors: data.colors ? Float32Array.from(data.colors) : null,
       indices,
-      material: resolveMaterial(nif, props, !!data.colors),
+      material,
       parentRef,   // MWNPC9: the node the shape hangs under - a creature's rigid piece rides it (mwCharacter.js bindCreatureModel)
     });
   }

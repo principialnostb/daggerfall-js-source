@@ -1,0 +1,151 @@
+{
+  "format": "better-bodies-nif-uv-edits-v1",
+  "source": "Morrowind Textures/Better Bodies/Nude/Data Files/Meshes/bb/bb_skinf_no.nif",
+  "note": "UV transform is applied per flattened NIF mesh section as uv=(baseUV*scale)+offset. Preview changes only; integrate into NIF mesh pipeline to persist in game.",
+  "edits": [
+    {
+      "meshIndex": 0,
+      "name": "Tri Chest",
+      "vertexCount": 518,
+      "triangleCount": 846,
+      "baseUvBounds": {
+        "minU": 0.005917460657656193,
+        "minV": 0.004617929458618164,
+        "maxU": 0.47638779878616333,
+        "maxV": 0.43838614225387573
+      },
+      "transform": {
+        "u": 0,
+        "v": 0,
+        "su": 1,
+        "sv": 0.9
+      }
+    },
+    {
+      "meshIndex": 1,
+      "name": "Tri Groin",
+      "vertexCount": 155,
+      "triangleCount": 246,
+      "baseUvBounds": {
+        "minU": 0.005917460657656193,
+        "minV": 0.43838614225387573,
+        "maxU": 0.47624748945236206,
+        "maxV": 0.5919706225395203
+      },
+      "transform": {
+        "u": 0,
+        "v": 0,
+        "su": 1,
+        "sv": 0.78
+      }
+    },
+    {
+      "meshIndex": 7,
+      "name": "Tri Left Upper Arm",
+      "vertexCount": 98,
+      "triangleCount": 161,
+      "baseUvBounds": {
+        "minU": 0.6953405141830444,
+        "minV": 0.010542094707489014,
+        "maxU": 0.9915838837623596,
+        "maxV": 0.3070375323295593
+      },
+      "transform": {
+        "u": 0,
+        "v": 0,
+        "su": 0.86,
+        "sv": 1
+      }
+    },
+    {
+      "meshIndex": 11,
+      "name": "Tri Right Ankle",
+      "vertexCount": 84,
+      "triangleCount": 118,
+      "baseUvBounds": {
+        "minU": 0.4576245844364166,
+        "minV": 0.7163655757904053,
+        "maxU": 0.8599683046340942,
+        "maxV": 0.968704342842102
+      },
+      "transform": {
+        "u": 0,
+        "v": 0,
+        "su": 1.78,
+        "sv": 1
+      }
+    },
+    {
+      "meshIndex": 12,
+      "name": "Tri Right Foot",
+      "vertexCount": 340,
+      "triangleCount": 432,
+      "baseUvBounds": {
+        "minU": 0.4576245844364166,
+        "minV": 0.5860001444816589,
+        "maxU": 0.995475709438324,
+        "maxV": 0.985226035118103
+      },
+      "transform": {
+        "u": 0,
+        "v": 0,
+        "su": 1.1,
+        "sv": 1
+      }
+    },
+    {
+      "meshIndex": 15,
+      "name": "Tri Right Knee",
+      "vertexCount": 136,
+      "triangleCount": 178,
+      "baseUvBounds": {
+        "minU": 0.0059173377230763435,
+        "minV": 0.6143797636032104,
+        "maxU": 0.8672575950622559,
+        "maxV": 0.949311375617981
+      },
+      "transform": {
+        "u": 0,
+        "v": 0,
+        "su": 0,
+        "sv": 1
+      }
+    },
+    {
+      "meshIndex": 16,
+      "name": "Tri Right Upper Arm",
+      "vertexCount": 98,
+      "triangleCount": 161,
+      "baseUvBounds": {
+        "minU": 0.6953405141830444,
+        "minV": 0.010542094707489014,
+        "maxU": 0.9915838837623596,
+        "maxV": 0.3070375323295593
+      },
+      "transform": {
+        "u": 0,
+        "v": 0,
+        "su": 0.86,
+        "sv": 1
+      }
+    },
+    {
+      "meshIndex": 17,
+      "name": "Tri Right Upper Leg",
+      "vertexCount": 138,
+      "triangleCount": 208,
+      "baseUvBounds": {
+        "minU": 0.005917389877140522,
+        "minV": 0.4946100115776062,
+        "maxU": 0.4350353479385376,
+        "maxV": 0.84213787317276
+      },
+      "transform": {
+        "u": 0,
+        "v": 0,
+        "su": 0.87,
+        "sv": 1
+      }
+    }
+  ]
+}

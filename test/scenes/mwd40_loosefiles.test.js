@@ -51,7 +51,7 @@ test('MW-D40: the store keeps archives by basename and loose files by canonical 
     'the key law');
   // and the loose duck ranks BEFORE every .bsa in loadMorrowindArchives
   const load = src.slice(src.indexOf('export async function loadMorrowindArchives'));
-  const looseAt = load.indexOf('makeLooseArchive(loose)');
+  const looseAt = load.indexOf('makeLazyLooseArchive(looseNames')   // LOAD-STALL 3: opened by name, read when loaded;
   const bsaAt = load.indexOf('MwBsaFile.open(');   // MW-LOAD: opened off the stored Blob, by range
   assert.ok(looseAt > 0 && bsaAt > looseAt, 'loose data files override archives - the engine\'s own load law');
 });
@@ -86,4 +86,27 @@ test('MW-D40: registerSound decodes once, caches, and a rejected clip registers 
   };
   assert.equal(await AudioEngine.prototype.registerSound.call(bad, 'x', bytes), false);
   assert.equal(bad.buffers.has('x'), false, 'a rejected clip leaves no tombstone - the classic fallback stands');
+});
+
+test('LOAD-STALL 3: the loose files are opened by name and read when loaded - one read a file, a failed read not kept, a read before the load refused (mutants: every file read at open; a read per load; a failure kept)', async () => {
+  const { makeLazyLooseArchive } = await import('../../src/scenes/dataSource.js');
+  const reads = [];
+  let fail = true;
+  const arc = makeLazyLooseArchive(['meshes/maxhorse/xhorse1.nif', 'textures/tx_a.dds'], async (n) => {
+    reads.push(n);
+    if (n === 'textures/tx_a.dds' && fail) throw new Error('the store refused');
+    return new Uint8Array([n.length]);
+  });
+  assert.deepEqual(reads, [], 'nothing read at open');
+  assert.equal(arc.has(String.raw`Meshes\MaxHorse\XHorse1.NIF`), true);
+  assert.equal(arc.has('meshes/nope.nif'), false);
+  assert.equal(arc.loaded('meshes/maxhorse/xhorse1.nif'), false);
+  assert.throws(() => arc.get('meshes/maxhorse/xhorse1.nif'), /not loaded/);
+  assert.equal(arc.get('meshes/nope.nif'), null);
+  const [a, b] = await Promise.all([arc.load('meshes/maxhorse/xhorse1.nif'), arc.load('MESHES/maxhorse/xhorse1.nif')]);
+  assert.equal(a, b); assert.deepEqual(reads, ['meshes/maxhorse/xhorse1.nif'], 'two loads in flight are one read');
+  assert.equal(arc.get('meshes/maxhorse/xhorse1.nif'), a);
+  await assert.rejects(arc.load('textures/tx_a.dds'));
+  fail = false;
+  assert.ok(await arc.load('textures/tx_a.dds'), 'a failed read is asked again');
 });

@@ -25,7 +25,7 @@ import { snapshotPlayer, restorePlayer } from '../../src/systems/save/save.js';
 import { playerEntity } from '../../src/characters/playerEntity.js';
 import {
   preloadPaperDollArt, refreshPaperDoll, paperDollPixels, paperDollIdentityDrift,
-  PAPERDOLL_W, PAPERDOLL_H,
+  paperDollDisplayIdentity, PAPERDOLL_W, PAPERDOLL_H,
 } from '../../src/ui/paperDoll.js';
 
 // ── the synthetic art set ────────────────────────────────────────────
@@ -157,4 +157,41 @@ test('THE ART FOLLOWS THE ENTITY, the law alone: the drift keeps WHERE the doll 
   }
   // nothing loaded, nothing to drift from
   assert.equal(paperDollIdentityDrift({ race: 'Khajiit' }, null), null);
+});
+
+
+test('appearance editor identity changes paperdoll display identity without mutating gameplay identity', () => {
+  const entity = { race: 'Breton', gender: 'male', faceIndex: 2, raceId: RACES.Breton };
+  const display = paperDollDisplayIdentity(entity, {
+    race: 'khajiit', female: true, faceIndex: 7,
+  });
+  assert.deepEqual(display, { race: 'Khajiit', gender: 'female', faceIndex: 7 });
+  assert.deepEqual(entity, { race: 'Breton', gender: 'male', faceIndex: 2, raceId: RACES.Breton });
+});
+
+test('appearance-only races map to an available classic paperdoll family', () => {
+  const entity = { race: 'Breton', gender: 'male', faceIndex: 0 };
+  assert.deepEqual(paperDollDisplayIdentity(entity, {
+    race: 'dark elf', female: false, faceIndex: 3,
+  }), { race: 'DarkElf', gender: 'male', faceIndex: 3 });
+  assert.deepEqual(paperDollDisplayIdentity(entity, {
+    race: 'orc', female: true, faceIndex: 1,
+  }), { race: 'Nord', gender: 'female', faceIndex: 1 });
+});
+
+
+test('inventory face is a separate 2D composite and leaves the live character and doll unchanged', async () => {
+  const entity = { race: 'Breton', gender: 'male', faceIndex: 2 };
+  await preloadPaperDollArt(deps, entity);
+  await refreshPaperDoll(entity);
+  const before = paperDollPixels();
+  const { composeInventoryDollPixels } = await import('../../src/ui/paperDoll.js');
+  const custom = await composeInventoryDollPixels(entity, { race: 'Breton', gender: 'male', faceIndex: 7 });
+  assert.ok(custom);
+  const seen = new Set();
+  for (let i = 0; i < custom.rgba.length; i += 4) if (custom.rgba[i + 3]) seen.add(custom.rgba[i]);
+  assert.ok(seen.has(FACE_BASE['FACE00I0.CIF'] + 7), 'inventory draws the selected 2D record');
+  assert.equal(entity.faceIndex, 2, 'gameplay identity is untouched');
+  assert.equal(paperDollPixels(), before, 'the shared/HUD doll is untouched');
+  assert.equal(paperDollIdentityDrift(entity), null);
 });
