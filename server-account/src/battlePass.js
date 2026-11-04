@@ -121,8 +121,8 @@ export async function findPass(ctx, player, body, env) {
   const season = passSeasonAt(nowS * 1000), stage = season ? passStageAt(season, nowS * 1000) : -1;
   // the day's bound clamps the sum as it clamps each find in turn: min(a + b, room) is min(a, room) then min(b, what is left)
   const base = sources.reduce((a, src) => a + PASS_SOURCES[/** @type {keyof typeof PASS_SOURCES} */ (src)], 0);
-  const countOf = (/** @type {any} */ c) => sources.filter((src) => c.sources.includes(src)).length;
-  const mine = season ? PASS_CHALLENGES.filter((c) => c.stage === stage && countOf(c) > 0) : [];
+  const countOf = (/** @type {any} */ challenge) => sources.filter((src) => challenge.sources.includes(src)).length;
+  const mine = season ? PASS_CHALLENGES.filter((challenge) => challenge.stage === stage && countOf(challenge) > 0) : [];
   const where = 'account = ?1 AND season = ?2';
   const asked = rid ? [db.prepare('INSERT INTO pass_asks (account, rid, day) VALUES (?1, ?2, ?3)').bind(player.id, rid, day)] : [];
   let out;

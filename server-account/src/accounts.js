@@ -298,11 +298,11 @@ function sessionMissKept(/** @type {any} */ root, /** @type {string} */ hash, /*
 }
 function keepSessionMiss(/** @type {any} */ root, /** @type {string} */ hash, /** @type {number} */ nowS) {
   if (!root || typeof root !== 'object' || !Number.isSafeInteger(nowS)) return;
-  let m = sessionMisses.get(root);
-  if (!m) sessionMisses.set(root, (m = new Map()));
-  m.delete(hash);
-  if (m.size >= SESSION_MISS_KEYS) m.delete(m.keys().next().value);
-  m.set(hash, nowS + SESSION_MISS_KEPT_S);
+  let misses = sessionMisses.get(root);
+  if (!misses) sessionMisses.set(root, (misses = new Map()));
+  misses.delete(hash);
+  if (misses.size >= SESSION_MISS_KEYS) misses.delete(misses.keys().next().value);
+  misses.set(hash, nowS + SESSION_MISS_KEPT_S);
 }
 
 /**

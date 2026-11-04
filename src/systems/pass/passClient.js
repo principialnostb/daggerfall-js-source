@@ -129,7 +129,7 @@ function learn(/** @type {any} */ d, /** @type {boolean} */ told) {
   // a challenge a find paid is paid on the card too, so a find it no longer counts toward can be left unasked
   if (told && Array.isArray(d.done) && Array.isArray(_state.challenges)) {
     const paid = new Set(d.done);
-    _state = { ..._state, challenges: _state.challenges.map((/** @type {any} */ c) => (paid.has(c?.key) ? { ...c, paid: true, n: passChallengeOf(c.key)?.n ?? c.n } : c)) };
+    _state = { ..._state, challenges: _state.challenges.map((/** @type {any} */ challenge) => (paid.has(challenge?.key) ? { ...challenge, paid: true, n: passChallengeOf(challenge.key)?.n ?? challenge.n } : challenge)) };
   }
   _stateOf = account();
   if (told && Array.isArray(d.done)) {
@@ -156,18 +156,18 @@ export const PASS_EDGE_MS = 60_000;
 /** WHETHER A FIND OF `source` WOULD CHANGE NOTHING THE SERVICE KEEPS: the day's Aurum found already and every challenge it
  *  could count paid, read off the season as last heard. Unheard, another season, or near a day's or stage's edge: asked. */
 export function passFindIdle(/** @type {string} */ source) {
-  const s = passState(), nowMs = _doors.nowMs();
-  if (!s || !Number.isSafeInteger(s.today) || s.today < (Number.isSafeInteger(s.dayMax) ? s.dayMax : PASS_DAY_AURUM)) return false;
+  const state = passState(), nowMs = _doors.nowMs();
+  if (!state || !Number.isSafeInteger(state.today) || state.today < (Number.isSafeInteger(state.dayMax) ? state.dayMax : PASS_DAY_AURUM)) return false;
   const edges = [nowMs - PASS_EDGE_MS, nowMs, nowMs + PASS_EDGE_MS];
-  if (edges.some((t) => utcDay(Math.floor(t / 1000)) !== _todayDay)) return false;
+  if (edges.some((atMs) => utcDay(Math.floor(atMs / 1000)) !== _todayDay)) return false;
   const seasons = edges.map(passSeasonAt), season = seasons[1];
   if (seasons.some((x) => x !== season)) return false;
   if (!season) return true;
-  if (s.season !== season.id || !Array.isArray(s.challenges)) return false;
-  const stages = edges.map((t) => passStageAt(season, t));
+  if (state.season !== season.id || !Array.isArray(state.challenges)) return false;
+  const stages = edges.map((atMs) => passStageAt(season, atMs));
   if (stages.some((x) => x !== stages[1])) return false;
-  const paid = new Set(s.challenges.filter((/** @type {any} */ c) => c?.paid === true).map((/** @type {any} */ c) => c.key));
-  return PASS_CHALLENGES.every((c) => c.stage !== stages[1] || !c.sources.includes(source) || paid.has(c.key));
+  const paid = new Set(state.challenges.filter((/** @type {any} */ challenge) => challenge?.paid === true).map((/** @type {any} */ challenge) => challenge.key));
+  return PASS_CHALLENGES.every((challenge) => challenge.stage !== stages[1] || !challenge.sources.includes(source) || paid.has(challenge.key));
 }
 
 /** Ask the service for the account's season, queued with the finds. Answers whether it was heard. */
@@ -212,18 +212,18 @@ function askFind(/** @type {string[]} */ sources, /** @type {string} */ rid, /**
     if ((due || !passState()) && !(await readPass()) && due) { _rest.unheard(); return 0; }
     if (passState()?.open === false) return settle(0);
     const max = passBatchMax(), taken = [];
-    for (const o of [..._waiting]) {
+    for (const other of [..._waiting]) {
       if (me.sources.length >= max) break;
-      if (o.who !== who || me.sources.length + o.sources.length > max) continue;
-      o.merged = true;
-      _waiting.splice(_waiting.indexOf(o), 1);
-      me.sources.push(...o.sources);
-      taken.push(o.rid);
+      if (other.who !== who || me.sources.length + other.sources.length > max) continue;
+      other.merged = true;
+      _waiting.splice(_waiting.indexOf(other), 1);
+      me.sources.push(...other.sources);
+      taken.push(other.rid);
     }
     me.sources = me.sources.filter((src) => !passFindIdle(src));
     // the device keeps the ask as it is sent: one id for every deed it carries, so a reload asks them again as one
     if (taken.length || me.sources.length !== sources.length) {
-      keepFinds(who, (l) => [...l.filter((x) => x?.rid !== rid && !taken.includes(x?.rid)), ...(me.sources.length ? [{ rid, sources: me.sources, at: _doors.nowMs() }] : [])]);
+      keepFinds(who, (kept) => [...kept.filter((x) => x?.rid !== rid && !taken.includes(x?.rid)), ...(me.sources.length ? [{ rid, sources: me.sources, at: _doors.nowMs() }] : [])]);
     }
     if (!me.sources.length) return 0;
     const ask = me.sources.length === 1 ? me.sources[0] : me.sources;
