@@ -168,7 +168,9 @@ function openDb() {
     // below is guarded by `contains`, so a player arriving at any older
     // version gains the new store and keeps every byte of the old ones.
     // 6 (TESA1): the Arena store, the same additive arm.
-    const req = indexedDB.open(DB_NAME, 6);
+    // 7: the old test-PR's attached-mods store left browsers at 7, and an open at a lower version is refused
+    // ("requested version is less than the existing version") - the arms are additive, so 7 opens either.
+    const req = indexedDB.open(DB_NAME, 7);
     req.onupgradeneeded = () => {
       const d = req.result;
       if (!d.objectStoreNames.contains(STORE)) d.createObjectStore(STORE);

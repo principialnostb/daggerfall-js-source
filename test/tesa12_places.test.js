@@ -179,7 +179,7 @@ test('TESA12 no Arena: no reader, no card, no store read - the boot empties the 
   await dataSource.clearRetiredArena();   // node has no IndexedDB: nothing to clear, nothing thrown
   const ds = read('src/scenes/dataSource.js');
   assert.match(ds, /const ASSET_STORES = \[MUSIC_STORE, TEXTURE_STORE, MW_STORE, DERIVED_STORE, ARENA_STORE\];/, 'a wipe still sweeps it');
-  assert.match(ds, /indexedDB\.open\(DB_NAME, 6\);/, 'the schema as it was - its arms are additive');
+  assert.match(ds, /indexedDB\.open\(DB_NAME, 7\);/, 'the schema as it was - its arms are additive');
   assert.match(ds, /export async function clearRetiredArena\(\) \{\n\s+try \{ await clearAssets\(ARENA_STORE\); \} catch \{/);
   const w = hostText('src/scenes/world.js');
   assert.equal(w.match(/clearRetiredArena\(\);/g)?.length, 1, 'the boot asks it once');
