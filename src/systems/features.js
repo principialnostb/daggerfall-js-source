@@ -1298,6 +1298,28 @@ export const FEATURES = Object.freeze([
     kinds: Object.freeze(['mod']),
     control: Object.freeze({ store: 'prefs', key: 'mwSheathing', initial: true, online: 'player' }),
   }),
+  // TEST-PR: the original's Morrowind Body Motion and Model Detail rows back - their prefs are still read
+  // (characters/bodyMotion/bodyMotion.js, render/characterSprite.js mwModelPixel), so a row must be able to set them.
+  Object.freeze({
+    id: 'mw-body-motion',
+    group: 'combat',
+    get title() { return t('features.mwBodyMotion.title', 'Morrowind Body Motion'); },
+    get note() { return t('features.mwBodyMotion.note', 'In third person a Morrowind body walks at the pace you move, carries each weapon its own way, and '
+      + 'swings with its whole body while its legs keep moving. Off plays Morrowind’s own animations.'); },
+    get effect() { return t('features.effect.atOnce', 'Takes effect at once.'); },
+    kinds: Object.freeze(['enhanced']),
+    control: Object.freeze({ store: 'prefs', key: 'mwBodyMotion', initial: true, online: 'player' }),
+  }),
+  Object.freeze({
+    id: 'mw-model-detail',
+    group: 'world',
+    get title() { return t('features.mwModelDetail.title', 'Morrowind Model Detail'); },
+    get note() { return t('features.mwModelDetail.note', 'With the Morrowind body, Pixelated draws bodies, horses and your arms in large pixels '
+      + 'like the classic sprites. Sharp draws them at your screen’s full resolution and uses more video memory.'); },
+    get effect() { return t('features.effect.atOnce', 'Takes effect at once.'); },
+    kinds: Object.freeze(['enhanced']),
+    control: Object.freeze({ store: 'prefs', key: 'mwModelDetail', initial: 'pixel', online: 'player', tiers: Object.freeze([tier('pixel', () => t('features.mwModelDetail.pixel', 'Pixelated')), tier('sharp', () => t('features.mwModelDetail.sharp', 'Sharp'))]) }),
+  }),
   // MW-STEEL1's Steel Helm row is gone (MOTION-DOCTRINE settings pass, 2026-10-27): a helm's look is turned on the worn
   // piece in the inventory (systems/lookVariants.js), which writes the same viewer's pref, `mwSteelHelm`.
   // BEAST-BOOTS (2026-10-24, asked: the Beast Boots look and hiding helmets on Khajiit and Argonians as options, not the
@@ -1492,6 +1514,15 @@ export const FEATURES = Object.freeze([
     effect: 'Takes effect immediately.',
     kinds: Object.freeze(['mod']),
     control: Object.freeze({ store: 'mods', vendor: 'morrowind-animation', key: 'AnimationBlendDuration' }),
+  }),
+  Object.freeze({
+    id: 'morrowind-blow-blend',
+    group: 'character',
+    title: 'Плавность ударов (3-е лицо)',
+    get note() { return MOD_SETTINGS['morrowind-animation'].keys.BlowBlendScale.description; },
+    effect: 'Takes effect immediately.',
+    kinds: Object.freeze(['mod']),
+    control: Object.freeze({ store: 'mods', vendor: 'morrowind-animation', key: 'BlowBlendScale' }),
   }),
   Object.freeze({
     id: 'morrowind-motion-doctrine',

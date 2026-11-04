@@ -1650,15 +1650,21 @@ export const MOD_SETTINGS = Object.freeze({
     author: 'Port integration',
     keys: Object.freeze({
       SimplyAnimatedCloaks: Object.freeze({
-        default: 2,
+        default: 1,   // TEST-PR: the owner's set, Vanilla Animated
         options: lazyWords('Vanilla', 'Vanilla Animated', 'Вкл'),
         legacyBooleanChoice: true,
         description: 'Vanilla keeps the selected cloak static. Vanilla Animated adds secondary motion: cloth simulation for classic cloaks, or shared heavy-pelt motion for wolf skins, with anchored shoulders and a damped lower drape. Вкл selects the Simply Animated Cloaks mesh and its authored animation together; if it cannot bind to an actor rig, the runtime tries the compatible fallback mesh. A selected wolf appearance keeps its own mesh and animates in Vanilla Animated mode.',
       }),
       AnimationBlendDuration: Object.freeze({
-        default: 1,
+        default: 2,   // TEST-PR: the owner's set, 0.25 s
         options: lazyWords('Vanilla', 'Smooth · 0.16 s', 'Smooth · 0.25 s', 'Smooth · 0.40 s'),
-        description: 'Browser-native port of Animation Blending for third-person character rigs. Smooths transitions between supported clips; Vanilla disables the cross-fade. The original MWSE Lua script and its per-animation YAML rules are not executable in this browser port, and first-person animation is unchanged.',
+        description: 'Third person: how long one clip fades into the next, for walking, running, stance and idle. Vanilla cuts at once. Blows have their own setting below.',
+      }),
+      // TEST-PR: a blow's fades (BLOW_FLOW entry, exit and chain) scaled, so they can be compared like the clip blend.
+      BlowBlendScale: Object.freeze({
+        default: 0,
+        options: lazyWords('Как сейчас', 'Быстрее ×0.5', 'Медленнее ×1.5', 'Без плавности'),
+        description: 'Third person: how long the body fades into a blow and back to the stance. Как сейчас keeps 0.14 s in, 0.5 s out.',
       }),
       MotionDoctrine: Object.freeze({
         default: 1,
@@ -1666,46 +1672,44 @@ export const MOD_SETTINGS = Object.freeze({
         description: 'По формуле: the legs keep the stride under a blow, the transitions and loops run without jumps, the elbows stay out of the body, armoured two-handed swords carry starts, stops and moving blows through the trunk, the first-person hands dip on a landing without added camera sway, and a landed blow holds for a short beat with a soft shake. Как сейчас keeps the clips as they are.',
       }),
       FirstPersonSource: Object.freeze({
-        default: 1,
+        default: 3,   // TEST-PR: the owner's set, ReAnimation v3 + OpenMW Dynamic Animations
         options: lazyWords('Vanilla', 'ReAnimation v3 · 1-е лицо', 'OpenMW Dynamic Animations · 1-е лицо', 'ReAnimation v3 + OpenMW Dynamic Animations · 1-е лицо'),
         description: 'First-person sources can be used independently or layered. ReAnimation v3 supplies stance, weapon, jump and related clips; OpenMW Dynamic Animations supplies directional walk/run/sneak clips; the combined option overlays those movement groups on ReAnimation. Assets are attempted on the male `xbase_anim.1st.nif` and female `base_anim_female.1st.nif` first-person rigs. Each clip must still parse and bind to the active rig\'s bones; incompatible rigs and clips retain archive fallback.',
       }),
       OpenMWDynamicAnimations: Object.freeze({
-        // Keep Vanilla as the default: this provider can replace the game's
-        // existing walk/run/sneak groups, so it must never silently change gait.
-        default: 0,
+        default: 1,   // TEST-PR: the owner's set, OpenMW Dynamic Animations in third person
         options: lazyWords('Vanilla', 'OpenMW Dynamic Animations · 3-е лицо'),
         description: 'Third-person animation source for compatible rigs. OpenMW Dynamic Animations replaces matching game/archive groups, including directional walking, running, and sneaking; it can therefore change Vanilla locomotion, not just add new actions. Vanilla keeps the game/archive clips. The browser port translates KF group selection and deterministic variant choice into the JavaScript runtime; it does not execute the original OpenMW Lua scripts.',
       }),
       HitReactionSource: Object.freeze({
-        default: 1,
+        default: 0,   // TEST-PR: the owner's set, Vanilla
         options: lazyWords('Vanilla', 'Hit Reactions Animated v2'),
         description: 'Third-person hit-reaction provider. Only hit, stagger, and death groups are admitted after binding to the active skeleton; locomotion and weapon groups remain on their selected sources. Vanilla keeps the game/archive reactions.',
       }),
       PlayerWalkSource: Object.freeze({
         default: 1,
         options: lazyWords('Original', 'Vanilla', 'Simply Walking', 'Feminine Walk Cycle', "Axel's Sexy Walk Fixed"),
-        description: "Player walking source. Original bypasses bundled mod imports for the walk group and uses the game's original/archive animation. Vanilla keeps the fork's default source behavior. Simply Walking, Feminine Walk Cycle, and Axel's Sexy Walk Fixed are independent walk-only sources for supported groups; the feminine cycle and Axel are female-only. Running is configured separately. Unsupported groups fall back to the game/archive source.",
+        description: "Vanilla: the game walk, with Morrowind Animation Overhaul for running, sneaking, turning and walking in a stance. Original: the game clips only, no mod. The named packs replace the player walk only. Feminine Walk Cycle and Axel are female only.",
       }),
       PlayerRunSource: Object.freeze({
         default: 1,
         options: lazyWords('Original', 'Vanilla', "Axel's Sexy Walk Fixed"),
-        description: "Player running source. Original bypasses bundled mod imports for running and uses the game's original/archive animation. Vanilla keeps the fork's default source behavior. Axel's RunForward clip is available only for female player rigs; male players and unsupported run groups remain on the game/archive source. This choice does not change walking.",
+        description: "Vanilla: the game walk, with Morrowind Animation Overhaul for running, sneaking, turning and walking in a stance. Original: the game clips only, no mod. Axel replaces the run of a female player.",
       }),
       NpcMaleWalk: Object.freeze({
         default: 1,
         options: lazyWords('Original', 'Vanilla', 'Simply Walking'),
-        description: "Male NPC walking source. Original bypasses bundled mod imports for walking and uses the game's original/archive animation. Vanilla keeps the fork's default source behavior. Simply Walking replaces supported male walk groups; running and unsupported groups remain on the game/archive source.",
+        description: "Vanilla: the game walk, with Morrowind Animation Overhaul for running, sneaking, turning and walking in a stance. Original: the game clips only, no mod. Simply Walking replaces the walk of male NPCs.",
       }),
       NpcFemaleWalk: Object.freeze({
         default: 1,
         options: lazyWords('Original', 'Vanilla', 'Simply Walking', 'Feminine Walk Cycle', "Axel's Sexy Walk Fixed"),
-        description: "Female NPC walking source. Original bypasses bundled mod imports for walking and uses the game's original/archive animation. Vanilla keeps the fork's default source behavior. Simply Walking, Feminine Walk Cycle, and Axel's Sexy Walk Fixed are independent walk-only choices. Running is configured separately. Unsupported groups fall back to the game/archive source.",
+        description: "Vanilla: the game walk, with Morrowind Animation Overhaul for running, sneaking, turning and walking in a stance. Original: the game clips only, no mod. The named packs replace the walk of female NPCs.",
       }),
       NpcFemaleRun: Object.freeze({
         default: 1,
         options: lazyWords('Original', 'Vanilla', "Axel's Sexy Walk Fixed"),
-        description: "Female NPC running source. Original bypasses bundled mod imports for running and uses the game's original/archive animation. Vanilla keeps the fork's default source behavior. Axel's RunForward clip replaces supported female NPC run groups; unsupported groups remain on the game/archive source. This choice does not change walking.",
+        description: "Vanilla: the game walk, with Morrowind Animation Overhaul for running, sneaking, turning and walking in a stance. Original: the game clips only, no mod. Axel replaces the run of female NPCs.",
       }),
       // Legacy key retained so old stored data is not silently redefined.
       // Runtime no longer reads this key; actor-scoped settings are independent.
@@ -1724,9 +1728,10 @@ export const MOD_SETTINGS = Object.freeze({
     author: 'Port integration',
     keys: Object.freeze({
       BetterBodies: Object.freeze({ default: true, conflictGroup: 'morrowind-body-geometry', conflictLabel: 'Better Bodies', get description() { return 'Use the Better Bodies body meshes and matching race/sex skin for the player. Off restores the standard Morrowind body meshes and first-person arms.'; } }),
-      BetterBodiesSource: Object.freeze({ default: 2, options: lazyWords('Original', 'Vanilla', 'Better Bodies'), description: 'Independent player-body source. Original uses the upstream game body; Vanilla preserves the current default body selection; Better Bodies selects the replacement meshes and matching skins.' }),
+      BetterBodiesSource: Object.freeze({ default: 1, options: lazyWords('Original', 'Vanilla', 'Better Bodies'), description: 'Third-person body. Original and Vanilla draw the game body. Better Bodies draws the Better Bodies meshes and skins. First-person arms are set by their own row.' }),   // TEST-PR: the owner's set, Vanilla
       FirstPersonHands: Object.freeze({ default: 1, options: lazyWords('Vanilla', 'Better Hands'), description: "Choose the player's first-person arms independently of the third-person body: Vanilla, or Better Hands - Better Bodies' arm and skin with Better Hands' hands, the clenched fist's thumb taken from Better Bodies. Applies to supported human races; beasts and werewolves keep their normal assets." }),
-      HighResolutionBetterBodyFemaleTextures: Object.freeze({ default: true, get description() { return 'Use the high-resolution female Better Bodies skin and hand textures, with underwear, body-hair and no-hair variants selected in the appearance editor. Keeps the project-corrected Better Bodies mesh and UV coordinates; requires Better Bodies.'; } }),
+      HighResolutionBetterBodyFemaleTextures: Object.freeze({ default: false,   // TEST-PR: textures stay off until they are checked
+        get description() { return 'Use the high-resolution female Better Bodies skin and hand textures, with underwear, body-hair and no-hair variants selected in the appearance editor. Keeps the project-corrected Better Bodies mesh and UV coordinates; requires Better Bodies.'; } }),
       SeamlessDMRA: Object.freeze({ default: false, get description() { return 'Use Seamless DMRA female body geometry in place of the base Better Bodies female mesh. Better Bodies remains the base skin and male-body source; only one female body mesh is selected at a time.'; } }),
       SeamlessDMRASource: Object.freeze({ default: 1, options: lazyWords('Original', 'Vanilla', 'Seamless DMRA'), description: 'Independent female body geometry source. Original and Vanilla use the existing base geometry; Seamless DMRA selects the alternative female mesh.' }),
       IntelligentTextures: Object.freeze({ default: false, get description() { return 'Use Intelligent Textures 00 Core. The 01 Atlas Textures set is excluded because it requires matching atlas meshes.'; } }),

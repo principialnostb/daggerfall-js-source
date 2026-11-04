@@ -4010,6 +4010,13 @@ const TILE_AFTER = Object.freeze({
   BetterBodies: rebuildMorrowindBody,
   FirstPersonHands: rebuildMorrowindBody, // Rebuild the live first-person rig when its independent hand source changes.
   SeamlessDMRA: rebuildMorrowindBody,
+  // TEST-PR: the rows write the *Source keys and the clip sources, which the build reads - rebuild so a choice shows now.
+  BetterBodiesSource: rebuildMorrowindBody,
+  SeamlessDMRASource: rebuildMorrowindBody,
+  FirstPersonSource: rebuildMorrowindBody,
+  OpenMWDynamicAnimations: rebuildMorrowindBody,
+  HitReactionSource: rebuildMorrowindBody,
+  SimplyAnimatedCloaks: rebuildMorrowindBody,
   mwBeastFeet: rebuildMorrowindBody,   // BEAST-BOOTS: a beast's footwear and helmet, on the standing body at once
   mwBeastHelm: rebuildMorrowindBody,
 });

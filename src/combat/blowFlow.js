@@ -109,6 +109,9 @@ export function blowBlendSeconds(from, to, prev = null, next = null) {
   if (toBlow) return BLOW_FLOW.entry;
   return null;   // any other change: the view's own
 }
+/** TEST-PR: the Animations tab's blow-fade dial (BlowBlendScale) - as is, half, one and a half, none. */
+export const BLOW_BLEND_SCALES = Object.freeze([1, 0.5, 1.5, 0]);
+export const scaledBlowBlend = (seconds, choice) => (seconds == null ? null : seconds * (BLOW_BLEND_SCALES[choice] ?? 1));
 /** The blend's weight at `elapsed` of `seconds` - eased, so the arm leaves its blow and arrives at the stance slowly. */
 export const blendWeightAt = (elapsed, seconds) => (seconds > 0 ? smooth(clamp01(elapsed / seconds)) : 1);
 

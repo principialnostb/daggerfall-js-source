@@ -6,7 +6,7 @@ import { MOD_SETTINGS } from '../../../src/systems/modSettings.js';
 
 test('MW-ANIM: OpenMW Dynamic Animations is opt-in and discloses Vanilla locomotion overrides', () => {
   const setting = MOD_SETTINGS['morrowind-animation'].keys.OpenMWDynamicAnimations;
-  assert.equal(setting.default, 0, 'Vanilla animation groups must remain the default');
+  assert.equal(setting.default, 1, 'TEST-PR: the owner set has OpenMW Dynamic Animations on in third person');
   assert.match(setting.options[0], /Vanilla/i);
   assert.match(setting.description, /walk(?:ing)?/i);
   assert.match(setting.description, /run(?:ning)?/i);
@@ -113,11 +113,11 @@ test('ANIM-UI5: identical archive-only source choices are not duplicated', () =>
     'OpenMW Dynamic Animations · 1-е лицо',
     'ReAnimation v3 + OpenMW Dynamic Animations · 1-е лицо',
   ]);
-  assert.equal(keys.FirstPersonSource.default, 1);
+  assert.equal(keys.FirstPersonSource.default, 3);   // TEST-PR: ReAnimation v3 + ODA
   assert.deepEqual([...keys.OpenMWDynamicAnimations.options], ['Vanilla', 'OpenMW Dynamic Animations · 3-е лицо']);
-  assert.equal(keys.OpenMWDynamicAnimations.default, 0);
+  assert.equal(keys.OpenMWDynamicAnimations.default, 1);   // TEST-PR: ODA on
   assert.deepEqual([...keys.HitReactionSource.options], ['Vanilla', 'Hit Reactions Animated v2']);
-  assert.equal(keys.HitReactionSource.default, 1);
+  assert.equal(keys.HitReactionSource.default, 0);   // TEST-PR: Vanilla reactions
 });
 
 test('MW-ANIM-4: first-person source modes and layered providers are stable', () => {
