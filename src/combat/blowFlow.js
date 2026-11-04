@@ -60,7 +60,8 @@ export function recoverRate(plan, p, series) {
   const lone = top * (1 - (1 - PACE.settle) * q);
   // SERIES-PACE (the owner's game, 2026-11-04: a series' follow-through fell to 0.17x, each blow slower than the last):
   // a series' follow-through is never slower than a lone blow's at the same point - an arm done early waits in the stance
-  if (series && plan?.seriesBase > 0) return Math.max(lone, plan.seriesBase * (1.5 - q));
+  // BLOW-STYLE 'Прежний' (`plan.flow`): the series flows at the machine's pace, never under BLOW_STYLE.floor of a lone blow
+  if (series && plan?.seriesBase > 0) return Math.max(lone * (plan.flow ? BLOW_STYLE.floor : 1), plan.seriesBase * (1.5 - q));
   return lone;
 }
 
@@ -112,9 +113,11 @@ export function blowBlendSeconds(from, to, prev = null, next = null) {
   if (toBlow) return BLOW_FLOW.entry;
   return null;   // any other change: the view's own
 }
-/** TEST-PR: the Animations tab's blow-fade dial (BlowBlendScale) - as is, half, one and a half, none. */
-export const BLOW_BLEND_SCALES = Object.freeze([1, 0.5, 1.5, 0]);
-export const scaledBlowBlend = (seconds, choice) => (seconds == null ? null : seconds * (BLOW_BLEND_SCALES[choice] ?? 1));
+/** BLOW-STYLE (the owner, 2026-11-05: the old series was smoother, but some blows crawled): the Animations tab's choice
+ *  (BlowStyle) - 0 'Прежний', the series as SERIES-FLOW had it (a click a series, the follow-through flowing into the
+ *  next blow) held to `floor` of a lone blow's speed; 1 'Текущий', SERIES-PACE and SERIES-OWN-PRESS. */
+export const BLOW_STYLE = Object.freeze({ floor: 0.6 });
+export const flowStyle = (choice) => Number(choice) === 0;
 /** The blend's weight at `elapsed` of `seconds` - eased, so the arm leaves its blow and arrives at the stance slowly. */
 export const blendWeightAt = (elapsed, seconds) => (seconds > 0 ? smooth(clamp01(elapsed / seconds)) : 1);
 

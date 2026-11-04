@@ -27,11 +27,11 @@ export function createAttackSeries() {
     /** The series goes on: the button held past a click, or pressed again within SERIES.intent - a press the blow it
      *  began has spent is not one (SERIES-OWN-PRESS, the owner's game 2026-11-04: every lone click was a series, and its
      *  follow-through drifted at a series' pace). */
-    wanted: () => heldFor >= SERIES.held || sinceRise < SERIES.intent,
+    wanted: (flow = false) => (flow ? prevHeld : heldFor >= SERIES.held) || sinceRise < SERIES.intent,   // BLOW-STYLE 'Прежний': any press
     /** A press is waiting to be taken. */
     buffered: () => buffered > 0,
     /** A blow began: the waiting press is spent, and with it the series it would have meant. */
-    consume() { buffered = 0; sinceRise = Infinity; },
+    consume(flow = false) { buffered = 0; if (!flow) sinceRise = Infinity; },
     reset() { prevHeld = false; sinceRise = Infinity; buffered = 0; heldFor = 0; },
   };
 }

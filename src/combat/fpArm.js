@@ -425,7 +425,7 @@ import { settleIdle, createTurnGate, blendSourceOf, createMoveGrace, carriesBlen
 import { createFpInertia } from './fpInertia.js';   // FP-INERTIA: the first-person hands carry weight
 import { createLoopSeam } from './loopSeam.js';   // LOOP-SEAM: a loop's stop carried to its start
 import { hitResponse } from './hitResponse.js';   // HIT-RESPONSE: the striking arm's hitstop
-import { BLOW_FLOW, holdFor, calmBlowPlan, driftRate, recoverRate, poseKindOf, blowBlendSeconds, scaledBlowBlend, blendWeightAt, createVariantCycle, bashesNow } from './blowFlow.js';   // BLOW-FLOW: the window after a blow, the blends; MW-PACE2: the player's calm pace; SHIELD-BASH: in turn
+import { BLOW_FLOW, holdFor, calmBlowPlan, driftRate, recoverRate, poseKindOf, blowBlendSeconds, blendWeightAt, flowStyle, createVariantCycle, bashesNow } from './blowFlow.js';   // BLOW-FLOW: the window after a blow, the blends; MW-PACE2: the player's calm pace; SHIELD-BASH: in turn
 import { spinePitchFactor, spineAimSlot } from './spineAim.js';   // BOW-AIM: the third-person body's ranged aim follows the look
 import { vfxOf, createVfx, vfxCapacity, vfxTextures } from '../formats/morrowind/mwVfx.js';   // MW-SPELLFX1: an effect mesh, running
 import { spellFxPlan } from '../formats/morrowind/mwSpellFx.js';   // MW-SPELLFX1: which visuals a spell wears
@@ -6893,7 +6893,7 @@ export function createFpArm({ playerAppearance = false } = {}) {
     const toHit = wind + release;
     if (!(toHit > 0)) return null;
     // MW-PACE3: the player's own blow, led by its arm, plays each section at its own speed (combat/blowFlow.js calmBlowPlan)
-    if (blow.lead) return calmBlowPlan(blow, wind, release);
+    if (blow.lead) return { ...calmBlowPlan(blow, wind, release), flow: flowStyle(modSetting('morrowind-animation', 'BlowStyle')) };   // BLOW-STYLE
     return { seconds: blow.seconds, hitAt: blow.hitAt, clock: 0, rate: blowRate(toHit, blow.hitAt) };
   }
 
@@ -8638,7 +8638,7 @@ export function createFpArm({ playerAppearance = false } = {}) {
           if (thirdPoseState !== state || thirdPoseSource !== poseSource) {
             // BLOW-FLOW: a blow's change of pose blends by its own law (combat/blowFlow.js) - the sections of one blow
             // never (one clip), a blow cut by the next briefly, the return to the stance slowly
-            const kindNow = poseKindOf(state === actionState && attackingNow(), blowSerial), seconds = scaledBlowBlend(blowBlendSeconds(thirdPoseKind, kindNow, thirdPoseState, state), Number(modSetting('morrowind-animation', 'BlowBlendScale')) || 0);   // SECTION-SEAM; TEST-PR: the blow-fade dial
+            const kindNow = poseKindOf(state === actionState && attackingNow(), blowSerial), seconds = blowBlendSeconds(thirdPoseKind, kindNow, thirdPoseState, state);   // SECTION-SEAM
             if (!carriesBlend(seconds, thirdBlendFrom, thirdBlendElapsed, thirdBlendSeconds, modSetting('morrowind-animation', 'MotionDoctrine') !== 0)) {   // BLEND-CARRY (combat/idleSettle.js)
               thirdBlendFrom = blendSourceOf(t.arm, modSetting('morrowind-animation', 'MotionDoctrine') !== 0);   // SHOWN-POSE (combat/idleSettle.js)
               thirdBlendFromSource = thirdPoseState === null ? null : thirdPoseSource;

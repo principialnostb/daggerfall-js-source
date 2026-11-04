@@ -210,7 +210,7 @@ export const CATEGORIES = Object.freeze([
       "feat:morrowind-hit-reaction-animation-source",
     ]),
     sec("third-person", "Источники анимаций (3-е лицо)", [
-      "feat:morrowind-animation-blending", "feat:morrowind-blow-blend", "feat:morrowind-motion-doctrine",
+      "feat:morrowind-animation-blending", "feat:morrowind-blow-style", "feat:morrowind-motion-doctrine",
       "feat:morrowind-openmw-dynamic-animations",
     ]),
     sec("first-person", "Анимации от первого лица", [

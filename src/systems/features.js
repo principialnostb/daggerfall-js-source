@@ -1516,13 +1516,13 @@ export const FEATURES = Object.freeze([
     control: Object.freeze({ store: 'mods', vendor: 'morrowind-animation', key: 'AnimationBlendDuration' }),
   }),
   Object.freeze({
-    id: 'morrowind-blow-blend',
+    id: 'morrowind-blow-style',
     group: 'character',
-    title: 'Плавность ударов (3-е лицо)',
-    get note() { return MOD_SETTINGS['morrowind-animation'].keys.BlowBlendScale.description; },
+    title: 'Тип боя',
+    get note() { return MOD_SETTINGS['morrowind-animation'].keys.BlowStyle.description; },
     effect: 'Takes effect immediately.',
     kinds: Object.freeze(['mod']),
-    control: Object.freeze({ store: 'mods', vendor: 'morrowind-animation', key: 'BlowBlendScale' }),
+    control: Object.freeze({ store: 'mods', vendor: 'morrowind-animation', key: 'BlowStyle' }),
   }),
   Object.freeze({
     id: 'morrowind-motion-doctrine',

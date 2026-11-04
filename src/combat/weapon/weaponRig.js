@@ -62,6 +62,7 @@ import { fieldOfView } from '../../ui/viewSettings.js';   // CLIMB-HANDS II: the
 // state in which both reach the screen, and none in which neither does.
 import { fpArm, hasAmmoFor } from '../fpArm.js';
 import { createArmLedBlow } from './armLedBlow.js';   // MW-PACE2: the player's melee hit waits for its arm
+import { flowStyle } from '../blowFlow.js';   // BLOW-STYLE
 import { createAttackSeries } from './attackSeries.js';   // SERIES-FLOW: one series, held or tapped
 import { ammoCountFor } from '../../systems/inventory.js';   // AUDIT 68 S27-ammoCount-dup: the quiver's count, from the spend law's own module
 import { getPref } from '../../systems/uiPrefs.js';   // MWA1: the arms switch
@@ -2038,8 +2039,9 @@ export function createWeaponRig({ renderer, canvas, fetchBytes, palette, audio, 
       // a press the blow in the hands could not take is taken now (the click modes - a drag's way is its own)
       const taken = strike ?? (!paralyzed && c && canAttack && !armLoosing && !techniqueFlying() && attackSeries.buffered() && !playerWeapon.machine.ranged
         && getInt('Controls', 'WeaponSwingMode', 0, 2) !== 0 ? playerWeapon.clickAttack() : null);
-      if (taken) { attackSeries.consume(); fpAttack(taken, dt); }
-      fpArm.setSeriesWanted?.(attackSeries.wanted());
+      const flow = flowStyle(modSetting('morrowind-animation', 'BlowStyle'));   // BLOW-STYLE
+      if (taken) { attackSeries.consume(flow); fpAttack(taken, dt); }
+      fpArm.setSeriesWanted?.(attackSeries.wanted(flow));
       _dx = 0; _dy = 0;
       // AUDIT 23 (C9): the strike-ENTRY whoosh is gone - DFU plays the
       // swing sound at the HIT FRAME of a swing that hit no enemy

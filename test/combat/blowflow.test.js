@@ -320,3 +320,26 @@ test('SERIES-FLOW: the series and its buffer - a press waits SERIES.buffer to be
   assert.equal(driftRate(0.01, 10, 1.5), 0.05, 'never stopped');
   assert.ok(SERIES_DRIFT < 1, 'only part of the follow-through: the weapon never goes back to the stance inside a series');
 });
+
+test('BLOW-STYLE: Прежний flows a series at the machine pace but never under the floor of a lone blow; Текущий never under a lone blow', async () => {
+  const { recoverRate: rate, BLOW_STYLE, flowStyle } = await import('../../src/combat/blowFlow.js');
+  const { createAttackSeries } = await import('../../src/combat/weapon/attackSeries.js');
+  const crawl = { sf: 1, seriesBase: 0.05 }, quick = { sf: 1, seriesBase: 2 };
+  for (const q of [0, 0.5, 1]) {
+    const lone = rate({ sf: 1 }, q, false);
+    assert.ok(Math.abs(rate({ ...crawl, flow: true }, q, true) - lone * BLOW_STYLE.floor) < 1e-9, 'Прежний: a crawling series is held at the floor');
+    assert.equal(rate(crawl, q, true), lone, 'Текущий: never slower than a lone blow');
+    assert.equal(rate({ ...quick, flow: true }, q, true), 2 * (1.5 - q), 'Прежний: a quick series keeps its flow');
+  }
+  assert.equal(flowStyle(0), true);
+  assert.equal(flowStyle(1), false);
+  const click = (flow) => {
+    const s = createAttackSeries();
+    s.step(1 / 60, true);
+    s.consume(flow);
+    s.step(1 / 60, false);
+    return s.wanted(flow);
+  };
+  assert.equal(click(true), true, 'Прежний: a click goes on as a series');
+  assert.equal(click(false), false, 'Текущий: a click is a lone blow');
+});

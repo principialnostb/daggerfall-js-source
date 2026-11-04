@@ -1660,11 +1660,11 @@ export const MOD_SETTINGS = Object.freeze({
         options: lazyWords('Vanilla', 'Smooth · 0.16 s', 'Smooth · 0.25 s', 'Smooth · 0.40 s'),
         description: 'Third person: how long one clip fades into the next, for walking, running, stance and idle. Vanilla cuts at once. Blows have their own setting below.',
       }),
-      // TEST-PR: a blow's fades (BLOW_FLOW entry, exit and chain) scaled, so they can be compared like the clip blend.
-      BlowBlendScale: Object.freeze({
-        default: 0,
-        options: lazyWords('Как сейчас', 'Быстрее ×0.5', 'Медленнее ×1.5', 'Без плавности'),
-        description: 'Third person: how long the body fades into a blow and back to the stance. Как сейчас keeps 0.14 s in, 0.5 s out.',
+      // BLOW-STYLE (combat/blowFlow.js): the old flowing series or the current one, to compare
+      BlowStyle: Object.freeze({
+        default: 1,
+        options: lazyWords('Прежний', 'Текущий'),
+        description: 'Прежний: a series of blows flows from one blow into the next, never slower than a lone blow by much. Текущий: each blow ends at its own pace.',
       }),
       MotionDoctrine: Object.freeze({
         default: 1,
