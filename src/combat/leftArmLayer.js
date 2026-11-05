@@ -118,12 +118,26 @@ export function nlerpQuat(a, b, w) {
   return q.map((v) => v / l);
 }
 
-/** The base's tracks with the mask's bones answered by the overlay's AND the base's own, for the weighted sampler. */
-export function weightedOverlayTracks(base, overlay, bones) {
+/** SHIELD-STRAFE-TRUNK: the arm's root, and the bones above it (Bip01 down) whose turns the arm rides. */
+export const ARM_ROOT = 'bip01 l clavicle';
+export const ARM_CHAIN = Object.freeze(['bip01', 'bip01 pelvis', 'bip01 spine', 'bip01 spine1', 'bip01 spine2', 'bip01 neck']);
+const qmul = (a, b) => [
+  a[0] * b[0] - a[1] * b[1] - a[2] * b[2] - a[3] * b[3], a[0] * b[1] + a[1] * b[0] + a[2] * b[3] - a[3] * b[2],
+  a[0] * b[2] - a[1] * b[3] + a[2] * b[0] + a[3] * b[1], a[0] * b[3] + a[1] * b[2] - a[2] * b[1] + a[3] * b[0],
+];
+const qconj = (q) => [q[0], -q[1], -q[2], -q[3]];
+
+/** The base's tracks with the mask's bones answered by the overlay's AND the base's own, for the weighted sampler.
+ *  `adapt` (SHIELD-STRAFE-TRUNK): the arm's root carries both clips' trunks, to turn the arm as the overlay's trunk
+ *  turned it. */
+export function weightedOverlayTracks(base, overlay, bones, adapt = false) {
   const out = new Map(base ?? []);
   if (overlay && bones) {
     for (const [name, t] of overlay) if (bones.has(name) && t) out.set(name, { __overlay: t, __base: base?.get(name) ?? null });
   }
+  const root = adapt ? out.get(ARM_ROOT) : null;
+  const co = ARM_CHAIN.map((n) => overlay?.get(n)), cb = ARM_CHAIN.map((n) => base?.get(n));
+  if (root?.__overlay && co.every(Boolean) && cb.every(Boolean)) out.set(ARM_ROOT, { ...root, __chainO: co, __chainB: cb });
   return out;
 }
 
@@ -131,7 +145,15 @@ export function weightedOverlayTracks(base, overlay, bones) {
 export function weightedOverlaySampler(sampleTrack, clock, weight) {
   return (track, time) => {
     if (!track || !track.__overlay) return sampleTrack(track, time);
-    const o = sampleTrack(track.__overlay, clock());
+    let o = sampleTrack(track.__overlay, clock());
+    // SHIELD-STRAFE-TRUNK (the owner's video, 2026-11-05: walking forward the strafe's arm pointed the shield out from
+    // the hip): the strafe turns its trunk to the way it goes; on a straight walk's trunk its arm, laid from the
+    // collarbone down, pointed elsewhere. The root is turned by the overlay's trunk less the base's, so the arm stands to
+    // the body as the strafe's does, the shoulder where the walk has it.
+    if (track.__chainO && o.rotation) {
+      const chain = (ts, t) => ts.reduce((q, tr) => { const r = sampleTrack(tr, t)?.rotation; return r ? qmul(q, r) : q; }, [1, 0, 0, 0]);
+      o = { ...o, rotation: qmul(qconj(chain(track.__chainB, time)), qmul(chain(track.__chainO, clock()), o.rotation)) };
+    }
     const w = clamp01(weight());
     if (w >= 1 || !track.__base) return o;
     const b = sampleTrack(track.__base, time);
@@ -180,8 +202,9 @@ export function createLeftArmLayer({ pickAnimSource, resetClip, composeMovementG
     /** The tracks to pose with: the base's, the mask's bones overlaid while the layer has weight. */
     tracks(base, mask) {
       if (!(w > 0) || !state || !source || !mask || !mask.size) return base;
-      if (!memo || memo.base !== base || memo.overlay !== source.trackMap || memo.mask !== mask) {
-        memo = { base, overlay: source.trackMap, mask, tracks: weightedOverlayTracks(base, source.trackMap, mask) };
+      const adapt = String(group ?? '').endsWith('|rig');   // SHIELD-STRAFE-TRUNK: the walking shield's strafe arm
+      if (!memo || memo.base !== base || memo.overlay !== source.trackMap || memo.mask !== mask || memo.adapt !== adapt) {
+        memo = { base, overlay: source.trackMap, mask, adapt, tracks: weightedOverlayTracks(base, source.trackMap, mask, adapt) };
       }
       return memo.tracks;
     },

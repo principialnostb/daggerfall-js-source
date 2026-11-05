@@ -360,3 +360,16 @@ test('SHIELD-STRAFE-SOURCE: walking straight, the shield arm comes from the stra
   step({ kind: 'movement', base: 'walkleft', stance: 'drawn', still: true });
   assert.deepEqual(picked, ['game', 'pack'], 'walking the strafe\'s own; running the pinned pose as before, picked again');
 });
+
+test('SHIELD-STRAFE-TRUNK: the strafe\'s arm laid on a straight walk is turned by the strafe\'s trunk less the walk\'s - the arm stands to the body as the strafe\'s', async () => {
+  const { weightedOverlayTracks, weightedOverlaySampler, ARM_ROOT, ARM_CHAIN } = await import('../../src/combat/leftArmLayer.js');
+  const yaw = (a) => [Math.cos(a / 2), 0, 0, Math.sin(a / 2)];
+  const track = (q) => ({ q });
+  const base = new Map(ARM_CHAIN.map((n) => [n, track(yaw(0))])), overlay = new Map(ARM_CHAIN.map((n, i) => [n, track(yaw(i === 1 ? 0.8 : 0))]));
+  base.set(ARM_ROOT, track(yaw(0.1))); overlay.set(ARM_ROOT, track(yaw(0.3)));
+  const sample = (t) => ({ rotation: t.q, translation: [0, 0, 0], scale: 1 });
+  const at = (adapt) => weightedOverlaySampler(sample, () => 0, () => 1)(weightedOverlayTracks(base, overlay, new Set([ARM_ROOT]), adapt).get(ARM_ROOT), 0).rotation;
+  const angleOf = (q) => 2 * Math.atan2(q[3], q[0]);
+  assert.ok(Math.abs(angleOf(at(false)) - 0.3) < 1e-9, 'plain: the strafe\'s own collarbone');
+  assert.ok(Math.abs(angleOf(at(true)) - 1.1) < 1e-9, 'adapted: turned by the strafe\'s trunk (0.8) on the walk\'s (0)');
+});
