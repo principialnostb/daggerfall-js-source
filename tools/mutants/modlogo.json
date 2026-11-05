@@ -10,16 +10,6 @@
     "note": "A guild named by its tag, the word a moderator reads off a card, would be no guild."
   },
   {
-    "name": "MODLOGO-size-unchecked",
-    "file": "server-account/src/discord.js",
-    "old": "  if (Number(att.size) > GUILD_LOGO_MAX_BYTES) return say(refusedText('logo-bytes'));",
-    "new": "  if (false) return say(refusedText('logo-bytes'));",
-    "tests": [
-      "test/server/guildshop_service.test.js"
-    ],
-    "note": "A picture past the law's bound would be fetched whole off Discord's CDN before it is refused."
-  },
-  {
     "name": "MODLOGO-replaced-kept",
     "file": "server-account/src/guildLogos.js",
     "old": "\"UPDATE guild_logos SET state = 'withdrawn', decided_at = ?2, decided_by = 'replaced' WHERE guild_id = ?3 AND state = 'approved' AND id <> ?1 AND EXISTS (SELECT 1 FROM guild_logos WHERE id = ?1)\",",
@@ -38,5 +28,25 @@
       "test/server/guildshop_service.test.js"
     ],
     "note": "A logo a moderator set would wait on a review nobody asked for, worn by nobody."
+  },
+  {
+    "name": "MODLOGO-proxy-unasked",
+    "file": "server-account/src/discord.js",
+    "old": "  if (small || typeof att?.proxy_url !== 'string') return String(att?.url ?? '');",
+    "new": "  if (true) return String(att?.url ?? '');",
+    "tests": [
+      "test/server/guildshop_service.test.js"
+    ],
+    "note": "A full-size upload would be read whole off the CDN and refused, where the proxy would have shrunk it."
+  },
+  {
+    "name": "MODLOGO-square-unmeasured",
+    "file": "server-account/src/discord.js",
+    "old": "  if (wide !== tall) return say(`That picture is ${wide} by ${tall} px. A logo is square.`);",
+    "new": "  if (false) return say(`That picture is ${wide} by ${tall} px. A logo is square.`);",
+    "tests": [
+      "test/server/guildshop_service.test.js"
+    ],
+    "note": "A picture that is not square would be fetched and refused on its bytes, without saying its measure."
   }
 ]
