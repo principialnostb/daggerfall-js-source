@@ -601,7 +601,7 @@ async function onCommand(ctx, env, body, actor, io) {
 /** /mod logo: a guild, its tag first and then its name, and a picture Discord holds. Its size is read before its bytes
  *  are asked of Discord's CDN, so a file past the law's bound costs no fetch. Then the service sets it as the guild's
  *  logo, worn at once with no fee and no review, and the answer says what the guild wears now. */
-async function onLogoCommand(ctx, env, body, sub, actor, io) {
+async function onLogoCommand(ctx, env, body, sub, actor, net) {
   const guild = await guildByWord(ctx.db, String(optionOf(sub, 'guild') ?? ''));
   if (!guild) return say(refusedText('no-guild'));
   const att = body?.data?.resolved?.attachments?.[String(optionOf(sub, 'picture') ?? '')];
@@ -609,22 +609,22 @@ async function onLogoCommand(ctx, env, body, sub, actor, io) {
   if (Number(att.size) > GUILD_LOGO_MAX_BYTES) return say(refusedText('logo-bytes'));
   let bytes = null;
   try {
-    const res = await io.fetchFn(String(att.url), { signal: AbortSignal.timeout(DISCORD_POST_MS) });
+    const res = await net.fetchFn(String(att.url), { signal: AbortSignal.timeout(DISCORD_POST_MS) });
     if (res.ok) bytes = new Uint8Array(await res.arrayBuffer());
   } catch {
     bytes = null;
   }
   if (!bytes) return say(refusedText('logo-fetch'));
-  const r = await setGuildLogo(
+  const worn = await setGuildLogo(
     { ...ctx, bucket: ctx.bucket ?? env?.SAVES, env },
     guild.id,
     bytes,
     `${displayName(actor)} (Discord)`,
     actor,
   );
-  if ('error' in r) return say(refusedText(r.error));
+  if ('error' in worn) return say(refusedText(worn.error));
   return say(
-    `${md(guild.name)} <${md(guild.tag)}> wears the new logo.${r.replaced ? ' The one before is retired.' : ''}`,
+    `${md(guild.name)} <${md(guild.tag)}> wears the new logo.${worn.replaced ? ' The one before is retired.' : ''}`,
   );
 }
 
