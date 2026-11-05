@@ -89,7 +89,12 @@ export const MOD_COMMAND = Object.freeze({
       description: "Set a guild's logo from a picture - worn at once, no fee, no review",
       options: [
         { type: 3, name: 'guild', description: 'The guild, by tag or name', required: true, max_length: 40 },
-        { type: 11, name: 'picture', description: 'A square PNG or WebP, 64 to 256 px a side, under 48 KiB', required: true },
+        {
+          type: 11,
+          name: 'picture',
+          description: 'A square PNG or WebP, 64 to 256 px a side, under 48 KiB',
+          required: true,
+        },
       ],
     },
   ],

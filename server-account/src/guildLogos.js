@@ -498,7 +498,11 @@ export function logoCard(/** @type {any} */ row, /** @type {any} */ guild) {
       : `${ended}${row.decided_by ? ` by ${md(row.decided_by)}` : ''}.`,
     color: open ? 0x3070d0 : row.state === 'approved' ? 0x30a050 : 0x808080,
     fields: [
-      { name: logoSetByMod(row) ? 'Set by' : 'Sent by', value: `${md(row.by_name)} (\`${row.by_player}\`)`, inline: true },
+      {
+        name: logoSetByMod(row) ? 'Set by' : 'Sent by',
+        value: `${md(row.by_name)} (\`${row.by_player}\`)`,
+        inline: true,
+      },
       { name: 'Picture', value: `${row.side} px, ${Math.ceil(Number(row.bytes) / 1024)} KiB`, inline: true },
       {
         name: 'Fee',

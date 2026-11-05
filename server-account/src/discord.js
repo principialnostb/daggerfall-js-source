@@ -623,7 +623,9 @@ async function onLogoCommand(ctx, env, body, sub, actor, io) {
     actor,
   );
   if ('error' in r) return say(refusedText(r.error));
-  return say(`${md(guild.name)} <${md(guild.tag)}> wears the new logo.${r.replaced ? ' The one before is retired.' : ''}`);
+  return say(
+    `${md(guild.name)} <${md(guild.tag)}> wears the new logo.${r.replaced ? ' The one before is retired.' : ''}`,
+  );
 }
 
 /**
