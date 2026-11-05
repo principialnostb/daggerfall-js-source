@@ -8565,7 +8565,7 @@ export function createFpArm({ playerAppearance = false } = {}) {
       if (movementState) advanceClip(movementState, (movementSource || rig()).keys, dt * movementRate, null);
       // LEFT-ARM: the shield's or the free hand's arm, on the stride the movement now stands at
       leftArm.step(dt, { plan: leftArmPlan({ mode: leftArmMode(), view: viewMode, moving: !!movementState, base: movementBase, attacking: attackingNow(), jumping: !!jumpState, bashing: blowBash && attackingNow() }),
-        sources: rig()?.sources, hasGroup, stance: movementState ? movementStance : stanceOf(), movement: movementState, movementSource });
+        sources: rig()?.sources, hasGroup, stance: movementState ? movementStance : stanceOf(), movement: movementState, movementSource, walkPref: movementClipPreference });   // SHIELD-STRAFE-SOURCE
       // The jump plays at speedmult 1.0 (character.cpp:528-531 pass
       // 1.0f) - no rate scaling, unlike movement.
       if (jumpState) advanceClip(jumpState, (jumpSource || rig()).keys, dt, null);

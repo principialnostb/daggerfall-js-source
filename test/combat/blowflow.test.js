@@ -343,3 +343,20 @@ test('BLOW-STYLE: Прежний flows a series at the machine pace but never un
   assert.equal(click(true), true, 'Прежний: a click goes on as a series');
   assert.equal(click(false), false, 'Текущий: a click is a lone blow');
 });
+
+test('SHIELD-STRAFE-SOURCE: walking straight, the shield arm comes from the strafe a strafe would play - not the walk pack\'s, first in line', async () => {
+  const { createLeftArmLayer, strafeSources } = await import('../../src/combat/leftArmLayer.js');
+  const picked = [];
+  const game = { name: 'game', groupSet: new Set(['walkleft1h']), keys: [] }, pack = { name: 'pack', walkOnly: true, walkVariant: 'standard', groupSet: new Set(['walkforward1h', 'walkleft1h']), keys: [] };
+  assert.deepEqual(strafeSources([game, pack], 'walk:vanilla').map((s) => s.name), ['game'], 'the game\'s walk: the pack is not a strafe\'s');
+  assert.deepEqual(strafeSources([game, pack], 'walk:standard').map((s) => s.name), ['game', 'pack'], 'the pack chosen: in the rig\'s order');
+  const layer = createLeftArmLayer({
+    pickAnimSource: (cands, group) => { const s = cands.find((c) => c.groupSet.has(group)); picked.push(s.name); return { source: s, state: { group, startTime: 0, stopTime: 1, time: 0 } }; },
+    resetClip: () => null, composeMovementGroup: (base) => ({ group: `${base}1h` }), composeStanceGroup: (base) => ({ group: `${base}1h` }), sampleTrack: () => ({}),
+  });
+  const movement = { group: 'walkforward1h', startTime: 0, stopTime: 1, time: 0.3 };
+  const step = (plan) => layer.step(1 / 60, { plan, sources: [game, pack], hasGroup: () => true, stance: 1, movement, movementSource: pack, walkPref: 'walk:standard' });
+  step({ kind: 'movement', base: 'walkleft', stance: 'drawn', still: false, rigOrder: true });
+  step({ kind: 'movement', base: 'walkleft', stance: 'drawn', still: true });
+  assert.deepEqual(picked, ['game', 'pack'], 'walking the strafe\'s own; running the pinned pose as before, picked again');
+});
