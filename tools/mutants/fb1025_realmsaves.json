@@ -195,8 +195,8 @@
   {
     "name": "STRANDED-dropped-before-the-read",
     "file": "src/systems/realmSaves.js",
-    "old": "  const got = await askThroughBusy(() => realmFetch(io, id), at);\n  if (!got.ok) return { ok: false, error: got.error };   // a copy behind the record stays for the next join to settle",
-    "new": "  if (kept && kept.seq !== seq) forgetUnsent(io.storage, id);\n  const got = await askThroughBusy(() => realmFetch(io, id), at);\n  if (!got.ok) return { ok: false, error: got.error };   // a copy behind the record stays for the next join to settle",
+    "old": "  const got = await askThroughBusy(() => realmFetch(io, id), at);\n  if (!got.ok) return { ok: false, error: got.error, ...statusOf(got) };   // a copy behind the record stays for the next join to settle",
+    "new": "  if (kept && kept.seq !== seq) forgetUnsent(io.storage, id);\n  const got = await askThroughBusy(() => realmFetch(io, id), at);\n  if (!got.ok) return { ok: false, error: got.error, ...statusOf(got) };   // a copy behind the record stays for the next join to settle",
     "tests": [
       "test/server/rescuesave.test.js"
     ]

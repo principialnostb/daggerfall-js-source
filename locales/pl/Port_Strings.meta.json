@@ -5734,6 +5734,31 @@
   "tr": "74e7bc9d483e",
   "by": "claude-in-session"
  },
+ "features.wetWorld.full": {
+  "en": "10b28a8c1e44",
+  "tr": "10b28a8c1e44",
+  "by": "claude-in-session"
+ },
+ "features.wetWorld.note": {
+  "en": "e037f55b38a4",
+  "tr": "e037f55b38a4",
+  "by": "claude-in-session"
+ },
+ "features.wetWorld.off": {
+  "en": "e3de5ab0ca4c",
+  "tr": "e3de5ab0ca4c",
+  "by": "claude-in-session"
+ },
+ "features.wetWorld.title": {
+  "en": "0af5957ede42",
+  "tr": "0af5957ede42",
+  "by": "claude-in-session"
+ },
+ "features.wetWorld.wet": {
+  "en": "9429cfe23a19",
+  "tr": "9429cfe23a19",
+  "by": "claude-in-session"
+ },
  "features.wildernessCamps.note": {
   "en": "8b69057e5914",
   "tr": "b1162ad91dd6",
@@ -15384,6 +15409,36 @@
   "tr": "a47d8efbcf4d",
   "by": "claude-in-session"
  },
+ "realm.bootBusy": {
+  "en": "3890957cd099",
+  "tr": "e4e5a9ed5acc",
+  "by": "claude-in-session"
+ },
+ "realm.contacting": {
+  "en": "d41500b73ee4",
+  "tr": "b94ffdfa0d5c",
+  "by": "claude-in-session"
+ },
+ "realm.issues": {
+  "en": "ae2b9645f5ed",
+  "tr": "646d2fb64e48",
+  "by": "claude-in-session"
+ },
+ "realm.missing": {
+  "en": "d3c1063e8157",
+  "tr": "eb8a26f8ab30",
+  "by": "claude-in-session"
+ },
+ "realm.notYours": {
+  "en": "1d9705e64702",
+  "tr": "5441b7cd7432",
+  "by": "claude-in-session"
+ },
+ "realm.ok": {
+  "en": "9ce3bd4224c8",
+  "tr": "9ce3bd4224c8",
+  "by": "claude-in-session"
+ },
  "realm.private": {
   "en": "40c5934fafa7",
   "tr": "7b95a0f119f3",
@@ -16522,36 +16577,6 @@
  "wild.zone.enter": {
   "en": "d8ef5b322bf0",
   "tr": "0c46e84316e4",
-  "by": "claude-in-session"
- },
- "features.wetWorld.full": {
-  "en": "10b28a8c1e44",
-  "tr": "10b28a8c1e44",
-  "by": "claude-in-session"
- },
- "features.wetWorld.note": {
-  "en": "e037f55b38a4",
-  "tr": "e037f55b38a4",
-  "by": "claude-in-session"
- },
- "features.wetWorld.off": {
-  "en": "e3de5ab0ca4c",
-  "tr": "e3de5ab0ca4c",
-  "by": "claude-in-session"
- },
- "features.wetWorld.title": {
-  "en": "0af5957ede42",
-  "tr": "0af5957ede42",
-  "by": "claude-in-session"
- },
- "features.wetWorld.wet": {
-  "en": "9429cfe23a19",
-  "tr": "9429cfe23a19",
-  "by": "claude-in-session"
- },
- "realm.bootBusy": {
-  "en": "d445e1659813",
-  "tr": "ee702a112d54",
   "by": "claude-in-session"
  }
 }

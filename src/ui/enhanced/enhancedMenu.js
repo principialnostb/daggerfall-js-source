@@ -122,9 +122,12 @@ import { offlineCopyOf, onlineCopyOf } from '../../systems/offlineCopy.js';   //
 import { sharedClassicMinutes } from '../../net/wire.js';   // AUDIT LIVED1 G: the shared clock's minute a character joins at
 import { SKY_SEGMENTS, skyClassicMinutes, wallMsForSkyMinutes } from '../../net/skyLaw.js';   // TIME4: the sky's day, said at the door
 import {
-  realmIo, realmList, realmCustoms, realmPut, realmDelete, realmUndo, realmFetch, realmRowAsSave, realmSummaryOf, realmRefusalText, takeRealmNotice,
+  realmIo, realmList, realmCustoms, realmPut, realmDelete, realmUndo, realmFetch, realmRowAsSave, realmSummaryOf, realmRefusalText, takeRealmNoticeEntry,
   sweepUnsent, realmLineageRemove,
 } from '../../systems/realmSaves.js';   // REALM P1.3: the Online door lists the realm's characters, the service's
+import { readRoster, keepRoster, rosterDropped } from '../../systems/realmRoster.js';   // the tiles drawn from this device first
+import { askThroughBusy } from '../../systems/realmRetry.js';
+import { withRealmContact, showRealmMessage } from './realmContact.js';   // a copy to offline greys the screen while it asks
 import { applyCustoms, customsLines, crossLeveling, LEVELING_CROSS_LINE } from '../../systems/realmCustoms.js';   // REALM P1.5: an offline character comes in once, through customs
 import { REALM_COPY_SAVE_NAME, realmCopyIds } from '../../systems/realmCopyMark.js';   // a copy of a realm character never comes in
 import { copyStrandedToOffline, hasStranded } from '../../systems/online/strandedCopy.js';   // STRANDED: a save set aside, back as an offline character
@@ -563,6 +566,7 @@ export function takePickedLegacyBirth() { const b = _pickedLegacyBirth; _pickedL
 /** REALM P1.3: the realm's characters as the service listed them this visit (null: not asked yet), its bound, what the
  *  last act said (a refusal, customs' report, a copy's word) and whether an act is running. Per VISIT, as the cloud's. */
 let realmRows = null;
+let realmRowsFor = null;   // the account the tiles below are
 let realmRowsOk = false;   // AUDIT FB1029e F5: the roster as the realm answered it - a failed read lists no one, and plays no line
 let realmAsked = false;
 let realmMax = 0;
@@ -1427,14 +1431,25 @@ function realmCard(who) {
   box.append(el('h4', null, t('menu.realm.heading', 'Your online characters')));
   for (const w of realmWords) box.append(el('p', 'meta', w));
   if (!who) return box;
+  const player = storedSession(appStorage())?.id ?? null;
+  // The tiles are one account's: another account signed in on this visit starts the card over
+  if (player !== realmRowsFor) { realmRowsFor = player; realmAsked = false; realmRows = null; realmRowsOk = false; realmMax = 0; realmLinesAsked = false; realmLineIds = null; }
   if (!realmAsked) {
     realmAsked = true;
+    // The tiles this device kept are drawn at once; the realm's answer brings them up to date. A failed answer leaves
+    // the kept tiles standing and says nothing: Play asks the realm again anyway.
+    const kept = realmRows == null ? readRoster(appStorage(), player) : null;
+    if (kept) { realmRows = kept.characters; realmMax = kept.max; }
     realmList(realmIo({ fetch: (...a) => globalThis.fetch(...a), storage: appStorage() })).then((r) => {
-      realmRows = r.ok ? r.characters : [];
-      if (r.ok) sweepUnsent(appStorage(), r.characters, storedSession(appStorage())?.id ?? null);   // AUDIT RESCUE-SAVE A7 + 2 B5: a copy no join can play goes
-      realmRowsOk = !!r.ok;
-      realmMax = r.ok ? r.max : 0;
-      if (!r.ok) realmWords = [...realmWords, realmRefusalText(r.error)];
+      if (r.ok) keepRoster(appStorage(), player, r);
+      if (player !== realmRowsFor) return;   // asked for an account no longer signed in
+      if (r.ok) {
+        realmRows = r.characters; realmMax = r.max; realmRowsOk = true;
+        sweepUnsent(appStorage(), r.characters, player);   // AUDIT RESCUE-SAVE A7 + 2 B5: a copy no join can play goes
+      } else if (realmRows == null) {
+        realmRows = []; realmMax = 0; realmRowsOk = false;
+        realmWords = [...realmWords, realmRefusalText(r.error)];
+      }
       render();
     }).catch(() => {});
   }
@@ -1453,8 +1468,8 @@ function realmCard(who) {
           // HOUSE-LOSS (2026-09-29, Mac: "GarySoup lost his house and furniture"): a character brought in whose first save
           // never landed is UNDONE, never deleted - its delete took the home customs had carried, and it could never come
           // in again. The undo gives back its home, its guild place and its customs (realm.js undoRealm).
-          row.customs && save.unfinished ? { label: t('menu.realm.undo', 'Undo bringing in'), disabled: realmBusy, onClick: () => ask(t('menu.realm.undoAsk', 'Undo bringing {name} in?', { name: row.name }), t('menu.realm.undoBody', '{name} didn\u2019t finish coming online because its first save never arrived. Undo removes it and gives back its home and guild place, so you can bring the offline character online again. To finish instead, click Bring online on it below.', { name: row.name }), t('menu.realm.undoYes', 'Undo'), () => realmAct(() => realmUndo(realmIoNow(), row.id), () => [t('menu.realm.undone', '{name} is no longer online. Its home and guild place are back with the offline character. Bring it online again when you are ready.', { name: row.name })])) }
-            : { label: t('menu.realm.delete', 'Delete character'), disabled: realmBusy, onClick: () => ask(t('menu.realm.deleteAsk', 'Delete {name}?', { name: row.name }), t('menu.realm.deleteBody', 'Deleting an online character is permanent. Its Renown, professions, Stores, the homes it bought and its guild place are lost. Homes belong to your account, so your other characters lose them too. Any offline copy you made stays.'), t('menu.realm.deleteYes', 'Delete'), () => realmAct(() => realmDelete(realmIoNow(), row.id), () => [t('menu.realm.deleted', '{name} is gone from the realm.', { name: row.name })])) },
+          row.customs && save.unfinished ? { label: t('menu.realm.undo', 'Undo bringing in'), disabled: realmBusy, onClick: () => ask(t('menu.realm.undoAsk', 'Undo bringing {name} in?', { name: row.name }), t('menu.realm.undoBody', '{name} didn\u2019t finish coming online because its first save never arrived. Undo removes it and gives back its home and guild place, so you can bring the offline character online again. To finish instead, click Bring online on it below.', { name: row.name }), t('menu.realm.undoYes', 'Undo'), () => realmAct(() => realmUndo(realmIoNow(), row.id), () => [t('menu.realm.undone', '{name} is no longer online. Its home and guild place are back with the offline character. Bring it online again when you are ready.', { name: row.name })], row.id)) }
+            : { label: t('menu.realm.delete', 'Delete character'), disabled: realmBusy, onClick: () => ask(t('menu.realm.deleteAsk', 'Delete {name}?', { name: row.name }), t('menu.realm.deleteBody', 'Deleting an online character is permanent. Its Renown, professions, Stores, the homes it bought and its guild place are lost. Homes belong to your account, so your other characters lose them too. Any offline copy you made stays.'), t('menu.realm.deleteYes', 'Delete'), () => realmAct(() => realmDelete(realmIoNow(), row.id), () => [t('menu.realm.deleted', '{name} is gone from the realm.', { name: row.name })], row.id)) },
         ],
       }));
     }
@@ -1539,12 +1554,18 @@ function carryOn(familyId, personId, newborn = false) {
   }).catch(() => { realmWords = [realmRefusalText('server')]; realmBusy = false; render(); });
 }
 const realmIoNow = () => realmIo({ fetch: (...a) => globalThis.fetch(...a), storage: appStorage() });
-/** One realm act at a time: busy while it runs, its words (or its refusal) shown after, and the list asked again. */
-function realmAct(run, words) {
+/** One realm act at a time: busy while it runs, its words (or its refusal) shown after, and the list asked again over
+ *  the tiles shown. `goneId`: the character the act takes out of the realm, dropped from the tiles once it lands. */
+function realmAct(run, words, goneId = null) {
   realmBusy = true; render();
   return Promise.resolve().then(run).then((r) => {
+    if (r?.ok !== false && goneId) dropRealmRow(goneId);
     realmWords = r?.ok === false ? [realmRefusalText(r.error)] : (typeof words === 'function' ? words(r) : words);
-  }).catch(() => { realmWords = [realmRefusalText('server')]; }).finally(() => { realmBusy = false; realmAsked = false; realmRows = null; render(); });
+  }).catch(() => { realmWords = [realmRefusalText('server')]; }).finally(() => { realmBusy = false; realmAsked = false; render(); });
+}
+function dropRealmRow(/** @type {string} */ id) {
+  realmRows = realmRows?.filter((r) => r.id !== id) ?? null;
+  rosterDropped(appStorage(), storedSession(appStorage())?.id ?? null, id);
 }
 /** REALM P1.5: CUSTOMS, ASKED FIRST (FIELD 2026-09-29, Dracula/Valentin: "HOW TF WAS I SUPPOSED TO KNOW YALL WOULD FORCE
  *  THE LOANS TO BE PAID"). Customs is once, so the press says what it will do - customs run on a copy of the save,
@@ -1580,19 +1601,24 @@ function customsNow(save) {
 }
 /** REALM P1.4: COPY TO OFFLINE - the realm's save read and written as a NEW offline character (a new id), a slot like
  *  any other. Nothing played on the copy ever goes back: the Online door loads only from the service. */
+/** The copy greys the screen under a popup while it asks; a busy realm is asked again, and a failure is said there. */
 function copyToOffline(row) {
-  return realmAct(async () => {
-    const got = await realmFetch(realmIoNow(), row.id);
+  realmBusy = true; render();
+  return withRealmContact(async ({ cancelled }) => {
+    const got = await askThroughBusy(() => realmFetch(realmIoNow(), row.id), { cancelled });
     if (!got.ok) return got;
     let snap = null;
     try { snap = JSON.parse(got.text); } catch { snap = null; }
     if (!snap || typeof snap !== 'object') return { ok: false, error: 'no-data' };
     (await import('../../systems/item/knownItemsOnly.js')).dropUnknownItems(snap);   // a newer realm's items this build cannot read
+    if (cancelled()) return { ok: false, error: 'cancelled' };   // a Cancel pressed while it asked writes nothing; no wait follows
     snap = offlineCopyOf(snap);   // AUDIT LIVED1 E: the world's stamps rebased onto the character's clock, the one clock offline
     snap.characterId = mintCharacterId();
     const r = saveSlot(snap.name || row.name, REALM_COPY_SAVE_NAME, snap, { storage: appStorage() });
     return r.ok ? { ok: true } : { ok: false, error: 'no-room' };
-  }, () => [t('menu.realm.copied', '{name} is copied as a new offline character. Nothing you play on the copy comes back online.', { name: row.name })]);
+  }).then((r) => {
+    if (r?.ok !== false) realmWords = [t('menu.realm.copied', '{name} is copied as a new offline character. Nothing you play on the copy comes back online.', { name: row.name })];
+  }).finally(() => { realmBusy = false; realmAsked = false; render(); });
 }
 
 /** STRANDED: the save this device set aside for a realm character, copied as a new offline character and dropped from the
@@ -6544,8 +6570,11 @@ export function mountEnhancedMenu(host, {
   cloudAsked = false;
   cloudArm = null;
   cloudWhy = null;   // the pre-merge audit (0927b): a refusal is last visit's news - this visit asks the service again
-  realmAsked = false; realmRows = null; realmBusy = false; realmLinesAsked = false; realmLineIds = null;   // REALM P1.3: the realm is asked again each visit
-  realmWords = [takeRealmNotice(globalThis.sessionStorage)].filter(Boolean);   // REALM P1.3: why the last online boot came back here
+  realmAsked = false; realmRows = null; realmRowsOk = false; realmBusy = false; realmLinesAsked = false; realmLineIds = null;   // REALM P1.3: the realm is asked again each visit
+  // REALM P1.3: why the last online boot came back here - a refused Play in a popup over the Online door, any other on it
+  const notice = takeRealmNoticeEntry(globalThis.sessionStorage);
+  realmWords = notice && !notice.popup ? [notice.text] : [];
+  if (notice?.popup && globalThis.document) Promise.resolve().then(() => showRealmMessage(globalThis.document, notice.text));
   sections = mode === 'pause' ? SECTIONS_PAUSE : isEnhanced() ? SECTIONS_BOOT : SECTIONS_CLASSIC;   // FD1: one door, two rails
   // WHICH PANE OPENS. Both doors open on the PIXEL HOME (PX1/PX2) -
   // the face itself, every section one press away. Pause used to open
@@ -6554,6 +6583,7 @@ export function mountEnhancedMenu(host, {
   // Game the second row a thumb meets and Resume the first.
   section = 'home';
   homeLevel = 'top';   // UI-CALM: every visit asks which world first
+  if (notice && sections.some((l) => idOf(l) === 'online')) section = 'online';   // a refused Play lands back where it was pressed, saying why
   pauseTab = 'system';
   // ...and THEN the caller's landing, if it named one. After the reset,
   // which is what keeps the reset the default rather than a thing this

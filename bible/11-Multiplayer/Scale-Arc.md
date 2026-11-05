@@ -82,13 +82,19 @@ isolate would shed asks any instance instead.
 `BUSY_BASE_MS` to `BUSY_MAX_MS`, and an isolate that met an overload sheds them for `BUSY_SHED_MS` without a statement.
 Writes, sign-ins and acts are never held.
 
-**The realm waits out an overload.** A realm character's boot asks again for its join and its save while the service
-answers `server`, `rate` or `offline` (`src/systems/realmSaves.js` `openRealmBoot`). If the boot still waits after
-`REALM_BOOT_SLOW_MS` (four seconds), or meets one of those words, the loading screen says "Servers may be slow due to
-traffic, please wait...". The boot's next step writes over that line. An act on the record (a vendor's sale, a guild
-vault's deposit or withdrawal, `realmGoldAct`) asks again the same way, and the player plays on meanwhile. Both wait as
-`busyWaitMs` says, for up to `REALM_BUSY_MAX_MS` (five minutes). Past it, or on any other refusal, the player goes
-back to the title screen with the reason. A read gives up after `REALM_READ_TRIES` and never ends the session.
+**The realm waits out an overload.** A realm character's boot asks again for its join and its save while
+`realmMayClear` says so: a 5xx, a 429, or no answer while the device is online (`src/systems/realmRetry.js`). If the
+boot still waits after `REALM_BOOT_SLOW_MS` (four seconds), or meets one of those answers, the loading screen says
+"Servers are currently experiencing issues, please wait...". The boot's next step writes over that line. Both wait as
+`busyWaitMs` says, for up to `REALM_BUSY_MAX_MS` (five minutes). Past it, or on any other failure, the player goes back
+to the Online door, and a popup there says why (`realmBootRefusalText`). A character the account does not own says
+"This character does not belong to you." Any other 4xx says "Server cannot be found currently." Any other failure of
+the service says "Our servers are experiencing issues, please try again later...". A refusal the device made itself,
+such as being signed out, keeps its own words.
+
+An act on the record (a vendor's sale, a guild vault's deposit or withdrawal, `realmGoldAct`) asks again while the
+service answers `server`, `rate` or `offline`, for up to `REALM_BUSY_MAX_MS`, and the player plays on meanwhile. Past
+it the player goes back to the title screen. A read gives up after `REALM_READ_TRIES` and never ends the session.
 
 **Fewer trips.** The play beat, the letterbox and the town board ride one `/v1/heartbeat` request
 (`src/net/heartbeat.js`, `server-account/src/heartbeat.js`). Hot routes believe a signed session pass

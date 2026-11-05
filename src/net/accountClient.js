@@ -74,6 +74,7 @@ import { t, localizedTable } from '../systems/textManager.js';   // L10N4: the r
 import { VENDOR_REFUSAL_WORDS } from './vendorLaw.js';   // HOME-VENDOR: a trader's refusals
 import { SEA_BOUNTY_MIN, SEA_BOUNTY_MAX } from './sea/seaBountyLaw.js';   // SEA-BOUNTY: a post's bounds, in its refusal
 import { busyRead, busyAnswer, busyWaitMs, retryAfterMs, BUSY_HOLD_MS } from './busyLaw.js';   // BUSY-GATE: the reads that stand back while the service is overloaded
+import { forgetRoster } from '../systems/realmRoster.js';
 import { ARENA_TEXT } from '../systems/arena/arenaText.js';   // ARENA4b: the arena's refusals, in its own frozen table
 import { cardById } from './iliac/iliacCards.js';   // AUDIT CARDS-6 D7: the card a short deck lacks, said by its name
 import { jittered } from './backoff.js';   // STORM-SHED: a failed mint's hold, jittered as every book's wait is
@@ -1567,6 +1568,7 @@ export function adoptIdentity(storage, { name, kind, glyphs, glyphsOff, aura, ar
  *  same way with nothing on screen explaining why. */
 export function forgetSession(storage) {
   forgetSessionPass();   // SESSION-SIGN: the session's pass with it
+  forgetRoster(storage, storedSession(storage)?.id);   // and the account's online characters as this device kept them
   try { storage?.removeItem?.(SESSION_KEY); return true; } catch { return false; }
 }
 

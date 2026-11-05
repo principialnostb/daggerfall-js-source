@@ -468,7 +468,7 @@ test('AUDIT RESCUE-SAVE A2: a character deleted from another device takes this d
   assert.ok(readUnsent(dev.storage, c.id));
   const other = acct.device();
   assert.equal((await realmDelete(other.io, c.id)).ok, true);
-  assert.deepEqual(await openRealmBoot({ io: dev.io, id: c.id }), { ok: false, error: 'no-realm-character' });
+  assert.deepEqual(await openRealmBoot({ io: dev.io, id: c.id }), { ok: false, error: 'no-realm-character', status: 404 });
   assert.deepEqual([...dev.storage._map.keys()].filter((k) => k.startsWith(REALM_UNSENT_PREFIX)), []);
 });
 
@@ -581,7 +581,9 @@ test('AUDIT RESCUE-SAVE A7: the Online door drops a copy of the account\'s own c
   assert.equal(sweepUnsent(dev.storage, (await realmList(dev.io)).characters), 1);
   assert.equal(readUnsent(dev.storage, c.id), null);
   assert.ok(readUnsent(dev.storage, stranger), 'not listed: not the door\'s to drop');
-  assert.match(src('src/ui/enhanced/enhancedMenu.js'), /realmRows = r\.ok \? r\.characters : \[\];\n\s*if \(r\.ok\) sweepUnsent\(appStorage\(\), r\.characters, storedSession\(appStorage\(\)\)\?\.id \?\? null\);/);
+  const menu = src('src/ui/enhanced/enhancedMenu.js');
+  assert.match(menu, /const player = storedSession\(appStorage\(\)\)\?\.id \?\? null;/);
+  assert.match(menu, /if \(r\.ok\) keepRoster\(appStorage\(\), player, r\);\n\s*if \(player !== realmRowsFor\) return;[^\n]*\n\s*if \(r\.ok\) \{\n\s*realmRows = r\.characters; realmMax = r\.max; realmRowsOk = true;\n\s*sweepUnsent\(appStorage\(\), r\.characters, player\);/);
   claimUnsent(dev.storage, stranger, 'a'.repeat(32));
   assert.equal(keepUnsent(dev.storage, stranger, 4, '{"v":2}', { lease: 'b'.repeat(32) }), false, 'A4 by the letter: another lease writes nothing');
 });

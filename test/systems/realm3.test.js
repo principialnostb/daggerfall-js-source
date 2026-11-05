@@ -136,7 +136,7 @@ test('REALM P1.3: the boot\'s join reads the save from the service - the realm\'
   assert.deepEqual([boot.snap.name, boot.snap.characterId, boot.seq], ['Nystul', made.id, 1], 'the realm\'s id on the save, whatever it named');
   assert.match(boot.lease, /^[0-9a-f]{32}$/);
   assert.notEqual(boot.lease, made.lease, 'a new lease - the boot took the character');
-  assert.deepEqual(await openRealmBoot({ io, id: 'r' + '0'.repeat(20) }), { ok: false, error: 'no-realm-character' });
+  assert.deepEqual(await openRealmBoot({ io, id: 'r' + '0'.repeat(20) }), { ok: false, error: 'no-realm-character', status: 404 }, 'a refusal of the service keeps its status');
   assert.deepEqual(await openRealmBoot({ io, id: 'c0ffee00' }), { ok: false, error: 'no-realm-character' }, 'never asked');
   assert.deepEqual(await openRealmBoot({ io: null, id: made.id }), { ok: false, error: 'signed-out' });
   assert.match(made.id, REALM_ID_SHAPE);
@@ -193,7 +193,7 @@ test('REALM P1.3 by source: the boot joins before any save is read, never a slot
   const boot = w.indexOf('export async function bootWorld(');
   const join = w.indexOf("const realmBoot = params.has('online') && params.has('realm') && params.has('load') ? await openRealmBoot({ io: realmIoNow(), id: params.get('realm') }, bootLoading) : null;");
   assert.ok(join > boot && join < w.indexOf('const bootLoadPick'), 'joined before the load door\'s pick');
-  assert.match(w, /if \(realmBoot && !realmBoot\.ok\) \{ setRealmNotice\(globalThis\.sessionStorage, realmRefusalText\(realmBoot\.error\)\); exitToTitleMenu\(\); return; \}/);
+  assert.match(w, /if \(realmBoot && !realmBoot\.ok\) \{ setRealmNotice\(globalThis\.sessionStorage, realmBootRefusalText\(realmBoot\), \{ popup: true \}\); exitToTitleMenu\(\); return; \}/);
   assert.match(w, /const realmRefused = params\.has\('online'\) && !realmBoot && !realmNew;\s*\n\s*if \(realmRefused\) \{ params\.delete\('online'\); publishBootParams\(params\); \}/, 'no realm character, no online');
   assert.match(w, /: realmBoot \? \{ realm: true \}   \/\/ REALM P1\.3: the service's save, never a slot/);
   assert.match(w, /const bootSnap = \(\) => \(bootSnapRead === undefined \? [^\n]*\n\s*if \(realmBoot\) \{ bootSnapRead = realmBoot\.snap; realmBoot\.snap = null; \}/, 'the realm\'s save is the boot\'s one parse (AUDIT MW-EARLY F3) - and the join\'s answer lets it go, so the door\'s release is the last hold');
