@@ -33,8 +33,9 @@ test('GUARD-CONTINUITY: only enabled stance-weapon locomotion chooses the accept
   assert.equal(guardMovementGroup('walkforward', MW_WEAPON_TYPE.LongBladeTwoHand, (g) => g === 'walkforward2c', true).group, 'walkforward2c');
   assert.equal(guardMovementGroup('walkforward', MW_WEAPON_TYPE.LongBladeOneHand, has, true).group, 'walkforward');
   assert.equal(guardMovementGroup('runforward', MW_WEAPON_TYPE.LongBladeTwoHand, (g) => g === 'runforward2c', true).group, 'runforward2c');
-  // STANCE-LEGS: every melee stance walks and runs on the worked gait - a staff, a spear and the fists too; a bow its own
-  for (const type of [MW_WEAPON_TYPE.BluntTwoWide, MW_WEAPON_TYPE.SpearTwoWide, MW_WEAPON_TYPE.HandToHand]) assert.equal(guardMovementGroup('runforward', type, has, true).group, 'runforward', String(type));
+  // SHIELD-WALK: a one-hander with a shield keeps its armed clips, the shield arm up
+  assert.equal(guardMovementGroup('walkforward', MW_WEAPON_TYPE.LongBladeOneHand, has, true, true).group, 'walkforward1h');
+  assert.equal(guardMovementGroup('runforward', MW_WEAPON_TYPE.LongBladeOneHand, has, true, true).group, 'runforward1h');
 });
 
 

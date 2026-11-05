@@ -34,8 +34,7 @@ test('GUARD-WALK-POSE: only a drawn stance weapon\'s ground walk receives the co
   const cam = { move: { speed: 4.43, forward: 1, grounded: true } };
   assert.equal(guardWalks(walkingWord(cam), 'walkforward'), true);
   assert.equal(guardWalks(walkingWord(cam, true, MW_WEAPON_TYPE.LongBladeOneHand), 'walkforward'), true, 'a one-hander walks as the two-hander');
-  assert.equal(guardWalks(walkingWord(cam, true, MW_WEAPON_TYPE.HandToHand), 'walkforward'), true, 'STANCE-LEGS: the fists walk as the stance');
-  for (const word of [walkingWord(cam, false), walkingWord(cam, true, MW_WEAPON_TYPE.MarksmanBow),
+  for (const word of [walkingWord(cam, false), walkingWord(cam, true, MW_WEAPON_TYPE.MarksmanBow), walkingWord(cam, true, MW_WEAPON_TYPE.HandToHand),
     walkingWord(cam, true, MW_WEAPON_TYPE.LongBladeTwoHand, { hit: true }),
     walkingWord({ move: { ...cam.move, running: true } }), walkingWord({ move: { ...cam.move, grounded: false } })]) {
     assert.equal(guardWalks(word, 'walkforward'), false);
