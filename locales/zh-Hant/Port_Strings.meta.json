@@ -4785,8 +4785,33 @@
   "by": "claude-in-session"
  },
  "realm.bootBusy": {
-  "en": "d445e1659813",
-  "tr": "3ac0382ffb31",
+  "en": "3890957cd099",
+  "tr": "e8bfcbe8e093",
+  "by": "claude-in-session"
+ },
+ "realm.contacting": {
+  "en": "d41500b73ee4",
+  "tr": "8ce1cb00e506",
+  "by": "claude-in-session"
+ },
+ "realm.issues": {
+  "en": "ae2b9645f5ed",
+  "tr": "e856a937e387",
+  "by": "claude-in-session"
+ },
+ "realm.missing": {
+  "en": "d3c1063e8157",
+  "tr": "6520d321567d",
+  "by": "claude-in-session"
+ },
+ "realm.notYours": {
+  "en": "1d9705e64702",
+  "tr": "0df35ecff164",
+  "by": "claude-in-session"
+ },
+ "realm.ok": {
+  "en": "9ce3bd4224c8",
+  "tr": "c02292dd5945",
   "by": "claude-in-session"
  },
  "realm.private": {

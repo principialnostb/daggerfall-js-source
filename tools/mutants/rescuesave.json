@@ -254,7 +254,7 @@
   {
     "name": "AUDIT-RESCUE-SAVE-A7-the-door-never-sweeps",
     "file": "src/ui/enhanced/enhancedMenu.js",
-    "old": "      if (r.ok) sweepUnsent(appStorage(), r.characters, storedSession(appStorage())?.id ?? null);",
+    "old": "        sweepUnsent(appStorage(), r.characters, player);",
     "new": "",
     "tests": [
       "test/server/rescuesave.test.js"

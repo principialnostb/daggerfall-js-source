@@ -51,6 +51,8 @@
 
 import { privateRunOn } from '../net/privateServer.js';
 import { busyWaitMs } from '../net/busyLaw.js';
+import { askThroughBusy, realmFailureText, REALM_BUSY_MAX_MS, realmBootBusyText } from './realmRetry.js';
+import { rosterSaved } from './realmRoster.js';
 import { storedSession, serviceBase, forgetSession, accountRefusalText, forgetD1Bookmark, sessionPassFor, noteSessionPass, forgetSessionPass, passKeptThrough } from '../net/accountClient.js';   // AUDIT SCALE II A-2: a write forgets the page's D1 bookmark; SESSION-SIGN: the checkpoint carries the session's pass
 import { realmTradeRefusalText, LOCKED_SAID_MAX } from '../net/realm/realmTradeLaw.js';   // REALM P2.1: a trade the realm settles
 import { REALM_DOOR_WORD } from '../net/wire.js';   // REALM-DOOR: the relay's word for a token that names no realm character
@@ -729,6 +731,7 @@ export function createRealmSession({
           heardLocked(r.data?.locked);
           landedText = job.text;
           landedKey = idleKeyOf(job.text, job.summary); landedAt = now();   // SCALE2b
+          rosterSaved(storage, io?.player, id, job.summary, landedAt);   // the Online door's tile, without asking the realm
           savedAt = landedAt;
           // RESCUE-SAVE: the newest save landed - no copy; or a newer one waits, its copy at the sequence now held
           missed = false;
@@ -1019,32 +1022,19 @@ export async function openRealmBoot(/** @type {BootAt} */ at, /** @type {{ line:
 }
 /** @typedef {{ io: any, id: string, onBusy?: () => void, wait?: (ms: number) => Promise<void>, now?: () => number, rand?: () => number, busyMaxMs?: number, slowTimer?: (fn: () => void, ms: number) => () => void }} BootAt */
 
-/** How long a busy realm is asked again, by the boot and by an act, before the door says why. It stays under the
- *  loading screen's own hold. */
-export const REALM_BUSY_MAX_MS = 300_000;
-/** A boot still waiting on the realm this long says the servers may be slow, though nothing was refused. */
+export { REALM_BUSY_MAX_MS, realmBootBusyText };
+/** A boot still waiting on the realm this long says the servers are having issues, though nothing was refused. */
 export const REALM_BOOT_SLOW_MS = 4_000;
-/** The loading screen's line while the boot waits on a busy realm. */
-export const realmBootBusyText = () => t('realm.bootBusy', 'Servers may be slow due to traffic, please wait...');
-
-/**
- * One boot step, asked again while the realm answers a word that may clear (REALM_ACT_TRANSIENT). An overloaded
- * database answers `server` for seconds at a time, and a player sent to the title by one of them must start over.
- * The waits are the busy gate's (busyWaitMs), so a crowd of boots does not ask again in step. `onBusy` hears the
- * first wait. Past `busyMaxMs` the last answer stands.
- * @param {() => Promise<any>} ask @param {BootAt} at
- */
-async function askThroughBusy(ask, { onBusy = () => {}, wait = (delayMs) => new Promise((resolve) => { setTimeout(resolve, delayMs); }), now = () => Date.now(), rand = Math.random, busyMaxMs = REALM_BUSY_MAX_MS }) {
-  const until = now() + busyMaxMs;
-  for (let tries = 1; ; tries++) {
-    const answer = await ask();
-    if (answer.ok || !REALM_ACT_TRANSIENT.includes(answer.error)) return answer;
-    const delayMs = busyWaitMs(tries, rand());
-    if (now() + delayMs > until) return answer;
-    if (tries === 1) onBusy();
-    await wait(delayMs);
-  }
-}
+/** Said when Play names a character the signed-in account does not own. The service answers the same for one that
+ *  is gone, so a deleted character's existence is never told to another account. */
+export const realmNotYoursText = () => t('realm.notYours', 'This character does not belong to you.');
+/** Why a refused boot came back to the Online door: a character not the account's says so, a 4xx says the server
+ *  cannot be found, any other failure of the service says it has issues, and a refusal this device made keeps its words. */
+export const realmBootRefusalText = (/** @type {{ error: string, status?: number }} */ refusal) =>
+  (refusal.error === 'no-realm-character' ? realmNotYoursText() : realmFailureText(refusal, { missing: true }) ?? realmRefusalText(refusal.error));
+/** A refused boot's word, kept across the reload for the Online door's popup. */
+export const noteRealmBootRefused = (/** @type {any} */ storage, /** @type {{ error: string, status?: number }} */ refusal) =>
+  setRealmNotice(storage, realmBootRefusalText(refusal), { popup: true });
 /** AUDIT RESCUE-SAVE A1: THE BOOT'S SAVE GIVES UP THE RECORDS ITS PACK HOLDS - `held`, read out of whichever save the
  *  join plays (the device's copy or the service's: a put that landed with its answer lost cleared no record either),
  *  and taken out of the save the world loads. */
@@ -1054,6 +1044,7 @@ function heldOut(/** @type {any} */ r) {
   delete r.snap[REALM_HELD_FIELD];
   return { ...r, held };
 }
+const statusOf = (/** @type {any} */ answer) => (Number.isInteger(answer.status) ? { status: answer.status } : {});
 /** The join and the save it plays (openRealmBoot's, before the records come out of it). */
 async function joinRealmBoot(/** @type {BootAt} */ at) {
   const { io, id } = at;
@@ -1063,7 +1054,7 @@ async function joinRealmBoot(/** @type {BootAt} */ at) {
   const joined = await askThroughBusy(() => realmJoin(io, id), at);
   if (!joined.ok) {
     if (joined.error === 'no-realm-character') dropUnsent(io.storage, id);   // AUDIT RESCUE-SAVE A2: deleted elsewhere - its copy goes too
-    return { ok: false, error: joined.error };
+    return { ok: false, error: joined.error, ...statusOf(joined) };
   }
   const { lease, seq, bytes, origin = null } = joined.data ?? {};
   if (!(bytes > 0)) return { ok: false, error: 'no-data' };
@@ -1077,7 +1068,7 @@ async function joinRealmBoot(/** @type {BootAt} */ at) {
     forgetUnsent(io.storage, id);   // a copy that will not open is dropped
   }
   const got = await askThroughBusy(() => realmFetch(io, id), at);
-  if (!got.ok) return { ok: false, error: got.error };   // a copy behind the record stays for the next join to settle
+  if (!got.ok) return { ok: false, error: got.error, ...statusOf(got) };   // a copy behind the record stays for the next join to settle
   // STRANDED: a copy behind the record is never played - set aside when a put of it failed and the realm does not hold it
   const stranded = kept && kept.seq !== seq ? await settleMovedCopy(io.storage, id, kept, got.text, got.seq ?? seq) : false;
   const snap = parseSave(got.text);
@@ -1094,16 +1085,27 @@ function parseSave(/** @type {string | null} */ text) {
 
 /** A word for the Online door, carried across the page's reload (sessionStorage - this tab's alone). */
 export const REALM_NOTICE_KEY = 'dagger.realm.notice';
-export function setRealmNotice(/** @type {any} */ storage, /** @type {string} */ text) {
-  try { storage?.setItem?.(REALM_NOTICE_KEY, String(text)); return true; } catch { return false; }
-}
-export function takeRealmNotice(/** @type {any} */ storage) {
+/** Set beside the word when the Online door says it in a popup (a refused Play). */
+export const REALM_NOTICE_POPUP_KEY = 'dagger.realm.notice.popup';
+export function setRealmNotice(/** @type {any} */ storage, /** @type {string} */ text, { popup = false } = {}) {
   try {
-    const t = storage?.getItem?.(REALM_NOTICE_KEY) ?? null;
-    if (t != null) storage.removeItem(REALM_NOTICE_KEY);
-    return t;
+    storage?.setItem?.(REALM_NOTICE_KEY, String(text));
+    if (popup) storage?.setItem?.(REALM_NOTICE_POPUP_KEY, '1'); else storage?.removeItem?.(REALM_NOTICE_POPUP_KEY);
+    return true;
+  } catch { return false; }
+}
+/** The word and whether it is a popup's, taken once. @returns {{ text: string, popup: boolean } | null} */
+export function takeRealmNoticeEntry(/** @type {any} */ storage) {
+  try {
+    const text = storage?.getItem?.(REALM_NOTICE_KEY) ?? null;
+    const popup = storage?.getItem?.(REALM_NOTICE_POPUP_KEY) === '1';
+    storage?.removeItem?.(REALM_NOTICE_POPUP_KEY);
+    if (text == null) return null;
+    storage.removeItem(REALM_NOTICE_KEY);
+    return { text, popup };
   } catch { return null; }
 }
+export const takeRealmNotice = (/** @type {any} */ storage) => takeRealmNoticeEntry(storage)?.text ?? null;
 
 /**
  * THE URL THAT BOOTS A REALM CHARACTER: the online lane, the load door and the character's id - the one online boot

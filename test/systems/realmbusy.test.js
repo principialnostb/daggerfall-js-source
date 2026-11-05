@@ -1,5 +1,5 @@
 // The realm waits through an overloaded service. The boot asks its join and save again, and the loading screen says the
-// servers may be slow, once, when they refuse or are only slow. An act asks again for minutes before it ends the
+// servers are having issues, once, when they refuse or are only slow. An act asks again for minutes before it ends the
 // session. A read still gives up soon, and never ends it.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -63,7 +63,7 @@ test('a refusal that will not clear goes to the door at once, with no wait and n
   const c = clock();
   let said = 0;
   const boot = await openRealmBoot({ io, id: 'r' + '0'.repeat(20), onBusy: () => { said++; }, ...c });
-  assert.deepEqual(boot, { ok: false, error: 'no-realm-character' });
+  assert.deepEqual(boot, { ok: false, error: 'no-realm-character', status: 404 });
   assert.deepEqual([c.waits.length, said], [0, 0]);
 });
 
@@ -87,7 +87,7 @@ test('the loading screen the world hands in is told the busy line while the boot
 });
 
 test('the line is the plain words the owner asked for', () => {
-  assert.equal(realmBootBusyText(), 'Servers may be slow due to traffic, please wait...');
+  assert.equal(realmBootBusyText(), 'Servers are currently experiencing issues, please wait...');
 });
 
 /** A timer the test fires by hand: `fire()` runs what was set, `stopped` says it was cleared. */

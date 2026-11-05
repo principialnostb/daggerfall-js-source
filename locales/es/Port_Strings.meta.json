@@ -37305,8 +37305,13 @@
   "by": "claude-in-session"
  },
  "realm.bootBusy": {
-  "en": "d445e1659813",
-  "tr": "cc414e2fce49",
+  "en": "3890957cd099",
+  "tr": "cebde8f42f7f",
+  "by": "claude-in-session"
+ },
+ "realm.contacting": {
+  "en": "d41500b73ee4",
+  "tr": "1ea4579e943a",
   "by": "claude-in-session"
  },
  "realm.held.budget": {
@@ -37342,6 +37347,11 @@
  "realm.held.untilPiece": {
   "en": "c2ed5feff881",
   "tr": "76f0e1a0d4c1",
+  "by": "claude-in-session"
+ },
+ "realm.issues": {
+  "en": "ae2b9645f5ed",
+  "tr": "b6a8a2ca8103",
   "by": "claude-in-session"
  },
  "realm.locked.line": {
@@ -37382,6 +37392,21 @@
  "realm.locked.trade": {
   "en": "96456d744023",
   "tr": "1ecddb2496cb",
+  "by": "claude-in-session"
+ },
+ "realm.missing": {
+  "en": "d3c1063e8157",
+  "tr": "567647146dfa",
+  "by": "claude-in-session"
+ },
+ "realm.notYours": {
+  "en": "1d9705e64702",
+  "tr": "97f163b36382",
+  "by": "claude-in-session"
+ },
+ "realm.ok": {
+  "en": "9ce3bd4224c8",
+  "tr": "8f9f7399afa0",
   "by": "claude-in-session"
  },
  "realm.private": {

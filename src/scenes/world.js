@@ -898,7 +898,7 @@ import { trivialOnRoad, roadCompany, wandererCount } from '../systems/roadEncoun
 import { partySizeOf, partyExtraFoes, partyGroupMembers } from '../systems/party/partyScale.js';   // PSCALE1: a fight weighs the party - its count, and the foes more an outdoor encounter stands
 import { GROUP_ROLL_RADIUS } from '../systems/campEncounters.js';   // PSCALE1: outdoors, the party a roll stands for is the camp's own group
 import {
-  realmIo, openRealmBoot, createRealmSession, realmSummaryOf, setRealmNotice, realmCreate, realmPut, realmBootSearch, realmRefusalText,
+  realmIo, openRealmBoot, createRealmSession, realmSummaryOf, setRealmNotice, realmCreate, realmPut, realmBootSearch, realmRefusalText, noteRealmBootRefused,
   REALM_OFFLINE_TEXT, REALM_EXIT_WAIT_MS, whenPageHides, whenPageGoes, realmTradeEscrow, realmGoldAct, realmDoorShut,
   REALM_RESTORED_TEXT, realmStrandedText, realmSaveWithHeld, realmList, realmUnions,
   realmFetch,   // PERMADEATH-HOUSES: a fallen member's record read, for their home's cupboards
@@ -1359,7 +1359,7 @@ export async function bootWorld(canvas, renderer, params, status) { handHeroGend
   const realmNew = params.has('online') && params.has('realmnew');
   const realmIoNow = () => realmIo({ fetch: (u, i) => globalThis.fetch(u, i), storage: appStorage() });
   const realmBoot = params.has('online') && params.has('realm') && params.has('load') ? await openRealmBoot({ io: realmIoNow(), id: params.get('realm') }, bootLoading) : null;
-  if (realmBoot && !realmBoot.ok) { setRealmNotice(globalThis.sessionStorage, realmRefusalText(realmBoot.error)); exitToTitleMenu(); return; }
+  if (realmBoot && !realmBoot.ok) { noteRealmBootRefused(globalThis.sessionStorage, realmBoot); exitToTitleMenu(); return; }
   const realmRefused = params.has('online') && !realmBoot && !realmNew;
   if (realmRefused) { params.delete('online'); publishBootParams(params); }
   privateHost?.online();

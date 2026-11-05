@@ -56,7 +56,22 @@ the realm (the census, frozen at the realm's start) may cross, once; a developer
 Daggerfall's leveling (`crossLeveling`).
 
 **Copy to offline** writes the realm save as a new offline character with a new id, marked as a copy, so its tile says
-why it cannot be brought online.
+why it cannot be brought online. While it asks, a popup greys the screen and says "Contacting server..."
+(`src/ui/enhanced/realmContact.js`). A busy realm is asked again as the boot asks it. **Cancel** closes the popup at
+once and stops the asking; an answer that arrives after it writes no copy. Any other failure puts the reason and an
+**OK** button in the popup.
+
+**The tiles are kept on the device** (`src/systems/realmRoster.js`), per account, without the moment's "Playing now".
+The Online door draws the kept tiles at once and asks the realm for its list behind them. The answer replaces the kept
+list; a failed answer leaves it standing. Only a device with no kept list says "Asking the realm...". A checkpoint that
+lands writes its summary into the kept tile, and a delete or an undo drops it. Another account signed in starts the
+card over with its own kept tiles. Signing out, or a session the service ends, takes the account's kept tiles off the
+device (`forgetSession`).
+
+**Only the owner plays.** A join and a save read match a character on its id and the signed-in account together
+(`server-account/src/realm.js` `joinRealm`, `getRealmBlob`). Any other id answers `no-realm-character`, whether the
+character is another account's or gone, so no account learns that another's character exists. The Online door says
+"This character does not belong to you." in a popup.
 
 **The economy online.**
 - *URL powers refused*: `?shot`, `?fly`, `?nofoes`, `?tp`, `?class`, `?spell`, `?weapon`, `?spawn`, `?region`, `?loc`,
