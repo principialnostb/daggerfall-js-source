@@ -72,7 +72,11 @@ export function masterNeeds(held, { workable = null, goods = () => 0 } = {}) {
 }
 /** What the box says of a catalyst's units that do not count (masterNeeds `walled`). */
 export const masterWalledWords = (/** @type {number} */ n, /** @type {string} */ name) =>
-  t('prof.master.walled', '{name}: {n, plural, one {# more you hold does} other {# more you hold do}} not count. A catalyst must be gathered, or bought on the market with silver.', { n, name });
+  t(
+    'prof.master.walled',
+    '{name}: {n, plural, one {# more you hold does} other {# more you hold do}} not count. A catalyst must be gathered, or bought on the market with silver.',
+    { n, name },
+  );
 
 /** What a station may work of a key: everything held, counted or loose (profBook.js workable). */
 const workOf = (/** @type {any} */ book, /** @type {string} */ k) =>
@@ -175,7 +179,10 @@ export function drawMasterBox(box, kit, r, { station, book, state, free, rerende
     );
   }
   const share = (/** @type {string} */ k) => goods.filter((good) => good.key === k).reduce((n, good) => n + good.n, 0);
-  const needs = masterNeeds((k) => (typeof book?.held === 'function' ? book.held(k) : 0), { workable: (k) => workOf(book, k), goods: share });
+  const needs = masterNeeds((k) => (typeof book?.held === 'function' ? book.held(k) : 0), {
+    workable: (k) => workOf(book, k),
+    goods: share,
+  });
   for (const c of needs) {
     const where = pursuitWord(c.pursuit);
     const words = where
@@ -188,7 +195,8 @@ export function drawMasterBox(box, kit, r, { station, book, state, free, rerende
       : t('prof.master.catalystBare', '{name} {have} / {need}', { name: name(c.key), have: c.have, need: c.need });
     const cls = ['prof-input', 'prof-master-cat', ...(c.have >= c.need ? [] : ['prof-short'])];
     sec.append(el('div', cls.join(' '), words));
-    if (c.walled > 0) sec.append(el('p', 'px-note prof-why prof-master-walled', masterWalledWords(c.walled, name(c.key))));
+    if (c.walled > 0)
+      sec.append(el('p', 'px-note prof-why prof-master-walled', masterWalledWords(c.walled, name(c.key))));
   }
   const made = book?.state?.master?.made === true;
   sec.append(
