@@ -6594,6 +6594,7 @@ prof.master.madeToday,"Lucrarea de Maestru de azi e făurită. Următoarea se po
 prof.master.making,"Se făurește..."
 prof.master.oneADay,"O lucrare de Maestru pe zi."
 prof.master.takes,"Cere aceste materiale, taxa atelierului și acești catalizatori:"
+prof.master.walled,"{name}: {n, plural, one {încă # pe care îl ai nu contează} few {încă # pe care le ai nu contează} other {încă # pe care le ai nu contează}}. Un catalizator trebuie strâns sau cumpărat la piață cu argint."
 prof.page.act.strike,"Lovește"
 prof.page.alchemy,"Masa de alchimie"
 prof.page.alchemy.away,"Alchimia se fierbe la o masă de alchimie: a unui Alchimist sau a unui sediu al Breslei Magilor ({fee} aur pe fiertură) sau a propriei tale case. Poțiunile tale merg în desagă."

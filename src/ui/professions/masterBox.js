@@ -54,16 +54,25 @@ export function masterOptionWords(o) {
 }
 
 /** The catalysts a Master's work asks, each against the units the service counted (`held`, own or bought - never loose):
- *  `{ key, need, have, pursuit }`. AUDIT HORIZONTAL B6: a key the recipe spends too (a Pearl jewel's Pearl) shows its
- *  goods' share among the goods (masterGoods), not here. @param {(k: string) => number} held */
-export function masterNeeds(held) {
-  return MASTER_CATALYSTS.map((c) => ({
-    key: c.key,
-    need: c.n,
-    have: Math.max(0, held(c.key) | 0),
-    pursuit: c.pursuit,
-  }));
+ *  `{ key, need, have, pursuit, walled }`. AUDIT HORIZONTAL B6: a key the recipe spends too (a Pearl jewel's Pearl) shows
+ *  its goods' share among the goods (masterGoods), not here. `walled`: what the character holds of it past the count and
+ *  the goods' share (`workable` - traded, looted), which a catalyst never takes - said, so a held one is never a mystery.
+ *  @param {(k: string) => number} held @param {{ workable?: ((k: string) => number) | null, goods?: (k: string) => number }} [o] */
+export function masterNeeds(held, { workable = null, goods = () => 0 } = {}) {
+  return MASTER_CATALYSTS.map((c) => {
+    const have = Math.max(0, held(c.key) | 0);
+    return {
+      key: c.key,
+      need: c.n,
+      have,
+      pursuit: c.pursuit,
+      walled: workable ? Math.max(0, (workable(c.key) | 0) - (goods(c.key) | 0) - have) : 0,
+    };
+  });
 }
+/** What the box says of a catalyst's units that do not count (masterNeeds `walled`). */
+export const masterWalledWords = (/** @type {number} */ n, /** @type {string} */ name) =>
+  t('prof.master.walled', '{name}: {n, plural, one {# more you hold does} other {# more you hold do}} not count. A catalyst must be gathered, or bought on the market with silver.', { n, name });
 
 /** What a station may work of a key: everything held, counted or loose (profBook.js workable). */
 const workOf = (/** @type {any} */ book, /** @type {string} */ k) =>
@@ -165,7 +174,8 @@ export function drawMasterBox(box, kit, r, { station, book, state, free, rerende
       el('div', ['prof-input', 'prof-master-good', ...(g.have >= g.n ? [] : ['prof-short'])].join(' '), words),
     );
   }
-  const needs = masterNeeds((k) => (typeof book?.held === 'function' ? book.held(k) : 0));
+  const share = (/** @type {string} */ k) => goods.filter((good) => good.key === k).reduce((n, good) => n + good.n, 0);
+  const needs = masterNeeds((k) => (typeof book?.held === 'function' ? book.held(k) : 0), { workable: (k) => workOf(book, k), goods: share });
   for (const c of needs) {
     const where = pursuitWord(c.pursuit);
     const words = where
@@ -178,6 +188,7 @@ export function drawMasterBox(box, kit, r, { station, book, state, free, rerende
       : t('prof.master.catalystBare', '{name} {have} / {need}', { name: name(c.key), have: c.have, need: c.need });
     const cls = ['prof-input', 'prof-master-cat', ...(c.have >= c.need ? [] : ['prof-short'])];
     sec.append(el('div', cls.join(' '), words));
+    if (c.walled > 0) sec.append(el('p', 'px-note prof-why prof-master-walled', masterWalledWords(c.walled, name(c.key))));
   }
   const made = book?.state?.master?.made === true;
   sec.append(

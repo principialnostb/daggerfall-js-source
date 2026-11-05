@@ -6594,6 +6594,7 @@ prof.master.madeToday,"Dagens mesterstykke er lavet. Det næste kan laves efter 
 prof.master.making,"Laver..."
 prof.master.oneADay,"Ét mesterstykke om dagen."
 prof.master.takes,"Det kræver disse materialer, stationens gebyr og disse katalysatorer:"
+prof.master.walled,"{name}: {n, plural, one {# mere, som du har, tæller ikke} other {# mere, som du har, tæller ikke}}. En katalysator skal være samlet eller købt på markedet for sølv."
 prof.page.act.strike,"Slå"
 prof.page.alchemy,"Alkymistationen"
 prof.page.alchemy.away,"Alkymi brygges ved en alkymistation: en Alkymists eller en Mages Guild-hals ({fee} guld pr. brygning) eller dit eget hjems. Dine eliksirer kommer i din oppakning."

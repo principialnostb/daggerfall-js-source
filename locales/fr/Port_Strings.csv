@@ -6594,6 +6594,7 @@ prof.master.madeToday,"L’ouvrage de Maître du jour est fabriqué. Le suivant 
 prof.master.making,"Fabrication..."
 prof.master.oneADay,"Un ouvrage de Maître par jour."
 prof.master.takes,"Il faut ces matériaux, le tarif du poste et ces catalyseurs :"
+prof.master.walled,"{name} : {n, plural, one {# de plus en votre possession ne compte pas} other {# de plus en votre possession ne comptent pas}}. Un catalyseur doit être récolté, ou acheté au marché avec de l’argent."
 prof.page.act.strike,"Frapper"
 prof.page.alchemy,"Le poste d’alchimie"
 prof.page.alchemy.away,"L’alchimie se pratique à un poste d’alchimie : celui d’un Alchimiste ou d’une maison de la Guilde des mages ({fee} pièces d’or par préparation), ou celui de votre propre demeure. Vos potions vont dans votre sac."

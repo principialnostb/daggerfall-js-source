@@ -2266,6 +2266,7 @@ portal.buy.bought,"{n, plural, one {Je koopt een Portaalsteen.} other {Je koopt 
 portal.buy.full,"Je stapel Portaalstenen kan niet meer dan {max, number} bevatten."
 portal.refused.event,"Een portaal kan niet zo dicht bij de poort van een evenement opengaan."
 prof.craft.xpFirstBought,"(+{xp} {profession}-ervaring. Met zilver gekochte stof geeft geen bonus voor de eerste keer, dus die van dit stuk ligt nog voor je klaar)"
+prof.master.walled,"{name}: {n, plural, one {nog # die je hebt telt niet mee} other {nog # die je hebt tellen niet mee}}. Een katalysator moet verzameld zijn of op de markt met zilver gekocht."
 prof.page.craft.xpBought,"{xp} {profession}-ervaring. Rollen van deze stof gekocht met zilver en nog niet gebruikt: {silver, number}. Tot je er zoveel hebt gebruikt, geeft geen enkel stuk ervan een bonus voor de eerste keer."
 prof.page.craft.xpFirstOwn,"{xp} {profession}-ervaring, en {more} meer de eerste keer dat je dit stuk op deze graad maakt van stof die niet met zilver is gekocht."
 prof.page.enchant.cloth,"Een stuk dat alleen van stof is gemaakt geeft alleen Betoveringservaring als er niets gekochts of geroofds in is gegaan en het nooit is verkocht."

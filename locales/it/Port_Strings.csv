@@ -6594,6 +6594,7 @@ prof.master.madeToday,"L’opera di Maestro di oggi è già stata creata. La pro
 prof.master.making,"Creazione..."
 prof.master.oneADay,"Un’opera di Maestro al giorno."
 prof.master.takes,"Richiede questi materiali, il costo della postazione e questi catalizzatori:"
+prof.master.walled,"{name}: {n, plural, one {# in più che possiedi non conta} other {# in più che possiedi non contano}}. Un catalizzatore va raccolto, o comprato al mercato con l’argento."
 prof.page.act.strike,"Colpisci"
 prof.page.alchemy,"La postazione alchemica"
 prof.page.alchemy.away,"L’alchimia si pratica a una postazione alchemica: quella di un Alchimista o di una sede della Gilda dei Maghi ({fee} oro a infuso) o quella di casa tua. Le tue pozioni vanno nello zaino."

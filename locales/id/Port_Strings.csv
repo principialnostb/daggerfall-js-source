@@ -6594,6 +6594,7 @@ prof.master.madeToday,"Karya Master hari ini sudah dibuat. Yang berikutnya bisa 
 prof.master.making,"Membuat..."
 prof.master.oneADay,"Satu karya Master per hari."
 prof.master.takes,"Perlu bahan-bahan ini, biaya stasiun, dan katalis berikut:"
+prof.master.walled,"{name}: {n, plural, other {# lagi yang kamu punya tidak dihitung}}. Katalis harus dikumpulkan, atau dibeli di pasar dengan perak."
 prof.page.act.strike,"Pukul"
 prof.page.alchemy,"Stasiun Alkimia"
 prof.page.alchemy.away,"Alkimia diracik di stasiun alkimia: milik Alkemis atau aula Mages Guild ({fee} emas per racikan), atau milik rumahmu sendiri. Ramuanmu masuk ke ransel."

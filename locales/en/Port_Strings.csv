@@ -6594,6 +6594,7 @@ prof.master.madeToday,"Today's Master's work is made. The next can be made after
 prof.master.making,"Making..."
 prof.master.oneADay,"One Master's work a day."
 prof.master.takes,"It takes these goods, the station's fee and these catalysts:"
+prof.master.walled,"{name}: {n, plural, one {# more you hold does} other {# more you hold do}} not count. A catalyst must be gathered, or bought on the market with silver."
 prof.page.act.strike,"Strike"
 prof.page.alchemy,"The Alchemy Station"
 prof.page.alchemy.away,"Alchemy is brewed at an alchemy station: an Alchemist's or a Mages Guild hall ({fee} gold a brew), or your own home's. Your potions go to your pack."

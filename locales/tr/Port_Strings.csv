@@ -928,6 +928,7 @@ portal.buy.bought,"{n, plural, one {Bir Portal Taşı satın aldınız.} other {
 portal.buy.full,"Portal Taşı yığınınız en fazla {max, number} taş alabilir."
 portal.refused.event,"Bir olayın kapısına bu kadar yakın bir yerde portal açılamaz."
 prof.craft.xpFirstBought,"(+{xp} {profession} deneyimi. Gümüşle satın alınan kumaş ilk sefer bonusu vermez, bu yüzden bu parçanın bonusu hâlâ seni bekliyor)"
+prof.master.walled,"{name}: {n, plural, one {elindeki # tane daha sayılmaz} other {elindeki # tane daha sayılmaz}}. Katalizör toplanmış ya da pazardan gümüşle alınmış olmalıdır."
 prof.page.craft.xpBought,"{xp} {profession} deneyimi. Bu kumaştan gümüşle satın alınıp henüz kullanılmamış toplar: {silver, number}. O kadarını kullanana dek bu kumaştan yapılan hiçbir parça ilk sefer bonusu vermez."
 prof.page.craft.xpFirstOwn,"{xp} {profession} deneyimi ve bu parçayı bu kademede gümüşle satın alınmamış kumaştan ilk kez yaptığında {more} daha."
 prof.page.enchant.cloth,"Yalnızca kumaştan yapılmış bir parça, içine satın alınmış ya da yağmalanmış hiçbir şey girmediyse ve hiç satılmadıysa Büyüleme deneyimi verir."

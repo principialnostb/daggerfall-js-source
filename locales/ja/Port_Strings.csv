@@ -2606,6 +2606,7 @@ prof.maker.away,"ここで混ぜたポーションでは{profession}の経験値
 prof.maker.fee,"従来のポーション作成と同じく混ぜたので、{profession}の経験値は得られません：ここで調合するには{fee}ゴールドかかります。"
 prof.maker.rank,"従来のポーション作成と同じく混ぜたので、{profession}の経験値は得られません：{potion}は{profession}ランク{rank}から調合できます。"
 prof.maker.storedRank,"{potion}は{profession}ランク{rank}から調合できます。所持品から混ぜるには、倉庫の材料を大釜から取り出してください。"
+prof.master.walled,"{name}: {n, plural, other {所持している # 個は数えられません}}。触媒は採集したものか、市場でシルバーで買ったものでなければなりません。"
 prof.page.act.strike,"打つ"
 prof.page.alchemy,"錬金台"
 prof.page.alchemy.away,"錬金術は錬金台で行います：錬金術師の店か魔術師ギルドの会館（1回の調合につき{fee}ゴールド）か、自宅の錬金台です。ポーションは所持品に入ります。"
