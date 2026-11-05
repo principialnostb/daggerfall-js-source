@@ -612,6 +612,23 @@ export function logoPictureUrl(att) {
   return `${att.proxy_url}${sep}format=webp&width=${GUILD_LOGO_SIDE_MAX}&height=${GUILD_LOGO_SIDE_MAX}`;
 }
 
+/** The picture's bytes, read off Discord at the address logoPictureUrl picks, with the bot's User-Agent - Discord's
+ *  CDN refuses a bare request from a server. Answers `{ bytes }`, or `{ why }` for the moderator: the status Discord
+ *  answered, an empty body, or the error the fetch threw. */
+async function logoBytesOf(att, net) {
+  try {
+    const res = await net.fetchFn(logoPictureUrl(att), {
+      headers: { 'user-agent': DISCORD_USER_AGENT },
+      signal: AbortSignal.timeout(DISCORD_POST_MS),
+    });
+    if (!res.ok) return { why: `status ${res.status}` };
+    const bytes = new Uint8Array(await res.arrayBuffer());
+    return bytes.byteLength ? { bytes } : { why: 'an empty answer' };
+  } catch (e) {
+    return { why: String(/** @type {any} */ (e)?.message ?? e).slice(0, 80) };
+  }
+}
+
 /** Why a picture was refused, in words that say what was seen: its side, its weight or its kind. */
 function logoRefusal(error, bytes) {
   const meta = poiImageMetaOf(bytes);
@@ -636,14 +653,9 @@ async function onLogoCommand(ctx, env, body, sub, actor, net) {
     tall = Number(att.height);
   if (!(wide > 0 && tall > 0)) return say('Discord did not read that file as a picture. Send a PNG or WebP.');
   if (wide !== tall) return say(`That picture is ${wide} by ${tall} px. A logo is square.`);
-  let bytes = null;
-  try {
-    const res = await net.fetchFn(logoPictureUrl(att), { signal: AbortSignal.timeout(DISCORD_POST_MS) });
-    if (res.ok) bytes = new Uint8Array(await res.arrayBuffer());
-  } catch {
-    bytes = null;
-  }
-  if (!bytes?.byteLength) return say(refusedText('logo-fetch'));
+  const got = await logoBytesOf(att, net);
+  if (!got.bytes) return say(`Discord did not hand the picture over (${got.why}). Try again.`);
+  const bytes = got.bytes;
   const worn = await setGuildLogo(
     { ...ctx, bucket: ctx.bucket ?? env?.SAVES, env },
     guild.id,
