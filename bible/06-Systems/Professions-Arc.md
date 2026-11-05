@@ -94,7 +94,10 @@ doubled for each earlier reforge of that piece.
 
 **A Master's work.** A Master may make one Legendary piece a UTC day of a wearable kind. The crafter chooses its three
 lines (at most one that procs); the service rolls their values inside the Legendary band. It spends the recipe's goods
-plus 2 Heartwood, 3 Pearls and 10 Arcane Essence.
+plus 2 Heartwood, 3 Pearls and 10 Arcane Essence. A catalyst counts only if the character gathered it or bought it on
+the market with silver (`own` or `bought`, `src/net/masterLaw.js`). One traded, looted or bought with gold never counts,
+from the pack or the Stores. The Master box names how many such units the character holds (`masterNeeds` `walled`).
+A Pearl jewel's own Pearl is a good, not a catalyst, and may be any Pearl.
 
 **Marks.** Only the account service holds Marks, and it mints them only for acts a server witnessed: Court writs,
 crafting writs, gate, raid, serpent, Elite Breach and fallen-star receipts (together at most 150 a day), Siege

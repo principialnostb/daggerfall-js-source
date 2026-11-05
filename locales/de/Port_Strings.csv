@@ -6594,6 +6594,7 @@ prof.master.madeToday,"Das heutige Meisterstück ist hergestellt. Das nächste k
 prof.master.making,"Wird hergestellt..."
 prof.master.oneADay,"Ein Meisterstück pro Tag."
 prof.master.takes,"Es braucht diese Materialien, die Gebühr der Station und diese Katalysatoren:"
+prof.master.walled,"{name}: {n, plural, one {# weiteres, das du besitzt, zählt nicht} other {# weitere, die du besitzt, zählen nicht}}. Ein Katalysator muss gesammelt oder auf dem Markt mit Silber gekauft sein."
 prof.page.act.strike,"Zuschlagen"
 prof.page.alchemy,"Die Alchemiestation"
 prof.page.alchemy.away,"Alchemie wird an einer Alchemiestation gebraut: bei einem Alchemisten oder in einem Haus der Magiergilde ({fee} Gold pro Brauvorgang) oder in deinem eigenen Zuhause. Deine Tränke kommen in dein Gepäck."

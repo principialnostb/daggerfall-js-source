@@ -2733,6 +2733,7 @@ portal.buy.bought,"{n, plural, one {Veszel egy Portálkövet.} other {Veszel # P
 portal.buy.full,"A Portálkő-halmod legfeljebb {max, number} darabot tarthat."
 portal.refused.event,"Portál nem nyílhat ilyen közel egy esemény kapujához."
 prof.craft.xpFirstBought,"(+{xp} {profession} tapasztalat. Az ezüstért vett kelme nem ad első alkalmas bónuszt, így ennek a darabnak a bónusza még vár rád)"
+prof.master.walled,"{name}: {n, plural, one {további # nálad lévő nem számít} other {további # nálad lévő nem számít}}. A katalizátort gyűjteni kell, vagy a piacon ezüstért venni."
 prof.page.craft.xpBought,"{xp} {profession} tapasztalat. Ebből a kelméből ezüstért vett, még fel nem használt végek: {silver, number}. Amíg ennyit fel nem használsz, egyetlen darab sem ad belőle első alkalmas bónuszt."
 prof.page.craft.xpFirstOwn,"{xp} {profession} tapasztalat, és még {more}, amikor először készíted el ezt a darabot ezen a fokon nem ezüstért vett kelméből."
 prof.page.enchant.cloth,"A csak kelméből készült darab csak akkor ad Bűvölés tapasztalatot, ha semmi vásárolt vagy zsákmányolt nem került bele, és sosem adták el."

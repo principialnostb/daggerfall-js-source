@@ -2735,6 +2735,7 @@ prof.maker.away,"Mikstura zmieszana tutaj nie daje PD ({profession}). Przy stano
 prof.maker.fee,"Zmieszana tak, jak miesza klasyczny twórca mikstur, nie daje PD ({profession}): warzenie tutaj kosztuje {fee} złota."
 prof.maker.rank,"Zmieszana tak, jak miesza klasyczny twórca mikstur, nie daje PD ({profession}): {potion} warzy się od rangi {rank} ({profession})."
 prof.maker.storedRank,"{potion} warzy się od rangi {rank} ({profession}). Wyjmij z kotła składniki z Magazynu, aby zmieszać ją z tego, co nosisz."
+prof.master.walled,"{name}: {n, plural, one {jeszcze # posiadana sztuka się nie liczy} few {jeszcze # posiadane sztuki się nie liczą} many {jeszcze # posiadanych sztuk się nie liczy} other {jeszcze # posiadanej sztuki się nie liczy}}. Katalizator musi być zebrany albo kupiony na targu za srebro."
 prof.page.act.strike,"Uderz"
 prof.page.alchemy,"Stanowisko alchemiczne"
 prof.page.alchemy.away,"Mikstury warzy się przy stanowisku alchemicznym: u Alchemika lub w siedzibie Gildii Magów ({fee} złota za warzenie) albo we własnym domu. Mikstury trafiają do plecaka."

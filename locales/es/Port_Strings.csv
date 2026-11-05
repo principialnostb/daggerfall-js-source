@@ -6594,6 +6594,7 @@ prof.master.madeToday,"La pieza de Maestro de hoy ya está fabricada. La siguien
 prof.master.making,"Fabricando..."
 prof.master.oneADay,"Una pieza de Maestro al día."
 prof.master.takes,"Necesita estos materiales, la tarifa de la estación y estos catalizadores:"
+prof.master.walled,"{name}: {n, plural, one {# más que tienes no cuenta} other {# más que tienes no cuentan}}. Un catalizador debe recolectarse o comprarse en el mercado con plata."
 prof.page.act.strike,"Golpear"
 prof.page.alchemy,"La estación de alquimia"
 prof.page.alchemy.away,"La alquimia se prepara en una estación de alquimia: la de un Alquimista o la de una casa del Gremio de Magos ({fee} de oro por preparado) o la de tu propio hogar. Tus pociones van a tu mochila."

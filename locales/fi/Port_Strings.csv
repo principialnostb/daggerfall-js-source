@@ -2480,6 +2480,7 @@ prof.maker.away,"Täällä sekoitettu juoma ei anna XP:tä ({profession}). Alkem
 prof.maker.fee,"Klassisen juomantekijän tapaan sekoitettuna se ei anna XP:tä ({profession}): keittäminen täällä maksaa {fee} kultaa."
 prof.maker.rank,"Klassisen juomantekijän tapaan sekoitettuna se ei anna XP:tä ({profession}): {potion} keitetään arvosta {rank} alkaen ({profession})."
 prof.maker.storedRank,"{potion} keitetään arvosta {rank} alkaen ({profession}). Ota Varastojesi ainekset pois padasta, jos haluat sekoittaa sen siitä, mitä kannat."
+prof.master.walled,"{name}: {n, plural, one {# lisää hallussasi ei lasketa} other {# lisää hallussasi ei lasketa}}. Katalyytin on oltava kerätty tai ostettu torilta hopealla."
 prof.page.act.strike,"Iske"
 prof.page.alchemy,"Alkemiapöytä"
 prof.page.alchemy.away,"Alkemiaa keitetään alkemiapöydällä: Alkemistin tai Mages Guildin salin ({fee} kultaa keitos) tai oman kotisi. Juomasi menevät reppuusi."

@@ -6594,6 +6594,7 @@ prof.master.madeToday,"Dnešní dílo Mistra je vyrobené. Další lze vyrobit p
 prof.master.making,"Výroba..."
 prof.master.oneADay,"Jedno dílo Mistra denně."
 prof.master.takes,"Vyžaduje tyto materiály, poplatek za stanoviště a tyto katalyzátory:"
+prof.master.walled,"{name}: {n, plural, one {další # kus, který máš, se nepočítá} few {další # kusy, které máš, se nepočítají} many {dalších # kusu, které máš, se nepočítá} other {dalších # kusů, které máš, se nepočítá}}. Katalyzátor musí být nasbíraný nebo koupený na trhu za stříbro."
 prof.page.act.strike,"Udeřit"
 prof.page.alchemy,"Alchymistická stanice"
 prof.page.alchemy.away,"Alchymie se vaří u alchymistické stanice: u Alchymisty nebo v síni Cechu mágů ({fee} zlatých za várku), nebo u té ve tvém domově. Tvé lektvary jdou do batohu."
