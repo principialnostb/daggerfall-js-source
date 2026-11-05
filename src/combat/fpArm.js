@@ -3195,7 +3195,7 @@ async function buildTpBody({
       const one = await cachedClipReport(gen, skeletonPath, p, () => find(p).get(p).slice(), arm.skeleton);
       if (!one.ok) return { ok: false, stage: 'clip', error: `${p}: ${one.error}`, notes: missing, rows };
       sources.push({
-        name: p, own: true, keys: one.keys, groups: one.groups, groupSet: new Set(one.groups),   // SHIELD-WALK-ARM: the game's own
+        name: p, keys: one.keys, groups: one.groups, groupSet: new Set(one.groups),
         trackMap: one.trackMap, binding: one.binding,
         wouldAccumRoot: accumRootRef(arm.skeleton, one.trackMap),
       });

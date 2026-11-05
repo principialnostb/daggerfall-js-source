@@ -51,9 +51,8 @@ export function leftArmPlan({ mode = null, view = 'third', moving = false, base 
     // SHIELD-RUN-HOLD (the owner, 2026-11-05, a screenshot): running any way, the shield up at the shoulder - the walk
     // strafe's arm held at one frame
     if (/^run/.test(b)) return { kind: 'movement', base: 'walkleft', stance: 'drawn', still: true };
-    // SHIELD-WALK-ARM: walking straight, the game's own strafe's arm on the stride, as all-animations had it - OpenMW
-    // Dynamic Animations' strafe, first in line once it is on, swings the shield arm as its walk does
-    return strafeOf ? { kind: 'movement', base: strafeOf, stance: 'drawn', still: false, own: true } : null;
+    // walking straight: the strafe's arm on the stride, as Dev has it
+    return strafeOf ? { kind: 'movement', base: strafeOf, stance: 'drawn', still: false } : null;
   }
   if (mode === 'guard') {
     if (view === 'first') return attacking || jumping ? { kind: 'stance', base: 'idle', stance: 'drawn', still: true } : null;
@@ -150,14 +149,12 @@ export function createLeftArmLayer({ pickAnimSource, resetClip, composeMovementG
       if (plan) {
         const type = plan.stance === 'bare' ? MW_WEAPON_TYPE.None : stance;   // the bare group, no short group
         const composed = plan.kind === 'stance' ? composeStanceGroup(plan.base, type, hasGroup) : composeMovementGroup(plan.base, type, hasGroup);
-        const key = composed?.group ? `${composed.group}${plan.own ? '|own' : ''}` : null;
-        if (key && key !== group) {
-          const all = movementSource ? [movementSource, ...(sources ?? []).filter((s) => s !== movementSource)] : (sources ?? []);
-          const candidates = plan.own ? [...all.filter((s) => s?.own), ...all.filter((s) => !s?.own)] : all;   // SHIELD-WALK-ARM
+        if (composed?.group && composed.group !== group) {
+          const candidates = movementSource ? [movementSource, ...(sources ?? []).filter((s) => s !== movementSource)] : (sources ?? []);
           const pick = pickAnimSource(candidates, composed.group, resetClip, { loopFallback: true, loopCount: Infinity });
           if (pick) {
             const fresh = !state;
-            state = pick.state; source = pick.source; group = key; memo = null;
+            state = pick.state; source = pick.source; group = composed.group; memo = null;
             if (fresh || plan.still) clock = loopWindow(state, source.keys).start;
           }
         }

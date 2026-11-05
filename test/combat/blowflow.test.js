@@ -343,17 +343,3 @@ test('BLOW-STYLE: Прежний flows a series at the machine pace but never un
   assert.equal(click(true), true, 'Прежний: a click goes on as a series');
   assert.equal(click(false), false, 'Текущий: a click is a lone blow');
 });
-
-test('SHIELD-WALK-ARM: a plan that asks for the game\'s own clip takes the strafe from the game\'s source, not the walk pack first in line', async () => {
-  const { createLeftArmLayer } = await import('../../src/combat/leftArmLayer.js');
-  const picked = [];
-  const pack = { name: 'oda', groupSet: new Set(['walkleft1h']), keys: [] }, own = { name: 'game', own: true, groupSet: new Set(['walkleft1h']), keys: [] };
-  const layer = createLeftArmLayer({
-    pickAnimSource: (cands, group) => { const s = cands.find((c) => c.groupSet.has(group)); picked.push(s.name); return { source: s, state: { group, startTime: 0, stopTime: 1, time: 0 } }; },
-    resetClip: () => null, composeMovementGroup: (base) => ({ group: `${base}1h` }), composeStanceGroup: (base) => ({ group: `${base}1h` }), sampleTrack: () => ({}),
-  });
-  const movement = { group: 'walkforward1h', startTime: 0, stopTime: 1, time: 0.3 };
-  layer.step(1 / 60, { plan: { kind: 'movement', base: 'walkleft', stance: 'drawn', still: false, own: true }, sources: [pack, own], hasGroup: () => true, stance: 1, movement, movementSource: pack });
-  layer.step(1 / 60, { plan: { kind: 'movement', base: 'walkleft', stance: 'drawn', still: true }, sources: [pack, own], hasGroup: () => true, stance: 1, movement, movementSource: pack });
-  assert.deepEqual(picked, ['game', 'oda'], 'walking the game\'s strafe; running the pack\'s, picked again');
-});
