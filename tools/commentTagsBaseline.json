@@ -57,7 +57,7 @@
  "server-account/src/decor.js": 75,
  "server-account/src/decorAccess.js": 25,
  "server-account/src/decorBatch.js": 9,
- "server-account/src/discord.js": 16,
+ "server-account/src/discord.js": 15,
  "server-account/src/discordCommands.js": 3,
  "server-account/src/domains.js": 4,
  "server-account/src/door.js": 5,

@@ -326,3 +326,62 @@ test('AUDIT GUILD-SHOP an Admin holds every account ware and is sold none; a cha
   const buy = await s.call('/v1/guilds/shop/buy', { character: 'char-mac00001', ware: 'insigniaarmlet', rid: 'admin-buy-0001' }, s.mod.secret);
   assert.equal(buy.body.error, 'guild-ware-held');
 });
+
+test('GUILD-LOGO /mod logo: a moderator sets a guild\'s logo from a picture on Discord, by tag or name - worn at once, no fee, the one worn before retired and its picture gone, the guildmaster written a letter, and its card posted with Take down alone; a picture past the size is refused before Discord is asked for its bytes, one out of shape writes nothing; a word no guild bears is said (mutants: the tag unread; the size unchecked; the replaced logo kept)', async () => {
+  const s = await stand();
+  // the guild wears a logo its review approved
+  s.guildSilver(GUILD_LOGO_FEE);
+  const first = await s.call('/v1/guilds/logo', { character: s.gm.character, image: png(128), rid: 'logo-mod-1' }, s.gm.secret);
+  assert.equal(first.status, 200, JSON.stringify(first.body));
+  const old = first.body.logo;
+  await discordInteraction(s.ctx(), s.env, { type: 3, member: { user: { id: MOD_ID } }, data: { custom_id: `glogo:ok:${old}` } });
+  assert.equal(s.raw.prepare('SELECT logo FROM guilds WHERE id = ?').get(s.gid).logo, old);
+  assert.equal((await s.get(`/v1/guilds/logo/${old}`)).status, 200);
+  // the moderator's command: the picture is Discord's, handed over by its CDN
+  const asked = [];
+  let pic = Buffer.from(png(96), 'base64');
+  const cdn = 'https://cdn.discordapp.com/ephemeral-attachments/1/777/logo.png';
+  const fetchFn = async (url) => { asked.push(url); return pic ? new Response(pic, { status: 200 }) : new Response('', { status: 404 }); };
+  const mod = (guild, att) => discordInteraction({ ...s.ctx(), self: 'https://accounts.invalid' }, s.env, { type: 2, member: { user: { id: MOD_ID } }, data: { name: 'mod', options: [{ name: 'logo', type: 1, options: [{ name: 'guild', type: 3, value: guild }, { name: 'picture', type: 11, value: '777' }] }], resolved: { attachments: { 777: att } } } }, { fetchFn, later: (p) => { p.catch(() => {}); } });
+  assert.equal((await mod('NOPE', { id: '777', url: cdn, size: pic.length })).data.content, 'No guild bears that tag or name.');
+  assert.match((await mod('iron', { id: '777', url: cdn, size: GUILD_LOGO_MAX_BYTES + 1 })).data.content, /^The picture must be a square PNG or WebP, 64 to 256 px a side and under 48 KiB\.$/);
+  assert.deepEqual([asked, s.raw.prepare('SELECT COUNT(*) AS n FROM guild_logos').get().n], [[], 1], 'a picture past the size is never fetched, nothing written');
+  const ok = await mod('iron', { id: '777', url: cdn, size: pic.length });
+  assert.equal(ok.data.content, 'The Iron Oath <IRON> wears the new logo. The one before is retired.');
+  assert.deepEqual(asked, [cdn], 'the picture read off Discord once');
+  const id = s.raw.prepare('SELECT logo FROM guilds WHERE id = ?').get(s.gid).logo;
+  assert.ok(id && id !== old, 'the guild wears the new one');
+  const row = s.raw.prepare('SELECT * FROM guild_logos WHERE id = ?').get(id);
+  assert.deepEqual([row.state, row.fee, row.side, row.type, row.bytes, row.by_name, row.decided_by, row.rid, row.discord_state, row.src],
+    ['approved', 0, 96, 'image/png', pic.length, 'Mac', 'Mac (Discord)', `mod:${id}`, 'due', `https://accounts.invalid/v1/guilds/logo/${id}`]);
+  const was = s.raw.prepare('SELECT state, decided_by FROM guild_logos WHERE id = ?').get(old);
+  assert.deepEqual([was.state, was.decided_by], ['withdrawn', 'replaced'], 'the logo worn before is retired');
+  assert.equal((await s.get(`/v1/guilds/logo/${old}`)).status, 404, 'its picture is gone');
+  const served = await s.get(`/v1/guilds/logo/${id}`);
+  assert.deepEqual([served.status, served.bytes.byteLength], [200, pic.length]);
+  assert.equal(s.raw.prepare('SELECT COUNT(*) AS n FROM marks_ledger WHERE dst_id = ? OR src_id = ?').get(`logo:${id}`, `logo:${id}`).n, 0, 'no fee moved');
+  assert.equal(s.raw.prepare('SELECT subject FROM server_post WHERE to_id = ? AND batch = ?').get(s.gm.id, `guild-logo-${id}`).subject, 'Your guild\'s logo was set');
+  // its card: who set it, no fee, and Take down alone
+  const sent = [];
+  await safetyMinute(s.ctx(), s.env, { fetchFn: async (url, init) => { sent.push(JSON.parse(init.body)); return new Response(JSON.stringify({ id: '434343434343434343' }), { status: 200 }); } });
+  assert.equal(sent.length, 1);
+  assert.match(sent[0].embeds[0].description, /^Set by Mac /);
+  assert.deepEqual(sent[0].embeds[0].fields.map((f) => f.name), ['Set by', 'Picture', 'Fee']);
+  assert.equal(sent[0].embeds[0].fields[2].value, 'none');
+  assert.deepEqual(sent[0].components.flatMap((r) => r.components.map((b) => b.custom_id)), [`glogo:off:${id}`]);
+  // a picture out of shape writes nothing; the guild by its name, the case and the spaces aside
+  pic = Buffer.from(png(128, 100), 'base64');
+  assert.match((await mod('The Iron Oath', { id: '777', url: cdn, size: pic.length })).data.content, /^The picture must be a square/);
+  assert.deepEqual([s.raw.prepare('SELECT logo FROM guilds WHERE id = ?').get(s.gid).logo, s.raw.prepare('SELECT COUNT(*) AS n FROM guild_logos').get().n], [id, 2]);
+  pic = Buffer.from(png(64), 'base64');
+  assert.equal((await mod('the  iron oath', { id: '777', url: cdn, size: pic.length })).data.content, 'The Iron Oath <IRON> wears the new logo. The one before is retired.');
+  const third = s.raw.prepare('SELECT logo FROM guilds WHERE id = ?').get(s.gid).logo;
+  assert.deepEqual([third !== id, s.raw.prepare('SELECT state FROM guild_logos WHERE id = ?').get(id).state, (await s.get(`/v1/guilds/logo/${id}`)).status], [true, 'withdrawn', 404]);
+  // Discord's CDN failing hands nothing to the service
+  pic = null;
+  assert.equal((await mod('iron', { id: '777', url: cdn, size: 10 })).data.content, 'Discord did not hand the picture over. Try again.');
+  assert.equal(s.raw.prepare('SELECT logo FROM guilds WHERE id = ?').get(s.gid).logo, third);
+  // a stranger's command is no moderator's
+  const stranger = await discordInteraction(s.ctx(), s.env, { type: 2, member: { user: { id: '222222222222222222' } }, data: { name: 'mod', options: [{ name: 'logo', type: 1, options: [] }] } }, { fetchFn });
+  assert.match(stranger.data.content, /Only the game's moderators/);
+});

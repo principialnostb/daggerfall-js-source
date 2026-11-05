@@ -173,8 +173,8 @@ test('DISCORD-CODE: every declared command and subcommand reaches a handler in t
       if (subs.length) assert.notEqual(said, usage, `${label} is handled, not answered with the usage`);
     }
   }
-  assert.equal(usageOf('mod'), 'Use /mod lookup, mute, unmute, ban or unban.');
-  assert.deepEqual(subcommandsOf('mod'), ['lookup', 'mute', 'unmute', 'ban', 'unban']);
+  assert.equal(usageOf('mod'), 'Use /mod lookup, mute, unmute, ban, unban or logo.');
+  assert.deepEqual(subcommandsOf('mod'), ['lookup', 'mute', 'unmute', 'ban', 'unban', 'logo']);
 });
 
 test('DISCORD-CODE: the commands live under server-account/, and the deploy\'s path filter holds the setup tool\'s whole import graph - a change to either deploys, and so reaches Discord', () => {

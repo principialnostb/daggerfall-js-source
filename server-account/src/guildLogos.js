@@ -12,7 +12,14 @@ import { sendCard, discordOn, md } from './discord.js';
 import { mustChange } from './realm.js';
 import { POST_SENDER } from '../../src/net/postLaw.js';
 import { MARKS_RID_RE, MARKS_MAX, utcDay } from '../../src/net/marksLaw.js';
-import { GUILD_OPS_MAX, GUILD_OPS_WINDOW_S, GUILD_RANK_MASTER, guildMay } from '../../src/net/guild/guildLaw.js';
+import {
+  GUILD_OPS_MAX,
+  GUILD_OPS_WINDOW_S,
+  GUILD_RANK_MASTER,
+  guildMay,
+  guildTagOf,
+  guildNameKey,
+} from '../../src/net/guild/guildLaw.js';
 import { guildPowerSql } from './guildPowerSql.js'; // GUILD-RANKS: the guild's powers, read in the statement
 import { GUILD_LOGO_FEE } from '../../src/net/guild/guildShopLaw.js';
 import {
@@ -269,6 +276,11 @@ export function logoLetter(/** @type {string} */ state, /** @type {any} */ row) 
       "Your guild's logo is approved",
       `The moderators approved your guild's logo. It now shows in place of the device on your arms.\n\n${fee} silver was paid for the review.\n\n- ${POST_SENDER}`,
     ];
+  if (state === 'set')
+    return [
+      "Your guild's logo was set",
+      `A moderator set your guild's logo. It now shows in place of the device on your arms.\n\n- ${POST_SENDER}`,
+    ];
   if (state === 'taken-down')
     return [
       "Your guild's logo was taken down",
@@ -360,6 +372,95 @@ export async function takeDownLogo(db, id, by, nowS, bucket = null) {
   return true;
 }
 
+/** A guild by the word a moderator typed: its tag first, since a name can look like one, then its name. Answers
+ *  `{ id, name, tag }` or null. */
+export async function guildByWord(db, word) {
+  const tag = guildTagOf(word);
+  const byTag = tag ? await db.prepare('SELECT id, name, tag FROM guilds WHERE tag = ?').bind(tag).first() : null;
+  if (byTag) return byTag;
+  const key = guildNameKey(word);
+  return key ? await db.prepare('SELECT id, name, tag FROM guilds WHERE name_key = ?').bind(key).first() : null;
+}
+
+/** Whether a logo's row is one a moderator set, not a review the guild sent: its request id is the moderator's mark. */
+export const logoSetByMod = (/** @type {any} */ row) => /^mod:/.test(String(row?.rid ?? ''));
+
+/**
+ * A LOGO SET BY A MODERATOR: `bytes` the picture, read already; `by` the moderator's name; `actor` their account. Worn
+ * at once - no fee, no review. The picture is put first. One batch writes its row approved, retires the logo worn
+ * before, hands the guild the new one and writes the guildmaster a letter. Each statement is guarded on the row, so a
+ * guild gone under the press writes nothing and its picture is deleted. Its card goes up with Take down. Answers
+ * `{ ok, logo, replaced }` - how many logos it retired - or `{ error }`.
+ * @param {{ db: any, nowS: number, rand: (b: Uint8Array) => void, env?: any, bucket?: any, self?: string }} ctx
+ */
+export async function setGuildLogo(ctx, guildId, bytes, by, actor) {
+  const { db, nowS, rand, env, bucket } = ctx;
+  const shape = guildLogoShapeOf(poiImageMetaOf(bytes), bytes.byteLength);
+  if ('error' in shape) return shape;
+  if (!bucket) return { error: 'no-storage' };
+  const worn =
+    (await db.prepare("SELECT id, obj FROM guild_logos WHERE guild_id = ? AND state = 'approved'").bind(guildId).all())
+      ?.results ?? [];
+  const master = await db
+    .prepare(`SELECT player FROM guild_members WHERE guild_id = ? AND rank = ${GUILD_RANK_MASTER}`)
+    .bind(guildId)
+    .first();
+  const id = mintLogoId(rand),
+    obj = logoObject(id),
+    src = guildLogoUrl(ctx.self ?? '', id) ?? '';
+  await bucket.put(obj, bytes, { httpMetadata: { contentType: shape.type } });
+  try {
+    await db.batch([
+      db
+        .prepare(
+          `INSERT INTO guild_logos (id, guild_id, state, obj, src, type, bytes, side, fee, by_player, by_name, rid, at, decided_at, decided_by, discord_state)
+        SELECT ?1, ?2, 'approved', ?3, ?4, ?5, ?6, ?7, 0, ?8, ?9, ?10, ?11, ?11, ?12, ?13 WHERE EXISTS (SELECT 1 FROM guilds WHERE id = ?2)`,
+        )
+        .bind(
+          id,
+          guildId,
+          obj,
+          src,
+          shape.type,
+          bytes.byteLength,
+          shape.side,
+          actor.id,
+          displayName(actor),
+          `mod:${id}`,
+          nowS,
+          String(by ?? '').slice(0, 64),
+          discordOn(env) ? 'due' : 'off',
+        ),
+      db
+        .prepare(
+          "UPDATE guild_logos SET state = 'withdrawn', decided_at = ?2, decided_by = 'replaced' WHERE guild_id = ?3 AND state = 'approved' AND id <> ?1 AND EXISTS (SELECT 1 FROM guild_logos WHERE id = ?1)",
+        )
+        .bind(id, nowS, guildId),
+      db
+        .prepare('UPDATE guilds SET logo = ?1 WHERE id = ?2 AND EXISTS (SELECT 1 FROM guild_logos WHERE id = ?1)')
+        .bind(id, guildId),
+      ...(master
+        ? [
+            db
+              .prepare(
+                `INSERT OR IGNORE INTO server_post (id, to_id, batch, sender, subject, body, item, sent_at, ware)
+        SELECT lower(hex(randomblob(12))), ?1, ?2, ?3, ?4, ?5, NULL, ?6, NULL WHERE EXISTS (SELECT 1 FROM guild_logos WHERE id = ?7)`,
+              )
+              .bind(master.player, `guild-logo-${id}`, POST_SENDER, ...logoLetter('set', { fee: 0 }), nowS, id),
+          ]
+        : []),
+    ]);
+  } catch {
+    // the check below says whether the batch landed
+  }
+  if (!(await db.prepare('SELECT 1 FROM guild_logos WHERE id = ?').bind(id).first())) {
+    await bucket.delete(obj);
+    return { error: 'no-guild' };
+  }
+  for (const w of worn) await bucket?.delete?.(w.obj)?.catch?.(() => {}); // a picture nobody wears is kept no more
+  return { ok: true, logo: id, replaced: worn.length };
+}
+
 /** A LOGO'S PICTURE, for anyone: the bytes and their type while it is under review or approved, else none. */
 export async function guildLogoBytes({ db, bucket }, id) {
   if (!GUILD_LOGO_ID_RE.test(String(id))) return { error: 'no-logo' };
@@ -382,11 +483,14 @@ export async function guildLogoBytes({ db, bucket }, id) {
 export function logoCard(/** @type {any} */ row, /** @type {any} */ guild) {
   const open = row.state === 'pending';
   const downed = row.state === 'withdrawn' && / \(Discord\)$/.test(String(row.decided_by ?? '')); // AUDIT GUILD-SHOP D2: a moderator's take-down
+  const set = logoSetByMod(row) && row.state === 'approved';
   const ended = downed
     ? 'Taken down'
-    : { approved: 'Approved', denied: 'Turned down', withdrawn: 'Withdrawn by the guild' }[
-        /** @type {'approved'} */ (row.state)
-      ];
+    : set
+      ? 'Set'
+      : { approved: 'Approved', denied: 'Turned down', withdrawn: 'Withdrawn by the guild' }[
+          /** @type {'approved'} */ (row.state)
+        ];
   const embed = {
     title: `Guild logo: ${md(guild?.name ?? '?')} <${md(guild?.tag ?? '?')}>`,
     description: open
@@ -394,9 +498,13 @@ export function logoCard(/** @type {any} */ row, /** @type {any} */ guild) {
       : `${ended}${row.decided_by ? ` by ${md(row.decided_by)}` : ''}.`,
     color: open ? 0x3070d0 : row.state === 'approved' ? 0x30a050 : 0x808080,
     fields: [
-      { name: 'Sent by', value: `${md(row.by_name)} (\`${row.by_player}\`)`, inline: true },
+      { name: logoSetByMod(row) ? 'Set by' : 'Sent by', value: `${md(row.by_name)} (\`${row.by_player}\`)`, inline: true },
       { name: 'Picture', value: `${row.side} px, ${Math.ceil(Number(row.bytes) / 1024)} KiB`, inline: true },
-      { name: 'Fee', value: `${Number(row.fee).toLocaleString('en-US')} silver, held until you decide`, inline: true },
+      {
+        name: 'Fee',
+        value: Number(row.fee) ? `${Number(row.fee).toLocaleString('en-US')} silver, held until you decide` : 'none',
+        inline: true,
+      },
     ],
     image: { url: row.src },
   };

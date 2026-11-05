@@ -47,7 +47,8 @@ picks a picture; the client crops it square at 128 pixels, and the service check
 escrow. One review at a time. The safety clock posts a card to the moderators' channel with Approve and Turn down; only a
 moderator's press decides. Approved, the fee is burnt and the logo replaces the device (never the field, division or
 border) on the crest, armlet, sails, furniture and the hall's street banners. Turned down or withdrawn, the fee comes
-home; either way the guildmaster gets a letter. A moderator may take a worn logo down. A logo is served at
+home; either way the guildmaster gets a letter. A moderator may take a worn logo down, or set one from Discord with
+`/mod logo` (a tag or name, and a picture): worn at once, no fee, the one before retired. A logo is served at
 `/v1/guilds/logo/<id>` only while under review or approved.
 
 **Ranks and powers.** A guild keeps `GUILD_RANKS_MIN` to `GUILD_RANKS_MAX` (4 to 8) ranks, added or removed at the bottom

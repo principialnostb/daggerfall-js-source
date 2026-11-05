@@ -63,8 +63,8 @@ asks; the Terms bind every player either way.
 
 **The moderators' queue.** Every case is a card in a private Discord channel with its lines, reports, the reviewer's
 verdict, strikes and the next rung, and buttons: Mute 30 min, Mute 1 day, Mute 7 days, Ban 30 days, Dismiss
-(`server-account/src/discord.js`). `/mod lookup | mute | unmute | ban | unban` acts by account id first, then name. In
-the game: `/cases`, `/case`, `/dismiss`, `/strikes`, `/modhelp`. Who may act is the game's question: `DISCORD_MODERATORS`
+(`server-account/src/discord.js`). `/mod lookup | mute | unmute | ban | unban` acts by account id first, then name;
+`/mod logo` sets a guild's logo from a picture (Guild-Shop.md). In the game: `/cases`, `/case`, `/dismiss`, `/strikes`, `/modhelp`. Who may act is the game's question: `DISCORD_MODERATORS`
 pairs a Discord id with a handle, and a press counts only while that handle holds moderator or developer rights. Every
 interaction's signature is checked over the exact bytes.
 

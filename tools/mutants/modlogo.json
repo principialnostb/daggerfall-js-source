@@ -1,0 +1,42 @@
+[
+  {
+    "name": "MODLOGO-tag-unread",
+    "file": "server-account/src/guildLogos.js",
+    "old": "  const tag = guildTagOf(word);\n  const byTag = tag ? await db.prepare('SELECT id, name, tag FROM guilds WHERE tag = ?').bind(tag).first() : null;",
+    "new": "  const tag = null;\n  const byTag = tag ? await db.prepare('SELECT id, name, tag FROM guilds WHERE tag = ?').bind(tag).first() : null;",
+    "tests": [
+      "test/server/guildshop_service.test.js"
+    ],
+    "note": "A guild named by its tag, the word a moderator reads off a card, would be no guild."
+  },
+  {
+    "name": "MODLOGO-size-unchecked",
+    "file": "server-account/src/discord.js",
+    "old": "  if (Number(att.size) > GUILD_LOGO_MAX_BYTES) return say(refusedText('logo-bytes'));",
+    "new": "  if (false) return say(refusedText('logo-bytes'));",
+    "tests": [
+      "test/server/guildshop_service.test.js"
+    ],
+    "note": "A picture past the law's bound would be fetched whole off Discord's CDN before it is refused."
+  },
+  {
+    "name": "MODLOGO-replaced-kept",
+    "file": "server-account/src/guildLogos.js",
+    "old": "\"UPDATE guild_logos SET state = 'withdrawn', decided_at = ?2, decided_by = 'replaced' WHERE guild_id = ?3 AND state = 'approved' AND id <> ?1 AND EXISTS (SELECT 1 FROM guild_logos WHERE id = ?1)\",",
+    "new": "\"UPDATE guild_logos SET state = 'withdrawn', decided_at = ?2, decided_by = 'replaced' WHERE guild_id = ?3 AND state = 'pending' AND id <> ?1 AND EXISTS (SELECT 1 FROM guild_logos WHERE id = ?1)\",",
+    "tests": [
+      "test/server/guildshop_service.test.js"
+    ],
+    "note": "The logo worn before would stay approved beside the new one, its picture kept and served."
+  },
+  {
+    "name": "MODLOGO-fee-charged",
+    "file": "server-account/src/guildLogos.js",
+    "old": "        SELECT ?1, ?2, 'approved', ?3, ?4, ?5, ?6, ?7, 0, ?8, ?9, ?10, ?11, ?11, ?12, ?13 WHERE EXISTS (SELECT 1 FROM guilds WHERE id = ?2)`,",
+    "new": "        SELECT ?1, ?2, 'pending', ?3, ?4, ?5, ?6, ?7, 0, ?8, ?9, ?10, ?11, ?11, ?12, ?13 WHERE EXISTS (SELECT 1 FROM guilds WHERE id = ?2)`,",
+    "tests": [
+      "test/server/guildshop_service.test.js"
+    ],
+    "note": "A logo a moderator set would wait on a review nobody asked for, worn by nobody."
+  }
+]

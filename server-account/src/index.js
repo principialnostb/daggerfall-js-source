@@ -1040,7 +1040,7 @@ const service = {
         // AUDIT SAFE DISCORD-4: what may follow the answer (the order to the relay's door) waits on the Worker's waitUntil,
         // never on Discord's three seconds
         const exec = /** @type {any} */ (held).exec;
-        return json(await discordInteraction(ctx, env, interaction, typeof exec?.waitUntil === 'function' ? { later: (p) => exec.waitUntil(p) } : {}), 200, origin);
+        return json(await discordInteraction({ ...ctx, bucket: env.SAVES, self: url.origin }, env, interaction, typeof exec?.waitUntil === 'function' ? { later: (p) => exec.waitUntil(p) } : {}), 200, origin);   // a logo set from Discord: its picture into R2, its address the service's own
       }
 
       // STAFF-PANEL1 (staff.js): THE STAFF PANEL'S DOORS. None takes a game session - a game secret opens no staff door and a
