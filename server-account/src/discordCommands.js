@@ -17,7 +17,7 @@
 // whether a press does anything is the game's question (DISCORD_MODERATORS, MODERATOR_HANDLES).
 // ═══════════════════════════════════════════════════════════════════
 
-/** The command, as Discord's API takes it: /mod lookup|mute|unmute|ban|unban, each naming a player by name or account id. */
+/** The command, as Discord's API takes it: /mod lookup|mute|unmute|ban|unban name a player; /mod logo a guild and a picture. */
 export const MOD_COMMAND = Object.freeze({
   name: 'mod',
   description: 'DFO Online moderation',
@@ -82,6 +82,20 @@ export const MOD_COMMAND = Object.freeze({
       name: 'unban',
       description: 'Lift a ban',
       options: [{ type: 3, name: 'player', description: 'Name or account id', required: true }],
+    },
+    {
+      type: 1,
+      name: 'logo',
+      description: "Set a guild's logo from a picture - worn at once, no fee, no review",
+      options: [
+        { type: 3, name: 'guild', description: 'The guild, by tag or name', required: true, max_length: 40 },
+        {
+          type: 11,
+          name: 'picture',
+          description: 'A square PNG or WebP, 64 to 256 px a side, under 48 KiB',
+          required: true,
+        },
+      ],
     },
   ],
 });

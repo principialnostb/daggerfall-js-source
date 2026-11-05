@@ -35,7 +35,8 @@
 // ═══════════════════════════════════════════════════════════════════
 
 import { displayName, isMuted } from './accounts.js';
-import { isLogoPress, onLogoPress } from './guildLogos.js'; // GUILD-LOGO: a logo card's two buttons
+import { isLogoPress, onLogoPress, setGuildLogo, guildByWord } from './guildLogos.js'; // a logo card's two buttons, and /mod logo
+import { GUILD_LOGO_MAX_BYTES, GUILD_LOGO_SIDE_MIN, GUILD_LOGO_SIDE_MAX } from '../../src/net/guild/guildLogoLaw.js';
 import { canModerate } from './titles.js';
 import { importPublicKey, ID_RE } from '../../src/net/identityToken.js';
 import { findAccount, strikesLook, pushLaw, strikesOf, isBanned, bannedUntil } from './sanctions.js';
@@ -402,6 +403,8 @@ const pushAfter = (io, env, order) => {
   return p;
 };
 
+/** The shape a logo's picture must have, said to a moderator whose picture has not. */
+const LOGO_SHAPE = `The picture must be a square PNG or WebP, ${GUILD_LOGO_SIDE_MIN} to ${GUILD_LOGO_SIDE_MAX} px a side and under ${GUILD_LOGO_MAX_BYTES / 1024} KiB.`;
 /** The words a refusal says to a moderator in Discord. */
 const REFUSED = Object.freeze({
   'not-moderator': 'You are not a moderator in the game.',
@@ -417,6 +420,14 @@ const REFUSED = Object.freeze({
   'case-closed': 'That case is already closed.',
   'not-developer': 'Only an Admin can act on a spawn case.',
   'admin-sanction': 'An Admin set this - only an Admin can lift or shorten it.',
+  // /mod logo
+  'no-guild': 'No guild bears that tag or name.',
+  'logo-fetch': 'Discord did not hand the picture over. Try again.',
+  'no-storage': 'The service has nowhere to keep a picture.',
+  'logo-bytes': LOGO_SHAPE,
+  'logo-type': LOGO_SHAPE,
+  'logo-square': LOGO_SHAPE,
+  'logo-side': LOGO_SHAPE,
 });
 const refusedText = (e) => REFUSED[/** @type {keyof typeof REFUSED} */ (e)] ?? `Refused: ${e}.`;
 /** A case's card as it stands, drawn in place of the pressed one. */
@@ -498,6 +509,7 @@ const optionOf = (sub, name) =>
  *  ban closes the account's open case as the moderator's act, its card redrawn (DISCORD-11). */
 async function onCommand(ctx, env, body, actor, io) {
   const sub = Array.isArray(body?.data?.options) ? body.data.options[0] : null;
+  if (sub?.name === 'logo') return onLogoCommand(ctx, env, body, sub, actor, io); // a guild's, not a player's
   const who = String(optionOf(sub, 'player') ?? '').trim();
   // AN ID FIRST: an account id is a valid handle, so a name first let a decoy named after an id take the act
   let row = ID_RE.test(who) ? await findAccount(ctx.db, { target: who }) : { error: 'no-player' };
@@ -584,6 +596,36 @@ async function onCommand(ctx, env, body, actor, io) {
     default:
       return say(usageOf('mod')); // DISCORD-CODE: the declared subcommands, named (discordCommands.js)
   }
+}
+
+/** /mod logo: a guild, its tag first and then its name, and a picture Discord holds. Its size is read before its bytes
+ *  are asked of Discord's CDN, so a file past the law's bound costs no fetch. Then the service sets it as the guild's
+ *  logo, worn at once with no fee and no review, and the answer says what the guild wears now. */
+async function onLogoCommand(ctx, env, body, sub, actor, net) {
+  const guild = await guildByWord(ctx.db, String(optionOf(sub, 'guild') ?? ''));
+  if (!guild) return say(refusedText('no-guild'));
+  const att = body?.data?.resolved?.attachments?.[String(optionOf(sub, 'picture') ?? '')];
+  if (!att?.url) return say(refusedText('logo-fetch'));
+  if (Number(att.size) > GUILD_LOGO_MAX_BYTES) return say(refusedText('logo-bytes'));
+  let bytes = null;
+  try {
+    const res = await net.fetchFn(String(att.url), { signal: AbortSignal.timeout(DISCORD_POST_MS) });
+    if (res.ok) bytes = new Uint8Array(await res.arrayBuffer());
+  } catch {
+    bytes = null;
+  }
+  if (!bytes) return say(refusedText('logo-fetch'));
+  const worn = await setGuildLogo(
+    { ...ctx, bucket: ctx.bucket ?? env?.SAVES, env },
+    guild.id,
+    bytes,
+    `${displayName(actor)} (Discord)`,
+    actor,
+  );
+  if ('error' in worn) return say(refusedText(worn.error));
+  return say(
+    `${md(guild.name)} <${md(guild.tag)}> wears the new logo.${worn.replaced ? ' The one before is retired.' : ''}`,
+  );
 }
 
 /**
