@@ -22,6 +22,9 @@ offline slots.
   `src/systems/online/onlineCheckpoint.js`), before every hand-over, when the seat is lost, and on exit. The service
   takes a checkpoint only from the lease holder and only at `seq + 1`, so an old tab, a second device, a backup or an
   edited copy cannot write.
+- *A failed write*: a checkpoint whose write the database fails, with the record unmoved, is answered `server` (503),
+  never `lease` (`checkpointRealm`). The tab keeps the save and sends it again. `lease` ends the session, so it is kept
+  for a record another tab or device really holds.
 - *Packed*: a save rides gzipped when the service says it opens one (`src/net/realm/realmSaveCodec.js`; gzip's magic
   bytes tell the forms apart, bounded by `REALM_TEXT_MAX_BYTES`).
 - *Rescue*: a save the service has not taken is kept on the device with the `seq` it follows
