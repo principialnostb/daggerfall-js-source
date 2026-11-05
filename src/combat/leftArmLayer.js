@@ -46,9 +46,15 @@ export function leftArmPlan({ mode = null, view = 'third', moving = false, base 
   const strafeOf = walkingStraight ? b.replace(/(forward|back)$/, 'left') : null;
   // SHIELD-BASH: a one-hander's bash throws the shield from where the guard holds it, as the fists' does
   if (mode === 'shield' && bashing) return view === 'first' ? { kind: 'stance', base: 'idle', stance: 'drawn', still: true } : { kind: 'movement', base: 'walkleft', stance: 'drawn', still: true };
-  // SHIELD-PIN (the owner, 2026-11-05: walking forward or back the shield arm swung): held at the strafe's one frame -
-  // Morrowind Animation Overhaul's and Simply Walking's strafes swing the shield arm 28-34 degrees, as their walks do
-  if (mode === 'shield') return view === 'third' && strafeOf && !attacking ? { kind: 'movement', base: strafeOf, stance: 'drawn', still: true } : null;
+  if (mode === 'shield') {
+    if (view !== 'third' || attacking || !moving || !b || /^turn/.test(b)) return null;
+    // SHIELD-RUN-HOLD (the owner, 2026-11-05, a screenshot): running any way, the shield up at the shoulder - the walk
+    // strafe's arm held at one frame
+    if (/^run/.test(b)) return { kind: 'movement', base: 'walkleft', stance: 'drawn', still: true };
+    // SHIELD-WALK-ARM: walking straight, the game's own strafe's arm on the stride, as all-animations had it - OpenMW
+    // Dynamic Animations' strafe, first in line once it is on, swings the shield arm as its walk does
+    return strafeOf ? { kind: 'movement', base: strafeOf, stance: 'drawn', still: false, own: true } : null;
+  }
   if (mode === 'guard') {
     if (view === 'first') return attacking || jumping ? { kind: 'stance', base: 'idle', stance: 'drawn', still: true } : null;
     if (strafeOf) return { kind: 'movement', base: strafeOf, stance: 'drawn', still: false };
@@ -144,12 +150,14 @@ export function createLeftArmLayer({ pickAnimSource, resetClip, composeMovementG
       if (plan) {
         const type = plan.stance === 'bare' ? MW_WEAPON_TYPE.None : stance;   // the bare group, no short group
         const composed = plan.kind === 'stance' ? composeStanceGroup(plan.base, type, hasGroup) : composeMovementGroup(plan.base, type, hasGroup);
-        if (composed?.group && composed.group !== group) {
-          const candidates = movementSource ? [movementSource, ...(sources ?? []).filter((s) => s !== movementSource)] : (sources ?? []);
+        const key = composed?.group ? `${composed.group}${plan.own ? '|own' : ''}` : null;
+        if (key && key !== group) {
+          const all = movementSource ? [movementSource, ...(sources ?? []).filter((s) => s !== movementSource)] : (sources ?? []);
+          const candidates = plan.own ? [...all.filter((s) => s?.own), ...all.filter((s) => !s?.own)] : all;   // SHIELD-WALK-ARM
           const pick = pickAnimSource(candidates, composed.group, resetClip, { loopFallback: true, loopCount: Infinity });
           if (pick) {
             const fresh = !state;
-            state = pick.state; source = pick.source; group = composed.group; memo = null;
+            state = pick.state; source = pick.source; group = key; memo = null;
             if (fresh || plan.still) clock = loopWindow(state, source.keys).start;
           }
         }
