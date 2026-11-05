@@ -16,13 +16,14 @@
 
 import { clamp01, ease } from '../characters/bodyMotion/bodyKit.js';
 import { MW_WEAPON_TYPE } from '../formats/morrowind/mwFirstPerson.js';
-import { isWalkVariantEnabled } from '../formats/morrowind/mwWalkAnimationAssets.js';
+import { isWalkVariantEnabled, isRunVariantEnabled } from '../formats/morrowind/mwWalkAnimationAssets.js';
 
 /** SHIELD-STRAFE-SOURCE: the sources a strafe's walk is picked from, in the rig's order - as the movement filters them by
  *  the walk chosen (`preference`, the movement's `walk:<choice>` key; any other, the game's). */
 export function strafeSources(sources, preference) {
-  const m = /^walk:(.*)$/.exec(String(preference ?? ''));
-  return (sources ?? []).filter((s) => isWalkVariantEnabled(s, m?.[1] || 'vanilla'));
+  const m = /^(walk|run):(.*)$/.exec(String(preference ?? ''));
+  const ok = m?.[1] === 'run' ? isRunVariantEnabled : isWalkVariantEnabled;   // SHIELD-RUN-AS-WALK: a run's strafe as a run picks it
+  return (sources ?? []).filter((s) => ok(s, m?.[2] || 'vanilla'));
 }
 
 /** The eases (seconds): the arm up quickly for a blow (its wind-up is a third of a second), down slower to the stance. */
@@ -56,10 +57,9 @@ export function leftArmPlan({ mode = null, view = 'third', moving = false, base 
   if (mode === 'shield' && bashing) return view === 'first' ? { kind: 'stance', base: 'idle', stance: 'drawn', still: true } : { kind: 'movement', base: 'walkleft', stance: 'drawn', still: true };
   if (mode === 'shield') {
     if (view !== 'third' || attacking || !moving || !b || /^turn/.test(b)) return null;
-    // Restore all-animations' running side-arm on its live stride, riding the current trunk.
-    if (/^run(forward|back)$/.test(b)) return { kind: 'movement', base: 'runleft', stance: 'drawn', still: false };
-    if (/^run/.test(b)) return { kind: 'movement', base: 'walkleft', stance: 'drawn', still: true };
-    // Keep the strafe's movement rather than averaging it into a rigid pose.
+    // SHIELD-RUN-AS-WALK (the owner, 2026-11-05: the run's shield - how it is held, how the arm sways - as the walk's,
+    // worked out): straight, the strafe's arm of that gait, live, from the very clip a strafe of it plays; to the side,
+    // the strafe's own arm
     return strafeOf ? { kind: 'movement', base: strafeOf, stance: 'drawn', still: false, rigOrder: true } : null;
   }
   if (mode === 'guard') {

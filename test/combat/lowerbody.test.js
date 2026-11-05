@@ -162,7 +162,7 @@ test('LOWER-BODY preserves the shield arm sampler and its clock through the comp
 });
 
 
-test('SHIELD-STRIDE: walking keeps the live strafe, straight running restores the moving side-run arm from all-animations', async () => {
+test('SHIELD-STRIDE: walking and running straight keep the live strafe, picked as a strafe of that gait picks it (SHIELD-RUN-AS-WALK)', async () => {
   const { createLeftArmLayer, leftArmPlan } = await import('../../src/combat/leftArmLayer.js');
   const { pickAnimSource, composeMovementGroup, composeStanceGroup, MW_WEAPON_TYPE } = await import('../../src/formats/morrowind/mwFirstPerson.js');
   const { resetClip } = await import('../../src/formats/morrowind/mwAnim.js');
@@ -183,7 +183,7 @@ test('SHIELD-STRIDE: walking keeps the live strafe, straight running restores th
         stance: MW_WEAPON_TYPE.LongBladeOneHand, movement, movementSource: pack });
       seen.push(layer.sampler()(layer.tracks(new Map(), new Set([arm])).get(arm), time).translation);
     }
-    assert.deepEqual(seen.map((row) => row.map((v) => Math.round(v * 1e9) / 1e9)), [[base.startsWith('run') ? 10 : 20, 0.2, 0], [base.startsWith('run') ? 10 : 20, 0.6, 0]]);
+    assert.deepEqual(seen.map((row) => row.map((v) => Math.round(v * 1e9) / 1e9)), [[20, 0.2, 0], [20, 0.6, 0]]);
   }
 });
 

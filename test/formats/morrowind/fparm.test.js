@@ -137,9 +137,9 @@ test('LEFT-ARM: who holds the left arm, and which clip\'s arm each plan lays (th
   // straight uses the live side-run arm from all-animations; side running keeps its held pose. Blows keep their clip.
   assert.deepEqual(plan({ mode: 'shield', moving: true, base: 'walkforward' }), { kind: 'movement', base: 'walkleft', stance: 'drawn', still: false, rigOrder: true });
   assert.equal(plan({ mode: 'shield', moving: true, base: 'walkleft' }), null, 'a strafe keeps its own arm');
-  for (const base of ['runleft']) assert.deepEqual(plan({ mode: 'shield', moving: true, base }), { kind: 'movement', base: 'walkleft', stance: 'drawn', still: true }, base);
+  assert.equal(plan({ mode: 'shield', moving: true, base: 'runleft' }), null, 'SHIELD-RUN-AS-WALK: a side run keeps its own arm, as a side walk');
   assert.equal(plan({ mode: 'shield', moving: true, base: 'walkforward', attacking: true }), null);
-  for (const base of ['runforward', 'runback']) assert.deepEqual(plan({ mode: 'shield', moving: true, base }), { kind: 'movement', base: 'runleft', stance: 'drawn', still: false });
+  for (const base of ['runforward', 'runback']) assert.deepEqual(plan({ mode: 'shield', moving: true, base }), { kind: 'movement', base: 'runleft', stance: 'drawn', still: false, rigOrder: true }, `${base}: SHIELD-RUN-AS-WALK`);
   assert.equal(plan({ mode: 'shield', moving: false }), null);
   // the free hand: the bare walk's arm, any way but a turn, never in a blow
   assert.deepEqual(plan({ mode: 'free', moving: true, base: 'walkleft' }), { kind: 'movement', base: 'walkleft', stance: 'bare', still: false });
