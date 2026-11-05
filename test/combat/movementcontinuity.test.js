@@ -33,6 +33,9 @@ test('GUARD-CONTINUITY: only enabled stance-weapon locomotion chooses the accept
   assert.equal(guardMovementGroup('walkforward', MW_WEAPON_TYPE.LongBladeTwoHand, (g) => g === 'walkforward2c', true).group, 'walkforward2c');
   assert.equal(guardMovementGroup('walkforward', MW_WEAPON_TYPE.LongBladeOneHand, has, true).group, 'walkforward');
   assert.equal(guardMovementGroup('runforward', MW_WEAPON_TYPE.LongBladeTwoHand, (g) => g === 'runforward2c', true).group, 'runforward2c');
+  // SHIELD-WALK: a one-hander with a shield keeps its armed clips, the shield arm up
+  assert.equal(guardMovementGroup('walkforward', MW_WEAPON_TYPE.LongBladeOneHand, has, true, true).group, 'walkforward1h');
+  assert.equal(guardMovementGroup('runforward', MW_WEAPON_TYPE.LongBladeOneHand, has, true, true).group, 'runforward1h');
 });
 
 
