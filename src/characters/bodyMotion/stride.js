@@ -44,7 +44,7 @@ export function strideShare(k) {
  *  a sprinter's patter. For a run the clip now plays at most `maxRate` its own speed and the legs swing the rest of the
  *  ratio about their cycle's mean, up to `maxStride` (past it the rate takes the rest again); the walk keeps its clip as
  *  the owner accepted it. The same law STRIDE was (set aside with the out-of-stance walk, 7d), here only for a run. */
-export const RUN_STRIDE = Object.freeze({ maxRate: 1.36, maxStride: 1.3, calf: -0.8 });
+export const RUN_STRIDE = Object.freeze({ maxRate: 1.36, maxStride: 1.3, calf: -0.8, keepFeet: true });
 /* Measured on the retail rig under MAO's runforward2c at 8.1 m/s: the reference - a 0.49 s cycle, the knee folded to 54
  * degrees, the thighs -36..51; a stride of 1.42 with the calves swung as far folded the knee to 31 and threw the thighs
  * to -57..67 (a sprinter's high knee); 1.3 with the calves' kick held back (`calf` -0.8 of the stride's share): a 0.64 s
@@ -53,7 +53,7 @@ export const RUN_STRIDE = Object.freeze({ maxRate: 1.36, maxStride: 1.3, calf: -
  * same law for a walk. Daggerfall walks at 4.4 m/s over clips of 1.8 to 2.2: the legs played at 2 to 2.5x. A walk's stride
  * keeps the knee as the clip has it (`calf` 0: a calf swung as far locked the knee at 178), and a longer swing would lift the
  * toes to 41-63 degrees, so `toeMax` holds them to what MAO's own walk reaches. */
-export const WALK_STRIDE = Object.freeze({ maxRate: 1.5, maxStride: 1.7, calf: 0, toeMax: 22 });
+export const WALK_STRIDE = Object.freeze({ maxRate: 1.5, maxStride: 1.7, calf: 0, toeMax: 22, keepFeet: true });   // RUN-FEET: the walk's feet too
 // PROFILE-WALK: the ordinary forward walk's knee, presentation only. The extended thigh keeps the clip's knee
 // timing, but gives its flexion some of the longer stride and rounds off near-straight extension (degrees).
 export const WALK_KNEES = Object.freeze({ soft: 15, gain: 0.2, max: 85 });
@@ -113,7 +113,7 @@ export function cycleMean(state, source, bone, sampleTrack, window) {
  * `w`), then the body lowered by the rise of its lower foot. `means` bone name -> mean quaternion; `pose` the frame's
  * locals (written, never mutated in place); answers how far it lowered the body (rig units), or null when it did nothing.
  */
-export function lengthenLegs(skeleton, pose, rootRef, skelMats, { stride = 1, w = 1, means = null, rootBone = 'bip01', calf = 1, toeMax = null, settle = null, knees = false } = {}) {
+export function lengthenLegs(skeleton, pose, rootRef, skelMats, { stride = 1, w = 1, means = null, rootBone = 'bip01', calf = 1, toeMax = null, settle = null, knees = false, keepFeet = false } = {}) {
   const s = 1 + (stride - 1) * clamp01(w);
   if (!(Math.abs(s - 1) > 1e-4) || !means || !skeleton?.byName) return null;
   const feet = STRIDE.feet.map((n) => skeleton.byName.get(n)).filter((r) => r != null);
@@ -135,6 +135,17 @@ export function lengthenLegs(skeleton, pose, rootRef, skelMats, { stride = 1, w 
     did = true;
   }
   if (!did) return null;
+  // RUN-FEET (the owner, 2026-11-05: the one-hander "runs on its toes", an old one): the swung calf carried its foot with
+  // it - the planted foot 14 to 27 degrees more toe-down than its clip (MAO's runs, measured). The feet keep the turn the
+  // clip gave them in the rig, the legs alone swing further.
+  if (keepFeet && before) {
+    const now = skelMats(skeleton, pose, rootRef, feet);
+    for (const ref of feet) {
+      const node = skeleton.nodes.get(ref), local = pose.get(ref) ?? node?.rest, was = before.get(ref), parent = now.get(node?.parent);
+      if (!local?.rotation || !was || !parent) continue;
+      pose.set(ref, { ...local, rotation: Float32Array.from(mul(transpose(rotationPart(parent.a)), rotationPart(was.a))) });
+    }
+  }
   if (knees) softenWalkKnees(skeleton, pose, rootRef, skelMats, s, clamp01(w));
   if (toeMax != null) holdToes(skeleton, pose, rootRef, skelMats, toeMax, clamp01(w));
   if (!feet.length || !Number.isFinite(lowBefore)) return 0;
@@ -254,7 +265,7 @@ export function clipFootSpeed(state, source, skeleton, window, sampleTrack, { po
 export const STRIDE_SMOOTH = Object.freeze({ ground: 0.09, ratio: 0.25 });
 
 /** THE LAYER: the stride the movement asks, eased on and off, and the cycle means of the clip that walks. */
-export function createStride({ sampleTrack, loopWindow, share: shareOf = strideShare, groups = null, calf = 1, toeMax = null, knees = false, profile = null }) {
+export function createStride({ sampleTrack, loopWindow, share: shareOf = strideShare, groups = null, calf = 1, toeMax = null, knees = false, keepFeet = false, profile = null }) {
   let w = 0, stride = 1, means = null, slotMemo = null, ratio = null, ratioGroup = null;
   let walkKnees = false; let selectedProfile = null;
   const settle = { dz: null, dt: 0 };
@@ -305,7 +316,7 @@ export function createStride({ sampleTrack, loopWindow, share: shareOf = strideS
     slot(inner) {
       if (slotMemo && slotMemo.inner === inner) return slotMemo.fn;
       slotMemo = { inner, fn: (skeleton, pose, rootRef, skelMats) => {
-        if (w > 1e-3 && means) lengthenLegs(skeleton, pose, rootRef, skelMats, { stride, w, means, calf: selectedProfile?.calf ?? calf, toeMax: selectedProfile?.toeMax ?? toeMax, settle, knees: walkKnees });
+        if (w > 1e-3 && means) lengthenLegs(skeleton, pose, rootRef, skelMats, { stride, w, means, calf: selectedProfile?.calf ?? calf, toeMax: selectedProfile?.toeMax ?? toeMax, keepFeet: !!(selectedProfile?.keepFeet ?? keepFeet), settle, knees: walkKnees });
         return inner ? inner(skeleton, pose, rootRef, skelMats) : null;
       } };
       return slotMemo.fn;
