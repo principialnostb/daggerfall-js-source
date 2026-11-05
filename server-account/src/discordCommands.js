@@ -92,7 +92,7 @@ export const MOD_COMMAND = Object.freeze({
         {
           type: 11,
           name: 'picture',
-          description: 'A square PNG or WebP, 64 to 256 px a side, under 48 KiB',
+          description: 'A square picture - a big one is shrunk to 256 px through Discord',
           required: true,
         },
       ],

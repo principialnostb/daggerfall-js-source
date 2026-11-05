@@ -37,6 +37,7 @@
 import { displayName, isMuted } from './accounts.js';
 import { isLogoPress, onLogoPress, setGuildLogo, guildByWord } from './guildLogos.js'; // a logo card's two buttons, and /mod logo
 import { GUILD_LOGO_MAX_BYTES, GUILD_LOGO_SIDE_MIN, GUILD_LOGO_SIDE_MAX } from '../../src/net/guild/guildLogoLaw.js';
+import { poiImageMetaOf } from '../../src/poi/poiImage.js'; // a refused picture's side and kind, said back
 import { canModerate } from './titles.js';
 import { importPublicKey, ID_RE } from '../../src/net/identityToken.js';
 import { findAccount, strikesLook, pushLaw, strikesOf, isBanned, bannedUntil } from './sanctions.js';
@@ -598,23 +599,51 @@ async function onCommand(ctx, env, body, actor, io) {
   }
 }
 
-/** /mod logo: a guild, its tag first and then its name, and a picture Discord holds. Its size is read before its bytes
- *  are asked of Discord's CDN, so a file past the law's bound costs no fetch. Then the service sets it as the guild's
- *  logo, worn at once with no fee and no review, and the answer says what the guild wears now. */
+/** The picture's address for the service to read: the file itself when it is already a logo's shape, else Discord's
+ *  media proxy asked for it as a WebP GUILD_LOGO_SIDE_MAX across. A phone re-encodes what it uploads and a full-size
+ *  picture is far past the law, and the Worker has no canvas of its own, so the proxy shrinks them. Pure. */
+export function logoPictureUrl(att) {
+  const small =
+    Number(att?.size) <= GUILD_LOGO_MAX_BYTES &&
+    Number(att?.width) <= GUILD_LOGO_SIDE_MAX &&
+    /^image\/(png|webp)$/.test(String(att?.content_type ?? ''));
+  if (small || typeof att?.proxy_url !== 'string') return String(att?.url ?? '');
+  const sep = att.proxy_url.includes('?') ? '&' : '?';
+  return `${att.proxy_url}${sep}format=webp&width=${GUILD_LOGO_SIDE_MAX}&height=${GUILD_LOGO_SIDE_MAX}`;
+}
+
+/** Why a picture was refused, in words that say what was seen: its side, its weight or its kind. */
+function logoRefusal(error, bytes) {
+  const meta = poiImageMetaOf(bytes);
+  if (error === 'logo-side' && meta?.w)
+    return `That picture is ${meta.w} px a side. A logo is ${GUILD_LOGO_SIDE_MIN} to ${GUILD_LOGO_SIDE_MAX} px.`;
+  if (error === 'logo-bytes')
+    return `That picture is ${Math.ceil(bytes.byteLength / 1024)} KiB. A logo is under ${GUILD_LOGO_MAX_BYTES / 1024} KiB.`;
+  if (error === 'logo-type') return 'That file is not a PNG or WebP picture.';
+  return refusedText(error);
+}
+
+/** /mod logo: a guild, its tag first and then its name, and a picture Discord holds. A picture that is not square is
+ *  refused on Discord's own measure of it, before any fetch. One past the law's size or side is read through Discord's
+ *  media proxy, shrunk to a logo's side (logoPictureUrl). Then the service sets it as the guild's logo, worn at once
+ *  with no fee and no review, and the answer says what the guild wears now, or what was wrong with the picture. */
 async function onLogoCommand(ctx, env, body, sub, actor, net) {
   const guild = await guildByWord(ctx.db, String(optionOf(sub, 'guild') ?? ''));
   if (!guild) return say(refusedText('no-guild'));
   const att = body?.data?.resolved?.attachments?.[String(optionOf(sub, 'picture') ?? '')];
   if (!att?.url) return say(refusedText('logo-fetch'));
-  if (Number(att.size) > GUILD_LOGO_MAX_BYTES) return say(refusedText('logo-bytes'));
+  const wide = Number(att.width),
+    tall = Number(att.height);
+  if (!(wide > 0 && tall > 0)) return say('Discord did not read that file as a picture. Send a PNG or WebP.');
+  if (wide !== tall) return say(`That picture is ${wide} by ${tall} px. A logo is square.`);
   let bytes = null;
   try {
-    const res = await net.fetchFn(String(att.url), { signal: AbortSignal.timeout(DISCORD_POST_MS) });
+    const res = await net.fetchFn(logoPictureUrl(att), { signal: AbortSignal.timeout(DISCORD_POST_MS) });
     if (res.ok) bytes = new Uint8Array(await res.arrayBuffer());
   } catch {
     bytes = null;
   }
-  if (!bytes) return say(refusedText('logo-fetch'));
+  if (!bytes?.byteLength) return say(refusedText('logo-fetch'));
   const worn = await setGuildLogo(
     { ...ctx, bucket: ctx.bucket ?? env?.SAVES, env },
     guild.id,
@@ -622,7 +651,7 @@ async function onLogoCommand(ctx, env, body, sub, actor, net) {
     `${displayName(actor)} (Discord)`,
     actor,
   );
-  if ('error' in worn) return say(refusedText(worn.error));
+  if ('error' in worn) return say(logoRefusal(worn.error, bytes));
   return say(
     `${md(guild.name)} <${md(guild.tag)}> wears the new logo.${worn.replaced ? ' The one before is retired.' : ''}`,
   );
