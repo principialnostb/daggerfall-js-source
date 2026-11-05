@@ -46,7 +46,9 @@ export function leftArmPlan({ mode = null, view = 'third', moving = false, base 
   const strafeOf = walkingStraight ? b.replace(/(forward|back)$/, 'left') : null;
   // SHIELD-BASH: a one-hander's bash throws the shield from where the guard holds it, as the fists' does
   if (mode === 'shield' && bashing) return view === 'first' ? { kind: 'stance', base: 'idle', stance: 'drawn', still: true } : { kind: 'movement', base: 'walkleft', stance: 'drawn', still: true };
-  if (mode === 'shield') return view === 'third' && strafeOf && !attacking ? { kind: 'movement', base: strafeOf, stance: 'drawn', still: false } : null;
+  // SHIELD-PIN (the owner, 2026-11-05: walking forward or back the shield arm swung): held at the strafe's one frame -
+  // Morrowind Animation Overhaul's and Simply Walking's strafes swing the shield arm 28-34 degrees, as their walks do
+  if (mode === 'shield') return view === 'third' && strafeOf && !attacking ? { kind: 'movement', base: strafeOf, stance: 'drawn', still: true } : null;
   if (mode === 'guard') {
     if (view === 'first') return attacking || jumping ? { kind: 'stance', base: 'idle', stance: 'drawn', still: true } : null;
     if (strafeOf) return { kind: 'movement', base: strafeOf, stance: 'drawn', still: false };
