@@ -141,3 +141,76 @@ test('GUARD-CONTINUITY: the movement track is smoothed at its own clock under an
   const value = layer.sampler(sample)(tr, 42).translation[0];
   assert.ok(Math.abs(value - (0.25 + 0.5 / 3600)) < 1e-12, `the smoothing kernel must reach the movement clock (${value})`);
 });
+
+
+test('LOWER-BODY preserves the shield arm sampler and its clock through the composed layers', async () => {
+  const { weightedOverlayTracks, weightedOverlaySampler } = await import('../../src/combat/leftArmLayer.js');
+  const raw = (tr, time) => ({ rotation: [1, 0, 0, 0], translation: [tr.id, time, 0], scale: 1 });
+  const arm = 'bip01 l hand', leg = 'bip01 l thigh';
+  const base = new Map([[arm, { id: 1 }], [leg, { id: 2 }]]);
+  const shield = new Map([[arm, { id: 9 }]]);
+  const arms = weightedOverlayTracks(base, shield, new Set([arm]));
+  const armSampler = weightedOverlaySampler(raw, () => 0.75, () => 1);
+  const legs = createLowerBodyLayer({ sampleTrack: raw });
+  const movement = { group: 'walkforward', startTime: 0, stopTime: 1, time: 0.2 };
+  const source = { trackMap: base, keys: [] };
+  for (let i = 0; i < 120; i++) legs.step(1 / 60, { third: true, movement, movementTracks: base, movementSource: source });
+  const tracks = legs.tracks(arms, new Set([leg]));
+  const sample = legs.sampler(armSampler);
+  assert.deepEqual(sample(tracks.get(arm), 0.2).translation, [9, 0.75, 0]);
+  assert.deepEqual(sample(tracks.get(leg), 0.2).translation, [2, 0.2, 0]);
+});
+
+
+test('SHIELD-STRIDE: walking keeps the live strafe, straight running restores the moving side-run arm from all-animations', async () => {
+  const { createLeftArmLayer, leftArmPlan } = await import('../../src/combat/leftArmLayer.js');
+  const { pickAnimSource, composeMovementGroup, composeStanceGroup, MW_WEAPON_TYPE } = await import('../../src/formats/morrowind/mwFirstPerson.js');
+  const { resetClip } = await import('../../src/formats/morrowind/mwAnim.js');
+  const arm = 'bip01 l hand';
+  const make = (name, id) => ({ name, groupSet: new Set(['runleft1h', 'walkleft1h']),
+    keys: ['runleft1h', 'walkleft1h'].flatMap((g) => [{ time: 0, text: `${g}: start` }, { time: 1, text: `${g}: stop` }]),
+    trackMap: new Map([[arm, { id }]]) });
+  const game = make('meshes/xbase_anim.kf', 10), pack = make('dynamic.kf', 20);
+  for (const base of ['walkforward', 'walkback', 'runforward', 'runback']) {
+    const layer = createLeftArmLayer({ pickAnimSource, resetClip, composeMovementGroup, composeStanceGroup, sampleTrack });
+    const plan = leftArmPlan({ mode: 'shield', moving: true, base });
+    assert.equal(plan.still, false); assert.ok(!plan.mean);
+    const movement = { group: `${base}1h`, startTime: 0, stopTime: 1, time: 0.2 };
+    const seen = [];
+    for (const time of [0.2, 0.6]) {
+      movement.time = time;
+      for (let i = 0; i < 120; i++) layer.step(1 / 60, { plan, sources: [game, pack], hasGroup: () => true,
+        stance: MW_WEAPON_TYPE.LongBladeOneHand, movement, movementSource: pack });
+      seen.push(layer.sampler()(layer.tracks(new Map(), new Set([arm])).get(arm), time).translation);
+    }
+    assert.deepEqual(seen.map((row) => row.map((v) => Math.round(v * 1e9) / 1e9)), [[base.startsWith('run') ? 10 : 20, 0.2, 0], [base.startsWith('run') ? 10 : 20, 0.6, 0]]);
+  }
+});
+
+
+test('SHIELD-WALK: the raised walking arm rides the current trunk instead of cancelling its sway', async () => {
+  const { createLeftArmLayer, leftArmPlan, ARM_ROOT, ARM_CHAIN } = await import('../../src/combat/leftArmLayer.js');
+  const { pickAnimSource, composeMovementGroup, composeStanceGroup, MW_WEAPON_TYPE } = await import('../../src/formats/morrowind/mwFirstPerson.js');
+  const { resetClip } = await import('../../src/formats/morrowind/mwAnim.js');
+  const raw = (tr, time) => {
+    const a = (tr.angle ?? 0) + (tr.rate ?? 0) * time;
+    return { rotation: [Math.cos(a / 2), 0, 0, Math.sin(a / 2)], translation: [0, 0, 0], scale: 1 };
+  };
+  const base = new Map(ARM_CHAIN.map((name) => [name, { rate: name === 'bip01 spine2' ? 1 : 0 }]));
+  const overlay = new Map(ARM_CHAIN.map((name) => [name, { angle: 0 }]));
+  base.set(ARM_ROOT, { angle: 0 }); overlay.set(ARM_ROOT, { angle: 0.3 });
+  const source = { name: 'game', trackMap: overlay, groupSet: new Set(['walkleft1h']),
+    keys: [{ time: 0, text: 'walkleft1h: start' }, { time: 1, text: 'walkleft1h: stop' }] };
+  for (const direction of ['walkforward', 'walkback']) {
+    const layer = createLeftArmLayer({ pickAnimSource, resetClip, composeMovementGroup, composeStanceGroup, sampleTrack: raw });
+    const movement = { group: direction, startTime: 0, stopTime: 1, time: 0 };
+    for (const time of [0.2, 0.7]) {
+      movement.time = time;
+      for (let i = 0; i < 120; i++) layer.step(1 / 60, { plan: leftArmPlan({ mode: 'shield', moving: true, base: direction }),
+        sources: [source], hasGroup: () => true, stance: MW_WEAPON_TYPE.LongBladeOneHand, movement, movementSource: { keys: [] } });
+      const q = layer.sampler()(layer.tracks(base, new Set([ARM_ROOT])).get(ARM_ROOT), time).rotation;
+      const worldAngle = time + 2 * Math.atan2(q[3], q[0]);
+      assert.ok(Math.abs(worldAngle - (time + 0.3)) < 1e-6, `${direction}: the raised arm follows the trunk at ${time}`);
+    }
+  }
+});

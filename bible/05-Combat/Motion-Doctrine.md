@@ -819,3 +819,34 @@ the landing (7c).
   movesets on Nexus, Overgrowth's talk, Blasphemous' and Dead Cells' own accounts of their timing.
 - Clip selection by condition (armour weight, weapon, state - OAR's shape) is designed for now and built when the
   enemies come.
+
+
+**SHIELD-LAYER-OWNERSHIP / ARM-HINGE** (2026-11-05, the owner's 11-30-49 recording):
+straight walking passed the left-arm overlay through the lower-body sampler. Both used `__overlay`, so the legs
+sampled the arm as their own track and bypassed its clock, weight, trunk adaptation and steady pose. The lower-body
+sampler now accepts only wrappers bearing its own ownership object
+(`src/combat/lowerBodyLayer.js:"if (!track || track.__poseOwner !== ownership) return inner(track, time);"`).
+The existing raised strafe overlay can therefore reach the forward/back walk unchanged by the leg sampler.
+The arm reach also carries its elbow bend plane with its upper segment: a shortest-arc segment swing alone left
+axial roll from the source clip while solving the elbow elsewhere. Legs retain their existing solve.
+Reference: DFU `WeaponManager.UpdateHands` manages the equipped screen weapon; our articulated third-person carry
+is the existing presentation departure (Port-Doctrine, Rebuilt on our stack), not a new combat rule.
+Regression checks compose the shield and leg layers and measure the solved elbow hinge on the retail rig.
+All four hosts (`src/scenes/world.js`, `src/scenes/exterior.js`, `src/scenes/worldModes.js`,
+`src/scenes/dungeonContext.js`) inherit the shared modules; no host wiring changes. Visual acceptance remains pending.
+
+
+**SHIELD-LIVE-STRIDE / ARM-REST-HINGE** (2026-11-05, owner's 11-48-55 recording and running reference):
+the owner accepted the layer ownership fix, but rejected the shield's frozen mean pose. Straight walking now uses
+the strafe arm on its live stride, riding the current walking trunk. The retained trunk compensation was
+subsequently rejected as rigid while walking forward/back: source selection now only selects the raised arm,
+without cancelling the current trunk's sway. A regression checks the composed arm rotation at two trunk phases. Forward/back running selects the matching
+the live `runleft` arm, as all-animations did, without trunk compensation that would hold it in rig space.
+The attempts to select vanilla `run*1h` by filename and then a private BSA `run*2c` source were rejected by the owner:
+the latter is a two-handed grip, not the referenced shield carry, and looked rigid in play. That private source and
+its loader are removed. Side running keeps its previous pose. This supersedes SHIELD-STEADY for walking and SHIELD-RUN-HOLD for forward/back running.
+The arm hinge is measured once from the rig's rest pose in both upper-arm and forearm frames. The reach maps these
+axes onto the solved bend plane, rather than deriving the hinge from an animated elbow that can be almost straight
+or already twisted. A regression perturbs the source forearm and checks both solved hinge axes.
+This continues the third-person presentation departure from DFU `WeaponManager.UpdateHands` recorded above;
+all four hosts inherit the shared modules. Visual acceptance of these refinements remains pending.

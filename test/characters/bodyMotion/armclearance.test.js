@@ -162,3 +162,38 @@ test('GRIP-ANATOMY: the trunk leant under the hands leaves them where they were 
   assert.ok(f1.fwd[0] > f0.fwd[0] + Math.sin(8 * Math.PI / 180), 'the chest turned toward the right');
   assert.ok(f1.fwd[2] < f0.fwd[2] - Math.sin(5 * Math.PI / 180), 'the chest leant forward');
 });
+
+
+test('ARM-HINGE: a carried arm keeps the elbow hinge in its solved bend plane', async () => {
+  const { algebra, apply, transpose, turnOf } = await import('../../../src/characters/bodyMotion/bodyKit.js');
+  const { cross, norm, sub, dot } = algebra;
+  const B = body.bones.R, before = sm(sk, new Map(), GRAPH_ROOT);
+  const normal = (m) => norm(cross(sub(m.get(B.fore).t, m.get(B.upper).t), sub(m.get(B.hand).t, m.get(B.fore).t)));
+  const localNormal = apply(transpose(turnOf(before, B.upper)), normal(before));
+  for (const pole of [[0, -1, 0], [1, 0, 0], [0, 0, -1]]) {
+    const pose = new Map(), S = before.get(B.upper).t;
+    solveBody(sk, pose, GRAPH_ROOT, sm, { w: 1, armW: { R: 1, L: 0 },
+      arms: () => ({ R: { at: [S[0] + 10, S[1] - 20, S[2] - 15], pole, w: 1 } }) });
+    const after = sm(sk, pose, GRAPH_ROOT);
+    assert.ok(dot(norm(apply(turnOf(after, B.upper), localNormal)), normal(after)) > 0.9999,
+      'the upper arm hinge follows the elbow plane rather than retaining the clip roll');
+  }
+});
+
+
+test('ARM-HINGE: source forearm turns cannot rotate the carried upper arm away from its anatomical hinge', async () => {
+  const { algebra, apply, turnOf } = await import('../../../src/characters/bodyMotion/bodyKit.js');
+  const { cross, norm, sub, dot } = algebra;
+  const B = body.bones.R;
+  for (const angle of [-1, -0.01, 0, 0.01, 1]) {
+    const pose = new Map(), rest = sk.nodes.get(B.fore).rest;
+    pose.set(B.fore, { ...rest, rotation: mul(rot(0, angle), rest.rotation) });
+    const S = sm(sk, pose, GRAPH_ROOT).get(B.upper).t;
+    solveBody(sk, pose, GRAPH_ROOT, sm, { w: 1, armW: { R: 1, L: 0 },
+      arms: () => ({ R: { at: [S[0] + 10, S[1] - 20, S[2] - 15], pole: [0, -1, 0], w: 1 } }) });
+    const after = sm(sk, pose, GRAPH_ROOT);
+    const plane = norm(cross(sub(after.get(B.fore).t, after.get(B.upper).t), sub(after.get(B.hand).t, after.get(B.fore).t)));
+    assert.ok(dot(norm(apply(turnOf(after, B.upper), body.armHinge.R.upper)), plane) > 0.9999, `source turn ${angle}`);
+    assert.ok(dot(norm(apply(turnOf(after, B.fore), body.armHinge.R.fore)), plane) > 0.9999, `forearm source turn ${angle}`);
+  }
+});

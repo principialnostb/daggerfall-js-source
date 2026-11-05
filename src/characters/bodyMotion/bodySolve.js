@@ -337,15 +337,22 @@ function restRotOf(skeleton, body, ref) {
  * it was (nothing after reads the limb's own bones). Answers where the end's joint now stands, or null where the chain is
  * not upper - lower - end.
  */
-function reachLimb(skeleton, pose, mats, a, b, c, target, pole, end) {
+function reachLimb(skeleton, pose, mats, a, b, c, target, pole, end, hinge = null) {
   const nb = skeleton.nodes.get(b), nc = skeleton.nodes.get(c);
   if (!nb || !nc || nb.parent !== a || nc.parent !== b) return null;
   const S = at(mats, a), E = at(mats, b), W = at(mats, c);
   const Ra = turnOf(mats, a), Rb = turnOf(mats, b), Rc = turnOf(mats, c), Rp = turnOf(mats, skeleton.nodes.get(a).parent);
   if (!S || !E || !W || !Ra || !Rb || !Rc) return null;
   const sol = solveReach(S, len(sub(E, S)), len(sub(W, E)), target, pole, 0.999);
-  const Da = rotFromTo(norm(sub(E, S)), norm(sub(sol.mid, S)));
-  const Db = rotFromTo(norm(apply(Da, sub(W, E))), norm(sub(sol.end, sol.mid)));
+  // Carry the hinge plane as well as the upper segment. A shortest-arc swing alone
+  // leaves the clip's axial roll on the upper arm while the elbow is solved elsewhere.
+  const u0 = norm(sub(E, S)), u1 = norm(sub(sol.mid, S));
+  const n0 = hinge ? apply(Ra, hinge.upper) : cross(u0, norm(sub(W, E))), n1 = cross(u1, norm(sub(sol.end, sol.mid)));
+  const Da = hinge && len(n0) > 1e-5 && len(n1) > 1e-5
+    ? rotFrames(u0, norm(n0), u1, norm(n1)) : rotFromTo(u0, u1);
+  const fore0 = norm(apply(Da, sub(W, E))), fore1 = norm(sub(sol.end, sol.mid));
+  const Db = hinge && len(n1) > 1e-5 && len(hinge.fore) > 1e-5
+    ? rotFrames(fore0, norm(apply(Da, apply(Rb, hinge.fore))), fore1, norm(n1)) : rotFromTo(fore0, fore1);
   const Ra1 = mul(Da, Ra), Rb1 = mul(Db, mul(Da, Rb)), Rc0 = mul(Db, mul(Da, Rc));
   const Rc1 = (end && end(Rc0, mul(Db, Da), sol)) || Rc0;
   const write = (ref, Rparent, R) => {
@@ -471,7 +478,7 @@ function poseHand(skeleton, pose, mats, body, side, h, w) {
     const f0 = norm(apply(D, fr.fingers)), p0 = fr.palm ? norm(apply(D, fr.palm)) : null;
     const whole = p0 && h.palm ? rotFrames(f0, p0, norm(h.fingers), norm(h.palm)) : rotFromTo(f0, norm(h.fingers));
     return mul(rotFraction(whole, k), Rh);
-  });
+  }, body.armHinge[side]);
 }
 
 /**

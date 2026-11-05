@@ -56,15 +56,11 @@ export function leftArmPlan({ mode = null, view = 'third', moving = false, base 
   if (mode === 'shield' && bashing) return view === 'first' ? { kind: 'stance', base: 'idle', stance: 'drawn', still: true } : { kind: 'movement', base: 'walkleft', stance: 'drawn', still: true };
   if (mode === 'shield') {
     if (view !== 'third' || attacking || !moving || !b || /^turn/.test(b)) return null;
-    // SHIELD-RUN-HOLD (the owner, 2026-11-05, a screenshot): running any way, the shield up at the shoulder - the walk
-    // strafe's arm held at one frame
+    // Restore all-animations' running side-arm on its live stride, riding the current trunk.
+    if (/^run(forward|back)$/.test(b)) return { kind: 'movement', base: 'runleft', stance: 'drawn', still: false };
     if (/^run/.test(b)) return { kind: 'movement', base: 'walkleft', stance: 'drawn', still: true };
-    // SHIELD-STRAFE-SOURCE (the owner's video, 2026-11-05: walking straight the shield was not the strafe's raised one):
-    // walking straight, the strafe's arm on the stride from the very clip a strafe plays - the walk's own pack, put first,
-    // has a strafe of its own that holds the shield low
-    // SHIELD-STEADY (the owner, 2026-11-05: "the arm still moves freely"): the strafe's arm averaged over its stride - the
-    // shield held where the strafe holds it, not swung with each step
-    return strafeOf ? { kind: 'movement', base: strafeOf, stance: 'drawn', still: false, rigOrder: true, mean: true } : null;
+    // Keep the strafe's movement rather than averaging it into a rigid pose.
+    return strafeOf ? { kind: 'movement', base: strafeOf, stance: 'drawn', still: false, rigOrder: true } : null;
   }
   if (mode === 'guard') {
     if (view === 'first') return attacking || jumping ? { kind: 'stance', base: 'idle', stance: 'drawn', still: true } : null;
@@ -224,9 +220,9 @@ export function createLeftArmLayer({ pickAnimSource, resetClip, composeMovementG
     /** The tracks to pose with: the base's, the mask's bones overlaid while the layer has weight. */
     tracks(base, mask) {
       if (!(w > 0) || !state || !source || !mask || !mask.size) return base;
-      const adapt = String(group ?? '').endsWith('|rig');   // SHIELD-STRAFE-TRUNK: the walking shield's strafe arm
-      if (!memo || memo.base !== base || memo.overlay !== source.trackMap || memo.mask !== mask || memo.adapt !== adapt) {
-        memo = { base, overlay: source.trackMap, mask, adapt, tracks: weightedOverlayTracks(base, source.trackMap, mask, adapt) };
+      // Source order chooses the raised arm; it must not cancel the walking trunk's own sway.
+      if (!memo || memo.base !== base || memo.overlay !== source.trackMap || memo.mask !== mask) {
+        memo = { base, overlay: source.trackMap, mask, tracks: weightedOverlayTracks(base, source.trackMap, mask) };
       }
       return memo.tracks;
     },

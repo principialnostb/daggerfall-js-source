@@ -148,6 +148,10 @@ function measure(skeleton, rootRef, skelMats) {
     ankle: Math.max(0, Math.min(p(L.foot)[2], p(R.foot)[2])),
     hipBone, trunk, chest,
     restRot,
+    // An anatomical hinge in the upper bone's local frame, measured once, never from a straight animated elbow.
+    armHinge: Object.fromEntries([['L', L], ['R', R]].map(([side, b]) => [side,
+      Object.fromEntries(['upper', 'fore'].map((part) => [part,
+        norm(apply(transpose(rotationPart(rest.get(b[part]).a)), cross(sub(p(b.fore), p(b.upper)), sub(p(b.hand), p(b.fore)))))]))])),
     // only the turn about up and about forward is squared away: X onto +X by the least rotation leaves the tilt alone
     hipFix: rotFromTo(flat(hipRight)[0] > 0.5 ? hipRight : [1, 0, 0], [1, 0, 0]),
     chestFix: rotFromTo(flat(shoulderRight)[0] > 0.5 ? shoulderRight : [1, 0, 0], [1, 0, 0]),

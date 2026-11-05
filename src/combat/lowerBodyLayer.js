@@ -71,7 +71,8 @@ export function createLowerBodyLayer({ sampleTrack }) {
     scale: a.scale != null && b.scale != null ? a.scale + (b.scale - a.scale) * t : b.scale ?? a.scale,
   });
   const sampler = (track, time) => {
-    if (!track || !track.__overlay) return inner(track, time);
+    // Only this layer owns these wrappers; the left arm also uses __overlay.
+    if (!track || track.__poseOwner !== ownership) return inner(track, time);
     // Process each clip at its OWN clock before mixing. The outer filter's time belongs to the weapon.
     // MOTION-FRAME-COST: the outer filter asks three times a frame; the owned clip's answer does not depend on its time.
     let o = frameSamples.get(track);
