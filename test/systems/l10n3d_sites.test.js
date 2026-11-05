@@ -121,6 +121,7 @@ const ROUTED = {
   'src/ui/enhanced/enhancedInventory.js': 1,
   'src/ui/enhanced/enhancedMenu.js': 20,
   'src/ui/enhanced/enhancedRest.js': 2,
+  'src/ui/enhanced/realmContact.js': 1,   // the copy popup's Cancel, the menu's own word
   'src/ui/guildServiceWindows.js': 3,
   'src/ui/iliacTableHud.js': 1,
   'src/ui/item/itemMakerWindow.js': 1,

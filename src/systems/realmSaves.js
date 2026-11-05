@@ -1030,8 +1030,11 @@ export const REALM_BOOT_SLOW_MS = 4_000;
 export const realmNotYoursText = () => t('realm.notYours', 'This character does not belong to you.');
 /** Why a refused boot came back to the Online door: a character not the account's says so, a 4xx says the server
  *  cannot be found, any other failure of the service says it has issues, and a refusal this device made keeps its words. */
-export const realmBootRefusalText = (/** @type {{ error: string, status?: number }} */ r) =>
-  (r.error === 'no-realm-character' ? realmNotYoursText() : realmFailureText(r, { missing: true }) ?? realmRefusalText(r.error));
+export const realmBootRefusalText = (/** @type {{ error: string, status?: number }} */ refusal) =>
+  (refusal.error === 'no-realm-character' ? realmNotYoursText() : realmFailureText(refusal, { missing: true }) ?? realmRefusalText(refusal.error));
+/** A refused boot's word, kept across the reload for the Online door's popup. */
+export const noteRealmBootRefused = (/** @type {any} */ storage, /** @type {{ error: string, status?: number }} */ refusal) =>
+  setRealmNotice(storage, realmBootRefusalText(refusal), { popup: true });
 /** AUDIT RESCUE-SAVE A1: THE BOOT'S SAVE GIVES UP THE RECORDS ITS PACK HOLDS - `held`, read out of whichever save the
  *  join plays (the device's copy or the service's: a put that landed with its answer lost cleared no record either),
  *  and taken out of the save the world loads. */
@@ -1041,7 +1044,7 @@ function heldOut(/** @type {any} */ r) {
   delete r.snap[REALM_HELD_FIELD];
   return { ...r, held };
 }
-const statusOf = (/** @type {any} */ r) => (Number.isInteger(r.status) ? { status: r.status } : {});
+const statusOf = (/** @type {any} */ answer) => (Number.isInteger(answer.status) ? { status: answer.status } : {});
 /** The join and the save it plays (openRealmBoot's, before the records come out of it). */
 async function joinRealmBoot(/** @type {BootAt} */ at) {
   const { io, id } = at;

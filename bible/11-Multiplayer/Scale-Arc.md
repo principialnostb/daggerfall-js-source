@@ -86,7 +86,9 @@ Writes, sign-ins and acts are never held.
 `realmMayClear` says so: a 5xx, a 429, or no answer while the device is online (`src/systems/realmRetry.js`). If the
 boot still waits after `REALM_BOOT_SLOW_MS` (four seconds), or meets one of those answers, the loading screen says
 "Servers are currently experiencing issues, please wait...". The boot's next step writes over that line. Both wait as
-`busyWaitMs` says, for up to `REALM_BUSY_MAX_MS` (five minutes). Past it, or on any other failure, the player goes back
+`busyWaitMs` says, for up to `REALM_BUSY_MAX_MS` (five minutes).
+
+Past it, or on any other failure, the player goes back
 to the Online door, and a popup there says why (`realmBootRefusalText`). A character the account does not own says
 "This character does not belong to you." Any other 4xx says "Server cannot be found currently." Any other failure of
 the service says "Our servers are experiencing issues, please try again later...". A refusal the device made itself,

@@ -19,7 +19,7 @@ export function readRoster(storage, player) {
   try {
     const kept = JSON.parse(storage?.getItem?.(keyOf(player)) ?? 'null');
     if (!kept || !Array.isArray(kept.characters)) return null;
-    return { characters: kept.characters.filter((r) => r && typeof r.id === 'string'), max: Number.isSafeInteger(kept.max) ? kept.max : 0 };
+    return { characters: kept.characters.filter((row) => row && typeof row.id === 'string'), max: Number.isSafeInteger(kept.max) ? kept.max : 0 };
   } catch { return null; }
 }
 
@@ -38,13 +38,13 @@ function patchRoster(/** @type {any} */ storage, /** @type {string | null | unde
 
 /** A save of `id` landed: its tile shows the summary it carried. @param {any} storage @param {string | null | undefined} player @param {string} id @param {any} summary @param {number} [atMs] */
 export function rosterSaved(storage, player, id, summary, atMs = Date.now()) {
-  return patchRoster(storage, player, (rows) => rows.map((r) => (r.id !== id ? r
-    : { ...r, ...(summary ? { summary: { ...r.summary, ...summary } } : {}), bytes: Math.max(1, r.bytes ?? 0), updatedAt: Math.floor(atMs / 1000) })));
+  return patchRoster(storage, player, (rows) => rows.map((row) => (row.id !== id ? row
+    : { ...row, ...(summary ? { summary: { ...row.summary, ...summary } } : {}), bytes: Math.max(1, row.bytes ?? 0), updatedAt: Math.floor(atMs / 1000) })));
 }
 
 /** `id` is gone from the realm (deleted, or its bringing in undone). @param {any} storage @param {string | null | undefined} player @param {string} id */
 export function rosterDropped(storage, player, id) {
-  return patchRoster(storage, player, (rows) => rows.filter((r) => r.id !== id));
+  return patchRoster(storage, player, (rows) => rows.filter((row) => row.id !== id));
 }
 
 /** The account signed out: its kept tiles leave the device with its session. @param {any} storage @param {string | null | undefined} player */

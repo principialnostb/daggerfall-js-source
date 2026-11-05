@@ -1564,7 +1564,7 @@ function realmAct(run, words, goneId = null) {
   }).catch(() => { realmWords = [realmRefusalText('server')]; }).finally(() => { realmBusy = false; realmAsked = false; render(); });
 }
 function dropRealmRow(/** @type {string} */ id) {
-  realmRows = realmRows?.filter((r) => r.id !== id) ?? null;
+  realmRows = realmRows?.filter((row) => row.id !== id) ?? null;
   rosterDropped(appStorage(), storedSession(appStorage())?.id ?? null, id);
 }
 /** REALM P1.5: CUSTOMS, ASKED FIRST (FIELD 2026-09-29, Dracula/Valentin: "HOW TF WAS I SUPPOSED TO KNOW YALL WOULD FORCE
@@ -1616,8 +1616,8 @@ function copyToOffline(row) {
     snap.characterId = mintCharacterId();
     const r = saveSlot(snap.name || row.name, REALM_COPY_SAVE_NAME, snap, { storage: appStorage() });
     return r.ok ? { ok: true } : { ok: false, error: 'no-room' };
-  }).then((r) => {
-    if (r?.ok !== false) realmWords = [t('menu.realm.copied', '{name} is copied as a new offline character. Nothing you play on the copy comes back online.', { name: row.name })];
+  }).then((copied) => {
+    if (copied?.ok !== false) realmWords = [t('menu.realm.copied', '{name} is copied as a new offline character. Nothing you play on the copy comes back online.', { name: row.name })];
   }).finally(() => { realmBusy = false; realmAsked = false; render(); });
 }
 
@@ -6583,7 +6583,7 @@ export function mountEnhancedMenu(host, {
   // Game the second row a thumb meets and Resume the first.
   section = 'home';
   homeLevel = 'top';   // UI-CALM: every visit asks which world first
-  if (notice && sections.some((l) => idOf(l) === 'online')) section = 'online';   // a refused Play lands back where it was pressed, saying why
+  if (notice && sections.some((label) => idOf(label) === 'online')) section = 'online';   // a refused Play lands back where it was pressed, saying why
   pauseTab = 'system';
   // ...and THEN the caller's landing, if it named one. After the reset,
   // which is what keeps the reset the default rather than a thing this

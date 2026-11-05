@@ -64,10 +64,8 @@ export function openRealmContact(doc, { onCancel = null } = {}) {
 export const showRealmMessage = (doc, text) => openRealmContact(doc).fail(text);
 
 /**
- * Run `act` under the popup. Answers the act's own answer once the popup is gone: at once on success, after OK on a
- * failure, and REALM_CANCELLED at once on Cancel. A failure of the service says the servers have issues; a refusal
- * this device made keeps its own words. `act` is handed `cancelled()`: it asks it before it writes anything, since a
- * cancelled act's answer may still arrive.
+ * Run `act` under the popup. Answers once the popup is gone: at once on success or Cancel (REALM_CANCELLED), after OK
+ * on a failure. `act` asks `cancelled()` before it writes, since a cancelled act's answer may still arrive.
  * @template {{ ok?: boolean, error?: string, status?: number }} R
  * @param {(at: { cancelled: () => boolean }) => Promise<R>} act @param {{ doc?: Document }} [at]
  * @returns {Promise<R | { ok: false, error: string }>}

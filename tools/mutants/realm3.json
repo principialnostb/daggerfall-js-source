@@ -83,8 +83,8 @@
   {
     "name": "REALM3-notice-twice",
     "file": "src/systems/realmSaves.js",
-    "old": "    if (t != null) storage.removeItem(REALM_NOTICE_KEY);\n",
-    "new": "",
+    "old": "    storage.removeItem(REALM_NOTICE_KEY);\n    return { text, popup };\n",
+    "new": "    return { text, popup };\n",
     "tests": [
       "test/systems/realm3.test.js"
     ]
