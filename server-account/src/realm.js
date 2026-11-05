@@ -870,8 +870,10 @@ export async function checkpointRealm(
       // AUDIT REALM2 S7: WHY IT DID NOT MOVE, read again - two checkpoints under one lease (a retry beside a slow one, the
       // page's beside the timer's) race to one sequence, and the loser was told 'lease': "another tab has the character",
       // and its tab ended the session. Its own write won; 'seq', with the service's, is the truth, and the tab resyncs.
+      // A record that did not move had its batch fail (an overloaded database throws): the tab keeps its save and sends
+      // it again, as for any 503. 'lease' would end the session of every player who saves during an overload.
       return (
-        (await recordMovedOf(db, playerId, { id, lease, seq: /** @type {number} */ (seq) - 1 })) ?? { error: 'lease' }
+        (await recordMovedOf(db, playerId, { id, lease, seq: /** @type {number} */ (seq) - 1 })) ?? { error: 'server' }
       );
     }
   }

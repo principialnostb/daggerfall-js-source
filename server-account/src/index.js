@@ -478,7 +478,7 @@ const POST_STATUS = Object.freeze({ 'no-post': 404, 'post-no-item': 409, 'post-c
 const REALM_STATUS = Object.freeze({
   ...JUDGE_STATUS,   // INT3/INT4
   'no-realm-character': 404, 'no-data': 404, lease: 409, seq: 409, 'too-many-characters': 409, auth: 401,   // SESSION-SIGN E3: a checkpoint's session gone
-  'customs-never-online': 403, 'customs-other-account': 403, 'customs-already': 409, 'no-storage': 503,   // CUSTOMS-ELSEWHERE: the other account's
+  'customs-never-online': 403, 'customs-other-account': 403, 'customs-already': 409, 'no-storage': 503, server: 503,   // CUSTOMS-ELSEWHERE: the other account's
   'trade-spent': 409,   // REALM P2.1: a trade's sid another pair settled
   'guild-master-leaves': 409,   // AUDIT REALM L1-F7: a guildmaster deleted hands the guild over first
   'guild-treasury': 409,   // AUDIT REALM2 S8: and a lone one empties the treasury first

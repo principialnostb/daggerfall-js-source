@@ -382,6 +382,29 @@ test('AUDIT REALM2 S7: two checkpoints under one lease race to one sequence - th
   assert.equal(joined.status, 200);
 });
 
+test('a checkpoint whose batch the database fails is told `server` (503), never `lease`: the lease stands, nothing is kept, and the same save lands when sent again', async () => {
+  const s = await stand();
+  const P = await s.account(false);
+  const c = await s.character(P, 'Busy', { name: 'Busy', goldPieces: 1 });
+  // the checkpoint's own batch fails once, as an overloaded database fails it; every other statement runs
+  const realPrepare = s.env.DB.prepare.bind(s.env.DB);
+  const realBatch = s.env.DB.batch.bind(s.env.DB);
+  const sqlOf = new WeakMap();
+  s.env.DB.prepare = (sql) => { const st = realPrepare(sql); sqlOf.set(st, sql); const bind = st.bind.bind(st); st.bind = (...a) => { const b = bind(...a); sqlOf.set(b, sql); return b; }; return st; };
+  let failed = 0;
+  s.env.DB.batch = async (steps) => {
+    if (failed === 0 && steps.some((st) => /^UPDATE realm_characters SET seq = /.test(sqlOf.get(st) ?? ''))) { failed++; throw new Error('D1_ERROR: overloaded'); }
+    return realBatch(steps);
+  };
+  const save = JSON.stringify(freshSave({ name: 'Busy', v: 'through the overload' }));
+  assert.deepEqual(Object.values(await s.put(c.id, save, P.secret, { lease: c.lease, seq: 2 })), [503, { error: 'server' }], 'an overload, not another tab');
+  assert.equal(failed, 1);
+  assert.deepEqual(s.rows('SELECT lease, seq FROM realm_characters'), [{ lease: c.lease, seq: 1 }], 'the lease stands and nothing moved');
+  const again = await s.put(c.id, save, P.secret, { lease: c.lease, seq: 2 });
+  assert.equal(again.status, 200, 'sent again, it lands');
+  assert.equal(again.body.seq, 2);
+});
+
 // ---- S8: A LONE GUILDMASTER DELETED EMPTIES THE TREASURY FIRST ----------------------------------------------------------
 
 test('AUDIT REALM2 S8: a lone guildmaster is deleted only once its treasury is empty - `guild-treasury`, as leaving asks - and nothing of it goes before', async () => {

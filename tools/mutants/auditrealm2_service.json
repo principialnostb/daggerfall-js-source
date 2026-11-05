@@ -128,7 +128,7 @@
   {
     "name": "AUDIT-REALM2-S7-the-racer-told-lease",
     "file": "server-account/src/realm.js",
-    "old": "      return (\n        (await recordMovedOf(db, playerId, { id, lease, seq: /** @type {number} */ (seq) - 1 })) ?? { error: 'lease' }\n      );",
+    "old": "      return (\n        (await recordMovedOf(db, playerId, { id, lease, seq: /** @type {number} */ (seq) - 1 })) ?? { error: 'server' }\n      );",
     "new": "      return { error: 'lease' };",
     "tests": [
       "test/systems/auditrealm2_service.test.js"
@@ -139,6 +139,15 @@
     "file": "server-account/src/realm.js",
     "old": "  if ((master?.treasury ?? 0) > 0) return { error: 'guild-treasury' };\n  // AUDIT GUILD1d S1: and a lone one sells its guild's hall first - deleted, the guild stood memberless with the hall,",
     "new": "  // AUDIT GUILD1d S1: and a lone one sells its guild's hall first - deleted, the guild stood memberless with the hall,",
+    "tests": [
+      "test/systems/auditrealm2_service.test.js"
+    ]
+  },
+  {
+    "name": "CHECKPOINT-OVERLOAD-told-lease",
+    "file": "server-account/src/realm.js",
+    "old": "?? { error: 'server' }",
+    "new": "?? { error: 'lease' }",
     "tests": [
       "test/systems/auditrealm2_service.test.js"
     ]
