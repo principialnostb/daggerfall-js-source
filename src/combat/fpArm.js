@@ -6610,7 +6610,7 @@ export function createFpArm({ playerAppearance = false } = {}) {
       && movementBase === base && movementStance === stance);
     if (fresh) movementClipPreference = preferenceKey;
     if (fresh) {
-      const composed = guardMovementGroup(base, stance, hasGroup, viewMode === 'third' && modSetting('morrowind-animation', 'MotionDoctrine') !== 0, carriesShield(rig()));   // SHIELD-WALK
+      const composed = guardMovementGroup(base, stance, hasGroup, viewMode === 'third' && modSetting('morrowind-animation', 'MotionDoctrine') !== 0);
       if (!composed.group) {
         if (movementState) { resetMovement(); resetIdle(); }   // :701-707 resets BOTH
         movementBase = base; movementStance = stance;
