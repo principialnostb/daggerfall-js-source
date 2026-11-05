@@ -344,7 +344,8 @@ test('GUILD-LOGO /mod logo: a moderator sets a guild\'s logo from a picture on D
   const proxied = 'https://media.discordapp.net/ephemeral-attachments/1/777/logo.png?ex=1&is=2&hm=abc';
   const shrunk = `${proxied}&format=webp&width=256&height=256`;
   const att = (over = {}) => ({ id: '777', url: cdn, proxy_url: proxied, size: pic?.length ?? 0, width: 96, height: 96, content_type: 'image/png', ...over });
-  const fetchFn = async (url) => { asked.push(url); return pic ? new Response(pic, { status: 200 }) : new Response('', { status: 404 }); };
+  const agents = new Set();
+  const fetchFn = async (url, init) => { asked.push(url); agents.add(init?.headers?.['user-agent']); if (pic === 'throw') throw new Error('network down'); return pic ? new Response(pic, { status: 200 }) : new Response('', { status: 403 }); };
   const mod = (guild, a) => discordInteraction({ ...s.ctx(), self: 'https://accounts.invalid' }, s.env, { type: 2, member: { user: { id: MOD_ID } }, data: { name: 'mod', options: [{ name: 'logo', type: 1, options: [{ name: 'guild', type: 3, value: guild }, { name: 'picture', type: 11, value: '777' }] }], resolved: { attachments: { 777: a } } } }, { fetchFn, later: (p) => { p.catch(() => {}); } });
   assert.equal((await mod('NOPE', att())).data.content, 'No guild bears that tag or name.');
   assert.equal((await mod('iron', att({ width: 128, height: 100 }))).data.content, 'That picture is 128 by 100 px. A logo is square.');
@@ -387,10 +388,13 @@ test('GUILD-LOGO /mod logo: a moderator sets a guild\'s logo from a picture on D
   assert.deepEqual(asked, [cdn], 'read off the CDN as it is, not the proxy');
   const third = s.raw.prepare('SELECT logo FROM guilds WHERE id = ?').get(s.gid).logo;
   assert.deepEqual([third !== id, s.raw.prepare('SELECT state FROM guild_logos WHERE id = ?').get(id).state, (await s.get(`/v1/guilds/logo/${id}`)).status], [true, 'withdrawn', 404]);
-  // Discord's CDN failing hands nothing to the service
+  // Discord refusing the fetch, or the fetch failing, is said with its reason; every ask carried the bot's User-Agent
   pic = null;
-  assert.equal((await mod('iron', att({ size: 10 }))).data.content, 'Discord did not hand the picture over. Try again.');
+  assert.equal((await mod('iron', att({ size: 10 }))).data.content, 'Discord did not hand the picture over (status 403). Try again.');
+  pic = 'throw';
+  assert.equal((await mod('iron', att({ size: 10 }))).data.content, 'Discord did not hand the picture over (network down). Try again.');
   assert.equal(s.raw.prepare('SELECT logo FROM guilds WHERE id = ?').get(s.gid).logo, third);
+  assert.deepEqual([...agents], ['DiscordBot (https://github.com/Lattymoy/daggerfall-js-source, 1)']);
   // a stranger's command is no moderator's
   const stranger = await discordInteraction(s.ctx(), s.env, { type: 2, member: { user: { id: '222222222222222222' } }, data: { name: 'mod', options: [{ name: 'logo', type: 1, options: [] }] } }, { fetchFn });
   assert.match(stranger.data.content, /Only the game's moderators/);
