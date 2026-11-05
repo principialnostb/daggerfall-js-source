@@ -46,7 +46,12 @@ export function leftArmPlan({ mode = null, view = 'third', moving = false, base 
   const strafeOf = walkingStraight ? b.replace(/(forward|back)$/, 'left') : null;
   // SHIELD-BASH: a one-hander's bash throws the shield from where the guard holds it, as the fists' does
   if (mode === 'shield' && bashing) return view === 'first' ? { kind: 'stance', base: 'idle', stance: 'drawn', still: true } : { kind: 'movement', base: 'walkleft', stance: 'drawn', still: true };
-  if (mode === 'shield') return view === 'third' && strafeOf && !attacking ? { kind: 'movement', base: strafeOf, stance: 'drawn', still: false } : null;
+  // SHIELD-HOLD (the owner, 2026-11-05): walking any way, the shield held as the stance holds it - the drawn idle's arm,
+  // one frame; running, the strafe's arm, the shield in against the body
+  if (mode === 'shield') {
+    if (view !== 'third' || attacking || !moving || !b || /^turn/.test(b)) return null;
+    return /^run/.test(b) ? { kind: 'movement', base: 'runleft', stance: 'drawn', still: false } : { kind: 'stance', base: 'idle', stance: 'drawn', still: true };
+  }
   if (mode === 'guard') {
     if (view === 'first') return attacking || jumping ? { kind: 'stance', base: 'idle', stance: 'drawn', still: true } : null;
     if (strafeOf) return { kind: 'movement', base: strafeOf, stance: 'drawn', still: false };
