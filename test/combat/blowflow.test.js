@@ -356,7 +356,7 @@ test('SHIELD-STRAFE-SOURCE: walking straight, the shield arm comes from the stra
   });
   const movement = { group: 'walkforward1h', startTime: 0, stopTime: 1, time: 0.3 };
   const step = (plan) => layer.step(1 / 60, { plan, sources: [game, pack], hasGroup: () => true, stance: 1, movement, movementSource: pack, walkPref: 'walk:standard' });
-  step({ kind: 'movement', base: 'walkleft', stance: 'drawn', still: false, rigOrder: true });
+  step({ kind: 'movement', base: 'walkleft', stance: 'drawn', still: false, rigOrder: true, mean: true });
   step({ kind: 'movement', base: 'walkleft', stance: 'drawn', still: true });
   assert.deepEqual(picked, ['game', 'pack'], 'walking the strafe\'s own; running the pinned pose as before, picked again');
 });
@@ -372,4 +372,19 @@ test('SHIELD-STRAFE-TRUNK: the strafe\'s arm laid on a straight walk is turned b
   const angleOf = (q) => 2 * Math.atan2(q[3], q[0]);
   assert.ok(Math.abs(angleOf(at(false)) - 0.3) < 1e-9, 'plain: the strafe\'s own collarbone');
   assert.ok(Math.abs(angleOf(at(true)) - 1.1) < 1e-9, 'adapted: turned by the strafe\'s trunk (0.8) on the walk\'s (0)');
+});
+
+test('SHIELD-STEADY: the walking shield\'s strafe arm is the stride\'s average - one pose whatever the clock', async () => {
+  const { weightedOverlayTracks, weightedOverlaySampler, ARM_ROOT } = await import('../../src/combat/leftArmLayer.js');
+  const swing = { swing: true };
+  const sample = (tr, t) => (tr.swing ? { rotation: [Math.cos(0.3 * Math.sin(t * 2 * Math.PI)), 0, 0, Math.sin(0.3 * Math.sin(t * 2 * Math.PI))], translation: [0, 0, 0], scale: 1 } : { rotation: [1, 0, 0, 0], translation: [0, 0, 0], scale: 1 });
+  const tracks = weightedOverlayTracks(new Map(), new Map([[ARM_ROOT, swing]]), new Set([ARM_ROOT]));
+  let clock = 0;
+  const steady = weightedOverlaySampler(sample, () => clock, () => 1, () => ({ start: 0, stop: 1 }));
+  const plain = weightedOverlaySampler(sample, () => clock, () => 1);
+  const seen = [], swung = [];
+  for (clock = 0; clock < 1; clock += 0.1) { seen.push(steady(tracks.get(ARM_ROOT), 0).rotation[3]); swung.push(plain(tracks.get(ARM_ROOT), 0).rotation[3]); }
+  assert.ok(Math.max(...seen) - Math.min(...seen) < 1e-9, 'steady: one pose');
+  assert.ok(Math.abs(seen[0]) < 1e-6, 'the swing\'s middle');
+  assert.ok(Math.max(...swung) - Math.min(...swung) > 0.3, 'plain: it swings');
 });

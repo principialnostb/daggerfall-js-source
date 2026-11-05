@@ -135,7 +135,7 @@ test('LEFT-ARM: who holds the left arm, and which clip\'s arm each plan lays (th
   assert.equal(plan({ mode: 'guard', view: 'first', moving: true, base: 'walkforward' }), null);
   // a one-hander and a shield: walking straight the strafe's arm on the stride, as Dev has it, running any
   // way the walk strafe's arm at one frame (SHIELD-RUN-HOLD), the attack clip's own in a blow
-  assert.deepEqual(plan({ mode: 'shield', moving: true, base: 'walkforward' }), { kind: 'movement', base: 'walkleft', stance: 'drawn', still: false, rigOrder: true });
+  assert.deepEqual(plan({ mode: 'shield', moving: true, base: 'walkforward' }), { kind: 'movement', base: 'walkleft', stance: 'drawn', still: false, rigOrder: true, mean: true });
   assert.equal(plan({ mode: 'shield', moving: true, base: 'walkleft' }), null, 'a strafe keeps its own arm');
   for (const base of ['runforward', 'runback', 'runleft']) assert.deepEqual(plan({ mode: 'shield', moving: true, base }), { kind: 'movement', base: 'walkleft', stance: 'drawn', still: true }, base);
   assert.equal(plan({ mode: 'shield', moving: true, base: 'walkforward', attacking: true }), null);
