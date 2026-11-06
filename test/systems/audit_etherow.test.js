@@ -11,7 +11,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { hostText } from '../hostText.mjs';
 
-import { standService, T0 } from '../accountDb.mjs';
+import { standService, T0, clockPicksLodes } from '../accountDb.mjs';
 import { watchPixelOk, watchReceiptValid } from '../../src/net/watchReceipt.js';
 import { utcDay } from '../../src/net/marksLaw.js';
 import { motherlodeSites } from '../../src/net/motherlodeLaw.js';
@@ -79,6 +79,7 @@ test('AUDIT ETHER-OW C2-1, the service: the day\'s three read from witnessed gro
         }
       }
       const ann = await s.registered('Ann');
+      await clockPicksLodes(s);
       return s.call('/v1/prof/motherlodes', { character: ann.character }, ann.secret);
     };
     const isles = Array.from({ length: 6 }, (_, i) => [H.px + i, H.py, ETHER_REGION]);

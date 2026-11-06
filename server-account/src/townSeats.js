@@ -223,7 +223,7 @@ function forgetSeatRows(db, nowS) {
  *  accounts ignored - and every isolate reads that row instead, kept SEAT_ROWS_KEPT_S as the rows were. A row older
  *  than SEAT_FACTS_FRESH_S (the clock stopped) is no answer: the rows are read as before. And an isolate that wrote a
  *  report or a strike reads the rows until the clock has kept the facts after its write. */
-export const SEAT_FACTS_FRESH_S = 180;
+export const SEAT_FACTS_FRESH_S = 30 * 60; // a failed clock must not send every isolate to the rows
 const SEAT_FACTS_SQL = 'SELECT at, facts FROM seat_facts_kept WHERE id = 1';
 /** SEAT-FACTS: the database binding -> the kept facts this isolate read (or that none fit, a minute), the read asked
  *  now, and its last write's clock. A row is an answer only while it is fresh and newer than that write. */

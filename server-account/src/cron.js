@@ -62,8 +62,8 @@ import { closeGuildWrits } from './writs.js';
 import { closeContracts } from './contracts.js';
 import { settleDueOnce } from './seatTurning.js';
 import { keepSeatFacts } from './townSeats.js'; // SEAT-FACTS: the seats' facts, kept once for the service
-import { motherlodesOf, confirmedGroundBefore } from './motherlodes.js';
-import { layWitnessTiles } from './witnessTiles.js'; // AUDIT FB1031 W3: the held map's tiles, once a day
+import { motherlodesOf, confirmedGroundBefore, lodeDayKept } from './motherlodes.js';
+import { layWitnessTiles, tilesDayLaid } from './witnessTiles.js'; // AUDIT FB1031 W3: the held map's tiles, once a day
 import { sweepBoard } from './board.js';
 import { claudeSweep, claudeKeep } from './claudeStaff.js'; // Claude's sweep and its 30-day keep
 import { safetyMinute, safetySweep } from './safetyClock.js'; // SAFE5 + SAFE8: the reviewer's reads and the moderators' cards; the hour's sweep
@@ -156,6 +156,9 @@ const STAFF_FEED_SWEEPS = Object.freeze(
 /** MOTHERLODES: the day this isolate has seen picked - asked once a day here, not every minute (the pick itself is the
  *  day's first ask, and every later one only reads it back). */
 let lodesPicked = -1;
+/** The minutes between the clock's tries at a day's pick or tiles while either is not kept. The scan reads every
+ *  confirmed pixel, so a try each minute into a busy database kept it busy; the marks are still read each minute. */
+export const LODE_CLOCK_EVERY_MIN = 5;
 /** Tests stand fresh isolates. */
 export const _resetCronForTests = () => {
   lodesPicked = -1;
@@ -239,10 +242,12 @@ export const MINUTE_JOBS = Object.freeze([
     async (ctx, env) => {
       const day = utcDay(ctx.nowS);
       if (profSwitchOf(env?.PROFESSIONS_OPEN) !== 'on' || lodesPicked === day) return 0;
-      const lodes = await motherlodesOf(ctx, day, { clock: true }); // LODE-HERD: the clock picks without the readers' claim
+      const kept = (await lodeDayKept(ctx.db, day)) && (await tilesDayLaid(ctx.db, day));
+      if (!kept && Math.floor((ctx.nowS % 86400) / 60) % LODE_CLOCK_EVERY_MIN !== 0) return 0;
+      const lodes = await motherlodesOf(ctx, day, { clock: true }); // only the clock picks the day
       // AUDIT FB1031 W3 (witnessTiles.js): the held map's tiles, laid by the pick's own batch - or here, with a scan of their
       // own, on a day picked before them (the deploy's); a laid day is one read
-      await layWitnessTiles(ctx, day, () => confirmedGroundBefore(ctx.db, day));
+      if (!kept) await layWitnessTiles(ctx, day, () => confirmedGroundBefore(ctx.db, day));
       lodesPicked = day;
       return lodes.length;
     },

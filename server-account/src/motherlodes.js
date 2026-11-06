@@ -78,9 +78,9 @@ import {
 
 /** A strike's silver line id - the account's one Motherlode a UTC day, under the service's own `:`. */
 export const motherlodeRid = (day) => `motherlode:${day}`;
-/** LODE-HERD: the day's pick claimed under this rate key and the day, one read in a window this long (s). */
-export const LODE_PICK_CLAIM = 'lode-pick:';
-export const LODE_PICK_WINDOW_S = 60;
+/** Whether the clock has kept `day`'s pick (its mark, one primary-key read). */
+export const lodeDayKept = async (/** @type {any} */ db, /** @type {number} */ day) =>
+  !!(await db.prepare('SELECT 1 FROM motherlode_days WHERE day = ?1').bind(day).first());
 /** Whether a harvest's node names a Motherlode (index.js asks before it hands the harvest on). */
 export const isMotherlodeNode = (node) => typeof node === 'string' && node.startsWith('mlode:');
 
@@ -97,7 +97,7 @@ const rowView = (r) => ({
 });
 
 /**
- * THE DAY'S MOTHERLODES - kept, or picked and kept on the day's first read: the pixels confirmed before the day began
+ * THE DAY'S MOTHERLODES - kept, or picked and kept by the clock (`clock`; a read answers none before): the pixels confirmed before the day began
  * (their reports before it - three accounts' word, as nodeLaw witnessedFact reads it), in motherlodeSites' one order.
  * Answers `[{ k, key, x, y, climate, region, material, opensAt, closesAt }]`.
  * AUDIT SILVER-WAYS C3: THE DAY PICKED ONCE - its mark (`motherlode_days`) kept with its picks, none or fewer than three
@@ -112,26 +112,20 @@ const rowView = (r) => ({
  * reads (a replica holding the mark holds the picks written beside it), and a day found unpicked - on whatever the
  * session answered - is read again, picked and kept on `primary` (the binding, index.js ctx), the mark asked there
  * first. A caller with no `primary` (the cron's, on the binding) is its own.
- * @param {{ db: any, primary?: any, rand?: () => number, nowS?: number }} ctx
+ * @param {{ db: any, primary?: any, rand?: () => number }} ctx
  */
-export async function motherlodesOf(
-  { db: read, primary = read, rand, nowS = Math.floor(Date.now() / 1000) },
-  day,
-  { clock = false } = {},
-) {
+export async function motherlodesOf({ db: read, primary = read, rand }, day, { clock = false } = {}) {
   const keptOf = async (/** @type {any} */ db) =>
     ((await db.prepare('SELECT * FROM motherlodes WHERE day = ?1 ORDER BY k').bind(day).all())?.results ?? []).map(
       rowView,
     );
-  const marked = async (/** @type {any} */ db) =>
-    !!(await db.prepare('SELECT 1 FROM motherlode_days WHERE day = ?1').bind(day).first());
+  const marked = (/** @type {any} */ db) => lodeDayKept(db, day);
   if (await marked(read)) return keptOf(read);
   const db = primary;
   if (db !== read && (await marked(db))) return keptOf(db);
-  // LODE-HERD (2026-10-29, bible/11-Multiplayer/Scale-Arc.md): A READ PICKS ONLY UNDER THE DAY'S CLAIM. Every read before
-  // the mark ran the scan - 33 of 1.8 s at the turn of 2026-10-29. One read a minute holds the claim, so a holder that
-  // dies is followed a minute on; the rest answer none until the mark is kept. The clock never asks.
-  if (!clock && (await overRate({ db, nowS }, `${LODE_PICK_CLAIM}${day}`, 1, LODE_PICK_WINDOW_S))) return [];
+  // Only the clock picks. The scan reads every confirmed pixel, so a read that ran it at the day's turn, while the
+  // database was busy, kept it busy; a read answers none until the clock has kept the day.
+  if (!clock) return [];
   const candidates = await confirmedGroundBefore(db, day);
   const sites = motherlodeSites(day, candidates);
   const n = mintId(rand);

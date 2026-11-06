@@ -1,43 +1,33 @@
 [
   {
-    "name": "LODEHERD-claim-unasked",
+    "name": "LODEHERD-read-picks",
     "file": "server-account/src/motherlodes.js",
-    "old": "  if (!clock && (await overRate({ db, nowS }, `${LODE_PICK_CLAIM}${day}`, 1, LODE_PICK_WINDOW_S))) return [];\n  const candidates = await confirmedGroundBefore(db, day);",
-    "new": "  const candidates = await confirmedGroundBefore(db, day);",
+    "old": "  if (!clock) return [];\n",
+    "new": "",
     "tests": [
       "test/server/lode_herd.test.js"
     ],
-    "note": "every read racing the day's turn runs the pick's scan - 33 of 1.8 s at 00:00 on 2026-10-29"
+    "note": "every read before the day is kept runs the pick's scan"
   },
   {
-    "name": "LODEHERD-window-unbounded",
-    "file": "server-account/src/motherlodes.js",
-    "old": "export const LODE_PICK_WINDOW_S = 60;",
-    "new": "export const LODE_PICK_WINDOW_S = 86400;",
-    "tests": [
-      "test/server/lode_herd.test.js"
-    ],
-    "note": "a holder that dies before its batch leaves the day unpicked until the next day"
-  },
-  {
-    "name": "LODEHERD-clock-claims",
-    "file": "server-account/src/motherlodes.js",
-    "old": "  if (!clock && (await overRate({ db, nowS }, `${LODE_PICK_CLAIM}${day}`, 1, LODE_PICK_WINDOW_S))) return [];",
-    "new": "  if (await overRate({ db, nowS }, `${LODE_PICK_CLAIM}${day}`, 1, LODE_PICK_WINDOW_S)) return [];",
-    "tests": [
-      "test/server/lode_herd.test.js"
-    ],
-    "note": "the clock loses the claim to a reader that died, and its isolate never asks the day again"
-  },
-  {
-    "name": "LODEHERD-job-claims",
+    "name": "LODEHERD-spacing-dropped",
     "file": "server-account/src/cron.js",
-    "old": "      const lodes = await motherlodesOf(ctx, day, { clock: true }); // LODE-HERD: the clock picks without the readers' claim",
-    "new": "      const lodes = await motherlodesOf(ctx, day); // LODE-HERD: the clock picks without the readers' claim",
+    "old": "      if (!kept && Math.floor((ctx.nowS % 86400) / 60) % LODE_CLOCK_EVERY_MIN !== 0) return 0;\n",
+    "new": "",
     "tests": [
       "test/server/lode_herd.test.js"
     ],
-    "note": "the minute's job asks the readers' claim"
+    "note": "the clock tries the scan every minute into a busy database"
+  },
+  {
+    "name": "LODEHERD-job-as-read",
+    "file": "server-account/src/cron.js",
+    "old": "      const lodes = await motherlodesOf(ctx, day, { clock: true }); // only the clock picks the day",
+    "new": "      const lodes = await motherlodesOf(ctx, day); // only the clock picks the day",
+    "tests": [
+      "test/server/lode_herd.test.js"
+    ],
+    "note": "the minute's job never picks"
   },
   {
     "name": "HUNTLEAN-rate-back",
