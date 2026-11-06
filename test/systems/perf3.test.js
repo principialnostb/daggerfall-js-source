@@ -76,7 +76,7 @@ test('PERF3 pins: the terrain block goes up once per frame stamp; the cutout bil
   assert.match(r, /if \(key !== lastKey\) \{\n\s+this\._activeTexture\(gl\.TEXTURE0\);\n\s+gl\.bindTexture\(gl\.TEXTURE_2D, tex\);/, 'a repeated key binds nothing');
   // LA-COST2 (2026-09-27): sorted by bucket on the interned key id, in the string sort's own order - test/render/la_cost.test.js
   // holds sortByKey to `(a, b) => (a._bbKey < b._bbKey ? -1 : a._bbKey > b._bbKey ? 1 : 0)` over random passes
-  assert.match(r, /sortByKey\(opaque\);[^\n]*\n\s+for \(const b of opaque\) drawOne\(b\);/, 'the cutout pass is sorted by key');
-  assert.match(r, /blended\.sort\(\(a, b\) => d2\(b\) - d2\(a\)\);/, 'the blended pass keeps its back-to-front order');
+  assert.match(r, /sortByKey\(opaque\);[^\n]*\n\s+for \(let batchIndex = 0, batchCount = opaque\.length; batchIndex < batchCount; batchIndex\+\+\) drawOne\(opaque\[batchIndex\]\);/, 'the cutout pass is sorted by key');
+  assert.match(r, /blended\.sort\(\(a, b\) => \{ const farther = d2\(b\), nearer = d2\(a\); return farther < nearer \? -1 : farther > nearer \? 1 : 0; \}\);/, 'the blended pass keeps its back-to-front order');
   assert.match(r, /this\.stats\.texBinds \+= 2;\n\s+lastKey = key;/, 'the stat counts the binds that happen');
 });

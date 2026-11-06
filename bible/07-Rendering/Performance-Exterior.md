@@ -27,6 +27,11 @@ cheap without changing the picture. The general laws and instruments are `Perfor
 - The placed batches' volume answers are kept, and the cheapest skip runs first.
 - A live face that holds the cache is left alone: only the faces a mover touches are copied.
 - The sun's 3x3 shadow kernel is read in four taps.
+- A program's identity view and the flat program's sampler unit go up once in the pass's life; a flat record's wind goes
+  up when it differs from the last record's; the square viewport is sent when its size changes; a flat's lantern-facing
+  right is made once per origin a face, since a pixel's still flats share one.
+- The reach test makes a box's sphere only for a live lantern: by day the sun's planes alone are asked.
+- The caster pick keeps its sorted few in two scratches: a pair was minted for every light in reach every frame.
 
 ### The draw order and the shaders
 
@@ -45,10 +50,14 @@ cheap without changing the picture. The general laws and instruments are `Perfor
   frame, each cell by a deadline set from the eye's own step, so cells are placed before the eye reaches them
   (`src/render/labGrass.js` `createGrassField`).
 - A collider cell's key is a number (`src/player/collider.js`).
+- The grass field sweeps its live cells through `Map.forEach` with one callback made with the field: no entry array or
+  iterator result a cell a frame.
 
 ### The town
 
-- The town loop mints no frame's worth of garbage: people, plaques and flats update in place.
+- The town loop mints no frame's worth of garbage: people, plaques and flats update in place. A pixel without gates
+  reads a frozen empty list; the pixel walk's order is sorted by a comparator that answers a sign; the billboard pass
+  walks its lists by index.
 - The collider's buckets that stand still (doors, levers, static models) are filed on a coarse grid, so a ray or a
   sphere asks only the buckets under its own box; moving and oversized buckets are asked by every query. One visited set
   is cleared per bucket, and the marks' stamp starts a new epoch on wrap (`src/player/collider.js`).
@@ -69,5 +78,7 @@ cheap without changing the picture. The general laws and instruments are `Perfor
   shader slices
 - `test/render/perfarena.test.js`, `test/render/perfvol.test.js`, `test/render/perfalloc1.test.js` - arenas and walks
 - `test/render/fb1021b_grass.test.js` - the grass rim's deadlines
+- `test/render/shadowonce.test.js`, `test/render/grasssweep.test.js`, `test/scenes/frameneutral.test.js` - what the pass
+  sends once, the grass sweep, the frame-neutral lines
 - `test/player/fb0930_frame.test.js` - the ray marks' epoch
 - `tools/grassMoveProbe.mjs` - the grass field under a moving eye

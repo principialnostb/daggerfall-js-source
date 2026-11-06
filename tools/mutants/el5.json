@@ -83,8 +83,8 @@
   {
     "name": "pick-max-unbounded",
     "file": "src/render/shadowPass.js",
-    "old": "    if (picked.length > max) picked.pop();\n",
-    "new": "",
+    "old": "    if (count < max) count++;\n",
+    "new": "    count++;\n",
     "tests": [
       "test/render/el5_field.test.js"
     ]

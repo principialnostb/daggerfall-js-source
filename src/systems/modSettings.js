@@ -9,7 +9,7 @@
 // defaults without a DOM.
 
 import { appStorage } from './appStorage.js'; // the one storage seam - localStorage lives there alone
-import { onlineForcedModSetting, onlineWholeModKey } from './online/onlineLane.js'; // MODS-ONLINE-2: online, the room's ground is forced and every other switch is the player's; REALM P0.2: and the balance mods whole
+import { onlineForcedModSetting, onlineWholeModKey, isOnlinePage, rollingAsTheRoom } from './online/onlineLane.js'; // MODS-ONLINE-2: online, the room's ground is forced and every other switch is the player's; REALM P0.2: and the balance mods whole
 import { FOOT_SKIN_COUNT, CLASS_SKINS, classSkinLabel } from '../player/classSkins.js'; // SKIN2: the class skins past the mod's sixteen
 import { t, localizedText } from './textManager.js'; // L10N4: every setting's description and option names in the player's language, read when they are read; DFU's own key where it has the same word
 
@@ -6830,11 +6830,20 @@ export function storedModSetting(vendor, key) {
   return load()[vendor]?.[key];
 }
 
+/** A vendor's answer, kept while nothing a key reads has moved: the store's generation, the page being online (the
+ *  room's forced keys) and a room roll's scope (every key the room's whole). The widgets, torches and footsteps ask
+ *  for theirs every frame, and each walked every key. */
+const _ofKept = new Map();
 export function modSettingsOf(vendor) {
   const keys = MOD_SETTINGS[vendor]?.keys;
   if (!keys) throw new Error(`modSettingsOf: ${vendor} is not a vendored mod with switches`);
+  const online = isOnlinePage(),
+    rolling = rollingAsTheRoom();
+  const kept = _ofKept.get(vendor);
+  if (kept && kept.generation === _generation && kept.online === online && kept.rolling === rolling) return kept.out;
   const out = {};
   for (const k of Object.keys(keys)) out[k] = modSetting(vendor, k);
+  _ofKept.set(vendor, { generation: _generation, online, rolling, out });
   return out;
 }
 

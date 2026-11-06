@@ -15,6 +15,11 @@ render frame is `Performance-Exterior.md`; the characters' bodies are `Performan
   compared); `tools/onlineFrameProbe.mjs`; `tools/bootFreezeProbe.mjs` (the boot's long tasks); `tools/owHitchProbe.mjs`
   (the overworld); `tools/compileStallProbe.mjs`; `tools/realGpu/realGpuProbe.mjs` (shader compiles and uploads on a real
   driver). SwiftShader's milliseconds are relative; GL call counts are exact.
+- The frame probe's scenes: a crowded town (`town`), the castle (`castle`: the classic start cell moved to Castle
+  Necromoghan), the exterior at land view 6 (`far`) and the Overworld raised over it (`overworld`). Every scene turns
+  the tutorial pages off; a record names the mode and pixel it was taken in. A dungeon is ready once its frames have
+  run, since the exterior's stream never drains underground. `READY_MS` and `PROGRESS=1` wait longer and say where
+  the page is.
 - `sh tools/fetch-data.sh` puts the freeware ARENA2 in place, so a measure is taken in the real game.
 
 ## Rules
@@ -80,6 +85,19 @@ render frame is `Performance-Exterior.md`; the characters' bodies are `Performan
 - Every pixel, place, window and session lets go of what it held when it ends; a long-lived cache is measured before
   a bound is set on it.
 
+### Reads kept across frames
+
+- A typed setting's parse is kept per key until its text changes (`src/systems/settings/settings.js` `parseOf`): the
+  field of view, retro mode's keys and the frame cap are read every frame.
+- A vendored mod's switches are kept per vendor until a switch is set, the page's online state changes or a room roll
+  raises its scope (`src/systems/modSettings.js` `modSettingsOf`): the widgets, torches and footsteps read theirs every
+  frame.
+- A key binding's answer is kept on the store until a binding changes (`src/systems/inputActions.js` `getBinding`,
+  `codeForAction`; `src/ui/input.js` `swingCodes`): the HUD's key words and the swing's latch ask every frame.
+- The frame clock trims its window in place; the stream's nearest-first comparator answers a sign, so a sort boxes no
+  number; a port's sounding asks the tile under a point from numbers alone (`tileMapIndexAtXZ`), where each ask minted
+  two vectors.
+
 ### The overworld
 
 Walking the overworld gives the same answers for less; the dry-ground answer is read only until it is certain
@@ -95,6 +113,9 @@ Walking the overworld gives the same answers for less; the dry-ground answer is 
 - `test/scenes/perfv8.test.js` - the frame functions under V8's ceiling
 - `test/render/shaderstall.test.js`, `test/render/compilequeue.test.js`, `test/render/bootcompile.test.js`,
   `test/render/firstuse.test.js` - no pass waits on its compile
+- `test/systems/settings/parsememo.test.js`, `test/systems/modsettingsmemo.test.js`, `test/systems/bindingmemo.test.js`,
+  `test/systems/frameclock_trim.test.js`, `test/systems/comeSailAway/tilexz.test.js`, `test/world/nearestfirst.test.js` -
+  the reads kept across frames
 - `test/systems/peerrange.test.js`, `test/scenes/perfyard.test.js`, `test/scenes/yardmerge.test.js`,
   `test/systems/naval/navfarai.test.js`, `test/systems/firstVisit/fv_versions.test.js`, `test/systems/memaudit.test.js`,
   `test/ai/coverCompact.test.js`, `test/tooling/storecache.test.js`, `test/scenes/ow_wide.test.js`

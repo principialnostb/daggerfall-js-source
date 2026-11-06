@@ -684,7 +684,7 @@ import { RIDE_TEXT, RIDE_ASK_TTL_MS } from '../systems/wagon/wagonSeats.js';
 import { createSailingCabinLink } from '../net/sailingCabinLink.js';
 import { capsuleFits } from '../player/parkour.js';
 import { TRIGGER_MODEL as CSA_TRIGGER_MODEL, HULL_NAMES as CSA_HULL_NAMES, AUDIO_CLIPS as CSA_AUDIO_CLIPS, colliderBoundsInChildren as csaColliderBoundsInChildren, animatorOf as csaAnimatorOf, meshLocalBounds as csaMeshLocalBounds } from '../systems/comeSailAway/comeSailAwayBoat.js';   // CSA-B: the probe's lanterns; CSA-D: the plaque's word for a boat; CSA-G: the loops' objects and the five clips; CSA-J: Eye of the Beholder's Collider.bounds
-import { createComeSailAwayRuntime, cargoModWords, comeSailAwayCarrier, WATER_WALKING_SILENT, COME_SAIL_AWAY_VENDOR, CONSOLE as CSA_CONSOLE, NO_WATER_LEVEL, NICE_BOAT_TEXT as CSA_NICE_BOAT_TEXT, activationModelOf as csaActivationModelOf, customModelOf as csaCustomModelOf, ACTIVATION_DISTANCE as CSA_ACTIVATION_DISTANCE, windWidgetFrameCount as csaWindWidgetFrameCount, BOAT_ACTIONS as CSA_BOAT_ACTIONS, hullFromMessage as csaHullFromMessage, tileMapIndexAtPosition as csaTileMapIndexAtPosition } from '../systems/comeSailAway/comeSailAway.js';   // NAV-H: the tile a sea ship floats on
+import { createComeSailAwayRuntime, cargoModWords, comeSailAwayCarrier, WATER_WALKING_SILENT, COME_SAIL_AWAY_VENDOR, CONSOLE as CSA_CONSOLE, NO_WATER_LEVEL, NICE_BOAT_TEXT as CSA_NICE_BOAT_TEXT, activationModelOf as csaActivationModelOf, customModelOf as csaCustomModelOf, ACTIVATION_DISTANCE as CSA_ACTIVATION_DISTANCE, windWidgetFrameCount as csaWindWidgetFrameCount, BOAT_ACTIONS as CSA_BOAT_ACTIONS, hullFromMessage as csaHullFromMessage, tileMapIndexAtPosition as csaTileMapIndexAtPosition, tileMapIndexAtXZ as csaTileMapIndexAtXZ } from '../systems/comeSailAway/comeSailAway.js';   // NAV-H: the tile a sea ship floats on
 import { windWidgetFrameUrl as csaWindWidgetFrameUrl, waveDerivedUrl as csaWaveDerivedUrl, wavePaintUrl as csaWavePaintUrl, soundUrl as csaSoundUrl } from '../systems/comeSailAway/comeSailAwayModels.js';   // CSA-E: the wind widget's pictures; CSA-F: the waves' recipes and paints
 import { WAVE_FRAME_COUNT as CSA_WAVE_FRAME_COUNT, waveDitherOf as csaWaveDitherOf } from '../systems/comeSailAway/comeSailAwayWaves.js';   // CSA-F
 import { ComeSailAwayRenderer, softParticleTexture as csaSoftParticleTexture } from '../render/comeSailAwayRender.js';   // CSA-F: the waves' and the particles' passes
@@ -1327,6 +1327,12 @@ const GATE_SAVES = Object.freeze({
 
 /** INT11/INT12: the line as the relay's count fells me in a boss fight (`bd`). */
 export const BOSS_COUNT_FELL_TEXT = 'The fight counts you fallen.';
+/** Three the host's frame shares, held outside its scope: a frozen empty list for a pixel without gates, the pixel
+ *  sort's comparator (the sign alone: a difference of doubles boxes a number a compare) and the harbour sounding's
+ *  one vector. */
+const NO_GATES = Object.freeze([]);
+const byDist2 = (a, b) => (a._dist2 < b._dist2 ? -1 : a._dist2 > b._dist2 ? 1 : 0);
+const _navalTile = [0, 0, 0];
 // Milestone 9 scene: floating-origin streaming world. Terrain pixels
 // stream in nearest-first around the camera within TERRAIN_DISTANCE,
 // locations appear on their pixels, and crossing a pixel boundary
@@ -4328,7 +4334,7 @@ export async function bootWorld(canvas, renderer, params, status) { handHeroGend
   const tickCityGates = (minute) => {
     const night = isNight(minute);
     for (const p of built.values()) {
-      for (const g of p.cityGates ?? []) {
+      for (const g of p.cityGates ?? NO_GATES) {
         if (!updateCityGate(g.gate, night)) continue;
         const m = g.meshes.get(g.gate.modelId);
         if (!m) continue;
@@ -8591,8 +8597,8 @@ export async function bootWorld(canvas, renderer, params, status) { handHeroGend
   const navalIsWater = (x, z, hull = 0) => {
     const p = csaPixelAt(x, z);
     if (!p) return null;   // ground not yet built - unknown, never land a water grid keeps (shipLife.js)
-    const t = csaTerrainOf(p);
-    if (!p.deepWaters && csaTileMapIndexAtPosition([x, 0, z], t) !== 0) return false;
+    const t = csaTerrainOf(p), corner = state.pixelTranslation(p.px, p.py, _navalTile);   // the tile under the point, no vector minted: a sounding asks this thousands of times
+    if (!p.deepWaters && csaTileMapIndexAtXZ(x, z, corner[0], corner[2], t.tileMap) !== 0) return false;
     if (!p.deepWaters) return true;
     const floor = surfaceAt(x, z);
     return Number.isFinite(floor) && floor < tvSeaY() - (hull < 0 ? 0.05 : navalDraftOf(hull));
@@ -31972,7 +31978,7 @@ const _pixelOrder = [];   // NEAR-FIRST: the frame's pixel walk, nearest first -
     standingHorses.begin(tvf ? null : mwViewHorseRig(), mwv.eye);   // STAND-HORSE: the standing horses' frame - the lane's rig (none under the travel view)
     _pixelOrder.length = 0;
     for (const p of built.values()) { p._dist2 = (p.px - state.current.x) ** 2 + (p.py - state.current.y) ** 2; _pixelOrder.push(p); }
-    _pixelOrder.sort((a, b) => a._dist2 - b._dist2);
+    _pixelOrder.sort(byDist2);
     const framePixelWalk = () => {   // PERF-V8
     for (const p of _pixelOrder) {
       // EV2: the pixel's frame matrix caches on the built entry and

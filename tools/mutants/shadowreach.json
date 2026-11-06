@@ -2,8 +2,8 @@
   {
     "name": "reach-range-ignored",
     "file": "src/render/shadowPass.js",
-    "old": "      if (far > 0 && spheresTouch(cx, cy, cz, r, pp[k * 4], pp[k * 4 + 1], pp[k * 4 + 2], far)) return true;",
-    "new": "      if (far > 0) return true;",
+    "old": "      if (spheresTouch(cx, cy, cz, r, pp[k * 4], pp[k * 4 + 1], pp[k * 4 + 2], far)) return true;",
+    "new": "      return true;",
     "tests": [
       "test/render/shadowreach.test.js"
     ]
@@ -11,8 +11,8 @@
   {
     "name": "reach-translation-dropped",
     "file": "src/render/shadowPass.js",
-    "old": "    const cx = (box[0] + box[3]) * 0.5 + ox, cy = (box[1] + box[4]) * 0.5 + oy, cz = (box[2] + box[5]) * 0.5 + oz;",
-    "new": "    const cx = (box[0] + box[3]) * 0.5, cy = (box[1] + box[4]) * 0.5 + oy, cz = (box[2] + box[5]) * 0.5;",
+    "old": "        cx = (box[0] + box[3]) * 0.5 + ox; cy = (box[1] + box[4]) * 0.5 + oy; cz = (box[2] + box[5]) * 0.5 + oz;",
+    "new": "        cx = (box[0] + box[3]) * 0.5; cy = (box[1] + box[4]) * 0.5 + oy; cz = (box[2] + box[5]) * 0.5;",
     "tests": [
       "test/render/shadowreach.test.js"
     ]
@@ -128,8 +128,8 @@
   {
     "name": "reach-lantern-by-the-box",
     "file": "src/render/shadowPass.js",
-    "old": "      if (far > 0 && spheresTouch(cx, cy, cz, r, pp[k * 4], pp[k * 4 + 1], pp[k * 4 + 2], far)) return true;",
-    "new": "      if (far > 0 && spheresTouch(cx, cy, cz, 0.0, pp[k * 4], pp[k * 4 + 1], pp[k * 4 + 2], far)) return true;",
+    "old": "      if (spheresTouch(cx, cy, cz, r, pp[k * 4], pp[k * 4 + 1], pp[k * 4 + 2], far)) return true;",
+    "new": "      if (spheresTouch(cx, cy, cz, 0.0, pp[k * 4], pp[k * 4 + 1], pp[k * 4 + 2], far)) return true;",
     "tests": [
       "test/render/shadowreach.test.js"
     ]
@@ -137,8 +137,8 @@
   {
     "name": "reach-far-guard-dropped",
     "file": "src/render/shadowPass.js",
-    "old": "      if (far > 0 && spheresTouch(cx, cy, cz, r, pp[k * 4], pp[k * 4 + 1], pp[k * 4 + 2], far)) return true;",
-    "new": "      if (spheresTouch(cx, cy, cz, r, pp[k * 4], pp[k * 4 + 1], pp[k * 4 + 2], far)) return true;",
+    "old": "      if (!(far > 0)) continue;\n",
+    "new": "",
     "tests": [
       "test/render/shadowreach.test.js"
     ]

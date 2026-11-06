@@ -649,7 +649,7 @@ export const CASTER_KEEP_RATIO = 0.8;
 export const CASTER_KEEP_RATIO_STEADY = 0.65;
 /** Was the light at `lights[i]` a caster last frame? `held` is the flat [x, y, z, _] list the pass kept, by
  *  POSITION (the hosts re-sort their lights every frame, so an index is no name - SC1's own matching). */
-function heldAt(held, heldN, lights, i) {
+export function heldAt(held, heldN, lights, i) {
   for (let k = 0; k < heldN; k++) if (samePlace(held, k * 4, lights, i * 4)) return true;
   return false;
 }
@@ -698,21 +698,27 @@ export function holdCasters(held, lights, casters) {
  *  lantern (F11's range cap) and not carried in the player's hand (MAC-T1's
  *  mask; LIGHT-NEAR1: and nothing about their distance to the eye), nearest first
  *  (DISC6: last frame's casters at CASTER_KEEP_RATIO of their distance). */
+const _pickIdx = new Int32Array(64), _pickDist = new Float64Array(64);   // the pick's sorted few, in place: a pair an entry was minted a light a frame
 export function pickShadowCasters(lights, eye, max = SHADOW_POINT_CASTERS, carried = null, held = null, heldN = 0) {
   const n = lights.length >> 2;
-  const picked = [];   // [index, distance], kept sorted, at most `max`
+  if (!(max > 0)) return [];
+  const pickedIndex = max <= _pickIdx.length ? _pickIdx : new Int32Array(max), pickedDist = max <= _pickDist.length ? _pickDist : new Float64Array(max);
+  let count = 0;   // the picked, kept sorted by distance, at most `max`
   for (let i = 0; i < n; i++) {
     if (carried && carried[i]) continue;   // MAC-T1: the light in the player's hand takes no caster slot in ANY camera (F3's law by name)
     const dx = lights[i * 4] - eye[0], dy = lights[i * 4 + 1] - eye[1], dz = lights[i * 4 + 2] - eye[2];
     const d = Math.sqrt(dx * dx + dy * dy + dz * dz) * (held && heldAt(held, heldN, lights, i) ? (SHADOW_TUNING.steady ? CASTER_KEEP_RATIO_STEADY : CASTER_KEEP_RATIO) : 1);
     if (!(lights[i * 4 + 3] > 0) || lights[i * 4 + 3] > SHADOW_CASTER_MAX_RANGE) continue;   // AUDIT-EL F11; LIGHT-NEAR1: no lower bound on `d` - the lamp overhead casts
-    if (picked.length === max && d >= picked[max - 1][1]) continue;
-    let at = picked.length;
-    while (at > 0 && picked[at - 1][1] > d) at--;
-    picked.splice(at, 0, [i, d]);
-    if (picked.length > max) picked.pop();
+    if (count === max && d >= pickedDist[max - 1]) continue;
+    let at = count;
+    while (at > 0 && pickedDist[at - 1] > d) at--;
+    for (let slot = count < max ? count : max - 1; slot > at; slot--) { pickedIndex[slot] = pickedIndex[slot - 1]; pickedDist[slot] = pickedDist[slot - 1]; }   // the tail a step down; a full pick lets its last go
+    pickedIndex[at] = i; pickedDist[at] = d;
+    if (count < max) count++;
   }
-  return picked.map((p) => p[0]);
+  const casters = new Array(count);
+  for (let rank = 0; rank < count; rank++) casters[rank] = pickedIndex[rank];
+  return casters;
 }
 
 /** The frame's shadow kind off the lighting the host set: the sun map
@@ -1323,7 +1329,7 @@ export class ShadowPass {
         pointFaceMatrices(pos, far, this.faceVP);
         for (let face = 0; face < 6; face++) {
           gl.bindFramebuffer(gl.FRAMEBUFFER, this._loFbos[j * 6 + face]);
-          gl.viewport(0, 0, SHADOW_LO_SIZE, SHADOW_LO_SIZE);
+          this._viewport(SHADOW_LO_SIZE);
           gl.clear(gl.DEPTH_BUFFER_BIT);
           this.stats.pointDraws += this.replay(f, this.faceVP[face], pos, false, 0, 0, REPLAY_LO);   // DISC29-E: the still, and the flats animating in place
         }
@@ -1377,17 +1383,40 @@ export class ShadowPass {
     // its bounding sphere (larger than the box), so a caster whose sphere touched the range and whose box did not was
     // recorded on screen and dropped off it: the signature flipped with the view and the cache was rebuilt for a
     // caster that put nothing in it - exactly the churn this test exists to end. The enclosing sphere is a superset.
-    const cx = (box[0] + box[3]) * 0.5 + ox, cy = (box[1] + box[4]) * 0.5 + oy, cz = (box[2] + box[5]) * 0.5 + oz;
-    const r = Math.hypot(box[3] - box[0], box[4] - box[1], box[5] - box[2]) * 0.5;
+    // the sphere is made at the first live lantern: by day there is none, and the sun's planes alone are asked
+    let cx = 0, cy = 0, cz = 0, r = -1;
     for (let k = 0; k < SHADOW_POINT_CASTERS; k++) {
       const far = pp[k * 4 + 3];
-      if (far > 0 && spheresTouch(cx, cy, cz, r, pp[k * 4], pp[k * 4 + 1], pp[k * 4 + 2], far)) return true;
+      if (!(far > 0)) continue;
+      if (r < 0) {
+        cx = (box[0] + box[3]) * 0.5 + ox; cy = (box[1] + box[4]) * 0.5 + oy; cz = (box[2] + box[5]) * 0.5 + oz;
+        r = Math.hypot(box[3] - box[0], box[4] - box[1], box[5] - box[2]) * 0.5;
+      }
+      if (spheresTouch(cx, cy, cz, r, pp[k * 4], pp[k * 4 + 1], pp[k * 4 + 2], far)) return true;
     }
     if (this.sunParams[3] > 0) {
       this._ensureSunPlanes();
       for (let c = 0; c < SHADOW_CASCADES.length; c++) if (!aabbOutside(this._sunPlanes[c], box, ox, oy, oz)) return true;
     }
     return false;
+  }
+  /** The flat record's wind on the flat program, sent only when it differs from what the program holds. */
+  _windUniforms(prog, r) {
+    const gl = this.gl, wind = r.flatWind;
+    const sent = prog.windUp ?? (prog.windUp = new Float32Array(12).fill(NaN));
+    if (wind[0] !== sent[0] || wind[1] !== sent[1] || wind[2] !== sent[2] || wind[3] !== sent[3]) { gl.uniform4fv(prog.flatWind, wind); sent[0] = wind[0]; sent[1] = wind[1]; sent[2] = wind[2]; sent[3] = wind[3]; }
+    if (!prog.wfAxis) return;
+    const sway = r.wfSway, axis = r.wfAxis;   // WINDFALL1: the mod's law, as the flats were drawn
+    if (sway[0] !== sent[4] || sway[1] !== sent[5] || sway[2] !== sent[6] || sway[3] !== sent[7]) { gl.uniform4fv(prog.wfSway, sway); sent[4] = sway[0]; sent[5] = sway[1]; sent[6] = sway[2]; sent[7] = sway[3]; }
+    if (axis[0] !== sent[8] || axis[1] !== sent[9] || axis[2] !== sent[10] || axis[3] !== sent[11]) { gl.uniform4fv(prog.wfAxis, axis); sent[8] = axis[0]; sent[9] = axis[1]; sent[10] = axis[2]; sent[11] = axis[3]; }
+  }
+  /** The pass's square viewport, sent when it differs from the one this render set last (the renderer puts its own
+   *  back after the passes, so the memory is one render's). */
+  _viewport(size) {
+    if (this._vpFrame === this.frameNo && this._vpSize === size) return;
+    this.gl.viewport(0, 0, size, size);
+    this._vpSize = size;
+    this._vpFrame = this.frameNo;
   }
   /** SHADOW-REACH: the same question for a sphere (a flat batch's, as batchVisible builds it). */
   reachesSphere(x, y, z, r) {
@@ -1825,7 +1854,7 @@ export class ShadowPass {
         if (c === last && this._sunDrawn[c] && !SHADOW_TUNING.steady && this.frameNo % SHADOW_FAR_CASCADE_EVERY !== 0) continue;
         this.sunVP[c].set(this._sunVPNew[c]);
         gl.bindFramebuffer(gl.FRAMEBUFFER, this.sunFbos[c]);
-        gl.viewport(0, 0, SHADOW_SUN_SIZE, SHADOW_SUN_SIZE);
+        this._viewport(SHADOW_SUN_SIZE);
         gl.clear(gl.DEPTH_BUFFER_BIT);
         this.stats.sunDraws += this.replay(f, this.sunVP[c], null, false, SHADOW_CASCADE_MIN_RADIUS_TEXELS * sunTexelWorld(c, k), sunTexelWorld(c, k), REPLAY_ALL, true, sunCand ? sunCand[c] : null);   // F5: the small solids; WEEDS1: and the small SPRITES, which F5's sphere test cannot see casters skipped by the cascade's texel
         this._sunDrawn[c] = 1; this.stats.cascadesDrawn++;
@@ -1948,7 +1977,7 @@ export class ShadowPass {
           pointFaceMatrices(pos, far, this.faceVP);
           for (let face = 0; face < 6; face++) {
             gl.bindFramebuffer(gl.FRAMEBUFFER, this.pointFbos[k * 6 + face]);
-            gl.viewport(0, 0, SHADOW_POINT_SIZE, SHADOW_POINT_SIZE);
+            this._viewport(SHADOW_POINT_SIZE);
             gl.clear(gl.DEPTH_BUFFER_BIT);
             this.stats.pointDraws += this.replay(f, this.faceVP[face], pos, false, 0, 0, REPLAY_ALL, selfNear, cand);
           }
@@ -1969,7 +1998,7 @@ export class ShadowPass {
           pointFaceMatrices(pos, far, this.faceVP); matrices = true;
           for (let face = 0; face < 6; face++) {
             gl.bindFramebuffer(gl.FRAMEBUFFER, this.cacheFbos[k * 6 + face]);
-            gl.viewport(0, 0, SHADOW_POINT_SIZE, SHADOW_POINT_SIZE);
+            this._viewport(SHADOW_POINT_SIZE);
             gl.clear(gl.DEPTH_BUFFER_BIT);
             this.stats.pointDraws += this.replay(f, this.faceVP[face], pos, false, 0, 0, REPLAY_STATIC, true, cand);
           }
@@ -1988,7 +2017,7 @@ export class ShadowPass {
           if (!matrices) pointFaceMatrices(pos, far, this.faceVP);
           for (let face = 0; face < 6; face++) {
             gl.bindFramebuffer(gl.FRAMEBUFFER, this.pointFbos[k * 6 + face]);
-            gl.viewport(0, 0, SHADOW_POINT_SIZE, SHADOW_POINT_SIZE);
+            this._viewport(SHADOW_POINT_SIZE);
             const drew = this.replay(f, this.faceVP[face], pos, false, 0, 0, REPLAY_DYNAMIC, selfNear, cand);
             this.stats.pointDraws += drew;
             this._faceDyn[k * 6 + face] = drew > 0 ? 1 : 0;   // PERF-FACE: a face no dynamic drew into is the cache again
@@ -2349,7 +2378,7 @@ export class ShadowPass {
     for (let face = 0; face < 6; face++) {
       if (!(faces & (1 << face))) continue;   // PERF-FACE
       gl.bindFramebuffer(gl.FRAMEBUFFER, this.pointFbos[k * 6 + face]);
-      gl.viewport(0, 0, S, S);
+      this._viewport(S);
       gl.uniform1i(C.layer, k * 6 + face);
       gl.drawArrays(gl.TRIANGLES, 0, 3);
       this.stats.blits++;
@@ -2458,7 +2487,7 @@ export class ShadowPass {
     let vname = -1;   // PERF-VOL: the planes' name (bounds.js volumeName), asked at the first placed batch
     let draws = 0;
     let bound = null;
-    const use = (prog) => { if (bound !== prog) { gl.useProgram(prog.p); gl.uniformMatrix4fv(prog.proj, false, vp); gl.uniformMatrix4fv(prog.view, false, this._identityView); bound = prog; } };
+    const use = (prog) => { if (bound !== prog) { gl.useProgram(prog.p); gl.uniformMatrix4fv(prog.proj, false, vp); if (!prog.viewUp) { gl.uniformMatrix4fv(prog.view, false, this._identityView); prog.viewUp = true; } bound = prog; } };   // the view is the identity for the program's whole life: sent once
     // PERF-SHADOW1: a lantern's face walks its candidates (_casterCandidates) - every record, and every flat of a list,
     // that this face could take, in their own order - and asks each the questions below exactly as before
     const nRec = cand ? cand.n : this.count;
@@ -2571,9 +2600,8 @@ export class ShadowPass {
         draws++;
       } else {
         use(P.bb);
-        gl.uniform1i(P.bb.tex, 0);
-        gl.uniform4fv(P.bb.flatWind, r.flatWind);
-        if (P.bb.wfAxis) { gl.uniform4fv(P.bb.wfSway, r.wfSway); gl.uniform4fv(P.bb.wfAxis, r.wfAxis); }   // WINDFALL1: the mod's law, as the flats were drawn
+        if (!P.bb.texUp) { gl.uniform1i(P.bb.tex, 0); P.bb.texUp = true; }   // the sampler's unit never changes: sent once for the program's life
+        this._windUniforms(P.bb, r);   // the record's wind, sent when it differs from the last record's
         gl.activeTexture(gl.TEXTURE0);
         let lastSway = null;
         // PERF-BASIS (2026-09-19): THE BASIS IS UPLOADED ONCE, NOT ONCE A
@@ -2604,6 +2632,7 @@ export class ShadowPass {
         // this loop binds another, and only this loop writes these two.
         // Reset per record, beside the sway's and the texture's.
         let lastW = NaN, lastH = NaN, lastOx = NaN, lastOy = NaN, lastOz = NaN;
+        let rightOx = NaN, rightOz = NaN;   // the origin the lantern-facing right was last made for (a pixel's still flats share one)
         const wl = Math.hypot(r.flatWind[0], r.flatWind[1]), law = windfallLawOn(r.windfall);   // PERF-EXT1: the record's wind, for its quads' lean; WINDFALL1: and whose law
         for (const b of (cand ? cand.bb[j] : r.batches)) {
           if (!b?.vao || b._dead || b.conceal || f.isSpectral(b.archive) || b.ghost) continue;   // a concealed foe and a ghost cast nothing (DEX2: a Spectral row's, foeLook.js)
@@ -2654,12 +2683,14 @@ export class ShadowPass {
           // just hoisted, because it cannot change between two flats.
           if (perBatchRight && b.selfCard) {
             gl.uniform3fv(P.bb.right, r.right);   // DISC24-C: the player's own card casts as it is drawn, never turned to the lamp
-          } else if (perBatchRight) {
-            // face the lantern: right = up x (light - flat)
+            rightOx = NaN;
+          } else if (perBatchRight && (o[0] !== rightOx || o[2] !== rightOz)) {
+            // face the lantern: right = up x (light - flat) - the same origin gives the same right, so it is made once per origin
             const dx = lightPos[0] - o[0], dz = lightPos[2] - o[2];
             const l = Math.hypot(dx, dz) || 1;
             this._right[0] = dz / l; this._right[1] = 0; this._right[2] = -dx / l;
             gl.uniform3fv(P.bb.right, this._right);
+            rightOx = o[0]; rightOz = o[2];
           }
           if (o[0] !== lastOx || o[1] !== lastOy || o[2] !== lastOz) { gl.uniform3f(P.bb.origin, o[0], o[1], o[2]); lastOx = o[0]; lastOy = o[1]; lastOz = o[2]; }   // PERF-EXT11
           const w = b.size.w, h = b.size.h;

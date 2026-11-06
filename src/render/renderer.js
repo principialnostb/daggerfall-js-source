@@ -9043,7 +9043,8 @@ void main() { vec4 t = texture(uTex, vUV); if (t.a < 0.5) discard; outColor = ve
     // through billboardKey themselves now, which also covers the batch
     // SHADOW-REACH records without drawing (recordShadowBillboards) - the
     // one this pass never saw, and so never keyed.
-    for (const b of batches) {
+    for (let batchIndex = 0, batchCount = batches.length; batchIndex < batchCount; batchIndex++) {   // by index: every caller hands an array, and a for-of here left an iterator result a batch
+      const b = batches[batchIndex];
       if (b.castOnly) continue;   // MWNPC5b: a foe stood in its Morrowind body - its billboard draws nothing (recorded above, the shadow pass passes it over - MWNPC16: the body casts)
       if (ghostShaded(b) || b.conceal) continue;
       if (bbCull && !this._bbVisible(b)) { this.stats.bbCulled++; continue; }   // PERF-CROWD2
@@ -9051,7 +9052,7 @@ void main() { vec4 t = texture(uTex, vUV); if (t.a < 0.5) discard; outColor = ve
       opaque.push(b);
     }
     sortByKey(opaque);   // LA-COST2: the key order the string sort gave (a depth tie keeps its first-drawn flat), by bucket (billboardKey.js)
-    for (const b of opaque) drawOne(b);
+    for (let batchIndex = 0, batchCount = opaque.length; batchIndex < batchCount; batchIndex++) drawOne(opaque[batchIndex]);
     opaque.length = 0;
     // LPT1: THE LOW-POLY TREES, on this program with this frame's light - and the lasts forgotten, since they bind their
     // own atlases and send their own size and origin. Drawn ONCE: the frame's set is spent here, so a later call this
@@ -9083,7 +9084,8 @@ void main() { vec4 t = texture(uTex, vUV); if (t.a < 0.5) discard; outColor = ve
     // the foe's phase); a spectral batch keeps its flag, which the
     // shader reads only when uConceal says plain.
     let blended = null;
-    for (const b of batches) {
+    for (let batchIndex = 0, batchCount = batches.length; batchIndex < batchCount; batchIndex++) {
+      const b = batches[batchIndex];
       if (!billboardBlended(b)) continue;   // MWNPC5b: nor in the blended phase (cast-only); GRASS-PORTAL: one test
       if (bbCull && !this._bbVisible(b)) { this.stats.bbCulled++; continue; }   // PERF-CROWD2: the ghosts and the concealed too
       (blended ??= []).push(b);
@@ -9091,7 +9093,7 @@ void main() { vec4 t = texture(uTex, vUV); if (t.a < 0.5) discard; outColor = ve
     if (blended) {
       const cp = this._camPos;
       const d2 = (b) => { const o = b.origin || ZERO_ORIGIN; const dx = o[0] - cp[0], dy = o[1] - cp[1], dz = o[2] - cp[2]; return dx * dx + dy * dy + dz * dz; };
-      blended.sort((a, b) => d2(b) - d2(a));
+      blended.sort((a, b) => { const farther = d2(b), nearer = d2(a); return farther < nearer ? -1 : farther > nearer ? 1 : 0; });   // the sign alone: a difference of doubles boxes a number a compare
       gl.enable(gl.BLEND);
       gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
       gl.depthMask(false);

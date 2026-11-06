@@ -41,6 +41,11 @@ const W = Number(process.env.W || 480),
   H = Number(process.env.H || 270);
 const EXTRA = process.env.EXTRA || '';
 const TUNING = process.env.TUNING ? JSON.parse(process.env.TUNING) : null;
+/** How long a scene may take to stand ready (ms): the castle and the land-view-6 scenes take longer than a town. */
+const READY_MS = Number(process.env.READY_MS || 1200000);
+const PROGRESS = process.env.PROGRESS === '1';
+/** A dungeon's frames before it is called ready, then settled (the exterior's stream never drains underground). */
+const DUNGEON_READY_FRAMES = 300;
 
 /** The scenes: Knightstale (Wayrest) by day and by night, two more towns, a coast, a dungeon (the classic boot). */
 export const SCENES = {
@@ -50,7 +55,66 @@ export const SCENES = {
   coast: '/play/?world&region=Sentinel&loc=Bubumbaret&class=1&novideo&shot&play&fps&tod=12:00',
   night: '/play/?world&region=Wayrest&loc=Knightstale&class=1&novideo&shot&play&fps&tod=22:00',
   dungeon: '/play/?world&classic&class=1&novideo&shot&play&fps',
+  // The owner's three (the frame the beta's page pays): a crowded town is `town`; the exterior at the longest land view
+  // and the Overworld raised over it are `far` and `overworld` (SCENE_PREP sets the land view); a big dungeon is
+  // `castle`, the classic door with its start cell moved to Castle Necromoghan (SCENE_PREP), so StartInDungeon enters it
+  castle: '/play/?world&classic&class=1&novideo&shot&play&fps',
+  far: '/play/?world&region=Daggerfall&loc=Daggerfall&class=1&novideo&shot&play&fps&tod=15:00',
+  overworld: '/play/?world&region=Daggerfall&loc=Daggerfall&class=1&novideo&shot&play&fps&tod=15:00',
 };
+
+/** A scene's storage before its boot - `prefs` laid over the UI prefs (systems/uiPrefs.js, dagger.ui.v1), `settings`
+ *  over the DFU-style settings' sections (systems/settings/settings.js, dagger.settings.v1) - and `rise`: the Overworld
+ *  raised once the stream stands, before the settle. The tutorial pages are off where a page's pause would bring the
+ *  Overworld down (tools/owHitchProbe.mjs's rule). Castle Necromoghan is Daggerfall's mapId 9570447 at map pixel 263,133
+ *  (formats/mapsFile.js longitudeLatitudeToMapPixel of its record's 33704, 46888). */
+export const SCENE_PREP = Object.freeze({
+  castle: { settings: { Startup: { StartCellX: '263', StartCellY: '133' } } },
+  far: { prefs: { landViewDistance: 6 } },
+  overworld: { prefs: { landViewDistance: 6 }, rise: true },
+});
+/** Every scene's prefs under its own: the tutorial pages off (a new character's open one after another, each over the
+ *  frame measured; a settled player's frame has none). */
+export const DEFAULT_PREFS = Object.freeze({ tutorialPopups: false });
+/** A scene's whole prep: SCENE_PREP's row over DEFAULT_PREFS. */
+export const prepOf = (name) => {
+  const own = SCENE_PREP[name] ?? {};
+  return { ...own, prefs: { ...DEFAULT_PREFS, ...(own.prefs ?? {}) } };
+};
+/** The init script writing SCENE_PREP's storage (runs in the page before its scripts). */
+export function prepStorage({ prefs = null, settings = null }) {
+  try {
+    if (prefs) {
+      const k = 'dagger.ui.v1';
+      localStorage.setItem(k, JSON.stringify({ ...JSON.parse(localStorage.getItem(k) ?? '{}'), ...prefs }));
+    }
+    if (settings) {
+      const k = 'dagger.settings.v1';
+      const s = JSON.parse(localStorage.getItem(k) ?? '{}');
+      for (const [section, kv] of Object.entries(settings)) s[section] = { ...(s[section] ?? {}), ...kv };
+      localStorage.setItem(k, JSON.stringify(s));
+    }
+  } catch {
+    /* the defaults */
+  }
+}
+/** Raise the Overworld on a page that stands ready and hold it: the player unseen (as tools/owHitchProbe.mjs holds them, so
+ *  no band's danger brings the view down), the opening windows closed, the view asked until it is up. */
+export async function rise(page, name) {
+  await page.evaluate(() => {
+    Object.defineProperty(window.__playerEntity, 'staffHidden', { get: () => true, set() {}, configurable: true });
+  });
+  let view = null,
+    asked = null;
+  for (let i = 0; i < 20 && view !== 'up'; i++) {
+    await page.evaluate(() => window.__arenaCloseOverlays?.());
+    asked = await page.evaluate(() => window.__overworld());
+    await waitFrames(page, 10);
+    view = await page.evaluate(() => window.__journeyState().view);
+  }
+  if (view !== 'up') throw new Error(`${name}: the Overworld did not rise (${view}: ${JSON.stringify(asked)})`);
+  console.log(`  [${name}] the Overworld is up`);
+}
 
 /** PERF-ON4: the probe-only edits, by file - each [needle, replacement] asserted where it is made (bible/Home.md's
  *  Process rule), and held to the tree by test/tooling/perfon4_probes.test.js, so a needle a change moves fails the suite and
@@ -66,6 +130,12 @@ export const FRAME_PROBE_EDITS = Object.freeze([
   {
     file: 'src/render/labGrass.js',
     edits: [['range = LAB_GRASS.range, perFrame = 2,', 'range = LAB_GRASS.range, perFrame = 1000,']],
+  },
+  {
+    // the Overworld's heartbeat, which brings the view down when the frames stop for 600 ms: held open, because
+    // SwiftShader's frames of the `overworld` scene run longer than that
+    file: 'src/scenes/travelView.js',
+    edits: [['export const TV_HEARTBEAT_MS = 600;', 'export const TV_HEARTBEAT_MS = 600000;']],
   },
 ]);
 /** A vite plugin making `table`'s edits (FRAME_PROBE_EDITS' shape), each needle asserted. */
@@ -200,6 +270,8 @@ async function runScene(browser, name) {
   const url = SCENES[name] + EXTRA;
   const ctx = await browser.newContext({ viewport: { width: W, height: H } });
   await ctx.addInitScript(CENSUS);
+  const prep = prepOf(name);
+  await ctx.addInitScript(prepStorage, prep);
   const page = await ctx.newPage();
   const errors = [];
   page.on('pageerror', (e) => errors.push(e.message));
@@ -209,17 +281,7 @@ async function runScene(browser, name) {
   const t0 = Date.now();
   await page.goto(`http://localhost:${PORT}${url}`);
   // indoors the world host's modal frame returns before the line that sets __shotReady: there the mode and the stream say it
-  await page.waitForFunction(
-    () =>
-      window.__shotReady === true ||
-      (typeof window.__mode === 'function' &&
-        window.__mode() !== 'exterior' &&
-        typeof window.__streamIdle === 'function' &&
-        window.__streamIdle() &&
-        (window.__frame | 0) > 5),
-    null,
-    { timeout: 1200000, polling: 500 },
-  );
+  await untilReady(page, name, t0);
   const tReady = Date.now();
   console.log(`  [${name}] ready after ${((tReady - t0) / 1000).toFixed(0)}s`);
   if (TUNING)
@@ -233,11 +295,51 @@ async function runScene(browser, name) {
         }, TUNING),
       )}`,
     );
+  if (prep?.rise) await rise(page, name);
   await settle(page);
+  if ((await page.evaluate(() => (typeof window.__mode === 'function' ? window.__mode() : null))) === 'dungeon')
+    await waitFrames(page, 120); // no grass to settle on: the level's own uploads
   await waitFrames(page, 10);
-  const r = await measure(ctx, page, { name, url, bootS: (tReady - t0) / 1000, errors });
+  const r = await measure(ctx, page, {
+    name,
+    url,
+    bootS: (tReady - t0) / 1000,
+    errors,
+    extra: () =>
+      page.evaluate(() => ({
+        mode: window.__mode?.() ?? null,
+        pixel: window.__currentPixel?.() ?? null,
+        view: window.__journeyState?.()?.view ?? null,
+      })), // where the page stood when measured
+  });
+  if (prep?.rise && r.extra?.view !== 'up')
+    r.errors.push(`the Overworld came down during the windows (${r.extra?.view})`); // not a measurement of the Overworld
   await ctx.close();
   return r;
+}
+
+/** The wait for a scene to stand ready, READY_MS at most; PROGRESS=1 says where the page is every 30 s. */
+async function untilReady(page, name, t0) {
+  let said = Date.now();
+  for (;;) {
+    const s = await page.evaluate(() => ({
+      ready: window.__shotReady === true,
+      mode: typeof window.__mode === 'function' ? window.__mode() : null,
+      idle: typeof window.__streamIdle === 'function' ? window.__streamIdle() : null,
+      frame: window.__frame | 0,
+      built: typeof window.__builtCount === 'function' ? window.__builtCount() : null,
+    }));
+    if (s.ready || (s.mode != null && s.mode !== 'exterior' && s.idle && s.frame > 5)) return;
+    if (s.mode === 'dungeon' && s.frame > DUNGEON_READY_FRAMES) return; // the stream never drains underground: the level has stood for these frames
+    if (Date.now() - t0 > READY_MS) throw new Error(`${name}: not ready after ${READY_MS} ms (${JSON.stringify(s)})`);
+    if (PROGRESS && Date.now() - said >= 30000) {
+      said = Date.now();
+      console.log(`  [${name}] ${((said - t0) / 1000).toFixed(0)}s: ${JSON.stringify(s)}`);
+    }
+    await new Promise((r) => {
+      setTimeout(r, 500);
+    });
+  }
 }
 
 /** The settle: grass and stream - until the grass cells stop changing over 10 frames, 300 frames at most. The online
