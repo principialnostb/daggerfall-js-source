@@ -63,7 +63,8 @@ import { closeContracts } from './contracts.js';
 import { settleDueOnce } from './seatTurning.js';
 import { keepSeatFacts } from './townSeats.js'; // SEAT-FACTS: the seats' facts, kept once for the service
 import { motherlodesOf, confirmedGroundBefore, lodeDayKept } from './motherlodes.js';
-import { layWitnessTiles, tilesDayLaid } from './witnessTiles.js'; // AUDIT FB1031 W3: the held map's tiles, once a day
+import { layWitnessTiles, tilesDayLaid } from './witnessTiles.js';
+import { fillGroundStep, groundFilled } from './groundConfirmed.js'; // AUDIT FB1031 W3: the held map's tiles, once a day
 import { sweepBoard } from './board.js';
 import { claudeSweep, claudeKeep } from './claudeStaff.js'; // Claude's sweep and its 30-day keep
 import { safetyMinute, safetySweep } from './safetyClock.js'; // SAFE5 + SAFE8: the reviewer's reads and the moderators' cards; the hour's sweep
@@ -240,8 +241,11 @@ export const MINUTE_JOBS = Object.freeze([
   [
     'motherlodes',
     async (ctx, env) => {
+      if (profSwitchOf(env?.PROFESSIONS_OPEN) !== 'on') return 0;
+      // the reports filed before ground_confirmed, read in a page a minute; a minute of the fill picks nothing
+      if (!(await groundFilled(ctx.db))) return fillGroundStep(ctx.db);
       const day = utcDay(ctx.nowS);
-      if (profSwitchOf(env?.PROFESSIONS_OPEN) !== 'on' || lodesPicked === day) return 0;
+      if (lodesPicked === day) return 0;
       const kept = (await lodeDayKept(ctx.db, day)) && (await tilesDayLaid(ctx.db, day));
       if (!kept && Math.floor((ctx.nowS % 86400) / 60) % LODE_CLOCK_EVERY_MIN !== 0) return 0;
       const lodes = await motherlodesOf(ctx, day, { clock: true }); // only the clock picks the day

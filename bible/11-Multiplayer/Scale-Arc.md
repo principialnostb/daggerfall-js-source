@@ -117,15 +117,22 @@ so a read never answers from a world the clock has not caught up with. Act recei
 (`server-account/src/townSeats.js`). That row answers for `SEAT_FACTS_FRESH_S` (half an hour), so a clock that fails
 in an overload does not send every isolate to read every seat row.
 
-**The day's Motherlodes pick** (`server-account/src/motherlodes.js`). Only the clock picks the day. A read before the
-pick answers no Motherlodes and scans nothing. While the day or its tiles are not kept, the minute's job reads their
-marks each minute but tries the scan only every `LODE_CLOCK_EVERY_MIN` (five) minutes, so a failed scan does not
-repeat into a busy database.
+**The confirmed ground, kept** (`server-account/src/groundConfirmed.js`, migration 0212). A pixel is confirmed once,
+by the first answer three accounts give, and stays confirmed. So `ground_confirmed` keeps one row a confirmed pixel:
+its answer and the second its third account confirmed it. A trigger on `world_witness` writes the row as the report
+that confirms the pixel goes in. The reports filed before the table are read into it by the minute's `ground-fill` job,
+`GROUND_FILL_ROWS` (10,000) at a time in key order, and a pixel a page cuts is read whole by the next. A row deleted
+with its account stays: the confirmed answer stands.
 
-**The held map's ground in tiles** (`server-account/src/witnessTiles.js`). The day's Motherlodes pick already scans
+**The day's Motherlodes pick** (`server-account/src/motherlodes.js`). Only the clock picks the day, from the
+`ground_confirmed` rows confirmed before the day began. A read before the pick answers no Motherlodes. While the day
+or its tiles are not kept, the minute's job reads their marks each minute but tries the pick only every
+`LODE_CLOCK_EVERY_MIN` (five) minutes, and only once the fill is done.
+
+**The held map's ground in tiles** (`server-account/src/witnessTiles.js`). The day's Motherlodes pick already reads
 every pixel confirmed before the day began, and its batch lays them as 64-pixel tiles keyed by the world pixel,
 dropping earlier days' (`server-account/migrations/0207_witness_tiles.sql`). A day picked before its tiles is laid by
-the minute's job with one scan of its own. The map's read, `POST /v1/prof/ground`, names up to `WITNESS_TILES_ASK`
+the minute's job with one read of its own. The map's read, `POST /v1/prof/ground`, names up to `WITNESS_TILES_ASK`
 (64) tiles: two primary-key reads in one round trip, on a replica, and a busy read. It never touches `world_witness`.
 Before the day is laid it says so, and the client asks again later. A laying statement binds at most
 `TILES_LAID_CHARS` characters of pixels.

@@ -152,8 +152,8 @@
   {
     "name": "SCALE4b-lodes-every-minute",
     "file": "server-account/src/cron.js",
-    "old": "      if (profSwitchOf(env?.PROFESSIONS_OPEN) !== 'on' || lodesPicked === day) return 0;",
-    "new": "      if (profSwitchOf(env?.PROFESSIONS_OPEN) !== 'on') return 0;",
+    "old": "      const day = utcDay(ctx.nowS);\n      if (lodesPicked === day) return 0;\n",
+    "new": "      const day = utcDay(ctx.nowS);\n",
     "tests": [
       "test/server/scale4b.test.js"
     ],

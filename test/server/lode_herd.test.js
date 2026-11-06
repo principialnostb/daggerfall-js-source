@@ -22,7 +22,7 @@ function ground() {
   for (const a of ['a1', 'a2', 'a3']) raw.prepare("INSERT INTO world_witness (kind, key, account, report, region, at) VALUES ('pixel', '10,10', ?, ?, 5, 1)").run(a, `${MOTHERLODE_CLIMATES[0]},5`);
   const scans = { n: 0 };
   const prepare = P.prepare.bind(P);
-  P.prepare = (sql) => { if (/FROM world_witness/.test(sql)) scans.n++; return prepare(sql); };
+  P.prepare = (sql) => { if (/FROM ground_confirmed WHERE/.test(sql)) scans.n++; return prepare(sql); };
   const kept = (day) => raw.prepare('SELECT COUNT(*) AS n FROM motherlode_days WHERE day = ?').get(day).n;
   return { P, raw, scans, kept };
 }

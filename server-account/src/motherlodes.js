@@ -60,7 +60,9 @@ import {
   harvestXp,
   glintsMax,
 } from '../../src/net/professionLaw.js';
-import { WITNESS, witnessedFact, factConfirmed } from '../../src/net/nodeLaw.js';
+import { confirmedGroundBefore } from './groundConfirmed.js';
+
+export { confirmedGroundBefore };
 import { verifyWatchReceipt } from '../../src/net/watchReceipt.js';
 import { witnessTileStatements } from './witnessTiles.js'; // AUDIT FB1031 W3: the held map's tiles, laid off the pick's scan
 import {
@@ -143,38 +145,6 @@ export async function motherlodesOf({ db: read, primary = read, rand }, day, { c
     ...witnessTileStatements(db, day, candidates, n).statements,
   ]);
   return keptOf(db);
-}
-
-/**
- * THE GROUND CONFIRMED BEFORE `day` BEGAN - each pixel whose reports before it three accounts agree on (nodeLaw
- * witnessedFact; a disputed one too, as factConfirmed), `[{ x, y, climate, region }]`: the day's one scan of
- * world_witness, read by the pick above and by the held map's tiles (witnessTiles.js; cron.js lays a day the pick left).
- * @param {any} db @param {number} day
- */
-export async function confirmedGroundBefore(db, day) {
-  const before = day * 86400;
-  const { results = [] } = await db
-    .prepare(
-      `SELECT key, account, report, at FROM world_witness
-    WHERE kind = 'pixel' AND at < ?1 AND key IN (SELECT key FROM world_witness WHERE kind = 'pixel' AND at < ?1
-      GROUP BY key, report HAVING COUNT(DISTINCT account) >= ?2)`,
-    )
-    .bind(before, WITNESS.confirm)
-    .all();
-  const rowsBy = new Map();
-  for (const r of results) {
-    const a = rowsBy.get(r.key) ?? [];
-    a.push({ account: r.account, report: r.report, at: Number(r.at) });
-    rowsBy.set(r.key, a);
-  }
-  const candidates = [];
-  for (const [key, rows] of rowsBy) {
-    const f = witnessedFact(rows);
-    if (!factConfirmed(f)) continue;
-    const [x, y] = String(key).split(',').map(Number);
-    candidates.push({ x, y, climate: /** @type {number} */ (f.climate), region: /** @type {number} */ (f.region) });
-  }
-  return candidates;
 }
 
 /**
