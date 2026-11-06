@@ -88,6 +88,12 @@ export const d1Position = (db) => `${Number(db._raw.prepare('SELECT total_change
 
 /** A UTC day's middle. */
 export const T0 = 1_800_000_000;
+
+/** The service's clock picking today's Motherlodes, as its minute's job does - only the clock picks a day. */
+export async function clockPicksLodes(s, nowS = Math.floor(Date.now() / 1000)) {
+  const { motherlodesOf } = await import('../server-account/src/motherlodes.js');
+  return motherlodesOf({ db: s.env.DB, rand: Math.random }, Math.floor(nowS / 86400), { clock: true });
+}
 /** INT19: the routes that take a crafted piece out of its realm record (the pins' `call` names the record for them). */
 const CRAFTED_ACTS = new Set(['/v1/market/list', '/v1/market/auction', '/v1/writs/fulfil']);
 

@@ -7,7 +7,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { standService, T0 } from '../accountDb.mjs';
+import { standService, T0, clockPicksLodes } from '../accountDb.mjs';
 import { mintWatchReceipt } from '../../src/net/watchReceipt.js';
 import { utcDay } from '../../src/net/marksLaw.js';
 import { xpForRank, harvestXp, glintsMax, specOk } from '../../src/net/professionLaw.js';
@@ -95,7 +95,7 @@ async function stand(extra = {}) {
     ON CONFLICT (player, char_id, profession) DO UPDATE SET xp = excluded.xp`).run(who.id, who.character, xp, _now);
   const balance = (who) => Number(raw.prepare('SELECT balance FROM marks WHERE account = ?').get(who.id)?.balance ?? 0);
   const stores = (who, m) => Number(raw.prepare("SELECT qty FROM prof_stores WHERE player = ? AND char_id = ? AND material = ? AND origin = 'own'").get(who.id, who.character, m)?.qty ?? 0);
-  const read = (who) => s.call('/v1/prof/motherlodes', { character: who.character }, who.secret);
+  const read = async (who) => { await clockPicksLodes(s); return s.call('/v1/prof/motherlodes', { character: who.character }, who.secret); };
   const watch = (who, lode, { nowS = _now, x = lode.x, y = lode.y } = {}) => mintWatchReceipt({ s: who.id, x, y, c: 4242 }, s.gateKey, { subtle, nowS });
   const strike = async (who, lode, extra2 = {}) => s.call('/v1/prof/harvest', {
     character: who.character, node: lode.key, kind: 'ore', act: { glints: glintsMax(MOTHERLODE_TIER), clean: true }, at: _now - 2, rid: rid(),

@@ -8,7 +8,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { standService, T0 } from '../accountDb.mjs';
+import { standService, T0, clockPicksLodes } from '../accountDb.mjs';
 import { mintWatchReceipt } from '../../src/net/watchReceipt.js';
 import { utcDay } from '../../src/net/marksLaw.js';
 import { xpForRank, glintsMax, SCHOOL_HAULS_DAY } from '../../src/net/professionLaw.js';
@@ -41,6 +41,7 @@ test('AUDIT GATHER F2: a Motherlode is struck only once it has risen on the serv
   for (let i = 0; i < 6; i++) for (const w of wit) raw.prepare('INSERT INTO world_witness (kind, key, account, report, region, at) VALUES (?, ?, ?, ?, ?, ?)').run('pixel', `${200 + i},80`, w.id, `${M},21`, 21, DAY0 * DAY - 3600);
   const ann = await s.seated('Ann');
   raw.prepare("INSERT INTO prof_tracks (player, char_id, profession, xp, updated_at) VALUES (?, ?, 'mining', ?, ?)").run(ann.id, ann.character, xpForRank(MOTHERLODE_RANK), _now);
+  await clockPicksLodes(s);
   const lode = (await s.call('/v1/prof/motherlodes', { character: ann.character }, ann.secret)).body.lodes[0];
   const strike = async (at) => {
     const watch = await mintWatchReceipt({ s: ann.id, x: lode.x, y: lode.y, c: 4242 }, s.gateKey, { subtle, nowS: _now });

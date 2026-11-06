@@ -202,8 +202,8 @@
   {
     "name": "AUDIT-SCALE-II-A5-primary-mark-unasked",
     "file": "server-account/src/motherlodes.js",
-    "old": "  if (db !== read && (await marked(db))) return keptOf(db);\n  // LODE-HERD (2026-10-29, bible/11-Multiplayer/Scale-Arc.md): A READ PICKS ONLY UNDER THE DAY'S CLAIM. Every read before",
-    "new": "  // LODE-HERD (2026-10-29, bible/11-Multiplayer/Scale-Arc.md): A READ PICKS ONLY UNDER THE DAY'S CLAIM. Every read before",
+    "old": "  if (db !== read && (await marked(db))) return keptOf(db);\n  // Only the clock picks.",
+    "new": "  // Only the clock picks.",
     "tests": [
       "test/server/auditscale2_acct.test.js"
     ],

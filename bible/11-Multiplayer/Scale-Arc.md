@@ -113,8 +113,14 @@ hour the sweeps and retention (rate windows, idle sessions, old invitations). Th
 so a read never answers from a world the clock has not caught up with. Act receipts, `world_witness` and guests with no session are not pruned.
 
 **Kept reads.** Some hot reads are kept in the isolate instead of asked every time: a region's witnessed ground
-(`server-account/src/professions.js`), and the day's Motherlodes pick, which one read a window claims
-(`server-account/src/motherlodes.js`).
+(`server-account/src/professions.js`), and the seats' facts, which the minute's clock keeps in one row
+(`server-account/src/townSeats.js`). That row answers for `SEAT_FACTS_FRESH_S` (half an hour), so a clock that fails
+in an overload does not send every isolate to read every seat row.
+
+**The day's Motherlodes pick** (`server-account/src/motherlodes.js`). Only the clock picks the day. A read before the
+pick answers no Motherlodes and scans nothing. While the day or its tiles are not kept, the minute's job reads their
+marks each minute but tries the scan only every `LODE_CLOCK_EVERY_MIN` (five) minutes, so a failed scan does not
+repeat into a busy database.
 
 **The held map's ground in tiles** (`server-account/src/witnessTiles.js`). The day's Motherlodes pick already scans
 every pixel confirmed before the day began, and its batch lays them as 64-pixel tiles keyed by the world pixel,

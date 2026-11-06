@@ -53,6 +53,10 @@ export function witnessTileStatements(db, day, ground, n) {
   return { statements, tiles: rows.length };
 }
 
+/** Whether `day`'s tiles are laid (their mark, one primary-key read). */
+export const tilesDayLaid = async (/** @type {any} */ db, /** @type {number} */ day) =>
+  !!(await db.prepare('SELECT 1 FROM witness_tile_days WHERE day = ?1').bind(day).first());
+
 /**
  * THE MINUTE'S LAYING (cron.js): `day`'s tiles where nothing laid them - one read while it is laid; else `scan()` (the
  * pick's own, motherlodes.js confirmedGroundBefore) and the laying. Answers the tiles laid.
@@ -60,7 +64,7 @@ export function witnessTileStatements(db, day, ground, n) {
  * @param {() => Promise<ReadonlyArray<{ x: number, y: number }>>} scan
  */
 export async function layWitnessTiles({ db, rand }, day, scan) {
-  if (await db.prepare('SELECT 1 FROM witness_tile_days WHERE day = ?1').bind(day).first()) return 0;
+  if (await tilesDayLaid(db, day)) return 0;
   const { statements, tiles } = witnessTileStatements(db, day, await scan(), mintId(rand));
   await db.batch(statements);
   return tiles;

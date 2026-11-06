@@ -272,7 +272,7 @@ test('AUDIT SCALE II A-3 a heartbeat\'s parts are the service\'s word on the bod
   assert.equal(points.at(-1).blobs[5], 'beat,mail');
 });
 
-test('AUDIT SCALE II A-5 the day\'s Motherlodes are picked on the primary - a pixel confirmed in the old day\'s last second, which a lagging replica has not heard, is among them all day; a day kept is read where the request reads, and a day the replica missed but the primary kept is read there without a second pick (mutants: the pick on the request\'s session; the pick answered off it; the primary\'s mark unasked)', async () => {
+test('AUDIT SCALE II A-5 the day\'s Motherlodes are picked by the clock on the primary - a pixel confirmed in the old day\'s last second is among them all day; a read never picks, a day the replica missed but the primary kept is read there, and a day kept is read where the request reads (mutants: a read picks; the primary\'s mark unasked)', async () => {
   const P = d1();
   const L = laggy(P);
   try {
@@ -289,9 +289,11 @@ test('AUDIT SCALE II A-5 the day\'s Motherlodes are picked on the primary - a pi
     const primary = new Proxy(L.db, { get(t, k) { if (k === 'prepare') return (sql) => { onPrimary.push(sql); return t.prepare(sql); }; const v = Reflect.get(t, k); return typeof v === 'function' ? v.bind(t) : v; } });
     // the ctx index.js hands the route: the session of the tab's bookmark, and the binding beside it
     const ctxOf = () => ({ db: service.routeDb(L.db, '/v1/prof/motherlodes', 'POST', mark), primary, rand: Math.random });
-    const lodes = await motherlodesOf(ctxOf(), D);
     const at = (list) => list.map((l) => `${l.x},${l.y}`).sort();
-    assert.deepEqual(at(lodes), ['10,10', '20,20'], 'answered: both confirmed pixels');
+    assert.deepEqual(await motherlodesOf(ctxOf(), D), [], 'before the clock: a read answers none');
+    assert.ok(!onPrimary.some((q) => /world_witness/.test(q)), 'and scans nothing');
+    const lodes = await motherlodesOf({ db: primary, rand: Math.random }, D, { clock: true });
+    assert.deepEqual(at(lodes), ['10,10', '20,20'], 'the clock: both confirmed pixels');
     assert.deepEqual(at(raw.prepare('SELECT x, y FROM motherlodes WHERE day = ?').all(D)), ['10,10', '20,20'], 'kept for the day: both');
     assert.ok(onPrimary.some((q) => /FROM world_witness/.test(q)), 'the witnesses read on the primary');
     assert.ok(!L.log.at(-1).statements.some(([, q]) => /world_witness/.test(q)), 'never on the session');
