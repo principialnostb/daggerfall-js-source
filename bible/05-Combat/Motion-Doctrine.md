@@ -1332,3 +1332,46 @@ fists moved 0.04-0.12 - the clip's own arms, near still while the legs walked.
 Measured, no arm in the trunk; the largest move in a frame 0.044 walking (0.039 before). Tests:
 test/characters/bodyMotion/guardelbows.test.js, test/combat/armclips.test.js.
 
+
+**THE ARMS ARC, WHAT IT TAUGHT** (2026-11-06 to 2026-11-07, test-PR: TRUNK-SKIN, LEG-CLOCK, FREE-ARM-CLIP, ARM-HOLD,
+HAND-FINGERS, ARM-REST / ARM-SIDES / ARM-FADE / FISTS-ARMS, GUARD-ELBOWS / FISTS-PUMP, CHAR-PIX-AVG). The record for
+whoever takes the arms next.
+
+Decisions that held:
+- **An arm is made of the game's own movements, never of angles.** The owner praised one thing in the whole arc - the
+  free hand beside a sword - and it was the only arm built from clips (ARM-HOLD: a clip's mean pose, swung by a share of
+  the walk the legs play). Every arm made of carry rows or angle tables (the resting row, FIST_BESIDE_SHIELD, the fists'
+  guard rows, a relaxed finger share) read as "a stick", and was withdrawn. A new arm starts from a clip; an angle is
+  only ever a correction laid on a clip's arm (GUARD-ELBOWS turns the elbow about the shoulder-to-wrist line, the fist
+  kept where the clip holds it).
+- **Measure offline first, on a woman's body.** tools/motionProbe.mjs runs the third-person pipeline as fpArm.js
+  composes it (PROBE_KIND, PROBE_RIG=female, PROBE_ONLY, PROBE_JITTER, PROBE_SWAY): skin depth into the Better Bodies
+  trunk, swing, the largest move in a frame, the shield's rock, the fingers. The owner plays a woman; the rows tuned on
+  the retail man's rig stood her arms straight out. One in-game check after, not many.
+- **The legs own the clock.** LEG-CLOCK: the gait's phase is locked to the feet the clip plants (its soundgen keys).
+- **The trunk is the body's own skin** (TRUNK-SKIN, a profile baked from the meshes), not only an ellipse; clearArms
+  runs last over everything that moves an arm.
+- **A change of an arm's clip fades** (ARM-FADE), and a standing arm runs on its clip's own clock - its breath.
+- **The hosts do not grow.** createFpArm is over its ceiling; every change went into a module (guardElbows.js,
+  handFingers.js, legClock.js, trunkProfile.js) or into an existing entry.
+
+Errors made, and what fixed them:
+- Skin turns on held arms wrung the wrist into the skin (a pinned volume test): a held grip turns only while it swings
+  (SKIN_TURN_HELD), the wrist pole takes a trunk guard with trunkGive.
+- A free-root trunk correction for the right arm made both directions worse: reverted.
+- The probe once passed travel per frame where the body reads cumulative metres, and ran without `location`, which
+  turned freshReturn off: both read as motion bugs that were not.
+- `git add -A` staged another session's campfire files: stage named paths only.
+- The fists' fingers half open "like claws", then a relaxed blend "crooked and spread": the FIST and OPEN tables are
+  the game's own (idlehh, idle), a hand closes only where it holds something.
+
+Diagnoses worth keeping:
+- **Grey grains on black underwear under pixelation** were not the texture (DXT1, no transparent texel at any mip) but
+  the block taking one texel of a fine-grained texture (CHAR-PIX-AVG).
+- **A whole-frame hitch every ~1.05 s in a recording** (every 29 frames at 27.7 fps, the background changing too) is the
+  capture's keyframe, not the game. Measure an arm against the background before calling it a twitch.
+
+Open: the owner's "the arm twitches in the neutral pose" (01-36-50) - small single-frame moves of a standing arm
+(2.78 s, ~7.9 s) that the probe does not reproduce at a jittered frame or a wandering camera; the standing pipeline
+offline is a pure function of time. Wants a recording of the twitch alone.
+
