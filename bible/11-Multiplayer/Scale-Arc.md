@@ -124,6 +124,11 @@ that confirms the pixel goes in. The reports filed before the table are read int
 `GROUND_FILL_ROWS` (10,000) at a time in key order, and a pixel a page cuts is read whole by the next. A row deleted
 with its account stays: the confirmed answer stands.
 
+**A pixel's fact read from the kept rows.** Once the fill is done, `/v1/prof/pixels` and a harvest read a pixel's
+`ground_confirmed` row by its key, and the route asks only whether an unkept pixel has any report at all. A disputed
+pixel reads as confirmed: its confirmed answer stands, and every reader treats the two alike. While the fill runs, both
+read the pixel's reports.
+
 **The day's Motherlodes pick** (`server-account/src/motherlodes.js`). Only the clock picks the day, from the
 `ground_confirmed` rows confirmed before the day began. A read before the pick answers no Motherlodes. While the day
 or its tiles are not kept, the minute's job reads their marks each minute but tries the pick only every

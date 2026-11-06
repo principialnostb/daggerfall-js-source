@@ -10,7 +10,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
 import { standService, T0 } from '../accountDb.mjs';
-import { veins, nodeCount, nodeKey, dveinKey, herbPatches } from '../../src/net/nodeLaw.js';
+import { veins, nodeCount, nodeKey, dveinKey, herbPatches, witnessedFact } from '../../src/net/nodeLaw.js';
 import { xpForRank, PROF_XP_MAX, DEEP_UNCONFIRMED_PER_DAY, RESPEC } from '../../src/net/professionLaw.js';
 import { sharedClassicMinutes } from '../../src/net/wire.js';
 import { utcDay } from '../../src/net/marksLaw.js';
@@ -153,7 +153,9 @@ test('AUDIT 29 A4: a claim against confirmed ground is refused AND written down 
   assert.equal(s.raw.prepare("SELECT COUNT(*) AS n FROM world_witness WHERE kind = 'pixel' AND key = ? AND region = ?").get(key, GLENUMBRA).n, 2, 'both dissents kept');
   const mac = await s.seated('Mac');
   const px = (await s.call('/v1/prof/pixels', { character: mac.character, pixels: [[500, 200]] }, mac.secret)).body.pixels[0];
-  assert.equal(px.state, 'disputed');
+  const reports = s.raw.prepare("SELECT account, report, at FROM world_witness WHERE kind = 'pixel' AND key = ?").all(key).map((row) => ({ ...row, at: Number(row.at) }));
+  assert.equal(witnessedFact(reports).state, 'disputed', 'the two dissents dispute it');
+  assert.equal(px.state, 'confirmed', 'and the route answers its confirmed answer, as every reader treats a disputed pixel');
   clock(NOON);
 });
 

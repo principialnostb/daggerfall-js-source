@@ -12,8 +12,8 @@
   {
     "name": "GATHER-SPEED-ground-track-apart",
     "file": "server-account/src/professions.js",
-    "old": "    readAll(db, [...(key === null ? [] : [factsStatement(db, [key], wkind)]), trackStatement(db, player.id, character, profession), firmStatement(db, player.id, character)])",
-    "new": "    Promise.all([...(key === null ? [] : [factsStatement(db, [key], wkind)]), trackStatement(db, player.id, character, profession), firmStatement(db, player.id, character)].map(async (st) => (await st.all()).results ?? []))",
+    "old": "    readAll(db, [...groundRead, trackStatement(db, player.id, character, profession), firmStatement(db, player.id, character)])",
+    "new": "    Promise.all([...groundRead, trackStatement(db, player.id, character, profession), firmStatement(db, player.id, character)].map(async (st) => (await st.all()).results ?? []))",
     "tests": [
       "test/net/gatherspeed.test.js"
     ],
@@ -62,8 +62,8 @@
   {
     "name": "GATHER-SPEED-pixels-apart",
     "file": "server-account/src/professions.js",
-    "old": "  const [prows = [], drows = []] = await readAll(db, [...(keys.length ? [factsStatement(db, keys, 'pixel')] : []), ...(dkeys.length ? [factsStatement(db, dkeys, 'dungeon')] : [])])",
-    "new": "  const [prows = [], drows = []] = await Promise.all([...(keys.length ? [factsStatement(db, keys, 'pixel')] : []), ...(dkeys.length ? [factsStatement(db, dkeys, 'dungeon')] : [])].map(async (st) => (await st.all()).results ?? []))",
+    "old": "  const rows = await readAll(db, [...pixelReads, ...(dkeys.length ? [factsStatement(db, dkeys, 'dungeon')] : [])]);",
+    "new": "  const rows = await Promise.all([...pixelReads, ...(dkeys.length ? [factsStatement(db, dkeys, 'dungeon')] : [])].map(async (st) => (await st.all()).results ?? []));",
     "tests": [
       "test/net/gatherspeed.test.js"
     ],

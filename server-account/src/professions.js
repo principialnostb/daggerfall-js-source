@@ -44,7 +44,8 @@ import { renownHeldSql } from './renownTracks.js';   // AUDIT LEGACY III O5: the
 import { isDeveloper } from './titles.js';
 import { marksOpenFor, balanceOf, gatherStrikeStatement, gatherStrikeRid, findLineStatements, findLineFrom } from './marks.js';   // SILVER-FINDS: a harvest's find; GATHER-SPEED: read in its batch
 import { dice } from './unitRoll.js';   // SILVER-FINDS: the service's dice, below this file and marks.js (which needs them too)
-import { CHAR_ID_RE, readAll, DB_ROOT } from './service.js';   // GATHER-SPEED: a harvest's reads in one round trip; GROUND-KEPT: the binding
+import { CHAR_ID_RE, readAll, DB_ROOT } from './service.js';
+import { groundFillKnown, fillMarkStatement, groundMarkDone, confirmedStatement, reportedStatement, keptFacts } from './groundConfirmed.js';   // GATHER-SPEED: a harvest's reads in one round trip; GROUND-KEPT: the binding
 import { MARKS_MAX, utcDay, gatherFindOf } from '../../src/net/marksLaw.js';
 import { renownForXp, RENOWN_XP_MAX, RENOWN_TRACKS_MAX } from '../../src/net/renown.js';
 import {
@@ -408,11 +409,17 @@ export async function profPixels({ db }, player, env, { character, pixels, dunge
   }
   const keys = [...new Set(want)];
   const dkeys = [...new Set(dungeons.map(String))];
-  // GATHER-SPEED: the pixels' and the dungeons' witnesses in one round trip
-  const [prows = [], drows = []] = await readAll(db, [...(keys.length ? [factsStatement(db, keys, 'pixel')] : []), ...(dkeys.length ? [factsStatement(db, dkeys, 'dungeon')] : [])])
-    .then((r) => (keys.length ? r : [[], ...r]));
-  const facts = factsFrom(keys, prows);
-  const dfacts = factsFrom(dkeys, drows);
+  // GATHER-SPEED: the pixels' and the dungeons' witnesses in one round trip - a pixel's kept confirmation once the fill
+  // is done (groundConfirmed.js), its reports only before
+  // (its mark asked in the same trip until this isolate has seen the fill done)
+  const known = groundFillKnown(db);
+  const pixelReads = !keys.length ? [] : [...(known ? [] : [fillMarkStatement(db)]), confirmedStatement(db, keys), reportedStatement(db, keys)];
+  const rows = await readAll(db, [...pixelReads, ...(dkeys.length ? [factsStatement(db, dkeys, 'dungeon')] : [])]);
+  const off = known ? 0 : 1;
+  const facts = !keys.length ? factsFrom(keys, [])
+    : known || groundMarkDone(db, rows[0]?.[0]) ? keptFacts(keys, rows[off] ?? [], rows[off + 1] ?? [])
+      : await factsOf(db, keys, 'pixel');   // the fill still running: the reports, as before it
+  const dfacts = factsFrom(dkeys, dkeys.length ? rows[pixelReads.length] ?? [] : []);
   return {
     pixels: keys.map((k) => { const [x, y] = k.split(',').map(Number); return { x, y, ...factView(facts.get(k)) }; }),
     dungeons: dkeys.map((k) => ({ id: Number(k), ...factView(dfacts.get(k)) })),
@@ -628,15 +635,23 @@ export async function harvestNode(ctx, player, env, body = {}) {
   // three asks in flight together where they were four trips in a row. None reads what another writes; the hour's
   // refusal still comes first, and a refused harvest's reads are only read
   // FIRM1: and the character's Firmament beside its track (firmament.js firmStatement) - its yield and XP the service's
+  // a pixel's kept confirmation, one row, once the fill is done (groundConfirmed.js) - a dungeon's, its reports
+  const pixelGround = key !== null && wkind === 'pixel';
+  const knownGround = pixelGround && groundFillKnown(db);
+  const groundRead = key === null ? [] : !pixelGround ? [factsStatement(db, [key], wkind)]
+    : [...(knownGround ? [] : [fillMarkStatement(db)]), confirmedStatement(db, [key])];
   const [over, [factRows, trackRows, firmRows], levyKey] = await Promise.all([
     overRate(ctx, `prof:${player.id}`, PROF_OPS_MAX, PROF_OPS_WINDOW_S),
-    readAll(db, [...(key === null ? [] : [factsStatement(db, [key], wkind)]), trackStatement(db, player.id, character, profession), firmStatement(db, player.id, character)])
-      .then((rows) => (key === null ? [[], ...rows] : rows)),
+    readAll(db, [...groundRead, trackStatement(db, player.id, character, profession), firmStatement(db, player.id, character)])
+      .then((rows) => [rows.slice(0, groundRead.length), ...rows.slice(groundRead.length)]),
     // A dungeon's vein and a body name no ground of a town
     !deep && !isBody && seatsOpenFor(player, env) ? levyAt(db, nowS, region, [n.x, n.y], env) : null,
   ]);
   if (over) return { error: 'prof-rate' };
-  const fact = key === null ? null : factsFrom([key], factRows).get(key);
+  const fact = key === null ? null
+    : !pixelGround ? factsFrom([key], factRows[0] ?? []).get(key)
+      : knownGround || groundMarkDone(db, factRows[0]?.[0]) ? keptFacts([key], factRows.at(-1) ?? [], []).get(key)
+        : (await factsOf(db, [key], 'pixel')).get(key);   // the fill still running: the reports, as before it
   const confirmed = factConfirmed(fact);
   const witness = !isBody && Number.isSafeInteger(player.registered_at) && player.registered_at <= nowS - WITNESS.ageS ? 1 : 0;
   const jungleSaid = deep ? false : jungle;   // a dungeon's ground names no jungle
