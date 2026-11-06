@@ -3,6 +3,7 @@
 // DFU PlayerMotor controls travel, not a 3D body; this presentation choice leaves speed and blows unchanged.
 import { composeMovementGroup, MW_WEAPON_TYPE } from '../formats/morrowind/mwFirstPerson.js';
 import { guardStance } from '../characters/bodyMotion/guardStance.js';   // GUARD-STANCE: the one-handers as the two-hander
+import { ARM_HOLD } from './leftArmLayer.js';   // ARM-HOLD: the armed upper body held, swung by the legs' own walk
 
 // GUARD-DIRECTION-BASE: the armed back and side walks too; only the armed walk swaps, the armed side and back runs stay accepted.
 const GUARD_BASES = /^(?:runforward|walk(?:forward|back|left|right))$/;
@@ -21,5 +22,5 @@ export function guardMovementGroup(base, type, hasGroup, on = false) {
 /** @param {{ on?: boolean, shield?: boolean, type?: number, base?: string | null, moving?: boolean, attacking?: boolean }} [o] */
 export function armedUpperPlan({ on = false, shield = false, type = -1, base = null, moving = false, attacking = false } = {}) {
   if (!on || !shield || !moving || attacking || type === MW_WEAPON_TYPE.LongBladeTwoHand || !guardStance(type) || !GUARD_BASES.test(String(base ?? ''))) return null;
-  return { kind: 'movement', base, stance: 'drawn', still: false, rigOrder: true, sway: 0.55 };
+  return { kind: 'movement', base, stance: 'drawn', still: false, rigOrder: true, sway: 0, hold: ARM_HOLD.upper };
 }

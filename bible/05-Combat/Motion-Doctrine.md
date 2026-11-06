@@ -922,7 +922,7 @@ The forward/backward combat walk uses the raised lateral arm in its authored tru
 straight armed trunk's turns to that arm. The correction is written at the left clavicle; the torso itself is
 unchanged. The arm and its reference trunk retain 45 percent of their live cycle around its mean, rather than
 holding a frozen pose. The adaptation and swing share ease in and out through the existing layer times.
-`leftArmLayer.js:"export const SHIELD_WALK_SWAY = 0.45;"` controls only a shield's straight walking plan.
+The constant (SHIELD_WALK_SWAY, 0.45) controlled only a shield's straight walking plan; ARM-HOLD below withdrew it.
 Running keeps its accepted plan, lateral movement its own clip, and attacks/bashes their existing ownership.
 This is an adjustment of the existing articulated-body presentation departure from DFU WeaponManager.UpdateHands /
 PlayerMotor: imported third-person arm posing is our presentation; motor speed and combat timing do not change.
@@ -1194,3 +1194,36 @@ it had - src/combat/fpArm.js:"const motion = createBodyMotion(undefined, lowerBo
 own src/combat/lowerBodyLayer.js:"stridePhase: () => (stride ? clipStridePhase(stride.state, stride.keys) : null)," read each step; world.js,
 exterior.js, worldModes.js and dungeonContext.js inherit the shared modules with no scene host changes. The owner's
 in-game acceptance is pending.
+
+
+**ARM-HOLD** (2026-11-06, the owner's 21-46-18 recording: "why does the shield shake", and the free arms "as an
+empty-handed body's" want a carriage of their own - "an organic picture made of the movements the body already has").
+Measured with tools/motionProbe.mjs, now carrying leftArmLayer.js's two layers (the shield's arm, the armed upper body)
+as fpArm.js steps them, and the shield bone's lean on the chest: the shake was the shield's long axis leaning to the side
+18.7 degrees a stride walking, 15.4 running, 13.8 stepping aside - not the hand's place (0.15 arm lengths), its turn.
+Its source: the shield's arm was a strafe's, laid live on a straight walk, its trunk corrected by the two clips' LIVE
+trunk difference; each clip's own stride survived the correction and rocked the arm, and the shield is a long lever on
+the forearm. To the side, the armed upper body's own stride did the same.
+
+THE LAW, for every arm a layer carries: its pose is the mean of the clip it is held in (the strafe's arm the owner kept
+for the shield; the armed upper body's), and it is SWUNG by a share of the very walk the legs play, off that walk's mean
+- never by another clip's live stride (src/combat/leftArmLayer.js:"export const ARM_HOLD = Object.freeze({ shield: 0.1, free: 0.6, freePose: 0.45, upper: 0.55 });").
+The trunks' correction is taken at their means, so the held arm rides the walk's own trunk, the legs' clip
+(src/combat/leftArmLayer.js:"const adapted = qmul(qconj(chain(rawB, bw)), qmul(chain(track.__chainO, ow), o.rotation));").
+The shield is held to the side too (the strafe is then the legs' own walk). A one-hander's free arm is held
+0.45 of the way from the free walk's mean to the one-handed walk's - where the one-handed stance holds it standing (0.41
+of an arm forward walking, 0.38 standing) - and swung by 0.6 of the walk (0.40 arm lengths fore and aft against an
+empty-handed body's 0.71). The armed upper body keeps the owner's 0.55, now of the legs' walk.
+
+Measured, a woman's body: the shield's lean to the side 18.7 to 2.6 degrees walking, 15.4 to 3.2 running, 7.7 to 2.1
+backing, 13.8 to 4.9 stepping aside, 15.6 to 3 running back (a shield with no weapon: 26 to 4.4 aside); its swing fore
+and aft stays (2 to 7 degrees); the free arm out of the trunk, its frame-to-frame jerk lower (0.11 to 0.07 running).
+Running blows with a shield or a one-hander move a little more as the held arm hands over to the attack clip (the jerk
+up 0.02-0.035 arm lengths a frame, the right arm 0.3-0.4 units deeper in a running slash or chop with a shield).
+Tests: test/combat/shieldwalk.test.js (the real layered walk: the shield's turn on the chest under half the strafe's,
+still animated; the plans; the held torso quieter than the whole walk's), test/combat/lowerbody.test.js (the held mean
+and the legs' share; the arm riding the walk's trunk), test/formats/morrowind/fparm.test.js (the plans). SHIELD-WALK's
+live 0.45 (SHIELD_WALK_SWAY) is withdrawn.
+Reference remains DFU WeaponManager.UpdateHands: DFU draws no articulated arm. The shared module serves world.js,
+exterior.js, worldModes.js and dungeonContext.js; no host changes. The owner's in-game acceptance is pending.
+

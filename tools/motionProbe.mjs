@@ -16,7 +16,10 @@ const { extractTracks, collectTextKeys, normalizeTextKeys, resetClip, sampleTrac
 const { buildSkeleton, poseSkeleton, skeletonSpaceMatrices: sm, accumRootRef, GRAPH_ROOT, injectSkeletonNodes } = await R('src/formats/morrowind/mwSkin.js');
 const { poseAssembly, MW_WEAPON_TYPE: T, MW_UNITS_PER_METER } = await R('src/formats/morrowind/mwFirstPerson.js');
 const { createLowerBodyLayer, lowerBodyBones } = await R('src/combat/lowerBodyLayer.js');
-const { guardMovementGroup } = await R('src/combat/guardLocomotion.js');
+const { guardMovementGroup, armedUpperPlan } = await R('src/combat/guardLocomotion.js');
+const { createLeftArmLayer, leftArmPlan, leftArmModeOf } = await R('src/combat/leftArmLayer.js');
+const { upperBodyBones } = await R('src/combat/lowerBodyLayer.js');
+const { composeMovementGroup, composeStanceGroup, pickAnimSource, blendMaskBones } = await R('src/formats/morrowind/mwFirstPerson.js');
 const { clipStridePhase } = await R('src/combat/movementContinuity.js').catch(() => ({}));
 const { createBodyWeight } = await R('src/characters/bodyMotion/bodyWeight.js');
 const { createBodyMotion, sceneInput } = await R('src/characters/bodyMotion/bodyMotion.js');
@@ -51,7 +54,8 @@ function make() {
   const armW = Object.fromEntries(Object.entries(arms).map(([k, v]) => [k, v.map((bt) => share(bt, /upperarm|forearm|hand/i))]));
   const skin = { chestB, trunkW, arms, armW };
   const lower = createLowerBodyLayer({ sampleTrack });
-  return { sk, skin, body: bodyOf(sk, GRAPH_ROOT, sm), lower, weight: createBodyWeight(), motion: createBodyMotion(undefined, lower),
+  const armLayer = () => createLeftArmLayer({ pickAnimSource, resetClip, composeMovementGroup, composeStanceGroup, sampleTrack });
+  return { sk, skin, body: bodyOf(sk, GRAPH_ROOT, sm), lower, weight: createBodyWeight(), motion: createBodyMotion(undefined, lower), leftArm: armLayer(), upperBody: armLayer(), leftMask: blendMaskBones(sk), upperMask: upperBodyBones(sk),
     assembly: { skeleton: sk, fns: { poseSkeleton, skelMats: sm }, pieces: [] }, accumRoot: accumRootRef(sk, trackMap), mask: lowerBodyBones(sk) };
 }
 
@@ -104,6 +108,8 @@ function skinDepth(b, pose, mats) {
   }
   return res;
 }
+// the shield bone's three axes in the chest's frame (its turn on the body)
+const shieldOf = (b, M, F) => { const r = b.sk.byName.get('shield bone'), m = r != null ? M.get(r) : null; if (!m) return null; const a = m.a, col = (j) => [a[j], a[3 + j], a[6 + j]]; return [0, 1, 2].map((j) => { const v = col(j); return [dot(v, F.right), dot(v, F.fwd), dot(v, F.up)]; }); };
 const local = (b, mats, F, ref) => { const d = sub(mats.get(ref).t, mats.get(b.chest).t); return [dot(d, F.right), dot(d, F.fwd), dot(d, F.up)].map((v) => v / b.arm); };
 const yawOf = (M, ref) => { const a = M.get(ref).a; return Math.atan2(a[3], a[0]); };
 const wrap = (x) => Math.atan2(Math.sin(x), Math.cos(x));
@@ -126,16 +132,21 @@ function run(carry, steps, dt = 1 / 60) {
     const atk = blow ? (blow.section === 'windup' ? [kt('start'), kt('max attack')] : blow.section === 'release' ? [kt('max attack'), kt('hit')] : [kt('hit'), kt('large follow stop')]) : null;
     const clipTime = atk && atk[0] != null ? atk[0] + (atk[1] - atk[0]) * blow.progress : movement.time;
     if (!!blow !== wasBlow) { from = b.assembly.shownPose ? new Map(b.assembly.shownPose) : null; fade = 0; wasBlow = !!blow; }
+    // LEFT-ARM / SHIELD-RUN-LEGS: the shield's or the free hand's arm, then the armed upper body, as fpArm.js steps them
+    const moving = g.speed > 0;
+    b.leftArm.step(dt, { plan: leftArmPlan({ mode: leftArmModeOf({ view: 'third', type: c.weapon, shield: !!c.shield }), view: 'third', moving, base: moving ? g.group : null, attacking: !!blow }), sources: [source], hasGroup: has, stance: c.weapon, movement, movementSource: source });
+    b.upperBody.step(dt, { plan: armedUpperPlan({ on: true, shield: !!c.shield, type: c.weapon, base: moving ? g.group : null, moving, attacking: !!blow }), sources: [source], hasGroup: has, stance: c.weapon, movement, movementSource: source });
     b.lower.stepRig(dt, true, null, blow ? {} : null, null, null, movement, source, null, null);
     b.motion.step(dt, word);
     b.weight.stepRig(dt, true, cam, [], c.weapon, false, word, movement, source, animSpeed);
     if (process.env.PROBE_DEBUG) globalThis.__clearDebug = [];
-    poseAssembly(b.assembly, { tracks: b.lower.tracks(trackMap, b.mask), sampleTrack: b.lower.sampler(sampleTrack), time: clipTime,
+    const tB = b.leftArm.tracks(b.upperBody.tracks(trackMap, b.upperMask), b.leftMask), ov = tB !== trackMap ? (b.leftArm.sampler(b.upperBody.sampler()) ?? sampleTrack) : sampleTrack;
+    poseAssembly(b.assembly, { tracks: b.lower.tracks(tB, b.mask), sampleTrack: b.lower.sampler(ov), time: clipTime,
       accumRoot: b.accumRoot, skin: false, blendFrom: fade < 1 ? from : null, blendWeight: fade < 1 ? Math.max(0.05, fade) : 1, motion: b.weight.slot(b.motion.slot) });
     fade = Math.min(1, fade + dt / 0.2);
     const M = b.assembly.mats, F = bodyFrames(b.body, M); if (!F) continue;
     const dp = depth(b.body, M), ds = skinDepth(b, b.assembly.pose, M);
-    frames.push({ t: +t.toFixed(4), gait: st.gait, blow: blow?.section ?? null, dbg: globalThis.__clearDebug, gph: b.motion.stride().phase, cph: clipStridePhase ? clipStridePhase(movement, keys) : null, feet: dot(sub(M.get(b.body.bones.L.foot).t, M.get(b.body.bones.R.foot).t), F.fwd) / b.body.leg, dL: dp.L, dR: dp.R, sL: ds.L, sR: ds.R,
+    frames.push({ t: +t.toFixed(4), gait: st.gait, blow: blow?.section ?? null, dbg: globalThis.__clearDebug, sh: shieldOf(b, M, F), gph: b.motion.stride().phase, cph: clipStridePhase ? clipStridePhase(movement, keys) : null, feet: dot(sub(M.get(b.body.bones.L.foot).t, M.get(b.body.bones.R.foot).t), F.fwd) / b.body.leg, dL: dp.L, dR: dp.R, sL: ds.L, sR: ds.R,
       hL: local(b.body, M, F, b.body.bones.L.hand), hR: local(b.body, M, F, b.body.bones.R.hand),
       eL: local(b.body, M, F, b.body.bones.L.fore), eR: local(b.body, M, F, b.body.bones.R.fore),
       twist: wrap(yawOf(M, b.body.chest) - yawOf(M, b.body.bones.pelvis)) });
@@ -165,7 +176,18 @@ for (const [k, fr] of Object.entries(scen)) {
   const worst = s.reduce((a, f) => (Math.max(f.dL, f.dR) > Math.max(a.dL, a.dR) ? f : a), s[0]);
   const jump = (key) => Math.max(...s.slice(1).map((f, i) => Math.hypot(...sub(f[key], s[i][key]))));
   const sw = s.reduce((a, f) => (Math.max(f.sL, f.sR) > Math.max(a.sL, a.sR) ? f : a), s[0]);
-  summary[k] = { skinL: +max((f) => f.sL).toFixed(2), skinR: +max((f) => f.sR).toFixed(2), skinAt: sw.t, depthL: +max((f) => f.dL).toFixed(3), depthR: +max((f) => f.dR).toFixed(3), worstAt: worst.t, worstGait: worst.gait,
+  // the shield's rock: its largest turn in a frame (degrees) and the range of its tilt off its mean over the stride
+  const sh = s.map((f) => f.sh).filter(Boolean), ang = (A, B) => Math.acos(Math.max(-1, Math.min(1, (A.reduce((q, v, i) => q + dot(v, B[i]), 0) - 1) / 2))) * 180 / Math.PI;
+  const shJump = sh.length > 1 ? Math.max(...sh.slice(1).map((x, i) => ang(x, sh[i]))) : 0, tail = sh.slice(-120), shRange = tail.length ? Math.max(...tail.map((x) => Math.max(...tail.map((y) => ang(x, y))))) : 0;
+  // its long axis (the one standing most upright on the stride's mean): its lean to the side (rock) and fore and aft (pitch)
+  let shRock = 0, shPitch = 0;
+  if (tail.length) {
+    const j = [0, 1, 2].reduce((best, i) => (Math.abs(tail.reduce((q, x) => q + x[i][2], 0)) > Math.abs(tail.reduce((q, x) => q + x[best][2], 0)) ? i : best), 0);
+    const sg = Math.sign(tail.reduce((q, x) => q + x[j][2], 0)) || 1;
+    const rock = tail.map((x) => Math.atan2(x[j][0] * sg, x[j][2] * sg) * 180 / Math.PI), pitch = tail.map((x) => Math.atan2(x[j][1] * sg, x[j][2] * sg) * 180 / Math.PI);
+    shRock = Math.max(...rock) - Math.min(...rock); shPitch = Math.max(...pitch) - Math.min(...pitch);
+  }
+  summary[k] = { shRock: +shRock.toFixed(1), shPitch: +shPitch.toFixed(1), shJump: +shJump.toFixed(2), shTurn: +shRange.toFixed(1), skinL: +max((f) => f.sL).toFixed(2), skinR: +max((f) => f.sR).toFixed(2), skinAt: sw.t, depthL: +max((f) => f.dL).toFixed(3), depthR: +max((f) => f.dR).toFixed(3), worstAt: worst.t, worstGait: worst.gait,
     swingL: +(max((f) => f.hL[1]) - min((f) => f.hL[1])).toFixed(3), swingR: +(max((f) => f.hR[1]) - min((f) => f.hR[1])).toFixed(3),
     twist: +((max((f) => f.twist) - min((f) => f.twist)) * 180 / Math.PI).toFixed(1), jumpL: +jump('hL').toFixed(3), jumpR: +jump('hR').toFixed(3) };
 }

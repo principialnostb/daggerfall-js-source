@@ -162,8 +162,8 @@ test('LOWER-BODY preserves the shield arm sampler and its clock through the comp
 });
 
 
-test('SHIELD-STRIDE: walking and running straight keep the live strafe, picked as a strafe of that gait picks it (SHIELD-RUN-AS-WALK)', async () => {
-  const { createLeftArmLayer, leftArmPlan, SHIELD_WALK_SWAY } = await import('../../src/combat/leftArmLayer.js');
+test("SHIELD-STRIDE / ARM-HOLD: walking and running straight the strafe's arm is held at its mean, picked as a strafe of that gait picks it (SHIELD-RUN-AS-WALK), and swung by ARM_HOLD.shield of the legs' own walk (mutant: the strafe's own live swing)", async () => {
+  const { createLeftArmLayer, leftArmPlan, ARM_HOLD } = await import('../../src/combat/leftArmLayer.js');
   const { pickAnimSource, composeMovementGroup, composeStanceGroup, MW_WEAPON_TYPE } = await import('../../src/formats/morrowind/mwFirstPerson.js');
   const { resetClip } = await import('../../src/formats/morrowind/mwAnim.js');
   const arm = 'bip01 l hand';
@@ -181,18 +181,18 @@ test('SHIELD-STRIDE: walking and running straight keep the live strafe, picked a
       movement.time = time;
       for (let i = 0; i < 120; i++) layer.step(1 / 60, { plan, sources: [game, pack], hasGroup: () => true,
         stance: MW_WEAPON_TYPE.LongBladeOneHand, movement, movementSource: pack });
-      seen.push(layer.sampler()(layer.tracks(new Map(), new Set([arm])).get(arm), time).translation);
+      seen.push(layer.sampler()(layer.tracks(new Map([[arm, { id: 5 }]]), new Set([arm])).get(arm), time).translation);
     }
-    const sway = base.startsWith('walk') ? SHIELD_WALK_SWAY : 1;
-    const expected = [0.2, 0.6].map((t) => [20, Math.round((0.5 + (t - 0.5) * sway) * 1e9) / 1e9, 0]);
+    // the pack's strafe arm (20) at its mean (0.5 of its loop), moved by the walk's own track off its mean
+    const expected = [0.2, 0.6].map((t) => [20, Math.round((0.5 + (t - 0.5) * ARM_HOLD.shield) * 1e9) / 1e9, 0]);
     assert.deepEqual(seen.map((row) => row.map((v) => Math.round(v * 1e9) / 1e9)), expected);
-    assert.ok(seen[1][1] > seen[0][1], 'the quieter walk still animates, rather than pinning one pose');
+    assert.ok(seen[1][1] > seen[0][1], 'the held arm still swings with the legs, rather than pinning one pose');
   }
 });
 
 
-test('SHIELD-WALK: the strafe arm keeps its authored orientation and quieter live swing on a different trunk', async () => {
-  const { createLeftArmLayer, leftArmPlan, ARM_ROOT, ARM_CHAIN, SHIELD_WALK_SWAY } = await import('../../src/combat/leftArmLayer.js');
+test("SHIELD-WALK / ARM-HOLD: the strafe arm's held pose rides the walk's own trunk - the trunks' difference at their means, never their live difference (it rocked the shield 16 degrees a stride)", async () => {
+  const { createLeftArmLayer, leftArmPlan, ARM_ROOT, ARM_CHAIN } = await import('../../src/combat/leftArmLayer.js');
   const { pickAnimSource, composeMovementGroup, composeStanceGroup, MW_WEAPON_TYPE } = await import('../../src/formats/morrowind/mwFirstPerson.js');
   const { resetClip } = await import('../../src/formats/morrowind/mwAnim.js');
   const raw = (tr, time) => {
@@ -213,8 +213,10 @@ test('SHIELD-WALK: the strafe arm keeps its authored orientation and quieter liv
         sources: [source], hasGroup: () => true, stance: MW_WEAPON_TYPE.LongBladeOneHand, movement, movementSource: { keys: [] } });
       const q = layer.sampler()(layer.tracks(base, new Set([ARM_ROOT])).get(ARM_ROOT), time).rotation;
       const worldAngle = time + 2 * Math.atan2(q[3], q[0]);
-      const authored = 0.3 + 0.5 * (0.5 + (time - 0.5) * SHIELD_WALK_SWAY);
-      assert.ok(Math.abs(worldAngle - authored) < 1e-5, `${direction}: the arm keeps the strafe frame, not an extra ${time} radians of trunk sway`);
+      // the strafe's root at its mean (0.3 + 0.5 x 0.5) on the strafe's still trunk, laid on the walk's trunk at its mean (0.5):
+      // the arm then turns with the walk's own trunk, by exactly as much as it turns
+      const held = time + (0.3 + 0.5 * 0.5) - 0.5;
+      assert.ok(Math.abs(worldAngle - held) < 1e-3, `${direction}: the held arm at ${worldAngle} where it rides the walk's trunk at ${held}`);
     }
   }
 });

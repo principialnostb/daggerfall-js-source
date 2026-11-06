@@ -5,7 +5,7 @@ import { parseNif } from '../../src/formats/morrowind/mwNifFile.js';
 import { collectTextKeys, normalizeTextKeys, extractTracks, resetClip, sampleTrack, advanceClip, animVelocity } from '../../src/formats/morrowind/mwAnim.js';
 import { buildSkeleton, poseSkeleton, skeletonSpaceMatrices as sm, accumRootRef, GRAPH_ROOT } from '../../src/formats/morrowind/mwSkin.js';
 import { retailSkeleton } from '../fixtures/mw/retailRig.mjs';
-import { createLeftArmLayer, leftArmPlan } from '../../src/combat/leftArmLayer.js';
+import { createLeftArmLayer, leftArmPlan, ARM_HOLD } from '../../src/combat/leftArmLayer.js';
 import { pickAnimSource, composeMovementGroup, composeStanceGroup, blendMaskBones, MW_WEAPON_TYPE, MW_UNITS_PER_METER } from '../../src/formats/morrowind/mwFirstPerson.js';
 import { armedUpperPlan } from '../../src/combat/guardLocomotion.js';
 import { createLowerBodyLayer, lowerBodyBones, upperBodyBones } from '../../src/combat/lowerBodyLayer.js';
@@ -32,10 +32,10 @@ function rig(base, previous, torsoSway = 0.55) {
     const cam = { yaw: 0, move: { speed, forward: base === 'walkback' ? -1 : 1, running: false, grounded: true, bodyYaw: 0, travel: [0, 0, f * speed * dt] } };
     const word = sceneInput({ weapon: type, shield: true, speed, forward: cam.move.forward });
     let plan = leftArmPlan({ mode: 'shield', moving: true, base });
-    if (previous) plan = { ...plan, adapt: false, sway: 1 };
+    if (previous) plan = { ...plan, adapt: false, sway: 1, hold: 0 };   // the strafe's own live arm, as it stood before
     const input = { sources: [source], hasGroup: (g) => source.groupSet.has(g), stance: type, movement: state, movementSource: source };
     left.step(dt, { ...input, plan });
-    upper.step(dt, { ...input, plan: { ...armedUpperPlan({ on: true, shield: true, type, base, moving: true }), sway: torsoSway } });
+    upper.step(dt, { ...input, plan: { ...armedUpperPlan({ on: true, shield: true, type, base, moving: true }), hold: torsoSway } });
     lower.stepRig(dt, true, null, null, null, null, state, source, null, null);
     motion.step(dt, word); weight.stepRig(dt, true, cam, [], type, false, word, state, source, pace);
     const tracks = lower.tracks(left.tracks(upper.tracks(trackMap, upperBodyBones(sk)), mask), lowerBodyBones(sk));
@@ -45,7 +45,7 @@ function rig(base, previous, torsoSway = 0.55) {
   } };
 }
 
-test('SHIELD-WALK: real layered guard walks keep the strafe arm alive with less swing, without changing the legs or weapon arm', () => {
+test("SHIELD-WALK / ARM-HOLD: real layered guard walks hold the shield arm steady on the chest, swung by the legs' own walk, without changing the legs or weapon arm (it turned with the strafe's own stride)", () => {
   for (const base of ['walkforward', 'walkback']) {
     const before = rig(base, true), after = rig(base, false), samples = [[], []];
     for (let f = 0; f < 300; f++) {
@@ -56,7 +56,9 @@ test('SHIELD-WALK: real layered guard walks keep the strafe arm alive with less 
       if (f < 180) continue;
       for (const [index, frame, r] of [[0, old, before], [1, now, after]]) {
         const hand = frame.mats.get(r.body.bones.L.hand), chest = frame.mats.get(r.body.chest);
-        samples[index].push({ position: hand.t.map((v, i) => v - chest.t[i]), turn: hand.a });
+        // the hand's turn on the chest (row-major 3x3: chest^T x hand) - what the shield does to the eye, the trunk's own turn off
+        const C = chest.a, H = hand.a, rel = [0, 1, 2].flatMap((i) => [0, 1, 2].map((j) => C[i] * H[j] + C[3 + i] * H[3 + j] + C[6 + i] * H[6 + j]));
+        samples[index].push({ position: hand.t.map((v, i) => v - chest.t[i]), turn: rel });
       }
     }
     const range = (rows) => {
@@ -69,21 +71,23 @@ test('SHIELD-WALK: real layered guard walks keep the strafe arm alive with less 
       return { angle, travel };
     };
     const old = range(samples[0]), now = range(samples[1]);
-    assert.ok(now.angle < old.angle * 0.9, `${base}: shield rotation ${now.angle} was ${old.angle}`);
+    assert.ok(now.angle < old.angle * 0.5, `${base}: shield rotation on the chest ${now.angle} was ${old.angle}`);
     assert.ok(now.travel < old.travel, `${base}: shield travel ${now.travel} was ${old.travel}`);
-    assert.ok(now.angle > 0.03 && now.travel > 1, `${base}: the arm must remain animated`);
+    assert.ok(now.angle > 0.01 && now.travel > 0.3, `${base}: the arm must remain animated (${now.angle}, ${now.travel})`);
   }
 });
 
-test('SHIELD-WALK: running, lateral movement, attacks and first person keep their existing plans', () => {
+test("SHIELD-WALK / ARM-HOLD: running the strafe run's arm, to the side the strafe's own, each held and swung by the legs' walk; attacks and first person keep their existing plans", () => {
+  const held = { sway: 0, hold: ARM_HOLD.shield };
   for (const base of ['runforward', 'runback']) assert.deepEqual(leftArmPlan({ mode: 'shield', moving: true, base }),
-    { kind: 'movement', base: 'runleft', stance: 'drawn', still: false, rigOrder: true });
-  for (const base of ['walkleft', 'walkright', 'runleft', 'runright']) assert.equal(leftArmPlan({ mode: 'shield', moving: true, base }), null);
+    { kind: 'movement', base: 'runleft', stance: 'drawn', still: false, rigOrder: true, ...held });
+  for (const base of ['walkleft', 'walkright', 'runleft', 'runright']) assert.deepEqual(leftArmPlan({ mode: 'shield', moving: true, base }),
+    { kind: 'movement', base, stance: 'drawn', still: false, rigOrder: true, ...held });
   for (const extra of [{ attacking: true }, { view: 'first' }, { moving: false }]) assert.equal(leftArmPlan({ mode: 'shield', moving: true, base: 'walkforward', ...extra }), null);
 });
 
 
-test('SHIELD-COHERENCE: quieter live torso reduces the armed clip wave without changing the stride',()=>{
+test("SHIELD-COHERENCE / ARM-HOLD: the armed torso held, swung by 0.55 of the legs' walk, is quieter than swung by all of it, without changing the stride",()=>{
  for(const base of ['walkforward','walkback']){
   const old=rig(base,false,1),calm=rig(base,false,.55),rows=[[],[]];
   for(let f=0;f<300;f++){

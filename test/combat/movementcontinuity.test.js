@@ -35,7 +35,7 @@ test('GUARD-CONTINUITY: only enabled stance-weapon locomotion chooses the accept
   assert.equal(guardMovementGroup('runforward', MW_WEAPON_TYPE.LongBladeTwoHand, (g) => g === 'runforward2c', true).group, 'runforward2c');
   // SHIELD-RUN-LEGS: a shield takes no stance off the worked gait; its upper body is the armed clip's, laid over it
   assert.equal(guardMovementGroup('runforward', MW_WEAPON_TYPE.LongBladeOneHand, has, true).group, 'runforward');
-  assert.deepEqual(armedUpperPlan({ on: true, shield: true, type: MW_WEAPON_TYPE.LongBladeOneHand, base: 'runforward', moving: true }), { kind: 'movement', base: 'runforward', stance: 'drawn', still: false, rigOrder: true, sway: 0.55 });
+  assert.deepEqual(armedUpperPlan({ on: true, shield: true, type: MW_WEAPON_TYPE.LongBladeOneHand, base: 'runforward', moving: true }), { kind: 'movement', base: 'runforward', stance: 'drawn', still: false, rigOrder: true, sway: 0, hold: 0.55 });
   for (const o of [{ shield: false }, { attacking: true }, { on: false }, { type: MW_WEAPON_TYPE.LongBladeTwoHand }, { base: 'runback' }]) assert.equal(armedUpperPlan({ on: true, shield: true, type: MW_WEAPON_TYPE.LongBladeOneHand, base: 'runforward', moving: true, ...o }), null, JSON.stringify(o));
 });
 
