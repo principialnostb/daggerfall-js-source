@@ -1207,7 +1207,7 @@ the forearm. To the side, the armed upper body's own stride did the same.
 
 THE LAW, for every arm a layer carries: its pose is the mean of the clip it is held in (the strafe's arm the owner kept
 for the shield; the armed upper body's), and it is SWUNG by a share of the very walk the legs play, off that walk's mean
-- never by another clip's live stride (src/combat/leftArmLayer.js:"export const ARM_HOLD = Object.freeze({ shield: 0.1, free: 0.6, freeRun: 0.85, freePose: 0.45, upper: 0.55 });").
+- never by another clip's live stride (src/combat/leftArmLayer.js:"export const ARM_HOLD = Object.freeze({ shield: 0.1, free: 0.6, freeRun: 0.85, freePose: 0.45, upper: 0.55, rest: 0.5, restRight: 0.8 });").
 The trunks' correction is taken at their means, so the held arm rides the walk's own trunk, the legs' clip
 (src/combat/leftArmLayer.js:"const adapted = qmul(qconj(chain(rawB, bw)), qmul(chain(track.__chainO, ow), o.rotation));").
 The shield is held to the side too (the strafe is then the legs' own walk). A one-hander's free arm is held
@@ -1253,10 +1253,10 @@ lowering, as the shield's"; "work on the fingers everywhere").
   beside a shield, an empty hand relaxed (41). A torch, a spell, a bow, a recoil keep the clip's.
 - **FIST-BESIDE-SHIELD.** A shield and no weapon stands the fists behind it; their right arm was the boxer's guard, the
   fist 0.16 arm lengths above the chest bone. It is carried as the one-hander's free left arm is, mirrored - its rows found
-  from where that hand stands on the chest (src/characters/bodyMotion/carry.js:"export const FIST_BESIDE_SHIELD = Object.freeze({").
+  from where that hand stands on the chest (carry.js FIST_BESIDE_SHIELD, withdrawn by FISTS-ARMS below).
 - **FREE-HAND-REST.** Standing, the one-handed stance held the free hand bent before the belly as walking does, and it
   stood there. Standing still it is now the carry's resting row (CARRY.one.idle.L, the arm down, the elbow eased), by as
-  much as the body stands (src/characters/bodyMotion/bodyMotion.js:"const restL = freeArm && !input.blow && !bpNow && gait.sneak < 0.5 ? clamp01(1 - gait.move) : 0;"),
+  much as the body stands (bodyMotion.js `restL`, withdrawn by ARM-REST below),
   the resting row as it first stood (the elbow 12 degrees - corrected below):
   stopping lowers it from 0.58 to 0.18 arm lengths forward over some 0.6 seconds, under 0.06 a frame. Never in a blow.
 
@@ -1273,7 +1273,7 @@ beside a shield to be the free hand beside a sword "in its image"; "carry every 
 legs - over to the fists' stance". So:
 
 - **The rest bent.** The free hand's resting row eases the elbow 25 degrees, the hand 0.26 arm lengths before the thigh
-  (src/characters/bodyMotion/carry.js:"idle: { R: row(5, 21, 8, -7, 0, { blade: dir(0.26, 0.74, -0.62), edge: dir(-0.26, -0.56, -0.78) }), L: row(2, 10, 25, 6, 0) },").
+  (the carry's resting row - withdrawn by ARM-REST below).
 - **The fingers, simply.** Only a hand closed on something moves its fingers: the fists drawn are the game's fist, a hilt
   and a shield's strap toward it; the free hand beside a shield is the game's OPEN hand (the plain idle's fingers, baked
   as the fist is), as the free hand beside a sword is the walk's own; every other hand keeps the clip's fingers - the
@@ -1285,4 +1285,33 @@ legs - over to the fists' stance". So:
   the legs' and the trunk's rules) and the stance's walk, the body's empty hands drawn read as fists there. Their
   walk-to-run change no longer throws the fists half an arm in a frame (0.54 to 0.10, the weapons' own).
 GUARD-WALK-POSE's pin now counts the fists in the stance. The motion tests: none newly failing.
+
+
+**ARM-REST / ARM-SIDES / ARM-FADE / FISTS-ARMS** (2026-11-07, the owner's 23-16-22 recording: "the first frames - the
+hand walking and running beside a sword - are really well done; every other movement of the arms is very bad"). What
+was good was made of the game's own movements (ARM-HOLD: a clip's mean pose, swung by the clip the legs play); what was
+bad was made of angles - the resting row, FIST_BESIDE_SHIELD's rows, the fists' guard rows, a finger share - stiff, and
+tuned on the retail man's rig, so on a woman's they stood the arm straight out before her. Every free arm is now made
+the first way, and the angle rows for free arms are withdrawn:
+
+- **ARM-REST.** Standing, the free hand beside a sword is the plain idle's arm on its own clock - its breath - laid half
+  over the one-handed stance's bent arm (src/combat/leftArmLayer.js:"if (!moving) return jumping ? null : { kind: 'stance', base: 'idle', stance: 'bare', still: false, sway: 1, w: ARM_HOLD.rest };"):
+  0.22 arm lengths before the thigh, the elbow behind the hand.
+- **ARM-SIDES.** The arm layer lays the right arm's bones from the left's mask, or both
+  (src/combat/leftArmLayer.js:"export function mirrorMask(mask) {"), and a held clip's `freeSide` arm takes the legs'
+  walk's own pose under it.
+- **ARM-FADE.** A clip changed under an arm the layer holds - a walk to a stand - fades from the last over ARM_FADE
+  (src/combat/leftArmLayer.js:"export const ARM_FADE = 0.3;"), never a leap; standing, the layer's clip runs on its own
+  clock (ARM-REST's breath).
+- **FISTS-ARMS.** The fists' arms are the hand-to-hand clips', live on the stride of the worked gait their legs walk
+  (FISTS-GUARD); standing, the hand-to-hand idle is the body's own; the carry's fist rows hold only a blow. Beside a
+  shield the trunk stays the armed one the weapon's shield is tuned on, the right arm in it a free hand (the free walk's
+  own arm, swung by the layer's share); standing, the plain idle's arm on its breath
+  (src/combat/guardLocomotion.js:"if (type === MW_WEAPON_TYPE.HandToHand) {"). fpArm.js hands the plan the drawn hands'
+  own type in the entry it had (`animWeaponType`, as the left arm's plan reads it); the host does not grow.
+
+Measured, a woman's body: no arm in the trunk; the shield beside the fists stands and rocks as beside a sword (2.1 to
+4.9 degrees); the arms the clips move now move (the fists walking 0.04 arm lengths a frame, as the free hand beside a
+sword; standing still 0.001 before). BODY-MOTION THE CLIP KEEPS WHAT IT CARRIES now reads the right beside a shield as a
+free hand. Tests: test/combat/armclips.test.js.
 

@@ -8568,7 +8568,7 @@ export function createFpArm({ playerAppearance = false } = {}) {
       leftArm.step(dt, { plan: leftArmPlan({ mode: leftArmMode(), view: viewMode, moving: !!movementState, base: movementBase, attacking: attackingNow(), jumping: !!jumpState, bashing: blowBash && attackingNow() }),
         sources: rig()?.sources, hasGroup, stance: movementState ? movementStance : stanceOf(), movement: movementState, movementSource, walkPref: movementClipPreference });   // SHIELD-STRAFE-SOURCE
 
-      upperBody.step(dt, { plan: armedUpperPlan({ on: viewMode === 'third' && modSetting('morrowind-animation', 'MotionDoctrine') !== 0, shield: carriesShield(rig()), type: movementStance, base: movementBase, moving: !!movementState, attacking: attackingNow() }), sources: rig()?.sources, hasGroup, stance: movementStance, movement: movementState, movementSource, walkPref: movementClipPreference });   // SHIELD-RUN-LEGS
+      upperBody.step(dt, { plan: armedUpperPlan({ on: viewMode === 'third' && modSetting('morrowind-animation', 'MotionDoctrine') !== 0, shield: carriesShield(rig()), type: animWeaponType(built?.mwType, sheathed, spellReady), base: movementBase, moving: !!movementState, attacking: attackingNow() }), sources: rig()?.sources, hasGroup, stance: movementStance, movement: movementState, movementSource, walkPref: movementClipPreference });   // SHIELD-RUN-LEGS
       // The jump plays at speedmult 1.0 (character.cpp:528-531 pass
       // 1.0f) - no rate scaling, unlike movement.
       if (jumpState) advanceClip(jumpState, (jumpSource || rig()).keys, dt, null);

@@ -199,7 +199,8 @@ test('BODY-MOTION THE CLIP KEEPS WHAT IT CARRIES: a bow and the draw leave the a
   }
   assert.ok(still({ weapon: MW_WEAPON_TYPE.BluntOneHand, shield: true }, 'r') > 3, 'and the mace\'s arm still the carry\'s');
   assert.ok(still({ weapon: MW_WEAPON_TYPE.HandToHand, hands: 'fists', shield: true }, 'l') < 3, 'fists drawn behind a shield: the clip\'s left arm (SHIELD-GUARD)');
-  assert.ok(still({ weapon: MW_WEAPON_TYPE.HandToHand, hands: 'fists', shield: true }, 'r') > 3, 'and the right fist still the guard\'s');
+  // FISTS-ARMS (2026-11-06): beside a shield the right is a free hand, the clips' (leftArmLayer.js, guardLocomotion.js armedUpperPlan)
+  assert.ok(still({ weapon: MW_WEAPON_TYPE.HandToHand, hands: 'fists', shield: true }, 'r') < 3, 'and the right a free hand, the clips');
   // at a run: the layer writes no bone of the shield's arm (the free run's pump stood its Shield Bone 10 units under the head)
   let written = 0;
   const runner = createBodyMotion();

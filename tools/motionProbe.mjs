@@ -136,8 +136,8 @@ function run(carry, steps, dt = 1 / 60) {
     if (!!blow !== wasBlow) { from = b.assembly.shownPose ? new Map(b.assembly.shownPose) : null; fade = 0; wasBlow = !!blow; }
     // LEFT-ARM / SHIELD-RUN-LEGS: the shield's or the free hand's arm, then the armed upper body, as fpArm.js steps them
     const moving = g.speed > 0;
-    b.leftArm.step(dt, { plan: leftArmPlan({ mode: leftArmModeOf({ view: 'third', type: c.anim ?? c.weapon, shield: !!c.shield }), view: 'third', moving, base: moving ? g.group : null, attacking: !!blow }), sources: [source], hasGroup: has, stance: c.stance ?? c.weapon, movement, movementSource: source });
-    b.upperBody.step(dt, { plan: armedUpperPlan({ on: true, shield: !!c.shield, type: c.stance ?? c.weapon, base: moving ? g.group : null, moving, attacking: !!blow }), sources: [source], hasGroup: has, stance: c.stance ?? c.weapon, movement, movementSource: source });
+    b.leftArm.step(dt, { plan: leftArmPlan({ mode: leftArmModeOf({ view: 'third', type: c.anim ?? c.weapon, shield: !!c.shield }), view: 'third', moving, base: moving ? g.group : null, attacking: !!blow }), sources: [source], hasGroup: has, stance: c.stance ?? c.weapon, movement: moving ? movement : null, movementSource: moving ? source : null });
+    b.upperBody.step(dt, { plan: armedUpperPlan({ on: true, shield: !!c.shield, type: c.anim ?? c.weapon, base: moving ? g.group : null, moving, attacking: !!blow }), sources: [source], hasGroup: has, stance: c.stance ?? c.weapon, movement: moving ? movement : null, movementSource: moving ? source : null });
     b.lower.stepRig(dt, true, null, blow ? {} : null, null, null, movement, source, null, null);
     b.motion.step(dt, word);
     b.weight.stepRig(dt, true, cam, [], c.weapon, false, word, movement, source, animSpeed);

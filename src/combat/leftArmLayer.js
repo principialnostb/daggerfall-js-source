@@ -28,6 +28,8 @@ export function strafeSources(sources, preference) {
 
 /** The eases (seconds): the arm up quickly for a blow (its wind-up is a third of a second), down slower to the stance. */
 export const LEFT_ARM_EASE = Object.freeze({ in: 0.08, out: 0.22 });
+/** ARM-FADE: seconds a layer's arm fades from the clip it leaves to the one it takes. */
+export const ARM_FADE = 0.3;
 /** The shield keeps the strafe's raised arm, with a quieter live stride around that pose. */
 /** ARM-HOLD (2026-11-06, the owner's 21-46-18 recording: the shield shakes; the free arms want their own carriage, made of
  *  the movements the body already has): an arm a layer carries is HELD at its clip's mean pose and SWUNG by this share of
@@ -35,8 +37,10 @@ export const LEFT_ARM_EASE = Object.freeze({ in: 0.08, out: 0.22 });
  *  upper body: their own strides rocked the shield 14 to 19 degrees to the side). `shield` the shield's arm walking,
  *  running, backing and stepping aside; `free` a one-hander's free arm, its pose `freePose` of the way from the free
  *  walk's to the one-handed walk's (where the one-handed stance holds it standing), `freeRun` running; `upper` the armed upper body under a
- *  shield (CARRY-LOCOMOTION-COHERENCE's 0.55, the share of the chest's wave the owner kept). */
-export const ARM_HOLD = Object.freeze({ shield: 0.1, free: 0.6, freeRun: 0.85, freePose: 0.45, upper: 0.55 });
+ *  shield (CARRY-LOCOMOTION-COHERENCE's 0.55, the share of the chest's wave the owner kept). ARM-REST: standing, a free
+ *  hand is the plain idle's arm on its own breath, laid `rest` over the one-handed stance's bent arm (`restRight` the
+ *  right beside a shield, over the stance's armed one). */
+export const ARM_HOLD = Object.freeze({ shield: 0.1, free: 0.6, freeRun: 0.85, freePose: 0.45, upper: 0.55, rest: 0.5, restRight: 0.8 });
 
 /** @type {readonly number[]} */
 const ONE_HANDED = Object.freeze([MW_WEAPON_TYPE.ShortBladeOneHand, MW_WEAPON_TYPE.LongBladeOneHand, MW_WEAPON_TYPE.BluntOneHand, MW_WEAPON_TYPE.AxeOneHand]);
@@ -89,7 +93,11 @@ export function leftArmPlan({ mode = null, view = 'third', moving = false, base 
     return moving ? heldShield(b, null) : null;
   }
   if (mode === 'free') {
-    return moving && !attacking && b && !/^turn/.test(b) ? { kind: 'movement', base: b, stance: 'drawn', still: false, sway: 0, hold: /^run/.test(b) ? ARM_HOLD.freeRun : ARM_HOLD.free, pose: ARM_HOLD.freePose } : null;
+    if (attacking) return null;
+    // ARM-REST (the owner, 2026-11-06: standing the free hand "a stick", "a small bend at the elbow"): standing, the plain
+    // idle's own arm, on its breath, laid ARM_HOLD.rest over the one-handed stance's bent one
+    if (!moving) return jumping ? null : { kind: 'stance', base: 'idle', stance: 'bare', still: false, sway: 1, w: ARM_HOLD.rest };
+    return b && !/^turn/.test(b) ? { kind: 'movement', base: b, stance: 'drawn', still: false, sway: 0, hold: /^run/.test(b) ? ARM_HOLD.freeRun : ARM_HOLD.free, pose: ARM_HOLD.freePose } : null;
   }
   return null;
 }
@@ -155,7 +163,7 @@ export function weightedOverlayTracks(base, overlay, bones, adapt = false, owner
       // ARM-HOLD: the movement clip's own track under any layer's wrapper - the walk the legs are on
       let raw = base?.get(name) ?? null;
       while (raw && raw.__overlay) raw = raw.__base;
-      out.set(name, { __overlay: t, __base: base?.get(name) ?? null, __raw: raw, __owner: owner });
+      out.set(name, { __overlay: t, __base: base?.get(name) ?? null, __raw: raw, __owner: owner, __name: name });
     }
   }
   const root = adapt ? out.get(ARM_ROOT) : null;
@@ -166,7 +174,7 @@ export function weightedOverlayTracks(base, overlay, bones, adapt = false, owner
 
 /** The sampler for weightedOverlayTracks: an overlaid bone at the overlay's clock, blended over the base's by weight.
  *  LAYER-STACK: with an `owner`, only that layer's wrappers are its own - another's go to `sampleTrack`, the layer under. */
-export function weightedOverlaySampler(sampleTrack, clock, weight, span = () => null, owner = null, sway = () => 0, adaptation = () => 1, hold = () => 0, baseSpan = () => null, poseShare = () => 1) {
+export function weightedOverlaySampler(sampleTrack, clock, weight, span = () => null, owner = null, sway = () => 0, adaptation = () => 1, hold = () => 0, baseSpan = () => null, poseShare = /** @type {(track?: any) => number} */ (() => 1)) {
   const means = new WeakMap();
   /** SHIELD-STEADY: a track's turn and place averaged over `w` (the loop window), sixteen samples, the shorter way. */
   const meanOf = (tr, w) => {
@@ -203,7 +211,7 @@ export function weightedOverlaySampler(sampleTrack, clock, weight, span = () => 
   const held = (track, time, k) => {
     const ow = span(), bw = baseSpan(), raw = track.__raw;
     if (!ow || !bw || !raw) return null;
-    const mb = meanOf(raw, bw), live = sampleTrack(raw, time), mo0 = meanOf(track.__overlay, ow), p = clamp01(poseShare());
+    const mb = meanOf(raw, bw), live = sampleTrack(raw, time), mo0 = meanOf(track.__overlay, ow), p = clamp01(poseShare(track));
     if (!mo0 || !mb || !live) return null;
     const mo = p >= 1 ? mo0 : {
       ...mo0,
@@ -247,15 +255,35 @@ export function weightedOverlaySampler(sampleTrack, clock, weight, span = () => 
   function blendBase(track, time, o) {
     const w = clamp01(weight());
     if (w >= 1 || !track.__base) return o;
-    const b = sampleTrack(track.__base, time);
-    const mix = (x, y) => (x && y ? x.map((v, i) => v + (y[i] - v) * w) : (w < 0.5 ? x : y) ?? x ?? y);
-    return {
-      rotation: b.rotation && o.rotation ? nlerpQuat(b.rotation, o.rotation, w) : (w < 0.5 ? b.rotation : o.rotation) ?? b.rotation ?? o.rotation,
-      translation: mix(b.translation, o.translation),
-      scale: b.scale != null && o.scale != null ? b.scale + (o.scale - b.scale) * w : b.scale ?? o.scale,
-    };
+    return mixPose(sampleTrack(track.__base, time), o, w);
   }
 }
+
+/** One bone's pose `w` of the way from `b` to `o` (turn, place, scale). */
+export function mixPose(b, o, w) {
+  if (!b) return o;
+  if (!o) return b;
+  const mix = (x, y) => (x && y ? x.map((v, i) => v + (y[i] - v) * w) : (w < 0.5 ? x : y) ?? x ?? y);
+  return {
+    rotation: b.rotation && o.rotation ? nlerpQuat(b.rotation, o.rotation, w) : (w < 0.5 ? b.rotation : o.rotation) ?? b.rotation ?? o.rotation,
+    translation: mix(b.translation, o.translation),
+    scale: b.scale != null && o.scale != null ? b.scale + (o.scale - b.scale) * w : b.scale ?? o.scale,
+  };
+}
+
+/** ARM-SIDES: a plan's `freeSide` - that arm a free hand under the layer's held clip: its pose the legs' own walk's (the
+ *  held pose's share 0 for its bones), swung by the layer's hold. */
+const FREE_ARM = Object.freeze({ L: /^bip01 l (?:clavicle|upperarm|forearm|hand|finger)/, R: /^bip01 r (?:clavicle|upperarm|forearm|hand|finger)/ });
+
+/** ARM-SIDES: the arm's bones of the other side - the left arm's mask, mirrored by name (`bip01 l ...` to `bip01 r ...`). */
+const mirrored = new WeakMap();
+export function mirrorMask(mask) {
+  let out = mirrored.get(mask);
+  if (!out) { out = new Set([...mask].map((n) => n.replace(/^bip01 l /, 'bip01 r ').replace(/^(.*) left$/, '$1 right'))); mirrored.set(mask, out); }
+  return out;
+}
+const both = new WeakMap();
+const bothMask = (mask) => { let out = both.get(mask); if (!out) { out = new Set([...mask, ...mirrorMask(mask)]); both.set(mask, out); } return out; };
 
 /**
  * THE LAYER: its clip, its clock and its weight. `deps` the rig's own doors - pickAnimSource, resetClip, the two
@@ -263,64 +291,96 @@ export function weightedOverlaySampler(sampleTrack, clock, weight, span = () => 
  * while the weight eases out, so the arm goes back to the clip's from where it stood.
  */
 export function createLeftArmLayer({ pickAnimSource, resetClip, composeMovementGroup, composeStanceGroup, sampleTrack }) {
-  let state = null; let source = null; let group = null; let clock = 0; let w = 0; let memo = null; let steady = false; let sway = 1; let adapt = 0;
-  let hold = 0; let baseWin = null; let pose = 1;   // ARM-HOLD: the share of the legs' walk the held arm swings by, that walk's loop, the held pose's share
+  // The layer's configuration - its clip, its clock and how it lays the clip's arm - as one record, so a clip changed
+  // under a moving arm can fade from the last (ARM-FADE) rather than leap.
+  const fresh = () => ({ state: null, source: null, group: null, clock: 0, steady: false, sway: 1, adapt: 0, hold: 0, baseWin: null, pose: 1, side: 'L', freeSide: null });
+  let cur = fresh(), w = 0, memo = null, old = null, oldTracks = null, fade = 1;
   // LAYER-STACK (SHIELD-RUN-LEGS): two of these layers stack - the armed upper body under the shield's arm; each samples
   // its own wrappers and hands the rest to the layer under it (`under`, set by sampler(inner))
   const owner = {}; let under = sampleTrack;
-  const sampler = weightedOverlaySampler((tr, t) => under(tr, t), () => clock, () => w, () => ((steady || sway < 1 || hold > 0) && state && source ? loopWindow(state, source.keys) : null), owner, () => steady ? 0 : sway, () => adapt, () => hold, () => baseWin, () => pose);
+  const below = (tr, t) => under(tr, t);
+  const overlayOf = (c) => weightedOverlaySampler(below, () => c.clock, () => 1, () => ((c.steady || c.sway < 1 || c.hold > 0) && c.state && c.source ? loopWindow(c.state, c.source.keys) : null), owner, () => c.steady ? 0 : c.sway, () => c.adapt, () => c.hold, () => c.baseWin, (track) => (c.freeSide && FREE_ARM[c.freeSide].test(track?.__name ?? '') ? 0 : c.pose));
+  let curOverlay = overlayOf(cur), oldOverlay = null;
+  const sampler = (track, time) => {
+    if (!track || !track.__overlay || track.__owner !== owner) return below(track, time);
+    let o = curOverlay(track, time);
+    if (old && fade < 1) {
+      const was = oldTracks?.get(track.__name);
+      if (was && was.__overlay) o = mixPose(oldOverlay(was, time), o, fade);
+    }
+    const k = clamp01(w);
+    return k >= 1 || !track.__base ? o : mixPose(below(track.__base, time), o, k);
+  };
   const layer = {
     /** One frame: `plan` (leftArmPlan's), the rig's `sources` and `hasGroup`, the stance the rig stands in (`stance`,
      *  a weapon type), the movement playing (`movement`, its `movementSource`) for the stride's sync. */
     step(dt, { plan, sources, hasGroup, stance, movement = null, movementSource = null, walkPref = null }) {
+      if (old && fade < 1) { fade = Math.min(1, fade + Math.max(0, dt) / ARM_FADE); if (fade >= 1) { old = null; oldTracks = null; oldOverlay = null; } }
       if (plan) {
-        steady = !!plan.mean;
+        const c = cur;
+        c.steady = !!plan.mean;
         const swing = clamp01(plan.sway ?? 1);
-        sway = ease(sway, swing, LEFT_ARM_EASE.in, dt);
-        if (Math.abs(sway - swing) < 1e-3) sway = swing;
+        c.sway = ease(c.sway, swing, LEFT_ARM_EASE.in, dt);
+        if (Math.abs(c.sway - swing) < 1e-3) c.sway = swing;
         const target = plan.adapt ? 1 : 0;
-        adapt = ease(adapt, target, target ? LEFT_ARM_EASE.in : LEFT_ARM_EASE.out, dt);
-        if (Math.abs(adapt - target) < 1e-3) adapt = target;
+        c.adapt = ease(c.adapt, target, target ? LEFT_ARM_EASE.in : LEFT_ARM_EASE.out, dt);
+        if (Math.abs(c.adapt - target) < 1e-3) c.adapt = target;
         const keep = clamp01(plan.hold ?? 0);
-        hold = ease(hold, keep, LEFT_ARM_EASE.in, dt);
-        if (Math.abs(hold - keep) < 1e-3) hold = keep;
-        baseWin = movement && movementSource ? loopWindow(movement, movementSource.keys) : null;
-        pose = clamp01(plan.pose ?? 1);
-        const type = plan.stance === 'bare' ? MW_WEAPON_TYPE.None : stance;   // the bare group, no short group
+        c.hold = ease(c.hold, keep, LEFT_ARM_EASE.in, dt);
+        if (Math.abs(c.hold - keep) < 1e-3) c.hold = keep;
+        c.baseWin = movement && movementSource ? loopWindow(movement, movementSource.keys) : null;
+        c.pose = clamp01(plan.pose ?? 1);
+        c.freeSide = plan.freeSide ?? null;
+        const type = plan.stance === 'bare' ? MW_WEAPON_TYPE.None : plan.type ?? stance;   // the bare group, no short group
         const composed = plan.kind === 'stance' ? composeStanceGroup(plan.base, type, hasGroup) : composeMovementGroup(plan.base, type, hasGroup);
-        const key = composed?.group ? `${composed.group}${plan.rigOrder ? '|rig' : ''}` : null;
-        if (key && key !== group) {
+        const side = plan.side ?? 'L';
+        const key = composed?.group ? `${composed.group}${plan.rigOrder ? '|rig' : ''}|${side}` : null;
+        if (key && key !== c.group) {
           const candidates = plan.rigOrder ? strafeSources(sources, walkPref)
             : movementSource ? [movementSource, ...(sources ?? []).filter((s) => s !== movementSource)] : (sources ?? []);
           const pick = pickAnimSource(candidates, composed.group, resetClip, { loopFallback: true, loopCount: Infinity });
           if (pick) {
-            const fresh = !state;
-            state = pick.state; source = pick.source; group = key; memo = null;
-            if (fresh || plan.still) clock = loopWindow(state, source.keys).start;
+            const first = !c.state;
+            // ARM-FADE (the owner, 2026-11-06: one arm, every state, as the free hand beside a sword): a clip changed while
+            // the layer holds the arm - a walk to a stand, a stand to a walk - fades from the last clip's arm
+            if (!first && w > 0.01 && memo) { old = { ...c }; oldTracks = memo.tracks; oldOverlay = overlayOf(old); fade = 0; }
+            cur = { ...c, state: pick.state, source: pick.source, group: key, side };
+            curOverlay = overlayOf(cur);
+            memo = null;
+            if (first || plan.still) cur.clock = loopWindow(cur.state, cur.source.keys).start;
           }
         }
-        if (state && !plan.still && movement && movementSource) clock = strideTime(movement, movementSource.keys, state, source.keys);
+        const n = cur;
+        if (n.state && !plan.still && movement && movementSource) n.clock = strideTime(movement, movementSource.keys, n.state, n.source.keys);
+        else if (n.state && !plan.still) {
+          // ARM-REST: standing, the clip's arm on its own clock - an idle's breath, not a pose held still
+          const win = loopWindow(n.state, n.source.keys), span = win.stop - win.start;
+          if (span > 0) n.clock = win.start + ((((n.clock - win.start) + Math.max(0, dt)) % span) + span) % span;
+        }
       }
-      const want = plan && state ? 1 : 0;
+      const want = plan && cur.state ? clamp01(plan.w ?? 1) : 0;
       w = ease(w, want, want ? LEFT_ARM_EASE.in : LEFT_ARM_EASE.out, dt);
+      if (Math.abs(w - want) < 1e-3) w = want;
       if (!want && w < 1e-3) layer.reset();
       return w;
     },
-    /** The tracks to pose with: the base's, the mask's bones overlaid while the layer has weight. */
+    /** The tracks to pose with: the base's, the mask's bones overlaid while the layer has weight - the mask the host hands
+     *  is the left arm's; a plan's `side` 'R' lays the right arm's, 'both' both (ARM-SIDES). */
     tracks(base, mask) {
-      if (!(w > 0) || !state || !source || !mask || !mask.size) return base;
+      if (!(w > 0) || !cur.state || !cur.source || !mask || !mask.size) return base;
+      const bones = cur.side === 'R' ? mirrorMask(mask) : cur.side === 'both' ? bothMask(mask) : mask;
       // A straight shield walk inherits the strafe's arm orientation, including its trunk frame.
-      if (!memo || memo.base !== base || memo.overlay !== source.trackMap || memo.mask !== mask || memo.adapt !== (adapt > 0)) {
-        memo = { base, overlay: source.trackMap, mask, adapt: adapt > 0, tracks: weightedOverlayTracks(base, source.trackMap, mask, adapt > 0, owner) };
+      if (!memo || memo.base !== base || memo.overlay !== cur.source.trackMap || memo.mask !== bones || memo.adapt !== (cur.adapt > 0)) {
+        memo = { base, overlay: cur.source.trackMap, mask: bones, adapt: cur.adapt > 0, tracks: weightedOverlayTracks(base, cur.source.trackMap, bones, cur.adapt > 0, owner) };
       }
       return memo.tracks;
     },
     /** The sampler to pose with while the layer has weight; `inner` the sampler of the layer under it (LAYER-STACK) -
      *  answered as it is while this layer has none. */
-    sampler(inner = null) { under = inner ?? sampleTrack; return w > 0 && state ? sampler : inner; },
+    sampler(inner = null) { under = inner ?? sampleTrack; return w > 0 && cur.state ? sampler : inner; },
     weight: () => w,
-    group: () => group,
-    reset() { state = null; source = null; group = null; clock = 0; w = 0; memo = null; steady = false; sway = 1; adapt = 0; hold = 0; baseWin = null; pose = 1; },
+    group: () => cur.group?.split('|')[0] ?? null,
+    reset() { cur = fresh(); curOverlay = overlayOf(cur); w = 0; memo = null; old = null; oldTracks = null; oldOverlay = null; fade = 1; },
   };
   return layer;
 }

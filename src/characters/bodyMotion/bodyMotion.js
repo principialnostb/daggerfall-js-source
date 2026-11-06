@@ -208,9 +208,9 @@ export function createBodyMotion({ trunkClear = TRUNK_CLEAR } = {}, legs = null)
    *  a blow's over them; `steady` the turn that takes the stride's wave off the trunk (HELD-STEADY - carry.js
    *  carryHands). Exposed for the pins. */
   function handsFor(ctx, gp, bp, steady = null) {
-    let hands = carryHands(cls, gp, ctx, { armW, shares: shares.x, steady, shield: !!input.shield });
+    let hands = carryHands(cls, gp, ctx, { armW, shares: shares.x, steady });
     if (clsFrom && clsMix < 1) {
-      const from = carryHands(clsFrom, gp, ctx, { armW, shares: shares.x, steady, shield: !!input.shield });
+      const from = carryHands(clsFrom, gp, ctx, { armW, shares: shares.x, steady });
       hands = { L: blendHand(from.L, hands.L, clsMix), R: blendHand(from.R, hands.R, clsMix) };
     }
     // the pair's guard: the arm whose fellow strikes lowered at its shoulder, as the mirror lowers the clip's (TWO-HANDS
@@ -267,13 +267,9 @@ export function createBodyMotion({ trunkClear = TRUNK_CLEAR } = {}, legs = null)
       // one-hander's own sneak clip holds the blade - the carry's rows stand in the chest's frame, and the crouch tips the
       // chest some 45 degrees forward (retail sneakforward1h against walkforward1h): the blade went to the floor
       const sneakArm = cls === 'one' && gait.sneak > 0.5;
-      // FREE-HAND-REST (the owner, 2026-11-06: standing, the free hand "hangs woodenly" - the one-handed idle holds it bent
-      // before the belly, as walking - "a small, smooth lowering, as the shield's"): standing still, a one-hander's free
-      // hand is the carry's resting row (CARRY.one.idle.L, the arm down, the elbow eased), by as much as the body stands -
-      // the walk's own arm (leftArmLayer.js ARM_HOLD) as it moves; never in a blow, a crouch, beside a light or a spell
-      const restL = freeArm && !input.blow && !bpNow && gait.sneak < 0.5 ? clamp01(1 - gait.move) : 0;
+      const fistArms = cls === 'fists' && !input.blow && !bpNow;
       for (const side of ['L', 'R']) {
-        const want = hands && !(side === 'L' && (input.torch || shieldArm || input.spellHand)) && !(side === 'R' && sneakArm) ? (side === 'L' && freeArm ? restL : 1) : 0;
+        const want = hands && !(side === 'L' && (input.torch || shieldArm || freeArm || input.spellHand)) && !(side === 'R' && (sneakArm || (cls === 'fists' && input.shield))) && !fistArms ? 1 : 0;
         // SNEAK-GUARD: the crouch hands the blade over slowly, both ways (at the arm's own ease it turned 59 degrees a frame)
         if (side === 'R') sneakHand = sneakArm || (sneakHand && hands && armW.R < 0.999);
         armW[side] = ease(armW[side], want, side === 'R' && sneakHand ? MOTION_EASE.sneak : want ? MOTION_EASE.armIn : MOTION_EASE.armOut, dt);

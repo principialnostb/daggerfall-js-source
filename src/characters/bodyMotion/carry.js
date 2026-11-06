@@ -175,19 +175,6 @@ export const CARRY = Object.freeze({
   }),
 });
 
-/** FIST-BESIDE-SHIELD (2026-11-06, the owner's screenshots: a shield and no weapon, the right fist raised to the breast
- *  "unnatural"; the free hand beside a sword "I like"): the fists' right arm beside a shield is carried as a one-hander's
- *  free left arm is (leftArmLayer.js ARM_HOLD's free arm, mirrored), an open hand as that one's: low beside the hip, forward, swung by
- *  the stride - its rows found from where that arm's hand stands on the chest (0.54 out, 0.41 forward, 0.66 down,
- *  arm lengths, walking), the run's elbow bent as the free run's is; standing, the free hand's rest (FREE-HAND-REST,
- *  bodyMotion.js). The left is the shield's. */
-export const FIST_BESIDE_SHIELD = Object.freeze({
-  idle: { R: CARRY.one.idle.L, L: CARRY.fists.idle.L },   // the free hand's rest (CARRY.one.idle.L), mirrored
-  walk: { R: row(13, 15, 25, 6, 0.5, { gaitElbow: 0.5 }), L: CARRY.fists.walk.L },
-  run: { R: row(-6, 22, 95, 0, 0.4, { gaitElbow: 0.5 }), L: CARRY.fists.run.L },
-  sneak: { R: row(10, 16, 50, 4, 0.2), L: CARRY.fists.sneak.L },
-});
-
 /** HELD-STEADY: the share of the stride's counter-turn and counter-drop an arm's row rides - an empty arm's swing share,
  *  none for a hand that holds a blade (carryHands' head). */
 export const rideOf = (r) => (r.blade ? 0 : clamp01(r.swing));
@@ -410,7 +397,7 @@ export function trunkPush(at, a, c, fwd, clear) {
  * the chest's frame whole, the pair's run - both arms held back - swung both blades' tips 50 units side to side
  * together, the two-hander's 44, the one-hander's 29.
  */
-export function carryHands(cls, gp, ctx, { armW = { L: 1, R: 1 }, shares: given = null, steady = null, shield = false } = {}) {
+export function carryHands(cls, gp, ctx, { armW = { L: 1, R: 1 }, shares: given = null, steady = null } = {}) {
   if (cls === 'clip') return { L: null, R: null };
   const { body, mats, frames } = ctx;
   const F = { right: frames.right, fwd: frames.fwd, up: frames.up };
@@ -425,7 +412,7 @@ export function carryHands(cls, gp, ctx, { armW = { L: 1, R: 1 }, shares: given 
   };
   for (const side of ['R', 'L']) {
     if (!(armW[side] > 0)) continue;
-    const r = withSwing(side, cls === 'fists' && shield && side === 'R' ? blendRow(cls, side, shares, FIST_BESIDE_SHIELD) : blendRow(cls, side, shares), gp);   // FIST-BESIDE-SHIELD
+    const r = withSwing(side, blendRow(cls, side, shares), gp);
     if (r.grip >= 1 - 1e-9) continue;   // the haft's hand wholly, after the right
     const S = frames.shoulder[side];
     const limb = body.bones[side];
