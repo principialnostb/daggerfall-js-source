@@ -32,13 +32,21 @@ export function confirmationOf(rows) {
 const filledSeen = new WeakSet();
 const rootOf = (/** @type {any} */ db) => db?.[DB_ROOT] ?? db;
 
-/** Whether every report filed before the table is read into it - the pick waits until then. */
-export async function groundFilled(/** @type {any} */ db) {
-  if (filledSeen.has(rootOf(db))) return true;
-  const row = await db.prepare('SELECT done FROM ground_confirmed_fill WHERE id = 1').first();
+/** Whether this isolate has seen the fill done on `db`'s binding - asked of nothing. */
+export const groundFillKnown = (/** @type {any} */ db) => filledSeen.has(rootOf(db));
+/** The fill's mark, as a statement for a batch: a route asks it beside its own reads until the fill is known done. */
+export const fillMarkStatement = (/** @type {any} */ db) => db.prepare('SELECT done FROM ground_confirmed_fill WHERE id = 1');
+/** Whether the mark's row says the fill is done - kept for the binding once it does. */
+export function groundMarkDone(/** @type {any} */ db, /** @type {any} */ row) {
   const done = !row || Number(row.done) === 1;
   if (done && db && typeof db === 'object') filledSeen.add(rootOf(db));
   return done;
+}
+
+/** Whether every report filed before the table is read into it - the pick waits until then. */
+export async function groundFilled(/** @type {any} */ db) {
+  if (groundFillKnown(db)) return true;
+  return groundMarkDone(db, await fillMarkStatement(db).first());
 }
 
 /**
@@ -130,6 +138,37 @@ export async function confirmedGroundBefore(db, day) {
     const [x, y] = String(row.key).split(',').map(Number);
     if (!said || !Number.isSafeInteger(x) || !Number.isSafeInteger(y)) continue;
     out.push({ x, y, climate: said.climate, region: said.region });
+  }
+  return out;
+}
+
+const placeholders = (/** @type {readonly string[]} */ keys) => keys.map((_, i) => `?${i + 1}`).join(', ');
+/** The kept confirmations of pixel `keys` (`x,y`), as a statement for a batch. */
+export const confirmedStatement = (/** @type {any} */ db, /** @type {readonly string[]} */ keys) =>
+  db.prepare(`SELECT key, report FROM ground_confirmed WHERE key IN (${placeholders(keys)})`).bind(...keys);
+/** Which of pixel `keys` hold a report but no kept confirmation - by the reports' key index alone, no row read. */
+export const reportedStatement = (/** @type {any} */ db, /** @type {readonly string[]} */ keys) =>
+  db
+    .prepare(
+      `SELECT key FROM world_witness WHERE kind = 'pixel' AND key IN (${placeholders(keys)})
+    AND key NOT IN (SELECT key FROM ground_confirmed WHERE key IN (${placeholders(keys)})) GROUP BY key`,
+    )
+    .bind(...keys);
+
+/**
+ * Each of `keys`' facts from the kept rows, as nodeLaw witnessedFact answers what a reader uses: a kept pixel
+ * confirmed with its answer, one with reports unconfirmed, one with none none. A disputed pixel reads as confirmed - its
+ * confirmed answer stands, and every reader treats the two alike (factConfirmed).
+ * @param {readonly string[]} keys @param {any[]} confirmedRows @param {any[]} reportedRows
+ */
+export function keptFacts(keys, confirmedRows, reportedRows) {
+  const kept = new Map(confirmedRows.map((row) => [String(row.key), parseReport(row.report)]));
+  const reported = new Set(reportedRows.map((row) => String(row.key)));
+  const out = new Map();
+  for (const k of keys) {
+    const said = kept.get(k);
+    if (said) out.set(k, { state: 'confirmed', ...said });
+    else out.set(k, reported.has(k) ? { state: 'unconfirmed' } : { state: 'none', climate: null, region: null });
   }
   return out;
 }

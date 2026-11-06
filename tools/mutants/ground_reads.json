@@ -1,0 +1,50 @@
+[
+  {
+    "name": "GROUNDREADS-route-reports",
+    "file": "server-account/src/professions.js",
+    "old": "    : known || groundMarkDone(db, rows[0]?.[0]) ? keptFacts(keys, rows[off] ?? [], rows[off + 1] ?? [])",
+    "new": "    : false ? keptFacts(keys, rows[off] ?? [], rows[off + 1] ?? [])",
+    "tests": ["test/server/ground_reads.test.js"],
+    "note": "the pixels' route reads every report of every pixel asked, the fill done or not"
+  },
+  {
+    "name": "GROUNDREADS-route-mid-fill",
+    "file": "server-account/src/professions.js",
+    "old": "      : await factsOf(db, keys, 'pixel');   // the fill still running: the reports, as before it",
+    "new": "      : keptFacts(keys, rows[off] ?? [], rows[off + 1] ?? []);",
+    "tests": ["test/server/ground_reads.test.js"],
+    "note": "a pixel confirmed before the table reads as none until the fill reaches it"
+  },
+  {
+    "name": "GROUNDREADS-route-mark-unread",
+    "file": "server-account/src/professions.js",
+    "old": "  const pixelReads = !keys.length ? [] : [...(known ? [] : [fillMarkStatement(db)]), confirmedStatement(db, keys), reportedStatement(db, keys)];",
+    "new": "  const pixelReads = !keys.length ? [] : [...(known ? [] : [confirmedStatement(db, keys)]), confirmedStatement(db, keys), reportedStatement(db, keys)];",
+    "tests": ["test/server/ground_reads.test.js"],
+    "note": "the fill's mark never asked: a pixel's kept row taken for its answer mid-fill"
+  },
+  {
+    "name": "GROUNDREADS-unconfirmed-none",
+    "file": "server-account/src/groundConfirmed.js",
+    "old": "reported.has(k) ? { state: 'unconfirmed' }",
+    "new": "false ? { state: 'unconfirmed' }",
+    "tests": ["test/server/ground_reads.test.js"],
+    "note": "a pixel with reports but no confirmation said as none"
+  },
+  {
+    "name": "GROUNDREADS-harvest-reports",
+    "file": "server-account/src/professions.js",
+    "old": "      : knownGround || groundMarkDone(db, factRows[0]?.[0]) ? keptFacts([key], factRows.at(-1) ?? [], []).get(key)",
+    "new": "      : false ? keptFacts([key], factRows.at(-1) ?? [], []).get(key)",
+    "tests": ["test/server/ground_reads.test.js"],
+    "note": "a harvest reads every report of its pixel, the fill done or not"
+  },
+  {
+    "name": "GROUNDREADS-harvest-mid-fill",
+    "file": "server-account/src/professions.js",
+    "old": "        : (await factsOf(db, [key], 'pixel')).get(key);   // the fill still running: the reports, as before it",
+    "new": "        : keptFacts([key], factRows.at(-1) ?? [], []).get(key);",
+    "tests": ["test/server/ground_reads.test.js"],
+    "note": "a claim against ground confirmed before the table passes until the fill reaches it"
+  }
+]

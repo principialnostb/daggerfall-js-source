@@ -149,6 +149,7 @@ test('GROUND-STALE: a refusal marks its ground too - `prof-rank` on a node the c
   assert.equal((await book.refresh()).ok, true);
   // the client's morning read, before the witnesses (a stand-in for "earlier today"): unconfirmed
   s.env.DB._raw.prepare('DELETE FROM world_witness WHERE key = ?').run(`${px},200`);
+  s.env.DB._raw.prepare('DELETE FROM ground_confirmed WHERE key = ?').run(`${px},200`);   // and its kept confirmation
   await book.askPixels([[px, 200]]);
   assert.equal(book.pixel(px, 200)?.state, 'none');
   await witness(s, 'pixel', `${px},200`, 3);
