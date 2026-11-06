@@ -38,7 +38,7 @@ const has = (g) => keys.some((k) => k.text.toLowerCase() === `${g}: start`.toLow
 const sub = (a, b) => a.map((v, i) => v - b[i]), dot = (a, b) => a.reduce((s, v, i) => s + v * b[i], 0);
 const lerp = (a, b, t) => a.map((v, i) => v + (b[i] - v) * t);
 
-const CARRIES = { none: { weapon: T.None }, one: { weapon: T.LongBladeOneHand }, shield: { weapon: T.LongBladeOneHand, shield: true }, two: { weapon: T.LongBladeTwoHand }, torch: { weapon: T.None, torch: true }, bareshield: { weapon: T.None, shield: true }, fistshield: { weapon: T.HandToHand, shield: true, stance: T.LongBladeOneHand }, fists: { weapon: T.HandToHand } };
+const CARRIES = { none: { weapon: T.None }, one: { weapon: T.LongBladeOneHand }, shield: { weapon: T.LongBladeOneHand, shield: true }, two: { weapon: T.LongBladeTwoHand }, torch: { weapon: T.None, torch: true }, bareshield: { weapon: T.None, shield: true }, fistshield: { weapon: T.None, shown: true, shield: true, anim: T.HandToHand, stance: T.LongBladeOneHand }, fists: { weapon: T.None, shown: true, anim: T.HandToHand, stance: T.HandToHand } };
 const GAITS = { idle: { group: 'idle', f: 0, s: 0, speed: 0 }, walk: { group: 'walkforward', f: 1, s: 0, speed: 2.5 },
   run: { group: 'runforward', f: 1, s: 0, speed: 8.1 }, back: { group: 'walkback', f: -1, s: 0, speed: 2.5 },
   strafe: { group: 'walkright', f: 0, s: 1, speed: 2.5 }, runback: { group: 'runback', f: -1, s: 0, speed: 6 } };
@@ -127,7 +127,7 @@ function run(carry, steps, dt = 1 / 60) {
     const animSpeed = g.speed ? animVelocity(keys, trackMap.get(b.sk.nodes.get(b.accumRoot).name.toLowerCase()), group) || 1 : 1;
     const yaw = st.yaw ? st.yaw(i, st.frames) : 0, blow = st.blow ? st.blow(i, st.frames) : null;
     const cam = { yaw, move: { speed: g.speed, running: st.gait.startsWith('run'), forward: g.f, strafe: g.s, grounded: true, bodyYaw: yaw, travel: [trav[0] += g.s * g.speed * dt, 0, trav[2] += g.f * g.speed * dt] } };
-    const word = { ...sceneInput({ kind: process.env.PROBE_KIND ?? 'female', weapon: c.weapon, shield: !!c.shield, torch: !!c.torch, running: cam.move.running, forward: g.f, strafe: g.s, speed: g.speed, yaw, blow, travel: cam.move.travel }) };
+    const word = { ...sceneInput({ kind: process.env.PROBE_KIND ?? 'female', weapon: c.weapon, shown: c.shown, shield: !!c.shield, torch: !!c.torch, running: cam.move.running, forward: g.f, strafe: g.s, speed: g.speed, yaw, blow, travel: cam.move.travel }) };
     advanceClip(movement, keys, dt * (g.speed ? b.weight.moveRate(g.speed * MW_UNITS_PER_METER / animSpeed, group) : 1));
     // a blow plays the weapon clip's own keys, the legs kept on the movement (lowerBodyLayer), faded in and out as the rig does
     const grp = c.weapon === T.LongBladeTwoHand ? 'weapontwohand' : 'weapononehand', kt = (n) => keys.find((k) => k.text === `${grp}: ${blow?.type === 'thrust' ? 'thrust' : blow?.type} ${n}`)?.time;
@@ -136,7 +136,7 @@ function run(carry, steps, dt = 1 / 60) {
     if (!!blow !== wasBlow) { from = b.assembly.shownPose ? new Map(b.assembly.shownPose) : null; fade = 0; wasBlow = !!blow; }
     // LEFT-ARM / SHIELD-RUN-LEGS: the shield's or the free hand's arm, then the armed upper body, as fpArm.js steps them
     const moving = g.speed > 0;
-    b.leftArm.step(dt, { plan: leftArmPlan({ mode: leftArmModeOf({ view: 'third', type: c.weapon, shield: !!c.shield }), view: 'third', moving, base: moving ? g.group : null, attacking: !!blow }), sources: [source], hasGroup: has, stance: c.stance ?? c.weapon, movement, movementSource: source });
+    b.leftArm.step(dt, { plan: leftArmPlan({ mode: leftArmModeOf({ view: 'third', type: c.anim ?? c.weapon, shield: !!c.shield }), view: 'third', moving, base: moving ? g.group : null, attacking: !!blow }), sources: [source], hasGroup: has, stance: c.stance ?? c.weapon, movement, movementSource: source });
     b.upperBody.step(dt, { plan: armedUpperPlan({ on: true, shield: !!c.shield, type: c.stance ?? c.weapon, base: moving ? g.group : null, moving, attacking: !!blow }), sources: [source], hasGroup: has, stance: c.stance ?? c.weapon, movement, movementSource: source });
     b.lower.stepRig(dt, true, null, blow ? {} : null, null, null, movement, source, null, null);
     b.motion.step(dt, word);

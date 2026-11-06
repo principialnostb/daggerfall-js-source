@@ -20,18 +20,19 @@ import { mat33ToQuat } from '../../../src/combat/heldPose.js';
 import { offWeaponBoneAddon } from '../../../src/combat/twoHands/mirrorRig.js';
 import { retailSkeleton } from '../../fixtures/mw/retailRig.mjs';
 
-test('HAND-FINGERS: each hand\'s fingers by what it holds - a fist, a hilt, a strap, a loose fist beside a shield, an empty hand relaxed; the clip\'s for a light, a spell, a bow, a busy body', () => {
+test("HAND-FINGERS: a hand closed on something stands toward the game's fist - a fist, a hilt, a strap; the free hand beside a shield is the game's open hand; every other hand keeps the clip's fingers", () => {
   const at = (o) => fingerShares(sceneInput({ kind: 'female', ...o }));
-  assert.deepEqual(at({ weapon: T.HandToHand }), { R: FINGERS.fist, L: FINGERS.fist });
-  assert.deepEqual(at({ weapon: T.HandToHand, shield: true }), { R: FINGERS.loose, L: FINGERS.grip });
-  assert.deepEqual(at({ weapon: T.LongBladeOneHand }), { R: FINGERS.hilt, L: FINGERS.relaxed });
-  assert.deepEqual(at({ weapon: T.LongBladeOneHand, shield: true }), { R: FINGERS.hilt, L: FINGERS.grip });
-  assert.deepEqual(at({ weapon: T.LongBladeOneHand, torch: true }), { R: FINGERS.hilt, L: null });
-  assert.deepEqual(at({ weapon: T.LongBladeTwoHand }), { R: FINGERS.hilt, L: FINGERS.hilt });
-  assert.deepEqual(at({ weapon: T.LongBladeOneHand, shown: false }), { R: FINGERS.relaxed, L: FINGERS.relaxed });
+  const fist = (k) => ({ fist: k, open: 0 });
+  assert.deepEqual(at({ weapon: T.None, shown: true }), { R: fist(FINGERS.fist), L: fist(FINGERS.fist) }, 'the fists drawn');
+  assert.deepEqual(at({ weapon: T.None, shown: true, shield: true }), { R: { fist: 0, open: 1 }, L: fist(FINGERS.grip) }, 'beside a shield the right is a free hand');
+  assert.deepEqual(at({ weapon: T.LongBladeOneHand }), { R: fist(FINGERS.hilt), L: null });
+  assert.deepEqual(at({ weapon: T.LongBladeOneHand, shield: true }), { R: fist(FINGERS.hilt), L: fist(FINGERS.grip) });
+  assert.deepEqual(at({ weapon: T.LongBladeOneHand, torch: true }), { R: fist(FINGERS.hilt), L: null });
+  assert.deepEqual(at({ weapon: T.LongBladeTwoHand }), { R: fist(FINGERS.hilt), L: fist(FINGERS.hilt) });
+  assert.deepEqual(at({ weapon: T.LongBladeOneHand, shown: false }), { R: null, L: null }, "empty hands, the clip's");
   assert.deepEqual(at({ weapon: T.MarksmanBow }), { R: null, L: null });
-  assert.deepEqual(at({ weapon: T.HandToHand, busy: 'hit' }), { R: null, L: null });
-  assert.ok(FINGERS.relaxed < FINGERS.loose && FINGERS.loose < FINGERS.grip && FINGERS.grip < FINGERS.hilt && FINGERS.hilt < FINGERS.fist);
+  assert.deepEqual(at({ weapon: T.None, shown: true, busy: 'hit' }), { R: null, L: null });
+  assert.ok(FINGERS.grip < FINGERS.hilt && FINGERS.hilt < FINGERS.fist);
 });
 
 const root = new URL('../../../', import.meta.url);
@@ -83,16 +84,29 @@ test('HAND-FINGERS: walking, a one-hander\'s hilt is held in a closed hand, as t
 test('FREE-HAND-REST: standing, a one-hander\'s free hand rests down by the side, lowered there smoothly from the walk (mutant: the stance\'s hand held before the belly)', { skip: !available }, () => {
   const frames = run({ weapon: T.LongBladeOneHand }, [[120, true], [90, false]]);
   const rest = frames.at(-1).L;
-  assert.ok(rest[1] < 0.25 && rest[2] < -0.7, `the free hand at rest ${rest.map((v) => v.toFixed(2))}`);
+  // down by the side with the elbow eased: a little before the thigh, neither the stance's bend before the belly (0.38
+  // forward) nor a straight stick (0.17)
+  assert.ok(rest[1] > 0.2 && rest[1] < 0.32 && rest[2] < -0.7, `the free hand at rest ${rest.map((v) => v.toFixed(2))}`);
   let worst = 0;
   for (let i = 121; i < frames.length; i++) worst = Math.max(worst, Math.hypot(...frames[i].L.map((v, j) => v - frames[i - 1].L[j])));
   assert.ok(worst < 0.06, `lowered smoothly: ${worst.toFixed(3)} arm lengths in a frame`);
 });
 
 test('FIST-BESIDE-SHIELD: the fists\' right arm beside a shield stands as the one-hander\'s free left arm does, mirrored - low by the hip, not raised to the breast (it stood 0.16 arm lengths above the chest bone)', { skip: !available }, () => {
-  const fist = run({ weapon: T.HandToHand, shield: true }, [[150, false]]).at(-1).R;
+  const fist = run({ weapon: T.None, shown: true, shield: true }, [[150, false]]).at(-1).R;
   const free = run({ weapon: T.LongBladeOneHand }, [[150, false]]).at(-1).L;
   assert.ok(Math.abs(fist[0] + free[0]) < 0.08 && Math.abs(fist[1] - free[1]) < 0.08 && Math.abs(fist[2] - free[2]) < 0.08, `beside the shield ${fist.map((v) => v.toFixed(2))}, the free hand ${free.map((v) => v.toFixed(2))}`);
   assert.ok(fist[2] < -0.5, 'the fist is down by the hip');
   assert.ok(FIST_BESIDE_SHIELD.walk.R.swing > 0 && CARRY.fists.walk.R.swing < FIST_BESIDE_SHIELD.walk.R.swing, 'it swings with the stride as the guard does not');
+  assert.equal(FIST_BESIDE_SHIELD.idle.R, CARRY.one.idle.L, 'standing it rests as the free hand beside a sword');
+});
+
+test('FISTS-GUARD: the fists drawn walk, run and step on the worked gait and the stance\'s walk, as the weapons do (mutant: the hand-to-hand clips, whose walk-to-run change threw the fists half an arm in a frame)', async () => {
+  const { guardMovementGroup } = await import('../../../src/combat/guardLocomotion.js');
+  const { guardWalks } = await import('../../../src/characters/bodyMotion/guardWalkPose.js');
+  const has = () => true;
+  for (const base of ['walkforward', 'runforward', 'walkback', 'walkleft']) assert.equal(guardMovementGroup(base, T.HandToHand, has, true).group, base);
+  assert.equal(guardMovementGroup('walkforward', T.HandToHand, has, false).group, 'walkforwardhh', 'off, the reference\'s own');
+  assert.ok(guardWalks(sceneInput({ weapon: T.None, shown: true, speed: 2.5, forward: 1 }), 'walkforward'), 'the stance\'s walk for the empty hands drawn');
+  assert.ok(!guardWalks(sceneInput({ weapon: T.None, shown: false, speed: 2.5, forward: 1 }), 'walkforward'), 'never for the hands sheathed');
 });

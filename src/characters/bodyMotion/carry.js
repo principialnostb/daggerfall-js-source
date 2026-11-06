@@ -95,7 +95,9 @@ export const CARRY = Object.freeze({
     sneak: { R: row(14, 16, 40, 10, 0.6), L: row(14, 16, 40, 10, 0.6) },
   }),
   one: Object.freeze({
-    idle: { R: row(5, 21, 8, -7, 0, { blade: dir(0.26, 0.74, -0.62), edge: dir(-0.26, -0.56, -0.78) }), L: row(3, 8, 12, 4, 0) },
+    // FREE-HAND-REST's left (the owner, 2026-11-06: lowered "it hangs as a stick" - "a small bend at the elbow"): down by
+    // the side, the elbow eased 25 degrees, the hand a little before the thigh
+    idle: { R: row(5, 21, 8, -7, 0, { blade: dir(0.26, 0.74, -0.62), edge: dir(-0.26, -0.56, -0.78) }), L: row(2, 10, 25, 6, 0) },
     walk: { R: row(5, 22, 3, -1, 0.3, { blade: dir(0.23, 0.81, -0.53), edge: dir(-0.39, -0.42, -0.82) }), L: row(2, 8, 12, 6, 1, { gaitElbow: 1 }) },
     // ONE-RUN (feature-feedback via Mac, 2026-10-26: "Running and sprinting with one-handed weapon looks off, because hand
     // is in twisted position pointing weapon to the side unnaturally"): the stand's own format at a run - the arm low and
@@ -175,15 +177,15 @@ export const CARRY = Object.freeze({
 
 /** FIST-BESIDE-SHIELD (2026-11-06, the owner's screenshots: a shield and no weapon, the right fist raised to the breast
  *  "unnatural"; the free hand beside a sword "I like"): the fists' right arm beside a shield is carried as a one-hander's
- *  free left arm is (leftArmLayer.js ARM_HOLD's free arm, mirrored): low beside the hip, a fist's width forward, swung by
+ *  free left arm is (leftArmLayer.js ARM_HOLD's free arm, mirrored), an open hand as that one's: low beside the hip, forward, swung by
  *  the stride - its rows found from where that arm's hand stands on the chest (0.54 out, 0.41 forward, 0.66 down,
  *  arm lengths, walking), the run's elbow bent as the free run's is; standing, the free hand's rest (FREE-HAND-REST,
  *  bodyMotion.js). The left is the shield's. */
 export const FIST_BESIDE_SHIELD = Object.freeze({
-  idle: { R: row(3, 8, 12, 4, 0, { fist: true }), L: CARRY.fists.idle.L },   // the free hand's rest (CARRY.one.idle.L), mirrored
-  walk: { R: row(13, 15, 25, 6, 0.5, { fist: true, gaitElbow: 0.5 }), L: CARRY.fists.walk.L },
-  run: { R: row(-6, 22, 95, 0, 0.4, { fist: true, gaitElbow: 0.5 }), L: CARRY.fists.run.L },
-  sneak: { R: row(10, 16, 50, 4, 0.2, { fist: true }), L: CARRY.fists.sneak.L },
+  idle: { R: CARRY.one.idle.L, L: CARRY.fists.idle.L },   // the free hand's rest (CARRY.one.idle.L), mirrored
+  walk: { R: row(13, 15, 25, 6, 0.5, { gaitElbow: 0.5 }), L: CARRY.fists.walk.L },
+  run: { R: row(-6, 22, 95, 0, 0.4, { gaitElbow: 0.5 }), L: CARRY.fists.run.L },
+  sneak: { R: row(10, 16, 50, 4, 0.2), L: CARRY.fists.sneak.L },
 });
 
 /** HELD-STEADY: the share of the stride's counter-turn and counter-drop an arm's row rides - an empty arm's swing share,

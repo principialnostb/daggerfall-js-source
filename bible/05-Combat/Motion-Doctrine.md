@@ -1248,7 +1248,7 @@ lowering, as the shield's"; "work on the fingers everywhere").
   the game's own: a fist is the hand-to-hand idle's (`idlehh`, the knuckles 88 degrees), baked from the retail rig
   (src/characters/bodyMotion/handFingers.js:"export const FIST = Object.freeze({"), and each hand's fingers stand a share
   of the way to it by what the hand holds
-  (src/characters/bodyMotion/handFingers.js:"export const FINGERS = Object.freeze({ fist: 1, hilt: 0.85, grip: 0.8, loose: 0.6, relaxed: 0.35, ease: 0.12 });"):
+  (handFingers.js FINGERS, as it first stood: a loose fist 0.6 and a relaxed hand 0.35 besides - withdrawn below):
   a hilt 77 degrees walking and running as the one-handed stance holds it standing, a shield's strap, a loose fist
   beside a shield, an empty hand relaxed (41). A torch, a spell, a bow, a recoil keep the clip's.
 - **FIST-BESIDE-SHIELD.** A shield and no weapon stands the fists behind it; their right arm was the boxer's guard, the
@@ -1256,7 +1256,8 @@ lowering, as the shield's"; "work on the fingers everywhere").
   from where that hand stands on the chest (src/characters/bodyMotion/carry.js:"export const FIST_BESIDE_SHIELD = Object.freeze({").
 - **FREE-HAND-REST.** Standing, the one-handed stance held the free hand bent before the belly as walking does, and it
   stood there. Standing still it is now the carry's resting row (CARRY.one.idle.L, the arm down, the elbow eased), by as
-  much as the body stands (src/characters/bodyMotion/bodyMotion.js:"const restL = freeArm && !input.blow && !bpNow && gait.sneak < 0.5 ? clamp01(1 - gait.move) : 0;"):
+  much as the body stands (src/characters/bodyMotion/bodyMotion.js:"const restL = freeArm && !input.blow && !bpNow && gait.sneak < 0.5 ? clamp01(1 - gait.move) : 0;"),
+  the resting row as it first stood (the elbow 12 degrees - corrected below):
   stopping lowers it from 0.58 to 0.18 arm lengths forward over some 0.6 seconds, under 0.06 a frame. Never in a blow.
 
 Measured, a woman's body: nothing deeper in the trunk, no frame-to-frame jerk added but the fist beside the shield's,
@@ -1266,4 +1267,22 @@ There is no off-hand switch in the game's melee (the weapon is the right's, the 
 its clips'): the fingers and the free arm are written by side, so a mirror needs no new law. Still open: the fists' own
 guard, both hands free, at a walk-to-run change of the hand-to-hand clips (a 0.54 arm-length leap, there before this).
 Reference remains DFU WeaponManager.UpdateHands: DFU draws no articulated hand. Shared modules; no host changes.
+
+The owner, in game the same evening: lowered, the free hand "hangs as a stick", the relaxed fingers crooked; the fist
+beside a shield to be the free hand beside a sword "in its image"; "carry every rule of the movement - the trunk, the
+legs - over to the fists' stance". So:
+
+- **The rest bent.** The free hand's resting row eases the elbow 25 degrees, the hand 0.26 arm lengths before the thigh
+  (src/characters/bodyMotion/carry.js:"idle: { R: row(5, 21, 8, -7, 0, { blade: dir(0.26, 0.74, -0.62), edge: dir(-0.26, -0.56, -0.78) }), L: row(2, 10, 25, 6, 0) },").
+- **The fingers, simply.** Only a hand closed on something moves its fingers: the fists drawn are the game's fist, a hilt
+  and a shield's strap toward it; the free hand beside a shield is the game's OPEN hand (the plain idle's fingers, baked
+  as the fist is), as the free hand beside a sword is the walk's own; every other hand keeps the clip's fingers - the
+  relaxed blend is withdrawn (src/characters/bodyMotion/handFingers.js:"export const FINGERS = Object.freeze({ fist: 1, hilt: 0.85, grip: 0.8, ease: 0.12 });").
+- **The free hand beside a shield** is an open hand on FIST_BESIDE_SHIELD's rows, standing on the free hand's own rest
+  (the same row, mirrored): 0.23 forward standing, the free hand beside a sword's 0.26.
+- **FISTS-GUARD.** The fists drawn now walk, run and step as the weapons do: the hand-to-hand type joins the stance's
+  list (src/characters/bodyMotion/guardStance.js:"MW_WEAPON_TYPE.HandToHand,"), so they take the worked gait (its clock,
+  the legs' and the trunk's rules) and the stance's walk, the body's empty hands drawn read as fists there. Their
+  walk-to-run change no longer throws the fists half an arm in a frame (0.54 to 0.10, the weapons' own).
+GUARD-WALK-POSE's pin now counts the fists in the stance. The motion tests: none newly failing.
 
