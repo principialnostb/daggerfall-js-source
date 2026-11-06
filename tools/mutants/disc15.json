@@ -38,8 +38,8 @@
   {
     "name": "DISC15-the-newcomer-deferred-under-the-budget",
     "file": "src/render/shadowPass.js",
-    "old": "let sig = null, draw = fresh;",
-    "new": "let sig = null, draw = fresh && rebuilds-- > 0;",
+    "old": "      let draw = fresh;\n",
+    "new": "      let draw = fresh && rebuilds-- > 0;\n",
     "tests": [
       "test/render/disc15.test.js"
     ]

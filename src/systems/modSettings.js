@@ -9,7 +9,13 @@
 // defaults without a DOM.
 
 import { appStorage } from './appStorage.js'; // the one storage seam - localStorage lives there alone
-import { onlineForcedModSetting, onlineWholeModKey, isOnlinePage, rollingAsTheRoom } from './online/onlineLane.js'; // MODS-ONLINE-2: online, the room's ground is forced and every other switch is the player's; REALM P0.2: and the balance mods whole
+import {
+  onlineForcedModSetting,
+  onlineWholeModKey,
+  isOnlinePage,
+  rollingAsTheRoom,
+  ONLINE_ROOM_MOD_KEYS,
+} from './online/onlineLane.js'; // MODS-ONLINE-2: online, the room's ground is forced and every other switch is the player's; REALM P0.2: and the balance mods whole
 import { FOOT_SKIN_COUNT, CLASS_SKINS, classSkinLabel } from '../player/classSkins.js'; // SKIN2: the class skins past the mod's sixteen
 import { t, localizedText } from './textManager.js'; // L10N4: every setting's description and option names in the player's language, read when they are read; DFU's own key where it has the same word
 
@@ -6798,7 +6804,47 @@ export function onlineModSetting(vendor, key, search) {
   return def && onlineWholeModKey(vendor, key, search) ? def.default : undefined;
 }
 
+/** A key's answer, kept while the store's generation stands and, for a key the room can own online, while the page
+ *  stays on the side it was. The hosts read their mods' switches every frame, and each read looked the key up twice,
+ *  asked the room's tables and coerced the stored value again. A read inside a room roll is never kept, nor a pair
+ *  (each read is a new frozen pair): a pair's entry holds NEVER_KEPT. */
+const _keyKept = new Map();
+const NEVER_KEPT = -1;
+function keepSetting(vendor, key, value, kept) {
+  if (kept !== undefined) {
+    kept.generation = _generation;
+    kept.value = value;
+    if (kept.page) kept.online = isOnlinePage();
+    return;
+  }
+  let keys = _keyKept.get(vendor);
+  if (keys === undefined) {
+    keys = new Map();
+    _keyKept.set(vendor, keys);
+  }
+  if (isTupleKey(declaredKey(vendor, key))) {
+    keys.set(key, { generation: NEVER_KEPT, value: undefined, page: false, online: false });
+    return;
+  }
+  const page = roomCanOwn(vendor, key);
+  keys.set(key, { generation: _generation, value, page, online: page && isOnlinePage() });
+}
+/** Whether the page can move a key's answer: online the room owns it, as onlineModSetting reads the lane's tables. */
+function roomCanOwn(vendor, key) {
+  const room = ONLINE_ROOM_MOD_KEYS[vendor];
+  return (!!room && Object.hasOwn(room, key)) || onlineWholeModKey(vendor, key, '', { offline: true });
+}
+
 export function modSetting(vendor, key) {
+  const kept = _keyKept.get(vendor)?.get(key);
+  if (kept?.generation === _generation && !rollingAsTheRoom() && (!kept.page || kept.online === isOnlinePage()))
+    return kept.value;
+  const value = readModSetting(vendor, key);
+  if (kept?.generation !== NEVER_KEPT && !rollingAsTheRoom()) keepSetting(vendor, key, value, kept);
+  return value;
+}
+/** A key's answer read through: the declaration, the room's ground online, then the store. */
+function readModSetting(vendor, key) {
   const def = declaredKey(vendor, key);
   if (!def) throw new Error(`modSetting: ${vendor}/${key} is not a declared switch`);
   const forced = onlineModSetting(vendor, key); // MODS-ONLINE-2: online, a key the room's ground depends on reads the room's value and the store is not written; REALM P0.2: and a balance mod's every key its shipped default

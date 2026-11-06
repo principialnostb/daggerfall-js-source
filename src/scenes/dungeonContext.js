@@ -470,7 +470,8 @@ export async function levelModelRemap(id, subMeshes, texRemap, remap, deps) {
   return texRemap;
 }
 
-
+/** The level's mesh asks to be drawn depth first from its shadow cells (render/depthPrepass.js). */
+const LEVEL_MESH = Object.freeze({ prepass: true });
 
 export async function buildDungeonContext(deps, dfLocation, blocks, climateBaseType, opts = {}) {
   const { renderer, arch, getGpuMesh, cpuModels, getTexture, uploadRecord, uploadRecordFrame, palette, placeHold = null } = deps;   // FIELD BUGS 2026-10-04d PLACE-LRU: `placeHold` - the dungeon's hold on the shared caches (scenes/placeHolds.js), the three doors above its own; settled once built, released by destroy(). None from the standalone ?dungeon scene
@@ -8911,7 +8912,7 @@ export async function buildDungeonContext(deps, dfLocation, blocks, climateBaseT
       dfLocation?.regionIndex ?? 0),
     drawList,
     get staticBatch() {   // PERF5: merged and uploaded once, on the first frame that asks
-      if (!staticBuilt) { staticBuilt = true; const m = staticBuilder.finish(); staticBatch = m ? renderer.createMesh(m) : null; }
+      if (!staticBuilt) { staticBuilt = true; const m = staticBuilder.finish(); staticBatch = m ? renderer.createMesh(m, LEVEL_MESH) : null; }
       return staticBatch;
     },
     dynamicDraws,

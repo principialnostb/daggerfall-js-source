@@ -334,5 +334,6 @@ test('the body takes the shield from what it wears: my own outfit from the equip
   assert.match(src, /return \{ outfit: outfitOfSlots\(slots\), gender \};/);
   assert.match(src, /const plain = String\(lk\.outfit \?\? ''\)\.replace\(\/~\\d\/, ''\);/, 'a cloakless frame keeps the shield');
   const riders = readFileSync(new URL('../../../src/net/peer/peerRiders.js', import.meta.url), 'utf8');
-  assert.match(riders, /outfit: outfitOfItems\(peer\.look\?\.items\)/);
+  assert.match(riders, /outfit: outfitOfLookItems\(peer\.look\?\.items\)/);
+  assert.match(riders, /_outfitOfList\.set\(items, \(outfit = outfitOfItems\(items\)\)\)/, 'the look items\' own outfit, read once a list');
 });

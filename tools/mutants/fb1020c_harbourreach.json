@@ -2,8 +2,8 @@
   {
     "name": "HARBOUR-REACH-the-ring-never-sounded",
     "file": "src/systems/naval/harbourBook.js",
-    "old": "    if (e && !e.harbour && !e.far && far > own && near.ready?.(far) !== false) {\n      e.harbour = sound(far) ?? sound(far, true);\n      e.far = true;\n    } // ALDBRUGH-QUAY: and its corners where the round reach finds no shore\n  }",
-    "new": "  }",
+    "old": "    if (e && !e.harbour && !e.far && far > own && near.ready?.(far) !== false) {\n      e.harbour = sound(far) ?? sound(far, true);\n      e.far = true;\n    } // ALDBRUGH-QUAY: and its corners where the round reach finds no shore\n    if (e?.harbour) e.read = null; // a port with a harbour is never sounded again: what it read is let go\n  }",
+    "new": "    if (e?.harbour) e.read = null; // a port with a harbour is never sounded again: what it read is let go\n  }",
     "tests": [
       "test/systems/naval/fb1020c_harbourreach.test.js"
     ]

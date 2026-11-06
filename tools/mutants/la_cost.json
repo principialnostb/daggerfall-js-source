@@ -227,7 +227,7 @@
   {
     "name": "LA-COST2-the-renderer-draws-unsorted",
     "file": "src/render/renderer.js",
-    "old": "    sortByKey(opaque);   // LA-COST2",
+    "old": "    sortByKey(opaque, opaqueCount);   // LA-COST2",
     "new": "    // LA-COST2",
     "tests": [
       "test/render/la_cost.test.js",

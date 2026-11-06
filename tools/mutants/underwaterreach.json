@@ -1,0 +1,110 @@
+[
+  {
+    "name": "UWR-the-margin-left-out-of-the-spread",
+    "file": "src/render/waterSurface.js",
+    "old": "    const spreadX = reach * width + REACH_MARGIN,\n      spreadY = reach * height + REACH_MARGIN;",
+    "new": "    const spreadX = reach * width,\n      spreadY = reach * height;",
+    "tests": [
+      "test/render/underwaterreach.test.js"
+    ]
+  },
+  {
+    "name": "UWR-the-edge-left-out-of-the-reach",
+    "file": "src/render/waterSurface.js",
+    "old": "    const reach = pushMost / (1 + REFRACT_FADE * near) + REFRACT_EDGE;",
+    "new": "    const reach = pushMost / (1 + REFRACT_FADE * near);",
+    "tests": [
+      "test/render/underwaterreach.test.js"
+    ]
+  },
+  {
+    "name": "UWR-an-unknown-viewport-bounded-by-the-canvas",
+    "file": "src/render/renderer.js",
+    "old": " || (!port && (canvas.width !== gl.drawingBufferWidth || canvas.height !== gl.drawingBufferHeight))) {",
+    "new": ") {",
+    "tests": [
+      "test/render/underwaterreach.test.js"
+    ]
+  },
+  {
+    "name": "UWR-the-one-row-door-bounded",
+    "file": "src/render/renderer.js",
+    "old": "if (rows === this._waterOne || (!port &&",
+    "new": "if ((!port &&",
+    "tests": [
+      "test/render/underwaterreach.test.js"
+    ]
+  },
+  {
+    "name": "UWR-the-viewport-taken-from-the-canvas",
+    "file": "src/render/renderer.js",
+    "old": "sight.wide = port ? port[2] : canvas.width; sight.high = port ? port[3] : canvas.height;",
+    "new": "sight.wide = canvas.width; sight.high = canvas.height;",
+    "tests": [
+      "test/render/underwaterreach.test.js"
+    ]
+  },
+  {
+    "name": "UWR-a-later-reach-not-filled",
+    "file": "src/render/renderer.js",
+    "old": "if (reach !== undefined && this._underWater?.part && !waterReachHolds(this._underWater.part, reach)) this._air.fillUnderWater();",
+    "new": "",
+    "tests": [
+      "test/render/underwaterreach.test.js"
+    ]
+  },
+  {
+    "name": "UWR-the-list-asks-no-copy",
+    "file": "src/render/renderer.js",
+    "old": "    this._askUnderWater(rows, n, u);   // the copy under the water, of the part these rows can read\n",
+    "new": "",
+    "tests": [
+      "test/render/underwaterreach.test.js"
+    ]
+  },
+  {
+    "name": "UWR-the-part-held-by-the-caller",
+    "file": "src/render/airPass.js",
+    "old": "      image.part = image.kept;\n      image.part.set(part);",
+    "new": "      image.part = part;",
+    "tests": [
+      "test/render/underwaterreach.test.js"
+    ]
+  },
+  {
+    "name": "UWR-a-fill-keeps-the-part",
+    "file": "src/render/airPass.js",
+    "old": "    frame.uwImage.part = null;\n",
+    "new": "",
+    "tests": [
+      "test/render/underwaterreach.test.js"
+    ]
+  },
+  {
+    "name": "UWR-a-fill-leaves-the-right-band",
+    "file": "src/render/airPass.js",
+    "old": "      this._copyUnderWater(part[2], part[1], frame.w, part[3]);\n",
+    "new": "",
+    "tests": [
+      "test/render/underwaterreach.test.js"
+    ]
+  },
+  {
+    "name": "UWR-a-fill-leaves-the-top-band",
+    "file": "src/render/airPass.js",
+    "old": "      this._copyUnderWater(0, part[3], frame.w, frame.h);\n",
+    "new": "",
+    "tests": [
+      "test/render/underwaterreach.test.js"
+    ]
+  },
+  {
+    "name": "UWR-a-second-list-called-through-optional-chaining",
+    "file": "src/scenes/world.js",
+    "old": "      renderer.drawWaterSurfaces(_waterRows, n, 6.4, wu);\n",
+    "new": "      renderer.drawWaterSurfaces(_waterRows, n, 6.4, wu);\n      renderer?.drawWaterSurfaces(_waterRows, n, 6.4, wu);\n",
+    "tests": [
+      "test/render/underwaterreach.test.js"
+    ]
+  }
+]

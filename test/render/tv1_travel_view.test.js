@@ -669,7 +669,7 @@ test('TV1 host wiring: the frame draws from the view\'s eye risen out of the bod
   assert.match(w, /if \(walkMode && playerSpawned && !tvf\) weaponRig\.draw\(\{ paralyzed \}\);/);
   assert.match(w, /cursorActive: gamePaused\(\) \|\| pointerSurfaces\.size > 0 \|\| !!tvf,/, 'the hover\'s own door: a freed cursor names nothing');
   assert.match(w, /travelView\?\.steer\(dt\);/);
-  assert.match(w, /travelView\?\.drawHud\(\);/);
+  assert.match(w, /travelView\?\.drawHud\(clientW, clientH\);/);
   assert.match(w, /audio\.setListener\(cam\.pos, tvf \? \[viewFwd\[0\], 0, viewFwd\[2\]\] : fwd\);/);
   // the cursor toggle cannot take the view's free cursor back, and the loop's death takes the view with it
   assert.match(w, /bindCursorToggle\(canvas, \(\) => gamePaused\(\) \|\| \(modes\?\.modalWindowUp\?\.\(\) \?\? false\) \|\| !!travelView\?\.active \|\| !!poiEditor\?\.active\(\),/);   // PIN MOVED (AUDIT POI E1): the POI editor's keys its own too

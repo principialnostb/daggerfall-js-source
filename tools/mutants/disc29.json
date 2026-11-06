@@ -353,8 +353,8 @@
   {
     "name": "DISC29-E-lo-signature-blind",
     "file": "src/render/shadowPass.js",
-    "old": "this._staticSignatures(cp, 1, this._sigOneOut, false, true);",
-    "new": "this._staticSignatures(cp, 1, this._sigOneOut, false, false);",
+    "old": "this._staticSignatures(lamps, count, out, false, true);",
+    "new": "this._staticSignatures(lamps, count, out, false, false);",
     "tests": [
       "test/render/disc29_lamps.test.js"
     ]

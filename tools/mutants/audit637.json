@@ -272,8 +272,8 @@
   {
     "name": "AUDIT637-B2a-a-list-reused-without-emptying",
     "file": "src/render/shadowPass.js",
-    "old": "if (bb[j]) bb[j].length = 0; else bb[j] = [];",
-    "new": "if (!bb[j]) bb[j] = [];",
+    "old": "open[k] = j; openList(out[k], j); }",
+    "new": "open[k] = j; if (!out[k].bb[j]) out[k].bb[j] = []; }",
     "tests": [
       "test/render/audit637_shadow.test.js",
       "test/render/perfshadow1.test.js"
@@ -362,7 +362,7 @@
   {
     "name": "AUDIT637-B4a-the-lists-left-at-discard",
     "file": "src/render/shadowPass.js",
-    "old": "    for (const c of this._cands) { for (let j = 0; j < c.hw; j++) { const l = c.bb[j]; if (l) l.length = 0; } c.n = 0; c.hw = 0; }\n",
+    "old": "    for (const c of this._cands) emptyLists(c);\n",
     "new": "",
     "tests": [
       "test/render/audit637_shadow.test.js",
@@ -397,6 +397,15 @@
     "tests": [
       "test/render/audit637_shadow.test.js",
       "test/render/perfshadow1.test.js"
+    ]
+  },
+  {
+    "name": "AUDIT637-B4b-the-flats-a-cube-dropped-kept",
+    "file": "src/render/shadowPass.js",
+    "old": "        for (let left = m; left < n; left++) list[left] = null;   // the flats left out let go now: discard() empties only what a count holds\n",
+    "new": "",
+    "tests": [
+      "test/render/audit637_shadow.test.js"
     ]
   }
 ]

@@ -87,7 +87,7 @@ test('MAC4: the five mobile producers write the record as `record#frame` and nev
     ['src/scenes/exteriorFoes.js', /const rkey = `\$\{o\.record\}#\$\{o\.frame\}`;[\s\S]{0,700}?f\.batch\.record = rkey;/],   // ELITE FOES: the elite's size between them
     ['src/scenes/dungeonContext.js', /const rkey = `\$\{out\.record\}#\$\{out\.frame\}`;[\s\S]{0,600}?f\.batch\.record = rkey;/],
     ['src/scenes/cityGuards.js', /const rkey = `\$\{o\.record\}#\$\{o\.frame\}`;[\s\S]{0,400}?g\.batch\.record = rkey;/],
-    ['src/scenes/world.js', /const rkey = `\$\{out\.record\}#\$\{out\.frame\}`;[\s\S]{0,400}?batch\.record = rkey;/],
+    ['src/scenes/world.js', /const rkey = recordFrameKey\(out\.record, out\.frame\);[\s\S]{0,400}?batch\.record = rkey;/],   // the same string, made once a pair (townScratch.js)
     ['src/scenes/exterior.js', /const rkey = `\$\{out\.record\}#\$\{out\.frame\}`;[\s\S]{0,400}?batch\.record = rkey;/],
   ];
   for (const [file, shape] of producers) {

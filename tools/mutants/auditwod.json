@@ -2,8 +2,8 @@
   {
     "name": "AUDIT-WOD-B1-no-coarse-for-points",
     "file": "src/player/collider.js",
-    "old": "  if (bucket.wide.length) NEAR.push(wideNear(bucket, lx, ly, lz, r + WIDE_MARGIN));   // OW-WOD-LAG",
-    "new": "  if (false) NEAR.push(wideNear(bucket, lx, ly, lz, r + WIDE_MARGIN));   // OW-WOD-LAG",
+    "old": "  if (bucket.wide.length) { NEAR_LEN[n] = wideNear(bucket, lx, ly, lz, r + WIDE_MARGIN); NEAR[n++] = WIDE_NEAR; }",
+    "new": "  if (false) { NEAR_LEN[n] = wideNear(bucket, lx, ly, lz, r + WIDE_MARGIN); NEAR[n++] = WIDE_NEAR; }",
     "tests": [
       "test/world/worldOfDaggerfall/audit_wod_branch.test.js"
     ]

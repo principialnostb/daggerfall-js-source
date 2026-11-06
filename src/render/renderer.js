@@ -796,6 +796,7 @@ export function gpuNameOf(gl) {
   } catch { return null; }
 }
 import { multiply as mat4Multiply } from '../world/mat4.js';   // PERF-CROWD2: proj * view, for this call's planes
+import { drawDepthFirst, noteFrameMatrices } from './depthPrepass.js';   // the dungeon level's depth, laid before its lit draw
 import { PerfMeter, perfOn, perfZones, perfCpu, setMeter } from './perfMeter.js';   // EL8: `?perf`   // EL5: the bounds every bundle carries for the replays' culling   // EL2: the lane's shadow maps - a leaf that compiles nothing until a lane asks
 import { AirPass, AIR_ADAPT_UNIT as ADAPT_UNIT, AIR_CONTACT_UNIT as CONTACT_UNIT } from './airPass.js';   // EL3: the ambient occlusion, the bloom and the shafts - the same kind of leaf; EL4: the eye's unit; EL6: all of it off the frame's own depth, at the resolve
 import { RetroPass, RETRO_VS, RETRO_FS } from './retroPass.js';   // RETRO1: DFU's retro mode - the world's small image, its effect and its present (a leaf, the air pass's kind)
@@ -1593,6 +1594,7 @@ export const PANEL_CLEAR_RGBA = Object.freeze([49 / 255, 77 / 255, 121 / 255, 5 
 import { WATER_MAP_COLOR } from './underwaterFog.js';
 import { WATER_SURFACE_VS, waterSurfaceFs } from './waterSurface.js';   // WATER1: the enhanced water pass over the terrain grid
 import { WATER_LAYER_UNITS, WATER_SCENE_UNIT, WATER_SCENE_DEPTH_UNIT, NO_BED_DEPTH, WATER_RIPPLE_UNIT, AURORA_SKY_UNIT } from './waterSurface.js';   // FIELD BUGS 2026-09-29 (the sea) #4: WATER1's offset is the sea's surface film's
+import { waterRowsReach, waterReachHolds, waterSheetBox } from './waterSurface.js';   // the part of the frame a list of water rows can read, the only part copied for it
 import { WATER_BED_GLSL, waterBedMix } from './waterBedGlsl.js';   // WATER-NEXT 2: the ground under the water is a bed
 import { packWaterMask, WATER_DRAW_MASK_TABLE } from '../world/water/waterCorners.js';   // MAC2: the corner table's one home; WATER-DRAW1: the PASS takes the draw's table, not the feet's
 import { pageParam } from '../systems/pageQuery.js';   // PERF-URL: the page's query, parsed once a search
@@ -2151,6 +2153,13 @@ export class Renderer {
     // with the world has to be mapped through the rect the world was
     // drawn into. Normalized and bottom-left, exactly as it arrived.
     this._worldViewportFrame = null;
+    // The two rects are records kept for the renderer's life and filled in place each frame: no reader keeps one past
+    // its frame (the getter hands a copy). The client size a host read for its rect rides with it, -1 when none.
+    this._wvPending = { x: 0, y: 0, w: 1, h: 1 };
+    this._wvFrame = { x: 0, y: 0, w: 1, h: 1 };
+    this._wvClientW = -1;
+    this._wvClientH = -1;
+    this._wlEye = [0, 0, 0];   // the frame's eye for the window light's sun, kept: sunFor reads it only within the call
   }
 
   /**
@@ -2168,9 +2177,14 @@ export class Renderer {
    * world frame's shrunk rect - the EV6 law: the renderer owns GL
    * state, and state it owns must not leak between scenes.
    */
-  setWorldViewport(rect) {
-    this._worldViewportPending = rect && (rect.x !== 0 || rect.y !== 0 || rect.w !== 1 || rect.h !== 1)
-      ? { x: rect.x, y: rect.y, w: rect.w, h: rect.h } : null;
+  setWorldViewport(rect, clientW = -1, clientH = -1) {   // the client size the host read this frame, for the next beginFrame; -1 leaves it to the layout
+    const pending = this._wvPending;
+    if (rect && (rect.x !== 0 || rect.y !== 0 || rect.w !== 1 || rect.h !== 1)) {
+      pending.x = rect.x; pending.y = rect.y; pending.w = rect.w; pending.h = rect.h;
+      this._worldViewportPending = pending;
+    } else this._worldViewportPending = null;
+    this._wvClientW = clientW;
+    this._wvClientH = clientH;
   }
 
   /** The pixel rect the frame's world pass is drawing into, or null
@@ -5777,8 +5791,8 @@ void main() { vec4 t = texture(uTex, vUV); if (t.a < 0.5) discard; outColor = ve
    *  frames, with boundsOf's own passes); given, the two walks below are
    *  not run again. Absent, nothing changes.
    *  @param {any} model
-   *  @param {{ bounds?: ?{ whole: Float32Array, subs: Float32Array[] } }} [opts] */
-  createMesh(model, { bounds: measured = null } = {}) {
+   *  @param {{ bounds?: ?{ whole: Float32Array, subs: Float32Array[] }, prepass?: boolean }} [opts] */
+  createMesh(model, { bounds: measured = null, prepass = false } = {}) {
     const gl = this.gl;
     const vao = gl.createVertexArray();
     this._bindVao(vao);
@@ -5808,9 +5822,10 @@ void main() { vec4 t = texture(uTex, vUV); if (t.a < 0.5) discard; outColor = ve
     // while the collider, which reads numbers and not bytes, stood the floor exactly where it should. Widened once,
     // here, at upload; `triIndices` stays the model's own array (the wireframe reads its values, not its bytes).
     buf(gl.ELEMENT_ARRAY_BUFFER, model.indices instanceof Uint32Array ? model.indices : Uint32Array.from(model.indices));
-    // LA-AUDIT A1: a static batch's shadow cells (staticBatch.js shadowCells) - the same triangles by grid cell, in their
-    // own index buffer on a second VAO over the same three vertex buffers (_ensureWireMesh's shape). Only the shadow
-    // replays bind it; each cell's sphere is measured here, as the sub-meshes' are below.
+    // A static batch's shadow cells (staticBatch.js shadowCells for a dungeon level, shadowColumnSteps for a streamed
+    // pixel): the same triangles by cell, each in its own winding, in their own index buffer on a second VAO over the
+    // same three vertex buffers (_ensureWireMesh's shape). The shadow replays and the level's depth-first draw
+    // (depthPrepass.js) bind it; each cell's sphere is measured here, as the sub-meshes' are below.
     let shadowVao = null, shadowCells = null;
     if (model.shadowIndices) {
       shadowVao = gl.createVertexArray();
@@ -5848,6 +5863,7 @@ void main() { vec4 t = texture(uTex, vUV); if (t.a < 0.5) discard; outColor = ve
     // draws nothing), which is the honest answer for a hand-built one.
     const bundle = /** @type {any} */ ({ vao, subMeshes, buffers, triIndices: model.indices, bounds });
     if (shadowVao) { bundle.shadowVao = shadowVao; bundle.shadowCells = shadowCells; }   // LA-AUDIT A1
+    if (shadowVao && prepass) bundle.prepass = true;   // drawn depth first from its cells (depthPrepass.js), asked at upload
     const wl = this._wlApertures(model);
     if (wl) bundle.wl = wl;   // WL1: its glass, tile by tile, for the windows' light
     return bundle;
@@ -5941,16 +5957,17 @@ void main() { vec4 t = texture(uTex, vUV); if (t.a < 0.5) discard; outColor = ve
     this._focusArmed = false;
     this._dwColumn = null;   // DW-F: and the water column's share over the flats
     this._lptDrawn?.fill(null);   // NODE-OUTLINE: and the 3D trees a frame drew
-    // EV6: the shadows reset with the counters - whatever ran between
-    // frames (UI passes, another context's work) is not trusted. The
-    // cloud-shadow upload stamps are the same kind of claim (RS-3) and
-    // reset here too, not only behind the conditional deck bump above.
+    // The bind shadows reset with the counters: whatever ran between frames (UI passes, another context's work) is not
+    // trusted. The cloud-shadow upload stamps are the same kind of claim, so a new stamp forgets them here too, and not
+    // only behind the conditional deck bump above.
     this._lastProgram = null;
     this._lastVao = null;
-    this._csUploaded = {};
+    this._csStamp++;
     const gl = this.gl;
-    const w = this.canvas.clientWidth;
-    const h = this.canvas.clientHeight;
+    const w = this._wvClientW >= 0 ? this._wvClientW : this.canvas.clientWidth;   // the size the host read this frame, else the layout's
+    const h = this._wvClientH >= 0 ? this._wvClientH : this.canvas.clientHeight;
+    this._wvClientW = -1;
+    this._wvClientH = -1;
     if (this.canvas.width !== w || this.canvas.height !== h) {
       this.canvas.width = w;
       this.canvas.height = h;
@@ -5963,16 +5980,21 @@ void main() { vec4 t = texture(uTex, vUV); if (t.a < 0.5) discard; outColor = ve
     // clips a clear), so the strip the bar covers still clears - which
     // is what Unity does too, the bar simply paints over it.
     {
-      const r = this._worldViewportPending;
+      const r = this._worldViewportPending, kept = this._wvFrame;
       this._worldViewportPending = null;
-      this._worldViewportFrame = r ? { ...r } : null;   // FIELD-GUN19: the record, for the 2D pass
+      if (r) { kept.x = r.x; kept.y = r.y; kept.w = r.w; kept.h = r.h; }
+      this._worldViewportFrame = r ? kept : null;   // FIELD-GUN19: the record, for the 2D pass
       this._worldViewportPx = this._viewportPx(r);
       if (this._worldViewportPx) this._restoreWorldViewport();
     }
     // WL1: the frame's kind of window light, and the sun a building's glass lets in - the shadow pass draws its map for it
     this._wlKind = this._wlKindOf(opts);
     this._wlNow = performance.now();
-    this._wlSun = this._wlKind === 'inside' && this._shadows ? this._wl.sunFor([-(view[0] * view[12] + view[1] * view[13] + view[2] * view[14]), -(view[4] * view[12] + view[5] * view[13] + view[6] * view[14]), -(view[8] * view[12] + view[9] * view[13] + view[10] * view[14])], this._wlNow, this._wlGlass) : null;
+    const eye = this._wlEye;
+    eye[0] = -(view[0] * view[12] + view[1] * view[13] + view[2] * view[14]);
+    eye[1] = -(view[4] * view[12] + view[5] * view[13] + view[6] * view[14]);
+    eye[2] = -(view[8] * view[12] + view[9] * view[13] + view[10] * view[14]);
+    this._wlSun = this._wlKind === 'inside' && this._shadows ? this._wl.sunFor(eye, this._wlNow, this._wlGlass) : null;
     this._beginLane(proj, view, lightDir, opts?.world === true);   // EL2/EL3/EL4: the maps, the images and the frame, before the clear
     // LC1: the lantern grid for this frame's lights, on a WORLD frame of the lane alone (a panel bracket's frame is another view and another viewport: every light)
     this._clustersLive = !!this._lane && opts?.world === true && !this._panelSaved && this._spriteDepth === 0 && this._studioDepth === 0 && this._buildClusters(proj, view);
@@ -6019,6 +6041,7 @@ void main() { vec4 t = texture(uTex, vUV); if (t.a < 0.5) discard; outColor = ve
     this._activeTexture(gl.TEXTURE0);
     this._proj = proj;
     this._view = view;
+    noteFrameMatrices(this, proj, view);   // what uProj and uView were given above: a depth-first draw is placed by these values
     // FIELD BUGS 2026-10-12g BATCH-SHUT: a body batch no pass flushed is let go as the frame begins - its pictures are one
     // frame's loss. Left open, every later pass's begin joined it and its flush only stepped the depth down: no
     // Morrowind body drew again until a reload
@@ -7631,7 +7654,7 @@ void main() { vec4 t = texture(uTex, vUV); if (t.a < 0.5) discard; outColor = ve
     gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, ebo);
     gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, indices, gl.STATIC_DRAW);
     this._bindVao(null);
-    return { vao, ebo, buffers: owned, indexCount: indices.length };
+    return { vao, ebo, buffers: owned, indexCount: indices.length, box: waterSheetBox(indices, positions, terrain?.bounds ?? null) };   // the box: what the copy under the water is taken for
   }
 
   destroyWaterSurface(water) {
@@ -7641,14 +7664,39 @@ void main() { vec4 t = texture(uTex, vUV); if (t.a < 0.5) discard; outColor = ve
     gl.deleteVertexArray(water.vao);
   }
 
-  /** WATER-NEXT 2: WHAT LIES UNDER THE WATER - the frame's colour and depth as they stand before the first water
+  /** WHAT LIES UNDER THE WATER - the frame's colour and depth as they stand before the first water
    *  draw, once a frame (the lane's frame image only: the classic lane's frame has no depth to copy, and its water
-   *  blends over the ground it draws). null without one. */
-  captureUnderWater() {
+   *  blends over the ground it draws). null without one. `reach` the part a draw can read, [x0, y0, x1, y1] texels
+   *  (_askUnderWater), null for the whole frame: the copy takes that part, and a later reach past it the rest. A
+   *  frame block's call names none and takes the copy as it was taken. */
+  captureUnderWater(reach) {
+    if (reach !== undefined && this._underWater?.part && !waterReachHolds(this._underWater.part, reach)) this._air.fillUnderWater();
     if (this._underWater !== undefined) return this._underWater;
-    this._underWater = (this._air && this._frameFbo && !this.waterSimple) ? this._air.snapshotUnderWater() : null;
+    this._underWater = (this._air && this._frameFbo && !this.waterSimple) ? this._air.snapshotUnderWater(reach ?? null) : null;
     if (this._underWater) this._forgetUnitShadows();   // AUDIT WATER-NEXT G11
     return this._underWater;
+  }
+
+  /** @type {any} */ _uwSight = null;   // the view a water list's reach is measured in, kept from frame to frame
+  _uwReach = new Int32Array(4);
+
+  /** The part of the frame a list of water rows can read, asked of the copy before their frame block takes it, so only
+   *  that part is copied (render/waterSurface.js waterRowsReach: each row's sheet box through its matrix, pushed as far
+   *  as the waves can push the look). The one-row list (the town's water, the lab's tiles) asks for the whole frame,
+   *  as it always took; so does a world viewport this renderer cannot name. */
+  _askUnderWater(rows, n, uniforms) {
+    const air = this._air, frame = air?.frame, taken = this._underWater;
+    if (!air || !frame || (taken === undefined ? !(this._frameFbo && !this.waterSimple) : !taken?.part)) return;   // no copy to take, or the whole frame's taken
+    const gl = this.gl, canvas = this.canvas, port = this._worldViewportPx;
+    if (rows === this._waterOne || (!port && (canvas.width !== gl.drawingBufferWidth || canvas.height !== gl.drawingBufferHeight))) {
+      this.captureUnderWater(null);
+      return;
+    }
+    const sight = this._uwSight ??= { proj: this._proj, view: this._view, eye: this._camPos, lift: 0, swell: 0, left: 0, bottom: 0, wide: 0, high: 0, width: 0, height: 0 };
+    sight.proj = this._proj; sight.view = this._view; sight.eye = this._camPos; sight.lift = uniforms.lift; sight.swell = uniforms.swell;
+    sight.left = port ? port[0] : 0; sight.bottom = port ? port[1] : 0; sight.wide = port ? port[2] : canvas.width; sight.high = port ? port[3] : canvas.height;
+    sight.width = frame.w; sight.height = frame.h;
+    this.captureUnderWater(waterRowsReach(rows, n, sight, this._uwReach ??= new Int32Array(4)));
   }
 
   /** WATER-NEXT 4: THE RIPPLE FIELD the water reads this frame - world/water/waterRipples.js's (its `bytes`, `origin`,
@@ -8435,6 +8483,7 @@ void main() { vec4 t = texture(uTex, vUV); if (t.a < 0.5) discard; outColor = ve
     this._use(laneWater ? this.waterSurfaceProgramLane : this.waterSurfaceProgram);
     this._csLoc.water = L.cloud; this._waterSurfaceFog = L.fog;
     if (!L.maskUploaded) { gl.uniform4uiv(L.mask, packWaterMask(WATER_DRAW_MASK_TABLE)); L.maskUploaded = true; }   // WATER-DRAW1
+    this._askUnderWater(rows, n, u);   // the copy under the water, of the part these rows can read
     this._waterFrameBlock(L, u, 0);
     gl.uniform1f(L.tileSize, tileSize);
     gl.uniform1i(L.tileDim, tileDim);
@@ -9035,7 +9084,7 @@ void main() { vec4 t = texture(uTex, vUV); if (t.a < 0.5) discard; outColor = ve
     gl.uniform1i(this.bbUSpectral, 0);
     gl.uniform4f(this.bbUConceal, 0, 0, 0, 0);   // ECV1: plain unless a batch says otherwise
     const opaque = this._bbOpaque ??= [];
-    opaque.length = 0;
+    let opaqueCount = 0;   // kept across frames: written from the front, read to the count, its slots let go after the draw
     // AUDIT 68 S16-bbkey-stale-shadow-reach: a batch is keyed for the
     // sort below, which reads `b._bbKey`, and no longer for anyone else.
     // AUDIT PERF-CROWD2 F1 keyed every batch BEFORE the cull because the
@@ -9049,11 +9098,11 @@ void main() { vec4 t = texture(uTex, vUV); if (t.a < 0.5) discard; outColor = ve
       if (ghostShaded(b) || b.conceal) continue;
       if (bbCull && !this._bbVisible(b)) { this.stats.bbCulled++; continue; }   // PERF-CROWD2
       billboardKey(b);
-      opaque.push(b);
+      opaque[opaqueCount++] = b;
     }
-    sortByKey(opaque);   // LA-COST2: the key order the string sort gave (a depth tie keeps its first-drawn flat), by bucket (billboardKey.js)
-    for (let batchIndex = 0, batchCount = opaque.length; batchIndex < batchCount; batchIndex++) drawOne(opaque[batchIndex]);
-    opaque.length = 0;
+    sortByKey(opaque, opaqueCount);   // LA-COST2: the key order the string sort gave (a depth tie keeps its first-drawn flat), by bucket (billboardKey.js)
+    for (let batchIndex = 0, batchCount = opaqueCount; batchIndex < batchCount; batchIndex++) drawOne(opaque[batchIndex]);
+    for (let batchIndex = 0; batchIndex < opaqueCount; batchIndex++) opaque[batchIndex] = null;
     // LPT1: THE LOW-POLY TREES, on this program with this frame's light - and the lasts forgotten, since they bind their
     // own atlases and send their own size and origin. Drawn ONCE: the frame's set is spent here, so a later call this
     // frame (a spell, the gibs) or a scene the host leaves for (an interior) draws none and gives no picture way
@@ -9206,6 +9255,7 @@ void main() { vec4 t = texture(uTex, vUV); if (t.a < 0.5) discard; outColor = ve
     // POI-2 (render/meshAlpha.js): A TRANSLUCENT DRAW - its texels' alpha times `translucent` over what is drawn, depth
     // tested and never written, no shadow cast; the caller draws it after the opaque world, back to front
     if (translucent > 0) { this._drawTranslucent(mesh, modelMatrix, texRemap, Math.min(translucent, 1)); return; }
+    if (mesh?.prepass) drawDepthFirst(this, mesh, modelMatrix, texRemap, VS);   // its depth first, when no lit fragment can be discarded
     this._drawMeshBundle(mesh, modelMatrix, texRemap, false, noShadow);
   }
 

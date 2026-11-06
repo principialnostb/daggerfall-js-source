@@ -1,0 +1,29 @@
+[
+  {
+    "name": "ZONEMASK-the-reader-begins-a-build-of-its-own",
+    "file": "src/systems/wild/cyrodiilZone.js",
+    "old": "  const build = _building?.key === key ? _building : { key, steps: maskSteps() };",
+    "new": "  const build = { key, steps: maskSteps() };",
+    "tests": [
+      "test/systems/wild/zonemasksteps.test.js"
+    ]
+  },
+  {
+    "name": "ZONEMASK-the-reader-finishes-the-last-land-build",
+    "file": "src/systems/wild/cyrodiilZone.js",
+    "old": "  const build = _building?.key === key ? _building : { key, steps: maskSteps() };",
+    "new": "  const build = _building ?? { key, steps: maskSteps() };",
+    "tests": [
+      "test/systems/wild/zonemasksteps.test.js"
+    ]
+  },
+  {
+    "name": "ZONEMASK-the-kept-mask-dropped-while-another-is-made",
+    "file": "src/systems/wild/cyrodiilZone.js",
+    "old": "      _mask = madeMask(step.value);\n    }\n    yield;",
+    "new": "      _mask = madeMask(step.value);\n    } else _mask = null;\n    yield;",
+    "tests": [
+      "test/systems/wild/zonemasksteps.test.js"
+    ]
+  }
+]

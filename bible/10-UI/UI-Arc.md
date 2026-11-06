@@ -10,7 +10,8 @@ brand work across both. The section's other pages hold single systems (see `10-U
 **The skin** (`src/systems/uiSkin.js`). `uiSkin()` answers `enhanced` or `classic`: the URL's `?skin=` for one page
 load (never stored), else the stored choice, else enhanced. Every surface asks `isEnhanced()`; nothing compares the
 string itself. The player chooses on the Overhauls screen's UI card (`10-UI/Overhauls.md`). The skin is a prefs value,
-not a DFU settings key. Online, the skin is the player's; online panels mount on either skin.
+not a DFU settings key. Online, the skin is the player's; online panels mount on either skin. The answer is kept until
+the page's search string or the stored choice changes.
 
 **Windows and the stack** (`src/ui/windowStack.js`, a port of DFU's `UserInterfaceManager`). One window is on top and
 takes input; a push lays a window over what is open; a pop returns to the one beneath. Each host keeps one overlay

@@ -586,7 +586,7 @@ test('AUDIT CAPTAIN\'S SEA H1/P2: every port isle has a harbour - its town whole
   // isle's own reach asks no farther (the port law's ring is a Bay port's - test/systems/naval/fb1020c_harbourreach.test.js).
   // PIN MOVED (ALDBRUGH-QUAY): the sounding names its shape too - round by default, the ring's square only past it
   const book = rd('src/systems/naval/harbourBook.js');
-  assert.match(book, /const own = near\.reach \?\? HARBOUR_REACH;\n\s*const sound = \(reach = own, square = false\) =>\n\s*findHarbour\(\{\n\s*rect: near\.rect,\n\s*isWater: \(x, z, h\) => deps\.isWater\(x, z, h\),\n\s*reach,\n\s*square,\n\s*keep: near\.keep \?\? null,\n\s*ground: deps\.ground \?\? null,\n\s*\}\);/);   // PIN MOVED (PORT-SHIPS): the town's keep and the ground beside the reach
+  assert.match(book, /const own = near\.reach \?\? HARBOUR_REACH;\n(?:.*\n){0,2}?\s*const sound = \(reach = own, square = false\) => \{\n(?:.*\n){1,6}?\s*const harbour = findHarbour\(\{\n\s*rect: near\.rect,\n\s*isWater: \(x, z, h\) => \{\n\s*if \(box\) widenBox\(box, x, z\);\n\s*return deps\.isWater\(x, z, h\);\n\s*\},\n\s*reach,\n\s*square,\n\s*keep: asked\n/);   // PIN MOVED (PORT-SHIPS): the town's keep and the ground beside the reach
   assert.match(book, /far = own === HARBOUR_REACH \? portRingReach\(near\.rect\) : 0;/);
   assert.match(book, /const reach = t\.reach \?\? HARBOUR_REACH;/, 'the lanes\' harbour feed sounds it as far');   // PIN MOVED (RPT1026-WORLD FAR-QUAY): harbourBook.js harbourOf
 });

@@ -276,7 +276,7 @@
   {
     "name": "WILD-marks-frame-unwired",
     "file": "src/scenes/world.js",
-    "old": "      wildMarksFrame(proj, view, mwv.eye);   // WILD-ALERT: the \"!\" over an alerted foe\n",
+    "old": "      wildMarksFrame(proj, view, mwv.eye, clientW, clientH);   // the \"!\" over an alerted foe\n",
     "new": "",
     "tests": [
       "test/scenes/wildalert.test.js"

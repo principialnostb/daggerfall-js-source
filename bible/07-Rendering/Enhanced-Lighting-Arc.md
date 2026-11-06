@@ -50,8 +50,9 @@ terrain, billboard batches) and replays it depth-only from the light at the star
   PCF-softened, snapped to the texel grid beside the eye so shadows hold still.
 - **Lamps:** a 512-texel cube map for each of the nearest 12 lights (`SHADOW_POINT_CASTERS`); every other light in the
   room reads a lower-detail map of static casters, so no light ever lights through walls.
-- **Static cache.** A lamp's still casters are drawn once into a cache and copied into its map each frame, with movers
-  drawn on top, so a tavern where nothing moved pays almost nothing. `?shadowcache=off` turns the cache off.
+- **Static cache.** A lamp's still casters are drawn once into a cache. Its map is the cache with the movers drawn on
+  top, drawn again only when a mover in its reach changed, so a tavern where nothing moved pays almost nothing.
+  `?shadowcache=off` turns the cache off.
 - **Reach.** Casters the view cull rejects still cast (a tree behind the camera shadows the view).
 - **Steady shadows** (a part of the row, on by default): no frame-skipping cadence and a stickier caster hold, at some
   frame-rate cost. Off is the cheaper schedule, where shadows can pop.

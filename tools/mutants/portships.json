@@ -92,8 +92,8 @@
   {
     "name": "PORTSHIPS-book-keep-unhanded",
     "file": "src/systems/naval/harbourBook.js",
-    "old": "        keep: near.keep ?? null,",
-    "new": "        keep: null,",
+    "old": "      const keep = near.keep ?? null,",
+    "new": "      const keep = null,",
     "tests": [
       "test/systems/naval/portships.test.js"
     ]
@@ -101,8 +101,8 @@
   {
     "name": "PORTSHIPS-book-ground-unhanded",
     "file": "src/systems/naval/harbourBook.js",
-    "old": "        ground: deps.ground ?? null,",
-    "new": "        ground: null,",
+    "old": "      const groundAt = deps.ground;",
+    "new": "      const groundAt = null;",
     "tests": [
       "test/systems/naval/portships.test.js"
     ]

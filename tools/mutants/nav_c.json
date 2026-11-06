@@ -2,8 +2,8 @@
   {
     "name": "NAV-C-the-level-gate-off",
     "file": "src/systems/naval/navalShips.js",
-    "old": "  const pool = SHIP_CLASSES.filter((c) => c.faction === faction && c.minLevel <= Math.max(1, level | 0));",
-    "new": "  const pool = SHIP_CLASSES.filter((c) => c.faction === faction);",
+    "old": "  const pool = SHIP_CLASSES.filter((ship) => ship.faction === faction && ship.minLevel <= level);",
+    "new": "  const pool = SHIP_CLASSES.filter((ship) => ship.faction === faction);",
     "tests": [
       "test/systems/naval/nav_c_ships.test.js"
     ]

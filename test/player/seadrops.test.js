@@ -119,19 +119,20 @@ test('SEA-DROPS: the work - a posed fleet\'s poses are read once a move, a query
   const { c, fleet } = sea({ counted });
   sail(fleet, 1);
   c.posesMoved();
-  const movers = (list) => list.filter((b) => b.key.startsWith('boat:'));
+  const kept = [];   // one list for every query, as the walks keep theirs: the answer is its first `n`
+  const movers = (n) => kept.slice(0, n).filter((b) => b.key.startsWith('boat:'));
   c._near(-1, 1, -1, 1, []);
   assert.equal(counted.n, fleet.length, 'each pose read once, at the first query after the move');
   counted.n = 0;
   for (let i = 0; i < 200; i++) {
     const a = i * 0.7, x = Math.cos(a) * 600, z = Math.sin(a) * 600;
-    assert.deepEqual(movers(c._near(x - 2, x + 2, z - 2, z + 2, [])), [], 'a query 600 m off: no hull handed');
+    assert.deepEqual(movers(c._near(x - 2, x + 2, z - 2, z + 2, kept)), [], 'a query 600 m off: no hull handed');
     c.raycastHit([x, 5, z], [0, -1, 0], 20);
   }
   assert.equal(counted.n, 0, 'and no pose read for any of them');
   const s = fleet[4], R = s.R ?? [1, 0, 0, 0, 1, 0, 0, 0, 1], m = s.at;
   const mid = [0, 1, 2].map((i) => s.T[i] + R[i] * m[0] + R[3 + i] * m[1] + R[6 + i] * m[2]);   // her bake's middle where she stands (R b + T)
-  const handed = movers(c._near(mid[0] - 1, mid[0] + 1, mid[2] - 1, mid[2] + 1, [])).map((b) => b.key);
+  const handed = movers(c._near(mid[0] - 1, mid[0] + 1, mid[2] - 1, mid[2] + 1, kept)).map((b) => b.key);
   assert.ok(handed.includes(s.key), `a query at her middle is handed her (${handed})`);
   const middleOf = (o) => { const Ro = o.R ?? [1, 0, 0, 0, 1, 0, 0, 0, 1]; return [0, 1, 2].map((i) => o.T[i] + Ro[i] * o.at[0] + Ro[3 + i] * o.at[1] + Ro[6 + i] * o.at[2]); };
   const apart = fleet.filter((o) => Math.hypot(middleOf(o)[0] - mid[0], middleOf(o)[2] - mid[2]) > 40);

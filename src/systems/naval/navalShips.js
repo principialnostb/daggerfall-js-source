@@ -1004,14 +1004,35 @@ function cls(id, faction, hull, title, o) {
 }
 export const classById = (id) => SHIP_CLASSES.find((c) => c.id === id) ?? null;
 
+/** The classes a faction draws from at a level, and their weights' sum: every class of the faction the level has
+ *  reached, or the faction's first where it has reached none. */
+function drawPool(faction, level) {
+  const pool = SHIP_CLASSES.filter((ship) => ship.faction === faction && ship.minLevel <= level);
+  const list = pool.length ? pool : SHIP_CLASSES.filter((ship) => ship.faction === faction).slice(0, 1);
+  return { list, total: list.reduce((sum, ship) => sum + ship.weight, 0) };
+}
+/** The pools kept by faction, then level. The classes are frozen, so a pool never changes; past the highest
+ *  `minLevel` every level draws the same pool, so the levels kept are bounded. A faction no class sails is not kept. */
+const POOL_LEVEL_TOP = Math.max(...SHIP_CLASSES.map((ship) => ship.minLevel));
+const POOL_FACTIONS = new Set(SHIP_CLASSES.map((ship) => ship.faction));
+/** @type {Map<string, Map<number, { list: readonly any[], total: number }>>} */
+const pools = new Map();
+function poolFor(faction, level) {
+  if (!POOL_FACTIONS.has(faction)) return drawPool(faction, level);
+  const kept = Math.min(level, POOL_LEVEL_TOP);
+  let byLevel = pools.get(faction);
+  if (!byLevel) pools.set(faction, (byLevel = new Map()));
+  let pool = byLevel.get(kept);
+  if (!pool) byLevel.set(kept, (pool = drawPool(faction, kept)));
+  return pool;
+}
+
 /**
  * The class a spawn sails, by faction and the player's level: every class of the faction the level has reached,
  * weighed by `weight` - the draw `r` in [0, 1). A level below every class's still gets the faction's first.
  */
 export function classFor(faction, level, r) {
-  const pool = SHIP_CLASSES.filter((c) => c.faction === faction && c.minLevel <= Math.max(1, level | 0));
-  const list = pool.length ? pool : SHIP_CLASSES.filter((c) => c.faction === faction).slice(0, 1);
-  const total = list.reduce((s, c) => s + c.weight, 0);
+  const { list, total } = poolFor(faction, Math.max(1, level | 0));
   let x = Math.max(0, Math.min(0.999999, r)) * total;
   for (const c of list) {
     if ((x -= c.weight) < 0) return c;

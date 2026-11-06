@@ -26,7 +26,7 @@ test('the world host\'s three frame lines read their helpers from outside its sc
 
 test('the billboard pass walks its lists by index and sorts the blended phase by sign; the grass sweeps its live cells through Map.forEach; the frame clock trims in place; the shadow pass sends a program\'s view once and the viewport when it changes (mutants: a for-of back, a difference comparator, a slice)', () => {
   assert.equal(renderer.split('for (let batchIndex = 0, batchCount = batches.length; batchIndex < batchCount; batchIndex++)').length - 1, 2, 'both walks of the batches by index');
-  once(renderer, 'for (let batchIndex = 0, batchCount = opaque.length; batchIndex < batchCount; batchIndex++) drawOne(opaque[batchIndex]);', 'the opaque phase');
+  once(renderer, 'for (let batchIndex = 0, batchCount = opaqueCount; batchIndex < batchCount; batchIndex++) drawOne(opaque[batchIndex]);', 'the opaque phase');
   assert.ok(!renderer.includes('blended.sort((a, b) => d2(b) - d2(a))'), 'the blended sort by sign');
   once(grass, 'live.forEach(sweepHeld);', 'the grass sweep');
   assert.ok(!grass.includes('for (const [key, held] of live)'), 'no entry walk a frame');

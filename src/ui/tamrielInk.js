@@ -55,7 +55,7 @@ import { HUB_CAPITALS } from '../systems/region/regionHubs.js';   // REGION-LINE
 import { simplifyChain } from './overworldModel.js';   // TAMRIEL3: the coast's chain thinned as the overworld's are
 import { stampSquare, coveragePixels, clearCoverage, penRgb } from './inkRaster.js';   // MAP-WHOLE: the continent's dots rasterised by hand
 import { labelPoint } from './provinceMap.js';   // TAMRIEL3: a province's name hangs where the chargen's map hangs it
-import { cyrodiilMask, zoneLineSteps } from '../systems/wild/cyrodiilZone.js';   // ZONE-LINE: Cyrodiil's outline is the zone's law's to draw
+import { cyrodiilMask, cyrodiilMaskSteps, zoneLineSteps } from '../systems/wild/cyrodiilZone.js';   // ZONE-LINE: Cyrodiil's outline is the zone's law's to draw
 import { watersInk, watersInkVersion } from '../world/tamriel/watersInk.js';   // MAP-WATERS: stream G's rivers and lakes past the Bay (the worker's copy), inked
 import { bridgesOf, inkBridgeLaw } from '../world/road/roadBridges.js';   // ROAD-LOOK: the bridges where the roads cross those rivers, marked
 import { lawLines, linkSteps, segKey, drain } from '../world/tamriel/tamrielLines.js';   // SMOOTH-LAND: the land's own lines
@@ -408,13 +408,15 @@ export function tracedChains(trace) {
  *  the held map's open takes what the idle job made. @type {WeakMap<object, { key: string, mask: any, value: any }>} */
 const _traced = new WeakMap();
 /**
- * tracedChains as steps (AUDIT RELEASE R4-7): the law's walk a picture square a step (tamrielLines.js steps), the zone's
- * line (cyrodiilZone.js zoneLineSteps), the linking (linkSteps), a chain's thinning and a province's label a step each -
- * the same chains, kept for the trace (`_traced`), whether walked whole or a budget at a time.
+ * tracedChains as steps: the zone's mask where the land moved since it was made (cyrodiilZone.js
+ * cyrodiilMaskSteps), the law's walk a picture square a step (tamrielLines.js steps), the zone's line (cyrodiilZone.js
+ * zoneLineSteps), the linking (linkSteps), a chain's thinning and a province's label a step each - the same chains,
+ * kept for the trace (`_traced`), whether walked whole or a budget at a time.
  * @param {{ w: number, h: number, land: Uint8Array, province: Uint8Array }} trace
  * @returns {Generator<undefined, { coast: Pt[][], borders: Pt[][], labels: Array<{ key: string, px: number, py: number }> }, unknown>}
  */
 export function* tracedSteps(trace) {
+  yield* cyrodiilMaskSteps();   // the zone's mask in steps where the land moved since it was made, so no step makes it whole
   const f = tamrielFit(), key = `${f.ox}:${f.oy}:${f.ppu}:${tamrielLandVersion()}`, zoneMask = cyrodiilMask();
   const kept = _traced.get(trace);
   if (kept && kept.key === key && kept.mask === zoneMask) return kept.value;
@@ -448,16 +450,19 @@ export function* tracedSteps(trace) {
 
 /** AUDIT RELEASE R4-7: how many steps of tracedSteps the idle job takes in one slice of the page's idle time - each step
  *  a picture square's map squares, LINK_STEP pieces, a chain's thinning or a province's label (some milliseconds at
- *  most), so a slice stays well under a frame's worth of 100 ms. */
+ *  most), so a slice stays well under a frame's worth of 100 ms. A slice stops sooner where the idle period is spent
+ *  (its deadline's `timeRemaining`): the next one takes the rest. */
 export const TRACED_SLICE_STEPS = 24;
-/** The idle job's scheduler: `requestIdleCallback` on a page, none in node (a test sets its own; null stops it). */
-let _schedule = /** @type {((run: () => void) => void)|null} */ (typeof globalThis.requestIdleCallback === 'function' ? (run) => globalThis.requestIdleCallback(() => run()) : null);
+/** The idle job's scheduler: `requestIdleCallback` on a page, its deadline handed on; none in node (a test sets its own;
+ *  null stops it). */
+let _schedule = /** @type {((run: (deadline?: { timeRemaining?: () => number }) => void) => void)|null} */ (typeof globalThis.requestIdleCallback === 'function' ? (run) => globalThis.requestIdleCallback((deadline) => run(deadline)) : null);
 export function setTracedScheduler(fn) { _schedule = fn; }
 /**
  * AUDIT RELEASE R4-7: THE HELD MAP'S LINES MADE IN IDLE TIME. When a trace lands on the page (tamrielLand.js
- * onTamrielTrace), its traced chains - the continent's walk, Cyrodiil's line, the linking and thinning - are made
- * TRACED_SLICE_STEPS steps a slice of idle time, into the one keep tracedChains reads; the map's first open then takes
- * them made. A trace that moves on stops the job (the next one starts its own). Returns the job's state for its pins.
+ * onTamrielTrace), the zone's mask and its traced chains - the continent's walk, Cyrodiil's line, the linking and
+ * thinning - are made up to TRACED_SLICE_STEPS steps a slice of idle time, fewer where the period is spent, into the
+ * one keep tracedChains reads; the map's first open then takes them made. A trace that moves on stops the job (the
+ * next one starts its own). Returns the job's state for its pins.
  * @param {{ w: number, h: number, land: Uint8Array, province: Uint8Array }} trace
  */
 export function startTracedJob(trace) {
@@ -465,13 +470,14 @@ export function startTracedJob(trace) {
   if (!_schedule || !trace) return job;
   /** @type {Generator<undefined, any, unknown>|null} */
   let gen = null;
-  const slice = () => {
+  const slice = (/** @type {{ timeRemaining?: () => number }|undefined} */ deadline) => {
     if (tamrielTrace() !== trace) return;   // another trace landed: its own job makes its chains
     gen ??= tracedSteps(trace);
     job.slices++;
     for (let n = 0; n < TRACED_SLICE_STEPS; n++) {
       job.steps++;
       if (gen.next().done) { job.done = true; return; }
+      if (typeof deadline?.timeRemaining === 'function' && deadline.timeRemaining() <= 0) break;
     }
     _schedule?.(slice);
   };

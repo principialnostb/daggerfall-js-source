@@ -24,11 +24,23 @@ frame is `Performance-Exterior.md`.
 
 ### Sprites, names and poses
 
-- A peer's feet are asked of the scene once a sync, however many layers read them (`src/net/remotePlayers.js`).
+- A peer's feet are asked of the scene once a sync, however many layers read them. A sync empties and refills its own
+  id sets, and a class sprite builds its frame's key strings only when its record or frame moves
+  (`src/net/remotePlayers.js`).
 - A class sprite's whole archive is warmed at idle only once it has stood as its peer for some frames.
-- A decoded sprite is turned in its own bytes (`src/formats/color32Order.js`).
+- A decoded sprite is turned in its own bytes (`src/formats/color32Order.js`). A peer's sprite art is decoded in the
+  decode workers where the page has them, the door the player's own body takes. A worn-armour sprite's strips are
+  decoded there too (`src/net/peer/peerRiders.js` `decodeUrl`).
+- An Eye of the Beholder walker keeps its sprite answer while its table, view, frame and look hold. A look's outfit is
+  read once for each list of items, and its warm signature only when the look changes. A kept answer carries its
+  texture key, renderer key and look code, made once with it: the art store and the figure's batch take those and
+  build none again. A rider's answer is new each frame, so its keys are made as it is drawn and kept nowhere
+  (`src/net/peer/peerRiders.js`).
 - Names move by their transform, each value compared with what the layer last wrote; a name with nobody to label keeps
-  no label (`src/ui/nameLayer.js`).
+  no label. Each name's writers are made once, and a number is compared before its string is built
+  (`src/ui/nameLayer.js`). The name pass hands its view-projection product to the sight test, and the host's glass test
+  projects the head with it (`src/net/remotePlayers.js` `namePoints`).
+- The player's own pose asks the cast's wire fields of `dragonWireCast` once (`src/scenes/world.js`).
 - Players past the peer range are neither stepped nor drawn, and **Players shown at once** can cap a crowd
   (`Performance-Priority.md`). A player the cap leaves undrawn takes their own foes and companions with them
   (`src/net/gate/gateCrowd.js` `crowdKinHidden`).
@@ -64,8 +76,13 @@ still animation clip is posed once and a rope's bones are read off the frame's o
 - `src/net/peer/peerBodies.js` - cadence, budget, body pool
 - `src/combat/fpArm.js` - the rig, `?gpuskin=off`
 - `src/net/remotePlayers.js`, `src/ui/nameLayer.js` - peers and names
+- `src/net/peer/peerRiders.js` - the walkers' sprites and their art's decode
 - `test/net/peer/wb9h_crowd_bodies.test.js` - the crowd's bodies
 - `test/net/perfcrowd1.test.js` - names, peers and the crowd frame
+- `test/net/peer/peerwalker_steady.test.js`, `test/net/peer/peerdecode.test.js` - a walker kept, its art decoded
+- `test/net/remoteplayers_steady.test.js`, `test/net/namepass_steady.test.js`, `test/ui/namelayer_steady.test.js` - a
+  steady sync and name pass build nothing again
+- `test/systems/staffDragonArm.test.js` - the cast's wire fields asked once
 - `test/systems/comeSailAway/perfsails3.test.js`, `test/systems/comeSailAway/perfsails4.test.js` - ships in port
 - `test/net/gate/fb1013e_aoeperf.test.js` - the boss's telegraphs
 - `tools/peerLab.mjs` - a crowd of peers, measured

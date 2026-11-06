@@ -17,6 +17,9 @@ late and quiet. The classic lane keeps DFU's weather, one word for the player's 
   under it and the hour (`birthLaw`, `diurnal`). The weights are solved from DFU's own table (the Chronicles' odds,
   `src/systems/weather/weatherTable.js`), so the table still decides how much weather a climate gets; the map decides
   where and when. A calibration test holds the sampled map to the table.
+- **Reading the map** walks the lattice nodes within each type's reach of the place (`systemsNear`). A node's births
+  are drawn once and kept under one whole number for the node, its type and the calendar they were drawn to, so every
+  node anywhere in Tamriel keeps its own. A system is built for a reading only where its outline reaches the place.
 - **Rain hours.** A table day of rain is worn as half its hours (`WET_HOURS` rain 0.5, thunder 0.5); the freed hours go
   to the dry words in proportion, so a climate keeps its character and rains less. Snow keeps its odds.
 - **Systems** are discs cut into bands (core, ring, skirt): a thunderstorm is thunder, then rain, then cloud; a rain
@@ -43,7 +46,11 @@ late and quiet. The classic lane keeps DFU's weather, one word for the player's 
 - **Distant storms** flash their own cloud; a ground strike's channel is drawn as ribbons of light seen far away
   (`src/render/lightningBolts.js`). Thunder arrives after its distance over the speed of sound, quieter with distance.
   A storm strikes only where it is drawn.
-- **The forecast** on the overworld is `weatherAt` asked of the way ahead (`src/systems/weather/owForecast.js`).
+- **The forecast** on the overworld is `weatherAt` asked of the way ahead (`src/systems/weather/owForecast.js`). A
+  place's own next hours, standing or on its card, are read from one walk of the map over those hours (`weatherSpan`,
+  read at each minute by `weatherAmong`). Each minute's answer is `weatherAt`'s, and the minute a change comes is found
+  by bisection on the same walk. A minute the walk does not hold (before its hours, after them, or between whole
+  minutes) is read by a walk of its own, so a span never changes an answer.
 
 ### Words of our own
 
@@ -166,7 +173,7 @@ both lanes, DFU's grey eases in between the rain's density and the snow's, where
 
 ## Code and tests
 
-- `src/systems/weather/weatherMap.js` - systems, births, wind, `weatherAt`, `skyCells`, `forecastAt`
+- `src/systems/weather/weatherMap.js` - systems, births, wind, `weatherAt`, `weatherSpan`, `skyCells`, `forecastAt`
 - `src/systems/weather/weatherSim.js` - the player's word, the lanes, `mapGround`, `overGround`, `fallingWeather`
 - `src/systems/weather/weatherField.js` - the zones' words as cells, the ash at a pixel
 - `src/systems/weather/weatherFront.js` - the eased front
@@ -176,3 +183,9 @@ both lanes, DFU's grey eases in between the rain's density and the snow's, where
 - `test/systems/weather/ashfall1.test.js`, `test/systems/weather/nightfog.test.js`,
   `test/systems/weather/bayleftsea_seaweather.test.js`, `test/systems/rainleak.test.js`
 - `test/render/fb1031_light.test.js` - the grey eased in
+- `test/systems/weather/weathermap_walk.test.js`, `test/systems/weather/weathermap_copies.test.js` - a reading against
+  every system stood whole, each node's own births, what a reading copies and allocates
+- `test/systems/weather/ow_forecast_span.test.js` - a place's next hours from one walk against a walk for each reading,
+  the span's first minute, the minutes a span does not hold
+- `test/systems/weather/ow_forecast_walks.test.js` - the walks a refresh makes, counted call by call (it stands down
+  under a coverage tool, whose counts it would drop)

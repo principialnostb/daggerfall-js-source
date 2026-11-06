@@ -272,6 +272,95 @@ export function idleKeyOf(text, summary = null) {
   return JSON.stringify([rest, summary]);
 }
 
+/** The save realmSaveWithHeld wrote last: its text, and `root`, the object it was written from. It is kept until a
+ *  checkpoint asks its key or the turn ends. The sink hands the text to its checkpoint in that turn, and nothing
+ *  between writes to the root, so the key is read off the root and the text, which can pass 4 MiB, is not parsed.
+ *  @type {{ text: string, root: any } | null} */
+let writtenSave = null;
+
+/** idleKeyOf's key of a checkpoint's text: read off the save's own object while the text is the one realmSaveWithHeld
+ *  has just written, else off the text. The object answers one ask; a second parses. */
+export function checkpointKeyOf(/** @type {string} */ text, /** @type {any} */ summary = null) {
+  const written = writtenSave;
+  writtenSave = null;
+  return (written && written.text === text ? idleKeyOfSave(written.root, summary) : null) ?? idleKeyOf(text, summary);
+}
+
+/** idleKeyOf's strip, made on copies of the save's own object: the same key, with no parse. Null where the object is
+ *  not as a parse of its text gives it back (an array where a record is stripped, a class, a toJSON on any value
+ *  there): the text answers those. */
+function idleKeyOfSave(/** @type {any} */ root, /** @type {any} */ summary) {
+  if (!parsedAlike(root)) return null;
+  const { classicMinutes, worldMinutes, ...rest } = root;
+  if ([rest.pose, rest.survival, rest.quest, rest.automap].some(hasToJSON)) return null;
+  if (rest.pose && typeof rest.pose === 'object') {
+    if (!parsedAlike(rest.pose)) return null;
+    const { yaw, pitch, camera, ...pose } = rest.pose;
+    rest.pose = pose;
+  }
+  if (rest.survival && typeof rest.survival === 'object') {
+    if (!parsedAlike(rest.survival)) return null;
+    const { lastMinute, rotMinutes, thirst, fed, ...survival } = rest.survival;
+    rest.survival = survival;
+  }
+  // a parsed list has no `machine`, nor a parsed machine list `quests`: idleKeyOf reaches neither
+  if (rest.quest && typeof rest.quest === 'object' && !Array.isArray(rest.quest)) {
+    if (!parsedAlike(rest.quest)) return null;
+    const quest = { ...rest.quest };
+    if (hasToJSON(quest.machine)) return null;
+    if (quest.machine && typeof quest.machine === 'object' && !Array.isArray(quest.machine)) {
+      if (!parsedAlike(quest.machine)) return null;
+      const machine = { ...quest.machine };
+      if (hasToJSON(machine.quests)) return null;
+      if (machine.quests && typeof machine.quests === 'object') {
+        machine.quests = withoutEach(machine.quests, 'ownSecondsAt');
+        if (!machine.quests) return null;
+      }
+      quest.machine = machine;
+    }
+    rest.quest = quest;
+  }
+  if (rest.automap && typeof rest.automap === 'object') {
+    rest.automap = withoutEach(rest.automap, 'lastVisited');
+    if (!rest.automap) return null;
+  }
+  return JSON.stringify([rest, summary]);
+}
+
+/** A list or a map of records with no toJSON, copied with `name` taken off each record that is an object, as
+ *  idleKeyOf deletes it from the parsed ones. A list record keeps its members: a parsed list has no named one. Null
+ *  where the list or a record is not as a parse would give it back. */
+function withoutEach(/** @type {any} */ records, /** @type {string} */ name) {
+  /** @type {any} */
+  let copy = null;
+  if (!Array.isArray(records)) copy = parsedAlike(records) ? { ...records } : null;
+  else if (Object.getPrototypeOf(records) === Array.prototype) copy = Array.from({ length: records.length }, (_, i) => records[i]);
+  if (!copy) return null;
+  for (const key of Object.keys(copy)) {
+    const record = copy[key];
+    if (hasToJSON(record)) return null;
+    if (!record || typeof record !== 'object' || Array.isArray(record)) continue;
+    if (!parsedAlike(record)) return null;
+    const { [name]: _, ...kept } = record;
+    copy[key] = kept;
+  }
+  return copy;
+}
+
+/** Whether a write of `value` calls a toJSON, its own or its prototype's: an object's, a list's or a function's. A
+ *  parse of the text gives back what the toJSON answers, not the value. */
+function hasToJSON(/** @type {any} */ value) {
+  return value !== null && (typeof value === 'object' || typeof value === 'function') && typeof value.toJSON === 'function';
+}
+
+/** An object that a parse of its own text gives back with the same members in the same order: Object's prototype or
+ *  none, and no toJSON. */
+function parsedAlike(/** @type {any} */ value) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
+  const proto = Object.getPrototypeOf(value);
+  return (proto === Object.prototype || proto === null) && typeof value.toJSON !== 'function';
+}
+
 /** RESCUE-PACK (2026-09-30, Mac: "Do it"): A LONG LIFE'S COPY RIDES PACKED. The copy was the save's text, and a save
  *  big enough to need REALM-GZIP's packing on the wire (past 4 MiB) will not fit a browser's storage (5-10 MB an origin)
  *  - so the players with the most to lose kept no copy there. A save past REALM_UNSENT_PACK_OVER characters is kept
@@ -548,7 +637,13 @@ export function sweepUnsent(/** @type {any} */ storage, /** @type {any[]} */ row
 /** AUDIT RESCUE-SAVE A1: a save's text naming the spoils records its pack holds (none: the save as it stands). */
 export const realmSaveWithHeld = (/** @type {any} */ snap, /** @type {unknown} */ held) => {
   const ids = heldList(held);
-  return JSON.stringify(ids.length ? { ...snap, [REALM_HELD_FIELD]: ids } : snap);
+  const root = ids.length ? { ...snap, [REALM_HELD_FIELD]: ids } : snap;
+  const text = JSON.stringify(root);
+  if (typeof text === 'string') {
+    const written = (writtenSave = { text, root });
+    Promise.resolve().then(() => { if (writtenSave === written) writtenSave = null; });
+  }
+  return text;
 };
 /** AUDIT REALM2 C8: a checkpoint's refusal that may clear if the save is sent again - no answer, the service's own
  *  trouble (5xx: its error, its storage or its database away) or the account's request rate. Any other (the save too
@@ -818,7 +913,7 @@ export function createRealmSession({
       // whatever it held - an account write every two minutes for someone standing still. The save the service holds
       // is answered for it: the one that last landed, but for its clock and its look (idleKeyOf), with nothing queued,
       // nothing missed, inside REALM_IDLE_CHECKPOINT_MS - and never on a page going away, whose save the next join reads.
-      if (idleOk && landedKey != null && !pending && !running && !missed && !hidden() && now() - landedAt < REALM_IDLE_CHECKPOINT_MS && idleKeyOf(text, summary) === landedKey) {
+      if (idleOk && landedKey != null && !pending && !running && !missed && !hidden() && now() - landedAt < REALM_IDLE_CHECKPOINT_MS && checkpointKeyOf(text, summary) === landedKey) {
         savedAt = now();   // the realm holds this save but for its clock
         return Promise.resolve({ ok: true, seq: current, idle: true });
       }

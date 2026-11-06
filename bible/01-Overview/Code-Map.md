@@ -261,7 +261,7 @@ wiring in `src/scenes/`. A feature with one or two modules in a layer keeps them
 | `src/scenes/gate/` | The Oblivion Gate, the world boss on the shared clock (`11-Multiplayer/World-Bosses.md`) - the hosts' wiring. |
 | `src/scenes/ketch/` | The Sky-Ketch (`11-Multiplayer/Sky-Ketch.md`, `Sky-Ketch-Look.md`) - the hosts' wiring: her sky over Daggerfall and the anchor-lift, the deck host, the fight on the deck and the bridge, the client that boards her. |
 | `src/scenes/livingWorld/` | The living world in the hosts (`06-Systems/Living-World-II.md`): indoors, the roads, the watch, the deep's remains. |
-| `src/scenes/naval/` | Ships and the sea in the hosts: the naval host, the crew, the flames; the world's packet lanes, the Bay's and the sea's past it (`worldLanes.js`). |
+| `src/scenes/naval/` | Ships and the sea in the hosts: the naval host, the crew, the flames; the world's packet lanes, the Bay's and the sea's past it (`worldLanes.js`), and their packets about the player handed to the naval host (`laneShips.js`). |
 | `src/scenes/quest/` | Quests - the hosts' wiring. |
 | `src/scenes/starfall/` | The Starfall (`11-Multiplayer/Starfall.md`) - the hosts' wiring: the stars on a screen, their defense on the camp law, and a held star's rewards. |
 | `src/scenes/superDungeon/` | The Abyss Dungeon, the super dungeons (`11-Multiplayer/Super-Dungeons-Look.md`) - the hosts' wiring. |

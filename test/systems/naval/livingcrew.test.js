@@ -394,7 +394,7 @@ test('LIVING CREW THE WORDS: a bubble a line over his head at the HUD\'s scale -
 
 test('LIVING CREW THE WORLD by source: the crews stepped before the people are drawn, their sprites among them; the words after the bars; every clear stands them down; the fight\'s end brings my hands home; a grapple\'s side each crew\'s own, her other ship by the host\'s door; me never walked through; a room\'s boat seeded by whose and which; the boarding\'s doors (mutants: each unwired)', () => {
   assert.match(WORLD, /navalCrewFrame\(gamePaused\(\) \? 0 : foeDt\);[^\n]*\n\s+livePersonBatches\.push\(\.\.\.exteriorFoes\.batches\(\), \.\.\.navalCrew\.batches\(\)\);/);   // AUDIT NAV2 F53 PIN MOVED: held by a pause
-  assert.match(WORLD, /navalCrewBars\(proj, view, mwv\.eye\);[^\n]*\n\s+navalCrewLines\(proj, view, mwv\.eye, dt\);/);   // FIELD BUGS 2026-10-02b PIN MOVED: the frame's dt, the lifts' ease
+  assert.match(WORLD, /navalCrewBars\(proj, view, mwv\.eye, clientW, clientH\);[^\n]*\n\s+navalCrewLines\(proj, view, mwv\.eye, dt, clientW, clientH\);/);   // the frame's dt, the lifts' ease, and its size
   assert.match(WORLD, /navalFlames\.clear\(\); navalCrew\.clear\(\);[^\n]*drawCrewLines\(\[\]\); lowerGlass\(\); \};/);   // AUDIT CAPTAIN'S SEA S1 PIN MOVED: and the glass lowered after the crews
   assert.match(WORLD, /if \(_crewBoarding && !b\) for \(const boat of csa\.boats\) navalCrew\.reset\(boat\);/);
   assert.match(WORLD, /const other = grapple \? \(key === grapple\.shipId \? grapple\.boat : key === grapple\.boat \? naval\.boatOf\(grapple\.shipId\) : null\) : null;/);

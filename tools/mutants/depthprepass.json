@@ -1,0 +1,254 @@
+[
+  {
+    "name": "PP-a-remap-of-its-own-ignored",
+    "file": "src/render/depthPrepass.js",
+    "old": "sub._evGen !== renderer._texGen || sub._evRemap !== texRemap || sub._evCut",
+    "new": "sub._evGen !== renderer._texGen || sub._evCut",
+    "tests": [
+      "test/render/depthprepass.test.js"
+    ]
+  },
+  {
+    "name": "PP-a-new-texture-generation-ignored",
+    "file": "src/render/depthPrepass.js",
+    "old": "sub._evGen !== renderer._texGen || sub._evRemap !== texRemap || sub._evCut",
+    "new": "sub._evRemap !== texRemap || sub._evCut",
+    "tests": [
+      "test/render/depthprepass.test.js"
+    ]
+  },
+  {
+    "name": "PP-a-cutout-ignored",
+    "file": "src/render/depthPrepass.js",
+    "old": "sub._evGen !== renderer._texGen || sub._evRemap !== texRemap || sub._evCut",
+    "new": "sub._evGen !== renderer._texGen || sub._evRemap !== texRemap",
+    "tests": [
+      "test/render/depthprepass.test.js"
+    ]
+  },
+  {
+    "name": "PP-glass-cut-to-the-view-out-ignored",
+    "file": "src/render/depthPrepass.js",
+    "old": "    if (glassCut && sub._evWin) return false;\n",
+    "new": "",
+    "tests": [
+      "test/render/depthprepass.test.js"
+    ]
+  },
+  {
+    "name": "PP-the-view-out-ignored",
+    "file": "src/render/depthPrepass.js",
+    "old": "if (renderer._rwOutside || renderer._rwPaneOn) return false;",
+    "new": "if (renderer._rwPaneOn) return false;",
+    "tests": [
+      "test/render/depthprepass.test.js"
+    ]
+  },
+  {
+    "name": "PP-the-view-out-pane-ignored",
+    "file": "src/render/depthPrepass.js",
+    "old": "if (renderer._rwOutside || renderer._rwPaneOn) return false;",
+    "new": "if (renderer._rwOutside) return false;",
+    "tests": [
+      "test/render/depthprepass.test.js"
+    ]
+  },
+  {
+    "name": "PP-an-automap-mode-ignored",
+    "file": "src/render/depthPrepass.js",
+    "old": "if (renderer._automapMode !== 0 || !(renderer._clipY >= CLIP_OFF)) return false;",
+    "new": "if (!(renderer._clipY >= CLIP_OFF)) return false;",
+    "tests": [
+      "test/render/depthprepass.test.js"
+    ]
+  },
+  {
+    "name": "PP-the-automap-slice-ignored",
+    "file": "src/render/depthPrepass.js",
+    "old": "if (renderer._automapMode !== 0 || !(renderer._clipY >= CLIP_OFF)) return false;",
+    "new": "if (renderer._automapMode !== 0) return false;",
+    "tests": [
+      "test/render/depthprepass.test.js"
+    ]
+  },
+  {
+    "name": "PP-a-dissolve-ignored",
+    "file": "src/render/depthPrepass.js",
+    "old": "  if ((renderer._dissolve ?? 1) !== 1) return false;\n",
+    "new": "",
+    "tests": [
+      "test/render/depthprepass.test.js"
+    ]
+  },
+  {
+    "name": "PP-another-program-ignored",
+    "file": "src/render/depthPrepass.js",
+    "old": "if (!frame?.program || frame.program !== renderer.program) return false;",
+    "new": "if (!frame?.program) return false;",
+    "tests": [
+      "test/render/depthprepass.test.js"
+    ]
+  },
+  {
+    "name": "PP-a-mesh-let-go-drawn",
+    "file": "src/render/depthPrepass.js",
+    "old": "if (!mesh?.prepass || mesh._dead ||",
+    "new": "if (!mesh?.prepass ||",
+    "tests": [
+      "test/render/depthprepass.test.js"
+    ]
+  },
+  {
+    "name": "PP-the-page-switch-ignored",
+    "file": "src/render/depthPrepass.js",
+    "old": "return pageParam('prepass') !== 'off';",
+    "new": "return true;",
+    "tests": [
+      "test/render/depthprepass.test.js"
+    ]
+  },
+  {
+    "name": "PP-colour-written",
+    "file": "src/render/depthPrepass.js",
+    "old": "  gl.colorMask(false, false, false, false);\n  gl.enable(gl.POLYGON_OFFSET_FILL);",
+    "new": "  gl.enable(gl.POLYGON_OFFSET_FILL);",
+    "tests": [
+      "test/render/depthprepass.test.js"
+    ]
+  },
+  {
+    "name": "PP-no-offset",
+    "file": "src/render/depthPrepass.js",
+    "old": "gl.polygonOffset(DEPTH_FIRST_OFFSET[0], DEPTH_FIRST_OFFSET[1]);",
+    "new": "gl.polygonOffset(0, 0);",
+    "tests": [
+      "test/render/depthprepass.test.js"
+    ]
+  },
+  {
+    "name": "PP-the-offset-units-alone",
+    "file": "src/render/depthPrepass.js",
+    "old": "gl.polygonOffset(DEPTH_FIRST_OFFSET[0], DEPTH_FIRST_OFFSET[1]);",
+    "new": "gl.polygonOffset(0, DEPTH_FIRST_OFFSET[1]);",
+    "tests": [
+      "test/render/depthprepass.test.js"
+    ]
+  },
+  {
+    "name": "PP-the-offset-slope-alone",
+    "file": "src/render/depthPrepass.js",
+    "old": "gl.polygonOffset(DEPTH_FIRST_OFFSET[0], DEPTH_FIRST_OFFSET[1]);",
+    "new": "gl.polygonOffset(DEPTH_FIRST_OFFSET[0], 0);",
+    "tests": [
+      "test/render/depthprepass.test.js"
+    ]
+  },
+  {
+    "name": "PP-the-offset-values-left",
+    "file": "src/render/depthPrepass.js",
+    "old": "    gl.polygonOffset(0, 0);\n    gl.disable(gl.POLYGON_OFFSET_FILL);",
+    "new": "    gl.disable(gl.POLYGON_OFFSET_FILL);",
+    "tests": [
+      "test/render/depthprepass.test.js"
+    ]
+  },
+  {
+    "name": "PP-the-offset-left-on",
+    "file": "src/render/depthPrepass.js",
+    "old": "    gl.polygonOffset(0, 0);\n    gl.disable(gl.POLYGON_OFFSET_FILL);",
+    "new": "    gl.polygonOffset(0, 0);",
+    "tests": [
+      "test/render/depthprepass.test.js"
+    ]
+  },
+  {
+    "name": "PP-colour-left-off",
+    "file": "src/render/depthPrepass.js",
+    "old": "    gl.colorMask(true, true, true, true);\n  }",
+    "new": "  }",
+    "tests": [
+      "test/render/depthprepass.test.js"
+    ]
+  },
+  {
+    "name": "PP-the-host-proj",
+    "file": "src/render/depthPrepass.js",
+    "old": "gl.uniformMatrix4fv(pass.proj, false, frame.proj);",
+    "new": "gl.uniformMatrix4fv(pass.proj, false, renderer._proj);",
+    "tests": [
+      "test/render/depthprepass.test.js"
+    ]
+  },
+  {
+    "name": "PP-the-host-view",
+    "file": "src/render/depthPrepass.js",
+    "old": "gl.uniformMatrix4fv(pass.view, false, frame.view);",
+    "new": "gl.uniformMatrix4fv(pass.view, false, renderer._view);",
+    "tests": [
+      "test/render/depthprepass.test.js"
+    ]
+  },
+  {
+    "name": "PP-culled-by-the-host-arrays",
+    "file": "src/render/depthPrepass.js",
+    "old": "spherePlanes(multiply(frame.proj, frame.view, frame.viewProj), frame.planes)",
+    "new": "spherePlanes(multiply(renderer._proj, renderer._view, frame.viewProj), frame.planes)",
+    "tests": [
+      "test/render/depthprepass.test.js"
+    ]
+  },
+  {
+    "name": "PP-no-cull",
+    "file": "src/render/depthPrepass.js",
+    "old": "!!cell && sphereInPlanes(planes, spheres[i * 4], spheres[i * 4 + 1], spheres[i * 4 + 2], spheres[i * 4 + 3]);",
+    "new": "!!cell;",
+    "tests": [
+      "test/render/depthprepass.test.js"
+    ]
+  },
+  {
+    "name": "PP-neighbours-drawn-apart",
+    "file": "src/render/depthPrepass.js",
+    "old": "if (seen && start >= 0 && cell.startIndex === end) {",
+    "new": "if (false) {",
+    "tests": [
+      "test/render/depthprepass.test.js"
+    ]
+  },
+  {
+    "name": "PP-every-batch-with-cells-drawn-depth-first",
+    "file": "src/render/renderer.js",
+    "old": "if (shadowVao && prepass) bundle.prepass = true;",
+    "new": "if (shadowVao) bundle.prepass = true;",
+    "tests": [
+      "test/render/depthprepass.test.js"
+    ]
+  },
+  {
+    "name": "PP-the-frame-matrices-never-noted",
+    "file": "src/render/renderer.js",
+    "old": "    noteFrameMatrices(this, proj, view);",
+    "new": "    void noteFrameMatrices;",
+    "tests": [
+      "test/render/depthprepass.test.js"
+    ]
+  },
+  {
+    "name": "PP-drawn-before-the-view-out-skip",
+    "file": "src/render/renderer.js",
+    "old": "    if (this._rwOutside && this._rwSkips(mesh)) return;",
+    "new": "    if (mesh?.prepass) drawDepthFirst(this, mesh, modelMatrix, texRemap, VS);\n    if (this._rwOutside && this._rwSkips(mesh)) return;",
+    "tests": [
+      "test/render/depthprepass.test.js"
+    ]
+  },
+  {
+    "name": "PP-the-dungeon-level-not-asked",
+    "file": "src/scenes/dungeonContext.js",
+    "old": "const LEVEL_MESH = Object.freeze({ prepass: true });",
+    "new": "const LEVEL_MESH = Object.freeze({ prepass: false });",
+    "tests": [
+      "test/scenes/perf5.test.js"
+    ]
+  }
+]

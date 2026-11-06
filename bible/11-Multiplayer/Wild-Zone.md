@@ -15,6 +15,13 @@ cells of `CYRODIIL_CELL_PX` pixels; the maps draw one line for zone and province
 reads its own pixel. At sea (`src/systems/wild/etherWild.js`) the depth bands are the rings; the Veil refuses every
 teleport across it.
 
+**The mask's build.** When a trace lands, the held map's idle job makes the mask a step at a time
+(`cyrodiilMaskSteps`). The box takes a band of the picture's rows a step. Then the province's law is asked
+`CYRODIIL_MASK_STEP_ASKS` pixels a step, and the mask is made off those answers in a step of its own. The mask in use
+stays whole: a reader before the build ends finishes it at once. Online, the zone's frame reads the mask every frame,
+so the first frame after a trace lands finishes what the idle job has not made. A land that moves on the way starts
+the build again.
+
 **Rings and foes.** A pixel's depth from the edge sets its ring (`wildRingAt`): the Foothills, the Passes, the High
 Crags and the Heart, paying `WILD_RING_LOOT` (+25% to +100%). A zone foe has `WILD_FOE_HEALTH_MULT` health and
 `WILD_FOE_DAMAGE_MULT` damage over whatever it is (elites and champions too), times its ring's share more
@@ -105,4 +112,5 @@ temples, which here stay open country.
 - `src/systems/wild/` - the zone's laws: mask, rings, drops, insurance, halls, giants, safe streets, grace, sea
 - `src/net/wild/` - the relay's referee, remains, receipts, linger
 - `server-account/src/wild.js`, `server-account/src/wildInsure.js` - falls, rewards, policies
-- `test/systems/wild/` - the zone's tests: foe keeps, insurance, safe streets, city ports, homes, zone line, halls, giants
+- `test/systems/wild/` - the zone's tests: foe keeps, insurance, safe streets, city ports, homes, zone line, halls, giants,
+  the mask's steps

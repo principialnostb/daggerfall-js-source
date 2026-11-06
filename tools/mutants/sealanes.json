@@ -240,8 +240,8 @@
   {
     "name": "CLOCK-voyage-same-ship",
     "file": "src/systems/naval/seaLanes.js",
-    "old": "  for (let j = 0; j < LANE_LINEAGE; j++) seeds.push(hash32(p.seed, (voyage - j) >>> 0, LANE_SALT));",
-    "new": "  for (let j = 0; j < LANE_LINEAGE; j++) seeds.push(hash32(p.seed, j >>> 0, LANE_SALT));",
+    "old": "    for (let j = 0; j < LANE_LINEAGE; j++) lineage.push(hash32(p.seed, (voyage - j) >>> 0, LANE_SALT));",
+    "new": "    for (let j = 0; j < LANE_LINEAGE; j++) lineage.push(hash32(p.seed, j >>> 0, LANE_SALT));",
     "tests": [
       "test/systems/naval/sealanes.test.js",
       "test/systems/naval/auditbay_lanes.test.js"
@@ -250,8 +250,8 @@
   {
     "name": "CLOCK-leg-home-unreversed",
     "file": "src/systems/naval/seaLanes.js",
-    "old": "      leg: pts,",
-    "new": "      leg: way.pts,",
+    "old": "    return sailingPacket(lane, k, voyage, kept, rev, (tau - leg - LANE_DWELL_S) * p.speed, lane.b, lane.a);",
+    "new": "    return { ...sailingPacket(lane, k, voyage, kept, rev, (tau - leg - LANE_DWELL_S) * p.speed, lane.b, lane.a), leg: way.pts };",
     "tests": [
       "test/systems/naval/sealanes.test.js"
     ],
@@ -260,8 +260,8 @@
   {
     "name": "CLOCK-dwell-short",
     "file": "src/systems/naval/seaLanes.js",
-    "old": "  if (tau < leg + LANE_DWELL_S) {",
-    "new": "  if (tau < leg + LANE_DWELL_S / 2) {",
+    "old": "  if (tau < leg + LANE_DWELL_S)\n",
+    "new": "  if (tau < leg + LANE_DWELL_S / 2)\n",
     "tests": [
       "test/systems/naval/sealanes.test.js"
     ]
@@ -269,8 +269,8 @@
   {
     "name": "CLOCK-dwell-until-short",
     "file": "src/systems/naval/seaLanes.js",
-    "old": "      until: start + leg + LANE_DWELL_S,",
-    "new": "      until: start + leg,",
+    "old": "    return lyingPacket(lane, k, voyage, kept, way.pts, lane.a, lane.b, start + leg + LANE_DWELL_S);",
+    "new": "    return lyingPacket(lane, k, voyage, kept, way.pts, lane.a, lane.b, start + leg);",
     "tests": [
       "test/systems/naval/sealanes.test.js"
     ]
@@ -278,8 +278,8 @@
   {
     "name": "CLOCK-dwell-sails-for-itself",
     "file": "src/systems/naval/seaLanes.js",
-    "old": "      to: lane.a,",
-    "new": "      to: lane.b,",
+    "old": "  return packetIn(lane, k, voyage, kept, 'dwell', home, home, port, at, { x: 0, z: 0 }, pts, until);",
+    "new": "  return packetIn(lane, k, voyage, kept, 'dwell', home, port, port, at, { x: 0, z: 0 }, pts, until);",
     "tests": [
       "test/systems/naval/sealanes.test.js"
     ]
@@ -287,8 +287,8 @@
   {
     "name": "CLOCK-home-the-same-way",
     "file": "src/systems/naval/seaLanes.js",
-    "old": "  if (tau < 2 * leg + LANE_DWELL_S) return sailing(rev, (tau - leg - LANE_DWELL_S) * p.speed, lane.b, lane.a);",
-    "new": "  if (tau < 2 * leg + LANE_DWELL_S) return sailing(way.pts, (tau - leg - LANE_DWELL_S) * p.speed, lane.b, lane.a);",
+    "old": "    return sailingPacket(lane, k, voyage, kept, rev, (tau - leg - LANE_DWELL_S) * p.speed, lane.b, lane.a);",
+    "new": "    return sailingPacket(lane, k, voyage, kept, way.pts, (tau - leg - LANE_DWELL_S) * p.speed, lane.b, lane.a);",
     "tests": [
       "test/systems/naval/sealanes.test.js"
     ]
@@ -296,8 +296,8 @@
   {
     "name": "CLOCK-home-dwell-until",
     "file": "src/systems/naval/seaLanes.js",
-    "old": "    until: start + period,",
-    "new": "    until: start + leg,",
+    "old": "  return lyingPacket(lane, k, voyage, kept, rev, lane.b, lane.a, start + period);",
+    "new": "  return lyingPacket(lane, k, voyage, kept, rev, lane.b, lane.a, start + leg);",
     "tests": [
       "test/systems/naval/sealanes.test.js"
     ]
@@ -546,27 +546,27 @@
   },
   {
     "name": "FEED-every-frame",
-    "file": "src/scenes/world.js",
-    "old": "    if (t - _laneAt < LANE_LIST_MS || !naval?.enabled || !mapDict) return;",
-    "new": "    if (!naval?.enabled || !mapDict) return;",
+    "file": "src/scenes/naval/laneShips.js",
+    "old": "    if (stamp - listedAt < LANE_LIST_MS || !naval()?.enabled || !ready()) return;",
+    "new": "    if (!naval()?.enabled || !ready()) return;",
     "tests": [
       "test/systems/naval/sealanes.test.js"
     ]
   },
   {
     "name": "FEED-host-off",
-    "file": "src/scenes/world.js",
-    "old": "    if (t - _laneAt < LANE_LIST_MS || !naval?.enabled || !mapDict) return;",
-    "new": "    if (t - _laneAt < LANE_LIST_MS || !mapDict) return;",
+    "file": "src/scenes/naval/laneShips.js",
+    "old": "    if (stamp - listedAt < LANE_LIST_MS || !naval()?.enabled || !ready()) return;",
+    "new": "    if (stamp - listedAt < LANE_LIST_MS || !ready()) return;",
     "tests": [
       "test/systems/naval/sealanes.test.js"
     ]
   },
   {
     "name": "FEED-every-packet",
-    "file": "src/scenes/world.js",
-    "old": "        list.push({ id: p.id, seed: p.seed, seeds: p.seeds,",
-    "new": "        if (Math.hypot(x - player.feetAt()[0], z - player.feetAt()[2]) <= 1600) list.push({ id: p.id, seed: p.seed, seeds: p.seeds,",
+    "file": "src/scenes/naval/laneShips.js",
+    "old": "        list.push({",
+    "new": "        if (Math.hypot(x, z) <= 1600) list.push({",
     "tests": [
       "test/systems/naval/sealanes.test.js",
       "test/systems/naval/auditbay_lanes.test.js"
@@ -575,9 +575,9 @@
   },
   {
     "name": "FEED-clock-in-ms",
-    "file": "src/scenes/world.js",
-    "old": "      for (const p of packetsAt(lane, way, ms)) {",
-    "new": "      for (const p of packetsAt(lane, way, ms / 1000)) {",
+    "file": "src/scenes/naval/laneShips.js",
+    "old": "      for (const packet of packetsAt(lane, way, shared)) {",
+    "new": "      for (const packet of packetsAt(lane, way, shared / 1000)) {",
     "tests": [
       "test/systems/naval/sealanes.test.js",
       "test/systems/naval/auditbay_lanes.test.js"
@@ -586,9 +586,9 @@
   },
   {
     "name": "FEED-every-lane",
-    "file": "src/scenes/world.js",
-    "old": "      if (!worldLanes.near(lane, here)) continue;",
-    "new": "      if (false && !worldLanes.near(lane, here)) continue;",
+    "file": "src/scenes/naval/laneShips.js",
+    "old": "      if (!lanes.near(lane, at)) continue;",
+    "new": "      if (false && !lanes.near(lane, at)) continue;",
     "tests": [
       "test/systems/naval/sealanes.test.js"
     ]
@@ -614,27 +614,27 @@
   },
   {
     "name": "FEED-port-key-bare",
-    "file": "src/scenes/world.js",
-    "old": "    const portOf = (p) => (p ? { key: `port:${p.id}`, name: p.name } : null);",
-    "new": "    const portOf = (p) => (p ? { key: p.id, name: p.name } : null);",
+    "file": "src/scenes/naval/laneShips.js",
+    "old": "    if (!named) portNames.set(port, (named = { key: `port:${port.id}`, name: port.name }));",
+    "new": "    if (!named) portNames.set(port, (named = { key: port.id, name: port.name }));",
     "tests": [
       "test/systems/naval/sealanes.test.js"
     ]
   },
   {
     "name": "FEED-unnamed",
-    "file": "src/scenes/world.js",
-    "old": "leg: p.leg === way.pts ? out : home, port: portOf(p.port), to: portOf(p.to), from: portOf(p.from) });",
-    "new": "leg: p.leg === way.pts ? out : home, port: portOf(p.port), to: null, from: portOf(p.from) });",
+    "file": "src/scenes/naval/laneShips.js",
+    "old": "          to: portOf(packet.to),",
+    "new": "          to: null,",
     "tests": [
       "test/systems/naval/sealanes.test.js"
     ]
   },
   {
     "name": "FEED-heading-unread",
-    "file": "src/scenes/world.js",
-    "old": "yaw: Math.atan2(dx - x, dz - z),",
-    "new": "yaw: 0,",
+    "file": "src/scenes/naval/laneShips.js",
+    "old": "          yaw: Math.atan2(dx - x, dz - z),",
+    "new": "          yaw: 0,",
     "tests": [
       "test/systems/naval/sealanes.test.js"
     ]
@@ -651,8 +651,8 @@
   {
     "name": "FEED-harbour-unnamed",
     "file": "src/systems/naval/harbourBook.js",
-    "old": "  return { key: `port:${t.id}`, name: t.name ?? null, rect, ready, reach }; // SHIP-TAGS: her name, the words a ship bound there is read by",
-    "new": "  return { key: `port:${t.id}`, rect, ready, reach }; // SHIP-TAGS: her name, the words a ship bound there is read by",
+    "old": "  return { key: `port:${t.id}`, name: t.name ?? null, rect, ready, reach, groundOver }; // SHIP-TAGS: her name, the words a ship bound there is read by",
+    "new": "  return { key: `port:${t.id}`, rect, ready, reach, groundOver }; // SHIP-TAGS: her name, the words a ship bound there is read by",
     "tests": [
       "test/systems/naval/sealanes.test.js"
     ],

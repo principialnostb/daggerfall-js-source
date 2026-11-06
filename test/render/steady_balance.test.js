@@ -9,6 +9,7 @@ import assert from 'node:assert/strict';
 import { Renderer, WORLD_FRAME } from '../../src/render/renderer.js';
 import { EL_LANE } from '../../src/render/enhancedLighting.js';
 import { SHADOW_TUNING, SHADOW_SELF_LAMPS, SHADOW_POINT_CASTERS } from '../../src/render/shadowPass.js';
+SHADOW_TUNING.moverHold = false;   // these pin the movers' redraw schedule call by call; a redraw the movers' memo skips puts back what it found (moverhold.test.js)
 import { AIR_TUNING } from '../../src/render/airPass.js';
 import { PREF_DEFAULTS } from '../../src/systems/uiPrefs.js';
 

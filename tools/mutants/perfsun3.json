@@ -38,7 +38,7 @@
   {
     "name": "PERF-SUN3-a-list-kept-from-the-last-frame",
     "file": "src/render/shadowPass.js",
-    "old": "      if (L.bb[j]) L.bb[j].length = 0; else L.bb[j] = [];\n      return j;",
+    "old": "      openList(L, j);\n      return j;",
     "new": "      if (!L.bb[j]) L.bb[j] = [];\n      return j;",
     "tests": [
       "test/render/perfsun3.test.js"
@@ -85,7 +85,7 @@
   {
     "name": "PERF-SUN3-discard-leaves-the-cascades-lists",
     "file": "src/render/shadowPass.js",
-    "old": "    for (const c of this._sunCands) { for (let j = 0; j < c.hw; j++) { const l = c.bb[j]; if (l) l.length = 0; } c.n = 0; c.hw = 0; }   // PERF-SUN3: the cascades' too",
+    "old": "    for (const c of this._sunCands) emptyLists(c);   // the cascades' too",
     "new": "",
     "tests": [
       "test/render/perfsun3.test.js"
@@ -130,8 +130,8 @@
   {
     "name": "PERF-SUN3-a-nearer-solid-untested",
     "file": "src/render/shadowPass.js",
-    "old": "        if (r.kind !== REC_BB) { if (recordVisible(Q, r)) add(c, i); continue; }",
-    "new": "        if (r.kind !== REC_BB) { add(c, i); continue; }",
+    "old": "        if (r.kind !== REC_BB) { if (recordVisible(Q, r) && !(reach && this._solidPastReach(r, radius))) add(c, i); continue; }",
+    "new": "        if (r.kind !== REC_BB) { if (!(reach && this._solidPastReach(r, radius))) add(c, i); continue; }",
     "tests": [
       "test/render/perfsun3.test.js"
     ]
@@ -152,6 +152,125 @@
     "new": "facePrepass: true, sunPrepass: false, volumeMemo: true, moverDirect: true, loUnread: true };",
     "tests": [
       "test/render/perfsun3.test.js"
+    ]
+  },
+  {
+    "name": "SUN-REACH-the-reach-shipped-off",
+    "file": "src/render/shadowPass.js",
+    "old": "calmForce: null, sunReach: true, moverHold",
+    "new": "calmForce: null, sunReach: false, moverHold",
+    "tests": [
+      "test/render/perfsun3.test.js"
+    ]
+  },
+  {
+    "name": "SUN-REACH-the-off-switch-ignored",
+    "file": "src/render/shadowPass.js",
+    "old": "    if (SHADOW_TUNING.sunReach === false || !eye || !dir) return false;",
+    "new": "    if (!eye || !dir) return false;",
+    "tests": [
+      "test/render/perfsun3.test.js"
+    ]
+  },
+  {
+    "name": "SUN-REACH-the-far-cascade-cut-too",
+    "file": "src/render/shadowPass.js",
+    "old": "      if (r.kind !== REC_BB) { if (recordVisible(P, r)) add(last, i); continue; }",
+    "new": "      if (r.kind !== REC_BB) { if (recordVisible(P, r) && !(this._sunReachOn && this._solidPastReach(r, this._reach[6 + last]))) add(last, i); continue; }",
+    "tests": [
+      "test/render/perfsun3.test.js"
+    ]
+  },
+  {
+    "name": "SUN-REACH-a-reach-narrower-than-the-reads",
+    "file": "src/render/shadowPass.js",
+    "old": "reach[6 + cascade] = SHADOW_CASCADES[cascade] * k + slack;",
+    "new": "reach[6 + cascade] = SHADOW_CASCADES[cascade] * k * 0.8 + slack;",
+    "tests": [
+      "test/render/perfsun3.test.js"
+    ]
+  },
+  {
+    "name": "SUN-REACH-the-lean-left-out",
+    "file": "src/render/shadowPass.js",
+    "old": " : quadHalfDiagonal(size)) + crownLean(rec, windRate, law, b, Math.abs(height));",
+    "new": " : quadHalfDiagonal(size));",
+    "tests": [
+      "test/render/perfsun3.test.js"
+    ]
+  },
+  {
+    "name": "SUN-REACH-a-rebaked-mesh-bounded-by-its-recorded-sphere",
+    "file": "src/render/shadowPass.js",
+    "old": "    if (!own?.bounds || own._vertGen > 0) return false;",
+    "new": "    if (!own?.bounds) return false;",
+    "tests": [
+      "test/render/perfsun3.test.js"
+    ]
+  },
+  {
+    "name": "SUN-REACH-a-single-flat-bounded-by-its-stored-radius",
+    "file": "src/render/shadowPass.js",
+    "old": "const rad = (b._quads === 1 ? 0 : sphere[3]) + (b._place ? placedHalfDiagonal(b) : quadHalfDiagonal(size)) + crownLean",
+    "new": "const rad = (b._quads === 1 ? sphere[3] : sphere[3] + (b._place ? placedHalfDiagonal(b) : quadHalfDiagonal(size))) + crownLean",
+    "tests": [
+      "test/render/perfsun3.test.js"
+    ]
+  },
+  {
+    "name": "SUN-REACH-a-self-scaled-flat-cut",
+    "file": "src/render/shadowPass.js",
+    "old": "    if (!sphere || !size || b._scales) return false;",
+    "new": "    if (!sphere || !size) return false;",
+    "tests": [
+      "test/render/perfsun3.test.js"
+    ]
+  },
+  {
+    "name": "SUN-REACH-the-float-slack-dropped",
+    "file": "src/render/shadowPass.js",
+    "old": "reach[6 + cascade] = SHADOW_CASCADES[cascade] * k + slack;",
+    "new": "reach[6 + cascade] = SHADOW_CASCADES[cascade] * k;",
+    "tests": [
+      "test/render/perfsun3.test.js"
+    ]
+  },
+  {
+    "name": "SUN-REACH-a-sheared-mesh-bounded-by-its-longest-column",
+    "file": "src/render/shadowPass.js",
+    "old": "own.bounds[3] * stretchBound(rec.matrix), limit);",
+    "new": "own.bounds[3] * matrixScale(rec.matrix), limit);",
+    "tests": [
+      "test/render/perfsun3.test.js"
+    ]
+  },
+  {
+    "name": "SUN-REACH-a-caster-placed-by-a-NaN-left-out",
+    "file": "src/render/shadowPass.js",
+    "old": "    return rad >= 0 && across2 > far * far && across2 < Infinity;",
+    "new": "    return !(across2 <= far * far);",
+    "tests": [
+      "test/render/perfsun3.test.js"
+    ]
+  },
+  {
+    "name": "LISTS-KEPT-a-slot-left-holding-its-flats-at-discard",
+    "file": "src/render/shadowPass.js",
+    "old": "    if (flats) for (let at = lists.bn[j] - 1; at >= 0; at--) flats[at] = null;",
+    "new": "",
+    "tests": [
+      "test/render/perfsun3.test.js",
+      "test/render/audit637_shadow.test.js"
+    ]
+  },
+  {
+    "name": "LISTS-KEPT-a-store-handed-back-at-discard",
+    "file": "src/render/shadowPass.js",
+    "old": "    if (flats) for (let at = lists.bn[j] - 1; at >= 0; at--) flats[at] = null;",
+    "new": "    if (flats) flats.length = 0;",
+    "tests": [
+      "test/render/perfsun3.test.js",
+      "test/render/audit637_shadow.test.js"
     ]
   }
 ]

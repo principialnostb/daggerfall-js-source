@@ -234,8 +234,17 @@
   {
     "name": "FB1022D-PEER-ART-walkers-looks-unkept",
     "file": "src/net/peer/peerRiders.js",
-    "old": "    const code = spriteLookOf(s);\n",
-    "new": "    const code = s.horse;\n",
+    "old": "lookCode: spriteLookOf(answer) };",
+    "new": "lookCode: answer.horse };",
+    "tests": [
+      "test/net/peer/fb1022d_peerart.test.js"
+    ]
+  },
+  {
+    "name": "FB1022D-PEER-ART-looks-unkept-for-an-answer-asked-once",
+    "file": "src/net/peer/peerRiders.js",
+    "old": "    noteLook(keys ? keys.lookCode : spriteLookOf(s), k);\n",
+    "new": "    noteLook(keys ? keys.lookCode : s.horse, k);\n",
     "tests": [
       "test/net/peer/fb1022d_peerart.test.js"
     ]
@@ -279,8 +288,17 @@
   {
     "name": "FB1022D-PEER-ART-drawn-sprite-trusted",
     "file": "src/net/peer/peerRiders.js",
-    "old": "&& renderer?.textures?.has && !renderer.textures.has(k.replace(':', '_'))) { tex.delete(k); have = undefined; }",
+    "old": "&& renderer?.textures?.has && !renderer.textures.has(keys ? keys.rendererKey : k.replace(':', '_'))) { tex.delete(k); have = undefined; }",
     "new": "&& false) { tex.delete(k); have = undefined; }",
+    "tests": [
+      "test/net/peer/fb1022d_peerart.test.js"
+    ]
+  },
+  {
+    "name": "FB1022D-PEER-ART-kept-answer-trusted",
+    "file": "src/net/peer/peerRiders.js",
+    "old": "!renderer.textures.has(keys ? keys.rendererKey : k.replace(':', '_'))",
+    "new": "!keys && !renderer.textures.has(k.replace(':', '_'))",
     "tests": [
       "test/net/peer/fb1022d_peerart.test.js"
     ]

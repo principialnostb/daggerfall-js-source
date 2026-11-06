@@ -26,7 +26,10 @@ Cargo (`06-Systems/Horse-Cart-And-Cargo.md`) and the sea fight (`Naval-Combat.md
 - **Quays** (`src/systems/naval/quays.js` `planQuay`, `src/world/quayModel.js`, pool `src/scenes/quayPool.js`). Each
   berth along a harbour's shore stands a quay sounded for the Carrack: a plank deck on piles, a railed jetty to the
   bank. The world's harbour book (`src/systems/naval/harbourBook.js`) keeps the harbours. A harbour town whose own shore
-  gives no berth is sounded out further; berths stand only where a ship can, never inside walls.
+  gives no berth is sounded out further; berths stand only where a ship can, never inside walls. A town that gave no
+  harbour is asked again every 10 s. It is sounded again only if something that sounding read has changed: the ground
+  built under it, its footprint, the ships' builds or its town's keep (`groundHeld`). A town with a harbour keeps
+  nothing of what its sounding read.
 - **Docking.** At the helm with sails struck, no oar pulling, slow and with no hostile ship near, a ship within 25 m of
   a free berth's place and lined up with it is warped in by her hands and made fast: "Made fast at Sentinel's quay." The
   Fleet records it. A sail set or an oar pulled casts her off.
@@ -61,4 +64,5 @@ no quays and keeps titles as deed items.
 - `test/systems/naval/crewroles.test.js` - posts and the First Mate
 - `test/systems/naval/quays.test.js` - quays, docking, gangway
 - `test/systems/naval/harbourbook.test.js`, `test/systems/naval/portships.test.js` - harbours and berths
+- `test/systems/naval/harbourresound.test.js` - a harbour sounded again only when what it read has changed
 - `tools/mutants/holdings.json` - the mutants

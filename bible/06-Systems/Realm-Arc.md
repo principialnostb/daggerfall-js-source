@@ -33,6 +33,8 @@ offline slots.
   **Recover it**.
 - *Counters*: a trade counter's staged lot is written at the pack's end (`src/systems/item/heldOut.js`), so a checkpoint
   under an open Identify or sale never drops it.
+- *Idle*: a periodic checkpoint that matches the last landed save but for its clock and look gets no put; its key is
+  read off the save's own object, not its text (`checkpointKeyOf`).
 
 **Hand-overs are service transactions.** A trade between realm characters is escrowed on the service
 (`server-account/src/realmTrade.js`, `/v1/realm/trade`): both offers checked against both records, applied at once,

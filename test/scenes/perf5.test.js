@@ -21,7 +21,8 @@ test('PERF5 pins: the context adds each static placement to the builder after it
   assert.match(c, /drawList\.push\(\{ mesh: gpu, matrix, key: `\$\{bi\}:\$\{p\.position\}`, aabb, \.\.\.\(climateFree \? \{ texRemap: NO_CLIMATE_REMAP \} : \{\}\) \}\);[^\n]*\n(?:\s+\{ const sk = p\.action \? null : searchableKind\(p\.modelIdNum\);[^\n]*\n)?\s+\/\/ PERF5[^\n]*\n\s+if \(cpu\.normals && cpu\.uvs\) \{ staticBuilder\.add\(cpu, matrix, climateFree \? ownTexKey : resolveTexKey\); drawList\[drawList\.length - 1\]\._batched = true; \}/, 'added beside the draw entry, which stays in drawList for the automap');
   const loop = c.slice(c.indexOf("if (cls === 'move') {"), c.indexOf('drawList.push({ mesh: gpu, matrix, key: `${bi}:${p.position}`, aabb, '));
   assert.ok(!loop.includes('staticBuilder.add'), 'the move and specialDoor arms `continue` before the add: an action object is never batched');
-  assert.match(c, /get staticBatch\(\) \{[^\n]*\n\s+if \(!staticBuilt\) \{ staticBuilt = true; const m = staticBuilder\.finish\(\); staticBatch = m \? renderer\.createMesh\(m\) : null; \}/, 'merged once, on the first frame that asks');
+  assert.match(c, /get staticBatch\(\) \{[^\n]*\n\s+if \(!staticBuilt\) \{ staticBuilt = true; const m = staticBuilder\.finish\(\); staticBatch = m \? renderer\.createMesh\(m, LEVEL_MESH\) : null; \}/, 'merged once, on the first frame that asks');
+  assert.match(c, /^const LEVEL_MESH = Object\.freeze\(\{ prepass: true \}\);$/m, 'and drawn depth first from its cells (test/render/depthprepass.test.js)');
   assert.match(c, /if \(staticBatch\) \{ renderer\.destroyMesh\(staticBatch\); staticBatch = null; \}/, 'freed with the level');
   assert.match(read('src/ui/automap/automapWindow.js'), /for \(const d of this\.deps\.drawList\) push\(d\.mesh, d\.matrix, d\.key\);/, 'the automap still reveals per model');
 });

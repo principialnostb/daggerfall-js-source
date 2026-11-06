@@ -409,10 +409,13 @@ function wideTree(bucket) {
   return bucket.wideTree;
 }
 const WIDE_STACK = new Int32Array(128);
-const WIDE_NEAR = [];   // the wide triangles a sphere query takes, one scratch (nearCells hands it on)
-/** The wide triangles whose boxes a sphere of radius `r` at the bucket-local point reaches. */
+// The wide triangles a sphere query takes: one scratch, kept. A query writes it from the front and answers how many
+// it wrote, and its readers stop there: emptying a list throws its storage away, and the next query grows it again.
+const WIDE_NEAR = [];
+/** The wide triangles whose boxes a sphere of radius `r` at the bucket-local point reaches, written into the front of
+ *  WIDE_NEAR: answers how many. */
 function wideNear(bucket, lx, ly, lz, r) {
-  WIDE_NEAR.length = 0;
+  let n = 0;
   const T = wideTree(bucket), box = T.box;
   let sp = 0;
   WIDE_STACK[sp++] = 0;
@@ -421,10 +424,10 @@ function wideNear(bucket, lx, ly, lz, r) {
     if (lx + r < box[o] - BOX_SKIN || lx - r > box[o + 3] + BOX_SKIN || ly + r < box[o + 1] - BOX_SKIN || ly - r > box[o + 4] + BOX_SKIN
       || lz + r < box[o + 2] - BOX_SKIN || lz - r > box[o + 5] + BOX_SKIN) continue;
     const l = T.left[node];
-    if (l < 0) { for (let k = T.start[node], e = k + T.count[node]; k < e; k++) WIDE_NEAR.push(T.order[k]); continue; }
+    if (l < 0) { for (let k = T.start[node], e = k + T.count[node]; k < e; k++) WIDE_NEAR[n++] = T.order[k]; continue; }
     WIDE_STACK[sp++] = l; WIDE_STACK[sp++] = l + 1;
   }
-  return WIDE_NEAR;
+  return n;
 }
 /** The wide triangles whose boxes the segment `origin + dir * [0, reach]` touches (the node's slab test, exact). */
 function wideOnRay(bucket, ox, oy, oz, dir, reach) {
@@ -457,7 +460,7 @@ export function wideCandidates(collider, key, p, r) {
   const bucket = collider._buckets.get(key);
   if (!bucket || !bucket.wide.length) return 0;
   const t = bucket.t();
-  return wideNear(bucket, p[0] - t[0], p[1] - t[1], p[2] - t[2], r).length;
+  return wideNear(bucket, p[0] - t[0], p[1] - t[1], p[2] - t[2], r);
 }
 /** OW-WOD-LAG: and the ray's - how many wide faces the tree hands the segment `p + dir * [0, reach]` (world, no turn). */
 export function wideRayCandidates(collider, key, p, dir, reach) {
@@ -470,22 +473,33 @@ export function wideRayCandidates(collider, key, p, dir, reach) {
  *  triangle whose own box it cannot reach (a point within r of a triangle is within r of its box). */
 const triNear = (tri, lx, ly, lz, r) => tri[3] === undefined || sphereTouchesBox(lx, ly, lz, r, tri[3], tri[4]);
 
-const NEAR = [];   // AUDIT BRANCH (WoD) B1: the cell lists a point query takes, one scratch
-/** The triangle lists within a sphere query's reach of (lx, ly, lz) in `bucket`: the fine 3x3 (CELL exceeds every
- *  query radius), then - only where the bucket holds wide triangles - the ones the tree hands a sphere of `r` grown
- *  by WIDE_MARGIN. */
+// The cell lists a point query takes, kept, with each list's length beside it (the wide list's count is not its
+// length). The slots past a query's count are let go, so no torn-down bucket's cells are held.
+const NEAR = [], NEAR_LEN = new Int32Array(10);
+let nearHeld = 0;
+/** The triangle lists within a sphere query's reach of (lx, ly, lz) in `bucket`, written into the front of NEAR and
+ *  their lengths into NEAR_LEN: the fine 3x3 (CELL exceeds every query radius), then - only where the bucket holds
+ *  wide triangles - the ones the tree hands a sphere of `r` grown by WIDE_MARGIN. Answers how many lists. */
 function nearCells(bucket, lx, ly, lz, r) {
-  NEAR.length = 0;
+  let n = 0;
   const gx = Math.floor(lx / CELL);
   const gz = Math.floor(lz / CELL);
   for (let ox = -1; ox <= 1; ox++) {
     for (let oz = -1; oz <= 1; oz++) {
       const cell = bucket.grid.get(cellKey(gx + ox, gz + oz));   // PERF-EXT25
-      if (cell) NEAR.push(cell);
+      if (cell) { NEAR_LEN[n] = cell.length; NEAR[n++] = cell; }
     }
   }
-  if (bucket.wide.length) NEAR.push(wideNear(bucket, lx, ly, lz, r + WIDE_MARGIN));   // OW-WOD-LAG
-  return NEAR;
+  if (bucket.wide.length) { NEAR_LEN[n] = wideNear(bucket, lx, ly, lz, r + WIDE_MARGIN); NEAR[n++] = WIDE_NEAR; }
+  for (let i = n; i < nearHeld; i++) NEAR[i] = null;
+  nearHeld = n;
+  return n;
+}
+/** A query's bucket list written from the front, `n` long: the slots past it let go of what an earlier query left
+ *  there (each list's slots past its count stay null, so the first null ends them), and `n` is answered. */
+function letGoPast(out, n) {
+  for (let i = n; i < out.length && out[i] !== null; i++) out[i] = null;
+  return n;
 }
 
 export function segmentHitsBox(ox, oy, oz, dir, min, max, limit) {
@@ -764,20 +778,20 @@ export class Collider {
    *  either, are asked by every query. SEA-DROPS: and a mover among those is handed to a query only where its box, as
    *  it stands now, reaches the query's (moverReaches); a posed mover where the box kept since its host last moved it
    *  does - and none of them where their union's does not. */
-  _near(x0, x1, z0, z1, out, afterOrd = -1) {
+  _near(x0, x1, z0, z1, out, afterOrd = -1) {   // the count is the answer: `out` is written from its front, its slots past the count let go
     let broad = this._broad;
     if (broad !== null && framesMoved(broad)) broad = null;   // PERF-COL2: a floating frame that moved since the filing - its buckets filed again where they stand
     if (broad === null) broad = this._broad = buildBroad(this._buckets);
-    out.length = 0;
+    let n = 0;
     const cx0 = Math.floor(x0 / BROAD_CELL), cx1 = Math.floor(x1 / BROAD_CELL);
     const cz0 = Math.floor(z0 / BROAD_CELL), cz1 = Math.floor(z1 / BROAD_CELL);
     if (!((cx1 - cx0 + 1) * (cz1 - cz0 + 1) <= BROAD_QUERY_MAX)) {
       const all = broad.all;
-      for (let i = afterOrd + 1; i < all.length; i++) out.push(all[i]);
-      return out;
+      for (let i = afterOrd + 1; i < all.length; i++) out[n++] = all[i];
+      return letGoPast(out, n);
     }
     const stamp = ++BROAD_STAMP;
-    for (const b of broad.always) if (b.ord > afterOrd && (!b.moves || moverReaches(b, x0, x1, z0, z1))) { b._broadStamp = stamp; out.push(b); }   // PERF-COL2 (AUDIT): stamped - a bucket a grown box carried here is in finer cells too; SEA-DROPS: a mover where it stands now
+    for (const b of broad.always) if (b.ord > afterOrd && (!b.moves || moverReaches(b, x0, x1, z0, z1))) { b._broadStamp = stamp; out[n++] = b; }   // stamped: a bucket a grown box carried here is in finer cells too, and a mover is handed where it stands now
     let sorted = true;
     const posed = broad.posed;
     if (posed.length) {   // SEA-DROPS: the posed movers, by the boxes kept since their host last moved them
@@ -788,8 +802,8 @@ export class Collider {
           const b = posed[i], w = b.wbox;
           if (b.ord <= afterOrd || w[1] < x0 || w[0] > x1 || w[3] < z0 || w[2] > z1) continue;   // a NaN box is handed on
           b._broadStamp = stamp;
-          if (out.length && out[out.length - 1].ord > b.ord) sorted = false;
-          out.push(b);
+          if (n && out[n - 1].ord > b.ord) sorted = false;
+          out[n++] = b;
         }
       }
     }
@@ -801,8 +815,8 @@ export class Collider {
           const b = list[i];
           if (b.ord <= afterOrd || b._broadStamp === stamp) continue;
           b._broadStamp = stamp;
-          if (out.length && out[out.length - 1].ord > b.ord) sorted = false;
-          out.push(b);
+          if (n && out[n - 1].ord > b.ord) sorted = false;
+          out[n++] = b;
         }
       }
     }
@@ -817,21 +831,21 @@ export class Collider {
             const b = list[i];
             if (b.ord <= afterOrd || b._broadStamp === stamp) continue;
             b._broadStamp = stamp;
-            if (out.length && out[out.length - 1].ord > b.ord) sorted = false;
-            out.push(b);
+            if (n && out[n - 1].ord > b.ord) sorted = false;
+            out[n++] = b;
           }
         }
       }
     }
     if (!sorted) {   // back into the walk's order - an insertion sort, the lists are a handful
-      for (let i = 1; i < out.length; i++) {
+      for (let i = 1; i < n; i++) {
         const b = out[i];
         let j = i - 1;
         while (j >= 0 && out[j].ord > b.ord) { out[j + 1] = out[j]; j--; }
         out[j + 1] = b;
       }
     }
-    return out;
+    return letGoPast(out, n);
   }
 
   /**
@@ -1096,9 +1110,9 @@ export class Collider {
     const bodies = !!filter?.bodies;   // SIGN-PASS (AUDIT FB1025i G5): a body's own ray (BODY_RAY) - it passes a ray's triangle as the body does
     // FB0930-FRAME: the buckets the ray's own world box reaches, in the walk's order - the rest would fail the box below
     const ex = origin[0] + dirW[0] * maxDist, ez = origin[2] + dirW[2] * maxDist;
-    const near = this._near(Math.min(origin[0], ex) - BOX_SKIN, Math.max(origin[0], ex) + BOX_SKIN,
-      Math.min(origin[2], ez) - BOX_SKIN, Math.max(origin[2], ez) + BOX_SKIN, RAY_NEAR);
-    for (let bi = 0; bi < near.length; bi++) {
+    const near = RAY_NEAR, nearCount = this._near(Math.min(origin[0], ex) - BOX_SKIN, Math.max(origin[0], ex) + BOX_SKIN,
+      Math.min(origin[2], ez) - BOX_SKIN, Math.max(origin[2], ez) + BOX_SKIN, near);
+    for (let bi = 0; bi < nearCount; bi++) {
       const bucket = near[bi], bkey = bucket.key;
       if (only && !only.has(bkey)) continue;
       if (skip && skip.has(bkey)) continue;
@@ -1299,8 +1313,8 @@ export class Collider {
   sphereOverlaps(center, radius) {
     const r2 = radius * radius;
     const g = radius + 2 * BOX_SKIN;   // FB0930-FRAME: the buckets the sphere's own box reaches, in the walk's order
-    const near = this._near(center[0] - g, center[0] + g, center[2] - g, center[2] + g, SPHERE_NEAR);
-    for (let bi = 0; bi < near.length; bi++) {
+    const near = SPHERE_NEAR, nearCount = this._near(center[0] - g, center[0] + g, center[2] - g, center[2] + g, near);
+    for (let bi = 0; bi < nearCount; bi++) {
       const bucket = near[bi];
       const t = bucket.t();
       const R = bucket.r ? bucket.r() : null;
@@ -1314,8 +1328,9 @@ export class Collider {
       if (!sphereTouchesBox(lx, ly, lz, radius, bucket.min, bucket.max)) continue;   // PERF-COL1: the same broad phase (the test below is `< r2`, no skin)
       const marks = rayMarks(bucket), stamp = RAY_STAMP;   // FB0930-FRAME: the walk's stamp, not a Set
       const yLoOf = bucket.yLo, yHiOf = bucket.yHi, yReach = radius + SPHERE_Y_SLACK, sightOf = bucket.sight;
-      for (const cell of nearCells(bucket, lx, ly, lz, radius)) {   // AUDIT BRANCH (WoD) B1: the fine 3x3, then any wide triangles
-        for (let ci = 0; ci < cell.length; ci++) {
+      for (let cellIndex = 0, cellCount = nearCells(bucket, lx, ly, lz, radius); cellIndex < cellCount; cellIndex++) {   // the fine 3x3, then any wide triangles
+        const cell = NEAR[cellIndex];
+        for (let ci = 0, cellLength = NEAR_LEN[cellIndex]; ci < cellLength; ci++) {
           const ti = cell[ci];
           if (marks[ti] === stamp) continue;
           marks[ti] = stamp;
@@ -1354,8 +1369,8 @@ export class Collider {
     const only = filter?.only ? new Set(filter.only) : null;
     let best = Infinity;
     const g = lim + 2 * BOX_SKIN;   // FB0930-FRAME: the buckets the capsule's own box reaches, in the walk's order
-    const near = this._near(feet[0] - g, feet[0] + g, feet[2] - g, feet[2] + g, SPHERE_NEAR);
-    for (let bi = 0; bi < near.length; bi++) {
+    const near = SPHERE_NEAR, nearCount = this._near(feet[0] - g, feet[0] + g, feet[2] - g, feet[2] + g, near);
+    for (let bi = 0; bi < nearCount; bi++) {
       const bucket = near[bi], bkey = bucket.key;
       if (only && !only.has(bkey)) continue;
       const t = bucket.t();
@@ -1368,8 +1383,9 @@ export class Collider {
         if (!sphereTouchesBox(lx, ly, lz, lim, bucket.min, bucket.max)) continue;
         const marks = rayMarks(bucket), stamp = RAY_STAMP;   // FB0930-FRAME: the walk's stamp, not a Set
         const yLoOf = bucket.yLo, yHiOf = bucket.yHi, yReach = lim + SPHERE_Y_SLACK, sightOf = bucket.sight;
-        for (const cell of nearCells(bucket, lx, ly, lz, lim)) {
-          for (let ci = 0; ci < cell.length; ci++) {
+        for (let cellIndex = 0, cellCount = nearCells(bucket, lx, ly, lz, lim); cellIndex < cellCount; cellIndex++) {
+          const cell = NEAR[cellIndex];
+          for (let ci = 0, cellLength = NEAR_LEN[cellIndex]; ci < cellLength; ci++) {
             const ti = cell[ci];
             if (marks[ti] === stamp) continue;
             marks[ti] = stamp;
@@ -1442,8 +1458,10 @@ export class Collider {
       if (sphereTouchesBox(lx, ly, lz, radius, bucket.min, bucket.max)) {
         const visited = VISITED;
         visited.clear();
-        for (const cell of nearCells(bucket, lx, ly, lz, radius)) {
-          for (const ti of cell) {
+        for (let cellIndex = 0, cellCount = nearCells(bucket, lx, ly, lz, radius); cellIndex < cellCount; cellIndex++) {
+          const cell = NEAR[cellIndex];
+          for (let ci = 0, cellLength = NEAR_LEN[cellIndex]; ci < cellLength; ci++) {
+            const ti = cell[ci];
             if (visited.has(ti)) continue;
             visited.add(ti);
             const tri = bucket.tris[ti];
@@ -1543,7 +1561,7 @@ export class Collider {
       }
       if (bucket.wide.length) {
         const half = maxDist / 2;
-        for (const ti of [...wideNear(bucket, ox + dx * half, oy + dy * half, oz + dz * half, half + radius)]) test(ti);
+        for (let k = 0, wideCount = wideNear(bucket, ox + dx * half, oy + dy * half, oz + dz * half, half + radius); k < wideCount; k++) test(WIDE_NEAR[k]);
       }
       for (const [part, [d, cx, cy, cz]] of first) {
         const p = R ? [R[0] * cx + R[3] * cy + R[6] * cz + t[0], R[1] * cx + R[4] * cy + R[7] * cz + t[1], R[2] * cx + R[5] * cy + R[8] * cz + t[2]]
@@ -1688,16 +1706,17 @@ export class Collider {
     // order - gathered again, after the last bucket walked, whenever the pushes carry the centre past the pad
     const reach = radius + SKIN, g = reach + BROAD_PAD + 2 * BOX_SKIN;
     let gx = center[0], gz = center[2], walkedOrd = -1;
-    let near = this._near(gx - g, gx + g, gz - g, gz + g, SPHERE_NEAR);
+    const near = SPHERE_NEAR;
+    let nearCount = this._near(gx - g, gx + g, gz - g, gz + g, near);
     for (let bi = 0; ; bi++) {
       // asked BEFORE the list's end: the last candidate's pushes may carry the centre to buckets the list never held
       if (Math.abs(center[0] - gx) > BROAD_PAD || Math.abs(center[2] - gz) > BROAD_PAD) {
         gx = center[0]; gz = center[2];
-        near = this._near(gx - g, gx + g, gz - g, gz + g, SPHERE_NEAR, walkedOrd);
+        nearCount = this._near(gx - g, gx + g, gz - g, gz + g, near, walkedOrd);
         bi = -1;
         continue;
       }
-      if (bi >= near.length) break;
+      if (bi >= nearCount) break;
       const bucket = near[bi], bkey = bucket.key;
       walkedOrd = bucket.ord;
       if (skip?.has(bkey)) continue;   // AUDIT DECOR-SHELL 1
@@ -1711,8 +1730,9 @@ export class Collider {
       if (!sphereTouchesBox(bx, by, bz, radius + SKIN, bucket.min, bucket.max)) continue;
       const marks = rayMarks(bucket), stamp = RAY_STAMP;   // FB0930-FRAME: the walk's stamp, not a Set
       const yLoOf = bucket.yLo, yHiOf = bucket.yHi, yReach = reach + SPHERE_Y_SLACK, sightOf = bucket.sight;
-      for (const cell of nearCells(bucket, bx, by, bz, radius + SKIN)) {   // AUDIT BRANCH (WoD) B1: the fine 3x3, then any wide triangles
-        for (let ci = 0; ci < cell.length; ci++) {
+      for (let cellIndex = 0, cellCount = nearCells(bucket, bx, by, bz, radius + SKIN); cellIndex < cellCount; cellIndex++) {   // the fine 3x3, then any wide triangles
+        const cell = NEAR[cellIndex];
+        for (let ci = 0, cellLength = NEAR_LEN[cellIndex]; ci < cellLength; ci++) {
           const ti = cell[ci];
           if (marks[ti] === stamp) continue;
           marks[ti] = stamp;

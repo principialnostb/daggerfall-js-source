@@ -178,7 +178,7 @@ test('MWNPC16c a cast-only flat casts nothing - not drawn into a map, never a mo
   plain.castOnly = true;
   assert.equal(sp._dynamicNear([0, 1, 0], 20, () => false), 0, 'a cast-only one is no reason to redraw it');
   const src = rd('src/render/shadowPass.js');
-  assert.equal((src.match(/b\.noShadow \|\| b\.castOnly/g) || []).length, 4, 'every door a noShadow flat is turned away at - the replay, the movers and both signatures');
+  assert.equal((src.match(/b\.noShadow \|\| b\.castOnly/g) || []).length, 5, 'every door a noShadow flat is turned away at - the replay, the movers, the movers\' memo and both signatures');
 });
 
 test('MWNPC16d the rig: drawThird records its body for the maps where it is asked - its mesh, its model, a sphere about its posed box - and never a veiled body\'s; castThird records the body out of the view at the same place, where its sphere reaches a map (mutants: the cast unasked; the veil cast; castThird past the reach)', async () => {
@@ -368,8 +368,9 @@ test('MWNPC16f the wiring: the renderer hands the pass the skinned VS and its pa
 test('MWNPC16g A LAMP WHOSE ONLY MOVERS ARE BODIES THAT DID NOT CHANGE KEEPS THE FACES IT DREW - a body out of the view is never posed, and it held its lamps\' six dynamic faces redrawn every frame to draw it as it was; posed, turned, a range hidden, gone, or with a mover beside it, the lamp draws again (AUDIT MWNPC16-18 A2: a still body cost 10 face operations a frame where its flat cost none. Mutants: the look blind to the pose; to the matrix; to a hidden range; held through a mover; the generation never bumped)', () => {
   SHADOW_TUNING.override = true;   // Steady shadows, the default: every lamp with a mover redraws every frame
   try {
-    const run = (frames, rec) => {
+    const run = (frames, rec, pictures = null) => {
       const { sp, f } = pass();
+      if (pictures) f.textures = pictures;   // a flat is drawn only with its picture in hand
       const wall = { vao: { w: 1 }, subMeshes: [{ startIndex: 0, primitiveCount: 2 }], bounds: null };
       const per = [];
       for (let i = 0; i < frames; i++) { sp.recordMesh(wall, IDENTITY, null, 0); rec(sp, i); sp.render(lampFrame(f)); per.push(sp.stats.dynFaces); sp.discard(); }
@@ -388,7 +389,7 @@ test('MWNPC16g A LAMP WHOSE ONLY MOVERS ARE BODIES THAT DID NOT CHANGE KEEPS THE
     assert.deepEqual(run(4, (sp, i) => sp.recordCharacter(leaving, IDENTITY, i < 2 ? [1, 1, 0, 1] : [400, 1, 0, 1], true)), [6, 0, 0, 0], 'gone out of reach: the cache again (no dynamic draw)');
     const crowd = body();
     const walker = { vao: { walker: 1 }, archive: 182, record: 1, size: { w: 1, h: 1.8 }, origin: [0, 0, 0], bounds: null, indexCount: 6, _dyn: true };
-    assert.deepEqual(run(5, (sp, i) => { sp.recordCharacter(crowd, IDENTITY, [1, 1, 0, 1], true); if (i < 2) sp.recordBillboards([walker], new Float32Array(4), new Float32Array([1, 0, 0]), new Float32Array([0, 1, 0])); }), [6, 6, 6, 0, 0], 'a walker beside it: drawn while it walks, and once more to take it out');
+    assert.deepEqual(run(5, (sp, i) => { sp.recordCharacter(crowd, IDENTITY, [1, 1, 0, 1], true); if (i < 2) sp.recordBillboards([walker], new Float32Array(4), new Float32Array([1, 0, 0]), new Float32Array([0, 1, 0])); }, { get: () => ({ walker: 1 }) }), [6, 6, 6, 0, 0], 'a walker beside it: drawn while it walks, and once more to take it out');
     // beside a swaying wood (off Steady shadows, the sway's cadence is every fourth frame): a mover's cadence, as before
     SHADOW_TUNING.override = false;
     const swaying = body();
@@ -398,7 +399,11 @@ test('MWNPC16g A LAMP WHOSE ONLY MOVERS ARE BODIES THAT DID NOT CHANGE KEEPS THE
     assert.ok(swayRun.slice(1).every((n) => n === 6), `posed beside a swaying tree: drawn every frame (${swayRun})`);
     SHADOW_TUNING.override = true;
     const rig = { vao: { voxel: 1 }, count: 36, bounds: null };
-    assert.deepEqual(run(3, (sp) => sp.recordCharacter(rig, IDENTITY, [1, 1, 0, 1])), [6, 6, 6], 'a voxel rig (EL7\'s) is the mover it always was');
+    assert.deepEqual(run(3, (sp) => sp.recordCharacter(rig, IDENTITY, [1, 1, 0, 1])), [6, 0, 0], 'a voxel rig (EL7\'s) that did not change keeps its faces too - the movers\' memo');
+    const posedRig = { vao: { voxel: 2 }, count: 36, bounds: null };
+    assert.deepEqual(run(3, (sp) => { posedRig._poseGen = (posedRig._poseGen ?? 0) + 1; sp.recordCharacter(posedRig, IDENTITY, [1, 1, 0, 1]); }), [6, 6, 6], 'a voxel rig posed every frame: drawn every frame');
+    const rangedRig = { vao: { voxel: 3 }, count: 36, bounds: null, ranges: [{ first: 0, count: 12 }, { first: 12, count: 24 }] };
+    assert.deepEqual(run(4, (sp, i) => { rangedRig.ranges[1].hidden = i === 2; sp.recordCharacter(rangedRig, IDENTITY, [1, 1, 0, 1]); }), [6, 0, 6, 6], 'a voxel rig with a range hidden, and shown again: drawn');
   } finally { SHADOW_TUNING.override = undefined; }
   // the renderer's every pose upload is a new generation
   const r = rd('src/render/renderer.js');

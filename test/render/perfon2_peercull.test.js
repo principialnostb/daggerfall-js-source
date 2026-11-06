@@ -259,7 +259,7 @@ test('PERF-CROWD2: the billboard PASS culls, so no host can forget to - and it c
   // through billboardKey themselves - recordShadowBillboards records
   // batches this pass never saw - and the opaque sort still wants every
   // batch keyed before it.
-  assert.match(r, /if \(bbCull && !this\._bbVisible\(b\)\) \{ this\.stats\.bbCulled\+\+; continue; \}[^\n]*\n\s*billboardKey\(b\);\n\s*opaque\.push\(b\);/,
+  assert.match(r, /if \(bbCull && !this\._bbVisible\(b\)\) \{ this\.stats\.bbCulled\+\+; continue; \}[^\n]*\n\s*billboardKey\(b\);\n\s*opaque\[opaqueCount\+\+\] = b;/,
     'the opaque partition culls, then keys what it sorts');
   for (const other of ['src/render/shadowPass.js', 'src/render/airPass.js']) {
     assert.match(read(other), /const key = billboardKey\(b\);/, `${other} keys through the one home`);

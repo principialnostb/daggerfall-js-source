@@ -997,7 +997,7 @@ test('AUDIT NAV1 (the presentation) THE TAGS DRAWN (#14): one node a slot, moved
   assert.equal(tagAlpha(2000, 700), TAG_FADE_TO);
   // the world's pass
   const w = readFileSync(new URL('../../../src/scenes/world.js', import.meta.url), 'utf8');
-  assert.match(w, /drawPeerNames\(proj, view, mwv\.eye\);[^\n]*\n\s+navalTags\(proj, view, mwv\.eye\);/);
+  assert.match(w, /drawPeerNames\(proj, view, mwv\.eye, clientW, clientH\);[^\n]*\n\s+navalTags\(proj, view, mwv\.eye, clientW, clientH\);/);
   assert.match(w, /const covered = townTalk\.overlayActive \|\| gamePaused\(\) \|\| !!townTalk\.hudHidden \|\| _mode\(\) !== 'exterior' \|\| !!travelView\?\.active;/);
   assert.match(w, /const at = projectToScreen\(t\.point, w, h, proj, view, rect\);/);
   assert.match(w, /if \(shipSight\.blocked\(player\.collider, eye, t\.id, t\.point\)\) continue;/);

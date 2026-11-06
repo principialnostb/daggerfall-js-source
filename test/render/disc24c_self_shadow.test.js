@@ -21,6 +21,7 @@ import { EL_LANE } from '../../src/render/enhancedLighting.js';
 import { SHADOW_DYNAMIC_HOLD, SHADOW_FAR_CASTER_EVERY } from '../../src/render/shadowPass.js';
 import { SHADOW_TUNING } from '../../src/render/shadowPass.js';
 SHADOW_TUNING.override = false;   // these tests pin EL8's schedule and DISC24-C's near-two card
+SHADOW_TUNING.moverHold = false;   // these pin the movers' redraw schedule call by call; a redraw the movers' memo skips puts back what it found (moverhold.test.js)
 
 const I = new Float32Array([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]);
 /** A view matrix that stands the eye at (x, y, z). */

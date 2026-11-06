@@ -78,8 +78,8 @@
   {
     "name": "PERF-SHADOW1-h-the-faces-walk-every-flat-again",
     "file": "src/render/shadowPass.js",
-    "old": "        for (const b of (cand ? cand.bb[j] : r.batches)) {\n          if (!b?.vao",
-    "new": "        for (const b of r.batches) {\n          if (!b?.vao",
+    "old": "        const bbList = cand ? cand.bb[j] : r.batches, bbN = cand ? cand.bn[j] : bbList.length;",
+    "new": "        const bbList = r.batches, bbN = bbList.length;",
     "tests": [
       "test/render/perfshadow1.test.js"
     ]
@@ -87,8 +87,8 @@
   {
     "name": "PERF-SHADOW1-i-the-dynamic-scan-walks-every-flat-again",
     "file": "src/render/shadowPass.js",
-    "old": "        for (const b of (cand ? cand.bb[j] : r.batches)) {\n          if (!b?._shDyn",
-    "new": "        for (const b of r.batches) {\n          if (!b?._shDyn",
+    "old": "        const list = cand ? cand.bb[j] : r.batches, n = cand ? cand.bn[j] : list.length;",
+    "new": "        const list = r.batches, n = list.length;",
     "tests": [
       "test/render/perfshadow1.test.js"
     ]
@@ -171,7 +171,7 @@
   {
     "name": "PERF-SHADOW1-r-a-list-not-cut-to-the-flats-it-kept",
     "file": "src/render/shadowPass.js",
-    "old": "        list.length = m;",
+    "old": "        for (let left = m; left < n; left++) list[left] = null;   // the flats left out let go now: discard() empties only what a count holds\n        counts[j] = m;\n",
     "new": "",
     "tests": [
       "test/render/perfshadow1.test.js"

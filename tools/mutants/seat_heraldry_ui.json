@@ -290,7 +290,7 @@
   {
     "name": "HS-tag-ungated",
     "file": "src/ui/nameLayer.js",
-    "old": "        const arms = guildTagText(p.gt) && armsOf ? heraldryOf(armsOf(p.gt)) : null;",
+    "old": "        const arms = tag.gtText && armsOf ? heraldryOf(armsOf(p.gt)) : null;",
     "new": "        const arms = armsOf ? heraldryOf(armsOf(p.gt)) : null;",
     "tests": [
       "test/ui/seat_heraldry_ui.test.js"

@@ -16,7 +16,7 @@
 // said (L3-3: a stopped journey forecast at the pace it no longer had for twenty seconds).
 // The streaming host constructs it (scenes/world.js) - the one host with the Overworld; scenes/exterior.js,
 // scenes/worldModes.js and scenes/dungeonContext.js raise no Overworld.
-import { weatherAt, forecastAt } from '../systems/weather/weatherMap.js';
+import { weatherAt, forecastAt, weatherSpan, weatherAmong } from '../systems/weather/weatherMap.js';
 import { weatherMapOn } from '../systems/weather/weatherSim.js';
 import { fieldFromNative } from '../systems/weather/weatherField.js';
 import { wayStillToWalk } from '../systems/travel/travelRoute.js';
@@ -63,13 +63,14 @@ export function wayAhead(me, trip, route, seg, paceOf, sea = false) {
   return { points, paces, whole, dest: trip.plan?.summary?.name ?? null };
 }
 
-/** The first whole minute in (from, to] the word at (x, z) is no longer `word` - forecastAt's quarter-hour step bisected. */
-function changeAt(x, z, from, to, word, read) {
+/** The first whole minute in (from, to] the word `read(minute)` gives is no longer `word` - forecastAt's quarter-hour
+ *  step bisected. */
+function changeAt(from, to, word, read) {
   let lo = from,
     hi = to;
   while (hi - lo > 1) {
     const m = Math.floor((lo + hi) / 2);
-    if (read(x, z, m) === word) lo = m;
+    if (read(m) === word) lo = m;
     else hi = m;
   }
   return hi;
@@ -100,22 +101,22 @@ export function createOverworldForecast(host) {
   let pass = null; // { plan, samples, minuteAt, now, nowWord, words, i, dest }
   // the words read at the whole minute the sky is sampled at (sampleWeatherField's floor); the pace on the clock unfloored
   const wordAt = (x, z, minute, a = null) => weatherAt(x, z, Math.floor(minute), climateAt, { ground, alt: a }).word;
-  /** A place's next hours (`n` natives, `a` its height or null for the ground's), the change found to the minute. */
+  /** A place's next hours (`n` natives, `a` its height or null for the ground's), the change found to the minute: every
+   *  minute read, the bisection's too, from one walk of the map over the hours (weatherSpan). */
   const hereAt = (n, minute, a = null) => {
     const [x, z] = fieldFromNative(n.x, n.z),
       m = Math.floor(minute);
-    const fc = forecastAt(x, z, m, climateAt, { hours: HERE_HOURS, step: HERE_STEP_MIN, ground, alt: a });
+    const span = weatherSpan(x, z, m, m + HERE_HOURS * 60, climateAt);
+    const fc = forecastAt(x, z, m, climateAt, { hours: HERE_HOURS, step: HERE_STEP_MIN, ground, alt: a, span });
     const k = fc.steps.findIndex((s) => s.word !== fc.now.word);
     if (k >= 0)
       fc.steps[k] = {
         ...fc.steps[k],
         at: changeAt(
-          x,
-          z,
           k ? fc.steps[k - 1].at : m,
           fc.steps[k].at,
           k ? fc.steps[k - 1].word : fc.now.word,
-          (px, pz, mm) => wordAt(px, pz, mm, a),
+          (at) => weatherAmong(span, Math.floor(at), { ground, alt: a }).word,
         ),
       };
     return hereLine(fc);

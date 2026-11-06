@@ -71,6 +71,13 @@ cell (`src/render/rainCurtains.js`), so two players see the same storm in the sa
 - The sea: a crossing moves the traveller onto their boat and back onto land; other players' ships and enemy ships are
   seen.
 
+**The readout's marks** (`src/scenes/travelView.js` `drawHud`). Each frame the host hands the readout its marks. The
+readout keeps one record for each mark's key and writes the frame's place and words over it. A record is made again
+only when one of its fields comes or goes. A key that stands twice in one frame gets a second record of its own. A
+record holds good only for the frame it is handed over in. A key gone from a frame lets its record go, and so does the
+view coming down. The host hands the readout the canvas's size as its frame read it, so the readout reads the layout
+only when it is handed none and a route has dots to lay.
+
 **The horizon** (`src/scenes/travelHorizon.js`). From the air the view reaches far past the streamed grid in layers: the
 far ring, a mid ring and a far field out to mountains some 300 km off, with far flora and trees, all on the kernel's own
 ground (`src/render/midRing.js`, `src/render/farField.js`, `src/render/farFlora.js`, `src/render/farTrees.js`).
@@ -137,3 +144,4 @@ not route a named trip along roads; here a road journey follows the roads and, i
   `test/systems/travel/fast_refusal.test.js`, `test/systems/travel/plan_slices.test.js`,
   `test/systems/travel/ether_ow.test.js` - past the Bay and the Veil
 - `test/systems/travel/tv8_party_walk.test.js` - travelling as a party
+- `test/scenes/tv_marks_kept.test.js` - the readout's marks kept from frame to frame, and the canvas's size

@@ -460,6 +460,39 @@ export function holdPrevRect(out, rect, canvas) {
   return out;
 }
 
+/** A uniform's value as its program holds it: `v` the floats the GL keeps, `sent` whether any went up yet. */
+const heldValue = (n) => ({ v: new Float32Array(n), sent: false });
+/** Whether `src` moves a held uniform, keeping it when so. Compared as the GL keeps it, a float each, by Object.is,
+ *  so -0 and NaN are values of their own. The first ask always moves it. */
+export function heldMoved(held, src) {
+  let moved = !held.sent;
+  held.sent = true;
+  for (let i = 0; i < held.v.length; i++) {
+    const x = Math.fround(src[i]);
+    if (!Object.is(held.v[i], x)) {
+      held.v[i] = x;
+      moved = true;
+    }
+  }
+  return moved;
+}
+/** What an emitter program holds of the uniforms its bind sends. A uniform stays with its program between binds, so
+ *  the replay sends each again only when it moves: the fixed ones (the identity view, the three samplers' units)
+ *  once for the program's life. */
+function emitHeld(prog) {
+  return (prog.held ??= {
+    fixed: false,
+    proj: heldValue(16),
+    projInfo: heldValue(4),
+    rect: heldValue(4),
+    canvas: heldValue(2),
+    bloom: heldValue(2),
+    wind: heldValue(4),
+    sway: heldValue(4),
+    axis: heldValue(4),
+  });
+}
+
 /** EL8: THE CONTACT BLOCK, for the lit lane shaders (a solid's, the terrain's,
  *  a rig's - not a flat's): light i without a caster slot takes a contact
  *  shadow off the previous frame's depth. `toLight` is the unit direction,
@@ -1570,6 +1603,7 @@ export class AirPass {
     this._planes = new Float32Array(24); // EL5: the emission replay's frustum
     this._white = new Float32Array([1, 1, 1]);
     this._vp = new Float32Array(16);
+    this._bloomSize = new Float32Array(2); // the bloom image's size, as an emitter program takes it
   }
 
   /** (Re)allocate the images for a world viewport of w x h pixels. */
@@ -1772,14 +1806,14 @@ export class AirPass {
     return true;
   }
   /**
-   * WATER-NEXT 2 (2026-10-07): WHAT LIES UNDER THE WATER. The water refracts the scene behind its surface and measures
-   * the water's depth off it - and the frame's colour and depth are the very images it draws into, which no program
-   * may sample while they are bound. So, once a world frame, before its first water draw: one blit of both into a
-   * copy of the frame's own formats (the colour LINEAR, the depth NEAREST - a blit of depth must be). The water reads
-   * the copy; the frame goes on as it stood. A no-op with no frame bound.
-   * @returns {{color: WebGLTexture, depth: WebGLTexture, w: number, h: number}|null}
+   * WHAT LIES UNDER THE WATER. The water refracts the scene behind it and measures its depth off it, and no program
+   * may sample the frame's images while they are bound: before a world frame's first water draw, a blit of both into
+   * a copy of their formats (the colour LINEAR, the depth NEAREST, as a blit of depth must be). `part` the texels the
+   * water can read, [x0, y0, x1, y1] (waterRowsReach), null for all: only they are copied. A no-op with no frame bound.
+   * @param {ArrayLike<number>|null} [part]
+   * @returns {{color: WebGLTexture, depth: WebGLTexture, w: number, h: number, part: Int32Array|null}|null}
    */
-  snapshotUnderWater() {
+  snapshotUnderWater(part = null) {
     const F = this.frame;
     if (!F || !this.f || !this.fresh) return null;
     const gl = this.gl;
@@ -1804,9 +1838,48 @@ export class AirPass {
     }
     gl.bindFramebuffer(gl.READ_FRAMEBUFFER, F.fbo);
     gl.bindFramebuffer(gl.DRAW_FRAMEBUFFER, F.uwFbo);
-    gl.blitFramebuffer(0, 0, F.w, F.h, 0, 0, F.w, F.h, gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT, gl.NEAREST);
+    const image = (F.uwImage ??= {
+      color: F.uwColor,
+      depth: F.uwDepth,
+      w: F.w,
+      h: F.h,
+      part: null,
+      kept: new Int32Array(4),
+    });
+    if (part) {
+      image.part = image.kept;
+      image.part.set(part);
+      this._copyUnderWater(part[0], part[1], part[2], part[3]);
+    } else {
+      image.part = null;
+      gl.blitFramebuffer(0, 0, F.w, F.h, 0, 0, F.w, F.h, gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT, gl.NEAREST);
+    }
     gl.bindFramebuffer(gl.FRAMEBUFFER, F.fbo); // the frame's own, read and draw, as the world left it
-    return { color: F.uwColor, depth: F.uwDepth, w: F.w, h: F.h };
+    return image;
+  }
+  /** The rest of the frame into a copy taken of part of it, as the frame stands now: a later water draw of the same
+   *  frame reads past that part. The part keeps what it copied, and the water drawn since lies inside it. */
+  fillUnderWater() {
+    const frame = this.frame,
+      part = frame?.uwImage?.part;
+    if (!frame || !part) return;
+    const gl = this.gl;
+    gl.bindFramebuffer(gl.READ_FRAMEBUFFER, frame.fbo);
+    gl.bindFramebuffer(gl.DRAW_FRAMEBUFFER, frame.uwFbo);
+    if (part[0] < part[2] && part[1] < part[3]) {
+      this._copyUnderWater(0, 0, frame.w, part[1]);
+      this._copyUnderWater(0, part[3], frame.w, frame.h);
+      this._copyUnderWater(0, part[1], part[0], part[3]);
+      this._copyUnderWater(part[2], part[1], frame.w, part[3]);
+    } else this._copyUnderWater(0, 0, frame.w, frame.h);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, frame.fbo); // the frame's own, read and draw, as the world left it
+    frame.uwImage.part = null;
+  }
+  /** One rectangle of the frame's colour and depth into the copy under the water, the far edges exclusive. */
+  _copyUnderWater(x0, y0, x1, y1) {
+    const gl = this.gl;
+    if (x0 < x1 && y0 < y1)
+      gl.blitFramebuffer(x0, y0, x1, y1, x0, y0, x1, y1, gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT, gl.NEAREST);
   }
   /** PERF-SCALE (the review): free a slot's frame image - the world stopped drawing into an image of its own (retro
    *  off, the render scale back at 100%; Renderer._dropWorldImage), so the image-sized frame is not held for the rest
@@ -2077,7 +2150,7 @@ export class AirPass {
     gl.clear(gl.COLOR_BUFFER_BIT);
     gl.enable(gl.BLEND); // the emitters and the glares add; the target has no depth - both hide by the frame's depth themselves
     gl.blendFunc(gl.ONE, gl.ONE);
-    if (sp && sp.count > 0) this._replayEmission(f, sp, vp, depthOn);
+    if (sp && sp.count > 0) this._replayEmission(f, sp, vp);
     this._glares(f, depthOn);
     gl.disable(gl.BLEND);
     // EL4: the bright pass joins them, and the blur runs, once the frame is whole
@@ -2234,7 +2307,7 @@ export class AirPass {
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
   }
 
-  _replayEmission(f, sp, vp, depthOn) {
+  _replayEmission(f, sp, vp) {
     const gl = this.gl,
       P = this.programs,
       T = this.targets;
@@ -2257,10 +2330,7 @@ export class AirPass {
           if (bound !== P.emitMesh) {
             bound = P.emitMesh;
             gl.useProgram(bound.p);
-            gl.uniformMatrix4fv(bound.uProj, false, vp);
-            gl.uniformMatrix4fv(bound.uView, false, this._identityView);
-            gl.uniform1i(bound.uEmissionTex, 1);
-            this._emitDepth(bound, depthOn, T);
+            this._emitDepth(bound, vp, T);
           }
           if (!vaoBound) {
             gl.uniformMatrix4fv(P.emitMesh.uModel, false, r.matrix);
@@ -2288,16 +2358,13 @@ export class AirPass {
           if (bound !== P.emitBb) {
             bound = P.emitBb;
             gl.useProgram(bound.p);
-            gl.uniformMatrix4fv(bound.uProj, false, vp);
-            gl.uniformMatrix4fv(bound.uView, false, this._identityView);
-            gl.uniform1i(bound.uTex, 0);
-            gl.uniform1i(bound.uEmissionTex, 1);
-            gl.uniform4fv(bound.uFlatWind, r.flatWind);
+            const held = emitHeld(bound);
+            if (heldMoved(held.wind, r.flatWind)) gl.uniform4fv(bound.uFlatWind, r.flatWind);
             if (r.wfAxis) {
-              gl.uniform4fv(bound.uWindfallSway, r.wfSway);
-              gl.uniform4fv(bound.uWindfallAxis, r.wfAxis);
+              if (heldMoved(held.sway, r.wfSway)) gl.uniform4fv(bound.uWindfallSway, r.wfSway);
+              if (heldMoved(held.axis, r.wfAxis)) gl.uniform4fv(bound.uWindfallAxis, r.wfAxis);
             } // WINDFALL1: the mod's law, as the flats were drawn
-            this._emitDepth(bound, depthOn, T);
+            this._emitDepth(bound, vp, T);
           }
           gl.uniform3fv(P.emitBb.uRight, r.right);
           gl.uniform3fv(P.emitBb.uUp, r.up); // the camera basis the batch was drawn with
@@ -2334,14 +2401,32 @@ export class AirPass {
     gl.uniform4fv(loc.contactParams, this.contactParams);
   }
 
-  /** EL6: the frame's depth for an emitter program - on unit 2 (0 and 1 are its own textures). */
-  _emitDepth(prog, depthOn, T) {
-    const gl = this.gl;
-    depthOn(prog);
+  /** An emitter program's frame block at its bind: the frame's depth on unit 2 (0 and 1 are its own textures; unit 0
+   *  takes the depth too, as the depth block binds it), the view-projection and the depth's terms. Each uniform goes
+   *  up only when it differs from what the program holds (emitHeld). */
+  _emitDepth(prog, viewProj, T) {
+    const gl = this.gl,
+      depth = this.frame.depth,
+      held = emitHeld(prog);
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, depth);
     gl.activeTexture(gl.TEXTURE2);
-    gl.bindTexture(gl.TEXTURE_2D, this.frame.depth);
-    gl.uniform1i(prog.uDepth, 2);
-    gl.uniform2f(prog.uBloomSize, T.bloom.w, T.bloom.h);
+    gl.bindTexture(gl.TEXTURE_2D, depth);
+    if (!held.fixed) {
+      gl.uniform1i(prog.uDepth, 2);
+      gl.uniformMatrix4fv(prog.uView, false, this._identityView); // the identity for the program's whole life
+      if (prog.uTex !== undefined) gl.uniform1i(prog.uTex, 0); // the flat program's own picture
+      gl.uniform1i(prog.uEmissionTex, 1);
+      held.fixed = true;
+    }
+    if (heldMoved(held.proj, viewProj)) gl.uniformMatrix4fv(prog.uProj, false, viewProj);
+    if (heldMoved(held.projInfo, this.projInfo)) gl.uniform4fv(prog.uProjInfo, this.projInfo);
+    if (heldMoved(held.rect, this.rect)) gl.uniform4fv(prog.uRect, this.rect);
+    if (heldMoved(held.canvas, this.canvas)) gl.uniform2fv(prog.uCanvas, this.canvas);
+    const size = this._bloomSize;
+    size[0] = T.bloom.w;
+    size[1] = T.bloom.h;
+    if (heldMoved(held.bloom, size)) gl.uniform2fv(prog.uBloomSize, size);
     gl.activeTexture(gl.TEXTURE0);
   }
 

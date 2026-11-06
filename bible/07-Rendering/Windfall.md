@@ -21,6 +21,8 @@ Every frame, outdoors and in, as `WindMod.Update` runs wherever the player is:
 - **Gusts** are scheduled by the state: each is a smoothstep rise, a hold and a fall, with length, peak and heading
   swing set by the state. A windy or stormy gust sometimes pairs with another. Indoors the gust eases out.
 - **The profile** (strength, sway and shiver) is Normal's, Windy Day's or Storm's, lerped toward Gust's by the gust.
+- **The settings** come with every frame (`configure`). A change re-reads the day and the presentation. An object that
+  holds the settings the model already plays by is taken as it stands, so the host's one object is keyed once.
 
 ### The presentation (`src/systems/windfallEffects.js`, `src/render/windfallParticles.js`)
 

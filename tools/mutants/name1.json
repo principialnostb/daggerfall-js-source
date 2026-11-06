@@ -30,8 +30,8 @@
   {
     "name": "NAME1-anchor-dom-gap-dropped",
     "file": "src/ui/nameLayer.js",
-    "old": "        put(\n          tag,\n          'at',\n          `translate(${Math.round(p.x)}px, ${Math.round(p.y - NAME_GAP_PX)}px) translate(-50%, -100%)`,\n          (v) => {\n            tag.node.style.transform = v;\n          },\n        );",
-    "new": "        put(tag, 'at', `translate(${Math.round(p.x)}px, ${Math.round(p.y)}px) translate(-50%, -100%)`, (v) => {\n          tag.node.style.transform = v;\n        });",
+    "old": "        const atY = Math.round(p.y - NAME_GAP_PX);",
+    "new": "        const atY = Math.round(p.y);",
     "tests": [
       "test/net/name1_bubbles.test.js"
     ]
@@ -39,8 +39,8 @@
   {
     "name": "NAME1-anchor-dom-stack-grows-down",
     "file": "src/ui/nameLayer.js",
-    "old": "          `translate(${Math.round(p.x)}px, ${Math.round(p.y - NAME_GAP_PX)}px) translate(-50%, -100%)`,",
-    "new": "          `translate(${Math.round(p.x)}px, ${Math.round(p.y - NAME_GAP_PX)}px) translate(-50%, 0)`,",
+    "old": "          tag.atText = `translate(${atX}px, ${atY}px) translate(-50%, -100%)`;",
+    "new": "          tag.atText = `translate(${atX}px, ${atY}px) translate(-50%, 0)`;",
     "tests": [
       "test/net/name1_bubbles.test.js"
     ]
@@ -93,8 +93,8 @@
   {
     "name": "NAME1-size-not-taken-in-the-dom",
     "file": "src/ui/nameLayer.js",
-    "old": "        put(tag, 'size', `${namePixelSize(p.scale ?? 1, vp, hudScale).toFixed(1)}px`, (v) => {",
-    "new": "        put(tag, 'size', `${NAME_BASE_PX.toFixed(1)}px`, (v) => {",
+    "old": "        const px = namePixelSize(p.scale ?? 1, vp, hudScale);",
+    "new": "        const px = NAME_BASE_PX;",
     "tests": [
       "test/net/name1_bubbles.test.js"
     ]
@@ -147,8 +147,8 @@
   {
     "name": "NAME1-sight-cull-dropped",
     "file": "src/net/remotePlayers.js",
-    "old": "      if (blocked && blocked(head, e.peer.id)) continue;",
-    "new": "      if (false && blocked && blocked(head, e.peer.id)) continue;",
+    "old": "      if (blocked && blocked(head, e.peer.id, pv)) continue;",
+    "new": "      if (false && blocked && blocked(head, e.peer.id, pv)) continue;",
     "tests": [
       "test/net/name1_bubbles.test.js"
     ]
@@ -165,7 +165,7 @@
   {
     "name": "NAME1-host-sight-test-dropped",
     "file": "src/scenes/world.js",
-    "old": "    const blocked = (head, id) => glassCuts(projectToScreen(head, 1, 1, proj, view)) || nameSight.blocked(player.collider, eye, id, head);",
+    "old": "    const blocked = (head, id, viewProj) => glassCuts(projectToScreen(head, 1, 1, proj, view, null, false, viewProj)) || nameSight.blocked(player.collider, eye, id, head);",
     "new": "    const blocked = null;",
     "tests": [
       "test/net/name1_bubbles.test.js"
@@ -201,8 +201,8 @@
   {
     "name": "NAME1-dom-writes-unguarded",
     "file": "src/ui/nameLayer.js",
-    "old": "    if (tag[slot] !== v) {\n      tag[slot] = v;\n      write(v);\n    }",
-    "new": "    tag[slot] = v;\n    write(v);",
+    "old": "    if (tag[slot] !== v) {\n      tag[slot] = v;\n      write(v, tag);\n    }",
+    "new": "    tag[slot] = v;\n    write(v, tag);",
     "tests": [
       "test/net/name1_bubbles.test.js"
     ]
@@ -282,8 +282,8 @@
   {
     "name": "BUBBLE1-window-unbounded",
     "file": "src/ui/nameLayer.js",
-    "old": "      for (const [id, b] of [...bubbles]) if (t - b.at >= BUBBLE_MS) bubbles.delete(id);",
-    "new": "      for (const [id, b] of [...bubbles]) if (false && t - b.at >= BUBBLE_MS) bubbles.delete(id);",
+    "old": "      for (const [id, b] of bubbles) if (t - b.at >= BUBBLE_MS) bubbles.delete(id);",
+    "new": "      for (const [id, b] of bubbles) if (false && t - b.at >= BUBBLE_MS) bubbles.delete(id);",
     "tests": [
       "test/net/name1_bubbles.test.js"
     ]
