@@ -38,7 +38,7 @@ const has = (g) => keys.some((k) => k.text.toLowerCase() === `${g}: start`.toLow
 const sub = (a, b) => a.map((v, i) => v - b[i]), dot = (a, b) => a.reduce((s, v, i) => s + v * b[i], 0);
 const lerp = (a, b, t) => a.map((v, i) => v + (b[i] - v) * t);
 
-const CARRIES = { none: { weapon: T.None }, one: { weapon: T.LongBladeOneHand }, shield: { weapon: T.LongBladeOneHand, shield: true }, two: { weapon: T.LongBladeTwoHand }, torch: { weapon: T.None, torch: true }, bareshield: { weapon: T.None, shield: true }, fistshield: { weapon: T.HandToHand, shield: true, stance: T.LongBladeOneHand } };
+const CARRIES = { none: { weapon: T.None }, one: { weapon: T.LongBladeOneHand }, shield: { weapon: T.LongBladeOneHand, shield: true }, two: { weapon: T.LongBladeTwoHand }, torch: { weapon: T.None, torch: true }, bareshield: { weapon: T.None, shield: true }, fistshield: { weapon: T.HandToHand, shield: true, stance: T.LongBladeOneHand }, fists: { weapon: T.HandToHand } };
 const GAITS = { idle: { group: 'idle', f: 0, s: 0, speed: 0 }, walk: { group: 'walkforward', f: 1, s: 0, speed: 2.5 },
   run: { group: 'runforward', f: 1, s: 0, speed: 8.1 }, back: { group: 'walkback', f: -1, s: 0, speed: 2.5 },
   strafe: { group: 'walkright', f: 0, s: 1, speed: 2.5 }, runback: { group: 'runback', f: -1, s: 0, speed: 6 } };
@@ -110,6 +110,8 @@ function skinDepth(b, pose, mats) {
 }
 // the shield bone's three axes in the chest's frame (its turn on the body)
 const shieldOf = (b, M, F) => { const r = b.sk.byName.get('shield bone'), m = r != null ? M.get(r) : null; if (!m) return null; const a = m.a, col = (j) => [a[j], a[3 + j], a[6 + j]]; return [0, 1, 2].map((j) => { const v = col(j); return [dot(v, F.right), dot(v, F.fwd), dot(v, F.up)]; }); };
+// HAND-FINGERS: each hand's knuckle bend (the hand to finger1 to finger11, degrees, fingers 1 and 2 averaged)
+const fingersOf = (b, M) => { const out = {}; for (const s of ['l', 'r']) { const p = (n) => M.get(b.sk.byName.get(`bip01 ${s} ${n}`))?.t; const ang = (a, c, d) => { const u = sub(c, a), w = sub(d, c); return Math.acos(Math.max(-1, Math.min(1, dot(u, w) / Math.hypot(...u) / Math.hypot(...w)))) * 180 / Math.PI; }; const h = p('hand'); out[s] = h ? (ang(h, p('finger1'), p('finger11')) + ang(h, p('finger2'), p('finger21'))) / 2 : null; } return out; };
 const local = (b, mats, F, ref) => { const d = sub(mats.get(ref).t, mats.get(b.chest).t); return [dot(d, F.right), dot(d, F.fwd), dot(d, F.up)].map((v) => v / b.arm); };
 const yawOf = (M, ref) => { const a = M.get(ref).a; return Math.atan2(a[3], a[0]); };
 const wrap = (x) => Math.atan2(Math.sin(x), Math.cos(x));
@@ -146,7 +148,7 @@ function run(carry, steps, dt = 1 / 60) {
     fade = Math.min(1, fade + dt / 0.2);
     const M = b.assembly.mats, F = bodyFrames(b.body, M); if (!F) continue;
     const dp = depth(b.body, M), ds = skinDepth(b, b.assembly.pose, M);
-    frames.push({ t: +t.toFixed(4), gait: st.gait, blow: blow?.section ?? null, dbg: globalThis.__clearDebug, sh: shieldOf(b, M, F), lw: b.leftArm.weight(), uw: b.upperBody.weight(), lg: b.leftArm.group?.(), ug: b.upperBody.group?.(), mg: group, gph: b.motion.stride().phase, cph: clipStridePhase ? clipStridePhase(movement, keys) : null, feet: dot(sub(M.get(b.body.bones.L.foot).t, M.get(b.body.bones.R.foot).t), F.fwd) / b.body.leg, dL: dp.L, dR: dp.R, sL: ds.L, sR: ds.R,
+    frames.push({ t: +t.toFixed(4), gait: st.gait, blow: blow?.section ?? null, dbg: globalThis.__clearDebug, fing: fingersOf(b, M), sh: shieldOf(b, M, F), lw: b.leftArm.weight(), uw: b.upperBody.weight(), lg: b.leftArm.group?.(), ug: b.upperBody.group?.(), mg: group, gph: b.motion.stride().phase, cph: clipStridePhase ? clipStridePhase(movement, keys) : null, feet: dot(sub(M.get(b.body.bones.L.foot).t, M.get(b.body.bones.R.foot).t), F.fwd) / b.body.leg, dL: dp.L, dR: dp.R, sL: ds.L, sR: ds.R,
       hL: local(b.body, M, F, b.body.bones.L.hand), hR: local(b.body, M, F, b.body.bones.R.hand),
       eL: local(b.body, M, F, b.body.bones.L.fore), eR: local(b.body, M, F, b.body.bones.R.fore),
       twist: wrap(yawOf(M, b.body.chest) - yawOf(M, b.body.bones.pelvis)) });

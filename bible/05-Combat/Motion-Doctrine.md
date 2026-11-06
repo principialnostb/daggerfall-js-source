@@ -1236,3 +1236,34 @@ the weapon's shield plan whole (src/combat/leftArmLayer.js:"function heldShield(
 from 0.27 (an empty-handed body's 0.46). tools/motionProbe.mjs now carries the fists and a shield in the one-hander's
 stance and gait, as fpArm.js stands them.
 
+
+**HAND-FINGERS / FIST-BESIDE-SHIELD / FREE-HAND-REST** (2026-11-06, the owner's three screenshots and 22-13-15
+recording: the fists' fingers half open like claws, both hands' when both are free; the fist beside a shield raised to
+the breast, "unnatural" where the free hand beside a sword is liked; the free hand "hangs woodenly" - "a small, smooth
+lowering, as the shield's"; "work on the fingers everywhere").
+
+- **The fingers were the free walk's.** The body layer turns a hand and leaves its fingers to the clip, and every drawn
+  stance now walks the worked gait - the free walk, its fingers open (the knuckles about 20 degrees on the probe's
+  measure). A raised fist was a claw; a hilt walked and ran in an open palm, a two-hander's in both. The fingers are now
+  the game's own: a fist is the hand-to-hand idle's (`idlehh`, the knuckles 88 degrees), baked from the retail rig
+  (src/characters/bodyMotion/handFingers.js:"export const FIST = Object.freeze({"), and each hand's fingers stand a share
+  of the way to it by what the hand holds
+  (src/characters/bodyMotion/handFingers.js:"export const FINGERS = Object.freeze({ fist: 1, hilt: 0.85, grip: 0.8, loose: 0.6, relaxed: 0.35, ease: 0.12 });"):
+  a hilt 77 degrees walking and running as the one-handed stance holds it standing, a shield's strap, a loose fist
+  beside a shield, an empty hand relaxed (41). A torch, a spell, a bow, a recoil keep the clip's.
+- **FIST-BESIDE-SHIELD.** A shield and no weapon stands the fists behind it; their right arm was the boxer's guard, the
+  fist 0.16 arm lengths above the chest bone. It is carried as the one-hander's free left arm is, mirrored - its rows found
+  from where that hand stands on the chest (src/characters/bodyMotion/carry.js:"export const FIST_BESIDE_SHIELD = Object.freeze({").
+- **FREE-HAND-REST.** Standing, the one-handed stance held the free hand bent before the belly as walking does, and it
+  stood there. Standing still it is now the carry's resting row (CARRY.one.idle.L, the arm down, the elbow eased), by as
+  much as the body stands (src/characters/bodyMotion/bodyMotion.js:"const restL = freeArm && !input.blow && !bpNow && gait.sneak < 0.5 ? clamp01(1 - gait.move) : 0;"):
+  stopping lowers it from 0.58 to 0.18 arm lengths forward over some 0.6 seconds, under 0.06 a frame. Never in a blow.
+
+Measured, a woman's body: nothing deeper in the trunk, no frame-to-frame jerk added but the fist beside the shield's,
+which now swings with the stride (0.04 a frame walking, as the free hand beside a sword; running it halved). The motion
+tests: none newly failing; AUDIT SPELL-HAND L3-5, failing before, passes. Tests: test/characters/bodyMotion/handfingers.test.js.
+There is no off-hand switch in the game's melee (the weapon is the right's, the shield the left's; a bow's left hand is
+its clips'): the fingers and the free arm are written by side, so a mirror needs no new law. Still open: the fists' own
+guard, both hands free, at a walk-to-run change of the hand-to-hand clips (a 0.54 arm-length leap, there before this).
+Reference remains DFU WeaponManager.UpdateHands: DFU draws no articulated hand. Shared modules; no host changes.
+
