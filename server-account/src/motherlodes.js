@@ -114,11 +114,7 @@ const rowView = (r) => ({
  * first. A caller with no `primary` (the cron's, on the binding) is its own.
  * @param {{ db: any, primary?: any, rand?: () => number }} ctx
  */
-export async function motherlodesOf(
-  { db: read, primary = read, rand },
-  day,
-  { clock = false } = {},
-) {
+export async function motherlodesOf({ db: read, primary = read, rand }, day, { clock = false } = {}) {
   const keptOf = async (/** @type {any} */ db) =>
     ((await db.prepare('SELECT * FROM motherlodes WHERE day = ?1 ORDER BY k').bind(day).all())?.results ?? []).map(
       rowView,
