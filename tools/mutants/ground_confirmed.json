@@ -42,7 +42,7 @@
   {
     "name": "GROUNDCONF-cut-key-kept",
     "file": "server-account/src/groundConfirmed.js",
-    "old": "    : full\n      ? results.filter((r) => r.key !== cut)\n      : results;",
+    "old": "    : full\n      ? results.filter((row) => row.key !== cut)\n      : results;",
     "new": "    : results;",
     "tests": [
       "test/server/ground_confirmed.test.js"
@@ -52,7 +52,7 @@
   {
     "name": "GROUNDCONF-alone-cut",
     "file": "server-account/src/groundConfirmed.js",
-    "old": "const alone = full && results.every((r) => r.key === cut);",
+    "old": "const alone = full && results.every((row) => row.key === cut);",
     "new": "const alone = false;",
     "tests": [
       "test/server/ground_confirmed.test.js"

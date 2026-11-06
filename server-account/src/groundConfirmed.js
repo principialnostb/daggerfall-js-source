@@ -16,14 +16,14 @@ export const GROUND_FILL_ROWS = 10_000;
  */
 export function confirmationOf(rows) {
   const sorted = [...rows]
-    .filter((r) => parseReport(r?.report))
+    .filter((report) => parseReport(report?.report))
     .sort((a, b) => a.at - b.at || (a.account < b.account ? -1 : a.account > b.account ? 1 : 0));
   const by = new Map();
-  for (const r of sorted) {
-    const seen = by.get(r.report) ?? new Set();
-    seen.add(r.account);
-    by.set(r.report, seen);
-    if (seen.size >= WITNESS.confirm) return { report: r.report, at: r.at };
+  for (const report of sorted) {
+    const seen = by.get(report.report) ?? new Set();
+    seen.add(report.account);
+    by.set(report.report, seen);
+    if (seen.size >= WITNESS.confirm) return { report: report.report, at: report.at };
   }
   return null;
 }
@@ -60,7 +60,7 @@ export async function fillGroundStep(db, page = GROUND_FILL_ROWS) {
     .all();
   const full = results.length >= page;
   const cut = full ? results.at(-1).key : null;
-  const alone = full && results.every((r) => r.key === cut); // one pixel's reports past a page: read it whole
+  const alone = full && results.every((row) => row.key === cut); // one pixel's reports past a page: read it whole
   const rows = alone
     ? ((
         await db
@@ -69,18 +69,18 @@ export async function fillGroundStep(db, page = GROUND_FILL_ROWS) {
           .all()
       )?.results ?? [])
     : full
-      ? results.filter((r) => r.key !== cut)
+      ? results.filter((row) => row.key !== cut)
       : results;
   const byKey = new Map();
-  for (const r of rows) {
-    const a = byKey.get(r.key) ?? [];
-    a.push({ account: String(r.account), report: String(r.report), at: Number(r.at) });
-    byKey.set(r.key, a);
+  for (const row of rows) {
+    const reports = byKey.get(row.key) ?? [];
+    reports.push({ account: String(row.account), report: String(row.report), at: Number(row.at) });
+    byKey.set(row.key, reports);
   }
   const kept = [];
   for (const [key, list] of byKey) {
-    const c = confirmationOf(list);
-    if (c) kept.push([key, c.report, c.at]);
+    const confirmation = confirmationOf(list);
+    if (confirmation) kept.push([key, confirmation.report, confirmation.at]);
   }
   const chunks = [];
   let chunk = [],
@@ -98,13 +98,13 @@ export async function fillGroundStep(db, page = GROUND_FILL_ROWS) {
   if (chunk.length) chunks.push(chunk);
   const last = rows.length ? String(rows.at(-1).key) : String(mark.after);
   await db.batch([
-    ...chunks.map((c) =>
+    ...chunks.map((part) =>
       db
         .prepare(
           `INSERT OR REPLACE INTO ground_confirmed (key, report, at)
       SELECT json_extract(j.value, '$[0]'), json_extract(j.value, '$[1]'), json_extract(j.value, '$[2]') FROM json_each(?1) AS j`,
         )
-        .bind(JSON.stringify(c)),
+        .bind(JSON.stringify(part)),
     ),
     db
       .prepare('UPDATE ground_confirmed_fill SET after = ?1, done = ?2 WHERE id = 1 AND after = ?3')
@@ -125,9 +125,9 @@ export async function confirmedGroundBefore(db, day) {
     .bind(day * 86400)
     .all();
   const out = [];
-  for (const r of results) {
-    const said = parseReport(r.report);
-    const [x, y] = String(r.key).split(',').map(Number);
+  for (const row of results) {
+    const said = parseReport(row.report);
+    const [x, y] = String(row.key).split(',').map(Number);
     if (!said || !Number.isSafeInteger(x) || !Number.isSafeInteger(y)) continue;
     out.push({ x, y, climate: said.climate, region: said.region });
   }
