@@ -155,10 +155,10 @@
     ]
   },
   {
-    "name": "SUN-REACH-the-reach-shipped-off",
+    "name": "SUN-REACH-the-reach-shipped-on",
     "file": "src/render/shadowPass.js",
-    "old": "calmForce: null, sunReach: true, moverHold",
-    "new": "calmForce: null, sunReach: false, moverHold",
+    "old": "calmForce: null, sunReach: false, moverHold",
+    "new": "calmForce: null, sunReach: true, moverHold",
     "tests": [
       "test/render/perfsun3.test.js"
     ]

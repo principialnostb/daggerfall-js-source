@@ -350,7 +350,7 @@ export const SHADOW_SWAY_EVERY = 4;
  *  shadow map (with dynamic shadows) for the lo map (static only) from one frame to the next, and (b) lifts the lo
  *  tier's rebuild budget. Costs GPU time; turn off Settings > Features > Steady shadows (or from the console,
  *  window.__DF_SHADOW_TUNING.override = false; null hands it back to the row) to get EL8's schedule back. */
-export const SHADOW_TUNING = { steady: true, override: null, debug: false, debugForce: null, selfLamps: null, calmForce: null, sunReach: true, moverHold: true, facePrepass: true, sunPrepass: true, volumeMemo: true, moverDirect: true, loUnread: true };
+export const SHADOW_TUNING = { steady: true, override: null, debug: false, debugForce: null, selfLamps: null, calmForce: null, sunReach: false, moverHold: true, facePrepass: true, sunPrepass: true, volumeMemo: true, moverDirect: true, loUnread: true };
 // LIGHT-ID: `moverDirect` false draws a light that moved through its static cache, as before (every slot the cached
 // path), and `loUnread` false draws the lo map of a light that holds a 512 slot, as DISC15 first did - the pins' oracles
 // and an A/B's off arms (window.__DF_SHADOW_TUNING.moverDirect = false). Neither changes a map: the same casters reach the
@@ -2667,8 +2667,8 @@ export class ShadowPass {
    *  two texels either way: within 0.905 of the radius across the light. So a caster bounded wholly past the radius
    *  itself across the light writes no texel any read takes. Both maps are drawn afresh whenever they are read about
    *  another eye. The far map is not: the cadence holds it a frame and reads it about the next eye, so it keeps all
-   *  its box takes. False, and every caster the boxes take is kept, when a value is not finite or `sunReach` is off
-   *  (window.__DF_SHADOW_TUNING.sunReach = false: the pins' oracle and an A/B's off arm). */
+   *  its box takes. False, and every caster the boxes take is kept, when a value is not finite or `sunReach` is off,
+   *  as it ships: it saved too few draws to pay its cost (window.__DF_SHADOW_TUNING.sunReach = true: an A/B's on arm). */
   _sunReachFor(eye, dir, k) {
     if (SHADOW_TUNING.sunReach === false || !eye || !dir) return false;
     const reach = this._reach, length = Math.hypot(dir[0], dir[1], dir[2]);

@@ -9,6 +9,10 @@ import { EL_LANE } from '../../src/render/enhancedLighting.js';
 import { StaticBatchBuilder, SHADOW_CELL_SIZE } from '../../src/render/staticBatch.js';
 import { identity, lookAt, mirrorProjectionX, perspective } from '../../src/world/mat4.js';
 
+// The pass is off unless the page asks for it. These pins ask, as an A/B's on arm does; the switch has its own pin.
+const ASKED = Object.freeze({ search: '?prepass' });
+globalThis.location = ASKED;
+
 const K = Object.freeze({
   DEPTH_TEST: 0x0b71, CULL_FACE: 0x0b44, BLEND: 0x0be2, POLYGON_OFFSET_FILL: 0x8037, SCISSOR_TEST: 0x0c11,
   STENCIL_TEST: 0x0b90, ARRAY_BUFFER: 0x8892, ELEMENT_ARRAY_BUFFER: 0x8893, TRIANGLES: 4, UNSIGNED_INT: 0x1405,
@@ -365,7 +369,7 @@ test('the depth-first program is the lit program\'s own vertex stage, beside a s
   }
 });
 
-test('the level is not drawn depth first where its lit draw could discard, skip a picture or be placed by other matrices - unasked, the first frame, a dissolve, the automap\'s slice or mode, a cutout, glass cut to the view out, the view out and its pane, a picture let go, a remap of its own, ?prepass=off, a lane put in after the frame began, a mesh let go - and each frame draws as its twin (mutants: each check dropped)', () => {
+test('the level is not drawn depth first where its lit draw could discard, skip a picture or be placed by other matrices - unasked, the first frame, a dissolve, the automap\'s slice or mode, a cutout, glass cut to the view out, the view out and its pane, a picture let go, a remap of its own, a page that does not ask, ?prepass=off, a lane put in after the frame began, a mesh let go - and each frame draws as its twin (mutants: each check dropped)', () => {
   const own = new Map([['0_0', '0_0']]);   // a remap under which every picture stays its own
   const cases = [
     ['unasked', { ask: false }, [null]],
@@ -379,7 +383,8 @@ test('the level is not drawn depth first where its lit draw could discard, skip 
     ['a picture let go', {}, [(t) => t.r.evictTexture('1_0'), null], [(t) => t.r.uploadTexture(1, 0, pixel()), null]],
     // stamped under one remap and drawn under another, which sends a picture to one not kept: the lit draw skips it
     ['a remap of its own', { remap: own }, [(t) => { t.remap = new Map([['1_0', 'not kept']]); }], [(t) => { t.remap = own; }]],
-    ['?prepass=off', {}, [(t) => { globalThis.location = { search: '?prepass=off' }; }], [(t) => { delete globalThis.location; }]],
+    ['a page that does not ask', {}, [(t) => { delete globalThis.location; }], [(t) => { globalThis.location = ASKED; }]],
+    ['?prepass=off', {}, [(t) => { globalThis.location = { search: '?prepass=off' }; }], [(t) => { globalThis.location = ASKED; }]],
     ['a lane put in after the frame began', {}, [(t) => t.r.setLightingLane(EL_LANE)], [null]],
     ['a mesh let go', {}, [(t) => t.r.destroyMesh(t.mesh)]],
   ];
@@ -402,7 +407,24 @@ test('the level is not drawn depth first where its lit draw could discard, skip 
       frame(twin);
     }
   } finally {
-    delete globalThis.location;
+    globalThis.location = ASKED;
+  }
+});
+
+test('the depth-first draw ships off: no switch, an empty query and ?prepass=off lay nothing and draw as the twin; ?prepass and ?prepass=on lay the depth (mutants: on unless off; the switch ignored; a bare switch or =on ignored)', () => {
+  try {
+    for (const [search, on] of [[null, false], ['', false], ['?prepass=off', false], ['?prepass', true], ['?prepass=on', true]]) {
+      if (search == null) delete globalThis.location;
+      else globalThis.location = { search };
+      const name = search ?? 'no location';
+      const t = rig(), twin = rig({ ask: false });
+      frame(t); frame(twin);   // stamped
+      const got = frame(t), want = frame(twin);
+      assert.equal(laid(t, got).length > 0, on, `${name}: ${on ? 'laid' : 'nothing laid'}`);
+      assert.deepEqual(litView(t, got), litView(twin, want), `${name}: the lit draws are the twin's`);
+    }
+  } finally {
+    globalThis.location = ASKED;
   }
 });
 

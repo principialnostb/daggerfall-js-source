@@ -472,7 +472,7 @@ function casterGap(rec, b, vp, eye, perUnit, right, shapes) {
 }
 
 test('SUN-REACH: THE NEAR CASCADES LEAVE OUT ONLY WHAT NO READ CAN SEE - over random towns of real shapes (box meshes turned, stretched and sheared; terrain; woods and single flats, swaying and hung upside down; a mesh with no bounds, one and a flat placed by a NaN) set across each cascade\'s box and its corners about the eye that replays them, under four suns, steady and cadenced, about the camera and a travel view\'s focus: each near cascade\'s list is its sphere test\'s less some casters, and every triangle each of those draws lies past every texel a read of that cascade takes; the far cascade lists and draws all its box takes, exactly; the near ones\' draws are the ones they drew, in order, less some (mutants: the far cascade cut by a reach; a reach narrower than the reads; a caster placed by a NaN left out)', () => {
-  assert.equal(SHIPPED.sunReach, true, 'SHADOW_TUNING.sunReach ships on');
+  assert.equal(SHIPPED.sunReach, false, 'SHADOW_TUNING.sunReach ships off');
   let lost = 0, frames = 0;
   const near = [0, 0];
   for (const seed of [71, 72]) {

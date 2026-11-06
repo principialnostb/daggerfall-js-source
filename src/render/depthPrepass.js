@@ -5,7 +5,7 @@
 // polygon offset, and the lit draw after them is unchanged. On a GPU that tests depth before shading, a hidden wall
 // then fails the test before it is shaded. Each laid depth is its own lit triangle's, a little behind, so the nearest
 // lit fragment still passes and the depth left is the lit draw's own. It runs only when no lit fragment can be
-// discarded, on the matrices the lit program holds.
+// discarded, on the matrices the lit program holds, and only when the page asks: it is off until measured on hardware.
 import { buildProgram, compiledPass } from './glProgram.js';
 import { matrixScale, sphereInPlanes, spherePlanes, transformSphereScaled } from './bounds.js';
 import { multiply } from '../world/mat4.js';
@@ -29,6 +29,13 @@ export const DEPTH_FIRST_OFFSET = Object.freeze([1, 2]);
 
 /** The depth draw's one program: the renderer's mesh vertex stage, and the stage above. */
 export const depthFirstPrograms = (meshVs) => [/** @type {const} */ ([meshVs, DEPTH_FIRST_FS])];
+
+/** The page's switch: `?prepass` or `?prepass=on` turns the pass on for an A/B. With no switch, or any other value
+ *  (`?prepass=off`), it stays off. */
+function prepassAsked() {
+  const asked = pageParam('prepass');
+  return asked === '' || asked === 'on';
+}
 
 /** The automap slice's "off" (renderer.js setClipY): no fragment stands that high. */
 const CLIP_OFF = 1e9;
@@ -69,8 +76,9 @@ export function noteFrameMatrices(renderer, proj, view) {
 /** Whether the lit draw of `mesh` that follows can lose no fragment to a discard (the view out's pane, the automap's
  *  slice, a dissolve, a cutout's hole, glass cut to the view out) and draws every sub-mesh: each one's texture stamped
  *  for this generation and this remap, as renderer.js _drawMeshBundle reads it. And the mesh program must still hold
- *  the matrices beginFrame gave it. */
+ *  the matrices beginFrame gave it. And the page must ask for the pass (prepassAsked). */
 export function depthFirstReady(renderer, mesh, modelMatrix, texRemap) {
+  if (!prepassAsked()) return false;
   if (!mesh?.prepass || mesh._dead || !mesh.vao || !mesh.shadowVao || !mesh.shadowCells?.length) return false;
   if (!mesh.subMeshes?.length || modelMatrix == null) return false;
   const frame = FRAMES.get(renderer);
@@ -83,7 +91,7 @@ export function depthFirstReady(renderer, mesh, modelMatrix, texRemap) {
     if (sub._evGen !== renderer._texGen || sub._evRemap !== texRemap || sub._evCut) return false;
     if (glassCut && sub._evWin) return false;
   }
-  return pageParam('prepass') !== 'off';
+  return true;
 }
 
 function depthFirstPass(gl, meshVs) {

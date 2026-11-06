@@ -101,8 +101,35 @@
   {
     "name": "PP-the-page-switch-ignored",
     "file": "src/render/depthPrepass.js",
-    "old": "return pageParam('prepass') !== 'off';",
-    "new": "return true;",
+    "old": "  if (!prepassAsked()) return false;\n",
+    "new": "",
+    "tests": [
+      "test/render/depthprepass.test.js"
+    ]
+  },
+  {
+    "name": "PP-on-unless-off",
+    "file": "src/render/depthPrepass.js",
+    "old": "return asked === '' || asked === 'on';",
+    "new": "return asked !== 'off';",
+    "tests": [
+      "test/render/depthprepass.test.js"
+    ]
+  },
+  {
+    "name": "PP-a-bare-switch-ignored",
+    "file": "src/render/depthPrepass.js",
+    "old": "return asked === '' || asked === 'on';",
+    "new": "return asked === 'on';",
+    "tests": [
+      "test/render/depthprepass.test.js"
+    ]
+  },
+  {
+    "name": "PP-the-on-value-ignored",
+    "file": "src/render/depthPrepass.js",
+    "old": "return asked === '' || asked === 'on';",
+    "new": "return asked === '';",
     "tests": [
       "test/render/depthprepass.test.js"
     ]

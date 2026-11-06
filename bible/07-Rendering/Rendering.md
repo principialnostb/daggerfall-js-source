@@ -42,9 +42,9 @@ numbers, and the renderer is our own code. The player sees it as every frame of 
   drawn over it. Its shadow cells in the view are drawn first, with colour off and depth pushed a little back
   (`src/render/depthPrepass.js`). The lit draw after them is unchanged. On a GPU that tests depth before shading, a
   hidden wall then fails the test before it is lit. This runs only when no lit fragment can be discarded: no cutout
-  picture, dissolve, automap slice, view-out pane or glass cut to the view out. `?prepass=off` turns it off. The pass
-  adds a draw for each run of cells in the view, and program and vertex-array binds, so compare it with `?prepass=off`
-  by GPU time, not by the draw and bind counts.
+  picture, dissolve, automap slice, view-out pane or glass cut to the view out. It is off by default; `?prepass` or
+  `?prepass=on` turns it on for an A/B on real hardware. The pass adds a draw for each run of cells in the view, and
+  program and vertex-array binds, so compare the two by GPU time, not by the draw and bind counts.
 - **Order.** Opaque meshes first, then the ground (so hidden ground fails the depth test), then the sky passes and the
   far ring at the far plane, shading only the pixels nothing nearer claimed. Water, flats, grass and falling weather
   compose after them.

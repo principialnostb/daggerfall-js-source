@@ -29,12 +29,13 @@ cheap without changing the picture. The general laws and instruments are `Perfor
   window sun, draws its sub-meshes. Every map keeps the same depth either way.
 - Every lantern's static signature is folded in one walk; a lantern's six faces share one walk; the sun's cascades share
   one walk.
-- **The near cascades' read reach.** A surface reads cascade 0 or 1 only within nine tenths of that cascade's radius
-  of the eye. So the walk leaves out of those two cascades a caster whose bound lies wholly past the radius across the
+- **The near cascades' read reach.** A surface reads cascade 0 or 1 only within nine tenths of that cascade's radius of
+  the eye. So the walk leaves out of those two cascades a caster whose bound lies wholly past the radius across the
   light (`_sunReachFor`). A mesh's bound is its sphere through its matrix's largest stretch (`stretchBound`). A flat's
   bound takes its quad and the wind's lean. A rig, a mesh whose vertices were written again and a flat with its own
   scale are always kept. The far cascade keeps every caster its box takes: with Steady shadows off, its map is held a
-  frame and read about the next frame's eye.
+  frame and read about the next frame's eye. The reach check is off by default, so the near cascades keep every caster
+  their boxes take; `window.__DF_SHADOW_TUNING.sunReach = true` in the console turns it on for an A/B.
 - A candidate list keeps its arrays from frame to frame. A slot counts its flats, and `discard()` sets them to null and
   the counts to zero.
 - A recorded mesh's matrix scale is computed once; the lanterns' face matrices and cube walk are made in place.
