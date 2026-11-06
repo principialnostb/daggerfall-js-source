@@ -19,6 +19,7 @@
 // Answers a small report, or null when nothing was posed.
 
 import { wristPole, balanceForearm } from './armAnatomy.js';
+import { trunkInside } from './trunkProfile.js';   // TRUNK-SKIN: the held wrist's elbow kept out of the trunk
 import { solveReach, rotFrames, rotFromTo, rotFraction, rotAxisAngle, handFrame, orthonormal, rotationPart } from '../../combat/climbRig.js';
 import { algebra, clamp01, clamp, transpose, apply, mul, bodyTurn, fromColumns, bodyOf, turnOf, at, RAD } from './bodyKit.js';
 
@@ -192,7 +193,7 @@ export function solveBody(skeleton, pose, rootRef, skelMats, plan) {
       for (const side of hold ? ['R'] : ['L', 'R']) {
         const h = req[side];
         if (!h || !h.at) continue;
-        const wr = poseHand(skeleton, pose, mats, body, side, h, w, hold ? plan.armTwist?.[side] : null);
+        const wr = poseHand(skeleton, pose, mats, body, side, h, w, hold ? plan.armTwist?.[side] : null, null, plan.kind);
         if (wr) report.reach[side] = len(sub(wr, h.at));
       }
       if (hold) {
@@ -215,7 +216,7 @@ export function solveBody(skeleton, pose, rootRef, skelMats, plan) {
           const right = body.bones.R, frame = handFrame(mats, right, 'R');
           if (!frame?.fingers || !frame.palm) break;
           const atR = add(at(mats, right.hand), scale(d, reach / distance - 1));
-          poseHand(skeleton, pose, mats, body, 'R', { at: atR, fingers: frame.fingers, palm: frame.palm, pole: req.R.pole, w: 1 }, 1, plan.armTwist?.R, w);
+          poseHand(skeleton, pose, mats, body, 'R', { at: atR, fingers: frame.fingers, palm: frame.palm, pole: req.R.pole, w: 1 }, 1, plan.armTwist?.R, w, plan.kind);
           mats = skelMats(skeleton, pose, rootRef);
           grip = onRightHand(req.L, req.R, mats, body);
         }
@@ -224,7 +225,7 @@ export function solveBody(skeleton, pose, rootRef, skelMats, plan) {
         // Closing the grip is immediate; returning the elbow to its carry is not.
         // Its clip plane follows the same carry share as the leading arm.
         const heldL = plan.armTwist && L && own?.pole && L.pole ? { ...L, pole: swingWay(own.pole, L.pole, sub(L.at, at(mats, body.bones.L.upper)), w) } : L;
-        const wr = heldL ? poseHand(skeleton, pose, mats, body, 'L', heldL, 1, plan.armTwist?.L, w) : null;
+        const wr = heldL ? poseHand(skeleton, pose, mats, body, 'L', heldL, 1, plan.armTwist?.L, w, plan.kind) : null;
         if (wr) report.reach.L = len(sub(wr, L.at));
       }
     }
@@ -488,7 +489,7 @@ export function swingWay(a, b, axis, k) {
  * clip's to the request's, the hand turned to its fingers' and its palm's ways as they stand once the reach carries
  * it (climbRig.js handFrame - the fingers' bases and the thumb's side).
  */
-function poseHand(skeleton, pose, mats, body, side, h, w, anatomy = null, shape = null) {
+function poseHand(skeleton, pose, mats, body, side, h, w, anatomy = null, shape = null, kind = 'male') {
   const limb = body.bones[side];
   const k = clamp01((h.w ?? 1) * w);
   const S = at(mats, limb.upper), E = at(mats, limb.fore), W = at(mats, limb.hand);
@@ -502,7 +503,10 @@ function poseHand(skeleton, pose, mats, body, side, h, w, anatomy = null, shape 
   const reach = lerp3(W, h.at, k);
   let pole = ask && len(clipElbow) > 0.5 ? swingWay(clipElbow, ask, sub(reach, S), k) : ask ?? clipElbow;
   const fr = h.fingers ? handFrame(mats, limb, side) : null;
-  if (anatomy && fr) pole = wristPole(S, reach, h.fingers, len(sub(E, S)), len(sub(W, E)), pole, shape ?? k);
+  if (anatomy && fr) {
+    const F = bodyFrames(body, mats), c = at(mats, body.chest);
+    pole = wristPole(S, reach, h.fingers, len(sub(E, S)), len(sub(W, E)), pole, shape ?? k, F && c ? trunkInside(kind, F, c, body.shoulderWidth) : null);
+  }
   return reachLimb(skeleton, pose, mats, limb.upper, limb.fore, limb.hand, reach, pole, (Rh, D) => {
     if (!fr) return null;
     const f0 = norm(apply(D, fr.fingers)), p0 = fr.palm ? norm(apply(D, fr.palm)) : null;

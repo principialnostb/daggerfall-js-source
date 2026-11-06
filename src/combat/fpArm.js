@@ -5195,7 +5195,7 @@ export function createFpArm({ playerAppearance = false } = {}) {
   // BODY-MOTION (characters/bodyMotion/bodyMotion.js; bible/04-Characters/Body-Motion.md): THE THIRD-PERSON BODY'S OWN
   // MOTION - its gait, its carry and a blow's body - one per rig, stepped below after the clips and laid on the pose
   // through poseAssembly's `motion` slot; the clips still decide every group, and it steps aside where they own the body
-  const motion = createBodyMotion();
+  const motion = createBodyMotion(undefined, lowerBody);   // LEG-CLOCK: the gait's stride on the movement clip's own feet
   const bodyWeight = createBodyWeight();   // BODY-WEIGHT (characters/bodyMotion/bodyWeight.js)
   const fpInertia = createFpInertia();   // FP-INERTIA (combat/fpInertia.js)
   const loopSeam = createLoopSeam({ sampleTrack, loopWindow });   // LOOP-SEAM (combat/loopSeam.js)

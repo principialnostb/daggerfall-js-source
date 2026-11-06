@@ -127,7 +127,7 @@ export const STEER = Object.freeze({ forward: 0.68, max: 60, back: 105, hyst: 12
  *  of travel, the backpedal's share of the arms' swing (AUDIT BODY-MOTION GAIT-12 - flipped in one frame, it threw the
  *  free arm 54 degrees), and the ground's slope; and (strides, not seconds) the body's clock catching up the feet's
  *  when a strike or a lift sets it (GAIT-22). */
-export const GAIT_EASE = Object.freeze({ moveIn: 0.09, moveOut: 0.16, style: 0.22, speed: 0.08, steer: 0.14, lean: 0.25, dir: 0.06, back: 0.12, slope: 0.25, phase: 0.25 });
+export const GAIT_EASE = Object.freeze({ moveIn: 0.09, moveOut: 0.16, style: 0.22, speed: 0.08, steer: 0.14, lean: 0.25, dir: 0.06, back: 0.12, slope: 0.25, phase: 0.25, legs: 0.12 });
 
 /**
  * TURNING AND SETTLING IN PLACE: a standing foot twisted `step` degrees off the body - or standing `dist` legs off its
@@ -209,7 +209,7 @@ export function strideShape(s, input, body, P) {
 export function createGaitState() {
   return {
     phase: 0, move: 0, run: 0, sneak: 0, speed: 0, dir: [0, 1], th: 0, psi: 0, back: false, backShare: 0, along: 1,
-    lean: 0, bank: 0, lastSpeed: 0, yaw: null, yawRate: 0, t: 0, walking: false, air: false, lag: 0, shown: 0,
+    lean: 0, bank: 0, lastSpeed: 0, yaw: null, yawRate: 0, t: 0, walking: false, air: false, lag: 0, shown: 0, legW: 0, legOff: 0,
     travel: null, carried: null, slope: [0, 0], stance: null, stepTime: null,
     feet: { L: null, R: null },
   };
@@ -471,7 +471,14 @@ export function stepGait(state, input, body, dt) {
   const catchUp = s.lag * (1 - Math.exp(-s.dPhase / GAIT_EASE.phase));
   s.lag -= clamp(catchUp, -0.5 * s.dPhase, 0.5 * s.dPhase);
   if (!s.walking && s.move === 0) s.lag = 0;
-  s.shown = frac(s.phase + s.lag);
+  // LEG-CLOCK (legClock.js): while the drawn legs are a clip's and its feet show their swing, the shown clock is theirs -
+  // taken on and let go of over GAIT_EASE.legs, and followed over it too: a clip changed under the legs (a walk to a
+  // run) moves the clip's phase and the feet's measured lead at once, and an arm on the shown clock leapt with them
+  const own = s.phase + s.lag, legs = finite(input.legPhase) ? input.legPhase : null, k = 1 - Math.exp(-dt / GAIT_EASE.legs);
+  if (legs != null) s.legOff = (s.legOff ?? 0) + wrapHalf(wrapHalf(legs - own) - (s.legOff ?? 0)) * (s.legW > 0 ? k : 1);
+  s.legW = clamp01((s.legW ?? 0) + ((legs != null ? 1 : 0) - (s.legW ?? 0)) * k);
+  if (legs != null && s.legW > 0.999) s.legW = 1;
+  s.shown = frac(own + (s.legOff ?? 0) * s.legW);
   return s;
 }
 

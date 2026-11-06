@@ -16,7 +16,7 @@ import { blendMaskBones } from '../formats/morrowind/mwFirstPerson.js';
 import { nlerpQuat, loopWindow } from './leftArmLayer.js';
 import { createLoopSeam } from './loopSeam.js';
 import { advanceClip } from '../formats/morrowind/mwAnim.js';
-import { movementPhaseTime } from './movementContinuity.js';
+import { movementPhaseTime, clipStridePhase } from './movementContinuity.js';
 import { createDirectionalWalkSampler } from './directionalWalkSampler.js';
 
 /** The eases (seconds): the legs handed to the stride as a blow begins mid-stride, and back to the clip's when the body
@@ -73,6 +73,7 @@ export function createLowerBodyLayer({ sampleTrack }) {
   let clipState = null; let clipSource = null; let clipSampler = sampleTrack; let lastRate = 1;
   const ownership = { weight: 0 };
   let striking = false;
+  let stride = null;   // LEG-CLOCK
   const frameSamples = new Map();
   const seams = createLoopSeam({ sampleTrack, loopWindow });
   const walking = createDirectionalWalkSampler({ loopWindow });
@@ -104,6 +105,9 @@ export function createLowerBodyLayer({ sampleTrack }) {
       striking = !!strike && !!movement && /^(weapononehand|weapontwohand|blunttwohand|weapontwowide|weaponspear)$/.test(action?.group ?? '');
       if (!on || !third || hit || dead) { layer.reset(); return 0; }
       const owner = lowerBodyOwner({ on, third, action: !!action, hit: !!hit, dead: !!dead, movement: !!movement, jump: !!jump });
+      // LEG-CLOCK: where the movement clip's own legs stand in their stride (bodyMotion.js reads it for its gait)
+      // (read when asked: a clip change below carries the stride over to the new clip's time first)
+      stride = owner === 'movement' && movement && movementSource?.keys ? { state: movement, keys: movementSource.keys } : null;
       const state = owner === 'movement' ? movement : jump;
       const tracks = owner === 'movement' ? movementTracks : jumpTracks;
       const source = owner === 'movement' ? movementSource : jumpSource;
@@ -164,8 +168,10 @@ export function createLowerBodyLayer({ sampleTrack }) {
       return sampler;
     },
     weight: () => w,
+    /** LEG-CLOCK: the movement clip's stride phase this frame (movementContinuity.js clipStridePhase), or null. */
+    stridePhase: () => (stride ? clipStridePhase(stride.state, stride.keys) : null),
     reset() {
-      trackMap = null; clock = 0; w = 0; memo = null; inner = sampleTrack; key = null; prev = null; mix = 1; swapT = 0;
+      stride = null; trackMap = null; clock = 0; w = 0; memo = null; inner = sampleTrack; key = null; prev = null; mix = 1; swapT = 0;
       clipState = null; clipSource = null; clipSampler = sampleTrack; lastRate = 1; ownership.weight = 0; striking = false;
     },
   };

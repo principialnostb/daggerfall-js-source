@@ -26,10 +26,11 @@ import { algebra, ease, clamp01, smooth, RAD, bodyOf, bodyKindOf, reflect } from
 import { rotAxisAngle } from '../../combat/climbRig.js';
 import { createGaitState, stepGait, gaitPose, TURN } from './gait.js';
 import { markHeldPose } from './armAnatomy.js';
+import { createLegClock } from './legClock.js';   // LEG-CLOCK: the gait's shown stride on the clip's own feet
 import { freshReturnEnabled, setReturnGoal } from './freshReturn.js';
 import { carryClassOf, carryHands, CARRY, TWO_HAND_GRIP, TWO_HAND_HAFT, armByAngles, mirrorRequest, hafHand, trunkPush, blendHand, gaitShares, turnAbout, trunkOf } from './carry.js';
 import { meleeFamilyOf, blowName, blowU, blowPose, windFor } from './melee.js';
-import { solveBody, gripRequest } from './bodySolve.js';
+import { solveBody, gripRequest, bodyFrames } from './bodySolve.js';
 
 const { add, scale, sub, cross, norm, len, lerp } = algebra;
 
@@ -65,10 +66,12 @@ export function sceneInput({
   forward = 0, strafe = 0, speed = 0, running = false, sneaking = false, yaw = 0, grounded = true, travel = null, carriedYaw = 0,
   weapon = MW_WEAPON_TYPE.None, hands = 'single', shown = undefined, blow = null, kind = 'male',
   height = 1, weight = 1, torch = false, shield = false, spell = false, spellHand = false, equip = false, rifle = false, on = true, busy = null, guard = null,
+  legPhase = null,
 } = {}) {
   return {
     on, kind, busy, speed, forward, strafe, running, sneaking, grounded, swimming: false, levitating: false, yaw, travel, carriedYaw,
     height, weight, mwType: weapon, shown: shown ?? weapon !== MW_WEAPON_TYPE.None, hands, torch, shield, spell, spellHand, equip, rifle, blow, guard,
+    legPhase: Number.isFinite(legPhase) ? legPhase : null,
   };
 }
 
@@ -121,7 +124,9 @@ export function motionWord({
 export const TRUNK_CLEAR = 0.29;
 
 
-export function createBodyMotion({ trunkClear = TRUNK_CLEAR } = {}) {
+/** `legs` (LEG-CLOCK): the lower-body layer whose movement clip draws the legs (combat/lowerBodyLayer.js `stridePhase`),
+ *  read each step for its stride (the second argument) - a word's own `legPhase` (sceneInput's, the pins') stands before it. */
+export function createBodyMotion({ trunkClear = TRUNK_CLEAR } = {}, legs = null) {
   const gait = createGaitState();
   const armTwist = { L: { angle: null, frame: 0, dt: 0 }, R: { angle: null, frame: 0, dt: 0 } };
   let input = sceneInput({ on: false });
@@ -145,12 +150,14 @@ export function createBodyMotion({ trunkClear = TRUNK_CLEAR } = {}) {
   let lastBlow = null;   // the blow last seen - let go of by its weight when the machine drops it part-way (MELEE-6)
   let cut = null;        // where a blow that cut the last one begins: that one's hand and trunk as they stood (MELEE-6)
   let drawn = null;      // the striking hand as last drawn, as a blow's keys read it
+  const legClock = createLegClock();   // LEG-CLOCK
+  let clockDt = 0, legNow = null;
   const gaitInput = () => ({
     speed: input.speed, forward: input.forward, strafe: input.strafe, running: input.running, sneaking: input.sneaking,
     yaw: input.yaw, grounded: input.grounded, kind: input.kind, travel: input.travel, carriedYaw: input.carriedYaw,
     legM: body ? (body.leg * (input.height || 1)) / MW_UNITS_PER_METER : 1,
     unitsPerM: MW_UNITS_PER_METER / (input.weight || 1), unitsPerMz: MW_UNITS_PER_METER / (input.height || 1),
-    stance, stepTime,
+    stance, stepTime, legPhase: legClock.phase(legNow),
   });
   /** THE STANCE the feet stand in: the carry's (CARRY[cls].stand), eased from the class it leaves (AUDIT BODY-MOTION
    *  CARRY-5: switched on the frame, a drawn two-hander threw the feet 11 units and the hips 16 degrees) - the feet step
@@ -316,6 +323,8 @@ export function createBodyMotion({ trunkClear = TRUNK_CLEAR } = {}) {
       blowAge = seen ? blowAge + Math.max(0, dt) : 0;   // BLOW-ENTRY
       stance = stanceNow(bpNow);
       stepTime = bpNow && bpNow.step > 0 && bpNow.w > 0.05 ? TURN.quick : null;
+      clockDt += Math.max(0, dt);
+      legNow = Number.isFinite(input.legPhase) ? input.legPhase : legs?.stridePhase?.() ?? null;
       if (input.on && body) stepGait(gait, gaitInput(), body, dt);
       return w;
     },
@@ -324,7 +333,14 @@ export function createBodyMotion({ trunkClear = TRUNK_CLEAR } = {}) {
       if (!(w > 1e-3)) { last = null; return null; }
       const measured = bodyOf(skeleton, rootRef, skelMats);
       if (!measured) { last = null; return null; }
-      if (body !== measured) { body = measured; Object.assign(gait, createGaitState()); stepGait(gait, gaitInput(), body, 0); }
+      if (body !== measured) { body = measured; Object.assign(gait, createGaitState()); legClock.reset(); stepGait(gait, gaitInput(), body, 0); }
+      // LEG-CLOCK: the clip's feet as they come, before this layer moves a bone - the left's lead along the facing
+      {
+        const fm = skelMats(skeleton, pose, rootRef, [body.bones.L.foot, body.bones.R.foot, body.chest]), F = bodyFrames(body, fm);
+        const fl = fm.get(body.bones.L.foot)?.t, fr = fm.get(body.bones.R.foot)?.t;
+        legClock.measure(F && fl && fr ? ((fl[0] - fr[0]) * F.fwd[0] + (fl[1] - fr[1]) * F.fwd[1] + (fl[2] - fr[2]) * F.fwd[2]) / body.leg : NaN, legNow, clockDt);
+        clockDt = 0;
+      }
       const held = ['two', 'wide', 'spear'].includes(cls) && input.on && !input.busy && input.shown;
       if (held) markHeldPose(pose, armTwist, w);
       const gi = gaitInput();
@@ -356,6 +372,7 @@ export function createBodyMotion({ trunkClear = TRUNK_CLEAR } = {}) {
         arms: (ctx) => handsFor(ctx, gp, null, null),
         trunk: trunkNow(),
         haft: TWO_HAND_GRIP[cls] != null && (!clsFrom || TWO_HAND_GRIP[clsFrom] != null),   // HILT-HOLD (bodySolve.js)
+        kind: input.kind,   // TRUNK-SKIN: the held wrist's elbow kept out of this body's trunk
         armTwist: held ? armTwist : null,
         hold: w,   // HILT-FULL: the hilt held by the layer's own weight, never a blow's return or a gait's share
       };

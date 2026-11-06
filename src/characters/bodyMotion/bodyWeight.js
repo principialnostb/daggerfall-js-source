@@ -1,4 +1,3 @@
-import { createFreeArms } from './freeArms.js';
 import { poseElbowSkin } from './elbowSkin.js';
 // @ts-check
 // BODY-WEIGHT (2026-10-27, MOTION-DOCTRINE pilot step 2, bible/05-Combat/Motion-Doctrine.md section 7): THE BODY'S MASS,
@@ -99,7 +98,7 @@ export function createBodyWeight() {
   let weight = 0; let on = false; let slotMemo = null; let moving = 0; let armorW = 0; let clearOn = false;
   const legs = createBlowLegs();
   const freshReturn = createFreshReturn();
-  const freeArms = createFreeArms();
+  let bodyKind = 'male', bodySwing = false;
   const sword = createArmouredSword();
   const travelStride = createTravelStride({ sampleTrack, loopWindow });
   let strideOn = false;   // RUN-STRIDE: last frame's switch, for the movement's rate (read before the frame's step)
@@ -147,7 +146,7 @@ export function createBodyWeight() {
      *  motion word (bodyMotion.js motionWord's - its blow, for BLOW-LEGS). */
     stepRig(dt, on, cam, armor, mwType, dead, word = null, moveState = null, moveSource = null, moveSpeed = 0) {
       frameDt = Math.max(0, dt);
-      freeArms.step(dt, !!on && !dead, word);
+      bodyKind = word?.kind ?? 'male'; bodySwing = !!word?.blow?.section;   // TRUNK-SKIN: the clearance reads this body's trunk and its blow
       freshReturn.step(dt, !!word?.blow?.section, !!on && !dead && !word?.busy && carryClassOf(word ?? {}) === 'two');
       const mv = cam?.move ?? null;
       clearOn = !!on;
@@ -198,16 +197,17 @@ export function createBodyWeight() {
         if (clearOn) leanTrunk(skeleton, pose, rootRef, skelMats, legs.trunkTurn());   // BLOW-TRUNK: the turn the hips leave
         if (clearOn) legs.apply(skeleton, pose, rootRef, skelMats);   // BLOW-LEGS: a standing blow's hips and feet
         cap('legs', skeleton, pose, rootRef, skelMats);   // TEMP POSE-AUDIT
-        if (clearOn) clearArms(skeleton, pose, rootRef, skelMats, { armor: armorW, previous: elbowTurns, dt: frameDt, held: report?.armAnatomy });   // ARM-CLEARANCE, last: over the lean and the carry
         freshReturn.apply(skeleton, pose, rootRef, skelMats);
-        freeArms.apply(skeleton, pose, rootRef, skelMats);
+        // ARM-CLEARANCE, last: over the lean, the carry and the two-hander's return (TRUNK-SKIN: the return wrote its arms
+        // after the clearance had run, and its straight path took the haft hand's arm through the chest)
+        if (clearOn) clearArms(skeleton, pose, rootRef, skelMats, { armor: armorW, previous: elbowTurns, dt: frameDt, held: report?.armAnatomy, kind: bodyKind, swinging: bodySwing || ['return', 'interrupt', 'settle'].includes(freshReturn.status().mode) });
         poseElbowSkin(skeleton, pose, rootRef, skelMats);
         frameDt = 0;
         return report;
       } };
       return slotMemo.fn;
     },
-    reset() { freeArms.reset(); freshReturn.reset(); elbowTurns.L = elbowTurns.R = 0; frameDt = 0; sword.reset(); legs.reset(); moving = 0; travel = null; yaw0 = null; vel.f = vel.r = 0; velPrev = null; pitch.x = pitch.v = roll.x = roll.v = 0; },
+    reset() { freshReturn.reset(); elbowTurns.L = elbowTurns.R = 0; frameDt = 0; sword.reset(); legs.reset(); moving = 0; travel = null; yaw0 = null; vel.f = vel.r = 0; velPrev = null; pitch.x = pitch.v = roll.x = roll.v = 0; },
   };
   return layer;
 }

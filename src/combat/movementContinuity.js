@@ -38,3 +38,27 @@ export function movementPhaseTime(from, fromKeys, to, toKeys) {
   }
   return strideTime(from, fromKeys, to, toKeys);
 }
+
+/** LEG-CLOCK (2026-11-06, the owner's 19-47-18 recording: the trunk and the arms "foreign" to the legs): where the
+ *  movement clip's own legs stand in their stride, 0..1 - 0 at its left foot's contact (`soundgen: left`), 0.5 at its
+ *  right's, even between them - or null where the clip marks no two contacts. The body layer's own gait clock
+ *  (bodyMotion/gait.js) counted the stride from the ground crossed, and the legs drawn are the clip's: walking it ran
+ *  3 strides to the clip's 3.5 in two seconds, running 5 to 4.5, so the chest's counter-turn and the held arms' swing
+ *  drifted half a stride off the feet each second. */
+export function clipStridePhase(state, keys) {
+  if (!state || !Number.isFinite(state.time)) return null;
+  const { win, rows } = contacts(state, keys);
+  const span = win.stop - win.start;
+  if (!(span > 0) || rows.length < 2 || !rows.some((r) => r.side === 'left') || !rows.some((r) => r.side === 'right')) return null;
+  const t = win.start + (((state.time - win.start) % span) + span) % span;
+  let i = -1;
+  for (let k = 0; k < rows.length; k++) if (rows[k].time <= t) i = k;
+  if (i < 0) i = rows.length - 1;
+  const a = rows[i], b = rows[(i + 1) % rows.length];
+  const gap = b.time > a.time ? b.time - a.time : b.time + span - a.time;
+  const passed = t >= a.time ? t - a.time : t + span - a.time;
+  const from = a.side === 'left' ? 0 : 0.5, to = b.side === a.side ? from + 1 : from + 0.5;
+  const u = gap > 0 ? Math.min(1, Math.max(0, passed / gap)) : 0;
+  const p = from + (to - from) * u;
+  return p - Math.floor(p);
+}

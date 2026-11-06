@@ -11,6 +11,7 @@ import { bodyOf, turnOf, at, mul, transpose, algebra, ease } from './bodyKit.js'
 import { rotAxisAngle, orthonormal } from '../../combat/climbRig.js';
 import { bodyFrames } from './bodySolve.js';
 import { relaxHeldArms, heldPoseAnatomy } from './armAnatomy.js';
+import { trunkRadius, LIMB } from './trunkProfile.js';   // TRUNK-SKIN: the body's own trunk, the breasts and the shoulders' height
 
 const { sub, add, scale, dot, norm, len } = algebra;
 
@@ -20,11 +21,17 @@ const { sub, add, scale, dot, norm, len } = algebra;
 export const ARM_CLEARANCE = Object.freeze({ width: 0.5, depth: 0.42, armor: 0.14, maxTurn: 0.9, step: 0.05 });
 
 /** How far out of the trunk's ellipse `p` stands (rig space: x the right, y the facing, z up; 1 on its edge). */
+/** TRUNK-SKIN: the ellipse's shortfall outweighs the skin's (a turn that clears it is taken as ARM-CLEARANCE took it),
+ *  and a turn of the arm costs TURN_COST of shortfall a radian. */
+const ELLIPSE_WEIGHT = 10, TURN_COST = 0.08, SKIN_TURN = 0.6, SKIN_TURN_HELD = 0.6;
+
 const outOf = (p, c, a, b) => Math.hypot((p[0] - c[0]) / a, (p[1] - c[1]) / b);
 
-/** CLEAR THE ARMS of the trunk on a posed frame: `armor` the armour's weight 0..1 (bodyWeight.js bodyWeightOf's).
- *  Writes new entries into `pose`; answers the turns made { L, R } (radians), or null when the skeleton is no biped. */
-export function clearArms(skeleton, pose, rootRef, skelMats, { armor = 0, previous = null, dt = 0, held = null } = {}) {
+/** CLEAR THE ARMS of the trunk on a posed frame: `armor` the armour's weight 0..1 (bodyWeight.js bodyWeightOf's), `kind`
+ *  the body's (bodyKindOf's: TRUNK-SKIN reads a woman's trunk for 'female'), `swinging` a blow or the return from one on
+ *  the arms. Writes new entries into `pose`; answers the
+ *  turns made { L, R } (radians), or null when the skeleton is no biped. */
+export function clearArms(skeleton, pose, rootRef, skelMats, { armor = 0, previous = null, dt = 0, held = null, kind = 'male', swinging = false } = {}) {
   const body = bodyOf(skeleton, rootRef, skelMats);
   if (!body || !body.bones?.L || !body.bones?.R) return null;
   const mats = skelMats(skeleton, pose, rootRef, [body.chest, body.bones.pelvis, body.bones.L.hand, body.bones.R.hand]);
@@ -40,13 +47,30 @@ export function clearArms(skeleton, pose, rootRef, skelMats, { armor = 0, previo
   const local = (p) => { const d = sub(p, chest); return [dot(d, frame.right), dot(d, frame.fwd), dot(d, frame.up)]; };
   const offAxis = (p) => outOf(local(p), [0, 0, 0], A, Bd);
   const bottom = dot(sub(pelvis, chest), frame.up);
-  const clearance = (S, E, W) => {
+  // TRUNK-SKIN: how far out of the trunk's own skin a point on a limb's bone stands, its limb's thickness on it (1 on the
+  // skin); the armour's pad as the ellipse's. Infinity where no trunk is (the shoulders' seam, below the hips).
+  const pad = extra;
+  const skinOut = (p, limb) => {
+    const [x, y, z] = local(p).map((v) => v / sw), R = trunkRadius(kind, x, y, z);
+    return R > 0 ? Math.hypot(x, y) / (R + limb + pad) : Infinity;
+  };
+  // How deep a posed arm stands in the trunk: the ellipse's shortfall (ARM-CLEARANCE's, weighted so that a turn which
+  // clears it is taken as before) and TRUNK-SKIN's - each point's shortfall against the body's own skin, summed, so that
+  // a turn buys its way out of the breasts or the shoulder's front. A turn costs TURN_COST a radian: an arm the turn
+  // cannot free (a two-hander's hands held at the belly) is left as the clip and the carry put it, not wrung for a hair.
+  const cost = (S, E, W) => {
     // Include the flesh between joints: a clear elbow can still leave most
     // of the forearm inside the cuirass. Keep the fixed shoulder/wrist out.
     const points = [E, add(scale(S, 0.25), scale(E, 0.75)), add(scale(E, 0.75), scale(W, 0.25)), add(scale(E, 0.5), scale(W, 0.5))];
     const trunk = points.filter(p => local(p)[2] >= bottom && local(p)[2] <= 0);
-    return trunk.length ? Math.min(...trunk.map(offAxis)) : 1;
+    const ellipse = trunk.length ? Math.min(1, ...trunk.map(offAxis)) : 1;
+    // TRUNK-SKIN: the upper arm's lower half too, at any height the trunk has - the shoulder's own seam excepted
+    const upper = [add(scale(S, 0.5), scale(E, 0.5)), add(scale(S, 0.25), scale(E, 0.75))].map((p) => skinOut(p, LIMB.upper));
+    const fore = [E, add(scale(E, 0.75), scale(W, 0.25)), add(scale(E, 0.5), scale(W, 0.5))].map((p) => skinOut(p, LIMB.fore));
+    return [1 - ellipse, [...upper, ...fore].reduce((sum, o) => sum + Math.max(0, 1 - o), 0)];
   };
+  const total = (/** @type {number[]} */ c) => ELLIPSE_WEIGHT * c[0] + c[1];
+  const gripped = !!(heldPoseAnatomy(pose) ?? held);
   for (const side of ['L', 'R']) {
     const b = body.bones[side];
     const S = at(mats, b.upper), E = at(mats, b.fore), W = at(mats, b.hand);
@@ -55,15 +79,29 @@ export function clearArms(skeleton, pose, rootRef, skelMats, { armor = 0, previo
     if (!(len(a) > 0.5)) continue;
     const along = scale(a, dot(sub(E, S), a)), e0 = sub(sub(E, S), along);
     const elbowAt = (th) => add(add(S, along), apply3(rotAxisAngle(a, th), e0));
-    let best = 0, bestD = clearance(S, E, W);
-    for (let k = 1; bestD < 1 && k * ARM_CLEARANCE.step <= ARM_CLEARANCE.maxTurn + 1e-9; k++) {
+    // ARM-CLEARANCE's own turn first, as it always chose it: the least that clears the ellipse, or its best
+    let base = 0, baseD = 1 - cost(S, E, W)[0];
+    for (let k = 1; baseD < 1 && k * ARM_CLEARANCE.step <= ARM_CLEARANCE.maxTurn + 1e-9; k++) {
       let done = false;
       for (const th of [k * ARM_CLEARANCE.step, -k * ARM_CLEARANCE.step]) {
-        const d = clearance(S, elbowAt(th), W);
-        if (d > bestD + 1e-6) { bestD = d; best = th; }
-        if (d >= 1) { best = th; done = true; break; }
+        const d = 1 - cost(S, elbowAt(th), W)[0];
+        if (d > baseD + 1e-6) { baseD = d; base = th; }
+        if (d >= 1) { base = th; done = true; break; }
       }
       if (done) break;
+    }
+    // TRUNK-SKIN then turns it on, by no more than SKIN_TURN. A held grip (ARM-ANATOMY's forearm balance) the skin turns
+    // only while it swings - a blow, or the carry's return from one (SKIN_TURN_HELD): the hand kept on the hilt, the turn
+    // wrings the wrist's and the elbow's skin, which ARM-ANATOMY's pins hold through the walks and the runs. A held guard
+    // standing in the breasts is the carry's to place, not this.
+    let best = base, bestC = total(cost(S, elbowAt(base), W));
+    const reach = !gripped ? SKIN_TURN : swinging ? SKIN_TURN_HELD : 0;
+    for (let k = 1; bestC > 1e-9 && k * ARM_CLEARANCE.step <= reach + 1e-9; k++) {
+      for (const th of [base + k * ARM_CLEARANCE.step, base - k * ARM_CLEARANCE.step]) {
+        if (Math.abs(th) > ARM_CLEARANCE.maxTurn + 1e-9) continue;
+        const c = total(cost(S, elbowAt(th), W)) + TURN_COST * Math.abs(th - base);
+        if (c < bestC - 1e-6) { bestC = c; best = th; }
+      }
     }
     if (previous) { best = ease(previous[side] ?? 0, best, 0.07, dt); previous[side] = best; }
     if (Math.abs(best) < 1e-5) continue;

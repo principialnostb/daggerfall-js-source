@@ -9,11 +9,13 @@ const heldPoses = new WeakMap();
 export function markHeldPose(pose, states, weight) { heldPoses.set(pose, { states, weight }); }
 export function heldPoseAnatomy(pose) { return heldPoses.get(pose) ?? null; }
 
-export const ARM_ANATOMY = Object.freeze({ wristBend: 60 * RAD, foreTurn: 100 * RAD, turnSpeed: 540 * RAD });
+/** `trunkGive` (TRUNK-SKIN): how much deeper (shoulder widths) the wrist's ease may take the elbow into the trunk than
+ *  the preferred elbow stood - a graze the wrist's own skin is worth (ARM-ANATOMY's volume pins), never a fold. */
+export const ARM_ANATOMY = Object.freeze({ wristBend: 60 * RAD, foreTurn: 100 * RAD, turnSpeed: 540 * RAD, trunkGive: 0.15 });
 
 /** Keep the preferred elbow unless it unnecessarily bends the held wrist. The
  * closest feasible elbow on the shoulder/wrist circle leaves both endpoints fixed. */
-export function wristPole(shoulder, wrist, fingers, upperLength, foreLength, preferred, weight = 1) {
+export function wristPole(shoulder, wrist, fingers, upperLength, foreLength, preferred, weight = 1, inside = null) {
   if (!fingers || !preferred) return preferred;
   const d = norm(sub(wrist, shoulder)), f = norm(fingers), fp = sub(f, scale(d, dot(f, d)));
   if (len(fp) < 1e-6) return preferred;
@@ -24,8 +26,18 @@ export function wristPole(shoulder, wrist, fingers, upperLength, foreLength, pre
   const best = scale(norm(fp), -1), own = norm(sub(sol.mid, center));
   const angle = Math.atan2(dot(cross(best, own), d), dot(best, own));
   const limit = Math.acos(clamp((foreLength * Math.cos(ARM_ANATOMY.wristBend) - dot(sub(sol.end, center), f)) / (radius * len(fp)), -1, 1));
-  const wanted = clamp(angle, -limit, limit);
-  return norm(apply(rotAxisAngle(d, (wanted - angle) * weight), own));
+  const wanted = clamp(angle, -limit, limit), turn = (wanted - angle) * weight;
+  // TRUNK-SKIN (2026-11-06, the owner's 19-47-18 recording: running with a two-hander, the right shoulder in the chest):
+  // the wrist's ease never takes the elbow deeper into the trunk than the preferred elbow stood - a run's held right arm,
+  // its fingers trailing the blade down behind, swung its elbow round to the breastbone once a stride, 9.8 units into a
+  // woman's chest. The wrist bends past its ease instead, by as little of the turn as the trunk allows (trunkGive).
+  if (inside && Math.abs(turn) > 1e-6) {
+    const elbow = (t) => add(center, scale(apply(rotAxisAngle(d, t), own), radius));
+    const was = inside(add(center, scale(own, radius)), shoulder) + ARM_ANATOMY.trunkGive;
+    for (let f = 1; f > 0; f -= 0.125) if (inside(elbow(turn * f), shoulder) <= was) return norm(apply(rotAxisAngle(d, turn * f), own));
+    return own;
+  }
+  return norm(apply(rotAxisAngle(d, turn), own));
 }
 
 /** Minimise the larger of the elbow/forearm and forearm/hand bind-relative

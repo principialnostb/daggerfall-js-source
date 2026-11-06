@@ -1135,9 +1135,62 @@ immediately when that limb becomes occupied or an attack/busy state owns it. Two
 sneaking, airborne movement and unarmed locomotion retain their owners. Final posing changes only the free arm
 after the trunk/return solve. Actual MAO tests exercise either side over forward/back walk/run and verify that
 occupied arm and leg matrices stay unchanged.
-Sources: src/characters/bodyMotion/freeArms.js:"export function createFreeArms() {" and
+Sources: the free-arm layer (freeArms.js, withdrawn by FREE-ARM-CLIP below) and
 src/characters/bodyMotion/freshReturn.js:"export function setReturnGoal(pose, goal, live = false) { goals.set(pose, { pose: goal, live }); }".
 These are initial presentation settings; live visual coherence and restored running posture remain to be confirmed.
 Reference remains DFU WeaponManager.UpdateHands/PlayerMotor: DFU selects screen weapons and controls movement,
 without this articulated torso/free-arm presentation. This continues the shared body-presentation departure for
 world.js, exterior.js, worldModes.js and dungeonContext.js, with no scene host changes.
+
+
+**TRUNK-SKIN / LEG-CLOCK / FREE-ARM-CLIP** (2026-11-06, the owner's 19-47-18 recording: running with a two-hander "the
+shoulder sinks into the chest"; the trunk and the arms move apart from the legs; the free arms "strange" in every state).
+Measured offline before any change, on the real pipeline (MAO's clips on the retail rig, lowerBodyLayer, body motion and
+body weight as the game composes them), every carry (none, one-hander, one-hander and shield, two-hander, a torch or a
+shield with no weapon) by every gait and gait change and the blows, against the arms' skin in Better Bodies' own trunk.
+Three faults, each in a different layer:
+
+- **The trunk was a man's ellipse.** ARM-CLEARANCE read the trunk as 0.5 x 0.42 shoulder widths about the chest bone,
+  from the pelvis to the chest bone only. The game's body is Better Bodies (67d1d4c46d): a woman's breasts stand 0.63
+  shoulder widths out in front, and nothing above the chest bone - the upper arm against the breast - was looked at.
+  TRUNK-SKIN bakes the body's own trunk (Tri Chest and Tri Groin on the spine and pelvis, every race; the races share one
+  shape) as a polar profile about the chest bone
+  (src/characters/bodyMotion/trunkProfile.js:"export function trunkRadius(kind, x, y, z) {"), the limbs' thickness on
+  it. The clearance keeps its ellipse turn as it always chose it, then turns on by the skin's shortfall, a turn's cost
+  weighed (src/characters/bodyMotion/armClearance.js:"const ELLIPSE_WEIGHT = 10, TURN_COST = 0.08, SKIN_TURN = 0.6, SKIN_TURN_HELD = 0.6;");
+  an arm held on a hilt the skin turns only while it swings - a blow or the return from one - because turned at rest the
+  hand kept on the hilt wrings the wrist's skin past ARM-ANATOMY's volume pins (0.585 against their 0.6). The clearance
+  now runs last, after the two-hander's return, which had written its straight-line arms after it.
+- **The held wrist's ease folded the elbow into the chest.** ARM-ANATOMY's wristPole turns the elbow round the
+  shoulder-wrist circle to spare the held wrist; it never asked where the trunk is. Running with a two-hander, the
+  blade trailing down behind, it swung the right elbow from the side to the breastbone once a stride: 9.8 units into a
+  woman's chest running, 10.4 running back - the recording's fault. It now takes the elbow no deeper than the preferred
+  elbow stood, give for a graze (src/characters/bodyMotion/armAnatomy.js:"export const ARM_ANATOMY = Object.freeze({ wristBend: 60 * RAD, foreTurn: 100 * RAD, turnSpeed: 540 * RAD, trunkGive: 0.15 });");
+  the wrist bends past its ease instead. 9.8 to 2.1 running, 10.4 to 2.2 back, the blows' right arm 9.8 to 1.4-2.1.
+- **Two clocks.** The legs drawn are the movement clip's; gait.js counted its own stride from the ground crossed, and
+  the chest's counter-turn and every held arm's swing ride that count. Walking it ran 3 strides to the clip's 3.5 in two
+  seconds, running 5 to 4.5: half a stride off the feet within the second. LEG-CLOCK takes the clip's own stride phase
+  from its contacts (src/combat/movementContinuity.js:"export function clipStridePhase(state, keys) {"), measures where
+  in it the left foot leads most off the posed feet (src/characters/bodyMotion/legClock.js:"export function createLegClock() {"
+  - a key is a sound, not a pose: MAO's walk leads 0.04 of a stride past its contact, its run 0.22), and shows the
+  gait's stride on it, eased on and off. Every gait now keeps the feet within 0.06 of a stride; a strafe's feet do not
+  swing fore and aft, and the gait keeps its own clock there.
+- **FREE-ARM-CLIP.** The free-arm layer (CARRY-LOCOMOTION-COHERENCE) replaced the clip's free arm with an invented
+  swing off the feet' separation: 0.96 arm lengths fore and aft walking where an empty-handed body swings 0.71, 1.0
+  running against 0.46, the hand up to the chest, and three to five times the clip's frame-to-frame jerk (0.32 to 0.52 arm
+  lengths a frame). It is withdrawn: a free arm is the free walk's own (leftArmLayer.js's `free` plan), on the stride
+  the legs are on - as an empty-handed body's, in every carry.
+
+Over the whole matrix, woman's and man's: nothing deeper or jerkier, 46 measures better. Still open: a two-hander's
+blows go 2.8-4.4 units into a woman's chest with the left arm (MAO's attack keys, drawn for a man; the clearance took them
+from 4.6-6.4); the two-handed guard standing and walking holds the right arm 1.6-1.9 units in (the carry's hilt at the
+belly - a hand on a hilt is the carry's to place, and moving it out or forward only moved the other arm in); the shield's
+walking arm (leftArmLayer.js's strafe arm) is not in the offline pipeline and is unmeasured here.
+Tests: test/characters/bodyMotion/trunkskin.test.js (the run's arm in the skin, the gait on the feet, the free arm the
+empty-handed body's, on the real clips; the profile, the wrist's guard and the clock by themselves).
+Reference remains DFU WeaponManager.UpdateHands/PlayerMotor: DFU draws no articulated body. This continues the shared
+body-presentation departure; createFpArm makes its body motion with the lower-body layer it already wires (the line
+it had - src/combat/fpArm.js:"const motion = createBodyMotion(undefined, lowerBody);" - no host grows), the layer's
+own src/combat/lowerBodyLayer.js:"stridePhase: () => (stride ? clipStridePhase(stride.state, stride.keys) : null)," read each step; world.js,
+exterior.js, worldModes.js and dungeonContext.js inherit the shared modules with no scene host changes. The owner's
+in-game acceptance is pending.
