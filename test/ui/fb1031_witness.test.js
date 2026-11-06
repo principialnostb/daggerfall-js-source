@@ -99,7 +99,7 @@ test('FB1031 W3 W4 the day\'s laying: the tiles match a scan of the confirmed fa
   assert.deepEqual(want.map((r) => [r.tx, r.ty]), [[24, -7], [-5, -4], [6, 2], [-128, 127]], 'Solitude\'s, the sea\'s, Daggerfall\'s and the corner\'s');
   assert.deepEqual(unpackTile(6, 2, want.find((r) => r.tx === 6).px), [[404, 152], [410, 152], [430, 161], [440, 170]]);
   assert.deepEqual(raw.prepare('SELECT day, tiles, pixels FROM witness_tile_days').all().map((r) => ({ ...r })), [{ day: DAY, tiles: 4, pixels: 7 }], 'the day marked, yesterday\'s gone');
-  assert.equal(said.filter((q) => /FROM world_witness/.test(q)).length, 1, 'one scan: the pick\'s');
+  assert.equal(said.filter((q) => /FROM ground_confirmed WHERE/.test(q)).length, 1, 'one scan: the pick\'s');
   assert.ok(raw.prepare('SELECT COUNT(*) AS n FROM motherlode_days WHERE day = ?').get(DAY).n === 1, 'beside the day\'s pick');
 });
 
@@ -112,7 +112,7 @@ test('FB1031 W3 a day picked before the tiles (the deploy\'s): the minute\'s job
   _resetCronForTests();
   said.length = 0;
   await minute();
-  assert.equal(said.filter((q) => /world_witness/.test(q)).length, 0, 'laid: no scan');
+  assert.equal(said.filter((q) => /world_witness|FROM ground_confirmed WHERE/.test(q)).length, 0, 'laid: no scan');
   assert.equal(said.filter((q) => /witness_tile_days/.test(q)).length, 1, 'one read of the mark');
   // two layings of one day: the second's tiles are never written
   const fresh = await stand(t);

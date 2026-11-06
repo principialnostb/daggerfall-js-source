@@ -291,17 +291,17 @@ test('AUDIT SCALE II A-5 the day\'s Motherlodes are picked by the clock on the p
     const ctxOf = () => ({ db: service.routeDb(L.db, '/v1/prof/motherlodes', 'POST', mark), primary, rand: Math.random });
     const at = (list) => list.map((l) => `${l.x},${l.y}`).sort();
     assert.deepEqual(await motherlodesOf(ctxOf(), D), [], 'before the clock: a read answers none');
-    assert.ok(!onPrimary.some((q) => /world_witness/.test(q)), 'and scans nothing');
+    assert.ok(!onPrimary.some((q) => /FROM ground_confirmed WHERE/.test(q)), 'and scans nothing');
     const lodes = await motherlodesOf({ db: primary, rand: Math.random }, D, { clock: true });
     assert.deepEqual(at(lodes), ['10,10', '20,20'], 'the clock: both confirmed pixels');
     assert.deepEqual(at(raw.prepare('SELECT x, y FROM motherlodes WHERE day = ?').all(D)), ['10,10', '20,20'], 'kept for the day: both');
-    assert.ok(onPrimary.some((q) => /FROM world_witness/.test(q)), 'the witnesses read on the primary');
-    assert.ok(!L.log.at(-1).statements.some(([, q]) => /world_witness/.test(q)), 'never on the session');
+    assert.ok(onPrimary.some((q) => /FROM ground_confirmed WHERE/.test(q)), 'the confirmed ground read on the primary');
+    assert.ok(!L.log.at(-1).statements.some(([, q]) => /FROM ground_confirmed WHERE/.test(q)), 'never on the session');
     // the replica still lags (it has not heard the mark): the next read finds the day kept on the primary, and picks nothing
     onPrimary.length = 0;
     const again = await motherlodesOf(ctxOf(), D);
     assert.deepEqual(at(again), ['10,10', '20,20']);
-    assert.ok(!onPrimary.some((q) => /world_witness/.test(q)), 'no second pick: the primary\'s mark asked first');
+    assert.ok(!onPrimary.some((q) => /FROM ground_confirmed WHERE/.test(q)), 'no second pick: the primary\'s mark asked first');
     // once the replica holds the mark, the day is read where the request reads
     L.sync();
     onPrimary.length = 0;

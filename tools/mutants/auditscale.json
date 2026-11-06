@@ -13,8 +13,8 @@
   {
     "name": "AUDIT-SCALE-LANED-lodes-behind-dev",
     "file": "server-account/src/cron.js",
-    "old": "      if (profSwitchOf(env?.PROFESSIONS_OPEN) !== 'on' || lodesPicked === day) return 0;",
-    "new": "      if (lodesPicked === day) return 0;",
+    "old": "      if (profSwitchOf(env?.PROFESSIONS_OPEN) !== 'on') return 0;\n      // the reports filed before ground_confirmed",
+    "new": "      // the reports filed before ground_confirmed",
     "tests": [
       "test/net/auditscale.test.js",
       "test/server/scale4b.test.js"

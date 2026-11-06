@@ -1,0 +1,122 @@
+[
+  {
+    "name": "GROUNDCONF-trigger-dropped",
+    "file": "server-account/migrations/0212_ground_confirmed.sql",
+    "old": "CREATE TRIGGER IF NOT EXISTS ground_confirmed_in AFTER INSERT ON world_witness WHEN NEW.kind = 'pixel'",
+    "new": "CREATE TRIGGER IF NOT EXISTS ground_confirmed_in AFTER INSERT ON world_witness WHEN NEW.kind = 'none'",
+    "tests": [
+      "test/server/ground_confirmed.test.js"
+    ],
+    "note": "no report's insert keeps its pixel: the pick finds no ground"
+  },
+  {
+    "name": "GROUNDCONF-third-unread",
+    "file": "server-account/migrations/0212_ground_confirmed.sql",
+    "old": "ORDER BY at, account LIMIT 1 OFFSET 2) AS third)",
+    "new": "ORDER BY at, account LIMIT 1 OFFSET 1) AS third)",
+    "tests": [
+      "test/server/ground_confirmed.test.js"
+    ],
+    "note": "two accounts confirm a pixel"
+  },
+  {
+    "name": "GROUNDCONF-later-replaces",
+    "file": "server-account/migrations/0212_ground_confirmed.sql",
+    "old": "  INSERT OR IGNORE INTO ground_confirmed (key, report, at)",
+    "new": "  INSERT OR REPLACE INTO ground_confirmed (key, report, at)",
+    "tests": [
+      "test/server/ground_confirmed.test.js"
+    ],
+    "note": "a later answer's three take a confirmed pixel from its first"
+  },
+  {
+    "name": "GROUNDCONF-order-unread",
+    "file": "server-account/src/groundConfirmed.js",
+    "old": "    .sort((a, b) => a.at - b.at || (a.account < b.account ? -1 : a.account > b.account ? 1 : 0));",
+    "new": ";",
+    "tests": [
+      "test/server/ground_confirmed.test.js"
+    ],
+    "note": "the fill reads a pixel's reports in the database's order, not the law's"
+  },
+  {
+    "name": "GROUNDCONF-cut-key-kept",
+    "file": "server-account/src/groundConfirmed.js",
+    "old": "    : full\n      ? results.filter((r) => r.key !== cut)\n      : results;",
+    "new": "    : results;",
+    "tests": [
+      "test/server/ground_confirmed.test.js"
+    ],
+    "note": "a key the page cut is kept from half its reports"
+  },
+  {
+    "name": "GROUNDCONF-alone-cut",
+    "file": "server-account/src/groundConfirmed.js",
+    "old": "const alone = full && results.every((r) => r.key === cut);",
+    "new": "const alone = false;",
+    "tests": [
+      "test/server/ground_confirmed.test.js"
+    ],
+    "note": "a pixel with more reports than a page is never read"
+  },
+  {
+    "name": "GROUNDCONF-fill-ignores",
+    "file": "server-account/src/groundConfirmed.js",
+    "old": "`INSERT OR REPLACE INTO ground_confirmed (key, report, at)",
+    "new": "`INSERT OR IGNORE INTO ground_confirmed (key, report, at)",
+    "tests": [
+      "test/server/ground_confirmed.test.js"
+    ],
+    "note": "a row a report's insert kept wrongly before the fill stands"
+  },
+  {
+    "name": "GROUNDCONF-never-done",
+    "file": "server-account/src/groundConfirmed.js",
+    "old": ".bind(last, full ? 0 : 1, String(mark.after)),",
+    "new": ".bind(last, 0, String(mark.after)),",
+    "tests": [
+      "test/server/ground_confirmed.test.js"
+    ],
+    "note": "the fill never ends, and the pick waits for good"
+  },
+  {
+    "name": "GROUNDCONF-done-asked-again",
+    "file": "server-account/src/groundConfirmed.js",
+    "old": "export async function fillGroundStep(db, page = GROUND_FILL_ROWS) {\n  if (filledSeen.has(rootOf(db))) return 0;",
+    "new": "export async function fillGroundStep(db, page = GROUND_FILL_ROWS) {",
+    "tests": [
+      "test/server/ground_confirmed.test.js"
+    ],
+    "note": "a done fill asks its mark every minute"
+  },
+  {
+    "name": "GROUNDCONF-day-unread",
+    "file": "server-account/src/groundConfirmed.js",
+    "old": "    .bind(day * 86400)",
+    "new": "    .bind(Number.MAX_SAFE_INTEGER)",
+    "tests": [
+      "test/server/ground_confirmed.test.js"
+    ],
+    "note": "ground confirmed during the day joins its pick"
+  },
+  {
+    "name": "GROUNDCONF-fill-unwired",
+    "file": "server-account/src/cron.js",
+    "old": "      if (!(await groundFilled(ctx.db))) return fillGroundStep(ctx.db);\n",
+    "new": "",
+    "tests": [
+      "test/server/ground_confirmed.test.js"
+    ],
+    "note": "the fill never runs, and the day is picked from the ground filed since the table"
+  },
+  {
+    "name": "GROUNDCONF-fill-minute-picks",
+    "file": "server-account/src/cron.js",
+    "old": "      if (!(await groundFilled(ctx.db))) return fillGroundStep(ctx.db);",
+    "new": "      if (!(await groundFilled(ctx.db))) await fillGroundStep(ctx.db);",
+    "tests": [
+      "test/server/ground_confirmed.test.js"
+    ],
+    "note": "a minute of the fill also runs the pick"
+  }
+]
