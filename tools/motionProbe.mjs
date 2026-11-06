@@ -38,7 +38,7 @@ const has = (g) => keys.some((k) => k.text.toLowerCase() === `${g}: start`.toLow
 const sub = (a, b) => a.map((v, i) => v - b[i]), dot = (a, b) => a.reduce((s, v, i) => s + v * b[i], 0);
 const lerp = (a, b, t) => a.map((v, i) => v + (b[i] - v) * t);
 
-const CARRIES = { none: { weapon: T.None }, one: { weapon: T.LongBladeOneHand }, shield: { weapon: T.LongBladeOneHand, shield: true }, two: { weapon: T.LongBladeTwoHand }, torch: { weapon: T.None, torch: true }, bareshield: { weapon: T.None, shield: true } };
+const CARRIES = { none: { weapon: T.None }, one: { weapon: T.LongBladeOneHand }, shield: { weapon: T.LongBladeOneHand, shield: true }, two: { weapon: T.LongBladeTwoHand }, torch: { weapon: T.None, torch: true }, bareshield: { weapon: T.None, shield: true }, fistshield: { weapon: T.HandToHand, shield: true, stance: T.LongBladeOneHand } };
 const GAITS = { idle: { group: 'idle', f: 0, s: 0, speed: 0 }, walk: { group: 'walkforward', f: 1, s: 0, speed: 2.5 },
   run: { group: 'runforward', f: 1, s: 0, speed: 8.1 }, back: { group: 'walkback', f: -1, s: 0, speed: 2.5 },
   strafe: { group: 'walkright', f: 0, s: 1, speed: 2.5 }, runback: { group: 'runback', f: -1, s: 0, speed: 6 } };
@@ -120,7 +120,7 @@ function run(carry, steps, dt = 1 / 60) {
   let movement = null, group = null, t = 0, fade = 1, from = null, wasBlow = false; const trav = [0, 0, 0];
   for (const st of steps) for (let i = 0; i < st.frames; i++, t += dt) {
     const g = GAITS[st.gait];
-    const want = guardMovementGroup(g.group, c.weapon, has, true)?.group ?? g.group;
+    const want = guardMovementGroup(g.group, c.stance ?? c.weapon, has, true)?.group ?? g.group;
     if (want !== group) { const nm = resetClip(keys, want, { loopFallback: true, loopCount: Infinity }); if (nm.ok) { if (movement) { from = b.assembly.shownPose ? new Map(b.assembly.shownPose) : null; fade = 0; } movement = nm; group = want; } }
     const animSpeed = g.speed ? animVelocity(keys, trackMap.get(b.sk.nodes.get(b.accumRoot).name.toLowerCase()), group) || 1 : 1;
     const yaw = st.yaw ? st.yaw(i, st.frames) : 0, blow = st.blow ? st.blow(i, st.frames) : null;
@@ -134,8 +134,8 @@ function run(carry, steps, dt = 1 / 60) {
     if (!!blow !== wasBlow) { from = b.assembly.shownPose ? new Map(b.assembly.shownPose) : null; fade = 0; wasBlow = !!blow; }
     // LEFT-ARM / SHIELD-RUN-LEGS: the shield's or the free hand's arm, then the armed upper body, as fpArm.js steps them
     const moving = g.speed > 0;
-    b.leftArm.step(dt, { plan: leftArmPlan({ mode: leftArmModeOf({ view: 'third', type: c.weapon, shield: !!c.shield }), view: 'third', moving, base: moving ? g.group : null, attacking: !!blow }), sources: [source], hasGroup: has, stance: c.weapon, movement, movementSource: source });
-    b.upperBody.step(dt, { plan: armedUpperPlan({ on: true, shield: !!c.shield, type: c.weapon, base: moving ? g.group : null, moving, attacking: !!blow }), sources: [source], hasGroup: has, stance: c.weapon, movement, movementSource: source });
+    b.leftArm.step(dt, { plan: leftArmPlan({ mode: leftArmModeOf({ view: 'third', type: c.weapon, shield: !!c.shield }), view: 'third', moving, base: moving ? g.group : null, attacking: !!blow }), sources: [source], hasGroup: has, stance: c.stance ?? c.weapon, movement, movementSource: source });
+    b.upperBody.step(dt, { plan: armedUpperPlan({ on: true, shield: !!c.shield, type: c.stance ?? c.weapon, base: moving ? g.group : null, moving, attacking: !!blow }), sources: [source], hasGroup: has, stance: c.stance ?? c.weapon, movement, movementSource: source });
     b.lower.stepRig(dt, true, null, blow ? {} : null, null, null, movement, source, null, null);
     b.motion.step(dt, word);
     b.weight.stepRig(dt, true, cam, [], c.weapon, false, word, movement, source, animSpeed);
@@ -146,7 +146,7 @@ function run(carry, steps, dt = 1 / 60) {
     fade = Math.min(1, fade + dt / 0.2);
     const M = b.assembly.mats, F = bodyFrames(b.body, M); if (!F) continue;
     const dp = depth(b.body, M), ds = skinDepth(b, b.assembly.pose, M);
-    frames.push({ t: +t.toFixed(4), gait: st.gait, blow: blow?.section ?? null, dbg: globalThis.__clearDebug, sh: shieldOf(b, M, F), gph: b.motion.stride().phase, cph: clipStridePhase ? clipStridePhase(movement, keys) : null, feet: dot(sub(M.get(b.body.bones.L.foot).t, M.get(b.body.bones.R.foot).t), F.fwd) / b.body.leg, dL: dp.L, dR: dp.R, sL: ds.L, sR: ds.R,
+    frames.push({ t: +t.toFixed(4), gait: st.gait, blow: blow?.section ?? null, dbg: globalThis.__clearDebug, sh: shieldOf(b, M, F), lw: b.leftArm.weight(), uw: b.upperBody.weight(), lg: b.leftArm.group?.(), ug: b.upperBody.group?.(), mg: group, gph: b.motion.stride().phase, cph: clipStridePhase ? clipStridePhase(movement, keys) : null, feet: dot(sub(M.get(b.body.bones.L.foot).t, M.get(b.body.bones.R.foot).t), F.fwd) / b.body.leg, dL: dp.L, dR: dp.R, sL: ds.L, sR: ds.R,
       hL: local(b.body, M, F, b.body.bones.L.hand), hR: local(b.body, M, F, b.body.bones.R.hand),
       eL: local(b.body, M, F, b.body.bones.L.fore), eR: local(b.body, M, F, b.body.bones.R.fore),
       twist: wrap(yawOf(M, b.body.chest) - yawOf(M, b.body.bones.pelvis)) });

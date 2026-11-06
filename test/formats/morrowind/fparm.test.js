@@ -125,9 +125,12 @@ test('LEFT-ARM: who holds the left arm, and which clip\'s arm each plan lays (th
   const plan = (o) => leftArmPlan(o);
   // the guard: moving straight the strafe's arm on the stride; standing the stance's own (lowered); a blow or a jump the
   // strafe's arm held still, eased up
-  assert.deepEqual(plan({ mode: 'guard', moving: true, base: 'runback' }), { kind: 'movement', base: 'runleft', stance: 'drawn', still: false });
+  // ARM-HOLD: the fists' shield held as a weapon's shield is - the strafe's arm held, swung by the legs' walk
+  const guardHeld = { stance: 'drawn', still: false, rigOrder: true, sway: 0, hold: 0.1 };
+  assert.deepEqual(plan({ mode: 'guard', moving: true, base: 'runback' }), { kind: 'movement', base: 'runleft', ...guardHeld });
+  assert.deepEqual(plan({ mode: 'guard', moving: true, base: 'walkforward' }), { kind: 'movement', base: 'walkleft', adapt: true, ...guardHeld });
   assert.equal(plan({ mode: 'guard', moving: false }), null, 'standing behind the shield: the one-hander\'s idle lowers it');
-  assert.equal(plan({ mode: 'guard', moving: true, base: 'walkright' }), null, 'a strafe\'s arm is its own');
+  assert.deepEqual(plan({ mode: 'guard', moving: true, base: 'walkright' }), { kind: 'movement', base: 'walkright', ...guardHeld }, 'a strafe holds its own arm');
   assert.deepEqual(plan({ mode: 'guard', moving: false, attacking: true }), { kind: 'movement', base: 'walkleft', stance: 'drawn', still: true });
   assert.deepEqual(plan({ mode: 'guard', moving: true, base: 'walkright', attacking: true }), { kind: 'movement', base: 'walkleft', stance: 'drawn', still: true });
   assert.deepEqual(plan({ mode: 'guard', moving: false, jumping: true }), { kind: 'movement', base: 'walkleft', stance: 'drawn', still: true });
@@ -146,6 +149,7 @@ test('LEFT-ARM: who holds the left arm, and which clip\'s arm each plan lays (th
   // the free hand (ARM-HOLD): the one-handed walk's arm held 0.45 of the way from the free walk's, swung by 0.6 of the legs' walk -
   // any way but a turn, never in a blow
   assert.deepEqual(plan({ mode: 'free', moving: true, base: 'walkleft' }), { kind: 'movement', base: 'walkleft', stance: 'drawn', still: false, sway: 0, hold: 0.6, pose: 0.45 });
+  assert.equal(plan({ mode: 'free', moving: true, base: 'runforward' }).hold, 0.85, 'running the free arm swings by more of the run');
   assert.equal(plan({ mode: 'free', moving: true, base: 'turnleft' }), null);
   assert.equal(plan({ mode: 'free', moving: true, base: 'runforward', attacking: true }), null);
   assert.equal(plan({ mode: 'free', moving: false }), null);

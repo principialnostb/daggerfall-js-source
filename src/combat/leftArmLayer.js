@@ -34,9 +34,9 @@ export const LEFT_ARM_EASE = Object.freeze({ in: 0.08, out: 0.22 });
  *  the very walk the legs play, off that walk's mean - never by another clip's live swing (a strafe's arm, a one-hander's
  *  upper body: their own strides rocked the shield 14 to 19 degrees to the side). `shield` the shield's arm walking,
  *  running, backing and stepping aside; `free` a one-hander's free arm, its pose `freePose` of the way from the free
- *  walk's to the one-handed walk's (where the one-handed stance holds it standing); `upper` the armed upper body under a
+ *  walk's to the one-handed walk's (where the one-handed stance holds it standing), `freeRun` running; `upper` the armed upper body under a
  *  shield (CARRY-LOCOMOTION-COHERENCE's 0.55, the share of the chest's wave the owner kept). */
-export const ARM_HOLD = Object.freeze({ shield: 0.1, free: 0.6, freePose: 0.45, upper: 0.55 });
+export const ARM_HOLD = Object.freeze({ shield: 0.1, free: 0.6, freeRun: 0.85, freePose: 0.45, upper: 0.55 });
 
 /** @type {readonly number[]} */
 const ONE_HANDED = Object.freeze([MW_WEAPON_TYPE.ShortBladeOneHand, MW_WEAPON_TYPE.LongBladeOneHand, MW_WEAPON_TYPE.BluntOneHand, MW_WEAPON_TYPE.AxeOneHand]);
@@ -58,6 +58,15 @@ export function leftArmModeOf({ view = 'third', type = MW_WEAPON_TYPE.None, shie
  * 'movement' or 'stance' (the composer the host asks), `base` its bare base, `stance` 'drawn' (the stance the rig stands
  * in) or 'bare' (no weapon short group: the free walk), `still` held at one frame rather than kept on the stride.
  */
+/** ARM-HOLD: a shield's arm moving - straight, the strafe's arm of that gait (SHIELD-RUN-AS-WALK), its trunk laid on the
+ *  walk's (SHIELD-STRAFE-TRUNK, walking); to the side, the strafe's own, the legs' walk - each held at its mean and swung by
+ *  ARM_HOLD.shield of the legs' walk. Null where the base is neither (a turn). */
+function heldShield(b, strafeOf) {
+  const held = { kind: 'movement', stance: 'drawn', still: false, rigOrder: true, sway: 0, hold: ARM_HOLD.shield };
+  if (strafeOf) return /^walk/.test(b) ? { ...held, base: strafeOf, adapt: true } : { ...held, base: strafeOf };
+  return /^(walk|run)(left|right)$/.test(b) ? { ...held, base: b } : null;
+}
+
 export function leftArmPlan({ mode = null, view = 'third', moving = false, base = null, attacking = false, jumping = false, bashing = false } = {}) {
   const b = String(base ?? '');
   const walkingStraight = moving && /(forward|back)$/.test(b) && !/^turn/.test(b);
@@ -69,21 +78,18 @@ export function leftArmPlan({ mode = null, view = 'third', moving = false, base 
     // SHIELD-RUN-AS-WALK (the owner, 2026-11-05: the run's shield - how it is held, how the arm sways - as the walk's,
     // worked out): straight, the strafe's arm of that gait, live, from the very clip a strafe of it plays; to the side,
     // the strafe's own arm
-    // ARM-HOLD: to the side the strafe is the legs' own walk - its arm held as the straight walk's, by the same share
-    if (!strafeOf) return /^(walk|run)(left|right)$/.test(b) ? { kind: 'movement', base: b, stance: 'drawn', still: false, rigOrder: true, sway: 0, hold: ARM_HOLD.shield } : null;
-    const plan = { kind: 'movement', base: strafeOf, stance: 'drawn', still: false, rigOrder: true };
-    // Only the straight guard walk: carry the authored strafe arm onto this trunk,
-    // keeping a live but smaller swing. Running retains its accepted carry.
-    return /^walk/.test(b) ? { ...plan, adapt: true, sway: 0, hold: ARM_HOLD.shield } : { ...plan, sway: 0, hold: ARM_HOLD.shield };
+    return heldShield(b, strafeOf);
   }
   if (mode === 'guard') {
     if (view === 'first') return attacking || jumping ? { kind: 'stance', base: 'idle', stance: 'drawn', still: true } : null;
-    if (strafeOf) return { kind: 'movement', base: strafeOf, stance: 'drawn', still: false };
+    // ARM-HOLD (the owner, 2026-11-06: a shield with no weapon still rocked walking - the fists' guard had kept the strafe's
+    // live arm, 25.6 degrees to the side a stride walking, 27.2 backing, 14.9 running): the shield held as a weapon's is
+    if (strafeOf) return heldShield(b, strafeOf);
     if (attacking || jumping) return { kind: 'movement', base: 'walkleft', stance: 'drawn', still: true };
-    return null;
+    return moving ? heldShield(b, null) : null;
   }
   if (mode === 'free') {
-    return moving && !attacking && b && !/^turn/.test(b) ? { kind: 'movement', base: b, stance: 'drawn', still: false, sway: 0, hold: ARM_HOLD.free, pose: ARM_HOLD.freePose } : null;
+    return moving && !attacking && b && !/^turn/.test(b) ? { kind: 'movement', base: b, stance: 'drawn', still: false, sway: 0, hold: /^run/.test(b) ? ARM_HOLD.freeRun : ARM_HOLD.free, pose: ARM_HOLD.freePose } : null;
   }
   return null;
 }

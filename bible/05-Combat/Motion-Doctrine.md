@@ -1207,7 +1207,7 @@ the forearm. To the side, the armed upper body's own stride did the same.
 
 THE LAW, for every arm a layer carries: its pose is the mean of the clip it is held in (the strafe's arm the owner kept
 for the shield; the armed upper body's), and it is SWUNG by a share of the very walk the legs play, off that walk's mean
-- never by another clip's live stride (src/combat/leftArmLayer.js:"export const ARM_HOLD = Object.freeze({ shield: 0.1, free: 0.6, freePose: 0.45, upper: 0.55 });").
+- never by another clip's live stride (src/combat/leftArmLayer.js:"export const ARM_HOLD = Object.freeze({ shield: 0.1, free: 0.6, freeRun: 0.85, freePose: 0.45, upper: 0.55 });").
 The trunks' correction is taken at their means, so the held arm rides the walk's own trunk, the legs' clip
 (src/combat/leftArmLayer.js:"const adapted = qmul(qconj(chain(rawB, bw)), qmul(chain(track.__chainO, ow), o.rotation));").
 The shield is held to the side too (the strafe is then the legs' own walk). A one-hander's free arm is held
@@ -1226,4 +1226,13 @@ and the legs' share; the arm riding the walk's trunk), test/formats/morrowind/fp
 live 0.45 (SHIELD_WALK_SWAY) is withdrawn.
 Reference remains DFU WeaponManager.UpdateHands: DFU draws no articulated arm. The shared module serves world.js,
 exterior.js, worldModes.js and dungeonContext.js; no host changes. The owner's in-game acceptance is pending.
+
+ARM-HOLD, the owner's second word the same day: the one-hander's run and both walks are right; the free arm running a
+little wooden; a shield with no weapon still rocks walking, and should run as a weapon's shield does. The fists behind a
+shield (leftArmLayer.js's `guard` plan - the stance a shield and no weapon stands in, shieldGuard.js) had kept the
+strafe's live arm: 25.6 degrees to the side a stride walking, 27.2 backing, 14.9 running, 17 running back. They now take
+the weapon's shield plan whole (src/combat/leftArmLayer.js:"function heldShield(b, strafeOf) {"), and measure as it does
+(2.1 to 4.9 degrees, the same pose). The free arm runs by 0.85 of the run (`freeRun`): 0.38 arm lengths fore and aft,
+from 0.27 (an empty-handed body's 0.46). tools/motionProbe.mjs now carries the fists and a shield in the one-hander's
+stance and gait, as fpArm.js stands them.
 
