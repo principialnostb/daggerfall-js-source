@@ -38,14 +38,35 @@ precision highp float;
 uniform sampler2D uColor;
 uniform highp sampler2D uDepth;
 uniform vec3 uGrid;   // the viewport's corner and the block size, in target pixels
+uniform int uSub;     // CHAR-PIX-AVG: the low texels a block holds along each side (PIX_SUB_MAX at most)
 out vec4 outColor;
 void main() {
-  ivec2 t = ivec2(floor((gl_FragCoord.xy - uGrid.xy) / uGrid.z));
-  vec4 c = texelFetch(uColor, t, 0);
-  if (c.a < 0.5) discard;
-  outColor = vec4(c.rgb, 1.0);
-  gl_FragDepth = texelFetch(uDepth, t, 0).r;
+  ivec2 t = ivec2(floor((gl_FragCoord.xy - uGrid.xy) / uGrid.z)) * uSub;
+  vec3 sum = vec3(0.0);
+  float n = 0.0, d = 1.0;
+  for (int j = 0; j < 4; j++) {
+    if (j >= uSub) break;
+    for (int i = 0; i < 4; i++) {
+      if (i >= uSub) break;
+      ivec2 s = t + ivec2(i, j);
+      vec4 c = texelFetch(uColor, s, 0);
+      if (c.a < 0.5) continue;
+      sum += c.rgb; n += 1.0;
+      d = min(d, texelFetch(uDepth, s, 0).r);
+    }
+  }
+  if (n < 0.5 * float(uSub * uSub)) discard;   // the body covers less than half the block: the world's
+  outColor = vec4(sum / n, 1.0);
+  gl_FragDepth = d;   // the nearest the body stands in the block
 }`;
+
+/** CHAR-PIX-AVG (2026-11-07, the owner: grey and white pixels on a black bra): a block was ONE point of the body - one
+ *  texel of its texture's mip - so where a texture is fine-grained (the underwear's fur edge, its grey stitching, the
+ *  skin through a ragged hem) a block took a light grain the eye never sees in the whole. The low target is drawn
+ *  PIX_SUB_MAX times finer each way (no finer than the screen), and a block is the mean of its body texels - the colour
+ *  the area holds; the body takes the block where it covers half of it, at its nearest depth. */
+export const PIX_SUB_MAX = 4;
+export const pixSub = (px) => Math.max(1, Math.min(PIX_SUB_MAX, px));
 
 const layers = new WeakMap();   // renderer -> its target, program and buffers
 
@@ -57,7 +78,7 @@ function layerOf(renderer) {
   L = {
     prog, vao: gl.createVertexArray(), fbo: gl.createFramebuffer(), color: gl.createTexture(), depth: gl.createTexture(),
     w: 0, h: 0, uColor: gl.getUniformLocation(prog, 'uColor'), uDepth: gl.getUniformLocation(prog, 'uDepth'),
-    uGrid: gl.getUniformLocation(prog, 'uGrid'), proj: new Float32Array(16),
+    uGrid: gl.getUniformLocation(prog, 'uGrid'), uSub: gl.getUniformLocation(prog, 'uSub'), proj: new Float32Array(16),
   };
   layers.set(renderer, L);
   return L;
@@ -112,12 +133,12 @@ const _pv = new Float32Array(16);
  * through renderer.drawCharacter when the dial is off or a block would be one pixel. `corners`, optional: world points
  * that hold the whole figure (its box's eight) - the write-back covers their rectangle alone, not the screen.
  */
-export function drawPixelatedCharacters(renderer, draws, rows, corners = null) {
+export function drawPixelatedCharacters(renderer, draws, rows, corners = null, draw = d => renderer.drawCharacter(d.mesh, d.model)) {
   const gl = renderer.gl;
   const vp = /** @type {Int32Array} */ (gl.getParameter(gl.VIEWPORT));
   const px = blockPixels(vp[3], rows);
   if (px <= 1 || renderer._spriteDepth > 0) {
-    for (const d of draws) renderer.drawCharacter(d.mesh, d.model);
+    for (const d of draws) draw(d);
     return;
   }
   const vw = vp[2], vh = vp[3];
@@ -125,12 +146,12 @@ export function drawPixelatedCharacters(renderer, draws, rows, corners = null) {
   if (rect && rect[2] === 0) return;   // wholly off the screen
   const [rx, ry, rw, rh] = rect ?? [0, 0, vw, vh];
   const L = layerOf(renderer);
-  const lw = Math.ceil(vw / px), lh = Math.ceil(vh / px);
+  const lw = Math.ceil(vw / px), lh = Math.ceil(vh / px), sub = pixSub(px);
   const fboWas = gl.getParameter(gl.FRAMEBUFFER_BINDING);
-  sizeLayer(gl, L, lw, lh);
+  sizeLayer(gl, L, lw * sub, lh * sub);
   gl.bindFramebuffer(gl.FRAMEBUFFER, L.fbo);
-  // The low target is lw*px wide, a little past the viewport: the clip space is squeezed to it, so each texel is exactly
-  // one block of the screen, its grid anchored at the viewport's corner.
+  // The low target is lw*px wide, a little past the viewport: the clip space is squeezed to it, so each sub*sub texels
+  // are exactly one block of the screen, its grid anchored at the viewport's corner.
   const sx = vw / (lw * px), sy = vh / (lh * px);
   const P = renderer._proj, Q = L.proj;
   for (let c = 0; c < 4; c++) {
@@ -139,9 +160,9 @@ export function drawPixelatedCharacters(renderer, draws, rows, corners = null) {
     Q[c * 4 + 2] = P[c * 4 + 2]; Q[c * 4 + 3] = P[c * 4 + 3];
   }
   const tl = Math.floor(rx / px), tb = Math.floor(ry / px), tr = Math.ceil((rx + rw) / px), tt = Math.ceil((ry + rh) / px);
-  gl.viewport(0, 0, lw, lh);
+  gl.viewport(0, 0, lw * sub, lh * sub);
   gl.enable(gl.SCISSOR_TEST);
-  gl.scissor(tl, tb, tr - tl, tt - tb);
+  gl.scissor(tl * sub, tb * sub, (tr - tl) * sub, (tt - tb) * sub);
   gl.clearColor(0, 0, 0, 0);
   gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
   const cc = renderer._clearColor;
@@ -149,7 +170,7 @@ export function drawPixelatedCharacters(renderer, draws, rows, corners = null) {
   const sp = renderer._proj;
   renderer._proj = Q; renderer._cFrameStamp = -1;   // LA-COST1's block, re-sent under the squeezed camera and again after
   try {
-    for (const d of draws) renderer.drawCharacter(d.mesh, d.model);
+    for (const d of draws) draw(d);
   } finally {
     renderer._proj = sp; renderer._cFrameStamp = -1;
     gl.bindFramebuffer(gl.FRAMEBUFFER, fboWas);
@@ -165,6 +186,7 @@ export function drawPixelatedCharacters(renderer, draws, rows, corners = null) {
   renderer._tex0Bound = null;   // PERF-TEX3: unit 0 is this pass's now
   gl.uniform1i(L.uColor, 0); gl.uniform1i(L.uDepth, 6);
   gl.uniform3f(L.uGrid, vp[0], vp[1], px);
+  gl.uniform1i(L.uSub, sub);
   // The renderer's front face is CW for its life (renderer.js frontFace) - this triangle would be culled as a back.
   const culled = gl.isEnabled(gl.CULL_FACE);
   gl.disable(gl.CULL_FACE);

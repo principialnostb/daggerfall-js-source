@@ -16,7 +16,8 @@ test('ARM-REST: standing, the free hand beside a sword is the plain idle\'s arm 
 
 test('FISTS-ARMS: the fists\' arms are the hand-to-hand clips\' on the stride; beside a shield the right is a free hand under the armed trunk, standing the plain idle\'s (mutant: the carry\'s rows)', () => {
   const at = (o) => armedUpperPlan({ on: true, ...o });
-  assert.deepEqual(at({ type: T.HandToHand, base: 'runforward', moving: true }), { kind: 'movement', base: 'runforward', stance: 'drawn', type: T.HandToHand, still: false, side: 'both', sway: 1 });
+  assert.deepEqual(at({ type: T.HandToHand, base: 'runforward', moving: true }), { kind: 'movement', base: 'runforward', stance: 'drawn', type: T.HandToHand, still: false, side: 'both', sway: 0, hold: ARM_HOLD.fists });
+  assert.ok(ARM_HOLD.fists > 0.1 && ARM_HOLD.fists < 0.6, 'FISTS-PUMP: the guard bobs with the stride, held');
   assert.equal(at({ type: T.HandToHand, moving: false }), null, 'standing, the hand-to-hand idle is the body\'s own');
   assert.deepEqual(at({ type: T.HandToHand, shield: true, base: 'walkforward', moving: true }),
     { kind: 'movement', base: 'walkforward', stance: 'drawn', type: T.LongBladeOneHand, still: false, rigOrder: true, sway: 0, hold: ARM_HOLD.upper, freeSide: 'R' });

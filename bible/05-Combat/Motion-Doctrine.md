@@ -1207,7 +1207,7 @@ the forearm. To the side, the armed upper body's own stride did the same.
 
 THE LAW, for every arm a layer carries: its pose is the mean of the clip it is held in (the strafe's arm the owner kept
 for the shield; the armed upper body's), and it is SWUNG by a share of the very walk the legs play, off that walk's mean
-- never by another clip's live stride (src/combat/leftArmLayer.js:"export const ARM_HOLD = Object.freeze({ shield: 0.1, free: 0.6, freeRun: 0.85, freePose: 0.45, upper: 0.55, rest: 0.5, restRight: 0.8 });").
+- never by another clip's live stride (src/combat/leftArmLayer.js:"export const ARM_HOLD = Object.freeze({ shield: 0.1, free: 0.6, freeRun: 0.85, freePose: 0.45, upper: 0.55, rest: 0.5, restRight: 0.8, fists: 0.3 });").
 The trunks' correction is taken at their means, so the held arm rides the walk's own trunk, the legs' clip
 (src/combat/leftArmLayer.js:"const adapted = qmul(qconj(chain(rawB, bw)), qmul(chain(track.__chainO, ow), o.rotation));").
 The shield is held to the side too (the strafe is then the legs' own walk). A one-hander's free arm is held
@@ -1314,4 +1314,21 @@ Measured, a woman's body: no arm in the trunk; the shield beside the fists stand
 4.9 degrees); the arms the clips move now move (the fists walking 0.04 arm lengths a frame, as the free hand beside a
 sword; standing still 0.001 before). BODY-MOTION THE CLIP KEEPS WHAT IT CARRIES now reads the right beside a shield as a
 free hand. Tests: test/combat/armclips.test.js.
+
+
+**GUARD-ELBOWS / FISTS-PUMP** (2026-11-07, the owner's 01-06-55 recording: the fists' guard "a little wooden, maybe
+because the arms are spread so far to the sides"). Measured on a woman's body: the hand-to-hand clips hold the fists
+before the chin with the elbows 0.53-0.60 arm lengths off the chest's middle (a hanging arm's 0.45), and walking the
+fists moved 0.04-0.12 - the clip's own arms, near still while the legs walked.
+
+- **GUARD-ELBOWS.** Each arm of the fists' guard is swung about its shoulder-to-wrist line - ARM-CLEARANCE's own turn,
+  the fist kept where the clip holds it - GUARD_ELBOWS.tuck of the way to straight below that line
+  (src/characters/bodyMotion/guardElbows.js:"export const GUARD_ELBOWS = Object.freeze({ tuck: 0.55, max: 0.6, ease: 0.12 });"),
+  eased in and out, off for a blow and beside a shield; clearArms runs after it. The elbows stand at 0.44-0.49.
+- **FISTS-PUMP.** Walking, the guard is the hand-to-hand clip's held at its mean and swung by ARM_HOLD.fists of the plain
+  walk the legs play (ARM-HOLD's way; src/combat/leftArmLayer.js:"export const ARM_HOLD = Object.freeze({ shield: 0.1, free: 0.6, freeRun: 0.85, freePose: 0.45, upper: 0.55, rest: 0.5, restRight: 0.8, fists: 0.3 });"):
+  the fists bob with the stride, 0.16-0.18 arm lengths walking, 0.27 running (the clip's 0.29).
+
+Measured, no arm in the trunk; the largest move in a frame 0.044 walking (0.039 before). Tests:
+test/characters/bodyMotion/guardelbows.test.js, test/combat/armclips.test.js.
 

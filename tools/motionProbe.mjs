@@ -44,7 +44,8 @@ const GAITS = { idle: { group: 'idle', f: 0, s: 0, speed: 0 }, walk: { group: 'w
   strafe: { group: 'walkright', f: 0, s: 1, speed: 2.5 }, runback: { group: 'runback', f: -1, s: 0, speed: 6 } };
 
 function make() {
-  const n = parseNif(retailSkeleton()), sk = buildSkeleton(n);
+  // PROBE_RIG=female: the woman's own skeleton (the game's xbase_anim_female, as weapon-sheathing vendors it)
+  const n = parseNif(process.env.PROBE_RIG === 'female' ? readFileSync(`${root}/vendor/weapon-sheathing/Data Files/Animations/xbase_anim_female/xbase_anim_sh.nif`) : retailSkeleton()), sk = buildSkeleton(n);
   injectSkeletonNodes(sk, offWeaponBoneAddon(sk, GRAPH_ROOT, sm, n));
   const part = bindPart(sk, skinNif), batch = (n) => part.skinned.find((x) => x.name === n);
   // per vertex, the share of its weight on the named bones
@@ -117,15 +118,19 @@ const yawOf = (M, ref) => { const a = M.get(ref).a; return Math.atan2(a[3], a[0]
 const wrap = (x) => Math.atan2(Math.sin(x), Math.cos(x));
 
 // one run: `steps` is [{ frames, gait, blow?(i,n), yaw?(i,n) }]
-function run(carry, steps, dt = 1 / 60) {
+function run(carry, steps, dt0 = 1 / 60) {
   const b = make(), c = CARRIES[carry], frames = [];
   let movement = null, group = null, t = 0, fade = 1, from = null, wasBlow = false; const trav = [0, 0, 0];
-  for (const st of steps) for (let i = 0; i < st.frames; i++, t += dt) {
+  // PROBE_JITTER=1: an uneven frame (1/90 to 1/35 s, a fixed sequence), as a browser hands it; PROBE_SWAY=<degrees>: the
+  // camera's yaw wandering that much while the body stands
+  let seed = 7; const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+  const dtOf = () => (process.env.PROBE_JITTER ? 1 / 90 + rnd() * (1 / 35 - 1 / 90) : dt0);
+  for (const st of steps) for (let i = 0, dt = dtOf(); i < st.frames; i++, t += dt, dt = dtOf()) {
     const g = GAITS[st.gait];
     const want = guardMovementGroup(g.group, c.stance ?? c.weapon, has, true)?.group ?? g.group;
     if (want !== group) { const nm = resetClip(keys, want, { loopFallback: true, loopCount: Infinity }); if (nm.ok) { if (movement) { from = b.assembly.shownPose ? new Map(b.assembly.shownPose) : null; fade = 0; } movement = nm; group = want; } }
     const animSpeed = g.speed ? animVelocity(keys, trackMap.get(b.sk.nodes.get(b.accumRoot).name.toLowerCase()), group) || 1 : 1;
-    const yaw = st.yaw ? st.yaw(i, st.frames) : 0, blow = st.blow ? st.blow(i, st.frames) : null;
+    const yaw = (st.yaw ? st.yaw(i, st.frames) : 0) + (Number(process.env.PROBE_SWAY) || 0) * Math.PI / 180 * Math.sin(t * 2.3), blow = st.blow ? st.blow(i, st.frames) : null;
     const cam = { yaw, move: { speed: g.speed, running: st.gait.startsWith('run'), forward: g.f, strafe: g.s, grounded: true, bodyYaw: yaw, travel: [trav[0] += g.s * g.speed * dt, 0, trav[2] += g.f * g.speed * dt] } };
     const word = { ...sceneInput({ kind: process.env.PROBE_KIND ?? 'female', weapon: c.weapon, shown: c.shown, shield: !!c.shield, torch: !!c.torch, running: cam.move.running, forward: g.f, strafe: g.s, speed: g.speed, yaw, blow, travel: cam.move.travel }) };
     advanceClip(movement, keys, dt * (g.speed ? b.weight.moveRate(g.speed * MW_UNITS_PER_METER / animSpeed, group) : 1));

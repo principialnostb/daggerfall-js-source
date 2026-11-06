@@ -39,8 +39,9 @@ export const ARM_FADE = 0.3;
  *  walk's to the one-handed walk's (where the one-handed stance holds it standing), `freeRun` running; `upper` the armed upper body under a
  *  shield (CARRY-LOCOMOTION-COHERENCE's 0.55, the share of the chest's wave the owner kept). ARM-REST: standing, a free
  *  hand is the plain idle's arm on its own breath, laid `rest` over the one-handed stance's bent arm (`restRight` the
- *  right beside a shield, over the stance's armed one). */
-export const ARM_HOLD = Object.freeze({ shield: 0.1, free: 0.6, freeRun: 0.85, freePose: 0.45, upper: 0.55, rest: 0.5, restRight: 0.8 });
+ *  right beside a shield, over the stance's armed one). FISTS-PUMP: the fists' guard walking is the hand-to-hand clip's
+ *  guard held, swung by `fists` of the plain walk the legs play - the guard bobs with the stride. */
+export const ARM_HOLD = Object.freeze({ shield: 0.1, free: 0.6, freeRun: 0.85, freePose: 0.45, upper: 0.55, rest: 0.5, restRight: 0.8, fists: 0.3 });
 
 /** @type {readonly number[]} */
 const ONE_HANDED = Object.freeze([MW_WEAPON_TYPE.ShortBladeOneHand, MW_WEAPON_TYPE.LongBladeOneHand, MW_WEAPON_TYPE.BluntOneHand, MW_WEAPON_TYPE.AxeOneHand]);

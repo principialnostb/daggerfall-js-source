@@ -24,14 +24,15 @@ export function armedUpperPlan({ on = false, shield = false, type = -1, base = n
   if (!on || attacking) return null;
   const b = String(base ?? ''), walking = moving && /^(?:walk|run)(?:forward|back|left|right)$/.test(b);
   // FISTS-ARMS (the owner, 2026-11-06: every free arm as the free hand beside a sword - the game's own movements, not
-  // angles): the fists drawn carry both arms as the hand-to-hand clips do, live on the stride of the worked gait their
-  // legs walk (FISTS-GUARD); standing, the hand-to-hand idle is the body's own. Beside a shield the trunk is the armed
+  // angles): the fists drawn carry both arms as the hand-to-hand clips do, on the stride of the worked gait their legs
+  // walk (FISTS-GUARD) - the clip's guard held and swung by ARM_HOLD.fists of the plain walk (FISTS-PUMP, 2026-11-07: the
+  // clip's own arms barely moved, "wooden"); standing, the hand-to-hand idle is the body's own. Beside a shield the trunk is the armed
   // one the weapon's shield is tuned on (below), the right arm in it a free hand - the free walk's own arm, swung by the
   // layer's share of it; standing, the plain idle's arm on its own breath.
   if (type === MW_WEAPON_TYPE.HandToHand) {
     if (shield) return walking ? (GUARD_BASES.test(b) ? { kind: 'movement', base: b, stance: 'drawn', type: MW_WEAPON_TYPE.LongBladeOneHand, still: false, rigOrder: true, sway: 0, hold: ARM_HOLD.upper, freeSide: 'R' } : null)
       : moving ? null : { kind: 'stance', base: 'idle', stance: 'bare', still: false, side: 'R', sway: 1, w: ARM_HOLD.restRight };
-    return walking ? { kind: 'movement', base: b, stance: 'drawn', type: MW_WEAPON_TYPE.HandToHand, still: false, side: 'both', sway: 1 } : null;
+    return walking ? { kind: 'movement', base: b, stance: 'drawn', type: MW_WEAPON_TYPE.HandToHand, still: false, side: 'both', sway: 0, hold: ARM_HOLD.fists } : null;
   }
   if (!shield || !moving || type === MW_WEAPON_TYPE.LongBladeTwoHand || !guardStance(type) || !GUARD_BASES.test(b)) return null;
   return { kind: 'movement', base, stance: 'drawn', still: false, rigOrder: true, sway: 0, hold: ARM_HOLD.upper };

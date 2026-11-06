@@ -13,6 +13,7 @@ import { algebra, bodyOf, bodyTurn, turnOf, transpose, mul, clamp, clamp01, ease
 import { MW_WEAPON_TYPE } from '../../formats/morrowind/mwFirstPerson.js';
 import { orthonormal } from '../../combat/climbRig.js';
 import { clearArms } from './armClearance.js';
+import { createGuardElbows } from './guardElbows.js';   // GUARD-ELBOWS: the fists' elbows under the fists
 import { createHandFingers } from './handFingers.js';   // HAND-FINGERS: a fist the game's own, a free hand relaxed   // ARM-CLEARANCE: the elbows out of the trunk, wider in heavier armour
 import { createBlowLegs } from './blowLegs.js';   // BLOW-LEGS: the body under a blow struck standing
 import { createArmouredSword } from './armouredSword.js';
@@ -100,7 +101,7 @@ export function createBodyWeight() {
   const legs = createBlowLegs();
   const freshReturn = createFreshReturn();
   let bodyKind = 'male', bodySwing = false;
-  const fingers = createHandFingers();
+  const fingers = createHandFingers(), guard = createGuardElbows();
   const sword = createArmouredSword();
   const travelStride = createTravelStride({ sampleTrack, loopWindow });
   let strideOn = false;   // RUN-STRIDE: last frame's switch, for the movement's rate (read before the frame's step)
@@ -149,7 +150,7 @@ export function createBodyWeight() {
     stepRig(dt, on, cam, armor, mwType, dead, word = null, moveState = null, moveSource = null, moveSpeed = 0) {
       frameDt = Math.max(0, dt);
       bodyKind = word?.kind ?? 'male'; bodySwing = !!word?.blow?.section;
-      fingers.step(dt, !!on && !dead, word);   // TRUNK-SKIN: the clearance reads this body's trunk and its blow
+      fingers.step(dt, !!on && !dead, word); guard.step(dt, !!on && !dead, word);   // TRUNK-SKIN: the clearance reads this body's trunk and its blow
       freshReturn.step(dt, !!word?.blow?.section, !!on && !dead && !word?.busy && carryClassOf(word ?? {}) === 'two');
       const mv = cam?.move ?? null;
       clearOn = !!on;
@@ -203,6 +204,7 @@ export function createBodyWeight() {
         freshReturn.apply(skeleton, pose, rootRef, skelMats);
         // ARM-CLEARANCE, last: over the lean, the carry and the two-hander's return (TRUNK-SKIN: the return wrote its arms
         // after the clearance had run, and its straight path took the haft hand's arm through the chest)
+        if (clearOn) guard.apply(skeleton, pose, rootRef, skelMats);   // GUARD-ELBOWS, before the clearance keeps them off the trunk
         if (clearOn) clearArms(skeleton, pose, rootRef, skelMats, { armor: armorW, previous: elbowTurns, dt: frameDt, held: report?.armAnatomy, kind: bodyKind, swinging: bodySwing || ['return', 'interrupt', 'settle'].includes(freshReturn.status().mode) });
         if (clearOn) fingers.apply(skeleton, pose);   // HAND-FINGERS, on the hands as they now stand
         poseElbowSkin(skeleton, pose, rootRef, skelMats);
@@ -211,7 +213,7 @@ export function createBodyWeight() {
       } };
       return slotMemo.fn;
     },
-    reset() { fingers.reset(); freshReturn.reset(); elbowTurns.L = elbowTurns.R = 0; frameDt = 0; sword.reset(); legs.reset(); moving = 0; travel = null; yaw0 = null; vel.f = vel.r = 0; velPrev = null; pitch.x = pitch.v = roll.x = roll.v = 0; },
+    reset() { fingers.reset(); guard.reset(); freshReturn.reset(); elbowTurns.L = elbowTurns.R = 0; frameDt = 0; sword.reset(); legs.reset(); moving = 0; travel = null; yaw0 = null; vel.f = vel.r = 0; velPrev = null; pitch.x = pitch.v = roll.x = roll.v = 0; },
   };
   return layer;
 }
