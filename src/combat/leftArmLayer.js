@@ -28,6 +28,8 @@ export function strafeSources(sources, preference) {
 
 /** The eases (seconds): the arm up quickly for a blow (its wind-up is a third of a second), down slower to the stance. */
 export const LEFT_ARM_EASE = Object.freeze({ in: 0.08, out: 0.22 });
+/** The shield keeps the strafe's raised arm, with a quieter live stride around that pose. */
+export const SHIELD_WALK_SWAY = 0.45;
 
 /** @type {readonly number[]} */
 const ONE_HANDED = Object.freeze([MW_WEAPON_TYPE.ShortBladeOneHand, MW_WEAPON_TYPE.LongBladeOneHand, MW_WEAPON_TYPE.BluntOneHand, MW_WEAPON_TYPE.AxeOneHand]);
@@ -60,7 +62,11 @@ export function leftArmPlan({ mode = null, view = 'third', moving = false, base 
     // SHIELD-RUN-AS-WALK (the owner, 2026-11-05: the run's shield - how it is held, how the arm sways - as the walk's,
     // worked out): straight, the strafe's arm of that gait, live, from the very clip a strafe of it plays; to the side,
     // the strafe's own arm
-    return strafeOf ? { kind: 'movement', base: strafeOf, stance: 'drawn', still: false, rigOrder: true } : null;
+    if (!strafeOf) return null;
+    const plan = { kind: 'movement', base: strafeOf, stance: 'drawn', still: false, rigOrder: true };
+    // Only the straight guard walk: carry the authored strafe arm onto this trunk,
+    // keeping a live but smaller swing. Running retains its accepted carry.
+    return /^walk/.test(b) ? { ...plan, adapt: true, sway: SHIELD_WALK_SWAY } : plan;
   }
   if (mode === 'guard') {
     if (view === 'first') return attacking || jumping ? { kind: 'stance', base: 'idle', stance: 'drawn', still: true } : null;
@@ -128,10 +134,10 @@ const qconj = (q) => [q[0], -q[1], -q[2], -q[3]];
 /** The base's tracks with the mask's bones answered by the overlay's AND the base's own, for the weighted sampler.
  *  `adapt` (SHIELD-STRAFE-TRUNK): the arm's root carries both clips' trunks, to turn the arm as the overlay's trunk
  *  turned it. */
-export function weightedOverlayTracks(base, overlay, bones, adapt = false) {
+export function weightedOverlayTracks(base, overlay, bones, adapt = false, owner = null) {
   const out = new Map(base ?? []);
   if (overlay && bones) {
-    for (const [name, t] of overlay) if (bones.has(name) && t) out.set(name, { __overlay: t, __base: base?.get(name) ?? null });
+    for (const [name, t] of overlay) if (bones.has(name) && t) out.set(name, { __overlay: t, __base: base?.get(name) ?? null, __owner: owner });
   }
   const root = adapt ? out.get(ARM_ROOT) : null;
   const co = ARM_CHAIN.map((n) => overlay?.get(n)), cb = ARM_CHAIN.map((n) => base?.get(n));
@@ -139,8 +145,9 @@ export function weightedOverlayTracks(base, overlay, bones, adapt = false) {
   return out;
 }
 
-/** The sampler for weightedOverlayTracks: an overlaid bone at the overlay's clock, blended over the base's by weight. */
-export function weightedOverlaySampler(sampleTrack, clock, weight, span = () => null) {
+/** The sampler for weightedOverlayTracks: an overlaid bone at the overlay's clock, blended over the base's by weight.
+ *  LAYER-STACK: with an `owner`, only that layer's wrappers are its own - another's go to `sampleTrack`, the layer under. */
+export function weightedOverlaySampler(sampleTrack, clock, weight, span = () => null, owner = null, sway = () => 0, adaptation = () => 1) {
   const means = new WeakMap();
   /** SHIELD-STEADY: a track's turn and place averaged over `w` (the loop window), sixteen samples, the shorter way. */
   const meanOf = (tr, w) => {
@@ -159,9 +166,21 @@ export function weightedOverlaySampler(sampleTrack, clock, weight, span = () => 
     means.set(tr, { start: w.start, stop: w.stop, value });
     return value;
   };
-  const at = (tr, t) => { const w = span(); return w ? meanOf(tr, w) : sampleTrack(tr, t); };
+  const at = (tr, t) => {
+    const window = span();
+    if (!window) return sampleTrack(tr, t);
+    const mean = meanOf(tr, window), k = clamp01(sway());
+    if (!mean || !(k > 0)) return mean;
+    const live = sampleTrack(tr, t);
+    if (!live || k >= 1) return live ?? mean;
+    return {
+      rotation: mean.rotation && live.rotation ? nlerpQuat(mean.rotation, live.rotation, k) : live.rotation ?? mean.rotation,
+      translation: mean.translation && live.translation ? mean.translation.map((x, i) => x + (live.translation[i] - x) * k) : live.translation ?? mean.translation,
+      scale: live.scale,
+    };
+  };
   return (track, time) => {
-    if (!track || !track.__overlay) return sampleTrack(track, time);
+    if (!track || !track.__overlay || (owner && track.__owner !== owner)) return sampleTrack(track, time);
     let o = at(track.__overlay, clock());
     // SHIELD-STRAFE-TRUNK (the owner's video, 2026-11-05: walking forward the strafe's arm pointed the shield out from
     // the hip): the strafe turns its trunk to the way it goes; on a straight walk's trunk its arm, laid from the
@@ -169,7 +188,8 @@ export function weightedOverlaySampler(sampleTrack, clock, weight, span = () => 
     // the body as the strafe's does, the shoulder where the walk has it.
     if (track.__chainO && o.rotation) {
       const chain = (ts, t, read) => ts.reduce((q, tr) => { const r = read(tr, t)?.rotation; return r ? qmul(q, r) : q; }, [1, 0, 0, 0]);
-      o = { ...o, rotation: qmul(qconj(chain(track.__chainB, time, sampleTrack)), qmul(chain(track.__chainO, clock(), at), o.rotation)) };
+      const adapted = qmul(qconj(chain(track.__chainB, time, sampleTrack)), qmul(chain(track.__chainO, clock(), at), o.rotation));
+      o = { ...o, rotation: nlerpQuat(o.rotation, adapted, clamp01(adaptation())) };
     }
     const w = clamp01(weight());
     if (w >= 1 || !track.__base) return o;
@@ -189,14 +209,23 @@ export function weightedOverlaySampler(sampleTrack, clock, weight, span = () => 
  * while the weight eases out, so the arm goes back to the clip's from where it stood.
  */
 export function createLeftArmLayer({ pickAnimSource, resetClip, composeMovementGroup, composeStanceGroup, sampleTrack }) {
-  let state = null; let source = null; let group = null; let clock = 0; let w = 0; let memo = null; let steady = false;
-  const sampler = weightedOverlaySampler(sampleTrack, () => clock, () => w, () => (steady && state && source ? loopWindow(state, source.keys) : null));
+  let state = null; let source = null; let group = null; let clock = 0; let w = 0; let memo = null; let steady = false; let sway = 1; let adapt = 0;
+  // LAYER-STACK (SHIELD-RUN-LEGS): two of these layers stack - the armed upper body under the shield's arm; each samples
+  // its own wrappers and hands the rest to the layer under it (`under`, set by sampler(inner))
+  const owner = {}; let under = sampleTrack;
+  const sampler = weightedOverlaySampler((tr, t) => under(tr, t), () => clock, () => w, () => ((steady || sway < 1) && state && source ? loopWindow(state, source.keys) : null), owner, () => steady ? 0 : sway, () => adapt);
   const layer = {
     /** One frame: `plan` (leftArmPlan's), the rig's `sources` and `hasGroup`, the stance the rig stands in (`stance`,
      *  a weapon type), the movement playing (`movement`, its `movementSource`) for the stride's sync. */
     step(dt, { plan, sources, hasGroup, stance, movement = null, movementSource = null, walkPref = null }) {
       if (plan) {
-        steady = !!plan.mean;   // SHIELD-STEADY
+        steady = !!plan.mean;
+        const swing = clamp01(plan.sway ?? 1);
+        sway = ease(sway, swing, LEFT_ARM_EASE.in, dt);
+        if (Math.abs(sway - swing) < 1e-3) sway = swing;
+        const target = plan.adapt ? 1 : 0;
+        adapt = ease(adapt, target, target ? LEFT_ARM_EASE.in : LEFT_ARM_EASE.out, dt);
+        if (Math.abs(adapt - target) < 1e-3) adapt = target;
         const type = plan.stance === 'bare' ? MW_WEAPON_TYPE.None : stance;   // the bare group, no short group
         const composed = plan.kind === 'stance' ? composeStanceGroup(plan.base, type, hasGroup) : composeMovementGroup(plan.base, type, hasGroup);
         const key = composed?.group ? `${composed.group}${plan.rigOrder ? '|rig' : ''}` : null;
@@ -220,17 +249,18 @@ export function createLeftArmLayer({ pickAnimSource, resetClip, composeMovementG
     /** The tracks to pose with: the base's, the mask's bones overlaid while the layer has weight. */
     tracks(base, mask) {
       if (!(w > 0) || !state || !source || !mask || !mask.size) return base;
-      // Source order chooses the raised arm; it must not cancel the walking trunk's own sway.
-      if (!memo || memo.base !== base || memo.overlay !== source.trackMap || memo.mask !== mask) {
-        memo = { base, overlay: source.trackMap, mask, tracks: weightedOverlayTracks(base, source.trackMap, mask) };
+      // A straight shield walk inherits the strafe's arm orientation, including its trunk frame.
+      if (!memo || memo.base !== base || memo.overlay !== source.trackMap || memo.mask !== mask || memo.adapt !== (adapt > 0)) {
+        memo = { base, overlay: source.trackMap, mask, adapt: adapt > 0, tracks: weightedOverlayTracks(base, source.trackMap, mask, adapt > 0, owner) };
       }
       return memo.tracks;
     },
-    /** The sampler to pose with while the layer has weight. */
-    sampler: () => (w > 0 && state ? sampler : null),
+    /** The sampler to pose with while the layer has weight; `inner` the sampler of the layer under it (LAYER-STACK) -
+     *  answered as it is while this layer has none. */
+    sampler(inner = null) { under = inner ?? sampleTrack; return w > 0 && state ? sampler : inner; },
     weight: () => w,
     group: () => group,
-    reset() { state = null; source = null; group = null; clock = 0; w = 0; memo = null; steady = false; },
+    reset() { state = null; source = null; group = null; clock = 0; w = 0; memo = null; steady = false; sway = 1; adapt = 0; },
   };
   return layer;
 }

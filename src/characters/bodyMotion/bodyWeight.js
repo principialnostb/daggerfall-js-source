@@ -1,3 +1,5 @@
+import { createFreeArms } from './freeArms.js';
+import { poseElbowSkin } from './elbowSkin.js';
 // @ts-check
 // BODY-WEIGHT (2026-10-27, MOTION-DOCTRINE pilot step 2, bible/05-Combat/Motion-Doctrine.md section 7): THE BODY'S MASS,
 // SHOWN. One number from what the body wears and holds - plate heavier than chain, chain than leather, a two-hander than
@@ -15,6 +17,8 @@ import { clearArms } from './armClearance.js';   // ARM-CLEARANCE: the elbows ou
 import { createBlowLegs } from './blowLegs.js';   // BLOW-LEGS: the body under a blow struck standing
 import { createArmouredSword } from './armouredSword.js';
 import { createTravelStride } from './travelStride.js';
+import { createFreshReturn } from './freshReturn.js';
+import { carryClassOf } from './carry.js';
 import { sampleTrack } from '../../formats/morrowind/mwAnim.js';
 import { loopWindow } from '../../combat/leftArmLayer.js';
 import { MW_UNITS_PER_METER } from '../../formats/morrowind/mwFirstPerson.js';
@@ -94,6 +98,8 @@ export function createBodyWeight() {
   const pitch = { x: 0, v: 0 }, roll = { x: 0, v: 0 };
   let weight = 0; let on = false; let slotMemo = null; let moving = 0; let armorW = 0; let clearOn = false;
   const legs = createBlowLegs();
+  const freshReturn = createFreshReturn();
+  const freeArms = createFreeArms();
   const sword = createArmouredSword();
   const travelStride = createTravelStride({ sampleTrack, loopWindow });
   let strideOn = false;   // RUN-STRIDE: last frame's switch, for the movement's rate (read before the frame's step)
@@ -141,6 +147,8 @@ export function createBodyWeight() {
      *  motion word (bodyMotion.js motionWord's - its blow, for BLOW-LEGS). */
     stepRig(dt, on, cam, armor, mwType, dead, word = null, moveState = null, moveSource = null, moveSpeed = 0) {
       frameDt = Math.max(0, dt);
+      freeArms.step(dt, !!on && !dead, word);
+      freshReturn.step(dt, !!word?.blow?.section, !!on && !dead && !word?.busy && carryClassOf(word ?? {}) === 'two');
       const mv = cam?.move ?? null;
       clearOn = !!on;
       const active = !!on && !dead && !!mv && mv.grounded !== false && !mv.swimming && !mv.levitating && !mv.climbing && !cam?.climb && !cam?.seat && !cam?.saddle;
@@ -164,9 +172,19 @@ export function createBodyWeight() {
     /** poseAssembly's `motion` slot with this layer after `inner` (the body-motion layer's): the lean on the trunk. */
     slot(inner) {
       if (slotMemo && slotMemo.inner === inner) return slotMemo.fn;
-      const strided = travelStride.slot(inner);   // RUN-STRIDE: the run's legs lengthened before the body motion sees them
+      // TEMP POSE-AUDIT: the legs after each stage - never committed
+      const cap = (tag, skeleton, pose, rootRef, skelMats) => {
+        const A = globalThis.__poseAudit; if (!A?.on) return;
+        const b = bodyOf(skeleton, rootRef, skelMats); if (!b) return;
+        const m = skelMats(skeleton, pose, rootRef, [b.bones.L.foot, b.bones.R.foot]), p = (r) => { const t = m.get(r)?.t; return t ? [t[0], t[1], t[2]] : null; };
+        (A.stage ??= {})[tag] = { pel: p(b.bones.pelvis), kL: p(b.bones.L.calf), kR: p(b.bones.R.calf), fL: p(b.bones.L.foot), fR: p(b.bones.R.foot) };
+      };
+      const tapped = inner ? (sk, po, ro, sm) => { cap('preMotion', sk, po, ro, sm); const r = inner(sk, po, ro, sm); cap('postMotion', sk, po, ro, sm); return r; } : inner;
+      const strided = travelStride.slot(tapped);   // RUN-STRIDE: the run's legs lengthened before the body motion sees them
       slotMemo = { inner, fn: (skeleton, pose, rootRef, skelMats) => {
+        cap('clip', skeleton, pose, rootRef, skelMats);
         const report = strided(skeleton, pose, rootRef, skelMats);
+        cap('stride', skeleton, pose, rootRef, skelMats);
         const lean = layer.lean(), sway = layer.sway();
         let mats = null;
         if (LEAN_ON && sway.roll > 1e-4) {
@@ -179,13 +197,17 @@ export function createBodyWeight() {
         leanTrunk(skeleton, pose, rootRef, skelMats, sword.pose());
         if (clearOn) leanTrunk(skeleton, pose, rootRef, skelMats, legs.trunkTurn());   // BLOW-TRUNK: the turn the hips leave
         if (clearOn) legs.apply(skeleton, pose, rootRef, skelMats);   // BLOW-LEGS: a standing blow's hips and feet
-        if (clearOn) clearArms(skeleton, pose, rootRef, skelMats, { armor: armorW, previous: elbowTurns, dt: frameDt });   // ARM-CLEARANCE, last: over the lean and the carry
+        cap('legs', skeleton, pose, rootRef, skelMats);   // TEMP POSE-AUDIT
+        if (clearOn) clearArms(skeleton, pose, rootRef, skelMats, { armor: armorW, previous: elbowTurns, dt: frameDt, held: report?.armAnatomy });   // ARM-CLEARANCE, last: over the lean and the carry
+        freshReturn.apply(skeleton, pose, rootRef, skelMats);
+        freeArms.apply(skeleton, pose, rootRef, skelMats);
+        poseElbowSkin(skeleton, pose, rootRef, skelMats);
         frameDt = 0;
         return report;
       } };
       return slotMemo.fn;
     },
-    reset() { elbowTurns.L = elbowTurns.R = 0; frameDt = 0; sword.reset(); legs.reset(); moving = 0; travel = null; yaw0 = null; vel.f = vel.r = 0; velPrev = null; pitch.x = pitch.v = roll.x = roll.v = 0; },
+    reset() { freeArms.reset(); freshReturn.reset(); elbowTurns.L = elbowTurns.R = 0; frameDt = 0; sword.reset(); legs.reset(); moving = 0; travel = null; yaw0 = null; vel.f = vel.r = 0; velPrev = null; pitch.x = pitch.v = roll.x = roll.v = 0; },
   };
   return layer;
 }

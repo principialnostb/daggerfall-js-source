@@ -80,7 +80,9 @@ export function seamSampler(under, sampleTrack, state, source, window) {
   const span = window.stop - window.start, w = Math.min(LOOP_SEAM.window, span * LOOP_SEAM.share);
   return (track, time) => {
     const s = under(track, time);
-    if (!track || track.__overlay || !(time > window.stop - w)) return s;
+    // Procedural composites must be sampled through their owning layer.
+    // They have no raw NIF key groups for seamOf to read.
+    if (!track || track.__overlay || track.__strikeTrunk || !(time > window.stop - w)) return s;
     const seam = seamOf(track, window, sampleTrack);
     return seam ? carryOverSeam(s, seam, smooth((time - (window.stop - w)) / w)) : s;
   };
@@ -108,7 +110,7 @@ export function smoothSampler(under, h = CLIP_SMOOTH.h, window = null) {
     // GUARD-STEP-BASE: a walking loop's neighbours belong to that loop, not the next group's keys.
     // Keep entry/exit segments and overlays on their own clocks.
     const span = window ? window.stop - window.start : 0;
-    const periodic = span > 0 && time >= window.start && time <= window.stop && !track?.__overlay;
+    const periodic = span > 0 && time >= window.start && time <= window.stop && !track?.__overlay && !track?.__strikeTrunk;
     const read = (t) => under(track, periodic ? window.start + ((t - window.start) % span + span) % span : t);
     const a = read(time - h), b = read(time), c = read(time + h);
     const mix = (x, y, z) => (x && y && z ? y.map((v, i) => 0.25 * x[i] + 0.5 * v + 0.25 * z[i]) : y);

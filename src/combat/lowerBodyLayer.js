@@ -1,3 +1,4 @@
+import { movingStrikeTracks, sampleMovingStrike } from './movingStrike.js';
 // @ts-check
 // LOWER-BODY (2026-10-27, MOTION-DOCTRINE pilot step 1, bible/05-Combat/Motion-Doctrine.md section 5): THE LEGS UNDER A
 // BLOW. The third-person frame poses one winning clip on every bone (combat/fpArm.js: action over movement over jump over
@@ -28,6 +29,7 @@ export const LOWER_BODY_EASE = Object.freeze({ in: 0.08, out: 0.12, swap: 0.15 }
 
 /** @type {WeakMap<object, Set<string>>} */
 const MASKS = new WeakMap();
+const MASK_RIGS = new WeakMap();
 
 /** RULE 25's LowerBody group on a skeleton: every bone not under "bip01 spine1" - the pelvis, the legs, the lower spine,
  *  a tail, the root (animation.cpp detectBlendMask's fallback). Empty for a skeleton with no "bip01 spine1" (a creature),
@@ -42,8 +44,16 @@ export function lowerBodyBones(skeleton) {
     const name = String(node?.name || '').toLowerCase();
     if (name && !upper.has(name)) mask.add(name);
   }
-  MASKS.set(skeleton, mask);
+  MASKS.set(skeleton, mask); MASK_RIGS.set(mask, skeleton);
   return mask;
+}
+
+/** SHIELD-RUN-LEGS: the upper body above the lower spine ("bip01 spine1" and under it), memoised per skeleton. */
+const UPPER = new WeakMap();
+export function upperBodyBones(skeleton) {
+  if (!skeleton || !skeleton.nodes) return new Set();
+  if (!UPPER.has(skeleton)) UPPER.set(skeleton, blendMaskBones(skeleton, 'bip01 spine1'));
+  return UPPER.get(skeleton);
 }
 
 /** WHO OWNS THE LEGS THIS FRAME: movement, else jump, continuously across an upper-body attack.
@@ -62,6 +72,7 @@ export function createLowerBodyLayer({ sampleTrack }) {
   let key = null; let prev = null; let mix = 1; let swapT = 0;
   let clipState = null; let clipSource = null; let clipSampler = sampleTrack; let lastRate = 1;
   const ownership = { weight: 0 };
+  let striking = false;
   const frameSamples = new Map();
   const seams = createLoopSeam({ sampleTrack, loopWindow });
   const walking = createDirectionalWalkSampler({ loopWindow });
@@ -71,6 +82,7 @@ export function createLowerBodyLayer({ sampleTrack }) {
     scale: a.scale != null && b.scale != null ? a.scale + (b.scale - a.scale) * t : b.scale ?? a.scale,
   });
   const sampler = (track, time) => {
+    if (track?.__strikeTrunk) return sampleMovingStrike(track, time, inner, sampler, striking);
     // Only this layer owns these wrappers; the left arm also uses __overlay.
     if (!track || track.__poseOwner !== ownership) return inner(track, time);
     // Process each clip at its OWN clock before mixing. The outer filter's time belongs to the weapon.
@@ -87,8 +99,9 @@ export function createLowerBodyLayer({ sampleTrack }) {
   };
   const layer = {
     /** Movement owns its lower bones continuously, including while the upper attack enters and leaves. */
-    step(dt, { on = true, third = false, action = null, hit = null, dead = null, movement = null, movementTracks = null, movementSource = null, jump = null, jumpTracks = null, jumpSource = null } = {}) {
+    step(dt, { on = true, third = false, strike = false, action = null, hit = null, dead = null, movement = null, movementTracks = null, movementSource = null, jump = null, jumpTracks = null, jumpSource = null } = {}) {
       frameSamples.clear();
+      striking = !!strike && !!movement && /^(weapononehand|weapontwohand|blunttwohand|weapontwowide|weaponspear)$/.test(action?.group ?? '');
       if (!on || !third || hit || dead) { layer.reset(); return 0; }
       const owner = lowerBodyOwner({ on, third, action: !!action, hit: !!hit, dead: !!dead, movement: !!movement, jump: !!jump });
       const state = owner === 'movement' ? movement : jump;
@@ -128,10 +141,10 @@ export function createLowerBodyLayer({ sampleTrack }) {
       if (!want && w < 1e-3) layer.reset();
       return w;
     },
-    stepRig(dt, on, built, action, hit, dead, movement, movementSource, jump, jumpSource) {
+    stepRig(dt, on, built, action, hit, dead, movement, movementSource, jump, jumpSource, strike = false) {
       const sourceOf = (source) => source ?? (built ? { trackMap: built.tracks, keys: built.keys } : null);
       const move = sourceOf(movementSource), airborne = sourceOf(jumpSource);
-      return layer.step(dt, { on, third: on, action, hit, dead, movement, movementTracks: move?.trackMap, movementSource: move,
+      return layer.step(dt, { on, third: on, strike, action, hit, dead, movement, movementTracks: move?.trackMap, movementSource: move,
         jump, jumpTracks: airborne?.trackMap, jumpSource: airborne });
     },
     tracks(base, mask) {
@@ -141,7 +154,7 @@ export function createLowerBodyLayer({ sampleTrack }) {
         for (const [name, t] of trackMap) if (mask.has(name) && t) out.set(name, {
           __overlay: t, __base: base?.get(name) ?? null, __prev: prev?.map?.get(name) ?? null, __poseOwner: ownership,
         });
-        memo = { base, overlay: trackMap, mask, prev, tracks: out };
+        memo = { base, overlay: trackMap, mask, prev, tracks: movingStrikeTracks(base, out, MASK_RIGS.get(mask)) };
       }
       return memo.tracks;
     },
@@ -153,7 +166,7 @@ export function createLowerBodyLayer({ sampleTrack }) {
     weight: () => w,
     reset() {
       trackMap = null; clock = 0; w = 0; memo = null; inner = sampleTrack; key = null; prev = null; mix = 1; swapT = 0;
-      clipState = null; clipSource = null; clipSampler = sampleTrack; lastRate = 1; ownership.weight = 0;
+      clipState = null; clipSource = null; clipSampler = sampleTrack; lastRate = 1; ownership.weight = 0; striking = false;
     },
   };
   return layer;

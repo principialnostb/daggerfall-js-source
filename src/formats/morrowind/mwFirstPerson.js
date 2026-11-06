@@ -1,3 +1,4 @@
+import { bindElbowSkin } from '../../characters/bodyMotion/elbowSkin.js';
 import { preserveOwnedPose } from './mwPoseContinuity.js';
 import { getBodyMorphs } from '../../characters/bodyMorphs.js';
 import { deformPlayerBodyGeometry, measureBodyFrame, isMorphedBodySlot, weldMorphedNormals } from '../../characters/bodyShape.js';   // BODY-SHAPE
@@ -2386,7 +2387,7 @@ export function bindPartsInto(assembly, parts) {
       }
       let bound;
       try {
-        bound = mod.bindPart(skeleton, nif, { ...(bone ? { attachBone: bone } : {}), ...(part.retargetSkinToBone ? { retargetSkinToBone: part.retargetSkinToBone } : {}), underNode: part.underNode, excludeNode: part.excludeNode });   // WS1: a subtree of the file
+        bound = bindElbowSkin(skeleton, mod.bindPart(skeleton, nif, { ...(bone ? { attachBone: bone } : {}), ...(part.retargetSkinToBone ? { retargetSkinToBone: part.retargetSkinToBone } : {}), underNode: part.underNode, excludeNode: part.excludeNode }));   // WS1: a subtree of the file
       } catch (err) {
         notes.push(`${part.slot} @ ${bone}: ${err.message}`);
         continue;

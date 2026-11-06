@@ -18,6 +18,7 @@
 // and out over the clip without a pop. Writes new entries into `pose` (never a mutation of the rest's shared ones).
 // Answers a small report, or null when nothing was posed.
 
+import { wristPole, balanceForearm } from './armAnatomy.js';
 import { solveReach, rotFrames, rotFromTo, rotFraction, rotAxisAngle, handFrame, orthonormal, rotationPart } from '../../combat/climbRig.js';
 import { algebra, clamp01, clamp, transpose, apply, mul, bodyTurn, fromColumns, bodyOf, turnOf, at, RAD } from './bodyKit.js';
 
@@ -181,7 +182,7 @@ export function solveBody(skeleton, pose, rootRef, skelMats, plan) {
     if (plan.trunk?.collar > 0) mats = holdCollars(skeleton, pose, mats, body, plan.trunk.collar * w, rootRef, skelMats);
     const frames = bodyFrames(body, mats);
     const req = frames ? plan.arms({ body, mats, frames, skeleton }) : null;
-    if (req && frames && plan.trunk) mats = leanUnder(skeleton, pose, mats, body, frames, plan.trunk, w, rootRef, skelMats);
+    if ((req || plan.externalArms) && frames && plan.trunk) mats = leanUnder(skeleton, pose, mats, body, frames, plan.trunk, w, rootRef, skelMats);
     if (req) {
       // HILT-HOLD: a haft held in both hands - the right first, then the left closed on the hilt where the right now
       // holds it, at full weight. Each eased to its own goal by the layer's weight, they parted mid-blend: a run's
@@ -191,18 +192,39 @@ export function solveBody(skeleton, pose, rootRef, skelMats, plan) {
       for (const side of hold ? ['R'] : ['L', 'R']) {
         const h = req[side];
         if (!h || !h.at) continue;
-        const wr = poseHand(skeleton, pose, mats, body, side, h, w);
+        const wr = poseHand(skeleton, pose, mats, body, side, h, w, hold ? plan.armTwist?.[side] : null);
         if (wr) report.reach[side] = len(sub(wr, h.at));
       }
       if (hold) {
+        report.armAnatomy = plan.armTwist ? { states: plan.armTwist, weight: w } : null;
         mats = skelMats(skeleton, pose, rootRef);
         // HILT-EASE (the owner's video, 2026-11-05: the hand held but jerked): the left goes from where the clip holds it
         // to the carry's grip by the layer's weight, both read on the right hand as it now stands. At full weight on the
         // first frame, it jumped each time the layer came in or went out around a blow.
-        const k = clamp01((req.L.w ?? 1) * w);
-        const grip = onRightHand(req.L, req.R, mats, body), own = clipL ? onRightHand(clipL.l, clipL.r, mats, body) : null;
+        // HILT-FULL (the owner's game, audited 2026-11-05: the left hand 6.4 units off its stance place on the hilt walking, 9
+        // running, 42 in a run after a blow): the hold eased by the layer's own weight alone (`plan.hold`: drawing,
+        // sheathing), never by the gait's grip share or a blow's return - those mixed in the clip's free arm
+        const k = clamp01(plan.hold ?? w);
+        let grip = onRightHand(req.L, req.R, mats, body);
+        // During a cross-fade the leading hand may still be in the free run's pose.
+        // Bring the weapon into the other arm's reach before closing that hand on it.
+        for (let pass = 0; grip && k > 0.999 && pass < 2; pass++) {
+          const shoulder = at(mats, body.bones.L.upper), d = sub(grip.at, shoulder), distance = len(d);
+          const reach = body.arms.L * 0.98;
+          if (!(distance > reach)) break;
+          const right = body.bones.R, frame = handFrame(mats, right, 'R');
+          if (!frame?.fingers || !frame.palm) break;
+          const atR = add(at(mats, right.hand), scale(d, reach / distance - 1));
+          poseHand(skeleton, pose, mats, body, 'R', { at: atR, fingers: frame.fingers, palm: frame.palm, pole: req.R.pole, w: 1 }, 1, plan.armTwist?.R, w);
+          mats = skelMats(skeleton, pose, rootRef);
+          grip = onRightHand(req.L, req.R, mats, body);
+        }
+        const own = clipL ? onRightHand(clipL.l, clipL.r, mats, body) : null;
         const L = grip && own ? blendHand(own, grip, k, at(mats, body.bones.L.upper)) : grip;
-        const wr = L ? poseHand(skeleton, pose, mats, body, 'L', L, 1) : null;
+        // Closing the grip is immediate; returning the elbow to its carry is not.
+        // Its clip plane follows the same carry share as the leading arm.
+        const heldL = plan.armTwist && L && own?.pole && L.pole ? { ...L, pole: swingWay(own.pole, L.pole, sub(L.at, at(mats, body.bones.L.upper)), w) } : L;
+        const wr = heldL ? poseHand(skeleton, pose, mats, body, 'L', heldL, 1, plan.armTwist?.L, w) : null;
         if (wr) report.reach.L = len(sub(wr, L.at));
       }
     }
@@ -337,7 +359,7 @@ function restRotOf(skeleton, body, ref) {
  * it was (nothing after reads the limb's own bones). Answers where the end's joint now stands, or null where the chain is
  * not upper - lower - end.
  */
-function reachLimb(skeleton, pose, mats, a, b, c, target, pole, end, hinge = null) {
+function reachLimb(skeleton, pose, mats, a, b, c, target, pole, end, hinge = null, anatomy = null) {
   const nb = skeleton.nodes.get(b), nc = skeleton.nodes.get(c);
   if (!nb || !nc || nb.parent !== a || nc.parent !== b) return null;
   const S = at(mats, a), E = at(mats, b), W = at(mats, c);
@@ -353,8 +375,10 @@ function reachLimb(skeleton, pose, mats, a, b, c, target, pole, end, hinge = nul
   const fore0 = norm(apply(Da, sub(W, E))), fore1 = norm(sub(sol.end, sol.mid));
   const Db = hinge && len(n1) > 1e-5 && len(hinge.fore) > 1e-5
     ? rotFrames(fore0, norm(apply(Da, apply(Rb, hinge.fore))), fore1, norm(n1)) : rotFromTo(fore0, fore1);
-  const Ra1 = mul(Da, Ra), Rb1 = mul(Db, mul(Da, Rb)), Rc0 = mul(Db, mul(Da, Rc));
+  const Ra1 = mul(Da, Ra), Rc0 = mul(Db, mul(Da, Rc));
+  let Rb1 = mul(Db, mul(Da, Rb));
   const Rc1 = (end && end(Rc0, mul(Db, Da), sol)) || Rc0;
+  if (anatomy) Rb1 = balanceForearm(Ra1, Rb1, Rc1, fore1, nb.rest.rotation, nc.rest.rotation, anatomy.weight, anatomy.state);
   const write = (ref, Rparent, R) => {
     const local = pose.get(ref) ?? skeleton.nodes.get(ref).rest;
     pose.set(ref, { rotation: orthonormal(Rparent ? mul(transpose(Rparent), R) : R), translation: local.translation, scale: local.scale });
@@ -377,7 +401,11 @@ function poseFoot(skeleton, pose, mats, body, side, f, w) {
   if (!(k > 0) || !f.at || !A) return null;
   const toe = f.toe ?? [0, 1, 0];
   const out = side === 'R' ? 1 : -1;
-  const pole = f.pole ? norm(f.pole) : norm(add([toe[0], toe[1], 0], [out * 0.12, 0, 0.02]));
+  const askedPole = f.pole ? norm(f.pole) : norm(add([toe[0], toe[1], 0], [out * 0.12, 0, 0.02]));
+  const hip = at(mats, limb.thigh), knee = at(mats, limb.calf), axis = norm(sub(A, hip));
+  const ownPole = sub(sub(knee, hip), scale(axis, dot(sub(knee, hip), axis)));
+  const target = lerp3(A, f.at, k);
+  const pole = len(ownPole) > 1e-6 ? swingWay(norm(ownPole), askedPole, sub(target, hip), k) : askedPole;
   const ax = body.footAxes[side];
   return reachLimb(skeleton, pose, mats, limb.thigh, limb.calf, limb.foot, lerp3(A, f.at, k), pole, (Rf, _D, sol) => {
     if (!ax || !f.toe) return null;
@@ -401,8 +429,9 @@ function poseFoot(skeleton, pose, mats, body, side, f, w) {
 
 /** HILT-HOLD: the left hand's request `l`, asked against the right's `r`, carried onto where the right hand now stands
  *  (its wrist and its fingers' and palm's ways) - the same place on the hilt, whatever share of its goal the right
- *  reached. Null where the right hand cannot be read. */
-function onRightHand(l, r, mats, body) {
+ *  reached. The elbow pole is a body-space direction, not a direction attached to the hilt.
+ *  Null where the right hand cannot be read. */
+export function onRightHand(l, r, mats, body) {
   const limb = body.bones.R;
   const W = at(mats, limb.hand), fr = handFrame(mats, limb, 'R');
   if (!W || !fr?.fingers || !fr.palm) return null;
@@ -412,7 +441,7 @@ function onRightHand(l, r, mats, body) {
   };
   const M = mul(basis(fr.fingers, fr.palm), transpose(basis(r.fingers, r.palm)));
   const dir = (v) => (v ? norm(apply(M, v)) : v);
-  return { ...l, at: add(W, apply(M, sub(l.at, r.at))), fingers: dir(l.fingers), palm: dir(l.palm), pole: dir(l.pole) };
+  return { ...l, at: add(W, apply(M, sub(l.at, r.at))), fingers: dir(l.fingers), palm: dir(l.palm), pole: l.pole };
 }
 
 /** HILT-EASE: the clip's own left hand (`l`: wrist, fingers, palm, elbow's way) and right (`r`) as requests, or null. */
@@ -459,7 +488,7 @@ export function swingWay(a, b, axis, k) {
  * clip's to the request's, the hand turned to its fingers' and its palm's ways as they stand once the reach carries
  * it (climbRig.js handFrame - the fingers' bases and the thumb's side).
  */
-function poseHand(skeleton, pose, mats, body, side, h, w) {
+function poseHand(skeleton, pose, mats, body, side, h, w, anatomy = null, shape = null) {
   const limb = body.bones[side];
   const k = clamp01((h.w ?? 1) * w);
   const S = at(mats, limb.upper), E = at(mats, limb.fore), W = at(mats, limb.hand);
@@ -471,14 +500,15 @@ function poseHand(skeleton, pose, mats, body, side, h, w) {
   // through nothing and flipped in a frame, and the fingers and the palm, mixed apart, twisted the wrist.
   const ask = h.pole ? norm(h.pole) : null;
   const reach = lerp3(W, h.at, k);
-  const pole = ask && len(clipElbow) > 0.5 ? swingWay(clipElbow, ask, sub(reach, S), k) : ask ?? clipElbow;
+  let pole = ask && len(clipElbow) > 0.5 ? swingWay(clipElbow, ask, sub(reach, S), k) : ask ?? clipElbow;
   const fr = h.fingers ? handFrame(mats, limb, side) : null;
+  if (anatomy && fr) pole = wristPole(S, reach, h.fingers, len(sub(E, S)), len(sub(W, E)), pole, shape ?? k);
   return reachLimb(skeleton, pose, mats, limb.upper, limb.fore, limb.hand, reach, pole, (Rh, D) => {
     if (!fr) return null;
     const f0 = norm(apply(D, fr.fingers)), p0 = fr.palm ? norm(apply(D, fr.palm)) : null;
     const whole = p0 && h.palm ? rotFrames(f0, p0, norm(h.fingers), norm(h.palm)) : rotFromTo(f0, norm(h.fingers));
     return mul(rotFraction(whole, k), Rh);
-  }, body.armHinge[side]);
+  }, body.armHinge[side], anatomy ? { weight: shape ?? k, state: anatomy } : null);
 }
 
 /**

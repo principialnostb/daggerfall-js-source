@@ -10,6 +10,7 @@
 import { bodyOf, turnOf, at, mul, transpose, algebra, ease } from './bodyKit.js';
 import { rotAxisAngle, orthonormal } from '../../combat/climbRig.js';
 import { bodyFrames } from './bodySolve.js';
+import { relaxHeldArms, heldPoseAnatomy } from './armAnatomy.js';
 
 const { sub, add, scale, dot, norm, len } = algebra;
 
@@ -23,7 +24,7 @@ const outOf = (p, c, a, b) => Math.hypot((p[0] - c[0]) / a, (p[1] - c[1]) / b);
 
 /** CLEAR THE ARMS of the trunk on a posed frame: `armor` the armour's weight 0..1 (bodyWeight.js bodyWeightOf's).
  *  Writes new entries into `pose`; answers the turns made { L, R } (radians), or null when the skeleton is no biped. */
-export function clearArms(skeleton, pose, rootRef, skelMats, { armor = 0, previous = null, dt = 0 } = {}) {
+export function clearArms(skeleton, pose, rootRef, skelMats, { armor = 0, previous = null, dt = 0, held = null } = {}) {
   const body = bodyOf(skeleton, rootRef, skelMats);
   if (!body || !body.bones?.L || !body.bones?.R) return null;
   const mats = skelMats(skeleton, pose, rootRef, [body.chest, body.bones.pelvis, body.bones.L.hand, body.bones.R.hand]);
@@ -77,6 +78,8 @@ export function clearArms(skeleton, pose, rootRef, skelMats, { armor = 0, previo
     pose.set(b.hand, { rotation: orthonormal(mul(transpose(mul(Q, Wf)), Wh)), translation: lh.translation, scale: lh.scale });
     out[side] = best;
   }
+  held = heldPoseAnatomy(pose) ?? held;
+  if (held) relaxHeldArms(skeleton, pose, rootRef, skelMats, held);
   return out;
 }
 

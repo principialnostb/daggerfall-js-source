@@ -1,3 +1,4 @@
+import { movingStrikeGain } from '../../combat/movingStrike.js';
 // @ts-check
 // BLOW-LEGS (2026-10-28, MOTION-DOCTRINE, bible/05-Combat/Motion-Doctrine.md 7f): THE BODY UNDER A BLOW STRUCK STANDING.
 // The owner: "when he stands and strikes the legs barely move, and there is no feeling of one whole movement" - and the
@@ -226,7 +227,8 @@ export function createBlowLegs() {
       // a running stride toward the attack's feet or pole, including any tail left by a walking blow.
       const struck = on && grounded && word.blow ? blowLegsPose({ ...word.blow, sword: word.shown && word.mwType === MW_WEAPON_TYPE.LongBladeTwoHand }, heavy) : null;
       const trunkTau = struck ? BLOW_LEGS_TIME.tau : BLOW_LEGS_TIME.release;   // LEGS-RELEASE: the trunk lets go as the hips do
-      const toTrunk = (yaw, pitch) => { trunk = { yaw: ease(trunk.yaw, yaw, trunkTau, dt), pitch: ease(trunk.pitch, pitch, trunkTau, dt) }; };
+      const gain = movingStrikeGain(word, standing);
+      const toTrunk = (yaw, pitch) => { trunk = { yaw: ease(trunk.yaw, yaw * gain.yaw, trunkTau, dt), pitch: ease(trunk.pitch, pitch * gain.pitch, trunkTau, dt) }; };
       if (grounded && word.running && !standing) { clearLegs(); toTrunk(struck?.yaw ?? 0, struck?.pitch ?? 0); return 0; }
       const asked = standing ? struck : null;
       // BLOW-MOVE: struck moving (or in the stop's first `after` seconds) - a share of the hips over the stride's own feet
@@ -290,7 +292,7 @@ export function createBlowLegs() {
         // still): the stride's foot solved with a pole of the toes alone put the knee elsewhere than the clip, and each
         // frame the layer let go it went back - the clip's own knee now steers the solve
         clipFeet[s] = { at: [...at(mats, ref)], toe, up: ax ? norm(apply(R, ax.up)) : [0, 0, 1], w: 1, stance: true, reach: len(sub(at(mats, ref), hip)) / leg,
-          pole: kneePole(hip, knee, toe, len(sub(knee, hip)) + len(sub(at(mats, ref), knee)), at(mats, ref)) };
+          pole: kneePole(hip, knee, toe, len(sub(knee, hip)) + len(sub(at(mats, ref), knee))) };
       }
       if (stand < 1e-3) { anchor = null; settle = null; stepped = false; fromMove = true; feet.L.reset(); feet.R.reset(); }
       // the anchors: where the stance stood the feet when the layer came on - the clip's own slides are not followed

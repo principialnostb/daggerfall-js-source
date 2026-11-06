@@ -3,7 +3,7 @@
 import { bodyOf, algebra, at, apply, ease, clamp01 } from './bodyKit.js';
 import { rotationPart } from '../../combat/climbRig.js';
 import { solveBody } from './bodySolve.js';
-const { add, sub, scale, len, norm, dot } = algebra;
+const { add, sub, scale, len, norm } = algebra;
 
 // A slightly lower centre leaves knee room at the low point: lifting it toward the mean
 // would hit the reach ceiling twice per step and retain a sharp vertical notch.
@@ -13,15 +13,10 @@ export const GUARD_WALK_LEVEL = Object.freeze({ share: 0.25, mean: 0.18, ease: 0
 /** GUARD-KNEE-POLE: the knee's way, the clip's, leaning a little toward the toes. Taken alone, knee minus hip on a nearly
  *  straight leg lies along the hip-to-ankle line, its small remainder can change side, and the solve folds the knee
  *  backward for two frames: a 25 cm leap of the rear knee on the back walk (the owner's 12-36-29 recording). */
-// KNEE-FORWARD (the owner's game, 2026-11-05, traced: once a stride the swinging left knee leapt 14 cm in a frame, foot
-// and hip still): the clip's knee a hair behind the hip-to-ankle line cancelled the lean, and the solve flipped sides.
-// Off that line, the clip's way is kept but for any part behind the toes - a knee never folds backward.
-export function kneePole(hip, knee, toe, length, ankle = null) {
-  const d = ankle ? norm(sub(ankle, hip)) : null;
-  const off = (v) => (d ? sub(v, scale(d, dot(v, d))) : v);
-  const t0 = off(norm(toe)), t = len(t0) > 1e-4 ? norm(t0) : norm(toe);
-  const v = off(sub(knee, hip)), back = Math.min(0, dot(v, t));
-  return norm(add(sub(v, scale(t, back)), scale(t, length * GUARD_KNEE_LEAN)));
+// The hint stays in rig space until solveBody has moved the hip. Flattening it against
+// the old hip-to-ankle line makes the knee flip when a combat walk releases into a run.
+export function kneePole(hip, knee, toe, length) {
+  return norm(add(sub(knee, hip), scale(norm(toe), length * GUARD_KNEE_LEAN)));
 }
 
 /** @param {{share: number, mean: number, ease: number, reach: number, settle: number}} [config] */
@@ -50,7 +45,7 @@ export function createGuardWalkBalance(config = GUARD_WALK_LEVEL) {
         if (horizontal < reach) z = Math.min(z, ankle[2] + Math.sqrt(reach * reach - horizontal * horizontal) - (hip[2] - mid[2]));
         const R = rotationPart(mats.get(b.foot).a), axes = body.footAxes[side];
         feet[side] = { at: [...ankle], toe: norm(apply(R, axes.fwd)), up: norm(apply(R, axes.up)),
-          pole: kneePole(hip, knee, apply(R, axes.fwd), length, ankle), stance: true, w: 1 };
+          pole: kneePole(hip, knee, apply(R, axes.fwd), length), stance: true, w: 1 };
       }
       if (Math.abs(z - mid[2]) < 1e-5) return null;
       return solveBody(skeleton, pose, root, skelMats, { w: 1, hip: { at: [mid[0], mid[1], z], keepTurn: true }, feet, legsOnly: true });

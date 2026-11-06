@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { movementPhaseTime } from '../../src/combat/movementContinuity.js';
-import { guardMovementGroup } from '../../src/combat/guardLocomotion.js';
+import { guardMovementGroup, armedUpperPlan } from '../../src/combat/guardLocomotion.js';
 import { MW_WEAPON_TYPE, MW_UNITS_PER_METER } from '../../src/formats/morrowind/mwFirstPerson.js';
 
 const keys = (group, start, left, right) => [
@@ -33,9 +33,10 @@ test('GUARD-CONTINUITY: only enabled stance-weapon locomotion chooses the accept
   assert.equal(guardMovementGroup('walkforward', MW_WEAPON_TYPE.LongBladeTwoHand, (g) => g === 'walkforward2c', true).group, 'walkforward2c');
   assert.equal(guardMovementGroup('walkforward', MW_WEAPON_TYPE.LongBladeOneHand, has, true).group, 'walkforward');
   assert.equal(guardMovementGroup('runforward', MW_WEAPON_TYPE.LongBladeTwoHand, (g) => g === 'runforward2c', true).group, 'runforward2c');
-  // SHIELD-WALK: a one-hander with a shield keeps its armed clips, the shield arm up
-  assert.equal(guardMovementGroup('walkforward', MW_WEAPON_TYPE.LongBladeOneHand, has, true, true).group, 'walkforward1h');
-  assert.equal(guardMovementGroup('runforward', MW_WEAPON_TYPE.LongBladeOneHand, has, true, true).group, 'runforward1h');
+  // SHIELD-RUN-LEGS: a shield takes no stance off the worked gait; its upper body is the armed clip's, laid over it
+  assert.equal(guardMovementGroup('runforward', MW_WEAPON_TYPE.LongBladeOneHand, has, true).group, 'runforward');
+  assert.deepEqual(armedUpperPlan({ on: true, shield: true, type: MW_WEAPON_TYPE.LongBladeOneHand, base: 'runforward', moving: true }), { kind: 'movement', base: 'runforward', stance: 'drawn', still: false, rigOrder: true, sway: 0.55 });
+  for (const o of [{ shield: false }, { attacking: true }, { on: false }, { type: MW_WEAPON_TYPE.LongBladeTwoHand }, { base: 'runback' }]) assert.equal(armedUpperPlan({ on: true, shield: true, type: MW_WEAPON_TYPE.LongBladeOneHand, base: 'runforward', moving: true, ...o }), null, JSON.stringify(o));
 });
 
 

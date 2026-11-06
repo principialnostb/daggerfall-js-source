@@ -419,8 +419,8 @@ import { createBodyWeight } from '../characters/bodyMotion/bodyWeight.js';   // 
 import { createBodyMotion, motionWord } from '../characters/bodyMotion/bodyMotion.js';   // BODY-MOTION: the third-person body's gait, carry and blows
 import { shieldGuardStance, carriesShield, isHandShieldSlot, shieldBashHold } from './shieldGuard.js';   // SHIELD-GUARD: the fists behind a shield - the stance, the bash
 import { createLeftArmLayer, leftArmPlan, leftArmModeOf, loopWindow } from './leftArmLayer.js';   // LEFT-ARM: the shield's and the free hand's arm over the clip, by weight
-import { guardMovementGroup } from './guardLocomotion.js';
-import { createLowerBodyLayer, lowerBodyBones } from './lowerBodyLayer.js';   // LOWER-BODY: the legs under a blow keep the stride (rule 26)
+import { guardMovementGroup, armedUpperPlan } from './guardLocomotion.js';   // SHIELD-RUN-LEGS: the stance's legs, the armed upper body
+import { createLowerBodyLayer, lowerBodyBones, upperBodyBones } from './lowerBodyLayer.js';   // LOWER-BODY: the legs under a blow keep the stride (rule 26)
 import { settleIdle, createTurnGate, blendSourceOf, createMoveGrace, carriesBlend } from './idleSettle.js';   // IDLE-SETTLE: a stop lands the idle where its legs are quiet
 import { createFpInertia } from './fpInertia.js';   // FP-INERTIA: the first-person hands carry weight
 import { createLoopSeam } from './loopSeam.js';   // LOOP-SEAM: a loop's stop carried to its start
@@ -5110,6 +5110,7 @@ export function createFpArm({ playerAppearance = false } = {}) {
   // hand, but the shield arm borrows the left strafe's pose - and the fists behind a shield and a one-hander's free hand
   // their own - laid over the clip by weight, eased on and off
   const leftArm = createLeftArmLayer({ pickAnimSource, resetClip, composeMovementGroup, composeStanceGroup, sampleTrack });
+  const upperBody = createLeftArmLayer({ pickAnimSource, resetClip, composeMovementGroup, composeStanceGroup, sampleTrack });   // SHIELD-RUN-LEGS: the armed upper body over the stance's legs
   const lowerBody = createLowerBodyLayer({ sampleTrack });   // LOWER-BODY (combat/lowerBodyLayer.js)
   // MW-D39: THE FOURTH SLOT - JUMP. Priority_Jump sits BELOW
   // Priority_Movement in the reference's enum (character.hpp:34-35),
@@ -6610,7 +6611,7 @@ export function createFpArm({ playerAppearance = false } = {}) {
       && movementBase === base && movementStance === stance);
     if (fresh) movementClipPreference = preferenceKey;
     if (fresh) {
-      const composed = guardMovementGroup(base, stance, hasGroup, viewMode === 'third' && modSetting('morrowind-animation', 'MotionDoctrine') !== 0, carriesShield(rig()));   // SHIELD-WALK
+      const composed = guardMovementGroup(base, stance, hasGroup, viewMode === 'third' && modSetting('morrowind-animation', 'MotionDoctrine') !== 0);
       if (!composed.group) {
         if (movementState) { resetMovement(); resetIdle(); }   // :701-707 resets BOTH
         movementBase = base; movementStance = stance;
@@ -8566,6 +8567,8 @@ export function createFpArm({ playerAppearance = false } = {}) {
       // LEFT-ARM: the shield's or the free hand's arm, on the stride the movement now stands at
       leftArm.step(dt, { plan: leftArmPlan({ mode: leftArmMode(), view: viewMode, moving: !!movementState, base: movementBase, attacking: attackingNow(), jumping: !!jumpState, bashing: blowBash && attackingNow() }),
         sources: rig()?.sources, hasGroup, stance: movementState ? movementStance : stanceOf(), movement: movementState, movementSource, walkPref: movementClipPreference });   // SHIELD-STRAFE-SOURCE
+
+      upperBody.step(dt, { plan: armedUpperPlan({ on: viewMode === 'third' && modSetting('morrowind-animation', 'MotionDoctrine') !== 0, shield: carriesShield(rig()), type: movementStance, base: movementBase, moving: !!movementState, attacking: attackingNow() }), sources: rig()?.sources, hasGroup, stance: movementStance, movement: movementState, movementSource, walkPref: movementClipPreference });   // SHIELD-RUN-LEGS
       // The jump plays at speedmult 1.0 (character.cpp:528-531 pass
       // 1.0f) - no rate scaling, unlike movement.
       if (jumpState) advanceClip(jumpState, (jumpSource || rig()).keys, dt, null);
@@ -8578,7 +8581,7 @@ export function createFpArm({ playerAppearance = false } = {}) {
       if (torchState) advanceClip(torchState, (torchSource || rig()).keys, dt, null);
       aimFactor = aimingFactor(aimFactor, accurateAiming(upper), dt);
       // LOWER-BODY: under a third-person blow the legs are the movement's or the jump's, at their clocks (rule 26)
-      lowerBody.stepRig(dt, modSetting('morrowind-animation', 'MotionDoctrine') !== 0 && viewMode === 'third', thirdBuilt, actionState, hitState, deathState, movementState, movementSource, jumpState, jumpSource);
+      lowerBody.stepRig(dt, modSetting('morrowind-animation', 'MotionDoctrine') !== 0 && viewMode === 'third', thirdBuilt, actionState, hitState, deathState, movementState, movementSource, jumpState, jumpSource, !!attackType && attackingNow());
       // BODY-MOTION: its clocks, after the clips so a blow reads this frame's section (a frame that does not pose still walks)
       // the word the layer reads, a line for each of what it says: the body, its blow, its hands (AUDIT BODY-MOTION RIG-10)
       motion.step(dt, motionWord({
@@ -8623,7 +8626,7 @@ export function createFpArm({ playerAppearance = false } = {}) {
         // LEFT-ARM (combat/leftArmLayer.js): the shield's or the free hand's arm over the clip, by its weight - never over
         // the recoil or the fall, which move the whole body. The shield and carried torch share the left-hand slot; never
         // nest their clocked overlays. The original torch path is otherwise unchanged.
-        const thirdTracks = state !== hitState && state !== deathState ? leftArm.tracks(tBase, t.leftArm) : tBase;
+        const thirdTracks = state !== hitState && state !== deathState ? leftArm.tracks(upperBody.tracks(tBase, upperBodyBones(t.arm.skeleton)), t.leftArm) : tBase;   // SHIELD-RUN-LEGS: under the shield's arm
         const tOverlay = thirdTracks === tBase && torchState && torchSource && !deathState && t.leftArm && t.leftArm.size;
         if (tOverlay) overlayClock = torchState.time;
         // HT-WAIST: the lantern at the waist swings on the frame's motion before the body is posed around it - on the
@@ -8659,7 +8662,7 @@ export function createFpArm({ playerAppearance = false } = {}) {
             : 1;
           poseAssembly(t.arm, {
             tracks: lowerBody.tracks(tOverlay ? overlayFor(thirdTracks, t.leftArm) : thirdTracks, lowerBodyBones(t.arm.skeleton)),   // LOWER-BODY
-            sampleTrack: loopSeam.sampler(lowerBody.sampler(thirdTracks !== tBase ? leftArm.sampler() : tOverlay ? overlaySample : sampleTrack), state, poseSource, modSetting('morrowind-animation', 'MotionDoctrine') !== 0),   // LOOP-SEAM
+            sampleTrack: loopSeam.sampler(lowerBody.sampler(thirdTracks !== tBase ? leftArm.sampler(upperBody.sampler()) : tOverlay ? overlaySample : sampleTrack), state, poseSource, modSetting('morrowind-animation', 'MotionDoctrine') !== 0),   // LOOP-SEAM
             time: poseTime(state),   // MS1: a backhand's window runs backwards
             blendFrom: thirdBlendFrom,
             blendWeight: thirdBlendWeight,
@@ -8675,6 +8678,20 @@ export function createFpArm({ playerAppearance = false } = {}) {
             aim: cam?.pitch && upper > UPPER_BODY.WeaponEquipped ? spineAimSlot(-cam.pitch * spinePitchFactor({ upper: UPPER_BODY_NAME[upper], weaponType: stanceOf(), group: weaponGroup, time: actionState ? actionState.time : -1, startTime: keyTime(attackKeys(attackType).windUp.start), minAttackTime: keyTime(attackKeys(attackType).minAttack), completion: clipCompletion(actionState) })) : null,
             skin: !thirdSkinReady(t),   // MWNPC1: the skin in the vertex shader - the pose is the skeleton alone
           });
+          // TEMP POSE-AUDIT: per-frame bones and layers for the automated check - never committed
+          const AUD = globalThis.__poseAudit;
+          if (AUD?.on && t.arm.mats && AUD.frames.length < (AUD.max ?? 30000)) {
+            const sk = t.arm.skeleton;
+            if (AUD.sk !== sk) { AUD.sk = sk; AUD.refs = {}; for (const [ref, n] of sk.nodes) AUD.refs[String(n.name ?? '').toLowerCase()] = ref; }
+            const P = {}, R = {};
+            for (const nm of ['bip01', 'bip01 pelvis', 'bip01 spine2', 'bip01 l thigh', 'bip01 l calf', 'bip01 l foot', 'bip01 r thigh', 'bip01 r calf', 'bip01 r foot', 'bip01 l upperarm', 'bip01 l forearm', 'bip01 l hand', 'bip01 r upperarm', 'bip01 r forearm', 'bip01 r hand', 'weapon bone']) {
+              const m = t.arm.mats.get(AUD.refs[nm]); if (!m) continue;
+              P[nm] = [m.t[0], m.t[1], m.t[2]];
+              if (/hand|foot|forearm|weapon|calf|thigh|upperarm/.test(nm)) R[nm] = Array.from(m.a);
+            }
+            AUD.frames.push({ t: performance.now(), dt, upper: UPPER_BODY_NAME[upper], move: movementState?.group ?? null, base: movementBase, act: actionState?.group ?? null, actT: actionState ? actionState.time : null,
+              type: thirdBuilt?.mwType, shield: carriesShield(rig()), ms: motion.status?.(), legs: bodyWeight.legs?.(), la: { w: leftArm.weight(), g: leftArm.group() }, bw: thirdBlendWeight, cam: cam?.move ? { speed: cam.move.speed, running: !!cam.move.running, fwd: cam.move.forward, str: cam.move.strafe, grounded: cam.move.grounded } : null, P, R, stage: AUD.stage ? JSON.parse(JSON.stringify(AUD.stage)) : null, ub: { w: upperBody.weight(), g: upperBody.group() } });
+          }
           // Apply cloth after the pose has updated the rig, and before the mesh
           // upload. Running it before poseAssembly lets the pose overwrite the
           // simulated vertex positions in the same frame.

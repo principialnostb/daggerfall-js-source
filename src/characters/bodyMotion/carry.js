@@ -70,7 +70,7 @@ export const TWO_HAND_CLOSE = Object.freeze({ two: -0.2 });
 export const TWO_HAND_STILL = Object.freeze({ two: -0.35 });
 /** GRIP-ANATOMY: how far (degrees, about the blade) a two-hander's left fist turns round the hilt off the right's mirror in
  *  the still gaits - its knuckles toward the left, so the forearm comes to it from outside the body. */
-export const LEFT_FIST_ROLL = Object.freeze({ idle: -70, walk: -40 });
+export const LEFT_FIST_ROLL = Object.freeze({ idle: -70, walk: -70, run: -70 });
 
 // A row: [flex, abduct, elbow, twist] degrees, `swing` the share of the gait's arm swing, `blade`/`edge` the weapon's
 // ways in the chest frame (right arm), `gaitElbow` how much of the gait's own elbow it rides. `grip: true` - the LEFT
@@ -451,8 +451,9 @@ export function carryHands(cls, gp, ctx, { armW = { L: 1, R: 1 }, shares: given 
       // 32-38, the elbow outside the shoulder's line
       const walkShare = still > 0 ? shares.walk / still : 0;   // walking, the left elbow a little higher and ahead: out of the cuirass's side
       haf.pole = norm(add(scale(F.right, lerp(-0.55, -1, still)), add(scale(F.up, lerp(-0.3, lerp(-0.3, -0.1, walkShare), still)), scale(F.fwd, lerp(0.8, lerp(0.1, 0.3, walkShare), still)))));
-      if (still > 0) {
-        const b = norm(out.R.frame.blade), G = add(out.grip.R, scale(b, haf.along * body.arm)), Q = rotAxisAngle(b, ((LEFT_FIST_ROLL.idle * shares.idle + LEFT_FIST_ROLL.walk * shares.walk) / still) * RAD * still);
+      const fistRoll = LEFT_FIST_ROLL.idle * (shares.idle + shares.sneak) + LEFT_FIST_ROLL.walk * shares.walk + LEFT_FIST_ROLL.run * shares.run;
+      if (Math.abs(fistRoll) > 1e-6) {
+        const b = norm(out.R.frame.blade), G = add(out.grip.R, scale(b, haf.along * body.arm)), Q = rotAxisAngle(b, fistRoll * RAD);
         Object.assign(haf, { at: add(G, apply(Q, sub(haf.at, G))), fingers: apply(Q, haf.fingers), palm: apply(Q, haf.palm) });
       }
       // closed on the haft by the haft's own share, eased off the free arm the other rows give it

@@ -163,7 +163,7 @@ test('LOWER-BODY preserves the shield arm sampler and its clock through the comp
 
 
 test('SHIELD-STRIDE: walking and running straight keep the live strafe, picked as a strafe of that gait picks it (SHIELD-RUN-AS-WALK)', async () => {
-  const { createLeftArmLayer, leftArmPlan } = await import('../../src/combat/leftArmLayer.js');
+  const { createLeftArmLayer, leftArmPlan, SHIELD_WALK_SWAY } = await import('../../src/combat/leftArmLayer.js');
   const { pickAnimSource, composeMovementGroup, composeStanceGroup, MW_WEAPON_TYPE } = await import('../../src/formats/morrowind/mwFirstPerson.js');
   const { resetClip } = await import('../../src/formats/morrowind/mwAnim.js');
   const arm = 'bip01 l hand';
@@ -183,13 +183,16 @@ test('SHIELD-STRIDE: walking and running straight keep the live strafe, picked a
         stance: MW_WEAPON_TYPE.LongBladeOneHand, movement, movementSource: pack });
       seen.push(layer.sampler()(layer.tracks(new Map(), new Set([arm])).get(arm), time).translation);
     }
-    assert.deepEqual(seen.map((row) => row.map((v) => Math.round(v * 1e9) / 1e9)), [[20, 0.2, 0], [20, 0.6, 0]]);
+    const sway = base.startsWith('walk') ? SHIELD_WALK_SWAY : 1;
+    const expected = [0.2, 0.6].map((t) => [20, Math.round((0.5 + (t - 0.5) * sway) * 1e9) / 1e9, 0]);
+    assert.deepEqual(seen.map((row) => row.map((v) => Math.round(v * 1e9) / 1e9)), expected);
+    assert.ok(seen[1][1] > seen[0][1], 'the quieter walk still animates, rather than pinning one pose');
   }
 });
 
 
-test('SHIELD-WALK: the raised walking arm rides the current trunk instead of cancelling its sway', async () => {
-  const { createLeftArmLayer, leftArmPlan, ARM_ROOT, ARM_CHAIN } = await import('../../src/combat/leftArmLayer.js');
+test('SHIELD-WALK: the strafe arm keeps its authored orientation and quieter live swing on a different trunk', async () => {
+  const { createLeftArmLayer, leftArmPlan, ARM_ROOT, ARM_CHAIN, SHIELD_WALK_SWAY } = await import('../../src/combat/leftArmLayer.js');
   const { pickAnimSource, composeMovementGroup, composeStanceGroup, MW_WEAPON_TYPE } = await import('../../src/formats/morrowind/mwFirstPerson.js');
   const { resetClip } = await import('../../src/formats/morrowind/mwAnim.js');
   const raw = (tr, time) => {
@@ -198,7 +201,7 @@ test('SHIELD-WALK: the raised walking arm rides the current trunk instead of can
   };
   const base = new Map(ARM_CHAIN.map((name) => [name, { rate: name === 'bip01 spine2' ? 1 : 0 }]));
   const overlay = new Map(ARM_CHAIN.map((name) => [name, { angle: 0 }]));
-  base.set(ARM_ROOT, { angle: 0 }); overlay.set(ARM_ROOT, { angle: 0.3 });
+  base.set(ARM_ROOT, { angle: 0 }); overlay.set(ARM_ROOT, { angle: 0.3, rate: 0.5 });
   const source = { name: 'game', trackMap: overlay, groupSet: new Set(['walkleft1h']),
     keys: [{ time: 0, text: 'walkleft1h: start' }, { time: 1, text: 'walkleft1h: stop' }] };
   for (const direction of ['walkforward', 'walkback']) {
@@ -210,7 +213,8 @@ test('SHIELD-WALK: the raised walking arm rides the current trunk instead of can
         sources: [source], hasGroup: () => true, stance: MW_WEAPON_TYPE.LongBladeOneHand, movement, movementSource: { keys: [] } });
       const q = layer.sampler()(layer.tracks(base, new Set([ARM_ROOT])).get(ARM_ROOT), time).rotation;
       const worldAngle = time + 2 * Math.atan2(q[3], q[0]);
-      assert.ok(Math.abs(worldAngle - (time + 0.3)) < 1e-6, `${direction}: the raised arm follows the trunk at ${time}`);
+      const authored = 0.3 + 0.5 * (0.5 + (time - 0.5) * SHIELD_WALK_SWAY);
+      assert.ok(Math.abs(worldAngle - authored) < 1e-5, `${direction}: the arm keeps the strafe frame, not an extra ${time} radians of trunk sway`);
     }
   }
 });

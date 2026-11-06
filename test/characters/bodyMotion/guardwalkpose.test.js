@@ -124,17 +124,17 @@ test('GUARD-WALK-POSE: lowering the guard preserves ankle targets and foot orien
 test('GUARD-KNEE-POLE: a nearly straight leg whose clip knee strays behind its line still bends toward the toes; a bent knee keeps its own way', () => {
   const hip = [0, 0, 100], ankle = [0, 0, 10], toe = [0, 1, 0], length = 90;
   const towardToes = (knee) => {
-    const pole = kneePole(hip, knee, toe, length, ankle), d = [0, 0, -1], along = pole[0] * d[0] + pole[1] * d[1] + pole[2] * d[2];
+    const pole = kneePole(hip, knee, toe, length), d = [0, 0, -1], along = pole[0] * d[0] + pole[1] * d[1] + pole[2] * d[2];
     return pole[1] - along * d[1];
   };
   assert.ok(ankle[2] < hip[2]);
   assert.ok(towardToes([0, -0.5, 55]) > 0, 'behind the line by a hair: the toes decide');
   assert.ok(towardToes([0, 12, 55]) > 0, 'a bent knee stays forward');
-  assert.ok(towardToes([0, -20, 55]) > 0, 'KNEE-FORWARD: a knee never folds backward');
-  // KNEE-FORWARD: the knee swept from behind the line to before it - the pole turns smoothly, never flips
+  assert.ok(towardToes([0, -20, 55]) < 0, 'a deeply bent clip knee keeps its side even when the swinging foot points elsewhere');
+  // The full hint stays smooth across the old ankle line; the solver projects it after the hip moves.
   let last = null, turn = 0;
   for (let y = -20; y <= 20; y += 0.25) {
-    const pole = kneePole(hip, [3, y, 55], toe, length, ankle);
+    const pole = kneePole(hip, [3, y, 55], toe, length);
     if (last) turn = Math.max(turn, Math.acos(Math.min(1, pole.reduce((s, v, i) => s + v * last[i], 0))));
     last = pole;
   }
@@ -156,5 +156,45 @@ test('GUARD-WALK-LEVEL: the partial skeleton walks answer the same pose as whole
   for (const [ref, local] of partial) {
     assert.deepEqual([...local.rotation], [...whole.get(ref).rotation], `rotation of ${ref}`);
     assert.deepEqual([...local.translation], [...whole.get(ref).translation], `translation of ${ref}`);
+  }
+});
+
+
+test('GUARD-RUN-KNEE: releasing the combat walk into a run does not flip either knee while the hip settles', () => {
+  for (const hz of [30, 60, 120]) for (const type of [MW_WEAPON_TYPE.LongBladeOneHand, MW_WEAPON_TYPE.LongBladeTwoHand]) {
+    for (const [walk, run, forward] of [['walkforward', 'runforward', 1], ['walkback', 'runback2c', -1]]) {
+      for (const phase of [0, 1 / 6, 0.5, 0.75]) {
+        const sk = skeleton(), body = bodyOf(sk, GRAPH_ROOT, sm), layer = createBodyWeight(), motion = createBodyMotion();
+        const lower = createLowerBodyLayer({ sampleTrack }), mask = lowerBodyBones(sk);
+        let state = resetClip(keys, walk, { loopFallback: true, loopCount: Infinity }), previous = null, previousRaw = null;
+        for (let f = 0; f < hz * 3; f++) {
+          const running = f >= hz * 2, speed = running ? 8.1 : 4.4;
+          if (f === hz * 2) {
+            state = resetClip(keys, run, { loopFallback: true, loopCount: Infinity });
+            const win = loopWindow(state, keys);
+            state.time = win.start + phase * (win.stop - win.start);
+          }
+          advanceClip(state, keys, 1.36 / hz);
+          const cam = { move: { speed, running, forward, grounded: true } }, word = walkingWord(cam, true, type);
+          lower.stepRig(1 / hz, true, null, null, null, null, state, source, null, null);
+          motion.step(1 / hz, word);
+          layer.stepRig(1 / hz, true, cam, [], type, false, word, state, source, animVelocity(keys, trackMap.get(sk.nodes.get(accumRootRef(sk, trackMap)).name.toLowerCase()), state.group));
+          const pose = poseSkeleton(sk, lower.tracks(trackMap, mask), lower.sampler(sampleTrack), state.time, { accumRoot: accumRootRef(sk, trackMap) });
+          const knees = () => {
+            const mats = sm(sk, pose, GRAPH_ROOT), pelvis = mats.get(body.bones.pelvis).t;
+            return ['L', 'R'].map((side) => sub(mats.get(body.bones[side].calf).t, pelvis));
+          };
+          const raw = knees();
+          layer.slot(motion.slot)(sk, pose, GRAPH_ROOT, sm);
+          const solved = knees();
+          if (previous && f > hz * 2) for (let side = 0; side < 2; side++) {
+            const extra = dist(solved[side], previous[side]) - dist(raw[side], previousRaw[side]);
+            assert.ok(extra < body.leg * 0.12 * 60 / hz,
+              `${hz} Hz ${type} ${walk}->${run} phase ${phase} ${side ? 'R' : 'L'} frame ${f}: added knee jump ${extra.toFixed(2)}`);
+          }
+          previous = solved; previousRaw = raw;
+        }
+      }
+    }
   }
 });

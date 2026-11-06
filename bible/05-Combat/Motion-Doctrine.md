@@ -373,7 +373,7 @@ clicked a second apart is the stance's, blended both ways. Two leaps, in every b
 - **The entry, still** - the blade 0.41 m, the right hand 0.27 m on the blow's first frame. BLOW-ENTRY (7c) eased the
   carry by `entry`, but its weight is `w * back * entry` and BLOW-RETURN's `back` reads `sinceBlow`, which a blow holds
   at 0: the carry was multiplied out in the first frame and the ease worked on nothing. The entry now lets go of the
-  carry as it stood when the blow came (src/characters/bodyMotion/bodyMotion.js:"const back = bp ? entryBack : backOf(sinceBlow);").
+  carry as it stood when the blow came (src/characters/bodyMotion/bodyMotion.js:"const back = activeBlow ? entryBack : backOf(sinceBlow);").
 - **SECTION-SEAM** - the blade 0.31 m, the shield's hand 0.16 m in one frame where the release met the follow-through:
   this pack's "small follow start" is keyed 0.067 s past its "hit", and the sections of one blow blended in 0 s. A seam
   wider than `SECTION_SEAM.tolerance` (0.01 file s) between where a section stopped and the next starts is now blended
@@ -850,3 +850,294 @@ axes onto the solved bend plane, rather than deriving the hinge from an animated
 or already twisted. A regression perturbs the source forearm and checks both solved hinge axes.
 This continues the third-person presentation departure from DFU `WeaponManager.UpdateHands` recorded above;
 all four hosts inherit the shared modules. Visual acceptance of these refinements remains pending.
+
+
+**HAFT-AIR-CONTINUITY / ELBOW-BODY-FRAME** (2026-11-05, owner's 15-18-23 recording):
+comparison with all-animations found that the newer second-hand retarget rotated the elbow pole together with the
+right hand. The grip's position and orientation follow the hilt; the pole remains a direction in the body frame
+(`src/characters/bodyMotion/bodySolve.js:"export function onRightHand(l, r, mats, body) {"`).
+A scripted run/stop with loss of ground contact also reproduced a grip separation of 18.2 rig units: AIR_GRACE let
+the carry fade off after 0.2 seconds in the air, blending the free clip hand into the two-handed hold. A drawn close
+two-handed carry now remains active while airborne; equip, recoil, death, swimming and levitation retain their gates.
+In the same retail-clip run/stop probe, after the initial equip settles, the maximum off-axis grip error falls
+from 18.2 to 0.713 rig units. This measures the attachment frames, not visual acceptance of the skinned hands.
+`test/characters/bodyMotion/gripcontinuity.test.js` measures the second grip's actual attachment against the weapon
+axis across running, loss of ground, stopping and landing, rather than only a requested wrist target.
+This continues the third-person presentation departure from DFU WeaponManager.UpdateHands; no combat law changes.
+world.js, exterior.js, worldModes.js and dungeonContext.js inherit the shared motion modules; no host grows.
+The owner's visual acceptance remains pending. Trouser skinning and the clearance search are unchanged by this fix.
+
+
+**POST-ATTACK-GRIP / RUN-LEG-KEYS** (2026-11-05, owner's remaining free-run mixing and trouser-leg stutter):
+the fading record of a completed/interrupted blow kept resetting the carry return clock and could continue to gate
+out the carry over the free run. Entry/return now follow the live blow, while its fading record remains available
+for the existing stance recovery. Before closing the second grip, an unreachable target brings the leading hand
+and weapon toward the other shoulder's reachable sphere; the second wrist no longer silently clamps short of it.
+The grip regression includes both completion and interruption of a running slash and measures the actual attachment.
+Running smoothing now wraps its own loop, as walking already did, avoiding neighbouring groups at its boundaries.
+A 0.04-second kernel rounds only the four thigh/calf tracks on their owned running clock; pelvis, weapon and upper
+tracks bypass it. Repeated bone reads reuse the sample. At 60 Hz with 1.7x clip playback and the full current leg
+pipeline, the peak second difference of the knee relative to the pelvis fell from 5.98 to 4.16 rig units on retail
+and from 3.37 to 2.70 on MAO; the stride amplifies the source's corners. These are numerical probes, not visual
+acceptance of trouser skinning. Tests cover the loop boundary, key corner, clock and unaffected track routing.
+This continues the presentation departure from DFU WeaponManager.UpdateHands / PlayerMotor, with travel unchanged.
+world.js, exterior.js, worldModes.js and dungeonContext.js inherit shared modules; no host wiring changes.
+The owner's in-game acceptance of the remaining hand and trouser symptoms is still pending.
+
+
+**BASELINE-RUN-RECHECK** (2026-11-05, owner's 16-06-04 recording and rejection of the leg result):
+the extra running-leg kernel and running-loop smoothing experiment above are withdrawn. Their numerical reduction
+of knee acceleration did not establish a fix for the visible trouser crease; the running samplers return to
+all-animations' behaviour. The later keepFeet and knee-pole changes remain separate differences under investigation.
+The second fist now retains the standing roll (-70 degrees) relative to the hilt in walking and running too:
+the previous -70/-40/0 schedule explicitly rotated it around the weapon on gait changes. The grip's attachment
+constraints remain. A regression measures fist orientation in the weapon frame across the three gaits.
+This remains the existing articulated-body departure from DFU WeaponManager.UpdateHands. Shared modules serve
+world.js, exterior.js, worldModes.js and dungeonContext.js; no host changes. Visual acceptance is pending;
+the visible trouser-leg fault is not marked fixed.
+
+
+**GUARD-RUN-KNEE** (2026-11-05, owner: the left leg still snaps, as an earlier all-animations fault):
+
+The remaining transition fault is reproduced with MAO's real walking/running tracks on the retail hierarchy,
+through lower-body ownership, travel stride and body motion. KNEE-FORWARD flattened the knee hint against the
+current hip-to-ankle line before the balance layer moved the hip. Reprojection after that move could cross the
+limb axis and put the knee on its opposite side while the combat walk released into running. Restore
+all-animations' full hip-to-knee hint plus its small toe bias in
+`guardWalkBalance.js:"export function kneePole(hip, knee, toe, length) {"`.
+A deeply bent clip knee retains its own side; the toe bias only resolves a nearly straight knee, rather than
+forcing every swinging knee toward the foot's current orientation. The same hint remains shared by moving blows.
+The real-clip regression sweeps forward/backward transitions, one-/two-handed weapons and 30/60/120 Hz.
+Putting the rejected projection back makes this regression fail on the left knee; the restored calculation passes,
+as do the grip-continuity tests. This is the existing presentation departure from DFU WeaponManager.UpdateHands /
+PlayerMotor: the imported articulated body is our presentation, with motor travel unchanged. The shared modules
+serve world.js, exterior.js, worldModes.js and dungeonContext.js without host changes. Visual acceptance of the
+owner's precise symptom is still pending; arm rolling and garment appearance are not certified by this test.
+
+
+**SHIELD-GUARD-SWAY** (2026-11-05, owner: the shield arm should stand as it does in lateral animations,
+with less excessive swaying; all-animations was the preferred visual reference):
+
+The forward/backward combat walk uses the raised lateral arm in its authored trunk frame, instead of adding the
+straight armed trunk's turns to that arm. The correction is written at the left clavicle; the torso itself is
+unchanged. The arm and its reference trunk retain 45 percent of their live cycle around its mean, rather than
+holding a frozen pose. The adaptation and swing share ease in and out through the existing layer times.
+`leftArmLayer.js:"export const SHIELD_WALK_SWAY = 0.45;"` controls only a shield's straight walking plan.
+Running keeps its accepted plan, lateral movement its own clip, and attacks/bashes their existing ownership.
+This is an adjustment of the existing articulated-body presentation departure from DFU WeaponManager.UpdateHands /
+PlayerMotor: imported third-person arm posing is our presentation; motor speed and combat timing do not change.
+The real-MAO regression composes the armed upper layer, shield arm, lower-body owner, travel stride, body motion
+and final arm clearance. It checks reduced shield rotation and travel while the arm remains animated, and compares
+every local bone outside the left-arm mask against the previous behaviour: legs, pelvis, trunk and weapon arm are
+identical. The knee-transition and two-handed grip regressions run alongside it. Shared modules serve world.js,
+exterior.js, worldModes.js and dungeonContext.js; no host changes. In-game visual acceptance remains pending.
+
+
+**HELD-ARM-ANATOMY** (2026-11-05, owner confirmed the recorded weapon is a claymore; asks for a complete
+solution to the wrist wringing, preserving the accepted shield and legs):
+
+The measured fault is in the held arm solve, not an extra clip or the clearance search. Fixing both bones to the
+elbow plane transferred the hand's requested orientation into the wrist: on the female retail hierarchy / MAO
+idle the left wrist carried about 115 degrees of axial turn. Better Bodies' actual wrist weights consequently
+reduced the minimum local linear scale to about 0.61 (right 0.76). The solver now retains the upper arm's hinge
+plane and lets the forearm pronate. `src/characters/bodyMotion/armAnatomy.js:"export const ARM_ANATOMY = Object.freeze("` bounds the turn
+and its speed. An analytic one-axis minimax balances the larger bind-relative rotation at elbow and wrist;
+it evaluates extrema and equal-cost crossings, without a per-frame grid search. The target hand rotation and
+wrist position remain fixed. An unnecessarily bent wrist can move the elbow to the nearest compatible point on
+the same shoulder/wrist circle; where 60 degrees is infeasible it uses the closest feasible direction. Clearance
+still wins the space it needs and preserves the grip; a final balance after that pass accounts for its elbow move.
+The observed standing wrist scales are about 0.86 left / 0.90 right. This is reduced deformation, not a claim of
+rigid volume preservation or an unconditional 60-degree wrist limit after collision clearance.
+
+The grip stays closed through attack recovery, while its elbow and twist return on the carry's own share.
+Per-arm angular history limits branch changes and spends a frame only once across reachability retries and the
+final clearance pass. It is reset with the body-motion instance. This new path is enabled only for the close
+two-handed carry (claymores, close-grip blunt weapons and two-handed axes); shield, one-handed, wide staff/spear,
+recoil/death and fully active attack clips keep their previous ownership.
+
+New tests use real male/female MAO clips and Better Bodies arm/wrist weights on the retail hierarchy, including
+idle, both straight walks, forward/back running, three attack returns and walk/run/stop transitions at 30/60/120 Hz.
+They measure the determinant of each blended skin affine relative to its bind affine, the actual left attachment
+against the weapon axis, and return-frame forearm changes. The algebra/rate-limit tests run without optional
+assets; real skin/clip cases explicitly skip when those owner-supplied assets are unavailable. Removing either
+the balancing pass, the wrist-compatible pole, or the final post-clearance pass makes its regression fail.
+The existing knee, lower-body, movement-continuity and shield regressions remain in the check set.
+This continues the existing presentation departure from DFU WeaponManager.UpdateHands / PlayerMotor: articulated
+third-person posing is ours; travel, strike timing and hit calculations are unchanged. Shared modules serve
+world.js, exterior.js, worldModes.js and dungeonContext.js without host changes. Live visual acceptance is pending.
+
+
+**HELD-ARM-COVERAGE-RECHECK** (2026-11-05, owner's 18-29-15 video: the pinch remains and affects all two-handed weapons):
+The first correction covered close-grip carry only. Pose-local ownership now carries shared twist state through
+active attack frames and wide staff/spear grips into the final clearance pass. Attack hand/weapon transforms are
+checked against their sampled poses. A parallel-transport history bounds added axial turn across changes of elbow
+plane, including animation-local hand offsets. Extended tests now include the actual 2w movement/attack groups.
+The wide-grip attack-return regression currently FAILS: a standing staff slash still reaches a minimum local skin
+volume near 0.27. This is an outstanding defect, not visual acceptance or a completed all-weapon fix. The broad
+handoff needs further work; the old close-grip-only completion claim does not cover this case.
+
+
+**FRESH-RETURN-EXPERIMENT** (2026-11-05, owner asks to rebuild the animation from scratch and clarifies:
+only the return after a strike): an isolated opt-in path, query parameter `fresh2hReturn=1`, is implemented in
+src/characters/bodyMotion/freshReturn.js. Default play keeps the previous return. The trial captures the last
+post-clearance attack pose and generates a full carry destination separately; one 0.5-second clock interpolates
+world-space arm poses, then a new two-bone solve retains the interpolated roll. It does not call the old return
+arm solver for intermediate poses. The actual left attachment is corrected against the interpolated weapon shaft.
+Only arm bones are written by this trial. The body, shield, attack clips and final carry authoring stay shared.
+The experimental path currently targets the close two-handed class, with the claymore as the visual comparison.
+Fixture checks cover endpoint matching, lower-body invariance, clock completion/reset and existing grip/shield/knee
+regressions. These are not proof of visual 1:1 reproduction or elimination of the real-clip skinning fault; live
+visual and real-clip deformation acceptance remain pending. The previously failing wide-grip return regression
+remains an outstanding defect outside this isolated trial. This continues the existing DFU WeaponManager.UpdateHands /
+PlayerMotor presentation departure. Shared body modules serve world.js, exterior.js, worldModes.js and dungeonContext.js;
+no host changes.
+
+
+**FRESH-RETURN-BEATS** (2026-11-05, owner suggests improving the animation itself): the isolated return trial
+now has explicit recovery beats instead of only joining two end poses. In arm-length units the grip clears
+forward/up to (0.10, 0.06) at 22 percent of recovery, travels to (0.08, 0.04) at 60 percent, then settles to zero
+offset at the original stance. Each segment has eased zero endpoint velocity. Both hands share the same grip
+travel, with the left attachment still constrained to the moved shaft; elbow requests receive half the travel.
+The final stance, strike timing, lower body and normal-mode return remain unchanged. These are trial authored
+values, not extracted vanilla animation keys or proof of a completed skinning fix. The option remains
+`fresh2hReturn=1`, close two-handed carry only; live visual and real-clip deformation validation remain pending.
+This is the existing DFU WeaponManager.UpdateHands / PlayerMotor presentation departure in the shared body module;
+world.js, exterior.js, worldModes.js and dungeonContext.js need no host changes.
+
+
+**FRESH-RETURN-OWNERSHIP** (2026-11-05, owner rejects another curve adjustment and requests a rebuilt return
+coordinated with the other animation): the opt-in controller now explicitly owns attack/return/carry/interruption
+states. Recovery captures the last shown post-clearance pose and freezes its destination once. Both endpoints are
+expressed against the current chest, so movement carries the transition with the actor. The first return sample
+is progress zero; the endpoint is applied before ownership is released. A new strike interrupting recovery starts
+from the last shown recovery pose with a short entry transition, without the recovery lift beats. Busy/death/off
+resets the cached state. During this mode bodyMotion generates a separate full carry destination but suppresses its
+old intermediate arm solve; trunk/leg presentation still uses its prior path. The old route remains available
+without `fresh2hReturn=1`. Tests cover a deliberately changing goal, interruption continuity, ownership exclusion,
+clock completion, lower-body invariance and the previous grip/shield/knee checks. This is a controller validation,
+not live visual acceptance, real-clip skinning acceptance or a completed wide-grip fix. The existing articulated
+presentation departure from DFU WeaponManager.UpdateHands / PlayerMotor remains shared across world.js,
+exterior.js, worldModes.js and dungeonContext.js; no host changes.
+
+
+**RETURN-TIMING-CONTINUITY** (2026-11-06, owner says less visible deformation is not enough and wants smooth motion):
+The prior piecewise correction stopped its own offset velocity at every authored beat and changed acceleration
+at the joins. The trial replaces it with one degree-seven Bezier arc, with three repeated zero controls at both
+ends, and quintic orientation/endpoint progress. This provides continuous velocity and acceleration in these
+input curves without internal phase stops; it is not a guarantee about the final constrained skeleton or skin.
+The return/interrupt clock now advances in step, not apply: sparse pose sampling and repeated draws cannot slow
+or speed the transition. The fpArm pose=false path still advances animation but skips poseAssembly, so this is a
+real scheduling invariant; it is not established as the observed local player's dominant cause. New regressions
+check acceleration at the old 22/60-percent boundaries, stationary endpoints, equal elapsed progress with sparse
+pose evaluation, and draw idempotence. Existing endpoint/ownership/interruption/grip/shield/knee checks stay.
+The mode remains opt-in via fresh2hReturn=1. Active-clip velocity matching, final IK branch continuity and live
+visual acceptance are not certified by these curve tests. This continues the existing DFU WeaponManager.UpdateHands /
+PlayerMotor presentation departure, in shared modules for world.js, exterior.js, worldModes.js and dungeonContext.js;
+no host changes.
+
+
+**RETURN-DEFAULT-ON** (2026-11-06): the owner cannot tell which return was active. The earlier opt-in was not
+confirmed in live play, so their observations cannot be attributed to the replacement controller with certainty.
+The close-two-handed replacement now runs on a normal browser URL; only explicit fresh2hReturn=0 selects the
+comparison route. A default-URL regression pins that choice. This supersedes earlier opt-in instructions, without
+claiming the remaining live jerk or wide-grip fault has been visually fixed.
+
+
+**RETURN-TRUNK-LEG-RELEASE** (2026-11-06, owner accepts the hands in the 15-53-27 recording and flags remaining
+trunk/leg jerks): two reproducible release defects are fixed without changing the accepted arm trajectory.
+The new return yielded the legacy arm request, but leanUnder was conditional on that request being non-null.
+This omitted trunk yaw/pitch during recovery and restored it on handoff. An explicit externalArms ownership flag
+retains the trunk transform while the independent return owns the hands; an empty legacy arm request and external
+ownership now produce identical chest matrices in the regression. Second, poseFoot eased its ankle target and
+foot rotation by the layer weight but applied the knee pole at full strength even for weights near zero. Its
+pole now travels from the current clip plane toward the requested plane by the same effective foot weight.
+A regression on the retail hierarchy reproduces the disappearing-weight knee jump before the change; both new
+regressions fail before and pass after. Full-weight guard solving is unchanged. The suspected pelvis reach-guard
+release was not established as this claymore video's cause and is not changed. Existing hand return, grip,
+shield, support-phase and knee-transition checks remain in the validation set. These are identified code-level
+causes, not proof that every visually reported frame is fixed; live visual acceptance remains pending.
+This continues the articulated-body presentation departure from DFU WeaponManager.UpdateHands / PlayerMotor;
+shared modules serve world.js, exterior.js, worldModes.js and dungeonContext.js without host changes.
+
+
+**RETURN-SETTLE-ELBOW-SKIN** (2026-11-06, owner asks to address elbow pinching and residual trunk/hand return together):
+The independent close-two-handed return now also joins the spine rotations from the last shown strike to the live
+underlying trunk with the same quintic clock. It leaves pelvis/legs and trunk translations untouched. Once the frozen
+arm endpoint is released, a 0.16-second settle joins it to the current live carry instead of dropping ownership in
+one frame; interruption can start from that settle too. Regressions reproduce deliberately different trunk/carry
+endpoints, check the initial shown pose and the final live pose, and exercise the handoff at 30/60/120 Hz.
+For Better Bodies skin only, the player assembly splits a forearm influence into a proximal elbow helper and the
+original distal forearm. The helper removes axial twist at the crease and smoothly introduces it over 65 percent of
+the forearm length. Its bend plane follows the upper arm's bind-measured hinge, including near-straight elbows.
+Only the final held-pose skin palette changes: original joints, hand/weapon frames, armour and source NIF bytes stay
+unchanged. Outside held-pose ownership the helper is identity. Total vertex weights remain unchanged and a split
+is skipped where it would exceed four GPU influences. Actual Better Bodies skin tests cover ordinary-pose identity,
+weight preservation, influence bounds, original joint invariance and improved forearm volume retention.
+On the local female Dark Elf idle2c sample, minimum forearm skin-affine volume retention improved from 0.670 to
+0.738; minimum singular scale from 0.817 to 0.857. These are forearm measures, not proof about the shoulder or every
+vertex at the elbow. Visual acceptance of the live return and pinching remains pending; the older wide-grip
+controller is not replaced by this change.
+Implementation: src/characters/bodyMotion/elbowSkin.js:"export function bindElbowSkin(skeleton, bound) {" and
+src/characters/bodyMotion/freshReturn.js:"function joinTrunk(skeleton, pose, from, root, skelMats, progress) {".
+Reference read: DFU Assets/Scripts/Game/WeaponManager.cs, WeaponManager.Update / UpdateHands use ScreenWeapon
+and weapon states rather than articulated elbow skin. This continues our existing articulated-body presentation
+departure. Shared assembly/body modules serve world.js, exterior.js, worldModes.js and dungeonContext.js; no host
+changes are required.
+
+
+**MOVING-STRIKE-AMPLITUDE** (2026-11-06, owner wants moving one/two-handed strikes to feel as broad as standing):
+Locomotion still owns the pelvis and legs. For a live melee strike, the lower-body sampler now re-roots spine1's
+rotation against its posed parent so the original clip's upper-body world rotation survives that ownership split.
+Only rotations are compensated: the waist position, lower-body locals and both clip clocks stay unchanged. The
+real MAO sweep reproduces a small lost parent turn (maximum weapon rotation-matrix component error 0.0302), not
+a large shortening of the authored arm keys. Therefore that correction alone is not represented as the whole
+visual problem. To increase the moving body's participation without restoring the standing lunge on running feet,
+the existing residual trunk turn uses yaw/pitch gains 1.20/1.10 for one-handers and 1.25/1.15 for two-handers. These
+are initial authored presentation values, not a measured percentage increase in blade travel. Standing keys,
+weapon reach/damage and attack/return timing remain unchanged. The extra turn follows the existing smoothed
+strike envelope, and the return continues through the accepted final arm controller. Fists, bows, hit/death,
+equipping and ordinary locomotion do not activate the clip rotation compensation.
+Source: src/combat/movingStrike.js:"export function movingStrikeTracks(base, posed, skeleton) {" and
+src/combat/movingStrike.js:"export function movingStrikeGain(word, standing) {". Real-clip regressions sweep
+one-hand/close-two-hand/wide-two-hand chop/slash/thrust over forward/back walk/run, check restored upper rotation
+and unchanged lower locals, and cover both weapon families' running trunk gains with standing amplitude retained.
+Reference remains DFU WeaponManager.UpdateHands (Assets/Scripts/Game/WeaponManager.cs): it selects ScreenWeapon
+and does not pose an articulated moving torso. This is the existing body-presentation departure, in shared
+modules for world.js, exterior.js, worldModes.js and dungeonContext.js; no scene host changes. Live amplitude
+acceptance remains pending.
+
+
+**MOVING-STRIKE-LOOP-SEAM** (2026-11-06, owner's crash screenshot): the new procedural spine track reached
+seamOf's raw NIF sampler near the end of a locomotion loop. That wrapper has no translations/scales key groups,
+so sampleKeyGroup threw. The previous amplitude tests omitted the outer loop-seam/smoothing stack. Loop seam
+correction and periodic smoothing now exclude the procedural spine composite just as they exclude existing
+overlay composites; its owning lower-body sampler still evaluates it. A real-MAO regression reproduces the exact
+reported exception before this fix and samples finite poses through walk/run forward/back loop endpoints after it.
+This is a composition-contract fix to the existing presentation departure; it adds no host or DFU gameplay change.
+
+
+**CARRY-LOCOMOTION-COHERENCE** (2026-11-06, owner's 19-24-15 recording): the production close-two-handed return
+now requests a live carry endpoint. A frozen diagnostic endpoint remains the default of setReturnGoal for callers
+that explicitly need it; bodyMotion opts into the current gait's goal. Recovery keeps its clock and authored arc,
+but a walk/run change can update the destination rather than returning the hands to a captured standing pose. The
+short ownership bridge also uses that live destination before the existing settle hands over to normal carry. A
+regression starts running during recovery and checks the running endpoint through the bridge; frozen-endpoint and
+interruption regressions remain.
+The shield's armed upper-body overlay now retains 0.55 of its live cycle deviation around the cycle mean. Its
+clock/mean posture stay authored; the established shield-arm adaptation stays in place. Real layered walk/back
+checks show reduced but nonzero chest wave while the thighs/calves/feet retain identical matrices.
+A separate free-arm layer covers a right-hand one-hander with no left-hand equipment, and a free right arm when
+only a left shield/torch/spell hand is occupied out of weapon stance. The actual left/right foot separation in
+the current chest frame supplies the swing, with a 0.065-second response; there is no second gait oscillator.
+The elbow collects from 18 degrees walking/resting toward 60 running, with a small forward-swing contribution,
+and the palm follows the forearm without a bent wrist request. The layer enters over 0.14 seconds and yields
+immediately when that limb becomes occupied or an attack/busy state owns it. Two-hand grips, dual wield,
+sneaking, airborne movement and unarmed locomotion retain their owners. Final posing changes only the free arm
+after the trunk/return solve. Actual MAO tests exercise either side over forward/back walk/run and verify that
+occupied arm and leg matrices stay unchanged.
+Sources: src/characters/bodyMotion/freeArms.js:"export function createFreeArms() {" and
+src/characters/bodyMotion/freshReturn.js:"export function setReturnGoal(pose, goal, live = false) { goals.set(pose, { pose: goal, live }); }".
+These are initial presentation settings; live visual coherence and restored running posture remain to be confirmed.
+Reference remains DFU WeaponManager.UpdateHands/PlayerMotor: DFU selects screen weapons and controls movement,
+without this articulated torso/free-arm presentation. This continues the shared body-presentation departure for
+world.js, exterior.js, worldModes.js and dungeonContext.js, with no scene host changes.

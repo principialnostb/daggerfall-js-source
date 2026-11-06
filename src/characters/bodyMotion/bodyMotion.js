@@ -25,6 +25,8 @@ import { getPref } from '../../systems/uiPrefs.js';
 import { algebra, ease, clamp01, smooth, RAD, bodyOf, bodyKindOf, reflect } from './bodyKit.js';
 import { rotAxisAngle } from '../../combat/climbRig.js';
 import { createGaitState, stepGait, gaitPose, TURN } from './gait.js';
+import { markHeldPose } from './armAnatomy.js';
+import { freshReturnEnabled, setReturnGoal } from './freshReturn.js';
 import { carryClassOf, carryHands, CARRY, TWO_HAND_GRIP, TWO_HAND_HAFT, armByAngles, mirrorRequest, hafHand, trunkPush, blendHand, gaitShares, turnAbout, trunkOf } from './carry.js';
 import { meleeFamilyOf, blowName, blowU, blowPose, windFor } from './melee.js';
 import { solveBody, gripRequest } from './bodySolve.js';
@@ -121,6 +123,7 @@ export const TRUNK_CLEAR = 0.29;
 
 export function createBodyMotion({ trunkClear = TRUNK_CLEAR } = {}) {
   const gait = createGaitState();
+  const armTwist = { L: { angle: null, frame: 0, dt: 0 }, R: { angle: null, frame: 0, dt: 0 } };
   let input = sceneInput({ on: false });
   let w = 0;
   let airT = 0;   // HILT-HOLD: seconds the body has been off the ground
@@ -222,6 +225,7 @@ export function createBodyMotion({ trunkClear = TRUNK_CLEAR } = {}) {
   const motion = {
     /** THE CLOCKS, every frame (posed or not): the gait, the layer's weight, the arms', the carry class. */
     step(dt, frame) {
+      for (const state of Object.values(armTwist)) { state.frame++; state.dt = Math.max(0, dt); }
       input = frame ?? sceneInput({ on: false });
       // switched on (third person again, the switch thrown, a body handed on): the gait begun afresh - the last frame it
       // saw may be a minute old (AUDIT BODY-MOTION RIG-5: the heading alone was re-anchored, and a body came back in the
@@ -229,7 +233,9 @@ export function createBodyMotion({ trunkClear = TRUNK_CLEAR } = {}) {
       if (input.on && !wasOn) Object.assign(gait, createGaitState());
       wasOn = !!input.on;
       airT = input.grounded === false ? airT + Math.max(0, dt) : 0;   // HILT-HOLD
-      const free = !!input.on && !input.busy && airT < AIR_GRACE && !input.swimming && !input.levitating;
+      // Losing ground contact must not release a weapon held in both hands.
+      const haftAir = carryClassOf(input) === 'two' && !input.equip;
+      const free = !!input.on && !input.busy && (airT < AIR_GRACE || haftAir) && !input.swimming && !input.levitating;
       w = ease(w, free ? 1 : 0, free ? MOTION_EASE.in : (input.busy === 'dead' || input.busy === 'hit' ? MOTION_EASE.outFast : MOTION_EASE.out), dt);
       if (!free && w < 1e-3) { w = 0; last = null; }   // AUDIT BODY-MOTION RIG-9: the card says off once the body is the clip's
       const next = carryClassOf(input);
@@ -305,9 +311,9 @@ export function createBodyMotion({ trunkClear = TRUNK_CLEAR } = {}) {
       else if (lastBlow && lastBlow.w > 1e-3) lastBlow = { ...lastBlow, w: ease(lastBlow.w, 0, MOTION_EASE.out, dt) };
       else lastBlow = null;
       bpNow = seen ?? lastBlow;
-      if (bpNow && !(blowAge > 0)) entryBack = backOf(sinceBlow);   // BLOW-ENTRY: the carry as it stood when the blow came
-      sinceBlow = bpNow ? 0 : sinceBlow + Math.max(0, dt);   // BLOW-RETURN
-      blowAge = bpNow ? blowAge + Math.max(0, dt) : 0;   // BLOW-ENTRY
+      if (seen && !(blowAge > 0)) entryBack = backOf(sinceBlow);   // BLOW-ENTRY: the carry as it stood when the blow came
+      sinceBlow = seen ? 0 : sinceBlow + Math.max(0, dt);   // BLOW-RETURN
+      blowAge = seen ? blowAge + Math.max(0, dt) : 0;   // BLOW-ENTRY
       stance = stanceNow(bpNow);
       stepTime = bpNow && bpNow.step > 0 && bpNow.w > 0.05 ? TURN.quick : null;
       if (input.on && body) stepGait(gait, gaitInput(), body, dt);
@@ -319,6 +325,8 @@ export function createBodyMotion({ trunkClear = TRUNK_CLEAR } = {}) {
       const measured = bodyOf(skeleton, rootRef, skelMats);
       if (!measured) { last = null; return null; }
       if (body !== measured) { body = measured; Object.assign(gait, createGaitState()); stepGait(gait, gaitInput(), body, 0); }
+      const held = ['two', 'wide', 'spear'].includes(cls) && input.on && !input.busy && input.shown;
+      if (held) markHeldPose(pose, armTwist, w);
       const gi = gaitInput();
       const bp = bpNow;
       const k = bp ? bp.w : 0;
@@ -330,7 +338,8 @@ export function createBodyMotion({ trunkClear = TRUNK_CLEAR } = {}) {
       // BLOW-ENTRY (2026-10-28, Motion-Doctrine.md 7c, measured in the owner's game): stepped aside in the blow's first
       // frame, the carry's hands left the clip's in one - a claymore's blade leapt 0.38 m on the second frame of every blow;
       // the layer now lets go over MOTION_EASE.blowEntry, as BLOW-RETURN takes it back over blowReturn
-      const entry = bp ? 1 - smooth(blowAge / MOTION_EASE.blowEntry) : 1;
+      const activeBlow = !!input.blow?.section;
+      const entry = activeBlow ? 1 - smooth(blowAge / MOTION_EASE.blowEntry) : 1;
       if (cls === 'free' || !(entry > 1e-3)) { last = null; return null; }
 
       const gp = gaitPose(gait, gi, body);
@@ -339,14 +348,27 @@ export function createBodyMotion({ trunkClear = TRUNK_CLEAR } = {}) {
       // whole blow, it took the carry's hands back the frame the blow ended
       // - and through a blow's entry the carry it had when the blow came (BLOW-ENTRY: sinceBlow is 0 in a blow, so its
       // own return read 0 there and the carry still left in one frame, the entry's ease multiplying nothing)
-      const back = bp ? entryBack : backOf(sinceBlow);
+      const back = activeBlow ? entryBack : backOf(sinceBlow);
       const plan = {
         w: w * back * entry,
+        externalArms: false,
         armW: { L: armW.L, R: armW.R },
         arms: (ctx) => handsFor(ctx, gp, null, null),
         trunk: trunkNow(),
         haft: TWO_HAND_GRIP[cls] != null && (!clsFrom || TWO_HAND_GRIP[clsFrom] != null),   // HILT-HOLD (bodySolve.js)
+        armTwist: held ? armTwist : null,
+        hold: w,   // HILT-FULL: the hilt held by the layer's own weight, never a blow's return or a gait's share
       };
+      if (freshReturnEnabled() && cls === 'two' && !activeBlow && sinceBlow < MOTION_EASE.blowReturn + 0.05) {
+        const goal = new Map(pose);
+        solveBody(skeleton, goal, rootRef, skelMats, { ...plan, w, armTwist: { L: {}, R: {} } });
+        setReturnGoal(pose, goal, true);
+        // The new controller owns intermediate arm poses; retain only the old
+        // trunk/leg presentation here, not another arm return under it.
+        plan.externalArms = true;
+        plan.arms = () => null;
+        plan.haft = false;
+      }
       const report = solveBody(skeleton, pose, rootRef, skelMats, plan);
       last = { gp, bp, report };
       return report;
@@ -373,7 +395,7 @@ export function createBodyMotion({ trunkClear = TRUNK_CLEAR } = {}) {
         arms: { L: armW.L, R: armW.R },   // AUDIT SPELL-HAND L3-5: each arm's weight under the layer (0: the clip's)
       };
     },
-    reset() { Object.assign(gait, createGaitState()); w = 0; airT = 0; armW.L = 0; armW.R = 0; sneakHand = false; sinceBlow = Infinity; cls = 'free'; clsFrom = null; clsMix = 1; last = null; shares.x = null; lastBlow = null; cut = null; drawn = null; },
+    reset() { for (const state of Object.values(armTwist)) Object.assign(state, { angle: null, frame: 0, dt: 0, seen: null, start: null, world: null, axis: null, worldFrame: null, worldStart: null, axisStart: null }); Object.assign(gait, createGaitState()); w = 0; airT = 0; armW.L = 0; armW.R = 0; sneakHand = false; sinceBlow = Infinity; cls = 'free'; clsFrom = null; clsMix = 1; last = null; shares.x = null; lastBlow = null; cut = null; drawn = null; },
   };
   return motion;
 }
