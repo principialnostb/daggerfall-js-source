@@ -73,7 +73,9 @@ render frame is `Performance-Exterior.md`; the characters' bodies are `Performan
   captain keeps her watch on the same cadence; a held boat is drawn from what her walk found. A horse's look is dyed a
   few pictures a frame.
 - **The living world.** Its ways, trips, holy days and road plans give the same answers for less work
-  (`src/systems/livingWorld/ways.js`, `trips.js`, `src/systems/holidays.js`); a roads' day not ready is asked once a tick.
+  (`src/systems/livingWorld/ways.js`, `trips.js`, `src/systems/holidays.js`). A town's roads' day that waits on a way is
+  kept waiting until the trips it waited on have answered, and those trips are asked again a few a frame on the ways'
+  leftover budget; a turn of fate renews only the trips it can change (`src/scenes/livingWorld/livingBooks.js`).
 - **The chat roster** is derived once, not once a frame (`src/net/roster.js`); the movable HUD sweeps on one clock.
 
 ### Placed objects, colliders and memory

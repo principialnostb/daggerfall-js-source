@@ -446,8 +446,8 @@
   {
     "name": "LW3-host-network-memo-kept",
     "file": "src/scenes/world.js",
-    "old": "    livingWays.frame(); livingMemoFresh();   // LW3: a new network, new ways",
-    "new": "    livingWays.frame();   // LW3: a new network, new ways",
+    "old": "    livingBooks.step(); livingWays.frame(); livingMemoFresh();   // LW3: a new network, new ways",
+    "new": "    livingBooks.step(); livingWays.frame();   // LW3: a new network, new ways",
     "tests": [
       "test/systems/livingWorld/lw3_roads.test.js"
     ]

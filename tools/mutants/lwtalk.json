@@ -376,8 +376,8 @@
   {
     "name": "LW-TALK-no-places",
     "file": "src/scenes/world.js",
-    "old": "    return { away, visitors, holders, news, places };",
-    "new": "    return { away, visitors, holders, news };",
+    "old": "    return livingBooks.done({ away, visitors, holders, news, places });",
+    "new": "    return livingBooks.done({ away, visitors, holders, news });",
     "tests": [
       "test/systems/livingWorld/lwtalk_town.test.js"
     ]

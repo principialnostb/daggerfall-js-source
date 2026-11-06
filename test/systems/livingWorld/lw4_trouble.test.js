@@ -449,12 +449,13 @@ test('LW4 the streaming host: the trouble\'s world (the climate at the place, th
   assert.match(w, /if \(!f\) \{\n\s*const was = _livingCoverPending;\n\s*_livingCoverPending = false;\n\s*const enc = troubleOf\(trip, livingTroubleWorld\);\n\s*const waits = _livingCoverPending;\n\s*_livingCoverPending = was;[^\n]*\n\s*if \(waits\) return undefined;[^\n]*\n\s*f = troubledTrip\(trip, enc\);/);
   assert.match(w, /const livingCovered = \(c\) => \{ if \(c === undefined\) _livingCoverPending = true; return !!c; \};/);
   assert.match(w, /covered: \(trip\) => livingCovered\(patrolCover\(trip, livingTripWorld, /);
-  assert.match(w, /const holder = pl\.vacant \? null : pl\.holder == null \? res\n\s*: \(town \? mintResident\(town, res\.roll \?\? 't', res\.slot, res\.job, \{ gen: pl\.holder, home: res\.home, work: res\.work, faction: res\.faction \}\) : res\);/, 'LW7: a townsperson\'s newcomer the census\'s own mint too');
-  assert.match(w, /_livingPlaces\.clear\(\); _livingFates\.clear\(\); _livingTripMemo\.clear\(\);/, 'a turn of fate, or a load: the books made again');
+  assert.match(rd('src/scenes/livingWorld/livingBooks.js'), /const holder = place\.vacant \? null : place\.holder == null \? res\n\s*: \(town \? mintResident\(town, res\.roll \?\? 't', res\.slot, res\.job, \{ gen: place\.holder, home: res\.home, work: res\.work, faction: res\.faction \}\) : res\);/, 'LW7: a townsperson\'s newcomer the census\'s own mint too');
+  assert.match(rd('src/scenes/livingWorld/livingBooks.js'), /const everything = \(\) => \{ places\.clear\(\); fates\.clear\(\); book\.clear\(\); \};/, 'another record, or a turn the books cannot place: the books made again');   // the books live in scenes/livingWorld/livingBooks.js, and a turn renews only what it reaches (test/systems/livingWorld/tripbook_overworld.test.js)
+  assert.match(w, /const livingTurnsFresh = \(\) => livingBooks\.turnsFresh\(\);/, 'the host asks its books');
   assert.match(w, /livingTurnsFresh\(\);   \/\/ LW4: a turn of fate made, or a save loaded/);
   assert.match(w, /const h = pl\.holder && pl\.dies && setsOut\(pl\.holder, town, k, livingTripWorld, o\) === false \? null : pl\.holder;/);
   assert.match(w, /if \(w\.length\) away\.set\(h\.id, w\);/);
-  assert.match(w, /return \{ away, visitors, holders, news, places \};/);   // LW-TALK: PIN MOVED - the towns of its road
+  assert.match(w, /return livingBooks\.done\(\{ away, visitors, holders, news, places \}\);/);   // LW-TALK: PIN MOVED - the towns of its road
   assert.match(w, /foeName: livingFoeWord,/);
   assert.match(rd('src/ui/travel/travelViewHud.js'), /look === 'wayfarer' \? \(\/\\b\(fight\|hideout\)\\b\/\.test\(m\.kind \?\? ''\) \? C\.band : C\.wayfarer\)/);   // PIN MOVED (LW12): a rumoured hideout in the bands' red too
   // the pace the trouble reads the lives at is the trips' own
