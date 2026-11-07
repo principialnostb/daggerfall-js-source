@@ -20,7 +20,7 @@
   {
     "name": "DRAGON-HOARD-the-gem-unlisted",
     "file": "src/systems/dragon/dragonSpoils.js",
-    "old": "    ...s.gems.map((g) => ({ kind: 'item', item: g, tier: 'common' })),\n",
+    "old": "    ...s.gems.map((gem) => ({ kind: 'item', item: gem, tier: 'common' })),\n",
     "new": "",
     "tests": [
       "test/net/dragon/dragonhoard.test.js"

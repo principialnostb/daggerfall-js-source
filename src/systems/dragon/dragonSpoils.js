@@ -61,7 +61,7 @@ export function dragonSpoilsList(seed, level, earned) {
   const s = rollDragonSpoils(seed, level, earned);
   return [
     ...s.pieces.map((p) => ({ kind: 'item', item: p.item, tier: p.tier })),
-    ...s.gems.map((g) => ({ kind: 'item', item: g, tier: 'common' })),
+    ...s.gems.map((gem) => ({ kind: 'item', item: gem, tier: 'common' })),
     { kind: 'gold', gold: s.gold, tier: 'common' },
   ];
 }
