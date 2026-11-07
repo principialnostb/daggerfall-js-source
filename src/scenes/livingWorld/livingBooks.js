@@ -10,7 +10,7 @@ import { placeAt, turnKey } from '../../systems/livingWorld/lives.js';
  *  planning a frame does. */
 export const PENDING_PER_FRAME = 64;
 /** The most places kept before the places' book starts over. */
-export const PLACES_KEPT = 30000;
+export const PLACE_BOOK_MAX = 30000;
 /** A turn of these kinds names a place and a cycle: that place's book entries and its town's trips are made again. */
 export const PLACE_TURNS = Object.freeze(['spared', 'fallen', 'slain', 'died', 'killed']);
 /** A turn of these kinds changes a trouble (a fight's end, a band routed): every trouble is read again. */
@@ -81,7 +81,7 @@ export function createLivingBooks({ book, world, townOfId, relations, mpm, fresh
       const holder = place.vacant ? null : place.holder == null ? res
         : (town ? mintResident(town, res.roll ?? 't', res.slot, res.job, { gen: place.holder, home: res.home, work: res.work, faction: res.faction }) : res);
       got = { holder, dies: !place.vacant && place.dies, hand: place.hand };
-      if (places.size > PLACES_KEPT) places.clear();
+      if (places.size > PLACE_BOOK_MAX) places.clear();
       places.set(key, got);
     }
     return got;
