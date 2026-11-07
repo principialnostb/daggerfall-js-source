@@ -50,7 +50,8 @@ within `DRAGON_ENGAGE_R`, and melee only when it is grounded.
 
 - **Aloft** it orbits at `CIRCLE_ALT`, flying `FLY_V`. Melee cannot reach it; arrows and spells can.
 - **Grounded** after a Crash Landing, for `GROUNDED_MS`, walking at `WALK_V`; every blow on it lands at `GROUNDED_X`.
-  It leaves by a Takeoff Gust.
+  It leaves by a Takeoff Gust. A swing from a player who stands inside its hitbox (`inDragonBox`) always meets it,
+  whichever way they face.
 
 It never strays past `DRAGON_ARENA_R` of its site. Threat picks its target as the gate's does; no blow more than
 `DRAGON_REPEAT_MAX` times running. At 66% and 33% it roars, is warded for `DRAGON_SHIELD_MS` and enters its next phase.
