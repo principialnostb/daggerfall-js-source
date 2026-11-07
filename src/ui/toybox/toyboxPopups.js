@@ -45,7 +45,7 @@ function popupFrame(doc, win, title, tag, onClose) {
   const root = doc.createElement('div');
   root.setAttribute('data-toybox-popup', tag);
   root.setAttribute('role', 'dialog');
-  root.style.cssText = TOYBOX_PANEL_CSS + 'z-index:41;display:none;left:220px;top:120px;';
+  root.style.cssText = TOYBOX_PANEL_CSS + 'z-index:38;display:none;left:220px;top:120px;';
   keepFromGame(root);
   let shown = false;
   const close = () => {

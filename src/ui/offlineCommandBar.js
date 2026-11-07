@@ -5,7 +5,7 @@
 import { PIXEL_FONT_CSS, PIXEL_TEXT_SHADOW } from './pixelifyFive.js';
 
 const ROOT_CSS =
-  `position:fixed;left:12px;bottom:12px;z-index:42;display:none;flex-direction:column;gap:3px;${PIXEL_FONT_CSS}` +
+  `position:fixed;left:12px;bottom:12px;z-index:39;display:none;flex-direction:column;gap:3px;${PIXEL_FONT_CSS}` +
   `font-size:13px;color:#e6f6f8;text-shadow:${PIXEL_TEXT_SHADOW};pointer-events:auto;`;
 const INPUT_CSS =
   `${PIXEL_FONT_CSS}font-size:14px;color:#e6f6f8;background:rgba(10,12,16,0.78);border:1px solid rgba(127,227,240,0.55);` +

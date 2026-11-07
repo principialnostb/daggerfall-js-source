@@ -8,7 +8,7 @@ import { capturePointer, releasePointer } from '../pointerCapture.js';
 import { TOYBOX_OPTIONS, TOYBOX_ONLINE_ONLY } from '../../systems/toybox/toyboxLaw.js';
 
 export const TOYBOX_PANEL_CSS =
-  `position:fixed;z-index:40;box-sizing:border-box;${PIXEL_FONT_CSS}font-size:13px;color:${STAFF_TAG_COLORS.plain};` +
+  `position:fixed;z-index:37;box-sizing:border-box;${PIXEL_FONT_CSS}font-size:13px;color:${STAFF_TAG_COLORS.plain};` +
   `background:rgba(10,12,16,0.72);border:1px solid rgba(127,227,240,0.45);border-radius:4px;` +
   `text-shadow:${PIXEL_TEXT_SHADOW};pointer-events:auto;user-select:none;`;
 export const TOYBOX_TITLE_CSS =
