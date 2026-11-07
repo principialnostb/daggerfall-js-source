@@ -113,7 +113,7 @@
     "old": "  const dealt = earned !== 'stood';",
     "new": "  const dealt = true;",
     "tests": [
-      "test/net/dragon/dragon4_claims.test.js"
+      "test/net/dragon/dragonhoard.test.js"
     ]
   },
   {
@@ -122,7 +122,7 @@
     "old": "rolls() < DRAGON_SPOILS_LEGENDARY ? 'legendary' : 'rare'",
     "new": "rolls() < 0.5 ? 'legendary' : 'rare'",
     "tests": [
-      "test/net/dragon/dragon4_claims.test.js"
+      "test/net/dragon/dragonhoard.test.js"
     ]
   },
   {

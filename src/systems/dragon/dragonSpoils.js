@@ -1,14 +1,13 @@
 // @ts-check
-// DRAGON4 (bible/11-Multiplayer/Dwarven-Dragon.md section 8): THE DRAGON'S HOARD - what one player's share in its kill pays,
-// rolled from the relay's `z1` receipt on the receipt's own seed (`c`, seededRng): the serpent's hoard's law
-// (systems/serpent/serpentSpoils.js), rung for rung. Gold, DRAGON_GOLD_PER_LEVEL a level and a fifth either way (a
-// stander STOOD_GOLD of it); a dealer one piece Rare or better (Legendary DRAGON_SPOILS_LEGENDARY of the time) and one
-// Magic or better; a stander the Magic-or-better piece alone. Every piece known, the ladder's last passes over them. Given
-// when the account service says this claim is its (watch, place, account)'s, straight into the pack. Not a DFU member. Ledger A
-// (DRAGON).
+// THE DRAGON'S HOARD - what one player's share in its kill pays, rolled from the relay's `z1` receipt on the receipt's
+// own seed (`c`, seededRng), in Dagon's Breach's shape. Gold, DRAGON_GOLD_PER_LEVEL a level and a fifth either way (a
+// stander STOOD_GOLD of it); a dealer one piece Rare or better (Legendary DRAGON_SPOILS_LEGENDARY of the time); everyone
+// DRAGON_MAGIC_PIECES pieces Magic or better and the dragon's gem. Every piece known, the ladder's last passes over them.
+// Given when the account service says this claim is its (watch, place, account)'s, straight into the pack.
 import { seededRng } from '../wind/wind.js';
 import { spoilsBase, magicOrBetter } from '../gate/gateSpoils.js';
 import { applyRarity, lastPass, socketPass, weaponSocketPass, techniquePass } from '../loot/lootRarity.js';
+import { bossGems } from '../gems.js';
 import { STOOD_GOLD, SERPENT_SPOILS_SOURCE } from '../serpent/serpentSpoils.js'; // a stander's share and the boss's ladder, the serpent's own
 import { DRAGON_SPOILS_TEXT } from './dragonWords.js';
 
@@ -16,6 +15,8 @@ import { DRAGON_SPOILS_TEXT } from './dragonWords.js';
 export const DRAGON_GOLD_PER_LEVEL = 180;
 /** The Rare-or-better piece is Legendary this share of the time. */
 export const DRAGON_SPOILS_LEGENDARY = 0.15;
+/** The Magic-or-better pieces every share earns, the dealer's and the stander's alike. */
+export const DRAGON_MAGIC_PIECES = 2;
 /** The device's record of a hoard no save holds yet, and the receipts spent - the dragon's own spoils-pool keys. */
 export const DRAGON_SPOILS_KEYS = Object.freeze({ store: 'dragon4.spoils', day: 'dragon4.spoilsDay' });
 export const DRAGON_SPOILS_RECORDS_MAX = 16;
@@ -43,13 +44,16 @@ export function rollDragonSpoils(seed, level, earned = 'dealt') {
   const pieces = [];
   if (dealt)
     pieces.push(graded(spoilsBase(lv, rolls), rolls() < DRAGON_SPOILS_LEGENDARY ? 'legendary' : 'rare', rolls));
-  pieces.push(graded(spoilsBase(lv, rolls), magicOrBetter(rolls, SERPENT_SPOILS_SOURCE), rolls));
+  for (let i = 0; i < DRAGON_MAGIC_PIECES; i++)
+    pieces.push(graded(spoilsBase(lv, rolls), magicOrBetter(rolls, SERPENT_SPOILS_SOURCE), rolls));
   const items = pieces.map((p) => p.item);
   lastPass(items, rolls);
   socketPass(items, rolls);
   weaponSocketPass(items, rolls);
+  // the dragon's gem after the sockets' passes, as the gate's is, so the pieces before it keep their seed's rolls
+  const gems = bossGems('dragon', rolls);
   techniquePass(items, rolls);
-  return { gold, pieces };
+  return { gold, pieces, gems };
 }
 
 /** The hoard as the spoils pool hands it over: each item, then the gold. Pure. */
@@ -57,6 +61,7 @@ export function dragonSpoilsList(seed, level, earned) {
   const s = rollDragonSpoils(seed, level, earned);
   return [
     ...s.pieces.map((p) => ({ kind: 'item', item: p.item, tier: p.tier })),
+    ...s.gems.map((g) => ({ kind: 'item', item: g, tier: 'common' })),
     { kind: 'gold', gold: s.gold, tier: 'common' },
   ];
 }

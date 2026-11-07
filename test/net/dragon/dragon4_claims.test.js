@@ -7,11 +7,10 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { createDragonClaims, dragonClaimVerdict, DRAGON_CLAIMS_KEY } from '../../../src/net/dragon/dragonClaims.js';
-import { rollDragonSpoils, dragonSpoilsList, DRAGON_GOLD_PER_LEVEL, DRAGON_SPOILS_LEGENDARY } from '../../../src/systems/dragon/dragonSpoils.js';
+import { DRAGON_MAGIC_PIECES } from '../../../src/systems/dragon/dragonSpoils.js';
 import { createDragonRewards, DRAGON_TAMES_KEY } from '../../../src/scenes/dragonRewards.js';
 import { DRAGON_CLAIM_TEXT } from '../../../src/systems/dragon/dragonWords.js';
 import { mintDragonReceipt } from '../../../src/net/dragon/dragonReceipt.js';
-import { STOOD_GOLD } from '../../../src/systems/serpent/serpentSpoils.js';
 import { hearActs } from '../../../src/systems/questlines/qlActs.js';
 
 const { subtle } = globalThis.crypto;
@@ -59,27 +58,6 @@ test('DRAGON4 carrier: a receipt counted is said once and let go, its act heard;
   hearActs('dragon4-test', null);
 });
 
-test('DRAGON4 the hoard: the seed\'s own - the same seed, level and earning the same hoard; a dealer\'s Rare or better and a Magic or better, a stander\'s Magic or better and STOOD_GOLD of the gold; its gold DRAGON_GOLD_PER_LEVEL a level within a fifth; the Rare piece Legendary about DRAGON_SPOILS_LEGENDARY of the time (mutants: a stander paid a dealer\'s; the Legendary\'s share)', () => {
-  const a = dragonSpoilsList(1234, 20, 'dealt'), b = dragonSpoilsList(1234, 20, 'dealt');
-  assert.deepEqual(JSON.parse(JSON.stringify(a)), JSON.parse(JSON.stringify(b)));
-  const d = rollDragonSpoils(99, 20, 'dealt'), s = rollDragonSpoils(99, 20, 'stood');
-  assert.equal(d.pieces.length, 2);
-  assert.ok(['rare', 'legendary'].includes(d.pieces[0].tier), d.pieces[0].tier);
-  assert.equal(s.pieces.length, 1);
-  assert.ok(['magic', 'rare', 'legendary'].includes(s.pieces[0].tier));
-  let legendary = 0, gMin = Infinity, gMax = 0;
-  for (let seed = 1; seed <= 600; seed++) {
-    const h = rollDragonSpoils(seed, 10, 'dealt');
-    if (h.pieces[0].tier === 'legendary') legendary++;
-    gMin = Math.min(gMin, h.gold); gMax = Math.max(gMax, h.gold);
-    assert.ok(h.pieces.every((p) => p.item.isIdentified), 'every piece known');
-  }
-  assert.ok(gMin >= DRAGON_GOLD_PER_LEVEL * 10 * 0.8 - 1 && gMax <= DRAGON_GOLD_PER_LEVEL * 10 * 1.2 + 1);
-  assert.ok(Math.abs(legendary / 600 - DRAGON_SPOILS_LEGENDARY) < 0.06, `${legendary} of 600 Legendary`);
-  const st = rollDragonSpoils(5, 10, 'stood').gold, dl = rollDragonSpoils(5, 10, 'dealt').gold;
-  assert.ok(Math.abs(st - dl * STOOD_GOLD) <= 1, 'a stander\'s share of the gold');
-});
-
 test('DRAGON4 the rewards: a counted receipt\'s hoard into the pack through the world\'s door (every piece and its gold); a tame kept on the device until it is bound (mutants: the hoard never given; a tame forgotten)', async () => {
   const taken = [], storage = new Map();
   const rewardsStorage = { getItem: (k) => storage.get(k) ?? null, setItem: (k, v) => storage.set(k, v), removeItem: (k) => storage.delete(k) };
@@ -90,7 +68,7 @@ test('DRAGON4 the rewards: a counted receipt\'s hoard into the pack through the 
   rw.receipt(await R({ c: 9 }));
   await rw.claims.flush();
   for (let i = 0; i < 20 && !taken.length; i++) await new Promise((done) => setTimeout(done, 5));
-  assert.ok(taken.includes('gold') && taken.filter((k) => k === 'item').length === 2, JSON.stringify(taken));
+  assert.ok(taken.includes('gold') && taken.filter((k) => k === 'item').length === 1 + DRAGON_MAGIC_PIECES + 1, JSON.stringify(taken));   // the pieces and the gem
   assert.deepEqual(rw.tames().map((x) => [x.id, x.look, x.w]), [[tame.id, 1, 500_004]]);
   assert.ok(storage.has(DRAGON_TAMES_KEY));
   rw.boundTame(tame.id);
