@@ -1,28 +1,26 @@
 // @ts-check
-// THE INVASION'S REWARD: one roll for each player who earned the invasion boss's fall. Three outcomes, every one Daedric:
-// a Rare with three to five lines, a piece of the Realm Defender's Aetheric set, or Retribution's Call, a Gilded katana.
+// THE INVASION'S REWARD: one roll for each player who earned the invasion boss's fall. Three outcomes: an Ebony
+// Legendary, a Daedric piece of the Realm Defender's Aetheric set, or Retribution's Call, a Gilded Daedric katana.
 // The table is INVASION_REWARD_TABLE, the one place to tweak it. Every draw is the caller's `rand`, so a receipt's seed
 // mints the same piece on every device (systems/staffEventSpoils.js).
 import { WEAPONS, WEAPON_MATERIALS } from '../../characters/weapons.js';
 import { createWeapon } from '../../combat/enemyEquipment.js';
 import { ARMOR_MATERIAL } from '../armorMaterials.js';
 import { setItemFields, mintCondition } from '../item/itemTemplates.js';
-import { applyRarity, addProcLine } from '../loot/lootRarity.js';
+import { applyRarity } from '../loot/lootRarity.js';
 import { DEFENDER_SET_PIECES, mintAetheric } from '../aetheric.js';
 import { RETRIBUTIONS_CALL, mintGilded } from '../gilded.js';
 
 /** The three outcomes and their shares of the one roll, in the order the roll reads them. */
 export const INVASION_REWARD_TABLE = Object.freeze([
-  Object.freeze({ id: 'rare', share: 0.75 }),
-  Object.freeze({ id: 'aetheric', share: 0.24 }),
+  Object.freeze({ id: 'legendary', share: 0.823 }),
+  Object.freeze({ id: 'aetheric', share: 0.167 }),
   Object.freeze({ id: 'gilded', share: 0.01 }),
 ]);
-/** The share of Rares that take one line that does something on top of their three or four numbers: five lines at most,
- *  the one past a Rare's count the item law allows. */
-export const INVASION_RARE_PROC_SHARE = 0.5;
-/** The Daedric pieces a Rare can be: every body piece and shield, and every weapon but the arrow. */
-export const INVASION_RARE_ARMOR = Object.freeze([102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112]);
-export const INVASION_RARE_WEAPONS = Object.freeze(
+/** The Ebony pieces a Legendary can be: every body piece and shield, and every weapon but the arrow. Each has a
+ *  Legendary record of its own, so the row never falls to a Rare. */
+export const INVASION_LEGENDARY_ARMOR = Object.freeze([102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112]);
+export const INVASION_LEGENDARY_WEAPONS = Object.freeze(
   Object.values(WEAPONS).filter((weapon) => weapon !== WEAPONS.Arrow),
 );
 
@@ -39,11 +37,11 @@ export function invasionRewardRow(draw) {
   return INVASION_REWARD_TABLE[INVASION_REWARD_TABLE.length - 1];
 }
 
-/** A Daedric base, a weapon or a piece of armour at even odds. @param {() => number} rand */
-function daedricBase(rand) {
-  if (rand() < 0.5) return createWeapon(pick(INVASION_RARE_WEAPONS, rand), WEAPON_MATERIALS.Daedric, rand);
-  const templateIndex = pick(INVASION_RARE_ARMOR, rand);
-  return mintCondition(setItemFields({ group: 'Armor', templateIndex, material: ARMOR_MATERIAL.Daedric, flags: 0 }));
+/** An Ebony base, a weapon or a piece of armour at even odds. @param {() => number} rand */
+function ebonyBase(rand) {
+  if (rand() < 0.5) return createWeapon(pick(INVASION_LEGENDARY_WEAPONS, rand), WEAPON_MATERIALS.Ebony, rand);
+  const templateIndex = pick(INVASION_LEGENDARY_ARMOR, rand);
+  return mintCondition(setItemFields({ group: 'Armor', templateIndex, material: ARMOR_MATERIAL.Ebony, flags: 0 }));
 }
 
 /**
@@ -56,9 +54,8 @@ export function rollInvasionReward(rand, _opts = {}) {
   const row = invasionRewardRow(rand());
   if (row.id === 'gilded') return mintGilded(RETRIBUTIONS_CALL);
   if (row.id === 'aetheric') return mintAetheric(pick(DEFENDER_SET_PIECES, rand));
-  const item = daedricBase(rand);
-  applyRarity(item, 'rare', rand);
-  if (rand() < INVASION_RARE_PROC_SHARE) addProcLine(item, rand);
+  const item = ebonyBase(rand);
+  applyRarity(item, 'legendary', rand);
   item.isIdentified = true;
   return item;
 }
