@@ -1,14 +1,14 @@
 # Toybox
 
-A developer's own tools in one window. A developer types `/toybox` in the chat; offline play has no chat, so there the
-`/` key opens a one-line command bar that takes the same line. Anyone without the `dev` glyph gets the chat's own
-"unknown command", and offline the key does nothing for them. It is staff work: no player patch notes describe the
+The staff's own tools in one window. A developer or a moderator types `/toybox` in the chat; offline play has no chat,
+so there the `/` key opens a one-line command bar that takes the same line. Anyone else gets the chat's own "unknown
+command", and offline the key does nothing for them. It is staff work: no player patch notes describe the
 window itself, though players do meet its invasions and dragon attacks.
 
 ## How it works
 
-**Who.** Online, the `dev` glyph the account service signs (`server-account/src/titles.js` `glyphsOf`, from
-`DEVELOPER_HANDLES`). Offline the toybox is self-contained and asks no server anything, so no service can say who is a
+**Who.** Online, the `dev` or `mod` glyph the account service signs (`server-account/src/titles.js` `glyphsOf`, from
+`DEVELOPER_HANDLES` and the moderators), `TOYBOX_GLYPHS` in `src/systems/toybox/toyboxLaw.js`. Offline the toybox is self-contained and asks no server anything, so no service can say who is a
 developer: it opens on a local build (`npm run dev`) alone, and a production page offline has none. Every act that
 reaches another player is checked again by the relay or the account service. Losing the glyph closes the window and
 turns Ghost and No-Clip off.
@@ -22,13 +22,13 @@ Toggles stay lit while on. Summon is greyed offline, because no other player is 
 | No-Clip | flies through the world at `NOCLIP_RUN_MULT` times their running speed, no collision (`src/player/noClip.js`) |
 | Ghost | unseen by every player but developers and moderators; drawn faint on their own screen and to staff |
 | Teleport | a popup: Open Map is the world map as a portal stone opens it, its button "Teleport" and the arrival instant; To Player goes to where a named online player stands (`/tp @player`'s path), greyed offline |
-| Summon | brings a named online player in front of the developer (`/tpa`'s path) |
+| Summon | brings a named online player in front of the developer (`/tpa`'s path); an admin's or the Shadow Fang's alone, so a moderator is refused |
 | Create Item | the forge: any wearable piece, its fields, special effects, enchantments and side effects, granted to a pack |
 | Invasion | stages a siege of a city by a family of foes |
 | Dragon Attack | calls the world's Dwarven Dragon down on a city |
 
 **Ghost** (`server/src/staffGhost.js`). The developer's socket sends `ghost`; the relay takes it only from a `dev`
-glyph. While on, its poses, its place in rosters and counts, and its joins and leaves reach only sockets whose glyphs
+or `mod` glyph. While on, its poses, its place in rosters and counts, and its joins and leaves reach only sockets whose glyphs
 hold `dev` or `mod`. Everyone else sees a leave when it turns on and a join when it turns off. The hub's search and
 World list, chat channels and friends' presence do not hide a ghost yet.
 
@@ -70,7 +70,8 @@ guards by, so a stray swing is no Assault or Murder and calls no watch. A natura
 
 ## Rules
 
-- Developers only; the relay and the account service each check the glyph again.
+- Developers and moderators only; the relay and the account service each check the glyph again. Summon and To Player
+  keep their own rules (`staffPullAllowed`, `isStaff` in `src/net/`), which leave a moderator out.
 - Every grant and every staged event writes a staff audit row.
 - Online, a granted piece passes the item law. Offline, only its special effects may be what the law refuses.
 

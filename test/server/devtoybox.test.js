@@ -105,3 +105,12 @@ test('to another account: one playing now and one away each find it waiting in t
   assert.deepEqual(await grant(svc, dev, { spec: LONGSWORD, to: 'Nobody' }), { status: 404, body: { error: 'no-player' } });
   assert.deepEqual(await grant(svc, dev, { spec: LONGSWORD, to: 42 }), { status: 400, body: { error: 'body' } });
 });
+
+test('a moderator grants as a developer does, and the audit row names the moderator role', async () => {
+  const svc = await standService({ DEVELOPER_HANDLES: 'Dev', MODERATOR_HANDLES: 'Moira' });
+  const mo = await svc.registered('Moira');
+  const r = await grant(svc, mo, { spec: LONGSWORD });
+  assert.equal(r.status, 200, JSON.stringify(r.body));
+  const row = svc.env.DB._raw.prepare('SELECT actor, role, outcome FROM staff_audit WHERE act = ?').all(DEV_GRANT_ACT).at(-1);
+  assert.deepEqual([row.actor, row.role, row.outcome], [mo.id, 'moderator', 'ok']);
+});

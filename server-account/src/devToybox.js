@@ -1,11 +1,11 @@
 // @ts-check
 // THE TOYBOX'S GRANT, THE SERVICE'S SIDE: a developer's game session sends a piece the window made (toyboxItem.js
-// buildToyboxItem) to an account, their own when the box was empty. Developers alone; every act is a staff_audit row.
+// buildToyboxItem) to an account, their own when the box was empty. A developer or a moderator alone; every act is a staff_audit row.
 // The piece never goes straight into a record: seizing a live record (realm.js seizeRealmRecord) refuses its tab's
 // next save. It goes as a piece of the server's post, which a live session claims under its own lease (post.js
 // claimPost), the record and the claim in one batch. The game claims a grant to oneself at once; another account
 // finds it in their mailbox, playing now or later.
-import { isDeveloper } from './titles.js';
+import { isDeveloper, isModerator } from './titles.js';
 import { displayName } from './accounts.js';
 import { auditStatement } from './staff.js';
 import { REALM_PLAYING_S } from './realm.js';
@@ -22,7 +22,7 @@ export const DEV_GRANT_ACT = 'toybox-give';
 /** The words a grant is written with (within the post's 80 and 1,200). */
 export const devGrantSubject = (/** @type {string} */ name) => `A gift: ${name}`.slice(0, 80);
 export const DEV_GRANT_BODY = [
-  'A developer made this piece for you.',
+  'A member of the staff made this piece for you.',
   '',
   'Claim it and it goes into the pack of the online character you are playing.',
   '',
@@ -56,9 +56,11 @@ async function targetOf(db, actor, to) {
  * @param {any} actor the session's player row @param {any} env @param {any} body
  */
 export async function devGrantItem({ db, nowS, rand }, actor, env, body) {
-  if (!isDeveloper(actor, env)) return { error: 'not-developer' };
+  const dev = isDeveloper(actor, env);
+  if (!dev && !isModerator(actor, env)) return { error: 'not-developer' };
+  const role = dev ? 'admin' : 'moderator';
   const refuse = async (/** @type {string|null} */ target, /** @type {any} */ detail, /** @type {any} */ refusal) => {
-    await auditStatement(db, nowS, { actor, role: 'admin', act: DEV_GRANT_ACT, target, detail: { ...detail, error: refusal.error }, outcome: 'failed' }).run();
+    await auditStatement(db, nowS, { actor, role, act: DEV_GRANT_ACT, target, detail: { ...detail, error: refusal.error }, outcome: 'failed' }).run();
     return refusal;
   };
   const asked = { template: Number.isSafeInteger(body?.spec?.template) ? body.spec.template : null, door: 'game' };
@@ -79,7 +81,7 @@ export async function devGrantItem({ db, nowS, rand }, actor, env, body) {
     VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)`,
       )
       .bind(id, target.id, DEV_GRANT_BATCH + id, POST_SENDER, devGrantSubject(String(item.name ?? 'Item')), DEV_GRANT_BODY, JSON.stringify(item), nowS),
-    auditStatement(db, nowS, { actor, role: 'admin', act: DEV_GRANT_ACT, target: target.id, detail: { ...detail, post: id } }),
+    auditStatement(db, nowS, { actor, role, act: DEV_GRANT_ACT, target: target.id, detail: { ...detail, post: id } }),
   ]);
   const live = await db
     .prepare('SELECT COUNT(*) AS n FROM realm_characters WHERE player = ? AND lease IS NOT NULL AND lease_at > ?')

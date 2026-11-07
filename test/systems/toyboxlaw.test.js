@@ -15,10 +15,11 @@ import {
 import { DRAGON_STAY_MS } from '../../src/net/dragon/dragonLaw.js';
 import { MOBILE_TYPES } from '../../src/characters/mobile/mobileTypes.js';
 
-test('mayToybox: the dev glyph alone opens it', () => {
+test('mayToybox: the glyph of a developer or of a moderator opens it', () => {
   assert.equal(mayToybox(['dev']), true);
   assert.equal(mayToybox(['admin', 'dev']), true);
-  assert.equal(mayToybox(['admin', 'mod']), false);
+  assert.equal(mayToybox(['admin', 'mod']), true, 'a moderator');
+  assert.equal(mayToybox(['laurel', 'shadowfang']), false, 'no staff glyph');
   assert.equal(mayToybox([]), false);
   assert.equal(mayToybox('dev'), false, 'a string is no glyph list');
   assert.equal(mayToybox(null), false);

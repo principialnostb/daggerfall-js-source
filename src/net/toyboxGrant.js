@@ -18,7 +18,7 @@ export const toyboxGrantCall = (client, { spec, to = null }) => call(client, TOY
 export function toyboxGrantText(error) {
   switch (error) {
     case 'not-developer':
-      return 'Only a developer may grant items.';
+      return 'Only a developer or a moderator may grant items.';
     case 'no-player':
       return 'No account has that name.';
     case 'dev-target-guest':

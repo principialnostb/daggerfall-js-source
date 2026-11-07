@@ -67,7 +67,7 @@ test("/toybox opens for a developer; anyone else's is an unknown command, said n
   assert.deepEqual(r.log, [['cursor']], 'the cursor is freed for the window');
   assert.deepEqual(said, []);
   r.host.close();
-  r.setGlyphs(['admin', 'mod']);
+  r.setGlyphs(['admin', 'laurel']);
   assert.equal(r.host.command(parseToyboxCommand('/toybox'), say), false);
   assert.equal(r.host.isOpen(), false);
   assert.equal(r.host.open(), false);

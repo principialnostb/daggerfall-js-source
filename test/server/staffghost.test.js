@@ -59,10 +59,14 @@ test('ghost: the law - who sees, which rooms keep it, the wire\'s frame and pose
   assert.equal(poseChanged(validPose(P), validPose({ ...P, gh: 1 })), true, 'turning ghost is news at once');
 });
 
-test('ghost: only a developer may turn it on - a moderator and a player are refused, never struck', async () => {
+test('ghost: a developer or a moderator may turn it on - a player is refused, never struck', async () => {
   await quiet(async () => {
     const { r, mod, game } = await cell();
-    for (const ws of [mod, game]) {
+    mod.sent.length = 0;
+    await r.raw(mod, '{"t":"ghost","on":true}');
+    assert.deepEqual(ofT(mod, 'ghost').at(-1), { t: 'ghost', on: true }, 'a moderator');
+    assert.equal(isGhost(r.room._attach(mod)), true);
+    for (const ws of [game]) {
       ws.sent.length = 0;
       await r.raw(ws, '{"t":"ghost","on":true}');
       assert.deepEqual(ofT(ws, 'ghost'), [{ t: 'ghost', on: false, no: GHOST_REFUSED }]);

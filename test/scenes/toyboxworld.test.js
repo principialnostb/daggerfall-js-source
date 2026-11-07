@@ -41,9 +41,14 @@ test('TOYBOX in the world: a developer\'s /toybox opens the window; anyone else\
   const dev = world();
   assert.equal(dev.w.chat('/toybox', () => {}), true);
   assert.equal(dev.w.host.isOpen(), true);
-  const player = world({ glyphs: ['mod'] });
+  const player = world({ glyphs: ['laurel'] });
   assert.equal(player.w.chat('/toybox', () => {}), false);
   assert.equal(player.w.host.isOpen(), false);
+  const mod = world({ glyphs: ['mod'] });
+  assert.equal(mod.w.chat('/toybox', () => {}), true, 'a moderator online');
+  assert.equal(mod.w.host.isOpen(), true);
+  const modOffline = world({ glyphs: ['mod'], online: null, localDev: false });
+  assert.equal(modOffline.w.chat('/toybox', () => {}), false, 'offline, a shipped page has none');
   assert.equal(dev.w.chat('/tp Daggerfall', () => {}), false, 'other lines are not the toybox\'s');
 });
 

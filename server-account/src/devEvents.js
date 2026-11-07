@@ -4,8 +4,8 @@
 // the Staff Panel's events are (staffEvents.js), then signed as a `sevent` order and pushed to the hub, which keeps it in
 // its book and says it to every player online.
 //
-// A developer alone (titles.js isDeveloper). Every staging and every refusal after that check is a staff_audit row.
-import { isDeveloper } from './titles.js';
+// A developer or a moderator alone (titles.js isDeveloper, isModerator). Every staging and every refusal after that check is a staff_audit row.
+import { isDeveloper, isModerator } from './titles.js';
 import { displayName } from './accounts.js';
 import { auditStatement } from './staff.js';
 import { pushLaw } from './sanctions.js';
@@ -35,9 +35,11 @@ export const DEV_EVENT_STATUS = Object.freeze({
  */
 export async function devStageEvent(ctx, me, env, body) {
   const { db, nowS, subtle, rand } = ctx;
-  if (!isDeveloper(me, env)) return { error: 'not-developer' };
+  const dev = isDeveloper(me, env);
+  if (!dev && !isModerator(me, env)) return { error: 'not-developer' };
+  const role = dev ? 'admin' : 'moderator';
   const audit = (/** @type {object} */ detail, outcome = /** @type {'ok'|'failed'} */ ('ok')) =>
-    auditStatement(db, nowS, { actor: me, role: 'admin', act: DEV_EVENT_ACT, detail, outcome });
+    auditStatement(db, nowS, { actor: me, role, act: DEV_EVENT_ACT, detail, outcome });
   const id = mintEventId(rand);
   const by = displayName(me);
   const made = toyboxStaffEvent({ kind: body?.kind, place: body?.city, family: body?.family, id, at: nowS * 1000, by });

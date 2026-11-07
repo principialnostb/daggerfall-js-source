@@ -1,12 +1,14 @@
 // @ts-check
-// THE TOYBOX'S LAW: a developer's own tools, opened by /toybox. One copy for the page, the account service and the
-// relay, so it imports nothing. A developer is the `dev` glyph the account service signs (titles.js glyphsOf); every
-// door that acts for the toybox asks the service or the relay again, never this page's word alone.
+// THE TOYBOX'S LAW: the staff's own tools, opened by /toybox. One copy for the page, the account service and the
+// relay, so it imports nothing. Online a developer (`dev`) or a moderator (`mod`) opens it, the glyphs the account
+// service signs (titles.js glyphsOf); every door that acts for it asks the service or the relay again.
 
-/** The glyph that opens the toybox: the Developer's (the Staff Panel's Admin). */
+/** The glyph a local build's offline toybox stands in: the Developer's (the Staff Panel's Admin). */
 export const TOYBOX_GLYPH = 'dev';
+/** The glyphs that open the toybox online: a developer's and a moderator's. */
+export const TOYBOX_GLYPHS = Object.freeze([TOYBOX_GLYPH, 'mod']);
 /** Whether a player wearing `glyphs` may open the toybox. @param {unknown} glyphs */
-export const mayToybox = (glyphs) => Array.isArray(glyphs) && glyphs.includes(TOYBOX_GLYPH);
+export const mayToybox = (glyphs) => Array.isArray(glyphs) && TOYBOX_GLYPHS.some((glyph) => glyphs.includes(glyph));
 
 /** The toybox's options in the window's order. `toggle` options stay lit while on. */
 export const TOYBOX_OPTIONS = Object.freeze([
