@@ -15,6 +15,7 @@ import {
   staffEventBegun,
   STAFF_EVENTS_MAX,
   TB_DRAGON,
+  TB_INVASION,
 } from '../net/staffEvent/staffEventLaw.js';
 import { raidTownIs } from '../world/raidShared.js'; // WW6: a town's event's town - the Bay's by region and location, past the Bay by its own index
 
@@ -130,6 +131,13 @@ export const staffRaidsEnded = () => [..._raids.values()].filter((r) => r.cleans
 export const staffRaidOfKey = (key) => {
   const id = staffEventIdOf(key);
   return id ? (_raids.get(id) ?? null) : null;
+};
+/** Is `key` a toybox event's? No game of this build stands raiders for one (its foes are its cell's, its dragon the
+ *  world's), so a raider tagged with it is an older build's, which reads the event as a plain staff event the moment it
+ *  is staged: a peer's such raider stands no puppet here. @param {unknown} key */
+export const toyboxRaidKey = (key) => {
+  const kind = typeof key === 'string' ? staffRaidOfKey(key)?.staff?.tb : null;
+  return kind === TB_INVASION || kind === TB_DRAGON;
 };
 
 /**
