@@ -48,8 +48,8 @@
   {
     "name": "emit-no-depth-bind",
     "file": "src/render/airPass.js",
-    "old": "    gl.bindTexture(gl.TEXTURE_2D, this.frame.depth);\n    gl.uniform1i(prog.uDepth, 2);",
-    "new": "    gl.uniform1i(prog.uDepth, 2);",
+    "old": "    gl.activeTexture(gl.TEXTURE2);\n    gl.bindTexture(gl.TEXTURE_2D, depth);",
+    "new": "    gl.activeTexture(gl.TEXTURE2);",
     "tests": [
       "test/render/el6_field.test.js"
     ]
@@ -158,6 +158,15 @@
     "file": "src/render/airPass.js",
     "old": "      gl.uniform4fv(prog.uRect, this.rect);\n      gl.uniform2fv(prog.uCanvas, this.canvas);",
     "new": "      gl.uniform2fv(prog.uCanvas, this.canvas);",
+    "tests": [
+      "test/render/el6_field.test.js"
+    ]
+  },
+  {
+    "name": "emit-own-rect-unsent",
+    "file": "src/render/airPass.js",
+    "old": "    if (heldMoved(held.rect, this.rect)) gl.uniform4fv(prog.uRect, this.rect);\n",
+    "new": "",
     "tests": [
       "test/render/el6_field.test.js"
     ]

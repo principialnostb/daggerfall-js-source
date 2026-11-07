@@ -83,8 +83,8 @@
   {
     "name": "caster-farthest",
     "file": "src/render/shadowPass.js",
-    "old": "    while (at > 0 && picked[at - 1][1] > d) at--;",
-    "new": "    while (at > 0 && picked[at - 1][1] < d) at--;",
+    "old": "    while (at > 0 && pickedDist[at - 1] > d) at--;",
+    "new": "    while (at > 0 && pickedDist[at - 1] < d) at--;",
     "tests": [
       "test/render/el5_field.test.js"
     ]

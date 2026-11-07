@@ -22,8 +22,8 @@
 // every map draws for the zone and for the province is the province's own outline on the traced picture (zoneLineOf): a
 // map pixel is the zone's exactly when its middle lies inside it.
 //
-// KEPT WHILE THE PICTURE STANDS: the mask is built at the first ask and kept while the trace and the fit stand
-// (tamrielLandVersion, tamrielFit); either moved, the next ask builds it again.
+// KEPT WHILE THE PICTURE STANDS: the mask is made in the idle job's steps (cyrodiilMaskSteps) or at the first ask, and
+// kept while the trace and the fit stand (tamrielLandVersion, tamrielFit); either moved, it is made again.
 //
 // ONLINE, THE TRACE'S ALONE (AUDIT TESA II Z8): with no trace installed the province is the authored rings' - 56% of the
 // two shapes' union theirs alone on the freeware's picture - so a client whose trace had not landed yet (the boot's first
@@ -50,6 +50,8 @@ import { tamrielFit, pictureToBay, bayToPicture, PICTURE_W, PICTURE_H } from '..
 export const CYRODIIL_THEATRE = IMPERIAL_ID;
 /** A cell of the zone's mask, map pixels a side. */
 export const CYRODIIL_CELL_PX = 4;
+/** How many pixels a step of the mask's build asks the province's law: a few milliseconds of an idle period. */
+export const CYRODIIL_MASK_STEP_ASKS = 16384;
 
 /**
  * The province's box in map pixels, off the picture: every picture unit whose middle is the Imperial Province's, widened
@@ -57,12 +59,21 @@ export const CYRODIIL_CELL_PX = 4;
  * picture holds no such province.
  */
 export function cyrodiilBox() {
+  return drain(boxSteps());
+}
+
+/** cyrodiilBox a band of the picture's rows a step, some CYRODIIL_MASK_STEP_ASKS pixels: the land's law makes its
+ *  tiles as the rows first read them, so a landing's first reads are spread over the steps.
+ *  @returns {Generator<undefined, { x0: number, y0: number, x1: number, y1: number }|null, unknown>} */
+function* boxSteps() {
   const key = PROVINCE_OF_ID[IMPERIAL_ID];
+  const rows = Math.max(1, Math.floor(CYRODIIL_MASK_STEP_ASKS / PICTURE_W));
   let x0 = Infinity,
     y0 = Infinity,
     x1 = -Infinity,
     y1 = -Infinity;
   for (let py = 0; py < PICTURE_H; py++) {
+    if (py > 0 && py % rows === 0) yield;
     for (let px = 0; px < PICTURE_W; px++) {
       if (provinceKeyAt(px + 0.5, py + 0.5) !== key) continue;
       if (px < x0) x0 = px;
@@ -117,42 +128,164 @@ export function provinceWaterAt(x, y) {
 
 let _mask = /** @type {any} */ (null);
 let _key = /** @type {string|null} */ (null);
+/** The build under way and the land it is for (`key`): the idle job's steps and an ask share it, so an ask before it
+ *  is whole finishes it rather than starting another. */
+let _building = /** @type {{ key: string, steps: Generator<undefined, any, unknown> }|null} */ (null);
+/** Test seam: how many builds of the mask have begun. An ask that finishes the idle job's build begins none of its
+ *  own, so a reader on the way costs only what the build has left. */
+let _begun = 0;
+export const maskBuildsBegun = () => _begun;
+/** The land a mask is made for: the trace's version and the fit. */
+const maskKey = () => {
+  const f = tamrielFit();
+  return `${tamrielLandVersion()}:${f.ox}:${f.oy}:${f.ppu}`;
+};
 /**
  * THE ZONE'S MASK - Cyrodiil's, on the cells' lattice over its box (null where the picture holds no Imperial Province -
  * AUDIT TESA II Z8: and online, while no trace is installed). Kept while the picture stands (the trace's version and the
- * fit); built again when either moves.
+ * fit). When either moves, the next ask makes the new land's mask whole: it finishes the idle job's build where that
+ * build is for this land, and makes its own where not.
  */
 export function cyrodiilMask() {
   if (isOnlinePage() && !tamrielTrace()) return null; // AUDIT TESA II Z8: no trace, no zone - never the authored rings' online
-  const f = tamrielFit();
-  const key = `${tamrielLandVersion()}:${f.ox}:${f.oy}:${f.ppu}`;
+  const key = maskKey();
   if (_key === key) return _mask;
+  const build = _building?.key === key ? _building : { key, steps: maskSteps() };
+  _building = null;
   _key = key;
-  const box = cyrodiilBox();
-  if (!box) return (_mask = null);
+  _mask = madeMask(drain(build.steps));
+  return _mask;
+}
+
+/**
+ * cyrodiilMask a step at a time, for the idle job (ui/tamrielInk.js tracedSteps): the law asked ahead,
+ * CYRODIIL_MASK_STEP_ASKS pixels a step, then the mask made off those answers in a step of its own. The mask kept stays
+ * the last whole one until this one is whole, so nothing reads a part; an ask on the way finishes it, and a land that
+ * moves on the way starts it again.
+ * @returns {Generator<undefined, void, unknown>}
+ */
+export function* cyrodiilMaskSteps() {
+  for (;;) {
+    if (isOnlinePage() && !tamrielTrace()) return;
+    const key = maskKey();
+    if (_key === key) return;
+    if (_building?.key !== key) _building = { key, steps: maskSteps() };
+    const build = _building;
+    let step;
+    try {
+      step = build.steps.next();
+    } catch (e) {
+      // as an ask whose build throws: the land's mask is taken as made, and the last whole one stays
+      _building = null;
+      _key = key;
+      throw e;
+    }
+    if (step.done) {
+      _building = null;
+      _key = key;
+      _mask = madeMask(step.value);
+    }
+    yield;
+  }
+}
+
+/** A mask made, kept with its line. */
+function madeMask(/** @type {any} */ mask) {
+  if (!mask) return null;
+  const trace = tamrielTrace();
+  // ZONE-LINE: the line the maps draw (untraced, the zone's own pixel edge); SMOOTH-LAND: the law's own, made the first
+  // time a map asks it (the mask is the boot's; the line the map's)
+  Object.defineProperty(mask, 'line', {
+    enumerable: true,
+    configurable: true,
+    get: () => (trace ? zoneLineOf(trace, mask) : null),
+  });
+  return mask;
+}
+
+/**
+ * The mask's build, in steps: the box a band of rows a step, then the law asked ahead at the pixels buildWildMask asks
+ * (each cell's middle, then every pixel of a cell whose middle differs from a neighbour's), then the mask made off those
+ * answers. It is the mask a build asking the law itself makes: an answer is the law's whichever step asked it, the land
+ * the same between steps (cyrodiilMaskSteps starts again when it moves), and a pixel not asked ahead is asked when the
+ * build needs it.
+ * @returns {Generator<undefined, any, unknown>}
+ */
+function* maskSteps() {
+  _begun++;
+  const box = yield* boxSteps();
+  if (!box) return null;
+  yield;
   const cell = CYRODIIL_CELL_PX;
   const ox = Math.floor(box.x0 / cell) * cell,
     oy = Math.floor(box.y0 / cell) * cell; // the world's one lattice
   const width = Math.ceil((box.x1 + 1 - ox) / cell),
     height = Math.ceil((box.y1 + 1 - oy) / cell);
-  _mask = buildWildMask({
-    width,
-    height,
-    ox,
-    oy,
-    cell,
-    pixelIn: (x, y) => theatreAt(x, y) === CYRODIIL_THEATRE || provinceWaterAt(x, y),
-  }); // ZONE-LINE: the province's own law, a pixel at a time; NIBEN-SEA: and its own water
-  const trace = tamrielTrace();
-  // ZONE-LINE: the line the maps draw (untraced, the zone's own pixel edge); SMOOTH-LAND: the law's own, made the first
-  // time a map asks it (the mask is the boot's; the line the map's)
-  const own = _mask;
-  Object.defineProperty(own, 'line', {
-    enumerable: true,
-    configurable: true,
-    get: () => (trace ? zoneLineOf(trace, own) : null),
-  });
-  return _mask;
+  // ZONE-LINE: the province's own law, a pixel at a time; NIBEN-SEA: and its own water
+  const pixelIn = (/** @type {number} */ x, /** @type {number} */ y) =>
+    theatreAt(x, y) === CYRODIIL_THEATRE || provinceWaterAt(x, y);
+  const count = width * height,
+    middle = Math.floor(cell / 2);
+  const middles = new Uint8Array(count),
+    edged = new Uint8Array(count),
+    pixels = new Uint16Array(count);
+  let asked = 0,
+    due = CYRODIIL_MASK_STEP_ASKS;
+  for (let i = 0; i < count; i++) {
+    const col = i % width,
+      row = (i - col) / width;
+    middles[i] = pixelIn(ox + col * cell + middle, oy + row * cell + middle) ? 1 : 0;
+    if (++asked >= due) {
+      due += CYRODIIL_MASK_STEP_ASKS;
+      yield;
+    }
+  }
+  // the cells asked a pixel at a time: both of two neighbours (eight ways) whose middles differ, and an inside cell on
+  // the grid's edge
+  for (let row = 0; row < height; row++) {
+    for (let col = 0; col < width; col++) {
+      const i = row * width + col,
+        here = middles[i];
+      if (here && (col === 0 || row === 0 || col === width - 1 || row === height - 1)) edged[i] = 1;
+      if (col + 1 < width && middles[i + 1] !== here) edged[i] = edged[i + 1] = 1;
+      if (row + 1 < height) {
+        const j = i + width;
+        if (middles[j] !== here) edged[i] = edged[j] = 1;
+        if (col + 1 < width && middles[j + 1] !== here) edged[i] = edged[j + 1] = 1;
+        if (col > 0 && middles[j - 1] !== here) edged[i] = edged[j - 1] = 1;
+      }
+    }
+  }
+  for (let i = 0; i < count; i++) {
+    if (!edged[i]) continue;
+    const col = i % width,
+      row = (i - col) / width;
+    let bits = 0;
+    for (let dy = 0; dy < cell; dy++)
+      for (let dx = 0; dx < cell; dx++)
+        if (pixelIn(ox + col * cell + dx, oy + row * cell + dy)) bits |= 1 << (dy * cell + dx);
+    pixels[i] = bits;
+    if ((asked += cell * cell) >= due) {
+      due = asked + CYRODIIL_MASK_STEP_ASKS;
+      yield;
+    }
+  }
+  yield;
+  /** The law's answer at a pixel, as asked ahead, or asked now. */
+  const answer = (/** @type {number} */ x, /** @type {number} */ y) => {
+    const dx = x - ox,
+      dy = y - oy,
+      col = Math.floor(dx / cell),
+      row = Math.floor(dy / cell);
+    if (col >= 0 && row >= 0 && col < width && row < height) {
+      const i = row * width + col,
+        bit = (dy - row * cell) * cell + (dx - col * cell);
+      if (edged[i]) return ((pixels[i] >> bit) & 1) === 1;
+      if (bit === middle * cell + middle) return middles[i] === 1;
+    }
+    return pixelIn(x, y);
+  };
+  return buildWildMask({ width, height, ox, oy, cell, pixelIn: answer });
 }
 
 /**

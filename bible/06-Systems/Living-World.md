@@ -58,6 +58,14 @@ leg rides the sea lanes' packets, and a port's sailors are their crews (`portCre
 at the dungeon's door; the fallen lie where they fell, with a keepsake the player may carry home to their household
 (`keepsake.js`). A traveller slain is gone for good, and a newcomer takes the place after the town mourns (`lives.js`).
 
+**The books** (`src/scenes/livingWorld/livingBooks.js`). The trips' book is the memo every reader shares: a traveller's
+trip of a cycle, a town's trips of a day, and the way walked between two places, kept once per pair and direction. A trip
+still waiting on a way is pending; each frame the pending trips are asked again, a few at a time on the ways' leftover
+budget, so their ways land. A town's roads' word that answered undefined is kept waiting until every trip it waited on
+has answered; a tick meanwhile plans nothing. A turn of fate renews only what it can change: a turn on a place drops that
+place's entries and its town's trips; a fight's end or a band routed drops every trouble and the kept parties; a tale
+drops nothing. Another character's record starts every book over. A kept answer equals one worked out afresh.
+
 **Past the Bay.** The towns and dungeons come from the world's registry (`src/scenes/livingWorld/livingIndex.js`), so
 every listed place past the Bay has its residents. Travellers keep to their own side of the Bay's edge: the Bay's
 living world is every client's, while the land past it is only on clients that stand it (`livingSide`). Ways past the
@@ -90,7 +98,8 @@ DFU gives each watchman his own Halt clock; the living watch speaks as one.
 
 - `src/systems/livingWorld/` - census, places, day plan, paths, meetups, lines, stir, looks, relations, trips,
   trouble, lives, keepsakes, quarry
-- `src/scenes/livingWorld/` - the host's living modules: the index, roads, trips, indoors, the watch, the fallen
+- `src/scenes/livingWorld/` - the host's living modules: the index, roads, trips, the books, indoors, the watch, the fallen
 - `src/systems/livingWorld/livingTown.js` - a town's residents on the street, and what the player's deeds do to them
-- `test/systems/livingWorld/` - the census, the day, the roads, the deep, the watch, density, incidents
+- `test/systems/livingWorld/` - the census, the day, the roads, the books (`tripbook_overworld.test.js`), the deep, the
+  watch, density, incidents
 - `test/scenes/lw7b_beyond.test.js`, `test/scenes/haltone_watch.test.js` - beyond the walls, the watch's one voice

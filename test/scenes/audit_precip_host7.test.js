@@ -112,6 +112,7 @@ test('HOST-7: a pixel the snow turns is re-skinned where it stands - its table, 
   assert.equal(p.texRemap.get(`${SWAPS}_1`), `${winterArch}_1`);
   assert.equal(p.texRemap.get('7_2'), `${applyClimate(7, 2, TEMPERATE, SEASON.Winter)}_2`, 'what the standing table was asked meanwhile, brought in before the trade');
   assert.equal(p.staticBatch.merged.subMeshes[0].textureArchive, winterArch, 'the merge through the winter table');
+  assert.deepEqual(p.staticBatch.merged.shadowCells, [{ startIndex: 0, primitiveCount: 2 }], 'with its shadow columns, as the build\'s merge has them');
   assert.ok(log.destroyed.some((d) => d.old), 'the summer merge let go');
   assert.deepEqual(p.models[0].gpu, { mill: TEMPERATE, winter: true }, 'the mill\'s body dressed for winter');
   assert.equal(p.models[1].texRemap, null, 'a home with no look draws by the pixel\'s table');

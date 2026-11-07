@@ -125,10 +125,10 @@ test('PEER-ART the store keeps RIDER_PIXELS_KEPT sprites\' pictures, the most re
   }
 });
 
-test('PEER-ART one cache, two stores: a texture the other store let go under the same key (my own body in the same outfit) is uploaded again, never drawn from nothing - here and in my own body\'s store (mutants: the drawn sprite trusted; my body\'s trusted)', async () => {
+test('PEER-ART one cache, two stores: a texture the other store let go under the same key (my own body in the same outfit) is uploaded again, never drawn from nothing - here, for a walker whose answer is kept, and in my own body\'s store (mutants: the drawn sprite trusted; a kept answer\'s trusted; my body\'s trusted)', async () => {
   let decodes = 0;
   const textures = new Map(), uploads = [];
-  const renderer = { textures, uploadTexture: (a, rec) => { uploads.push(`${a}_${rec}`); textures.set(`${a}_${rec}`, {}); }, evictTexture: (k) => textures.delete(k) };
+  const renderer = { textures, uploadTexture: (a, rec) => { uploads.push(`${a}_${rec}`); textures.set(`${a}_${rec}`, {}); }, evictTexture: (k) => textures.delete(k), createBillboardBatch: (archive, record, size) => ({ archive, record, size, origin: null }), destroyBillboardBatch() {} };
   const art = createEotbArt({ renderer, urlFor: (k) => `u:${k}`, decode: async () => { decodes++; return { width: 4, height: 4, colors: new Uint32Array(16) }; } });
   const [s] = sprites('lll');
   const key = `${s.archive}_${s.rec}`;
@@ -149,6 +149,20 @@ test('PEER-ART one cache, two stores: a texture the other store let go under the
   assert.equal(art.ensure(horse), null, 'a horse let go by the other store: not drawn from nothing');
   await flush();
   assert.ok(art.ensure(horse) && textures.has(hKey), 'uploaded again');
+  // a walker in its worn armour the same, though its layer keeps its answer and the answer's keys from frame to frame
+  const walkers = createPeerWalkers({ art, layeredAll: () => false });
+  const peer = { id: 'w', look: { gender: 'female', lg: 1, items: [] }, shown: { x: 0, y: 0, z: 9, yaw: 0, pitch: 0, mv: 0, wd: 0, an: 0, sr: 0, cn: 0, ar: 0 } };
+  const walk = async () => { walkers.sync([peer], (p) => [p.x, p.y, p.z], { eye: [0, 1, 20], dt: 0 }); await flush(); };
+  for (let i = 0; i < 3 && !walkers.isWalking('w'); i++) await walk();
+  const stood = walkers.batchOf('w'), wKey = `${stood?.archive}_${stood?.record}`;
+  assert.ok(walkers.isWalking('w') && stood.archive === LAYERED_ARCHIVE.female && textures.has(wKey), `${wKey}: the walker up, in its armour`);
+  const wUp = uploads.filter((k) => k === wKey).length, wDecodes = decodes;
+  await walk();
+  assert.equal(uploads.filter((k) => k === wKey).length, wUp, 'a steady frame uploads nothing');
+  textures.delete(wKey);   // my own body's store let the outfit go
+  await walk(); await walk();
+  assert.equal(uploads.filter((k) => k === wKey).length, wUp + 1, 'a walker let go by the other store: uploaded again');
+  assert.ok(textures.has(wKey) && decodes === wDecodes, 'from the pictures it kept');
   // my own body's store asks the same (player/eyeOfTheBeholder/eotbBody.js ensure), driven as the world host drives it -
   // in the worn armour (the default) and, AUDIT FB1022d D3, in a class skin (any key: a horse's look is no worn armour)
   for (const layered of [null, 0]) {

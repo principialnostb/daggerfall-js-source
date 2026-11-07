@@ -1,0 +1,164 @@
+[
+  {
+    "name": "MOVER-HOLD-every-mover-redrawn",
+    "file": "src/render/shadowPass.js",
+    "old": "          if (same && !staticStale && this._slotLiveDyn[k] && !selfMoved) {",
+    "new": "          if (false && same && !staticStale && this._slotLiveDyn[k] && !selfMoved) {",
+    "tests": [
+      "test/render/moverhold.test.js"
+    ]
+  },
+  {
+    "name": "MOVER-HOLD-held-over-a-fresh-cache",
+    "file": "src/render/shadowPass.js",
+    "old": "          if (same && !staticStale && this._slotLiveDyn[k] && !selfMoved) {",
+    "new": "          if (same && this._slotLiveDyn[k] && !selfMoved) {",
+    "tests": [
+      "test/render/moverhold.test.js"
+    ]
+  },
+  {
+    "name": "MOVER-HOLD-the-lamp-place-forgotten",
+    "file": "src/render/shadowPass.js",
+    "old": "    this._memoPut(pos[0]); this._memoPut(pos[1]); this._memoPut(pos[2]); this._memoPut(far);",
+    "new": "    this._memoPut(far);",
+    "tests": [
+      "test/render/moverhold.test.js"
+    ]
+  },
+  {
+    "name": "MOVER-HOLD-the-mip-maps-forgotten",
+    "file": "src/render/shadowPass.js",
+    "old": "this._memoPut(self ? 1 : 0); this._memoPut(this._mipsNow);",
+    "new": "this._memoPut(self ? 1 : 0);",
+    "tests": [
+      "test/render/moverhold.test.js"
+    ]
+  },
+  {
+    "name": "MOVER-HOLD-the-card-turn-forgotten",
+    "file": "src/render/shadowPass.js",
+    "old": "          if (b.selfCard) { this._memoPut(rec.right[0]); this._memoPut(rec.right[1]); this._memoPut(rec.right[2]); }",
+    "new": "          if (b.selfCard) { this._memoPut(1); }",
+    "tests": [
+      "test/render/moverhold.test.js"
+    ]
+  },
+  {
+    "name": "MOVER-HOLD-the-picture-forgotten",
+    "file": "src/render/shadowPass.js",
+    "old": "this._memoPut(b.indexCount); this._memoPut(identityOf(tex));",
+    "new": "this._memoPut(b.indexCount);",
+    "tests": [
+      "test/render/moverhold.test.js"
+    ]
+  },
+  {
+    "name": "MOVER-HOLD-a-gib-held",
+    "file": "src/render/shadowPass.js",
+    "old": "          if (b._dyn === true || b._place) { this._moverMemoN[k] = -1; return false; }",
+    "new": "          if (b._place) { this._moverMemoN[k] = -1; return false; }",
+    "tests": [
+      "test/render/moverhold.test.js"
+    ]
+  },
+  {
+    "name": "MOVER-HOLD-a-solid-passed-over",
+    "file": "src/render/shadowPass.js",
+    "old": "        this._moverMemoN[k] = -1; return false;\n      }\n      const mesh = rec.mesh;",
+    "new": "        continue;\n      }\n      const mesh = rec.mesh;",
+    "tests": [
+      "test/render/moverhold.test.js"
+    ]
+  },
+  {
+    "name": "MOVER-HOLD-a-rig-pose-forgotten",
+    "file": "src/render/shadowPass.js",
+    "old": "this._memoPut(identityOf(mesh.vao)); this._memoPut(mesh._poseGen ?? 0);",
+    "new": "this._memoPut(identityOf(mesh.vao));",
+    "tests": [
+      "test/render/mwnpc16_bodyshadow.test.js"
+    ]
+  },
+  {
+    "name": "MOVER-HOLD-a-new-value-taken-for-the-old",
+    "file": "src/render/shadowPass.js",
+    "old": "      if (at >= this._moverMemoN[k] || was !== value || (value === 0 && 1 / was !== 1 / value)) this._memoSame = false;",
+    "new": "      if (at >= this._moverMemoN[k]) this._memoSame = false;",
+    "tests": [
+      "test/render/moverhold.test.js"
+    ]
+  },
+  {
+    "name": "MOVER-HOLD-a-longer-memo-taken-for-the-same",
+    "file": "src/render/shadowPass.js",
+    "old": "    const same = this._memoSame && this._memoAt === this._moverMemoN[k];",
+    "new": "    const same = this._memoSame;",
+    "tests": [
+      "test/render/moverhold.test.js"
+    ]
+  },
+  {
+    "name": "MOVER-HOLD-the-cache-alone-taken-for-movers",
+    "file": "src/render/shadowPass.js",
+    "old": "          if (same && !staticStale && this._slotLiveDyn[k] && !selfMoved) {",
+    "new": "          if (same && !staticStale && !selfMoved) {",
+    "tests": [
+      "test/render/moverhold.test.js"
+    ]
+  },
+  {
+    "name": "MOVER-HOLD-the-wind-forgotten",
+    "file": "src/render/shadowPass.js",
+    "old": "          if (share > 0) { for (let i = 0; i < 4; i++) this._memoPut(rec.flatWind[i]); for (let i = 0; i < 8; i++) this._memoPut(rec.windfall[i]); }",
+    "new": "          if (false) { for (let i = 0; i < 4; i++) this._memoPut(rec.flatWind[i]); for (let i = 0; i < 8; i++) this._memoPut(rec.windfall[i]); }",
+    "tests": [
+      "test/render/moverhold.test.js"
+    ]
+  },
+  {
+    "name": "MOVER-HOLD-the-width-forgotten",
+    "file": "src/render/shadowPass.js",
+    "old": "this._memoPut(origin[2]); this._memoPut(b.size.w); this._memoPut(b.size.h);",
+    "new": "this._memoPut(origin[2]); this._memoPut(b.size.h);",
+    "tests": [
+      "test/render/moverhold.test.js"
+    ]
+  },
+  {
+    "name": "MOVER-HOLD-a-hidden-range-forgotten",
+    "file": "src/render/shadowPass.js",
+    "old": "          if (range.hidden || !(range.count > 0)) { this._memoPut(0); continue; }",
+    "new": "          if (!(range.count > 0)) { this._memoPut(0); continue; }",
+    "tests": [
+      "test/render/mwnpc16_bodyshadow.test.js"
+    ]
+  },
+  {
+    "name": "MOVER-HOLD-a-walk-walked-whole",
+    "file": "src/render/shadowPass.js",
+    "old": "            if (walking) { this._moverMemoN[k] = -1; return false; }",
+    "new": "            if (false) { this._moverMemoN[k] = -1; return false; }",
+    "tests": [
+      "test/render/moverhold.test.js"
+    ]
+  },
+  {
+    "name": "MOVER-HOLD-a-step-taken-for-a-walk",
+    "file": "src/render/shadowPass.js",
+    "old": "            const walking = this._slotFreshAt[k] === this.frameNo - 1;",
+    "new": "            const walking = true;",
+    "tests": [
+      "test/render/moverhold.test.js"
+    ]
+  },
+  {
+    "name": "MOVER-HOLD-a-wood-answered-before-its-quads",
+    "file": "src/render/shadowPass.js",
+    "old": "          if (cand) this._candidateQuads(rank);   // the lists the redraw walks: a placed wood still in them can be drawn",
+    "new": "",
+    "tests": [
+      "test/render/moverhold.test.js"
+    ]
+  }
+]

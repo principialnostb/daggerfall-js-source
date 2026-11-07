@@ -18,7 +18,7 @@ import { featureTile, FEATURE_KEYS_NOTE } from '../../src/ui/enhanced/enhancedMe
 import { paneControls, discardControlsStaging, controlsStaging, FIXED_KEYS_HEAD } from '../../src/ui/enhanced/enhancedControls.js';
 import { FEATURES } from '../../src/systems/features.js';
 import { fixedKeyRows, modKeyRows, shortcutKeyText, buttonText, setUnsavedBinding, FIXED_KEY_ROWS, TRANSPORT_KEY_ROWS } from '../../src/systems/controlsConfig.js';
-import { MOD_ACTIONS, ACTION_GROUPS, createBindings, resetDefaults, setBinding, codeForAction } from '../../src/systems/inputActions.js';
+import { MOD_ACTIONS, ACTION_GROUPS, createBindings, resetDefaults, setBinding, codeForAction, clearBindingByCode } from '../../src/systems/inputActions.js';
 import { SHORTCUT_TEXT } from '../../src/systems/dialogShortcuts.js';
 import { setBindings } from '../../src/ui/input.js';
 
@@ -115,7 +115,7 @@ test('UXB1-F: a mod\'s keys, as its tile names them - the Controls page\'s own l
     [['Light or douse', 'O'], ['Drop the light', 'G'], ['Throw a torch (hold to charge)', 'X']], 'drop torch');
   assert.deepEqual(modKeyRows('horse-cart-and-cargo', store).map((r) => [r.label, r.key]),
     [['Mount or dismount', ','], ['Summon horse and wagon', '.']], 'summon horse, summon cart');
-  store.primary.delete(codeForAction(store, 'TorchDrop'));
+  clearBindingByCode(store, codeForAction(store, 'TorchDrop'));   // through the store's own writer: a raw delete moves no rev, and the readers keep their answers on it
   assert.equal(modKeyRows('handheld-torches', store)[1].key, 'NONE');
   assert.deepEqual(modKeyRows('seasons-iliac-bay', store), [], 'a mod with no keys names none');
 });

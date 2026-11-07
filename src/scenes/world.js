@@ -120,9 +120,8 @@ import { LIVING_WORLD_VENDOR } from '../systems/livingWorld/relations.js';   // 
 import { characterRelations } from '../systems/livingWorld/regardClock.js';   // FIELD BUGS 2026-10-21d REGARD-OWN: counted in the character's own days
 import { friendCards } from '../systems/livingWorld/friendWord.js';   // AUDIT FB1021d RO-4: a friend made, named for the HUD
 import { firstNameOf } from '../systems/livingWorld/lines.js';
-import { mintResident } from '../systems/livingWorld/census.js';   // LW4: a newcomer to a place the road emptied (LW3's travellers: scenes/livingWorld/livingTrips.js)
 import { townTrips, townTripsSteps, visitorsOf as tripVisitorsOf, awayOf as tripAwayOf, placeCycle, setsOut, newsOf, paceScale, NEWS_DAYS, diversAt, cycleOf, handsOn, divesIn, TRIP_REACH_PX } from '../systems/livingWorld/trips.js';   // LW3: the roads, pure; LW4: the places' cycles, the town's news; LW7: a townsperson's cycle, a trip's hand deaths
-import { placeAt, turnKey } from '../systems/livingWorld/lives.js';   // LW4: who holds a traveller's place
+import { turnKey } from '../systems/livingWorld/lives.js';   // LW4: who holds a traveller's place
 import { peoplePage, residentOfId, regardBadge } from '../systems/livingWorld/people.js';   // LW7c: the chronicle's People page; AUDIT FB1010 C1: a betrothed as the census mints them
 import { troubleOf, troubledTrip } from '../systems/livingWorld/trouble.js';   // LW4: trouble on the road
 import { foeWord } from '../systems/livingWorld/lines.js';   // LW4: a foe's word for the town's talk and a mark
@@ -140,6 +139,7 @@ import { pastBayJourney, teleportJourney } from '../systems/travel/pastBayTravel
 import { bayPlaceRows, BAY_SOURCE } from '../world/worldWide/bayPlaces.js';   // WW1: the game's own rows, the registry's first provider
 import { createTownTable } from '../world/worldWide/townTable.js';   // WW7: a town by its map id, the Bay's and the registry's
 import { createLivingTrips } from './livingWorld/livingTrips.js';   // WW1: the living world's towns and dungeons, off the registry; WW7-7: its trips' world, everywhere
+import { createLivingBooks } from './livingWorld/livingBooks.js';   // the trips', places' and troubles' books kept across frames, and what a turn renews
 import { createWorldPorts, portIdOf, portIdOfLocation, COMPASS_WAYS } from '../world/worldWide/worldPorts.js';   // WW3: the world's ports past the Bay, off the registry
 import { rumareSeaPixel } from '../world/rumareWaters.js';   // RUMARE-WATER: the Imperial City's lake the sea's - its ports' shore, its voyages' water
 import { createWorldLanes, onWorldSea, bayLaneWater } from './naval/worldLanes.js';   // The Bay's packet lanes and the sea's past it, one book
@@ -513,7 +513,8 @@ import { createHitEffects, setSplashObserver } from './hitEffects.js';
 import { noteMyBlow, noteMyHurt, isHurtClip, poseFx, createPeerFxPlayer } from '../net/peer/peerFx.js';   // PEERFX1: the others see and hear my blows, and hear me struck
 import { hitFlashStrength, setBatchHitFlash, HIT_FLASH_S } from '../systems/hitFlash.js';   // HITFLASH1: a struck body's red - the peers' curve is the foes'
 import { setOneShotObserver } from '../systems/audio.js';   // PEERFX1
-import { createTownScratch, createPersonTextureKeys } from './townScratch.js';   // PERF-TOWN1: the town loop's per-frame seats, and the memoised texture key
+import { createTownScratch, createPersonTextureKeys, recordFrameKey } from './townScratch.js';   // the town loop's per-frame seats, and its memoised keys
+import { pixelsInto, bothInto, scaledInto, copiedInto } from './frameKept.js';   // the frame's lists and records, kept and refilled in place
 import { createDroppedTorches } from './droppedTorches.js';
 import { createCamps } from './camps.js';   // SURV3: the camps this host stands - the tent and the fire
 import { drinkAtSource, DRY_SOURCE_TEXT } from '../systems/survival/items.js';   // SURV3: the mod's water sources under the one ray
@@ -688,7 +689,7 @@ import { RIDE_TEXT, RIDE_ASK_TTL_MS } from '../systems/wagon/wagonSeats.js';
 import { createSailingCabinLink } from '../net/sailingCabinLink.js';
 import { capsuleFits } from '../player/parkour.js';
 import { TRIGGER_MODEL as CSA_TRIGGER_MODEL, HULL_NAMES as CSA_HULL_NAMES, AUDIO_CLIPS as CSA_AUDIO_CLIPS, colliderBoundsInChildren as csaColliderBoundsInChildren, animatorOf as csaAnimatorOf, meshLocalBounds as csaMeshLocalBounds } from '../systems/comeSailAway/comeSailAwayBoat.js';   // CSA-B: the probe's lanterns; CSA-D: the plaque's word for a boat; CSA-G: the loops' objects and the five clips; CSA-J: Eye of the Beholder's Collider.bounds
-import { createComeSailAwayRuntime, cargoModWords, comeSailAwayCarrier, WATER_WALKING_SILENT, COME_SAIL_AWAY_VENDOR, CONSOLE as CSA_CONSOLE, NO_WATER_LEVEL, NICE_BOAT_TEXT as CSA_NICE_BOAT_TEXT, activationModelOf as csaActivationModelOf, customModelOf as csaCustomModelOf, ACTIVATION_DISTANCE as CSA_ACTIVATION_DISTANCE, windWidgetFrameCount as csaWindWidgetFrameCount, BOAT_ACTIONS as CSA_BOAT_ACTIONS, hullFromMessage as csaHullFromMessage, tileMapIndexAtPosition as csaTileMapIndexAtPosition } from '../systems/comeSailAway/comeSailAway.js';   // NAV-H: the tile a sea ship floats on
+import { createComeSailAwayRuntime, cargoModWords, comeSailAwayCarrier, WATER_WALKING_SILENT, COME_SAIL_AWAY_VENDOR, CONSOLE as CSA_CONSOLE, NO_WATER_LEVEL, NICE_BOAT_TEXT as CSA_NICE_BOAT_TEXT, activationModelOf as csaActivationModelOf, customModelOf as csaCustomModelOf, ACTIVATION_DISTANCE as CSA_ACTIVATION_DISTANCE, windWidgetFrameCount as csaWindWidgetFrameCount, BOAT_ACTIONS as CSA_BOAT_ACTIONS, hullFromMessage as csaHullFromMessage, tileMapIndexAtPosition as csaTileMapIndexAtPosition, tileMapIndexAtXZ as csaTileMapIndexAtXZ } from '../systems/comeSailAway/comeSailAway.js';   // NAV-H: the tile a sea ship floats on
 import { windWidgetFrameUrl as csaWindWidgetFrameUrl, waveDerivedUrl as csaWaveDerivedUrl, wavePaintUrl as csaWavePaintUrl, soundUrl as csaSoundUrl } from '../systems/comeSailAway/comeSailAwayModels.js';   // CSA-E: the wind widget's pictures; CSA-F: the waves' recipes and paints
 import { WAVE_FRAME_COUNT as CSA_WAVE_FRAME_COUNT, waveDitherOf as csaWaveDitherOf } from '../systems/comeSailAway/comeSailAwayWaves.js';   // CSA-F
 import { ComeSailAwayRenderer, softParticleTexture as csaSoftParticleTexture } from '../render/comeSailAwayRender.js';   // CSA-F: the waves' and the particles' passes
@@ -743,7 +744,8 @@ import { horseOffsetHeight as csaHorseOffsetHeight } from '../ui/hud/hudLarge.js
 import { raycastColliders, rayBoxEntry, colliderPoses, invertAffine, BUILTIN_COLLIDER_MESHES, boxColliderTriangles } from '../world/prefabColliders.js';   // CSA-C: a boat's colliders under the ray; CSA-D: and in the world's collider
 import { DECK_STEP, DECK_HEADROOM, intoDeck, outOfDeck, mainLevel } from '../systems/naval/navalDeck.js';   // DECK-WALK: a body off her deck by more than a tread has left it; her deck's frame (AUDIT NAV2 F33: the headroom a deck point's ray starts under)
 import { warmAshesOn, LeaveShip, setWarmAshesHost, onPreFastTravel as warmAshesPreTravel, onPostFastTravel as warmAshesPostTravel, frame as warmAshesFrame, raidAtSea as warmAshesRaidAtSea, raidRefusal as warmAshesRaidRefusal, raidUnderWay as warmAshesRaidUnderWay, WA_RAID_QUESTS, WA_SEA_REGION } from '../systems/warmAshesShips.js';   // WA1: Warm Ashes - Ships, the ambush at sea; OWS3: its raid, seen coming; THE MERGE (NAV-D, OWS3): one raid at a time
-import { laneNetwork, laneWay, packetsAt, packetAt, LANE_DWELL_S } from '../systems/naval/seaLanes.js';   // SEA-LANES: the Bay's packets; LW5: where one is, and her dwell
+import { laneNetwork, laneWay, packetAt, LANE_DWELL_S } from '../systems/naval/seaLanes.js';   // SEA-LANES: the Bay's packets; LW5: where one is, and her dwell
+import { createLaneShips } from './naval/laneShips.js';   // the lanes' packets about the player, handed to the naval host
 import { raidersNear, raiderAt, raiderSight, chaseStep as raiderChaseStep, pixelOfNative, NATIVE_PIXEL as RAID_NATIVE_PIXEL, RAIDER_CONTACT_M, RAIDER_CONTACT_PLAY_M, RAIDER_CHASE_MPS, RAIDERS_WIRE_MAX, RAIDER_WORD_MS, raiderWordOf, validRaiderWord, raiderLifeOf, raiderNearMe, RAIDER_LIFE_MS } from '../systems/seaRaiders.js';   // OWS3: Warm Ashes' raiders on the Overworld's sea
 import { RAIDER_LEAD_S } from '../systems/naval/navalRaiders.js';   // NAV-R: a raider ship steers its seeded course this far on
 import { raidFrame as raidingPartiesFrame, raidState, raidActive, raidingPartiesOn, raidTimerList, raidRegionNow, raidDefendingHere, raidWireWord, raidObjWord, raidWasHeld, raidOffsetAll, raidPeerWord, raidRelayWord, raidTownsFor, raidPoolCleared, raidRelayState } from '../systems/raidingParties.js';   // RAID1: World Events - Raiding Parties, the towns' raids
@@ -1331,6 +1333,12 @@ const GATE_SAVES = Object.freeze({
 
 /** INT11/INT12: the line as the relay's count fells me in a boss fight (`bd`). */
 export const BOSS_COUNT_FELL_TEXT = 'The fight counts you fallen.';
+/** Three the host's frame shares, held outside its scope: a frozen empty list for a pixel without gates, the pixel
+ *  sort's comparator (the sign alone: a difference of doubles boxes a number a compare) and the harbour sounding's
+ *  one vector. */
+const NO_GATES = Object.freeze([]);
+const byDist2 = (a, b) => (a._dist2 < b._dist2 ? -1 : a._dist2 > b._dist2 ? 1 : 0);
+const _navalTile = [0, 0, 0];
 // Milestone 9 scene: floating-origin streaming world. Terrain pixels
 // stream in nearest-first around the camera within TERRAIN_DISTANCE,
 // locations appear on their pixels, and crossing a pixel boundary
@@ -2994,33 +3002,14 @@ export async function bootWorld(canvas, renderer, params, status) { handHeroGend
   const livingTownAt = livingIndex.townAt;
   // LW4: THE LIVES AND THE TROUBLE (lives.js, trouble.js) - who holds each traveller's place in a cycle (the census's
   // newcomer after a death on the road; nobody while the place stands empty) and what befalls each party, read over the
-  // character's own turns of fate (relations.js); each kept in a book, made again when a turn is made or a save loaded
+  // character's own turns of fate (relations.js); each kept in a book a turn of fate renews only where it reaches
   const livingTownOfId = livingIndex.townOfId;
-  const _livingPlaces = new Map();
-  const _livingFates = new Map();
-  let _livingTurnsRel = null, _livingTurnsV = -1;
-  const livingTurnsFresh = () => {
-    const v = livingRelations.turnsVersion();
-    if (_livingTurnsRel === livingRelations && _livingTurnsV === v) return;
-    _livingTurnsRel = livingRelations; _livingTurnsV = v;
-    _livingPlaces.clear(); _livingFates.clear(); _livingTripMemo.clear();
-  };
-  /** A resident's place in cycle `k`: who holds it (null: empty), whether the road takes its holder that cycle, and (LW7)
-   *  the minute a hand took them (null: none) - a townsperson's as a traveller's, the newcomer the census's own mint. */
-  const livingPlaceOf = (res, k) => {
-    const key = turnKey(res, k);
-    let got = _livingPlaces.get(key);
-    if (!got) {
-      const pl = placeAt(res, k, livingRelations.turns());
-      const town = pl.vacant || pl.holder == null ? null : livingTownOfId(res.town);
-      const holder = pl.vacant ? null : pl.holder == null ? res
-        : (town ? mintResident(town, res.roll ?? 't', res.slot, res.job, { gen: pl.holder, home: res.home, work: res.work, faction: res.faction }) : res);
-      got = { holder, dies: !pl.vacant && pl.dies, hand: pl.hand };
-      if (_livingPlaces.size > 30000) _livingPlaces.clear();
-      _livingPlaces.set(key, got);
-    }
-    return got;
-  };
+  // the books kept across frames - the places, the troubles, the trips still asked and the roads' words that wait on
+  // them - and what a turn of fate or a way landing makes again: scenes/livingWorld/livingBooks.js
+  const livingBooks = createLivingBooks({ book: _livingTripMemo, world: livingTripWorld, townOfId: livingTownOfId, relations: () => livingRelations, mpm: () => PERSON_MOVE_SPEED / livingBaseRate(), fresh: livingMemoFresh });
+  const _livingFates = livingBooks.fates;
+  const livingTurnsFresh = () => livingBooks.turnsFresh();
+  const livingPlaceOf = livingBooks.placeOf;
   const livingScale = () => paceScale(PERSON_MOVE_SPEED / livingBaseRate());
   /** LW7: the cycle a resident's place lives by on `day` - a traveller's (placeCycle, over their town's roster), else the
    *  resident's own (cycleOf: a townsperson's place keeps a cycle too, for the lives to read a hand's death by). */
@@ -3119,12 +3108,13 @@ export async function bootWorld(canvas, renderer, params, status) { handHeroGend
     livingMemoFresh();   // a new network, new ways
     livingTurnsFresh();
     livingWordFresh();   // LW16: the town's news kept with the roads
+    if (livingBooks.waits(town, day)) return undefined;   // its word still waits on the trips it waited on: not planned again
     const o = { mpm: PERSON_MOVE_SPEED / livingBaseRate(), memo: _livingTripMemo };
     const noon = day * 1440 + 240 + 720;
     const trips = townTrips(town, noon, livingTripWorld, o);
     const roadVisitors = tripVisitorsOf(town, day, livingTripWorld, o);
     const guests = town.type === INN_TYPE ? innGuestsOf(town, day, livingTripWorld, o) : [];   // LW9: the inn on the road's guests
-    if (trips === undefined || roadVisitors === undefined || guests === undefined) return undefined;
+    if (trips === undefined || roadVisitors === undefined || guests === undefined) return livingBooks.wait(town, day);   // a way still asked: the word waits on the trips that waited
     const visitors = roadVisitors.concat(guests.filter((g) => !roadVisitors.some((v) => v.res.id === g.res.id)));
     // LW4: who holds each traveller's place today (a holder the road takes with no road to meet it on is gone abroad,
     // the whole cycle), and each one's away windows by their own id
@@ -3144,7 +3134,7 @@ export async function bootWorld(canvas, renderer, params, status) { handHeroGend
     const { told, news } = livingRoadNewsAt(town, noon, o);
     // LW-TALK: the towns of its road - where its people's trips of these days were bound - for its talk's {place}
     const places = [...new Set([...trips, ...told].map((tr) => placeName(tr.to)).filter(Boolean))].sort();   // AUDIT LW-II E7: never "the wild" (a hunter's: no town)
-    return { away, visitors, holders, news, places };
+    return livingBooks.done({ away, visitors, holders, news, places });
   };
   /** LW4: a town's news of the road at minute `t` - its own parties' troubles of the last NEWS_DAYS days, each known once
    *  they were home (trips.js newsOf); LW7 a fight the player turned (`helped`); LW12 a band by its name. */
@@ -4332,7 +4322,7 @@ export async function bootWorld(canvas, renderer, params, status) { handHeroGend
   const tickCityGates = (minute) => {
     const night = isNight(minute);
     for (const p of built.values()) {
-      for (const g of p.cityGates ?? []) {
+      for (const g of p.cityGates ?? NO_GATES) {
         if (!updateCityGate(g.gate, night)) continue;
         const m = g.meshes.get(g.gate.modelId);
         if (!m) continue;
@@ -8595,8 +8585,8 @@ export async function bootWorld(canvas, renderer, params, status) { handHeroGend
   const navalIsWater = (x, z, hull = 0) => {
     const p = csaPixelAt(x, z);
     if (!p) return null;   // ground not yet built - unknown, never land a water grid keeps (shipLife.js)
-    const t = csaTerrainOf(p);
-    if (!p.deepWaters && csaTileMapIndexAtPosition([x, 0, z], t) !== 0) return false;
+    const t = csaTerrainOf(p), corner = state.pixelTranslation(p.px, p.py, _navalTile);   // the tile under the point, no vector minted: a sounding asks this thousands of times
+    if (!p.deepWaters && csaTileMapIndexAtXZ(x, z, corner[0], corner[2], t.tileMap) !== 0) return false;
     if (!p.deepWaters) return true;
     const floor = surfaceAt(x, z);
     return Number.isFinite(floor) && floor < tvSeaY() - (hull < 0 ? 0.05 : navalDraftOf(hull));
@@ -9493,10 +9483,10 @@ export async function bootWorld(canvas, renderer, params, status) { handHeroGend
    *  and the docked HUD's rect, hidden behind the land by a sight cache of their own (the names' law: NAME1), under
    *  every window, a pause, the HUD hidden and the travel view; the readout's tag layer wears them. */
   const shipSight = createSightCache();   // the ships' own, the session's - made once with the host (NAME1: never a frame's)
-  function navalTags(proj, view, eye) {
+  function navalTags(proj, view, eye, clientW = -1, clientH = -1) {
     if (!navalOn() || typeof document === 'undefined') return;
     const covered = townTalk.overlayActive || gamePaused() || !!townTalk.hudHidden || _mode() !== 'exterior' || !!travelView?.active;
-    const w = canvas.clientWidth, h = canvas.clientHeight, rect = worldViewportRect(w, h);
+    const w = clientW >= 0 ? clientW : canvas.clientWidth, h = clientH >= 0 ? clientH : canvas.clientHeight, rect = worldViewportRect(w, h);   // the street frame's own read, handed on: a read here, after the names' DOM writes, could force a layout
     const points = [];
     for (const t of covered ? [] : naval.tags()) {
       const at = projectToScreen(t.point, w, h, proj, view, rect);
@@ -9515,12 +9505,12 @@ export async function bootWorld(canvas, renderer, params, status) { handHeroGend
   const crewSight = createSightCache();   // the crew's own, the session's (NAME1: never a frame's)
   const _crewKeys = new WeakMap();
   let _crewKey = 0;
-  function navalCrewBars(proj, view, eye) {
+  function navalCrewBars(proj, view, eye, clientW = -1, clientH = -1) {
     if (typeof document === 'undefined') return;
     const covered = townTalk.overlayActive || gamePaused() || !!townTalk.hudHidden || !!travelView?.active;
     const points = [];
     if (!covered) {
-      const w = canvas.clientWidth, h = canvas.clientHeight, rect = worldViewportRect(w, h);
+      const w = clientW >= 0 ? clientW : canvas.clientWidth, h = clientH >= 0 ? clientH : canvas.clientHeight, rect = worldViewportRect(w, h);
       // CREW-COMPANIONS: indoors and underground, my companions' (the street's pool holds them outdoors, with the rest)
       for (const f of _mode() === 'exterior' ? exteriorFoes.foes : _insidePool()) {   // AUDIT CC-A10: indoors and underground the place's own list - a peer's companions too   // mine on a deck, and a room's crew its owner names (exteriorFoes.js `cw`)
         const feet = f.ai?.feet;
@@ -9634,12 +9624,12 @@ export async function bootWorld(canvas, renderer, params, status) { handHeroGend
    *  land by the crew's own sight cache, under the covers the bars keep. */
   const _sayKeys = new WeakMap();
   let _sayKey = 0;
-  function navalCrewLines(proj, view, eye, dt = 0) {
+  function navalCrewLines(proj, view, eye, dt = 0, clientW = -1, clientH = -1) {
     if (typeof document === 'undefined') return;
     const covered = townTalk.overlayActive || gamePaused() || !!townTalk.hudHidden || _mode() !== 'exterior' || !!travelView?.active;
     const points = [];
     if (!covered) {
-      const w = canvas.clientWidth, h = canvas.clientHeight, rect = worldViewportRect(w, h);
+      const w = clientW >= 0 ? clientW : canvas.clientWidth, h = clientH >= 0 ? clientH : canvas.clientHeight, rect = worldViewportRect(w, h);
       for (const l of navalCrew.speech()) {
         const d = Math.hypot(l.head[0] - eye[0], l.head[1] - eye[1], l.head[2] - eye[2]);
         if (d > CREW_SAY_RANGE) continue;
@@ -9754,12 +9744,12 @@ export async function bootWorld(canvas, renderer, params, status) { handHeroGend
   const _wildMarkKeys = new WeakMap();
   const _wildMarkAt = new WeakMap();
   let _wildMarkKey = 0;
-  function wildMarksFrame(proj, view, eye) {
+  function wildMarksFrame(proj, view, eye, clientW = -1, clientH = -1) {
     if (typeof document === 'undefined') return;
     const covered = townTalk.overlayActive || gamePaused() || !!townTalk.hudHidden || _mode() !== 'exterior' || !!travelView?.active;
     const points = [];
     if (!covered) {
-      const w = canvas.clientWidth, h = canvas.clientHeight, rect = worldViewportRect(w, h), t = performance.now() / 1000;
+      const w = clientW >= 0 ? clientW : canvas.clientWidth, h = clientH >= 0 ? clientH : canvas.clientHeight, rect = worldViewportRect(w, h), t = performance.now() / 1000;
       for (const f of exteriorFoes.foes) {
         if (f.dead || !f.ai?.feet || !foeAlerted(f)) { _wildMarkAt.delete(f); continue; }
         if (!_wildMarkAt.has(f)) _wildMarkAt.set(f, t);
@@ -26797,14 +26787,14 @@ export async function bootWorld(canvas, renderer, params, status) { handHeroGend
     // dungeon stood with the street's sheath flag and never swung; the mode machine names the live one
     const live = modes?.liveArm?.() ?? null;
     const rig = live?.rig ?? weaponRig;
-    const wm = rig.playerWeapon.machine;
+    const wm = rig.playerWeapon.machine, wireCast = dragonWireCast(rig.cast);   // one answer for the cast's three fields
     const arm = {
       mv,
       fk: (modes?.mode ?? 'exterior') === 'exterior' ? _lastFootstepKind : (modes?.footstepKind ?? 0),   // PEER-FS1: what peers should hear underfoot - see the cache's own header; AUDIT DROPS E2: indoors and underground the MODE's stride answers (wood, stone, the water arms), not the last outdoor surface
       wd: rig.playerWeapon.sheathed ? 0 : (wm?.isBow && wm.state === 'StrikeUp' ? 2 : 1),
       an: rig.swing.n, as: Math.max(0, POSE_STRIKES.indexOf(rig.swing.strike)),
       am: hasDaggerfallArrows(playerEntity.items) ? 1 : 0, sr: (live ? live.armed : magic.spellArmed()) ? 1 : 0,
-      cn: dragonWireCast(rig.cast).n, cr: dragonWireCast(rig.cast).rangeType | 0, ce: dragonWireCast(rig.cast).element ?? 4,   // SPELLFX1: and its element, so the peers draw the right missile; DRAGON-SHOTS: the dragon's volleys counted in
+      cn: wireCast.n, cr: wireCast.rangeType | 0, ce: wireCast.element ?? 4,   // SPELLFX1: and its element, so the peers draw the right missile; DRAGON-SHOTS: the dragon's volleys counted in
       ar: rig.shot?.n ?? 0,   // SPELLFX1: and the arrows loosed, so the peers draw the shafts
       // RIDE: the mount - the horse or the cart, outdoors (a door dismounts), and which of Eye Of The Beholder's five
       // mounted sprite sets this player chose, so the others draw the rider they drew themselves
@@ -27018,7 +27008,7 @@ export async function bootWorld(canvas, renderer, params, status) { handHeroGend
     const scale = hudScale(canvas.width, canvas.height);
     drawText(renderer, townTalk.font, line, Math.round(8 * scale), Math.round(8 * scale), scale, [1, 0.85, 0.6, 1]);
   };
-  const drawPeerNames = (proj, view, eye) => {
+  const drawPeerNames = (proj, view, eye, clientW = -1, clientH = -1) => {   // the frame's canvas size, when it read one
     if (!remotePlayers) { sayNetStatus(null); return; }
     const covered = townTalk.hudCovered || (modes?.hudCovered ?? false);   // a window over the HUD covers the names too, and the status line with them
     // OVERWORLD NAMES: under the travel view the names over the heads stand down - the readout's marks name the players,
@@ -27033,7 +27023,7 @@ export async function bootWorld(canvas, renderer, params, status) { handHeroGend
     // AUDIT NAME1 F2/F5: through the session's cache - one ray a peer every NAME_SIGHT_MS, and a name taken away
     // only once the ray has said "blocked" for NAME_SIGHT_HOLD_MS, so a railing crossing the line for a frame
     // does not strobe the name (and rebuild its element) on the way past.
-    const blocked = (head, id) => glassCuts(projectToScreen(head, 1, 1, proj, view)) || nameSight.blocked(player.collider, eye, id, head);   // GLASS-CLEAR: a player the glass's focus cut from its view, nameless in it
+    const blocked = (head, id, viewProj) => glassCuts(projectToScreen(head, 1, 1, proj, view, null, false, viewProj)) || nameSight.blocked(player.collider, eye, id, head);   // a player the glass's focus cut from its view, nameless in it; `viewProj` the name pass's product of the same two
     // the docked HUD's viewport rect (E5), so the name lands over the head the world pass drew (AUDIT ONLINE C6/D3)
     // SOC4 (Mac: "the players name who are in a party together should turn green"): `colorOf` is the party's colour
     // for a peer - net/social.js colorOf answers PARTY_GREEN for my party's other tabs and null for everyone else,
@@ -27044,9 +27034,9 @@ export async function bootWorld(canvas, renderer, params, status) { handHeroGend
     // measured in them), the drawing buffer's for the bitmap pass, which pays hudScale for the difference.
     remotePlayers.nameFrame({
       proj, view, eye, toScene: onlineToScene, covered: namesOff,
-      w: nameLayer ? canvas.clientWidth : canvas.width,
-      h: nameLayer ? canvas.clientHeight : canvas.height,
-      rect: worldViewportRect(canvas.clientWidth, canvas.clientHeight),
+      w: nameLayer ? (clientW >= 0 ? clientW : canvas.clientWidth) : canvas.width,
+      h: nameLayer ? (clientH >= 0 ? clientH : canvas.clientHeight) : canvas.height,
+      rect: worldViewportRect(clientW >= 0 ? clientW : canvas.clientWidth, clientH >= 0 ? clientH : canvas.clientHeight),
       layer: nameLayer, log: chatLog, colorOf: (id) => social?.colorOf(id) ?? null, blocked,
       renderer, font: townTalk.font, scale, hudScale: enhancedHudScale(),
       mask: pvpFlag.mask(wildNameMask, social),   // PVP-SKULL: each wears its skull, PVP-CONE: my party near - WILD3: in the open zone no name but my party's and my guild's - the rest are Strangers, in red
@@ -28168,8 +28158,8 @@ export async function bootWorld(canvas, renderer, params, status) { handHeroGend
   let skyInside = false;   // DS1 (AUDIT 61): PlayerEnterExit's transition edge, for the mod's listener and flash
   let _lastPlayerPos = null, _playerStill = false;   // T2: the politeness still-tracker
 const _pixelOrder = [];   // NEAR-FIRST: the frame's pixel walk, nearest first - a scratch, refilled per frame
-  const _camRight = new Float32Array(3);   // EV2: the billboard right axis, refilled per frame
-  const _waterRows = [];   // PERF-EXT13: the frame's water pixels, one reused row each, handed to drawWaterSurfaces
+  const _camRight = new Float32Array(3), _indirectRgb = new Float32Array(3);   // the billboard right axis and the player's light, refilled per frame (the renderer keeps the light until the next)
+  const _waterRows = [], _foesBoth = [];   // the frame's water pixels, one reused row each, handed to drawWaterSurfaces; the street's two pools as one list
   // EV3: THE FRUSTUM. The hatch reads once at build (?cull=off, the
   // ?sky=classic shape - a wrong bound in the field is a URL away from
   // proof); the planes refill per frame from the SAME proj*view the
@@ -29657,15 +29647,8 @@ const _pixelOrder = [];   // NEAR-FIRST: the frame's pixel walk, nearest first -
       if (step.state === 'contact') raidContact();
     }
   }
-  // ── SEA-LANES (2026-10-02, Mac: "ships should be more persistant and actively engage with multiple docks and multiple
-  // pathways around daggerfall"): THE BAY'S PACKETS (systems/naval/seaLanes.js) - the lanes between the map's ports, a
-  // lane's packets where the shared clock puts them, handed to the naval host each LANE_LIST_MS: every packet of every
-  // lane with a port within LANE_NEAR_PX past half a lane's longest way of the player (AUDIT BAY A19: the host
-  // knows each ship by her seeds wherever her clock puts her - one fallen behind her place, as the wind leaves a ship
-  // short of her schedule's way, was let go beside the player once the place left a list of the near ones); it stands
-  // and steers them (scenes/naval/navalHost.js liners).
-  const LANE_LIST_MS = 2000;
-  let _laneAt = -Infinity;
+  // The lanes between the world's ports and their packets (systems/naval/seaLanes.js): the naval host is handed every
+  // packet of the lanes about the player where the shared clock puts her, and stands and steers them.
   /** A map pixel of the lanes' water - the Ocean climate's at the shore's byte - the lanes' and the roadsteads' water.
    *  NOT the open sea (FIELD BUGS 2026-10-14 INLAND-PORTS measured it): 331 pixels of the map's lakes carry the Ocean
    *  climate, so the towns on a lake run their packets on it - the lake harbours' own traffic, which stays (Mac,
@@ -29677,32 +29660,11 @@ const _pixelOrder = [];   // NEAR-FIRST: the frame's pixel walk, nearest first -
   // over its water, as they always were; and the sea's past it, between the world's ports (world/worldWide/worldPorts.js)
   // over the continent's sea where its land stands - one book of both, each lane's way kept once
   const worldLanes = createWorldLanes({ mapDict: () => mapDict, maps, portIds: PORT_LOCATION_IDS, ports: worldPorts, bayOpen: laneOpen, bayOpenNative: laneOpenNative, water: tvWater, beyond: () => tamrielLand, kernel: kernelSea });   // the kernel's sea
+  const laneFeed = createLaneShips({ lanes: worldLanes, here: () => playerTravelPixel(), clock: () => raidNowMs(), naval: () => naval, ready: () => !!mapDict, state });
   _lanesReady = true;   // BOOT-TDZ II: every binding the lanes read stands from here (raidNowMs above it)
   /** The lanes of the whole world - every client's the same: the Bay's, then the ones past it. */
   function laneNet() { return worldLanes.all(); }
-  function laneShips() {
-    const t = performance.now();
-    if (t - _laneAt < LANE_LIST_MS || !naval?.enabled || !mapDict) return;
-    _laneAt = t;
-    const here = playerTravelPixel(), ms = raidNowMs();
-    const list = [];
-    const portOf = (p) => (p ? { key: `port:${p.id}`, name: p.name } : null);   // her harbour's key, as navalHarbourNear's
-    for (const lane of laneNet()) {
-      // a ship on a lane within reach of the player: its ports near enough (scenes/naval/worldLanes.js near - AUDIT TESA II
-      // P7: past the Bay its own law, its ways hundreds of pixels long)
-      if (!worldLanes.near(lane, here)) continue;
-      const way = worldLanes.way(lane);
-      if (!way) continue;
-      const out = way.pts.map((q) => state.localFromWorld(q.x, q.z)), home = [...out].reverse();   // her legs in the scene (AUDIT BAY A6)
-      for (const p of packetsAt(lane, way, ms)) {
-        const [x, z] = state.localFromWorld(p.at.x, p.at.z);
-        const [dx, dz] = state.localFromWorld(p.at.x + p.dir.x, p.at.z + p.dir.z);
-        list.push({ id: p.id, seed: p.seed, seeds: p.seeds, classId: p.cls.id, region: p.region, area: lane.a.area ?? -1, phase: p.phase, pos: [x, 0, z], yaw: Math.atan2(dx - x, dz - z),
-          leg: p.leg === way.pts ? out : home, port: portOf(p.port), to: portOf(p.to), from: portOf(p.from) });
-      }
-    }
-    naval.liners(list);
-  }
+  function laneShips() { laneFeed.step(); }
   /** NAV-R: the naval host stands the raiders - the sea fight on and Warm Ashes' raiders sailing. */
   const navalRaidersOn = () => navalOn() && !!naval?.enabled && warmAshesOn();
   let _raidShipsAt = -Infinity;
@@ -30012,7 +29974,7 @@ const _pixelOrder = [];   // NEAR-FIRST: the frame's pixel walk, nearest first -
     // AUDIT DEEP X-1: and the travel view is CUT - its readout stood over the film, its listeners on the canvas, until
     // its heartbeat noticed the frames had stopped
     if (frameHeld()) { frameAbort(); hideWorldPlaque(); last = now; requestAnimationFrame(frame); drawGateBanner(null); drawGateMarksCard(null); drawGateDamageChart(null); drawGateGround(null); travelView?.exit('video', true); if (spyglass.up) lowerGlass(); return; }   // AUDIT CAPTAIN'S SEA S15: the glass's DOM never frozen over the video
-    const dt = Math.min(0.1, (now - last) / 1000);
+    const dt = Math.min(0.1, (now - last) / 1000), clientW = canvas.clientWidth, clientH = canvas.clientHeight;   // the canvas's size, read once a frame before its own writes, and handed on
     // AUDIT 28 W7 + F-C1/F-C2 (self-audit 3): PlayerMouseLook.Update's
     // three answers - paused (:241-244) returns before ApplyLook and the
     // owed look WAITS; a held swing (:248-253, WeaponSwingMode 0, not a
@@ -30076,7 +30038,7 @@ const _pixelOrder = [];   // NEAR-FIRST: the frame's pixel walk, nearest first -
     // the activation on that release. The frame after clears the ray.
     _tapClick = _tapArmed === 1 && !!_tapPoint && !_tapLockOnly;   // AUDIT PRE-MERGE 0928 U2: this frame lifts a finger's press (the gate's fire) - never the stick's lock-only tap (TS1) nor a quick-loot key's arm, which have no finger behind them
     if (_tapArmed > 0 && --_tapArmed === 0) {
-      _tapDir = (_tapPoint && _lastProj) ? rayDirFromScreen(_tapPoint[0], _tapPoint[1], canvas.clientWidth, canvas.clientHeight, _lastProj, _lastView, cam.pos, worldViewportRect(canvas.clientWidth, canvas.clientHeight)) : null;
+      _tapDir = (_tapPoint && _lastProj) ? rayDirFromScreen(_tapPoint[0], _tapPoint[1], clientW, clientH, _lastProj, _lastView, cam.pos, worldViewportRect(clientW, clientH)) : null;
     } else if (_tapArmed === 0 && _tapPoint) { _tapPoint = null; _tapDir = null; _tapLockOnly = false; }
     // AUDIT 28 W9: CameraRecoiler.Update - the reel from a hit, on the
     // detector's loss from the vitals rig, same paused gate (:50-51).
@@ -31397,7 +31359,7 @@ const _pixelOrder = [];   // NEAR-FIRST: the frame's pixel walk, nearest first -
     // camera's aspect from its viewport - so the lens takes the bar's
     // height out of its denominator here, and the sky, which draws
     // into the same rect, takes the same number.
-    const worldAspect = largeHudWorldAspect(canvas.clientWidth, canvas.clientHeight);
+    const worldAspect = largeHudWorldAspect(clientW, clientH);
     spyglassStep(dt);   // SPYGLASS: the glass raised or lowered, its lens eased - before the lens is taken
     // MW-D25: the eye goes through the Morrowind camera machine - in
     // first person it comes back untouched (camera.cpp:165-169), in
@@ -31472,9 +31434,9 @@ const _pixelOrder = [];   // NEAR-FIRST: the frame's pixel walk, nearest first -
     for (let i = 0; i < 3; i++) _dwEyeOffset[i] = mwv.eye[i] - cam.pos[i];   // DW-E5: the spawners' camera, as this frame placed it
     _lastProj = proj; _lastView = view;   // TI1: the tap ray unprojects through the frame the finger saw
     hcc.faceTeams(mwv.eye);   // WAGONS3: the team's billboards turned to the eye that draws them (the bench's, the third person's, the travel view's)
-    travelView?.drawHud();   // TV1: the readout over the view, through this frame's own matrices
+    travelView?.drawHud(clientW, clientH);   // the readout over the view, through this frame's own matrices and with its size
     if (touch) {   // TI1: the lock-on dot over the foe's chest, hidden behind the camera
-      const _dp = _lockChest ? projectToScreen(_lockChest, canvas.clientWidth, canvas.clientHeight, proj, view, worldViewportRect(canvas.clientWidth, canvas.clientHeight)) : null;
+      const _dp = _lockChest ? projectToScreen(_lockChest, clientW, clientH, proj, view, worldViewportRect(clientW, clientH)) : null;
       touch.setLockDot(_dp && _dp.front ? _dp.x : null, _dp?.y);
     }
     holdNpcBodies(!!tvf);   // AUDIT MW-NPC II H2: UNDER THE OVERWORLD NO NPC BODY STANDS (C3's law, every lane's) - a figure a few pixels tall, drawn upright under the flats' lean
@@ -31686,9 +31648,7 @@ const _pixelOrder = [];   // NEAR-FIRST: the frame's pixel walk, nearest first -
     {
       // DW-D: UnderwaterPresentationEffects.SuppressPlayerIndirectLight - its intensity 0 under the fog, back after
       const iScale = _dwFogP?.under ? 0 : indirectLightScale(minute) * wxNow.sun;   // WX2: the front's scale
-      renderer.setIndirectLight(cam.pos, INDIRECT_LIGHT_RANGE, new Float32Array([
-        INDIRECT_LIGHT_COLOR[0] * iScale, INDIRECT_LIGHT_COLOR[1] * iScale, INDIRECT_LIGHT_COLOR[2] * iScale,
-      ]));
+      renderer.setIndirectLight(cam.pos, INDIRECT_LIGHT_RANGE, scaledInto(_indirectRgb, INDIRECT_LIGHT_COLOR, iScale));
     }
     // AUDIT 64 F9 - DaggerfallLocation.cs:141-145 is the only window-style
     // rule a town runs (its WindowTextureStyle feeds SetClimate at :218/:221)
@@ -31818,7 +31778,7 @@ const _pixelOrder = [];   // NEAR-FIRST: the frame's pixel walk, nearest first -
     revenantAshoreTick();   // REVENANT-COMPANION: and the sworn
     renderer.setClearColor(SKY_CLEAR);   // INCIDENT 2026-09-04 / REVIEW 2026-09-05: this frame is the EXTERIOR's (the mode frames returned above and clear black in worldModes) - CameraClearManager.cs:51-57
     renderer.setFlashLight(sky.lightningLight() ?? boltFrame.flash ?? starfall?.flash() ?? null);   // STAR4: else a star's landing   // DS1: Dynamic Skies' LightningFlash, composed first on the point-light channel just stored; BOLT: else a near ground strike's own light, from where it struck
-    renderer.setWorldViewport(worldViewportRect(canvas.clientWidth, canvas.clientHeight));   // E5: ViewportChanger.Update, every frame
+    renderer.setWorldViewport(worldViewportRect(clientW, clientH), clientW, clientH);   // ViewportChanger.Update, every frame - with the size, so the frame's beginFrame asks the layout nothing
     meterFor(renderer.gl)?.markCpu('begin');   // PERF-SIM1: the renderer's frame open
     renderer.beginFrame(proj, view, sunDirection(minute), WORLD_FRAME);   // AUDIT-EL F5: a WORLD frame - the lane replays its records for this one
     meterFor(renderer.gl)?.markCpu('bodies');   // PERF-ZONE2: the Morrowind bodies - the player's, every peer's - the wagon and the camps, which the renderer's own 'world' mark used to swallow
@@ -31942,9 +31902,8 @@ const _pixelOrder = [];   // NEAR-FIRST: the frame's pixel walk, nearest first -
     const _peopleOn = streetPeople.frame();   // MWNPC8b
     npcMarks.begin();   // NPC-MARKS: the street's candidates, gathered as its people are offered
     standingHorses.begin(tvf ? null : mwViewHorseRig(), mwv.eye);   // STAND-HORSE: the standing horses' frame - the lane's rig (none under the travel view)
-    _pixelOrder.length = 0;
-    for (const p of built.values()) { p._dist2 = (p.px - state.current.x) ** 2 + (p.py - state.current.y) ** 2; _pixelOrder.push(p); }
-    _pixelOrder.sort((a, b) => a._dist2 - b._dist2);
+    pixelsInto(_pixelOrder, built, state.current.x, state.current.y);   // each pixel's grid distance from the player's own, the list written from its front
+    _pixelOrder.sort(byDist2);
     const framePixelWalk = () => {   // PERF-V8
     for (const p of _pixelOrder) {
       // EV2: the pixel's frame matrix caches on the built entry and
@@ -32317,7 +32276,7 @@ const _pixelOrder = [];   // NEAR-FIRST: the frame's pixel walk, nearest first -
     // The fly camera keeps the position test, having no motor to ask.
     _playerStill = walkMode && playerSpawned ? !!player.standing : (_lastPlayerPos &&
       Math.hypot(cam.pos[0] - _lastPlayerPos[0], cam.pos[2] - _lastPlayerPos[2]) < 0.001);
-    _lastPlayerPos = [cam.pos[0], cam.pos[1], cam.pos[2]];
+    _lastPlayerPos = copiedInto(_lastPlayerPos ?? [0, 0, 0], cam.pos);
     const isDay = !isNight(minute);
     const livePersonBatches = [];
     meterFor(renderer.gl)?.markCpu('people');   // PERF-CPU: the towns' own pools
@@ -32340,7 +32299,7 @@ const _pixelOrder = [];   // NEAR-FIRST: the frame's pixel walk, nearest first -
         const batch = p.personBatches.get(person);
         batch.archive = person.archive;   // audit 2026-08-17: identity re-rolls per spawn - re-point the batch
         const pt = personTex.get(person.archive);
-        const rkey = `${out.record}#${out.frame}`;   // MAC4: the record CARRIES its frame
+        const rkey = recordFrameKey(out.record, out.frame);   // the record CARRIES its frame - `record#frame`, made once a pair
         if (!renderer.textures.has(personTextureKey(person.archive, out.record, out.frame))) uploadRecordFrame(person.archive, out.record, out.frame);
         const sz = mobileBillboardSize(pt, out.record);   // AUDIT MM1: MobilePersonBillboard.cs:343 - the xml scale, on every record
         batch.record = rkey;
@@ -32378,7 +32337,7 @@ const _pixelOrder = [];   // NEAR-FIRST: the frame's pixel walk, nearest first -
     folkStreet.draw(canvas, proj, view, mwv.eye, townTalk.overlayActive ? 0 : dt);   // MWNPC7: the walkers' bodies - held under a talk, as the street is
     // LW3: THE ROADS - the living world's parties near, in file by day and about their fires by night (scenes/
     // livingRoads.js), on the ground and grown under the Overworld; the planner asked a few ways a frame
-    livingWays.frame(); livingMemoFresh();   // LW3: a new network, new ways (AUDIT-B8: and the memo's bound)
+    livingBooks.step(); livingWays.frame(); livingMemoFresh();   // LW3: a new network, new ways (AUDIT-B8: and the memo's bound); the trips still asked, asked again on the budget left
     livingTurnsFresh();   // LW4: a turn of fate made, or a save loaded - the books made again
     if (livingWorldOn() && _mode() === 'exterior') {
       livingRoadsOf().frame(townTalk.overlayActive ? 0 : dt, cam.pos, { overworld: tvf ? { grow: tvf.grow, blend: tvf.blend } : null });
@@ -32426,12 +32385,12 @@ const _pixelOrder = [];   // NEAR-FIRST: the frame's pixel walk, nearest first -
       // apart from each other as each pool keeps its own, and none of them holds a building's doorway
       const _ownTact = (f) => spacingSkips(f) || f._ownFrom != null || _deckBodies.has(f);   // another player's foe is placed by its owner's frame; a deck's by her leash
       spaceAcross([cityGuards.guards, exteriorFoes.foes], collider, foeFrameDt(foeDt), _ownTact);
-      if (cityGuards.guards.length || exteriorFoes.foes.length) clearDoorways([...cityGuards.guards, ...exteriorFoes.foes], _tactDoorSpots(_pf), collider, foeFrameDt(foeDt), _ownTact);   // AUDIT TACT C4: nobody to clear, no work
+      if (cityGuards.guards.length || exteriorFoes.foes.length) clearDoorways(bothInto(_foesBoth, cityGuards.guards, exteriorFoes.foes), _tactDoorSpots(_pf), collider, foeFrameDt(foeDt), _ownTact);   // AUDIT TACT C4: nobody to clear, no work
       navalCrewFrame(gamePaused() ? 0 : foeDt);   // LIVING CREW: the crews at their work on the decks near the eye - AUDIT NAV2 F53: held with the sea under a window
       livePersonBatches.push(...exteriorFoes.batches(), ...navalCrew.batches());
       if (playerSpawned) _townWatchFrame(foeDt);   // DISC19-F: the town's answer to what the pools just did
       if (playerSpawned) raidingPartiesFrame(gamePaused() ? 0 : foeDt);   // RAID1: the raids' Update - after the pools moved (a death counts on the frame it falls) and the watch answered, its clocks held by a pause (fix 7)
-      markFoeReach([...cityGuards.guards, ...exteriorFoes.foes], { aboard: playerAfloat() && !(walkMode && playerSpawned && player.isPlayerSwimming), seaY: tvSeaY() });   // WATER-FOES: aboard and dry, a foe in the water reaches no one - no enemy nearby (the pools, the watch and the raids done)
+      markFoeReach(bothInto(_foesBoth, cityGuards.guards, exteriorFoes.foes), { aboard: playerAfloat() && !(walkMode && playerSpawned && player.isPlayerSwimming), seaY: tvSeaY() });   // aboard and dry, a foe in the water reaches no one - no enemy nearby (the pools, the watch and the raids done; the list refilled, as the raids may have added to it)
     }
     };
     framePools();
@@ -33091,11 +33050,11 @@ const _pixelOrder = [];   // NEAR-FIRST: the frame's pixel walk, nearest first -
       // (TransportManager's own comment, and EnhancedRiding.cs:234-235's), and the rig drew first, so the horse's
       // head covered the hand and the blade's root. Drawn here, after the mount and before drawHud.
       if (!poiEditor?.active()) { if (walkMode && playerSpawned && !tvf) weaponRig.draw({ paralyzed }); }   // TV1: no hand on a camera 450 m up; POI-3: nor on the editor's eye
-      drawPeerNames(proj, view, mwv.eye);   // ONLINE1: the names over the heads
-      navalTags(proj, view, mwv.eye);   // AUDIT NAV1 (#14): the ships' tags
-      navalCrewBars(proj, view, mwv.eye);   // SHIPMATES: the crew's green bars
-      navalCrewLines(proj, view, mwv.eye, dt);   // LIVING CREW: the lines over their heads
-      wildMarksFrame(proj, view, mwv.eye);   // WILD-ALERT: the "!" over an alerted foe
+      drawPeerNames(proj, view, mwv.eye, clientW, clientH);   // the names over the heads, with the frame's size
+      navalTags(proj, view, mwv.eye, clientW, clientH);   // the ships' tags
+      navalCrewBars(proj, view, mwv.eye, clientW, clientH);   // the crew's green bars
+      navalCrewLines(proj, view, mwv.eye, dt, clientW, clientH);   // the lines over the crew's heads
+      wildMarksFrame(proj, view, mwv.eye, clientW, clientH);   // the "!" over an alerted foe
       // WORLD-HOVER: the plaque, where this host already draws its HUD.
       // It races EXACTLY what the press races - the same six live picks
       // against the same door/person/board set, settled by the same

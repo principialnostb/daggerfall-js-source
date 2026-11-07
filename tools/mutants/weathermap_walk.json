@@ -1,0 +1,67 @@
+[
+  {
+    "name": "WALK-a-node-named-by-a-string",
+    "file": "src/systems/weather/weatherMap.js",
+    "old": "  if (!packs) return `${sky ? 'sky' : 'one'}|${type}:${nodeX}:${nodeZ}:${period}`;",
+    "new": "  return `${sky ? 'sky' : 'one'}|${type}:${nodeX}:${nodeZ}:${period}`;",
+    "tests": [
+      "test/systems/weather/weathermap_walk.test.js"
+    ]
+  },
+  {
+    "name": "WALK-every-living-system-copied-before-its-reach-is-tested",
+    "file": "src/systems/weather/weatherMap.js",
+    "old": "  const s = standing(b, minutes, true, x, z, range);\n  if (!s) return;\n",
+    "new": "  const whole = standing(b, minutes, false, x, z, range);\n  if (!whole) return;\n  const s = { ...whole };\n  if (!(Math.hypot(s.x - x, s.z - z) - s.reach <= range)) return;\n",
+    "tests": [
+      "test/systems/weather/weathermap_copies.test.js",
+      "test/systems/weather/weathermap_walk.test.js"
+    ]
+  },
+  {
+    "name": "WALK-the-span-from-its-first-minute",
+    "file": "src/systems/weather/weatherMap.js",
+    "old": "  const walk = systemsSpanWalk(x, z, first - 1, last >= first ? last : first, climateAt, 0);",
+    "new": "  const walk = systemsSpanWalk(x, z, first, last >= first ? last : first, climateAt, 0);",
+    "tests": [
+      "test/systems/weather/ow_forecast_span.test.js",
+      "test/systems/weather/ow_forecast_walks.test.js"
+    ]
+  },
+  {
+    "name": "WALK-the-span-trusted-at-any-minute",
+    "file": "src/systems/weather/weatherMap.js",
+    "old": "  const held = Number.isInteger(minutes) && minutes >= span.t0 + 1 && minutes <= span.t1;",
+    "new": "  const held = true;",
+    "tests": [
+      "test/systems/weather/ow_forecast_span.test.js"
+    ]
+  },
+  {
+    "name": "WALK-the-span-from-its-first-minute-and-trusted-there",
+    "file": "src/systems/weather/weatherMap.js",
+    "old": "  const walk = systemsSpanWalk(x, z, first - 1, last >= first ? last : first, climateAt, 0);\n  let step = walk.next();\n  while (!step.done) step = walk.next();\n  return step.value;\n}\n/** weatherAt's answer at `minutes` at a span's place (weatherSpan): from the span at a whole minute of [first, last], and\n *  from a walk of its own at any other minute, where the span need not hold every system standing there. */\nexport function weatherAmong(span, minutes, { ground = null, alt = null } = {}) {\n  const held = Number.isInteger(minutes) && minutes >= span.t0 + 1 && minutes <= span.t1;",
+    "new": "  const walk = systemsSpanWalk(x, z, first, last >= first ? last : first, climateAt, 0);\n  let step = walk.next();\n  while (!step.done) step = walk.next();\n  return step.value;\n}\n/** weatherAt's answer at `minutes` at a span's place (weatherSpan): from the span at a whole minute of [first, last], and\n *  from a walk of its own at any other minute, where the span need not hold every system standing there. */\nexport function weatherAmong(span, minutes, { ground = null, alt = null } = {}) {\n  const held = Number.isInteger(minutes) && minutes >= span.t0 && minutes <= span.t1;",
+    "tests": [
+      "test/systems/weather/ow_forecast_span.test.js"
+    ]
+  },
+  {
+    "name": "WALK-the-forecast-a-walk-a-reading",
+    "file": "src/scenes/overworldForecastHost.js",
+    "old": "    const fc = forecastAt(x, z, m, climateAt, { hours: HERE_HOURS, step: HERE_STEP_MIN, ground, alt: a, span });",
+    "new": "    const fc = forecastAt(x, z, m, climateAt, { hours: HERE_HOURS, step: HERE_STEP_MIN, ground, alt: a });",
+    "tests": [
+      "test/systems/weather/ow_forecast_walks.test.js"
+    ]
+  },
+  {
+    "name": "WALK-the-bisection-a-walk-a-step",
+    "file": "src/scenes/overworldForecastHost.js",
+    "old": "          (at) => weatherAmong(span, Math.floor(at), { ground, alt: a }).word,",
+    "new": "          (at) => wordAt(x, z, at, a),",
+    "tests": [
+      "test/systems/weather/ow_forecast_walks.test.js"
+    ]
+  }
+]

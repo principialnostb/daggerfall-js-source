@@ -190,7 +190,7 @@ test('ECV1: the billboard shader declares uConceal and draws each mode - the rip
   assert.match(fs, /if \(uConceal\.x > 0\.0\) alpha = tex\.a \* uConceal\.y;/, 'the visual\'s opacity');
   assert.match(r, /this\.bbUConceal = gl\.getUniformLocation\(this\.bbProgram, 'uConceal'\);/);
   assert.match(r, /gl\.uniform4f\(this\.bbUConceal, c \? c\.mode : 0, c \? c\.alpha : 0, c \? c\.t : 0, c \? c\.phase : 0\);/);
-  assert.match(r, /blended\.sort\(\(a, b\) => d2\(b\) - d2\(a\)\);/, 'the blended set draws back to front');
+  assert.match(r, /blended\.sort\(\(a, b\) => \{ const farther = d2\(b\), nearer = d2\(a\); return farther < nearer \? -1 : farther > nearer \? 1 : 0; \}\);/, 'the blended set draws back to front');
 });
 
 test('ECV1: every foe host asks foeDraw where A5 skipped, stamps the hit where damage lands, and ticks its clock', () => {

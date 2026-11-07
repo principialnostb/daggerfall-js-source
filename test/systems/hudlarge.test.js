@@ -739,9 +739,12 @@ test('E5: every host that draws the bar shrinks its world pass AND its lens', ()
   // are the files that carry the law.
   for (const host of ['scenes/world.js', 'scenes/exterior.js', 'scenes/worldModes.js', 'scenes/dungeon.js']) {
     const body = src(host);
-    assert.match(body, /renderer\.setWorldViewport\(worldViewportRect\(canvas\.clientWidth, canvas\.clientHeight\)\);/,
+    // the world host reads the canvas's size once, at its frame's start, and hands it on to the rect and the renderer
+    assert.match(body, host === 'scenes/world.js'
+      ? /renderer\.setWorldViewport\(worldViewportRect\(clientW, clientH\), clientW, clientH\);/
+      : /renderer\.setWorldViewport\(worldViewportRect\(canvas\.clientWidth, canvas\.clientHeight\)\);/,
       `${host} sets the world pass's rect (RETRO1: the one that also pillarboxes a retro world)`);
-    assert.match(body, /largeHudWorldAspect\(canvas\.clientWidth, canvas\.clientHeight\)/,
+    assert.match(body, host === 'scenes/world.js' ? /largeHudWorldAspect\(clientW, clientH\)/ : /largeHudWorldAspect\(canvas\.clientWidth, canvas\.clientHeight\)/,
       `${host} takes the bar out of its aspect`);
     // ...and the plain ratio is GONE from every world LENS the host
     // builds - an aspect left at clientWidth/clientHeight stretches the

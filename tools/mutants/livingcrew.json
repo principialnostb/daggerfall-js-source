@@ -389,7 +389,7 @@
   {
     "name": "WORLD-words-unwired",
     "file": "src/scenes/world.js",
-    "old": "      navalCrewLines(proj, view, mwv.eye, dt);   // LIVING CREW: the lines over their heads\n",
+    "old": "      navalCrewLines(proj, view, mwv.eye, dt, clientW, clientH);   // the lines over the crew's heads\n",
     "new": "",
     "tests": [
       "test/systems/naval/livingcrew.test.js"

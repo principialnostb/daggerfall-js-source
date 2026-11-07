@@ -37,7 +37,9 @@ sailing past the Bay's edge. Its zones are `Tamriel-Biomes.md`; its places `Worl
   own water, carved as deep, reached through a mouth in the far shore (`src/world/imperialCity.js` `IMPERIAL.mouth`).
   Cyrodiil's rivers are carved into the land.
 - **The held map** (`src/ui/heldMap.js`, `src/ui/tamrielInk.js`). The enhanced world sheet zooms out past the Bay onto
-  the continent; a hover names the province, capital or sea. Painted only when the view reaches past the Bay.
+  the continent; a hover names the province, capital or sea. Painted only when the view reaches past the Bay. When a
+  trace lands, its lines are made in idle time (`startTracedJob`): at most `TRACED_SLICE_STEPS` steps a slice, and a
+  slice ends sooner when its idle period is spent.
 
 ## Rules
 

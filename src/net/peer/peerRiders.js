@@ -31,6 +31,7 @@ import { EOTB_FOOT_SET_COUNT } from '../../player/classSkins.js';   // PEERFX3: 
 import { spriteMarks, spriteArmsSeen } from '../../render/armoryPose.js';   // ARMORY: where the body stands in its own picture
 import { spriteFor, eotbSpriteUrl, spriteSize, spriteOffset, spriteArtScale, flipRows, worldOrderColors, worldOrderLayered, lookedPixels, ridersReady } from '../../player/eyeOfTheBeholder/eotbSprite.js';
 import { decodePng } from '../../systems/textureReplacement.js';
+import { decodeServedPng } from '../../systems/vanillaEnhanced/vanillaEnhancedPack.js';   // the decode workers my own body's art takes
 import { isLayeredKey, decodeLayered, outfitOfItems, outfitPieces, layeredGenderOf, LAYERED_OWN } from '../../player/eyeOfTheBeholder/layeredArmor.js';   // WORN-ARMOUR: a walker in the armour it wears
 import { modSetting } from '../../systems/modSettings.js';   // LAYERED-PEERS: whether this player wears Layered Gearing
 import { POSE_RIDE } from '../wire.js';
@@ -83,11 +84,13 @@ export function spriteLookOf(s) {
   return p.length >= 5 ? `${p[0]}:${p[1]}:${p[2]}:${p[4].replace(/!\d\d?$/, '')}` : null;   // a flipped bow's picture (`:m`), a cast's (`!k`, `!ks`) the same look
 }
 
-async function decodeUrl(url) {
-  if (isLayeredKey(url)) return worldOrderLayered(await decodeLayered(url, decodePng));   // WORN-ARMOUR: composed from its strip
-  const res = await fetch(url);
-  if (!res.ok) throw new Error(`${url}: ${res.status}`);
-  return worldOrderColors(await decodePng(new Uint8Array(await res.arrayBuffer())), { owned: true });   // PERF-PEERS5: the decode is this door's alone - turned in its own bytes
+/** A peer's sprite, fetched and decoded in the decode workers where the page has them (this thread's decode where it
+ *  has none) - the door my own body's art takes (eotbSprite.js decodeSprite), the same pixels. `strips` is
+ *  decodeLayered's URL doors for a worn-armour sprite, for a test with no build's strips; the art store passes none.
+ *  @param {string} url @param {Parameters<typeof decodeLayered>[2] | null} [strips] */
+export async function decodeUrl(url, strips = null) {
+  if (isLayeredKey(url)) return worldOrderLayered(await decodeLayered(url, decodePng, { ...strips, picture: decodeServedPng }));   // a worn-armour sprite, composed from its strip
+  return worldOrderColors(await decodeServedPng(url), { owned: true });   // PERF-PEERS5: the decode is this door's alone - turned in its own bytes
 }
 
 /**
@@ -109,8 +112,7 @@ export function createEotbArt({ renderer = null, urlFor = eotbSpriteUrl, decode 
   // used: clock(), frame: the sweep's count when last drawn }
   const looks = new Map();
   let frame = 0;
-  function noteLook(s, k) {
-    const code = spriteLookOf(s);
+  function noteLook(code, k) {
     if (!code) return;
     let l = looks.get(code);
     if (!l) { l = { keys: new Set(), used: 0, frame }; looks.set(code, l); }
@@ -134,15 +136,17 @@ export function createEotbArt({ renderer = null, urlFor = eotbSpriteUrl, decode 
       for (const key of l.keys) { tex.delete(key); renderer?.evictTexture?.(key.replace(':', '_')); evictHeld(renderer, key.replace(':', '_')); }   // the cache's `archive:rec` is the renderer's `archive_rec`; LAYERED-GLOW: and its weapon's picture
     }
   }
-  function ensure(s) {
-    const k = `${s.archive}:${s.rec}`;
-    noteLook(s, k);
+  /** `keys` the answer's own (answerKeysOf), from a layer that keeps its answers across frames. An answer made new each
+   *  frame (a rider's, the warm queue's) comes without them, and its keys are made here and kept nowhere. */
+  function ensure(s, keys = null) {
+    const k = keys ? keys.texKey : `${s.archive}:${s.rec}`;
+    noteLook(keys ? keys.lookCode : spriteLookOf(s), k);
     let have = tex.get(k);
     // PEER-ART: a texture let go under this key by another store (my own body's looks, eotbBody.js) is uploaded again -
     // the renderer's cache is one for every store, and an outfit can be mine and a peer's at once
-    if (have && !(have instanceof Promise) && !('failedAt' in have) && renderer?.textures?.has && !renderer.textures.has(k.replace(':', '_'))) { tex.delete(k); have = undefined; }
+    if (have && !(have instanceof Promise) && !('failedAt' in have) && renderer?.textures?.has && !renderer.textures.has(keys ? keys.rendererKey : k.replace(':', '_'))) { tex.delete(k); have = undefined; }
     // AUDIT: a frame drawn before its weapon's picture came is decoded again (the picture is asked for again)
-    if (have && !(have instanceof Promise) && have.retryAt != null && clock() >= have.retryAt) { tex.delete(k); pixels.delete(s.key); evictHeld(renderer, k.replace(':', '_')); have = undefined; }
+    if (have && !(have instanceof Promise) && have.retryAt != null && clock() >= have.retryAt) { tex.delete(k); pixels.delete(s.key); evictHeld(renderer, keys ? keys.rendererKey : k.replace(':', '_')); have = undefined; }
     if (have && !(have instanceof Promise) && !('failedAt' in have)) return have;
     if (have && 'failedAt' in have && clock() - have.failedAt >= RIDER_RETRY_MS) tex.delete(k);
     else if (have !== undefined || !renderer?.uploadTexture) return null;
@@ -186,17 +190,17 @@ function figureLayer(art) {
     figs.delete(id);
   }
   /** Stand `s` at `feet` for figure `r`: its batch (re-made when the sprite changes), its size, its offset. `mode`
-   *  is spriteSize's own: `{ riding }`, or PR-WW1's `{ transformed: true }` for a beast. OW-PEERS (FIELD BUGS
-   *  2026-10-01 #11): `grow` times its size and its offset under the Overworld, as the traveller's own (tvOwnGrow) -
-   *  a grown figure casts no giant's shadow (AUDIT OW5 R2's law). */
-  function place(r, s, feet, right, mode, grow = 1) {
-    const up = art.ensure(s);
+   *  is spriteSize's own: `{ riding }`, or `{ transformed: true }` for a beast. `grow` times its size and its offset
+   *  under the Overworld, as the traveller's own (tvOwnGrow), and a grown figure casts no giant's shadow. `keys` is
+   *  the answer's own when its layer keeps it (answerKeysOf), so a kept answer's texture key is not built again. */
+  function place(r, s, feet, right, mode, grow = 1, keys = null) {
+    const up = art.ensure(s, keys);
     const g = grow > 1 ? grow : 1;
     if (up) {
       const xml = spriteOffset(s.archive, s.record);
       const own = spriteSize(up.w, up.h, mode, xml.scale);
       const size = g > 1 ? { w: own.w * g, h: own.h * g } : own;
-      const key = `${s.archive}:${s.rec}`;
+      const key = keys ? keys.texKey : `${s.archive}:${s.rec}`;
       if (!r.batch) {
         r.batch = renderer.createBillboardBatch(s.archive, s.rec, size, [[0, 0, 0]]);
         r.batch.origin = [0, 0, 0];
@@ -425,6 +429,44 @@ export function walkerHeld(look, pose) {
   return { ...held, cast: Number.isInteger(pose?.ce) ? pose.ce : 4, ...(h?.spellHand ? { spellHand: true } : {}), ...(pose && !pose.wd ? { sheathed: true } : {}) };   // BACK-SHIELD: its shield on its back
 }
 
+/** A look's outfit, read once a list: every look the wire sends holds a new list of items (wire.js validLook) and
+ *  nothing writes one after, so a list wears the outfit it was first read as. */
+const _outfitOfList = new WeakMap();
+function outfitOfLookItems(items) {
+  if (!Array.isArray(items)) return outfitOfItems(items);
+  let outfit = _outfitOfList.get(items);
+  if (outfit === undefined) _outfitOfList.set(items, (outfit = outfitOfItems(items)));
+  return outfit;
+}
+
+/** Whether two looks hold the same keys, each with the same plain value - a look holding an object never matches. */
+function sameFlatLook(a, b) {
+  for (const k in a) {
+    const value = a[k];
+    if ((typeof value === 'object' && value !== null) || typeof value === 'function' || !(k in b) || !Object.is(b[k], value)) return false;
+  }
+  for (const k in b) if (!(k in a)) return false;
+  return true;
+}
+
+/** A sprite answer's keys: its texture's `archive:rec`, the renderer's `archive_rec` and its look's code. Nothing writes
+ *  an answer, so an answer kept across frames keeps the keys it was made with. */
+function answerKeysOf(answer) {
+  const texKey = `${answer.archive}:${answer.rec}`;
+  return { texKey, rendererKey: texKey.replace(':', '_'), lookCode: spriteLookOf(answer) };   // the cache's `archive:rec` is the renderer's `archive_rec`
+}
+
+/** A walker's sprite: spriteFor's answer, kept while the table, view, frame and every value of the look are the ones
+ *  it was asked with - the answer is theirs alone, and a crowd standing still would ask it again every frame. Its keys
+ *  are made with it and kept beside it, for the art store. */
+function walkerSprite(walker, table, view, frame, look) {
+  const was = walker.asked;
+  if (was && was.table === table && was.view === view && was.frame === frame && sameFlatLook(was.look, look)) return was.sprite;
+  const sprite = spriteFor(table, view, frame, look);
+  walker.asked = { table, view, frame, look, sprite, keys: sprite ? answerKeysOf(sprite) : null };
+  return sprite;
+}
+
 /**
  * DISC23-B (2026-09-24, Gryphoth on Discord: "a way to change our sprite in general instead of it defaulting depending
  * on the class") - ANOTHER PLAYER ON FOOT, AS THE SPRITE THEY CHOSE.
@@ -481,6 +523,8 @@ export function createPeerWalkers({ renderer = null, urlFor = eotbSpriteUrl, dec
    *  is left to play as it comes (every walker carries one), and a sheathed walker's to its drawing */
   const warmQueue = /** @type {ReturnType<typeof warmFramesOf>} */ ([]);
   const warmWalker = (r, look) => {
+    if (r.warmLook && sameFlatLook(r.warmLook, look)) return;   // the same values make the same signature, its frames asked
+    r.warmLook = look;
     const sig = look.sheathed ? null : warmSigOf(look);
     if (sig === r.warmSig) return;
     r.warmSig = sig;
@@ -559,13 +603,13 @@ export function createPeerWalkers({ renderer = null, urlFor = eotbSpriteUrl, dec
       // LAYERED-GEAR: such a walker wears what its look says it wears - the helmet, chest and legs pieces (and a cloak's
       // dye) its own client sent (net/wire.js look items) - in the body it chose (LAYERED-PEERS: or its own); leather
       // where it wears none
-      const worn = lgBody ? { wornArmour: true, outfit: outfitOfItems(peer.look?.items), gender: lgBody, ...(r.shot?.hands ?? walkerHeld(peer.look, pose)) } : null;
-      const s = spriteFor(flinch ? 'Death' : r.table, view, flinch ? 0 : r.frame, worn ? { onFoot: set ?? 0, ...worn, ...(flinch ? { armedTable: r.table } : {}) } : { onFoot: set });   // LAYERED-WEAPONS: a flinch keeps the weapon
+      const worn = lgBody ? { wornArmour: true, outfit: outfitOfLookItems(peer.look?.items), gender: lgBody, ...(r.shot?.hands ?? walkerHeld(peer.look, pose)) } : null;
+      const s = walkerSprite(r, flinch ? 'Death' : r.table, view, flinch ? 0 : r.frame, worn ? { onFoot: set ?? 0, ...worn, ...(flinch ? { armedTable: r.table } : {}) } : { onFoot: set });   // LAYERED-WEAPONS: a flinch keeps the weapon
       if (worn) warmWalker(r, { onFoot: set ?? 0, ...worn });   // ATTACK-WARM
       if (!s) continue;
       faceDrawn(r, view, yaw, feet, eye);   // SPRITE-FACE: the way it is drawn facing, for an aura on it
       const g = grow ? grow(feet) : 1;   // OW-PEERS: grown under the Overworld, as the traveller is
-      layer.place(r, s, feet, right, { riding: false }, g);
+      layer.place(r, s, feet, right, { riding: false }, g, r.asked.keys);   // its answer's keys, kept with it
       if (g > 1) { if (r.lantern) { dropSpriteLantern(r.lantern, store.renderer); r.lantern = null; } }   // OW-PEERS: a grown walker's waist is not where the lantern hangs (eotbBody's OW-BIG rule)
       else hangLantern(r, pose, feet, view, eye, right, step, ft);
       slingHolster(r, peer, g > 1 ? null : pose, feet, view, eye, right);   // BACK-HOLSTER: OW-PEERS' rule too

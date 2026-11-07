@@ -211,6 +211,7 @@ const HARDCODED = {
   'src/render/courtCrystals.js': 3,
   'src/render/deadlands.js': 4,
   'src/render/deepWatersRender.js': 13,
+  'src/render/depthPrepass.js': 1,   // the depth draw's fragment stage - GLSL the scan reads as prose (`in vec3`), as every pass's
   'src/render/dragon/dragonTelegraph.js': 1,   // DRAGON3: its draped stage - GLSL the scan reads as prose (`in vec3`), armoryPass.js's same line
   'src/render/dryFall.js': 1,   // ASHFALL1: the ash's fragment stage (GLSL, never a player's text - as windWisps.js's)
   'src/render/duelWall.js': 1,

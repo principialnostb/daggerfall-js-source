@@ -184,7 +184,7 @@ test('WILD-ALERT host wiring: the pools leave the gated foe off its list (the ta
   assert.match(W, /areEnemiesNearby\(\[\.\.\.cityGuards\.guards, \.\.\.wildSeen\(exteriorFoes\.foes\)\]\)/, 'the journey\'s stop');
   assert.match(W, /danger: \(\) => duelEnemyNear\(\) \|\| \(!playerEntity\.staffHidden && areEnemiesNearby\(wildSeen\(exteriorFoePool\(\)\)\)\) \|\| navalHostileNear\(\),/, 'the view\'s danger');   // PIN MOVED (TIME-DILATION: a hostile ship too)
   assert.match(W, /if \(!foeAlerted\(f\) \|\| !f\.ai\.feet \|\| f\.ai\.unreachable\) continue;/, 'the clock held for an alerted foe alone');
-  assert.match(W, /wildMarksFrame\(proj, view, mwv\.eye\);/, 'the "!" drawn every frame beside the crew\'s lines');
+  assert.match(W, /wildMarksFrame\(proj, view, mwv\.eye, clientW, clientH\);/, 'the "!" drawn every frame beside the crew\'s lines, with the frame\'s size');
 });
 
 test('WILD-ALERT host run: A BAND NOTICES ON THE CHECK - lifted bandFrame over the real store: a band within its sight but far, against a stealthy traveller and a high die, wanders on; the same band close in chases; the check follows the traveller\'s clock (mutants: the band chases on sight alone, the stealth unread)', async () => {

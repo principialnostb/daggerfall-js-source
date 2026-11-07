@@ -411,8 +411,8 @@
   {
     "name": "SCALE2b-checkpoint-window-unbounded",
     "file": "src/systems/realmSaves.js",
-    "old": "!hidden() && now() - landedAt < REALM_IDLE_CHECKPOINT_MS && idleKeyOf(text, summary) === landedKey",
-    "new": "!hidden() && idleKeyOf(text, summary) === landedKey",
+    "old": "!hidden() && now() - landedAt < REALM_IDLE_CHECKPOINT_MS && checkpointKeyOf(text, summary) === landedKey",
+    "new": "!hidden() && checkpointKeyOf(text, summary) === landedKey",
     "tests": [
       "test/net/scale2b.test.js"
     ],

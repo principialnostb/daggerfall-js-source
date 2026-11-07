@@ -743,6 +743,7 @@
 !/src/render/cloudsArrival.js
 !/src/render/columnGlsl.js
 !/src/render/contract.js
+!/src/render/depthPrepass.js
 !/src/render/dragon/
 /src/render/dragon/*
 !/src/render/dragon/*.js
@@ -979,6 +980,7 @@
 !/src/scenes/naval/aimCamera.js
 !/src/scenes/naval/crewDeal.js
 !/src/scenes/naval/fishingFleet.js
+!/src/scenes/naval/laneShips.js
 !/src/scenes/naval/navalBerth.js
 !/src/scenes/naval/navalCrew.js
 !/src/scenes/naval/navalFeel.js

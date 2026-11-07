@@ -317,8 +317,8 @@
   {
     "name": "PEERRANGE-room-ids-unread",
     "file": "src/net/remotePlayers.js",
-    "old": "if (room) { inRoom = new Set(); for (const peer of room) if (peer?.id) inRoom.add(peer.id); }",
-    "new": "if (room) { inRoom = new Set(); }",
+    "old": "if (room) { inRoom = this._roomIds; inRoom.clear(); for (const peer of room) if (peer?.id) inRoom.add(peer.id); }",
+    "new": "if (room) { inRoom = this._roomIds; inRoom.clear(); }",
     "tests": [
       "test/systems/peerrange.test.js"
     ]

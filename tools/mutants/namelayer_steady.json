@@ -1,0 +1,52 @@
+[
+  {
+    "name": "NAMELAYER-STEADY-place-kept-past-a-move-up",
+    "file": "src/ui/nameLayer.js",
+    "old": "        if (tag.atX !== atX || tag.atY !== atY) {",
+    "new": "        if (tag.atX !== atX) {",
+    "tests": [
+      "test/ui/namelayer_steady.test.js"
+    ],
+    "why": "a head that moves only up or down keeps its name where it was"
+  },
+  {
+    "name": "NAMELAYER-STEADY-place-kept-past-a-move-across",
+    "file": "src/ui/nameLayer.js",
+    "old": "        if (tag.atX !== atX || tag.atY !== atY) {",
+    "new": "        if (tag.atY !== atY) {",
+    "tests": [
+      "test/ui/namelayer_steady.test.js"
+    ],
+    "why": "a head that moves only across keeps its name where it was"
+  },
+  {
+    "name": "NAMELAYER-STEADY-size-kept",
+    "file": "src/ui/nameLayer.js",
+    "old": "        if (tag.sizeOf !== px) {",
+    "new": "        if (tag.sizeOf !== px && tag.sizeText === '') {",
+    "tests": [
+      "test/ui/namelayer_steady.test.js"
+    ],
+    "why": "a name keeps its first size as its head comes near or goes away"
+  },
+  {
+    "name": "NAMELAYER-STEADY-bubble-opacity-kept",
+    "file": "src/ui/nameLayer.js",
+    "old": "          if (tag.bubbleAlphaOf !== alpha) {",
+    "new": "          if (tag.bubbleAlphaOf !== alpha && tag.bubbleAlphaText === '') {",
+    "tests": [
+      "test/ui/namelayer_steady.test.js"
+    ],
+    "why": "a chat bubble never fades"
+  },
+  {
+    "name": "NAMELAYER-STEADY-cone-opacity-kept",
+    "file": "src/ui/nameLayer.js",
+    "old": "        if (tag.coneOf !== tag.cone) {",
+    "new": "        if (tag.coneOf !== tag.cone && tag.coneText === '') {",
+    "tests": [
+      "test/ui/pvpcone.test.js"
+    ],
+    "why": "a name keeps its first opacity as the crosshair comes to it or leaves it"
+  }
+]

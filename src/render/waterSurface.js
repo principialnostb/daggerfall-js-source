@@ -302,6 +302,12 @@ ${SWELL_TRAINS.map(([ang, len, share]) => {
 export const WATER_ABSORB = Object.freeze([0.55, 0.3, 0.22]);
 /** How far the refracted look is pushed by the waves' slope, in screen fractions at a unit of depth. */
 export const REFRACT_STRENGTH = 0.035;
+/** The path through the water, in units, past which the push grows no more. */
+export const REFRACT_PATH_MAX = 4;
+/** How the push fades with the distance from the eye: it is divided by 1 + REFRACT_FADE times that distance. */
+export const REFRACT_FADE = 0.02;
+/** How far inside the copy's edges the pushed look is held, in screen fractions. */
+export const REFRACT_EDGE = 0.001;
 /** The depth a sheet without a bed stands for - world/water/waterCorners.js NO_BED_DEPTH, its one home, re-exported for the renderer. */
 export { NO_BED_DEPTH };
 /** The path, in units, past which the water is taken as deep everywhere it cannot measure itself (the open sea
@@ -618,8 +624,8 @@ void main() {
     float bedD = eyeDepth(textureLod(uSceneDepth, uv0, 0.0).r);   // AUDIT WATER-NEXT G10: after the discards, an explicit level
     path = max(bedD - here, bedPath);   // the scene's measure, never less than the bed's (a sheet with no bed stands for one)
     // the look pushed by the slope, by more the deeper the water under it, less the farther off
-    vec2 push = n.xz * (${REFRACT_STRENGTH.toFixed(4)} * clamp(path, 0.0, 4.0)) / (1.0 + dist * 0.02);
-    vec2 uv = clamp(uv0 + push, vec2(0.001), vec2(0.999));
+    vec2 push = n.xz * (${REFRACT_STRENGTH.toFixed(4)} * clamp(path, 0.0, ${REFRACT_PATH_MAX.toFixed(1)})) / (1.0 + dist * ${REFRACT_FADE.toFixed(2)});
+    vec2 uv = clamp(uv0 + push, vec2(${REFRACT_EDGE.toFixed(3)}), vec2(${(1 - REFRACT_EDGE).toFixed(3)}));
     float pushedD = eyeDepth(textureLod(uSceneDepth, uv, 0.0).r);
     if (pushedD < here) uv = uv0; else path = max(pushedD - here, bedPath);   // never what stands in front of the water
     vec3 T = exp(-uAbsorb * path);
@@ -674,3 +680,208 @@ void main() {
   fogged = dwWaterFogAdd(fogged, vWorldPos) + dwWaterFog(vec3(0.0), vWorldPos) * ownShare;
   outColor = uSceneOn == 1 ? vec4(under * trans + fogged, edge) : vec4(fogged / max(cover, 1e-3), edge * cover);
 }`;
+
+// ═══════════════════════════════════════════════════════════════════
+// WHAT A WATER DRAW CAN READ. The copy of the frame under the water (Renderer.captureUnderWater) is taken only where
+// the water's fragments can read it. A sheet's box, carried through the vertex shader's own steps, bounds where its
+// fragments fall; the push's own bound - REFRACT_STRENGTH over REFRACT_PATH_MAX, faded by the distance - bounds how
+// far from its fragment a look lands. The copy is never read outside that part, so the rest need not be copied.
+// ═══════════════════════════════════════════════════════════════════
+
+/** The share each bound of the reach is widened by, against the GPU's single precision. */
+const REACH_SLOP = 1e-3;
+/** The texels a read can land past the push's own bound: the colour's second bilinear texel, the raster's sub-pixel
+ *  snap and the rounding of the copy's coordinates, with one to spare. */
+export const REACH_MARGIN = 3;
+/** A box's twelve edges as pairs of corners, each corner numbered by its far ends (1 x, 2 y, 4 z). */
+const BOX_EDGES = Object.freeze([0, 1, 2, 3, 4, 5, 6, 7, 0, 2, 1, 3, 4, 6, 5, 7, 0, 4, 1, 5, 2, 6, 3, 7]);
+/** The most the swell lifts a vertex, in multiples of its height: the trains' shares summed. */
+const SWELL_SHARE = SWELL_TRAINS.reduce((sum, train) => sum + Math.abs(train[2]), 0);
+const reachViewProj = new Float64Array(16);
+const reachClip = new Float64Array(32);
+const reachNdc = new Float64Array(4);
+
+/**
+ * A water sheet's box in its own space, [minX, minY, minZ, maxX, maxY, maxZ]: over its quads' vertices when it has
+ * its own grid (`positions`), else round the `sphere` ([x, y, z, radius]) of the ground it rides. null with neither.
+ * @param {ArrayLike<number>|null} indices
+ * @param {ArrayLike<number>|null} [positions]
+ * @param {ArrayLike<number>|null} [sphere]
+ * @returns {Float64Array|null}
+ */
+export function waterSheetBox(indices, positions = null, sphere = null) {
+  if (!indices || !indices.length) return null;
+  if (!positions) {
+    if (!sphere) return null;
+    const radius = sphere[3];
+    return Float64Array.of(
+      sphere[0] - radius,
+      sphere[1] - radius,
+      sphere[2] - radius,
+      sphere[0] + radius,
+      sphere[1] + radius,
+      sphere[2] + radius,
+    );
+  }
+  const box = Float64Array.of(Infinity, Infinity, Infinity, -Infinity, -Infinity, -Infinity);
+  for (let k = 0; k < indices.length; k++) {
+    const at = indices[k] * 3;
+    for (let axis = 0; axis < 3; axis++) {
+      const value = positions[at + axis];
+      if (value < box[axis]) box[axis] = value;
+      if (value > box[axis + 3]) box[axis + 3] = value;
+    }
+  }
+  return box;
+}
+
+/**
+ * Whether a part of the frame already copied holds a reach - each [x0, y0, x1, y1], null for the whole frame. Any
+ * part holds an empty reach.
+ * @param {ArrayLike<number>|null} part
+ * @param {ArrayLike<number>|null} reach
+ */
+export function waterReachHolds(part, reach) {
+  if (!part) return true;
+  if (!reach) return false;
+  if (reach[0] >= reach[2] || reach[1] >= reach[3]) return true;
+  return part[0] <= reach[0] && part[1] <= reach[1] && part[2] >= reach[2] && part[3] >= reach[3];
+}
+
+/** Widens the reach's NDC bounds by a clip-space point; false for one at or behind the eye's own plane. */
+function reachPoint(clipX, clipY, clipW) {
+  if (!(clipW > 1e-6)) return false;
+  const x = clipX / clipW,
+    y = clipY / clipW;
+  if (x < reachNdc[0]) reachNdc[0] = x;
+  if (x > reachNdc[2]) reachNdc[2] = x;
+  if (y < reachNdc[1]) reachNdc[1] = y;
+  if (y > reachNdc[3]) reachNdc[3] = y;
+  return true;
+}
+
+/**
+ * The part of the frame water rows can read in the copy under them: [x0, y0, x1, y1] texels into `out`, the far edges
+ * exclusive; empty when none is in view, null when a row cannot be bounded (no box, a matrix not affine). `frame`
+ * holds the draw's `proj`, `view` and `eye`, its `lift` and `swell`, the viewport (`left`, `bottom`, `wide`, `high`)
+ * and the copy's `width` and `height`. A box takes the vertex shader's steps and is cut at the near plane; a look is
+ * pushed no farther than REFRACT_STRENGTH at REFRACT_PATH_MAX over 1 + REFRACT_FADE times its distance, then the edge.
+ * @returns {Int32Array|null}
+ */
+export function waterRowsReach(rows, n, frame, out = new Int32Array(4)) {
+  const { proj, view, eye, width, height } = frame;
+  for (let col = 0; col < 4; col++) {
+    for (let row = 0; row < 4; row++) {
+      reachViewProj[col * 4 + row] =
+        proj[row] * view[col * 4] +
+        proj[4 + row] * view[col * 4 + 1] +
+        proj[8 + row] * view[col * 4 + 2] +
+        proj[12 + row] * view[col * 4 + 3];
+    }
+  }
+  if (!reachViewProj.every(Number.isFinite)) return null;
+  const heave = Math.abs(frame.swell) * SWELL_SHARE * (1 + REACH_SLOP);
+  const pushMost = REFRACT_STRENGTH * REFRACT_PATH_MAX * (1 + REACH_SLOP);
+  let x0 = Infinity,
+    y0 = Infinity,
+    x1 = -Infinity,
+    y1 = -Infinity;
+  for (let i = 0; i < n; i++) {
+    const box = rows[i][0]?.box,
+      model = rows[i][1];
+    if (!box || !model || model[3] !== 0 || model[7] !== 0 || model[11] !== 0 || model[15] !== 1) return null;
+    let minX = Infinity,
+      minY = Infinity,
+      minZ = Infinity,
+      maxX = -Infinity,
+      maxY = -Infinity,
+      maxZ = -Infinity;
+    for (let k = 0; k < 8; k++) {
+      const sheetX = k & 1 ? box[3] : box[0],
+        sheetY = (k & 2 ? box[4] : box[1]) + frame.lift,
+        sheetZ = k & 4 ? box[5] : box[2];
+      const worldX = model[0] * sheetX + model[4] * sheetY + model[8] * sheetZ + model[12],
+        worldY = model[1] * sheetX + model[5] * sheetY + model[9] * sheetZ + model[13],
+        worldZ = model[2] * sheetX + model[6] * sheetY + model[10] * sheetZ + model[14];
+      minX = Math.min(minX, worldX);
+      maxX = Math.max(maxX, worldX);
+      minY = Math.min(minY, worldY);
+      maxY = Math.max(maxY, worldY);
+      minZ = Math.min(minZ, worldZ);
+      maxZ = Math.max(maxZ, worldZ);
+    }
+    if (!(minX <= maxX && minY <= maxY && minZ <= maxZ)) return null;
+    // the world the GPU computes in single precision, a hair either way of this one
+    const pad = REACH_SLOP * 0.1 * (1 + Math.max(-minX, maxX, -minY, maxY, -minZ, maxZ));
+    minX -= pad;
+    maxX += pad;
+    minY -= pad + heave;
+    maxY += pad + heave;
+    minZ -= pad;
+    maxZ += pad;
+    // the eye's distance to the box: no fragment of the row is nearer
+    const near =
+      Math.hypot(
+        Math.max(minX - eye[0], 0, eye[0] - maxX),
+        Math.max(minY - eye[1], 0, eye[1] - maxY),
+        Math.max(minZ - eye[2], 0, eye[2] - maxZ),
+      ) *
+      (1 - REACH_SLOP);
+    const reach = pushMost / (1 + REFRACT_FADE * near) + REFRACT_EDGE;
+    for (let k = 0; k < 8; k++) {
+      const worldX = k & 1 ? maxX : minX,
+        worldY = k & 2 ? maxY : minY,
+        worldZ = k & 4 ? maxZ : minZ;
+      for (let comp = 0; comp < 4; comp++) {
+        reachClip[k * 4 + comp] =
+          reachViewProj[comp] * worldX +
+          reachViewProj[4 + comp] * worldY +
+          reachViewProj[8 + comp] * worldZ +
+          reachViewProj[12 + comp];
+      }
+    }
+    reachNdc[0] = reachNdc[1] = Infinity;
+    reachNdc[2] = reachNdc[3] = -Infinity;
+    for (let k = 0; k < 8; k++) {
+      const at = k * 4;
+      if (reachClip[at + 2] + reachClip[at + 3] < 0) continue; // behind the near plane
+      if (!reachPoint(reachClip[at], reachClip[at + 1], reachClip[at + 3])) return null;
+    }
+    // where an edge crosses the near plane, the cut's own corner
+    for (let edge = 0; edge < BOX_EDGES.length; edge += 2) {
+      const from = BOX_EDGES[edge] * 4,
+        to = BOX_EDGES[edge + 1] * 4;
+      const nearFrom = reachClip[from + 2] + reachClip[from + 3],
+        nearTo = reachClip[to + 2] + reachClip[to + 3];
+      if (nearFrom < 0 === nearTo < 0) continue;
+      const share = nearFrom / (nearFrom - nearTo);
+      const clipX = reachClip[from] + share * (reachClip[to] - reachClip[from]),
+        clipY = reachClip[from + 1] + share * (reachClip[to + 1] - reachClip[from + 1]),
+        clipW = reachClip[from + 3] + share * (reachClip[to + 3] - reachClip[from + 3]);
+      if (!reachPoint(clipX, clipY, clipW)) return null;
+    }
+    if (reachNdc[0] > reachNdc[2]) continue; // wholly behind the eye: no fragment
+    const left = frame.left + (reachNdc[0] + 1) * 0.5 * frame.wide,
+      right = frame.left + (reachNdc[2] + 1) * 0.5 * frame.wide,
+      bottom = frame.bottom + (reachNdc[1] + 1) * 0.5 * frame.high,
+      top = frame.bottom + (reachNdc[3] + 1) * 0.5 * frame.high;
+    // wholly beside the viewport: no fragment either
+    if (right < frame.left - REACH_MARGIN || left > frame.left + frame.wide + REACH_MARGIN) continue;
+    if (top < frame.bottom - REACH_MARGIN || bottom > frame.bottom + frame.high + REACH_MARGIN) continue;
+    const spreadX = reach * width + REACH_MARGIN,
+      spreadY = reach * height + REACH_MARGIN;
+    x0 = Math.min(x0, Math.max(left, frame.left) - spreadX);
+    x1 = Math.max(x1, Math.min(right, frame.left + frame.wide) + spreadX);
+    y0 = Math.min(y0, Math.max(bottom, frame.bottom) - spreadY);
+    y1 = Math.max(y1, Math.min(top, frame.bottom + frame.high) + spreadY);
+  }
+  out.fill(0);
+  if (x0 === Infinity) return out; // no row's water in view
+  if (!(x0 < x1 && y0 < y1)) return null;
+  out[0] = Math.max(0, Math.floor(x0));
+  out[1] = Math.max(0, Math.floor(y0));
+  out[2] = Math.min(width, Math.ceil(x1));
+  out[3] = Math.min(height, Math.ceil(y1));
+  if (!(out[0] < out[2] && out[1] < out[3])) out.fill(0);
+  return out;
+}

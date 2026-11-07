@@ -29,7 +29,8 @@ town's ponds and moats by the RMB's ground tiles. The terrain pass draws it opaq
 - **The body.** Beer-Lambert absorption (`WATER_ABSORB` 0.55, 0.30, 0.22 a unit), replaced by the water's own colour
   (the climate's water texel's mean) lit by the ground's light. On the lighting lane the frame's colour and depth are
   copied once a frame before the first water draw (`AirPass.snapshotUnderWater`), so the water refracts what lies under
-  it; on the classic lane the blend does the same sum. Schlick Fresnel over the sky (capped at 0.85), glints of sun,
+  it. Only the part of the frame the water can read is copied (`waterRowsReach`, `Performance-Exterior.md`). On the
+  classic lane the blend does the same sum. Schlick Fresnel over the sky (capped at 0.85), glints of sun,
   moon and lamps, the fog.
 - **The shore.** Foam over the shallow band (`FOAM_DEPTH` 0.22), its edge riding the swell up the bank (`FOAM_RUNUP`),
   cut into lace by drifting noise; steep crests whiten in a strong wind. Come Sail Away's sprite breakers stand down

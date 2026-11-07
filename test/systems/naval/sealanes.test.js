@@ -38,6 +38,7 @@ import { hash32 } from '../../../src/world/spawnedDungeons.js';
 import { mulberry32 } from '../../../src/combat/blood/bloodArt.js';
 import { sea } from '../../navalSea.mjs';
 import { createWorldLanes, bayLaneWater } from '../../../src/scenes/naval/worldLanes.js';
+import { createLaneShips } from '../../../src/scenes/naval/laneShips.js';
 import { inBay } from '../../../src/world/tamriel/tamrielFrame.js';
 import { createWorldPorts } from '../../../src/world/worldWide/worldPorts.js';
 import { createWorldPlaces } from '../../../src/world/worldWide/worldPlaces.js';
@@ -401,10 +402,11 @@ function provokeMe(e) { e.ship.provoked.set('local', 1e9); }
 
 function liftFeed() {
   // PIN MOVED (AUDIT TESA II P7): a lane's reach is the lanes' book's (scenes/naval/worldLanes.js near - past the Bay its own)
-  const i = WORLD.indexOf('  const LANE_LIST_MS = 2000;');
-  const j = WORLD.indexOf('    naval.liners(list);\n  }\n', i);
+  const i = WORLD.indexOf('  const laneOpen = bayLaneWater(');
+  const end = '  function laneShips() { laneFeed.step(); }\n';
+  const j = WORLD.indexOf(end, i);
   assert.ok(i > 0 && j > i, 'the feed lifted');
-  return WORLD.slice(i, j + '    naval.liners(list);\n  }\n'.length);
+  return WORLD.slice(i, j + end.length);
 }
 const FEED_PORTS = [{ id: 199200, x: 200, y: 199, name: 'Glenpoint' }, { id: 199225, x: 225, y: 199, name: 'Wayrest' }, { id: 199900, x: 900, y: 199, name: 'Far Harbour' },
   { id: 99601, x: 601, y: 99, name: 'Lakeside' }, { id: 99608, x: 608, y: 99, name: 'Mere' }];   // two towns on the lake: water, but no sea's
@@ -428,11 +430,11 @@ function feedOn({ at = { x: 200, y: 200 }, clock = 1.7e12 } = {}) {
     // that read the water
     createWorldLanes: (o) => { const wl = createWorldLanes(o); return { ...wl, way: (l) => { const was = calls.water, w = wl.way(l); if (calls.water > was) calls.ways++; return w; } }; },
     worldPorts: createWorldPorts({ places: createWorldPlaces(), openSea: () => false }), tamrielLand: false,
-    packetsAt, LANE_PATH_PX, LANE_MAX_PX,
-    performance: { now: () => env.t }, t: 10000,
+    LANE_PATH_PX, LANE_MAX_PX,
+    createLaneShips: (deps) => createLaneShips({ ...deps, now: () => env.t }), t: 10000,
     naval: { enabled: true, liners: (list) => calls.liners.push({ list }) },
     playerTravelPixel: () => ({ ...at }), player: { feetAt: () => [NATIVE_PIXEL / 2 / S, 0, NATIVE_PIXEL / 2 / S] }, raidNowMs: () => clock,
-    state: { localFromWorld: (x, z) => [(x - origin.x) / S, (z - origin.z) / S] },
+    state: { localFromWorld: (x, z) => [(x - origin.x) / S, (z - origin.z) / S], mapOrigin: { x: at.x, y: at.y }, compensation: [0, 0, 0] },
   };
   const names = Object.keys(env).filter((k) => k !== 't');
   // eslint-disable-next-line no-new-func
@@ -444,7 +446,7 @@ test('SEA-LANES THE WORLD\'S FEED: before the frame poses the sea\'s ships, ever
   assert.match(WORLD, /if \(_mode\(\) === 'exterior' && !gamePaused\(\) && !_loading\) \{ laneShips\(\);[^\n]*\n\s*naval\.frame\(dt \* worldTimeScale\(\)/, 'stood and steered before the frame poses them, outdoors and running');   // PIN MOVED (SEA-EVENTS, 2026-10-22): the sea's events stepped beside the lanes (scenes/seaVenturesHost.js step)
   // PIN MOVED (AUDIT CAPTAIN'S SEA H1): and its sounding's reach - an isle port's its shore's
   // PIN MOVED (RPT1026-WORLD FAR-QUAY): the harbour a town is handed as moved to systems/naval/harbourBook.js harbourOf
-  assert.match(readFileSync(new URL('../../../src/systems/naval/harbourBook.js', import.meta.url), 'utf8'), /return \{ key: `port:\$\{t\.id\}`, name: t\.name \?\? null, rect, ready, reach \};/, 'the harbour named, its key a lane port\'s');   // PIN MOVED (AUDIT HOLDINGS O1): and whether its scan's pixels are built
+  assert.match(readFileSync(new URL('../../../src/systems/naval/harbourBook.js', import.meta.url), 'utf8'), /return \{ key: `port:\$\{t\.id\}`, name: t\.name \?\? null, rect, ready, reach, groundOver \};/, 'the harbour named, its key a lane port\'s');   // PIN MOVED (AUDIT HOLDINGS O1): and whether its scan's pixels are built
   assert.match(hostText('src/scenes/world.js'), /return \{ \.\.\.h, keep: harbourKeep\(t\.loc, h\.rect\) \};/);   // PIN MOVED (PORT-SHIPS): each town's keep beside its harbour (scenes/harbourHost.js, systems/naval/harbourKeep.js)
   // the clock where the lane's first packet lies at her home port, by the player
   const laneLaw = bayLaneWater(water, open), laneLawNative = (x, z) => { const p = pixelOfNative(x, z); return laneLaw(p.x, p.y); };

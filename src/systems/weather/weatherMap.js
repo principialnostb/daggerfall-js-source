@@ -539,15 +539,23 @@ export function windPath(x, z, t0, t) {
 }
 /** FLOW2: `windPath` from a place's headings already read (`headings`, or a born system's own - `hostHeadings`). */
 function pathWith(h, t0, t) {
+  pathInto(h, t0, t);
+  return [_path[0], _path[1]];
+}
+/** pathWith's ride, written into `_path` ([dx, dz]) for its caller to read at once: a system placed only to be tested
+ *  makes nothing. */
+const _path = new Float64Array(2);
+function pathInto(heads, from, to) {
   let dx = 0, dz = 0;
   for (let i = 0; i < WIND_TERMS.length; i++) {
     const share = WIND_TERMS[i][0], turn = WIND_TERMS[i][3];
-    if (turn === 0) { dx += share * Math.cos(h[i]) * (t - t0); dz += share * Math.sin(h[i]) * (t - t0); continue; }
-    const a0 = h[i] + turn * t0, a1 = h[i] + turn * t;
+    if (turn === 0) { dx += share * Math.cos(heads[i]) * (to - from); dz += share * Math.sin(heads[i]) * (to - from); continue; }
+    const a0 = heads[i] + turn * from, a1 = heads[i] + turn * to;
     dx += (share * (Math.sin(a1) - Math.sin(a0))) / turn;
     dz += (share * (Math.cos(a0) - Math.cos(a1))) / turn;
   }
-  return [dx, dz];
+  _path[0] = dx;
+  _path[1] = dz;
 }
 
 // ---- the systems ---------------------------------------------------
@@ -603,7 +611,8 @@ function poisson(lambda, r) {
  * them where and when it was born, `strength` how hard it falls at its
  * heart (RAIN-HEART, `systemStrength`). Pure over climateAt. */
 export function birthsIn(type, gx, gz, gt, climateAt) {
-  return memoised(`${type}:${gx}:${gz}:${gt}`, climateAt, () => drawBirths(type, gx, gz, gt, climateAt));
+  const memo = memoised(climateAt), key = nodeKey(type, gx, gz, gt);
+  return memo.get(key) ?? kept(memo, key, drawBirths(type, gx, gz, gt, climateAt));
 }
 /** The cells a front throws over its life (WEATHER3g), each { type, id,
  *  front, ox, oz, bornX, bornZ, bornAt, life, core, rings } - (ox, oz) its
@@ -611,27 +620,50 @@ export function birthsIn(type, gx, gz, gt, climateAt) {
  *  cells. Pure over climateAt. */
 export function cellsOf(front, climateAt) {
   if (!CELL_OF[front.type]) return [];
-  return memoised(`cells:${front.id}`, climateAt, () => drawCells(front, climateAt));
+  const memo = memoised(climateAt), key = cellsKey(front);
+  return memo.get(key) ?? kept(memo, key, drawCells(front, climateAt));
 }
-function memoised(key, climateAt, draw) {
-  // TIME1: a node's births are drawn to the season and hour of the calendar that stood when they were drawn, so the
-  // key carries which one - births drawn on the sky's are never served under the event clock's, or the reverse
-  key = `${skyCalendarOn() ? 'sky' : 'one'}|${key}`;
-  // ASHFALL1: and to the land past the Bay as it stood - its zones' climates and ash (world/tamriel/tamrielBiomes.js
-  // biomeStamp: the trace landing after the boot, a fit) moving drops them all, as the air's tiles drop: a node drawn
-  // over the authored rings kept their zones' weather once the trace had moved the provinces
+/** The memo a climate lookup's births and cells are kept in, for the land as it stands. */
+function memoised(climateAt) {
+  // the land past the Bay moving (its zones' climates and ash: tamrielBiomes.js biomeStamp, the trace landing after the
+  // boot, a fit) drops them all, as the air's tiles drop: a node drawn over the authored rings kept their zones'
+  // weather once the trace had moved the provinces
   const stamp = biomeStamp();
   if (stamp !== _bornStamp) { _births = new WeakMap(); _bornStamp = stamp; }
   let memo = _births.get(climateAt);
   if (!memo) _births.set(climateAt, memo = new Map());
-  let out = memo.get(key);
-  if (out) return out;
-  // a node's births are a pure function of it, so dropping them costs only the redraw - and the OLDEST quarter goes
-  // (insertion order: the nodes the clock has left behind), never the whole cache at once (AUDIT WEATHER3 R2c: a
-  // whole-bay read is ~12,500 keys, and a wholesale clear under it cost the next read the bay again, cold)
+  return memo;
+}
+/** `drawn` frozen into the memo under `key`. A node's births are a pure function of it, so dropping them costs only the
+ *  redraw - and the OLDEST quarter goes (insertion order: the nodes the clock has left behind), never the whole cache at
+ *  once: a whole-bay read is ~12,500 keys, and a wholesale clear under it cost the next read the bay again, cold. */
+function kept(memo, key, drawn) {
   if (memo.size >= BIRTHS_MEMO) { let drop = BIRTHS_MEMO >> 2; for (const k of memo.keys()) { memo.delete(k); if (--drop <= 0) break; } }
-  memo.set(key, out = Object.freeze(draw()));
+  const out = Object.freeze(drawn);
+  memo.set(key, out);
   return out;
+}
+/** THE MEMO'S KEY FOR A NODE: one whole number for its type, its node, and the calendar its births are drawn to (births
+ *  drawn on the sky's season and hour are never served under the event clock's, or the reverse). It is one for every
+ *  node within NODE_SPAN of the field's origin either way, on both axes - 160,000 km of the smallest nodes, far past the
+ *  world's grid - and within GT_SPAN periods of minute 0. A node past those keeps its name, which no number equals. */
+const NODE_SPAN = 2048, NODE_SIDE = 2 * NODE_SPAN, GT_SPAN = 2 ** 23, KEY_SLOTS = 32;
+function nodeKey(type, nodeX, nodeZ, period) {
+  const sky = skyCalendarOn() ? 1 : 0, salt = TYPE_SALT[type];
+  const packs = Number.isInteger(salt) && salt >= 0 && salt * 2 < KEY_SLOTS && Number.isInteger(nodeX) && Number.isInteger(nodeZ)
+    && Number.isInteger(period) && Math.abs(nodeX) < NODE_SPAN && Math.abs(nodeZ) < NODE_SPAN && Math.abs(period) < GT_SPAN;
+  if (!packs) return `${sky ? 'sky' : 'one'}|${type}:${nodeX}:${nodeZ}:${period}`;
+  return ((period * NODE_SIDE + nodeZ + NODE_SPAN) * NODE_SIDE + nodeX + NODE_SPAN) * KEY_SLOTS + salt * 2 + sky;
+}
+/** The memo's key for a front's cells: its name and the calendar's, made once a front (a born system is one frozen
+ *  object while the memo holds it). */
+const _cellKeys = new WeakMap();
+function cellsKey(front) {
+  const sky = skyCalendarOn() ? 1 : 0;
+  if (!Object.isFrozen(front)) return `${sky ? 'sky' : 'one'}|cells:${front.id}`;
+  let keys = _cellKeys.get(front);
+  if (!keys) _cellKeys.set(front, keys = [`one|cells:${front.id}`, `sky|cells:${front.id}`]);
+  return keys[sky];
 }
 /** The births cache, per climate lookup (a host's lookup is one function
  *  for the session; a test's each its own). */
@@ -723,8 +755,6 @@ function drawCells(front, climateAt) {
   return out;
 }
 
-/** Where a born system stands at `minutes` (alive or not): its birthplace
- *  ridden on the wind - a cell, its front's place plus its own offset. */
 /** FLOW2 (2026-09-26): a born system's headings at its birthplace, read once for the system (a system is one frozen
  *  object for as long as the births cache holds it, and its birthplace never moves) - every placing of it read the same
  *  twelve noise corners again. */
@@ -734,10 +764,14 @@ function hostHeadings(host) {
   if (!h) _hostHeadings.set(host, h = Float64Array.from(headings(host.bornX, host.bornZ)));
   return h;
 }
-function placeAt(b, minutes) {
+/** Where a born system stands at `minutes` (alive or not), written into `_at` ([x, z]) for its caller to read at once:
+ *  its birthplace ridden on the wind - a cell, its front's place plus its own offset. */
+const _at = new Float64Array(2);
+function placeInto(b, minutes) {
   const host = b.front ?? b, speed = SYSTEM_TYPES[host.type].speed;
-  const [px, pz] = pathWith(hostHeadings(host), host.bornAt, minutes);
-  return [host.bornX + px * speed + (b.ox ?? 0), host.bornZ + pz * speed + (b.oz ?? 0)];
+  pathInto(hostHeadings(host), host.bornAt, minutes);
+  _at[0] = host.bornX + _path[0] * speed + (b.ox ?? 0);
+  _at[1] = host.bornZ + _path[1] * speed + (b.oz ?? 0);
 }
 
 /** A born system at `minutes`: null before its birth or after its death,
@@ -747,20 +781,35 @@ function placeAt(b, minutes) {
  * shape's bound), and `clip` (a cell's) the shaped disc [x, z, r, shape]
  * it paints within, else null. */
 export function systemAt(b, minutes) {
+  return standing(b, minutes, false, 0, 0, 0);
+}
+/** The furthest a system's outline reaches with its core `core` across: its outermost band times its shape's bound, as
+ *  systemAt's `reach` is, with nothing built. */
+function outlineReach(b, core) {
+  let area = 1;
+  for (let k = 0; k < b.rings.length; k++) if (b.rings[k][1] > 0) area += b.rings[k][1];
+  return core * Math.sqrt(area) * shapeBound(b.shape);
+}
+/** systemAt's answer - or, `near`, null where the outline misses the disc ((x0, z0), `range`): that test is made on the
+ *  system's place and size before anything is built, so the many systems a walk passes over make nothing. */
+function standing(b, minutes, near, x0, z0, range) {
   const age = minutes - b.bornAt;
   if (age < 0 || age >= b.life) return null;
   const spec = SYSTEM_TYPES[b.type];
   const env = envelope(spec, age / b.life);
-  const [x, z] = placeAt(b, minutes);
+  placeInto(b, minutes);
+  const x = _at[0], z = _at[1];
   const core = b.core * radiusShare(env);
+  if (near && !(Math.hypot(x - x0, z - z0) - outlineReach(b, core) <= range)) return null;
   let clip = null;
   if (b.front) {
     // a cell paints only inside its front's core as the core is now, and dies with its front
     const fAge = minutes - b.front.bornAt;
     if (fAge < 0 || fAge >= b.front.life) return null;
-    const [fx, fz] = placeAt(b.front, minutes);
-    clip = [fx, fz, b.front.core * radiusShare(envelope(SYSTEM_TYPES[b.front.type], fAge / b.front.life)), b.front.shape];
-    if (Math.hypot(x - fx, z - fz) >= clip[2] * shapeBound(clip[3]) + core * shapeBound(b.shape)) return null;   // wholly outside it: nowhere to paint
+    placeInto(b.front, minutes);
+    const fx = _at[0], fz = _at[1], fCore = b.front.core * radiusShare(envelope(SYSTEM_TYPES[b.front.type], fAge / b.front.life));
+    if (Math.hypot(x - fx, z - fz) >= fCore * shapeBound(b.front.shape) + core * shapeBound(b.shape)) return null;   // wholly outside it: nowhere to paint
+    clip = [fx, fz, fCore, b.front.shape];
   }
   const bands = [[core, b.type]];
   let area = 1;
@@ -797,16 +846,13 @@ export function systemsNear(x, z, minutes, climateAt, range = 0, types = PRIORIT
   return r.value;
 }
 /** A born system into `out` at `minutes` where its outline reaches the disc ((x, z), `range`), with its centre's distance
- *  `d` - the walk's and the span's one test. */
+ *  `d` - the walk's and the span's one test, made before the system is built (`standing`). The standing system is this
+ *  call's alone, so `d` is written onto it, the last of its keys: no copy is made to carry it. */
 function takeNear(out, b, x, z, range, minutes) {
-  const s = systemAt(b, minutes);
+  const s = standing(b, minutes, true, x, z, range);
   if (!s) return;
-  const d = Math.hypot(s.x - x, s.z - z);
-  // OW-HITCH: the standing system systemAt has just made is this call's alone - `d` is written onto it, where a copy of
-  // it was made to carry `d` (the same keys in the same order: `d` last). The snowpack keeps a step's systems for a
-  // year of steps (snowpack.js `_systems`), so every copy outlived the young generation and the collector's full
-  // passes paid for it.
-  if (d - s.reach <= range) { s.d = d; out.push(s); }
+  s.d = Math.hypot(s.x - x, s.z - z);
+  out.push(s);
 }
 /** AUDIT PRECIP PACK-6: systemsNear as a walk that pauses after every lattice node it asks (a node not yet drawn costs
  *  its births and its fronts' cells - up to a fifth of a second for a day the memo has not seen), so a reader with a
@@ -827,12 +873,15 @@ export function* systemsNearWalk(x, z, minutes, climateAt, range = 0, types = PR
     for (let gt = gt0; gt <= gt1; gt++) {
       for (let gx = gx0; gx <= gx1; gx++) {
         for (let gz = gz0; gz <= gz1; gz++) {
-          for (const b of birthsIn(type, gx, gz, gt, climateAt)) {
+          const births = birthsIn(type, gx, gz, gt, climateAt);
+          for (let k = 0; k < births.length; k++) {
+            const b = births[k];
             take(b);
             if (!cell || minutes < b.bornAt || minutes >= b.bornAt + b.life) continue;
-            const [fx, fz] = placeAt(b, minutes);
-            if (Math.hypot(fx - x, fz - z) - (b.core * shapeBound(b.shape) + 2 * cell.core[1] * shapeMax(CELL_OF[type])) > range) continue;
-            for (const c of cellsOf(b, climateAt)) take(c);
+            placeInto(b, minutes);
+            if (Math.hypot(_at[0] - x, _at[1] - z) - (b.core * shapeBound(b.shape) + 2 * cell.core[1] * shapeMax(CELL_OF[type])) > range) continue;
+            const cells = cellsOf(b, climateAt);
+            for (let j = 0; j < cells.length; j++) take(cells[j]);
           }
           yield;
         }
@@ -867,7 +916,9 @@ export function* systemsSpanWalk(x, z, t0, t1, climateAt, range = 0, types = PRI
     for (let gt = gt0; gt <= gt1; gt++) {
       for (let gx = gx0; gx <= gx1; gx++) {
         for (let gz = gz0; gz <= gz1; gz++) {
-          for (const b of birthsIn(type, gx, gz, gt, climateAt)) {
+          const births = birthsIn(type, gx, gz, gt, climateAt);
+          for (let k = 0; k < births.length; k++) {
+            const b = births[k];
             if (b.bornAt > t1 || b.bornAt + b.life <= t0) continue;   // dead at every minute of the span
             list.push({ b, cellReach, cells: cell ? undefined : null });   // a front's cells drawn the first time it is near (systemsAmong), as the walk draws them
           }
@@ -887,8 +938,8 @@ export function systemsAmong(span, minutes) {
     const b = e.b;
     take(b);
     if (e.cells === null || minutes < b.bornAt || minutes >= b.bornAt + b.life) continue;
-    const [fx, fz] = placeAt(b, minutes);
-    if (Math.hypot(fx - x, fz - z) - (b.core * shapeBound(b.shape) + e.cellReach) > range) continue;
+    placeInto(b, minutes);
+    if (Math.hypot(_at[0] - x, _at[1] - z) - (b.core * shapeBound(b.shape) + e.cellReach) > range) continue;
     e.cells ??= cellsOf(b, span.climateAt).filter((c) => c.bornAt <= span.t1 && c.bornAt + c.life > span.t0);   // alive in the span: the rest are null at every minute of it
     for (const c of e.cells) take(c);
   }
@@ -1043,8 +1094,29 @@ export function wornAmong(systems, x, z, ground = null, air = null) {
  * standing there. `ground(word, x, z, minutes)` as above.
  */
 export function weatherAt(x, z, minutes, climateAt, { ground = null, alt = null } = {}) {
-  const air = ground?.lawAir?.(minutes, alt) ?? null;   // AUDIT PRECIP AIR-8: the law's one air, where the ground carries it (AUDIT OW-REVISITED L3-4: at `alt` metres when asked - the sky's own, the player's height)
-  return wornAmong(systemsNear(x, z, minutes, climateAt, 0), x, z, ground && ((w, gx, gz) => ground(w, gx, gz, minutes)), air);
+  return weatherOf(x, z, minutes, climateAt, null, ground, alt);
+}
+/** THE WEATHER AT A PLACE OVER A SPAN OF MINUTES: one walk of the map (systemsSpanWalk) from which weatherAmong answers
+ *  weatherAt's answer at any whole minute of [first, last], so a forecast's hours cost one walk, not one a reading. The
+ *  walk starts a minute early: its test of a death rounds the death's minute, and a system alive at `first` by less
+ *  than that rounding is found, as weatherAt finds it. */
+export function weatherSpan(x, z, first, last, climateAt) {
+  const walk = systemsSpanWalk(x, z, first - 1, last >= first ? last : first, climateAt, 0);
+  let step = walk.next();
+  while (!step.done) step = walk.next();
+  return step.value;
+}
+/** weatherAt's answer at `minutes` at a span's place (weatherSpan): from the span at a whole minute of [first, last], and
+ *  from a walk of its own at any other minute, where the span need not hold every system standing there. */
+export function weatherAmong(span, minutes, { ground = null, alt = null } = {}) {
+  const held = Number.isInteger(minutes) && minutes >= span.t0 + 1 && minutes <= span.t1;
+  return weatherOf(span.x, span.z, minutes, span.climateAt, held ? span : null, ground, alt);
+}
+/** wornAmong over the systems standing at a place and minute - a span's, or a walk's of its own - through the ground
+ *  law, and its air where the ground carries one. */
+function weatherOf(x, z, minutes, climateAt, span, ground, alt) {
+  const air = ground?.lawAir?.(minutes, alt) ?? null;   // the law's one air, at `alt` metres when asked (the sky's own: the player's height)
+  return wornAmong(span ? systemsAmong(span, minutes) : systemsNear(x, z, minutes, climateAt, 0), x, z, ground && ((w, gx, gz) => ground(w, gx, gz, minutes)), air);
 }
 
 // ---- the sky (WEATHER3c) ---------------------------------------------
@@ -1112,14 +1184,16 @@ export function approachAt(systems, x, z) {
  * THE FORECAST: the weather at the place every `step` minutes for the
  * next `hours`, and the first minute it becomes something else.
  * Answers { at, now, steps: [{ at, word, intensity }], next: { at, word } | null } - `at` the
- * minute it was read from.
+ * minute it was read from. `span`, a walk of this place over the hours (weatherSpan), serves each minute it holds
+ * (weatherAmong), where each would be a walk of its own: the same forecast.
  */
-export function forecastAt(x, z, minutes, climateAt, { hours = 12, step = 15, ground = null, alt = null } = {}) {
-  const now = weatherAt(x, z, minutes, climateAt, { ground, alt });
+export function forecastAt(x, z, minutes, climateAt, { hours = 12, step = 15, ground = null, alt = null, span = null } = {}) {
+  const read = (at) => (span ? weatherAmong(span, at, { ground, alt }) : weatherAt(x, z, at, climateAt, { ground, alt }));
+  const now = read(minutes);
   const steps = [];
   let next = null;
   for (let at = minutes + step; at <= minutes + hours * 60; at += step) {
-    const w = weatherAt(x, z, at, climateAt, { ground, alt });
+    const w = read(at);
     steps.push({ at, word: w.word, intensity: w.intensity });
     if (!next && w.word !== now.word) next = { at, word: w.word };
   }

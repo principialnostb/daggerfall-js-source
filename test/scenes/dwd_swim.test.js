@@ -774,5 +774,5 @@ test('DW-D: GuardSwimMotorFrameSpike - a swimmer\'s frame whose Time.deltaTime p
   // the host hands the driver Time.deltaTime
   const world = rd('src/scenes/world.js');
   assert.match(world, /frameDelta: dt \* worldTimeScale\(\),/, 'the frame\'s clamped seconds x Time.timeScale');
-  assert.match(world, /const dt = Math\.min\(0\.1, \(now - last\) \/ 1000\);/, 'and the frame is clamped at the mod\'s own 0.1 s');
+  assert.match(world, /const dt = Math\.min\(0\.1, \(now - last\) \/ 1000\)[,;]/, 'and the frame is clamped at the mod\'s own 0.1 s');
 });

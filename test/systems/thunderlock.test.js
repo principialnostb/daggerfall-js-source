@@ -1525,8 +1525,8 @@ test('FIELD-GUN19: the shot leaves the barrel through the WORLD STRIP, not the c
   // field nobody assigns answers null for ever, which is the full
   // canvas, which is the bug - and it survived a campaign that only
   // asked whether the getter existed.
-  const begin = renderer.slice(renderer.indexOf('const r = this._worldViewportPending;'));
-  assert.match(begin.slice(0, 300), /this\._worldViewportFrame = r \? \{ \.\.\.r \} : null;/,
+  const begin = renderer.slice(renderer.indexOf('const r = this._worldViewportPending, kept = this._wvFrame;'));
+  assert.match(begin.slice(0, 300), /this\._worldViewportFrame = r \? kept : null;/,
     'the frame\'s strip is recorded where the pending rect is taken, or the getter is always null');
   const endWorld = renderer.slice(renderer.indexOf('endWorldPass()'), renderer.indexOf('endWorldPass()') + 400);
   assert.doesNotMatch(endWorld, /_worldViewportFrame/,

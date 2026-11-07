@@ -1,0 +1,112 @@
+[
+  {
+    "name": "WALKER-STEADY-answer-never-kept",
+    "file": "src/net/peer/peerRiders.js",
+    "old": "  if (was && was.table === table && was.view === view && was.frame === frame && sameFlatLook(was.look, look)) return was.sprite;",
+    "new": "",
+    "tests": [
+      "test/net/peer/peerwalker_steady.test.js"
+    ],
+    "why": "every walker's sprite answer built again every frame"
+  },
+  {
+    "name": "WALKER-STEADY-kept-past-a-new-view",
+    "file": "src/net/peer/peerRiders.js",
+    "old": "was.table === table && was.view === view && was.frame",
+    "new": "was.table === table && was.frame",
+    "tests": [
+      "test/net/peer/peerwalker_steady.test.js"
+    ],
+    "why": "a walker seen from another side drawn as it was seen before"
+  },
+  {
+    "name": "WALKER-STEADY-kept-past-a-new-look",
+    "file": "src/net/peer/peerRiders.js",
+    "old": "was.frame === frame && sameFlatLook(was.look, look)) return was.sprite;",
+    "new": "was.frame === frame) return was.sprite;",
+    "tests": [
+      "test/net/peer/peerwalker_steady.test.js"
+    ],
+    "why": "a walker in new armour drawn in the old"
+  },
+  {
+    "name": "WALKER-STEADY-kept-past-a-new-frame",
+    "file": "src/net/peer/peerRiders.js",
+    "old": "was.view === view && was.frame === frame && sameFlatLook",
+    "new": "was.view === view && sameFlatLook",
+    "tests": [
+      "test/net/peer/peerwalker_steady.test.js"
+    ],
+    "why": "a walking walker frozen on one picture of its walk"
+  },
+  {
+    "name": "WALKER-STEADY-kept-past-a-new-table",
+    "file": "src/net/peer/peerRiders.js",
+    "old": "if (was && was.table === table && was.view",
+    "new": "if (was && was.view",
+    "tests": [
+      "test/net/peer/peerwalker_steady.test.js"
+    ],
+    "why": "a walker that draws its weapon at a stand drawn in its sheathed stance"
+  },
+  {
+    "name": "WALKER-STEADY-outfit-read-every-frame",
+    "file": "src/net/peer/peerRiders.js",
+    "old": "  if (!Array.isArray(items)) return outfitOfItems(items);",
+    "new": "  return outfitOfItems(items);",
+    "tests": [
+      "test/net/peer/peerwalker_steady.test.js"
+    ],
+    "why": "a look's outfit read from its items every frame"
+  },
+  {
+    "name": "WALKER-STEADY-warm-asked-every-frame",
+    "file": "src/net/peer/peerRiders.js",
+    "old": "    if (r.warmLook && sameFlatLook(r.warmLook, look)) return;   // the same values make the same signature, its frames asked",
+    "new": "",
+    "tests": [
+      "test/net/peer/peerwalker_steady.test.js"
+    ],
+    "why": "a look's warm signature joined every frame"
+  },
+  {
+    "name": "WALKER-STEADY-keys-made-every-frame",
+    "file": "src/net/peer/peerRiders.js",
+    "old": "layer.place(r, s, feet, right, { riding: false }, g, r.asked.keys);",
+    "new": "layer.place(r, s, feet, right, { riding: false }, g);",
+    "tests": [
+      "test/net/peer/peerwalker_steady.test.js"
+    ],
+    "why": "a kept answer's texture key, renderer key and look code built again every frame"
+  },
+  {
+    "name": "WALKER-STEADY-batch-key-built-again",
+    "file": "src/net/peer/peerRiders.js",
+    "old": "      const key = keys ? keys.texKey : `${s.archive}:${s.rec}`;\n",
+    "new": "      const key = `${s.archive}:${s.rec}`;\n",
+    "tests": [
+      "test/net/peer/peerwalker_steady.test.js"
+    ],
+    "why": "a kept answer's batch key built again from its archive and record every frame"
+  },
+  {
+    "name": "WALKER-STEADY-texture-key-built-again",
+    "file": "src/net/peer/peerRiders.js",
+    "old": "    const k = keys ? keys.texKey : `${s.archive}:${s.rec}`;\n",
+    "new": "    const k = `${s.archive}:${s.rec}`;\n",
+    "tests": [
+      "test/net/peer/peerwalker_steady.test.js"
+    ],
+    "why": "a kept answer's texture key built again from its archive and record every frame"
+  },
+  {
+    "name": "WALKER-STEADY-every-answer-s-keys-kept",
+    "file": "src/net/peer/peerRiders.js",
+    "old": "  function ensure(s, keys = null) {\n",
+    "new": "  const keptKeys = new WeakMap();\n  function ensure(s, keys = null) {\n    if (!keys) { keys = keptKeys.get(s); if (!keys) keptKeys.set(s, (keys = answerKeysOf(s))); }\n",
+    "tests": [
+      "test/net/peer/peerwalker_steady.test.js"
+    ],
+    "why": "every rider's answer, new each frame, given a kept record of its keys"
+  }
+]

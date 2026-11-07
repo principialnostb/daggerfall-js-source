@@ -47,8 +47,8 @@
   {
     "name": "PVP-CONE-cone-unworn",
     "file": "src/ui/nameLayer.js",
-    "old": "        put(tag, 'coneAlpha', tag.cone.toFixed(2), (v) => {\n          tag.node.style.opacity = v === '1.00' ? '' : v;\n          tag.node.style.visibility = v === '0.00' ? 'hidden' : '';\n        });",
-    "new": "        put(tag, 'coneAlpha', tag.cone.toFixed(2), () => {});",
+    "old": "        put(tag, 'coneAlpha', tag.coneText, writeCone);",
+    "new": "        put(tag, 'coneAlpha', tag.coneText, () => {});",
     "tests": [
       "test/ui/pvpcone.test.js"
     ]

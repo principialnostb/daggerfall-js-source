@@ -363,7 +363,7 @@
   {
     "name": "CLIMB5-gone-peer-never-forgotten",
     "file": "src/net/remotePlayers.js",
-    "old": "for (const id of [...this._climbSounds.peers.keys()]) if (!seen.has(id)) this._climbSounds.forget(id);",
+    "old": "for (const id of this._climbSounds.peers.keys()) if (!seen.has(id)) this._climbSounds.forget(id);",
     "new": "",
     "tests": [
       "test/net/climb5.test.js"

@@ -99,8 +99,19 @@ test('EL6: on the fake GL - nothing measured at prepare, the frame\'s depth is a
   const unit2 = calls.findIndex((c) => c[0] === 'uniform1i' && c[1] === 'uDepth' && c[2] === 2);
   assert.ok(unit2 > 0 && calls[unit2 - 1][0] === 'bindTexture' && calls[unit2 - 1][2] === ap.frame.depth, 'the emitter program takes the frame\'s depth on unit 2, bound right before the sampler is pointed there (its own textures sit on 0 and 1)');
   const rects = calls.filter((c) => c[0] === 'uniform4fv' && c[1] === 'uRect');
-  assert.ok(rects.length >= 4, `the AO, the luminance, the bright pass and the resolve all take the world rect (no sun: no shaft; no lantern: no glare) (${rects.length})`);
   assert.ok(rects.every((c) => c[2][2] === 320 && c[2][3] === 200));
+  // A rect is counted for the program bound when it went up: the emitter sends its own, so a total would still hold
+  // with the depth block's send gone, and the AO and its blur would read the depth at a stale rect.
+  const rectOf = new Map();
+  let bound = null;
+  for (const c of calls) {
+    if (c[0] === 'useProgram') bound = c[1];
+    else if (c[0] === 'uniform4fv' && c[1] === 'uRect') rectOf.set(bound, Array.from(c[2]));
+  }
+  const P = ap.programs;
+  const tookRect = (prog) => rectOf.get(prog.p)?.join() === '0,0,320,200';
+  for (const [name, progs] of [['the AO', [P.ao]], ['its box blur', [P.box]], ['the emitter', [P.emitBb]], ['the luminance', [P.lum]], ['the bright pass', P.bright], ['the resolve', P.resolve.flat()]])
+    assert.ok(progs.some(tookRect), `${name} takes the world rect (no sun: no shaft; no lantern: no glare)`);
   const depthBinds = calls.filter((c) => c[0] === 'bindTexture' && c[2] === ap.frame.depth).length;
   assert.ok(depthBinds >= 1, 'the frame\'s depth bound for the AO (no sun here: no shaft)');
   // a frame that draws nothing: not measured; and the counts are the frame's own - reset at prepare, counted at the resolve

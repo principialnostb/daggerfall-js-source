@@ -139,8 +139,8 @@
   {
     "name": "AOWR-L3-6-ground-dropped-here",
     "file": "src/scenes/overworldForecastHost.js",
-    "old": "    const fc = forecastAt(x, z, m, climateAt, { hours: HERE_HOURS, step: HERE_STEP_MIN, ground, alt: a });",
-    "new": "    const fc = forecastAt(x, z, m, climateAt, { hours: HERE_HOURS, step: HERE_STEP_MIN, alt: a });",
+    "old": "    const fc = forecastAt(x, z, m, climateAt, { hours: HERE_HOURS, step: HERE_STEP_MIN, ground, alt: a, span });",
+    "new": "    const fc = forecastAt(x, z, m, climateAt, { hours: HERE_HOURS, step: HERE_STEP_MIN, alt: a, span });",
     "tests": [
       "test/systems/weather/audit_owrevisited_forecast.test.js"
     ]

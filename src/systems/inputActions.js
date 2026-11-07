@@ -1059,11 +1059,24 @@ export function addRemovedSecondaryAction(store, action) {
   store.removedSecondary.add(action);
 }
 
+/** The answers the two readers below gave, kept on the store until a binding changes (`rev`, as comboModifiers keeps
+ *  its set): the HUD asks them every frame, and each walked every entry of a dict through dictEntries. */
+function answersOf(store, kind) {
+  const rev = store.rev ?? 0;
+  if (store._askRev !== rev || !store._asks) { store._asks = { primary: new Map(), secondary: new Map(), code: new Map() }; store._askRev = rev; }
+  return store._asks[kind];
+}
+
 /** GetBinding (:641-671). One-arg walks the primary dict ("first
  *  non-None KeyCode"); pass primary=false for the secondary dict. */
 export function getBinding(store, action, primary = true) {
-  for (const [code, a] of dictEntries(store, primary)) if (a === action) return code;   // UXB1-S: a shared key is the action's key too
-  return null;
+  const kept = answersOf(store, primary ? 'primary' : 'secondary');
+  const had = kept.get(action);
+  if (had !== undefined) return had;
+  let found = null;
+  for (const [code, a] of dictEntries(store, primary)) if (a === action) { found = code; break; }   // UXB1-S: a shared key is the action's key too
+  kept.set(action, found);
+  return found;
 }
 
 /** GetBindings (:706-724) - all primary codes for the action, in
@@ -1097,11 +1110,18 @@ export function actionForCode(store, code) {
  * ANSWERS.
  */
 export function codeForAction(store, action) {
+  if (!store) return null;
+  const kept = answersOf(store, 'code');
+  const had = kept.get(action);
+  if (had !== undefined) return had;
+  let found = null;
   for (const primary of [true, false]) {
-    if (!(primary ? store?.primary : store?.secondary)) continue;
-    for (const [code, act] of dictEntries(store, primary)) if (act === action) return code;
+    if (!(primary ? store.primary : store.secondary)) continue;
+    for (const [code, act] of dictEntries(store, primary)) if (act === action) { found = code; break; }
+    if (found !== null) break;
   }
-  return null;
+  kept.set(action, found);
+  return found;
 }
 
 // TestSetBinding (:1405-1422): a default lands only if the action is

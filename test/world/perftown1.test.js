@@ -114,8 +114,8 @@ test('PERF-TOWN1: both outdoor hosts stopped minting per person per frame', () =
     // the texture key is memoised on the three numbers it is made of
     assert.match(s, /const personTextureKey = createPersonTextureKeys\(\);/, f);
     assert.match(s, /renderer\.textures\.has\(personTextureKey\(person\.archive, out\.record, out\.frame\)\)/, f);
-    // MAC4's shape is untouched: the record still CARRIES its frame
-    assert.match(s, /const rkey = `\$\{out\.record\}#\$\{out\.frame\}`;/, f);
+    // MAC4's shape is untouched: the record still CARRIES its frame (the world host's string made once a pair)
+    assert.match(s, f === 'src/scenes/world.js' ? /const rkey = recordFrameKey\(out\.record, out\.frame\);/ : /const rkey = `\$\{out\.record\}#\$\{out\.frame\}`;/, f);
   }
   // THE SCRATCH ITSELF - one body for both hosts, and the two things a
   // shared seat can get wrong.

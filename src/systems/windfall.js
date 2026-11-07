@@ -666,11 +666,15 @@ export function createWindfall({ settings: initial = WINDFALL_BUILT_IN } = {}) {
         ? PRESENTATION.windy
         : PRESENTATION.normal;
   }
-  /** LoadSettings's side: a change re-reads the day (contextKey reset) and the presentation. */
+  /** LoadSettings's side: a change re-reads the day (contextKey reset) and the presentation. The same settings in a
+   *  new object are taken as they stand, so the next frame's same object is known before its key is made again. */
   function configure(next) {
     if (next === s) return;
     const k = settingsKey(next);
-    if (k === sKey) return;
+    if (k === sKey) {
+      s = next;
+      return;
+    }
     s = next;
     sKey = k;
     contextKey = INT_MIN;

@@ -12,7 +12,7 @@
   {
     "name": "OW-WOD-LAG-sphere-misses-wide",
     "file": "src/player/collider.js",
-    "old": "  if (bucket.wide.length) NEAR.push(wideNear(bucket, lx, ly, lz, r + WIDE_MARGIN));   // OW-WOD-LAG",
+    "old": "  if (bucket.wide.length) { NEAR_LEN[n] = wideNear(bucket, lx, ly, lz, r + WIDE_MARGIN); NEAR[n++] = WIDE_NEAR; }",
     "new": "",
     "tests": [
       "test/world/worldOfDaggerfall/ow_wod.test.js"

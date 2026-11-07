@@ -480,7 +480,7 @@
   {
     "name": "SHIPMATES-bars-unwired",
     "file": "src/scenes/world.js",
-    "old": "      navalCrewBars(proj, view, mwv.eye);   // SHIPMATES: the crew's green bars\n",
+    "old": "      navalCrewBars(proj, view, mwv.eye, clientW, clientH);   // the crew's green bars\n",
     "new": "",
     "tests": [
       "test/systems/naval/deckwalk.test.js"

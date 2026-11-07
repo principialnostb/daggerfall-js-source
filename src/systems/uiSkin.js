@@ -46,12 +46,31 @@ export function skinOverride(search = globalThis.location?.search ?? '') {
   return clean(pageParam('skin', search)); // PERF-URL
 }
 
+// The skin is asked many times a frame, so each half of its answer is kept until what it is made of changes: the
+// override until the search string does, the stored choice's reading until getPref answers something else.
+let _overrideSearch = null,
+  _override = null,
+  _storedRead,
+  _stored = DEFAULT_SKIN;
+
 /** The skin in effect: the URL override, else the stored choice, else
  *  enhanced. OVH3: online too - the online lane forced 'enhanced' here
  *  (OL1) until the online panels mounted on both skins; the skin is the
  *  player's UI Overhaul now (systems/online/onlineLane.js ONLINE_FORCED_PREFS). */
 export function uiSkin(search) {
-  return skinOverride(search) ?? clean(getPref('skin')) ?? DEFAULT_SKIN;
+  const page = search === undefined ? (globalThis.location?.search ?? '') : search;
+  if (typeof page !== 'string') return skinOverride(search) ?? clean(getPref('skin')) ?? DEFAULT_SKIN;
+  if (page !== _overrideSearch) {
+    _override = skinOverride(page);
+    _overrideSearch = page;
+  }
+  if (_override !== null) return _override;
+  const stored = getPref('skin');
+  if (stored !== _storedRead) {
+    _stored = clean(stored) ?? DEFAULT_SKIN;
+    _storedRead = stored;
+  }
+  return _stored;
 }
 
 /** The predicate every mount site should call. */

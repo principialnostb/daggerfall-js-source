@@ -182,7 +182,7 @@
   {
     "name": "PVP-BAR-the-tag-unpainted",
     "file": "src/ui/nameLayer.js",
-    "old": "        put(tag, 'barOf', p.bar ? `${p.bar.h}/${p.bar.s ?? 0}` : '', () => paintBar(tag, p.bar)); // PVP-BAR",
+    "old": "        put(tag, 'barOf', p.bar ? `${p.bar.h}/${p.bar.s ?? 0}` : '', writeBar); // PVP-BAR",
     "new": "        put(tag, 'barOf', p.bar ? `${p.bar.h}/${p.bar.s ?? 0}` : '', () => {}); // PVP-BAR",
     "tests": [
       "test/net/pvpbar.test.js"

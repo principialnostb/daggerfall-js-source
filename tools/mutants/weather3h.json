@@ -41,8 +41,8 @@
   {
     "name": "WEATHER3h-search-round",
     "file": "src/systems/weather/weatherMap.js",
-    "old": "  if (d - s.reach <= range) { s.d = d; out.push(s); }",
-    "new": "  if (d - s.r <= range) { s.d = d; out.push(s); }",
+    "old": "  return core * Math.sqrt(area) * shapeBound(b.shape);",
+    "new": "  return core * Math.sqrt(area);",
     "tests": [
       "test/systems/weather/weather3a_weathermap.test.js"
     ]

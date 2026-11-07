@@ -56,6 +56,7 @@ import { LOCATION_TYPES } from '../../formats/mapsFile.js';
 import { createLivingIndex, livingSide, capitalStreet, LIVING_SIDES } from './livingIndex.js';
 import { createWayBook } from '../../systems/livingWorld/ways.js';
 import { createBeyondWays, BEYOND_FAR_PX } from '../../systems/livingWorld/beyondWays.js';
+import { TripBook } from './livingBooks.js';   // the memo that also keeps the trips still asked and the words that wait
 import { routeGround } from '../../systems/travel/travelRoute.js';
 import { travellerRoster } from '../../systems/livingWorld/census.js';
 import { nativeDry, TRIP_REACH_PX, INN_REACH_PX } from '../../systems/livingWorld/trips.js';
@@ -124,7 +125,7 @@ export function createLivingTrips({ places, populated, peopleAt, maps, woods, ro
     generation: index.generation,   // WW7-7: its towns near move with the registry and the roads past the Bay
     longPassages: !!pastTheBay,   // WW7-11: the land past the Bay stands - its far lanes' passages may take more cycles than one
   };
-  const memo = new Map();
+  const memo = new TripBook();
   let waysSeen = 0, placesSeen = 0;
   return {
     index,

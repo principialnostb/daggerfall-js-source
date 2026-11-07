@@ -26,6 +26,7 @@ import { Renderer, WORLD_FRAME } from '../../src/render/renderer.js';
 import { EL_LANE } from '../../src/render/enhancedLighting.js';
 import { SHADOW_DYNAMIC_HOLD, SHADOW_TUNING } from '../../src/render/shadowPass.js';
 SHADOW_TUNING.override = false;   // FLICKER-FIX: these tests pin the old schedule (the card's lamps by eye, the far casters' cadence)
+SHADOW_TUNING.moverHold = false;   // these pin the movers' redraw schedule call by call; a redraw the movers' memo skips puts back what it found (moverhold.test.js)
 
 const rd = (p) => readFileSync(new URL(`../../${p}`, import.meta.url), 'utf8');
 const I = new Float32Array([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]);

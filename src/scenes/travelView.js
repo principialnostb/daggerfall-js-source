@@ -387,6 +387,66 @@ export function routeGroundDots(
   return out;
 }
 
+/** The fields a mark's record holds past those every record has, a bit each: a kept record whose bits differ from its
+ *  mark's is made again, so it always has the keys, in the order, of a record made afresh. */
+const markFields = (mark) =>
+  (mark.color ? 1 : 0) |
+  (mark.kin ? 2 : 0) |
+  (mark.lv != null ? 4 : 0) |
+  (Number.isFinite(mark.dist) ? 8 : 0) |
+  (mark.hub ? 16 : 0) |
+  (mark.tip ? 32 : 0) |
+  (mark.wpKind ? 64 : 0) |
+  (mark.followed ? 128 : 0) |
+  (mark.skull ? 256 : 0);
+/** The readout's record of a mark at its point on the screen (`at`, null off it). Each field the readout reads is
+ *  carried, or it is lost here: the badge, a group's colour, the kin, the Renown, the distance, the wheel, the card, a
+ *  flag's kind and whether it is followed, and the skull. */
+function markRecord(mark, at) {
+  return {
+    key: mark.key,
+    x: at?.x ?? 0,
+    y: at?.y ?? 0,
+    front: !!at?.front,
+    label: mark.label,
+    sub: mark.sub,
+    kind: mark.kind,
+    pick: !!mark.pick,
+    edge: !!mark.edge,
+    ...(mark.color ? { color: mark.color } : {}),
+    badge: mark.badge ?? null,
+    ...(mark.kin ? { kin: mark.kin } : {}),
+    ...(mark.lv != null ? { lv: mark.lv } : {}),
+    ...(Number.isFinite(mark.dist) ? { dist: mark.dist } : {}),
+    ...(mark.hub ? { hub: true } : {}),
+    ...(mark.tip ? { tip: mark.tip } : {}),
+    ...(mark.wpKind ? { wpKind: mark.wpKind } : {}),
+    ...(mark.followed ? { followed: true } : {}),
+    ...(mark.skull ? { skull: mark.skull } : {}),
+  };
+}
+/** A kept record written over with this frame's mark, which has the same fields (markFields): every value markRecord
+ *  would give it, and no key added or taken away. `hub` and `followed` are true wherever they are held. */
+function rewriteMark(record, mark, at) {
+  record.key = mark.key;
+  record.x = at?.x ?? 0;
+  record.y = at?.y ?? 0;
+  record.front = !!at?.front;
+  record.label = mark.label;
+  record.sub = mark.sub;
+  record.kind = mark.kind;
+  record.pick = !!mark.pick;
+  record.edge = !!mark.edge;
+  record.badge = mark.badge ?? null;
+  if (mark.color) record.color = mark.color;
+  if (mark.kin) record.kin = mark.kin;
+  if (mark.lv != null) record.lv = mark.lv;
+  if (Number.isFinite(mark.dist)) record.dist = mark.dist;
+  if (mark.tip) record.tip = mark.tip;
+  if (mark.wpKind) record.wpKind = mark.wpKind;
+  if (mark.skull) record.skull = mark.skull;
+}
+
 export function createTravelView(deps) {
   const win = deps.win ?? globalThis;
   let state = 'off'; // 'off' | 'rising' | 'up' | 'falling'
@@ -768,10 +828,28 @@ export function createTravelView(deps) {
     };
   }
 
-  /** The readout, after the frame's matrices exist (the host's projection). */
   const dotSpacing = { k: 0 }; // OW-DOTS-EVEN: the route's ground spacing, kept between frames (routeGroundDots `keep`)
-  function drawHud() {
-    if (state === 'off' || !deps.hud) return;
+  /** What the route's dots are laid within: the canvas, at the size the frame read and handed in. With none handed its
+   *  size is read here, and only when a route has dots to lay (a read can make the page lay itself out again). */
+  const dotsWithin = (route, clientW, clientH) =>
+    route.length < 2
+      ? { keep: dotSpacing }
+      : {
+          w: (clientW >= 0 ? clientW : deps.canvas?.clientWidth) || Infinity,
+          h: (clientH >= 0 ? clientH : deps.canvas?.clientHeight) || Infinity,
+          keep: dotSpacing,
+        };
+  /** Each mark's record by its key, from frame to frame: made again only when the fields it holds change, else written
+   *  over with the frame's values. The readout reads a frame's records within that frame and keeps none. */
+  const markRecords = new Map();
+  let markFrame = 0;
+  /** The readout, after the frame's matrices exist (the host's projection). `clientW` and `clientH` are the canvas's
+   *  size as the frame read it, or -1 for a readout that reads it itself. */
+  function drawHud(clientW = -1, clientH = -1) {
+    if (state === 'off' || !deps.hud) {
+      if (markRecords.size) markRecords.clear();
+      return;
+    }
     const feet = deps.feet();
     const f = deps.project ? deps.project(feet) : null;
     const ahead = forwardOf(deps.yaw(), 0);
@@ -780,31 +858,25 @@ export function createTravelView(deps) {
     if (h != null) lastHeading = h;
     const proj = (p) => (deps.project && p ? deps.project(p) : null);
     const routeWorld = deps.route?.() ?? [];
+    markFrame++;
     const marks = [];
-    for (const m of deps.marks?.() ?? []) {
-      const at = proj(m.at);
-      marks.push({
-        key: m.key,
-        x: at?.x ?? 0,
-        y: at?.y ?? 0,
-        front: !!at?.front,
-        label: m.label,
-        sub: m.sub,
-        kind: m.kind,
-        pick: !!m.pick,
-        edge: !!m.edge,
-        ...(m.color ? { color: m.color } : {}),
-        badge: m.badge ?? null,
-        ...(m.kin ? { kin: m.kin } : {}),
-        ...(m.lv != null ? { lv: m.lv } : {}),
-        ...(Number.isFinite(m.dist) ? { dist: m.dist } : {}),
-        ...(m.hub ? { hub: true } : {}),
-        ...(m.tip ? { tip: m.tip } : {}),
-        ...(m.wpKind ? { wpKind: m.wpKind } : {}),
-        ...(m.followed ? { followed: true } : {}),
-        ...(m.skull ? { skull: m.skull } : {}),
-      }); // AUDIT NAMES N2-1: and the player's badge - dropped here, every marker was a bare name; AUDIT GATHER-OW: and a group's colour (every diamond was brass); FIELD BUGS 2026-10-04e: OW-KIN's kin, OW-WHO's Renown, OW-NODE-KM's distance, OW-HUBS' wheel and SEAT-TIP's card - each field the readout reads is carried, or it is dropped here; WAYPOINTS: a flag's kind and whether it is followed
+    let distinct = 0;
+    for (const mark of deps.marks?.() ?? []) {
+      const at = proj(mark.at);
+      const fields = markFields(mark);
+      let kept = markRecords.get(mark.key);
+      if (kept?.frame === markFrame) {
+        marks.push(markRecord(mark, at)); // its key twice in one frame: the second a record of its own
+        continue;
+      }
+      if (kept?.fields === fields) rewriteMark(kept.record, mark, at);
+      else markRecords.set(mark.key, (kept = { fields, frame: 0, record: markRecord(mark, at) }));
+      kept.frame = markFrame;
+      distinct++;
+      marks.push(kept.record);
     }
+    if (markRecords.size > distinct)
+      for (const [key, kept] of markRecords) if (kept.frame !== markFrame) markRecords.delete(key);
     deps.hud.update({
       feet: f,
       heading: lastHeading,
@@ -817,11 +889,7 @@ export function createTravelView(deps) {
       route: routeWorld.map(proj),
       trip: planning() ? planningLine() : (deps.trip?.() ?? ''),
       sky: deps.sky?.() ?? '', // OW-FORECAST: the weather ahead; PLAN-SLICES: the plan being made
-      routeDots: routeGroundDots(routeWorld, proj, {
-        w: deps.canvas?.clientWidth || Infinity,
-        h: deps.canvas?.clientHeight || Infinity,
-        keep: dotSpacing,
-      }), // OW-DOTS-GROUND; OW-DOTS-EVEN: the line's spacing kept frame to frame
+      routeDots: routeGroundDots(routeWorld, proj, dotsWithin(routeWorld, clientW, clientH)), // the line's spacing kept frame to frame
       routeDotSizes: ROUTE_DOT_SIZES, // OW-DOTS-EVEN: the readout's path pair a size
       followDist: deps.followDist?.() ?? null, // WAYPOINTS: the followed list's distances
     });

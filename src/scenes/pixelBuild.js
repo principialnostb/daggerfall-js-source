@@ -76,7 +76,7 @@ import { seatFlora, standsOnGround, warmFlora } from './floraSeat.js';   // FLOR
 import { isWardenTown } from '../systems/wagon/wagonWarden.js';
 import { isWodShrub, rockSeatDrop, WOD_ROCK_SITES, wodLightPosition, wodLightProperties } from '../world/worldOfDaggerfall/wodLocationObjects.js';
 import { isYardTown } from '../systems/merchantYards.js';
-import { keyResolver, StaticBatchBuilder } from '../render/staticBatch.js';
+import { keyResolver, StaticBatchBuilder, TOWN_SHADOW_CELL } from '../render/staticBatch.js';
 import { knownCriminal } from '../systems/standing.js';
 import { layoutLocationSteps, RMB_SIDE } from '../world/locationLayout.js';   // IC-STUTTER: a town laid out a block a step; SOLITUDE-RELIEF: a block's side
 import { legalRepOf } from '../systems/court.js';
@@ -488,7 +488,7 @@ export function createPixelBuild(host) {
     // transform rides the build's own awaits) into one mesh per pixel,
     // one draw call per texture. The gates (whose mesh swaps) and the
     // mills (whose rotor turns) stay individual draws.
-    const staticBuilder = new StaticBatchBuilder({ windows: windowKeys(renderer) });   // WL1: its windows' glass measured in the merge's own slices
+    const staticBuilder = new StaticBatchBuilder({ windows: windowKeys(renderer), shadowColumns: TOWN_SHADOW_CELL });   // WL1: its windows' glass measured in the merge's own slices; and its shadow columns, which the near maps draw
     const resolveTexKey = keyResolver(texRemap);
     const ownTexKey = keyResolver(NO_CLIMATE_REMAP);   // ARENA1: a climate-free model (RuntimeMaterials, ApplyClimate 0) wears its own pictures in the merge
     const statics = [];   // AUDIT PRECIP HOST-7: the merge's models in its order - a re-skin merges them again through its table
@@ -1426,15 +1426,11 @@ export function createPixelBuild(host) {
     // EV6: the pixel's models sort by MESH at build - one archetype's
     // placements draw back to back and the VAO shadow skips the rebind.
     models.sort((a, b) => a._order - b._order);
-    // PERF-EXT23 (2026-09-25, the players: "fps issues in the exterior but
-    // fine in the interior", "me too my friend.. don't know why. I got a
-    // RX6600"): THE TAIL BREATHES TOO. The merge and createMesh's spheres ran
-    // after the last breath above in one piece - on a synthetic city pixel
-    // 45-60 ms of ONE frame, on a town 6-26 ms, for every town, city and WoD
-    // pixel streamed in. The merge now yields a model's copy, a range of the
-    // sphere's passes and a texture group at a time, and hands createMesh the
-    // spheres it measured, so createMesh walks nothing again. Same arrays,
-    // same spheres, byte for byte; the pixel publishes a few frames later.
+    // THE TAIL BREATHES TOO. Run in one piece after the last breath above, the merge and createMesh's spheres take
+    // 45-60 ms of one frame on a synthetic city pixel, and 6-26 ms on a town's. The merge yields a model's copy, a
+    // range of the sphere's passes and a texture group at a time, and hands createMesh the spheres it measured.
+    // createMesh still measures the shadow columns' spheres itself, in one piece, until the merge hands those over
+    // too. Same arrays, same spheres, byte for byte; the pixel publishes a few frames later.
     const staticMerged = await staticBuilder.finishSliced(() => breather.breathe());   // PERF4
     const staticBatch = staticMerged ? renderer.createMesh(staticMerged, { bounds: staticMerged.bounds }) : null;
     made.staticBatch = staticBatch;   // BUILD-FAIL1
@@ -1732,7 +1728,7 @@ export function createPixelBuild(host) {
       let table = turns ? await reskinRemap(p.texRemap, law, lawOf, pipeline) : p.texRemap;
       if (table !== p.texRemap && sameTable(table, p.texRemap)) table = p.texRemap;   // a season that swaps nothing here: the table, the merge and every draw's cache stand
       if (table !== p.texRemap && sk.statics) {
-        const merge = new StaticBatchBuilder({ windows: windowKeys(renderer) }), resolve = keyResolver(table), own = keyResolver(NO_CLIMATE_REMAP);
+        const merge = new StaticBatchBuilder({ windows: windowKeys(renderer), shadowColumns: TOWN_SHADOW_CELL }), resolve = keyResolver(table), own = keyResolver(NO_CLIMATE_REMAP);
         for (const [cpu, local, isOwn, nm] of sk.statics) { merge.add(cpu, local, isOwn ? own : resolve, nm); await breather.breathe(); }
         const merged = await merge.finishSliced(() => breather.breathe());   // PERF-EXT23: a unit a breath, as the build's
         made.mesh = merged ? renderer.createMesh(merged, { bounds: merged.bounds }) : null;

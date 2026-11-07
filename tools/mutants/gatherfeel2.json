@@ -903,7 +903,7 @@
   {
     "name": "GF2-PEERACTS-the-sweep",
     "file": "src/net/remotePlayers.js",
-    "old": "    for (const id of [...this._gatherSounds.peers.keys()]) if (!seen.has(id)) this._gatherSounds.forget(id);",
+    "old": "    for (const id of this._gatherSounds.peers.keys()) if (!seen.has(id)) this._gatherSounds.forget(id);",
     "new": "",
     "tests": [
       "test/systems/gf2_peeracts.test.js"

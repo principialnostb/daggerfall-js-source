@@ -227,7 +227,8 @@ test('AUDIT TESA II P7 THE LANES PAST THE BAY: their own reach and their own nea
   assert.equal(laneNetwork(two, open, BEYOND_LANE_MAX_PX).length, 1);
   assert.equal(laneNetwork(two, open).length, 0, 'the Bay\'s reach: none');
   assert.match(rd('src/scenes/naval/worldLanes.js'), /beyondList = longLanes\(\n\s*loneLanes\(laneNetwork\(ports\.list\(\), worldOpen, BEYOND_LANE_MAX_PX, true, BEYOND_LANE_PATH_PX\)\),\n\s*\);/);
-  assert.match(W, /if \(!worldLanes\.near\(lane, here\)\) continue;/, 'the host\'s feed asks the book');
+  assert.match(W, /const laneFeed = createLaneShips\(\{ lanes: worldLanes, here: \(\) => playerTravelPixel\(\),/, 'the host\'s feed asks the book');
+  assert.match(rd('src/scenes/naval/laneShips.js'), /if \(!lanes\.near\(lane, at\)\) continue;/, 'a lane listed only when the book has it near');
 });
 
 test('AUDIT TESA II P7 A WAY PAST THE BAY KEEPS OFF THE BAY\'S RECTANGLE: the Bay\'s water is WOODS.WLD\'s, never the picture\'s - two roadsteads either side of the Bay\'s south-west corner sail round it, never across (mutant: the rectangle sailed)', () => {

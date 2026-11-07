@@ -203,8 +203,8 @@ test('NAME1: the sight test is the ENGINE\'S OWN and says what it cannot see - t
   assert.match(src, /TERRAIN is not one of them/, 'the limit is written down where the law is');
   assert.match(src, /pickActivatableHit|pickFoeAlong/, 'and it cites the two picks that already ask this question');
   const w = rd('src/scenes/world.js');
-  assert.match(w, /const blocked = \(head, id\) => glassCuts\(projectToScreen\(head, 1, 1, proj, view\)\) \|\| nameSight\.blocked\(player\.collider, eye, id, head\);/,
-    'the host casts against player.collider - the LIVE one worldModes re-points at every door - through the session\'s own cache (AUDIT NAME1 F2/F5)');   // PIN MOVED (GLASS-CLEAR, 2026-10-11): a head the glass's focus cut from its view is nameless first
+  assert.match(w, /const blocked = \(head, id, viewProj\) => glassCuts\(projectToScreen\(head, 1, 1, proj, view, null, false, viewProj\)\) \|\| nameSight\.blocked\(player\.collider, eye, id, head\);/,
+    'the host casts against player.collider - the LIVE one worldModes re-points at every door - through the session\'s own cache (AUDIT NAME1 F2/F5)');   // a head the glass's focus cut from its view is nameless first
   assert.match(rd('src/scenes/worldModes.js'), /player\.collider = ctx\.collider;/, 'and worldModes really does re-point it (the interior and the dungeon)');
 });
 
@@ -430,12 +430,14 @@ test('NAME1 + BUBBLE1: the wiring in scenes/world.js - the layer is made ONCE be
   assert.equal((w.match(/createSightCache\(/g) ?? []).length, 4, 'never per frame either - a cache rebuilt every frame is no cache: the names\', (AUDIT NAV1) the ships\' tags\', (SHIPMATES) the crew\'s bars\' and (AUDIT CAPTAIN\'S SEA S6) the glass\'s, each made once');
   assert.match(bare, /\n  const shipSight = createSightCache\(\);/, 'the ships\' tags\' own made with the host, at its top level - offline too, where the names\' is never made');
   assert.match(bare, /\n  const crewSight = createSightCache\(\);/, 'SHIPMATES: the crew\'s bars\' own, the same');
-  assert.match(bare, /const blocked = \(head, id\) => glassCuts\(projectToScreen\(head, 1, 1, proj, view\)\) \|\| nameSight\.blocked\(player\.collider, eye, id, head\);/);   // PIN MOVED (GLASS-CLEAR, 2026-10-11): a head the glass's focus cut from its view is nameless first
+  assert.match(bare, /const blocked = \(head, id, viewProj\) => glassCuts\(projectToScreen\(head, 1, 1, proj, view, null, false, viewProj\)\) \|\| nameSight\.blocked\(player\.collider, eye, id, head\);/);   // a head the glass's focus cut from its view is nameless first
   // AUDIT NAME1 F1/F14: ONE call, into the pass the test below drives end to end.
   assert.match(bare, /remotePlayers\.nameFrame\(\{/, 'the whole pass in one call');
-  assert.match(bare, /w: nameLayer \? canvas\.clientWidth : canvas\.width,/, 'CSS pixels for a style attribute, the buffer\'s for the bitmap pass');
-  assert.match(bare, /h: nameLayer \? canvas\.clientHeight : canvas\.height,/);
-  assert.match(bare, /rect: worldViewportRect\(canvas\.clientWidth, canvas\.clientHeight\),/, 'the docked HUD\'s own viewport (E5; RETRO1: and retro\'s pillarbox)');
+  assert.match(bare, /w: nameLayer \? \(clientW >= 0 \? clientW : canvas\.clientWidth\) : canvas\.width,/, 'CSS pixels for a style attribute, the buffer\'s for the bitmap pass');
+  assert.match(bare, /h: nameLayer \? \(clientH >= 0 \? clientH : canvas\.clientHeight\) : canvas\.height,/);
+  assert.match(bare, /rect: worldViewportRect\(clientW >= 0 \? clientW : canvas\.clientWidth, clientH >= 0 \? clientH : canvas\.clientHeight\),/, 'the docked HUD\'s own viewport (E5; RETRO1: and retro\'s pillarbox)');
+  assert.match(bare, /const drawPeerNames = \(proj, view, eye, clientW = -1, clientH = -1\) => \{/, 'a pass handed no size (a building\'s, a dungeon\'s) reads the layout');
+  assert.match(bare, /\n      drawPeerNames\(proj, view, mwv\.eye, clientW, clientH\);/, 'the street\'s frame hands its one read of the size');
   assert.match(bare, /layer: nameLayer, log: chatLog, colorOf: \(id\) => social\?\.colorOf\(id\) \?\? null, blocked,/,
     'the layer, the log the bubbles come from and the picture\'s colour');
   assert.match(bare, /renderer, font: townTalk\.font, scale, hudScale: enhancedHudScale\(\),/, 'AUDIT NAME1 F3: and the player\'s own HUD scale');

@@ -200,8 +200,8 @@
   {
     "name": "TIME1-the-births-memo-forgets-its-calendar",
     "file": "src/systems/weather/weatherMap.js",
-    "old": "  key = `${skyCalendarOn() ? 'sky' : 'one'}|${key}`;\n",
-    "new": "",
+    "old": "  const sky = skyCalendarOn() ? 1 : 0, salt = TYPE_SALT[type];",
+    "new": "  const sky = 0, salt = TYPE_SALT[type];",
     "tests": [
       "test/systems/time1_sky.test.js"
     ]

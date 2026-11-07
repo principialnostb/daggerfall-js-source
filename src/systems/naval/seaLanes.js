@@ -495,14 +495,56 @@ export function packetOf(lane, k = 0, count = 1) {
   };
 }
 
+/** Each lane's packets as packetOf draws them - her first alone (packetsAt's measure), then by `k` for the count its
+ *  way gives - with the last voyage each was asked at and the seeds and id she sails it under: a packet stays the
+ *  same ship from call to call until her voyage turns, so none of it is drawn again for every list. Kept by the
+ *  lane, whose ports never change. */
+const lanePackets = new WeakMap();
+function laneBook(lane) {
+  let book = lanePackets.get(lane);
+  if (!book) lanePackets.set(lane, (book = { first: packetOf(lane), count: NaN, packets: [] }));
+  return book;
+}
+function keptPacket(lane, k, count) {
+  if (!(Number.isInteger(k) && k >= 0 && k < count && count <= LANE_PACKETS_MAX))
+    return { drawn: packetOf(lane, k, count), voyage: NaN, seeds: null, id: '' };
+  const book = laneBook(lane);
+  if (book.count !== count) {
+    book.count = count;
+    book.packets = [];
+  }
+  return (book.packets[k] ??= { drawn: packetOf(lane, k, count), voyage: NaN, seeds: null, id: '' });
+}
+
+/** A way's points and its points reversed, and each leg's length (m: `[i]` the leg into point `i`), kept by the
+ *  points: every packet of a lane sails the same two, so neither is made again for each. A way is never changed. */
+const reversedWays = new WeakMap();
+const legLengths = new WeakMap();
+const reversedOf = (pts) => {
+  let back = reversedWays.get(pts);
+  if (!back) reversedWays.set(pts, (back = [...pts].reverse()));
+  return back;
+};
+function legsOf(pts) {
+  let legs = legLengths.get(pts);
+  if (!legs) {
+    legs = new Float64Array(pts.length);
+    for (let i = 1; i < pts.length; i++)
+      legs[i] = Math.hypot(pts[i].x - pts[i - 1].x, pts[i].z - pts[i - 1].z) * M_PER_NATIVE;
+    legLengths.set(pts, legs);
+  }
+  return legs;
+}
+
 /** The point `s` metres along `pts` (native) from its start, and the leg it lies on (`dx`, `dz`, native: the caller
  *  turns it into the scene's heading). */
 function along(pts, s) {
+  const legs = legsOf(pts);
   let left = Math.max(0, s);
   for (let i = 1; i < pts.length; i++) {
     const a = pts[i - 1],
       b = pts[i];
-    const seg = Math.hypot(b.x - a.x, b.z - a.z) * M_PER_NATIVE;
+    const seg = legs[i];
     if (left <= seg || i === pts.length - 1) {
       const k = seg > 0 ? Math.min(1, left / seg) : 1;
       return { x: a.x + (b.x - a.x) * k, z: a.z + (b.z - a.z) * k, dx: b.x - a.x, dz: b.z - a.z };
@@ -524,10 +566,10 @@ function along(pts, s) {
  * on her own share of the cycle; a packet's `id` names her lane, her place and her voyage (a cycle of the clock: one
  * sunk or taken is spent for it, and the next is another ship, her `seed` another) - and `seeds` the seeds of her
  * place's last LANE_LINEAGE voyages, hers first (AUDIT BAY A17: a ship still on the water sails on as the packet of the
- * next). Stateless.
+ * next). The same lane, way and time give the same packets, whatever was asked before.
  */
 export function packetsAt(lane, way, ms) {
-  const first = packetOf(lane);
+  const first = laneBook(lane).first;
   const leg = way.len / Math.max(0.1, first.speed);
   const count = Math.min(LANE_PACKETS_MAX, Math.max(1, Math.round((2 * (leg + LANE_DWELL_S)) / LANE_HEADWAY_S)));
   const out = [];
@@ -536,68 +578,60 @@ export function packetsAt(lane, way, ms) {
 }
 /** The lane's `k`th packet of `count`, at shared time `ms` (packetsAt's). */
 export function packetAt(lane, way, ms, k = 0, count = 1) {
-  const p = packetOf(lane, k, count);
+  const kept = keptPacket(lane, k, count);
+  const p = kept.drawn;
   const leg = way.len / Math.max(0.1, p.speed);
   const period = 2 * (leg + LANE_DWELL_S);
   const t = ms / 1000 + p.phase * period;
   const voyage = Math.floor(t / period);
   const tau = t - voyage * period;
-  const seeds = [];
-  for (let j = 0; j < LANE_LINEAGE; j++) seeds.push(hash32(p.seed, (voyage - j) >>> 0, LANE_SALT));
-  const base = {
-    id: `L${lane.key}.${k}.${voyage}`,
+  if (kept.voyage !== voyage || !kept.seeds) {
+    const lineage = [];
+    for (let j = 0; j < LANE_LINEAGE; j++) lineage.push(hash32(p.seed, (voyage - j) >>> 0, LANE_SALT));
+    kept.voyage = voyage;
+    kept.seeds = lineage;
+    kept.id = `L${lane.key}.${k}.${voyage}`;
+  }
+  const rev = reversedOf(way.pts);
+  const start = voyage * period - p.phase * period; // her voyage's first second on the shared clock
+  if (tau < leg) return sailingPacket(lane, k, voyage, kept, way.pts, tau * p.speed, lane.a, lane.b);
+  if (tau < leg + LANE_DWELL_S)
+    return lyingPacket(lane, k, voyage, kept, way.pts, lane.a, lane.b, start + leg + LANE_DWELL_S);
+  if (tau < 2 * leg + LANE_DWELL_S)
+    return sailingPacket(lane, k, voyage, kept, rev, (tau - leg - LANE_DWELL_S) * p.speed, lane.b, lane.a);
+  return lyingPacket(lane, k, voyage, kept, rev, lane.b, lane.a, start + period);
+}
+/** Her packet under way, `metres` along `pts` from the port she left. */
+function sailingPacket(lane, k, voyage, kept, pts, metres, from, to) {
+  const here = along(pts, metres);
+  const at = { x: here.x, z: here.z };
+  return packetIn(lane, k, voyage, kept, 'sail', from, to, null, at, { x: here.dx, z: here.dz }, pts, null);
+}
+/** Her packet lying at `port`, the end of `pts`, until the shared second `until`: she sails back for `home` next. */
+function lyingPacket(lane, k, voyage, kept, pts, home, port, until) {
+  const end = pts[pts.length - 1];
+  const at = { x: end.x, z: end.z };
+  return packetIn(lane, k, voyage, kept, 'dwell', home, home, port, at, { x: 0, z: 0 }, pts, until);
+}
+/** packetAt's answer, its fields in packetsAt's order: who she is, then where the clock has her. */
+function packetIn(lane, k, voyage, kept, phase, from, to, port, at, dir, leg, until) {
+  return {
+    id: kept.id,
     lane: lane.key,
     k,
     voyage,
-    seed: seeds[0],
-    seeds,
-    cls: p.cls,
+    seed: kept.seeds[0],
+    seeds: kept.seeds,
+    cls: kept.drawn.cls,
     region: lane.a.region ?? -1,
-  };
-  const rev = [...way.pts].reverse();
-  const sailing = (pts, s, from, to) => {
-    const here = along(pts, s);
-    return {
-      ...base,
-      phase: 'sail',
-      from,
-      to,
-      port: null,
-      at: { x: here.x, z: here.z },
-      dir: { x: here.dx, z: here.dz },
-      leg: pts,
-      until: null,
-    };
-  };
-  const end = (pts) => pts[pts.length - 1];
-  const start = voyage * period - p.phase * period; // her voyage's first second on the shared clock
-  if (tau < leg) return sailing(way.pts, tau * p.speed, lane.a, lane.b);
-  if (tau < leg + LANE_DWELL_S) {
-    const e = end(way.pts);
-    return {
-      ...base,
-      phase: 'dwell',
-      from: lane.a,
-      to: lane.a,
-      port: lane.b,
-      at: { x: e.x, z: e.z },
-      dir: { x: 0, z: 0 },
-      leg: way.pts,
-      until: start + leg + LANE_DWELL_S,
-    };
-  }
-  if (tau < 2 * leg + LANE_DWELL_S) return sailing(rev, (tau - leg - LANE_DWELL_S) * p.speed, lane.b, lane.a);
-  const e = end(rev);
-  return {
-    ...base,
-    phase: 'dwell',
-    from: lane.b,
-    to: lane.b,
-    port: lane.a,
-    at: { x: e.x, z: e.z },
-    dir: { x: 0, z: 0 },
-    leg: rev,
-    until: start + period,
+    phase,
+    from,
+    to,
+    port,
+    at,
+    dir,
+    leg,
+    until,
   };
 }
 

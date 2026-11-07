@@ -43,12 +43,38 @@ const a = load(A),
   b = load(B);
 const rows = [
   ['world host frame', /^frame src\/scenes\/world\.js/],
+  // the frame's parts, by the function V8 prints (a closure moved out of the frame keeps its name, PERF-V8)
+  ['  the pixel walk', /^framePixelWalk /],
+  ['  drawMesh (bundles)', /^_drawMeshBundle /],
+  ['  drawTerrain', /^drawTerrain src[/]render[/]renderer[.]js/],
+  [
+    '  the sky and clouds',
+    /^draw src[/](scenes[/]shared|render[/](skyRenderer|volumetricClouds|dynamicSkies[^/]*))[.]js/,
+  ],
+  ['  the air resolve', /^composite src[/]render[/]airPass[.]js/],
+  ['  the grass', /^(draw|update) src[/]render[/]labGrass[.]js/],
+  ['  the modes frame', /^frame src[/]scenes[/]worldModes[.]js/],
+  ['  the bodies', /^(draw|pose|skin)[A-Za-z]* src[/](net[/]peer[/]peerBodies|formats[/]morrowind[/]mwGpuSkin)[.]js/],
   ['shadow pass render', /^render src\/render\/shadowPass\.js/],
   ['  replay', /^replay src\/render\/shadowPass\.js/],
   ['  _dynamicNear', /^_dynamicNear /],
   ['  _casterCandidates', /^_casterCandidates /],
   ['  _sunCandidates', /^_sunCandidates /], // AUDIT PERF-ON4 (sun lens 4): the sun's walk, outside its replays
   ['  _candidateQuads', /^_candidateQuads /],
+  ['  recordBillboards', /^recordBillboards /],
+  ['  recordMesh', /^recordMesh /],
+  [
+    'settings and key reads',
+    /^(getInt|getBool|getFloat) src[/]systems[/]settings[/]settings[.]js|^(modSettingsOf|modSetting) src|^(getBinding|codeForAction|dictEntries) src|^swingKeyHeld /,
+  ],
+  ['the weapon rig frame', /^frame src[/]combat[/]weapon[/]weaponRig[.]js/],
+  ['the HUD (frameHud)', /^frameHud /],
+  ['layout reads (clientWidth)', /^get client(Width|Height) :0/],
+  ['the harbour sounding', /^(step|stepOne|sound) src[/]systems[/]naval[/]harbourBook[.]js|^findHarbour /],
+  [
+    'the far land arriving (one-off)',
+    /^(mergeArenaRoads|setArenaRoads|packArenaRoads|unpackArenaRoads|unpackPastBayPlaces|addPastBayPlaces) /,
+  ],
   ['drawBillboards', /^drawBillboards /],
   // SNOW-BUDGET (bible/07-Rendering/Performance-Priority.md): the weather's share of the frame - the snow the ground keeps
   ['the snow (all its asks)', /^(at|tick|winterAt|winterNear|buries) src\/scenes\/snowCoverHost\.js/],

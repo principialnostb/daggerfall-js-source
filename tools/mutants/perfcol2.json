@@ -83,8 +83,8 @@
   {
     "name": "PERF-COL2-j-an-always-bucket-handed-twice",
     "file": "src/player/collider.js",
-    "old": "for (const b of broad.always) if (b.ord > afterOrd && (!b.moves || moverReaches(b, x0, x1, z0, z1))) { b._broadStamp = stamp; out.push(b); }",
-    "new": "for (const b of broad.always) if (b.ord > afterOrd && (!b.moves || moverReaches(b, x0, x1, z0, z1))) out.push(b);",
+    "old": "for (const b of broad.always) if (b.ord > afterOrd && (!b.moves || moverReaches(b, x0, x1, z0, z1))) { b._broadStamp = stamp; out[n++] = b; }",
+    "new": "for (const b of broad.always) if (b.ord > afterOrd && (!b.moves || moverReaches(b, x0, x1, z0, z1))) out[n++] = b;",
     "tests": [
       "test/scenes/perfcol2.test.js"
     ]

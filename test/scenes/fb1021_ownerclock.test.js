@@ -448,7 +448,7 @@ function countedPool(clock, cost = 0) { const calls = []; return { calls, update
 const bodyS = (calls) => calls.reduce((a, d) => a + foeFrameDt(d), 0);
 
 test('OWNER-CLOCK the owner: THE PARITY - at every rate world.js\'s clamp allows, a street foe\'s body takes the seconds its owner\'s player takes and never more: 60 to 20 fps the host\'s one call as ever, 15 fps and below the clamped frame (0.1 s from 10 fps down) in FOE-CATCHUP\'s steps; alone, FOE-CATCHUP\'s half below 10 fps; a quarter-second frame is not read as a quarter second of foe time (mutants: the wall time planned; the plan outrunning the host)', () => {
-  assert.match(rd('src/scenes/world.js'), /const dt = Math\.min\(0\.1, \(now - last\) \/ 1000\);/, 'the player\'s frame: world.js\'s clamp');
+  assert.match(rd('src/scenes/world.js'), /const dt = Math\.min\(0\.1, \(now - last\) \/ 1000\)[,;]/, 'the player\'s frame: world.js\'s clamp');
   const perFrame = (fps, shared) => {
     const clock = { ms: 0 };
     const p = catchUpOwnerFoes(countedPool(clock, 1), { shared: () => shared, clock: () => clock.ms, tick: () => {}, mark: () => {} });

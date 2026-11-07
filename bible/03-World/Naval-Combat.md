@@ -46,7 +46,11 @@ sea is shared. The player meets it at the helm of an armed boat (`Come-Sail-Away
   ship is its seed, the same in every client's sea, handed over by count. Ships, volleys and barrels ride the foes
   frame. A blow on another player's boat goes to its owner; a boarding claims the ship.
 - **The host** (`src/scenes/naval/navalHost.js`). Only the world host has a sea; every transition, teleport and load
-  empties it.
+  empties it. Every two seconds the world host hands it the packets of the lanes about the player, where the shared
+  clock puts them (`src/scenes/naval/laneShips.js`). A lane's legs are laid in the scene once and laid again when the
+  floating origin moves. A lane keeps each packet's draw, and her voyage's seeds until the voyage turns
+  (`src/systems/naval/seaLanes.js`). A way's reversed points and each leg's length are worked out once. The classes
+  are pooled once a faction and level. The same lane, way and time give the same packets.
 - **The save.** `NavalCombat` in the mod save registry (`src/systems/modSaveData.js`): each boat's hull, sails, crew,
   fire and state by its deed's UID, the crowns' notoriety and the raids started. The sea's ships are rolled again.
 
@@ -73,7 +77,10 @@ a gate first; a pirate flagship starts the quest the mod never starts.
 - `src/systems/naval/` - ballistics, gunnery, damage, shots, ships, AI, director, boarding, plunder, law, raiders,
   crew, ship life, wire
 - `src/scenes/naval/navalHost.js` - the host; `src/render/navalRender.js` - the picture; `src/ui/naval/` - the UI
+- `src/scenes/naval/laneShips.js` - the lanes' packets about the player, handed to the host
 - `test/systems/naval/nav_a_guns.test.js`, `nav_b_picture.test.js`, `nav_c_ships.test.js`, `nav_d_boarding.test.js`,
   `nav_g_online.test.js`, `nav_h_host.test.js`, `nav_r_raiders.test.js` - the slices
 - `test/systems/naval/shiplife.test.js`, `fishboats.test.js`, `crewcompanions.test.js`, `shipwatch.test.js`,
   `shipclaim.test.js`, `tougherships.test.js`, `seaease.test.js` - ship life, crew and the later systems
+- `test/systems/naval/sealanes.test.js`, `lanes_kept.test.js`, `laneships_feed.test.js` - the lanes' packets, held to a
+  fresh draw in the Bay and past it, and the feed to the host

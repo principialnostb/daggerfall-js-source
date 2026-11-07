@@ -15,6 +15,11 @@ render frame is `Performance-Exterior.md`; the characters' bodies are `Performan
   compared); `tools/onlineFrameProbe.mjs`; `tools/bootFreezeProbe.mjs` (the boot's long tasks); `tools/owHitchProbe.mjs`
   (the overworld); `tools/compileStallProbe.mjs`; `tools/realGpu/realGpuProbe.mjs` (shader compiles and uploads on a real
   driver). SwiftShader's milliseconds are relative; GL call counts are exact.
+- The frame probe's scenes: a crowded town (`town`), the castle (`castle`: the classic start cell moved to Castle
+  Necromoghan), the exterior at land view 6 (`far`) and the Overworld raised over it (`overworld`). Every scene turns
+  the tutorial pages off; a record names the mode and pixel it was taken in. A dungeon is ready once its frames have
+  run, since the exterior's stream never drains underground. `READY_MS` and `PROGRESS=1` wait longer and say where
+  the page is.
 - `sh tools/fetch-data.sh` puts the freeware ARENA2 in place, so a measure is taken in the real game.
 
 ## Rules
@@ -22,7 +27,8 @@ render frame is `Performance-Exterior.md`; the characters' bodies are `Performan
 - Measure first, in the real game where it can be run. A cost is found by a profile, not a guess.
 - A change that moves the picture (a cull past the fog, a cap, a coarser step) is the owner's call. Every other change
   keeps the picture byte for byte.
-- No allocation in a hot frame path: reuse arrays, fill in place, key by number rather than by a minted string.
+- No allocation in a hot frame path: reuse arrays, fill in place, key by number rather than by a minted string. A kept
+  list is reset by its count, not by `length = 0`, which lets the array's storage go, so every push grows it again.
 - The world host's frame functions stay under V8's optimization ceiling, and under three quarters of it
   (`test/scenes/perfv8.test.js`); growth moves into helper modules (HOST-SPLIT).
 - Everything drawn is culled to the view, every pool alike: yards, teams, wagons, peers, boats.
@@ -67,7 +73,9 @@ render frame is `Performance-Exterior.md`; the characters' bodies are `Performan
   captain keeps her watch on the same cadence; a held boat is drawn from what her walk found. A horse's look is dyed a
   few pictures a frame.
 - **The living world.** Its ways, trips, holy days and road plans give the same answers for less work
-  (`src/systems/livingWorld/ways.js`, `trips.js`, `src/systems/holidays.js`); a roads' day not ready is asked once a tick.
+  (`src/systems/livingWorld/ways.js`, `trips.js`, `src/systems/holidays.js`). A town's roads' day that waits on a way is
+  kept waiting until the trips it waited on have answered, and those trips are asked again a few a frame on the ways'
+  leftover budget; a turn of fate renews only the trips it can change (`src/scenes/livingWorld/livingBooks.js`).
 - **The chat roster** is derived once, not once a frame (`src/net/roster.js`); the movable HUD sweeps on one clock.
 
 ### Placed objects, colliders and memory
@@ -79,6 +87,32 @@ render frame is `Performance-Exterior.md`; the characters' bodies are `Performan
 - The trading windows draw only the rows on screen (`src/ui/virtualRows.js`).
 - Every pixel, place, window and session lets go of what it held when it ends; a long-lived cache is measured before
   a bound is set on it.
+
+### Reads kept across frames
+
+- A typed setting's parse is kept per key until its text changes (`src/systems/settings/settings.js` `parseOf`): the
+  field of view, retro mode's keys and the frame cap are read every frame.
+- A vendored mod's switches are kept per vendor until a switch is set, the page's online state changes or a room roll
+  raises its scope (`src/systems/modSettings.js` `modSettingsOf`): the widgets, torches and footsteps read theirs every
+  frame.
+- A mod key's answer is kept per key until a switch is set (`src/systems/modSettings.js` `modSetting`). A key the room
+  can own online is kept only while the page stays on the side it was. A read inside a room roll is never kept, nor a
+  pair, since each read of a pair is a new frozen pair.
+- The skin keeps its two halves (`src/systems/uiSkin.js` `uiSkin`): the URL's override until the search string
+  changes, and the stored choice's reading until `getPref` answers something else. The search is still read at every
+  ask, so a replaceState is answered at once.
+- Windfall's model takes a settings object that holds what it already plays by (`src/systems/windfall.js`
+  `configure`), so the host's one object is keyed once and not every frame.
+- A key binding's answer is kept on the store until a binding changes (`src/systems/inputActions.js` `getBinding`,
+  `codeForAction`; `src/ui/input.js` `swingCodes`): the HUD's key words and the swing's latch ask every frame.
+- The world frame reads the canvas's client size at its start and hands that read on. The tap's ray takes it, and
+  outdoors so do the lens, the travel readout, the lock dot, the world rect, the renderer, the name pass and the passes
+  drawn after the names: the ships' tags, the crew's bars and lines and the wild marks (`src/render/renderer.js`
+  `setWorldViewport`, `src/scenes/travelView.js` `drawHud`). A few outdoor passes read the layout themselves, the
+  spyglass among them, as a building's or a dungeon's passes do. A frame handed no size reads it in `beginFrame`.
+- The frame clock trims its window in place; the stream's nearest-first comparator answers a sign, so a sort boxes no
+  number; a port's sounding asks the tile under a point from numbers alone (`tileMapIndexAtXZ`), where each ask minted
+  two vectors.
 
 ### The overworld
 
@@ -95,6 +129,12 @@ Walking the overworld gives the same answers for less; the dry-ground answer is 
 - `test/scenes/perfv8.test.js` - the frame functions under V8's ceiling
 - `test/render/shaderstall.test.js`, `test/render/compilequeue.test.js`, `test/render/bootcompile.test.js`,
   `test/render/firstuse.test.js` - no pass waits on its compile
+- `test/systems/settings/parsememo.test.js`, `test/systems/modsettingsmemo.test.js`, `test/systems/bindingmemo.test.js`,
+  `test/systems/frameclock_trim.test.js`, `test/systems/comeSailAway/tilexz.test.js`, `test/world/nearestfirst.test.js`,
+  `test/systems/modsettingkept.test.js`, `test/systems/uiskinmemo.test.js`, `test/systems/windfallsettle.test.js` - the
+  reads kept across frames
+- `test/player/keptscratch.test.js`, `test/render/framekept.test.js`, `test/scenes/worldframekept.test.js` - the lists
+  and records kept across frames
 - `test/systems/peerrange.test.js`, `test/scenes/perfyard.test.js`, `test/scenes/yardmerge.test.js`,
   `test/systems/naval/navfarai.test.js`, `test/systems/firstVisit/fv_versions.test.js`, `test/systems/memaudit.test.js`,
   `test/ai/coverCompact.test.js`, `test/tooling/storecache.test.js`, `test/scenes/ow_wide.test.js`

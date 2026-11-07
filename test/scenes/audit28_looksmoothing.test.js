@@ -110,7 +110,7 @@ test('AUDIT 28 W7: all four hosts route all three look sites (mouse, touch, keyb
     // the one seam it asks (player/lookFilter.js's swingSuppressesLook),
     // so the line break is `[^\n]*\n`, not `\s*\n`.
     // PIN MOVED (MWNPC19): the world host's look step is a PERF-V8 closure, made on the line before it (`frameLook`)
-    assert.match(s, /const dt = Math\.min\(0\.1, \(now - last\) \/ 1000\);\n(\s*\/\/[^\n]*\n)*(\s*gamepad\?\.tick\(dt\);[^\n]*\n)?(\s*\/\/[^\n]*\n)*(\s*const frameLook = \(\) => \{   \/\/ PERF-V8[^\n]*\n)?\s*if \(![^\n]*\) \{\s*\n\s*if \([^\n]*\) lookFilter\.settle\(\);[^\n]*\n\s*else lookFilter\.tick\(dt, cam\);/, `${host}: the tick rides the frame's dt`);
+    assert.match(s, /const dt = Math\.min\(0\.1, \(now - last\) \/ 1000\)(?:, clientW = canvas\.clientWidth, clientH = canvas\.clientHeight;[^\n]*|;)\n(\s*\/\/[^\n]*\n)*(\s*gamepad\?\.tick\(dt\);[^\n]*\n)?(\s*\/\/[^\n]*\n)*(\s*const frameLook = \(\) => \{   \/\/ PERF-V8[^\n]*\n)?\s*if \(![^\n]*\) \{\s*\n\s*if \([^\n]*\) lookFilter\.settle\(\);[^\n]*\n\s*else lookFilter\.tick\(dt, cam\);/, `${host}: the tick rides the frame's dt`);
     assert.match(s, /const lookFilter = new LookFilter\(\);/, `${host}: one filter per camera`);
   }
 });

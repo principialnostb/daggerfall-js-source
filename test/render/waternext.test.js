@@ -86,7 +86,7 @@ test('WATER-NEXT 2 the copy: once a frame, before the first water draw, the lane
   const r = read('src/render/renderer.js');
   assert.match(r, /this\._underWater = undefined;/, 'beginFrame: a new frame takes a new copy');
   assert.match(r, /if \(this\._underWater !== undefined\) return this\._underWater;/);
-  assert.match(r, /this\._underWater = \(this\._air && this\._frameFbo && !this\.waterSimple\) \? this\._air\.snapshotUnderWater\(\) : null;/);
+  assert.match(r, /this\._underWater = \(this\._air && this\._frameFbo && !this\.waterSimple\) \? this\._air\.snapshotUnderWater\(reach \?\? null\) : null;/);
   const a = read('src/render/airPass.js');
   assert.match(a, /gl\.blitFramebuffer\(0, 0, F\.w, F\.h, 0, 0, F\.w, F\.h, gl\.COLOR_BUFFER_BIT \| gl\.DEPTH_BUFFER_BIT, gl\.NEAREST\);/);
   assert.match(a, /if \(k\.uwFbo\) \{\n\s*gl\.deleteTexture\(k\.uwColor\);\n\s*gl\.deleteTexture\(k\.uwDepth\);\n\s*gl\.deleteFramebuffer\(k\.uwFbo\);\n\s*\}/, 'freed with the frame');
@@ -124,7 +124,7 @@ test('WATER-NEXT the Water quality row: Full by default, the player\'s online; S
   assert.equal(row.control.online, 'player');
   assert.deepEqual([...row.kinds], ['enhanced']);
   const r = read('src/render/renderer.js');
-  assert.match(r, /this\._underWater = \(this\._air && this\._frameFbo && !this\.waterSimple\) \? this\._air\.snapshotUnderWater\(\) : null;/);
+  assert.match(r, /this\._underWater = \(this\._air && this\._frameFbo && !this\.waterSimple\) \? this\._air\.snapshotUnderWater\(reach \?\? null\) : null;/);
   const w = read('src/scenes/world.js');
   assert.match(w, /renderer\.waterSimple = getPref\('waterQuality'\) === 'simple';/);
   assert.match(w, /const ripples = waterOn && !renderer\.waterSimple \? createRippleStir\(createRipples\(\)\) : null;/);

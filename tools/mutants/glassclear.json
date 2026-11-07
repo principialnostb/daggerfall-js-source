@@ -363,8 +363,8 @@
   {
     "name": "GLASS-CLEAR-the-names-uncut",
     "file": "src/scenes/world.js",
-    "old": "    const blocked = (head, id) => glassCuts(projectToScreen(head, 1, 1, proj, view)) || nameSight.blocked(",
-    "new": "    const blocked = (head, id) => nameSight.blocked(",
+    "old": "    const blocked = (head, id, viewProj) => glassCuts(projectToScreen(head, 1, 1, proj, view, null, false, viewProj)) || nameSight.blocked(",
+    "new": "    const blocked = (head, id, viewProj) => nameSight.blocked(",
     "tests": [
       "test/systems/naval/glassclear.test.js"
     ]

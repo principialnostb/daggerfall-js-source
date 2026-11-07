@@ -1,0 +1,22 @@
+[
+  {
+    "name": "PEERDECODE-layered-strips-on-this-thread",
+    "file": "src/net/peer/peerRiders.js",
+    "old": "{ ...strips, picture: decodeServedPng }",
+    "new": "{ ...strips }",
+    "tests": [
+      "test/net/peer/peerdecode.test.js"
+    ],
+    "why": "a worn-armour walker's strips fetched and decoded on the page's thread"
+  },
+  {
+    "name": "PEERDECODE-class-sprite-on-this-thread",
+    "file": "src/net/peer/peerRiders.js",
+    "old": "  return worldOrderColors(await decodeServedPng(url), { owned: true });",
+    "new": "  return worldOrderColors(await decodePng(new Uint8Array(await (await fetch(url)).arrayBuffer())), { owned: true });",
+    "tests": [
+      "test/net/peer/peerdecode.test.js"
+    ],
+    "why": "a class sprite fetched and decoded on the page's thread"
+  }
+]

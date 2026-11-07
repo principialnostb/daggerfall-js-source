@@ -311,7 +311,7 @@ export function createNameLayer({ doc = document, now = () => Date.now(), armsOf
   const put = (tag, slot, v, write) => {
     if (tag[slot] !== v) {
       tag[slot] = v;
-      write(v);
+      write(v, tag);
     }
   };
   /** PVP-BAR: the bar shown at its health and Shield (per cent), or hidden where the point carries none. */
@@ -322,6 +322,30 @@ export function createNameLayer({ doc = document, now = () => Date.now(), armsOf
     tag.barS.style.width = `${Math.max(0, Math.min(100, b.s ?? 0))}%`;
   };
   const live = new Set(); // PERF-NAMES1: the frame's ids, one set refilled
+  // Each slot's writer, made once with the layer: `put` hands it the value and the tag, so a frame makes no function.
+  const writeAt = (v, tag) => {
+    tag.node.style.transform = v;
+  };
+  const writeCone = (v, tag) => {
+    tag.node.style.opacity = v === '1.00' ? '' : v;
+    tag.node.style.visibility = v === '0.00' ? 'hidden' : '';
+  };
+  const writeSize = (v, tag) => {
+    tag.node.style.fontSize = v;
+  };
+  const writeName = (v, tag) => setText(tag.name, v);
+  const writeTitle = (v, tag) => setText(tag.title, v);
+  const writeSkull = (k, tag) => {
+    setCls(tag.skull, k ? 'dfname-skull' : 'dfname-skull off');
+    tag.skull.style.backgroundImage = k ? `url("${skullSrc(k)}")` : '';
+    tag.skull.style.filter = skullGlow(k);
+  };
+  const writeBar = (barKey, tag) => paintBar(tag, tag.barNow);
+  const writeBubbleText = (v, tag) => setText(tag.bubble, v);
+  const writeBubbleAlpha = (v, tag) => {
+    tag.bubble.style.opacity = v;
+  };
+  const writeBubbleOn = (on, tag) => setCls(tag.bubble, on ? 'dfname-bubble' : 'dfname-bubble off');
 
   const makeTag = () => {
     const node = doc.createElement('div');
@@ -389,9 +413,16 @@ export function createNameLayer({ doc = document, now = () => Date.now(), armsOf
       // PERF-NAMES1: what this tag's DOM was last told, kept here and compared here - a read of `style.x` or
       // `textContent` asks the browser to serialise the value back, a cost a frame for every label
       at: null,
+      atX: NaN,
+      atY: NaN,
+      atText: '',
       size: null,
+      sizeOf: NaN,
+      sizeText: '',
+      barNow: null,
       lvOf: undefined,
       gtOf: undefined,
+      gtText: null,
       houseOf: undefined,
       said: null,
       nameText: null,
@@ -399,9 +430,13 @@ export function createNameLayer({ doc = document, now = () => Date.now(), armsOf
       bubbleOn: null,
       bubbleText: null,
       bubbleAlpha: null,
+      bubbleAlphaOf: NaN,
+      bubbleAlphaText: '',
       cone: NaN,
       coneAt: NaN,
       coneAlpha: null,
+      coneOf: NaN,
+      coneText: '',
     }; // HERALDRY-SHOWN: `armed`, the frame as written   // SEASON1 part two: `banded`, the ribbon as written   // SHADOW-FANG: `titled`, the title whose paint is on; AUDIT A10: `inked`, the name's colour as written
   };
 
@@ -488,7 +523,7 @@ export function createNameLayer({ doc = document, now = () => Date.now(), armsOf
       if (!alive) return 0;
       if (log) pump(log);
       const t = now();
-      for (const [id, b] of [...bubbles]) if (t - b.at >= BUBBLE_MS) bubbles.delete(id);
+      for (const [id, b] of bubbles) if (t - b.at >= BUBBLE_MS) bubbles.delete(id); // a walk may delete the key it stands on
       const want = !covered && points.length > 0;
       if (want !== shownRoot) {
         shownRoot = want;
@@ -529,33 +564,39 @@ export function createNameLayer({ doc = document, now = () => Date.now(), armsOf
         // is a projected head: the anchor stays the head for anything else that wants it, and the label's bottom
         // edge lands the gap above it. PERF-NAMES1: the anchor rides the TRANSFORM (the sheet's own lift after it) -
         // the same whole pixels `left`/`top` held, and no layout for a label that only moved.
-        put(
-          tag,
-          'at',
-          `translate(${Math.round(p.x)}px, ${Math.round(p.y - NAME_GAP_PX)}px) translate(-50%, -100%)`,
-          (v) => {
-            tag.node.style.transform = v;
-          },
-        );
+        // Each string below is built when the numbers it is made of change, and kept on the tag until they do.
+        const atX = Math.round(p.x);
+        const atY = Math.round(p.y - NAME_GAP_PX);
+        if (tag.atX !== atX || tag.atY !== atY) {
+          tag.atX = atX;
+          tag.atY = atY;
+          tag.atText = `translate(${atX}px, ${atY}px) translate(-50%, -100%)`;
+        }
+        put(tag, 'at', tag.atText, writeAt);
         // PVP-CONE (ui/nameCone.js): the whole tag - skull, bars and bubble with it - near the crosshair, eased; a new tag starts where it stands
         tag.cone = nameConeStep(tag.cone, nameConeTarget(p), t - tag.coneAt);
         tag.coneAt = t;
-        put(tag, 'coneAlpha', tag.cone.toFixed(2), (v) => {
-          tag.node.style.opacity = v === '1.00' ? '' : v;
-          tag.node.style.visibility = v === '0.00' ? 'hidden' : '';
-        });
-        put(tag, 'size', `${namePixelSize(p.scale ?? 1, vp, hudScale).toFixed(1)}px`, (v) => {
-          tag.node.style.fontSize = v;
-        });
+        if (tag.coneOf !== tag.cone) {
+          tag.coneOf = tag.cone;
+          tag.coneText = tag.cone.toFixed(2);
+        }
+        put(tag, 'coneAlpha', tag.coneText, writeCone);
+        const px = namePixelSize(p.scale ?? 1, vp, hudScale);
+        if (tag.sizeOf !== px) {
+          tag.sizeOf = px;
+          tag.sizeText = `${px.toFixed(1)}px`;
+        }
+        put(tag, 'size', tag.sizeText, writeSize);
         // PERF-NAMES1: the words are worked out when the stamp they come from changes, not every frame
         if (tag.lvOf !== p.lv) {
           tag.lvOf = p.lv;
           setText(tag.lv, renownText(p.lv) ?? '');
         } // RENOWN1: "12" in its box, or nothing
-        put(tag, 'nameText', p.name ?? '', (v) => setText(tag.name, v));
+        put(tag, 'nameText', p.name ?? '', writeName);
         if (tag.gtOf !== p.gt) {
           tag.gtOf = p.gt;
-          setText(tag.guild, guildTagText(p.gt) ?? '');
+          tag.gtText = guildTagText(p.gt);
+          setText(tag.guild, tag.gtText ?? '');
         } // GUILD1c: "<HND>", or nothing
         if (tag.houseOf !== p.house) {
           tag.houseOf = p.house;
@@ -563,7 +604,7 @@ export function createNameLayer({ doc = document, now = () => Date.now(), armsOf
         } // LEGACY7: "☠ Ysolde II of House Hlaalu", or nothing
         // HERALDRY-SHOWN (Seats-Arc 8.1): the tag framed in its guild's heraldry where the client knows it - written when
         // it CHANGES, as the ribbon is
-        const arms = guildTagText(p.gt) && armsOf ? heraldryOf(armsOf(p.gt)) : null;
+        const arms = tag.gtText && armsOf ? heraldryOf(armsOf(p.gt)) : null;
         const armed = arms ? heraldryKey(arms) : ''; // AUDIT GUILD2 G12: the whole arms, never GUILD1d's three alone
         if (tag.armed !== armed) {
           tag.armed = armed;
@@ -594,7 +635,7 @@ export function createNameLayer({ doc = document, now = () => Date.now(), armsOf
         // "this is a Founder" - one erasing the other would take away
         // the distinction Mac asked for.
         const badge = titleBadge(p);
-        put(tag, 'titleText', badge?.text ?? '', (v) => setText(tag.title, v));
+        put(tag, 'titleText', badge?.text ?? '', writeTitle);
         // SHADOW-FANG: the title's whole paint - its colour, or a gradient clipped to its letters - written when
         // the TITLE changes and not every frame: a browser reads a colour back normalised (#d3193c comes back
         // rgb(211, 25, 60)), so the diffing door would rewrite a gradient's keys on every frame for ever. Every
@@ -606,12 +647,10 @@ export function createNameLayer({ doc = document, now = () => Date.now(), armsOf
           for (const k of TITLE_PAINT_KEYS) tag.title.style[k] = paint[k];
           setTitleFlame(tag.title, badge?.flame ? badge.key : null); // SHOP: Genesis on its fire, written with its paint
         }
-        put(tag, 'skullOf', p.skull ?? '', (k) => {
-          setCls(tag.skull, k ? 'dfname-skull' : 'dfname-skull off');
-          tag.skull.style.backgroundImage = k ? `url("${skullSrc(k)}")` : '';
-          tag.skull.style.filter = skullGlow(k);
-        }); // PVP-SKULL
-        put(tag, 'barOf', p.bar ? `${p.bar.h}/${p.bar.s ?? 0}` : '', () => paintBar(tag, p.bar)); // PVP-BAR
+        put(tag, 'skullOf', p.skull ?? '', writeSkull); // PVP-SKULL
+        tag.barNow = p.bar;
+        put(tag, 'barOf', p.bar ? `${p.bar.h}/${p.bar.s ?? 0}` : '', writeBar); // PVP-BAR
+        tag.barNow = null;
         if (p.glyphs?.length || tag.worn !== '') setGlyphs(tag, p); // PERF-NAMES1: a peer with no glyph and none worn has nothing to compare
         const b = bubbles.get(p.id);
         // AUDIT NAME1 F9: a bubble is SHOWN when it can be seen. A negative age - a clock stepped backwards, a
@@ -619,13 +658,15 @@ export function createNameLayer({ doc = document, now = () => Date.now(), armsOf
         // bubbleCount() and still had its text written into the DOM. Alpha decides both.
         const alpha = b ? bubbleAlpha(t - b.at) : 0;
         if (alpha > 0) {
-          put(tag, 'bubbleText', b.text, (v) => setText(tag.bubble, v));
-          put(tag, 'bubbleAlpha', alpha.toFixed(2), (v) => {
-            tag.bubble.style.opacity = v;
-          });
-          put(tag, 'bubbleOn', true, () => setCls(tag.bubble, 'dfname-bubble'));
+          put(tag, 'bubbleText', b.text, writeBubbleText);
+          if (tag.bubbleAlphaOf !== alpha) {
+            tag.bubbleAlphaOf = alpha;
+            tag.bubbleAlphaText = alpha.toFixed(2);
+          }
+          put(tag, 'bubbleAlpha', tag.bubbleAlphaText, writeBubbleAlpha);
+          put(tag, 'bubbleOn', true, writeBubbleOn);
           visible++;
-        } else put(tag, 'bubbleOn', false, () => setCls(tag.bubble, 'dfname-bubble off'));
+        } else put(tag, 'bubbleOn', false, writeBubbleOn);
       }
       for (const [id, tag] of tags) {
         if (live.has(id)) continue;

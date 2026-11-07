@@ -1,0 +1,317 @@
+[
+  {
+    "name": "FRAME-GARBAGE-a-kept-query-list-holds-what-a-longer-answer-left",
+    "file": "src/player/collider.js",
+    "old": "  for (let i = n; i < out.length && out[i] !== null; i++) out[i] = null;\n",
+    "new": "",
+    "tests": ["test/player/keptscratch.test.js"]
+  },
+  {
+    "name": "FRAME-GARBAGE-the-cutout-list-holds-its-flats-past-the-draw",
+    "file": "src/render/renderer.js",
+    "old": "    for (let batchIndex = 0; batchIndex < opaqueCount; batchIndex++) opaque[batchIndex] = null;\n",
+    "new": "",
+    "tests": ["test/render/framekept.test.js"]
+  },
+  {
+    "name": "FRAME-GARBAGE-the-deck-stamp-stands-across-frames",
+    "file": "src/render/renderer.js",
+    "old": "    this._csStamp++;\n    const gl = this.gl;\n",
+    "new": "    const gl = this.gl;\n",
+    "tests": ["test/render/framekept.test.js"]
+  },
+  {
+    "name": "FRAME-GARBAGE-the-frame-rect-a-new-record-each-frame",
+    "file": "src/render/renderer.js",
+    "old": "      this._worldViewportFrame = r ? kept : null;",
+    "new": "      this._worldViewportFrame = r ? { ...r } : null;",
+    "tests": ["test/render/framekept.test.js"]
+  },
+  {
+    "name": "FRAME-GARBAGE-beginFrame-asks-the-layout-whatever-the-host-read",
+    "file": "src/render/renderer.js",
+    "old": "    const w = this._wvClientW >= 0 ? this._wvClientW : this.canvas.clientWidth;",
+    "new": "    const w = this.canvas.clientWidth;",
+    "tests": ["test/render/framekept.test.js"]
+  },
+  {
+    "name": "FRAME-GARBAGE-the-set-rect-a-new-record-each-call",
+    "file": "src/render/renderer.js",
+    "old": "      pending.x = rect.x; pending.y = rect.y; pending.w = rect.w; pending.h = rect.h;\n      this._worldViewportPending = pending;\n",
+    "new": "      this._worldViewportPending = { x: rect.x, y: rect.y, w: rect.w, h: rect.h };\n",
+    "tests": ["test/render/framekept.test.js"]
+  },
+  {
+    "name": "FRAME-GARBAGE-the-window-eye-a-new-array-each-frame",
+    "file": "src/render/renderer.js",
+    "old": "    const eye = this._wlEye;\n",
+    "new": "    const eye = [0, 0, 0];\n",
+    "tests": ["test/render/framekept.test.js"]
+  },
+  {
+    "name": "FRAME-GARBAGE-the-walk-list-keeps-a-longer-walk-s-tail",
+    "file": "src/scenes/frameKept.js",
+    "old": "    out[count++] = pixel;\n  }\n  if (out.length !== count) out.length = count;\n",
+    "new": "    out[count++] = pixel;\n  }\n",
+    "tests": ["test/scenes/worldframekept.test.js"]
+  },
+  {
+    "name": "FRAME-GARBAGE-the-two-pools-keep-a-longer-street-s-tail",
+    "file": "src/scenes/frameKept.js",
+    "old": "out[count++] = second[i];\n  if (out.length !== count) out.length = count;\n",
+    "new": "out[count++] = second[i];\n",
+    "tests": ["test/scenes/worldframekept.test.js"]
+  },
+  {
+    "name": "FRAME-GARBAGE-a-record-key-forgets-its-frame",
+    "file": "src/scenes/townScratch.js",
+    "old": "  const packed = record * 1024 + frame;\n",
+    "new": "  const packed = record * 1024;\n",
+    "tests": ["test/scenes/worldframekept.test.js"]
+  },
+  {
+    "name": "FRAME-GARBAGE-a-record-key-packs-a-pair-past-the-pack",
+    "file": "src/scenes/townScratch.js",
+    "old": "  if (!packs) return `${record}#${frame}`;\n",
+    "new": "",
+    "tests": ["test/scenes/worldframekept.test.js"]
+  },
+  {
+    "name": "FRAME-GARBAGE-the-player-light-a-new-colour-each-frame",
+    "file": "src/scenes/world.js",
+    "old": "scaledInto(_indirectRgb, INDIRECT_LIGHT_COLOR, iScale)",
+    "new": "new Float32Array([INDIRECT_LIGHT_COLOR[0] * iScale, INDIRECT_LIGHT_COLOR[1] * iScale, INDIRECT_LIGHT_COLOR[2] * iScale])",
+    "tests": ["test/scenes/worldframekept.test.js"]
+  },
+  {
+    "name": "FRAME-GARBAGE-the-doorways-get-a-spread-of-the-pools",
+    "file": "src/scenes/world.js",
+    "old": "clearDoorways(bothInto(_foesBoth, cityGuards.guards, exteriorFoes.foes),",
+    "new": "clearDoorways([...cityGuards.guards, ...exteriorFoes.foes],",
+    "tests": ["test/scenes/worldframekept.test.js"]
+  },
+  {
+    "name": "FRAME-GARBAGE-the-last-position-a-new-array-each-frame",
+    "file": "src/scenes/world.js",
+    "old": "_lastPlayerPos = copiedInto(_lastPlayerPos ?? [0, 0, 0], cam.pos);",
+    "new": "_lastPlayerPos = [cam.pos[0], cam.pos[1], cam.pos[2]];",
+    "tests": ["test/scenes/worldframekept.test.js"]
+  },
+  {
+    "name": "FRAME-GARBAGE-the-lens-asks-the-layout-again",
+    "file": "src/scenes/world.js",
+    "old": "const worldAspect = largeHudWorldAspect(clientW, clientH);",
+    "new": "const worldAspect = largeHudWorldAspect(canvas.clientWidth, canvas.clientHeight);",
+    "tests": ["test/scenes/worldframekept.test.js"]
+  },
+  {
+    "name": "FRAME-GARBAGE-the-renderer-is-not-handed-the-size",
+    "file": "src/scenes/world.js",
+    "old": "renderer.setWorldViewport(worldViewportRect(clientW, clientH), clientW, clientH);",
+    "new": "renderer.setWorldViewport(worldViewportRect(clientW, clientH));",
+    "tests": ["test/scenes/worldframekept.test.js"]
+  },
+  {
+    "name": "FRAME-GARBAGE-the-tap-ray-asks-the-layout-again",
+    "file": "src/scenes/world.js",
+    "old": "rayDirFromScreen(_tapPoint[0], _tapPoint[1], clientW, clientH, _lastProj, _lastView, cam.pos, worldViewportRect(clientW, clientH))",
+    "new": "rayDirFromScreen(_tapPoint[0], _tapPoint[1], canvas.clientWidth, canvas.clientHeight, _lastProj, _lastView, cam.pos, worldViewportRect(canvas.clientWidth, canvas.clientHeight))",
+    "tests": ["test/scenes/worldframekept.test.js"]
+  },
+  {
+    "name": "FRAME-GARBAGE-the-travel-readout-is-not-handed-the-size",
+    "file": "src/scenes/world.js",
+    "old": "travelView?.drawHud(clientW, clientH);",
+    "new": "travelView?.drawHud();",
+    "tests": ["test/scenes/worldframekept.test.js"]
+  },
+  {
+    "name": "FRAME-GARBAGE-the-name-pass-is-not-handed-the-size",
+    "file": "src/scenes/world.js",
+    "old": "drawPeerNames(proj, view, mwv.eye, clientW, clientH);",
+    "new": "drawPeerNames(proj, view, mwv.eye);",
+    "tests": ["test/scenes/worldframekept.test.js"]
+  },
+  {
+    "name": "FRAME-GARBAGE-the-name-pass-asks-the-layout-whatever-it-is-handed",
+    "file": "src/scenes/world.js",
+    "old": "      w: nameLayer ? (clientW >= 0 ? clientW : canvas.clientWidth) : canvas.width,\n      h: nameLayer ? (clientH >= 0 ? clientH : canvas.clientHeight) : canvas.height,\n      rect: worldViewportRect(clientW >= 0 ? clientW : canvas.clientWidth, clientH >= 0 ? clientH : canvas.clientHeight),\n",
+    "new": "      w: nameLayer ? canvas.clientWidth : canvas.width,\n      h: nameLayer ? canvas.clientHeight : canvas.height,\n      rect: worldViewportRect(canvas.clientWidth, canvas.clientHeight),\n",
+    "tests": ["test/net/name1_bubbles.test.js"]
+  },
+  {
+    "name": "FRAME-GARBAGE-the-ships-tags-are-not-handed-the-size",
+    "file": "src/scenes/world.js",
+    "old": "navalTags(proj, view, mwv.eye, clientW, clientH);",
+    "new": "navalTags(proj, view, mwv.eye);",
+    "tests": ["test/scenes/worldframekept.test.js"]
+  },
+  {
+    "name": "FRAME-GARBAGE-the-crew-bars-are-not-handed-the-size",
+    "file": "src/scenes/world.js",
+    "old": "navalCrewBars(proj, view, mwv.eye, clientW, clientH);",
+    "new": "navalCrewBars(proj, view, mwv.eye);",
+    "tests": ["test/scenes/worldframekept.test.js"]
+  },
+  {
+    "name": "FRAME-GARBAGE-the-crew-lines-are-not-handed-the-size",
+    "file": "src/scenes/world.js",
+    "old": "navalCrewLines(proj, view, mwv.eye, dt, clientW, clientH);",
+    "new": "navalCrewLines(proj, view, mwv.eye, dt);",
+    "tests": ["test/scenes/worldframekept.test.js"]
+  },
+  {
+    "name": "FRAME-GARBAGE-the-wild-marks-are-not-handed-the-size",
+    "file": "src/scenes/world.js",
+    "old": "wildMarksFrame(proj, view, mwv.eye, clientW, clientH);",
+    "new": "wildMarksFrame(proj, view, mwv.eye);",
+    "tests": ["test/scenes/worldframekept.test.js"]
+  },
+  {
+    "name": "FRAME-GARBAGE-the-ships-tags-ask-the-layout-whatever-they-are-handed",
+    "file": "src/scenes/world.js",
+    "old": "    const w = clientW >= 0 ? clientW : canvas.clientWidth, h = clientH >= 0 ? clientH : canvas.clientHeight, rect = worldViewportRect(w, h);   // the street frame's own read",
+    "new": "    const w = canvas.clientWidth, h = canvas.clientHeight, rect = worldViewportRect(w, h);   // the street frame's own read",
+    "tests": ["test/scenes/worldframekept.test.js"]
+  },
+  {
+    "name": "FRAME-GARBAGE-the-crew-bars-ask-the-layout-whatever-they-are-handed",
+    "file": "src/scenes/world.js",
+    "old": "      const w = clientW >= 0 ? clientW : canvas.clientWidth, h = clientH >= 0 ? clientH : canvas.clientHeight, rect = worldViewportRect(w, h);\n      // CREW-COMPANIONS: indoors and underground",
+    "new": "      const w = canvas.clientWidth, h = canvas.clientHeight, rect = worldViewportRect(w, h);\n      // CREW-COMPANIONS: indoors and underground",
+    "tests": ["test/scenes/worldframekept.test.js"]
+  },
+  {
+    "name": "FRAME-GARBAGE-the-crew-lines-ask-the-layout-whatever-they-are-handed",
+    "file": "src/scenes/world.js",
+    "old": "      const w = clientW >= 0 ? clientW : canvas.clientWidth, h = clientH >= 0 ? clientH : canvas.clientHeight, rect = worldViewportRect(w, h);\n      for (const l of navalCrew.speech()) {",
+    "new": "      const w = canvas.clientWidth, h = canvas.clientHeight, rect = worldViewportRect(w, h);\n      for (const l of navalCrew.speech()) {",
+    "tests": ["test/scenes/worldframekept.test.js"]
+  },
+  {
+    "name": "FRAME-GARBAGE-the-wild-marks-ask-the-layout-whatever-they-are-handed",
+    "file": "src/scenes/world.js",
+    "old": "const w = clientW >= 0 ? clientW : canvas.clientWidth, h = clientH >= 0 ? clientH : canvas.clientHeight, rect = worldViewportRect(w, h), t = performance.now() / 1000;",
+    "new": "const w = canvas.clientWidth, h = canvas.clientHeight, rect = worldViewportRect(w, h), t = performance.now() / 1000;",
+    "tests": ["test/scenes/worldframekept.test.js"]
+  },
+  {
+    "name": "FRAME-GARBAGE-the-near-cells-hold-a-torn-down-bucket-s-lists",
+    "file": "src/player/collider.js",
+    "old": "  for (let i = n; i < nearHeld; i++) NEAR[i] = null;\n  nearHeld = n;\n",
+    "new": "  nearHeld = n;\n",
+    "tests": ["test/player/keptscratch.test.js"]
+  },
+  {
+    "name": "FRAME-GARBAGE-the-walk-list-emptied-and-pushed-again",
+    "file": "src/scenes/world.js",
+    "old": "pixelsInto(_pixelOrder, built, state.current.x, state.current.y);",
+    "new": "_pixelOrder.length = 0; for (const p of built.values()) { p._dist2 = (p.px - state.current.x) ** 2 + (p.py - state.current.y) ** 2; _pixelOrder.push(p); }",
+    "tests": ["test/scenes/worldframekept.test.js"]
+  },
+  {
+    "name": "FRAME-GARBAGE-a-person-s-record-key-made-again-each-frame",
+    "file": "src/scenes/world.js",
+    "old": "const rkey = recordFrameKey(out.record, out.frame);",
+    "new": "const rkey = `${out.record}#${out.frame}`;",
+    "tests": ["test/scenes/worldframekept.test.js"]
+  },
+  {
+    "name": "FRAME-GARBAGE-the-windfall-key-match-leaves-the-object-untaken",
+    "file": "src/systems/windfall.js",
+    "old": "    if (k === sKey) {\n      s = next;\n      return;\n    }\n",
+    "new": "    if (k === sKey) {\n      return;\n    }\n",
+    "tests": ["test/systems/windfallsettle.test.js"]
+  },
+  {
+    "name": "FRAME-GARBAGE-the-skin-override-latched-on-its-first-search",
+    "file": "src/systems/uiSkin.js",
+    "old": "  if (page !== _overrideSearch) {\n",
+    "new": "  if (_overrideSearch === null) {\n",
+    "tests": ["test/systems/uiskinmemo.test.js"]
+  },
+  {
+    "name": "FRAME-GARBAGE-the-stored-skin-latched-on-its-first-reading",
+    "file": "src/systems/uiSkin.js",
+    "old": "  if (stored !== _storedRead) {\n",
+    "new": "  if (_storedRead === undefined) {\n",
+    "tests": ["test/systems/uiskinmemo.test.js"]
+  },
+  {
+    "name": "FRAME-GARBAGE-the-skin-override-parsed-every-ask",
+    "file": "src/systems/uiSkin.js",
+    "old": "  if (page !== _overrideSearch) {\n",
+    "new": "  if (true) {\n",
+    "tests": ["test/systems/uiskinmemo.test.js"]
+  },
+  {
+    "name": "FRAME-GARBAGE-the-stored-skin-cleaned-every-ask",
+    "file": "src/systems/uiSkin.js",
+    "old": "  if (stored !== _storedRead) {\n",
+    "new": "  if (true) {\n",
+    "tests": ["test/systems/uiskinmemo.test.js"]
+  },
+  {
+    "name": "FRAME-GARBAGE-a-kept-mod-key-reads-past-a-set",
+    "file": "src/systems/modSettings.js",
+    "old": "  if (kept?.generation === _generation && !rollingAsTheRoom() && (!kept.page || kept.online === isOnlinePage()))\n",
+    "new": "  if (kept !== undefined && !rollingAsTheRoom() && (!kept.page || kept.online === isOnlinePage()))\n",
+    "tests": ["test/systems/modsettingkept.test.js"]
+  },
+  {
+    "name": "FRAME-GARBAGE-a-kept-mod-key-reads-through-a-room-roll",
+    "file": "src/systems/modSettings.js",
+    "old": "  if (kept?.generation === _generation && !rollingAsTheRoom() && (!kept.page || kept.online === isOnlinePage()))\n",
+    "new": "  if (kept?.generation === _generation && (!kept.page || kept.online === isOnlinePage()))\n",
+    "tests": ["test/systems/modsettingkept.test.js"]
+  },
+  {
+    "name": "FRAME-GARBAGE-a-kept-room-key-reads-past-the-page-going-online",
+    "file": "src/systems/modSettings.js",
+    "old": "  if (kept?.generation === _generation && !rollingAsTheRoom() && (!kept.page || kept.online === isOnlinePage()))\n",
+    "new": "  if (kept?.generation === _generation && !rollingAsTheRoom())\n",
+    "tests": ["test/systems/modsettingkept.test.js"]
+  },
+  {
+    "name": "FRAME-GARBAGE-a-mod-pair-kept-as-one-object",
+    "file": "src/systems/modSettings.js",
+    "old": "  if (isTupleKey(declaredKey(vendor, key))) {\n",
+    "new": "  if (false) {\n",
+    "tests": ["test/systems/modsettingkept.test.js"]
+  },
+  {
+    "name": "FRAME-GARBAGE-a-pair-s-entry-kept-again",
+    "file": "src/systems/modSettings.js",
+    "old": "  if (kept?.generation !== NEVER_KEPT && !rollingAsTheRoom()) keepSetting(vendor, key, value, kept);\n",
+    "new": "  if (!rollingAsTheRoom()) keepSetting(vendor, key, value, kept);\n",
+    "tests": ["test/systems/modsettingkept.test.js"]
+  },
+  {
+    "name": "FRAME-GARBAGE-a-kept-mod-key-never-asked",
+    "file": "src/systems/modSettings.js",
+    "old": "  const kept = _keyKept.get(vendor)?.get(key);\n",
+    "new": "  const kept = undefined;\n",
+    "tests": ["test/systems/modsettingkept.test.js"]
+  },
+  {
+    "name": "FRAME-GARBAGE-the-room-s-own-keys-taken-for-the-player-s",
+    "file": "src/systems/modSettings.js",
+    "old": "  return (!!room && Object.hasOwn(room, key)) || onlineWholeModKey(vendor, key, '', { offline: true });\n",
+    "new": "  return onlineWholeModKey(vendor, key, '', { offline: true });\n",
+    "tests": ["test/systems/modsettingkept.test.js"]
+  },
+  {
+    "name": "FRAME-GARBAGE-a-balance-mod-s-keys-taken-for-the-player-s",
+    "file": "src/systems/modSettings.js",
+    "old": "  return (!!room && Object.hasOwn(room, key)) || onlineWholeModKey(vendor, key, '', { offline: true });\n",
+    "new": "  return !!room && Object.hasOwn(room, key);\n",
+    "tests": ["test/systems/modsettingkept.test.js"]
+  },
+  {
+    "name": "FRAME-GARBAGE-a-room-key-kept-again-without-the-page-s-side",
+    "file": "src/systems/modSettings.js",
+    "old": "    if (kept.page) kept.online = isOnlinePage();\n",
+    "new": "",
+    "tests": ["test/systems/modsettingkept.test.js"]
+  }
+]

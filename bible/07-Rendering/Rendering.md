@@ -36,7 +36,15 @@ numbers, and the renderer is our own code. The player sees it as every frame of 
 - **Culling.** Pure plane extraction and box tests (`src/render/frustum.js`); every pixel's terrain, placement and
   billboard batch is tested. `?cull=off` is the escape hatch.
 - **Batching.** A streamed pixel's static RMB models are one mesh with one sub-mesh per texture
-  (`src/render/staticBatch.js`); a dungeon level and an interior room batch the same way.
+  (`src/render/staticBatch.js`); a dungeon level and an interior room batch the same way. A streamed pixel's batch also
+  keeps its triangles by ground column for the near shadow maps (`Performance-Exterior.md`).
+- **Depth first.** A dungeon level is one mesh drawn a texture at a time, so a pixel can be lit once for each wall
+  drawn over it. Its shadow cells in the view are drawn first, with colour off and depth pushed a little back
+  (`src/render/depthPrepass.js`). The lit draw after them is unchanged. On a GPU that tests depth before shading, a
+  hidden wall then fails the test before it is lit. This runs only when no lit fragment can be discarded: no cutout
+  picture, dissolve, automap slice, view-out pane or glass cut to the view out. It is off by default; `?prepass` or
+  `?prepass=on` turns it on for an A/B on real hardware. The pass adds a draw for each run of cells in the view, and
+  program and vertex-array binds, so compare the two by GPU time, not by the draw and bind counts.
 - **Order.** Opaque meshes first, then the ground (so hidden ground fails the depth test), then the sky passes and the
   far ring at the far plane, shading only the pixels nothing nearer claimed. Water, flats, grass and falling weather
   compose after them.
@@ -109,10 +117,10 @@ far rings, horizon haze and ecotone, which DFU does not draw.
 ## Code and tests
 
 Core: `src/render/renderer.js`, `src/render/contract.js`, `src/render/glProgram.js`, `src/render/renderTarget.js`,
-`src/render/frustum.js`, `src/render/bounds.js`, `src/render/staticBatch.js`, `src/render/billboardKey.js`,
-`src/render/flatAnimation.js` (DFU's animated flats), `src/render/windowEmission.js`, `src/render/fogGlsl.js`,
-`src/render/orderedDither.js`, `src/render/perfMeter.js`, `src/render/glRelease.js`, `src/render/gpuTrail.js` (the
-desktop app's crash trail).
+`src/render/frustum.js`, `src/render/bounds.js`, `src/render/staticBatch.js`, `src/render/depthPrepass.js`,
+`src/render/billboardKey.js`, `src/render/flatAnimation.js` (DFU's animated flats), `src/render/windowEmission.js`,
+`src/render/fogGlsl.js`, `src/render/orderedDither.js`, `src/render/perfMeter.js`, `src/render/glRelease.js`,
+`src/render/gpuTrail.js` (the desktop app's crash trail).
 
 Compile scheduling: `src/render/bootPrograms.js`, `src/render/warmPrograms.js`, `src/render/playPrograms.js`,
 `src/render/mountPrograms.js`, `src/render/idleTurn.js`.
@@ -162,7 +170,8 @@ a cart, a wagon's bench, a dragon, an Admin's /dragon (`src/scenes/auraHost.js` 
 `test/render/aurapixel.test.js` and `test/render/auditaurapixel.test.js`.
 
 Tests: `test/render/glstate.test.js` (every uniform declared where used), `test/render/boot2.test.js` (the entry's
-static reach), `test/render/shadermount.test.js`, `test/render/perfface.test.js`, `test/render/retro1.test.js`.
+static reach), `test/render/shadermount.test.js`, `test/render/perfface.test.js`, `test/render/retro1.test.js`,
+`test/render/depthprepass.test.js` (the level drawn depth first, replayed pixel by pixel beside a twin drawn without).
 
 ## Open
 

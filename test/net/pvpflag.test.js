@@ -286,7 +286,8 @@ test('PVP-SKULL THE OVERWORLD (scenes/travelViewMarks.js, scenes/travelView.js, 
   assert.deepEqual([pvpSkullOf('peer-x'), pvpSkullOf('peer-z')], ['gold', null]);
   const marks = rd('src/scenes/travelViewMarks.js');
   assert.equal(marks.match(/skull: pvpSkullOf\((d|t)\.id\) \}\);/g)?.length, 3, 'the stranger, the near player and the traveller');
-  assert.ok(rd('src/scenes/travelView.js').includes('...(m.skull ? { skull: m.skull } : {}),\n      });'));
+  const view = rd('src/scenes/travelView.js');
+  assert.ok(view.includes('...(mark.skull ? { skull: mark.skull } : {}),\n  };') && view.includes('if (mark.skull) record.skull = mark.skull;'), 'carried to the readout, made and kept');
   const hud = rd('src/ui/travel/travelViewHud.js');
   assert.ok(hud.includes("else if (sk) g.drawImage(sk, inScreen(x - SKULL_PX / 2, SKULL_PX, vw), ly - SKULL_PX - 1, SKULL_PX, SKULL_PX);"));
   assert.ok(hud.includes("q.m.color ?? '', q.m.skull ?? '');"), 'a skull up or down draws the picture again');

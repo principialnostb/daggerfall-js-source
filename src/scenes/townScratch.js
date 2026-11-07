@@ -107,3 +107,26 @@ export function createPersonTextureKeys() {
     return v;
   };
 }
+
+const RECORD_FRAME_KEYS = new Map();
+
+/**
+ * A mobile billboard's record, `record#frame` (the record carries its frame), made once a pair and kept, so the town
+ * loop makes no string a person a frame. A pair packs as the texture key's does; one outside those numbers is made new
+ * each ask, so every answer is the string the template makes.
+ * @param {number} record
+ * @param {number} frame
+ * @returns {string}
+ */
+export function recordFrameKey(record, frame) {
+  const packs =
+    Number.isInteger(record) && Number.isInteger(frame) && record >= 0 && record < 4096 && frame >= 0 && frame < 1024;
+  if (!packs) return `${record}#${frame}`;
+  const packed = record * 1024 + frame;
+  let key = RECORD_FRAME_KEYS.get(packed);
+  if (key === undefined) {
+    key = `${record}#${frame}`;
+    RECORD_FRAME_KEYS.set(packed, key);
+  }
+  return key;
+}

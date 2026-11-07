@@ -1586,6 +1586,11 @@ export function createGrassField(renderer, { keep, ground = null, slope = null, 
     const dz = Math.max(cz * cell + gz - ez, 0, ez - ((cz + 1) * cell + gz));
     return dx * dx + dz * dz;
   };
+  /** update's sweep over the live cells: its inputs are set before `live.forEach(sweepHeld)`, so the callback is made once. */
+  let sweepEx = 0, sweepEz = 0, sweepKeepR2 = 0;
+  const sweepHeld = (held, key) => {
+    if (nearSq(held.cx, held.cz, sweepEx, sweepEz) > sweepKeepR2) { renderer.clearSlot(held.slot); live.delete(key); free.push(held.slot); }
+  };
   return {
     perCell, slots, live,
     /** PERF-EXT21: the floating origin moved by `offset` (streamingWorld's
@@ -1646,10 +1651,9 @@ export function createGrassField(renderer, { keep, ground = null, slope = null, 
       const ecx = Math.floor((ex - gx) / cell), ecz = Math.floor((ez - gz) / cell);   // PERF-EXT21: the eye's cell on the field's grid
       // free what fell out of range. PERF10: cx/cz ride the entry, so
       // this sweep - which runs over every live cell every frame and
-      // usually frees nothing - allocates nothing at all.
-      for (const [key, held] of live) {
-        if (nearSq(held.cx, held.cz, ex, ez) > keepR2) { renderer.clearSlot(held.slot); live.delete(key); free.push(held.slot); }
-      }
+      // usually frees nothing - allocates nothing at all: Map.forEach, in the map's order, no entry array a cell
+      sweepEx = ex; sweepEz = ez; sweepKeepR2 = keepR2;
+      live.forEach(sweepHeld);
       if (pending && nearSq(pending.cx, pending.cz, ex, ez) > fillR2) pending = null;   // PERF-EXT22: walked out of reach before it was done - it would not be begun now either
       // FB1021B (FIELD BUGS 2026-10-21c row 6, a player's CPU profile: grass streaming 11-24% of the main thread): THE
       // RIM IS PLACED BY THE EYE'S APPROACH, NOT BY THE FRAME. PERF-EXT22 placed a rim cell GRASS_SLICE candidates a
