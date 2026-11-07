@@ -2117,7 +2117,7 @@ function staffRelayWord(sev, room) {
     return true;
   }
   if (sev.k === 'tb') {
-    // its boss, its fall - the boss's laugh heard only in its own area: the Bay's region, past it the district (WW6)
+    // its boss, its fall - the boss's laugh heard only in its own area: the Bay's region, past it the district
     const e = staffRaidOfKey(staffEventKey(sev.id))?.staff;
     const home = homeNow();
     return toyboxMomentNews(e, sev.s, { here: !!e && home >= 0 && areaAt(e.px, e.py, () => e.rg) === home });
