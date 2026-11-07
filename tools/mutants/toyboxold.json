@@ -1,0 +1,74 @@
+[
+  {
+    "name": "TOYBOX-OLD-wire-drops-tb",
+    "file": "src/net/wire.js",
+    "old": "    if (m.tb === 1) hello.tb = 1;",
+    "new": "",
+    "tests": [
+      "test/server/toyboxold_relay.test.js"
+    ]
+  },
+  {
+    "name": "TOYBOX-OLD-session-never-says",
+    "file": "src/net/online.js",
+    "old": "    if (isSocialRoom(room)) frame.tb = 1;",
+    "new": "",
+    "tests": [
+      "test/server/toyboxold_relay.test.js"
+    ]
+  },
+  {
+    "name": "TOYBOX-OLD-session-says-everywhere",
+    "file": "src/net/online.js",
+    "old": "    if (isSocialRoom(room)) frame.tb = 1;",
+    "new": "    frame.tb = 1;",
+    "tests": [
+      "test/server/toyboxold_relay.test.js"
+    ]
+  },
+  {
+    "name": "TOYBOX-OLD-attach-drops-tb",
+    "file": "server/src/index.js",
+    "old": " ...(m.tb === 1 && isSocialRoom(a.key) ? { tb: 1 } : {}),",
+    "new": "",
+    "tests": [
+      "test/server/toyboxold_relay.test.js"
+    ]
+  },
+  {
+    "name": "TOYBOX-OLD-everyone-hears",
+    "file": "server/src/staffEvents.js",
+    "old": "  attachment?.tb === 1 ? book : book.filter((event) => !isToyboxEvent(event));",
+    "new": "  book;",
+    "tests": [
+      "test/server/toyboxold_relay.test.js"
+    ]
+  },
+  {
+    "name": "TOYBOX-OLD-nobody-hears",
+    "file": "server/src/staffEvents.js",
+    "old": "  attachment?.tb === 1 ? book : book.filter((event) => !isToyboxEvent(event));",
+    "new": "  book.filter((event) => !isToyboxEvent(event));",
+    "tests": [
+      "test/server/toyboxold_relay.test.js"
+    ]
+  },
+  {
+    "name": "TOYBOX-OLD-fan-ignores-socket",
+    "file": "server/src/staffEvents.js",
+    "old": "room._send(ws, attachment.tb === 1 ? whole : older);",
+    "new": "room._send(ws, whole);",
+    "tests": [
+      "test/server/toyboxold_relay.test.js"
+    ]
+  },
+  {
+    "name": "TOYBOX-OLD-joiner-hears-all",
+    "file": "server/src/staffEvents.js",
+    "old": "  const book = bookFor(attachment, await bookOf(room));",
+    "new": "  const book = bookFor({ tb: 1 }, await bookOf(room));",
+    "tests": [
+      "test/server/toyboxold_relay.test.js"
+    ]
+  }
+]

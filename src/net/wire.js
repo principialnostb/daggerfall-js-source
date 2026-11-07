@@ -2681,6 +2681,7 @@ export function parseClient(text, { hasHello = false } = {}) {
     if (Number.isSafeInteger(m.ll) && m.ll >= 1 && m.ll <= LOOT_HELLO_LAW_WIRE_MAX) hello.ll = m.ll;   // LOOT-DOOR (AUDIT HORIZONTAL B7): the loot this build reads - read as GROUND-GATE's `gl` is
     if (m.ls === 1) hello.ls = 1;   // LEASE1: this build hands its hub's lease to the room (net/roomLease.js) - 1 or nothing, the `w2` law
     if (m.sm === 1) hello.sm = 1;   // STAFF-PANEL5-MESSAGE: this build shows a staff message's box (net/staffMessages.js) - 1 or nothing, the `w2` law: a hub socket without it is "old game, not shown"
+    if (m.tb === 1) hello.tb = 1;   // this build reads a toybox event's fields - 1 or nothing, the `w2` law: a hub socket without it hears no toybox event
     if (m.gh === 1) hello.gh = 1;   // the toybox's ghost, asked again at a hello while it is on (server/src/staffGhost.js) - the relay asks the glyphs
     if (m.fv === 1) hello.fv = 1;   // STAFF-PANEL5-FREEZE: this build shows the freeze screen (net/staffChat.js) - 1 or nothing; a frozen account's socket from a build without it is closed with the reload words
     return hello;

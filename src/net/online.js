@@ -2559,7 +2559,8 @@ export class OnlineSession {
     if (isCellRoom(room)) frame.cv = CELL_HELLO_LAW;   // COST-2 part two: the cell law this build stands on - a coarse node refuses a cell's hello without it (net/wire.js)
     if (lootRoom(room)) frame.ll = LOOT_HELLO_LAW;   // LOOT-DOOR (AUDIT HORIZONTAL B7): the loot this build reads, to a room whose words carry a shared list (net/wire.js)
     if (leaseRoom(room)) frame.ls = 1;   // LEASE1: this build hands its hub's lease to the room
-    if (isSocialRoom(room)) frame.sm = 1;   // STAFF-PANEL5-MESSAGE: this build shows a staff message's box - a hub link without it is "old game, not shown"
+    if (isSocialRoom(room)) frame.sm = 1;
+    if (isSocialRoom(room)) frame.tb = 1;   // this build reads a toybox event's fields - an older game reads one as a plain staff event and stands its monsters at once   // STAFF-PANEL5-MESSAGE: this build shows a staff message's box - a hub link without it is "old game, not shown"
     if (this._ghost) frame.gh = 1;   // the toybox's ghost, from the hello on: a crossing or a reconnect never shows it
     frame.fv = 1;   // STAFF-PANEL5-FREEZE: this build shows the freeze screen - a relay closes a frozen account's socket from a build that cannot
     return frame;
