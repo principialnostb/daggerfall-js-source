@@ -12,7 +12,9 @@ import {
   staffEventKey,
   staffEventIdOf,
   isAreaEvent,
+  staffEventBegun,
   STAFF_EVENTS_MAX,
+  TB_DRAGON,
 } from '../net/staffEvent/staffEventLaw.js';
 import { raidTownIs } from '../world/raidShared.js'; // WW6: a town's event's town - the Bay's by region and location, past the Bay by its own index
 
@@ -134,11 +136,13 @@ export const staffRaidOfKey = (key) => {
  * THE EVENT I STAND IN, or null: a town's while I stand in its town (the host's `townHere` - outdoors, in the rect, the
  * raid's own test - WW6: a town past the Bay by its own location index, world/raidShared.js raidTownIs); an area's while
  * I stand outdoors on its pixel.
+ * A toybox event stands for no one before its `go` (the relay's clock); a Dragon Attack never does (dragonHost.js).
  * @param {{regionIndex: number, locationIndex: number}|null} town @param {{x: number, y: number}|null} px @param {boolean} outdoors
+ * @param {number} [nowMs]
  */
-export function staffRaidHere(town, px, outdoors) {
+export function staffRaidHere(town, px, outdoors, nowMs = Date.now()) {
   for (const r of _raids.values()) {
-    if (r.cleansed) continue;
+    if (r.cleansed || r.staff.tb === TB_DRAGON || !staffEventBegun(r.staff, nowMs)) continue;
     if (isAreaEvent(r.staff) ? outdoors && !!px && px.x === r.px && px.y === r.py : raidTownIs(r, town)) return r;
   }
   return null;

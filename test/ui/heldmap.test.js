@@ -3506,3 +3506,25 @@ test('MAP-SCALE (FIELD BUGS 2026-10-09e, "icons and text too small on high resol
     } finally { setPref('mapScale', 'auto'); delete globalThis.innerWidth; delete globalThis.innerHeight; }
   });
 });
+
+test('the held map: the sheet stays down and hidden until its painting lands, so no ink stands over the world', () => {
+  withDocument(() => {
+    const win = mkWin();
+    win._artIn = false;   // a browser's picture still on its way (a stand-in DOM has none to wait for)
+    for (let i = 0; i < 20; i++) win.tick(0.05);
+    assert.equal(win._phase, 'opening', 'the rise holds while the painting is out');
+    assert.equal(win._chrome.root.style.visibility, 'hidden');
+    win._chrome.sprite.onload();
+    open(win);
+    assert.equal(win._phase, 'map', 'and rises once it lands');
+    assert.equal(win._chrome.root.style.visibility, '');
+    win.dispose();
+  });
+  withDocument(() => {
+    const win = mkWin();
+    win._artIn = false;
+    for (let i = 0; i < 100; i++) win.tick(0.05);
+    assert.equal(win._phase, 'map', 'a painting that never lands holds the map three seconds at most');
+    win.dispose();
+  });
+});

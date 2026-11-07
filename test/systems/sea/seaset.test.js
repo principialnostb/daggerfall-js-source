@@ -12,7 +12,7 @@ import {
 import { setSigilOnline, setSigilRenown, SIGIL_STAGES, SIGIL_SET_IDS, SIGIL_POWER_MAX, _resetSigilForTests } from '../../../src/systems/sigil/sigil.js';
 import { WORLD_SET_IDS, BRIEF_MAX, SET_STAGE_MAX, setById, raidSetOf, tierValues, _resetSigilSetsForTests } from '../../../src/systems/sigil/sigilSets.js';
 import {
-  AETHERIC_RECORDS, STARSPUN_SET_PIECES, ELTHERIC_SET_PIECES, ELTHERIC_CHANCE, SERPENT_SET_POWER, TIDEMAIL_SALT, elthericChance, rollElthericPiece,
+  AETHERIC_RECORDS, STARSPUN_SET_PIECES, ELTHERIC_SET_PIECES, DEFENDER_SET_PIECES, ELTHERIC_CHANCE, SERPENT_SET_POWER, TIDEMAIL_SALT, elthericChance, rollElthericPiece,
   aethericMaterial, mintAetheric, validSetMarks, AETHERIC,
 } from '../../../src/systems/aetheric.js';
 import { seaPlaceBand, seaPileSource, seaPileMore } from '../../../src/systems/sea/seaSpoils.js';
@@ -64,8 +64,8 @@ const bandX = (id) => Math.floor(VEIL_X - BANDS.find((b) => b.id === id).from * 
 const place = (px, py, kind = 'ruin', extra = {}) => ({ ...synthesizeEtherLocation({ name: 'T', mapTableData: { mapId: 1, longitude: 0, latitude: 0 }, exterior: { exteriorData: {} } }, { key: `${px},${py}`, cx: 9, cy: 9, px, py, kind, name: 'Old Thal' }), ...extra });
 
 test('SEA-SET THE LAW: the Eltheric Tidemail last of every set - Aetheric, the Drowned Queen its patron, the aether\'s blue its colour, no raiding party\'s, never a world set; Stormwrack, Undertow and the Captain\'s Due at 2, 4 and 6 pieces with the design\'s numbers Faint to Ascendant, every brief inside BRIEF_MAX at every stage (mutants: a tier\'s number; the set\'s place; a world set)', () => {
-  assert.deepEqual(SIGIL_SET_IDS.slice(-1), ['eltheric']);
-  assert.deepEqual(Object.keys(setById('starspun') ? Object.fromEntries(SIGIL_SET_IDS.map((k) => [k, 1])) : {}).slice(-2), ['starspun', 'eltheric']);
+  assert.deepEqual(SIGIL_SET_IDS.slice(-2), ['eltheric', 'defender']);
+  assert.deepEqual(Object.keys(setById('starspun') ? Object.fromEntries(SIGIL_SET_IDS.map((k) => [k, 1])) : {}).slice(-3), ['starspun', 'eltheric', 'defender']);
   const s = setById('eltheric');
   assert.deepEqual([s.id, s.name, s.prince, s.colour, s.aetheric, 'raid' in s, s.role],
     ['eltheric', 'The Eltheric Tidemail', 'The Drowned Queen', '#6fcfe6', true, false, 'What the deep gives back to those who sail it']);
@@ -101,7 +101,7 @@ test('SEA-SET THE RECORDS: nine in the places\' order - the seven body pieces, a
   }
   const resists = ELTHERIC_SET_PIECES.flatMap((r) => r.affixes.filter((a) => a.id === 'resist').map((a) => a.param));
   assert.deepEqual(resists.sort(), ['fire', 'frost', 'magic', 'poison'], 'one of each element at most, never shock (Stormwrack carries it)');
-  assert.deepEqual(AETHERIC_RECORDS.slice(-ELTHERIC_SET_PIECES.length - STARSPUN_SET_PIECES.length), [...STARSPUN_SET_PIECES, ...ELTHERIC_SET_PIECES]);
+  assert.deepEqual(AETHERIC_RECORDS.slice(0, -DEFENDER_SET_PIECES.length).slice(-ELTHERIC_SET_PIECES.length - STARSPUN_SET_PIECES.length), [...STARSPUN_SET_PIECES, ...ELTHERIC_SET_PIECES]);
   assert.equal(new Set(AETHERIC_RECORDS.map((r) => r.id)).size, AETHERIC_RECORDS.length, 'every id its own');
 });
 

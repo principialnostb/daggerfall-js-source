@@ -18,6 +18,7 @@
 import { raidActive, raidKey, raidTypeName } from '../systems/raidingParties.js';
 import { MAP_WIDTH, MAP_HEIGHT } from '../formats/woodsFile.js';
 import { raidKillsX } from '../systems/raidKinds.js'; // RAID-BANNER
+import { t } from '../systems/textManager.js';
 
 /** The bay, when a caller does not say. */
 const BAY = Object.freeze({ width: MAP_WIDTH, height: MAP_HEIGHT });
@@ -27,6 +28,26 @@ const BAY = Object.freeze({ width: MAP_WIDTH, height: MAP_HEIGHT });
 export const RAID_MARK_CSS = '#d8284b';
 /** What the legend calls it. */
 export const RAID_LEGEND_TEXT = 'Town under attack';
+/** A mark's own icons beside the raided town's (a host's `icon`): an invasion's, in its purple (inkMap.js
+ *  paintInvasionMark), and a dragon attack's, in its orange (paintDragonMark). Its `text` is drawn by it, as the timer
+ *  reads. */
+export const RAID_ICONS = Object.freeze(['invasion', 'dragon']);
+export const INVASION_MARK_CSS = '#a13fe0';
+/** What the legend calls an invasion. */
+export const invasionLegendText = () => t('map.legend.invasion', 'Invasion');
+/** Its words' ink: the purple darkened, so small letters keep their contrast on the parchment. */
+export const INVASION_TEXT_CSS = '#64179a';
+/** A dragon attack's orange: yellower than the gate's ring, so the two never read as one. */
+export const DRAGON_MARK_CSS = '#f08c1a';
+/** What the legend calls a dragon attack. */
+export const dragonLegendText = () => t('map.legend.dragon', 'Dragon Attack');
+/** Its words' ink: the orange darkened, for the parchment. */
+export const DRAGON_TEXT_CSS = '#8f4a05';
+/** Each icon's legend row: its colour and its words. */
+export const raidIconLegend = () => [
+  { icon: 'invasion', css: INVASION_MARK_CSS, text: invasionLegendText() },
+  { icon: 'dragon', css: DRAGON_MARK_CSS, text: dragonLegendText() },
+];
 /** A tip's title, in the card's own words. */
 export const RAID_TIP_TITLE = 'Raiding Party';
 /** A tip's bounds: a title and at most this many lines, each at most this long - a host's word is text, and a card that
@@ -162,6 +183,7 @@ export function readRaidMarksIn(fn, box) {
         y: py + 0.5,
         label: String(m.label ?? '').slice(0, TIP_TEXT_MAX),
         tip: readTip(m.tip),
+        ...(RAID_ICONS.includes(m.icon) ? { icon: m.icon, text: String(m.text ?? '').slice(0, TIP_TEXT_MAX) } : {}),
       }),
     );
   }
@@ -169,7 +191,7 @@ export function readRaidMarksIn(fn, box) {
 }
 /** What the held map repaints its raids on: where they stand and what they say. */
 export const raidMarksKey = (marks) =>
-  marks.map((m) => `${m.key}@${m.px},${m.py}|${m.label}|${tipKey(m.tip)}`).join(';');
+  marks.map((m) => `${m.key}@${m.px},${m.py}|${m.label}|${m.icon ?? ''}|${m.text ?? ''}|${tipKey(m.tip)}`).join(';');
 
 /**
  * Where a tip card stands: beside the pointer (down and right by `gap`), turned to the other side of it where the

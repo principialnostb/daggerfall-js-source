@@ -55,6 +55,14 @@ export const foldMpOf = (e) => {
   const v = e?._mods?.magicka;
   return Number.isFinite(v) && v > 0 ? Math.trunc(v) : 0;
 };
+/** The folds' per cent on the maximum health (entityMods.js's `healthPct` channel): whole, never negative. A set gives
+ *  it, and sets work online alone, so a save takes it off with the layer. */
+export const foldHealthPctOf = (e) => {
+  const healthPct = e?._mods?.healthPct;
+  return Number.isFinite(healthPct) && healthPct > 0 ? Math.trunc(healthPct) : 0;
+};
+/** The folds' health on a maximum of `own`: its per cent, whole. */
+export const foldHpOn = (e, own) => Math.trunc(((Number(own) || 0) * foldHealthPctOf(e)) / 100);
 /** EG15: every online term on the maximum magicka - Renown's and the folds' - what a save and the magery take off. */
 export const onlineMpOf = (e) => renownMpOf(e) + foldMpOf(e);
 
@@ -151,11 +159,14 @@ export function setSpireHp(entity, hp) {
  */
 export function offlineVitals(entity) {
   const hp = renownHpOf(entity),
+    pct = foldHealthPctOf(entity),
     mp = onlineMpOf(entity); // EG15: and the folds' magicka (the Battlemage's Bearing)
   const out = { health: entity?.health, magicka: entity?.magicka, maxMagicka: entity?.maxMagicka };
-  if (hp) {
+  if (hp || pct) {
     // the offline maximum is the stored one under the limiter, exactly as the accessor reads it with no layer
-    const raw = Number.isFinite(entity.rawMaxHealth) ? entity.rawMaxHealth : Math.max(0, entity.maxHealth - hp);
+    const raw = Number.isFinite(entity.rawMaxHealth)
+      ? entity.rawMaxHealth
+      : Math.max(0, Math.trunc((entity.maxHealth - hp) / (1 + pct / 100)));
     const lim = entity.maxHealthLimiter;
     const off = lim >= 1 && lim < raw ? lim : raw;
     out.health = keepFraction(entity.health, entity.maxHealth, off);

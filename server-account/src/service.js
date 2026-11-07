@@ -515,6 +515,10 @@ export const ROUTES = new Set([
   // CUSTOMS-PASS: a developer grants one account one character through
   // customs - the same wall, the developers' list alone.
   '/v1/mod/customs-pass',
+  // The toybox's grant: a developer's game session sends a piece it made through the server's post (devToybox.js)
+  '/v1/dev/item/grant',
+  // The toybox's events: a developer's game session stages an invasion or a dragon attack (devEvents.js)
+  '/v1/dev/event',
   // INT6: the review of the judge's verdicts - the same wall, the developers' list alone (review.js)
   '/v1/mod/realm-holds',
   '/v1/mod/realm-findings',

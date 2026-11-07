@@ -389,7 +389,7 @@ test('COATS3D by source: the view keeps the saddle and lifts RIDE-POV astride; t
   assert.match(v, /if \(!horse \|\| !horseRig\?\.ready\(\) \|\| !feet \|\| !fpArm\.canThirdPerson\(\)\) \{\n\s*dropOwnHorse\(\);\n\s*return false;\n\s*\}/, 'no horse, no rig or no Morrowind body: RIDE-POV as it stood');
   assert.match(v, /export const mwViewSaddle = \(\) => \(saddled \? ownSaddle : null\);/);
   assert.match(v, /export function mwViewHorseRig\(\) \{\n\s*return horseRig\?\.ready\(\) && !eotbLane\(\) && fpArm\.canThirdPerson\(\) \? horseRig : null;/, 'the world\'s horses 3D on the Morrowind lane alone');
-  assert.match(v, /return fpArm\.drawThird\(canvas, \{\n\s*proj,\n\s*view,\n\s*eye,\n\s*feet,\n\s*yaw,\n\s*grow: face\?\.grow > 1 \? face\.grow : 1,\n\s*up: face\?\.up \?\? null,\n\s*horse,\n\s*\}\);/);
+  assert.match(v, /return fpArm\.drawThird\(canvas, \{\n\s*proj,\n\s*view,\n\s*eye,\n\s*feet,\n\s*yaw,\n\s*grow: face\?\.grow > 1 \? face\.grow : 1,\n\s*up: face\?\.up \?\? null,\n\s*horse,\n\s*conceal: ghostSelfVeil\(\),[^\n]*\n\s*\}\);/);
   assert.match(v, /if \(saddled && ownSaddle\)\n\s*feet = \[feet\[0\], feet\[1\] \+ Math\.max\(0, ownSaddle\.seat\[1\] - feet\[1\] - SEAT_PELVIS_HEIGHT \* heightScale\), feet\[2\]\];\n\s*const eye = mwCamera\.eye\(\{ fpEye, feet,/, 'the third-person camera about the rider\'s head');
   for (const h of ['world', 'exterior']) {
     const s = rd(`src/scenes/${h}.js`);

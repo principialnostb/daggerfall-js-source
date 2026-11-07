@@ -43,7 +43,8 @@ law (`SIGIL_CHANCE_BASE` per mille, `SIGIL_CHANCE_PER` more a fighter past the f
 weapon's sigil joins a set one time in `SET_WEAPON_JOIN_IN`. A piece never gains or loses a sigil after it is won.
 
 **Aetheric** (`src/systems/aetheric.js`). The top rung under Artifact, with its own colour, pip, frame and worth
-(`AETHERIC_WORTH`). Nothing rolls it: each Aetheric set is nine fixed records (`AETHERIC_RECORDS`) from one source.
+(`AETHERIC_WORTH`). Nothing rolls it: each Aetheric set is fixed records (`AETHERIC_RECORDS`) from one source, nine to
+a set but the Realm Defender's.
 
 | Set | Source |
 |---|---|
@@ -55,8 +56,23 @@ weapon's sigil joins a set one time in `SET_WEAPON_JOIN_IN`. A piece never gains
 | The Wyrd's Raiment | the Witches' Festival |
 | The Starspun Weave | the Starfall, `STARSPUN_SET_CHANCE` |
 | The Tidemail | the deep sea's legends, vaults and hoards (`ELTHERIC_CHANCE`) |
+| The Realm Defender | an invasion boss's reward, one roll in five (`INVASION_REWARD_TABLE`) |
 
 Each is rolled after everything its event's spoils already roll, so earlier rolls never move.
+
+**The Realm Defender** (`DEFENDER_SET_PIECES`). The invasion boss's own set has a record for every Daedric piece a set
+is worn as: seven body pieces, four shields and every weapon but the arrow. Each is named "The Realm Defender's" and the
+piece's own name, such as the Cuirass or the Dai-Katana. Every number is the Legendary band's top. No piece carries a
+magic, fire or shock resistance. Its tiers hold the same numbers at every stage:
+
+| Pieces | Tier | What it does |
+|---|---|---|
+| 2 | Talos's Principle | +20 magic, fire and shock resistance |
+| 4 | Azura's Prophecy | each weapon hit +5 magic damage; each landed hit +3 magicka |
+| 6 | Meridia's Preservation | each landed hit heals 5% of health; each hit +5 fire damage; +20% maximum health |
+
+The maximum health rides the folds' `healthPct` channel on Daggerfall's own maximum, and a save takes it off. A foe
+that resists magic or fire takes half of that damage.
 
 **The Sigil Broker** (`src/systems/sigil/sigilBroker.js`, `src/ui/brokerWindow.js`). A Daedra trader held caged at each
 breach's rite circle, freed when its faithful fall, standing until the Wrath. Her stock is the UTC day's, minted from the

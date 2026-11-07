@@ -1,6 +1,6 @@
 # Gilded
 
-Gilded is the loot ladder's top rung, above Artifact: five named weapons, each a static roll, each the rare last
+Gilded is the loot ladder's top rung, above Artifact: six named weapons, each a static roll, each the rare last
 draw of one of the hardest fights online. The player meets it as a crimson name with a gold crown set with red jewels,
 and a crimson glow on the weapon in hand. Daggerfall has no rarity ladder; this is the game's own.
 
@@ -11,7 +11,7 @@ and a crimson glow on the weapon in hand. Daggerfall has no rarity ladder; this 
 ladder's roll takes the rolled tiers alone, so no drop, pile, shelf, Broker or Reforge lands on it. A Gilded piece adds
 12,500 to its price (`GILDED_WORTH`).
 
-**The five records** (`src/systems/gilded.js` `GILDED_RECORDS`). Each line stands at the Legendary band's top and no
+**The six records** (`src/systems/gilded.js` `GILDED_RECORDS`). Each line stands at the Legendary band's top and no
 higher; each power is something nothing else has:
 
 | Record | Weapon | Power | From |
@@ -21,8 +21,10 @@ higher; each power is something nothing else has:
 | The Sunken Sovereign | Ebony Saber | Undertow: +10% a hit on a foe for 6 s, to +50%; a kill heals 10% | a dealing ship's serpent hoard, 1 in 250 |
 | Volendrung's Echo | Dwarven Thunderlock | Hammerfall: a hit rings half the shot as shock on every other foe within 3.5 m | the Sky-Ketch's Tonal Warden, 1 in 100 |
 | The Ketchmaster's Word | Dwarven Pistolet | Broadside: a hit marks the foe; the other hand's next blow on it +60% | the Sky-Ketch's Tonal Warden, 1 in 100 |
+| Retribution's Call | Daedric Katana | Retribution: +8 fire a hit, half on a foe that resists fire | an invasion boss's reward, 1 in 20 |
 
-Each drop is the last draw of its spoils, so every earlier spoils stays what it was for its seed. Guns drop only from
+Retribution's Call carries +40% damage, +30 Long Blade and +15 Critical Strike. Its +8 fire is a power, at the top any power's
+flat a hit reaches (`src/systems/toybox/invasionRewards.js`). Every other drop is the last draw of its spoils, so every earlier spoils stays what it was for its seed. Guns drop only from
 the Sky-Ketch. An Hourlock minted as a Thunderlock or a Sunken Sovereign minted as a Pistolet stays lawful as its
 record's era (`HOURLOCK_GUN_ERA`, `SOVEREIGN_PISTOLET_ERA`) and are never minted again.
 
@@ -58,6 +60,8 @@ own: `CreateWeapon` for the bow, dai-katana and saber, the item maker's rows, an
 ## Code and tests
 
 - `src/systems/gilded.js` - the records, powers, chances, mint, eras and the wire's check
+- `src/systems/toybox/invasionRewards.js` - the invasion boss's reward roll
 - `src/systems/loot/lootRarity.js` - the rung; `src/systems/loot/lootPowers.js` - the powers
 - `src/systems/enchanting.js` - the item maker's rules for a Gilded piece
-- `test/systems/gilded1_gilded.test.js`, `test/systems/gildedmaker.test.js`, `test/systems/gildedglow.test.js`
+- `test/systems/gilded1_gilded.test.js`, `test/systems/gildedmaker.test.js`, `test/systems/gildedglow.test.js`,
+  `test/systems/invasionrewards.test.js`

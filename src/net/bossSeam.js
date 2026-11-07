@@ -57,6 +57,14 @@ import {
   dragonEarned,
 } from './dragon/dragonBrain.js'; // DRAGON2
 import { judgeGate, judgeRemnant, judgeSerpent, judgeDragon } from './bossRef.js';
+import {
+  newInvasionFight,
+  joinInvasion,
+  applyInvasionHit,
+  stepInvasion,
+  invasionStateOf,
+  invasionEarned,
+} from './invasion/invasionBrain.js';
 
 /** The contract's members, in the page's order. */
 export const BOSS_SEAM_KEYS = Object.freeze(['new', 'join', 'hit', 'step', 'stateOf', 'judge', 'earned']);
@@ -120,4 +128,16 @@ export const DRAGON_SEAM = bossSeam('dragon', {
   stateOf: dragonStateOf,
   judge: judgeDragon,
   earned: dragonEarned,
+});
+/** AN INVASION'S FIGHT: born of `{ ev, sx, sz, now }`; a blow names its foe in `o.i` (0 the boss). Its foes' blows are
+ *  judged on the struck player's machine, as the gate's host's are, so the relay judges none on its trails. */
+export const INVASION_SEAM = bossSeam('invasion', {
+  new: (birth) => newInvasionFight(birth),
+  join: (fight, sub, name, level, now) => joinInvasion(fight, sub, name, level, now),
+  hit: (fight, sub, claim, kind, pose, now, _seq = null, opts = {}) =>
+    applyInvasionHit(fight, sub, claim, kind, pose, now, opts.i),
+  step: stepInvasion,
+  stateOf: invasionStateOf,
+  judge: () => [],
+  earned: invasionEarned,
 });

@@ -143,7 +143,9 @@ import {
   staffEventLedger,
   staffRaidOfKey,
 } from './staffEvents.js'; // STAFF-EVENT: a staff event runs as a raid
-import { validStaffEventIn, staffEventKey, STAFF_EVENT_AREA } from '../net/staffEvent/staffEventLaw.js'; // WW6: an area's own word
+import { isToyboxEvent } from '../net/staffEvent/toyboxEvent.js'; // a developer's invasion or dragon attack, shown as a staff event
+import { toyboxBookNews, toyboxMomentNews } from './toybox/toyboxNews.js'; // and its news, on every screen
+import { validStaffEventIn, staffEventKey, STAFF_EVENT_AREA, TB_INVASION } from '../net/staffEvent/staffEventLaw.js'; // WW6: an area's own word
 import { readStaffReceipt } from '../net/staffEvent/staffEventReceipt.js'; // STAFF-EVENT THE REWARD: my receipt
 import { pilotKey, PILOT_CLAIM_AGE } from './staffBossPilot.js'; // STAFF-PILOT: a staff member steering its event's boss runs the event
 import { promoteStaffBoss, promoteRaidLeader } from './eliteFoes.js'; // STAFF-EVENT: its mini boss; RAID5: a raid's leader
@@ -924,7 +926,11 @@ function spawn(raid, kind, mobileType, o = undefined, pack = null) {
         return;
       }
       if (boss) {
-        promoteStaffBoss(foe.entity, { sizePct: raid.staff.bs, healthX: raid.staff.bh, hp: raid.staff.hp });
+        promoteStaffBoss(foe.entity, {
+          sizePct: raid.staff.bs,
+          healthX: raid.staff.bh,
+          hp: raid.staff.hp,
+        });
         raid.bossUp = 1;
         raid.bossDown = 0;
         raid.clearSince = undefined;
@@ -964,16 +970,20 @@ function spawn(raid, kind, mobileType, o = undefined, pack = null) {
   );
 }
 
+/** Is it a toybox event's raid? @param {any} raid */
+const toyboxRaid = (raid) => !!raid && isToyboxEvent(raid.staff);
+
 /**
  * Update [IL_0428], one frame. `dt` is the frame's time, held by a pause (fix 7). Answers what it did, for the pins:
  * null (off, online, or waiting for the picker), 'idle' (no raid here), 'waiting' (a spawn in flight), or the spawn
- * it started ('defender' / 'raider').
+ * it started ('defender' / 'raider'). With the mod off, a toybox event still runs: a developer's test is not the mod's.
  */
 export function raidFrame(dt = 0) {
-  if (!raidingPartiesOn()) return null;
+  const tbOnly = !raidingPartiesOn(); // the mod off: the toybox events alone, no raid of the mod's rolled, said or stood
+  if (tbOnly && !staffRaids().some(toyboxRaid) && !staffRaidsEnded().some(toyboxRaid)) return null;
   const h = host();
   const now = (h.now ?? worldMinutes)();
-  const day = Math.floor(now / MINUTES_PER_DAY);
+  const day = tbOnly ? state.lastSelectedDay : Math.floor(now / MINUTES_PER_DAY); // the mod off: its day never rolled
   const region = h.regionIndex?.() ?? -1;
   const home = homeNow(region); // WW6: the area I am told of raids in - my region on the Bay, my district past it
   _nextSpawnIn -= dt;
@@ -1000,12 +1010,14 @@ export function raidFrame(dt = 0) {
   staffPuppetKills(puppets, now);
   tallyDeaths(now);
   const relay = raidRelayOn();
-  for (const r of state.raids) if (!relay && raidActive(r, now) && raidKillTotal(r) >= r.attackAmount) cleanse(r); // RAID2: the owners' shares summed; RAID3: at a raid relay, its cleanse alone
+  for (const r of tbOnly ? [] : state.raids)
+    if (!relay && raidActive(r, now) && raidKillTotal(r) >= r.attackAmount) cleanse(r); // RAID2: the owners' shares summed; RAID3: at a raid relay, its cleanse alone
   if (_sweepIn <= 0) {
     _sweepIn = ACTOR_SWEEP_S;
     sweep();
   }
   for (const r of staffRaidsEnded()) {
+    if (tbOnly && !toyboxRaid(r)) continue;
     r.routed = true;
     routRaid(r);
     if (r.announced) say(staffEndLine(r), r);
@@ -1032,9 +1044,9 @@ export function raidFrame(dt = 0) {
     _lastRegion = region;
   }
   if (sharedClockOn()) _dayFromSave = false; // AUDIT LIVED1b A3: the save's record has met the world's day (an offline frame is not the world's)
-  syncLanes(); // WW6: the lanes past the Bay, rolled for the same day off the registry's towns there (the Bay's list untouched)
+  if (!tbOnly) syncLanes(); // WW6: the lanes past the Bay, rolled for the same day off the registry's towns there (the Bay's list untouched)
   // C. the raids that ran out [IL_0540-IL_05b9]
-  expire(now, home);
+  if (!tbOnly) expire(now, home);
   // D. a new region cancels the spawn in flight [IL_05b9]
   if (region !== _lastRegion) {
     _lastRegion = region;
@@ -1043,7 +1055,7 @@ export function raidFrame(dt = 0) {
   // E. the region's raids, each announced once (fix 3), never at sea (fix 8). WW6: the AREA's - my region on the Bay, as
   // the mod has it; past the Bay my district (a province is some thirty of a region's size - its every raid said to all of it
   // was a line every few minutes), each line naming its province
-  if (home >= 0) {
+  if (home >= 0 && !tbOnly) {
     for (const r of state.raids) {
       if (!raidActive(r, now) || raidHome(r) !== home || r.announced) continue;
       r.announced = true;
@@ -1051,25 +1063,30 @@ export function raidFrame(dt = 0) {
     }
   }
   // STAFF-EVENT: an event in my region, said once
-  if (region >= 0)
+  if (region >= 0 && !tbOnly)
     for (const r of staffRaids())
-      if (r.regionIndex === region && !r.announced) {
+      if (r.regionIndex === region && !r.announced && !isToyboxEvent(r.staff)) {
+        // a toybox event's news is every screen's (toybox/toyboxNews.js)
         r.announced = true;
         say(staffAttackLine(r), r);
       }
   // F. is the player standing in a raid [IL_0de4]? STAFF-EVENT: in a staff event first - a town's, as a raid's; an
   // area's, outdoors on its pixel (the host's `townHere(true)`: outdoors at all)
   const town = h.townHere?.() ?? null;
-  const raid =
-    staffRaidHere(town, h.playerPixel?.() ?? null, !!h.townHere?.(true)) ??
-    (town ? state.raids.find((r) => raidActive(r, now) && raidTownIs(r, town)) : null); // WW6: a town past the Bay by its own index
-  if (raid?.staff && staffBossToSay(raid) >= 0) say(staffBossLine(raid), raid);
+  const here = staffRaidHere(town, h.playerPixel?.() ?? null, !!h.townHere?.(true), (h.relayNow ?? Date.now)()); // the host's relayNow(): a toybox event stands nothing before its `go`
+  const sraid = here?.staff?.tb === TB_INVASION ? null : here; // an invasion is its cell's to run and this screen's to draw (scenes/invasionField.js)
+  const raid = tbOnly
+    ? toyboxRaid(sraid)
+      ? sraid
+      : null
+    : (sraid ?? (town ? state.raids.find((r) => raidActive(r, now) && raidTownIs(r, town)) : null)); // WW6: a town past the Bay by its own index
+  if (raid?.staff && staffBossToSay(raid) >= 0 && !isToyboxEvent(raid.staff)) say(staffBossLine(raid), raid);
   // RAID3: my word to the town's ledger, whoever runs the raid. FIELD BUGS 2026-10-11g RAID-WORD ("Doesn't register raid
   // 20%ish of the time"): the relay credits a word said from the town's PIXEL (server/src/index.js _raidWord's `here`,
   // the mod's own reward test), and the rect is narrower - a hamlet's ~300 m in an 819 m pixel. A fight that drifted past
   // the rect tallied its deaths here and never said them: the town's count stood short of its target, nothing was
   // cleansed, and the raid withdrew. Past the rect, on the pixel, a raid I fought is still said; it stands no one there.
-  const said = raid ?? (relay ? raidOnMyPixel(now) : null);
+  const said = raid ?? (relay && !tbOnly ? raidOnMyPixel(now) : null);
   if (said?.staff)
     sayToCell(said); // STAFF-EVENT: its cell keeps its meter
   else if (relay && said) sayToRelay(said);
@@ -1872,14 +1889,16 @@ function staffPackStep(raid, standing) {
   const key = raidKey(raid);
   if (_pack && (_pack.key !== key || _pack.left <= 0)) _pack = null;
   const sc = staffPackScale(host().peerFeetInTown?.()?.length ?? 1); // PACK-SCALE: the players here
-  if (!staffRaidRoom(raid, standing, sc.cap)) {
+  const wave = isToyboxEvent(raid.staff) ? 0 : Infinity; // a toybox event stands no pack: its foes are its cell's
+  if (wave <= 0 || (wave === Infinity && !staffRaidRoom(raid, standing, sc.cap))) {
     _pack = null;
     scheduleNextSpawn(raid.type);
     return 'idle';
   }
   raid.fillS ??= staffPackPaceS(rnd()); // the event's pace, once
+  if (_pack && _pack.left > wave) _pack.left = wave;
   if (!_pack) {
-    const size = rangeInt(STAFF_PACK_MIN, STAFF_PACK_MAX + 1, rnd());
+    const size = Math.min(wave, rangeInt(STAFF_PACK_MIN, STAFF_PACK_MAX + 1, rnd()));
     _pack = { key, left: size, size, at: null, far: true, near: staffPackPlayer() };
   }
   const pack = _pack;
@@ -2094,8 +2113,10 @@ function staffRelayWord(sev, room) {
   if (!sev) return false;
   if (sev.k === 'ev') {
     staffEventBook(sev.l);
+    toyboxBookNews(sev.l); // a toybox event's staging, said to every screen
     return true;
   }
+  if (sev.k === 'tb') return toyboxMomentNews(staffRaidOfKey(staffEventKey(sev.id))?.staff, sev.s); // its boss, its fall
   if (sev.k === 'end') return staffEventEnd(sev.id, sev.why);
   if (sev.k === 'st') return typeof room === 'string' && isCellRoom(room) && staffEventLedger(sev);
   if (sev.k === 'bd') {

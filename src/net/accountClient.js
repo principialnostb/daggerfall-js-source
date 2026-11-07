@@ -500,6 +500,9 @@ const REFUSAL_WORDS = {
   'bad-find': () => t('account.refusal.badFind', 'That find could not be read.'),   // SILVER-FINDS: a loot find of no kind the service knows
   'marks-young': () => t('account.refusal.marksYoung', 'Silver turns up in finds and gathering once your account is a week old.'),   // AUDIT 625 S1: the witnesses' own age
   'not-developer': () => t('account.refusal.notDeveloper', 'Only a developer may do that.'),   // MARKS1's report, NOTICE1's notices, CUSTOMS-PASS's grant
+  // the toybox's grant (server-account/src/devToybox.js): its target and the item law's own refusal
+  'dev-target-guest': () => t('account.refusal.devTargetGuest', 'A guest account has no mailbox. Grant it to a registered account.'),
+  'toybox-unlawful': () => t('account.refusal.toyboxUnlawful', 'The item law refuses this piece.'),
   // SEAT1a: the seats' registry (server-account/src/townSeats.js)
   'seats-need-account': () => t('account.refusal.seatsNeedAccount', 'The seats are witnessed by registered accounts. Add a username to witness one.'),
   'seats-closed': () => t('account.refusal.seatsClosed', 'The seats are not open yet.'),

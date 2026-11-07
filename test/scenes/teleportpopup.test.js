@@ -214,7 +214,7 @@ test('G5: the service reaches the map through a HOST DOOR, and a host without on
   // hosts do not, which is why the arm has to be optional
   const world = readFileSync(new URL('../../src/scenes/world.js', import.meta.url), 'utf8');
   assert.ok(world.includes('openTeleportMap,'), 'the world host passes it in');
-  const j = world.indexOf('function openTeleportMap()');
+  const j = world.indexOf('function openTeleportMap(opts = {})');
   assert.ok(j > 0);
   const door = world.slice(j, world.indexOf('\n  }', j));
   // U61: the gate is the DOOR's predicate now - the same "no art, no
@@ -246,4 +246,58 @@ test('G5: the service reaches the map through a HOST DOOR, and a host without on
     const src = stripComments(readFileSync(new URL(`../../src/scenes/${other}`, import.meta.url), 'utf8'));
     assert.equal(/openTeleportMap/.test(src), false, `${other} has no streaming world to land in`);
   }
+});
+
+test('TOYBOX: a caller\'s confirm and cancel labels are drawn as text over the art\'s YES and NO, and change nothing else', async () => {
+  const { buttonLabel } = await import('../../src/ui/teleportPopUp.js');
+  assert.equal(buttonLabel(undefined), null, 'no label: the art\'s own word');
+  assert.equal(buttonLabel('  '), null);
+  assert.equal(buttonLabel(' Teleport '), 'Teleport');
+  _setTeleportPopUpArtForTests({ tex: {}, w: TELEPORT_PANEL_W, h: TELEPORT_PANEL_H });
+  try {
+    const font = { tex: null, fnt: { fixedHeight: 6, glyphWidth: () => 4 } };
+    const canvas = { width: 320, height: 200 };
+    const quads = (w) => {
+      const drawn = [];
+      w.draw({ drawScreenQuad: (tex, r, _u, color) => drawn.push({ ...r, color }) }, canvas, font);
+      return drawn;
+    };
+    const inYes = (r) => {
+      const [x, y, bw, bh] = TELEPORT_RECTS.yes;
+      return r.x >= TELEPORT_PANEL_X + x - 1 && r.x < TELEPORT_PANEL_X + x + bw && r.y >= TELEPORT_PANEL_Y + y - 1 && r.y < TELEPORT_PANEL_Y + y + bh;
+    };
+    const plain = quads(mk().w);
+    assert.equal(plain.filter(inYes).length, 0, 'by default the art alone draws YES');
+    const { w, log } = mk({ confirmLabel: 'Teleport', cancelLabel: 'Cancel' });
+    const labelled = quads(w);
+    const yes = labelled.filter(inYes);
+    // the covering face, and 8 glyphs twice (shadow and face)
+    assert.equal(yes.length, 1 + 2 * 'Teleport'.length, 'the face and the label\'s glyphs on the YES rect');
+    assert.ok(labelled.length > plain.length);
+    // the answers are the window's as ever
+    w.click(...mid(TELEPORT_RECTS.yes));
+    assert.ok(log.teleported, 'the labelled button teleports');
+  } finally {
+    _setTeleportPopUpArtForTests(null);
+  }
+});
+
+test('TOYBOX: the travel map threads its confirmLabel and cancelLabel to the popup it raises', async () => {
+  const { TravelMapWindow } = await import('../../src/ui/travel/travelMapWindow.js');
+  const fake = {
+    teleportationTravel: true,
+    locationSummary: { id: 0, regionIndex: 0, mapID: 1, mapIndex: 2 },
+    deps: { confirmLabel: 'Teleport', cancelLabel: 'Cancel' },
+    _getLocationNameInCurrentRegion: () => 'Daggerfall',
+    _shownLocationNameInCurrentRegion: () => 'Daggerfall',
+    _getRegionName: () => 'Daggerfall',
+    closeTravelWindows: () => {},
+  };
+  TravelMapWindow.prototype._createPopUpWindow.call(fake);
+  assert.ok(fake.telePopUp instanceof TeleportPopUpWindow);
+  assert.equal(fake.telePopUp.deps.confirmLabel, 'Teleport');
+  assert.equal(fake.telePopUp.deps.cancelLabel, 'Cancel');
+  fake.deps = {};
+  TravelMapWindow.prototype._createPopUpWindow.call(fake);
+  assert.equal(fake.telePopUp.deps.confirmLabel, undefined, 'a map opened with none raises the classic popup');
 });

@@ -86,6 +86,7 @@ export const EMPTY_MODS = Object.freeze({
   standing: Object.freeze(new Array(STANDING_CHANNELS).fill(0)),
   ...Object.fromEntries(WARDROBE_CHANNELS.map((k) => [k, 0])),
   magicka: 0, // EG15: the maximum magicka's points
+  healthPct: 0, // per cent on Daggerfall's own maximum health (chargen.js defineLiveMaxHealth reads it)
 });
 /** A fresh, writable record for a fold to fill. */
 export const newMods = () => ({
@@ -98,6 +99,7 @@ export const newMods = () => ({
   standing: new Array(STANDING_CHANNELS).fill(0),
   ...Object.fromEntries(WARDROBE_CHANNELS.map((k) => [k, 0])),
   magicka: 0,
+  healthPct: 0,
 });
 
 const _folds = new Map();
@@ -179,6 +181,7 @@ export function computeEntityMods(entity) {
     if (Array.isArray(m.standing))
       for (let g = 0; g < STANDING_CHANNELS; g++) out.standing[g] += Number(m.standing[g]) || 0; // LOOT14
     for (const k of WARDROBE_CHANNELS) out[k] += Number(m[k]) || 0;
+    out.healthPct += m.healthPct | 0;
     out.magicka += m.magicka | 0; // EG15: whole points
   }
   entity._mods = out;

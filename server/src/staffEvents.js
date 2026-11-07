@@ -49,7 +49,11 @@ import {
   STAFF_EVENTS_MAX,
   STAFF_EVENT_TELL_MS,
   STAFF_EVENT_ID_RE,
+  staffEventBegun,
+  TB_DRAGON,
+  TB_INVASION,
 } from '../../src/net/staffEvent/staffEventLaw.js';
+import { isToyboxEvent } from '../../src/net/staffEvent/toyboxEvent.js';
 import { mintStaffReceipt } from '../../src/net/staffEvent/staffEventReceipt.js';
 import { SOCIAL_ROOM, worldRoom, mapPixelOfWire } from '../../src/net/wire.js';
 import { junkOutsideCover, cellCall } from './cellNodes.js'; // COST-2 (b): a word in a cell this socket covers, or junk; part two: the event's cell reached through the tree
@@ -139,6 +143,19 @@ async function endEvent(room, id, why) {
   await tellCell(room, e, { id, op: 'end' });
   return true;
 }
+/** A called dragon's fall (server/src/dragonFights.js, on the hub): its Dragon Attack ended, as a boss's fall ends an
+ *  event. Only a dragon attack's. @param {any} room @param {string} id */
+export async function endCalledDragon(room, id) {
+  const e = (await bookOf(room)).find((x) => x.id === id);
+  return e?.tb === TB_DRAGON ? endEvent(room, id, 'done') : false;
+}
+/** A called dragon's leaving, unslain (its cell's word): its Dragon Attack ended if the book's own clock agrees - the
+ *  event's end is its dragon's leaving (systems/toybox/toyboxLaw.js DRAGON_ATTACK_RUN_MS). @param {any} room
+ *  @param {string} id @param {number} now */
+export async function endLeftDragon(room, id, now) {
+  const e = (await bookOf(room)).find((x) => x.id === id);
+  return e?.tb === TB_DRAGON && staffEventLapsed(e, now) ? endEvent(room, id, 'time') : false;
+}
 /** The events past the end they were set to, ended. @param {any} room @param {number} now */
 async function lapse(room, now) {
   for (const e of [...(await bookOf(room))]) if (staffEventLapsed(e, now)) await endEvent(room, e.id, 'time');
@@ -226,6 +243,7 @@ export async function staffTellInternal(room, request) {
   const e = t ? book.find((x) => x.id === t.id) : null;
   if (!t || !e) return json({ ok: false });
   room._sevLive.set(t.id, { ...t, at: Date.now() });
+  if (isToyboxEvent(e)) toyboxMoments(room, e, t);
   if (t.top && !room._sevBoards.has(t.id)) {
     // THE REWARD: the board kept past the event's end, for staff's look (the panel's row)
     room._sevBoards.set(t.id, t.top);
@@ -234,6 +252,23 @@ export async function staffTellInternal(room, request) {
   }
   if (['boss', 'done'].includes(body?.done)) await endEvent(room, t.id, body.done);
   return json({ ok: true });
+}
+
+/** A toybox event's moments, said to every screen once each: its boss stood (`boss`), and it fell (`won`). The hub
+ *  hears them on the cell's tell; a hub woken again may say one twice, never miss one it heard.
+ *  @param {any} room @param {any} e @param {{ bu: number, bk: number }} moments */
+function toyboxMoments(room, e, moments) {
+  room._sevTbSaid ??= new Set();
+  for (const [stage, on] of /** @type {const} */ ([
+    ['boss', moments.bu || moments.bk],
+    ['won', moments.bk],
+  ])) {
+    const k = `${e.id}:${stage}`;
+    if (!on || room._sevTbSaid.has(k)) continue;
+    room._sevTbSaid.add(k);
+    while (room._sevTbSaid.size > 64) room._sevTbSaid.delete(room._sevTbSaid.values().next().value);
+    fanAll(room, JSON.stringify({ t: 'sev', k: 'tb', id: e.id, s: stage }));
+  }
 }
 
 // ─────────────────────────────── THE PLACE'S CELL ───────────────────────────────
@@ -263,6 +298,9 @@ async function eventOf(room, id, now) {
     return e;
   }
 }
+/** The hub's book's event `id` as this cell last asked (a called dragon's, server/src/dragonFights.js), or null.
+ *  @param {any} room @param {string} id @param {number} now */
+export const staffEventHeld = (room, id, now) => eventOf(room, id, now);
 /** An event's ledger in this cell (the instance's copy, else storage's). @param {any} room @param {any} e @param {number} now */
 async function ledgerOf(room, e, now) {
   room._sevLed ??= new Map();
@@ -282,14 +320,14 @@ async function ledgerOf(room, e, now) {
 const rand32 = () => crypto.getRandomValues(new Uint32Array(1))[0];
 /** THE REWARD, paid once at the first boss's fall: the earners' receipts and the board kept on the ledger (said after,
  *  by `keep`). @param {any} room @param {any} led @param {number} now */
-async function payReward(room, led, now) {
+async function payReward(room, led, e, now) {
   led.rw = 1;
   led.rc = {};
   const key = (await room._receiptKeyOf?.()) ?? null;
   const nowS = Math.floor(now / 1000);
-  for (const { acct, rank } of staffEventEarned(led)) {
+  for (const { acct, rank } of staffEventEarned(led, e)) {
     try {
-      led.rc[acct] = await mintStaffReceipt({ v: led.id, s: acct, c: rand32(), r: rank }, key, {
+      led.rc[acct] = await mintStaffReceipt({ v: led.id, s: acct, c: rand32(), r: rank, tb: e?.tb }, key, {
         subtle: crypto.subtle,
         nowS,
       });
@@ -297,7 +335,7 @@ async function payReward(room, led, now) {
       console.warn('[sev] receipt refused', /** @type {any} */ (err)?.message ?? err);
     }
   }
-  led.top = staffEventBoard(led);
+  led.top = staffEventBoard(led, e);
 }
 /** Each earner's receipt to its account's newest socket here (one tab an account, the raid's AUDIT WBX S4). @param {any} room @param {any} led */
 function handReceipts(room, led) {
@@ -311,9 +349,9 @@ function handReceipts(room, led) {
 }
 /** The ledger kept, said to the place, and told to the hub (at once when its boss moved or it is done). THE REWARD: at
  *  the first boss's fall, paid before a word of it is said. @param {any} room @param {any} led @param {any} e @param {number} now @param {boolean} urgent */
-async function keep(room, led, e, now, urgent) {
+export async function keepStaffLedger(room, led, e, now, urgent) {
   const paying = led.bk === 1 && !led.rw;
-  if (paying) await payReward(room, led, now);
+  if (paying) await payReward(room, led, e, now);
   try {
     await room.state.storage.put(STAFF_LEDGER_PREFIX + led.id, led);
   } catch (err) {
@@ -358,6 +396,8 @@ export async function staffEventWord(room, ws, a, m, now) {
   if (a.ly) return; // the place's ledger alone (a raid's law: a layer is another object for the same cell)
   const e = await eventOf(room, m.id, now);
   if (!e || e.px !== m.px || e.py !== m.py) return;
+  if (!staffEventBegun(e, now)) return; // a toybox event's wait: nothing counts before it begins
+  if (e.tb === TB_INVASION) return; // an invasion's ledger is its fight's (invasionFights.js): no word of a screen counts
   const led = await ledgerOf(room, e, now);
   const [px, py] = a.pose ? mapPixelOfWire(a.pose.x, a.pose.z) : [-1, -1];
   const acct = typeof a.sub === 'string' && a.sub ? a.sub : `id:${a.id}`;
@@ -367,7 +407,7 @@ export async function staffEventWord(room, ws, a, m, now) {
       ? foldStaffWord(led, e, acct, a.name ?? '', m, now)
       : { credited: 0, known: false, boss: false };
   if (called || r.credited > 0 || r.boss) {
-    await keep(room, led, e, now, called || r.boss);
+    await keepStaffLedger(room, led, e, now, called || r.boss);
     return;
   }
   room._send(ws, JSON.stringify({ t: 'sev', ...staffLedgerState(led) }));
@@ -401,7 +441,7 @@ export async function staffCallInternal(room, request) {
     const e = await eventOf(room, body.id, now);
     if (!e) return json({ ok: false });
     const led = await ledgerOf(room, e, now);
-    if (staffBossCall(led, e)) await keep(room, led, e, now, true);
+    if (staffBossCall(led, e)) await keepStaffLedger(room, led, e, now, true);
     return json({ ok: true });
   }
   return json({ ok: false }, 400);

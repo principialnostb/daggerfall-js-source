@@ -11,8 +11,8 @@
   {
     "name": "GILDED2-the-oaths-make",
     "file": "src/systems/gilded.js",
-    "old": "  material: WEAPON_MATERIALS.Daedric,",
-    "new": "  material: WEAPON_MATERIALS.Ebony,",
+    "old": "  templateIndex: WEAPONS.Dai_Katana,\n  material: WEAPON_MATERIALS.Daedric,",
+    "new": "  templateIndex: WEAPONS.Dai_Katana,\n  material: WEAPON_MATERIALS.Ebony,",
     "tests": [
       "test/systems/gilded2_world.test.js"
     ]

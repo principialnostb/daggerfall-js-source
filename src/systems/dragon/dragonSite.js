@@ -20,6 +20,9 @@ const BAY_ROW = 1000;
  * @returns {{ w: number, px: number, py: number, sx: number, sz: number, near: string } | null | false}
  */
 export function dragonSiteOf(o, { bayScan, theatres }) {
+  const called = /** @type {any} */ (o);
+  if (called.la !== undefined)
+    return { w: o.w, px: called.px, py: called.py, ...pixelCentreNative(called.px, called.py), near: called.nm ?? '' }; // a called dragon stands where it was called, a city among them
   const { cx, cy } = dragonCellOf(o),
     x0 = cx * DRAGON_CELL_PX,
     y0 = cy * DRAGON_CELL_PX,
@@ -65,6 +68,7 @@ export function createDragonSites(scans, { now = () => Date.now(), retryMs = 500
   return {
     /** @param {{w: number, s: number}} o */
     of(o) {
+      if (/** @type {any} */ (o).la !== undefined) return dragonSiteOf(o, scans); // its pixel is its own: nothing to scan or keep
       const key = `${o.w}:${o.s}`;
       if (found.has(key)) return found.get(key);
       if (tried === key && now() - triedAt < retryMs) return null;

@@ -200,7 +200,7 @@ test('AUDIT WORLD6b-iii(e) B1/B2/B9: the Room - who carries the room\'s budget (
   assert.match(s, /if \(this\._attach\(tws\)\?\.id !== b\.id\) return;/, 'B9: the socket read again after the await');
   assert.match(s, /this\._looks\.set\(m\.id, m\.look\); \}/, 'set at the hello'); assert.match(s, /this\._looks\.delete\(a\.id\);/, 'gone at the leave'); assert.match(s, /this\._looks\.clear\(\);\s*\n\s*const dead = \['hellos'\];/, 'cleared with the sweep');
   const bare = s.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/(^|[ \t])\/\/[^\n]*/gm, '$1');   // comments away - and only a `//` that begins a comment, not the one inside `wss://` (AUDIT SLAM found the naive stripper eating a real line)
-  assert.match(bare, /if \(!id \|\| id === a\.id\) \{ this\._junk\(ws\); return; \}\s*const budget = [^\n]*\s*this\._roomWho = budget\.bucket;\s*if \(!budget\.pass\) return;\s*const target = [^\n]*\s*if \(!target\) return;/, 'B3: one\'s own name is junk, a name that left is nothing - with SLAM9\'s budget between them');
+  assert.match(bare, /if \(!id \|\| id === a\.id\) \{ this\._junk\(ws\); return; \}\s*const budget = [^\n]*\s*this\._roomWho = budget\.bucket;\s*if \(!budget\.pass\) return;\s*const target = [^\n]*\s*if \(!target \|\| ghostHides\(target\[1\], a\)\) return;/, 'B3: one\'s own name is junk, a name that left (or a ghost the asker may not see) is nothing - with SLAM9\'s budget between them');
   assert.ok(relayVersionAtLeast(66), 'the relay says which one it is, and says a later one just as well');
 });
 

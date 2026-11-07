@@ -113,6 +113,7 @@ import { ALIGN } from './weapon/weaponAlign.js';
 import { NATIVE_W, NATIVE_H } from '../ui/native/nativePanel.js';
 import { weaponOffsetHeight } from '../ui/hud/hudLarge.js'; // ROAD-D D10: LargeHUDUndockedOffsetWeapon / the docked force
 import { pageParam } from '../systems/pageQuery.js'; // PERF-URL: the page's query, parsed once a search
+import { ghostAlpha } from '../systems/toybox/toyboxGhost.js'; // the toybox's ghost: my own weapon drawn see-through
 
 export { NATIVE_W, NATIVE_H };
 
@@ -530,7 +531,12 @@ export function drawFpsWeapon(
     uv: src,
     rec,
   } = q;
-  renderer.drawScreenQuad(tex, { x, y, w, h }, src, tint ?? undefined); // MAC-I: Tint
+  const seeThrough = ghostAlpha(); // the toybox's ghost: my own weapon see-through
+  if (seeThrough < 1)
+    renderer.drawScreenQuad(tex, { x, y, w, h }, src, [...(tint ?? [1, 1, 1]).slice(0, 3), seeThrough], {
+      blend: true,
+    });
+  else renderer.drawScreenQuad(tex, { x, y, w, h }, src, tint ?? undefined); // MAC-I: Tint
   if (glow)
     renderer.drawScreenQuadGlow?.(tex, { x, y, w, h }, src, glow, {
       art: [rec.width, rec.height],

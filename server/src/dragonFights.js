@@ -21,6 +21,8 @@ import {
   dragonJudgedCell,
   dragonReachCells,
   dragonPlaceOf,
+  dragonCalledOf,
+  dragonSiteOk,
   DRAGON_PLACES,
   DRAGON_JUDGED_CELLS_MAX,
   DRAGON_CELLS_A_WATCH,
@@ -50,6 +52,8 @@ import {
 import { junkOutsideCover, inCover } from './cellNodes.js';
 import { isBattleRoom } from '../../src/net/siege/siegeRef.js'; // AUDIT DRAGON-CELL II E1: a battle's pose is judged, a private room's not
 import { ROOM_CALL_MS, Bounded, HUB_KEEP_MAX } from './relayScale.js';
+import { staffEventHeld, endCalledDragon, endLeftDragon } from './staffEvents.js'; // a called dragon's event, in the hub's book
+import { STAFF_EVENT_ID_RE } from '../../src/net/staffEvent/staffEventLaw.js';
 
 /** A fight is forgotten this long after it ends; the cell's other duties run this often while one beats (ms). */
 export const DRAGON_KEEP_MS = 2 * 60 * 60 * 1000;
@@ -153,6 +157,7 @@ function hears(room, id, f, b) {
   if (!b.pose || !b.sub) return false;
   const c = frameOf(f, b.pose);
   if (Math.hypot(c.x, c.z) > dragonBrain.DRAGON_FAN_R) return false;
+  if (f.ev) return true; // a called dragon was told to every screen: its site is no secret to spend a budget on
   // AUDIT DRAGON-CELL III G7: a fight's words name its site, so a passer-by hears them once its account is granted the
   // fight's cell here - asked of the hub after its wait in this room, and counted in its budget
   const cell = siteCell(f),
@@ -401,17 +406,22 @@ async function dragonIn(room, ws, a, m, now, fights) {
     no('far');
     return;
   }
+  // A called dragon (the toybox's Dragon Attack): the hub's book holds its event, signed by the account service for a
+  // developer, and the site is its city's pixel. Every screen was told of it, so no dwell and no budget stand before it.
+  const held = m.ev ? dragonCalledOf(await staffEventHeld(room, m.ev, now)) : null;
+  const called = held && held.w === m.w && dragonSiteOk(held, m.sx, m.sz) ? held : null;
   // AUDIT DRAGON-CELL II E2: and none for a socket not yet stood in its cell - `st` against `gone` told a new one which cell
   // held a dragon; a fighter already in this fight learns nothing new
   const site = mapPixelOfWire(m.sx, m.sz); // AUDIT DRAGON-CELL III G6: the site's cell alone - the one its omen was told from
   if (
+    !called &&
     !f?.players?.[a.sub] &&
     (!stood(room, ws, a, mapPixelOfWire(a.pose.x, a.pose.z), now) ||
       (dragonWatchesAbout(now).includes(m.w) && !(await judged(room, a, [dragonJudgedCell(site[0], site[1])], m.w))))
   )
     return; // DRAGON-BUDGET: a watch about (any other is `gone` below, as the clock says)
-  const watch = dragonWatchesAbout(now).includes(m.w) ? await dragonOmenOf(room, m.w) : null;
-  const o = watch ? dragonCandidateOf(watch, m.sx, m.sz) : null,
+  const watch = !called && dragonWatchesAbout(now).includes(m.w) ? await dragonOmenOf(room, m.w) : null;
+  const o = called ?? (watch ? dragonCandidateOf(watch, m.sx, m.sz) : null),
     t = o ? dragonTimes(o) : null;
   if (!dragonHolds(o, now)) {
     if (f) say(room, ws, { ...DRAGON_SEAM.stateOf(f) });
@@ -446,6 +456,7 @@ async function dragonIn(room, ws, a, m, now, fights) {
       leaveAt: t.leaveAt,
       roost: roostLeg(o),
     });
+    if (called) f.ev = called.ev;
     fights.set(id, f);
     await index(room, fights);
     born = true;
@@ -496,6 +507,7 @@ export async function dragonTick(room) {
       }
       if (f.fell && !f.said) await fall(room, id, f, now);
       else if (f.said && !f.told) await tellHub(room, id, f, now);
+      else if (f.gone && f.ev && !f.told) await tellHubLeft(room, f);
     } catch (e) {
       console.warn('[dragon] beat failed', e?.message ?? e);
     }
@@ -507,7 +519,7 @@ export async function dragonTick(room) {
     } // its remains told to who comes near, as its fight was
     if (f.fell && !f.said)
       at = Math.min(at, now + DRAGON_TELL_RETRY_MS); // AUDIT DRAGON: a kill whose receipts failed to mint is tried again, never left to the fight's end
-    else if (f.said && !f.told) at = Math.min(at, now + DRAGON_TELL_RETRY_MS);
+    else if ((f.said || (f.gone && f.ev)) && !f.told) at = Math.min(at, now + DRAGON_TELL_RETRY_MS);
     else if (heard && !f.fell && !f.gone) {
       at = Math.min(at, now + dragonBrain.DRAGON_TICK_MS);
       live = true;
@@ -578,6 +590,27 @@ async function fallOnce(room, id, f, now) {
   }
   await tellHub(room, id, f, now);
 }
+/** A called dragon flown away unslain: its Dragon Attack ends at once. The hub ends only what its own book's clock says
+ *  is over (the event ends at its dragon's leaving), so the word asks and never decides. @param {any} room @param {any} fight */
+async function tellHubLeft(room, fight) {
+  const hub = room.env?.ROOMS;
+  if (hub?.get && hub?.idFromName) {
+    try {
+      const answer = await hub.get(hub.idFromName(SOCIAL_ROOM)).fetch(
+        new Request(`https://relay.internal${DRAGON_INTERNAL_FELL}`, {
+          method: 'POST',
+          body: JSON.stringify({ w: fight.w, ev: fight.ev, gone: 1 }),
+          signal: AbortSignal.timeout(ROOM_CALL_MS),
+        }),
+      );
+      if (!answer?.ok) return;
+    } catch (err) {
+      console.warn('[dragon] hub left', err?.message ?? err);
+      return;
+    }
+  }
+  fight.told = true;
+}
 async function tellHub(room, id, f, now) {
   if (f.told || !f.fell) return;
   const rooms = room.env?.ROOMS;
@@ -587,6 +620,7 @@ async function tellHub(room, id, f, now) {
       const body = {
         w: f.w,
         ...(Number.isSafeInteger(f.p) ? { p: f.p } : {}),
+        ...(f.ev ? { ev: f.ev } : {}),
         rc: Object.entries(f.rc ?? {}),
         here: f.here ?? [],
         kin: dragonBrain.dragonKinOf(f),
@@ -629,6 +663,10 @@ export async function dragonFellInternal(room, request) {
     /* refused below */
   }
   if (!Number.isSafeInteger(body?.w) || body.w < 0) return json({ ok: false }, 400);
+  if (body.gone === 1) {
+    if (typeof body.ev === 'string' && STAFF_EVENT_ID_RE.test(body.ev)) await endLeftDragon(room, body.ev, Date.now());
+    return json({ ok: true });
+  }
   if (body.p !== undefined && !(Number.isSafeInteger(body.p) && body.p >= 0 && body.p < DRAGON_PLACES))
     return json({ ok: false }, 400);
   const now = Date.now(),
@@ -664,6 +702,7 @@ export async function dragonFellInternal(room, request) {
   const handed = new Set(fresh.map(([sub]) => sub));
   for (const [sub, [ws]] of room._siegeSockets())
     if (handed.has(sub) && !here.has(sub)) say(room, ws, { k: 'rcpt', r: rc.get(sub).r });
+  if (typeof body.ev === 'string' && STAFF_EVENT_ID_RE.test(body.ev)) await endCalledDragon(room, body.ev); // its Dragon Attack is over
   return json({ ok: true });
 }
 /** A party shares its kill: a stander's receipt for each of the kin whose party, as it stands now, holds a dealer's. */

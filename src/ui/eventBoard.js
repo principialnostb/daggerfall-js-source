@@ -108,6 +108,7 @@ export const EVENT_KIND_CSS = Object.freeze({
   super: SD_RING_MAP_CSS,
   star: STAR_VIOLET_CSS,
   raid: '#f2c46b',
+  invasion: '#c25be0', // a developer's invasion or dragon attack (systems/toybox/toyboxNews.js)
   festival: '#9fd18b',
   season: FISSURE_BRASS_CSS, // STOREFRONT: the season's brass, its fissures' on the map
 });

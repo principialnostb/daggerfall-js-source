@@ -56,8 +56,8 @@
   {
     "name": "DRAGON-EACH-the-hub-untold-the-place",
     "file": "server/src/dragonFights.js",
-    "old": "      const body = {\n        w: f.w,\n        ...(Number.isSafeInteger(f.p) ? { p: f.p } : {}),\n        rc: Object.entries(f.rc ?? {}),\n        here: f.here ?? [],\n        kin: dragonBrain.dragonKinOf(f),\n      };",
-    "new": "      const body = { w: f.w, rc: Object.entries(f.rc ?? {}), here: f.here ?? [], kin: dragonBrain.dragonKinOf(f) };",
+    "old": "      const body = {\n        w: f.w,\n        ...(Number.isSafeInteger(f.p) ? { p: f.p } : {}),\n        ...(f.ev ? { ev: f.ev } : {}),\n        rc: Object.entries(f.rc ?? {}),\n        here: f.here ?? [],\n        kin: dragonBrain.dragonKinOf(f),\n      };",
+    "new": "      const body = { w: f.w, ...(f.ev ? { ev: f.ev } : {}), rc: Object.entries(f.rc ?? {}), here: f.here ?? [], kin: dragonBrain.dragonKinOf(f) };",
     "tests": [
       "test/net/dragon/dragoneach.test.js"
     ],

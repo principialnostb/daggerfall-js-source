@@ -157,6 +157,15 @@ export function createDragonRewards(host) {
     /** A receipt the relay handed this socket: kept with the character standing here and offered. */
     receipt: (r) =>
       claims.add(r, who(), typeof playerEntity?.name === 'string' ? playerEntity.name : null, playerEntity.level ?? 1),
+    /** An unsigned receipt from this machine's own fight (offline, systems/dragon/localDragonFights.js): its hoard rolled
+     *  into the pack at once, with no claim and no tame - both are the account service's. */
+    local: (receipt) =>
+      grant({
+        r: receipt,
+        ch: who(),
+        lv: playerEntity.level ?? 1,
+        nm: typeof playerEntity?.name === 'string' ? playerEntity.name : null,
+      }),
     /** A frame: what is kept, offered again in its time. */
     tick: () => claims.tick(),
     /** A character's stand-up (the crash's door): its hoard no save holds handed back, said once. */

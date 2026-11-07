@@ -688,6 +688,43 @@ export const SIGIL_SETS = Object.freeze({
       ),
     ]),
   }),
+  // The invasion boss's own set. Each number holds from Faint to Ascendant. No piece carries a
+  // magic, fire or shock resistance: Talos's Principle does, and no piece stacks one toward the saving throw's immunity.
+  defender: Object.freeze({
+    id: 'defender',
+    name: 'The Realm Defender',
+    prince: 'Talos',
+    colour: '#5f8cff',
+    aetheric: true,
+    role: 'The one who holds the realm when it is invaded',
+    tiers: Object.freeze([
+      tier(
+        2,
+        'talos-principle',
+        "Talos's Principle",
+        { magic: [20, 20], fire: [20, 20], shock: [20, 20] },
+        (values) => `+${values.magic} magic, +${values.fire} fire and +${values.shock} shock resistance`,
+        (values) => `+${values.magic} magic, fire, shock resist`,
+      ),
+      tier(
+        4,
+        'azura-prophecy',
+        "Azura's Prophecy",
+        { magic: [5, 5], mana: [3, 3] },
+        (values) => `Your weapon hits deal ${values.magic} extra magic damage and give you ${values.mana} magicka`,
+        (values) => `+${values.magic} magic a hit, +${values.mana} MP a hit`,
+      ),
+      tier(
+        6,
+        'meridia-preservation',
+        "Meridia's Preservation",
+        { heal: [5, 5], fire: [5, 5], health: [20, 20] },
+        (values) =>
+          `Your weapon hits heal you ${values.heal}% of your health and deal ${values.fire} extra fire damage. +${values.health}% maximum health`,
+        (values) => `Hits heal ${values.heal}%, +${values.fire} fire; +${values.health}% HP`,
+      ),
+    ]),
+  }),
 });
 /** The sets of the world (the four any win may roll), and every set, in the registry's order. */
 export const WORLD_SET_IDS = Object.freeze(
