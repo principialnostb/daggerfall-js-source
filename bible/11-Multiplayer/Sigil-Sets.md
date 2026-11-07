@@ -56,7 +56,7 @@ a set but the Realm Defender's.
 | The Wyrd's Raiment | the Witches' Festival |
 | The Starspun Weave | the Starfall, `STARSPUN_SET_CHANCE` |
 | The Tidemail | the deep sea's legends, vaults and hoards (`ELTHERIC_CHANCE`) |
-| The Realm Defender | an invasion boss's reward, one roll in five (`INVASION_REWARD_TABLE`) |
+| The Realm Defender | an invasion boss's reward, 16.7 rolls in 100 (`INVASION_REWARD_TABLE`) |
 
 Each is rolled after everything its event's spoils already roll, so earlier rolls never move.
 

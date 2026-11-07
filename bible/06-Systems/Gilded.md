@@ -21,7 +21,7 @@ higher; each power is something nothing else has:
 | The Sunken Sovereign | Ebony Saber | Undertow: +10% a hit on a foe for 6 s, to +50%; a kill heals 10% | a dealing ship's serpent hoard, 1 in 250 |
 | Volendrung's Echo | Dwarven Thunderlock | Hammerfall: a hit rings half the shot as shock on every other foe within 3.5 m | the Sky-Ketch's Tonal Warden, 1 in 100 |
 | The Ketchmaster's Word | Dwarven Pistolet | Broadside: a hit marks the foe; the other hand's next blow on it +60% | the Sky-Ketch's Tonal Warden, 1 in 100 |
-| Retribution's Call | Daedric Katana | Retribution: +8 fire a hit, half on a foe that resists fire | an invasion boss's reward, 1 in 20 |
+| Retribution's Call | Daedric Katana | Retribution: +8 fire a hit, half on a foe that resists fire | an invasion boss's reward, 1 in 100 |
 
 Retribution's Call carries +40% damage, +30 Long Blade and +15 Critical Strike. Its +8 fire is a power, at the top any power's
 flat a hit reaches (`src/systems/toybox/invasionRewards.js`). Every other drop is the last draw of its spoils, so every earlier spoils stays what it was for its seed. Guns drop only from

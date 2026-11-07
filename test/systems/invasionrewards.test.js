@@ -1,16 +1,16 @@
 // The invasion boss's reward: its table's shares, each outcome minted lawful, the names, Retribution's Call's marks, a
-// Rare's three to five lines, the same piece for the same seed, and the staff event's receipt rolling it when it says so.
+// Legendary's Ebony base and record, the same piece for the same seed, and the staff event's receipt rolling it when it says so.
 import '../modsOff.js';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  INVASION_REWARD_TABLE, INVASION_RARE_PROC_SHARE, invasionRewardRow, rollInvasionReward,
+  INVASION_REWARD_TABLE, invasionRewardRow, rollInvasionReward,
 } from '../../src/systems/toybox/invasionRewards.js';
 import { invasionSpoilsList, staffSpoilsList, grantStaffSpoils } from '../../src/systems/staffEventSpoils.js';
 import { DEFENDER_SET_PIECES } from '../../src/systems/aetheric.js';
 import { RETRIBUTIONS_CALL, validGildedMarks } from '../../src/systems/gilded.js';
 import { itemFindings } from '../../src/systems/item/itemLaw.js';
-import { AFFIX_COUNTS, isProcAffix } from '../../src/systems/loot/lootRarity.js';
+import { legendaryById } from '../../src/systems/loot/lootRarity.js';
 import { WEAPON_MATERIALS } from '../../src/characters/weapons.js';
 import { ARMOR_MATERIAL } from '../../src/systems/armorMaterials.js';
 import { templateByIndex } from '../../src/systems/item/itemTemplates.js';
@@ -23,40 +23,38 @@ const leading = (first, seed = 7) => {
   return () => (used ? rest() : ((used = true), first));
 };
 const daedric = (it) => it.material === (it.group === 'Weapons' ? WEAPON_MATERIALS.Daedric : ARMOR_MATERIAL.Daedric);
+const ebony = (it) => it.material === (it.group === 'Weapons' ? WEAPON_MATERIALS.Ebony : ARMOR_MATERIAL.Ebony);
 
-test('THE TABLE: three rows - a Rare three times in four, an Aetheric one time in five, the Gilded one time in twenty - summing to the whole, read in that order (mutants: a share moved; the order)', () => {
-  assert.deepEqual(INVASION_REWARD_TABLE.map((r) => [r.id, r.share]), [['rare', 0.75], ['aetheric', 0.2], ['gilded', 0.05]]);
+test('THE TABLE: three rows - an Ebony Legendary 82.3 times in 100, an Aetheric 16.7, the Gilded one - summing to the whole, read in that order (mutants: a share moved; the order)', () => {
+  assert.deepEqual(INVASION_REWARD_TABLE.map((r) => [r.id, r.share]), [['legendary', 0.823], ['aetheric', 0.167], ['gilded', 0.01]]);
   assert.ok(Math.abs(INVASION_REWARD_TABLE.reduce((n, r) => n + r.share, 0) - 1) < 1e-9);
   assert.ok(Object.isFrozen(INVASION_REWARD_TABLE) && INVASION_REWARD_TABLE.every(Object.isFrozen));
-  assert.deepEqual([0, 0.7499, 0.75, 0.9499, 0.95, 0.9999].map((r) => invasionRewardRow(r).id), ['rare', 'rare', 'aetheric', 'aetheric', 'gilded', 'gilded']);
-  const n = 4000, seen = { rare: 0, aetheric: 0, gilded: 0 };
+  assert.deepEqual([0, 0.8229, 0.823, 0.9899, 0.99, 0.9999].map((r) => invasionRewardRow(r).id), ['legendary', 'legendary', 'aetheric', 'aetheric', 'gilded', 'gilded']);
+  const n = 4000, seen = { legendary: 0, aetheric: 0, gilded: 0 };
   for (let s = 1; s <= n; s++) seen[rollInvasionReward(seededRng(s)).rarity]++;
   for (const row of INVASION_REWARD_TABLE) assert.ok(Math.abs(seen[row.id] / n - row.share) < 0.03, `${row.id}: ${seen[row.id]} of ${n}`);
 });
 
-test('A RARE: Daedric, known, a weapon or a piece of armour, three to five lines (three or four numbers, and one that does something half the time), lawful (mutants: a sixth line; a steel base)', () => {
-  assert.equal(INVASION_RARE_PROC_SHARE, 0.5);
-  const counts = new Set(), groups = new Set();
+test('A LEGENDARY: Ebony, known, a weapon or a piece of armour, named by its record, never a Rare, lawful (mutants: a Daedric base; the Rare tier)', () => {
+  const groups = new Set();
   for (let s = 1; s <= 400; s++) {
     const it = rollInvasionReward(leading(0.1, s));
-    assert.equal(it.rarity, 'rare');
-    assert.ok(daedric(it), `${it.name}: Daedric`);
+    assert.equal(it.rarity, 'legendary', it.name);
+    assert.ok(ebony(it), `${it.name}: Ebony`);
     assert.equal(it.isIdentified, true);
     assert.deepEqual(itemFindings(it), [], it.name);
-    const numbers = it.affixes.filter((a) => !isProcAffix(a)).length;
-    assert.ok(numbers >= AFFIX_COUNTS.rare[0] && numbers <= AFFIX_COUNTS.rare[1], it.name);
-    assert.ok(it.affixes.length >= 3 && it.affixes.length <= 5, `${it.name}: ${it.affixes.length} lines`);
-    counts.add(it.affixes.length);
+    const rec = legendaryById(it.legendary);
+    assert.ok(rec, `${it.name}: a record`);
+    assert.equal(it.name, rec.name);
     groups.add(it.group);
   }
-  assert.deepEqual([...counts].sort(), [3, 4, 5], 'every count is reached');
   assert.deepEqual([...groups].sort(), ['Armor', 'Weapons']);
 });
 
 test('AN AETHERIC: a Realm Defender piece named for its own gear, lawful; every record reachable (mutants: the name off its template; one record never drawn)', () => {
   const drawn = new Set();
   for (let s = 1; s <= 600; s++) {
-    const it = rollInvasionReward(leading(0.8, s));
+    const it = rollInvasionReward(leading(0.9, s));
     assert.equal(it.rarity, 'aetheric');
     assert.deepEqual(itemFindings(it), [], it.name);
     assert.ok(daedric(it));
@@ -71,7 +69,7 @@ test('AN AETHERIC: a Realm Defender piece named for its own gear, lawful; every 
 });
 
 test("THE GILDED: Retribution's Call, its record's marks exactly, lawful (mutants: another record; a line off)", () => {
-  const it = rollInvasionReward(leading(0.97));
+  const it = rollInvasionReward(leading(0.995));
   assert.deepEqual([it.rarity, it.gilded, it.name], ['gilded', RETRIBUTIONS_CALL.id, "Retribution's Call"]);
   assert.deepEqual(it.affixes, RETRIBUTIONS_CALL.affixes.map((a) => ({ ...a })));
   assert.equal(it.material, WEAPON_MATERIALS.Daedric);
