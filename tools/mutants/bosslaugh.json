@@ -1,0 +1,47 @@
+[
+  {
+    "name": "BOSS-LAUGH-heard-everywhere",
+    "file": "src/systems/toybox/toyboxNews.js",
+    "old": "    if (!here) return true;\n",
+    "new": "",
+    "tests": [
+      "test/systems/toyboxlaughregion.test.js"
+    ]
+  },
+  {
+    "name": "BOSS-LAUGH-the-province-for-its-district",
+    "file": "src/systems/raidingParties.js",
+    "old": "{ here: !!e && home >= 0 && areaAt(e.px, e.py, () => e.rg) === home }",
+    "new": "{ here: !!e && (host().regionIndex?.() ?? -1) === e.rg }",
+    "tests": [
+      "test/systems/toyboxlaughregion.test.js"
+    ]
+  },
+  {
+    "name": "BOSS-LAUGH-at-sea",
+    "file": "src/systems/raidingParties.js",
+    "old": "{ here: !!e && home >= 0 && areaAt(e.px, e.py, () => e.rg) === home }",
+    "new": "{ here: !!e && areaAt(e.px, e.py, () => e.rg) === areaAt(e.px, e.py, () => e.rg) }",
+    "tests": [
+      "test/systems/toyboxlaughregion.test.js"
+    ]
+  },
+  {
+    "name": "BOSS-LAUGH-no-wake-laugh",
+    "file": "src/scenes/gate/gateCourt.js",
+    "old": "        if (!bossLaugh()) sound(BOSS_CUES.roar, s, t, null);",
+    "new": "        sound(BOSS_CUES.roar, s, t, null);",
+    "tests": [
+      "test/net/gate/wb13e_beats.test.js"
+    ]
+  },
+  {
+    "name": "BOSS-LAUGH-a-late-screen",
+    "file": "src/scenes/gate/gateCourt.js",
+    "old": "      if (t < s.openUntil + WAKE_LATE_MS && !s.fell && s.wrath == null) {",
+    "new": "      if (!s.fell && s.wrath == null) {",
+    "tests": [
+      "test/net/gate/wb13e_beats.test.js"
+    ]
+  }
+]

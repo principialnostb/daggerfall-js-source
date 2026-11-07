@@ -2,7 +2,7 @@
   {
     "name": "WB13e-no-wake",
     "file": "src/scenes/gate/gateCourt.js",
-    "old": "        sound(BOSS_CUES.roar, s, t, null);\n        beat = { kind: 'wake'",
+    "old": "        if (!bossLaugh()) sound(BOSS_CUES.roar, s, t, null);   // his roar's own bark, laughed with the invasion lord's echoes\n        beat = { kind: 'wake'",
     "new": "        beat = { kind: 'wake'",
     "tests": [
       "test/net/gate/wb13e_beats.test.js"

@@ -2116,7 +2116,12 @@ function staffRelayWord(sev, room) {
     toyboxBookNews(sev.l); // a toybox event's staging, said to every screen
     return true;
   }
-  if (sev.k === 'tb') return toyboxMomentNews(staffRaidOfKey(staffEventKey(sev.id))?.staff, sev.s); // its boss, its fall
+  if (sev.k === 'tb') {
+    // its boss, its fall - the boss's laugh heard only in its own area: the Bay's region, past it the district (WW6)
+    const e = staffRaidOfKey(staffEventKey(sev.id))?.staff;
+    const home = homeNow();
+    return toyboxMomentNews(e, sev.s, { here: !!e && home >= 0 && areaAt(e.px, e.py, () => e.rg) === home });
+  }
   if (sev.k === 'end') return staffEventEnd(sev.id, sev.why);
   if (sev.k === 'st') return typeof room === 'string' && isCellRoom(room) && staffEventLedger(sev);
   if (sev.k === 'bd') {
