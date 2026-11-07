@@ -36,6 +36,10 @@ const PHASE_LINE_S = 4;
 /** The blow kinds the cell reads (net/gate/gateBrain.js HIT_KINDS). */
 const KIND_OF = Object.freeze({ melee: 0, arrow: 1, spell: 2 });
 
+/** Whether I stand at a live invasion now (its panel is up): the city's guards spare the walkers then, as in a raid. */
+let fightHereNow = false;
+export const invasionFightHere = () => fightHereNow;
+
 /**
  * THE FIELD. `now()` the relay's clock (offline, this machine's), `clock()` the frame clock the pool draws on;
  * `online.ready(cell)` / `online.send(word, cell)` the relay's door; `offline()` whether no relay is there; `pixel()` the
@@ -44,10 +48,6 @@ const KIND_OF = Object.freeze({ melee: 0, arrow: 1, spell: 2 });
  * entity; `level()`, `name()`; `onHurt(n)` what reached my health; `renderer` the scene's, for the boss's marks;
  * `barBlocked()` another boss's bar up; `barHidden()` the HUD hidden (the dragon's word for it). The rest are seams. @param {any} deps
  */
-/** Whether I stand at a live invasion now (its panel is up): the city's guards spare the walkers then, as in a raid. */
-let fightHereNow = false;
-export const invasionFightHere = () => fightHereNow;
-
 export function createInvasionField(deps) {
   const now = deps.now ?? Date.now;
   const clock = deps.clock ?? (() => performance.now());
