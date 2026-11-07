@@ -1,0 +1,29 @@
+[
+  {
+    "name": "DRAGON-INSIDE-the-box-unread",
+    "file": "src/scenes/dragonHost.js",
+    "old": "if (box && inDragonBox(eye, box.box)) return { dist: 0, inView: true, losClear: true }; ",
+    "new": "",
+    "tests": [
+      "test/scenes/dragon3_host.test.js"
+    ]
+  },
+  {
+    "name": "DRAGON-INSIDE-a-box-that-holds-everything",
+    "file": "src/scenes/dragonHost.js",
+    "old": "  return [b.ax, b.ay, b.az].every((a, i) => Math.abs(d[0] * a[0] + d[1] * a[1] + d[2] * a[2]) <= b.h[i]);",
+    "new": "  return true;",
+    "tests": [
+      "test/scenes/dragon3_host.test.js"
+    ]
+  },
+  {
+    "name": "DRAGON-INSIDE-a-flat-box",
+    "file": "src/scenes/dragonHost.js",
+    "old": "  return [b.ax, b.ay, b.az].every(",
+    "new": "  return [b.ax, b.az].every(",
+    "tests": [
+      "test/scenes/dragon3_host.test.js"
+    ]
+  }
+]

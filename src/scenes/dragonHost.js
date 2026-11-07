@@ -67,6 +67,11 @@ export const DRAGON_HEARD_MS = 3 * DRAGON_STATE_SEND_MS;
 export const DRAGON_LATE_MS = 400;
 export const DRAGON_LINGER_MS = 300;
 /** My blows out: one word each at most this often (the relay hears four a second), the queue's bound. */
+/** Is `p` inside the box `b` (its centre `c`, its axes `ax`/`ay`/`az`, its half-sizes `h`)? */
+export function inDragonBox(p, b) {
+  const d = [p[0] - b.c[0], p[1] - b.c[1], p[2] - b.c[2]];
+  return [b.ax, b.ay, b.az].every((a, i) => Math.abs(d[0] * a[0] + d[1] * a[1] + d[2] * a[2]) <= b.h[i]);
+}
 export const DRAGON_HIT_GAP_MS = 260;
 export const DRAGON_HITS_QUEUED = 8;
 /** A target's id in the shots' field and a missile's marks. */
@@ -425,7 +430,8 @@ export function createDragonHost(deps) {
      *  reach: true when it connected. */
     swing(playerWeapon, eye, lookDir, inView = null) {
       if (!foe || !playerWeapon?.resolveHit) return false;
-      const canSee = (b) => { const { point, dist } = bossReach(eye, b.ai); return { dist, inView: inView ? inView(point) : true, losClear: true }; };
+      // standing inside its hitbox, its nearest skin is behind my eye and no view test passes: every swing there meets it
+      const canSee = (b) => { if (box && inDragonBox(eye, box.box)) return { dist: 0, inView: true, losClear: true }; const { point, dist } = bossReach(eye, b.ai); return { dist, inView: inView ? inView(point) : true, losClear: true }; };
       let any = false;
       for (const { damage } of playerWeapon.resolveHit([foe], player(), canSee, Math.random, () => 0, null, null)) {
         any = true;

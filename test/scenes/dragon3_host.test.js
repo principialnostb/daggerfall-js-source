@@ -6,7 +6,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { createDragonHost, DRAGON_TARGET, DRAGON_IN_RESEND_MS, DRAGON_IN_RETRY_MS, DRAGON_HIT_GAP_MS, DRAGON_NOTICE_WAIT_MS, DRAGON_SCALE, REMAINS_WASH } from '../../src/scenes/dragonHost.js';
+import { createDragonHost, DRAGON_TARGET, DRAGON_IN_RESEND_MS, DRAGON_IN_RETRY_MS, DRAGON_HIT_GAP_MS, DRAGON_NOTICE_WAIT_MS, DRAGON_SCALE, REMAINS_WASH, inDragonBox } from '../../src/scenes/dragonHost.js';
 import { installDwarvenDragon } from '../../src/characters/dwarvenDragon.js';
 import { createDragonLink } from '../../src/net/dragon/dragonLink.js';
 import { isDragonOmen, dragonTimes, DRAGON_BRAIN_V, pixelCentreNative, DRAGON_REMAINS_MS } from '../../src/net/dragon/dragonLaw.js';
@@ -124,6 +124,24 @@ test('DRAGON3 host: MY BLOWS ON IT - a shaft on its body is the dragon\'s door a
   S.host.swing(weapon, eye, [0, 0, 1]);
   S.run(DRAGON_HIT_GAP_MS * 3);
   assert.equal(hits(S).length, 2, 'its ward turns it');
+});
+
+test('DRAGON3 host: STANDING IN ITS HITBOX every swing meets it, whatever my view says; outside it the view still rules; aloft none (mutants: the box unread; a box that holds everything)', () => {
+  const S = screen(TT.landAt + 1000, [0, -1]);
+  S.st({ md: 1, mu: S.t + 12_000, legs: [lineLeg(S.t - 100, 0, [0, 0, 0], [0, 0, 0], 0)] });
+  S.word({ k: 'md', m: 1, at: S.t - 100, until: S.t + 12_000 });
+  S.run(50);
+  const weapon = { strikingWeapon: null, resolveHit: (foes, _p, canSee) => foes.filter((f) => { const c = canSee(f); return c.inView && c.dist <= 3; }).map((foe) => ({ foe, damage: 40 })) };
+  const blind = () => false;   // its nearest skin behind my eye
+  assert.equal(S.host.swing(weapon, [SITE.sx / M, 1.6, SITE.sz / M - 1], [0, 0, 1], blind), true, 'inside: it meets');
+  assert.equal(S.host.swing(weapon, [SITE.sx / M + 5, 1.6, SITE.sz / M + 5], [0, 0, 1], blind), true, 'in a corner of the box');
+  assert.equal(S.host.swing(weapon, [SITE.sx / M, 1.6, SITE.sz / M - 6.5], [0, 0, 1], blind), false, 'outside: the view rules');
+  assert.equal(S.host.swing(weapon, [SITE.sx / M, 1.6, SITE.sz / M - 6.5], [0, 0, 1], () => true), true, 'and in view within reach');
+  assert.equal(inDragonBox([0, 0, 0], { c: [0, 0, 0], ax: [1, 0, 0], ay: [0, 1, 0], az: [0, 0, 1], h: [1, 1, 1] }), true);
+  assert.equal(inDragonBox([0, 1.5, 0], { c: [0, 0, 0], ax: [1, 0, 0], ay: [0, 1, 0], az: [0, 0, 1], h: [1, 1, 1] }), false, 'over it');
+  S.st({ md: 0, legs: [lineLeg(S.t - 100, 0, [0, 0, 0], [0, 0, 0], 0)] });
+  S.run(50);
+  assert.equal(S.host.swing(weapon, [SITE.sx / M, 1.6, SITE.sz / M - 1], [0, 0, 1], blind), false, 'aloft: none, as the cell would refuse it');
 });
 
 test('DRAGON3 host: THE BAR - its name, health and mode; MOVE when the blow it winds up holds my feet, none when it does not (mutants: MOVE never)', () => {
