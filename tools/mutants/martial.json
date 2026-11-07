@@ -470,8 +470,8 @@
   {
     "name": "MARTIAL2-offline-paid",
     "file": "src/systems/weaponMastery.js",
-    "old": "  if (!online || !entity?.isPlayer || entity.peer || entity.isInBeastForm || !Number.isInteger(skill)) return 0;",
-    "new": "  if (!entity?.isPlayer || entity.peer || entity.isInBeastForm || !Number.isInteger(skill)) return 0;",
+    "old": "  if (!online || !entity?.isPlayer || entity.peer || !Number.isInteger(skill)) return 0;",
+    "new": "  if (!entity?.isPlayer || entity.peer || !Number.isInteger(skill)) return 0;",
     "tests": [
       "test/systems/martial_paths.test.js"
     ]
@@ -479,17 +479,17 @@
   {
     "name": "MARTIAL2-MENTOR2-mentoring-unpaid",
     "file": "src/systems/weaponMastery.js",
-    "old": "  if (!online || !entity?.isPlayer || entity.peer || entity.isInBeastForm || !Number.isInteger(skill)) return 0;",
-    "new": "  if (!online || !entity?.isPlayer || entity.peer || entity._mentor || entity.isInBeastForm || !Number.isInteger(skill))\n    return 0;",
+    "old": "  if (!online || !entity?.isPlayer || entity.peer || !Number.isInteger(skill)) return 0;",
+    "new": "  if (!online || !entity?.isPlayer || entity.peer || entity._mentor || !Number.isInteger(skill)) return 0;",
     "tests": [
       "test/systems/martial_paths.test.js"
     ]
   },
   {
-    "name": "MARTIAL2-the-beast-paid",
+    "name": "MARTIAL2-the-beast-unpaid",
     "file": "src/systems/weaponMastery.js",
-    "old": "  if (!online || !entity?.isPlayer || entity.peer || entity.isInBeastForm || !Number.isInteger(skill)) return 0;",
-    "new": "  if (!online || !entity?.isPlayer || entity.peer || !Number.isInteger(skill)) return 0;",
+    "old": "  if (!online || !entity?.isPlayer || entity.peer || !Number.isInteger(skill)) return 0;",
+    "new": "  if (!online || !entity?.isPlayer || entity.peer || entity.isInBeastForm || !Number.isInteger(skill)) return 0;",
     "tests": [
       "test/systems/martial_paths.test.js"
     ]
@@ -642,17 +642,17 @@
   {
     "name": "BAL10-the-stock-fists-unread",
     "file": "src/combat/formulas.js",
-    "old": "  if (isPlayer && !attacker.isInBeastForm) damage = weaponBlowMods(null, damage, attacker, target, info);   // BAL10: the fists' blow modifiers - the Firmament's fist stars, the sets, the loot, the paths\n",
+    "old": "  if (isPlayer) damage = weaponBlowMods(null, damage, attacker, target, info);   // BAL10: the fists' blow modifiers - the Firmament's fist stars, the sets, the loot, mastery, the paths; the beast's claws too\n",
     "new": "",
     "tests": [
       "test/systems/martial_paths.test.js"
     ]
   },
   {
-    "name": "BAL10-the-stock-claws-read",
+    "name": "BAL10-the-stock-claws-unread",
     "file": "src/combat/formulas.js",
-    "old": "  if (isPlayer && !attacker.isInBeastForm) damage = weaponBlowMods(null, damage, attacker, target, info);   // BAL10: the fists' blow modifiers - the Firmament's fist stars, the sets, the loot, the paths",
-    "new": "  if (isPlayer) damage = weaponBlowMods(null, damage, attacker, target, info);",
+    "old": "  if (isPlayer) damage = weaponBlowMods(null, damage, attacker, target, info);   // BAL10: the fists' blow modifiers - the Firmament's fist stars, the sets, the loot, mastery, the paths; the beast's claws too",
+    "new": "  if (isPlayer && !attacker.isInBeastForm) damage = weaponBlowMods(null, damage, attacker, target, info);   // BAL10: the fists' blow modifiers - the Firmament's fist stars, the sets, the loot, the paths",
     "tests": [
       "test/systems/martial_paths.test.js"
     ]
@@ -669,17 +669,17 @@
   {
     "name": "BAL10-the-overhaul-fists-unread",
     "file": "src/combat/pcaao.js",
-    "old": "  if (player && !attacker.isInBeastForm) damage = weaponBlowMods(null, damage, attacker, target, info); // BAL10: the fists' blow modifiers\n  return damage;",
+    "old": "  if (player) damage = weaponBlowMods(null, damage, attacker, target, info); // BAL10: the fists' blow modifiers; the beast's claws too\n  return damage;",
     "new": "  return damage;",
     "tests": [
       "test/systems/martial_paths.test.js"
     ]
   },
   {
-    "name": "BAL10-the-overhaul-claws-read",
+    "name": "BAL10-the-overhaul-claws-unread",
     "file": "src/combat/pcaao.js",
-    "old": "  if (player && !attacker.isInBeastForm) damage = weaponBlowMods(null, damage, attacker, target, info); // BAL10: the fists' blow modifiers",
-    "new": "  if (player) damage = weaponBlowMods(null, damage, attacker, target, info);",
+    "old": "  if (player) damage = weaponBlowMods(null, damage, attacker, target, info); // BAL10: the fists' blow modifiers; the beast's claws too",
+    "new": "  if (player && !attacker.isInBeastForm) damage = weaponBlowMods(null, damage, attacker, target, info); // BAL10: the fists' blow modifiers",
     "tests": [
       "test/systems/martial_paths.test.js"
     ]
@@ -687,8 +687,8 @@
   {
     "name": "BAL10-the-sheet-reads-no-fist-modifiers",
     "file": "src/combat/combatStats.js",
-    "old": "      return entity.isInBeastForm ? d : weaponBlowMods(null, d, entity, foe, wraps ? { ...ESTIMATE, wraps } : ESTIMATE); // BAL10: both cores read the fists' blow modifiers now - never the beast's claws",
-    "new": "      return d; // BAL10: both cores read the fists' blow modifiers now - never the beast's claws",
+    "old": "      return weaponBlowMods(null, d, entity, foe, wraps ? { ...ESTIMATE, wraps } : ESTIMATE); // BAL10: both cores read the fists' blow modifiers now - the beast's claws too",
+    "new": "      return d; // BAL10: both cores read the fists' blow modifiers now - the beast's claws too",
     "tests": [
       "test/systems/martial_paths.test.js"
     ]

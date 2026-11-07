@@ -277,7 +277,7 @@ function damageModel(ctx, swing, foe) {
     if (!weapon) {
       if (core.overhaul && d < 1) d = 0;
       d += bonusOrPenaltyByEnemyType(entity, foe);
-      return entity.isInBeastForm ? d : weaponBlowMods(null, d, entity, foe, wraps ? { ...ESTIMATE, wraps } : ESTIMATE); // BAL10: both cores read the fists' blow modifiers now - never the beast's claws
+      return weaponBlowMods(null, d, entity, foe, wraps ? { ...ESTIMATE, wraps } : ESTIMATE); // BAL10: both cores read the fists' blow modifiers now - the beast's claws too
     }
     if (d < 1) d = 0;
     d += bonusOrPenaltyByEnemyType(entity, foe);

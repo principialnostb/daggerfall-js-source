@@ -1083,7 +1083,9 @@ async function fetchPackRange(url, start, end) {
   const watch = () => { clearTimeout(timer); timer = setTimeout(() => stop.abort(), DOWNLOAD_STALL_MS); };
   watch();
   try {
-    const res = await gameFetch(url, { headers: { 'User-Agent': 'daggerfall-js-app', Range: `bytes=${start}-${end - 1}` }, signal: stop.signal });
+    // cache: 'no-store' - pieces of a pack never go into Chromium's HTTP cache: on Windows its disk cache refuses two
+    // pieces of one file at once (net::ERR_CACHE_OPERATION_NOT_SUPPORTED), and gameStore.stage asks for four
+    const res = await gameFetch(url, { headers: { 'User-Agent': 'daggerfall-js-app', Range: `bytes=${start}-${end - 1}` }, cache: 'no-store', signal: stop.signal });
     const contentRange = res.headers.get('content-range');
     if (res.status !== 206 || !res.body) { stop.abort(); return { status: res.status, contentRange, bytes: Buffer.alloc(0) }; }
     const reader = res.body.getReader();

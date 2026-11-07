@@ -267,7 +267,7 @@ test('MARTIAL3 THE SIGNATURE IN HAND: the technique key\'s answer with no line o
   assert.equal(techniqueWait('crush'), 0, 'no loot technique\'s clock moved');
 });
 
-test('MARTIAL2 THE WEAPON PAST 100: online, each effective point of the climb - Long Blade every blow 1% harder, Archery every arrow, the Axe 2% at a foe under half, the Blunt Weapon 2% at a foe at half or more, the Short Blade every swing 1% quicker, Hand-to-Hand nothing more; never offline, mentoring, in a duel, as the beast, at a player or the Warden (mutants: a half\'s line moved; the axe and the hammer swapped; the climb read raw; offline paid)', () => {
+test('MARTIAL2 THE WEAPON PAST 100: online, each effective point of the climb - Long Blade every blow 1% harder, Archery every arrow, the Axe 2% at a foe under half, the Blunt Weapon 2% at a foe at half or more, the Short Blade every swing 1% quicker, Hand-to-Hand nothing more; never offline, mentoring, in a duel, at a player or the Warden (mutants: a half\'s line moved; the axe and the hammer swapped; the climb read raw; offline paid)', () => {
   reset();
   page(true, () => {
     const lb = held(fighter([LB], 200), weapon(WEAPONS.Longsword));
@@ -307,7 +307,7 @@ test('MARTIAL2 THE WEAPON PAST 100: online, each effective point of the climb - 
     const mid = blow100(lsw, lb, foe());
     assert.ok(mid > 100 && mid < 140, `mentoring a level-20 group: the mentored climb (${mid})`);
     lb._mentor = null; lb.level = 20; WM._resetWeaponMasteryForTests();
-    lb.isInBeastForm = true; assert.equal(blow100(lsw, lb, foe()), 100, 'the beast'); lb.isInBeastForm = false;
+    WM._resetWeaponMasteryForTests(); lb.isInBeastForm = true; assert.equal(blow100(lsw, lb, foe()), 140, 'the beast climbs too'); lb.isInBeastForm = false; WM._resetWeaponMasteryForTests();
     setSigilDueling(true); try { assert.equal(blow100(lsw, lb, foe()), 100, 'a refereed fight'); } finally { setSigilDueling(false); }
     assert.equal(blow100(lsw, { ...lb, peer: 'x' }, foe()), 100, 'a peer\'s stand-in');
     const unmastered = fighter([], 100); unmastered.skills[LB] = 200;
@@ -385,7 +385,8 @@ test('BAL10 THE FISTS: a player\'s bare-handed blow reads the blow modifiers in 
     seen.length = 0;
     pcaaoHandToHandAttackDamage({ ...p, isInBeastForm: true }, target, 0, true, () => 0);
     calculateAttackDamage({ ...p, isInBeastForm: true }, target, { rolls: () => 0 });
-    assert.deepEqual(seen, [], 'never the beast\'s claws');
+    assert.equal(seen.length, 2, 'the beast\'s claws too, in both cores');
+    seen.length = 0;
     pcaaoHandToHandAttackDamage(foe(), p, 5, false, () => 0);
     assert.deepEqual(seen, [], 'never a foe\'s');
   } finally { registerWeaponBlowMod('bal10-probe', null); }
@@ -620,7 +621,7 @@ test('MARTIAL THE SEAMS: every host\'s rig registers the powers; the one ask, th
   // BAL10: both mods' arms hand the swing reader's word on, and the sheet's estimate reads the fists' modifiers as the cores do
   assert.match(src('src/systems/roleplayRealismItems/rriKits.js'), /shortBlade: !melee && techniqueFamily\(weapon\) === 'shortBlade',/);
   assert.match(src('src/systems/roleplayRealism/rrInstall.js'), /weight, shortBlade: !!w\?\.shortBlade \}\);/);
-  assert.match(src('src/combat/combatStats.js'), /return entity\.isInBeastForm \? d : weaponBlowMods\(null, d, entity, foe, wraps \? \{ \.\.\.ESTIMATE, wraps \} : ESTIMATE\);/);   // PIN MOVED (HAND-WRAPS): the estimate carries the Hand Wraps; PIN MOVED (AUDIT MARTIAL L2 F7): the estimate's own word
+  assert.match(src('src/combat/combatStats.js'), /return weaponBlowMods\(null, d, entity, foe, wraps \? \{ \.\.\.ESTIMATE, wraps \} : ESTIMATE\);/);   // PIN MOVED (HAND-WRAPS): the estimate carries the Hand Wraps; PIN MOVED (AUDIT MARTIAL L2 F7): the estimate's own word
 });
 
 test('TECH-KEY2 THE SIGNATURE KEY (Mac, 2026-10-30, forwarding #feature-feedback: "access to both your specialization technique and your weapons technique"): the second key answers the held path\'s signature whatever line the weapon carries, the first key the line; each its own clock; with no path, said; the claws refused; the HUD shows both chips (mutants: the second key reads the line; its press never stepped; its refusal unsaid; one chip)', () => {

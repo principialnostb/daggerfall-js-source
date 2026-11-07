@@ -259,6 +259,7 @@ const patron = (/** @type {string} */ tier) => () =>
 const apostle = () =>
   t('coll.how.apostle', 'A Patreon reward with no tier to pledge yet - for now it is granted by name.');
 const developer = () => t('coll.how.developer', 'The game’s developers.');
+const moderator = () => t('coll.how.moderator', 'The game’s moderators.');
 const dungeonMaster = () =>
   t('coll.how.dungeonmaster', 'The game’s Dungeon Master, who may speak to chat in orange with /dm.');
 const broker = (/** @type {string} */ id) => () =>
@@ -362,6 +363,7 @@ export const WARDROBE = Object.freeze({
       ),
     ), // AUDIT COLLECTIONS-II (lane 1): server-account/src/titles.js FOUNDER_UNTIL, firstPlayed, FOUNDER_HANDLES; founderLink.js
     developer: E('staff', 'staff', developer, { with: ['aura:seraphwings', 'glyph:dev'] }),
+    moderator: E('staff', 'staff', moderator, { with: ['glyph:mod'] }),
     dungeonmaster: E('staff', 'staff', dungeonMaster, { with: ['glyph:dm'] }),
     disciple: E('patrons', 'patron', patron('disciple'), { with: ['glyph:disciple'] }),
     apostle: E('patrons', 'dormant', apostle, { with: ['glyph:apostle'] }),
@@ -687,7 +689,7 @@ export const WARDROBE = Object.freeze({
   glyph: Object.freeze({
     sprout: E('account', 'auto', () => t('coll.how.sprout', 'Every new account shows it for its first two weeks.')),
     dev: E('staff', 'staff', developer, { with: ['title:developer', 'aura:seraphwings'] }),
-    mod: E('staff', 'staff', () => t('coll.how.moderator', 'The game’s moderators.')),
+    mod: E('staff', 'staff', moderator, { with: ['title:moderator'] }),
     dm: E('staff', 'staff', dungeonMaster, { with: ['title:dungeonmaster'] }),
     disciple: E('patrons', 'patron', patron('disciple'), { with: ['title:disciple'] }),
     apostle: E('patrons', 'dormant', apostle, { with: ['title:apostle'] }),

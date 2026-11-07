@@ -120,7 +120,7 @@ const CATALOGUE = {
   'title:formermaster': 'chapters dormant', 'title:highmaster': 'chapters dormant', 'title:seasonmaster': 'chapters dormant', 'title:grandchampion': 'ranked open',
   'title:arenachampion': 'ranked ranked', 'title:iliacchampion': 'ranked ranked', 'title:grandmaster': 'ranked ranked', 'title:ilovelamp': 'world open',
   'title:founder': 'account closed', 'title:disciple': 'patrons patron', 'title:apostle': 'patrons dormant', 'title:hierophant': 'patrons patron',
-  'title:herald': 'patrons patron', 'title:developer': 'staff staff', 'title:dungeonmaster': 'staff staff', 'title:shadowfang': 'bestowed bestowed',
+  'title:herald': 'patrons patron', 'title:developer': 'staff staff', 'title:moderator': 'staff staff', 'title:dungeonmaster': 'staff staff', 'title:shadowfang': 'bestowed bestowed',
   'title:penitent': 'bestowed bestowed', 'title:aegis': 'bestowed bestowed', 'title:primarch': 'bestowed bestowed', 'title:crystalfist': 'bestowed bestowed',
   'title:wikimaid': 'bestowed bestowed', 'title:nirnrootsage': 'bestowed bestowed' /* NIRNROOT-SAGE (PIN MOVED): Blob-Marley's own */, 'title:coldharbour': 'bestowed bestowed' /* BLOOD-OF-COLDHARBOUR (PIN MOVED): Trakel's own */,
   /* HUNTERS-MARK, MARKS-OF-MASTERY (PIN MOVED): the hunt's four, a Master's ten, the sea's two */
@@ -181,7 +181,7 @@ test('COLLECTIONS-II THE CATALOGUE IS WHOLE AND AS RECORDED: every title, aura, 
 test('COLLECTIONS-II WHAT COMES TOGETHER, ALL OF IT EACH WAY (AUDIT COLLECTIONS-II lane 1: an aura named its title and not the glyph granted beside it): each grant group of the service - a listed title with its glyph and aura (TIER_GLYPH, TIER_AURA), the developer\'s three, the firsts\' two, the Spire\'s two, the champion\'s laurel - is one clique in the catalogue, and nothing is said to come with anything else (mutants: an aura not granted with its title; an aura\'s glyph dropped)', () => {
   const groups = [];
   for (const t of Object.keys(TIER_LISTS)) groups.push([`title:${t}`, `glyph:${TIER_GLYPH[t]}`, ...(TIER_AURA[t] ? [`aura:${TIER_AURA[t]}`] : [])]);
-  groups.push(['title:developer', `aura:${DEVELOPER_AURA}`, 'glyph:dev'], ['title:hoursfirst', `aura:${HOURS_FIRST_AURA}`], [`title:${EG_FIRST_TITLE}`, `aura:${EG_FIRST_AURA}`], ['title:arenachampion', 'glyph:laurel']);
+  groups.push(['title:developer', `aura:${DEVELOPER_AURA}`, 'glyph:dev'], ['title:hoursfirst', `aura:${HOURS_FIRST_AURA}`], [`title:${EG_FIRST_TITLE}`, `aura:${EG_FIRST_AURA}`], ['title:arenachampion', 'glyph:laurel'], ['title:moderator', 'glyph:mod']);
   for (const [t, a] of Object.entries(EG_HONOUR_AURA)) groups.push([`title:${t}`, `aura:${a}`]);
   const want = {};
   for (const g of groups) for (const a of g) want[a] = g.filter((b) => b !== a).sort();

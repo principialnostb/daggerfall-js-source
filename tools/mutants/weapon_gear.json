@@ -42,8 +42,8 @@
   {
     "name": "WEAPON-GEAR-the-fists-too",
     "file": "src/systems/weaponMastery.js",
-    "old": "  if (\n    !online ||\n    !entity?.isPlayer ||\n    entity.peer ||\n    entity._mentor ||\n    entity.isInBeastForm ||\n    !Number.isInteger(skill) ||\n    skill === SKILLS.HandToHand\n  )",
-    "new": "  if (!online || !entity?.isPlayer || entity.peer || entity._mentor || entity.isInBeastForm || !Number.isInteger(skill))",
+    "old": "  if (\n    !online ||\n    !entity?.isPlayer ||\n    entity.peer ||\n    entity._mentor ||\n    entity.isInBeastForm ||\n    !Number.isInteger(skill) ||\n    skill === SKILLS.HandToHand\n  )\n    return 0;\n  const gear = skillModOf(entity, skill);",
+    "new": "  if (!online || !entity?.isPlayer || entity.peer || entity._mentor || entity.isInBeastForm || !Number.isInteger(skill))\n    return 0;\n  const gear = skillModOf(entity, skill);",
     "tests": [
       "test/combat/weapon_gear.test.js"
     ],
@@ -52,8 +52,8 @@
   {
     "name": "WEAPON-GEAR-offline",
     "file": "src/systems/weaponMastery.js",
-    "old": "    !online ||\n    !entity?.isPlayer ||",
-    "new": "    !entity?.isPlayer ||",
+    "old": "isOnlinePage() } = {}) {\n  if (\n    !online ||\n    !entity?.isPlayer ||",
+    "new": "isOnlinePage() } = {}) {\n  if (\n    !entity?.isPlayer ||",
     "tests": [
       "test/combat/weapon_gear.test.js"
     ],

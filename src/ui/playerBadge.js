@@ -192,6 +192,9 @@ export const TITLE_TEXT = Object.freeze({
   get coldharbour() {
     return t('account.title.coldharbour', 'Blood of Coldharbour');
   }, // BLOOD-OF-COLDHARBOUR (2026-10-30, for Trakel, a $200 patron): Trakel's own, their word for it
+  get moderator() {
+    return t('account.title.moderator', 'Moderator');
+  },
 });
 
 /** WB9g (2026-09-30, Mac: "an animated burning ground aura that circles the ground where your character stands"): AN
@@ -436,6 +439,7 @@ export const NUMIDIUM_GOLD = Object.freeze([0.988, 0.929, 0.376, 1]); // #fced60
 export const TITLE_RGBA = Object.freeze({
   founder: Object.freeze([1, 0.784, 0.29, 1]), // #ffc84a
   developer: Object.freeze([0.886, 0.271, 0.227, 1]), // #e2453a
+  moderator: Object.freeze([0.29, 0.565, 0.886, 1]), // #4a90e2 - the moderator's shield's blue (GLYPH_RGBA.mod reads it)
   dungeonmaster: Object.freeze([1, 0.549, 0.102, 1]), // #ff8c1a
   disciple: Object.freeze([0.369, 0.784, 0.722, 1]), // #5ec8b8
   apostle: Object.freeze([0.616, 0.486, 0.941, 1]), // #9d7cf0
@@ -723,7 +727,7 @@ export const TITLE_FLAME = Object.freeze({
 export const GLYPH_RGBA = Object.freeze({
   sprout: Object.freeze([0.42, 0.82, 0.36, 1]), // #6bd15c
   dev: TITLE_RGBA.developer,
-  mod: Object.freeze([0.29, 0.565, 0.886, 1]), // #4a90e2
+  mod: TITLE_RGBA.moderator, // read from the title, so the two cannot drift apart
   // TITLE-N: each new glyph wears its own title's colour, read from it - the two halves of one grant cannot drift
   dm: TITLE_RGBA.dungeonmaster,
   disciple: TITLE_RGBA.disciple,
