@@ -437,8 +437,8 @@
   {
     "name": "GEM2-the-remnant-one",
     "file": "src/systems/gems.js",
-    "old": "export const BOSS_GEMS = Object.freeze({ gate: 1, serpent: 1, abyss: 2 });",
-    "new": "export const BOSS_GEMS = Object.freeze({ gate: 1, serpent: 1, abyss: 1 });",
+    "old": "export const BOSS_GEMS = Object.freeze({ gate: 1, serpent: 1, abyss: 2, dragon: 1 });",
+    "new": "export const BOSS_GEMS = Object.freeze({ gate: 1, serpent: 1, abyss: 1, dragon: 1 });",
     "tests": [
       "test/systems/gem1_sockets.test.js"
     ]

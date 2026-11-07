@@ -90,7 +90,9 @@ dragon's row. A receipt with no place counts one a watch, and a placed receipt i
 counted its watch after it was minted.
 
 The hoard (`src/systems/dragon/dragonSpoils.js`) is rolled on the receipt's seed, never past the character's level:
-`DRAGON_GOLD_PER_LEVEL` gold a level, and Magic-or-better and Rare-or-better pieces for a dealer, less for a stander.
+`DRAGON_GOLD_PER_LEVEL` gold a level, `STOOD_GOLD` of it for a stander. It has Dagon's Breach's shape, with no Deadlands
+Ember. A dealer gets one piece Rare or better, Legendary `DRAGON_SPOILS_LEGENDARY` of the time. Every share gets
+`DRAGON_MAGIC_PIECES` pieces Magic or better and the dragon's gem (`BOSS_GEMS.dragon`).
 The tame is the service's own draw, 1 in `DRAGON_TAME_ONE_IN`, for a dealer whose character holds no dragon. A tamed
 player sees "Its core still turns. The Dwarven Dragon is yours." and the item goes into the pack
 (`src/scenes/dragonRewards.js`).

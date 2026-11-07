@@ -344,7 +344,7 @@ test('GEM2 the world\'s gem find: 10 in a thousand and 2 a tier to 50 (GEM-RARE,
 
 test('GEM2 the world bosses: the Warden one gem, the Old Coil one to a ship that dealt, the Brass Remnant two - each Flawless or Perfect, known; their pieces socketed by both passes; every spoils before them the seed\'s own; the same seed the same spoils', () => {
   on();
-  assert.deepEqual(G.BOSS_GEMS, { gate: 1, serpent: 1, abyss: 2 });
+  assert.deepEqual(G.BOSS_GEMS, { gate: 1, serpent: 1, abyss: 2, dragon: 1 });
   assert.deepEqual(G.BOSS_GEM_SOURCE, { tier: 21, boss: true });
   let socketed = 0, many = 0, aethericSocketed = 0;
   const grades = new Set();
