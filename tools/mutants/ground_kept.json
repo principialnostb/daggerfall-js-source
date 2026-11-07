@@ -2,17 +2,17 @@
  {
   "name": "GROUNDKEPT-kept-unread",
   "file": "server-account/src/professions.js",
-  "old": "  if (kept && now - kept.at < REGION_GROUND_KEEP_MS) return kept.ground;\n",
+  "old": "  if (row) return JSON.parse(row.ground);\n",
   "new": "",
   "tests": [
    "test/server/ground_kept.test.js"
   ],
-  "note": "every board read of a region whose writs never post scans its ground - 123,000 rows, 409 ms"
+  "note": "every board read of a region past an isolate's keep scans its ground - 170,000 rows, over a second"
  },
  {
   "name": "GROUNDKEPT-keep-unbounded",
   "file": "server-account/src/professions.js",
-  "old": "  if (kept && now - kept.at < REGION_GROUND_KEEP_MS) return kept.ground;",
+  "old": "  if (kept && kept.day === day && now - kept.at < REGION_GROUND_KEEP_MS) return kept.ground;",
   "new": "  if (kept) return kept.ground;",
   "tests": [
    "test/server/ground_kept.test.js"
@@ -28,5 +28,15 @@
    "test/server/ground_kept.test.js"
   ],
   "note": "a region read before its ground was witnessed posts nothing for the keep"
+ },
+ {
+  "name": "GROUNDKEPT-clock-posts-none",
+  "file": "server-account/src/cron.js",
+  "old": "  const { posted, left } = await postDayWrits(ctx.db, ctx.nowS, env, ctx.budget);",
+  "new": "  const { posted, left } = { posted: 0, left: 0 };",
+  "tests": [
+   "test/server/ground_kept.test.js"
+  ],
+  "note": "the day's writs posted by the first board read at the day's turn, a ground scan each region"
  }
 ]

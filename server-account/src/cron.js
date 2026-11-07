@@ -69,7 +69,7 @@ import { sweepBoard } from './board.js';
 import { claudeSweep, claudeKeep } from './claudeStaff.js'; // Claude's sweep and its 30-day keep
 import { safetyMinute, safetySweep } from './safetyClock.js'; // SAFE5 + SAFE8: the reviewer's reads and the moderators' cards; the hour's sweep
 import { sweepGuildNotes } from './guildBoard.js';
-import { sweepHarvests } from './professions.js';
+import { sweepHarvests, postDayWrits } from './professions.js';
 import { sweepCraftWrits } from './craftWrits.js'; // CRAFT-WRITS: an unfilled crafting writ the day after its own
 import { retryFreezePushes, sweepStaffChat } from './staffFreeze.js'; // STAFF-PANEL5-FREEZE: a freeze's push again, the staff chat's sweep
 import { SESSION_IDLE_S } from './accounts.js';
@@ -157,15 +157,27 @@ const STAFF_FEED_SWEEPS = Object.freeze(
 /** MOTHERLODES: the day this isolate has seen picked - asked once a day here, not every minute (the pick itself is the
  *  day's first ask, and every later one only reads it back). */
 let lodesPicked = -1;
+/** The day this isolate has seen every region's writs posted for. */
+let writsPosted = -1;
 /** The minutes between the clock's tries at a day's pick or tiles while either is not kept. The scan reads every
  *  confirmed pixel, so a try each minute into a busy database kept it busy; the marks are still read each minute. */
 export const LODE_CLOCK_EVERY_MIN = 5;
 /** Tests stand fresh isolates. */
 export const _resetCronForTests = () => {
   lodesPicked = -1;
+  writsPosted = -1;
 };
 
 /** @typedef {{ db: any, nowS: number, rand: (b: Uint8Array) => void, budget: () => boolean }} CronCtx */
+
+/** The day's writs posted by the clock (professions.js postDayWrits), a few regions a minute, so no board read at the
+ *  day's turn scans a region's ground while every player is asking. The regions posted. */
+export async function writsMinute(/** @type {CronCtx} */ ctx, /** @type {any} */ env) {
+  if (profSwitchOf(env?.PROFESSIONS_OPEN) !== 'on' || writsPosted === utcDay(ctx.nowS)) return 0;
+  const { posted, left } = await postDayWrits(ctx.db, ctx.nowS, env, ctx.budget);
+  if (!left) writsPosted = utcDay(ctx.nowS);
+  return posted;
+}
 /** @typedef {[string, (ctx: CronCtx, env: any) => Promise<number>]} CronJob */
 
 /** @type {readonly CronJob[]} */
@@ -241,6 +253,7 @@ export const MINUTE_JOBS = Object.freeze([
   [
     'motherlodes',
     async (ctx, env) => {
+      await writsMinute(ctx, env).catch((e) => console.error('cron writs', e)); // in this job, so no job's share shrinks
       if (profSwitchOf(env?.PROFESSIONS_OPEN) !== 'on') return 0;
       // the reports filed before ground_confirmed, read in a page a minute; a minute of the fill picks nothing
       if (!(await groundFilled(ctx.db))) return fillGroundStep(ctx.db);

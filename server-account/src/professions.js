@@ -1770,25 +1770,38 @@ const writView = (w, me) => ({
  *  read. Ground of none is never kept - a region posts the moment it has some. */
 export const REGION_GROUND_KEEP_MS = 10 * 60_000;
 const groundKept = new WeakMap(), groundAsking = new WeakMap();
-async function regionGround(db, region) {
+async function regionGround(db, region, day) {
   const root = db?.[DB_ROOT] ?? db;
   const now = Date.now();
   const kept = groundKept.get(root)?.get(region);
-  if (kept && now - kept.at < REGION_GROUND_KEEP_MS) return kept.ground;
+  if (kept && kept.day === day && now - kept.at < REGION_GROUND_KEEP_MS) return kept.ground;
   if (!groundAsking.has(root)) groundAsking.set(root, new Map());
   const asking = groundAsking.get(root);
   if (asking.has(region)) return asking.get(region);
-  const ask = regionGroundRead(db, region).then((ground) => {
+  const ask = regionGroundOfDay(db, region, day).then((ground) => {
     if (ground.length) {
       if (!groundKept.has(root)) groundKept.set(root, new Map());
-      groundKept.get(root).set(region, { at: now, ground });
+      groundKept.get(root).set(region, { at: now, day, ground });
     }
     return ground;
   }).finally(() => { if (asking.get(region) === ask) asking.delete(region); });
   asking.set(region, ask);
   return ask;
 }
-/** A region's witnessed pixels: each pixel whose witnesses name this region, with whether it is confirmed. */
+/** A region's ground for the day: the row the day's first scan kept for every isolate, else scanned and kept. Ground of
+ *  none is not kept, so a region posts the moment it has some. */
+async function regionGroundOfDay(db, region, day) {
+  const row = await db.prepare('SELECT ground FROM region_ground_days WHERE day = ?1 AND region = ?2').bind(day, region).first();
+  if (row) return JSON.parse(row.ground);
+  const ground = await regionGroundRead(db, region);
+  if (ground.length) {
+    await db.prepare('INSERT OR IGNORE INTO region_ground_days (day, region, ground) VALUES (?1, ?2, ?3)')
+      .bind(day, region, JSON.stringify(ground)).run().catch(() => null);   // a busy write is scanned again later, as before
+  }
+  return ground;
+}
+/** A region's witnessed ground: each climate a pixel of this region stands on, once, confirmed if any such pixel is. The
+ *  writ table (nodeLaw regionWritTable) reads no more than that. */
 async function regionGroundRead(db, region) {
   // AUDIT 29 A11: the pixels any report names for the region, each read over ALL its reports - a pixel one early report
   // named for this region and three confirmed for another is the other's
@@ -1796,12 +1809,12 @@ async function regionGroundRead(db, region) {
     AND key IN (SELECT key FROM world_witness WHERE kind = 'pixel' AND region = ?)`).bind(region).all();
   const rowsBy = new Map();
   for (const r of results) { const a = rowsBy.get(r.key) ?? []; a.push({ account: r.account, report: r.report, at: Number(r.at) }); rowsBy.set(r.key, a); }
-  const out = [];
+  const out = new Map();
   for (const rows of rowsBy.values()) {
     const f = witnessedFact(rows);
-    if (f.region === region && f.climate !== null) out.push({ climate: f.climate, confirmed: factConfirmed(f) });
+    if (f.region === region && f.climate !== null) out.set(f.climate, out.get(f.climate) || factConfirmed(f));
   }
-  return out;
+  return [...out].map(([climate, confirmed]) => ({ climate, confirmed }));
 }
 /** The registered accounts that played online in the seven days before `dayStartS` (ACC4's beat) - `active`. */
 async function activeBefore(db, dayStartS) {
@@ -1829,7 +1842,7 @@ async function postWrits(db, day, region, nowS, zero = null, open = 'off') {
   // no hall_writ_days, and its every board read re-read the region's witnessed ground and the week's active accounts
   const chapters = hallDone ? [] : await regionChapters(db, region, nowS * 1000);
   if (courtDone && !chapters.length) return;
-  const table = regionWritTable(region, await regionGround(db, region), daySeason(day));
+  const table = regionWritTable(region, await regionGround(db, region, day), daySeason(day));
   if (!table.length) return;
   const active = await activeBefore(db, day * DAY_S);
   const expires = (day + 1) * DAY_S;
@@ -1882,7 +1895,7 @@ async function postMemberWrits(db, day, region, nowS, character, members, zero =
   const posted = new Set(had.map((r) => Number(r.faction)));
   const missing = want.filter((f) => !posted.has(f));
   if (!missing.length) return;
-  const table = regionWritTable(region, await regionGround(db, region), daySeason(day));
+  const table = regionWritTable(region, await regionGround(db, region, day), daySeason(day));
   const writs = missing.map((f) => ({ f, w: memberWrit(day, region, f, character, table) })).filter((x) => x.w);
   if (!writs.length) return;
   await db.batch(writs.map(({ f, w }) => db.prepare(`INSERT OR IGNORE INTO writs (id, kind, day, region, faction, owner, slot, material, tier, qty, pay, renown, expires_at)
@@ -1924,6 +1937,25 @@ async function hiddenMemberships(db, player, character) {
   const { results = [] } = await db.prepare(`SELECT faction_id FROM npc_roll WHERE char_id = ?1 AND player = ?2 AND member = 1
     AND faction_id IN (${GUILD_FACTION_IDS.ThievesGuild}, ${GUILD_FACTION_IDS.DarkBrotherhood})`).bind(character, player).all();
   return new Set(results.map((r) => Number(r.faction_id)));
+}
+
+/** The regions the clock posts a minute: each region's first ground scan of the day can read ~170,000 rows. */
+export const WRITS_CLOCK_REGIONS = 8;
+/** THE DAY'S WRITS POSTED BY THE CLOCK, before any board asks: each region that posted writs the day before and has
+ *  none today and no ground scanned today, WRITS_CLOCK_REGIONS a firing, by the read's own postWrits. A board read
+ *  still posts its region's writs if it comes first. `left` is how many regions remain. */
+export async function postDayWrits(db, nowS, env, budget = () => true) {
+  const day = utcDay(nowS);
+  const { results = [] } = await db.prepare(`SELECT region FROM writ_days WHERE day = ?1 - 1
+    AND region NOT IN (SELECT region FROM writ_days WHERE day = ?1)
+    AND region NOT IN (SELECT region FROM region_ground_days WHERE day = ?1) ORDER BY region`).bind(day).all();   // scanned today: a board read posts it
+  let posted = 0;
+  for (const { region } of results.slice(0, WRITS_CLOCK_REGIONS)) {
+    if (!budget()) break;
+    await postWrits(db, day, Number(region), nowS, seasonZeroOf(env?.SEASON_ZERO_WEEK), env?.CHAPTERS_OPEN);
+    posted++;
+  }
+  return { posted, left: results.length - posted };
 }
 
 /** THE WORK TAB'S WRITS for a region's board: today's Court writs and its chapters' hall writs (CHAP2a), each open, mine
