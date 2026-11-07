@@ -24,11 +24,11 @@ const leading = (first, seed = 7) => {
 };
 const daedric = (it) => it.material === (it.group === 'Weapons' ? WEAPON_MATERIALS.Daedric : ARMOR_MATERIAL.Daedric);
 
-test('THE TABLE: three rows - a Rare three times in four, an Aetheric one time in five, the Gilded one time in twenty - summing to the whole, read in that order (mutants: a share moved; the order)', () => {
-  assert.deepEqual(INVASION_REWARD_TABLE.map((r) => [r.id, r.share]), [['rare', 0.75], ['aetheric', 0.2], ['gilded', 0.05]]);
+test('THE TABLE: three rows - a Rare three times in four, an Aetheric about one time in four, the Gilded one time in a hundred - summing to the whole, read in that order (mutants: a share moved; the order)', () => {
+  assert.deepEqual(INVASION_REWARD_TABLE.map((r) => [r.id, r.share]), [['rare', 0.75], ['aetheric', 0.24], ['gilded', 0.01]]);
   assert.ok(Math.abs(INVASION_REWARD_TABLE.reduce((n, r) => n + r.share, 0) - 1) < 1e-9);
   assert.ok(Object.isFrozen(INVASION_REWARD_TABLE) && INVASION_REWARD_TABLE.every(Object.isFrozen));
-  assert.deepEqual([0, 0.7499, 0.75, 0.9499, 0.95, 0.9999].map((r) => invasionRewardRow(r).id), ['rare', 'rare', 'aetheric', 'aetheric', 'gilded', 'gilded']);
+  assert.deepEqual([0, 0.7499, 0.75, 0.9899, 0.99, 0.9999].map((r) => invasionRewardRow(r).id), ['rare', 'rare', 'aetheric', 'aetheric', 'gilded', 'gilded']);
   const n = 4000, seen = { rare: 0, aetheric: 0, gilded: 0 };
   for (let s = 1; s <= n; s++) seen[rollInvasionReward(seededRng(s)).rarity]++;
   for (const row of INVASION_REWARD_TABLE) assert.ok(Math.abs(seen[row.id] / n - row.share) < 0.03, `${row.id}: ${seen[row.id]} of ${n}`);
@@ -71,7 +71,7 @@ test('AN AETHERIC: a Realm Defender piece named for its own gear, lawful; every 
 });
 
 test("THE GILDED: Retribution's Call, its record's marks exactly, lawful (mutants: another record; a line off)", () => {
-  const it = rollInvasionReward(leading(0.97));
+  const it = rollInvasionReward(leading(0.995));
   assert.deepEqual([it.rarity, it.gilded, it.name], ['gilded', RETRIBUTIONS_CALL.id, "Retribution's Call"]);
   assert.deepEqual(it.affixes, RETRIBUTIONS_CALL.affixes.map((a) => ({ ...a })));
   assert.equal(it.material, WEAPON_MATERIALS.Daedric);

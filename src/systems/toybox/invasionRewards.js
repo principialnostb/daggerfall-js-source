@@ -14,8 +14,8 @@ import { RETRIBUTIONS_CALL, mintGilded } from '../gilded.js';
 /** The three outcomes and their shares of the one roll, in the order the roll reads them. */
 export const INVASION_REWARD_TABLE = Object.freeze([
   Object.freeze({ id: 'rare', share: 0.75 }),
-  Object.freeze({ id: 'aetheric', share: 0.2 }),
-  Object.freeze({ id: 'gilded', share: 0.05 }),
+  Object.freeze({ id: 'aetheric', share: 0.24 }),
+  Object.freeze({ id: 'gilded', share: 0.01 }),
 ]);
 /** The share of Rares that take one line that does something on top of their three or four numbers: five lines at most,
  *  the one past a Rare's count the item law allows. */
