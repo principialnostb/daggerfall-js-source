@@ -67,7 +67,8 @@ test('DRAGON4 the rewards: a counted receipt\'s hoard into the pack through the 
   const rw = createDragonRewards(host);
   rw.receipt(await R({ c: 9 }));
   await rw.claims.flush();
-  for (let i = 0; i < 20 && !taken.length; i++) await new Promise((done) => setTimeout(done, 5));
+  // the tame is kept once the hoard's grant has settled, after its first piece is in the pack
+  for (let i = 0; i < 40 && !storage.has(DRAGON_TAMES_KEY); i++) await new Promise((done) => setTimeout(done, 5));
   assert.ok(taken.includes('gold') && taken.filter((k) => k === 'item').length === 1 + DRAGON_MAGIC_PIECES + 1, JSON.stringify(taken));   // the pieces and the gem
   assert.deepEqual(rw.tames().map((x) => [x.id, x.look, x.w]), [[tame.id, 1, 500_004]]);
   assert.ok(storage.has(DRAGON_TAMES_KEY));
