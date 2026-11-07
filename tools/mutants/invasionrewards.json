@@ -1,0 +1,38 @@
+[
+  {
+    "name": "INVASION-REWARD-a-daedric-base",
+    "file": "src/systems/toybox/invasionRewards.js",
+    "old": "  if (rand() < 0.5) return createWeapon(pick(INVASION_LEGENDARY_WEAPONS, rand), WEAPON_MATERIALS.Ebony, rand);",
+    "new": "  if (rand() < 0.5) return createWeapon(pick(INVASION_LEGENDARY_WEAPONS, rand), WEAPON_MATERIALS.Daedric, rand);",
+    "tests": [
+      "test/systems/invasionrewards.test.js"
+    ]
+  },
+  {
+    "name": "INVASION-REWARD-the-rare-tier",
+    "file": "src/systems/toybox/invasionRewards.js",
+    "old": "  applyRarity(item, 'legendary', rand);",
+    "new": "  applyRarity(item, 'rare', rand);",
+    "tests": [
+      "test/systems/invasionrewards.test.js"
+    ]
+  },
+  {
+    "name": "INVASION-REWARD-a-share-moved",
+    "file": "src/systems/toybox/invasionRewards.js",
+    "old": "  Object.freeze({ id: 'aetheric', share: 0.167 }),",
+    "new": "  Object.freeze({ id: 'aetheric', share: 0.24 }),",
+    "tests": [
+      "test/systems/invasionrewards.test.js"
+    ]
+  },
+  {
+    "name": "INVASION-REWARD-the-gilded-five",
+    "file": "src/systems/toybox/invasionRewards.js",
+    "old": "  Object.freeze({ id: 'gilded', share: 0.01 }),",
+    "new": "  Object.freeze({ id: 'gilded', share: 0.05 }),",
+    "tests": [
+      "test/systems/invasionrewards.test.js"
+    ]
+  }
+]

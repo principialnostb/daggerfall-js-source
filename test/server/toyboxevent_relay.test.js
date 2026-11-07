@@ -45,10 +45,12 @@ function relay() {
 test('TOYBOX RELAY: the hub keeps an invasion\'s fields; its cell counts no word of a screen, before it begins or after', async () => {
   const { ev } = /** @type {any} */ (toyboxStaffEvent({ kind: 'invasion', place: BAY, family: 'daedra', id: 'tb12cd34ef', at: AT, by: 'Dev' }));
   const R = relay();
-  const elsewhere = R.hub.join('far-away');
+  const elsewhere = R.hub.join('far-away', { tb: 1 });
+  const older = R.hub.join('old-game');
   const r = await takeStaffEventOrder(R.hub, { o: 'sevent', s: 'acct', op: 'start', ev }, AT);
   assert.deepEqual([r.ok, r.l[0].tb, r.l[0].fm, r.l[0].go], [true, 1, 0, AT + TOYBOX_EVENT_WAIT_MS]);
-  assert.deepEqual(elsewhere.ws.got.at(-1).l[0], ev, 'said to everyone online, whole');
+  assert.deepEqual(elsewhere.ws.got.at(-1).l[0], ev, 'said to everyone online whose game reads it, whole');
+  assert.deepEqual(older.ws.got.at(-1).l, [], 'a game whose hello did not say it reads a toybox event hears none: it would stand its monsters at once');
   const cell = R.room(worldRoom(ev.px, ev.py));
   const ann = cell.join('ann', { sub: 'acctA', name: 'Ann', pose: poseOn(ev.px, ev.py) });
   const w = (n, more = {}) => ({ k: 'w', id: ev.id, px: ev.px, py: ev.py, n, s: 1, bu: 0, bk: 0, fb: 0, h: n, ...more });

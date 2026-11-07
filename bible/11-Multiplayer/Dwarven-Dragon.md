@@ -50,7 +50,8 @@ within `DRAGON_ENGAGE_R`, and melee only when it is grounded.
 
 - **Aloft** it orbits at `CIRCLE_ALT`, flying `FLY_V`. Melee cannot reach it; arrows and spells can.
 - **Grounded** after a Crash Landing, for `GROUNDED_MS`, walking at `WALK_V`; every blow on it lands at `GROUNDED_X`.
-  It leaves by a Takeoff Gust.
+  It leaves by a Takeoff Gust. A swing from a player who stands inside its hitbox (`inDragonBox`) always meets it,
+  whichever way they face.
 
 It never strays past `DRAGON_ARENA_R` of its site. Threat picks its target as the gate's does; no blow more than
 `DRAGON_REPEAT_MAX` times running. At 66% and 33% it roars, is warded for `DRAGON_SHIELD_MS` and enters its next phase.
@@ -89,7 +90,9 @@ dragon's row. A receipt with no place counts one a watch, and a placed receipt i
 counted its watch after it was minted.
 
 The hoard (`src/systems/dragon/dragonSpoils.js`) is rolled on the receipt's seed, never past the character's level:
-`DRAGON_GOLD_PER_LEVEL` gold a level, and Magic-or-better and Rare-or-better pieces for a dealer, less for a stander.
+`DRAGON_GOLD_PER_LEVEL` gold a level, `STOOD_GOLD` of it for a stander. It has Dagon's Breach's shape, with no Deadlands
+Ember. A dealer gets one piece Rare or better, Legendary `DRAGON_SPOILS_LEGENDARY` of the time. Every share gets
+`DRAGON_MAGIC_PIECES` pieces Magic or better and the dragon's gem (`BOSS_GEMS.dragon`).
 The tame is the service's own draw, 1 in `DRAGON_TAME_ONE_IN`, for a dealer whose character holds no dragon. A tamed
 player sees "Its core still turns. The Dwarven Dragon is yours." and the item goes into the pack
 (`src/scenes/dragonRewards.js`).

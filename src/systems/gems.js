@@ -142,7 +142,7 @@ registerGemFind(rollGemFind);
 
 /** THE BOSSES' GEMS: how many each boss's spoils carry, at a boss's grade at the ladder's top tier (the bands' last row).
  *  The Old Coil's go to a ship that dealt (systems/serpent/serpentSpoils.js). */
-export const BOSS_GEMS = Object.freeze({ gate: 1, serpent: 1, abyss: 2 });
+export const BOSS_GEMS = Object.freeze({ gate: 1, serpent: 1, abyss: 2, dragon: 1 });
 export const BOSS_GEM_SOURCE = Object.freeze({ tier: 21, boss: true });
 /** A boss's gems, each known (a gem is always known - it carries no enchantment) - two draws a gem. */
 export function bossGems(/** @type {string} */ boss, rolls = Math.random) {

@@ -322,8 +322,8 @@
   {
     "name": "STAFF-PANEL5-MESSAGE-hello-sm-unkept",
     "file": "server/src/index.js",
-    "old": ", ...(m.sm === 1 && isSocialRoom(a.key) ? { sm: 1 } : {}), ...(who.hid ? { hid: 1, lk: 0 } : {}) }))",
-    "new": ", ...(who.hid ? { hid: 1, lk: 0 } : {}) }))",
+    "old": ", ...(m.sm === 1 && isSocialRoom(a.key) ? { sm: 1 } : {}), ...(m.tb === 1 && isSocialRoom(a.key) ? { tb: 1 } : {}),",
+    "new": ", ...(m.tb === 1 && isSocialRoom(a.key) ? { tb: 1 } : {}),",
     "why": "the hello's `sm` never kept: every socket an old build",
     "tests": [
       "test/net/staffpanel5message_client.test.js"

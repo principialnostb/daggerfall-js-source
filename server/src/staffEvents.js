@@ -113,6 +113,17 @@ async function saveBook(room) {
 }
 /** The book as the game hears it. @param {any[]} l */
 const bookFrame = (l) => JSON.stringify({ t: 'sev', k: 'ev', l });
+/** The book as a socket's game hears it: a game whose hello did not say it reads a toybox event's fields (`tb`) hears
+ *  none, since it reads one as a plain staff event and stands its monsters the moment it is staged. @param {any} attachment @param {any[]} book */
+export const bookFor = (attachment, book) =>
+  attachment?.tb === 1 ? book : book.filter((event) => !isToyboxEvent(event));
+/** The book said to everyone online, each socket's game its own. @param {any} room @param {any[]} book */
+function fanBook(room, book) {
+  const whole = bookFrame(book),
+    older = bookFrame(bookFor(null, book));
+  for (const [ws, attachment] of [...room._all()])
+    if (attachment.id) room._send(ws, attachment.tb === 1 ? whole : older);
+}
 /** Said to everyone online (the hub's fan IS everyone online - EVENT1's law; on the bus, every shard's too). @param {any} room @param {string} s */
 function fanAll(room, s) {
   for (const [ws, b] of [...room._all()]) if (b.id) room._send(ws, s);
@@ -139,7 +150,7 @@ async function endEvent(room, id, why) {
   room._sevLive.delete(id);
   await saveBook(room);
   fanAll(room, JSON.stringify({ t: 'sev', k: 'end', id, why }));
-  fanAll(room, bookFrame(room._sevBook));
+  fanBook(room, room._sevBook);
   await tellCell(room, e, { id, op: 'end' });
   return true;
 }
@@ -180,7 +191,7 @@ export async function takeStaffEventOrder(room, c, now) {
       if (room._sevBook.length >= STAFF_EVENTS_MAX) return { ok: false, why: 'full', l: lookOf(room) };
       room._sevBook = [...room._sevBook, e];
       await saveBook(room);
-      fanAll(room, bookFrame(room._sevBook));
+      fanBook(room, room._sevBook);
     }
     return { ok: true, l: lookOf(room) };
   }
@@ -194,7 +205,7 @@ export async function takeStaffEventOrder(room, c, now) {
     if (!e) return { ok: false, why: 'gone', l: lookOf(room) };
     e.fb = Math.min(99, (e.fb ?? 0) + 1);
     await saveBook(room);
-    fanAll(room, bookFrame(room._sevBook));
+    fanBook(room, room._sevBook);
     await tellCell(room, e, { id: e.id, op: 'boss', fb: e.fb });
     return { ok: true, l: lookOf(room) };
   }
@@ -222,7 +233,9 @@ export async function takeStaffEventLaw(room, order, now) {
 /** The book said to one joiner (a hello at the hub - its own socket's, or a shard's joiner on the bus). @param {any} room @param {any} ws @param {number} now */
 export async function sayStaffBook(room, ws, now) {
   await lapse(room, now);
-  const book = await bookOf(room);
+  let attachment = null;
+  for (const [socket, held] of room._all()) if (socket === ws) attachment = held;
+  const book = bookFor(attachment, await bookOf(room));
   if (book.length) room._send(ws, bookFrame(book));
 }
 /** A cell asking for the book. @param {any} room */
