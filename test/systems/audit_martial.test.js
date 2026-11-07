@@ -512,7 +512,7 @@ test('AUDIT MARTIAL L4 L4 / L4 L6 / L4 N1 / L4 N2: the martial ask is never the 
 
 // ── LANE 5: what the pins could not fail ────────────────────────────────────────────────────────────────────────────
 
-test('AUDIT MARTIAL L5 H1: BAL10\'S FISTS WHERE THEY RUN - both cores\' OUTER calls (calculateAttackDamage, PCAAO\'s pcaaoAttackDamage) lay the blow modifiers over a bare-handed blow whole (a +7 probe, the same roll), with the host\'s word that the foe had not noticed me; never the beast\'s fists, never a foe\'s (mutants: either core\'s result discarded; the overhaul\'s host word dropped)', () => clean(() => {
+test('AUDIT MARTIAL L5 H1: BAL10\'S FISTS WHERE THEY RUN - both cores\' OUTER calls (calculateAttackDamage, PCAAO\'s pcaaoAttackDamage) lay the blow modifiers over a bare-handed blow whole (a +7 probe, the same roll), with the host\'s word that the foe had not noticed me; the beast\'s claws too, never a foe\'s (mutants: either core\'s result discarded; the overhaul\'s host word dropped)', () => clean(() => {
   const me = fighter([HH], 100);
   const calls = [];
   const stock = (who, at, unaware = false) => calculateAttackDamage(who, at, { weapon: null, rolls: () => 0.3, unaware });
@@ -527,9 +527,11 @@ test('AUDIT MARTIAL L5 H1: BAL10\'S FISTS WHERE THEY RUN - both cores\' OUTER ca
     calls.length = 0;
     const beast = fighter([HH], 100); beast.isInBeastForm = true;
     stock(beast, realFoe(ORC)); over(beast, realFoe(ORC));
+    assert.deepEqual(calls, [[true, false], [true, false]], 'the beast\'s claws too');
+    calls.length = 0;
     const thug = realFoe(143);
     stock(thug, me); over(thug, me);
-    assert.deepEqual(calls, [], 'never the beast, never a foe');
+    assert.deepEqual(calls, [], 'never a foe');
   } finally { registerWeaponBlowMod('audit-fist-probe', null); }
 }));
 
@@ -647,7 +649,10 @@ test('AUDIT MARTIAL L5 H5: NEVER AT A PLAYER, NEVER THE WARD, NEVER IN A REFEREE
     const ctx = { entity: dirk, weaponType: WEAPON_TYPES.LongBlade, usingRightHand: true };
     assert.equal(swingPacePct(ctx, readSwing(ctx)), 40);
     setSigilDueling(true);
-    assert.equal(swingPacePct(ctx, readSwing(ctx)), 0, 'a duel: no pace');
+    assert.equal(swingPacePct(ctx, readSwing(ctx)), 40, 'PVP-EVEN: a duel keeps the Short Blade\'s pace, its whole climb between players');
+    const bz = held(pathFighter('berserker', 200), weapon(WEAPONS.War_Axe)); bz.health = 1;
+    const bctx = { entity: bz, weaponType: 12, usingRightHand: true };
+    assert.equal(swingPacePct(bctx, readSwing(bctx)), 0, 'a duel: no path\'s pace');
     setSigilDueling(false);
     registerSwingPaceMod('audit-slow', () => -30);
     try { assert.equal(swingPacePct(ctx, readSwing(ctx)), 40, 'a modifier answering less than nothing slows nothing'); } finally { registerSwingPaceMod('audit-slow', null); }
@@ -737,7 +742,7 @@ test('AUDIT MARTIAL L5 M4 / L5 M6: THE RIDERS\' GUARDS AND THE NUMBER TOLD - a f
   assert.deepEqual(d3.hurts, [['o', Math.round(hit.damage / 2)]], 'the swing tells the weighed blow');
 }));
 
-test('AUDIT MARTIAL L5 M6: THE STATS PAGE\'S FISTS read the blow modifiers as the cores do, and the beast\'s claws none (mutants: the estimate\'s modifiers unread; the claws read)', () => clean(() => {
+test('AUDIT MARTIAL L5 M6: THE STATS PAGE\'S FISTS read the blow modifiers as the cores do, and the beast\'s claws too (mutants: the estimate\'s modifiers unread; the claws unread)', () => clean(() => {
   const p = fighter([HH], 100);
   const base = computeCombatStats(p, { weapon: null, core: 'classic' });
   registerWeaponBlowMod('audit-sheet-probe', (w, d) => (w === null ? d + 7 : d));
@@ -747,7 +752,7 @@ test('AUDIT MARTIAL L5 M6: THE STATS PAGE\'S FISTS read the blow modifiers as th
     const beast = fighter([HH], 100); beast.isInBeastForm = true;
     const b0 = JSON.stringify(computeCombatStats(beast, { weapon: null, core: 'classic' }));
     registerWeaponBlowMod('audit-sheet-probe', null);
-    assert.equal(JSON.stringify(computeCombatStats(beast, { weapon: null, core: 'classic' })), b0, 'the claws: none');
+    assert.notEqual(JSON.stringify(computeCombatStats(beast, { weapon: null, core: 'classic' })), b0, 'the claws read them too');
   } finally { registerWeaponBlowMod('audit-sheet-probe', null); }
 }));
 

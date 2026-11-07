@@ -449,6 +449,7 @@ export function titlesHeld(player, env) {
   if (Number.isFinite(player?.registered_at) && firstPlayed(player) <= FOUNDER_UNTIL) held.push('founder');
   if (!held.includes('founder') && isNamedFounder(player, env)) held.push('founder'); // FOUNDER5: or by name
   if (isDeveloper(player, env)) held.push('developer');
+  if (isModerator(player, env)) held.push('moderator'); // held only while they moderate, as the shield is
   for (const t of Object.keys(TIER_LISTS)) if (holdsTier(t, player, env)) held.push(t); // TITLE-N
   // WB9g: AND THE BROKER'S - a title bought with Sigil Stones, held because the sale is recorded on the row (0037). A
   // guest row cannot buy one (accounts.js buyInsignia refuses it), so none is ever read off one.

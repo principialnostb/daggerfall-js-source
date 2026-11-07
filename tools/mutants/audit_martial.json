@@ -782,10 +782,10 @@
     ]
   },
   {
-    "name": "AUDIT-MARTIAL-L5-duel-swing-paced",
+    "name": "AUDIT-MARTIAL-L5-duel-keeps-short-blade-pace",
     "file": "src/systems/weaponMastery.js",
-    "old": "  if (sigilDueling()) return 0;\n  const climb = weaponClimb(ctx?.entity, SKILLS.ShortBlade);",
-    "new": "  const climb = weaponClimb(ctx?.entity, SKILLS.ShortBlade);",
+    "old": "  const climb = weaponClimb(ctx?.entity, SKILLS.ShortBlade);",
+    "new": "  if (sigilDueling()) return 0;\n  const climb = weaponClimb(ctx?.entity, SKILLS.ShortBlade);",
     "tests": [
       "test/systems/audit_martial.test.js",
       "test/systems/martial_paths.test.js"
@@ -904,8 +904,8 @@
   {
     "name": "AUDIT-MARTIAL-L5-stock-foe-fists-read",
     "file": "src/combat/formulas.js",
-    "old": "  if (isPlayer && !attacker.isInBeastForm) damage = weaponBlowMods(",
-    "new": "  if (!attacker.isInBeastForm) damage = weaponBlowMods(",
+    "old": "  if (isPlayer) damage = weaponBlowMods(",
+    "new": "  if (true) damage = weaponBlowMods(",
     "tests": [
       "test/systems/audit_martial.test.js",
       "test/systems/martial_paths.test.js"
@@ -1039,8 +1039,8 @@
   {
     "name": "AUDIT-MARTIAL-L5-stock-fists-result-discarded",
     "file": "src/combat/formulas.js",
-    "old": "  if (isPlayer && !attacker.isInBeastForm) damage = weaponBlowMods(null, damage, attacker, target, info);",
-    "new": "  if (isPlayer && !attacker.isInBeastForm) weaponBlowMods(null, damage, attacker, target, info);",
+    "old": "  if (isPlayer) damage = weaponBlowMods(null, damage, attacker, target, info);",
+    "new": "  if (isPlayer) weaponBlowMods(null, damage, attacker, target, info);",
     "tests": [
       "test/systems/audit_martial.test.js",
       "test/systems/martial_paths.test.js"
@@ -1049,8 +1049,8 @@
   {
     "name": "AUDIT-MARTIAL-L5-overhaul-fists-result-discarded",
     "file": "src/combat/pcaao.js",
-    "old": "  if (player && !attacker.isInBeastForm) damage = weaponBlowMods(null, damage, attacker, target, info); // BAL10: the fists' blow modifiers",
-    "new": "  if (player && !attacker.isInBeastForm) weaponBlowMods(null, damage, attacker, target, info); // BAL10: the fists' blow modifiers",
+    "old": "  if (player) damage = weaponBlowMods(null, damage, attacker, target, info); // BAL10: the fists' blow modifiers; the beast's claws too",
+    "new": "  if (player) weaponBlowMods(null, damage, attacker, target, info); // BAL10: the fists' blow modifiers; the beast's claws too",
     "tests": [
       "test/systems/audit_martial.test.js",
       "test/systems/martial_paths.test.js"
@@ -1079,8 +1079,8 @@
   {
     "name": "AUDIT-MARTIAL-BAL10-the-sheet-reads-no-fist-modifiers",
     "file": "src/combat/combatStats.js",
-    "old": "      return entity.isInBeastForm ? d : weaponBlowMods(null, d, entity, foe, wraps ? { ...ESTIMATE, wraps } : ESTIMATE); // BAL10: both cores read the fists' blow modifiers now - never the beast's claws",
-    "new": "      return d; // BAL10: both cores read the fists' blow modifiers now - never the beast's claws",
+    "old": "      return weaponBlowMods(null, d, entity, foe, wraps ? { ...ESTIMATE, wraps } : ESTIMATE); // BAL10: both cores read the fists' blow modifiers now - the beast's claws too",
+    "new": "      return d; // BAL10: both cores read the fists' blow modifiers now - the beast's claws too",
     "tests": [
       "test/systems/audit_martial.test.js",
       "test/systems/martial_paths.test.js"
@@ -1117,10 +1117,10 @@
     ]
   },
   {
-    "name": "AUDIT-MARTIAL-L5-card-claws-read",
+    "name": "AUDIT-MARTIAL-L5-card-claws-unread",
     "file": "src/combat/combatStats.js",
-    "old": "      return entity.isInBeastForm ? d : weaponBlowMods(null, d, entity, foe, wraps ? { ...ESTIMATE, wraps } : ESTIMATE); // BAL10: both cores read the fists' blow modifiers now - never the beast's claws",
-    "new": "      return weaponBlowMods(null, d, entity, foe, wraps ? { ...ESTIMATE, wraps } : ESTIMATE); // BAL10: both cores read the fists' blow modifiers now - never the beast's claws",
+    "old": "      return weaponBlowMods(null, d, entity, foe, wraps ? { ...ESTIMATE, wraps } : ESTIMATE); // BAL10: both cores read the fists' blow modifiers now - the beast's claws too",
+    "new": "      return entity.isInBeastForm ? d : weaponBlowMods(null, d, entity, foe, wraps ? { ...ESTIMATE, wraps } : ESTIMATE); // BAL10: both cores read the fists' blow modifiers now - never the beast's claws",
     "tests": [
       "test/systems/audit_martial.test.js",
       "test/systems/martial_paths.test.js"

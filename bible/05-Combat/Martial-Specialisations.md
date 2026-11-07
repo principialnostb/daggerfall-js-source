@@ -46,9 +46,15 @@ mastery and on the pause window's Growth tab.
   effective 140 at 200: Long Blade and Archery every blow 1% harder (x1.4); Axe 2% harder on a foe under half health,
   Blunt 2% on a foe at half or more (x1.8 there); Short Blade every swing 1% quicker through the swing pace
   (`registerSwingPaceMod`, at most `SWING_PACE_MOST` 50%, never past the swing law's floor); Hand-to-Hand's formula
-  already reads the climb. Gear on a weapon skill adds 0.44% a point to its blow (`WEAPON_GEAR_PER_POINT`), up to
-  `WEAPON_GEAR_PCT_MOST` (320), added to the climb's. On a body the relay runs, health is read from the relay's word
-  (`healthShare`, `src/combat/healthShare.js`).
+  already reads the climb. On a body the relay runs, health is read from the relay's word (`healthShare`,
+  `src/combat/healthShare.js`).
+- **Weapon gear** (`src/systems/weaponMastery.js`). Gear on a weapon skill adds to a blow at a foe the fists' own rule over its points: points / 10
+  to points / 5 more damage, rolled, ahead of the climb's percent (`weaponGearRoll`, GEAR-ROLL), so each weapon family
+  carries the same gear roll the fists' skill already does.
+- **Weapons in PvP.** A blow between players carries the same gear roll (the
+  duel sheet's `gr`, `src/combat/duelCombat.js`), and its climb is PVP-EVEN's (`weaponPvpClimbPct`): every family 1%
+  harder a point on every blow (x1.4), the Axe and the Blunt Weapon with no half line, save the Short Blade, whose climb
+  stays its swing pace (kept in a refereed fight, as the paths' paces are not).
 
 ## Rules
 
@@ -60,7 +66,7 @@ mastery and on the pause window's Growth tab.
   swing pace are the player's own and ride open PvP sheets; a duel or arena bout puts them to sleep.
 - Offline, weapons past 100 stay Daggerfall's; the paths themselves work offline with Master Skills on. Gear's share
   is also online only.
-- The beast takes no path power, no past-100 bonus and no fist modifier.
+- The beast takes no path power. Since WERE-BLOW (2026-11-03) its claws do take the past-100 bonus and the fist blow modifiers (Firmament, sets, loot, sigil), as human fists do.
 - No account-service finding for a path: a path acts only with both masteries, which the client reads at every ask.
 
 ## Daggerfall Unity

@@ -67,10 +67,10 @@ const SKILL_OF_FAMILY = Object.freeze({
 export const blowSkillOf = (weapon) =>
   weapon ? (SKILL_OF_FAMILY[techniqueFamily(weapon) ?? ''] ?? null) : SKILLS.HandToHand;
 
-/** The effective points of `skill`'s CLIMB past 100 that pay for `entity` now (0 to 40): mine, online, not the beast -
- *  MENTOR2: the mentored climb while mentoring. */
+/** The effective points of `skill`'s CLIMB past 100 that pay for `entity` now (0 to 40): mine, online, the beast's
+ *  claws too - MENTOR2: the mentored climb while mentoring. */
 export function weaponClimb(entity, skill, { online = isOnlinePage() } = {}) {
-  if (!online || !entity?.isPlayer || entity.peer || entity.isInBeastForm || !Number.isInteger(skill)) return 0;
+  if (!online || !entity?.isPlayer || entity.peer || !Number.isInteger(skill)) return 0;
   const c = fightingClimb(entity, skill);
   return c > SKILL_SOFT_CAP ? c - SKILL_SOFT_CAP : 0;
 }
@@ -101,10 +101,43 @@ export function weaponGearPct(entity, skill, { online = isOnlinePage() } = {}) {
 }
 
 /** The percent MY blow with `weapon` at `target` lands harder for its skill (0 for a blow it does not pay) - the climb's
- *  past 100 and, WEAPON-GEAR, its gear's, added. */
+ *  past 100 and, WEAPON-GEAR, its gear's, added. A blow takes the climb's percent and GEAR-ROLL's roll instead
+ *  (weaponMasteryBlow at a foe, combat/duelCombat.js at a player); this reading stays for the tests that pin the old law. */
 export function weaponPastPct(weapon, attacker, target, opts = {}) {
   const skill = blowSkillOf(weapon);
   return climbPastPct(skill, attacker, target, opts) + weaponGearPct(attacker, skill, opts);
+}
+
+/** The climb's percent alone, by the weapon's family - a blow between players takes it with the gear's roll
+ *  (combat/duelCombat.js `wp` and `gr`), as a blow at a foe does (weaponMasteryBlow). */
+export function weaponClimbPct(weapon, attacker, target, opts = {}) {
+  return climbPastPct(blowSkillOf(weapon), attacker, target, opts);
+}
+
+/** Gear on a weapon skill rolled into a blow at a foe the way the fists' gear is. Gear on
+ *  Hand-to-Hand raises the skill the fists' roll is read off (combat/formulas.js handToHandMinDamage / MaxDamage:
+ *  skill / 10 + 1 to skill / 5 + 1), so the fists' roll grew with every point, while a weapon kept its own small roll and
+ *  took 0.44% a point of it: at 800 a sheet, 200 trained and 600 worn, fists landed about twice the best weapon's damage
+ *  a second and three times a dagger's. Now a weapon's gear points add the fists' rule over the points alone - points /
+ *  10 to points / 5 more damage, rolled - to its blow, in place of their percent, so every family's blow carries the
+ *  same gear roll over its own and the families sit near the fists. The same gate as the percent (weaponGearPct): online,
+ *  mine, no mentor, never the beast, never the fists (theirs is in their roll). [min, max], or null for none. */
+export function weaponGearRoll(entity, weapon, { online = isOnlinePage() } = {}) {
+  if (!weapon) return null;
+  const skill = blowSkillOf(weapon);
+  if (
+    !online ||
+    !entity?.isPlayer ||
+    entity.peer ||
+    entity._mentor ||
+    entity.isInBeastForm ||
+    !Number.isInteger(skill) ||
+    skill === SKILLS.HandToHand
+  )
+    return null;
+  const points = skillModOf(entity, skill);
+  if (!(points > 0)) return null;
+  return [Math.floor(points / 10), Math.floor(points / 5)];
 }
 
 /** MARTIAL2's own: the percent the trained climb past 100 makes a blow, by the weapon's family. */
@@ -128,6 +161,17 @@ function climbPastPct(skill, attacker, target, opts) {
   }
 }
 
+/** The climb's percent on a blow at a PLAYER (combat/duelCombat.js `wp`). Between players every
+ *  family's climb pays the same - each effective point past 100 1% harder on every blow (x1.4 at 200), the Axe and the
+ *  Blunt Weapon with no half line (a player's health is the referee's) - save the Short Blade's, which pays in its swing
+ *  there as at a foe (weaponMasteryPace), and the fists', which is in their roll. */
+export function weaponPvpClimbPct(weapon, attacker, opts = {}) {
+  const skill = blowSkillOf(weapon);
+  if (skill === SKILLS.HandToHand || skill === SKILLS.ShortBlade || !Number.isInteger(skill)) return 0;
+  const climb = weaponClimb(attacker, skill, opts);
+  return climb > 0 ? climb * (WEAPON_POTENCY_PER_POINT * 100) : 0;
+}
+
 /** The fraction a percent of a blow leaves, carried to the next, by weapon (or by my fists). */
 let _carry = new WeakMap();
 /** THE BLOW: my blow at a foe, its skill past 100 - the fraction carried, never past the blow's whole. */
@@ -142,19 +186,26 @@ export function weaponMasteryBlow(weapon, damage, attacker, target, info = null)
     sigilDueling()
   )
     return damage;
-  const pct = blowRoom(weaponPastPct(weapon, attacker, target), 'mastery'); // POWER-CEILING
-  if (!(pct > 0)) return damage;
+  // The gear's roll over the blow first (the Stats page's estimate its mean), then the climb's percent over both
+  const roll = weaponGearRoll(attacker, weapon);
+  const geared = roll
+    ? damage +
+      (info?.estimate ? (roll[0] + roll[1]) / 2 : roll[0] + Math.floor(Math.random() * (roll[1] + 1 - roll[0])))
+    : damage;
+  const pct = blowRoom(weaponClimbPct(weapon, attacker, target), 'mastery'); // POWER-CEILING
+  if (!(pct > 0)) return geared;
   const key = weapon ?? attacker;
-  const exact = (damage * pct) / 100 + (_carry.get(key) ?? 0);
+  const exact = (geared * pct) / 100 + (_carry.get(key) ?? 0);
   const more = Math.floor(exact + 1e-9);
   if (!info?.estimate) _carry.set(key, Math.max(0, exact - more)); // AUDIT MARTIAL L2 F7: the Stats page's estimate keeps nothing
-  return damage + more;
+  return geared + more;
 }
 
 /** THE PACE: a short blade's swing, its skill past 100 - 1% quicker a point. `w` the swing reader's answer
  *  (combat/swingLaw.js readSwing), read here only once a climb would pay (AUDIT MARTIAL L2 F3). */
 export function weaponMasteryPace(ctx, w) {
-  if (sigilDueling()) return 0;
+  // The Short Blade's pace is its whole climb between players too (weaponPvpClimbPct pays it no
+  // blow), so it holds in a refereed fight; the paths' paces still sleep there. Never past SWING_FRAME_MIN.
   const climb = weaponClimb(ctx?.entity, SKILLS.ShortBlade);
   if (!(climb > 0)) return 0;
   return (w ? w.family : swingFamily(ctx)) === 'shortBlade' ? climb * (WEAPON_POTENCY_PER_POINT * 100) : 0;

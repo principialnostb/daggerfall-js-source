@@ -542,7 +542,7 @@ export function pcaaoHandToHandAttackDamage(attacker, target, damageModifier, pl
   }
   if (damage < 1) damage = 0;
   if (damage >= 1) damage += pcaaoBonusOrPenaltyByEnemyType(attacker, target, rolls);
-  if (player && !attacker.isInBeastForm) damage = weaponBlowMods(null, damage, attacker, target, info); // BAL10: the fists' blow modifiers
+  if (player) damage = weaponBlowMods(null, damage, attacker, target, info); // BAL10: the fists' blow modifiers; the beast's claws too
   return damage;
 }
 

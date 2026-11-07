@@ -2190,7 +2190,7 @@
  "src/systems/warmAshesShips.js": 9,
  "src/systems/wayOut.js": 11,
  "src/systems/weaponGlow.js": 13,
- "src/systems/weaponMastery.js": 12,
+ "src/systems/weaponMastery.js": 11,
  "src/systems/weaponSheathing.js": 7,
  "src/systems/weaponSheathingAssets.js": 2,
  "src/systems/weather/airGround.js": 10,

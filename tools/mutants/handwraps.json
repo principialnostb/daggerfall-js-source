@@ -464,8 +464,8 @@
   {
     "name": "HANDWRAPS-stats-estimate",
     "file": "src/combat/combatStats.js",
-    "old": "      return entity.isInBeastForm ? d : weaponBlowMods(null, d, entity, foe, wraps ? { ...ESTIMATE, wraps } : ESTIMATE); // BAL10: both cores read the fists' blow modifiers now - never the beast's claws",
-    "new": "      return entity.isInBeastForm ? d : weaponBlowMods(null, d, entity, foe, ESTIMATE); // BAL10: both cores read the fists' blow modifiers now - never the beast's claws",
+    "old": "      return weaponBlowMods(null, d, entity, foe, wraps ? { ...ESTIMATE, wraps } : ESTIMATE); // BAL10: both cores read the fists' blow modifiers now - the beast's claws too",
+    "new": "      return weaponBlowMods(null, d, entity, foe, ESTIMATE); // BAL10: both cores read the fists' blow modifiers now - the beast's claws too",
     "tests": [
       "test/combat/handwraps_audit.test.js"
     ],

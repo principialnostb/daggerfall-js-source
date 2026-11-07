@@ -61,7 +61,7 @@ const TAU = Math.PI * 2;
 // ── THE TITLES ────────────────────────────────────────────────────────
 
 test('STOREFRONT the titles: each its English words (the shop\'s own where it sells it), a colour 40 or more from every other title\'s, a gradient edged in black for the classic face; the five plates and no more, each its painter, its letters edged in its own ink and lit in its own glow (mutants: a colour shared; a plate\'s style no painter has; the Genesis ink on another plate)', () => {
-  assert.deepEqual(TITLES.slice(-7, -1) /* PIN MOVED (BLOOD-OF-COLDHARBOUR): Blood of Coldharbour joined the list last */, NEW_TITLES);
+  assert.deepEqual(TITLES.slice(-8, -2) /* PIN MOVED (BLOOD-OF-COLDHARBOUR): Blood of Coldharbour joined the list last */, NEW_TITLES);
   assert.deepEqual(NEW_TITLES.map((k) => TITLE_TEXT[k]), ['Dawnbringer', 'Voidwalker', 'Eternal Champion', 'Tremor-Born', 'Heart-Waker', 'Echo of Numidium']);
   for (const k of ['dawnbringer', 'voidwalker', 'eternalchampion']) assert.equal(SHOP_WARE_NAME[`title:${k}`], TITLE_TEXT[k], `${k}: the receipt's word is the badge's`);
   for (const k of NEW_TITLES) {

@@ -489,6 +489,8 @@ test('DA13: the shell - the game\'s channel asked first everywhere, served by th
   // one range a request, a refused answer never read whole
   const range = sliceOf('async function fetchPackRange(', '/** The channel\'s download in flight');
   assert.match(range, /Range: `bytes=\$\{start\}-\$\{end - 1\}`/);
+  // never through Chromium's HTTP cache: Windows' disk cache refuses parallel pieces of one file (ERR_CACHE_OPERATION_NOT_SUPPORTED)
+  assert.match(range, /cache: 'no-store'/);
   assert.match(range, /if \(res\.status !== 206 \|\| !res\.body\) \{ stop\.abort\(\); return \{ status: res\.status, contentRange, bytes: Buffer\.alloc\(0\) \}; \}/);
 });
 

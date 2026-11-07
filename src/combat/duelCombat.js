@@ -33,7 +33,7 @@ import { pvpArrowScale } from './pvpTriangle.js'; // PVP-TRIANGLE
 import { bowFastDamage, landingShaft } from './bowBloom.js'; // BOW-FAST
 import { armorValuesOf } from '../systems/equip.js'; // AUDIT C&C H5: the stand-in's unarmoured table, DFU's own 100s
 import { clawMetalDamage, CLAW_METAL_MAX } from './clawMetal.js'; // AUDIT CLAWS A1: the beast's claws' metal rides the sheet
-import { weaponPastPct } from '../systems/weaponMastery.js'; // PVP-SCALE: the weapon's skill and gear, on a blow at a player
+import { weaponPvpClimbPct, weaponGearRoll } from '../systems/weaponMastery.js'; // PVP-SCALE: the weapon's climb, and GEAR-ROLL its gear's roll, on a blow at a player
 import { blowRoom } from '../systems/powerCeiling.js';
 import { breakNormalPowerConcealment } from '../systems/concealment.js';
 import { pvpGearBlowPct, pvpGearBlowFlat, pvpGearLanded } from './pvpGearPowers.js'; // PVP-GEAR: the striker's lines and powers on a blow at a player   // RPT1026-FIGHTS (STRIKE-UNVEILS): the striker's own concealment, on its blow that lands
@@ -87,9 +87,6 @@ const u32 = (v) => {
   return Number.isFinite(n) ? n >>> 0 : 0;
 };
 
-/** A body whose health share this machine has no word of (combat/healthShare.js: null - the mean). */
-const UNREAD_SHARE = Object.freeze({ relayHealth: true });
-
 /** The skill a weapon template swings with - HandToHand for no weapon. */
 const skillForTemplate = (t) => (Number.isInteger(t) ? (weaponSkillUsed(t) ?? SKILLS.HandToHand) : SKILLS.HandToHand);
 
@@ -119,7 +116,10 @@ export function duelAttackerOf(entity, weapon = null, wraps = null, foe = null) 
     cm: clamp(clawMetalDamage(entity), 0, CLAW_METAL_MAX),
     // PVP-SCALE (the PvP rework, 2026-10-28): the percent the weapon's climb and gear add, as a blow at a foe takes it -
     // the target's share unread (an axe's and a hammer's halves at their mean)
-    wp: Math.max(0, Math.round(blowRoom(weaponPastPct(weapon, entity, UNREAD_SHARE), 'mastery') || 0)),
+    wp: Math.max(0, Math.round(blowRoom(weaponPvpClimbPct(weapon, entity), 'mastery') || 0)), // 1% a point, every family but the Short Blade
+    // the gear on the weapon's skill rolled over the blow, as at a foe (systems/weaponMastery.js
+    // weaponGearRoll) - the fists' gear is in their skill (`sk`), so a weapon's rides here; null for none
+    gr: weaponGearRoll(entity, weapon),
     pl: Math.max(1, Math.trunc(Number(entity?.level) || 1)), // PVP-TRIANGLE: the real level (`lv` stops at the cast's 30)
     gp: pvpGearBlowPct(entity, weapon?.werecreatureClaws ? wraps : (weapon ?? wraps), undefined, foe), // WERE-WRAPS: claws strike in the wraps   // PVP-GEAR: what the striker's gear adds, capped - a fist's own pair of Hand Wraps
     gf: pvpGearBlowFlat(entity, weapon?.werecreatureClaws ? wraps : (weapon ?? wraps), foe), // PVP-GEAR: Serpent's Kiss, flat
@@ -254,8 +254,15 @@ export function resolveDuelStrike(d, target, { rolls = Math.random, backFacing =
     say: null,
     onInflictPoison: null,
   });
-  const rolled = Math.max(0, int(dmg));
-  const climbed = rolled + Math.floor((rolled * Math.max(0, Number(d.a?.wp) || 0)) / 100); // PVP-SCALE: the weapon's climb and gear
+  const struck = Math.max(0, int(dmg));
+  const gearRoll = Array.isArray(d.a?.gr) ? d.a.gr : null; // the weapon's gear, rolled over a landed blow
+  const rolled =
+    struck > 0 && gearRoll
+      ? struck +
+        Math.max(0, int(gearRoll[0])) +
+        Math.floor(rolls() * (Math.max(0, int(gearRoll[1]) - int(gearRoll[0])) + 1))
+      : struck;
+  const climbed = rolled + Math.floor((rolled * Math.max(0, Number(d.a?.wp) || 0)) / 100); // PVP-SCALE: the weapon's climb
   const geared = climbed + Math.floor((climbed * Math.max(0, Number(d.a?.gp) || 0)) / 100); // PVP-GEAR: the striker's lines and powers
   const scaled = geared > 0 ? geared + Math.max(0, Math.trunc(Number(d.a?.gf) || 0)) : 0; // PVP-GEAR: and a landed blow's flat
   const n =
