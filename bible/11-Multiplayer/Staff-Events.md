@@ -153,8 +153,10 @@ health and its two phase marks, spent as it passes them. It reads "Rising" while
 it winds up, and says MOVE when that blow holds my feet. Online the relay's `st` feeds both; offline the local cell.
 
 **Its moments.** The cell tells the hub as the boss rises and falls. The hub says each to every screen once
-(`{t:'sev', k:'tb', id, s}`, `s` `boss` or `won`). Every screen says `invasionBossText` and plays the Daedra Lord's
-bark slowed to `LAUGH_PITCH` with `LAUGH_ECHOES` quieter echoes; at the fall, `invasionWonText`. A fighter of a
+(`{t:'sev', k:'tb', id, s}`, `s` `boss` or `won`). Every screen says `invasionBossText`; at the fall,
+`invasionWonText`. Only a screen in the boss's area plays the laugh: the Daedra Lord's bark slowed to `LAUGH_PITCH`
+with `LAUGH_ECHOES` quieter echoes. The area is the region on the Bay and the province's district past it
+(`areaAt` on the event's pixel, against `homeNow`). Dagon's Breach's boss laughs the same at his wake, in his court. A fighter of a
 toybox event earns with a blow the cell took (`s`) as well as with kills. An invasion's receipt carries `tb: 1` inside its signed
 bytes, so the device rolls the invasion's own rewards.
 

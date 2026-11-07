@@ -24,6 +24,7 @@ import { destroyGateMarksCard } from '../../../src/ui/gate/gateMarksView.js';
 import { destroyGateGround } from '../../../src/ui/gate/gateGroundView.js';
 import { FX_KINDS } from '../../../src/render/gate/gateFx.js';
 import { profileOf } from '../../../src/net/gate/gateBrain.js';
+import { LAUGH_CLIP, LAUGH_PITCH } from '../../../src/systems/toybox/invasionRun.js';
 
 const read = (p) => readFileSync(new URL(`../../../${p}`, import.meta.url), 'utf8');
 const BOSS = { name: 'Valkynaz Ruhn', title: 'Warden of the Burning Gate' };
@@ -43,7 +44,7 @@ function court({ feet = [0, 0, 6], sprite = true } = {}) {
     destroyBillboardBatch: (b) => destroyed.push(b),
   };
   const c = createGateCourt({
-    renderer, gl: null, audio: { play3d: (clip, p, v, o) => sounds.push(['clip', clip, o.pitch, p]), play3dId: (id, p, v, o) => sounds.push(['id', id, o.pitch, p]) },
+    renderer, gl: null, audio: { play3d: (clip, p, v, o) => sounds.push(['clip', clip, o.pitch, p]), play3dId: (id, p, v, o) => sounds.push(['id', id, o.pitch, p]), playOneShot: (clip, v, pitch) => sounds.push(['shot', clip, pitch]) },
     getTexture: async (a) => (sprite ? { ...tex, archive: a } : null), uploadRecordFrame: () => {},
     link, now: () => clock.t, cam: () => courtToDungeon(0, 1.7, 20), feet: () => courtToDungeon(feet[0], 0, feet[2]), player: () => ({ health: 100, maxHealth: 100 }),
     say: (t) => said.push(t), shake: (k) => shakes.push(k),
@@ -51,6 +52,8 @@ function court({ feet = [0, 0, 6], sprite = true } = {}) {
   return { c, link, clock, sounds, said, batches, shakes, destroyed };
 }
 const tick = async (h, t, st) => { if (st) h.link.st = st; h.clock.t = t; h.c.frame(); await new Promise((r) => setImmediate(r)); };
+const laughs = (h) => h.sounds.filter((s) => s[0] === 'shot' && s[1] === LAUGH_CLIP && s[2] === LAUGH_PITCH).length;
+/** His voice: the roar, or at his wake the laugh, whose first bark is the roar's own clip and pitch. */
 const roars = (h) => h.sounds.filter((s) => s[1] === BOSS_CUES.roar.clip && s[2] === BOSS_CUES.roar.pitch).length;
 
 test('WB13e his wake: the relay says the opening\'s end (`op`, through the wire and the fold); WAKE_LEAD_MS before it his roar, his flare and his name - title, name, epithet - over the court; never for a screen come late, nor from an older relay (mutants: no wake; the wake for a late screen; the flare never)', async () => {
@@ -83,6 +86,23 @@ test('WB13e his wake: the relay says the opening\'s end (`op`, through the wire 
   const old = court();
   await tick(old, op, state());
   assert.equal(roars(old), 0, 'an older relay: none');
+});
+
+test('his wake laughs: the invasion lord\'s laugh with his roar, once, on the court\'s own screen; never for a screen come late (mutants: no laugh; a laugh for a late screen)', async () => {
+  clean();
+  const op = 20_000;
+  const h = court();
+  await tick(h, 12_000, state({ openUntil: op }));
+  await tick(h, op - WAKE_LEAD_MS - 1);
+  assert.equal(laughs(h), 0, 'not before');
+  await tick(h, op - WAKE_LEAD_MS);
+  assert.equal(laughs(h), 1, 'his laugh');
+  await tick(h, op);
+  assert.equal(laughs(h), 1, 'once');
+  const late = court();
+  await tick(late, op + WAKE_LATE_MS, state({ openUntil: op }));
+  assert.equal(laughs(late), 0, 'a screen come late: none');
+  clean();
 });
 
 test('WB13e a phase\'s turn: its card (numeral, name, one order) held until the bound lands, nothing said beside it, and his roar ROAR_AFTER_MS after the turn - the bound\'s bark first (mutants: the roar over the bark; the card gone before he lands)', async () => {

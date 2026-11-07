@@ -1,7 +1,8 @@
 // @ts-check
 // A TOYBOX EVENT'S NEWS, on every screen: its staging (the hub's book names it), its boss rising or its dragon landing,
 // and its fall - on the World Events board as kind `invasion`, whatever region the player stands in. A staff event's
-// news stays regional (systems/raidingParties.js). The laugh as an invasion's boss rises goes to the host's sound.
+// news stays regional (systems/raidingParties.js). The laugh as an invasion's boss rises goes to the host's sound, in the
+// boss's region alone.
 import { eventNotice } from '../eventNotices.js';
 import { t } from '../textManager.js';
 import { isToyboxEvent } from '../../net/staffEvent/toyboxEvent.js';
@@ -71,15 +72,18 @@ export function toyboxBookNews(list) {
 }
 
 /**
- * A MOMENT the hub said (`{k:'tb', id, s}`) of an event I hold: `boss` - an invasion's boss rises (and laughs), a dragon
- * lands; `won` - an invasion's siege is broken. Answers whether it said a line.
+ * A MOMENT the hub said (`{k:'tb', id, s}`) of an event I hold: `boss` - an invasion's boss rises, a dragon lands;
+ * `won` - an invasion's siege is broken. Answers whether it said a line. The line goes to every screen; the boss's laugh
+ * only where `here` (the player stands in the event's region), so the whole of Tamriel does not hear one city's boss.
  * @param {{ id: string, tb?: number, nm: string } | null | undefined} e @param {string} moment
+ * @param {{ here?: boolean }} [opts]
  */
-export function toyboxMomentNews(e, moment) {
+export function toyboxMomentNews(e, moment, { here = false } = {}) {
   if (!e || !isToyboxEvent(e) || !once(`${e.id}:${moment}`)) return false;
   const id = toyboxNewsId(e.id);
   if (moment === 'boss' && e.tb === TB_INVASION) {
     _say(TOYBOX_NEWS_KIND, invasionBossText(e.nm), id);
+    if (!here) return true;
     try {
       _sound?.('laugh');
     } catch {
