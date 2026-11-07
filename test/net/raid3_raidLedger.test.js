@@ -709,7 +709,7 @@ test('RAID3 the world host by source: the raid system is told whether the relay 
   const at = rh.indexOf('  setRaidingPartiesHost({');
   const body = rh.slice(at, rh.indexOf('\n  });', at));
   assert.match(body, /relayRaids: \(\) => !!host\.online\?\.raidOk,/);
-  assert.match(body, /sendRaid: \(w, cell\) => !!host\.online\?\.sendRaid\(w, cell\),/);
+  assert.match(body, /sendRaid: \(w, cell\) => !!host\.online\?\.sendRaid\(w, cell\) \|\| !!host\.localToybox\?\.word\(w\),/, 'through the session - offline, a toybox event\'s word to its local runner');
   assert.match(w, /online\.onRaid = \(f, room\) => raidRelayWord\(f, room\);/);
   assert.match(w, /if \(tab\.room === SOCIAL_ROOM\) link\.onRaid = \(f, room\) => \(f\.k === 'tw' \? offerRaidTowns\(link, f\.h\) : raidRelayWord\(f, room\)\);/);   // RAID-ROLL: the hub's ask for the towns table beside it
   const relay = rd('server/src/index.js');

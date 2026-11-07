@@ -127,13 +127,29 @@ export const staffEventKindOk = (t) =>
 
 /**
  * @typedef {{ id: string, rg: number, loc: number, px: number, py: number, nm: string, ct: 0|1, mt: number[], n: number, m: number,
- *   b: number, bs: number, bh: number, hp: number, at: number, ue: number, eb: 0|1, fb: number, by: string }} StaffEvent
+ *   b: number, bs: number, bh: number, hp: number, at: number, ue: number, eb: 0|1, fb: number, by: string,
+ *   tb?: number, fm?: number, go?: number }} StaffEvent
  *   `loc` -1 for an area (the pixel alone), else its town's - a Bay town's MAPS.BSA location, a town past the Bay's own
  *   index (negative, WW6); `ct` 1 when the place is a city (a town on the game's own map - the panel's
  *   pick), never for an area, so its lines say a city or an area; `ue` the end it was set to (ms, 0 none); `eb` 1 ends it at the boss's fall;
  *   `bh` the mini boss's health, times its kind's; `hp` BOSS-HP's exact health, which wins over `bh` (0 none);
  *   `fb` how many times staff called the boss by hand (Spawn mini boss now) - each call is one more boss.
+ *   A toybox event (a developer's) carries three more: `tb` 1 an invasion, 2 a dragon attack (none, 0, a staff event's);
+ *   `fm` the invasion's family (toyboxLaw.js INVASION_FAMILIES' index); `go` when it begins, ms (`at` when absent).
  */
+
+/** The toybox's kinds of event (`tb`): a staff event's own, an invasion, a dragon attack. */
+export const TB_STAFF = 0;
+export const TB_INVASION = 1;
+export const TB_DRAGON = 2;
+/** The invasion families' count (toyboxLaw.js INVASION_FAMILIES, pinned equal - this file imports nothing). */
+export const TB_FAMILIES = 5;
+/** The longest wait between a toybox event's staging and its start, ms (toyboxLaw.js TOYBOX_EVENT_WAIT_MS is within it). */
+export const TB_WAIT_MAX_MS = 60 * 60 * 1000;
+/** When an event begins: its `go`, or its staging for one that has none. @param {{ at: number, go?: number }} e */
+export const staffEventGo = (e) => e.go ?? e.at;
+/** Has it begun at `nowMs`? Nothing of a toybox event stands, and no word counts, before it. @param {{ at: number, go?: number }} e @param {number} nowMs */
+export const staffEventBegun = (e, nowMs) => nowMs >= staffEventGo(e);
 
 /**
  * An event, projected: its fields bounded, its kinds each once, or null. The one shape every door and frame carries.
@@ -162,6 +178,7 @@ export function validStaffEvent(e) {
     eb: bit(e.eb),
     fb: e.fb ?? 0,
     by: clean(e.by, STAFF_EVENT_BY_MAX),
+    ...(e.tb ? { tb: e.tb, fm: e.fm ?? 0, go: e.go ?? e.at } : {}), // a staff event's shape is the one it always was
   };
 }
 /**
@@ -191,6 +208,9 @@ export function staffEventFault(e) {
   if (!(e.ue === 0 || (Number.isSafeInteger(e.ue) && e.ue > e.at && e.ue - e.at <= STAFF_EVENT_LONGEST_MS)))
     return 'runs';
   if (!intIn(e.fb ?? 0, 0, 99)) return 'calls';
+  if (!intIn(e.tb ?? 0, TB_STAFF, TB_DRAGON) || !intIn(e.fm ?? 0, 0, TB_FAMILIES - 1)) return 'toybox';
+  const go = e.go ?? e.at;
+  if (!Number.isSafeInteger(go) || go < e.at || go - e.at > TB_WAIT_MAX_MS || (e.ue > 0 && go >= e.ue)) return 'begins';
   return null;
 }
 /** Is the event over by its own clock at `nowMs`? @param {StaffEvent} e @param {number} nowMs */
@@ -238,7 +258,9 @@ export function validStaffEventIn(m) {
 /** The bound on a receipt's length on the wire (staffEventReceipt.js STAFF_RECEIPT_MAX - this file imports nothing). */
 export const STAFF_RECEIPT_WIRE_MAX = 512;
 /** The kinds a relay's staff event frame says. */
-export const STAFF_EVENT_OUT_KINDS = Object.freeze(['ev', 'end', 'st', 'bd', 'rc']);
+export const STAFF_EVENT_OUT_KINDS = Object.freeze(['ev', 'end', 'st', 'bd', 'rc', 'tb']);
+/** A toybox event's moments the hub says to every screen (`{k:'tb', id, s}`): its boss stood, and it fell. */
+export const TB_MOMENTS = Object.freeze(['boss', 'won']);
 
 /**
  * A relay's staff event frame, projected for the game: the hub's BOOK (`ev`: the events live, each validStaffEvent's
@@ -270,6 +292,7 @@ export function validStaffEventOut(m) {
   } // THE REWARD: the board, at the fall
   if (m.k === 'rc')
     return typeof m.r === 'string' && m.r.length <= STAFF_RECEIPT_WIRE_MAX ? { k: 'rc', id: m.id, r: m.r } : null; // and my receipt
+  if (m.k === 'tb') return TB_MOMENTS.includes(m.s) ? { k: 'tb', id: m.id, s: m.s } : null;
   if (!intIn(m.n, 0, STAFF_EVENT_TOTAL_MAX) || !intIn(m.fc ?? 0, 0, 99)) return null;
   return { k: 'st', id: m.id, n: m.n, bd: bit(m.bd), bu: bit(m.bu), bk: bit(m.bk), fc: m.fc ?? 0 };
 }
@@ -400,13 +423,16 @@ export function staffEventDone(led, e) {
  * THE REWARD's earners at the first boss's fall: every account (never a guest's socket, `id:`) with STAFF_EVENT_EARN_KILLS
  * kills of its own (`h`) - REWARD-KILLS: a stand alone no longer earns - most kills first, the killer before an equal
  * count, then the longest stand. Each with its RANK on the board (1 to STAFF_EVENT_BOARD_MAX, 0 past it).
- * @param {StaffEventLedger} led @returns {{ acct: string, rec: StaffEventAccount, rank: number }[]}
+ * A toybox event's fighter earns by a blow too (`s`): a dragon attack has one foe, the dragon, and no kills to count.
+ * @param {StaffEventLedger} led @param {{ tb?: number }|null} [e] the event, for its kind
+ * @returns {{ acct: string, rec: StaffEventAccount, rank: number }[]}
  */
-export function staffEventEarned(led) {
-  const fell = led.fellAt ?? led.first;
-  const half = Math.max(0, fell - led.first) / 2;
+export function staffEventEarned(led, e = null) {
+  const struckEarns = !!e?.tb;
   const rows = Object.entries(led.a)
-    .filter(([acct, r]) => !acct.startsWith('id:') && (r.h ?? 0) >= STAFF_EVENT_EARN_KILLS) // REWARD-KILLS (mob 2026-10-25: "im getting drops even tho i barlky particpate"; card "Kills only (3+)"): a stand alone earns nothing
+    .filter(
+      ([acct, r]) => !acct.startsWith('id:') && ((r.h ?? 0) >= STAFF_EVENT_EARN_KILLS || (struckEarns && r.s === 1)),
+    ) // REWARD-KILLS (mob 2026-10-25: "im getting drops even tho i barlky particpate"; card "Kills only (3+)"): a stand alone earns nothing
     .sort(
       ([a, x], [b, y]) =>
         (y.h ?? 0) - (x.h ?? 0) ||
@@ -416,9 +442,9 @@ export function staffEventEarned(led) {
     );
   return rows.map(([acct, rec], i) => ({ acct, rec, rank: i < STAFF_EVENT_BOARD_MAX ? i + 1 : 0 }));
 }
-/** The board: the earners' top STAFF_EVENT_BOARD_MAX as `[name, kills, killer]`. @param {StaffEventLedger} led @returns {StaffBoardRow[]} */
-export const staffEventBoard = (led) =>
-  staffEventEarned(led)
+/** The board: the earners' top STAFF_EVENT_BOARD_MAX as `[name, kills, killer]`. @param {StaffEventLedger} led @param {{ tb?: number }|null} [e] @returns {StaffBoardRow[]} */
+export const staffEventBoard = (led, e = null) =>
+  staffEventEarned(led, e)
     .filter((x) => x.rank > 0)
     .map((x) => [x.rec.nm || '', Math.min(x.rec.h ?? 0, STAFF_EVENT_WORD_KILLS_MAX), x.acct === led.kb ? 1 : 0]); // a nameless row the reader's own word (raidingParties.js staffBoardLine)
 /** A board, projected (a frame's, a tell's). @param {unknown} top @returns {StaffBoardRow[] | null} */
@@ -488,4 +514,11 @@ export const STAFF_EVENT_RELAY_MIN = 256; // world255 on its branch, renumbered 
 export const relaySupportsStaffEvents = (/** @type {unknown} */ v) => {
   const r = /^world(\d+)$/.exec(typeof v === 'string' ? v : '');
   return !!r && Number(r[1]) >= STAFF_EVENT_RELAY_MIN;
+};
+/** The relay that keeps a toybox event's fields (`tb`, `fm`, `go`) and says its moments: an older one drops the fields
+ *  and runs it as a staff event at once, so the game stages none there. */
+export const TOYBOX_EVENT_RELAY_MIN = 304;
+export const relaySupportsToyboxEvents = (/** @type {unknown} */ version) => {
+  const match = /^world(\d+)$/.exec(typeof version === 'string' ? version : '');
+  return !!match && Number(match[1]) >= TOYBOX_EVENT_RELAY_MIN;
 };

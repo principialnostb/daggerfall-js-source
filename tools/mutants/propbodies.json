@@ -2,7 +2,7 @@
   {
     "name": "PROP-BODIES-the-motor-s-call-gone",
     "file": "src/player/motor.js",
-    "old": "      keepOffBodies(this, CAPSULE_RADIUS);   // PROP-BODIES: a tree's trunk, a rock, a barrel - walked round, never through\n",
+    "old": "      if (!noClipOn()) keepOffBodies(this, CAPSULE_RADIUS);   // PROP-BODIES: a tree's trunk, a rock, a barrel - walked round, never through\n",
     "new": "",
     "tests": [
       "test/player/propbodies.test.js"

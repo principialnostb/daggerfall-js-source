@@ -118,6 +118,8 @@ export const EVENT_KINDS = Object.freeze({
   super: Object.freeze({ row: true, single: true, get label() { return t('events.kind.super', 'Abyss Dungeon'); } }),
   star: Object.freeze({ row: true, single: false, get label() { return t('events.kind.star', 'Starfall'); } }),
   raid: Object.freeze({ row: true, single: false, get label() { return t('events.kind.raid', 'Town Raid'); } }),
+  // A developer's invasion or dragon attack (systems/toybox/toyboxNews.js): news and a row on every screen
+  invasion: Object.freeze({ row: true, single: false, get label() { return t('events.kind.invasion', 'Invasion'); } }),
   festival: Object.freeze({ row: false, single: true, get label() { return t('events.kind.festival', 'Witches\' Festival'); } }),
   // STOREFRONT (bible/06-Systems/Battle-Pass.md section 6): the season's tremors and its Colossus - news alone, as the festival's
   season: Object.freeze({ row: false, single: true, get label() { return t('events.kind.season', 'Season'); } }),

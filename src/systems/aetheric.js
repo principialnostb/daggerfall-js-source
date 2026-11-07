@@ -90,7 +90,7 @@
 
 import { setItemFields, mintCondition, itemBaseValue } from './item/itemTemplates.js';
 import { ARMOR_MATERIAL } from './armorMaterials.js';
-import { WEAPON_MATERIALS } from '../characters/weapons.js';
+import { WEAPON_MATERIALS, WEAPONS, weaponSkillUsed } from '../characters/weapons.js';
 import { createWeapon } from '../combat/enemyEquipment.js';
 import { affixesWorth, validAffix, AFFIX_RANGES, registerAethericLore } from './loot/lootRarity.js';
 import { SKILLS } from './skills.js';
@@ -388,10 +388,57 @@ export const ELTHERIC_SET_PIECES = Object.freeze([
   tide('saber', "Maraveth's Mercy", 'Weapons', 119, [m('damage'), m('stat', 'agility'), m('skill', SKILLS.LongBlade)],
     'The Drowned Queen\'s own blade. She shows no mercy; it is named for the mercy she once begged for.'),
 ]);
+// ── THE REALM DEFENDER ──────────────────────────────────────────────
+/** The invasion boss's own set: a record for EVERY Daedric piece a set is worn as - the seven body pieces, the four
+ *  shields and every weapon but the arrow - each named "The Realm Defender's <the piece's own name>", so the reward can
+ *  be any Daedric weapon or armour. Every number at the Legendary band's TOP and the blow the sigil's greatest: the
+ *  hardest fight a staff event stages. No magic, fire or shock resistance on any piece (Talos's Principle carries them),
+ *  and one other element on one piece alone, so no two stack toward the saving throw's immunity. */
+const defender = (key, gear, group, templateIndex, affixes, lore) => record(`defender-${key}`, `The Realm Defender's ${gear}`, group, templateIndex, 'defender', 'Daedric', SIGIL_POWER_MAX, affixes, lore);
+const DEFENDER_ARMOR_LORE = 'Daedric plate worn against the invasion. It held the line when the walls did not.';
+const DEFENDER_SHIELD_LORE = 'Every wave of the invasion broke on this shield. Not one of them crossed it.';
+const DEFENDER_WEAPON_LORE = "Taken from the invasion's champion as it fell, and turned on the ones it led.";
+const defenderShield = (key, gear, templateIndex) => defender(key, gear, 'Armor', templateIndex, [t('armor'), t('stat', 'endurance'), t('stat', 'willpower')], DEFENDER_SHIELD_LORE);
+const defenderWeapon = (key, gear, templateIndex) => {
+  const skill = weaponSkillUsed(templateIndex);
+  const attr = skill === SKILLS.Archery ? 'agility' : 'strength';
+  return defender(key, gear, 'Weapons', templateIndex, [t('damage'), t('stat', attr), t('skill', skill)], DEFENDER_WEAPON_LORE);
+};
+export const DEFENDER_SET_PIECES = Object.freeze([
+  defender('helm', 'Helm', 'Armor', 107, [t('armor'), t('stat', 'willpower'), t('stat', 'intelligence')], DEFENDER_ARMOR_LORE),
+  defender('right-pauldron', 'Right Pauldron', 'Armor', 106, [t('armor'), t('stat', 'strength'), t('resist', 'poison')], DEFENDER_ARMOR_LORE),
+  defender('left-pauldron', 'Left Pauldron', 'Armor', 105, [t('armor'), t('resist', 'frost'), t('stat', 'endurance')], DEFENDER_ARMOR_LORE),
+  defender('cuirass', 'Cuirass', 'Armor', 102, [t('armor'), t('stat', 'endurance'), t('stat', 'strength')], DEFENDER_ARMOR_LORE),
+  defender('gauntlets', 'Gauntlets', 'Armor', 103, [t('armor'), t('stat', 'agility'), t('skill', SKILLS.CriticalStrike)], DEFENDER_ARMOR_LORE),
+  defender('greaves', 'Greaves', 'Armor', 104, [t('armor'), t('stat', 'speed'), t('weight')], DEFENDER_ARMOR_LORE),
+  defender('boots', 'Boots', 'Armor', 108, [t('armor'), t('stat', 'speed'), t('stat', 'luck')], DEFENDER_ARMOR_LORE),
+  defenderShield('buckler', 'Buckler', 109),
+  defenderShield('round-shield', 'Round Shield', 110),
+  defenderShield('kite-shield', 'Kite Shield', 111),
+  defenderShield('tower-shield', 'Tower Shield', 112),
+  defenderWeapon('dagger', 'Dagger', WEAPONS.Dagger),
+  defenderWeapon('tanto', 'Tanto', WEAPONS.Tanto),
+  defenderWeapon('staff', 'Staff', WEAPONS.Staff),
+  defenderWeapon('shortsword', 'Shortsword', WEAPONS.Shortsword),
+  defenderWeapon('wakizashi', 'Wakizashi', WEAPONS.Wakazashi),
+  defenderWeapon('broadsword', 'Broadsword', WEAPONS.Broadsword),
+  defenderWeapon('saber', 'Saber', WEAPONS.Saber),
+  defenderWeapon('longsword', 'Longsword', WEAPONS.Longsword),
+  defenderWeapon('katana', 'Katana', WEAPONS.Katana),
+  defenderWeapon('claymore', 'Claymore', WEAPONS.Claymore),
+  defenderWeapon('dai-katana', 'Dai-Katana', WEAPONS.Dai_Katana),
+  defenderWeapon('mace', 'Mace', WEAPONS.Mace),
+  defenderWeapon('flail', 'Flail', WEAPONS.Flail),
+  defenderWeapon('warhammer', 'Warhammer', WEAPONS.Warhammer),
+  defenderWeapon('battle-axe', 'Battle Axe', WEAPONS.Battle_Axe),
+  defenderWeapon('war-axe', 'War Axe', WEAPONS.War_Axe),
+  defenderWeapon('short-bow', 'Short Bow', WEAPONS.Short_Bow),
+  defenderWeapon('long-bow', 'Long Bow', WEAPONS.Long_Bow),
+]);
 /** EVERY AETHERIC RECORD - the Regalia, then the raiding parties', then (SERPENT-SET) the Old Coil's, then (SD9d) the
  *  Walking Brass's, then (EG15) the Battlemages', then (WITCH1) the Wyrd's, then (STAR7) the Starspun Weave, then (SEA-SET)
- *  the Eltheric Tidemail - and the one every reader asks. */
-export const AETHERIC_RECORDS = Object.freeze([...REGALIA, ...RAID_SET_PIECES, ...SERPENT_SET_PIECES, ...NUMIDIUM_SET_PIECES, ...PANOPLY_SET_PIECES, ...WYRD_SET_PIECES, ...STARSPUN_SET_PIECES, ...ELTHERIC_SET_PIECES]);
+ *  the Eltheric Tidemail, then the Realm Defender's - and the one every reader asks. */
+export const AETHERIC_RECORDS = Object.freeze([...REGALIA, ...RAID_SET_PIECES, ...SERPENT_SET_PIECES, ...NUMIDIUM_SET_PIECES, ...PANOPLY_SET_PIECES, ...WYRD_SET_PIECES, ...STARSPUN_SET_PIECES, ...ELTHERIC_SET_PIECES, ...DEFENDER_SET_PIECES]);
 export const aethericById = (id) => AETHERIC_RECORDS.find((r) => r.id === id) ?? null;
 registerAethericLore((item) => aethericById(item?.aetheric)?.lore ?? null);   // the card's last line, as a Legendary's
 /** A record's make as the item wears it: its material's id in its group's table. */

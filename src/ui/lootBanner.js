@@ -46,6 +46,9 @@ import {
   tierRank,
   isAcquired,
   announces,
+  acquiredTier,
+  tierAnnounces,
+  ACQUIRED_FIELD,
 } from '../systems/acquireWatch.js';
 import { tierLabel, RARITIES } from '../systems/loot/lootRarity.js';
 import { isIliacCard } from '../systems/iliac/iliacItems.js';
@@ -402,6 +405,13 @@ ${rarityVarsCss('.lootbanner-stack ')}
 .lootbanner.lb-big .lb-icon canvas { height: ${LOOT_BANNER_BIG_ICON_BOX}px; }
 .lootbanner.lb-big .lb-kicker { font-size: 11px; line-height: 14px; }
 .lootbanner.lb-big .lb-name { font-size: 20px; line-height: 24px; }
+/* a toybox piece: the same banner, its edge a rainbow that runs round it (two cycles, so a shift of one loops clean) */
+.lootbanner.lb-rainbow { border-color: transparent;
+  background: linear-gradient(270deg, rgba(var(--rar-rgb, 192,138,62),0.22), rgba(var(--rar-rgb, 192,138,62),0) 62%) padding-box,
+    linear-gradient(rgba(10,12,17,0.92), rgba(10,12,17,0.92)) padding-box,
+    linear-gradient(90deg, #ff4a4a, #ffb340, #fff35a, #4dff7c, #42d9ff, #7a5cff, #ff5cd6, #ff4a4a, #ffb340, #fff35a, #4dff7c, #42d9ff, #7a5cff, #ff5cd6, #ff4a4a) border-box;
+  background-size: auto, auto, 200% 100%; animation: lb-rainbow 2400ms linear infinite; }
+@keyframes lb-rainbow { from { background-position: 0 0, 0 0, 0% 0; } to { background-position: 0 0, 0 0, 100% 0; } }
 @keyframes lb-sweep { from { left: -40%; opacity: 1; } to { left: 110%; opacity: 0.4; } }
 @keyframes lb-glow { 0%, 100% { box-shadow: 0 0 0 1px ${T.outline}, 0 0 18px rgba(var(--rar-rgb),0.55), inset 0 0 24px rgba(var(--rar-rgb),0.16); }
   50% { box-shadow: 0 0 0 1px ${T.outline}, 0 0 34px rgba(var(--rar-rgb),0.9), inset 0 0 30px rgba(var(--rar-rgb),0.3); } }
@@ -412,7 +422,7 @@ ${rarityVarsCss('.lootbanner-stack ')}
 .lootbanner-stack[data-hm-moved] > .lootbanner { transform: none; }
 @media (prefers-reduced-motion: reduce) {
   .lootbanner, .lootbanner.lb-out { transform: none; transition: opacity 1ms; }
-  .lootbanner::after, .lootbanner.lb-big.lb-in, .lb-count { animation: none !important; } }
+  .lootbanner::after, .lootbanner.lb-big.lb-in, .lootbanner.lb-rainbow, .lb-count { animation: none !important; } }
 @media (max-width: 520px) { .lootbanner-stack { width: min(300px, calc((100vw - 24px) / var(--hud-scale, 1))); } .lb-name { font-size: 14px; } .lootbanner.lb-big .lb-name { font-size: 17px; } }
 ${THEME_TINTS}
 /* font: ${PIXEL_STACK} */`;
@@ -538,6 +548,7 @@ const countText = (n) => (n > 1 ? `×${n}` : '');
 function build(d, e) {
   const node = el(d, 'div', e.big ? 'lootbanner lb-big' : 'lootbanner');
   node.dataset.rarity = e.tier;
+  if (e.rainbow) node.classList.add('lb-rainbow');
   if (e.honour) paintHonour(node, e.honour); // HONOUR-BANNER: the title's colour over the tier's
   if (e.exalted) node.dataset.exalted = '';
   const icon = el(d, 'div', 'lb-icon');
@@ -788,7 +799,7 @@ export function drawLootBanners({ entity = null, hidden = false, dt = 0, doc = d
     if (hidden) return queue.size;
     const held = _entity;
     const { entered, gone } = queue.tick(Math.max(0, Number(dt) || 0) * 1000, {
-      canEnter: (e) => !!e.honour || !held || bannerStillHeld(held, e),
+      canEnter: (e) => !!e.honour || !!e.rainbow || !held || bannerStillHeld(held, e),
     }); // HONOUR-BANNER: an honour is held by the account
     paint(doc, entered, gone);
     sound(entered);
@@ -856,6 +867,11 @@ function paint(d, entered, gone) {
  *  the codex's own chime for a first find (lootCodex.js noteFind played it before the banner took its words). */
 function sound(entered) {
   if (!entered.length) return;
+  // a toybox piece sounds the delve puzzle's won jingle whatever the switch says: it is the developer's own press
+  if (entered.some((e) => e.rainbow)) {
+    _play(SOUND.ArenaFanfareLevelUp);
+    return;
+  }
   if (entered.some((e) => e.big) && enhancedSoundsOn()) {
     _play(SOUND.ArenaFanfareLevelUp);
     return;
@@ -895,6 +911,42 @@ export function announceHonour(kind, key, { doc = docOf() } = {}) {
     if (!doc?.body || !isEnhanced()) return false;
     const e = honourEntry({ kind, key });
     if (!e) return false;
+    return queue.push([e]);
+  } catch {
+    return false;
+  }
+}
+
+let _toyboxSeq = 0;
+/**
+ * A TOYBOX PIECE AS A BANNER'S DATA: the piece's own banner with a rainbow edge. A piece below Rare stands as a Rare
+ * does. Each grant is its own banner, never a count on another. Null for no piece. Pure but for its key's count.
+ * @param {any} item
+ */
+export function toyboxEntry(item) {
+  const tier = acquiredTier(item);
+  const e = bannerEntry({ item, count: 1, tier: tierAnnounces(tier) ? tier : 'rare' });
+  if (!e) return null;
+  return {
+    ...e,
+    key: `toybox\u0002${++_toyboxSeq}`,
+    kicker: t('lootBanner.toybox', 'Created'),
+    rainbow: true,
+  };
+}
+
+/**
+ * A TOYBOX PIECE GRANTED: queued as a rainbow banner, drawn by the next frame's drawLootBanners on either skin, with the
+ * delve puzzle's won jingle. The piece is marked as already read, so the pack's own watcher raises no second banner.
+ * Answers whether it was queued.
+ * @param {any} item
+ */
+export function announceToyboxItem(item, { doc = docOf() } = {}) {
+  try {
+    if (!doc?.body || !item || typeof item !== 'object') return false;
+    const e = toyboxEntry(item);
+    if (!e) return false;
+    item[ACQUIRED_FIELD] = true;
     return queue.push([e]);
   } catch {
     return false;

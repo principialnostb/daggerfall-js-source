@@ -6,7 +6,7 @@
 // PER PLAYER, AND THE SEED'S OWN - the gate's spoils' law (systems/gate/gateSpoils.js) and a town's thanks' makers
 // (systems/raidSpoils.js): the receipt the relay signs for each earner (net/staffEvent/staffEventReceipt.js `e1`) carries
 // a seed (`c`) and the earner's rank on the board (`r`), and everything here is rolled on `seededRng(c)`. NONE OF DAGON'S
-// OWN: no Sigil Stone, no Regalia, no Dragonfire Oath, nothing gilded.
+// OWN: no Sigil Stone, no Regalia, no Dragonfire Oath. An invasion's receipt pays its boss's roll (toybox/invasionRewards.js).
 //
 // THE DROP TABLE IS STAFF_SPOILS_TABLE, the one place to tweak it.
 //
@@ -19,6 +19,7 @@ import { seededRng } from './wind/wind.js';
 import { spoilsBase, magicOrBetter } from './gate/gateSpoils.js';
 import { applyRarity, lastPass, techniquePass } from './loot/lootRarity.js';
 import { t } from './textManager.js';
+import { rollInvasionReward } from './toybox/invasionRewards.js';
 
 /**
  * THE DROP TABLE - every number the reward pays, here alone.
@@ -90,11 +91,19 @@ export function staffSpoilsList(/** @type {number} */ seed, /** @type {number} *
   ];
 }
 
+/** AN INVASION'S REWARD as the spoils pool hands it over: the one piece its boss pays, rolled off the receipt's seed
+ *  alone, so every device mints the same piece. No gold and no staff table: the boss's roll is the whole reward. Pure. */
+export function invasionSpoilsList(/** @type {number} */ seed, /** @type {number} */ level) {
+  const item = rollInvasionReward(seededRng(seed >>> 0), { level });
+  return [{ kind: 'item', item, tier: item.rarity ?? 'rare' }];
+}
+
 /**
  * A RECEIPT'S SPOILS INTO THE PACK (scenes/world.js onRaidReceipt, for an `e1`): through `pool` (the town's thanks'
  * pool) under `lock` (the world's spoils lock), at `level`, once a receipt and account.
+ * An invasion's receipt (`tb` 1) rolls the invasion's reward in place of the staff table, once a receipt as the table is.
  * @param {{ grant: (o: any) => any }} pool @param {(f: () => any) => Promise<any>} lock
- * @param {{ v: string, s: string, c: number, r: number }} c the receipt's claims (readStaffReceipt) @param {number} level
+ * @param {{ v: string, s: string, c: number, r: number, tb?: number }} c the receipt's claims (readStaffReceipt) @param {number} level
  */
 export function grantStaffSpoils(pool, lock, c, level) {
   const lv = Math.max(1, Math.floor(Number(level) || 1));
@@ -102,7 +111,7 @@ export function grantStaffSpoils(pool, lock, c, level) {
     pool.grant({
       day: staffSpoilsDay(c.v),
       acct: c.s,
-      roll: () => staffSpoilsList(c.c, lv, c.r),
+      roll: () => (c.tb === 1 ? invasionSpoilsList(c.c, lv) : staffSpoilsList(c.c, lv, c.r)),
       text: STAFF_SPOILS_TEXT.granted(),
     }),
   ).catch((e) => console.warn('[sev] spoils', e?.message ?? e));

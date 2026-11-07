@@ -38,8 +38,8 @@
   {
     "name": "DRAGON-CELL-the-site-any-cell",
     "file": "src/net/dragon/dragonLaw.js",
-    "old": "  return (\n    Math.floor(px / DRAGON_CELL_PX) === cell.cx &&\n    Math.floor(py / DRAGON_CELL_PX) === cell.cy &&\n    sx === c.sx &&\n    sz === c.sz\n  );",
-    "new": "  return sx === c.sx && sz === c.sz;",
+    "old": "  return (\n    Math.floor(px / DRAGON_CELL_PX) === cell.cx &&\n    Math.floor(py / DRAGON_CELL_PX) === cell.cy &&\n    sx === c.sx &&\n    sz === c.sz &&\n",
+    "new": "  return (\n    sx === c.sx &&\n    sz === c.sz &&\n",
     "tests": [
       "test/net/dragon/dragonhiddenaudit.test.js"
     ]

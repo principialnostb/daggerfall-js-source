@@ -391,6 +391,8 @@ import {
 import { SHOP_OPEN_ROUTES, SHOP_WEBHOOK_PATH, SHOP_HOOK_MAX_BYTES, shopDoor, shopCardOf, closeStale } from './shop.js';   // SHOP: the shop's doors, and its card on the account read
 import { aurumCardOf, buyWare, AURUM_STATUS, aurumOpenFor } from './aurum.js';   // AURUM: the balance, the day's deals and a ware bought
 import { claimCache, AURUM_CACHE_STATUS } from './aurumCache.js';   // AURUM-CACHES: a cache claimed
+import { devGrantItem, DEV_GRANT_PATH, DEV_GRANT_STATUS } from './devToybox.js';   // the toybox's grant, a developer's
+import { devStageEvent, DEV_EVENT_PATH, DEV_EVENT_STATUS } from './devEvents.js';   // the toybox's events, a developer's
 
 // THIS MODULE EXPORTS `default` AND NOTHING ELSE, and that is a
 // runtime requirement rather than a preference: in a module Worker
@@ -2570,6 +2572,23 @@ const service = {
         // caller who is not one - the credential is good, the right is not theirs, as the save wall reads it.
         const r = await grantCustomsPass(ctx, who.player, env, { name: body.name, account: body.account, revoke: body.revoke });
         return r.error ? no(r.error, PASS_STATUS[r.error] ?? 400, origin) : json(r, 200, origin);
+      }
+
+      // The toybox's grant: a developer's own game session sends a piece it made through the server's post (devToybox.js)
+      //   POST /v1/dev/item/grant { spec, to? } -> { ok, post, item, to: { account, name, self }, playing }
+      if (path === DEV_GRANT_PATH) {
+        if (request.method !== 'POST') return no('method', 405, origin);
+        const granted = await devGrantItem(ctx, who.player, env, body);
+        if (!('error' in granted)) return json(granted, 200, origin);
+        return json({ error: granted.error, ...(granted.findings ? { findings: granted.findings } : {}) }, DEV_GRANT_STATUS[granted.error] ?? 400, origin);
+      }
+
+      // The toybox's events: a developer's own game session stages an invasion or a dragon attack (devEvents.js)
+      //   POST /v1/dev/event { kind, city: { rg, loc, px, py, nm }, family? } -> { ok, event }
+      if (path === DEV_EVENT_PATH) {
+        if (request.method !== 'POST') return no('method', 405, origin);
+        const staged = await devStageEvent(ctx, who.player, env, body);
+        return 'error' in staged ? no(staged.error, DEV_EVENT_STATUS[staged.error] ?? 400, origin) : json(staged, 200, origin);
       }
 
       // STAFF-PANEL5-FREEZE (staffFreeze.js): THE PLAYER'S OWN STAFF CHAT THREAD - read, and a line of theirs in it

@@ -21,7 +21,7 @@ import * as LR from '../../src/systems/loot/lootRarity.js';
 import * as LP from '../../src/systems/loot/lootPowers.js';
 import * as CX from '../../src/systems/loot/lootCodex.js';
 import {
-  GILDED, GILDED_WORTH, GILDED_RECORDS, HOURLOCK, HOURLOCK_GUN_ERA, DRAGONFIRE_OATH, SUNKEN_SOVEREIGN, DRAGONFIRE, UNDERTOW, VOLENDRUNGS_ECHO, KETCHMASTERS_WORD,
+  GILDED, GILDED_WORTH, GILDED_RECORDS, HOURLOCK, HOURLOCK_GUN_ERA, DRAGONFIRE_OATH, SUNKEN_SOVEREIGN, DRAGONFIRE, UNDERTOW, VOLENDRUNGS_ECHO, KETCHMASTERS_WORD, RETRIBUTIONS_CALL,
   GATE_GILDED_CHANCE, SERPENT_GILDED_CHANCE, gildedById, mintGilded, mintHourlock, rollDragonfireOath, rollSunkenSovereign,
   validGildedMarks,
 } from '../../src/systems/gilded.js';
@@ -59,9 +59,9 @@ const lines = (r) => r.affixes.map((a) => [a.id, a.param ?? null, a.value]);
 test('GILDED2 THE RECORDS: the Hourlock, then the gate\'s Dragonfire Oath (a Daedric Dai-Katana: +40% damage, +15 Strength, +30 Long Blade, +15 Endurance - AUDIT WORLD-REWARDS B1: no slayer) and the serpent\'s Sunken Sovereign (an Ebony Saber: +40% damage, +15 Agility, +30 Long Blade, 10% leech) - every line the Legendary band\'s TOP and no higher, a power each, frozen whole (mutants: a line over the band; the Oath\'s make; the Sovereign\'s slayer)', () => {
   // PIN MOVED (KETCH, 2026-10-24, bible/06-Systems/Gilded.md section 10): the airship's two guns after the world's two
   // (test/systems/ketch_gilded.test.js holds them)
-  assert.deepEqual(GILDED_RECORDS, [HOURLOCK, DRAGONFIRE_OATH, SUNKEN_SOVEREIGN, VOLENDRUNGS_ECHO, KETCHMASTERS_WORD]);
-  assert.deepEqual(GILDED_RECORDS.map((r) => r.id), ['the-hourlock', 'the-dragonfire-oath', 'the-sunken-sovereign', 'volendrungs-echo', 'the-ketchmasters-word']);
-  assert.equal(new Set(GILDED_RECORDS.map((r) => r.id)).size, 5, 'five ids');
+  assert.deepEqual(GILDED_RECORDS, [HOURLOCK, DRAGONFIRE_OATH, SUNKEN_SOVEREIGN, VOLENDRUNGS_ECHO, KETCHMASTERS_WORD, RETRIBUTIONS_CALL]);
+  assert.deepEqual(GILDED_RECORDS.map((r) => r.id), ['the-hourlock', 'the-dragonfire-oath', 'the-sunken-sovereign', 'volendrungs-echo', 'the-ketchmasters-word', 'retributions-call']);
+  assert.equal(new Set(GILDED_RECORDS.map((r) => r.id)).size, 6, 'six ids');
   for (const r of [DRAGONFIRE_OATH, SUNKEN_SOVEREIGN]) {
     assert.equal(gildedById(r.id), r);
     assert.equal(r.group, 'Weapons');
@@ -319,9 +319,32 @@ test('GILDED2 THE LOOK: named as an artifact is (no metal before it); its card t
     ['the-sunken-sovereign', false, null, SUNKEN_SOVEREIGN.hint],
     ['volendrungs-echo', false, null, VOLENDRUNGS_ECHO.hint],   // PIN MOVED (KETCH, 2026-10-24): and the airship's two
     ['the-ketchmasters-word', false, null, KETCHMASTERS_WORD.hint],
+    ['retributions-call', false, null, RETRIBUTIONS_CALL.hint],
   ], 'listed, unfound, each by its own hint');
   assert.notEqual(DRAGONFIRE_OATH.hint, CX.GILDED_HINT);
   assert.equal(CX.noteFind(o), true);
   assert.deepEqual(CX.codexCount().gilded, 1);
   assert.equal(CX.codexGilded()[1].name, 'The Dragonfire Oath');
+});
+
+test("RETRIBUTION'S CALL: a Daedric Katana, a static roll of the owner's numbers (+40% damage, +30 Long Blade, +15 Critical Strike) and its power Retribution, +8 fire a blow - half on a foe that resists fire, none on one immune; lawful, its id its own, frozen (mutants: a line off its record; the fire unresisted)", () => {
+  fresh();
+  assert.equal(gildedById('retributions-call'), RETRIBUTIONS_CALL);
+  assert.equal(RETRIBUTIONS_CALL.templateIndex, WEAPONS.Katana);
+  assert.equal(RETRIBUTIONS_CALL.material, WEAPON_MATERIALS.Daedric);
+  assert.deepEqual(RETRIBUTIONS_CALL.affixes, [
+    { id: 'damage', value: 40 }, { id: 'skill', param: SKILLS.LongBlade, value: 30 }, { id: 'skill', param: SKILLS.CriticalStrike, value: 15 },
+  ]);
+  assert.deepEqual([RETRIBUTIONS_CALL.power.kind, RETRIBUTIONS_CALL.power.element, RETRIBUTIONS_CALL.power.flat], ['brand', 'fire', 8]);
+  assert.ok(Object.isFrozen(RETRIBUTIONS_CALL) && Object.isFrozen(RETRIBUTIONS_CALL.power));
+  const it = mintGilded(RETRIBUTIONS_CALL);
+  assert.deepEqual([it.name, it.rarity, it.gilded, it.isIdentified], ["Retribution's Call", GILDED, 'retributions-call', true]);
+  assert.ok(validGildedMarks(structuredClone(it)), 'its record exactly');
+  assert.equal(validGildedMarks({ ...structuredClone(it), affixes: it.affixes.map((a) => ({ ...a, value: a.value + 1 })) }), null, 'one number off');
+  const me = player();
+  const call = wear(me, it);
+  assert.equal(LP.lootBlow(call, 100, me, foe(ORC), {}), 108, '+8 fire');
+  assert.equal(LP.lootBlow(call, 100, me, foe(ORC, { career: { resistanceFlags: EFFECT_FLAGS.Fire } }), {}), 104, 'half');
+  assert.equal(LP.lootBlow(call, 100, me, foe(FIRE_DAEDRA, { career: { immunityFlags: EFFECT_FLAGS.Fire } }), {}), 100, 'none on the immune');
+  assert.equal(LP.lootBlow(createWeapon(WEAPONS.Katana, WEAPON_MATERIALS.Daedric, () => 0.5), 100, me, foe(ORC), {}), 100, 'another weapon carries none of it');
 });

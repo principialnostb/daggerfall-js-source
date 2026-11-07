@@ -423,3 +423,22 @@ export function promoteStaffBoss(
   if (own) grantEliteLoot(entity, level ?? entity.level);
   return true;
 }
+
+/** An invasion's boss's blows, times a mini boss's: it is meant for players of the invasion's level and up. */
+export const INVASION_BOSS_DAMAGE_MULT = 3;
+/**
+ * Make a freshly built foe an invasion's boss: a staff event's mini boss (promoteStaffBoss, its size and health), whose
+ * every blow is physical - its spells and its magicka taken, so it casts nothing - and hits INVASION_BOSS_DAMAGE_MULT
+ * times as hard. `invasionBoss` marks it (the rise and the fall read it). Idempotent.
+ * @param {any} entity @param {{ own?: boolean, sizePct?: number, healthX?: number, hp?: number, level?: number }} [opts]
+ */
+export function promoteInvasionBoss(entity, opts = {}) {
+  if (!promoteStaffBoss(entity, opts)) return false;
+  if (entity.invasionBoss) return true;
+  entity.invasionBoss = true;
+  entity.spells = [];
+  entity.magicka = 0;
+  entity.maxMagicka = 0;
+  if (opts.own !== false) entity.damageScale = (entity.damageScale || 1) * INVASION_BOSS_DAMAGE_MULT;
+  return true;
+}

@@ -219,6 +219,7 @@ wiring in `src/scenes/`. A feature with one or two modules in a layer keeps them
 | `src/net/sea/` | The Eltheric Ocean's ventures (`03-World/Eltheric-Ocean.md` SEA-BOUNTY, SEA-SEASON, SHIP-PVP): the bounty board's and the season boards' law, a wreck's prize, the open sea's guns refereed - online - the law both ends run. |
 | `src/net/serpent/` | The sea serpent, the sea's world boss (`11-Multiplayer/Sea-Serpent.md`) - online - the law both ends run. |
 | `src/net/dragon/` | The Dwarven Dragon, the sky's world boss (`11-Multiplayer/Dwarven-Dragon.md`) - online - the law both ends run (its watch, its path, its brain, its receipt) and the relay's seed of a watch (`dragonSeed.js`). |
+| `src/net/invasion/` | A toybox invasion's fight (`11-Multiplayer/Toybox.md`) - online and offline - the brain the relay's cell and the offline cell both run, and its words on the wire. |
 | `src/net/siege/` | Sieges of a seat - online - the law both ends run. |
 | `src/net/starfall/` | The Starfall, the Witches' Festival's fallen stars (`11-Multiplayer/Starfall.md`) - online - the law both ends run: the night and its stars, the defense's ledger, the receipt. |
 | `src/net/superDungeon/` | The Abyss Dungeon, the super dungeons (`11-Multiplayer/Super-Dungeons-Look.md`) - online - the law both ends run. |
@@ -330,6 +331,7 @@ wiring in `src/scenes/`. A feature with one or two modules in a layer keeps them
 | `src/systems/superDungeon/` | The Abyss Dungeon's law (`11-Multiplayer/Super-Dungeons-Look.md`): the site, the omen, the score, the spoils, the rift's sound and the slots kept on the device. |
 | `src/systems/survival/` | Survival: needs, camping, food, rest, exposure. |
 | `src/systems/talk/` | Talking to people: topics, sessions, macros - the law. |
+| `src/systems/toybox/` | The developer's toybox (`11-Multiplayer/Toybox.md`): its law, the forge's pieces, the ghost, the invasion and dragon attack's cities, run, marks, news, rewards and offline runner. |
 | `src/systems/town/` | A town's population, seats and watch. |
 | `src/systems/travel/` | Travel's law: the trip, routes and paths, pace, the autopilot, ports, far places and the dungeons on the way. |
 | `src/systems/upkeep/` | Upkeep: a horse's care and a wagon's wear (`06-Systems/Horse-Care.md`, `06-Systems/Wagon-Upkeep.md`) - the law. |
@@ -385,6 +387,7 @@ wiring in `src/scenes/`. A feature with one or two modules in a layer keeps them
 | `src/ui/starfall/` | The Starfall on screen: a fallen star's tracker, the master's bar and the star's colours. |
 | `src/ui/superDungeon/` | The Abyss Dungeon on screen: the title card, the Remnant's bar, the marks and the map mark. |
 | `src/ui/touch/` | The touch layer: buttons, gestures, look - its windows. |
+| `src/ui/toybox/` | The developer's toybox on screen: the window, its popups, the item forge and the box whose names open above it. |
 | `src/ui/town/` | A town on screen: its sheet, its quarters, its marks and the door to its map. |
 | `src/ui/travel/` | Travel's windows: the travel map, its options, paths and junctions, pace, the pop-up and the HUD. |
 | `src/ui/vendor/` | A vendor's page, tab and map mark - its windows. |

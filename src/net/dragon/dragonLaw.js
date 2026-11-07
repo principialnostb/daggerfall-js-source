@@ -8,6 +8,7 @@
 // over the world's own data (systems/dragon/dragonSite.js); the relay never reads a map. Pure. Not a DFU member. Ledger A (DRAGON).
 import { gateHash } from '../gate/gateLaw.js';
 import { PIXEL_UNITS, WORLD_CELL, mapPixelOfWire } from '../wire.js';
+import { TB_DRAGON } from '../staffEvent/staffEventLaw.js';
 
 /** A watch of the real clock, ms; one omen in DRAGON_WATCH_ONE_IN brings a dragon down. DRAGON-CELL: a watch holds
  *  DRAGON_CELLS_A_WATCH omens (dragonCandidates), each its own cell, and one comes down only where its cell has ground. */
@@ -27,12 +28,23 @@ export const DRAGON_SHINY_ONE_IN = 20;
 /** Is `o` a watch's omen - its number and the relay's seed for it, a whole 32-bit number? @param {any} o */
 export const dragonOmenOk = (o) =>
   !!o && Number.isSafeInteger(o.w) && o.w >= 0 && Number.isSafeInteger(o.s) && o.s >= 0 && o.s <= 0xffffffff;
+// A CALLED DRAGON: a developer's toybox names its city and its hour, so the omen carries them (`la` its landing, ms,
+// `px`, `py` its pixel). Nothing of it is secret: every screen was told of it, so its seed is the event's id hashed.
+/** Is `omen` a called dragon's - its landing in its own watch and a pixel to land on? @param {any} omen */
+export const dragonCalledOk = (omen) =>
+  dragonOmenOk(omen) &&
+  Number.isSafeInteger(omen.la) &&
+  omen.la >= 0 &&
+  Math.floor(omen.la / DRAGON_WATCH_MS) === omen.w &&
+  Number.isInteger(omen.px) &&
+  Number.isInteger(omen.py);
 /** Roll `k` of an omen, a whole number in [0, 2^32). @param {{w: number, s: number}} o @param {number} k */
 export const dragonRoll = (o, k) => gateHash(o.s, o.w, k);
 /** The watch a relay-clock instant stands in. */
 export const dragonWatchAt = (nowMs) => Math.floor(nowMs / DRAGON_WATCH_MS);
 /** Does this omen bring a dragon down? @param {any} o */
-export const isDragonOmen = (o) => dragonOmenOk(o) && dragonRoll(o, 0) % DRAGON_WATCH_ONE_IN === 0;
+export const isDragonOmen = (o) =>
+  dragonOmenOk(o) && (o.la !== undefined ? dragonCalledOk(o) : dragonRoll(o, 0) % DRAGON_WATCH_ONE_IN === 0);
 /** Is its dragon the Aetherbright? @param {{w: number, s: number}} o */
 export const dragonShinyOf = (o) => dragonRoll(o, 1) % DRAGON_SHINY_ONE_IN === 0;
 /** Its look's number, the receipt's `b` and the pose's `rc`: 0 the brass, 1 the Aetherbright. @param {{w: number, s: number}} o */
@@ -43,7 +55,7 @@ export const dragonLandOf = (o) => (dragonRoll(o, 6) % (DRAGON_LAND_SPAN_MS / 10
 /** An omen's instants, relay-clock ms - its landing its seed's (DRAGON-HIDDEN-TIME), so the clock alone tells no one when.
  *  @param {{w: number, s: number}} o */
 export function dragonTimes(o) {
-  const landAt = o.w * DRAGON_WATCH_MS + dragonLandOf(o);
+  const landAt = /** @type {any} */ (o).la ?? o.w * DRAGON_WATCH_MS + dragonLandOf(o);
   return { w: o.w, landAt, leaveAt: landAt + DRAGON_STAY_MS };
 }
 /** The latest any dragon of watch `w` lands: a quiet watch is told quiet no sooner, so its silence says nothing. */
@@ -89,6 +101,9 @@ export const DRAGON_CELLS = Object.freeze({ cx0: -54, cy0: -61, cols: 376, rows:
 export const DRAGON_TELL_PX = 6;
 /** An omen's cell. @param {{w: number, s: number}} o @returns {{cx: number, cy: number}} */
 export function dragonCellOf(o) {
+  const called = /** @type {any} */ (o);
+  if (called.la !== undefined)
+    return { cx: Math.floor(called.px / DRAGON_CELL_PX), cy: Math.floor(called.py / DRAGON_CELL_PX) };
   const n = dragonRoll(o, 7) % (DRAGON_CELLS.cols * DRAGON_CELLS.rows);
   return { cx: DRAGON_CELLS.cx0 + (n % DRAGON_CELLS.cols), cy: DRAGON_CELLS.cy0 + Math.floor(n / DRAGON_CELLS.cols) };
 }
@@ -170,12 +185,34 @@ export function dragonSiteOk(o, sx, sz) {
   const [px, py] = mapPixelOfWire(sx, sz),
     c = pixelCentreNative(px, py),
     cell = dragonCellOf(o);
+  const site = /** @type {any} */ (o); // a called dragon's omen carries its own pixel
   return (
     Math.floor(px / DRAGON_CELL_PX) === cell.cx &&
     Math.floor(py / DRAGON_CELL_PX) === cell.cy &&
     sx === c.sx &&
-    sz === c.sz
+    sz === c.sz &&
+    (site.la === undefined || (px === site.px && py === site.py))
   );
+}
+
+/**
+ * A CALLED DRAGON'S OMEN from the toybox's event (`tb` 2 in the hub's book, net/staffEvent/toyboxEvent.js): it lands at the
+ * event's `go`, at its city's pixel. `ev` names the event, `nm` its city. Null for any other event.
+ * @param {any} e a validStaffEvent's projection
+ */
+export function dragonCalledOf(e) {
+  if (!e || e.tb !== TB_DRAGON || typeof e.id !== 'string' || !Number.isSafeInteger(e.go)) return null;
+  const seed = gateHash(...[...e.id].map((letter) => letter.charCodeAt(0))) >>> 0;
+  const omen = {
+    w: Math.floor(e.go / DRAGON_WATCH_MS),
+    s: seed,
+    la: e.go,
+    px: e.px,
+    py: e.py,
+    ev: e.id,
+    nm: String(e.nm ?? ''),
+  };
+  return dragonCalledOk(omen) ? omen : null;
 }
 
 /** Native units to the metre (wire.js PIXEL_UNITS over gateLaw.js PIXEL_M - pinned equal, serpentLaw.js's own). */

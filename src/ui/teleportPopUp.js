@@ -95,9 +95,31 @@ export function _setTeleportPopUpArtForTests(art) {
   _art = art;
 }
 
+/** A button's own label, or null for the art's: a short string, trimmed. @param {unknown} label */
+export const buttonLabel = (label) => (typeof label === 'string' && label.trim() ? label.trim().slice(0, 16) : null);
+
+/** A label drawn over a button's rect: the art's word covered by a plain face, the label centred on it. */
+function labelButton(renderer, font, mat, rect, text) {
+  const [left, top, width, height] = rect;
+  drawRect(renderer, mat, TELEPORT_PANEL_X + left, TELEPORT_PANEL_Y + top, width, height, [0.16, 0.12, 0.08, 1]);
+  shadowText(
+    renderer,
+    font,
+    text,
+    mat,
+    TELEPORT_PANEL_X + left,
+    TELEPORT_PANEL_Y + top + Math.floor((height - 7) / 2),
+    {
+      align: 'center',
+      w: width,
+    },
+  );
+}
+
 export class TeleportPopUpWindow {
   /** destination: { pixel: {x, y}, name }. deps: { onTeleport(pixel,
-   *  name), onExit() }. */
+   *  name), onExit(), confirmLabel?, cancelLabel? } - a label given is
+   *  drawn as text over its button in place of the art's YES or NO. */
   constructor(destination, deps = {}) {
     this.destination = destination ?? { pixel: null, name: '' };
     this.deps = deps;
@@ -168,24 +190,16 @@ export class TeleportPopUpWindow {
     const x = TELEPORT_PANEL_X + dx + DESTINATION_LABEL_OFFSET[0];
     const y = TELEPORT_PANEL_Y + dy + DESTINATION_LABEL_OFFSET[1];
     shadowText(renderer, font, name, m, x, y, { align: 'center', w: dw });
+    const yesLabel = buttonLabel(this.deps.confirmLabel);
+    const noLabel = buttonLabel(this.deps.cancelLabel);
+    if (yesLabel) labelButton(renderer, font, m, TELEPORT_RECTS.yes, yesLabel);
+    if (noLabel) labelButton(renderer, font, m, TELEPORT_RECTS.no, noLabel);
     if (!_art) {
-      // art-less fallback: the two answers the classic art labels
-      shadowText(
-        renderer,
-        font,
-        'Yes (Y)',
-        m,
-        TELEPORT_PANEL_X + TELEPORT_RECTS.yes[0] + 4,
-        TELEPORT_PANEL_Y + TELEPORT_RECTS.yes[1] + 4,
-      );
-      shadowText(
-        renderer,
-        font,
-        'No (N)',
-        m,
-        TELEPORT_PANEL_X + TELEPORT_RECTS.no[0] + 4,
-        TELEPORT_PANEL_Y + TELEPORT_RECTS.no[1] + 4,
-      );
+      // art-less fallback: the two answers the classic art labels, where no label of the caller's stands
+      const [yesX, yesY] = TELEPORT_RECTS.yes,
+        [noX, noY] = TELEPORT_RECTS.no;
+      if (!yesLabel) shadowText(renderer, font, 'Yes (Y)', m, TELEPORT_PANEL_X + yesX + 4, TELEPORT_PANEL_Y + yesY + 4);
+      if (!noLabel) shadowText(renderer, font, 'No (N)', m, TELEPORT_PANEL_X + noX + 4, TELEPORT_PANEL_Y + noY + 4);
     }
   }
 }

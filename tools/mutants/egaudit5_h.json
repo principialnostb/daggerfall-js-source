@@ -277,8 +277,8 @@
   {
     "name": "EGA5H-ally-host-unwired",
     "file": "src/scenes/world.js",
-    "old": "egClient?.allyVeil(social?.accountOfPeer?.(d.id), d.shown, onlineToScene) ?? null",
-    "new": "null",
+    "old": "egClient?.allyVeil(social?.accountOfPeer?.(d.id), d.shown, onlineToScene) ?? ghostPeerVeil(d.shown) ?? null",
+    "new": "ghostPeerVeil(d.shown) ?? null",
     "tests": [
       "test/net/eliteGates/egaudit5_h.test.js",
       "test/net/eliteGates/egaudit5_h_client.test.js"

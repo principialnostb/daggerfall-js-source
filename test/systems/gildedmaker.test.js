@@ -46,7 +46,7 @@ const made = (r, rows = [FEATHER]) => applyEnchantments(mintGilded(r), rows);
 
 test('GILDED-MAKER THE DOOR: every Gilded record and era, as mintGilded mints it, is on the item maker\'s Weapons & armor tab with no row of its own, its own points to spend; an Aetheric piece is still refused in its own words; the ladder off, DFU\'s maker (mutants: the refusal back; the door shut; the ladder ignored)', () => {
   on();
-  assert.deepEqual(ALL.map((r) => itemEnchantmentPower(mintGilded(r))), [525, 2100, 1050, 600, 375, 600, 500], 'its make\'s points, as any plain piece of its make');
+  assert.deepEqual(ALL.map((r) => itemEnchantmentPower(mintGilded(r))), [525, 2100, 1050, 600, 375, 1800, 600, 500], 'its make\'s points, as any plain piece of its make');
   for (const r of ALL) {
     const it = mintGilded(r);
     assert.deepEqual([listedOn(it), keptEnchantments(it), itemMakerRefuses(it), gildedKeeps(it)], [['WeaponsAndArmor'], [], false, true], r.id);

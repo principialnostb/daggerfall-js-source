@@ -243,8 +243,8 @@
   {
     "name": "STAFF-PANEL5-HIDDEN-others-named",
     "file": "server/src/index.js",
-    "old": "return out.filter((b) => !b.hid);   // STAFF-PANEL5-HIDDEN: a hidden socket is in no roster",
-    "new": "return out;   // STAFF-PANEL5-HIDDEN: a hidden socket is in no roster",
+    "old": "return out.filter((b) => !b.hid && !ghostHides(b, viewer));   // STAFF-PANEL5-HIDDEN: a hidden socket is in no roster",
+    "new": "return out.filter((b) => !ghostHides(b, viewer));   // STAFF-PANEL5-HIDDEN: a hidden socket is in no roster",
     "why": "the welcome's who-is-here names it",
     "tests": [
       "test/net/staffpanel5hidden_relay.test.js"
@@ -493,8 +493,8 @@
   {
     "name": "STAFF-PANEL5-HIDDEN-place-join",
     "file": "server/src/index.js",
-    "old": "if (!who.hid) for (const [other, b] of [...this._all()]) if (other !== ws && b.id && (!S || S.members[b.sub])) this._send(other, join);",
-    "new": "for (const [other, b] of [...this._all()]) if (other !== ws && b.id && (!S || S.members[b.sub])) this._send(other, join);",
+    "old": "if (!who.hid) for (const [other, b] of [...this._all()]) if (other !== ws && b.id && (!S || S.members[b.sub]) && !ghostHides(this._attach(ws), b)) this._send(other, join);",
+    "new": "for (const [other, b] of [...this._all()]) if (other !== ws && b.id && (!S || S.members[b.sub]) && !ghostHides(this._attach(ws), b)) this._send(other, join);",
     "why": "a place says its join",
     "tests": [
       "test/net/staffpanel5hidden_relay.test.js"

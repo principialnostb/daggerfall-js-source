@@ -262,6 +262,10 @@ function timerRow(r, src) {
       T = starTimes(n, k);
     row.since = r.live ? T.fallAt : T.fallAt - STAR_WARN_MS;
     row.way = r.where && isPixel(r) ? eventWay(src?.pixel, /** @type {any} */ (r)) : null;
+  } else if (r.kind === 'invasion') {
+    // a developer's event (systems/toybox/toyboxMarks.js): its row says when it came (`since`) and where
+    row.since = Number.isFinite(/** @type {any} */ (r).since) ? /** @type {any} */ (r).since : NaN;
+    row.way = isPixel(r) ? eventWay(src?.pixel, /** @type {any} */ (r)) : null;
   }
   return row;
 }

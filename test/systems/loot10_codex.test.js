@@ -125,7 +125,7 @@ test('LOOT10: the page - every record (the thirty, and AUDIT LOOT F8 a registere
   const sets = CX.codexSets();
   assert.equal(sets.reduce((n, s) => n + s.pieces.length, 0), AETHERIC_RECORDS.length);
   assert.deepEqual(CX.codexCount(), { legendary: 1, legendaries: LR.allLegendaries().length, aetheric: 0, aetherics: AETHERIC_RECORDS.length, gilded: 0, gildeds: GILDED_RECORDS.length }, 'GILDED1: and the Gilded rung\'s records (PIN MOVED, GILDED2: three; KETCH: five)');
-  assert.equal(GILDED_RECORDS.length, 5, 'GILDED2: the Hourlock, the Dragonfire Oath and the Sunken Sovereign; KETCH (PIN MOVED): Volendrung\'s Echo and the Ketchmaster\'s Word');
+  assert.equal(GILDED_RECORDS.length, 6, 'and Retribution\'s Call - GILDED2: the Hourlock, the Dragonfire Oath and the Sunken Sovereign; KETCH (PIN MOVED): Volendrung\'s Echo and the Ketchmaster\'s Word');
 });
 
 test('LOOT10: the imprint - a known, unworn Rare takes a found power of its group, once, for 20 shards and 5,000 gold; its card and its power', () => {

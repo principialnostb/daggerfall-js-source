@@ -26,6 +26,15 @@ const HARDCODED = {
   'src/systems/staffGlow.js': 6,   // GLOW-SET: /glow's help, usage and answers - a staff member's words, as the other /staff lines, never a player's
   'src/scenes/delve/delveLab.js': 18,   // DELVE II DLV5-6: the curated blocks' lab panel (the bench's `?dungeon=lab`; a lab's module, moved from src/tools/ to stand with the bench a played page boots - AUDIT ANTICHEAT A2's premise) - a designer's tool, never the game's
   'src/scenes/staffDragonHost.js': 6,   // DRAGON-RIDE: /dragon's answers, said to the Admin alone, as the staff commands' own (world.js runStaffCommand); DRAGON-BLUE: and the look changed in the saddle
+  // the toybox: a developer's own window, popups, forge and answers, never a player's, as the staff commands' are
+  'src/net/toyboxGrant.js': 8,
+  'src/scenes/toyboxHost.js': 2,
+  'src/scenes/toyboxWorld.js': 1,
+  'src/systems/toybox/toyboxLaw.js': 3,
+  'src/systems/toybox/toyboxSpecial.js': 15,
+  'src/ui/toybox/itemForge.js': 23,
+  'src/ui/toybox/toyboxPopups.js': 6,
+  'src/ui/toybox/toyboxWindow.js': 1,
   'src/characters/dwarvenDragon.js': 2,   // DWARVEN-DRAGON: its career's English (the save's and the staff list's - a player reads t()'s) and its census miss, never shown
   'src/characters/enemy/enemyBasics.js': 19,
   'src/characters/foeBodies.js': 1,
@@ -347,7 +356,7 @@ const HARDCODED = {
   'src/scenes/vendorHost.js': 7,   // VENDOR-LOST: the home traders' words, moved verbatim out of world.js
   'src/scenes/world.js': 276,   // HOST-SPLIT TEST-PRESET: -3, the test room's words moved verbatim to scenes/testPresetHost.js. HOST-SPLIT PROFESSIONS: -35, the professions' words moved verbatim to scenes/professionsHost.js. ZONE-BANK (FIELD BUGS 2026-10-30b): -1, the zone bank's refusal through zoneSafe.js's t(). ZONE-HOMES: -1, the zone's house refusal through zoneSafe.js's t(). SHARED-HEALTH: -2, the battles' readouts print no 'Your vitality' line (my own health is my bar). THE SIXTH MERGE OF MAIN INTO #1184: MENTOR2 (main's): -1, mentoring's end through mentorText.js's t(). THE FOURTH MERGE OF MAIN INTO #1184: 319 measured on the merged host (RPT1026-MARKET's Collect through t() on main). BAY-LEFT-SEA: -4, the market's pieces' words moved verbatim to scenes/marketPiecesHost.js (HOST-SPLIT). TESA x MAIN (the merge of main into TESA, AUDIT RELEASE R3): 325 measured - TESA's -6 (the quick save's words moved whole to scenes/worldQuickSave.js) on main's 331. VENDOR-LOST: -7, the home traders' words moved verbatim to vendorHost.js; QUEST-AUDIT III SHARE-WORDS: -4, the share's lines through questShare.js's t(); AUDIT QA3: -2, the sender's (shareSentLine); STAFF-PANEL5-FOLLOW-FIX: -1 already at the relay base (ec3d522d61), written down; FB1020c ONE-SAVE: the kept words moved to the Stores page (BAG_PAGE_WORDS.kept); CABIN-FOES: Transport > Ship's helm refusal read off CABIN_REFUSAL; AUDIT SEA VENTURES C6: -1, /unstuck's outdoor refusal read off the zone's words; SEASON-BOOK: -1, /mail's refusal read off chatCommands.js pauseCommandRefusal (344 at the merge of main #1161: both -1s stand)
   'src/scenes/worldModes.js': 79,   // NOTICE-PANEL: 82 -> 80, the board's two plaque words out with its press; the merge of main: 79, main's set-down line gone to scenes/arrivalSetDown.js, through t()
-  'src/systems/aetheric.js': 168,   // SEA-SET: +17, the Eltheric Tidemail's nine names and lore, as the Weave's - the records' own data, minted onto the item; WITCH1: the Wyrd's Raiment's nine pieces, each its name and its affixes' names (+18) - an item's canonical name, as every Aetheric set's; STAR7: +18, the Starspun Weave's nine names and lore - the records' own data, minted onto the item, never read at load
+  'src/systems/aetheric.js': 181,   // +13, the Realm Defender's lore and the pieces' gear names, minted onto the item as every set's; SEA-SET: +17, the Eltheric Tidemail's nine names and lore, as the Weave's - the records' own data, minted onto the item; WITCH1: the Wyrd's Raiment's nine pieces, each its name and its affixes' names (+18) - an item's canonical name, as every Aetheric set's; STAR7: +18, the Starspun Weave's nine names and lore - the records' own data, minted onto the item, never read at load
   'src/systems/alchemyItems.js': 3,
   'src/systems/allyCast.js': 5,
   'src/systems/answerPipeline.js': 1,
@@ -421,7 +430,7 @@ const HARDCODED = {
   'src/systems/gate/gateOmen.js': 10,
   'src/systems/gate/gateSpoils.js': 4,   // PORTAL-BOOK: the Portal Book's canonical name, a template row's
   'src/systems/gateTier.js': 4,
-  'src/systems/gilded.js': 25,   // GILDED2: the Dragonfire Oath's and the Sunken Sovereign's names, powers, lore and hints - written as the Hourlock's are   // AUDIT PISTOLET A7 C1 D8: +1, the Sunken Sovereign's saber-era lore - an item's own story, as the records' are; KETCH: +9, Hammerfall's and Broadside's briefs and texts, Volendrung's Echo's lore and hint, the Ketchmaster's Word's name, lore and hint (the Echo's name and the two powers' a word or two the scan passes), The Hour Tolls' text re-read for the Pellet's dweamer in its old one's place (a kill returns the shot) - written as the Hourlock's are (AUDIT KETCH L5-10: the reason named the Hourlock's lore, unchanged, and left out the Echo and Broadside)
+  'src/systems/gilded.js': 29,   // +4, Retribution's Call's name, power, lore and hint, written as the Hourlock's are; GILDED2: the Dragonfire Oath's and the Sunken Sovereign's names, powers, lore and hints - written as the Hourlock's are   // AUDIT PISTOLET A7 C1 D8: +1, the Sunken Sovereign's saber-era lore - an item's own story, as the records' are; KETCH: +9, Hammerfall's and Broadside's briefs and texts, Volendrung's Echo's lore and hint, the Ketchmaster's Word's name, lore and hint (the Echo's name and the two powers' a word or two the scan passes), The Hour Tolls' text re-read for the Pellet's dweamer in its old one's place (a kill returns the shot) - written as the Hourlock's are (AUDIT KETCH L5-10: the reason named the Hourlock's lore, unchanged, and left out the Echo and Broadside)
   'src/systems/gravestoneLore.js': 16,
   'src/systems/guild/guilds.js': 3,
   'src/systems/handheldTorches.js': 12,
@@ -546,7 +555,7 @@ const HARDCODED = {
   'src/systems/sigil/sigil.js': 8,
   'src/systems/sigil/sigilBroker.js': 8,
   'src/systems/sigil/sigilSetPowers.js': 24,
-  'src/systems/sigil/sigilSets.js': 126,   // PIN MOVED (AUDIT HORIZONTAL D6): +1, SET-CATCHUP's pace English inside the set's English stage line until the sets' batch routes the line whole; SEA-SET: +9, the Eltheric Tidemail's name, prince, role, tiers and their words, as every set's; WITCH1: the Wyrd's Raiment - its name, its prince, its three tiers' names and lines (+9), as every set's; STAR7: +8, the Starspun Weave's name, role, tiers and their words, as every set's
+  'src/systems/sigil/sigilSets.js': 133,   // +7, the Realm Defender's name, role and tiers' words, as every set's; PIN MOVED (AUDIT HORIZONTAL D6): +1, SET-CATCHUP's pace English inside the set's English stage line until the sets' batch routes the line whole; SEA-SET: +9, the Eltheric Tidemail's name, prince, role, tiers and their words, as every set's; WITCH1: the Wyrd's Raiment - its name, its prince, its three tiers' names and lines (+9), as every set's; STAR7: +8, the Starspun Weave's name, role, tiers and their words, as every set's
   'src/systems/smithItems.js': 26,
   'src/systems/snowfall.js': 12,
   'src/systems/snowfallRuntime.js': 10,

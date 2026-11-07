@@ -319,6 +319,14 @@ export function setFold(entity) {
     add(m().resist, 'shock', wrack.shock);
     add(m().stats, 'speed', wrack.speed);
   }
+  const talos = t.get('defender')?.[0];
+  if (talos) {
+    add(m().resist, 'magic', talos.magic);
+    add(m().resist, 'fire', talos.fire);
+    add(m().resist, 'shock', talos.shock);
+  }
+  const meridia = t.get('defender')?.[2];
+  if (meridia) m().healthPct += meridia.health;
   return mods ?? EMPTY_MODS;
 }
 
@@ -401,6 +409,9 @@ export function setBlow(weapon, damage, attacker, target, info) {
   if (silk && weapon && strandsAt(target, now) >= STRAND_HITS - 1) pct += silk.more; // STAR7: Bound in Silk - the blow the web holds (its landing cuts the count: setStrike)
   const tow = t.get('eltheric')?.[1];
   if (tow && weapon) pct += atSea() ? tow.more : tow.more / 2; // SEA-SET: Undertow - whole in the open sea, half ashore
+  const realm = t.get('defender');
+  if (realm?.[1] && weapon) flat += Math.floor(realm[1].magic * elementShare(target, 4)); // a foe that resists magic takes half
+  if (realm?.[2] && weapon) flat += Math.floor(realm[2].fire * elementShare(target, 0));
   let out = damage;
   if (pct > 0) pct = blowRoom(pct, 'sets'); // POWER-CEILING: the sets' room under the blow's one product
   if (pct > 0) {
@@ -419,12 +430,21 @@ export function setBlow(weapon, damage, attacker, target, info) {
  *  more than it did. SERPENT-SET: and Constrict's coil tightens - a bow's blow too (the tier says a weapon blow). */
 export function setStrike(attacker, target, damage, weapon, info = null) {
   if (!(damage > 0) || !weapon || target?.warded) return; // AUDIT FB1018f L3-3: a blow its referee turns whole landed nothing - no Discipline's return, no coil, no Cleave off it (setBlow's own AUDIT SETS L4)
+  if (info?.blow !== false) defended(attacker);
   if (info?.blow !== false) coiled(attacker, target); // TWO-HANDS (AUDIT 2): a stack a blow, from a blow that counts whole (formulas.js `blow`)
   stranded(attacker, target, info?.blow !== false); // STAR7: Bound in Silk - a strand a blow that counts whole; AUDIT STAR S1: the held blow's landing cuts the count whatever its weight
   if (info?.blow !== false) returned(attacker); // EG15: the Discipline's return - a bow's blow too (a weapon blow); TWO-HANDS (AUDIT 2): a per-blow charge, so a blow that counts whole alone
   if (ranged(weapon)) return;
   const v = tierOf(attacker, 'ruhn', 1);
   if (v) cleave(target, (damage * v.share) / 100, weapon);
+}
+/** The Realm Defender's blow that landed: Azura's Prophecy gives magicka, Meridia's Preservation a share of my health.
+ *  A part-blow of the off hand gives nothing, as every per-blow charge here. */
+function defended(attacker) {
+  const azura = tierOf(attacker, 'defender', 1);
+  if (azura) manaMine(attacker, azura.mana);
+  const meridia = tierOf(attacker, 'defender', 2);
+  if (meridia) healMine(attacker, ((attacker?.maxHealth ?? 0) * meridia.heal) / 100);
 }
 /** SERPENT-SET, CONSTRICT: a weapon blow of mine that LANDED on a foe tightens the coil on it - a stack more, up to
  *  COIL_STACKS, its window renewed to COIL_SECONDS; a blow that lands on another foe starts that foe's own coil, and the

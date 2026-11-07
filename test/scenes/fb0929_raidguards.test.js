@@ -195,7 +195,7 @@ test('RAID-GUARDS: while a raid is on in the town its defenders take none of the
   } finally { setValue('MeleeAttacks', 'MeleeAttackFriendlyProtection', true); }
   // THE HOST: the world host tells the pool where a raid is on, and the riding charge takes its guards through the rule
   const w = rd('src/scenes/world.js');
-  assert.match(w, /createCityGuards\(\{[\s\S]{0,600}?raidHere: \(\) => raidDefendingHere\(\),/, 'world.js hands the pool the raid');
+  assert.match(w, /createCityGuards\(\{[\s\S]{0,600}?raidHere: \(\) => raidDefendingHere\(\) \|\| invasionFightHere\(\) \|\| !!dragonSky\?\.fightHere\?\.\(\),/, 'world.js hands the pool the raid, and an invasion or a dragon fought here');
   assert.match(w, /guards: \(\) => cityGuards\.guards\.filter\(\(g\) => !cityGuards\.playerSpares\(g\)\),/, 'the charge asks the one rule');
 });
 

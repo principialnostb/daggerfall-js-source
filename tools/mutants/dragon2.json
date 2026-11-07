@@ -2,8 +2,8 @@
   {
     "name": "DRAGON2-every-watch-a-dragon",
     "file": "src/net/dragon/dragonLaw.js",
-    "old": "export const isDragonOmen = (o) => dragonOmenOk(o) && dragonRoll(o, 0) % DRAGON_WATCH_ONE_IN === 0;",
-    "new": "export const isDragonOmen = (o) => dragonOmenOk(o) && dragonRoll(o, 0) % DRAGON_WATCH_ONE_IN >= 0;",
+    "old": "  dragonOmenOk(o) && (o.la !== undefined ? dragonCalledOk(o) : dragonRoll(o, 0) % DRAGON_WATCH_ONE_IN === 0);",
+    "new": "  dragonOmenOk(o) && (o.la !== undefined ? dragonCalledOk(o) : dragonRoll(o, 0) % DRAGON_WATCH_ONE_IN >= 0);",
     "tests": [
       "test/net/dragon/dragon2_law.test.js"
     ],
@@ -231,7 +231,7 @@
   {
     "name": "DRAGON2-a-field-carried",
     "file": "src/net/wire.js",
-    "old": "    return { k: 'in', w: m.w, bv: m.bv, lv: m.lv, sx: m.sx, sz: m.sz };",
+    "old": "    return { k: 'in', w: m.w, bv: m.bv, lv: m.lv, sx: m.sx, sz: m.sz, ...(typeof m.ev === 'string' && STAFF_EVENT_ID_RE.test(m.ev) ? { ev: m.ev } : {}) };   // `ev`: a called dragon's event (net/dragon/dragonLaw.js dragonCalledOf)",
     "new": "    return { ...m };",
     "tests": [
       "test/net/dragon/dragon2_law.test.js"
@@ -258,8 +258,8 @@
   {
     "name": "DRAGON2-the-fan-unbounded",
     "file": "server/src/dragonFights.js",
-    "old": "  if (Math.hypot(c.x, c.z) > dragonBrain.DRAGON_FAN_R) return false;\n  // AUDIT DRAGON-CELL III G7: a fight's words name its site, so a passer-by hears them once its account is granted the",
-    "new": "  // AUDIT DRAGON-CELL III G7: a fight's words name its site, so a passer-by hears them once its account is granted the",
+    "old": "  if (Math.hypot(c.x, c.z) > dragonBrain.DRAGON_FAN_R) return false;\n  if (f.ev) return true;",
+    "new": "  if (f.ev) return true;",
     "tests": [
       "test/net/dragon/dragon2_relay.test.js"
     ],

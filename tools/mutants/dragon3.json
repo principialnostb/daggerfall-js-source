@@ -85,8 +85,8 @@
   {
     "name": "DRAGON3-the-remains-forgotten-at-the-watchs-turn",
     "file": "src/scenes/dragonHost.js",
-    "old": "  for (const w of dragonWatchesAbout(t)) {\n    const s = seedOf(w), o = { w, s };",
-    "new": "  for (const w of dragonWatchesAbout(t).slice(0, 1)) {\n    const s = seedOf(w), o = { w, s };",
+    "old": "  for (const w of dragonWatchesAbout(atMs)) {\n    const s = seedOf(w), o = { w, s };",
+    "new": "  for (const w of dragonWatchesAbout(atMs).slice(0, 1)) {\n    const s = seedOf(w), o = { w, s };",
     "tests": [
       "test/net/dragon/dragon3_client.test.js",
       "test/net/dragon/dragoncellaudit.test.js"

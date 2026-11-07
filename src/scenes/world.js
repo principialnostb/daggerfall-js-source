@@ -609,6 +609,10 @@ import { TRANSPORT_MODES } from '../systems/transport.js';   // TR3: what the ro
 import { REPOSITION, isOnShip } from '../systems/ship.js';   // TR4: board and disembark; AUDIT-TO1 D1: TransportManager.IsOnShip for the popup; AUDIT 68 S22: the memory's height, compensation-free
 import { createDragonViewHost, dragonAuraLift } from './dragonViewHost.js';   // DRAGON-POV: my dragon in third person
 import { setDragonSaddleCovered } from '../player/dragonSaddle.js';   // DRAGON-POV: the saddle under a panel
+import { giantLeashStep, giantRetreatGoal } from './giantLeash.js';   // the zone giants kept in it, each frame
+import { createToyboxWorld, toyboxLocalBuild } from './toyboxWorld.js';
+import { createInvasionField, invasionFightHere } from './invasionField.js';   // an invasion's foes, the relay's (offline, this machine's)   // the developer's toybox
+import { ghostPeerVeil } from '../systems/toybox/toyboxGhost.js';   // a ghosting developer, drawn faint to staff   // the zone giants kept in it, each frame
 import { createStaffDragonHost } from './staffDragonHost.js';   // DRAGON-RIDE: an Admin's ride on the Dwarven Dragon
 import { parseDragonCommand, DRAGON_HELP_LINE, noteDragonRelay, dragonPoseRide, dragonWireCast, drawPeerCast, dragonRideLook } from '../systems/staffDragon.js';   // DRAGON-RIDE: /dragon's grammar and its /staff line; DRAGON-SHOTS: the cannons on the wire, and a peer's drawn
 import { runGlowCommand } from '../systems/staffGlow.js';   // GLOW-SET: /glow, a staff's pick of weapon glow
@@ -10332,7 +10336,7 @@ export async function bootWorld(canvas, renderer, params, status) { handHeroGend
     renderer, collider, fetchBytes, getTexture, uploadRecordFrame, playerEntity, audio, hitEffects, groundStands: (x, z) => Number.isFinite(heightAt(x, z)),   // FALL-HOLD: a watchman over a pixel not built is held, not stepped
     playerWeaponSheathed: () => !!weaponRig.playerWeapon.sheathed,   // AUDIT 24 (wave 42): pacification's drawn-weapon penalty
     shake: (k) => betterAmbience.weaponKick(k),   // AUDIT TELL H6: my blow that staggers a watchman kicks the camera
-    raidHere: () => raidDefendingHere(),   // RAID-GUARDS: a raid on in this town spares its defenders every blow of the player's
+    raidHere: () => raidDefendingHere() || invasionFightHere() || !!dragonSky?.fightHere?.(),   // RAID-GUARDS: a raid on in this town spares its defenders every blow of the player's; an invasion or a dragon fought here does the same
     guardScale: () => (wildHere() ? ZONE_WATCH_SCALE : 1),   // ZONE-WATCH (systems/wild/wildZone.js ZONE_WATCH_SCALE): the open zone's towns post their watch ten times as strong
     levelBonus: () => seatEdicts.guardLevelBonus(Math.floor(skyMinutes())),   // SEAT1d: a Curfew's night watch - AUDIT SEATS-3 E1: the sky's night (TIME1), the one the town sees
     fightHere: () => fightNear([...cityGuards.guards, ...exteriorFoes.foes], player.pos),   // PROTECT-FIGHT: under the protection, a fight spares the street's walkers - AUDIT FB1025i D3: a fight near me, a peer's foes too (encounters.js fightNear)
@@ -15152,11 +15156,12 @@ export async function bootWorld(canvas, renderer, params, status) { handHeroGend
     townTalk.showOverlay(win);
     return win;
   }
-  function openTeleportMap() {
+  function openTeleportMap(opts = {}) {
     if (!travelMapDoorReady()) return null;
     if (veilRefused()) return null;   // AUDIT CAPTAIN'S SEA P6: past the Veil its map's every place is across it
     let win = null;
     win = buildTravelMapWindow({
+      ...opts,   // the toybox's Teleport button
       onTeleport: (pick) => { teleportTo(pick); },
       onClose: () => { if (modes?.questOverlay === win) modes?.showQuestOverlay?.(null); },
     });
@@ -15645,7 +15650,7 @@ export async function bootWorld(canvas, renderer, params, status) { handHeroGend
       // EVENT-TIP (Mac: "add a tooltip to the map for these type of events"): THE TOWNS UNDER ATTACK - every raid
       // running now on the raids' own clock, at its town, with the card a hover asks for (ui/eventMapMarks.js). A
       // function for the gate's reason; none while the mod is off. The enhanced map alone draws them.
-      raids: () => (raidingPartiesOn() ? raidMapMarks(raidState().raids, worldMinutes(), { regionName: (r) => REGION_NAMES[r] ?? '', localTime: sharedClockOn() ? eventLocalTime : null, relay: raidRelayState }) : []),   // TIME1: online the withdrawal in local time
+      raids: () => [...toybox.mapMarks(), ...(raidingPartiesOn() ? raidMapMarks(raidState().raids, worldMinutes(), { regionName: (r) => REGION_NAMES[r] ?? '', localTime: sharedClockOn() ? eventLocalTime : null, relay: raidRelayState }) : [])],   // TIME1: online the withdrawal in local time
       serpent: () => serpentOmen?.mapMark() ?? null,   // SERPENT1: the sea serpent's ring, in the sea's colours - the held map alone draws it
       sd: () => sdHost?.mapMarks() ?? null,   // SD2c: a found Super dungeon's ring, in its omen's brass - the held map alone draws it; WW5: every lane's
       stars: () => starfall?.mapMarks() ?? [],   // STAR6: the night's fallen stars, each its card
@@ -15921,6 +15926,7 @@ export async function bootWorld(canvas, renderer, params, status) { handHeroGend
         // SD2c: the Super dungeon - the hub's record, its name and its city (the row's own law asks the phase: a row once found)
         sd: sdHost?.timers() ?? null,   // AUDIT EVENTS1 A2: the site itself - its city the window's place, its pixel the board's way; WW5: and each province lane's (scenes/superDungeon/sdLanes.js timers)
         stars: starfall?.timerRows() ?? null,   // STAR6: each fallen star's deadline, the next fall and the night's coven
+        toybox: toybox.timerRows(),   // the developer toybox's invasions and dragon attacks
         elite: egClient?.timers() ?? null,   // EG-F: my company's Elite Breach - its opening, its window, its hall and count
         doors: egClient ? { board: () => egBoardDoor() } : null,   // EG-ZM (Elite-Gates.md section 20): the boards' door on the Elite rows
         seatsOpen: seatBook?.open === true,   // AUDIT TIMERS1 D5: the seat week's rows are for an account the seats are open to
@@ -18087,6 +18093,8 @@ export async function bootWorld(canvas, renderer, params, status) { handHeroGend
     get online() { return online; },
     get peersNear() { return peersNear; },
     get raidClaims() { return raidClaims; },
+    get localToybox() { return toybox.local; },
+    get sharedOffsetMs() { return _sharedOffsetMs; },
     get raidSites() { return raidSites; },
     get raidSpoils() { return raidSpoils; },
   });
@@ -18580,7 +18588,7 @@ export async function bootWorld(canvas, renderer, params, status) { handHeroGend
     renownXpAdopt(who?.xp);   // RENOWN4: the total, before the level - so no frame draws the new level over the old total
     who = { ...who, level: renownAdopt(who?.level) };   // RENOWN1: the highest level this page has known, never a stale token's lower one
     _staffGlyphs = Array.isArray(who?.glyphs) ? who.glyphs : [];   // STAFF1: the service's own word on my glyphs, each issue
-    if (!isStaffT(_staffGlyphs)) setStaffPowers({ god: false, fly: false });   // ...and a title taken away takes its switches with it
+    if (!isStaffT(_staffGlyphs)) setStaffPowers({ god: false, fly: false, noclip: false });   // ...and a title taken away takes its switches with it
     chatSafety.adopt(who);   // SAFE7: the service's word on whether I have agreed to the code of conduct
     // GLYPH-WEAR: my own name wears what the room is shown - less the glyphs I took off - while the staff rights above
     // read every glyph that is true (hiding one is paint alone)
@@ -18878,6 +18886,11 @@ export async function bootWorld(canvas, renderer, params, status) { handHeroGend
   // (every new room's hello refused 'token expired', terminal) or a failed mint's hold for the length of the step
   const identityMinter = accountTokenMinter({ fetch: (u, i) => globalThis.fetch(u, i), storage: appStorage(), onIssued: adoptIssued, now: steadyNow,
     character: () => (onlineOn ? realmSession?.id ?? null : null) });   // RENOWN1: the character coming online, whose level the token carries (RENOWN-CHAR: its own again). REALM-DOOR: it is the realm character this tab JOINED (online is never without one), which the service signs as the realm's and the relay's door reads - never an id the save carries or characterIdOf mints
+  // the developer's toybox (scenes/toyboxWorld.js): /toybox in the chat, or the / key in offline play
+  const toybox = createToyboxWorld({ glyphs: staffGlyphs, online: () => online, storage: appStorage, worldLink: () => chatLinks?.get('world') ?? null,
+    summon: (name, say) => staffPull.command(name, say), teleportToPlayer: (name, say) => { teleportToStaffPlayer(name).then((who) => say(staffTpLine(who))).catch((e) => say(String(e?.message ?? e))); }, openTeleport: () => { const win = openTeleportMap({ confirmLabel: 'Teleport' }); if (win) townTalk.showOverlay(win); },
+    addToPack: (item) => takeGateSpoil({ kind: 'item', item }), postBox: () => postBox, deliver: (sev, room) => raidRelayWord({ k: 'sev', sev }, room),
+    playerName: () => playerEntity.name ?? '', audio: () => audio, relayNowMs: () => Date.now() + _sharedOffsetMs });
   // RENOWN1: WHAT THIS CHARACTER EARNS (RENOWN-CHAR: its own track again) - online only (the tracker is never built offline, and earns only while a session
   // exists). A foe pays when it dies within RENOWN_ASSIST_MS of my own blow, whoever struck last (net/renownTracker.js - the one rule every kill door agrees
   // on), with the party in my room counted (renownPartyXp); a quest pays on success, once - each at three quarters (net/renown.js renownRate, RENOWN-ACCOUNT).
@@ -19290,6 +19303,7 @@ export async function bootWorld(canvas, renderer, params, status) { handHeroGend
     online.onSdReceipt = (r, room) => { sdClaims?.add(r); sdSpoilsReceipt(r, room); };   // SD9b: my Hour receipt (my realm's at the fall, the hub's at a hello) - to the account service, kept until it is counted; SD9e: and its spoils
     online.onEg = (w, room) => egClient?.word(w, room);   // EG-PLAY: my breach room's word - its state, its fights, my receipts
     online.onKetch = (w) => ketch?.word(w);   // KETCH: my ship's room's word - its voyage, its fights, its cells, my receipt
+    online.onInvasion = (w) => invasionField.word(w);   // an invasion's cell: its foes, its boss, its moments
     online.onDragon = (w) => { if (w?.k === 'bd') bossCountFell(!!dragonSky?.near()); else dragonSky?.word(w); };   // DRAGON3: a dragon's cell's word, or my receipt from the hub; INT11: the relay's count's fall of me
     online.onSerpent = (w) => { if (w?.k === 'bd') serpentHost?.wrecked?.(w); else serpentLink?.word(w); };   // SERPENT1: the sea serpent's cell's word (on my cell's socket or a halo's) - its fight, its swim, its blows, my receipt
     online.onRaid = (f, room) => raidRelayWord(f, room);   // RAID3: a town cell's word about its raid - the ledger, the cleanse, my receipt
@@ -19563,6 +19577,7 @@ export async function bootWorld(canvas, renderer, params, status) { handHeroGend
         // admin commands"): /tp /god /fly /heal /pos /staff (net/staffCommands.js) - asked only of a player whose own
         // glyphs are staff's, so to anyone else each is the chat's own "no such command". Each acts on the typer alone.
         const staffCmd = isStaffT(staffGlyphs()) ? (parseDragonCommand(text) ?? parseStaffLine(text.replace(/^\/godmode\b/i, '/god'), staffPowers())) : null;   // DRAGON-RIDE: /dragon, its own grammar   // TESTBUILD: /godmode = /god; AUDIT TAMRIEL-WIDE B4/C7: a pixel past the Bay
+        if (toybox.chat(text, (line) => chatLog.push(tabId, { text: line, system: true }))) return true;   // the developer's toybox
         if (staffCmd) { runStaffCommand(tabId, staffCmd); return 'error' in staffCmd ? false : true; }
         // TITLE-N (Mac: "Dungeon Master ... allows the user to use the /dm to message chat with orange text (similar to
         // /red)"): /red's law below, one frame over - parsed here and never guarded: whether this player may is the
@@ -20728,63 +20743,13 @@ export async function bootWorld(canvas, renderer, params, status) { handHeroGend
     const line = 'The Greater Giant bellows, and the giants of the mountains answer its call!';
     setMidScreenText(line, 4); townTalk.say(line);
   };
-  const GIANT_RETREAT_M = 200;
   const giantMapAt = (p) => { const w = campToWire(p); return [w[0] / 32768, 500 - w[2] / 32768]; };
-  /** Where a giant at `feet` retreats to: of sixteen ways out GIANT_RETREAT_M long, the ones whose whole line stays inside
-   *  the zone, the deepest at its end (the farthest from the border) - null when none does. */
-  const giantRetreatGoal = (mask, feet) => {
-    let best = null, bestDepth = -1;
-    for (let k = 0; k < 16; k++) {
-      const a = (k / 16) * Math.PI * 2, dx = Math.cos(a), dz = Math.sin(a);
-      let ok = true;
-      for (const r of [50, 100, 150, GIANT_RETREAT_M]) { const [mx, my] = giantMapAt([feet[0] + dx * r, feet[1], feet[2] + dz * r]); if (!wildInside(mask, mx, my)) { ok = false; break; } }
-      if (!ok) continue;
-      const to = [feet[0] + dx * GIANT_RETREAT_M, feet[1], feet[2] + dz * GIANT_RETREAT_M];
-      const [mx, my] = giantMapAt(to);
-      const d = mask.depth?.[Math.floor(my) * mask.width + Math.floor(mx)] ?? 0;
-      if (d > bestDepth) { bestDepth = d; best = to; }
-    }
-    if (best) { const h = heightAt(best[0], best[2]); if (Number.isFinite(h)) best[1] = h; }
-    return best;
-  };
-  /** GIANT-LEASH (2026-10-08, the owner: "giant should not be able to walk out of the zone"): every frame, a giant stood
-   *  here that has stepped over the zone's edge is put back where it last stood inside - the edge is a wall to it. And
-   *  GIANT-RETREAT: me out of the zone, it walks back into it. */
+  /** GIANT-LEASH: each frame the zone keeps its giants in, and walks them back when I leave (scenes/giantLeash.js). */
   const giantLeashFrame = () => {
-    if (!_giantsStood.size) return;
-    const mask = wildMapMask();
+    const mask = _giantsStood.size ? wildMapMask() : null;
     if (!mask) return;
-    const now = Date.now();
     const meOut = playerSpawned && (modes?.mode ?? 'exterior') === 'exterior' && (() => { const [mx, my] = giantMapAt(player.feetAt()); return !wildInside(mask, mx, my); })();
-    for (const s of _giantsStood.values()) {
-      const f = s.foe, feet = f?.ai?.feet;
-      if (!feet || f.entity?.health <= 0) continue;
-      // GREATER-GIANT: at half its health, once a life, it calls ten giants of the ordinary kind about it
-      if (!s.called && f.entity.maxHealth > 0 && f.entity.health <= f.entity.maxHealth * GREATER_GIANT_CALL_AT) { s.called = true; greaterGiantCall(f, mask); }
-      const [mx, my] = giantMapAt(feet);
-      const inside = wildInside(mask, mx, my);
-      if (inside) s.inside = [feet[0], feet[1], feet[2]];
-      else if (s.inside) { feet[0] = s.inside[0]; feet[1] = s.inside[1]; feet[2] = s.inside[2]; }
-      if (!meOut) s.retreated = false;   // back in the zone: the next step out sends it back again
-      // the retreat under way: steered at its goal every frame, done there (or after a minute, whatever held it)
-      if (s.retreat) {
-        const r = s.retreat, d = Math.hypot(r.to[0] - feet[0], r.to[2] - feet[2]);
-        if (d < 12 || now > r.until) { f.ai.fleeLeft = 0; s.retreat = null; if (f.entity && f.entity.maxHealth > 0) f.entity.health = f.entity.maxHealth; continue; }   // GIANT-RETREAT (the owner: "The giant should heal then yes"): back in the zone, whole again
-        const ux = (r.to[0] - feet[0]) / d, uz = (r.to[2] - feet[2]) / d;
-        f.ai.fleeFrom = [feet[0] - ux * 10, feet[1], feet[2] - uz * 10];   // it runs FROM a point behind it - toward its goal
-        if (!(f.ai.fleeLeft > 1)) f.ai.fleeLeft = 5;
-        continue;
-      }
-      // the moment I am out (once a step out), or it is pressed at the border while I stay out (every ten seconds)
-      const pressed = !inside && now - (s.retreatAt ?? 0) > 10_000;
-      if (meOut && (!s.retreated || pressed)) {
-        const to = giantRetreatGoal(mask, feet);
-        s.retreated = true; s.retreatAt = now;
-        if (!to) continue;
-        s.retreat = { to, until: now + 60_000 };
-        f.ai.flee([feet[0] * 2 - to[0], feet[1], feet[2] * 2 - to[2]], 60, 1.4);   // drops me, and walks
-      }
-    }
+    giantLeashStep(_giantsStood.values(), { mask, now: Date.now(), meOut, mapAt: giantMapAt, call: greaterGiantCall, goal: (m, feet) => giantRetreatGoal(m, feet, giantMapAt, heightAt) });
   };
   /** ZONE-GIANTS: each half second outdoors in the zone - a giant whose walk has come near me stands on the ground at its
    *  place (by the party's roller, as a wanderer is - its puppet for the rest); a stood one that fell is told to the hub,
@@ -22598,19 +22563,25 @@ export async function bootWorld(canvas, renderer, params, status) { handHeroGend
   // DRAGON3 (bible/11-Multiplayer/Dwarven-Dragon.md): THE DWARVEN DRAGON - where it comes down (the gate's scans), the cell's
   // words for this machine's site, and its host (scenes/dragonHost.js). Online alone: the relay runs its fight. The Bay's
   // scan is read once its slices are whole, never forced in a frame (AUDIT WB C7).
-  dragonSky = params.has('online') ? createDragonSky({
+  // the street as a world boss reads it: the dragon's and the invasion's fields share these
+  const streetSite = { now: () => Date.now() + _sharedOffsetMs, offline: () => !online, renderer, barHidden: () => gamePaused() || !!townTalk.hudHidden, local: (nx, nz) => state.localFromWorld(nx, nz), native: (x, z) => { const w = state.worldCoords([x, 0, z]); return [w.x, w.z]; },
+    ground: (x, z) => surfaceAt(x, z), feet: () => player.feetAt(), level: () => playerEntity.level ?? 1 };
+  dragonSky = params.has('online') || toyboxLocalBuild() ? createDragonSky({   // a local build's offline play: the toybox's called dragon, fought here
     bayScan: () => { warmGateScan(); return _gateScan; }, theatres: () => theatreGates,
-    street: () => (modes?.mode ?? 'exterior') === 'exterior' && playerSpawned, barBlocked: () => _serpentBarUp, barHidden: () => gamePaused() || !!townTalk.hudHidden, drawBar: drawGateBossBar,
-    now: () => Date.now() + _sharedOffsetMs,
+    street: () => (modes?.mode ?? 'exterior') === 'exterior' && playerSpawned, barBlocked: () => _serpentBarUp || !!invasionField?.barUp?.(), drawBar: drawGateBossBar,
     online: { ready: (cell) => !!online?.dragonReady?.(cell), send: (w, cell) => !!online?.sendDragon?.(w, cell) },
-    local: (nx, nz) => state.localFromWorld(nx, nz), native: (x, z) => { const w = state.worldCoords([x, 0, z]); return [w.x, w.z]; },
-    ground: (x, z) => surfaceAt(x, z), feet: () => player.feetAt(), eye: () => cam.pos, level: () => playerEntity.level ?? 1,
-    renderer, getTexture, uploadRecordFrame, audio,
+    ...streetSite, eye: () => cam.pos,
+    getTexture, uploadRecordFrame, audio,
     say: (text, sec) => townTalk.say(text, sec), mid: (text, sec) => setMidScreenText(text, sec),
     townTalk, makeInventoryWindow,   // DRAGON5b: the keep's name box and its saddlebags' door
     aboard: () => isOnShip(playerEntity, playerEntity.boardShipPosition ?? null, playerTravelPixel()) || !!(csaBoatUnderMe() ?? _csaBuckets.get(player.groundKey)?.boat) || !!naval?.aboard?.(),   // DRAGON5b: no call onto a ship - Daggerfall's, a Come Sail Away deck (the pair's rule, AUDIT FB1029d B1) or a sea ship's
     takeSpoil, relayNowS, chatNotice: (text) => chatNotice(text),   // DRAGON4: its rewards' (scenes/dragonRewards.js) - the pack's door, the relay's clock, the chat's line (declared below: read at the call)
   }) : null;
+  // a toybox invasion's waves and boss: the relay owns their health online, this machine offline (scenes/invasionField.js)
+  const invasionField = createInvasionField({ ...streetSite, barBlocked: () => _serpentBarUp || !!dragonSky?.barUp?.(),
+    online: { ready: (cell) => !!online?.invasionReady?.(cell), send: (w, cell) => !!online?.sendInvasion?.(w, cell) },
+    pixel: () => ((modes?.mode ?? 'exterior') === 'exterior' && playerSpawned ? playerTravelPixel() : null),
+    pool: () => ((modes?.mode ?? 'exterior') === 'exterior' ? exteriorFoes : null), player: playerEntity, name: () => playerEntity.name ?? '' });
   /** SERPENT1: the compass's mark - where it hunts, in THIS scene, while it swims and the player stands in its ring. */
   const serpentCompassMark = () => {
     const sw = serpentOmen?.swimming?.();
@@ -26942,7 +26913,7 @@ export async function bootWorld(canvas, renderer, params, status) { handHeroGend
     for (const d of visiblePeers) {
       const look = pvpFlag.look(d.id, d.shown?.cv | 0, peerDraw(d.shown?.cv | 0, veilOn, _veilT, d.id));   // PVP-BAR: a concealed player in a PvP fight drawn faint
       if (look.kind === 'hidden') { _hiddenPeers.add(d.id); continue; }   // INVIS-NET: the classic lane - the concealed stand nowhere here
-      const veil = look.kind === 'conceal' ? look.visual : egClient?.allyVeil(social?.accountOfPeer?.(d.id), d.shown, onlineToScene) ?? null; if (veil) _veils.set(d.id, veil);   // AUDIT EG V (h; Elite-Gates.md section 8.2): an ally on the Spire's traversal ground at 60% (scenes/eliteGates/egClient.js allyVeil)
+      const veil = look.kind === 'conceal' ? look.visual : egClient?.allyVeil(social?.accountOfPeer?.(d.id), d.shown, onlineToScene) ?? ghostPeerVeil(d.shown) ?? null; if (veil) _veils.set(d.id, veil);   // AUDIT EG V (h; Elite-Gates.md section 8.2): an ally on the Spire's traversal ground at 60% (scenes/eliteGates/egClient.js allyVeil)
       seen.push(d);
     }
     peerCandlesFrame(seen, dt);   // PEERLIGHT2: the others' Light spells - candle and light, in the live mode's engine; INVIS-NET x PEERLIGHT2 (the merge): hung only before a player drawn here, so the classic lane's concealed carry no candle to give them away
@@ -30103,7 +30074,8 @@ const _pixelOrder = [];   // NEAR-FIRST: the frame's pixel walk, nearest first -
     saddleDrawPanel();   // STEED-UI: the saddle panel, as the helm's below - every mode, so a door takes it down
     csaDrawHelmPanel();   // CSA-L: the helm panel, once a frame in every mode
     spoilsRecoverFrame();   // WB5: a boss's spoils no save holds, back to their character as it stands up - before it can save, online or not
-    if (onlineOn && playerSpawned) { if (!online) onlineStart(); onlineFrame(now, dt); } else { if (_peerCandleLights.length) peerCandlesFrame([], dt);   /* PEERLIGHT2: offline, no one's candle stays lit */ serpentAway(!onlineOn); /* SERPENT1: its bar put away - offline, my ship let go of its coil */ dragonSky?.away(!onlineOn); /* DRAGON3: and the dragon's */ sdFightAway(); /* SD8c: and the Remnant's */ if (!onlineOn && modes?.gateArenaDay?.() != null) { ejectFromCourt(COURT_TEXT.collapse); gateCourt?.leave(); /* AUDIT SS: and its floor into the pack - online, the frame's own court does it */ } if (player.arena) player.arena = modes?.gateArenaDay?.() != null ? courtRing() : null; if (!player.arena) player.arena = arenaBouts.ring(); /* ARENA2: my bout's ring on the arena's sand */ siegeHud?.hide(); /* AUDIT-SEATS C1: no online frame (a load, a spawn), no battle's tick - its HUD hidden, never frozen; the next tick draws it again */ }   // DUEL1: no online frame, no duel's law to hold the body - the ring is the live duel's alone; WB3b: the court's is its floor's, and offline there is no court   // ONLINE1: the pose out, the peers in - after the look is paid, before the camera is read and any mode draws
+    try { toybox.frame(); invasionField.frame(); } catch (e) { console.warn('[toybox] frame', e?.message ?? e); }   // the toybox: the offline events' clock, the powers a developer keeps
+    if (onlineOn && playerSpawned) { if (!online) onlineStart(); onlineFrame(now, dt); } else { if (_peerCandleLights.length) peerCandlesFrame([], dt);   /* PEERLIGHT2: offline, no one's candle stays lit */ serpentAway(!onlineOn); /* SERPENT1: its bar put away - offline, my ship let go of its coil */ if (dragonSky?.offlineHeld()) dragonSky.onlineFrame(); else dragonSky?.away(!onlineOn); /* DRAGON3: and the dragon's */ sdFightAway(); /* SD8c: and the Remnant's */ if (!onlineOn && modes?.gateArenaDay?.() != null) { ejectFromCourt(COURT_TEXT.collapse); gateCourt?.leave(); /* AUDIT SS: and its floor into the pack - online, the frame's own court does it */ } if (player.arena) player.arena = modes?.gateArenaDay?.() != null ? courtRing() : null; if (!player.arena) player.arena = arenaBouts.ring(); /* ARENA2: my bout's ring on the arena's sand */ siegeHud?.hide(); /* AUDIT-SEATS C1: no online frame (a load, a spawn), no battle's tick - its HUD hidden, never frozen; the next tick draws it again */ }   // DUEL1: no online frame, no duel's law to hold the body - the ring is the live duel's alone; WB3b: the court's is its floor's, and offline there is no court   // ONLINE1: the pose out, the peers in - after the look is paid, before the camera is read and any mode draws
     deadlandsAirFrame();   // WB6b: after the court's ways out have run, online or not - the frame it is gone is the frame its air falls silent
     sdAirFrame();   // SD14b: and the Hour's, the same way
     if (onlineOn && playerSpawned && (seatOut() || townTalk.overlay instanceof DeathScreen || modes?.deathUp?.())) { siegeHud?.hide(); siegeNpcs?.leave(); }   // AUDIT SEATS-2 C4: the dead and a tab out of the seat draw no battle - the online frame returns before its tick
@@ -32472,7 +32444,7 @@ const _pixelOrder = [];   // NEAR-FIRST: the frame's pixel walk, nearest first -
     csaDrawParticlesBlended();   // CSA-F: the oars' and rudders' drops (the Transparent queue)
     if (naval?.enabled) navalRender.draw(naval.drawFrame());   // NAV-B: the smoke, the spray, the balls in flight and the aim's arcs and zone, over the sea's top
     if (_serpentDraw) { try { serpentRenderer()?.drawSea(_serpentDraw); } catch (e) { console.warn('[serpent] marks', e?.message ?? e); } }   // SERPENT1: its telegraphs, the maelstrom and the venom, over the sea's top
-    if (dragonSky && _mode() === 'exterior') { try { dragonSky.drawMarks(); } catch (e) { console.warn('[dragon] marks', e?.message ?? e); } }   // DRAGON3: its telegraphs, draped on the land
+    if (_mode() === 'exterior') { try { dragonSky?.drawMarks(); invasionField.drawMarks(); } catch (e) { console.warn('[boss] marks', e?.message ?? e); } }   // DRAGON3: its telegraphs, draped on the land
     portGlows();   // SHIPYARDS: the lighthouses' lamps and their turning beams, added light over the sea's top
     navalHud(dt);   // NAV-F: the helm's readout
     // DW-C: under the distance fog the air's own effects - the sand, the wisps, the bolts, none of which writes a depth

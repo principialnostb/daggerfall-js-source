@@ -117,6 +117,13 @@ so a read never answers from a world the clock has not caught up with. Act recei
 (`server-account/src/townSeats.js`). That row answers for `SEAT_FACTS_FRESH_S` (half an hour), so a clock that fails
 in an overload does not send every isolate to read every seat row.
 
+**The day's writs, posted by the clock** (`server-account/src/professions.js` `postDayWrits`, migration 0213). Each
+minute the clock posts today's writs for up to `WRITS_CLOCK_REGIONS` (eight) regions that posted writs the day before.
+A writ table needs only each climate a region stands on and whether any such pixel is confirmed. So the day's first
+scan of a region's pixel reports keeps that short list in `region_ground_days`, and every isolate reads that row
+instead of scanning again. A board read that comes before the clock posts its region's writs itself, as before. A
+region with no ground keeps no row, so it posts the moment its ground is witnessed.
+
 **The confirmed ground, kept** (`server-account/src/groundConfirmed.js`, migration 0212). A pixel is confirmed once,
 by the first answer three accounts give, and stays confirmed. So `ground_confirmed` keeps one row a confirmed pixel:
 its answer and the second its third account confirmed it. A trigger on `world_witness` writes the row as the report

@@ -229,6 +229,9 @@ export const SET_TIER_OTHER = Object.freeze([
   'mephalas-veil',
   'stormwrack',
   'captains-due',
+  'talos-principle',
+  'azura-prophecy',
+  'meridia-preservation',
 ]);
 export const POWER_OTHER = Object.freeze([
   'chain',
@@ -260,6 +263,7 @@ export const POWER_OTHER = Object.freeze([
   'surge',
   'dragonfire',
   'hammerfall',
+  'brand',
 ]);
 /** A number's role by its field's name; `kind.field` (a power's kind, a tier's key) where one name means two things. A
  *  `line:` role is a line's kind, held to the Legendary band's top; `id` names a thing, not an amount. */
@@ -340,6 +344,9 @@ export const FIELD_ROLES = Object.freeze({
   'bulwark.less': 'flatGuard',
   'haste.speed': 'buff',
   'hood.more': 'line:skill',
+  'azura-prophecy.magic': 'flat',
+  'meridia-preservation.fire': 'flat',
+  'meridia-preservation.health': 'maxHealth',
 });
 /** Roles where the smaller number is the stronger one (a shorter recovery, a trigger on fewer hits, a lower cap). */
 export const LOWER_IS_STRONGER = Object.freeze(['recover', 'above', 'cadence', 'hitCap']);

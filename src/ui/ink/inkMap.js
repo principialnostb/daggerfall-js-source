@@ -54,7 +54,13 @@ import { KT_MAP_INK } from '../ketch/ketchMapMark.js'; // KETCH: the Sky-Ketch o
 import { LODE_RING_CSS, LODE_FILL_CSS } from '../lodeMapMark.js'; // MINE-PERKS: a Motherlode Sense's Motherlodes, in the compass's aqua
 import { POI_RING_CSS, POI_FILL_CSS } from '../poi/poiMapMark.js'; // POI-2: the approved POIs, in their violet
 import { BOUNTY_RING_CSS, BOUNTY_FILL_CSS, REVENANT_RING_CSS, REVENANT_FILL_CSS } from '../bounty/bountyMapMark.js'; // BOUNTY1: a held bounty's black circle; RVN7c: a revenant's lair in blood red
-import { RAID_MARK_CSS } from '../eventMapMarks.js'; // EVENT-TIP: a town under attack
+import {
+  RAID_MARK_CSS,
+  INVASION_MARK_CSS,
+  INVASION_TEXT_CSS,
+  DRAGON_MARK_CSS,
+  DRAGON_TEXT_CSS,
+} from '../eventMapMarks.js'; // EVENT-TIP: a town under attack; and a developer's invasion and dragon attack
 import { QUEST_MARK_CSS, QUEST_MARK_LIFT } from '../quest/questMarks.js'; // GUIDE5: where a quest points
 import { wheelPath } from '../carriageWheel.js'; // OW-HUBS: a carriage town's wheel beside its mark
 import { paintVendorMark } from '../vendor/vendorMapMark.js'; // HOME-VENDOR: the trader's waypoint's coin
@@ -1611,6 +1617,14 @@ export function paintBountyRing(ctx, view, b, pulse = 0, ink = BOUNTY_INK) {
 /** EVENT-TIP (ui/eventMapMarks.js): A TOWN UNDER ATTACK - a ring in the raid's crimson about the town's mark, breathing
  *  as the gate's does, and two blades crossed above it, each with its guard near the hilt. Skin. */
 export function paintRaidMark(ctx, view, m, pulse = 0) {
+  if (m.icon === 'invasion') {
+    paintInvasionMark(ctx, view, m, pulse);
+    return;
+  }
+  if (m.icon === 'dragon') {
+    paintDragonMark(ctx, view, m, pulse);
+    return;
+  }
   const [x, y] = toPaper(view, m.x, m.y);
   ctx.save();
   ctx.setLineDash([]);
@@ -1634,6 +1648,112 @@ export function paintRaidMark(ctx, view, m, pulse = 0) {
   ctx.moveTo(x - h - g, cy + h - g);
   ctx.lineTo(x - h + g, cy + h + g);
   ctx.stroke();
+  ctx.restore();
+}
+
+/** AN INVASION: a purple ring breathing about the city, a purple shield above it with two pale blades crossed on it, and
+ *  its words over the shield ("Invasion in 0:42", "Invasion Active"). Everything is edged in the pen's ink or the
+ *  parchment's halo, so it reads on any sheet. The shield stands where the raid's blades do, so the same hover finds it.
+ *  Skin. */
+export function paintInvasionMark(ctx, view, mark, pulse = 0) {
+  const [x, y] = toPaper(view, mark.x, mark.y);
+  ctx.save();
+  ctx.setLineDash([]);
+  ctx.beginPath();
+  ctx.arc(x, y, 11 + pulse * 2, 0, Math.PI * 2);
+  ctx.globalAlpha = 0.2;
+  ctx.fillStyle = INVASION_MARK_CSS;
+  ctx.fill();
+  ctx.globalAlpha = 1;
+  ctx.strokeStyle = INVASION_MARK_CSS;
+  ctx.lineWidth = 2.5;
+  ctx.stroke();
+  const halfWide = 7,
+    mid = y - 18,
+    top = mid - 8,
+    bot = mid + 9;
+  ctx.beginPath(); // a heater shield: flat top, sides curving to a point
+  ctx.moveTo(x - halfWide, top);
+  ctx.lineTo(x + halfWide, top);
+  ctx.quadraticCurveTo(x + halfWide, mid + 4, x, bot);
+  ctx.quadraticCurveTo(x - halfWide, mid + 4, x - halfWide, top);
+  ctx.closePath();
+  ctx.fillStyle = INVASION_MARK_CSS;
+  ctx.fill();
+  ctx.strokeStyle = PEN.line;
+  ctx.lineWidth = 1.2;
+  ctx.stroke();
+  const blade = 3.6;
+  ctx.strokeStyle = PEN.halo;
+  ctx.lineWidth = 1.6;
+  ctx.beginPath();
+  ctx.moveTo(x - blade, mid - blade - 1);
+  ctx.lineTo(x + blade, mid + blade - 1);
+  ctx.moveTo(x + blade, mid - blade - 1);
+  ctx.lineTo(x - blade, mid + blade - 1);
+  ctx.stroke();
+  if (mark.text) {
+    ctx.font = `700 13px ${NAME_FACE}`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'bottom';
+    ctx.lineJoin = 'round';
+    ctx.strokeStyle = PEN.halo;
+    ctx.lineWidth = 2.5 * HALO_PEN;
+    ctx.strokeText(mark.text, x, top - 3);
+    ctx.fillStyle = INVASION_TEXT_CSS;
+    ctx.fillText(mark.text, x, top - 3);
+  }
+  ctx.restore();
+}
+
+/** A DRAGON ATTACK: an orange ring breathing about the city, an orange flame above it, and its words over the flame
+ *  ("Dragon Attack in 0:42", "Dragon Attacking for 39:10"). Edged in the pen's ink so it reads on any sheet; the flame
+ *  stands where the raid's blades do, so the same hover finds it. Skin. */
+export function paintDragonMark(ctx, view, mark, pulse = 0) {
+  const [x, y] = toPaper(view, mark.x, mark.y);
+  ctx.save();
+  ctx.setLineDash([]);
+  ctx.beginPath();
+  ctx.arc(x, y, 11 + pulse * 2, 0, Math.PI * 2);
+  ctx.globalAlpha = 0.2;
+  ctx.fillStyle = DRAGON_MARK_CSS;
+  ctx.fill();
+  ctx.globalAlpha = 1;
+  ctx.strokeStyle = DRAGON_MARK_CSS;
+  ctx.lineWidth = 2.5;
+  ctx.stroke();
+  const mid = y - 18,
+    top = mid - 10,
+    bot = mid + 8,
+    half = 7;
+  ctx.beginPath(); // a flame: a round foot, its sides drawn up to a tip leaning right
+  ctx.moveTo(x + 2, top);
+  ctx.quadraticCurveTo(x + half + 2, mid - 2, x + half, mid + 3);
+  ctx.quadraticCurveTo(x + half - 1, bot, x, bot);
+  ctx.quadraticCurveTo(x - half + 1, bot, x - half, mid + 3);
+  ctx.quadraticCurveTo(x - half, mid - 3, x - 2, mid - 6);
+  ctx.quadraticCurveTo(x, mid - 2, x + 2, top);
+  ctx.closePath();
+  ctx.fillStyle = DRAGON_MARK_CSS;
+  ctx.fill();
+  ctx.strokeStyle = PEN.line;
+  ctx.lineWidth = 1.2;
+  ctx.stroke();
+  ctx.beginPath(); // its pale heart
+  ctx.arc(x, mid + 3, 2.6, 0, Math.PI * 2);
+  ctx.fillStyle = PEN.halo;
+  ctx.fill();
+  if (mark.text) {
+    ctx.font = `700 13px ${NAME_FACE}`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'bottom';
+    ctx.lineJoin = 'round';
+    ctx.strokeStyle = PEN.halo;
+    ctx.lineWidth = 2.5 * HALO_PEN;
+    ctx.strokeText(mark.text, x, top - 3);
+    ctx.fillStyle = DRAGON_TEXT_CSS;
+    ctx.fillText(mark.text, x, top - 3);
+  }
   ctx.restore();
 }
 

@@ -76,6 +76,7 @@ import { myWeaponGlow, createSpriteGlow, setSpriteGlow, heldGlowPx, heldGlowReco
 import { createQuiverArt, loadQuiverArrow, quiverRidesWith, BACK_QUIVER } from './eotbQuiver.js';   // QUIVER: a bow's quiver on the back
 import { createBackShieldArt, backShieldSeen, BACK_SHIELD } from './eotbBackShield.js';   // BACK-SHIELD: a sheathed layered body's shield on its back
 import { ammoCountFor } from '../../systems/inventory.js';   // QUIVER: arrows in it, with no rig to say
+import { ghostSelfVeil } from '../../systems/toybox/toyboxGhost.js';   // the toybox's ghost: my own body drawn see-through
 
 /** PlayerHeightChanger's controllerStandingHeight, the capsule the
  *  billboard's parent sits at the centre of - the fallback when a
@@ -1166,7 +1167,7 @@ export function createEotbBody({ count = spriteCount, urlFor = eotbSpriteUrl, de
       // which their swing reads. In the saddle too (the horse's picture faces as the rider's does); none in first person
       const seen = FP ? null : portrayedYaw(shown.orientation, [cam.pos[0] - cam.feet[0], 0, cam.pos[2] - cam.feet[2]]);
       facingDrawn = seen === null ? null : { yaw: seen, turn: turnYaw() ?? seen };
-      batch.conceal = material();
+      batch.conceal = material() ?? ghostSelfVeil();   // the toybox's ghost: my own sprite see-through
       // AUDIT DEEP R-2: under the travel view the quad turns to the VIEW's eye (and leans with the flats) - on the
       // traveller's own heading it went edge-on as the view orbited, a sliver at 90 degrees, mirrored at 180
       const by = face ? face.yaw : cam.yaw;

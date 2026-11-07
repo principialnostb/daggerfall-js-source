@@ -48,7 +48,10 @@ const DAY_MS = 86_400_000;
 
 /** TIMERS2: the window's groups, in the order it draws them - each row's kind belongs to one. */
 export const TIMER_GROUPS = Object.freeze([
-  Object.freeze({ id: 'world', kinds: Object.freeze(['gate', 'serpent', 'super', 'star', 'ketch', 'front']) }),
+  Object.freeze({
+    id: 'world',
+    kinds: Object.freeze(['gate', 'serpent', 'super', 'star', 'ketch', 'front', 'invasion']),
+  }),
   Object.freeze({ id: 'spire', kinds: Object.freeze(['elite']) }),
   Object.freeze({ id: 'raids', kinds: Object.freeze(['raid']) }),
   Object.freeze({ id: 'seats', kinds: Object.freeze(['seat', 'battle']) }),
@@ -190,7 +193,7 @@ function sdLaneRows(src, now, live, coming, rows) {
  *           serpent?: { place?: string|null, fellAt?: (day: number) => (number|null) } | null,
  *           sd?: { rec: any, name?: string|null, place?: string|null, site?: { cityName?: string, px?: number, py?: number } | null,
  *                  lanes?: Array<{ rec: any, lane: number, province: string, mine?: boolean, name?: string|null, site?: { cityName?: string, px?: number, py?: number } | null }> } | null,
- *           stars?: Array<{ id: string, kind: string, title: string, where: string|null, detail: string|null, live: boolean, at: number, until: number|null }> | null,
+ *           stars?: Array<{ id: string, kind: string, title: string, where: string|null, detail: string|null, live: boolean, at: number, until: number|null }> | null, toybox?: Array<any> | null,
  *           elite?: { op: number, rh?: number, h?: number, until?: number|null, end?: string|null } | null,
  *           doors?: { board?: () => any } | null,
  *           seatsOpen?: boolean, seats?: Array<any> | null, zero?: number | null, region?: string | null,
@@ -340,6 +343,9 @@ export function eventTimerRows(src) {
   // one that knows where the night's stars fall and which of them are held.
   for (const r of src?.stars ?? [])
     if (r?.kind === 'star' && typeof r.id === 'string' && Number.isFinite(r.at)) rows.push(r);
+  // A developer's invasions and dragon attacks (systems/toybox/toyboxMarks.js toyboxTimerRows), handed in whole
+  for (const row of src?.toybox ?? [])
+    if (row?.kind === 'invasion' && typeof row.id === 'string' && Number.isFinite(row.at)) rows.push(row);
 
   // ── THE SKY-KETCH (net/ketch/ketchLaw.js: a voyage every real Saturday, the clock's alone) ── KETCH: ketchRows
   ketchRows(now, coming, live);

@@ -319,6 +319,9 @@ export function lootBlow(weapon, damage, attacker, target, info) {
       case 'venom':
         flat += Math.floor(p.flat * (share(target) < 0.5 ? 2 : 1) * elementShare(target, 'poison'));
         break;
+      case 'brand':
+        flat += Math.floor(p.flat * elementShare(target, p.element));
+        break; // Retribution's Call: its element on every blow, as an elemental line past the band's top
       case 'moon':
         if (isNight(skyMinutes())) pct += p.pct + (group === 'animal' ? p.beast : 0);
         break;
