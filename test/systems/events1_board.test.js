@@ -372,16 +372,16 @@ function starsAndRaids(t) {
 }
 
 test('EVENTS2 ONE HOME FOR THE KINDS: features.js EVENT_KINDS, in the board\'s order - the board\'s rows, the door\'s kinds, the single kinds and the headings all derived from it; each kind a part of the Event board row, its pref `eventBoard-<kind>` on by default and the player\'s own online, its chip the heading\'s own words (mutants: the key, a kind without its chip, a kind undeclared, off by default, forced online, the chip unnamed, the festival a row, a star single, the heading not the home, the door\'s kinds, the board\'s kinds)', () => {
-  const KINDS = ['gate', 'serpent', 'super', 'star', 'raid', 'festival', 'season'];
-  const NAMES = ['Dagon\'s Breach', 'Sea Serpent', 'Abyss Dungeon', 'Starfall', 'Town Raid', 'Witches\' Festival', 'Season'];
+  const KINDS = ['gate', 'serpent', 'super', 'star', 'raid', 'invasion', 'festival', 'season'];
+  const NAMES = ['Dagon\'s Breach', 'Sea Serpent', 'Abyss Dungeon', 'Starfall', 'Town Raid', 'Invasion', 'Witches\' Festival', 'Season'];
   assert.deepEqual([...EVENT_KIND_ORDER], KINDS);
   assert.deepEqual([...EVENT_NOTICE_KINDS], KINDS, 'the door\'s');
   assert.deepEqual(Object.keys(EVENT_KIND_TEXT), KINDS, 'the headings\'');
   assert.deepEqual(KINDS.map((k) => EVENT_KIND_TEXT[k]()), NAMES);
   assert.deepEqual(KINDS.map((k) => EVENT_KINDS[k].label), NAMES);
-  assert.deepEqual([...EVENT_BOARD_KINDS], ['gate', 'serpent', 'super', 'star', 'raid'], 'the festival and the season are news alone');
+  assert.deepEqual([...EVENT_BOARD_KINDS], ['gate', 'serpent', 'super', 'star', 'raid', 'invasion'], 'the festival and the season are news alone');
   assert.deepEqual([...EVENT_SINGLE_KINDS], ['gate', 'serpent', 'super', 'festival', 'season']);
-  const PREFS = ['eventBoard-gate', 'eventBoard-serpent', 'eventBoard-super', 'eventBoard-star', 'eventBoard-raid', 'eventBoard-festival', 'eventBoard-season'];
+  const PREFS = ['eventBoard-gate', 'eventBoard-serpent', 'eventBoard-super', 'eventBoard-star', 'eventBoard-raid', 'eventBoard-invasion', 'eventBoard-festival', 'eventBoard-season'];
   assert.deepEqual(KINDS.map(eventKindPref), PREFS);
   const c = FEATURES.find((r) => r.id === 'event-board').control;
   assert.deepEqual(c.also.map((a) => [a.store, a.key, a.initial, a.online]), PREFS.map((k) => ['prefs', k, true, 'player']), 'each kind declared on the row that covers it');
@@ -426,7 +426,7 @@ test('EVENTS2 AT THE DOOR: a kind turned off (eventKindShown, its chip) is filed
     seatEventBoard(() => ({ now: 1 }), (t) => chat.push(t), (t) => logged.push(t));
     assert.deepEqual(EVENT_KIND_ORDER.map(eventKindShown), EVENT_KIND_ORDER.map(() => true), 'every kind shown by default');
     setPref(eventKindPref('star'), false);
-    assert.deepEqual(EVENT_KIND_ORDER.map(eventKindShown), [true, true, true, false, true, true, true]);
+    assert.deepEqual(EVENT_KIND_ORDER.map(eventKindShown), [true, true, true, false, true, true, true, true]);
     assert.equal(eventNotice('star', 'The star near Copperham is held by Ann.', 'star:9.1'), true);
     eventNotice('raid', 'Ilessan Hills in Daggerfall is under attack by orcs!', 'raid:17:7:400');
     assert.deepEqual([takeEventNotices().map((l) => l.text), logged, chat, hud],

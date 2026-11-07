@@ -1,6 +1,7 @@
 // @ts-check
-import { validStaffEventIn } from './staffEvent/staffEventLaw.js';   // STAFF-EVENT: a staff event's word in
+import { validStaffEventIn, STAFF_EVENT_ID_RE } from './staffEvent/staffEventLaw.js';   // STAFF-EVENT: a staff event's word in
 import { validStaffTeleportIn } from './staffTeleport.js';
+import { validInvasionIn } from './invasion/invasionWire.js';   // an invasion's word to its city's cell
 import { validRelayCfgIn } from './relayCfg.js';   // SCALE5b: a relay setting, said to the hub
 import { HUB_SHARD_ROOMS, isHubShard, HUB_FIND_Q_MAX, REGION_SHARD_ROOMS } from './hubShards.js';   // SCALE5c: the hub, sixteen ways
 // ONLINE1 (2026-09-12, Mac: "the basic bones of multiplayer ... being
@@ -1710,7 +1711,7 @@ export const KEEPALIVE_FAN_MS = HEARTBEAT_MS / 2;
  *  is deployed by CI and the relay by hand, so a skew between them is the ordinary state of a release day, and until
  *  now nothing on either end could see it. */
 // Integrated Arena spectator visibility with staff teleport, stable boat identity and private ownership; deploy relay before clients.
-export const RELAY_VERSION = 'world303';   // world303: the live event word `newera` joins LIVE_EVENTS (LIVE_EVENT_RELAY_MIN.newera); an older relay closes a socket that stages it, so deploy the relay before the site. Carried: the ROLLBACK FLOOR (G2), the service never below acct233 for a week after this relay last minted `p`; and from world297 (STOREFRONT) a pose's kill (`xk`, `xp`, `xh`) on the wire, and its ROLLBACK FLOOR: world297 while acct230 or later mints `gb` - roll the service back first and wait MAX_TTL_S (five minutes) before the relay.
+export const RELAY_VERSION = 'world304';   // world304: the toybox - a developer's ghost frame (`ghost`, GHOST_RELAY_MIN), a toybox event's fields and moments (`tb`, TOYBOX_EVENT_RELAY_MIN) and an invasion's fight (`inv`, INVASION_RELAY_MIN); an older relay refuses them, so deploy the relay before the site. Carried: the ROLLBACK FLOOR (G2), the service never below acct233 for a week after this relay last minted `p`; and from world297 (STOREFRONT) a pose's kill (`xk`, `xp`, `xh`) on the wire, and its ROLLBACK FLOOR: world297 while acct230 or later mints `gb` - roll the service back first and wait MAX_TTL_S (five minutes) before the relay.
 // world302: LEGIBLE (2026-10-31, world295, world298 then world299 on its branch, renumbered past main's world295-world301 at the merges; bible/01-Overview/Readability-Arc.md LEGIBLE 3 and LEGIBLE 4; NOT YET DEPLOYED): the relay's files formatted by the one formatter (tools/format.mjs) and net/eliteGates/egFragLaw.js's comma sequence written as two statements - the same behaviour, new bytes (tools/sameProgram.mjs proves every formatted file the same program); world297 STOREFRONT's law is unchanged. Carried from world299 (DRAGON-CELL): its ROLLBACK FLOOR (G2), the service never below acct233 for a week after this relay last minted `p`. Carried from world297 (STOREFRONT): a pose's kill (`xk`, `xp`, `xh`) on the wire, and its ROLLBACK FLOOR: world297 while acct230 or later mints `gb` - roll the service back first and wait MAX_TTL_S (five minutes) before the relay (bible/06-Systems/Storefront.md section 10).
 // world301: CACHE-SPREAD (2026-10-31, world300 on its branch, renumbered past EG-MIGHT's world300 at the merge of main; Mac: "no daily cap ... value finds from 5 to 10"; bible/06-Systems/Aurum.md section 3a): net/aurumCacheLaw.js, in the bundle through net/cacheProof.js - a cache gives 5 to 10 Aurum by its hash and the law holds no day's bound. The relay's own words are unchanged: the welcome's `cp` as world299 signs it. Deploy the relay, then the service (acct235), then clients. EG-MIGHT's note (world300, below) stands.
 // world300: EG-MIGHT (2026-10-31, world298 then world299 on its branch, renumbered past LITANY-STAND's world298 and DRAGON-CELL's world299 at the merges of main; the owner: "Address DMG cap in Elite Breach"; bible/11-Multiplayer/Elite-Gates.md section 21.1): a breach member's token's kit might (`mg`, net/mightLaw.js) rides its socket and its admission (net/eliteGates/egMight.js egTokenAtt - it joins the bundle with net/mightLaw.js), its purse grown by it and its share of a body's health by its root; AUDIT POTION-MIGHT: the first entry's might kept, a health potion told (`pot`, EG_POT_RELAY_MIN) and believed on the room's own clock, the receipt's share at the reference. An older relay ignores `mg` and `pot`; deploy it and the account service (acct234) in either order. The rollback floor below stands.   // world299: DRAGON-CELL (2026-10-31, world298 on its branch, renumbered past LITANY-STAND's world298 at the merge of main; from Discord: a player read every dragon's pixel off the omen the relay told the whole world at its landing; the owner chose "Cell-scoped"; bible/11-Multiplayer/Dwarven-Dragon.md DRAGON-CELL, audits/Audit-Dragon-Cell.md and Audit-Dragon-Cell-II.md; NOT YET DEPLOYED, re-hashed in place by both audits, DRAGON-BUDGET and DRAGON-EACH): a watch holds four omens, each seed its own HMAC (net/dragon/dragonSeed.js dragonOmenSeeds) and each a world cell (net/dragon/dragonLaw.js dragonCellOf); on `ask` the relay tells a dragon's omen only to a socket posed within DRAGON_TELL_PX of its cell - judged in a cell room within its cover or in a battle, never a private room - that has stood DRAGON_TELL_DWELL_MS in that cell; a socket not yet stood hears nothing, any other null no sooner than a quiet watch; an `in` reads no omen outside its cover, from a far pose or before its socket has stood; DRAGON-BUDGET (the owner: "Do it"): an account is judged in at most DRAGON_JUDGED_CELLS_MAX cells a watch, the hub's count (DRAGON_INTERNAL_JUDGE); a site is a pixel's centre in its omen's cell (dragonSiteOk); DRAGON-EACH (the owner: "open up the rewards"): a receipt signs its dragon's place (`p`, dragonPlaceOf) and the hub keeps one a dragon of the newest watch; AUDIT DRAGON-CELL III: an ask is charged each cell it could be told of (DRAGON_JUDGED_CELLS_MAX 48, the hub's word `cs`), an `in` its site's cell, and a fight's words reach a passer-by once it is granted the cell. DRAGON_RELAY_MIN 299, DRAGON_BRAIN_MIN 3. CI deploys the relay, then the service (acct233, migration 0203), then clients; in between acct232 pays one dragon a watch, and acct233 refuses a placed receipt it counted (G2). ROLLBACK FLOOR (G2): the service never below acct233 for a week after this relay last minted `p`; world298 and older read the hub's keep by its newest receipt. Carried from world297 (STOREFRONT): its kill fields and rollback floor, now carried on world301's line.
@@ -1960,6 +1961,7 @@ export function poseChanged(a, b, eps = 0.01) {
     || (a.hl | 0) !== (b.hl | 0)   // HT-WAIST-NET: a lantern lit at the waist, or put out, goes out at once, as a draw does
     || (a.hk | 0) !== (b.hk | 0) || (a.hu | 0) !== (b.hu | 0)   // PEERFX1: a blow landed or taken goes out at once, as a swing does
     || (a.xk | 0) !== (b.xk | 0)   // STOREFRONT: a kill of mine goes out at once, so its effect plays where the others see the body fall
+    || (a.gh | 0) !== (b.gh | 0)   // the toybox's ghost on or off is news at once
     || (a.cv | 0) !== (b.cv | 0)   // INVIS-NET: a player vanishing (or coming back) is news at once, as a draw is
     || (a.cl | 0) !== (b.cl | 0) || ((a.cl | 0) > 0 && Math.abs(wrapAngle((a.cw ?? 0) - (b.cw ?? 0))) > eps)   // CLIMB5: a hold taken or let go, a move begun, goes out at once - and the body turning on the wall, as a turn does
     || (a.ck | 0) !== (b.ck | 0) || (a.cy | 0) !== (b.cy | 0)   // CLIMB6: a move of another kind, or on another lip, is another move - at once
@@ -2047,7 +2049,7 @@ export const poseHandsOf = (usingRightHand, strikeHand) => ({ ...(usingRightHand
 /** A pose the room will relay, or null. */
 export function validPose(p) {
   if (!p || typeof p !== 'object') return null;
-  const { x, y, z, yaw, pitch, mv, wd, an, as, am, sr, cn, cr, ce, ar, fk, rd, rv, rc, hs, lh, ah, wb, dd, hl, lt, lc, hk, hp, hb, hq, hu, uq, xk, xp, xh, cv, cl, cw, ck, cy, cd, st, ga, gb, gm, ts, pl, ab, fy } = p;
+  const { x, y, z, yaw, pitch, mv, wd, an, as, am, sr, cn, cr, ce, ar, fk, rd, rv, rc, hs, lh, ah, wb, dd, hl, lt, lc, hk, hp, hb, hq, hu, uq, xk, xp, xh, cv, cl, cw, ck, cy, cd, st, ga, gb, gm, ts, pl, ab, fy, gh: ghost } = p;
   if (![x, y, z, yaw, pitch].every(finite)) return null;
   if (Math.abs(x) > POSE_BOUND || Math.abs(z) > POSE_BOUND || Math.abs(y) > POSE_Y_BOUND) return null;
   // ONCRASH1 (2026-09-15, Mac: "reports of player browser crashing when
@@ -2129,6 +2131,9 @@ export function validPose(p) {
     // not the player (EntityConcealmentBehaviour: the renderer off) and their foes' senses read it (EnemySenses
     // .BlockedByIllusionEffect). OMITTED at 0 (validLook's `class` law): an unconcealed pose keeps its bytes.
     ...(uint(cv, 7) ? { cv: uint(cv, 7) } : {}),
+    // the toybox's ghost: `gh` 1 while its player is a ghost, so the developers and moderators who still hear the pose
+    // draw it veiled (systems/toybox/toyboxGhost.js). Who hears it at all is the relay's (server/src/staffGhost.js).
+    ...(uint(ghost, 1) ? { gh: 1 } : {}),
     // CLIMB5 (2026-10-01, the Enhanced Climbing arc - bible/03-World/Parkour-Arc.md): `cl` the player's CLIMB - 1
     // hanging from a lip, 2 climbing a face, 3 a move in flight (a mantle, a vault, a lower, a leap) - and `cw` the way
     // the body faces on it (the wall, or the move's way; player/motor.js climbPoseOf), an angle wrapped as the yaw is,
@@ -2411,7 +2416,7 @@ export function inRangeOf(roomKey, from) {
   return (to) => !!to && Math.max(Math.abs(fx - Math.floor(to.x / PIXEL_UNITS)), Math.abs(fy - Math.floor(to.z / PIXEL_UNITS))) <= RANGE_PIXELS;
 }
 
-/** One client frame, parsed and checked: {t:'hello'|'pose'|'ping'|'chat'|'roll'|'say'|'narrate'|'stage'|'mute'|'ban'|'renown'|'guild'|'guildout'|'home'|'yard'|'world'|'foes'|'own'|'hit'|'act'|'who'|'quest'|'social'|'party'|'trade'|'cast'|'card'|'page'|'duel'|'wed'|'park'|'caravan'|'look'|'gate'|'grant'|'siege'|'arena'|'raid'|'raidtowns'|'sev'|'rite'|'star'|'ow'|'trav'|'amap'|'stp'|'cfg'|'find'|'serpent'|'dragon'|'sd'|'kt'|'eg'|'wild'|'vit'|'wdun'|'holdem'|'iliac'|'gambit'|'lease'|'dv', ...}
+/** One client frame, parsed and checked: {t:'hello'|'inv'|'pose'|'ping'|'chat'|'roll'|'say'|'narrate'|'stage'|'mute'|'ban'|'renown'|'guild'|'guildout'|'home'|'yard'|'world'|'foes'|'own'|'hit'|'act'|'who'|'quest'|'social'|'party'|'trade'|'cast'|'card'|'page'|'duel'|'wed'|'park'|'caravan'|'look'|'gate'|'grant'|'siege'|'arena'|'raid'|'raidtowns'|'sev'|'rite'|'star'|'ow'|'trav'|'amap'|'stp'|'cfg'|'find'|'serpent'|'dragon'|'sd'|'kt'|'eg'|'wild'|'vit'|'wdun'|'holdem'|'iliac'|'gambit'|'lease'|'dv'|'ghost', ...}
  *  or {error} - the caller closes on an error. INSPECT1: every arm below, named - this line had fallen seven behind
  *  (test/net/auditworld2.test.js derives the list from the arms now, so it cannot fall behind again - the merge with
  *  main's HCC-PARK was its first catch: the park arm, unnamed). */
@@ -2545,6 +2550,11 @@ export function parseClient(text, { hasHello = false } = {}) {
     const r = validDragonIn(m);
     return r ? { t: 'dragon', ...r } : { error: 'bad dragon' };
   }
+  if (m.t === 'inv') {   // an invasion's word, to its city's cell - projected by validInvasionIn; the cell's brain judges it
+    if (!hasHello) return { error: 'inv before hello' };
+    const word = validInvasionIn(m);
+    return word ? { t: 'inv', ...word } : { error: 'bad inv' };
+  }
   if (m.t === 'rite') {   // WB12d: a word at the faithful's rite, to the circle's cell - projected by validRiteIn; the cell judges where and when
     if (!hasHello) return { error: 'rite before hello' };
     const r = validRiteIn(m);
@@ -2671,6 +2681,7 @@ export function parseClient(text, { hasHello = false } = {}) {
     if (Number.isSafeInteger(m.ll) && m.ll >= 1 && m.ll <= LOOT_HELLO_LAW_WIRE_MAX) hello.ll = m.ll;   // LOOT-DOOR (AUDIT HORIZONTAL B7): the loot this build reads - read as GROUND-GATE's `gl` is
     if (m.ls === 1) hello.ls = 1;   // LEASE1: this build hands its hub's lease to the room (net/roomLease.js) - 1 or nothing, the `w2` law
     if (m.sm === 1) hello.sm = 1;   // STAFF-PANEL5-MESSAGE: this build shows a staff message's box (net/staffMessages.js) - 1 or nothing, the `w2` law: a hub socket without it is "old game, not shown"
+    if (m.gh === 1) hello.gh = 1;   // the toybox's ghost, asked again at a hello while it is on (server/src/staffGhost.js) - the relay asks the glyphs
     if (m.fv === 1) hello.fv = 1;   // STAFF-PANEL5-FREEZE: this build shows the freeze screen (net/staffChat.js) - 1 or nothing; a frozen account's socket from a build without it is closed with the reload words
     return hello;
   }
@@ -2802,6 +2813,10 @@ export function parseClient(text, { hasHello = false } = {}) {
     if (!hasHello) return { error: 'home before hello' };
     return typeof m.order === 'string' && m.order.length > 0 && m.order.length <= 1024
       ? { t: 'home', order: m.order } : { error: 'bad home' };
+  }
+  if (m.t === 'ghost') {   // the toybox's ghost turned on or off (server/src/staffGhost.js judges who may)
+    if (!hasHello) return { error: 'ghost before hello' };
+    return typeof m.on === 'boolean' ? { t: 'ghost', on: m.on } : { error: 'bad ghost' };
   }
   if (m.t === 'stp') {
     if (!hasHello) return { error: 'stp before hello' };
@@ -6691,6 +6706,9 @@ export const DRAGON_OUT_KINDS = Object.freeze(['st', 'mv', 'atk', 'hp', 'ph', 'm
 /** The dragon frames' own bucket: its blow rate (net/dragon/dragonBrain.js DRAGON_HIT_HZ_MAX, 4), the `in`, slack. */
 export const DRAGON_HZ_MAX = 8;
 export const dragonGate = (bucket, nowMs) => tokenGate(bucket, nowMs, DRAGON_HZ_MAX);
+/** An invasion's words a socket says a second: a blow on each foe a swing meets, and its `in`. */
+export const INVASION_HZ_MAX = 12;
+export const invasionGate = (bucket, nowMs) => tokenGate(bucket, nowMs, INVASION_HZ_MAX);
 /** DRAGON-HIDDEN: the first relay that answers `ask` - an older one rolls the public salt, or closes the socket on the
  *  frame - so a client says no dragon word to it. The ride's gate is its own (DRAGON_RIDE_RELAY_MIN). */
 export const DRAGON_RELAY_MIN = 299;   // DRAGON-CELL: the relay that tells an omen near its cell alone (298 on its branch, until LITANY-STAND took it; 294 DRAGON-HIDDEN's; world292 then world293 on its branch, until DELVE II, then WYRM-RIDER and PVP-VITALS, took them)
@@ -6728,14 +6746,14 @@ const dgHp = (v) => Number.isSafeInteger(v) && v >= 0 && v <= DRAGON_HP_MAX;
 const dgYaw = (v) => finite(v) && Math.abs(v) <= 4;
 const dgAlt = (v) => finite(v) && v >= -10 && v <= 1000;
 
-/** A client's dragon word, projected: `{k:'in', w, bv, lv, sx, sz}`, `{k:'hit', d, r}` or `{k:'ask', w}` - or null. */
+/** A client's dragon word, projected: `{k:'in', w, bv, lv, sx, sz, ev?}`, `{k:'hit', d, r}` or `{k:'ask', w}` - or null. */
 export function validDragonIn(m) {
   if (!m || typeof m !== 'object' || !DRAGON_KINDS.includes(m.k)) return null;
   if (m.k === 'ask') return Number.isSafeInteger(m.w) && m.w >= 0 ? { k: 'ask', w: m.w } : null;   // DRAGON-HIDDEN: a watch's omen
   if (m.k === 'in') {
     if (!Number.isSafeInteger(m.w) || m.w < 0 || !intIn(m.bv, 0, 999) || !intIn(m.lv, 1, DRAGON_LV_WIRE_MAX)) return null;
     if (!finite(m.sx) || !finite(m.sz) || Math.abs(m.sx) > POSE_BOUND || Math.abs(m.sz) > POSE_BOUND) return null;
-    return { k: 'in', w: m.w, bv: m.bv, lv: m.lv, sx: m.sx, sz: m.sz };
+    return { k: 'in', w: m.w, bv: m.bv, lv: m.lv, sx: m.sx, sz: m.sz, ...(typeof m.ev === 'string' && STAFF_EVENT_ID_RE.test(m.ev) ? { ev: m.ev } : {}) };   // `ev`: a called dragon's event (net/dragon/dragonLaw.js dragonCalledOf)
   }
   return finite(m.d) && m.d > 0 && m.d <= DRAGON_DMG_WIRE_MAX && intIn(m.r, 0, 2) ? { k: 'hit', d: m.d, r: m.r } : null;
 }

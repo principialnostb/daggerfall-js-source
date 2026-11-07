@@ -682,7 +682,7 @@ test('STAFF-PILOT: the page\'s half - the panel\'s word starts and ends it, a hi
   assert.equal(atk.swingSeq, 1, 'a click: its swing');
   const { EnemyCaster } = await import('../../src/characters/enemy/enemyCasting.js');
   assert.equal(EnemyCaster.prototype.update.call({ entity: { spells: [{}] } }, 1, { _pilot: { cast: true } }, atk, [0, 0, 1], {}), null, 'no cast of its own');
-  assert.match(pool, /if \(f\.dead \|\| !f\._mout\) continue;\n\s*if \(pilotFoe\(f\)\) continue;/, 'my copy not drawn');
+  assert.match(pool, /if \(\(f\.dead && !invasion\.falling\(f\)\) \|\| !f\._mout\) continue;[^\n]*\n\s*if \(pilotFoe\(f\)\) continue;/, 'my copy not drawn');
   P.resetPilot();
 });
 

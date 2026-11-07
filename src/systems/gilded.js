@@ -190,6 +190,18 @@ export const BROADSIDE = Object.freeze({
   text: 'Each shot that lands marks the foe for 2.5 s: the next blow of your other hand on it strikes 60% harder',
 });
 
+/** RETRIBUTION - Retribution's Call's power (systems/loot/lootPowers.js, kind 'brand'): every blow of it carries `flat` of
+ *  `element`, a foe's resistance taken of it. Its +8 fire is the strongest flat a hit any power carries (tools/powerCeiling.mjs),
+ *  a power, not a line. Read once at import, frozen. */
+export const RETRIBUTION = Object.freeze({
+  name: 'Retribution',
+  kind: 'brand',
+  element: 'fire',
+  flat: 8,
+  brief: '+8 fire damage a hit', // inside the card's row (sigilSets.js BRIEF_MAX)
+  text: 'Each hit deals 8 extra fire damage. Enemies that resist fire take half, and immune ones take none',
+});
+
 /** A record's line, frozen. */
 const line = (id, value, param) => Object.freeze(param === undefined ? { id, value } : { id, param, value });
 
@@ -314,6 +326,24 @@ export const KETCHMASTERS_WORD = Object.freeze({
   hint: 'Said to ride the Dwarven airship over Daggerfall, once in a long while',
 });
 
+/** RETRIBUTION'S CALL - a Gilded Daedric Katana, the invasion boss's rarest reward (systems/toybox/invasionRewards.js). The
+ *  owner's numbers: +40% damage, +30 Long Blade, +15 Critical Strike, and its power RETRIBUTION's +8 fire a hit. */
+export const RETRIBUTIONS_CALL = Object.freeze({
+  id: 'retributions-call',
+  name: "Retribution's Call",
+  group: 'Weapons',
+  templateIndex: WEAPONS.Katana,
+  material: WEAPON_MATERIALS.Daedric,
+  affixes: Object.freeze([
+    line('damage', 40),
+    line('skill', 30, SKILLS.LongBlade),
+    line('skill', 15, SKILLS.CriticalStrike),
+  ]),
+  power: RETRIBUTION,
+  lore: 'Forged for the one who stood when the realm was invaded. It burns hotter for every wave that falls.',
+  hint: "Said to fall from an invasion's champion, once in a long while",
+});
+
 /** EVERY GILDED RECORD - the Hourlock, then (GILDED2) the gate's and the serpent's, then (KETCH) the airship's two guns; the
  *  one list every reader asks. */
 /** @type {readonly GildedRecord[]} */
@@ -323,6 +353,7 @@ export const GILDED_RECORDS = Object.freeze([
   SUNKEN_SOVEREIGN,
   VOLENDRUNGS_ECHO,
   KETCHMASTERS_WORD,
+  RETRIBUTIONS_CALL,
 ]);
 export const gildedById = (id) => GILDED_RECORDS.find((r) => r.id === id) ?? null;
 /** GUNS-UNFOUND: the eras a record's id was minted under before its record moved - each lawful as minted, none minted now. */

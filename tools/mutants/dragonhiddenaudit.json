@@ -2,8 +2,8 @@
   {
     "name": "AUDIT-DRAGON-HIDDEN-A1-the-theatre-unchecked",
     "file": "src/net/dragon/dragonLaw.js",
-    "old": "  return (\n    Math.floor(px / DRAGON_CELL_PX) === cell.cx &&\n    Math.floor(py / DRAGON_CELL_PX) === cell.cy &&\n    sx === c.sx &&\n    sz === c.sz\n  );",
-    "new": "  return Math.floor(py / DRAGON_CELL_PX) === cell.cy && sx === c.sx && sz === c.sz;",
+    "old": "  return (\n    Math.floor(px / DRAGON_CELL_PX) === cell.cx &&\n    Math.floor(py / DRAGON_CELL_PX) === cell.cy &&\n    sx === c.sx &&\n    sz === c.sz &&\n",
+    "new": "  return (\n    Math.floor(py / DRAGON_CELL_PX) === cell.cy &&\n    sx === c.sx &&\n    sz === c.sz &&\n",
     "tests": [
       "test/net/dragon/dragonhiddenaudit.test.js"
     ],
@@ -12,8 +12,8 @@
   {
     "name": "AUDIT-DRAGON-HIDDEN-A1-the-centre-unchecked",
     "file": "src/net/dragon/dragonLaw.js",
-    "old": "  return (\n    Math.floor(px / DRAGON_CELL_PX) === cell.cx &&\n    Math.floor(py / DRAGON_CELL_PX) === cell.cy &&\n    sx === c.sx &&\n    sz === c.sz\n  );",
-    "new": "  return Math.floor(px / DRAGON_CELL_PX) === cell.cx && Math.floor(py / DRAGON_CELL_PX) === cell.cy;",
+    "old": "  return (\n    Math.floor(px / DRAGON_CELL_PX) === cell.cx &&\n    Math.floor(py / DRAGON_CELL_PX) === cell.cy &&\n    sx === c.sx &&\n    sz === c.sz &&\n",
+    "new": "  return (\n    Math.floor(px / DRAGON_CELL_PX) === cell.cx &&\n    Math.floor(py / DRAGON_CELL_PX) === cell.cy &&\n",
     "tests": [
       "test/net/dragon/dragonhiddenaudit.test.js"
     ],
@@ -22,8 +22,8 @@
   {
     "name": "AUDIT-DRAGON-HIDDEN-A1-its-north-unchecked",
     "file": "src/net/dragon/dragonLaw.js",
-    "old": "  return (\n    Math.floor(px / DRAGON_CELL_PX) === cell.cx &&\n    Math.floor(py / DRAGON_CELL_PX) === cell.cy &&\n    sx === c.sx &&\n    sz === c.sz\n  );",
-    "new": "  return Math.floor(px / DRAGON_CELL_PX) === cell.cx && Math.floor(py / DRAGON_CELL_PX) === cell.cy && sx === c.sx;",
+    "old": "  return (\n    Math.floor(px / DRAGON_CELL_PX) === cell.cx &&\n    Math.floor(py / DRAGON_CELL_PX) === cell.cy &&\n    sx === c.sx &&\n    sz === c.sz &&\n",
+    "new": "  return (\n    Math.floor(px / DRAGON_CELL_PX) === cell.cx &&\n    Math.floor(py / DRAGON_CELL_PX) === cell.cy &&\n    sx === c.sx &&\n",
     "tests": [
       "test/net/dragon/dragonhiddenaudit.test.js"
     ],

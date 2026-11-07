@@ -47,7 +47,7 @@
   {
     "name": "RAID-GUARDS-the-host-silent",
     "file": "src/scenes/world.js",
-    "old": "    raidHere: () => raidDefendingHere(),",
+    "old": "    raidHere: () => raidDefendingHere() || invasionFightHere() || !!dragonSky?.fightHere?.(),",
     "new": "    raidHere: () => false,",
     "tests": [
       "test/scenes/fb0929_raidguards.test.js"

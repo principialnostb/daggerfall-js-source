@@ -22,7 +22,7 @@
 //
 // Not a DFU member. Ledger A (STAFF-EVENT's row).
 import { _b64url, SIG_BYTES, SKEW_S, ID_RE } from '../identityToken.js';
-import { STAFF_EVENT_ID_RE, STAFF_EVENT_BOARD_MAX, STAFF_RECEIPT_WIRE_MAX } from './staffEventLaw.js';
+import { STAFF_EVENT_ID_RE, STAFF_EVENT_BOARD_MAX, STAFF_RECEIPT_WIRE_MAX, TB_INVASION } from './staffEventLaw.js';
 
 /** The only version this file reads or writes. */
 export const STAFF_RECEIPT_V = 'e1';
@@ -30,6 +30,9 @@ export const STAFF_RECEIPT_V = 'e1';
 export const STAFF_RECEIPT_TTL_S = 7 * 24 * 3600;
 /** The bound on a receipt's length on the wire. */
 export const STAFF_RECEIPT_MAX = STAFF_RECEIPT_WIRE_MAX;
+/** A toybox event's receipt names its kind (`tb`, signed with the rest) so the game rolls that event's own rewards; a
+ *  staff event's carries none. Only an invasion has rewards of its own: a dragon attack pays a staff event's. */
+export const STAFF_RECEIPT_TB = Object.freeze([TB_INVASION]);
 
 const enc = new TextEncoder();
 const dec = new TextDecoder();
@@ -48,19 +51,21 @@ export function staffReceiptValid(c) {
   if (!Number.isInteger(c.r) || c.r < 0 || c.r > STAFF_EVENT_BOARD_MAX) return false;
   if (!Number.isSafeInteger(c.i) || !Number.isSafeInteger(c.e)) return false;
   if (c.e <= c.i || c.e - c.i > STAFF_RECEIPT_TTL_S) return false;
+  if (c.tb !== undefined && !STAFF_RECEIPT_TB.includes(c.tb)) return false;
   return true;
 }
 
 /**
  * MINT - the relay's half. With no key the receipt goes out unsigned (`e1.<body>.`).
- * @param {{v: string, s: string, c: number, r: number}} what
+ * @param {{v: string, s: string, c: number, r: number, tb?: number}} what
  * @param {CryptoKey|null} privateKey an Ed25519 private key (net/gate/gateReceipt.js importReceiptKey), or null for none
  * @param {{subtle: SubtleCrypto, nowS: number}} env
  * @returns {Promise<string>}
  */
-export async function mintStaffReceipt({ v, s, c, r }, privateKey, { subtle, nowS }) {
+export async function mintStaffReceipt({ v, s, c, r, tb: toyboxKind }, privateKey, { subtle, nowS }) {
   if (!Number.isSafeInteger(nowS)) throw new TypeError('mintStaffReceipt needs an integer epoch-seconds clock');
-  const claims = { v, s, c, r, i: nowS, e: nowS + STAFF_RECEIPT_TTL_S };
+  const kind = STAFF_RECEIPT_TB.includes(/** @type {number} */ (toyboxKind)) ? { tb: toyboxKind } : {};
+  const claims = { v, s, c, r, ...kind, i: nowS, e: nowS + STAFF_RECEIPT_TTL_S };
   if (!staffReceiptValid(claims)) throw new TypeError('mintStaffReceipt refused a claim set it could not verify');
   const body = _b64url.encode(enc.encode(JSON.stringify(claims)));
   if (!privateKey) return `${STAFF_RECEIPT_V}.${body}.`;

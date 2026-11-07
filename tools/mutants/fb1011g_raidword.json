@@ -2,7 +2,7 @@
   {
     "name": "RAID-WORD-a-the-pixels-raid-unsaid",
     "file": "src/systems/raidingParties.js",
-    "old": "  const said = raid ?? (relay ? raidOnMyPixel(now) : null);",
+    "old": "  const said = raid ?? (relay && !tbOnly ? raidOnMyPixel(now) : null);",
     "new": "  const said = raid;",
     "tests": [
       "test/systems/fb1011g_raidword.test.js"

@@ -83,8 +83,8 @@
   {
     "name": "EVENT-TIP-a-death-never-repaints",
     "file": "src/ui/eventMapMarks.js",
-    "old": "export const raidMarksKey = (marks) =>\n  marks.map((m) => `${m.key}@${m.px},${m.py}|${m.label}|${tipKey(m.tip)}`).join(';');",
-    "new": "export const raidMarksKey = (marks) => marks.map((m) => `${m.key}@${m.px},${m.py}|${m.label}`).join(';');",
+    "old": "export const raidMarksKey = (marks) =>\n  marks.map((m) => `${m.key}@${m.px},${m.py}|${m.label}|${m.icon ?? ''}|${m.text ?? ''}|${tipKey(m.tip)}`).join(';');",
+    "new": "export const raidMarksKey = (marks) => marks.map((m) => `${m.key}@${m.px},${m.py}|${m.label}|${m.icon ?? ''}|${m.text ?? ''}`).join(';');",
     "tests": [
       "test/ui/eventtip.test.js"
     ]
@@ -128,7 +128,7 @@
   {
     "name": "EVENT-TIP-the-legend-forgets-the-raids",
     "file": "src/ui/heldMap.js",
-    "old": "    if (this._raids.length) {   // EVENT-TIP: and a raided town",
+    "old": "    if (this._raids.some((mark) => !mark.icon)) {   // EVENT-TIP: and a raided town",
     "new": "    if (false) {   // EVENT-TIP: and a raided town",
     "tests": [
       "test/ui/eventtip.test.js"
@@ -227,7 +227,7 @@
   {
     "name": "EVENT-TIP-the-host-hands-no-raids",
     "file": "src/scenes/world.js",
-    "old": "      raids: () => (raidingPartiesOn() ? raidMapMarks(raidState().raids, worldMinutes(), { regionName: (r) => REGION_NAMES[r] ?? '', localTime: sharedClockOn() ? eventLocalTime : null, relay: raidRelayState }) : []),   // TIME1: online the withdrawal in local time\n",
+    "old": "      raids: () => [...toybox.mapMarks(), ...(raidingPartiesOn() ? raidMapMarks(raidState().raids, worldMinutes(), { regionName: (r) => REGION_NAMES[r] ?? '', localTime: sharedClockOn() ? eventLocalTime : null, relay: raidRelayState }) : [])],   // TIME1: online the withdrawal in local time\n",
     "new": "",
     "tests": [
       "test/ui/eventtip.test.js"
@@ -236,8 +236,8 @@
   {
     "name": "EVENT-TIP-raids-with-the-mod-off",
     "file": "src/scenes/world.js",
-    "old": "raids: () => (raidingPartiesOn() ? raidMapMarks(raidState().raids, worldMinutes(), { regionName: (r) => REGION_NAMES[r] ?? '', localTime: sharedClockOn() ? eventLocalTime : null, relay: raidRelayState }) : []),",
-    "new": "raids: () => raidMapMarks(raidState().raids, worldMinutes(), { regionName: (r) => REGION_NAMES[r] ?? '', localTime: sharedClockOn() ? eventLocalTime : null, relay: raidRelayState }),",
+    "old": "raids: () => [...toybox.mapMarks(), ...(raidingPartiesOn() ? raidMapMarks(raidState().raids, worldMinutes(), { regionName: (r) => REGION_NAMES[r] ?? '', localTime: sharedClockOn() ? eventLocalTime : null, relay: raidRelayState }) : [])],",
+    "new": "raids: () => [...toybox.mapMarks(), ...raidMapMarks(raidState().raids, worldMinutes(), { regionName: (r) => REGION_NAMES[r] ?? '', localTime: sharedClockOn() ? eventLocalTime : null, relay: raidRelayState })],",
     "tests": [
       "test/ui/eventtip.test.js"
     ]

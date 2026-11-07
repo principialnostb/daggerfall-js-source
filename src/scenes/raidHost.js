@@ -60,7 +60,10 @@ export function createRaidHost(host) {
     ownRaidFoes: () => exteriorFoes.foes.filter((f) => !f.puppet && f.raidKey && !f.dead),
     // RAID3: the relay's arm - does it keep this world's raids, and my word to the town's cell
     relayRaids: () => !!host.online?.raidOk,
-    sendRaid: (w, cell) => !!host.online?.sendRaid(w, cell),
+    // offline, a toybox event has no cell: its words go to the local runner, which answers as the relay does
+    sendRaid: (w, cell) => !!host.online?.sendRaid(w, cell) || !!host.localToybox?.word(w),
+    // the relay's clock: a toybox event stands nothing before its start, which the relay set
+    relayNow: () => Date.now() + (host.sharedOffsetMs ?? 0),
     // WW6 (bible/03-World/World-Wide.md WW6): the towns past the Bay the lanes raid - the world's registry, as the boot keeps
     // it (net/staffPlaces.js keptPlaces: `gamePlaces(createWorldPlaces())`), TESA's places on it where the land stands; a
     // capital one town, its centre (WW7-11)

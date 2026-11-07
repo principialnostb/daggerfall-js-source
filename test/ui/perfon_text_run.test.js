@@ -162,7 +162,7 @@ test('PERF-ON: the run is the NARROW case, and drawScreenQuad keeps every other 
   // rotate opt (c2/S10) all stay `drawScreenQuad`'s, untouched, so no
   // art path changes and nothing else in the UI moves.
   const src = read('src/render/renderer.js');
-  const runFn = src.slice(src.indexOf('  drawScreenQuadRun(tex, quads, color'), src.indexOf('    drawScreenOverlayQuad(tex, u1, v1)'));
+  const runFn = src.slice(src.indexOf('  drawScreenQuadRun(tex, quads, color'), src.indexOf('    drawScreenOverlayQuad(tex, u1, v1'));
   assert.ok(runFn.length > 500, 'the run is gone');
   assert.doesNotMatch(runFn, /opts\.rotate|uRotOn/, 'the run grew a rotate arm - that is drawScreenQuad’s');
   assert.doesNotMatch(runFn, /opts\.blend|uBlendTex/, 'the run grew the blend opt-in - that is drawScreenQuad’s');

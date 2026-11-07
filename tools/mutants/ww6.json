@@ -277,7 +277,7 @@
   {
     "name": "WW6-client-lanes-unsynced",
     "file": "src/systems/raidingParties.js",
-    "old": "  syncLanes(); // WW6: the lanes past the Bay, rolled for the same day off the registry's towns there (the Bay's list untouched)\n  // C. the raids that ran out [IL_0540-IL_05b9]",
+    "old": "  if (!tbOnly) syncLanes(); // WW6: the lanes past the Bay, rolled for the same day off the registry's towns there (the Bay's list untouched)\n  // C. the raids that ran out [IL_0540-IL_05b9]",
     "new": "  // C. the raids that ran out [IL_0540-IL_05b9]",
     "tests": [
       "test/world/worldWide/ww6_raids.test.js"

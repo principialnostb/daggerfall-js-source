@@ -116,7 +116,7 @@ import { LODE_RING_CSS, LODE_LEGEND_TEXT, lodeLegendText } from './lodeMapMark.j
 import { WITNESS_SWATCH_CSS, witnessLegendText, witnessKeyText, witnessTipText, witnessFarText, syncWashLayer, blitWashLayer, paintWitnessedGround } from './witnessMapMark.js';   // WITNESS-MAP: the witnessed ground, a copper wash; AUDIT FB1031 W2: kept
 import { POI_RING_CSS, POI_MARKS_MAX, poiLegendText } from './poi/poiMapMark.js';   // POI-2: the approved POIs' marks, read by the bounty's reader
 import { readBountyMarksIn, bountyMarksKey, BOUNTY_RING_CSS, BOUNTY_LEGEND_TEXT, BOUNTY_LEGEND_RIM_CSS, REVENANT_RING_CSS, REVENANT_LEGEND_TEXT } from './bounty/bountyMapMark.js';   // BOUNTY1: held bounties' black circles, read as the gate's ring is
-import { readRaidMarksIn, raidMarksKey, placeTip, tipKey, readTip, RAID_MARK_CSS, RAID_LEGEND_TEXT, RAID_HIT_PX, SEAT_TIP_TEXT_MAX, TOWN_TIP_LINES_MAX } from './eventMapMarks.js';   // EVENT-TIP: the raided towns, and the card a world event answers a hover with
+import { readRaidMarksIn, raidMarksKey, placeTip, tipKey, readTip, RAID_MARK_CSS, RAID_LEGEND_TEXT, raidIconLegend, RAID_HIT_PX, SEAT_TIP_TEXT_MAX, TOWN_TIP_LINES_MAX } from './eventMapMarks.js';   // EVENT-TIP: the raided towns, and the card a world event answers a hover with
 import { vendorMarkKey, VENDOR_MARK_CSS, VENDOR_RIM_CSS, VENDOR_LEGEND_TEXT, readVendorMarkIn } from './vendor/vendorMapMark.js';   // HOME-VENDOR: the trader's waypoint
 import { readQuestMarks, questMarksKey, QUEST_MARK_CSS, QUEST_LEGEND_TEXT, QUEST_HIT_PX, QUEST_MARK_LIFT, QUEST_RAID_LIFT, QUEST_FOLLOWED_TEXT } from './quest/questMarks.js';   // GUIDE5: where the quests point
 import {
@@ -231,8 +231,12 @@ import { STAR_VIOLET_CSS } from './starfall/starMapMark.js';   // STAR6: a falle
 import { STAR_CARD_TEXT } from '../systems/starfall/starWords.js';   // STAR6: its legend's word
 import { readFissureMarksIn, fissureMarksKey, FISSURE_BRASS_CSS, fissureLegendText } from './fissureMapMark.js';   // STOREFRONT: the season's Brass Fissures
 import { capturePointer } from './pointerCapture.js';   // RPT1026-CLIENT: a pad's synthetic pointer is refused a capture, never thrown
+import { buttonLabel } from './teleportPopUp.js';   // a caller's own words on the teleport box's buttons
 
 export const HELD_MAP_URL = new URL('art/held-map.png', APP_ROOT ?? globalThis.document?.baseURI ?? 'https://invalid.invalid/').href;
+// The painting is asked for as this module loads. Asked for at the first open, it queued behind the boot's game files,
+// and the ink stood over the world with no paper under it. Each open's own loader then lands from the cache.
+export const HELD_ART_WARM = typeof Image === 'function' && globalThis.document ? Object.assign(new Image(), { src: HELD_MAP_URL }) : null;
 /** Its own pixels, and the stage's aspect. */
 export const SPRITE = Object.freeze({ w: 1648, h: 1086 });   // MAP-FIELD8: the FOURTH painting - wider (1648, not 1448), the same height
 /** MAP-FIELD4 (2026-09-19, Mac: "Try this instead"): THE SECOND
@@ -505,6 +509,8 @@ export const CUFF_BAND = 0.827;   // MAP-FIELD8: the fourth painting's silhouett
  *  while a travelling thing reads as hurried. */
 const OPEN_S = 0.42;     // the sheet rises into view
 const CLOSE_S = 0.36;    // ...and lowers on a commit or a close, a touch quicker: leaving is not a flourish
+/** The longest the rise waits for the painting before the ink goes up without its paper, seconds. */
+const ART_WAIT_S = 3;
 // SOC6: how often the window ASKS the host for its party, in seconds -
 // well under the eye's patience and well over the pose rate the hub
 // relays at (net/wire.js PARTY_SEND_MS). The classic window polls at
@@ -1021,6 +1027,10 @@ export class HeldMapWindow {
     this._t += dt;
     switch (this._phase) {
       case 'opening': {
+        // no ink over the world without its paper: the rise holds, hidden, until the painting lands or the wait runs out
+        const waiting = this._artIn === false && (this._artWait += dt) < ART_WAIT_S;
+        if (this._chrome?.root) this._chrome.root.style.visibility = waiting ? 'hidden' : '';
+        if (waiting) { this._t = 0; break; }
         // ZONE-FIRST (the owner: "when iam in the zone and press V it should open the zone map"): standing in the zone,
         // the map opens on the zone's own map - the world map one button (World map) away
         if (!this._zoneFirstTried && this._paper?.w > 1 && this._view && this._sheet) {
@@ -2442,10 +2452,15 @@ export class HeldMapWindow {
       dot.style.background = POI_RING_CSS;
       leg.append(dot, el('span', 'hmlegtext', poiLegendText()));
     }
-    if (this._raids.length) {   // EVENT-TIP: and a raided town
+    if (this._raids.some((mark) => !mark.icon)) {   // EVENT-TIP: and a raided town
       const dot = el('span', 'hmlegdot');
       dot.style.background = RAID_MARK_CSS;
       leg.append(dot, el('span', 'hmlegtext', RAID_LEGEND_TEXT));
+    }
+    for (const { icon, css, text } of raidIconLegend()) if (this._raids.some((mark) => mark.icon === icon)) {   // an invasion in its purple, a dragon attack in its orange
+      const dot = el('span', 'hmlegdot');
+      dot.style.background = css;
+      leg.append(dot, el('span', 'hmlegtext', text));
     }
     if (this._stars.length) {   // STAR6: and a fallen star
       const dot = el('span', 'hmlegdot');
@@ -3726,7 +3741,11 @@ export class HeldMapWindow {
     const sheet = el('canvas', 'hmsprite');
     stage.append(sheet, ink, hands);
     // the handler BEFORE the source, so a cached picture cannot land first
-    sprite.onload = () => { this._paintSheet(sprite, sheet); this._keyHands(sprite, hands); };
+    // the rise waits for the paper (a stand-in DOM's image has no decode, and nothing to wait for)
+    this._artIn = typeof sprite.decode !== 'function';
+    this._artWait = 0;
+    sprite.onload = () => { this._paintSheet(sprite, sheet); this._keyHands(sprite, hands); this._artIn = true; };
+    sprite.onerror = () => { this._artIn = true; };
     sprite.src = HELD_MAP_URL;
 
     const top = el('div', 'hmtop');
@@ -4442,9 +4461,9 @@ export class HeldMapWindow {
       }
       card.append(el('p', 'hmprompt', fee ? teleportCostPrompt(fee.cost) : `Teleport to ${this._selected.name}?`));
       const row = el('div', 'hmacts');
-      const yes = el('button', 'act', fee ? `Pay ${fee.cost} gold` : 'Teleport');
+      const yes = el('button', 'act', fee ? `Pay ${fee.cost} gold` : (buttonLabel(this.deps.confirmLabel) ?? 'Teleport'));
       yes.onclick = () => this._confirmTeleport(true);
-      const no = el('button', 'act hmghost', 'Not there');
+      const no = el('button', 'act hmghost', buttonLabel(this.deps.cancelLabel) ?? 'Not there');
       no.onclick = () => this._confirmTeleport(false);
       row.append(yes, no);
       card.append(row);

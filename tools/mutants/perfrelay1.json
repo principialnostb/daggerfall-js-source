@@ -56,8 +56,8 @@
   {
     "name": "PERF-RELAY1-the-sender-in-its-own-fan",
     "file": "server/src/index.js",
-    "old": "    for (const [other, b] of this._all()) {\n      if (other === ws || !b.id || (S && !S.members[b.sub])) continue;\n      if (reach(b.pose)) heard.push([other, b]);",
-    "new": "    for (const [other, b] of this._all()) {\n      if (!b.id || (S && !S.members[b.sub])) continue;\n      if (reach(b.pose)) heard.push([other, b]);",
+    "old": "    for (const [other, b] of this._all()) {\n      if (other === ws || !b.id || (S && !S.members[b.sub]) || ghostHides(a, b)) continue;   // a ghost's pose to developers and moderators alone (staffGhost.js)\n      if (reach(b.pose)) heard.push([other, b]);",
+    "new": "    for (const [other, b] of this._all()) {\n      if (!b.id || (S && !S.members[b.sub]) || ghostHides(a, b)) continue;   // a ghost's pose to developers and moderators alone (staffGhost.js)\n      if (reach(b.pose)) heard.push([other, b]);",
     "tests": [
       "test/server/perfrelay1.test.js"
     ]
@@ -65,8 +65,8 @@
   {
     "name": "PERF-RELAY1-an-id-less-socket-heard",
     "file": "server/src/index.js",
-    "old": "    for (const [other, b] of this._all()) {\n      if (other === ws || !b.id || (S && !S.members[b.sub])) continue;",
-    "new": "    for (const [other, b] of this._all()) {\n      if (other === ws || (S && !S.members[b.sub])) continue;",
+    "old": "    for (const [other, b] of this._all()) {\n      if (other === ws || !b.id || (S && !S.members[b.sub]) || ghostHides(a, b)) continue;   // a ghost's pose to developers and moderators alone (staffGhost.js)",
+    "new": "    for (const [other, b] of this._all()) {\n      if (other === ws || (S && !S.members[b.sub]) || ghostHides(a, b)) continue;   // a ghost's pose to developers and moderators alone (staffGhost.js)",
     "tests": [
       "test/server/perfrelay1.test.js"
     ]

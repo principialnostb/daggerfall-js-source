@@ -559,6 +559,11 @@
   "tr": "d441af60d771",
   "by": "claude-in-session"
  },
+ "account.refusal.devTargetGuest": {
+  "en": "9c93024bcd0c",
+  "tr": "287ecbd7d67e",
+  "by": "claude-in-session"
+ },
  "account.refusal.embers": {
   "en": "e9678673977b",
   "tr": "6e75c231f571",
@@ -672,6 +677,11 @@
  "account.refusal.townsRate": {
   "en": "cfb66d75ddd3",
   "tr": "28ace0ea9a3b",
+  "by": "claude-in-session"
+ },
+ "account.refusal.toyboxUnlawful": {
+  "en": "a6b6591a8787",
+  "tr": "090a1f000a38",
   "by": "claude-in-session"
  },
  "body.beast.feet": {
@@ -1807,6 +1817,11 @@
  "enemy.dwarvenDragon": {
   "en": "55c68ec2d30f",
   "tr": "a233c8263e2f",
+  "by": "claude-in-session"
+ },
+ "events.kind.invasion": {
+  "en": "0cb15b01f568",
+  "tr": "d3ef6e37a137",
   "by": "claude-in-session"
  },
  "faction.province.court": {
@@ -3564,6 +3579,11 @@
   "tr": "b6e49b3eeaed",
   "by": "claude-in-session"
  },
+ "lootBanner.toybox": {
+  "en": "accf40c89baa",
+  "tr": "40ed16673254",
+  "by": "claude-in-session"
+ },
  "lw.econ.booming.a": {
   "en": "4d71079574bd",
   "tr": "9030df1d693d",
@@ -3602,6 +3622,16 @@
  "lw.econ.thriving.b": {
   "en": "2d8ffddfef34",
   "tr": "054157bb76c3",
+  "by": "claude-in-session"
+ },
+ "map.legend.dragon": {
+  "en": "845bf59deae5",
+  "tr": "554f5e00841d",
+  "by": "claude-in-session"
+ },
+ "map.legend.invasion": {
+  "en": "0cb15b01f568",
+  "tr": "d3ef6e37a137",
   "by": "claude-in-session"
  },
  "map.sheet.bay": {
@@ -6277,6 +6307,266 @@
  "town.panel.new": {
   "en": "c06b33d8318f",
   "tr": "22f4dd6de583",
+  "by": "claude-in-session"
+ },
+ "toybox.detail.dragon": {
+  "en": "1c2decb43964",
+  "tr": "7760bf049641",
+  "by": "claude-in-session"
+ },
+ "toybox.detail.gather": {
+  "en": "5e88ff50af6b",
+  "tr": "69b928b7fbe6",
+  "by": "claude-in-session"
+ },
+ "toybox.dragon.lands": {
+  "en": "754d97ae0328",
+  "tr": "bc17a8190582",
+  "by": "claude-in-session"
+ },
+ "toybox.dragon.staged": {
+  "en": "42b2066ece49",
+  "tr": "6279094935b5",
+  "by": "claude-in-session"
+ },
+ "toybox.family.daedra": {
+  "en": "eaa0c380b7f4",
+  "tr": "eaa0c380b7f4",
+  "by": "claude-in-session"
+ },
+ "toybox.family.humans": {
+  "en": "49609307701a",
+  "tr": "007b1a44d85c",
+  "by": "claude-in-session"
+ },
+ "toybox.family.orcs": {
+  "en": "b153089b44b5",
+  "tr": "fe26e2044e65",
+  "by": "claude-in-session"
+ },
+ "toybox.family.undead": {
+  "en": "a53cc9c68e5e",
+  "tr": "d2e831ba36e2",
+  "by": "claude-in-session"
+ },
+ "toybox.family.werewolves": {
+  "en": "085173268da3",
+  "tr": "fcaefb9f3d07",
+  "by": "claude-in-session"
+ },
+ "toybox.invasion.bar.defender": {
+  "en": "dad74240b8e9",
+  "tr": "8ef027c4cd08",
+  "by": "claude-in-session"
+ },
+ "toybox.invasion.bar.defenders": {
+  "en": "78feeb74a5ed",
+  "tr": "e85c3dd86aae",
+  "by": "claude-in-session"
+ },
+ "toybox.invasion.bar.fallen": {
+  "en": "2ff8da0a32d1",
+  "tr": "bde2968d8262",
+  "by": "claude-in-session"
+ },
+ "toybox.invasion.bar.phase": {
+  "en": "40bce9d4c617",
+  "tr": "7fda438a4580",
+  "by": "claude-in-session"
+ },
+ "toybox.invasion.bar.rising": {
+  "en": "0bec14f205a0",
+  "tr": "14bb8ad1e7a4",
+  "by": "claude-in-session"
+ },
+ "toybox.invasion.bar.title": {
+  "en": "67c084b885a4",
+  "tr": "c7330c7d82df",
+  "by": "claude-in-session"
+ },
+ "toybox.invasion.blow.charge": {
+  "en": "d4e1aee46cda",
+  "tr": "c8b103e0cadc",
+  "by": "claude-in-session"
+ },
+ "toybox.invasion.blow.cleave": {
+  "en": "fcd2b4a84b51",
+  "tr": "bbe67dad7acf",
+  "by": "claude-in-session"
+ },
+ "toybox.invasion.blow.slam": {
+  "en": "bb5a01fddeee",
+  "tr": "3b734459cacf",
+  "by": "claude-in-session"
+ },
+ "toybox.invasion.blow.stomp": {
+  "en": "20a2475885b4",
+  "tr": "251773082f86",
+  "by": "claude-in-session"
+ },
+ "toybox.invasion.boss": {
+  "en": "9664c7493be7",
+  "tr": "54d279c46e3b",
+  "by": "claude-in-session"
+ },
+ "toybox.invasion.hud.awaits": {
+  "en": "9ea6ed0cb2d9",
+  "tr": "3cd71ba9f55c",
+  "by": "claude-in-session"
+ },
+ "toybox.invasion.hud.broken": {
+  "en": "0fb12511352f",
+  "tr": "687e4637e5c4",
+  "by": "claude-in-session"
+ },
+ "toybox.invasion.hud.endless": {
+  "en": "79b0908a0b1a",
+  "tr": "02a0316a367b",
+  "by": "claude-in-session"
+ },
+ "toybox.invasion.hud.fallen": {
+  "en": "616309cdff95",
+  "tr": "5d475509481d",
+  "by": "claude-in-session"
+ },
+ "toybox.invasion.hud.foe": {
+  "en": "476abb11e178",
+  "tr": "0ef84f8f0492",
+  "by": "claude-in-session"
+ },
+ "toybox.invasion.hud.foes": {
+  "en": "4edb1854e2b3",
+  "tr": "5ab5bd762155",
+  "by": "claude-in-session"
+ },
+ "toybox.invasion.hud.gathers": {
+  "en": "7f191b7d05e2",
+  "tr": "86295a02f2c9",
+  "by": "claude-in-session"
+ },
+ "toybox.invasion.hud.phase": {
+  "en": "e6888d8bf8a6",
+  "tr": "ccda6bb8719e",
+  "by": "claude-in-session"
+ },
+ "toybox.invasion.hud.rising": {
+  "en": "e5d1ce750af6",
+  "tr": "d73f7d394aa8",
+  "by": "claude-in-session"
+ },
+ "toybox.invasion.hud.title": {
+  "en": "a81e09fce7cb",
+  "tr": "ea405b6b5625",
+  "by": "claude-in-session"
+ },
+ "toybox.invasion.hud.wave": {
+  "en": "6acb5d410329",
+  "tr": "0c191afa6d1f",
+  "by": "claude-in-session"
+ },
+ "toybox.invasion.phase2": {
+  "en": "b115bd7504ba",
+  "tr": "822249b4bc0e",
+  "by": "claude-in-session"
+ },
+ "toybox.invasion.phase3": {
+  "en": "216f165878e3",
+  "tr": "6313448e8049",
+  "by": "claude-in-session"
+ },
+ "toybox.invasion.staged": {
+  "en": "7554ac69468f",
+  "tr": "e966abe7f09b",
+  "by": "claude-in-session"
+ },
+ "toybox.invasion.won": {
+  "en": "d0035356d670",
+  "tr": "b1673c1d4275",
+  "by": "claude-in-session"
+ },
+ "toybox.label.dragon": {
+  "en": "bf98a04674bd",
+  "tr": "780c1e7bf672",
+  "by": "claude-in-session"
+ },
+ "toybox.label.dragonIn": {
+  "en": "bbf4d3333c99",
+  "tr": "008763b66be5",
+  "by": "claude-in-session"
+ },
+ "toybox.label.invasionIn": {
+  "en": "e8a1a4d48e0f",
+  "tr": "09ba284caba0",
+  "by": "claude-in-session"
+ },
+ "toybox.label.siege": {
+  "en": "df4f89e6540f",
+  "tr": "eb2d2a16bc9c",
+  "by": "claude-in-session"
+ },
+ "toybox.map.dragonFor": {
+  "en": "780c6b41e300",
+  "tr": "a6bef5455153",
+  "by": "claude-in-session"
+ },
+ "toybox.map.dragonIn": {
+  "en": "77945838799e",
+  "tr": "78f0ad524089",
+  "by": "claude-in-session"
+ },
+ "toybox.map.invasionActive": {
+  "en": "c40bd9c0b426",
+  "tr": "6ac4f4c32397",
+  "by": "claude-in-session"
+ },
+ "toybox.map.invasionIn": {
+  "en": "43c1de856c57",
+  "tr": "00affc70b465",
+  "by": "claude-in-session"
+ },
+ "toybox.state.bossUp": {
+  "en": "bd39e3daab83",
+  "tr": "8dd878df352b",
+  "by": "claude-in-session"
+ },
+ "toybox.state.dragonIn": {
+  "en": "eae2352bb16d",
+  "tr": "882902b2e89f",
+  "by": "claude-in-session"
+ },
+ "toybox.state.wave": {
+  "en": "bcfe54866294",
+  "tr": "9da11c8391ef",
+  "by": "claude-in-session"
+ },
+ "toybox.tip.begins": {
+  "en": "a5fd38d43741",
+  "tr": "f9447bf2df66",
+  "by": "claude-in-session"
+ },
+ "toybox.tip.dragon": {
+  "en": "845bf59deae5",
+  "tr": "554f5e00841d",
+  "by": "claude-in-session"
+ },
+ "toybox.tip.invading": {
+  "en": "32909a82aa5f",
+  "tr": "60dc546c4e14",
+  "by": "claude-in-session"
+ },
+ "toybox.tip.invasion": {
+  "en": "0cb15b01f568",
+  "tr": "d3ef6e37a137",
+  "by": "claude-in-session"
+ },
+ "toybox.title.dragon": {
+  "en": "77c0de6b7121",
+  "tr": "b4bd1dfb5f27",
+  "by": "claude-in-session"
+ },
+ "toybox.title.invasion": {
+  "en": "a81e09fce7cb",
+  "tr": "ea405b6b5625",
   "by": "claude-in-session"
  },
  "travel.held.foes": {

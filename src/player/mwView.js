@@ -43,6 +43,7 @@ import { horseRigFor, HORSE_SEAT } from '../world/horseRig.js'; // COATS3D: the 
 import { gaitShare } from '../world/horseModel.js';
 import { SEAT_PELVIS_HEIGHT } from './seatPose.js';
 import { RIDE_EYE_HEIGHT } from './motor.js'; // AUDIT COATS3D A8: the saddle's eye, the horse's ground under it
+import { ghostSelfVeil } from '../systems/toybox/toyboxGhost.js';
 
 /**
  * EOTB4: is Eye Of The Beholder the lane this frame?
@@ -872,6 +873,7 @@ export function mwViewDrawBody(canvas, { proj, view, eye, feet, yaw, viewYaw = y
     grow: face?.grow > 1 ? face.grow : 1,
     up: face?.up ?? null,
     horse,
+    conceal: ghostSelfVeil(), // the toybox's ghost: my own body see-through
   });
 }
 

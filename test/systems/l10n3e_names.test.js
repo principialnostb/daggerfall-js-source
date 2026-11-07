@@ -62,6 +62,7 @@ const NAMED = {
   'src/ui/quest/questJournal.js': 2,
   'src/ui/travel/travelMapWindow.js': 5,
   'src/world/buildingNames.js': 1,
+  'src/ui/toybox/invasionHud.js': 1,   // an invasion's boss named on the side panel, in the player's language
 };
 
 test('L10N3e names: the name lookups, file by file - none lost, every new one counted', () => {

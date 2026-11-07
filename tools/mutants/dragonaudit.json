@@ -188,8 +188,8 @@
   {
     "name": "AUDIT-DRAGON-the-bar-left-up",
     "file": "src/scenes/dragonHost.js",
-    "old": "    away(offline) { if (barUp) { drawBar(null); barUp = false; } host.leave(offline); },",
-    "new": "    away(offline) { host.leave(offline); },",
+    "old": "    away(offline) { fightNow = false; if (barUp) { drawBar(null); barUp = false; } host.leave(offline); },",
+    "new": "    away(offline) { fightNow = false; host.leave(offline); },",
     "tests": [
       "test/scenes/dragon3_host.test.js"
     ]

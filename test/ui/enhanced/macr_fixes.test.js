@@ -79,7 +79,7 @@ test('MAC-R1: a raised blade is not cut - a rect the bob moved DOWN gets frame r
   assert.match(draw, /const proj = win \? frustum\(-hw \+ win\.k0 \* px, -hw \+ \(win\.k0 \+ fw\) \* px, hh - \(win\.r0 \+ fh\) \* py, hh - win\.r0 \* py, near, far\) : perspective\(FP_FIELD_OF_VIEW, pw \/ ph, near, far\);/, 'under a transform the window over those pixels; without one, the lens it always was');
   assert.match(draw, /renderCharacterSprite\(mesh, NIF_TO_PASS, proj, view, fw, fh,/, 'the pass renders the window\'s pixels');
   assert.match(draw, /renderer\.drawScreenQuad\(tex, win\.dst, \{ u0: 0, v0: fh \/ edge, u1: fw \/ edge, v1: 0 \}\);/, 'laid where the window says');
-  assert.match(draw, /renderer\.drawScreenOverlayQuad\(tex, pw \/ edge, ph \/ edge\);/, 'no transform: the overlay is the screen, as it was');
+  assert.match(draw, /renderer\.drawScreenOverlayQuad\(tex, pw \/ edge, ph \/ edge, seeThrough\);/, 'no transform: the overlay is the screen, as it was (the ghost\'s alpha aside)');
 });
 
 // ── MAC-R2 ───────────────────────────────────────────────────────

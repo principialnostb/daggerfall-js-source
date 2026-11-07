@@ -34,6 +34,7 @@ export const TIMER_KINDS = Object.freeze([
   'seat',
   'reset',
   'front',
+  'invasion',
 ]); // KETCH: the Sky-Ketch's; SERPENT-TIMERS: the sea serpent's; SD2c: the Super dungeon's, once found; STAR6: a fallen star's; TIMERS2: the Elite Breach's, in its arch's gold (it drew in no colour); FRONTS: the provinces' turn
 
 /** TIMERS2: a group's head (its title) and its button in the bar (a short word), in the player's language. */

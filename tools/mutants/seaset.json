@@ -137,8 +137,8 @@
   {
     "name": "SEA-SET-records-not-registered",
     "file": "src/systems/aetheric.js",
-    "old": "...STARSPUN_SET_PIECES, ...ELTHERIC_SET_PIECES]);",
-    "new": "...STARSPUN_SET_PIECES]);",
+    "old": "...STARSPUN_SET_PIECES, ...ELTHERIC_SET_PIECES, ...DEFENDER_SET_PIECES]);",
+    "new": "...STARSPUN_SET_PIECES, ...DEFENDER_SET_PIECES]);",
     "tests": [
       "test/systems/sea/seaset.test.js"
     ]

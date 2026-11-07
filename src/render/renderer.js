@@ -5485,7 +5485,7 @@ void main() {
     }
   }
 
-    drawScreenOverlayQuad(tex, u1, v1) {
+    drawScreenOverlayQuad(tex, u1, v1, alpha = 1) {   // `alpha` under 1: the picture blended (the toybox's ghost's own arms)
     const gl = this.gl;
     // AUDIT RETRO1 C2 (and its second pass, F8/G4): a retro world is PRESENTED before the first-person overlay, on
     // either lane - the lane's shaders end in elEncode, display bytes, and the Weapon Widget's path (drawScreenQuad)
@@ -5507,8 +5507,12 @@ void main() {
     this._tex0Bound = null;   // PERF-TEX3: this path owns unit 0 - the shadow may not speak for it
     gl.uniform1i(this._overlay.tex, 0);
     gl.uniform2f(this._overlay.uv1, u1, v1);
+    const a = alpha >= 0 && alpha < 1 ? alpha : 1;
+    gl.uniform1f(this._overlay.alpha, a);
     this._open2D(this._overlayVAO);   // PERF-2D
+    if (a < 1) { gl.enable(gl.BLEND); gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA); }
     gl.drawArrays(gl.TRIANGLE_FAN, 0, 4);
+    if (a < 1) gl.disable(gl.BLEND);
     this.stats.texBinds++; this.stats.draws++;
     if (strip) gl.viewport(0, 0, this.canvas.width, this.canvas.height);   // the 2D pass's whole canvas back
   }
@@ -5528,13 +5532,15 @@ void main() { vUV = (aPos * 0.5 + 0.5) * uUV1; gl_Position = vec4(aPos, 0.0, 1.0
 precision highp float;
 in vec2 vUV;
 uniform sampler2D uTex;
+uniform float uAlpha;
 out vec4 outColor;
-void main() { vec4 t = texture(uTex, vUV); if (t.a < 0.5) discard; outColor = vec4(t.rgb, 1.0); }`;
+void main() { vec4 t = texture(uTex, vUV); if (t.a < 0.5) discard; outColor = vec4(t.rgb, uAlpha); }`;
       if (start) return startPrograms(gl, [[vs, fs]]);   // BOOT-COMPILE: the warm's start (warmSteps) - compiled, never waited on
       this.overlayProgram = this._buildProgram(vs, fs);
       this._overlay = {
         tex: gl.getUniformLocation(this.overlayProgram, 'uTex'),
         uv1: gl.getUniformLocation(this.overlayProgram, 'uUV1'),
+        alpha: gl.getUniformLocation(this.overlayProgram, 'uAlpha'),
       };
       const vao = gl.createVertexArray();
       this._bindVao(vao);

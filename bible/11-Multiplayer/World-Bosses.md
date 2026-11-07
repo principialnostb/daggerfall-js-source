@@ -124,3 +124,5 @@ Daggerfall's own Daedra Lord sprite at three times its size, and his sounds are 
 - More than 256 fighters in one fight (copies holding fighters of their own) is not built; see `Scale-Arc.md`.
 - A modified client can refuse the Warden's blows on its own body; the damage bucket bounds what it can deal.
 - The sea serpent follows the same law at sea: `Sea-Serpent.md`.
+- A toybox invasion follows it in a city: its cell owns every foe's health, waves and boss alike, and judges each
+  blow by the gate's reach and bucket (`Staff-Events.md`, "An invasion is the relay's").

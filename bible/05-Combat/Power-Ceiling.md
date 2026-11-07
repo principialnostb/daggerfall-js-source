@@ -43,6 +43,8 @@ wearing.
 
 - The tamed Dwarven Dragon's pace (the owner chose: fly 25 m/s, travel 2x horse). A pace, not a power: no line, band
   or rung moves.
+- The Realm Defender's Meridia's Preservation: +20% maximum health (maxHealth 20, a new role; the owner approved it).
+  Its other numbers, and Retribution's Call's +8 fire a hit, sit at or under today's tops. No line, band or rung moves.
 
 ## Code and tests
 

@@ -67,12 +67,12 @@ test('audit24 lifetimes: an encounter foe frees its billboard batch on BOTH ends
   // the Azura's Star kill-capture sits in the same gap, after the trap
   // (a filled Star must count) and before the release.
   // PIN MOVED (RPT1026-FIGHTS TRAP-TO-OWNER: the trap's comment names whose soul a peer's kill reads - 4,415 now)
-  assert.match(dmg, /health <= 0[\s\S]{0,4500}releaseFoeBatch\(f\)/, 'death releases too');   // PIN MOVED (RVN3/RVN4: the will and the last stand join the yield arm in the gap)   // REVENANT-FATE: the yield arm sits in the gap (a revenant beaten kneels, its batch kept for its fate)   // ARENA2: the foe yield floor heads the gap (a bout fighter never dies, so never releases here)   // CREW-COMPANIONS: the knock-out arm heads the gap (a companion never dies, so never releases here)   // SET2: the kill told as mine widened the gap by one line   // AUDIT WORLD6b B2: the peer arm's note sits in the same gap (a proximity bound, not a law)   // STRIKE-SHARED: and a peer's trap's
+  assert.match(dmg, /health <= 0[\s\S]{0,4600}releaseFoeBatch\(f\)/, 'death releases too');   // an invasion's boss keeps its batch through its fall, guarded in the gap   // PIN MOVED (RVN3/RVN4: the will and the last stand join the yield arm in the gap)   // REVENANT-FATE: the yield arm sits in the gap (a revenant beaten kneels, its batch kept for its fate)   // ARENA2: the foe yield floor heads the gap (a bout fighter never dies, so never releases here)   // CREW-COMPANIONS: the knock-out arm heads the gap (a companion never dies, so never releases here)   // SET2: the kill told as mine widened the gap by one line   // AUDIT WORLD6b B2: the peer arm's note sits in the same gap (a proximity bound, not a law)   // STRIKE-SHARED: and a peer's trap's
   // and the intercept must sit ahead of the release, not after it
   assert.ok(dmg.indexOf('attemptSoulTrap') < dmg.indexOf('releaseFoeBatch(f)'),
     'a trap that refuses the death must not have freed the batch first');
-  assert.match(bodyOf(src, 'function batches()'), /if \(f\.dead \|\| !f\._mout\) continue/,
-    'and nothing draws a dead foe, which is what makes the release safe');
+  assert.match(bodyOf(src, 'function batches()'), /if \(\(f\.dead && !invasion\.falling\(f\)\) \|\| !f\._mout\) continue/,
+    'and nothing draws a dead foe, which is what makes the release safe - but an invasion boss, its batch kept until its fall is done');
 });
 
 test('audit24 lifetimes: a city guard frees its batch on both death paths, and the array IS pruned', () => {

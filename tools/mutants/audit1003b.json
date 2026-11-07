@@ -58,8 +58,8 @@
   {
     "name": "AUDIT1003b-R4-JOIN-TO-ALL",
     "file": "server/src/index.js",
-    "old": "if (other !== ws && b.id && (!S || S.members[b.sub])) this._send(other, join);",
-    "new": "if (other !== ws && b.id) this._send(other, join);",
+    "old": "if (other !== ws && b.id && (!S || S.members[b.sub]) && !ghostHides(this._attach(ws), b)) this._send(other, join);",
+    "new": "if (other !== ws && b.id && !ghostHides(this._attach(ws), b)) this._send(other, join);",
     "tests": [
       "test/net/arena/audit1003b_relay.test.js",
       "test/net/arena/hotfix1003_stands.test.js"
@@ -69,8 +69,8 @@
   {
     "name": "AUDIT1003b-R4-POSES-TO-ALL",
     "file": "server/src/index.js",
-    "old": "      if (other === ws || !b.id || (S && !S.members[b.sub])) continue;",
-    "new": "      if (other === ws || !b.id) continue;",
+    "old": "      if (other === ws || !b.id || (S && !S.members[b.sub]) || ghostHides(a, b)) continue;",
+    "new": "      if (other === ws || !b.id || ghostHides(a, b)) continue;",
     "tests": [
       "test/net/arena/audit1003b_relay.test.js"
     ]

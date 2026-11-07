@@ -21,7 +21,8 @@ box the relay knows with no map. The client finds the site in that cell over the
 Bay, the gate's ground over the towns about it (`src/scenes/gate/gateLanes.js` `groundIn`, read in idle slices once the
 countryside stands and the land is laid). The omen's own roll picks one pixel (`dragonSitePick`). A cell with no ground
 brings no dragon. The relay holds a fight at the site a join names, at most `DRAGON_SITES_MAX` a dragon, at a pixel's
-centre in its omen's cell (`dragonSiteOk`, `dragonCandidateOf`). No chat line, no map ring.
+centre in its omen's cell (`dragonSiteOk`, `dragonCandidateOf`). No chat line, no map ring: a hidden dragon has no map
+mark of its own.
 
 **Told near its cell** (`server/src/dragonFights.js`). A client asks for this watch's omens and the last's, down
 whatever room it stands in. The relay judges a pose in a cell room (within the socket's cover) or in a battle; a private
@@ -115,6 +116,21 @@ hold the Wyrm Rider or Aether Rider title, and the first of each look the First 
 **The Aetherbright** (`src/characters/dwarvenDragonShiny.js`). Archive 1801 is archive 1800's pictures with their palette
 turned to aetherium's blue and violet at load; no new picture ships. A tamed Aetherbright keeps its colours.
 
+**A called dragon.** A developer's Dragon Attack (`Toybox.md`) is an event in the hub's book, signed by the account
+service for a `dev` glyph. `dragonCalledOf` reads it as an omen that carries its landing (`la`, the event's `go`) and its
+city's pixel. Its cell is that pixel's, its site that pixel's centre and no other (`dragonSiteOk`), and its seed is the
+event's id hashed, since every screen was told of it. The host draws it beside any hidden one and fights the nearer
+(`skyDragonsAt`); its `in` names the event (`ev`). The relay takes that `in` only for a dragon attack its book holds
+at that site, with no dwell and no budget, and fans its words to passers-by freely. Its fall pays `z1` receipts as
+any dragon's, and the hub ends the event (`endCalledDragon`). Every screen says its landing on the World Events board.
+
+If a called dragon leaves unslain, its cell tells the hub (`tellHubLeft`), which ends the event (`endLeftDragon`).
+
+**A called dragon offline** (`src/systems/dragon/localDragonFights.js`). `createDragonSky`'s `offline()` turns its words
+to a local cell: the relay's own brain (`DRAGON_SEAM`), stepped every `DRAGON_TICK_MS` over the one player's body. Only a
+called dragon comes down offline. Its receipt is unsigned; the hoard is rolled into the pack at once (`dragonRewards.js`
+`local`), with no claim and no tame, since both are the account service's.
+
 **The staff dragon** (`src/characters/dwarvenDragon.js`). Kind 512, archive 1800 under `public/art/dwarven-dragon/`, the
 Iron Atronach's career made a boss. No encounter table names it: staff bring it to a staff event. An Admin with the
 `DRAGON_GLYPHS` rides it with `/dragon` (`src/systems/staffDragon.js`): flight at `DRAGON_FLY_MULT` times levitation's
@@ -123,8 +139,10 @@ monster they meet - never a player, party mate or court boss. `/dragon blue` and
 
 ## Rules
 
-- Online only: the relay runs the fight and signs each kill; the account service rolls the tame (the owner).
-- Hidden and seen in the sky: no chat line, no map ring, a few times a day anywhere in the world (the owner).
+- Online the relay runs the fight and signs each kill; the account service rolls the tame (the owner). Offline only a
+  called dragon comes, its fight this machine's, its hoard with no tame.
+- Hidden and seen in the sky: no chat line, no map ring, a few times a day anywhere in the world (the owner). A called
+  dragon is announced and marked through its Dragon Attack.
 - Tame 1 in 100 per dealer, one dragon a character; shiny 1 in 20, kept when tamed (the owner).
 - The mount walks and gallops as a horse, flies 25 m/s, and travels twice a horse's pace on the map, straight over water
   and mountains (the owner). This pace is the owner's word past the power ceiling (`05-Combat/Power-Ceiling.md`).
@@ -144,7 +162,8 @@ Daggerfall has no other players, no world boss and no flying mount; none of this
 
 ## Code and tests
 
-- `src/net/dragon/` - law, seed, body, brain, receipt, claims, the keep's wire word
+- `src/net/dragon/` - law (a called dragon's omen among it), seed, body, brain, receipt, claims, the keep's wire word
+- `src/systems/dragon/calledDragons.js`, `src/systems/dragon/localDragonFights.js` - the called dragons, the offline fight
 - `src/systems/dragon/` - site, spoils, mount, keep, flight, journey, words
 - `src/scenes/dragonHost.js`, `src/scenes/dragonKeepHost.js`, `src/scenes/dragonRewards.js` - the dragon on screen, the
   keep, the hoard
@@ -155,6 +174,7 @@ Daggerfall has no other players, no world boss and no flying mount; none of this
 - `test/net/dragon/dragoncell.test.js`, `dragonbudget.test.js`, `dragoneach.test.js` - the cell's tell, the budget, a
   kill a dragon
 - `test/net/dragonride_wire.test.js` - the ride's relay gate and pose law
+- `test/systems/toyboxdragon_local.test.js`, `test/server/dragon_called_relay.test.js` - a called dragon, offline and online
 - `test/systems/travel/dragon6_flight.test.js` - the flown journey
 
 ## Open

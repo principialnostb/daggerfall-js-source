@@ -484,8 +484,8 @@
   {
     "name": "AUDITLIVED1B-A3-raids-save-flag-never-cleared",
     "file": "src/systems/raidingParties.js",
-    "old": "  if (sharedClockOn()) _dayFromSave = false; // AUDIT LIVED1b A3: the save's record has met the world's day (an offline frame is not the world's)\n  syncLanes(); // WW6: the lanes past the Bay, rolled for the same day off the registry's towns there (the Bay's list untouched)",
-    "new": "  syncLanes(); // WW6: the lanes past the Bay, rolled for the same day off the registry's towns there (the Bay's list untouched)",
+    "old": "  if (sharedClockOn()) _dayFromSave = false; // AUDIT LIVED1b A3: the save's record has met the world's day (an offline frame is not the world's)\n  if (!tbOnly) syncLanes(); // WW6: the lanes past the Bay, rolled for the same day off the registry's towns there (the Bay's list untouched)",
+    "new": "  if (!tbOnly) syncLanes(); // WW6: the lanes past the Bay, rolled for the same day off the registry's towns there (the Bay's list untouched)",
     "tests": [
       "test/systems/auditlived1b.test.js"
     ]

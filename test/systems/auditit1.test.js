@@ -366,7 +366,7 @@ test('AUDIT IT1 W1: the enhanced skin\'s merchant popup names a registered servi
 test('AUDIT IT1 L1/W2/W6: the driver\'s map reads PlayerGPS\'s region (politic 64 is 31), refuses a sun-averse traveller by day ONLINE as the travel map\'s door does (no arrival clamp there), and says why when it does not open', () => {
   const w = read('src/scenes/world.js');
   assert.match(w, /function itHere\(\) \{[\s\S]*?regionIndex: maps\.getRegionIndexAt\(px\.x, px\.y\),/);
-  const open = w.slice(w.indexOf('function openImmersiveMap(kind) {'), w.indexOf('function openTeleportMap() {'));
+  const open = w.slice(w.indexOf('function openImmersiveMap(kind) {'), w.indexOf('function openTeleportMap(opts = {}) {'));
   assert.match(open, /if \(\(modes\?\.mode \?\? 'exterior'\) !== 'exterior'\) \{ townTalk\.say\(localizedText\('cannotTravelIndoors', CANNOT_TRAVEL_INDOORS_TEXT\)\); return null; \}/);
   assert.match(open, /if \(!travelMapDoorReady\(\)\) \{ townTalk\.say\('\(the travel map art is unavailable\)'\); return null; \}/);
   assert.match(open, /if \(sharedClockOn\(\)\) \{\s*\n\s*const nowMin = Math\.floor\(skyMinutes\(\)\);\s*\n\s*const cfb = careerFastTravelBlock\(playerEntity, nowMin\);[^\n]*\n\s*if \(cfb\) \{ sayWithNightfall\(cfb\.text\); if \(cfb\.hint\) townTalk\.say\(cfb\.hint\); return null; \}\s*\n\s*const ftb = racialFastTravelBlock\(playerEntity, nowMin\);\s*\n\s*if \(ftb\) \{ sayWithNightfall\(ftb\.text\); if \(ftb\.hint\) townTalk\.say\(ftb\.hint\); return null; \}/);   // PIN MOVED (HOOD-CAREER): the career rung is careerFastTravelBlock's, its hood's hint after DFU's line

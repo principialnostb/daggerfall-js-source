@@ -52,8 +52,8 @@
   {
     "name": "DRAGON-BUDGET-the-in-unbudgeted",
     "file": "server/src/dragonFights.js",
-    "old": "  if (\n    !f?.players?.[a.sub] &&\n    (!stood(room, ws, a, mapPixelOfWire(a.pose.x, a.pose.z), now) ||\n      (dragonWatchesAbout(now).includes(m.w) && !(await judged(room, a, [dragonJudgedCell(site[0], site[1])], m.w))))\n  )\n    return; // DRAGON-BUDGET: a watch about (any other is `gone` below, as the clock says)",
-    "new": "  if (!f?.players?.[a.sub] && (!stood(room, ws, a, mapPixelOfWire(a.pose.x, a.pose.z), now) || false)) return; // DRAGON-BUDGET: a watch about (any other is `gone` below, as the clock says)",
+    "old": "  if (\n    !called &&\n    !f?.players?.[a.sub] &&\n    (!stood(room, ws, a, mapPixelOfWire(a.pose.x, a.pose.z), now) ||\n      (dragonWatchesAbout(now).includes(m.w) && !(await judged(room, a, [dragonJudgedCell(site[0], site[1])], m.w))))\n  )\n    return; // DRAGON-BUDGET: a watch about (any other is `gone` below, as the clock says)",
+    "new": "  if (!called && !f?.players?.[a.sub] && (!stood(room, ws, a, mapPixelOfWire(a.pose.x, a.pose.z), now) || false)) return; // DRAGON-BUDGET: a watch about (any other is `gone` below, as the clock says)",
     "tests": [
       "test/net/dragon/dragonbudget.test.js"
     ],

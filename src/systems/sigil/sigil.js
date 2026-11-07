@@ -118,6 +118,7 @@ export const SIGIL_SET_IDS = Object.freeze([
   'wyrd',
   'starspun',
   'eltheric',
+  'defender',
 ]); // WITCH1: THE WYRD'S RAIMENT, the Witches' Festival's; STAR7: THE STARSPUN WEAVE, the festival's Starfall's; SEA-SET: THE ELTHERIC TIDEMAIL, the deep sea's, last; SD9d: THE BRASS OF NUMIDIUM; EG15: THE BATTLEMAGE'S PANOPLY, last
 
 const partyOf = (n) => (Number.isFinite(n) ? Math.max(1, Math.min(PARTY_MAX, Math.floor(n))) : 1);

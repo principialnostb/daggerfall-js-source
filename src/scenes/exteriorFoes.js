@@ -80,6 +80,7 @@ import { CORPSE_ACTIVATION_DISTANCE, liveFoeTargets, liveFoeFor } from '../playe
 import { WEAPON_REACH } from '../combat/playerWeapon.js';   // AUDIT WATCH1 B2: a peer's melee blow on my watch lands from the player's own reach, no farther   // AUDIT WORLD6b-iii(c) A1/C7: the owner reads the taker's reach
 import { createWeapon, bowDamageArrow } from '../combat/enemyEquipment.js';   // MAC-N1: the recovered shaft is CreateWeapon's arrow, value and all   // AUDIT WORLD6b-ii B2: a puppet's weapon is its owner's word, rebuilt from the descriptor   // AUDIT WORLD6b B3/C2: a cell's record projected and its puppets capped, the wire's law
 import { mintCorpseMarker, corpseTextureOf, tickCorpseMarkers, playBodyFall, playRareDrop, corpseLootTargets, physicalCorpseSources, corpseEntryFor, corpseContents, openCorpseLoot, pileBody, sayEnemyDied, raiseEnemyDeath, corpseEntityName } from './corpseMarker.js';
+import { createInvasionBossHost } from './invasionBossHost.js';   // an invasion's boss: its rise, its fall, its slam
 import { createStreetCorpsePrefabs } from './corpsePrefabHost.js';   // DEX5 / AUDIT DEX D11: a mod's corpse prefab - the pool's reach
 import { rollCorpseKit, savedSummon, restoredSummon } from '../systems/foeLootCap.js';   // KIT-ROLL: a plain foe's kit, laddered at its death by every body door; AUDIT RPT1026 F4: a summon's mark through a save
 import { floorLanding } from '../player/enterExit.js';   // REVENANT-FATE (the 2026-10-02 audit): a flyer kneels, and its pile lies, on the ground below
@@ -333,6 +334,7 @@ export function createExteriorFoes({ renderer, collider, fetchBytes, getTexture,
   // array as soon as there is one, because EnemyAI COPIES the position
   // it is handed.
   const spawning = [];    // { feet, capped }
+  const invasion = createInvasionBossHost({ player: playerEntity, onHurt: (n) => onPlayerHurt?.(n, null) });
   const portals = createPortalSet({ renderer, audio });   // COMPANION-PORTAL: this pool's own, drawn with its foes
   let _eye = null;   // COMPANION-PORTAL: the camera, for a portal to stand behind its body
   // AUDIT-39r: THE SWEEP'S EPOCH. clearLive below is
@@ -945,6 +947,7 @@ export function createExteriorFoes({ renderer, collider, fetchBytes, getTexture,
     const bout = f.entity?.bout ?? null;   // ARENA2: a fighter on the arena's sand (scenes/arena/arenaBouts.js)
     if (fromPlayer && !peer && !bout) renownFoeStruck(f);   // RENOWN1: MY blow - a puppet's too, before the divert sends it to the owner; ARENA2: never a bout fighter's (no renown on the sand)
     if (f.yielded || f.executing || f.sparing || f.leaving || f.roaring) return;   // REVENANT-FATE: a beaten revenant takes no blow - its fate is the player's choice (RVN3: nor one tearing away; RVN4: nor one roaring)
+    if (invasion.takes(f, damage, kind, fromPlayer && !peer)) return;   // an invasion's foe is its cell's: my blow goes there to be judged, and its rising boss takes none
     // AUDIT PSCALE1 DOORS-1: a KILL is not a blow - a Disintegrate, a stat drained to zero (the sinks' `whole`), the
     // Razor's whole-health strike (its mark on the foe) - and no fighters' toughness divides it, here or at the owner
     // BOSS-SPELL-WARD: a staff event's mini boss takes a tenth of every spell, where its health is (a puppet's goes to its
@@ -1087,7 +1090,7 @@ export function createExteriorFoes({ renderer, collider, fetchBytes, getTexture,
       // below. AUDIT 24: this one was never freed either, and unlike
       // the cull the record STAYS in `foes` (the tail splice spares
       // corpses), so the batch was unreachable and undead at once.
-      releaseFoeBatch(f);
+      if (!invasion.keeps(f)) releaseFoeBatch(f);   // an invasion's boss keeps it through its fall
       f.killedBy = peer ? 'peer' : fromPlayer ? 'player' : 'other';   // AUDIT FB1025i D2: whose hand, as the watch's pool marks it (cityGuards.js damageGuard) - a road stand slain by the player alone is a Murder reported (roadStands.js)
       // EnemyDeath:131-136 gates the clear on `senses.Target ==
       // PlayerEntityBehaviour` too - a foe killed while fighting
@@ -1106,7 +1109,7 @@ export function createExteriorFoes({ renderer, collider, fetchBytes, getTexture,
       // nothing ever played BodyFall (:126-129).
       // TrackLooseObject runs INSIDE CreateEnemyCorpseMarker, so the
       // pixel is read at the death, not when the texture lands.
-      mintCorpse(f);   // WORLD6b: one home for the body, a puppet's too
+      invasion.lay(f, () => mintCorpse(f), () => releaseFoeBatch(f));   // WORLD6b: one home for the body, a puppet's too; an invasion's boss's after its fall
       return;
     }
     // C15 knockback, WeaponManager.cs:578-581. AUDIT 24 (wave 38): this
@@ -1583,6 +1586,7 @@ export function createExteriorFoes({ renderer, collider, fetchBytes, getTexture,
     if (eye) _eye = eye;
     portals.tick(_eye);   // COMPANION-PORTAL: each opening, holding, sealing
     hitEffects?.bleed?.(dt, foes, foeBleedView);   // BLOOD2c: the wounded drip, the dead bleed out - every body this pool walks, puppets included
+    invasion.tick();
     corpsePrefabs.frame(foes, dt);   // DEX5: a prefab's body on the foes' clock
     tickCorpseMarkers(corpseBatches, dt);   // AUDIT DEX B3: a body of more than one frame animates (the Hell Hound's)
     _peerFrame++;   // WORLD6b-ii: the peers are read once a frame
@@ -1597,6 +1601,7 @@ export function createExteriorFoes({ renderer, collider, fetchBytes, getTexture,
       f.questBehaviour?.update();
       if (f._keptTag || f.questBehaviour) keptKillTick(f);   // KEPT-KILL: and a foe kept on a partner's word says its fall; DESYNC-ZERO: and my quest's own
       if (f.dead) continue;
+      if (invasion.frame(f, playerFeet, eye)) continue;   // an invasion's foe: walked where its cell says, its boss held while it rises
       if (!f.puppet && f.entity.bossWrathFrom != null && bossTraitsTick(f.entity, _bossS) === 'wrath') say?.(bossWrathLine(foeTitle(f.entity, enemyDisplayName(f.mobileType)) ?? ''));   // AUDIT WORLD-EVENTS L2-5: a wrath come due turns on its own clock, struck or not
       // WORLD6b: a PUPPET - posed by its owner's stream (the feet eased toward the streamed feet, a far jump snapped, the
       // yaw set), the walk while the streamed feet move, the hurt one-shot after a health drop, the strike edge once
@@ -2109,7 +2114,7 @@ export function createExteriorFoes({ renderer, collider, fetchBytes, getTexture,
     npcLane?.begin();
     _npcOffered = !!npcLane;
     for (const f of foes) {
-      if (f.dead || !f._mout) continue;
+      if ((f.dead && !invasion.falling(f)) || !f._mout) continue;   // an invasion's boss is drawn through its fall
       if (pilotFoe(f)) continue;   // STAFF-PILOT: the boss I steer - my camera stands inside it
       // A5 - EntityConcealmentBehaviour.Update/MakeConcealed
       // (:36-43, :56-62): "Handles magical concealment for entities
@@ -2153,6 +2158,7 @@ export function createExteriorFoes({ renderer, collider, fetchBytes, getTexture,
         org[0] = f.ai.feet[0]; org[1] = spriteOriginY(f.ai.feet[1], f.idleH, sz.h, _bh); org[2] = f.ai.feet[2];
         f.batch.origin = org;
       } else f.batch.origin = _sg > 1 ? _sd.feet : f.ai.feet;
+      invasion.dress(f, _eye);   // an invasion's boss: risen, fallen
       // MWNPC5c: a class foe offered to its body, dressed as its billboard is; the billboard draws until drawBodies says
       // the body stands, and casts its shadow either way. One drawn grown on a wagon under the Overworld (WAGONS2) keeps
       // its sprite - the far view's, as the roads' bands are (MWNPC10c)
@@ -3007,8 +3013,8 @@ export function createExteriorFoes({ renderer, collider, fetchBytes, getTexture,
     renownFoeDied(f);
     if (f._pupQuest) _questShare?.onPuppetDied?.(f._pupQuest, f.puppet, f.seq);   // KEPT-KILL: whose foe, by its number - the kill the owner's pose may say too counts once   // QUEST-PARTY: a party's quest foe fell - my copy of the quest counts the kill (IncrementKills)   // RENOWN1: its owner's frame says it fell - it pays me if I fought it
     f.corpse = true;
-    releaseFoeBatch(f);
-    mintCorpse(f);
+    if (!invasion.keeps(f)) releaseFoeBatch(f);
+    invasion.lay(f, () => mintCorpse(f), () => releaseFoeBatch(f));
   }
   /** A puppet gone: its owner's roll no longer names it, its owner left the cell or went quiet, or the room changed.
    *  AUDIT WORLD6b B5/B7: the record ENDS here - spliced out of the roll (a flag left it standing for the next frame,

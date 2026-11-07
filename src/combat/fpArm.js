@@ -1746,6 +1746,7 @@ import { ammoCountFor } from '../systems/inventory.js';   // AUDIT 68 S27-ammoCo
 import { ownWeaponModelFor } from '../characters/ownModels/ownWeaponModels.js';   // FIELD-GUN-MW2: the weapons Morrowind does not have - a leaf too
 import { glowUnit } from '../render/weaponGlowGlsl.js';   // WEAPON-GLOW1: the glow's unit off the lens's rows - a leaf
 import { drawnPiece } from '../net/appearanceLaw.js';   // APPEARANCES: a worn piece's look - a leaf
+import { ghostAlpha } from '../systems/toybox/toyboxGhost.js';   // the toybox's ghost: my own arms drawn see-through
 
 const saidArrow = new Set();
 function sayNoArrow(notes) {
@@ -6821,11 +6822,13 @@ export function createFpArm() {
       // is top-left, so its v runs from the top: 1 - fh/RT down to 1).
       // DISC13-C: the rect is the frame window's, which covers the screen
       // and slides with the widget's own sub-pixel position.
+      const seeThrough = ghostAlpha();   // the toybox's ghost: my own arms see-through
       if (win) {
-        renderer.drawScreenQuad(tex, win.dst, { u0: 0, v0: fh / edge, u1: fw / edge, v1: 0 });
+        if (seeThrough < 1) renderer.drawScreenQuad(tex, win.dst, { u0: 0, v0: fh / edge, u1: fw / edge, v1: 0 }, [1, 1, 1, seeThrough], { blend: true });
+        else renderer.drawScreenQuad(tex, win.dst, { u0: 0, v0: fh / edge, u1: fw / edge, v1: 0 });
         return true;
       }
-      renderer.drawScreenOverlayQuad(tex, pw / edge, ph / edge);
+      renderer.drawScreenOverlayQuad(tex, pw / edge, ph / edge, seeThrough);
       return true;
     },
 

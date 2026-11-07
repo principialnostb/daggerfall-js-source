@@ -138,7 +138,7 @@
   {
     "name": "STAFF1-title-lost-keeps-god",
     "file": "src/scenes/world.js",
-    "old": "    if (!isStaffT(_staffGlyphs)) setStaffPowers({ god: false, fly: false });",
+    "old": "    if (!isStaffT(_staffGlyphs)) setStaffPowers({ god: false, fly: false, noclip: false });",
     "new": "",
     "tests": [
       "test/net/staff1.test.js"

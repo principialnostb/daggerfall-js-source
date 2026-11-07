@@ -187,6 +187,7 @@ import { cellDoors, cellTell, cellDoorShut, isCellDirectory, cellPlanAlarm } fro
 import { isCoarseNode, cellSeedOf } from '../../src/net/cellTree.js';   // COST-2: a coarse node is the Worker's name for an object, never a page's room; part two: the cellSeed setting read
 import { staffNetFrame, staffNetClosed, staffFoesSeen, staffFoesStripped, staffReactAsk, staffReactPose, staffLeft } from './staffFeeds.js';   // STAFF-PANEL5-FEEDS: the Staff Panel's counts - network bursts, monsters, an encounter's reaction (off until their URLs are set)
 import { hiddenMay, hiddenAsked, seatsTaken, hiddenSeats, hiddenHello, hiddenPose, hiddenLapse, hiddenEntered, isHidden } from './staffHidden.js';   // STAFF-PANEL5-HIDDEN: a hidden staff spectator, named by nobody
+import { ghostFrame, ghostHello, ghostHides } from './staffGhost.js';   // the toybox's ghost: seen by developers and moderators alone
 import { takeStaffEventLaw, sayStaffBook, staffEventWord, staffBookInternal, staffTellInternal, staffCallInternal, SEV_INTERNAL_BOOK, SEV_INTERNAL_TELL, SEV_INTERNAL_CALL } from './staffEvents.js';   // STAFF-EVENT: a staff event's book (the hub) and meter (its place's cell)
 import { takeYardOrder } from './yardWords.js';
 import { delveFrame, forgetDelve } from './delveRoom.js';   // DELVE II (DLV3): a dungeon's encounters, kept by its room
@@ -404,6 +405,8 @@ import { egHallOf, egCircleOfHall, EG_LAST_WORD_MS, EG_ABSENT_TRIAL_MS } from '.
 import { mintEgReceipt } from '../../src/net/eliteGates/egReceipt.js';
 import { dragonWord, dragonTick, dragonTrails, dragonFellInternal, dragonJudgeInternal, dragonReceiptTo, sweepDragonReceipts, mergeBeats, DRAGON_REST_MS, DRAGON_INTERNAL_FELL, DRAGON_INTERNAL_JUDGE } from './dragonFights.js';   // DRAGON2: the Dwarven Dragon's fight, the relay's half
 import { dragonGate } from '../../src/net/wire.js';   // DRAGON2: its frames' own bucket
+import { invasionWord, invasionTick } from './invasionFights.js';   // an invasion's fight, hosted by its city's cell
+import { invasionGate } from '../../src/net/wire.js';
 // EG-ZA (2026-10-12, Mac: "I said I want everything"; Elite-Gates.md sections 22 and 23): A KEY IS NEVER LOST - the hub's
 // open retried and its call told the room, an open the room never took voided by the room (its tombstone first), a client's
 // void of a stake no call answered, every receipt held at the hub (`egrc:<sub>`) until its account says it is counted, a
@@ -1308,10 +1311,10 @@ export class Room {
   }
   /** Everyone but `ws` the room can name - hello'd, and never a socket this object closed or whose leave is said
    *  (AUDIT DEEP2 C, ONE-SEAT R4's rule): their attachments, in the index's order. */
-  _othersOf(ws) {
+  _othersOf(ws, viewer = this._all().get(ws)) {
     const out = [];
     for (const [other, b] of this._all()) if (other !== ws && b.id && !this._dead.has(other) && !this._gone.has(other)) out.push(b);
-    return out.filter((b) => !b.hid);   // STAFF-PANEL5-HIDDEN: a hidden socket is in no roster - nor the welcome's who-is-here, nor a region's travellers
+    return out.filter((b) => !b.hid && !ghostHides(b, viewer));   // STAFF-PANEL5-HIDDEN: a hidden socket is in no roster - nor the welcome's who-is-here, nor a region's travellers
   }
   /** AUDIT SCALE5a C1-C3: how many the room can name - hello'd, never a socket this object closed or whose leave is said
    *  (`_othersOf`'s rule, the joiner's own socket counted): the welcome's `n`, said again on a channel's every leave. */
@@ -3248,7 +3251,7 @@ export class Room {
     // SERPENT1: A CELL WITH A SERPENT'S FIGHT beats it - and its other duties (a rite's tell, its raids' ends) still run,
     // every SERPENT_REST_MS while the fight beats and on every firing once it is over, under one alarm: the soonest of the
     // beat and what they arm
-    const sp = mergeBeats(await this._serpentTick(), await dragonTick(this));   // DRAGON2: and a dragon's fight, on the same alarm
+    const sp = mergeBeats(mergeBeats(await this._serpentTick(), await dragonTick(this)), await invasionTick(this));   // DRAGON2: and a dragon's fight, on the same alarm; and an invasion's
     if (sp) {
       const now = Date.now();
       if (!sp.live || !(now < this._serpentRestAt)) { this._serpentRestAt = now + Math.min(SERPENT_REST_MS, DRAGON_REST_MS); await this._alarmRest(); }
@@ -3637,7 +3640,7 @@ export class Room {
     // pixel derived once for the whole room (wire.js inRangeOf, inRange's own answer), not once a listener
     const reach = inRangeOf(a.key ?? '', m.p);
     for (const [other, b] of this._all()) {
-      if (other === ws || !b.id || (S && !S.members[b.sub])) continue;
+      if (other === ws || !b.id || (S && !S.members[b.sub]) || ghostHides(a, b)) continue;   // a ghost's pose to developers and moderators alone (staffGhost.js)
       if (reach(b.pose)) heard.push([other, b]);
     }
     for (const [other, b] of (still ? heard : poseFan(heard, m.p, (e) => e[1].pose, met.turn, (e) => e[1].id))) {   // SLAM10: the far tier bucketed by the listener's ID, so a moving crowd cannot shuffle who is served
@@ -3735,6 +3738,7 @@ export class Room {
     if (a.vid && a.id && isChannelShard(a.key) && m.t !== 'hello' && m.t !== 'ping' && m.t !== 'pose' && m.t !== 'lease') { a = await this._leaseHeard(ws, a); if (a) this._hubForward(ws, a, message); return; }   // LEASE1: as above
     // AUDIT SCALE II R3-7: and a court hears from a copy's socket its gate words alone (the copy hands up nothing else)
     if (ws.court && m.t !== 'gate') { this._junk(ws); return; }
+    if (m.t === 'ghost') { ghostFrame(this, ws, a, m); return; }   // the toybox's ghost turned on or off (staffGhost.js)
     if (m.t === 'hello') {
       const now = Date.now();
       this._metrics.c.hellos++;   // SCALE2b
@@ -3867,7 +3871,7 @@ export class Room {
       if (m.cl) for (const other of seatHeld) this._refuse(other, SEAT_ELSEWHERE, CLOSE_REPLACED);
       // AUDIT DEEP2 C (ONE-SEAT R4's rule): never a socket this object closed or whose leave is said - the runtime may
       // list it until its close completes, and a joiner handed its mark held a ghost for TRAV_STALE_MS
-      const others = this._othersOf(ws);   // SCALE5a: a method of its own
+      const others = this._othersOf(ws, who);   // SCALE5a: a method of its own
       // AUDIT ONESEAT R1: A SEAT THAT MOVED IS NOT A DRAIN. Nobody else here is an empty room only when nobody's seat
       // carried over - a claim that closed the account's other tabs, or a reconnect that replaced its own old socket,
       // moved a seat the room never lost, and the sweep below took every party in the hub with it (a stranger's too)
@@ -3896,6 +3900,7 @@ export class Room {
         if (this._hubKeyKept !== this._hubKey) { this._hubKeyKept = this._hubKey; try { await this.state.storage.put(HUB_KEY_KEY, this._hubKey); } catch { this._hubKeyKept = null; } }
       }
       if (!this._setAttach(ws, { ...a, ...placed, ...shown, ...(shard ? { vid, hm: { acct: m.acct ?? null, as: m.asecret ?? null, ps: m.ps === 1 ? 1 : 0, sc: m.secret } } : copy ? { vid } : {}), ...(m.gv >= GRANT_HELLO_LAW && streamsFoes(a.key) ? { gv: 1 } : {}), id: m.id, sc: m.secret, name: who.name, title: who.title, ...(who.ts ? { ts: who.ts } : {}), glyphs: who.glyphs, gx: who.gx, au: who.au, ...(who.pi ? { pi: who.pi } : {}), ...(who.rb ? { rb: who.rb } : {}), lv: who.lv, ...(who.ak ? { ak: who.ak } : {}), ...(who.fx ? { fx: who.fx } : {}), ...(who.sc === 1 ? { gsc: 1 } : {}), ...guild, ...(who.hn ? { hn: who.hn, hc: who.hc, hb: who.hb, hg: who.hg } : {}), ...(who.ci && !chat && !isSocialRoom(a.key) ? wildTokenAtt(who) : {}), ...(armsOk(who.wa) && !chat && !isSocialRoom(a.key) ? { wa: who.wa } : {}), gio: who.gio, ...(Number.isSafeInteger(who.lt) ? { lt: who.lt } : {}), ...(m.ls === 1 && leaseRoom(a.key) ? { ld: 0 } : {}), sub: who.subject, ...instAtt, ...(siegeSide ? { sd: siegeSide } : {}), mu: who.mu, ...(who.fz ? { fz: who.fz } : {}), ...(m.fv === 1 ? { fv: 1 } : {}), pose: chat ? null : m.pose, since: this._seatKeep(replaced, now), ...arena, ...charLv, ...linked, ...(chat && who.kind === 'guest' ? { gu: 1 } : {}), ...(m.w2 === 1 ? { w2: 1 } : {}), ...(who.fo ? { fo: who.fo } : {}), ...(m.sm === 1 && isSocialRoom(a.key) ? { sm: 1 } : {}), ...(who.hid ? { hid: 1, lk: 0 } : {}) })) { this._refuse(ws, 'hello too large'); return; }   // MOD1: `sub` the verified account (what a mute names), `mu` until when it may not talk   // RENOWN1: `lv` the Renown level the token carried   // AUDIT SAFE RELAY-11: `gu`, a guest's socket in a channel - paced as a sprout's (`_newVoiceWait`)   // STAFF-PANEL5-MESSAGE: `sm`, a hub socket whose game shows a staff message's box (its hello said so) - one without it is "old game, not shown"   // STAFF-PANEL5-HIDDEN: `hid`, a hidden staff spectator's socket (staffHidden.js) - and in no census (`lk` 0 over `linked`)
+      ghostHello(this, ws, m, who);   // a ghost's hello (`gh`) is marked before its join is fanned (staffGhost.js)
       if (!chat && m.pose && this._trailing({ key: a.key, sub: who.subject })) this._trailPose(ws, m.pose, now);   // AUDIT INT11: a fighter's socket new to the room stands where its hello put it, from now - on its trail, or none says when
       // SRV-N: `v` rides EVERY welcome, a channel's included. A player in the enhanced skin holds a presence socket
       // and one chat socket per tab; whichever reconnects first after a hand deploy is the one that notices, and the
@@ -4029,7 +4034,7 @@ export class Room {
       if (String(a.key ?? '').startsWith('interior:') && who.subject) { try { await this._gambitOwed(ws, { sub: who.subject }, 0); } catch (e) { console.warn('[gambit] hello failed', e?.message ?? e); } }   // KG6: and the King's Gambit results owed here
       if (unseen) return;   // HOTFIX 1003f: a floor's hello said as anyone's - a private session's stranger's to nobody (a member's join says it: `_sessionShow`)
       const join = JSON.stringify(badged({ t: 'join', id: m.id, name: who.name, look: m.look, pose: this._drawn({ sub: who.subject, pose: m.pose }, a.key).pose }, who));   // AUDIT-SEATS T2: and a spectator's join stands it nowhere
-      if (!who.hid) for (const [other, b] of [...this._all()]) if (other !== ws && b.id && (!S || S.members[b.sub])) this._send(other, join);   // STAFF-PANEL5-HIDDEN: nor here   // AUDIT PRE-MERGE 1003b R4: a member's to the members alone
+      if (!who.hid) for (const [other, b] of [...this._all()]) if (other !== ws && b.id && (!S || S.members[b.sub]) && !ghostHides(this._attach(ws), b)) this._send(other, join);   // STAFF-PANEL5-HIDDEN: nor here   // AUDIT PRE-MERGE 1003b R4: a member's to the members alone
       followJoined(this, ws, this._attach(ws));   // STAFF-PANEL5-FOLLOW: a spectator counted here, or a followed account said come
       if (copy) {
         // SCALE5d part two: A COPY'S HELLO IS THE COURT'S TOO - its socket made there (admitted by the court's law, or
@@ -4498,6 +4503,12 @@ export class Room {
       try { await this._serpentFrame(ws, a, m, now); } catch (e) { console.warn('[serpent] word failed', e?.message ?? e); }
       return;
     }
+    if (m.t === 'inv') {   // an invasion's fight, judged by its city's cell (server/src/invasionFights.js)
+      const now = Date.now();
+      if (!this._spend(ws, now, invasionGate, 'invBucket', 'invDrops', 'too many invasion frames') || typeof a.sub !== 'string' || !a.sub) return;
+      try { await invasionWord(this, ws, a, m, now); } catch (e) { console.warn('[inv] word failed', e?.message ?? e); }
+      return;
+    }
     if (m.t === 'dragon') {   // DRAGON2: a word on the Dwarven Dragon's fight, to its site's cell (server/src/dragonFights.js)
       const now = Date.now();
       if (!this._spend(ws, now, dragonGate, 'dragonBucket', 'dragonDrops', 'too many dragon frames')) return;
@@ -4845,7 +4856,7 @@ export class Room {
       this._roomWho = budget.bucket;
       if (!budget.pass) return;
       const target = this._idFirst(id, ws);
-      if (!target) return;
+      if (!target || ghostHides(target[1], a)) return;   // a ghost is asked for by nobody who cannot see it
       const [tws, b] = target;
       let look = this._looks.get(b.id) ?? null;
       if (!look) { look = (await this.state.storage.get(lookKey(b.id))) ?? null; if (look) this._looks.set(b.id, look); }

@@ -2,8 +2,8 @@
   {
     "name": "HONOUR-BANNER-dropped-as-not-held",
     "file": "src/ui/lootBanner.js",
-    "old": "      canEnter: (e) => !!e.honour || !held || bannerStillHeld(held, e),",
-    "new": "      canEnter: (e) => !held || bannerStillHeld(held, e),",
+    "old": "      canEnter: (e) => !!e.honour || !!e.rainbow || !held || bannerStillHeld(held, e),",
+    "new": "      canEnter: (e) => !!e.rainbow || !held || bannerStillHeld(held, e),",
     "tests": [
       "test/systems/lootbanner.test.js"
     ]

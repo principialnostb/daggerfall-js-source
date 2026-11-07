@@ -480,6 +480,13 @@ on:
       - "src/poi/poiImage.js"
       - "server/src/staffFeedLaw.js"
       - "src/ui/touch/touchDevice.js"
+      - "src/systems/toybox/toyboxLaw.js"
+      - "src/systems/toybox/toyboxItem.js"
+      - "src/player/noClip.js"
+      - "src/net/staffEvent/toyboxEvent.js"
+      - "src/net/invasion/invasionWire.js"
+      - "src/net/invasion/invasionBlows.js"
+      - "src/systems/toybox/toyboxSpecial.js"
   workflow_dispatch:
 
 permissions:
