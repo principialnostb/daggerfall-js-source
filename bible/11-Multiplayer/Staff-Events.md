@@ -90,7 +90,8 @@ none there, and the service ends one the hub took without them (`event-relay-old
 board as kind `invasion`, whatever the region (`src/systems/toybox/toyboxNews.js`). The Timers window counts to `go`
 (`src/systems/toybox/toyboxMarks.js`). Nothing stands and no word counts before `go`: the game holds no one in it
 (`staffRaidHere`) and the cell drops the words (`staffEventBegun`). A game older than the toybox reads the event as a plain
-staff event and stands its monsters at once. A peer's raider tagged with a toybox event stands no puppet here
+staff event and stands its monsters at once. So the hub tells a toybox event only to a socket whose hello says
+`tb` (`bookFor`, `server/src/staffEvents.js`). A peer's raider tagged with a toybox event stands no puppet
 (`toyboxRaidKey`), since no current game stands one.
 
 **On the map.** An invasion has its own mark (`src/ui/ink/inkMap.js` `paintInvasionMark`, `INVASION_MARK_CSS`): a
