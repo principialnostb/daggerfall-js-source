@@ -1,3 +1,4 @@
+import { appearanceDisplayKey } from '../../src/characters/activeAppearance.js';
 // PORTRAIT3D (2026-10-15, the owner: "can we do the other races with 3d portraits also?", then "#2 is exactly I wanted.
 // Which also affects the talk window for npcs", and of what the first cut left out: "Stop half assing this"): THE FACE
 // AS A PICTURE OF THE MORROWIND HEAD, AS THE BODY WEARS IT. With Morrowind's data attached, a face Daggerfall paints is
@@ -312,18 +313,18 @@ test('PORTRAIT3D: a live character\'s head key - the data\'s stamp and the helm 
   try {
     assert.equal(playerHeadKey({ equip: { slots: [] } }), '0', 'no data: no Morrowind head to key');
     _setHeadDataForTests(STORE(7));
-    assert.equal(playerHeadKey({}), '7|-', 'an identity: no helm');
+    assert.equal(playerHeadKey({}), `${appearanceDisplayKey()}|7|-`, 'an identity: no helm');
     const slots = [];
     slots[12] = { templateIndex: CLASSIC_ARMOR_TEMPLATE.Helm, material: ARMOR_MATERIAL.Steel };
-    assert.equal(playerHeadKey({ equip: { slots } }), `7|${CLASSIC_ARMOR_TEMPLATE.Helm}/${ARMOR_MATERIAL.Steel}/closed/worn`);
+    assert.equal(playerHeadKey({ equip: { slots } }), `${appearanceDisplayKey()}|7|${CLASSIC_ARMOR_TEMPLATE.Helm}/${ARMOR_MATERIAL.Steel}/closed/worn`);
     setPref('mwSteelHelm', 'open');
-    try { assert.equal(playerHeadKey({ equip: { slots } }), `7|${CLASSIC_ARMOR_TEMPLATE.Helm}/${ARMOR_MATERIAL.Steel}/open/worn`, 'the visor raised, another head'); }
+    try { assert.equal(playerHeadKey({ equip: { slots } }), `${appearanceDisplayKey()}|7|${CLASSIC_ARMOR_TEMPLATE.Helm}/${ARMOR_MATERIAL.Steel}/open/worn`, 'the visor raised, another head'); }
     finally { setPref('mwSteelHelm', 'closed'); }
     setPref('mwBeastHelm', 'hidden');   // BEAST-BOOTS: a beast's helm hidden is another head too
-    try { assert.equal(playerHeadKey({ equip: { slots } }), `7|${CLASSIC_ARMOR_TEMPLATE.Helm}/${ARMOR_MATERIAL.Steel}/closed/hidden`, 'the Beast Helmets switch, another head'); }
+    try { assert.equal(playerHeadKey({ equip: { slots } }), `${appearanceDisplayKey()}|7|${CLASSIC_ARMOR_TEMPLATE.Helm}/${ARMOR_MATERIAL.Steel}/closed/hidden`, 'the Beast Helmets switch, another head'); }
     finally { setPref('mwBeastHelm', 'worn'); }
     _setHeadDataForTests(STORE(8));
-    assert.equal(playerHeadKey({}), '8|-', 'another generation, another key');
+    assert.equal(playerHeadKey({}), `${appearanceDisplayKey()}|8|-`, 'another generation, another key');
   } finally { _setHeadDataForTests(null); }
   assert.match(src('src/ui/dialClassicArt.js'), /return `\$\{f\.file\}#\$\{f\.record\}\|mw\$\{playerHeadKey\(entity\)\}`; \};/, 'the dial\'s key: its record\'s and the head\'s');
 });

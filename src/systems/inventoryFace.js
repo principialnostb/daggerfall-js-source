@@ -4,6 +4,7 @@ import { FACES_PER_RACE } from './races.js';
 export const INVENTORY_FACES_PREF = 'inventoryFaces';
 export const inventoryFaceKey = (entity, identity) => JSON.stringify([entity?.name ?? '', identity.race, identity.gender]);
 export function inventoryFaceIndex(entity, identity) {
+  if (getPref('paperdollCustomization') === false) return null;
   const value = getPref(INVENTORY_FACES_PREF)?.[inventoryFaceKey(entity, identity)];
   return Number.isInteger(value) && value >= 0 && value < FACES_PER_RACE ? value : null;
 }

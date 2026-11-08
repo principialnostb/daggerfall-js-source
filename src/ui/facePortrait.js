@@ -1,3 +1,4 @@
+import { appearanceDisplayKey } from '../characters/activeAppearance.js';
 // @ts-check
 // ═══════════════════════════════════════════════════════════════════
 // TILE1 — THE CHARACTER'S FACE, IN ONE HOME.
@@ -195,7 +196,8 @@ async function headFace(raceKey, gender, scale, i, classic) {
     import('../scenes/dataSource.js'), import('../render/portraitRenderer.js'),
   ]);
   if (!(morrowindDataCount() > 0) || !portraitRenderer() || !globalThis.document) return classic;
-  const key = `${raceKey}|${gender}|${scale}|${i}|${morrowindDataGeneration()}`;
+  const displayKey = appearanceDisplayKey();
+  const key = `${raceKey}|${gender}|${scale}|${i}|${morrowindDataGeneration()}|${displayKey}`;
   const have = heads.get(key);
   if (have?.canvas) return have.canvas;
   if (have?.pending) return have.pending;
@@ -208,6 +210,7 @@ async function headFace(raceKey, gender, scale, i, classic) {
     console.warn('[face] the Morrowind head would not draw', e?.message ?? e);
     return null;
   }).then((canvas) => {
+    if (displayKey !== appearanceDisplayKey()) { heads.delete(key); return classic; }
     if (canvas) heads.set(key, { canvas }); else heads.delete(key);
     return canvas ?? classic;
   });

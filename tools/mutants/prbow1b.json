@@ -85,20 +85,29 @@
   },
   {
     "name": "portrait-unpadded",
-    "file": "src/combat/fpArm.js",
-    "old": "      const halfH = win.halfH * 1.06;",
-    "new": "      const halfH = win.halfH;",
+    "file": "src/render/figureFraming.js",
+    "old": "halfH: win.halfH * 1.24",
+    "new": "halfH: win.halfH",
     "tests": [
-      "test/formats/morrowind/prbow1b_followups.test.js"
+      "test/systems/figureFraming.test.js"
     ]
   },
   {
     "name": "portrait-square",
-    "file": "src/combat/fpArm.js",
-    "old": "      const halfW = win.halfW * 1.06;",
-    "new": "      const halfW = win.halfH * 1.06;",
+    "file": "src/render/figureFraming.js",
+    "old": "halfW: win.halfW * 1.55",
+    "new": "halfW: win.halfH * 1.55",
     "tests": [
-      "test/formats/morrowind/prbow1b_followups.test.js"
+      "test/systems/figureFraming.test.js"
+    ]
+  },
+  {
+    "name": "fitting-camera-counts-moving-cloth",
+    "file": "src/render/figureFraming.js",
+    "old": "  const fixed = ranges.filter((range) => !isCloakSlot(range.slot) && !range.piece?.clothPhysics);",
+    "new": "  const fixed = ranges;",
+    "tests": [
+      "test/systems/figureFraming.test.js"
     ]
   }
 ]

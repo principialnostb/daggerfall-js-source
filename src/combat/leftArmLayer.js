@@ -1,3 +1,4 @@
+import { modGroupEnabled } from '../systems/enhancedModResources.js';
 // @ts-check
 // LEFT-ARM (2026-10-26): THE LEFT ARM LAID OVER THE CLIP, BY WEIGHT. One layer for the arms the clip does not hold the
 // way a body should - a shield's, a free hand's - sampled from another clip of the same rig and eased on and off, so a
@@ -51,6 +52,7 @@ const ONE_HANDED = Object.freeze([MW_WEAPON_TYPE.ShortBladeOneHand, MW_WEAPON_TY
  *  A one-hander and a shield in the first person too - its arm is laid only for a bash (leftArmPlan).
  *  @param {{ view?: string, type?: number, shield?: boolean, dual?: boolean, free?: boolean }} [o] */
 export function leftArmModeOf({ view = 'third', type = MW_WEAPON_TYPE.None, shield = false, dual = false, free = true } = {}) {
+  if (!modGroupEnabled('animations')) return null;
   if (!free) return null;
   if (shield && type === MW_WEAPON_TYPE.HandToHand) return 'guard';
   if (shield) return 'shield';   // SHIELD-BASH: the first person's only for a bash (leftArmPlan)
@@ -83,6 +85,10 @@ export function leftArmPlan({ mode = null, view = 'third', moving = false, base 
     // SHIELD-RUN-AS-WALK (the owner, 2026-11-05: the run's shield - how it is held, how the arm sways - as the walk's,
     // worked out): straight, the strafe's arm of that gait, live, from the very clip a strafe of it plays; to the side,
     // the strafe's own arm
+    // SHIELD-WALK-NEUTRAL (2026-11-07, the owner: walking forward the strafe's raised shield covers the character; "let it
+    // rise not so high - a little higher than the neutral position, as the reference"): walking forward, the stance idle's
+    // own arm (idle1h, the neutral shield), on its breath - raised a little by characters/bodyMotion/shieldSet.js
+    if (b === 'walkforward') return { kind: 'stance', base: 'idle', stance: 'drawn', still: false, sway: 1, w: 1 };
     return heldShield(b, strafeOf);
   }
   if (mode === 'guard') {

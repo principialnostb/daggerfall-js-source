@@ -1,3 +1,4 @@
+import { modGroupReady } from '../systems/enhancedModResources.js';
 // @ts-check
 // CHAR-PIX1 (2026-10-27, the owner: "в оригинале моделька персонажа немного пикселизируется как и у нпс ... сделай эту
 // пикселизацию грамотно"): THE MORROWIND BODY, PIXELATED IN PLACE. Daggerfall's own people are sprites drawn on its
@@ -21,6 +22,7 @@ import { CHAR_PIXEL_INITIAL, CHAR_PIXEL_PREFS } from '../systems/charPixel.js';
 
 /** The rows a dial stands at (0 off) - `who` fp, player or npc. */
 export function charPixelRows(who) {
+  if (!modGroupReady('bodies')) return 0;
   const v = Number(getPref(CHAR_PIXEL_PREFS[who] ?? CHAR_PIXEL_PREFS.npc));
   return Number.isFinite(v) && v >= 0 ? v : CHAR_PIXEL_INITIAL[who] ?? 0;
 }
@@ -38,6 +40,7 @@ precision highp float;
 uniform sampler2D uColor;
 uniform highp sampler2D uDepth;
 uniform vec3 uGrid;   // the viewport's corner and the block size, in target pixels
+uniform float uOpacity; // optional translucent mesh write-back; character blocks remain opaque
 uniform int uSub;     // CHAR-PIX-AVG: the low texels a block holds along each side (PIX_SUB_MAX at most)
 out vec4 outColor;
 void main() {
@@ -56,7 +59,7 @@ void main() {
     }
   }
   if (n < 0.5 * float(uSub * uSub)) discard;   // the body covers less than half the block: the world's
-  outColor = vec4(sum / n, 1.0);
+  outColor = vec4(sum / n, uOpacity);
   gl_FragDepth = d;   // the nearest the body stands in the block
 }`;
 
@@ -78,7 +81,7 @@ function layerOf(renderer) {
   L = {
     prog, vao: gl.createVertexArray(), fbo: gl.createFramebuffer(), color: gl.createTexture(), depth: gl.createTexture(),
     w: 0, h: 0, uColor: gl.getUniformLocation(prog, 'uColor'), uDepth: gl.getUniformLocation(prog, 'uDepth'),
-    uGrid: gl.getUniformLocation(prog, 'uGrid'), uSub: gl.getUniformLocation(prog, 'uSub'), proj: new Float32Array(16),
+    uGrid: gl.getUniformLocation(prog, 'uGrid'), uOpacity: gl.getUniformLocation(prog, 'uOpacity'), uSub: gl.getUniformLocation(prog, 'uSub'), proj: new Float32Array(16),
   };
   layers.set(renderer, L);
   return L;
@@ -132,8 +135,10 @@ const _pv = new Float32Array(16);
  * Draw `draws` ({ mesh, model }, drawn in order under one picture) pixelated at `rows` per screen height, or straight
  * through renderer.drawCharacter when the dial is off or a block would be one pixel. `corners`, optional: world points
  * that hold the whole figure (its box's eight) - the write-back covers their rectangle alone, not the screen.
+ * Optional opacity applies only to pixel write-back: translucent callers draw opaque into the isolated target;
+ * their HD/one-pixel fallback belongs to the caller. Character callers keep the default one.
  */
-export function drawPixelatedCharacters(renderer, draws, rows, corners = null, draw = d => renderer.drawCharacter(d.mesh, d.model)) {
+export function drawPixelatedCharacters(renderer, draws, rows, corners = null, draw = d => renderer.drawCharacter(d.mesh, d.model), opacity = 1) {
   const gl = renderer.gl;
   const vp = /** @type {Int32Array} */ (gl.getParameter(gl.VIEWPORT));
   const px = blockPixels(vp[3], rows);
@@ -187,10 +192,20 @@ export function drawPixelatedCharacters(renderer, draws, rows, corners = null, d
   gl.uniform1i(L.uColor, 0); gl.uniform1i(L.uDepth, 6);
   gl.uniform3f(L.uGrid, vp[0], vp[1], px);
   gl.uniform1i(L.uSub, sub);
+  gl.uniform1f(L.uOpacity, opacity);
   // The renderer's front face is CW for its life (renderer.js frontFace) - this triangle would be culled as a back.
   const culled = gl.isEnabled(gl.CULL_FACE);
   gl.disable(gl.CULL_FACE);
-  gl.drawArrays(gl.TRIANGLES, 0, 3);
+  // Translucent shells render opaque into the isolated colour/depth target, then blend once per block.
+  // Keep their nearest depth for occlusion, while leaving the world's depth untouched.
+  const alpha = opacity < 1;
+  const blend = alpha && gl.isEnabled(gl.BLEND), depthMask = alpha ? gl.getParameter(gl.DEPTH_WRITEMASK) : true;
+  const factors = alpha ? [gl.BLEND_SRC_RGB, gl.BLEND_DST_RGB, gl.BLEND_SRC_ALPHA, gl.BLEND_DST_ALPHA].map(k => gl.getParameter(k)) : null;
+  if (alpha) { gl.enable(gl.BLEND); gl.blendFuncSeparate(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA, gl.ONE, gl.ONE_MINUS_SRC_ALPHA); gl.depthMask(false); }
+  try { gl.drawArrays(gl.TRIANGLES, 0, 3); }
+  finally {
+    if (alpha) { gl.depthMask(depthMask); gl.blendFuncSeparate(...factors); if (!blend) gl.disable(gl.BLEND); }
+  }
   if (culled) gl.enable(gl.CULL_FACE);
   gl.disable(gl.SCISSOR_TEST);
   gl.activeTexture(gl.TEXTURE6);

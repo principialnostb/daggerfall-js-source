@@ -1,3 +1,5 @@
+import { enabledModValue } from './enhancedModRuntime.js';
+import { standardModValue } from './enhancedModProfile.js';
 // ROADS 24: A VENDORED MOD'S OWN SWITCHES. DFU's settings model is its
 // 171 keys and nothing else (settings.test.js pins the count), and a
 // mod's switches are not DFU's - in DFU they live in the mod's own
@@ -2000,7 +2002,7 @@ export function modSetting(vendor, key) {
   const forced = onlineModSetting(vendor, key);   // MODS-ONLINE-2: online, a key the room's ground depends on reads the room's value and the store is not written; REALM P0.2: and a balance mod's every key its shipped default
   if (forced !== undefined) return forced;
   const v = load()[vendor]?.[key];
-  return v === undefined ? def.default : coerce(def, v);
+  return enabledModValue(vendor, key, standardModValue(vendor, key, v === undefined ? def.default : coerce(def, v)));
 }
 
 /**

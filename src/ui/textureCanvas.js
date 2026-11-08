@@ -1,3 +1,4 @@
+import { preloadClothReplacement } from '../systems/clothReplacementDye.js';
 // ═══════════════════════════════════════════════════════════════════
 // U54 — A TEXTURE ARCHIVE RECORD, AS SOMETHING THE DOM CAN SHOW.
 //
@@ -41,7 +42,7 @@ import { clampDpr, ICON_CAP } from './iconFit.js';   // UI1: the fit law's numbe
 // (scenes/dataPipeline.js getTexture). A vendored archive has no
 // TEXTURE.### to fetch, so `getArchive` below cached it as a miss and
 // every DOM screen drew initials where the mod's art should be.
-import { isVendorArchive, vendorRecordCount, hasTextureReplacement, preloadTextureRecord } from '../systems/textureReplacement.js';
+import { isVendorArchive, vendorRecordCount, hasTextureReplacement } from '../systems/textureReplacement.js';
 import { dyeToken, changeDyeBitmap } from '../characters/dyes.js';   // DW3: the dye is part of the ask, so it is part of the key; DYE-ICON: and the classic arm dyes by it
 // The name rule lives with the READER (U54 moved it there): both this
 // module and scenes/shared.js need it, and neither can import the
@@ -172,7 +173,7 @@ export function requestIcon(archive, record, { scale = 2, onReady = null, dye = 
     // DISC22-D: THIS record, by the item's dye - the ask GetItemImage makes (ItemHelper.cs:458). The whole-archive
     // preload skips a LAZY entry (Roleplay Realism Items' 514-526), and the bare read asked for the undyed name no
     // metal file answers, so the Steel Light Flail cached a miss and drew its initials.
-    preloadTextureRecord(archive, record, 0, 'Albedo', dye).then((img) => {
+    preloadClothReplacement(archive, record, 0, 'Albedo', dye, dyeTarget).then((img) => {
       if (!img) { console.warn(`[icons] vendored ${archive}_${record}-0${token ? `_${token}` : ''} would not decode`); missed(); return; }
       const canvas = color32Canvas(img, { scale });
       if (!canvas) { missed(); return; }
@@ -189,7 +190,7 @@ export function requestIcon(archive, record, { scale = 2, onReady = null, dye = 
   // preloadTextureArchive), and a name that will not decode falls to
   // the classic arm below, as DFU's failed import does.
   const swap = hasTextureReplacement(archive, record, 0, 'Albedo', dye)
-    ? preloadTextureRecord(archive, record, 0, 'Albedo', dye).catch(() => null)   // AUDIT-DW F1: this record alone, when it is drawn
+    ? preloadClothReplacement(archive, record, 0, 'Albedo', dye, dyeTarget).catch(() => null)   // AUDIT-DW F1: this record alone, when it is drawn
     : Promise.resolve(null);
   swap.then((img) => {
     if (img) {

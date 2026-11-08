@@ -249,8 +249,8 @@
   {
     "name": "DW3-3-the-icon-upload-asks-the-bare-swap",
     "file": "src/scenes/dataPipeline.js",
-    "old": "    const swap = decodedTexture(archive, record, 0, 'Albedo', dye);",
-    "new": "    const swap = decodedTexture(archive, record, 0);",
+    "old": "    const swap = clothReplacementNow(archive, record, 0, 'Albedo', dye, dyeTarget);",
+    "new": "    const swap = clothReplacementNow(archive, record, 0, 'Albedo', null, dyeTarget);",
     "tests": [
       "test/systems/dw3_icons.test.js",
       "test/systems/texturereplacement.test.js"

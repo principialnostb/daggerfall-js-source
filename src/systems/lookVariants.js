@@ -1,10 +1,11 @@
+import { itemOwnStyle, setItemOwnStyle } from './item/itemAppearanceKey.js';
+import { extraAppearanceEnabled } from './extraAppearance.js';
 import { CLOAK_TEMPLATES, WOLF_CLOAK_LOOKS, CLOAK_LOOKS_PREF, wolfCloakModel } from '../characters/ownModels/wolfCloak.js';
 // @ts-check
 // LOOK-VARIANTS (2026-10-27, the owner: "выбирать вариации вещей визуального отображения прям через инвентарь когда вещь
 // надета на персонажа"): THE LOOKS A WORN PIECE CAN WEAR, turned from the inventory's paperdoll - the wheel over the
 // piece steps through them, and its tooltip names the one worn. A test bench for looks, before a look has a home of its
-// own on the item: a look is the viewer's switch it always was (the Steel Helm's `mwSteelHelm`), so turning it here is
-// throwing that switch, and the body is rebuilt as the settings tile rebuilds it (ui/enhanced/enhancedMenu.js TILE_AFTER).
+// own on the item. Inventory choices now write per-instance mwItemOwnLooks; the older switches remain defaults.
 import { getPref, setPref } from './uiPrefs.js';
 import { ownArmorModelFor, STEEL_HELM_STYLES, STEEL_HELM_DEFAULT, CLASSIC_ARMOR_TEMPLATE, PLAYER_MADE_STYLES } from '../characters/ownModels/ownArmorModels.js';
 import { OWN_MW_URLS } from './ownMwAssets.js';
@@ -25,37 +26,39 @@ const available = (styles, value) => !IN_BROWSER || !PLAYER_MADE_STYLES.includes
 /** A worn item's looks - { values, current, write(value) } - or null when it has one look. */
 export function lookVariantsOf(item) {
   if (!item || typeof item.templateIndex !== 'number') return null;
-  const skins = weaponSkinsFor(item).filter((skin) => !IN_BROWSER || weaponSkinAvailable(skin));
-  if (skins.length) {
+  const scoped = (choice) => ({ ...choice, current: choice.values.includes(itemOwnStyle(item)) ? itemOwnStyle(item) : choice.current, write: (value) => setItemOwnStyle(item, value) });
+  const skins = weaponSkinsFor(item).filter((skin) => extraAppearanceEnabled('weapon') && (!IN_BROWSER || weaponSkinAvailable(skin)));
+  if (weaponSkinsFor(item).length) {
     const values = ['classic', ...skins.map((skin) => skin.value)], key = weaponLookKey(item);
     const current = getPref(WEAPON_LOOKS_PREF)?.[key];
-    return { values, current: values.includes(current) ? current : 'classic', write: (value) => setPref(WEAPON_LOOKS_PREF, { ...(getPref(WEAPON_LOOKS_PREF) ?? {}), [key]: value }) };
+    return scoped({ values, current: values.includes(current) ? current : 'classic', write: (value) => setPref(WEAPON_LOOKS_PREF, { ...(getPref(WEAPON_LOOKS_PREF) ?? {}), [key]: value }) });
   }
   if (isShieldTemplate(item.templateIndex)) {
     const choices = shieldLooksFor(item).filter((c) => !IN_BROWSER || `meshes/${c.model}` in OWN_MW_URLS);
     if (!choices.length) return null;
     const values = ['classic', ...choices.map((c) => c.value)], key = shieldLookKey(item);
     const current = getPref(ARMOR_LOOKS_PREF)?.[key];
-    return { values, current: values.includes(current) ? current : 'classic', write: (value) => setPref(ARMOR_LOOKS_PREF, { ...(getPref(ARMOR_LOOKS_PREF) ?? {}), [key]: value }) };
+    return scoped({ values, current: values.includes(current) ? current : 'classic', write: (value) => setPref(ARMOR_LOOKS_PREF, { ...(getPref(ARMOR_LOOKS_PREF) ?? {}), [key]: value }) });
   }
   if (CLOAK_TEMPLATES.includes(item.templateIndex)) {
     const values = ['classic', ...WOLF_CLOAK_LOOKS.filter((look) => !IN_BROWSER || `meshes/${wolfCloakModel(look)}` in OWN_MW_URLS)];
     if (values.length < 2) return null;
     const stored = getPref(CLOAK_LOOKS_PREF)?.[item.templateIndex];
     const current = stored === 'wolf-grey' ? 'wolf-brown' : stored;
-    return { values, current: values.includes(current) ? current : 'classic', write: (value) => setPref(CLOAK_LOOKS_PREF, { ...(getPref(CLOAK_LOOKS_PREF) ?? {}), [item.templateIndex]: value }) };
+    return scoped({ values, current: values.includes(current) ? current : 'classic', write: (value) => setPref(CLOAK_LOOKS_PREF, { ...(getPref(CLOAK_LOOKS_PREF) ?? {}), [item.templateIndex]: value }) });
   }
   const own = ownArmorModelFor({ templateIndex: item.templateIndex, material: item.material ?? 0 });
   if (!own || !('styles' in own) || !own.styles) return null;
   const styles = own.styles;
   if (own.templateIndex === CLASSIC_ARMOR_TEMPLATE.Helm) {
-    const v = getPref('mwSteelHelm'), values = STEEL_HELM_STYLES.filter((x) => available(styles, x));
-    return values.length > 1 ? { values, current: values.includes(v) ? v : STEEL_HELM_DEFAULT, write: (x) => setPref('mwSteelHelm', x) } : null;
+    const v = getPref('mwSteelHelm'), values = STEEL_HELM_STYLES.filter((x) => available(styles, x) && (!PLAYER_MADE_STYLES.includes(x) || extraAppearanceEnabled('armor')));
+    return values.length > 1 ? scoped({ values, current: values.includes(v) ? v : STEEL_HELM_DEFAULT, write: (x) => setPref('mwSteelHelm', x) }) : null;
   }
-  const looks = getPref(ARMOR_LOOKS_PREF) ?? {}, values = Object.keys(styles).filter((x) => available(styles, x));
-  if (values.length < 2) return null;
-  return { values, current: values.includes(looks[own.id]) ? looks[own.id] : values[0], write: (x) => setPref(ARMOR_LOOKS_PREF, { ...(getPref(ARMOR_LOOKS_PREF) ?? {}), [own.id]: x }) };
+  const looks = getPref(ARMOR_LOOKS_PREF) ?? {}, values = Object.keys(styles).filter((x) => available(styles, x) && (!PLAYER_MADE_STYLES.includes(x) || extraAppearanceEnabled('armor')));
+  if (!values.length) return null;
+  return scoped({ values, current: values.includes(looks[own.id]) ? looks[own.id] : values[0], write: (x) => setPref(ARMOR_LOOKS_PREF, { ...(getPref(ARMOR_LOOKS_PREF) ?? {}), [own.id]: x }) });
 }
+
 
 /** The look a worn item wears now, as the screens name it - or null when it has one. */
 export function lookVariantLabel(item) {

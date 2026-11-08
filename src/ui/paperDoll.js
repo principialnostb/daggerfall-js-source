@@ -1,3 +1,7 @@
+import { itemAppearanceKey } from '../systems/item/itemAppearanceKey.js';
+import { preloadClothReplacement } from '../systems/clothReplacementDye.js';
+import { clothingDisplayTemplate } from '../systems/item/clothingDisplay.js';
+import { ITEM_TEMPLATES } from '../systems/item/itemTemplates.js';
 // U8f/U8g: the PAPERDOLL - the avatar with its equipped items (DFU
 // PaperDoll + PaperDollRenderer + ItemHelper.GetItemImage, MIT
 // Daggerfall Workshop). DFU renders the doll into ONE texture; we
@@ -40,8 +44,9 @@
 // identity and this file reloads on identity change - AUDIT 23).
 
 import { ImgFile } from '../formats/imgFile.js';
-import { helmetPaperdollVariant } from '../systems/helmetPaperdollLooks.js';
-import { getAppearanceIdentity } from '../characters/bodyMorphs.js';
+import { paperdollLookOf, lookedPiece } from '../systems/paperdollLooks.js';   // PAPERDOLL-LOOKS: the player's 2D card look
+import { activeAppearanceIdentity, appearanceDisplayKey } from '../characters/activeAppearance.js';
+import { modGroupEnabled } from '../systems/enhancedModResources.js';
 import { packImgTexture } from './packArt.js';   // OVH2: a worn UI pack's backdrop
 import { racialPaperDollBackground, racialOverrideHeadArt, racialSuppressPaperDollBodyAndItems } from '../systems/vampirism.js';   // V5: the curse art laws, both curses' one switch
 import { CifRciFile } from '../formats/cifRciFile.js';
@@ -49,8 +54,8 @@ import { getBool } from '../systems/settings/settings.js';   // UI3: EnableGeogr
 import { isProvinceRegion } from '../formats/mapsTables.js';   // AUDIT TAMRIEL-WIDE C6
 import { EQUIP_SLOTS, equipTableOf, getItemHands, ITEM_HANDS } from '../systems/equip.js';
 import { getTemplate, paperdollOrder } from '../characters/paperdoll/paperdoll.js';
-import { applyDyeToIndex, DYE_TARGETS, DYE_COLORS, CLOTHING_DYES } from '../characters/dyes.js';
-import { decodedTextureTopDown, preloadTextureRecord, textureReplacementRect } from '../systems/textureReplacement.js';
+import { dyeIndexRemap, applyDyeToIndex, DYE_TARGETS, DYE_COLORS, CLOTHING_DYES } from '../characters/dyes.js';
+import { topDownRgba, decodedTextureTopDown, preloadTextureRecord, textureReplacementRect } from '../systems/textureReplacement.js';
 import { dfmodImgImage, dfmodCifRciImage, dfmodCifRciRect, dfmodGeneration, resampleRgba, dfmodCarriesDollArt } from '../systems/dfmodTextures.js';   // DFMOD1: an attached mod's backdrop, body, head and hi-res items   // DW3: GetItemImage's import arm, by the item's dye; AUDIT-DW F1: decoded when the doll asks
 import { itemDyeColor, itemDyeTarget } from '../systems/item/itemDye.js';   // DW3: DaggerfallUnityItem.dyeColor, as the port's items carry it
 import { ARTIFACT_MALE_TEXTURE_ARCHIVE, ARTIFACT_FEMALE_TEXTURE_ARCHIVE } from '../systems/loot/loot.js';   // ART-DOLL: an artifact's own doll archive
@@ -139,12 +144,25 @@ export function paperDollBackground(raceBackground, {
 // a fabricated Chain2 constant). Re-exported for existing pins.
 export { clampArmorVariant };
 
+/** The cloak lining shares the outer layer's local dye and display sheet. */
+export function paperdollCloakLining(worn, identity = {}, look = paperdollLookOf(worn)) {
+  const image = paperdollItemImage(worn, identity, { look });
+  const piece = lookedPiece(drawnPiece(worn), look).piece;
+  if (!image || !CLOAK_TEMPLATES.has(piece.templateIndex)) return null;
+  const template = clothingDisplayTemplate(getTemplate(piece.templateIndex), identity.gender, ITEM_TEMPLATES);
+  return { ...image, record: template.playerTextureRecord };
+}
+
 /** GetItemImage(forPaperDoll) resolution: {archive, record, dye,
  *  target} or null for groups with no paperdoll layer. */
-export function paperdollItemImage(worn, { gender = 'male', race = 'Breton' } = {}, { helmetVariant = helmetPaperdollVariant(worn) } = {}) {
-  const item = drawnPiece(worn);   // APPEARANCES (bible/04-Characters/Wardrobe.md): a piece wearing a look is drawn as the look - the player's doll and every peer's
+export function paperdollItemImage(worn, { gender = 'male', race = 'Breton' } = {}, { look = paperdollLookOf(worn), helmetVariant } = {}) {
+  // APPEARANCES (bible/04-Characters/Wardrobe.md): a piece wearing a look is drawn as the look - the player's doll and every peer's.
+  // PAPERDOLL-LOOKS (systems/paperdollLooks.js): then the player's own 2D card look over it - another style or another
+  // template's record of the same class; `look: null` previews the piece's own. `helmetVariant` is the old option's name.
+  if (helmetVariant !== undefined) look = helmetVariant === null ? null : { v: helmetVariant };
+  const { piece: item, variant: lookVariant } = lookedPiece(drawnPiece(worn), look);
   const morph = raceByKey(race)?.morphologyIndex ?? HUMAN_MORPHOLOGY;
-  const t = getTemplate(item.templateIndex);
+  const t = clothingDisplayTemplate(getTemplate(item.templateIndex), gender, ITEM_TEMPLATES);
   if (!t || isHandWraps(item)) return null;   // HAND-WRAPS: worn on the fists, no layer of the doll's own
   // RRI1: GetItemImage(forPaperDoll) reads the same two virtuals the
   // inventory does (ItemHelper.cs:405-406), then bumps an Either-hand
@@ -176,14 +194,18 @@ export function paperdollItemImage(worn, { gender = 'male', race = 'Breton' } = 
   const variants = t.variants ?? 0;
   if (item.group === 'MensClothing' || item.group === 'WomensClothing') {
     let record = t.playerTextureRecord;
-    if (variants > 0) record += (CLOAK_TEMPLATES.has(item.templateIndex) ? 1 : 0) + Math.min(item.variant ?? 0, variants - 1);
-    return { archive: t.playerTextureArchive + morph, record, dye: item.dye ?? DYE_COLORS.Blue, target: DYE_TARGETS.Clothing };
+    if (variants > 0) record += (CLOAK_TEMPLATES.has(item.templateIndex) ? 1 : 0) + Math.min(lookVariant ?? item.variant ?? 0, variants - 1);
+    // PAPERDOLL-LOOKS (the owner, 2026-11-08: a yellow short shirt drew blue on the doll and its cards, yellow in the list):
+    // the garment's dye as the icon reads it (systems/item/itemDye.js itemDyeColor: `dye`, else `dyeColor`), Blue - the
+    // identity table - only when it has neither
+    const dye = Number.isInteger(look?.d) ? look.d : Number.isFinite(item.dye) ? item.dye : Number.isFinite(item.dyeColor) ? item.dyeColor : DYE_COLORS.Blue;   // GARMENT-DYES: the chosen colour first
+    return { archive: t.playerTextureArchive + morph, record, dye, target: Number.isInteger(look?.d) ? 2 : DYE_TARGETS.Clothing };
   }
   if (item.group === 'Armor') {
     const archive = armorArchive(gender, morph);
     const m = item.material ?? 0;
     let record = t.playerTextureRecord;
-    if (variants > 0) record += clampArmorVariant(item.templateIndex, m, helmetVariant ?? item.variant ?? 0);
+    if (variants > 0) record += clampArmorVariant(item.templateIndex, m, lookVariant ?? item.variant ?? 0);
     const dye = m >= ARMOR_MATERIAL.Iron ? MATERIAL_DYES[m - ARMOR_MATERIAL.Iron] ?? DYE_COLORS.Unchanged : DYE_COLORS.Unchanged;
     return { archive, record, dye, target: DYE_TARGETS.WeaponsAndArmor };
   }
@@ -218,8 +240,9 @@ let _staleTried = -1;   // DFMOD3-F: the generation a stale recompose was last s
  *  Enhanced Plus pack asks on every render and renders when the ask resolves - an ask during a compose resolves at
  *  once (it is coalesced), so render -> ask -> render spun forever. Now it answers true ONCE per generation, never
  *  during a compose, and never without the art and deps a compose needs. */
+export function invalidatePaperDoll() { _composedGen = -1; _staleTried = -1; }
 export const paperDollStale = () => {
-  const gen = dfmodGeneration();
+  const gen = `${dfmodGeneration()}|${appearanceDisplayKey()}`;
   if (!_art || !_deps || _refreshing || _composedGen === gen || _staleTried === gen) return false;
   _staleTried = gen;
   return true;
@@ -280,7 +303,8 @@ const PAPERDOLL_RACE_FOR_APPEARANCE = Object.freeze({
  * reading the real entity identity. Morrowind-only races use the closest
  * Daggerfall paperdoll body family where no matching classic body exists.
  */
-export function paperDollDisplayIdentity(entity, appearance = getAppearanceIdentity()) {
+export function paperDollDisplayIdentity(entity, appearance = activeAppearanceIdentity()) {
+  if (!modGroupEnabled('bodies')) appearance = null;
   const actual = {
     race: entity?.race ?? 'Breton',
     gender: entity?.gender ?? 'male',
@@ -602,17 +626,23 @@ async function composeDoll(art, deps, entity, { background = true, scale: S = 1 
   }
   const under = out.slice();   // HM1: the background alone (or nothing), for the item masks
   const table = equipTableOf(entity);
-  const worn = table.filter(Boolean).map((it) => ({ it, t: getTemplate(it.templateIndex) })).filter((w) => w.t);
+  // PAPERDOLL-LOOKS: the player's own 2D looks on the player's own doll alone - a peer's doll (composePaperDollPixels) is
+  // drawn as its own pieces, never in this viewer's choices; and a garment drawn as another (GARMENT-KINDS) is layered and
+  // lined as the one it is drawn as (a shirt drawn as a robe goes over the cuirass)
+  const mine = entity?.isPlayer === true && !entity?.isPeer;
+  const lookOf = (it) => (mine ? paperdollLookOf(it) : null);
+  const drawnTemplate = (it) => lookedPiece(drawnPiece(it), lookOf(it)).piece.templateIndex;
+  const worn = table.filter(Boolean).map((it) => ({ it, t: getTemplate(drawnTemplate(it)) })).filter((w) => w.t);
   // cloak interiors first (BlitCloakInterior: cloak2 then cloak1,
   // the template's own record = the interior image)
   for (const slot of suppress ? [] : [EQUIP_SLOTS.Cloak2, EQUIP_SLOTS.Cloak1]) {
     const it = table[slot];
-    if (!it || !CLOAK_TEMPLATES.has(it.templateIndex)) continue;
-    const t = getTemplate(it.templateIndex);
-    const img = await loadRecord(t.playerTextureArchive + (raceByKey(deps.race)?.morphologyIndex ?? HUMAN_MORPHOLOGY), t.playerTextureRecord, deps.getTexture, itemDyeColor(it), S);
+    if (!it || !CLOAK_TEMPLATES.has(drawnTemplate(it))) continue;
+    const lining = paperdollCloakLining(it, { gender: deps.gender, race: deps.race }, lookOf(it));
+    const img = lining ? await loadRecord(lining.archive, lining.record, deps.getTexture, lining.dye, S, lining.target === 2) : null;
     if (img) {
       if (img.bmp?.rgba) blitRgba(out, img, { under, S });   // DFMOD4: a mod's cloak lining is truecolor
-      else blit(out, img, art.palette, { remap: (i) => applyDyeToIndex(i, it.dye ?? DYE_COLORS.Blue, DYE_TARGETS.Clothing), under, S });
+      else blit(out, img, art.palette, { remap: dyeIndexRemap(img.bmp, lining.dye, lining.target), under, S });
       // AUDIT 18: BlitCloakInterior passes the cloak to DrawTexture
       // (PaperDollRenderer.cs:384-400), whose tail (:284-292) pushes
       // an ItemElement into itemLayout - so the interior IS in the
@@ -643,18 +673,18 @@ async function composeDoll(art, deps, entity, { background = true, scale: S = 1 
     blit(out, headArt ?? art.head, art.palette, { S });
   }
   // items ascending drawOrder (BlitItems)
-  const ordered = suppress ? [] : paperdollOrder(worn.map((w) => ({ ...w.it, drawOrder: w.t.drawOrderOrEffect })));
+  const ordered = suppress ? [] : paperdollOrder(worn.map((w) => ({ ...w.it, localLookId: itemAppearanceKey(w.it), drawOrder: w.t.drawOrderOrEffect })));
   for (const it of ordered) {
-    const res = paperdollItemImage(it, { gender: deps.gender, race: deps.race });
+    const res = paperdollItemImage(it, { gender: deps.gender, race: deps.race }, { look: lookOf(it) });
     if (!res) continue;
-    const img = await loadRecord(res.archive, res.record, deps.getTexture, itemDyeColor(drawnPiece(it)), S);   // DW3: the import ask is by item.dyeColor (an artifact's is Unchanged); the remap below stays res.dye. APPEARANCES-II: the drawn piece's - a look's record asked in the piece's metal drew Diverse Weapons' picture of it in the wrong one
+    const img = await loadRecord(res.archive, res.record, deps.getTexture, Number.isInteger(lookOf(it)?.d) ? lookOf(it).d : itemDyeColor(drawnPiece(it)), S, res.target === 2);   // GARMENT-DYES: a mod's picture in the chosen colour   // DW3: the import ask is by item.dyeColor (an artifact's is Unchanged); the remap below stays res.dye. APPEARANCES-II: the drawn piece's - a look's record asked in the piece's metal drew Diverse Weapons' picture of it in the wrong one
     if (!img) continue;
     // FIELD-GUN4: a vendor-only archive has no indexed bitmap to blit
     // through the palette - it hands back RGBA instead, and it is the
     // port's own art rather than DFU's, so it takes neither the dye
     // nor the helm mask.
     if (img.bmp?.rgba) { blitRgba(out, img, { under, S }); layout.push({ slot: it.equipSlot, img }); continue; }   // RRI1: the imported helmet's mask erases the hair under it
-    const remap = res.target == null ? null : (i) => applyDyeToIndex(i, res.dye, res.target);
+    const remap = res.target == null ? null : dyeIndexRemap(img.bmp, res.dye, res.target);
     blit(out, img, art.palette, { remap, under, S });   // HM1: the helm's mask erases the hair
     layout.push({ slot: it.equipSlot, img });
   }
@@ -683,7 +713,7 @@ export async function refreshPaperDoll(entity) {
     const drift = paperDollIdentityDrift(entity);
     if (drift) await preloadPaperDollArt(_deps, drift);
     else if (_ident && !_identity?.endsWith(`#${dfmodGeneration()}`)) await preloadPaperDollArt(_deps, _ident);   // DFMOD1-E: the mods changed - the backdrop, body and head are reloaded with theirs
-    const gen = dfmodGeneration();
+    const gen = `${dfmodGeneration()}|${appearanceDisplayKey()}`;
     // OVH2: A WORN UI PACK'S BACKDROP. The doll composes WITHOUT its SCBG and the pack's picture of that SCBG is
     // drawn under it (drawPaperDoll) - its hi-res pixels would be lost in the 110x184 composite. The HM1 masks
     // still hole through to "the background": composed on nothing, a masked pixel is clear, and the pack's
@@ -725,7 +755,7 @@ if (typeof globalThis.addEventListener === 'function') {
 
 /** One TEXTURE.### record as an indexed bitmap + its baked offset
  *  (with DFU's 237/52+54 bad-offset fix). */
-async function loadRecord(archive, record, getTexture, dye = null, S = 1) {
+async function loadRecord(archive, record, getTexture, dye = null, S = 1, customCloth = false) {
   try {
     const tex = await getTexture(archive);
     if (!tex || record >= tex.recordCount) return null;
@@ -735,8 +765,8 @@ async function loadRecord(archive, record, getTexture, dye = null, S = 1) {
     // as it is: no ChangeDye (:466-476 is the else branch), and the
     // classic record's offset. It comes back in the RGBA shape the
     // vendor arm already blits (FIELD-GUN4), because it has no index.
-    await preloadTextureRecord(archive, record, 0, 'Albedo', dye);   // AUDIT-DW F1: this record's, on demand
-    const swap = decodedTextureTopDown(archive, record, 0, 'Albedo', dye);
+    const replacement = await preloadClothReplacement(archive, record, 0, 'Albedo', dye, customCloth ? 2 : null);   // AUDIT-DW F1: this record's, on demand
+    const swap = customCloth && replacement ? { width: replacement.width, height: replacement.height, rgba: topDownRgba(replacement) } : decodedTextureTopDown(archive, record, 0, 'Albedo', dye);
     if (swap) {
       // RRI1: the MASK beside an imported texture (ItemHelper.cs:452-453,
       // TryImportTexture(..., TextureMap.Mask)): "alpha 0 is unmasked
@@ -761,6 +791,25 @@ async function loadRecord(archive, record, getTexture, dye = null, S = 1) {
     }
     return { bmp: tex.getDFBitmap(record, 0), off };
   } catch { return null; }
+}
+
+/** PAPERDOLL-LOOKS (systems/paperdollLooks.js, ui/enhanced/paperdollAppearancePicker.js): ONE PIECE'S LAYER ALONE, drawn
+ *  as composeDoll draws it - its record by the doll's own law, Paperdoll Enhanced's picture fitted to the classic box, the
+ *  dye remap, the classic offset - on a clear panel at the composite's density. Every choice of a piece comes back in
+ *  the same frame for pixel comparison. Thumbnails crop separately; body placement stays unchanged.
+ *  `look: null` is the piece's own. Null with no art loaded (tests, no ARENA2) or no layer. */
+export async function paperdollLayerPixels(worn, identity, look) {
+  if (!_art || !_deps) return null;
+  const S = composeScale();
+  const res = paperdollItemImage(worn, identity, { look });
+  if (!res) return null;
+  const img = await loadRecord(res.archive, res.record, _deps.getTexture, Number.isInteger(look?.d) ? look.d : itemDyeColor(drawnPiece(worn)), S, res.target === 2);
+  if (!img) return null;
+  const OW = PAPERDOLL_W * S, OH = PAPERDOLL_H * S;
+  const out = new Uint8Array(OW * OH * 4);
+  if (img.bmp?.rgba) blitRgba(out, img, { S });
+  else blit(out, img, _art.palette, { remap: res.target == null ? null : dyeIndexRemap(img.bmp, res.dye, res.target), S });
+  return { width: OW, height: OH, rgba: out, density: S };
 }
 
 /** Draw the doll with the panel's top-left at virtual (x,y). */

@@ -8,6 +8,7 @@
 // already on record); this file is data loading, walking + activation,
 // and the frame loop.
 
+import { drawCampScene } from './campfireVisual.js';
 import { walkModeOn, bindWalkMode } from '../player/walkMode.js';   // PADWALK: walk mode, one button on and off
 import { noteLocalPlayer, tacticsNow, tickTactics } from '../ai/tactics.js';   // TACT2/TACT4; AUDIT TACT: the clock's tick
 import { foeFrameDt } from '../characters/enemy/enemyMotor.js';   // AUDIT TACT: the foes' own step, for the brain's clock
@@ -1161,7 +1162,7 @@ export async function bootDungeon(canvas, renderer, params, status) {
     renderer.drawFoeTelegraphs?.(techniqueMarksNow());   // TECH1: and the player's own marks, after the foes' (bible/05-Combat/Weapon-Techniques.md)
     ctx.bloodMarks?.draw?.(camRight, UP_Y);   // BLOOD1 AUDIT 3: the context's ring, drawn by THIS host beside the level's flats and under them - it used to ride drawFoes' gate, so a cleared level drew no blood at all
     if (ctx.uiOverlayActive) ctx.drawWindowBodies?.(canvas, { proj, view, eye: cam.pos });   // AUDIT MW-NPC C6, FB1015 LOOT-BODY: under a window drawFoes' last bodies, frozen
-    renderer.drawBillboards([...ctx.billboardBatches, ...ctx.campBatches(), ...ctx.torchBatches()], camRight, UP_Y);   // HT1: the dropped torches on the same pass
+    drawCampScene(renderer, ctx, [...ctx.billboardBatches, ...ctx.campBatches(), ...ctx.torchBatches()], camRight, UP_Y);   // HT1: the dropped torches on the same pass
     // AUDIT 23 (hosts-9 = audio-3) - SongManager.cs:193: Update() runs
     // every frame, windows open or not - THE MUSIC CONTEXT IS FED
     // BEFORE THE MODAL RETURN (AUDIT 21 F1's law, which this host

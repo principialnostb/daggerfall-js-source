@@ -170,4 +170,9 @@ const SHIPPED = Object.freeze([
 /** Put the shipped mods in the texture-mod door. Idempotent (the same list each time), and cheap: a registration is
  *  names - the boot seam calls it before the attached mods register, and the menus before they read the door, so a
  *  card opened before any host has booted still finds Vanilla Enhanced. */
-export const installVanillaEnhancedPack = () => setShippedDfmods(SHIPPED);
+let extraSource, combinedShipped;
+export const installVanillaEnhancedPack = (extra = extraSource) => {
+  if (!extra?.length) { extraSource = null; combinedShipped = null; return setShippedDfmods(SHIPPED); }
+  if (extra !== extraSource) { extraSource = extra; combinedShipped = [...SHIPPED, ...extra]; }
+  return setShippedDfmods(combinedShipped);
+};

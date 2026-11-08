@@ -1,3 +1,6 @@
+import { extraAppearanceEnabled } from '../../systems/extraAppearance.js';
+import { OWN_MW_URLS } from '../../systems/ownMwAssets.js';
+import { modGroupEnabled } from '../../systems/enhancedModResources.js';
 // THE ARMOUR MORROWIND DOES NOT HAVE.
 //
 // MW-BRIG1 (2026-09-29, Mac: "This is for the morrowind model. The steel
@@ -265,9 +268,11 @@ export const ownArmorModelFor = (piece) =>
 
 /** MW-STEEL1: the parts an own model wears in this style - its `styles` entry when it has one, else `parts`. The
  *  steel helm's style is `helmStyle`; MW-IRON1: any other piece's is `looks[its id]`. */
-export const ownArmorParts = (own, { helmStyle = STEEL_HELM_DEFAULT, looks = null } = {}) => {
-  const style = own?.templateIndex === CLASSIC_ARMOR_TEMPLATE.Helm ? helmStyle : looks?.[own?.id];
-  return own?.styles?.[style] ?? own?.parts ?? [];
+export const ownArmorParts = (own, { helmStyle = STEEL_HELM_DEFAULT, looks = null, pieceStyle = null, hasModel = path => typeof window === 'undefined' || path in OWN_MW_URLS } = {}) => {
+  const style = pieceStyle ?? (own?.templateIndex === CLASSIC_ARMOR_TEMPLATE.Helm ? helmStyle : looks?.[own?.id]);
+  const chosen = own?.styles?.[style];
+  const available = chosen && chosen.every(part => hasModel(`meshes/${part.model}`.toLowerCase()));
+  return modGroupEnabled('bodies') && extraAppearanceEnabled('armor') && available ? chosen : own?.parts ?? [];
 };
 
 /** Every mesh path this table can ask for, derived rather than typed out

@@ -8,8 +8,13 @@
 //
 // The only difference is the exit: here an action is logged, where the
 // game boots a world.
-import { mountEnhancedMenu } from '../../ui/enhanced/enhancedMenu.js';
+async function startMenu() {
+  await import('../../systems/enhancedModResources.js').then(m => m.initEnhancedModResources());
+  const { mountEnhancedMenu } = await import('../../ui/enhanced/enhancedMenu.js');
 
 mountEnhancedMenu(document.getElementById('app'), {
   onAction: (action) => console.log('[menu prototype]', action),
 });
+
+}
+startMenu();

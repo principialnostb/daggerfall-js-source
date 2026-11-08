@@ -18,6 +18,7 @@ import { curveField, CURVE_DIM, TRACK_HALF } from '../world/road/roadCurves.js';
 import { WORLD_PIXEL_SPAN } from '../world/worldWide/worldGrid.js';   // BAY-LEFT-GROUND: the world's grid, the box's clamp
 import { SnowfallRuntime } from '../systems/snowfallRuntime.js';
 import { SnowBuildClient } from '../systems/snowfall/snowBuildClient.js';   // SNOW-THREAD: the ring's and the window's builds on a worker
+import {pressCampSnow} from './campfireSnow.js';
 import { SnowfallSurface } from '../render/snowfallSurface.js';
 import { getWorldClimateSettings, worldCoordToMapPixel } from '../formats/mapsFile.js';
 import { getLocationTerrainTileOrigin } from '../world/terrain/terrainTiles.js';
@@ -282,6 +283,7 @@ export function createSnowfallHost({ gl = null, renderer = null, enhanced = fals
     lastFrame = frame;
     if (completePending) { completePending = false; runtime.completeSession(gameSecondsNow, frame.snowing, f.now); }
     runtime.frame(frame);
+    pressCampSnow(renderer,runtime,frame);
     flushPromotions(f.now);
     // the GPU's share outdoors alone, where the hosts call this before their world frame opens (beginFrame forgets
     // every shadow of the renderer's an upload could move); indoors nothing is drawn, and the uploads wait for the door -

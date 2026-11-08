@@ -1,3 +1,4 @@
+import { clothReplacementNow } from '../systems/clothReplacementDye.js';
 // Shared lazy data pipeline (P7): the streaming world's texture/mesh
 // caches, lifted verbatim so any scene that hosts transitions (world,
 // exterior) can lazy-load models and archives it never preloaded -
@@ -7,6 +8,7 @@
 // kept place holds it (scenes/placeHolds.js); what is asked for outside
 // any place is kept for good, as everything once was.
 
+import {classicPixelKind} from '../systems/worldPixelConfig.js';
 import { TextureFile, LAST_CLASSIC_TEXTURE_ARCHIVE } from '../formats/textureFile.js'; import { changeMask } from '../formats/baseImageFile.js';   // HM1: the item icons' removeMask (one line: the cites below stand)
 import { FlatsFile } from '../formats/flatsFile.js';   // NPC1: captions + portrait indices
 import { isExteriorWindow } from '../world/climateSwaps.js';
@@ -208,7 +210,7 @@ export function createDataPipeline({ renderer, arch, palette, fetch = fetchBytes
     // under its own UI variant, so an Iron dagger and a Daedric one are
     // two textures; an undyed classic upload keeps the shared `#ui` key.
     const token = dyeToken(dye);
-    const swap = decodedTexture(archive, record, 0, 'Albedo', dye);
+    const swap = clothReplacementNow(archive, record, 0, 'Albedo', dye, dyeTarget);
     // DYE-ICON: GetItemImage's CLASSIC arm (ItemHelper.cs:466-477) - no
     // replacement answered, so the picture is the archive's own, its
     // mask stripped and then CHANGEDYE'D: a weapon's or a piece of
@@ -452,6 +454,7 @@ export function createDataPipeline({ renderer, arch, palette, fetch = fetchBytes
     const pictures = [];   // PLACE-LRU: what this model's build put up, the model's to hold
     for (const sm of model.subMeshes) meshPicture(pictures, sm, () => uploadRecord(sm.textureArchive, sm.textureRecord, { opaque: true }));   // a mesh material: alphaIndex -1
     const gpu = renderer.createMesh(model);
+    gpu.pixelKind=classicPixelKind(modelIdNum);
     // WORLD-HOVER: the record carries its OWN id. The map was keyed by it
     // and the value did not know it, so anything handed a cpu record - the
     // action system's five constructors among them - could not say WHICH

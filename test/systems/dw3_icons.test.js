@@ -238,13 +238,14 @@ test('DW3 GL door: the list drawer asks the pipeline by dye and reads back the v
 
 test('DW3 wiring: the paper doll asks by item.dyeColor and blits an imported texture as it is; the DOM callers pass the dye; the install rides the scene boot; the drawers and the pipeline forward it', () => {
   const doll = rd('src/ui/paperDoll.js');
-  assert.match(doll, /async function loadRecord\(archive, record, getTexture, dye = null, S = 1\) \{/);   // DFMOD4: and the compose's density
+  assert.ok(doll.includes('async function loadRecord(archive, record, getTexture, dye = null, S = 1, customCloth = false) {'));
   // DFMOD1: the swap is still blitted as it is when it has the classic size (every vendored set); a hi-res mod
   // sprite is box-filtered into the classic record's size, or its xml <rect>, and placed there
-  assert.match(doll, /const swap = decodedTextureTopDown\(archive, record, 0, 'Albedo', dye\);\n\s+if \(swap\) \{\n[\s\S]{0,2400}?let pic = \{ width: swap\.width, height: swap\.height, data: swap\.rgba \};[\s\S]{0,1200}?return \{ bmp: \{ width: pic\.width, height: pic\.height, data: null, rgba: pic\.data, scale \}, off: place, mask \};/, 'the import arm first, in the RGBA shape the vendor arm blits - no ChangeDye (RRI1 adds the mask beside it)');
+  assert.ok(doll.includes("const swap = customCloth && replacement ? { width: replacement.width, height: replacement.height, rgba: topDownRgba(replacement) } : decodedTextureTopDown(archive, record, 0, 'Albedo', dye);"));
+  assert.ok(doll.includes('let pic = { width: swap.width, height: swap.height, data: swap.rgba };'));
   // PIN MOVED (APPEARANCES-II, bible/04-Characters/Wardrobe.md section 5): the piece as it is drawn - a look worn over it is asked in the look's metal
-  assert.match(doll, /loadRecord\(res\.archive, res\.record, deps\.getTexture, itemDyeColor\(drawnPiece\(it\)\), S\)/, 'the item\'s own dyeColor, not the remap\'s (an artifact\'s is Unchanged)');
-  assert.match(doll, /loadRecord\(t\.playerTextureArchive \+ \(raceByKey\(deps\.race\)\?\.morphologyIndex \?\? HUMAN_MORPHOLOGY\), t\.playerTextureRecord, deps\.getTexture, itemDyeColor\(it\), S\)/, 'the cloak interior too');
+  assert.ok(doll.includes('loadRecord(res.archive, res.record, deps.getTexture, Number.isInteger(lookOf(it)?.d) ? lookOf(it).d : itemDyeColor(drawnPiece(it)), S, res.target === 2)'));
+  assert.ok(doll.includes('loadRecord(lining.archive, lining.record, deps.getTexture, lining.dye, S, lining.target === 2)'));
   // DISC24-B: the pack's tile and detail ask through its one picture door (linePictureUrl), and the door asks by the dye
   assert.match(rd('src/ui/enhanced/enhancedInventory.js'), /if \(line\.image\) return requestIcon\(line\.image\.archive, line\.image\.record, \{ scale, dye: line\.image\.dye, dyeTarget: line\.image\.dyeTarget, onReady \}\);/);   // DYE-ICON: and the swatch the dye changes
   // UI1: the tile and the card ask the FITTED door, whose name carries the dye and whose source is the dyed door above
@@ -262,10 +263,10 @@ test('DW3 wiring: the paper doll asks by item.dyeColor and blits an imported tex
     assert.match(rd(f), /sizes\.set\(key, tex\.getSize\(img\.record\)\);/, `${f}: the CLASSIC record's size (ItemListScroller.cs:440-441)`);
   }
   const pipe = rd('src/scenes/dataPipeline.js');
-  assert.match(pipe, /const swap = decodedTexture\(archive, record, 0, 'Albedo', dye\);/);
+  assert.match(pipe, /const swap = clothReplacementNow\(archive, record, 0, 'Albedo', dye, dyeTarget\);/);
   assert.match(pipe, /const variant = mips === false \? \(swap && token \? `#ui_\$\{token\}` : dyed \? `#ui_dye\$\{dye\}_\$\{dyeTarget\}` : '#ui'\) : undefined;/, 'DYE-ICON: a dyed classic picture keys apart too, by dye and swatch, apart from a replacement\'s');
   assert.match(pipe, /return variant;/);
-  assert.match(rd('src/systems/item/itemTemplates.js'), /return \{ archive, record, dye: itemDyeColor\(item\), dyeTarget: itemDyeTarget\(item\) \};/);
+  assert.ok(rd('src/systems/item/itemTemplates.js').includes("  return { archive, record, dye: itemDyeColor(item), dyeTarget: Number.isInteger(look?.d) && (item.group === 'MensClothing' || item.group === 'WomensClothing') ? 2 : itemDyeTarget(item) };"));
   assert.match(rd('src/systems/textureReplacement.js'), /const lane = async \(\) => \{ while \(next < todo\.length\) await one\(todo\[next\+\+\]\); \};/, 'the preload runs in lanes');
   assert.equal(PRELOAD_CONCURRENCY, 8);
 });

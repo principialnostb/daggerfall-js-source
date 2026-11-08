@@ -89,3 +89,12 @@ test('FISTS-GUARD: the fists drawn walk, run and step on the worked gait and the
   assert.ok(guardWalks(sceneInput({ weapon: T.None, shown: true, speed: 2.5, forward: 1 }), 'walkforward'), 'the stance\'s walk for the empty hands drawn');
   assert.ok(!guardWalks(sceneInput({ weapon: T.None, shown: false, speed: 2.5, forward: 1 }), 'walkforward'), 'never for the hands sheathed');
 });
+
+
+test('ordinary fist travel keeps the gait fingers; stopping and punching close the hands', () => {
+  const idle = sceneInput({ weapon: T.None, shown: true });
+  const moving = { ...idle, speed: 4, forward: 1 };
+  assert.deepEqual(fingerShares(moving), { L: null, R: null });
+  assert.ok(fingerShares(idle).R.fist > 0.9);
+  assert.ok(fingerShares({ ...moving, blow: { section: 'windup' } }).R.fist > 0.9);
+});

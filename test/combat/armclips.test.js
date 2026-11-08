@@ -14,10 +14,11 @@ test('ARM-REST: standing, the free hand beside a sword is the plain idle\'s arm 
   assert.ok(ARM_HOLD.rest > 0.2 && ARM_HOLD.rest < 0.8, 'between the stance\'s bend and the plain idle\'s hang');
 });
 
-test('FISTS-ARMS: the fists\' arms are the hand-to-hand clips\' on the stride; beside a shield the right is a free hand under the armed trunk, standing the plain idle\'s (mutant: the carry\'s rows)', () => {
+test('FISTS-ARMS: bare hands use ordinary walk/run arms and release them for a punch; beside a shield the right is a free hand under the armed trunk, standing the plain idle\'s (mutant: the carry\'s rows)', () => {
   const at = (o) => armedUpperPlan({ on: true, ...o });
-  assert.deepEqual(at({ type: T.HandToHand, base: 'runforward', moving: true }), { kind: 'movement', base: 'runforward', stance: 'drawn', type: T.HandToHand, still: false, side: 'both', sway: 0, hold: ARM_HOLD.fists });
-  assert.ok(ARM_HOLD.fists > 0.1 && ARM_HOLD.fists < 0.6, 'FISTS-PUMP: the guard bobs with the stride, held');
+  for (const base of ['walkforward', 'walkback', 'walkleft', 'walkright', 'runforward', 'runback', 'runleft', 'runright']) {
+    assert.equal(at({ type: T.HandToHand, base, moving: true }), null, 'the primary movement clip owns the arms');
+  }
   assert.equal(at({ type: T.HandToHand, moving: false }), null, 'standing, the hand-to-hand idle is the body\'s own');
   assert.deepEqual(at({ type: T.HandToHand, shield: true, base: 'walkforward', moving: true }),
     { kind: 'movement', base: 'walkforward', stance: 'drawn', type: T.LongBladeOneHand, still: false, rigOrder: true, sway: 0, hold: ARM_HOLD.upper, freeSide: 'R' });
@@ -59,4 +60,14 @@ test('ARM-REST / ARM-FADE: standing the arm runs on its clip\'s own clock (a bre
   let leap = 0;
   for (let i = 1; i < ids.length; i++) leap = Math.max(leap, Math.abs(ids[i] - ids[i - 1]));
   assert.ok(ids.at(-1) === 50 && leap < (50 - 11) * (1 / 60 / ARM_FADE) * 1.5, `the walk's arm faded in (largest step ${leap.toFixed(2)})`);
+});
+
+
+test('bare hands use the ordinary primary clip in every movement direction', async () => {
+  const { guardMovementGroup } = await import('../../src/combat/guardLocomotion.js');
+  for (const base of ['walkforward', 'walkback', 'walkleft', 'walkright', 'runforward', 'runback', 'runleft', 'runright']) {
+    assert.equal(guardMovementGroup(base, T.HandToHand, () => true, true).group, base);
+    assert.equal(armedUpperPlan({ on: true, type: T.HandToHand, base, moving: true }), null);
+    assert.equal(armedUpperPlan({ on: true, type: T.HandToHand, base, moving: true, attacking: true }), null);
+  }
 });

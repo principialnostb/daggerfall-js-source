@@ -1,3 +1,4 @@
+import { modGroupEnabled } from '../systems/enhancedModResources.js';
 // @ts-check
 // BLOW-FLOW (2026-10-26, Mac: "when the character stops striking the weapon snaps back to where it was - sharp,
 // unnatural, instant"): the arm stays where its blow left it for BLOW_FLOW.hold seconds (the window a next blow
@@ -137,6 +138,7 @@ export function createVariantCycle() {
 /** SHIELD-BASH, the one-hander's: a thrust behind a shield is the sword's thrust and the shield's bash in turn (the bash
  *  every other time, so neither runs twice); the fists' thrust behind a shield is always the bash. */
 export function bashesNow({ thrust = false, shield = false, fists = false, cycle = null } = {}) {
+  if (!modGroupEnabled('animations')) return false;
   if (!thrust || !shield) return false;
   return fists || (cycle ? cycle.next('shield-bash', 2) === 1 : false);
 }

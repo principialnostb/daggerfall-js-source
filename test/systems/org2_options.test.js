@@ -56,7 +56,7 @@ function withRows(fn, { shell = { platform: 'win32' } } = {}) {
   try { return fn(); } finally { delete globalThis.document; delete globalThis.window; delete globalThis.daggerShell; }
 }
 
-const SPECIAL = ['preset:graphics', 'link:overhauls', 'bindings', 'mods-index'];
+const SPECIAL = ['preset:graphics', 'link:overhauls', 'bindings', 'mods-index', 'catalog:bodies', 'catalog:environment', 'catalog:textures'];
 const INFO = ['player-run','npc-run','player-turning','npc-turning','player-idle','npc-idle','player-sneak','npc-sneak','player-attacks','npc-attacks','player-blocking','npc-blocking','player-magic','npc-magic','player-actions','npc-actions','player-jumping','npc-jumping','player-swimming','npc-swimming','player-falling','npc-falling','player-damage','npc-damage','player-death','npc-death'];
 const CARDS = ['card:morrowind', 'card:packs', 'card:peerSprites', 'card:nightSounds'];
 
@@ -135,21 +135,14 @@ test('GPU-BACKEND: the graphics backend row stands after VSync, drawn in the des
 });
 
 test('ORG2: Graphics leads, with the preset at its head, and the tabs a player looks for in the order they look (mutant: the preset or a tab moved)', () => {
-  assert.deepEqual(CATEGORY_IDS, ['graphics', 'gameplay', 'combat', 'world', 'interface', 'audio', 'controls', 'accessibility', 'animations', 'textures', 'bodies', 'mods']);
-  assert.deepEqual(whereIs('feat:morrowind-player-walk-animation')?.section.id, 'locomotion');
-  assert.deepEqual(whereIs('feat:morrowind-male-npc-walk-animation')?.section.id, 'locomotion');
-  assert.deepEqual(whereIs('feat:morrowind-player-run-animation')?.section.id, 'locomotion');
-  assert.deepEqual(whereIs('info:npc-run')?.section.id, 'locomotion');
-  assert.deepEqual(whereIs('feat:morrowind-female-npc-run-animation')?.section.id, 'locomotion');
-  assert.equal(whereIs('card:packs')?.tab.id, 'textures');
-  assert.equal(whereIs('feat:mw-better-bodies')?.tab.id, 'bodies');
-  assert.equal(whereIs('feat:mw-npc-bodies')?.tab.id, 'bodies');
-  assert.deepEqual(whereIs('feat:morrowind-female-npc-walk-animation')?.section.id, 'locomotion');
-  assert.deepEqual(whereIs('feat:morrowind-first-person-animation-source')?.section.id, 'first-person');
-  assert.deepEqual(whereIs('feat:morrowind-openmw-dynamic-animations')?.section.id, 'third-person');
-  assert.deepEqual(whereIs('feat:morrowind-hit-reaction-animation-source')?.section.id, 'reactions');
-  assert.deepEqual(whereIs('group:walking')?.section.id, 'locomotion');
-  assert.deepEqual(whereIs('group:running')?.section.id, 'locomotion');
+  assert.deepEqual(CATEGORY_IDS, ['graphics', 'gameplay', 'combat', 'world', 'interface', 'audio', 'controls', 'accessibility', 'mods', 'compatibility', 'pixelation']);
+  assert.equal(whereIs('catalog:bodies')?.tab.id, 'compatibility');
+  assert.equal(whereIs('card:packs')?.tab.id, 'mods');
+  assert.equal(whereIs('feat:mw-better-bodies')?.tab.id, 'compatibility');
+  assert.equal(whereIs('feat:mw-npc-bodies')?.tab.id, 'mods');
+  assert.equal(whereIs('feat:mw-billboard-look')?.tab.id, 'mods');
+  assert.deepEqual(CATEGORIES.find(t => t.id === 'pixelation').sections[0].items,
+    ['feat:char-pixel-fp', 'feat:char-pixel-player', 'feat:char-pixel-npc', 'feat:world-pixel-objects']);
   const g = CATEGORIES[0];
   assert.deepEqual(g.sections[0].items, ['preset:graphics'], 'Quality first, the preset alone in it');
   for (const id of PRESET_ROWS) assert.equal(whereIs(`feat:${id}`)?.tab.id, 'graphics', `${id}, a row the preset sets, is on the same tab`);
@@ -159,17 +152,11 @@ test('ORG2: Graphics leads, with the preset at its head, and the tabs a player l
   assert.equal(whereIs('mods-index')?.tab.id, 'mods');
 });
 
-test('ANIMATION UI: subgroup selection is derived from the active section and each section keeps its own choice', () => {
+test('standardized controls remain addressable but are not rendered as development selectors', () => {
   const menu = read('src/ui/enhanced/enhancedMenu.js');
-  assert.ok(menu.includes("const DEFAULT_ANIMATION_GROUP_BY_SECTION = Object.freeze({\n  locomotion: 'running',\n  posture: 'posture',\n  combat: 'attacks',\n  traversal: 'jumping',\n  reactions: 'damage',"));
-  assert.ok(menu.includes("const ANIMATION_GROUPS_BY_SECTION = Object.freeze({"));
-  assert.ok(menu.includes("const animationClipGroupBySection = { ...DEFAULT_ANIMATION_GROUP_BY_SECTION };"));
-  assert.ok(menu.includes("const animationClipGroup = () => {"));
-  assert.ok(menu.includes("return groups.includes(remembered) ? remembered : groups[0];"));
-  assert.ok(menu.includes("animationClipGroupBySection[selectedSectionByTab.animations] = group;"));
-  assert.ok(menu.includes("if (tab.id === 'animations') {"));
-  assert.ok(menu.includes("clipGroup !== animationClipGroup()"));
-  assert.doesNotMatch(menu, /let animationClipGroup\s*=/, 'avoid duplicate global selection state');
+  assert.match(menu, /STANDARDIZED_FEATURES.includes\(item.slice\(5\)\)\) return \[\]/);
+  assert.equal(whereIs('feat:morrowind-player-walk-animation')?.tab.id, 'compatibility');
+  assert.equal(whereIs('feat:mw-first-person-hands')?.tab.id, 'compatibility');
 });
 
 test('ORG2: a key a Features row owns stands in that row\'s own section - so FT13\'s "drawn by the row, never twice" is true on the page too (mutant: a moved key filed elsewhere)', () => {
@@ -322,7 +309,7 @@ test('ORG2 by source: one screen - the rail is the tabs and counts what each dra
   const paint = menu.slice(menu.indexOf('function paintOptionsBody('), menu.indexOf('\n}\n', menu.indexOf('function paintOptionsBody(')));
   assert.match(paint, /if \(q\) \{\s*\n\s*let found = 0;\s*\n\s*for \(const tab of CATEGORIES\) \{/, 'a search reads every tab, not the open one');
   assert.match(paint, /body\.append\(sectionHead\(tab, s, nodes\.filter\(isOptionNode\)\.length, \{ path: true \}\), \.\.\.nodes\);/, 'and says where each find lives');
-  assert.match(paint, /if \(sections\.length >= 3 && !pause\) \{\s*\n\s*const strip = el\('nav', 'sec-jump'\);/, 'a long tab has a jump strip');
+  assert.match(paint, /if \(sections\.length > 1\) \{[\s\S]*?el\('nav', 'sec-jump animation-switches'\)/, 'multi-section tabs have a section picker in both menus');
   assert.match(menu, /if \(item === 'preset:graphics'\) return \[graphicsPresetRow\(\)\];/);
   assert.match(menu, /if \(item === 'mods-index'\) return modsIndexRows\(\);/);
   assert.match(menu, /if \(optFilter !== 'all'\) \{\s*\n\s*if \(optFilter === 'changed' \? !itemChanged\(item, pool\) : !itemKinds\(item\)\.includes\(optFilter\)\) return \[\];/, 'the filters pass an item or draw nothing of it');

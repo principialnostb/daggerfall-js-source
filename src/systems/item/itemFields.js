@@ -200,6 +200,7 @@ export const ITEM_FIELDS = Object.freeze({
   // checkpoint and the piece's from then on: the wire carries it (never the receiver's, as `acquired` is), and the
   // service's ledger reads it (server-account/src/verdict.js ledgerStep)
   uid: str(),
+  localLookId: str(), // Local cosmetic preference key; no gameplay or ledger meaning.
   // ACQUIRE1 (bible/10-UI/Loot-Banner.md): the piece has stood in the player's own keeping (systems/acquireWatch.js) - true,
   // or absent. The RECEIVER's mark, as equipSlot and questItem are: loot.js validLootItem strips it off the wire
   acquired: bool(),

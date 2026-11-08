@@ -1,3 +1,5 @@
+import { modResourceAllowed, modResourceSignature } from './enhancedModResources.js';
+import { modResourceGlob } from './enhancedModResources.js';
 // Bundled Morrowind replacement assets for packs under Mods/Textures and
 // Mods/Bodies. Archive keys match the game-relative paths stored in NIF files.
 //
@@ -20,7 +22,25 @@ import { modDiagnostics } from './modDiagnostics.js';
 
 const IN_BROWSER = typeof window !== 'undefined';
 const FILES = IN_BROWSER
-  ? import.meta.glob([
+  ? modResourceGlob([
+      '../../Mods/Bodies/Better Bodies/Nude/Data Files/Textures/**/*.{dds,DDS,tga,TGA}',
+      '../../Mods/Bodies/High Resolution Better Body Female Textures/Hands/Textures/**/*.{dds,DDS,tga,TGA}',
+      '../../Mods/Bodies/High Resolution Better Body Female Textures/Nude_No_Hair/Textures/**/*.{dds,DDS,tga,TGA}',
+      '../../Mods/Bodies/High Resolution Better Body Female Textures/Underwear/Textures/**/*.{dds,DDS,tga,TGA}',
+      '../../Mods/Bodies/High Resolution Better Body Female Textures/Nude_Body_Hair/Textures/**/*.{dds,DDS,tga,TGA}',
+      '../../Mods/Bodies/Seamless DMRA body replacer/Meshes/**/*.{nif,NIF}',
+      '../../Mods/Bodies/Seamless DMRA body replacer/Textures/**/*.{dds,DDS,tga,TGA}',
+      '../../Mods/Textures/Intelligent Textures/00 Core/textures/**/*.{dds,DDS,tga,TGA}',
+      "../../Mods/Textures/Vurt's Better Clothes Retexture/textures/**/*.{dds,DDS,tga,TGA}",
+      '../../Mods/Textures/Better Clothes Retextured/textures/**/*.{dds,DDS,tga,TGA}',
+      '../../Mods/Textures/Better Clothes Retextured/meshes/**/*.{nif,NIF}',
+      "../../Mods/Textures/Westly's Fine Clothiers of Tamriel/Meshes/**/*.{nif,NIF}",
+      "../../Mods/Textures/Westly's Fine Clothiers of Tamriel/Textures/**/*.{dds,DDS,tga,TGA}",
+      "../../Mods/Textures/Westly's Fine Clothiers of Tamriel/Westly_Presents_FCOT.esp",
+      "../../Mods/Textures/Westly's Faces Refurbished/Data Files/**/*.{nif,NIF,dds,DDS,tga,TGA}",
+      '../../Mods/Textures/Better Morrowind Armor/Data Files/**/*.{nif,NIF,dds,DDS,tga,TGA,esp,ESP}',
+      '../../Mods/Textures/Better Morrowind Armor/Complete Armor Joints/Data Files/**/*.{nif,NIF,dds,DDS,tga,TGA,esp,ESP}',
+    ], import.meta.glob([
       '../../Mods/Bodies/Better Bodies/Nude/Data Files/Textures/**/*.{dds,DDS,tga,TGA}',
       '../../Mods/Bodies/High Resolution Better Body Female Textures/Hands/Textures/**/*.{dds,DDS,tga,TGA}',
       '../../Mods/Bodies/High Resolution Better Body Female Textures/Nude_No_Hair/Textures/**/*.{dds,DDS,tga,TGA}',
@@ -40,7 +60,7 @@ const FILES = IN_BROWSER
       '../../Mods/Textures/Better Morrowind Armor/Complete Armor Joints/Data Files/**/*.{nif,NIF,dds,DDS,tga,TGA,esp,ESP}',
     ], {
       eager: true, query: '?url', import: 'default',
-    })
+    }))
   : {};
 
 const norm = (s) => String(s).replace(/\\/g, '/').toLowerCase();
@@ -307,12 +327,17 @@ let _archiveSignature = '';
 
 export function bundledMorrowindModsArchive() {
   const signature = [
+    modResourceSignature(),
     getUnderwearEnabled() ? 'underwear' : 'nude',
     getBodyHairEnabled() ? 'body-hair' : 'no-body-hair',
     ...Object.entries(packEnabled).map(([name, enabled]) => name + ':' + (enabled ? '1' : '0')),
   ].join('|');
   if (!_archive || signature !== _archiveSignature) {
-    _archive = makeVendoredArchive(assetUrls, fetchBytes);
+    const active = Object.fromEntries(Object.entries(assetUrls).filter(([,value]) => {
+      const url = typeof value === 'function' ? value() : value;
+      return modResourceAllowed(sourcePathByUrl.get(url) || '');
+    }));
+    _archive = makeVendoredArchive(active, fetchBytes);
     _archiveSignature = signature;
     modDiagnostics.record({ level: 'info', phase: 'asset-selection', action: 'morrowind-asset-archive-selected', modId: 'bundled-morrowind-assets', resource: 'Mods/Bodies+Textures',
       details: { signature, sourceFiles: Object.keys(FILES).length, selectedAssetKeys: Object.keys(assetUrls).length, packageCounts, activeOptionalPacks: Object.entries(packEnabled).filter(([name, enabled]) => name !== 'betterBodies' && enabled).map(([name]) => name), underwear: getUnderwearEnabled(), bodyHair: getBodyHairEnabled() } });

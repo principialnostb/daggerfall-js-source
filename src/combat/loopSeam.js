@@ -133,7 +133,10 @@ export function createLoopSeam({ sampleTrack, loopWindow }) {
       if (memo && memo.under === under && memo.state === state && memo.source === source && memo.smooth === smooth) return memo.fn;
       const window = loopWindow(state, source.keys);
       const seam = seamSampler(under, sampleTrack, state, source, window);
-      memo = { under, state, source, smooth, fn: smooth ? smoothSampler(seam, CLIP_SMOOTH.h, /^walk/.test(state.group) ? window : null) : seam };
+      // CLIP-WRAP (2026-11-07, read in the owner's game: a one-handed stance's left hand twitched for 2-4 frames every
+      // 2.67 s): every loop's neighbours are its own, not only a walk's - idle1h's start read 1/60 s early is idlehh's
+      // last key in xbase_anim.kf, and the hand took a share of that other guard at each wrap
+      memo = { under, state, source, smooth, fn: smooth ? smoothSampler(seam, CLIP_SMOOTH.h, window) : seam };
       return memo.fn;
     },
   };

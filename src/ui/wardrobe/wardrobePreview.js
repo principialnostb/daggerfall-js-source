@@ -58,7 +58,7 @@ export function createWardrobePreview({ entity, arm = fpArm, renderer = armRende
       rig ??= createRig();
       rig.attach(renderer(), null);
       const res = await rig.build(buildOpts(job.stand));
-      if (alive && res?.ok) px = rig.figure({ yaw: 0, height: PREVIEW_FIGURE_H });
+      if (alive && res?.ok) px = rig.figure({ yaw: 0, height: PREVIEW_FIGURE_H, force: true });
     } catch { px = null; }
     building = false;
     if (!alive) { release(); return; }

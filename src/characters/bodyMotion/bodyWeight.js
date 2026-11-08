@@ -93,7 +93,9 @@ function springStep(s, goal, omega, zeta, dt) {
 }
 
 /** THE LAYER: the weight, the followed velocity and the trunk's two springs (pitch, roll). */
+let traceIds = 0;   // TEMP ARM-TRACE
 export function createBodyWeight() {
+  const traceId = ++traceIds;   // TEMP ARM-TRACE
   let travel = null; let yaw0 = null;
   const vel = { f: 0, r: 0 }; let velPrev = null;
   const pitch = { x: 0, v: 0 }, roll = { x: 0, v: 0 };
@@ -182,10 +184,21 @@ export function createBodyWeight() {
         const m = skelMats(skeleton, pose, rootRef, [b.bones.L.foot, b.bones.R.foot]), p = (r) => { const t = m.get(r)?.t; return t ? [t[0], t[1], t[2]] : null; };
         (A.stage ??= {})[tag] = { pel: p(b.bones.pelvis), kL: p(b.bones.L.calf), kR: p(b.bones.R.calf), fL: p(b.bones.L.foot), fR: p(b.bones.R.foot) };
       };
-      const tapped = inner ? (sk, po, ro, sm) => { cap('preMotion', sk, po, ro, sm); const r = inner(sk, po, ro, sm); cap('postMotion', sk, po, ro, sm); return r; } : inner;
+      // TEMP ARM-TRACE (the 12-40-11 twitch, read in the owner's game): each arm's elbow and hand in the chest's frame after
+      // each stage, while globalThis.__armTrace.on - never committed
+      const armCap = (tag, skeleton, pose, rootRef, skelMats) => {
+        const T = globalThis.__armTrace; if (!T?.on || !T.cur) return;
+        const b = bodyOf(skeleton, rootRef, skelMats); if (!b?.bones?.L || !b.bones.R) return;
+        const m = skelMats(skeleton, pose, rootRef, [b.chest, b.bones.L.hand, b.bones.R.hand]);
+        const C = at(m, b.chest), Rc = turnOf(m, b.chest); if (!C || !Rc) return;
+        const Rt = transpose(Rc), loc = (ref) => { const p = at(m, ref); if (!p) return null; const d = [p[0] - C[0], p[1] - C[1], p[2] - C[2]]; return [0, 1, 2].map((i) => +(Rt[i * 3] * d[0] + Rt[i * 3 + 1] * d[1] + Rt[i * 3 + 2] * d[2]).toFixed(3)); };
+        T.cur.s[tag] = [loc(b.bones.L.fore), loc(b.bones.L.hand), loc(b.bones.R.fore), loc(b.bones.R.hand), loc(b.bones.R.upper), loc(b.bones.R.clavicle), loc(b.bones.neck)];
+      };
+      const tapped = inner ? (sk, po, ro, sm) => { cap('preMotion', sk, po, ro, sm); armCap('clip', sk, po, ro, sm); const r = inner(sk, po, ro, sm); cap('postMotion', sk, po, ro, sm); armCap('motion', sk, po, ro, sm); return r; } : inner;
       const strided = travelStride.slot(tapped);   // RUN-STRIDE: the run's legs lengthened before the body motion sees them
       slotMemo = { inner, fn: (skeleton, pose, rootRef, skelMats) => {
         cap('clip', skeleton, pose, rootRef, skelMats);
+        const AT = globalThis.__armTrace; if (AT?.on) AT.cur = { id: traceId, t: +performance.now().toFixed(1), dt: +frameDt.toFixed(4), clip: AT.clip ?? null, s: {} };   // TEMP ARM-TRACE
         const report = strided(skeleton, pose, rootRef, skelMats);
         cap('stride', skeleton, pose, rootRef, skelMats);
         const lean = layer.lean(), sway = layer.sway();
@@ -201,13 +214,19 @@ export function createBodyWeight() {
         if (clearOn) leanTrunk(skeleton, pose, rootRef, skelMats, legs.trunkTurn());   // BLOW-TRUNK: the turn the hips leave
         if (clearOn) legs.apply(skeleton, pose, rootRef, skelMats);   // BLOW-LEGS: a standing blow's hips and feet
         cap('legs', skeleton, pose, rootRef, skelMats);   // TEMP POSE-AUDIT
+        armCap('legs', skeleton, pose, rootRef, skelMats);   // TEMP ARM-TRACE
         freshReturn.apply(skeleton, pose, rootRef, skelMats);
+        armCap('fresh', skeleton, pose, rootRef, skelMats);   // TEMP ARM-TRACE
         // ARM-CLEARANCE, last: over the lean, the carry and the two-hander's return (TRUNK-SKIN: the return wrote its arms
         // after the clearance had run, and its straight path took the haft hand's arm through the chest)
         if (clearOn) guard.apply(skeleton, pose, rootRef, skelMats);   // GUARD-ELBOWS, before the clearance keeps them off the trunk
-        if (clearOn) clearArms(skeleton, pose, rootRef, skelMats, { armor: armorW, previous: elbowTurns, dt: frameDt, held: report?.armAnatomy, kind: bodyKind, swinging: bodySwing || ['return', 'interrupt', 'settle'].includes(freshReturn.status().mode) });
+        armCap('guard', skeleton, pose, rootRef, skelMats);   // TEMP ARM-TRACE
+        const clr = clearOn ? clearArms(skeleton, pose, rootRef, skelMats, { armor: armorW, previous: elbowTurns, dt: frameDt, held: report?.armAnatomy, kind: bodyKind, swinging: bodySwing || ['return', 'interrupt', 'settle'].includes(freshReturn.status().mode), moving }) : null;
+        armCap('clear', skeleton, pose, rootRef, skelMats);   // TEMP ARM-TRACE
         if (clearOn) fingers.apply(skeleton, pose);   // HAND-FINGERS, on the hands as they now stand
         poseElbowSkin(skeleton, pose, rootRef, skelMats);
+        armCap('final', skeleton, pose, rootRef, skelMats);   // TEMP ARM-TRACE
+        if (AT?.on && AT.cur) { AT.cur.clr = clr ? [+clr.L.toFixed(4), +clr.R.toFixed(4)] : null; (AT.frames ??= []).push(AT.cur); if (AT.frames.length > 4000) AT.frames.shift(); AT.cur = null; }
         frameDt = 0;
         return report;
       } };

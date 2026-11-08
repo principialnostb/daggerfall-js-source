@@ -249,6 +249,7 @@ let _cifRci = new Map();        // 'FACES.CIF_14-0' -> { key, name }
 let _load = null;
 let _loadBlob = null;           // DFMOD2: the stored Blob, for a by-range open
 let _opener = poolOpen;
+export const openDfmodBundleSource = (source, options = {}) => _opener(source, { maxTextureSize: maxSize(), ...options });
 let _generation = 0;
 let _reads = 0;           // AUDIT VE R4: the newest registration's ticket - an older one's reads stop where they are
 let _sig = null;          // the stored set last registered - AUDIT VE R4: its keys AND each index's content

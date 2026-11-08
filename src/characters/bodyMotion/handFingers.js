@@ -13,6 +13,7 @@ import { mat33ToQuat } from '../../combat/heldPose.js';
 import { quatToMat33 } from '../../formats/morrowind/mwSkin.js';
 import { ease, clamp01 } from './bodyKit.js';
 import { carryClassOf } from './carry.js';
+import { guardTraveling } from './guardTravel.js';
 
 /** The hand-to-hand idle's fingers (quaternions, w first), each finger bone's local turn. */
 export const FIST = Object.freeze({
@@ -58,6 +59,7 @@ export function fingerShares(word) {
   const fist = (k) => ({ fist: k, open: 0 });
   const left = !word.torch && !word.spellHand && shield ? fist(FINGERS.grip) : null;
   // FIST-BESIDE-SHIELD: the right beside a shield is a free hand - open, as the free hand beside a sword
+  if (cls === 'fists' && !shield && guardTraveling(word)) return { L: null, R: null };
   if (cls === 'fists') return shield ? { R: { fist: 0, open: 1 }, L: fist(FINGERS.grip) } : { R: fist(FINGERS.fist), L: fist(FINGERS.fist) };
   if (cls === 'one') return { R: fist(FINGERS.hilt), L: left };
   if (cls === 'two' || cls === 'wide' || cls === 'spear' || cls === 'dual') return { R: fist(FINGERS.hilt), L: fist(FINGERS.hilt) };

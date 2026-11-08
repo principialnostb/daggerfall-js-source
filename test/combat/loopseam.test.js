@@ -81,3 +81,12 @@ test('GUARD-STEP-LOOP: the actual smoothed walking sampler meets across the MAO 
     if (a.translation && b.translation) assert.ok(Math.hypot(...a.translation.map((x, i) => x - b.translation[i])) < 1e-3, `${bone}: position jumps at wrap`);
   }
 });
+
+test('CLIP-WRAP: a standing loop rounded at its wrap reads its own keys, not the next group\'s - the one-handed stance\'s left hand at idle1h\'s start (mutant: only a walk wraps)', () => {
+  setPref('mwClipSmooth', true);
+  // a hand held still through its idle [0, 1]; outside it the file's neighbouring groups stand far away (idlehh before idle1h)
+  const hand = track((t) => (t < 0 || t > 1 ? 1.2 : 0.1));
+  const source = { keys: [], trackMap: new Map([['bip01 l hand', hand]]) };
+  const sampler = createLoopSeam({ sampleTrack, loopWindow: () => window }).sampler(sampleTrack, { group: 'idle1h', startTime: 0, stopTime: 1 }, source);
+  for (const t of [0, 0.004, 0.996, 1]) assert.ok(Math.abs(angleOf(sampler(hand, t)) - 0.1) < 1e-6, `at ${t}: ${angleOf(sampler(hand, t))}`);
+});

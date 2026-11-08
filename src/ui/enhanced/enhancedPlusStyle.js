@@ -2679,10 +2679,16 @@ export const ARMOUR_CSS = `
 .pack-shell .look-tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin: 3px 0 8px; }
 /* Use the very same .act/.primary skin as Take off/Info; only layout belongs here. */
 .pack-shell .look-tabs .look-tab { width: 100%; text-align: center; }
-.pack-shell .helmet-appearance .look-panel { min-height: 90px; display: flex; align-items: center; justify-content: center;
+.pack-shell .helmet-appearance .look-panel { min-height: 90px; display: flex; flex-direction: column; align-items: center; justify-content: center;
   padding: 0; background: transparent; border: 0; }
-.pack-shell .helmet-appearance .look-pick { box-sizing: border-box; width: 68px; height: 76px; padding: 6px;
+.pack-shell .helmet-appearance .look-pick { box-sizing: border-box; width: 100%; height: 76px; padding: 4px;
   border-color: #756448; box-shadow: inset 1px 1px #37362e, inset -1px -1px #08090b; }
+.pack-shell .helmet-appearance .look-panel { min-height: 0; width: 100%; min-width: 0; gap: 6px; box-sizing: border-box; }
+.pack-shell .helmet-appearance .look-panel::before { display: none; content: none; }
+.pack-shell .helmet-appearance .look-row { box-sizing: border-box; margin: 0; min-width: 0; align-items: stretch; }
+.pack-shell .helmet-appearance .helmet-2d-row .look-pick { padding: 9px; }
+.pack-shell .helmet-appearance .look-pages { height: 76px; flex: 0 0 30px; display: grid; grid-template-rows: 1fr 1fr; gap: 6px; }
+.pack-shell .helmet-appearance .look-pages button { width: 100%; height: 100%; }
 .pack-shell .helmet-appearance .look-pick.on { border-color: #f3d48a;
   box-shadow: inset 0 0 0 1px #ab8948, 0 0 6px #c89c4d55; }
 /* Equal full-image bounds make bare domes huge and crested helmets tiny.
@@ -2694,7 +2700,22 @@ export const ARMOUR_CSS = `
 .pack-shell .helmet-appearance [data-helmet-art="3"] img,
 .pack-shell .helmet-appearance [data-helmet-art="4"] img { transform: scale(1.06); }
 .pack-shell .helmet-appearance [data-helmet-art="5"] img { transform: scale(.88); }
-.pack-shell .look-cards { display: grid; grid-template-columns: repeat(3, 68px); gap: 8px; }
+.pack-shell .look-cards { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; flex: 1; min-width: 0; }
+.pack-shell.appearance-fitting { align-items: stretch; justify-content: flex-start; opacity: 1; inset: auto; transition: none; backdrop-filter: none; -webkit-backdrop-filter: none; position: fixed; z-index: 10100; display: flex; flex-direction: column; gap: 8px; box-sizing: border-box; padding: 12px; margin: 0; background: #15181c; color: #e4d3a2; border: 2px solid #a38a56; box-shadow: inset 0 0 0 2px #37362e, 0 8px 24px #000b; }
+.pack-shell.appearance-fitting .fitting-close { margin-left: auto; flex: 0 0 24px; width: 24px; min-width: 24px; height: 24px; min-height: 24px; padding: 0; font-size: 15px; line-height: 1; }
+.appearance-fitting .fitting-title { width: 100%; box-sizing: border-box; display: flex; justify-content: space-between; align-items: center; }
+.appearance-fitting .fitting-canvas { image-rendering: pixelated; width: 100%; flex: 1; min-height: 0; object-fit: contain; cursor: grab; filter: brightness(1.15) contrast(1.04); background: radial-gradient(ellipse, #393b40, #14171b); }
+.appearance-fitting .fitting-canvas[hidden] { display: none; }
+.appearance-fitting .fitting-status { flex: 1; display: grid; place-items: center; }
+.appearance-fitting .fitting-status:empty { display: none; }
+.appearance-fitting .fitting-controls { display: flex; gap: 8px; }
+.appearance-fitting button { padding: 6px 10px; border: 1px solid #a38a56; border-radius: 0; color: #e4d3a2; background: #25272c; font: inherit; cursor: pointer; }
+.pack-shell .look-controls { grid-column: 1 / -1; width: 100%; display: flex; gap: 6px; }
+.pack-shell .look-controls input, .pack-shell .look-controls select { min-width: 0; width: 100%; padding: 5px; color: var(--parchment, #d8cba3); background: #141719; border: 1px solid #766c50; border-radius: 0; font: inherit; }
+.pack-shell .look-dyes { grid-column: 1 / -1; width: 100%; display: flex; flex-wrap: wrap; justify-content: center; gap: 7px; padding: 7px 0; margin: 2px 0 8px; border-block: 1px solid rgba(125,116,96,.3); }
+.pack-shell .look-dye { width: 18px; height: 18px; padding: 0; border: 1px solid rgba(0,0,0,0.6); border-radius: 0; box-shadow: inset 0 0 0 1px rgba(255,255,255,0.25), 0 0 0 1px #665b40; cursor: pointer; }
+.pack-shell .look-dye.on { outline: 2px solid #f3d48a; outline-offset: 2px; }
+.pack-shell .look-dye:focus-visible { outline: 2px solid #fff3cc; outline-offset: 2px; }
 .pack-shell .helmet-2d-row { flex-wrap: nowrap; align-items: center; }
 .pack-shell .look-pages { display: flex; flex-direction: column; gap: 6px; }
 .pack-shell .look-pages button { position: relative; width: 30px; height: 34px; padding: 0;

@@ -1,3 +1,4 @@
+import { modResourceGlob } from '../../systems/enhancedModResources.js';
 // Better Bodies asset resolver for the Morrowind character pipeline.
 //
 // Runtime body and skin URLs are selected by the actor's race and sex from the
@@ -10,76 +11,76 @@ import { modSetting } from '../../systems/modSettings.js';
 import { betterBodiesFirstPersonHandAssetPaths, betterBodiesHighResolutionFemaleHandTexturePath, betterBodiesTextureStem } from './mwBetterBodiesPaths.js';
 
 const nudeBodyModelUrls = IN_BROWSER
-  ? import.meta.glob('../../../Mods/Bodies/Better Bodies/Nude/Data Files/Meshes/bb/bb_skin*.nif', {
+  ? modResourceGlob('../../../Mods/Bodies/Better Bodies/Nude/Data Files/Meshes/bb/bb_skin*.nif', import.meta.glob('../../../Mods/Bodies/Better Bodies/Nude/Data Files/Meshes/bb/bb_skin*.nif', {
       eager: true, query: '?url', import: 'default',
-    })
+    }))
   : {};
 const nudeHandModelUrls = IN_BROWSER
-  ? import.meta.glob('../../../Mods/Bodies/Better Bodies/Nude/Data Files/Meshes/bb/bb_hand*.nif', {
+  ? modResourceGlob('../../../Mods/Bodies/Better Bodies/Nude/Data Files/Meshes/bb/bb_hand*.nif', import.meta.glob('../../../Mods/Bodies/Better Bodies/Nude/Data Files/Meshes/bb/bb_hand*.nif', {
       eager: true, query: '?url', import: 'default',
-    })
+    }))
   : {};
 const nudeHandTextureUrls = IN_BROWSER
-  ? import.meta.glob('../../../Mods/Bodies/Better Bodies/Nude/Data Files/Textures/bb/bb_hand*.dds', {
+  ? modResourceGlob('../../../Mods/Bodies/Better Bodies/Nude/Data Files/Textures/bb/bb_hand*.dds', import.meta.glob('../../../Mods/Bodies/Better Bodies/Nude/Data Files/Textures/bb/bb_hand*.dds', {
       eager: true, query: '?url', import: 'default',
-    })
+    }))
   : {};
 const nudeBodyTextureUrls = IN_BROWSER
-  ? import.meta.glob('../../../Mods/Bodies/Better Bodies/Nude/Data Files/Textures/bb/bb_skin*.dds', {
+  ? modResourceGlob('../../../Mods/Bodies/Better Bodies/Nude/Data Files/Textures/bb/bb_skin*.dds', import.meta.glob('../../../Mods/Bodies/Better Bodies/Nude/Data Files/Textures/bb/bb_skin*.dds', {
       eager: true, query: '?url', import: 'default',
-    })
+    }))
   : {};
 const underwearBodyModelUrls = IN_BROWSER
-  ? import.meta.glob('../../../Mods/Bodies/Better Bodies/Underwear/Data Files/Meshes/bb/bb_skin*.nif', {
+  ? modResourceGlob('../../../Mods/Bodies/Better Bodies/Underwear/Data Files/Meshes/bb/bb_skin*.nif', import.meta.glob('../../../Mods/Bodies/Better Bodies/Underwear/Data Files/Meshes/bb/bb_skin*.nif', {
       eager: true, query: '?url', import: 'default',
-    })
+    }))
   : {};
 const underwearHandModelUrls = IN_BROWSER
-  ? import.meta.glob('../../../Mods/Bodies/Better Bodies/Underwear/Data Files/Meshes/bb/bb_hand*.nif', {
+  ? modResourceGlob('../../../Mods/Bodies/Better Bodies/Underwear/Data Files/Meshes/bb/bb_hand*.nif', import.meta.glob('../../../Mods/Bodies/Better Bodies/Underwear/Data Files/Meshes/bb/bb_hand*.nif', {
       eager: true, query: '?url', import: 'default',
-    })
+    }))
   : {};
 const underwearHandTextureUrls = IN_BROWSER
-  ? import.meta.glob('../../../Mods/Bodies/Better Bodies/Underwear/Data Files/Textures/bb/bb_hand*.dds', {
+  ? modResourceGlob('../../../Mods/Bodies/Better Bodies/Underwear/Data Files/Textures/bb/bb_hand*.dds', import.meta.glob('../../../Mods/Bodies/Better Bodies/Underwear/Data Files/Textures/bb/bb_hand*.dds', {
       eager: true, query: '?url', import: 'default',
-    })
+    }))
   : {};
 const underwearBodyTextureUrls = IN_BROWSER
-  ? import.meta.glob('../../../Mods/Bodies/Better Bodies/Underwear/Data Files/Textures/bb/bb_skin*.dds', {
+  ? modResourceGlob('../../../Mods/Bodies/Better Bodies/Underwear/Data Files/Textures/bb/bb_skin*.dds', import.meta.glob('../../../Mods/Bodies/Better Bodies/Underwear/Data Files/Textures/bb/bb_skin*.dds', {
       eager: true, query: '?url', import: 'default',
-    })
+    }))
   : {};
 
 const highResolutionFemaleHandTextureUrls = IN_BROWSER
-  ? import.meta.glob('../../../Mods/Bodies/High Resolution Better Body Female Textures/Hands/Textures/bb/bb_handf_*.dds', {
+  ? modResourceGlob('../../../Mods/Bodies/High Resolution Better Body Female Textures/Hands/Textures/bb/bb_handf_*.dds', import.meta.glob('../../../Mods/Bodies/High Resolution Better Body Female Textures/Hands/Textures/bb/bb_handf_*.dds', {
       eager: true, query: '?url', import: 'default',
-    })
+    }))
   : {};
 // HD-BODY: the high-resolution female pack is a MESH and texture pair - its chest and groin are its own topology
 // (707/321 vertices against Better Bodies' 518/155), so its 2048px skin never fits the Better Bodies UVs. Selected
 // together, behind HighResolutionBetterBodyFemaleTexturesSource = 2; the underwear is painted in its texture.
 const highResolutionFemaleBodyModelUrls = IN_BROWSER
-  ? import.meta.glob('../../../Mods/Bodies/High Resolution Better Body Female Textures/Meshes/bb/bb_skinf_*.nif', {
+  ? modResourceGlob('../../../Mods/Bodies/High Resolution Better Body Female Textures/Meshes/bb/bb_skinf_*.nif', import.meta.glob('../../../Mods/Bodies/High Resolution Better Body Female Textures/Meshes/bb/bb_skinf_*.nif', {
       eager: true, query: '?url', import: 'default',
-    })
+    }))
   : {};
 const highResolutionFemaleBodyTextureUrls = IN_BROWSER
   ? Object.freeze({
-      underwear: import.meta.glob('../../../Mods/Bodies/High Resolution Better Body Female Textures/Underwear/Textures/bb/bb_skinf_*.dds', {
+      underwear: modResourceGlob('../../../Mods/Bodies/High Resolution Better Body Female Textures/Underwear/Textures/bb/bb_skinf_*.dds', import.meta.glob('../../../Mods/Bodies/High Resolution Better Body Female Textures/Underwear/Textures/bb/bb_skinf_*.dds', {
         eager: true, query: '?url', import: 'default',
-      }),
-      nude: import.meta.glob('../../../Mods/Bodies/High Resolution Better Body Female Textures/Nude_No_Hair/Textures/bb/bb_skinf_*.dds', {
+      })),
+      nude: modResourceGlob('../../../Mods/Bodies/High Resolution Better Body Female Textures/Nude_No_Hair/Textures/bb/bb_skinf_*.dds', import.meta.glob('../../../Mods/Bodies/High Resolution Better Body Female Textures/Nude_No_Hair/Textures/bb/bb_skinf_*.dds', {
         eager: true, query: '?url', import: 'default',
-      }),
-      bodyHair: import.meta.glob('../../../Mods/Bodies/High Resolution Better Body Female Textures/Nude_Body_Hair/Textures/bb/bb_skinf_*.dds', {
+      })),
+      bodyHair: modResourceGlob('../../../Mods/Bodies/High Resolution Better Body Female Textures/Nude_Body_Hair/Textures/bb/bb_skinf_*.dds', import.meta.glob('../../../Mods/Bodies/High Resolution Better Body Female Textures/Nude_Body_Hair/Textures/bb/bb_skinf_*.dds', {
         eager: true, query: '?url', import: 'default',
-      }),
+      })),
     })
   : Object.freeze({ underwear: {}, nude: {}, bodyHair: {} });
 const dmraFemaleBodyModelUrls = IN_BROWSER
-  ? import.meta.glob('../../../Mods/Bodies/Seamless DMRA body replacer/Meshes/bb/bb_skinf_*.nif', {
+  ? modResourceGlob('../../../Mods/Bodies/Seamless DMRA body replacer/Meshes/bb/bb_skinf_*.nif', import.meta.glob('../../../Mods/Bodies/Seamless DMRA body replacer/Meshes/bb/bb_skinf_*.nif', {
       eager: true, query: '?url', import: 'default',
-    })
+    }))
   : {};
 // Behind the same gate as the asset URLs above: a static `?url` import is Vite's alone, and under node it refuses
 // the whole module graph (every test that imports the arm) for a file only the browser fetches.
@@ -99,24 +100,24 @@ const compactRaceName = (race) => String(
 
 // BETTER-HANDS: the whole body - its wrist, forearm and upper arm are the first-person arm (its .1st carries hands alone)
 const robertBodyModelUrls = IN_BROWSER
-  ? import.meta.glob("../../../Mods/Bodies/Robert's bodies/Data Files/Meshes/bbr/*.nif", {
+  ? modResourceGlob("../../../Mods/Bodies/Robert's bodies/Data Files/Meshes/bbr/*.nif", import.meta.glob("../../../Mods/Bodies/Robert's bodies/Data Files/Meshes/bbr/*.nif", {
       eager: true, query: '?url', import: 'default',
-    })
+    }))
   : {};
 const robertBodyTextureUrls = IN_BROWSER
-  ? import.meta.glob("../../../Mods/Bodies/Robert's bodies/Data Files/Textures/bbr/*.dds", {
+  ? modResourceGlob("../../../Mods/Bodies/Robert's bodies/Data Files/Textures/bbr/*.dds", import.meta.glob("../../../Mods/Bodies/Robert's bodies/Data Files/Textures/bbr/*.dds", {
       eager: true, query: '?url', import: 'default',
-    })
+    }))
   : {};
 const betterHandsModelUrls = IN_BROWSER
-  ? import.meta.glob('../../../Mods/Bodies/Better Hands/Meshes/b/*.1st.nif', {
+  ? modResourceGlob('../../../Mods/Bodies/Better Hands/Meshes/b/*.1st.nif', import.meta.glob('../../../Mods/Bodies/Better Hands/Meshes/b/*.1st.nif', {
       eager: true, query: '?url', import: 'default',
-    })
+    }))
   : {};
 const betterHandsTextureUrls = IN_BROWSER
-  ? import.meta.glob('../../../Mods/Bodies/Better Hands/Textures/bbr/*.dds', {
+  ? modResourceGlob('../../../Mods/Bodies/Better Hands/Textures/bbr/*.dds', import.meta.glob('../../../Mods/Bodies/Better Hands/Textures/bbr/*.dds', {
       eager: true, query: '?url', import: 'default',
-    })
+    }))
   : {};
 
 const ROBERT_RACE_NAMES = Object.freeze({
@@ -243,18 +244,18 @@ export function betterBodiesAssetUrls({ race = 'Nord', female = false, underwear
 // files (TX_B_N_Argonian_F_F...), so they are given names of their own at load (fpArm) and no archive answers them.
 const beastBodyModelUrls = IN_BROWSER
   ? Object.freeze({
-      underwear: import.meta.glob('../../../Mods/Bodies/Better Bodies 3.2 Beasts/Underwear/Meshes/bb/*.nif', {
+      underwear: modResourceGlob('../../../Mods/Bodies/Better Bodies 3.2 Beasts/Underwear/Meshes/bb/*.nif', import.meta.glob('../../../Mods/Bodies/Better Bodies 3.2 Beasts/Underwear/Meshes/bb/*.nif', {
         eager: true, query: '?url', import: 'default',
-      }),
-      nude: import.meta.glob('../../../Mods/Bodies/Better Bodies 3.2 Beasts/Nude/Meshes/bb/*.nif', {
+      })),
+      nude: modResourceGlob('../../../Mods/Bodies/Better Bodies 3.2 Beasts/Nude/Meshes/bb/*.nif', import.meta.glob('../../../Mods/Bodies/Better Bodies 3.2 Beasts/Nude/Meshes/bb/*.nif', {
         eager: true, query: '?url', import: 'default',
-      }),
+      })),
     })
   : Object.freeze({ underwear: {}, nude: {} });
 const beastBodyTextureUrls = IN_BROWSER
-  ? import.meta.glob('../../../Mods/Bodies/Better Bodies 3.2 Beasts/Textures/*.dds', {
+  ? modResourceGlob('../../../Mods/Bodies/Better Bodies 3.2 Beasts/Textures/*.dds', import.meta.glob('../../../Mods/Bodies/Better Bodies 3.2 Beasts/Textures/*.dds', {
       eager: true, query: '?url', import: 'default',
-    })
+    }))
   : {};
 const BEAST_RACES = Object.freeze({ argonian: 'argonian', khajiit: 'khajiit' });
 

@@ -130,6 +130,65 @@ export const ENHANCED_FONTS_URL = fontsUrl([FONT_DISPLAY, FONT_DATA, FONT_PIXEL_
    are not. Ledger A row "THE HUD LINE AS A TOAST". */
 
 export const ENHANCED_CSS = `
+.pixelation-intro {position:relative}
+.pixelation-intro .emc-language {justify-content:flex-end; flex-wrap:wrap; margin-bottom:12px}
+.pixelation-card .ft-seg {width:100%; box-sizing:border-box}
+.pixelation-card .ft-segb {flex:1; min-height:40px}
+.shell .pixelation-card .ft-segb[aria-pressed="true"] {background:#294d38; color:#e6dcbf}
+.shell .pixelation-card[data-locked="1"] .ft-segb[aria-pressed="true"] {background:#39372d; color:#c7b78a}
+.pixelation-card .emc-readiness {margin:12px 0}
+.pixelation-card[data-locked="1"] {border-color:#665443}
+.pixelation-card button:disabled {cursor:not-allowed}
+
+.emc-catalog h3, .emc-catalog h4 { color:#dbb86b; }
+.emc-catalog .meta { color:#b9b39f; line-height:1.6; }
+.emc-catalog .emc-credits { display:flex; flex-wrap:wrap; gap:6px 14px; margin:8px 0 12px; }
+.emc-catalog .emc-author { color:#a8b6ce; }
+.emc-catalog .emc-integrator { color:#f0cc78; border-left:2px solid #a28449; padding-left:8px; font-weight:600; }
+.emc-catalog .emc-ready { color:#8fc49a; }
+.emc-catalog .emc-boosts {padding:10px 12px; margin:12px 0; border-left:2px solid #706143; background:rgba(117,98,57,.08)}
+.emc-catalog .emc-boosts-lead {margin:0 0 8px; font-size:.85em}
+.emc-catalog .emc-boost-list {list-style:none; padding:0; margin:6px 0 0; display:flex; flex-wrap:wrap; gap:6px}
+.emc-catalog .emc-chip {display:flex; align-items:baseline; flex-wrap:wrap; gap:6px 12px; border:1px solid #514b3c; padding:6px 9px; color:#b9b39f; cursor:help; font-size:.85em}
+.emc-catalog .emc-chip.on {border-color:#54745a}
+.emc-catalog .emc-chip.on .emc-boost-name {color:#a4cfa6}
+.emc-catalog .emc-boost-state {font-size:.85em; color:#a59b83}
+.emc-texture-card.ft-tile {display:block; padding:18px 20px}
+.emc-texture-card .ft-tile-ctl {max-width:none; width:100%; margin-top:14px}
+.emc-texture-card .ft-segb {flex:1; min-height:40px}
+.shell .emc-texture-card .ft-segb[aria-pressed="true"] {background:#294d38; color:#e6dcbf}
+.emc-texture-intro .emc-source-note {padding-left:12px}
+.emc-catalog .emc-missing { color:#ed9a78; }
+.emc-catalog .emc-enable { color:#9bcca5; border-color:#54745a; }
+.emc-catalog .emc-disable { color:#e4c17b; border-color:#8c7446; }
+.emc-catalog .emc-remove { color:#dca08d; border-color:#805b50; }
+.emc-catalog .emc-connect { color:#b5c5df; border-color:#66768d; }
+.emc-catalog .act:disabled, .emc-catalog fieldset:disabled .act { color:#77756c; border-color:#45463f; opacity:.65; cursor:not-allowed; }
+.emc-catalog .emc-extra { padding:12px 0; border-top:1px solid #4f4939; }
+.emc-catalog .emc-source-note { color:#d4b77c; border-left:2px solid #8c7446; padding-left:8px; }
+.emc-nav { display:flex; align-items:center; flex-wrap:wrap; justify-content:space-between; gap:12px; }
+.emc-language { display:flex; align-items:center; gap:6px; margin-left:auto; }
+.emc-language .act { padding:5px 10px; min-height:32px; }
+.panes .sec-jump.emc-nav { display:flex; align-items:center; flex-wrap:wrap; justify-content:space-between; }
+.panes .emc-nav > .animation-switch-group { width:auto; flex:1 1 320px; }
+.panes .emc-nav > .emc-language { flex:0 0 auto; margin-left:auto; }
+
+.emc-catalog .emc-group { border: 1px solid #8c784a; margin: 16px 0; padding: 16px; }
+.emc-catalog .emc-pack { border-left: 3px solid #8c784a; margin: 12px 0 0 12px; padding: 12px; }
+.emc-catalog .emc-badge { color: #d4b36b; font-size: .75em; letter-spacing: .12em; }
+.emc-catalog .emc-status { color: #8db49a; }
+.emc-catalog .emc-error { color: #e79a7c; }
+.emc-catalog .emc-pending { color: #e1be69; }
+.emc-catalog .acts { display: flex; flex-wrap: wrap; gap: 8px; }
+.emc-catalog .act { display: inline-block; margin: 4px; white-space: normal; }
+.emc-catalog button:disabled { opacity: .5; }
+.emc-ready { color: #8db49a; }
+.emc-missing { color: #e79a7c; }
+.emc-readiness { margin: 8px 0 14px; padding-left: 20px; font-size: .85em; }
+.emc-unavailable { opacity: .55; }
+.emc-catalog fieldset:disabled { border-color: #55534a; }
+.emc-catalog [aria-disabled='true'] { pointer-events: none; }
+
 /* ── FIX-D: the digit five is Silkscreen's - see ui/pixelifyFive.js */
 ${PIXELIFY_FIVE_FACE}
 /* ── TOKENS ── see ENHANCED_TOKENS above */

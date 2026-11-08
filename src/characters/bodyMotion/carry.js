@@ -97,15 +97,23 @@ export const CARRY = Object.freeze({
   one: Object.freeze({
     // FREE-HAND-REST's left (the owner, 2026-11-06: lowered "it hangs as a stick" - "a small bend at the elbow"): down by
     // the side, the elbow eased 25 degrees, the hand a little before the thigh
-    idle: { R: row(5, 21, 8, -7, 0, { blade: dir(0.26, 0.74, -0.62), edge: dir(-0.26, -0.56, -0.78) }), L: row(2, 10, 25, 6, 0) },
-    walk: { R: row(5, 22, 3, -1, 0.3, { blade: dir(0.23, 0.81, -0.53), edge: dir(-0.39, -0.42, -0.82) }), L: row(2, 8, 12, 6, 1, { gaitElbow: 1 }) },
+    // ONE-OFF-THIGH (2026-11-07, the owner: "the hand by the thigh with the one-hander - a little farther from the thigh"):
+    // the sword arm held 5 degrees farther out, standing and walking; the rest of the hold as it was
+    // ONE-ARM-HELD (2026-11-07, the owner's 20-07-38 recording: "the arm is not an arm but a dangling limb"; "a small natural
+    // bend at the elbow, the upper arm a little back"): the elbow eased from 3-8 degrees to 20-22, the upper arm 3-4 behind
+    // the body's line rather than 5 before it, and walking the stride's pendulum halved (0.3 to 0.15)
+    idle: { R: row(-4, 26, 22, -7, 0, { blade: dir(0.26, 0.74, -0.62), edge: dir(-0.26, -0.56, -0.78) }), L: row(2, 10, 25, 6, 0) },
+    walk: { R: row(-3, 27, 20, -1, 0.15, { blade: dir(0.23, 0.81, -0.53), edge: dir(-0.39, -0.42, -0.82) }), L: row(2, 8, 12, 6, 1, { gaitElbow: 1 }) },
     // ONE-RUN (feature-feedback via Mac, 2026-10-26: "Running and sprinting with one-handed weapon looks off, because hand
     // is in twisted position pointing weapon to the side unnaturally"): the stand's own format at a run - the arm low and
     // out, nearly straight, swinging with the stride, the blade forward and a little down. The blade had trailed behind,
     // down and out to the right, the forearm turned 64 to 74 degrees off its elbow's hinge to hold it there; a bent elbow
     // with the blade still forward and down asked the wrist for 40 to 95 degrees of ulnar deviation. And no `via`: the
     // trailing blade's way round, back and up, swung the new one 11 degrees a frame between a stand and a run.
-    run: { R: row(8, 21, 16, -4, 0.35, { blade: dir(0.2, 0.97, -0.14), edge: dir(-0.15, -0.11, -0.98) }), L: row(8, 18, 0, -4, 1, { gaitElbow: 1 }) },
+    // ONE-ARM-HELD (the owner: running, "the shoulder of the sword arm lengthens instead of keeping its shape"): the run's
+    // straight arm swung 0.35 of the stride drew the shoulder's skin long at the back of its swing - the elbow now bent 30,
+    // the upper arm a little back, the pendulum 0.15; the blade's ways as ONE-RUN set them
+    run: { R: row(-6, 21, 30, -4, 0.15, { blade: dir(0.2, 0.97, -0.14), edge: dir(-0.15, -0.11, -0.98) }), L: row(8, 18, 0, -4, 1, { gaitElbow: 1 }) },
     sneak: { R: row(21, 29, 54, -44, 0.2, { blade: dir(0.12, 0.98, -0.18), edge: dir(0.8, -0.2, -0.56) }), L: row(14, 16, 40, 10, 0.6) },
     stand: { feet: { L: [0, 0.05], R: [0.02, -0.03] }, hipYaw: -6 },
   }),

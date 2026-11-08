@@ -1,3 +1,4 @@
+import { drawCampScene } from './campfireVisual.js';
 import { skyLookAngles } from '../player/lookAround.js';
 // Interior/dungeon mode machine (P3-P6, extracted at the P7
 // consolidation): a HOST scene stays in 'exterior' mode until an E on a
@@ -10937,7 +10938,7 @@ export function createWorldModes(host) {
       if (windowHoldsDungeon(dungeonCtx.uiOverlayActive, aliveUnder())) dungeonCtx.drawWindowBodies?.(canvas, { proj, view, eye: cam.pos });   // AUDIT MW-NPC C6, FB1015 LOOT-BODY: under a window drawFoes' last bodies, frozen
       dungeonCtx.bloodMarks?.draw?.(camRight, UP_Y);   // BLOOD1a: the dungeon's own marks, on this host's pass   // BLOOD1b: and its chunks, on this host's own basis
       dungeonCtx.drawPeople?.(canvas, proj, view, mwv.eye, dt, offerDungeonQuestStands);   // MWNPC8b: the people in their bodies - before the level's billboards draw; MWNPC8c: and the quest's
-      renderer.drawBillboards([...dungeonCtx.billboardBatches, ...dungeonCtx.campBatches(), ...dungeonCtx.torchBatches(), ...(host.extraBillboards?.() ?? [])], camRight, UP_Y);   // ONLINE1: the peers on the dungeon's own pass; HT1 the dropped torches; SURV3 the campfires
+      drawCampScene(renderer, dungeonCtx, [...dungeonCtx.billboardBatches, ...dungeonCtx.campBatches(), ...dungeonCtx.torchBatches(), ...(host.extraBillboards?.() ?? [])], camRight, UP_Y);   // ONLINE1: the peers on the dungeon's own pass; HT1 the dropped torches; SURV3 the campfires
       npcMarks.gather(npcMarkCtx, dungeonCtx.people, dungeonQuestFlats);   // NPC-MARKS: who of the people drawPeople stood earns a mark
       host.drawLootLines?.({ proj, view, eye: mwv.eye, finds: () => dungeonCtx.lootFinds?.() ?? [] });   // LOOT11: the lines of light over the dungeon's finds
       if (npcMarks.draw(proj, view, mwv.eye, dungeonCtx.peopleLane, performance.now() / 1000)) renderer.markForeignPass();   // NPC-MARKS: the marks over its people, after the flats

@@ -169,7 +169,7 @@ test('texture: the pipeline decodes AHEAD and overrides SYNCHRONOUSLY', () => {
   // auto-emissive arm reuses that same albedo as its emission map
   // (TextureReader.cs:301-308) - a pack's replacement must light the
   // lantern it replaces, not the classic art beside it.
-  assert.match(p, /const swap = decodedTexture\(archive, record, 0, 'Albedo', dye\);/);
+  assert.match(p, /const swap = clothReplacementNow\(archive, record, 0, 'Albedo', dye, dyeTarget\);/);
   // INCIDENT 2026-09-04: the record door carries the caller's alphaIndex
   // choice - a mesh material is opaque (-1), a flat cuts index 0.
   assert.match(p, /const color32 = swap \?\? t\.getColor32\(dyed \? changeDyeBitmap\(masked, dye, dyeTarget\) : masked, opaque \? -1 : 0\);/);   // DYE-ICON: the classic arm's mask and dye ride `masked`
@@ -180,7 +180,7 @@ test('texture: the pipeline decodes AHEAD and overrides SYNCHRONOUSLY', () => {
   // BELOW the spectral arm: that path builds albedo AND an emission
   // mask from one remap, and replacing half would light a ghost by a
   // texture it no longer wears
-  assert.ok(p.indexOf('isSpectralArchive') < p.indexOf('const swap = decodedTexture'),
+  assert.ok(p.indexOf('isSpectralArchive') < p.indexOf('const swap = clothReplacementNow'),
     'the spectral path must return before the override');
 });
 

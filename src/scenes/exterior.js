@@ -4,6 +4,7 @@
 // selectable with ?region=<name>&loc=<name>. Ground archive comes from the
 // location's climate (CLIMATE.PAK -> GetWorldClimateSettings).
 
+import { drawCampWorldFx } from './campfireVisual.js';
 import { setAirGround } from '../systems/weather/airTemperature.js';   // PRECIP1: the air's map (none here)
 import { walkModeOn, bindWalkMode } from '../player/walkMode.js';   // PADWALK: walk mode, one button on and off
 import { YesNoBoxWindow } from '../ui/yesNoBox.js';   // SOFTCAP3: the Master Skills offer
@@ -6221,7 +6222,7 @@ export async function bootExterior(canvas, renderer, params, status) {
         grounded: !walkMode || !!player.grounded, settings: hazeFrameSettings() });   // AUDIT ENVIRONS W4 (world.js's twin): the ease on the real clock, the shimmer on the game's
       if (hz.visible && hazeGl.draw(hz, proj, view, renderer.worldViewportPx ?? [0, 0, renderer.gl.drawingBufferWidth, renderer.gl.drawingBufferHeight], hz.seconds)) renderer.markForeignPass();
     }
-    magic.drawFx?.();   // IMPACTFX: the spells' landings in light, over their flashes; STOREFRONT (AUDIT STOREFRONT RENDER L3): with the kill effects, after the walkers, the watch, the foes and the Windfall - no depth written, so a flat drawn after them painted over them (world.js's twin note)
+    drawCampWorldFx(camps, magic);   // IMPACTFX: the spells' landings in light, over their flashes; STOREFRONT (AUDIT STOREFRONT RENDER L3): with the kill effects, after the walkers, the watch, the foes and the Windfall - no depth written, so a flat drawn after them painted over them (world.js's twin note)
     // WX2: what falls is what the front SHOWS (world.js's twin note)
     eye32[0] = eye[0]; eye32[1] = eye[1]; eye32[2] = eye[2];
     const precipShown = enhancedFront ? fx.shown : precipMode;

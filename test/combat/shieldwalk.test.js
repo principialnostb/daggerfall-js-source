@@ -46,7 +46,9 @@ function rig(base, previous, torsoSway = 0.55) {
 }
 
 test("SHIELD-WALK / ARM-HOLD: real layered guard walks hold the shield arm steady on the chest, swung by the legs' own walk, without changing the legs or weapon arm (it turned with the strafe's own stride)", () => {
-  for (const base of ['walkforward', 'walkback']) {
+  // SHIELD-WALK-NEUTRAL: walking forward the shield is the stance idle's neutral arm (no strafe's arm to hold); walking back
+  // it is still the strafe's, held
+  for (const base of ['walkback']) {
     const before = rig(base, true), after = rig(base, false), samples = [[], []];
     for (let f = 0; f < 300; f++) {
       const old = before.step(f), now = after.step(f);

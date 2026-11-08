@@ -1,3 +1,5 @@
+import { modGroupEnabled, modResourceAllowed } from '../../systems/enhancedModResources.js';
+import { modResourceGlob } from '../../systems/enhancedModResources.js';
 // Runtime loader for animation packs under Mods/Animations.
 // Files are bundled by Vite as URLs; their bytes are parsed by the same NIF/KF
 // reader used for the game's archives. This module deliberately does not touch
@@ -7,7 +9,16 @@ import { modDiagnostics } from '../../systems/modDiagnostics.js';
 
 const IN_BROWSER = typeof window !== 'undefined';
 const FILES = IN_BROWSER
-  ? import.meta.glob([
+  ? modResourceGlob([
+      '../../../Mods/Animations/Simply Walking/**/*.{kf,KF}',
+      "../../../Mods/Animations/Axel's Sexy Walk Fixed/Animation/axel fixed/female/*.{kf,KF}",
+      // MAO files remain user-supplied under Mods/Animations; they are not vendored in this repository.
+      // MAO-SOURCE (2026-10-30): the pack ships Xbase_anim.kf, and the glob is case-sensitive - spelled in lower case it
+      // found nothing, and the setting silently left the game's own clips playing
+      '../../../Mods/Animations/Morrowind Animation Overhaul/Data Files/Meshes/{x,X}base_anim.kf',
+      '../../../Mods/Animations/Morrowind Animation Overhaul/Data Files/Meshes/{x,X}base_anim_female.kf',
+      // Morrowind Animation Overhaul is intentionally excluded pending explicit reuse permission.
+    ], import.meta.glob([
       '../../../Mods/Animations/Simply Walking/**/*.{kf,KF}',
       "../../../Mods/Animations/Axel's Sexy Walk Fixed/Animation/axel fixed/female/*.{kf,KF}",
       // MAO files remain user-supplied under Mods/Animations; they are not vendored in this repository.
@@ -18,24 +29,30 @@ const FILES = IN_BROWSER
       // Morrowind Animation Overhaul is intentionally excluded pending explicit reuse permission.
     ], {
       eager: true, query: '?url', import: 'default',
-    })
+    }))
   : {};
 
 // ReAnimation v3 ships individual first-person KF clips rather than one replacement
 // library. Keep this glob separate from third-person locomotion and sort paths
 // before resolving so glob enumeration order can never decide animation priority.
 const FIRST_PERSON_FILES = IN_BROWSER
-  ? import.meta.glob([
+  ? modResourceGlob([
       '../../../Mods/Animations/ReAnimation v3 - Complete - first-person animation pack/00 Core/Animations/xbase_anim.1st/**/*.{kf,KF}',
       '../../../Mods/Animations/ReAnimation v3 - Complete - first-person animation pack/00 Core/Animations/xbase_anim.1st/*.{kf,KF}',
-    ], { eager: true, query: '?url', import: 'default' })
+    ], import.meta.glob([
+      '../../../Mods/Animations/ReAnimation v3 - Complete - first-person animation pack/00 Core/Animations/xbase_anim.1st/**/*.{kf,KF}',
+      '../../../Mods/Animations/ReAnimation v3 - Complete - first-person animation pack/00 Core/Animations/xbase_anim.1st/*.{kf,KF}',
+    ], { eager: true, query: '?url', import: 'default' }))
   : {};
 
 const HIT_REACTION_FILES = IN_BROWSER
-  ? import.meta.glob([
+  ? modResourceGlob([
       '../../../Mods/Animations/Hit Reactions Animated v2 -- OpenMW/Animations/**/*.{kf,KF}',
       '../../../Mods/Animations/Hit Reactions Animated v2 -- OpenMW/Animations/**/*.KF',
-    ], { eager: true, query: '?url', import: 'default' })
+    ], import.meta.glob([
+      '../../../Mods/Animations/Hit Reactions Animated v2 -- OpenMW/Animations/**/*.{kf,KF}',
+      '../../../Mods/Animations/Hit Reactions Animated v2 -- OpenMW/Animations/**/*.KF',
+    ], { eager: true, query: '?url', import: 'default' }))
   : {};
 
 // The OpenMW Dynamic Animations package has a large script-driven catalog.
@@ -43,14 +60,17 @@ const HIT_REACTION_FILES = IN_BROWSER
 // here; its Lua controllers, NPC/creature variants, poses and YAML blend rules
 // are not browser-runtime providers.
 const OPENMW_DYNAMIC_FIRST_PERSON_FILES = IN_BROWSER
-  ? import.meta.glob([
+  ? modResourceGlob([
       '../../../Mods/Animations/OpenMW Dynamic Animations/animations/xbase_anim.1st/*.{kf,KF}',
       '../../../Mods/Animations/OpenMW Dynamic Animations/animations/xbase_anim.1st/*.KF',
-    ], { eager: true, query: '?url', import: 'default' })
+    ], import.meta.glob([
+      '../../../Mods/Animations/OpenMW Dynamic Animations/animations/xbase_anim.1st/*.{kf,KF}',
+      '../../../Mods/Animations/OpenMW Dynamic Animations/animations/xbase_anim.1st/*.KF',
+    ], { eager: true, query: '?url', import: 'default' }))
   : {};
 
 const OPENMW_DYNAMIC_THIRD_PERSON_FILES = IN_BROWSER
-  ? import.meta.glob([
+  ? modResourceGlob([
       '../../../Mods/Animations/OpenMW Dynamic Animations/animations/xbase_anim/**/*.{kf,KF}',
       '../../../Mods/Animations/OpenMW Dynamic Animations/animations/xbase_anim_female/**/*.{kf,KF}',
       '../../../Mods/Animations/OpenMW Dynamic Animations/animations/xbase_animkna/**/*.{kf,KF}',
@@ -60,7 +80,17 @@ const OPENMW_DYNAMIC_THIRD_PERSON_FILES = IN_BROWSER
       '../../../Mods/Animations/OpenMW Dynamic Animations/animations/oaab/r/xMazken/**/*.{kf,KF}',
       '../../../Mods/Animations/OpenMW Dynamic Animations/animations/r/xGolden Saint/**/*.{kf,KF}',
       '../../../Mods/Animations/OpenMW Dynamic Animations/animations/tr/cr/xtr_cr_seducer_01/**/*.{kf,KF}',
-    ], { eager: true, query: '?url', import: 'default' })
+    ], import.meta.glob([
+      '../../../Mods/Animations/OpenMW Dynamic Animations/animations/xbase_anim/**/*.{kf,KF}',
+      '../../../Mods/Animations/OpenMW Dynamic Animations/animations/xbase_anim_female/**/*.{kf,KF}',
+      '../../../Mods/Animations/OpenMW Dynamic Animations/animations/xbase_animkna/**/*.{kf,KF}',
+      '../../../Mods/Animations/OpenMW Dynamic Animations/animations/xargonian_swimkna/**/*.{kf,KF}',
+      '../../../Mods/Animations/OpenMW Dynamic Animations/animations/xepos_kha_upr_anim_f/**/*.{kf,KF}',
+      '../../../Mods/Animations/OpenMW Dynamic Animations/animations/xepos_kha_upr_anim_m/**/*.{kf,KF}',
+      '../../../Mods/Animations/OpenMW Dynamic Animations/animations/oaab/r/xMazken/**/*.{kf,KF}',
+      '../../../Mods/Animations/OpenMW Dynamic Animations/animations/r/xGolden Saint/**/*.{kf,KF}',
+      '../../../Mods/Animations/OpenMW Dynamic Animations/animations/tr/cr/xtr_cr_seducer_01/**/*.{kf,KF}',
+    ], { eager: true, query: '?url', import: 'default' }))
   : {};
 
 const norm = (value) => String(value).replace(/\\/g, '/').toLowerCase();
@@ -79,7 +109,7 @@ const overhaulFemale = entries.find((e) => e.lower.includes('/morrowind animatio
 const cache = new Map();
 let warnedMissingWalkAssets = false;
 async function bytes(entry) {
-  if (!entry) return null;
+  if (!entry || !modResourceAllowed(entry.path)) return null;
   let pending = cache.get(entry.url);
   if (!pending) {
     pending = fetch(entry.url).then(async (response) => {
@@ -98,6 +128,7 @@ async function bytes(entry) {
  * source remains available for unsupported races and any groups absent in the pack.
  */
 export async function loadWalkAnimationAssets({ female = false } = {}) {
+  if (!modGroupEnabled('animations')) return [];
   if (!IN_BROWSER) return [];
   const simplyCandidates = female
     ? [{ entry: puristFemale, variant: 'simply', family: 'walk' }]

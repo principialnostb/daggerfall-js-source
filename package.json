@@ -51,7 +51,9 @@
     "mwcloak:intersections": "python diagnostics/mw-cloak-probe/diagnose_cloak_triangle_intersections.py",
     "mwcloak:analyze:all": "npm run mwcloak:analyze && npm run mwcloak:intersections",
     "savetile": "node tools/saveTileProbe.mjs",
-    "mwcloak:visualize": "python diagnostics/mw-cloak-probe/visualize_cloak_intersections.py"
+    "mwcloak:visualize": "python diagnostics/mw-cloak-probe/visualize_cloak_intersections.py",
+    "dist:clean": "node tools/buildCleanDesktop.mjs",
+    "dist:install": "node tools/buildCleanDesktop.mjs --with-resources"
   },
   "devDependencies": {
     "acorn": "^8.18.0",

@@ -51,6 +51,7 @@ export const isSimplyCloakModel = (model) => Object.values(SIMPLY_CLOAK_MODEL_BY
  *  OpenMW mod meshes; classic remains the default so existing saves and the tested rigid-cloak fit do not change. */
 export function ownCloakFor(piece, { style = 'classic', look = 'classic' } = {}) {
   if (!piece || piece.kind !== 'clothing' || !CLOAK_NAMES.includes(piece.name)) return null;
+  look = piece.ownStyle ?? look;
   const wolf = wolfCloakModel(look);
   if (wolf) return Object.freeze({ id: 'wolf_pelt_cloak', model: wolf, painting: look });
   const painting = CLOAK_DYE_PAINTING[piece.dye | 0] ?? CLOAK_DYE_PAINTING[0];

@@ -181,6 +181,11 @@ export function solveBody(skeleton, pose, rootRef, skelMats, plan) {
     // video, 2026-10-29: walking with the claymore the right pauldron rose and turned every step - the walk clip swings the
     // right collarbone under hands the carry holds still)
     if (plan.trunk?.collar > 0) mats = holdCollars(skeleton, pose, mats, body, plan.trunk.collar * w, rootRef, skelMats);
+    // ONE-COLLAR (2026-11-07, the owner: running with a one-hander "the shoulder of the sword arm lengthens instead of
+    // keeping its shape"; measured: the run clip turns the right collarbone 20-29 degrees and stands the shoulder 15.6
+    // units off the chest against 14 standing, the left's 13.4-14): the carried arm's collarbone alone held at rest on the
+    // chest - the neck and the clip's other arm (free, or a shield's) left as they are
+    if (plan.collarR > 0) mats = holdCollars(skeleton, pose, mats, body, plan.collarR * w, rootRef, skelMats, ['R'], false);
     const frames = bodyFrames(body, mats);
     const req = frames ? plan.arms({ body, mats, frames, skeleton }) : null;
     if ((req || plan.externalArms) && frames && plan.trunk) mats = leanUnder(skeleton, pose, mats, body, frames, plan.trunk, w, rootRef, skelMats);
@@ -272,7 +277,7 @@ function leanUnder(skeleton, pose, mats, body, frames, trunk, w, rootRef, skelMa
  *  straight on it - so the arms' reach starts every frame from the same arm, not the clip's (the owner, 2026-10-29: walking,
  *  the right arm rocked clockwise and back - the reach takes the least turn from the clip's swinging arm, and the
  *  upper arm's roll about itself rode the swing). Answers the skeleton composed again. */
-function holdCollars(skeleton, pose, mats, body, k, rootRef, skelMats) {
+function holdCollars(skeleton, pose, mats, body, k, rootRef, skelMats, sides = ['L', 'R'], holdNeck = true) {
   const f = bodyFrames(body, mats);
   if (!f) return mats;
   let moved = false;
@@ -285,7 +290,7 @@ function holdCollars(skeleton, pose, mats, body, k, rootRef, skelMats) {
   // SHOULDER-HOLD (2026-10-30, measured on MAO's walk): the collarbones hang from the NECK, which the clip swings - held on it
   // they rode that swing, the shoulders 5 cm back and 6 ahead, the left arm straight and shaking. The neck is laid at rest on
   // its parent first; the head keeps the turn it had in the rig.
-  const neck = body.bones.neck, nn = neck == null ? null : skeleton.nodes.get(neck);
+  const neck = body.bones.neck, nn = neck == null || !holdNeck ? null : skeleton.nodes.get(neck);
   let Rneck = null;
   if (nn && nn.parent != null && restRotOf(skeleton, body, neck) && restRotOf(skeleton, body, nn.parent)) {
     const Rpn = turnOf(mats, nn.parent), Rn0 = turnOf(mats, neck);
@@ -297,7 +302,7 @@ function holdCollars(skeleton, pose, mats, body, k, rootRef, skelMats) {
       moved = true;
     }
   }
-  for (const side of ['L', 'R']) {
+  for (const side of sides) {
     const B = body.bones[side], ref = B?.clavicle, node = ref == null ? null : skeleton.nodes.get(ref);
     if (!node || node.parent == null || B.upper == null || B.fore == null) continue;
     if (!restRotOf(skeleton, body, ref) || !restRotOf(skeleton, body, node.parent)) continue;

@@ -1,3 +1,6 @@
+import { itemOwnStyle } from '../../systems/item/itemAppearanceKey.js';
+import { extraAppearanceEnabled } from '../../systems/extraAppearance.js';
+import { modGroupEnabled } from '../../systems/enhancedModResources.js';
 import { BATTLEAXE_FIRST_PERSON } from './battleaxeFit.js';
 // Optional weapon skins; a clean checkout and an unset preference keep the original model.
 import { OWN_MW_URLS } from '../../systems/ownMwAssets.js';
@@ -17,7 +20,7 @@ export const weaponSkinsFor = (item) => WEAPON_SKINS.filter((skin) => skin.templ
 export const weaponSkinAvailable = (skin, urls = OWN_MW_URLS) =>
   !!urls[`meshes/${skin.model}`] && !!urls[`textures/${skin.model.replace(/\.nif$/i, '.dds')}`];
 export function localWeaponModelFor(item, urls = OWN_MW_URLS, looks = getPref(WEAPON_LOOKS_PREF)) {
-  if (!item) return null;
-  const skin = weaponSkinsFor(item).find((s) => s.value === looks?.[weaponLookKey(item)]);
+  if (!item || !modGroupEnabled('bodies') || !extraAppearanceEnabled('weapon')) return null;
+  const skin = weaponSkinsFor(item).find((s) => s.value === (itemOwnStyle(item) ?? looks?.[weaponLookKey(item)]));
   return skin && weaponSkinAvailable(skin, urls) ? skin : null;
 }

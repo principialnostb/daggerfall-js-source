@@ -1,3 +1,4 @@
+import { modGroupEnabled } from '../systems/enhancedModResources.js';
 // @ts-check
 // SHIELD-GUARD (2026-10-26): THE FISTS BEHIND A SHIELD. Morrowind's hand-to-hand clips raise both fists, the shield
 // arm's too, so a shield worn with no weapon hung from a boxer's guard, and a blow its clip threw with the left hand had
@@ -18,7 +19,7 @@ const { add, sub, scale, len } = algebra;
  *  fists' (fpArm.js refreshWeaponGroup's group is the drawn type's), and a shield is not an empty hand, so the right
  *  throws them (twoHands/handsLaw.js handsModeOf). */
 export function shieldGuardStance(type, shield) {
-  return shield && type === MW_WEAPON_TYPE.HandToHand ? MW_WEAPON_TYPE.LongBladeOneHand : type;
+  return modGroupEnabled('animations') && shield && type === MW_WEAPON_TYPE.HandToHand ? MW_WEAPON_TYPE.LongBladeOneHand : type;
 }
 /** A rig carrying a shield piece - in the hand or slung (`shield-back`, the third person's stow copy). */
 export const carriesShield = (r) => !!r?.ok && !!r.arm?.pieces?.some((p) => /^shield\b/.test(p.slot ?? ''));
@@ -98,6 +99,7 @@ export function applyShieldBash(skeleton, pose, rootRef, skelMats, { u, view = '
 /** poseAssembly's `hold` slot for a bash in the machine's section (`upper`, fpArm.js UPPER_BODY_NAME) at its section's
  *  `progress`, in a `view` - or null outside a blow. */
 export function shieldBashHold(upper, progress, view = 'third') {
+  if (!modGroupEnabled('animations')) return null;
   const section = SECTION_OF[upper];
   if (!section) return null;
   const u = blowU(section, progress);

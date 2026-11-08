@@ -53,6 +53,8 @@ import { staleChunkAction, RELOAD_KEY, STALE_CHUNK_TEXT } from './systems/staleC
 import { loseGlContext, onPageGone, releaseGlContexts } from './render/glRelease.js';   // GL-LEAK: a leaf - the entry's reach is unchanged
 
 async function boot() {
+  await import('./systems/enhancedModResources.js').then(m => m.initEnhancedModResources());
+  (await import('./systems/enhancedModProfile.js')).enableStandardModProfile();
   installFramePacer();   // FPS-VSYNC: first, before any loop asks for a frame - a no-op but in the app with the wait lifted
   installCursor();   // CLASSIC-CURSOR: DFU's own arrow on the classic skin, from the first frame - it needs no game data
   const canvas = document.getElementById('c');

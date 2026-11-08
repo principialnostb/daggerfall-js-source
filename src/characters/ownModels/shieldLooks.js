@@ -1,3 +1,5 @@
+import { itemOwnStyle } from '../../systems/item/itemAppearanceKey.js';
+import { modGroupEnabled } from '../../systems/enhancedModResources.js';
 import { ARMOR_MATERIAL } from '../../systems/armorMaterials.js';
 
 export const isShieldTemplate = (template) => Number.isInteger(template) && template >= 109 && template <= 112;
@@ -15,4 +17,4 @@ export const SHIELD_LOOKS = Object.freeze([
   { value: 'skyrim-daedric', label: 'Skyrim · Daedric', templateIndex: 111, material: ARMOR_MATERIAL.Daedric, model: 'shield_sky_daedric.nif', source: 'armor/daedric/daedricshield.nif' },
 ]);
 export const shieldLooksFor = (item) => SHIELD_LOOKS.filter((look) => look.templateIndex === item?.templateIndex && look.material === (item?.material ?? 0));
-export const selectedShieldLook = (item, looks) => shieldLooksFor(item).find((look) => look.value === looks?.[shieldLookKey(item)]) ?? null;
+export const selectedShieldLook = (item, looks) => modGroupEnabled('bodies') ? shieldLooksFor(item).find((look) => look.value === (itemOwnStyle(item) ?? looks?.[shieldLookKey(item)])) ?? null : null;

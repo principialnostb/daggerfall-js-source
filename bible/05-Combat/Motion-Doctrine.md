@@ -175,7 +175,7 @@ third-person frame and no recoil or death does - laid over the single winner as 
 shape, eased in over `LOWER_BODY_EASE.in` (0.08 s) and out over `out` (0.12 s). The rig wires it in three lines
 (src/combat/fpArm.js:"lowerBody.stepRig(dt") and wraps the third-person pose's tracks and sampler with it; peers and
 NPCs pose through the same rig, so they get it too. The switch is the mod setting `morrowind-animation`
-`MotionDoctrine` ("Формула движения (3-е лицо)": Как сейчас / По формуле, default По формуле). Pinned by
+`MotionDoctrine` ("Р¤РѕСЂРјСѓР»Р° РґРІРёР¶РµРЅРёСЏ (3-Рµ Р»РёС†Рѕ)": РљР°Рє СЃРµР№С‡Р°СЃ / РџРѕ С„РѕСЂРјСѓР»Рµ, default РџРѕ С„РѕСЂРјСѓР»Рµ). Pinned by
 `test/combat/lowerbody.test.js`. Not checked in the game: the app's own browser has no Morrowind.bsa (the player
 supplies it), so the owner's own game is the check.
 
@@ -214,7 +214,7 @@ of MW-D29's reset stand; only the start point departs, behind the same switch. P
 `test/combat/idlesettle.test.js`. Not judged in the game yet.
 
 **Step 4 and step 3 BUILT together (FP-INERTIA and HIT-RESPONSE, 2026-10-27), at the owner's word ("one package"), not
-yet judged in the game.** The switch covers both and is now titled «Формула движения».
+yet judged in the game.** The switch covers both and is now titled В«Р¤РѕСЂРјСѓР»Р° РґРІРёР¶РµРЅРёСЏВ».
 
 - **FP-INERTIA**, `src/combat/fpInertia.js`: six springs on the first-person viewmodel (yaw, pitch, roll; right, up,
   back), pivoted at the shoulder (`FP_INERTIA.pivot`) and laid in front of the lens as the gun's kick is
@@ -660,10 +660,10 @@ motion. `src/combat/guardLocomotion.js:"export function guardMovementGroup"` now
 `walkforward` base under the two-handed carry, as it already does for `runforward`. The ordinary walk's existing stride,
 knee softening and cadence are reused; the drawn weapon's carry and walking-blow effort remain. If the free walk is
 absent, the shorter, leveled armed walk remains the fallback. Other weapon types and the off switch retain the original
-resolver. In real-clip checks of both feet at 60 Hz the peak acceleration drops from 392 to 211 m/s² without key
+resolver. In real-clip checks of both feet at 60 Hz the peak acceleration drops from 392 to 211 m/sВІ without key
 smoothing, and from 358 to 172 with it. These are rig-space derivative diagnostics, not motor acceleration.
 
-**GUARD-STEP-LOOP**: CLIP-SMOOTH used time±h outside a walking loop at its boundary, sampling adjacent keys from the
+**GUARD-STEP-LOOP**: CLIP-SMOOTH used timeВ±h outside a walking loop at its boundary, sampling adjacent keys from the
 shared animation file. `src/combat/loopSeam.js:"export function smoothSampler"` accepts a loop window; createLoopSeam
 passes it for walking only. Neighbour samples wrap inside that window after seam correction. Intro/exit samples and
 overlay tracks retain their own clocks. Running and attack sampling retain the existing path. A real MAO sampler
@@ -774,7 +774,7 @@ standing overhead, remove distracting camera-driven hand sway, and judge a
 complete armoured two-handed sword sequence before extending its style.
 
 THE LEDGER of every piece the doctrine has laid, by its state - the one list; the sections above carry each one's
-measurements and reasons. Every piece sits behind the MotionDoctrine switch ("Формула движения").
+measurements and reasons. Every piece sits behind the MotionDoctrine switch ("Р¤РѕСЂРјСѓР»Р° РґРІРёР¶РµРЅРёСЏ").
 
 **Judged good in the game by the owner:** LOWER-BODY (the legs walk and run under a blow, the sidestep with a weapon -
 section 7); TURN-GATE (no turn in place on a stop - 7b); MOVE-GRACE (no idle flicker on a landing - 7c); the old
@@ -1333,6 +1333,18 @@ Measured, no arm in the trunk; the largest move in a frame 0.044 walking (0.039 
 test/characters/bodyMotion/guardelbows.test.js, test/combat/armclips.test.js.
 
 
+**FISTS-FREE-TRAVEL** (2026-11-07, owner's 06-03-56 recording). The earlier replacement was rejected in game.
+Empty drawn hands now use the ordinary primary movement clip in every walk/run direction. No second upper-body layer
+is sampled for bare hands. Stopping and punching use the rig's existing clip transitions; the raised idle correction
+follows the stop with an eased onset. The movement keeps its clip's wrists and fingers. The discarded procedural wrist
+trajectory and the special overlay release time are removed. ARM-CLEARANCE and armAnatomy remain unchanged.
+`src/combat/guardLocomotion.js:"export function guardMovementGroup"` selects the primary clip; armedUpperPlan returns
+no overlay for bare hands. `src/characters/bodyMotion/guardTravel.js:"export function guardTraveling(word) {"` suppresses
+the chin correction and forced finger curl during movement. Tests: armclips, guardraise and handfingers. The shared rig
+serves world.js, exterior.js, worldModes.js and dungeonContext.js without host changes. DFU FPSWeapon.OnGUI draws
+first-person sprites; this remains the BODY-MOTION presentation departure. Offline probes do not establish visual
+acceptance; the corrected implementation still requires an in-game review.
+
 **THE ARMS ARC, WHAT IT TAUGHT** (2026-11-06 to 2026-11-07, test-PR: TRUNK-SKIN, LEG-CLOCK, FREE-ARM-CLIP, ARM-HOLD,
 HAND-FINGERS, ARM-REST / ARM-SIDES / ARM-FADE / FISTS-ARMS, GUARD-ELBOWS / FISTS-PUMP, CHAR-PIX-AVG). The record for
 whoever takes the arms next.
@@ -1375,3 +1387,50 @@ Open: the owner's "the arm twitches in the neutral pose" (01-36-50) - small sing
 (2.78 s, ~7.9 s) that the probe does not reproduce at a jittered frame or a wandering camera; the standing pipeline
 offline is a pure function of time. Wants a recording of the twitch alone.
 
+
+**GUARD-RAISE / FISTS-RUN-GUARD** (2026-11-07, the owner's 02-30-02 recording: the fists' walk and run "came out not
+great", the guard pressed into the chest; "finish it into one coherent picture out of what is already done").
+Measured offline (tools/motionProbe.mjs on a woman's body, the posed Better Bodies drawn from the front, three-quarters
+and the side): standing and walking the fists stood at the chest bone's height, 0.33 arm lengths out and 0.69 ahead, the
+forearms level and the elbows out past the shoulders; running, the hand-to-hand run's arms hung out at the hips. Every
+hand-to-hand pose the game has - idlehh, each blow's start and follow stop, the equip - holds that one guard, so there is
+no better clip of the game's to take it from: it is corrected on the clip, as GUARD-ELBOWS corrects the elbows. The legs
+were not the fault: idlehh stands exactly the two-hander's idle2c and the one-hander's idle1h (feet 29 across, 21 apart).
+
+- **GUARD-RAISE.** Each fist is carried from the game's guard to the chin's (guardElbows.js:"export const GUARD_RAISE = Object.freeze({"),
+  half the clip's own motion about it kept (the breath, FISTS-PUMP's bob - whole, the walk's swing threw a fist across
+  the chest), the arm laid to it by a two-bone reach - the lengths kept, the elbow on its own side leaned half toward
+  straight down, the fist's turn in the world kept - before the tuck, on the tuck's own share (the fists drawn, no blow,
+  no shield). The left leads, a little further out and lower; the right stands by the chin.
+- **FISTS-RUN-GUARD** (withdrawn the same day: bare hands now walk and run the ordinary locomotion, no second layer over
+  the arms - guardLocomotion.js armedUpperPlan). Running, the fists held the walk's guard, swung by the run's legs.
+
+Measured, a woman's body: the fists 0.3-0.36 arm lengths over the chest bone (0.09 before), each on its own side of the
+middle, the elbows under them; no arm in the skin at any gait (skin depth 0, was 0 to 1.05 while tuning); the fists move
+0.02 arm lengths a frame at most walking and running (0.04-0.055 before). Pinned in test/characters/bodyMotion/guardraise.test.js
+and test/combat/armclips.test.js. Not yet seen in the game.
+
+**CLEAR-SMOOTH** (2026-11-07, the owner's 12-40-11 recording: the arms twitch at an interval - standing, the sword arm,
+the shield arm; "the two-hander's stance has no such bug"). Measured in the recording (the camera still, each arm's
+displacement frame to frame): besides the capture's keyframe every 1.07 s (the sky moves with it), the left forearm
+alone moves 1-3 pixels in bursts of two or three frames, two bursts 0.35 s apart, every 2.67 s - the idle's loop; the
+upper arm and the hand stay. A woman's plain idle in the game is OpenMW Dynamic Animations' zIdle (5 keys an arm, a
+constant drift and a turn back), which takes the left arm a hair into the breasts and out again. Reproduced offline
+(tools/motionProbe.mjs on zIdle, a woman's body): the left elbow leapt at 2.42-2.53 s and 2.85-2.90 s, the hand still.
+The cause is ARM-CLEARANCE's search (armClearance.js): its turn was taken on a 0.05-radian grid, and the skin has two
+ways out of the breasts (about 0.15-0.26 and 0.38 radians) that cost all but the same (0.030 against 0.031), so as the
+idle moved the arm the chosen turn leapt between them, 0.23 radians at once, eased over 0.07 s - the burst. A held grip
+(the two-hander's hands on the haft) never searches the skin outside a blow, which is why it never twitched.
+
+- The least turn that clears the ellipse is found by halvings between the grid's two steps; the skin's best is refined
+  between its neighbours (golden section); and the last frame's turn is kept while it is within `hold` of the best, so
+  two near-equal ways out do not trade places (armClearance.js:"export const CLEAR_SMOOTH = Object.freeze({ iterations: 12, hold: 0.02 });").
+- Measured on zIdle: the left elbow's largest move in a frame 0.0017 arm lengths (0.0070 before), no burst; one change
+  of way out per loop at most, eased. Over the stance matrix (none, one, shield, two, fists, the shield bare; idle,
+  walk, run, strafe) nothing else changes but the two-hander's right arm running, 0.18 deeper in the skin at its worst.
+  Pinned in test/characters/bodyMotion/clearsmooth.test.js (fails on the grid); ARM-CLEARANCE's turned-chest pin now
+  holds the turn to a thousandth of a radian (the refinement's tolerance) rather than to the bit.
+
+The open twitch above (01-36-50, "the arm twitches in the neutral pose") is this. The sword arm and the shield arm in
+the recording are the same mechanism by the same signature (the elbow, at an interval) but were not reproduced offline
+- the probe stands them on the retail stance idles, which never reach the skin; to be seen in the game.

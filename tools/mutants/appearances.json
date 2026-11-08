@@ -422,8 +422,8 @@
   {
     "name": "APPEARANCES-the-doll-reads-the-piece",
     "file": "src/ui/paperDoll.js",
-    "old": "  const item = drawnPiece(worn);",
-    "new": "  const item = worn;",
+    "old": "  const { piece: item, variant: lookVariant } = lookedPiece(drawnPiece(worn), look);",
+    "new": "  const { piece: item, variant: lookVariant } = lookedPiece(worn, look);",
     "tests": [
       "test/ui/appearances_render.test.js"
     ]
@@ -776,8 +776,8 @@
   {
     "name": "AUDIT-E6-the-doll-asks-in-the-piece-s-metal",
     "file": "src/ui/paperDoll.js",
-    "old": "itemDyeColor(drawnPiece(it)), S);",
-    "new": "itemDyeColor(it), S);",
+    "old": "itemDyeColor(drawnPiece(it)), S, res.target === 2);",
+    "new": "itemDyeColor(it), S, res.target === 2);",
     "tests": [
       "test/ui/appearances2_preview.test.js"
     ]

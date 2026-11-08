@@ -268,10 +268,26 @@ export function getDyeColorTable(dye, target) {
  *  a COPY (the cached record keeps its own, as changeMask's does). The picture as it came only for no target or no
  *  dye: ChangeDye has no Unchanged arm, and 18 (Unchanged = Chain = Silver) on a weapon or armour is the SILVER
  *  table - a silver sword, a chain hauberk, leather armour - never the swatch itself (a garment's 18 is). */
+// Custom clothing can dye a brown leather band when the sprite has no blue cloth band.
+// Native dyes keep DFU's exact band law.
+export function dyeIndexRemap(bitmap, dye, target) {
+  if (target !== 2) return (index) => applyDyeToIndex(index, dye, target);
+  const starts = [0x60, ...Array.from({ length: 14 }, (_, i) => (i + 1) * 16).filter((n) => n !== 0x60), 0xef];
+  const counts = starts.map((start) => {
+    let count = 0;
+    for (const index of bitmap?.data ?? []) if (index >= start && index < start + 16) count++;
+    return count;
+  });
+  const source = starts[counts[0] ? 0 : counts.indexOf(Math.max(...counts))];
+  return (index) => index >= source && index < source + 16
+    ? applyDyeToIndex(0x60 + index - source, dye, DYE_TARGETS.Clothing) : index;
+}
+
 export function changeDyeBitmap(bitmap, dye, target) {
   if (!bitmap?.data || target == null || dye == null || dye === '') return bitmap;
   const data = new Uint8Array(bitmap.data.length);
-  for (let i = 0; i < data.length; i++) data[i] = applyDyeToIndex(bitmap.data[i], dye, target);
+  const remap = dyeIndexRemap(bitmap, dye, target);
+  for (let i = 0; i < data.length; i++) data[i] = remap(bitmap.data[i]);
   return { ...bitmap, data };
 }
 

@@ -7,6 +7,7 @@
 //   - Indexed color means hard pixels: NEAREST filtering.
 //   - Alpha 0 texels are palette-index cutouts; the shader discards them.
 
+import {pixelWorldMesh,pixelWorldTerrain,pixelWorldSnow} from './worldPixelLayer.js';
 import { CLOUD_SHADOW_GLSL, cloudFarOf } from './cloudShadow.js';   // EE5 / VC4: the cloud shadow's reader - VC6c's one home, shared with the air pass's shafts; OW-HORIZON: and the ground past its square
 import { BAYER_GLSL, DISSOLVE_GLSL } from './orderedDither.js';   // SHIP-FADE: the mesh shader's dissolve over the port's one bayer4
 import { pixelFadeShare } from './pixelFade.js';   // MID-RING: a just-built pixel's tint, eased out (a leaf)
@@ -5813,7 +5814,7 @@ void main() { vec4 t = texture(uTex, vUV); if (t.a < 0.5) discard; outColor = ve
     // first time a mesh is drawn in the automap's wireframe mode. A
     // bundle built without it simply cannot be wireframed (drawMeshWire
     // draws nothing), which is the honest answer for a hand-built one.
-    const bundle = /** @type {any} */ ({ vao, subMeshes, buffers, triIndices: model.indices, bounds });
+    const bundle = /** @type {any} */ ({ pixelKind: model.pixelKind ?? 'environment', vao, subMeshes, buffers, triIndices: model.indices, bounds });
     if (shadowVao) { bundle.shadowVao = shadowVao; bundle.shadowCells = shadowCells; }   // LA-AUDIT A1
     const wl = this._wlApertures(model);
     if (wl) bundle.wl = wl;   // WL1: its glass, tile by tile, for the windows' light
@@ -7971,6 +7972,7 @@ void main() { vec4 t = texture(uTex, vUV); if (t.a < 0.5) discard; outColor = ve
    */
   drawSnow(surface, u, tex) {
     this._close2D();   // PERF-2D
+    if(pixelWorldSnow(this,surface,u,tex))return;
     const gl = this.gl, S = this._ensureTerrainSnow(), L = S.loc, P = this._snowPass;
     if (!S.el && this._elLocsOf) S.el = this._elLocsOf(S.program);
     this._use(S.program);
@@ -8134,6 +8136,7 @@ void main() { vec4 t = texture(uTex, vUV); if (t.a < 0.5) discard; outColor = ve
    *  ground, the set as it is. */
   drawTerrain(surface, modelMatrix, arrayTex, tilemapTex, tileSize, clip = false, eco = null, snow = null) {
     this._close2D();   // PERF-2D: the baseline back, before anything that needs it
+    if(pixelWorldTerrain(this,surface,modelMatrix,arrayTex,tilemapTex,tileSize,clip,eco,snow))return;
     const gl = this.gl;
     if (!!clip !== this._terrainClip) this._terrainVariant(!!clip);   // FAR-CLIP1
     this._use(this.terrainProgram);
@@ -9152,6 +9155,7 @@ void main() { vec4 t = texture(uTex, vUV); if (t.a < 0.5) discard; outColor = ve
     // POI-2 (render/meshAlpha.js): A TRANSLUCENT DRAW - its texels' alpha times `translucent` over what is drawn, depth
     // tested and never written, no shadow cast; the caller draws it after the opaque world, back to front
     if (translucent > 0) { this._drawTranslucent(mesh, modelMatrix, texRemap, Math.min(translucent, 1)); return; }
+    if (pixelWorldMesh(this,mesh,modelMatrix,texRemap,{noShadow,translucent})) return;
     this._drawMeshBundle(mesh, modelMatrix, texRemap, false, noShadow);
   }
 

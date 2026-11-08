@@ -28,6 +28,14 @@
 // video/accessibility), with AUDIO and MODS doors of their own as before, and three new ones the port's rows earned:
 // COMBAT and WORLD (most of what the mods change), and GRAPHICS, which is DFU's Video page and every row that draws.
 
+export const STANDARDIZED_FEATURES = Object.freeze([
+  'morrowind-player-run-animation', 'morrowind-female-npc-run-animation',
+  'morrowind-player-walk-animation', 'morrowind-male-npc-walk-animation', 'morrowind-female-npc-walk-animation',
+  'morrowind-hit-reaction-animation-source', 'morrowind-animation-blending', 'morrowind-blow-style',
+  'morrowind-motion-doctrine', 'morrowind-openmw-dynamic-animations', 'morrowind-first-person-animation-source',
+  'mw-better-bodies', 'mw-first-person-hands', 'mw-seamless-dmra', 'simply-animated-cloaks',
+  'mw-model-detail', 'world-pixel-environment',
+]);
 export const CATEGORIES = Object.freeze([
   tab("graphics", "Graphics", [
     sec("quality", "Quality", [
@@ -190,6 +198,7 @@ export const CATEGORIES = Object.freeze([
       "GUI/LargeHUDOffsetHorse"]),
   ]),
   tab("mods", "Mods & files", [
+    sec("morrowind-display", "Отображение Morrowind", ["feat:mw-npc-bodies", "feat:mw-billboard-look"]),
     sec("files", "Your files", [
       "card:morrowind", "card:packs"]),
     sec("dfu", "Daggerfall Unity's mod system", [
@@ -198,43 +207,14 @@ export const CATEGORIES = Object.freeze([
     sec("index", "Every mod", [
       "mods-index"]),
   ]),
-  // TEST-PR: only rows that change something - the clip families with no source of their own are not drawn.
-  tab("animations", "Анимации", [
-    sec("locomotion", "Передвижение", [
-      "group:running", "label:running-player", "feat:morrowind-player-run-animation",
-      "label:running-npc", "feat:morrowind-female-npc-run-animation",
-      "group:walking", "label:walking-player", "feat:morrowind-player-walk-animation",
-      "label:walking-npc", "feat:morrowind-male-npc-walk-animation", "feat:morrowind-female-npc-walk-animation",
-    ]),
-    sec("reactions", "Реакции", [
-      "feat:morrowind-hit-reaction-animation-source",
-    ]),
-    sec("third-person", "Источники анимаций (3-е лицо)", [
-      "feat:morrowind-animation-blending", "feat:morrowind-blow-style", "feat:morrowind-motion-doctrine",
-      "feat:morrowind-openmw-dynamic-animations",
-    ]),
-    sec("first-person", "Анимации от первого лица", [
-      "feat:morrowind-first-person-animation-source",
-    ]),
+  tab("compatibility", "Enhanced Mod Compatibility", [
+    sec("bodies", "Тела и анимации", ["catalog:bodies", ...STANDARDIZED_FEATURES.map(id => "feat:" + id)]),
+    sec("environment", "Окружение", ["catalog:environment"]),
+    sec("textures", "Текстуры", ["catalog:textures", "feat:mw-textures-high-resolution-bodies", "feat:mw-textures-intelligent", "feat:mw-textures-vurt-clothes", "feat:mw-textures-better-clothes", "feat:mw-textures-better-armor", "feat:mw-textures-armor-joints", "feat:mw-textures-westly-clothiers", "feat:mw-textures-westly-faces", "link:overhauls"]),
   ]),
-  tab("bodies", "Тела", [
-    sec("morrowind-bodies", "Модели тел и экипировка", [
-      "feat:mw-better-bodies", "feat:mw-first-person-hands", "feat:mw-seamless-dmra", "feat:mw-npc-bodies", "feat:mw-billboard-look",
-      "feat:simply-animated-cloaks",
-    ]),
-  ]),
-  tab("textures", "Текстуры", [
-    sec("texture-sources", "Настройки текстур", [
-      "feat:mw-textures-high-resolution-bodies", "feat:mw-textures-intelligent",
-      "feat:mw-textures-vurt-clothes", "feat:mw-textures-better-clothes",
-      "feat:mw-textures-better-armor", "feat:mw-textures-armor-joints",
-      "feat:mw-textures-westly-clothiers", "feat:mw-textures-westly-faces",
-      "link:overhauls",
-    ]),
-  ]),
-  tab("pixelation", "Пикселизация", [
+  tab("pixelation", "Pixelation", [
     sec("pixelation", "Пикселизация", [
-      "feat:mw-model-detail", "feat:char-pixel-fp", "feat:char-pixel-player", "feat:char-pixel-npc",
+      "feat:char-pixel-fp", "feat:char-pixel-player", "feat:char-pixel-npc", "feat:world-pixel-objects",
     ]),
   ]),
 ]);

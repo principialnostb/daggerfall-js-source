@@ -1,3 +1,4 @@
+import { clothingDisplayTemplate } from './clothingDisplay.js';
 // E1 economy: item templates (DFU ItemHelper over ItemTemplates.txt,
 // MIT Daggerfall Workshop). The 288-template table and the per-group
 // template-index arrays live in itemTemplatesData.js (GENERATED - see
@@ -7,7 +8,7 @@
 // (ItemHelper.GetEnumArray/GetItemTemplate).
 
 import { clampArmorVariant, isPlate, plateMetal } from '../armorMaterials.js';   // AUDIT 23 (items-6); BAL6-GAUNTLETS: a plate piece's metal
-import { helmetPaperdollVariant } from '../helmetPaperdollLooks.js';
+import { paperdollLookFor } from '../paperdollLookSource.js';   // PAPERDOLL-LOOKS: the player's 2D card look, through a leaf door (paperdollLooks.js registers it)
 import { conditionMultipliersByMaterial, valueMultipliersByMaterial, WEAPONS, WEAPON_CONDITION_POOL } from '../../characters/weapons.js';   // AUDIT 23 (items-5); AUDIT 68 S27-weightForMaterial-dup: ItemBuilder's value ladder and the Weapons enum, one home each; WEAPON-POOL: the one pool
 import { GROUP_TEMPLATE_INDICES } from './itemTemplatesData.js';
 import { HAND_WRAPS_TEMPLATE } from '../../characters/handWrapsIds.js';   // HAND-WRAPS: minted cloth (a leaf)
@@ -347,10 +348,15 @@ export function registerTemplateLore(templateIndex, text) { if (typeof text === 
 export const templateLore = (item) => _templateLore.get(item?.templateIndex) ?? null;
 
 export function inventoryItemImage(item, identity = undefined) {
-  const t = templateByIndex(item.templateIndex);
+  // PAPERDOLL-LOOKS (systems/paperdollLooks.js): a weapon or shield drawn in another template's record of its class
+  // shows that record in the list too; a style look is read in the variants block below
+  const look = paperdollLookFor(item);
+  if (look?.t !== undefined) item = { ...item, templateIndex: look.t };
+  if (Number.isInteger(look?.d)) item = { ...item, dye: look.d };   // GARMENT-DYES: the chosen colour (itemDyeColor reads a garment's `dye` first)
+  const t = clothingDisplayTemplate(templateByIndex(item.templateIndex), identity?.gender, ITEM_TEMPLATES);
   if (!t) return null;
   // THUNDERLOCK-ART: a weapon of the port's own draws its own picture in a list, never its doll layer
-  { const own = ownItemImage(item); if (own) return { archive: own.archive, record: own.record, dye: itemDyeColor(item), dyeTarget: itemDyeTarget(item) }; }
+  { const own = ownItemImage(item); if (own) return { archive: own.archive, record: own.record, dye: itemDyeColor(item), dyeTarget: Number.isInteger(look?.d) && (item.group === 'MensClothing' || item.group === 'WomensClothing') ? 2 : itemDyeTarget(item) }; }
   // MAC-D2 (Skibbster on Discord, 2026-09-21, with a screenshot of a
   // TOMATO on the "Small Cart" card): TRANSPORTATION HAS NO INVENTORY
   // ART, AND THE FIELDS THAT LOOK LIKE IT ARE ANOTHER ITEM'S.
@@ -388,7 +394,7 @@ export function inventoryItemImage(item, identity = undefined) {
     const bodyArchive = playerArchiveFor(item, t, identity);
     const archive = cls.inventoryTextureArchive ?? bodyArchive;
     const record = cls.inventoryTextureRecord ? cls.inventoryTextureRecord(item, { playerTextureArchive: bodyArchive }) : t.playerTextureRecord;
-    return { archive, record, dye: itemDyeColor(item), dyeTarget: itemDyeTarget(item) };
+    return { archive, record, dye: itemDyeColor(item), dyeTarget: Number.isInteger(look?.d) && (item.group === 'MensClothing' || item.group === 'WomensClothing') ? 2 : itemDyeTarget(item) };
   }
   let archive, record;
   if (usesWorldTexture(item, t)) {
@@ -425,8 +431,8 @@ export function inventoryItemImage(item, identity = undefined) {
       // ItemBuilder.SetVariant's material-family clamps exactly as the
       // paperdoll does - chain/plate armor drew the leather-look icon.
       const v = item.group === 'Armor'
-        ? clampArmorVariant(item.templateIndex, item.material ?? 0, helmetPaperdollVariant(item) ?? item.variant ?? 0)
-        : Math.min(item.variant ?? 0, t.variants - 1);
+        ? clampArmorVariant(item.templateIndex, item.material ?? 0, look?.v ?? item.variant ?? 0)
+        : Math.min(look?.v ?? item.variant ?? 0, t.variants - 1);
       // NT3 (F006): the record law runs from its ONE home now -
       // resolvePaperdollRecord IS GetInventoryTextureRecord's variant
       // resolution (start + variant, cloaks skipping their
@@ -458,5 +464,5 @@ export function inventoryItemImage(item, identity = undefined) {
   if (Number.isFinite(t.iconDye)) return { archive, record, dye: t.iconDye, dyeTarget: DYE_TARGETS.WeaponsAndArmor };
   // PROF3: a Repair Kit's picture is the Warhammer's, dyed by the metal it mends (the item's `kitMetal`, profTemplates.js kitDye)
   if (t.kitDye && Number.isFinite(_kitDye?.(item))) return { archive, record, dye: _kitDye(item), dyeTarget: DYE_TARGETS.WeaponsAndArmor };
-  return { archive, record, dye: itemDyeColor(item), dyeTarget: itemDyeTarget(item) };
+  return { archive, record, dye: itemDyeColor(item), dyeTarget: Number.isInteger(look?.d) && (item.group === 'MensClothing' || item.group === 'WomensClothing') ? 2 : itemDyeTarget(item) };
 }

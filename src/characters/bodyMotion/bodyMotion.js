@@ -27,6 +27,7 @@ import { rotAxisAngle } from '../../combat/climbRig.js';
 import { createGaitState, stepGait, gaitPose, TURN } from './gait.js';
 import { markHeldPose } from './armAnatomy.js';
 import { createLegClock } from './legClock.js';   // LEG-CLOCK: the gait's shown stride on the clip's own feet
+import { createShieldSet } from './shieldSet.js';   // SHIELD-WALK-SET: walking forward, the shield to the side
 import { freshReturnEnabled, setReturnGoal } from './freshReturn.js';
 import { carryClassOf, carryHands, CARRY, TWO_HAND_GRIP, TWO_HAND_HAFT, armByAngles, mirrorRequest, hafHand, trunkPush, blendHand, gaitShares, turnAbout, trunkOf } from './carry.js';
 import { meleeFamilyOf, blowName, blowU, blowPose, windFor } from './melee.js';
@@ -151,6 +152,7 @@ export function createBodyMotion({ trunkClear = TRUNK_CLEAR } = {}, legs = null)
   let cut = null;        // where a blow that cut the last one begins: that one's hand and trunk as they stood (MELEE-6)
   let drawn = null;      // the striking hand as last drawn, as a blow's keys read it
   const legClock = createLegClock();   // LEG-CLOCK
+  const shieldSet = createShieldSet();   // SHIELD-WALK-SET
   let clockDt = 0, legNow = null;
   const gaitInput = () => ({
     speed: input.speed, forward: input.forward, strafe: input.strafe, running: input.running, sneaking: input.sneaking,
@@ -327,6 +329,7 @@ export function createBodyMotion({ trunkClear = TRUNK_CLEAR } = {}, legs = null)
       clockDt += Math.max(0, dt);
       legNow = Number.isFinite(input.legPhase) ? input.legPhase : legs?.stridePhase?.() ?? null;
       if (input.on && body) stepGait(gait, gaitInput(), body, dt);
+      shieldSet.step(dt, !!input.on && !!input.shield && !input.blow && !input.busy && ['one', 'free', 'fists'].includes(cls), gait);   // SHIELD-WALK-SET
       return w;
     },
     /** THE POSE: the request solved on the skeleton over the clip's (poseAssembly's `motion` slot). */
@@ -360,6 +363,7 @@ export function createBodyMotion({ trunkClear = TRUNK_CLEAR } = {}, legs = null)
       if (cls === 'free' || !(entry > 1e-3)) { last = null; return null; }
 
       const gp = gaitPose(gait, gi, body);
+      if (globalThis.__armTrace?.cur) globalThis.__armTrace.cur.g = { ph: +gait.phase.toFixed(3), sh: +gait.shown.toFixed(3), mv: +gait.move.toFixed(3), lag: +gait.lag.toFixed(3), w: +w.toFixed(3) };   // TEMP ARM-TRACE
       // BLOW-RETURN (Mac: "after the blow the two-hander stays raised and goes back to neutral instantly"): the layer comes
       // back over the clip's return as slowly as the clip does (combat/blowFlow.js BLOW_FLOW.exit) - stepped aside for the
       // whole blow, it took the carry's hands back the frame the blow ended
@@ -372,6 +376,7 @@ export function createBodyMotion({ trunkClear = TRUNK_CLEAR } = {}, legs = null)
         armW: { L: armW.L, R: armW.R },
         arms: (ctx) => handsFor(ctx, gp, null, null),
         trunk: trunkNow(),
+        collarR: cls === 'one' ? armW.R : 0,   // ONE-COLLAR (bodySolve.js): the sword arm's collarbone held at rest on the chest
         haft: TWO_HAND_GRIP[cls] != null && (!clsFrom || TWO_HAND_GRIP[clsFrom] != null),   // HILT-HOLD (bodySolve.js)
         kind: input.kind,   // TRUNK-SKIN: the held wrist's elbow kept out of this body's trunk
         armTwist: held ? armTwist : null,
@@ -388,6 +393,7 @@ export function createBodyMotion({ trunkClear = TRUNK_CLEAR } = {}, legs = null)
         plan.haft = false;
       }
       const report = solveBody(skeleton, pose, rootRef, skelMats, plan);
+      shieldSet.apply(skeleton, pose, rootRef, skelMats);   // SHIELD-WALK-SET: over the arm the clip and the layers posed
       last = { gp, bp, report };
       return report;
     },

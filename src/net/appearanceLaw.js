@@ -100,7 +100,7 @@ export const validWireAppearance = (/** @type {any} */ item, /** @type {unknown}
  *  art of its own (an artifact's record, a Gilded piece's gold) is not the look's. */
 const DRAWN_DROPS = Object.freeze(['appearance', 'ap', 'dyeColor', 'artifact', 'playerTextureArchive', 'playerTextureRecord', 'gilded']);
 /** What a drawing reads that may change on a worn piece; the memo is rebuilt when one does. */
-const DRAWN_WATCH = Object.freeze(['templateIndex', 'group', 'material', 'variant', 'equipSlot', 'rarity', 'artifact', 'enchantments', 'customEnchantments', 'glow']);
+const DRAWN_WATCH = Object.freeze(['templateIndex', 'group', 'material', 'variant', 'equipSlot', 'rarity', 'artifact', 'enchantments', 'customEnchantments', 'glow', 'localLookId']);
 /** @type {WeakMap<object, { look: any, src: any[], drawn: any }>} */
 const _drawn = new WeakMap();
 /** APPEARANCES-II: every copy drawnPiece made - a piece drawn in a look. @type {WeakSet<object>} */

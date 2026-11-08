@@ -331,7 +331,7 @@ export function vendorFrameCount(archive, record) {
  *  back the way the PNG had them. `_decoded` holds `toColor32` of the
  *  file - row 0 the picture's BOTTOM - and a caller compositing into a
  *  top-down buffer needs the reverse. Null in, null out. */
-function topDownRgba(decoded) {
+export function topDownRgba(decoded) {
   if (!decoded?.colors) return null;
   const { width, height, colors } = decoded;
   const row = width * 4;

@@ -3,7 +3,9 @@
 // systems/survival/camp.js; this is the ground, the sprite, the mesh,
 // the light, the ray and the menu.
 //
-// A camp's FIRE is TEXTURE.210 record 1 (the town brazier's flame, the
+// HEARTH-3D: the shared pool now draws an original fixed 3D campfire via campfireVisual.js.
+// The legacy billboard path remains for renderer adapters without mesh support.
+// The previous presentation: a camp's FIRE is TEXTURE.210 record 1 (the town brazier's flame, the
 // lights archive at 12 fps - FlatAnim picks the rate off the archive)
 // as one billboard batch, base-aligned at the spot, with a point light
 // over it while it burns. A TENT is model 41606 through the host's
@@ -27,6 +29,9 @@
 // through validCampRecord, replacing that owner's and no one else's;
 // `sweepOwners` drops an owner whose stream has gone quiet, the cell's
 // own law for its puppets.
+import {mountCampSnow,unmountCampSnow} from './campfireSnow.js';
+import {sampleCampGround,campFootprintProbe} from '../world/campfireGround.js';
+import { canDrawCampfire, createCampfireVisual, campfirePulse } from './campfireVisual.js';
 import { GLOBAL_SCALE, RAY_DISTANCE } from '../player/activate.js';
 import { worldMinutes, sharedClockOn } from '../systems/worldTick.js';   // REST2: online the fires are every player's, the arc on or off
 import { FlatAnim } from '../render/flatAnimation.js';
@@ -51,7 +56,7 @@ import { adoptLight } from '../render/lightId.js';   // LIGHT-ID: a camp's fire 
 import { hasBag } from '../net/bagLaw.js';   // FB1020c BAG-COOK: the Materials Bag's raw food at the fire
 
 /** The light hangs this far over the flame's base. */
-export const FIRE_LIGHT_UP = 0.6;
+export const FIRE_LIGHT_UP = 0.46;
 /** The eye's box over a fire (a flame is about a metre tall) and a tent (its mesh's own bounds, or this). */
 export const FIRE_HALF = 0.5;
 /** AUDIT SURV-TIERS (the third pass): the fires whose light the host is handed - the nearest few, in reach of the eye. */
@@ -93,6 +98,8 @@ export function createCamps({
   // passes none (a dungeon's, the standalone street's) stands every camp where it was placed.
   deck = null,
 } = {}) {
+  const fireVisual = canDrawCampfire(renderer) ? createCampfireVisual(renderer,c=>sampleCampGround(groundProbe(collider?.()),c.rec.pos,c.rec.yaw)) : null;
+  let flameTime = null, flameCull = null;
   const camps = [];   // { rec, batch, anim, pixelKey, mine }
   let _nextId = 0;
   let _fire = null;   // { count, size } once TEXTURE.210 record 1 is up
@@ -110,7 +117,7 @@ export function createCamps({
   const mine = (c) => c.owner == null;
 
   function ensureFire() {
-    if (_fire || _fireLoading || !getTexture) return;
+    if (fireVisual || _fire || _fireLoading || !getTexture) return;
     _fireLoading = Promise.resolve(getTexture(FIRE_FLAT.archive)).then((t) => {
       if (!t) return;
       const count = t.getFrameCount?.(FIRE_FLAT.record) ?? 1;
@@ -128,7 +135,8 @@ export function createCamps({
     }).catch((e) => console.warn('[camps] the tent would not load', e));
   }
   function mountFire(c) {
-    if (c.batch || !_fire || !renderer?.createBillboardBatch) return;
+    mountCampSnow(renderer,c,()=>{const p=place();return !p.insideBuilding&&!p.insideDungeon;});
+    if (fireVisual || c.batch || !_fire || !renderer?.createBillboardBatch) return;
     // DECK-CAMP: a fire on a deck is built about its own foot and moved by the batch's origin each frame (navalCrew.js's
     // way) - never rebuilt as she sails
     c.batch = renderer.createBillboardBatch(FIRE_FLAT.archive, FIRE_FLAT.record, _fire.size, [c.rec.deck ? [0, 0, 0] : c.rec.pos]);
@@ -137,6 +145,8 @@ export function createCamps({
     c.anim = _fire.count > 1 ? new FlatAnim(FIRE_FLAT.archive, _fire.count, false) : null;
   }
   function unmount(c) {
+    unmountCampSnow(renderer,c);
+    fireVisual?.release(c);
     if (c.batch) { renderer?.destroyBillboardBatch?.(c.batch); c.batch = null; }
   }
   function remount(c) { unmount(c); mountFire(c); }
@@ -233,7 +243,7 @@ export function createCamps({
       // as 'no surface' is right indoors and silently wrong in the whole
       // outdoors". It answers whichever is NEARER, mesh or terrain, so a
       // camp under a walkway still finds the walkway.
-      probe: groundProbe(col),
+      probe: fireVisual ? campFootprintProbe(groundProbe(col)) : groundProbe(col),
       place: place?.() ?? {}, standing: own().length, id: `${selfId?.() ?? 'me'}:${++_nextId}:${Math.trunc(now())}`,
     });
     if (r.text) say(r.text);
@@ -418,7 +428,7 @@ export function createCamps({
     const near = feet
       ? lit.map((c) => [c, Math.hypot(c.rec.pos[0] - feet[0], c.rec.pos[1] - feet[1], c.rec.pos[2] - feet[2])]).filter(([, d]) => d <= CAMP_LIGHT_REACH).sort((a, b) => a[1] - b[1]).map(([c]) => c)
       : lit;
-    return near.slice(0, CAMP_LIGHTS_MAX).map((c) => adoptLight({ x: c.rec.pos[0], y: c.rec.pos[1] + FIRE_LIGHT_UP, z: c.rec.pos[2], range: FIRE_LIGHT_RANGE }, c.rec));   // LIGHT-ID: the camp's fire, frame to frame
+    return near.slice(0, CAMP_LIGHTS_MAX).map((c) => adoptLight({ x: c.rec.pos[0], y: c.rec.pos[1] + FIRE_LIGHT_UP, z: c.rec.pos[2], range: FIRE_LIGHT_RANGE * (fireVisual ? .50*campfirePulse(performance.now()/1000,c.rec.pos[0]+c.rec.pos[2]) : 1), ...(fireVisual ? {color:[1,.43,.12]} : {}) }, c.rec));   // LIGHT-ID: the camp's fire, frame to frame
   }
   /** A tent's matrix. DECK-CAMP: on a deck, laid in her frame - she rolls and pitches it with her. */
   const tentMatrix = (c) => {
@@ -442,6 +452,8 @@ export function createCamps({
    *  stands - the model's own, its target's (decorRoom.js drawSeen: drawn, cast alone or neither); none, or no box,
    *  every tent drawn as before. Answers how many were drawn on screen. */
   function draw(r = renderer, texRemap = null, cull = null) {
+    flameTime = performance.now()/1000; flameCull = cull;
+    if (fireVisual) for (const c of seen()) fireVisual.draw(c, fireLit(c.rec, now()), flameTime, cull, 'body');
     if (!_tent?.gpu || !r?.drawMesh) return 0;
     let n = 0;
     for (const c of seen()) if (c.rec.kind === CAMP_KIND.Tent) {
@@ -451,6 +463,13 @@ export function createCamps({
     return n;
   }
 
+  function drawFlames() {
+    if (!fireVisual || flameTime == null) return;
+    const time = flameTime; flameTime = null;
+    const eye = camera?.()?.feet ?? [0,0,0];
+    const distance = c => Math.hypot(...c.rec.pos.map((v,i)=>v-eye[i]));
+    for(const c of seen().sort((a,b)=>distance(b)-distance(a))) fireVisual.draw(c,fireLit(c.rec,now()),time,flameCull,'glow');
+  }
   /** The eye's targets: the fire's box and, for a tent, the mesh's bounds.
    *  HEARTH1: and a box on every world fire, so a brazier answers the
    *  ray as a camp does - the box its collector measured off the sprite
@@ -693,6 +712,7 @@ export function createCamps({
 
   /** DestroyLightSources' twin: every transition and every load. */
   function destroyAll() {
+    fireVisual?.destroy();
     for (const c of camps) unmount(c);
     camps.length = 0;
     _bedroll = null;   // REST6: a spot, not a camp - the scene's teardown takes it up
@@ -717,6 +737,7 @@ export function createCamps({
    *  and what lies in its box [x0, x1) x [z0, z1) rides it by `dy(x, z)`, the ground's own move under it (world.js's
    *  publish). Left where it lay, a camp hung over a cut or lay buried in a fill - up to 28 m - and the next save kept it so. */
   function groundMoved(x0, z0, x1, z1, dy) {
+    fireVisual?.invalidateGround();
     const inBox = (p) => p[0] >= x0 && p[0] < x1 && p[2] >= z0 && p[2] < z1;
     for (const c of camps) {
       if (c.rec.deck || !inBox(c.rec.pos)) continue;   // DECK-CAMP: a deck's camp rides her, never the ground
@@ -829,7 +850,7 @@ export function createCamps({
   }
 
   return {
-    placeItem, ride, tick, tend, batches, lights, draw, targets, hoverName, activate, openMenu, openCook, byFire, fireNear, tentNear, spendNightNear,   // DECK-CAMP: ride; AUDIT C&C I2: tentNear
+    placeItem, ride, tick, tend, batches, lights, draw, drawFlames, targets, hoverName, activate, openMenu, openCook, byFire, fireNear, tentNear, spendNightNear,   // DECK-CAMP: ride; AUDIT C&C I2: tentNear
     restPointAt, bedrollNear, packOwnFires,   // REST6; AUDIT REST F1
     destroyAll, dropOwn, collectPixel, offsetAll, groundMoved, snapshot, restore, wireRecords, applyOwner, sweepOwners, sweepColdAbsent,
     get camps() { return camps; }, own,

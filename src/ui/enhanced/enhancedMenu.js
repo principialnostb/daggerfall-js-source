@@ -1,3 +1,10 @@
+import { emcText } from './emcLanguage.js';
+import { decorateTextureTile } from './texturePresentation.js';
+import { catalogLanguageControl, pixelationCopy, pixelationIntro, pixelationTile } from './pixelationPresentation.js';
+import { modGroupEnabled, modPackState, modGroupReady } from '../../systems/enhancedModResources.js';
+import { MOD_PACKS } from '../../systems/enhancedModCatalog.js';
+import { STANDARDIZED_FEATURES } from '../settings/settingsMap.js';
+import { enhancedModCatalog } from './enhancedModCatalog.js';
 // ═══════════════════════════════════════════════════════════════════
 // ENHANCED — THE MAIN MENU
 //
@@ -2045,6 +2052,7 @@ const drawsHere = (key, pause) => (pause ? tierOf(key) === 'live' : drawsFlat(ke
 /** ORG2: AN ITEM AS THE NODES IT DRAWS - none for a key a Features row owns (FT13), a key that folds (`fold`
  *  collects it), a port row this device does not have, or a row the filter leaves out. */
 function itemNodes(item, ctx) {
+  if (item.startsWith('feat:') && STANDARDIZED_FEATURES.includes(item.slice(5))) return [];
   const { pool, pause, fold = null, any = false } = ctx;
   if (optFilter !== 'all') {
     if (optFilter === 'changed' ? !itemChanged(item, pool) : !itemKinds(item).includes(optFilter)) return [];
@@ -2154,6 +2162,17 @@ function itemNodes(item, ctx) {
     card.append(choices, el('p', 'meta', copy[1]));
     return [card];
   }
+  if (item.startsWith('catalog:')) return [enhancedModCatalog({
+    section: item.slice(8), render,
+    rebuild: rebuildMorrowindBody,
+    editAppearance: async () => { const { openAppearanceEditor } = await import('../appearanceEditor.js'); openAppearanceEditor({ fpArm }); },
+    restart: () => ask('Перезапустить игру', 'Сохраните игру перед перезапуском. Несохранённый прогресс будет потерян.', 'Перезапустить', () => location.reload()),
+    openFiles: () => { category = 'mods'; selectedSectionByTab.mods = 'files'; render(); },
+
+    textureNodes: () => [],
+    paperdollAttach: async () => { const ds = await import('../../scenes/dataSource.js'); await ds.pickDfmodFiles(); render(); },
+    paperdollRemove: mod => ask('Удалить ресурсы Paperdoll Enhanced', 'Удалить импортированную копию из хранилища игры?', 'Удалить', async () => { const ds = await import('../../scenes/dataSource.js'); await ds.removeStoredDfmod(mod.key); render(); }),
+  })];
   if (item === 'port:language') { const r = pool.get('language'); const pack = r ? translationPackRow() : null; return r ? [mark(r), ...(pack ? [pack] : [])] : []; }   // L10N3b: the translation pack rides under the language row
   if (item.startsWith('port:')) { const r = pool.get(item.slice(5)); return r ? [mark(r)] : []; }
   if (item === 'preset:graphics') return [graphicsPresetRow()];
@@ -2172,7 +2191,7 @@ function sectionHead(tab, s, n, { path = false } = {}) {
   const head = el('div', 'sec-head');
   head.id = `sec-${tab.id}-${s.id}`;
   const t = el('div', 'sec-title');
-  t.append(el('h3', null, path ? `${tab.title} \u203a ${s.title}` : s.title));
+  t.append(el('h3', null, path ? `${tab.title} \u203a ${tab.id === 'compatibility' ? emcText(s.title) : s.title}` : tab.id === 'compatibility' ? emcText(s.title) : s.title));
   if (n) t.append(el('span', 'count', String(n)));
   head.append(t);
   return head;
@@ -2180,7 +2199,7 @@ function sectionHead(tab, s, n, { path = false } = {}) {
 
 /** ORG2: a node that is an option - a row or a Features row - and not the screen's own door (the Overhauls link), a
  *  card, or a row greyed here. What a section's head counts, as the rail's count does (tabCount). */
-const isOptionNode = (x) => (x.classList?.contains('row') && !x.classList.contains('opt-link') && x.dataset?.live !== '0') || x.classList?.contains('ft-tile');
+const isOptionNode = (x) => (x.classList?.contains('row') && !x.classList.contains('opt-link') && x.dataset?.live !== '0') || x.classList?.contains('ft-tile') || x.classList?.contains('pixelation-card');
 
 /** ORG2: the rows one tab draws, section by section - `[{ s, nodes }]`, a section that drew nothing left out - and
  *  the keys it folds. */
@@ -2208,7 +2227,7 @@ function tabCount(tab, ctx) {
   for (const s of tab.sections) {
     for (const item of s.items) {
       if (isSettingItem(item)) { if (!featureForControl('settings', item) && drawsHere(item, ctx.pause)) n++; }
-      else if (item.startsWith('feat:')) n++;
+      else if (item.startsWith('feat:') && !STANDARDIZED_FEATURES.includes(item.slice(5))) n++;
       else if (item.startsWith('port:')) { const r = ctx.pool.get(item.slice(5)); if (r && r.dataset.live !== '0') n++; }   // QREPAIR: a row greyed here is not one that works here
       else if (item === 'mods-index') n += FEATURES.filter((f) => f.kinds.includes('mod')).length;   // every mod has a row in the list
       else if (item === 'preset:graphics') n++;   // the preset is a choice of its own; the Overhauls door is not
@@ -2241,18 +2260,19 @@ function paintOptionsBody(body, { pause = false } = {}) {
   const tab = CATEGORIES.find((c) => c.id === category) ?? CATEGORIES[0];
   if (tab.id === 'mods' && isOnlinePage()) body.append(el('p', 'meta opt-note', noteText(ONLINE_MODS_NOTE)));   // MODS-ONLINE-2: said once, over the mods; L10N4: in the player's language
   const { sections, fold } = tabSections(tab, ctx);
+  if (tab.id === 'pixelation') body.append(pixelationIntro(render));
   if (sections.length > 1) {
     // Every multi-section tab uses the same compact section picker: only the
     // selected section is rendered, instead of stacking every section vertically.
     const nav = el('nav', 'sec-jump animation-switches');
     nav.setAttribute('aria-label', `${tab.title} sections`);
     const group = el('div', 'animation-switch-group');
-    group.append(el('div', 'meta animation-switch-label', 'Раздел'));
+    group.append(el('div', 'meta animation-switch-label', tab.id === 'compatibility' ? emcText('Раздел') : 'Раздел'));
     const buttons = el('div', 'animation-switch-buttons');
     const rememberedId = selectedSectionByTab[tab.id];
     const selectedId = sections.some(({ s }) => s.id === rememberedId) ? rememberedId : sections[0].s.id;
     for (const { s } of sections) {
-      const b = el('button', `sec-jumpbtn animation-switch${selectedId === s.id ? ' is-active' : ''}`, s.title);
+      const b = el('button', `sec-jumpbtn animation-switch${selectedId === s.id ? ' is-active' : ''}`, tab.id === 'compatibility' ? emcText(s.title) : s.title);
       b.type = 'button';
       b.setAttribute('aria-pressed', String(selectedId === s.id));
       b.onclick = () => {
@@ -2269,6 +2289,10 @@ function paintOptionsBody(body, { pause = false } = {}) {
     }
     group.append(buttons);
     nav.append(group);
+    if(tab.id === 'compatibility'){
+      nav.classList.add('emc-nav');
+      nav.append(catalogLanguageControl(render));
+    }
     body.append(nav);
     const selected = sections.find(({ s }) => s.id === selectedId) ?? sections[0];
     if (selected) {
@@ -2427,7 +2451,7 @@ function paneSettings(pane, { pause = false } = {}) {
     };
     if (on) b.append(el('span', 'more-dot'));
     // Keep the custom Morrowind settings together, below the built-in categories.
-    if (['animations', 'bodies', 'textures'].includes(cat.id)) {
+    if (['compatibility', 'pixelation'].includes(cat.id)) {
       b.classList.add('custom-settings-tab');
       customSettingsGroup.append(b);
     } else {
@@ -3570,7 +3594,6 @@ export function morrowindCard({ count = morrowindDataCount(), armState = fpArm.s
     [t('menu.mw.data', 'Data'), t('menu.mw.archives', '{n, plural, =0 {none attached} one {# archive attached} other {# archives attached}}', { n: count || 0 })],
     ...(count ? [[t('menu.mw.arms', 'Arms'), morrowindArmsLine(armState)]] : []),
   ]));
-  mw.append(el('p', 'meta', t('menu.mw.thirdOnlyState', 'Только Third Person: {state}', { state: getPref('morrowindThirdPersonOnly') ? 'Вкл' : 'Выкл' })));
   const attach = async () => {
     const ds = await import('../../scenes/dataSource.js');
     const n = await ds.pickMorrowindFiles();
@@ -3583,7 +3606,6 @@ export function morrowindCard({ count = morrowindDataCount(), armState = fpArm.s
     render();
   };
   const actions = [{ label: t('menu.mw.attach', 'Attach data'), primary: !count, onClick: attach }];
-  actions.push({ label: 'Только Third Person', onClick: () => { setPref('morrowindThirdPersonOnly', !getPref('morrowindThirdPersonOnly')); render(); } });
   // MWA2 (2026-09-16): the door that removes the data itself - the one off there is now. Routed through the same
   // confirm-before-destroy pattern as Delete Save.
   if (count) {
@@ -3922,10 +3944,16 @@ function modRow(vendor, key, def, { name = null, note = null, home = false } = {
  *  a colour, a free number - is not given a bar; `null` sends the row
  *  back to its own builder, which is how the panel stays honest about
  *  the controls it has not learned yet. */
+export function pixelationRequirement(id) {
+  if (!['char-pixel-fp','char-pixel-player','char-pixel-npc'].includes(id)) return null;
+  return modGroupReady('bodies') ? null : 'Требуется подключённая и включённая группа «Тела и руки» в EMC.';
+}
+
 export function tileStates(f) {   // FT18: exported for the All off pins, which read and press the bars through it
   const c = resolveControl(f);
   if (c.store === 'prefs') {
-    const locked = onlineForcedPref(c.key) !== undefined;
+    const lockReason = pixelationRequirement(f.id);
+    const locked = !!lockReason || onlineForcedPref(c.key) !== undefined;
     if (c.tiers) {
       const cur = String(c.read ? c.read() : getPref(c.key));
       // BLOOD AUDIT 5: a stored value that is no tier reads as the row's
@@ -3933,8 +3961,8 @@ export function tileStates(f) {   // FT18: exported for the All off pins, which 
       const fallback = Math.max(0, c.tiers.findIndex(([v]) => String(v) === String(c.default ?? c.initial)));
       const found = c.tiers.findIndex(([v]) => String(v) === cur);
       const at = found >= 0 ? found : fallback;
-      return { labels: c.tiers.map(([, l]) => l), at, locked,
-        set: (i) => { (c.write ?? ((v) => setPref(c.key, v)))(c.tiers[i][0]); TILE_AFTER[c.key]?.(); } };   // MW-STEEL1: a choice's after-step too (the Steel Helm)
+      return { labels: c.tiers.map(([, l]) => l), at, locked, lockReason,
+        set: (i) => { if (pixelationRequirement(f.id)) return; (c.write ?? ((v) => setPref(c.key, v)))(c.tiers[i][0]); TILE_AFTER[c.key]?.(); } };   // MW-STEEL1: a choice's after-step too (the Steel Helm)
     }
     return { labels: ['Off', 'On'], shown: toggleWords(), at: getPref(c.key) ? 1 : 0, locked,
       set: (i) => { setPref(c.key, i === 1); TILE_AFTER[c.key]?.(); } };
@@ -4070,6 +4098,8 @@ let featureOpen = null;
 export function featureTile(f) {
   const c = resolveControl(f);
   const st = tileStates(f);
+  const pixel = pixelationCopy(f.id);
+  if (pixel && st) return pixelationTile(f.id, st, segBar(st, pixel.title));
   const tile = el('div', `ft-tile${pickedFeature === f.id ? ' sel' : ''}`);
   tile.id = `opt-${f.id}`;   // ORG2: the mods' list brings a row into view by it
   tile.dataset.fid = f.id;   // FT18: the search hides tiles by it
@@ -4081,7 +4111,7 @@ export function featureTile(f) {
   main.append(el('div', 'ft-tile-name', f.title));
   const meta = el('div', 'ft-tile-meta');
   for (const k of KIND_ORDER) if (f.kinds.includes(k)) meta.append(el('span', `kind ${k}`, KINDS[k].label));
-  if (st?.locked) meta.append(el('span', 'ft-tile-lock', t('menu.features.onlineLock', 'online')));
+  if (st?.locked) meta.append(el('span', 'ft-tile-lock', st.lockReason ? 'Требуется EMC' : t('menu.features.onlineLock', 'online')));
   main.append(meta);
   main.onclick = () => { pickedFeature = f.id; pickedKey = null; sheetOpen = true; render(); };
   tile.append(main);
@@ -4091,6 +4121,11 @@ export function featureTile(f) {
   if (st) ctl.append(segBar(st, f.title));
   else ctl.append(featureRow(f));
   tile.append(ctl);
+  if (st?.lockReason) {
+    tile.classList.add('emc-unavailable');
+    tile.setAttribute('aria-disabled', 'true');
+    tile.append(el('p', 'meta', st.lockReason));
+  }
   const settingNotice = c.store === 'mods' ? modSettingNotice(c.vendor, c.key) : '';
   if (settingNotice) tile.append(el('p', 'meta ft-tile-notice', settingNotice));
 
@@ -4136,7 +4171,7 @@ export function featureTile(f) {
     tile.append(b);
     if (open) tile.append(featurePartsDrawer(parts));
   }
-  return tile;
+  return decorateTextureTile(tile, f.id, render);
 }
 
 /** UXB1-F (2026-09-25, the UX backlog: "Show keybinds for game features, even if they cannot be changed there (Drop
@@ -4702,6 +4737,16 @@ function featureRow(f) {
     row = modRow(c.vendor, c.key, MOD_SETTINGS[c.vendor].keys[c.key], { name: f.title, note: f.note, home: true });
   }
   row.classList.add('feature');
+  if (['char-pixel-fp','char-pixel-player','char-pixel-npc'].includes(f.id)) {
+    const ready = modGroupEnabled('bodies') && MOD_PACKS.filter(pack=>pack.group==='bodies').every(pack=>modPackState(pack.id).connected);
+    if (!ready) {
+      row.classList.add('emc-unavailable');
+      row.querySelectorAll('button,input,select').forEach(control=>{ control.disabled=true; });
+      const main=row.querySelector('.row-main'); if(main) main.onclick=null;
+      row.append(el('p','meta','Требуется подключённая и включённая группа «Тела и руки» в Enhanced Mod Compatibility.'));
+    }
+  }
+
   const main = row.querySelector('.row-main');
   main.prepend(kindTags(f.kinds));
   if (f.effect) main.append(el('div', 'row-sub', f.effect));

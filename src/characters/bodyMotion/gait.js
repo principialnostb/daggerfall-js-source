@@ -127,7 +127,7 @@ export const STEER = Object.freeze({ forward: 0.68, max: 60, back: 105, hyst: 12
  *  of travel, the backpedal's share of the arms' swing (AUDIT BODY-MOTION GAIT-12 - flipped in one frame, it threw the
  *  free arm 54 degrees), and the ground's slope; and (strides, not seconds) the body's clock catching up the feet's
  *  when a strike or a lift sets it (GAIT-22). */
-export const GAIT_EASE = Object.freeze({ moveIn: 0.09, moveOut: 0.16, style: 0.22, speed: 0.08, steer: 0.14, lean: 0.25, dir: 0.06, back: 0.12, slope: 0.25, phase: 0.25, legs: 0.12 });
+export const GAIT_EASE = Object.freeze({ moveIn: 0.09, moveOut: 0.16, style: 0.22, speed: 0.08, steer: 0.14, lean: 0.25, dir: 0.06, back: 0.12, slope: 0.25, phase: 0.25, legs: 0.12, shownRate: 1.5 });
 
 /**
  * TURNING AND SETTLING IN PLACE: a standing foot twisted `step` degrees off the body - or standing `dist` legs off its
@@ -478,7 +478,15 @@ export function stepGait(state, input, body, dt) {
   if (legs != null) s.legOff = (s.legOff ?? 0) + wrapHalf(wrapHalf(legs - own) - (s.legOff ?? 0)) * (s.legW > 0 ? k : 1);
   s.legW = clamp01((s.legW ?? 0) + ((legs != null ? 1 : 0) - (s.legW ?? 0)) * k);
   if (legs != null && s.legW > 0.999) s.legW = 1;
-  s.shown = frac(own + (s.legOff ?? 0) * s.legW);
+  // SHOWN-SLEW (2026-11-07, read in the owner's game: a one-handed sword shook for a tenth of a second at every stop of
+  // a walk tapped back): as the walk cross-faded into the stance the clip's phase and its offset leapt, and the shown
+  // clock turned a whole stride in 70 ms - every arm held on it swung through its pump in eight frames. The shown clock
+  // moves no faster than its own stride and GAIT_EASE.shownRate strides a second more toward where the legs put it - and
+  // never back (read again in the game: slowed, it still swung 0.02-0.08 of a stride back and forth a frame for half a
+  // second after each stop, and the sword arm with it): a clock behind its target waits for the stride to come round.
+  const target = frac(own + (s.legOff ?? 0) * s.legW);
+  const room = Math.abs(s.dPhase ?? 0) + Math.max(0, dt) * GAIT_EASE.shownRate;
+  s.shown = Number.isFinite(s.shown) && dt > 0 ? frac(s.shown + clamp(wrapHalf(target - s.shown), 0, room)) : target;
   return s;
 }
 

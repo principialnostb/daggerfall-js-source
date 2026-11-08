@@ -1,3 +1,6 @@
+import { paperdollLooksKey } from '../../systems/paperdollLooks.js';   // PAPERDOLL-LOOKS: every piece's 2D look keys the composite
+import { appearanceDisplayKey } from '../../characters/activeAppearance.js';
+import { getPref } from '../../systems/uiPrefs.js';
 import { dfmodGeneration } from '../../systems/dfmodTextures.js';
 import { paperDollDisplayIdentity, composeInventoryDollPixels } from '../paperDoll.js';
 import { paperDollFaceCanvases } from '../facePortrait.js';
@@ -12,7 +15,7 @@ export function facePage(count, page = 0) {
 let pixels = null, generation = 0;
 const compositeKey = (entity) => {
   const identity = paperDollDisplayIdentity(entity);
-  return `${inventoryFaceKey(entity, identity)}:${inventoryFaceIndex(entity, identity)}`;
+  return `${appearanceDisplayKey()}:${inventoryFaceKey(entity, identity)}:${inventoryFaceIndex(entity, identity)}:${getPref('paperdollCustomization')}:${paperdollLooksKey()}`;
 };
 export const inventoryDollPixels = (entity) => pixels?.key === compositeKey(entity) ? pixels.value : null;
 export async function refreshInventoryDoll(entity) {
@@ -21,7 +24,7 @@ export async function refreshInventoryDoll(entity) {
   const identity = paperDollDisplayIdentity(entity);
   const faceIndex = inventoryFaceIndex(entity, identity);
   const result = faceIndex === null ? null : await composeInventoryDollPixels(entity, { ...identity, faceIndex });
-  if (request === generation) pixels = result ? { key, value: { ...result, version: `inventory-face-${request}` } } : null;
+  if (request === generation && key === compositeKey(entity)) pixels = result ? { key, value: { ...result, version: `inventory-face-${request}` } } : null;
 }
 
 let pickerCache = null;

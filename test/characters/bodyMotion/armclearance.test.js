@@ -89,7 +89,9 @@ test('ARM-CLEARANCE: a turned two-handed neutral guard keeps both grips and clea
     const turns = clearArms(sk, pose, GRAPH_ROOT, sm, { armor: 1 });
     expected ??= turns;
     for (const side of ['L', 'R']) {
-      assert.ok(Math.abs(turns[side] - expected[side]) < 1e-8, 'clearance follows the turned chest');
+      // CLEAR-SMOOTH: the turn is refined by halvings, so a turned chest finds it to the refinement's own tolerance (a
+      // thousandth of a radian, fifty times under the grid's step), not to the bit
+      assert.ok(Math.abs(turns[side] - expected[side]) < 1e-3, 'clearance follows the turned chest ' + (turns[side] - expected[side]));
       const after = sm(sk, pose, GRAPH_ROOT), hand = body.bones[side].hand;
       assert.ok(Math.hypot(...after.get(hand).t.map((v, i) => v - before.get(hand).t[i])) < 0.05, 'grip position preserved');
       assert.ok(Math.max(...after.get(hand).a.map((v, i) => Math.abs(v - before.get(hand).a[i]))) < 1e-5, 'grip rotation preserved');

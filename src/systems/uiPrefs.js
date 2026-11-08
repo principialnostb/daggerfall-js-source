@@ -30,6 +30,12 @@ import { isStoredHorseCare, HORSE_CARE_OLD_ON, HORSE_CARE_OLD_ON_TIER, isStoredW
 export const PREF_DEFAULTS = Object.freeze({
   inventoryFaces: null,
   helmetPaperdollLooks: null,
+  // PAPERDOLL-LOOKS (systems/paperdollLooks.js): the player's 2D card look per template and material - `{ v }` a style,
+  // `{ t }` another template's record of the same class
+  paperdollLooks: null,
+  mwItemOwnLooks: null,
+  mwItemDyes: null,
+  mwRecordDyes: null,
   mwCloakLooks: null,
   mwWeaponLooks: null,
   // PX30c: the enhanced HUD's scale. It lives HERE and not in DFU's
@@ -180,9 +186,16 @@ export const PREF_DEFAULTS = Object.freeze({
   // assets are - only a look a player might prefer to opt OUT of.
   // MW-TP-ONLY: keep Morrowind's NIF body in third person while the first-person view uses the classic arm/sprite path.
   morrowindThirdPersonOnly: false,
+  enhancedCampfire: true,
   // MW-UI-SPLIT: keep Morrowind meshes in the world/first-person rig without replacing classic UI art.
-  morrowind3dInventoryIcons: false,
-  morrowind3dPaperDoll: false,
+  morrowind3dInventoryIcons: true,
+  morrowind3dPaperDoll: true,
+  paperdollCustomization: true,
+  modelCustomization: false,
+  emcLanguage: 'ru',
+  extraArmorLooks: true,
+  extraWeaponLooks: true,
+  extraCloakLooks: true,
   peerClassSprites: true,
   peerAttackSounds: true,   // PEER-FS2: other players' swing sounds - on by default
   monsterVolume: 1,   // MONSTER-VOL: a monster's calls, attack sounds and pain cries, 0..1 (systems/monsterVolume.js)
@@ -405,6 +418,8 @@ export function overridesOf(prefs) {
   return out;
 }
 export function getPref(k) {
+  // Inventory mode owns both render flags, including stale preferences saved before EMC.
+  if (k === 'morrowind3dPaperDoll' || k === 'morrowind3dInventoryIcons') return !getPref('morrowindThirdPersonOnly');
   const forced = onlineForcedPref(k);   // OL1: online is the enhanced lane, whole - a forced switch reads forced and the shelf is not written
   if (forced !== undefined) return forced;
   if (_prefs === null) loadPrefs();

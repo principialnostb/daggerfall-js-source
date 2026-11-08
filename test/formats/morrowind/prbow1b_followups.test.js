@@ -339,7 +339,7 @@ test('PR-BOW1b: the wiring, by source - poseAssembly folds through foldPieceBoun
   // PIN MOVED (PROFILE-SLOTS): the flags are posePortrait's, which figure() runs before it frames
   const posed = arm.slice(arm.indexOf('  function posePortrait() {'), arm.indexOf('  function portraitModel(yaw) {'));
   const flags = fig.indexOf('if (!posePortrait()) return null;');
-  const frame = fig.indexOf('const win = portraitWindow(thirdMesh.ranges, model, figureBodyBox);');
+  const frame = fig.indexOf('const win = figureFraming(thirdMesh.ranges, model, figureBodyBox, stableFrame, portraitWindow, visibleRangeBounds, CARRIED_SLOTS);');
   assert.ok(posed.includes("if (r.slot === 'weapon') r.hidden = false;"), 'the portrait decides what it shows');
   assert.ok(flags >= 0 && frame > flags, 'the portrait is framed AFTER it decides what it shows');
   assert.ok(!/meshBounds\(t\.arm\.pieces\)/.test(fig + posed), 'and never over every piece');

@@ -28,6 +28,7 @@ import { eotbBody } from '../../player/eyeOfTheBeholder/eotbBody.js';   // EOTB5
 import { eotbCamera } from '../../player/eyeOfTheBeholder/eotbCamera.js';
 import { racialFpsWeapon } from '../../systems/lycanthropy.js';   // V4: the transformed rig's claws
 import { EQUIP_SLOTS, equipTableOf, fillEquipTable } from '../../systems/equip.js';   // AUDIT 17e F17; MW-D32 the worn read; MW-EARLY: a save's worn set
+import { noteModelLookPlayer } from '../../systems/modelLooks.js';   // MODEL-LOOKS
 import { drawnEquipTable } from '../../systems/capeShown.js';   // CAPE-TOGGLE: the worn read as the body is drawn
 import { swapPace } from './swapPace.js';   // SWAP-PACE: the swap pause's drain, halved outside the open PvP zone
 import { setItemFields } from '../../systems/item/itemTemplates.js';   // MW-EARLY: a save's items as the restore reads them
@@ -165,6 +166,7 @@ let _armRenderer = null;
 export const armRenderer = () => _armRenderer;
 
 export function armBuildOptsOf(entity) {
+  noteModelLookPlayer(entity);   // MODEL-LOOKS: the pieces this body is built from may wear the player's own 3D looks
   // the ammunition question is asked OF THE WEAPON, and the weapon this
   // function has is the worn one - there is no live rig here
   const worn = entity.equip?.slots?.[EQUIP_SLOTS.RightHand] ?? null;

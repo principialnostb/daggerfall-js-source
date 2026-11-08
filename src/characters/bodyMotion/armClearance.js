@@ -25,13 +25,26 @@ export const ARM_CLEARANCE = Object.freeze({ width: 0.5, depth: 0.42, armor: 0.1
  *  and a turn of the arm costs TURN_COST of shortfall a radian. */
 const ELLIPSE_WEIGHT = 10, TURN_COST = 0.08, SKIN_TURN = 0.6, SKIN_TURN_HELD = 0.6;
 
+/** CLEAR-SMOOTH (2026-11-07, the owner's 12-40-11 recording: the free arm, the sword arm and the shield arm twitch at an
+ *  interval; the two-hander's held hands do not). The search took its turn on a 0.05-radian grid, so as an idle carried
+ *  the arm a hair into the breasts the turn leapt a whole step - twice an idle loop, 0.35 s apart, the elbow swinging
+ *  with the hand still; a held grip never searched the skin (SKIN_TURN_HELD only in a blow). Read in the owner's game
+ *  (a woman standing in zIdle): the lower way out of the breasts closes as the idle moves the arm, and the best turn
+ *  leapt to the upper one, 0.1 radian in 0.18 s, once a loop - no hold can keep a way out that is gone. Now the
+ *  ellipse's least clearing turn is found by `iterations` halvings, and the skin's turn is a soft minimum over a `grid`
+ *  of turns: each weighted by exp(-(its cost - the least) / `temperature`), so it moves as the costs move. What is left
+ *  is the clip's own: about zIdle's wrap the trunk moves quicker and the turn humps 0.08 radian in 0.3 s. The turn is
+ *  eased toward its target over `ease` seconds - `still` standing, `quick` walking (`moving`, 0..1) or in a blow, where
+ *  the arms are quick and the clearance must keep up. */
+export const CLEAR_SMOOTH = Object.freeze({ iterations: 12, grid: 0.02, temperature: 0.008, ease: Object.freeze({ still: 0.3, quick: 0.07 }) });
+
 const outOf = (p, c, a, b) => Math.hypot((p[0] - c[0]) / a, (p[1] - c[1]) / b);
 
 /** CLEAR THE ARMS of the trunk on a posed frame: `armor` the armour's weight 0..1 (bodyWeight.js bodyWeightOf's), `kind`
  *  the body's (bodyKindOf's: TRUNK-SKIN reads a woman's trunk for 'female'), `swinging` a blow or the return from one on
  *  the arms. Writes new entries into `pose`; answers the
  *  turns made { L, R } (radians), or null when the skeleton is no biped. */
-export function clearArms(skeleton, pose, rootRef, skelMats, { armor = 0, previous = null, dt = 0, held = null, kind = 'male', swinging = false } = {}) {
+export function clearArms(skeleton, pose, rootRef, skelMats, { armor = 0, previous = null, dt = 0, held = null, kind = 'male', swinging = false, moving = 1 } = {}) {
   const body = bodyOf(skeleton, rootRef, skelMats);
   if (!body || !body.bones?.L || !body.bones?.R) return null;
   const mats = skelMats(skeleton, pose, rootRef, [body.chest, body.bones.pelvis, body.bones.L.hand, body.bones.R.hand]);
@@ -81,15 +94,23 @@ export function clearArms(skeleton, pose, rootRef, skelMats, { armor = 0, previo
     const elbowAt = (th) => add(add(S, along), apply3(rotAxisAngle(a, th), e0));
     // ARM-CLEARANCE's own turn first, as it always chose it: the least that clears the ellipse, or its best
     let base = 0, baseD = 1 - cost(S, E, W)[0];
+    const clearOf = (th) => 1 - cost(S, elbowAt(th), W)[0];
     for (let k = 1; baseD < 1 && k * ARM_CLEARANCE.step <= ARM_CLEARANCE.maxTurn + 1e-9; k++) {
       let done = false;
       for (const th of [k * ARM_CLEARANCE.step, -k * ARM_CLEARANCE.step]) {
-        const d = 1 - cost(S, elbowAt(th), W)[0];
+        const d = clearOf(th);
         if (d > baseD + 1e-6) { baseD = d; base = th; }
-        if (d >= 1) { base = th; done = true; break; }
+        if (d >= 1) {
+          // CLEAR-SMOOTH: the least turn that clears, found between the step that did not and the one that did - not the
+          // step itself, which a breathing chest moves a whole step at a time (the owner's 12-40-11 recording)
+          let lo = th - Math.sign(th) * ARM_CLEARANCE.step, hi = th;
+          for (let i = 0; i < CLEAR_SMOOTH.iterations; i++) { const mid = (lo + hi) / 2; if (clearOf(mid) >= 1) hi = mid; else lo = mid; }
+          base = hi; done = true; break;
+        }
       }
       if (done) break;
     }
+    if (baseD < 1 && base !== 0) base = refine((th) => -clearOf(th), base - ARM_CLEARANCE.step, base + ARM_CLEARANCE.step, ARM_CLEARANCE.maxTurn);
     // TRUNK-SKIN then turns it on, by no more than SKIN_TURN. A held grip (ARM-ANATOMY's forearm balance) the skin turns
     // only while it swings - a blow, or the carry's return from one (SKIN_TURN_HELD): the hand kept on the hilt, the turn
     // wrings the wrist's and the elbow's skin, which ARM-ANATOMY's pins hold through the walks and the runs. A held guard
@@ -103,7 +124,23 @@ export function clearArms(skeleton, pose, rootRef, skelMats, { armor = 0, previo
         if (c < bestC - 1e-6) { bestC = c; best = th; }
       }
     }
-    if (previous) { best = ease(previous[side] ?? 0, best, 0.07, dt); previous[side] = best; }
+    if (reach > 0 && bestC > 1e-9) {
+      // CLEAR-SMOOTH: not the one best turn but every turn in reach weighted by how near the best it is (a soft minimum,
+      // `temperature` in the cost's units) - where two ways out of the skin cost alike the turn stands between them, and
+      // as one closes its weight goes and the turn flows to the other, where the best leapt
+      const lo = Math.max(base - reach, -ARM_CLEARANCE.maxTurn), hi = Math.min(base + reach, ARM_CLEARANCE.maxTurn);
+      const ths = [], cs = [];
+      for (let th = lo; th <= hi + 1e-9; th += CLEAR_SMOOTH.grid) { ths.push(th); cs.push(total(cost(S, elbowAt(th), W)) + TURN_COST * Math.abs(th - base)); }
+      const cMin = Math.min(...cs), T = CLEAR_SMOOTH.temperature;
+      let sw = 0, st = 0;
+      for (let i = 0; i < ths.length; i++) { const w = Math.exp(-(cs[i] - cMin) / T); sw += w; st += w * ths[i]; }
+      // taken as far as the clearance's own turn is worse than the best: an arm best left where it is stays exactly there
+      const g = 1 - Math.exp(-(total(cost(S, elbowAt(base), W)) - cMin) / T);
+      if (sw > 0) best = base + (st / sw - base) * Math.max(0, Math.min(1, g));
+    }
+    // CLEAR-SMOOTH: standing, the turn eased slowly; walking or in a blow, quickly
+    const tau = swinging ? CLEAR_SMOOTH.ease.quick : CLEAR_SMOOTH.ease.still + (CLEAR_SMOOTH.ease.quick - CLEAR_SMOOTH.ease.still) * Math.max(0, Math.min(1, moving));
+    if (previous) { best = ease(previous[side] ?? 0, best, tau, dt); previous[side] = best; }
     if (Math.abs(best) < 1e-5) continue;
     const Q = rotAxisAngle(a, best);
     const upper = skeleton.nodes.get(b.upper), hand = skeleton.nodes.get(b.hand);
@@ -122,5 +159,18 @@ export function clearArms(skeleton, pose, rootRef, skelMats, { armor = 0, previo
 }
 
 const IDENT = [1, 0, 0, 0, 1, 0, 0, 0, 1];
+
+/** The turn in [lo, hi] (inside ±max) where `f` is least - golden-section, CLEAR_SMOOTH.iterations steps. */
+function refine(f, lo, hi, max) {
+  let a = Math.max(lo, -max), b = Math.min(hi, max);
+  if (!(b > a)) return a;
+  const g = (Math.sqrt(5) - 1) / 2;
+  let c = b - g * (b - a), d = a + g * (b - a), fc = f(c), fd = f(d);
+  for (let i = 0; i < CLEAR_SMOOTH.iterations; i++) {
+    if (fc <= fd) { b = d; d = c; fd = fc; c = b - g * (b - a); fc = f(c); }
+    else { a = c; c = d; fc = fd; d = a + g * (b - a); fd = f(d); }
+  }
+  return (a + b) / 2;
+}
 /** A row-major 3x3 applied to a column vector. */
 function apply3(m, v) { return [m[0] * v[0] + m[1] * v[1] + m[2] * v[2], m[3] * v[0] + m[4] * v[1] + m[5] * v[2], m[6] * v[0] + m[7] * v[1] + m[8] * v[2]]; }

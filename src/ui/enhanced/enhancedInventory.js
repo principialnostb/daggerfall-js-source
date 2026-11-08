@@ -1,3 +1,5 @@
+import { modResourceSignature } from '../../systems/enhancedModResources.js';
+import { inventoryModelSource } from './inventoryPresentation.js';
 import { inventoryFacePicker, inventoryDollPixels, refreshInventoryDoll } from './inventoryFaces.js';
 import { inventoryFaceIndex } from '../../systems/inventoryFace.js';
 import { openAppearanceEditor } from '../appearanceEditor.js';
@@ -93,6 +95,10 @@ import { isShieldTemplate } from '../../characters/ownModels/shieldLooks.js';
 import { weaponSkinsFor } from '../../characters/ownModels/localWeaponModels.js';
 import { isPaperdollHelmet, helmetPaperdollVariant } from '../../systems/helmetPaperdollLooks.js';
 import { helmetAppearancePicker, fitHelmetThumbnail } from './helmetAppearancePicker.js';
+import { paperdollAppearancePicker } from './paperdollAppearancePicker.js';   // PAPERDOLL-LOOKS: the 2D look of any piece
+import { paperdollLookChoices } from '../../systems/paperdollLooks.js';
+import { modelLookRow } from './modelLookRow.js';   // MODEL-LOOKS: the 3D tab's Morrowind records
+import { setModelLook } from '../../systems/modelLooks.js';
 import { fateColumn, fateKey, ensureFateStyle, FATE_FACE_BOX } from '../revenant/revenantFateView.js';   // REVENANT-FATE: a beaten revenant's choice, this window's FATE side
 import { SLOT_BOX, gridBox, wornBox, screenDpr } from '../iconFit.js';   // UI1: the fit law's boxes and the screen's ratio
 import { requestModelIconUrl } from '../modelIcon.js';   // DISC24-B
@@ -2060,7 +2066,7 @@ let _unsubscribeFigure = null;
  *  drag repaints that one canvas on the animation frame instead of
  *  rebuilding anything. */
 function modelFigureImage() {
-  const armMod = deps.fpArm;
+  const armMod = inventoryModelSource(deps.fpArm);
   if (!armMod || typeof armMod.figure !== 'function') return null;
   const st = armMod.status?.();
   // AUDIT 33 F2: the yaw is QUANTISED to a tenth of a radian, so a drag
@@ -2068,7 +2074,7 @@ function modelFigureImage() {
   // per pixel, and dragging back lands on cached frames. The build's
   // settlement clears this cache (subscribe).
   const yaw = Math.round(_figureYaw / 0.1) * 0.1;
-  const key = `${st?.pieces ?? 0}:${st?.skeletonPath ?? ''}:${yaw.toFixed(1)}`;
+  const key = `${modResourceSignature()}:${st?.pieces ?? 0}:${st?.skeletonPath ?? ''}:${yaw.toFixed(1)}`;
   if (_figureCache.key === key) return _figureCache.img;
   let px = null;
   try { px = armMod.figure({ yaw, height: 384 }); } catch { px = null; }
@@ -2100,12 +2106,11 @@ function modelFigure() {
  *  frame drawHud makes. The rig it reads is still the one the host
  *  mounted this screen with - a page with no Morrowind data behind it
  *  draws the classic icon, exactly as before. */
-const modelIconUrl = (item, size) => modelIconUrlOf(item, size, deps.fpArm);
+const modelIconUrl = (item, size) => modelIconUrlOf(item, size, inventoryModelSource(deps.fpArm));
 /** UI1: the Morrowind icon as a fitted picture - rendered at the box's device size, drawn at the box (a render, so
  *  smooth). Null where modelIconUrl is. */
 function modelPicture(item, box) {
-  // A chosen 2D appearance takes precedence over the optional model icon.
-  if (helmetPaperdollVariant(item) !== null) return null;
+  // Saved 2D appearances are kept for the 2D mode; they do not override the selected 3D mode.
   const src = modelIconUrl(item, Math.round(box * screenDpr()));
   return src ? { src, w: box, h: box, smooth: true } : null;
 }
@@ -2290,16 +2295,14 @@ function equippedList() {
   // since the composite was made (a boot whose mods registered after the doll's first compose, an add or a remove).
   // The refresh repaints once when it lands, and the fresh composite is no longer stale, so this cannot loop.
   if (paperDollStale()) refreshFigure();
-  const customFace = inventoryFaceIndex(deps.entity, paperDollDisplayIdentity(deps.entity)) !== null;
-  const customHelmet = deps.entity && helmetPaperdollVariant(equipTableOf(deps.entity)[EQUIP_SLOTS.Head]) !== null;
-  const figure = customFace || customHelmet ? null : modelFigure();
+  const figure = modelFigure();
   const dollUrl = figure ? null : paperDollDataUrl(inventoryDollPixels(deps.entity) ?? paperDollPixels(), { scale: 4 });
   // PX20a: the frame belongs to the PLACEHOLDER, not to the sprite -
   // with art the figure stands on the window's own glass.
   const dollFrame = el('div', `wornmap-doll${figure || dollUrl ? ' hasart' : ' noart'}${figure ? ' model' : ''}`);
   const dollColumn = el('div', 'inventory-doll-column');
   dollColumn.style.gridArea = DOLL_AREA;
-  dollColumn.append(inventoryFacePicker({ entity: deps.entity, onChange: refreshFigure }));
+  if (!figure && getPref('paperdollCustomization') !== false) dollColumn.append(inventoryFacePicker({ entity: deps.entity, onChange: refreshFigure }));
   dollColumn.append(dollFrame);
   dollFrame.style.gridArea = 'auto';   // PLUS11: five rows
   if (figure) {
@@ -2435,7 +2438,9 @@ function wornPanel(fam, byLabel, area) {
   // (72px on the desk), and a "Hood down" plate covered the word on a 360px phone.
   if (hoodUp(top.item)) b.append(el('span', 'wornhood', 'Hood'));
   // LOOK-VARIANTS: A PIECE WITH OTHER LOOKS WEARS A GEM in the corner nothing else takes - its card's Style button turns it
-  if (lookVariantsOf(top.item)) { const g = el('span', 'wornlook'); g.title = `Style: ${lookVariantLabel(top.item)} - other looks in its card`; b.append(g); }
+  if ((getPref('paperdollCustomization') !== false || getPref('modelCustomization') === true) && lookVariantsOf(top.item)) { const g = el('span', 'wornlook'); g.title = `Style: ${lookVariantLabel(top.item)} - other looks in its card`; b.append(g); }
+  // PAPERDOLL-LOOKS: and a piece with 2D looks while the 2D card shows
+  else if (getPref('paperdollCustomization') !== false && getPref('morrowindThirdPersonOnly') && paperdollLookChoices(top.item).length) { const g = el('span', 'wornlook'); g.title = '2D look - other looks in its card'; b.append(g); }
   // MAC-M2 (Mac: "hold to drag ... doesn't work when trying to take
   // items off your character"): A FILLED PANEL DRAGS, on the same hold
   // and the same threshold a pack row takes. INV1 attached `dragFrom`
@@ -2820,7 +2825,9 @@ function openMenu(item, from, x, y) {
   // closed unused included, as a look counts. Its Take and Use then ran with no click at all.
   if (from === 'remote') sendQuestItemClick(item, deps.getQuest ?? null);
   const acts = itemActs(item, from, { qty: false });
-  const buttons = [...acts.querySelectorAll('button')];
+  // MODEL-LOOKS / PAPERDOLL-LOOKS (the owner, 2026-11-08: the right click listed every look card): the menu is the card's
+  // actions, never its appearance tabs and pictures - those are the card's own
+  const buttons = [...acts.querySelectorAll('button')].filter((b) => !b.closest?.('.helmet-appearance, .paperdoll-appearance, .model-looks, .look-row'));
   if (!buttons.length) return;
   menuEl = el('div', 'inv-menu');
   menuEl.setAttribute('role', 'menu');
@@ -3807,9 +3814,15 @@ function itemActs(picked, side, { qty = true } = {}) {
   const shieldAppearance = side === 'local' && isShieldTemplate(picked.templateIndex);
   const helmetAppearance = side === 'local' && isPaperdollHelmet(picked);
   const weaponAppearance = side === 'local' && weaponSkinsFor(picked).length > 0;
-  const looks = line.equipped || shieldAppearance || helmetAppearance || weaponAppearance ? lookChoices(picked) : null;
+  const looks = getPref('modelCustomization') === true && (line.equipped || shieldAppearance || helmetAppearance || weaponAppearance) ? lookChoices(picked) : null;
   let modelRow = null;
-  if (looks) {
+  // MODEL-LOOKS (systems/modelLooks.js, ui/enhanced/modelLookRow.js): the 3D tab's ONE row on the player's own pieces -
+  // the port's own looks and every Morrowind record together; a choice rebuilds the body as a look's switch does
+  const recordRow = side === 'local' && getPref('modelCustomization') === true ? modelLookRow({
+    item: picked, fpArm: deps.fpArm, ownLooks: looks,
+    onChange: () => { retainAppearanceCard(acts, picked); render(); rebuildForLook(deps.entity).then(() => { refresh(); render(); }).catch((e) => console.warn('[look] rebuild', e?.message ?? e)); },
+  }) : null;
+  if (looks && !recordRow) {
     const row = el('div', 'look-row');
     for (const c of looks) {
       const b = el('button', `look-pick${c.on ? ' on' : ''}`);
@@ -3837,7 +3850,8 @@ function itemActs(picked, side, { qty = true } = {}) {
         if (helmetAppearance) fitHelmetThumbnail(c.thumb).then((url) => { img.src = url; });
       } else b.append(el('span', 'look-name', c.label));
       b.onclick = () => {
-        if (!setLookVariant(picked, c.value)) return;
+        const fromRecord = setModelLook(picked, null);   // MODEL-LOOKS: an own look puts a chosen record down
+        if (!setLookVariant(picked, c.value) && !fromRecord) return;
         retainAppearanceCard(acts, picked);
         for (const button of row.querySelectorAll('.look-pick')) {
           const on = button === b;
@@ -3848,17 +3862,24 @@ function itemActs(picked, side, { qty = true } = {}) {
       };
       row.append(b);
     }
-    if (helmetAppearance) modelRow = row;
+    // PAPERDOLL-LOOKS: the 3D row is the appearance card's 3D tab on the player's own pieces (below)
+    if (side === 'local') modelRow = row;
     else acts.append(row);
-  } else if (shieldAppearance) {
+  } else if (shieldAppearance && !recordRow && !looks) {
     const status = el('div', 'look-name', 'Нет совместимых вариантов для этого типа и материала щита');
     status.setAttribute('role', 'status');
     acts.append(status);
   }
-  if (helmetAppearance) acts.append(helmetAppearancePicker({
-    item: picked, identity: paperDollDisplayIdentity(deps.entity), modelRow,
-    onChange: () => { retainAppearanceCard(acts, picked); refresh(); render(); refreshFigure(); },
-  }));
+  // PAPERDOLL-LOOKS (systems/paperdollLooks.js): ONE appearance card for every piece of the player's own - its 3D tab (the
+  // row above) and its 2D tab (the inventory's 2D card), two tabs when both are on, one full-width tab when one is
+  if (recordRow) modelRow = recordRow;
+  if (side === 'local') {
+    const card = (helmetAppearance ? helmetAppearancePicker : paperdollAppearancePicker)({
+      item: picked, identity: paperDollDisplayIdentity(deps.entity), modelRow,
+      onChange: () => { retainAppearanceCard(acts, picked); refresh(); render(); refreshFigure(); },
+    });
+    if (card) acts.append(card);
+  }
   // CHAT-POST: link into the field (write a line around it) - online, where the host hands the door
   if (deps.canPostItem?.()) {
     const link = el('button', 'act', 'Link in chat');

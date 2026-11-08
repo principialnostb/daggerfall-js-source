@@ -1531,7 +1531,7 @@ export const MOD_WEAPON_TO_MW = Object.freeze({
   514: MW_WEAPON_TYPE.BluntOneHand,   // Light Flail
 });
 
-export function pickWeaponRecord(records, type, material = null, { has = null, shape = null } = {}) {
+export function pickWeaponRecord(records, type, material = null, { has = null, shape = null, pick = null } = {}) {
   // AUDIT MW-A F3: id-sorted, for the face's own reason (D27) - file
   // order is a property of the LOAD, and `ofType[0]` handed a player
   // whichever record their archive arrangement listed first. Sorted,
@@ -1541,6 +1541,8 @@ export function pickWeaponRecord(records, type, material = null, { has = null, s
   const sorted = (records ?? []).filter((r) => r.type === type && !r.enchanted)
     .sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
   if (!sorted.length) return null;
+  // MODEL-LOOKS (systems/modelLooks.js): the player's chosen record of this type, when its mesh is there
+  if (pick) { const chosen = sorted.find((r) => r.id === pick && (!has || has(`meshes/${r.model}`))); if (chosen) return chosen; }
   // MW-D50 (Mac: on a Morrowind bow "the arrow is never shown being
   // ready"): A RECORD WHOSE MESH THE ARCHIVES CARRY. The records come
   // from EVERY .esm attached and the meshes from whichever .bsa files

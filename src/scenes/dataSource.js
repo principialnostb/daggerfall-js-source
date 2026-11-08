@@ -1288,7 +1288,8 @@ async function registerTextureStoreNow({ warm }) {
   const { installVanillaEnhancedPack } = await import('../systems/vanillaEnhanced/vanillaEnhancedPack.js');   // VE4
   const { getPref } = await import('../systems/uiPrefs.js');
   setDfmodDetailSource(() => getPref('dfmodTextureDetail'));   // DFMOD2: the packs card's detail choice
-  installVanillaEnhancedPack();   // VE4: the shipped mods, in one load order with the attached
+  const { testBuildPaperdollPacks } = await import('../systems/testBuildPaperdoll.js');
+  installVanillaEnhancedPack(await testBuildPaperdollPacks());   // VE4: the shipped mods, in one load order with the attached
   const names = await storedTextureNames();
   const n = setTextureReplacements(names, loadTextureFile);
   setWeaponWidgetSources(names, loadTextureFile);   // WW1: Weapon Widget's bundle, its double-scale textures

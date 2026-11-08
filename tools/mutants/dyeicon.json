@@ -2,7 +2,7 @@
   {
     "name": "DYE-ICON-the-swatch-ignored",
     "file": "src/characters/dyes.js",
-    "old": "for (let i = 0; i < data.length; i++) data[i] = applyDyeToIndex(bitmap.data[i], dye, target);",
+    "old": "for (let i = 0; i < data.length; i++) data[i] = remap(bitmap.data[i]);",
     "new": "for (let i = 0; i < data.length; i++) data[i] = bitmap.data[i];",
     "tests": [
       "test/systems/item/dyeicon.test.js"
@@ -11,8 +11,8 @@
   {
     "name": "DYE-ICON-the-source-edited",
     "file": "src/characters/dyes.js",
-    "old": "  const data = new Uint8Array(bitmap.data.length);\n  for (let i = 0; i < data.length; i++) data[i] = applyDyeToIndex",
-    "new": "  const data = bitmap.data;\n  for (let i = 0; i < data.length; i++) data[i] = applyDyeToIndex",
+    "old": "  const data = new Uint8Array(bitmap.data.length);\n  const remap = dyeIndexRemap",
+    "new": "  const data = bitmap.data;\n  const remap = dyeIndexRemap",
     "tests": [
       "test/systems/item/dyeicon.test.js"
     ]
@@ -56,7 +56,7 @@
   {
     "name": "DYE-ICON-the-image-without-it",
     "file": "src/systems/item/itemTemplates.js",
-    "old": "  if (t.kitDye && Number.isFinite(_kitDye?.(item))) return { archive, record, dye: _kitDye(item), dyeTarget: DYE_TARGETS.WeaponsAndArmor };\n  return { archive, record, dye: itemDyeColor(item), dyeTarget: itemDyeTarget(item) };",
+    "old": "  if (t.kitDye && Number.isFinite(_kitDye?.(item))) return { archive, record, dye: _kitDye(item), dyeTarget: DYE_TARGETS.WeaponsAndArmor };\n  return { archive, record, dye: itemDyeColor(item), dyeTarget: Number.isInteger(look?.d) && (item.group === 'MensClothing' || item.group === 'WomensClothing') ? 2 : itemDyeTarget(item) };",
     "new": "  if (t.kitDye && Number.isFinite(_kitDye?.(item))) return { archive, record, dye: _kitDye(item), dyeTarget: DYE_TARGETS.WeaponsAndArmor };\n  return { archive, record, dye: itemDyeColor(item) };",
     "tests": [
       "test/systems/item/dyeicon.test.js"
