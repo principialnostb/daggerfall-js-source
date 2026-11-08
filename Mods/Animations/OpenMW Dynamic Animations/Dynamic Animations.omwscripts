@@ -1,0 +1,5 @@
+MENU: scripts/DynamicAnimations/menuSettings.lua
+GLOBAL: scripts/DynamicAnimations/global.lua
+PLAYER: scripts/DynamicAnimations/playerController.lua
+PLAYER: scripts/DynamicAnimations/player.lua
+NPC: scripts/DynamicAnimations/odarController.lua
