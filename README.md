@@ -2,6 +2,8 @@
 
 ## Установка игры с готовыми модами
 
+[Скачать DFO Online Test Build](https://github.com/principialnostb/daggerfall-js-source/releases/download/testers-1794178282396/DFO-Online-Test-Build-Setup.exe). Моды, Paperdoll Enhanced и SAVE2 включены; автообновления отключены.
+
 | Папка | Файлов | Размер |
 | --- | ---: | ---: |
 | `Animations/Axel's Sexy Walk Fixed` | 6 | 0.2 MiB |
