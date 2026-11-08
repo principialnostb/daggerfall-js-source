@@ -38,9 +38,11 @@ import { ASK_AGAIN_NOW, jittered } from './backoff.js';
 import { walletReserve } from './realm/realmGoldLaw.js'; // MARKET-AUDIT: a refusal gives back exactly what the payment took   // SCALE1: asks again spread out, and never at once into a minute's refusal
 
 export const MARKET_KEPT_KEY = 'prof5.kept';
-export const MARKET_CACHE_MS = 60_000;
+export const MARKET_CACHE_MS = 300_000;
+/** How long one answer of the market's change mark serves every view that asks. */
+export const MARKET_STAMP_MS = 3_000;
 /** MEM-AUDIT (2026-10-23): how many reads the cache keeps - one a query (a page, a sort, a filter), each a whole view, and it
- *  was cleared only by an act; past their minute they are the stale answer to a failed read, so the oldest go, not the old. */
+ *  was cleared only by an act; past their time they are the stale answer to a failed read, so the oldest go, not the old. */
 export const MARKET_CACHE_KEPT = 256; // AUDIT MEM-AUDIT U3: a long browse's views (64 dropped a view the player came back to after 70 pages)
 export const MARKET_TRIES = 3;
 export const MARKET_RETRY_MS = Object.freeze([400, 1500]);
@@ -331,6 +333,8 @@ export function createMarketBook({
       q.sort ?? '',
       q.recipes ? `r:${q.recipes.join(',')}` : '',
       q.quality ?? 0,
+      q.find ?? '', // a Goods search's words - each its own read, kept its minute
+      q.affixes ? `a:${JSON.stringify(q.affixes)}` : '', // and its affix lines
     ].join('|'); // AUDIT SEATS-3 D2: and the board (its cap); MARKET-AUDIT P2: and the account and character (another's My listings was served a minute); BOARD-SIFT: and the page, its order, a search's recipes (AUDIT BOARD-SIFT: one that names none is no read without one) and the least quality
   const pending = new Map();
   /** AUDIT 30 C6: the acts answered so far - a read begun before an act's answer is overtaken by it, and asked again. */
@@ -340,7 +344,7 @@ export function createMarketBook({
   async function read(view, q, { force = false } = {}) {
     const key = keyOf(view, q);
     const hit = touch(key);
-    if (!force && hit && now() - hit.at < MARKET_CACHE_MS) {
+    if (!force && hit && now() - hit.at < MARKET_CACHE_MS && (await unmoved(view, hit))) {
       // MARKET-AUDIT P3: the board's own listing cap with it - two boards a minute apart said the other's
       if (Number.isSafeInteger(hit.data?.listingsMax) && hit.data.listingsMax > 0)
         state.listingsMax = hit.data.listingsMax;
@@ -352,11 +356,12 @@ export function createMarketBook({
     // read again, never `null` (the tab threw on it, and stood blank)
     if (pending.has(pk)) return pending.get(pk).then((out) => out ?? read(view, q, { force: true }));
     const p = (async () => {
-      const a = await ask(() => door.read({ character: character(), view, ...q }));
+      const [a, mark] = await Promise.all([ask(() => door.read({ character: character(), view, ...q })), stampNow()]);
       if (g !== gen) return null;
       const r = heard(a);
       const e = {
         at: now(),
+        stamp: r?.ok ? (mark?.[view] ?? null) : null,
         data: r?.ok ? r.data : (hit?.data ?? null),
         error: r?.ok ? null : (r?.error ?? 'server'),
         stale: !r?.ok && !!hit?.data,
@@ -377,7 +382,28 @@ export function createMarketBook({
   }
   function forget() {
     cache.clear();
+    stamped = null;
     gen++;
+  }
+  /** Each view's change mark, asked at most once in MARKET_STAMP_MS however many views ask; null when it can't be read. */
+  let stamped = /** @type {{ at: number, p: Promise<Record<string, string>|null> }|null} */ (null);
+  function stampNow() {
+    if (!door.stamp) return Promise.resolve(null);
+    if (stamped && now() - stamped.at < MARKET_STAMP_MS) return stamped.p;
+    const asked = Promise.resolve()
+      .then(() => door.stamp())
+      .then((answer) =>
+        answer?.ok && answer.data?.stamp && typeof answer.data.stamp === 'object' ? answer.data.stamp : null,
+      )
+      .catch(() => null);
+    stamped = { at: now(), p: asked };
+    return asked;
+  }
+  /** A cached read stands while its view's mark has not moved since it was read; with no mark, on its time alone. */
+  async function unmoved(view, hit) {
+    if (hit.stamp == null) return true;
+    const mark = (await stampNow())?.[view];
+    return mark == null || mark === hit.stamp;
   }
 
   // ─── THE ACTS ──────────────────────────────────────────────────────

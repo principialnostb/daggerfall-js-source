@@ -30,7 +30,7 @@ import { createGatherHost, aimAt } from '../../src/scenes/gatherHost.js';
 import { setForagingHost } from '../../src/systems/foraging/foragingInstall.js';
 import { FT } from '../../src/systems/foraging/foragingLaw.js';
 import { HEIGHTMAP_DIMENSION, TERRAIN_SIZE } from '../../src/world/terrain/terrainSampler.js';
-import { createMarketBook } from '../../src/net/marketBook.js';
+import { createMarketBook, MARKET_CACHE_MS } from '../../src/net/marketBook.js';
 import { createMarketTab } from '../../src/ui/marketTab.js';
 import { SEAT_ROWS_SQL, SEAT_JUDGED_SQL } from '../../server-account/src/townSeats.js';   // LEAN-WITNESS
 
@@ -360,8 +360,8 @@ test('MARKET-SPEED client: the book says whether its minute\'s cache would answe
   await book.read('materials', q);
   assert.equal(book.fresh('materials', q), true);
   assert.equal(book.fresh('orders', q), false, 'another view');
-  t += 60_000;
-  assert.equal(book.fresh('materials', q), false, 'the minute past');
+  t += MARKET_CACHE_MS;
+  assert.equal(book.fresh('materials', q), false, 'the cache time past');
 });
 
 test('MARKET-SPEED client: a view the minute\'s cache answers is drawn once, with its answer - never a "Reading the market..." frame first; an uncached one draws its wait (mutant: the wait drawn whatever the cache)', async () => {

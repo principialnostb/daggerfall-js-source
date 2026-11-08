@@ -124,6 +124,7 @@ on:
       - "src/net/kitMight.js"
       - "src/net/mightLaw.js"
       - "src/net/marketLaw.js"
+      - "src/net/marketAffixLaw.js"
       - "src/net/vendorLaw.js"
       - "src/net/patronLaw.js"
       - "src/net/writLaw.js"

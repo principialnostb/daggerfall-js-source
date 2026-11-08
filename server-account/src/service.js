@@ -991,6 +991,7 @@ export const ROUTES = new Set([
   // account's alone, and the board's, the professions' and the Marks' switches together. PROF5b: an auction posted, a bid.
   // GOLD-MARKET: a realm character's gold its sales hold, collected into its record.
   '/v1/market/read',
+  '/v1/market/stamp',
   '/v1/market/list',
   '/v1/market/buy',
   '/v1/market/cancel',

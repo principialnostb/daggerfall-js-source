@@ -7,8 +7,8 @@
 //
 // A VENDOR is a placed piece of a home's decor made the `vendor` station (net/decorLaw.js DECOR_STATIONS) - its licence
 // is the station's fee, paid once on the owner's record, as every station's. Its STOCK is market listings of pieces from
-// the owner's pack, for gold (MARKET-ANY's route, server-account/src/market.js listGood), carried AT THE VENDOR: such a
-// listing stands on no regional board and is bought at its vendor alone, by a visitor standing in the house. It stands
+// the owner's pack, for gold (MARKET-ANY's route, server-account/src/market.js listGood), carried AT THE VENDOR and on the
+// market board's Goods, bought at the vendor or from any board while its stall stands. It stands
 // VENDOR_LISTING_S, not the market's 72 hours. The proceeds are the market's gold (market_gold), collected at any board.
 //
 // The Notice Board's Vendors tab lists the region's vendors and their stock, searched by the item, the owner or the
@@ -25,8 +25,8 @@ export const VENDOR_STATION = 'vendor';
 export const VENDOR_LISTING_S = 30 * 86_400;
 /** The most stock rows a home's answer carries, and a region's directory. */
 export const VENDOR_STOCK_SHOWN = 60;
-/** MARKET-AUDIT: the pieces an account's traders stand at once - their own count, never the board's thirty (a stall stands
- *  on no board), at most what one home's answer carries. */
+/** MARKET-AUDIT: the pieces an account's traders stand at once - their own count, never the board's thirty (a stall's stock is
+ *  its own), at most what one home's answer carries. */
 export const VENDOR_STOCK_MAX = VENDOR_STOCK_SHOWN;
 export const VENDOR_BOARD_SHOWN = 300;
 /** A search's longest words. */

@@ -797,7 +797,7 @@
   {
     "name": "PROF5-book-no-cache",
     "file": "src/net/marketBook.js",
-    "old": "export const MARKET_CACHE_MS = 60_000;",
+    "old": "export const MARKET_CACHE_MS = 300_000;",
     "new": "export const MARKET_CACHE_MS = 0;",
     "tests": [
       "test/net/prof5_client.test.js"

@@ -88,8 +88,10 @@ import {
   fillTaxOn,   // MARKET-AUDIT S2
   wearOf,   // INT19: a crafted piece's wear, its record's
   marketPageOf, marketSortOf, marketQualityOf, recipesNamed, marketRecipesOf,   // BOARD-SIFT: a page, its order, a search's recipes
+  searchWords,   // a Goods search's words
 } from '../../src/net/marketLaw.js';
 import { MASTERWORK, PROVENANCE_RE } from '../../src/net/recipeLaw.js';
+import { marketAffixesOf } from '../../src/net/marketAffixLaw.js';   // the Goods searched by affix
 import { mintVersionOf, masterLinesOf } from '../../src/net/productRecord.js';   // CRAFT-PROCS: a piece's mint version, its record's; MASTER-ART: a Master's lines
 import { takeTradeGoods, giveTradeGoods } from '../../src/net/realm/realmTradeLaw.js';   // MARKET-ANY: a piece out of one record and into another, as a trade moves it
 import { prepareCraftedPiece, pieceComingBack } from './craftedPiece.js';   // INT19: a crafted piece out of its seller's record, and back as it
@@ -229,6 +231,11 @@ const recipeFamilyKeys = (family) => family ? (RECIPE_FAMILY_KEYS.get(family) ??
  *  for a view that lists every recipe and an unknown one too (Auctions), which is unfiltered (null) where nothing
  *  narrows it. */
 const CRAFTED_LISTED = Object.freeze(CRAFTED_FAMILIES.map(([f]) => f));
+/** A Goods search's words (marketLaw searchWords), each without its spaces, hyphens and apostrophes as
+ *  GOODS_NAME_SQL reads the name - at most six; none for no search. */
+export const goodsWordsOf = (query) => [...new Set(searchWords(typeof query === 'string' ? query : '').map((w) => w.replace(/[\s\-'’]+/g, '')).filter(Boolean))].slice(0, 6);
+/** A listed piece's name as a search reads it - lower case, its spaces, hyphens and apostrophes dropped. */
+const GOODS_NAME_SQL = `replace(replace(replace(replace(lower(COALESCE(json_extract(l.item, '$.name'), '')), ' ', ''), '-', ''), '''', ''), '’', '')`;
 function pieceKeys(family, recipes, listed = null) {
   if (family && (typeof family !== 'string' || (listed && !listed.includes(family)))) return '[]';
   if (!recipes) return family ? recipeFamilyKeys(family) : listed ? JSON.stringify(recipesNamed('', listed)) : null;
@@ -280,7 +287,7 @@ const rowBoard = (r) => (r?.board_x == null ? null : [Number(r.board_x), Number(
  *  the amount's expression. */
 const titheEnd = (g, amt) => `EXISTS (SELECT 1 FROM guilds WHERE id = ${g}) AND COALESCE((SELECT balance FROM guild_marks WHERE guild_id = ${g}), 0) + ${amt} <= ${MARKS_MAX}`;
 /** MARKET-AUDIT: a home's traders' stock an account (`?1`) stands - its own count (VENDOR_STOCK_MAX), never the board's
- *  thirty: "such a listing stands on no regional board" (vendorLaw.js), yet thirty pieces at a stall shut the board. */
+ *  thirty: a stall's stock is its own (though it stands on the board too), and thirty pieces at a stall never shut the board. */
 const stallSalesSql = () => `(SELECT COUNT(*) FROM market_listings WHERE seller = ?1 AND state = 'open' AND vendor_id IS NOT NULL)`;
 /** PROF5b: the open sales an account (`?1`) stands - its listings and its auctions (10.2's thirty are both); AUDIT 31
  *  L1: an auction past its end, a won one waiting on its seller's Marks cap, stands no longer - the moment at `now`. */
@@ -644,6 +651,21 @@ function mediansFrom(keys, /** @type {any[]} */ results, today) {
   return new Map(keys.map((k) => { const rows = by.get(k) ?? []; return [k, { median: medianOf(rows), line: medianLine(rows, today) }]; }));
 }
 
+/** Each view's change mark, from its open rows: their count, newest id and units left. A change moves its own view's
+ *  mark alone. My listings and History move with any change. */
+export async function marketStamp(ctx) {
+  const [listed, auctions, orders, done] = await readAll(ctx.db, [
+    ctx.db.prepare(`SELECT kind AS k, COUNT(*) || '.' || MAX(rowid) || '.' || TOTAL(own) || '.' || TOTAL(bought) AS m FROM market_listings WHERE state = 'open' GROUP BY kind`),
+    ctx.db.prepare(`SELECT COUNT(*) || '.' || COALESCE(MAX(rowid), 0) || '.' || TOTAL(bids) AS m FROM market_auctions WHERE state = 'open'`),
+    ctx.db.prepare(`SELECT COUNT(*) || '.' || COALESCE(MAX(rowid), 0) || '.' || TOTAL(left_units) AS m FROM market_orders WHERE state = 'open'`),
+    ctx.db.prepare(`SELECT COALESCE((SELECT MAX(rowid) FROM market_sales), 0) || '.' || COALESCE((SELECT MAX(rowid) FROM market_fills), 0) AS m`),
+  ]);
+  const kind = (name) => listed.find((row) => row.k === name)?.m ?? '0';
+  const stamp = { materials: kind('material'), crafted: kind('piece'), goods: kind('item'), auctions: auctions[0]?.m ?? '0', orders: orders[0]?.m ?? '0' };
+  const all = [...Object.values(stamp), done[0]?.m ?? '0'].join('|');
+  return { stamp: { ...stamp, mine: all, history: all } };
+}
+
 /**
  * THE MARKET TAB: `{ character, region, view, family?, tier?, material?, hubs? }` - the board's region and one of its
  * views (marketLaw MARKET_VIEWS), after the account's own market is settled. Every answer carries what is on its way
@@ -653,7 +675,7 @@ function mediansFrom(keys, /** @type {any[]} */ results, today) {
  * word, anything else its default.
  */
 export async function marketRead(ctx, player, env, { character, region, view, family = null, tier = null, material: key = null, materials = null, hubs, currency = 'marks', pieces = null, board = null,
-  page: pageAsked = 0, sort: sortAsked = null, recipes: recipesAsked = null, quality: qualityAsked = 0 } = {}) {
+  page: pageAsked = 0, sort: sortAsked = null, recipes: recipesAsked = null, quality: qualityAsked = 0, find: findAsked = null, affixes: affixesAsked = null } = {}) {
   const { db, nowS } = ctx;
   const refused = asks(player, { character, needRid: false });
   if (refused) return refused;
@@ -788,14 +810,25 @@ export async function marketRead(ctx, player, env, { character, region, view, fa
     // Legacy truthy non-string filters match nothing; never pass their objects/arrays to a D1 binding.
     const familyFilter = family ? (typeof family === 'string' ? family : '') : null;
     // BOARD-SIFT: a record goodOf would refuse is left out in the query too (an object's JSON alone), so a page is a page
+    // the pieces by name - every word of the search in the piece's name, read as wordsIn
+    // reads it (its spaces, hyphens and apostrophes dropped, so "shortbow" finds a Short Bow); each word bound, never spliced
+    const words = goodsWordsOf(findAsked);
+    // And by affix (src/net/marketAffixLaw.js) - each line asked carried by the piece, its kind,
+    // its param (none where the kind takes none) and at least its value; every line required. Nothing asked, nothing added.
+    const affixes = marketAffixesOf(affixesAsked);
+    const binds = [nowS, familyFilter, ...words, ...affixes.flatMap((a) => [a.id, a.param, a.min])];
+    const affixSql = affixes.map((_, i) => {
+      const n = 3 + words.length + i * 3;
+      return ` AND EXISTS (SELECT 1 FROM json_each(CASE WHEN json_valid(l.item) THEN l.item ELSE '{}' END, '$.affixes') x
+        WHERE json_extract(x.value, '$.id') = ?${n} AND json_extract(x.value, '$.param') IS ?${n + 1} AND json_extract(x.value, '$.value') >= ?${n + 2})`;
+    }).join('');
     const from = `FROM market_listings l WHERE state = 'open' AND kind = 'item' AND expires_at > ?1
-      AND (CASE WHEN json_valid(item) THEN json_type(item) = 'object' ELSE 0 END) AND (?2 IS NULL OR (${GOODS_FAMILY_SQL}) = ?2)
-      AND vendor_id IS NULL`;   // HOME-VENDOR: a trader's stock stands at it alone
-    const { rows: [counted, results], base } = await read([db.prepare(`SELECT COUNT(*) AS n ${from}`).bind(nowS, familyFilter),
-      db.prepare(`SELECT * ${from} ORDER BY ${PIECE_ORDER[/** @type {keyof typeof PIECE_ORDER} */ (sort)]} ${pageSql(page)}`).bind(nowS, familyFilter)]);
+      AND (CASE WHEN json_valid(item) THEN json_type(item) = 'object' ELSE 0 END) AND (?2 IS NULL OR (${GOODS_FAMILY_SQL}) = ?2)${words.map((_, i) => ` AND instr(${GOODS_NAME_SQL}, ?${i + 3}) > 0`).join('')}${affixSql}`;   // a trader's stock stands on the board too
+    const { rows: [counted, results], base } = await read([db.prepare(`SELECT COUNT(*) AS n ${from}`).bind(...binds),
+      db.prepare(`SELECT * ${from} ORDER BY ${PIECE_ORDER[/** @type {keyof typeof PIECE_ORDER} */ (sort)]} ${pageSql(page)}`).bind(...binds)]);
     const rows = results.filter((l) => { const it = goodOf(l.item); return !!it && (!family || goodFamily(it) === family); });
     const { quotes, reports } = await after({ quoted: rows, reported: rows.map((l) => l.id) });
-    return { ...base, ...paged(counted), rows: rows.map((l, i) => listingView(l, me, { road: quotes[i], ...(moderator ? { reports: reports.get(l.id) ?? 0 } : {}) })) };
+    return { ...base, ...paged(counted), rows: rows.map((l, i) => listingView(l, me, { road: quotes[i], ...(l.vendor_id != null ? { vendor: { map: Number(l.vendor_map), id: l.vendor_id } } : {}), ...(moderator ? { reports: reports.get(l.id) ?? 0 } : {}) })) };
   }
   if (view === 'auctions') {
     // PROF5b: every open auction, ending soonest first, each with its courier to this board (one piece)
@@ -1294,15 +1327,14 @@ export async function marketBuy(ctx, player, env, { character, region, listing: 
   // STAFF-PANEL3-REALM: a seller held or banned sells nothing - the word every game already reads for a listing it can no
   // longer buy (a word of its own would need its text in every language the game ships)
   if (Number(l.seller_stopped)) return { error: 'market-gone' };
-  // HOME-VENDOR: a trader's piece is bought at its trader alone - the buyer's word names the listing's own stall, in its
-  // home's region, and the stall still stands; any other listing is no trader's
+  // A buy at a trader names the listing's own stall, in its home's region. A trader's piece is on the market board too
+  // and is bought from any board, its courier the road's as every listing's - either way only while its stall stands
   const vend = vendor == null ? null : vendorOf(vendor);
   if (vendor != null && !vend) return { error: 'bad-vendor' };
-  if (l.vendor_id != null || vend) {
-    if (!vend) return { error: 'vendor-only' };
-    if (l.vendor_id !== vend.id || Number(l.vendor_map) !== vend.map || Number(l.region) !== region) return { error: 'vendor-not-here' };
+  if (vend && (l.vendor_id !== vend.id || Number(l.vendor_map) !== vend.map || Number(l.region) !== region)) return { error: 'vendor-not-here' };
+  if (l.vendor_id != null) {
     const stands = await db.prepare(`SELECT 1 AS y FROM home_decor d JOIN homes h ON h.map_id = d.map_id AND h.building_key = d.building_key
-      WHERE ${VENDOR_STANDS_SQL} AND h.player = ?3`).bind(vend.map, vend.id, l.seller).first();
+      WHERE ${VENDOR_STANDS_SQL} AND h.player = ?3`).bind(Number(l.vendor_map), l.vendor_id, l.seller).first();
     if (!stands) return { error: 'vendor-gone' };
   }
   // GOLD-MARKET: a gold listing is bought with a realm record's gold, a Drakes listing with the account's Drakes

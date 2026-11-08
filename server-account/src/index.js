@@ -349,7 +349,7 @@ import {
 import { contractBoard, postContract, withdrawContract, contractPayStatements, contractPaysOf } from './contracts.js';   // SILVER-WAYS: guild contracts
 import { motherlodesRead, strikeMotherlode, isMotherlodeNode } from './motherlodes.js';   // PROF2b: the Motherlodes
 import { profGround } from './witnessTiles.js';   // AUDIT FB1031 W3: the held map's witnessed tiles
-import { marketRead, marketList, marketBuy, marketCancel, marketOrder, marketFill, marketUnorder, marketCollect, marketReport, marketRemove, marketAuction, marketBid, marketGoldCollect, marketVendor, marketVendors, marketMyVendors, marketRoad } from './market.js';   // PROF5: the market; PROF5b: its auctions; GOLD-MARKET: gold held collected; RPT1026-MARKET: the road alone
+import { marketRead, marketStamp, marketList, marketBuy, marketCancel, marketOrder, marketFill, marketUnorder, marketCollect, marketReport, marketRemove, marketAuction, marketBid, marketGoldCollect, marketVendor, marketVendors, marketMyVendors, marketRoad } from './market.js';   // PROF5: the market; PROF5b: its auctions; GOLD-MARKET: gold held collected; RPT1026-MARKET: the road alone
 import {
   listRealm, createRealm, customsRealm, joinRealm, checkpointRealm, getRealmBlob, leaveRealm, deleteRealm, undoRealm,
   realmMintFacts, grantCustomsPass, REALM_CHARACTERS_MAX, REALM_MAX_BYTES, objectBytesOf,
@@ -2334,6 +2334,7 @@ const service = {
         const mctx = { ...ctx, bucket: env.SAVES };   // GOLD-MARKET: a gold buy or collect moves a realm record, in R2
         const act = {
           '/v1/market/read': () => marketRead(ctx, who.player, env, body),
+          '/v1/market/stamp': () => marketStamp(ctx),
           '/v1/market/list': () => marketList(mctx, who.player, env, body),   // MARKET-ANY: a pack's piece moves its seller's record
           '/v1/market/buy': () => marketBuy(mctx, who.player, env, body),
           '/v1/market/cancel': () => marketCancel(ctx, who.player, env, body),

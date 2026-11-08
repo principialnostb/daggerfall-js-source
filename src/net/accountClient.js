@@ -2611,6 +2611,7 @@ export function accountMarket({ fetch, storage, waitMs = ACCOUNT_ACT_WAIT_MS }) 
   return {
     account: () => storedSession(storage)?.id ?? null,
     read: (req) => post('/v1/market/read', req),
+    stamp: () => post('/v1/market/stamp', {}),
     list: (req) => post('/v1/market/list', req),
     buy: (req) => post('/v1/market/buy', req),
     cancel: (character, listing, rid) => post('/v1/market/cancel', { character, listing, rid }),

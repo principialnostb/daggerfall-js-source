@@ -139,8 +139,8 @@
   {
     "name": "MARKET-AUDIT-U6-word-kept",
     "file": "src/ui/marketTab.js",
-    "old": "    ui.hush?.();\n    st.view = view;",
-    "new": "    st.view = view;",
+    "old": "    ui.hush?.();\n    // the words searched go with the player",
+    "new": "    // the words searched go with the player",
     "tests": [
       "test/net/marketaudit.test.js"
     ]

@@ -20989,6 +20989,26 @@
   "tr": "f888589f3adc",
   "by": "claude-in-session"
  },
+ "market.sift.affixLabel": {
+  "en": "350f105edaf7",
+  "tr": "b54096aa9b5d",
+  "by": "claude-in-session"
+ },
+ "market.sift.affixMin": {
+  "en": "2233bfd2f569",
+  "tr": "21e0e0c5c675",
+  "by": "claude-in-session"
+ },
+ "market.sift.affixMinWord": {
+  "en": "b4e380389a77",
+  "tr": "8785c86f2af6",
+  "by": "claude-in-session"
+ },
+ "market.sift.anyAffix": {
+  "en": "07e9e7d6e09f",
+  "tr": "b13e76f8824e",
+  "by": "claude-in-session"
+ },
  "market.sift.anyQuality": {
   "en": "fc99c7aa369f",
   "tr": "2a276edf3965",

@@ -113,6 +113,7 @@ import { goodItemOf } from '../systems/tradePack.js'; // MARKET-LOOK: a pack's p
 import { itemLongName } from '../systems/item/itemInfo.js';
 import { walledText } from './storesWalled.js'; // RPT1026-MARKET STORES-SAID: what a listing may not take, said
 import { isStolen, stolenTag, stolenLine } from '../systems/stolenGoods.js'; // RPT1026-LEDGERLAW: a stolen piece said so where another player buys it
+import { marketAffixLines, marketAffixLine } from '../net/marketAffixLaw.js'; // the Goods searched by affix
 import { typedField } from './workSift.js'; // AUDIT BOARD-SIFT: a search read once its word is whole
 import { packPickerNode, packCardNode, freshPackSift, packTierWord } from './packPicker.js'; // PACK-PICK: a piece chosen from its picture
 import { itemLookRows } from '../systems/item/itemLook.js'; // PACK-PICK: and looked at before it is listed; MARKET-LOOK: and before it is bought
@@ -215,8 +216,9 @@ export const changedPieceWhy = () => t('market.why.changedPiece', CHANGED_PIECE_
 const LISTED_FAMILIES = Object.freeze(MARKET_FAMILIES.filter(([f]) => marketCatalogue().some((c) => c.family === f)));
 /** AUDIT 30 U11: the words that say the market is not this account's. */
 const SHUT = ['market-closed', 'prof-need-account'];
-/** BOARD-SIFT: the views searched by the pieces' names (the service reads the words as recipes - marketLaw recipesNamed). */
-const SEARCHED_VIEWS = Object.freeze(['crafted', 'auctions']);
+/** BOARD-SIFT: the views searched by the pieces' names (the service reads the words as recipes - marketLaw recipesNamed).
+ *  and Goods, whose words the service reads against the pieces' own names (`find`). */
+const SEARCHED_VIEWS = Object.freeze(['crafted', 'auctions', 'goods']);
 /** AUDIT BOARD-SIFT (lanes A, B, C: 52 recipes' pieces wear another name than the recipe's - a Pine Staff an "Iron Staff",
  *  a Warforged Dagger an "Ebony Dagger", every Wakizashi DFU's "Wakazashi"): THE NAME A RECIPE'S PIECE WEARS ON A ROW -
  *  minted as the host names a listed piece (scenes/world.js marketPieceName: itemLongName of mintPiece), plain Standard and
@@ -390,6 +392,9 @@ export function createMarketTab(m, ui) {
     sort: /** @type {string|null} */ (null),
     find: '',
     quality: 0,
+    // the Goods' three affix spots, each a line picked (its key and the least value it must carry) or null
+    // for any; every line picked required
+    affixes: /** @type {Array<{ key: string, min: number } | null>} */ ([null, null, null]),
     toTop: false,
   };
   const balance = () => m.book.state.balance;
@@ -450,8 +455,19 @@ export function createMarketTab(m, ui) {
     return {
       ...(MARKET_PAGED_VIEWS.includes(st.view) && st.page > 0 ? { page: st.page } : {}),
       ...(sorts && st.sort && st.sort !== sorts[0] ? { sort: st.sort } : {}),
-      ...(find ? { recipes: recipesNamed(find, families, recipeShownName) } : {}),
+      ...(find ? (st.view === 'goods' ? { find } : { recipes: recipesNamed(find, families, recipeShownName) }) : {}),
       ...(st.view === 'crafted' && st.quality > 0 ? { quality: st.quality } : {}),
+      ...(st.view === 'goods' && st.affixes.some(Boolean)
+        ? {
+            affixes: st.affixes
+              .filter((a) => a !== null)
+              .map((a) => ({
+                id: marketAffixLine(a.key)?.id,
+                param: marketAffixLine(a.key)?.param ?? null,
+                min: a.min,
+              })),
+          }
+        : {}),
     };
   };
   /** AUDIT 30 U3: the last read asked - an answer to an earlier one (a view or a filter since left) is dropped. */
@@ -572,13 +588,17 @@ export function createMarketTab(m, ui) {
   }
   const go = (view) => {
     ui.hush?.();
+    // the words searched go with the player from view to view - "iron" typed once reads the
+    // Materials, Crafted, Auctions and Goods alike, never typed again on each tab
+    const word = st.view === 'materials' ? st.query : SEARCHED_VIEWS.includes(st.view) ? st.find : null;
     st.view = view;
     st.picked = null;
     st.family = null;
     st.tier = 0;
     st.page = 0;
     st.sort = null;
-    st.find = '';
+    if (word != null) st.query = st.find = word;
+    st.affixes = [null, null, null]; // the Goods' own
     st.quality = 0; // BOARD-SIFT: a view opens on its first page, its own order
     st.data = m.book.cached(view, q());
     load(false);
@@ -742,7 +762,7 @@ export function createMarketTab(m, ui) {
       search.value = st.query;
       // AUDIT 30 U2: the words read from the service once the typing rests - the field is never redrawn under the keys.
       // AUDIT BOARD-SIFT: nor mid-word - a composed word is read once it is whole (workSift.js typedField)
-      const typed = typedField(search, 300, () => load(false));
+      const typed = typedField(search, 150, () => load(false)); // 150 ms after the last key (was 300)
       search.oninput = () => {
         st.query = search.value;
         st.picked = null;
@@ -813,6 +833,47 @@ export function createMarketTab(m, ui) {
       );
     return row;
   }
+  /** The Goods by affix, a row of its own under the filters - three spots, each "Any affix"
+   *  until a line is picked from every line a piece may carry, then its least value beside it; every line picked required. */
+  function affixesNode() {
+    const row = el('div', 'market-filters market-affixes');
+    st.affixes.forEach((a, i) => {
+      const taken = new Set(st.affixes.filter((b, k) => b && k !== i).map((b) => b.key));
+      const box = el('span', 'market-affix');
+      box.style.cssText = 'display:inline-flex;align-items:center;gap:6px;white-space:nowrap';
+      box.append(
+        select(
+          [
+            ['', t('market.sift.anyAffix', 'Any affix')],
+            ...marketAffixLines()
+              .filter((line) => !taken.has(line.key))
+              .map((line) => [line.key, line.name]),
+          ],
+          a?.key ?? '',
+          (key) => {
+            st.affixes[i] = marketAffixLine(key) ? { key, min: 1 } : null;
+            refilter();
+          },
+          t('market.sift.affixLabel', 'Affix'),
+        ),
+      );
+      if (a) {
+        // the box says what it holds - a bare "1" beside the line read as nothing
+        const least = numberInput(a.min, 1, 99, t('market.sift.affixMin', 'At least'), `affix-min|${i}`);
+        least.style.width = '4.5em';
+        const typed = typedField(least, 300, refilter);
+        least.oninput = () => {
+          a.min = intOf(least.value, 1, 99);
+          typed();
+        };
+        const word = el('span', 'market-least', t('market.sift.affixMinWord', 'at least'));
+        word.style.cssText = 'font-size:13px;opacity:0.8';
+        box.append(word, least);
+      }
+      row.append(box);
+    });
+    return row;
+  }
   /** BOARD-SIFT: the search of the pieces - its words read by the service once the typing rests, as the materials' are. */
   function findNode() {
     const find = /** @type {HTMLInputElement} */ (el('input', 'notice-input market-search'));
@@ -821,7 +882,7 @@ export function createMarketTab(m, ui) {
     find.setAttribute('data-focus', `find|${st.view}`);
     find.maxLength = MARKET_QUERY_MAX;
     find.value = st.find;
-    const typed = typedField(find, 300, refilter); // AUDIT BOARD-SIFT: a composed word read once it is whole
+    const typed = typedField(find, 150, refilter); // AUDIT BOARD-SIFT: a composed word read once it is whole; 150 ms after the last key (was 300), read as they type
     find.oninput = () => {
       st.find = find.value;
       typed();
@@ -2084,7 +2145,7 @@ export function createMarketTab(m, ui) {
       // filters, the way to sell one of your own - My listings' form, opened on the pack
       const filters = filtersNode(GOODS_FAMILIES);
       if (goldOk() && m.goods) filters.append(sellPackButton());
-      box.append(filters);
+      box.append(filters, affixesNode());
       const rows = byLanded(st.data?.rows ?? []);
       const list = el('div', 'market-rows');
       if (rows.length) list.append(listHead('market-piece', ['Piece', 'Condition', 'Price', 'From']));
@@ -2093,7 +2154,13 @@ export function createMarketTab(m, ui) {
         if (st.picked === r.id) list.append(...pickedNodes(r, pickedBar(r)));
       }
       if (st.data && !rows.length)
-        list.append(el('p', 'notice-empty', st.family ? MARKET_WORDS.noGoodsKind : MARKET_WORDS.noGoods));
+        list.append(
+          el(
+            'p',
+            'notice-empty',
+            st.family || st.affixes.some(Boolean) || st.find.trim() ? MARKET_WORDS.noGoodsKind : MARKET_WORDS.noGoods,
+          ),
+        ); // a search found none
       if (!goldOk()) list.append(el('p', 'notice-tip', accountRefusalText('market-gold-realm')));
       box.append(list);
       paged(box, list);

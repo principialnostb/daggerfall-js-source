@@ -239,8 +239,8 @@
   {
     "name": "BOARD-SIFT-book-the-key-without-them",
     "file": "src/net/marketBook.js",
-    "old": "      q.page ?? 0,\n      q.sort ?? '',\n      q.recipes ? `r:${q.recipes.join(',')}` : '',\n      q.quality ?? 0,\n    ].join('|'); // AUDIT SEATS-3 D2: and the board (its cap); MARKET-AUDIT P2: and the account and character (another's My listings was served a minute); BOARD-SIFT: and the page, its order, a search's recipes (AUDIT BOARD-SIFT: one that names none is no read without one) and the least quality",
-    "new": "    ].join('|'); // AUDIT SEATS-3 D2: and the board (its cap); MARKET-AUDIT P2: and the account and character (another's My listings was served a minute); BOARD-SIFT: and the page, its order, a search's recipes (AUDIT BOARD-SIFT: one that names none is no read without one) and the least quality",
+    "old": "      q.page ?? 0,\n      q.sort ?? '',\n      q.recipes ? `r:${q.recipes.join(',')}` : '',\n      q.quality ?? 0,\n      q.find ?? '',",
+    "new": "      q.find ?? '',",
     "tests": [
       "test/net/boardsift_market.test.js"
     ]
@@ -608,7 +608,7 @@
   {
     "name": "BOARD-SIFT-market-the-search-unsent",
     "file": "src/ui/marketTab.js",
-    "old": "      ...(find ? { recipes: recipesNamed(find, families, recipeShownName) } : {}),\n      ...(st.view === 'crafted' && st.quality > 0 ? { quality: st.quality } : {}),",
+    "old": "      ...(find ? (st.view === 'goods' ? { find } : { recipes: recipesNamed(find, families, recipeShownName) }) : {}),\n      ...(st.view === 'crafted' && st.quality > 0 ? { quality: st.quality } : {}),",
     "new": "      ...(st.view === 'crafted' && st.quality > 0 ? { quality: st.quality } : {}),",
     "tests": [
       "test/ui/boardsift.test.js"
@@ -617,8 +617,8 @@
   {
     "name": "BOARD-SIFT-market-the-shown-names-unread",
     "file": "src/ui/marketTab.js",
-    "old": "      ...(find ? { recipes: recipesNamed(find, families, recipeShownName) } : {}),",
-    "new": "      ...(find ? { recipes: recipesNamed(find, families) } : {}),",
+    "old": "      ...(find ? (st.view === 'goods' ? { find } : { recipes: recipesNamed(find, families, recipeShownName) }) : {}),",
+    "new": "      ...(find ? (st.view === 'goods' ? { find } : { recipes: recipesNamed(find, families) }) : {}),",
     "tests": [
       "test/ui/boardsift.test.js"
     ]
@@ -770,8 +770,8 @@
   {
     "name": "BOARD-SIFT-market-a-view-keeps-the-last-ones-filters",
     "file": "src/ui/marketTab.js",
-    "old": "    st.page = 0;\n    st.sort = null;\n    st.find = '';\n    st.quality = 0; // BOARD-SIFT: a view opens on its first page, its own order\n    st.data = m.book.cached(view, q());",
-    "new": "    st.data = m.book.cached(view, q());",
+    "old": "    st.page = 0;\n    st.sort = null;\n    if (word != null) st.query = st.find = word;\n    st.affixes = [null, null, null]; // the Goods' own",
+    "new": "    if (word != null) st.query = st.find = word;",
     "tests": [
       "test/ui/boardsift.test.js"
     ]
@@ -804,5 +804,14 @@
     ],
     "equivalent": true,
     "why": "kept as belt and braces: no row on two pages rests on the database answering equal keys the same way in two reads, which SQLite does for one plan but does not promise; no fixture can make it fail"
+  },
+  {
+    "name": "MARKET-SEARCH-book-the-key-without-the-words-and-affixes",
+    "file": "src/net/marketBook.js",
+    "old": "      q.find ?? '', // a Goods search's words - each its own read, kept its minute\n      q.affixes ? `a:${JSON.stringify(q.affixes)}` : '', // and its affix lines\n",
+    "new": "",
+    "tests": [
+      "test/net/boardsift_market.test.js"
+    ]
   }
 ]

@@ -28,10 +28,10 @@
     ]
   },
   {
-    "name": "HOMEVENDOR-the-goods-view-unfiltered",
+    "name": "HOMEVENDOR-the-board-without-the-trader",
     "file": "server-account/src/market.js",
-    "old": "\n      AND vendor_id IS NULL`;",
-    "new": "`;",
+    "old": "${affixSql}`;   // a trader's stock",
+    "new": "${affixSql} AND vendor_id IS NULL`;   // a trader's stock",
     "tests": [
       "test/net/homevendor_service.test.js"
     ]
@@ -39,8 +39,8 @@
   {
     "name": "HOMEVENDOR-the-stall-unchecked",
     "file": "server-account/src/market.js",
-    "old": "  if (l.vendor_id != null || vend) {\n    if (!vend) return { error: 'vendor-only' };",
-    "new": "  if (vend) {\n    if (!vend) return { error: 'vendor-only' };",
+    "old": "  if (l.vendor_id != null) {\n    const stands",
+    "new": "  if (vend) {\n    const stands",
     "tests": [
       "test/net/homevendor_service.test.js"
     ]
